@@ -315,7 +315,7 @@ void systemBus::setup()
 #ifndef FUJINET_OVER_USB
     _port.begin(ChannelConfig()
                 .baud(Config.get_rs232_baud())
-                .readTimeout(5000)
+                .readTimeout(200)
                 .deviceID(SERIAL_DEVICE))
         ;
 
