@@ -32,6 +32,9 @@
 // Debugging bits.
 // Global debug object.
 RemoteDebug Debug;
+
+int inCommand=false;
+
 const char* ssid = "Cherryhomes";
 const char* password = "e1xb64XC46";
 
@@ -39,17 +42,18 @@ String hostNameWifi = MDNS_HOST_NAME;
 
 void sio_cmd_change()
 {
-  debugI("SIO COMMAND change");
-  while (Serial.available())
-    {
-      debugI("D: %d",Serial.read());
-    }
+  debugI("SIO Command frame");
+  debugI("C: 0x%02x",Serial.read());
+  debugI("C: 0x%02x",Serial.read());
+  debugI("C: 0x%02x",Serial.read());
+  debugI("C: 0x%02x",Serial.read());
+  debugI("C: 0x%02x",Serial.read());
 }
 
 void setup() {
   WiFi.begin(ssid, password);
-  Serial.begin(19200);
-  
+  Serial.begin(19200,SERIAL_8N1);
+  Serial.swap();
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
@@ -62,12 +66,13 @@ void setup() {
   Debug.setResetCmdEnabled(true); // Enable the reset command
   Debug.showProfiler(true); // Profiler (Good to measure times, to optimize codes)
   Debug.showColors(true); // Colors
-  attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_cmd_change, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_cmd_change, FALLING);
   debugI("setup complete.");
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
+  
   Debug.handle();
   yield();
 }
