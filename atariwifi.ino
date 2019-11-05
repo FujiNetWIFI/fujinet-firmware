@@ -148,7 +148,7 @@ void process_drive_read()
   
   debugI("READ");
 
-  offset=(cmdFrame[3]*256)+cmdFrame[2];
+  offset=(cmdFrame[3]*256)+cmdFrame[2]+16; // 16 byte ATR header.
   atr.seek(offset,SeekSet);
 
   atr.read(sector,128);
