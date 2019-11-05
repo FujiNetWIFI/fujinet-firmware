@@ -247,12 +247,14 @@ void loop() {
             debugI("C%d: 0x%X ACK!", cmdFramePos, cmdFrame[cmdFramePos]);
             Serial.write('A');
             validCommand = true;
+            cmdFramePos++;
           }
           else
           {
             debugI("C%d: 0x%X NAK!", cmdFramePos, cmdFrame[cmdFramePos]);
             Serial.write('N');
             validCommand = false;
+            cmdFramePos++;
           }
         }
       }
