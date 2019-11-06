@@ -1,51 +1,26 @@
 #include <FS.h>
-#include <ESP8266mDNS.h>
-
-#include <RemoteDebug.h>
-#include <RemoteDebugCfg.h>
-#include <RemoteDebugWS.h>
-#include <telnet.h>
-
-#include <ESP8266WiFi.h>
-#include <ESP8266WiFiAP.h>
-#include <ESP8266WiFiGeneric.h>
-#include <ESP8266WiFiMulti.h>
-#include <ESP8266WiFiScan.h>
-#include <ESP8266WiFiSTA.h>
-#include <ESP8266WiFiType.h>
-#include <WiFiClient.h>
-#include <WiFiClientSecure.h>
-#include <WiFiServer.h>
-#include <WiFiUdp.h>
-
-#include <dummy.h>
 
 /**
-   Atari WIFI Modem Firmware
+   SIO test #4
 */
-
-#define HOST_NAME      "remotedebug"
-#define MDNS_HOST_NAME "remotedebug.local"
 
 #define PIN_LED        2
 #define PIN_CMD        12
 
-#define READ_CMD_TIMEOUT  500
-
-// Debugging bits.
-// Global debug object.
-RemoteDebug Debug;
-const char* ssid = "";
-const char* password = "";
-
-String hostNameWifi = MDNS_HOST_NAME;
-
-bool incomingSioCmd = false;
-bool validCommand = false;
-int cmdFrame[5]; // Holds the command frame data
-int cmdFramePos = 0; // Position in command frame array
-unsigned long cmdTimeoutInterval; // max wait time for cmd frame
 File atr;
+bool cmd; // inside command frame?
+
+struct _cmdFrame
+{
+  unsigned char devic;
+  unsigned char comnd;
+  unsigned char aux1;
+  unsigned char aux2;
+  unsigned char cksum;
+} cmdFrame;
+
+byte buf[512];
+int pos;
 
 /**
    calculate 8-bit checksum.
@@ -60,102 +35,41 @@ byte sio_checksum(byte* chunk, int length)
 }
 
 /**
-   interrupt when SIO line lowers.
+   Interrupt routine called when
 */
-void sio_cmd_change()
+void sio_cmd()
 {
-  int pinState = digitalRead(PIN_CMD);
-  if (pinState == 0) // low indicates incoming cmd frame
+  switch (digitalRead(PIN_CMD))
   {
-    incomingSioCmd = true;
-    cmdTimeoutInterval = millis();
-    Serial.flush();
+    case HIGH:
+      cmd = false;
+      break;
+    case LOW:
+      cmd = true;
+      break;
   }
-  else if (pinState == 1) // back to high, cmd frame over
-  {
-    incomingSioCmd = false;
-    cmdFramePos = 0;
-    Serial.flush();
-  }
-}
 
-void sio_cmd_start()
-{
-  incomingSioCmd = true;
-  validCommand = false;
-  cmdTimeoutInterval = millis();
-}
-
-void setup() {
-  SPIFFS.begin();
-  atr = SPIFFS.open("autorun.atr","r");
-  WiFi.begin(ssid, password);
-  Serial.begin(19200);
+  pos = 0;
   Serial.flush();
-  Serial.swap();
-
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-  }
-
-  WiFi.hostname(MDNS_HOST_NAME);
-  MDNS.begin(HOST_NAME);
-  MDNS.addService("telnet", "tcp", 23);
-  Debug.begin(HOST_NAME);
-  Debug.setResetCmdEnabled(true); // Enable the reset command
-  Debug.showProfiler(true); // Profiler (Good to measure times, to optimize codes)
-  Debug.showColors(true); // Colors
-  pinMode(PIN_CMD, INPUT);
-  attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_cmd_start, FALLING);
-  debugI("setup complete.");
 }
 
 /**
-   Drive status
+   drive commands
 */
-void process_drive_status()
-{
-  byte status[4];
-  byte ck;
-  debugI("STATUS");
-  status[0] = 0x00; // Last sio status
-  status[1] = 0xFF; // Inverted 1771 status
-  status[2] = 0xFE; // Format timeout;
-  status[3] = 0x00; // Reserved
-
-  ck = sio_checksum((byte *)&status, 4);
-
-  Serial.write('C'); // Indicate command complete
-  delay(1);
-
-  // write data frame
-  for (int i = 0; i < 4; i++)
-    Serial.write(status[i]);
-
-  // Write data frame checksum
-  Serial.write(ck);
-}
-
-/**
-   Drive read
-*/
-void process_drive_read()
+void drive_read()
 {
   byte ck;
   byte sector[128];
-  int offset;
-  
-  debugI("READ");
+  int offset = cmdFrame.aux1 + 256 * cmdFrame.aux2;
+  offset *= 128;
 
-  offset=(cmdFrame[3]*256)+cmdFrame[2]+16; // 16 byte ATR header.
-  atr.seek(offset,SeekSet);
-
-  atr.read(sector,128);
+  atr.seek(offset, SeekSet);
+  atr.read(sector, 128);
 
   ck = sio_checksum((byte *)&sector, 128);
 
-  Serial.write('C'); // Indicate command complete
+  // Completed command.
+  Serial.write('C');
   delay(1);
 
   // Write data frame
@@ -164,116 +78,104 @@ void process_drive_read()
 
   // Write data frame checksum
   Serial.write(ck);
+  delay(1);
+}
+
+void drive_status()
+{
+  byte status[4];
+  byte ck;
+
+  status[0] = 0x00;
+  status[1] = 0xFF;
+  status[2] = 0xFE;
+  status[3] = 0x00;
+
+  ck = sio_checksum((byte *)&status, 4);
+
+  Serial.write('C'); // Command always completes.
+  delay(1);
+
+  // Write data frame
+  for (int i = 0; i < 4; i++)
+    Serial.write(status[i]);
+
+  // Write checksum
+  Serial.write(ck);
 }
 
 /**
-   Process a drive command
+   Process drive commands
 */
-void process_drive_command()
+void process_drive()
 {
-  switch (cmdFrame[1])
+  switch (cmdFrame.comnd)
   {
-    case 'S':
-      process_drive_status();
-      break;
     case 'R':
-      process_drive_read();
+      drive_read();
+      break;
+    case 'S':
+      drive_status();
       break;
   }
 }
 
 /**
-   Process a valid command
+   Process command
 */
-void process_command() {
-  debugI("process_command()");
-  switch (cmdFrame[0])
+void process_command()
+{
+  switch (cmdFrame.devic)
   {
     case 0x31:
-      process_drive_command();
-      break;
-    default:
-      debugI("Not processing command for SIO ID: 0x%02x", cmdFrame[0]);
+      process_drive();
       break;
   }
 }
 
-void loop() {
-  byte cksum;
-  Debug.handle();
-  if (incomingSioCmd == true)
-  {
-    if (millis() - cmdTimeoutInterval > READ_CMD_TIMEOUT)
-    {
-      debugI("SIO COMMAND timeout");
-      incomingSioCmd = false;
-      cmdFramePos = 0;
-    }
-    if (cmdFramePos > 4)
-    {
-      debugI("SIO COMMAND end");
-      incomingSioCmd = false;
-      cmdFramePos = 0;
-    }
-    if (cmdFramePos == 0 && incomingSioCmd == true)
-      debugI("SIO COMMAND start");
+/**
+   Setup
+*/
+void setup()
+{
+  Serial.begin(19200);
+  Serial.flush();
+  Serial.swap();
+  pinMode(PIN_CMD, INPUT);
+  attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_cmd, CHANGE);
+  atr = SPIFFS.open("/autorun.atr", "r");
+}
 
-    if (Serial.available() > 0 && incomingSioCmd == true)
+void loop()
+{
+  byte ck;
+
+  if (cmd == true)
+  {
+    // Try to get the command frame into buffer.
+    while (pos < 5)
     {
-      cmdFrame[cmdFramePos] = Serial.read();
-      if (cmdFramePos == 0) {
-        if ((cmdFrame[cmdFramePos] > 47 && cmdFrame[cmdFramePos] < 56) // Disk drives
-            || (cmdFrame[cmdFramePos] > 79 && cmdFrame[cmdFramePos] < 84)) // R device
-        {
-          // Continue if valid device id
-          debugI("C%d: 0x%X", cmdFramePos, cmdFrame[cmdFramePos]); // Print in HEX
-          cmdFramePos++;
-        }
-        else
-        {
-          // Invalid Device ID, ignore the rest of this command
-          debugI("SIO COMMAND Invalid DeviceID: 0x%X", cmdFrame[cmdFramePos]);
-          incomingSioCmd = false;
-          cmdFramePos = 0;
-        }
-      }
-      else if (cmdFramePos == 4)
-      {
-        if ((cmdFrame[1] > 47 && cmdFrame[cmdFramePos] < 56) || (cmdFrame[1] > 79 && cmdFrame[cmdFramePos] < 84))
-        {
-          cksum = sio_checksum((byte *)&cmdFrame, 4);
-          if (cksum == cmdFrame[4])
-          {
-            debugI("C%d: 0x%X ACK!", cmdFramePos, cmdFrame[cmdFramePos]);
-            Serial.write('A');
-            validCommand = true;
-            cmdFramePos++;
-          }
-          else
-          {
-            debugI("C%d: 0x%X NAK!", cmdFramePos, cmdFrame[cmdFramePos]);
-            Serial.write('N');
-            validCommand = false;
-            cmdFramePos++;
-          }
-        }
-      }
-      else
-      {
-        debugI("C%d: 0x%X", cmdFramePos, cmdFrame[cmdFramePos]); // Print in HEX
-        cmdFramePos++;
-      }
+      while (Serial.available() == 0) {  }
+      buf[pos++] = Serial.read();
     }
-    if (digitalRead(PIN_CMD) == HIGH && incomingSioCmd == true)
+
+    ck = sio_checksum((byte *)&buf, 4);
+
+    if (ck == buf[4])
     {
-      debugI("SIO COMMAND end (pin HIGH)");
-      if (validCommand == true)
-        process_command();
-      incomingSioCmd = false;
-      validCommand = false;
-      cmdFramePos = 0;
+      cmdFrame.devic = buf[0];
+      cmdFrame.comnd = buf[1];
+      cmdFrame.aux1 = buf[2];
+      cmdFrame.aux2 = buf[3];
+      cmdFrame.cksum = buf[4];
+      Serial.write('A'); // ACK
+      delay(1);
+      process_command();
+    }
+    else
+    {
+      Serial.write('N'); // NAK
+      delay(1);
     }
   }
-
-  //yield(); // Not needed until our program gets bigger. This is automatically called every loop
 }
