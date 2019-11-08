@@ -1,26 +1,33 @@
-#include <FS.h>
-
 /**
-   SIO test #4
+   SIO Test #5 - Implement as a FSM
 */
 
-#define PIN_LED        2
+#include <FS.h>
+
+enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
+
+#define PIN_LED         2
+#define PIN_INT         5
+#define PIN_PROC        4
+#define PIN_MTR        16
 #define PIN_CMD        12
 
-File atr;
-bool cmd; // inside command frame?
+#define DELAY_T5       600
 
-struct _cmdFrame
+union
 {
-  unsigned char devic;
-  unsigned char comnd;
-  unsigned char aux1;
-  unsigned char aux2;
-  unsigned char cksum;
+  struct
+  {
+    unsigned char devic;
+    unsigned char comnd;
+    unsigned char aux1;
+    unsigned char aux2;
+    unsigned char cksum;
+  };
+  byte cmdFrameData[5];
 } cmdFrame;
 
-byte buf[512];
-int pos;
+File atr;
 
 /**
    calculate 8-bit checksum.
@@ -35,64 +42,160 @@ byte sio_checksum(byte* chunk, int length)
 }
 
 /**
-   Interrupt routine called when
+   ISR for falling COMMAND
 */
-void sio_cmd()
+void sio_isr_cmd()
 {
-  switch (digitalRead(PIN_CMD))
+  if (digitalRead(PIN_CMD) == LOW)
   {
-    case HIGH:
-      cmd = false;
-      break;
-    case LOW:
-      cmd = true;
-      break;
+    cmdState = ID;
   }
-
-  pos = 0;
-  Serial.flush();
+  else
+  {
+    cmdState = WAIT;
+  }
 }
 
 /**
-   drive commands
+   Get ID
 */
-void drive_read()
+void sio_get_id()
+{
+  while (Serial.available() == 0) { }
+  if (Serial.available() > 0)
+    cmdFrame.devic = Serial.read();
+  {
+    if (cmdFrame.devic == 0x31)
+      cmdState = COMMAND;
+    else
+      cmdState = WAIT;
+  }
+}
+
+/**
+   Get Command
+*/
+void sio_get_command()
+{
+  while (Serial.available() == 0) { }
+  if (Serial.available() > 0)
+  {
+    cmdFrame.comnd = Serial.read();
+    cmdState = AUX1;
+  }
+}
+
+/**
+   Get aux1
+*/
+void sio_get_aux1()
+{
+  while (Serial.available() == 0) { }
+  if (Serial.available() > 0)
+  {
+    cmdFrame.aux1 = Serial.read();
+    cmdState = AUX2;
+  }
+}
+
+/**
+   Get aux2
+*/
+void sio_get_aux2()
+{
+  while (Serial.available() == 0) { }
+  if (Serial.available() > 0)
+  {
+    cmdFrame.aux2 = Serial.read();
+    cmdState = CHECKSUM;
+  }
+}
+
+/**
+   Get Checksum, and compare
+*/
+void sio_get_checksum()
+{
+  byte ck;
+  while (Serial.available() == 0) { }
+  if (Serial.available() > 0)
+  {
+    cmdFrame.cksum = Serial.read();
+    ck = sio_checksum((byte *)&cmdFrame.cmdFrameData, 4);
+
+    if (ck == cmdFrame.cksum)
+    {
+      cmdState = ACK;
+    }
+    else
+    {
+      cmdState = NAK;
+    }
+  }
+}
+
+/**
+   Send an acknowledgement
+*/
+void sio_ack()
+{
+  delayMicroseconds(800);
+  Serial.write('A');
+  Serial.flush();
+  cmdState = PROCESS;
+}
+
+/**
+   Send a non-acknowledgement
+*/
+void sio_nak()
+{
+  delayMicroseconds(800);
+  Serial.write('N');
+  Serial.flush();
+  cmdState = WAIT;
+}
+
+/**
+   Read
+*/
+void sio_read()
 {
   byte ck;
   byte sector[128];
-  int offset = cmdFrame.aux1 + 256 * cmdFrame.aux2;
+  int offset =(256 * cmdFrame.aux2)+cmdFrame.aux1;
   offset *= 128;
-
+  offset -= 128;
   atr.seek(offset, SeekSet);
   atr.read(sector, 128);
 
   ck = sio_checksum((byte *)&sector, 128);
 
-  // Completed command.
-  Serial.write('C');
-  delay(1);
+  delayMicroseconds(600); // t5 delay
+  Serial.write('C'); // Completed command
 
   // Write data frame
   for (int i = 0; i < 128; i++)
+  {
     Serial.write(sector[i]);
+  }
 
   // Write data frame checksum
   Serial.write(ck);
-  delay(1);
+  delayMicroseconds(200);
 }
 
-void drive_status()
+/**
+   Status
+*/
+void sio_status()
 {
-  byte status[4];
+  byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
   byte ck;
-
-  status[0] = 0x00;
-  status[1] = 0xFF;
-  status[2] = 0xFE;
-  status[3] = 0x00;
 
   ck = sio_checksum((byte *)&status, 4);
 
+  delayMicroseconds(600); // t5 delay
   Serial.write('C'); // Command always completes.
   delay(1);
 
@@ -102,80 +205,76 @@ void drive_status()
 
   // Write checksum
   Serial.write(ck);
-}
-
-/**
-   Process drive commands
-*/
-void process_drive()
-{
-  switch (cmdFrame.comnd)
-  {
-    case 'R':
-      drive_read();
-      break;
-    case 'S':
-      drive_status();
-      break;
-  }
+  delayMicroseconds(200);
 }
 
 /**
    Process command
 */
-void process_command()
+
+void sio_process()
 {
-  switch (cmdFrame.devic)
+  switch (cmdFrame.comnd)
   {
-    case 0x31:
-      process_drive();
+    case 'R':
+      sio_read();
       break;
+    case 'S':
+      sio_status();
   }
+  cmdState = WAIT;
 }
 
-/**
-   Setup
-*/
 void setup()
 {
-  Serial.begin(19200);
-  Serial.flush();
-  Serial.swap();
+  SPIFFS.begin();
+  atr=SPIFFS.open("/autorun.atr","r");
+  
+  // Set up pins
+  pinMode(PIN_LED, OUTPUT);
+  digitalWrite(PIN_LED, HIGH);
+  pinMode(PIN_INT, INPUT);
+  pinMode(PIN_PROC, INPUT);
+  pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
-  attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_cmd, CHANGE);
-  atr = SPIFFS.open("/autorun.atr", "r");
+
+  // Set up serial
+  Serial.begin(19200);
+  Serial.swap();
+
+  // Attach COMMAND interrupt.
+  attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, CHANGE);
 }
 
 void loop()
 {
-  byte ck;
-
-  if (cmd == true)
+  switch (cmdState)
   {
-    // Try to get the command frame into buffer.
-    while (pos < 5)
-    {
-      while (Serial.available() == 0) {  }
-      buf[pos++] = Serial.read();
-    }
-
-    ck = sio_checksum((byte *)&buf, 4);
-
-    if (ck == buf[4])
-    {
-      cmdFrame.devic = buf[0];
-      cmdFrame.comnd = buf[1];
-      cmdFrame.aux1 = buf[2];
-      cmdFrame.aux2 = buf[3];
-      cmdFrame.cksum = buf[4];
-      Serial.write('A'); // ACK
-      delay(1);
-      process_command();
-    }
-    else
-    {
-      Serial.write('N'); // NAK
-      delay(1);
-    }
+    case ID:
+      sio_get_id();
+      break;
+    case COMMAND:
+      sio_get_command();
+      break;
+    case AUX1:
+      sio_get_aux1();
+      break;
+    case AUX2:
+      sio_get_aux2();
+      break;
+    case CHECKSUM:
+      sio_get_checksum();
+      break;
+    case ACK:
+      sio_ack();
+      break;
+    case NAK:
+      sio_nak();
+      break;
+    case PROCESS:
+      sio_process();
+      break;
+    case WAIT:
+      break;
   }
 }
