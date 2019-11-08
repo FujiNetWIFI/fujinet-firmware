@@ -175,10 +175,7 @@ void sio_read()
   Serial.write('C'); // Completed command
 
   // Write data frame
-  for (int i = 0; i < 128; i++)
-  {
-    Serial.write(sector[i]);
-  }
+  Serial.write(sector,128);
 
   // Write data frame checksum
   Serial.write(ck);
@@ -222,6 +219,7 @@ void sio_process()
     case 'S':
       sio_status();
   }
+  
   cmdState = WAIT;
 }
 
