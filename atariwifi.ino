@@ -50,10 +50,6 @@ void sio_isr_cmd()
   {
     cmdState = ID;
   }
-  else
-  {
-    cmdState = WAIT;
-  }
 }
 
 /**
