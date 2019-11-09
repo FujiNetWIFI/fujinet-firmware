@@ -18,8 +18,8 @@ byte buf[256];
 
 enum {MOUNT, OPEN, READ, CLOSE, UMOUNT, DONE} tnfs_state = MOUNT;
 
-const char* ssid = "Cherryhomes";
-const char* password = "e1x64XC46";
+const char* ssid = "XXXXXXX";
+const char* password = "XXXXX";
 
 byte retryCount = 0;
 int file_len;
