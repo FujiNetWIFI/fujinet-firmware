@@ -162,6 +162,7 @@ void sio_read()
   int offset =(256 * cmdFrame.aux2)+cmdFrame.aux1;
   offset *= 128;
   offset -= 128;
+  offset += 16; // bypass ATR header. assume single density for now.
   atr.seek(offset, SeekSet);
   atr.read(sector, 128);
 
