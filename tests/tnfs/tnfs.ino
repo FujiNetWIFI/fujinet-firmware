@@ -1,3 +1,7 @@
+/**
+   Test #6 - See if we can make an ESP8266 talk TNFS!
+*/
+
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiAP.h>
 #include <ESP8266WiFiGeneric.h>
@@ -29,9 +33,16 @@ byte read_fd;
 
 WiFiUDP UDP;
 
-/**
-   Test #6 - See if we can make an ESP8266 talk TNFS!
-*/
+union
+{
+  struct
+  {
+    unsigned short session_id;
+    unsigned char retryCount;
+    unsigned char command;
+  };
+  unsigned char rawData[4];  
+} tnfsHdr;
 
 void setup() {
   // put your setup code here, to run once:
@@ -49,220 +60,171 @@ void setup() {
 
   Serial.println("Initializing UDP.");
   UDP.begin(16384);
+
+  // Prime for mount command.
+  tnfsHdr.session_id=0;
+  tnfsHdr.retryCount=0;
+  tnfsHdr.command=0;
 }
 
 /**
-   mount TNFS server
-*/
+ * Write the header, beginPacket should have already been called.
+ */
+void tnfs_write_header()
+{
+  UDP.write(tnfsHdr.rawData,4);
+}
+
+/**
+ * Read the header, parsePacket should have already been called.
+ */
+void tnfs_read_header()
+{
+  UDP.read(tnfsHdr.rawData,4);  
+}
+
+/**
+ * Write the packet
+ */
+void tnfs_write_packet(unsigned char len)
+{
+  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
+  tnfs_write_header();
+  UDP.write(buf,len);
+  UDP.endPacket();
+}
+
+/**
+ * Read TNFS payload, returns length.
+ */
+int tnfs_read_packet()
+{
+  tnfs_read_header();
+  UDP.read(buf,sizeof(buf));
+}
+
+/**
+ * Mount server
+ */
 void tnfs_mount()
 {
-  int len;
-  int start = millis();
-  int dur = millis() - start;
+  int start=millis();
+  int dur=millis()-start;
+  int len=0;
   bool done=false;
 
-  Serial.printf("Mounting / on %s - Attempt #%d\n\n", TNFS_SERVER, retryCount + 1);
-  UDP.beginPacket(TNFS_SERVER, TNFS_PORT);
+  Serial.printf("Attempting to mount: %s retry #%d\n",TNFS_SERVER,tnfsHdr.retryCount);
+  
+  buf[0]=0x00;  // version 1.0 requested
+  buf[1]=0x01;
+  buf[2]='/';   // Request / path
+  buf[3]=0x00;  // terminate path string
+  buf[4]=0x00;  // no username
+  buf[5]=0x00;  // no password
+  tnfs_write_packet(6); // Write the mount
 
-  // ID, none yet as we are mounting.
-  UDP.write("\x00\x00");
-
-  // Retry count.
-  UDP.write(retryCount);
-
-  // Mount command.
-  UDP.write("\x00\x02\x01/\x00\x00\x00");
-  UDP.endPacket();
-  retryCount = 0;
-
-  while (done == false)
+  while (dur<5000)
   {
-    dur = millis() - start;
-    if (dur > 3000)
+    if (UDP.parsePacket()>0)
     {
-      // Timeout.
-      Serial.println("Timeout, retrying.");
-      retryCount++;
-      done = true;
-    }
-    else if (UDP.parsePacket() > 0)
-    {
-      len = UDP.read(buf, 9);
-      if (buf[4] == 0x00)
+      len=tnfs_read_packet();
+      if (buf[0]==0x00)
       {
-        // Successful, get session ID
-        session_id = buf[1] + 256 * buf[0];
-        session_id0 = buf[0];
-        session_id1 = buf[1];
-        Serial.println("Mount successful.");
-        Serial.printf("Session ID: 0x%04x\n", session_id);
-        Serial.printf("Server Version: %d.%d\n", buf[6], buf[5]);
-        done = true;
-        tnfs_state = READ;
-        retryCount = 0;
+        Serial.printf("Mount successful. Session ID: 0x%04x\n",tnfsHdr.session_id);
+        tnfs_state=OPEN;
+        tnfsHdr.retryCount=0;
+        break;
       }
       else
       {
-        Serial.printf("ERROR 0x%02x, retrying.",buf[4]);
-        done=true;
-        retryCount++;  
+        Serial.printf("Mount error: 0x%02x\n",buf[4]);
+        UDP.flush();
+        break;
       }
     }
   }
+  if (dur>5000)
+    Serial.printf("Timed out.");  
 }
 
 /**
- * Open jumpman.xfd
+ * Open test file
  */
 void tnfs_open()
 {
-  int len;
   int start=millis();
   int dur=millis()-start;
+  int len=0;
   bool done=false;
 
-  Serial.printf("Opening jumpman.xfd...");
-  
-  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
-  buf[0]=session_id0;
-  buf[1]=session_id1;
-  buf[2]=retryCount;
-  buf[3]=0x29;
-  buf[4]=0x01;
-  buf[5]=0x00;
-  buf[6]=0x00;
-  buf[7]=0x00;
-  buf[8]='/';
-  buf[9]='j';
-  buf[10]='u';
-  buf[11]='m';
-  buf[12]='p';
-  buf[13]='m';
-  buf[14]='a';
-  buf[15]='n';
-  buf[16]='.';
-  buf[17]='x';
-  buf[18]='f';
-  buf[19]='d';
-  buf[20]=0x00;
-  UDP.write(buf,21);
-  UDP.endPacket();
+  Serial.printf("Attempting open of jumpman.xfd.\n");
 
-  while (done==false)
+  buf[0]=0x29;  // open
+  buf[1]=0x00;  // flags (R)
+  buf[2]=0x00;  //
+  buf[3]=0x00;  // mode 
+  buf[4]=0x00;
+  buf[5]='/';
+  buf[6]='j';   // filename
+  buf[7]='u';   //
+  buf[8]='m';   //
+  buf[9]='p';   //
+  buf[10]='m';   //
+  buf[11]='a';  //
+  buf[12]='n';  //
+  buf[13]='.';  //
+  buf[14]='x';  //
+  buf[15]='f';  //
+  buf[16]='d';  //
+  buf[17]=0x00; // end filename
+  tnfs_write_packet(18);
+
+  while (dur<5000)
   {
-    dur=millis()-start;
-    if (dur>3000)
+    if (UDP.parsePacket()>0)
     {
-      // timeout
-      Serial.println("Timeout, retrying.");
-      retryCount++;
-      done=true;  
-    }
-    else if (UDP.parsePacket() > 0)
-    {
-      len=UDP.read(buf,64);
-      if (buf[4]==0x00)
+      len=tnfs_read_packet();
+      
+      for (int i=0;i<len;i++)
+        Serial.printf("%02x ",buf[i]);
+      
+      if (buf[0]==0x00)
       {
-        read_fd=buf[5];
-        Serial.printf("File opened, fd=%d\n",read_fd); 
-        done=true;
-        retryCount=0;
+        Serial.printf("open successful. file descriptor: 0x%04x\n",buf[1]);
         tnfs_state=READ;
-      }  
-    }  
+        tnfsHdr.retryCount=0;
+        break;
+      }
+      else
+      {
+        Serial.printf("open error: 0x%02x\n",buf[0]);
+        break;
+      }
+    }
   }
+  if (dur>5000)
+    Serial.printf("Timed out.");    
 }
 
 /**
-   Attempt to read next 128 bytes
-*/
+ * Attempt reads
+ */
 void tnfs_read()
 {
-  int len;
-  int start = millis();
-  int dur = millis() - start;
-  int recvlen;
-  bool done=false;
-  buf[0] = session_id0;
-  buf[1] = session_id1;
-  buf[2] = retryCount;
-  buf[3] = 0x21; // READ
-  buf[4] = read_fd; // the file descriptor returned.
-  buf[5] = 0x80; // 128 bytes
-  buf[6] = 0x00;
-  Serial.printf("--- Reading next sector\n");
-  UDP.beginPacket(TNFS_SERVER, TNFS_PORT);
-  UDP.write(buf,7);
-  UDP.endPacket();
-
-  while(done==false)
-  {
-    dur=millis()-start;
-    if (dur>3000)
-    {
-      // timeout
-      Serial.println("Timeout, retrying.");
-      retryCount++;
-      done=true;
-    }
-    else if (UDP.parsePacket() > 0)
-    {
-      len = UDP.read(buf,256);
-      if (buf[4]=0x00)
-      {
-        recvlen=buf[6]*256+buf[5];
-        for (int i=0;i<recvlen;i+=16)
-        {
-          printf("%x02 %x02 %x02 %x02 %x02 %x02 %x02 %x02 %x02 %x02 %x02 %x02 %x02 %x02 %x02 %x02\n",
-          buf[i+7+0],buf[i+7+1],buf[i+7+2],buf[i+7+3],buf[i+7+4],buf[i+7+5],buf[i+7+6],buf[i+7+7],buf[i+7+8],buf[i+7+9],buf[i+7+10],buf[i+7+11],buf[i+7+12],buf[i+7+13],buf[i+7+14],buf[i+7+15]);
-        }
-        done=true;
-        retryCount=0;
-        tnfs_state=CLOSE;
-      }  
-    }
-  }
 }
 
 /**
- * TNFS close
+ * Close file
  */
 void tnfs_close()
 {
-  int len;
-  int start=millis();
-  int dur=millis()-start;
-  bool done=false;
-
-  Serial.printf("Closing FD: %d\n",read_fd);
-
-  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
-  buf[0]=session_id0;
-  buf[1]=session_id1;
-  buf[2]=retryCount;
-  buf[3]=0x23;
-  buf[4]=read_fd;
-  UDP.write(buf,5);
-  UDP.endPacket();
-
-  tnfs_state=UMOUNT;
 }
 
 /**
- * TNFS umount
+ * Unmount server
  */
 void tnfs_umount()
 {
-  Serial.printf("Umounting server.\n");
-
-  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
-  buf[0]=session_id0;
-  buf[1]=session_id1;
-  buf[2]=retryCount;
-  buf[3]=0x01;
-  UDP.write(buf,4);
-
-  tnfs_state=DONE;
 }
 
 void loop() {
