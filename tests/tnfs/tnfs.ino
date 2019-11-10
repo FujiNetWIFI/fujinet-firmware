@@ -14,22 +14,10 @@
 #include <WiFiServer.h>
 #include <WiFiUdp.h>
 
-byte buf[256];
-
-enum {MOUNT, OPEN, READ, CLOSE, UMOUNT, DONE} tnfs_state = MOUNT;
-
-const char* ssid = "XXXXXXX";
-const char* password = "XXXXX";
-
-byte retryCount = 0;
-int file_len;
-unsigned short session_id;
-byte session_id0;
-byte session_id1;
-byte read_fd;
-
 #define TNFS_SERVER "192.168.1.7"
 #define TNFS_PORT 16384
+
+enum {MOUNT, OPEN, READ, CLOSE, UMOUNT, DONE} tnfs_state = MOUNT;
 
 WiFiUDP UDP;
 
@@ -38,12 +26,19 @@ union
   struct
   {
     unsigned short session_id;
-    unsigned char retryCount;
-    unsigned char command;
+    byte retryCount;
+    byte command;
+    byte data[1020];
   };
-  unsigned char rawData[4];  
-} tnfsHdr;
+  byte rawData[1024];
+} tnfsPacket;
 
+int tnfsPacketLen=0;
+byte tnfsReadfd;
+
+/**
+ * Setup.
+ */
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
@@ -60,51 +55,10 @@ void setup() {
 
   Serial.println("Initializing UDP.");
   UDP.begin(16384);
-
-  // Prime for mount command.
-  tnfsHdr.session_id=0;
-  tnfsHdr.retryCount=0;
-  tnfsHdr.command=0;
 }
 
 /**
- * Write the header, beginPacket should have already been called.
- */
-void tnfs_write_header()
-{
-  UDP.write(tnfsHdr.rawData,4);
-}
-
-/**
- * Read the header, parsePacket should have already been called.
- */
-void tnfs_read_header()
-{
-  UDP.read(tnfsHdr.rawData,4);  
-}
-
-/**
- * Write the packet
- */
-void tnfs_write_packet(unsigned char len)
-{
-  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
-  tnfs_write_header();
-  UDP.write(buf,len);
-  UDP.endPacket();
-}
-
-/**
- * Read TNFS payload, returns length.
- */
-int tnfs_read_packet()
-{
-  tnfs_read_header();
-  UDP.read(buf,sizeof(buf));
-}
-
-/**
- * Mount server
+ * Mount
  */
 void tnfs_mount()
 {
@@ -113,42 +67,40 @@ void tnfs_mount()
   int len=0;
   bool done=false;
 
-  Serial.printf("Attempting to mount: %s retry #%d\n",TNFS_SERVER,tnfsHdr.retryCount);
-  
-  buf[0]=0x00;  // version 1.0 requested
-  buf[1]=0x01;
-  buf[2]='/';   // Request / path
-  buf[3]=0x00;  // terminate path string
-  buf[4]=0x00;  // no username
-  buf[5]=0x00;  // no password
-  tnfs_write_packet(6); // Write the mount
+  Serial.printf("Attempting mount of %s - Attempt #%d\n\n",TNFS_SERVER,tnfsPacket.retryCount);
+  tnfsPacket.command=0x00; // Mount
+  tnfsPacket.data[0]=0x00; // version 1.0 requested
+  tnfsPacket.data[1]=0x01;
+  tnfsPacket.data[2]='/';  // mount /
+  tnfsPacket.data[3]=0x00; //  '' 
+  tnfsPacket.data[4]=0x00; // no username
+  tnfsPacket.data[5]=0x00; // nor password.
 
-  while (dur<5000)
+  // Send command.
+  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
+  UDP.write(tnfsPacket.rawData,10);
+  UDP.endPacket();
+
+  while(done==false)
   {
-    if (UDP.parsePacket()>0)
+    dur=millis()-start;
+    if (dur>5000)
     {
-      len=tnfs_read_packet();
-      if (buf[0]==0x00)
-      {
-        Serial.printf("Mount successful. Session ID: 0x%04x\n",tnfsHdr.session_id);
-        tnfs_state=OPEN;
-        tnfsHdr.retryCount=0;
-        break;
-      }
-      else
-      {
-        Serial.printf("Mount error: 0x%02x\n",buf[4]);
-        UDP.flush();
-        break;
-      }
+      Serial.printf("Timeout. Retrying.");
+      done=true;
+    }
+    else if (UDP.parsePacket())
+    {
+      UDP.read(tnfsPacket.rawData,1024);
+      Serial.printf("Mounted /, session 0x%x\n",tnfsPacket.session_id);
+      done=true;
+      tnfs_state=OPEN;
     }
   }
-  if (dur>5000)
-    Serial.printf("Timed out.");  
 }
 
 /**
- * Open test file
+ * Open
  */
 void tnfs_open()
 {
@@ -157,76 +109,86 @@ void tnfs_open()
   int len=0;
   bool done=false;
 
-  Serial.printf("Attempting open of jumpman.xfd.\n");
+  Serial.printf("Attempting open of /jumpman.xfd - Attempt #%d\n\n",tnfsPacket.retryCount);
+  tnfsPacket.command=0x29; // OPEN command
+  tnfsPacket.data[0]=0x00; // Read only
+  tnfsPacket.data[1]=0x00; // "     "
+  tnfsPacket.data[2]=0x00; // Mode 000
+  tnfsPacket.data[3]=0x00; // "     "
+  tnfsPacket.data[4]='/';  // Filename (0 terminated)
+  tnfsPacket.data[5]='j';
+  tnfsPacket.data[6]='u';
+  tnfsPacket.data[7]='m';
+  tnfsPacket.data[8]='p';
+  tnfsPacket.data[9]='m';
+  tnfsPacket.data[10]='a';
+  tnfsPacket.data[11]='n';
+  tnfsPacket.data[12]='.';
+  tnfsPacket.data[13]='x';
+  tnfsPacket.data[14]='f';
+  tnfsPacket.data[15]='d';
+  tnfsPacket.data[16]=0x00;
 
-  buf[0]=0x29;  // open
-  buf[1]=0x00;  // flags (R)
-  buf[2]=0x00;  //
-  buf[3]=0x00;  // mode 
-  buf[4]=0x00;
-  buf[5]='/';
-  buf[6]='j';   // filename
-  buf[7]='u';   //
-  buf[8]='m';   //
-  buf[9]='p';   //
-  buf[10]='m';   //
-  buf[11]='a';  //
-  buf[12]='n';  //
-  buf[13]='.';  //
-  buf[14]='x';  //
-  buf[15]='f';  //
-  buf[16]='d';  //
-  buf[17]=0x00; // end filename
-  tnfs_write_packet(18);
+  // Send command.
+  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
+  UDP.write(tnfsPacket.rawData,20);
+  UDP.endPacket();
 
-  while (dur<5000)
+  while(done==false)
   {
-    if (UDP.parsePacket()>0)
+    dur=millis()-start;
+    if (dur>5000)
     {
-      len=tnfs_read_packet();
-      
-      for (int i=0;i<len;i++)
-        Serial.printf("%02x ",buf[i]);
-      
-      if (buf[0]==0x00)
+      Serial.printf("Timeout. Retrying.\n");
+      done=true;
+    }
+    else if (UDP.parsePacket())
+    {
+      UDP.read(tnfsPacket.rawData,1024);
+      if (tnfsPacket.data[0]==0x00)
       {
-        Serial.printf("open successful. file descriptor: 0x%04x\n",buf[1]);
+        tnfsReadfd=tnfsPacket.data[1];
+        Serial.printf("Open successful, file handle %x\n",tnfsReadfd);
+        done=true;
         tnfs_state=READ;
-        tnfsHdr.retryCount=0;
-        break;
       }
       else
       {
-        Serial.printf("open error: 0x%02x\n",buf[0]);
-        break;
+        Serial.printf("Open error: 0x%02x",tnfsPacket.data[0]);
+        done=true;
+        tnfs_state=DONE;
       }
     }
   }
-  if (dur>5000)
-    Serial.printf("Timed out.");    
 }
 
 /**
- * Attempt reads
+ * Read
  */
 void tnfs_read()
 {
+
 }
 
 /**
- * Close file
+ * Close
  */
 void tnfs_close()
 {
+
 }
 
 /**
- * Unmount server
+ * umount
  */
 void tnfs_umount()
 {
+
 }
 
+/**
+ * The main state machine.
+ */
 void loop() {
 
   switch (tnfs_state)
