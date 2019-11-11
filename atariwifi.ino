@@ -7,7 +7,7 @@
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-#define DEBUG_S
+// #define DEBUG_S
 
 #define PIN_LED         2
 #define PIN_INT         5
@@ -19,7 +19,10 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 #define READ_CMD_TIMEOUT  12
 #define CMD_TIMEOUT       50
 
+#define STATUS_SKIP       8
+
 unsigned long cmdTimer = 0;
+byte statusSkipCount = 0;
 
 union
 {
@@ -86,7 +89,15 @@ void sio_get_id()
 void sio_get_command()
 {
   cmdFrame.comnd = Serial.read();
-  if (cmdFrame.comnd == 'R' || cmdFrame.comnd == 'S' )
+  if (cmdFrame.comnd == 'S' && statusSkipCount > STATUS_SKIP)
+    cmdState = AUX1;
+  else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
+  {
+    statusSkipCount++;
+    cmdState = WAIT;
+    cmdTimer = 0;
+  }
+  else if (cmdFrame.comnd == 'R')
     cmdState = AUX1;
   else
   {
