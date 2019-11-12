@@ -3,47 +3,26 @@
 */
 
 #include <ESP8266WiFi.h>
-#include <ESP8266WiFiAP.h>
-#include <ESP8266WiFiGeneric.h>
-#include <ESP8266WiFiMulti.h>
-#include <ESP8266WiFiScan.h>
-#include <ESP8266WiFiSTA.h>
-#include <ESP8266WiFiType.h>
-#include <WiFiClient.h>
-#include <WiFiClientSecure.h>
-#include <WiFiServer.h>
 #include <WiFiUdp.h>
 
 #define TNFS_SERVER "192.168.1.7"
 #define TNFS_PORT 16384
 
-enum {MOUNT_REQU, MOUNT_RESP,
-      OPEN_REQU, OPEN_RESP,
-      READ_REQU, READ_RESP,
-      CLOSE_REQU, CLOSE_RESP,
-      UMOUNT_REQU, UMOUNT_RESP,
-      DONE} tnfs_state = MOUNT_REQU;
+enum {MOUNT, OPEN, READ, CLOSE, UMOUNT, DONE} tnfs_state=MOUNT;
 
 WiFiUDP UDP;
 
-union
-{
-  struct
-  {
-    unsigned short session_id;
-    byte retryCount;
-    byte command;
-    byte data[1020];
-  };
-  byte rawData[1024];
-} tnfsPacket;
 
+byte tnfsPacket[512];
 int tnfsPacketLen = 0;
-byte tnfsReadfd;
-unsigned short session_id;
-
+byte tnfsReadfd=0;
+byte tnfsRetryCount=0;
+byte session_idl;
+byte session_idh;
 int start;
 int dur;
+int totalLen=0;
+int sector;
 
 /**
    Setup.
@@ -67,204 +46,178 @@ void setup() {
 }
 
 /**
-   Ask server to mount /
-*/
-void tnfs_mount_requ()
+ * Mount
+ */
+void tnfs_mount()
 {
-  Serial.printf("Sending mount request for / to %s attempt #%d\n", TNFS_SERVER, ++tnfsPacket.retryCount);
+  memset(tnfsPacket,0,sizeof(tnfsPacket));
+  tnfsPacket[0]=0x00;       // Session ID
+  tnfsPacket[1]=0x00;       // "   "
+  tnfsPacket[2]=tnfsRetryCount++; // Retry Count
+  tnfsPacket[3]=0x00;       // Command
+  tnfsPacket[4]=0x01;       // vers
+  tnfsPacket[5]=0x00;       // "  "
+  tnfsPacket[6]=0x00;       // Flags
+  tnfsPacket[7]=0x00;       // "  "
+  tnfsPacket[8]=0x2F;       // '/'
+  tnfsPacket[9]=0x00;       // NUL terminated
 
-  // Construct mount packet
-  memset(tnfsPacket.rawData,0,1024);
-  tnfsPacket.command = 0x00;  // Mount
-  tnfsPacket.data[0] = 0x00; // request 1.0
-  tnfsPacket.data[1] = 0x01; // "   "
-  tnfsPacket.data[2] = '/'; // " / "
-  tnfsPacket.data[3] = 0x00; // nul terminated
-  tnfsPacket.data[4] = 0x00; // No username
-  tnfsPacket.data[5] = 0x00; // No password
+  Serial.printf("Mounting / from %s, Attempt #%d\n\n",TNFS_SERVER,tnfsRetryCount);
 
-  for (int i=0;i<6+4;i++)
-    Serial.printf("%02x ",tnfsPacket.rawData[i]);
-
-  Serial.printf("\n\n");
-
-  UDP.beginPacket(TNFS_SERVER, TNFS_PORT);
-  UDP.write(tnfsPacket.rawData, 6+4);
+  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
+  UDP.write(tnfsPacket,10);
   UDP.endPacket();
 
-  // And wait for response.
-  tnfs_state = MOUNT_RESP;
-  dur = 0;
-  start = millis();
-}
-
-/**
-   Wait for response to mount /
-*/
-void tnfs_mount_resp()
-{ 
-  while (dur < 5000)
-  {
-    dur = millis() - start;
-    if (UDP.parsePacket())
-    {
-      int len = UDP.read(tnfsPacket.rawData, 1024);
-      for (int i=0;i<len;i++)
-        Serial.printf("%02x ",tnfsPacket.rawData[i]);
-
-      Serial.printf("\n\n");
-      
-      if (tnfsPacket.data[0] == 0x00)
-      {
-        // Successful
-        session_id=tnfsPacket.session_id;
-        Serial.printf("/ mounted successfully, session id: %x\n", session_id);
-        tnfsPacket.retryCount = 0;
-        tnfs_state = OPEN_REQU;
-        return;
-      }
-      else
-      {
-        Serial.printf("/ mount error #%02x", tnfsPacket.data[0]);
-        tnfs_state = MOUNT_REQU;
-        return;
-      }
-    }
-  }
-  Serial.printf("mount request timed out (5000ms)\n Retrying.\n");
-  tnfs_state=MOUNT_REQU;
   start=millis();
-  dur=0;
-}
+  dur=millis()-start;
 
-/**
- * Open Request
- */
-void tnfs_open_requ()
-{
-  Serial.printf("Opening 'jumpman.xfd', attempt #%d\n",tnfsPacket.retryCount);
-  memset(tnfsPacket.rawData,0,1024);
-  tnfsPacket.command=0x29; // 0x29 = open
-  tnfsPacket.session_id=session_id;
-  tnfsPacket.data[0]=0x01; // 1 = open read only
-  tnfsPacket.data[1]=0x00; // "    "
-  tnfsPacket.data[2]=0x00; // 0 = chmod 000
-  tnfsPacket.data[3]=0x00; // "    "
-  tnfsPacket.data[4]='/';  // Filename
-  tnfsPacket.data[5]='j'; 
-  tnfsPacket.data[6]='u';
-  tnfsPacket.data[7]='m';
-  tnfsPacket.data[8]='p';
-  tnfsPacket.data[9]='m';
-  tnfsPacket.data[10]='a';
-  tnfsPacket.data[11]='n';
-  tnfsPacket.data[12]='.';
-  tnfsPacket.data[13]='x';
-  tnfsPacket.data[14]='f';
-  tnfsPacket.data[15]='d';
-  tnfsPacket.data[16]=0x00;
-
-  for (int i=0;i<17+4;i++)
-  {
-    Serial.printf("%02x ",tnfsPacket.rawData[i]);  
-  }
-
-  Serial.printf("\n\n");
-
-  UDP.beginPacket(TNFS_SERVER, TNFS_PORT);
-  UDP.write(tnfsPacket.rawData, 17+4);
-  UDP.endPacket();
-
-  // and wait for response
-  tnfs_state = OPEN_RESP;
-  dur=0;
-  start=millis();
-}
-
-/**
- * Open Response
- */
-void tnfs_open_resp()
-{
-  dur = millis() - start;
   while (dur < 5000)
   {
     if (UDP.parsePacket())
     {
-      int len=UDP.read(tnfsPacket.rawData, 1024);
-      for (int i=0;i<len;i++)
-      {
-        Serial.printf("%02x ",tnfsPacket.rawData[i]);
-      }
-      Serial.printf("\n\n");
-      if (tnfsPacket.data[0] == 0x00)
+      int l=UDP.read(tnfsPacket,sizeof(tnfsPacket));
+      if (tnfsPacket[4]==0)
       {
         // Successful
-        tnfsReadfd=tnfsPacket.data[1];
-        Serial.printf("/jumpman.xfd opened successfully, fd: %x\n", tnfsReadfd);
-        tnfsPacket.retryCount = 0;
-        tnfs_state = READ_REQU;
+        Serial.printf("Successful. Version %d.%d - Session ID: 0x%02x%02x, Suggested Timeout: %d ms.\n",tnfsPacket[6],tnfsPacket[5],tnfsPacket[1],tnfsPacket[0],tnfsPacket[7]+256*tnfsPacket[8]);
+        session_idl=tnfsPacket[0];
+        session_idh=tnfsPacket[1];
+        tnfs_state=OPEN;
         return;
       }
       else
       {
-        Serial.printf("/jumpman.xfd open error #%02x\n", tnfsPacket.data[0]);
-        tnfs_state = DONE;
+        // Error
+        Serial.printf("Error #%02x\n",tnfsPacket[4]);
         return;
       }
     }
   }
-  Serial.printf("open request timed out (5000ms)\n Retrying.");
-  tnfs_state=OPEN_REQU;
-  tnfsPacket.retryCount=0;
+  Serial.printf("Request timed out. Retrying...\n\n"); 
 }
 
 /**
- * Read Request
+ * Open
  */
-void tnfs_read_requ()
+void tnfs_open()
 {
+  int i=0;
+  memset(tnfsPacket,0,sizeof(tnfsPacket));
+  tnfsPacket[i++]=session_idl;       // Session ID
+  tnfsPacket[i++]=session_idh;       // "   "
+  tnfsPacket[i++]=tnfsRetryCount++; // Retry Count
+  tnfsPacket[i++]=0x29;       // Command (open)
+  tnfsPacket[i++]=0x01;       // Mode 1 (R/O)
+  tnfsPacket[i++]=0x00;       // "  "
+  tnfsPacket[i++]=0x01;       // Flags
+  tnfsPacket[i++]=0x00;       // "  "
+  tnfsPacket[i++]=0x2F;       // '/'
+  tnfsPacket[i++]='j';        // Filename
+  tnfsPacket[i++]='u';        //
+  tnfsPacket[i++]='m';        //
+  tnfsPacket[i++]='p';        //
+  tnfsPacket[i++]='m';        //
+  tnfsPacket[i++]='a';        //
+  tnfsPacket[i++]='n';        //
+  tnfsPacket[i++]='.';        //
+  tnfsPacket[i++]='x';        //
+  tnfsPacket[i++]='f';        //
+  tnfsPacket[i++]='d';        //
+  tnfsPacket[i++]=0x00;       // NUL terminated
+  tnfsPacket[i++]=0x00;       // No username
+  tnfsPacket[i++]=0x00;       // No password
   
+  Serial.printf("Opening '/jumpman.xfd' read-only, Attempt #%d\n\n",tnfsRetryCount);
+
+  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
+  UDP.write(tnfsPacket,i);
+  UDP.endPacket();
+
+  start=millis();
+  dur=millis()-start;
+
+  while (dur < 5000)
+  {
+    if (UDP.parsePacket())
+    {
+      int l=UDP.read(tnfsPacket,sizeof(tnfsPacket));
+      if (tnfsPacket[4]==0)
+      {
+        // Successful
+        Serial.printf("Open successful, FD #%02x",tnfsPacket[5]);
+        tnfsReadfd=tnfsPacket[5];
+        tnfs_state=READ;
+        sector=0;
+        return;
+      }
+      else
+      {
+        // Error
+        Serial.printf("Error #%02x\n",tnfsPacket[4]);
+        return;
+      }
+    }
+  }
+  Serial.printf("Request timed out. Retrying...\n\n"); 
 }
 
-/**
- * Read Response
- */
-void tnfs_read_resp()
-{
-
-}
 
 /**
- * Close Request
+ * Open
  */
-void tnfs_close_requ()
+void tnfs_read()
 {
-
-}
-
-/**
- * Close Response
- */
-void tnfs_close_resp()
-{
-
-}
-
-/**
- * Umount request
- */
-void tnfs_umount_requ()
-{
+  int i=0;
+  memset(tnfsPacket,0,sizeof(tnfsPacket));
+  tnfsPacket[i++]=session_idl;       // Session ID
+  tnfsPacket[i++]=session_idh;       // "   "
+  tnfsPacket[i++]=tnfsRetryCount++; // Retry Count
+  tnfsPacket[i++]=0x21;       // read
+  tnfsPacket[i++]=tnfsReadfd;       // fd
+  tnfsPacket[i++]=0x80;       // 128 bytes
+  tnfsPacket[i++]=0x00;       // "   "
   
-}
+  Serial.printf("Reading next sector...\n\n");
 
-/**
- * Umount response
- */
-void tnfs_umount_resp()
-{
-  
+  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
+  UDP.write(tnfsPacket,i);
+  UDP.endPacket();
+
+  start=millis();
+  dur=millis()-start;
+
+  while (dur < 5000)
+  {
+    if (UDP.parsePacket())
+    {
+      int l=UDP.read(tnfsPacket,sizeof(tnfsPacket));
+      if (tnfsPacket[4]==0)
+      {
+        // Successful
+        Serial.printf("Sector #%d\n",sector++);
+        for (i=7;i<135;i++)
+        {
+          Serial.printf("%02x ",tnfsPacket[i]);
+          if (i%16==0)
+            Serial.printf("\n");
+        }
+          
+        if (totalLen>92160)
+          tnfs_state=CLOSE;
+        else
+          totalLen+=128;
+        return;
+      }
+      else
+      {
+        // Error
+        Serial.printf("Error #%02x\n",tnfsPacket[4]);
+        tnfs_state=CLOSE;
+        return;
+      }
+    }
+  }
+  Serial.printf("Request timed out. Retrying...\n\n"); 
 }
 
 /**
@@ -274,37 +227,20 @@ void loop() {
 
   switch (tnfs_state)
   {
-    case MOUNT_REQU:
-      tnfs_mount_requ();
+    case MOUNT:
+      tnfs_mount();
       break;
-    case MOUNT_RESP:
-      tnfs_mount_resp();
+    case OPEN:
+      tnfs_open();
       break;
-    case OPEN_REQU:
-      tnfs_open_requ();
+    case READ:
+      tnfs_read();
       break;
-    case OPEN_RESP:
-      tnfs_open_resp();
+    case CLOSE:
       break;
-    case READ_REQU:
-      tnfs_read_requ();
+    case UMOUNT:
       break;
-    case READ_RESP:
-      tnfs_read_resp();
-      break;
-    case CLOSE_REQU:
-      tnfs_close_requ();
-      break;
-    case CLOSE_RESP:
-      tnfs_close_resp();
-      break;
-    case UMOUNT_REQU:
-      tnfs_umount_requ();
-      break;
-    case UMOUNT_RESP:
-      tnfs_umount_resp();
     case DONE:
       break;
   }
-
 }
