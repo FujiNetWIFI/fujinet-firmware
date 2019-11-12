@@ -32,7 +32,7 @@ void setup() {
   Serial.begin(115200);
   Serial.println("#AtariWiFi Test #6: TNFS client");
   Serial.print("Connecting to WiFi...");
-  WiFi.begin("Cherryhomes", "e1xb64XC46");
+  WiFi.begin("SSID", "PASSWORD");
 
   while (WiFi.status() != WL_CONNECTED)
   {
