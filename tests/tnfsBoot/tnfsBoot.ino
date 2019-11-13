@@ -351,6 +351,14 @@ void tnfs_mount()
   tnfsPacket.data[4]=0x00;   // no username
   tnfsPacket.data[5]=0x00;   // no password
 
+#ifdef DEBUG_S
+  Serial1.printf("Mounting / from %s\n",TNFS_SERVER);
+  Serial1.printf("Req Packet: ");
+  for (int i=0;i<10;i++)
+    Serial1.printf("%02x ",tnfsPacket.rawData[i]);
+  Serial1.printf("\n\n");
+#endif /* DEBUG_S */
+
   UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
   UDP.write(tnfsPacket.rawData,10);
   UDP.endPacket();
@@ -359,20 +367,35 @@ void tnfs_mount()
   {
     if (UDP.parsePacket())
     {
-      UDP.read(tnfsPacket.rawData,512);
+      int l=UDP.read(tnfsPacket.rawData,512);
+#ifdef DEBUG_S
+      Serial1.printf("Resp Packet: ");
+      for (int i=0;i<l;i++)
+        Serial1.printf("%02x ",tnfsPacket.rawData[i]);
+      Serial1.printf("\n\n");
+#endif /* DEBUG_S */
       if (tnfsPacket.data[0]==0x00)
       {
         // Successful
+#ifdef DEBUG_S
+        Serial1.printf("Successful, Session ID: %02x%02x\n\n",tnfsPacket.sessionidl,tnfsPacket.sessionidh);
+#endif /* DEBUG_S */
         return;  
       }
       else
       {
         // Error
+#ifdef DEBUG_S
+        Serial1.printf("Error #%02x",tnfsPacket.data[0]);
+#endif /* DEBUG_S */
         return;  
       }
     }  
   }
   // Otherwise we timed out.
+#ifdef DEBUG_S
+Serial1.printf("Timeout after 5000ms.\n\n");
+#endif /* DEBUG_S */
 }
 
 /**
@@ -404,6 +427,14 @@ void tnfs_open()
   tnfsPacket.data[17]=0x00; // no username
   tnfsPacket.data[18]=0x00; // no password
 
+#ifdef DEBUG_S
+  Serial1.printf("Opening /autorun.atr...\n");
+  Serial1.printf("Req packet: ");
+  for (int i=0;i<23;i++)
+    Serial1.printf("%02x ",tnfsPacket.rawData[i]);
+  Serial1.printf("\n\n");
+#endif /* DEBUG_S */
+
   UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
   UDP.write(tnfsPacket.rawData,19+4);
   UDP.endPacket();
@@ -412,21 +443,36 @@ void tnfs_open()
   {
     if (UDP.parsePacket())
     {
-      UDP.read(tnfsPacket.rawData,512);
+      int l=UDP.read(tnfsPacket.rawData,512);
+#ifdef DEBUG_S
+      Serial1.printf("Resp packet: ");
+      for (int i=0;i<l;i++)
+        Serial1.printf("%02x ",tnfsPacket.rawData[i]);
+      Serial1.printf("\n\n");
+#endif DEBUG_S
       if (tnfsPacket.data[0]==0x00)
       {
         // Successful
         tnfs_fd=tnfsPacket.data[1];
+#ifdef DEBUG_S
+        Serial1.printf("Successful, file descriptor: #%02x",tnfs_fd);
+#endif /* DEBUG_S */
         return;
       }
       else
       {
         // unsuccessful
+#ifdef DEBUG_S
+        Serial1.printf("Error code #%02x",tnfsPacket.data[0]);
+#endif /* DEBUG_S*/
         return;  
       }
     }
   }
   // Otherwise, we timed out.
+#ifdef DEBUG_S
+  Serial1.printf("Timeout after 5000ms.\n\n");
+#endif /* DEBUG_S */
 }
 
 /**
@@ -442,6 +488,14 @@ void tnfs_read()
   tnfsPacket.data[1]=0x80;  // 128 bytes
   tnfsPacket.data[2]=0x00;  //
 
+#ifdef DEBUG_S
+  Serial1.printf("Reading from File descriptor: %02x\n",tnfs_readfd);
+  Serial1.printf("Req Packet: ");
+  for (int i=0;i<7;i++)
+    Serial1.printf("%02x ",tnfsPacket.rawData[i]);
+  Serial1.printf("\n\n");
+#endif /* DEBUG_S */
+
   UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
   UDP.write(tnfsPacket.rawData,4+3);
   UDP.endPacket();
@@ -450,19 +504,34 @@ void tnfs_read()
   {
     if (UDP.parsePacket())
     {
-      UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
+      int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
+#ifdef DEBUG_S
+      Serial1.printf("Resp packet: ");
+      for (int i=0;i<l;i++)
+        Serial1.printf("%02x ",tnfsPacket.rawData[i]);
+      Serial1.printf("\n\n");
+#endif /* DEBUG_S */
       if (tnfsPacket.data[0]==0x00)
       {
         // Successful
+#ifndef DEBUG_S
+        Serial1.printf("Successful.\n\n");
+#endif /* DEBUG_S */
         return;
       }
       else
       {
         // Error
+#ifdef DEBUG_S
+        Serial1.printf("Error code #%02x",tnfsPacket.data[0]);
+#endif /* DEBUG_S*/        
         return;
       }
     }
   }
+#ifdef DEBUG_S
+  Serial1.printf("Timeout after 5000ms.\n\n");
+#endif /* DEBUG_S */
 }
 
 /**
@@ -474,6 +543,7 @@ void tnfs_seek(long offset)
   int dur=millis()-start;
   byte offsetVal[4];
 
+  // This may be sending the bytes in the wrong endian, pls check. Easiest way is to flip the indices.
   offsetVal[0] = (int)((offset & 0xFF000000) >> 24 );
   offsetVal[1] = (int)((offset & 0x00FF0000) >> 16 );
   offsetVal[2] = (int)((offset & 0x0000FF00) >> 8 );
@@ -488,6 +558,14 @@ void tnfs_seek(long offset)
   tnfsPacket.data[4]=offsetVal[2];
   tnfsPacket.data[5]=offsetVal[3];
 
+#ifdef DEBUG_S
+  Serial1.printf("Seek requested to offset: %ld\n",offset);
+  Serial1.printf("Req packet: ");
+  for (int i=0;i<10;i++)
+    Serial1.printf("%02x ",tnfsPacket.rawData[i]);
+  Serial1.printf("\n\n");
+#endif /* DEBUG_S*/
+
   UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
   UDP.write(tnfsPacket.rawData,6+4);
   UDP.endPacket();
@@ -496,19 +574,35 @@ void tnfs_seek(long offset)
   {
     if (UDP.parsePacket())
     {
-      UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
+      int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
+#ifdef DEBUG_S
+      Serial1.printf("Resp packet: ");
+      for (int i=0;i<l;i++)
+        Serial1.printf("%02x ",tnfsPacket.rawData[i]);
+      Serial1.printf("\n\n");
+#endif /* DEBUG_S */
+
       if (tnfsPacket.data[0]==0)
       {
         // Success.
+#ifdef DEBUG_S
+        Serial1.printf("Successful.\n\n");
+#endif /* DEBUG_S */
         return;  
       }
       else
       {
         // Error.
+#ifdef DEBUG_S
+        Serial1.printf("Error code #%02x",tnfsPacket.data[0]);
+#endif /* DEBUG_S*/        
         return;  
       }
     }  
   }
+#ifdef DEBUG_S
+  Serial1.printf("Timeout after 5000ms.\n\n");
+#endif /* DEBUG_S */
 }
 
 void setup() 
