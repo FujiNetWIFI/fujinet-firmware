@@ -549,5 +549,16 @@ void setup()
 
 void loop() 
 {
-
+  if (Serial.available() > 0)
+  {
+    sio_incoming();
+  }
+  
+  if (millis() - cmdTimer > CMD_TIMEOUT && cmdState != WAIT)
+  {
+    Serial1.print("SIO CMD TIMEOUT: ");
+    Serial1.println(cmdState);
+    cmdState = WAIT;
+    cmdTimer = 0;
+  }
 }
