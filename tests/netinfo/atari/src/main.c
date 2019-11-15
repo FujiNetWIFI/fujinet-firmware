@@ -36,6 +36,9 @@ typedef union _netinfo
   unsigned char rawData[64];
 } NetInfo;
 
+NetInfo ni;
+
+
 /**
  * Function to retrieve network info from adapter.
  *
@@ -50,7 +53,7 @@ unsigned char sio_get_network_info(NetInfo* ni)
   OS.dcb.dunit=0;              // unit 1
   OS.dcb.dcomnd='!';           // Get network info command
   OS.dcb.dbuf=ni->rawData;     // Pointer to netinfo buffer
-  OS.dcb.dtimlo=0x0f;          // 16 frame timeout
+  OS.dcb.dtimlo=0x01;          // 16 frame timeout
   OS.dcb.dstats=0x40;          // This is a read.
   OS.dcb.dbyt=64;              // 64 bytes of data
   OS.dcb.daux=0;               // no aux for now.
@@ -74,7 +77,6 @@ void print_network_info(NetInfo* ni)
 
 void main(void)
 {
-  NetInfo ni;
   unsigned char error;
   printf("#AtariWiFi Test Program #8\n");
   printf("Get Network Information.\n");
