@@ -46,8 +46,8 @@ typedef union _netinfo
 unsigned char sio_get_network_info(NetInfo* ni)
 {
   struct regs r;
-  OS.dcb.ddevic=0xC0;          // Network control device
-  OS.dcb.dunit=1;              // unit 1
+  OS.dcb.ddevic=0x70;          // Network control device
+  OS.dcb.dunit=0;              // unit 1
   OS.dcb.dcomnd='!';           // Get network info command
   OS.dcb.dbuf=ni->rawData;     // Pointer to netinfo buffer
   OS.dcb.dtimlo=0x0f;          // 16 frame timeout
