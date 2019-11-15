@@ -74,7 +74,7 @@ byte sio_checksum(byte* chunk, int length)
 /**
    ISR for falling COMMAND
 */
-void sio_isr_cmd()
+void ICACHE_RAM_ATTR sio_isr_cmd()
 {
   if (digitalRead(PIN_CMD) == LOW)
   {
