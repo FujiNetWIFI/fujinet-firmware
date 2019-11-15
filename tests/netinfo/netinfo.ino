@@ -93,7 +93,7 @@ void sio_isr_cmd()
 void sio_get_id()
 {
   cmdFrame.devic = Serial.read();
-  if (cmdFrame.devic == 0x31 || cmdFrame.devic==0xC0)
+  if (cmdFrame.devic == 0x31 || cmdFrame.devic==0x70)
     cmdState = COMMAND;
   else
   {
