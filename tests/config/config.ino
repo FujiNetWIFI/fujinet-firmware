@@ -132,14 +132,6 @@ void sio_get_command()
 {
   cmdFrame.comnd = Serial.read();
   cmdState=AUX1;
-  
-//  if (cmdFrame.comnd == 'R' || cmdFrame.comnd == 'S' || cmdFrame.comnd=='!' || cmdFrame.comnd=='"' )
-//    cmdState = AUX1;
-//  else
-//  {
-//    cmdState = WAIT;
-//    cmdTimer = 0;
-//  }
 
 #ifdef DEBUG_S
   Serial1.print("CMD CMND: ");
@@ -237,8 +229,16 @@ void sio_process()
 void sio_set_new_net_info()
 {
   byte ck;
-  Serial.readBytes(ee.rawData,512);
+#ifdef DEBUG_S
+  Serial1.printf("Reading data frame (512b) from computer\n");
+#endif
+  int l=Serial.readBytes(ee.rawData,512);
   ck=Serial.read();
+  delayMicroseconds(350);
+#ifdef DEBUG_S
+  Serial1.printf("Writing ACK of data frame.\n");
+#endif
+  Serial.write('A');
   if (ck==sio_checksum(ee.rawData,512))
   {
 #ifdef DEBUG_S
