@@ -7,7 +7,7 @@
 
 #include <atari.h>
 #include <6502.h>
-#include <conio.h>
+#include <string.h>
 
 /**
  * The Netinfo structure to make it easy.
@@ -18,7 +18,7 @@
  * macAddress = the MAC address of the adapter (in little endian order)
  * rssi = The calculated signal strength in dBm.
  */
-typedef union _netinfo
+union
 {
   struct
   {
@@ -30,12 +30,9 @@ typedef union _netinfo
     unsigned char reserved[12];
   };
   unsigned char rawData[64];
-} NetInfo;
+} ni;
 
 unsigned char status[4]; // Network status
-
-NetInfo ni;
-
 
 /**
  * The EEPROM Data structure
@@ -53,99 +50,26 @@ union
 } ee;
 
 /**
- * Press any key to continue message.
+ * main
  */
-void press_key(void)
-{
-  cprintf("Press RETURN to continue.");
-  cgetc();
-}
-
-void print_network_info(NetInfo* ni)
-{
-  cprintf("SSID: %s\r\n",ni->ssid);
-  cprintf("BSSID: %02x:%02x:%02x:%02x:%02x:%02x\r\n", ni->bssid[5], ni->bssid[4], ni->bssid[3], ni->bssid[2], ni->bssid[1], ni->bssid[0]);
-  cprintf("IP: %u.%u.%u.%u\r\n",ni->ipAddress[3],ni->ipAddress[2],ni->ipAddress[1],ni->ipAddress[0]);
-  cprintf("MAC: %02x:%02x:%02x:%02x:%02x:%02x\r\n", ni->macAddress[5], ni->macAddress[4], ni->macAddress[3], ni->macAddress[2], ni->macAddress[1], ni->macAddress[0]);
-  cprintf("RSSI: %ld\r\n",ni->rssi);
-  cprintf("\r\n\r\n");
-  press_key();
-}
-
-/**
- * Get the Network info
- */
-void get_network_info(void)
+void main(void)
 {
   struct regs r;
-
-  // Get status
-  OS.dcb.ddevic=0x70;
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd='S';
-  OS.dcb.dstats=0x40;
-  OS.dcb.dbuf=&status;
-  OS.dcb.dtimlo=0x0F;
-  OS.dcb.dunuse=0;
-  OS.dcb.dbyt=4;
-  OS.dcb.daux1=0;
-  OS.dcb.daux2=0;
-  r.pc=0xE459;
-  _sys(&r);
-
-  if (status[0]!=0x03)
-    cprintf("Connecting...\r\n");
+  int i;
   
-  while (status[0]!=0x03)  // 3 = WL_CONNECTED
-    {
-      // Get status
-      OS.dcb.ddevic=0x70;
-      OS.dcb.dunit=1;
-      OS.dcb.dcomnd='S';
-      OS.dcb.dstats=0x40;
-      OS.dcb.dbuf=&status;
-      OS.dcb.dtimlo=0x0F;
-      OS.dcb.dunuse=0;
-      OS.dcb.dbyt=4;
-      OS.dcb.daux1=0;
-      OS.dcb.daux2=0;
-      r.pc=0xE459;
-      _sys(&r);
-    }
+  strcpy(ee.ssid,"Cherryhomes");
+  strcpy(ee.key,"e1xb64XC46");
+
+  OS.color2=0x42;
   
-  // Status is ready
-  OS.dcb.ddevic=0x70;
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd='!';
-  OS.dcb.dstats=0x40;
-  OS.dcb.dbuf=ni.rawData;
-  OS.dcb.dtimlo=0x0F;
-  OS.dcb.dunuse=0;
-  OS.dcb.dbyt=64;
-  OS.dcb.daux1=0;
-  OS.dcb.daux2=0;
-  r.pc=0xE459;
-  _sys(&r);
-}
+  for (i=0;i<16384;i++) { }
 
-/**
- * Set Network Info
- */
-void set_network_info(void)
-{
-  struct regs r;
-  cursor(1);
-  cprintf("SSID: ");
-  cscanf("%s",ee.ssid);
-  cprintf("\r\nPassword: ");
-  cscanf("%s",ee.key);
-
-  cprintf("\r\n\r\nWriting configuration...\r\n\r\n");
+  OS.color2=0x00;
   
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
   OS.dcb.dcomnd='"';
-  OS.dcb.dstats=0x80;
+  OS.dcb.dstats=0x40;
   OS.dcb.dbuf=ee.rawData;
   OS.dcb.dtimlo=0x0F;
   OS.dcb.dunuse=0;
@@ -155,26 +79,6 @@ void set_network_info(void)
   r.pc=0xE459;
   _sys(&r);
 
-  /* cprintf("\r\n\r\nReading Configuration...\r\n"); */
-  /* get_network_info(); */
-  /* print_network_info(&ni); */
-}
-
-void main(void)
-{
-  clrscr();
-  cprintf("#AtariWiFi Test Program #9 - Config\r\n\r\n");
-  set_network_info();
-  /* cprintf("Getting Network Configuration...\r\n\r\n"); */
-
-  /* get_network_info(); */
+  OS.color2=0x84;
   
-  /* if (ni.ssid[0]==0x00) */
-  /*   { */
-  /*     set_network_info(); */
-  /*   } */
-  /* else */
-  /*   { */
-  /*     print_network_info(&ni); */
-  /*   } */
 }
