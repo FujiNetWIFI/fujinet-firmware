@@ -30,7 +30,7 @@ byte sio_checksum(byte* chunk, int length)
 /**
  * COMMAND line has lowered, immediately read command!
  */
- void sio_cmd_lower()
+ void ICACHE_RAM_ATTR sio_cmd_lower()
 {
   if (digitalRead(PIN_CMD)==LOW)
   {
