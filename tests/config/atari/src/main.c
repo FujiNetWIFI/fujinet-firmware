@@ -69,7 +69,7 @@ void main(void)
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
   OS.dcb.dcomnd='"';
-  OS.dcb.dstats=0x40;
+  OS.dcb.dstats=0x80;
   OS.dcb.dbuf=ee.rawData;
   OS.dcb.dtimlo=0x0F;
   OS.dcb.dunuse=0;
