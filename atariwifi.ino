@@ -5,6 +5,7 @@
 #include <FS.h>
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
+volatile bool cmdFlag = false;
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
 // #define DEBUG_S
@@ -54,13 +55,9 @@ byte sio_checksum(byte* chunk, int length)
 /**
    ISR for falling COMMAND
 */
-void sio_isr_cmd()
+ICACHE_RAM_ATTR void sio_isr_cmd()
 {
-  if (digitalRead(PIN_CMD) == LOW)
-  {
-    cmdState = ID;
-    cmdTimer = millis();
-  }
+  cmdFlag = true;
 }
 
 /**
@@ -339,6 +336,16 @@ void setup()
 
 void loop()
 {
+  if (cmdFlag) 
+  {
+    if (digitalRead(PIN_CMD) == LOW)
+    {
+      cmdState = ID;
+      cmdTimer = millis();
+      cmdFlag=false;
+    }
+  }
+
   if (Serial.available() > 0)
   {
     sio_incoming();
