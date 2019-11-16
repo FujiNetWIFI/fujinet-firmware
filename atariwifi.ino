@@ -89,7 +89,7 @@ void sio_get_id()
 void sio_get_command()
 {
   cmdFrame.comnd = Serial.read();
-  if (cmdFrame.comnd == 'S' && statusSkipCount > STATUS_SKIP)
+  if (cmdFrame.comnd == 'S' && statusSkipCount >= STATUS_SKIP)
     cmdState = AUX1;
   else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
   {
@@ -324,7 +324,7 @@ void setup()
 #endif
   pinMode(PIN_INT, INPUT);
   pinMode(PIN_PROC, INPUT);
-  pinMode(PIN_MTR, INPUT);
+  pinMode(PIN_MTR, INPUT_PULLDOWN_16);
   pinMode(PIN_CMD, INPUT);
 
   // Set up serial
