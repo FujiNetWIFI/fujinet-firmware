@@ -5,6 +5,7 @@
 #include <FS.h>
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
+volatile bool cmdFlag = false;
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
 // #define DEBUG_S
@@ -56,11 +57,7 @@ byte sio_checksum(byte* chunk, int length)
 */
 void ICACHE_RAM_ATTR sio_isr_cmd()
 {
-  if (digitalRead(PIN_CMD) == LOW)
-  {
-    cmdState = ID;
-    cmdTimer = millis();
-  }
+  cmdFlag = true;
 }
 
 /**
@@ -89,7 +86,7 @@ void sio_get_id()
 void sio_get_command()
 {
   cmdFrame.comnd = Serial.read();
-  if (cmdFrame.comnd == 'S' && statusSkipCount > STATUS_SKIP)
+  if (cmdFrame.comnd == 'S' && statusSkipCount >= STATUS_SKIP)
     cmdState = AUX1;
   else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
   {
@@ -324,7 +321,7 @@ void setup()
 #endif
   pinMode(PIN_INT, INPUT);
   pinMode(PIN_PROC, INPUT);
-  pinMode(PIN_MTR, INPUT);
+  pinMode(PIN_MTR, INPUT_PULLDOWN_16);
   pinMode(PIN_CMD, INPUT);
 
   // Set up serial
@@ -339,6 +336,16 @@ void setup()
 
 void loop()
 {
+  if (cmdFlag) 
+  {
+    if (digitalRead(PIN_CMD) == LOW)
+    {
+      cmdState = ID;
+      cmdTimer = millis();
+      cmdFlag=false;
+    }
+  }
+
   if (Serial.available() > 0)
   {
     sio_incoming();
