@@ -5,7 +5,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 
-#define TNFS_SERVER "ec2-34-227-177-230.compute-1.amazonaws.com"
+#define TNFS_SERVER "192.168.1.7"
 #define TNFS_PORT 16384
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
@@ -32,6 +32,8 @@ WiFiUDP UDP;
 byte tnfs_fd;
 
 byte sector[128];
+
+volatile bool cmdFlag=false;
 
 union
 {
@@ -76,11 +78,7 @@ byte sio_checksum(byte* chunk, int length)
 */
 void ICACHE_RAM_ATTR sio_isr_cmd()
 {
-  if (digitalRead(PIN_CMD) == LOW)
-  {
-    cmdState = ID;
-    cmdTimer = millis();
-  }
+  cmdFlag=true;
 }
 
 /**
@@ -849,7 +847,7 @@ void setup()
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
 
-  WiFi.begin("Cherryhomes", "e1xb64XC46");
+  WiFi.begin("SSID", "PASSWORD");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(10);
@@ -871,6 +869,16 @@ void setup()
 
 void loop() 
 {
+  if (cmdFlag) 
+  {
+    if (digitalRead(PIN_CMD) == LOW)
+    {
+      cmdState = ID;
+      cmdTimer = millis();
+      cmdFlag=false;
+    }
+  }
+
   if (Serial.available() > 0)
   {
     sio_incoming();
