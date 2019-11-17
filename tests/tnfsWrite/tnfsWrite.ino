@@ -5,7 +5,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 
-#define TNFS_SERVER "192.168.1.7"
+#define TNFS_SERVER "ec2-34-227-177-230.compute-1.amazonaws.com"
 #define TNFS_PORT 16384
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
@@ -202,10 +202,44 @@ void sio_process()
     case 'S':
       sio_status();
       break;
+    case '!':
+      sio_format();
+      break;
   }
   
   cmdState = WAIT;
   cmdTimer = 0;
+}
+
+/**
+   format (fake)
+*/
+void sio_format()
+{
+  byte ck;
+
+  for (int i=0;i<128;i++)
+    sector[i]=0;
+
+  sector[0]=0xFF; // no bad sectors.
+  sector[1]=0xFF;
+
+  ck = sio_checksum((byte *)&sector, 128);
+
+  delayMicroseconds(DELAY_T5); // t5 delay
+  Serial.write('C'); // Completed command
+  Serial.flush();
+
+  // Write data frame
+  Serial.write(sector,128);
+    
+  // Write data frame checksum
+  Serial.write(ck);
+  Serial.flush();
+  delayMicroseconds(200);
+#ifdef DEBUG_S
+  Serial1.printf("We faked a format.\n");
+#endif
 }
 
 /**
@@ -263,7 +297,7 @@ void sio_write()
 
   Serial.readBytes(sector,128);
   ck=Serial.read(); // Read checksum
-  delayMicroseconds(350);
+  //delayMicroseconds(350);
   Serial.write('A'); // Write ACK
   
   if (ck==sio_checksum(sector,128))
