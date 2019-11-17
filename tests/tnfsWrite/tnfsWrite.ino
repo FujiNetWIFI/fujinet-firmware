@@ -271,8 +271,6 @@ void sio_write()
     delayMicroseconds(DELAY_T5);
     Serial.write('C');
     tnfs_write();
-    tnfs_close();
-    tnfs_open();
   }
 }
 
@@ -446,7 +444,7 @@ void tnfs_open()
   int dur=millis()-start;
   tnfsPacket.retryCount++;  // increase sequence #
   tnfsPacket.command=0x29;  // OPEN
-  tnfsPacket.data[0]=0x01;  // R/O
+  tnfsPacket.data[0]=0x03;  // R/W
   tnfsPacket.data[1]=0x00;  //
   tnfsPacket.data[2]=0x00;  // Flags
   tnfsPacket.data[3]=0x00;  //
