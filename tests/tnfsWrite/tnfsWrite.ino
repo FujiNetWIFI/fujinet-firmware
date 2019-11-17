@@ -303,6 +303,7 @@ void sio_write()
     delayMicroseconds(DELAY_T5);
     Serial.write('C');
     tnfs_write();
+    yield();
   }
 }
 
@@ -428,6 +429,7 @@ void tnfs_mount()
 
   while (dur < 5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l=UDP.read(tnfsPacket.rawData,512);
@@ -513,6 +515,7 @@ void tnfs_open()
 
   while (dur<5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l=UDP.read(tnfsPacket.rawData,512);
@@ -581,6 +584,7 @@ void tnfs_close()
 
   while (dur<5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
@@ -649,6 +653,7 @@ void tnfs_write()
 
   while (dur<5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
@@ -716,6 +721,7 @@ void tnfs_read()
 
   while (dur<5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
@@ -794,6 +800,7 @@ void tnfs_seek(long offset)
 
   while (dur<5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
