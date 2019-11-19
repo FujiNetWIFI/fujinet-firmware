@@ -31,9 +31,9 @@ union
   struct
   {
     char ssid[10][32];
-    long rssi[10];
+    char rssi[10];
   };
-  unsigned char rawData[360];
+  unsigned char rawData[330];
 } ssidInfo;
 
 /**
@@ -233,28 +233,34 @@ void sio_wifi_scan()
   byte ck;
   int n;
 
+  memset(ssidInfo.rawData,0x00,330);
+
 #ifdef DEBUG_S
   Serial1.printf("Performing scan.\n");
 #endif
   WiFi.mode(WIFI_STA);
   n=WiFi.scanNetworks();
+  
+  if (n>10)
+    n=10;
+    
 #ifdef DEBUG_S
   Serial1.printf("Scan complete.\n");
 #endif
   for (int i=0;i<n;i++)
   {
     strcpy(ssidInfo.ssid[i],WiFi.SSID(i).c_str());
-    ssidInfo.rssi[i]=WiFi.RSSI(i);
+    ssidInfo.rssi[i]=(char)WiFi.RSSI(i) ^ 0xFF + 1;
   }
   
-  ck = sio_checksum((byte *)&ssidInfo.rawData, 360);
+  ck = sio_checksum((byte *)&ssidInfo.rawData, 330);
 
   delayMicroseconds(DELAY_T5); // t5 delay
   Serial.write('C'); // Completed command
   Serial.flush();
 
   // Write data frame
-  Serial.write(ssidInfo.rawData,360);
+  Serial.write(ssidInfo.rawData,330);
     
   // Write data frame checksum
   Serial.write(ck);
