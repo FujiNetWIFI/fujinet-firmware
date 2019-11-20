@@ -7,6 +7,7 @@
 #include <6502.h>
 #include <string.h>
 #include <peekpoke.h>
+#include <conio.h>
 
 #define SetChar(x,y,a) video_ptr[(x)+(y)*40]=(a);
 #define GetChar(x,y) video_ptr[(x)+(y)*40]
@@ -143,10 +144,6 @@ void setup()
   // OS.color3=0x78;
 
   OS.sdmctl=0x22; // Turn on DMA, normal playfield, no P/M.
-
-  clear_screen();
-  print_string(0,0,(char *)title);
-  print_string(0,21,(char *)scan);
 }
 
 /**
@@ -266,6 +263,11 @@ void main(void)
   unsigned char s; // status
   setup();
 
+again:
+  clear_screen();
+  print_string(0,0,(char *)title);
+  print_string(0,21,(char *)scan);
+  
   SEI();
   
   s=sio_wifi_scan(0);
@@ -279,5 +281,12 @@ void main(void)
       print_error(s);
     }
 
+  while (!kbhit()) { }
+
+  OS.ch=0xFF;
+  
+  clear_screen();
+  goto again;
+  
   sit_and_spin();
 }
