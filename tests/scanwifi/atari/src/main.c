@@ -13,15 +13,17 @@
 #define GRAPHICS_0_SCREEN_SIZE (40*25)
 #define DISPLAY_LIST 0x0600
 #define DISPLAY_MEMORY 0x3C00
+#define FONT_MEMORY 0x3400
 
 union 
 {
   struct
   {
-    char ssid[10][32];
-    char rssi[10];
+    char ssid[32];
+    signed char rssi;
+    char more;
   };
-  unsigned char rawData[330];
+  unsigned char rawData[34];
 } ssidInfo;
 
 void dlist=
@@ -54,8 +56,7 @@ void dlist=
    DL_CHR40x8x1,
    DL_CHR40x8x1,
    DL_CHR20x8x2,
-   DL_CHR20x8x2,
-   
+   DL_CHR20x8x2,   
    DL_JVB,
    0x600
   };
@@ -63,9 +64,16 @@ void dlist=
 static unsigned char* video_ptr;
 static unsigned char* dlist_ptr;
 static unsigned short screen_memory;
+static unsigned char* font_ptr;
 
 const char* title="   WIFI NETWORKS:   ";
 const char* scan="SCANNING NETWORKS...";
+
+unsigned char fontPatch[24]={
+			 0,0,0,0,0,0,3,51,
+			 0,0,3,3,51,51,51,51,
+			 48,48,48,48,48,48,48,48
+};
 
 void clear_screen()
 {
@@ -119,6 +127,14 @@ void setup()
   dlist_ptr=(unsigned char *)OS.sdlst;               // Set up the vars for the screen output macros
   screen_memory=PEEKW(560)+4;
   video_ptr=(unsigned char*)(PEEKW(screen_memory));
+
+  // Copy ROM font
+  memcpy((unsigned char *)FONT_MEMORY,(unsigned char *)0xE000,1024);
+
+  // And patch it.
+  font_ptr=(unsigned char*)FONT_MEMORY;
+  memcpy(&font_ptr[520],&fontPatch,24);
+  OS.chbas=0x34;
   
   // TODO: come back here and set some colors
   // OS.color0=0x12;
@@ -136,21 +152,19 @@ void setup()
 /**
  * Do the WiFi Scan
  */
-unsigned char sio_wifi_scan(void)
+unsigned char sio_wifi_scan(unsigned char c)
 {
-  struct regs r;
   OS.dcb.ddevic=0x70;             // Network Device
   OS.dcb.dunit=1;                 //
   OS.dcb.dcomnd='#';              // Network Scan
   OS.dcb.dstats=0x40;             // Read from peripheral
   OS.dcb.dbuf=&ssidInfo.rawData;  // The scan results buffer.
   OS.dcb.dtimlo=0x20;             // Timeout
-  OS.dcb.dbyt=330;                // 330 byte payload
-  OS.dcb.daux=0;                  // aux1/aux2 = 0
+  OS.dcb.dbyt=34;                 // 330 byte payload
+  OS.dcb.daux=c;                  // aux1=the continue flag
 
-  // Call SIOV
-  r.pc=0xE459;
-  _sys(&r);
+  asm("CLI");
+  asm("JSR $E459");
   
   return OS.dcb.dstats;  // Return command status
 }
@@ -174,20 +188,20 @@ void print_rssi(unsigned char i)
 {
   char out[4]={0x20,0x20,0x20};
 
-  if (ssidInfo.rssi[i]>200)
+  if (ssidInfo.rssi>-40)
     {
-      out[0]='*';
+      out[0]=0x01;
+      out[1]=0x02;
+      out[2]=0x03;
     }
-  else if (ssidInfo.rssi[i]>160)
+  else if (ssidInfo.rssi>-60)
     {
-      out[0]='*';
-      out[1]='*';
+      out[0]=0x01;
+      out[1]=0x02;
     }
-  else if (ssidInfo.rssi[i]>140)
+  else
     {
-      out[0]='*';
-      out[1]='*';
-      out[2]='*';
+      out[0]=0x01;
     }
 
   print_string(35,i+3,out);
@@ -198,15 +212,27 @@ void print_rssi(unsigned char i)
  */
 void print_networks(void)
 {
-  unsigned char i;
-  for (i=0;i<10;i++)
+  unsigned char done;
+  unsigned char i=0;
+  do 
     {
-      if (ssidInfo.ssid[i][0]!=0x00) // Only print if not empty.
+      if (ssidInfo.ssid!=0x00) // Only print if not empty.
 	{
 	  print_ssid(i);
 	  print_rssi(i);
 	}
-    }
+
+      if (ssidInfo.more==0)
+	done=1;
+      else
+	{
+	  i++;
+	  sio_wifi_scan(1);
+	}
+      
+    } while (done==0);
+    
+  print_string(0,21,"  SCAN SUCCESSFUL!  ");
 }
 
 /**
@@ -240,7 +266,9 @@ void main(void)
   unsigned char s; // status
   setup();
 
-  s=sio_wifi_scan();
+  SEI();
+  
+  s=sio_wifi_scan(0);
 
   if (s==1)
     {

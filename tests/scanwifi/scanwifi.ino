@@ -30,10 +30,11 @@ union
 {
   struct
   {
-    char ssid[10][32];
-    char rssi[10];
+    char ssid[32];
+    char rssi;
+    char more;
   };
-  unsigned char rawData[330];
+  unsigned char rawData[34];
 } ssidInfo;
 
 /**
@@ -52,6 +53,9 @@ union
   };
   byte cmdFrameData[5];
 } cmdFrame;
+
+unsigned char totalSSIDs;
+unsigned char scanIndex;
 
 /**
    calculate 8-bit checksum.
@@ -231,40 +235,39 @@ void sio_read()
 void sio_wifi_scan()
 {
   byte ck;
-  int n;
 
-  memset(ssidInfo.rawData,0x00,330);
+  memset(ssidInfo.rawData,0x00,34);
 
-#ifdef DEBUG_S
-  Serial1.printf("Performing scan.\n");
-#endif
-  WiFi.mode(WIFI_STA);
-  n=WiFi.scanNetworks();
-  
-  if (n>10)
-    n=10;
-    
-#ifdef DEBUG_S
-  Serial1.printf("Scan complete.\n");
-#endif
-  for (int i=0;i<n;i++)
+  if (cmdFrame.aux1==0)
   {
-    strcpy(ssidInfo.ssid[i],WiFi.SSID(i).c_str());
-    ssidInfo.rssi[i]=(char)WiFi.RSSI(i) ^ 0xFF + 1;
+    WiFi.mode(WIFI_STA);
+    totalSSIDs=WiFi.scanNetworks();
+    scanIndex=0;
   }
-  
-  ck = sio_checksum((byte *)&ssidInfo.rawData, 330);
+
+  strcpy(ssidInfo.ssid,WiFi.SSID(scanIndex).c_str());
+  ssidInfo.rssi=(char)WiFi.RSSI(scanIndex);
+  ssidInfo.more=(scanIndex<totalSSIDs ? 1 : 0);  
+  ck = sio_checksum((byte *)&ssidInfo.rawData, 34);
 
   delayMicroseconds(DELAY_T5); // t5 delay
-  Serial.write('C'); // Completed command
+  
+  if (scanIndex>totalSSIDs)
+    Serial.write('E'); // Error
+  else
+  {    
+    Serial.write('C'); // Completed command
+    scanIndex++;
+    // Write data frame
+    Serial.write(ssidInfo.rawData,34);
+    
+    // Write data frame checksum
+    Serial.write(ck);
+    Serial.flush();
+  }
+  
   Serial.flush();
 
-  // Write data frame
-  Serial.write(ssidInfo.rawData,330);
-    
-  // Write data frame checksum
-  Serial.write(ck);
-  Serial.flush();
   delayMicroseconds(200);
 }
 
@@ -375,8 +378,8 @@ void setup()
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH);
 #endif
-  pinMode(PIN_INT, INPUT);
-  pinMode(PIN_PROC, INPUT);
+  pinMode(PIN_INT, OUTPUT); // thanks AtariGeezer.
+  pinMode(PIN_PROC, OUTPUT);
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
   
