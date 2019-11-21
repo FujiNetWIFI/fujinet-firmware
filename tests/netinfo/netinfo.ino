@@ -368,7 +368,7 @@ void setup()
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
 
-  WiFi.begin("Cherryhomes", "e1xb64XC46");
+  WiFi.begin("SSID", "PASSWORD");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(10);
