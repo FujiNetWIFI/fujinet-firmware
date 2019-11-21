@@ -361,7 +361,7 @@ void setup()
 #ifdef DEBUG_S
   Serial1.begin(19200);
   Serial1.println();
-  Serial1.println("#AtariWifi Test Program #11 started");
+  Serial1.println("#AtariWifi Test Program #12 started");
 #else
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH);
