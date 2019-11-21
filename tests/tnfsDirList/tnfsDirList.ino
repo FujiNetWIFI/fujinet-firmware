@@ -1,6 +1,6 @@
 /**
- * Test #12 - TNFS List Directory
- */
+   Test #12 - TNFS List Directory
+*/
 
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
@@ -39,9 +39,9 @@ int entry_index;
 unsigned long cmdTimer = 0;
 
 /**
- * A Single command frame, both in structured and unstructured
- * form.
- */
+   A Single command frame, both in structured and unstructured
+   form.
+*/
 union
 {
   struct
@@ -57,7 +57,7 @@ union
 
 union
 {
-  struct 
+  struct
   {
     byte session_idl;
     byte session_idh;
@@ -98,7 +98,7 @@ void ICACHE_RAM_ATTR sio_isr_cmd()
 void sio_get_id()
 {
   cmdFrame.devic = Serial.read();
-  if (cmdFrame.devic == 0x31 || cmdFrame.devic==0x70)
+  if (cmdFrame.devic == 0x31 || cmdFrame.devic == 0x70)
     cmdState = COMMAND;
   else
   {
@@ -115,7 +115,7 @@ void sio_get_id()
 void sio_get_command()
 {
   cmdFrame.comnd = Serial.read();
-  cmdState=AUX1;
+  cmdState = AUX1;
 
 #ifdef DEBUG_S
   Serial1.print("CMD CMND: ");
@@ -161,24 +161,24 @@ void sio_get_checksum()
   ck = sio_checksum((byte *)&cmdFrame.cmdFrameData, 4);
 
 #ifdef DEBUG_S
-    Serial1.print("CMD CKSM: ");
-    Serial1.print(cmdFrame.cksum, HEX);
+  Serial1.print("CMD CKSM: ");
+  Serial1.print(cmdFrame.cksum, HEX);
 #endif
 
-    if (ck == cmdFrame.cksum)
-    {
+  if (ck == cmdFrame.cksum)
+  {
 #ifdef DEBUG_S
-      Serial1.println(", ACK");
+    Serial1.println(", ACK");
 #endif
-      sio_ack();
-    }
-    else
-    {
+    sio_ack();
+  }
+  else
+  {
 #ifdef DEBUG_S
-      Serial1.println(", NAK");
+    Serial1.println(", NAK");
 #endif
-      sio_nak();
-    }
+    sio_nak();
+  }
 }
 
 /**
@@ -205,7 +205,7 @@ void sio_process()
       sio_close_directory();
       break;
   }
-  
+
   cmdState = WAIT;
   cmdTimer = 0;
 }
@@ -217,7 +217,7 @@ void sio_read()
 {
   byte ck;
   byte sector[128];
-  int offset =(256 * cmdFrame.aux2)+cmdFrame.aux1;
+  int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   offset *= 128;
   offset -= 128;
   offset += 16; // skip 16 byte ATR Header
@@ -232,8 +232,8 @@ void sio_read()
   Serial.flush();
 
   // Write data frame
-  Serial.write(sector,128);
-    
+  Serial.write(sector, 128);
+
   // Write data frame checksum
   Serial.write(ck);
   Serial.flush();
@@ -247,8 +247,8 @@ void sio_read()
 }
 
 /**
- * SIO close dir
- */
+   SIO close dir
+*/
 void sio_close_directory()
 {
   delayMicroseconds(DELAY_T5);
@@ -258,8 +258,8 @@ void sio_close_directory()
 }
 
 /**
- * SIO set path
- */
+   SIO set path
+*/
 void sio_open_directory()
 {
   byte ck;
@@ -268,51 +268,60 @@ void sio_open_directory()
   Serial1.printf("Receiving 256b frame from computer");
 #endif
 
-  Serial.readBytes(current_entry,256);
-  ck=Serial.read(); // Read checksum
+  Serial.readBytes(current_entry, 256);
+  ck = Serial.read(); // Read checksum
 
-  if (ck!=sio_checksum(current_entry,256))
+  if (ck != sio_checksum(current_entry, 256))
   {
     Serial.write('N'); // NAK
-    return;  
+    return;
   }
 
   Serial.write('A');   // ACK
 
   tnfs_opendir();
-  
+
   // And complete.
   Serial.write('C');
 }
 
 /**
- * SIO read dir entry
- */
+   SIO read dir entry
+*/
 void sio_read_dir_entry()
 {
   byte ck;
   long offset;
   byte ret;
-  
-  memset(current_entry,0x00,256);
 
-  tnfs_readdir();
- 
+  memset(current_entry, 0x00, 256);
+
+  ret = tnfs_readdir();
+
   ck = sio_checksum((byte *)&current_entry, 36);
 
   delayMicroseconds(DELAY_T5); // t5 delay
-  Serial.write('C'); // Command always completes.
-  Serial.flush();
-  
-  delayMicroseconds(200);
 
-  // Write data frame
-  Serial.write(current_entry,36);
+  if (ret == true)
+  {
+    Serial.write('C'); // Command always completes.
+    Serial.flush();
 
-  // Write checksum
-  Serial.write(ck);
-  Serial.flush();
-  delayMicroseconds(200);
+    delayMicroseconds(200);
+
+    // Write data frame
+    Serial.write(current_entry, 36);
+
+    // Write checksum
+    Serial.write(ck);
+    Serial.flush();
+    delayMicroseconds(200);
+  }
+  else
+  {
+    Serial.write('E');
+    Serial.flush();
+  }
 }
 
 /**
@@ -323,13 +332,13 @@ void sio_status()
   byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
   byte ck;
 
-  if (cmdFrame.devic==0x70)
+  if (cmdFrame.devic == 0x70)
   {
     // Network status is different
-    memset(status,0x00,sizeof(status));
-    status[0]=WiFi.status();
+    memset(status, 0x00, sizeof(status));
+    status[0] = WiFi.status();
 #ifndef DEBUG_S
-    Serial1.printf("Network Status 0x02x\n\n",status[0]);
+    Serial1.printf("Network Status 0x02x\n\n", status[0]);
 #endif
   }
 
@@ -375,7 +384,7 @@ void sio_nak()
   cmdTimer = 0;
 }
 
-void sio_incoming(){
+void sio_incoming() {
   switch (cmdState)
   {
     case ID:
@@ -410,172 +419,23 @@ void sio_incoming(){
 }
 
 /**
- * TNFS Open Directory
- */
+   TNFS Open Directory
+*/
 void tnfs_opendir()
 {
-  int start=millis();
-  int dur=millis()-start;
+  int start = millis();
+  int dur = millis() - start;
   tnfsPacket.retryCount++;  // increase sequence #
-  tnfsPacket.command=0x10;  // OPENDIR
-  tnfsPacket.data[0]='/';   // Open root dir
-  tnfsPacket.data[1]=0x00;  // nul terminated
+  tnfsPacket.command = 0x10; // OPENDIR
+  tnfsPacket.data[0] = '/'; // Open root dir
+  tnfsPacket.data[1] = 0x00; // nul terminated
 
 #ifdef DEBUG_S
   Serial1.println("TNFS Open directory /");
 #endif
 
-  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
-  UDP.write(tnfsPacket.rawData,2+4);
-  UDP.endPacket();
-
-  while (dur<5000)
-  {
-    yield();
-    if (UDP.parsePacket())
-    {
-      int l=UDP.read(tnfsPacket.rawData,512);
-      if (tnfsPacket.data[0]==0x00)
-      {
-        // Successful
-        tnfs_dir_fd=tnfsPacket.data[1];
-        return;  
-      }
-      else
-      {
-        // Unsuccessful  
-      }
-    }
-  }
-  // Otherwise, we timed out.
-#ifdef DEBUG_S
-  Serial1.println("Timeout after 5000ms.");
-#endif /* DEBUG_S */
-}
-
-/**
- * TNFS Read Directory
- * Reads the next directory entry
- */
-bool tnfs_readdir()
-{
-  int start=millis();
-  int dur=millis()-start;
-  tnfsPacket.retryCount++;  // increase sequence #
-  tnfsPacket.command=0x11;  // READDIR
-  tnfsPacket.data[0]=tnfs_dir_fd;   // Open root dir
-
-#ifdef DEBUG_S
-  Serial1.println("TNFS Read next dir entry");
-#endif
-
-  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
-  UDP.write(tnfsPacket.rawData,1+4);
-  UDP.endPacket();
-
-  while (dur<5000)
-  {
-    yield();
-    if (UDP.parsePacket())
-    {
-      int l=UDP.read(tnfsPacket.rawData,512);
-      if (tnfsPacket.data[0]==0x00)
-      {
-        // Successful
-        strcpy((char*)&current_entry,(char *)&tnfsPacket.data[1]);
-        return true;  
-      }
-      else
-      {
-        // Unsuccessful
-        return false; 
-      }
-    }
-  }
-  // Otherwise, we timed out.
-#ifdef DEBUG_S
-  Serial1.println("Timeout after 5000ms.");
-#endif /* DEBUG_S */  
-}
-
-/**
- * TNFS Close Directory
- */
-void tnfs_closedir()
-{
-  int start=millis();
-  int dur=millis()-start;
-  tnfsPacket.retryCount++;  // increase sequence #
-  tnfsPacket.command=0x12;  // CLOSEDIR
-  tnfsPacket.data[0]=tnfs_dir_fd;   // Open root dir
-
-#ifdef DEBUG_S
-  Serial1.println("TNFS dir close");
-#endif
-
-  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
-  UDP.write(tnfsPacket.rawData,1+4);
-  UDP.endPacket();
-
-  while (dur<5000)
-  {
-    yield();
-    if (UDP.parsePacket())
-    {
-      int l=UDP.read(tnfsPacket.rawData,512);
-      if (tnfsPacket.data[0]==0x00)
-      {
-        // Successful
-        return;  
-      }
-      else
-      {
-        // Unsuccessful
-        return; 
-      }
-    }
-  }
-  // Otherwise, we timed out.
-#ifdef DEBUG_S
-  Serial1.println("Timeout after 5000ms.");
-#endif /* DEBUG_S */  
-}
-
-
-/**
- * Mount the TNFS server
- */
-void tnfs_mount()
-{
-  int start=millis();
-  int dur=millis()-start;
-  
-  memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
-  tnfsPacket.session_idl=0;
-  tnfsPacket.session_idh=0;
-  tnfsPacket.retryCount=0;
-  tnfsPacket.command=0;
-  tnfsPacket.data[0]=0x01;   // vers
-  tnfsPacket.data[1]=0x00;   // "  "
-  tnfsPacket.data[2]=0x2F;   // /
-  tnfsPacket.data[3]=0x00;   // nul 
-  tnfsPacket.data[4]=0x00;   // no username
-  tnfsPacket.data[5]=0x00;   // no password
-
-#ifdef DEBUG_S
-  Serial1.print("Mounting / from ");
-  Serial1.println(TNFS_SERVER);
-  Serial1.print("Req Packet: ");
-  for (int i=0;i<10;i++)
-  {
-    Serial1.print(tnfsPacket.rawData[i], HEX);
-    Serial1.print(" ");
-  }
-  Serial1.println("");
-#endif /* DEBUG_S */
-
-  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
-  UDP.write(tnfsPacket.rawData,10);
+  UDP.beginPacket(TNFS_SERVER, TNFS_PORT);
+  UDP.write(tnfsPacket.rawData, 2 + 4);
   UDP.endPacket();
 
   while (dur < 5000)
@@ -583,17 +443,166 @@ void tnfs_mount()
     yield();
     if (UDP.parsePacket())
     {
-      int l=UDP.read(tnfsPacket.rawData,512);
+      int l = UDP.read(tnfsPacket.rawData, 512);
+      if (tnfsPacket.data[0] == 0x00)
+      {
+        // Successful
+        tnfs_dir_fd = tnfsPacket.data[1];
+        return;
+      }
+      else
+      {
+        // Unsuccessful
+      }
+    }
+  }
+  // Otherwise, we timed out.
+#ifdef DEBUG_S
+  Serial1.println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+}
+
+/**
+   TNFS Read Directory
+   Reads the next directory entry
+*/
+bool tnfs_readdir()
+{
+  int start = millis();
+  int dur = millis() - start;
+  tnfsPacket.retryCount++;  // increase sequence #
+  tnfsPacket.command = 0x11; // READDIR
+  tnfsPacket.data[0] = tnfs_dir_fd; // Open root dir
+
+#ifdef DEBUG_S
+  Serial1.println("TNFS Read next dir entry");
+#endif
+
+  UDP.beginPacket(TNFS_SERVER, TNFS_PORT);
+  UDP.write(tnfsPacket.rawData, 1 + 4);
+  UDP.endPacket();
+
+  while (dur < 5000)
+  {
+    yield();
+    if (UDP.parsePacket())
+    {
+      int l = UDP.read(tnfsPacket.rawData, 512);
+      if (tnfsPacket.data[0] == 0x00)
+      {
+        // Successful
+        strcpy((char*)&current_entry, (char *)&tnfsPacket.data[1]);
+        return true;
+      }
+      else
+      {
+        // Unsuccessful
+        return false;
+      }
+    }
+  }
+  // Otherwise, we timed out.
+#ifdef DEBUG_S
+  Serial1.println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+}
+
+/**
+   TNFS Close Directory
+*/
+void tnfs_closedir()
+{
+  int start = millis();
+  int dur = millis() - start;
+  tnfsPacket.retryCount++;  // increase sequence #
+  tnfsPacket.command = 0x12; // CLOSEDIR
+  tnfsPacket.data[0] = tnfs_dir_fd; // Open root dir
+
+#ifdef DEBUG_S
+  Serial1.println("TNFS dir close");
+#endif
+
+  UDP.beginPacket(TNFS_SERVER, TNFS_PORT);
+  UDP.write(tnfsPacket.rawData, 1 + 4);
+  UDP.endPacket();
+
+  while (dur < 5000)
+  {
+    yield();
+    if (UDP.parsePacket())
+    {
+      int l = UDP.read(tnfsPacket.rawData, 512);
+      if (tnfsPacket.data[0] == 0x00)
+      {
+        // Successful
+        return;
+      }
+      else
+      {
+        // Unsuccessful
+        return;
+      }
+    }
+  }
+  // Otherwise, we timed out.
+#ifdef DEBUG_S
+  Serial1.println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+}
+
+
+/**
+   Mount the TNFS server
+*/
+void tnfs_mount()
+{
+  int start = millis();
+  int dur = millis() - start;
+
+  memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
+  tnfsPacket.session_idl = 0;
+  tnfsPacket.session_idh = 0;
+  tnfsPacket.retryCount = 0;
+  tnfsPacket.command = 0;
+  tnfsPacket.data[0] = 0x01; // vers
+  tnfsPacket.data[1] = 0x00; // "  "
+  tnfsPacket.data[2] = 0x2F; // /
+  tnfsPacket.data[3] = 0x00; // nul
+  tnfsPacket.data[4] = 0x00; // no username
+  tnfsPacket.data[5] = 0x00; // no password
+
+#ifdef DEBUG_S
+  Serial1.print("Mounting / from ");
+  Serial1.println(TNFS_SERVER);
+  Serial1.print("Req Packet: ");
+  for (int i = 0; i < 10; i++)
+  {
+    Serial1.print(tnfsPacket.rawData[i], HEX);
+    Serial1.print(" ");
+  }
+  Serial1.println("");
+#endif /* DEBUG_S */
+
+  UDP.beginPacket(TNFS_SERVER, TNFS_PORT);
+  UDP.write(tnfsPacket.rawData, 10);
+  UDP.endPacket();
+
+  while (dur < 5000)
+  {
+    yield();
+    if (UDP.parsePacket())
+    {
+      int l = UDP.read(tnfsPacket.rawData, 512);
 #ifdef DEBUG_S
       Serial1.print("Resp Packet: ");
-      for (int i=0;i<l;i++)
+      for (int i = 0; i < l; i++)
       {
         Serial1.print(tnfsPacket.rawData[i], HEX);
         Serial.print(" ");
       }
       Serial1.println("");
 #endif /* DEBUG_S */
-      if (tnfsPacket.data[0]==0x00)
+      if (tnfsPacket.data[0] == 0x00)
       {
         // Successful
 #ifdef DEBUG_S
@@ -601,7 +610,7 @@ void tnfs_mount()
         Serial1.print(tnfsPacket.session_idl, HEX);
         Serial1.println(tnfsPacket.session_idh, HEX);
 #endif /* DEBUG_S */
-        return;  
+        return;
       }
       else
       {
@@ -610,20 +619,20 @@ void tnfs_mount()
         Serial1.print("Error #");
         Serial1.println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S */
-        return;  
+        return;
       }
     }
   }
   // Otherwise we timed out.
 #ifdef DEBUG_S
-Serial1.println("Timeout after 5000ms");
+  Serial1.println("Timeout after 5000ms");
 #endif /* DEBUG_S */
 }
 
-void setup() 
+void setup()
 {
   SPIFFS.begin();
-  atr=SPIFFS.open("/autorun.atr","r");
+  atr = SPIFFS.open("/autorun.atr", "r");
   // Set up pins
 #ifdef DEBUG_S
   Serial1.begin(19200);
@@ -638,17 +647,17 @@ void setup()
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
 
-  WiFi.begin("Cherryhomes","e1xb64XC46");
-  
+  WiFi.begin("Cherryhomes", "e1xb64XC46");
+
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(10);
   }
-  
+
   UDP.begin(16384);
 
   tnfs_mount();
-  
+
   // Set up serial
   Serial.begin(19200);
   Serial.swap();
@@ -658,18 +667,18 @@ void setup()
   cmdState = WAIT; // Start in wait state
 }
 
-void loop() 
+void loop()
 {
   if (Serial.available() > 0)
   {
     sio_incoming();
   }
-  
+
   if (millis() - cmdTimer > CMD_TIMEOUT && cmdState != WAIT)
   {
     Serial1.print("SIO CMD TIMEOUT: ");
     Serial1.println(cmdState);
     cmdState = WAIT;
     cmdTimer = 0;
-  } 
+  }
 }
