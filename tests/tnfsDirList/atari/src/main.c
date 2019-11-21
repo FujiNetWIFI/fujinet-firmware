@@ -42,11 +42,8 @@ void main(void)
     }
   
   printf ("\n\nReading Directory...\n\n");
-
-  num_entries=2350; // get # entries.
-  printf("num_entries: %d\n\n",num_entries);
-    
-  for (i=0;i<num_entries;i++)
+   
+  while (OS.dcb.dstats==0x01)
     {
       OS.dcb.ddevic=0x70;          // Network device
       OS.dcb.dunit=1;              // Unit 1
