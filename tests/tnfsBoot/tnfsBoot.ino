@@ -6,7 +6,7 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 
-#define TNFS_SERVER "192.168.1.114"
+#define TNFS_SERVER "mozzwald.com"
 #define TNFS_PORT 16384
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
