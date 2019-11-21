@@ -1,0 +1,150 @@
+Modules list:
+-------------
+main.o:
+    CODE              Offs=000000  Size=000118  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=000010  Align=00001  Fill=0000
+    DATA              Offs=000000  Size=000002  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(callmain.o):
+    CODE              Offs=000118  Size=000017  Align=00001  Fill=0000
+    DATA              Offs=000002  Size=000004  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(condes.o):
+    CODE              Offs=00012F  Size=00000C  Align=00001  Fill=0000
+    DATA              Offs=000006  Size=000025  Align=00001  Fill=0000
+    ONCE              Offs=000000  Size=00000C  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(crt0.o):
+    BSS               Offs=000010  Size=000005  Align=00001  Fill=0000
+    STARTUP           Offs=000000  Size=000063  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(decsp1.o):
+    CODE              Offs=00013B  Size=000009  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(exehdr.o):
+    EXEHDR            Offs=000000  Size=000002  Align=00001  Fill=0000
+    MAINHDR           Offs=000000  Size=000004  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(exetrailer.o):
+    AUTOSTRT          Offs=000000  Size=000006  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incsp1.o):
+    CODE              Offs=000144  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(mulax3.o):
+    CODE              Offs=00014B  Size=000011  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(pushax.o):
+    CODE              Offs=00015C  Size=00001A  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(zerobss.o):
+    CODE              Offs=000176  Size=000023  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(zeropage.o):
+    ZEROPAGE          Offs=000000  Size=00001A  Align=00001  Fill=0000
+
+
+Segment list:
+-------------
+Name                   Start     End    Size  Align
+----------------------------------------------------
+AUTOSTRT              000000  000005  000006  00001
+EXEHDR                000000  000001  000002  00001
+MAINHDR               000000  000003  000004  00001
+ZEROPAGE              000082  00009B  00001A  00001
+STARTUP               001D00  001D62  000063  00001
+ONCE                  001D63  001D6E  00000C  00001
+CODE                  001D6F  001F07  000199  00001
+DATA                  001F08  001F32  00002B  00001
+BSS                   001F33  001F47  000015  00001
+
+
+Exports list by name:
+---------------------
+__AUTOSTART__             000001 REA    __BSS_LOAD__              001F33 RLA    
+__BSS_RUN__               001F33 RLA    __BSS_SIZE__              000015 REA    
+__CONSTRUCTOR_COUNT__     000000 REA    __CONSTRUCTOR_TABLE__     001D6F RLA    
+__DESTRUCTOR_COUNT__      000000 REA    __DESTRUCTOR_TABLE__      001F08 RLA    
+__EXEHDR__                000001 REA    __LOWCODE_RUN__           001D63 RLA    
+__LOWCODE_SIZE__          000000 REA    __MAIN_START__            001D00 RLA    
+__RESERVED_MEMORY__       000000 REA    __STACKSIZE__             000800 REA    
+__STARTUP__               000001 REA    _main                     001DB5 RLA    
+callmain                  001E87 RLA    decsp1                    001EAA RLA    
+donelib                   001E9E RLA    incsp1                    001EB3 RLA    
+initlib                   001D63 RLA    mulax3                    001EBA RLA    
+ptr1                      00008A RLZ    pushax                    001ECF RLA    
+sp                        000082 RLZ    start                     001D01 RLA    
+zerobss                   001EE5 RLA    
+
+
+Exports list by value:
+----------------------
+__LOWCODE_SIZE__          000000 REA    __CONSTRUCTOR_COUNT__     000000 REA    
+__DESTRUCTOR_COUNT__      000000 REA    __RESERVED_MEMORY__       000000 REA    
+__AUTOSTART__             000001 REA    __STARTUP__               000001 REA    
+__EXEHDR__                000001 REA    __BSS_SIZE__              000015 REA    
+sp                        000082 RLZ    ptr1                      00008A RLZ    
+__STACKSIZE__             000800 REA    __MAIN_START__            001D00 RLA    
+start                     001D01 RLA    initlib                   001D63 RLA    
+__LOWCODE_RUN__           001D63 RLA    __CONSTRUCTOR_TABLE__     001D6F RLA    
+_main                     001DB5 RLA    callmain                  001E87 RLA    
+donelib                   001E9E RLA    decsp1                    001EAA RLA    
+incsp1                    001EB3 RLA    mulax3                    001EBA RLA    
+pushax                    001ECF RLA    zerobss                   001EE5 RLA    
+__DESTRUCTOR_TABLE__      001F08 RLA    __BSS_RUN__               001F33 RLA    
+__BSS_LOAD__              001F33 RLA    
+
+
+Imports list:
+-------------
+__AUTOSTART__ (exetrailer.o):
+    [linker generated]        src/atari.cfg(6)
+__BSS_LOAD__ ([linker generated]):
+    exehdr.o                  atari/exehdr.s(4)
+__BSS_RUN__ ([linker generated]):
+    zerobss.o                 common/zerobss.s(8)
+__BSS_SIZE__ ([linker generated]):
+    zerobss.o                 common/zerobss.s(8)
+__CONSTRUCTOR_COUNT__ ([linker generated]):
+    condes.o                  runtime/condes.s(18)
+__CONSTRUCTOR_TABLE__ ([linker generated]):
+    condes.o                  runtime/condes.s(18)
+__DESTRUCTOR_COUNT__ ([linker generated]):
+    condes.o                  runtime/condes.s(19)
+__DESTRUCTOR_TABLE__ ([linker generated]):
+    condes.o                  runtime/condes.s(19)
+__EXEHDR__ (exehdr.o):
+    [linker generated]        src/atari.cfg(5)
+__LOWCODE_RUN__ ([linker generated]):
+    crt0.o                    atari/crt0.s(18)
+__LOWCODE_SIZE__ ([linker generated]):
+    crt0.o                    atari/crt0.s(18)
+__MAIN_START__ ([linker generated]):
+    exehdr.o                  atari/exehdr.s(4)
+__RESERVED_MEMORY__ ([linker generated]):
+    crt0.o                    atari/crt0.s(16)
+    [linker generated]        src/atari.cfg(19)
+__STACKSIZE__ ([linker generated]):
+    [linker generated]        src/atari.cfg(19)
+__STARTUP__ (crt0.o):
+    main.o                    src/main.s(13)
+_main (main.o):
+    callmain.o                runtime/callmain.s(11)
+callmain (callmain.o):
+    crt0.o                    atari/crt0.s(15)
+decsp1 (decsp1.o):
+    main.o                    src/main.s(275)
+donelib (condes.o):
+    crt0.o                    atari/crt0.s(14)
+incsp1 (incsp1.o):
+    main.o                    src/main.s(275)
+initlib (condes.o):
+    crt0.o                    atari/crt0.s(14)
+mulax3 (mulax3.o):
+    main.o                    src/main.s(275)
+ptr1 (zeropage.o):
+    zerobss.o                 common/zerobss.s(9)
+    mulax3.o                  runtime/mulax3.s(9)
+    main.o                    src/main.s(11)
+pushax (pushax.o):
+    callmain.o                runtime/callmain.s(11)
+sp (zeropage.o):
+    pushax.o                  runtime/pushax.s(8)
+    incsp1.o                  runtime/incsp1.s(8)
+    decsp1.o                  runtime/decsp1.s(8)
+    crt0.o                    /home/thomc/Workspace/cc65/asminc/zeropage.inc(11)
+    main.o                    src/main.s(10)
+start (crt0.o):
+    exetrailer.o              atari/exetrailer.s(4)
+zerobss (zerobss.o):
+    crt0.o                    atari/crt0.s(15)
+
