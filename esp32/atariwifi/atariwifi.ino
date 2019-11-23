@@ -1,6 +1,14 @@
 /**
    SIO Test #5 - Implement as a FSM
 */
+// changes for esp32
+// 1. change network library to WiFi.h
+// 2. change file library to SPIFFS.h
+// 3. define serial ports
+// 4. renumber the pins
+// 5. remove Serial.swap();
+// 6. search and replace "Serial." with "SIO_UART"
+// 7. search and replace "BUG_UART." with "BUG_UART"
 
 #include <SPIFFS.h>
 
