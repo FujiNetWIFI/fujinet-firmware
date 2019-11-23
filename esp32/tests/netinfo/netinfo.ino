@@ -2,19 +2,32 @@
  * Test #8 - Return Network info via SIO
  */
 
-#include <ESP8266WiFi.h>
-#include <FS.h>
+// changes for esp32
+// 1. change network library to WiFi.h
+// 2. change file library to SPIFFS.h
+// 3. define serial ports
+// 4. renumber the pins
+// 5. remove Serial.swap();
+// 6. search and replace "Serial." with "SIO_UART"
+// 7. search and replace "BUG_UART." with "BUG_UART"
+// 8. 
+
+#include <WiFi.h>
+#include <SPIFFS.h>
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-// #define DEBUG_S
+#define DEBUG_S
+
+#define SIO_UART Serial2
+#define BUG_UART Serial
 
 #define PIN_LED         2
-#define PIN_INT         5
-#define PIN_PROC        4
-#define PIN_MTR        16
-#define PIN_CMD        12
+#define PIN_INT         26
+#define PIN_PROC        22
+#define PIN_MTR         33
+#define PIN_CMD         21
 
 #define DELAY_T5          1500
 #define READ_CMD_TIMEOUT  12
@@ -78,7 +91,7 @@ byte sio_checksum(byte* chunk, int length)
 /**
    ISR for falling COMMAND
 */
-void ICACHE_RAM_ATTR sio_isr_cmd()
+void IRAM_ATTR sio_isr_cmd()
 {
   if (digitalRead(PIN_CMD) == LOW)
   {
@@ -92,7 +105,7 @@ void ICACHE_RAM_ATTR sio_isr_cmd()
 */
 void sio_get_id()
 {
-  cmdFrame.devic = Serial.read();
+  cmdFrame.devic = SIO_UART.read();
   if (cmdFrame.devic == 0x31 || cmdFrame.devic==0x70)
     cmdState = COMMAND;
   else
@@ -102,14 +115,14 @@ void sio_get_id()
   }
 
 #ifdef DEBUG_S
-  Serial1.print("CMD DEVC: ");
-  Serial1.println(cmdFrame.devic, HEX);
+  BUG_UART.print("CMD DEVC: ");
+  BUG_UART.println(cmdFrame.devic, HEX);
 #endif
 }
 
 void sio_get_command()
 {
-  cmdFrame.comnd = Serial.read();
+  cmdFrame.comnd = SIO_UART.read();
   if (cmdFrame.comnd == 'R' || cmdFrame.comnd == 'S' || cmdFrame.comnd=='!' )
     cmdState = AUX1;
   else
@@ -119,8 +132,8 @@ void sio_get_command()
   }
 
 #ifdef DEBUG_S
-  Serial1.print("CMD CMND: ");
-  Serial1.println(cmdFrame.comnd, HEX);
+  BUG_UART.print("CMD CMND: ");
+  BUG_UART.println(cmdFrame.comnd, HEX);
 #endif
 }
 
@@ -129,12 +142,12 @@ void sio_get_command()
 */
 void sio_get_aux1()
 {
-  cmdFrame.aux1 = Serial.read();
+  cmdFrame.aux1 = SIO_UART.read();
   cmdState = AUX2;
 
 #ifdef DEBUG_S
-  Serial1.print("CMD AUX1: ");
-  Serial1.println(cmdFrame.aux1, HEX);
+  BUG_UART.print("CMD AUX1: ");
+  BUG_UART.println(cmdFrame.aux1, HEX);
 #endif
 }
 
@@ -143,12 +156,12 @@ void sio_get_aux1()
 */
 void sio_get_aux2()
 {
-  cmdFrame.aux2 = Serial.read();
+  cmdFrame.aux2 = SIO_UART.read();
   cmdState = CHECKSUM;
 
 #ifdef DEBUG_S
-  Serial1.print("CMD AUX2: ");
-  Serial1.println(cmdFrame.aux2, HEX);
+  BUG_UART.print("CMD AUX2: ");
+  BUG_UART.println(cmdFrame.aux2, HEX);
 #endif
 }
 
@@ -158,25 +171,25 @@ void sio_get_aux2()
 void sio_get_checksum()
 {
   byte ck;
-  cmdFrame.cksum = Serial.read();
+  cmdFrame.cksum = SIO_UART.read();
   ck = sio_checksum((byte *)&cmdFrame.cmdFrameData, 4);
 
 #ifdef DEBUG_S
-    Serial1.print("CMD CKSM: ");
-    Serial1.print(cmdFrame.cksum, HEX);
+    BUG_UART.print("CMD CKSM: ");
+    BUG_UART.print(cmdFrame.cksum, HEX);
 #endif
 
     if (ck == cmdFrame.cksum)
     {
 #ifdef DEBUG_S
-      Serial1.println(", ACK");
+      BUG_UART.println(", ACK");
 #endif
       sio_ack();
     }
     else
     {
 #ifdef DEBUG_S
-      Serial1.println(", NAK");
+      BUG_UART.println(", NAK");
 #endif
       sio_nak();
     }
@@ -223,21 +236,21 @@ void sio_read()
   ck = sio_checksum((byte *)&sector, 128);
 
   delayMicroseconds(DELAY_T5); // t5 delay
-  Serial.write('C'); // Completed command
-  Serial.flush();
+  SIO_UART.write('C'); // Completed command
+  SIO_UART.flush();
 
   // Write data frame
-  Serial.write(sector,128);
+  SIO_UART.write(sector,128);
     
   // Write data frame checksum
-  Serial.write(ck);
-  Serial.flush();
+  SIO_UART.write(ck);
+  SIO_UART.flush();
   delayMicroseconds(200);
 #ifdef DEBUG_S
-  Serial1.print("SIO READ OFFSET: ");
-  Serial1.print(offset);
-  Serial1.print(" - ");
-  Serial1.println((offset + 128));
+  BUG_UART.print("SIO READ OFFSET: ");
+  BUG_UART.print(offset);
+  BUG_UART.print(" - ");
+  BUG_UART.println((offset + 128));
 #endif
 }
 
@@ -251,18 +264,18 @@ void sio_send_net_info()
   ck = sio_checksum((byte *)&netInfo.rawData, 64);
 
   delayMicroseconds(DELAY_T5); // t5 delay
-  Serial.write('C'); // Completed command
-  Serial.flush();
+  SIO_UART.write('C'); // Completed command
+  SIO_UART.flush();
 
   // Write data frame
-  Serial.write(netInfo.rawData,64);
+  SIO_UART.write(netInfo.rawData,64);
     
   // Write data frame checksum
-  Serial.write(ck);
-  Serial.flush();
+  SIO_UART.write(ck);
+  SIO_UART.flush();
   delayMicroseconds(200);
 #ifdef DEBUG_S
-  Serial1.print("SIO SEND NETWORK INFO. ");
+  BUG_UART.print("SIO SEND NETWORK INFO. ");
 #endif
 }
 
@@ -277,18 +290,18 @@ void sio_status()
   ck = sio_checksum((byte *)&status, 4);
 
   delayMicroseconds(DELAY_T5); // t5 delay
-  Serial.write('C'); // Command always completes.
-  Serial.flush();
+  SIO_UART.write('C'); // Command always completes.
+  SIO_UART.flush();
   delayMicroseconds(200);
   //delay(1);
 
   // Write data frame
   for (int i = 0; i < 4; i++)
-    Serial.write(status[i]);
+    SIO_UART.write(status[i]);
 
   // Write checksum
-  Serial.write(ck);
-  Serial.flush();
+  SIO_UART.write(ck);
+  SIO_UART.flush();
   delayMicroseconds(200);
 }
 
@@ -298,8 +311,8 @@ void sio_status()
 void sio_ack()
 {
   delayMicroseconds(500);
-  Serial.write('A');
-  Serial.flush();
+  SIO_UART.write('A');
+  SIO_UART.flush();
   //cmdState = PROCESS;
   sio_process();
 }
@@ -310,8 +323,8 @@ void sio_ack()
 void sio_nak()
 {
   delayMicroseconds(500);
-  Serial.write('N');
-  Serial.flush();
+  SIO_UART.write('N');
+  SIO_UART.flush();
   cmdState = WAIT;
   cmdTimer = 0;
 }
@@ -344,7 +357,7 @@ void sio_incoming(){
       sio_process();
       break;
     case WAIT:
-      Serial.read(); // Toss it for now
+      SIO_UART.read(); // Toss it for now
       cmdTimer = 0;
       break;
   }
@@ -356,9 +369,9 @@ void setup()
   atr=SPIFFS.open("/autorun.atr","r");
   // Set up pins
 #ifdef DEBUG_S
-  Serial1.begin(19200);
-  Serial1.println();
-  Serial1.println("#AtariWifi Test Program #8 started");
+  BUG_UART.begin(115200);
+  BUG_UART.println();
+  BUG_UART.println("#AtariWifi Test Program #8 started");
 #else
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH);
@@ -368,10 +381,13 @@ void setup()
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
 
-  WiFi.begin("Cherryhomes", "e1xb64XC46");
+  WiFi.begin("SSID", "PASSWORD");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(10);
+    #ifdef DEBUG_S
+    BUG_UART.println("no wifi");
+    #endif
   }
 
   // Fill in netInfo structure.
@@ -392,8 +408,8 @@ void setup()
   netInfo.rssi=WiFi.RSSI();
   
   // Set up serial
-  Serial.begin(19200);
-  Serial.swap();
+  SIO_UART.begin(19200);
+  // SIO_UART.swap();
 
   // Attach COMMAND interrupt.
   attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
@@ -402,15 +418,15 @@ void setup()
 
 void loop() 
 {
-  if (Serial.available() > 0)
+  if (SIO_UART.available() > 0)
   {
     sio_incoming();
   }
   
   if (millis() - cmdTimer > CMD_TIMEOUT && cmdState != WAIT)
   {
-    Serial1.print("SIO CMD TIMEOUT: ");
-    Serial1.println(cmdState);
+    BUG_UART.print("SIO CMD TIMEOUT: ");
+    BUG_UART.println(cmdState);
     cmdState = WAIT;
     cmdTimer = 0;
   }
