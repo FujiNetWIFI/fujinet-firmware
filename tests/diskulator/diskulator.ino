@@ -12,8 +12,8 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 // #define DEBUG_S
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-// #define DEBUG_N
-// #define DEBUG_HOST "10.0.0.1"
+#define DEBUG_N
+#define DEBUG_HOST "10.0.0.7"
 
 #define PIN_LED         2
 #define PIN_INT         5
@@ -657,7 +657,9 @@ void tnfs_mount()
   UDP.write(tnfsPacket.rawData, 10);
   UDP.endPacket();
 
-  Serial.printf("Wrote the packet\n");
+#ifdef DEBUG
+  Debug_println("Wrote the packet");
+#endif
 
   while (dur < 5000)
   {
@@ -724,8 +726,8 @@ void tnfs_open()
   Debug_print("Req Packet: ");
   for (int i = 0; i < 512; i++)
   {
-    Serial.print(tnfsPacket.rawData[i], HEX);
-    Serial.print(" ");
+    Debug_print(tnfsPacket.rawData[i], HEX);
+    Debug_print(" ");
   }
 #endif /* DEBUG_S */
 
@@ -1078,7 +1080,7 @@ void setup()
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
 
-  WiFi.begin("A LAN Down Under", "foobar123");
+  WiFi.begin("SSID", "password");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(10);
