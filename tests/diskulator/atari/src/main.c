@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <6502.h>
+#include <unistd.h>
 
 unsigned char buf[256];
 
@@ -29,6 +30,7 @@ void select_host(void)
   cputs("\r\nConnecting...");
   
   OS.dcb.ddevic=0x70;
+  OS.dcb.dunit=1;
   OS.dcb.dcomnd='H';
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&buf;
@@ -52,6 +54,8 @@ void select_image(void)
   
   buf[0]=0x00; // guard char
 
+  clrscr();
+  
   // Open the directory.
   OS.dcb.ddevic=0x70;          // Network device
   OS.dcb.dunit=1;              // Unit 1
@@ -62,9 +66,8 @@ void select_image(void)
   OS.dcb.dbyt=256;             // path size
   siov();
   
-  while (buf[0]!=0xFF)
+  while (buf[0]!=0x7F)
     {
-      clrscr();
       memset(&buf,0,36);
       OS.dcb.dcomnd='%';           // TNFS Read
       OS.dcb.dstats=0x40;          // Write
@@ -72,27 +75,31 @@ void select_image(void)
       OS.dcb.dbyt=36;             // path size
       siov();
 
+      if (buf[0]=='.')
+	continue;
+      else if (buf[0]==0x7F)
+	break;
+      
       cputs(buf);
+      cputs("\r\n");
       
       i++;
       
-      if (buf[0]=='.')
-	continue;
-      else if (buf[0]==0xFF)
-	break;
-
       if (i>15)
 	{
-	  cputs("<ESC> to Select, any other key to Continue");
+	  cputs("<RET> to Select, any other key next page.");
 
 	  while (!kbhit()) { }
 
 	  ch=cgetc();
 
-	  if (ch==0x1B)
+	  if (ch==0x9B)
 	    break;
 	  else
-	    i=0;
+	    {
+	      i=0;
+	      clrscr();
+	    }
 	}
     }
 
@@ -102,17 +109,26 @@ void select_image(void)
   OS.dcb.dtimlo=0x80;          // Timeout
   OS.dcb.dbyt=0;             // path size
   siov();
+
+  memset(&buf,0,sizeof(buf));
   
   cputs("Filename: ");
   cscanf("%s",buf);
 
+  strcpy(buf,"jumpman.atr");
+  
   // Mount the image
-  OS.dcb.dcomnd='M';           // mount image
-  OS.dcb.dstats=0x80;          // Write
+  OS.dcb.ddevic=0x70;
+  OS.dcb.dunit=1;
+  OS.dcb.dcomnd='M';
+  OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&buf;
-  OS.dcb.dtimlo=0x80;          // Timeout
-  OS.dcb.dbyt=256;             // path size
+  OS.dcb.dtimlo=0x1f;
+  OS.dcb.dbyt=256;
   siov();
+
+  cputs("\r\nRebooting...");
+  sleep(2);
 }
 
 void reboot(void)
