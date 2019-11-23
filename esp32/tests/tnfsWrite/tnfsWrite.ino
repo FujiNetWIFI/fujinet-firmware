@@ -1,12 +1,11 @@
 /**
- * Test #7 - Combine TNFS and SIO to boot Jumpman
- * Yes, this is a proof of concept, watch out for falling rocks.
+ * Test #10: TNFS Read/Write, let's see if this works...
  */
 
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 
-#define TNFS_SERVER "mozzwald.com"
+#define TNFS_SERVER "192.168.1.7"
 #define TNFS_PORT 16384
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
@@ -32,6 +31,9 @@ byte statusSkipCount = 0;
 WiFiUDP UDP;
 byte tnfs_fd;
 
+byte sector[128];
+
+volatile bool cmdFlag=false;
 
 union
 {
@@ -76,11 +78,7 @@ byte sio_checksum(byte* chunk, int length)
 */
 void ICACHE_RAM_ATTR sio_isr_cmd()
 {
-  if (digitalRead(PIN_CMD) == LOW)
-  {
-    cmdState = ID;
-    cmdTimer = millis();
-  }
+  cmdFlag=true;
 }
 
 /**
@@ -106,43 +104,19 @@ void sio_get_id()
 /**
    Get Command
 */
-/*
-void sio_get_command()
-{
-  cmdFrame.comnd = Serial.read();
-  if (cmdFrame.comnd == 'S' && statusSkipCount > STATUS_SKIP)
-    cmdState = AUX1;
-  else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
-  {
-    statusSkipCount++;
-    cmdState = WAIT;
-    cmdTimer = 0;
-  }
-  else if (cmdFrame.comnd == 'R')
-    cmdState = AUX1;
-  else
-  {
-    cmdState = WAIT;
-    cmdTimer = 0;
-  }
-
-#ifdef DEBUG_S
-  Serial1.print("CMD CMND: ");
-  Serial1.println(cmdFrame.comnd, HEX);
-#endif
-}
-*/
 
 void sio_get_command()
 {
   cmdFrame.comnd = Serial.read();
-  if (cmdFrame.comnd == 'R' || cmdFrame.comnd == 'S' )
-    cmdState = AUX1;
-  else
-  {
-    cmdState = WAIT;
-    cmdTimer = 0;
-  }
+  cmdState=AUX1;
+  
+//  if (cmdFrame.comnd == 'R' || cmdFrame.comnd == 'W' || cmdFrame.comnd == 'P' || cmdFrame.comnd == 'S' )
+//    cmdState = AUX1;
+//  else
+//  {
+//    cmdState = WAIT;
+//    cmdTimer = 0;
+//  }
 
 #ifdef DEBUG_S
   Serial1.print("CMD CMND: ");
@@ -219,8 +193,15 @@ void sio_process()
     case 'R':
       sio_read();
       break;
+    case 'W':
+    case 'P':
+      sio_write();
+      break;
     case 'S':
       sio_status();
+      break;
+    case '!':
+      sio_format();
       break;
   }
   
@@ -229,12 +210,42 @@ void sio_process()
 }
 
 /**
+   format (fake)
+*/
+void sio_format()
+{
+  byte ck;
+
+  for (int i=0;i<128;i++)
+    sector[i]=0;
+
+  sector[0]=0xFF; // no bad sectors.
+  sector[1]=0xFF;
+
+  ck = sio_checksum((byte *)&sector, 128);
+
+  delayMicroseconds(DELAY_T5); // t5 delay
+  Serial.write('C'); // Completed command
+  Serial.flush();
+
+  // Write data frame
+  Serial.write(sector,128);
+    
+  // Write data frame checksum
+  Serial.write(ck);
+  Serial.flush();
+  delayMicroseconds(200);
+#ifdef DEBUG_S
+  Serial1.printf("We faked a format.\n");
+#endif
+}
+
+/**
    Read
 */
 void sio_read()
 {
   byte ck;
-  byte sector[128];
   int offset =(256 * cmdFrame.aux2)+cmdFrame.aux1;
   offset *= 128;
   offset -= 128;
@@ -264,6 +275,36 @@ void sio_read()
   Serial1.print(" - ");
   Serial1.println((offset + 128));
 #endif
+}
+
+/**
+ * Write, called for both W and P commands.
+ */
+void sio_write()
+{
+  byte ck;
+  int offset =(256 * cmdFrame.aux2)+cmdFrame.aux1;
+  offset *= 128;
+  offset -= 128;
+  offset += 16; // skip 16 byte ATR Header
+  tnfs_seek(offset);
+
+#ifdef DEBUG_S
+  Serial1.printf("receiving 128b data frame from computer.\n");
+#endif
+
+  Serial.readBytes(sector,128);
+  ck=Serial.read(); // Read checksum
+  //delayMicroseconds(350);
+  Serial.write('A'); // Write ACK
+  
+  if (ck==sio_checksum(sector,128))
+  {
+    delayMicroseconds(DELAY_T5);
+    Serial.write('C');
+    tnfs_write();
+    yield();
+  }
 }
 
 /**
@@ -388,6 +429,7 @@ void tnfs_mount()
 
   while (dur < 5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l=UDP.read(tnfsPacket.rawData,512);
@@ -436,7 +478,7 @@ void tnfs_open()
   int dur=millis()-start;
   tnfsPacket.retryCount++;  // increase sequence #
   tnfsPacket.command=0x29;  // OPEN
-  tnfsPacket.data[0]=0x01;  // R/O
+  tnfsPacket.data[0]=0x03;  // R/W
   tnfsPacket.data[1]=0x00;  //
   tnfsPacket.data[2]=0x00;  // Flags
   tnfsPacket.data[3]=0x00;  //
@@ -473,6 +515,7 @@ void tnfs_open()
 
   while (dur<5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l=UDP.read(tnfsPacket.rawData,512);
@@ -513,6 +556,141 @@ void tnfs_open()
 }
 
 /**
+ * TNFS close
+ */
+void tnfs_close()
+{
+  int start=millis();
+  int dur=millis()-start;
+  tnfsPacket.retryCount++;  // Increase sequence
+  tnfsPacket.command=0x23;  // CLOSE
+  tnfsPacket.data[0]=tnfs_fd; // returned file descriptor
+
+#ifdef DEBUG_S
+  Serial1.print("closing File descriptor: ");
+  Serial1.println(tnfs_fd);
+  Serial1.print("Req Packet: ");
+  for (int i=0;i<7;i++)
+  {
+    Serial1.print(tnfsPacket.rawData[i], HEX);
+    Serial1.print(" ");
+  }
+  Serial1.println("");
+#endif /* DEBUG_S */
+
+  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
+  UDP.write(tnfsPacket.rawData,4+1);
+  UDP.endPacket();
+
+  while (dur<5000)
+  {
+    yield();
+    if (UDP.parsePacket())
+    {
+      int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
+#ifdef DEBUG_S
+      Serial1.print("Resp packet: ");
+      for (int i=0;i<l;i++)
+      {
+        Serial1.print(tnfsPacket.rawData[i], HEX);
+        Serial1.print(" ");
+      }
+      Serial1.println("");
+#endif /* DEBUG_S */
+      if (tnfsPacket.data[0]==0x00)
+      {
+        // Successful
+#ifndef DEBUG_S
+        Serial1.println("Successful.");
+#endif /* DEBUG_S */
+        return;
+      }
+      else
+      {
+        // Error
+#ifdef DEBUG_S
+        Serial1.print("Error code #");
+        Serial1.println(tnfsPacket.data[0], HEX);
+#endif /* DEBUG_S*/        
+        return;
+      }
+    }
+  }
+#ifdef DEBUG_S
+  Serial1.println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+}
+
+/**
+ * TNFS write
+ */
+void tnfs_write()
+{
+  int start=millis();
+  int dur=millis()-start;
+  tnfsPacket.retryCount++;  // Increase sequence
+  tnfsPacket.command=0x22;  // READ
+  tnfsPacket.data[0]=tnfs_fd; // returned file descriptor
+  tnfsPacket.data[1]=0x80;  // 128 bytes
+  tnfsPacket.data[2]=0x00;  //
+
+#ifdef DEBUG_S
+  Serial1.print("Writing to File descriptor: ");
+  Serial1.println(tnfs_fd);
+  Serial1.print("Req Packet: ");
+  for (int i=0;i<7;i++)
+  {
+    Serial1.print(tnfsPacket.rawData[i], HEX);
+    Serial1.print(" ");
+  }
+  Serial1.println("");
+#endif /* DEBUG_S */
+
+  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
+  UDP.write(tnfsPacket.rawData,4+3);
+  UDP.write(sector,128);
+  UDP.endPacket();
+
+  while (dur<5000)
+  {
+    yield();
+    if (UDP.parsePacket())
+    {
+      int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
+#ifdef DEBUG_S
+      Serial1.print("Resp packet: ");
+      for (int i=0;i<l;i++)
+      {
+        Serial1.print(tnfsPacket.rawData[i], HEX);
+        Serial1.print(" ");
+      }
+      Serial1.println("");
+#endif /* DEBUG_S */
+      if (tnfsPacket.data[0]==0x00)
+      {
+        // Successful
+#ifndef DEBUG_S
+        Serial1.println("Successful.");
+#endif /* DEBUG_S */
+        return;
+      }
+      else
+      {
+        // Error
+#ifdef DEBUG_S
+        Serial1.print("Error code #");
+        Serial1.println(tnfsPacket.data[0], HEX);
+#endif /* DEBUG_S*/        
+        return;
+      }
+    }
+  }
+#ifdef DEBUG_S
+  Serial1.println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+}
+
+/**
  * TNFS read
  */
 void tnfs_read()
@@ -543,6 +721,7 @@ void tnfs_read()
 
   while (dur<5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
@@ -621,6 +800,7 @@ void tnfs_seek(long offset)
 
   while (dur<5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
@@ -664,7 +844,7 @@ void setup()
 #ifdef DEBUG_S
   Serial1.begin(19200);
   Serial1.println();
-  Serial1.println("#AtariWifi Test Program #7 started");
+  Serial1.println("#AtariWifi Test Program #10 started");
 #else
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH);
@@ -696,6 +876,16 @@ void setup()
 
 void loop() 
 {
+  if (cmdFlag) 
+  {
+    if (digitalRead(PIN_CMD) == LOW)
+    {
+      cmdState = ID;
+      cmdTimer = millis();
+      cmdFlag=false;
+    }
+  }
+
   if (Serial.available() > 0)
   {
     sio_incoming();
