@@ -10,7 +10,7 @@
 // 5. remove Serial.swap();
 // 6. search and replace "Serial." with "SIO_UART"
 // 7. search and replace "BUG_UART." with "BUG_UART"
-// 8. 
+// 8. change ISR label to IRAM_ATTR
 
 #include <WiFi.h>
 #include <SPIFFS.h>
