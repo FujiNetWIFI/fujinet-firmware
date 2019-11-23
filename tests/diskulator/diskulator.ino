@@ -677,17 +677,10 @@ void tnfs_mount()
       if (tnfsPacket.data[0] == 0x00)
       {
         // Successful
-<<<<<<< Updated upstream
-#ifdef DEBUG_S
-        Serial.print("Successful, Session ID: ");
-        Serial.print(tnfsPacket.session_idl, HEX);
-        Serial.println(tnfsPacket.session_idh, HEX);
-=======
 #ifdef DEBUG
         Debug_print("Successful, Session ID: ");
         Debug_print(tnfsPacket.session_idl, HEX);
         Debug_println(tnfsPacket.session_idh, HEX);
->>>>>>> Stashed changes
 #endif /* DEBUG_S */
         return;
       }
