@@ -4,9 +4,9 @@
 
 #include <atari.h>
 #include <6502.h>
-
 #include <stdio.h>
 #include <string.h>
+#include "cio.h"
 
 devhdl_t devhdl;
 char* output=(unsigned char *)0x0600; // Output buffer in page 6.
@@ -20,32 +20,8 @@ extern void cio_put(void);
 extern void cio_status(void);
 extern void cio_special(void);
 
-unsigned char* ret;
-unsigned char* err;
-
-void _cio_open(void)
-{
-}
-
-void _cio_close(void)
-{
-}
-
-void _cio_get(void)
-{
-}
-
-void _cio_put(void)
-{
-}
-
-void _cio_status(void)
-{
-}
-
-void _cio_special(void)
-{
-}
+unsigned char ret;
+unsigned char err;
 
 void cio_init(void)
 {
@@ -75,5 +51,5 @@ void main(void)
   OS.hatabs[i].devhdl=&devhdl; // handler table for N: device.
 
   // Manually setting memlo, is there a symbol that can get me actual top of data?
-  OS.memlo=(void *)0x205C;
+  OS.memlo=(void *)0x1FA1;
 }
