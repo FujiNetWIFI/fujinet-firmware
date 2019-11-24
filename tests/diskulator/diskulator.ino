@@ -13,7 +13,7 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
 #define DEBUG_N
-#define DEBUG_HOST "10.0.0.7"
+#define DEBUG_HOST "192.168.1.7"
 
 #define PIN_LED         2
 #define PIN_INT         5
@@ -710,21 +710,30 @@ void tnfs_open()
 {
   int start = millis();
   int dur = millis() - start;
+  int c=0;
   tnfsPacket.retryCount++;  // increase sequence #
   tnfsPacket.command = 0x29; // OPEN
-  tnfsPacket.data[0] = 0x01; // R/O
-  tnfsPacket.data[1] = 0x00; //
-  tnfsPacket.data[2] = 0x00; // Flags
-  tnfsPacket.data[3] = 0x00; //
-  tnfsPacket.data[4] = '/'; // Filename start
+  tnfsPacket.data[c++] = 0x01; // R/O
+  tnfsPacket.data[c++] = 0x00; //
+  tnfsPacket.data[c++] = 0x00; // Flags
+  tnfsPacket.data[c++] = 0x00; //
+  tnfsPacket.data[c++] = '/'; // Filename start
 
-  strcpy((char *)&tnfsPacket.data[5], "jumpman.atr");
+  for (int i=0;i<strlen(mountPath);i++)
+  {
+    tnfsPacket.data[i+5]=mountPath[i];
+    c++;  
+  }
+
+  tnfsPacket.data[c++]=0x00;
+  tnfsPacket.data[c++]=0x00;
+  tnfsPacket.data[c++]=0x00;
 
 #ifdef DEBUG
   Debug_printf("Opening /%s\n", mountPath);
   Debug_println("");
   Debug_print("Req Packet: ");
-  for (int i = 0; i < 512; i++)
+  for (int i = 0; i < c+4; i++)
   {
     Debug_print(tnfsPacket.rawData[i], HEX);
     Debug_print(" ");
@@ -732,7 +741,7 @@ void tnfs_open()
 #endif /* DEBUG_S */
 
   UDP.beginPacket(tnfsServer, 16384);
-  UDP.write(tnfsPacket.rawData, strlen((char *)tnfsPacket.data) + 4 + 3);
+  UDP.write(tnfsPacket.rawData, c+4);
   UDP.endPacket();
 
   while (dur < 5000)
@@ -1080,7 +1089,7 @@ void setup()
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
 
-  WiFi.begin("SSID", "password");
+  WiFi.begin("Cherryhomes", "e1xb64XC46");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(10);
