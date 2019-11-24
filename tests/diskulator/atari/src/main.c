@@ -36,6 +36,7 @@ void select_host(void)
   OS.dcb.dbuf=&buf;
   OS.dcb.dtimlo=0x1f;
   OS.dcb.dbyt=256;
+  OS.dcb.daux=0;
   siov();
 
   if (OS.dcb.dstats==138)
@@ -114,8 +115,6 @@ void select_image(void)
   
   cputs("Filename: ");
   cscanf("%s",buf);
-
-  strcpy(buf,"jumpman.atr");
   
   // Mount the image
   OS.dcb.ddevic=0x70;
