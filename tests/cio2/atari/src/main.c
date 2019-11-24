@@ -10,8 +10,6 @@
 
 devhdl_t devhdl;
 char* output=(unsigned char *)0x0600; // Output buffer in page 6.
-int c;
-const char* testmsg="Testing Input.\x9b";
 
 extern void cio_open(void);
 extern void cio_close(void);
@@ -51,5 +49,5 @@ void main(void)
   OS.hatabs[i].devhdl=&devhdl; // handler table for N: device.
 
   // Manually setting memlo, is there a symbol that can get me actual top of data?
-  OS.memlo=(void *)0x1FA1;
+  OS.memlo=(void *)0x2077;
 }
