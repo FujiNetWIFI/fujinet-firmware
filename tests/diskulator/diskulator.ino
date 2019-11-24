@@ -332,6 +332,8 @@ void sio_read()
   {
     tnfs_seek(offset);
     tnfs_read();
+    for (int i=0;i<128;i++)
+      sector[i]=tnfsPacket.data[i+3];
   }
 
   ck = sio_checksum((byte *)&sector, 128);
