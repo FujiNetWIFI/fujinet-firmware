@@ -7,14 +7,12 @@
 
 extern unsigned char err;
 extern unsigned char ret;
-unsigned char c=0;
 
-const char testmsg[]="Testing Input\x9b";
+char testmsg[]="Testing Input\x9b";
+unsigned char c;
 
 void _cio_get(void)
 {
-  ret=testmsg[c];
-  if (c>14)
-    c=0;
+  ret=testmsg[c++];
   err=1;
 }
