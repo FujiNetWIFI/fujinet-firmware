@@ -306,6 +306,8 @@ void sio_tcp_connect(void)
   char* thn;
   char* tpn; // hostname and port # tokens
   int port;
+
+  memset(&packet, 0x00, sizeof(packet));
   
 #ifdef DEBUG
   Debug_println("Receiving 256b frame from computer");
@@ -359,6 +361,8 @@ void sio_tcp_connect(void)
 void sio_tcp_disconnect(void)
 {
   byte ck;
+
+  memset(&packet, 0x00, sizeof(packet));
   
 #ifdef DEBUG
   Debug_println("Receiving 1b frame from computer");
@@ -387,13 +391,15 @@ void sio_tcp_disconnect(void)
   byte ck;
   
 #ifdef DEBUG
-  Debug_println("Receiving 256b frame from computer");
+  Debug_printf("Receiving %d bytes frame from computer",cmdFrame.aux1);
 #endif
 
-  Serial.readBytes(packet, 256);
+  memset(&packet, 0x00, sizeof(packet));
+
+  Serial.readBytes(packet, cmdFrame.aux1);
   ck = Serial.read(); // Read checksum
 
-  if (ck != sio_checksum((byte *)&packet, 256))
+  if (ck != sio_checksum((byte *)&packet, cmdFrame.aux1))
   {
     Serial.write('N'); // NAK
     return;
@@ -401,9 +407,14 @@ void sio_tcp_disconnect(void)
 
   Serial.write('A');   // ACK
 
-  for (int i=0;i<strlen(packet);i++)
+#ifdef DEBUG
+  Debug_printf("Writing %d bytes to computer.",cmdFrame.aux1);
+#endif
+
+  for (int i=0;i<cmdFrame.aux1;i++)
   {
-    sioclient.write(packet[i]);  
+    sioclient.write(packet[i]);
+    Debug_printf("%02x ",packet[i]);
   }
   
   Serial.write('C');

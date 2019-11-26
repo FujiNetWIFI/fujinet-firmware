@@ -35,6 +35,9 @@ void _cio_open(void)
   OS.dcb.dtimlo=0x1F; // Timeout
   OS.dcb.daux=0;      // no aux byte
   siov();
+
+  // Clear buffer
+  memset(&packet,0x00,sizeof(packet));
   
-  err=OS.dcb.dstats;
+  ret=err=OS.dcb.dstats;
 }

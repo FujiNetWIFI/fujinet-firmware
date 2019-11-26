@@ -8,7 +8,7 @@
 void _cio_open(void);
 void _cio_close(void);
 void _cio_get(void);
-void _cio_put(unsigned char a);
+void _cio_put(void);
 void _cio_status(void);
 void _cio_special(void);
 
