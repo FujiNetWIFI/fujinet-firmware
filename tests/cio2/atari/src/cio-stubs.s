@@ -26,6 +26,7 @@ _cio_open:
 	rts
 	
 _cio_put:
+	sta _ret
 	jsr __cio_put
 	lda _ret
 	ldy _err
