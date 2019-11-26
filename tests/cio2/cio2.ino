@@ -387,13 +387,13 @@ void sio_tcp_disconnect(void)
   byte ck;
   
 #ifdef DEBUG
-  Debug_println("Receiving 1b frame from computer");
+  Debug_println("Receiving 256b frame from computer");
 #endif
 
-  Serial.readBytes(packet, 1);
+  Serial.readBytes(packet, 256);
   ck = Serial.read(); // Read checksum
 
-  if (ck != sio_checksum((byte *)&packet, 1))
+  if (ck != sio_checksum((byte *)&packet, 256))
   {
     Serial.write('N'); // NAK
     return;
