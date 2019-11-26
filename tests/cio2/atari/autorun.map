@@ -78,7 +78,7 @@ Name                   Start     End    Size  Align
 AUTOSTRT              000000  000005  000006  00001
 EXEHDR                000000  000001  000002  00001
 MAINHDR               000000  000003  000004  00001
-ZEROPAGE              0000CB  0000E4  00001A  00001
+ZEROPAGE              0000E5  0000FE  00001A  00001
 STARTUP               001D00  001D62  000063  00001
 ONCE                  001D63  001D6E  00000C  00001
 CODE                  001D6F  0021D8  00046A  00001
@@ -112,11 +112,11 @@ decsp1                    00207A RLA    donelib                   002067 RLA
 incsp1                    002083 RLA    incsp2                    002092 RLA    
 initlib                   001D63 RLA    ldauidx                   0020A0 RLA    
 ldaxysp                   0020AB RLA    mulax3                    00213B RLA    
-popax                     00208A RLA    ptr1                      0000D3 RLZ    
-ptr2                      0000D5 RLZ    ptr3                      0000D7 RLZ    
-pushax                    002150 RLA    sp                        0000CB RLZ    
+popax                     00208A RLA    ptr1                      0000ED RLZ    
+ptr2                      0000EF RLZ    ptr3                      0000F1 RLZ    
+pushax                    002150 RLA    sp                        0000E5 RLZ    
 start                     001D01 RLA    staspidx                  002166 RLA    
-staxspidx                 00217C RLA    tmp1                      0000DB RLZ    
+staxspidx                 00217C RLA    tmp1                      0000F5 RLZ    
 tosaddax                  002025 RLA    zerobss                   0021B6 RLA    
 
 
@@ -126,9 +126,9 @@ Exports list by value:
 __CONSTRUCTOR_COUNT__     000000 REA    __RESERVED_MEMORY__       000000 REA    
 __DESTRUCTOR_COUNT__      000000 REA    __LOWCODE_SIZE__          000000 REA    
 __AUTOSTART__             000001 REA    __STARTUP__               000001 REA    
-__EXEHDR__                000001 REA    sp                        0000CB RLZ    
-ptr1                      0000D3 RLZ    ptr2                      0000D5 RLZ    
-ptr3                      0000D7 RLZ    tmp1                      0000DB RLZ    
+__EXEHDR__                000001 REA    sp                        0000E5 RLZ    
+ptr1                      0000ED RLZ    ptr2                      0000EF RLZ    
+ptr3                      0000F1 RLZ    tmp1                      0000F5 RLZ    
 __BSS_SIZE__              000118 REA    __STACKSIZE__             000800 REA    
 __MAIN_START__            001D00 RLA    start                     001D01 RLA    
 __LOWCODE_RUN__           001D63 RLA    initlib                   001D63 RLA    
