@@ -273,6 +273,8 @@ void sio_tcp_read()
   for (int i=0;i<cmdFrame.aux1;i++)
   {
     packet[i]=sioclient.read();
+    if (packet[i]==-1)
+      break;
   }
 
   ck = sio_checksum((byte *)&packet, cmdFrame.aux1);
@@ -282,7 +284,7 @@ void sio_tcp_read()
   Serial.flush();
 
   // Write data frame
-  Serial.write(packet,128);
+  Serial.write(packet,cmdFrame.aux1);
     
   // Write data frame checksum
   Serial.write(ck);

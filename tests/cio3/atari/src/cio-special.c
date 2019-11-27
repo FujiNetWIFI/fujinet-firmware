@@ -33,11 +33,6 @@ void _cio_special(void)
   
   switch(OS.ziocb.command)
     {
-    case 'l':
-      OS.dcb.dstats=0x80;
-      OS.dcb.dbyt=5;
-      OS.dcb.dcomnd='l';
-      break;
     case 'a':
       OS.dcb.dstats=0x40;
       OS.dcb.dbyt=1;
