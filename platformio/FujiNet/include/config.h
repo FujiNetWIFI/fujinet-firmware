@@ -22,7 +22,6 @@
 #endif
 
 // pin configurations
-
 // esp8266
 #ifdef ESP_8266
 #define PIN_LED 2
@@ -30,8 +29,8 @@
 #define PIN_PROC 4
 #define PIN_MTR 16
 #define PIN_CMD 12
-#elif defined(ESP_32)
 // esp32
+#elif defined(ESP_32)
 #define PIN_LED 2
 #define PIN_INT 26
 #define PIN_PROC 22
@@ -39,4 +38,5 @@
 #define PIN_CMD 21
 #endif
 
+//
 #endif
