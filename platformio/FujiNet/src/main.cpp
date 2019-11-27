@@ -47,6 +47,14 @@ union {
 File atr;
 
 /**
+   ISR for falling COMMAND
+*/
+void ICACHE_RAM_ATTR sio_isr_cmd()
+{
+  cmdFlag = true;
+}
+
+/**
    calculate 8-bit checksum.
 */
 byte sio_checksum(byte *chunk, int length)
@@ -59,13 +67,6 @@ byte sio_checksum(byte *chunk, int length)
   return (byte)chkSum;
 }
 
-/**
-   ISR for falling COMMAND
-*/
-void ICACHE_RAM_ATTR sio_isr_cmd()
-{
-  cmdFlag = true;
-}
 
 /**
    Get ID
