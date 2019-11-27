@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
 #include "config.h"
-#include "ssid.h"
+#include "ssid.h" // Declare WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
 
 #ifdef ESP_8266
 #include <FS.h>
@@ -320,7 +320,7 @@ void setup()
 
   // Set up pins
 #ifdef DEBUG_S
-  BUG_UART.begin(19200);
+  BUG_UART.begin(921600);
   BUG_UART.println();
   BUG_UART.println("atariwifi started");
 #else
