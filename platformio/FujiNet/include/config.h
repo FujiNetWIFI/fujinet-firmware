@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 // serial debug
-// #define DEBUG_S
+#define DEBUG_S
 
 #ifdef DEBUG_S
 #ifdef ESP_8266
