@@ -2,7 +2,23 @@
 #define SIO_H
 
 #include <Arduino.h>
-#include "config.h"
+
+// pin configurations
+// esp8266
+#ifdef ESP_8266
+#define PIN_LED 2
+#define PIN_INT 5
+#define PIN_PROC 4
+#define PIN_MTR 16
+#define PIN_CMD 12
+// esp32
+#elif defined(ESP_32)
+#define PIN_LED 2
+#define PIN_INT 26
+#define PIN_PROC 22
+#define PIN_MTR 33
+#define PIN_CMD 21
+#endif
 
 #ifdef ESP_8266
 #include <FS.h>
@@ -10,7 +26,6 @@
 #elif defined(ESP_32)
 #include <SPIFFS.h>
 #endif
-
 
 #define DELAY_T5 600
 #define READ_CMD_TIMEOUT 12

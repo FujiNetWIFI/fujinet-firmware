@@ -1,5 +1,8 @@
 #include "sio.h"
 
+// #define PIN_CMD 12
+// #define SIO_UART Serial
+
 extern File atr;
 
 enum
