@@ -31,8 +31,6 @@ void _cio_get_chr(void)
 
 void _cio_get_rec(void)
 {
-  unsigned char temp;
-
   err=1;  
   
   _cio_get_chr();
@@ -40,15 +38,10 @@ void _cio_get_rec(void)
   if (err==136)
     return;
   
-  if ((ret==0x0D) || (ret==0x0A))
+  if (ret==0x0D)
     {
-      // Get the next char, see if it's a CR/LF
-      temp=*p+1;
-      if ((temp==0x0D) || (temp==0x0A))
-	{
-	  getlen-=2; // Scoot forward.
-	  *p+=2;
-	}
+      *p++;
+      getlen--;
       ret=0x9B; // turn into EOL
     }
 }
