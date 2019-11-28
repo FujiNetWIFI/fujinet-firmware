@@ -6,6 +6,7 @@
 // pin configurations
 // esp8266
 #ifdef ESP_8266
+#define SIO_UART Serial
 #define PIN_LED 2
 #define PIN_INT 5
 #define PIN_PROC 4
@@ -13,6 +14,7 @@
 #define PIN_CMD 12
 // esp32
 #elif defined(ESP_32)
+#define SIO_UART Serial2
 #define PIN_LED 2
 #define PIN_INT 26
 #define PIN_PROC 22
