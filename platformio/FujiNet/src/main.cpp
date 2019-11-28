@@ -1,6 +1,5 @@
 #include <Arduino.h>
 
-#include "config.h"
 #include "ssid.h" // Declare WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
 #include "sio.h"
 
