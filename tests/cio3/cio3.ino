@@ -196,6 +196,7 @@ void sio_accept_connection()
   
   sioclient=sioserver.available();
 
+  Debug_printf("Accepting connection\n");
   if (sioclient)
   {
     status=1;  
@@ -267,15 +268,19 @@ void sio_process()
 void sio_tcp_read()
 {
   byte ck;
+  int l;
+  byte b;
   
   memset(&packet,0x00,sizeof(packet));
-  
-  for (int i=0;i<cmdFrame.aux1;i++)
+
+  Debug_printf("Sending RX buffer.\n");
+  l=(sioclient.available()<cmdFrame.aux1 ? sioclient.available() : cmdFrame.aux1);
+  for (int i=0;i<l;i++)
   {
-    packet[i]=sioclient.read();
-    if (packet[i]==-1)
-      break;
-  }
+    b=sioclient.read();
+    Debug_printf("%02x ",b);
+    packet[i]=b;  
+  }  
 
   ck = sio_checksum((byte *)&packet, cmdFrame.aux1);
 

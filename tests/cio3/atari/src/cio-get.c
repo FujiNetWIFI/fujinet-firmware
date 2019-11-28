@@ -10,55 +10,75 @@ extern unsigned char err;
 extern unsigned char ret;
 extern unsigned char packet[256];
 
+extern void _cio_status(void);
+
 unsigned char getlen;
+unsigned char* p;
+
+void _cio_get_chr(void)
+{ 
+  if (getlen>0)
+    {
+      ret=*p++;
+      getlen--;
+    }
+  else
+    {
+      err=136; // EOF
+      ret=0;
+    }
+}
 
 void _cio_get_rec(void)
 {
-  char* p=(char *)OS.ziocb.buffer;
-  unsigned char i;
-  
-  OS.dcb.ddevic=0x70; // Network adapter
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd='r';  // write tcp string
-  OS.dcb.dstats=0x40; // specify a read
-  OS.dcb.dtimlo=0x1f; // Timeout
-  OS.dcb.dbyt=255;
-  OS.dcb.dbuf=&OS.ziocb.buffer; // A packet.
-  OS.dcb.daux=255;
-  siov();
-  err=OS.dcb.dstats;
+  unsigned char temp;
 
-  // Massage the data
-  for (i=0;i<255;i++)
+  err=1;  
+  
+  _cio_get_chr();
+
+  if (err==136)
+    return;
+  
+  if ((ret==0x0D) || (ret==0x0A))
     {
-      if ((p[i]==0x0A) || (p[i]==0x0D))
+      // Get the next char, see if it's a CR/LF
+      temp=*p+1;
+      if ((temp==0x0D) || (temp==0x0A))
 	{
-	  p[i]=0x9B; // Make it an EOL.
+	  getlen-=2; // Scoot forward.
+	  *p+=2;
 	}
+      ret=0x9B; // turn into EOL
     }
-  
-  ret=p[i];
-}
-
-void _cio_get_chr(void)
-{
-  char* p=(char *)OS.ziocb.buffer;
-  
-  OS.dcb.ddevic=0x70; // Network adapter
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd='r';  // write tcp string
-  OS.dcb.dstats=0x40; // specify a read
-  OS.dcb.dtimlo=0x1f; // Timeout
-  OS.dcb.dbyt=1;
-  OS.dcb.dbuf=&OS.ziocb.buffer; // A packet.
-  OS.dcb.daux=1;
-  siov();
-  err=OS.dcb.dstats;
-  ret=p[0];
 }
 
 void _cio_get(void)
 {
+
+  // If buffer is empty, get next buffer from esp
+  
+  if (getlen==0)
+    {
+      _cio_status(); // Returns available bytes in DVSTAT and DVSTAT+1
+      getlen=OS.dvstat[0];
+
+      if (getlen>0)
+	{
+	  OS.dcb.ddevic=0x70;
+	  OS.dcb.dunit=1;
+	  OS.dcb.dcomnd='r';
+	  OS.dcb.dstats=0x40;
+	  OS.dcb.dtimlo=0x1f;
+	  OS.dcb.dbyt=getlen;
+	  OS.dcb.dbuf=&packet;
+	  OS.dcb.daux=getlen;
+	  siov();
+	  err=OS.dcb.dstats;
+	  p=&packet[0];
+	}
+    }
+  
   switch(OS.ziocb.command)
     {
     case 0x05: // GETREC
@@ -68,4 +88,7 @@ void _cio_get(void)
       _cio_get_chr();
       break;
     }  
+
+  OS.color2=getlen;
+
 }
