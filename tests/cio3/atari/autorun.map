@@ -1,61 +1,57 @@
 Modules list:
 -------------
 cio-get.o:
-    CODE              Offs=000000  Size=00011C  Align=00001  Fill=0000
-    BSS               Offs=000000  Size=000001  Align=00001  Fill=0000
+    CODE              Offs=000000  Size=00010E  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=000003  Align=00001  Fill=0000
 cio-status.o:
-    CODE              Offs=00011C  Size=00003D  Align=00001  Fill=0000
+    CODE              Offs=00010E  Size=00003D  Align=00001  Fill=0000
 cio-special.o:
-    CODE              Offs=000159  Size=00008D  Align=00001  Fill=0000
+    CODE              Offs=00014B  Size=00008D  Align=00001  Fill=0000
 main.o:
-    CODE              Offs=0001E6  Size=0000D3  Align=00001  Fill=0000
-    BSS               Offs=000001  Size=000112  Align=00001  Fill=0000
+    CODE              Offs=0001D8  Size=0000D3  Align=00001  Fill=0000
+    BSS               Offs=000003  Size=000112  Align=00001  Fill=0000
 cio-close.o:
-    CODE              Offs=0002B9  Size=00003C  Align=00001  Fill=0000
+    CODE              Offs=0002AB  Size=00003C  Align=00001  Fill=0000
 cio-open.o:
-    CODE              Offs=0002F5  Size=00009A  Align=00001  Fill=0000
+    CODE              Offs=0002E7  Size=00009A  Align=00001  Fill=0000
 cio-put.o:
-    CODE              Offs=00038F  Size=000091  Align=00001  Fill=0000
-    BSS               Offs=000113  Size=000001  Align=00001  Fill=0000
+    CODE              Offs=000381  Size=000091  Align=00001  Fill=0000
+    BSS               Offs=000115  Size=000001  Align=00001  Fill=0000
 cio-stubs.o:
-    CODE              Offs=000420  Size=00003F  Align=00001  Fill=0000
+    CODE              Offs=000412  Size=00003F  Align=00001  Fill=0000
 sio.o:
-    CODE              Offs=00045F  Size=000004  Align=00001  Fill=0000
+    CODE              Offs=000451  Size=000004  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(addeqsp.o):
-    CODE              Offs=000463  Size=000011  Align=00001  Fill=0000
-/home/thomc/Workspace/cc65/lib/atari.lib(addysp.o):
-    CODE              Offs=000474  Size=00000E  Align=00001  Fill=0000
+    CODE              Offs=000455  Size=000011  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(callmain.o):
-    CODE              Offs=000482  Size=000017  Align=00001  Fill=0000
+    CODE              Offs=000466  Size=000017  Align=00001  Fill=0000
     DATA              Offs=000000  Size=000004  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(condes.o):
-    CODE              Offs=000499  Size=00000C  Align=00001  Fill=0000
+    CODE              Offs=00047D  Size=00000C  Align=00001  Fill=0000
     DATA              Offs=000004  Size=000025  Align=00001  Fill=0000
     ONCE              Offs=000000  Size=00000C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(crt0.o):
-    BSS               Offs=000114  Size=000005  Align=00001  Fill=0000
+    BSS               Offs=000116  Size=000005  Align=00001  Fill=0000
     STARTUP           Offs=000000  Size=000063  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decsp1.o):
-    CODE              Offs=0004A5  Size=000009  Align=00001  Fill=0000
+    CODE              Offs=000489  Size=000009  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(exehdr.o):
     EXEHDR            Offs=000000  Size=000002  Align=00001  Fill=0000
     MAINHDR           Offs=000000  Size=000004  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(exetrailer.o):
     AUTOSTRT          Offs=000000  Size=000006  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp1.o):
-    CODE              Offs=0004AE  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=000492  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp2.o):
-    CODE              Offs=0004B5  Size=000016  Align=00001  Fill=0000
-/home/thomc/Workspace/cc65/lib/atari.lib(incsp3.o):
-    CODE              Offs=0004CB  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=000499  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(mulax3.o):
-    CODE              Offs=0004D0  Size=000011  Align=00001  Fill=0000
+    CODE              Offs=0004AF  Size=000011  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(pushax.o):
-    CODE              Offs=0004E1  Size=00001A  Align=00001  Fill=0000
+    CODE              Offs=0004C0  Size=00001A  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(strcpy.o):
-    CODE              Offs=0004FB  Size=00001F  Align=00001  Fill=0000
+    CODE              Offs=0004DA  Size=00001F  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(zerobss.o):
-    CODE              Offs=00051A  Size=000023  Align=00001  Fill=0000
+    CODE              Offs=0004F9  Size=000023  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(zeropage.o):
     ZEROPAGE          Offs=000000  Size=00001A  Align=00001  Fill=0000
 
@@ -70,69 +66,67 @@ MAINHDR               000000  000003  000004  00001
 ZEROPAGE              0000E5  0000FE  00001A  00001
 STARTUP               001D00  001D62  000063  00001
 ONCE                  001D63  001D6E  00000C  00001
-CODE                  001D6F  0022AB  00053D  00001
-DATA                  0022AC  0022D4  000029  00001
-BSS                   0022D5  0023ED  000119  00001
+CODE                  001D6F  00228A  00051C  00001
+DATA                  00228B  0022B3  000029  00001
+BSS                   0022B4  0023CE  00011B  00001
 
 
 Exports list by name:
 ---------------------
-__AUTOSTART__             000001 REA    __BSS_LOAD__              0022D5 RLA    
-__BSS_RUN__               0022D5 RLA    __BSS_SIZE__              000119 REA    
+__AUTOSTART__             000001 REA    __BSS_LOAD__              0022B4 RLA    
+__BSS_RUN__               0022B4 RLA    __BSS_SIZE__              00011B REA    
 __CONSTRUCTOR_COUNT__     000000 REA    __CONSTRUCTOR_TABLE__     001D6F RLA    
-__DESTRUCTOR_COUNT__      000000 REA    __DESTRUCTOR_TABLE__      0022AC RLA    
+__DESTRUCTOR_COUNT__      000000 REA    __DESTRUCTOR_TABLE__      00228B RLA    
 __EXEHDR__                000001 REA    __LOWCODE_RUN__           001D63 RLA    
 __LOWCODE_SIZE__          000000 REA    __MAIN_START__            001D00 RLA    
 __RESERVED_MEMORY__       000000 REA    __STACKSIZE__             000800 REA    
-__STARTUP__               000001 REA    __cio_close               002028 RLA    
-__cio_get                 001E7A RLA    __cio_open                002064 RLA    
-__cio_put                 002143 RLA    __cio_special             001EC8 RLA    
-__cio_status              001E8B RLA    _cio_close                00218F RLA    
-_cio_get                  002199 RLA    _cio_open                 0021A3 RLA    
-_cio_put                  0021AD RLA    _cio_special              0021BA RLA    
-_cio_status               0021C4 RLA    _err                      0023E7 RLA    
-_main                     001F56 RLA    _packet                   0022E6 RLA    
-_ret                      0023E6 RLA    _siov                     0021CE RLA    
-_strcpy                   00226A RLA    addeq0sp                  0021D2 RLA    
-addysp                    0021E4 RLA    callmain                  0021F1 RLA    
-decsp1                    002214 RLA    donelib                   002208 RLA    
-incsp1                    00221D RLA    incsp2                    00222C RLA    
-incsp3                    00223A RLA    initlib                   001D63 RLA    
-mulax3                    00223F RLA    popax                     002224 RLA    
+__STARTUP__               000001 REA    __cio_close               00201A RLA    
+__cio_get                 001DFF RLA    __cio_open                002056 RLA    
+__cio_put                 002135 RLA    __cio_special             001EBA RLA    
+__cio_status              001E7D RLA    _cio_close                002181 RLA    
+_cio_get                  00218B RLA    _cio_open                 002195 RLA    
+_cio_put                  00219F RLA    _cio_special              0021AC RLA    
+_cio_status               0021B6 RLA    _err                      0023C8 RLA    
+_main                     001F48 RLA    _packet                   0022C7 RLA    
+_ret                      0023C7 RLA    _siov                     0021C0 RLA    
+_strcpy                   002249 RLA    addeq0sp                  0021C4 RLA    
+callmain                  0021D5 RLA    decsp1                    0021F8 RLA    
+donelib                   0021EC RLA    incsp1                    002201 RLA    
+incsp2                    002210 RLA    initlib                   001D63 RLA    
+mulax3                    00221E RLA    popax                     002208 RLA    
 ptr1                      0000ED RLZ    ptr2                      0000EF RLZ    
-pushax                    002254 RLA    sp                        0000E5 RLZ    
-start                     001D01 RLA    zerobss                   002289 RLA    
-
+pushax                    002233 RLA    regsave                   0000E9 RLZ    
+sp                        0000E5 RLZ    start                     001D01 RLA    
+zerobss                   002268 RLA    
 
 
 Exports list by value:
 ----------------------
-__DESTRUCTOR_COUNT__      000000 REA    __CONSTRUCTOR_COUNT__     000000 REA    
 __LOWCODE_SIZE__          000000 REA    __RESERVED_MEMORY__       000000 REA    
-__AUTOSTART__             000001 REA    __STARTUP__               000001 REA    
+__DESTRUCTOR_COUNT__      000000 REA    __CONSTRUCTOR_COUNT__     000000 REA    
+__STARTUP__               000001 REA    __AUTOSTART__             000001 REA    
 __EXEHDR__                000001 REA    sp                        0000E5 RLZ    
-ptr1                      0000ED RLZ    ptr2                      0000EF RLZ    
-__BSS_SIZE__              000119 REA    __STACKSIZE__             000800 REA    
-__MAIN_START__            001D00 RLA    start                     001D01 RLA    
-initlib                   001D63 RLA    __LOWCODE_RUN__           001D63 RLA    
-__CONSTRUCTOR_TABLE__     001D6F RLA    __cio_get                 001E7A RLA    
-__cio_status              001E8B RLA    __cio_special             001EC8 RLA    
-_main                     001F56 RLA    __cio_close               002028 RLA    
-__cio_open                002064 RLA    __cio_put                 002143 RLA    
-_cio_close                00218F RLA    _cio_get                  002199 RLA    
-_cio_open                 0021A3 RLA    _cio_put                  0021AD RLA    
-_cio_special              0021BA RLA    _cio_status               0021C4 RLA    
-_siov                     0021CE RLA    addeq0sp                  0021D2 RLA    
-addysp                    0021E4 RLA    callmain                  0021F1 RLA    
-donelib                   002208 RLA    decsp1                    002214 RLA    
-incsp1                    00221D RLA    popax                     002224 RLA    
-incsp2                    00222C RLA    incsp3                    00223A RLA    
-mulax3                    00223F RLA    pushax                    002254 RLA    
-_strcpy                   00226A RLA    zerobss                   002289 RLA    
-__DESTRUCTOR_TABLE__      0022AC RLA    __BSS_RUN__               0022D5 RLA    
-__BSS_LOAD__              0022D5 RLA    _packet                   0022E6 RLA    
-_ret                      0023E6 RLA    _err                      0023E7 RLA    
-
+regsave                   0000E9 RLZ    ptr1                      0000ED RLZ    
+ptr2                      0000EF RLZ    __BSS_SIZE__              00011B REA    
+__STACKSIZE__             000800 REA    __MAIN_START__            001D00 RLA    
+start                     001D01 RLA    __LOWCODE_RUN__           001D63 RLA    
+initlib                   001D63 RLA    __CONSTRUCTOR_TABLE__     001D6F RLA    
+__cio_get                 001DFF RLA    __cio_status              001E7D RLA    
+__cio_special             001EBA RLA    _main                     001F48 RLA    
+__cio_close               00201A RLA    __cio_open                002056 RLA    
+__cio_put                 002135 RLA    _cio_close                002181 RLA    
+_cio_get                  00218B RLA    _cio_open                 002195 RLA    
+_cio_put                  00219F RLA    _cio_special              0021AC RLA    
+_cio_status               0021B6 RLA    _siov                     0021C0 RLA    
+addeq0sp                  0021C4 RLA    callmain                  0021D5 RLA    
+donelib                   0021EC RLA    decsp1                    0021F8 RLA    
+incsp1                    002201 RLA    popax                     002208 RLA    
+incsp2                    002210 RLA    mulax3                    00221E RLA    
+pushax                    002233 RLA    _strcpy                   002249 RLA    
+zerobss                   002268 RLA    __DESTRUCTOR_TABLE__      00228B RLA    
+__BSS_RUN__               0022B4 RLA    __BSS_LOAD__              0022B4 RLA    
+_packet                   0022C7 RLA    _ret                      0023C7 RLA    
+_err                      0023C8 RLA    
 
 
 Imports list:
@@ -180,6 +174,7 @@ __cio_special (cio-special.o):
     cio-stubs.o               src/cio-stubs.s(7)
 __cio_status (cio-status.o):
     cio-stubs.o               src/cio-stubs.s(7)
+    cio-get.o                 src/cio-get.s(17)
 _cio_close (cio-stubs.o):
     main.o                    src/main.s(17)
 _cio_get (cio-stubs.o):
@@ -207,6 +202,7 @@ _packet (main.o):
     cio-open.o                src/cio-open.s(18)
     cio-close.o               src/cio-close.s(15)
     cio-special.o             src/cio-special.s(16)
+    cio-get.o                 src/cio-get.s(16)
 _ret (main.o):
     cio-stubs.o               src/cio-stubs.s(5)
     cio-put.o                 src/cio-put.s(16)
@@ -225,23 +221,19 @@ _strcpy (strcpy.o):
 addeq0sp (addeqsp.o):
     cio-open.o                src/cio-open.s(105)
     cio-special.o             src/cio-special.s(96)
-addysp (addysp.o):
-    incsp3.o                  runtime/incsp3.s(8)
 callmain (callmain.o):
     crt0.o                    atari/crt0.s(15)
 decsp1 (decsp1.o):
     main.o                    src/main.s(169)
-    cio-get.o                 src/cio-get.s(195)
+    cio-get.o                 src/cio-get.s(181)
 donelib (condes.o):
     crt0.o                    atari/crt0.s(14)
 incsp1 (incsp1.o):
     main.o                    src/main.s(169)
+    cio-get.o                 src/cio-get.s(181)
 incsp2 (incsp2.o):
     cio-open.o                src/cio-open.s(105)
     cio-special.o             src/cio-special.s(96)
-    cio-get.o                 src/cio-get.s(195)
-incsp3 (incsp3.o):
-    cio-get.o                 src/cio-get.s(195)
 initlib (condes.o):
     crt0.o                    atari/crt0.s(14)
 mulax3 (mulax3.o):
@@ -263,10 +255,9 @@ pushax (pushax.o):
     callmain.o                runtime/callmain.s(11)
     cio-open.o                src/cio-open.s(105)
     cio-special.o             src/cio-special.s(96)
-    cio-get.o                 src/cio-get.s(195)
-    cio-get.o                 src/cio-get.s(195)
+regsave (zeropage.o):
+    cio-get.o                 src/cio-get.s(10)
 sp (zeropage.o):
-    addysp.o                  runtime/addysp.s(8)
     pushax.o                  runtime/pushax.s(8)
     incsp2.o                  runtime/incsp2.s(8)
     incsp1.o                  runtime/incsp1.s(8)
