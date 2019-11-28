@@ -310,6 +310,11 @@ void setup_sio()
   SIO_UART.swap();
 #endif
 
+  pinMode(PIN_INT, INPUT);
+  pinMode(PIN_PROC, INPUT);
+  pinMode(PIN_MTR, INPUT_PULLDOWN);
+  pinMode(PIN_CMD, INPUT);
+
   // Attach COMMAND interrupt.
   //attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, CHANGE);
   attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);

@@ -19,17 +19,14 @@ void setup()
 
   // Set up pins
 #ifdef DEBUG_S
-  BUG_UART.begin(921600);
+  BUG_UART.begin(DEBUG_SPEED);
   BUG_UART.println();
   BUG_UART.println("atariwifi started");
 #else
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH);
 #endif
-  pinMode(PIN_INT, INPUT);
-  pinMode(PIN_PROC, INPUT);
-  pinMode(PIN_MTR, INPUT_PULLDOWN);
-  pinMode(PIN_CMD, INPUT);
+
 
   setup_sio();
 }
