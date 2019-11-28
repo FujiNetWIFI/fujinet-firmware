@@ -51,7 +51,7 @@ union
 
 // This is the wificlient used by the SIO
 WiFiClient sioclient;
-WiFiServer sioserver(2000);
+WiFiServer* sioserver;
 bool server_active;
 
 #ifdef DEBUG_N
@@ -194,7 +194,7 @@ void sio_accept_connection()
   byte status;
   byte ck;
   
-  sioclient=sioserver.available();
+  sioclient=sioserver->available();
 
   Debug_printf("Accepting connection\n");
   if (sioclient)
@@ -566,10 +566,12 @@ void sio_tcp_listen(void)
   port=atoi(packet);
 
 #ifdef DEBUG
-  Debug_printf("Now listening for connections on port 2000\n");
+  Debug_printf("Now listening for connections on port %d\n",port);
 #endif
 
-  sioserver.begin();
+  delete sioserver;
+  sioserver=new WiFiServer(port);
+  sioserver->begin();
   
   Serial.write('C');
 
