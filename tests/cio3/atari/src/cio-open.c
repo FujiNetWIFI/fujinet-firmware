@@ -23,17 +23,28 @@ void _cio_open(void)
 
   // Copy into packet
   strcpy(packet,p);
-  
-  // I am ignoring the aux1/aux2 for this test, and simply assuming the open parameters.
 
+  // Start setting up DCB.
   OS.dcb.ddevic=0x70; // Network card
   OS.dcb.dunit=1;     // device unit 1
-  OS.dcb.dcomnd='c';  // Do a connect
   OS.dcb.dstats=0x80; // Write connect request to peripheral.
   OS.dcb.dbuf=&packet; // Packet
-  OS.dcb.dbyt=256;     // packet size
   OS.dcb.dtimlo=0x1F; // Timeout
   OS.dcb.daux=0;      // no aux byte
+
+  if (OS.ziocb.aux2==128)
+    {
+      // 128 = listen
+      OS.dcb.dcomnd='l';
+      OS.dcb.dbyt=5;
+    }
+  else
+    {
+      // Connect
+      OS.dcb.dcomnd='c';
+      OS.dcb.dbyt=256;      
+    }
+  
   siov();
 
   // Clear buffer

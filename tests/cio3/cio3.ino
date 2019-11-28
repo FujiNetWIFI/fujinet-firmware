@@ -51,7 +51,7 @@ union
 
 // This is the wificlient used by the SIO
 WiFiClient sioclient;
-WiFiServer sioserver(2000);
+WiFiServer* sioserver;
 bool server_active;
 
 #ifdef DEBUG_N
@@ -194,8 +194,9 @@ void sio_accept_connection()
   byte status;
   byte ck;
   
-  sioclient=sioserver.available();
+  sioclient=sioserver->available();
 
+  Debug_printf("Accepting connection\n");
   if (sioclient)
   {
     status=1;  
@@ -267,13 +268,19 @@ void sio_process()
 void sio_tcp_read()
 {
   byte ck;
+  int l;
+  byte b;
   
   memset(&packet,0x00,sizeof(packet));
-  
-  for (int i=0;i<cmdFrame.aux1;i++)
+
+  Debug_printf("Sending RX buffer.\n");
+  l=(sioclient.available()<cmdFrame.aux1 ? sioclient.available() : cmdFrame.aux1);
+  for (int i=0;i<l;i++)
   {
-    packet[i]=sioclient.read();
-  }
+    b=sioclient.read();
+    Debug_printf("%02x ",b);
+    packet[i]=b;  
+  }  
 
   ck = sio_checksum((byte *)&packet, cmdFrame.aux1);
 
@@ -282,7 +289,7 @@ void sio_tcp_read()
   Serial.flush();
 
   // Write data frame
-  Serial.write(packet,128);
+  Serial.write(packet,cmdFrame.aux1);
     
   // Write data frame checksum
   Serial.write(ck);
@@ -559,10 +566,12 @@ void sio_tcp_listen(void)
   port=atoi(packet);
 
 #ifdef DEBUG
-  Debug_printf("Now listening for connections on port 2000\n");
+  Debug_printf("Now listening for connections on port %d\n",port);
 #endif
 
-  sioserver.begin();
+  delete sioserver;
+  sioserver=new WiFiServer(port);
+  sioserver->begin();
   
   Serial.write('C');
 
