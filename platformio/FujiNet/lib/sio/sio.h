@@ -44,7 +44,7 @@ class sioDevice
 {
 private:
 
-File *_file;
+File _file;
 
 enum
 {
@@ -134,7 +134,7 @@ void sio_incoming();
 
 public:
 
-void setup(File *afile);
+void setup(File &afile);
 
 void handle();
 
