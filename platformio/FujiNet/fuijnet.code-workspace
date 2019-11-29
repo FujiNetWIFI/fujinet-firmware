@@ -15,7 +15,9 @@
 			"unordered_map": "cpp",
 			"vector": "cpp",
 			"initializer_list": "cpp",
-			"regex": "cpp"
+			"regex": "cpp",
+			"functional": "cpp",
+			"limits": "cpp"
 		}
 	}
 }

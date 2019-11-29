@@ -19,6 +19,8 @@
 
 File atr;
 tnfsClient myTNFS;
+sioDevice sioD1;
+
 
 void setup()
 {
@@ -37,15 +39,15 @@ void setup()
     delay(10);
   }
   
-  // SPIFFS.begin();
-  // atr = SPIFFS.open("/autorun.atr", "r");
+  SPIFFS.begin();
+  atr = SPIFFS.open("/autorun.atr", "r");
 
   myTNFS.begin();
 
-  setup_sio();
+  sioD1.setup();
 }
 
 void loop()
 {
-  handle_sio();
+  sioD1.handle();
 }

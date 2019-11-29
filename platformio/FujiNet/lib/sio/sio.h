@@ -40,6 +40,38 @@
 */
 void ICACHE_RAM_ATTR sio_isr_cmd();
 
+class sioDevice
+{
+private:
+
+enum
+{
+  ID,
+  COMMAND,
+  AUX1,
+  AUX2,
+  CHECKSUM,
+  ACK,
+  NAK,
+  PROCESS,
+  WAIT
+} cmdState;
+
+union {
+  struct
+  {
+    unsigned char devic;
+    unsigned char comnd;
+    unsigned char aux1;
+    unsigned char aux2;
+    unsigned char cksum;
+  };
+  byte cmdFrameData[5];
+} cmdFrame;
+
+unsigned long cmdTimer = 0;
+byte statusSkipCount = 0;
+
 /**
    calculate 8-bit checksum.
 */
@@ -98,8 +130,12 @@ void sio_get_checksum();
 
 void sio_incoming();
 
-void setup_sio();
+public:
 
-void handle_sio();
+void setup();
+
+void handle();
+
+};
 
 #endif // guard

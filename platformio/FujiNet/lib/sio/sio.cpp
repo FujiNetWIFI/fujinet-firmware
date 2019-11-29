@@ -7,48 +7,21 @@
 extern File atr;
 extern tnfsClient myTNFS;
 
-enum
-{
-  ID,
-  COMMAND,
-  AUX1,
-  AUX2,
-  CHECKSUM,
-  ACK,
-  NAK,
-  PROCESS,
-  WAIT
-} cmdState;
-
-union {
-  struct
-  {
-    unsigned char devic;
-    unsigned char comnd;
-    unsigned char aux1;
-    unsigned char aux2;
-    unsigned char cksum;
-  };
-  byte cmdFrameData[5];
-} cmdFrame;
-
-
-volatile bool cmdFlag = false;
-unsigned long cmdTimer = 0;
-byte statusSkipCount = 0;
 
 /**
    ISR for falling COMMAND
 */
+volatile bool cmdFlag = false;
 void ICACHE_RAM_ATTR sio_isr_cmd()
 {
   cmdFlag = true;
 }
 
+
 /**
    calculate 8-bit checksum.
 */
-byte sio_checksum(byte *chunk, int length)
+byte sioDevice::sio_checksum(byte *chunk, int length)
 {
   int chkSum = 0;
   for (int i = 0; i < length; i++)
@@ -61,7 +34,7 @@ byte sio_checksum(byte *chunk, int length)
 /**
    Get ID
 */
-void sio_get_id()
+void sioDevice::sio_get_id()
 {
   cmdFrame.devic = SIO_UART.read();
   if (cmdFrame.devic == 0x31)
@@ -81,7 +54,7 @@ void sio_get_id()
 /**
    Get Command
 */
-void sio_get_command()
+void sioDevice::sio_get_command()
 {
   cmdFrame.comnd = SIO_UART.read();
   if (cmdFrame.comnd == 'S' && statusSkipCount >= STATUS_SKIP)
@@ -109,7 +82,7 @@ void sio_get_command()
 /**
    Get aux1
 */
-void sio_get_aux1()
+void sioDevice::sio_get_aux1()
 {
   cmdFrame.aux1 = SIO_UART.read();
   cmdState = AUX2;
@@ -123,7 +96,7 @@ void sio_get_aux1()
 /**
    Get aux2
 */
-void sio_get_aux2()
+void sioDevice::sio_get_aux2()
 {
   cmdFrame.aux2 = SIO_UART.read();
   cmdState = CHECKSUM;
@@ -137,7 +110,7 @@ void sio_get_aux2()
 /**
    Read
 */
-void sio_read()
+void sioDevice::sio_read()
 {
   byte ck;
   byte sector[128];
@@ -175,7 +148,7 @@ void sio_read()
 /**
    Status
 */
-void sio_status()
+void sioDevice::sio_status()
 {
   byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
   byte ck;
@@ -202,7 +175,7 @@ void sio_status()
    Process command
 */
 
-void sio_process()
+void sioDevice::sio_process()
 {
   switch (cmdFrame.comnd)
   {
@@ -221,7 +194,7 @@ void sio_process()
 /**
    Send an acknowledgement
 */
-void sio_ack()
+void sioDevice::sio_ack()
 {
   delayMicroseconds(500);
   SIO_UART.write('A');
@@ -233,7 +206,7 @@ void sio_ack()
 /**
    Send a non-acknowledgement
 */
-void sio_nak()
+void sioDevice::sio_nak()
 {
   delayMicroseconds(500);
   SIO_UART.write('N');
@@ -245,7 +218,7 @@ void sio_nak()
 /**
    Get Checksum, and compare
 */
-void sio_get_checksum()
+void sioDevice::sio_get_checksum()
 {
   byte ck;
   cmdFrame.cksum = SIO_UART.read();
@@ -272,7 +245,7 @@ void sio_get_checksum()
   }
 }
 
-void sio_incoming()
+void sioDevice::sio_incoming()
 {
   switch (cmdState)
   {
@@ -307,7 +280,7 @@ void sio_incoming()
   }
 }
 
-void setup_sio()
+void sioDevice::setup()
 {
     // Set up serial
   SIO_UART.begin(19200);
@@ -326,7 +299,7 @@ void setup_sio()
   cmdState = WAIT; // Start in wait state
 }
 
-void handle_sio()
+void sioDevice::handle()
 {
   if (cmdFlag)
   {
