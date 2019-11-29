@@ -121,10 +121,8 @@ void sioDevice::sio_read()
   //atr.seek(offset, SeekSet);
   //atr.read(sector, 128);
 
-  //myTNFS.seek(offset);
-  //myTNFS.read(sector,128);
-  _file->seek(offset, SeekSet);
-  _file->read(sector, 128);
+  myTNFS.seek(offset);
+  myTNFS.read(sector,128);
 
   ck = sio_checksum((byte *)&sector, 128);
 
@@ -282,7 +280,7 @@ void sioDevice::sio_incoming()
   }
 }
 
-void sioDevice::setup(File *afile)
+void sioDevice::setup()
 {
     // Set up serial
   SIO_UART.begin(19200);

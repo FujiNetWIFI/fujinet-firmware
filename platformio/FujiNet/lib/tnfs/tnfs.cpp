@@ -253,7 +253,7 @@ void tnfsClient::read(byte arr[], int count)
 /**
  * TNFS seek
  */
-void tnfsClient::seek(long offset, int dumb)
+void tnfsClient::seek(long offset)
 {
   int start=millis();
   int dur=millis()-start;
