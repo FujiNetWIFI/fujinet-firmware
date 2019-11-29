@@ -33,21 +33,9 @@ unsigned long cmdTimer = 0;
 byte statusSkipCount = 0;
 
 WiFiUDP UDP;
-byte tnfs_fd;
 
 
-union
-{
-  struct 
-  {
-    byte session_idl;
-    byte session_idh;
-    byte retryCount;
-    byte command;
-    byte data[508];
-  };
-  byte rawData[512];
-} tnfsPacket;
+
 
 union
 {
@@ -64,8 +52,24 @@ union
 
 class tnfsClient : public Stream
 {
+private:  
 
-  
+byte tnfs_fd;
+
+union
+{
+  struct 
+  {
+    byte session_idl;
+    byte session_idh;
+    byte retryCount;
+    byte command;
+    byte data[508];
+  };
+  byte rawData[512];
+} tnfsPacket;
+
+
 /**
  * Mount the TNFS server
  */
@@ -228,6 +232,73 @@ void tnfs_open()
 #endif /* DEBUG_S */
 }
 
+
+void tnfs_read()
+{
+  int start=millis();
+  int dur=millis()-start;
+  tnfsPacket.retryCount++;  // Increase sequence
+  tnfsPacket.command=0x21;  // READ
+  tnfsPacket.data[0]=tnfs_fd; // returned file descriptor
+  tnfsPacket.data[1]=0x80;  // 128 bytes
+  tnfsPacket.data[2]=0x00;  //
+
+#ifdef DEBUG_S
+  BUG_UART.print("Reading from File descriptor: ");
+  BUG_UART.println(tnfs_fd);
+  BUG_UART.print("Req Packet: ");
+  for (int i=0;i<7;i++)
+  {
+    BUG_UART.print(tnfsPacket.rawData[i], HEX);
+    BUG_UART.print(" ");
+  }
+  BUG_UART.println("");
+#endif /* DEBUG_S */
+
+  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
+  UDP.write(tnfsPacket.rawData,4+3);
+  UDP.endPacket();
+
+  while (dur<5000)
+  {
+    if (UDP.parsePacket())
+    {
+      int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
+#ifdef DEBUG_S
+      BUG_UART.print("Resp packet: ");
+      for (int i=0;i<l;i++)
+      {
+        BUG_UART.print(tnfsPacket.rawData[i], HEX);
+        BUG_UART.print(" ");
+      }
+      BUG_UART.println("");
+#endif /* DEBUG_S */
+      if (tnfsPacket.data[0]==0x00)
+      {
+        // Successful
+#ifndef DEBUG_S
+        BUG_UART.println("Successful.");
+#endif /* DEBUG_S */
+        return;
+      }
+      else
+      {
+        // Error
+#ifdef DEBUG_S
+        BUG_UART.print("Error code #");
+        BUG_UART.println(tnfsPacket.data[0], HEX);
+#endif /* DEBUG_S*/        
+        return;
+      }
+    }
+  }
+#ifdef DEBUG_S
+  BUG_UART.println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+}
+
+ 
+
 public:
 
   void begin()
@@ -237,29 +308,101 @@ public:
     tnfs_open();
   }
 
-  size_t write(uint8_t) 
-  {return 0;}
-  int available()   {return 0;}
-  int read()   {return 0;}
-  int peek()   {return 0;}
-  void flush()  {}
+  size_t write(uint8_t) {return 0;}
+  int read() { return -1; }
+  int available() {return -1;}
+  int peek()   {return -1;}
+  void flush() {}
 
+/**
+ * TNFS read
+ */
+void read_sector(byte arr[128])
+{
+  tnfs_read();
+  for (int i=0;i<128;i++)
+    arr[i]=tnfsPacket.data[i+3];
+}
 
-  /*
+/**
+ * TNFS seek
+ */
+void seek(long offset)
+{
+  int start=millis();
+  int dur=millis()-start;
+  byte offsetVal[4];
+
+  // This may be sending the bytes in the wrong endian, pls check. Easiest way is to flip the indices.
+  offsetVal[0] = (int)((offset & 0xFF000000) >> 24 );
+  offsetVal[1] = (int)((offset & 0x00FF0000) >> 16 );
+  offsetVal[2] = (int)((offset & 0x0000FF00) >> 8 );
+  offsetVal[3] = (int)((offset & 0X000000FF));  
   
-     virtual size_t write(uint8_t) = 0;
+  tnfsPacket.retryCount++;
+  tnfsPacket.command=0x25; // LSEEK
+  tnfsPacket.data[0]=tnfs_fd;
+  tnfsPacket.data[1]=0x00; // SEEK_SET
+  tnfsPacket.data[2]=offsetVal[3];
+  tnfsPacket.data[3]=offsetVal[2];
+  tnfsPacket.data[4]=offsetVal[1];
+  tnfsPacket.data[5]=offsetVal[0];
 
-  
-     virtual int available() = 0;
+#ifdef DEBUG_S
+  BUG_UART.print("Seek requested to offset: ");
+  BUG_UART.println(offset);
+  BUG_UART.print("Req packet: ");
+  for (int i=0;i<10;i++)
+  {
+    BUG_UART.print(tnfsPacket.rawData[i], HEX);
+    BUG_UART.print(" ");
+  }
+  BUG_UART.println("");
+#endif /* DEBUG_S*/
 
-     virtual int read() = 0;
+  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
+  UDP.write(tnfsPacket.rawData,6+4);
+  UDP.endPacket();
 
-     virtual int peek() = 0;
+  while (dur<5000)
+  {
+    if (UDP.parsePacket())
+    {
+      int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
+#ifdef DEBUG_S
+      BUG_UART.print("Resp packet: ");
+      for (int i=0;i<l;i++)
+      {
+        BUG_UART.print(tnfsPacket.rawData[i], HEX);
+        BUG_UART.print(" ");
+      }
+      BUG_UART.println("");
+#endif /* DEBUG_S */
 
+      if (tnfsPacket.data[0]==0)
+      {
+        // Success.
+#ifdef DEBUG_S
+        BUG_UART.println("Successful.");
+#endif /* DEBUG_S */
+        return;  
+      }
+      else
+      {
+        // Error.
+#ifdef DEBUG_S
+        BUG_UART.print("Error code #");
+        BUG_UART.println(tnfsPacket.data[0], HEX);
+#endif /* DEBUG_S*/        
+        return;  
+      }
+    }
+  }
+#ifdef DEBUG_S
+  BUG_UART.println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+}
 
-     virtual void flush() = 0;
-
-   */
 };
 
 tnfsClient myTNFS;
@@ -444,11 +587,12 @@ void sio_read()
   offset *= 128;
   offset -= 128;
   offset += 16; // skip 16 byte ATR Header
-  tnfs_seek(offset);
-  tnfs_read();
+  myTNFS.seek(offset);
+  myTNFS.read_sector(sector);
 
-  for (int i=0;i<128;i++)
-    sector[i]=tnfsPacket.data[i+3];
+// move the following to tnfs_client.read
+//  for (int i=0;i<128;i++)
+//    sector[i]=tnfsPacket.data[i+3];
 
   ck = sio_checksum((byte *)&sector, 128);
 
@@ -553,152 +697,6 @@ void sio_incoming(){
       cmdTimer = 0;
       break;
   }
-}
-
-/**
- * TNFS read
- */
-void tnfs_read()
-{
-  int start=millis();
-  int dur=millis()-start;
-  tnfsPacket.retryCount++;  // Increase sequence
-  tnfsPacket.command=0x21;  // READ
-  tnfsPacket.data[0]=tnfs_fd; // returned file descriptor
-  tnfsPacket.data[1]=0x80;  // 128 bytes
-  tnfsPacket.data[2]=0x00;  //
-
-#ifdef DEBUG_S
-  BUG_UART.print("Reading from File descriptor: ");
-  BUG_UART.println(tnfs_fd);
-  BUG_UART.print("Req Packet: ");
-  for (int i=0;i<7;i++)
-  {
-    BUG_UART.print(tnfsPacket.rawData[i], HEX);
-    BUG_UART.print(" ");
-  }
-  BUG_UART.println("");
-#endif /* DEBUG_S */
-
-  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
-  UDP.write(tnfsPacket.rawData,4+3);
-  UDP.endPacket();
-
-  while (dur<5000)
-  {
-    if (UDP.parsePacket())
-    {
-      int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
-#ifdef DEBUG_S
-      BUG_UART.print("Resp packet: ");
-      for (int i=0;i<l;i++)
-      {
-        BUG_UART.print(tnfsPacket.rawData[i], HEX);
-        BUG_UART.print(" ");
-      }
-      BUG_UART.println("");
-#endif /* DEBUG_S */
-      if (tnfsPacket.data[0]==0x00)
-      {
-        // Successful
-#ifndef DEBUG_S
-        BUG_UART.println("Successful.");
-#endif /* DEBUG_S */
-        return;
-      }
-      else
-      {
-        // Error
-#ifdef DEBUG_S
-        BUG_UART.print("Error code #");
-        BUG_UART.println(tnfsPacket.data[0], HEX);
-#endif /* DEBUG_S*/        
-        return;
-      }
-    }
-  }
-#ifdef DEBUG_S
-  BUG_UART.println("Timeout after 5000ms.");
-#endif /* DEBUG_S */
-}
-
-/**
- * TNFS seek
- */
-void tnfs_seek(long offset)
-{
-  int start=millis();
-  int dur=millis()-start;
-  byte offsetVal[4];
-
-  // This may be sending the bytes in the wrong endian, pls check. Easiest way is to flip the indices.
-  offsetVal[0] = (int)((offset & 0xFF000000) >> 24 );
-  offsetVal[1] = (int)((offset & 0x00FF0000) >> 16 );
-  offsetVal[2] = (int)((offset & 0x0000FF00) >> 8 );
-  offsetVal[3] = (int)((offset & 0X000000FF));  
-  
-  tnfsPacket.retryCount++;
-  tnfsPacket.command=0x25; // LSEEK
-  tnfsPacket.data[0]=tnfs_fd;
-  tnfsPacket.data[1]=0x00; // SEEK_SET
-  tnfsPacket.data[2]=offsetVal[3];
-  tnfsPacket.data[3]=offsetVal[2];
-  tnfsPacket.data[4]=offsetVal[1];
-  tnfsPacket.data[5]=offsetVal[0];
-
-#ifdef DEBUG_S
-  BUG_UART.print("Seek requested to offset: ");
-  BUG_UART.println(offset);
-  BUG_UART.print("Req packet: ");
-  for (int i=0;i<10;i++)
-  {
-    BUG_UART.print(tnfsPacket.rawData[i], HEX);
-    BUG_UART.print(" ");
-  }
-  BUG_UART.println("");
-#endif /* DEBUG_S*/
-
-  UDP.beginPacket(TNFS_SERVER,TNFS_PORT);
-  UDP.write(tnfsPacket.rawData,6+4);
-  UDP.endPacket();
-
-  while (dur<5000)
-  {
-    if (UDP.parsePacket())
-    {
-      int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
-#ifdef DEBUG_S
-      BUG_UART.print("Resp packet: ");
-      for (int i=0;i<l;i++)
-      {
-        BUG_UART.print(tnfsPacket.rawData[i], HEX);
-        BUG_UART.print(" ");
-      }
-      BUG_UART.println("");
-#endif /* DEBUG_S */
-
-      if (tnfsPacket.data[0]==0)
-      {
-        // Success.
-#ifdef DEBUG_S
-        BUG_UART.println("Successful.");
-#endif /* DEBUG_S */
-        return;  
-      }
-      else
-      {
-        // Error.
-#ifdef DEBUG_S
-        BUG_UART.print("Error code #");
-        BUG_UART.println(tnfsPacket.data[0], HEX);
-#endif /* DEBUG_S*/        
-        return;  
-      }
-    }
-  }
-#ifdef DEBUG_S
-  BUG_UART.println("Timeout after 5000ms.");
-#endif /* DEBUG_S */
 }
 
 void setup() 
