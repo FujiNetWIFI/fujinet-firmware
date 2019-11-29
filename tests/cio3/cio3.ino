@@ -193,18 +193,16 @@ void sio_accept_connection()
 {
   byte status;
   byte ck;
-  
-  sioclient=sioserver->available();
+  int start=millis();
+  int dur=millis()-start;
 
-  Debug_printf("Accepting connection\n");
-  if (sioclient)
-  {
-    status=1;  
+  while (!sioclient)
+  {  
+    sioclient=sioserver->available();
+    yield();  
   }
-  else
-  {
-    status=255;  
-  }
+
+  status=1;
 
   ck = sio_checksum((byte *)&status, 1);
 
