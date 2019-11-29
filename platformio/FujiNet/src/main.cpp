@@ -2,6 +2,7 @@
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
 #include "sio.h"
+#include "tnfs.h"
 
 #ifdef ESP_8266
 #include <FS.h>
@@ -11,11 +12,14 @@
 #endif
 
 File atr;
+tnfsClient myTNFS;
 
 void setup()
 {
   SPIFFS.begin();
   atr = SPIFFS.open("/autorun.atr", "r");
+  
+  myTNFS.begin();
 
   // Set up pins
 #ifdef DEBUG_S

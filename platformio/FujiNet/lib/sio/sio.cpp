@@ -1,9 +1,11 @@
 #include "sio.h"
+#include "tnfs.h"
 
 // #define PIN_CMD 12
 // #define SIO_UART Serial
 
 extern File atr;
+extern tnfsClient myTNFS;
 
 enum
 {
@@ -143,8 +145,11 @@ void sio_read()
   offset *= 128;
   offset -= 128;
   offset += 16; // skip 16 byte ATR Header
-  atr.seek(offset, SeekSet);
-  atr.read(sector, 128);
+  //atr.seek(offset, SeekSet);
+  //atr.read(sector, 128);
+
+  myTNFS.seek(offset);
+  myTNFS.read(sector,128);
 
   ck = sio_checksum((byte *)&sector, 128);
 
