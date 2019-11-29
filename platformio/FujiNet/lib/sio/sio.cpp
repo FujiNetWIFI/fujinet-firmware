@@ -1,11 +1,11 @@
 #include "sio.h"
-#include "tnfs.h"
+//#include "tnfs.h"
 
 // #define PIN_CMD 12
 // #define SIO_UART Serial
 
-extern File atr;
-extern tnfsClient myTNFS;
+// extern File atr;
+// extern tnfsClient myTNFS;
 
 
 /**
@@ -120,7 +120,7 @@ void sioDevice::sio_read()
   offset += 16; // skip 16 byte ATR Header
   //atr.seek(offset, SeekSet);
   //atr.read(sector, 128);
-  _file->seek(offset, SeekSet);
+  _file->seek(offset); //SeekSet is default
   _file->read(sector, 128);
 
 

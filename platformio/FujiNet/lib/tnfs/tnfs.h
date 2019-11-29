@@ -9,6 +9,12 @@
 #define TNFS_SERVER "mozzwald.com"
 #define TNFS_PORT 16384
 
+/*
+SPIFFS File class definition
+
+*/
+
+
 class tnfsClient : public Stream
 {
 private:  
