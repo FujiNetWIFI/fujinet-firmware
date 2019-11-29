@@ -19,7 +19,7 @@
 
 File atr;
 tnfsClient myTNFS;
-sioDevice sioD1;
+sioDevice daisyChain;
 
 
 void setup()
@@ -44,10 +44,10 @@ void setup()
 
   myTNFS.begin();
 
-  sioD1.setup();
+  daisyChain.setup(&myTNFS);
 }
 
 void loop()
 {
-  sioD1.handle();
+  daisyChain.handle();
 }
