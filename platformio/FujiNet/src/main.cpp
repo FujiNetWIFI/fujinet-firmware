@@ -11,17 +11,17 @@
 #include <SPIFFS.h>
 #endif
 
+#ifdef ESP_8266
+#include <ESP8266WiFi.h>
+#elif defined(ESP_32)
+#include <Wifi.h>
+#endif
+
 File atr;
 tnfsClient myTNFS;
 
 void setup()
 {
-  SPIFFS.begin();
-  atr = SPIFFS.open("/autorun.atr", "r");
-  
-  myTNFS.begin();
-
-  // Set up pins
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
   BUG_UART.println();
@@ -31,6 +31,16 @@ void setup()
   digitalWrite(PIN_LED, HIGH);
 #endif
 
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+   while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(10);
+  }
+  
+  // SPIFFS.begin();
+  // atr = SPIFFS.open("/autorun.atr", "r");
+
+  myTNFS.begin();
 
   setup_sio();
 }
