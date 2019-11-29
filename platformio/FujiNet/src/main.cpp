@@ -44,7 +44,7 @@ void setup()
 
   myTNFS.begin();
 
-  daisyChain.setup(&myTNFS);
+  daisyChain.setup(atr);
 }
 
 void loop()
