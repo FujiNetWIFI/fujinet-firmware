@@ -5,12 +5,11 @@
 
 
 #include <WiFiUdp.h>
-#include <FS.h>
 
 #define TNFS_SERVER "mozzwald.com"
 #define TNFS_PORT 16384
 
-class tnfsClient : public File
+class tnfsClient : public Stream
 {
 private:  
 
@@ -62,7 +61,7 @@ void read(byte arr[], int count);
 /**
  * TNFS seek
  */
-void seek(long offset, int dumb);
+void seek(long offset);
 
 };
 
