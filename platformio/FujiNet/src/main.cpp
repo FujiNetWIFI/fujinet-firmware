@@ -44,7 +44,7 @@ void setup()
 
   myTNFS.begin();
 
-  sioD1.setup();
+  sioD1.setup(&atr);
 }
 
 void loop()
