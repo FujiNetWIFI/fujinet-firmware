@@ -2,9 +2,11 @@
 #define TNFS_H
 
 #include <Arduino.h>
+
+
 #include <WiFiUdp.h>
 
-#define TNFS_SERVER "192.168.1.114"
+#define TNFS_SERVER "mozzwald.com"
 #define TNFS_PORT 16384
 
 class tnfsClient : public Stream
