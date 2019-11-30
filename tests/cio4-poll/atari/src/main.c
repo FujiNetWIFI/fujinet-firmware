@@ -54,5 +54,9 @@ void main(void)
   OS.hatabs[i].devhdl=&devhdl; // handler table for N: device.
 
   // Manually setting memlo, is there a symbol that can get me actual top of data?
-  OS.memlo=(void *)0x23B9;
+  OS.dosini=main;
+  OS.memlo=(void *)0x2500;
+  OS.coldst=0;
+  asm("clc");
+  asm("JMP (_dosini_save)");
 }

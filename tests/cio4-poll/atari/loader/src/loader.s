@@ -22,7 +22,7 @@ start:	.byte $00,$03,$00,$05,$C0,$E4
 	sta $0306
 	lda #$00
 	sta $0307
-	lda #$8F
+	lda #$94
 	sta $0308
 	lda #$05
 	sta $0309
@@ -30,9 +30,4 @@ start:	.byte $00,$03,$00,$05,$C0,$E4
 	sta $030A
 	sta $030B
 	jsr $E459
-	jsr $1D01
-	lda #$00
-	sta $0244 		; coldst
-	clc
-	jmp ($000C)
-	rts
+	jmp $1D01
