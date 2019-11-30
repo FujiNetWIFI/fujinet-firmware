@@ -260,8 +260,8 @@ void tnfsClient::flush()
  * TNFS read
  */
 int tnfsClient::read() { return -1; }
-//void tnfsClient::read(byte arr[], int count)
-size_t tnfsClient::read(uint8_t *buf, size_t size)
+
+size_t tnfsClient::read(byte *buf, size_t size) //void tnfsClient::read(byte arr[], int count)
 {
   tnfs_read();
   for (unsigned int i = 0; i < size; i++)
@@ -279,10 +279,10 @@ void tnfsClient::seek(uint32_t offset)
   byte offsetVal[4];
 
   // This may be sending the bytes in the wrong endian, pls check. Easiest way is to flip the indices.
-  offsetVal[0] = (int)((offset & 0xFF000000) >> 24);
-  offsetVal[1] = (int)((offset & 0x00FF0000) >> 16);
-  offsetVal[2] = (int)((offset & 0x0000FF00) >> 8);
-  offsetVal[3] = (int)((offset & 0X000000FF));
+  offsetVal[0] = (byte)((offset & 0xFF000000U) >> 24);
+  offsetVal[1] = (byte)((offset & 0x00FF0000U) >> 16);
+  offsetVal[2] = (byte)((offset & 0x0000FF00U) >> 8);
+  offsetVal[3] = (byte)((offset & 0X000000FFU));
 
   tnfsPacket.retryCount++;
   tnfsPacket.command = 0x25; // LSEEK
