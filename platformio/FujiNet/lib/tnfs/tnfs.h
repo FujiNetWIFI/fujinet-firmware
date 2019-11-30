@@ -128,21 +128,21 @@ public:
   // Stream methods:
   int available() override;
   int read() override;
+  size_t read(byte *buf, size_t size);
   int peek() override;
   void flush() override;
   size_t readBytes(char *buffer, size_t length) override
   {
     return read((uint8_t *)buffer, length);
   }
-  size_t read(uint8_t *buf, size_t size);
 
   //File methods:
+  void seek(uint32_t offset);
   bool seek(uint32_t offset, SeekMode mode)
   {
     seek(offset);
     return true;
   }
-  void seek(uint32_t offset);
   size_t position() const;
   size_t size() const;
   void close();
