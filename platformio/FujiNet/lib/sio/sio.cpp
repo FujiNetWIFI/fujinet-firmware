@@ -284,7 +284,7 @@ void sioDevice::sio_incoming()
   }
 }
 
-void sioDevice::setup(File *f)
+void sioDevice::setup(tnfsClient *f)
 {
   _file = f;
 
