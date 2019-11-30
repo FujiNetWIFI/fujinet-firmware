@@ -1,6 +1,23 @@
 #include "tnfs_things.h"
 #include <WiFiUdp.h>
 
+WiFiUDP UDP;
+
+union
+{
+  struct 
+  {
+    byte session_idl;
+    byte session_idh;
+    byte retryCount;
+    byte command;
+    byte data[508];
+  };
+  byte rawData[512];
+} tnfsPacket;
+
+byte tnfs_fd;
+
 void tnfs_mount(const char *host, uint16_t port)
 {
   int start = millis();
@@ -20,7 +37,7 @@ void tnfs_mount(const char *host, uint16_t port)
 
 #ifdef DEBUG_S
   BUG_UART.print("Mounting / from ");
-  BUG_UART.println(TNFS_SERVER);
+  BUG_UART.println(host);
   BUG_UART.print("Req Packet: ");
   for (int i = 0; i < 10; i++)
   {
