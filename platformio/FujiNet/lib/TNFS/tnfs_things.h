@@ -1,6 +1,9 @@
 #ifndef _TNFS_THINGS_H
 #define _TNFS_THINGS_H
 
+#include <Arduino.h>
+#include <WiFiUdp.h>
+
 #define TNFS_SERVER "mozzwald.com"
 #define TNFS_PORT 16384
 
