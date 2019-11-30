@@ -1,6 +1,30 @@
-#include "tnfs_things.h"
+#include "tnfs_api.h"
 
 WiFiUDP UDP;
+
+//TNFSImpl::TNFSImpl() { }
+
+FileImplPtr TNFSImpl::open(const char *path, const char *mode)
+{
+    tnfs_open(); // what about return pointer?
+    return NULL;
+}
+
+bool TNFSImpl::exists(const char *path)
+{
+    //File f = open(path, "r");
+    //return (f == true) && !f.isDirectory();
+    return false;
+}
+
+bool TNFSImpl::rename(const char *pathFrom, const char *pathTo) { return false; }
+bool TNFSImpl::remove(const char *path) { return false; }
+bool TNFSImpl::mkdir(const char *path) { return false; }
+bool TNFSImpl::rmdir(const char *path) { return false; }
+
+
+/* Thom's things */
+
 
 union
 {
