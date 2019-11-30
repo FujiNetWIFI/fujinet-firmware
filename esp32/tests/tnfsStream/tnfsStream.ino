@@ -309,7 +309,7 @@ public:
   }
 
   size_t write(uint8_t) {return 0;}
-  int read() { return -1; }
+
   int available() {return -1;}
   int peek()   {return -1;}
   void flush() {}
@@ -317,10 +317,11 @@ public:
 /**
  * TNFS read
  */
-void read_sector(byte arr[128])
+int read() { return -1; }
+void read(byte arr[], int count)
 {
   tnfs_read();
-  for (int i=0;i<128;i++)
+  for (int i=0;i<count;i++)
     arr[i]=tnfsPacket.data[i+3];
 }
 
@@ -588,7 +589,7 @@ void sio_read()
   offset -= 128;
   offset += 16; // skip 16 byte ATR Header
   myTNFS.seek(offset);
-  myTNFS.read_sector(sector);
+  myTNFS.read(sector,128);
 
 // move the following to tnfs_client.read
 //  for (int i=0;i<128;i++)
