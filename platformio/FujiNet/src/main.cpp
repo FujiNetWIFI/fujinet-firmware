@@ -2,6 +2,7 @@
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
 #include "sio.h"
+#include "tnfs.h"
 
 #ifdef ESP_8266
 #include <FS.h>
@@ -10,14 +11,19 @@
 #include <SPIFFS.h>
 #endif
 
+#ifdef ESP_8266
+#include <ESP8266WiFi.h>
+#elif defined(ESP_32)
+#include <Wifi.h>
+#endif
+
 File atr;
+tnfsClient myTNFS;
+sioDevice sioD1;
+
 
 void setup()
 {
-  SPIFFS.begin();
-  atr = SPIFFS.open("/autorun.atr", "r");
-
-  // Set up pins
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
   BUG_UART.println();
@@ -27,11 +33,21 @@ void setup()
   digitalWrite(PIN_LED, HIGH);
 #endif
 
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+   while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(10);
+  }
+  
+  SPIFFS.begin();
+  atr = SPIFFS.open("/autorun.atr", "r");
 
-  setup_sio();
+  myTNFS.begin();
+
+  sioD1.setup(&atr);
 }
 
 void loop()
 {
-  handle_sio();
+  sioD1.handle();
 }
