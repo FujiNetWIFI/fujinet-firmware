@@ -2,6 +2,7 @@
 #define SIO_H
 
 #include <Arduino.h>
+#include "tnfs.h"
 
 // pin configurations
 // esp8266
@@ -44,7 +45,7 @@ class sioDevice
 {
 private:
 
-File *_file;
+tnfsClient *_file;
 
 enum
 {
@@ -134,7 +135,7 @@ void sio_incoming();
 
 public:
 
-void setup(File *f);
+void setup(tnfsClient *f);
 
 void handle();
 
