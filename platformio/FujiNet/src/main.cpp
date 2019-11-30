@@ -43,16 +43,16 @@ void setup()
     delay(10);
   }
   
-  SPIFFS.begin();
-  atr = SPIFFS.open("/autorun.atr", "r");
+  //SPIFFS.begin();
+  //atr = SPIFFS.open("/autorun.atr", "r");
 
   TNFS.begin(TNFS_SERVER,TNFS_PORT);
   //tnfs = TNFS.open();
 
-  sioD1.setup(&atr);
+  //sioD1.setup(&atr);
 }
 
 void loop()
 {
-  sioD1.handle();
+  //sioD1.handle();
 }
