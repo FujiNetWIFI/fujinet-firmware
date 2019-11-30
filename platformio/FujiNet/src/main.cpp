@@ -8,7 +8,7 @@
 // #include <FS.h>
 // #define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
 // #elif defined(ESP_32)
-// #include <SPIFFS.h>
+#include <SPIFFS.h>
 // #endif
 
 #ifdef ESP_8266
@@ -43,10 +43,10 @@ void setup()
     delay(10);
   }
   
-  //SPIFFS.begin();
+  SPIFFS.begin();
   //atr = SPIFFS.open("/autorun.atr", "r");
 
-  TNFS.begin(TNFS_SERVER,TNFS_PORT);
+  TNFS.begin(TNFS_SERVER);
   //tnfs = TNFS.open();
 
   //sioD1.setup(&atr);
