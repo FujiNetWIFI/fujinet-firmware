@@ -37,11 +37,12 @@ unsigned char loader_bin[] = {
   0x00, 0x03, 0x00, 0x05, 0xc0, 0xe4, 0xa9, 0x70, 0x8d, 0x00, 0x03, 0xa9,
   0x01, 0x8d, 0x01, 0x03, 0xa9, 0x26, 0x8d, 0x02, 0x03, 0xa9, 0x40, 0x8d,
   0x03, 0x03, 0xa9, 0x00, 0x8d, 0x04, 0x03, 0xa9, 0x1d, 0x8d, 0x05, 0x03,
-  0xa9, 0x0f, 0x8d, 0x06, 0x03, 0xa9, 0x00, 0x8d, 0x07, 0x03, 0xa9, 0xa3,
+  0xa9, 0x0f, 0x8d, 0x06, 0x03, 0xa9, 0x00, 0x8d, 0x07, 0x03, 0xa9, 0x8f,
   0x8d, 0x08, 0x03, 0xa9, 0x05, 0x8d, 0x09, 0x03, 0xa9, 0x00, 0x8d, 0x0a,
-  0x03, 0x8d, 0x0b, 0x03, 0x20, 0x59, 0xe4, 0x4c, 0x01, 0x1d, 0x18, 0x60
+  0x03, 0x8d, 0x0b, 0x03, 0x20, 0x59, 0xe4, 0x20, 0x01, 0x1d, 0xa9, 0x00,
+  0x8d, 0x44, 0x02, 0x18, 0x6c, 0x0c, 0x00, 0x60
 };
-unsigned int loader_bin_len = 72;
+unsigned int loader_bin_len = 80;
 
 /**
  * A Single command frame, both in structured and unstructured
@@ -289,10 +290,10 @@ void sio_send_bootstrap()
 
   Debug_printf("Sending bootstrap!\n");
 
-  delayMicroseconds(DELAY_T5); // t5 delay
+  // delayMicroseconds(DELAY_T5); // t5 delay
   Serial.write('C'); // Command always completes.
   Serial.flush();
-  delayMicroseconds(200);
+  // delayMicroseconds(200);
 
   // Write data frame
   for (int i = 0; i < loader_bin_len; i++)
@@ -301,7 +302,7 @@ void sio_send_bootstrap()
   // Write checksum
   Serial.write(ck);
   Serial.flush();
-  delayMicroseconds(200);
+  // delayMicroseconds(200);
 }
 
 /**
@@ -313,10 +314,10 @@ void sio_send_n_handler()
 
   Debug_printf("Sending N handler!\n");
 
-  delayMicroseconds(DELAY_T5); // t5 delay
+  // delayMicroseconds(DELAY_T5); // t5 delay
   Serial.write('C'); // Command always completes.
   Serial.flush();
-  delayMicroseconds(200);
+  // delayMicroseconds(200);
 
   // Write data frame
   for (int i = 0; i < autorun_hdl_len; i++)
@@ -325,7 +326,7 @@ void sio_send_n_handler()
   // Write checksum
   Serial.write(ck);
   Serial.flush();
-  delayMicroseconds(200);
+  // delayMicroseconds(200);
   
 }
 
@@ -357,10 +358,10 @@ void sio_type1_poll()
 
   byte ck=sio_checksum((byte *)&dcb, 0x0C);
 
-  delayMicroseconds(DELAY_T5); // t5 delay
+  // delayMicroseconds(DELAY_T5); // t5 delay
   Serial.write('C'); // Command always completes.
   Serial.flush();
-  delayMicroseconds(200);
+  // delayMicroseconds(200);
 
   // Dump data frame
 
@@ -371,7 +372,7 @@ void sio_type1_poll()
   // Write checksum
   Serial.write(ck);
   Serial.flush();
-  delayMicroseconds(200);
+  // delayMicroseconds(200);
 }
 
 /**
