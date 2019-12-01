@@ -6,15 +6,15 @@ WiFiUDP UDP;
 
 FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 {
-    tnfs_open(); // what about return pointer?
-    return NULL;
+  tnfs_open(); // what about return pointer?
+  return std::make_shared<TNFSFileImpl>(this, path, mode);
 }
 
 bool TNFSImpl::exists(const char *path)
 {
-    //File f = open(path, "r");
-    //return (f == true) && !f.isDirectory();
-    return false;
+  //File f = open(path, "r");
+  //return (f == true) && !f.isDirectory();
+  return false;
 }
 
 bool TNFSImpl::rename(const char *pathFrom, const char *pathTo) { return false; }
@@ -22,13 +22,34 @@ bool TNFSImpl::remove(const char *path) { return false; }
 bool TNFSImpl::mkdir(const char *path) { return false; }
 bool TNFSImpl::rmdir(const char *path) { return false; }
 
+TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, const char *path, const char *mode) {}
+
+size_t TNFSFileImpl::write(const uint8_t *buf, size_t size) {}
+size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
+{
+  tnfs_read();
+  for (int i = 0; i < 128; i++)
+    buf[i] = tnfsPacket.data[i + 3];
+}
+void TNFSFileImpl::flush() {}
+bool TNFSFileImpl::seek(uint32_t pos, SeekMode mode)
+{
+  tnfs_seek(pos);
+}
+size_t TNFSFileImpl::position() const {}
+size_t TNFSFileImpl::size() const {}
+void TNFSFileImpl::close() {}
+const char *TNFSFileImpl::name() const {}
+time_t TNFSFileImpl::getLastWrite() {}
+boolean TNFSFileImpl::isDirectory(void) {}
+FileImplPtr TNFSFileImpl::openNextFile(const char *mode) {}
+void TNFSFileImpl::rewindDirectory(void) {}
+TNFSFileImpl::operator bool() { return _f != NULL; }
 
 /* Thom's things */
 
-
-union
-{
-  struct 
+union {
+  struct
   {
     byte session_idl;
     byte session_idh;
