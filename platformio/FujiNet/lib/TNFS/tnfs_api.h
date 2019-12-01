@@ -39,7 +39,7 @@ class TNFSFileImpl : public FileImpl
 {
 protected:
     TNFSImpl*            _fs;
-    File*                _f; // ?? not sure. SPIFFS uses FILE*
+    // File*                _f; // ?? not sure. SPIFFS uses FILE*
     //DIR *               _d;
     //char *              _path;
     //bool                _isDirectory;
@@ -49,7 +49,7 @@ protected:
 
 public:
     TNFSFileImpl(TNFSImpl* fs, const char* path, const char* mode);
-    ~TNFSFileImpl() override;
+    ~TNFSFileImpl() {};
     size_t      write(const uint8_t *buf, size_t size) override;
     size_t      read(uint8_t* buf, size_t size) override;
     void        flush() override;
