@@ -47,7 +47,7 @@ void setup()
   //atr = SPIFFS.open("/autorun.atr", "r");
 
   TNFS.begin(TNFS_SERVER);
-  //tnfs = TNFS.open();
+  tnfs = TNFS.open("doesnotmatter","r");
 
   //sioD1.setup(&atr);
 }
