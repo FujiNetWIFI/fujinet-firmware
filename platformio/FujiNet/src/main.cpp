@@ -1,7 +1,7 @@
 #include <Arduino.h>
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
-//#include "sio.h"
+#include "sio.h"
 
 #include "TNFS.h"
 // #ifdef ESP_8266
@@ -23,7 +23,7 @@
 File atr;
 File tnfs;
 //tnfsClient myTNFS;
-//sioDevice sioD1;
+sioDevice sioD1;
 
 
 void setup()
@@ -44,12 +44,12 @@ void setup()
   }
   
   SPIFFS.begin();
-  //atr = SPIFFS.open("/autorun.atr", "r");
+  atr = SPIFFS.open("/autorun.atr", "r");
 
   TNFS.begin(TNFS_SERVER);
   tnfs = TNFS.open("doesnotmatter","r");
 
-  //sioD1.setup(&atr);
+  sioD1.setup(&atr);
 }
 
 void loop()
