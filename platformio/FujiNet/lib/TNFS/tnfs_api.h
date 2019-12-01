@@ -3,6 +3,8 @@
 
 #include <Arduino.h>
 #include <WiFiUdp.h>
+#include <FS.h>
+#include <FSImpl.h>
 
 #define TNFS_SERVER "mozzwald.com"
 #define TNFS_PORT 16384
@@ -37,13 +39,12 @@ class TNFSFileImpl : public FileImpl
 {
 protected:
     TNFSImpl*            _fs;
-    FILE *              _f;
+    File*                _f; // ?? not sure. SPIFFS uses FILE*
     //DIR *               _d;
     //char *              _path;
     //bool                _isDirectory;
     //mutable struct stat _stat;
     //mutable bool        _written;
-
     //void _getStat() const;
 
 public:
@@ -63,7 +64,5 @@ public:
     void        rewindDirectory(void) override;
     operator    bool();
 };
-
-
 
 #endif //_TNFS_API_H
