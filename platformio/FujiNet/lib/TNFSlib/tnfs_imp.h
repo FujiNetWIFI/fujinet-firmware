@@ -1,13 +1,12 @@
-#ifndef _TNFS_API_H
-#define _TNFS_API_H
+#ifndef _TNFS_IMP_H
+#define _TNFS_IMP_H
 
-#include <Arduino.h>
-#include <WiFiUdp.h>
+#include "tnfs.h"
 #include <FS.h>
 #include <FSImpl.h>
+#include "tnfs_udp.h"
 
-#define TNFS_SERVER "mozzwald.com"
-#define TNFS_PORT 16384
+
 
 void tnfs_mount(const char *host, uint16_t port);
 void tnfs_open();
@@ -64,4 +63,4 @@ public:
     operator bool();
 };
 
-#endif //_TNFS_API_H
+#endif //_TNFS_IMP_H
