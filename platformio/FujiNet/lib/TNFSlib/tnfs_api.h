@@ -9,8 +9,6 @@
 #define TNFS_SERVER "mozzwald.com"
 #define TNFS_PORT 16384
 
-
-
 void tnfs_mount(const char *host, uint16_t port);
 void tnfs_open();
 void tnfs_read();
