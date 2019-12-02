@@ -1,8 +1,6 @@
 // based on SPIFFS.cpp
 
 #include "tnfs.h" // chnanged to TNFS
-#include "FSImpl.h"
-#include "tnfs_api.h"
 
 
 TNFSFS::TNFSFS() : FS(FSImplPtr(new TNFSImpl()))
@@ -37,6 +35,13 @@ bool TNFSFS::begin(const char *server, int port, const char *basePath, uint8_t m
     _impl->mountpoint(basePath);
     return true;
 }
+
+    bool TNFSFS::format() { return false; }
+    size_t TNFSFS::totalBytes() { return 0;}
+    size_t TNFSFS::usedBytes() { return 0; }
+    void TNFSFS::end() { }
+
+
 /* from SPIFFS.cpp with "SPIFFS" replaced by "TNFS"
 void TNFSFS::end()
 {
