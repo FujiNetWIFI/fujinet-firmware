@@ -39,7 +39,7 @@ unlink - remove a file                                                          
 
 #include "FS.h"
 #include "FSImpl.h"
-#include "tnfs_api.h"
+#include "tnfs_imp.h"
 
 namespace fs
 {
