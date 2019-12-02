@@ -45,7 +45,7 @@ class sioDevice
 {
 private:
 
-tnfsClient *_file;
+File *_file;
 
 enum
 {
@@ -135,7 +135,7 @@ void sio_incoming();
 
 public:
 
-void setup(tnfsClient *f);
+void setup(File *f);
 
 void handle();
 
