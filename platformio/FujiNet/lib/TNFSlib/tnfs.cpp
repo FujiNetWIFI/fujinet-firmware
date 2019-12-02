@@ -36,9 +36,8 @@ bool TNFSFS::begin(const char *server, int port, const char *basePath, uint8_t m
     return true;
 }
 
-    bool TNFSFS::format() { return false; }
-    size_t TNFSFS::totalBytes() { return 0;}
-    size_t TNFSFS::usedBytes() { return 0; }
+    size_t TNFSFS::size() { return 0;}
+    size_t TNFSFS::free() { return 0; }
     void TNFSFS::end() { }
 
 
@@ -85,4 +84,4 @@ size_t TNFSFS::usedBytes()
     return used;
 } */
 
-TNFSFS TNFS;
+TNFSFS TNFS; // create pointer to filesystem implementation

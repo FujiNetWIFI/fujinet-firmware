@@ -9,31 +9,7 @@
 #define TNFS_SERVER "mozzwald.com"
 #define TNFS_PORT 16384
 
-/*
-Directories
------------
-opendir - Opens a directory for reading *
-readdir - Reads a directory entry *
-closedir - Closes the directory *
-rmdir - Removes a directory
-mkdir - Creates a directory
 
-Devices
--------
-size - Get the size of the filesystem *
-free - Get the remaining free space on the filesystem *
-
-Files
------
-open - Opens a file *
-read - reads from an open file *
-write - writes to an open file
-close - closes a file *
-stat - gets information about a file *
-lseek - set the position in the file where the next byte will be read/written
-chmod - change file access
-unlink - remove a file
-*/
 
 void tnfs_mount(const char *host, uint16_t port);
 void tnfs_open();
@@ -47,29 +23,8 @@ class TNFSFileImpl;
 class TNFSImpl : public FSImpl
 {
 /*
-Connection management
----------------------
-mount - Connect to a TNFS filesystem *
-umount - Disconnect from a TNFS filesystem *
-
-Directories
------------
-opendir - Opens a directory for reading *
-readdir - Reads a directory entry *
-closedir - Closes the directory *
-rmdir - Removes a directory
-mkdir - Creates a directory
-
-Devices
--------
-size - Get the size of the filesystem *
-free - Get the remaining free space on the filesystem *
-
-Files
------
-open - Opens a file *
+This class implements the physical interface for built-in functions in FS.h
 */
-
 protected:
     friend class TNFSFileImpl;
 
@@ -87,25 +42,11 @@ public:
 class TNFSFileImpl : public FileImpl
 {
 /*
-Files
------
-read - reads from an open file *
-write - writes to an open file
-close - closes a file *
-stat - gets information about a file *
-lseek - set the position in the file where the next byte will be read/written
-chmod - change file access
-unlink - remove a file
+This class implements the physical interface for built-in functions in the File class defined in FS.h
 */
+
 protected:
     TNFSImpl *_fs;
-    // File*                _f; // ?? not sure. SPIFFS uses FILE*
-    //DIR *               _d;
-    //char *              _path;
-    //bool                _isDirectory;
-    //mutable struct stat _stat;
-    //mutable bool        _written;
-    //void _getStat() const;
 
 public:
     TNFSFileImpl(TNFSImpl *fs, const char *path, const char *mode);
