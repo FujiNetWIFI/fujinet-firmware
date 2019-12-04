@@ -7,7 +7,7 @@ TNFSFS::TNFSFS() : FS(FSImplPtr(new TNFSImpl()))
 {
 }
 
-bool TNFSFS::begin(const char *host, uint16_t port, const char *location, const char *userid, const char *password)
+byte TNFSFS::begin(const char *host, uint16_t port, const char *location, const char *userid, const char *password)
 {
     bool err = tnfs_mount(host, port, location, userid, password); 
     /*    Return cases:
@@ -19,17 +19,16 @@ bool TNFSFS::begin(const char *host, uint16_t port, const char *location, const 
     {
         sessionID = tnfsPacket.session_idh * 256 + tnfsPacket.session_idl;
         _impl->mountpoint(location);
-        return true;
+        return 0;
     }
     else if (tnfsPacket.data[0] == 0x00)
     {
-        // timeout!
+        return 138; // timeout!
     }
     else 
     {
-        // error
+        return tnfsPacket.data[0]; // error code
     }
-    return false;
 }
 
 size_t TNFSFS::size() { return 0; }
