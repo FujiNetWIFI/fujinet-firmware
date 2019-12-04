@@ -60,7 +60,7 @@ bool rmdir(const char *path);
 public:
     TNFSFS();
     uint16_t sessionID=0;
-    bool begin(const char *host, uint16_t port=16384, const char *location="/", const char *userid="", const char *password="");
+    byte begin(const char *host, uint16_t port=16384, const char *location="/", const char *userid="", const char *password="");
     size_t size();
     size_t free();
     bool opendir(const char * path);
