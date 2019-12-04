@@ -5,6 +5,7 @@
  */
 
 #include <string.h>
+#include <conio.h>
 #include "screen.h"
 
 unsigned char* video_ptr;
@@ -44,4 +45,43 @@ void screen_puts(unsigned char x,unsigned char y,char *s)
       ++s;
       
     } while(*s!=0);
+}
+
+/**
+ * Input a string at x,y
+ */
+void screen_input(unsigned char x, unsigned char y, char* s)
+{
+  unsigned char c,k,o;
+  unsigned char outc[2]={0,0};
+
+  o=0;
+  c=x;
+  SetChar(c+1,y,0x80); // turn on cursor
+
+  while (k!=155)
+    {
+      k=cgetc();
+      if ((k==0x7E) && (c>x)) // backspace
+	{
+	  SetChar(c+1,y,0);
+	  c--;
+	  o--;
+	  SetChar(c+1,y,GetChar(c+1,y)|0x80);
+	}
+      else if (k==0x9b) // return (EOL)
+	{
+	  SetChar(c+1,y,GetChar(c+1,y)&0x7F);
+	  // exit while.
+	}
+      else if ((k>0x20) && (k<0x7b)) // printable ascii
+	{
+	  SetChar(c+1,y,GetChar(c+1,y)&0x7F);
+	  outc[0]=k;
+	  screen_puts(c+1,y,outc);
+	  SetChar(c+2,y,0x80);
+	  s[o++]=k;
+	  c++;
+	}
+    }
 }

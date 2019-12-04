@@ -24,4 +24,9 @@ void screen_puts(unsigned char x,unsigned char y,char *s);
  */
 void screen_clear(void);
 
+/**
+ * Input a string at x,y
+ */
+void screen_input(unsigned char x, unsigned char y, char* s);
+
 #endif /* SCREEN_H */
