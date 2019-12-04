@@ -351,11 +351,11 @@ void sio_write()
   if (ck == sio_checksum(sector, 128))
   {
     delayMicroseconds(DELAY_T5);
-    Serial.write('C');
+
     if (tnfs_fd == 0xFF)
     {
-      atr.seek(offset,SeekSet);
-      atr.write(sector,128);
+      atr.seek(offset, SeekSet);
+      atr.write(sector, 128);
       atr.flush();
     }
     else
@@ -363,6 +363,7 @@ void sio_write()
       tnfs_seek(offset);
       tnfs_write();
     }
+    Serial.write('C');
     yield();
   }
 }
@@ -374,11 +375,11 @@ void sio_format()
 {
   byte ck;
 
-  for (int i=0;i<128;i++)
-    sector[i]=0;
+  for (int i = 0; i < 128; i++)
+    sector[i] = 0;
 
-  sector[0]=0xFF; // no bad sectors.
-  sector[1]=0xFF;
+  sector[0] = 0xFF; // no bad sectors.
+  sector[1] = 0xFF;
 
   ck = sio_checksum((byte *)&sector, 128);
 
@@ -387,8 +388,8 @@ void sio_format()
   Serial.flush();
 
   // Write data frame
-  Serial.write(sector,128);
-    
+  Serial.write(sector, 128);
+
   // Write data frame checksum
   Serial.write(ck);
   Serial.flush();
@@ -459,7 +460,7 @@ void sio_open_tnfs_directory()
 
   Serial.write('A');   // ACK
 
-  tnfs_opendir((256*cmdFrame.aux2)+cmdFrame.aux1);
+  tnfs_opendir((256 * cmdFrame.aux2) + cmdFrame.aux1);
 
   // And complete.
   Serial.write('C');
@@ -890,7 +891,7 @@ void tnfs_opendir(unsigned short diroffset)
       {
         // Successful
         tnfs_dir_fd = tnfsPacket.data[1];
-        for (int o=0; o<diroffset; o++)
+        for (int o = 0; o < diroffset; o++)
           tnfs_readdir();
         return;
       }
