@@ -4,7 +4,33 @@ WiFiUDP UDP;
 byte tnfs_fd;
 tnfsPacket_t tnfsPacket;
 
-void tnfs_mount(const char *host, uint16_t port)
+/*
+------------------------------------------------------------------
+MOUNT - Command ID 0x00
+-----------------------
+Format:
+Standard header followed by:
+Bytes 4+: 16 bit version number, little endian, LSB = minor, MSB = major
+          NULL terminated string: mount location
+          NULL terminated string: user id (optional - NULL if no user id)
+          NULL terminated string: password (optional - NULL if no passwd)
+
+The server responds with the standard header:
+Bytes 0,1       Connection ID (ignored for client's "mount" command)
+Byte  2         Retry number
+Byte  3         Command
+If the operation was successful, the standard header contains the session number.
+I think it is undocumented that Byte 4 contains the error code. Then there is the
+TNFS protocol version that the server is using following the header, followed by the 
+minimum retry time in milliseconds as a little-endian 16 bit number.
+
+Return cases:
+true - successful mount.
+false with error code in tnfsPacket.data[0] 
+false with zero in tnfsPacket.data[0] - timeout
+------------------------------------------------------------------
+*/
+bool tnfs_mount(const char *host, uint16_t port, const char *location, const char *userid, const char *password)
 {
   int start = millis();
   int dur = millis() - start;
@@ -16,10 +42,10 @@ void tnfs_mount(const char *host, uint16_t port)
   tnfsPacket.command = 0;
   tnfsPacket.data[0] = 0x01; // vers
   tnfsPacket.data[1] = 0x00; // "  "
-  tnfsPacket.data[2] = 0x2F; // /
+  tnfsPacket.data[2] = 0x2F; // / - TODO add location path
   tnfsPacket.data[3] = 0x00; // nul
-  tnfsPacket.data[4] = 0x00; // no username
-  tnfsPacket.data[5] = 0x00; // no password
+  tnfsPacket.data[4] = 0x00; // no username - TODO add password
+  tnfsPacket.data[5] = 0x00; // no password - TODO add UID
 
 #ifdef DEBUG_S
   BUG_UART.print("Mounting / from ");
@@ -34,7 +60,7 @@ void tnfs_mount(const char *host, uint16_t port)
 #endif /* DEBUG_S */
 
   UDP.beginPacket(host, port);
-  UDP.write(tnfsPacket.rawData, 10);
+  UDP.write(tnfsPacket.rawData, 10); // TODO figure out how much to send
   UDP.endPacket();
 
   while (dur < 5000)
@@ -59,7 +85,7 @@ void tnfs_mount(const char *host, uint16_t port)
         BUG_UART.print(tnfsPacket.session_idl, HEX);
         BUG_UART.println(tnfsPacket.session_idh, HEX);
 #endif /* DEBUG_S */
-        return;
+        return true;
       }
       else
       {
@@ -68,7 +94,7 @@ void tnfs_mount(const char *host, uint16_t port)
         BUG_UART.print("Error #");
         BUG_UART.println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S */
-        return;
+        return false;
       }
     }
   }
@@ -76,6 +102,7 @@ void tnfs_mount(const char *host, uint16_t port)
 #ifdef DEBUG_S
   BUG_UART.println("Timeout after 5000ms");
 #endif /* DEBUG_S */
+  return false;
 }
 
 /**

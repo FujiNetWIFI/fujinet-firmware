@@ -20,5 +20,10 @@ union tnfsPacket_t
   byte rawData[512];
 };
 
+bool tnfs_mount(const char *host, uint16_t port=16384, const char *location="/", const char *userid="", const char *password="");
+void tnfs_open();
+void tnfs_read();
+void tnfs_seek(uint32_t offset);
+
 #endif // _TNFS_UDP_H
 
