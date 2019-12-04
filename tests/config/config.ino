@@ -242,12 +242,15 @@ void sio_scan_networks()
 
   WiFi.mode(WIFI_STA);
   totalSSIDs = WiFi.scanNetworks();
-
+#ifdef DEBUG
+  Debug_printf("Scan networks returned: %d\n\n",totalSSIDs);
+#endif
   ck = sio_checksum((byte *)&totalSSIDs, 1);
 
-  delayMicroseconds(1500); // t5 delay
   Serial.write('C');     // Completed command
   Serial.flush();
+
+  delayMicroseconds(1500); // t5 delay
 
   // Write data frame
   Serial.write(totalSSIDs);
@@ -255,6 +258,10 @@ void sio_scan_networks()
   // Write data frame checksum
   Serial.write(ck);
   Serial.flush();
+
+#ifdef DEBUG
+  Debug_printf("Wrote data packet/Checksum: %d/%d\n\n",totalSSIDs,ck);
+#endif
   delayMicroseconds(200);
 }
 
