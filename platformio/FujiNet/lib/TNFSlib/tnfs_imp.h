@@ -8,11 +8,6 @@
 
 
 
-void tnfs_mount(const char *host, uint16_t port);
-void tnfs_open();
-void tnfs_read();
-void tnfs_seek(uint32_t offset);
-
 using namespace fs;
 
 class TNFSFileImpl;

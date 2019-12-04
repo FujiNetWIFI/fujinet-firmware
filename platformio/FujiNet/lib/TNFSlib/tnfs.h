@@ -59,7 +59,8 @@ bool rmdir(const char *path);
 
 public:
     TNFSFS();
-    bool begin(const char * server, int port = 16384, const char * basePath="/tnfs", uint8_t maxOpenFiles=10);
+    uint16_t sessionID=0;
+    bool begin(const char *host, uint16_t port=16384, const char *location="/", const char *userid="", const char *password="");
     size_t size();
     size_t free();
     bool opendir(const char * path);
