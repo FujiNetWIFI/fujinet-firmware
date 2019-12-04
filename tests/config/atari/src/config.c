@@ -5,6 +5,7 @@
 #include <atari.h>
 #include <string.h>
 #include <conio.h>
+#include <stdlib.h>
 #include "config.h"
 #include "screen.h"
 #include "sio.h"
@@ -334,6 +335,9 @@ void config_run(void)
       screen_puts(0,21,"SCANNING NETWORKS...");
       
       s=config_do_scan(&num_networks);
+
+      utoa(num_networks,config_sector,10);
+      screen_puts(0,2,config_sector);
       
       if (s!=1)
 	{
