@@ -13,7 +13,6 @@
 #include "die.h"
 
 bool _configured=false;
-unsigned char _num_networks;
 
 union 
 {
@@ -85,7 +84,7 @@ unsigned char config_do_scan(unsigned char* num_networks)
   OS.dcb.dstats=0x40; // Peripheral->Computer
   OS.dcb.dbuf=num_networks;
   OS.dcb.dtimlo=0x0F; // 15 second timeout
-  OS.dcb.dbyt=1;      // 1 byte response
+  OS.dcb.dbyt=4;      // 4 byte response
   OS.dcb.daux=0;
   siov();
 
@@ -322,7 +321,7 @@ bool config_connect(void)
 void config_run(void)
 {
   unsigned char s; // status
-  unsigned char num_networks; // Number of networks
+  unsigned char num_networks[4]; // Number of networks
   unsigned char y=0; // cursor
   unsigned char done=0; // selection done?
   unsigned char k; // keypress
@@ -334,9 +333,9 @@ void config_run(void)
       screen_puts(0,0,"WELCOME TO #FUJINET!");
       screen_puts(0,21,"SCANNING NETWORKS...");
       
-      s=config_do_scan(&num_networks);
+      s=config_do_scan(num_networks);
 
-      utoa(num_networks,config_sector,10);
+      utoa(num_networks[0],config_sector,10);
       screen_puts(0,2,config_sector);
       
       if (s!=1)
@@ -345,7 +344,7 @@ void config_run(void)
 	  die();
 	}
       else
-	config_print_networks(num_networks);
+	config_print_networks(num_networks[0]);
       
       screen_puts(0,21,"  SELECT A NETWORK  ");
       
@@ -361,7 +360,7 @@ void config_run(void)
 	    done=true;
 	  else if ((k==0x1C) && (y>0))
 	    y--;
-	  else if ((k==0x1D) && (y<num_networks))
+	  else if ((k==0x1D) && (y<num_networks[0]))
 	    y++;
 	}
       
