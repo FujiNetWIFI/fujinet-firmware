@@ -13,6 +13,11 @@
 bool configured(void);
 
 /**
+ * Connect to configured network
+ */
+bool config_connect(void);
+
+/**
  * Run Wifi scan and Configuration
  */
 void config_run(void);

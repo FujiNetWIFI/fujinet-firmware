@@ -4,7 +4,6 @@
 
 #include <atari.h>
 #include <string.h>
-#include <peekpoke.h>
 #include <conio.h>
 #include "config.h"
 #include "screen.h"
@@ -14,52 +13,6 @@
 
 bool _configured=false;
 unsigned char _num_networks;
-
-extern unsigned char* video_ptr;
-extern unsigned char* dlist_ptr;
-extern unsigned short screen_memory;
-extern unsigned char* font_ptr;
-
-unsigned char fontPatch[24]={
-			 0,0,0,0,0,0,3,51,
-			 0,0,3,3,51,51,51,51,
-			 48,48,48,48,48,48,48,48
-};
-
-void dlist=
-  {
-   DL_BLK8,
-   DL_BLK8,
-   DL_BLK8,
-   DL_LMS(DL_CHR20x8x2),
-   DISPLAY_MEMORY,
-
-   DL_CHR20x8x2,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR40x8x1,
-   DL_CHR20x8x2,
-   DL_CHR20x8x2,   
-   DL_JVB,
-   0x600
-  };
 
 union 
 {
@@ -83,6 +36,7 @@ union
 
 unsigned char config_sector[128];
 unsigned char wifiStatus;
+unsigned char successful=0; // connection successful?
 
 #define COLOR_SETTING_NETWORK 0x66
 #define COLOR_SETTING_FAILED 0x33
@@ -94,6 +48,13 @@ unsigned char wifiStatus;
  */
 bool configured(void)
 {
+
+  if (GTIA_READ.consol==5)
+    {
+      _configured=false;
+      return _configured;
+    }
+  
   OS.dcb.ddevic=0x31;
   OS.dcb.dunit=1;
   OS.dcb.dcomnd='R'; // Is device configured?
@@ -235,36 +196,6 @@ void config_print_networks(unsigned char n)
 }
 
 /**
- * Setup the config screen
- */
-void config_setup(void)
-{
-  OS.color0=0x9C;
-  OS.color1=0x0F;
-  OS.color2=0x92;
-  OS.color4=0x92;
-  OS.coldst=1;
-  OS.sdmctl=0; // Turn off screen
-  memcpy((void *)DISPLAY_LIST,&dlist,sizeof(dlist)); // copy display list to $0600
-  OS.sdlst=(void *)DISPLAY_LIST;                     // and use it.
-  dlist_ptr=(unsigned char *)OS.sdlst;               // Set up the vars for the screen output macros
-  screen_memory=PEEKW(560)+4;
-  video_ptr=(unsigned char*)(PEEKW(screen_memory));
-
-  // Copy ROM font
-  memcpy((unsigned char *)FONT_MEMORY,(unsigned char *)0xE000,1024);
-
-  // And patch it.
-  font_ptr=(unsigned char*)FONT_MEMORY;
-  memcpy(&font_ptr[520],&fontPatch,24);
-
-  OS.chbas=0x20; // use the charset
-  bar_clear();
-  bar_setup_regs();
-  
-}
-
-/**
  * Print error
  */
 void config_print_error(unsigned char s)
@@ -302,19 +233,99 @@ void config_write(void)
 }
 
 /**
+ * Read config from "disk"
+ */
+void config_read(void)
+{
+  OS.dcb.ddevic=0x31;
+  OS.dcb.dunit=1;
+  OS.dcb.dcomnd='R';
+  OS.dcb.dstats=0x40;
+  OS.dcb.dbuf=&config_sector;
+  OS.dcb.dtimlo=0x0F;
+  OS.dcb.dbyt=128;
+  OS.dcb.daux=720;
+  siov();
+
+  strcpy(netConfig.ssid,&config_sector[0]);
+  strcpy(netConfig.password,&config_sector[32]);
+}
+
+/**
+ * wait for connection
+ */
+bool config_wait_for_wifi(void)
+{
+  while (1)
+    {
+      if ((OS.rtclok[2] & 0x3f)==0)
+	{
+	  OS.pcolr0=OS.pcolr1=OS.pcolr2=OS.pcolr3=COLOR_CHECKING_NETWORK;
+	  config_get_wifi_status();
+	  
+	  if (wifiStatus==3)
+	    {
+	      OS.pcolr0=OS.pcolr1=OS.pcolr2=OS.pcolr3=COLOR_SETTING_SUCCESSFUL;
+	      config_write();
+	      
+	      OS.rtclok[0]=OS.rtclok[1]=OS.rtclok[2]=0;
+	      
+	      while (OS.rtclok[2]<128) { } // Delay
+	      
+	      bar_clear();
+	      
+	      _configured=true;
+	      successful=true;
+	      
+	      return true;
+	    }
+	  
+	}
+      else
+	{
+	  OS.pcolr0=OS.pcolr1=OS.pcolr2=OS.pcolr3=COLOR_SETTING_NETWORK;
+	}
+      
+      if (OS.rtclok[1]==2) // we timed out...
+	{
+	  screen_puts(0,21," COULD NOT CONNECT. ");
+	  OS.rtclok[2]=0;
+	  while (OS.rtclok[2]<128) { }
+
+	  bar_clear();
+
+	  _configured=false;
+	  
+	  return false;
+	}
+    } 
+}
+
+/**
+ * Connect to configured network
+ */
+bool config_connect(void)
+{
+  screen_clear();
+  config_read();
+  screen_puts(0,0,"WELCOME TO #FUJINET! CONNECTING TO NET ");
+  screen_puts(2,2,netConfig.ssid);
+  bar_show(3);
+  config_set_ssid();
+  return config_wait_for_wifi();
+}
+
+/**
  * Run Wifi scan and Configuration
  */
 void config_run(void)
 {
   unsigned char s; // status
   unsigned char num_networks; // Number of networks
-  unsigned char y; // cursor
-  unsigned char done; // selection done?
-  unsigned char successful; // connection successful?
+  unsigned char y=0; // cursor
+  unsigned char done=0; // selection done?
   unsigned char k; // keypress
   unsigned char x; // password cursor
-  
-  config_setup();
   
   while(successful==false)
     {
@@ -364,7 +375,7 @@ void config_run(void)
 	  else if (k==155)
 	    done=true;
 	  else
-	    netConfig.password[x]=k;
+	    netConfig.password[x++]=k;
 	}
       
       screen_puts(0,21,"  SETTING NETWORK   ");
@@ -379,43 +390,12 @@ void config_run(void)
 
       config_set_ssid(); // send to fujinet
 
+      screen_puts(0,1,netConfig.ssid);
+      
       done=false;
 
       OS.rtclok[0]=OS.rtclok[1]=OS.rtclok[2]=0;
-      
-      while (done==false)
-	{
-	  if ((OS.rtclok[2] & 0x3f)==0)
-	    {
-	      OS.pcolr0=OS.pcolr1=OS.pcolr2=OS.pcolr3=COLOR_CHECKING_NETWORK;
-	      config_get_wifi_status();
-
-	      if (wifiStatus==3)
-		{
-		  successful=true;
-		  done=true;
-		}
-	      
-	    }
-	  else
-	    {
-	      OS.pcolr0=OS.pcolr1=OS.pcolr2=OS.pcolr3=COLOR_SETTING_NETWORK;
-	    }
-
-	  if (OS.rtclok[1]==2) // we timed out...
-	    {
-	      successful=false;
-	      done=true;
-	      screen_puts(0,21," COULD NOT CONNECT. ");
-	      OS.rtclok[2]=0;
-	      while (OS.rtclok[2]<250) { }	      
-	    }
-	}
+      config_wait_for_wifi();
     }
 
-  OS.pcolr0=OS.pcolr1=OS.pcolr2=OS.pcolr3=COLOR_SETTING_SUCCESSFUL;
-  config_write();
-  
-  die();
-  
 }
