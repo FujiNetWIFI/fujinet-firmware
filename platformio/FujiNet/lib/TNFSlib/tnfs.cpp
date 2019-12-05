@@ -1,6 +1,6 @@
 // based on SPIFFS.cpp
 
-#include "tnfs.h" // chnanged to TNFS
+#include "tnfs.h"
 extern tnfsPacket_t tnfsPacket;
 
 TNFSFS::TNFSFS() : FS(FSImplPtr(new TNFSImpl()))

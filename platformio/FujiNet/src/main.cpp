@@ -22,7 +22,6 @@
 
 File atr;
 File tnfs;
-//tnfsClient myTNFS;
 sioDevice sioD1;
 
 

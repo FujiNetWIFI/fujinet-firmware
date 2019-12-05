@@ -3,9 +3,9 @@
 
 #include <Arduino.h>
 #include <WiFiUdp.h>
+#include <tnfs.h>
 
-#define TNFS_SERVER "mozzwald.com"
-#define TNFS_PORT 16384
+extern TNFSFS TNFS;
 
 union tnfsPacket_t
 {
@@ -20,8 +20,9 @@ union tnfsPacket_t
   byte rawData[512];
 };
 
+void str2packet(const char *s);
 bool tnfs_mount(const char *host, uint16_t port=16384, const char *location="/", const char *userid="", const char *password="");
-void tnfs_open();
+int tnfs_open(const char *filename, byte flag_lsb=1, byte flag_msb=0);
 void tnfs_read();
 void tnfs_seek(uint32_t offset);
 

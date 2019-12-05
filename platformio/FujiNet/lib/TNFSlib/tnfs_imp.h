@@ -56,6 +56,9 @@ public:
     FileImplPtr openNextFile(const char *mode) override;
     void rewindDirectory(void) override;
     operator bool();
+
+private:
+    byte fd;
 };
 
 #endif //_TNFS_IMP_H

@@ -1,8 +1,23 @@
 #include "tnfs_udp.h"
 
+#define TNFS_SERVER "x"
+#define TNFS_PORT 0
+
 WiFiUDP UDP;
 byte tnfs_fd;
 tnfsPacket_t tnfsPacket;
+int dataidx = 0;
+
+void str2packet(const char *s)
+{
+  for (int i = 0; i < strlen(s); i++)
+  {
+    dataidx++;
+    tnfsPacket.data[dataidx] = s[i];
+    dataidx++;
+    tnfsPacket.data[dataidx] = 0; // null terminator
+  }
+};
 
 /*
 ------------------------------------------------------------------
@@ -20,7 +35,7 @@ Bytes 0,1       Connection ID (ignored for client's "mount" command)
 Byte  2         Retry number
 Byte  3         Command
 If the operation was successful, the standard header contains the session number.
-I think it is undocumented that Byte 4 contains the error code. Then there is the
+Byte 4 contains the command or error code. Then there is the
 TNFS protocol version that the server is using following the header, followed by the 
 minimum retry time in milliseconds as a little-endian 16 bit number.
 
@@ -39,19 +54,19 @@ bool tnfs_mount(const char *host, uint16_t port, const char *location, const cha
   tnfsPacket.session_idl = 0;
   tnfsPacket.session_idh = 0;
   tnfsPacket.retryCount = 0;
-  tnfsPacket.command = 0;
-  tnfsPacket.data[0] = 0x01; // vers
-  tnfsPacket.data[1] = 0x00; // "  "
-  tnfsPacket.data[2] = 0x2F; // / - TODO add location path
-  tnfsPacket.data[3] = 0x00; // nul
-  tnfsPacket.data[4] = 0x00; // no username - TODO add password
-  tnfsPacket.data[5] = 0x00; // no password - TODO add UID
-
+  tnfsPacket.command = 0;    // MOUNT command code
+  tnfsPacket.data[0] = 0x01; // vers LSB
+  tnfsPacket.data[1] = 0x00; // vers MSB
+  dataidx=1;
+  str2packet(location);
+  str2packet(userid);
+  str2packet(password);
+  dataidx += 5;
 #ifdef DEBUG_S
   BUG_UART.print("Mounting / from ");
   BUG_UART.println(host);
   BUG_UART.print("Req Packet: ");
-  for (int i = 0; i < 10; i++)
+  for (int i = 0; i < dataidx; i++)
   {
     BUG_UART.print(tnfsPacket.rawData[i], HEX);
     BUG_UART.print(" ");
@@ -60,11 +75,12 @@ bool tnfs_mount(const char *host, uint16_t port, const char *location, const cha
 #endif /* DEBUG_S */
 
   UDP.beginPacket(host, port);
-  UDP.write(tnfsPacket.rawData, 10); // TODO figure out how much to send
+  UDP.write(tnfsPacket.rawData, dataidx);
   UDP.endPacket();
 
   while (dur < 5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l = UDP.read(tnfsPacket.rawData, 512);
@@ -105,11 +121,24 @@ bool tnfs_mount(const char *host, uint16_t port, const char *location, const cha
   return false;
 }
 
-/**
- * Open 'autorun.atr'
+/*
+OPEN - Opens a file - Command 0x29
+----------------------------------
+Format: Standard header, flags, mode, then the null terminated filename.
+
+
+WIll not implement CHMOD mode - default to something for O_CREAT.
+
+The server returns the standard header and a result code in response.
+If the operation was successful, the byte following the result code
+is the file descriptor:
+
+0xBEEF 0x00 0x29 0x00 0x04 - Successful file open, file descriptor = 4
+0xBEEF 0x00 0x29 0x01 - File open failed with "permssion denied"
  */
-void tnfs_open()
-{
+int tnfs_open(const char *filename, byte flag_lsb, byte flag_msb)
+{ // need to return file descriptor tnfs_fd and error code. Hmmmm. maybe error code is negative.
+  if (TNFS.sessionID == 0) return -1;
   int start = millis();
   int dur = millis() - start;
   tnfsPacket.retryCount++;   // increase sequence #
