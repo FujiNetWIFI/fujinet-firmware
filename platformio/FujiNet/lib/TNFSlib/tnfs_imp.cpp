@@ -4,9 +4,23 @@ extern tnfsPacket_t tnfsPacket;
 
 TNFSImpl::TNFSImpl() { }
 
+
 FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 {
-  tnfs_open(); // what about return pointer?
+/* TODO: Map tnfs flags to "r", "w", "a", "r+", "w+", "a+"
+Flags are a bit field. The flags are:
+O_RDONLY        0x0001  Open read only
+O_WRONLY        0x0002  Open write only
+O_RDWR          0x0003  Open read/write
+O_APPEND        0x0008  Append to the file, if it exists (write only)
+O_CREAT         0x0100  Create the file if it doesn't exist (write only)
+O_TRUNC         0x0200  Truncate the file on open for writing
+O_EXCL          0x0400  With O_CREAT, returns an error if the file exists
+*/
+  byte flag_lsb = 1;
+  byte flag_msb = 0;  
+  tnfs_open(path,flag_lsb,flag_msb); 
+  // TODO need to store the File Descriptor in to the object that is created below.
   return std::make_shared<TNFSFileImpl>(this, path, mode);
 }
 
