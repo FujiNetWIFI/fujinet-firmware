@@ -21,6 +21,7 @@ void main(void)
   printf("DSTATS: %d\n",OS.dcb.dstats);
   printf("Num networks: %d\n",num_networks[0]);
 
+  printf("raw packet: %02x %02x %02x %02x",num_networks[0], num_networks[1], num_networks[2], num_networks[3]);
   die();
   
 }
