@@ -93,6 +93,8 @@ union
   byte rawData[516];
 } tnfsPacket;
 
+byte sectorCache[2560];
+
 byte sector[128];
 char tnfsServer[256];
 char mountPath[256];
@@ -599,7 +601,7 @@ void sio_read()
   }
   else // TNFS ATR mounted and opened...
   {
-    if ((sectorNum > (firstCachedSector + 3)) || (sectorNum < firstCachedSector)) // cache miss
+    if ((sectorNum > (firstCachedSector + 19)) || (sectorNum < firstCachedSector)) // cache miss
     {
       firstCachedSector = sectorNum;
       cacheOffset = 0;
@@ -608,27 +610,75 @@ void sio_read()
       offset -= 128;
       offset += 16;
 #ifdef DEBUG
-      Debug_printf("firstCachedSector: %d\n",firstCachedSector);
-      Debug_printf("cacheOffset: %d\n",cacheOffset);
-      Debug_printf("offset: %d\n",offset);
-#endif 
+      Debug_printf("firstCachedSector: %d\n", firstCachedSector);
+      Debug_printf("cacheOffset: %d\n", cacheOffset);
+      Debug_printf("offset: %d\n", offset);
+#endif
       tnfs_seek(offset);
       tnfs_read();
+      yield();
+      for (int i = 0; i < 256; i++)
+        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+      cacheOffset += 256;
+      tnfs_read();
+      yield();
+      for (int i = 0; i < 256; i++)
+        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+      cacheOffset += 256;
+      tnfs_read();
+      yield();
+      for (int i = 0; i < 256; i++)
+        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+      cacheOffset += 256;
+      tnfs_read();
+      yield();
+      for (int i = 0; i < 256; i++)
+        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+      cacheOffset += 256;
+      tnfs_read();
+      yield();
+      for (int i = 0; i < 256; i++)
+        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+      cacheOffset += 256;
+      tnfs_read();
+      yield();
+      for (int i = 0; i < 256; i++)
+        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+      cacheOffset += 256;
+      tnfs_read();
+      yield();
+      for (int i = 0; i < 256; i++)
+        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+      cacheOffset += 256;
+      tnfs_read();
+      yield();
+      for (int i = 0; i < 256; i++)
+        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+      cacheOffset += 256;
+      tnfs_read();
+      yield();
+      for (int i = 0; i < 256; i++)
+        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+      cacheOffset += 256;
+      tnfs_read();
+      yield();
+      for (int i = 0; i < 256; i++)
+        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+      cacheOffset = 0;
     }
     else // cache hit, adjust offset
     {
       cacheOffset = ((sectorNum - firstCachedSector) * 128);
 #ifdef DEBUG
-      Debug_printf("cacheOffset: %d\n",cacheOffset);
+      Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
     }
     for (int i = 0; i < 128; i++)
-      sector[i] = tnfsPacket.data[(i+cacheOffset) + 3];
+      sector[i] = sectorCache[(i + cacheOffset)];
   }
 
   ck = sio_checksum((byte *)&sector, 128);
 
-  delayMicroseconds(DELAY_T5); // t5 delay
   Serial.write('C'); // Completed command
   Serial.flush();
 
@@ -1109,8 +1159,8 @@ void tnfs_read()
   tnfsPacket.retryCount++;  // Increase sequence
   tnfsPacket.command = 0x21; // READ
   tnfsPacket.data[0] = tnfs_fd; // returned file descriptor
-  tnfsPacket.data[1] = 0x00; // 512 bytes
-  tnfsPacket.data[2] = 0x02; //
+  tnfsPacket.data[1] = 0x00; // 256 bytes
+  tnfsPacket.data[2] = 0x01; //
 
 #ifdef DEBUG
   Debug_print("Reading from File descriptor: ");
@@ -1249,10 +1299,10 @@ void tnfs_seek(long offset)
 
 void setup()
 {
-//  WiFi.begin("---","---");
-//  while (WiFi.status()!=WL_CONNECTED)
+//  WiFi.begin("Cherryhomes", "e1xb64XC46");
+//  while (WiFi.status() != WL_CONNECTED)
 //  {
-//    delay(50);  
+//    delay(50);
 //  }
   UDP.begin(16384);
   SPIFFS.begin();
@@ -1273,7 +1323,7 @@ void setup()
 
 #ifdef DEBUG_N
   wificlient.connect(DEBUG_HOST, 6502);
-  wificlient.println("#AtariWifi Config Test");
+  wificlient.println("#FujiNet Caching Test");
 #endif
 
   // Set up serial
