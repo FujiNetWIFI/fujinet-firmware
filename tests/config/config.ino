@@ -13,9 +13,10 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-// #define DEBUG_N
-// #define DEBUG_HOST "192.168.1.7"
-
+//#define DEBUG_N
+//#define DEBUG_HOST "192.168.1.117"
+//#define DEBUG_SSID "YourSSID"
+//#define DEBUG_PASSWORD "YourWiFiPassword"
 
 #define PIN_LED         2
 #define PIN_INT         5
@@ -1242,8 +1243,10 @@ void setup()
   pinMode(PIN_CMD, INPUT);
 
 #ifdef DEBUG_N
-  wificlient.connect(DEBUG_HOST, 6502);
-  wificlient.println("#AtariWifi Config Test");
+  /* Get WiFi started, but don't wait for it otherwise SIO
+   * powered FujiNet fails to boot 
+   */
+  WiFi.begin(DEBUG_SSID, DEBUG_PASSWORD);
 #endif
 
   // Set up serial
@@ -1257,6 +1260,15 @@ void setup()
 
 void loop()
 {
+#ifdef DEBUG_N
+  /* Connect to debug server if we aren't and WiFi is connected */
+  if( !wificlient.connected() && WiFi.status() == WL_CONNECTED )
+  {
+    wificlient.connect(DEBUG_HOST, 6502);
+    wificlient.println("#AtariWifi Config Test");
+  }
+#endif
+
   if (Serial.available() > 0)
   {
     sio_incoming();
