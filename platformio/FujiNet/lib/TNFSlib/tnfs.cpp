@@ -17,7 +17,9 @@ byte TNFSFS::begin(const char *host, uint16_t port, const char *location, const 
     */
     if (err)
     {
-        sessionID = tnfsPacket.session_idh * 256 + tnfsPacket.session_idl;
+        _id = tnfsPacket.session_idh * 256 + tnfsPacket.session_idl;
+        _host = host;
+        _port = port;
         _impl->mountpoint(location);
         return 0;
     }
@@ -35,7 +37,7 @@ size_t TNFSFS::size() { return 0; }
 size_t TNFSFS::free() { return 0; }
 void TNFSFS::end()
 {
-    sessionID = 0;
+    _id = 0;
     _impl->mountpoint(NULL);
 }
 

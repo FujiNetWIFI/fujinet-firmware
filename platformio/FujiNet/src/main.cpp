@@ -48,10 +48,10 @@ void setup()
   TNFS.begin(TNFS_SERVER);
   tnfs = TNFS.open("doesnotmatter","r");
 
-  sioD1.setup(&atr);
+  sioD1.setup(&tnfs);
 }
 
 void loop()
 {
-  //sioD1.handle();
+  sioD1.handle();
 }
