@@ -7,13 +7,13 @@
 #include "tnfs_udp.h"
 
   
-#define O_RDONLY 0x0001 //Open read only
-#define O_WRONLY 0x0002 //Open write only
-#define O_RDWR 0x0003   //Open read/write
-#define O_APPEND 0x0008 //Append to the file, if it exists (write only)
-#define O_CREAT 0x0100  //Create the file if it doesn't exist (write only)
-#define O_TRUNC 0x0200  //Truncate the file on open for writing
-#define O_EXCL 0x0400   //With O_CREAT, returns an error if the file exists
+#define TNFS_RDONLY 0x0001 //Open read only
+#define TNFS_WRONLY 0x0002 //Open write only
+#define TNFS_RDWR 0x0003   //Open read/write
+#define TNFS_APPEND 0x0008 //Append to the file, if it exists (write only)
+#define TNFS_CREAT 0x0100  //Create the file if it doesn't exist (write only)
+#define TNFS_TRUNC 0x0200  //Truncate the file on open for writing
+#define TNFS_EXCL 0x0400   //With TNFS_CREAT, returns an error if the file exists
 
 
 using namespace fs;

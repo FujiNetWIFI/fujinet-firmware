@@ -204,7 +204,7 @@ int tnfs_open(const char *host, uint16_t port, const char *filename, byte flag_l
 return -0x30;
 }
 
-size_t tnfs_read(const char *host, uint16_t port, byte fd, size_t size)
+int tnfs_read(const char *host, uint16_t port, byte fd, size_t size)
 {
   int start = millis();
   int dur = millis() - start;
@@ -250,7 +250,7 @@ size_t tnfs_read(const char *host, uint16_t port, byte fd, size_t size)
 #ifndef DEBUG_S
         BUG_UART.println("Successful.");
 #endif /* DEBUG_S */
-        return;
+        return int(size);
       }
       else
       {
@@ -259,13 +259,14 @@ size_t tnfs_read(const char *host, uint16_t port, byte fd, size_t size)
         BUG_UART.print("Error code #");
         BUG_UART.println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
-        return;
+        return -1;
       }
     }
   }
 #ifdef DEBUG_S
   BUG_UART.println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
+return -1;
 }
 
 void tnfs_seek(const char *host, uint16_t port, byte fd, uint32_t offset)
