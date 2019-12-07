@@ -138,7 +138,7 @@ is the file descriptor:
  */
 int tnfs_open(const char *filename, byte flag_lsb, byte flag_msb)
 { // need to return file descriptor tnfs_fd and error code. Hmmmm. maybe error code is negative.
-  if (TNFS.sessionID == 0) return -1;
+  
   int start = millis();
   int dur = millis() - start;
   tnfsPacket.retryCount++;   // increase sequence #
@@ -195,12 +195,11 @@ int tnfs_open(const char *filename, byte flag_lsb, byte flag_msb)
       if (tnfsPacket.data[0] == 0x00)
       {
         // Successful
-        tnfs_fd = tnfsPacket.data[1];
 #ifdef DEBUG_S
         BUG_UART.print("Successful, file descriptor: #");
-        BUG_UART.println(tnfs_fd, HEX);
+        BUG_UART.println(tnfsPacket.data[1], HEX);
 #endif /* DEBUG_S */
-        return;
+        return tnfsPacket.data[1];
       }
       else
       {
@@ -209,7 +208,7 @@ int tnfs_open(const char *filename, byte flag_lsb, byte flag_msb)
         BUG_UART.print("Error code #");
         BUG_UART.println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
-        return;
+        return -tnfsPacket.data[0];
       }
     }
   }
@@ -217,6 +216,7 @@ int tnfs_open(const char *filename, byte flag_lsb, byte flag_msb)
 #ifdef DEBUG_S
   BUG_UART.println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
+return -0x30;
 }
 
 void tnfs_read()
