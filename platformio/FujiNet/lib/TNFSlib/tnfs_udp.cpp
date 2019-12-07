@@ -4,7 +4,6 @@ WiFiUDP UDP;
 // byte tnfs_fd;
 tnfsPacket_t tnfsPacket;
 int dataidx = 0;
-String tnfs_host="";
 
 void str2packet(String S)
 {
@@ -17,20 +16,7 @@ void str2packet(String S)
   tnfsPacket.data[dataidx] = 0; // null terminator
 };
 
-void hostname(const char* mp)
-{
-  String M(mp);
-  int n = M.lastIndexOf(":");
-  tnfs_host="";
-  tnfs_host += M.substring(2,n);
-  //return *(&tnfs_host);
-}
-
-uint16_t portnum(const char* mp)
-{
-  return 16384;
-}
-/*
+/* 
 ------------------------------------------------------------------
 MOUNT - Command ID 0x00
 -----------------------
@@ -147,9 +133,8 @@ is the file descriptor:
 0xBEEF 0x00 0x29 0x00 0x04 - Successful file open, file descriptor = 4
 0xBEEF 0x00 0x29 0x01 - File open failed with "permssion denied"
  */
-int tnfs_open(const char* mp, String filename, byte flag_lsb, byte flag_msb)
+int tnfs_open(String host, uint16_t port, String filename, byte flag_lsb, byte flag_msb)
 { // need to return file descriptor tnfs_fd and error code. Hmmmm. maybe error code is negative.
-  hostname(mp);
   int start = millis();
   int dur = millis() - start;
   tnfsPacket.retryCount++;   // increase sequence #
@@ -163,12 +148,12 @@ int tnfs_open(const char* mp, String filename, byte flag_lsb, byte flag_msb)
   dataidx += 5;
 
 #ifdef DEBUG_S
-  BUG_UART.println(mp);
   BUG_UART.print("Opening ");
   BUG_UART.print(filename);
   BUG_UART.print(" at ");
-
-  BUG_UART.println(tnfs_host);
+  BUG_UART.print(host);
+  BUG_UART.print(" on port ");
+  BUG_UART.println(port, DEC);
   BUG_UART.print("Req packet: ");
   for (int i = 0; i < dataidx; i++)
   {
@@ -178,7 +163,7 @@ int tnfs_open(const char* mp, String filename, byte flag_lsb, byte flag_msb)
   BUG_UART.println("");
 #endif /* DEBUG_S */
 
-  UDP.beginPacket(tnfs_host.c_str(), portnum(mp));
+  UDP.beginPacket(host.c_str(), port);
   UDP.write(tnfsPacket.rawData, dataidx);
   UDP.endPacket();
 
@@ -224,9 +209,8 @@ int tnfs_open(const char* mp, String filename, byte flag_lsb, byte flag_msb)
   return -0x30;
 }
 
-int tnfs_read(const char* mp, byte fd, size_t size)
+int tnfs_read(String host, uint16_t port, byte fd, size_t size)
 {
-  hostname(mp);
   int start = millis();
   int dur = millis() - start;
   tnfsPacket.retryCount++;                // Increase sequence
@@ -247,7 +231,7 @@ int tnfs_read(const char* mp, byte fd, size_t size)
   BUG_UART.println("");
 #endif /* DEBUG_S */
 
-  UDP.beginPacket(tnfs_host.c_str(), portnum(mp));
+  UDP.beginPacket(host.c_str(), port);
   UDP.write(tnfsPacket.rawData, 4 + 3);
   UDP.endPacket();
 
@@ -291,9 +275,8 @@ int tnfs_read(const char* mp, byte fd, size_t size)
   return -1;
 }
 
-void tnfs_seek(const char* mp, byte fd, uint32_t offset)
+void tnfs_seek(String host, uint16_t port, byte fd, uint32_t offset)
 {
-  hostname(mp);
   int start = millis();
   int dur = millis() - start;
   byte offsetVal[4];
@@ -325,7 +308,7 @@ void tnfs_seek(const char* mp, byte fd, uint32_t offset)
   BUG_UART.println("");
 #endif /* DEBUG_S*/
 
-  UDP.beginPacket(tnfs_host.c_str(), portnum(mp));
+  UDP.beginPacket(host.c_str(), port);
   UDP.write(tnfsPacket.rawData, 6 + 4);
   UDP.endPacket();
 

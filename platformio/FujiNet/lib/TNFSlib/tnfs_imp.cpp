@@ -58,7 +58,11 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   }
   flag_lsb = byte(flag & 0xff);
   flag_msb = byte(flag >> 8);
-  int temp = tnfs_open(mountpoint(), path, flag_lsb, flag_msb);
+  String M(mountpoint());
+  int n = M.lastIndexOf(":");
+  String host = M.substring(2,n);
+  uint16_t port = 16384;
+  int temp = tnfs_open(host, port, path, flag_lsb, flag_msb);
   if (temp >= 0)
   {
     fd = (byte)temp;
@@ -86,7 +90,13 @@ bool TNFSImpl::rmdir(const char *path) { return false; }
 
 /* File Implementation */
 
-TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd) : _fs(fs), _fd(fd) {}
+TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd) : _fs(fs), _fd(fd) 
+{
+  String M(_fs->mountpoint());
+  int n = M.lastIndexOf(":");
+  _host = M.substring(2,n);
+  _port = 16384;
+}
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 {
@@ -96,8 +106,8 @@ size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
 {
   BUG_UART.println("calling tnfs_read");
-  BUG_UART.println(_fs->mountpoint());
-  int ret = tnfs_read(_fs->mountpoint(), _fd, size);
+  //BUG_UART.println(_fs->mountpoint());
+  int ret = tnfs_read(_host, _port, _fd, size);
   if (size == ret)
   {
     for (int i = 0; i < size; i++)
@@ -111,7 +121,7 @@ void TNFSFileImpl::flush() {}
 
 bool TNFSFileImpl::seek(uint32_t pos, SeekMode mode)
 {
-  tnfs_seek(_fs->mountpoint(), _fd, pos);
+  tnfs_seek(_host, _port, _fd, pos); // implement SeekMode
   return true;
 }
 size_t TNFSFileImpl::position() const { return 0; }

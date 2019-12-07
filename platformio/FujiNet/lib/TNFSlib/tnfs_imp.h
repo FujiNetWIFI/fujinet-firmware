@@ -47,9 +47,11 @@ This class implements the physical interface for built-in functions in the File 
 
 protected:
     TNFSImpl *_fs;
-    char *_path;
-    char *_mode;
     byte _fd;
+    String _host;
+    uint16_t _port;
+    char *_path; // used?
+    char *_mode; // used?
 
 public:
     TNFSFileImpl(TNFSImpl *fs, byte fd);
