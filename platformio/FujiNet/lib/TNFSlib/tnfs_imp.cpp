@@ -10,6 +10,15 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 {
   byte fd;
 
+  // extract host and port from mountpoint
+  char host[255];
+  int port=0;
+  //M(mountpoint());
+  sscanf(mountpoint(),"//%s:%d/",host,&port);
+  //int n = M.lastIndexOf(":");
+  //String host = M.substring(2,n);
+  //uint16_t port = M.substring(n+1).toInt();
+
   // TODO: path (filename) checking
 
   uint16_t flag = TNFS_RDONLY; // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
@@ -58,11 +67,8 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   }
   flag_lsb = byte(flag & 0xff);
   flag_msb = byte(flag >> 8);
-  String M(mountpoint());
-  int n = M.lastIndexOf(":");
-  String host = M.substring(2,n);
-  uint16_t port = 16384;
-  int temp = tnfs_open(host, port, path, flag_lsb, flag_msb);
+
+  int temp = tnfs_open(String((const char*)host), port, path, flag_lsb, flag_msb);
   if (temp >= 0)
   {
     fd = (byte)temp;
@@ -92,10 +98,11 @@ bool TNFSImpl::rmdir(const char *path) { return false; }
 
 TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd) : _fs(fs), _fd(fd) 
 {
-  String M(_fs->mountpoint());
-  int n = M.lastIndexOf(":");
-  _host = M.substring(2,n);
-  _port = 16384;
+  char host[255];
+  int port=0;
+  sscanf(_fs->mountpoint(),"//%s:%d/",host,&port);
+  _host = String(host);
+  _port = (uint16_t)port;
 }
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
