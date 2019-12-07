@@ -12,7 +12,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 
   // TODO: path (filename) checking
 
-  uint16_t flag = O_RDONLY; // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
+  uint16_t flag = TNFS_RDONLY; // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
   byte flag_lsb;
   byte flag_msb;
   if (strlen(mode) == 1)
@@ -20,13 +20,13 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
     switch (mode[0])
     {
     case 'r':
-      flag = O_RDONLY;
+      flag = TNFS_RDONLY;
       break;
     case 'w':
-      flag = O_WRONLY | O_CREAT | O_TRUNC;
+      flag = TNFS_WRONLY | TNFS_CREAT | TNFS_TRUNC;
       break;
     case 'a':
-      flag = O_WRONLY | O_CREAT | O_APPEND;
+      flag = TNFS_WRONLY | TNFS_CREAT | TNFS_APPEND;
       break;
     default:
       return NULL;
@@ -39,13 +39,13 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
       switch (mode[0])
       {
       case 'r':
-        flag = O_RDWR;
+        flag = TNFS_RDWR;
         break;
       case 'w':
-        flag = O_RDWR | O_CREAT | O_TRUNC;
+        flag = TNFS_RDWR | TNFS_CREAT | TNFS_TRUNC;
         break;
       case 'a':
-        flag = O_RDWR | O_CREAT | O_APPEND;
+        flag = TNFS_RDWR | TNFS_CREAT | TNFS_APPEND;
         break;
       default:
         return NULL;
@@ -95,20 +95,21 @@ size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 
 size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
 {
-  size_t ret = tnfs_read(_fs->_host, _fs->_port, _fd, size);
+  int ret = tnfs_read(_fs->_host, _fs->_port, _fd, size);
   if (size == ret)
   {
     for (int i = 0; i < size; i++)
       buf[i] = tnfsPacket.data[i + 3];
     return size;
   }
+  return 0;
 }
 
 void TNFSFileImpl::flush() {}
 
 bool TNFSFileImpl::seek(uint32_t pos, SeekMode mode)
 {
-  tnfs_seek(_fs->_host, _fs->_port, _fd,pos);
+  tnfs_seek(_fs->_host, _fs->_port, _fd, pos);
   return true;
 }
 size_t TNFSFileImpl::position() const { return 0; }
