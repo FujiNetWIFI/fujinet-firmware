@@ -47,7 +47,7 @@ void setup()
   TNFS.begin(TNFS_SERVER,TNFS_PORT);
   tnfs = TNFS.open("/autorun.atr","r");
 
-  sioD1.setup(&tnfs);
+  sioD1.setup(&atr);
 }
 
 void loop()

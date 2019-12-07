@@ -11,9 +11,9 @@ void str2packet(const char *s)
   {
     dataidx++;
     tnfsPacket.data[dataidx] = s[i];
-    dataidx++;
-    tnfsPacket.data[dataidx] = 0; // null terminator
   }
+  dataidx++;
+  tnfsPacket.data[dataidx] = 0; // null terminator
 };
 
 /*
@@ -54,7 +54,7 @@ bool tnfs_mount(const char *host, uint16_t port, const char *location, const cha
   tnfsPacket.command = 0;    // MOUNT command code
   tnfsPacket.data[0] = 0x01; // vers LSB
   tnfsPacket.data[1] = 0x00; // vers MSB
-  dataidx=1;
+  dataidx = 1;
   str2packet(location);
   str2packet(userid);
   str2packet(password);
@@ -135,23 +135,26 @@ is the file descriptor:
  */
 int tnfs_open(const char *host, uint16_t port, const char *filename, byte flag_lsb, byte flag_msb)
 { // need to return file descriptor tnfs_fd and error code. Hmmmm. maybe error code is negative.
-  
+
   int start = millis();
   int dur = millis() - start;
   tnfsPacket.retryCount++;   // increase sequence #
   tnfsPacket.command = 0x29; // OPEN
-  tnfsPacket.data[0] = flag_lsb; 
-  tnfsPacket.data[1] = flag_msb; 
-  tnfsPacket.data[2] = 0x00; // chmod 
+  tnfsPacket.data[0] = flag_lsb;
+  tnfsPacket.data[1] = flag_msb;
+  tnfsPacket.data[2] = 0x00; // chmod
   tnfsPacket.data[3] = 0x00; //
-  dataidx=3;
+  dataidx = 3;
   str2packet(filename);
   dataidx += 5;
 
 #ifdef DEBUG_S
-  BUG_UART.println("Opening /autorun.atr...");
+  BUG_UART.print("Opening ");
+  BUG_UART.print(filename);
+  BUG_UART.print(" at ");
+  BUG_UART.println(host);
   BUG_UART.print("Req packet: ");
-  for (int i = 0; i < 23; i++)
+  for (int i = 0; i < dataidx; i++)
   {
     BUG_UART.print(tnfsPacket.rawData[i], HEX);
     BUG_UART.print(" ");
@@ -165,6 +168,7 @@ int tnfs_open(const char *host, uint16_t port, const char *filename, byte flag_l
 
   while (dur < 5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l = UDP.read(tnfsPacket.rawData, 512);
@@ -201,18 +205,18 @@ int tnfs_open(const char *host, uint16_t port, const char *filename, byte flag_l
 #ifdef DEBUG_S
   BUG_UART.println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
-return -0x30;
+  return -0x30;
 }
 
 int tnfs_read(const char *host, uint16_t port, byte fd, size_t size)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.retryCount++;      // Increase sequence
-  tnfsPacket.command = 0x21;    // READ
-  tnfsPacket.data[0] = fd; // returned file descriptor
-  tnfsPacket.data[1] = byte(size & 0xff);    // size lsb
-  tnfsPacket.data[2] = byte(size >> 8);      // size msb
+  tnfsPacket.retryCount++;                // Increase sequence
+  tnfsPacket.command = 0x21;              // READ
+  tnfsPacket.data[0] = fd;                // returned file descriptor
+  tnfsPacket.data[1] = byte(size & 0xff); // size lsb
+  tnfsPacket.data[2] = byte(size >> 8);   // size msb
 
 #ifdef DEBUG_S
   BUG_UART.print("Reading from File descriptor: ");
@@ -232,6 +236,7 @@ int tnfs_read(const char *host, uint16_t port, byte fd, size_t size)
 
   while (dur < 5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
@@ -266,7 +271,7 @@ int tnfs_read(const char *host, uint16_t port, byte fd, size_t size)
 #ifdef DEBUG_S
   BUG_UART.println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
-return -1;
+  return -1;
 }
 
 void tnfs_seek(const char *host, uint16_t port, byte fd, uint32_t offset)
@@ -308,6 +313,7 @@ void tnfs_seek(const char *host, uint16_t port, byte fd, uint32_t offset)
 
   while (dur < 5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
