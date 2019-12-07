@@ -39,9 +39,12 @@ This class implements the physical interface for built-in functions in the File 
 
 protected:
     TNFSImpl *_fs;
+    char *_path;
+    char *_mode;
+    byte _fd;
 
 public:
-    TNFSFileImpl(TNFSImpl *fs, const char *path, const char *mode);
+    TNFSFileImpl(TNFSImpl *fs, byte fd);
     ~TNFSFileImpl(){};
     size_t write(const uint8_t *buf, size_t size) override;
     size_t read(uint8_t *buf, size_t size) override;
@@ -56,9 +59,6 @@ public:
     FileImplPtr openNextFile(const char *mode) override;
     void rewindDirectory(void) override;
     operator bool();
-
-private:
-    byte fd;
 };
 
 #endif //_TNFS_IMP_H

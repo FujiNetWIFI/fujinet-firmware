@@ -5,8 +5,6 @@
 #include <WiFiUdp.h>
 #include <tnfs.h>
 
-extern TNFSFS TNFS;
-
 union tnfsPacket_t
 {
   struct
