@@ -20,11 +20,13 @@ union tnfsPacket_t
   byte rawData[512];
 };
 
-void str2packet(const char *s);
-bool tnfs_mount(const char *host, uint16_t port=16384, const char *location="/", const char *userid="", const char *password="");
-int tnfs_open(const char *host, uint16_t port, const char *filename, byte flag_lsb=1, byte flag_msb=0);
-int tnfs_read(const char *host, uint16_t port, byte fd, size_t size);
-void tnfs_seek(const char *host, uint16_t port, byte fd, uint32_t offset);
+void str2packet(String S);
+void hostname(const char* mp);
+uint16_t portnum(const char* mp);
+bool tnfs_mount(String host, uint16_t port=16384, String location="/", String userid="", String password="");
+int tnfs_open(const char *mp, String filename, byte flag_lsb=1, byte flag_msb=0);
+int tnfs_read(const char *mp, byte fd, size_t size);
+void tnfs_seek(const char *mp, byte fd, uint32_t offset);
 
 #endif // _TNFS_UDP_H
 
