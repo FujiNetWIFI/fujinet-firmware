@@ -21,12 +21,12 @@ union tnfsPacket_t
 };
 
 void str2packet(String S);
-void hostname(const char* mp);
-uint16_t portnum(const char* mp);
+//void hostname(const char* mp);
+//uint16_t portnum(const char* mp);
 bool tnfs_mount(String host, uint16_t port=16384, String location="/", String userid="", String password="");
-int tnfs_open(const char *mp, String filename, byte flag_lsb=1, byte flag_msb=0);
-int tnfs_read(const char *mp, byte fd, size_t size);
-void tnfs_seek(const char *mp, byte fd, uint32_t offset);
+int tnfs_open(String host, uint16_t port, String filename, byte flag_lsb=1, byte flag_msb=0);
+int tnfs_read(String host, uint16_t port, byte fd, size_t size);
+void tnfs_seek(String host, uint16_t port, byte fd, uint32_t offset);
 
 #endif // _TNFS_UDP_H
 
