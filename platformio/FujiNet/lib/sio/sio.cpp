@@ -7,7 +7,6 @@
 // extern File atr;
 // extern tnfsClient myTNFS;
 
-
 /**
    ISR for falling COMMAND
 */
@@ -16,7 +15,6 @@ void ICACHE_RAM_ATTR sio_isr_cmd()
 {
   cmdFlag = true;
 }
-
 
 /**
    calculate 8-bit checksum.
@@ -122,8 +120,6 @@ void sioDevice::sio_read()
   //atr.read(sector, 128);
   _file->seek(offset); //SeekSet is default
   _file->read(sector, 128);
-
-
 
   //myTNFS.seek(offset);
   //myTNFS.read(sector,128);
@@ -288,7 +284,7 @@ void sioDevice::setup(File *f)
 {
   _file = f;
 
-    // Set up serial
+  // Set up serial
   SIO_UART.begin(19200);
 #ifdef ESP_8266
   SIO_UART.swap();
