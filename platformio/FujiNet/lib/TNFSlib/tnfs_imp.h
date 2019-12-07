@@ -29,9 +29,6 @@ protected:
     friend class TNFSFileImpl;
 
 public:
-    char *_host;
-    uint16_t _port;
-    uint16_t sessionID=0;
     TNFSImpl();
     ~TNFSImpl() {}
     FileImplPtr open(const char *path, const char *mode) override;

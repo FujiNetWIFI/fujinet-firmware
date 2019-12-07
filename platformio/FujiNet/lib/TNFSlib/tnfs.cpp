@@ -7,9 +7,9 @@ TNFSFS::TNFSFS() : FS(FSImplPtr(new TNFSImpl()))
 {
 }
 
-byte TNFSFS::begin(const char *host, uint16_t port, const char *location, const char *userid, const char *password)
+byte TNFSFS::begin(String host, uint16_t port, String location, String userid, String password)
 {
-    bool err = tnfs_mount(host, port, location, userid, password); 
+    bool err = tnfs_mount(host, port, location, userid, password);
     /*    Return cases:
     true - successful mount.
     false with error code in tnfsPacket.data[0] 
@@ -17,17 +17,23 @@ byte TNFSFS::begin(const char *host, uint16_t port, const char *location, const 
     */
     if (err)
     {
-        _id = tnfsPacket.session_idh * 256 + tnfsPacket.session_idl;
-        _host = host;
-        _port = port;
-        _impl->mountpoint(location);
+        String mp = "//" + host + ":" + String(port) + location;
+        //mp.concat(host);
+        //mp.concat(":");
+        //mp.concat(port);
+        //mp.concat(location);
+        BUG_UART.println(mp);
+        int n = mp.length();
+        mp.toCharArray(mparray,n+1);
+        //mparray[n+1]=0;
+        _impl->mountpoint(mparray);
         return 0;
     }
     else if (tnfsPacket.data[0] == 0x00)
     {
         return 138; // timeout!
     }
-    else 
+    else
     {
         return tnfsPacket.data[0]; // error code
     }
@@ -37,7 +43,7 @@ size_t TNFSFS::size() { return 0; }
 size_t TNFSFS::free() { return 0; }
 void TNFSFS::end()
 {
-    _id = 0;
+    //_id = 0;
     _impl->mountpoint(NULL);
 }
 
