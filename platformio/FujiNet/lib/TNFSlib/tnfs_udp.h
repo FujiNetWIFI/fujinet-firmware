@@ -5,6 +5,8 @@
 #include <WiFiUdp.h>
 #include <tnfs.h>
 
+
+
 union tnfsPacket_t
 {
   struct
@@ -20,9 +22,9 @@ union tnfsPacket_t
 
 void str2packet(const char *s);
 bool tnfs_mount(const char *host, uint16_t port=16384, const char *location="/", const char *userid="", const char *password="");
-int tnfs_open(const char *filename, byte flag_lsb=1, byte flag_msb=0);
-void tnfs_read();
-void tnfs_seek(uint32_t offset);
+int tnfs_open(const char *host, uint16_t port, const char *filename, byte flag_lsb=1, byte flag_msb=0);
+size_t tnfs_read(const char *host, uint16_t port, byte fd, size_t size);
+void tnfs_seek(const char *host, uint16_t port, byte fd, uint32_t offset);
 
 #endif // _TNFS_UDP_H
 
