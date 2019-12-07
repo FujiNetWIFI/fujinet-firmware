@@ -94,14 +94,8 @@ bool TNFSImpl::rmdir(const char *path) { return false; }
 
 /* File Implementation */
 
-TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd, String host, int port) : _fs(fs), _fd(fd), _host(host), _port(port)
-{
-  // extract host and port from mountpoint
-  /* String M(_fs->mountpoint());
-  int n = M.lastIndexOf(":");
-  _host = M.substring(2, n);
-  _port = M.substring(n + 1).toInt(); */
-}
+TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd, String host, int port) : _fs(fs), _fd(fd), _host(host), _port(port) {}
+
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 {
@@ -128,6 +122,8 @@ bool TNFSFileImpl::seek(uint32_t pos, SeekMode mode)
   tnfs_seek(_host, _port, _fd, pos); // implement SeekMode
   return true;
 }
+
+// not written yet
 size_t TNFSFileImpl::position() const { return 0; }
 size_t TNFSFileImpl::size() const { return 0; }
 void TNFSFileImpl::close() {}
@@ -138,4 +134,3 @@ FileImplPtr TNFSFileImpl::openNextFile(const char *mode) { return FileImplPtr();
 void TNFSFileImpl::rewindDirectory(void) {}
 TNFSFileImpl::operator bool() { return true; }
 
-/* Thom's things */
