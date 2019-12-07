@@ -12,7 +12,14 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 
   // TODO: path (filename) checking
 
-  uint16_t flag = TNFS_RDONLY; // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
+  // extract host and port from mountpoint
+  String M(mountpoint());
+  int n = M.lastIndexOf(":");
+  String host = M.substring(2, n);
+  int port = M.substring(n + 1).toInt();
+
+  // translate C++ file mode to TNFS file flags
+  uint16_t flag = TNFS_RDONLY; 
   byte flag_lsb;
   byte flag_msb;
   if (strlen(mode) == 1)
@@ -58,10 +65,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   }
   flag_lsb = byte(flag & 0xff);
   flag_msb = byte(flag >> 8);
-  String M(mountpoint());
-  int n = M.lastIndexOf(":");
-  String host = M.substring(2,n);
-  uint16_t port = 16384;
+
   int temp = tnfs_open(host, port, path, flag_lsb, flag_msb);
   if (temp >= 0)
   {
@@ -73,14 +77,14 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
     // send debug message with -temp as error
     return NULL;
   }
-  return std::make_shared<TNFSFileImpl>(this, fd);
+  return std::make_shared<TNFSFileImpl>(this, fd, host, port);
 }
 
 bool TNFSImpl::exists(const char *path)
 {
-  //File f = open(path, "r");
-  //return (f == true) && !f.isDirectory();
-  return false;
+  File f = open(path, "r");
+  return (f == true); //&& !f.isDirectory();
+  //return false;
 }
 
 bool TNFSImpl::rename(const char *pathFrom, const char *pathTo) { return false; }
@@ -90,12 +94,13 @@ bool TNFSImpl::rmdir(const char *path) { return false; }
 
 /* File Implementation */
 
-TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd) : _fs(fs), _fd(fd) 
+TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd, String host, int port) : _fs(fs), _fd(fd), _host(host), _port(port)
 {
-  String M(_fs->mountpoint());
+  // extract host and port from mountpoint
+  /* String M(_fs->mountpoint());
   int n = M.lastIndexOf(":");
-  _host = M.substring(2,n);
-  _port = 16384;
+  _host = M.substring(2, n);
+  _port = M.substring(n + 1).toInt(); */
 }
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
@@ -106,7 +111,6 @@ size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
 {
   BUG_UART.println("calling tnfs_read");
-  //BUG_UART.println(_fs->mountpoint());
   int ret = tnfs_read(_host, _port, _fd, size);
   if (size == ret)
   {
