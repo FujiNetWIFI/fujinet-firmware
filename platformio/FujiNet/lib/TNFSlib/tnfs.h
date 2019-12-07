@@ -59,8 +59,10 @@ bool mkdir(const char *path);
 bool rmdir(const char *path);
 */
 
-public:
+private:
     char mparray[255];
+
+public:
     TNFSFS();
     byte begin(String host, uint16_t port=16384, String location="/", String userid="", String password="");
     size_t size();
