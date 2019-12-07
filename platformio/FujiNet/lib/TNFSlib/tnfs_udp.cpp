@@ -42,7 +42,7 @@ false with error code in tnfsPacket.data[0]
 false with zero in tnfsPacket.data[0] - timeout
 ------------------------------------------------------------------
 */
-bool tnfs_mount(String host, uint16_t port, String location, String userid, String password)
+bool tnfs_mount(String host, int port, String location, String userid, String password)
 {
   int start = millis();
   int dur = millis() - start;
@@ -133,7 +133,7 @@ is the file descriptor:
 0xBEEF 0x00 0x29 0x00 0x04 - Successful file open, file descriptor = 4
 0xBEEF 0x00 0x29 0x01 - File open failed with "permssion denied"
  */
-int tnfs_open(String host, uint16_t port, String filename, byte flag_lsb, byte flag_msb)
+int tnfs_open(String host, int port, String filename, byte flag_lsb, byte flag_msb)
 { // need to return file descriptor tnfs_fd and error code. Hmmmm. maybe error code is negative.
   int start = millis();
   int dur = millis() - start;
@@ -209,7 +209,7 @@ int tnfs_open(String host, uint16_t port, String filename, byte flag_lsb, byte f
   return -0x30;
 }
 
-int tnfs_read(String host, uint16_t port, byte fd, size_t size)
+int tnfs_read(String host, int port, byte fd, size_t size)
 {
   int start = millis();
   int dur = millis() - start;
@@ -275,7 +275,7 @@ int tnfs_read(String host, uint16_t port, byte fd, size_t size)
   return -1;
 }
 
-void tnfs_seek(String host, uint16_t port, byte fd, uint32_t offset)
+void tnfs_seek(String host, int port, byte fd, uint32_t offset)
 {
   int start = millis();
   int dur = millis() - start;
