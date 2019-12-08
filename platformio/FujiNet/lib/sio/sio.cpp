@@ -55,21 +55,21 @@ void sioDevice::sio_get_id()
 void sioDevice::sio_get_command()
 {
   cmdFrame.comnd = SIO_UART.read();
-  if (cmdFrame.comnd == 'S' && statusSkipCount >= STATUS_SKIP)
+  //if (cmdFrame.comnd == 'S' && statusSkipCount >= STATUS_SKIP)
     cmdState = AUX1;
-  else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
-  {
-    statusSkipCount++;
-    cmdState = WAIT;
-    cmdTimer = 0;
-  }
-  else if (cmdFrame.comnd == 'R')
-    cmdState = AUX1;
-  else
-  {
-    cmdState = WAIT;
-    cmdTimer = 0;
-  }
+  // else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
+  // {
+  //   statusSkipCount++;
+  //   cmdState = WAIT;
+  //   cmdTimer = 0;
+  // }
+  // else if (cmdFrame.comnd == 'R')
+  //   cmdState = AUX1;
+  // else
+  // {
+  //   cmdState = WAIT;
+  //   cmdTimer = 0;
+  // }
 
 #ifdef DEBUG_S
   BUG_UART.print("CMD CMND: ");
@@ -111,7 +111,6 @@ void sioDevice::sio_get_aux2()
 void sioDevice::sio_read()
 {
   byte ck;
-  byte sector[128];
   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   offset *= 128;
   offset -= 128;
@@ -145,6 +144,34 @@ void sioDevice::sio_read()
 #endif
 }
 
+// write for W & P commands
+void sioDevice::sio_write()
+{
+  byte ck;
+  int offset =(256 * cmdFrame.aux2)+cmdFrame.aux1;
+  offset *= 128;
+  offset -= 128;
+  offset += 16; // skip 16 byte ATR Header
+  _file->seek(offset); //SeekSet is default
+
+#ifdef DEBUG_S
+  Serial1.printf("receiving 128b data frame from computer.\n");
+#endif
+
+  Serial.readBytes(sector,128);
+  ck=Serial.read(); // Read checksum
+  //delayMicroseconds(350);
+  Serial.write('A'); // Write ACK
+  
+  if (ck==sio_checksum(sector,128))
+  {
+    delayMicroseconds(DELAY_T5);
+    Serial.write('C');
+    _file->write(sector,128);
+    yield();
+  }
+}
+
 /**
    Status
 */
@@ -171,6 +198,34 @@ void sioDevice::sio_status()
   delayMicroseconds(200);
 }
 
+void sioDevice::sio_format()
+{
+  byte ck;
+
+  for (int i=0;i<128;i++)
+    sector[i]=0;
+
+  sector[0]=0xFF; // no bad sectors.
+  sector[1]=0xFF;
+
+  ck = sio_checksum((byte *)&sector, 128);
+
+  delayMicroseconds(DELAY_T5); // t5 delay
+  Serial.write('C'); // Completed command
+  Serial.flush();
+
+  // Write data frame
+  Serial.write(sector,128);
+    
+  // Write data frame checksum
+  Serial.write(ck);
+  Serial.flush();
+  delayMicroseconds(200);
+#ifdef DEBUG_S
+  Serial1.printf("We faked a format.\n");
+#endif
+}
+
 /**
    Process command
 */
@@ -179,14 +234,20 @@ void sioDevice::sio_process()
 {
   switch (cmdFrame.comnd)
   {
-  case 'R':
-    sio_read();
-    break;
-  case 'S':
-    sio_status();
-    break;
+    case 'R':
+      sio_read();
+      break;
+    case 'W':
+    case 'P':
+      sio_write();
+      break;
+    case 'S':
+      sio_status();
+      break;
+    case '!':
+      sio_format();
+      break;
   }
-
   cmdState = WAIT;
   cmdTimer = 0;
 }
