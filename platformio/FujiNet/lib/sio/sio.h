@@ -2,6 +2,7 @@
 #define SIO_H
 
 #include <Arduino.h>
+#include "tnfs.h"
 
 // pin configurations
 // esp8266
