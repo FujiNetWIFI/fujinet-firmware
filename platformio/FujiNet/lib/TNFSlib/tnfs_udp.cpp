@@ -1,8 +1,51 @@
-#include "tnfs.h"
+#include "tnfs_udp.h"
+
+#define TNFS_SERVER "x"
+#define TNFS_PORT 0
 
 WiFiUDP UDP;
+byte tnfs_fd;
+tnfsPacket_t tnfsPacket;
+int dataidx = 0;
 
-void tnfsClient::tnfs_mount()
+void str2packet(const char *s)
+{
+  for (int i = 0; i < strlen(s); i++)
+  {
+    dataidx++;
+    tnfsPacket.data[dataidx] = s[i];
+    dataidx++;
+    tnfsPacket.data[dataidx] = 0; // null terminator
+  }
+};
+
+/*
+------------------------------------------------------------------
+MOUNT - Command ID 0x00
+-----------------------
+Format:
+Standard header followed by:
+Bytes 4+: 16 bit version number, little endian, LSB = minor, MSB = major
+          NULL terminated string: mount location
+          NULL terminated string: user id (optional - NULL if no user id)
+          NULL terminated string: password (optional - NULL if no passwd)
+
+The server responds with the standard header:
+Bytes 0,1       Connection ID (ignored for client's "mount" command)
+Byte  2         Retry number
+Byte  3         Command
+If the operation was successful, the standard header contains the session number.
+Byte 4 contains the command or error code. Then there is the
+TNFS protocol version that the server is using following the header, followed by the 
+minimum retry time in milliseconds as a little-endian 16 bit number.
+
+Return cases:
+true - successful mount.
+false with error code in tnfsPacket.data[0] 
+false with zero in tnfsPacket.data[0] - timeout
+------------------------------------------------------------------
+*/
+bool tnfs_mount(const char *host, uint16_t port, const char *location, const char *userid, const char *password)
 {
   int start = millis();
   int dur = millis() - start;
@@ -11,19 +54,19 @@ void tnfsClient::tnfs_mount()
   tnfsPacket.session_idl = 0;
   tnfsPacket.session_idh = 0;
   tnfsPacket.retryCount = 0;
-  tnfsPacket.command = 0;
-  tnfsPacket.data[0] = 0x01; // vers
-  tnfsPacket.data[1] = 0x00; // "  "
-  tnfsPacket.data[2] = 0x2F; // /
-  tnfsPacket.data[3] = 0x00; // nul
-  tnfsPacket.data[4] = 0x00; // no username
-  tnfsPacket.data[5] = 0x00; // no password
-
+  tnfsPacket.command = 0;    // MOUNT command code
+  tnfsPacket.data[0] = 0x01; // vers LSB
+  tnfsPacket.data[1] = 0x00; // vers MSB
+  dataidx=1;
+  str2packet(location);
+  str2packet(userid);
+  str2packet(password);
+  dataidx += 5;
 #ifdef DEBUG_S
   BUG_UART.print("Mounting / from ");
-  BUG_UART.println(TNFS_SERVER);
+  BUG_UART.println(host);
   BUG_UART.print("Req Packet: ");
-  for (int i = 0; i < 10; i++)
+  for (int i = 0; i < dataidx; i++)
   {
     BUG_UART.print(tnfsPacket.rawData[i], HEX);
     BUG_UART.print(" ");
@@ -31,12 +74,13 @@ void tnfsClient::tnfs_mount()
   BUG_UART.println("");
 #endif /* DEBUG_S */
 
-  UDP.beginPacket(TNFS_SERVER, TNFS_PORT);
-  UDP.write(tnfsPacket.rawData, 10);
+  UDP.beginPacket(host, port);
+  UDP.write(tnfsPacket.rawData, dataidx);
   UDP.endPacket();
 
   while (dur < 5000)
   {
+    yield();
     if (UDP.parsePacket())
     {
       int l = UDP.read(tnfsPacket.rawData, 512);
@@ -57,7 +101,7 @@ void tnfsClient::tnfs_mount()
         BUG_UART.print(tnfsPacket.session_idl, HEX);
         BUG_UART.println(tnfsPacket.session_idh, HEX);
 #endif /* DEBUG_S */
-        return;
+        return true;
       }
       else
       {
@@ -66,7 +110,7 @@ void tnfsClient::tnfs_mount()
         BUG_UART.print("Error #");
         BUG_UART.println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S */
-        return;
+        return false;
       }
     }
   }
@@ -74,13 +118,27 @@ void tnfsClient::tnfs_mount()
 #ifdef DEBUG_S
   BUG_UART.println("Timeout after 5000ms");
 #endif /* DEBUG_S */
+  return false;
 }
 
-/**
- * Open 'autorun.atr'
+/*
+OPEN - Opens a file - Command 0x29
+----------------------------------
+Format: Standard header, flags, mode, then the null terminated filename.
+
+
+WIll not implement CHMOD mode - default to something for O_CREAT.
+
+The server returns the standard header and a result code in response.
+If the operation was successful, the byte following the result code
+is the file descriptor:
+
+0xBEEF 0x00 0x29 0x00 0x04 - Successful file open, file descriptor = 4
+0xBEEF 0x00 0x29 0x01 - File open failed with "permssion denied"
  */
-void tnfsClient::tnfs_open()
-{
+int tnfs_open(const char *filename, byte flag_lsb, byte flag_msb)
+{ // need to return file descriptor tnfs_fd and error code. Hmmmm. maybe error code is negative.
+  if (TNFS.sessionID == 0) return -1;
   int start = millis();
   int dur = millis() - start;
   tnfsPacket.retryCount++;   // increase sequence #
@@ -161,7 +219,7 @@ void tnfsClient::tnfs_open()
 #endif /* DEBUG_S */
 }
 
-void tnfsClient::tnfs_read()
+void tnfs_read()
 {
   int start = millis();
   int dur = millis() - start;
@@ -225,54 +283,7 @@ void tnfsClient::tnfs_read()
 #endif /* DEBUG_S */
 }
 
-void tnfsClient::begin()
-{
-  UDP.begin(TNFS_PORT);
-  tnfs_mount();
-  tnfs_open();
-}
-
-size_t tnfsClient::write(uint8_t c)
-{
-  return 0;
-}
-
-size_t tnfsClient::write(const uint8_t *buf, size_t size)
-{
-  return 0;
-}
-
-int tnfsClient::available()
-{
-  return -1;
-}
-
-int tnfsClient::peek()
-{
-  return -1;
-}
-
-void tnfsClient::flush()
-{
-}
-
-/**
- * TNFS read
- */
-int tnfsClient::read() { return -1; }
-
-size_t tnfsClient::read(byte *buf, size_t size) //void tnfsClient::read(byte arr[], int count)
-{
-  tnfs_read();
-  for (unsigned int i = 0; i < size; i++)
-    buf[i] = tnfsPacket.data[i + 3];
-  return size;
-}
-
-/**
- * TNFS seek
- */
-void tnfsClient::seek(uint32_t offset)
+void tnfs_seek(uint32_t offset)
 {
   int start = millis();
   int dur = millis() - start;
@@ -347,49 +358,3 @@ void tnfsClient::seek(uint32_t offset)
   BUG_UART.println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
 }
-
-size_t tnfsClient::position() const
-{
-  return 0;
-}
-
-size_t tnfsClient::size() const
-{
-  return 0;
-}
-
-void tnfsClient::close()
-{
-}
-
-tnfsClient::operator bool() const
-{
-  return false;
-}
-
-bool tnfsClient::truncate(uint32_t size)
-{
-    return false;
-
-}
-
-const char *tnfsClient::name() const
-{
-    return nullptr;
-}
-
-const char *tnfsClient::fullName() const
-{
-    return nullptr;
-}
-
-bool tnfsClient::isFile() const
-{
-    return true;
-}
-
-bool tnfsClient::isDirectory() const
-{
-    return false;
-}
-
