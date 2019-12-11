@@ -13,8 +13,8 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-// #define DEBUG_N
-// #define DEBUG_HOST "192.168.1.7"
+#define DEBUG_N
+#define DEBUG_HOST "192.168.1.7"
 
 
 #define PIN_LED         2
@@ -79,10 +79,10 @@ union
 } netConfig;
 
 /**
- * A UDP packet
- */
+   A UDP packet
+*/
 byte udpPacket[512];
-char udpHost[256];
+char udpHost[64];
 int udpPort;
 
 byte sectorCache[2560];
@@ -313,9 +313,9 @@ void sio_get_wifi_status()
 
   wifiStatus = WiFi.status();
 
-  if (wifiStatus==WL_CONNECTED)
+  if (wifiStatus == WL_CONNECTED)
   {
-    atr_fd=0x00; // tic tac toe;  
+    atr_fd = 0x00; // tic tac toe;
   }
 
   ck = sio_checksum((byte *)&wifiStatus, 1);
@@ -367,7 +367,7 @@ void sio_write()
     {
       tictactoe.seek(offset, SeekSet);
       tictactoe.write(sector, 128);
-      tictactoe.flush();      
+      tictactoe.flush();
     }
     Serial.write('C');
     yield();
@@ -485,7 +485,7 @@ void sio_read()
     offset -= 128;
     offset += 16;
     tictactoe.seek(offset, SeekSet);
-    tictactoe.read(sector, 128);    
+    tictactoe.read(sector, 128);
   }
 
   ck = sio_checksum((byte *)&sector, 128);
@@ -514,11 +514,11 @@ void sio_read()
 void sio_udp_read()
 {
   byte ck;
-  int packetSize=(256 * cmdFrame.aux2) + cmdFrame.aux1;
+  int packetSize = (256 * cmdFrame.aux2) + cmdFrame.aux1;
 
-  memset(udpPacket,0,sizeof(udpPacket));
-  UDP.read(udpPacket,packetSize);
-  
+  memset(udpPacket, 0, sizeof(udpPacket));
+  UDP.read(udpPacket, packetSize);
+
   ck = sio_checksum((byte *)&udpPacket, packetSize);
 
   delayMicroseconds(DELAY_T5); // t5 delay
@@ -534,11 +534,21 @@ void sio_udp_read()
   Serial.write(ck);
   Serial.flush();
   delayMicroseconds(200);
+
+#ifdef DEBUG
+  Debug_printf("Sending packet data size %d\n", packetSize);
+  for (int i = 0; i < packetSize; i++)
+  {
+    Debug_printf("%02x ", udpPacket[i]);
+  }
+  Debug_printf("\n");
+#endif
+
 }
 
 /**
- * Create UDP listening port (must be called first!)
- */
+   Create UDP listening port (must be called first!)
+*/
 void sio_udp_begin()
 {
   byte ck;
@@ -546,23 +556,18 @@ void sio_udp_begin()
   byte portL;
   byte portH;
 
-  portL=Serial.read();
-  portH=Serial.read();
-  ck = Serial.read(); // Read checksum
-  
-  if (ck==sio_checksum(udpPacket,packetSize))
-  {
-    Serial.write('A');
-    udpPort=(256*portH)+portL;
-    UDP.begin(udpPort);
-    Serial.write('C');
-    yield();
-  }
-  else
-  {
-    Serial.write('N');
-    return;  
-  }
+  portL = cmdFrame.aux1;
+  portH = cmdFrame.aux2;
+
+  udpPort = (256 * portH) + portL;
+  UDP.begin(udpPort);
+  delayMicroseconds(DELAY_T5);
+
+#ifdef DEBUG
+  Debug_printf("Listening for UDP on port %d", udpPort);
+#endif
+
+  Serial.write('C');
 }
 
 /**
@@ -575,12 +580,12 @@ void sio_udp_write()
 
   Serial.readBytes(udpPacket, packetSize);
   ck = Serial.read(); // Read checksum
-  
-  if (ck==sio_checksum(udpPacket,packetSize))
+
+  if (ck == sio_checksum(udpPacket, packetSize))
   {
     Serial.write('A');
-    UDP.beginPacket(udpHost,udpPort);
-    UDP.write(udpPacket,packetSize);
+    UDP.beginPacket(udpHost, udpPort);
+    UDP.write(udpPacket, packetSize);
     UDP.endPacket();
     Serial.write('C');
     yield();
@@ -588,8 +593,16 @@ void sio_udp_write()
   else
   {
     Serial.write('N');
-    return;  
+    return;
   }
+#ifdef DEBUG
+  Debug_printf("Received %d bytes from computer - ", packetSize);
+  for (int i = 0; i < packetSize; i++)
+  {
+    Debug_printf("%02x ", udpPacket[i]);
+  }
+  Debug_printf("\n");
+#endif
 }
 
 /**
@@ -598,25 +611,40 @@ void sio_udp_write()
 void sio_udp_connect()
 {
   byte ck;
-  int packetSize = 256;
-  byte tmp[256];
+  int packetSize = 64;
+  byte tmp[64];
 
   Serial.readBytes(tmp, packetSize);
   ck = Serial.read(); // Read checksum
-  
-  if (ck==sio_checksum(tmp,packetSize))
+
+  if (ck == sio_checksum(tmp, packetSize))
   {
     Serial.write('A');
     delayMicroseconds(DELAY_T5);
-    memcpy(udpHost,tmp,256);
+    memcpy(udpHost, tmp, 64);
     Serial.write('C');
     yield();
   }
   else
   {
     Serial.write('N');
-    return;  
+    return;
   }
+#ifdef DEBUG
+  Debug_printf("Receiving %d bytes from computer\n", packetSize);
+  Debug_printf("UDP host set to: %s", udpHost);
+#endif
+}
+
+/**
+   Convert remote IP of last packet to string
+*/
+String convert_remote_ip_to_string()
+{
+  return String(UDP.remoteIP()[0]) + String(".") +
+         String(UDP.remoteIP()[1]) + String(".") +
+         String(UDP.remoteIP()[2]) + String(".") +
+         String(UDP.remoteIP()[3]);
 }
 
 /**
@@ -626,10 +654,30 @@ void sio_udp_status()
 {
   byte status[4] = {0x00, 0x00, 0x00, 0x00};
   byte ck;
-  short l=UDP.parsePacket();
+  short l;
+  short p;
 
-  status[0]=l&0xFF;
-  status[1]=l>>8;
+  if (cmdFrame.aux1 == 0x01)      // Remote IP Address
+  {
+    status[0] = UDP.remoteIP()[0];
+    status[1] = UDP.remoteIP()[1];
+    status[2] = UDP.remoteIP()[2];
+    status[3] = UDP.remoteIP()[3];
+  }
+  else if (cmdFrame.aux1 == 0x02) // remote port #
+  {
+    p = UDP.remotePort();
+    status[0] = p & 0xFF;
+    status[1] = p >> 8;
+  }
+  else                       // # of bytes waiting (call first)
+  {
+    l = UDP.parsePacket();
+    strcpy(udpHost,convert_remote_ip_to_string().c_str());
+    udpPort = UDP.remotePort();
+    status[0] = l & 0xFF;
+    status[1] = l >> 8;
+  }
 
   ck = sio_checksum((byte *)&status, 4);
 
@@ -647,6 +695,11 @@ void sio_udp_status()
   Serial.write(ck);
   Serial.flush();
   delayMicroseconds(200);
+
+#ifdef DEBUG
+  Debug_printf("UDP packet buffer size: %d\n", l);
+  Debug_printf("Sent status packet: %02x %02x %02x %02x\n", status[0], status[1], status[2], status[3]);
+#endif
 }
 
 /**
@@ -736,15 +789,15 @@ void sio_incoming() {
 void setup()
 {
   SPIFFS.begin();
-  
+
   atr = SPIFFS.open("/autorun.atr", "r+");
-  tictactoe = SPIFFS.open("/tictactoe.atr","r+");
-  
+  tictactoe = SPIFFS.open("/tictactoe.atr", "r+");
+
   // Set up pins
 #ifdef DEBUG_S
   Serial1.begin(19200);
   Debug_println();
-  Debug_println("#FujiNet UDP Test");
+  Debug_println("#FujiNet TIC-TAC-TOE UDP Test");
 #else
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, HIGH);
@@ -753,11 +806,6 @@ void setup()
   pinMode(PIN_PROC, OUTPUT);
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
-
-#ifdef DEBUG_N
-  wificlient.connect(DEBUG_HOST, 6502);
-  wificlient.println("#FujiNet UDP Test");
-#endif
 
   // Set up serial
   Serial.begin(19200);
@@ -770,6 +818,15 @@ void setup()
 
 void loop()
 {
+#ifdef DEBUG_N
+  /* Connect to debug server if we aren't and WiFi is connected */
+  if ( !wificlient.connected() && WiFi.status() == WL_CONNECTED )
+  {
+    wificlient.connect(DEBUG_HOST, 6502);
+    wificlient.println("#FujiNet TIC-TAC-TOE (UDP) Test");
+  }
+#endif
+
   if (Serial.available() > 0)
   {
     sio_incoming();
