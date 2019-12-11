@@ -27,7 +27,7 @@ This class implements the physical interface for built-in functions in FS.h
 */
 protected:
     friend class TNFSFileImpl;
-
+    int _retryCounter;
 public:
     TNFSImpl();
     ~TNFSImpl() {}
