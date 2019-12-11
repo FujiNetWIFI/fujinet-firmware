@@ -1,0 +1,278 @@
+Modules list:
+-------------
+cio-get.o:
+    CODE              Offs=000000  Size=0000E0  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=000003  Align=00001  Fill=0000
+cio-status.o:
+    CODE              Offs=0000E0  Size=00003D  Align=00001  Fill=0000
+cio-special.o:
+    CODE              Offs=00011D  Size=00008D  Align=00001  Fill=0000
+main.o:
+    CODE              Offs=0001AA  Size=0000DD  Align=00001  Fill=0000
+    BSS               Offs=000003  Size=000112  Align=00001  Fill=0000
+    DATA              Offs=000000  Size=000001  Align=00001  Fill=0000
+cio-close.o:
+    CODE              Offs=000287  Size=00003C  Align=00001  Fill=0000
+cio-open.o:
+    CODE              Offs=0002C3  Size=00009A  Align=00001  Fill=0000
+cio-put.o:
+    CODE              Offs=00035D  Size=000091  Align=00001  Fill=0000
+    BSS               Offs=000115  Size=000001  Align=00001  Fill=0000
+cio-stubs.o:
+    CODE              Offs=0003EE  Size=00003F  Align=00001  Fill=0000
+sio.o:
+    CODE              Offs=00042D  Size=00000B  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(addeqsp.o):
+    CODE              Offs=000438  Size=000011  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(callmain.o):
+    CODE              Offs=000449  Size=000017  Align=00001  Fill=0000
+    DATA              Offs=000001  Size=000004  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(condes.o):
+    CODE              Offs=000460  Size=00000C  Align=00001  Fill=0000
+    DATA              Offs=000005  Size=000025  Align=00001  Fill=0000
+    ONCE              Offs=000000  Size=00000C  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(crt0.o):
+    BSS               Offs=000116  Size=000005  Align=00001  Fill=0000
+    STARTUP           Offs=000000  Size=000063  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(decsp1.o):
+    CODE              Offs=00046C  Size=000009  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(exehdr.o):
+    EXEHDR            Offs=000000  Size=000002  Align=00001  Fill=0000
+    MAINHDR           Offs=000000  Size=000004  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(exetrailer.o):
+    AUTOSTRT          Offs=000000  Size=000006  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incsp1.o):
+    CODE              Offs=000475  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incsp2.o):
+    CODE              Offs=00047C  Size=000016  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(mulax3.o):
+    CODE              Offs=000492  Size=000011  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(pushax.o):
+    CODE              Offs=0004A3  Size=00001A  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(strcpy.o):
+    CODE              Offs=0004BD  Size=00001F  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(zerobss.o):
+    CODE              Offs=0004DC  Size=000023  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(zeropage.o):
+    ZEROPAGE          Offs=000000  Size=00001A  Align=00001  Fill=0000
+
+
+Segment list:
+-------------
+Name                   Start     End    Size  Align
+----------------------------------------------------
+AUTOSTRT              000000  000005  000006  00001
+EXEHDR                000000  000001  000002  00001
+MAINHDR               000000  000003  000004  00001
+ZEROPAGE              0000E5  0000FE  00001A  00001
+STARTUP               001D00  001D62  000063  00001
+ONCE                  001D63  001D6E  00000C  00001
+CODE                  001D6F  00226D  0004FF  00001
+DATA                  00226E  002297  00002A  00001
+BSS                   002298  0023B2  00011B  00001
+
+
+Exports list by name:
+---------------------
+__AUTOSTART__             000001 REA    __BSS_LOAD__              002298 RLA    
+__BSS_RUN__               002298 RLA    __BSS_SIZE__              00011B REA    
+__CONSTRUCTOR_COUNT__     000000 REA    __CONSTRUCTOR_TABLE__     001D6F RLA    
+__DESTRUCTOR_COUNT__      000000 REA    __DESTRUCTOR_TABLE__      00226E RLA    
+__EXEHDR__                000001 REA    __LOWCODE_RUN__           001D63 RLA    
+__LOWCODE_SIZE__          000000 REA    __MAIN_START__            001D00 RLA    
+__RESERVED_MEMORY__       000000 REA    __STACKSIZE__             000800 REA    
+__STARTUP__               000001 REA    __cio_close               001FF6 RLA    
+__cio_get                 001DD1 RLA    __cio_open                002032 RLA    
+__cio_put                 002111 RLA    __cio_special             001E8C RLA    
+__cio_status              001E4F RLA    _cio_close                00215D RLA    
+_cio_get                  002167 RLA    _cio_open                 002171 RLA    
+_cio_put                  00217B RLA    _cio_special              002188 RLA    
+_cio_status               002192 RLA    _err                      0023AC RLA    
+_inter                    0021A0 RLA    _main                     001F1A RLA    
+_packet                   0022AB RLA    _ret                      0023AB RLA    
+_siov                     00219C RLA    _strcpy                   00222C RLA    
+_trip                     00226E RLA    addeq0sp                  0021A7 RLA    
+callmain                  0021B8 RLA    decsp1                    0021DB RLA    
+donelib                   0021CF RLA    incsp1                    0021E4 RLA    
+incsp2                    0021F3 RLA    initlib                   001D63 RLA    
+mulax3                    002201 RLA    popax                     0021EB RLA    
+ptr1                      0000ED RLZ    ptr2                      0000EF RLZ    
+pushax                    002216 RLA    regsave                   0000E9 RLZ    
+sp                        0000E5 RLZ    start                     001D01 RLA    
+zerobss                   00224B RLA    
+
+
+Exports list by value:
+----------------------
+__DESTRUCTOR_COUNT__      000000 REA    __CONSTRUCTOR_COUNT__     000000 REA    
+__LOWCODE_SIZE__          000000 REA    __RESERVED_MEMORY__       000000 REA    
+__AUTOSTART__             000001 REA    __STARTUP__               000001 REA    
+__EXEHDR__                000001 REA    sp                        0000E5 RLZ    
+regsave                   0000E9 RLZ    ptr1                      0000ED RLZ    
+ptr2                      0000EF RLZ    __BSS_SIZE__              00011B REA    
+__STACKSIZE__             000800 REA    __MAIN_START__            001D00 RLA    
+start                     001D01 RLA    initlib                   001D63 RLA    
+__LOWCODE_RUN__           001D63 RLA    __CONSTRUCTOR_TABLE__     001D6F RLA    
+__cio_get                 001DD1 RLA    __cio_status              001E4F RLA    
+__cio_special             001E8C RLA    _main                     001F1A RLA    
+__cio_close               001FF6 RLA    __cio_open                002032 RLA    
+__cio_put                 002111 RLA    _cio_close                00215D RLA    
+_cio_get                  002167 RLA    _cio_open                 002171 RLA    
+_cio_put                  00217B RLA    _cio_special              002188 RLA    
+_cio_status               002192 RLA    _siov                     00219C RLA    
+_inter                    0021A0 RLA    addeq0sp                  0021A7 RLA    
+callmain                  0021B8 RLA    donelib                   0021CF RLA    
+decsp1                    0021DB RLA    incsp1                    0021E4 RLA    
+popax                     0021EB RLA    incsp2                    0021F3 RLA    
+mulax3                    002201 RLA    pushax                    002216 RLA    
+_strcpy                   00222C RLA    zerobss                   00224B RLA    
+_trip                     00226E RLA    __DESTRUCTOR_TABLE__      00226E RLA    
+__BSS_RUN__               002298 RLA    __BSS_LOAD__              002298 RLA    
+_packet                   0022AB RLA    _ret                      0023AB RLA    
+_err                      0023AC RLA    
+
+
+Imports list:
+-------------
+__AUTOSTART__ (exetrailer.o):
+    [linker generated]        src/atari.cfg(6)
+__BSS_LOAD__ ([linker generated]):
+    exehdr.o                  atari/exehdr.s(4)
+__BSS_RUN__ ([linker generated]):
+    zerobss.o                 common/zerobss.s(8)
+__BSS_SIZE__ ([linker generated]):
+    zerobss.o                 common/zerobss.s(8)
+__CONSTRUCTOR_COUNT__ ([linker generated]):
+    condes.o                  runtime/condes.s(18)
+__CONSTRUCTOR_TABLE__ ([linker generated]):
+    condes.o                  runtime/condes.s(18)
+__DESTRUCTOR_COUNT__ ([linker generated]):
+    condes.o                  runtime/condes.s(19)
+__DESTRUCTOR_TABLE__ ([linker generated]):
+    condes.o                  runtime/condes.s(19)
+__EXEHDR__ (exehdr.o):
+    [linker generated]        src/atari.cfg(5)
+__LOWCODE_RUN__ ([linker generated]):
+    crt0.o                    atari/crt0.s(18)
+__LOWCODE_SIZE__ ([linker generated]):
+    crt0.o                    atari/crt0.s(18)
+__MAIN_START__ ([linker generated]):
+    exehdr.o                  atari/exehdr.s(4)
+__RESERVED_MEMORY__ ([linker generated]):
+    crt0.o                    atari/crt0.s(16)
+    [linker generated]        src/atari.cfg(19)
+__STACKSIZE__ ([linker generated]):
+    [linker generated]        src/atari.cfg(19)
+__STARTUP__ (crt0.o):
+    main.o                    src/main.s(13)
+__cio_close (cio-close.o):
+    cio-stubs.o               src/cio-stubs.s(7)
+__cio_get (cio-get.o):
+    cio-stubs.o               src/cio-stubs.s(7)
+__cio_open (cio-open.o):
+    cio-stubs.o               src/cio-stubs.s(7)
+__cio_put (cio-put.o):
+    cio-stubs.o               src/cio-stubs.s(7)
+__cio_special (cio-special.o):
+    cio-stubs.o               src/cio-stubs.s(7)
+__cio_status (cio-status.o):
+    cio-stubs.o               src/cio-stubs.s(7)
+    cio-get.o                 src/cio-get.s(17)
+_cio_close (cio-stubs.o):
+    main.o                    src/main.s(17)
+_cio_get (cio-stubs.o):
+    main.o                    src/main.s(18)
+_cio_open (cio-stubs.o):
+    main.o                    src/main.s(16)
+_cio_put (cio-stubs.o):
+    main.o                    src/main.s(19)
+_cio_special (cio-stubs.o):
+    main.o                    src/main.s(21)
+_cio_status (cio-stubs.o):
+    main.o                    src/main.s(20)
+_err (main.o):
+    cio-stubs.o               src/cio-stubs.s(6)
+    cio-put.o                 src/cio-put.s(15)
+    cio-open.o                src/cio-open.s(16)
+    cio-close.o               src/cio-close.s(14)
+    cio-special.o             src/cio-special.s(15)
+    cio-status.o              src/cio-status.s(14)
+    cio-get.o                 src/cio-get.s(14)
+_inter (sio.o):
+    main.o                    src/main.s(22)
+_main (main.o):
+    callmain.o                runtime/callmain.s(11)
+_packet (main.o):
+    cio-put.o                 src/cio-put.s(17)
+    cio-open.o                src/cio-open.s(18)
+    cio-close.o               src/cio-close.s(15)
+    cio-special.o             src/cio-special.s(16)
+    cio-get.o                 src/cio-get.s(16)
+_ret (main.o):
+    cio-stubs.o               src/cio-stubs.s(5)
+    cio-put.o                 src/cio-put.s(16)
+    cio-open.o                src/cio-open.s(17)
+    cio-get.o                 src/cio-get.s(15)
+_siov (sio.o):
+    cio-put.o                 src/cio-put.s(14)
+    cio-open.o                src/cio-open.s(15)
+    cio-close.o               src/cio-close.s(13)
+    cio-special.o             src/cio-special.s(14)
+    cio-status.o              src/cio-status.s(13)
+    cio-get.o                 src/cio-get.s(13)
+_strcpy (strcpy.o):
+    cio-open.o                src/cio-open.s(13)
+    cio-special.o             src/cio-special.s(13)
+_trip (main.o):
+    sio.o                     src/sio.s(5)
+addeq0sp (addeqsp.o):
+    cio-open.o                src/cio-open.s(105)
+    cio-special.o             src/cio-special.s(96)
+callmain (callmain.o):
+    crt0.o                    atari/crt0.s(15)
+decsp1 (decsp1.o):
+    main.o                    src/main.s(180)
+donelib (condes.o):
+    crt0.o                    atari/crt0.s(14)
+incsp1 (incsp1.o):
+    main.o                    src/main.s(180)
+incsp2 (incsp2.o):
+    cio-open.o                src/cio-open.s(105)
+    cio-special.o             src/cio-special.s(96)
+initlib (condes.o):
+    crt0.o                    atari/crt0.s(14)
+mulax3 (mulax3.o):
+    main.o                    src/main.s(180)
+popax (incsp2.o):
+    strcpy.o                  common/strcpy.s(8)
+ptr1 (zeropage.o):
+    zerobss.o                 common/zerobss.s(9)
+    strcpy.o                  common/strcpy.s(9)
+    mulax3.o                  runtime/mulax3.s(9)
+    cio-put.o                 src/cio-put.s(11)
+    cio-open.o                src/cio-open.s(11)
+    main.o                    src/main.s(11)
+    cio-special.o             src/cio-special.s(11)
+ptr2 (zeropage.o):
+    strcpy.o                  common/strcpy.s(9)
+pushax (pushax.o):
+    callmain.o                runtime/callmain.s(11)
+    cio-open.o                src/cio-open.s(105)
+    cio-special.o             src/cio-special.s(96)
+regsave (zeropage.o):
+    cio-get.o                 src/cio-get.s(10)
+sp (zeropage.o):
+    pushax.o                  runtime/pushax.s(8)
+    incsp2.o                  runtime/incsp2.s(8)
+    incsp1.o                  runtime/incsp1.s(8)
+    decsp1.o                  runtime/decsp1.s(8)
+    crt0.o                    /home/thomc/Workspace/cc65/asminc/zeropage.inc(11)
+    addeqsp.o                 runtime/addeqsp.s(8)
+    cio-open.o                src/cio-open.s(10)
+    main.o                    src/main.s(10)
+    cio-special.o             src/cio-special.s(10)
+start (crt0.o):
+    exetrailer.o              atari/exetrailer.s(4)
+zerobss (zerobss.o):
+    crt0.o                    atari/crt0.s(15)
+
