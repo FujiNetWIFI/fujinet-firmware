@@ -661,6 +661,22 @@ void setup()
 
 void loop() 
 {
+  if (sioclient.available())
+  {
+    // Wiggle INTERRUPT line
+    digitalWrite(PIN_INT, LOW); // Active LOW
+    delayMicroseconds(200);
+    digitalWrite(PIN_INT, HIGH); 
+  }
+
+  if ((sioserver != NULL) && (sioserver->available()))
+  {
+    // Wiggle INTERRUPT line
+    digitalWrite(PIN_INT, LOW); // Active LOW
+    delayMicroseconds(200);
+    digitalWrite(PIN_INT, HIGH);     
+  }
+  
   if (Serial.available() > 0)
   {
     sio_incoming();
