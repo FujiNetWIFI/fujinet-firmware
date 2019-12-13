@@ -1,4 +1,4 @@
-atariwifi    
+#fujinet   
 =========
 
 A new wifi firmware for ESP8266 devices attached to atari 8-bit systems
