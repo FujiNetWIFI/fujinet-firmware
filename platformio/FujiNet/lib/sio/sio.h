@@ -73,67 +73,25 @@ private:
    unsigned long cmdTimer = 0;
    byte statusSkipCount = 0;
 
-   /**
-   calculate 8-bit checksum.
-*/
+   byte sector[128];
+
    byte sio_checksum(byte *chunk, int length);
-
-   /**
-   Get ID
-*/
    void sio_get_id();
-
-   /**
-   Get Command
-*/
    void sio_get_command();
-
-   /**
-   Get aux1
-*/
    void sio_get_aux1();
-
-   /**
-   Get aux2
-*/
    void sio_get_aux2();
-
-   /**
-   Read
-*/
    void sio_read();
-
-   /**
-   Status
-*/
+   void sio_write();
+   void sio_format();
    void sio_status();
-
-   /**
-   Process command
-*/
-
    void sio_process();
-
-   /**
-   Send an acknowledgement
-*/
    void sio_ack();
-
-   /**
-   Send a non-acknowledgement
-*/
    void sio_nak();
-
-   /**
-   Get Checksum, and compare
-*/
    void sio_get_checksum();
-
    void sio_incoming();
 
 public:
    void setup(File *f);
-
    void handle();
 };
 
