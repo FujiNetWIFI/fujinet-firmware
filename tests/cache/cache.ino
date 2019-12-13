@@ -13,8 +13,8 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-// #define DEBUG_N
-// #define DEBUG_HOST "192.168.1.7"
+#define DEBUG_N
+#define DEBUG_HOST "192.168.1.7"
 
 
 #define PIN_LED         2
@@ -259,7 +259,7 @@ void sio_scan_networks()
   delayMicroseconds(1500); // t5 delay
 
   // Write data frame
-  Serial.write(ret, 4);
+  Serial.write((byte *)&ret, 4);
 
   // Write data frame checksum
   Serial.write(ck);
@@ -507,7 +507,7 @@ void sio_read_tnfs_directory()
   delayMicroseconds(200);
 
   // Write data frame
-  Serial.write(current_entry, cmdFrame.aux1);
+  Serial.write((byte *)current_entry, cmdFrame.aux1);
 
   // Write checksum
   Serial.write(ck);
@@ -1299,11 +1299,6 @@ void tnfs_seek(long offset)
 
 void setup()
 {
-//  WiFi.begin("Cherryhomes", "e1xb64XC46");
-//  while (WiFi.status() != WL_CONNECTED)
-//  {
-//    delay(50);
-//  }
   UDP.begin(16384);
   SPIFFS.begin();
   atr = SPIFFS.open("/autorun.atr", "r+");
@@ -1337,6 +1332,15 @@ void setup()
 
 void loop()
 {
+#ifdef DEBUG_N
+  /* Connect to debug server if we aren't and WiFi is connected */
+  if ( !wificlient.connected() && WiFi.status() == WL_CONNECTED )
+  {
+    wificlient.connect(DEBUG_HOST, 6502);
+    wificlient.println("#FujiNet PLATOTERM Test");
+  }
+#endif
+  
   if (Serial.available() > 0)
   {
     sio_incoming();
