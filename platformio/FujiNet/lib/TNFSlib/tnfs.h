@@ -1,5 +1,7 @@
 #ifndef _TNFS_H_
 #define _TNFS_H_
+#include <Arduino.h>
+
 // UDP Implementation of TNFS for ESP Arduino
 // I read SPIFFS.h and associated files to understand how to structure a custom FS for Arduino
 
@@ -57,15 +59,17 @@ bool mkdir(const char *path);
 bool rmdir(const char *path);
 */
 
+private:
+    char mparray[255];
+
 public:
     TNFSFS();
-    uint16_t sessionID=0;
-    byte begin(const char *host, uint16_t port=16384, const char *location="/", const char *userid="", const char *password="");
+    byte begin(String host, uint16_t port=16384, String location="/", String userid="", String password="");
     size_t size();
     size_t free();
-    bool opendir(const char * path);
-    bool readdir(const char * path);
-    bool closedir(const char * path);
+    bool opendir(String path);
+    bool readdir(String  path);
+    bool closedir(String  path);
     // stat(const char * path);
     // bool chmod(const char * path);
     void end();
