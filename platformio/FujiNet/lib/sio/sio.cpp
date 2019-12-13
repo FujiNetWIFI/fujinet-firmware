@@ -1,26 +1,13 @@
 #include "sio.h"
-//#include "tnfs.h"
 
-// #define PIN_CMD 12
-// #define SIO_UART Serial
-
-// extern File atr;
-// extern tnfsClient myTNFS;
-
-
-/**
-   ISR for falling COMMAND
-*/
+// ISR for falling COMMAND
 volatile bool cmdFlag = false;
 void ICACHE_RAM_ATTR sio_isr_cmd()
 {
   cmdFlag = true;
 }
 
-
-/**
-   calculate 8-bit checksum.
-*/
+// calculate 8-bit checksum.
 byte sioDevice::sio_checksum(byte *chunk, int length)
 {
   int chkSum = 0;
@@ -31,9 +18,7 @@ byte sioDevice::sio_checksum(byte *chunk, int length)
   return (byte)chkSum;
 }
 
-/**
-   Get ID
-*/
+// Get ID
 void sioDevice::sio_get_id()
 {
   cmdFrame.devic = SIO_UART.read();
@@ -51,27 +36,25 @@ void sioDevice::sio_get_id()
 #endif
 }
 
-/**
-   Get Command
-*/
+// Get Command
 void sioDevice::sio_get_command()
 {
   cmdFrame.comnd = SIO_UART.read();
-  if (cmdFrame.comnd == 'S' && statusSkipCount >= STATUS_SKIP)
+  //if (cmdFrame.comnd == 'S' && statusSkipCount >= STATUS_SKIP)
     cmdState = AUX1;
-  else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
-  {
-    statusSkipCount++;
-    cmdState = WAIT;
-    cmdTimer = 0;
-  }
-  else if (cmdFrame.comnd == 'R')
-    cmdState = AUX1;
-  else
-  {
-    cmdState = WAIT;
-    cmdTimer = 0;
-  }
+  // else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
+  // {
+  //   statusSkipCount++;
+  //   cmdState = WAIT;
+  //   cmdTimer = 0;
+  // }
+  // else if (cmdFrame.comnd == 'R')
+  //   cmdState = AUX1;
+  // else
+  // {
+  //   cmdState = WAIT;
+  //   cmdTimer = 0;
+  // }
 
 #ifdef DEBUG_S
   BUG_UART.print("CMD CMND: ");
@@ -79,9 +62,7 @@ void sioDevice::sio_get_command()
 #endif
 }
 
-/**
-   Get aux1
-*/
+// Get aux1
 void sioDevice::sio_get_aux1()
 {
   cmdFrame.aux1 = SIO_UART.read();
@@ -93,9 +74,7 @@ void sioDevice::sio_get_aux1()
 #endif
 }
 
-/**
-   Get aux2
-*/
+// Get aux2
 void sioDevice::sio_get_aux2()
 {
   cmdFrame.aux2 = SIO_UART.read();
@@ -107,13 +86,10 @@ void sioDevice::sio_get_aux2()
 #endif
 }
 
-/**
-   Read
-*/
+// Read
 void sioDevice::sio_read()
 {
   byte ck;
-  byte sector[128];
   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   offset *= 128;
   offset -= 128;
@@ -122,8 +98,6 @@ void sioDevice::sio_read()
   //atr.read(sector, 128);
   _file->seek(offset); //SeekSet is default
   _file->read(sector, 128);
-
-
 
   //myTNFS.seek(offset);
   //myTNFS.read(sector,128);
@@ -149,9 +123,35 @@ void sioDevice::sio_read()
 #endif
 }
 
-/**
-   Status
-*/
+// write for W & P commands
+void sioDevice::sio_write()
+{
+  byte ck;
+  int offset =(256 * cmdFrame.aux2)+cmdFrame.aux1;
+  offset *= 128;
+  offset -= 128;
+  offset += 16; // skip 16 byte ATR Header
+  _file->seek(offset); //SeekSet is default
+
+#ifdef DEBUG_S
+  Serial1.printf("receiving 128b data frame from computer.\n");
+#endif
+
+  Serial.readBytes(sector,128);
+  ck=Serial.read(); // Read checksum
+  //delayMicroseconds(350);
+  Serial.write('A'); // Write ACK
+  
+  if (ck==sio_checksum(sector,128))
+  {
+    delayMicroseconds(DELAY_T5);
+    Serial.write('C');
+    _file->write(sector,128);
+    yield();
+  }
+}
+
+// Status
 void sioDevice::sio_status()
 {
   byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
@@ -175,29 +175,59 @@ void sioDevice::sio_status()
   delayMicroseconds(200);
 }
 
-/**
-   Process command
-*/
+// fake disk format
+void sioDevice::sio_format()
+{
+  byte ck;
 
+  for (int i=0;i<128;i++)
+    sector[i]=0;
+
+  sector[0]=0xFF; // no bad sectors.
+  sector[1]=0xFF;
+
+  ck = sio_checksum((byte *)&sector, 128);
+
+  delayMicroseconds(DELAY_T5); // t5 delay
+  Serial.write('C'); // Completed command
+  Serial.flush();
+
+  // Write data frame
+  Serial.write(sector,128);
+    
+  // Write data frame checksum
+  Serial.write(ck);
+  Serial.flush();
+  delayMicroseconds(200);
+#ifdef DEBUG_S
+  Serial1.printf("We faked a format.\n");
+#endif
+}
+
+// Process command
 void sioDevice::sio_process()
 {
   switch (cmdFrame.comnd)
   {
-  case 'R':
-    sio_read();
-    break;
-  case 'S':
-    sio_status();
-    break;
+    case 'R':
+      sio_read();
+      break;
+    case 'W':
+    case 'P':
+      sio_write();
+      break;
+    case 'S':
+      sio_status();
+      break;
+    case '!':
+      sio_format();
+      break;
   }
-
   cmdState = WAIT;
   cmdTimer = 0;
 }
 
-/**
-   Send an acknowledgement
-*/
+// Send an acknowledgement
 void sioDevice::sio_ack()
 {
   delayMicroseconds(500);
@@ -207,9 +237,7 @@ void sioDevice::sio_ack()
   sio_process();
 }
 
-/**
-   Send a non-acknowledgement
-*/
+// Send a non-acknowledgement
 void sioDevice::sio_nak()
 {
   delayMicroseconds(500);
@@ -219,9 +247,7 @@ void sioDevice::sio_nak()
   cmdTimer = 0;
 }
 
-/**
-   Get Checksum, and compare
-*/
+// Get Checksum, and compare
 void sioDevice::sio_get_checksum()
 {
   byte ck;
@@ -249,6 +275,7 @@ void sioDevice::sio_get_checksum()
   }
 }
 
+// state machine branching
 void sioDevice::sio_incoming()
 {
   switch (cmdState)
@@ -284,11 +311,12 @@ void sioDevice::sio_incoming()
   }
 }
 
+// setup disk device pointing to a file
 void sioDevice::setup(File *f)
 {
   _file = f;
 
-    // Set up serial
+  // Set up serial
   SIO_UART.begin(19200);
 #ifdef ESP_8266
   SIO_UART.swap();
@@ -305,6 +333,7 @@ void sioDevice::setup(File *f)
   cmdState = WAIT; // Start in wait state
 }
 
+// periodically handle the sioDevice in the loop()
 void sioDevice::handle()
 {
   if (cmdFlag)
