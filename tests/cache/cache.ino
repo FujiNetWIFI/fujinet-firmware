@@ -304,14 +304,19 @@ void sio_set_ssid()
   byte ck;
 
   Serial.readBytes(netConfig.rawData, 96);
+  while (Serial.available()==0) { delayMicroseconds(200); }
   ck = Serial.read(); // Read checksum
   Serial.write('A'); // Write ACK
 
   if (ck == sio_checksum(netConfig.rawData, 96))
   {
-    delayMicroseconds(DELAY_T5);
     Serial.write('C');
     WiFi.begin(netConfig.ssid, netConfig.password);
+    yield();
+  }
+  else
+  {
+    Serial.write('E');
     yield();
   }
 }
@@ -357,14 +362,13 @@ void sio_write()
 #endif
 
   Serial.readBytes(sector, 128);
+  while (Serial.available()==0) { delayMicroseconds(200); }
   ck = Serial.read(); // Read checksum
   //delayMicroseconds(350);
   Serial.write('A'); // Write ACK
 
   if (ck == sio_checksum(sector, 128))
   {
-    delayMicroseconds(DELAY_T5);
-
     if (tnfs_fd == 0xFF)
     {
       atr.seek(offset, SeekSet);
@@ -378,6 +382,11 @@ void sio_write()
     }
     Serial.write('C');
     yield();
+  }
+  else
+  {
+    Serial.write('E');
+    yield();  
   }
 }
 
@@ -420,14 +429,19 @@ void sio_mount_host()
   byte ck;
 
   Serial.readBytes(tnfsServer, 256);
+  while (Serial.available()==0) { delayMicroseconds(200); }
   ck = Serial.read(); // Read checksum
   Serial.write('A'); // Write ACK
 
   if (ck == sio_checksum((byte *)&tnfsServer, 256))
   {
-    delayMicroseconds(DELAY_T5);
     tnfs_mount();
     Serial.write('C');
+    yield();
+  }
+  else
+  {
+    Serial.write('E');
     yield();
   }
 }
@@ -440,15 +454,20 @@ void sio_mount_image()
   byte ck;
 
   Serial.readBytes(mountPath, 256);
+  while (Serial.available()==0) { delayMicroseconds(200); }
   ck = Serial.read(); // Read checksum
   Serial.write('A'); // Write ACK
 
   if (ck == sio_checksum((byte *)&mountPath, 256))
   {
-    delayMicroseconds(DELAY_T5);
     tnfs_open();
     Serial.write('C');
     yield();
+  }
+  else
+  {
+    Serial.write('E');
+    yield();  
   }
 }
 
@@ -463,6 +482,7 @@ void sio_open_tnfs_directory()
 #endif
 
   Serial.readBytes(current_entry, 256);
+  while (Serial.available()==0) { delayMicroseconds(200); }
   ck = Serial.read(); // Read checksum
 
   if (ck != sio_checksum((byte *)&current_entry, 256))
