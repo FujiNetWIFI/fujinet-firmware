@@ -13,8 +13,8 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-#define DEBUG_N
-#define DEBUG_HOST "192.168.1.7"
+// #define DEBUG_N
+// #define DEBUG_HOST "192.168.1.7"
 
 
 #define PIN_LED         2
@@ -1337,7 +1337,7 @@ void loop()
   if ( !wificlient.connected() && WiFi.status() == WL_CONNECTED )
   {
     wificlient.connect(DEBUG_HOST, 6502);
-    wificlient.println("#FujiNet PLATOTERM Test");
+    wificlient.println("#FujiNet Cache Test");
   }
 #endif
   
