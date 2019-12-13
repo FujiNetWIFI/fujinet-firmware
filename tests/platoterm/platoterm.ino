@@ -4,7 +4,6 @@
 
 #include <ESP8266WiFi.h>
 #include <FS.h>
-#include "fifo.h"
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
@@ -34,8 +33,7 @@ File plato;
 
 WiFiClient sioclient;
 
-FIFO fifo;
-
+byte recv_buf[4096];
 
 char packet[256];
 unsigned long cmdTimer = 0;
@@ -242,7 +240,7 @@ void sio_scan_networks()
   delayMicroseconds(1500); // t5 delay
 
   // Write data frame
-  Serial.write(ret, 4);
+  Serial.write((byte *)&ret, 4);
 
   // Write data frame checksum
   Serial.write(ck);
@@ -536,34 +534,24 @@ void sio_status()
 void sio_tcp_read()
 {
   byte ck;
-  int l;
+  int l=(256*cmdFrame.aux2)+cmdFrame.aux1;
   byte b;
 
   memset(&packet, 0x00, sizeof(packet));
 
-#ifndef DEBUG
-  Debug_printf("Sending RX buffer. %d bytes\n", cmdFrame.aux1);
+#ifdef DEBUG
+  Debug_printf("Sending RX buffer. %d bytes\n", (256 * cmdFrame.aux2) + cmdFrame.aux1);
 #endif
 
-  for (int i=0;i<cmdFrame.aux1;i++)
-  {
-#ifdef DEBUG
-    Debug_printf("%02x ",b);
-#endif
-    packet[i]=fifo.pop();
-    yield();  
-  }
-#ifdef DEBUG
-  Debug_printf("\n\n");
-#endif
-  ck = sio_checksum((byte *)&packet, cmdFrame.aux1);
+  sioclient.read((byte *)&packet,l);
+  ck = sio_checksum((byte *)&packet, l);
 
   delayMicroseconds(DELAY_T5); // t5 delay
   Serial.write('C'); // Completed command
   Serial.flush();
 
   // Write data frame
-  Serial.write(packet, cmdFrame.aux1);
+  Serial.write((byte *)&packet, l);
 
   // Write data frame checksum
   Serial.write(ck);
@@ -580,15 +568,8 @@ void sio_tcp_status()
   byte status[4];
   byte ck;
 
-  available=fifo.size();
-
-#ifdef DEBUG
-  Debug_printf("q_len %d - available %d\n",fifo.size(),available);
-#endif
-
-  if (available > 255)
-    available = 255;
-
+  available=sioclient.available();
+  
   status[0] = available & 0xFF;
   status[1] = available >> 8;
   status[2] = WiFi.status();
@@ -600,7 +581,6 @@ void sio_tcp_status()
   Serial.write('C'); // Command always completes.
   Serial.flush();
   delayMicroseconds(200);
-  //delay(1);
 
   // Write data frame
   for (int i = 0; i < 4; i++)
@@ -629,6 +609,7 @@ void sio_tcp_connect(void)
 #endif
 
   Serial.readBytes(packet, 256);
+  while (Serial.available()==0) { delayMicroseconds(100); }
   ck = Serial.read(); // Read checksum
 
   if (ck != sio_checksum((byte *)&packet, 256))
@@ -658,7 +639,6 @@ void sio_tcp_connect(void)
 #ifdef DEBUG
     Debug_print("COMPLETE");
 #endif
-    sioclient.write(0x0D);
     Serial.write('C');
   }
   else
@@ -704,35 +684,55 @@ void sio_tcp_disconnect(void)
 void sio_tcp_write(void)
 {
   byte ck;
-
-#ifdef DEBUG
-  Debug_printf("Receiving %d bytes frame from computer", cmdFrame.aux1);
-#endif
-
+  int l=cmdFrame.aux1;
+  
   memset(&packet, 0x00, sizeof(packet));
 
-  Serial.readBytes(packet, cmdFrame.aux1);
+#ifdef DEBUG
+  Debug_printf("Receiving %d byte frame from computer\n",l);
+#endif
+
+  Serial.readBytes(packet, l);
+  while (Serial.available()==0) { delayMicroseconds(100); }
   ck = Serial.read(); // Read checksum
 
-  if (ck != sio_checksum((byte *)&packet, cmdFrame.aux1))
+#ifdef DEBUG
+  for (int i=0;i<l;i++)
   {
+    Debug_printf("%02x ",packet[i]);  
+  }
+  Debug_printf("\n\n");
+#endif 
+
+  delayMicroseconds(DELAY_T5);
+
+  if (ck != sio_checksum((byte *)&packet, l))
+  {
+#ifdef DEBUG
+    Debug_println("Bad Checksum");
+#endif
     Serial.write('N'); // NAK
     return;
   }
-
+#ifdef DEBUG
+  Debug_println("ACK");
+#endif
   Serial.write('A');   // ACK
 
-#ifdef DEBUG
-  Debug_printf("Writing %d bytes to computer.", cmdFrame.aux1);
-#endif
-
-  for (int i = 0; i < cmdFrame.aux1; i++)
+  if (sioclient.write(packet, 1) == 1)
   {
-    sioclient.write(packet[i]);
-    Debug_printf("%02x ", packet[i]);
+#ifdef DEBUG
+    Debug_print("COMPLETE\n");
+#endif
+    Serial.write('C');
   }
-
-  Serial.write('C');
+  else
+  {
+#ifdef DEBUG
+    Debug_print("ERROR\n");
+#endif
+    Serial.write('E');
+  }
 }
 
 /**
@@ -806,12 +806,15 @@ void setup()
   Debug_println("#FujiNet PLATOTERM Test");
 #else
   pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, HIGH);
 #endif
   pinMode(PIN_INT, OUTPUT); // thanks AtariGeezer.
   pinMode(PIN_PROC, OUTPUT);
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
+
+  digitalWrite(PIN_LED, HIGH);
+  digitalWrite(PIN_PROC,HIGH);
+  digitalWrite(PIN_INT, HIGH);
 
   // Set up serial
   Serial.begin(19200);
@@ -833,37 +836,13 @@ void loop()
   }
 #endif
 
-  if (sioclient.connected() && sioclient.available())
+  if (sioclient.connected() && (sioclient.available()>0) && (digitalRead(PIN_PROC)==HIGH))
   {
-#ifdef DEBUG
-    Debug_printf("Inflating queue\n\n");
-#endif
-    while (sioclient.available())
-    {
-      byte b = sioclient.read();
-#ifdef DEBUG
-      Debug_printf("%02x ",b);
-#endif
-      fifo.push(b);
-    }
-#ifdef DEBUG
-    Debug_printf("\n\n");
-#endif
+    digitalWrite(PIN_PROC,LOW);
   }
-
-  if ((fifo.size()>0) && (digitalRead(PIN_INT)==HIGH))
+  else if (sioclient.connected() && (sioclient.available()==0) && (digitalRead(PIN_PROC)==LOW))
   {
-#ifdef DEBUG
-    Debug_printf("Pulling INTERRUPT pin LOW.");
-#endif
-    digitalWrite(PIN_INT,LOW);
-  }
-  else if ((fifo.size()==0) && (digitalRead(PIN_INT)==LOW))
-  {
-#ifdef DEBUG
-    Debug_printf("Pulling INTERRUPT pin HIGH.");
-#endif
-    digitalWrite(PIN_INT,HIGH);
+    digitalWrite(PIN_PROC,HIGH);  
   }
   
   if (Serial.available() > 0)
