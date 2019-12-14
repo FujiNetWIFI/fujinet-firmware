@@ -16,7 +16,7 @@
 #include <Wifi.h>
 //#endif
 
-#define TNFS_SERVER "mozzwald.com"
+#define TNFS_SERVER "192.168.1.11"
 #define TNFS_PORT 16384
 
 File atr;
