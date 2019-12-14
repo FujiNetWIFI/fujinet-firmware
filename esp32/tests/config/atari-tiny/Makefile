@@ -13,7 +13,7 @@ TARGETS := atari
  
 # Name of the final, single-file executable.
 # Default: name of the current dir with target name appended
-PROGRAM := config
+PROGRAM := autorun
  
 # Path(s) to additional libraries required for linking the program
 # Use only if you don't want to place copies of the libraries in SRCDIR
@@ -36,7 +36,7 @@ ASFLAGS =
 # Additional linker flags and options.
 # Default: none
 LDFLAGS = $(LDFLAGS.$(TARGETS))
-LDFLAGS.atari = --mapfile config.map
+LDFLAGS.atari = -D__SYSTEM_CHECK__=1 --mapfile autorun.map
  
 # Path to the directory containing C and ASM sources.
 # Default: src
@@ -209,7 +209,7 @@ TARGETLIST := $(subst $(COMMA),$(SPACE),$(TARGETS))
 ifeq ($(words $(TARGETLIST)),1)
  
 # Set PROGRAM to something like 'myprog.c64'.
-override PROGRAM := $(PROGRAM).com
+override PROGRAM := $(PROGRAM).sys
  
 # Set SOURCES to something like 'src/foo.c src/bar.s'.
 # Use of assembler files with names ending differently than .s is deprecated!
