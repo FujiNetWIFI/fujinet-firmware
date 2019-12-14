@@ -2,8 +2,7 @@
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
 #include "sio.h"
-
-#include "TNFS.h"
+#include "tnfs.h"
 // #ifdef ESP_8266
 // #include <FS.h>
 // #define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
@@ -11,11 +10,11 @@
 #include <SPIFFS.h>
 // #endif
 
-#ifdef ESP_8266
-#include <ESP8266WiFi.h>
-#elif defined(ESP_32)
+//#ifdef ESP_8266
+//#include <ESP8266WiFi.h>
+//#elif defined(ESP_32)
 #include <Wifi.h>
-#endif
+//#endif
 
 #define TNFS_SERVER "mozzwald.com"
 #define TNFS_PORT 16384
@@ -45,13 +44,13 @@ void setup()
   SPIFFS.begin();
   atr = SPIFFS.open("/autorun.atr", "r");
 
-  TNFS.begin(TNFS_SERVER);
-  tnfs = TNFS.open("doesnotmatter","r");
+  TNFS.begin(TNFS_SERVER,TNFS_PORT);
+  tnfs = TNFS.open("/autorun.atr","r");
 
-  sioD1.setup(&atr);
+  sioD1.setup(&tnfs);
 }
 
 void loop()
 {
-  //sioD1.handle();
+  sioD1.handle();
 }
