@@ -704,11 +704,12 @@ void sio_read()
 
   // Write data frame
   Serial.write(sector, 128);
+  Serial.flush();
 
   // Write data frame checksum
+  delayMicroseconds(200);  
   Serial.write(ck);
   Serial.flush();
-  delayMicroseconds(200);
 #ifdef DEBUG
   Debug_print("SIO READ OFFSET: ");
   Debug_print(offset);
