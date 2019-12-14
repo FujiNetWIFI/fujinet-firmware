@@ -1,84 +1,100 @@
 /**
- * #AtariWiFi Test #9 - Get/Set SSID/Password
- *
- * Author: Thomas Cherryhomes
- *  <thom.cherryhomes@gmail.com>
+ * FujiNet Configuration Program
  */
 
 #include <atari.h>
-#include <6502.h>
+#include <stdbool.h>
 #include <string.h>
+#include <peekpoke.h>
+#include "bar.h"
+#include "screen.h"
+#include "config.h"
+#include "diskulator.h"
 
-/**
- * The Netinfo structure to make it easy.
- *
- * ssid = the currently connected access point
- * bssid = the MAC address of the access point (in little endian order)
- * ipAddress = the IP address of the adapter (in little endian order)
- * macAddress = the MAC address of the adapter (in little endian order)
- * rssi = The calculated signal strength in dBm.
- */
-union
-{
-  struct
+extern unsigned char* video_ptr;
+extern unsigned char* dlist_ptr;
+extern unsigned short screen_memory;
+extern unsigned char* font_ptr;
+
+unsigned char fontPatch[24]={
+			 0,0,0,0,0,0,3,51,
+			 0,0,3,3,51,51,51,51,
+			 48,48,48,48,48,48,48,48
+};
+
+void config_dlist=
   {
-    unsigned char ssid[32];
-    unsigned char bssid[6];
-    unsigned char ipAddress[4];
-    unsigned char macAddress[6];
-    unsigned long rssi;
-    unsigned char reserved[12];
-  };
-  unsigned char rawData[64];
-} ni;
+   DL_BLK8,
+   DL_BLK8,
+   DL_BLK8,
+   DL_LMS(DL_CHR20x8x2),
+   DISPLAY_MEMORY,
 
-unsigned char status[4]; // Network status
+   DL_CHR20x8x2,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR40x8x1,
+   DL_CHR20x8x2,
+   DL_CHR20x8x2,   
+   DL_JVB,
+   0x600
+  };
 
 /**
- * The EEPROM Data structure
+ * Setup the config screen
  */
-union
+void setup(void)
 {
-  struct
-  {
-    unsigned long magicNumber; // 4
-    char ssid[32]; // 32
-    char key[64]; // 64
-    unsigned char reserved[412]; // Reserved block.
-  };
-  unsigned char rawData[512];
-} ee;
+  OS.color0=0x9C;
+  OS.color1=0x0F;
+  OS.color2=0x92;
+  OS.color4=0x92;
+  OS.coldst=1;
+  OS.sdmctl=0; // Turn off screen
+  memcpy((void *)DISPLAY_LIST,&config_dlist,sizeof(config_dlist)); // copy display list to $0600
+  OS.sdlst=(void *)DISPLAY_LIST;                     // and use it.
+  dlist_ptr=(unsigned char *)OS.sdlst;               // Set up the vars for the screen output macros
+  screen_memory=PEEKW(560)+4;
+  video_ptr=(unsigned char*)(PEEKW(screen_memory));
 
-/**
- * main
- */
+  // Copy ROM font
+  memcpy((unsigned char *)FONT_MEMORY,(unsigned char *)0xE000,1024);
+
+  // And patch it.
+  font_ptr=(unsigned char*)FONT_MEMORY;
+  memcpy(&font_ptr[520],&fontPatch,24);
+
+  OS.chbas=0x24; // use the charset
+  bar_clear();
+  bar_setup_regs();
+  
+}
+
 void main(void)
 {
-  struct regs r;
-  int i;
-  
-  strcpy(ee.ssid,"Cherryhomes");
-  strcpy(ee.key,"e1xb64XC46");
+  setup();
 
-  OS.color2=0x42;
-  
-  for (i=0;i<16384;i++) { }
+  if (configured()==false)
+    config_run();
+  else
+    config_connect();
 
-  OS.color2=0x00;
-  
-  OS.dcb.ddevic=0x70;
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd='"';
-  OS.dcb.dstats=0x80;
-  OS.dcb.dbuf=ee.rawData;
-  OS.dcb.dtimlo=0x0F;
-  OS.dcb.dunuse=0;
-  OS.dcb.dbyt=512;
-  OS.dcb.daux1=0;
-  OS.dcb.daux2=0;
-  r.pc=0xE459;
-  _sys(&r);
-
-  OS.color2=0x84;
-  
+  diskulator_run();  
 }
