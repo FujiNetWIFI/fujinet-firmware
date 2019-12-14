@@ -2,29 +2,48 @@
    Test #23 - PLATOTERM (ESP32)
 */
 
+#ifdef ESP8266
+#include <ESP8266WiFi.h>
+#include <FS.h>
+#endif
+#ifdef ESP32
 #include <WiFi.h>
 #include <SPIFFS.h>
+#endif
+
 #include <WiFiUdp.h>
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug on USB UART
-#define DEBUG_S
+//#define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
 //#define DEBUG_N
-//#define DEBUG_HOST "192.168.1.117"
+//#define DEBUG_HOST      "192.168.1.117"
+//#define DEBUG_SSID      "YourSSID"
+//#define DEBUG_PASSWORD  "YourPassword"
 
+#ifdef ESP8266
+#define SIO_UART Serial
+#define BUG_UART Serial1
+#define PIN_LED         2
+#define PIN_INT         5
+#define PIN_PROC        4
+#define PIN_MTR        16
+#define PIN_CMD        12
+#endif
+#ifdef ESP32
 #define SIO_UART Serial2
 #define BUG_UART Serial
-
 #define PIN_LED1         2
 #define PIN_LED2         4
 #define PIN_INT         26
 #define PIN_PROC        22
 #define PIN_MTR         33
 #define PIN_CMD         21
+#endif
 
 #define DELAY_T5          1500
 #define READ_CMD_TIMEOUT  12
@@ -128,6 +147,9 @@ void ICACHE_RAM_ATTR sio_isr_cmd()
   {
     cmdState = ID;
     cmdTimer = millis();
+#ifdef ESP32
+    digitalWrite(PIN_LED2, LOW); // on
+#endif
   }
 }
 
@@ -289,14 +311,20 @@ void sio_set_ssid()
   byte ck;
 
   SIO_UART.readBytes(netConfig.rawData, 96);
+  while (SIO_UART.available()==0) { delayMicroseconds(200); }
   ck = SIO_UART.read(); // Read checksum
   SIO_UART.write('A'); // Write ACK
 
   if (ck == sio_checksum(netConfig.rawData, 96))
   {
-    delayMicroseconds(DELAY_T5);
+    //delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
     WiFi.begin(netConfig.ssid, netConfig.password);
+    yield();
+  }
+  else
+  {
+    SIO_UART.write('E');
     yield();
   }
 }
@@ -314,12 +342,21 @@ void sio_get_wifi_status()
   if (wifiStatus == WL_CONNECTED)
   {
     atr_fd = 0x00; // tic tac toe;
-    digitalWrite(PIN_LED1, LOW); // turn on led
+#ifdef ESP8266
+    digitalWrite(PIN_LED, LOW); // turn on LED
   }
   else
   {
-    digitalWrite(PIN_LED1, HIGH); // turn off led
+    digitalWrite(PIN_LED, HIGH); // turn off LED
   }
+#elif defined(ESP32)
+    digitalWrite(PIN_LED1, LOW); // turn on LED
+  }
+  else
+  {
+    digitalWrite(PIN_LED1, HIGH); // turn off LED
+  }
+#endif
 
   ck = sio_checksum((byte *)&wifiStatus, 1);
 
@@ -352,14 +389,12 @@ void sio_write()
 #endif
 
   SIO_UART.readBytes(sector, 128);
+  while (SIO_UART.available()==0) { delayMicroseconds(200); }
   ck = SIO_UART.read(); // Read checksum
-  //delayMicroseconds(350);
   SIO_UART.write('A'); // Write ACK
 
   if (ck == sio_checksum(sector, 128))
   {
-    delayMicroseconds(DELAY_T5);
-
     if (atr_fd == 0xFF)
     {
       atr.seek(offset, SeekSet);
@@ -546,21 +581,21 @@ void sio_tcp_read()
   int l=(256*cmdFrame.aux2)+cmdFrame.aux1;
   byte b;
 
-  memset(&packet, 0x00, sizeof(packet));
+  memset(&recv_buf, 0x00, sizeof(recv_buf));
 
 #ifdef DEBUG
   Debug_printf("Sending RX buffer. %d bytes\n", (256 * cmdFrame.aux2) + cmdFrame.aux1);
 #endif
 
-  sioclient.read((byte *)&packet,l);
-  ck = sio_checksum((byte *)&packet, l);
+  sioclient.read((byte *)&recv_buf,l);
+  ck = sio_checksum((byte *)&recv_buf, l);
 
   delayMicroseconds(DELAY_T5); // t5 delay
   SIO_UART.write('C'); // Completed command
   SIO_UART.flush();
 
   // Write data frame
-  SIO_UART.write((byte *)&packet, l);
+  SIO_UART.write((byte *)&recv_buf, l);
 
   // Write data frame checksum
   SIO_UART.write(ck);
@@ -702,16 +737,8 @@ void sio_tcp_write(void)
 #endif
 
   SIO_UART.readBytes(packet, l);
-  while (SIO_UART.available()==0) { delayMicroseconds(100); }
+  while (SIO_UART.available()==0) { delayMicroseconds(200); }
   ck = SIO_UART.read(); // Read checksum
-
-#ifdef DEBUG
-  for (int i=0;i<l;i++)
-  {
-    Debug_printf("%02x ",packet[i]);  
-  }
-  Debug_printf("\n\n");
-#endif 
 
   delayMicroseconds(DELAY_T5);
 
@@ -813,21 +840,36 @@ void setup()
   BUG_UART.begin(19200);
   BUG_UART.println();
   BUG_UART.println("#FujiNet PLATOTERM Test");
+#elif defined(ESP8266)
+  pinMode(PIN_LED, OUTPUT);
+  digitalWrite(PIN_LED, HIGH); // off
 #endif
-  pinMode(PIN_LED1, OUTPUT);
-  pinMode(PIN_LED2, OUTPUT);
-  pinMode(PIN_INT, OUTPUT); // thanks AtariGeezer.
-  pinMode(PIN_PROC, OUTPUT);
+  pinMode(PIN_INT, OUTPUT); // thanks AtariGeezer
+  pinMode(PIN_PROC, OUTPUT); // thanks AtariGeezer
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
 
+#ifdef ESP32
+  pinMode(PIN_LED1, OUTPUT);
+  pinMode(PIN_LED2, OUTPUT);
   digitalWrite(PIN_LED1, HIGH); // off
   digitalWrite(PIN_LED2, HIGH); // off
+#endif
   digitalWrite(PIN_PROC,HIGH);
   digitalWrite(PIN_INT, HIGH);
 
+#ifdef DEBUG_N
+  /* Get WiFi started, but don't wait for it otherwise SIO
+   * powered FujiNet fails to boot 
+   */
+  WiFi.begin(DEBUG_SSID, DEBUG_PASSWORD);
+#endif
+
   // Set up serial
   SIO_UART.begin(19200);
+#ifdef ESP8266
+  SIO_UART.swap();
+#endif
 
   // Attach COMMAND interrupt.
   attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
@@ -868,4 +910,11 @@ void loop()
     cmdState = WAIT;
     cmdTimer = 0;
   }
+
+#ifdef ESP32
+  if (cmdState == WAIT && digitalRead(PIN_LED2) == LOW)
+  {
+    digitalWrite(PIN_LED2, HIGH); // Turn off SIO LED
+  }
+#endif
 }
