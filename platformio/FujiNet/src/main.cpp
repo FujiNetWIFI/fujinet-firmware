@@ -42,10 +42,10 @@ void setup()
   }
   
   SPIFFS.begin();
-  atr = SPIFFS.open("/autorun.atr", "r");
+  atr = SPIFFS.open("/autorun.atr", "r+");
 
   TNFS.begin(TNFS_SERVER,TNFS_PORT);
-  tnfs = TNFS.open("/autorun.atr","r");
+  tnfs = TNFS.open("/autorun.atr","r+");
 
   sioD1.setup(&tnfs);
 }
