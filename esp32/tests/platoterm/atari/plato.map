@@ -1,0 +1,907 @@
+Modules list:
+-------------
+keyboard.o:
+    CODE              Offs=000000  Size=000128  Align=00001  Fill=0000
+    RODATA            Offs=000000  Size=000149  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=000003  Align=00001  Fill=0000
+main.o:
+    CODE              Offs=000128  Size=00002E  Align=00001  Fill=0000
+    DATA              Offs=000000  Size=000001  Align=00001  Fill=0000
+terminal.o:
+    CODE              Offs=000156  Size=0003B2  Align=00001  Fill=0000
+    RODATA            Offs=000149  Size=00005C  Align=00001  Fill=0000
+    BSS               Offs=000003  Size=000032  Align=00001  Fill=0000
+io.o:
+    CODE              Offs=000508  Size=000131  Align=00001  Fill=0000
+    BSS               Offs=000035  Size=001005  Align=00001  Fill=0000
+    DATA              Offs=000001  Size=000101  Align=00001  Fill=0000
+touch.o:
+    CODE              Offs=000639  Size=00000F  Align=00001  Fill=0000
+    BSS               Offs=00103A  Size=000005  Align=00001  Fill=0000
+    DATA              Offs=000102  Size=000002  Align=00001  Fill=0000
+screen.o:
+    CODE              Offs=000648  Size=000506  Align=00001  Fill=0000
+    RODATA            Offs=0001A5  Size=000402  Align=00001  Fill=0000
+    BSS               Offs=00103F  Size=00030D  Align=00001  Fill=0000
+    DATA              Offs=000104  Size=000004  Align=00001  Fill=0000
+protocol.o:
+    CODE              Offs=000B4E  Size=000DC1  Align=00001  Fill=0000
+    RODATA            Offs=0005A7  Size=000080  Align=00001  Fill=0000
+    BSS               Offs=00134C  Size=00008E  Align=00001  Fill=0000
+    DATA              Offs=000108  Size=000004  Align=00001  Fill=0000
+crt0.o:
+    BSS               Offs=0013DA  Size=000005  Align=00001  Fill=0000
+    STARTUP           Offs=000000  Size=000068  Align=00001  Fill=0000
+screen_beep.o:
+    CODE              Offs=00190F  Size=00001E  Align=00001  Fill=0000
+click.o:
+    CODE              Offs=00192D  Size=00000C  Align=00001  Fill=0000
+mulfuncs.o:
+    CODE              Offs=001939  Size=000046  Align=00001  Fill=0000
+fast_text.o:
+    CODE              Offs=00197F  Size=0001BD  Align=00001  Fill=0000
+    RODATA            Offs=000627  Size=000010  Align=00001  Fill=0000
+    EXTZP             Offs=000000  Size=000009  Align=00001  Fill=0000
+sio.o:
+    CODE              Offs=001B3C  Size=00000B  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(_cursor.o):
+    BSS               Offs=0013DF  Size=000001  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(addysp.o):
+    CODE              Offs=001B47  Size=00000E  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(aslax2.o):
+    CODE              Offs=001B55  Size=00000B  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(aslax4.o):
+    CODE              Offs=001B60  Size=000011  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(asrax1.o):
+    CODE              Offs=001B71  Size=00000A  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(asrax2.o):
+    CODE              Offs=001B7B  Size=00000F  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(asrax3.o):
+    CODE              Offs=001B8A  Size=000014  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(asrax4.o):
+    CODE              Offs=001B9E  Size=000019  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(callmain.o):
+    CODE              Offs=001BB7  Size=000017  Align=00001  Fill=0000
+    DATA              Offs=00010C  Size=000004  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(cgetc.o):
+    CODE              Offs=001BCE  Size=000016  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(condes.o):
+    CODE              Offs=001BE4  Size=00000C  Align=00001  Fill=0000
+    DATA              Offs=000110  Size=000025  Align=00001  Fill=0000
+    ONCE              Offs=000000  Size=00000C  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(decax1.o):
+    CODE              Offs=001BF0  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(decsp1.o):
+    CODE              Offs=001BF7  Size=000009  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(decsp4.o):
+    CODE              Offs=001C00  Size=00000D  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(decsp6.o):
+    CODE              Offs=001C0D  Size=00000D  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(icmp.o):
+    CODE              Offs=001C1A  Size=00002E  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incsp1.o):
+    CODE              Offs=001C48  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incsp2.o):
+    CODE              Offs=001C4F  Size=000016  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incsp4.o):
+    CODE              Offs=001C65  Size=000005  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incsp7.o):
+    CODE              Offs=001C6A  Size=000005  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(kbhit.o):
+    CODE              Offs=001C6F  Size=00000B  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(libref.o):
+/home/thomc/Workspace/cc65/lib/atari.lib(makebool.o):
+    CODE              Offs=001C7A  Size=00002C  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(mul40.o):
+    CODE              Offs=001CA6  Size=000021  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(negabs.o):
+    CODE              Offs=001CC7  Size=000012  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(popa.o):
+    CODE              Offs=001CD9  Size=00000C  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(popptr1.o):
+    CODE              Offs=001CE5  Size=00000E  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(pusha.o):
+    CODE              Offs=001CF3  Size=000016  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(pushax.o):
+    CODE              Offs=001D09  Size=00001A  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(pushwsp.o):
+    CODE              Offs=001D23  Size=00001C  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(return1.o):
+    CODE              Offs=001D3F  Size=000005  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(setcursor.o):
+    CODE              Offs=001D44  Size=00003A  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(shl.o):
+    CODE              Offs=001D7E  Size=000033  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(staspidx.o):
+    CODE              Offs=001DB1  Size=000016  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(staxsp.o):
+    CODE              Offs=001DC7  Size=00000B  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi-kernel.o):
+    CODE              Offs=001DD2  Size=00007F  Align=00001  Fill=0000
+    RODATA            Offs=000637  Size=000004  Align=00001  Fill=0000
+    BSS               Offs=0013E0  Size=000028  Align=00001  Fill=0000
+    DATA              Offs=000135  Size=000039  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_bar.o):
+    CODE              Offs=001E51  Size=0000A9  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_clear.o):
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_clippedline.o):
+    CODE              Offs=001EFA  Size=0001E3  Align=00001  Fill=0000
+    BSS               Offs=001408  Size=000008  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_colors.o):
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_done.o):
+    CODE              Offs=0020DD  Size=00000E  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_getmaxx.o):
+    CODE              Offs=0020EB  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_getmaxy.o):
+    CODE              Offs=0020F2  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_getset.o):
+    CODE              Offs=0020F9  Size=00001F  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_getxres.o):
+    CODE              Offs=002118  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_getyres.o):
+    CODE              Offs=00211F  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_init.o):
+    CODE              Offs=002126  Size=000058  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_line.o):
+    CODE              Offs=00217E  Size=000018  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_linepop.o):
+    CODE              Offs=002196  Size=00001C  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_outcode.o):
+    CODE              Offs=0021B2  Size=000041  Align=00001  Fill=0000
+    BSS               Offs=001410  Size=000008  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_popxy.o):
+    CODE              Offs=0021F3  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_setcolor.o):
+    CODE              Offs=0021FA  Size=00000E  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_setpixel.o):
+    CODE              Offs=002208  Size=000009  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_settextstyle.o):
+    CODE              Offs=002211  Size=000044  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(tgi_stat_stddrv.o):
+/home/thomc/Workspace/cc65/lib/atari.lib(udiv32by16r16.o):
+    CODE              Offs=002255  Size=000031  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(umul16x16r32.o):
+    CODE              Offs=002286  Size=00002C  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(umul8x16r24.o):
+    CODE              Offs=0022B2  Size=00002E  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(zerobss.o):
+    CODE              Offs=0022E0  Size=000023  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(zeropage.o):
+    ZEROPAGE          Offs=000000  Size=00001A  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(atr8-tgi.o):
+    CODE              Offs=002303  Size=0005AE  Align=00001  Fill=0000
+    RODATA            Offs=00063B  Size=000018  Align=00001  Fill=0000
+    BSS               Offs=001418  Size=000013  Align=00001  Fill=0000
+    DATA              Offs=00016E  Size=00003E  Align=00001  Fill=0000
+
+
+Segment list:
+-------------
+Name                   Start     End    Size  Align
+----------------------------------------------------
+ZEROPAGE              000081  00009A  00001A  00001
+EXTZP                 00009B  0000A3  000009  00001
+STARTUP               000700  000767  000068  00001
+ONCE                  000768  000773  00000C  00001
+CODE                  000774  003024  0028B1  00001
+RODATA                003025  003677  000653  00001
+DATA                  003678  003823  0001AC  00001
+BSS                   003824  004C4E  00142B  00001
+
+
+Exports list by name:
+---------------------
+_CharCode                 004B6A RLA    _CharHigh                 00377F RLA    
+_CharWide                 00377E RLA    _CurMem                   004B70 RLA    
+_CurMode                  004B7C RLA    _Flags                    004B6B RLA    
+_GlyphData                004B6C RLA    _Key                      00137C RLA    
+_ModeBold                 004B76 RLA    _RenderGlyph              0020F3 RLA    
+_Reverse                  004B7A RLA    _Rotate                   004B78 RLA    
+_ShowPLATO                001C4B RLA    _TTY                      004B72 RLA    
+_TTYLoc                   004B63 RLA    __BSS_RUN__               003824 RLA    
+__BSS_SIZE__              00142B REA    __CONSTRUCTOR_COUNT__     000000 REA    
+__CONSTRUCTOR_TABLE__     000774 RLA    __DESTRUCTOR_COUNT__      000000 REA    
+__DESTRUCTOR_TABLE__      003678 RLA    __LOWCODE_RUN__           000768 RLA    
+__LOWCODE_SIZE__          000000 REA    __RESERVED_MEMORY__       002000 REA    
+__STACKSIZE__             000800 REA    __STARTUP__               000001 REA    
+_atr8_tgi                 0037E6 RLA    _cgetc                    002342 RLA    
+_click                    0020A1 RLA    _cx                       004B67 RLA    
+_cy                       004B69 RLA    _exit                     000746 RLA    
+_fontm23                  004863 RLA    _io_done                  000DAC RLA    
+_io_init                  000C7C RLA    _io_main                  000D10 RLA    
+_io_send_byte             000CB3 RLA    _kbhit                    0023E3 RLA    
+_keyboard_main            0007AD RLA    _main                     00089C RLA    
+_mul0375                  0020D4 RLA    _mul0625                  0020AD RLA    
+_mul40                    00241A RLA    _running                  003678 RLA    
+_screen_beep              002083 RLA    _screen_block_draw        000E5C RLA    
+_screen_char_draw         000FBB RLA    _screen_clear             000E37 RLA    
+_screen_done              00129C RLA    _screen_dot_draw          000EEB RLA    
+_screen_init              000DBC RLA    _screen_line_draw         000F2C RLA    
+_screen_splash            000DC9 RLA    _screen_tty_char          001131 RLA    
+_screen_wait              000E36 RLA    _siov                     0022B0 RLA    
+_terminal_char_load       00093C RLA    _terminal_init            0008CA RLA    
+_terminal_set_plato       000926 RLA    _terminal_set_tty         0008DF RLA    
+_tgi_bar                  0025C5 RLA    _tgi_clear                0037BF REA    
+_tgi_color                004C0C RLA    _tgi_colorcount           004C25 RLA    
+_tgi_curx                 004C08 RLA    _tgi_cury                 004C0A RLA    
+_tgi_done                 002851 RLA    _tgi_error                004C06 RLA    
+_tgi_flags                004C2B RLA    _tgi_font                 004C0D RLA    
+_tgi_fontheight           004C28 RLA    _tgi_fontwidth            004C27 RLA    
+_tgi_getmaxx              00285F RLA    _tgi_getmaxy              002866 RLA    
+_tgi_getxres              00288C RLA    _tgi_getyres              002893 RLA    
+_tgi_gmode                004C07 RLA    _tgi_init                 00289A RLA    
+_tgi_install              002546 RLA    _tgi_line                 0028F2 RLA    
+_tgi_setcolor             00296E RLA    _tgi_setpixel             00297C RLA    
+_tgi_settextstyle         002985 RLA    _tgi_static_stddrv        0037E6 RLA    
+_tgi_textdir              004C0E RLA    _tgi_textscalew           004C11 RLA    
+_tgi_uninstall            0025B3 RLA    _tgi_xmax                 004C1D RLA    
+_tgi_xres                 004C21 RLA    _tgi_ymax                 004C1F RLA    
+_tgi_yres                 004C23 RLA    _touch_allow              000DAF RLA    
+_touch_done               000DBB RLA    _touch_init               000DAD RLA    
+_touch_main               000DAE RLA    _trip                     00485D RLA    
+addysp                    0022BC RLA    aslaxy                    0024F9 RLA    
+asrax1                    0022E5 RLA    asrax2                    0022EF RLA    
+asrax3                    0022FE RLA    asrax4                    002312 RLA    
+booleq                    0023F4 RLA    boolult                   00240D RLA    
+callmain                  00232B RLA    cursor                    004C03 RLA    
+decax1                    002364 RLA    decsp1                    00236B RLA    
+decsp4                    002374 RLA    decsp6                    002381 RLA    
+donelib                   002358 RLA    incsp1                    0023BC RLA    
+incsp2                    0023CB RLA    incsp4                    0023D9 RLA    
+incsp7                    0023DE RLA    initlib                   000768 RLA    
+negax                     00243F RLA    popa                      00244D RLA    
+popax                     0023C3 RLA    popptr1                   002459 RLA    
+ptr1                      000089 RLZ    ptr2                      00008B RLZ    
+ptr3                      00008D RLZ    ptr4                      00008F RLZ    
+push0                     00247D RLA    pusha                     00246B RLA    
+pusha0                    00247F RLA    pushax                    002481 RLA    
+pushwysp                  002499 RLA    regsave                   000085 RLZ    
+return1                   0024B3 RLA    setcursor                 0024B8 RLA    
+shlax2                    0022C9 RLA    shlax4                    0022D4 RLA    
+sp                        000081 RLZ    sreg                      000083 RLZ    
+staspidx                  002525 RLA    stax0sp                   00253B RLA    
+staxysp                   00253D RLA    tgi_bar                   0037DD RLA    
+tgi_clear                 0037BF RLA    tgi_clip_x1               004C34 RLA    
+tgi_clip_x2               004C38 RLA    tgi_clip_y1               004C36 RLA    
+tgi_clip_y2               004C3A RLA    tgi_clippedline           002732 RLA    
+tgi_color_white           000001 REZ    tgi_done                  0037B6 RLA    
+tgi_getdefpalette         0037D1 RLA    tgi_geterror              0037B9 RLA    
+tgi_getset                00286D RLA    tgi_init                  0037B3 RLA    
+tgi_inv_arg               00259C RLA    tgi_libref                000746 RLA    
+tgi_line                  0037DA RLA    tgi_linepop               00290A RLA    
+tgi_outcode               002926 RLA    tgi_popxy                 002967 RLA    
+tgi_setcolor              0037C8 RLA    tgi_setdrawpage           0037C5 RLA    
+tgi_setpalette            0037CB RLA    tgi_setpixel              0037D4 RLA    
+tgi_setviewpage           0037C2 RLA    tmp1                      000091 RLZ    
+tmp2                      000092 RLZ    tmp3                      000093 RLZ    
+tmp4                      000094 RLZ    tosicmp0                  00238E RLA    
+udiv32by16r16             0029C9 RLA    umul16x16r32              0029FA RLA    
+umul8x16r24               002A26 RLA    zerobss                   002A54 RLA    
+
+
+
+Exports list by value:
+----------------------
+__LOWCODE_SIZE__          000000 REA    __CONSTRUCTOR_COUNT__     000000 REA    
+__DESTRUCTOR_COUNT__      000000 REA    tgi_color_white           000001 REZ    
+__STARTUP__               000001 REA    sp                        000081 RLZ    
+sreg                      000083 RLZ    regsave                   000085 RLZ    
+ptr1                      000089 RLZ    ptr2                      00008B RLZ    
+ptr3                      00008D RLZ    ptr4                      00008F RLZ    
+tmp1                      000091 RLZ    tmp2                      000092 RLZ    
+tmp3                      000093 RLZ    tmp4                      000094 RLZ    
+tgi_libref                000746 RLA    _exit                     000746 RLA    
+__LOWCODE_RUN__           000768 RLA    initlib                   000768 RLA    
+__CONSTRUCTOR_TABLE__     000774 RLA    _keyboard_main            0007AD RLA    
+__STACKSIZE__             000800 REA    _main                     00089C RLA    
+_terminal_init            0008CA RLA    _terminal_set_tty         0008DF RLA    
+_terminal_set_plato       000926 RLA    _terminal_char_load       00093C RLA    
+_io_init                  000C7C RLA    _io_send_byte             000CB3 RLA    
+_io_main                  000D10 RLA    _io_done                  000DAC RLA    
+_touch_init               000DAD RLA    _touch_main               000DAE RLA    
+_touch_allow              000DAF RLA    _touch_done               000DBB RLA    
+_screen_init              000DBC RLA    _screen_splash            000DC9 RLA    
+_screen_wait              000E36 RLA    _screen_clear             000E37 RLA    
+_screen_block_draw        000E5C RLA    _screen_dot_draw          000EEB RLA    
+_screen_line_draw         000F2C RLA    _screen_char_draw         000FBB RLA    
+_screen_tty_char          001131 RLA    _screen_done              00129C RLA    
+_Key                      00137C RLA    __BSS_SIZE__              00142B REA    
+_ShowPLATO                001C4B RLA    __RESERVED_MEMORY__       002000 REA    
+_screen_beep              002083 RLA    _click                    0020A1 RLA    
+_mul0625                  0020AD RLA    _mul0375                  0020D4 RLA    
+_RenderGlyph              0020F3 RLA    _siov                     0022B0 RLA    
+addysp                    0022BC RLA    shlax2                    0022C9 RLA    
+shlax4                    0022D4 RLA    asrax1                    0022E5 RLA    
+asrax2                    0022EF RLA    asrax3                    0022FE RLA    
+asrax4                    002312 RLA    callmain                  00232B RLA    
+_cgetc                    002342 RLA    donelib                   002358 RLA    
+decax1                    002364 RLA    decsp1                    00236B RLA    
+decsp4                    002374 RLA    decsp6                    002381 RLA    
+tosicmp0                  00238E RLA    incsp1                    0023BC RLA    
+popax                     0023C3 RLA    incsp2                    0023CB RLA    
+incsp4                    0023D9 RLA    incsp7                    0023DE RLA    
+_kbhit                    0023E3 RLA    booleq                    0023F4 RLA    
+boolult                   00240D RLA    _mul40                    00241A RLA    
+negax                     00243F RLA    popa                      00244D RLA    
+popptr1                   002459 RLA    pusha                     00246B RLA    
+push0                     00247D RLA    pusha0                    00247F RLA    
+pushax                    002481 RLA    pushwysp                  002499 RLA    
+return1                   0024B3 RLA    setcursor                 0024B8 RLA    
+aslaxy                    0024F9 RLA    staspidx                  002525 RLA    
+stax0sp                   00253B RLA    staxysp                   00253D RLA    
+_tgi_install              002546 RLA    tgi_inv_arg               00259C RLA    
+_tgi_uninstall            0025B3 RLA    _tgi_bar                  0025C5 RLA    
+tgi_clippedline           002732 RLA    _tgi_done                 002851 RLA    
+_tgi_getmaxx              00285F RLA    _tgi_getmaxy              002866 RLA    
+tgi_getset                00286D RLA    _tgi_getxres              00288C RLA    
+_tgi_getyres              002893 RLA    _tgi_init                 00289A RLA    
+_tgi_line                 0028F2 RLA    tgi_linepop               00290A RLA    
+tgi_outcode               002926 RLA    tgi_popxy                 002967 RLA    
+_tgi_setcolor             00296E RLA    _tgi_setpixel             00297C RLA    
+_tgi_settextstyle         002985 RLA    udiv32by16r16             0029C9 RLA    
+umul16x16r32              0029FA RLA    umul8x16r24               002A26 RLA    
+zerobss                   002A54 RLA    __DESTRUCTOR_TABLE__      003678 RLA    
+_running                  003678 RLA    _CharWide                 00377E RLA    
+_CharHigh                 00377F RLA    tgi_init                  0037B3 RLA    
+tgi_done                  0037B6 RLA    tgi_geterror              0037B9 RLA    
+tgi_clear                 0037BF RLA    _tgi_clear                0037BF REA    
+tgi_setviewpage           0037C2 RLA    tgi_setdrawpage           0037C5 RLA    
+tgi_setcolor              0037C8 RLA    tgi_setpalette            0037CB RLA    
+tgi_getdefpalette         0037D1 RLA    tgi_setpixel              0037D4 RLA    
+tgi_line                  0037DA RLA    tgi_bar                   0037DD RLA    
+_atr8_tgi                 0037E6 RLA    _tgi_static_stddrv        0037E6 RLA    
+__BSS_RUN__               003824 RLA    _trip                     00485D RLA    
+_fontm23                  004863 RLA    _TTYLoc                   004B63 RLA    
+_cx                       004B67 RLA    _cy                       004B69 RLA    
+_CharCode                 004B6A RLA    _Flags                    004B6B RLA    
+_GlyphData                004B6C RLA    _CurMem                   004B70 RLA    
+_TTY                      004B72 RLA    _ModeBold                 004B76 RLA    
+_Rotate                   004B78 RLA    _Reverse                  004B7A RLA    
+_CurMode                  004B7C RLA    cursor                    004C03 RLA    
+_tgi_error                004C06 RLA    _tgi_gmode                004C07 RLA    
+_tgi_curx                 004C08 RLA    _tgi_cury                 004C0A RLA    
+_tgi_color                004C0C RLA    _tgi_font                 004C0D RLA    
+_tgi_textdir              004C0E RLA    _tgi_textscalew           004C11 RLA    
+_tgi_xmax                 004C1D RLA    _tgi_ymax                 004C1F RLA    
+_tgi_xres                 004C21 RLA    _tgi_yres                 004C23 RLA    
+_tgi_colorcount           004C25 RLA    _tgi_fontwidth            004C27 RLA    
+_tgi_fontheight           004C28 RLA    _tgi_flags                004C2B RLA    
+tgi_clip_x1               004C34 RLA    tgi_clip_y1               004C36 RLA    
+tgi_clip_x2               004C38 RLA    tgi_clip_y2               004C3A RLA    
+
+
+
+Imports list:
+-------------
+_CharCode (screen.o):
+    fast_text.o               src/fast_text.s(18)
+_CharHigh (screen.o):
+    terminal.o                src/terminal.s(27)
+_CharWide (screen.o):
+    terminal.o                src/terminal.s(26)
+_CurMem (protocol.o):
+    screen.o                  src/screen.s(23)
+    terminal.o                src/terminal.s(14)
+_CurMode (protocol.o):
+    screen.o                  src/screen.s(25)
+    terminal.o                src/terminal.s(19)
+_Flags (screen.o):
+    fast_text.o               src/fast_text.s(18)
+_GlyphData (screen.o):
+    fast_text.o               src/fast_text.s(18)
+_Key (protocol.o):
+    keyboard.o                src/keyboard.s(19)
+_ModeBold (protocol.o):
+    screen.o                  src/screen.s(24)
+    terminal.o                src/terminal.s(16)
+_RenderGlyph (fast_text.o):
+    screen.o                  src/screen.s(44)
+_Reverse (protocol.o):
+    terminal.o                src/terminal.s(18)
+_Rotate (protocol.o):
+    terminal.o                src/terminal.s(17)
+_ShowPLATO (protocol.o):
+    screen.o                  src/screen.s(26)
+    io.o                      src/io.s(17)
+    keyboard.o                src/keyboard.s(20)
+_TTY (protocol.o):
+    terminal.o                src/terminal.s(15)
+    keyboard.o                src/keyboard.s(18)
+_TTYLoc (screen.o):
+    terminal.o                src/terminal.s(28)
+    keyboard.o                src/keyboard.s(25)
+__BSS_RUN__ ([linker generated]):
+    zerobss.o                 common/zerobss.s(8)
+__BSS_SIZE__ ([linker generated]):
+    zerobss.o                 common/zerobss.s(8)
+__CONSTRUCTOR_COUNT__ ([linker generated]):
+    condes.o                  runtime/condes.s(18)
+__CONSTRUCTOR_TABLE__ ([linker generated]):
+    condes.o                  runtime/condes.s(18)
+__DESTRUCTOR_COUNT__ ([linker generated]):
+    condes.o                  runtime/condes.s(19)
+__DESTRUCTOR_TABLE__ ([linker generated]):
+    condes.o                  runtime/condes.s(19)
+__LOWCODE_RUN__ ([linker generated]):
+    crt0.o                    src/crt0.s(18)
+__LOWCODE_SIZE__ ([linker generated]):
+    crt0.o                    src/crt0.s(18)
+__RESERVED_MEMORY__ ([linker generated]):
+    crt0.o                    src/crt0.s(16)
+    [linker generated]        src/atari.cfg(19)
+__STACKSIZE__ ([linker generated]):
+    [linker generated]        src/atari.cfg(19)
+__STARTUP__ (crt0.o):
+    main.o                    src/main.s(13)
+_atr8_tgi (atr8-tgi.o):
+    tgi_stat_stddrv.o         atari/tgi_stat_stddrv.s(13)
+_cgetc (cgetc.o):
+    keyboard.o                src/keyboard.s(14)
+_click (click.o):
+    keyboard.o                src/keyboard.s(24)
+_cx (screen.o):
+    fast_text.o               src/fast_text.s(18)
+_cy (screen.o):
+    fast_text.o               src/fast_text.s(18)
+_exit (crt0.o):
+    libref.o                  atari/libref.s(6)
+_fontm23 (screen.o):
+    terminal.o                src/terminal.s(36)
+_io_done (io.o):
+    main.o                    src/main.s(24)
+_io_init (io.o):
+    main.o                    src/main.s(22)
+_io_main (io.o):
+    main.o                    src/main.s(23)
+_io_send_byte (io.o):
+    protocol.o                src/protocol.s(62)
+    keyboard.o                src/keyboard.s(23)
+_kbhit (kbhit.o):
+    keyboard.o                src/keyboard.s(13)
+_keyboard_main (keyboard.o):
+    main.o                    src/main.s(25)
+_main (main.o):
+    callmain.o                runtime/callmain.s(11)
+_mul0375 (mulfuncs.o):
+    screen.o                  src/screen.s(43)
+_mul0625 (mulfuncs.o):
+    screen.o                  src/screen.s(42)
+_mul40 (mul40.o):
+    setcursor.o               atari/setcursor.s(7)
+_running (main.o):
+    keyboard.o                src/keyboard.s(26)
+_screen_beep (screen_beep.o):
+    protocol.o                src/protocol.s(61)
+    main.o                    src/main.s(16)
+_screen_block_draw (screen.o):
+    protocol.o                src/protocol.s(63)
+_screen_char_draw (screen.o):
+    protocol.o                src/protocol.s(66)
+_screen_clear (screen.o):
+    protocol.o                src/protocol.s(70)
+    terminal.o                src/terminal.s(25)
+_screen_done (screen.o):
+    main.o                    src/main.s(17)
+_screen_dot_draw (screen.o):
+    protocol.o                src/protocol.s(64)
+_screen_init (screen.o):
+    main.o                    src/main.s(14)
+_screen_line_draw (screen.o):
+    protocol.o                src/protocol.s(65)
+_screen_splash (screen.o):
+    main.o                    src/main.s(15)
+_screen_tty_char (screen.o):
+    protocol.o                src/protocol.s(67)
+_screen_wait (screen.o):
+    protocol.o                src/protocol.s(60)
+_siov (sio.o):
+    io.o                      src/io.s(18)
+_terminal_char_load (terminal.o):
+    protocol.o                src/protocol.s(68)
+_terminal_init (terminal.o):
+    main.o                    src/main.s(21)
+_terminal_set_plato (terminal.o):
+    protocol.o                src/protocol.s(72)
+_terminal_set_tty (terminal.o):
+    protocol.o                src/protocol.s(71)
+_tgi_bar (tgi_bar.o):
+    screen.o                  src/screen.s(22)
+_tgi_clear (tgi_clear.o):
+    screen.o                  src/screen.s(18)
+_tgi_color (tgi-kernel.o):
+    tgi_setcolor.o            /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(120)
+_tgi_colorcount (tgi-kernel.o):
+    tgi_setcolor.o            /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(132)
+_tgi_curx (tgi-kernel.o):
+    tgi_linepop.o             /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(118)
+_tgi_cury (tgi-kernel.o):
+    tgi_linepop.o             /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(119)
+_tgi_done (tgi_done.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(193)
+    tgi-kernel.o              /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(193)
+    screen.o                  src/screen.s(17)
+_tgi_error (tgi-kernel.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(116)
+_tgi_flags (tgi-kernel.o):
+    tgi_settextstyle.o        /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(137)
+_tgi_font (tgi-kernel.o):
+    tgi_settextstyle.o        /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(121)
+_tgi_fontheight (tgi-kernel.o):
+    tgi_settextstyle.o        /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(135)
+_tgi_fontwidth (tgi-kernel.o):
+    tgi_settextstyle.o        /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(134)
+_tgi_getmaxx (tgi_getmaxx.o):
+    tgi_bar.o                 /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(202)
+_tgi_getmaxy (tgi_getmaxy.o):
+    tgi_bar.o                 /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(203)
+_tgi_getxres (tgi_getxres.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(209)
+_tgi_getyres (tgi_getyres.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(210)
+_tgi_gmode (tgi-kernel.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(117)
+    tgi_done.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(117)
+_tgi_init (tgi_init.o):
+    screen.o                  src/screen.s(16)
+_tgi_install (tgi-kernel.o):
+    screen.o                  src/screen.s(14)
+_tgi_line (tgi_line.o):
+    screen.o                  src/screen.s(21)
+_tgi_setcolor (tgi_setcolor.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(224)
+    screen.o                  src/screen.s(19)
+_tgi_setpixel (tgi_setpixel.o):
+    screen.o                  src/screen.s(20)
+_tgi_settextstyle (tgi_settextstyle.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(230)
+_tgi_static_stddrv (tgi_stat_stddrv.o):
+    screen.o                  src/screen.s(13)
+_tgi_textdir (tgi-kernel.o):
+    tgi_settextstyle.o        /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(122)
+_tgi_textscalew (tgi-kernel.o):
+    tgi_settextstyle.o        /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(124)
+_tgi_uninstall (tgi-kernel.o):
+    screen.o                  src/screen.s(15)
+_tgi_xmax (tgi-kernel.o):
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(130)
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(130)
+    tgi_getmaxx.o             /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(130)
+_tgi_xres (tgi-kernel.o):
+    tgi_getxres.o             /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(128)
+    tgi_getset.o              /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(128)
+    tgi_outcode.o             /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(128)
+    tgi_bar.o                 /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(128)
+_tgi_ymax (tgi-kernel.o):
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(131)
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(131)
+    tgi_getmaxy.o             /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(131)
+_tgi_yres (tgi-kernel.o):
+    tgi_getyres.o             /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(129)
+    tgi_getset.o              /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(129)
+    tgi_outcode.o             /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(129)
+    tgi_bar.o                 /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(129)
+_touch_allow (touch.o):
+    protocol.o                src/protocol.s(69)
+_touch_done (touch.o):
+    main.o                    src/main.s(20)
+_touch_init (touch.o):
+    main.o                    src/main.s(18)
+_touch_main (touch.o):
+    main.o                    src/main.s(19)
+_trip (io.o):
+    sio.o                     src/sio.s(5)
+addysp (addysp.o):
+    incsp7.o                  runtime/incsp7.s(8)
+    incsp4.o                  runtime/incsp4.s(8)
+aslaxy (shl.o):
+    terminal.o                src/terminal.s(690)
+asrax1 (asrax1.o):
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+asrax2 (asrax2.o):
+    protocol.o                src/protocol.s(2256)
+asrax3 (asrax3.o):
+    protocol.o                src/protocol.s(2256)
+asrax4 (asrax4.o):
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+booleq (makebool.o):
+    protocol.o                src/protocol.s(2256)
+boolult (makebool.o):
+    io.o                      src/io.s(216)
+callmain (callmain.o):
+    crt0.o                    src/crt0.s(15)
+cursor (_cursor.o):
+    setcursor.o               atari/setcursor.s(7)
+decax1 (decax1.o):
+    tgi_init.o                tgi/tgi_init.s(11)
+decsp1 (decsp1.o):
+    protocol.o                src/protocol.s(2256)
+    screen.o                  src/screen.s(1817)
+decsp4 (decsp4.o):
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    screen.o                  src/screen.s(1817)
+decsp6 (decsp6.o):
+    screen.o                  src/screen.s(1817)
+    screen.o                  src/screen.s(1817)
+    screen.o                  src/screen.s(1817)
+donelib (condes.o):
+    crt0.o                    src/crt0.s(14)
+incsp1 (incsp1.o):
+    protocol.o                src/protocol.s(2256)
+    screen.o                  src/screen.s(1817)
+    io.o                      src/io.s(216)
+    keyboard.o                src/keyboard.s(516)
+    keyboard.o                src/keyboard.s(516)
+incsp2 (incsp2.o):
+    popptr1.o                 runtime/popptr1.s(8)
+    staspidx.o                runtime/staspidx.s(8)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    screen.o                  src/screen.s(1817)
+    touch.o                   src/touch.s(100)
+    touch.o                   src/touch.s(100)
+incsp4 (incsp4.o):
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    screen.o                  src/screen.s(1817)
+    screen.o                  src/screen.s(1817)
+    terminal.o                src/terminal.s(690)
+incsp7 (incsp7.o):
+    screen.o                  src/screen.s(1817)
+initlib (condes.o):
+    crt0.o                    src/crt0.s(14)
+negax (negabs.o):
+    tgi_clippedline.o         tgi/tgi_clippedline.s(9)
+    protocol.o                src/protocol.s(2256)
+popa (popa.o):
+    tgi_settextstyle.o        tgi/tgi_settextstyle.s(10)
+popax (incsp2.o):
+    tgi_settextstyle.o        tgi/tgi_settextstyle.s(10)
+    tgi_linepop.o             tgi/tgi_linepop.s(9)
+    tgi_line.o                tgi/tgi_line.s(10)
+    tgi_bar.o                 tgi/tgi_bar.s(11)
+    shl.o                     runtime/shl.s(15)
+popptr1 (popptr1.o):
+    tgi_popxy.o               tgi/tgi_popxy.s(10)
+    tgi_bar.o                 tgi/tgi_bar.s(11)
+ptr1 (zeropage.o):
+    umul16x16r32.o            /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    udiv32by16r16.o           /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    tgi_getset.o              tgi/tgi_getset.s(12)
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    popptr1.o                 runtime/popptr1.s(9)
+    atr8-tgi.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    zerobss.o                 common/zerobss.s(9)
+    umul8x16r24.o             /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    tgi_settextstyle.o        /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    tgi_init.o                tgi/tgi_init.s(12)
+    tgi_bar.o                 tgi/tgi_bar.s(10)
+    tgi-kernel.o              tgi/tgi-kernel.s(8)
+    staspidx.o                runtime/staspidx.s(9)
+    fast_text.o               /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    mulfuncs.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    protocol.o                src/protocol.s(11)
+    screen.o                  src/screen.s(11)
+    terminal.o                src/terminal.s(11)
+    keyboard.o                src/keyboard.s(11)
+ptr2 (zeropage.o):
+    udiv32by16r16.o           /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    tgi_popxy.o               tgi/tgi_popxy.s(11)
+    tgi_getset.o              tgi/tgi_getset.s(12)
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    atr8-tgi.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    tgi_bar.o                 tgi/tgi_bar.s(10)
+    fast_text.o               /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    mulfuncs.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+ptr3 (zeropage.o):
+    umul16x16r32.o            /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    udiv32by16r16.o           /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    atr8-tgi.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    umul8x16r24.o             /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    tgi_bar.o                 tgi/tgi_bar.s(10)
+    fast_text.o               /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+ptr4 (zeropage.o):
+    atr8-tgi.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(12)
+    tgi_bar.o                 tgi/tgi_bar.s(10)
+push0 (pushax.o):
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+pusha (pusha.o):
+    tgi_init.o                tgi/tgi_init.s(11)
+    screen.o                  src/screen.s(1817)
+    screen.o                  src/screen.s(1817)
+    io.o                      src/io.s(216)
+    keyboard.o                src/keyboard.s(516)
+    keyboard.o                src/keyboard.s(516)
+pusha0 (pushax.o):
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    terminal.o                src/terminal.s(690)
+pushax (pushax.o):
+    tgi_init.o                tgi/tgi_init.s(11)
+    callmain.o                runtime/callmain.s(11)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    screen.o                  src/screen.s(1817)
+    screen.o                  src/screen.s(1817)
+    screen.o                  src/screen.s(1817)
+    screen.o                  src/screen.s(1817)
+    touch.o                   src/touch.s(100)
+    touch.o                   src/touch.s(100)
+    io.o                      src/io.s(216)
+    terminal.o                src/terminal.s(690)
+    keyboard.o                src/keyboard.s(516)
+pushwysp (pushwsp.o):
+    protocol.o                src/protocol.s(2256)
+regsave (zeropage.o):
+    atr8-tgi.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(11)
+    protocol.o                src/protocol.s(10)
+return1 (return1.o):
+    kbhit.o                   atari/kbhit.s(8)
+setcursor (setcursor.o):
+    cgetc.o                   atari/cgetc.s(10)
+shlax2 (aslax2.o):
+    protocol.o                src/protocol.s(2256)
+shlax4 (aslax4.o):
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+sp (zeropage.o):
+    popptr1.o                 runtime/popptr1.s(9)
+    popa.o                    runtime/popa.s(8)
+    addysp.o                  runtime/addysp.s(8)
+    staxsp.o                  runtime/staxsp.s(8)
+    staspidx.o                runtime/staspidx.s(9)
+    pushwsp.o                 runtime/pushwsp.s(8)
+    pushax.o                  runtime/pushax.s(8)
+    pusha.o                   runtime/pusha.s(8)
+    incsp2.o                  runtime/incsp2.s(8)
+    incsp1.o                  runtime/incsp1.s(8)
+    icmp.o                    runtime/icmp.s(9)
+    decsp6.o                  runtime/decsp6.s(8)
+    decsp4.o                  runtime/decsp4.s(8)
+    decsp1.o                  runtime/decsp1.s(8)
+    crt0.o                    /home/thomc/Workspace/cc65/asminc/zeropage.inc(11)
+    protocol.o                src/protocol.s(10)
+    screen.o                  src/screen.s(10)
+    io.o                      src/io.s(10)
+    terminal.o                src/terminal.s(10)
+    keyboard.o                src/keyboard.s(10)
+sreg (zeropage.o):
+    umul16x16r32.o            /home/thomc/Workspace/cc65/asminc/zeropage.inc(11)
+    udiv32by16r16.o           /home/thomc/Workspace/cc65/asminc/zeropage.inc(11)
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/zeropage.inc(11)
+    atr8-tgi.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(11)
+    umul8x16r24.o             /home/thomc/Workspace/cc65/asminc/zeropage.inc(11)
+    icmp.o                    runtime/icmp.s(9)
+    protocol.o                src/protocol.s(10)
+staspidx (staspidx.o):
+    terminal.o                src/terminal.s(690)
+stax0sp (staxsp.o):
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+staxysp (staxsp.o):
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+    protocol.o                src/protocol.s(2256)
+tgi_bar (tgi-kernel.o):
+    tgi_bar.o                 /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(166)
+tgi_clear (tgi-kernel.o):
+    tgi_clear.o               /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(156)
+tgi_clip_x1 (tgi_outcode.o):
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(142)
+    tgi_line.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(142)
+tgi_clip_x2 (tgi_outcode.o):
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(144)
+    tgi_linepop.o             /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(144)
+tgi_clip_y1 (tgi_outcode.o):
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(143)
+    tgi_line.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(143)
+tgi_clip_y2 (tgi_outcode.o):
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(145)
+    tgi_linepop.o             /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(145)
+tgi_clippedline (tgi_clippedline.o):
+    tgi_line.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(174)
+tgi_color_white (tgi_colors.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(110)
+tgi_done (tgi-kernel.o):
+    tgi_done.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(153)
+tgi_getdefpalette (tgi-kernel.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(162)
+tgi_geterror (tgi-kernel.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(154)
+tgi_getset (tgi_getset.o):
+    tgi_setpixel.o            /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(176)
+tgi_init (tgi-kernel.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(152)
+tgi_inv_arg (tgi-kernel.o):
+    tgi_setcolor.o            /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(178)
+tgi_libref (libref.o):
+    tgi-kernel.o              tgi/tgi-kernel.s(7)
+tgi_line (tgi-kernel.o):
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(165)
+tgi_linepop (tgi_linepop.o):
+    tgi_line.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(180)
+tgi_outcode (tgi_outcode.o):
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(181)
+tgi_popxy (tgi_popxy.o):
+    tgi_getset.o              /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(182)
+tgi_setcolor (tgi-kernel.o):
+    tgi_setcolor.o            /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(159)
+tgi_setdrawpage (tgi-kernel.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(158)
+tgi_setpalette (tgi-kernel.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(160)
+tgi_setpixel (tgi-kernel.o):
+    tgi_setpixel.o            /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(163)
+tgi_setviewpage (tgi-kernel.o):
+    tgi_init.o                /home/thomc/Workspace/cc65/asminc/tgi-kernel.inc(157)
+tmp1 (zeropage.o):
+    tgi_clippedline.o         /home/thomc/Workspace/cc65/asminc/zeropage.inc(13)
+    atr8-tgi.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(13)
+    tgi_settextstyle.o        /home/thomc/Workspace/cc65/asminc/zeropage.inc(13)
+    tgi_outcode.o             /home/thomc/Workspace/cc65/asminc/zeropage.inc(13)
+    staspidx.o                runtime/staspidx.s(9)
+    shl.o                     runtime/shl.s(16)
+    asrax4.o                  runtime/asrax4.s(9)
+    asrax3.o                  runtime/asrax3.s(9)
+    asrax2.o                  runtime/asrax2.s(8)
+    asrax1.o                  runtime/asrax1.s(8)
+    aslax4.o                  runtime/aslax4.s(8)
+    aslax2.o                  runtime/aslax2.s(8)
+    fast_text.o               /home/thomc/Workspace/cc65/asminc/zeropage.inc(13)
+    protocol.o                src/protocol.s(11)
+    terminal.o                src/terminal.s(11)
+tmp2 (zeropage.o):
+    fast_text.o               /home/thomc/Workspace/cc65/asminc/zeropage.inc(13)
+tmp3 (zeropage.o):
+    atr8-tgi.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(13)
+    fast_text.o               /home/thomc/Workspace/cc65/asminc/zeropage.inc(13)
+tmp4 (zeropage.o):
+    mul40.o                   common/mul40.s(16)
+    atr8-tgi.o                /home/thomc/Workspace/cc65/asminc/zeropage.inc(13)
+    fast_text.o               /home/thomc/Workspace/cc65/asminc/zeropage.inc(13)
+tosicmp0 (icmp.o):
+    terminal.o                src/terminal.s(690)
+udiv32by16r16 (udiv32by16r16.o):
+    tgi_clippedline.o         tgi/tgi_clippedline.s(8)
+umul16x16r32 (umul16x16r32.o):
+    tgi_clippedline.o         tgi/tgi_clippedline.s(8)
+umul8x16r24 (umul8x16r24.o):
+    tgi_settextstyle.o        tgi/tgi_settextstyle.s(9)
+zerobss (zerobss.o):
+    crt0.o                    src/crt0.s(15)
+
