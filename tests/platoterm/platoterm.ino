@@ -4,6 +4,7 @@
 
 #include <ESP8266WiFi.h>
 #include <FS.h>
+#include "fifo.h"
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
@@ -33,7 +34,7 @@ File plato;
 
 WiFiClient sioclient;
 
-byte recv_buf[4096];
+FIFO fifo;
 
 char packet[256];
 unsigned long cmdTimer = 0;
@@ -537,24 +538,28 @@ void sio_status()
 void sio_tcp_read()
 {
   byte ck;
+  int chkSum;
   int l=(256*cmdFrame.aux2)+cmdFrame.aux1;
   byte b;
 
-  memset(&recv_buf, 0x00, sizeof(recv_buf));
 
 #ifdef DEBUG
   Debug_printf("Sending RX buffer. %d bytes\n", (256 * cmdFrame.aux2) + cmdFrame.aux1);
 #endif
-
-  sioclient.read((byte *)&recv_buf,l);
-  ck = sio_checksum((byte *)&recv_buf, l);
 
   delayMicroseconds(DELAY_T5); // t5 delay
   Serial.write('C'); // Completed command
   Serial.flush();
 
   // Write data frame
-  Serial.write((byte *)&recv_buf, l);
+  chkSum=0;
+  for (int i=0;i<l;i++)
+  {
+    b=fifo.pop();
+    chkSum = ((chkSum + b) >> 8) + ((chkSum + b) & 0xff);
+    Serial.write(b);  
+  }
+  ck = (byte)chkSum;
 
   // Write data frame checksum
   Serial.write(ck);
@@ -571,7 +576,7 @@ void sio_tcp_status()
   byte status[4];
   byte ck;
 
-  available=sioclient.available();
+  available=fifo.size();
   
   status[0] = available & 0xFF;
   status[1] = available >> 8;
@@ -836,11 +841,16 @@ void loop()
   }
 #endif
 
-  if (sioclient.connected() && (sioclient.available()>0) && (digitalRead(PIN_PROC)==HIGH))
+  if (sioclient.connected() && (sioclient.available()>0))
   {
+    while (sioclient.available())
+    {
+      fifo.push(sioclient.read());
+      yield();  
+    }
     digitalWrite(PIN_PROC,LOW);
   }
-  else if (sioclient.connected() && (sioclient.available()==0) && (digitalRead(PIN_PROC)==LOW))
+  else if (sioclient.connected() && (sioclient.available()==0))
   {
     digitalWrite(PIN_PROC,HIGH);  
   }
