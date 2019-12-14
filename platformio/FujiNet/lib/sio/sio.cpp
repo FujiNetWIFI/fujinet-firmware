@@ -159,7 +159,7 @@ void sioDevice::sio_status()
 
   ck = sio_checksum((byte *)&status, 4);
 
-  delayMicroseconds(1500); // t5 delay
+  delayMicroseconds(DELAY_T5); // t5 delay
   SIO_UART.write('C');     // Command always completes.
   SIO_UART.flush();
   delayMicroseconds(200);
