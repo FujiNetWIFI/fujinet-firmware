@@ -2,6 +2,7 @@
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
 #include "sio.h"
+#include "disk.h"
 #include "tnfs.h"
 // #ifdef ESP_8266
 // #include <FS.h>
@@ -21,8 +22,7 @@
 
 File atr;
 File tnfs;
-sioDevice sioD1;
-
+sioDisk sioD1(0x31);
 
 void setup()
 {
@@ -45,9 +45,10 @@ void setup()
   atr = SPIFFS.open("/autorun.atr", "r+");
 
   TNFS.begin(TNFS_SERVER,TNFS_PORT);
-  tnfs = TNFS.open("/autorun.atr","r+");
+  tnfs = TNFS.open("/miner.atr","r");
 
-  sioD1.setup(&tnfs);
+  sioD1.mount(&tnfs);
+  SIO.setup();
 }
 
 void loop()
