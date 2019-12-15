@@ -40,8 +40,9 @@ void sioDevice::sio_get_id()
 void sioDevice::sio_get_command()
 {
   cmdFrame.comnd = SIO_UART.read();
+  cmdState = AUX1;
   //if (cmdFrame.comnd == 'S' && statusSkipCount >= STATUS_SKIP)
-    cmdState = AUX1;
+  //  cmdState = AUX1;
   // else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
   // {
   //   statusSkipCount++;
@@ -131,21 +132,21 @@ void sioDevice::sio_write()
   offset *= 128;
   offset -= 128;
   offset += 16; // skip 16 byte ATR Header
-  _file->seek(offset); //SeekSet is default
+  _file->seek(offset);
 
 #ifdef DEBUG_S
-  Serial1.printf("receiving 128b data frame from computer.\n");
+  BUG_UART.printf("receiving 128b data frame from computer.\n");
 #endif
 
-  Serial.readBytes(sector,128);
-  ck=Serial.read(); // Read checksum
+  SIO_UART.readBytes(sector,128);
+  ck=SIO_UART.read(); // Read checksum
   //delayMicroseconds(350);
-  Serial.write('A'); // Write ACK
+  SIO_UART.write('A'); // Write ACK
   
   if (ck==sio_checksum(sector,128))
   {
     delayMicroseconds(DELAY_T5);
-    Serial.write('C');
+    SIO_UART.write('C');
     _file->write(sector,128);
     yield();
   }

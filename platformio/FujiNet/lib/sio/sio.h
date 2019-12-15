@@ -30,7 +30,7 @@
 #include <SPIFFS.h>
 #endif
 
-#define DELAY_T5 600
+#define DELAY_T5 1500
 #define READ_CMD_TIMEOUT 12
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
