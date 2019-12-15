@@ -13,7 +13,7 @@
 //#ifdef ESP_8266
 //#include <ESP8266WiFi.h>
 //#elif defined(ESP_32)
-#include <Wifi.h>
+#include <WiFi.h>
 //#endif
 
 #define TNFS_SERVER "192.168.1.11"
