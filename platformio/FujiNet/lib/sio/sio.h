@@ -44,6 +44,7 @@ class sioDevice
 {
 private:
    File *_file;
+   int _devnum=0x31;
 
    enum
    {
@@ -91,6 +92,9 @@ private:
    void sio_incoming();
 
 public:
+   sioDevice();
+   ~sioDevice() {};
+   void setup(File *f, int devNum);
    void setup(File *f);
    void handle();
 };

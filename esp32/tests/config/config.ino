@@ -1,6 +1,7 @@
 /**
    Test #19 - Config Program, try 2
 */
+#define ESP32
 
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
@@ -16,7 +17,7 @@
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug UART
-//#define DEBUG_S
+#define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -330,6 +331,9 @@ void sio_set_ssid()
   {
     delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
+ #ifdef DEBUG_S
+  Debug_printf("connecting to %s with %s.\n", netConfig.ssid, netConfig.password);
+#endif
     WiFi.begin(netConfig.ssid, netConfig.password);
     UDP.begin(16384);
     yield();
@@ -1270,7 +1274,7 @@ void setup()
   SPIFFS.begin();
   atr = SPIFFS.open("/autorun.atr", "r+");
 #ifdef DEBUG_S
-  BUG_UART.begin(19200);
+  BUG_UART.begin(115200);
   Debug_println();
   Debug_println("#FujiNet CIO Test #16 started");
 #endif
