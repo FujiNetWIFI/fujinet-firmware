@@ -1,8 +1,6 @@
 #ifndef SIO_H
 #define SIO_H
 #include <Arduino.h>
-//#include "disk.h"
-//#include "tnfs.h"
 
 // pin configurations
 // esp8266
@@ -36,8 +34,7 @@ void ICACHE_RAM_ATTR sio_isr_cmd();
 class sioDevice
 {
 protected:
-   // File *_file;
-   int _devnum = 0x31;
+   int _devnum;
 
    enum
    {
@@ -65,32 +62,32 @@ protected:
    } cmdFrame;
 
    unsigned long cmdTimer = 0;
-   // byte statusSkipCount = 0;
-
-   // byte sector[128];
 
    byte sio_checksum(byte *chunk, int length);
    void sio_get_id();
    void sio_get_command();
    void sio_get_aux1();
    void sio_get_aux2();
-   //void sio_read();
-   //void sio_write();
-   //void sio_format();
-   virtual void sio_status();
-   virtual void sio_process();
    void sio_ack();
    void sio_nak();
    void sio_get_checksum();
+   virtual void sio_status();
+   virtual void sio_process();
    void sio_incoming();
 
 public:
-   sioDevice(){};
-   sioDevice(int devnum) : _devnum(devnum){};
-   //~sioDevice() {};
-   // void setup(File *f);
-   void setup();
+   sioDevice() : cmdState(WAIT){};
+   sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
    void handle();
 };
+
+class sioBus
+{
+public:
+   void setup();
+   void addDevice(sioDevice *p);
+};
+
+extern sioBus SIO;
 
 #endif // guard

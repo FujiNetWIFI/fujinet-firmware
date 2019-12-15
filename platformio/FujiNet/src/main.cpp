@@ -24,7 +24,6 @@ File atr;
 File tnfs;
 sioDisk sioD1(0x31);
 
-
 void setup()
 {
 #ifdef DEBUG_S
@@ -46,10 +45,10 @@ void setup()
   atr = SPIFFS.open("/autorun.atr", "r+");
 
   TNFS.begin(TNFS_SERVER,TNFS_PORT);
-  tnfs = TNFS.open("/miner.atr","r+");
+  tnfs = TNFS.open("/miner.atr","r");
 
   sioD1.mount(&tnfs);
-  sioD1.setup();
+  SIO.setup();
 }
 
 void loop()
