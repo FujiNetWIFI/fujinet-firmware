@@ -36,7 +36,7 @@ ASFLAGS =
 # Additional linker flags and options.
 # Default: none
 LDFLAGS = $(LDFLAGS.$(TARGETS))
-LDFLAGS.atari = -D__SYSTEM_CHECK__=1 --mapfile config.map
+LDFLAGS.atari = --mapfile config.map
  
 # Path to the directory containing C and ASM sources.
 # Default: src

@@ -291,15 +291,20 @@ void sio_set_ssid()
   byte ck;
 
   Serial.readBytes(netConfig.rawData, 96);
+  while (Serial.available()==0) { delayMicroseconds(200); }
   ck = Serial.read(); // Read checksum
   Serial.write('A'); // Write ACK
 
   if (ck == sio_checksum(netConfig.rawData, 96))
   {
-    delayMicroseconds(DELAY_T5);
     Serial.write('C');
     WiFi.begin(netConfig.ssid, netConfig.password);
     yield();
+  }
+  else
+  {
+    Serial.write('E');
+    yield();      
   }
 }
 
@@ -349,28 +354,33 @@ void sio_write()
 #endif
 
   Serial.readBytes(sector, 128);
+  while (Serial.available()==0) { delayMicroseconds(200); }  
   ck = Serial.read(); // Read checksum
-  //delayMicroseconds(350);
   Serial.write('A'); // Write ACK
 
   if (ck == sio_checksum(sector, 128))
   {
-    delayMicroseconds(DELAY_T5);
-
     if (atr_fd == 0xFF)
     {
       atr.seek(offset, SeekSet);
       atr.write(sector, 128);
       atr.flush();
+      yield();
     }
     else
     {
       tictactoe.seek(offset, SeekSet);
       tictactoe.write(sector, 128);
       tictactoe.flush();
+      yield();
     }
     Serial.write('C');
     yield();
+  }
+  else
+  {
+    Serial.write('E');
+    yield();  
   }
 }
 
@@ -579,6 +589,7 @@ void sio_udp_write()
   int packetSize = (256 * cmdFrame.aux2) + cmdFrame.aux1;
 
   Serial.readBytes(udpPacket, packetSize);
+  while (Serial.available()==0) { delayMicroseconds(200); }
   ck = Serial.read(); // Read checksum
 
   if (ck == sio_checksum(udpPacket, packetSize))
@@ -593,6 +604,7 @@ void sio_udp_write()
   else
   {
     Serial.write('N');
+    yield();
     return;
   }
 #ifdef DEBUG
@@ -615,6 +627,7 @@ void sio_udp_connect()
   byte tmp[64];
 
   Serial.readBytes(tmp, packetSize);
+  while (Serial.available()==0) { delayMicroseconds(200); }
   ck = Serial.read(); // Read checksum
 
   if (ck == sio_checksum(tmp, packetSize))
@@ -628,6 +641,7 @@ void sio_udp_connect()
   else
   {
     Serial.write('N');
+    yield();
     return;
   }
 #ifdef DEBUG
