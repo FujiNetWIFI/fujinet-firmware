@@ -677,7 +677,7 @@ void setup()
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
 
-  WiFi.begin("FiOS-VSCMK", "chocolate314");
+  WiFi.begin("SSID", "password");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(10);
