@@ -313,10 +313,9 @@ void sioDevice::sio_incoming()
 }
 
 // setup disk device pointing to a file
-void sioDevice::setup(File *f, int devNum)
+void sioDevice::setup(File *f)
 {
   _file = f;
-  _devnum = devNum;
 
   // Set up serial
   SIO_UART.begin(19200);
@@ -333,11 +332,6 @@ void sioDevice::setup(File *f, int devNum)
   //attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, CHANGE);
   attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
   cmdState = WAIT; // Start in wait state
-}
-
-void sioDevice::setup(File *f)
-{
-  setup(f, _devnum);
 }
 
 // periodically handle the sioDevice in the loop()

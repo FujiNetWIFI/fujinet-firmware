@@ -92,9 +92,9 @@ private:
    void sio_incoming();
 
 public:
-   sioDevice();
-   ~sioDevice() {};
-   void setup(File *f, int devNum);
+   sioDevice() {};
+   sioDevice(int devnum) : _devnum(devnum) {};
+   //~sioDevice() {};
    void setup(File *f);
    void handle();
 };
