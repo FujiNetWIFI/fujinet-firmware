@@ -72,7 +72,7 @@ private:
    } cmdFrame;
 
    unsigned long cmdTimer = 0;
-   byte statusSkipCount = 0;
+   // byte statusSkipCount = 0;
 
    byte sector[128];
 
@@ -92,8 +92,8 @@ private:
    void sio_incoming();
 
 public:
-   sioDevice();
-   ~sioDevice() {};
+   //sioDevice();
+   //~sioDevice() {};
    void setup(File *f, int devNum);
    void setup(File *f);
    void handle();
