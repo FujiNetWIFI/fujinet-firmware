@@ -72,7 +72,7 @@ private:
    } cmdFrame;
 
    unsigned long cmdTimer = 0;
-   byte statusSkipCount = 0;
+   // byte statusSkipCount = 0;
 
    byte sector[128];
 

@@ -22,9 +22,7 @@ class TNFSFileImpl;
 
 class TNFSImpl : public FSImpl
 {
-/*
-This class implements the physical interface for built-in functions in FS.h
-*/
+//This class implements the physical interface for built-in functions in FS.h
 protected:
     friend class TNFSFileImpl;
 
@@ -41,9 +39,7 @@ public:
 
 class TNFSFileImpl : public FileImpl
 {
-/*
-This class implements the physical interface for built-in functions in the File class defined in FS.h
-*/
+//This class implements the physical interface for built-in functions in the File class defined in FS.h
 
 protected:
     TNFSImpl *_fs;
