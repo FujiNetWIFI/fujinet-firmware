@@ -2,8 +2,6 @@
 #define SIO_H
 #include <Arduino.h>
 
-#include "tnfs.h"
-
 // pin configurations
 // esp8266
 #ifdef ESP_8266
@@ -23,13 +21,6 @@
 #define PIN_CMD 21
 #endif
 
-#ifdef ESP_8266
-#include <FS.h>
-#define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
-#elif defined(ESP_32)
-#include <SPIFFS.h>
-#endif
-
 #define DELAY_T5 1500
 #define READ_CMD_TIMEOUT 12
 #define CMD_TIMEOUT 50
@@ -42,9 +33,8 @@ void ICACHE_RAM_ATTR sio_isr_cmd();
 
 class sioDevice
 {
-private:
-   File *_file;
-   int _devnum=0x31;
+protected:
+   int _devnum;
 
    enum
    {
@@ -72,31 +62,32 @@ private:
    } cmdFrame;
 
    unsigned long cmdTimer = 0;
-   byte statusSkipCount = 0;
-
-   byte sector[128];
 
    byte sio_checksum(byte *chunk, int length);
    void sio_get_id();
    void sio_get_command();
    void sio_get_aux1();
    void sio_get_aux2();
-   void sio_read();
-   void sio_write();
-   void sio_format();
-   void sio_status();
-   void sio_process();
    void sio_ack();
    void sio_nak();
    void sio_get_checksum();
+   virtual void sio_status();
+   virtual void sio_process();
    void sio_incoming();
 
 public:
-   sioDevice();
-   ~sioDevice() {};
-   void setup(File *f, int devNum);
-   void setup(File *f);
+   sioDevice() : cmdState(WAIT){};
+   sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
    void handle();
 };
+
+class sioBus
+{
+public:
+   void setup();
+   void addDevice(sioDevice *p);
+};
+
+extern sioBus SIO;
 
 #endif // guard
