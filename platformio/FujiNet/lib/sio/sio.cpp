@@ -41,22 +41,6 @@ void sioDevice::sio_get_command()
 {
   cmdFrame.comnd = SIO_UART.read();
   cmdState = AUX1;
-  //if (cmdFrame.comnd == 'S' && statusSkipCount >= STATUS_SKIP)
-  //  cmdState = AUX1;
-  // else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
-  // {
-  //   statusSkipCount++;
-  //   cmdState = WAIT;
-  //   cmdTimer = 0;
-  // }
-  // else if (cmdFrame.comnd == 'R')
-  //   cmdState = AUX1;
-  // else
-  // {
-  //   cmdState = WAIT;
-  //   cmdTimer = 0;
-  // }
-
 #ifdef DEBUG_S
   BUG_UART.print("CMD CMND: ");
   BUG_UART.println(cmdFrame.comnd, HEX);
@@ -95,17 +79,11 @@ void sioDevice::sio_read()
   offset *= 128;
   offset -= 128;
   offset += 16; // skip 16 byte ATR Header
-  //atr.seek(offset, SeekSet);
-  //atr.read(sector, 128);
   _file->seek(offset); //SeekSet is default
   _file->read(sector, 128);
 
-  //myTNFS.seek(offset);
-  //myTNFS.read(sector,128);
-
   ck = sio_checksum((byte *)&sector, 128);
-
-  delayMicroseconds(1500); // t5 delay
+  delayMicroseconds(DELAY_T5); // t5 delay
   SIO_UART.write('C');     // Completed command
   SIO_UART.flush();
 
