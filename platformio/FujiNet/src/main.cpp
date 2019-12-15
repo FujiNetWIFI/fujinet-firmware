@@ -13,10 +13,10 @@
 //#ifdef ESP_8266
 //#include <ESP8266WiFi.h>
 //#elif defined(ESP_32)
-#include <Wifi.h>
+#include <WiFi.h>
 //#endif
 
-#define TNFS_SERVER "mozzwald.com"
+#define TNFS_SERVER "192.168.1.11"
 #define TNFS_PORT 16384
 
 File atr;
@@ -42,10 +42,10 @@ void setup()
   }
   
   SPIFFS.begin();
-  atr = SPIFFS.open("/autorun.atr", "r");
+  atr = SPIFFS.open("/autorun.atr", "r+");
 
   TNFS.begin(TNFS_SERVER,TNFS_PORT);
-  tnfs = TNFS.open("/autorun.atr","r");
+  tnfs = TNFS.open("/autorun.atr","r+");
 
   sioD1.setup(&tnfs);
 }

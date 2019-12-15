@@ -6,7 +6,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
-#define TNFS_SERVER "192.168.1.114"
+#define TNFS_SERVER "192.168.1.11"
 #define TNFS_PORT 16384
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
@@ -677,7 +677,7 @@ void setup()
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
 
-  WiFi.begin("SSID", "PASSWORD");
+  WiFi.begin("SSID", "password");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(10);

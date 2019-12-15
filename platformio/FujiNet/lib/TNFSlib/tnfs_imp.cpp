@@ -99,13 +99,16 @@ TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd, String host, int port) : _fs(f
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 {
-  return size;
+    BUG_UART.println("calling tnfs_write");
+    tnfs_write(_host, _port, _fd, buf, size);
+    return size;
 }
 
 size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
 {
   BUG_UART.println("calling tnfs_read");
   int ret = tnfs_read(_host, _port, _fd, size);
+  // move this part into tnfs_read and pass a buffer instead
   if (size == ret)
   {
     for (int i = 0; i < size; i++)
