@@ -22,7 +22,7 @@ byte sioDevice::sio_checksum(byte *chunk, int length)
 void sioDevice::sio_get_id()
 {
   cmdFrame.devic = SIO_UART.read();
-  if (cmdFrame.devic == 0x31)
+  if (cmdFrame.devic == _devnum)
     cmdState = COMMAND;
   else
   {
@@ -40,22 +40,7 @@ void sioDevice::sio_get_id()
 void sioDevice::sio_get_command()
 {
   cmdFrame.comnd = SIO_UART.read();
-  //if (cmdFrame.comnd == 'S' && statusSkipCount >= STATUS_SKIP)
-    cmdState = AUX1;
-  // else if (cmdFrame.comnd == 'S' && statusSkipCount < STATUS_SKIP)
-  // {
-  //   statusSkipCount++;
-  //   cmdState = WAIT;
-  //   cmdTimer = 0;
-  // }
-  // else if (cmdFrame.comnd == 'R')
-  //   cmdState = AUX1;
-  // else
-  // {
-  //   cmdState = WAIT;
-  //   cmdTimer = 0;
-  // }
-
+  cmdState = AUX1;
 #ifdef DEBUG_S
   BUG_UART.print("CMD CMND: ");
   BUG_UART.println(cmdFrame.comnd, HEX);
@@ -84,147 +69,6 @@ void sioDevice::sio_get_aux2()
   BUG_UART.print("CMD AUX2: ");
   BUG_UART.println(cmdFrame.aux2, HEX);
 #endif
-}
-
-// Read
-void sioDevice::sio_read()
-{
-  byte ck;
-  int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  offset *= 128;
-  offset -= 128;
-  offset += 16; // skip 16 byte ATR Header
-  //atr.seek(offset, SeekSet);
-  //atr.read(sector, 128);
-  _file->seek(offset); //SeekSet is default
-  _file->read(sector, 128);
-
-  //myTNFS.seek(offset);
-  //myTNFS.read(sector,128);
-
-  ck = sio_checksum((byte *)&sector, 128);
-
-  delayMicroseconds(1500); // t5 delay
-  SIO_UART.write('C');     // Completed command
-  SIO_UART.flush();
-
-  // Write data frame
-  SIO_UART.write(sector, 128);
-
-  // Write data frame checksum
-  SIO_UART.write(ck);
-  SIO_UART.flush();
-  delayMicroseconds(200);
-#ifdef DEBUG_S
-  BUG_UART.print("SIO READ OFFSET: ");
-  BUG_UART.print(offset);
-  BUG_UART.print(" - ");
-  BUG_UART.println((offset + 128));
-#endif
-}
-
-// write for W & P commands
-void sioDevice::sio_write()
-{
-  byte ck;
-  int offset =(256 * cmdFrame.aux2)+cmdFrame.aux1;
-  offset *= 128;
-  offset -= 128;
-  offset += 16; // skip 16 byte ATR Header
-  _file->seek(offset); //SeekSet is default
-
-#ifdef DEBUG_S
-  Serial1.printf("receiving 128b data frame from computer.\n");
-#endif
-
-  Serial.readBytes(sector,128);
-  ck=Serial.read(); // Read checksum
-  //delayMicroseconds(350);
-  Serial.write('A'); // Write ACK
-  
-  if (ck==sio_checksum(sector,128))
-  {
-    delayMicroseconds(DELAY_T5);
-    Serial.write('C');
-    _file->write(sector,128);
-    yield();
-  }
-}
-
-// Status
-void sioDevice::sio_status()
-{
-  byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
-  byte ck;
-
-  ck = sio_checksum((byte *)&status, 4);
-
-  delayMicroseconds(1500); // t5 delay
-  SIO_UART.write('C');     // Command always completes.
-  SIO_UART.flush();
-  delayMicroseconds(200);
-  //delay(1);
-
-  // Write data frame
-  for (int i = 0; i < 4; i++)
-    SIO_UART.write(status[i]);
-
-  // Write checksum
-  SIO_UART.write(ck);
-  SIO_UART.flush();
-  delayMicroseconds(200);
-}
-
-// fake disk format
-void sioDevice::sio_format()
-{
-  byte ck;
-
-  for (int i=0;i<128;i++)
-    sector[i]=0;
-
-  sector[0]=0xFF; // no bad sectors.
-  sector[1]=0xFF;
-
-  ck = sio_checksum((byte *)&sector, 128);
-
-  delayMicroseconds(DELAY_T5); // t5 delay
-  Serial.write('C'); // Completed command
-  Serial.flush();
-
-  // Write data frame
-  Serial.write(sector,128);
-    
-  // Write data frame checksum
-  Serial.write(ck);
-  Serial.flush();
-  delayMicroseconds(200);
-#ifdef DEBUG_S
-  Serial1.printf("We faked a format.\n");
-#endif
-}
-
-// Process command
-void sioDevice::sio_process()
-{
-  switch (cmdFrame.comnd)
-  {
-    case 'R':
-      sio_read();
-      break;
-    case 'W':
-    case 'P':
-      sio_write();
-      break;
-    case 'S':
-      sio_status();
-      break;
-    case '!':
-      sio_format();
-      break;
-  }
-  cmdState = WAIT;
-  cmdTimer = 0;
 }
 
 // Send an acknowledgement
@@ -311,28 +155,6 @@ void sioDevice::sio_incoming()
   }
 }
 
-// setup disk device pointing to a file
-void sioDevice::setup(File *f)
-{
-  _file = f;
-
-  // Set up serial
-  SIO_UART.begin(19200);
-#ifdef ESP_8266
-  SIO_UART.swap();
-#endif
-
-  pinMode(PIN_INT, INPUT);
-  pinMode(PIN_PROC, INPUT);
-  pinMode(PIN_MTR, INPUT_PULLDOWN);
-  pinMode(PIN_CMD, INPUT);
-
-  // Attach COMMAND interrupt.
-  //attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
-  cmdState = WAIT; // Start in wait state
-}
-
 // periodically handle the sioDevice in the loop()
 void sioDevice::handle()
 {
@@ -361,3 +183,23 @@ void sioDevice::handle()
     cmdTimer = 0;
   }
 }
+
+// setup SIO bus
+void sioBus::setup()
+{
+  // Set up serial
+  SIO_UART.begin(19200);
+#ifdef ESP_8266
+  SIO_UART.swap();
+#endif
+
+  pinMode(PIN_INT, INPUT_PULLUP);
+  pinMode(PIN_PROC, INPUT_PULLUP);
+  pinMode(PIN_MTR, INPUT_PULLDOWN);
+  pinMode(PIN_CMD, INPUT_PULLUP);
+
+  // Attach COMMAND interrupt.
+  attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
+}
+
+sioBus SIO;
