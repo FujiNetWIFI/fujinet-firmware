@@ -156,7 +156,7 @@ void sioDevice::sio_incoming()
 }
 
 // periodically handle the sioDevice in the loop()
-void sioDevice::handle()
+void sioDevice::service()
 {
   if (cmdFlag)
   {
@@ -204,15 +204,7 @@ void sioBus::setup()
 
 void sioBus::addDevice(sioDevice *p)
 {
-  // create a new connection
-  if (head == nullptr) 
-  {
-    // point head to it
-  }
-  else
-  {
-    // find the last connection
-    // and point it at the new one
-  }
+  // insert a new connection into the list
+  daisyChain.add(p);
 }
 sioBus SIO;
