@@ -79,6 +79,7 @@ public:
    sioDevice() : cmdState(WAIT){};
    sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
    void handle();
+   int id() { return _devnum; };
 };
 
 class sioBus
