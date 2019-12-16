@@ -2,6 +2,8 @@
 #define SIO_H
 #include <Arduino.h>
 
+#include "LinkedList.h"
+
 // pin configurations
 // esp8266
 #ifdef ESP_8266
@@ -78,20 +80,20 @@ protected:
 public:
    sioDevice() : cmdState(WAIT){};
    sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
-   void handle();
+   void service();
    int id() { return _devnum; };
 };
 
 class sioBus
 {
-private:
-   struct connection
-   {
-      int id;
-      sioDevice *devPtr;
-      connection *next;
-   };
-   connection *head = nullptr;
+// private:
+//    struct connection
+//    {
+//       int id;
+//       sioDevice *devPtr;
+//    };
+
+LinkedList<sioDevice*> daisyChain = LinkedList<sioDevice*>();
 
 public:
    void setup();
