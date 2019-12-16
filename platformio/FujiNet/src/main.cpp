@@ -22,7 +22,7 @@
 
 File atr;
 File tnfs;
-sioDisk sioD1(0x31);
+sioDisk sioD1(0x31,String("D1:"));
 
 void setup()
 {
@@ -53,5 +53,5 @@ void setup()
 
 void loop()
 {
-  sioD1.handle();
+  sioD1.service();
 }
