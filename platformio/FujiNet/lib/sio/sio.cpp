@@ -77,8 +77,8 @@ void sioDevice::sio_ack()
   delayMicroseconds(500);
   SIO_UART.write('A');
   SIO_UART.flush();
-  //cmdState = PROCESS;
-  sio_process();
+  //cmdState = PROCESS; 
+  sio_process(); // why skip state machine update and just jump from here?
 }
 
 // Send a non-acknowledgement
@@ -145,7 +145,7 @@ void sioDevice::sio_incoming()
   case NAK:
     sio_nak();
     break;
-  case PROCESS:
+  case PROCESS: // state not sued
     sio_process();
     break;
   case WAIT:
@@ -202,4 +202,8 @@ void sioBus::setup()
   attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
 }
 
+void sioBus::addDevice(sioDevice *p)
+{
+  
+}
 sioBus SIO;
