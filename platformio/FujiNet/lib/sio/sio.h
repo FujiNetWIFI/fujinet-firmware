@@ -47,7 +47,7 @@ protected:
       NAK,
       PROCESS,
       WAIT
-   } cmdState;
+   } cmdState; // PROCESS state not used
 
    union {
       struct
@@ -83,6 +83,15 @@ public:
 
 class sioBus
 {
+private:
+   struct connection
+   {
+      int id;
+      sioDevice *devPtr;
+      connection *next;
+   };
+   connection *head = nullptr;
+
 public:
    void setup();
    void addDevice(sioDevice *p);
