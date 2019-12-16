@@ -3,6 +3,7 @@
 WiFiUDP UDP;
 // byte tnfs_fd;
 tnfsPacket_t tnfsPacket;
+//byte sector[128];
 int dataidx = 0;
 
 void str2packet(String S)
@@ -209,6 +210,37 @@ int tnfs_open(String host, int port, String filename, byte flag_lsb, byte flag_m
   return -0x30;
 }
 
+/*
+READ - Reads from a file - Command 0x21
+---------------------------------------
+Reads a block of data from a file. Consists of the standard header
+followed by the file descriptor as returned by OPEN, then a 16 bit
+little endian integer specifying the size of data that is requested.
+
+The server will only reply with as much data as fits in the maximum
+TNFS datagram size of 1K when using UDP as a transport. For the
+TCP transport, sequencing and buffering etc. are just left up to
+the TCP stack, so a READ operation can return blocks of up to 64K. 
+
+If there is less than the size requested remaining in the file, 
+the server will return the remainder of the file.  Subsequent READ 
+commands will return the code EOF.
+
+Examples:
+Read from fd 4, maximum 256 bytes:
+
+0xBEEF 0x00 0x21 0x04 0x00 0x01
+
+The server will reply with the standard header, followed by the single
+byte return code, the actual amount of bytes read as a 16 bit unsigned
+little endian value, then the data, for example, 256 bytes:
+
+0xBEEF 0x00 0x21 0x00 0x00 0x01 ...data...
+
+End-of-file reached:
+
+0xBEEF 0x00 0x21 0x21
+*/
 int tnfs_read(String host, int port, byte fd, size_t size)
 {
   int start = millis();
@@ -275,6 +307,118 @@ int tnfs_read(String host, int port, byte fd, size_t size)
   return -1;
 }
 
+/*
+WRITE - Writes to a file - Command 0x22
+---------------------------------------
+Writes a block of data to a file. Consists of the standard header,
+followed by the file descriptor, followed by a 16 bit little endian
+value containing the size of the data, followed by the data. The
+entire message must fit in a single datagram.
+
+Examples:
+Write to fd 4, 256 bytes of data:
+
+0xBEEF 0x00 0x22 0x04 0x00 0x01 ...data...
+
+The server replies with the standard header, followed by the return
+code, and the number of bytes actually written. For example:
+
+0xBEEF 0x00 0x22 0x00 0x00 0x01 - Successful write of 256 bytes
+0xBEEF 0x00 0x22 0x06 - Failed write, error is "bad file descriptor"
+*/
+
+void tnfs_write(String host, int port, byte fd, const uint8_t *sector, size_t size)
+{
+  int start=millis();
+  int dur=millis()-start;
+  tnfsPacket.retryCount++;  // Increase sequence
+  tnfsPacket.command=0x22;  // WRITE
+  tnfsPacket.data[0]=fd; // returned file descriptor
+  tnfsPacket.data[1] = byte(size & 0xff); // size lsb
+  tnfsPacket.data[2] = byte(size >> 8);   // size msb
+
+#ifdef DEBUG_S
+  BUG_UART.print("Writing to File descriptor: ");
+  BUG_UART.println(fd);
+  BUG_UART.print("Req Packet: ");
+  for (int i=0;i<7;i++)
+  {
+    BUG_UART.print(tnfsPacket.rawData[i], HEX);
+    BUG_UART.print(" ");
+  }
+  BUG_UART.println("");
+#endif /* DEBUG_S */
+
+  UDP.beginPacket(host.c_str(),port);
+  UDP.write(tnfsPacket.rawData,4+3);
+  UDP.write(sector,size);
+  UDP.endPacket();
+
+  while (dur<5000)
+  {
+    yield();
+    if (UDP.parsePacket())
+    {
+      int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
+#ifdef DEBUG_S
+      BUG_UART.print("Resp packet: ");
+      for (int i=0;i<l;i++)
+      {
+        BUG_UART.print(tnfsPacket.rawData[i], HEX);
+        BUG_UART.print(" ");
+      }
+      BUG_UART.println("");
+#endif /* DEBUG_S */
+      if (tnfsPacket.data[0]==0x00)
+      {
+        // Successful
+#ifndef DEBUG_S
+        BUG_UART.println("Successful.");
+#endif /* DEBUG_S */
+        return;
+      }
+      else
+      {
+        // Error
+#ifdef DEBUG_S
+        BUG_UART.print("Error code #");
+        BUG_UART.println(tnfsPacket.data[0], HEX);
+#endif /* DEBUG_S*/        
+        return;
+      }
+    }
+  }
+#ifdef DEBUG_S
+  BUG_UART.println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+}
+
+
+/*
+LSEEK - Seeks to a new position in a file - Command 0x25
+--------------------------------------------------------
+Seeks to an absolute position in a file, or a relative offset in a file,
+or to the end of a file.
+The request consists of the header, followed by the file descriptor,
+followed by the seek type (SEEK_SET, SEEK_CUR or SEEK_END), followed
+by the position to seek to. The seek position is a signed 32 bit integer,
+little endian. (2GB file sizes should be more than enough for 8 bit
+systems!)
+
+The seek types are defined as follows:
+0x00            SEEK_SET - Go to an absolute position in the file
+0x01            SEEK_CUR - Go to a relative offset from the current position
+0x02            SEEK_END - Seek to EOF
+
+Example:
+
+File descriptor is 4, type is SEEK_SET, and position is 0xDEADBEEF:
+0xBEEF 0x00 0x25 0x04 0x00 0xEF 0xBE 0xAD 0xDE
+
+Note that clients that buffer reads for single-byte reads will have
+to make a calculation to implement SEEK_CUR correctly since the server's
+file pointer will be wherever the last read block made it end up.
+*/
 void tnfs_seek(String host, int port, byte fd, uint32_t offset)
 {
   int start = millis();
