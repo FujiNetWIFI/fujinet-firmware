@@ -37,7 +37,6 @@ class sioDevice
 {
 protected:
    int _devnum;
-   String _name;
 
    enum
    {
@@ -50,7 +49,7 @@ protected:
       NAK,
       PROCESS,
       WAIT
-   } cmdState = WAIT; // PROCESS state not used
+   } cmdState; // PROCESS state not used
 
    union {
       struct
@@ -79,25 +78,26 @@ protected:
    void sio_incoming();
 
 public:
-   //sioDevice(){}; // : cmdState(WAIT){};
-   sioDevice(int devnum, String name = "") : _devnum(devnum), _name(name), cmdState(WAIT){};
-   ~sioDevice(){};
+   sioDevice() : cmdState(WAIT){};
+   sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
    void service();
    int id() { return _devnum; };
-   String name() {return _name; };
 };
 
 class sioBus
 {
-private:
-   LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
+// private:
+//    struct connection
+//    {
+//       int id;
+//       sioDevice *devPtr;
+//    };
 
+LinkedList<sioDevice*> daisyChain = LinkedList<sioDevice*>();
 
 public:
    void setup();
    void addDevice(sioDevice *p);
-   sioDevice *devPtr(int i);
-   int numDev();
 };
 
 extern sioBus SIO;
