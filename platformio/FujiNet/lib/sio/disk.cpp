@@ -97,18 +97,18 @@ void sioDisk::sio_format()
   ck = sio_checksum((byte *)&sector, 128);
 
   delayMicroseconds(DELAY_T5); // t5 delay
-  Serial.write('C');           // Completed command
-  Serial.flush();
+  SIO_UART.write('C');           // Completed command
+  SIO_UART.flush();
 
   // Write data frame
-  Serial.write(sector, 128);
+  SIO_UART.write(sector, 128);
 
   // Write data frame checksum
-  Serial.write(ck);
-  Serial.flush();
+  SIO_UART.write(ck);
+  SIO_UART.flush();
   delayMicroseconds(200);
 #ifdef DEBUG_S
-  Serial1.printf("We faked a format.\n");
+  BUG_UART.printf("We faked a format.\n");
 #endif
 }
 

@@ -35,7 +35,7 @@ void ICACHE_RAM_ATTR sio_isr_cmd();
 class sioDevice
 {
 protected:
-   int _devnum;
+   int _devnum = 0x31;
 
    enum
    {
