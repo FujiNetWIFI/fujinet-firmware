@@ -204,15 +204,6 @@ void sioBus::setup()
 
 void sioBus::addDevice(sioDevice *p)
 {
-  // create a new connection
-  if (head == nullptr) 
-  {
-    // point head to it
-  }
-  else
-  {
-    // find the last connection
-    // and point it at the new one
-  }
+  
 }
 sioBus SIO;
