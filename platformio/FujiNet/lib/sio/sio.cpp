@@ -78,7 +78,7 @@ void sioDevice::sio_ack()
   SIO_UART.write('A');
   SIO_UART.flush();
   //cmdState = PROCESS;
-  sio_process();
+  sio_process(); // why skip state machine update and just jump from here?
 }
 
 // Send a non-acknowledgement
@@ -145,7 +145,7 @@ void sioDevice::sio_incoming()
   case NAK:
     sio_nak();
     break;
-  case PROCESS:
+  case PROCESS: // state not sued
     sio_process();
     break;
   case WAIT:
@@ -156,7 +156,21 @@ void sioDevice::sio_incoming()
 }
 
 // periodically handle the sioDevice in the loop()
-void sioDevice::handle()
+// how to capture command ID from the bus and hand off to the correct device? Right now ...
+// when we detect the CMD_PIN active low, we set the state machine to ID, start the command timer,
+// then if there's serial data, we go to sio_get_id() by way of sio_incoming().
+// then we check the ID and if it's right, we jump to COMMAND state, return and move on.
+// Also, during WAIT we toss UART data.
+//
+// so ...
+//
+// we move the CMD_PIN handling and sio_get_id() to the sioBus class, grab the ID, start the command timer,
+// then search through the daisyChain for a matching ID. Once we find an ID, we set it's sioDevice cmdState to COMMAND.
+// We change service() so it only reads the SIO_UART when cmdState != WAIT.
+// or rather, only call sioDevice->service() when sioDevice-state() != WAIT.
+// if no device is != WAIT, we toss the SIO_UART byte.
+// Maybe we have a BUSY state for the sioBus that's an OR of all the cmdState != WAIT.
+void sioDevice::service()
 {
   if (cmdFlag)
   {
@@ -202,4 +216,7 @@ void sioBus::setup()
   attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
 }
 
+void sioBus::addDevice(sioDevice *p)
+{
+}
 sioBus SIO;
