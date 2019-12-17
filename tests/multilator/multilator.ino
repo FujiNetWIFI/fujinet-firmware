@@ -109,6 +109,12 @@ WiFiClient wificlient;
 
 char packet[256];
 
+union
+{
+  unsigned char host[8][32];
+  unsigned char rawData[256];
+} hostSlots;
+
 #ifdef DEBUG
 #define Debug_print(...) Debug_print( __VA_ARGS__ )
 #define Debug_printf(...) Debug_printf( __VA_ARGS__ )
@@ -594,10 +600,43 @@ void sio_process()
     case 0xF5:
       sio_close_tnfs_directory();
       break;
+    case 0xF4:
+      sio_read_hosts_slots();
+      break;
   }
 
   cmdState = WAIT;
   cmdTimer = 0;
+}
+
+/**
+ * Read hosts slots
+ */
+void sio_read_hosts_slots()
+{
+  byte ck;
+
+  // Temporary, set some hosts until I get host slot saving implemented
+  strcpy((char *)hostSlots.host[0],"mozzwald.com");
+  strcpy((char *)hostSlots.host[1],"tnfs.atari8bit.net");
+  strcpy((char *)hostSlots.host[2],"192.168.1.7");
+
+  ck = sio_checksum((byte *)&hostSlots.rawData, 256);
+
+  delayMicroseconds(DELAY_T5); // t5 delay
+  Serial.write('C'); // Command always completes.
+  Serial.flush();
+  delayMicroseconds(200);
+
+  // Write data frame
+  for (int i = 0; i < 256; i++)
+    Serial.write(hostSlots.rawData[i]);
+
+  // Write checksum
+  Serial.write(ck);
+  Serial.flush();
+  delayMicroseconds(200);
+  
 }
 
 /**
