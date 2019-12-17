@@ -10,6 +10,7 @@
 #define PIN_INT 5
 #define PIN_PROC 4
 #define PIN_MTR 16
+#define INPUT_PULLDOWN INPUT_PULLDOWN_16
 #define PIN_CMD 12
 // esp32
 #elif defined(ESP_32)
@@ -78,7 +79,7 @@ protected:
 public:
    sioDevice() : cmdState(WAIT){};
    sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
-   void handle();
+   void service();
    int id() { return _devnum; };
 };
 
