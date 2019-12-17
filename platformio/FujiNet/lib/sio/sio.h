@@ -2,6 +2,8 @@
 #define SIO_H
 #include <Arduino.h>
 
+#include "LinkedList.h"
+
 // pin configurations
 // esp8266
 #ifdef ESP_8266
@@ -10,6 +12,7 @@
 #define PIN_INT 5
 #define PIN_PROC 4
 #define PIN_MTR 16
+#define INPUT_PULLDOWN INPUT_PULLDOWN_16
 #define PIN_CMD 12
 // esp32
 #elif defined(ESP_32)
@@ -34,7 +37,7 @@ void ICACHE_RAM_ATTR sio_isr_cmd();
 class sioDevice
 {
 protected:
-   int _devnum;
+   int _devnum = 0x31;
 
    enum
    {
@@ -47,7 +50,7 @@ protected:
       NAK,
       PROCESS,
       WAIT
-   } cmdState;
+   } cmdState; // PROCESS state not used
 
    union {
       struct
@@ -78,14 +81,20 @@ protected:
 public:
    sioDevice() : cmdState(WAIT){};
    sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
-   void handle();
+   void service();
+   int id() { return _devnum; };
 };
 
 class sioBus
 {
+private:
+   LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
+
 public:
    void setup();
    void addDevice(sioDevice *p);
+   int numDevices();
+   sioDevice *devPtr(int i);
 };
 
 extern sioBus SIO;
