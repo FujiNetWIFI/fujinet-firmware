@@ -80,17 +80,18 @@ protected:
 
 public:
    //sioDevice(){}; // : cmdState(WAIT){};
-   //sioDevice(int devnum, String name = "") : _devnum(devnum), _name(name), cmdState(WAIT){};
-   // ~sioDevice(){};
+   sioDevice(int devnum, String name = "") : _devnum(devnum), _name(name), cmdState(WAIT){};
+   ~sioDevice(){};
    void service();
    int id() { return _devnum; };
-   String name() { return _name; };
+   String name() {return _name; };
 };
 
 class sioBus
 {
 private:
    LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
+
 
 public:
    void setup();

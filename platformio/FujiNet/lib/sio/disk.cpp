@@ -1,8 +1,5 @@
 #include "disk.h"
 
-sioDisk::sioDisk(int devnum = 0x31, String name = "D1:") : _devnum(devnum), _name(name){};
-sioDisk::~sioDisk(){};
-
 // Read
 void sioDisk::sio_read()
 {
@@ -10,13 +7,13 @@ void sioDisk::sio_read()
   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   offset *= 128;
   offset -= 128;
-  offset += 16;        // skip 16 byte ATR Header
+  offset += 16; // skip 16 byte ATR Header
   _file->seek(offset); //SeekSet is default
   _file->read(sector, 128);
 
   ck = sio_checksum((byte *)&sector, 128);
   delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C');         // Completed command
+  SIO_UART.write('C');     // Completed command
   SIO_UART.flush();
 
   // Write data frame
@@ -138,8 +135,10 @@ void sioDisk::sio_process()
   cmdTimer = 0;
 }
 
-// mount a disk file
+
+// mount a disk file 
 void sioDisk::mount(File *f)
 {
   _file = f;
 }
+

@@ -1,7 +1,6 @@
 #ifndef DISK_H
 #define DISK_H
 #include <Arduino.h>
-
 #include "sio.h"
 //#include "tnfs.h"
 
@@ -19,10 +18,9 @@
 
 class sioDisk : public sioDevice
 {
-protected:
+private:
     File *_file;
-    int _devnum;
-    String _name;
+    //int _devnum = 0x31;
 
     byte sector[128];
 
@@ -43,8 +41,7 @@ protected:
 
 public:
     //sioDisk(){};
-    sioDisk(int devnum, String name);
-    ~sioDisk();
+    //sioDisk(int devnum) : _devnum(devnum){};
     void mount(File *f);
     // void handle();
 };
