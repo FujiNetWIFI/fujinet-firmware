@@ -1,23 +1,26 @@
 /**
    Test #19 - Config Program, try 2
 */
-#define ESP32
 
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
-#include <FS.h>
 #endif
 #ifdef ESP32
 #include <WiFi.h>
 #include <SPIFFS.h>
 #endif
 
+/* SD Card Includes */
+#include <FS.h>
+#include <SD.h>
+#include <SPI.h>
+
 #include <WiFiUdp.h>
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug UART
-#define DEBUG_S
+//#define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -163,6 +166,9 @@ void ICACHE_RAM_ATTR sio_isr_cmd()
   {
     cmdState = ID;
     cmdTimer = millis();
+#ifdef ESP32
+    digitalWrite(PIN_LED2, LOW); // on
+#endif
   }
 }
 
@@ -331,7 +337,7 @@ void sio_set_ssid()
   {
     delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
- #ifdef DEBUG_S
+#ifdef DEBUG
   Debug_printf("connecting to %s with %s.\n", netConfig.ssid, netConfig.password);
 #endif
     WiFi.begin(netConfig.ssid, netConfig.password);
@@ -1271,13 +1277,58 @@ void tnfs_seek(long offset)
 
 void setup()
 {
-  SPIFFS.begin();
-  atr = SPIFFS.open("/autorun.atr", "r+");
 #ifdef DEBUG_S
   BUG_UART.begin(115200);
   Debug_println();
-  Debug_println("#FujiNet CIO Test #16 started");
+  Debug_println("#FujiNet CONFIG Test #19 Started");
 #endif
+  if(!SD.begin(5))
+  {
+#ifdef DEBUG_S
+    Debug_println("SD Card Mount Failed");
+#endif
+    // Revert to SPIFFS
+    SPIFFS.begin();
+    atr = SPIFFS.open("/autorun.atr", "r+");
+  }
+  else
+  {
+    atr = SD.open("/autorun.atr", "r+");
+    if (!atr)
+    {
+#ifdef DEBUG_S
+      Debug_println("Unable to mount autorun.atr from SD Card");
+#endif
+      // Revert to SPIFFS
+      SPIFFS.begin();
+      atr = SPIFFS.open("/autorun.atr", "r+");
+    }
+    else
+    {
+#ifdef DEBUG_S
+      Debug_println("Mounted autorun.atr from SD Card");
+#endif
+    }
+#ifdef DEBUG_S
+    Debug_print("SD Card Type: ");
+    switch (SD.cardType())
+    {
+      case CARD_MMC:
+        Debug_println("MMC");
+        break;
+      case CARD_SD:
+        Debug_println("SDSC");
+        break;
+      case CARD_SDHC:
+        Debug_println("SDHC");
+        break;
+      default:
+        Debug_println("UNKNOWN");
+        break;
+    }
+#endif
+  }
+  
   // Set up pins
   pinMode(PIN_INT, OUTPUT); // thanks AtariGeezer
   pinMode(PIN_PROC, OUTPUT); // thanks AtariGeezer
@@ -1317,7 +1368,7 @@ void loop()
   if( !wificlient.connected() && WiFi.status() == WL_CONNECTED )
   {
     wificlient.connect(DEBUG_HOST, 6502);
-    wificlient.println("#AtariWifi Config Test");
+    wificlient.println("#FujiNet CONFIG Test #19 Started");
   }
 #endif
 
@@ -1335,4 +1386,11 @@ void loop()
     cmdState = WAIT;
     cmdTimer = 0;
   }
+
+#ifdef ESP32
+  if (cmdState == WAIT && digitalRead(PIN_LED2) == LOW)
+  {
+    digitalWrite(PIN_LED2, HIGH); // Turn off SIO LED
+  }
+#endif
 }
