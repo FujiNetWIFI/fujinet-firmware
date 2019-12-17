@@ -7,8 +7,6 @@ void ICACHE_RAM_ATTR sio_isr_cmd()
   cmdFlag = true;
 }
 
-
-
 // calculate 8-bit checksum.
 byte sioDevice::sio_checksum(byte *chunk, int length)
 {
