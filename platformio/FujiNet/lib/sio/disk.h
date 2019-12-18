@@ -9,7 +9,6 @@ class sioDisk : public sioDevice
 {
 private:
     File *_file;
-    int _devnum;// = 0x31;
 
     byte sector[128];
 
@@ -29,8 +28,8 @@ private:
     //    void sio_incoming();
 
 public:
-    sioDisk(){};
-    sioDisk(int devnum=0x31) : _devnum(devnum){};
+    //sioDisk(){};
+    //sioDisk(int devnum=0x31) : _devnum(devnum){};
     void mount(File *f);
     // void handle();
 };
