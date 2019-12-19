@@ -216,7 +216,21 @@ void sioBus::setup()
   attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
 }
 
-void sioBus::addDevice(sioDevice *p)
+void sioBus::addDevice(sioDevice *p, int N) //, String name)
 {
+  p->_devnum = N;
+  //p->_devname = name;
+  daisyChain.add(p);
 }
+
+int sioBus::numDevices()
+{
+  return daisyChain.size();
+}
+
+sioDevice * sioBus::device(int i)
+{
+  return daisyChain.get(i);
+}
+
 sioBus SIO;

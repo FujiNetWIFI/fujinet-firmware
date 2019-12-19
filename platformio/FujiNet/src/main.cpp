@@ -22,7 +22,7 @@
 
 File atr;
 File tnfs;
-sioDisk sioD1(0x31);
+sioDisk sioD1, sioD2;
 
 void setup()
 {
@@ -36,22 +36,25 @@ void setup()
 #endif
 
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-   while (WiFi.status() != WL_CONNECTED)
+  while (WiFi.status() != WL_CONNECTED)
   {
     delay(10);
   }
-  
+
   SPIFFS.begin();
   atr = SPIFFS.open("/autorun.atr", "r+");
 
-  TNFS.begin(TNFS_SERVER,TNFS_PORT);
-  tnfs = TNFS.open("/miner.atr","r");
+  TNFS.begin(TNFS_SERVER, TNFS_PORT);
+  tnfs = TNFS.open("/miner.atr", "r");
 
   sioD1.mount(&tnfs);
+  sioD2.mount(&atr);
+  SIO.addDevice(&sioD1, 0x31); //,"D1:");
+  SIO.addDevice(&sioD2, 0x32);
   SIO.setup();
 }
 
 void loop()
 {
-  sioD1.service();
+  SIO.device(0)->service();
 }

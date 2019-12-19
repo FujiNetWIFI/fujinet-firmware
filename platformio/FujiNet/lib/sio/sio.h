@@ -34,10 +34,14 @@
 */
 void ICACHE_RAM_ATTR sio_isr_cmd();
 
+class sioBus;
 class sioDevice
 {
 protected:
-   int _devnum = 0x31;
+   friend sioBus;
+
+   int _devnum;
+   //String _devname; // causes linker error " undefined reference to `vtable for sioDevice' "
 
    enum
    {
@@ -79,10 +83,11 @@ protected:
    void sio_incoming();
 
 public:
-   sioDevice() : cmdState(WAIT){};
-   sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
+   //sioDevice() : cmdState(WAIT){};
+   //sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
    void service();
    int id() { return _devnum; };
+   //String name() { return _devname; };
 };
 
 class sioBus
@@ -92,9 +97,11 @@ private:
 
 public:
    void setup();
-   void addDevice(sioDevice *p);
+   //void service();
+   void addDevice(sioDevice *p, int N); //, String name);
+   void remDevice(sioDevice *p);
+   sioDevice *device(int i);
    int numDevices();
-   sioDevice *devPtr(int i);
 };
 
 extern sioBus SIO;
