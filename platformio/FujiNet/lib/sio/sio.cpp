@@ -167,9 +167,12 @@ void sioDevice::sio_incoming()
 // we move the CMD_PIN handling and sio_get_id() to the sioBus class, grab the ID, start the command timer,
 // then search through the daisyChain for a matching ID. Once we find an ID, we set it's sioDevice cmdState to COMMAND.
 // We change service() so it only reads the SIO_UART when cmdState != WAIT.
-// or rather, only call sioDevice->service() when sioDevice-state() != WAIT.
-// if no device is != WAIT, we toss the SIO_UART byte.
+// or rather, only call sioDevice->service() when sioDevice->state() != WAIT.
+// we never will call sio_incoming when there's a WAIT state. 
+// need to figure out reseting cmdTimer when state goes to WAIT or there's a NAK
+// if no device is != WAIT, we toss the SIO_UART byte & set cmdTimer to 0.
 // Maybe we have a BUSY state for the sioBus that's an OR of all the cmdState != WAIT.
+
 void sioDevice::service()
 {
   if (cmdFlag)
