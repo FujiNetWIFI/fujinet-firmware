@@ -179,7 +179,15 @@ void sioDevice::sio_incoming()
 // if activeDev->cmdState == WAIT then activeDev = mullPtr
 //
 // NEED TO GET device state machine out of the bus state machine
-// bus state: WAIT, ID, PROCESS
+// bus states: WAIT, ID, PROCESS
+// WAIT->ID when cmdFlag is set
+// ID->PROCESS when device # matches
+// bus->WAIT when timeout or when device->WAIT after a NAK or PROCESS
+// timeout occurs when a device is active and it's taking too long
+// dev states inside of sioBus: WAIT, ID, COMMAND
+// device no longer needs ID state
+// WAIT->ID->COMMAND when _devnum matches dn
+// 
 void sioBus::service()
 {
   if (cmdFlag)
