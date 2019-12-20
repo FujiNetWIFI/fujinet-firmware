@@ -469,12 +469,12 @@ void sio_format()
 void sio_mount_host()
 {
   byte ck;
-  unsigned char slot=cmdFrame.aux1;
+  unsigned char hostSlot=cmdFrame.aux1;
   
   Serial.write('A'); // Write ACK
 
 #ifdef DEBUG
-  Debug_printf("Mounting host in slot #%d",slot);
+  Debug_printf("Mounting host in slot #%d",hostSlot);
 #endif
 
   tnfs_mount(slot);
