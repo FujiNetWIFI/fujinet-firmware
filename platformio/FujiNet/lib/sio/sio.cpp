@@ -184,7 +184,7 @@ void sioBus::service()
     if (digitalRead(PIN_CMD) == LOW) // this check may not be necessary
     {
       device(0)->cmdState = ID;
-      device(0)->cmdTimer = millis();
+      cmdTimer = millis();
       cmdFlag = false;
       if (SIO_UART.available() > 0)
       {
@@ -209,7 +209,7 @@ void sioBus::service()
     device(0)->sio_incoming();
   }
 
-  if (millis() - device(0)->cmdTimer > CMD_TIMEOUT && device(0)->cmdState != WAIT)
+  if (millis() - cmdTimer > CMD_TIMEOUT && device(0)->cmdState != WAIT)
   {
 #ifdef DEBUG_S
     BUG_UART.print("SIO CMD TIMEOUT: ");
@@ -220,7 +220,7 @@ void sioBus::service()
   }
   if (device(0)->cmdState == WAIT)
   {
-    device(0)->cmdTimer = 0;
+    cmdTimer = 0;
   }
 }
 
