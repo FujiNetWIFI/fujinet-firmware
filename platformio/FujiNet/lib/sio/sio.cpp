@@ -232,7 +232,7 @@ void sioBus::service()
     }
   }
 
-  if (millis() - cmdTimer > CMD_TIMEOUT && busState == PROCESS) // device(0)->cmdState != WAIT)
+  if (millis() - cmdTimer > CMD_TIMEOUT && busState != WAIT) // device(0)->cmdState != WAIT)
   {
 #ifdef DEBUG_S
     BUG_UART.print("SIO CMD TIMEOUT: bus-");
