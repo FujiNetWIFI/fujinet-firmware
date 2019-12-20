@@ -234,9 +234,15 @@ void sioBus::service()
       sio_get_id();
       break;
     case BUS_ACTIVE:
-      activeDev->sio_incoming();
-      if (activeDev->cmdState == WAIT)
-        busState = BUS_WAIT;
+      if (activeDev != nullptr)
+      {
+        activeDev->sio_incoming();
+        if (activeDev->cmdState == WAIT)
+        {
+          busState = BUS_WAIT;
+          activeDev = nullptr;
+        }
+      }
       break;
     case BUS_WAIT:
       SIO_UART.read();
@@ -252,9 +258,11 @@ void sioBus::service()
     BUG_UART.print("SIO CMD TIMEOUT: bus-");
     BUG_UART.print(busState);
     BUG_UART.print(" dev-");
-    BUG_UART.println(activeDev->cmdState);
+    if (activeDev != nullptr)
+      BUG_UART.println(activeDev->cmdState);
 #endif
   }
+
   if (busState == BUS_WAIT)
   {
     cmdTimer = 0;
