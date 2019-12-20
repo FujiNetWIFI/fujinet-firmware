@@ -175,30 +175,34 @@ void sioDevice::sio_incoming()
 //
 // todo: cmdTimer to sioBus, assign cmdState after finding device ID
 // when checking cmdState loop through devices?
-// make *activeDev when found device ID. call activeDev->sio_incoming() != nullPtr. otherwise toss UART.read 
+// make *activeDev when found device ID. call activeDev->sio_incoming() != nullPtr. otherwise toss UART.read
 // if activeDev->cmdState == WAIT then activeDev = mullPtr
-void sioDevice::service()
+void sioBus::service()
 {
   if (cmdFlag)
   {
     if (digitalRead(PIN_CMD) == LOW) // this check may not be necessary
     {
-      cmdState = ID;
+      //cmdState = ID;
       cmdTimer = millis();
       cmdFlag = false;
       if (SIO_UART.available() > 0)
       {
-        cmdFrame.devic = SIO_UART.read();
-        if (cmdFrame.devic == _devnum)
-          cmdState = COMMAND;
+        //cmdFrame.devic
+        unsigned char dn = SIO_UART.read();
+        if (dn == device(0)->_devnum)
+        {
+          device(0)->cmdFrame.devic = dn;
+          device(0)->cmdState = COMMAND;
+        }
         else
         {
-          cmdState = WAIT;
+          device(0)->cmdState = WAIT;
         }
 
 #ifdef DEBUG_S
         BUG_UART.print("CMD DEVC: ");
-        BUG_UART.println(cmdFrame.devic, HEX);
+        BUG_UART.println(device(0)->cmdFrame.devic, HEX);
 #endif
       }
     }
@@ -206,19 +210,19 @@ void sioDevice::service()
 
   if (SIO_UART.available() > 0)
   {
-    sio_incoming();
+    device(0)->sio_incoming();
   }
 
-  if (millis() - cmdTimer > CMD_TIMEOUT && cmdState != WAIT)
+  if (millis() - cmdTimer > CMD_TIMEOUT && device(0)->cmdState != WAIT)
   {
 #ifdef DEBUG_S
     BUG_UART.print("SIO CMD TIMEOUT: ");
-    BUG_UART.println(cmdState);
+    BUG_UART.println(device(0)->cmdState);
 #endif
-    cmdState = WAIT;
+    device(0)->cmdState = WAIT;
     //cmdTimer = 0;
   }
-  if (cmdState == WAIT)
+  if (device(0)->cmdState == WAIT)
   {
     cmdTimer = 0;
   }
