@@ -157,25 +157,31 @@ void sioDevice::sio_incoming()
 void sioBus::sio_get_id()
 {
   unsigned char dn = SIO_UART.read();
-  if (dn == device(0)->_devnum)
+  for (int i = 0; i < 8; i++)
   {
-    activeDev = device(0);
-    activeDev->cmdFrame.devic = dn;
-    activeDev->cmdState = COMMAND;
-    busState = BUS_ACTIVE;
+    if (dn == device(i)->_devnum)
+    {
+      activeDev = device(i);
+      activeDev->cmdFrame.devic = dn;
+      activeDev->cmdState = COMMAND;
+      busState = BUS_ACTIVE;
+    }
+    else
+    {
+      device(i)->cmdState = WAIT;
+    }
   }
-  else
-  {
-    device(0)->cmdState = WAIT;
-  }
+
   if (busState == BUS_ID)
   {
     busState = BUS_WAIT;
   }
+
 #ifdef DEBUG_S
   BUG_UART.print("BUS_ID DEV: ");
   BUG_UART.println(dn, HEX);
 #endif
+
 }
 
 // periodically handle the sioDevice in the loop()
