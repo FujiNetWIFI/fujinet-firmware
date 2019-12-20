@@ -182,16 +182,27 @@ void sioDevice::service()
       cmdState = ID;
       cmdTimer = millis();
       cmdFlag = false;
+      if (SIO_UART.available() > 0)
+      {
+        cmdFrame.devic = SIO_UART.read();
+        if (cmdFrame.devic == _devnum)
+          cmdState = COMMAND;
+        else
+        {
+          cmdState = WAIT;
+        }
+
+#ifdef DEBUG_S
+        BUG_UART.print("CMD DEVC: ");
+        BUG_UART.println(cmdFrame.devic, HEX);
+#endif
+      }
     }
   }
 
   if (SIO_UART.available() > 0)
   {
     sio_incoming();
-    if (cmdState == WAIT)
-    {
-      cmdTimer = 0;
-    }
   }
 
   if (millis() - cmdTimer > CMD_TIMEOUT && cmdState != WAIT)
@@ -201,6 +212,10 @@ void sioDevice::service()
     BUG_UART.println(cmdState);
 #endif
     cmdState = WAIT;
+    //cmdTimer = 0;
+  }
+  if (cmdState == WAIT)
+  {
     cmdTimer = 0;
   }
 }
