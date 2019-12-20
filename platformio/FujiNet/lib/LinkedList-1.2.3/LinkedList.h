@@ -157,7 +157,7 @@ ListNode<T>* LinkedList<T>::getNode(int index){
 		return current;
 	}
 
-	return false;
+	return nullptr; // false;
 }
 
 template<typename T>
