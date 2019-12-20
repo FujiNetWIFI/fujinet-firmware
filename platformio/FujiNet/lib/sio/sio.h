@@ -98,9 +98,10 @@ private:
    LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
    unsigned long cmdTimer = 0;
    enum {BUS_ID,BUS_ACTIVE,BUS_WAIT} busState = BUS_WAIT;
+   sioDevice* activeDev = nullptr;
 
    void sio_get_id();
-   
+
 public:
    void setup();
    void service();
