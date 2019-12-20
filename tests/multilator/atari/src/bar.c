@@ -4,6 +4,7 @@
  * Functions to display a selection bar
  */
 
+#include <atari.h>
 #include <string.h>
 #include "bar.h"
 
@@ -55,4 +56,12 @@ void bar_show(unsigned char y)
   bar_pmbase[896+scrpos+1]=0xFF;
   bar_pmbase[896+scrpos+2]=0xFF;
   bar_pmbase[896+scrpos+3]=0xFF;  
+}
+
+/**
+ * Set bar color
+ */
+void bar_set_color(unsigned char c)
+{
+  OS.pcolr0=OS.pcolr1=OS.pcolr2=OS.pcolr3=c;
 }

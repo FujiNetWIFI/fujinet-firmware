@@ -22,4 +22,9 @@ void bar_clear(void);
  */
 void bar_show(unsigned char y);
 
+/**
+ * Set bar color
+ */
+void bar_set_color(unsigned char c);
+
 #endif /* BAR_H */

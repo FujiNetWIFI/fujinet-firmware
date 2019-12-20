@@ -380,7 +380,7 @@ void config_run(void)
 	    }
 	}
       
-      screen_puts(0,21,"  ENTER PASSWORD:   ");
+      screen_puts(0,21,"  ENTER PASSWORD:                      ");
       
       done=false;
       
@@ -397,7 +397,7 @@ void config_run(void)
 	    netConfig.password[x++]=k;
 	}
       
-      screen_puts(0,21,"  SETTING NETWORK   ");
+      screen_puts(0,21,"  SETTING NETWORK                      ");
 
       OS.pcolr0=OS.pcolr1=OS.pcolr2=OS.pcolr3=COLOR_SETTING_NETWORK;
       
