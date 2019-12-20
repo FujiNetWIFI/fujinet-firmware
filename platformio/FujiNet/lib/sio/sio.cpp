@@ -27,7 +27,7 @@ void sioDevice::sio_get_id()
   else
   {
     cmdState = WAIT;
-    cmdTimer = 0;
+    //cmdTimer = 0;
   }
 
 #ifdef DEBUG_S
@@ -88,7 +88,7 @@ void sioDevice::sio_nak()
   SIO_UART.write('N');
   SIO_UART.flush();
   cmdState = WAIT;
-  cmdTimer = 0;
+  //cmdTimer = 0;
 }
 
 // Get Checksum, and compare
@@ -150,7 +150,7 @@ void sioDevice::sio_incoming()
     break;
   case WAIT:
     SIO_UART.read(); // Toss it for now
-    cmdTimer = 0;
+    //cmdTimer = 0;
     break;
   }
 }
@@ -168,7 +168,7 @@ void sioDevice::sio_incoming()
 // then search through the daisyChain for a matching ID. Once we find an ID, we set it's sioDevice cmdState to COMMAND.
 // We change service() so it only reads the SIO_UART when cmdState != WAIT.
 // or rather, only call sioDevice->service() when sioDevice->state() != WAIT.
-// we never will call sio_incoming when there's a WAIT state. 
+// we never will call sio_incoming when there's a WAIT state.
 // need to figure out reseting cmdTimer when state goes to WAIT or there's a NAK
 // if no device is != WAIT, we toss the SIO_UART byte & set cmdTimer to 0.
 // Maybe we have a BUSY state for the sioBus that's an OR of all the cmdState != WAIT.
@@ -188,6 +188,10 @@ void sioDevice::service()
   if (SIO_UART.available() > 0)
   {
     sio_incoming();
+    if (cmdState == WAIT)
+    {
+      cmdTimer = 0;
+    }
   }
 
   if (millis() - cmdTimer > CMD_TIMEOUT && cmdState != WAIT)
@@ -231,7 +235,7 @@ int sioBus::numDevices()
   return daisyChain.size();
 }
 
-sioDevice * sioBus::device(int i)
+sioDevice *sioBus::device(int i)
 {
   return daisyChain.get(i);
 }
