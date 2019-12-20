@@ -132,7 +132,7 @@ void sioDisk::sio_process()
     break;
   }
   cmdState = WAIT;
-  cmdTimer = 0;
+  //cmdTimer = 0;
 }
 
 

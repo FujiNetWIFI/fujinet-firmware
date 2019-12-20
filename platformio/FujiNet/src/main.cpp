@@ -20,9 +20,9 @@
 #define TNFS_SERVER "192.168.1.11"
 #define TNFS_PORT 16384
 
-File atr;
-File tnfs;
-sioDisk sioD1, sioD2;
+File atr[8];
+//File tnfs;
+sioDisk sioD[8];
 
 void setup()
 {
@@ -42,19 +42,22 @@ void setup()
   }
 
   SPIFFS.begin();
-  atr = SPIFFS.open("/autorun.atr", "r+");
+  for (int i = 0; i < 8; i++)
+  {
+    String fname = String("/file") + String(i) + String(".atr");
+    BUG_UART.println(fname);
+    atr[i] = SPIFFS.open(fname, "r+");
+    sioD[i].mount(&atr[i]);
+    SIO.addDevice(&sioD[i], 0x31 + i);
+  }
+  BUG_UART.println(SIO.numDevices());
+  //TNFS.begin(TNFS_SERVER, TNFS_PORT);
+  //tnfs = TNFS.open("/TurboBasic.atr", "r");
 
-  TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  tnfs = TNFS.open("/miner.atr", "r");
-
-  sioD1.mount(&tnfs);
-  sioD2.mount(&atr);
-  SIO.addDevice(&sioD1, 0x31); //,"D1:");
-  SIO.addDevice(&sioD2, 0x32);
   SIO.setup();
 }
 
 void loop()
 {
-  SIO.device(0)->service();
+  SIO.service();
 }
