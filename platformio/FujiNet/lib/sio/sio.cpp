@@ -21,19 +21,19 @@ byte sioDevice::sio_checksum(byte *chunk, int length)
 // Get ID
 void sioDevice::sio_get_id()
 {
-  cmdFrame.devic = SIO_UART.read();
-  if (cmdFrame.devic == _devnum)
-    cmdState = COMMAND;
-  else
-  {
-    cmdState = WAIT;
-    cmdTimer = 0;
-  }
+  //   cmdFrame.devic = SIO_UART.read();
+  //   if (cmdFrame.devic == _devnum)
+  //     cmdState = COMMAND;
+  //   else
+  //   {
+  //     cmdState = WAIT;
+  //     //cmdTimer = 0;
+  //   }
 
-#ifdef DEBUG_S
-  BUG_UART.print("CMD DEVC: ");
-  BUG_UART.println(cmdFrame.devic, HEX);
-#endif
+  // #ifdef DEBUG_S
+  //   BUG_UART.print("CMD DEVC: ");
+  //   BUG_UART.println(cmdFrame.devic, HEX);
+  // #endif
 }
 
 // Get Command
@@ -88,7 +88,7 @@ void sioDevice::sio_nak()
   SIO_UART.write('N');
   SIO_UART.flush();
   cmdState = WAIT;
-  cmdTimer = 0;
+  //cmdTimer = 0;
 }
 
 // Get Checksum, and compare
@@ -124,8 +124,7 @@ void sioDevice::sio_incoming()
 {
   switch (cmdState)
   {
-  case ID:
-    sio_get_id();
+  case ID: //sio_get_id();
     break;
   case COMMAND:
     sio_get_command();
@@ -149,10 +148,40 @@ void sioDevice::sio_incoming()
     sio_process();
     break;
   case WAIT:
-    SIO_UART.read(); // Toss it for now
-    cmdTimer = 0;
+    //SIO_UART.read(); // Toss it for now
+    //cmdTimer = 0;
     break;
   }
+}
+
+void sioBus::sio_get_id()
+{
+  unsigned char dn = SIO_UART.read();
+  for (int i = 0; i < 8; i++)
+  {
+    if (dn == device(i)->_devnum)
+    {
+      activeDev = device(i);
+      activeDev->cmdFrame.devic = dn;
+      activeDev->cmdState = COMMAND;
+      busState = BUS_ACTIVE;
+    }
+    else
+    {
+      device(i)->cmdState = WAIT;
+    }
+  }
+
+  if (busState == BUS_ID)
+  {
+    busState = BUS_WAIT;
+  }
+
+#ifdef DEBUG_S
+  BUG_UART.print("BUS_ID DEV: ");
+  BUG_UART.println(dn, HEX);
+#endif
+
 }
 
 // periodically handle the sioDevice in the loop()
@@ -167,16 +196,37 @@ void sioDevice::sio_incoming()
 // we move the CMD_PIN handling and sio_get_id() to the sioBus class, grab the ID, start the command timer,
 // then search through the daisyChain for a matching ID. Once we find an ID, we set it's sioDevice cmdState to COMMAND.
 // We change service() so it only reads the SIO_UART when cmdState != WAIT.
-// or rather, only call sioDevice->service() when sioDevice-state() != WAIT.
-// if no device is != WAIT, we toss the SIO_UART byte.
+// or rather, only call sioDevice->service() when sioDevice->state() != WAIT.
+// we never will call sio_incoming when there's a WAIT state.
+// need to figure out reseting cmdTimer when state goes to WAIT or there's a NAK
+// if no device is != WAIT, we toss the SIO_UART byte & set cmdTimer to 0.
 // Maybe we have a BUSY state for the sioBus that's an OR of all the cmdState != WAIT.
-void sioDevice::service()
+//
+// todo: cmdTimer to sioBus, assign cmdState after finding device ID
+// when checking cmdState loop through devices?
+// make *activeDev when found device ID. call activeDev->sio_incoming() != nullPtr. otherwise toss UART.read
+// if activeDev->cmdState == WAIT then activeDev = mullPtr
+//
+// NEED TO GET device state machine out of the bus state machine
+// bus states: WAIT, ID, PROCESS
+// WAIT->ID when cmdFlag is set
+// ID->PROCESS when device # matches
+// bus->WAIT when timeout or when device->WAIT after a NAK or PROCESS
+// timeout occurs when a device is active and it's taking too long
+//
+// dev states inside of sioBus: ID, ACTIVE, WAIT
+// device no longer needs ID state - need to remove it from logic
+// WAIT -> ID - WHEN IRQ
+// ID - >ACTIVE when _devnum matches dn else ID -> WAIT
+// ACTIVE -> WAIT at timeout
+
+void sioBus::service()
 {
   if (cmdFlag)
   {
     if (digitalRead(PIN_CMD) == LOW) // this check may not be necessary
     {
-      cmdState = ID;
+      busState = BUS_ID;
       cmdTimer = millis();
       cmdFlag = false;
     }
@@ -184,16 +234,43 @@ void sioDevice::service()
 
   if (SIO_UART.available() > 0)
   {
-    sio_incoming();
+    switch (busState)
+    {
+    case BUS_ID:
+      sio_get_id();
+      break;
+    case BUS_ACTIVE:
+      if (activeDev != nullptr)
+      {
+        activeDev->sio_incoming();
+        if (activeDev->cmdState == WAIT)
+        {
+          busState = BUS_WAIT;
+          activeDev = nullptr;
+        }
+      }
+      break;
+    case BUS_WAIT:
+      SIO_UART.read();
+      BUG_UART.println("BUS_WAIT");
+      break;
+    }
   }
 
-  if (millis() - cmdTimer > CMD_TIMEOUT && cmdState != WAIT)
+  if (millis() - cmdTimer > CMD_TIMEOUT && busState != BUS_WAIT)
   {
+    busState = BUS_WAIT;
 #ifdef DEBUG_S
-    BUG_UART.print("SIO CMD TIMEOUT: ");
-    BUG_UART.println(cmdState);
+    BUG_UART.print("SIO CMD TIMEOUT: bus-");
+    BUG_UART.print(busState);
+    BUG_UART.print(" dev-");
+    if (activeDev != nullptr)
+      BUG_UART.println(activeDev->cmdState);
 #endif
-    cmdState = WAIT;
+  }
+
+  if (busState == BUS_WAIT)
+  {
     cmdTimer = 0;
   }
 }
@@ -228,7 +305,7 @@ int sioBus::numDevices()
   return daisyChain.size();
 }
 
-sioDevice * sioBus::device(int i)
+sioDevice *sioBus::device(int i)
 {
   return daisyChain.get(i);
 }
