@@ -95,9 +95,10 @@ public:
 class sioBus
 {
 private:
+
    LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
    unsigned long cmdTimer = 0;
-   cmdState_t busState = WAIT;
+   enum {BUS_ID,BUS_ACTIVE,BUS_WAIT} busState = BUS_WAIT;
 
 public:
    void setup();
