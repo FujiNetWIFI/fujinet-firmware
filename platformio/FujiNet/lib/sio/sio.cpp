@@ -125,7 +125,7 @@ void sioDevice::sio_incoming()
   switch (cmdState)
   {
   case ID:
-    sio_get_id();
+    //sio_get_id();
     break;
   case COMMAND:
     sio_get_command();
@@ -194,7 +194,23 @@ void sioBus::service()
   {
     if (busState == ID)
     {
-      device(0)->sio_incoming();
+      //device(0)->sio_incoming();
+      device(0)->cmdFrame.devic = SIO_UART.read();
+      if (device(0)->cmdFrame.devic == device(0)->_devnum)
+      {
+        device(0)->cmdState = COMMAND;
+        busState = PROCESS;
+      }
+      else
+      {
+        device(0)->cmdState = WAIT;
+        //cmdTimer = 0;
+      }
+
+#ifdef DEBUG_S
+      BUG_UART.print("CMD DEVC: ");
+      BUG_UART.println(device(0)->cmdFrame.devic, HEX);
+#endif
     }
     else
     {
@@ -207,13 +223,14 @@ void sioBus::service()
 #ifdef DEBUG_S
     BUG_UART.print("SIO CMD TIMEOUT: bus-");
     BUG_UART.print(busState);
-    BUG_UART.print(" dev-")
-    BUG_UART.print(device(0)->cmdState);
+    BUG_UART.print(" dev-");
+    BUG_UART.println(device(0)->cmdState);
 #endif
     device(0)->cmdState = WAIT;
+    busState = WAIT;
     //cmdTimer = 0;
   }
-  if (device(0)->cmdState == WAIT)
+  if (device(0)->cmdState == WAIT || busState == WAIT)
   {
     cmdTimer = 0;
   }
