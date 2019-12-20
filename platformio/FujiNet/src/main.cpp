@@ -45,7 +45,7 @@ void setup()
   atr = SPIFFS.open("/autorun.atr", "r+");
 
   TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  tnfs = TNFS.open("/miner.atr", "r");
+  tnfs = TNFS.open("/ernie.atr", "r");
 
   sioD1.mount(&atr);
   sioD2.mount(&tnfs);
