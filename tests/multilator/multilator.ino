@@ -392,6 +392,8 @@ void sio_write()
 {
   byte ck;
   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
+  unsigned char deviceSlot=cmdFrame.devic-0x31;
+  
   offset *= 128;
   offset -= 128;
   offset += 16; // skip 16 byte ATR Header
@@ -416,8 +418,8 @@ void sio_write()
     }
     else
     {
-      tnfs_seek(cmdFrame.devic,offset);
-      tnfs_write(cmdFrame.devic);
+      tnfs_seek(deviceSlot,offset);
+      tnfs_write(deviceSlot);
       firstCachedSector[cmdFrame.devic-0x31]=65535; // invalidate cache
     }
     Serial.write('C');
