@@ -56,5 +56,5 @@ void setup()
 
 void loop()
 {
-  SIO.device(0)->service();
+  SIO.service();
 }

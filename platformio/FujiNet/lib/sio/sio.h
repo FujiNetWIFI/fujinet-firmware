@@ -29,6 +29,19 @@
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
 
+  enum cmdState_t
+   {
+      ID,
+      COMMAND,
+      AUX1,
+      AUX2,
+      CHECKSUM,
+      ACK,
+      NAK,
+      PROCESS,
+      WAIT
+   } ;
+
 /**
    ISR for falling COMMAND
 */
@@ -43,18 +56,7 @@ protected:
    int _devnum;
    //String _devname; // causes linker error " undefined reference to `vtable for sioDevice' "
 
-   enum
-   {
-      ID,
-      COMMAND,
-      AUX1,
-      AUX2,
-      CHECKSUM,
-      ACK,
-      NAK,
-      PROCESS,
-      WAIT
-   } cmdState; // PROCESS state not used
+ cmdState_t cmdState; // PROCESS state not used
 
    union {
       struct
@@ -85,7 +87,7 @@ protected:
 public:
    //sioDevice() : cmdState(WAIT){};
    //sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
-   void service();
+   //void service();
    int id() { return _devnum; };
    //String name() { return _devname; };
 };
@@ -97,7 +99,7 @@ private:
 
 public:
    void setup();
-   //void service();
+   void service();
    void addDevice(sioDevice *p, int N); //, String name);
    void remDevice(sioDevice *p);
    sioDevice *device(int i);
