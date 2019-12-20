@@ -172,7 +172,11 @@ void sioDevice::sio_incoming()
 // need to figure out reseting cmdTimer when state goes to WAIT or there's a NAK
 // if no device is != WAIT, we toss the SIO_UART byte & set cmdTimer to 0.
 // Maybe we have a BUSY state for the sioBus that's an OR of all the cmdState != WAIT.
-
+//
+// todo: cmdTimer to sioBus, assign cmdState after finding device ID
+// when checking cmdState loop through devices?
+// make *activeDev when found device ID. call activeDev->sio_incoming() != nullPtr. otherwise toss UART.read 
+// if activeDev->cmdState == WAIT then activeDev = mullPtr
 void sioDevice::service()
 {
   if (cmdFlag)
