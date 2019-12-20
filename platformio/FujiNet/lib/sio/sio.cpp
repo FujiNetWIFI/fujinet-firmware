@@ -21,19 +21,19 @@ byte sioDevice::sio_checksum(byte *chunk, int length)
 // Get ID
 void sioDevice::sio_get_id()
 {
-  cmdFrame.devic = SIO_UART.read();
-  if (cmdFrame.devic == _devnum)
-    cmdState = COMMAND;
-  else
-  {
-    cmdState = WAIT;
-    //cmdTimer = 0;
-  }
+//   cmdFrame.devic = SIO_UART.read();
+//   if (cmdFrame.devic == _devnum)
+//     cmdState = COMMAND;
+//   else
+//   {
+//     cmdState = WAIT;
+//     //cmdTimer = 0;
+//   }
 
-#ifdef DEBUG_S
-  BUG_UART.print("CMD DEVC: ");
-  BUG_UART.println(cmdFrame.devic, HEX);
-#endif
+// #ifdef DEBUG_S
+//   BUG_UART.print("CMD DEVC: ");
+//   BUG_UART.println(cmdFrame.devic, HEX);
+// #endif
 }
 
 // Get Command
@@ -177,6 +177,9 @@ void sioDevice::sio_incoming()
 // when checking cmdState loop through devices?
 // make *activeDev when found device ID. call activeDev->sio_incoming() != nullPtr. otherwise toss UART.read
 // if activeDev->cmdState == WAIT then activeDev = mullPtr
+//
+// NEED TO GET device state machine out of the bus state machine
+//
 void sioBus::service()
 {
   if (cmdFlag)
