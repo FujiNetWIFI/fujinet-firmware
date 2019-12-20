@@ -179,7 +179,7 @@ void sioDevice::sio_incoming()
 // if activeDev->cmdState == WAIT then activeDev = mullPtr
 //
 // NEED TO GET device state machine out of the bus state machine
-//
+// bus state: WAIT, ID, PROCESS
 void sioBus::service()
 {
   if (cmdFlag)
@@ -198,9 +198,11 @@ void sioBus::service()
     if (busState == ID)
     {
       //device(0)->sio_incoming();
-      device(0)->cmdFrame.devic = SIO_UART.read();
-      if (device(0)->cmdFrame.devic == device(0)->_devnum)
+      //device(0)->cmdFrame.devic = 
+      unsigned char dn = SIO_UART.read();
+      if (dn == device(0)->_devnum)
       {
+        device(0)->cmdFrame.devic = dn;
         device(0)->cmdState = COMMAND;
         busState = PROCESS;
       }
