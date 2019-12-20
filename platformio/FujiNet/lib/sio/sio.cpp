@@ -184,8 +184,9 @@ void sioDevice::sio_incoming()
 // ID->PROCESS when device # matches
 // bus->WAIT when timeout or when device->WAIT after a NAK or PROCESS
 // timeout occurs when a device is active and it's taking too long
+//
 // dev states inside of sioBus: WAIT, ID, COMMAND
-// device no longer needs ID state
+// device no longer needs ID state - need to remove it from logic
 // WAIT->ID->COMMAND when _devnum matches dn
 // 
 void sioBus::service()
@@ -231,7 +232,7 @@ void sioBus::service()
     }
   }
 
-  if (millis() - cmdTimer > CMD_TIMEOUT && device(0)->cmdState != WAIT)
+  if (millis() - cmdTimer > CMD_TIMEOUT && busState == PROCESS) // device(0)->cmdState != WAIT)
   {
 #ifdef DEBUG_S
     BUG_UART.print("SIO CMD TIMEOUT: bus-");
