@@ -13,8 +13,8 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-#define DEBUG_N
-#define DEBUG_HOST "192.168.1.7"
+// #define DEBUG_N
+// #define DEBUG_HOST "192.168.1.7"
 
 
 #define PIN_LED         2
@@ -93,7 +93,7 @@ union
   byte rawData[516];
 } tnfsPacket;
 
-byte sectorCache[2560];
+byte sectorCache[8][2560];
 
 byte sector[128];
 char tnfsServer[256];
@@ -101,7 +101,7 @@ char mountPath[256];
 char current_entry[256];
 char tnfs_fd = 0xFF; // boot internal by default.
 char tnfs_dir_fds[8];
-int firstCachedSector = 1024;
+int firstCachedSector[8] = {65535,65535,65535,65535,65535,65535,65535,65535};
 bool load_config=true;
 
 #ifdef DEBUG_N
@@ -177,6 +177,8 @@ bool sio_valid_device_id()
     return true;
   else if (cmdFrame.devic==0x70)
     return true;
+  else if (cmdFrame.devic==0x4F)
+    return false;
   else if (deviceSlots.slot[deviceSlot].hostSlot!=0xFF)
     return true;
   else
@@ -416,6 +418,7 @@ void sio_write()
     {
       tnfs_seek(cmdFrame.devic,offset);
       tnfs_write(cmdFrame.devic);
+      firstCachedSector[cmdFrame.devic-0x31]=65535; // invalidate cache
     }
     Serial.write('C');
     yield();
@@ -775,6 +778,7 @@ void sio_read_drives_slots()
 void sio_read()
 {
   byte ck;
+  unsigned char slot=cmdFrame.devic-0x31;
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int cacheOffset = 0;
   int offset;
@@ -790,9 +794,9 @@ void sio_read()
   }
   else // TNFS ATR mounted and opened...
   {
-    if ((sectorNum > (firstCachedSector + 19)) || (sectorNum < firstCachedSector)) // cache miss
+    if ((sectorNum > (firstCachedSector[slot] + 19)) || (sectorNum < firstCachedSector[slot])) // cache miss
     {
-      firstCachedSector = sectorNum;
+      firstCachedSector[slot] = sectorNum;
       cacheOffset = 0;
       offset = sectorNum;
       offset *= 128;
@@ -807,63 +811,63 @@ void sio_read()
       tnfs_read(cmdFrame.devic);
       yield();
       for (int i = 0; i < 256; i++)
-        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+        sectorCache[slot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
       tnfs_read(cmdFrame.devic);
       yield();
       for (int i = 0; i < 256; i++)
-        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+        sectorCache[slot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
       tnfs_read(cmdFrame.devic);
       yield();
       for (int i = 0; i < 256; i++)
-        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+        sectorCache[slot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
       tnfs_read(cmdFrame.devic);
       yield();
       for (int i = 0; i < 256; i++)
-        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+        sectorCache[slot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
       tnfs_read(cmdFrame.devic);
       yield();
       for (int i = 0; i < 256; i++)
-        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+        sectorCache[slot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
       tnfs_read(cmdFrame.devic);
       yield();
       for (int i = 0; i < 256; i++)
-        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+        sectorCache[slot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
       tnfs_read(cmdFrame.devic);
       yield();
       for (int i = 0; i < 256; i++)
-        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+        sectorCache[slot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
       tnfs_read(cmdFrame.devic);
       yield();
       for (int i = 0; i < 256; i++)
-        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+        sectorCache[slot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
       tnfs_read(cmdFrame.devic);
       yield();
       for (int i = 0; i < 256; i++)
-        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+        sectorCache[slot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
       tnfs_read(cmdFrame.devic);
       yield();
       for (int i = 0; i < 256; i++)
-        sectorCache[cacheOffset + i] = tnfsPacket.data[i + 3];
+        sectorCache[slot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset = 0;
     }
     else // cache hit, adjust offset
     {
-      cacheOffset = ((sectorNum - firstCachedSector) * 128);
+      cacheOffset = ((sectorNum - firstCachedSector[slot]) * 128);
 #ifdef DEBUG
       Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
     }
     for (int i = 0; i < 128; i++)
-      sector[i] = sectorCache[(i + cacheOffset)];
+      sector[i] = sectorCache[slot][(i + cacheOffset)];
   }
 
   ck = sio_checksum((byte *)&sector, 128);
@@ -1024,7 +1028,6 @@ void tnfs_mount(unsigned char slot)
     yield();
     if (UDP.parsePacket())
     {
-      Debug_printf("Packet parsed\n");
       int l = UDP.read(tnfsPacket.rawData, 516);
 #ifdef DEBUG
       Debug_print("Resp Packet: ");
@@ -1295,10 +1298,11 @@ void tnfs_closedir(unsigned char slot)
 /**
    TNFS write
 */
-void tnfs_write(unsigned char deviceSlot)
+void tnfs_write(unsigned char devic)
 {
   int start = millis();
   int dur = millis() - start;
+  unsigned char deviceSlot=devic-0x31;
   tnfsPacket.session_idl=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
   tnfsPacket.session_idh=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;  
   tnfsPacket.retryCount++;  // Increase sequence
