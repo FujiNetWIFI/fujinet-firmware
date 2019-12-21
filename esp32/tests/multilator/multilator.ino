@@ -2,6 +2,8 @@
    Test #24 - multi-diskulator ESP32
 */
 
+#define TEST_NAME "#FujiNet Multi-Diskulator"
+
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
 #endif
@@ -19,7 +21,7 @@
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-// #define DEBUG_S
+//#define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -377,6 +379,10 @@ void sio_set_ssid()
   {
     SIO_UART.write('C');
     WiFi.begin(netConfig.ssid, netConfig.password);
+    UDP.begin(16384);
+#ifdef DEBUG
+    Debug_printf("connecting to %s with %s.\n", netConfig.ssid, netConfig.password);
+#endif
     yield();
   }
   else
@@ -1565,7 +1571,11 @@ void tnfs_seek(unsigned char deviceSlot, long offset)
 
 void setup()
 {
-  UDP.begin(16384);
+#ifdef DEBUG_S
+  BUG_UART.begin(115200);
+  Debug_println();
+  Debug_println(TEST_NAME);
+#endif
   SPIFFS.begin();
   atr = SPIFFS.open("/autorun.atr", "r+");
 
@@ -1587,27 +1597,21 @@ void setup()
   }
   
   // Set up pins
-#ifdef DEBUG_S
-  Serial1.begin(19200);
-  Debug_println();
-  Debug_println("#FujiNet Multilator");
-#else
-  pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, HIGH);
-#endif
-  pinMode(PIN_INT, OUTPUT); // thanks AtariGeezer.
-  pinMode(PIN_PROC, OUTPUT);
+  pinMode(PIN_INT, OUTPUT); // thanks AtariGeezer
+  digitalWrite(PIN_INT, HIGH);
+  pinMode(PIN_PROC, OUTPUT); // thanks AtariGeezer
+  digitalWrite(PIN_PROC,HIGH);
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
-
-#ifdef ESP32
+#ifdef ESP8266
+  pinMode(PIN_LED, INPUT);
+  digitalWrite(PIN_LED, HIGH); // off
+#elif defined(ESP32)
   pinMode(PIN_LED1, OUTPUT);
   pinMode(PIN_LED2, OUTPUT);
   digitalWrite(PIN_LED1, HIGH); // off
   digitalWrite(PIN_LED2, HIGH); // off
 #endif
-  digitalWrite(PIN_PROC,HIGH);
-  digitalWrite(PIN_INT, HIGH);
 
 #ifdef DEBUG_N
   /* Get WiFi started, but don't wait for it otherwise SIO
@@ -1615,11 +1619,6 @@ void setup()
    */
   WiFi.begin(DEBUG_SSID, DEBUG_PASSWORD);
 #endif 
-
-#ifdef DEBUG_N
-  wificlient.connect(DEBUG_HOST, 6502);
-  wificlient.println("#FujiNet Caching Test");
-#endif
 
   // Set up serial
   SIO_UART.begin(19200);
@@ -1639,7 +1638,7 @@ void loop()
   if ( !wificlient.connected() && WiFi.status() == WL_CONNECTED )
   {
     wificlient.connect(DEBUG_HOST, 6502);
-    wificlient.println("#FujiNet Multi-lator Test");
+    wificlient.println(TEST_NAME);
   }
 #endif
   
