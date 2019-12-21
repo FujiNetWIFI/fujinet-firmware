@@ -477,7 +477,7 @@ void sio_mount_host()
   Debug_printf("Mounting host in slot #%d",hostSlot);
 #endif
 
-  tnfs_mount(slot);
+  tnfs_mount(hostSlot);
 
   Serial.write('C');
   Serial.flush();
@@ -505,7 +505,7 @@ void sio_mount_image()
 void sio_open_tnfs_directory()
 {
   byte ck;
-  unsigned char slot=cmdFrame.aux1;
+  unsigned char hostSlot=cmdFrame.aux1;
   
 #ifdef DEBUG
   Debug_println("Receiving 256b frame from computer");
@@ -523,7 +523,7 @@ void sio_open_tnfs_directory()
 
   Serial.write('A');   // ACK
 
-  tnfs_opendir(slot);
+  tnfs_opendir(hostSlot);
 
   // And complete.
   Serial.write('C');
@@ -1135,7 +1135,7 @@ void tnfs_open(unsigned char deviceSlot)
         tnfs_fds[deviceSlot] = tnfsPacket.data[1];
 #ifdef DEBUG
         Debug_print("Successful, file descriptor: #");
-        Debug_println(tnfs_fd, HEX);
+        Debug_println(tnfs_fds[deviceSlot], HEX);
 #endif /* DEBUG_S */
         return;
       }
@@ -1189,7 +1189,7 @@ void tnfs_opendir(unsigned char hostSlot)
         // Successful
         tnfs_dir_fds[hostSlot] = tnfsPacket.data[1];
 #ifdef DEBUG
-        Debug_printf("Opened dir on slot #%d - fd = %02x\n",slot,tnfs_dir_fds[hostSlot]);
+        Debug_printf("Opened dir on slot #%d - fd = %02x\n",hostSlot,tnfs_dir_fds[hostSlot]);
 #endif
         return;
       }
@@ -1220,7 +1220,7 @@ bool tnfs_readdir(unsigned char hostSlot)
   tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
 
 #ifdef DEBUG
-  Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\n\n",slot,tnfs_dir_fds[slot]);
+  Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\n\n",hostSlot,tnfs_dir_fds[hostSlot]);
 #endif
 
   UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
