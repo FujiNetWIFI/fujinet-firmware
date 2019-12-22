@@ -19,7 +19,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   int port = M.substring(n + 1).toInt();
 
   // translate C++ file mode to TNFS file flags
-  uint16_t flag = TNFS_RDONLY; 
+  uint16_t flag = TNFS_RDONLY;
   byte flag_lsb;
   byte flag_msb;
   if (strlen(mode) == 1)
@@ -96,17 +96,20 @@ bool TNFSImpl::rmdir(const char *path) { return false; }
 
 TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd, String host, int port) : _fs(fs), _fd(fd), _host(host), _port(port) {}
 
-
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 {
-    BUG_UART.println("calling tnfs_write");
-    tnfs_write(_host, _port, _fd, buf, size);
-    return size;
+#ifdef DEBUG_S
+  BUG_UART.println("calling tnfs_write");
+#endif
+  tnfs_write(_host, _port, _fd, buf, size);
+  return size;
 }
 
 size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
 {
+#ifdef DEBUG_S
   BUG_UART.println("calling tnfs_read");
+#endif
   int ret = tnfs_read(_host, _port, _fd, size);
   // move this part into tnfs_read and pass a buffer instead
   if (size == ret)
@@ -136,4 +139,3 @@ boolean TNFSFileImpl::isDirectory(void) { return false; }
 FileImplPtr TNFSFileImpl::openNextFile(const char *mode) { return FileImplPtr(); }
 void TNFSFileImpl::rewindDirectory(void) {}
 TNFSFileImpl::operator bool() { return true; }
-
