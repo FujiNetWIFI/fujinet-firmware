@@ -45,6 +45,7 @@ void setup()
   }
 
   SPIFFS.begin();
+  SIO.addDevice(&sioP, 0x40); // P:
   for (int i = 0; i < 8; i++)
   {
     String fname = String("/file") + String(i) + String(".atr");
@@ -53,7 +54,7 @@ void setup()
     sioD[i].mount(&atr[i]);
     SIO.addDevice(&sioD[i], 0x31 + i);
   }
-    SIO.addDevice(&sioP, 0x40); // P:
+
   BUG_UART.println(SIO.numDevices());
   //TNFS.begin(TNFS_SERVER, TNFS_PORT);
   //tnfs = TNFS.open("/TurboBasic.atr", "r");
