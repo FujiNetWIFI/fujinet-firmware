@@ -17,6 +17,7 @@
 #include <SPI.h>
 #include <WiFi.h>
 #include <SPIFFS.h>
+#include "analogWrite.h"
 #endif
 
 #include <FS.h>
@@ -119,6 +120,7 @@ union
 byte sector[128];
 bool load_config = true;
 char udpHost[64];
+IPAddress remoteIp;
 
 #ifdef DEBUG_N
 WiFiClient wificlient;
@@ -158,7 +160,7 @@ void ICACHE_RAM_ATTR sio_isr_cmd()
   {
     if (cmdState == MIDIMAZE)
     {
-      analogWriteFreq(0); // turn off clock
+      analogWriteFrequency(0); // turn off clock
       analogWrite(PIN_CKO, 0); // turn off clock
       SIO_UART.begin(19200); // reset the baud rate if needed.
     }
@@ -309,7 +311,7 @@ void sio_midimaze()
   if (packetSize > 0)
   {
     remoteIp = UDP.remoteIP(); // store the ip of the remote device
-    udp.read(buf1, BUFFER_SIZE);
+    UDP.read(buf1, BUFFER_SIZE);
     // now send to UART:
     SIO_UART.write(buf1, packetSize);
 #ifdef DEBUG
@@ -340,7 +342,7 @@ void sio_midimaze()
         }
         else
         {
-          delay(packTimeout);
+          delay(PACKET_TIMEOUT);
           if (!SIO_UART.available())
             break;
         }
@@ -439,7 +441,7 @@ void sio_start_midimaze()
 
   // Reset UART for MIDIMATE mode
   SIO_UART.begin(31250);
-  analogWriteFreq(33125); // Set PWM Clock for MIDI, closer to actual frequency
+  analogWriteFrequency(33125); // Set PWM Clock for MIDI, closer to actual frequency
   analogWrite(PIN_CKO, 511); // Turn on PWM @ 50% duty cycle
   UDP.begin(MIDIMAZE_PORT);
   cmdState = MIDIMAZE; // We are now in MIDIMAZE mode.
