@@ -4,6 +4,7 @@
 #include "sio.h"
 #include "disk.h"
 #include "tnfs.h"
+#include "printer.h"
 // #ifdef ESP_8266
 // #include <FS.h>
 // #define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
@@ -20,6 +21,8 @@
 #define TNFS_SERVER "192.168.1.11"
 #define TNFS_PORT 16384
 
+//File tnfs;
+sioPrinter sioP;
 File atr[8];
 //File tnfs;
 sioDisk sioD[8];
@@ -42,6 +45,7 @@ void setup()
   }
 
   SPIFFS.begin();
+  SIO.addDevice(&sioP, 0x40); // P:
   for (int i = 0; i < 8; i++)
   {
     String fname = String("/file") + String(i) + String(".atr");
@@ -50,6 +54,7 @@ void setup()
     sioD[i].mount(&atr[i]);
     SIO.addDevice(&sioD[i], 0x31 + i);
   }
+
   BUG_UART.println(SIO.numDevices());
   //TNFS.begin(TNFS_SERVER, TNFS_PORT);
   //tnfs = TNFS.open("/TurboBasic.atr", "r");
