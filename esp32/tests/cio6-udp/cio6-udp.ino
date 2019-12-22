@@ -513,6 +513,11 @@ void sio_udp_connect()
   }
 #ifdef DEBUG
   Debug_printf("Receiving %d bytes from computer\n", packetSize);
+  for (int i=0;i<64;i++)
+  {
+    Debug_printf("%02x ",tmp[i]);  
+  }
+  Debug_printf("\n");
   Debug_printf("UDP host set to: %s", udpHost);
 #endif
 }
