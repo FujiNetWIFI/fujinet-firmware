@@ -4,13 +4,13 @@
 void sioPrinter::sio_write()
 {
   byte ck;
-  int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  offset *= 128;
-  offset -= 128;
-  offset += 16; // skip 16 byte ATR Header
+  // int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
+  // offset *= 128;
+  // offset -= 128;
+  // offset += 16; // skip 16 byte ATR Header
  
 #ifdef DEBUG_S
-  BUG_UART.printf("receiving 128b data frame from computer.\n");
+  BUG_UART.printf("receiving data frame from computer.\n");
 #endif
 
   SIO_UART.readBytes(buffer, 40);
