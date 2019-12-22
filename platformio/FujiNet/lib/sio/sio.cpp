@@ -182,7 +182,6 @@ void sioBus::sio_get_id()
   BUG_UART.print("BUS_ID DEV: ");
   BUG_UART.println(dn, HEX);
 #endif
-
 }
 
 // periodically handle the sioDevice in the loop()
@@ -253,7 +252,9 @@ void sioBus::service()
       break;
     case BUS_WAIT:
       SIO_UART.read();
+#ifdef DEBUG_S
       BUG_UART.println("BUS_WAIT");
+#endif
       break;
     }
   }

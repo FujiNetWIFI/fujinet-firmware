@@ -329,11 +329,11 @@ code, and the number of bytes actually written. For example:
 
 void tnfs_write(String host, int port, byte fd, const uint8_t *sector, size_t size)
 {
-  int start=millis();
-  int dur=millis()-start;
-  tnfsPacket.retryCount++;  // Increase sequence
-  tnfsPacket.command=0x22;  // WRITE
-  tnfsPacket.data[0]=fd; // returned file descriptor
+  int start = millis();
+  int dur = millis() - start;
+  tnfsPacket.retryCount++;                // Increase sequence
+  tnfsPacket.command = 0x22;              // WRITE
+  tnfsPacket.data[0] = fd;                // returned file descriptor
   tnfsPacket.data[1] = byte(size & 0xff); // size lsb
   tnfsPacket.data[2] = byte(size >> 8);   // size msb
 
@@ -341,7 +341,7 @@ void tnfs_write(String host, int port, byte fd, const uint8_t *sector, size_t si
   BUG_UART.print("Writing to File descriptor: ");
   BUG_UART.println(fd);
   BUG_UART.print("Req Packet: ");
-  for (int i=0;i<7;i++)
+  for (int i = 0; i < 7; i++)
   {
     BUG_UART.print(tnfsPacket.rawData[i], HEX);
     BUG_UART.print(" ");
@@ -349,27 +349,27 @@ void tnfs_write(String host, int port, byte fd, const uint8_t *sector, size_t si
   BUG_UART.println("");
 #endif /* DEBUG_S */
 
-  UDP.beginPacket(host.c_str(),port);
-  UDP.write(tnfsPacket.rawData,4+3);
-  UDP.write(sector,size);
+  UDP.beginPacket(host.c_str(), port);
+  UDP.write(tnfsPacket.rawData, 4 + 3);
+  UDP.write(sector, size);
   UDP.endPacket();
 
-  while (dur<5000)
+  while (dur < 5000)
   {
     yield();
     if (UDP.parsePacket())
     {
-      int l=UDP.read(tnfsPacket.rawData,sizeof(tnfsPacket.rawData));
+      int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
 #ifdef DEBUG_S
       BUG_UART.print("Resp packet: ");
-      for (int i=0;i<l;i++)
+      for (int i = 0; i < l; i++)
       {
         BUG_UART.print(tnfsPacket.rawData[i], HEX);
         BUG_UART.print(" ");
       }
       BUG_UART.println("");
 #endif /* DEBUG_S */
-      if (tnfsPacket.data[0]==0x00)
+      if (tnfsPacket.data[0] == 0x00)
       {
         // Successful
 #ifndef DEBUG_S
@@ -383,7 +383,7 @@ void tnfs_write(String host, int port, byte fd, const uint8_t *sector, size_t si
 #ifdef DEBUG_S
         BUG_UART.print("Error code #");
         BUG_UART.println(tnfsPacket.data[0], HEX);
-#endif /* DEBUG_S*/        
+#endif /* DEBUG_S*/
         return;
       }
     }
@@ -392,7 +392,6 @@ void tnfs_write(String host, int port, byte fd, const uint8_t *sector, size_t si
   BUG_UART.println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
 }
-
 
 /*
 LSEEK - Seeks to a new position in a file - Command 0x25
