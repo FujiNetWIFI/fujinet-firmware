@@ -8,7 +8,7 @@ void sioPrinter::sio_write()
   // offset *= 128;
   // offset -= 128;
   // offset += 16; // skip 16 byte ATR Header
- 
+
 #ifdef DEBUG_S
   BUG_UART.printf("receiving line print from computer:   ");
 #endif
@@ -22,10 +22,15 @@ void sioPrinter::sio_write()
   {
     delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
-    int i=0;
-    while (buffer[i]!=155)
-    {BUG_UART.write(buffer[i]); i++;}
+#ifdef DEBUG_S
+    int i = 0;
+    while (buffer[i] != 155)
+    {
+      BUG_UART.write(buffer[i]);
+      i++;
+    }
     BUG_UART.println("");
+#endif
     yield();
   }
 }
@@ -69,4 +74,3 @@ void sioPrinter::sio_process()
   cmdState = WAIT;
   //cmdTimer = 0;
 }
-
