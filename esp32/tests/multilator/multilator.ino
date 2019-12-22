@@ -948,7 +948,7 @@ void sio_read()
 */
 void sio_status()
 {
-  byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
+  byte status[4] = {0x10, 0xFF, 0xFE, 0x00};
   byte ck;
 
   ck = sio_checksum((byte *)&status, 4);
