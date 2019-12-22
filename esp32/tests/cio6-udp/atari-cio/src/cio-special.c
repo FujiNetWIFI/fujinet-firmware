@@ -17,16 +17,20 @@ static unsigned char* buf;
 void _cio_special(void)
 {
   char *p=(char *)OS.ziocb.buffer;
-
-  // remove EOL
-  p[OS.ziocb.buflen-1]=0x00;
-
+  unsigned char i;
+  
   // scoot buffer past the N:
   p+=2;
   
   // copy into packet
   strcpy(packet,p);
 
+  // Remove EOL
+  for (i=0;i<strlen(packet);i++)
+    {
+      packet[i]=(packet[i]==0x9B ? 0x00 : packet[i]);
+    }
+  
   // Set up common bits of DCB
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
@@ -48,6 +52,7 @@ void _cio_special(void)
     case 'D': // UDP Destination Address
       OS.dcb.dcomnd=0xD4;
       OS.dcb.dstats=0x80;
+      OS.dcb.dbyt=64;
       break;
     case 'R': // UDP Read
       OS.dcb.dcomnd=0xD2;
@@ -55,10 +60,15 @@ void _cio_special(void)
       OS.dcb.dbyt=aux12_to_aux(OS.ziocb.aux1,OS.ziocb.aux2);
       break;
     case 'S': // UDP Status
+    case 0x0D: // Canonical CIO status cmd.
       OS.dcb.dcomnd=0xD1;
+      OS.dcb.dbuf=&OS.dvstat;
+      OS.dcb.dbyt=4;
       break;
     case 'U': // UDP Set Buffer
+      OS.dcb.dstats=0x01; // No error return.
       buf=(char *)aux12_to_aux(OS.ziocb.aux1,OS.ziocb.aux2);
+      goto no_sio;
       break;
     case 'W': // UDP Write
       OS.dcb.dcomnd=0xD3;
@@ -68,5 +78,6 @@ void _cio_special(void)
       break;
     }
   siov();
+ no_sio:
   err=OS.dcb.dstats;
 }
