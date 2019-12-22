@@ -526,7 +526,7 @@ void sio_set_ssid()
   {
     SIO_UART.write('C');
     WiFi.begin(netConfig.ssid, netConfig.password);
-    UDP.begin(16384);
+    load_config=false;
 #ifdef DEBUG
     Debug_printf("connecting to %s with %s.\n", netConfig.ssid, netConfig.password);
 #endif
@@ -704,6 +704,15 @@ void sio_read()
   Debug_print(" - ");
   Debug_println((offset + 128));
 #endif
+
+  if (sectorNum==0x384) // Sector 900 was just read...
+  {
+#ifdef DEBUG
+    Debug_printf("Last sector of MIDIMAZE read, switching to MidiMaze mode!");
+#endif
+    sio_start_midimaze();  
+  }
+
 }
 
 /**
