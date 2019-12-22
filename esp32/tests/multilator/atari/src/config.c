@@ -257,6 +257,8 @@ void config_read(void)
  */
 bool config_wait_for_wifi(void)
 {
+  OS.rtclok[0]=OS.rtclok[1]=OS.rtclok[2]=0;
+ 
   while (1)
     {
       if ((OS.rtclok[2] & 0x3f)==0)
