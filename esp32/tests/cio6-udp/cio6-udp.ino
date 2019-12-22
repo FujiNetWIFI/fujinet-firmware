@@ -453,21 +453,43 @@ void sio_udp_write()
   byte ck;
   int packetSize = (256 * cmdFrame.aux2) + cmdFrame.aux1;
 
+#ifdef DEBUG
+  Debug_printf("Reading %d bytes from computer.\n",packetSize);
+#endif
   SIO_UART.readBytes(udpPacket, packetSize);
   while (SIO_UART.available()==0) { delayMicroseconds(200); }
+#ifdef DEBUG
+  Debug_printf("Reading checksum\n");
+#endif
   ck = SIO_UART.read(); // Read checksum
 
   if (ck == sio_checksum(udpPacket, packetSize))
   {
+#ifdef DEBUG
+    Debug_printf("ACK!\n");
+#endif 
     SIO_UART.write('A');
+#ifdef DEBUG
+    Debug_printf("Sending UDP Packet to %s:%d\n",udpHost,udpPort);
+#endif
     UDP.beginPacket(udpHost, udpPort);
     UDP.write(udpPacket, packetSize);
     UDP.endPacket();
+#ifdef DEBUG
+    Debug_printf("Sent UDP Packet.\n");
+#endif
+    delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
+#ifdef DEBUG
+    Debug_printf("Sent complete.\n");
+#endif
     yield();
   }
   else
   {
+#ifdef DEBUG
+    Debug_printf("Sending NAK!\n");
+#endif
     SIO_UART.write('N');
     yield();
     return;

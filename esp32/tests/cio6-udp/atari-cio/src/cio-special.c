@@ -5,6 +5,7 @@
 #include <atari.h>
 #include <6502.h>
 #include <string.h>
+#include <peekpoke.h>
 #include "sio.h"
 #include "common.h"
 
@@ -67,7 +68,7 @@ void _cio_special(void)
       break;
     case 'U': // UDP Set Buffer
       OS.dcb.dstats=0x01; // No error return.
-      buf=(char *)aux12_to_aux(OS.ziocb.aux1,OS.ziocb.aux2);
+      buf=(unsigned char *)0x0600;
       goto no_sio;
       break;
     case 'W': // UDP Write
