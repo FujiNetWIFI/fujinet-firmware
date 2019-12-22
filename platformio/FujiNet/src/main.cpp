@@ -49,17 +49,21 @@ void setup()
   for (int i = 0; i < 8; i++)
   {
     String fname = String("/file") + String(i) + String(".atr");
+#ifdef DEBUG_S
     BUG_UART.println(fname);
+#endif
     atr[i] = SPIFFS.open(fname, "r+");
     sioD[i].mount(&atr[i]);
     SIO.addDevice(&sioD[i], 0x31 + i);
   }
+#ifdef DEBUG_S
+  BUG_UART.print(SIO.numDevices());
+  BUG_UART.println(" devices registered.");
+#endif
+      //TNFS.begin(TNFS_SERVER, TNFS_PORT);
+      //tnfs = TNFS.open("/TurboBasic.atr", "r");
 
-  BUG_UART.println(SIO.numDevices());
-  //TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  //tnfs = TNFS.open("/TurboBasic.atr", "r");
-
-  SIO.setup();
+      SIO.setup();
 }
 
 void loop()

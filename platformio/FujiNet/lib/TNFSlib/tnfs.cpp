@@ -18,9 +18,11 @@ byte TNFSFS::begin(String host, uint16_t port, String location, String userid, S
     if (err)
     {
         String mp = "//" + host + ":" + String(port) + location;
+#ifdef DEBUG_S
         BUG_UART.println(mp);
+#endif
         int n = mp.length();
-        mp.toCharArray(mparray,n+1);
+        mp.toCharArray(mparray, n + 1);
         _impl->mountpoint(mparray);
         return 0;
     }
