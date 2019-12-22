@@ -38,7 +38,7 @@ unsigned char config_sector[128];
 unsigned char wifiStatus;
 unsigned char successful=0; // connection successful?
 
-unsigned char hostname;
+unsigned char hostname[64];
 
 #define COLOR_SETTING_NETWORK 0x66
 #define COLOR_SETTING_FAILED 0x33
@@ -362,7 +362,7 @@ void config_get_remote_host(void)
 
   screen_puts(0,0,"ENTER REMOTE HOST");
 
-  screen_input(1,1,&hostname);
+  screen_input(1,1,hostname);
 
   // Send hostname to #FUJINET
   OS.dcb.ddevic=0x70;
@@ -370,8 +370,8 @@ void config_get_remote_host(void)
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&hostname;
   OS.dcb.dtimlo=0x0F;
-  OS.dcb.dbyt=256;
-  OS.dcb.daux=9876;
+  OS.dcb.dbyt=64;
+  OS.dcb.daux=0;
   siov();
 }
 

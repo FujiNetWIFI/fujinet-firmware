@@ -27,12 +27,13 @@
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT, MIDIMAZE} cmdState;
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-//#define DEBUG_S
+#define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
 // #define DEBUG_N
 // #define DEBUG_HOST "192.168.1.7"
+
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -661,7 +662,6 @@ void sio_format()
 void sio_read()
 {
   byte ck;
-  unsigned char deviceSlot = cmdFrame.devic - 0x31;
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int cacheOffset = 0;
   int offset;
