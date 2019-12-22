@@ -8,7 +8,7 @@
 
 extern unsigned char err;
 extern unsigned char ret;
-extern unsigned char packet[256];
+extern unsigned char packet[512];
 
 void _cio_close(void)
 {

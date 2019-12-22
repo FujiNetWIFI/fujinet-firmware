@@ -9,7 +9,7 @@
 #include "cio.h"
 
 devhdl_t devhdl;
-unsigned char packet[256];
+unsigned char packet[512];
 
 
 extern void cio_open(void);
