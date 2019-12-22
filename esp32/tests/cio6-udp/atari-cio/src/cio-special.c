@@ -6,10 +6,13 @@
 #include <6502.h>
 #include <string.h>
 #include "sio.h"
+#include "common.h"
 
 extern unsigned char err;
 extern unsigned char ret;
 extern unsigned char packet[512];
+
+static unsigned char* buf;
 
 void _cio_special(void)
 {
@@ -20,24 +23,48 @@ void _cio_special(void)
 
   // scoot buffer past the N:
   p+=2;
-
+  
   // copy into packet
   strcpy(packet,p);
 
   // Set up common bits of DCB
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
+  OS.dcb.dstats=0x40; // Read by default.
   OS.dcb.dtimlo=0x1F;
   OS.dcb.dbuf=&packet;
-  OS.dcb.daux=0;
+  OS.dcb.dbyt=256;
+  OS.dcb.daux1=OS.ziocb.aux1;
+  OS.dcb.daux2=OS.ziocb.aux2;
   
   switch(OS.ziocb.command)
     {
-    case 'a':
-      OS.dcb.dstats=0x40;
-      OS.dcb.dbyt=1;
-      OS.dcb.dcomnd='a';
-      OS.dcb.dbuf=&OS.dvstat;
+    case 'B': // UDP Begin
+      OS.dcb.dcomnd=0xD0;
+      OS.dcb.dstats=0x00;
+      OS.dcb.dbyt=0;
+      OS.dcb.dbuf=NULL;
+      break;
+    case 'D': // UDP Destination Address
+      OS.dcb.dcomnd=0xD4;
+      OS.dcb.dstats=0x80;
+      break;
+    case 'R': // UDP Read
+      OS.dcb.dcomnd=0xD2;
+      OS.dcb.dbuf=buf;
+      OS.dcb.dbyt=aux12_to_aux(OS.ziocb.aux1,OS.ziocb.aux2);
+      break;
+    case 'S': // UDP Status
+      OS.dcb.dcomnd=0xD1;
+      break;
+    case 'U': // UDP Set Buffer
+      buf=(char *)aux12_to_aux(OS.ziocb.aux1,OS.ziocb.aux2);
+      break;
+    case 'W': // UDP Write
+      OS.dcb.dcomnd=0xD3;
+      OS.dcb.dstats=0x80;
+      OS.dcb.dbuf=buf;
+      OS.dcb.dbyt=aux12_to_aux(OS.ziocb.aux1,OS.ziocb.aux2);
       break;
     }
   siov();
