@@ -157,10 +157,11 @@ void sioDevice::sio_incoming()
 void sioBus::sio_get_id()
 {
   unsigned char dn = SIO_UART.read();
-  for (int i = 0; i < 8; i++)
+  for (int i = 0; i < numDevices(); i++)
   {
     if (dn == device(i)->_devnum)
     {
+      //BUG_UART.print("Found Device "); BUG_UART.println(dn,HEX);
       activeDev = device(i);
       activeDev->cmdFrame.devic = dn;
       activeDev->cmdState = COMMAND;
