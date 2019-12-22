@@ -4,6 +4,7 @@
 #include "sio.h"
 #include "disk.h"
 #include "tnfs.h"
+#include "printer.h"
 // #ifdef ESP_8266
 // #include <FS.h>
 // #define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
@@ -23,6 +24,7 @@
 File atr;
 File tnfs;
 sioDisk sioD1, sioD2;
+sioPrinter sioP;
 
 void setup()
 {
@@ -51,6 +53,7 @@ void setup()
   sioD2.mount(&tnfs);
   SIO.addDevice(&sioD1, 0x31); //,"D1:");
   SIO.addDevice(&sioD2, 0x32);
+  SIO.addDevice(&sioP, 0x40); // P:
   SIO.setup();
 }
 
