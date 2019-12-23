@@ -21,7 +21,7 @@
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-//#define DEBUG_S
+// #define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -377,6 +377,7 @@ void sio_set_ssid()
 
   if (ck == sio_checksum(netConfig.rawData, 96))
   {
+    delayMicroseconds(250);
     SIO_UART.write('C');
     WiFi.begin(netConfig.ssid, netConfig.password);
     UDP.begin(16384);
@@ -472,11 +473,13 @@ void sio_write()
       tnfs_write(deviceSlot);
       firstCachedSector[cmdFrame.devic-0x31]=65535; // invalidate cache
     }
+    delayMicroseconds(250);
     SIO_UART.write('C');
     yield();
   }
   else
   {
+    delayMicroseconds(250);
     SIO_UART.write('E');
     yield();  
   }
@@ -527,7 +530,11 @@ void sio_mount_host()
   Debug_printf("Mounting host in slot #%d",hostSlot);
 #endif
 
+  delayMicroseconds(250);
+
   tnfs_mount(hostSlot);
+
+  delayMicroseconds(250);
 
   SIO_UART.write('C');
   SIO_UART.flush();
@@ -544,9 +551,14 @@ void sio_mount_image()
 #ifdef DEBUG
   Debug_printf("Opening image in drive slot #%d",deviceSlot);
 #endif
+  
+  delayMicroseconds(250);
 
   tnfs_open(deviceSlot);
   SIO_UART.write('C');
+
+  delayMicroseconds(250);
+
 }
 
 /**
@@ -573,7 +585,11 @@ void sio_open_tnfs_directory()
 
   SIO_UART.write('A');   // ACK
 
+  delayMicroseconds(250);
+
   tnfs_opendir(hostSlot);
+
+  delayMicroseconds(250);
 
   // And complete.
   SIO_UART.write('C');
@@ -622,7 +638,13 @@ void sio_close_tnfs_directory()
 {
   delayMicroseconds(DELAY_T5);
   tnfs_closedir(cmdFrame.aux1);
+
+  delayMicroseconds(250);
+
   SIO_UART.write('C'); // Completed command
+
+  delayMicroseconds(250);
+  
   SIO_UART.flush();
 }
 
@@ -702,11 +724,21 @@ void sio_write_hosts_slots()
   SIO_UART.readBytes(hostSlots.rawData, 256);
   while (SIO_UART.available()==0) { delayMicroseconds(200); }
   ck = SIO_UART.read(); // Read checksum
+
+  delayMicroseconds(250);
+
   SIO_UART.write('A'); // Write ACK
+
+  delayMicroseconds(250);
 
   if (ck == sio_checksum(hostSlots.rawData, 256))
   {
+    delayMicroseconds(250);
+
     SIO_UART.write('C');
+
+    delayMicroseconds(250);
+
     atr.seek(91792, SeekSet);
     atr.write(hostSlots.rawData,256);
     atr.flush();
@@ -721,7 +753,12 @@ void sio_write_hosts_slots()
   }
   else
   {
+    delayMicroseconds(250);
+
     SIO_UART.write('E');
+
+    delayMicroseconds(250);
+
 #ifdef DEBUG
     for (int i=0;i<sizeof(hostSlots.rawData);i++)
     {
@@ -743,11 +780,22 @@ void sio_write_drives_slots()
   SIO_UART.readBytes(deviceSlots.rawData, 296);
   while (SIO_UART.available()==0) { delayMicroseconds(200); }
   ck = SIO_UART.read(); // Read checksum
+
+    delayMicroseconds(250);
+  
   SIO_UART.write('A'); // Write ACK
+
+    delayMicroseconds(250);
 
   if (ck == sio_checksum(hostSlots.rawData, 296))
   {
+
+    delayMicroseconds(250);
+    
     SIO_UART.write('C');
+
+    delayMicroseconds(250);
+    
     atr.seek(91408, SeekSet);
     atr.write(hostSlots.rawData,296);
     atr.flush();
@@ -762,7 +810,12 @@ void sio_write_drives_slots()
   }
   else
   {
+    delayMicroseconds(250);
+    
     SIO_UART.write('E');
+
+    delayMicroseconds(250);
+
 #ifdef DEBUG
     for (int i=0;i<sizeof(hostSlots.rawData);i++)
     {
@@ -948,7 +1001,7 @@ void sio_read()
 */
 void sio_status()
 {
-  byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
+  byte status[4] = {0x10, 0xFF, 0xFE, 0x00};
   byte ck;
 
   ck = sio_checksum((byte *)&status, 4);
