@@ -218,6 +218,7 @@ bool sio_valid_device_id()
 */
 void sio_get_id()
 {
+  while (!SIO_UART.available()) { delayMicroseconds(100); }
   cmdFrame.devic = SIO_UART.read();
   if (sio_valid_device_id())
     cmdState = COMMAND;
@@ -235,6 +236,7 @@ void sio_get_id()
 
 void sio_get_command()
 {
+  while (!SIO_UART.available()) { delayMicroseconds(100); }
   cmdFrame.comnd = SIO_UART.read();
   cmdState = AUX1;
 
@@ -249,6 +251,7 @@ void sio_get_command()
 */
 void sio_get_aux1()
 {
+  while (!SIO_UART.available()) { delayMicroseconds(100); }
   cmdFrame.aux1 = SIO_UART.read();
   cmdState = AUX2;
 
@@ -263,6 +266,7 @@ void sio_get_aux1()
 */
 void sio_get_aux2()
 {
+  while (!SIO_UART.available()) { delayMicroseconds(100); }
   cmdFrame.aux2 = SIO_UART.read();
   cmdState = CHECKSUM;
 
@@ -278,6 +282,7 @@ void sio_get_aux2()
 void sio_get_checksum()
 {
   byte ck;
+  while (!SIO_UART.available()) { delayMicroseconds(100); }
   cmdFrame.cksum = SIO_UART.read();
   ck = sio_checksum((byte *)&cmdFrame.cmdFrameData, 4);
 
@@ -511,9 +516,6 @@ void sio_format()
   SIO_UART.write(ck);
   SIO_UART.flush();
   delayMicroseconds(200);
-#ifdef DEBUG_S
-  Serial1.printf("We faked a format.\n");
-#endif
 }
 
 /**
@@ -1231,7 +1233,7 @@ void tnfs_open(unsigned char deviceSlot)
         Debug_print(" ");
       }
       Debug_println("");
-#endif DEBUG_S
+#endif // DEBUG_S
       if (tnfsPacket.data[0] == 0x00)
       {
         // Successful
@@ -1700,15 +1702,15 @@ void loop()
     sio_incoming();
   }
 
-  if (millis() - cmdTimer > CMD_TIMEOUT && cmdState != WAIT)
-  {
-#ifdef DEBUG
-    Debug_print("SIO CMD TIMEOUT: ");
-    Debug_println(cmdState);
-#endif
-    cmdState = WAIT;
-    cmdTimer = 0;
-  }
+//  if ((millis() - cmdTimer > CMD_TIMEOUT) && (cmdState != WAIT))
+//  {
+//#ifdef DEBUG
+//    Debug_print("SIO CMD TIMEOUT: ");
+//    Debug_println(cmdState);
+//#endif
+//    cmdState = WAIT;
+//    cmdTimer = 0;
+//  }
 
 #ifdef ESP32
   if (cmdState == WAIT && digitalRead(PIN_LED2) == LOW)
