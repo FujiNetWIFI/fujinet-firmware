@@ -27,7 +27,7 @@
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT, MIDIMAZE} cmdState;
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-#define DEBUG_S
+//#define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -44,6 +44,7 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT, MIDIMAZE} cmdS
 #define PIN_MTR        16
 #define PIN_CMD        12
 #define PIN_CKO         2
+#define PIN_CKI        14
 #endif
 #ifdef ESP32
 #define SIO_UART Serial2
@@ -55,6 +56,7 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT, MIDIMAZE} cmdS
 #define PIN_MTR         33
 #define PIN_CMD         21
 #define PIN_CKO         32
+#define PIN_CKI         27
 #endif
 
 #define DELAY_T5          1500
@@ -159,13 +161,13 @@ void ICACHE_RAM_ATTR sio_isr_cmd()
 {
   if (digitalRead(PIN_CMD) == LOW)
   {
-    if (cmdState == MIDIMAZE)
+/*    if (cmdState == MIDIMAZE)
     {
       analogWriteFrequency(0); // turn off clock
-      analogWrite(PIN_CKO, 0); // turn off clock
+      analogWrite(PIN_CKI, 0); // turn off clock
       SIO_UART.begin(19200); // reset the baud rate if needed.
     }
-
+*/
     cmdState = ID;
     cmdTimer = millis();
 #ifdef ESP32
@@ -304,9 +306,14 @@ void sio_nak()
 /**
    Basically we're here while in MidiMaze mode.
    The COMMAND line pulling LOW will interrupt this state.
+
+   ....Not anymore, this runs here forever and ever and ever.
+   MIDIMaze cart polls SIO bus so we must stay here and ignore
+   SIO commands
 */
 void sio_midimaze()
 {
+  while (1){ // Loop this forever
   // if there’s data available, read a packet
   int packetSize = UDP.parsePacket();
   if (packetSize > 0)
@@ -356,6 +363,7 @@ void sio_midimaze()
       i2 = 0;
     }
   }
+  } // End while loop
 }
 
 /**
@@ -429,7 +437,7 @@ void sio_udp_connect()
   }
 #ifdef DEBUG
   Debug_printf("Receiving %d bytes from computer\n", packetSize);
-  Debug_printf("UDP host set to: %s", udpHost);
+  Debug_printf("UDP host set to: %s\n", udpHost);
 #endif
 }
 
@@ -442,10 +450,18 @@ void sio_start_midimaze()
 
   // Reset UART for MIDIMATE mode
   SIO_UART.begin(31250);
-  analogWriteFrequency(33125); // Set PWM Clock for MIDI, closer to actual frequency
-  analogWrite(PIN_CKO, 511); // Turn on PWM @ 50% duty cycle
+#ifdef ESP8266
+  SIO_UART.swap();
+  analogWrite(PIN_CKI, 511); // Turn on PWM @ 50% duty cycle
+#elif defined(ESP32)
+  ledcWrite(7, 127); // Turn on PWM @ 50% duty cycle
+#endif
   UDP.begin(MIDIMAZE_PORT);
   cmdState = MIDIMAZE; // We are now in MIDIMAZE mode.
+#ifdef DEBUG
+  Debug_println("MIDIMAZE Mode ACTIVE");
+#endif
+  sio_midimaze(); // We are never coming out of this function!
 }
 
 /**
@@ -552,6 +568,10 @@ void sio_get_wifi_status()
 
   if (wifiStatus == WL_CONNECTED)
   {
+#ifdef DEBUG
+    Debug_print("IP ADDRESS: ");
+    Debug_println(WiFi.localIP());
+#endif
 #ifdef ESP8266
     digitalWrite(PIN_LED, LOW); // turn on LED
   }
@@ -803,15 +823,19 @@ void setup() {
   digitalWrite(PIN_PROC, HIGH);
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
-  pinMode(PIN_CKO, OUTPUT);
+  pinMode(PIN_CKI, OUTPUT);
 #ifdef ESP8266
   pinMode(PIN_LED, INPUT);
   digitalWrite(PIN_LED, HIGH); // off
+  analogWriteFreq(33125); // Set PWM Clock for MIDI, closer to actual frequency
 #elif defined(ESP32)
   pinMode(PIN_LED1, OUTPUT);
   pinMode(PIN_LED2, OUTPUT);
   digitalWrite(PIN_LED1, HIGH); // off
   digitalWrite(PIN_LED2, HIGH); // off
+  ledcAttachPin(PIN_CKI, 7); // Attach PIN_CKI to PWM Channel
+  ledcSetup(7, 31250, 8); // Setup PWM Frequency
+  ledcWrite(7, 0); // =Turn it off. ledcWrite(7, 127); // =50% duty cycle
 #endif
 
 #ifdef DEBUG_N
