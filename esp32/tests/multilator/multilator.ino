@@ -1491,8 +1491,8 @@ void tnfs_write(unsigned char deviceSlot, unsigned short len)
   tnfsPacket.retryCount++;  // Increase sequence
   tnfsPacket.command = 0x22; // READ
   tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
-  tnfsPacket.data[1] = len&0xFF;
-  tnfsPacket.data[2] = len>>8;
+  tnfsPacket.data[1] = len & 0xFF;
+  tnfsPacket.data[2] = len >> 8;
 
 #ifdef DEBUG
   Debug_print("Writing to File descriptor: ");
@@ -1562,8 +1562,8 @@ void tnfs_read(unsigned char deviceSlot, unsigned short len)
   tnfsPacket.retryCount++;  // Increase sequence
   tnfsPacket.command = 0x21; // READ
   tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
-  tnfsPacket.data[1] = len&0xFF; // len bytes
-  tnfsPacket.data[2] = len>>8; //
+  tnfsPacket.data[1] = len & 0xFF; // len bytes
+  tnfsPacket.data[2] = len >> 8; //
 
 #ifdef DEBUG
   Debug_print("Reading from File descriptor: ");
