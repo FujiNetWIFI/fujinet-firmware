@@ -18,10 +18,13 @@
 
 unsigned char path[256]="/";
 unsigned char c;
+unsigned char o;
 unsigned char files[16][36];
 unsigned char diskulator_done=false;
+unsigned char slot_done=true;
 unsigned char selected_host;
 unsigned char filter[32];
+unsigned char prev_consol;
 
 extern unsigned char* video_ptr;
 extern unsigned char* dlist_ptr;
@@ -38,11 +41,20 @@ union
 {
   struct
   {
-  unsigned char hostSlot;
-  unsigned char file[36];
+    unsigned char hostSlot;
+    unsigned char mode;
+    unsigned char file[36];
   } slot[8];
-  unsigned char rawData[296];
+  unsigned char rawData[304];
 } deviceSlots;
+
+/**
+ * Do coldstart
+ */
+void diskulator_boot(void)
+{
+  asm("jmp $E477");
+}
 
 /**
  * Read host slots
@@ -89,10 +101,112 @@ void diskulator_mount_host(unsigned char c)
       OS.dcb.dcomnd=0xF9;
       OS.dcb.dstats=0x00;
       OS.dcb.dbuf=NULL;
-      OS.dcb.dtimlo=0x0f;
+      OS.dcb.dtimlo=0x01;
       OS.dcb.dbyt=0;
       OS.dcb.daux=c;
       siov();
+    }
+}
+
+/**
+ * Read drive tables
+ */
+void diskulator_read_device_slots(void)
+{
+  // Read Drive Tables
+  OS.dcb.ddevic=0x70;
+  OS.dcb.dunit=1;
+  OS.dcb.dcomnd=0xF2;
+  OS.dcb.dstats=0x40;
+  OS.dcb.dbuf=&deviceSlots.rawData;
+  OS.dcb.dtimlo=0x0f;
+  OS.dcb.dbyt=sizeof(deviceSlots.rawData);
+  OS.dcb.daux=0;
+  siov();
+}
+
+/**
+ * Write drive tables
+ */
+void diskulator_write_device_slots(void)
+{
+  OS.dcb.ddevic=0x70;
+  OS.dcb.dunit=1;
+  OS.dcb.dcomnd=0xF1;
+  OS.dcb.dstats=0x80;
+  OS.dcb.dbuf=&deviceSlots.rawData;
+  OS.dcb.dtimlo=0x0f;
+  OS.dcb.dbyt=sizeof(deviceSlots.rawData);
+  OS.dcb.daux=0;
+  siov();
+}
+
+/**
+ * Mount device slot
+ */
+void diskulator_mount_device(unsigned char c, unsigned char o)
+{
+  OS.dcb.ddevic=0x70;
+  OS.dcb.dunit=1;
+  OS.dcb.dcomnd=0xF8;
+  OS.dcb.dstats=0x00;
+  OS.dcb.dbuf=NULL;
+  OS.dcb.dtimlo=0x01;
+  OS.dcb.dbyt=0;
+  OS.dcb.daux1=c;
+  OS.dcb.daux2=o;
+  siov();
+}
+
+/**
+ * Mount all Hosts
+ */
+void diskulator_mount_all_hosts(void)
+{
+  unsigned char e;
+
+  bar_clear();
+  screen_clear();
+
+  screen_puts(0,0,"MOUNTING ALL HOSTS");
+  
+  for (e=0;e<8;e++)
+    {
+      if (deviceSlots.slot[e].hostSlot!=0xFF)
+	{
+	  diskulator_mount_host(deviceSlots.slot[e].hostSlot);
+	}
+      
+      if (OS.dcb.dstats!=0x01)
+	{
+	  screen_puts(0,21,"MOUNT ERROR!");
+	  die();
+	}
+    }
+}
+
+/**
+ * Mount all devices
+ */
+void diskulator_mount_all_devices(void)
+{
+  unsigned char e;
+  
+  bar_clear();
+  screen_clear();
+
+  screen_puts(0,0,"MOUNTING ALL DEVICES");
+
+  for (e=0;e<8;e++)
+    {
+      if (deviceSlots.slot[e].hostSlot!=0xFF)
+	diskulator_mount_device(e,deviceSlots.slot[e].mode);
+      
+      if (OS.dcb.dstats!=0x01)
+	{
+	  screen_puts(0,21,"MOUNT ERROR!");
+	  die();
+	}      
     }
 }
 
@@ -107,6 +221,10 @@ void diskulator_host(void)
   screen_clear();
   bar_clear();
 
+  // Temporarily patch display list for this screen.
+  POKE(0x60F,6);
+  POKE(0x610,6);
+
   screen_puts(0,0,"   TNFS HOST LIST   ");
 
   diskulator_read_host_slots();
@@ -117,9 +235,6 @@ void diskulator_host(void)
       die();
     }
 
-  screen_puts( 0,21,"  enter TO SELECT  ");
-  screen_puts(21,21," space  TO EDIT   ");
-  
   // Display host slots
   for (c=0;c<8;c++)
     {
@@ -127,60 +242,147 @@ void diskulator_host(void)
       unsigned char nc[2];
 
       utoa(n,nc,10);
-      screen_puts(2,c+2,nc);
+      screen_puts(2,c+1,nc);
       
       if (hostSlots.host[c][0]!=0x00)
-	screen_puts(4,c+2,hostSlots.host[c]);
+	screen_puts(4,c+1,hostSlots.host[c]);
       else
-	screen_puts(4,c+2,"Empty");
+	screen_puts(4,c+1,"Empty");
     }
 
+  // Display Device Slots
+  diskulator_read_device_slots();
+  
+  screen_puts(20,9,"    DRIVE SLOTS    ");
+  
+  // Display drive slots
+  for (c=0;c<8;c++)
+    {
+      unsigned char d[4];
+      d[0]='D';
+      d[1]=0x31+c;
+      d[2]=':';
+      d[3]=0x00;
+      screen_puts(0,c+11,d);
+      screen_puts(4,c+11,deviceSlots.slot[c].file[0]!=0x00 ? deviceSlots.slot[c].file : "Empty");
+    }
+
+ rehosts:
   // reset cursor
   c=0;
 
+  screen_puts( 0,20,"return PICK  e EDIT");
+  screen_puts(20,20,"opt BOOT     d DEVS");
+  
+  bar_clear();
+  bar_show(2);
+  
   while (host_done==false)
     {
-      bar_clear();
-      bar_show(c+3);
-
-      k=cgetc();
-      switch(k)
+      // Quick boot
+      if ((GTIA_READ.consol==0x03) && (prev_consol==0x07))
 	{
-	case 0x1C: // UP
-	  if (c>0)
-	    c--;
-	  break;
-	case 0x1D: // DOWN
-	  if (c<8)
-	    c++;
-	  break;
-	case 0x20: // SPACE
-	  if (hostSlots.host[c][0]==0x00)
-	    {
-	      screen_puts(3,c+2,"                                    ");
-	    }
-	  screen_input(3,c+2,hostSlots.host[c]);
-	  if (hostSlots.host[c][0]==0x00)
-	    {
-	      screen_puts(3,c+2,"Empty");
-	    }
-	  break;
-	case 0x9B: // ENTER
-	  selected_host=c;
-
-	  // Write hosts
-	  diskulator_write_host_slots();
-	 
-	  // Mount host
-	  diskulator_mount_host(c);
-	  
-	  host_done=true;
-	  break;
+	  diskulator_mount_all_hosts();
+	  diskulator_mount_all_devices();
+	  diskulator_boot();
 	}
+      
+      if (kbhit())
+	{
+	  k=cgetc();
+	  switch(k)
+	    {
+	    case 0x1C: // UP
+	      if (c>0)
+		c--;
+	      break;
+	    case 0x1D: // DOWN
+	      if (c<8)
+		c++;
+	      break;
+	    case 'e': // edit
+	      if (hostSlots.host[c][0]==0x00)
+		{
+		  screen_puts(3,c+1,"                                    ");
+		}
+	      screen_input(3,c+1,hostSlots.host[c]);
+	      if (hostSlots.host[c][0]==0x00)
+		{
+		  screen_puts(3,c+1,"Empty");
+		}
+	      diskulator_write_host_slots();
+	      break;
+	    case 'd':
+	      host_done=true;
+	      slot_done=false;
+	      screen_puts( 0,20,"e EJECT     h HOSTS");
+	      screen_puts(21,20,"                   ");
+	      break;
+	    case 0x9B: // ENTER
+	      selected_host=c;
+	      
+	      // Write hosts
+	      diskulator_write_host_slots();
+	      
+	      // Mount host
+	      diskulator_mount_host(c);
+	      
+	      host_done=true;
+	      slot_done=true;
+	      break;
+	    }
+	  bar_clear();
+	  bar_show(c+2);
+	}
+      prev_consol=GTIA_READ.consol;
+    }
+
+  bar_clear();
+  if (slot_done==false)
+    bar_show(13);
+
+  c=0;
+  
+  while (slot_done==false)
+    {
+      // Quick boot
+      if (GTIA_READ.consol==0x03)
+	{
+	  diskulator_mount_all_hosts();
+	  diskulator_mount_all_devices();
+	  diskulator_boot();
+	}
+
+      if (kbhit())
+	{
+	  k=cgetc();
+	  switch(k)
+	    {
+	    case 0x1C: // UP
+	      if (c>0)
+		c--;
+	      break;
+	    case 0x1D: // DOWN
+	      if (c<8)
+		c++;
+	      break;
+	    case 'h': // Hosts
+	      slot_done=true;
+	      host_done=false;
+	      goto rehosts;
+	    case 'e': // EJECT
+	      screen_puts(4,c+11,"Empty                               ");
+	      memset(deviceSlots.slot[c].file,0,sizeof(deviceSlots.slot[c].file));
+	      deviceSlots.slot[c].hostSlot=0xFF;
+	      diskulator_write_device_slots();
+	      break;
+	    }
+	  bar_clear();
+	  bar_show(c+13);
+	}      
+      prev_consol=GTIA_READ.consol;
     }
 }
-
-
 
 /**
  * Search
@@ -189,6 +391,9 @@ void diskulator_search(void)
 {
   screen_clear();
   bar_clear();
+
+  POKE(0x60F,2);
+  POKE(0x610,2);
   
   screen_puts(0, 0,"ENTER SEARCH FILTER");
   screen_puts(0,21," EMPTY LINE CLEARS ");
@@ -209,6 +414,9 @@ void diskulator_select(void)
   unsigned char k;
 
  reopen: // yes, this is a hack.
+
+  POKE(0x60F,2);
+  POKE(0x610,2);
   
   screen_clear();
   bar_clear();
@@ -260,11 +468,12 @@ void diskulator_select(void)
       OS.dcb.dcomnd=0xF5;
       OS.dcb.dstats=0x00;
       OS.dcb.dbuf=NULL;
-      OS.dcb.dtimlo=0x0F;
+      OS.dcb.dtimlo=0x01;
       OS.dcb.dbyt=0;
       OS.dcb.daux=selected_host;
       siov();
-
+      
+      e=0;
       while (selector_done==false)
 	{
 	  bar_clear();
@@ -299,68 +508,22 @@ void diskulator_select(void)
 }
 
 /**
- * Read drive tables
- */
-void diskulator_read_device_slots(void)
-{
-  // Read Drive Tables
-  OS.dcb.ddevic=0x70;
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd=0xF2;
-  OS.dcb.dstats=0x40;
-  OS.dcb.dbuf=&deviceSlots.rawData;
-  OS.dcb.dtimlo=0x0f;
-  OS.dcb.dbyt=296;
-  OS.dcb.daux=0;
-  siov();
-}
-
-/**
- * Write drive tables
- */
-void diskulator_write_device_slots(void)
-{
-  OS.dcb.ddevic=0x70;
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd=0xF1;
-  OS.dcb.dstats=0x80;
-  OS.dcb.dbuf=&deviceSlots.rawData;
-  OS.dcb.dtimlo=0x0f;
-  OS.dcb.dbyt=296;
-  OS.dcb.daux=0;
-  siov();
-}
-
-/**
- * Mount device slot
- */
-void diskulator_mount_device(unsigned char c)
-{
-  OS.dcb.ddevic=0x70;
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd=0xF8;
-  OS.dcb.dstats=0x00;
-  OS.dcb.dbuf=NULL;
-  OS.dcb.dtimlo=0x0f;
-  OS.dcb.dbyt=0;
-  OS.dcb.daux=c; // drive slot
-  siov();
-}
-
-/**
  * Select destination drive
  */
 void diskulator_drive(void)
 {
   unsigned char c,k;
   bool drive_done=false;
+
+  POKE(0x60F,2);
+  POKE(0x610,2);
   
   screen_clear();
   bar_clear();
   
   screen_puts(0,0,"MOUNT TO DRIVE SLOT");
   screen_puts(0,21,"enter SELECT e EJECT");
-
+  screen_puts(20,21,"    esc ABORTS    ");
   diskulator_read_device_slots();
   
   // Display drive slots
@@ -397,70 +560,36 @@ void diskulator_drive(void)
 	  screen_puts(4,c+2,"Empty                               ");
 	  memset(deviceSlots.slot[c].file,0,sizeof(deviceSlots.slot[c].file));
 	  deviceSlots.slot[c].hostSlot=0xFF;
+	  diskulator_write_device_slots();
+	  break;
+	case 0x1B: // ESC
+	  drive_done=true;
 	  break;
 	case 0x9B: // RETURN
+	  screen_puts( 0,21,"       ENTER:       ");
+	  screen_puts(20,21,"r R/O w R/W esc ABRT");
+
+	  o=0;
+	  
+	  k=cgetc();
+
+	  if (k=='r')
+	    o|=0x01;
+	  else if (k=='w')
+	    o|=0x02;
+	  else if (k==0x1B)
+	    goto drive_slot_abort;
+	  
 	  deviceSlots.slot[c].hostSlot=selected_host;
+	  deviceSlots.slot[c].mode=o;
 	  strcpy(deviceSlots.slot[c].file,path);
 
 	  diskulator_write_device_slots();
-	  diskulator_mount_device(c);
+	  diskulator_mount_device(c,o);
+	drive_slot_abort:
 	  drive_done=true;
 	  break;
 	}
-    }
-}
-
-/**
- * Do coldstart
- */
-void diskulator_boot(void)
-{
-  asm("jmp $E477");
-}
-
-/**
- * Mount all Hosts
- */
-void diskulator_mount_all_hosts(void)
-{
-  unsigned char e;
-
-  bar_clear();
-  screen_clear();
-
-  screen_puts(0,0,"MOUNTING ALL HOSTS");
-  
-  for (e=0;e<8;e++)
-    {
-      diskulator_mount_host(e);
-      if (OS.dcb.dstats!=0x01)
-	{
-	  screen_puts(0,21,"MOUNT ERROR!");
-	  die();
-	}
-    }
-}
-
-/**
- * Mount all devices
- */
-void diskulator_mount_all_devices(void)
-{
-  unsigned char e;
-  
-  bar_clear();
-  screen_clear();
-
-  screen_puts(0,0,"MOUNTING ALL DEVICES");
-
-  for (e=0;e<8;e++)
-    {
-      diskulator_mount_device(e);
-      if (OS.dcb.dstats!=0x01)
-	{
-	  screen_puts(0,21,"MOUNT ERROR!");
-	  die();
-	}      
     }
 }
 
