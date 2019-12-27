@@ -128,6 +128,7 @@ char tnfs_fds[8];
 char tnfs_dir_fds[8];
 int firstCachedSector[8] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535};
 unsigned short sectorSize[8] = {128, 128, 128, 128, 128, 128, 128, 128};
+unsigned char max_cached_sectors=19;
 bool load_config = true;
 char statusSkip = 0;
 
@@ -584,14 +585,28 @@ void sio_mount_image()
   byte ck;
   unsigned char deviceSlot = cmdFrame.aux1;
   unsigned char options = cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
-
+  unsigned short newss;
+  
 #ifdef DEBUG
   Debug_printf("Opening image in drive slot #%d", deviceSlot);
 #endif
 
   delayMicroseconds(250);
 
+  // Open disk image
   tnfs_open(deviceSlot, options);
+
+  // Get # of sectors from header
+  tnfs_seek(deviceSlot,4);
+  tnfs_read(deviceSlot,2);
+  newss=(256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
+  sectorSize[deviceSlot]=newss;
+
+#ifdef DEBUG
+  Debug_printf("Sector data from header %02x %02x\n",sector[0],sector[1]);
+  Debug_printf("Device slot %d set to sector size: %d\n",deviceSlot,newss);
+#endif
+  
   SIO_UART.write('C');
 
   delayMicroseconds(250);
@@ -975,7 +990,8 @@ void sio_read()
   }
   else // TNFS ATR mounted and opened...
   {
-    if ((sectorNum > (firstCachedSector[deviceSlot] + 19)) || (sectorNum < firstCachedSector[deviceSlot])) // cache miss
+    max_cached_sectors=(sectorSize[deviceSlot]==256 ? 9 : 19);
+    if ((sectorNum > (firstCachedSector[deviceSlot] + max_cached_sectors)) || (sectorNum < firstCachedSector[deviceSlot])) // cache miss
     {
       firstCachedSector[deviceSlot] = sectorNum;
       cacheOffset = 0;
@@ -988,6 +1004,11 @@ void sio_read()
       offset = sectorNum;
       offset *= ss;
       offset -= ss;
+
+      // Bias adjustment for 256 bytes
+      if (ss==256)
+        offset -= 384;
+      
       offset += 16;
 #ifdef DEBUG
       Debug_printf("firstCachedSector: %d\n", firstCachedSector);
