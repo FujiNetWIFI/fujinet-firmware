@@ -1,8 +1,12 @@
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <sstream>
 #include <string>
 using namespace std;
+
+#define OUTSTREAM pdfout 
+//cout
 
 //based on ....
 //HELLO WORLD PDF example from https://blog.idrsolutions.com/2010/10/make-your-own-pdf-file-part-4-hello-world-pdf/
@@ -50,6 +54,9 @@ int xref;
 
 int main()
 {
+  ofstream pdfout;
+  pdfout.open("out.pdf");
+
   int oCtr = 1;
   page = "%PDF-1.4\n";
   loc[oCtr++] = page.length();
@@ -75,17 +82,17 @@ int main()
   xref = page.length();
   page += "xref\n";
   page += "0 6\n";
-  cout << page;
-  cout << "0000000000 65535 f\n";
+  OUTSTREAM << page;
+  OUTSTREAM << "0000000000 65535 f\n";
   for (int i = 1; i < 7; i++)
   {
-    cout << setfill('0') << std::setw(10) << loc[i] << " 00000 n\n";
+    OUTSTREAM << setfill('0') << setw(10) << loc[i] << " 00000 n\n";
   }
-  cout << "trailer <</Size 6/Root 1 0 R>>\n";
-  cout << "startxref\n";
-  cout << xref << "\n"
+  OUTSTREAM << "trailer <</Size 6/Root 1 0 R>>\n";
+  OUTSTREAM << "startxref\n";
+  OUTSTREAM << xref << "\n"
        << "%%EOF\n";
-
+  pdfout.close();
   //getline(cin, s);
 
   return 0;
