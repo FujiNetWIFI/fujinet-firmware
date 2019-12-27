@@ -144,9 +144,10 @@ union
   struct
   {
   unsigned char hostSlot;
+  unsigned char mode;
   char file[36];
   } slot[8];
-  unsigned char rawData[296];
+  unsigned char rawData[304];
 } deviceSlots;
 
 struct 
@@ -549,6 +550,7 @@ void sio_mount_image()
 {
   byte ck;
   unsigned char deviceSlot=cmdFrame.aux1;
+  unsigned char options=cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
 
 #ifdef DEBUG
   Debug_printf("Opening image in drive slot #%d",deviceSlot);
@@ -556,7 +558,7 @@ void sio_mount_image()
   
   delayMicroseconds(250);
 
-  tnfs_open(deviceSlot);
+  tnfs_open(deviceSlot,options);
   SIO_UART.write('C');
 
   delayMicroseconds(250);
@@ -779,7 +781,7 @@ void sio_write_drives_slots()
 {
   byte ck;
 
-  SIO_UART.readBytes(deviceSlots.rawData, 296);
+  SIO_UART.readBytes(deviceSlots.rawData, 304);
   while (SIO_UART.available()==0) { delayMicroseconds(200); }
   ck = SIO_UART.read(); // Read checksum
 
@@ -789,7 +791,7 @@ void sio_write_drives_slots()
 
     delayMicroseconds(250);
 
-  if (ck == sio_checksum(hostSlots.rawData, 296))
+  if (ck == sio_checksum(deviceSlots.rawData, 304))
   {
 
     delayMicroseconds(250);
@@ -799,8 +801,9 @@ void sio_write_drives_slots()
     delayMicroseconds(250);
     
     atr.seek(91408, SeekSet);
-    atr.write(hostSlots.rawData,296);
+    atr.write(deviceSlots.rawData,304);
     atr.flush();
+      
 #ifdef DEBUG
     for (int i=0;i<sizeof(hostSlots.rawData);i++)
     {
@@ -823,7 +826,7 @@ void sio_write_drives_slots()
     {
       Debug_printf("%c",hostSlots.rawData[i]);  
     }
-    Debug_printf("\n\nChecksum: calc: %02x recv: %02x - ERROR\n",sio_checksum(hostSlots.rawData,296),ck);
+    Debug_printf("\n\nChecksum: calc: %02x recv: %02x - ERROR\n",sio_checksum(hostSlots.rawData,304),ck);
 #endif
     yield();
   }
@@ -862,7 +865,7 @@ void sio_read_drives_slots()
   byte ck;
   
   load_config=false;
-  ck = sio_checksum((byte *)&deviceSlots.rawData, 296);
+  ck = sio_checksum((byte *)&deviceSlots.rawData, 304);
 
   delayMicroseconds(DELAY_T5); // t5 delay
   SIO_UART.write('C'); // Command always completes.
@@ -870,7 +873,7 @@ void sio_read_drives_slots()
   delayMicroseconds(200);
 
   // Write data frame
-  for (int i = 0; i < 296; i++)
+  for (int i = 0; i < 304; i++)
     SIO_UART.write(deviceSlots.rawData[i]);
 
   // Write checksum
@@ -1178,7 +1181,7 @@ void tnfs_mount(unsigned char hostSlot)
 /**
    Open 'autorun.atr'
 */
-void tnfs_open(unsigned char deviceSlot)
+void tnfs_open(unsigned char deviceSlot, unsigned char options)
 {
   int start = millis();
   int dur = millis() - start;
@@ -1188,7 +1191,20 @@ void tnfs_open(unsigned char deviceSlot)
   tnfsPacket.session_idh=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
   tnfsPacket.retryCount++;  // increase sequence #
   tnfsPacket.command = 0x29; // OPEN
-  tnfsPacket.data[c++] = 0x03; // R/W
+
+  if (options&0x01==1)
+  {
+    tnfsPacket.data[c++] = 0x01; // R/O
+  }
+  else if (options&0x02==2)
+  {
+    tnfsPacket.data[c++] = 0x03; // R/W
+  }
+  else
+  {
+    tnfsPacket.data[c++] = 0x01; // R/O  
+  }
+  
   tnfsPacket.data[c++] = 0x00; //
   tnfsPacket.data[c++] = 0x00; // Flags
   tnfsPacket.data[c++] = 0x00; //
@@ -1640,7 +1656,7 @@ void setup()
 
   // And populate the device slots
   atr.seek(91408, SeekSet);
-  atr.read(deviceSlots.rawData,296);
+  atr.read(deviceSlots.rawData,304);
 
   // Go ahead and mark all device slots local
   for (int i=0;i<8;i++)
