@@ -491,7 +491,7 @@ void sio_write()
     else
     {
       tnfs_seek(deviceSlot, offset);
-      tnfs_write(deviceSlot);
+      tnfs_write(deviceSlot, 128);
       firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
     }
     delayMicroseconds(250);
@@ -969,52 +969,52 @@ void sio_read()
       Debug_printf("offset: %d\n", offset);
 #endif
       tnfs_seek(deviceSlot, offset);
-      tnfs_read(deviceSlot);
+      tnfs_read(deviceSlot, 256);
       yield();
       for (int i = 0; i < 256; i++)
         sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
-      tnfs_read(deviceSlot);
+      tnfs_read(deviceSlot, 256);
       yield();
       for (int i = 0; i < 256; i++)
         sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
-      tnfs_read(deviceSlot);
+      tnfs_read(deviceSlot, 256);
       yield();
       for (int i = 0; i < 256; i++)
         sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
-      tnfs_read(deviceSlot);
+      tnfs_read(deviceSlot, 256);
       yield();
       for (int i = 0; i < 256; i++)
         sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
-      tnfs_read(deviceSlot);
+      tnfs_read(deviceSlot, 256);
       yield();
       for (int i = 0; i < 256; i++)
         sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
-      tnfs_read(deviceSlot);
+      tnfs_read(deviceSlot, 256);
       yield();
       for (int i = 0; i < 256; i++)
         sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
-      tnfs_read(deviceSlot);
+      tnfs_read(deviceSlot, 256);
       yield();
       for (int i = 0; i < 256; i++)
         sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
-      tnfs_read(deviceSlot);
+      tnfs_read(deviceSlot, 256);
       yield();
       for (int i = 0; i < 256; i++)
         sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
-      tnfs_read(deviceSlot);
+      tnfs_read(deviceSlot, 256);
       yield();
       for (int i = 0; i < 256; i++)
         sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
       cacheOffset += 256;
-      tnfs_read(deviceSlot);
+      tnfs_read(deviceSlot, 256);
       yield();
       for (int i = 0; i < 256; i++)
         sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
@@ -1482,7 +1482,7 @@ void tnfs_closedir(unsigned char hostSlot)
 /**
    TNFS write
 */
-void tnfs_write(unsigned char deviceSlot)
+void tnfs_write(unsigned char deviceSlot, unsigned short len)
 {
   int start = millis();
   int dur = millis() - start;
@@ -1491,8 +1491,8 @@ void tnfs_write(unsigned char deviceSlot)
   tnfsPacket.retryCount++;  // Increase sequence
   tnfsPacket.command = 0x22; // READ
   tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
-  tnfsPacket.data[1] = 0x80; // 128 bytes
-  tnfsPacket.data[2] = 0x00; //
+  tnfsPacket.data[1] = len&0xFF;
+  tnfsPacket.data[2] = len>>8;
 
 #ifdef DEBUG
   Debug_print("Writing to File descriptor: ");
@@ -1553,7 +1553,7 @@ void tnfs_write(unsigned char deviceSlot)
 /**
    TNFS read
 */
-void tnfs_read(unsigned char deviceSlot)
+void tnfs_read(unsigned char deviceSlot, unsigned short len)
 {
   int start = millis();
   int dur = millis() - start;
@@ -1562,8 +1562,8 @@ void tnfs_read(unsigned char deviceSlot)
   tnfsPacket.retryCount++;  // Increase sequence
   tnfsPacket.command = 0x21; // READ
   tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
-  tnfsPacket.data[1] = 0x00; // 256 bytes
-  tnfsPacket.data[2] = 0x01; //
+  tnfsPacket.data[1] = len&0xFF; // len bytes
+  tnfsPacket.data[2] = len>>8; //
 
 #ifdef DEBUG
   Debug_print("Reading from File descriptor: ");
