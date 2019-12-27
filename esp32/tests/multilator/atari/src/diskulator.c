@@ -280,7 +280,7 @@ void diskulator_host(void)
   while (host_done==false)
     {
       // Quick boot
-      if ((GTIA_READ.consol==0x03) && (prev_consol==0x07))
+      if (GTIA_READ.consol==0x03)
 	{
 	  diskulator_mount_all_hosts();
 	  diskulator_mount_all_devices();
