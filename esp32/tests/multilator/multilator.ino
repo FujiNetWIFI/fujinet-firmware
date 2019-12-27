@@ -653,6 +653,33 @@ void sio_close_tnfs_directory()
 }
 
 /**
+   High Speed
+*/
+void sio_high_speed()
+{
+  byte ck;
+  // byte hsd=0x0A; // US Doubler
+  byte hsd=0x28; // Standard Speed (19200)
+  
+  ck = sio_checksum((byte *)&hsd, 1);
+
+  delayMicroseconds(DELAY_T5); // t5 delay
+  SIO_UART.write('C'); // Command always completes.
+  SIO_UART.flush();
+  delayMicroseconds(200);
+
+  SIO_UART.write(hsd);
+
+  // Write checksum
+  SIO_UART.write(ck);
+  SIO_UART.flush();
+  delayMicroseconds(200);
+
+  // SIO_UART.begin(52640); // US Doubler
+  // SIO_UART.begin(19200); // Standard
+}
+
+/**
    Process command
 */
 
@@ -672,6 +699,9 @@ void sio_process()
       break;
     case '!':
       sio_format();
+      break;
+    case 0x3F:
+      sio_high_speed();
       break;
     case 0xFD:
       sio_scan_networks();

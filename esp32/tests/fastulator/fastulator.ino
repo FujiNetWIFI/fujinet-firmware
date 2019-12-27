@@ -1050,8 +1050,8 @@ void sio_high_speed()
   SIO_UART.flush();
   delayMicroseconds(200);
 
-  SIO_UART.begin(52640); // US Doubler
-  // SIO_UART.begin(19200); // Standard
+  // SIO_UART.begin(52640); // US Doubler
+  SIO_UART.begin(19200); // Standard
 }
 
 /**
