@@ -126,9 +126,9 @@ char mountPath[256];
 char current_entry[256];
 char tnfs_fds[8];
 char tnfs_dir_fds[8];
-int firstCachedSector[8] = {65535,65535,65535,65535,65535,65535,65535,65535};
-bool load_config=true;
-char statusSkip=0;
+int firstCachedSector[8] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535};
+bool load_config = true;
+char statusSkip = 0;
 
 #ifdef DEBUG_N
 WiFiClient wificlient;
@@ -144,14 +144,14 @@ union
 {
   struct
   {
-  unsigned char hostSlot;
-  unsigned char mode;
-  char file[36];
+    unsigned char hostSlot;
+    unsigned char mode;
+    char file[36];
   } slot[8];
   unsigned char rawData[304];
 } deviceSlots;
 
-struct 
+struct
 {
   unsigned char session_idl;
   unsigned char session_idh;
@@ -198,18 +198,18 @@ void ICACHE_RAM_ATTR sio_isr_cmd()
 }
 
 /**
- * Return true if valid device ID
- */
+   Return true if valid device ID
+*/
 bool sio_valid_device_id()
 {
-  unsigned char deviceSlot=cmdFrame.devic-0x31;
-  if ((load_config==true) && (cmdFrame.devic==0x31))
+  unsigned char deviceSlot = cmdFrame.devic - 0x31;
+  if ((load_config == true) && (cmdFrame.devic == 0x31))
     return true;
-  else if (cmdFrame.devic==0x70)
+  else if (cmdFrame.devic == 0x70)
     return true;
-  else if (cmdFrame.devic==0x4F)
+  else if (cmdFrame.devic == 0x4F)
     return false;
-  else if (deviceSlots.slot[deviceSlot].hostSlot!=0xFF)
+  else if (deviceSlots.slot[deviceSlot].hostSlot != 0xFF)
     return true;
   else
     return false;
@@ -220,7 +220,9 @@ bool sio_valid_device_id()
 */
 void sio_get_id()
 {
-  while (!SIO_UART.available()) { delayMicroseconds(100); }
+  while (!SIO_UART.available()) {
+    delayMicroseconds(100);
+  }
   cmdFrame.devic = SIO_UART.read();
   if (sio_valid_device_id())
     cmdState = COMMAND;
@@ -238,7 +240,9 @@ void sio_get_id()
 
 void sio_get_command()
 {
-  while (!SIO_UART.available()) { delayMicroseconds(100); }
+  while (!SIO_UART.available()) {
+    delayMicroseconds(100);
+  }
   cmdFrame.comnd = SIO_UART.read();
   cmdState = AUX1;
 
@@ -253,7 +257,9 @@ void sio_get_command()
 */
 void sio_get_aux1()
 {
-  while (!SIO_UART.available()) { delayMicroseconds(100); }
+  while (!SIO_UART.available()) {
+    delayMicroseconds(100);
+  }
   cmdFrame.aux1 = SIO_UART.read();
   cmdState = AUX2;
 
@@ -268,7 +274,9 @@ void sio_get_aux1()
 */
 void sio_get_aux2()
 {
-  while (!SIO_UART.available()) { delayMicroseconds(100); }
+  while (!SIO_UART.available()) {
+    delayMicroseconds(100);
+  }
   cmdFrame.aux2 = SIO_UART.read();
   cmdState = CHECKSUM;
 
@@ -284,7 +292,9 @@ void sio_get_aux2()
 void sio_get_checksum()
 {
   byte ck;
-  while (!SIO_UART.available()) { delayMicroseconds(100); }
+  while (!SIO_UART.available()) {
+    delayMicroseconds(100);
+  }
   cmdFrame.cksum = SIO_UART.read();
   ck = sio_checksum((byte *)&cmdFrame.cmdFrameData, 4);
 
@@ -378,7 +388,9 @@ void sio_set_ssid()
   byte ck;
 
   SIO_UART.readBytes(netConfig.rawData, 96);
-  while (SIO_UART.available()==0) { delayMicroseconds(200); }
+  while (SIO_UART.available() == 0) {
+    delayMicroseconds(200);
+  }
   ck = SIO_UART.read(); // Read checksum
   SIO_UART.write('A'); // Write ACK
 
@@ -427,7 +439,7 @@ void sio_get_wifi_status()
     digitalWrite(PIN_LED1, HIGH); // turn off LED
   }
 #endif
-  
+
   ck = sio_checksum((byte *)&wifiStatus, 1);
 
   delayMicroseconds(DELAY_T5); // t5 delay
@@ -450,8 +462,8 @@ void sio_write()
 {
   byte ck;
   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  unsigned char deviceSlot=cmdFrame.devic-0x31;
-  
+  unsigned char deviceSlot = cmdFrame.devic - 0x31;
+
   offset *= 128;
   offset -= 128;
   offset += 16; // skip 16 byte ATR Header
@@ -461,14 +473,16 @@ void sio_write()
 #endif
 
   SIO_UART.readBytes(sector, 128);
-  while (SIO_UART.available()==0) { delayMicroseconds(200); }
+  while (SIO_UART.available() == 0) {
+    delayMicroseconds(200);
+  }
   ck = SIO_UART.read(); // Read checksum
   //delayMicroseconds(350);
   SIO_UART.write('A'); // Write ACK
 
   if (ck == sio_checksum(sector, 128))
   {
-    if (load_config==true)
+    if (load_config == true)
     {
       atr.seek(offset, SeekSet);
       atr.write(sector, 128);
@@ -476,9 +490,9 @@ void sio_write()
     }
     else
     {
-      tnfs_seek(deviceSlot,offset);
+      tnfs_seek(deviceSlot, offset);
       tnfs_write(deviceSlot);
-      firstCachedSector[cmdFrame.devic-0x31]=65535; // invalidate cache
+      firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
     }
     delayMicroseconds(250);
     SIO_UART.write('C');
@@ -488,7 +502,7 @@ void sio_write()
   {
     delayMicroseconds(250);
     SIO_UART.write('E');
-    yield();  
+    yield();
   }
 }
 
@@ -526,12 +540,12 @@ void sio_format()
 void sio_mount_host()
 {
   byte ck;
-  unsigned char hostSlot=cmdFrame.aux1;
-  
+  unsigned char hostSlot = cmdFrame.aux1;
+
   SIO_UART.write('A'); // Write ACK
 
 #ifdef DEBUG
-  Debug_printf("Mounting host in slot #%d",hostSlot);
+  Debug_printf("Mounting host in slot #%d", hostSlot);
 #endif
 
   delayMicroseconds(250);
@@ -550,16 +564,16 @@ void sio_mount_host()
 void sio_mount_image()
 {
   byte ck;
-  unsigned char deviceSlot=cmdFrame.aux1;
-  unsigned char options=cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
+  unsigned char deviceSlot = cmdFrame.aux1;
+  unsigned char options = cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
 
 #ifdef DEBUG
-  Debug_printf("Opening image in drive slot #%d",deviceSlot);
+  Debug_printf("Opening image in drive slot #%d", deviceSlot);
 #endif
-  
+
   delayMicroseconds(250);
 
-  tnfs_open(deviceSlot,options);
+  tnfs_open(deviceSlot, options);
   SIO_UART.write('C');
 
   delayMicroseconds(250);
@@ -572,14 +586,16 @@ void sio_mount_image()
 void sio_open_tnfs_directory()
 {
   byte ck;
-  unsigned char hostSlot=cmdFrame.aux1;
-  
+  unsigned char hostSlot = cmdFrame.aux1;
+
 #ifdef DEBUG
   Debug_println("Receiving 256b frame from computer");
 #endif
 
   SIO_UART.readBytes(current_entry, 256);
-  while (SIO_UART.available()==0) { delayMicroseconds(200); }
+  while (SIO_UART.available() == 0) {
+    delayMicroseconds(200);
+  }
   ck = SIO_UART.read(); // Read checksum
 
   if (ck != sio_checksum((byte *)&current_entry, 256))
@@ -649,7 +665,7 @@ void sio_close_tnfs_directory()
   SIO_UART.write('C'); // Completed command
 
   delayMicroseconds(250);
-  
+
   SIO_UART.flush();
 }
 
@@ -660,8 +676,8 @@ void sio_high_speed()
 {
   byte ck;
   // byte hsd=0x0A; // US Doubler
-  byte hsd=0x28; // Standard Speed (19200)
-  
+  byte hsd = 0x28; // Standard Speed (19200)
+
   ck = sio_checksum((byte *)&hsd, 1);
 
   delayMicroseconds(DELAY_T5); // t5 delay
@@ -750,14 +766,16 @@ void sio_process()
 }
 
 /**
- * Write hosts slots
- */
+   Write hosts slots
+*/
 void sio_write_hosts_slots()
 {
   byte ck;
 
   SIO_UART.readBytes(hostSlots.rawData, 256);
-  while (SIO_UART.available()==0) { delayMicroseconds(200); }
+  while (SIO_UART.available() == 0) {
+    delayMicroseconds(200);
+  }
   ck = SIO_UART.read(); // Read checksum
 
   delayMicroseconds(250);
@@ -775,12 +793,12 @@ void sio_write_hosts_slots()
     delayMicroseconds(250);
 
     atr.seek(91792, SeekSet);
-    atr.write(hostSlots.rawData,256);
+    atr.write(hostSlots.rawData, 256);
     atr.flush();
 #ifdef DEBUG
-    for (int i=0;i<sizeof(hostSlots.rawData);i++)
+    for (int i = 0; i < sizeof(hostSlots.rawData); i++)
     {
-      Debug_printf("%c",hostSlots.rawData[i]);  
+      Debug_printf("%c", hostSlots.rawData[i]);
     }
     Debug_printf("\n\nCOMPLETE\n");
 #endif
@@ -795,50 +813,52 @@ void sio_write_hosts_slots()
     delayMicroseconds(250);
 
 #ifdef DEBUG
-    for (int i=0;i<sizeof(hostSlots.rawData);i++)
+    for (int i = 0; i < sizeof(hostSlots.rawData); i++)
     {
-      Debug_printf("%c",hostSlots.rawData[i]);  
+      Debug_printf("%c", hostSlots.rawData[i]);
     }
-    Debug_printf("\n\nChecksum: calc: %02x recv: %02x - ERROR\n",sio_checksum(hostSlots.rawData,256),ck);
+    Debug_printf("\n\nChecksum: calc: %02x recv: %02x - ERROR\n", sio_checksum(hostSlots.rawData, 256), ck);
 #endif
     yield();
   }
 }
 
 /**
- * Write drives slots
- */
+   Write drives slots
+*/
 void sio_write_drives_slots()
 {
   byte ck;
 
   SIO_UART.readBytes(deviceSlots.rawData, 304);
-  while (SIO_UART.available()==0) { delayMicroseconds(200); }
+  while (SIO_UART.available() == 0) {
+    delayMicroseconds(200);
+  }
   ck = SIO_UART.read(); // Read checksum
 
-    delayMicroseconds(250);
-  
+  delayMicroseconds(250);
+
   SIO_UART.write('A'); // Write ACK
 
-    delayMicroseconds(250);
+  delayMicroseconds(250);
 
   if (ck == sio_checksum(deviceSlots.rawData, 304))
   {
 
     delayMicroseconds(250);
-    
+
     SIO_UART.write('C');
 
     delayMicroseconds(250);
-    
+
     atr.seek(91408, SeekSet);
-    atr.write(deviceSlots.rawData,304);
+    atr.write(deviceSlots.rawData, 304);
     atr.flush();
-      
+
 #ifdef DEBUG
-    for (int i=0;i<sizeof(hostSlots.rawData);i++)
+    for (int i = 0; i < sizeof(hostSlots.rawData); i++)
     {
-      Debug_printf("%c",hostSlots.rawData[i]);  
+      Debug_printf("%c", hostSlots.rawData[i]);
     }
     Debug_printf("\n\nCOMPLETE\n");
 #endif
@@ -847,25 +867,25 @@ void sio_write_drives_slots()
   else
   {
     delayMicroseconds(250);
-    
+
     SIO_UART.write('E');
 
     delayMicroseconds(250);
 
 #ifdef DEBUG
-    for (int i=0;i<sizeof(hostSlots.rawData);i++)
+    for (int i = 0; i < sizeof(hostSlots.rawData); i++)
     {
-      Debug_printf("%c",hostSlots.rawData[i]);  
+      Debug_printf("%c", hostSlots.rawData[i]);
     }
-    Debug_printf("\n\nChecksum: calc: %02x recv: %02x - ERROR\n",sio_checksum(hostSlots.rawData,304),ck);
+    Debug_printf("\n\nChecksum: calc: %02x recv: %02x - ERROR\n", sio_checksum(hostSlots.rawData, 304), ck);
 #endif
     yield();
   }
 }
 
 /**
- * Read hosts slots
- */
+   Read hosts slots
+*/
 void sio_read_hosts_slots()
 {
   byte ck;
@@ -885,17 +905,17 @@ void sio_read_hosts_slots()
   SIO_UART.write(ck);
   SIO_UART.flush();
   delayMicroseconds(200);
-  
+
 }
 
 /**
- * Read hosts slots
- */
+   Read hosts slots
+*/
 void sio_read_drives_slots()
 {
   byte ck;
-  
-  load_config=false;
+
+  load_config = false;
   ck = sio_checksum((byte *)&deviceSlots.rawData, 304);
 
   delayMicroseconds(DELAY_T5); // t5 delay
@@ -919,12 +939,12 @@ void sio_read_drives_slots()
 void sio_read()
 {
   byte ck;
-  unsigned char deviceSlot=cmdFrame.devic-0x31;
+  unsigned char deviceSlot = cmdFrame.devic - 0x31;
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int cacheOffset = 0;
   int offset;
 
-  if (load_config==true) // no TNFS ATR mounted.
+  if (load_config == true) // no TNFS ATR mounted.
   {
     offset = sectorNum;
     offset *= 128;
@@ -1021,7 +1041,7 @@ void sio_read()
   SIO_UART.flush();
 
   // Write data frame checksum
-  delayMicroseconds(200);  
+  delayMicroseconds(200);
   SIO_UART.write(ck);
   SIO_UART.flush();
 #ifdef DEBUG
@@ -1064,13 +1084,13 @@ void sio_status()
 void sio_ack()
 {
   delayMicroseconds(500);
-  if (cmdFrame.devic==0x31 && 
-      cmdFrame.comnd==0x53)
+  if (cmdFrame.devic == 0x31 &&
+      cmdFrame.comnd == 0x53)
   {
-    if (statusSkip<23)
+    if (statusSkip < 23)
     {
       statusSkip++;
-      cmdState=WAIT;
+      cmdState = WAIT;
       return;
     }
   }
@@ -1133,13 +1153,13 @@ void tnfs_mount(unsigned char hostSlot)
 {
   int start = millis();
   int dur = millis() - start;
-  
+
   memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
 
   // Do not mount, if we already have a session ID, just bail.
-  if (tnfsSessionIDs[hostSlot].session_idl!=0 && tnfsSessionIDs[hostSlot].session_idh!=0)
+  if (tnfsSessionIDs[hostSlot].session_idl != 0 && tnfsSessionIDs[hostSlot].session_idh != 0)
     return;
-    
+
   tnfsPacket.session_idl = 0;
   tnfsPacket.session_idh = 0;
   tnfsPacket.retryCount = 0;
@@ -1154,8 +1174,8 @@ void tnfs_mount(unsigned char hostSlot)
 #ifdef DEBUG
   Debug_print("Mounting / from ");
   Debug_println((char*)hostSlots.host[hostSlot]);
-  for (int i=0;i<32;i++)
-    Debug_printf("%02x ",hostSlots.host[hostSlot][i]);
+  for (int i = 0; i < 32; i++)
+    Debug_printf("%02x ", hostSlots.host[hostSlot][i]);
   Debug_printf("\n\n");
   Debug_print("Req Packet: ");
   for (int i = 0; i < 10; i++)
@@ -1198,8 +1218,8 @@ void tnfs_mount(unsigned char hostSlot)
         Debug_println(tnfsPacket.session_idh, HEX);
 #endif /* DEBUG_S */
         // Persist the session ID.
-        tnfsSessionIDs[hostSlot].session_idl=tnfsPacket.session_idl;
-        tnfsSessionIDs[hostSlot].session_idh=tnfsPacket.session_idh;
+        tnfsSessionIDs[hostSlot].session_idl = tnfsPacket.session_idl;
+        tnfsSessionIDs[hostSlot].session_idh = tnfsPacket.session_idh;
         return;
       }
       else
@@ -1227,25 +1247,25 @@ void tnfs_open(unsigned char deviceSlot, unsigned char options)
   int start = millis();
   int dur = millis() - start;
   int c = 0;
-  strcpy(mountPath,deviceSlots.slot[deviceSlot].file);
-  tnfsPacket.session_idl=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-  tnfsPacket.session_idh=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+  strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
+  tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
+  tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
   tnfsPacket.retryCount++;  // increase sequence #
   tnfsPacket.command = 0x29; // OPEN
 
-  if (options&0x01==1)
+  if (options & 0x01 == 1)
   {
     tnfsPacket.data[c++] = 0x01; // R/O
   }
-  else if (options&0x02==2)
+  else if (options & 0x02 == 2)
   {
     tnfsPacket.data[c++] = 0x03; // R/W
   }
   else
   {
-    tnfsPacket.data[c++] = 0x01; // R/O  
+    tnfsPacket.data[c++] = 0x01; // R/O
   }
-  
+
   tnfsPacket.data[c++] = 0x00; //
   tnfsPacket.data[c++] = 0x00; // Flags
   tnfsPacket.data[c++] = 0x00; //
@@ -1325,8 +1345,8 @@ void tnfs_opendir(unsigned char hostSlot)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.session_idl=tnfsSessionIDs[hostSlot].session_idl;
-  tnfsPacket.session_idh=tnfsSessionIDs[hostSlot].session_idh;
+  tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
+  tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
   tnfsPacket.retryCount++;  // increase sequence #
   tnfsPacket.command = 0x10; // OPENDIR
   tnfsPacket.data[0] = '/'; // Open root dir
@@ -1351,7 +1371,7 @@ void tnfs_opendir(unsigned char hostSlot)
         // Successful
         tnfs_dir_fds[hostSlot] = tnfsPacket.data[1];
 #ifdef DEBUG
-        Debug_printf("Opened dir on slot #%d - fd = %02x\n",hostSlot,tnfs_dir_fds[hostSlot]);
+        Debug_printf("Opened dir on slot #%d - fd = %02x\n", hostSlot, tnfs_dir_fds[hostSlot]);
 #endif
         return;
       }
@@ -1375,14 +1395,14 @@ bool tnfs_readdir(unsigned char hostSlot)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.session_idl=tnfsSessionIDs[hostSlot].session_idl;
-  tnfsPacket.session_idh=tnfsSessionIDs[hostSlot].session_idh;
+  tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
+  tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
   tnfsPacket.retryCount++;  // increase sequence #
   tnfsPacket.command = 0x11; // READDIR
   tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
 
 #ifdef DEBUG
-  Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\n\n",hostSlot,tnfs_dir_fds[hostSlot]);
+  Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\n\n", hostSlot, tnfs_dir_fds[hostSlot]);
 #endif
 
   UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
@@ -1421,8 +1441,8 @@ void tnfs_closedir(unsigned char hostSlot)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.session_idl=tnfsSessionIDs[hostSlot].session_idl;
-  tnfsPacket.session_idh=tnfsSessionIDs[hostSlot].session_idh;
+  tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
+  tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
   tnfsPacket.retryCount++;  // increase sequence #
   tnfsPacket.command = 0x12; // CLOSEDIR
   tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
@@ -1466,8 +1486,8 @@ void tnfs_write(unsigned char deviceSlot)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.session_idl=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-  tnfsPacket.session_idh=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;  
+  tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
+  tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
   tnfsPacket.retryCount++;  // Increase sequence
   tnfsPacket.command = 0x22; // READ
   tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
@@ -1537,8 +1557,8 @@ void tnfs_read(unsigned char deviceSlot)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.session_idl=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-  tnfsPacket.session_idh=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+  tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
+  tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
   tnfsPacket.retryCount++;  // Increase sequence
   tnfsPacket.command = 0x21; // READ
   tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
@@ -1615,8 +1635,8 @@ void tnfs_seek(unsigned char deviceSlot, long offset)
   offsetVal[3] = (int)((offset & 0X000000FF));
 
   tnfsPacket.retryCount++;
-  tnfsPacket.session_idl=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-  tnfsPacket.session_idh=tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+  tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
+  tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
   tnfsPacket.command = 0x25; // LSEEK
   tnfsPacket.data[0] = tnfs_fds[deviceSlot];
   tnfsPacket.data[1] = 0x00; // SEEK_SET
@@ -1692,27 +1712,27 @@ void setup()
   atr = SPIFFS.open("/autorun.atr", "r+");
 
   // Go ahead and read the host slots from disk
-  atr.seek(91792,SeekSet);
-  atr.read(hostSlots.rawData,256);
+  atr.seek(91792, SeekSet);
+  atr.read(hostSlots.rawData, 256);
 
   // And populate the device slots
   atr.seek(91408, SeekSet);
-  atr.read(deviceSlots.rawData,304);
+  atr.read(deviceSlots.rawData, 304);
 
   // Go ahead and mark all device slots local
-  for (int i=0;i<8;i++)
+  for (int i = 0; i < 8; i++)
   {
-    if (deviceSlots.slot[i].file[0]==0x00)
+    if (deviceSlots.slot[i].file[0] == 0x00)
     {
-      deviceSlots.slot[i].hostSlot=0xFF;  
+      deviceSlots.slot[i].hostSlot = 0xFF;
     }
   }
-  
+
   // Set up pins
   pinMode(PIN_INT, OUTPUT); // thanks AtariGeezer
   digitalWrite(PIN_INT, HIGH);
   pinMode(PIN_PROC, OUTPUT); // thanks AtariGeezer
-  digitalWrite(PIN_PROC,HIGH);
+  digitalWrite(PIN_PROC, HIGH);
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
 #ifdef ESP8266
@@ -1727,10 +1747,10 @@ void setup()
 
 #ifdef DEBUG_N
   /* Get WiFi started, but don't wait for it otherwise SIO
-   * powered FujiNet fails to boot 
-   */
+     powered FujiNet fails to boot
+  */
   WiFi.begin(DEBUG_SSID, DEBUG_PASSWORD);
-#endif 
+#endif
 
   // Set up serial
   SIO_UART.begin(19200);
@@ -1753,21 +1773,21 @@ void loop()
     wificlient.println(TEST_NAME);
   }
 #endif
-  
+
   if (SIO_UART.available() > 0)
   {
     sio_incoming();
   }
 
-//  if ((millis() - cmdTimer > CMD_TIMEOUT) && (cmdState != WAIT))
-//  {
-//#ifdef DEBUG
-//    Debug_print("SIO CMD TIMEOUT: ");
-//    Debug_println(cmdState);
-//#endif
-//    cmdState = WAIT;
-//    cmdTimer = 0;
-//  }
+  //  if ((millis() - cmdTimer > CMD_TIMEOUT) && (cmdState != WAIT))
+  //  {
+  //#ifdef DEBUG
+  //    Debug_print("SIO CMD TIMEOUT: ");
+  //    Debug_println(cmdState);
+  //#endif
+  //    cmdState = WAIT;
+  //    cmdTimer = 0;
+  //  }
 
 #ifdef ESP32
   if (cmdState == WAIT && digitalRead(PIN_LED2) == LOW)
