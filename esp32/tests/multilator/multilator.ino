@@ -127,6 +127,7 @@ char current_entry[256];
 char tnfs_fds[8];
 char tnfs_dir_fds[8];
 int firstCachedSector[8] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535};
+unsigned short sectorSize[8] = {128, 128, 128, 128, 128, 128, 128, 128};
 bool load_config = true;
 char statusSkip = 0;
 
@@ -461,18 +462,34 @@ void sio_get_wifi_status()
 void sio_write()
 {
   byte ck;
+  int ss; // sector size
   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
+  int sectorNum = offset;
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
 
-  offset *= 128;
-  offset -= 128;
-  offset += 16; // skip 16 byte ATR Header
+  if (sectorNum < 4)
+  {
+    // First three sectors are always single density
+    offset *= 128;
+    offset -= 128;
+    offset += 16; // skip 16 byte ATR Header
+    ss=128;
+  }
+  else
+  {
+    // First three sectors are always single density
+    offset *= sectorSize[deviceSlot];
+    offset -= sectorSize[deviceSlot];
+    offset += 16; // skip 16 byte ATR Header
+    ss=sectorSize[deviceSlot];    
+  }
 
-#ifdef DEBUG_S
-  Serial1.printf("receiving 128b data frame from computer.\n");
+#ifdef DEBUG
+  Serial1.printf("receiving %d bytes data frame from computer.\n",ss);
 #endif
 
-  SIO_UART.readBytes(sector, 128);
+
+  SIO_UART.readBytes(sector, ss);
   while (SIO_UART.available() == 0) {
     delayMicroseconds(200);
   }
@@ -480,18 +497,18 @@ void sio_write()
   //delayMicroseconds(350);
   SIO_UART.write('A'); // Write ACK
 
-  if (ck == sio_checksum(sector, 128))
+  if (ck == sio_checksum(sector, ss))
   {
     if (load_config == true)
     {
       atr.seek(offset, SeekSet);
-      atr.write(sector, 128);
+      atr.write(sector, ss);
       atr.flush();
     }
     else
     {
       tnfs_seek(deviceSlot, offset);
-      tnfs_write(deviceSlot, 128);
+      tnfs_write(deviceSlot, ss);
       firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
     }
     delayMicroseconds(250);
@@ -512,21 +529,22 @@ void sio_write()
 void sio_format()
 {
   byte ck;
+  unsigned char deviceSlot = cmdFrame.devic - 0x31;
 
-  for (int i = 0; i < 128; i++)
+  for (int i = 0; i < sectorSize[deviceSlot]; i++)
     sector[i] = 0;
 
   sector[0] = 0xFF; // no bad sectors.
   sector[1] = 0xFF;
 
-  ck = sio_checksum((byte *)&sector, 128);
+  ck = sio_checksum((byte *)&sector, sectorSize[deviceSlot]);
 
   delayMicroseconds(DELAY_T5); // t5 delay
   SIO_UART.write('C'); // Completed command
   SIO_UART.flush();
 
   // Write data frame
-  SIO_UART.write(sector, 128);
+  SIO_UART.write(sector, sectorSize[deviceSlot]);
 
   // Write data frame checksum
   SIO_UART.write(ck);
@@ -939,6 +957,7 @@ void sio_read_drives_slots()
 void sio_read()
 {
   byte ck;
+  int ss;
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int cacheOffset = 0;
@@ -946,6 +965,7 @@ void sio_read()
 
   if (load_config == true) // no TNFS ATR mounted.
   {
+    ss=128;
     offset = sectorNum;
     offset *= 128;
     offset -= 128;
@@ -959,9 +979,15 @@ void sio_read()
     {
       firstCachedSector[deviceSlot] = sectorNum;
       cacheOffset = 0;
+      
+      if (sectorNum<4)
+        ss=128; // First three sectors are always single density
+      else
+        ss=sectorSize[deviceSlot];
+        
       offset = sectorNum;
-      offset *= 128;
-      offset -= 128;
+      offset *= ss;
+      offset -= ss;
       offset += 16;
 #ifdef DEBUG
       Debug_printf("firstCachedSector: %d\n", firstCachedSector);
@@ -1022,22 +1048,27 @@ void sio_read()
     }
     else // cache hit, adjust offset
     {
-      cacheOffset = ((sectorNum - firstCachedSector[deviceSlot]) * 128);
+      if (sectorNum<4)
+        ss=128;
+      else
+        ss=sectorSize[deviceSlot];
+      
+      cacheOffset = ((sectorNum - firstCachedSector[deviceSlot]) * ss);
 #ifdef DEBUG
       Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
     }
-    for (int i = 0; i < 128; i++)
+    for (int i = 0; i < ss; i++)
       sector[i] = sectorCache[deviceSlot][(i + cacheOffset)];
   }
 
-  ck = sio_checksum((byte *)&sector, 128);
+  ck = sio_checksum((byte *)&sector, ss);
 
   SIO_UART.write('C'); // Completed command
   SIO_UART.flush();
 
   // Write data frame
-  SIO_UART.write(sector, 128);
+  SIO_UART.write(sector, ss);
   SIO_UART.flush();
 
   // Write data frame checksum
@@ -1048,7 +1079,7 @@ void sio_read()
   Debug_print("SIO READ OFFSET: ");
   Debug_print(offset);
   Debug_print(" - ");
-  Debug_println((offset + 128));
+  Debug_println((offset + ss));
 #endif
 }
 
