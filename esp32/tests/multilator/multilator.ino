@@ -128,6 +128,7 @@ char tnfs_fds[8];
 char tnfs_dir_fds[8];
 int firstCachedSector[8] = {65535,65535,65535,65535,65535,65535,65535,65535};
 bool load_config=true;
+char statusSkip=0;
 
 #ifdef DEBUG_N
 WiFiClient wificlient;
@@ -1063,6 +1064,16 @@ void sio_status()
 void sio_ack()
 {
   delayMicroseconds(500);
+  if (cmdFrame.devic==0x31 && 
+      cmdFrame.comnd==0x53)
+  {
+    if (statusSkip<23)
+    {
+      statusSkip++;
+      cmdState=WAIT;
+      return;
+    }
+  }
   SIO_UART.write('A');
   SIO_UART.flush();
   //cmdState = PROCESS;
