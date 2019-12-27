@@ -120,7 +120,7 @@ union
 
 byte sectorCache[8][2560];
 
-byte sector[128];
+byte sector[256];
 char tnfsServer[256];
 char mountPath[256];
 char current_entry[256];
