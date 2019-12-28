@@ -5,8 +5,8 @@
 #include <string>
 using namespace std;
 
-#define OUTSTREAM pdfout 
-//cout
+#define OUTSTREAM pdfout
+#define NUMLINES 66
 
 //based on ....
 //HELLO WORLD PDF example from https://blog.idrsolutions.com/2010/10/make-your-own-pdf-file-part-4-hello-world-pdf/
@@ -49,13 +49,13 @@ startxref
 string page;       // buffer for whole page
 stringstream str1; // temporary stream buffer for numeric to string conversion
 string s;          // temporary string for line reading from cin stream
-int loc[85];       // reference table storage
+int loc[NUMLINES+5];       // reference table storage
 int xref;
 
 int main()
 {
-  ofstream pdfout;
-  pdfout.open("out.pdf");
+  ofstream OUTSTREAM;
+  OUTSTREAM.open("out.pdf");
 
   int oCtr = 1;
   page = "%PDF-1.4\n";
@@ -65,7 +65,7 @@ int main()
   page += "2 0 obj <</Type /Pages /Kids [3 0 R] /Count 1>> endobj\n";
   loc[oCtr++] = page.length();
   page += "3 0 obj <</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 612 792] /Contents [ ";
-  for (int i = 0; i < 110; i++)
+  for (int i = 0; i < NUMLINES; i++)
   {
     str1 << (i + 6) << " 0 R ";
   }
@@ -75,24 +75,29 @@ int main()
   page += "4 0 obj <</Font <</F1 5 0 R>>>> endobj\n";
   loc[oCtr++] = page.length();
   page += "5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /Courier>> endobj\n";
-  loc[oCtr++] = page.length();
-  page += "6 0 obj <</Length 44>> stream\n";
-  page += "BT /F1 12 Tf 018 781 Td (my first line)Tj ET\n";
-  page += "endstream endobj\n";
+  for (int i = 0; i < NUMLINES; i++)
+  {
+    loc[oCtr++] = page.length();
+    stringstream str2;
+    str2 << (6+i) << " 0 obj <</Length " << (31+2) << ">> stream\n";
+    str2 << "BT /F1 12 Tf 018 " << (782-i*12) << " Td (" << setfill('0') << setw(2) << i << ")Tj ET\n";
+    page += str2.str();
+    page += "endstream endobj\n";
+  }
   xref = page.length();
   page += "xref\n";
   page += "0 6\n";
   OUTSTREAM << page;
   OUTSTREAM << "0000000000 65535 f\n";
-  for (int i = 1; i < 7; i++)
+  for (int i = 1; i < (NUMLINES+5); i++)
   {
     OUTSTREAM << setfill('0') << setw(10) << loc[i] << " 00000 n\n";
   }
   OUTSTREAM << "trailer <</Size 6/Root 1 0 R>>\n";
   OUTSTREAM << "startxref\n";
   OUTSTREAM << xref << "\n"
-       << "%%EOF\n";
-  pdfout.close();
+            << "%%EOF\n";
+  OUTSTREAM.close();
   //getline(cin, s);
 
   return 0;
