@@ -6,6 +6,7 @@
 using namespace std;
 
 #define OUTSTREAM pdfout
+#define INSTREAM prtin
 #define NUMLINES 66
 
 //based on ....
@@ -46,15 +47,17 @@ startxref
 %%EOF
 */
 
-string page;       // buffer for whole page
-stringstream str1; // temporary stream buffer for numeric to string conversion
-string s;          // temporary string for line reading from cin stream
-int loc[NUMLINES+5];       // reference table storage
-int xref;
-
 int main()
 {
+  ifstream INSTREAM; // input file
   ofstream OUTSTREAM;
+  string page;           // buffer for whole page
+  stringstream str1;     // temporary stream buffer for numeric to string conversion
+  string s;              // temporary string for line reading from cin stream
+  int loc[NUMLINES + 5]; // reference table storage
+  int xref;
+
+  INSTREAM.open("in.txt");
   OUTSTREAM.open("out.pdf");
 
   int oCtr = 1;
@@ -77,28 +80,30 @@ int main()
   page += "5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /Courier>> endobj\n";
   for (int i = 0; i < NUMLINES; i++)
   {
+    string s;
+    if (!INSTREAM.eof())
+      getline(INSTREAM, s);
     loc[oCtr++] = page.length();
     stringstream str2;
-    str2 << (6+i) << " 0 obj <</Length " << (31+2) << ">> stream\n";
-    str2 << "BT /F1 12 Tf 018 " << (782-i*12) << " Td (" << setfill('0') << setw(2) << i << ")Tj ET\n";
+    str2 << (6 + i) << " 0 obj <</Length " << (31 + s.length()) << ">> stream\n";
+    str2 << "BT /F1 12 Tf 018 " << (782 - i * 12) << " Td (" << s << ")Tj ET\n";
     page += str2.str();
     page += "endstream endobj\n";
   }
   xref = page.length();
   page += "xref\n";
-  page += "0 6\n";
+  page += "0 72\n";
   OUTSTREAM << page;
   OUTSTREAM << "0000000000 65535 f\n";
-  for (int i = 1; i < (NUMLINES+5); i++)
+  for (int i = 1; i < (NUMLINES + 5); i++)
   {
     OUTSTREAM << setfill('0') << setw(10) << loc[i] << " 00000 n\n";
   }
-  OUTSTREAM << "trailer <</Size 6/Root 1 0 R>>\n";
+  OUTSTREAM << "trailer <</Size 72/Root 1 0 R>>\n";
   OUTSTREAM << "startxref\n";
   OUTSTREAM << xref << "\n"
             << "%%EOF\n";
   OUTSTREAM.close();
-  //getline(cin, s);
 
   return 0;
 }
