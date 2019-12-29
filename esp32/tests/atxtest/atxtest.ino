@@ -497,7 +497,7 @@ unsigned short atx_increment_angular_displacement(unsigned short start, unsigned
 unsigned short atx_read_sector_header(unsigned long currentFileOffset, ATXSectorHeader* sectorHeader)
 {
   atx.seek(currentFileOffset, SeekSet);
-  atx.read((byte *)sectorHeader, sizeof(ATXSectorHeader));
+  return atx.read((byte *)sectorHeader, sizeof(ATXSectorHeader));
 }
 
 unsigned short atx_read(unsigned short num, byte* sector, unsigned short *sectorSize, unsigned char *status) {
