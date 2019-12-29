@@ -1,0 +1,64 @@
+
+ANTIC VOL. 1, NO. 1 / APRIL 1982
+ASSEMBLER/EDITOR CARTRIDGE
+Tricks Of The Trade
+by James Capparell
+
+Do you often wonder how some of the incredible graphics were achieved in your
+favorite program. Looking at someone else's program is an excellent method of
+self-instruction. The problem is that often we only have the assembled
+(object) code in our possession. The L option of the A/E cartridge makes it
+possible to recreate source code from the object code. This is a useful
+feature. The catch is the inability to save the output of the L function to
+disk. Follow these simple instructions and you will be able to save the
+disassembled output to disk.
+
+1. Load the object code to be disassembled. Unnecessary if you are dealing 
+   with ROM code.
+
+2. Note the first memory address (hex) where the disassembly process is to
+   begin.
+
+3. Enter the debug mode of A/E by typing BUG and pressing return.
+
+4. Start the disassembly process at the hex address noted in step 2. Enter the
+   L command followed by the hex address and press return. This command
+   disassembles 20 lines of code and displays the results on your T.V.
+   (IMPORTANT--Note the last address printed on your screen).
+
+5. Move the cursor to first line on screen using control and arrow keys and
+   insert 2 blank lines using the shift and insert keys.
+
+6. Return to the Edit mode by typing X and pressing return. The screen will
+   still display the disassembled output.
+
+7. Again move the cursor to the first line on the screen and enter Auto line
+   numbering mode by typing NUM, press return. This will cause the cursor to
+   print out the number 10 if this is the first time the auto numbering
+   command has been executed or the next number incremented by 10. It will
+   also place the number and the cursor at the start of the first line of
+   disassembled code.
+
+8. Using the control and delete key delete all characters up to two spaces
+   prior to the assembly language mnemonic. The two spaces are necessary to
+   conform to A/E spacing requirements.
+
+9. Press return to enter this line of code into the source file. This will
+   also generate the next line number incremented by 10. The cursor will
+   appear at the beginning of the next line.
+
+10. Continue with all 20 lines. When done, if you have more code to disassemble
+    return to step 3. This can go on indefinitely or until source buffers are
+    full at which time you will need to save the source file. The auto line
+    numbering remembers the last line number and will correctly generate the
+    proper sequences between 20 line chunks. This technique can be useful when
+    you're trying to decipher code. Labels can be added in place of addresses
+    in the operand fields and the corresponding label fields. This entire
+    process is called unassembling object code. It can be very useful when used
+    on small subroutines.
+
+Note: This same process also works on EDASM, Optimized Systems Software's
+      assembler/editor.
+
+
+https://www.atarimagazines.com/v1n1/assemblereditortricks.html
