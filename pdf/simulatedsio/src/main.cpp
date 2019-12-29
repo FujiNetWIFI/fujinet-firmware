@@ -16,11 +16,12 @@ using namespace std;
 // 820 dot matrix: 40 column, TBD point, LPI, 3 7/8" width:  279 x roll,
 // 1027 impact:
 int lineHeight = 12;
-int pageWidth = 672;
+int pageWidth = 612;
 int pageHeight = 792;
 int leftMargin = 18;
 int bottomMargin = 2;
 int fontSize = 12;
+const char* fontName = "Courier";
 
 // todo:
 // specify: page size, left/bottom margins, line spacing
@@ -71,7 +72,7 @@ int main()
   // fifth object: font 1
   objCtr++;
   objLocations[objCtr] = objLocations[objCtr - 1] + line.length();
-  offset = fprintf(f, "5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /Courier>> endobj\n");
+  offset = fprintf(f, "5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /%s>> endobj\n",fontName);
 
   // body ******************************************************************************************
   // sixth+ objects: line contents
