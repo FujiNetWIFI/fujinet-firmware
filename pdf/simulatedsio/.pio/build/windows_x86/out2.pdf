@@ -5,202 +5,202 @@
 4 0 obj <</Font <</F1 5 0 R>>>> endobj
 5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /Courier>> endobj
 6 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 770 Td ()Tj ET
+BT /F1 11 Tf 42 770 Td ()Tj ET
 endstream endobj
 7 0 obj <</Length 62>> stream
-BT /F1 12 Tf 18 758 Td (ANTIC VOL. 1, NO. 1 / APRIL 1982)Tj ET
+BT /F1 11 Tf 42 758 Td (ANTIC VOL. 1, NO. 1 / APRIL 1982)Tj ET
 endstream endobj
 8 0 obj <</Length 56>> stream
-BT /F1 12 Tf 18 746 Td (ASSEMBLER/EDITOR CARTRIDGE)Tj ET
+BT /F1 11 Tf 42 746 Td (ASSEMBLER/EDITOR CARTRIDGE)Tj ET
 endstream endobj
 9 0 obj <</Length 49>> stream
-BT /F1 12 Tf 18 734 Td (Tricks Of The Trade)Tj ET
+BT /F1 11 Tf 42 734 Td (Tricks Of The Trade)Tj ET
 endstream endobj
 10 0 obj <</Length 48>> stream
-BT /F1 12 Tf 18 722 Td (by James Capparell)Tj ET
+BT /F1 11 Tf 42 722 Td (by James Capparell)Tj ET
 endstream endobj
 11 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 710 Td ()Tj ET
+BT /F1 11 Tf 42 710 Td ()Tj ET
 endstream endobj
 12 0 obj <</Length 107>> stream
-BT /F1 12 Tf 18 698 Td (Do you often wonder how some of the incredible graphics were achieved in your)Tj ET
+BT /F1 11 Tf 42 698 Td (Do you often wonder how some of the incredible graphics were achieved in your)Tj ET
 endstream endobj
 13 0 obj <</Length 107>> stream
-BT /F1 12 Tf 18 686 Td (favorite program. Looking at someone else`s program is an excellent method of)Tj ET
+BT /F1 11 Tf 42 686 Td (favorite program. Looking at someone else`s program is an excellent method of)Tj ET
 endstream endobj
 14 0 obj <</Length 100>> stream
-BT /F1 12 Tf 18 674 Td (self-instruction. The problem is that often we only have the assembled)Tj ET
+BT /F1 11 Tf 42 674 Td (self-instruction. The problem is that often we only have the assembled)Tj ET
 endstream endobj
 15 0 obj <</Length 105>> stream
-BT /F1 12 Tf 18 662 Td ((object) code in our possession. The L option of the A/E cartridge makes it)Tj ET
+BT /F1 11 Tf 42 662 Td ((object) code in our possession. The L option of the A/E cartridge makes it)Tj ET
 endstream endobj
 16 0 obj <</Length 101>> stream
-BT /F1 12 Tf 18 650 Td (possible to recreate source code from the object code. This is a useful)Tj ET
+BT /F1 11 Tf 42 650 Td (possible to recreate source code from the object code. This is a useful)Tj ET
 endstream endobj
 17 0 obj <</Length 105>> stream
-BT /F1 12 Tf 18 638 Td (feature. The catch is the inability to save the output of the L function to)Tj ET
+BT /F1 11 Tf 42 638 Td (feature. The catch is the inability to save the output of the L function to)Tj ET
 endstream endobj
 18 0 obj <</Length 101>> stream
-BT /F1 12 Tf 18 626 Td (disk. Follow these simple instructions and you will be able to save the)Tj ET
+BT /F1 11 Tf 42 626 Td (disk. Follow these simple instructions and you will be able to save the)Tj ET
 endstream endobj
 19 0 obj <</Length 58>> stream
-BT /F1 12 Tf 18 614 Td (disassembled output to disk.)Tj ET
+BT /F1 11 Tf 42 614 Td (disassembled output to disk.)Tj ET
 endstream endobj
 20 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 602 Td ()Tj ET
+BT /F1 11 Tf 42 602 Td ()Tj ET
 endstream endobj
 21 0 obj <</Length 105>> stream
-BT /F1 12 Tf 18 590 Td (1. Load the object code to be disassembled. Unnecessary if you are dealing )Tj ET
+BT /F1 11 Tf 42 590 Td (1. Load the object code to be disassembled. Unnecessary if you are dealing )Tj ET
 endstream endobj
 22 0 obj <</Length 47>> stream
-BT /F1 12 Tf 18 578 Td (   with ROM code.)Tj ET
+BT /F1 11 Tf 42 578 Td (   with ROM code.)Tj ET
 endstream endobj
 23 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 566 Td ()Tj ET
+BT /F1 11 Tf 42 566 Td ()Tj ET
 endstream endobj
 24 0 obj <</Length 104>> stream
-BT /F1 12 Tf 18 554 Td (2. Note the first memory address (hex) where the disassembly process is to)Tj ET
+BT /F1 11 Tf 42 554 Td (2. Note the first memory address (hex) where the disassembly process is to)Tj ET
 endstream endobj
 25 0 obj <</Length 39>> stream
-BT /F1 12 Tf 18 542 Td (   begin.)Tj ET
+BT /F1 11 Tf 42 542 Td (   begin.)Tj ET
 endstream endobj
 26 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 530 Td ()Tj ET
+BT /F1 11 Tf 42 530 Td ()Tj ET
 endstream endobj
 27 0 obj <</Length 95>> stream
-BT /F1 12 Tf 18 518 Td (3. Enter the debug mode of A/E by typing BUG and pressing return.)Tj ET
+BT /F1 11 Tf 42 518 Td (3. Enter the debug mode of A/E by typing BUG and pressing return.)Tj ET
 endstream endobj
 28 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 506 Td ()Tj ET
+BT /F1 11 Tf 42 506 Td ()Tj ET
 endstream endobj
 29 0 obj <</Length 108>> stream
-BT /F1 12 Tf 18 494 Td (4. Start the disassembly process at the hex address noted in step 2. Enter the)Tj ET
+BT /F1 11 Tf 42 494 Td (4. Start the disassembly process at the hex address noted in step 2. Enter the)Tj ET
 endstream endobj
 30 0 obj <</Length 101>> stream
-BT /F1 12 Tf 18 482 Td (   L command followed by the hex address and press return. This command)Tj ET
+BT /F1 11 Tf 42 482 Td (   L command followed by the hex address and press return. This command)Tj ET
 endstream endobj
 31 0 obj <</Length 100>> stream
-BT /F1 12 Tf 18 470 Td (   disassembles 20 lines of code and displays the results on your T.V.)Tj ET
+BT /F1 11 Tf 42 470 Td (   disassembles 20 lines of code and displays the results on your T.V.)Tj ET
 endstream endobj
 32 0 obj <</Length 91>> stream
-BT /F1 12 Tf 18 458 Td (   (IMPORTANT--Note the last address printed on your screen).)Tj ET
+BT /F1 11 Tf 42 458 Td (   (IMPORTANT--Note the last address printed on your screen).)Tj ET
 endstream endobj
 33 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 446 Td ()Tj ET
+BT /F1 11 Tf 42 446 Td ()Tj ET
 endstream endobj
 34 0 obj <</Length 105>> stream
-BT /F1 12 Tf 18 434 Td (5. Move the cursor to first line on screen using control and arrow keys and)Tj ET
+BT /F1 11 Tf 42 434 Td (5. Move the cursor to first line on screen using control and arrow keys and)Tj ET
 endstream endobj
 35 0 obj <</Length 86>> stream
-BT /F1 12 Tf 18 422 Td (   insert 2 blank lines using the shift and insert keys.)Tj ET
+BT /F1 11 Tf 42 422 Td (   insert 2 blank lines using the shift and insert keys.)Tj ET
 endstream endobj
 36 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 410 Td ()Tj ET
+BT /F1 11 Tf 42 410 Td ()Tj ET
 endstream endobj
 37 0 obj <</Length 105>> stream
-BT /F1 12 Tf 18 398 Td (6. Return to the Edit mode by typing X and pressing return. The screen will)Tj ET
+BT /F1 11 Tf 42 398 Td (6. Return to the Edit mode by typing X and pressing return. The screen will)Tj ET
 endstream endobj
 38 0 obj <</Length 71>> stream
-BT /F1 12 Tf 18 386 Td (   still display the disassembled output.)Tj ET
+BT /F1 11 Tf 42 386 Td (   still display the disassembled output.)Tj ET
 endstream endobj
 39 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 374 Td ()Tj ET
+BT /F1 11 Tf 42 374 Td ()Tj ET
 endstream endobj
 40 0 obj <</Length 106>> stream
-BT /F1 12 Tf 18 362 Td (7. Again move the cursor to the first line on the screen and enter Auto line)Tj ET
+BT /F1 11 Tf 42 362 Td (7. Again move the cursor to the first line on the screen and enter Auto line)Tj ET
 endstream endobj
 41 0 obj <</Length 106>> stream
-BT /F1 12 Tf 18 350 Td (   numbering mode by typing NUM, press return. This will cause the cursor to)Tj ET
+BT /F1 11 Tf 42 350 Td (   numbering mode by typing NUM, press return. This will cause the cursor to)Tj ET
 endstream endobj
 42 0 obj <</Length 101>> stream
-BT /F1 12 Tf 18 338 Td (   print out the number 10 if this is the first time the auto numbering)Tj ET
+BT /F1 11 Tf 42 338 Td (   print out the number 10 if this is the first time the auto numbering)Tj ET
 endstream endobj
 43 0 obj <</Length 104>> stream
-BT /F1 12 Tf 18 326 Td (   command has been executed or the next number incremented by 10. It will)Tj ET
+BT /F1 11 Tf 42 326 Td (   command has been executed or the next number incremented by 10. It will)Tj ET
 endstream endobj
 44 0 obj <</Length 103>> stream
-BT /F1 12 Tf 18 314 Td (   also place the number and the cursor at the start of the first line of)Tj ET
+BT /F1 11 Tf 42 314 Td (   also place the number and the cursor at the start of the first line of)Tj ET
 endstream endobj
 45 0 obj <</Length 51>> stream
-BT /F1 12 Tf 18 302 Td (   disassembled code.)Tj ET
+BT /F1 11 Tf 42 302 Td (   disassembled code.)Tj ET
 endstream endobj
 46 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 290 Td ()Tj ET
+BT /F1 11 Tf 42 290 Td ()Tj ET
 endstream endobj
 47 0 obj <</Length 104>> stream
-BT /F1 12 Tf 18 278 Td (8. Using the control and delete key delete all characters up to two spaces)Tj ET
+BT /F1 11 Tf 42 278 Td (8. Using the control and delete key delete all characters up to two spaces)Tj ET
 endstream endobj
 48 0 obj <</Length 105>> stream
-BT /F1 12 Tf 18 266 Td (   prior to the assembly language mnemonic. The two spaces are necessary to)Tj ET
+BT /F1 11 Tf 42 266 Td (   prior to the assembly language mnemonic. The two spaces are necessary to)Tj ET
 endstream endobj
 49 0 obj <</Length 69>> stream
-BT /F1 12 Tf 18 254 Td (   conform to A/E spacing requirements.)Tj ET
+BT /F1 11 Tf 42 254 Td (   conform to A/E spacing requirements.)Tj ET
 endstream endobj
 50 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 242 Td ()Tj ET
+BT /F1 11 Tf 42 242 Td ()Tj ET
 endstream endobj
 51 0 obj <</Length 104>> stream
-BT /F1 12 Tf 18 230 Td (9. Press return to enter this line of code into the source file. This will)Tj ET
+BT /F1 11 Tf 42 230 Td (9. Press return to enter this line of code into the source file. This will)Tj ET
 endstream endobj
 52 0 obj <</Length 102>> stream
-BT /F1 12 Tf 18 218 Td (   also generate the next line number incremented by 10. The cursor will)Tj ET
+BT /F1 11 Tf 42 218 Td (   also generate the next line number incremented by 10. The cursor will)Tj ET
 endstream endobj
 53 0 obj <</Length 74>> stream
-BT /F1 12 Tf 18 206 Td (   appear at the beginning of the next line.)Tj ET
+BT /F1 11 Tf 42 206 Td (   appear at the beginning of the next line.)Tj ET
 endstream endobj
 54 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 194 Td ()Tj ET
+BT /F1 11 Tf 42 194 Td ()Tj ET
 endstream endobj
 55 0 obj <</Length 109>> stream
-BT /F1 12 Tf 18 182 Td (10. Continue with all 20 lines. When done, if you have more code to disassemble)Tj ET
+BT /F1 11 Tf 42 182 Td (10. Continue with all 20 lines. When done, if you have more code to disassemble)Tj ET
 endstream endobj
 56 0 obj <</Length 107>> stream
-BT /F1 12 Tf 18 170 Td (    return to step 3. This can go on indefinitely or until source buffers are)Tj ET
+BT /F1 11 Tf 42 170 Td (    return to step 3. This can go on indefinitely or until source buffers are)Tj ET
 endstream endobj
 57 0 obj <</Length 105>> stream
-BT /F1 12 Tf 18 158 Td (    full at which time you will need to save the source file. The auto line)Tj ET
+BT /F1 11 Tf 42 158 Td (    full at which time you will need to save the source file. The auto line)Tj ET
 endstream endobj
 58 0 obj <</Length 106>> stream
-BT /F1 12 Tf 18 146 Td (    numbering remembers the last line number and will correctly generate the)Tj ET
+BT /F1 11 Tf 42 146 Td (    numbering remembers the last line number and will correctly generate the)Tj ET
 endstream endobj
 59 0 obj <</Length 108>> stream
-BT /F1 12 Tf 18 134 Td (    proper sequences between 20 line chunks. This technique can be useful when)Tj ET
+BT /F1 11 Tf 42 134 Td (    proper sequences between 20 line chunks. This technique can be useful when)Tj ET
 endstream endobj
 60 0 obj <</Length 107>> stream
-BT /F1 12 Tf 18 122 Td (    you're trying to decipher code. Labels can be added in place of addresses)Tj ET
+BT /F1 11 Tf 42 122 Td (    you're trying to decipher code. Labels can be added in place of addresses)Tj ET
 endstream endobj
 61 0 obj <</Length 103>> stream
-BT /F1 12 Tf 18 110 Td (    in the operand fields and the corresponding label fields. This entire)Tj ET
+BT /F1 11 Tf 42 110 Td (    in the operand fields and the corresponding label fields. This entire)Tj ET
 endstream endobj
 62 0 obj <</Length 109>> stream
-BT /F1 12 Tf 18  98 Td (    process is called unassembling object code. It can be very useful when used)Tj ET
+BT /F1 11 Tf 42  98 Td (    process is called unassembling object code. It can be very useful when used)Tj ET
 endstream endobj
 63 0 obj <</Length 55>> stream
-BT /F1 12 Tf 18  86 Td (    on small subroutines.)Tj ET
+BT /F1 11 Tf 42  86 Td (    on small subroutines.)Tj ET
 endstream endobj
 64 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18  74 Td ()Tj ET
+BT /F1 11 Tf 42  74 Td ()Tj ET
 endstream endobj
 65 0 obj <</Length 103>> stream
-BT /F1 12 Tf 18  62 Td (Note: This same process also works on EDASM, Optimized Systems Software`s)Tj ET
+BT /F1 11 Tf 42  62 Td (Note: This same process also works on EDASM, Optimized Systems Software`s)Tj ET
 endstream endobj
 66 0 obj <</Length 53>> stream
-BT /F1 12 Tf 18  50 Td (      assembler/editor.)Tj ET
+BT /F1 11 Tf 42  50 Td (      assembler/editor.)Tj ET
 endstream endobj
 67 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18  38 Td ()Tj ET
+BT /F1 11 Tf 42  38 Td ()Tj ET
 endstream endobj
 68 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18  26 Td ()Tj ET
+BT /F1 11 Tf 42  26 Td ()Tj ET
 endstream endobj
 69 0 obj <</Length 92>> stream
-BT /F1 12 Tf 18  14 Td (https://www.atarimagazines.com/v1n1/assemblereditortricks.html)Tj ET
+BT /F1 11 Tf 42  14 Td (https://www.atarimagazines.com/v1n1/assemblereditortricks.html)Tj ET
 endstream endobj
 70 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18   2 Td ()Tj ET
+BT /F1 11 Tf 42   2 Td ()Tj ET
 endstream endobj
 71 0 obj <</Length 30>> stream
-BT /F1 12 Tf 18 -10 Td ()Tj ET
+BT /F1 11 Tf 42 -10 Td ()Tj ET
 endstream endobj
 xref
 0 72
