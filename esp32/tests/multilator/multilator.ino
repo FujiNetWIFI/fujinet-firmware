@@ -708,7 +708,7 @@ void sio_close_tnfs_directory()
 void sio_high_speed()
 {
   byte ck;
-  // byte hsd=0x0A; // US Doubler
+  // byte hsd=0x08; // US Doubler
   byte hsd = 0x28; // Standard Speed (19200)
 
   ck = sio_checksum((byte *)&hsd, 1);
@@ -725,7 +725,7 @@ void sio_high_speed()
   SIO_UART.flush();
   delayMicroseconds(200);
 
-  // SIO_UART.begin(52640); // US Doubler
+  // SIO_UART.updateBaudRate(68837); // US Doubler
   // SIO_UART.begin(19200); // Standard
 }
 
@@ -1305,19 +1305,13 @@ void tnfs_open(unsigned char deviceSlot, unsigned char options)
   tnfsPacket.retryCount++;  // increase sequence #
   tnfsPacket.command = 0x29; // OPEN
 
-  if (options & 0x01 == 1)
-  {
-    tnfsPacket.data[c++] = 0x01; // R/O
-  }
-  else if (options & 0x02 == 2)
-  {
-    tnfsPacket.data[c++] = 0x03; // R/W
-  }
+  if (options==0x01)
+    tnfsPacket.data[c++]=0x01;
+  else if (options==0x02)
+    tnfsPacket.data[c++]=0x03;
   else
-  {
-    tnfsPacket.data[c++] = 0x01; // R/O
-  }
-
+    tnfsPacket.data[c++]=0x03;
+    
   tnfsPacket.data[c++] = 0x00; //
   tnfsPacket.data[c++] = 0x00; // Flags
   tnfsPacket.data[c++] = 0x00; //
