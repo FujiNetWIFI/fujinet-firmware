@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <iomanip>
+#include <iostream>
 #include <fstream>
 //using namespace std;
 
-#define INSTREAM prtin
 #define NUMLINES 66
+#define EOL -100
 
 // printers
 // standard: 80 column, 12 point, 6 LPI, letter size: 612 x 792, 18 left, 2 bottom
@@ -24,6 +26,7 @@ int leftMargin = 18;
 int bottomMargin = 2;
 int fontSize = 12;
 const char *fontName = "Courier";
+int lineCounter = 0;
 
 // todo:
 // specify: page size, left/bottom margins, line spacing
@@ -33,11 +36,12 @@ const char *fontName = "Courier";
 // replace page(string) with incremental line string and accumulate lengths for xref
 // use NUMLINES to parameterize the routine
 
-std::ifstream INSTREAM; // input file
-int offset;
+std::ifstream prtin; // input file
+
+int offset;                     // used to store location offset to next object
 int objLocations[NUMLINES + 5]; // reference table storage
-int xref;
-int objCtr = 0;
+int xref;                       // store the xref tabel location
+int objCtr = 0;                 // count the objects
 
 FILE *f; // standard C output file
 
@@ -45,7 +49,7 @@ void pdf_header()
 {
   offset = fprintf(f, "%%PDF-1.4\n");
   // first object: catalog of pages
-  objCtr++;
+  objCtr = 1;
   objLocations[objCtr] = offset;
   offset = fprintf(f, "1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n");
   // second object: one page
@@ -75,6 +79,7 @@ void pdf_header()
 void pdf_xref()
 {
   xref = objLocations[objCtr] + offset;
+  objCtr++;
   fprintf(f, "xref\n");
   fprintf(f, "0 %d\n", objCtr);
   fprintf(f, "0000000000 65535 f\n");
@@ -88,29 +93,92 @@ void pdf_xref()
   fprintf(f, "%%%%EOF\n");
 }
 
-void pdf_add_line(int lineNum, const char *L)
+void pdf_add_line(const char *L)
 {
   objCtr++;
   objLocations[objCtr] = objLocations[objCtr - 1] + offset;
-  offset = fprintf(f, "%d 0 obj <</Length %d>> stream\n", 6 + lineNum, 30 + strlen(L));
-  int xcoord = pageHeight - lineHeight + bottomMargin - lineNum * lineHeight;
+  offset = fprintf(f, "%d 0 obj <</Length %d>> stream\n", objCtr, 30 + strlen(L));
+  int xcoord = pageHeight - lineHeight + bottomMargin - lineCounter * lineHeight;
   //this string right here vvvvvv is 30 chars long plus the length of the payload
   offset += fprintf(f, "BT /F1 %2d Tf %2d %3d Td (%s)Tj ET\n", fontSize, leftMargin, xcoord, L);
   offset += fprintf(f, "endstream endobj\n");
 }
 
+void atari_to_c_str(char *S)
+{
+  int i = 0;
+  S[40] = '\0';
+  while (i < 40)
+  {
+    if (S[i] == EOL)
+    {
+      S[i] = '\0';
+      return;
+    }
+    i++;
+  }
+}
+
 int main()
 {
-  INSTREAM.open("in.txt");
+  char buffer[40];
+  std::string payload;
+  std::string output;
+  int j;
+
+  prtin.open("in.txt");
   f = fopen("out2.pdf", "w");
+
   pdf_header();
   // body ******************************************************************************************
-  for (int i = 0; i < NUMLINES; i++)
+  //for (int inputCounter = 0; inputCounter < NUMLINES; inputCounter++)
+  while (lineCounter < NUMLINES)
   {
-    std::string payload;
-    if (!INSTREAM.eof())
-      getline(INSTREAM, payload);
-    pdf_add_line(i, payload.c_str());
+    lineCounter++;
+    output.clear();
+    if (!prtin.eof())
+    {
+      getline(prtin, payload);
+      std::cout << "line " << std::setw(3) << lineCounter << ":  " << payload << "\n";
+      //SIMULATE SIO:
+      //standard Atari P: handler sends 40 bytes at a time
+      //break up line into two 40-byte buffers, add an EOL, pad with spaces
+      memset(buffer, '\0', 41);
+      j = payload.copy(buffer, 40);
+      if (j < 40)
+      {
+        buffer[j++] = EOL;
+        while (j < 40)
+        {
+          buffer[j++] = ' ';
+        }
+      }
+      // now buffer contains an SIO-like buffer array from the OS P: handler
+      std::cout << "buffer 1: [" << buffer << "]\n";
+      atari_to_c_str(buffer);
+      output.append(buffer);
+      // make a new SIO-like buffer
+      if (payload.length() > 40)
+      {
+        memset(buffer, '\0', 41);
+        j = payload.copy(buffer, 40, 40);
+        if (j < 40)
+        {
+          buffer[j++] = EOL;
+          while (j < 40)
+          {
+            buffer[j++] = ' ';
+          }
+        }
+        // now buffer contains an SIO-like buffer array from the OS P: handler
+        std::cout << "buffer 2: [" << buffer << "]\n";
+        atari_to_c_str(buffer);
+        output.append(buffer);
+      }
+    }
+    std::cout << output << '\n';
+    pdf_add_line(output.c_str());
+    fflush(f);
   }
   pdf_xref();
   fclose(f);
