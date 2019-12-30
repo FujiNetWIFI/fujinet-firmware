@@ -22,9 +22,9 @@
 int lineHeight = 12;
 int pageWidth = 612;
 int pageHeight = 792;
-int leftMargin = 18;
+int leftMargin = 42;
 int bottomMargin = 2;
-int fontSize = 12;
+int fontSize = 11;
 const char *fontName = "Courier";
 int lineCounter = 0;
 
@@ -95,6 +95,7 @@ void pdf_xref()
 
 void pdf_add_line(const char *L)
 {
+  // to do: handle odd characters for fprintf, e.g., %,'," etc.
   objCtr++;
   objLocations[objCtr] = objLocations[objCtr - 1] + offset;
   offset = fprintf(f, "%d 0 obj <</Length %d>> stream\n", objCtr, 30 + strlen(L));
@@ -143,7 +144,7 @@ int main()
       //SIMULATE SIO:
       //standard Atari P: handler sends 40 bytes at a time
       //break up line into two 40-byte buffers, add an EOL, pad with spaces
-      memset(buffer, '\0', 41);
+      //memset(buffer, '\0', 41);
       j = payload.copy(buffer, 40);
       if (j < 40)
       {
@@ -153,6 +154,7 @@ int main()
           buffer[j++] = ' ';
         }
       }
+      buffer[40] = '\0';
       // now buffer contains an SIO-like buffer array from the OS P: handler
       std::cout << "buffer 1: [" << buffer << "]\n";
       atari_to_c_str(buffer);
@@ -160,7 +162,7 @@ int main()
       // make a new SIO-like buffer
       if (payload.length() > 40)
       {
-        memset(buffer, '\0', 41);
+        //memset(buffer, '\0', 41);
         j = payload.copy(buffer, 40, 40);
         if (j < 40)
         {
@@ -170,13 +172,14 @@ int main()
             buffer[j++] = ' ';
           }
         }
+        buffer[40] = '\0';
         // now buffer contains an SIO-like buffer array from the OS P: handler
         std::cout << "buffer 2: [" << buffer << "]\n";
         atari_to_c_str(buffer);
         output.append(buffer);
       }
     }
-    std::cout << output << '\n';
+    std::cout << "output:   >" << output << '\n';
     pdf_add_line(output.c_str());
     fflush(f);
   }
