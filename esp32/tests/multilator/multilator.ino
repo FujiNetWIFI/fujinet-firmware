@@ -128,7 +128,7 @@ char tnfs_fds[8];
 char tnfs_dir_fds[8];
 int firstCachedSector[8] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535};
 unsigned short sectorSize[8] = {128, 128, 128, 128, 128, 128, 128, 128};
-unsigned char max_cached_sectors=19;
+unsigned char max_cached_sectors = 19;
 bool load_config = true;
 char statusSkip = 0;
 
@@ -158,6 +158,10 @@ struct
   unsigned char session_idl;
   unsigned char session_idh;
 } tnfsSessionIDs[8];
+
+// Function pointer tables
+void (*sioState[9])(void);
+void (*cmdPtr[256])(void);
 
 #ifdef DEBUG_S
 #define Debug_print(...) BUG_UART.print( __VA_ARGS__ )
@@ -189,14 +193,11 @@ byte sio_checksum(byte* chunk, int length)
 */
 void ICACHE_RAM_ATTR sio_isr_cmd()
 {
-  if (digitalRead(PIN_CMD) == LOW)
-  {
-    cmdState = ID;
-    cmdTimer = millis();
+  cmdState = ID;
+  cmdTimer = millis();
 #ifdef ESP32
-    digitalWrite(PIN_LED2, LOW); // on
+  digitalWrite(PIN_LED2, LOW); // on
 #endif
-  }
 }
 
 /**
@@ -474,7 +475,7 @@ void sio_write()
     offset *= 128;
     offset -= 128;
     offset += 16; // skip 16 byte ATR Header
-    ss=128;
+    ss = 128;
   }
   else
   {
@@ -482,11 +483,11 @@ void sio_write()
     offset *= sectorSize[deviceSlot];
     offset -= sectorSize[deviceSlot];
     offset += 16; // skip 16 byte ATR Header
-    ss=sectorSize[deviceSlot];    
+    ss = sectorSize[deviceSlot];
   }
 
 #ifdef DEBUG
-  Serial1.printf("receiving %d bytes data frame from computer.\n",ss);
+  Serial1.printf("receiving %d bytes data frame from computer.\n", ss);
 #endif
 
 
@@ -586,7 +587,7 @@ void sio_mount_image()
   unsigned char deviceSlot = cmdFrame.aux1;
   unsigned char options = cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
   unsigned short newss;
-  
+
 #ifdef DEBUG
   Debug_printf("Opening image in drive slot #%d", deviceSlot);
 #endif
@@ -597,16 +598,16 @@ void sio_mount_image()
   tnfs_open(deviceSlot, options);
 
   // Get # of sectors from header
-  tnfs_seek(deviceSlot,4);
-  tnfs_read(deviceSlot,2);
-  newss=(256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
-  sectorSize[deviceSlot]=newss;
+  tnfs_seek(deviceSlot, 4);
+  tnfs_read(deviceSlot, 2);
+  newss = (256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
+  sectorSize[deviceSlot] = newss;
 
 #ifdef DEBUG
-  Debug_printf("Sector data from header %02x %02x\n",sector[0],sector[1]);
-  Debug_printf("Device slot %d set to sector size: %d\n",deviceSlot,newss);
+  Debug_printf("Sector data from header %02x %02x\n", sector[0], sector[1]);
+  Debug_printf("Device slot %d set to sector size: %d\n", deviceSlot, newss);
 #endif
-  
+
   SIO_UART.write('C');
 
   delayMicroseconds(250);
@@ -735,64 +736,7 @@ void sio_high_speed()
 
 void sio_process()
 {
-  switch (cmdFrame.comnd)
-  {
-    case 'P':
-    case 'W':
-      sio_write();
-      break;
-    case 'R':
-      sio_read();
-      break;
-    case 'S':
-      sio_status();
-      break;
-    case '!':
-      sio_format();
-      break;
-    case 0x3F:
-      sio_high_speed();
-      break;
-    case 0xFD:
-      sio_scan_networks();
-      break;
-    case 0xFC:
-      sio_scan_result();
-      break;
-    case 0xFB:
-      sio_set_ssid();
-      break;
-    case 0xFA:
-      sio_get_wifi_status();
-      break;
-    case 0xF9:
-      sio_mount_host();
-      break;
-    case 0xF8:
-      sio_mount_image();
-      break;
-    case 0xF7:
-      sio_open_tnfs_directory();
-      break;
-    case 0xF6:
-      sio_read_tnfs_directory();
-      break;
-    case 0xF5:
-      sio_close_tnfs_directory();
-      break;
-    case 0xF4:
-      sio_read_hosts_slots();
-      break;
-    case 0xF3:
-      sio_write_hosts_slots();
-      break;
-    case 0xF2:
-      sio_read_drives_slots();
-      break;
-    case 0xF1:
-      sio_write_drives_slots();
-      break;
-  }
+  cmdPtr[cmdFrame.comnd]();
 
   cmdState = WAIT;
   cmdTimer = 0;
@@ -980,7 +924,7 @@ void sio_read()
 
   if (load_config == true) // no TNFS ATR mounted.
   {
-    ss=128;
+    ss = 128;
     offset = sectorNum;
     offset *= 128;
     offset -= 128;
@@ -990,25 +934,25 @@ void sio_read()
   }
   else // TNFS ATR mounted and opened...
   {
-    max_cached_sectors=(sectorSize[deviceSlot]==256 ? 9 : 19);
+    max_cached_sectors = (sectorSize[deviceSlot] == 256 ? 9 : 19);
     if ((sectorNum > (firstCachedSector[deviceSlot] + max_cached_sectors)) || (sectorNum < firstCachedSector[deviceSlot])) // cache miss
     {
       firstCachedSector[deviceSlot] = sectorNum;
       cacheOffset = 0;
-      
-      if (sectorNum<4)
-        ss=128; // First three sectors are always single density
+
+      if (sectorNum < 4)
+        ss = 128; // First three sectors are always single density
       else
-        ss=sectorSize[deviceSlot];
-        
+        ss = sectorSize[deviceSlot];
+
       offset = sectorNum;
       offset *= ss;
       offset -= ss;
 
       // Bias adjustment for 256 bytes
-      if (ss==256)
+      if (ss == 256)
         offset -= 384;
-      
+
       offset += 16;
 #ifdef DEBUG
       Debug_printf("firstCachedSector: %d\n", firstCachedSector);
@@ -1069,11 +1013,11 @@ void sio_read()
     }
     else // cache hit, adjust offset
     {
-      if (sectorNum<4)
-        ss=128;
+      if (sectorNum < 4)
+        ss = 128;
       else
-        ss=sectorSize[deviceSlot];
-      
+        ss = sectorSize[deviceSlot];
+
       cacheOffset = ((sectorNum - firstCachedSector[deviceSlot]) * ss);
 #ifdef DEBUG
       Debug_printf("cacheOffset: %d\n", cacheOffset);
@@ -1164,38 +1108,13 @@ void sio_nak()
   cmdTimer = 0;
 }
 
-void sio_incoming() {
-  switch (cmdState)
-  {
-    case ID:
-      sio_get_id();
-      break;
-    case COMMAND:
-      sio_get_command();
-      break;
-    case AUX1:
-      sio_get_aux1();
-      break;
-    case AUX2:
-      sio_get_aux2();
-      break;
-    case CHECKSUM:
-      sio_get_checksum();
-      break;
-    case ACK:
-      sio_ack();
-      break;
-    case NAK:
-      sio_nak();
-      break;
-    case PROCESS:
-      sio_process();
-      break;
-    case WAIT:
-      SIO_UART.read(); // Toss it for now
-      cmdTimer = 0;
-      break;
-  }
+/**
+   SIO Wait
+*/
+void sio_wait()
+{
+  SIO_UART.read(); // Toss it for now
+  cmdTimer = 0;
 }
 
 /**
@@ -1305,13 +1224,13 @@ void tnfs_open(unsigned char deviceSlot, unsigned char options)
   tnfsPacket.retryCount++;  // increase sequence #
   tnfsPacket.command = 0x29; // OPEN
 
-  if (options==0x01)
-    tnfsPacket.data[c++]=0x01;
-  else if (options==0x02)
-    tnfsPacket.data[c++]=0x03;
+  if (options == 0x01)
+    tnfsPacket.data[c++] = 0x01;
+  else if (options == 0x02)
+    tnfsPacket.data[c++] = 0x03;
   else
-    tnfsPacket.data[c++]=0x03;
-    
+    tnfsPacket.data[c++] = 0x03;
+
   tnfsPacket.data[c++] = 0x00; //
   tnfsPacket.data[c++] = 0x00; // Flags
   tnfsPacket.data[c++] = 0x00; //
@@ -1804,9 +1723,45 @@ void setup()
   SIO_UART.swap();
 #endif
 
+  // Set up SIO state function pointers
+  sioState[ID] = sio_get_id;
+  sioState[COMMAND] = sio_get_command;
+  sioState[AUX1] = sio_get_aux1;
+  sioState[AUX2] = sio_get_aux2;
+  sioState[CHECKSUM] = sio_get_checksum;
+  sioState[ACK] = sio_ack;
+  sioState[NAK] = sio_nak;
+  sioState[PROCESS] = sio_process;
+  sioState[WAIT] = sio_wait;
+
+  // Set up SIO command function pointers
+  for (int i = 0; i < 256; i++)
+    cmdPtr[i] = sio_wait;
+
+  cmdPtr['P'] = sio_write;
+  cmdPtr['W'] = sio_write;
+  cmdPtr['R'] = sio_read;
+  cmdPtr['S'] = sio_status;
+  cmdPtr['!'] = sio_format;
+  cmdPtr[0x3F] = sio_high_speed;
+  cmdPtr[0xFD] = sio_scan_networks;
+  cmdPtr[0xFC] = sio_scan_result;
+  cmdPtr[0xFB] = sio_set_ssid;
+  cmdPtr[0xFA] = sio_get_wifi_status;
+  cmdPtr[0xF9] = sio_mount_host;
+  cmdPtr[0xF8] = sio_mount_image;
+  cmdPtr[0xF7] = sio_open_tnfs_directory;
+  cmdPtr[0xF6] = sio_read_tnfs_directory;
+  cmdPtr[0xF5] = sio_close_tnfs_directory;
+  cmdPtr[0xF4] = sio_read_hosts_slots;
+  cmdPtr[0xF3] = sio_write_hosts_slots;
+  cmdPtr[0xF2] = sio_read_drives_slots;
+  cmdPtr[0xF1] = sio_write_drives_slots;
+
   // Attach COMMAND interrupt.
   attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
   cmdState = WAIT; // Start in wait state
+
 }
 
 void loop()
@@ -1821,9 +1776,7 @@ void loop()
 #endif
 
   if (SIO_UART.available() > 0)
-  {
-    sio_incoming();
-  }
+    sioState[cmdState]();
 
   //  if ((millis() - cmdTimer > CMD_TIMEOUT) && (cmdState != WAIT))
   //  {
