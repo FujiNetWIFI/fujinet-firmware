@@ -1199,6 +1199,7 @@ bool tnfs_mount(unsigned char hostSlot)
     Debug_println("Timeout after 5000ms");
 #endif /* DEBUG_S */
     retries++;
+    tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
   Debug_printf("Failed.\n");
@@ -1300,6 +1301,7 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options)
     }
     // Otherwise, we timed out.
     retries++;
+    tnfsPacket.retryCount--;
 #ifdef DEBUG
     Debug_println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
@@ -1364,6 +1366,7 @@ bool tnfs_opendir(unsigned char hostSlot)
     Debug_println("Timeout after 5000ms.");
 #endif
     retries++;
+    tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
   Debug_printf("Failed.");
@@ -1422,6 +1425,7 @@ bool tnfs_readdir(unsigned char hostSlot)
     Debug_println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
     retries++;
+    tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
   Debug_printf("Failed.\n");
@@ -1476,6 +1480,7 @@ bool tnfs_closedir(unsigned char hostSlot)
 #ifdef DEBUG
     Debug_println("Timeout after 5000ms.");
     retries++;
+    tnfsPacket.retryCount--;
 #endif /* DEBUG_S */
   }
 #ifdef DEBUG
@@ -1559,6 +1564,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
     Debug_println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
     retries++;
+    tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
   Debug_printf("Failed.\n");
@@ -1641,6 +1647,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
       Debug_printf("Retrying...\n");
 #endif /* DEBUG_S */
     retries++;
+    tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
   Debug_printf("Failed.\n");
@@ -1733,6 +1740,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
     if (retries < 5)
       Debug_printf("Retrying...\n");
 #endif /* DEBUG_S */
+    tnfsPacket.retryCount--;
     retries++;
   }
 #ifdef DEBUG
