@@ -128,7 +128,7 @@ char tnfs_fds[8];
 char tnfs_dir_fds[8];
 int firstCachedSector[8] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535};
 unsigned short sectorSize[8] = {128, 128, 128, 128, 128, 128, 128, 128};
-unsigned char max_cached_sectors=19;
+unsigned char max_cached_sectors = 19;
 bool load_config = true;
 char statusSkip = 0;
 
@@ -158,6 +158,10 @@ struct
   unsigned char session_idl;
   unsigned char session_idh;
 } tnfsSessionIDs[8];
+
+// Function pointer tables
+void (*sioState[9])(void);
+void (*cmdPtr[256])(void);
 
 #ifdef DEBUG_S
 #define Debug_print(...) BUG_UART.print( __VA_ARGS__ )
@@ -189,14 +193,11 @@ byte sio_checksum(byte* chunk, int length)
 */
 void ICACHE_RAM_ATTR sio_isr_cmd()
 {
-  if (digitalRead(PIN_CMD) == LOW)
-  {
-    cmdState = ID;
-    cmdTimer = millis();
+  cmdState = ID;
+  cmdTimer = millis();
 #ifdef ESP32
-    digitalWrite(PIN_LED2, LOW); // on
+  digitalWrite(PIN_LED2, LOW); // on
 #endif
-  }
 }
 
 /**
@@ -394,6 +395,7 @@ void sio_set_ssid()
     delayMicroseconds(200);
   }
   ck = SIO_UART.read(); // Read checksum
+  delay(2);
   SIO_UART.write('A'); // Write ACK
 
   if (ck == sio_checksum(netConfig.rawData, 96))
@@ -474,7 +476,7 @@ void sio_write()
     offset *= 128;
     offset -= 128;
     offset += 16; // skip 16 byte ATR Header
-    ss=128;
+    ss = 128;
   }
   else
   {
@@ -482,20 +484,19 @@ void sio_write()
     offset *= sectorSize[deviceSlot];
     offset -= sectorSize[deviceSlot];
     offset += 16; // skip 16 byte ATR Header
-    ss=sectorSize[deviceSlot];    
+    ss = sectorSize[deviceSlot];
   }
 
 #ifdef DEBUG
-  Serial1.printf("receiving %d bytes data frame from computer.\n",ss);
+  Serial1.printf("receiving %d bytes data frame from computer.\n", ss);
 #endif
-
 
   SIO_UART.readBytes(sector, ss);
   while (SIO_UART.available() == 0) {
     delayMicroseconds(200);
   }
   ck = SIO_UART.read(); // Read checksum
-  //delayMicroseconds(350);
+  delay(2);
   SIO_UART.write('A'); // Write ACK
 
   if (ck == sio_checksum(sector, ss))
@@ -560,7 +561,7 @@ void sio_mount_host()
 {
   byte ck;
   unsigned char hostSlot = cmdFrame.aux1;
-
+  delay(2);
   SIO_UART.write('A'); // Write ACK
 
 #ifdef DEBUG
@@ -586,27 +587,26 @@ void sio_mount_image()
   unsigned char deviceSlot = cmdFrame.aux1;
   unsigned char options = cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
   unsigned short newss;
-  
+
 #ifdef DEBUG
   Debug_printf("Opening image in drive slot #%d", deviceSlot);
 #endif
 
-  delayMicroseconds(250);
-
+  delay(2);
   // Open disk image
   tnfs_open(deviceSlot, options);
 
   // Get # of sectors from header
-  tnfs_seek(deviceSlot,4);
-  tnfs_read(deviceSlot,2);
-  newss=(256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
-  sectorSize[deviceSlot]=newss;
+  tnfs_seek(deviceSlot, 4);
+  tnfs_read(deviceSlot, 2);
+  newss = (256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
+  sectorSize[deviceSlot] = newss;
 
 #ifdef DEBUG
-  Debug_printf("Sector data from header %02x %02x\n",sector[0],sector[1]);
-  Debug_printf("Device slot %d set to sector size: %d\n",deviceSlot,newss);
+  Debug_printf("Sector data from header %02x %02x\n", sector[0], sector[1]);
+  Debug_printf("Device slot %d set to sector size: %d\n", deviceSlot, newss);
 #endif
-  
+
   SIO_UART.write('C');
 
   delayMicroseconds(250);
@@ -637,13 +637,11 @@ void sio_open_tnfs_directory()
     return;
   }
 
+  delay(2);
+
   SIO_UART.write('A');   // ACK
 
-  delayMicroseconds(250);
-
   tnfs_opendir(hostSlot);
-
-  delayMicroseconds(250);
 
   // And complete.
   SIO_UART.write('C');
@@ -695,6 +693,8 @@ void sio_close_tnfs_directory()
 
   delayMicroseconds(250);
 
+  delay(2);
+
   SIO_UART.write('C'); // Completed command
 
   delayMicroseconds(250);
@@ -735,64 +735,7 @@ void sio_high_speed()
 
 void sio_process()
 {
-  switch (cmdFrame.comnd)
-  {
-    case 'P':
-    case 'W':
-      sio_write();
-      break;
-    case 'R':
-      sio_read();
-      break;
-    case 'S':
-      sio_status();
-      break;
-    case '!':
-      sio_format();
-      break;
-    case 0x3F:
-      sio_high_speed();
-      break;
-    case 0xFD:
-      sio_scan_networks();
-      break;
-    case 0xFC:
-      sio_scan_result();
-      break;
-    case 0xFB:
-      sio_set_ssid();
-      break;
-    case 0xFA:
-      sio_get_wifi_status();
-      break;
-    case 0xF9:
-      sio_mount_host();
-      break;
-    case 0xF8:
-      sio_mount_image();
-      break;
-    case 0xF7:
-      sio_open_tnfs_directory();
-      break;
-    case 0xF6:
-      sio_read_tnfs_directory();
-      break;
-    case 0xF5:
-      sio_close_tnfs_directory();
-      break;
-    case 0xF4:
-      sio_read_hosts_slots();
-      break;
-    case 0xF3:
-      sio_write_hosts_slots();
-      break;
-    case 0xF2:
-      sio_read_drives_slots();
-      break;
-    case 0xF1:
-      sio_write_drives_slots();
-      break;
-  }
+  cmdPtr[cmdFrame.comnd]();
 
   cmdState = WAIT;
   cmdTimer = 0;
@@ -811,19 +754,14 @@ void sio_write_hosts_slots()
   }
   ck = SIO_UART.read(); // Read checksum
 
-  delayMicroseconds(250);
+  delay(2);
 
   SIO_UART.write('A'); // Write ACK
 
-  delayMicroseconds(250);
 
   if (ck == sio_checksum(hostSlots.rawData, 256))
   {
-    delayMicroseconds(250);
-
     SIO_UART.write('C');
-
-    delayMicroseconds(250);
 
     atr.seek(91792, SeekSet);
     atr.write(hostSlots.rawData, 256);
@@ -839,11 +777,7 @@ void sio_write_hosts_slots()
   }
   else
   {
-    delayMicroseconds(250);
-
     SIO_UART.write('E');
-
-    delayMicroseconds(250);
 
 #ifdef DEBUG
     for (int i = 0; i < sizeof(hostSlots.rawData); i++)
@@ -869,20 +803,13 @@ void sio_write_drives_slots()
   }
   ck = SIO_UART.read(); // Read checksum
 
-  delayMicroseconds(250);
+  delay(2);
 
   SIO_UART.write('A'); // Write ACK
 
-  delayMicroseconds(250);
-
   if (ck == sio_checksum(deviceSlots.rawData, 304))
   {
-
-    delayMicroseconds(250);
-
     SIO_UART.write('C');
-
-    delayMicroseconds(250);
 
     atr.seek(91408, SeekSet);
     atr.write(deviceSlots.rawData, 304);
@@ -899,11 +826,7 @@ void sio_write_drives_slots()
   }
   else
   {
-    delayMicroseconds(250);
-
     SIO_UART.write('E');
-
-    delayMicroseconds(250);
 
 #ifdef DEBUG
     for (int i = 0; i < sizeof(hostSlots.rawData); i++)
@@ -977,10 +900,12 @@ void sio_read()
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int cacheOffset = 0;
   int offset;
+  byte* s;
+  byte* d;
 
   if (load_config == true) // no TNFS ATR mounted.
   {
-    ss=128;
+    ss = 128;
     offset = sectorNum;
     offset *= 128;
     offset -= 128;
@@ -990,25 +915,25 @@ void sio_read()
   }
   else // TNFS ATR mounted and opened...
   {
-    max_cached_sectors=(sectorSize[deviceSlot]==256 ? 9 : 19);
+    max_cached_sectors = (sectorSize[deviceSlot] == 256 ? 9 : 19);
     if ((sectorNum > (firstCachedSector[deviceSlot] + max_cached_sectors)) || (sectorNum < firstCachedSector[deviceSlot])) // cache miss
     {
       firstCachedSector[deviceSlot] = sectorNum;
       cacheOffset = 0;
-      
-      if (sectorNum<4)
-        ss=128; // First three sectors are always single density
+
+      if (sectorNum < 4)
+        ss = 128; // First three sectors are always single density
       else
-        ss=sectorSize[deviceSlot];
-        
+        ss = sectorSize[deviceSlot];
+
       offset = sectorNum;
       offset *= ss;
       offset -= ss;
 
       // Bias adjustment for 256 bytes
-      if (ss==256)
+      if (ss == 256)
         offset -= 384;
-      
+
       offset += 16;
 #ifdef DEBUG
       Debug_printf("firstCachedSector: %d\n", firstCachedSector);
@@ -1017,70 +942,71 @@ void sio_read()
 #endif
       tnfs_seek(deviceSlot, offset);
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset = 0;
     }
     else // cache hit, adjust offset
     {
-      if (sectorNum<4)
-        ss=128;
+      if (sectorNum < 4)
+        ss = 128;
       else
-        ss=sectorSize[deviceSlot];
-      
+        ss = sectorSize[deviceSlot];
+
       cacheOffset = ((sectorNum - firstCachedSector[deviceSlot]) * ss);
 #ifdef DEBUG
       Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
     }
-    for (int i = 0; i < ss; i++)
-      sector[i] = sectorCache[deviceSlot][(i + cacheOffset)];
+    d = &sector[0];
+    s = &sectorCache[deviceSlot][cacheOffset];
+    memcpy(d, s, ss);
   }
 
   ck = sio_checksum((byte *)&sector, ss);
@@ -1121,8 +1047,7 @@ void sio_status()
   //delay(1);
 
   // Write data frame
-  for (int i = 0; i < 4; i++)
-    SIO_UART.write(status[i]);
+  SIO_UART.write(status, 4);
 
   // Write checksum
   SIO_UART.write(ck);
@@ -1135,7 +1060,12 @@ void sio_status()
 */
 void sio_ack()
 {
-  delayMicroseconds(500);
+  while (digitalRead(PIN_CMD) == LOW) {
+    yield();
+  }
+
+  delay(1);
+
   if (cmdFrame.devic == 0x31 &&
       cmdFrame.comnd == 0x53)
   {
@@ -1164,273 +1094,284 @@ void sio_nak()
   cmdTimer = 0;
 }
 
-void sio_incoming() {
-  switch (cmdState)
-  {
-    case ID:
-      sio_get_id();
-      break;
-    case COMMAND:
-      sio_get_command();
-      break;
-    case AUX1:
-      sio_get_aux1();
-      break;
-    case AUX2:
-      sio_get_aux2();
-      break;
-    case CHECKSUM:
-      sio_get_checksum();
-      break;
-    case ACK:
-      sio_ack();
-      break;
-    case NAK:
-      sio_nak();
-      break;
-    case PROCESS:
-      sio_process();
-      break;
-    case WAIT:
-      SIO_UART.read(); // Toss it for now
-      cmdTimer = 0;
-      break;
-  }
+/**
+   SIO Wait
+*/
+void sio_wait()
+{
+  SIO_UART.read(); // Toss it for now
+  cmdTimer = 0;
 }
 
 /**
    Mount the TNFS server
 */
-void tnfs_mount(unsigned char hostSlot)
+bool tnfs_mount(unsigned char hostSlot)
 {
   int start = millis();
   int dur = millis() - start;
+  unsigned char retries = 0;
 
-  memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
+  while (retries < 5)
+  {
+    memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
 
-  // Do not mount, if we already have a session ID, just bail.
-  if (tnfsSessionIDs[hostSlot].session_idl != 0 && tnfsSessionIDs[hostSlot].session_idh != 0)
-    return;
+    // Do not mount, if we already have a session ID, just bail.
+    if (tnfsSessionIDs[hostSlot].session_idl != 0 && tnfsSessionIDs[hostSlot].session_idh != 0)
+      return true;
 
-  tnfsPacket.session_idl = 0;
-  tnfsPacket.session_idh = 0;
-  tnfsPacket.retryCount = 0;
-  tnfsPacket.command = 0;
-  tnfsPacket.data[0] = 0x01; // vers
-  tnfsPacket.data[1] = 0x00; // "  "
-  tnfsPacket.data[2] = 0x2F; // /
-  tnfsPacket.data[3] = 0x00; // nul
-  tnfsPacket.data[4] = 0x00; // no username
-  tnfsPacket.data[5] = 0x00; // no password
+    tnfsPacket.session_idl = 0;
+    tnfsPacket.session_idh = 0;
+    tnfsPacket.retryCount = 0;
+    tnfsPacket.command = 0;
+    tnfsPacket.data[0] = 0x01; // vers
+    tnfsPacket.data[1] = 0x00; // "  "
+    tnfsPacket.data[2] = 0x2F; // /
+    tnfsPacket.data[3] = 0x00; // nul
+    tnfsPacket.data[4] = 0x00; // no username
+    tnfsPacket.data[5] = 0x00; // no password
 
 #ifdef DEBUG
-  Debug_print("Mounting / from ");
-  Debug_println((char*)hostSlots.host[hostSlot]);
-  for (int i = 0; i < 32; i++)
-    Debug_printf("%02x ", hostSlots.host[hostSlot][i]);
-  Debug_printf("\n\n");
-  Debug_print("Req Packet: ");
-  for (int i = 0; i < 10; i++)
-  {
-    Debug_print(tnfsPacket.rawData[i], HEX);
-    Debug_print(" ");
-  }
-  Debug_println("");
+    Debug_print("Mounting / from ");
+    Debug_println((char*)hostSlots.host[hostSlot]);
+    for (int i = 0; i < 32; i++)
+      Debug_printf("%02x ", hostSlots.host[hostSlot][i]);
+    Debug_printf("\n\n");
+    Debug_print("Req Packet: ");
+    for (int i = 0; i < 10; i++)
+    {
+      Debug_print(tnfsPacket.rawData[i], HEX);
+      Debug_print(" ");
+    }
+    Debug_println("");
 #endif /* DEBUG_S */
 
-  UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
-  UDP.write(tnfsPacket.rawData, 10);
-  UDP.endPacket();
+    UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
+    UDP.write(tnfsPacket.rawData, 10);
+    UDP.endPacket();
 
 #ifdef DEBUG
-  Debug_println("Wrote the packet");
+    Debug_println("Wrote the packet");
 #endif
 
-  while (dur < 5000)
-  {
-    yield();
-    if (UDP.parsePacket())
+    while (dur < 5000)
     {
-      int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG
-      Debug_print("Resp Packet: ");
-      for (int i = 0; i < l; i++)
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
       {
-        Debug_print(tnfsPacket.rawData[i], HEX);
-        Debug_print(" ");
-      }
-      Debug_println("");
-#endif /* DEBUG_S */
-      if (tnfsPacket.data[0] == 0x00)
-      {
-        // Successful
+        int l = UDP.read(tnfsPacket.rawData, 516);
 #ifdef DEBUG
-        Debug_print("Successful, Session ID: ");
-        Debug_print(tnfsPacket.session_idl, HEX);
-        Debug_println(tnfsPacket.session_idh, HEX);
+        Debug_print("Resp Packet: ");
+        for (int i = 0; i < l; i++)
+        {
+          Debug_print(tnfsPacket.rawData[i], HEX);
+          Debug_print(" ");
+        }
+        Debug_println("");
 #endif /* DEBUG_S */
-        // Persist the session ID.
-        tnfsSessionIDs[hostSlot].session_idl = tnfsPacket.session_idl;
-        tnfsSessionIDs[hostSlot].session_idh = tnfsPacket.session_idh;
-        return;
-      }
-      else
-      {
-        // Error
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
 #ifdef DEBUG
-        Debug_print("Error #");
-        Debug_println(tnfsPacket.data[0], HEX);
+          Debug_print("Successful, Session ID: ");
+          Debug_print(tnfsPacket.session_idl, HEX);
+          Debug_println(tnfsPacket.session_idh, HEX);
 #endif /* DEBUG_S */
-        return;
+          // Persist the session ID.
+          tnfsSessionIDs[hostSlot].session_idl = tnfsPacket.session_idl;
+          tnfsSessionIDs[hostSlot].session_idh = tnfsPacket.session_idh;
+          return true;
+        }
+        else
+        {
+          // Error
+#ifdef DEBUG
+          Debug_print("Error #");
+          Debug_println(tnfsPacket.data[0], HEX);
+#endif /* DEBUG_S */
+          return false;
+        }
       }
     }
-  }
-  // Otherwise we timed out.
+    // Otherwise we timed out.
 #ifdef DEBUG
-  Debug_println("Timeout after 5000ms");
+    Debug_println("Timeout after 5000ms");
 #endif /* DEBUG_S */
+    retries++;
+    tnfsPacket.retryCount--;
+  }
+#ifdef DEBUG
+  Debug_printf("Failed.\n");
+#endif
+  return false;
 }
 
 /**
    Open 'autorun.atr'
 */
-void tnfs_open(unsigned char deviceSlot, unsigned char options)
+bool tnfs_open(unsigned char deviceSlot, unsigned char options)
 {
   int start = millis();
   int dur = millis() - start;
   int c = 0;
-  strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
-  tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-  tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
-  tnfsPacket.retryCount++;  // increase sequence #
-  tnfsPacket.command = 0x29; // OPEN
+  unsigned char retries = 0;
 
-  if (options==0x01)
-    tnfsPacket.data[c++]=0x01;
-  else if (options==0x02)
-    tnfsPacket.data[c++]=0x03;
-  else
-    tnfsPacket.data[c++]=0x03;
-    
-  tnfsPacket.data[c++] = 0x00; //
-  tnfsPacket.data[c++] = 0x00; // Flags
-  tnfsPacket.data[c++] = 0x00; //
-  tnfsPacket.data[c++] = '/'; // Filename start
-
-  for (int i = 0; i < strlen(mountPath); i++)
+  while (retries < 5)
   {
-    tnfsPacket.data[i + 5] = mountPath[i];
-    c++;
-  }
+    strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
+    tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
+    tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+    tnfsPacket.retryCount++;  // increase sequence #
+    tnfsPacket.command = 0x29; // OPEN
 
-  tnfsPacket.data[c++] = 0x00;
-  tnfsPacket.data[c++] = 0x00;
-  tnfsPacket.data[c++] = 0x00;
+    if (options == 0x01)
+      tnfsPacket.data[c++] = 0x01;
+    else if (options == 0x02)
+      tnfsPacket.data[c++] = 0x03;
+    else
+      tnfsPacket.data[c++] = 0x03;
 
-#ifdef DEBUG
-  Debug_printf("Opening /%s\n", mountPath);
-  Debug_println("");
-  Debug_print("Req Packet: ");
-  for (int i = 0; i < c + 4; i++)
-  {
-    Debug_print(tnfsPacket.rawData[i], HEX);
-    Debug_print(" ");
-  }
-#endif /* DEBUG_S */
+    tnfsPacket.data[c++] = 0x00; //
+    tnfsPacket.data[c++] = 0x00; // Flags
+    tnfsPacket.data[c++] = 0x00; //
+    tnfsPacket.data[c++] = '/'; // Filename start
 
-  UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
-  UDP.write(tnfsPacket.rawData, c + 4);
-  UDP.endPacket();
-
-  while (dur < 5000)
-  {
-    yield();
-    if (UDP.parsePacket())
+    for (int i = 0; i < strlen(mountPath); i++)
     {
-      int l = UDP.read(tnfsPacket.rawData, 516);
+      tnfsPacket.data[i + 5] = mountPath[i];
+      c++;
+    }
+
+    tnfsPacket.data[c++] = 0x00;
+    tnfsPacket.data[c++] = 0x00;
+    tnfsPacket.data[c++] = 0x00;
+
 #ifdef DEBUG
-      Debug_print("Resp packet: ");
-      for (int i = 0; i < l; i++)
-      {
-        Debug_print(tnfsPacket.rawData[i], HEX);
-        Debug_print(" ");
-      }
-      Debug_println("");
-#endif // DEBUG_S
-      if (tnfsPacket.data[0] == 0x00)
-      {
-        // Successful
-        tnfs_fds[deviceSlot] = tnfsPacket.data[1];
-#ifdef DEBUG
-        Debug_print("Successful, file descriptor: #");
-        Debug_println(tnfs_fds[deviceSlot], HEX);
+    Debug_printf("Opening /%s\n", mountPath);
+    Debug_println("");
+    Debug_print("Req Packet: ");
+    for (int i = 0; i < c + 4; i++)
+    {
+      Debug_print(tnfsPacket.rawData[i], HEX);
+      Debug_print(" ");
+    }
 #endif /* DEBUG_S */
-        return;
-      }
-      else
+
+    UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    UDP.write(tnfsPacket.rawData, c + 4);
+    UDP.endPacket();
+
+    while (dur < 5000)
+    {
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
       {
-        // unsuccessful
+        int l = UDP.read(tnfsPacket.rawData, 516);
 #ifdef DEBUG
-        Debug_print("Error code #");
-        Debug_println(tnfsPacket.data[0], HEX);
+        Debug_print("Resp packet: ");
+        for (int i = 0; i < l; i++)
+        {
+          Debug_print(tnfsPacket.rawData[i], HEX);
+          Debug_print(" ");
+        }
+        Debug_println("");
+#endif // DEBUG_S
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
+          tnfs_fds[deviceSlot] = tnfsPacket.data[1];
+#ifdef DEBUG
+          Debug_print("Successful, file descriptor: #");
+          Debug_println(tnfs_fds[deviceSlot], HEX);
+#endif /* DEBUG_S */
+          return true;
+        }
+        else
+        {
+          // unsuccessful
+#ifdef DEBUG
+          Debug_print("Error code #");
+          Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
-        return;
+          return false;
+        }
       }
     }
-  }
-  // Otherwise, we timed out.
+    // Otherwise, we timed out.
+    retries++;
+    tnfsPacket.retryCount--;
 #ifdef DEBUG
-  Debug_println("Timeout after 5000ms.");
+    Debug_println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
+  }
+#ifdef DEBUG
+  Debug_printf("Failed\n");
+#endif
+  return false;
 }
 
 /**
    TNFS Open Directory
 */
-void tnfs_opendir(unsigned char hostSlot)
+bool tnfs_opendir(unsigned char hostSlot)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
-  tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
-  tnfsPacket.retryCount++;  // increase sequence #
-  tnfsPacket.command = 0x10; // OPENDIR
-  tnfsPacket.data[0] = '/'; // Open root dir
-  tnfsPacket.data[1] = 0x00; // nul terminated
+  unsigned char retries = 0;
 
-#ifdef DEBUG
-  Debug_println("TNFS Open directory /");
-#endif
-
-  UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
-  UDP.write(tnfsPacket.rawData, 2 + 4);
-  UDP.endPacket();
-
-  while (dur < 5000)
+  while (retries < 5)
   {
-    yield();
-    if (UDP.parsePacket())
-    {
-      int l = UDP.read(tnfsPacket.rawData, 516);
-      if (tnfsPacket.data[0] == 0x00)
-      {
-        // Successful
-        tnfs_dir_fds[hostSlot] = tnfsPacket.data[1];
+    tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
+    tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
+    tnfsPacket.retryCount++;  // increase sequence #
+    tnfsPacket.command = 0x10; // OPENDIR
+    tnfsPacket.data[0] = '/'; // Open root dir
+    tnfsPacket.data[1] = 0x00; // nul terminated
+
 #ifdef DEBUG
-        Debug_printf("Opened dir on slot #%d - fd = %02x\n", hostSlot, tnfs_dir_fds[hostSlot]);
+    Debug_println("TNFS Open directory /");
 #endif
-        return;
-      }
-      else
+
+    UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
+    UDP.write(tnfsPacket.rawData, 2 + 4);
+    UDP.endPacket();
+
+    while (dur < 5000)
+    {
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
       {
-        // Unsuccessful
+        int l = UDP.read(tnfsPacket.rawData, 516);
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
+          tnfs_dir_fds[hostSlot] = tnfsPacket.data[1];
+#ifdef DEBUG
+          Debug_printf("Opened dir on slot #%d - fd = %02x\n", hostSlot, tnfs_dir_fds[hostSlot]);
+#endif
+          return true;
+        }
+        else
+        {
+          // Unsuccessful
+          return false;
+        }
       }
     }
-  }
-  // Otherwise, we timed out.
+    // Otherwise, we timed out.
 #ifdef DEBUG
-  Debug_println("Timeout after 5000ms.");
+    Debug_println("Timeout after 5000ms.");
 #endif
+    retries++;
+    tnfsPacket.retryCount--;
+  }
+#ifdef DEBUG
+  Debug_printf("Failed.");
+#endif
+  return false;
 }
 
 /**
@@ -1441,310 +1382,371 @@ bool tnfs_readdir(unsigned char hostSlot)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
-  tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
-  tnfsPacket.retryCount++;  // increase sequence #
-  tnfsPacket.command = 0x11; // READDIR
-  tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
+  unsigned char retries = 0;
+
+  while (retries < 5)
+  {
+    tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
+    tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
+    tnfsPacket.retryCount++;  // increase sequence #
+    tnfsPacket.command = 0x11; // READDIR
+    tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
 
 #ifdef DEBUG
-  Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\n\n", hostSlot, tnfs_dir_fds[hostSlot]);
+    Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\n\n", hostSlot, tnfs_dir_fds[hostSlot]);
 #endif
 
-  UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
-  UDP.write(tnfsPacket.rawData, 1 + 4);
-  UDP.endPacket();
+    UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
+    UDP.write(tnfsPacket.rawData, 1 + 4);
+    UDP.endPacket();
 
-  while (dur < 5000)
-  {
-    yield();
-    if (UDP.parsePacket())
+    while (dur < 5000)
     {
-      int l = UDP.read(tnfsPacket.rawData, 516);
-      if (tnfsPacket.data[0] == 0x00)
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
       {
-        // Successful
-        strcpy((char*)&current_entry, (char *)&tnfsPacket.data[1]);
-        return true;
-      }
-      else
-      {
-        // Unsuccessful
-        return false;
+        int l = UDP.read(tnfsPacket.rawData, 516);
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
+          strcpy((char*)&current_entry, (char *)&tnfsPacket.data[1]);
+          return true;
+        }
+        else
+        {
+          // Unsuccessful
+          return false;
+        }
       }
     }
-  }
-  // Otherwise, we timed out.
+    // Otherwise, we timed out.
 #ifdef DEBUG
-  Debug_println("Timeout after 5000ms.");
+    Debug_println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
+    retries++;
+    tnfsPacket.retryCount--;
+  }
+#ifdef DEBUG
+  Debug_printf("Failed.\n");
+#endif
 }
 
 /**
    TNFS Close Directory
 */
-void tnfs_closedir(unsigned char hostSlot)
+bool tnfs_closedir(unsigned char hostSlot)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
-  tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
-  tnfsPacket.retryCount++;  // increase sequence #
-  tnfsPacket.command = 0x12; // CLOSEDIR
-  tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
+  unsigned char retries = 0;
+
+  while (retries < 5)
+  {
+    tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
+    tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
+    tnfsPacket.retryCount++;  // increase sequence #
+    tnfsPacket.command = 0x12; // CLOSEDIR
+    tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
 
 #ifdef DEBUG
-  Debug_println("TNFS dir close");
+    Debug_println("TNFS dir close");
 #endif
 
-  UDP.beginPacket(hostSlots.host[hostSlot], 16384);
-  UDP.write(tnfsPacket.rawData, 1 + 4);
-  UDP.endPacket();
+    UDP.beginPacket(hostSlots.host[hostSlot], 16384);
+    UDP.write(tnfsPacket.rawData, 1 + 4);
+    UDP.endPacket();
 
-  while (dur < 5000)
-  {
-    yield();
-    if (UDP.parsePacket())
+    while (dur < 5000)
     {
-      int l = UDP.read(tnfsPacket.rawData, 516);
-      if (tnfsPacket.data[0] == 0x00)
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
       {
-        // Successful
-        return;
-      }
-      else
-      {
-        // Unsuccessful
-        return;
+        int l = UDP.read(tnfsPacket.rawData, 516);
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
+          return true;
+        }
+        else
+        {
+          // Unsuccessful
+          return false;
+        }
       }
     }
-  }
-  // Otherwise, we timed out.
+    // Otherwise, we timed out.
 #ifdef DEBUG
-  Debug_println("Timeout after 5000ms.");
+    Debug_println("Timeout after 5000ms.");
+    retries++;
+    tnfsPacket.retryCount--;
 #endif /* DEBUG_S */
+  }
+#ifdef DEBUG
+  Debug_printf("Failed.\n");
+#endif
+  return false;
 }
 
 /**
    TNFS write
 */
-void tnfs_write(unsigned char deviceSlot, unsigned short len)
+bool tnfs_write(unsigned char deviceSlot, unsigned short len)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-  tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
-  tnfsPacket.retryCount++;  // Increase sequence
-  tnfsPacket.command = 0x22; // READ
-  tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
-  tnfsPacket.data[1] = len & 0xFF;
-  tnfsPacket.data[2] = len >> 8;
+  unsigned char retries = 0;
+
+  while (retries < 5)
+  {
+    tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
+    tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+    tnfsPacket.retryCount++;  // Increase sequence
+    tnfsPacket.command = 0x22; // READ
+    tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
+    tnfsPacket.data[1] = len & 0xFF;
+    tnfsPacket.data[2] = len >> 8;
 
 #ifdef DEBUG
-  Debug_print("Writing to File descriptor: ");
-  Debug_println(tnfs_fds[deviceSlot]);
-  Debug_print("Req Packet: ");
-  for (int i = 0; i < 7; i++)
-  {
-    Debug_print(tnfsPacket.rawData[i], HEX);
-    Debug_print(" ");
-  }
-  Debug_println("");
-#endif /* DEBUG_S */
-
-  UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
-  UDP.write(tnfsPacket.rawData, 4 + 3);
-  UDP.write(sector, 128);
-  UDP.endPacket();
-
-  while (dur < 5000)
-  {
-    yield();
-    if (UDP.parsePacket())
+    Debug_print("Writing to File descriptor: ");
+    Debug_println(tnfs_fds[deviceSlot]);
+    Debug_print("Req Packet: ");
+    for (int i = 0; i < 7; i++)
     {
-      int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
-#ifdef DEBUG
-      Debug_print("Resp packet: ");
-      for (int i = 0; i < l; i++)
-      {
-        Debug_print(tnfsPacket.rawData[i], HEX);
-        Debug_print(" ");
-      }
-      Debug_println("");
+      Debug_print(tnfsPacket.rawData[i], HEX);
+      Debug_print(" ");
+    }
+    Debug_println("");
 #endif /* DEBUG_S */
-      if (tnfsPacket.data[0] == 0x00)
+
+    UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    UDP.write(tnfsPacket.rawData, 4 + 3);
+    UDP.write(sector, 128);
+    UDP.endPacket();
+
+    while (dur < 5000)
+    {
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
       {
-        // Successful
+        int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
 #ifdef DEBUG
-        Debug_println("Successful.");
+        Debug_print("Resp packet: ");
+        for (int i = 0; i < l; i++)
+        {
+          Debug_print(tnfsPacket.rawData[i], HEX);
+          Debug_print(" ");
+        }
+        Debug_println("");
 #endif /* DEBUG_S */
-        return;
-      }
-      else
-      {
-        // Error
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
 #ifdef DEBUG
-        Debug_print("Error code #");
-        Debug_println(tnfsPacket.data[0], HEX);
+          Debug_println("Successful.");
+#endif /* DEBUG_S */
+          return true;
+        }
+        else
+        {
+          // Error
+#ifdef DEBUG
+          Debug_print("Error code #");
+          Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
-        return;
+          return false;
+        }
       }
     }
+#ifdef DEBUG
+    Debug_println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+    retries++;
+    tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_println("Timeout after 5000ms.");
-#endif /* DEBUG_S */
+  Debug_printf("Failed.\n");
+#endif
 }
 
 /**
    TNFS read
 */
-void tnfs_read(unsigned char deviceSlot, unsigned short len)
+bool tnfs_read(unsigned char deviceSlot, unsigned short len)
 {
   int start = millis();
   int dur = millis() - start;
-  tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-  tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
-  tnfsPacket.retryCount++;  // Increase sequence
-  tnfsPacket.command = 0x21; // READ
-  tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
-  tnfsPacket.data[1] = len & 0xFF; // len bytes
-  tnfsPacket.data[2] = len >> 8; //
+  unsigned char retries = 0;
+
+  while (retries < 5)
+  {
+    tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
+    tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+    tnfsPacket.retryCount++;  // Increase sequence
+    tnfsPacket.command = 0x21; // READ
+    tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
+    tnfsPacket.data[1] = len & 0xFF; // len bytes
+    tnfsPacket.data[2] = len >> 8; //
 
 #ifdef DEBUG
-  Debug_print("Reading from File descriptor: ");
-  Debug_println(tnfs_fds[deviceSlot]);
-  Debug_print("Req Packet: ");
-  for (int i = 0; i < 7; i++)
-  {
-    Debug_print(tnfsPacket.rawData[i], HEX);
-    Debug_print(" ");
-  }
-  Debug_println("");
-#endif /* DEBUG_S */
-
-  UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
-  UDP.write(tnfsPacket.rawData, 4 + 3);
-  UDP.endPacket();
-
-  while (dur < 5000)
-  {
-    yield();
-    if (UDP.parsePacket())
+    Debug_print("Reading from File descriptor: ");
+    Debug_println(tnfs_fds[deviceSlot]);
+    Debug_print("Req Packet: ");
+    for (int i = 0; i < 7; i++)
     {
-      int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
-#ifdef DEBUG
-      Debug_print("Resp packet: ");
-      for (int i = 0; i < l; i++)
-      {
-        Debug_print(tnfsPacket.rawData[i], HEX);
-        Debug_print(" ");
-      }
-      Debug_println("");
+      Debug_print(tnfsPacket.rawData[i], HEX);
+      Debug_print(" ");
+    }
+    Debug_println("");
 #endif /* DEBUG_S */
-      if (tnfsPacket.data[0] == 0x00)
+
+    UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    UDP.write(tnfsPacket.rawData, 4 + 3);
+    UDP.endPacket();
+
+    while (dur < 5000)
+    {
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
       {
-        // Successful
+        int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
 #ifdef DEBUG
-        Debug_println("Successful.");
+        Debug_print("Resp packet: ");
+        for (int i = 0; i < l; i++)
+        {
+          Debug_print(tnfsPacket.rawData[i], HEX);
+          Debug_print(" ");
+        }
+        Debug_println("");
 #endif /* DEBUG_S */
-        return;
-      }
-      else
-      {
-        // Error
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
 #ifdef DEBUG
-        Debug_print("Error code #");
-        Debug_println(tnfsPacket.data[0], HEX);
+          Debug_println("Successful.");
+#endif /* DEBUG_S */
+          return true;
+        }
+        else
+        {
+          // Error
+#ifdef DEBUG
+          Debug_print("Error code #");
+          Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
-        return;
+          return false;
+        }
       }
     }
+#ifdef DEBUG
+    Debug_println("Timeout after 5000ms.");
+    if (retries < 5)
+      Debug_printf("Retrying...\n");
+#endif /* DEBUG_S */
+    retries++;
+    tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_println("Timeout after 5000ms.");
-#endif /* DEBUG_S */
+  Debug_printf("Failed.\n");
+#endif
+  return false;
 }
 
 /**
    TNFS seek
 */
-void tnfs_seek(unsigned char deviceSlot, long offset)
+bool tnfs_seek(unsigned char deviceSlot, long offset)
 {
   int start = millis();
   int dur = millis() - start;
   byte offsetVal[4];
+  unsigned char retries = 0;
 
-  offsetVal[0] = (int)((offset & 0xFF000000) >> 24 );
-  offsetVal[1] = (int)((offset & 0x00FF0000) >> 16 );
-  offsetVal[2] = (int)((offset & 0x0000FF00) >> 8 );
-  offsetVal[3] = (int)((offset & 0X000000FF));
+  while (retries < 5)
+  {
+    offsetVal[0] = (int)((offset & 0xFF000000) >> 24 );
+    offsetVal[1] = (int)((offset & 0x00FF0000) >> 16 );
+    offsetVal[2] = (int)((offset & 0x0000FF00) >> 8 );
+    offsetVal[3] = (int)((offset & 0X000000FF));
 
-  tnfsPacket.retryCount++;
-  tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-  tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
-  tnfsPacket.command = 0x25; // LSEEK
-  tnfsPacket.data[0] = tnfs_fds[deviceSlot];
-  tnfsPacket.data[1] = 0x00; // SEEK_SET
-  tnfsPacket.data[2] = offsetVal[3];
-  tnfsPacket.data[3] = offsetVal[2];
-  tnfsPacket.data[4] = offsetVal[1];
-  tnfsPacket.data[5] = offsetVal[0];
+    tnfsPacket.retryCount++;
+    tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
+    tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+    tnfsPacket.command = 0x25; // LSEEK
+    tnfsPacket.data[0] = tnfs_fds[deviceSlot];
+    tnfsPacket.data[1] = 0x00; // SEEK_SET
+    tnfsPacket.data[2] = offsetVal[3];
+    tnfsPacket.data[3] = offsetVal[2];
+    tnfsPacket.data[4] = offsetVal[1];
+    tnfsPacket.data[5] = offsetVal[0];
 
 #ifdef DEBUG
-  Debug_print("Seek requested to offset: ");
-  Debug_println(offset);
-  Debug_print("Req packet: ");
-  for (int i = 0; i < 10; i++)
-  {
-    Debug_print(tnfsPacket.rawData[i], HEX);
-    Debug_print(" ");
-  }
-  Debug_println("");
-#endif /* DEBUG_S*/
-
-  UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
-  UDP.write(tnfsPacket.rawData, 6 + 4);
-  UDP.endPacket();
-
-  while (dur < 5000)
-  {
-    yield();
-    if (UDP.parsePacket())
+    Debug_print("Seek requested to offset: ");
+    Debug_println(offset);
+    Debug_print("Req packet: ");
+    for (int i = 0; i < 10; i++)
     {
-      int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
-#ifdef DEBUG
-      Debug_print("Resp packet: ");
-      for (int i = 0; i < l; i++)
+      Debug_print(tnfsPacket.rawData[i], HEX);
+      Debug_print(" ");
+    }
+    Debug_println("");
+#endif /* DEBUG_S*/
+
+    UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    UDP.write(tnfsPacket.rawData, 6 + 4);
+    UDP.endPacket();
+
+    while (dur < 5000)
+    {
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
       {
-        Debug_print(tnfsPacket.rawData[i], HEX);
-        Debug_print(" ");
-      }
-      Debug_println("");
+        int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
+#ifdef DEBUG
+        Debug_print("Resp packet: ");
+        for (int i = 0; i < l; i++)
+        {
+          Debug_print(tnfsPacket.rawData[i], HEX);
+          Debug_print(" ");
+        }
+        Debug_println("");
 #endif /* DEBUG_S */
 
-      if (tnfsPacket.data[0] == 0)
-      {
-        // Success.
+        if (tnfsPacket.data[0] == 0)
+        {
+          // Success.
 #ifdef DEBUG
-        Debug_println("Successful.");
+          Debug_println("Successful.");
 #endif /* DEBUG_S */
-        return;
-      }
-      else
-      {
-        // Error.
+          return true;
+        }
+        else
+        {
+          // Error.
 #ifdef DEBUG
-        Debug_print("Error code #");
-        Debug_println(tnfsPacket.data[0], HEX);
+          Debug_print("Error code #");
+          Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
-        return;
+          return false;
+        }
       }
     }
+#ifdef DEBUG
+    Debug_println("Timeout after 5000ms.");
+    if (retries < 5)
+      Debug_printf("Retrying...\n");
+#endif /* DEBUG_S */
+    tnfsPacket.retryCount--;
+    retries++;
   }
 #ifdef DEBUG
-  Debug_println("Timeout after 5000ms.");
-#endif /* DEBUG_S */
+  Debug_printf("Failed.\n");
+#endif
+  return false;
 }
 
 void setup()
@@ -1804,9 +1806,45 @@ void setup()
   SIO_UART.swap();
 #endif
 
+  // Set up SIO state function pointers
+  sioState[ID] = sio_get_id;
+  sioState[COMMAND] = sio_get_command;
+  sioState[AUX1] = sio_get_aux1;
+  sioState[AUX2] = sio_get_aux2;
+  sioState[CHECKSUM] = sio_get_checksum;
+  sioState[ACK] = sio_ack;
+  sioState[NAK] = sio_nak;
+  sioState[PROCESS] = sio_process;
+  sioState[WAIT] = sio_wait;
+
+  // Set up SIO command function pointers
+  for (int i = 0; i < 256; i++)
+    cmdPtr[i] = sio_wait;
+
+  cmdPtr['P'] = sio_write;
+  cmdPtr['W'] = sio_write;
+  cmdPtr['R'] = sio_read;
+  cmdPtr['S'] = sio_status;
+  cmdPtr['!'] = sio_format;
+  cmdPtr[0x3F] = sio_high_speed;
+  cmdPtr[0xFD] = sio_scan_networks;
+  cmdPtr[0xFC] = sio_scan_result;
+  cmdPtr[0xFB] = sio_set_ssid;
+  cmdPtr[0xFA] = sio_get_wifi_status;
+  cmdPtr[0xF9] = sio_mount_host;
+  cmdPtr[0xF8] = sio_mount_image;
+  cmdPtr[0xF7] = sio_open_tnfs_directory;
+  cmdPtr[0xF6] = sio_read_tnfs_directory;
+  cmdPtr[0xF5] = sio_close_tnfs_directory;
+  cmdPtr[0xF4] = sio_read_hosts_slots;
+  cmdPtr[0xF3] = sio_write_hosts_slots;
+  cmdPtr[0xF2] = sio_read_drives_slots;
+  cmdPtr[0xF1] = sio_write_drives_slots;
+
   // Attach COMMAND interrupt.
   attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
   cmdState = WAIT; // Start in wait state
+
 }
 
 void loop()
@@ -1821,9 +1859,7 @@ void loop()
 #endif
 
   if (SIO_UART.available() > 0)
-  {
-    sio_incoming();
-  }
+    sioState[cmdState]();
 
   //  if ((millis() - cmdTimer > CMD_TIMEOUT) && (cmdState != WAIT))
   //  {
