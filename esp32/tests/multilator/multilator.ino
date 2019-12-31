@@ -395,6 +395,7 @@ void sio_set_ssid()
     delayMicroseconds(200);
   }
   ck = SIO_UART.read(); // Read checksum
+  delay(2);
   SIO_UART.write('A'); // Write ACK
 
   if (ck == sio_checksum(netConfig.rawData, 96))
@@ -490,13 +491,12 @@ void sio_write()
   Serial1.printf("receiving %d bytes data frame from computer.\n", ss);
 #endif
 
-
   SIO_UART.readBytes(sector, ss);
   while (SIO_UART.available() == 0) {
     delayMicroseconds(200);
   }
   ck = SIO_UART.read(); // Read checksum
-  //delayMicroseconds(350);
+  delay(2);
   SIO_UART.write('A'); // Write ACK
 
   if (ck == sio_checksum(sector, ss))
@@ -561,7 +561,7 @@ void sio_mount_host()
 {
   byte ck;
   unsigned char hostSlot = cmdFrame.aux1;
-
+  delay(2);
   SIO_UART.write('A'); // Write ACK
 
 #ifdef DEBUG
@@ -592,8 +592,7 @@ void sio_mount_image()
   Debug_printf("Opening image in drive slot #%d", deviceSlot);
 #endif
 
-  delayMicroseconds(250);
-
+  delay(2);
   // Open disk image
   tnfs_open(deviceSlot, options);
 
@@ -638,13 +637,11 @@ void sio_open_tnfs_directory()
     return;
   }
 
+  delay(2);
+
   SIO_UART.write('A');   // ACK
 
-  delayMicroseconds(250);
-
   tnfs_opendir(hostSlot);
-
-  delayMicroseconds(250);
 
   // And complete.
   SIO_UART.write('C');
@@ -695,6 +692,8 @@ void sio_close_tnfs_directory()
   tnfs_closedir(cmdFrame.aux1);
 
   delayMicroseconds(250);
+
+  delay(2);
 
   SIO_UART.write('C'); // Completed command
 
@@ -755,19 +754,14 @@ void sio_write_hosts_slots()
   }
   ck = SIO_UART.read(); // Read checksum
 
-  delayMicroseconds(250);
+  delay(2);
 
   SIO_UART.write('A'); // Write ACK
 
-  delayMicroseconds(250);
 
   if (ck == sio_checksum(hostSlots.rawData, 256))
   {
-    delayMicroseconds(250);
-
     SIO_UART.write('C');
-
-    delayMicroseconds(250);
 
     atr.seek(91792, SeekSet);
     atr.write(hostSlots.rawData, 256);
@@ -783,11 +777,7 @@ void sio_write_hosts_slots()
   }
   else
   {
-    delayMicroseconds(250);
-
     SIO_UART.write('E');
-
-    delayMicroseconds(250);
 
 #ifdef DEBUG
     for (int i = 0; i < sizeof(hostSlots.rawData); i++)
@@ -813,20 +803,13 @@ void sio_write_drives_slots()
   }
   ck = SIO_UART.read(); // Read checksum
 
-  delayMicroseconds(250);
+  delay(2);
 
   SIO_UART.write('A'); // Write ACK
 
-  delayMicroseconds(250);
-
   if (ck == sio_checksum(deviceSlots.rawData, 304))
   {
-
-    delayMicroseconds(250);
-
     SIO_UART.write('C');
-
-    delayMicroseconds(250);
 
     atr.seek(91408, SeekSet);
     atr.write(deviceSlots.rawData, 304);
@@ -843,11 +826,7 @@ void sio_write_drives_slots()
   }
   else
   {
-    delayMicroseconds(250);
-
     SIO_UART.write('E');
-
-    delayMicroseconds(250);
 
 #ifdef DEBUG
     for (int i = 0; i < sizeof(hostSlots.rawData); i++)
@@ -921,7 +900,9 @@ void sio_read()
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int cacheOffset = 0;
   int offset;
-
+  byte* s;
+  byte* d;
+  
   if (load_config == true) // no TNFS ATR mounted.
   {
     ss = 128;
@@ -961,54 +942,54 @@ void sio_read()
 #endif
       tnfs_seek(deviceSlot, offset);
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset += 256;
       tnfs_read(deviceSlot, 256);
-      yield();
-      for (int i = 0; i < 256; i++)
-        sectorCache[deviceSlot][cacheOffset + i] = tnfsPacket.data[i + 3];
+      s = &tnfsPacket.data[3];
+      d = &sectorCache[deviceSlot][cacheOffset];
+      memcpy(d, s, 256);
       cacheOffset = 0;
     }
     else // cache hit, adjust offset
@@ -1023,8 +1004,9 @@ void sio_read()
       Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
     }
-    for (int i = 0; i < ss; i++)
-      sector[i] = sectorCache[deviceSlot][(i + cacheOffset)];
+    d = &sector[0];
+    s = &sectorCache[deviceSlot][cacheOffset];
+    memcpy(d, s, ss);
   }
 
   ck = sio_checksum((byte *)&sector, ss);
@@ -1065,8 +1047,7 @@ void sio_status()
   //delay(1);
 
   // Write data frame
-  for (int i = 0; i < 4; i++)
-    SIO_UART.write(status[i]);
+    SIO_UART.write(status,4);
 
   // Write checksum
   SIO_UART.write(ck);
@@ -1079,7 +1060,10 @@ void sio_status()
 */
 void sio_ack()
 {
-  delayMicroseconds(500);
+  while (digitalRead(PIN_CMD)==LOW) { yield(); }
+  
+  delay(1);  
+  
   if (cmdFrame.devic == 0x31 &&
       cmdFrame.comnd == 0x53)
   {
@@ -1167,6 +1151,7 @@ void tnfs_mount(unsigned char hostSlot)
 
   while (dur < 5000)
   {
+    dur=millis()-start;
     yield();
     if (UDP.parsePacket())
     {
@@ -1263,6 +1248,7 @@ void tnfs_open(unsigned char deviceSlot, unsigned char options)
 
   while (dur < 5000)
   {
+    dur=millis()-start;
     yield();
     if (UDP.parsePacket())
     {
@@ -1327,6 +1313,7 @@ void tnfs_opendir(unsigned char hostSlot)
 
   while (dur < 5000)
   {
+    dur=millis()-start;
     yield();
     if (UDP.parsePacket())
     {
@@ -1376,6 +1363,7 @@ bool tnfs_readdir(unsigned char hostSlot)
 
   while (dur < 5000)
   {
+    dur=millis()-start;
     yield();
     if (UDP.parsePacket())
     {
@@ -1422,6 +1410,7 @@ void tnfs_closedir(unsigned char hostSlot)
 
   while (dur < 5000)
   {
+    dur=millis()-start;
     yield();
     if (UDP.parsePacket())
     {
@@ -1478,6 +1467,7 @@ void tnfs_write(unsigned char deviceSlot, unsigned short len)
 
   while (dur < 5000)
   {
+    dur=millis()-start;
     yield();
     if (UDP.parsePacket())
     {
@@ -1548,6 +1538,7 @@ void tnfs_read(unsigned char deviceSlot, unsigned short len)
 
   while (dur < 5000)
   {
+    dur=millis()-start;
     yield();
     if (UDP.parsePacket())
     {
@@ -1628,6 +1619,7 @@ void tnfs_seek(unsigned char deviceSlot, long offset)
 
   while (dur < 5000)
   {
+    dur=millis()-start;
     yield();
     if (UDP.parsePacket())
     {
