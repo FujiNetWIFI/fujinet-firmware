@@ -166,7 +166,8 @@ bool sio_valid_device_id()
    Get the whole command frame
 */
 
-void sio_get_cmd_frame(){
+void sio_get_cmd_frame()
+{
   int i = 0;
   bool madeit = false;
 
@@ -179,7 +180,8 @@ void sio_get_cmd_frame(){
 #endif
   }
 
-  while( !digitalRead(PIN_CMD) ) // until PIN_CMD goes high again
+  //while( !digitalRead(PIN_CMD) ) // until PIN_CMD goes high again
+  while ( i < 5 ) // until we've read 5 bytes from serial
   {
     switch (i)
     {
@@ -423,6 +425,13 @@ void setup()
   BUG_UART.println(TEST_NAME);
 #endif
 
+#ifdef DEBUG
+#ifdef ESP32
+  Debug_print("CPU Speed: ");
+  Debug_println(getCpuFrequencyMhz()); //Get CPU clock
+#endif
+#endif
+
   SPIFFS.begin();
   atr = SPIFFS.open("/autorun.atr", "r+");
 
@@ -494,25 +503,25 @@ void loop()
         checkTimer = millis();
         checkCounter = 0;
 #ifdef DEBUG
-      Debug_println("MODEM ACTIVATION ACCEPTED");
+        Debug_println("MODEM ACTIVATION ACCEPTED");
 #endif
       }
       else if (chr == 'f')
       { // We got the first character ('f') of modem activation sequence
         checkCounter = 1;
 #ifdef DEBUG
-      Debug_println("MODEM ACTIVE STEP 1");
+        Debug_println("MODEM ACTIVE STEP 1");
 #endif
       }
       else
       { // this character isn't for us to activate modem, forget about it and start over
         checkCounter = 0;
 #ifdef DEBUG
-      Debug_println("MODEM CHECK OVER");
+        Debug_println("MODEM CHECK OVER");
 #endif
       }
     }
-    if (checkTimer != 0 && millis()-checkTimer > 3000)
+    if (checkTimer != 0 && millis() - checkTimer > 3000)
     { // Entering modem mode after 3 second delay
       modemActive = true;
       checkTimer = 0;
