@@ -467,6 +467,11 @@ void setup()
 #ifdef ESP32
   digitalWrite(PIN_LED2, HIGH);
 #endif
+
+  // Lastly, try connecting to WiFi. Should autoconnect to last ssid/pass
+#ifdef ESP32
+  WiFi.begin();
+#endif
 }
 
 /**
@@ -637,58 +642,25 @@ void loop()
     }
 
     // Transmit from TCP to terminal
-    while (tcpClient.available())
+    if (tcpClient.available())
     {
       led_on();
-      uint8_t rxByte = tcpClient.read();
+      char buf[128];
+      int avail = tcpClient.available();
+      int i;
 
-      // Is a telnet control code starting?
-      if ((telnet == true) && (rxByte == 0xff))
+      if (avail > 128)
       {
-#ifdef DEBUG
-        Debug_print("<t>");
-#endif
-        rxByte = tcpClient.read();
-        if (rxByte == 0xff)
-        {
-          // 2 times 0xff is just an escaped real 0xff
-          SIO_UART.write(0xff); SIO_UART.flush();
-        }
-        else
-        {
-          // rxByte has now the first byte of the actual non-escaped control code
-#ifdef DEBUG
-          Debug_print(rxByte);
-          Debug_print(",");
-#endif
-          uint8_t cmdByte1 = rxByte;
-          rxByte = tcpClient.read();
-          uint8_t cmdByte2 = rxByte;
-          // rxByte has now the second byte of the actual non-escaped control code
-#ifdef DEBUG
-          Debug_print(rxByte);
-#endif
-          // We are asked to do some option, respond we won't
-          if (cmdByte1 == DO)
-          {
-            tcpClient.write((uint8_t)255); tcpClient.write((uint8_t)WONT); tcpClient.write(cmdByte2);
-          }
-          // Server wants to do any option, allow it
-          else if (cmdByte1 == WILL)
-          {
-            tcpClient.write((uint8_t)255); tcpClient.write((uint8_t)DO); tcpClient.write(cmdByte2);
-          }
-        }
-#ifdef DEBUG
-        Debug_print("</t>");
-#endif
+        tcpClient.readBytes(buf, 128);
+        for (i = 0; i < 128; i++)
+          SIO_UART.write(buf[i]);
       }
       else
       {
-        // Non-control codes pass through freely
-        SIO_UART.write(rxByte); SIO_UART.flush();
+        tcpClient.readBytes(buf, avail);
+        for (i = 0; i < avail; i++)
+          SIO_UART.write(buf[i]);
       }
-      yield();
     }
   }
 
@@ -817,6 +789,7 @@ void command()
   else if (upCmd == "AT300") newBps = 300;
   else if (upCmd == "AT1200") newBps = 1200;
   else if (upCmd == "AT2400") newBps = 2400;
+  else if (upCmd == "AT4800") newBps = 4800;
   else if (upCmd == "AT9600") newBps = 9600;
   else if (upCmd == "AT19200") newBps = 19200;
   else if (upCmd == "AT38400") newBps = 38400;
