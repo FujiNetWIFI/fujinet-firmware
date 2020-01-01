@@ -38,7 +38,7 @@ void sioPrinter::sio_write()
 // Status
 void sioPrinter::sio_status()
 {
-  byte status[4] = {0x01, 0x00, 0x00, 0x00};
+  byte status[4] = {0x01, 0x01, 0x01, 0x01};
   byte ck;
 
   ck = sio_checksum((byte *)&status, 4);
