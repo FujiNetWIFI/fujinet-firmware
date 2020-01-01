@@ -22,9 +22,9 @@
 int lineHeight = 12;
 int pageWidth = 612;
 int pageHeight = 792;
-int leftMargin = 42;
+int leftMargin = 66;
 int bottomMargin = 2;
-int fontSize = 11;
+int fontSize = 10;
 const char *fontName = "Courier";
 int lineCounter = 0;
 
