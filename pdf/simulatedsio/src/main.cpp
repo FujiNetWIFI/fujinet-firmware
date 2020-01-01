@@ -33,61 +33,60 @@ int lineCounter = 0;
 // sio simulation: read input file, make 40-char buffers, replace CRLF with EOL, pad with spaces to 40 char
 // using simulated sio buffer to create text stream payload for PDF lines
 // use standard C and POSIX file output (don't care about input because that's SIO simulation)
-// replace page(string) with incremental line string and accumulate lengths for xref
+// replace page(string) with incremental line string and accumulate lengths for pdf_xref
 // use NUMLINES to parameterize the routine
 
 std::ifstream prtin; // input file
 
-int offset;                     // used to store location offset to next object
+int pdf_offset;                     // used to store location offset to next object
 int objLocations[NUMLINES + 5]; // reference table storage
-int xref;                       // store the xref tabel location
-int objCtr = 0;                 // count the objects
+int pdf_objCtr = 0;                 // count the objects
 
 FILE *f; // standard C output file
 
 void pdf_header()
 {
-  offset = fprintf(f, "%%PDF-1.4\n");
+  pdf_offset = fprintf(f, "%%PDF-1.4\n");
   // first object: catalog of pages
-  objCtr = 1;
-  objLocations[objCtr] = offset;
-  offset = fprintf(f, "1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n");
+  pdf_objCtr = 1;
+  objLocations[pdf_objCtr] = pdf_offset;
+  pdf_offset = fprintf(f, "1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n");
   // second object: one page
-  objCtr++;
-  objLocations[objCtr] = objLocations[objCtr - 1] + offset;
-  offset = fprintf(f, "2 0 obj <</Type /Pages /Kids [3 0 R] /Count 1>> endobj\n");
+  pdf_objCtr++;
+  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  pdf_offset = fprintf(f, "2 0 obj <</Type /Pages /Kids [3 0 R] /Count 1>> endobj\n");
   // third object: page contents
-  objCtr++;
-  objLocations[objCtr] = objLocations[objCtr - 1] + offset;
-  offset = fprintf(f, "3 0 obj <</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
+  pdf_objCtr++;
+  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  pdf_offset = fprintf(f, "3 0 obj <</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
   for (int i = 0; i < NUMLINES; i++)
   {
-    offset += fprintf(f, "%d 0 R ", i + 6);
+    pdf_offset += fprintf(f, "%d 0 R ", i + 6);
   }
-  offset += fprintf(f, "]>> endobj\n");
+  pdf_offset += fprintf(f, "]>> endobj\n");
   // fourth object: font catalog
-  objCtr++;
-  objLocations[objCtr] = objLocations[objCtr - 1] + offset;
+  pdf_objCtr++;
+  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
   //line = ;
-  offset = fprintf(f, "4 0 obj <</Font <</F1 5 0 R>>>> endobj\n");
+  pdf_offset = fprintf(f, "4 0 obj <</Font <</F1 5 0 R>>>> endobj\n");
   // fifth object: font 1
-  objCtr++;
-  objLocations[objCtr] = objLocations[objCtr - 1] + offset;
-  offset = fprintf(f, "5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /%s>> endobj\n", fontName);
+  pdf_objCtr++;
+  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  pdf_offset = fprintf(f, "5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /%s>> endobj\n", fontName);
 }
 
 void pdf_xref()
 {
-  xref = objLocations[objCtr] + offset;
-  objCtr++;
+  int xref = objLocations[pdf_objCtr] + pdf_offset;
+  pdf_objCtr++;
   fprintf(f, "xref\n");
-  fprintf(f, "0 %d\n", objCtr);
+  fprintf(f, "0 %d\n", pdf_objCtr);
   fprintf(f, "0000000000 65535 f\n");
   for (int i = 1; i < (NUMLINES + 5); i++)
   {
     fprintf(f, "%010d 00000 n\n", objLocations[i]);
   }
-  fprintf(f, "trailer <</Size %d/Root 1 0 R>>\n", objCtr);
+  fprintf(f, "trailer <</Size %d/Root 1 0 R>>\n", pdf_objCtr);
   fprintf(f, "startxref\n");
   fprintf(f, "%d\n", xref);
   fprintf(f, "%%%%EOF\n");
@@ -96,13 +95,13 @@ void pdf_xref()
 void pdf_add_line(const char *L)
 {
   // to do: handle odd characters for fprintf, e.g., %,'," etc.
-  objCtr++;
-  objLocations[objCtr] = objLocations[objCtr - 1] + offset;
-  offset = fprintf(f, "%d 0 obj <</Length %d>> stream\n", objCtr, 30 + strlen(L));
+  pdf_objCtr++;
+  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  pdf_offset = fprintf(f, "%d 0 obj <</Length %d>> stream\n", pdf_objCtr, 30 + strlen(L));
   int xcoord = pageHeight - lineHeight + bottomMargin - lineCounter * lineHeight;
   //this string right here vvvvvv is 30 chars long plus the length of the payload
-  offset += fprintf(f, "BT /F1 %2d Tf %2d %3d Td (%s)Tj ET\n", fontSize, leftMargin, xcoord, L);
-  offset += fprintf(f, "endstream endobj\n");
+  pdf_offset += fprintf(f, "BT /F1 %2d Tf %2d %3d Td (%s)Tj ET\n", fontSize, leftMargin, xcoord, L);
+  pdf_offset += fprintf(f, "endstream endobj\n");
 }
 
 void atari_to_c_str(char *S)
