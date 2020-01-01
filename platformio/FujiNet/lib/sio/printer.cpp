@@ -24,7 +24,7 @@ void sioPrinter::sio_write()
     SIO_UART.write('C');
 #ifdef DEBUG_S
     int i = 0;
-    while (buffer[i] != 155)
+    while ((buffer[i] != 155) && (i<40))
     {
       BUG_UART.write(buffer[i]);
       i++;
