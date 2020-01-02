@@ -24,8 +24,11 @@
 //File tnfs;
 sioPrinter sioP;
 File atr[8];
+File pdff;
 //File tnfs;
 sioDisk sioD[8];
+
+WiFiServer server(80);
 
 void setup()
 {
@@ -46,6 +49,9 @@ void setup()
 
   SPIFFS.begin();
   SIO.addDevice(&sioP, 0x40); // P:
+  pdff = SPIFFS.open("pdf.out", "W");
+  sioP.initPDF(&pdff);
+
   for (int i = 0; i < 8; i++)
   {
     String fname = String("/file") + String(i) + String(".atr");
@@ -60,10 +66,10 @@ void setup()
   BUG_UART.print(SIO.numDevices());
   BUG_UART.println(" devices registered.");
 #endif
-      //TNFS.begin(TNFS_SERVER, TNFS_PORT);
-      //tnfs = TNFS.open("/TurboBasic.atr", "r");
+  //TNFS.begin(TNFS_SERVER, TNFS_PORT);
+  //tnfs = TNFS.open("/TurboBasic.atr", "r");
 
-      SIO.setup();
+  SIO.setup();
 }
 
 void loop()
