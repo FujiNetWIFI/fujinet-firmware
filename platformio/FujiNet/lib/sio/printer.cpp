@@ -1,19 +1,104 @@
 #include "printer.h"
 
+void pdfUpload() {}
+
+//pdf routines
+void sioPrinter::pdf_header()
+{
+  pdf_offset = _file->printf("%%PDF-1.4\n");
+  // first object: catalog of pages
+  pdf_objCtr = 1;
+  objLocations[pdf_objCtr] = pdf_offset;
+  pdf_offset = _file->printf("1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n");
+  // second object: one page
+  pdf_objCtr++;
+  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  pdf_offset = _file->printf("2 0 obj <</Type /Pages /Kids [3 0 R] /Count 1>> endobj\n");
+  // third object: page contents
+  pdf_objCtr++;
+  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  pdf_offset = _file->printf("3 0 obj <</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
+  for (int i = 0; i < maxLines; i++)
+  {
+    pdf_offset += _file->printf("%d 0 R ", i + 6);
+  }
+  pdf_offset += _file->printf("]>> endobj\n");
+  // fourth object: font catalog
+  pdf_objCtr++;
+  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  //line = ;
+  pdf_offset = _file->printf("4 0 obj <</Font <</F1 5 0 R>>>> endobj\n");
+  // fifth object: font 1
+  pdf_objCtr++;
+  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  pdf_offset = _file->printf("5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /%s>> endobj\n", fontName);
+}
+void sioPrinter::pdf_xref()
+{
+  int xref = objLocations[pdf_objCtr] + pdf_offset;
+  pdf_objCtr++;
+  _file->printf("xref\n");
+  _file->printf("0 %d\n", pdf_objCtr);
+  _file->printf("0000000000 65535 f\n");
+  for (int i = 1; i < (maxLines + 5); i++)
+  {
+    _file->printf("%010d 00000 n\n", objLocations[i]);
+  }
+  _file->printf("trailer <</Size %d/Root 1 0 R>>\n", pdf_objCtr);
+  _file->printf("startxref\n");
+  _file->printf("%d\n", xref);
+  _file->printf("%%%%EOF\n");
+}
+void sioPrinter::pdf_add_line(const char *L)
+{
+  // to do: handle odd characters for fprintf, e.g., %,'," etc.
+  pdf_objCtr++;
+  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  pdf_offset = _file->printf("%d 0 obj <</Length %d>> stream\n", pdf_objCtr, 30 + strlen(L));
+  int xcoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
+  //this string right here vvvvvv is 30 chars long plus the length of the payload
+  pdf_offset += _file->printf("BT /F1 %2d Tf %2d %3d Td (%s)Tj ET\n", fontSize, leftMargin, xcoord, L);
+  pdf_offset += _file->printf("endstream endobj\n");
+}
+void sioPrinter::atari_to_c_str(byte *S)
+{
+  eolFlag = false;
+  int i = 0;
+  S[40] = '\0';
+  while (i < 40)
+  {
+    if (S[i] == EOL)
+    {
+      S[i] = '\0';
+      eolFlag = true;
+      return;
+    }
+    i++;
+  }
+}
+
+void sioPrinter::initPDF(File *f)
+{
+  _file = f;
+  pdf_lineCounter = 0;
+  pdf_header();
+}
+
+void sioPrinter::formFeed()
+{
+  pdf_xref();
+}
+
 // write for W & P commands
 void sioPrinter::sio_write()
 {
   byte ck;
-  // int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  // offset *= 128;
-  // offset -= 128;
-  // offset += 16; // skip 16 byte ATR Header
-
-#ifdef DEBUG_S
-  BUG_UART.printf("receiving line print from computer:   ");
-#endif
-
   SIO_UART.readBytes(buffer, 40);
+  for (int z = 0; z < 40; z++)
+  {
+    BUG_UART.print(buffer[z], DEC);
+  }
+  BUG_UART.println();
   ck = SIO_UART.read(); // Read checksum
   //delayMicroseconds(350);
   SIO_UART.write('A'); // Write ACK
@@ -23,14 +108,22 @@ void sioPrinter::sio_write()
     delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
 #ifdef DEBUG_S
-    int i = 0;
-    while ((buffer[i] != 155) && (i<40))
+    atari_to_c_str(buffer);
+    output.append((char *)buffer);
+    if (eolFlag)
     {
-      BUG_UART.write(buffer[i]);
-      i++;
+      pdf_add_line(output.c_str());
+      output.clear();
     }
-    BUG_UART.println("");
 #endif
+    pdf_lineCounter++;
+    if (pdf_lineCounter >= maxLines)
+    {
+      formFeed();
+      initPDF(nullptr);
+      // todo: open up a new PDF file
+    }
+
     yield();
   }
 }

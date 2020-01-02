@@ -26,7 +26,7 @@ int leftMargin = 66;
 int bottomMargin = 2;
 int fontSize = 10;
 const char *fontName = "Courier";
-int lineCounter = 0;
+int pdf_lineCounter = 0;
 
 // todo:
 // specify: page size, left/bottom margins, line spacing
@@ -98,7 +98,7 @@ void pdf_add_line(const char *L)
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = fprintf(f, "%d 0 obj <</Length %d>> stream\n", pdf_objCtr, 30 + strlen(L));
-  int xcoord = pageHeight - lineHeight + bottomMargin - lineCounter * lineHeight;
+  int xcoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
   //this string right here vvvvvv is 30 chars long plus the length of the payload
   pdf_offset += fprintf(f, "BT /F1 %2d Tf %2d %3d Td (%s)Tj ET\n", fontSize, leftMargin, xcoord, L);
   pdf_offset += fprintf(f, "endstream endobj\n");
@@ -132,14 +132,14 @@ int main()
   pdf_header();
   // body ******************************************************************************************
   //for (int inputCounter = 0; inputCounter < NUMLINES; inputCounter++)
-  while (lineCounter < NUMLINES)
+  while (pdf_lineCounter < NUMLINES)
   {
-    lineCounter++;
+    pdf_lineCounter++;
     output.clear();
     if (!prtin.eof())
     {
       getline(prtin, payload);
-      std::cout << "line " << std::setw(3) << lineCounter << ":  " << payload << "\n";
+      std::cout << "line " << std::setw(3) << pdf_lineCounter << ":  " << payload << "\n";
       //SIMULATE SIO:
       //standard Atari P: handler sends 40 bytes at a time
       //break up line into two 40-byte buffers, add an EOL, pad with spaces
