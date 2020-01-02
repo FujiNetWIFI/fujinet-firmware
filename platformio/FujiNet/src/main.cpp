@@ -23,10 +23,10 @@
 
 //File tnfs;
 sioPrinter sioP;
-File atr[8];
+File atr[2];
 File pdff;
 //File tnfs;
-sioDisk sioD[8];
+sioDisk sioD[2];
 
 WiFiServer server(80);
 WiFiClient client;
@@ -127,7 +127,7 @@ void setup()
   pdff = SPIFFS.open("/pdf.out", "w+");
   sioP.initPDF(&pdff);
 
-  for (int i = 0; i < 8; i++)
+  for (int i = 0; i < 2; i++)
   {
     String fname = String("/file") + String(i) + String(".atr");
 #ifdef DEBUG_S
