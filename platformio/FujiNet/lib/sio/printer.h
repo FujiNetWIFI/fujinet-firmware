@@ -35,7 +35,7 @@ private:
     
     void pdf_header();
     void pdf_xref();
-    void pdf_add_line(const char *L);
+    void pdf_add_line(std::string L);
     void atari_to_c_str(byte *S);
     std::string output;
     int j;
