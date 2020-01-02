@@ -23,6 +23,7 @@
 
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
+#include <FS.h>
 #endif
 #ifdef ESP32
 #include <SD.h>
