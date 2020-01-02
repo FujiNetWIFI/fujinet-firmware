@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "simulatedsio"
+		},
+		{
+			"path": "helloworld"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"iostream": "cpp",
+			"string": "cpp"
+		}
+	}
+}
