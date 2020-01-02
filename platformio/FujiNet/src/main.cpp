@@ -33,36 +33,63 @@ WiFiClient client;
 
 void httpService()
 {
+  int in;
   // listen for incoming clients
   client = server.available();
-  if (client) {
+  if (client)
+  {
     BUG_UART.println("new client");
     // an http request ends with a blank line
     boolean currentLineIsBlank = true;
-    while (client.connected()) {
-      if (client.available()) {
+    while (client.connected())
+    {
+      if (client.available())
+      {
         char c = client.read();
         BUG_UART.write(c);
         // if you've gotten to the end of the line (received a newline
         // character) and the line is blank, the http request has ended,
         // so you can send a reply
-        if (c == '\n' && currentLineIsBlank) {
+        if (c == '\n' && currentLineIsBlank)
+        {
           // send a standard http response header
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: text/html");
-          client.println("Connection: close");  // the connection will be closed after completion of the response
-          client.println("Refresh: 5");  // refresh the page automatically every 5 sec
-          client.println();
-          client.println("<!DOCTYPE HTML>");
-          client.println("<html>");
-          client.println("Hello World!");
-          client.println("</html>");
+          // client.println("HTTP/1.1 200 OK");
+          // client.println("Content-Type: text/html");
+          // client.println("Connection: close");  // the connection will be closed after completion of the response
+          // client.println("Refresh: 5");  // refresh the page automatically every 5 sec
+          // client.println();
+          // client.println("<!DOCTYPE HTML>");
+          // client.println("<html>");
+          // client.println("Hello World!");
+          // client.println("</html>");
+          sioP.formFeed();
+          pdff.seek(0);
+          bool ok = true;
+          while (ok)
+          {
+            in = pdff.read();
+            if (in == -1)
+            {
+              ok = false;
+            }
+            else
+            {
+              client.write(byte(in));
+              BUG_UART.write(byte(in));
+            }
+          }
+          pdff.close();
+          pdff = SPIFFS.open("/pdf.out", "w+");
+          sioP.initPDF(&pdff);
           break;
         }
-        if (c == '\n') {
+        if (c == '\n')
+        {
           // you're starting a new line
           currentLineIsBlank = true;
-        } else if (c != '\r') {
+        }
+        else if (c != '\r')
+        {
           // you've gotten a character on the current line
           currentLineIsBlank = false;
         }
@@ -97,7 +124,7 @@ void setup()
 
   SPIFFS.begin();
   SIO.addDevice(&sioP, 0x40); // P:
-  pdff = SPIFFS.open("/pdf.out", "w");
+  pdff = SPIFFS.open("/pdf.out", "w+");
   sioP.initPDF(&pdff);
 
   for (int i = 0; i < 8; i++)
@@ -125,4 +152,3 @@ void loop()
   SIO.service();
   httpService();
 }
-
