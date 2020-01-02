@@ -19,7 +19,7 @@
    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define TEST_NAME "#FujiNet WiFi Modem"
+#define TEST_NAME "#FujiNet WiFi Modem 850"
 
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
@@ -37,7 +37,7 @@
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
 // Uncomment for Serial Debug
-//#define DEBUG_S
+#define DEBUG_S
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -63,7 +63,7 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 #define PIN_CKI         27
 #endif
 
-#define DELAY_T5          1500
+#define DELAY_T5          1000
 #define READ_CMD_TIMEOUT  12
 #define CMD_TIMEOUT       50
 #define STATUS_SKIP       8
@@ -73,6 +73,7 @@ bool sioBaud = false;
 unsigned long checkTimer = 0;
 bool modemActive = false;
 int checkCounter = 0;
+bool commanderMark = false;
 
 byte sector[128];
 File atr;
@@ -148,7 +149,7 @@ byte sio_checksum(byte* chunk, int length)
 */
 void ICACHE_RAM_ATTR sio_isr_cmd()
 {
-  cmdState = ID;
+  commanderMark = true; // Enter the secret city
   modemActive = false;
 }
 
@@ -158,6 +159,18 @@ void ICACHE_RAM_ATTR sio_isr_cmd()
 bool sio_valid_device_id()
 {
   if (cmdFrame.devic == 0x31)
+    return true;
+  else if (cmdFrame.devic == 0x50)
+    return true;
+  else
+    return false;
+}
+
+bool sio_valid_device_id(byte device)
+{
+  if (device == 0x31)
+    return true;
+  else if (device == 0x50)
     return true;
   else
     return false;
@@ -181,7 +194,6 @@ void sio_get_cmd_frame()
 #endif
   }
 
-  //while( !digitalRead(PIN_CMD) ) // until PIN_CMD goes high again
   while ( i < 5 ) // until we've read 5 bytes from serial
   {
     switch (i)
@@ -231,8 +243,21 @@ void sio_get_cmd_frame()
     i++;
     yield();
   }
+
+#ifdef DEBUG
+  Debug_print("CMD Frame: ");
+  Debug_print(cmdFrame.devic, HEX);
+  Debug_print(", ");
+  Debug_print(cmdFrame.comnd, HEX);
+  Debug_print(", ");
+  Debug_print(cmdFrame.aux1, HEX);
+  Debug_print(", ");
+  Debug_print(cmdFrame.aux2, HEX);
+  Debug_print(", ");
+  Debug_println(cmdFrame.cksum, HEX);
+#endif
   if (!madeit) // we didn't get all the bits, junk this command frame
-    cmdState = WAIT;
+    commanderMark = false;
   else
     sio_process();
 }
@@ -315,7 +340,9 @@ void sio_write()
 #endif
 
   SIO_UART.readBytes(sector, 128); // blocking
-  while (!SIO_UART.available()) { delayMicroseconds(1); } // wait for it...
+  while (!SIO_UART.available()) {
+    delayMicroseconds(1);  // wait for it...
+  }
   ck = SIO_UART.read(); // Read checksum
 
   if (ck == sio_checksum(sector, 128))
@@ -365,11 +392,199 @@ void sio_format()
 #endif
 }
 
+
+/**
+   850 Status 0x53
+*/
+void sio_R_status()
+{
+  byte status[2] = {0x00, 0x00};
+  byte ck;
+
+  ck = sio_checksum((byte *)&status, 2);
+
+  delayMicroseconds(DELAY_T5); // t5 delay
+  SIO_UART.write('C'); // Command always completes.
+  SIO_UART.flush();
+  delayMicroseconds(200);
+
+  // Write data frame
+  for (int i = 0; i < 2; i++)
+    SIO_UART.write(status[i]);
+
+  // Write checksum
+  SIO_UART.write(ck);
+  SIO_UART.flush();
+#ifdef DEBUG
+  Debug_println("R:Status: Sent 0,0,C");
+#endif
+}
+
+/**
+   850 Write
+*/
+void sio_R_write()
+{
+  // for now, just agree/complete
+  delayMicroseconds(DELAY_T5); // t5 delay
+  SIO_UART.write('C'); // Command always completes.
+  SIO_UART.flush();
+#ifdef DEBUG
+  Debug_println("R:Write: Sent Complete");
+#endif
+}
+
+/**
+ ** 850 Control 0x41
+
+   DTR/RTS/XMT
+  D7 Enable DTR (Data Terminal Ready) change
+  D5 Enable RTS (Request To Send) change
+  D1 Enable XMT (Transmit) change
+      0 No change
+      1 Change state
+  D6 New DTR state (if D7 set)
+  D4 New RTS state (if D5 set)
+  D0 New XMT state (if D1 set)
+      0 Negate / space
+*/
+void sio_R_control()
+{
+  // for now, just complete
+  delayMicroseconds(DELAY_T5); // t5 delay
+  SIO_UART.write('C'); // Command always completes.
+  SIO_UART.flush();
+#ifdef DEBUG
+  Debug_println("R:Control: Sent Complete");
+#endif
+}
+
+/**
+   850 Configure (0x42)
+*/
+void sio_R_config()
+{
+  delayMicroseconds(DELAY_T5); // t5 delay
+  SIO_UART.write('C'); // Command always completes.
+  SIO_UART.flush();
+
+  byte newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
+  byte wordSize = 0x30 & cmdFrame.aux1; // Get word size
+  byte stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits, 0x80 = 2, 0 = 1
+
+  switch (newBaud)
+  {
+    case 0x08:
+      myBps = 300;
+      break;
+    case 0x09:
+      myBps = 600;
+      break;
+    case 0xA:
+      myBps = 1200;
+      break;
+    case 0x0B:
+      myBps = 1800;
+      break;
+    case 0x0C:
+      myBps = 2400;
+      break;
+    case 0x0D:
+      myBps = 4800;
+      break;
+    case 0x0E:
+      myBps = 9600;
+      break;
+    case 0x0F:
+      myBps = 19200;
+      break;
+  }
+
+#ifdef DEBUG
+  Debug_printf("R:Config: %i, %X, ", wordSize, stopBit);
+  Debug_println(myBps);
+#endif
+
+}
+
+/**
+   850 Concurrent mode
+*/
+void sio_R_concurrent()
+{
+  byte ck;
+  //char response[9]; // 9 bytes to setup POKEY
+
+  delayMicroseconds(DELAY_T5); // t5 delay
+  SIO_UART.write('C'); // Completed command
+  SIO_UART.flush();
+
+  switch (myBps)
+  {
+    case 300:
+      { char response[] = {0xA0, 0xA0, 0x0B, 0xA0, 0xA0, 0xA0, 0x0B, 0xA0, 0x78};
+        ck = sio_checksum((byte *)response, 9);
+        // Write data frame
+        SIO_UART.write((byte *)response, 9);
+        SIO_UART.write(ck); // Write data frame checksum
+        break;
+      }
+    case 1200:
+      { char response[] = {0xE3, 0xA0, 0x02, 0xA0, 0xE3, 0xA0, 0x02, 0xA0, 0x78};
+        ck = sio_checksum((byte *)response, 9);
+        // Write data frame
+        SIO_UART.write((byte *)response, 9);
+        SIO_UART.write(ck); // Write data frame checksum
+        break;
+      }
+    case 2400:
+      { char response[] = {0x6E, 0xA0, 0x01, 0xA0, 0x6E, 0xA0, 0x01, 0xA0, 0x78};
+        ck = sio_checksum((byte *)response, 9);
+        // Write data frame
+        SIO_UART.write((byte *)response, 9);
+        SIO_UART.write(ck); // Write data frame checksum
+        break;
+      }
+    case 4800:
+      { char response[] = {0xB3, 0xA0, 0x00, 0xA0, 0xB3, 0xA0, 0x00, 0xA0, 0x78};
+        ck = sio_checksum((byte *)response, 9);
+        // Write data frame
+        SIO_UART.write((byte *)response, 9);
+        SIO_UART.write(ck); // Write data frame checksum
+        break;
+      }
+    case 9600:
+      { char response[] = {0x56, 0xA0, 0x00, 0xA0, 0x56, 0xA0, 0x00, 0xA0, 0x78};
+        ck = sio_checksum((byte *)response, 9);
+        // Write data frame
+        SIO_UART.write((byte *)response, 9);
+        SIO_UART.write(ck); // Write data frame checksum
+        break;
+      }
+  }
+
+  SIO_UART.flush();
+#ifdef DEBUG
+  Debug_println("R:Stream: Start");
+#endif
+
+  modemActive = true;
+  sioBaud = false;
+  SIO_UART.updateBaudRate(myBps);
+#ifdef DEBUG
+  Debug_printf("BAUD: %i\n", myBps);
+  Debug_println("MODEM ACTIVE");
+#endif
+}
+
 /**
    Send an acknowledgement
 */
 void sio_ack()
 {
+#ifdef DEBUG
+  Debug_println("ACK!");
+#endif
   delayMicroseconds(500);
   SIO_UART.write('A');
   SIO_UART.flush();
@@ -380,39 +595,77 @@ void sio_ack()
 */
 void sio_nak()
 {
+#ifdef DEBUG
+  Debug_println("NAK!");
+#endif
   delayMicroseconds(500);
   SIO_UART.write('N');
   SIO_UART.flush();
-  cmdState = WAIT;
+  commanderMark = false;
 }
 
 void sio_process()
 {
   if (sio_valid_device_id() && (sio_checksum((byte *)&cmdFrame.cmdFrameData, 4) == cmdFrame.cksum))
   {
+    while ( !digitalRead(PIN_CMD) ) { delayMicroseconds(1); } // Wait for CMD line to get HIGH
     sio_ack(); // Valid Device and Good Checksum
     switch (cmdFrame.comnd)
     {
-      case 'P':
-      case 'W':
-        sio_write();
+      case 'P': // 0x50
+      case 'W': // 0x57
+        if (cmdFrame.devic == 0x50)
+        { // R: Device
+          sio_R_write();
+        }
+        else
+          sio_write();
         break;
-      case 'R':
+      case 'R': // 0x52
         sio_read();
         break;
-      case 'S':
-        sio_status();
+      case 'S': // 0x53
+        if (cmdFrame.devic == 0x50)
+        { // R: Device
+          sio_R_status();
+        }
+        else
+          sio_status();
         break;
-      case '!':
+      case '!': // 0x21
         sio_format();
+        break;
+      // Atari 850 Commands
+      case 'B': // 0x42
+        sio_R_config();
+        break;
+      case 'A': // 0x41
+        sio_R_control();
+        break;
+      case 'X': // 0x58
+        sio_R_concurrent();
         break;
     }
   }
   else
+  {
     sio_nak(); // Invalid Device or Bad Checksum
+    if (SIO_UART.available() > 0 && digitalRead(PIN_CMD))
+    {
+      int avail = SIO_UART.available();
+      int i;
 
+#ifdef DEBUG
+      Debug_print("TOSS: ");
+      Debug_println(avail);
+#endif
+
+      for (i = 0; i < avail; i++)
+        SIO_UART.read(); // Toss it, toss it aLL!!!
+    }
+  }
   SIO_UART.flush();
-  cmdState = WAIT;
+  commanderMark = false;
 }
 
 /**
@@ -455,7 +708,6 @@ void setup()
 
   // Attach COMMAND interrupt.
   attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
-  cmdState = WAIT; // Start in wait state
 
   // Setup Serial, start in SIO baud/mode
   SIO_UART.begin(SIO_BAUD);
@@ -472,6 +724,7 @@ void setup()
   // Lastly, try connecting to WiFi. Should autoconnect to last ssid/pass
 #ifdef ESP32
   WiFi.begin();
+  tcpServer.begin();
 #endif
 }
 
@@ -493,53 +746,54 @@ void led_on(void)
 void loop()
 {
   /**** Get the SIO Command ****/
-  if (cmdState != WAIT)
+  if (commanderMark) // enter the secret city
   { // CMD Line Interrupt, get the whole command frame...
     sio_get_cmd_frame();
   }
-  else if (!modemActive)
-  { // get incoming serial and look for trigger to enter modem mode
-    if (SIO_UART.available())
-    {
-      char chr = SIO_UART.read();
 
-      if (chr == '\r' && checkCounter == 1)
-      { // we got 'f' and '\r', begin switch to modem mode
-        SIO_UART.printf("Switching to %i BAUD in 3 seconds..\n\r", myBps);
-        checkTimer = millis();
-        checkCounter = 0;
-#ifdef DEBUG
-        Debug_println("MODEM ACTIVATION ACCEPTED");
-#endif
+  /*  else if (!modemActive)
+    { // get incoming serial and look for trigger to enter modem mode
+      if (SIO_UART.available())
+      {
+        char chr = SIO_UART.read();
+
+        if (chr == '\r' && checkCounter == 1)
+        { // we got 'f' and '\r', begin switch to modem mode
+          SIO_UART.printf("Switching to %i BAUD in 3 seconds..\n\r", myBps);
+          checkTimer = millis();
+          checkCounter = 0;
+    #ifdef DEBUG
+          Debug_println("MODEM ACTIVATION ACCEPTED");
+    #endif
+        }
+        else if (chr == 'f')
+        { // We got the first character ('f') of modem activation sequence
+          checkCounter = 1;
+    #ifdef DEBUG
+          Debug_println("MODEM ACTIVE STEP 1");
+    #endif
+        }
+        else
+        { // this character isn't for us to activate modem, forget about it and start over
+          checkCounter = 0;
+    #ifdef DEBUG
+          Debug_println("MODEM CHECK OVER");
+    #endif
+        }
       }
-      else if (chr == 'f')
-      { // We got the first character ('f') of modem activation sequence
-        checkCounter = 1;
-#ifdef DEBUG
-        Debug_println("MODEM ACTIVE STEP 1");
-#endif
-      }
-      else
-      { // this character isn't for us to activate modem, forget about it and start over
-        checkCounter = 0;
-#ifdef DEBUG
-        Debug_println("MODEM CHECK OVER");
-#endif
+      if (checkTimer != 0 && millis() - checkTimer > 3000)
+      { // Entering modem mode after 3 second delay
+        modemActive = true;
+        checkTimer = 0;
+        sioBaud = false;
+        SIO_UART.updateBaudRate(myBps);
+    #ifdef DEBUG
+        Debug_printf("BAUD: %i\n", myBps);
+        Debug_println("MODEM ACTIVE");
+    #endif
       }
     }
-    if (checkTimer != 0 && millis() - checkTimer > 3000)
-    { // Entering modem mode after 3 second delay
-      modemActive = true;
-      checkTimer = 0;
-      sioBaud = false;
-      SIO_UART.updateBaudRate(myBps);
-#ifdef DEBUG
-      Debug_printf("BAUD: %i\n", myBps);
-      Debug_println("MODEM ACTIVE");
-#endif
-    }
-  }
-
+  */
   /**** AT command mode ****/
   if (cmdMode == true && modemActive)
   {
