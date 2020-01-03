@@ -38,7 +38,9 @@ void httpService()
   client = server.available();
   if (client)
   {
+#ifdef DEBUG_S
     BUG_UART.println("new client");
+#endif
     // an http request ends with a blank line
     boolean currentLineIsBlank = true;
     while (client.connected())
@@ -46,7 +48,9 @@ void httpService()
       if (client.available())
       {
         char c = client.read();
+        #ifdef DEBUG_S
         BUG_UART.write(c);
+        #endif
         // if you've gotten to the end of the line (received a newline
         // character) and the line is blank, the http request has ended,
         // so you can send a reply
@@ -54,9 +58,9 @@ void httpService()
         {
           // send a standard http response header
           // client.println("HTTP/1.1 200 OK");
-          // client.println("Content-Type: text/html");
+          // client.println("Content-Type: application/pdf");
           // client.println("Connection: close");  // the connection will be closed after completion of the response
-          // client.println("Refresh: 5");  // refresh the page automatically every 5 sec
+          // // client.println("Refresh: 5");  // refresh the page automatically every 5 sec
           // client.println();
           // client.println("<!DOCTYPE HTML>");
           // client.println("<html>");
@@ -75,7 +79,9 @@ void httpService()
             else
             {
               client.write(byte(in));
+              #ifdef DEBUG_S
               BUG_UART.write(byte(in));
+              #endif
             }
           }
           pdff.close();
