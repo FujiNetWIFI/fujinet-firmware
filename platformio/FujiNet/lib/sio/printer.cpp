@@ -66,6 +66,7 @@ void sioPrinter::pdf_add_line(std::string L)
   }
   pdf_offset += _file->printf(")Tj ET\n");
   pdf_offset += _file->printf("endstream endobj\n");
+  pdf_lineCounter++;
 }
 void sioPrinter::atari_to_c_str(byte *S)
 {
@@ -94,6 +95,10 @@ void sioPrinter::initPDF(File *f)
 void sioPrinter::formFeed()
 {
   //todo : spit out blank lines to fill up page
+/*   while (pdf_lineCounter < maxLines)
+  {
+    pdf_add_line("");
+  } */
   pdf_xref();
 }
 
@@ -116,6 +121,8 @@ void sioPrinter::sio_write()
 
   if (ck == sio_checksum(buffer, 40))
   {
+    if (pdf_lineCounter < maxLines)
+    {
     atari_to_c_str(buffer);
     output.append((char *)buffer);
     if (eolFlag)
@@ -123,13 +130,13 @@ void sioPrinter::sio_write()
       pdf_add_line(output);
       output.clear();
     }
-    pdf_lineCounter++;
-    if (pdf_lineCounter >= maxLines)
-    {
-      formFeed();
-      //initPDF(nullptr);
-      // todo: open up a new PDF file
     }
+    // if (pdf_lineCounter >= maxLines)
+    // {
+    //   formFeed();
+    //   //initPDF(nullptr);
+    //   // todo: open up a new PDF file
+    // }
     delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
     yield();

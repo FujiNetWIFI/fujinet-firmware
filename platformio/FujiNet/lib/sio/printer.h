@@ -20,12 +20,12 @@ private:
 
     int pageWidth = 612;
     int pageHeight = 792;
-    int leftMargin = 66;
+    int leftMargin = 18;
     int bottomMargin = 2;
     int maxLines = 66;
     int maxCols = 80;
     int lineHeight = 12;
-    int fontSize = 10;
+    int fontSize = 12;
     const char *fontName = "Courier";
     int pdf_lineCounter = 0;
     int pdf_offset = 0;             // used to store location offset to next object
