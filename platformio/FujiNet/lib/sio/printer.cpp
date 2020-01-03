@@ -105,10 +105,10 @@ void sioPrinter::initPDF(File *f)
 void sioPrinter::formFeed()
 {
   //todo : spit out blank lines to fill up page
-  /*   while (pdf_lineCounter < maxLines)
+    while (pdf_lineCounter < maxLines)
   {
     pdf_add_line("");
-  } */
+  }
   pdf_xref();
 }
 
