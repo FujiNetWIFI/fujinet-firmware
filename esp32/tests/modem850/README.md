@@ -13,8 +13,6 @@ ESP32 Requirements: BSP v1.0.3 or higher
 
 This is the first FujiNet test of an Atari 850 R: Device emulator. It will load the Altirra 850 Handler and boot into BobTerm 1.23. By default BobTerm is set for 2400 Baud. Setting the baud rate in BobTerm will also automatically tell the modem to change it's working baud rate (no need to use AT commands). Current tests have shown that rates at or above 9600 baud are unstable.
 
-Currently this test only works with ESP32 and is unreliable with the ESP8266.
-
 AT command examples
 -------------------
 
