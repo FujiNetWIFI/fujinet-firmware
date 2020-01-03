@@ -51,18 +51,28 @@ void sioPrinter::pdf_xref()
 }
 void sioPrinter::pdf_add_line(std::string L)
 {
-  int le=L.length();
+  std::string newL;
+  int le = L.length();
+  for (int i = 0; i < le; i++)
+  {
+    if (L[i] >= 32)
+    {
+      newL.append(L,i,1);
+      if (L[i]==92) {newL.append(L,i,1);}
+    }
+  }
+  le = newL.length();
   // to do: handle odd characters for fprintf, e.g., %,'," etc.
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("%d 0 obj <</Length %d>> stream\n", pdf_objCtr, 30 + le);
   int xcoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
   //this string right here vvvvvv is 30 chars long plus the length of the payload
-  pdf_offset += _file->printf("BT /F1 %2d Tf %2d %3d Td (",fontSize, leftMargin, xcoord);
+  pdf_offset += _file->printf("BT /F1 %2d Tf %2d %3d Td (", fontSize, leftMargin, xcoord);
   pdf_offset += le;
-  for (int i=0;i<le;i++)
+  for (int i = 0; i < le; i++)
   {
-    _file->write((byte)L[i]);
+    _file->write((byte)newL[i]);
   }
   pdf_offset += _file->printf(")Tj ET\n");
   pdf_offset += _file->printf("endstream endobj\n");
@@ -95,7 +105,7 @@ void sioPrinter::initPDF(File *f)
 void sioPrinter::formFeed()
 {
   //todo : spit out blank lines to fill up page
-/*   while (pdf_lineCounter < maxLines)
+  /*   while (pdf_lineCounter < maxLines)
   {
     pdf_add_line("");
   } */
@@ -123,13 +133,13 @@ void sioPrinter::sio_write()
   {
     if (pdf_lineCounter < maxLines)
     {
-    atari_to_c_str(buffer);
-    output.append((char *)buffer);
-    if (eolFlag)
-    {
-      pdf_add_line(output);
-      output.clear();
-    }
+      atari_to_c_str(buffer);
+      output.append((char *)buffer);
+      if (eolFlag)
+      {
+        pdf_add_line(output);
+        output.clear();
+      }
     }
     // if (pdf_lineCounter >= maxLines)
     // {
