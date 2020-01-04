@@ -70,7 +70,7 @@ public:
     // void handle();
     void initPrinter(File *f, paper_t ty);
     void initPrinter(File *f);
-    void pdf_ejectPage();
+    void pageEject();
 };
 
 #endif // guard
