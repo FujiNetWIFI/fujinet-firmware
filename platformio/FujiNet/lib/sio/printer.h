@@ -7,6 +7,9 @@
 #include "sio.h"
 
 #define EOL 155
+#define BACKSLASH 0x5c
+#define LEFTPAREN 0x28
+#define RIGHTPAREN 0x29
 #define BUFN 40
 
 enum printer_t
@@ -57,7 +60,7 @@ private:
     void pdf_header();
     void pdf_xref();
     void pdf_add_line(std::string L);
-    void atari_to_c_str(byte *S);
+    std::string buffer_to_string(byte *S);
     std::string output;
     int j;
 
