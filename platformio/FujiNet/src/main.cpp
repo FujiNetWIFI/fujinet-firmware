@@ -25,7 +25,7 @@
 sioPrinter sioP;
 File atr[2];
 File paperf;
-//File tnfs;
+File tnfs;
 sioDisk sioD[2];
 
 WiFiServer server(80);
@@ -57,8 +57,9 @@ void httpService()
         if (c == '\n' && currentLineIsBlank)
         {
           // send a standard http response header
-          // client.println("HTTP/1.1 200 OK");
-          // client.println("Content-Type: application/pdf");
+          client.println("HTTP/1.1 200 OK");
+          client.println("Content-Type: application/pdf");
+          client.println("Content-Disposition: attachment; filename=\"fujinet.pdf\"");
           // client.println("Connection: close");  // the connection will be closed after completion of the response
           // // client.println("Refresh: 5");  // refresh the page automatically every 5 sec
           // client.println();
@@ -87,7 +88,7 @@ void httpService()
           }
           paperf.close();
           paperf = SPIFFS.open("/paper", "w+");
-          sioP.initPrinter(&paperf);
+          sioP.initPrinter(&paperf,PDF);
           break;
         }
         if (c == '\n')
@@ -132,9 +133,9 @@ void setup()
 
   SIO.addDevice(&sioP, 0x40); // P:
   paperf = SPIFFS.open("/paper", "w+");
-  sioP.initPrinter(&paperf);
+  sioP.initPrinter(&paperf,PDF);
 
-  for (int i = 0; i < 2; i++)
+  for (int i = 0; i < 1; i++)
   {
     String fname = String("/file") + String(i) + String(".atr");
 #ifdef DEBUG_S
@@ -144,12 +145,19 @@ void setup()
     sioD[i].mount(&atr[i]);
     SIO.addDevice(&sioD[i], 0x31 + i);
   }
+
+/*   TNFS.begin(TNFS_SERVER, TNFS_PORT);
+  tnfs = TNFS.open("/printers.atr", "r");
+  #ifdef DEBUG_S
+    BUG_UART.println("tnfs/printers.atr");
+#endif
+  sioD[1].mount(&tnfs);
+  SIO.addDevice(&sioD[1], 0x31 + 1);
+ */
 #ifdef DEBUG_S
   BUG_UART.print(SIO.numDevices());
   BUG_UART.println(" devices registered.");
 #endif
-  //TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  //tnfs = TNFS.open("/TurboBasic.atr", "r");
 
   SIO.setup();
 }
