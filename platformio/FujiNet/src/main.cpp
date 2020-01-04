@@ -24,7 +24,7 @@
 //File tnfs;
 sioPrinter sioP;
 File atr[2];
-File pdff;
+File paperf;
 //File tnfs;
 sioDisk sioD[2];
 
@@ -48,9 +48,9 @@ void httpService()
       if (client.available())
       {
         char c = client.read();
-        #ifdef DEBUG_S
+#ifdef DEBUG_S
         BUG_UART.write(c);
-        #endif
+#endif
         // if you've gotten to the end of the line (received a newline
         // character) and the line is blank, the http request has ended,
         // so you can send a reply
@@ -67,12 +67,12 @@ void httpService()
           // client.println("Hello World!");
           // client.println("</html>");
 
-          sioP.formFeed();
-          pdff.seek(0);
+          sioP.pdf_ejectPage();
+          paperf.seek(0);
           bool ok = true;
           while (ok)
           {
-            in = pdff.read();
+            in = paperf.read();
             if (in == -1)
             {
               ok = false;
@@ -80,14 +80,14 @@ void httpService()
             else
             {
               client.write(byte(in));
-              #ifdef DEBUG_S
+#ifdef DEBUG_S
               BUG_UART.write(byte(in));
-              #endif
+#endif
             }
           }
-          pdff.close();
-          pdff = SPIFFS.open("/pdf.out", "w+");
-          sioP.initPDF(&pdff);
+          paperf.close();
+          paperf = SPIFFS.open("/paper", "w+");
+          sioP.initPrinter(&paperf);
           break;
         }
         if (c == '\n')
@@ -106,7 +106,9 @@ void httpService()
     delay(1);
     // close the connection:
     client.stop();
+#ifdef DEBUG_S
     BUG_UART.println("client disconnected");
+#endif
   }
 }
 
@@ -116,9 +118,6 @@ void setup()
   BUG_UART.begin(DEBUG_SPEED);
   BUG_UART.println();
   BUG_UART.println("atariwifi started");
-#else
-  pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, HIGH);
 #endif
 
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -130,9 +129,10 @@ void setup()
   server.begin();
 
   SPIFFS.begin();
+
   SIO.addDevice(&sioP, 0x40); // P:
-  pdff = SPIFFS.open("/pdf.out", "w+");
-  sioP.initPDF(&pdff);
+  paperf = SPIFFS.open("/paper", "w+");
+  sioP.initPrinter(&paperf);
 
   for (int i = 0; i < 2; i++)
   {
