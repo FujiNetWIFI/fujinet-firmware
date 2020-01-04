@@ -101,26 +101,31 @@ union
 #define Debug_println(...) BUG_UART.println( __VA_ARGS__ )
 #define DEBUG
 #endif
+#ifdef DEBUG_N
+#define Debug_print(...) wificlient.print( __VA_ARGS__ )
+#define Debug_printf(...) wificlient.printf( __VA_ARGS__ )
+#define Debug_println(...) wificlient.println( __VA_ARGS__ )
+#define DEBUG
+#endif
 
 // Global variables (WiFi Modem)
-String cmd = "";           // Gather a new AT command to this string from serial
-bool cmdMode = true;       // Are we in AT command mode or connected mode
-bool telnet = true;        // Is telnet control code handling enabled
-#define SWITCH_PIN 0       // GPIO0 (programmind mode pin)
-#define DEFAULT_BPS 2400 // 2400 safe for all old computers including C64
-#define LISTEN_PORT 23     // Listen to this if not connected. Set to zero to disable.
-#define RING_INTERVAL 3000 // How often to print RING when having a new incoming connection (ms)
+String cmd = "";              // Gather a new AT command to this string from serial
+bool cmdMode = true;          // Are we in AT command mode or connected mode
+bool telnet = true;           // Is telnet control code handling enabled
+#define DEFAULT_BPS 2400      // 2400 safe for all old computers including C64
+#define LISTEN_PORT 23        // Listen to this if not connected. Set to zero to disable.
+#define RING_INTERVAL 3000    // How often to print RING when having a new incoming connection (ms)
 WiFiClient tcpClient;
 WiFiServer tcpServer(LISTEN_PORT);
 unsigned long lastRingMs = 0; // Time of last "RING" message (millis())
-long myBps;                // What is the current BPS setting
-#define MAX_CMD_LENGTH 256 // Maximum length for AT command
-char plusCount = 0;        // Go to AT mode at "+++" sequence, that has to be counted
-unsigned long plusTime = 0;// When did we last receive a "+++" sequence
-//#define LED_PIN 2          // Status LED
-#define LED_TIME 1         // How many ms to keep LED on at activity
+long myBps;                   // What is the current BPS setting
+#define MAX_CMD_LENGTH 256    // Maximum length for AT command
+char plusCount = 0;           // Go to AT mode at "+++" sequence, that has to be counted
+unsigned long plusTime = 0;   // When did we last receive a "+++" sequence
+//#define LED_PIN 2           // Status LED
+#define LED_TIME 1            // How many ms to keep LED on at activity
 unsigned long ledTime = 0;
-#define TX_BUF_SIZE 256    // Buffer where to read from serial before writing to TCP
+#define TX_BUF_SIZE 256       // Buffer where to read from serial before writing to TCP
 // (that direction is very blocking by the ESP TCP stack,
 // so we can't do one byte a time.)
 uint8_t txBuf[TX_BUF_SIZE];
@@ -176,7 +181,6 @@ bool sio_valid_device_id(byte device)
 /**
    Get the whole command frame
 */
-
 void sio_get_cmd_frame()
 {
   int i = 0;
@@ -536,6 +540,14 @@ void sio_R_concurrent()
         SIO_UART.write(ck); // Write data frame checksum
         break;
       }
+    case 19200: // Reply with all 0's for now so it won't lock up the atari
+      { char response[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+        byte ck = sio_checksum((byte *)response, 9);
+        // Write data frame
+        SIO_UART.write((byte *)response, 9);
+        SIO_UART.write(ck); // Write data frame checksum
+        break;
+      }
   }
 
   SIO_UART.flush();
@@ -547,8 +559,8 @@ void sio_R_concurrent()
   sioBaud = false;
   SIO_UART.updateBaudRate(myBps);
 #ifdef DEBUG
-  Debug_printf("BAUD: %i\n", myBps);
-  Debug_println("MODEM ACTIVE");
+  Debug_print("MODEM ACTIVE @");
+  Debug_println(myBps);
 #endif
 }
 
@@ -742,10 +754,6 @@ void setup()
 #endif
   myBps = DEFAULT_BPS;
 
-#ifdef ESP32
-  digitalWrite(PIN_LED2, HIGH);
-#endif
-
   // Lastly, try connecting to WiFi. Should autoconnect to last ssid/pass
 #ifdef ESP32
   WiFi.begin();
@@ -770,13 +778,26 @@ void led_on(void)
 */
 void loop()
 {
+  int a,c;
+
   /**** Get the SIO Command ****/
   if (commanderMark) // Entering the secret city
   { // CMD Line Interrupt, get the whole command frame...
     sio_get_cmd_frame();
   }
   else if(!modemActive)
-    SIO_UART.read(); // Throw out the trash
+  {
+    a = SIO_UART.available();
+    for(c=0;c<a;c++)
+      SIO_UART.read(); // dump it.
+#ifdef DEBUG
+    if (a>0)
+    {
+      Debug_print("DUMPED BYTES: ");
+      Debug_println(a);
+    }
+#endif
+  }
 
   /**** AT command mode ****/
   if (cmdMode == true && modemActive)
