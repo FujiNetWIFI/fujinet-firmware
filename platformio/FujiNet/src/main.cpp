@@ -5,6 +5,8 @@
 #include "disk.h"
 #include "tnfs.h"
 #include "printer.h"
+#define PRINTMODE PDF
+
 // #ifdef ESP_8266
 // #include <FS.h>
 // #define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
@@ -18,14 +20,14 @@
 #include <WiFi.h>
 //#endif
 
-#define TNFS_SERVER "192.168.1.11"
+#define TNFS_SERVER "192.168.1.12"
 #define TNFS_PORT 16384
 
 //File tnfs;
 sioPrinter sioP;
 File atr[2];
-File pdff;
-//File tnfs;
+File paperf;
+File tnfs;
 sioDisk sioD[2];
 
 WiFiServer server(80);
@@ -48,17 +50,18 @@ void httpService()
       if (client.available())
       {
         char c = client.read();
-        #ifdef DEBUG_S
+#ifdef DEBUG_S
         BUG_UART.write(c);
-        #endif
+#endif
         // if you've gotten to the end of the line (received a newline
         // character) and the line is blank, the http request has ended,
         // so you can send a reply
         if (c == '\n' && currentLineIsBlank)
         {
           // send a standard http response header
-          // client.println("HTTP/1.1 200 OK");
-          // client.println("Content-Type: application/pdf");
+          //client.println("HTTP/1.1 200 OK");
+
+          //client.println("Content-Type: application/pdf");
           // client.println("Connection: close");  // the connection will be closed after completion of the response
           // // client.println("Refresh: 5");  // refresh the page automatically every 5 sec
           // client.println();
@@ -67,12 +70,15 @@ void httpService()
           // client.println("Hello World!");
           // client.println("</html>");
 
-          sioP.formFeed();
-          pdff.seek(0);
+          sioP.pageEject();
+          paperf.seek(0);
+
+          //client.println("Content-Type: application/octet-stream");
+          //client.println("Content-Disposition: attachment; filename=\"test.pdf\"");
           bool ok = true;
           while (ok)
           {
-            in = pdff.read();
+            in = paperf.read();
             if (in == -1)
             {
               ok = false;
@@ -80,14 +86,14 @@ void httpService()
             else
             {
               client.write(byte(in));
-              #ifdef DEBUG_S
+#ifdef DEBUG_S
               BUG_UART.write(byte(in));
-              #endif
+#endif
             }
           }
-          pdff.close();
-          pdff = SPIFFS.open("/pdf.out", "w+");
-          sioP.initPDF(&pdff);
+          paperf.close();
+          paperf = SPIFFS.open("/paper", "w+");
+          sioP.initPrinter(&paperf, PRINTMODE);
           break;
         }
         if (c == '\n')
@@ -106,7 +112,9 @@ void httpService()
     delay(1);
     // close the connection:
     client.stop();
+#ifdef DEBUG_S
     BUG_UART.println("client disconnected");
+#endif
   }
 }
 
@@ -116,9 +124,6 @@ void setup()
   BUG_UART.begin(DEBUG_SPEED);
   BUG_UART.println();
   BUG_UART.println("atariwifi started");
-#else
-  pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, HIGH);
 #endif
 
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -130,11 +135,12 @@ void setup()
   server.begin();
 
   SPIFFS.begin();
-  SIO.addDevice(&sioP, 0x40); // P:
-  pdff = SPIFFS.open("/pdf.out", "w+");
-  sioP.initPDF(&pdff);
 
-  for (int i = 0; i < 2; i++)
+  SIO.addDevice(&sioP, 0x40); // P:
+  paperf = SPIFFS.open("/paper", "w+");
+  sioP.initPrinter(&paperf, PRINTMODE);
+
+  for (int i = 0; i < 1; i++)
   {
     String fname = String("/file") + String(i) + String(".atr");
 #ifdef DEBUG_S
@@ -144,12 +150,19 @@ void setup()
     sioD[i].mount(&atr[i]);
     SIO.addDevice(&sioD[i], 0x31 + i);
   }
+
+  TNFS.begin(TNFS_SERVER, TNFS_PORT);
+  tnfs = TNFS.open("/printers.atr", "r");
+#ifdef DEBUG_S
+  BUG_UART.println("tnfs/printers.atr");
+#endif
+  sioD[1].mount(&tnfs);
+  SIO.addDevice(&sioD[1], 0x31 + 1);
+
 #ifdef DEBUG_S
   BUG_UART.print(SIO.numDevices());
   BUG_UART.println(" devices registered.");
 #endif
-  //TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  //tnfs = TNFS.open("/TurboBasic.atr", "r");
 
   SIO.setup();
 }
