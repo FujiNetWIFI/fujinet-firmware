@@ -1012,7 +1012,7 @@ void loop()
       char chr = SIO_UART.read();
 
       // Return, enter, new line, carriage return.. anything goes to end the command
-      if ((chr == '\n') || (chr == '\r'))
+      if ((chr == '\n') || (chr == '\r') || (chr == 0x9B))
       {
 #ifdef DEBUG
         Debug_print(cmd);
@@ -1154,6 +1154,10 @@ void command()
   upCmd.toUpperCase();
 
   long newBps = 0;
+
+  // Replace EOL with CR.
+  if (upCmd.indexOf(0x9b)!=0)
+    upCmd[upCmd.indexOf(0x9b)]=0x0D;
 
   /**** Just AT ****/
   if (upCmd == "AT") SIO_UART.println("OK");
