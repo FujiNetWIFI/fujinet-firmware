@@ -1,7 +1,5 @@
 #include "printer.h"
 
-void pdfUpload() {}
-
 //pdf routines
 void sioPrinter::pdf_header()
 {
@@ -57,8 +55,11 @@ void sioPrinter::pdf_add_line(std::string L)
   {
     if (L[i] >= 32)
     {
-      newL.append(L,i,1);
-      if (L[i]==92) {newL.append(L,i,1);}
+      newL.append(L, i, 1);
+      if (L[i] == 92)
+      {
+        newL.append(L, i, 1);
+      }
     }
   }
   le = newL.length();
@@ -82,8 +83,8 @@ void sioPrinter::atari_to_c_str(byte *S)
 {
   eolFlag = false;
   int i = 0;
-  S[40] = '\0';
-  while (i < 40)
+  S[BUFN] = '\0';
+  while (i < BUFN)
   {
     if (S[i] == EOL)
     {
@@ -95,42 +96,55 @@ void sioPrinter::atari_to_c_str(byte *S)
   }
 }
 
-void sioPrinter::initPDF(File *f)
+void sioPrinter::initPrinter(File *f, paper_t ty)
 {
   _file = f;
-  pdf_lineCounter = 0;
-  pdf_header();
+  paperType = ty;
+  if (paperType == PDF)
+  {
+    pdf_lineCounter = 0;
+    pdf_header();
+  }
 }
 
-void sioPrinter::formFeed()
+void sioPrinter::initPrinter(File *f)
 {
-  //todo : spit out blank lines to fill up page
+  initPrinter(f, PDF);
+}
+
+void sioPrinter::pdf_ejectPage()
+{
+  if (paperType == PDF)
+  {
     while (pdf_lineCounter < maxLines)
-  {
-    pdf_add_line("");
+    {
+      pdf_add_line("");
+    }
+    pdf_xref();
   }
-  pdf_xref();
 }
 
-// write for W & P commands
-void sioPrinter::sio_write()
+void sioPrinter::processBuffer(byte *B, int n)
 {
-  byte ck;
-  SIO_UART.readBytes(buffer, 40);
-#ifdef DEBUG_S
-  for (int z = 0; z < 40; z++)
+  int i=0;
+  switch (paperType)
   {
-    BUG_UART.print(buffer[z], DEC);
-    BUG_UART.print(" ");
-  }
-  BUG_UART.println();
-#endif
-  ck = SIO_UART.read(); // Read checksum
-  //delayMicroseconds(350);
-  SIO_UART.write('A'); // Write ACK
-
-  if (ck == sio_checksum(buffer, 40))
-  {
+  case RAW:
+    for (i = 0; i < n; i++)
+    {
+      _file->write(B[i]);
+    }
+    break;
+  case TRIM:
+    while(i<n)
+    {
+      _file->write(B[i]);
+      if (B[i]==EOL) break;
+      i++;
+    }
+    break;
+  case PDF:
+  default:
     if (pdf_lineCounter < maxLines)
     {
       atari_to_c_str(buffer);
@@ -141,12 +155,29 @@ void sioPrinter::sio_write()
         output.clear();
       }
     }
-    // if (pdf_lineCounter >= maxLines)
-    // {
-    //   formFeed();
-    //   //initPDF(nullptr);
-    //   // todo: open up a new PDF file
-    // }
+  }
+}
+
+// write for W commands
+void sioPrinter::sio_write()
+{
+  byte ck;
+  SIO_UART.readBytes(buffer, BUFN);
+#ifdef DEBUG_S
+  for (int z = 0; z < BUFN; z++)
+  {
+    BUG_UART.print(buffer[z], DEC);
+    BUG_UART.print(" ");
+  }
+  BUG_UART.println();
+#endif
+  ck = SIO_UART.read(); // Read checksum
+  //delayMicroseconds(350);
+  SIO_UART.write('A'); // Write ACK
+
+  if (ck == sio_checksum(buffer, BUFN))
+  {
+    processBuffer(buffer, BUFN);
     delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
     yield();
