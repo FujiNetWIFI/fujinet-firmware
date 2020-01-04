@@ -49,16 +49,34 @@ void sioPrinter::pdf_xref()
   _file->printf("%d\n", xref);
   _file->printf("%%%%EOF\n");
 }
-void sioPrinter::pdf_add_line(const char *L)
+void sioPrinter::pdf_add_line(std::string L)
 {
+  std::string newL;
+  int le = L.length();
+  for (int i = 0; i < le; i++)
+  {
+    if (L[i] >= 32)
+    {
+      newL.append(L,i,1);
+      if (L[i]==92) {newL.append(L,i,1);}
+    }
+  }
+  le = newL.length();
   // to do: handle odd characters for fprintf, e.g., %,'," etc.
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
-  pdf_offset = _file->printf("%d 0 obj <</Length %d>> stream\n", pdf_objCtr, 30 + strlen(L));
+  pdf_offset = _file->printf("%d 0 obj <</Length %d>> stream\n", pdf_objCtr, 30 + le);
   int xcoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
   //this string right here vvvvvv is 30 chars long plus the length of the payload
-  pdf_offset += _file->printf("BT /F1 %2d Tf %2d %3d Td (%s)Tj ET\n", fontSize, leftMargin, xcoord, L);
+  pdf_offset += _file->printf("BT /F1 %2d Tf %2d %3d Td (", fontSize, leftMargin, xcoord);
+  pdf_offset += le;
+  for (int i = 0; i < le; i++)
+  {
+    _file->write((byte)newL[i]);
+  }
+  pdf_offset += _file->printf(")Tj ET\n");
   pdf_offset += _file->printf("endstream endobj\n");
+  pdf_lineCounter++;
 }
 void sioPrinter::atari_to_c_str(byte *S)
 {
@@ -86,6 +104,11 @@ void sioPrinter::initPDF(File *f)
 
 void sioPrinter::formFeed()
 {
+  //todo : spit out blank lines to fill up page
+    while (pdf_lineCounter < maxLines)
+  {
+    pdf_add_line("");
+  }
   pdf_xref();
 }
 
@@ -94,36 +117,38 @@ void sioPrinter::sio_write()
 {
   byte ck;
   SIO_UART.readBytes(buffer, 40);
+#ifdef DEBUG_S
   for (int z = 0; z < 40; z++)
   {
     BUG_UART.print(buffer[z], DEC);
+    BUG_UART.print(" ");
   }
   BUG_UART.println();
+#endif
   ck = SIO_UART.read(); // Read checksum
   //delayMicroseconds(350);
   SIO_UART.write('A'); // Write ACK
 
   if (ck == sio_checksum(buffer, 40))
   {
+    if (pdf_lineCounter < maxLines)
+    {
+      atari_to_c_str(buffer);
+      output.append((char *)buffer);
+      if (eolFlag)
+      {
+        pdf_add_line(output);
+        output.clear();
+      }
+    }
+    // if (pdf_lineCounter >= maxLines)
+    // {
+    //   formFeed();
+    //   //initPDF(nullptr);
+    //   // todo: open up a new PDF file
+    // }
     delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
-#ifdef DEBUG_S
-    atari_to_c_str(buffer);
-    output.append((char *)buffer);
-    if (eolFlag)
-    {
-      pdf_add_line(output.c_str());
-      output.clear();
-    }
-#endif
-    pdf_lineCounter++;
-    if (pdf_lineCounter >= maxLines)
-    {
-      formFeed();
-      initPDF(nullptr);
-      // todo: open up a new PDF file
-    }
-
     yield();
   }
 }
