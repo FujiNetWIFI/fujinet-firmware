@@ -67,7 +67,7 @@ void httpService()
           // client.println("Hello World!");
           // client.println("</html>");
 
-          sioP.pdf_ejectPage();
+          sioP.pageEject();
           paperf.seek(0);
           bool ok = true;
           while (ok)
@@ -87,7 +87,7 @@ void httpService()
           }
           paperf.close();
           paperf = SPIFFS.open("/paper", "w+");
-          sioP.initPrinter(&paperf);
+          sioP.initPrinter(&paperf,RAW);
           break;
         }
         if (c == '\n')

@@ -112,7 +112,7 @@ void sioPrinter::initPrinter(File *f)
   initPrinter(f, PDF);
 }
 
-void sioPrinter::pdf_ejectPage()
+void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
