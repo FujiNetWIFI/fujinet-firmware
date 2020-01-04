@@ -57,9 +57,9 @@ void httpService()
         if (c == '\n' && currentLineIsBlank)
         {
           // send a standard http response header
-          client.println("HTTP/1.1 200 OK");
-          client.println("Content-Type: application/pdf");
-          client.println("Content-Disposition: attachment; filename=\"fujinet.pdf\"");
+          //client.println("HTTP/1.1 200 OK");
+
+          //client.println("Content-Type: application/pdf");
           // client.println("Connection: close");  // the connection will be closed after completion of the response
           // // client.println("Refresh: 5");  // refresh the page automatically every 5 sec
           // client.println();
@@ -68,7 +68,7 @@ void httpService()
           // client.println("Hello World!");
           // client.println("</html>");
 
-          sioP.pdf_ejectPage();
+          sioP.pageEject());
           paperf.seek(0);
           bool ok = true;
           while (ok)
