@@ -1,7 +1,5 @@
 #include "printer.h"
 
-void pdfUpload() {}
-
 //pdf routines
 void sioPrinter::pdf_header()
 {
@@ -33,6 +31,7 @@ void sioPrinter::pdf_header()
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /%s>> endobj\n", fontName);
 }
+
 void sioPrinter::pdf_xref()
 {
   int xref = objLocations[pdf_objCtr] + pdf_offset;
@@ -49,76 +48,161 @@ void sioPrinter::pdf_xref()
   _file->printf("%d\n", xref);
   _file->printf("%%%%EOF\n");
 }
-void sioPrinter::pdf_add_line(std::string L)
+
+void sioPrinter::pdf_add_line(std::string S)
 {
-  std::string newL;
-  int le = L.length();
-  for (int i = 0; i < le; i++)
+  std::string L = "";
+  // escape special CHARs
+  // \n       | LINE FEED (0Ah) (LF)
+  // \r       | CARRIAGE RETURN (0Dh) (CR)
+  // \t       | HORIZONTAL TAB (09h) (HT)
+  // \b       | BACKSPACE (08h) (BS)
+  // \f       | FORM FEED (FF)
+  // \(       | LEFT PARENTHESIS (28h)
+  // \)       | RIGHT PARENTHESIS (29h)
+  // \\       | REVERSE SOLIDUS (5Ch) (Backslash)
+  // \ddd     | Character code ddd (octal)
+  for (int i = 0; i < S.length(); i++)
   {
-    if (L[i] >= 32)
+    if (S[i] == LEFTPAREN || S[i] == RIGHTPAREN || S[i] == BACKSLASH)
     {
-      newL.append(L,i,1);
-      if (L[i]==92) {newL.append(L,i,1);}
+      L.append(1, BACKSLASH);
     }
+    L.append(1,S[i]);
   }
-  le = newL.length();
+  int le = L.length();
+#ifdef DEBUG_S
+  BUG_UART.println("adding line: ");
+  BUG_UART.println(L.c_str());
+#endif
   // to do: handle odd characters for fprintf, e.g., %,'," etc.
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("%d 0 obj <</Length %d>> stream\n", pdf_objCtr, 30 + le);
-  int xcoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
+  int yCoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
   //this string right here vvvvvv is 30 chars long plus the length of the payload
-  pdf_offset += _file->printf("BT /F1 %2d Tf %2d %3d Td (", fontSize, leftMargin, xcoord);
+  pdf_offset += _file->printf("BT /F1 %2d Tf %2d %3d Td (", fontSize, leftMargin, yCoord);
   pdf_offset += le;
   for (int i = 0; i < le; i++)
   {
-    _file->write((byte)newL[i]);
+    _file->write((byte)L[i]);
   }
   pdf_offset += _file->printf(")Tj ET\n");
   pdf_offset += _file->printf("endstream endobj\n");
   pdf_lineCounter++;
 }
-void sioPrinter::atari_to_c_str(byte *S)
+
+std::string sioPrinter::buffer_to_string(byte *buffer)
 {
   eolFlag = false;
-  int i = 0;
-  S[40] = '\0';
-  while (i < 40)
+  std::string out = "";
+  for (int i = 0; i < BUFN; i++)
   {
-    if (S[i] == EOL)
+    if (buffer[i] == EOL)
     {
-      S[i] = '\0';
       eolFlag = true;
-      return;
+      return out;
     }
-    i++;
+    //printable characters
+    if (buffer[i] > 31 && buffer[i] < 127)
+    {
+      out.append(1, buffer[i]);
+    }
   }
+  return out;
 }
 
-void sioPrinter::initPDF(File *f)
+void sioPrinter::initPrinter(File *f, paper_t ty)
 {
   _file = f;
-  pdf_lineCounter = 0;
-  pdf_header();
-}
-
-void sioPrinter::formFeed()
-{
-  //todo : spit out blank lines to fill up page
-    while (pdf_lineCounter < maxLines)
+  paperType = ty;
+  if (paperType == PDF)
   {
-    pdf_add_line("");
+    pdf_lineCounter = 0;
+    pdf_header();
   }
-  pdf_xref();
 }
 
-// write for W & P commands
+void sioPrinter::initPrinter(File *f)
+{
+  initPrinter(f, PDF);
+}
+
+void sioPrinter::pageEject()
+{
+  if (paperType == PDF)
+  {
+    while (pdf_lineCounter < maxLines)
+    {
+      pdf_add_line("");
+    }
+    pdf_xref();
+  }
+}
+
+void sioPrinter::processBuffer(byte *B, int n)
+{
+  int i = 0;
+  switch (paperType)
+  {
+  case RAW:
+    for (i = 0; i < n; i++)
+    {
+      _file->write(B[i]);
+    }
+    break;
+  case TRIM:
+    while (i < n)
+    {
+      _file->write(B[i]);
+      if (B[i] == EOL)
+        break;
+      i++;
+    }
+    break;
+  case PDF:
+  default:
+    if (pdf_lineCounter < maxLines)
+    {
+      std::string temp = buffer_to_string(buffer);
+#ifdef DEBUG_S
+      BUG_UART.print("processed buffer: ->");
+      BUG_UART.print(temp.c_str());
+      BUG_UART.println("<-");
+#endif
+      output.append(temp);
+      // make function to count printable chars
+      if (eolFlag || output.length() > maxCols)
+      {
+        std::string what;
+        if (output.length() > maxCols)
+        { //pick out substring to send and keep rest
+          what = output.substr(0, maxCols);
+          output.erase(0, maxCols);
+        }
+        else
+        {
+          what = output;
+          output.clear();
+        }
+#ifdef DEBUG_S
+        BUG_UART.print("new line: ->");
+        BUG_UART.print(what.c_str());
+        BUG_UART.println("<-");
+#endif
+        pdf_add_line(what);
+      }
+    }
+  }
+}
+
+// write for W commands
 void sioPrinter::sio_write()
 {
   byte ck;
-  SIO_UART.readBytes(buffer, 40);
+  SIO_UART.readBytes(buffer, BUFN);
 #ifdef DEBUG_S
-  for (int z = 0; z < 40; z++)
+  for (int z = 0; z < BUFN; z++)
   {
     BUG_UART.print(buffer[z], DEC);
     BUG_UART.print(" ");
@@ -129,24 +213,9 @@ void sioPrinter::sio_write()
   //delayMicroseconds(350);
   SIO_UART.write('A'); // Write ACK
 
-  if (ck == sio_checksum(buffer, 40))
+  if (ck == sio_checksum(buffer, BUFN))
   {
-    if (pdf_lineCounter < maxLines)
-    {
-      atari_to_c_str(buffer);
-      output.append((char *)buffer);
-      if (eolFlag)
-      {
-        pdf_add_line(output);
-        output.clear();
-      }
-    }
-    // if (pdf_lineCounter >= maxLines)
-    // {
-    //   formFeed();
-    //   //initPDF(nullptr);
-    //   // todo: open up a new PDF file
-    // }
+    processBuffer(buffer, BUFN);
     delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
     yield();
