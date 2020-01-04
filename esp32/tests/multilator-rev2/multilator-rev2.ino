@@ -1,5 +1,5 @@
 /**
-   Test #24 - multi-diskulator ESP32
+   Test #32 - Multilator Rev2 Rewrite
 */
 
 #define TEST_NAME "#FujiNet Multi-Diskulator"
@@ -15,13 +15,10 @@
 #endif
 
 #include <FS.h>
-
 #include <WiFiUdp.h>
 
-enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
-
 // Uncomment for Debug on 2nd UART (GPIO 2)
-// #define DEBUG_S
+#define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -48,16 +45,12 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 #define PIN_CMD         21
 #endif
 
-#define DELAY_T5          1500
-#define READ_CMD_TIMEOUT  12
-#define CMD_TIMEOUT       50
-
-#define STATUS_SKIP       8
-
-WiFiUDP UDP;
-File atr;
-
-unsigned long cmdTimer = 0;
+#define DELAY_T0  750
+#define DELAY_T1  650
+#define DELAY_T2  0
+#define DELAY_T3  1000
+#define DELAY_T4  850
+#define DELAY_T5  250
 
 /**
    A Single command frame, both in structured and unstructured
@@ -118,24 +111,6 @@ union
   byte rawData[516];
 } tnfsPacket;
 
-byte sectorCache[8][2560];
-
-byte sector[256];
-char tnfsServer[256];
-char mountPath[256];
-char current_entry[256];
-char tnfs_fds[8];
-char tnfs_dir_fds[8];
-int firstCachedSector[8] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535};
-unsigned short sectorSize[8] = {128, 128, 128, 128, 128, 128, 128, 128};
-unsigned char max_cached_sectors = 19;
-bool load_config = true;
-char statusSkip = 0;
-
-#ifdef DEBUG_N
-WiFiClient wificlient;
-#endif
-
 union
 {
   char host[8][32];
@@ -159,10 +134,27 @@ struct
   unsigned char session_idh;
 } tnfsSessionIDs[8];
 
-// Function pointer tables
-void (*sioState[9])(void);
-void (*cmdPtr[256])(void);
+#ifdef DEBUG_N
+WiFiClient wificlient;
+#endif
+WiFiUDP UDP;
+File atrConfig;
+byte sectorCache[8][2560];
+byte sector[256];
+char tnfsServer[256];
+char mountPath[256];
+char current_entry[256];
+char tnfs_fds[8];
+char tnfs_dir_fds[8];
+int firstCachedSector[8] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535};
+unsigned short sectorSize[8] = {128, 128, 128, 128, 128, 128, 128, 128};
+unsigned char max_cached_sectors = 19;
+bool load_config = true;
+char statusSkip = 0;
+void (*cmdPtr[256])(void); // command function pointers
+char totalSSIDs;
 
+// DEBUGGING MACROS /////////////////////////////////////////////////////////////////////////
 #ifdef DEBUG_S
 #define Debug_print(...) BUG_UART.print( __VA_ARGS__ )
 #define Debug_printf(...) BUG_UART.printf( __VA_ARGS__ )
@@ -175,6 +167,29 @@ void (*cmdPtr[256])(void);
 #define Debug_println(...) wificlient.println( __VA_ARGS__ )
 #define DEBUG
 #endif
+/////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+   Set WiFi LED
+*/
+void wifi_led(bool onOff)
+{
+#ifdef ESP8266
+  digitalWrite(PIN_LED, (onOff ? LOW : HIGH));
+#elif defined(ESP32)
+  digitalWrite(PIN_LED1, (onOff ? LOW : HIGH));
+#endif
+}
+
+/**
+   Set SIO LED
+*/
+void sio_led(bool onOff)
+{
+#ifdef ESP32
+  digitalWrite(PIN_LED2, (onOff ? LOW : HIGH));
+#endif
+}
 
 /**
    calculate 8-bit checksum.
@@ -189,267 +204,369 @@ byte sio_checksum(byte* chunk, int length)
 }
 
 /**
-   ISR for falling COMMAND
-*/
-void ICACHE_RAM_ATTR sio_isr_cmd()
-{
-  cmdState = ID;
-  cmdTimer = millis();
-#ifdef ESP32
-  digitalWrite(PIN_LED2, LOW); // on
-#endif
-}
-
-/**
    Return true if valid device ID
 */
 bool sio_valid_device_id()
 {
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
-  if ((load_config == true) && (cmdFrame.devic == 0x31))
+  if ((load_config == true) && (cmdFrame.devic == 0x31)) // Only respond to 0x31 if in config mode
     return true;
-  else if (cmdFrame.devic == 0x70)
+  else if (cmdFrame.devic == 0x70) // respond to FujiNet Network device commands
     return true;
-  else if (cmdFrame.devic == 0x4F)
+  else if (cmdFrame.devic == 0x4F) // Do not respond to Type 3/4 polls
     return false;
-  else if (deviceSlots.slot[deviceSlot].hostSlot != 0xFF)
+  else if (deviceSlots.slot[deviceSlot].hostSlot != 0xFF) // Only respond to full device slots
     return true;
   else
     return false;
 }
 
 /**
-   Get ID
+   sio NAK
 */
-void sio_get_id()
+void sio_nak()
 {
-  while (!SIO_UART.available()) {
-    delayMicroseconds(100);
-  }
-  cmdFrame.devic = SIO_UART.read();
-  if (sio_valid_device_id())
-    cmdState = COMMAND;
+  SIO_UART.write('N');
+  delayMicroseconds(DELAY_T3);
+#ifdef DEBUG
+  Debug_printf("N");
+#endif
+}
+
+/**
+   sio ACK
+*/
+void sio_ack()
+{
+  SIO_UART.write('A');
+  delayMicroseconds(DELAY_T3);
+#ifdef DEBUG
+  Debug_printf("A");
+#endif 
+}
+
+/**
+   sio COMPLETE
+*/
+void sio_complete()
+{
+  delayMicroseconds(DELAY_T5);
+  SIO_UART.write('C');
+#ifdef DEBUG
+  Debug_printf("C");
+#endif
+}
+
+/**
+   sio ERROR
+*/
+void sio_error()
+{
+  delayMicroseconds(DELAY_T5);
+  SIO_UART.write('E');
+#ifdef DEBUG
+  Debug_printf("E");
+#endif
+}
+
+/**
+   sio READ from PERIPHERAL to COMPUTER
+   b = buffer to send to Atari
+   len = length of buffer
+   err = did an error happen before this read?
+*/
+void sio_to_computer(byte* b, unsigned short len, bool err)
+{
+  byte ck = sio_checksum(b, len);
+
+  if (err==true)
+    sio_error();
   else
-  {
-    cmdState = WAIT;
-    cmdTimer = 0;
-  }
+    sio_complete();
+
+  // Write data frame.
+  SIO_UART.write(b, len);
+
+  // Write checksum
+  SIO_UART.write(ck);
 
 #ifdef DEBUG
-  Debug_print("CMD DEVC: ");
-  Debug_println(cmdFrame.devic, HEX);
+  Debug_printf("TO COMPUTER: ");
+  for (int i=0;i<len;i++)
+    Debug_printf("%02x ",b[i]);
+  Debug_printf("\nCKSUM: %02x\n\n",ck);
 #endif
-}
 
-void sio_get_command()
-{
-  while (!SIO_UART.available()) {
-    delayMicroseconds(100);
-  }
-  cmdFrame.comnd = SIO_UART.read();
-  cmdState = AUX1;
-
-#ifdef DEBUG
-  Debug_print("CMD CMND: ");
-  Debug_println(cmdFrame.comnd, HEX);
-#endif
 }
 
 /**
-   Get aux1
+   sio WRITE from COMPUTER to PERIPHERAL
+   b = buffer from atari to fujinet
+   len = length
+   returns checksum reported by atari
 */
-void sio_get_aux1()
-{
-  while (!SIO_UART.available()) {
-    delayMicroseconds(100);
-  }
-  cmdFrame.aux1 = SIO_UART.read();
-  cmdState = AUX2;
-
-#ifdef DEBUG
-  Debug_print("CMD AUX1: ");
-  Debug_println(cmdFrame.aux1, HEX);
-#endif
-}
-
-/**
-   Get aux2
-*/
-void sio_get_aux2()
-{
-  while (!SIO_UART.available()) {
-    delayMicroseconds(100);
-  }
-  cmdFrame.aux2 = SIO_UART.read();
-  cmdState = CHECKSUM;
-
-#ifdef DEBUG
-  Debug_print("CMD AUX2: ");
-  Debug_println(cmdFrame.aux2, HEX);
-#endif
-}
-
-/**
-   Get Checksum, and compare
-*/
-void sio_get_checksum()
+byte sio_to_peripheral(byte* b, unsigned short len)
 {
   byte ck;
-  while (!SIO_UART.available()) {
-    delayMicroseconds(100);
-  }
-  cmdFrame.cksum = SIO_UART.read();
-  ck = sio_checksum((byte *)&cmdFrame.cmdFrameData, 4);
+
+  // Retrieve data frame from computer
+  SIO_UART.readBytes(b, len);
+
+  // Wait for checksum
+  while (!SIO_UART.available())
+    yield();
+
+  // Receive Checksum
+  ck = SIO_UART.read();
 
 #ifdef DEBUG
-  Debug_print("CMD CKSM: ");
-  Debug_print(cmdFrame.cksum, HEX);
+  Debug_printf("TO PERIPHERAL: ");
+  for (int i=0;i<len;i++)
+    Debug_printf("%02x ",b[i]);
+  Debug_printf("\nCKSUM: %02x\n\n",ck);
 #endif
 
-  if (ck == cmdFrame.cksum)
+  delayMicroseconds(DELAY_T4);
+
+  if (sio_checksum(b, len) != ck)
   {
-#ifdef DEBUG
-    Debug_println(", ACK");
-#endif
+    sio_nak();
+    return false;
+  }
+  else
+  {
     sio_ack();
   }
-  else
-  {
-#ifdef DEBUG
-    Debug_println(", NAK");
-#endif
-    sio_nak();
-  }
+
+  return ck;
 }
 
 /**
-   scan for networks
+   Scan for networks
 */
-void sio_scan_networks()
+void sio_net_scan_networks()
 {
-  byte ck;
-  char totalSSIDs;
   char ret[4] = {0, 0, 0, 0};
 
+  // Scan to computer
   WiFi.mode(WIFI_STA);
   totalSSIDs = WiFi.scanNetworks();
   ret[0] = totalSSIDs;
 
-#ifdef DEBUG
-  Debug_printf("Scan networks returned: %d\n\n", totalSSIDs);
-#endif
-  ck = sio_checksum((byte *)&ret, 4);
-
-  SIO_UART.write('C');     // Completed command
-
-  // Write data frame
-  SIO_UART.write((byte *)&ret, 4);
-
-  // Write data frame checksum
-  SIO_UART.write(ck);
-
-#ifdef DEBUG
-  Debug_printf("Wrote data packet/Checksum: $%02x $%02x $%02x $%02x/$02x\n\n", ret[0], ret[1], ret[2], ret[3], ck);
-#endif
+  sio_to_computer((byte *)ret, 4, true);
 }
 
 /**
    Return scanned network entry
 */
-void sio_scan_result()
+void sio_net_scan_result()
 {
-  byte ck;
-
-  strcpy(ssidInfo.ssid, WiFi.SSID(cmdFrame.aux1).c_str());
-  ssidInfo.rssi = (char)WiFi.RSSI(cmdFrame.aux1);
-
-  ck = sio_checksum((byte *)&ssidInfo.rawData, 33);
-
-  SIO_UART.write('C');     // Completed command
-
-  // Write data frame
-  SIO_UART.write(ssidInfo.rawData, 33);
-
-  // Write data frame checksum
-  SIO_UART.write(ck);
-}
-
-/**
-   SIO set SSID/Password
-*/
-void sio_set_ssid()
-{
-  byte ck;
-
-  SIO_UART.readBytes(netConfig.rawData, 96);
-  while (SIO_UART.available() == 0) {
-    delayMicroseconds(200);
-  }
-  ck = SIO_UART.read(); // Read checksum
-  delay(2);
-  SIO_UART.write('A'); // Write ACK
-
-  if (ck == sio_checksum(netConfig.rawData, 96))
+  bool err = false;
+  if (cmdFrame.aux1 < totalSSIDs)
   {
-    delayMicroseconds(250);
-    SIO_UART.write('C');
-    WiFi.begin(netConfig.ssid, netConfig.password);
-    UDP.begin(16384);
-#ifdef DEBUG
-    Debug_printf("connecting to %s with %s.\n", netConfig.ssid, netConfig.password);
-#endif
-    yield();
+    strcpy(ssidInfo.ssid, WiFi.SSID(cmdFrame.aux1).c_str());
+    ssidInfo.rssi = (char)WiFi.RSSI(cmdFrame.aux1);
   }
   else
   {
-    SIO_UART.write('E');
-    yield();
+    memset(ssidInfo.rawData, 0x00, sizeof(ssidInfo.rawData));
+    err = true;
   }
+
+  sio_to_computer(ssidInfo.rawData, sizeof(ssidInfo.rawData), err);
+}
+
+/**
+   Set SSID
+*/
+void sio_net_set_ssid()
+{
+  byte ck = sio_to_peripheral(netConfig.rawData, 96);
+
+  if (sio_checksum(netConfig.rawData, 96) != ck)
+  {
+    sio_error();
+  }
+  else
+  {
+    WiFi.begin(netConfig.ssid, netConfig.password);
+    UDP.begin(16384);
+    sio_complete();
+  }
+}
+
+/**
+   SIO Status
+*/
+void sio_status()
+{
+  byte status[4] = {0x10, 0xFF, 0xFE, 0x00};
+  sio_to_computer(status, sizeof(status), false); // command always completes.
 }
 
 /**
    SIO get WiFi Status
 */
-void sio_get_wifi_status()
+void sio_net_get_wifi_status()
 {
-  byte ck;
-  char wifiStatus;
+  char wifiStatus = WiFi.status();
 
-  wifiStatus = WiFi.status();
-
+  // Update WiFi Status LED
   if (wifiStatus == WL_CONNECTED)
-  {
-#ifdef ESP8266
-    digitalWrite(PIN_LED, LOW); // turn on LED
-  }
+    wifi_led(true);
   else
-  {
-    digitalWrite(PIN_LED, HIGH); // turn off LED
-  }
-#elif defined(ESP32)
-    digitalWrite(PIN_LED1, LOW); // turn on LED
-  }
-  else
-  {
-    digitalWrite(PIN_LED1, HIGH); // turn off LED
-  }
-#endif
+    wifi_led(false);
 
-  ck = sio_checksum((byte *)&wifiStatus, 1);
-
-  delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C');     // Completed command
-
-  // Write data frame
-  SIO_UART.write(wifiStatus);
-
-  // Write data frame checksum
-  SIO_UART.write(ck);
-  delayMicroseconds(200);
+  sio_to_computer((byte *)&wifiStatus, 1, false);
 }
 
 /**
-   Write, called for both W and P commands.
+   Format Disk (fake)
+*/
+void sio_format()
+{
+  unsigned char deviceSlot = cmdFrame.devic - 0x31;
+
+  // Populate bad sector map (no bad sectors)
+  for (int i = 0; i < sectorSize[deviceSlot]; i++)
+    sector[i] = 0;
+
+  sector[0] = 0xFF; // no bad sectors.
+  sector[1] = 0xFF;
+
+  // Send to computer
+  sio_to_computer((byte *)sector, sectorSize[deviceSlot], false);
+}
+
+/**
+   SIO TNFS Server Mount
+*/
+void sio_tnfs_mount_host()
+{
+  unsigned char hostSlot = cmdFrame.aux1;
+  bool err = tnfs_mount(hostSlot);
+
+  if (err)
+    sio_error();
+  else
+    sio_complete();
+}
+
+/**
+   SIO TNFS Disk Image Mount
+*/
+void sio_disk_image_mount()
+{
+  unsigned char deviceSlot = cmdFrame.aux1;
+  unsigned char options = cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
+  unsigned short newss;
+  bool opened = tnfs_open(deviceSlot, options);
+
+  if (!opened)
+  {
+    sio_error();
+  }
+  else
+  {
+    // Get # of sectors from header
+    tnfs_seek(deviceSlot, 4);
+    tnfs_read(deviceSlot, 2);
+    newss = (256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
+    sectorSize[deviceSlot] = newss;
+    sio_complete();
+  }
+}
+
+/**
+   Open TNFS Directory
+*/
+void sio_tnfs_open_directory()
+{
+  byte hostSlot = cmdFrame.aux1;
+  byte ck = sio_to_peripheral((byte *)&current_entry, sizeof(current_entry));
+
+  if (tnfs_opendir(hostSlot))
+    sio_complete();
+  else
+    sio_error();
+}
+
+/**
+   Read next TNFS Directory entry
+*/
+void sio_tnfs_read_directory_entry()
+{
+  byte hostSlot = cmdFrame.aux2;
+  byte len = cmdFrame.aux1;
+  byte ret = tnfs_readdir(hostSlot);
+
+  if (!ret)
+    current_entry[0] = 0x7F; // end of dir
+
+  sio_to_computer((byte *)&current_entry, len, false);
+}
+
+/**
+   Close TNFS Directory
+*/
+void sio_tnfs_close_directory()
+{
+  byte hostSlot = cmdFrame.aux1;
+
+  if (tnfs_closedir(hostSlot))
+    sio_complete();
+  else
+    sio_error();
+}
+
+/**
+   (disk) High Speed
+*/
+void sio_high_speed()
+{
+  byte hsd = 0x28; // 19200 standard speed
+
+  sio_to_computer((byte *)&hsd, 1, false);
+}
+
+/**
+   Write hosts slots
+*/
+void sio_write_hosts_slots()
+{
+  byte ck = sio_to_peripheral(hostSlots.rawData, sizeof(hostSlots.rawData));
+
+  if (sio_checksum(hostSlots.rawData, sizeof(hostSlots.rawData)) == ck)
+  {
+    atrConfig.seek(91792, SeekSet);
+    atrConfig.write(hostSlots.rawData, sizeof(hostSlots.rawData));
+    atrConfig.flush();
+    sio_complete();
+  }
+  else
+    sio_error();
+}
+
+/**
+   Write Device slots
+*/
+void sio_write_device_slots()
+{
+  byte ck = sio_to_peripheral(deviceSlots.rawData, sizeof(deviceSlots.rawData));
+
+  if (sio_checksum(deviceSlots.rawData, sizeof(deviceSlots.rawData)) == ck)
+  {
+    atrConfig.seek(91408, SeekSet);
+    atrConfig.write(deviceSlots.rawData, sizeof(deviceSlots.rawData));
+    atrConfig.flush();
+    sio_complete();
+  }
+  else
+    sio_error();
+}
+
+/**
+   SIO Disk Write
 */
 void sio_write()
 {
@@ -476,25 +593,15 @@ void sio_write()
     ss = sectorSize[deviceSlot];
   }
 
-#ifdef DEBUG
-  Serial1.printf("receiving %d bytes data frame from computer.\n", ss);
-#endif
-
-  SIO_UART.readBytes(sector, ss);
-  while (SIO_UART.available() == 0) {
-    delayMicroseconds(200);
-  }
-  ck = SIO_UART.read(); // Read checksum
-  delay(2);
-  SIO_UART.write('A'); // Write ACK
+  ck = sio_to_peripheral(sector, ss);
 
   if (ck == sio_checksum(sector, ss))
   {
     if (load_config == true)
     {
-      atr.seek(offset, SeekSet);
-      atr.write(sector, ss);
-      atr.flush();
+      atrConfig.seek(offset, SeekSet);
+      atrConfig.write(sector, ss);
+      atrConfig.flush();
     }
     else
     {
@@ -502,380 +609,31 @@ void sio_write()
       tnfs_write(deviceSlot, ss);
       firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
     }
-    delayMicroseconds(250);
-    SIO_UART.write('C');
-    yield();
-  }
-  else
-  {
-    delayMicroseconds(250);
-    SIO_UART.write('E');
-    yield();
+    sio_complete();
   }
 }
 
 /**
-   format (fake)
-*/
-void sio_format()
-{
-  byte ck;
-  unsigned char deviceSlot = cmdFrame.devic - 0x31;
-
-  for (int i = 0; i < sectorSize[deviceSlot]; i++)
-    sector[i] = 0;
-
-  sector[0] = 0xFF; // no bad sectors.
-  sector[1] = 0xFF;
-
-  ck = sio_checksum((byte *)&sector, sectorSize[deviceSlot]);
-
-  delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C'); // Completed command
-  
-
-  // Write data frame
-  SIO_UART.write(sector, sectorSize[deviceSlot]);
-
-  // Write data frame checksum
-  SIO_UART.write(ck);
-  
-  delayMicroseconds(200);
-}
-
-/**
-   SIO TNFS server mount
-*/
-void sio_mount_host()
-{
-  byte ck;
-  unsigned char hostSlot = cmdFrame.aux1;
-  delay(2);
-  SIO_UART.write('A'); // Write ACK
-
-#ifdef DEBUG
-  Debug_printf("Mounting host in slot #%d", hostSlot);
-#endif
-
-  delayMicroseconds(250);
-
-  tnfs_mount(hostSlot);
-
-  delayMicroseconds(250);
-
-  SIO_UART.write('C');
-  
-}
-
-/**
-   SIO Mount
-*/
-void sio_mount_image()
-{
-  byte ck;
-  unsigned char deviceSlot = cmdFrame.aux1;
-  unsigned char options = cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
-  unsigned short newss;
-
-#ifdef DEBUG
-  Debug_printf("Opening image in drive slot #%d", deviceSlot);
-#endif
-
-  delay(2);
-  // Open disk image
-  tnfs_open(deviceSlot, options);
-
-  // Get # of sectors from header
-  tnfs_seek(deviceSlot, 4);
-  tnfs_read(deviceSlot, 2);
-  newss = (256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
-  sectorSize[deviceSlot] = newss;
-
-#ifdef DEBUG
-  Debug_printf("Sector data from header %02x %02x\n", sector[0], sector[1]);
-  Debug_printf("Device slot %d set to sector size: %d\n", deviceSlot, newss);
-#endif
-
-  SIO_UART.write('C');
-
-  delayMicroseconds(250);
-
-}
-
-/**
-   SIO Open TNFS Directory
-*/
-void sio_open_tnfs_directory()
-{
-  byte ck;
-  unsigned char hostSlot = cmdFrame.aux1;
-
-#ifdef DEBUG
-  Debug_println("Receiving 256b frame from computer");
-#endif
-
-  SIO_UART.readBytes(current_entry, 256);
-  while (SIO_UART.available() == 0) {
-    delayMicroseconds(200);
-  }
-  ck = SIO_UART.read(); // Read checksum
-
-  if (ck != sio_checksum((byte *)&current_entry, 256))
-  {
-    SIO_UART.write('N'); // NAK
-    return;
-  }
-
-  delay(2);
-
-  SIO_UART.write('A');   // ACK
-
-  tnfs_opendir(hostSlot);
-
-  // And complete.
-  SIO_UART.write('C');
-}
-
-/**
-   Read TNFS directory (next entry)
-*/
-void sio_read_tnfs_directory()
-{
-  byte ck;
-  long offset;
-  byte ret;
-
-  memset(current_entry,  0x00, 256);
-
-  ret = tnfs_readdir(cmdFrame.aux2);
-
-  if (ret == false)
-  {
-    current_entry[0] = 0x7F; // end of dir
-  }
-
-  ck = sio_checksum((byte *)&current_entry, cmdFrame.aux1);
-
-  delayMicroseconds(DELAY_T5); // t5 delay
-
-  SIO_UART.write('C'); // Command always completes.
-  
-
-  delayMicroseconds(200);
-
-  // Write data frame
-  SIO_UART.write((byte *)current_entry, cmdFrame.aux1);
-
-  // Write checksum
-  SIO_UART.write(ck);
-  
-  delayMicroseconds(200);
-}
-
-/**
-   SIO close TNFS Directory
-*/
-void sio_close_tnfs_directory()
-{
-  delayMicroseconds(DELAY_T5);
-  tnfs_closedir(cmdFrame.aux1);
-
-  delayMicroseconds(250);
-
-  delay(2);
-
-  SIO_UART.write('C'); // Completed command
-
-  delayMicroseconds(250);
-
-  
-}
-
-/**
-   High Speed
-*/
-void sio_high_speed()
-{
-  byte ck;
-  // byte hsd=0x08; // US Doubler
-  byte hsd = 0x28; // Standard Speed (19200)
-
-  ck = sio_checksum((byte *)&hsd, 1);
-
-  delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C'); // Command always completes.
-  
-  delayMicroseconds(200);
-
-  SIO_UART.write(hsd);
-
-  // Write checksum
-  SIO_UART.write(ck);
-  
-  delayMicroseconds(200);
-
-  // SIO_UART.updateBaudRate(68837); // US Doubler
-  // SIO_UART.begin(19200); // Standard
-}
-
-/**
-   Process command
-*/
-
-void sio_process()
-{
-  cmdPtr[cmdFrame.comnd]();
-
-  cmdState = WAIT;
-  cmdTimer = 0;
-}
-
-/**
-   Write hosts slots
-*/
-void sio_write_hosts_slots()
-{
-  byte ck;
-
-  SIO_UART.readBytes(hostSlots.rawData, 256);
-  while (SIO_UART.available() == 0) {
-    delayMicroseconds(200);
-  }
-  ck = SIO_UART.read(); // Read checksum
-
-  delay(2);
-
-  SIO_UART.write('A'); // Write ACK
-
-
-  if (ck == sio_checksum(hostSlots.rawData, 256))
-  {
-    SIO_UART.write('C');
-
-    atr.seek(91792, SeekSet);
-    atr.write(hostSlots.rawData, 256);
-    atr.flush();
-#ifdef DEBUG
-    for (int i = 0; i < sizeof(hostSlots.rawData); i++)
-    {
-      Debug_printf("%c", hostSlots.rawData[i]);
-    }
-    Debug_printf("\n\nCOMPLETE\n");
-#endif
-    yield();
-  }
-  else
-  {
-    SIO_UART.write('E');
-
-#ifdef DEBUG
-    for (int i = 0; i < sizeof(hostSlots.rawData); i++)
-    {
-      Debug_printf("%c", hostSlots.rawData[i]);
-    }
-    Debug_printf("\n\nChecksum: calc: %02x recv: %02x - ERROR\n", sio_checksum(hostSlots.rawData, 256), ck);
-#endif
-    yield();
-  }
-}
-
-/**
-   Write drives slots
-*/
-void sio_write_drives_slots()
-{
-  byte ck;
-
-  SIO_UART.readBytes(deviceSlots.rawData, 304);
-  while (SIO_UART.available() == 0) {
-    delayMicroseconds(200);
-  }
-  ck = SIO_UART.read(); // Read checksum
-
-  delay(2);
-
-  SIO_UART.write('A'); // Write ACK
-
-  if (ck == sio_checksum(deviceSlots.rawData, 304))
-  {
-    SIO_UART.write('C');
-
-    atr.seek(91408, SeekSet);
-    atr.write(deviceSlots.rawData, 304);
-    atr.flush();
-
-#ifdef DEBUG
-    for (int i = 0; i < sizeof(hostSlots.rawData); i++)
-    {
-      Debug_printf("%c", hostSlots.rawData[i]);
-    }
-    Debug_printf("\n\nCOMPLETE\n");
-#endif
-    yield();
-  }
-  else
-  {
-    SIO_UART.write('E');
-
-#ifdef DEBUG
-    for (int i = 0; i < sizeof(hostSlots.rawData); i++)
-    {
-      Debug_printf("%c", hostSlots.rawData[i]);
-    }
-    Debug_printf("\n\nChecksum: calc: %02x recv: %02x - ERROR\n", sio_checksum(hostSlots.rawData, 304), ck);
-#endif
-    yield();
-  }
-}
-
-/**
-   Read hosts slots
+   Read hosts Slots
 */
 void sio_read_hosts_slots()
 {
-  byte ck;
-
-  ck = sio_checksum((byte *)&hostSlots.rawData, 256);
-
-  delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C'); // Command always completes.
-
-  // Write data frame
-  for (int i = 0; i < 256; i++)
-    SIO_UART.write(hostSlots.rawData[i]);
-
-  // Write checksum
-  SIO_UART.write(ck);
-
+  sio_to_computer(hostSlots.rawData, sizeof(hostSlots.rawData), false);
 }
 
 /**
-   Read hosts slots
+   Read Device Slots
 */
-void sio_read_drives_slots()
+void sio_read_device_slots()
 {
-  byte ck;
-
-  load_config = false;
-  ck = sio_checksum((byte *)&deviceSlots.rawData, 304);
-
-  SIO_UART.write('C'); // Command always completes.
-
-  // Write data frame
-  for (int i = 0; i < 304; i++)
-    SIO_UART.write(deviceSlots.rawData[i]);
-
-  // Write checksum
-  SIO_UART.write(ck);
-  
+  sio_to_computer(deviceSlots.rawData, sizeof(deviceSlots.rawData), false);
 }
 
 /**
-   Read
+   SIO Disk read
 */
 void sio_read()
 {
-  byte ck;
   int ss;
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
@@ -883,6 +641,7 @@ void sio_read()
   int offset;
   byte* s;
   byte* d;
+  byte err = false;
 
   if (load_config == true) // no TNFS ATR mounted.
   {
@@ -891,8 +650,8 @@ void sio_read()
     offset *= 128;
     offset -= 128;
     offset += 16;
-    atr.seek(offset, SeekSet);
-    atr.read(sector, 128);
+    atrConfig.seek(offset, SeekSet);
+    atrConfig.read(sector, 128);
   }
   else // TNFS ATR mounted and opened...
   {
@@ -990,93 +749,21 @@ void sio_read()
     memcpy(d, s, ss);
   }
 
-  ck = sio_checksum((byte *)&sector, ss);
-
-  SIO_UART.write('C'); // Completed command
-  
-
-  // Write data frame
-  SIO_UART.write(sector, ss);
-  
-
-  // Write data frame checksum
-  SIO_UART.write(ck);
-  
-#ifdef DEBUG
-  Debug_print("SIO READ OFFSET: ");
-  Debug_print(offset);
-  Debug_print(" - ");
-  Debug_println((offset + ss));
-#endif
+  sio_to_computer((byte *)&sector, ss, err);
 }
 
 /**
-   Status
+   Drain data out of SIO port
 */
-void sio_status()
+void sio_flush()
 {
-  byte status[4] = {0x10, 0xFF, 0xFE, 0x00};
-  byte ck;
-
-  ck = sio_checksum((byte *)&status, 4);
-  
-  SIO_UART.write('C'); // Command always completes.
-  
-  //delay(1);
-
-  // Write data frame
-  SIO_UART.write(status, 4);
-
-  // Write checksum
-  SIO_UART.write(ck);
-}
-
-/**
-   Send an acknowledgement
-*/
-void sio_ack()
-{
-  while (digitalRead(PIN_CMD) == LOW) {
-    yield();
-  }
-
-  delay(1);
-
-  if (cmdFrame.devic == 0x31 &&
-      cmdFrame.comnd == 0x53)
+  while (SIO_UART.available())
   {
-    if (statusSkip < 23)
-    {
-      statusSkip++;
-      cmdState = WAIT;
-      return;
-    }
+    SIO_UART.read(); // toss it.
+#ifdef DEBUG
+    Debug_printf(".");
+#endif
   }
-  SIO_UART.write('A');
-  
-  //cmdState = PROCESS;
-  sio_process();
-}
-
-/**
-   Send a non-acknowledgement
-*/
-void sio_nak()
-{
-  delayMicroseconds(500);
-  SIO_UART.write('N');
-  
-  cmdState = WAIT;
-  cmdTimer = 0;
-}
-
-/**
-   SIO Wait
-*/
-void sio_wait()
-{
-  SIO_UART.read(); // Toss it for now
-  cmdTimer = 0;
 }
 
 /**
@@ -1725,6 +1412,11 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
   return false;
 }
 
+void sio_wait()
+{
+  SIO_UART.read(); // Toss it for now
+}
+
 void setup()
 {
 #ifdef DEBUG_S
@@ -1733,15 +1425,15 @@ void setup()
   Debug_println(TEST_NAME);
 #endif
   SPIFFS.begin();
-  atr = SPIFFS.open("/autorun.atr", "r+");
+  atrConfig = SPIFFS.open("/autorun.atr", "r+");
 
   // Go ahead and read the host slots from disk
-  atr.seek(91792, SeekSet);
-  atr.read(hostSlots.rawData, 256);
+  atrConfig.seek(91792, SeekSet);
+  atrConfig.read(hostSlots.rawData, 256);
 
   // And populate the device slots
-  atr.seek(91408, SeekSet);
-  atr.read(deviceSlots.rawData, 304);
+  atrConfig.seek(91408, SeekSet);
+  atrConfig.read(deviceSlots.rawData, 304);
 
   // Go ahead and mark all device slots local
   for (int i = 0; i < 8; i++)
@@ -1778,20 +1470,10 @@ void setup()
 
   // Set up serial
   SIO_UART.begin(19200);
+  SIO_UART.setTimeout(8);
 #ifdef ESP8266
   SIO_UART.swap();
 #endif
-
-  // Set up SIO state function pointers
-  sioState[ID] = sio_get_id;
-  sioState[COMMAND] = sio_get_command;
-  sioState[AUX1] = sio_get_aux1;
-  sioState[AUX2] = sio_get_aux2;
-  sioState[CHECKSUM] = sio_get_checksum;
-  sioState[ACK] = sio_ack;
-  sioState[NAK] = sio_nak;
-  sioState[PROCESS] = sio_process;
-  sioState[WAIT] = sio_wait;
 
   // Set up SIO command function pointers
   for (int i = 0; i < 256; i++)
@@ -1803,54 +1485,52 @@ void setup()
   cmdPtr['S'] = sio_status;
   cmdPtr['!'] = sio_format;
   cmdPtr[0x3F] = sio_high_speed;
-  cmdPtr[0xFD] = sio_scan_networks;
-  cmdPtr[0xFC] = sio_scan_result;
-  cmdPtr[0xFB] = sio_set_ssid;
-  cmdPtr[0xFA] = sio_get_wifi_status;
-  cmdPtr[0xF9] = sio_mount_host;
-  cmdPtr[0xF8] = sio_mount_image;
-  cmdPtr[0xF7] = sio_open_tnfs_directory;
-  cmdPtr[0xF6] = sio_read_tnfs_directory;
-  cmdPtr[0xF5] = sio_close_tnfs_directory;
+  cmdPtr[0xFD] = sio_net_scan_networks;
+  cmdPtr[0xFC] = sio_net_scan_result;
+  cmdPtr[0xFB] = sio_net_set_ssid;
+  cmdPtr[0xFA] = sio_net_get_wifi_status;
+  cmdPtr[0xF9] = sio_tnfs_mount_host;
+  cmdPtr[0xF8] = sio_disk_image_mount;
+  cmdPtr[0xF7] = sio_tnfs_open_directory;
+  cmdPtr[0xF6] = sio_tnfs_read_directory_entry;
+  cmdPtr[0xF5] = sio_tnfs_close_directory;
   cmdPtr[0xF4] = sio_read_hosts_slots;
   cmdPtr[0xF3] = sio_write_hosts_slots;
-  cmdPtr[0xF2] = sio_read_drives_slots;
-  cmdPtr[0xF1] = sio_write_drives_slots;
+  cmdPtr[0xF2] = sio_read_device_slots;
+  cmdPtr[0xF1] = sio_write_device_slots;
 
-  // Attach COMMAND interrupt.
-  attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
-  cmdState = WAIT; // Start in wait state
-
+  // Go ahead and flush anything out of the serial port
+  sio_flush();
 }
 
 void loop()
 {
-#ifdef DEBUG_N
-  /* Connect to debug server if we aren't and WiFi is connected */
-  if ( !wificlient.connected() && WiFi.status() == WL_CONNECTED )
+  int a;
+  if (digitalRead(PIN_CMD) == LOW)
   {
-    wificlient.connect(DEBUG_HOST, 6502);
-    wificlient.println(TEST_NAME);
+    memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
+    delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
+
+    // read cmd frame
+    SIO_UART.readBytes(cmdFrame.cmdFrameData, 5);
+
+    // Wait for CMD line to raise again.
+    delayMicroseconds(DELAY_T1);
+    while (digitalRead(PIN_CMD) == LOW)
+      yield();
+
+    // T2
+    if (sio_valid_device_id())
+    {
+      sio_ack();
+      cmdPtr[cmdFrame.comnd]();
+    }
   }
-#endif
-
-  if (SIO_UART.available() > 0)
-    sioState[cmdState]();
-
-  //  if ((millis() - cmdTimer > CMD_TIMEOUT) && (cmdState != WAIT))
-  //  {
-  //#ifdef DEBUG
-  //    Debug_print("SIO CMD TIMEOUT: ");
-  //    Debug_println(cmdState);
-  //#endif
-  //    cmdState = WAIT;
-  //    cmdTimer = 0;
-  //  }
-
-#ifdef ESP32
-  if (cmdState == WAIT && digitalRead(PIN_LED2) == LOW)
+  else
   {
-    digitalWrite(PIN_LED2, HIGH); // Turn off SIO LED
+    a = SIO_UART.available();
+    if (a)
+      while (SIO_UART.available())
+        SIO_UART.read(); // dump it.
   }
-#endif
 }

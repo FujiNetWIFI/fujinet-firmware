@@ -1,5 +1,5 @@
 /**
-   Test #30 - start over.
+   Test #31 - start over. add read.
 */
 
 #ifdef ESP32
@@ -83,6 +83,7 @@ void sio_nak()
 void sio_ack()
 {
   SIO_UART.write('A');
+  delay(2);
 }
 
 /**
