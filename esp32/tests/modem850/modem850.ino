@@ -36,6 +36,8 @@
 
 enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 
+bool boot_fujinet_config = true;
+
 // Uncomment for Serial Debug
 //#define DEBUG_S
 
@@ -77,6 +79,7 @@ bool commanderMark = false;
 
 byte sector[128];
 File atr;
+File atrConfig;
 
 /**
    A Single command frame, both in structured and unstructured
@@ -94,6 +97,32 @@ union
   };
   byte cmdFrameData[5];
 } cmdFrame;
+
+/**
+   A single SSID entry
+*/
+union
+{
+  struct
+  {
+    char ssid[32];
+    char rssi;
+  };
+  unsigned char rawData[33];
+} ssidInfo;
+
+/**
+   Network Configuration
+*/
+union
+{
+  struct
+  {
+    char ssid[32];
+    char password[64];
+  };
+  unsigned char rawData[96];
+} netConfig;
 
 #ifdef DEBUG_S
 #define Debug_print(...) BUG_UART.print( __VA_ARGS__ )
@@ -174,6 +203,8 @@ bool sio_valid_device_id(byte device)
     return true;
   else if (device == 0x50)
     return true;
+  else if (device == 0x70)
+    return true;
   else
     return false;
 }
@@ -200,23 +231,33 @@ void sio_get_cmd_frame()
     switch (i)
     {
       case 0: // DEVICE ID
-        while (!SIO_UART.available()) { delayMicroseconds(1); }
+        while (!SIO_UART.available()) {
+          delayMicroseconds(1);
+        }
         cmdFrame.devic = SIO_UART.read();
         break;
       case 1: // COMMAND
-        while (!SIO_UART.available()) { delayMicroseconds(1); }
+        while (!SIO_UART.available()) {
+          delayMicroseconds(1);
+        }
         cmdFrame.comnd = SIO_UART.read();
         break;
       case 2: // AUX1
-        while (!SIO_UART.available()) { delayMicroseconds(1); }
+        while (!SIO_UART.available()) {
+          delayMicroseconds(1);
+        }
         cmdFrame.aux1 = SIO_UART.read();
         break;
       case 3: // AUX2
-        while (!SIO_UART.available()) { delayMicroseconds(1); }
+        while (!SIO_UART.available()) {
+          delayMicroseconds(1);
+        }
         cmdFrame.aux2 = SIO_UART.read();
         break;
       case 4: // CHECKSUM
-        while (!SIO_UART.available()) { delayMicroseconds(1); }
+        while (!SIO_UART.available()) {
+          delayMicroseconds(1);
+        }
         cmdFrame.cksum = SIO_UART.read();
         madeit = true;
         break;
@@ -283,7 +324,6 @@ void sio_read()
   atr.seek(offset, SeekSet);
   atr.read(sector, 128);
 
-
   ck = sio_checksum((byte *)&sector, 128);
 
   delayMicroseconds(DELAY_T5); // t5 delay
@@ -321,7 +361,9 @@ void sio_write()
 #endif
 
   SIO_UART.readBytes(sector, 128); // blocking
-  while (!SIO_UART.available()) { delayMicroseconds(1); } // wait for it...
+  while (!SIO_UART.available()) {
+    delayMicroseconds(1);  // wait for it...
+  }
   ck = SIO_UART.read(); // Read checksum
 
   if (ck == sio_checksum(sector, 128))
@@ -332,6 +374,9 @@ void sio_write()
     atr.seek(offset, SeekSet);
     atr.write(sector, 128);
     atr.flush();
+    
+    if (boot_fujinet_config == true)
+      atr = SPIFFS.open("/comms.atr", "r+");
 
     SIO_UART.write('C');
     yield();
@@ -565,6 +610,131 @@ void sio_R_concurrent()
 }
 
 /**
+   scan for networks
+*/
+void sio_scan_networks()
+{
+  byte ck;
+  char totalSSIDs;
+  char ret[4] = {0, 0, 0, 0};
+
+  WiFi.mode(WIFI_STA);
+  totalSSIDs = WiFi.scanNetworks();
+  ret[0] = totalSSIDs;
+
+#ifdef DEBUG
+  Debug_printf("Scan networks returned: %d\n\n", totalSSIDs);
+#endif
+  ck = sio_checksum((byte *)&ret, 4);
+
+  SIO_UART.write('C');     // Completed command
+
+  // Write data frame
+  SIO_UART.write((byte *)&ret, 4);
+
+  // Write data frame checksum
+  SIO_UART.write(ck);
+
+#ifdef DEBUG
+  Debug_printf("Wrote data packet/Checksum: $%02x $%02x $%02x $%02x/$02x\n\n", ret[0], ret[1], ret[2], ret[3], ck);
+#endif
+}
+
+/**
+   Return scanned network entry
+*/
+void sio_scan_result()
+{
+  byte ck;
+
+  strcpy(ssidInfo.ssid, WiFi.SSID(cmdFrame.aux1).c_str());
+  ssidInfo.rssi = (char)WiFi.RSSI(cmdFrame.aux1);
+
+  ck = sio_checksum((byte *)&ssidInfo.rawData, 33);
+
+  SIO_UART.write('C');     // Completed command
+
+  // Write data frame
+  SIO_UART.write(ssidInfo.rawData, 33);
+
+  // Write data frame checksum
+  SIO_UART.write(ck);
+}
+
+/**
+   SIO set SSID/Password
+*/
+void sio_set_ssid()
+{
+  byte ck;
+
+  SIO_UART.readBytes(netConfig.rawData, 96);
+  while (SIO_UART.available() == 0) {
+    delayMicroseconds(200);
+  }
+  ck = SIO_UART.read(); // Read checksum
+  delay(2);
+  SIO_UART.write('A'); // Write ACK
+
+  if (ck == sio_checksum(netConfig.rawData, 96))
+  {
+    delayMicroseconds(250);
+    SIO_UART.write('C');
+    WiFi.begin(netConfig.ssid, netConfig.password);
+#ifdef DEBUG
+    Debug_printf("connecting to %s with %s.\n", netConfig.ssid, netConfig.password);
+#endif
+    yield();
+  }
+  else
+  {
+    SIO_UART.write('E');
+    yield();
+  }
+}
+
+/**
+   SIO get WiFi Status
+*/
+void sio_get_wifi_status()
+{
+  byte ck;
+  char wifiStatus;
+
+  wifiStatus = WiFi.status();
+
+  if (wifiStatus == WL_CONNECTED)
+  {
+#ifdef ESP8266
+    // digitalWrite(PIN_LED, LOW); // turn on LED
+  }
+  else
+  {
+    // digitalWrite(PIN_LED, HIGH); // turn off LED
+  }
+#elif defined(ESP32)
+    digitalWrite(PIN_LED1, LOW); // turn on LED
+  }
+  else
+  {
+    digitalWrite(PIN_LED1, HIGH); // turn off LED
+  }
+#endif
+
+  ck = sio_checksum((byte *)&wifiStatus, 1);
+
+  delayMicroseconds(DELAY_T5); // t5 delay
+  SIO_UART.write('C');     // Completed command
+
+  // Write data frame
+  SIO_UART.write(wifiStatus);
+
+  // Write data frame checksum
+  SIO_UART.write(ck);
+  delayMicroseconds(200);
+}
+
+/**
    Send an acknowledgement
 */
 void sio_ack()
@@ -595,7 +765,7 @@ void sio_process()
 {
   bool process = false;
   bool shifted = false;
-  
+
   // Try to process CMD frame as is, if it fails, try to shift the frame bytes
   if (sio_valid_device_id() && (sio_checksum((byte *)&cmdFrame.cmdFrameData, 4) == cmdFrame.cksum))
   {
@@ -609,7 +779,9 @@ void sio_process()
     cmdFrame.comnd = cmdFrame.aux1;
     cmdFrame.aux1 = cmdFrame.aux2;
     cmdFrame.aux2 = cmdFrame.cksum;
-    while (!SIO_UART.available()){ delayMicroseconds(1); }
+    while (!SIO_UART.available()) {
+      delayMicroseconds(1);
+    }
     cmdFrame.cksum = SIO_UART.read();
     if (sio_checksum((byte *)&cmdFrame.cmdFrameData, 4) == cmdFrame.cksum)
       process = true;
@@ -622,12 +794,14 @@ void sio_process()
     cmdFrame.devic = cmdFrame.aux1;
     cmdFrame.comnd = cmdFrame.aux2;
     cmdFrame.aux1 = cmdFrame.cksum;
-    while (SIO_UART.available()<2){ delayMicroseconds(1); }
+    while (SIO_UART.available() < 2) {
+      delayMicroseconds(1);
+    }
     cmdFrame.aux1 = SIO_UART.read();
     cmdFrame.cksum = SIO_UART.read();
     if (sio_checksum((byte *)&cmdFrame.cmdFrameData, 4) == cmdFrame.cksum)
       process = true;
-   }
+  }
 
   if (shifted)
   {
@@ -645,9 +819,11 @@ void sio_process()
 #endif
   }
 
-  if(process)
+  if (process)
   {
-    while (!digitalRead(PIN_CMD)) { delayMicroseconds(1); }
+    while (!digitalRead(PIN_CMD)) {
+      delayMicroseconds(1);
+    }
     sio_ack(); // Valid Device and Good Checksum
     switch (cmdFrame.comnd)
     {
@@ -680,25 +856,38 @@ void sio_process()
       case 'X': // 0x58
         sio_R_concurrent();
         break;
+      case 0xFD:
+        sio_scan_networks();
+        break;
+      case 0xFC:
+        sio_scan_result();
+        break;
+      case 0xFB:
+        sio_set_ssid();
+        break;
+      case 0xFA:
+        sio_get_wifi_status();
+        break;
+
     }
   }
   else
   {
-/*    
-    if (SIO_UART.available() > 0 && digitalRead(PIN_CMD))
-    {
-      int avail = SIO_UART.available();
-      int i;
+    /*
+        if (SIO_UART.available() > 0 && digitalRead(PIN_CMD))
+        {
+          int avail = SIO_UART.available();
+          int i;
 
-#ifdef DEBUG
-      Debug_print("TOSS: ");
-      Debug_println(avail);
-#endif
+      #ifdef DEBUG
+          Debug_print("TOSS: ");
+          Debug_println(avail);
+      #endif
 
-      for (i = 0; i < avail; i++)
-        SIO_UART.read(); // Toss it, toss it aLL!!!
-    }
-*/
+          for (i = 0; i < avail; i++)
+            SIO_UART.read(); // Toss it, toss it aLL!!!
+        }
+    */
     sio_nak(); // Invalid Device or Bad Checksum
   }
   SIO_UART.flush();
@@ -725,6 +914,7 @@ void setup()
 
   SPIFFS.begin();
   atr = SPIFFS.open("/autorun.atr", "r+");
+
 
   // Set up pins
   pinMode(PIN_INT, OUTPUT);
@@ -754,6 +944,9 @@ void setup()
 #endif
   myBps = DEFAULT_BPS;
 
+  // Enable config
+  boot_fujinet_config = true;
+
   // Lastly, try connecting to WiFi. Should autoconnect to last ssid/pass
 #ifdef ESP32
   WiFi.begin();
@@ -778,20 +971,20 @@ void led_on(void)
 */
 void loop()
 {
-  int a,c;
+  int a, c;
 
   /**** Get the SIO Command ****/
   if (commanderMark) // Entering the secret city
   { // CMD Line Interrupt, get the whole command frame...
     sio_get_cmd_frame();
   }
-  else if(!modemActive)
+  else if (!modemActive)
   {
     a = SIO_UART.available();
-    for(c=0;c<a;c++)
+    for (c = 0; c < a; c++)
       SIO_UART.read(); // dump it.
 #ifdef DEBUG
-    if (a>0)
+    if (a > 0)
     {
       Debug_print("DUMPED BYTES: ");
       Debug_println(a);
@@ -1191,4 +1384,3 @@ void command()
 
   cmd = "";
 }
-
