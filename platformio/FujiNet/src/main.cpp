@@ -5,6 +5,8 @@
 #include "disk.h"
 #include "tnfs.h"
 #include "printer.h"
+#define PRINTMODE PDF
+
 // #ifdef ESP_8266
 // #include <FS.h>
 // #define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
@@ -18,7 +20,7 @@
 #include <WiFi.h>
 //#endif
 
-#define TNFS_SERVER "192.168.1.11"
+#define TNFS_SERVER "192.168.1.12"
 #define TNFS_PORT 16384
 
 //File tnfs;
@@ -70,6 +72,9 @@ void httpService()
 
           sioP.pageEject();
           paperf.seek(0);
+
+          //client.println("Content-Type: application/octet-stream");
+          //client.println("Content-Disposition: attachment; filename=\"test.pdf\"");
           bool ok = true;
           while (ok)
           {
@@ -88,7 +93,7 @@ void httpService()
           }
           paperf.close();
           paperf = SPIFFS.open("/paper", "w+");
-          sioP.initPrinter(&paperf,PDF);
+          sioP.initPrinter(&paperf, PRINTMODE);
           break;
         }
         if (c == '\n')
@@ -133,7 +138,7 @@ void setup()
 
   SIO.addDevice(&sioP, 0x40); // P:
   paperf = SPIFFS.open("/paper", "w+");
-  sioP.initPrinter(&paperf,PDF);
+  sioP.initPrinter(&paperf, PRINTMODE);
 
   for (int i = 0; i < 1; i++)
   {
@@ -146,14 +151,14 @@ void setup()
     SIO.addDevice(&sioD[i], 0x31 + i);
   }
 
-/*   TNFS.begin(TNFS_SERVER, TNFS_PORT);
+  TNFS.begin(TNFS_SERVER, TNFS_PORT);
   tnfs = TNFS.open("/printers.atr", "r");
-  #ifdef DEBUG_S
-    BUG_UART.println("tnfs/printers.atr");
+#ifdef DEBUG_S
+  BUG_UART.println("tnfs/printers.atr");
 #endif
   sioD[1].mount(&tnfs);
   SIO.addDevice(&sioD[1], 0x31 + 1);
- */
+
 #ifdef DEBUG_S
   BUG_UART.print(SIO.numDevices());
   BUG_UART.println(" devices registered.");
