@@ -68,7 +68,7 @@ void sioPrinter::pdf_add_line(std::string S)
     {
       L.append(1, BACKSLASH);
     }
-    L.append(1,S[i]);
+    L.append(1, S[i]);
   }
   int le = L.length();
 #ifdef DEBUG_S
@@ -94,6 +94,14 @@ void sioPrinter::pdf_add_line(std::string S)
 
 std::string sioPrinter::buffer_to_string(byte *buffer)
 {
+  // Atari 1027 escape codes:
+  // CTRL-O - start underscoring        14      - note in T1027.BAS there is a case of 27 14
+  // CTRL-N - stop underscoring         15
+  // ESC CTRL-Y - start underscoring    27  25
+  // ESC CTRL-Z - stop underscoring     27  26
+  // ESC CTRL-W - start international   27  23
+  // ESC CTRL-X - stop international    27  24
+
   eolFlag = false;
   std::string out = "";
   for (int i = 0; i < BUFN; i++)
@@ -103,8 +111,30 @@ std::string sioPrinter::buffer_to_string(byte *buffer)
       eolFlag = true;
       return out;
     }
-    //printable characters
-    if (buffer[i] > 31 && buffer[i] < 127)
+    else if (escMode)
+    {
+      if (buffer[i] == 25 || buffer[i] == 14)
+        ulFlag = true;
+      if (buffer[i] == 26 || buffer[i] == 15)
+        ulFlag = false;
+      if (buffer[i] == 23)
+        intFlag = true;
+      if (buffer[i] == 24)
+        intFlag = false;
+      escMode = false;
+    }
+    else if (buffer[i] == 14)
+      ulFlag = true;
+    else if (buffer[i] == 15)
+      ulFlag = false;
+    else if (buffer[i] == 27)
+      escMode = true;
+    else if (intFlag && (buffer[i] < 32 || buffer[i] == 96 || buffer[i] == 123))
+    {
+      out.append(1, 35);
+    }
+    //printable characters for 1027 Standard Set
+    else if (buffer[i] > 31 && buffer[i] < 123)
     {
       out.append(1, buffer[i]);
     }
