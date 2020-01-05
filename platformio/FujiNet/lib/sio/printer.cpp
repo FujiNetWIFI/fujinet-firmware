@@ -16,7 +16,7 @@ void sioPrinter::pdf_header()
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("3 0 obj <</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
-  for (int i = 0; i < (2*maxLines); i++)
+  for (int i = 0; i < (2 * maxLines); i++)
   {
     pdf_offset += _file->printf("%d 0 R ", i + 6);
   }
@@ -66,7 +66,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
   for (int i = 0; i < S.length(); i++)
   {
     //todo: create an underscore line before adding \ to text line
-    if ((S[i]&0xff) == LEFTPAREN || (S[i]&0xff) == RIGHTPAREN || (S[i]&0xff) == BACKSLASH)
+    if ((S[i] & 0xff) == LEFTPAREN || (S[i] & 0xff) == RIGHTPAREN || (S[i] & 0xff) == BACKSLASH)
     {
       L.push_back(BACKSLASH);
     }
@@ -76,12 +76,12 @@ void sioPrinter::pdf_add_line(std::u16string S)
     else
       U.push_back(32);
   }
-  #ifdef DEBUG_S
-    BUG_UART.print("L length: ");
-    BUG_UART.println(L.length());
-    BUG_UART.print("U length: ");
-    BUG_UART.println(U.length());
-  #endif
+#ifdef DEBUG_S
+  BUG_UART.print("L length: ");
+  BUG_UART.println(L.length());
+  BUG_UART.print("U length: ");
+  BUG_UART.println(U.length());
+#endif
   int le = L.length();
 #ifdef DEBUG_S
   BUG_UART.println("adding line: ");
@@ -104,15 +104,8 @@ void sioPrinter::pdf_add_line(std::u16string S)
   //todo: add second line with underscores
   //find last underscore and set le to length
   size_t last_ = U.find_last_of('_');
-  if (last_ == std::string::npos)
-  {
-    le = 0;
-  }
-  else
-  {
-    le = last_;
-  }
-  le=U.length();
+  le = ++last_;
+  //le = U.length();
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("%d 0 obj <</Length %d>> stream\n", pdf_objCtr, 31 + le);
@@ -148,9 +141,9 @@ std::u16string sioPrinter::buffer_to_string(byte *buffer)
     }
     else if (escMode)
     {
-      if (buffer[i] == 25)// || buffer[i] == 14)?
+      if (buffer[i] == 25) // || buffer[i] == 14)?
         uscoreFlag = true;
-      if (buffer[i] == 26)// || buffer[i] == 15)?
+      if (buffer[i] == 26) // || buffer[i] == 15)?
         uscoreFlag = false;
       if (buffer[i] == 23)
         intlFlag = true;
@@ -189,9 +182,9 @@ void sioPrinter::initPrinter(File *f, paper_t ty)
   paperType = ty;
   if (paperType == PDF)
   {
-    uscoreFlag=false;
-    intlFlag=false;
-    escMode=false;
+    uscoreFlag = false;
+    intlFlag = false;
+    escMode = false;
     pdf_lineCounter = 0;
     pdf_header();
   }
