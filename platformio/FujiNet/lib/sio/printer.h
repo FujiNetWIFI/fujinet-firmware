@@ -53,7 +53,10 @@ private:
     int pdf_offset = 0;    // used to store location offset to next object
     int objLocations[100]; // reference table storage - set >=maxLines+5
     int pdf_objCtr = 0;    // count the objects
-    bool eolFlag;
+    bool eolFlag = false;
+    bool intFlag = false;
+    bool ulFlag = false;
+    bool escMode = false;
 
     void processBuffer(byte *B, int n);
 
