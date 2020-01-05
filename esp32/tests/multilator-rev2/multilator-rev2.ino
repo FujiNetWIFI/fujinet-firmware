@@ -18,7 +18,7 @@
 #include <WiFiUdp.h>
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-#define DEBUG_S
+//#define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -45,12 +45,12 @@
 #define PIN_CMD         21
 #endif
 
-#define DELAY_T0  750
-#define DELAY_T1  650
+#define DELAY_T0  0
+#define DELAY_T1  0
 #define DELAY_T2  0
-#define DELAY_T3  1000
-#define DELAY_T4  850
-#define DELAY_T5  250
+#define DELAY_T3  0
+#define DELAY_T4  0
+#define DELAY_T5  0
 
 /**
    A Single command frame, both in structured and unstructured
@@ -227,10 +227,6 @@ bool sio_valid_device_id()
 void sio_nak()
 {
   SIO_UART.write('N');
-  delayMicroseconds(DELAY_T3);
-#ifdef DEBUG
-  Debug_printf("N");
-#endif
 }
 
 /**
@@ -238,11 +234,8 @@ void sio_nak()
 */
 void sio_ack()
 {
+  delay(6);
   SIO_UART.write('A');
-  delayMicroseconds(DELAY_T3);
-#ifdef DEBUG
-  Debug_printf("A");
-#endif 
 }
 
 /**
@@ -250,7 +243,7 @@ void sio_ack()
 */
 void sio_complete()
 {
-  delayMicroseconds(DELAY_T5);
+  delay(10);
   SIO_UART.write('C');
 #ifdef DEBUG
   Debug_printf("C");
@@ -283,7 +276,7 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
     sio_error();
   else
     sio_complete();
-
+    
   // Write data frame.
   SIO_UART.write(b, len);
 
@@ -310,7 +303,7 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   byte ck;
 
   // Retrieve data frame from computer
-  SIO_UART.readBytes(b, len);
+  size_t l=SIO_UART.readBytes(b, len);
 
   // Wait for checksum
   while (!SIO_UART.available())
@@ -320,9 +313,10 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   ck = SIO_UART.read();
 
 #ifdef DEBUG
+  Debug_printf("l: %d\n",l);
   Debug_printf("TO PERIPHERAL: ");
   for (int i=0;i<len;i++)
-    Debug_printf("%02x ",b[i]);
+    Debug_printf("%02x ",sector[i]);
   Debug_printf("\nCKSUM: %02x\n\n",ck);
 #endif
 
@@ -353,7 +347,7 @@ void sio_net_scan_networks()
   totalSSIDs = WiFi.scanNetworks();
   ret[0] = totalSSIDs;
 
-  sio_to_computer((byte *)ret, 4, true);
+  sio_to_computer((byte *)ret, 4, false);
 }
 
 /**
@@ -373,7 +367,8 @@ void sio_net_scan_result()
     err = true;
   }
 
-  sio_to_computer(ssidInfo.rawData, sizeof(ssidInfo.rawData), err);
+  
+  sio_to_computer(ssidInfo.rawData, sizeof(ssidInfo.rawData), false);
 }
 
 /**
@@ -381,14 +376,17 @@ void sio_net_scan_result()
 */
 void sio_net_set_ssid()
 {
-  byte ck = sio_to_peripheral(netConfig.rawData, 96);
+  byte ck = sio_to_peripheral((byte *)&netConfig.rawData, sizeof(netConfig.rawData));
 
-  if (sio_checksum(netConfig.rawData, 96) != ck)
+  if (sio_checksum(netConfig.rawData, sizeof(netConfig.rawData)) != ck)
   {
     sio_error();
   }
   else
   {
+#ifdef DEBUG
+    Debug_printf("Connecting to net: %s password: %s\n",netConfig.ssid,netConfig.password);
+#endif
     WiFi.begin(netConfig.ssid, netConfig.password);
     UDP.begin(16384);
     sio_complete();
@@ -446,7 +444,7 @@ void sio_tnfs_mount_host()
   unsigned char hostSlot = cmdFrame.aux1;
   bool err = tnfs_mount(hostSlot);
 
-  if (err)
+  if (!err)
     sio_error();
   else
     sio_complete();
@@ -524,9 +522,10 @@ void sio_tnfs_close_directory()
 */
 void sio_high_speed()
 {
-  byte hsd = 0x28; // 19200 standard speed
+  byte hsd = 0x0a; // 19200 standard speed
 
   sio_to_computer((byte *)&hsd, 1, false);
+  SIO_UART.updateBaudRate(38908);
 }
 
 /**
@@ -626,6 +625,7 @@ void sio_read_hosts_slots()
 */
 void sio_read_device_slots()
 {
+  load_config=false;
   sio_to_computer(deviceSlots.rawData, sizeof(deviceSlots.rawData), false);
 }
 
@@ -1268,7 +1268,8 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
     UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
     UDP.write(tnfsPacket.rawData, 4 + 3);
     UDP.endPacket();
-
+    start=millis();
+    dur = millis() - start;
     while (dur < 5000)
     {
       dur = millis() - start;
@@ -1470,7 +1471,6 @@ void setup()
 
   // Set up serial
   SIO_UART.begin(19200);
-  SIO_UART.setTimeout(8);
 #ifdef ESP8266
   SIO_UART.swap();
 #endif
@@ -1513,9 +1513,12 @@ void loop()
 
     // read cmd frame
     SIO_UART.readBytes(cmdFrame.cmdFrameData, 5);
+#ifdef DEBUG
+    Debug_printf("CF: %02x %02x %02x %02x %02x\n",cmdFrame.devic,cmdFrame.comnd,cmdFrame.aux1,cmdFrame.aux2,cmdFrame.cksum);
+#endif
 
     // Wait for CMD line to raise again.
-    delayMicroseconds(DELAY_T1);
+
     while (digitalRead(PIN_CMD) == LOW)
       yield();
 
