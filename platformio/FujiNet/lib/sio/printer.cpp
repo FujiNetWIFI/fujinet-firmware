@@ -49,9 +49,10 @@ void sioPrinter::pdf_xref()
   _file->printf("%%%%EOF\n");
 }
 
-void sioPrinter::pdf_add_line(std::string S)
+void sioPrinter::pdf_add_line(std::u16string S)
 {
-  std::string L = "";
+  std::string L = std::string(); // = "";
+  std::string U = std::string();
   // escape special CHARs
   // \n       | LINE FEED (0Ah) (LF)
   // \r       | CARRIAGE RETURN (0Dh) (CR)
@@ -64,16 +65,21 @@ void sioPrinter::pdf_add_line(std::string S)
   // \ddd     | Character code ddd (octal)
   for (int i = 0; i < S.length(); i++)
   {
+    //todo: create an underscore line before adding \ to text line
     if (S[i] == LEFTPAREN || S[i] == RIGHTPAREN || S[i] == BACKSLASH)
     {
-      L.append(1, BACKSLASH);
+      L.push_back(BACKSLASH);
     }
-    L.append(1, S[i]);
+    L.push_back(S[i] & 0xff);
+    if (S[i] > 0xff)
+      U.push_back(95);
+    else
+      U.push_back(32);
   }
   int le = L.length();
 #ifdef DEBUG_S
   BUG_UART.println("adding line: ");
-  BUG_UART.println(L.c_str());
+  //BUG_UART.println((char)L.c_str());
 #endif
   // to do: handle odd characters for fprintf, e.g., %,'," etc.
   pdf_objCtr++;
@@ -89,10 +95,14 @@ void sioPrinter::pdf_add_line(std::string S)
   }
   pdf_offset += _file->printf(")Tj ET\n");
   pdf_offset += _file->printf("endstream endobj\n");
+  //todo: add second line with underscores
+  //find last underscore and set le to length
+  //add object and stream like above
+  //increment pdf_offset and pdf_objCtr as needed
   pdf_lineCounter++;
 }
 
-std::string sioPrinter::buffer_to_string(byte *buffer)
+std::u16string sioPrinter::buffer_to_string(byte *buffer)
 {
   // Atari 1027 escape codes:
   // CTRL-O - start underscoring        14      - note in T1027.BAS there is a case of 27 14
@@ -103,7 +113,7 @@ std::string sioPrinter::buffer_to_string(byte *buffer)
   // ESC CTRL-X - stop international    27  24
 
   eolFlag = false;
-  std::string out = "";
+  std::u16string out = std::u16string();
   for (int i = 0; i < BUFN; i++)
   {
     if (buffer[i] == EOL)
@@ -131,12 +141,15 @@ std::string sioPrinter::buffer_to_string(byte *buffer)
       escMode = true;
     else if (intFlag && (buffer[i] < 32 || buffer[i] == 96 || buffer[i] == 123))
     {
-      out.append(1, 35);
+      out.push_back(35);
     }
     //printable characters for 1027 Standard Set
     else if (buffer[i] > 31 && buffer[i] < 123)
     {
-      out.append(1, buffer[i]);
+      char16_t c = buffer[i];
+      if (ulFlag)
+        c += 0x0100; // underscore
+      out.push_back(c);
     }
   }
   return out;
@@ -164,7 +177,7 @@ void sioPrinter::pageEject()
   {
     while (pdf_lineCounter < maxLines)
     {
-      pdf_add_line("");
+      pdf_add_line(std::u16string());
     }
     pdf_xref();
   }
@@ -194,17 +207,17 @@ void sioPrinter::processBuffer(byte *B, int n)
   default:
     if (pdf_lineCounter < maxLines)
     {
-      std::string temp = buffer_to_string(buffer);
+      std::u16string temp = buffer_to_string(buffer);
 #ifdef DEBUG_S
       BUG_UART.print("processed buffer: ->");
-      BUG_UART.print(temp.c_str());
+      //BUG_UART.print((char)temp.c_str());
       BUG_UART.println("<-");
 #endif
       output.append(temp);
       // make function to count printable chars
       if (eolFlag || output.length() > maxCols)
       {
-        std::string what;
+        std::u16string what = std::u16string();
         if (output.length() > maxCols)
         { //pick out substring to send and keep rest
           what = output.substr(0, maxCols);
@@ -217,7 +230,7 @@ void sioPrinter::processBuffer(byte *B, int n)
         }
 #ifdef DEBUG_S
         BUG_UART.print("new line: ->");
-        BUG_UART.print(what.c_str());
+        //BUG_UART.print((char)what.c_str());
         BUG_UART.println("<-");
 #endif
         pdf_add_line(what);

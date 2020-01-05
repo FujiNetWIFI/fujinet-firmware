@@ -62,9 +62,9 @@ private:
 
     void pdf_header();
     void pdf_xref();
-    void pdf_add_line(std::string L);
-    std::string buffer_to_string(byte *S);
-    std::string output;
+    void pdf_add_line(std::u16string L);
+    std::u16string buffer_to_string(byte *S);
+    std::u16string output;
     int j;
 
     File *_file;
