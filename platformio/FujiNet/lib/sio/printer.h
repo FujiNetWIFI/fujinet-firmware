@@ -7,9 +7,9 @@
 #include "sio.h"
 
 #define EOL 155
-#define BACKSLASH 0x5c
-#define LEFTPAREN 0x28
-#define RIGHTPAREN 0x29
+#define BACKSLASH 92
+#define LEFTPAREN 40
+#define RIGHTPAREN 41
 #define BUFN 40
 
 enum printer_t
@@ -50,18 +50,21 @@ private:
     int fontSize = 12;
     const char *fontName = "Courier";
     int pdf_lineCounter = 0;
-    int pdf_offset = 0;    // used to store location offset to next object
-    int objLocations[100]; // reference table storage - set >=maxLines+5
+    u_long pdf_offset = 0;    // used to store location offset to next object
+    u_long objLocations[137]; // reference table storage - set >=2*maxLines+5
     int pdf_objCtr = 0;    // count the objects
-    bool eolFlag;
+    bool eolFlag = false;
+    bool intlFlag = false;
+    bool uscoreFlag = false;
+    bool escMode = false;
 
     void processBuffer(byte *B, int n);
 
     void pdf_header();
     void pdf_xref();
-    void pdf_add_line(std::string L);
-    std::string buffer_to_string(byte *S);
-    std::string output;
+    void pdf_add_line(std::u16string L);
+    std::u16string buffer_to_string(byte *S);
+    std::u16string output;
     int j;
 
     File *_file;
