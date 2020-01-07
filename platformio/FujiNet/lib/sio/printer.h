@@ -31,6 +31,8 @@ enum paper_t
     PDF
 };
 
+static byte intlchar[27] = {225,249,209,201,231,244,242,236,163,239,252,228,214,250,243,246,220,226,251,238,233,232,241,234,229,224,197};
+
 class sioPrinter : public sioDevice
 {
 private:
