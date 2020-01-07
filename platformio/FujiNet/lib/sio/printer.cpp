@@ -29,7 +29,7 @@ void sioPrinter::pdf_header()
   // fifth object: font 1
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
-  pdf_offset = _file->printf("5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /%s>> endobj\n", fontName);
+  pdf_offset = _file->printf("5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding>> endobj\n", fontName);
 }
 
 void sioPrinter::pdf_xref()
@@ -170,7 +170,7 @@ std::u16string sioPrinter::buffer_to_string(byte *buffer)
 
       if (uscoreFlag)
         c += 0x0100; // underscore
-        
+
       out.push_back(c);
     }
     //printable characters for 1027 Standard Set
