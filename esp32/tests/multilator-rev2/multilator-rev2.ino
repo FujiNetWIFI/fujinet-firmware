@@ -18,7 +18,7 @@
 #include <WiFiUdp.h>
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-//#define DEBUG_S
+// #define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -68,6 +68,22 @@ union
   };
   byte cmdFrameData[5];
 } cmdFrame;
+
+struct
+{
+  unsigned char num_tracks;
+  unsigned char step_rate;
+  unsigned char sectors_per_trackM;
+  unsigned char sectors_per_trackL;
+  unsigned char num_sides;
+  unsigned char density;
+  unsigned char sector_sizeM;
+  unsigned char sector_sizeL;
+  unsigned char drive_present;
+  unsigned char reserved1;
+  unsigned char reserved2;
+  unsigned char reserved3;
+} percomBlock[8];
 
 /**
    A single SSID entry
@@ -253,9 +269,6 @@ void sio_error()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('E');
-#ifdef DEBUG
-  Debug_printf("E");
-#endif
 }
 
 /**
@@ -396,7 +409,7 @@ void sio_net_set_ssid()
 */
 void sio_status()
 {
-  byte status[4] = {0x10, 0xFF, 0xFE, 0x00};
+  byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
   sio_to_computer(status, sizeof(status), false); // command always completes.
 }
 
@@ -449,6 +462,45 @@ void sio_tnfs_mount_host()
 }
 
 /**
+   Update PERCOM block from the total # of sectors.
+*/
+void derive_percom_block(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors)
+{
+//  // Start with 40T/1S 720 Sectors, sector size passed in
+//  percomBlock[deviceSlot].num_tracks = 40;
+//  percomBlock[deviceSlot].step_rate = 1;
+////  percomBlock[deviceSlot].sectors_per_track = 18;
+//  percomBlock[deviceSlot].num_sides = 1;
+////  percomBlock[deviceSlot].density = (sectorSize>128 ? 4 : 0); // >128 bytes = MFM
+////   percomBlock[deviceSlot].sector_size = sectorSize;
+//  percomBlock[deviceSlot].drive_present = 1;
+//  percomBlock[deviceSlot].reserved1 = 0;
+//  percomBlock[deviceSlot].reserved2 = 0;
+//  percomBlock[deviceSlot].reserved3 = 0;
+//
+//  if (numSectors == 1040) // 1050 density
+//  {
+////    percomBlock[deviceSlot].sectors_per_track = 26;
+//    percomBlock[deviceSlot].density=4; // 1050 density is MFM, override.
+//  }
+//  else if (numSectors == 1440)
+//  {
+//    percomBlock[deviceSlot].num_sides = 2;
+//  }
+//  else if (numSectors == 2880)
+//  {
+//    percomBlock[deviceSlots].num_sides = 2;
+//    percomBlock[deviceSlots].num_tracks = 80;
+//  }
+//  else
+//  {
+//    // This is a custom size, one long track.
+////    percomBlock[deviceSlots].num_tracks=1;
+////    percomBlock[deviceSlots].sectors_per_track=numSectors;
+//  }
+}
+
+/**
    SIO TNFS Disk Image Mount
 */
 void sio_disk_image_mount()
@@ -469,6 +521,7 @@ void sio_disk_image_mount()
     tnfs_read(deviceSlot, 2);
     newss = (256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
     sectorSize[deviceSlot] = newss;
+//    derive_percom_block(numSectors);
     sio_complete();
   }
 }
@@ -607,6 +660,10 @@ void sio_write()
       firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
     }
     sio_complete();
+  }
+  else
+  {
+    sio_error();
   }
 }
 
@@ -1530,7 +1587,7 @@ void loop()
 
     if (sio_valid_device_id())
     {
-      if (cmdFrame.comnd == 0x3F)
+      if ((cmdFrame.comnd == 0x3F) || (cmdFrame.comnd == 0x4E) || (cmdFrame.comnd == 0x4F))
       {
         sio_nak();
       }
