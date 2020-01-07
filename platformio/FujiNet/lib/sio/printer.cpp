@@ -159,9 +159,18 @@ std::u16string sioPrinter::buffer_to_string(byte *buffer)
       escMode = true;
     else if (intlFlag && (buffer[i] < 32 || buffer[i] == 123)) //|| buffer[i] == 96?
     {
-      char16_t c = 35; // # - placeholder until i can figure out int'l char's
+      char16_t c;
+      // not sure about ATASCII 96. Codes 28-31 are arrows and require the symbol font - more work needed.
+      if (buffer[i] < 27)
+        c = (char16_t)intlchar[buffer[i]];
+      else if (buffer[i] == 123)
+        c = 196;
+      else
+        c = 35;
+
       if (uscoreFlag)
         c += 0x0100; // underscore
+        
       out.push_back(c);
     }
     //printable characters for 1027 Standard Set
