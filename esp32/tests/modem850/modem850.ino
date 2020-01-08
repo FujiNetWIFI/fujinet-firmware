@@ -39,7 +39,7 @@ enum {ID, COMMAND, AUX1, AUX2, CHECKSUM, ACK, NAK, PROCESS, WAIT} cmdState;
 bool boot_fujinet_config = true;
 
 // Uncomment for Serial Debug
-//#define DEBUG_S
+#define DEBUG_S
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -1177,28 +1177,45 @@ void command()
       host = cmd.substring(4, cmd.length());
       port = "23"; // Telnet default
     }
-    SIO_UART.print("Connecting to ");
-    SIO_UART.print(host);
-    SIO_UART.print(":");
-    SIO_UART.println(port);
-    char *hostChr = new char[host.length() + 1];
-    host.toCharArray(hostChr, host.length() + 1);
-    int portInt = port.toInt();
-    tcpClient.setNoDelay(true); // Try to disable naggle
-    if (tcpClient.connect(hostChr, portInt))
+#ifdef DEBUG
+      Debug_print("DIALING: ");
+      Debug_println(host);
+#endif
+    if (host == "5551234") // Fake it for BobTerm
     {
-      tcpClient.setNoDelay(true); // Try to disable naggle
+      delay(1300); // Wait a moment so bobterm catches it
       SIO_UART.print("CONNECT ");
       SIO_UART.println(myBps);
-      cmdMode = false;
       SIO_UART.flush();
-      if (LISTEN_PORT > 0) tcpServer.stop();
+#ifdef DEBUG
+      Debug_println("CONNECT FAKE!");
+#endif
     }
     else
     {
-      SIO_UART.println("NO CARRIER");
+      SIO_UART.print("Connecting to ");
+      SIO_UART.print(host);
+      SIO_UART.print(":");
+      SIO_UART.println(port);
+      char *hostChr = new char[host.length() + 1];
+      host.toCharArray(hostChr, host.length() + 1);
+      int portInt = port.toInt();
+      tcpClient.setNoDelay(true); // Try to disable naggle
+      if (tcpClient.connect(hostChr, portInt))
+      {
+        tcpClient.setNoDelay(true); // Try to disable naggle
+        SIO_UART.print("CONNECT ");
+        SIO_UART.println(myBps);
+        cmdMode = false;
+        SIO_UART.flush();
+        if (LISTEN_PORT > 0) tcpServer.stop();
+      }
+      else
+      {
+        SIO_UART.println("NO CARRIER");
+      }
+      delete hostChr;
     }
-    delete hostChr;
   }
 
   /**** Connect to WIFI ****/
