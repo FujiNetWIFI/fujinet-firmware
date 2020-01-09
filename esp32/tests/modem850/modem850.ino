@@ -586,7 +586,7 @@ void sio_R_concurrent()
         break;
       }
     case 19200: // Reply with all 0's for now so it won't lock up the atari
-      { char response[] = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0};
+      { char response[] = {0x28, 0xA0, 0x00, 0xA0, 0x28, 0xA0, 0x00, 0xA0, 0x78};
         byte ck = sio_checksum((byte *)response, 9);
         // Write data frame
         SIO_UART.write((byte *)response, 9);
