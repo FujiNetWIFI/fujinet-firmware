@@ -22,8 +22,8 @@
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-// #define DEBUG_N
-// #define DEBUG_HOST "192.168.1.7"
+//#define DEBUG_N
+//#define DEBUG_HOST "192.168.1.8"
 
 #ifdef ESP8266
 #define SIO_UART Serial
