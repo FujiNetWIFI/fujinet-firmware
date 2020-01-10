@@ -45,6 +45,7 @@
 #define PIN_CMD         21
 #endif
 
+#define DELAY_T4  850
 #define DELAY_T5  250
 
 /**
@@ -330,6 +331,8 @@ byte sio_to_peripheral(byte* b, unsigned short len)
     Debug_printf("%02x ", sector[i]);
   Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
+
+  delayMicroseconds(DELAY_T4);
 
   if (sio_checksum(b, len) != ck)
   {
