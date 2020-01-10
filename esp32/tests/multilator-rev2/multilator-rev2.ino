@@ -45,11 +45,6 @@
 #define PIN_CMD         21
 #endif
 
-#define DELAY_T0  750
-#define DELAY_T1  650
-#define DELAY_T2  0
-#define DELAY_T3  1000
-#define DELAY_T4  850
 #define DELAY_T5  250
 
 /**
@@ -243,6 +238,7 @@ bool sio_valid_device_id()
 void sio_nak()
 {
   SIO_UART.write('N');
+  SIO_UART.flush();
 }
 
 /**
@@ -251,6 +247,7 @@ void sio_nak()
 void sio_ack()
 {
   SIO_UART.write('A');
+  SIO_UART.flush();
 }
 
 /**
@@ -260,6 +257,7 @@ void sio_complete()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('C');
+  SIO_UART.flush();
 }
 
 /**
@@ -269,6 +267,7 @@ void sio_error()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('E');
+  SIO_UART.flush();
 }
 
 /**
@@ -281,18 +280,19 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
 {
   byte ck = sio_checksum(b, len);
 
-  delayMicroseconds(DELAY_T5);
-
   if (err == true)
     sio_error();
   else
     sio_complete();
+
+  delayMicroseconds(DELAY_T5); // not documented, but required
 
   // Write data frame.
   SIO_UART.write(b, len);
 
   // Write checksum
   SIO_UART.write(ck);
+  SIO_UART.flush();
 
 #ifdef DEBUG
   Debug_printf("TO COMPUTER: ");
@@ -330,8 +330,6 @@ byte sio_to_peripheral(byte* b, unsigned short len)
     Debug_printf("%02x ", sector[i]);
   Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
-
-  delayMicroseconds(DELAY_T4);
 
   if (sio_checksum(b, len) != ck)
   {
@@ -1566,8 +1564,6 @@ void loop()
     sio_led(true);
     memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
 
-    delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
-
     // read cmd frame
     SIO_UART.readBytes(cmdFrame.cmdFrameData, 5);
 #ifdef DEBUG
@@ -1576,14 +1572,8 @@ void loop()
 
     // Wait for CMD line to raise again.
 
-    delayMicroseconds(DELAY_T1);
-
     while (digitalRead(PIN_CMD) == LOW)
       yield();
-
-    // T2
-
-    delayMicroseconds(DELAY_T2);
 
     if (sio_valid_device_id())
     {
@@ -1594,8 +1584,6 @@ void loop()
       else
       {
         sio_ack();
-
-        delayMicroseconds(DELAY_T3);
 
         cmdPtr[cmdFrame.comnd]();
       }
