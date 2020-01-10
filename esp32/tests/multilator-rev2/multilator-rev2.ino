@@ -150,6 +150,20 @@ struct
   unsigned char session_idh;
 } tnfsSessionIDs[8];
 
+union
+{
+  struct
+  {
+    char ssid[32];
+    unsigned char localIP[4];
+    unsigned char gateway[4];
+    unsigned char netmask[4];
+    unsigned char macAddress[6];
+  };
+  unsigned char rawData[50];
+} adapterConfig;
+
+
 #ifdef DEBUG_N
 WiFiClient wificlient;
 #endif
@@ -347,6 +361,38 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 }
 
 /**
+ * Get Adapter config.
+ */
+void sio_get_adapter_config()
+{
+  strcpy(adapterConfig.ssid,netConfig.ssid);
+  
+  adapterConfig.localIP[0]=WiFi.localIP()[0];
+  adapterConfig.localIP[1]=WiFi.localIP()[1];
+  adapterConfig.localIP[2]=WiFi.localIP()[2];
+  adapterConfig.localIP[3]=WiFi.localIP()[3];
+
+  adapterConfig.gateway[0]=WiFi.gatewayIP()[0];
+  adapterConfig.gateway[1]=WiFi.gatewayIP()[1];
+  adapterConfig.gateway[2]=WiFi.gatewayIP()[2];
+  adapterConfig.gateway[3]=WiFi.gatewayIP()[3];
+
+  adapterConfig.netmask[0]=WiFi.subnetMask()[0];
+  adapterConfig.netmask[1]=WiFi.subnetMask()[1];
+  adapterConfig.netmask[2]=WiFi.subnetMask()[2];
+  adapterConfig.netmask[3]=WiFi.subnetMask()[3];
+
+  adapterConfig.macAddress[0]=WiFi.macAddress()[0];
+  adapterConfig.macAddress[1]=WiFi.macAddress()[1];
+  adapterConfig.macAddress[2]=WiFi.macAddress()[2];
+  adapterConfig.macAddress[3]=WiFi.macAddress()[3];
+  adapterConfig.macAddress[4]=WiFi.macAddress()[4];
+  adapterConfig.macAddress[5]=WiFi.macAddress()[5];
+
+  sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);  
+}
+
+/**
    Scan for networks
 */
 void sio_net_scan_networks()
@@ -524,6 +570,17 @@ void sio_disk_image_mount()
 //    derive_percom_block(numSectors);
     sio_complete();
   }
+}
+
+/**
+   SIO TNFS Disk Image uMount
+*/
+void sio_disk_image_umount()
+{
+  unsigned char deviceSlot = cmdFrame.aux1;
+  bool opened = tnfs_close(deviceSlot);
+
+  sio_complete(); // always completes.
 }
 
 /**
@@ -1004,6 +1061,81 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options)
           Debug_print("Successful, file descriptor: #");
           Debug_println(tnfs_fds[deviceSlot], HEX);
 #endif /* DEBUG_S */
+          return true;
+        }
+        else
+        {
+          // unsuccessful
+#ifdef DEBUG
+          Debug_print("Error code #");
+          Debug_println(tnfsPacket.data[0], HEX);
+#endif /* DEBUG_S*/
+          return false;
+        }
+      }
+    }
+    // Otherwise, we timed out.
+    retries++;
+    tnfsPacket.retryCount--;
+#ifdef DEBUG
+    Debug_println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+  }
+#ifdef DEBUG
+  Debug_printf("Failed\n");
+#endif
+  return false;
+}
+
+/**
+   Open 'autorun.atr'
+*/
+bool tnfs_close(unsigned char deviceSlot)
+{
+  int start = millis();
+  int dur = millis() - start;
+  int c = 0;
+  unsigned char retries = 0;
+
+  while (retries < 5)
+  {
+    strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
+    tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
+    tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+    tnfsPacket.retryCount++;  // increase sequence #
+    tnfsPacket.command = 0x23; // CLOSE
+
+    tnfsPacket.data[c++] = tnfs_fds[deviceSlot];
+
+    for (int i = 0; i < strlen(mountPath); i++)
+    {
+      tnfsPacket.data[i + 5] = mountPath[i];
+      c++;
+    }
+
+    UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    UDP.write(tnfsPacket.rawData, c + 4);
+    UDP.endPacket();
+
+    while (dur < 5000)
+    {
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
+      {
+        int l = UDP.read(tnfsPacket.rawData, 516);
+#ifdef DEBUG
+        Debug_print("Resp packet: ");
+        for (int i = 0; i < l; i++)
+        {
+          Debug_print(tnfsPacket.rawData[i], HEX);
+          Debug_print(" ");
+        }
+        Debug_println("");
+#endif // DEBUG_S
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
           return true;
         }
         else
@@ -1553,6 +1685,8 @@ void setup()
   cmdPtr[0xF3] = sio_write_hosts_slots;
   cmdPtr[0xF2] = sio_read_device_slots;
   cmdPtr[0xF1] = sio_write_device_slots;
+  cmdPtr[0xE9] = sio_disk_image_umount;
+  cmdPtr[0xE8] = sio_get_adapter_config;
 
   // Go ahead and flush anything out of the serial port
   sio_flush();
