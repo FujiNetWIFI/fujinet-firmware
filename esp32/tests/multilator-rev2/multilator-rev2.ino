@@ -155,12 +155,14 @@ union
   struct
   {
     char ssid[32];
+    char hostname[64];
     unsigned char localIP[4];
     unsigned char gateway[4];
     unsigned char netmask[4];
+    unsigned char dnsIP[4];
     unsigned char macAddress[6];
   };
-  unsigned char rawData[50];
+  unsigned char rawData[118];
 } adapterConfig;
 
 
@@ -366,6 +368,7 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 void sio_get_adapter_config()
 {
   strcpy(adapterConfig.ssid,netConfig.ssid);
+  strcpy(adapterConfig.hostname,WiFi.hostname().c_str());
   
   adapterConfig.localIP[0]=WiFi.localIP()[0];
   adapterConfig.localIP[1]=WiFi.localIP()[1];
@@ -381,6 +384,11 @@ void sio_get_adapter_config()
   adapterConfig.netmask[1]=WiFi.subnetMask()[1];
   adapterConfig.netmask[2]=WiFi.subnetMask()[2];
   adapterConfig.netmask[3]=WiFi.subnetMask()[3];
+
+  adapterConfig.dnsIP[0]=WiFi.dnsIP()[0];
+  adapterConfig.dnsIP[1]=WiFi.dnsIP()[1];
+  adapterConfig.dnsIP[2]=WiFi.dnsIP()[2];
+  adapterConfig.dnsIP[3]=WiFi.dnsIP()[3];
 
   adapterConfig.macAddress[0]=WiFi.macAddress()[0];
   adapterConfig.macAddress[1]=WiFi.macAddress()[1];
