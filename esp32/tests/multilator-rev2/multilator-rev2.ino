@@ -259,6 +259,9 @@ bool sio_valid_device_id()
 void sio_nak()
 {
   SIO_UART.write('N');
+#ifdef ESP32
+  SIO_UART.flush();
+#endif
 }
 
 /**
@@ -267,6 +270,9 @@ void sio_nak()
 void sio_ack()
 {
   SIO_UART.write('A');
+#ifdef ESP32
+  SIO_UART.flush();
+#endif
 }
 
 /**
@@ -276,6 +282,9 @@ void sio_complete()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('C');
+#ifdef ESP32
+  SIO_UART.flush();
+#endif
 }
 
 /**
@@ -285,6 +294,9 @@ void sio_error()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('E');
+#ifdef ESP32
+  SIO_UART.flush();
+#endif
 }
 
 /**
@@ -297,18 +309,27 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
 {
   byte ck = sio_checksum(b, len);
 
+#ifdef ESP8266
   delayMicroseconds(DELAY_T5);
+#endif
 
   if (err == true)
     sio_error();
   else
     sio_complete();
 
+#ifdef ESP32
+  delayMicroseconds(DELAY_T5); // not documented, but required
+#endif
+
   // Write data frame.
   SIO_UART.write(b, len);
 
   // Write checksum
   SIO_UART.write(ck);
+#ifdef ESP32
+  SIO_UART.flush();
+#endif
 
 #ifdef DEBUG
   Debug_printf("TO COMPUTER: ");
@@ -1713,7 +1734,9 @@ void loop()
     sio_led(true);
     memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
 
+#ifdef ESP8266
     delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
+#endif
 
     // read cmd frame
     SIO_UART.readBytes(cmdFrame.cmdFrameData, 5);
@@ -1723,14 +1746,16 @@ void loop()
 
     // Wait for CMD line to raise again.
 
+#ifdef ESP8266
     delayMicroseconds(DELAY_T1);
+#endif
 
     while (digitalRead(PIN_CMD) == LOW)
       yield();
 
-    // T2
-
+#ifdef ESP8266
     delayMicroseconds(DELAY_T2);
+#endif
 
     if (sio_valid_device_id())
     {
@@ -1742,7 +1767,9 @@ void loop()
       {
         sio_ack();
 
+#ifdef ESP8266
         delayMicroseconds(DELAY_T3);
+#endif
 
         cmdPtr[cmdFrame.comnd]();
       }
