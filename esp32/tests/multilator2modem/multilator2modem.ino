@@ -673,6 +673,23 @@ void sio_disk_image_umount()
 }
 
 /**
+ * Read percom block
+ */
+void sio_read_percom_block()
+{
+  sio_to_computer((byte *)&percomBlock, sizeof(percomBlock), false);
+}
+
+/**
+ * Write percom block
+ */
+void sio_write_percom_block()
+{
+  sio_to_peripheral((byte *)&percomBlock, sizeof(percomBlock));
+  sio_complete();  
+}
+
+/**
    Open TNFS Directory
 */
 void sio_tnfs_open_directory()
