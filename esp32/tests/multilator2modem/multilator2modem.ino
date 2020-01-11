@@ -349,7 +349,7 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
   byte ck = sio_checksum(b, len);
 
 #ifdef ESP8266
-//  delayMicroseconds(DELAY_T5);
+  //  delayMicroseconds(DELAY_T5);
 #endif
 
   if (err == true)
@@ -357,9 +357,9 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
   else
     sio_complete();
 
-//#ifdef ESP32
+  //#ifdef ESP32
   delayMicroseconds(DELAY_T5); // not documented, but required
-//#endif
+  //#endif
 
   // Write data frame.
   SIO_UART.write(b, len);
@@ -423,46 +423,46 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 }
 
 /**
- * Get Adapter config.
- */
+   Get Adapter config.
+*/
 void sio_get_adapter_config()
 {
-  strcpy(adapterConfig.ssid,netConfig.ssid);
+  strcpy(adapterConfig.ssid, netConfig.ssid);
 #ifdef ESP8266
-  strcpy(adapterConfig.hostname,WiFi.hostname().c_str());
+  strcpy(adapterConfig.hostname, WiFi.hostname().c_str());
 #endif
 #ifdef ESP32
-  strcpy(adapterConfig.hostname,WiFi.getHostname());
+  strcpy(adapterConfig.hostname, WiFi.getHostname());
 #endif
 
-  adapterConfig.localIP[0]=WiFi.localIP()[0];
-  adapterConfig.localIP[1]=WiFi.localIP()[1];
-  adapterConfig.localIP[2]=WiFi.localIP()[2];
-  adapterConfig.localIP[3]=WiFi.localIP()[3];
+  adapterConfig.localIP[0] = WiFi.localIP()[0];
+  adapterConfig.localIP[1] = WiFi.localIP()[1];
+  adapterConfig.localIP[2] = WiFi.localIP()[2];
+  adapterConfig.localIP[3] = WiFi.localIP()[3];
 
-  adapterConfig.gateway[0]=WiFi.gatewayIP()[0];
-  adapterConfig.gateway[1]=WiFi.gatewayIP()[1];
-  adapterConfig.gateway[2]=WiFi.gatewayIP()[2];
-  adapterConfig.gateway[3]=WiFi.gatewayIP()[3];
+  adapterConfig.gateway[0] = WiFi.gatewayIP()[0];
+  adapterConfig.gateway[1] = WiFi.gatewayIP()[1];
+  adapterConfig.gateway[2] = WiFi.gatewayIP()[2];
+  adapterConfig.gateway[3] = WiFi.gatewayIP()[3];
 
-  adapterConfig.netmask[0]=WiFi.subnetMask()[0];
-  adapterConfig.netmask[1]=WiFi.subnetMask()[1];
-  adapterConfig.netmask[2]=WiFi.subnetMask()[2];
-  adapterConfig.netmask[3]=WiFi.subnetMask()[3];
+  adapterConfig.netmask[0] = WiFi.subnetMask()[0];
+  adapterConfig.netmask[1] = WiFi.subnetMask()[1];
+  adapterConfig.netmask[2] = WiFi.subnetMask()[2];
+  adapterConfig.netmask[3] = WiFi.subnetMask()[3];
 
-  adapterConfig.dnsIP[0]=WiFi.dnsIP()[0];
-  adapterConfig.dnsIP[1]=WiFi.dnsIP()[1];
-  adapterConfig.dnsIP[2]=WiFi.dnsIP()[2];
-  adapterConfig.dnsIP[3]=WiFi.dnsIP()[3];
+  adapterConfig.dnsIP[0] = WiFi.dnsIP()[0];
+  adapterConfig.dnsIP[1] = WiFi.dnsIP()[1];
+  adapterConfig.dnsIP[2] = WiFi.dnsIP()[2];
+  adapterConfig.dnsIP[3] = WiFi.dnsIP()[3];
 
-  adapterConfig.macAddress[0]=WiFi.macAddress()[0];
-  adapterConfig.macAddress[1]=WiFi.macAddress()[1];
-  adapterConfig.macAddress[2]=WiFi.macAddress()[2];
-  adapterConfig.macAddress[3]=WiFi.macAddress()[3];
-  adapterConfig.macAddress[4]=WiFi.macAddress()[4];
-  adapterConfig.macAddress[5]=WiFi.macAddress()[5];
+  adapterConfig.macAddress[0] = WiFi.macAddress()[0];
+  adapterConfig.macAddress[1] = WiFi.macAddress()[1];
+  adapterConfig.macAddress[2] = WiFi.macAddress()[2];
+  adapterConfig.macAddress[3] = WiFi.macAddress()[3];
+  adapterConfig.macAddress[4] = WiFi.macAddress()[4];
+  adapterConfig.macAddress[5] = WiFi.macAddress()[5];
 
-  sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);  
+  sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);
 }
 
 /**
@@ -531,20 +531,20 @@ void sio_status()
   switch (cmdFrame.devic)
   {
     case 0x50:
-    {
-      byte status[2] = {0x00, 0x00};
-      sio_to_computer(status, sizeof(status), false);
+      {
+        byte status[2] = {0x00, 0x00};
+        sio_to_computer(status, sizeof(status), false);
 #ifdef DEBUG
-      Debug_println("R: Status Complete");
+        Debug_println("R: Status Complete");
 #endif
-      break;
-    }
+        break;
+      }
     case 0x31:
-    {
-      byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
-      sio_to_computer(status, sizeof(status), false);
-      break;
-    }
+      {
+        byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
+        sio_to_computer(status, sizeof(status), false);
+        break;
+      }
   }
 }
 
@@ -601,38 +601,38 @@ void sio_tnfs_mount_host()
 */
 void derive_percom_block(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors)
 {
-//  // Start with 40T/1S 720 Sectors, sector size passed in
-//  percomBlock[deviceSlot].num_tracks = 40;
-//  percomBlock[deviceSlot].step_rate = 1;
-////  percomBlock[deviceSlot].sectors_per_track = 18;
-//  percomBlock[deviceSlot].num_sides = 1;
-////  percomBlock[deviceSlot].density = (sectorSize>128 ? 4 : 0); // >128 bytes = MFM
-////   percomBlock[deviceSlot].sector_size = sectorSize;
-//  percomBlock[deviceSlot].drive_present = 1;
-//  percomBlock[deviceSlot].reserved1 = 0;
-//  percomBlock[deviceSlot].reserved2 = 0;
-//  percomBlock[deviceSlot].reserved3 = 0;
-//
-//  if (numSectors == 1040) // 1050 density
-//  {
-////    percomBlock[deviceSlot].sectors_per_track = 26;
-//    percomBlock[deviceSlot].density=4; // 1050 density is MFM, override.
-//  }
-//  else if (numSectors == 1440)
-//  {
-//    percomBlock[deviceSlot].num_sides = 2;
-//  }
-//  else if (numSectors == 2880)
-//  {
-//    percomBlock[deviceSlots].num_sides = 2;
-//    percomBlock[deviceSlots].num_tracks = 80;
-//  }
-//  else
-//  {
-//    // This is a custom size, one long track.
-////    percomBlock[deviceSlots].num_tracks=1;
-////    percomBlock[deviceSlots].sectors_per_track=numSectors;
-//  }
+  //  // Start with 40T/1S 720 Sectors, sector size passed in
+  //  percomBlock[deviceSlot].num_tracks = 40;
+  //  percomBlock[deviceSlot].step_rate = 1;
+  ////  percomBlock[deviceSlot].sectors_per_track = 18;
+  //  percomBlock[deviceSlot].num_sides = 1;
+  ////  percomBlock[deviceSlot].density = (sectorSize>128 ? 4 : 0); // >128 bytes = MFM
+  ////   percomBlock[deviceSlot].sector_size = sectorSize;
+  //  percomBlock[deviceSlot].drive_present = 1;
+  //  percomBlock[deviceSlot].reserved1 = 0;
+  //  percomBlock[deviceSlot].reserved2 = 0;
+  //  percomBlock[deviceSlot].reserved3 = 0;
+  //
+  //  if (numSectors == 1040) // 1050 density
+  //  {
+  ////    percomBlock[deviceSlot].sectors_per_track = 26;
+  //    percomBlock[deviceSlot].density=4; // 1050 density is MFM, override.
+  //  }
+  //  else if (numSectors == 1440)
+  //  {
+  //    percomBlock[deviceSlot].num_sides = 2;
+  //  }
+  //  else if (numSectors == 2880)
+  //  {
+  //    percomBlock[deviceSlots].num_sides = 2;
+  //    percomBlock[deviceSlots].num_tracks = 80;
+  //  }
+  //  else
+  //  {
+  //    // This is a custom size, one long track.
+  ////    percomBlock[deviceSlots].num_tracks=1;
+  ////    percomBlock[deviceSlots].sectors_per_track=numSectors;
+  //  }
 }
 
 /**
@@ -656,7 +656,7 @@ void sio_disk_image_mount()
     tnfs_read(deviceSlot, 2);
     newss = (256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
     sectorSize[deviceSlot] = newss;
-//    derive_percom_block(numSectors);
+    //    derive_percom_block(numSectors);
     sio_complete();
   }
 }
@@ -782,7 +782,7 @@ void sio_write()
       int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
       int sectorNum = offset;
       unsigned char deviceSlot = cmdFrame.devic - 0x31;
-    
+
       if (sectorNum < 4)
       {
         // First three sectors are always single density
@@ -799,9 +799,9 @@ void sio_write()
         offset += 16; // skip 16 byte ATR Header
         ss = sectorSize[deviceSlot];
       }
-    
+
       ck = sio_to_peripheral(sector, ss);
-    
+
       if (ck == sio_checksum(sector, ss))
       {
         if (load_config == true)
@@ -1379,7 +1379,7 @@ bool tnfs_readdir(unsigned char hostSlot)
     // Otherwise, we timed out.
 #ifdef DEBUG
     Debug_println("Timeout after 5000ms.");
-#endif 
+#endif
     retries++;
     tnfsPacket.retryCount--;
   }
@@ -1793,55 +1793,49 @@ void sio_R_config()
 */
 void sio_R_concurrent()
 {
-  sio_complete();
+  char response[] = {0x28, 0xA0, 0x00, 0xA0, 0x28, 0xA0, 0x00, 0xA0, 0x78}; // 19200
 
   switch (modemBaud)
   {
     case 300:
-      { char response[] = {0xA0, 0xA0, 0x0B, 0xA0, 0xA0, 0xA0, 0x0B, 0xA0, 0x78};
-        byte ck = sio_checksum((byte *)response, 9);
-        SIO_UART.write((byte *)response, 9);
-        SIO_UART.write(ck); // Write data frame checksum
-        break;
-      }
+      response[0]=response[4]=0xA0;
+      response[2]=response[6]=0x0B;
+      break;
+    case 600:
+      response[0]=response[4]=0xCC;
+      response[2]=response[6]=0x05;
+      break;
     case 1200:
-      { char response[] = {0xE3, 0xA0, 0x02, 0xA0, 0xE3, 0xA0, 0x02, 0xA0, 0x78};
-        byte ck = sio_checksum((byte *)response, 9);
-        SIO_UART.write((byte *)response, 9);
-        SIO_UART.write(ck); // Write data frame checksum
-        break;
-      }
+      response[0]=response[4]=0xE3;
+      response[2]=response[6]=0x02;
+      break;
+    case 1800:
+      response[0]=response[4]=0xEA;
+      response[2]=response[6]=0x01;
+      break;
     case 2400:
-      { char response[] = {0x6E, 0xA0, 0x01, 0xA0, 0x6E, 0xA0, 0x01, 0xA0, 0x78};
-        byte ck = sio_checksum((byte *)response, 9);
-        SIO_UART.write((byte *)response, 9);
-        SIO_UART.write(ck); // Write data frame checksum
-        break;
-      }
+      response[0]=response[4]=0x6E;
+      response[2]=response[6]=0x01;
+      break;
     case 4800:
-      { char response[] = {0xB3, 0xA0, 0x00, 0xA0, 0xB3, 0xA0, 0x00, 0xA0, 0x78};
-        byte ck = sio_checksum((byte *)response, 9);
-        SIO_UART.write((byte *)response, 9);
-        SIO_UART.write(ck); // Write data frame checksum
-        break;
-      }
+      response[0]=response[4]=0xB3;
+      response[2]=response[6]=0x00;
+      break;
     case 9600:
-      { char response[] = {0x56, 0xA0, 0x00, 0xA0, 0x56, 0xA0, 0x00, 0xA0, 0x78};
-        byte ck = sio_checksum((byte *)response, 9);
-         SIO_UART.write((byte *)response, 9);
-        SIO_UART.write(ck); // Write data frame checksum
-        break;
-      }
+      response[0]=response[4]=0x56;
+      response[2]=response[6]=0x00;
+      break;
     case 19200:
-      { char response[] = {0x28, 0xA0, 0x00, 0xA0, 0x28, 0xA0, 0x00, 0xA0, 0x78};
-        byte ck = sio_checksum((byte *)response, 9);
-        SIO_UART.write((byte *)response, 9);
-        SIO_UART.write(ck); // Write data frame checksum
-        break;
-      }
+      response[0]=response[4]=0x28;
+      response[2]=response[6]=0x00;
+      break;
   }
 
-  SIO_UART.flush(); // needed for both esp32 and esp8266
+  sio_to_computer((byte *)response,sizeof(response),false);
+
+#ifndef ESP32
+  SIO_UART.flush(); // ok, WHY?
+#endif
 
 #ifdef DEBUG
   Debug_println("R:Stream: Start");
@@ -1869,8 +1863,8 @@ void modemCommand()
   long newBps = 0;
 
   // Replace EOL with CR.
-  if (upCmd.indexOf(0x9b)!=0)
-    upCmd[upCmd.indexOf(0x9b)]=0x0D;
+  if (upCmd.indexOf(0x9b) != 0)
+    upCmd[upCmd.indexOf(0x9b)] = 0x0D;
 
   /**** Just AT ****/
   if (upCmd == "AT") SIO_UART.println("OK");
@@ -1891,8 +1885,8 @@ void modemCommand()
       port = "23"; // Telnet default
     }
 #ifdef DEBUG
-      Debug_print("DIALING: ");
-      Debug_println(host);
+    Debug_print("DIALING: ");
+    Debug_println(host);
 #endif
     if (host == "5551234") // Fake it for BobTerm
     {
@@ -1900,7 +1894,7 @@ void modemCommand()
       SIO_UART.print("CONNECT ");
       SIO_UART.println(modemBaud);
 #ifdef ESP32
-  SIO_UART.flush();
+      SIO_UART.flush();
 #endif
 #ifdef DEBUG
       Debug_println("CONNECT FAKE!");
@@ -2111,7 +2105,7 @@ void modemCommand()
   }
 
   /**** Set Listening Port ****/
-  else if(upCmd.indexOf("ATPORT") == 0)
+  else if (upCmd.indexOf("ATPORT") == 0)
   {
     long port;
     port = cmd.substring(6).toInt();
@@ -2239,7 +2233,7 @@ void loop()
 {
 #ifdef DEBUG_N
   /* Connect to debug server if we aren't and WiFi is connected */
-  if( !wificlient.connected() && WiFi.status() == WL_CONNECTED )
+  if ( !wificlient.connected() && WiFi.status() == WL_CONNECTED )
   {
     wificlient.connect(DEBUG_HOST, 6502);
     wificlient.println(TEST_NAME);
@@ -2257,7 +2251,7 @@ void loop()
     sio_led(true);
     memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
 #ifdef ESP8266
-//    delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
+    //    delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
 #endif
 
     // read cmd frame
@@ -2267,7 +2261,7 @@ void loop()
 #endif
 
 #ifdef ESP8266
-//    delayMicroseconds(DELAY_T1);
+    //    delayMicroseconds(DELAY_T1);
 #endif
 
     // Wait for CMD line to raise again.
@@ -2275,7 +2269,7 @@ void loop()
       yield();
 
 #ifdef ESP8266
-//    delayMicroseconds(DELAY_T2);
+    //    delayMicroseconds(DELAY_T2);
 #endif
 
     if (sio_valid_device_id())
@@ -2310,19 +2304,19 @@ void loop()
           lastRingMs = millis();
         }
       }
-  
+
       // In command mode - don't exchange with TCP but gather characters to a string
       if (SIO_UART.available())
       {
         char chr = SIO_UART.read();
-  
+
         // Return, enter, new line, carriage return.. anything goes to end the command
         if ((chr == '\n') || (chr == '\r') || (chr == 0x9B))
         {
-  #ifdef DEBUG
+#ifdef DEBUG
           Debug_print(cmd);
           Debug_println(" | CR");
-  #endif
+#endif
           modemCommand();
         }
         // Backspace or delete deletes previous character
@@ -2349,7 +2343,7 @@ void loop()
       if (SIO_UART.available())
       {
         //led_on();
-  
+
         // In telnet in worst case we have to escape every byte
         // so leave half of the buffer always free
         int max_buf_size;
@@ -2357,12 +2351,12 @@ void loop()
           max_buf_size = TX_BUF_SIZE / 2;
         else
           max_buf_size = TX_BUF_SIZE;
-  
+
         // Read from serial, the amount available up to
         // maximum size of the buffer
         size_t len = std::min(SIO_UART.available(), max_buf_size);
         SIO_UART.readBytes(&txBuf[0], len);
-  
+
         // Disconnect if going to AT mode with "+++" sequence
         for (int i = 0; i < (int)len; i++)
         {
@@ -2376,7 +2370,7 @@ void loop()
             plusCount = 0;
           }
         }
-  
+
         // Double (escape) every 0xff for telnet, shifting the following bytes
         // towards the end of the buffer from that point
         if (telnet == true)
@@ -2393,12 +2387,12 @@ void loop()
             }
           }
         }
-  
+
         // Write the buffer to TCP finally
         tcpClient.write(&txBuf[0], len);
         yield();
       }
-  
+
       // Transmit from TCP to terminal
       if (tcpClient.available())
       {
@@ -2406,7 +2400,7 @@ void loop()
         char buf[128];
         int avail = tcpClient.available();
         int i;
-  
+
         if (avail > 128)
         {
           tcpClient.readBytes(buf, 128);
@@ -2421,7 +2415,7 @@ void loop()
         }
       }
     }
-  
+
     // If we have received "+++" as last bytes from serial port and there
     // has been over a second without any more bytes, disconnect
     if (plusCount >= 3)
@@ -2432,7 +2426,7 @@ void loop()
         plusCount = 0;
       }
     }
-  
+
     // Go to command mode if TCP disconnected and not in command mode
     if ((!tcpClient.connected()) && (cmdMode == false))
     {
