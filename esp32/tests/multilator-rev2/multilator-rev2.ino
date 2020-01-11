@@ -368,8 +368,13 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 void sio_get_adapter_config()
 {
   strcpy(adapterConfig.ssid,netConfig.ssid);
-  strcpy(adapterConfig.hostname,WiFi.hostname().c_str());
   
+#ifdef ESP8266
+  strcpy(adapterConfig.hostname,WiFi.hostname().c_str());
+#else
+  strcpy(adapterConfig.hostname,WiFi.getHostname());
+#endif
+
   adapterConfig.localIP[0]=WiFi.localIP()[0];
   adapterConfig.localIP[1]=WiFi.localIP()[1];
   adapterConfig.localIP[2]=WiFi.localIP()[2];
