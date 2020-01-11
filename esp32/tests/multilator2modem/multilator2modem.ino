@@ -239,9 +239,7 @@ uint8_t txBuf[TX_BUF_SIZE];
 */
 void wifi_led(bool onOff)
 {
-#ifdef ESP8266
-  digitalWrite(PIN_LED, (onOff ? LOW : HIGH));
-#elif defined(ESP32)
+#ifdef ESP32
   digitalWrite(PIN_LED1, (onOff ? LOW : HIGH));
 #endif
 }
@@ -297,6 +295,9 @@ void sio_nak()
 #ifdef ESP32
   SIO_UART.flush();
 #endif
+#ifdef DEBUG
+  Debug_println("NAK!");
+#endif
 }
 
 /**
@@ -307,6 +308,9 @@ void sio_ack()
   SIO_UART.write('A');
 #ifdef ESP32
   SIO_UART.flush();
+#endif
+#ifdef DEBUG
+  Debug_println("ACK!");
 #endif
 }
 
@@ -344,12 +348,18 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
 {
   byte ck = sio_checksum(b, len);
 
+#ifdef ESP8266
+//  delayMicroseconds(DELAY_T5);
+#endif
+
   if (err == true)
     sio_error();
   else
     sio_complete();
 
+//#ifdef ESP32
   delayMicroseconds(DELAY_T5); // not documented, but required
+//#endif
 
   // Write data frame.
   SIO_UART.write(b, len);
@@ -364,7 +374,7 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
   Debug_printf("TO COMPUTER: ");
   for (int i = 0; i < len; i++)
     Debug_printf("%02x ", b[i]);
-  Debug_printf("\nCKSUM: %02x\n\n", ck);
+  Debug_printf("\r\nCKSUM: %02x\r\n\r\n", ck);
 #endif
 
 }
@@ -389,12 +399,12 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   // Receive Checksum
   ck = SIO_UART.read();
 
-#ifdef DEBUG
-  Debug_printf("l: %d\n", l);
+#ifdef DEBUG_VERBOSE
+  Debug_printf("l: %d\r\n", l);
   Debug_printf("TO PERIPHERAL: ");
   for (int i = 0; i < len; i++)
     Debug_printf("%02x ", sector[i]);
-  Debug_printf("\nCKSUM: %02x\n\n", ck);
+  Debug_printf("\r\nCKSUM: %02x\r\n\r\n", ck);
 #endif
 
   delayMicroseconds(DELAY_T4);
@@ -505,7 +515,7 @@ void sio_net_set_ssid()
   else
   {
 #ifdef DEBUG
-    Debug_printf("Connecting to net: %s password: %s\n", netConfig.ssid, netConfig.password);
+    Debug_printf("Connecting to net: %s password: %s\r\n", netConfig.ssid, netConfig.password);
 #endif
     WiFi.begin(netConfig.ssid, netConfig.password);
     UDP.begin(16384);
@@ -524,6 +534,9 @@ void sio_status()
     {
       byte status[2] = {0x00, 0x00};
       sio_to_computer(status, sizeof(status), false);
+#ifdef DEBUG
+      Debug_println("R: Status Complete");
+#endif
       break;
     }
     case 0x31:
@@ -710,6 +723,10 @@ void sio_high_speed()
 
   sio_to_computer((byte *)&hsd, 1, false);
   SIO_UART.updateBaudRate(38908);
+
+#ifdef DEBUG
+  Debug_println("SIO HIGH SPEED");
+#endif
 }
 
 /**
@@ -873,9 +890,9 @@ void sio_read()
 
       offset += 16;
 #ifdef DEBUG
-      Debug_printf("firstCachedSector: %d\n", firstCachedSector);
-      Debug_printf("cacheOffset: %d\n", cacheOffset);
-      Debug_printf("offset: %d\n", offset);
+      Debug_printf("firstCachedSector: %d\r\n", firstCachedSector);
+      Debug_printf("cacheOffset: %d\r\n", cacheOffset);
+      Debug_printf("offset: %d\r\n", offset);
 #endif
       tnfs_seek(deviceSlot, offset);
       tnfs_read(deviceSlot, 256);
@@ -938,7 +955,7 @@ void sio_read()
 
       cacheOffset = ((sectorNum - firstCachedSector[deviceSlot]) * ss);
 #ifdef DEBUG
-      Debug_printf("cacheOffset: %d\n", cacheOffset);
+      Debug_printf("cacheOffset: %d\r\n", cacheOffset);
 #endif
     }
     d = &sector[0];
@@ -997,7 +1014,7 @@ bool tnfs_mount(unsigned char hostSlot)
 #ifdef DEBUG_VERBOSE
     for (int i = 0; i < 32; i++)
       Debug_printf("%02x ", hostSlots.host[hostSlot][i]);
-    Debug_printf("\n\n");
+    Debug_printf("\r\n\r\n");
     Debug_print("Req Packet: ");
     for (int i = 0; i < 10; i++)
     {
@@ -1064,7 +1081,7 @@ bool tnfs_mount(unsigned char hostSlot)
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("Failed.\r\n");
 #endif
   return false;
 }
@@ -1110,7 +1127,7 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options)
     tnfsPacket.data[c++] = 0x00;
 
 #ifdef DEBUG
-    Debug_printf("Opening /%s\n", mountPath);
+    Debug_printf("Opening /%s\r\n", mountPath);
     Debug_println("");
 #ifdef DEBUG_VERBOSE
     Debug_print("Req Packet: ");
@@ -1171,7 +1188,7 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options)
 #endif
   }
 #ifdef DEBUG
-  Debug_printf("Failed\n");
+  Debug_printf("Failed\r\n");
 #endif
   return false;
 }
@@ -1246,7 +1263,7 @@ bool tnfs_close(unsigned char deviceSlot)
 #endif
   }
 #ifdef DEBUG
-  Debug_printf("Failed\n");
+  Debug_printf("Failed\r\n");
 #endif
   return false;
 }
@@ -1289,7 +1306,7 @@ bool tnfs_opendir(unsigned char hostSlot)
           // Successful
           tnfs_dir_fds[hostSlot] = tnfsPacket.data[1];
 #ifdef DEBUG
-          Debug_printf("Opened dir on slot #%d - fd = %02x\n", hostSlot, tnfs_dir_fds[hostSlot]);
+          Debug_printf("Opened dir on slot #%d - fd = %02x\r\n", hostSlot, tnfs_dir_fds[hostSlot]);
 #endif
           return true;
         }
@@ -1332,7 +1349,7 @@ bool tnfs_readdir(unsigned char hostSlot)
     tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
 
 #ifdef DEBUG
-    Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\n\n", hostSlot, tnfs_dir_fds[hostSlot]);
+    Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\r\n\r\n", hostSlot, tnfs_dir_fds[hostSlot]);
 #endif
 
     UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
@@ -1367,7 +1384,7 @@ bool tnfs_readdir(unsigned char hostSlot)
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("Failed.\r\n");
 #endif
 }
 
@@ -1423,7 +1440,7 @@ bool tnfs_closedir(unsigned char hostSlot)
 #endif
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("Failed.\r\n");
 #endif
   return false;
 }
@@ -1508,7 +1525,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("Failed.\r\n");
 #endif
 }
 
@@ -1588,13 +1605,13 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
 #ifdef DEBUG
     Debug_println("Timeout after 5000ms.");
     if (retries < 5)
-      Debug_printf("Retrying...\n");
+      Debug_printf("Retrying...\r\n");
 #endif
     retries++;
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("Failed.\r\n");
 #endif
   return false;
 }
@@ -1684,13 +1701,13 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
 #ifdef DEBUG
     Debug_println("Timeout after 5000ms.");
     if (retries < 5)
-      Debug_printf("Retrying...\n");
+      Debug_printf("Retrying...\r\n");
 #endif
     tnfsPacket.retryCount--;
     retries++;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("Failed.\r\n");
 #endif
   return false;
 }
@@ -1783,7 +1800,6 @@ void sio_R_concurrent()
     case 300:
       { char response[] = {0xA0, 0xA0, 0x0B, 0xA0, 0xA0, 0xA0, 0x0B, 0xA0, 0x78};
         byte ck = sio_checksum((byte *)response, 9);
-        // Write data frame
         SIO_UART.write((byte *)response, 9);
         SIO_UART.write(ck); // Write data frame checksum
         break;
@@ -1791,7 +1807,6 @@ void sio_R_concurrent()
     case 1200:
       { char response[] = {0xE3, 0xA0, 0x02, 0xA0, 0xE3, 0xA0, 0x02, 0xA0, 0x78};
         byte ck = sio_checksum((byte *)response, 9);
-        // Write data frame
         SIO_UART.write((byte *)response, 9);
         SIO_UART.write(ck); // Write data frame checksum
         break;
@@ -1799,7 +1814,6 @@ void sio_R_concurrent()
     case 2400:
       { char response[] = {0x6E, 0xA0, 0x01, 0xA0, 0x6E, 0xA0, 0x01, 0xA0, 0x78};
         byte ck = sio_checksum((byte *)response, 9);
-        // Write data frame
         SIO_UART.write((byte *)response, 9);
         SIO_UART.write(ck); // Write data frame checksum
         break;
@@ -1807,7 +1821,6 @@ void sio_R_concurrent()
     case 4800:
       { char response[] = {0xB3, 0xA0, 0x00, 0xA0, 0xB3, 0xA0, 0x00, 0xA0, 0x78};
         byte ck = sio_checksum((byte *)response, 9);
-        // Write data frame
         SIO_UART.write((byte *)response, 9);
         SIO_UART.write(ck); // Write data frame checksum
         break;
@@ -1815,24 +1828,20 @@ void sio_R_concurrent()
     case 9600:
       { char response[] = {0x56, 0xA0, 0x00, 0xA0, 0x56, 0xA0, 0x00, 0xA0, 0x78};
         byte ck = sio_checksum((byte *)response, 9);
-        // Write data frame
-        SIO_UART.write((byte *)response, 9);
+         SIO_UART.write((byte *)response, 9);
         SIO_UART.write(ck); // Write data frame checksum
         break;
       }
     case 19200:
       { char response[] = {0x28, 0xA0, 0x00, 0xA0, 0x28, 0xA0, 0x00, 0xA0, 0x78};
         byte ck = sio_checksum((byte *)response, 9);
-        // Write data frame
         SIO_UART.write((byte *)response, 9);
         SIO_UART.write(ck); // Write data frame checksum
         break;
       }
   }
 
-#ifdef ESP32
-  SIO_UART.flush();
-#endif
+  SIO_UART.flush(); // needed for both esp32 and esp8266
 
 #ifdef DEBUG
   Debug_println("R:Stream: Start");
@@ -2248,25 +2257,25 @@ void loop()
     sio_led(true);
     memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
 #ifdef ESP8266
-    delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
+//    delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
 #endif
 
     // read cmd frame
     SIO_UART.readBytes(cmdFrame.cmdFrameData, 5);
 #ifdef DEBUG
-    Debug_printf("CMD Frame: %02x %02x %02x %02x %02x\n", cmdFrame.devic, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2, cmdFrame.cksum);
+    Debug_printf("CMD Frame: %02x %02x %02x %02x %02x\r\n", cmdFrame.devic, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2, cmdFrame.cksum);
+#endif
+
+#ifdef ESP8266
+//    delayMicroseconds(DELAY_T1);
 #endif
 
     // Wait for CMD line to raise again.
-#ifdef ESP8266
-    delayMicroseconds(DELAY_T1);
-#endif
-
-    while (digitalRead(PIN_CMD) == LOW)
+    while (!digitalRead(PIN_CMD))
       yield();
 
 #ifdef ESP8266
-    delayMicroseconds(DELAY_T2);
+//    delayMicroseconds(DELAY_T2);
 #endif
 
     if (sio_valid_device_id())
