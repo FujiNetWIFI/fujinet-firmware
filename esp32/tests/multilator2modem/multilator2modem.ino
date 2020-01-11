@@ -539,7 +539,7 @@ void sio_status()
 #endif
         break;
       }
-    case 0x31:
+    default: // D:
       {
         byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
         sio_to_computer(status, sizeof(status), false);
@@ -776,7 +776,7 @@ void sio_write()
       // for now, just complete
       sio_complete();
       break;
-    case 0x31: // D1
+    default: // D:
       byte ck;
       int ss; // sector size
       int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
