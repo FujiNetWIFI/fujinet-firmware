@@ -19,11 +19,13 @@
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-//#define DEBUG_N
-//#define DEBUG_HOST "192.168.1.8"
+#define DEBUG_N
+#define DEBUG_HOST "192.168.1.8"
+#define DEBUG_SSID "Cherryhomes"
+#define DEBUG_PASSWORD "e1xb64XC46"
 
 // Uncomment for VERBOSE debug output
-//#define DEBUG_VERBOSE
+#define DEBUG_VERBOSE
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -213,6 +215,8 @@ unsigned long ledTime = 0;
 // (that direction is very blocking by the ESP TCP stack,
 // so we can't do one byte a time.)
 uint8_t txBuf[TX_BUF_SIZE];
+bool blockWritePending = false;     // is a BLOCK WRITE pending for the modem?
+byte* blockPtr;                     // pointer in the block write (points somewhere in sector)
 
 // Telnet codes
 #define DO 0xfd
@@ -274,6 +278,8 @@ bool sio_valid_device_id()
 {
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
   if ((load_config == true) && (cmdFrame.devic == 0x31)) // Only respond to 0x31 if in config mode
+    return true;
+  else if (cmdFrame.devic == 0x40) // P: null device
     return true;
   else if (cmdFrame.devic == 0x50) // 850 R: Device Emulator
     return true;
@@ -533,28 +539,34 @@ void sio_status()
   {
     case 0x50:
       {
-        byte status[2] = {0x00, 0x00};
+        byte status[2] = {0x00, 0xFC};
         sio_to_computer(status, sizeof(status), false);
 #ifdef DEBUG
         Debug_println("R: Status Complete");
 #endif
         break;
       }
+    case 0x45:
+      {
+        byte status[4] = {0x00, 0x00, 0x10, 0x00};
+        sio_to_computer(status, sizeof(status), false);
+        break;
+      }
     default: // D:
       {
         byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
-        byte deviceSlot=cmdFrame.devic-0x31;
-        
-        if (sectorSize[deviceSlot]==256)
+        byte deviceSlot = cmdFrame.devic - 0x31;
+
+        if (sectorSize[deviceSlot] == 256)
         {
-          status[0]|=0x20;
+          status[0] |= 0x20;
         }
 
-        if (percomBlock[deviceSlot].sectors_per_trackL==26)
+        if (percomBlock[deviceSlot].sectors_per_trackL == 26)
         {
-          status[0]|=0x80;  
+          status[0] |= 0x80;
         }
-        
+
         sio_to_computer(status, sizeof(status), false);
         break;
       }
@@ -637,7 +649,7 @@ void sio_disk_image_mount()
     tnfs_read(deviceSlot, 1);
     num_para_hi = tnfsPacket.data[3];
     sectorSize[deviceSlot] = newss;
-    num_sectors = para_to_num_sectors(num_para,num_para_hi,newss);
+    num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
     derive_percom_block(deviceSlot, newss, num_sectors);
     sio_complete();
   }
@@ -655,29 +667,29 @@ void sio_disk_image_umount()
 }
 
 /**
- * Convert # of paragraphs to sectors
- * para = # of paragraphs returned from ATR header
- * ss = sector size returned from ATR header
- */
+   Convert # of paragraphs to sectors
+   para = # of paragraphs returned from ATR header
+   ss = sector size returned from ATR header
+*/
 unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, unsigned short ss)
 {
-  unsigned long tmp=para_hi<<16;
-  tmp|=para;
-  
-  unsigned short num_sectors=((tmp<<4)/ss);
-  
+  unsigned long tmp = para_hi << 16;
+  tmp |= para;
+
+  unsigned short num_sectors = ((tmp << 4) / ss);
+
 
 #ifdef DEBUG_VERBOSE
   Debug_printf("ATR Header\n");
   Debug_printf("----------\n");
-  Debug_printf("num paragraphs: $%04x\n",para);
-  Debug_printf("Sector Size: %d\n",ss);
-  Debug_printf("num sectors: %d\n",num_sectors);
+  Debug_printf("num paragraphs: $%04x\n", para);
+  Debug_printf("Sector Size: %d\n", ss);
+  Debug_printf("num sectors: %d\n", num_sectors);
 #endif
 
   // Adjust sector size for the fact that the first three sectors are 128 bytes
-  if (ss==256)
-    num_sectors+=2;
+  if (ss == 256)
+    num_sectors += 2;
 
   return num_sectors;
 }
@@ -687,88 +699,88 @@ unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, u
 */
 void derive_percom_block(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors)
 {
-    // Start with 40T/1S 720 Sectors, sector size passed in
-    percomBlock[deviceSlot].num_tracks = 40;
-    percomBlock[deviceSlot].step_rate = 1;
+  // Start with 40T/1S 720 Sectors, sector size passed in
+  percomBlock[deviceSlot].num_tracks = 40;
+  percomBlock[deviceSlot].step_rate = 1;
+  percomBlock[deviceSlot].sectors_per_trackM = 0;
+  percomBlock[deviceSlot].sectors_per_trackL = 18;
+  percomBlock[deviceSlot].num_sides = 0;
+  percomBlock[deviceSlot].density = (sectorSize > 128 ? 4 : 0); // >128 bytes = MFM
+  percomBlock[deviceSlot].sector_sizeM = (sectorSize == 256 ? 0x01 : 0x00);
+  percomBlock[deviceSlot].sector_sizeL = (sectorSize == 256 ? 0x00 : 0x80);
+  percomBlock[deviceSlot].drive_present = 1;
+  percomBlock[deviceSlot].reserved1 = 0;
+  percomBlock[deviceSlot].reserved2 = 0;
+  percomBlock[deviceSlot].reserved3 = 0;
+
+  if (numSectors == 1040) // 1050 density
+  {
     percomBlock[deviceSlot].sectors_per_trackM = 0;
-    percomBlock[deviceSlot].sectors_per_trackL = 18;
-    percomBlock[deviceSlot].num_sides = 0;
-    percomBlock[deviceSlot].density = (sectorSize>128 ? 4 : 0); // >128 bytes = MFM
-    percomBlock[deviceSlot].sector_sizeM=(sectorSize==256 ? 0x01 : 0x00);
-    percomBlock[deviceSlot].sector_sizeL=(sectorSize==256 ? 0x00 : 0x80);
-    percomBlock[deviceSlot].drive_present = 1;
-    percomBlock[deviceSlot].reserved1 = 0;
-    percomBlock[deviceSlot].reserved2 = 0;
-    percomBlock[deviceSlot].reserved3 = 0;
-  
-    if (numSectors == 1040) // 1050 density
-    {
-      percomBlock[deviceSlot].sectors_per_trackM = 0;
-      percomBlock[deviceSlot].sectors_per_trackL = 26;
-      percomBlock[deviceSlot].density=4; // 1050 density is MFM, override.
-    }
-    else if (numSectors == 1440)
-    {
-      percomBlock[deviceSlot].num_sides = 1;
-      percomBlock[deviceSlot].density=4; // DS/DD density is MFM, override.
-    }
-    else if (numSectors == 2880)
-    {
-      percomBlock[deviceSlot].num_sides = 1;
-      percomBlock[deviceSlot].num_tracks = 80;
-      percomBlock[deviceSlot].density=4; // DS/QD density is MFM, override.
-    }
-    else
-    {
-      // This is a custom size, one long track.
-      percomBlock[deviceSlot].num_tracks=1;
-      percomBlock[deviceSlot].sectors_per_trackM=numSectors>>8;
-      percomBlock[deviceSlot].sectors_per_trackL=numSectors&0xFF;
-    }
+    percomBlock[deviceSlot].sectors_per_trackL = 26;
+    percomBlock[deviceSlot].density = 4; // 1050 density is MFM, override.
+  }
+  else if (numSectors == 1440)
+  {
+    percomBlock[deviceSlot].num_sides = 1;
+    percomBlock[deviceSlot].density = 4; // DS/DD density is MFM, override.
+  }
+  else if (numSectors == 2880)
+  {
+    percomBlock[deviceSlot].num_sides = 1;
+    percomBlock[deviceSlot].num_tracks = 80;
+    percomBlock[deviceSlot].density = 4; // DS/QD density is MFM, override.
+  }
+  else
+  {
+    // This is a custom size, one long track.
+    percomBlock[deviceSlot].num_tracks = 1;
+    percomBlock[deviceSlot].sectors_per_trackM = numSectors >> 8;
+    percomBlock[deviceSlot].sectors_per_trackL = numSectors & 0xFF;
+  }
 
 #ifdef DEBUG_VERBOSE
-    Debug_printf("Percom block dump for newly mounted device slot %d\n",deviceSlot);
-    dump_percom_block(deviceSlot);
+  Debug_printf("Percom block dump for newly mounted device slot %d\n", deviceSlot);
+  dump_percom_block(deviceSlot);
 #endif
 }
 
 /**
- * Dump PERCOM block
- */
+   Dump PERCOM block
+*/
 void dump_percom_block(unsigned char deviceSlot)
 {
 #ifdef DEBUG_VERBOSE
   Debug_printf("Percom Block Dump\n");
   Debug_printf("-----------------\n");
-  Debug_printf("Num Tracks: %d\n",percomBlock[deviceSlot].num_tracks);
-  Debug_printf("Step Rate: %d\n",percomBlock[deviceSlot].step_rate);
-  Debug_printf("Sectors per Track: %d\n",(percomBlock[deviceSlot].sectors_per_trackM*256+percomBlock[deviceSlot].sectors_per_trackL));
-  Debug_printf("Num Sides: %d\n",percomBlock[deviceSlot].num_sides);
-  Debug_printf("Density: %d\n",percomBlock[deviceSlot].density);
-  Debug_printf("Sector Size: %d\n",(percomBlock[deviceSlot].sector_sizeM*256+percomBlock[deviceSlot].sector_sizeL));
-  Debug_printf("Drive Present: %d\n",percomBlock[deviceSlot].drive_present);
-  Debug_printf("Reserved1: %d\n",percomBlock[deviceSlot].reserved1);
-  Debug_printf("Reserved2: %d\n",percomBlock[deviceSlot].reserved2);
-  Debug_printf("Reserved3: %d\n",percomBlock[deviceSlot].reserved3);
+  Debug_printf("Num Tracks: %d\n", percomBlock[deviceSlot].num_tracks);
+  Debug_printf("Step Rate: %d\n", percomBlock[deviceSlot].step_rate);
+  Debug_printf("Sectors per Track: %d\n", (percomBlock[deviceSlot].sectors_per_trackM * 256 + percomBlock[deviceSlot].sectors_per_trackL));
+  Debug_printf("Num Sides: %d\n", percomBlock[deviceSlot].num_sides);
+  Debug_printf("Density: %d\n", percomBlock[deviceSlot].density);
+  Debug_printf("Sector Size: %d\n", (percomBlock[deviceSlot].sector_sizeM * 256 + percomBlock[deviceSlot].sector_sizeL));
+  Debug_printf("Drive Present: %d\n", percomBlock[deviceSlot].drive_present);
+  Debug_printf("Reserved1: %d\n", percomBlock[deviceSlot].reserved1);
+  Debug_printf("Reserved2: %d\n", percomBlock[deviceSlot].reserved2);
+  Debug_printf("Reserved3: %d\n", percomBlock[deviceSlot].reserved3);
 #endif
 }
 
 /**
- * Read percom block
- */
+   Read percom block
+*/
 void sio_read_percom_block()
 {
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
 #ifdef DEBUG_VERBOSE
   dump_percom_block(deviceSlot);
-#endif 
+#endif
   sio_to_computer((byte *)&percomBlock[deviceSlot], 12, false);
   SIO_UART.flush();
 }
 
 /**
- * Write percom block
- */
+   Write percom block
+*/
 void sio_write_percom_block()
 {
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
@@ -776,7 +788,7 @@ void sio_write_percom_block()
 #ifdef DEBUG_VERBOSE
   dump_percom_block(deviceSlot);
 #endif
-  sio_complete();  
+  sio_complete();
 }
 
 /**
@@ -822,11 +834,38 @@ void sio_tnfs_close_directory()
 }
 
 /**
+   SIO RHND stub
+*/
+void sio_rhnd_stub()
+{
+  byte resp[128] = {0x00, 0x01, 0x00, 0x05, 0xC0, 0xE4, 0x18, 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+                   };
+
+  sio_to_computer((byte *)&resp, sizeof(resp), false);
+}
+
+/**
    (disk) High Speed
 */
 void sio_high_speed()
 {
   byte hsd = 0x0a; // 19200 standard speed
+
+  if (cmdFrame.devic == 0x50)
+  {
+    byte resp[12] = {0x50, 0x01, 0xFE, 0x40, 0x00, 0x05, 0x0F, 0x00, 0x80, 0x00, 0x00, 0x00};
+    sio_to_computer((byte *)&resp, sizeof(resp), false);
+    return;
+  }
+
+
 
   sio_to_computer((byte *)&hsd, 1, false);
   SIO_UART.updateBaudRate(38908);
@@ -881,6 +920,24 @@ void sio_write()
   {
     case 0x50: // R: Device
       // for now, just complete
+      memset(&sector, 0x00, sizeof(sector));
+      if (cmdFrame.aux1 == 0)
+        sio_complete();
+      else
+      {
+        sio_to_peripheral((byte *)&sector, 64);
+        blockWritePending = true;
+        blockPtr = &sector[0];
+        for (int i = 0; i < 64; i++)
+          if (sector[i] == 0x9B)
+            sector[i] = 0x0D;
+        delay(20);
+        sio_complete();
+        modemActive = true;
+      }
+      break;
+    case 0x45: // P: Null device
+      sio_to_peripheral((byte *)&sector, 40);
       sio_complete();
       break;
     default: // D:
@@ -1905,40 +1962,40 @@ void sio_R_concurrent()
   switch (modemBaud)
   {
     case 300:
-      response[0]=response[4]=0xA0;
-      response[2]=response[6]=0x0B;
+      response[0] = response[4] = 0xA0;
+      response[2] = response[6] = 0x0B;
       break;
     case 600:
-      response[0]=response[4]=0xCC;
-      response[2]=response[6]=0x05;
+      response[0] = response[4] = 0xCC;
+      response[2] = response[6] = 0x05;
       break;
     case 1200:
-      response[0]=response[4]=0xE3;
-      response[2]=response[6]=0x02;
+      response[0] = response[4] = 0xE3;
+      response[2] = response[6] = 0x02;
       break;
     case 1800:
-      response[0]=response[4]=0xEA;
-      response[2]=response[6]=0x01;
+      response[0] = response[4] = 0xEA;
+      response[2] = response[6] = 0x01;
       break;
     case 2400:
-      response[0]=response[4]=0x6E;
-      response[2]=response[6]=0x01;
+      response[0] = response[4] = 0x6E;
+      response[2] = response[6] = 0x01;
       break;
     case 4800:
-      response[0]=response[4]=0xB3;
-      response[2]=response[6]=0x00;
+      response[0] = response[4] = 0xB3;
+      response[2] = response[6] = 0x00;
       break;
     case 9600:
-      response[0]=response[4]=0x56;
-      response[2]=response[6]=0x00;
+      response[0] = response[4] = 0x56;
+      response[2] = response[6] = 0x00;
       break;
     case 19200:
-      response[0]=response[4]=0x28;
-      response[2]=response[6]=0x00;
+      response[0] = response[4] = 0x28;
+      response[2] = response[6] = 0x00;
       break;
   }
 
-  sio_to_computer((byte *)response,sizeof(response),false);
+  sio_to_computer((byte *)response, sizeof(response), false);
 
 #ifndef ESP32
   SIO_UART.flush(); // ok, WHY?
@@ -2309,6 +2366,7 @@ void setup()
   cmdPtr[0x4E] = sio_read_percom_block;
   cmdPtr[0x4F] = sio_write_percom_block;
   cmdPtr[0x3F] = sio_high_speed;
+  cmdPtr[0xFE] = sio_rhnd_stub;
   cmdPtr[0xFD] = sio_net_scan_networks;
   cmdPtr[0xFC] = sio_net_scan_result;
   cmdPtr[0xFB] = sio_net_set_ssid;
@@ -2336,23 +2394,26 @@ void setup()
 #elif defined(ESP32)
   WiFi.begin();
 #endif
+
+  listenPort = 8888;
+  tcpServer.begin(listenPort);
 }
 
 /**
- * replacement println for AT that is CR/EOL aware
- */
+   replacement println for AT that is CR/EOL aware
+*/
 void at_cmd_println(const char* s)
 {
   SIO_UART.print(s);
-  
-  if (cmdAtascii==true)
+
+  if (cmdAtascii == true)
   {
     SIO_UART.write(0x9B);
   }
   else
   {
     SIO_UART.write(0x0D);
-    SIO_UART.write(0x0A);  
+    SIO_UART.write(0x0A);
   }
 }
 
@@ -2360,45 +2421,45 @@ void at_cmd_println(long int i)
 {
   SIO_UART.print(i);
 
-  if (cmdAtascii==true)
+  if (cmdAtascii == true)
   {
     SIO_UART.write(0x9B);
   }
   else
   {
     SIO_UART.write(0x0D);
-    SIO_UART.write(0x0A);  
-  }  
+    SIO_UART.write(0x0A);
+  }
 }
 
 void at_cmd_println(String s)
 {
   SIO_UART.print(s);
 
-  if (cmdAtascii==true)
+  if (cmdAtascii == true)
   {
     SIO_UART.write(0x9B);
   }
   else
   {
     SIO_UART.write(0x0D);
-    SIO_UART.write(0x0A);  
-  }  
+    SIO_UART.write(0x0A);
+  }
 }
 
 void at_cmd_println(IPAddress ipa)
 {
   SIO_UART.print(ipa);
 
-  if (cmdAtascii==true)
+  if (cmdAtascii == true)
   {
     SIO_UART.write(0x9B);
   }
   else
   {
     SIO_UART.write(0x0D);
-    SIO_UART.write(0x0A);  
-  }  
+    SIO_UART.write(0x0A);
+  }
 }
 
 void loop()
@@ -2446,9 +2507,22 @@ void loop()
 
     if (sio_valid_device_id())
     {
-      if ((cmdFrame.comnd == 0x3F) || (cmdFrame.comnd==0xD2) || (cmdFrame.comnd==0xD0) || (cmdFrame.comnd==0xD7) || (cmdFrame.comnd==0xD3))
+      if ((cmdFrame.comnd == 0xD2) || (cmdFrame.comnd == 0xD0) || (cmdFrame.comnd == 0xD7) || (cmdFrame.comnd == 0xD3))
       {
         sio_nak();
+      }
+      else if (cmdFrame.comnd == 0x3F)
+      {
+        // Only ack if this is for the 850, as it is a type 1 poll.
+        if (cmdFrame.devic == 0x50)
+        {
+          sio_ack();
+          cmdPtr[cmdFrame.comnd]();
+        }
+        else
+        {
+          sio_nak();
+        }
       }
       else
       {
@@ -2478,9 +2552,18 @@ void loop()
       }
 
       // In command mode - don't exchange with TCP but gather characters to a string
-      if (SIO_UART.available())
+      if (SIO_UART.available() || blockWritePending == true)
       {
         char chr = SIO_UART.read();
+
+        if ((blockWritePending == true) && (*blockPtr != 0x00))
+          chr = *blockPtr++;
+        else
+        {
+          blockWritePending = false;
+          yield();
+          return;
+        }
 
         // Return, enter, new line, carriage return.. anything goes to end the command
         if ((chr == '\n') || (chr == '\r') || (chr == 0x9B))
@@ -2490,11 +2573,11 @@ void loop()
           Debug_println(" | CR");
 #endif
           // flip which EOL to display based on last CR or EOL received.
-          if (chr==0x9B)
-            cmdAtascii=true;  
+          if (chr == 0x9B)
+            cmdAtascii = true;
           else
-            cmdAtascii=false;
-          
+            cmdAtascii = false;
+
           modemCommand();
         }
         // Backspace or delete deletes previous character
@@ -2510,7 +2593,7 @@ void loop()
         else if (chr == 0x7E)
         {
           // ATASCII backspace
-          cmd.remove(cmd.length()-1);
+          cmd.remove(cmd.length() - 1);
           SIO_UART.write(0x7E); // we can assume ATASCII BS is destructive.
         }
         else
@@ -2524,7 +2607,7 @@ void loop()
     else
     {
       // Transmit from terminal to TCP
-      if (SIO_UART.available())
+      if (SIO_UART.available() || blockWritePending == true)
       {
         //led_on();
 
@@ -2539,7 +2622,16 @@ void loop()
         // Read from serial, the amount available up to
         // maximum size of the buffer
         size_t len = std::min(SIO_UART.available(), max_buf_size);
-        SIO_UART.readBytes(&txBuf[0], len);
+
+        if (blockWritePending == true)
+        {
+          memcpy(&txBuf, &sector, 64);
+          blockWritePending = false;
+        }
+        else
+        {
+          SIO_UART.readBytes(&txBuf[0], len);
+        }
 
         // Disconnect if going to AT mode with "+++" sequence
         for (int i = 0; i < (int)len; i++)
