@@ -19,10 +19,8 @@
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-#define DEBUG_N
-#define DEBUG_HOST "192.168.1.8"
-#define DEBUG_SSID "Cherryhomes"
-#define DEBUG_PASSWORD "e1xb64XC46"
+//#define DEBUG_N
+//#define DEBUG_HOST "192.168.1.8"
 
 // Uncomment for VERBOSE debug output
 //#define DEBUG_VERBOSE
