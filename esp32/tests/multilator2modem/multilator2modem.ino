@@ -19,9 +19,10 @@
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-//#define DEBUG_N
-//#define DEBUG_HOST "192.168.1.8"
-
+#define DEBUG_N
+#define DEBUG_HOST "192.168.1.8"
+#define DEBUG_SSID "Cherryhomes"
+#define DEBUG_PASSWORD "e1xb64XC46"
 
 // Uncomment for VERBOSE debug output
 //#define DEBUG_VERBOSE
@@ -692,7 +693,7 @@ void derive_percom_block(unsigned char deviceSlot, unsigned short sectorSize, un
     percomBlock[deviceSlot].step_rate = 1;
     percomBlock[deviceSlot].sectors_per_trackM = 0;
     percomBlock[deviceSlot].sectors_per_trackL = 18;
-    percomBlock[deviceSlot].num_sides = 1;
+    percomBlock[deviceSlot].num_sides = 0;
     percomBlock[deviceSlot].density = (sectorSize>128 ? 4 : 0); // >128 bytes = MFM
     percomBlock[deviceSlot].sector_sizeM=(sectorSize==256 ? 0x01 : 0x00);
     percomBlock[deviceSlot].sector_sizeL=(sectorSize==256 ? 0x00 : 0x80);
@@ -709,12 +710,12 @@ void derive_percom_block(unsigned char deviceSlot, unsigned short sectorSize, un
     }
     else if (numSectors == 1440)
     {
-      percomBlock[deviceSlot].num_sides = 2;
+      percomBlock[deviceSlot].num_sides = 1;
       percomBlock[deviceSlot].density=4; // DS/DD density is MFM, override.
     }
     else if (numSectors == 2880)
     {
-      percomBlock[deviceSlot].num_sides = 2;
+      percomBlock[deviceSlot].num_sides = 1;
       percomBlock[deviceSlot].num_tracks = 80;
       percomBlock[deviceSlot].density=4; // DS/QD density is MFM, override.
     }
@@ -2383,7 +2384,7 @@ void loop()
 
     if (sio_valid_device_id())
     {
-      if ((cmdFrame.comnd == 0x3F))
+      if ((cmdFrame.comnd == 0x3F) || (cmdFrame.comnd==0xD2) || (cmdFrame.comnd==0xD0) || (cmdFrame.comnd==0xD7) || (cmdFrame.comnd==0xD3))
       {
         sio_nak();
       }
