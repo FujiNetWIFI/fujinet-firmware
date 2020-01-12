@@ -1,6 +1,6 @@
 #include "printer.h"
 
-static byte intlchar[27] = {225,249,209,201,231,244,242,236,163,239,252,228,214,250,243,246,220,226,251,238,233,232,241,234,229,224,197};
+static byte intlchar[27] = {225, 249, 209, 201, 231, 244, 242, 236, 163, 239, 252, 228, 214, 250, 243, 246, 220, 226, 251, 238, 233, 232, 241, 234, 229, 224, 197};
 
 //pdf routines
 void sioPrinter::pdf_header()
@@ -9,29 +9,29 @@ void sioPrinter::pdf_header()
   // first object: catalog of pages
   pdf_objCtr = 1;
   objLocations[pdf_objCtr] = pdf_offset;
-  pdf_offset = _file->printf("1 0 obj <</Type /Catalog /Pages 2 0 R>> endobj\n");
+  pdf_offset = _file->printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
   // second object: one page
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
-  pdf_offset = _file->printf("2 0 obj <</Type /Pages /Kids [3 0 R] /Count 1>> endobj\n");
+  pdf_offset = _file->printf("2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n");
   // third object: page contents
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
-  pdf_offset = _file->printf("3 0 obj <</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
+  pdf_offset = _file->printf("3 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
   for (int i = 0; i < (2 * maxLines); i++)
   {
     pdf_offset += _file->printf("%d 0 R ", i + 6);
   }
-  pdf_offset += _file->printf("]>> endobj\n");
+  pdf_offset += _file->printf("]>>\nendobj\n");
   // fourth object: font catalog
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
   //line = ;
-  pdf_offset = _file->printf("4 0 obj <</Font <</F1 5 0 R>>>> endobj\n");
+  pdf_offset = _file->printf("4 0 obj\n<</Font <</F1 5 0 R>>>>\nendobj\n");
   // fifth object: font 1
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
-  pdf_offset = _file->printf("5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding>> endobj\n", fontName);
+  pdf_offset = _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding>>\nendobj\n", fontName);
 }
 
 void sioPrinter::pdf_xref()
@@ -87,11 +87,11 @@ void sioPrinter::pdf_add_line(std::u16string S)
   int le = L.length();
 #ifdef DEBUG_S
   BUG_UART.println("adding line: ");
-  //BUG_UART.println((char)L.c_str());
+  BUG_UART.println(L.c_str());
 #endif
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
-  pdf_offset = _file->printf("%d 0 obj <</Length %d>> stream\n", pdf_objCtr, 31 + le);
+  pdf_offset = _file->printf("%d 0 obj\n<</Length %d>>\nstream\n", pdf_objCtr, 31 + le);
   int yCoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
   //this string right here vvvvvv is 31 chars long plus the length of the payload
   pdf_offset += _file->printf("BT /F1 %2d Tf %3d %3d Td (", fontSize, leftMargin, yCoord);
@@ -101,7 +101,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
     _file->write((byte)L[i]);
   }
   pdf_offset += _file->printf(")Tj ET\n");
-  pdf_offset += _file->printf("endstream endobj\n");
+  pdf_offset += _file->printf("endstream\nendobj\n");
 
   //todo: add second line with underscores
   //find last underscore and set le to length
@@ -110,7 +110,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
   //le = U.length();
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
-  pdf_offset = _file->printf("%d 0 obj <</Length %d>> stream\n", pdf_objCtr, 31 + le);
+  pdf_offset = _file->printf("%d 0 obj\n<</Length %d>>\nstream\n", pdf_objCtr, 31 + le);
   pdf_offset += _file->printf("BT /F1 %2d Tf %3d %3d Td (", fontSize, leftMargin, yCoord);
   pdf_offset += le;
   for (int i = 0; i < le; i++)
@@ -118,7 +118,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
     _file->write((byte)U[i]);
   }
   pdf_offset += _file->printf(")Tj ET\n");
-  pdf_offset += _file->printf("endstream endobj\n");
+  pdf_offset += _file->printf("endstream\nendobj\n");
   pdf_lineCounter++;
 }
 
