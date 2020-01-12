@@ -63,6 +63,9 @@ private:
     void pdf_header();
     void pdf_xref();
     void pdf_add_line(std::u16string L);
+    u_long idx_stream_length; // file location of stream length indictor
+    u_long idx_stream_start; // file location of start of stream
+    u_long idx_stream_stop; // file location of end of stream
     std::u16string buffer_to_string(byte *S);
     std::u16string output;
     int j;
