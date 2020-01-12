@@ -23,7 +23,7 @@
 // #define DEBUG_HOST "192.168.1.8"
 
 // Uncomment for VERBOSE debug output
-#define DEBUG_VERBOSE
+//#define DEBUG_VERBOSE
 
 #ifdef ESP8266
 #define SIO_UART Serial
