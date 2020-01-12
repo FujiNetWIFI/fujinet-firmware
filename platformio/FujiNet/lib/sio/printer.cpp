@@ -92,6 +92,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("%d 0 obj\n<</Length %d>>\nstream\n", pdf_objCtr, 31 + le);
+  idx_stream_length = _file->position(); // placeholder 
   int yCoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
   //this string right here vvvvvv is 31 chars long plus the length of the payload
   pdf_offset += _file->printf("BT /F1 %2d Tf %3d %3d Td (", fontSize, leftMargin, yCoord);
