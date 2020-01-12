@@ -279,7 +279,7 @@ bool sio_valid_device_id()
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
   if ((load_config == true) && (cmdFrame.devic == 0x31)) // Only respond to 0x31 if in config mode
     return true;
-  else if (cmdFrame.devic == 0x40) // P: null device
+  else if (cmdFrame.devic == 0x40 || cmdFrame.devic==0x41 || cmdFrame.devic==0x43 || cmdFrame.devic==0x44 || cmdFrame.devic==0x45) // P: null device
     return true;
   else if (cmdFrame.devic == 0x50) // 850 R: Device Emulator
     return true;
@@ -539,13 +539,18 @@ void sio_status()
   {
     case 0x50:
       {
-        byte status[2] = {0x00, 0xFC};
+        byte status[2] = {0x00, 0x0C};
         sio_to_computer(status, sizeof(status), false);
 #ifdef DEBUG
         Debug_println("R: Status Complete");
 #endif
         break;
       }
+    case 0x40:
+    case 0x41:
+    case 0x42:
+    case 0x43:
+    case 0x44:
     case 0x45:
       {
         byte status[4] = {0x00, 0x00, 0x10, 0x00};
@@ -934,8 +939,14 @@ void sio_write()
         delay(20);
         sio_complete();
         modemActive = true;
+        SIO_UART.flush();
       }
       break;
+    case 0x40:
+    case 0x41:
+    case 0x42:
+    case 0x43:
+    case 0x44:
     case 0x45: // P: Null device
       sio_to_peripheral((byte *)&sector, 40);
       sio_complete();
