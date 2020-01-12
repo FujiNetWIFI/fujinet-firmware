@@ -197,6 +197,7 @@ long modemBaud = 2400;        // The current BPS setting (default 2400)
 bool modemActive = false;     // If modem mode is active
 String cmd = "";              // Gather a new AT command to this string from serial
 bool cmdMode = true;          // Are we in AT command mode or connected mode
+bool cmdAtascii = false;      // last CMD contained an ATASCII EOL?
 bool telnet = true;           // Is telnet control code handling enabled
 long listenPort = 0;          // Listen to this if not connected. Set to zero to disable.
 #define RING_INTERVAL 3000    // How often to print RING when having a new incoming connection (ms)
@@ -1962,7 +1963,7 @@ void modemCommand()
 {
   cmd.trim();
   if (cmd == "") return;
-  SIO_UART.println();
+  at_cmd_println("");
   String upCmd = cmd;
   upCmd.toUpperCase();
 
@@ -1973,7 +1974,7 @@ void modemCommand()
     upCmd[upCmd.indexOf(0x9b)] = 0x0D;
 
   /**** Just AT ****/
-  if (upCmd == "AT") SIO_UART.println("OK");
+  if (upCmd == "AT") at_cmd_println("OK");
 
   /**** Dial to host ****/
   else if ((upCmd.indexOf("ATDT") == 0) || (upCmd.indexOf("ATDP") == 0) || (upCmd.indexOf("ATDI") == 0))
@@ -1998,7 +1999,7 @@ void modemCommand()
     {
       delay(1300); // Wait a moment so bobterm catches it
       SIO_UART.print("CONNECT ");
-      SIO_UART.println(modemBaud);
+      at_cmd_println(modemBaud);
 #ifdef ESP32
       SIO_UART.flush();
 #endif
@@ -2011,7 +2012,7 @@ void modemCommand()
       SIO_UART.print("Connecting to ");
       SIO_UART.print(host);
       SIO_UART.print(":");
-      SIO_UART.println(port);
+      at_cmd_println(port);
       char *hostChr = new char[host.length() + 1];
       host.toCharArray(hostChr, host.length() + 1);
       int portInt = port.toInt();
@@ -2020,7 +2021,7 @@ void modemCommand()
       {
         tcpClient.setNoDelay(true); // Try to disable naggle
         SIO_UART.print("CONNECT ");
-        SIO_UART.println(modemBaud);
+        at_cmd_println(modemBaud);
         cmdMode = false;
 #ifdef ESP32
         SIO_UART.flush();
@@ -2029,7 +2030,7 @@ void modemCommand()
       }
       else
       {
-        SIO_UART.println("NO CARRIER");
+        at_cmd_println("NO CARRIER");
       }
       delete hostChr;
     }
@@ -2057,20 +2058,20 @@ void modemCommand()
     SIO_UART.print("Connecting to ");
     SIO_UART.print(ssid);
     SIO_UART.print("/");
-    SIO_UART.println(key);
+    at_cmd_println(key);
     WiFi.begin(ssidChr, keyChr);
     for (int i = 0; i < 100; i++)
     {
       delay(100);
       if (WiFi.status() == WL_CONNECTED)
       {
-        SIO_UART.println("OK");
+        at_cmd_println("OK");
         break;
       }
     }
     if (WiFi.status() != WL_CONNECTED)
     {
-      SIO_UART.println("ERROR");
+      at_cmd_println("ERROR");
     }
     delete ssidChr;
     delete keyChr;
@@ -2091,12 +2092,12 @@ void modemCommand()
   else if (upCmd == "ATNET0")
   {
     telnet = false;
-    SIO_UART.println("OK");
+    at_cmd_println("OK");
   }
   else if (upCmd == "ATNET1")
   {
     telnet = true;
-    SIO_UART.println("OK");
+    at_cmd_println("OK");
   }
 
   /**** Answer to incoming connection ****/
@@ -2106,7 +2107,7 @@ void modemCommand()
     tcpClient.setNoDelay(true); // try to disable naggle
     tcpServer.stop();
     SIO_UART.print("CONNECT ");
-    SIO_UART.println(modemBaud);
+    at_cmd_println(modemBaud);
     cmdMode = false;
 #ifdef ESP32
     SIO_UART.flush();
@@ -2116,39 +2117,39 @@ void modemCommand()
   /**** See my IP address ****/
   else if (upCmd == "ATIP")
   {
-    SIO_UART.println(WiFi.localIP());
-    SIO_UART.println("OK");
+    at_cmd_println(WiFi.localIP());
+    at_cmd_println("OK");
   }
 
   /**** Print Help ****/
   else if (upCmd == "AT?")
   {
-    SIO_UART.println("       FujiNet Virtual Modem 850");
-    SIO_UART.println("=======================================");
-    SIO_UART.println();
-    SIO_UART.println("ATWIFI<ssid>,<key> | Connect to WIFI");
-    //SIO_UART.println("AT<baud>           | Change Baud Rate");
-    SIO_UART.println("ATDT<host>:<port>  | Connect by TCP");
-    SIO_UART.println("ATIP               | See my IP address");
-    SIO_UART.println("ATNET0             | Disable telnet");
-    SIO_UART.println("                   | command handling");
-    SIO_UART.println("ATPORT<port>       | Set listening port");
-    SIO_UART.println("ATGET<URL>         | HTTP GET");
-    SIO_UART.println();
+    at_cmd_println("       FujiNet Virtual Modem 850");
+    at_cmd_println("=======================================");
+    at_cmd_println("");
+    at_cmd_println("ATWIFI<ssid>,<key> | Connect to WIFI");
+    //at_cmd_println("AT<baud>           | Change Baud Rate");
+    at_cmd_println("ATDT<host>:<port>  | Connect by TCP");
+    at_cmd_println("ATIP               | See my IP address");
+    at_cmd_println("ATNET0             | Disable telnet");
+    at_cmd_println("                   | command handling");
+    at_cmd_println("ATPORT<port>       | Set listening port");
+    at_cmd_println("ATGET<URL>         | HTTP GET");
+    at_cmd_println("");
     if (listenPort > 0)
     {
       SIO_UART.print("Listening to connections on port ");
-      SIO_UART.println(listenPort);
-      SIO_UART.println("which result in RING and you can");
-      SIO_UART.println("answer with ATA.");
+      at_cmd_println(listenPort);
+      at_cmd_println("which result in RING and you can");
+      at_cmd_println("answer with ATA.");
       tcpServer.begin(listenPort);
     }
     else
     {
-      SIO_UART.println("Incoming connections are disabled.");
+      at_cmd_println("Incoming connections are disabled.");
     }
-    SIO_UART.println("");
-    SIO_UART.println("OK");
+    at_cmd_println("");
+    at_cmd_println("OK");
   }
 
   /**** HTTP GET request ****/
@@ -2186,17 +2187,17 @@ void modemCommand()
     SIO_UART.print(port);
     SIO_UART.print(" of host ");
     SIO_UART.print(host);
-    SIO_UART.println("...");
+    at_cmd_println("...");
 
     // Establish connection
     if (!tcpClient.connect(hostChr, port))
     {
-      SIO_UART.println("NO CARRIER");
+      at_cmd_println("NO CARRIER");
     }
     else
     {
       SIO_UART.print("CONNECT ");
-      SIO_UART.println(modemBaud);
+      at_cmd_println(modemBaud);
       cmdMode = false;
 
       // Send a HTTP request before continuing the connection as usual
@@ -2217,23 +2218,23 @@ void modemCommand()
     port = cmd.substring(6).toInt();
     if (port > 65535 || port < 0)
     {
-      SIO_UART.println("ERROR");
+      at_cmd_println("ERROR");
     }
     else
     {
       listenPort = port;
       tcpServer.begin(listenPort);
-      SIO_UART.println("OK");
+      at_cmd_println("OK");
     }
   }
 
   /**** Unknown command ****/
-  else SIO_UART.println("ERROR");
+  else at_cmd_println("ERROR");
 
   /**** Tasks to do after command has been parsed ****/
   if (newBps)
   {
-    SIO_UART.println("OK");
+    at_cmd_println("OK");
     delay(150); // Sleep enough for 4 bytes at any previous baud rate to finish ("\nOK\n")
     SIO_UART.updateBaudRate(newBps);
     modemBaud = newBps;
@@ -2337,6 +2338,69 @@ void setup()
 #endif
 }
 
+/**
+ * replacement println for AT that is CR/EOL aware
+ */
+void at_cmd_println(const char* s)
+{
+  SIO_UART.print(s);
+  
+  if (cmdAtascii==true)
+  {
+    SIO_UART.write(0x9B);
+  }
+  else
+  {
+    SIO_UART.write(0x0D);
+    SIO_UART.write(0x0A);  
+  }
+}
+
+void at_cmd_println(long int i)
+{
+  SIO_UART.print(i);
+
+  if (cmdAtascii==true)
+  {
+    SIO_UART.write(0x9B);
+  }
+  else
+  {
+    SIO_UART.write(0x0D);
+    SIO_UART.write(0x0A);  
+  }  
+}
+
+void at_cmd_println(String s)
+{
+  SIO_UART.print(s);
+
+  if (cmdAtascii==true)
+  {
+    SIO_UART.write(0x9B);
+  }
+  else
+  {
+    SIO_UART.write(0x0D);
+    SIO_UART.write(0x0A);  
+  }  
+}
+
+void at_cmd_println(IPAddress ipa)
+{
+  SIO_UART.print(ipa);
+
+  if (cmdAtascii==true)
+  {
+    SIO_UART.write(0x9B);
+  }
+  else
+  {
+    SIO_UART.write(0x0D);
+    SIO_UART.write(0x0A);  
+  }  
+}
+
 void loop()
 {
 #ifdef DEBUG_N
@@ -2408,7 +2472,7 @@ void loop()
         // Print RING every now and then while the new incoming connection exists
         if ((millis() - lastRingMs) > RING_INTERVAL)
         {
-          SIO_UART.println("RING");
+          at_cmd_println("RING");
           lastRingMs = millis();
         }
       }
@@ -2425,6 +2489,12 @@ void loop()
           Debug_print(cmd);
           Debug_println(" | CR");
 #endif
+          // flip which EOL to display based on last CR or EOL received.
+          if (chr==0x9B)
+            cmdAtascii=true;  
+          else
+            cmdAtascii=false;
+          
           modemCommand();
         }
         // Backspace or delete deletes previous character
@@ -2436,6 +2506,12 @@ void loop()
           SIO_UART.write(8);
           SIO_UART.write(' ');
           SIO_UART.write(8);
+        }
+        else if (chr == 0x7E)
+        {
+          // ATASCII backspace
+          cmd.remove(cmd.length()-1);
+          SIO_UART.write(0x7E); // we can assume ATASCII BS is destructive.
         }
         else
         {
@@ -2539,7 +2615,7 @@ void loop()
     if ((!tcpClient.connected()) && (cmdMode == false))
     {
       cmdMode = true;
-      SIO_UART.println("NO CARRIER");
+      at_cmd_println("NO CARRIER");
       if (listenPort > 0) tcpServer.begin();
     }
   }
