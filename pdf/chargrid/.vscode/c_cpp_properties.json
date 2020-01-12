@@ -6,14 +6,14 @@
         {
             "name": "Win32",
             "includePath": [
-                "d:/userData/Jeff/GitHub/atariwifi/pdf/helloworld/src",
+                "d:/userData/Jeff/GitHub/atariwifi/pdf/chargrid/src",
                 "C:/Users/jeff/.platformio/packages/tool-unity",
                 ""
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "d:/userData/Jeff/GitHub/atariwifi/pdf/helloworld/src",
+                    "d:/userData/Jeff/GitHub/atariwifi/pdf/chargrid/src",
                     "C:/Users/jeff/.platformio/packages/tool-unity",
                     ""
                 ]
