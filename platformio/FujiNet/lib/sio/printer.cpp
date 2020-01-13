@@ -91,19 +91,25 @@ void sioPrinter::pdf_add_line(std::u16string S)
 #endif
   pdf_objCtr++;
   objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
-  pdf_offset = _file->printf("%d 0 obj\n<</Length %d>>\nstream\n", pdf_objCtr, 31 + le);
-  idx_stream_length = _file->position(); // placeholder 
+  pdf_offset = _file->printf("%d 0 obj\n<</Length ", pdf_objCtr);
+  idx_stream_length = _file->position(); 
+  pdf_offset += _file->printf("00000>>\nstream\n");
   int yCoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
   //this string right here vvvvvv is 31 chars long plus the length of the payload
+  idx_stream_start = _file->position();
   pdf_offset += _file->printf("BT /F1 %2d Tf %3d %3d Td (", fontSize, leftMargin, yCoord);
   pdf_offset += le;
   for (int i = 0; i < le; i++)
   {
     _file->write((byte)L[i]);
   }
-  pdf_offset += _file->printf(")Tj ET\n");
-  pdf_offset += _file->printf("endstream\nendobj\n");
-
+  pdf_offset += _file->printf(")Tj ET");
+  idx_stream_stop = _file->position();
+  pdf_offset += _file->printf("\nendstream\nendobj\n");
+  size_t idx_temp = _file->position();
+  _file->seek(idx_stream_length);
+  _file->printf("%5u",(idx_stream_stop-idx_stream_start));
+  _file->seek(idx_temp);
   //todo: add second line with underscores
   //find last underscore and set le to length
   size_t last_ = U.find_last_of('_');
