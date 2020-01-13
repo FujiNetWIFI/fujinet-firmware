@@ -25,7 +25,7 @@
 //#define DEBUG_PASSWORD ""
 
 // Uncomment for VERBOSE debug output
-#define DEBUG_VERBOSE
+//#define DEBUG_VERBOSE
 
 #ifdef ESP8266
 #define SIO_UART Serial
