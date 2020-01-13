@@ -20,10 +20,12 @@
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
 //#define DEBUG_N
-//#define DEBUG_HOST "192.168.1.8"
+//#define DEBUG_HOST ""
+//#define DEBUG_SSID ""
+//#define DEBUG_PASSWORD ""
 
 // Uncomment for VERBOSE debug output
-//#define DEBUG_VERBOSE
+#define DEBUG_VERBOSE
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -285,8 +287,13 @@ bool sio_valid_device_id()
     return true;
   else if (cmdFrame.devic == 0x4F) // Do not respond to Type 3/4 polls
     return false;
-  else if (deviceSlots.slot[deviceSlot].hostSlot != 0xFF) // Only respond to full device slots
-    return true;
+  else if (cmdFrame.devic>0x30 && cmdFrame.devic<0x39)
+  {
+    if (deviceSlots.slot[deviceSlot].hostSlot != 0xFF)
+      return true;
+    else
+      return false;
+  }
   else
     return false;
 }
