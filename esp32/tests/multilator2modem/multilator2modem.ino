@@ -19,8 +19,8 @@
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-// #define DEBUG_N
-// #define DEBUG_HOST "192.168.1.8"
+//#define DEBUG_N
+//#define DEBUG_HOST "192.168.1.8"
 
 // Uncomment for VERBOSE debug output
 //#define DEBUG_VERBOSE
@@ -2567,7 +2567,7 @@ void loop()
 
         if ((blockWritePending == true) && (*blockPtr != 0x00))
           chr = *blockPtr++;
-        else
+        else if (blockWritePending==true)
         {
           blockWritePending = false;
           yield();
