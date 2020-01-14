@@ -341,21 +341,16 @@ void sio_scan_networks()
   ck = sio_checksum((byte *)&ret, 4);
 
   SIO_UART.write('C');     // Completed command
-  SIO_UART.flush();
-
-  delayMicroseconds(1500); // t5 delay
 
   // Write data frame
   SIO_UART.write((byte *)&ret, 4);
 
   // Write data frame checksum
   SIO_UART.write(ck);
-  SIO_UART.flush();
 
 #ifdef DEBUG
   Debug_printf("Wrote data packet/Checksum: $%02x $%02x $%02x $%02x/$02x\n\n", ret[0], ret[1], ret[2], ret[3], ck);
 #endif
-  delayMicroseconds(200);
 }
 
 /**
@@ -370,17 +365,13 @@ void sio_scan_result()
 
   ck = sio_checksum((byte *)&ssidInfo.rawData, 33);
 
-  delayMicroseconds(1500); // t5 delay
   SIO_UART.write('C');     // Completed command
-  SIO_UART.flush();
 
   // Write data frame
   SIO_UART.write(ssidInfo.rawData, 33);
 
   // Write data frame checksum
   SIO_UART.write(ck);
-  SIO_UART.flush();
-  delayMicroseconds(200);
 }
 
 /**
@@ -448,14 +439,12 @@ void sio_get_wifi_status()
 
   delayMicroseconds(DELAY_T5); // t5 delay
   SIO_UART.write('C');     // Completed command
-  SIO_UART.flush();
 
   // Write data frame
   SIO_UART.write(wifiStatus);
 
   // Write data frame checksum
   SIO_UART.write(ck);
-  SIO_UART.flush();
   delayMicroseconds(200);
 }
 
@@ -543,14 +532,14 @@ void sio_format()
 
   delayMicroseconds(DELAY_T5); // t5 delay
   SIO_UART.write('C'); // Completed command
-  SIO_UART.flush();
+  
 
   // Write data frame
   SIO_UART.write(sector, sectorSize[deviceSlot]);
 
   // Write data frame checksum
   SIO_UART.write(ck);
-  SIO_UART.flush();
+  
   delayMicroseconds(200);
 }
 
@@ -575,7 +564,7 @@ void sio_mount_host()
   delayMicroseconds(250);
 
   SIO_UART.write('C');
-  SIO_UART.flush();
+  
 }
 
 /**
@@ -656,7 +645,7 @@ void sio_read_tnfs_directory()
   long offset;
   byte ret;
 
-  memset(current_entry, 0x00, 256);
+  memset(current_entry,  0x00, 256);
 
   ret = tnfs_readdir(cmdFrame.aux2);
 
@@ -670,7 +659,7 @@ void sio_read_tnfs_directory()
   delayMicroseconds(DELAY_T5); // t5 delay
 
   SIO_UART.write('C'); // Command always completes.
-  SIO_UART.flush();
+  
 
   delayMicroseconds(200);
 
@@ -679,7 +668,7 @@ void sio_read_tnfs_directory()
 
   // Write checksum
   SIO_UART.write(ck);
-  SIO_UART.flush();
+  
   delayMicroseconds(200);
 }
 
@@ -699,7 +688,7 @@ void sio_close_tnfs_directory()
 
   delayMicroseconds(250);
 
-  SIO_UART.flush();
+  
 }
 
 /**
@@ -715,14 +704,14 @@ void sio_high_speed()
 
   delayMicroseconds(DELAY_T5); // t5 delay
   SIO_UART.write('C'); // Command always completes.
-  SIO_UART.flush();
+  
   delayMicroseconds(200);
 
   SIO_UART.write(hsd);
 
   // Write checksum
   SIO_UART.write(ck);
-  SIO_UART.flush();
+  
   delayMicroseconds(200);
 
   // SIO_UART.updateBaudRate(68837); // US Doubler
@@ -850,8 +839,6 @@ void sio_read_hosts_slots()
 
   delayMicroseconds(DELAY_T5); // t5 delay
   SIO_UART.write('C'); // Command always completes.
-  SIO_UART.flush();
-  delayMicroseconds(200);
 
   // Write data frame
   for (int i = 0; i < 256; i++)
@@ -859,8 +846,6 @@ void sio_read_hosts_slots()
 
   // Write checksum
   SIO_UART.write(ck);
-  SIO_UART.flush();
-  delayMicroseconds(200);
 
 }
 
@@ -874,10 +859,7 @@ void sio_read_drives_slots()
   load_config = false;
   ck = sio_checksum((byte *)&deviceSlots.rawData, 304);
 
-  delayMicroseconds(DELAY_T5); // t5 delay
   SIO_UART.write('C'); // Command always completes.
-  SIO_UART.flush();
-  delayMicroseconds(200);
 
   // Write data frame
   for (int i = 0; i < 304; i++)
@@ -885,8 +867,7 @@ void sio_read_drives_slots()
 
   // Write checksum
   SIO_UART.write(ck);
-  SIO_UART.flush();
-  delayMicroseconds(200);
+  
 }
 
 /**
@@ -1012,16 +993,15 @@ void sio_read()
   ck = sio_checksum((byte *)&sector, ss);
 
   SIO_UART.write('C'); // Completed command
-  SIO_UART.flush();
+  
 
   // Write data frame
   SIO_UART.write(sector, ss);
-  SIO_UART.flush();
+  
 
   // Write data frame checksum
-  delayMicroseconds(200);
   SIO_UART.write(ck);
-  SIO_UART.flush();
+  
 #ifdef DEBUG
   Debug_print("SIO READ OFFSET: ");
   Debug_print(offset);
@@ -1039,11 +1019,9 @@ void sio_status()
   byte ck;
 
   ck = sio_checksum((byte *)&status, 4);
-
-  delayMicroseconds(DELAY_T5); // t5 delay
+  
   SIO_UART.write('C'); // Command always completes.
-  SIO_UART.flush();
-  delayMicroseconds(200);
+  
   //delay(1);
 
   // Write data frame
@@ -1051,8 +1029,6 @@ void sio_status()
 
   // Write checksum
   SIO_UART.write(ck);
-  SIO_UART.flush();
-  delayMicroseconds(200);
 }
 
 /**
@@ -1077,7 +1053,7 @@ void sio_ack()
     }
   }
   SIO_UART.write('A');
-  SIO_UART.flush();
+  
   //cmdState = PROCESS;
   sio_process();
 }
@@ -1089,7 +1065,7 @@ void sio_nak()
 {
   delayMicroseconds(500);
   SIO_UART.write('N');
-  SIO_UART.flush();
+  
   cmdState = WAIT;
   cmdTimer = 0;
 }
