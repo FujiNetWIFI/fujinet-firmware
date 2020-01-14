@@ -200,7 +200,7 @@ bool modemActive = false;     // If modem mode is active
 String cmd = "";              // Gather a new AT command to this string from serial
 bool cmdMode = true;          // Are we in AT command mode or connected mode
 bool cmdAtascii = false;      // last CMD contained an ATASCII EOL?
-bool telnet = true;           // Is telnet control code handling enabled
+bool telnet = false;          // Is telnet control code handling enabled
 long listenPort = 0;          // Listen to this if not connected. Set to zero to disable.
 #define RING_INTERVAL 3000    // How often to print RING when having a new incoming connection (ms)
 WiFiClient tcpClient;
@@ -217,6 +217,10 @@ unsigned long ledTime = 0;
 uint8_t txBuf[TX_BUF_SIZE];
 bool blockWritePending = false;     // is a BLOCK WRITE pending for the modem?
 byte* blockPtr;                     // pointer in the block write (points somewhere in sector)
+bool DTR=false;
+bool RTS=false;
+bool XMT=false;
+
 
 // Telnet codes
 #define DO 0xfd
@@ -1913,6 +1917,30 @@ void sio_wait()
 */
 void sio_R_control()
 {
+  if (cmdFrame.aux1&0x02)
+  {
+    XMT=(cmdFrame.aux1&0x01 ? true : false);
+#ifdef DEBUG
+    Debug_printf("XMT now %d",XMT);
+#endif
+  }
+
+  if (cmdFrame.aux1&0x20)
+  {
+    RTS=(cmdFrame.aux1&0x10 ? true : false);  
+#ifdef DEBUG
+    Debug_printf("RTS now %d",RTS);
+#endif
+  }
+
+  if (cmdFrame.aux1&0x80)
+  {
+    DTR=(cmdFrame.aux1&0x40 ? true : false);
+#ifdef DEBUG
+    Debug_printf("DTR now %d",DTR);
+#endif
+  }
+  
   // for now, just complete
   sio_complete();
 
@@ -2590,7 +2618,9 @@ void loop()
 #endif
           // flip which EOL to display based on last CR or EOL received.
           if (chr == 0x9B)
+          {
             cmdAtascii = true;
+          }
           else
             cmdAtascii = false;
 
@@ -2682,6 +2712,7 @@ void loop()
 
         // Write the buffer to TCP finally
         tcpClient.write(&txBuf[0], len);
+        tcpClient.flush();
         yield();
       }
 
@@ -2720,7 +2751,15 @@ void loop()
     }
 
     // Go to command mode if TCP disconnected and not in command mode
-    if ((!tcpClient.connected()) && (cmdMode == false))
+    if ((tcpClient.connected()) && (cmdMode==false) && (DTR==0))
+    {
+      tcpClient.flush();
+      tcpClient.stop();
+      cmdMode = true;
+      at_cmd_println("NO CARRIER");
+      if (listenPort > 0) tcpServer.begin();    
+    }
+    else if ((!tcpClient.connected()) && (cmdMode == false))
     {
       cmdMode = true;
       at_cmd_println("NO CARRIER");
