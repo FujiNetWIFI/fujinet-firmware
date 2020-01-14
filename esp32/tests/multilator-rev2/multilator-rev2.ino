@@ -290,9 +290,6 @@ void sio_complete()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('C');
-#ifdef ESP32
-  SIO_UART.flush();
-#endif
 }
 
 /**
@@ -302,9 +299,6 @@ void sio_error()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('E');
-#ifdef ESP32
-  SIO_UART.flush();
-#endif
 }
 
 /**
@@ -326,18 +320,11 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
   else
     sio_complete();
 
-#ifdef ESP32
-  delayMicroseconds(DELAY_T5); // not documented, but required
-#endif
-
   // Write data frame.
   SIO_UART.write(b, len);
 
   // Write checksum
   SIO_UART.write(ck);
-#ifdef ESP32
-  SIO_UART.flush();
-#endif
 
 #ifdef DEBUG
   Debug_printf("TO COMPUTER: ");
@@ -376,7 +363,9 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
 
+#ifdef ESP8266
   delayMicroseconds(DELAY_T4);
+#endif
 
   if (sio_checksum(b, len) != ck)
   {
