@@ -50,8 +50,8 @@ private:
     int fontSize = 12;
     const char *fontName = "Courier";
     int pdf_lineCounter = 0;
-    u_long pdf_offset = 0;    // used to store location offset to next object
-    u_long objLocations[137]; // reference table storage - set >=2*maxLines+5
+    size_t pdf_offset = 0;    // used to store location offset to next object
+    size_t objLocations[137]; // reference table storage - set >=2*maxLines+5
     int pdf_objCtr = 0;    // count the objects
     bool eolFlag = false;
     bool intlFlag = false;
@@ -63,9 +63,9 @@ private:
     void pdf_header();
     void pdf_xref();
     void pdf_add_line(std::u16string L);
-    u_long idx_stream_length; // file location of stream length indictor
-    u_long idx_stream_start; // file location of start of stream
-    u_long idx_stream_stop; // file location of end of stream
+    size_t idx_stream_length; // file location of stream length indictor
+    size_t idx_stream_start; // file location of start of stream
+    size_t idx_stream_stop; // file location of end of stream
     std::u16string buffer_to_string(byte *S);
     std::u16string output;
     int j;
