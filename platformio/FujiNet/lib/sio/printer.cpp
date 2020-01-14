@@ -18,7 +18,7 @@ void sioPrinter::pdf_header()
   pdf_objCtr++;
   objLocations[pdf_objCtr] = _file->position(); //objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("3 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
-  for (int i = 0; i < (2 * maxLines); i++)
+  for (int i = 0; i < maxLines; i++)
   {
     pdf_offset += _file->printf("%d 0 R ", i + 6);
   }
@@ -97,35 +97,40 @@ void sioPrinter::pdf_add_line(std::u16string S)
   int yCoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
   //this string right here vvvvvv is 31 chars long plus the length of the payload
   idx_stream_start = _file->position();
-  pdf_offset += _file->printf("BT /F1 %2d Tf %3d %3d Td (", fontSize, leftMargin, yCoord);
+  pdf_offset += _file->printf("BT /F1 %2d Tf %3d %3d Td\n(", fontSize, leftMargin, yCoord);
   pdf_offset += le;
   for (int i = 0; i < le; i++)
   {
     _file->write((byte)L[i]);
   }
-  pdf_offset += _file->printf(")Tj ET");
+  pdf_offset += _file->printf(")Tj\n");
+  // move underline stuff to here
+
+  size_t last_ = U.find_last_of('_');
+  le = ++last_;
+  //le = U.length();
+  if (le > 0)
+  {
+    pdf_offset += _file->printf("%3d %3d Td\n(", 0, 0);
+    pdf_offset += le;
+    for (int i = 0; i < le; i++)
+    {
+      _file->write((byte)U[i]);
+    }
+
+    // asdfasdfasdfs
+
+    pdf_offset += _file->printf(")Tj\n");
+  }
+
+  _file->printf("ET\n");
   idx_stream_stop = _file->position();
-  pdf_offset += _file->printf("\nendstream\nendobj\n");
+  pdf_offset += _file->printf("endstream\nendobj\n");
   size_t idx_temp = _file->position();
   _file->seek(idx_stream_length);
   _file->printf("%5u", (idx_stream_stop - idx_stream_start));
   _file->seek(idx_temp);
-  //todo: add second line with underscores
-  //find last underscore and set le to length
-  size_t last_ = U.find_last_of('_');
-  le = ++last_;
-  //le = U.length();
-  pdf_objCtr++;
-  objLocations[pdf_objCtr] = _file->position(); // objLocations[pdf_objCtr - 1] + pdf_offset;
-  pdf_offset = _file->printf("%d 0 obj\n<</Length %d>>\nstream\n", pdf_objCtr, 31 + le);
-  pdf_offset += _file->printf("BT /F1 %2d Tf %3d %3d Td (", fontSize, leftMargin, yCoord);
-  pdf_offset += le;
-  for (int i = 0; i < le; i++)
-  {
-    _file->write((byte)U[i]);
-  }
-  pdf_offset += _file->printf(")Tj ET\n");
-  pdf_offset += _file->printf("endstream\nendobj\n");
+
   pdf_lineCounter++;
 }
 
