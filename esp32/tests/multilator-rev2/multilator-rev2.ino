@@ -52,6 +52,14 @@
 #define DELAY_T4  850
 #define DELAY_T5  250
 
+bool hispeed = false;
+int command_frame_counter = 0;
+#define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
+#define HISPEED_INDEX 0x08
+#define HISPEED_BAUDRATE 57600
+#define STANDARD_BAUDRATE 19200
+#define SERIAL_TIMEOUT 100
+
 /**
    A Single command frame, both in structured and unstructured
    form.
@@ -664,10 +672,8 @@ void sio_tnfs_close_directory()
 */
 void sio_high_speed()
 {
-  byte hsd = 0x0a; // 19200 standard speed
-
+  byte hsd = HISPEED_INDEX;
   sio_to_computer((byte *)&hsd, 1, false);
-  SIO_UART.updateBaudRate(38908);
 }
 
 /**
@@ -1691,7 +1697,8 @@ void setup()
 #endif
 
   // Set up serial
-  SIO_UART.begin(19200);
+  SIO_UART.begin(STANDARD_BAUDRATE);
+  SIO_UART.setTimeout(SERIAL_TIMEOUT);
 #ifdef ESP8266
   SIO_UART.swap();
 #endif
@@ -1744,37 +1751,52 @@ void loop()
     Debug_printf("CF: %02x %02x %02x %02x %02x\n", cmdFrame.devic, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2, cmdFrame.cksum);
 #endif
 
-    // Wait for CMD line to raise again.
-
-#ifdef ESP8266
-    delayMicroseconds(DELAY_T1);
-#endif
-
-    while (digitalRead(PIN_CMD) == LOW)
-      yield();
-
-#ifdef ESP8266
-    delayMicroseconds(DELAY_T2);
-#endif
-
-    if (sio_valid_device_id())
+    byte ck = sio_checksum(cmdFrame.cmdFrameData, 4);
+    if(ck == cmdFrame.cksum)
     {
-      if ((cmdFrame.comnd == 0x3F) || (cmdFrame.comnd == 0x4E) || (cmdFrame.comnd == 0x4F))
-      {
-        sio_nak();
-      }
-      else
-      {
-        sio_ack();
-
 #ifdef ESP8266
-        delayMicroseconds(DELAY_T3);
+      delayMicroseconds(DELAY_T1);
 #endif
-
-        cmdPtr[cmdFrame.comnd]();
+      // Wait for CMD line to raise again
+      while (digitalRead(PIN_CMD) == LOW) yield();
+#ifdef ESP8266
+      delayMicroseconds(DELAY_T2);
+#endif
+      if (sio_valid_device_id())
+      {
+        if (/*(cmdFrame.comnd == 0x3F) ||*/ (cmdFrame.comnd == 0x4E) || (cmdFrame.comnd == 0x4F))
+        {
+          sio_nak();
+        }
+        else
+        {
+          sio_ack();
+#ifdef ESP8266
+          delayMicroseconds(DELAY_T3);
+#endif
+          cmdPtr[cmdFrame.comnd]();
+        }
       }
-      sio_led(false);
     }
+    else
+    {
+      command_frame_counter++;
+      if(COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
+      {
+        command_frame_counter = 0;
+        if(hispeed)
+        {
+          SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
+          hispeed = false;
+        }
+        else
+        {
+          SIO_UART.updateBaudRate(HISPEED_BAUDRATE);
+          hispeed = true;
+        }
+      }
+    }
+    sio_led(false);
   }
   else
   {
