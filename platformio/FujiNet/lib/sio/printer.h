@@ -31,8 +31,6 @@ enum paper_t
     PDF
 };
 
-static byte intlchar[27] = {225,249,209,201,231,244,242,236,163,239,252,228,214,250,243,246,220,226,251,238,233,232,241,234,229,224,197};
-
 class sioPrinter : public sioDevice
 {
 private:
@@ -52,8 +50,7 @@ private:
     int fontSize = 12;
     const char *fontName = "Courier";
     int pdf_lineCounter = 0;
-    u_long pdf_offset = 0;    // used to store location offset to next object
-    u_long objLocations[137]; // reference table storage - set >=2*maxLines+5
+    size_t objLocations[137]; // reference table storage - set >=2*maxLines+5
     int pdf_objCtr = 0;    // count the objects
     bool eolFlag = false;
     bool intlFlag = false;
@@ -65,6 +62,9 @@ private:
     void pdf_header();
     void pdf_xref();
     void pdf_add_line(std::u16string L);
+    size_t idx_stream_length; // file location of stream length indictor
+    size_t idx_stream_start; // file location of start of stream
+    size_t idx_stream_stop; // file location of end of stream
     std::u16string buffer_to_string(byte *S);
     std::u16string output;
     int j;
