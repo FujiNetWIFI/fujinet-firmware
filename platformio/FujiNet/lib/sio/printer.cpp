@@ -8,15 +8,15 @@ void sioPrinter::pdf_header()
   pdf_offset = _file->printf("%%PDF-1.4\n");
   // first object: catalog of pages
   pdf_objCtr = 1;
-  objLocations[pdf_objCtr] = pdf_offset;
+  objLocations[pdf_objCtr] = _file->position(); // pdf_offset;
   pdf_offset = _file->printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
   // second object: one page
   pdf_objCtr++;
-  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  objLocations[pdf_objCtr] = _file->position(); // objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n");
   // third object: page contents
   pdf_objCtr++;
-  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  objLocations[pdf_objCtr] = _file->position(); //objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("3 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
   for (int i = 0; i < (2 * maxLines); i++)
   {
@@ -25,29 +25,29 @@ void sioPrinter::pdf_header()
   pdf_offset += _file->printf("]>>\nendobj\n");
   // fourth object: font catalog
   pdf_objCtr++;
-  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  objLocations[pdf_objCtr] = _file->position(); //objLocations[pdf_objCtr - 1] + pdf_offset;
   //line = ;
   pdf_offset = _file->printf("4 0 obj\n<</Font <</F1 5 0 R>>>>\nendobj\n");
   // fifth object: font 1
   pdf_objCtr++;
-  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  objLocations[pdf_objCtr] = _file->position(); //objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding>>\nendobj\n", fontName);
 }
 
 void sioPrinter::pdf_xref()
 {
-  u_long xref = objLocations[pdf_objCtr] + pdf_offset;
+  size_t xref = _file->position(); //objLocations[pdf_objCtr] + pdf_offset;
   pdf_objCtr++;
   _file->printf("xref\n");
   _file->printf("0 %u\n", pdf_objCtr);
   _file->printf("0000000000 65535 f\n");
   for (int i = 1; i < (maxLines + 5); i++)
   {
-    _file->printf("%010lu 00000 n\n", objLocations[i]);
+    _file->printf("%010u 00000 n\n", objLocations[i]);
   }
   _file->printf("trailer <</Size %u/Root 1 0 R>>\n", pdf_objCtr);
   _file->printf("startxref\n");
-  _file->printf("%lu\n", xref);
+  _file->printf("%u\n", xref);
   _file->printf("%%%%EOF\n");
 }
 
@@ -90,9 +90,9 @@ void sioPrinter::pdf_add_line(std::u16string S)
   BUG_UART.println(L.c_str());
 #endif
   pdf_objCtr++;
-  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  objLocations[pdf_objCtr] = _file->position(); //objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("%d 0 obj\n<</Length ", pdf_objCtr);
-  idx_stream_length = _file->position(); 
+  idx_stream_length = _file->position();
   pdf_offset += _file->printf("00000>>\nstream\n");
   int yCoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
   //this string right here vvvvvv is 31 chars long plus the length of the payload
@@ -108,7 +108,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
   pdf_offset += _file->printf("\nendstream\nendobj\n");
   size_t idx_temp = _file->position();
   _file->seek(idx_stream_length);
-  _file->printf("%5u",(idx_stream_stop-idx_stream_start));
+  _file->printf("%5u", (idx_stream_stop - idx_stream_start));
   _file->seek(idx_temp);
   //todo: add second line with underscores
   //find last underscore and set le to length
@@ -116,7 +116,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
   le = ++last_;
   //le = U.length();
   pdf_objCtr++;
-  objLocations[pdf_objCtr] = objLocations[pdf_objCtr - 1] + pdf_offset;
+  objLocations[pdf_objCtr] = _file->position(); // objLocations[pdf_objCtr - 1] + pdf_offset;
   pdf_offset = _file->printf("%d 0 obj\n<</Length %d>>\nstream\n", pdf_objCtr, 31 + le);
   pdf_offset += _file->printf("BT /F1 %2d Tf %3d %3d Td (", fontSize, leftMargin, yCoord);
   pdf_offset += le;
