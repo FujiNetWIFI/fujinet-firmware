@@ -58,7 +58,7 @@ int command_frame_counter = 0;
 #define HISPEED_INDEX 0x08
 #define HISPEED_BAUDRATE 57600
 #define STANDARD_BAUDRATE 19200
-#define SERIAL_TIMEOUT 100
+#define SERIAL_TIMEOUT 300
 
 /**
    A Single command frame, both in structured and unstructured
