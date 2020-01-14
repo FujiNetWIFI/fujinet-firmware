@@ -50,7 +50,6 @@ private:
     int fontSize = 12;
     const char *fontName = "Courier";
     int pdf_lineCounter = 0;
-    size_t pdf_offset = 0;    // used to store location offset to next object
     size_t objLocations[137]; // reference table storage - set >=2*maxLines+5
     int pdf_objCtr = 0;    // count the objects
     bool eolFlag = false;
