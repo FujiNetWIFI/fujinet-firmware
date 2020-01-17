@@ -65,9 +65,26 @@ void sioPrinter::pdf_new_page()
   idx_stream_start = _file->position();
 }
 
+void sioPrinter::pdf_end_page()
+{
+  idx_stream_stop = _file->position();
+  _file->printf("endstream\nendobj\n");
+  size_t idx_temp = _file->position();
+  _file->seek(idx_stream_length);
+  _file->printf("%5u", (idx_stream_stop - idx_stream_start));
+  _file->seek(idx_temp);
+  ++pdf_pageCounter;
+  pdf_lineCounter = 0;
+}
+
 void sioPrinter::pdf_begin_text(int font, int fsize, int vpos)
 { // begin text block
-  _file->printf("BT\n/F%1d %2d Tf %3d %3d Td\n", font, fsize, leftMargin, vpos);
+  _file->printf("BT\n/F%d %d Tf %d %d Td\n", font, fsize, leftMargin, vpos);
+}
+
+void sioPrinter::pdf_end_text()
+{
+  _file->printf("ET\n");
 }
 
 void sioPrinter::pdf_add_line(std::u16string S)
@@ -94,7 +111,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
       L.push_back(BACKSLASH);
     }
     L.push_back(S[i] & 0xff);
-    if ( (S[i] & 0x0100) == 0x0100)
+    if ((S[i] & 0x0100) == 0x0100)
       U.push_back(95);
     else
       U.push_back(32);
@@ -108,14 +125,14 @@ void sioPrinter::pdf_add_line(std::u16string S)
   if (pdf_lineCounter == 0)
   {
     pdf_new_page();
-    pdf_begin_text(1,12,pageHeight);
+    pdf_begin_text(1, 12, pageHeight);
     voffset = -lineHeight;
   }
 
   int le = L.length();
   if (le > 0)
   {
-    _file->printf("0 %d Td", voffset); // need voffset var
+    _file->printf("0 %d Td ", voffset); // need voffset var
     // text object
     _file->printf("(");
     for (int i = 0; i < le; i++)
@@ -128,7 +145,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
     le = ++last_;
     if (le > 0)
     {
-      _file->printf("0 0 Td\n(");
+      _file->printf("0 0 Td (");
       for (int i = 0; i < le; i++)
       {
         _file->write((byte)U[i]);
@@ -145,15 +162,8 @@ void sioPrinter::pdf_add_line(std::u16string S)
   pdf_lineCounter++;
   if (pdf_lineCounter == maxLines)
   {
-    _file->printf("ET\n");
-    idx_stream_stop = _file->position();
-    _file->printf("endstream\nendobj\n");
-    size_t idx_temp = _file->position();
-    _file->seek(idx_stream_length);
-    _file->printf("%5u", (idx_stream_stop - idx_stream_start));
-    _file->seek(idx_temp);
-    ++pdf_pageCounter;
-    pdf_lineCounter = 0;
+    pdf_end_text();
+    pdf_end_page();
   }
 }
 
@@ -245,8 +255,8 @@ void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
-    pdf_lineCounter = maxLines - 1; // fake it out to think it has a full page
-    pdf_add_line(std::u16string());
+    pdf_end_text();
+    pdf_end_page();
     pdf_xref();
   }
 }
