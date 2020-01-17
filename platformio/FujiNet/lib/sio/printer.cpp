@@ -10,22 +10,9 @@ void sioPrinter::pdf_header()
   pdf_objCtr = 1;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
-  // second object: one page
-  pdf_objCtr++;
-  objLocations[pdf_objCtr] = _file->position();
-  _file->printf("2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n");
-  // third object: page contents
-  pdf_objCtr++;
-  objLocations[pdf_objCtr] = _file->position();
-  _file->printf("3 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
-  //for (int i = 0; i < maxLines; i++)
- // {
-//    _file->printf("%d 0 R ", i + 6);
-    _file->printf("6 0 R ");
-  //}
-  _file->printf("]>>\nendobj\n");
+
   // fourth object: font catalog
-  pdf_objCtr++;
+  pdf_objCtr = 4; // skip the page catalog, leave object 3 blank for ease now
   objLocations[pdf_objCtr] = _file->position();
   //line = ;
   _file->printf("4 0 obj\n<</Font <</F1 5 0 R>>>>\nendobj\n");
@@ -33,10 +20,15 @@ void sioPrinter::pdf_header()
   pdf_objCtr++;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding>>\nendobj\n", fontName);
+
 }
 
 void sioPrinter::pdf_xref()
 {
+  // todo: write out stored page objects
+  objLocations[2] = _file->position(); // hard code page catalog as object #2
+  _file->printf("2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n");
+
   size_t xref = _file->position();
   pdf_objCtr++;
   _file->printf("xref\n");
@@ -94,7 +86,17 @@ void sioPrinter::pdf_add_line(std::u16string S)
 
   if (pdf_lineCounter == 0)
   {
-    pdf_objCtr++;
+
+//todo: move to newpage function and call when writing first line. Store objCtr in array of pages. point to new contents object
+  // third object: page contents
+  pdf_objCtr=3;// ++; hard code 3 for now
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("3 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
+  _file->printf("6 0 R ");
+  _file->printf("]>>\nendobj\n");
+
+
+    pdf_objCtr=6; // ++; hardcode 6 for now
     objLocations[pdf_objCtr] = _file->position();
     _file->printf("%d 0 obj\n<</Length ", pdf_objCtr);
     idx_stream_length = _file->position();

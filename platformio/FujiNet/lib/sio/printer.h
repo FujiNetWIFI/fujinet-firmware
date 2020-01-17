@@ -50,7 +50,9 @@ private:
     int fontSize = 12;
     const char *fontName = "Courier";
     int pdf_lineCounter = 0;
-    size_t objLocations[137]; // reference table storage - set >=2*maxLines+5
+    int pdf_pageCounter = 0;
+    int pageObjects[256];
+    size_t objLocations[256]; // reference table storage
     int pdf_objCtr = 0;    // count the objects
     bool eolFlag = false;
     bool intlFlag = false;
