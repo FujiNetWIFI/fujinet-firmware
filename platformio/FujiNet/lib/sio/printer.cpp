@@ -18,10 +18,11 @@ void sioPrinter::pdf_header()
   pdf_objCtr++;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("3 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
-  for (int i = 0; i < maxLines; i++)
-  {
-    _file->printf("%d 0 R ", i + 6);
-  }
+  //for (int i = 0; i < maxLines; i++)
+ // {
+//    _file->printf("%d 0 R ", i + 6);
+    _file->printf("6 0 R ");
+  //}
   _file->printf("]>>\nendobj\n");
   // fourth object: font catalog
   pdf_objCtr++;
@@ -91,7 +92,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
   BUG_UART.println(L.c_str());
 #endif
 
-  if (pdf_lineCounter == 1)
+  if (pdf_lineCounter == 0)
   {
     pdf_objCtr++;
     objLocations[pdf_objCtr] = _file->position();
@@ -100,7 +101,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
     _file->printf("00000>>\nstream\n");
     idx_stream_start = _file->position();
     int yCoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
-    _file->printf("BT\n/F1 %2d Tf %3d %3d\n", fontSize, leftMargin, yCoord);
+    _file->printf("BT\n/F1 %2d Tf %3d %3d Td\n", fontSize, leftMargin, yCoord);
   }
   _file->printf("0 -12 Td (");
   for (int i = 0; i < le; i++)
@@ -126,7 +127,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
     _file->printf(")Tj\n");
   }
   pdf_lineCounter++;
-  if (pdf_lineCounter > maxLines)
+  if (pdf_lineCounter == maxLines)
   {
     _file->printf("ET\n");
     idx_stream_stop = _file->position();
