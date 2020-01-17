@@ -42,7 +42,7 @@ void sioPrinter::pdf_xref()
   _file->printf("xref\n");
   _file->printf("0 %u\n", pdf_objCtr);
   _file->printf("0000000000 65535 f\n");
-  for (int i = 1; i < (maxLines + 5); i++)
+  for (int i = 1; i < pdf_objCtr; i++)
   {
     _file->printf("%010u 00000 n\n", objLocations[i]);
   }
