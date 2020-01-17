@@ -94,7 +94,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
       L.push_back(BACKSLASH);
     }
     L.push_back(S[i] & 0xff);
-    if (S[i] & 0x0100 == 0x0100)
+    if ( (S[i] & 0x0100) == 0x0100)
       U.push_back(95);
     else
       U.push_back(32);
