@@ -31,6 +31,7 @@ enum paper_t
     PDF
 };
 
+
 class sioPrinter : public sioDevice
 {
 private:
@@ -54,35 +55,33 @@ private:
     int pageObjects[256];
     int pdf_pageCounter = 0;
     size_t objLocations[256]; // reference table storage
-    int pdf_objCtr = 0;    // count the objects
+    int pdf_objCtr = 0;       // count the objects
     bool eolFlag = false;
     bool intlFlag = false;
     bool uscoreFlag = false;
     bool escMode = false;
 
-    void processBuffer(byte *B, int n);
+
 
     void pdf_header();
     void pdf_xref();
     void pdf_new_page();
     void pdf_end_page();
-    void pdf_begin_text(int font, int fsize, int vpos);
-    void pdf_end_text();
+    void pdf_begin_text(int font, int fsize,int vpos);
+    void pdf_set_font();
     void pdf_add_line(std::u16string L);
     size_t idx_stream_length; // file location of stream length indictor
-    size_t idx_stream_start; // file location of start of stream
-    size_t idx_stream_stop; // file location of end of stream
+    size_t idx_stream_start;  // file location of start of stream
+    size_t idx_stream_stop;   // file location of end of stream
+
+    void processBuffer(byte *B, int n);
     std::u16string buffer_to_string(byte *S);
     std::u16string output;
-    int j;
+    //int j;
 
     File *_file;
 
 public:
-    //sioDisk(){};
-    //sioDisk(int devnum=0x31) : _devnum(devnum){};
-    // void mount(File *f);
-    // void handle();
     void initPrinter(File *f, paper_t ty);
     void initPrinter(File *f);
     void pageEject();

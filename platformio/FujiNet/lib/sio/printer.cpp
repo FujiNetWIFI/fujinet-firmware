@@ -57,34 +57,28 @@ void sioPrinter::pdf_new_page()
   _file->printf("%d 0 R ", pdf_objCtr);
   _file->printf("]>>\nendobj\n");
 
-  // open new content stream
+  // open new content stream and text object
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("%d 0 obj\n<</Length ", pdf_objCtr);
   idx_stream_length = _file->position();
   _file->printf("00000>>\nstream\n");
   idx_stream_start = _file->position();
+  _file->printf("BT\n");
 }
 
 void sioPrinter::pdf_end_page()
 {
+  // close text object & stream
+  _file->printf("ET\n");
   idx_stream_stop = _file->position();
   _file->printf("endstream\nendobj\n");
   size_t idx_temp = _file->position();
   _file->seek(idx_stream_length);
   _file->printf("%5u", (idx_stream_stop - idx_stream_start));
   _file->seek(idx_temp);
+  // set counters
   ++pdf_pageCounter;
   pdf_lineCounter = 0;
-}
-
-void sioPrinter::pdf_begin_text(int font, int fsize, int vpos)
-{ // begin text block
-  _file->printf("BT\n/F%d %d Tf %d %d Td\n", font, fsize, leftMargin, vpos);
-}
-
-void sioPrinter::pdf_end_text()
-{
-  _file->printf("ET\n");
 }
 
 void sioPrinter::pdf_add_line(std::u16string S)
@@ -120,20 +114,26 @@ void sioPrinter::pdf_add_line(std::u16string S)
 #ifdef DEBUG_S
   BUG_UART.println("adding line: ");
   BUG_UART.println(L.c_str());
+  BUG_UART.println(U.c_str());
 #endif
 
   if (pdf_lineCounter == 0)
   {
     pdf_new_page();
-    pdf_begin_text(1, 12, pageHeight);
+    // set font
+    _file->printf("/F%d %d Tf\n", 1, 12);
+    // go to top of page
+    _file->printf("%d %d Td\n", leftMargin, pageHeight);
+    // set line spacing
     voffset = -lineHeight;
   }
 
   int le = L.length();
   if (le > 0)
   {
-    _file->printf("0 %d Td ", voffset); // need voffset var
-    // text object
+    // position new line
+    _file->printf("0 %d Td ", voffset);
+    // make text object
     _file->printf("(");
     for (int i = 0; i < le; i++)
     {
@@ -141,10 +141,12 @@ void sioPrinter::pdf_add_line(std::u16string S)
     }
     _file->printf(")Tj\n");
 
+    // check to see if there are underscores
     size_t last_ = U.find_last_of('_'); // must use size_t to handle no _
     le = ++last_;
     if (le > 0)
     {
+      // return postion to start of line and make text object
       _file->printf("0 0 Td (");
       for (int i = 0; i < le; i++)
       {
@@ -152,19 +154,20 @@ void sioPrinter::pdf_add_line(std::u16string S)
       }
       _file->printf(")Tj\n");
     }
+    // reset line spacing
     voffset = -lineHeight;
   }
   else
   {
+    // skip a line space
     voffset -= lineHeight;
   }
 
+  // keep track of vertical position on page
   pdf_lineCounter++;
+  // if wrote last line, then close the page
   if (pdf_lineCounter == maxLines)
-  {
-    pdf_end_text();
     pdf_end_page();
-  }
 }
 
 std::u16string sioPrinter::buffer_to_string(byte *buffer)
@@ -255,7 +258,6 @@ void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
-    pdf_end_text();
     pdf_end_page();
     pdf_xref();
   }
@@ -281,14 +283,27 @@ void sioPrinter::processBuffer(byte *B, int n)
       i++;
     }
     break;
+  case ASCII:
+    while (i < n)
+    {
+      if (B[i] == EOL)
+      {
+        _file->printf("\n");
+        break;
+      }
+      if (B[i] > 31 && B[i] < 127)
+        _file->write(B[i]);
+      i++;
+    }
+    break;
   case PDF:
   default:
     std::u16string temp = buffer_to_string(buffer);
-#ifdef DEBUG_S
-    BUG_UART.print("processed buffer: ->");
-    //BUG_UART.print((char)temp.c_str());
-    BUG_UART.println("<-");
-#endif
+    // #ifdef DEBUG_S
+    //     BUG_UART.print("processed buffer: ->");
+    //     //BUG_UART.print((char)temp.c_str());
+    //     BUG_UART.println("<-");
+    // #endif
     output.append(temp);
     // make function to count printable chars
     if (eolFlag || output.length() > maxCols)
@@ -304,11 +319,11 @@ void sioPrinter::processBuffer(byte *B, int n)
         what = output;
         output.clear();
       }
-#ifdef DEBUG_S
-      BUG_UART.print("new line: ->");
-      //BUG_UART.print((char)what.c_str());
-      BUG_UART.println("<-");
-#endif
+      // #ifdef DEBUG_S
+      //       BUG_UART.print("new line: ->");
+      //       //BUG_UART.print((char)what.c_str());
+      //       BUG_UART.println("<-");
+      // #endif
       pdf_add_line(what);
     }
   }
