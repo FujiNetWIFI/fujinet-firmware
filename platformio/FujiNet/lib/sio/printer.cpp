@@ -21,14 +21,20 @@ void sioPrinter::pdf_header()
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding>>\nendobj\n", fontName);
 
+  pdf_pageCounter=0;
+
 }
 
 void sioPrinter::pdf_xref()
 {
   // todo: write out stored page objects
   objLocations[2] = _file->position(); // hard code page catalog as object #2
-  _file->printf("2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n");
-
+  _file->printf("2 0 obj\n<</Type /Pages /Kids [ ");
+  for (int i = 0; i < pdf_pageCounter; i++)
+  {
+    _file->printf("%d 0 R ", pageObjects[i]);
+  }
+  _file->printf("] /Count %d>>\nendobj\n", pdf_pageCounter);
   size_t xref = _file->position();
   pdf_objCtr++;
   _file->printf("xref\n");
@@ -87,22 +93,23 @@ void sioPrinter::pdf_add_line(std::u16string S)
   if (pdf_lineCounter == 0)
   {
 
-//todo: move to newpage function and call when writing first line. Store objCtr in array of pages. point to new contents object
-  // third object: page contents
-  pdf_objCtr=3;// ++; hard code 3 for now
-  objLocations[pdf_objCtr] = _file->position();
-  _file->printf("3 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pageWidth, pageHeight);
-  _file->printf("6 0 R ");
-  _file->printf("]>>\nendobj\n");
+    //todo: move to newpage function and call when writing first line. Store objCtr in array of pages. point to new contents object
+    // third object: page contents
+    ++pdf_objCtr; // should be 6 first time out
+    pageObjects[pdf_pageCounter] = pdf_objCtr;
+    objLocations[pdf_objCtr] = _file->position();
+    _file->printf("%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
+    pdf_objCtr++; // increment for the contents stream object
+    _file->printf("%d 0 R ", pdf_objCtr);
+    _file->printf("]>>\nendobj\n");
 
-
-    pdf_objCtr=6; // ++; hardcode 6 for now
+    //pdf_objCtr=6; // ++; hardcode 6 for now // already set above
     objLocations[pdf_objCtr] = _file->position();
     _file->printf("%d 0 obj\n<</Length ", pdf_objCtr);
     idx_stream_length = _file->position();
     _file->printf("00000>>\nstream\n");
     idx_stream_start = _file->position();
-    int yCoord = pageHeight - lineHeight + bottomMargin - pdf_lineCounter * lineHeight;
+    int yCoord = pageHeight;// + bottomMargin - pdf_lineCounter * lineHeight;
     _file->printf("BT\n/F1 %2d Tf %3d %3d Td\n", fontSize, leftMargin, yCoord);
   }
   _file->printf("0 -12 Td (");
@@ -138,6 +145,8 @@ void sioPrinter::pdf_add_line(std::u16string S)
     _file->seek(idx_stream_length);
     _file->printf("%5u", (idx_stream_stop - idx_stream_start));
     _file->seek(idx_temp);
+    ++pdf_pageCounter;
+    pdf_lineCounter=0;
   }
 }
 
@@ -172,9 +181,9 @@ std::u16string sioPrinter::buffer_to_string(byte *buffer)
         intlFlag = false;
       escMode = false;
     }
-    else if (buffer[i] == 14)
-      uscoreFlag = true;
     else if (buffer[i] == 15)
+      uscoreFlag = true;
+    else if (buffer[i] == 14)
       uscoreFlag = false;
     else if (buffer[i] == 27)
       escMode = true;
@@ -229,10 +238,8 @@ void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
-    while (pdf_lineCounter < maxLines)
-    {
-      pdf_add_line(std::u16string());
-    }
+    pdf_lineCounter = maxLines-1; // fake it out to think it has a full page
+    pdf_add_line(std::u16string());
     pdf_xref();
   }
 }

@@ -43,15 +43,15 @@ private:
     int pageWidth = 612;
     int pageHeight = 792;
     int leftMargin = 18;
-    int bottomMargin = 2;
+    int bottomMargin = 6;
     int maxLines = 66;
     int maxCols = 80;
     int lineHeight = 12;
     int fontSize = 12;
     const char *fontName = "Courier";
     int pdf_lineCounter = 0;
-    int pdf_pageCounter = 0;
     int pageObjects[256];
+    int pdf_pageCounter = 0;
     size_t objLocations[256]; // reference table storage
     int pdf_objCtr = 0;    // count the objects
     bool eolFlag = false;
