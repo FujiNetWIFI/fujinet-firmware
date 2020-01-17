@@ -50,6 +50,7 @@ private:
     int fontSize = 12;
     const char *fontName = "Courier";
     int pdf_lineCounter = 0;
+    int voffset;
     int pageObjects[256];
     int pdf_pageCounter = 0;
     size_t objLocations[256]; // reference table storage
@@ -63,6 +64,10 @@ private:
 
     void pdf_header();
     void pdf_xref();
+    void pdf_new_page();
+    void pdf_end_page();
+    void pdf_begin_text(int font, int fsize, int vpos);
+    void pdf_end_text();
     void pdf_add_line(std::u16string L);
     size_t idx_stream_length; // file location of stream length indictor
     size_t idx_stream_start; // file location of start of stream
