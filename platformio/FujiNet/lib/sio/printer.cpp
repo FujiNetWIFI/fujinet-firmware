@@ -20,9 +20,6 @@ void sioPrinter::pdf_header()
   pdf_objCtr++;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding>>\nendobj\n", fontName);
-
-  pdf_pageCounter=0;
-
 }
 
 void sioPrinter::pdf_xref()
@@ -50,11 +47,54 @@ void sioPrinter::pdf_xref()
   _file->printf("%%%%EOF\n");
 }
 
+void sioPrinter::pdf_new_page()
+{ // open a new page
+  ++pdf_objCtr;
+  pageObjects[pdf_pageCounter] = pdf_objCtr;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
+  pdf_objCtr++; // increment for the contents stream object
+  _file->printf("%d 0 R ", pdf_objCtr);
+  _file->printf("]>>\nendobj\n");
+
+  // open new content stream
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("%d 0 obj\n<</Length ", pdf_objCtr);
+  idx_stream_length = _file->position();
+  _file->printf("00000>>\nstream\n");
+  idx_stream_start = _file->position();
+}
+
+void sioPrinter::pdf_end_page()
+{
+  idx_stream_stop = _file->position();
+  _file->printf("endstream\nendobj\n");
+  size_t idx_temp = _file->position();
+  _file->seek(idx_stream_length);
+  _file->printf("%5u", (idx_stream_stop - idx_stream_start));
+  _file->seek(idx_temp);
+  ++pdf_pageCounter;
+  pdf_lineCounter = 0;
+}
+
+void sioPrinter::pdf_begin_text(int font, int fsize, int vpos)
+{ // begin text block
+  _file->printf("BT\n/F%d %d Tf %d %d Td\n", font, fsize, leftMargin, vpos);
+}
+
+void sioPrinter::pdf_end_text()
+{
+  _file->printf("ET\n");
+}
+
 void sioPrinter::pdf_add_line(std::u16string S)
 {
   std::string L = std::string(); //text string
   std::string U = std::string(); //underscore string
-  // escape special CHARs
+
+  // separate u16string into parallel strings
+
+  // escape special CHARs in PDFs
   // \n       | LINE FEED (0Ah) (LF)
   // \r       | CARRIAGE RETURN (0Dh) (CR)
   // \t       | HORIZONTAL TAB (09h) (HT)
@@ -66,25 +106,17 @@ void sioPrinter::pdf_add_line(std::u16string S)
   // \ddd     | Character code ddd (octal)
   for (int i = 0; i < S.length(); i++)
   {
-    //todo: create an underscore line before adding \ to text line
     if ((S[i] & 0xff) == LEFTPAREN || (S[i] & 0xff) == RIGHTPAREN || (S[i] & 0xff) == BACKSLASH)
     {
       L.push_back(BACKSLASH);
     }
     L.push_back(S[i] & 0xff);
-    if (S[i] > 0xff)
+    if ((S[i] & 0x0100) == 0x0100)
       U.push_back(95);
     else
       U.push_back(32);
   }
 
-#ifdef DEBUG_S
-  BUG_UART.print("L length: ");
-  BUG_UART.println(L.length());
-  BUG_UART.print("U length: ");
-  BUG_UART.println(U.length());
-#endif
-  int le = L.length();
 #ifdef DEBUG_S
   BUG_UART.println("adding line: ");
   BUG_UART.println(L.c_str());
@@ -92,61 +124,46 @@ void sioPrinter::pdf_add_line(std::u16string S)
 
   if (pdf_lineCounter == 0)
   {
-
-    //todo: move to newpage function and call when writing first line. Store objCtr in array of pages. point to new contents object
-    // third object: page contents
-    ++pdf_objCtr; // should be 6 first time out
-    pageObjects[pdf_pageCounter] = pdf_objCtr;
-    objLocations[pdf_objCtr] = _file->position();
-    _file->printf("%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
-    pdf_objCtr++; // increment for the contents stream object
-    _file->printf("%d 0 R ", pdf_objCtr);
-    _file->printf("]>>\nendobj\n");
-
-    //pdf_objCtr=6; // ++; hardcode 6 for now // already set above
-    objLocations[pdf_objCtr] = _file->position();
-    _file->printf("%d 0 obj\n<</Length ", pdf_objCtr);
-    idx_stream_length = _file->position();
-    _file->printf("00000>>\nstream\n");
-    idx_stream_start = _file->position();
-    int yCoord = pageHeight;// + bottomMargin - pdf_lineCounter * lineHeight;
-    _file->printf("BT\n/F1 %2d Tf %3d %3d Td\n", fontSize, leftMargin, yCoord);
+    pdf_new_page();
+    pdf_begin_text(1, 12, pageHeight);
+    voffset = -lineHeight;
   }
-  _file->printf("0 -12 Td (");
-  for (int i = 0; i < le; i++)
-  {
-    _file->write((byte)L[i]);
-  }
-  _file->printf(")Tj\n");
-  // move underline stuff to here
 
-  size_t last_ = U.find_last_of('_');
-  le = ++last_;
-  //le = U.length();
+  int le = L.length();
   if (le > 0)
   {
-    _file->printf("%3d %3d Td\n(", 0, 0);
+    _file->printf("0 %d Td ", voffset); // need voffset var
+    // text object
+    _file->printf("(");
     for (int i = 0; i < le; i++)
     {
-      _file->write((byte)U[i]);
+      _file->write((byte)L[i]);
     }
-
-    // asdfasdfasdfs
-
     _file->printf(")Tj\n");
+
+    size_t last_ = U.find_last_of('_'); // must use size_t to handle no _
+    le = ++last_;
+    if (le > 0)
+    {
+      _file->printf("0 0 Td (");
+      for (int i = 0; i < le; i++)
+      {
+        _file->write((byte)U[i]);
+      }
+      _file->printf(")Tj\n");
+    }
+    voffset = -lineHeight;
   }
+  else
+  {
+    voffset -= lineHeight;
+  }
+
   pdf_lineCounter++;
   if (pdf_lineCounter == maxLines)
   {
-    _file->printf("ET\n");
-    idx_stream_stop = _file->position();
-    _file->printf("endstream\nendobj\n");
-    size_t idx_temp = _file->position();
-    _file->seek(idx_stream_length);
-    _file->printf("%5u", (idx_stream_stop - idx_stream_start));
-    _file->seek(idx_temp);
-    ++pdf_pageCounter;
-    pdf_lineCounter=0;
+    pdf_end_text();
+    pdf_end_page();
   }
 }
 
@@ -159,7 +176,6 @@ std::u16string sioPrinter::buffer_to_string(byte *buffer)
   // ESC CTRL-Z - stop underscoring     27  26
   // ESC CTRL-W - start international   27  23
   // ESC CTRL-X - stop international    27  24
-
   eolFlag = false;
   std::u16string out = std::u16string();
   for (int i = 0; i < BUFN; i++)
@@ -225,6 +241,7 @@ void sioPrinter::initPrinter(File *f, paper_t ty)
     intlFlag = false;
     escMode = false;
     pdf_lineCounter = 0;
+    pdf_pageCounter = 0;
     pdf_header();
   }
 }
@@ -238,8 +255,8 @@ void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
-    pdf_lineCounter = maxLines-1; // fake it out to think it has a full page
-    pdf_add_line(std::u16string());
+    pdf_end_text();
+    pdf_end_page();
     pdf_xref();
   }
 }
@@ -266,36 +283,33 @@ void sioPrinter::processBuffer(byte *B, int n)
     break;
   case PDF:
   default:
-    if (pdf_lineCounter < maxLines)
-    {
-      std::u16string temp = buffer_to_string(buffer);
+    std::u16string temp = buffer_to_string(buffer);
 #ifdef DEBUG_S
-      BUG_UART.print("processed buffer: ->");
-      //BUG_UART.print((char)temp.c_str());
+    BUG_UART.print("processed buffer: ->");
+    //BUG_UART.print((char)temp.c_str());
+    BUG_UART.println("<-");
+#endif
+    output.append(temp);
+    // make function to count printable chars
+    if (eolFlag || output.length() > maxCols)
+    {
+      std::u16string what = std::u16string();
+      if (output.length() > maxCols)
+      { //pick out substring to send and keep rest
+        what = output.substr(0, maxCols);
+        output.erase(0, maxCols);
+      }
+      else
+      {
+        what = output;
+        output.clear();
+      }
+#ifdef DEBUG_S
+      BUG_UART.print("new line: ->");
+      //BUG_UART.print((char)what.c_str());
       BUG_UART.println("<-");
 #endif
-      output.append(temp);
-      // make function to count printable chars
-      if (eolFlag || output.length() > maxCols)
-      {
-        std::u16string what = std::u16string();
-        if (output.length() > maxCols)
-        { //pick out substring to send and keep rest
-          what = output.substr(0, maxCols);
-          output.erase(0, maxCols);
-        }
-        else
-        {
-          what = output;
-          output.clear();
-        }
-#ifdef DEBUG_S
-        BUG_UART.print("new line: ->");
-        //BUG_UART.print((char)what.c_str());
-        BUG_UART.println("<-");
-#endif
-        pdf_add_line(what);
-      }
+      pdf_add_line(what);
     }
   }
 }
