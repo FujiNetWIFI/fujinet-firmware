@@ -22,8 +22,10 @@
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-//#define DEBUG_N
-//#define DEBUG_HOST "192.168.1.8"
+// #define DEBUG_N
+// #define DEBUG_HOST ""
+// #define DEBUG_SSID ""
+// #define DEBUG_PASSWORD ""
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -55,8 +57,8 @@
 bool hispeed = false;
 int command_frame_counter = 0;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x08
-#define HISPEED_BAUDRATE 57600
+#define HISPEED_INDEX 0x06
+#define HISPEED_BAUDRATE 68837
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
 
@@ -823,10 +825,17 @@ void sio_write()
     // First three sectors are always single density
     offset *= sectorSize[deviceSlot];
     offset -= sectorSize[deviceSlot];
-    offset += 16; // skip 16 byte ATR Header
     ss = sectorSize[deviceSlot];
+
+    // Bias adjustment for 256 bytes
+    if (ss == 256)
+      offset -= 384;
+      
+    offset += 16; // skip 16 byte ATR Header
   }
 
+  memset(sector,0,256); // clear buffer
+  
   ck = sio_to_peripheral(sector, ss);
 
   if (ck == sio_checksum(sector, ss))
@@ -1499,7 +1508,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
 
     UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
     UDP.write(tnfsPacket.rawData, 4 + 3);
-    UDP.write(sector, 128);
+    UDP.write(sector, len);
     UDP.endPacket();
 
     while (dur < 5000)
@@ -1880,11 +1889,17 @@ void loop()
         command_frame_counter = 0;
         if (hispeed)
         {
+#ifdef DEBUG
+          Debug_printf("Switching to %d baud...\n", STANDARD_BAUDRATE);
+#endif
           SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
           hispeed = false;
         }
         else
         {
+#ifdef DEBUG
+          Debug_printf("Switching to %d baud...\n", HISPEED_BAUDRATE);
+#endif
           SIO_UART.updateBaudRate(HISPEED_BAUDRATE);
           hispeed = true;
         }
