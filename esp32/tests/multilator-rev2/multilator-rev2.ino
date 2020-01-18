@@ -257,8 +257,13 @@ bool sio_valid_device_id()
     return true;
   else if (cmdFrame.devic == 0x4F) // Do not respond to Type 3/4 polls
     return false;
-  else if (deviceSlots.slot[deviceSlot].hostSlot != 0xFF) // Only respond to full device slots
-    return true;
+  else if (cmdFrame.devic > 0x30 && cmdFrame.devic < 0x39)
+  {
+    if (deviceSlots.slot[deviceSlot].hostSlot != 0xFF)
+      return true;
+    else
+      return false;
+  }
   else
     return false;
 }
