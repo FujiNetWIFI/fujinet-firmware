@@ -1859,11 +1859,16 @@ void loop()
         }
         else
         {
-          sio_ack();
+          if (sio_checksum(cmdFrame.cmdFrameData, 4) == cmdFrame.cksum)
+          {
+            sio_ack();
 #ifdef ESP8266
-          delayMicroseconds(DELAY_T3);
+            delayMicroseconds(DELAY_T3);
 #endif
-          cmdPtr[cmdFrame.comnd]();
+            cmdPtr[cmdFrame.comnd]();
+          }
+          else
+            sio_nak();
         }
       }
     }
