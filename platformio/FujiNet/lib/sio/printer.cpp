@@ -11,15 +11,24 @@ void sioPrinter::pdf_header()
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
 
-  // fourth object: font catalog
-  pdf_objCtr = 4; // skip the page catalog, leave object 3 blank for ease now
+  // 3rd & 4th object: font catalog
+  pdf_objCtr = 3; // skip the page catalog, leave object 3 blank for ease now
   objLocations[pdf_objCtr] = _file->position();
   //line = ;
-  _file->printf("4 0 obj\n<</Font <</F1 5 0 R>>>>\nendobj\n");
+  _file->printf("3 0 obj\n<</Font <</F1 5 0 R /F2 6 0 R>>>>\nendobj\n");
+  // 3rd & 4th object: font catalog
+  //pdf_objCtr = 4; // skip the page catalog, leave object 3 blank for ease now
+  //objLocations[pdf_objCtr] = _file->position();
+  //line = ;
+  //_file->printf("4 0 obj\n<</Font <</F2 6 0 R>>>>\nendobj\n");
   // fifth object: font 1
-  pdf_objCtr++;
+  pdf_objCtr = 5;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /%s /Encoding /WinAnsiEncoding>>\nendobj\n", fontName);
+  _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding>>\nendobj\n");
+  // fifth object: font 1
+  pdf_objCtr = 6;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("6 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Symbol /Encoding /WinAnsiEncoding>>\nendobj\n");
 }
 
 void sioPrinter::pdf_xref()
@@ -52,7 +61,7 @@ void sioPrinter::pdf_new_page()
   ++pdf_objCtr;
   pageObjects[pdf_pageCounter] = pdf_objCtr;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 %d %d] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
+  _file->printf("%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 3 0 R /MediaBox [0 0 %d %d] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
   pdf_objCtr++; // increment for the contents stream object
   _file->printf("%d 0 R ", pdf_objCtr);
   _file->printf("]>>\nendobj\n");
@@ -85,6 +94,7 @@ void sioPrinter::pdf_add_line(std::u16string S)
 {
   std::string L = std::string(); //text string
   std::string U = std::string(); //underscore string
+  std::string Y = std::string(); //underscore string
 
   // separate u16string into parallel strings
 
@@ -105,10 +115,10 @@ void sioPrinter::pdf_add_line(std::u16string S)
       L.push_back(BACKSLASH);
     }
     L.push_back(S[i] & 0xff);
-    if ((S[i] & 0x0100) == 0x0100)
-      U.push_back(95);
+    if ((S[i] & UNDERSCORE) == UNDERSCORE)
+      U.push_back('_'); 
     else
-      U.push_back(32);
+      U.push_back(' '); 
   }
 
 #ifdef DEBUG_S
@@ -218,16 +228,16 @@ std::u16string sioPrinter::buffer_to_string(byte *buffer)
         c = 35;
 
       if (uscoreFlag)
-        c += 0x0100; // underscore
+        c += UNDERSCORE; // underscore
 
       out.push_back(c);
     }
-    //printable characters for 1027 Standard Set
-    else if (buffer[i] > 31 && buffer[i] < 123)
+    //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
+    else if (buffer[i] > 31 && buffer[i] < 127)
     {
       char16_t c = buffer[i];
       if (uscoreFlag)
-        c += 0x0100; // underscore
+        c += UNDERSCORE; // underscore
       out.push_back(c);
     }
   }
@@ -258,7 +268,8 @@ void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
-    pdf_end_page();
+    if (pdf_lineCounter > 0 || pdf_pageCounter==0)
+      pdf_end_page();
     pdf_xref();
   }
 }
