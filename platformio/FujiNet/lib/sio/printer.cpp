@@ -115,26 +115,34 @@ void sioPrinter::pdf_add_line(std::u16string S)
     {
       L.push_back(BACKSLASH);
     }
-    L.push_back(S[i] & 0xff); // todo - spaces for symbols and then symbols in Y
-    if ((S[i] & UNDERSCORE) == UNDERSCORE)
-      U.push_back('_');
+    if ((S[i] & SYMBOL) == 0)
+    { // standard font
+      L.push_back(S[i] & 0xff);
+      Y.push_back(' ');
+    }
     else
+    { // symbol font for arrows
+      L.push_back(' ');
+      Y.push_back(S[i] & 0xff);
+    }
+    if ((S[i] & UNDERSCORE) == 0)
       U.push_back(' ');
+    else
+      U.push_back('_');
   }
-
-  // todo: fill Y string with symbols
 
 #ifdef DEBUG_S
   BUG_UART.println("adding line: ");
   BUG_UART.println(L.c_str());
   BUG_UART.println(U.c_str());
+  BUG_UART.println(Y.c_str());
 #endif
 
   if (pdf_lineCounter == 0)
   {
     pdf_new_page();
     // set font
-    _file->printf("/F%d %d Tf\n", 1, 12);
+    _file->printf("/F1 12 Tf\n");
     // go to top of page
     _file->printf("%d %d Td\n", leftMargin, pageHeight);
     // set line spacing
@@ -172,6 +180,29 @@ void sioPrinter::pdf_add_line(std::u16string S)
         _file->printf(" %g 0 Td", first_ * -7.2);
       _file->printf("\n");
     }
+
+    // check to see if there are any symbols
+    size_t lastY = Y.find_last_not_of(' ');
+    lastY++;
+    if (lastY > 0)
+    {
+      size_t firstY = Y.find_first_not_of(' ');
+
+      // return postion to start of line and make text object
+      _file->printf("/F2 12 Tf\n");
+      _file->printf("%g 0 Td (", firstY * 7.2);
+      for (int i = firstY; i < lastY; i++)
+      {
+        _file->write((byte)Y[i]);
+      }
+      _file->printf(")Tj");
+      if (firstY > 0)
+        _file->printf(" %g 0 Td", firstY * -7.2);
+
+      _file->printf("\n");
+      _file->printf("/F1 12 Tf\n");
+    }
+
     // reset line spacing
     voffset = -lineHeight;
   }
