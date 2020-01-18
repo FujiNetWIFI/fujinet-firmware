@@ -1,6 +1,7 @@
 #include "printer.h"
 
-static byte intlchar[27] = {225, 249, 209, 201, 231, 244, 242, 236, 163, 239, 252, 228, 214, 250, 243, 246, 220, 226, 251, 238, 233, 232, 241, 234, 229, 224, 197};
+const byte intlchar[27] = {225, 249, 209, 201, 231, 244, 242, 236, 163, 239, 252, 228, 214, 250, 243, 246, 220, 226, 251, 238, 233, 232, 241, 234, 229, 224, 197};
+const byte arrowchar[4] = {UPARROW, DOWNARROW, LEFTARROW, RIGHTARROW};
 
 //pdf routines
 void sioPrinter::pdf_header()
@@ -114,12 +115,14 @@ void sioPrinter::pdf_add_line(std::u16string S)
     {
       L.push_back(BACKSLASH);
     }
-    L.push_back(S[i] & 0xff);
+    L.push_back(S[i] & 0xff); // todo - spaces for symbols and then symbols in Y
     if ((S[i] & UNDERSCORE) == UNDERSCORE)
-      U.push_back('_'); 
+      U.push_back('_');
     else
-      U.push_back(' '); 
+      U.push_back(' ');
   }
+
+  // todo: fill Y string with symbols
 
 #ifdef DEBUG_S
   BUG_UART.println("adding line: ");
@@ -153,16 +156,21 @@ void sioPrinter::pdf_add_line(std::u16string S)
 
     // check to see if there are underscores
     size_t last_ = U.find_last_of('_'); // must use size_t to handle no _
-    le = ++last_;
-    if (le > 0)
+    last_++;
+    if (last_ > 0)
     {
+      size_t first_ = U.find_first_of('_');
+
       // return postion to start of line and make text object
-      _file->printf("0 0 Td (");
-      for (int i = 0; i < le; i++)
+      _file->printf("%g 0 Td (", first_ * 7.2);
+      for (int i = first_; i < last_; i++)
       {
         _file->write((byte)U[i]);
       }
-      _file->printf(")Tj\n");
+      _file->printf(")Tj");
+      if (first_ > 0)
+        _file->printf(" %g 0 Td", first_ * -7.2);
+      _file->printf("\n");
     }
     // reset line spacing
     voffset = -lineHeight;
@@ -183,8 +191,8 @@ void sioPrinter::pdf_add_line(std::u16string S)
 std::u16string sioPrinter::buffer_to_string(byte *buffer)
 {
   // Atari 1027 escape codes:
-  // CTRL-O - start underscoring        14      - note in T1027.BAS there is a case of 27 14
-  // CTRL-N - stop underscoring         15
+  // CTRL-O - start underscoring        15
+  // CTRL-N - stop underscoring         14  - note in T1027.BAS there is a case of 27 14
   // ESC CTRL-Y - start underscoring    27  25
   // ESC CTRL-Z - stop underscoring     27  26
   // ESC CTRL-W - start international   27  23
@@ -219,13 +227,19 @@ std::u16string sioPrinter::buffer_to_string(byte *buffer)
     else if (intlFlag && (buffer[i] < 32 || buffer[i] == 123)) //|| buffer[i] == 96?
     {
       char16_t c;
-      // not sure about ATASCII 96. Codes 28-31 are arrows and require the symbol font - more work needed.
+      // not sure about ATASCII 96.
+      // todo: Codes 28-31 are arrows and require the symbol font - more work needed.
       if (buffer[i] < 27)
         c = (char16_t)intlchar[buffer[i]];
       else if (buffer[i] == 123)
         c = 196;
+      else if (buffer[i] > 27 && buffer[i] < 32)
+      {
+        c = (char16_t)arrowchar[buffer[i] - 28]; // todo: put in arrows
+        c += SYMBOL;
+      }
       else
-        c = 35;
+        c = '#';
 
       if (uscoreFlag)
         c += UNDERSCORE; // underscore
@@ -268,7 +282,7 @@ void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
-    if (pdf_lineCounter > 0 || pdf_pageCounter==0)
+    if (pdf_lineCounter > 0 || pdf_pageCounter == 0)
       pdf_end_page();
     pdf_xref();
   }
