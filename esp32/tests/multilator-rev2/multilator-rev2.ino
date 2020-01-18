@@ -381,46 +381,46 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 }
 
 /**
- * Get Adapter config.
- */
+   Get Adapter config.
+*/
 void sio_get_adapter_config()
 {
-  strcpy(adapterConfig.ssid,netConfig.ssid);
-  
+  strcpy(adapterConfig.ssid, netConfig.ssid);
+
 #ifdef ESP8266
-  strcpy(adapterConfig.hostname,WiFi.hostname().c_str());
+  strcpy(adapterConfig.hostname, WiFi.hostname().c_str());
 #else
-  strcpy(adapterConfig.hostname,WiFi.getHostname());
+  strcpy(adapterConfig.hostname, WiFi.getHostname());
 #endif
 
-  adapterConfig.localIP[0]=WiFi.localIP()[0];
-  adapterConfig.localIP[1]=WiFi.localIP()[1];
-  adapterConfig.localIP[2]=WiFi.localIP()[2];
-  adapterConfig.localIP[3]=WiFi.localIP()[3];
+  adapterConfig.localIP[0] = WiFi.localIP()[0];
+  adapterConfig.localIP[1] = WiFi.localIP()[1];
+  adapterConfig.localIP[2] = WiFi.localIP()[2];
+  adapterConfig.localIP[3] = WiFi.localIP()[3];
 
-  adapterConfig.gateway[0]=WiFi.gatewayIP()[0];
-  adapterConfig.gateway[1]=WiFi.gatewayIP()[1];
-  adapterConfig.gateway[2]=WiFi.gatewayIP()[2];
-  adapterConfig.gateway[3]=WiFi.gatewayIP()[3];
+  adapterConfig.gateway[0] = WiFi.gatewayIP()[0];
+  adapterConfig.gateway[1] = WiFi.gatewayIP()[1];
+  adapterConfig.gateway[2] = WiFi.gatewayIP()[2];
+  adapterConfig.gateway[3] = WiFi.gatewayIP()[3];
 
-  adapterConfig.netmask[0]=WiFi.subnetMask()[0];
-  adapterConfig.netmask[1]=WiFi.subnetMask()[1];
-  adapterConfig.netmask[2]=WiFi.subnetMask()[2];
-  adapterConfig.netmask[3]=WiFi.subnetMask()[3];
+  adapterConfig.netmask[0] = WiFi.subnetMask()[0];
+  adapterConfig.netmask[1] = WiFi.subnetMask()[1];
+  adapterConfig.netmask[2] = WiFi.subnetMask()[2];
+  adapterConfig.netmask[3] = WiFi.subnetMask()[3];
 
-  adapterConfig.dnsIP[0]=WiFi.dnsIP()[0];
-  adapterConfig.dnsIP[1]=WiFi.dnsIP()[1];
-  adapterConfig.dnsIP[2]=WiFi.dnsIP()[2];
-  adapterConfig.dnsIP[3]=WiFi.dnsIP()[3];
+  adapterConfig.dnsIP[0] = WiFi.dnsIP()[0];
+  adapterConfig.dnsIP[1] = WiFi.dnsIP()[1];
+  adapterConfig.dnsIP[2] = WiFi.dnsIP()[2];
+  adapterConfig.dnsIP[3] = WiFi.dnsIP()[3];
 
-  adapterConfig.macAddress[0]=WiFi.macAddress()[0];
-  adapterConfig.macAddress[1]=WiFi.macAddress()[1];
-  adapterConfig.macAddress[2]=WiFi.macAddress()[2];
-  adapterConfig.macAddress[3]=WiFi.macAddress()[3];
-  adapterConfig.macAddress[4]=WiFi.macAddress()[4];
-  adapterConfig.macAddress[5]=WiFi.macAddress()[5];
+  adapterConfig.macAddress[0] = WiFi.macAddress()[0];
+  adapterConfig.macAddress[1] = WiFi.macAddress()[1];
+  adapterConfig.macAddress[2] = WiFi.macAddress()[2];
+  adapterConfig.macAddress[3] = WiFi.macAddress()[3];
+  adapterConfig.macAddress[4] = WiFi.macAddress()[4];
+  adapterConfig.macAddress[5] = WiFi.macAddress()[5];
 
-  sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);  
+  sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);
 }
 
 /**
@@ -539,42 +539,132 @@ void sio_tnfs_mount_host()
 }
 
 /**
+   Dump PERCOM block
+*/
+void dump_percom_block(unsigned char deviceSlot)
+{
+#ifdef DEBUG_VERBOSE
+  Debug_printf("Percom Block Dump\n");
+  Debug_printf("-----------------\n");
+  Debug_printf("Num Tracks: %d\n", percomBlock[deviceSlot].num_tracks);
+  Debug_printf("Step Rate: %d\n", percomBlock[deviceSlot].step_rate);
+  Debug_printf("Sectors per Track: %d\n", (percomBlock[deviceSlot].sectors_per_trackM * 256 + percomBlock[deviceSlot].sectors_per_trackL));
+  Debug_printf("Num Sides: %d\n", percomBlock[deviceSlot].num_sides);
+  Debug_printf("Density: %d\n", percomBlock[deviceSlot].density);
+  Debug_printf("Sector Size: %d\n", (percomBlock[deviceSlot].sector_sizeM * 256 + percomBlock[deviceSlot].sector_sizeL));
+  Debug_printf("Drive Present: %d\n", percomBlock[deviceSlot].drive_present);
+  Debug_printf("Reserved1: %d\n", percomBlock[deviceSlot].reserved1);
+  Debug_printf("Reserved2: %d\n", percomBlock[deviceSlot].reserved2);
+  Debug_printf("Reserved3: %d\n", percomBlock[deviceSlot].reserved3);
+#endif
+}
+
+/**
+   Convert # of paragraphs to sectors
+   para = # of paragraphs returned from ATR header
+   ss = sector size returned from ATR header
+*/
+unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, unsigned short ss)
+{
+  unsigned long tmp = para_hi << 16;
+  tmp |= para;
+
+  unsigned short num_sectors = ((tmp << 4) / ss);
+
+
+#ifdef DEBUG_VERBOSE
+  Debug_printf("ATR Header\n");
+  Debug_printf("----------\n");
+  Debug_printf("num paragraphs: $%04x\n", para);
+  Debug_printf("Sector Size: %d\n", ss);
+  Debug_printf("num sectors: %d\n", num_sectors);
+#endif
+
+  // Adjust sector size for the fact that the first three sectors are 128 bytes
+  if (ss == 256)
+    num_sectors += 2;
+
+  return num_sectors;
+}
+
+/**
    Update PERCOM block from the total # of sectors.
 */
 void derive_percom_block(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors)
 {
-//  // Start with 40T/1S 720 Sectors, sector size passed in
-//  percomBlock[deviceSlot].num_tracks = 40;
-//  percomBlock[deviceSlot].step_rate = 1;
-////  percomBlock[deviceSlot].sectors_per_track = 18;
-//  percomBlock[deviceSlot].num_sides = 1;
-////  percomBlock[deviceSlot].density = (sectorSize>128 ? 4 : 0); // >128 bytes = MFM
-////   percomBlock[deviceSlot].sector_size = sectorSize;
-//  percomBlock[deviceSlot].drive_present = 1;
-//  percomBlock[deviceSlot].reserved1 = 0;
-//  percomBlock[deviceSlot].reserved2 = 0;
-//  percomBlock[deviceSlot].reserved3 = 0;
-//
-//  if (numSectors == 1040) // 1050 density
-//  {
-////    percomBlock[deviceSlot].sectors_per_track = 26;
-//    percomBlock[deviceSlot].density=4; // 1050 density is MFM, override.
-//  }
-//  else if (numSectors == 1440)
-//  {
-//    percomBlock[deviceSlot].num_sides = 2;
-//  }
-//  else if (numSectors == 2880)
-//  {
-//    percomBlock[deviceSlots].num_sides = 2;
-//    percomBlock[deviceSlots].num_tracks = 80;
-//  }
-//  else
-//  {
-//    // This is a custom size, one long track.
-////    percomBlock[deviceSlots].num_tracks=1;
-////    percomBlock[deviceSlots].sectors_per_track=numSectors;
-//  }
+  // Start with 40T/1S 720 Sectors, sector size passed in
+  percomBlock[deviceSlot].num_tracks = 40;
+  percomBlock[deviceSlot].step_rate = 1;
+  percomBlock[deviceSlot].sectors_per_trackM = 0;
+  percomBlock[deviceSlot].sectors_per_trackL = 18;
+  percomBlock[deviceSlot].num_sides = 0;
+  percomBlock[deviceSlot].density = 0; // >128 bytes = MFM
+  percomBlock[deviceSlot].sector_sizeM = (sectorSize == 256 ? 0x01 : 0x00);
+  percomBlock[deviceSlot].sector_sizeL = (sectorSize == 256 ? 0x00 : 0x80);
+  percomBlock[deviceSlot].drive_present = 255;
+  percomBlock[deviceSlot].reserved1 = 0;
+  percomBlock[deviceSlot].reserved2 = 0;
+  percomBlock[deviceSlot].reserved3 = 0;
+
+  if (numSectors == 1040) // 1050 density
+  {
+    percomBlock[deviceSlot].sectors_per_trackM = 0;
+    percomBlock[deviceSlot].sectors_per_trackL = 26;
+    percomBlock[deviceSlot].density = 4; // 1050 density is MFM, override.
+  }
+  else if (numSectors == 720 && sectorSize == 256)
+  {
+    percomBlock[deviceSlot].density = 4; // 1050 density is MFM, override.
+  }
+  else if (numSectors == 1440)
+  {
+    percomBlock[deviceSlot].num_sides = 1;
+    percomBlock[deviceSlot].density = 4; // 1050 density is MFM, override.
+  }
+  else if (numSectors == 2880)
+  {
+    percomBlock[deviceSlot].num_sides = 1;
+    percomBlock[deviceSlot].num_tracks = 80;
+    percomBlock[deviceSlot].density = 4; // 1050 density is MFM, override.
+  }
+  else
+  {
+    // This is a custom size, one long track.
+    percomBlock[deviceSlot].num_tracks = 1;
+    percomBlock[deviceSlot].sectors_per_trackM = numSectors >> 8;
+    percomBlock[deviceSlot].sectors_per_trackL = numSectors & 0xFF;
+  }
+
+#ifdef DEBUG_VERBOSE
+  Debug_printf("Percom block dump for newly mounted device slot %d\n", deviceSlot);
+  dump_percom_block(deviceSlot);
+#endif
+}
+
+/**
+   Read percom block
+*/
+void sio_read_percom_block()
+{
+  unsigned char deviceSlot = cmdFrame.devic - 0x31;
+#ifdef DEBUG_VERBOSE
+  dump_percom_block(deviceSlot);
+#endif
+  sio_to_computer((byte *)&percomBlock[deviceSlot], 12, false);
+  SIO_UART.flush();
+}
+
+/**
+   Write percom block
+*/
+void sio_write_percom_block()
+{
+  unsigned char deviceSlot = cmdFrame.devic - 0x31;
+  sio_to_peripheral((byte *)&percomBlock[deviceSlot], 12);
+#ifdef DEBUG_VERBOSE
+  dump_percom_block(deviceSlot);
+#endif
+  sio_complete();
 }
 
 /**
@@ -585,6 +675,9 @@ void sio_disk_image_mount()
   unsigned char deviceSlot = cmdFrame.aux1;
   unsigned char options = cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
   unsigned short newss;
+  unsigned short num_para;
+  unsigned char num_para_hi;
+  unsigned short num_sectors;
   bool opened = tnfs_open(deviceSlot, options);
 
   if (!opened)
@@ -593,12 +686,17 @@ void sio_disk_image_mount()
   }
   else
   {
-    // Get # of sectors from header
-    tnfs_seek(deviceSlot, 4);
+    // Get file and sector size from header
+    tnfs_seek(deviceSlot, 2);
+    tnfs_read(deviceSlot, 2);
+    num_para = (256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
     tnfs_read(deviceSlot, 2);
     newss = (256 * tnfsPacket.data[4]) + tnfsPacket.data[3];
+    tnfs_read(deviceSlot, 1);
+    num_para_hi = tnfsPacket.data[3];
     sectorSize[deviceSlot] = newss;
-//    derive_percom_block(numSectors);
+    num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
+    derive_percom_block(deviceSlot, newss, num_sectors);
     sio_complete();
   }
 }
@@ -1702,6 +1800,8 @@ void setup()
   cmdPtr['S'] = sio_status;
   cmdPtr['!'] = sio_format;
   cmdPtr[0x3F] = sio_high_speed;
+  cmdPtr[0x4E] = sio_read_percom_block;
+  cmdPtr[0x4F] = sio_write_percom_block;
   cmdPtr[0xFD] = sio_net_scan_networks;
   cmdPtr[0xFC] = sio_net_scan_result;
   cmdPtr[0xFB] = sio_net_set_ssid;
@@ -1741,7 +1841,7 @@ void loop()
 #endif
 
     byte ck = sio_checksum(cmdFrame.cmdFrameData, 4);
-    if(ck == cmdFrame.cksum)
+    if (ck == cmdFrame.cksum)
     {
 #ifdef ESP8266
       delayMicroseconds(DELAY_T1);
@@ -1753,7 +1853,7 @@ void loop()
 #endif
       if (sio_valid_device_id())
       {
-        if (cmdPtr[cmdFrame.comnd]==sio_wait)
+        if (cmdPtr[cmdFrame.comnd] == sio_wait)
         {
           sio_nak();
         }
@@ -1770,10 +1870,10 @@ void loop()
     else
     {
       command_frame_counter++;
-      if(COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
+      if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
       {
         command_frame_counter = 0;
-        if(hispeed)
+        if (hispeed)
         {
           SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
           hispeed = false;
