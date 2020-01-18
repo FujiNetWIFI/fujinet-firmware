@@ -10,7 +10,17 @@
 #define BACKSLASH 92
 #define LEFTPAREN 40
 #define RIGHTPAREN 41
+#define UPARROW 0xAD
+#define DOWNARROW 0xAF
+#define LEFTARROW 0xAC
+#define RIGHTARROW 0xAE
 #define BUFN 40
+
+#define PLAIN 0
+#define UNDERSCORE 0x0100
+#define SYMBOL 0x0200
+#define BOLD 0x0400
+#define EMPHASIS 0x0800
 
 enum printer_t
 {
@@ -30,6 +40,7 @@ enum paper_t
     ASCII,
     PDF
 };
+
 
 
 class sioPrinter : public sioDevice
