@@ -1,4 +1,6 @@
+/*
 
+*/
 #define TEST_NAME "#FujiNet Multi-Diskulator v2 + Modem850"
 
 #ifdef ESP8266
@@ -13,6 +15,8 @@
 
 #include <FS.h>
 #include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <TimeLib.h>
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
 //#define DEBUG_S
@@ -201,7 +205,7 @@ String cmd = "";              // Gather a new AT command to this string from ser
 bool cmdMode = true;          // Are we in AT command mode or connected mode
 bool cmdAtascii = false;      // last CMD contained an ATASCII EOL?
 bool telnet = false;          // Is telnet control code handling enabled
-long listenPort = 0;          // Listen to this if not connected. Set to zero to disable.
+long listenPort = 8888;        // Listen to this if not connected. Set to zero to disable.
 #define RING_INTERVAL 3000    // How often to print RING when having a new incoming connection (ms)
 WiFiClient tcpClient;
 WiFiServer tcpServer(listenPort);
@@ -217,16 +221,25 @@ unsigned long ledTime = 0;
 uint8_t txBuf[TX_BUF_SIZE];
 bool blockWritePending = false;     // is a BLOCK WRITE pending for the modem?
 byte* blockPtr;                     // pointer in the block write (points somewhere in sector)
-bool DTR=false;
-bool RTS=false;
-bool XMT=false;
-
+bool DTR = false;
+bool RTS = false;
+bool XMT = false;
 
 // Telnet codes
 #define DO 0xfd
 #define WONT 0xfc
 #define WILL 0xfb
 #define DONT 0xfe
+
+/* NTP Client
+
+   Set your timezone offset in seconds:
+     For UTC -6.00 : -6 * 60 * 60 : -21600
+*/
+const long utcOffsetInSeconds = -21600;        // Central Time
+const int timeUpdateInterval = 300000;         // How often to update time (in milliseconds)
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds, timeUpdateInterval);
 
 // DEBUGGING MACROS /////////////////////////////////////////////////////////////////////////
 #ifdef DEBUG_S
@@ -283,7 +296,7 @@ bool sio_valid_device_id()
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
   if ((load_config == true) && (cmdFrame.devic == 0x31)) // Only respond to 0x31 if in config mode
     return true;
-  else if (cmdFrame.devic == 0x40 || cmdFrame.devic==0x41 || cmdFrame.devic==0x43 || cmdFrame.devic==0x44 || cmdFrame.devic==0x45) // P: null device
+  else if (cmdFrame.devic == 0x40 || cmdFrame.devic == 0x41 || cmdFrame.devic == 0x43 || cmdFrame.devic == 0x44 || cmdFrame.devic == 0x45) // P: null device
     return true;
   else if (cmdFrame.devic == 0x50) // 850 R: Device Emulator
     return true;
@@ -291,7 +304,7 @@ bool sio_valid_device_id()
     return true;
   else if (cmdFrame.devic == 0x4F) // Do not respond to Type 3/4 polls
     return false;
-  else if (cmdFrame.devic>0x30 && cmdFrame.devic<0x39)
+  else if (cmdFrame.devic > 0x30 && cmdFrame.devic < 0x39)
   {
     if (deviceSlots.slot[deviceSlot].hostSlot != 0xFF)
       return true;
@@ -980,9 +993,17 @@ void sio_write()
         // First three sectors are always single density
         offset *= sectorSize[deviceSlot];
         offset -= sectorSize[deviceSlot];
-        offset += 16; // skip 16 byte ATR Header
+        //offset += 16; // skip 16 byte ATR Header
         ss = sectorSize[deviceSlot];
+
+        // Bias adjustment for 256 bytes
+        if (ss == 256)
+          offset -= 384;
+
+        offset += 16; // skip 16 byte ATR Header
       }
+
+      memset(sector, 0, 256); // clear buffer
 
       ck = sio_to_peripheral(sector, ss);
 
@@ -1073,7 +1094,7 @@ void sio_read()
         offset -= 384;
 
       offset += 16;
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
       Debug_printf("firstCachedSector: %d\r\n", firstCachedSector);
       Debug_printf("cacheOffset: %d\r\n", cacheOffset);
       Debug_printf("offset: %d\r\n", offset);
@@ -1138,7 +1159,7 @@ void sio_read()
         ss = sectorSize[deviceSlot];
 
       cacheOffset = ((sectorNum - firstCachedSector[deviceSlot]) * ss);
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
       Debug_printf("cacheOffset: %d\r\n", cacheOffset);
 #endif
     }
@@ -1648,10 +1669,9 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
     tnfsPacket.data[1] = len & 0xFF;
     tnfsPacket.data[2] = len >> 8;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_print("Writing to File descriptor: ");
     Debug_println(tnfs_fds[deviceSlot]);
-#ifdef DEBUG_VERBOSE
     Debug_print("Req Packet: ");
     for (int i = 0; i < 7; i++)
     {
@@ -1660,11 +1680,10 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
     }
     Debug_println("");
 #endif
-#endif
 
     UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
     UDP.write(tnfsPacket.rawData, 4 + 3);
-    UDP.write(sector, 128);
+    UDP.write(sector, len);
     UDP.endPacket();
 
     while (dur < 5000)
@@ -1686,7 +1705,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif
           return true;
@@ -1709,7 +1728,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\r\n");
+  Debug_printf("tnfs write Failed.\r\n");
 #endif
 }
 
@@ -1732,10 +1751,9 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
     tnfsPacket.data[1] = len & 0xFF; // len bytes
     tnfsPacket.data[2] = len >> 8; //
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_print("Reading from File descriptor: ");
     Debug_println(tnfs_fds[deviceSlot]);
-#ifdef DEBUG_VERBOSE
     Debug_print("Req Packet: ");
     for (int i = 0; i < 7; i++)
     {
@@ -1743,7 +1761,6 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
       Debug_print(" ");
     }
     Debug_println("");
-#endif
 #endif
 
     UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
@@ -1770,7 +1787,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif
           return true;
@@ -1795,7 +1812,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\r\n");
+  Debug_printf("tnfs read Failed.\r\n");
 #endif
   return false;
 }
@@ -1828,10 +1845,9 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
     tnfsPacket.data[4] = offsetVal[1];
     tnfsPacket.data[5] = offsetVal[0];
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_print("Seek requested to offset: ");
     Debug_println(offset);
-#ifdef DEBUG_VERBOSE
     Debug_print("Req packet: ");
     for (int i = 0; i < 10; i++)
     {
@@ -1839,7 +1855,6 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
       Debug_print(" ");
     }
     Debug_println("");
-#endif
 #endif
 
     UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
@@ -1866,7 +1881,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
         if (tnfsPacket.data[0] == 0)
         {
           // Success.
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif
           return true;
@@ -1891,7 +1906,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
     retries++;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\r\n");
+  Debug_printf("tnfs seek Failed.\r\n");
 #endif
   return false;
 }
@@ -1917,30 +1932,30 @@ void sio_wait()
 */
 void sio_R_control()
 {
-  if (cmdFrame.aux1&0x02)
+  if (cmdFrame.aux1 & 0x02)
   {
-    XMT=(cmdFrame.aux1&0x01 ? true : false);
+    XMT = (cmdFrame.aux1 & 0x01 ? true : false);
 #ifdef DEBUG
-    Debug_printf("XMT now %d",XMT);
+    Debug_printf("XMT now %d", XMT);
 #endif
   }
 
-  if (cmdFrame.aux1&0x20)
+  if (cmdFrame.aux1 & 0x20)
   {
-    RTS=(cmdFrame.aux1&0x10 ? true : false);  
+    RTS = (cmdFrame.aux1 & 0x10 ? true : false);
 #ifdef DEBUG
-    Debug_printf("RTS now %d",RTS);
+    Debug_printf("RTS now %d", RTS);
 #endif
   }
 
-  if (cmdFrame.aux1&0x80)
+  if (cmdFrame.aux1 & 0x80)
   {
-    DTR=(cmdFrame.aux1&0x40 ? true : false);
+    DTR = (cmdFrame.aux1 & 0x40 ? true : false);
 #ifdef DEBUG
-    Debug_printf("DTR now %d",DTR);
+    Debug_printf("DTR now %d", DTR);
 #endif
   }
-  
+
   // for now, just complete
   sio_complete();
 
@@ -2344,6 +2359,40 @@ void modemCommand()
   cmd = "";
 }
 
+/*
+   Sends NTP time back to the Atari upon request
+*/
+void sio_rtc()
+{
+  setTime(getEpoch());
+
+  int yr = year();
+  if ( (yr - 1970) > 30 )
+    yr = yr - 1970 - 30;
+  else if ( (yr - 1970) == 30 )
+    yr = 0;
+  else
+    yr = yr - 1970;
+
+  byte currentTime[6] = {day(), month(), yr, hour(), minute(), second()}; // DAY, MONTH, YEAR, HOUR, MINUTE, SECOND
+  sio_to_computer(currentTime, sizeof(currentTime), false);
+
+#ifdef DEBUG
+  Debug_print("Time Requested: ");
+  Debug_print(hour());
+  Debug_print(":");
+  Debug_print(minute());
+  Debug_print(":");
+  Debug_print(second());
+  Debug_print(" ");
+  Debug_print(day());
+  Debug_print(month());
+  Debug_print(".");
+  Debug_print(yr);
+  Debug_println();
+#endif
+}
+
 void setup()
 {
 #ifdef DEBUG_S
@@ -2426,6 +2475,7 @@ void setup()
   cmdPtr[0xF1] = sio_write_device_slots;
   cmdPtr[0xE9] = sio_disk_image_umount;
   cmdPtr[0xE8] = sio_get_adapter_config;
+  cmdPtr[0x93] = sio_rtc;
   cmdPtr['B'] = sio_R_config; // 0x42
   cmdPtr['A'] = sio_R_control; // 0x41
   cmdPtr['X'] = sio_R_concurrent; // 0x58
@@ -2439,8 +2489,37 @@ void setup()
   WiFi.begin();
 #endif
 
-  listenPort = 8888;
-  tcpServer.begin(listenPort);
+  // Listen for incoming connections if listenport is defined
+  if (listenPort > 0)
+    tcpServer.begin(listenPort);
+
+  // Start NTP client
+  timeClient.begin();
+  timeClient.update();
+  setTime(getEpoch());
+  setSyncProvider(getEpoch);
+
+#ifdef DEBUG
+  Debug_print("Time: ");
+  Debug_print(hour());
+  Debug_print(":");
+  Debug_print(minute());
+  Debug_print(":");
+  Debug_print(second());
+  Debug_print(" ");
+  Debug_print(day());
+  Debug_print(".");
+  Debug_print(month());
+  Debug_print(".");
+  Debug_print(year());
+  Debug_println();
+#endif
+}
+
+/* Update and return the current time */
+time_t getEpoch() {
+  timeClient.update();
+  return timeClient.getEpochTime();
 }
 
 /**
@@ -2602,7 +2681,7 @@ void loop()
 
         if ((blockWritePending == true) && (*blockPtr != 0x00))
           chr = *blockPtr++;
-        else if (blockWritePending==true)
+        else if (blockWritePending == true)
         {
           blockWritePending = false;
           yield();
@@ -2751,13 +2830,13 @@ void loop()
     }
 
     // Go to command mode if TCP disconnected and not in command mode
-    if ((tcpClient.connected()) && (cmdMode==false) && (DTR==0))
+    if ((tcpClient.connected()) && (cmdMode == false) && (DTR == 0))
     {
       tcpClient.flush();
       tcpClient.stop();
       cmdMode = true;
       at_cmd_println("NO CARRIER");
-      if (listenPort > 0) tcpServer.begin();    
+      if (listenPort > 0) tcpServer.begin();
     }
     else if ((!tcpClient.connected()) && (cmdMode == false))
     {
