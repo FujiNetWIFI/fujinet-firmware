@@ -1753,7 +1753,7 @@ void loop()
 #endif
       if (sio_valid_device_id())
       {
-        if (/*(cmdFrame.comnd == 0x3F) ||*/ (cmdFrame.comnd == 0x4E) || (cmdFrame.comnd == 0x4F))
+        if (cmdPtr[cmdFrame.comnd]==sio_wait)
         {
           sio_nak();
         }
