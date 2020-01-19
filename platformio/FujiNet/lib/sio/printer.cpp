@@ -33,7 +33,6 @@ void sioPrinter::pdf_header()
 
 void sioPrinter::pdf_xref()
 {
-  // todo: write out stored page objects
   objLocations[2] = _file->position(); // hard code page catalog as object #2
   _file->printf("2 0 obj\n<</Type /Pages /Kids [ ");
   for (int i = 0; i < pdf_pageCounter; i++)
@@ -58,10 +57,10 @@ void sioPrinter::pdf_xref()
 
 void sioPrinter::pdf_new_page()
 { // open a new page
-  ++pdf_objCtr;
+  pdf_objCtr++;
   pageObjects[pdf_pageCounter] = pdf_objCtr;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 3 0 R /MediaBox [0 0 %d %d] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
+  _file->printf("%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 3 0 R /MediaBox [0 0 %g %g] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
   pdf_objCtr++; // increment for the contents stream object
   _file->printf("%d 0 R ", pdf_objCtr);
   _file->printf("]>>\nendobj\n");
@@ -86,8 +85,7 @@ void sioPrinter::pdf_end_page()
   _file->printf("%5u", (idx_stream_stop - idx_stream_start));
   _file->seek(idx_temp);
   // set counters
-  ++pdf_pageCounter;
-  pdf_Y = 0;
+  pdf_pageCounter++;
 }
 
 void sioPrinter::pdf_add(std::string S)
@@ -98,14 +96,14 @@ void sioPrinter::pdf_add(std::string S)
     TOPflag = false;
     // set default font
     if (pdf_pageCounter == 0)
-      _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
+      _file->printf("/F%u %g Tf\n", fontNumber, fontSize);
     // go to top of page
-    _file->printf("%d %d Td\n", leftMargin, pageHeight);
+    _file->printf("%g %g Td\n", leftMargin, pageHeight);
     // set line spacing
     voffset = -lineHeight;
     BOLflag = true;
-    // reset print roller to top line
-    pdf_Y = pageHeight - lineHeight;
+    // reset print roller to top of page
+    pdf_Y = pageHeight;
   }
 
   // loop through string
@@ -115,7 +113,7 @@ void sioPrinter::pdf_add(std::string S)
 
     if (BOLflag)
     {
-      // doe special case of new line and S==EOL later
+      // do special case of new line and S==EOL later
       // if (c == EOL)
       //   {                        // skip a line space
       //     voffset -= lineHeight; // relative coord
@@ -123,13 +121,13 @@ void sioPrinter::pdf_add(std::string S)
       //   }
       // else
       // {
+
       // position new line
-      _file->printf("0 %d Td ", voffset);
-      // make text object
-      _file->printf("(");
+      _file->printf("0 %g Td ", -lineHeight);
+      // make text string array
+      _file->printf("[(");
       pdf_X = 0;
       BOLflag = false;
-      // }
     }
 
     if (escMode)
@@ -160,18 +158,7 @@ void sioPrinter::pdf_add(std::string S)
     else
     { // maybe printable character
       //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
-      if (c > 31 && c < 127)
-      {
-        _file->write(c);
-
-        if (uscoreFlag)
-        {
-          // close text object, backspace, start new text object, write _, close text object, start new text object
-          _file->write('_');
-        }
-        pdf_X += charWidth;
-      }
-      else if (intlFlag && (c < 32 || c == 123))
+      if (intlFlag && (c < 32 || c == 123))
       {
         // not sure about ATASCII 96.
         // todo: Codes 28-31 are arrows and require the symbol font
@@ -181,8 +168,22 @@ void sioPrinter::pdf_add(std::string S)
           _file->write(byte(196));
         else if (c > 27 && c < 32)
         {
-          // close the text object, change font, open text object, put char, close text object, change font back
+          // todo: change font and put arrow there - how?
           _file->write(intlchar[c]);
+        }
+        pdf_X += charWidth;
+      }
+      else if (c > 31 && c < 127)
+      {
+
+        if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
+          _file->write(BACKSLASH);
+        _file->write(c);
+
+        if (uscoreFlag)
+        {
+          // close text string, backspace, start new text string, write _
+          _file->printf(")600(_");
         }
         pdf_X += charWidth;
       }
@@ -190,11 +191,19 @@ void sioPrinter::pdf_add(std::string S)
     // check for EOL or if at end of line and need automatic CR
     if ((c == EOL) || (pdf_X > (maxWidth - charWidth)))
     {
-      _file->printf(")Tj\n"); // close the line
-      pdf_Y -= lineHeight;    // line feed
-      pdf_X = 0;              // CR
+      _file->printf(")]TJ\n"); // close the line
+      pdf_Y -= lineHeight;     // line feed
+      pdf_X = 0;               // CR
       BOLflag = true;
     }
+#ifdef DEBUG_S
+    printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
+    printf("TOP: %s  ", TOPflag ? "true " : "false");
+    printf("BOL: %s  ", BOLflag ? "true " : "false");
+    printf("ESC: %s  ", escMode ? "true " : "false");
+    printf("USC: %s  ", uscoreFlag ? "true " : "false");
+    printf("INL: %s\n", intlFlag ? "true " : "false");
+#endif
   }
 
   // reset line spacing - only needed in special case of !doing line and EOL
@@ -202,7 +211,12 @@ void sioPrinter::pdf_add(std::string S)
 
   // if wrote last line, then close the page
   if (pdf_Y < bottomMargin)
+  {
     pdf_end_page();
+    pdf_X = 0; // CR
+    pdf_Y = 0;
+    TOPflag = true;
+  }
 }
 
 void sioPrinter::initPrinter(File *f, paper_t ty)
@@ -230,10 +244,16 @@ void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
+    // to do: close the text string array if !BOLflag
     if (!TOPflag || pdf_pageCounter == 0)
       pdf_end_page();
     pdf_xref();
   }
+}
+
+paper_t sioPrinter::getPaperType()
+{
+  return paperType;
 }
 
 void sioPrinter::writeBuffer(byte *B, int n)
