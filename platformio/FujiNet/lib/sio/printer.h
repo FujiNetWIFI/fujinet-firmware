@@ -50,23 +50,20 @@ private:
     void sio_process() override;
 
     paper_t paperType = PDF;
-    int pageWidth = 612;
-    int pageHeight = 792;
-    int leftMargin = 18;
-    int bottomMargin = 6;
-    int maxLines = 66;
-    int maxCols = 80;
-    float maxWidth = 12.0 * 80.0;
-    float lineHeight = 12.0;
-    float charWidth = 7.2;
+    double pageWidth = 612;
+    double pageHeight = 792;
+    double leftMargin = 18;
+    double bottomMargin = 0;
+    double maxWidth = 576.0; // 8 inches
+    double lineHeight = 12.0;
+    double charWidth = 7.2;
     int fontNumber = 1;
-    int fontSize = 12;
-    const char *fontName = "Courier";
-    float pdf_X = 0; // across the page - columns in pts
+    double fontSize = 12;
+    double pdf_X = 0; // across the page - columns in pts
     bool BOLflag = true;
-    float pdf_Y = 0; // down the page - lines in pts
+    double pdf_Y = 0; // down the page - lines in pts
     bool TOPflag = true;
-    int voffset;
+    //double voffset; // use for EOL special handling
     int pageObjects[256];
     int pdf_pageCounter = 0;
     size_t objLocations[256]; // reference table storage
@@ -100,6 +97,7 @@ public:
     void initPrinter(File *f, paper_t ty);
     void initPrinter(File *f);
     void pageEject();
+    paper_t getPaperType();
 };
 
 #endif // guard
