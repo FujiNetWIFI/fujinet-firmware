@@ -21,6 +21,7 @@
 #include "err.h"
 
 const char msg_host_slot[]="HOST SLOT #";
+char buf[80];
 
 union
 {
@@ -117,13 +118,29 @@ int main(int argc, char* argv[])
 {
   unsigned char sa=argv[1][0];
   unsigned char s=sa-0x30;
-  
-  if (argc<2 || argc>3)
-    {
-      opts(argv);
-      return(1);
-    }
 
+  if (_is_cmdline_dos())
+    {
+      if (argc<2 || argc>3)
+	{
+	  opts(argv);
+	  return(1);
+	}
+      
+      strcpy(buf,argv[2]);
+    }
+  else
+    {
+      // DOS 2.0
+      print("WHICH HOST SLOT (1-8)? ");
+      get_line(buf,sizeof(buf));
+      sa=buf[0];
+      s=sa-0x30;
+      
+      print("HOSTNAME OR \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO ERASE:\x9b");
+      get_line(buf,sizeof(buf));
+    }
+  
   if (s<1 || s>8)
     {
       print("INVALID SLOT NUMBER.\x9b");
@@ -136,7 +153,7 @@ int main(int argc, char* argv[])
   host_read();
 
   // alter host slot
-  if (argc==2)
+  if (buf[0]==0x00)
     {
       // Erase host
       memset(hostSlots.host[s],0x00,sizeof(hostSlots.host[s]));
@@ -144,14 +161,15 @@ int main(int argc, char* argv[])
       printc(&sa);
       print(" cleared.\x9b");
     }
+  
   else
     {
       // Alter host value
-      strcpy(hostSlots.host[s],argv[2]);
+      strcpy(hostSlots.host[s],buf);
       print(msg_host_slot);
       printc(&sa);
       print(" changed to: ");
-      print(argv[2]);
+      print(buf);
     }
 
   // write the deviceSlots back to FujiNet

@@ -20,6 +20,8 @@
 #include "conio.h"
 #include "err.h"
 
+unsigned char buf[255];
+
 union
 {
   struct
@@ -142,6 +144,13 @@ int main(void)
   print_mac(adapterConfig.macAddress);
 
   print("\x9b");
+
+  if (!_is_cmdline_dos())
+    {
+      print("\x9bPRESS \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CONTINUE.\x9b");
+      OS.ch=255;
+      while (OS.ch==255) { }
+    }
   
   return(0);
 }

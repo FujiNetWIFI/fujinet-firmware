@@ -20,6 +20,8 @@
 #include "conio.h"
 #include "err.h"
 
+unsigned char buf[40];
+
 union
 {
   char host[8][32];
@@ -144,19 +146,29 @@ void opts(char* argv[])
 int main(int argc, char* argv[])
 {
   unsigned char s=argv[1][0]-0x30;
-  
-  if (argc<2)
-    {
-      opts(argv);
-      return(1);
-    }
 
+  if (_is_cmdline_dos())
+    {
+      if (argc<2)
+	{
+	  opts(argv);
+	  return(1);
+	}
+    }
+  else
+    {
+      // DOS 2.0/MYDOS
+      print("EJECT FROM WHICH DEVICE SLOT? ");
+      get_line(buf,sizeof(buf));
+      s=buf[0]-0x30;
+    }
+  
   if (s<1 || s>8)
     {
       print("INVALID SLOT NUMBER.\x9b");
       return(1);
     }
-
+  
   s-=1;
   
   // Read in host and device slots from FujiNet
@@ -185,6 +197,12 @@ int main(int argc, char* argv[])
       print("Disk D");
       printc(&s);
       print(": not in use.\x9b");
+    }
+
+  if (!_is_cmdline_dos())
+    {
+      print("\x9bPRESS \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CONTINUE.\x9b");
+      get_line(buf,sizeof(buf));
     }
   
   return(0);

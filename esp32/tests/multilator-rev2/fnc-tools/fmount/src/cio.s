@@ -2,6 +2,7 @@
 
 	.export _ciov
 
-_ciov:	JSR $E456
+_ciov:	LDX #$00
+	JSR $E456
 	RTS
 	
