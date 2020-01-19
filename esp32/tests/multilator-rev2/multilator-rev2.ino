@@ -47,6 +47,11 @@
 #define PIN_CMD         21
 #endif
 
+#define DELAY_T0  750
+#define DELAY_T1  650
+#define DELAY_T2  0
+#define DELAY_T3  1000
+#define DELAY_T4  850
 #define DELAY_T5  250
 
 bool hispeed = false;
@@ -55,8 +60,7 @@ int command_frame_counter = 0;
 #define HISPEED_INDEX 0x06
 #define HISPEED_BAUDRATE 68837
 #define STANDARD_BAUDRATE 19200
-#define SERIAL_TIMEOUT_COMMAND_FRAME 20
-#define SERIAL_TIMEOUT 1000
+#define SERIAL_TIMEOUT 300
 
 /**
    A Single command frame, both in structured and unstructured
@@ -270,7 +274,9 @@ bool sio_valid_device_id()
 void sio_nak()
 {
   SIO_UART.write('N');
+#ifdef ESP32
   SIO_UART.flush();
+#endif
 }
 
 /**
@@ -279,7 +285,9 @@ void sio_nak()
 void sio_ack()
 {
   SIO_UART.write('A');
+#ifdef ESP32
   SIO_UART.flush();
+#endif
 }
 
 /**
@@ -309,6 +317,10 @@ void sio_error()
 void sio_to_computer(byte* b, unsigned short len, bool err)
 {
   byte ck = sio_checksum(b, len);
+
+#ifdef ESP8266
+  delayMicroseconds(DELAY_T5);
+#endif
 
   if (err == true)
     sio_error();
@@ -356,6 +368,10 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   for (int i = 0; i < len; i++)
     Debug_printf("%02x ", sector[i]);
   Debug_printf("\nCKSUM: %02x\n\n", ck);
+#endif
+
+#ifdef ESP8266
+  delayMicroseconds(DELAY_T4);
 #endif
 
   if (sio_checksum(b, len) != ck)
@@ -1783,6 +1799,7 @@ void setup()
 
   // Set up serial
   SIO_UART.begin(STANDARD_BAUDRATE);
+  SIO_UART.setTimeout(SERIAL_TIMEOUT);
 #ifdef ESP8266
   SIO_UART.swap();
 #endif
@@ -1827,20 +1844,27 @@ void loop()
     sio_led(true);
     memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
 
+#ifdef ESP8266
+    delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
+#endif
+
     // read cmd frame
-    SIO_UART.setTimeout(SERIAL_TIMEOUT_COMMAND_FRAME);
-    int bytesRead = SIO_UART.readBytes(cmdFrame.cmdFrameData, 5);
-    SIO_UART.setTimeout(SERIAL_TIMEOUT);
+    SIO_UART.readBytes(cmdFrame.cmdFrameData, 5);
 #ifdef DEBUG
-    Debug_printf("CF: %02x %02x %02x %02x %02x read %d bytes\n", cmdFrame.devic, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2, cmdFrame.cksum, bytesRead);
+    Debug_printf("CF: %02x %02x %02x %02x %02x\n", cmdFrame.devic, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2, cmdFrame.cksum);
 #endif
 
     byte ck = sio_checksum(cmdFrame.cmdFrameData, 4);
     if (ck == cmdFrame.cksum)
     {
+#ifdef ESP8266
+      delayMicroseconds(DELAY_T1);
+#endif
       // Wait for CMD line to raise again
       while (digitalRead(PIN_CMD) == LOW) yield();
-
+#ifdef ESP8266
+      delayMicroseconds(DELAY_T2);
+#endif
       if (sio_valid_device_id())
       {
         if (cmdPtr[cmdFrame.comnd] == sio_wait)
@@ -1850,6 +1874,9 @@ void loop()
         else
         {
           sio_ack();
+#ifdef ESP8266
+            delayMicroseconds(DELAY_T3);
+#endif
           cmdPtr[cmdFrame.comnd]();
         }
       }
@@ -1883,6 +1910,9 @@ void loop()
   else
   {
     sio_led(false);
-    while (SIO_UART.available()) SIO_UART.read(); // dump it.
+    a = SIO_UART.available();
+    if (a)
+      while (SIO_UART.available())
+        SIO_UART.read(); // dump it.
   }
 }
