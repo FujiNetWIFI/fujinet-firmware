@@ -1,7 +1,6 @@
 #include "printer.h"
 
-const byte intlchar[27] = {225, 249, 209, 201, 231, 244, 242, 236, 163, 239, 252, 228, 214, 250, 243, 246, 220, 226, 251, 238, 233, 232, 241, 234, 229, 224, 197};
-const byte arrowchar[4] = {UPARROW, DOWNARROW, LEFTARROW, RIGHTARROW};
+const byte intlchar[32] = {225, 249, 209, 201, 231, 244, 242, 236, 163, 239, 252, 228, 214, 250, 243, 246, 220, 226, 251, 238, 233, 232, 241, 234, 229, 224, 197, 27, UPARROW, DOWNARROW, LEFTARROW, RIGHTARROW};
 
 //pdf routines
 void sioPrinter::pdf_header()
@@ -88,205 +87,122 @@ void sioPrinter::pdf_end_page()
   _file->seek(idx_temp);
   // set counters
   ++pdf_pageCounter;
-  pdf_lineCounter = 0;
+  pdf_Y = 0;
 }
 
-void sioPrinter::pdf_add_line(std::u16string S)
+void sioPrinter::pdf_add(std::string S)
 {
-  std::string L = std::string(); //text string
-  std::string U = std::string(); //underscore string
-  std::string Y = std::string(); //underscore string
-
-  // separate u16string into parallel strings
-
-  // escape special CHARs in PDFs
-  // \n       | LINE FEED (0Ah) (LF)
-  // \r       | CARRIAGE RETURN (0Dh) (CR)
-  // \t       | HORIZONTAL TAB (09h) (HT)
-  // \b       | BACKSPACE (08h) (BS)
-  // \f       | FORM FEED (FF)
-  // \(       | LEFT PARENTHESIS (28h)
-  // \)       | RIGHT PARENTHESIS (29h)
-  // \\       | REVERSE SOLIDUS (5Ch) (Backslash)
-  // \ddd     | Character code ddd (octal)
-  for (int i = 0; i < S.length(); i++)
-  {
-    if ((S[i] & 0xff) == LEFTPAREN || (S[i] & 0xff) == RIGHTPAREN || (S[i] & 0xff) == BACKSLASH)
-    {
-      L.push_back(BACKSLASH);
-    }
-    if ((S[i] & SYMBOL) == 0)
-    { // standard font
-      L.push_back(S[i] & 0xff);
-      Y.push_back(' ');
-    }
-    else
-    { // symbol font for arrows
-      L.push_back(' ');
-      Y.push_back(S[i] & 0xff);
-    }
-    if ((S[i] & UNDERSCORE) == 0)
-      U.push_back(' ');
-    else
-      U.push_back('_');
-  }
-
-#ifdef DEBUG_S
-  BUG_UART.println("adding line: ");
-  BUG_UART.println(L.c_str());
-  BUG_UART.println(U.c_str());
-  BUG_UART.println(Y.c_str());
-#endif
-
-  if (pdf_lineCounter == 0)
+  if (TOPflag)
   {
     pdf_new_page();
-    // set font
-    _file->printf("/F1 12 Tf\n");
+    TOPflag=false;
+    // set default font
+    if (pdf_pageCounter == 0)
+      _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
     // go to top of page
     _file->printf("%d %d Td\n", leftMargin, pageHeight);
     // set line spacing
     voffset = -lineHeight;
+    BOLflag = true;
+    // reset print roller to top line
+    pdf_Y = pageHeight - lineHeight;
   }
 
-  int le = L.length();
-  if (le > 0)
+  // loop through string
+  for (int i = 0; i < S.length(); i++)
   {
-    // position new line
-    _file->printf("0 %d Td ", voffset);
-    // make text object
-    _file->printf("(");
-    for (int i = 0; i < le; i++)
-    {
-      _file->write((byte)L[i]);
-    }
-    _file->printf(")Tj\n");
+    byte c = byte(S[i]);
 
-    // check to see if there are underscores
-    size_t last_ = U.find_last_of('_'); // must use size_t to handle no _
-    last_++;
-    if (last_ > 0)
+    if (BOLflag)
     {
-      size_t first_ = U.find_first_of('_');
-
-      // return postion to start of line and make text object
-      _file->printf("%g 0 Td (", first_ * 7.2);
-      for (int i = first_; i < last_; i++)
-      {
-        _file->write((byte)U[i]);
-      }
-      _file->printf(")Tj");
-      if (first_ > 0)
-        _file->printf(" %g 0 Td", first_ * -7.2);
-      _file->printf("\n");
+      // doe special case of new line and S==EOL later
+      // if (c == EOL)
+      //   {                        // skip a line space
+      //     voffset -= lineHeight; // relative coord
+      //     pdf_Y -= lineHeight;   // absolute coord
+      //   }
+      // else
+      // {
+      // position new line
+      _file->printf("0 %d Td ", voffset);
+      // make text object
+      _file->printf("(");
+      pdf_X = 0;
+      BOLflag = false;
+      // }
     }
 
-    // check to see if there are any symbols
-    size_t lastY = Y.find_last_not_of(' ');
-    lastY++;
-    if (lastY > 0)
+    if (escMode)
     {
-      size_t firstY = Y.find_first_not_of(' ');
-
-      // return postion to start of line and make text object
-      _file->printf("/F2 12 Tf\n");
-      _file->printf("%g 0 Td (", firstY * 7.2);
-      for (int i = firstY; i < lastY; i++)
-      {
-        _file->write((byte)Y[i]);
-      }
-      _file->printf(")Tj");
-      if (firstY > 0)
-        _file->printf(" %g 0 Td", firstY * -7.2);
-
-      _file->printf("\n");
-      _file->printf("/F1 12 Tf\n");
-    }
-
-    // reset line spacing
-    voffset = -lineHeight;
-  }
-  else
-  {
-    // skip a line space
-    voffset -= lineHeight;
-  }
-
-  // keep track of vertical position on page
-  pdf_lineCounter++;
-  // if wrote last line, then close the page
-  if (pdf_lineCounter == maxLines)
-    pdf_end_page();
-}
-
-std::u16string sioPrinter::buffer_to_string(byte *buffer)
-{
-  // Atari 1027 escape codes:
-  // CTRL-O - start underscoring        15
-  // CTRL-N - stop underscoring         14  - note in T1027.BAS there is a case of 27 14
-  // ESC CTRL-Y - start underscoring    27  25
-  // ESC CTRL-Z - stop underscoring     27  26
-  // ESC CTRL-W - start international   27  23
-  // ESC CTRL-X - stop international    27  24
-  eolFlag = false;
-  std::u16string out = std::u16string();
-  for (int i = 0; i < BUFN; i++)
-  {
-    if (buffer[i] == EOL)
-    {
-      eolFlag = true;
-      return out;
-    }
-    else if (escMode)
-    {
-      if (buffer[i] == 25) // || buffer[i] == 14)?
+      // Atari 1027 escape codes:
+      // CTRL-O - start underscoring        15
+      // CTRL-N - stop underscoring         14  - note in T1027.BAS there is a case of 27 14
+      // ESC CTRL-Y - start underscoring    27  25
+      // ESC CTRL-Z - stop underscoring     27  26
+      // ESC CTRL-W - start international   27  23
+      // ESC CTRL-X - stop international    27  24
+      if (c == 25)
         uscoreFlag = true;
-      if (buffer[i] == 26) // || buffer[i] == 15)?
+      if (c == 26)
         uscoreFlag = false;
-      if (buffer[i] == 23)
+      if (c == 23)
         intlFlag = true;
-      if (buffer[i] == 24)
+      if (c == 24)
         intlFlag = false;
       escMode = false;
     }
-    else if (buffer[i] == 15)
+    else if (c == 15)
       uscoreFlag = true;
-    else if (buffer[i] == 14)
+    else if (c == 14)
       uscoreFlag = false;
-    else if (buffer[i] == 27)
+    else if (c == 27)
       escMode = true;
-    else if (intlFlag && (buffer[i] < 32 || buffer[i] == 123)) //|| buffer[i] == 96?
-    {
-      char16_t c;
-      // not sure about ATASCII 96.
-      // todo: Codes 28-31 are arrows and require the symbol font - more work needed.
-      if (buffer[i] < 27)
-        c = (char16_t)intlchar[buffer[i]];
-      else if (buffer[i] == 123)
-        c = 196;
-      else if (buffer[i] > 27 && buffer[i] < 32)
+    else
+    { // maybe printable character
+      //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
+      if (c > 31 && c < 127)
       {
-        c = (char16_t)arrowchar[buffer[i] - 28]; // todo: put in arrows
-        c += SYMBOL;
+        _file->write(c);
+
+        if (uscoreFlag)
+        {
+          // close text object, backspace, start new text object, write _, close text object, start new text object
+          _file->write('_');
+        }
+        pdf_X += charWidth;
       }
-      else
-        c = '#';
-
-      if (uscoreFlag)
-        c += UNDERSCORE; // underscore
-
-      out.push_back(c);
+      else if (intlFlag && (c < 32 || c == 123))
+      {
+        // not sure about ATASCII 96.
+        // todo: Codes 28-31 are arrows and require the symbol font
+        if (c < 27)
+          _file->write(intlchar[c]);
+        else if (c == 123)
+          _file->write(byte(196));
+        else if (c > 27 && c < 32)
+        {
+          // close the text object, change font, open text object, put char, close text object, change font back
+          _file->write(intlchar[c]);
+        }
+        pdf_X += charWidth;
+      }
     }
-    //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
-    else if (buffer[i] > 31 && buffer[i] < 127)
+    // check for EOL or if at end of line and need automatic CR
+    if ((c == EOL) || (pdf_X > (maxWidth - charWidth)))
     {
-      char16_t c = buffer[i];
-      if (uscoreFlag)
-        c += UNDERSCORE; // underscore
-      out.push_back(c);
+      _file->printf(")Tj\n"); // close the line
+      pdf_Y -= lineHeight;    // line feed
+      pdf_X = 0;              // CR
+      BOLflag = true;
     }
   }
-  return out;
+
+  // reset line spacing - only needed in special case of !doing line and EOL
+  // voffset = -lineHeight;
+
+  // if wrote last line, then close the page
+  if (pdf_Y < bottomMargin)
+    pdf_end_page();
 }
 
 void sioPrinter::initPrinter(File *f, paper_t ty)
@@ -298,7 +214,8 @@ void sioPrinter::initPrinter(File *f, paper_t ty)
     uscoreFlag = false;
     intlFlag = false;
     escMode = false;
-    pdf_lineCounter = 0;
+    pdf_Y = 0;
+    pdf_X = 0;
     pdf_pageCounter = 0;
     pdf_header();
   }
@@ -313,7 +230,7 @@ void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
-    if (pdf_lineCounter > 0 || pdf_pageCounter == 0)
+    if (!TOPflag || pdf_pageCounter == 0)
       pdf_end_page();
     pdf_xref();
   }
@@ -354,6 +271,15 @@ void sioPrinter::processBuffer(byte *B, int n)
     break;
   case PDF:
   default:
+    while (i < n)
+    {
+      output.push_back(B[i]);
+      if (B[i] == EOL)
+        break;
+      i++;
+    }
+    pdf_add(output);
+    /* 
     std::u16string temp = buffer_to_string(buffer);
     // #ifdef DEBUG_S
     //     BUG_UART.print("processed buffer: ->");
@@ -381,7 +307,8 @@ void sioPrinter::processBuffer(byte *B, int n)
       //       BUG_UART.println("<-");
       // #endif
       pdf_add_line(what);
-    }
+       
+    } */
   }
 }
 
