@@ -20,6 +20,8 @@
 #include "conio.h"
 #include "err.h"
 
+unsigned char buf[40];
+
 union
 {
   char host[8][32];
@@ -175,12 +177,36 @@ int main(int argc, char* argv[])
   unsigned char hsa=argv[2][0];
   unsigned char o=(argv[3][0]=='W' ? 0x03 : 0x01);
 
-  if (argc<5)
+  if (_is_cmdline_dos())
     {
-      opts(argv);
-      return(1);
+      if (argc<5)
+	{
+	  opts(argv);
+	  return(1);
+	}
+      strcpy(buf,argv[4]);
     }
+  else
+    {
+      // DOS 2.0
+      print("\x9b");
+      print("DEVICE SLOT (1-8)? ");
+      get_line(buf,sizeof(buf));
+      ds=buf[0]-0x30;
+      dsa=buf[0];
 
+      print("HOST SLOT (1-8)? ");
+      get_line(buf,sizeof(buf));
+      hs=buf[0]-0x30;
+      hsa=buf[0];
+
+      print("READ / WRITE (R/W)? ");
+      get_line(buf,sizeof(buf));
+      o=(buf[0]=='W' ? 0x03 : 0x01);
+
+      print("FILENAME:\x9b");
+      get_line(buf,sizeof(buf));
+    }
   if (ds<1 || ds>8)
     {
       print("INVALID DRIVE SLOT NUMBER.\x9b");
@@ -204,7 +230,7 @@ int main(int argc, char* argv[])
   host_mount(hs);
 
   // Set desired slot filename/mode
-  strcpy(deviceSlots.slot[ds].file,argv[4]);
+  strcpy(deviceSlots.slot[ds].file,buf);
   deviceSlots.slot[ds].mode=o;
   deviceSlots.slot[ds].hostSlot=hs;
 
@@ -221,10 +247,16 @@ int main(int argc, char* argv[])
   printc(&hsa);
   print(") ");
   print("(");
-  print(argv[3]);
+  print((o==0x03 ? "W" : "R"));
   print(") ");
-  print(argv[4]);
+  print(buf);
   print("\x9b");
+
+  if (!_is_cmdline_dos())
+    {
+      print("\x9bPRESS \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CONTINUE.\x9b");
+      get_line(buf,sizeof(buf));
+    }  
 
   return(0);
 }

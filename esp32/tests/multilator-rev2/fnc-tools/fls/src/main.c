@@ -21,6 +21,7 @@
 #include "err.h"
 
 unsigned char path[256]="/";
+unsigned char buf[40];
 
 union
 {
@@ -156,13 +157,23 @@ void opts(char* argv[])
 int main(int argc, char* argv[])
 {
   unsigned char s=argv[1][0]-0x30;
-  
-  if (argc<2)
-    {
-      opts(argv);
-      return(1);
-    }
 
+  if (_is_cmdline_dos())
+    {
+      if (argc<2)
+	{
+	  opts(argv);
+	  return(1);
+	}
+    }
+  else
+    {
+      // DOS 2.0
+      print("HOST SLOT (1-8)? ");
+      get_line(buf,sizeof(buf));
+      s=buf[0]-0x30;
+    }
+  
   if (s<1 || s>8)
     {
       print("INVALID SLOT NUMBER.\x9b");
@@ -203,6 +214,12 @@ int main(int argc, char* argv[])
     }
 
   directory_close(s);
+
+  if (!_is_cmdline_dos())
+    {
+      print("\x9bPRESS \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CONTINUE.\x9b");
+      get_line(buf,sizeof(buf));
+    }  
   
   return(0);
 }

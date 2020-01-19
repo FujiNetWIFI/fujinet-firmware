@@ -23,3 +23,11 @@ void printc(char* c)
   OS.iocb[0].command=IOCB_PUTCHR;
   ciov();
 }
+
+void get_line(char* buf, unsigned char len)
+{
+  OS.iocb[0].buffer=buf;
+  OS.iocb[0].buflen=len;
+  OS.iocb[0].command=5;
+  ciov();
+}
