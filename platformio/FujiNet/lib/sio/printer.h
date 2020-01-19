@@ -88,10 +88,10 @@ private:
     size_t idx_stream_start;  // file location of start of stream
     size_t idx_stream_stop;   // file location of end of stream
 
-    void processBuffer(byte *B, int n);
+    void writeBuffer(byte *B, int n);
     //std::u16string buffer_to_string(byte *S);
     //std::u16string output;
-    std::string output;
+    //std::string output;
     //int j;
 
     File *_file;
