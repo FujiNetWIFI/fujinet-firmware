@@ -59,10 +59,15 @@ void httpService()
         if (c == '\n' && currentLineIsBlank)
         {
           // send a standard http response header
-          //client.println("HTTP/1.1 200 OK");
+          client.println("HTTP/1.1 200 OK");
 
-          //client.println("Content-Type: application/pdf");
+          sioP.pageEject();
+          paperf.seek(0);
+          
           // client.println("Connection: close");  // the connection will be closed after completion of the response
+          client.println("Content-Type: application/pdf");
+          //client.println("Server: FujiNet");
+          client.printf("Content-Length: %u\n",paperf.size());
           // // client.println("Refresh: 5");  // refresh the page automatically every 5 sec
           // client.println();
           // client.println("<!DOCTYPE HTML>");
@@ -70,11 +75,13 @@ void httpService()
           // client.println("Hello World!");
           // client.println("</html>");
 
-          sioP.pageEject();
-          paperf.seek(0);
+
 
           //client.println("Content-Type: application/octet-stream");
           //client.println("Content-Disposition: attachment; filename=\"test.pdf\"");
+          client.println("Content-Disposition: inline");
+          client.printf("\n"); // critical - end of header
+
           bool ok = true;
           while (ok)
           {
