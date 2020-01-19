@@ -95,7 +95,7 @@ void sioPrinter::pdf_add(std::string S)
   if (TOPflag)
   {
     pdf_new_page();
-    TOPflag=false;
+    TOPflag = false;
     // set default font
     if (pdf_pageCounter == 0)
       _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
@@ -236,7 +236,7 @@ void sioPrinter::pageEject()
   }
 }
 
-void sioPrinter::processBuffer(byte *B, int n)
+void sioPrinter::writeBuffer(byte *B, int n)
 {
   int i = 0;
   switch (paperType)
@@ -271,6 +271,7 @@ void sioPrinter::processBuffer(byte *B, int n)
     break;
   case PDF:
   default:
+    std::string output;
     while (i < n)
     {
       output.push_back(B[i]);
@@ -279,36 +280,6 @@ void sioPrinter::processBuffer(byte *B, int n)
       i++;
     }
     pdf_add(output);
-    /* 
-    std::u16string temp = buffer_to_string(buffer);
-    // #ifdef DEBUG_S
-    //     BUG_UART.print("processed buffer: ->");
-    //     //BUG_UART.print((char)temp.c_str());
-    //     BUG_UART.println("<-");
-    // #endif
-    output.append(temp);
-    // make function to count printable chars
-    if (eolFlag || output.length() > maxCols)
-    {
-      std::u16string what = std::u16string();
-      if (output.length() > maxCols)
-      { //pick out substring to send and keep rest
-        what = output.substr(0, maxCols);
-        output.erase(0, maxCols);
-      }
-      else
-      {
-        what = output;
-        output.clear();
-      }
-      // #ifdef DEBUG_S
-      //       BUG_UART.print("new line: ->");
-      //       //BUG_UART.print((char)what.c_str());
-      //       BUG_UART.println("<-");
-      // #endif
-      pdf_add_line(what);
-       
-    } */
   }
 }
 
@@ -331,7 +302,7 @@ void sioPrinter::sio_write()
 
   if (ck == sio_checksum(buffer, BUFN))
   {
-    processBuffer(buffer, BUFN);
+    writeBuffer(buffer, BUFN);
     delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
     yield();
