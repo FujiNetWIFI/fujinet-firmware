@@ -41,8 +41,6 @@ enum paper_t
     PDF
 };
 
-
-
 class sioPrinter : public sioDevice
 {
 private:
@@ -58,10 +56,16 @@ private:
     int bottomMargin = 6;
     int maxLines = 66;
     int maxCols = 80;
-    int lineHeight = 12;
+    float maxWidth = 12.0 * 80.0;
+    float lineHeight = 12.0;
+    float charWidth = 7.2;
+    int fontNumber = 1;
     int fontSize = 12;
     const char *fontName = "Courier";
-    int pdf_lineCounter = 0;
+    float pdf_X = 0; // across the page - columns in pts
+    bool BOLflag = true;
+    float pdf_Y = 0; // down the page - lines in pts
+    bool TOPflag = true;
     int voffset;
     int pageObjects[256];
     int pdf_pageCounter = 0;
@@ -72,22 +76,22 @@ private:
     bool uscoreFlag = false;
     bool escMode = false;
 
-
-
     void pdf_header();
     void pdf_xref();
     void pdf_new_page();
     void pdf_end_page();
-    void pdf_begin_text(int font, int fsize,int vpos);
+    void pdf_begin_text(int font, int fsize, int vpos);
     void pdf_set_font();
     void pdf_add_line(std::u16string L);
+    void pdf_add(std::string output);
     size_t idx_stream_length; // file location of stream length indictor
     size_t idx_stream_start;  // file location of start of stream
     size_t idx_stream_stop;   // file location of end of stream
 
     void processBuffer(byte *B, int n);
-    std::u16string buffer_to_string(byte *S);
-    std::u16string output;
+    //std::u16string buffer_to_string(byte *S);
+    //std::u16string output;
+    std::string output;
     //int j;
 
     File *_file;
