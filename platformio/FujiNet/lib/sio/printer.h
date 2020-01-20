@@ -41,8 +41,6 @@ enum paper_t
     PDF
 };
 
-
-
 class sioPrinter : public sioDevice
 {
 private:
@@ -52,17 +50,20 @@ private:
     void sio_process() override;
 
     paper_t paperType = PDF;
-    int pageWidth = 612;
-    int pageHeight = 792;
-    int leftMargin = 18;
-    int bottomMargin = 6;
-    int maxLines = 66;
-    int maxCols = 80;
-    int lineHeight = 12;
-    int fontSize = 12;
-    const char *fontName = "Courier";
-    int pdf_lineCounter = 0;
-    int voffset;
+    double pageWidth = 612;
+    double pageHeight = 792;
+    double leftMargin = 18;
+    double bottomMargin = 0;
+    double maxWidth = 576.0; // 8 inches
+    double lineHeight = 12.0;
+    double charWidth = 7.2;
+    int fontNumber = 1;
+    double fontSize = 12;
+    double pdf_X = 0; // across the page - columns in pts
+    bool BOLflag = true;
+    double pdf_Y = 0; // down the page - lines in pts
+    bool TOPflag = true;
+    //double voffset; // use for EOL special handling
     int pageObjects[256];
     int pdf_pageCounter = 0;
     size_t objLocations[256]; // reference table storage
@@ -72,23 +73,20 @@ private:
     bool uscoreFlag = false;
     bool escMode = false;
 
-
-
     void pdf_header();
     void pdf_xref();
     void pdf_new_page();
     void pdf_end_page();
-    void pdf_begin_text(int font, int fsize,int vpos);
     void pdf_set_font();
-    void pdf_add_line(std::u16string L);
+    void pdf_new_line();
+    void pdf_end_line();
+    void pdf_handle_char(byte c);
+    void pdf_add(std::string output);
     size_t idx_stream_length; // file location of stream length indictor
     size_t idx_stream_start;  // file location of start of stream
     size_t idx_stream_stop;   // file location of end of stream
 
-    void processBuffer(byte *B, int n);
-    std::u16string buffer_to_string(byte *S);
-    std::u16string output;
-    //int j;
+    void writeBuffer(byte *B, int n);
 
     File *_file;
 
@@ -96,6 +94,7 @@ public:
     void initPrinter(File *f, paper_t ty);
     void initPrinter(File *f);
     void pageEject();
+    paper_t getPaperType();
 };
 
 #endif // guard
