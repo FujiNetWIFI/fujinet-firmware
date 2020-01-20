@@ -57,8 +57,8 @@
 bool hispeed = false;
 int command_frame_counter = 0;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x06
-#define HISPEED_BAUDRATE 68837
+#define HISPEED_INDEX 0x08
+#define HISPEED_BAUDRATE 57600
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
 
@@ -175,6 +175,42 @@ union
   unsigned char rawData[118];
 } adapterConfig;
 
+union
+{
+  struct
+  {
+    unsigned short numSectors;
+    unsigned short sectorSize;
+    unsigned char hostSlot;
+    unsigned char deviceSlot;
+    char filename[36];
+  };
+  unsigned char rawData[42];
+} newDisk;
+
+union
+{
+  struct
+  {
+    unsigned char magic1;
+    unsigned char magic2;
+    unsigned char filesizeH;
+    unsigned char filesizeL;
+    unsigned char secsizeH;
+    unsigned char secsizeL;
+    unsigned char filesizeHH;
+    unsigned char res0;
+    unsigned char res1;
+    unsigned char res2;
+    unsigned char res3;
+    unsigned char res4;
+    unsigned char res5;
+    unsigned char res6;
+    unsigned char res7;
+    unsigned char flags;
+  };
+  unsigned char rawData[16];
+} atrHeader;
 
 #ifdef DEBUG_N
 WiFiClient wificlient;
@@ -388,6 +424,60 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 }
 
 /**
+   Make new disk and shove into device slot
+*/
+void sio_new_disk()
+{
+  byte ck = sio_to_peripheral(newDisk.rawData, sizeof(newDisk));
+
+  if (ck == sio_checksum(newDisk.rawData, sizeof(newDisk)))
+  {
+    deviceSlots.slot[newDisk.deviceSlot].hostSlot = newDisk.hostSlot;
+    deviceSlots.slot[newDisk.deviceSlot].mode = 0x03; // R/W
+    strcpy(deviceSlots.slot[newDisk.deviceSlot].file, newDisk.filename);
+
+    if (tnfs_open(newDisk.deviceSlot, 0x03, true) == true) // create file
+    {
+#ifdef DEBUG
+      Debug_printf("XXX Created file %s\n",deviceSlots.slot[newDisk.deviceSlot].file);
+#endif
+      if (tnfs_write_blank_atr(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors) == true)
+      {
+#ifdef DEBUG
+      Debug_printf("XXX Wrote ATR data\n");
+#endif
+        sio_complete();
+        return;
+      }
+      else
+      {
+#ifdef DEBUG
+      Debug_printf("XXX ATR data write failed.\n");
+#endif
+        sio_error();
+        return;
+      }
+    }
+    else
+    {
+#ifdef DEBUG
+      Debug_printf("XXX Could not open file %s\n",deviceSlots.slot[newDisk.deviceSlot].file);
+#endif
+      sio_error();
+      return;
+    }
+  }
+  else
+  {
+#ifdef DEBUG
+      Debug_printf("XXX Bad Checksum.\n");
+#endif
+    sio_error();
+    return;
+  }
+}
+
+/**
    Get Adapter config.
 */
 void sio_get_adapter_config()
@@ -594,6 +684,17 @@ unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, u
   return num_sectors;
 }
 
+unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sector_size)
+{
+  unsigned long file_size = (num_sectors * sector_size);
+
+  // Subtract bias for the first three sectors.
+  if (sector_size > 128)
+    file_size -= 384;
+
+  return file_size >> 4;
+}
+
 /**
    Update PERCOM block from the total # of sectors.
 */
@@ -685,7 +786,7 @@ void sio_disk_image_mount()
   unsigned short num_para;
   unsigned char num_para_hi;
   unsigned short num_sectors;
-  bool opened = tnfs_open(deviceSlot, options);
+  bool opened = tnfs_open(deviceSlot, options, false);
 
   if (!opened)
   {
@@ -835,12 +936,12 @@ void sio_write()
     // Bias adjustment for 256 bytes
     if (ss == 256)
       offset -= 384;
-      
+
     offset += 16; // skip 16 byte ATR Header
   }
 
-  memset(sector,0,256); // clear buffer
-  
+  memset(sector, 0, 256); // clear buffer
+
   ck = sio_to_peripheral(sector, ss);
 
   if (ck == sio_checksum(sector, ss))
@@ -1126,7 +1227,7 @@ bool tnfs_mount(unsigned char hostSlot)
 /**
    Open 'autorun.atr'
 */
-bool tnfs_open(unsigned char deviceSlot, unsigned char options)
+bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
 {
   int start = millis();
   int dur = millis() - start;
@@ -1148,7 +1249,7 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options)
     else
       tnfsPacket.data[c++] = 0x03;
 
-    tnfsPacket.data[c++] = 0x00; //
+    tnfsPacket.data[c++] = (create == true ? 0x01 : 0x00); // Create flag
     tnfsPacket.data[c++] = 0x00; // Flags
     tnfsPacket.data[c++] = 0x00; //
     tnfsPacket.data[c++] = '/'; // Filename start
@@ -1563,6 +1664,54 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
 }
 
 /**
+   TNFS Write blank ATR
+*/
+bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors)
+{
+  unsigned long num_para = num_sectors_to_para(numSectors, sectorSize);
+  unsigned long offset;
+  
+  // Write header
+  atrHeader.magic1 = 0x02;
+  atrHeader.magic2 = 0x96;
+  atrHeader.filesizeH = num_para & 0xFF;
+  atrHeader.filesizeL = (num_para & 0xFF00) >> 8;
+  atrHeader.filesizeHH = (num_para & 0xFF0000) >> 16;
+  atrHeader.secsizeH = sectorSize & 0xFF;
+  atrHeader.secsizeL = sectorSize >> 8;
+
+#ifdef DEBUG
+  Debug_printf("TNFS: Write header\n");
+#endif
+  memcpy(sector, atrHeader.rawData, sizeof(atrHeader.rawData));
+  tnfs_write(deviceSlot, sizeof(atrHeader.rawData));
+  offset+=sizeof(atrHeader.rawData);
+
+  // Write first three 128 byte sectors
+  memset(sector, 0x00, sizeof(sector));
+
+#ifdef DEBUG
+  Debug_printf("TNFS: Write first three sectors\n");
+#endif
+
+  for (unsigned char i=0; i<3; i++)
+  {
+    tnfs_write(deviceSlot,128);
+    offset+=128;
+    numSectors--;
+  }
+
+#ifdef DEBUG
+  Debug_printf("TNFS: Sparse Write the rest.\n");
+#endif
+  // Write the rest of the sectors via sparse seek
+  offset+=(numSectors*sectorSize)-sectorSize;
+  tnfs_seek(deviceSlot,offset);
+  tnfs_write(deviceSlot,sectorSize);
+  return true; //fixme
+}
+
+/**
    TNFS read
 */
 bool tnfs_read(unsigned char deviceSlot, unsigned short len)
@@ -1831,6 +1980,7 @@ void setup()
   cmdPtr[0xF1] = sio_write_device_slots;
   cmdPtr[0xE9] = sio_disk_image_umount;
   cmdPtr[0xE8] = sio_get_adapter_config;
+  cmdPtr[0xE7] = sio_new_disk;
 
   // Go ahead and flush anything out of the serial port
   sio_flush();
@@ -1875,7 +2025,7 @@ void loop()
         {
           sio_ack();
 #ifdef ESP8266
-            delayMicroseconds(DELAY_T3);
+          delayMicroseconds(DELAY_T3);
 #endif
           cmdPtr[cmdFrame.comnd]();
         }

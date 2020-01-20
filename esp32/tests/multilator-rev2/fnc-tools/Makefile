@@ -17,6 +17,7 @@ all mostlyclean clean install zip:
 	@$(MAKE) -C fls       --no-print-directory $@
 	@$(MAKE) -C fmount    --no-print-directory $@
 	@$(MAKE) -C fnet      --no-print-directory $@
+	@$(MAKE) -C fnew      --no-print-directory $@
 	@$(MAKE) -C fscan     --no-print-directory $@
 
 dist: all
@@ -29,6 +30,7 @@ dist: all
 	cp fls/fls.com dist/
 	cp fmount/fmount.com dist/
 	cp fnet/fnet.com dist/
+	cp fnew/fnew.com dist/
 	cp fscan/fscan.com dist/
 	cp -ax doc/* dist/ 
 	dir2atr 720 fnc-tools.atr dist/
