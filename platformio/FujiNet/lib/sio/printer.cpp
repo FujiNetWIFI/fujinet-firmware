@@ -75,7 +75,7 @@ void sioPrinter::pdf_new_page()
 
   TOPflag = false;
   //if (pdf_pageCounter == 0)
-  _file->printf("/F%u %g Tf\n", fontNumber, fontSize); // set default font
+  _file->printf("/F1 12 Tf\n"); // set default font
   _file->printf("%g %g Td\n", leftMargin, pageHeight); // go to top of page
   // voffset = -lineHeight;     // set line spacing
   pdf_Y = pageHeight; // reset print roller to top of page
@@ -154,8 +154,9 @@ void sioPrinter::pdf_handle_char(byte c)
         _file->write(byte(196));
       else if (c > 27 && c < 32)
       {
-        // todo: change font and put arrow there - how?
-        _file->write(intlchar[c]);
+        //_file->printf(")]TJ\n/F2 12 Tf (");
+        _file->write(intlchar[c]); // Symbol font is not monospace
+        //_file->printf(")Tj\n/F1 12 Tf\n[(");
       }
 
       pdf_X += charWidth; // update x position
