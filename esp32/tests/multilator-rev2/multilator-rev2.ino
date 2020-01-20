@@ -18,7 +18,7 @@
 #include <WiFiUdp.h>
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-// #define DEBUG_S
+#define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -26,6 +26,8 @@
 // #define DEBUG_HOST ""
 // #define DEBUG_SSID ""
 // #define DEBUG_PASSWORD ""
+
+// #define DEBUG_VERBOSE 1
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -57,8 +59,8 @@
 bool hispeed = false;
 int command_frame_counter = 0;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x08
-#define HISPEED_BAUDRATE 57600
+#define HISPEED_INDEX 0x01
+#define HISPEED_BAUDRATE 111111
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
 
@@ -369,7 +371,7 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
   // Write checksum
   SIO_UART.write(ck);
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
   Debug_printf("TO COMPUTER: ");
   for (int i = 0; i < len; i++)
     Debug_printf("%02x ", b[i]);
@@ -398,7 +400,7 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   // Receive Checksum
   ck = SIO_UART.read();
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
   Debug_printf("l: %d\n", l);
   Debug_printf("TO PERIPHERAL: ");
   for (int i = 0; i < len; i++)
@@ -1029,7 +1031,7 @@ void sio_read()
         offset -= 384;
 
       offset += 16;
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
       Debug_printf("firstCachedSector: %d\n", firstCachedSector);
       Debug_printf("cacheOffset: %d\n", cacheOffset);
       Debug_printf("offset: %d\n", offset);
@@ -1094,7 +1096,7 @@ void sio_read()
         ss = sectorSize[deviceSlot];
 
       cacheOffset = ((sectorNum - firstCachedSector[deviceSlot]) * ss);
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
       Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
     }
@@ -1148,7 +1150,7 @@ bool tnfs_mount(unsigned char hostSlot)
     tnfsPacket.data[4] = 0x00; // no username
     tnfsPacket.data[5] = 0x00; // no password
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_print("Mounting / from ");
     Debug_println((char*)hostSlots.host[hostSlot]);
     for (int i = 0; i < 32; i++)
@@ -1167,7 +1169,7 @@ bool tnfs_mount(unsigned char hostSlot)
     UDP.write(tnfsPacket.rawData, 10);
     UDP.endPacket();
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_println("Wrote the packet");
 #endif
 
@@ -1178,7 +1180,7 @@ bool tnfs_mount(unsigned char hostSlot)
       if (UDP.parsePacket())
       {
         int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
         Debug_print("Resp Packet: ");
         for (int i = 0; i < l; i++)
         {
@@ -1190,7 +1192,7 @@ bool tnfs_mount(unsigned char hostSlot)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_print("Successful, Session ID: ");
           Debug_print(tnfsPacket.session_idl, HEX);
           Debug_println(tnfsPacket.session_idh, HEX);
@@ -1203,7 +1205,7 @@ bool tnfs_mount(unsigned char hostSlot)
         else
         {
           // Error
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_print("Error #");
           Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S */
@@ -1212,7 +1214,7 @@ bool tnfs_mount(unsigned char hostSlot)
       }
     }
     // Otherwise we timed out.
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_println("Timeout after 5000ms");
 #endif /* DEBUG_S */
     retries++;
@@ -1250,8 +1252,8 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
       tnfsPacket.data[c++] = 0x03;
 
     tnfsPacket.data[c++] = (create == true ? 0x01 : 0x00); // Create flag
-    tnfsPacket.data[c++] = 0x00; // Flags
-    tnfsPacket.data[c++] = 0x00; //
+    tnfsPacket.data[c++] = 0xFF; // mode
+    tnfsPacket.data[c++] = 0x01; //
     tnfsPacket.data[c++] = '/'; // Filename start
 
     for (int i = 0; i < strlen(mountPath); i++)
@@ -1264,7 +1266,7 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
     tnfsPacket.data[c++] = 0x00;
     tnfsPacket.data[c++] = 0x00;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_printf("Opening /%s\n", mountPath);
     Debug_println("");
     Debug_print("Req Packet: ");
@@ -1286,7 +1288,7 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
       if (UDP.parsePacket())
       {
         int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
         Debug_print("Resp packet: ");
         for (int i = 0; i < l; i++)
         {
@@ -1299,7 +1301,7 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
         {
           // Successful
           tnfs_fds[deviceSlot] = tnfsPacket.data[1];
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_print("Successful, file descriptor: #");
           Debug_println(tnfs_fds[deviceSlot], HEX);
 #endif /* DEBUG_S */
@@ -1366,7 +1368,7 @@ bool tnfs_close(unsigned char deviceSlot)
       if (UDP.parsePacket())
       {
         int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
         Debug_print("Resp packet: ");
         for (int i = 0; i < l; i++)
         {
@@ -1383,7 +1385,7 @@ bool tnfs_close(unsigned char deviceSlot)
         else
         {
           // unsuccessful
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_print("Error code #");
           Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
@@ -1441,7 +1443,7 @@ bool tnfs_opendir(unsigned char hostSlot)
         {
           // Successful
           tnfs_dir_fds[hostSlot] = tnfsPacket.data[1];
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_printf("Opened dir on slot #%d - fd = %02x\n", hostSlot, tnfs_dir_fds[hostSlot]);
 #endif
           return true;
@@ -1484,7 +1486,7 @@ bool tnfs_readdir(unsigned char hostSlot)
     tnfsPacket.command = 0x11; // READDIR
     tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\n\n", hostSlot, tnfs_dir_fds[hostSlot]);
 #endif
 
@@ -1541,7 +1543,7 @@ bool tnfs_closedir(unsigned char hostSlot)
     tnfsPacket.command = 0x12; // CLOSEDIR
     tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_println("TNFS dir close");
 #endif
 
@@ -1600,7 +1602,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
     tnfsPacket.data[1] = len & 0xFF;
     tnfsPacket.data[2] = len >> 8;
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_print("Writing to File descriptor: ");
     Debug_println(tnfs_fds[deviceSlot]);
     Debug_print("Req Packet: ");
@@ -1624,7 +1626,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
       if (UDP.parsePacket())
       {
         int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
         Debug_print("Resp packet: ");
         for (int i = 0; i < l; i++)
         {
@@ -1636,7 +1638,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif /* DEBUG_S */
           return true;
@@ -1730,7 +1732,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
     tnfsPacket.data[1] = len & 0xFF; // len bytes
     tnfsPacket.data[2] = len >> 8; //
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_print("Reading from File descriptor: ");
     Debug_println(tnfs_fds[deviceSlot]);
     Debug_print("Req Packet: ");
@@ -1754,7 +1756,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
       if (UDP.parsePacket())
       {
         int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
         Debug_print("Resp packet: ");
         for (int i = 0; i < l; i++)
         {
@@ -1766,7 +1768,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif /* DEBUG_S */
           return true;
@@ -1824,7 +1826,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
     tnfsPacket.data[4] = offsetVal[1];
     tnfsPacket.data[5] = offsetVal[0];
 
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
     Debug_print("Seek requested to offset: ");
     Debug_println(offset);
     Debug_print("Req packet: ");
@@ -1860,7 +1862,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
         if (tnfsPacket.data[0] == 0)
         {
           // Success.
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif /* DEBUG_S */
           return true;
