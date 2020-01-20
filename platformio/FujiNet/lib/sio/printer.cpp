@@ -72,6 +72,15 @@ void sioPrinter::pdf_new_page()
   _file->printf("00000>>\nstream\n");
   idx_stream_start = _file->position();
   _file->printf("BT\n");
+
+  TOPflag = false;
+  //if (pdf_pageCounter == 0)
+  _file->printf("/F%u %g Tf\n", fontNumber, fontSize); // set default font
+  _file->printf("%g %g Td\n", leftMargin, pageHeight); // go to top of page
+  // voffset = -lineHeight;     // set line spacing
+  pdf_Y = pageHeight; // reset print roller to top of page
+  pdf_X = 0;          // set carriage to LHS
+  BOLflag = true;
 }
 
 void sioPrinter::pdf_end_page()
@@ -86,25 +95,89 @@ void sioPrinter::pdf_end_page()
   _file->seek(idx_temp);
   // set counters
   pdf_pageCounter++;
+  TOPflag = true;
+}
+
+void sioPrinter::pdf_new_line()
+{
+  // position new line and start text string array
+  _file->printf("0 %g Td [(", -lineHeight);
+  pdf_X = 0; // reinforce?
+  BOLflag = false;
+}
+
+void sioPrinter::pdf_end_line()
+{
+  _file->printf(")]TJ\n"); // close the line
+  pdf_Y -= lineHeight;     // line feed
+  pdf_X = 0;               // CR
+  BOLflag = true;
+}
+
+void sioPrinter::pdf_handle_char(byte c)
+{
+  if (escMode)
+  {
+    // Atari 1027 escape codes:
+    // CTRL-O - start underscoring        15
+    // CTRL-N - stop underscoring         14  - note in T1027.BAS there is a case of 27 14
+    // ESC CTRL-Y - start underscoring    27  25
+    // ESC CTRL-Z - stop underscoring     27  26
+    // ESC CTRL-W - start international   27  23
+    // ESC CTRL-X - stop international    27  24
+    if (c == 25)
+      uscoreFlag = true;
+    if (c == 26)
+      uscoreFlag = false;
+    if (c == 23)
+      intlFlag = true;
+    if (c == 24)
+      intlFlag = false;
+    escMode = false;
+  }
+  else if (c == 15)
+    uscoreFlag = true;
+  else if (c == 14)
+    uscoreFlag = false;
+  else if (c == 27)
+    escMode = true;
+  else
+  { // maybe printable character
+    //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
+    if (intlFlag && (c < 32 || c == 123))
+    {
+      // not sure about ATASCII 96.
+      // todo: Codes 28-31 are arrows and require the symbol font
+      if (c < 27)
+        _file->write(intlchar[c]);
+      else if (c == 123)
+        _file->write(byte(196));
+      else if (c > 27 && c < 32)
+      {
+        // todo: change font and put arrow there - how?
+        _file->write(intlchar[c]);
+      }
+
+      pdf_X += charWidth; // update x position
+    }
+    else if (c > 31 && c < 127)
+    {
+      if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
+        _file->write(BACKSLASH);
+      _file->write(c);
+
+      if (uscoreFlag)
+        _file->printf(")600(_"); // close text string, backspace, start new text string, write _
+
+      pdf_X += charWidth; // update x position
+    }
+  }
 }
 
 void sioPrinter::pdf_add(std::string S)
 {
   if (TOPflag)
-  {
     pdf_new_page();
-    TOPflag = false;
-    // set default font
-    if (pdf_pageCounter == 0)
-      _file->printf("/F%u %g Tf\n", fontNumber, fontSize);
-    // go to top of page
-    _file->printf("%g %g Td\n", leftMargin, pageHeight);
-    // set line spacing
-    voffset = -lineHeight;
-    BOLflag = true;
-    // reset print roller to top of page
-    pdf_Y = pageHeight;
-  }
 
   // loop through string
   for (int i = 0; i < S.length(); i++)
@@ -112,90 +185,20 @@ void sioPrinter::pdf_add(std::string S)
     byte c = byte(S[i]);
 
     if (BOLflag)
-    {
-      // do special case of new line and S==EOL later
-      // if (c == EOL)
-      //   {                        // skip a line space
-      //     voffset -= lineHeight; // relative coord
-      //     pdf_Y -= lineHeight;   // absolute coord
-      //   }
-      // else
-      // {
+      pdf_new_line();
+    // do special case of new line and S==EOL later
+    // if (c == EOL)
+    //   {                        // skip a line space
+    //     voffset -= lineHeight; // relative coord
+    //     pdf_Y -= lineHeight;   // absolute coord
+    //   }
+    // else
+    // {
+    pdf_handle_char(c);
 
-      // position new line
-      _file->printf("0 %g Td ", -lineHeight);
-      // make text string array
-      _file->printf("[(");
-      pdf_X = 0;
-      BOLflag = false;
-    }
-
-    if (escMode)
-    {
-      // Atari 1027 escape codes:
-      // CTRL-O - start underscoring        15
-      // CTRL-N - stop underscoring         14  - note in T1027.BAS there is a case of 27 14
-      // ESC CTRL-Y - start underscoring    27  25
-      // ESC CTRL-Z - stop underscoring     27  26
-      // ESC CTRL-W - start international   27  23
-      // ESC CTRL-X - stop international    27  24
-      if (c == 25)
-        uscoreFlag = true;
-      if (c == 26)
-        uscoreFlag = false;
-      if (c == 23)
-        intlFlag = true;
-      if (c == 24)
-        intlFlag = false;
-      escMode = false;
-    }
-    else if (c == 15)
-      uscoreFlag = true;
-    else if (c == 14)
-      uscoreFlag = false;
-    else if (c == 27)
-      escMode = true;
-    else
-    { // maybe printable character
-      //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
-      if (intlFlag && (c < 32 || c == 123))
-      {
-        // not sure about ATASCII 96.
-        // todo: Codes 28-31 are arrows and require the symbol font
-        if (c < 27)
-          _file->write(intlchar[c]);
-        else if (c == 123)
-          _file->write(byte(196));
-        else if (c > 27 && c < 32)
-        {
-          // todo: change font and put arrow there - how?
-          _file->write(intlchar[c]);
-        }
-        pdf_X += charWidth;
-      }
-      else if (c > 31 && c < 127)
-      {
-
-        if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
-          _file->write(BACKSLASH);
-        _file->write(c);
-
-        if (uscoreFlag)
-        {
-          // close text string, backspace, start new text string, write _
-          _file->printf(")600(_");
-        }
-        pdf_X += charWidth;
-      }
-    }
     // check for EOL or if at end of line and need automatic CR
     if ((c == EOL) || (pdf_X > (maxWidth - charWidth)))
-    {
-      _file->printf(")]TJ\n"); // close the line
-      pdf_Y -= lineHeight;     // line feed
-      pdf_X = 0;               // CR
-      BOLflag = true;
-    }
+      pdf_end_line();
 #ifdef DEBUG_S
     printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
     printf("TOP: %s  ", TOPflag ? "true " : "false");
@@ -210,13 +213,8 @@ void sioPrinter::pdf_add(std::string S)
   // voffset = -lineHeight;
 
   // if wrote last line, then close the page
-  if (pdf_Y < bottomMargin)
-  {
+  if (pdf_Y < lineHeight)
     pdf_end_page();
-    pdf_X = 0; // CR
-    pdf_Y = 0;
-    TOPflag = true;
-  }
 }
 
 void sioPrinter::initPrinter(File *f, paper_t ty)
@@ -244,6 +242,8 @@ void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
+    if (!BOLflag)
+      pdf_end_line();
     // to do: close the text string array if !BOLflag
     if (!TOPflag || pdf_pageCounter == 0)
       pdf_end_page();

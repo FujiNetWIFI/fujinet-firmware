@@ -77,19 +77,16 @@ private:
     void pdf_xref();
     void pdf_new_page();
     void pdf_end_page();
-    void pdf_begin_text(int font, int fsize, int vpos);
     void pdf_set_font();
-    void pdf_add_line(std::u16string L);
+    void pdf_new_line();
+    void pdf_end_line();
+    void pdf_handle_char(byte c);
     void pdf_add(std::string output);
     size_t idx_stream_length; // file location of stream length indictor
     size_t idx_stream_start;  // file location of start of stream
     size_t idx_stream_stop;   // file location of end of stream
 
     void writeBuffer(byte *B, int n);
-    //std::u16string buffer_to_string(byte *S);
-    //std::u16string output;
-    //std::string output;
-    //int j;
 
     File *_file;
 
