@@ -137,7 +137,7 @@ void disk_create(unsigned short ns, unsigned short ss, unsigned char hs, unsigne
   OS.dcb.dcomnd=0xE7; // TNFS Create Disk
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&newDisk.rawData;
-  OS.dcb.dtimlo=0xE0;
+  OS.dcb.dtimlo=0xFE;
   OS.dcb.dbyt=sizeof(newDisk.rawData);
   OS.dcb.daux=0;
   siov();
@@ -228,7 +228,7 @@ int main(int argc, char* argv[])
 	  opts(argv);
 	  return(1);
 	}
-      strcpy(buf,argv[4]);
+      strcpy(buf,argv[5]);
     }
   else
     {
