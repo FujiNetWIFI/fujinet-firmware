@@ -244,6 +244,8 @@ int main(int argc, char* argv[])
       hs=buf[0]-0x30;
       hsa=buf[0];
 
+      print("\x9b");
+      
     get_disk_type:
       print("5.25\" (1)90K (2)140K (3)180K (4)360K\x9b");
       print("3.5\"  (5)720K (6)1440K\x9b");
@@ -311,11 +313,19 @@ int main(int argc, char* argv[])
 	      break;
 	    }
 	}
+
+      print("\x9b");
       
-      print("FILENAME:\x9b");
+      print("FILENAME? ");
       get_line(buf,sizeof(buf));
     }
 
+  if (buf[0]==0x00)
+    {
+      print("MUST SPECIFY FILENAME.\x9b");
+      return(1);
+    }
+  
   if (ds<1 || ds>8)
     {
       print("INVALID DRIVE SLOT NUMBER.\x9b");
