@@ -587,7 +587,7 @@ void sio_net_set_ssid()
 */
 void sio_status()
 {
-  byte status[4] = {0x10, 0xFF, 0xFE, 0x00};
+  byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
   byte deviceSlot = cmdFrame.devic - 0x31;
 
   if (sectorSize[deviceSlot] == 256)
