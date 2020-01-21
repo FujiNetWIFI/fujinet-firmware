@@ -441,14 +441,14 @@ void sio_new_disk()
     if (tnfs_open(newDisk.deviceSlot, 0x03, true) == true) // create file
     {
 #ifdef DEBUG
-      Debug_printf("XXX Created file %s\n",deviceSlots.slot[newDisk.deviceSlot].file);
+      Debug_printf("XXX Created file %s\n", deviceSlots.slot[newDisk.deviceSlot].file);
 #endif
       if (tnfs_write_blank_atr(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors) == true)
       {
 #ifdef DEBUG
-      Debug_printf("XXX Wrote ATR data\n");
+        Debug_printf("XXX Wrote ATR data\n");
 #endif
-        sectorSize[newDisk.deviceSlot]=newDisk.sectorSize;
+        sectorSize[newDisk.deviceSlot] = newDisk.sectorSize;
         derive_percom_block(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors);
         sio_complete();
         return;
@@ -456,7 +456,7 @@ void sio_new_disk()
       else
       {
 #ifdef DEBUG
-      Debug_printf("XXX ATR data write failed.\n");
+        Debug_printf("XXX ATR data write failed.\n");
 #endif
         sio_error();
         return;
@@ -465,7 +465,7 @@ void sio_new_disk()
     else
     {
 #ifdef DEBUG
-      Debug_printf("XXX Could not open file %s\n",deviceSlots.slot[newDisk.deviceSlot].file);
+      Debug_printf("XXX Could not open file %s\n", deviceSlots.slot[newDisk.deviceSlot].file);
 #endif
       sio_error();
       return;
@@ -474,7 +474,7 @@ void sio_new_disk()
   else
   {
 #ifdef DEBUG
-      Debug_printf("XXX Bad Checksum.\n");
+    Debug_printf("XXX Bad Checksum.\n");
 #endif
     sio_error();
     return;
@@ -587,7 +587,19 @@ void sio_net_set_ssid()
 */
 void sio_status()
 {
-  byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
+  byte status[4] = {0x10, 0xFF, 0xFE, 0x00};
+  byte deviceSlot = cmdFrame.devic - 0x31;
+
+  if (sectorSize[deviceSlot] == 256)
+  {
+    status[0] |= 0x20;
+  }
+
+  if (percomBlock[deviceSlot].sectors_per_trackL == 26)
+  {
+    status[0] |= 0x80;
+  }
+  
   sio_to_computer(status, sizeof(status), false); // command always completes.
 }
 
@@ -1674,7 +1686,7 @@ bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, u
 {
   unsigned long num_para = num_sectors_to_para(numSectors, sectorSize);
   unsigned long offset;
-  
+
   // Write header
   atrHeader.magic1 = 0x96;
   atrHeader.magic2 = 0x02;
@@ -1689,7 +1701,7 @@ bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, u
 #endif
   memcpy(sector, atrHeader.rawData, sizeof(atrHeader.rawData));
   tnfs_write(deviceSlot, sizeof(atrHeader.rawData));
-  offset+=sizeof(atrHeader.rawData);
+  offset += sizeof(atrHeader.rawData);
 
   // Write first three 128 byte sectors
   memset(sector, 0x00, sizeof(sector));
@@ -1698,10 +1710,10 @@ bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, u
   Debug_printf("TNFS: Write first three sectors\n");
 #endif
 
-  for (unsigned char i=0; i<3; i++)
+  for (unsigned char i = 0; i < 3; i++)
   {
-    tnfs_write(deviceSlot,128);
-    offset+=128;
+    tnfs_write(deviceSlot, 128);
+    offset += 128;
     numSectors--;
   }
 
@@ -1709,9 +1721,9 @@ bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, u
   Debug_printf("TNFS: Sparse Write the rest.\n");
 #endif
   // Write the rest of the sectors via sparse seek
-  offset+=(numSectors*sectorSize)-sectorSize;
-  tnfs_seek(deviceSlot,offset);
-  tnfs_write(deviceSlot,sectorSize);
+  offset += (numSectors * sectorSize) - sectorSize;
+  tnfs_seek(deviceSlot, offset);
+  tnfs_write(deviceSlot, sectorSize);
   return true; //fixme
 }
 
