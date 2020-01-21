@@ -448,6 +448,7 @@ void sio_new_disk()
 #ifdef DEBUG
       Debug_printf("XXX Wrote ATR data\n");
 #endif
+        sectorSize[newDisk.deviceSlot]=newDisk.sectorSize;
         sio_complete();
         return;
       }
@@ -1674,8 +1675,8 @@ bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, u
   unsigned long offset;
   
   // Write header
-  atrHeader.magic1 = 0x02;
-  atrHeader.magic2 = 0x96;
+  atrHeader.magic1 = 0x96;
+  atrHeader.magic2 = 0x02;
   atrHeader.filesizeH = num_para & 0xFF;
   atrHeader.filesizeL = (num_para & 0xFF00) >> 8;
   atrHeader.filesizeHH = (num_para & 0xFF0000) >> 16;
