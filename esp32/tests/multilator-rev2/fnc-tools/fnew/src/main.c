@@ -244,14 +244,74 @@ int main(int argc, char* argv[])
       hs=buf[0]-0x30;
       hsa=buf[0];
 
-      print("NUMBER OF SECTORS (1-65535)? ");
-      get_line(buf,sizeof(buf));
-      ns=atoi(buf);
+    get_disk_type:
+      print("5.25\" (1)90K (2)140K (3)180K (4)360K\x9b");
+      print("3.5\"  (5)720K (6)1440K\x9b");
+      print("8\"    (7)256K (8)512K (9)1024K\x9b");
+      print("OR C, FOR CUSTOM SIZE? ");
 
-      print("SECTOR SIZE (128/256)? ");
       get_line(buf,sizeof(buf));
-      ss=atoi(buf);
-
+      
+      if (buf[0]=='C')
+	{
+	  print("NUMBER OF SECTORS (1-65535)? ");
+	  get_line(buf,sizeof(buf));
+	  ns=atoi(buf);
+	  
+	  print("SECTOR SIZE (128/256)? ");
+	  get_line(buf,sizeof(buf));
+	  ss=atoi(buf);	  
+	}
+      else
+	{
+	  // Parse disk type selection.
+	  if ((buf[0]<0x31) || (buf[0]>0x39))
+	    {
+	      print("INVALID DISK TYPE.\x9b\x9b");
+	      goto get_disk_type;
+	    }
+	    
+	  switch(buf[0])
+	    {
+	    case 0x31:
+	      ns=720;
+	      ss=128;
+	      break;
+	    case 0x32:
+	      ns=1040;
+	      ss=128;
+	      break;
+	    case 0x33:
+	      ns=720;
+	      ss=256;
+	      break;
+	    case 0x34:
+	      ns=1440;
+	      ss=256;
+	      break;
+	    case 0x35:
+	      ns=2880;
+	      ss=256;
+	      break;
+	    case 0x36:
+	      ns=5760;
+	      ss=256;
+	      break;
+	    case 0x37:
+	      ns=2002;
+	      ss=128;
+	      break;
+	    case 0x38:
+	      ns=2002;
+	      ss=256;
+	      break;
+	    case 0x39:
+	      ns=4004;
+	      ss=256;
+	      break;
+	    }
+	}
+      
       print("FILENAME:\x9b");
       get_line(buf,sizeof(buf));
     }

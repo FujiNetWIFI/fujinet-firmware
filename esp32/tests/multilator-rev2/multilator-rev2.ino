@@ -449,6 +449,7 @@ void sio_new_disk()
       Debug_printf("XXX Wrote ATR data\n");
 #endif
         sectorSize[newDisk.deviceSlot]=newDisk.sectorSize;
+        derive_percom_block(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors);
         sio_complete();
         return;
       }
@@ -1965,6 +1966,7 @@ void setup()
   cmdPtr['R'] = sio_read;
   cmdPtr['S'] = sio_status;
   cmdPtr['!'] = sio_format;
+  cmdPtr['"'] = sio_format;
   cmdPtr[0x3F] = sio_high_speed;
   cmdPtr[0x4E] = sio_read_percom_block;
   cmdPtr[0x4F] = sio_write_percom_block;
