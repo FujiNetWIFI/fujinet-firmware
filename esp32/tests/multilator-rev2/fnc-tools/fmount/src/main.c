@@ -250,7 +250,7 @@ int main(int argc, char* argv[])
   print((o==0x03 ? "W" : "R"));
   print(") ");
   print(buf);
-  print("\x9b");
+  print("\x9b\x9b");
 
   if (!_is_cmdline_dos())
     {
