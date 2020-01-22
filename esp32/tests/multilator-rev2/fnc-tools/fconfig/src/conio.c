@@ -30,7 +30,7 @@ void get_line(char* c, unsigned char l)
   
   OS.iocb[0].buffer=c;
   OS.iocb[0].buflen=l;
-  OS.iocb[0].command=IOCB_GETCHR;
+  OS.iocb[0].command=IOCB_GETREC;
   ciov();
 
   for (i=0;i<l;i++)

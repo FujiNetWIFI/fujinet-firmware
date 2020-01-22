@@ -16,6 +16,7 @@
 #include <atari.h>
 #include <string.h>
 #include <stdlib.h>
+#include <peekpoke.h>
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
@@ -36,6 +37,9 @@ union
 int main(int argc, char* argv[])
 {
   unsigned char wifiStatus=0;
+
+  OS.lmargn=2;
+  
   strcpy(netConfig.ssid,argv[2]);
   strcpy(netConfig.password,argv[3]);
 
