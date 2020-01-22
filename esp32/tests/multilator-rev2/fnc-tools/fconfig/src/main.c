@@ -16,6 +16,7 @@
 #include <atari.h>
 #include <string.h>
 #include <stdlib.h>
+#include <peekpoke.h>
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
@@ -57,6 +58,16 @@ void adapter_config(void)
       err_sio();
       exit(OS.dcb.dstats);
     }
+}
+
+/**
+ * Clear up to status bar for DOS 3
+ */
+void dos3_clear(void)
+{
+  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
+  print("\xa3\xc6\xf5\xea\xe9\xce\xe5\xf4\xa0\xce\xe5\xf4\xf7\xef\xf2\xeb\xa0\xC3\xef\xee\xe6\xe9\xe7\xf5\xf2\xe1\xf4\xe9\xef\xee\x9b\x9b"); // #FujiNet Network Configuration
+  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
 }
 
 /**
@@ -110,37 +121,42 @@ void print_mac(unsigned char* mac)
  */
 int main(void)
 {
+
+  OS.lmargn=2;
   
   // Read adapter config
   adapter_config();
 
   print("\x9b");
 
-  print("          SSID: ");
+  if ((PEEK(0x718)==51) || (PEEK(0x718)==53) ||(PEEK(0x718)==56))
+    dos3_clear();
+  
+  print("           SSID: ");
   print(adapterConfig.ssid);
   print("\x9b");
 
-  print("      Hostname: ");
+  print("       Hostname: ");
   print(adapterConfig.hostname);
   print("\x9b");
   
-  print("    IP Address: ");
+  print("     IP Address: ");
   print_address(adapterConfig.localIP);
   print("\x9b");
 
-  print("Gatway Address: ");
+  print("Gateway Address: ");
   print_address(adapterConfig.gateway);
   print("\x9b");
 
-  print("   DNS Address: ");
+  print("    DNS Address: ");
   print_address(adapterConfig.dnsIP);
   print("\x9b");
   
-  print("       Netmask: ");
+  print("        Netmask: ");
   print_address(adapterConfig.netmask);
   print("\x9b");
 
-  print("   MAC Address: ");
+  print("    MAC Address: ");
   print_mac(adapterConfig.macAddress);
 
   print("\x9b");

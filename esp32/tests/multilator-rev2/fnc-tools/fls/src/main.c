@@ -16,6 +16,7 @@
 #include <atari.h>
 #include <string.h>
 #include <stdlib.h>
+#include <peekpoke.h>
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
@@ -152,12 +153,25 @@ void opts(char* argv[])
 }
 
 /**
+ * Clear up to status bar for DOS 3
+ */
+void dos3_clear(void)
+{
+  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
+  print("\xCC\xE9\xE3\XE4\xA0\xC6\xe9\xec\xe5\xf3\xa0\xef\xee\xa0\xC8\xEF\xF3\xf4\x9b\x9b"); // List Files on Host
+  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
+}
+
+
+/**
  * main
  */
 int main(int argc, char* argv[])
 {
   unsigned char s=argv[1][0]-0x30;
 
+  OS.lmargn=2;
+  
   if (_is_cmdline_dos())
     {
       if (argc<2)
@@ -169,6 +183,11 @@ int main(int argc, char* argv[])
   else
     {
       // DOS 2.0
+      print("\x9b");
+
+      if ((PEEK(0x718)==51) || (PEEK(0x718)==53) ||(PEEK(0x718)==56))
+	dos3_clear();
+      
       print("HOST SLOT (1-8)? ");
       get_line(buf,sizeof(buf));
       s=buf[0]-0x30;
@@ -189,7 +208,9 @@ int main(int argc, char* argv[])
   host_mount(s);
   
   print("\x9b");
+
   print(hostSlots.host[s]);
+  
   print(":\x9b\x9b");
 
   directory_open(s);
