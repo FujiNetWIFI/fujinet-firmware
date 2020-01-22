@@ -12,6 +12,7 @@
 #include <SPI.h>
 #include <WiFi.h>
 #include <SPIFFS.h>
+#include "BluetoothSerial.h"
 #endif
 
 #include <FS.h>
@@ -37,6 +38,7 @@
 #define PIN_PROC        4
 #define PIN_MTR        16
 #define PIN_CMD        12
+#define PIN_BOOT_BUTTON 0
 #endif
 #ifdef ESP32
 #define SIO_UART Serial2
@@ -47,7 +49,13 @@
 #define PIN_PROC        22
 #define PIN_MTR         33
 #define PIN_CMD         21
+#define PIN_BOOT_BUTTON 0
 #endif
+
+long buttonTimer = 0;
+long longPressTime = 1000; // 1 second to avoid mode change by accident
+boolean buttonActive = false;
+boolean longPressActive = false;
 
 #define DELAY_T0  750
 #define DELAY_T1  650
@@ -63,6 +71,12 @@ int command_frame_counter = 0;
 #define HISPEED_BAUDRATE 52640
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
+
+#ifdef ESP32
+#define BT_BAUDRATE 57600
+BluetoothSerial SerialBT;
+bool bt_mode = false;
+#endif
 
 /**
    A Single command frame, both in structured and unstructured
@@ -1933,6 +1947,7 @@ void setup()
   digitalWrite(PIN_PROC, HIGH);
   pinMode(PIN_MTR, INPUT);
   pinMode(PIN_CMD, INPUT);
+  pinMode(PIN_BOOT_BUTTON, INPUT_PULLUP);
 #ifdef ESP8266
   pinMode(PIN_LED, INPUT);
   digitalWrite(PIN_LED, HIGH); // off
@@ -1991,8 +2006,72 @@ void setup()
   sio_flush();
 }
 
+void handle_hardkeys()
+{
+  if (digitalRead(PIN_BOOT_BUTTON) == LOW)
+  {
+    if (buttonActive == false)
+    {
+      buttonActive = true;
+      buttonTimer = millis();
+    }
+    if ((millis() - buttonTimer > longPressTime) && (longPressActive == false))
+    {
+      longPressActive = true;
+      // long press detected
+#ifdef ESP32
+      if(bt_mode)
+      {
+          bt_mode = false;
+          SerialBT.end();
+          SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
+      }
+      else
+      {
+          bt_mode = true;
+          SerialBT.begin("ATARI FUJINET");
+          SIO_UART.updateBaudRate(BT_BAUDRATE);
+      }
+#endif
+    }
+  }
+  else
+  {
+    if (buttonActive == true)
+    {
+      if (longPressActive == true)
+      {
+        longPressActive = false;
+        // long press released
+      }
+      else
+      {
+        // short press released
+        // for example: swap disks now
+      }
+      buttonActive = false;
+    }
+  }
+
+}
+
 void loop()
 {
+  handle_hardkeys();
+
+#ifdef ESP32
+  if(bt_mode)
+  {
+    if (SIO_UART.available()) {
+      SerialBT.write(SIO_UART.read());
+    }
+    if (SerialBT.available()) {
+      SIO_UART.write(SerialBT.read());
+    }
+    return;
+  }
+#endif
+
   int a;
   if (digitalRead(PIN_CMD) == LOW)
   {
