@@ -59,8 +59,8 @@
 bool hispeed = false;
 int command_frame_counter = 0;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x01
-#define HISPEED_BAUDRATE 111111
+#define HISPEED_INDEX 0x0A
+#define HISPEED_BAUDRATE 52640
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
 
@@ -599,7 +599,7 @@ void sio_status()
   {
     status[0] |= 0x80;
   }
-  
+
   sio_to_computer(status, sizeof(status), false); // command always completes.
 }
 
@@ -730,26 +730,54 @@ void derive_percom_block(unsigned char deviceSlot, unsigned short sectorSize, un
   percomBlock[deviceSlot].reserved2 = 0;
   percomBlock[deviceSlot].reserved3 = 0;
 
-  if (numSectors == 1040) // 1050 density
+  if (numSectors == 1040) // 5/25" 1050 density
   {
     percomBlock[deviceSlot].sectors_per_trackM = 0;
     percomBlock[deviceSlot].sectors_per_trackL = 26;
     percomBlock[deviceSlot].density = 4; // 1050 density is MFM, override.
   }
-  else if (numSectors == 720 && sectorSize == 256)
+  else if (numSectors == 720 && sectorSize == 256) // 5.25" SS/DD
   {
     percomBlock[deviceSlot].density = 4; // 1050 density is MFM, override.
   }
-  else if (numSectors == 1440)
+  else if (numSectors == 1440) // 5.25" DS/DD
   {
     percomBlock[deviceSlot].num_sides = 1;
     percomBlock[deviceSlot].density = 4; // 1050 density is MFM, override.
   }
-  else if (numSectors == 2880)
+  else if (numSectors == 2880) // 5.25" DS/QD
   {
     percomBlock[deviceSlot].num_sides = 1;
     percomBlock[deviceSlot].num_tracks = 80;
     percomBlock[deviceSlot].density = 4; // 1050 density is MFM, override.
+  }
+  else if (numSectors == 2002 && sectorSize == 128) // SS/SD 8"
+  {
+    percomBlock[deviceSlot].num_tracks = 77;
+    percomBlock[deviceSlot].density = 0; // FM density
+  }
+  else if (numSectors == 2002 && sectorSize == 256) // SS/DD 8"
+  {
+    percomBlock[deviceSlot].num_tracks = 77;
+    percomBlock[deviceSlot].density = 4; // MFM density  
+  }
+  else if (numSectors == 4004 && sectorSize == 128) // DS/SD 8"
+  {
+    percomBlock[deviceSlot].num_tracks = 77;
+    percomBlock[deviceSlot].density = 0; // FM density  
+  }
+  else if (numSectors == 4004 && sectorSize == 256) // DS/DD 8"
+  {
+    percomBlock[deviceSlot].num_sides = 1;
+    percomBlock[deviceSlot].num_tracks = 77;
+    percomBlock[deviceSlot].density = 4; // MFM density
+  }
+  else if (numSectors == 5760) // 1.44MB 3.5" High Density
+  {
+    percomBlock[deviceSlot].num_sides = 1;
+    percomBlock[deviceSlot].num_tracks = 80;
+    percomBlock[deviceSlot].sectors_per_trackL = 36;
+    percomBlock[deviceSlot].density = 8; // I think this is right.
   }
   else
   {
@@ -1839,10 +1867,11 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
     tnfsPacket.data[3] = offsetVal[2];
     tnfsPacket.data[4] = offsetVal[1];
     tnfsPacket.data[5] = offsetVal[0];
-
-#ifdef DEBUG_VERBOSE
+#ifdef DEBUG
     Debug_print("Seek requested to offset: ");
     Debug_println(offset);
+#endif /* DEBUG */
+#ifdef DEBUG_VERBOSE
     Debug_print("Req packet: ");
     for (int i = 0; i < 10; i++)
     {
