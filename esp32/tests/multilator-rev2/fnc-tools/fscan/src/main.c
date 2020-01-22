@@ -16,6 +16,7 @@
 #include <atari.h>
 #include <string.h>
 #include <stdlib.h>
+#include <peekpoke.h>
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
@@ -82,11 +83,14 @@ void scan_result(unsigned char n)
 int main(void)
 {
   unsigned char i=0;
+
+  OS.lmargn=2;
   
-  print("Scanning...\n\n");
+  print("\x9b");
+  print("Scanning...\x9b");
   scan();
 
-  printc(num_networks[0]);
+  printc(&num_networks[0]);
   print(" networks found.\x9b\x9b");
   
   for (i=0;i<num_networks[0];i++)
