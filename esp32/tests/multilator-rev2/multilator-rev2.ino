@@ -759,12 +759,12 @@ void derive_percom_block(unsigned char deviceSlot, unsigned short sectorSize, un
   else if (numSectors == 2002 && sectorSize == 256) // SS/DD 8"
   {
     percomBlock[deviceSlot].num_tracks = 77;
-    percomBlock[deviceSlot].density = 4; // MFM density  
+    percomBlock[deviceSlot].density = 4; // MFM density
   }
   else if (numSectors == 4004 && sectorSize == 128) // DS/SD 8"
   {
     percomBlock[deviceSlot].num_tracks = 77;
-    percomBlock[deviceSlot].density = 0; // FM density  
+    percomBlock[deviceSlot].density = 0; // FM density
   }
   else if (numSectors == 4004 && sectorSize == 256) // DS/DD 8"
   {
@@ -1079,55 +1079,14 @@ void sio_read()
       Debug_printf("offset: %d\n", offset);
 #endif
       tnfs_seek(deviceSlot, offset);
-      tnfs_read(deviceSlot, 256);
-      s = &tnfsPacket.data[3];
-      d = &sectorCache[deviceSlot][cacheOffset];
-      memcpy(d, s, 256);
-      cacheOffset += 256;
-      tnfs_read(deviceSlot, 256);
-      s = &tnfsPacket.data[3];
-      d = &sectorCache[deviceSlot][cacheOffset];
-      memcpy(d, s, 256);
-      cacheOffset += 256;
-      tnfs_read(deviceSlot, 256);
-      s = &tnfsPacket.data[3];
-      d = &sectorCache[deviceSlot][cacheOffset];
-      memcpy(d, s, 256);
-      cacheOffset += 256;
-      tnfs_read(deviceSlot, 256);
-      s = &tnfsPacket.data[3];
-      d = &sectorCache[deviceSlot][cacheOffset];
-      memcpy(d, s, 256);
-      cacheOffset += 256;
-      tnfs_read(deviceSlot, 256);
-      s = &tnfsPacket.data[3];
-      d = &sectorCache[deviceSlot][cacheOffset];
-      memcpy(d, s, 256);
-      cacheOffset += 256;
-      tnfs_read(deviceSlot, 256);
-      s = &tnfsPacket.data[3];
-      d = &sectorCache[deviceSlot][cacheOffset];
-      memcpy(d, s, 256);
-      cacheOffset += 256;
-      tnfs_read(deviceSlot, 256);
-      s = &tnfsPacket.data[3];
-      d = &sectorCache[deviceSlot][cacheOffset];
-      memcpy(d, s, 256);
-      cacheOffset += 256;
-      tnfs_read(deviceSlot, 256);
-      s = &tnfsPacket.data[3];
-      d = &sectorCache[deviceSlot][cacheOffset];
-      memcpy(d, s, 256);
-      cacheOffset += 256;
-      tnfs_read(deviceSlot, 256);
-      s = &tnfsPacket.data[3];
-      d = &sectorCache[deviceSlot][cacheOffset];
-      memcpy(d, s, 256);
-      cacheOffset += 256;
-      tnfs_read(deviceSlot, 256);
-      s = &tnfsPacket.data[3];
-      d = &sectorCache[deviceSlot][cacheOffset];
-      memcpy(d, s, 256);
+      for (unsigned char i = 0; i < 10; i++)
+      {
+        tnfs_read(deviceSlot, 256);
+        s = &tnfsPacket.data[3];
+        d = &sectorCache[deviceSlot][cacheOffset];
+        memcpy(d, s, 256);
+        cacheOffset += 256;
+      }
       cacheOffset = 0;
     }
     else // cache hit, adjust offset
