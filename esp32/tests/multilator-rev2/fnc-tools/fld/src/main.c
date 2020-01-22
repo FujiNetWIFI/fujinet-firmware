@@ -16,6 +16,7 @@
 #include <atari.h>
 #include <string.h>
 #include <stdlib.h>
+#include <peekpoke.h>
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
@@ -57,16 +58,31 @@ void disk_read(void)
 }
 
 /**
+ * Clear up to status bar for DOS 3
+ */
+void dos3_clear(void)
+{
+  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
+  print("\xCC\xE9\xE3\XE4\xA0\xC4\xEE\xF6\xE9\xE3\xE5\xA0\xD3\xec\xef\xf4\xf3\x9b\x9b"); // List Device Slots
+  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
+}
+
+/**
  * main
  */
 int main(void)
 {
   unsigned char i=0;
+
+  OS.lmargn=2;
   
   // Read in host and device slots from FujiNet
   disk_read();
 
   print("\x9b");
+
+  if ((PEEK(0x718)==51) || (PEEK(0x718)==53) ||(PEEK(0x718)==56))
+    dos3_clear();
   
   for (i=0;i<8;i++)
     {

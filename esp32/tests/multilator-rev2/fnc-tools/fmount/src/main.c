@@ -1,10 +1,10 @@
 /**
  * FujiNet Tools for CLI
  *
- * feject - Eject disk in device slot
+ * fmount - Mount Disk Image
  *
  * usage:
- *  feject <ds#>
+ *  feject <ds#> <hs#> <R|W> <FNAME>
  *
  * Author: Thomas Cherryhomes
  *  <thom.cherryhomes@gmail.com>
@@ -16,6 +16,7 @@
 #include <atari.h>
 #include <string.h>
 #include <stdlib.h>
+#include <peekpoke.h>
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
@@ -167,6 +168,16 @@ void opts(char* argv[])
 }
 
 /**
+ * Clear up to status bar for DOS 3
+ */
+void dos3_clear(void)
+{
+  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
+  print("\xCD\xef\xf5\xee\xf4\xa0\xC4\xe9\xf3\xeb\xa0\xc9\xec\xe1\xe7\xe5\x9b\x9b"); // Mount Disk Image
+  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
+}
+
+/**
  * main
  */
 int main(int argc, char* argv[])
@@ -177,6 +188,8 @@ int main(int argc, char* argv[])
   unsigned char hsa=argv[2][0];
   unsigned char o=(argv[3][0]=='W' ? 0x03 : 0x01);
 
+  OS.lmargn=2;
+  
   if (_is_cmdline_dos())
     {
       if (argc<5)
@@ -190,6 +203,10 @@ int main(int argc, char* argv[])
     {
       // DOS 2.0
       print("\x9b");
+
+      if ((PEEK(0x718)==51) || (PEEK(0x718)==53) ||(PEEK(0x718)==56))
+	dos3_clear();
+      
       print("DEVICE SLOT (1-8)? ");
       get_line(buf,sizeof(buf));
       ds=buf[0]-0x30;

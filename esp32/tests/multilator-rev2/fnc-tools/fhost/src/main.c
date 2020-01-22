@@ -16,6 +16,7 @@
 #include <atari.h>
 #include <string.h>
 #include <stdlib.h>
+#include <peekpoke.h>
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
@@ -112,6 +113,16 @@ void opts(char* argv[])
 }
 
 /**
+ * Clear up to status bar for DOS 3
+ */
+void dos3_clear(void)
+{
+  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
+  print("\xc3\xe8\xe1\xee\xe7\xe5\xaf\xC3\xec\xe5\xe1\xf2\xa0\xc8\xef\xe3\xe4\xa0\xD3\xec\xef\xf4\x9b\x9b"); // Change/Clear Host Slot
+  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
+}
+
+/**
  * main
  */
 int main(int argc, char* argv[])
@@ -119,6 +130,8 @@ int main(int argc, char* argv[])
   unsigned char sa=argv[1][0];
   unsigned char s=sa-0x30;
 
+  OS.lmargn=2;
+  
   if (_is_cmdline_dos())
     {
       if (argc<2 || argc>3)
@@ -132,12 +145,17 @@ int main(int argc, char* argv[])
   else
     {
       // DOS 2.0
+      print("\x9b");
+
+      if ((PEEK(0x718)==51) || (PEEK(0x718)==53) ||(PEEK(0x718)==56))
+	dos3_clear();
+      
       print("WHICH HOST SLOT (1-8)? ");
       get_line(buf,sizeof(buf));
       sa=buf[0];
       s=sa-0x30;
       
-      print("HOSTNAME OR \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO ERASE:\x9b");
+      print("HOSTNAME OR \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CLEAR:\x9b");
       get_line(buf,sizeof(buf));
     }
   

@@ -16,6 +16,7 @@
 #include <atari.h>
 #include <string.h>
 #include <stdlib.h>
+#include <peekpoke.h>
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
@@ -196,6 +197,16 @@ void disk_mount(unsigned char c, unsigned char o)
 }
 
 /**
+ * Clear up to status bar for DOS 3
+ */
+void dos3_clear(void)
+{
+  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
+  print("\xCE\xe5\xf7\xa0\xc4\xe9\xf3\xeb\xa0\xc9\xec\xe1\xe7\xe5\x9b\x9b"); // New Disk Image
+  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
+}
+
+/**
  * show options
  */
 void opts(char* argv[])
@@ -220,6 +231,8 @@ int main(int argc, char* argv[])
   unsigned char hsa=argv[2][0];
   unsigned short ns=atoi(argv[3]);
   unsigned short ss=atoi(argv[4]);
+
+  OS.lmargn=2;
   
   if (_is_cmdline_dos())
     {
@@ -234,6 +247,10 @@ int main(int argc, char* argv[])
     {
       // DOS 2.0
       print("\x9b");
+ 
+      if ((PEEK(0x718)==51) || (PEEK(0x718)==53) ||(PEEK(0x718)==56))
+	dos3_clear();
+      
       print("DEVICE SLOT (1-8)? ");
       get_line(buf,sizeof(buf));
       ds=buf[0]-0x30;
