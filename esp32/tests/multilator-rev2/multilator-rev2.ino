@@ -38,6 +38,7 @@
 #define PIN_PROC        4
 #define PIN_MTR        16
 #define PIN_CMD        12
+#define PIN_BOOT_BUTTON 0
 #endif
 #ifdef ESP32
 #define SIO_UART Serial2
