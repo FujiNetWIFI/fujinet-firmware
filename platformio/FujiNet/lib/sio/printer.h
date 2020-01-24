@@ -53,6 +53,7 @@ private:
     void sio_write();
     void sio_status() override;
     void sio_process() override;
+    byte lastAux1=0;
 
     // PDF THINGS
 

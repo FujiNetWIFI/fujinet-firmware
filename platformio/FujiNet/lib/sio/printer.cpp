@@ -321,10 +321,26 @@ void sioPrinter::writeBuffer(byte *B, int n)
 // write for W commands
 void sioPrinter::sio_write()
 {
+  byte n = 40;
   byte ck;
-  SIO_UART.readBytes(buffer, BUFN);
+
+  // to do: size buffer based on AUX1:
+  // Auxiliary Bytes 1
+  // Normal Print (40 Char/Line) = 0x4E
+  // Sideways Print (16 Char/Line) = 0x53
+  // Other values in the 400/800 OS Manual
+  // Normal 0x4E 'N'    40 chars
+  // Sideways 0x53 'S'  29 chars
+  // Wide 0x57 'W'      "not supported"
+  // And the XL/XE OS ROM
+
+  if (cmdFrame.aux1 == 'N')
+    n = 40;
+  else if (cmdFrame.aux1 == 'S')
+    n = 29;
+  SIO_UART.readBytes(buffer, n);
 #ifdef DEBUG_S
-  for (int z = 0; z < BUFN; z++)
+  for (int z = 0; z < n; z++)
   {
     BUG_UART.print(buffer[z], DEC);
     BUG_UART.print(" ");
@@ -335,9 +351,9 @@ void sioPrinter::sio_write()
   //delayMicroseconds(350);
   SIO_UART.write('A'); // Write ACK
 
-  if (ck == sio_checksum(buffer, BUFN))
+  if (ck == sio_checksum(buffer, n))
   {
-    writeBuffer(buffer, BUFN);
+    writeBuffer(buffer, n);
     delayMicroseconds(DELAY_T5);
     SIO_UART.write('C');
     yield();
@@ -347,8 +363,38 @@ void sioPrinter::sio_write()
 // Status
 void sioPrinter::sio_status()
 {
-  byte status[4] = {0x01, 0x01, 0x01, 0x01};
+  byte status[4];
   byte ck;
+
+  // status frame per Atari 820 service manual
+  /* The printer controller will return a data frame to the computer
+reflecting the status. The STATUS DATA frame is shown below:
+DONE/ERROR
+FLAG
+AUX. BYTE 1 from last WRITE COMMAND
+DATA WRITE TIMEOUT
+CHECKSUM
+The FLAG byte contains information relating to the most recent
+command prior to the status request and some controller constants.
+The DATA WRITE Timeout equals the maximum time to print a
+line of data assuming worst case controller produced Timeout
+delay. This Timeout is associated with printer timeout
+discussed earlier.  */
+  /* But from 400/800 OS ROM Manual
+Command Status
+Aux 1 Byte (typo says AUX2 byte)
+Timeout
+Unused
+
+OS ROM Manual continues on Command Status:
+bit 0 - invalid command frame
+bit 1 - invalid data frame
+bit 7 - intelligent controller (normally 0)
+*/
+  status[0] = 0;
+  status[1] = lastAux1;
+  status[2] = 5;
+  status[3] = 0;
 
   ck = sio_checksum((byte *)&status, 4);
 
@@ -375,6 +421,7 @@ void sioPrinter::sio_process()
   {
   case 'W':
     sio_write();
+    lastAux1 = cmdFrame.aux1;
     break;
   case 'S':
     sio_status();
