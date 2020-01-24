@@ -46,7 +46,7 @@ enum paper_t
 
 class sioPrinter : public sioDevice
 {
-private:
+protected:
     // SIO THINGS
 
     byte buffer[40];
@@ -109,6 +109,7 @@ public:
 
 class atari1027 : public sioPrinter
 {
+    void pdf_handle_char(byte c);
 };
 
 #endif // guard

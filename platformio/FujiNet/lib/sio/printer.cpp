@@ -117,6 +117,18 @@ void sioPrinter::pdf_end_line()
 
 void sioPrinter::pdf_handle_char(byte c)
 {
+  if (c > 31 && c < 127)
+  {
+    if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
+      _file->write(BACKSLASH);
+    _file->write(c);
+
+    pdf_X += charWidth; // update x position
+  }
+}
+
+void atari1027::pdf_handle_char(byte c)
+{
   if (escMode)
   {
     // Atari 1027 escape codes:
