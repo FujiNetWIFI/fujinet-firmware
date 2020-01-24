@@ -3,6 +3,9 @@
 //pdf routines
 void sioPrinter::pdf_header()
 {
+  pdf_Y = 0;
+  pdf_X = 0;
+  pdf_pageCounter = 0;
   _file->printf("%%PDF-1.4\n");
   // first object: catalog of pages
   pdf_objCtr = 1;
@@ -117,6 +120,7 @@ void sioPrinter::pdf_end_line()
 
 void sioPrinter::pdf_handle_char(byte c)
 {
+  // simple ASCII printer
   if (c > 31 && c < 127)
   {
     if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
@@ -198,34 +202,23 @@ void sioPrinter::pdf_add(std::string S)
   {
     byte c = byte(S[i]);
 
+    // check for EOL or if at end of line and need automatic CR
     if ((c == EOL) || (pdf_X > (maxWidth - charWidth)))
       pdf_end_line();
+
+    // start a new line if we need to
     if (BOLflag)
       pdf_new_line();
-    // do special case of new line and S==EOL later
-    // if (c == EOL)
-    //   {                        // skip a line space
-    //     voffset -= lineHeight; // relative coord
-    //     pdf_Y -= lineHeight;   // absolute coord
-    //   }
-    // else
-    // {
-    pdf_handle_char(c);
 
-    // check for EOL or if at end of line and need automatic CR
+    // disposition the current byte
+    pdf_handle_char(c);
 
 #ifdef DEBUG_S
     printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
     printf("TOP: %s  ", TOPflag ? "true " : "false");
     printf("BOL: %s  ", BOLflag ? "true " : "false");
-    printf("ESC: %s  ", escMode ? "true " : "false");
-    printf("USC: %s  ", uscoreFlag ? "true " : "false");
-    printf("INL: %s\n", intlFlag ? "true " : "false");
 #endif
   }
-
-  // reset line spacing - only needed in special case of !doing line and EOL
-  // voffset = -lineHeight;
 
   // if wrote last line, then close the page
   if (pdf_Y < lineHeight + bottomMargin)
@@ -241,20 +234,25 @@ void sioPrinter::initPrinter(File *f, paper_t ty)
   _file = f;
   paperType = ty;
   if (paperType == PDF)
-  {
-    uscoreFlag = false;
-    intlFlag = false;
-    escMode = false;
-    pdf_Y = 0;
-    pdf_X = 0;
-    pdf_pageCounter = 0;
     pdf_header();
-  }
 }
 
 void sioPrinter::initPrinter(File *f)
 {
   initPrinter(f, PDF);
+}
+
+void atari1027::initPrinter(File *f, paper_t ty)
+{
+  _file = f;
+  paperType = ty;
+  if (paperType == PDF)
+  {
+    uscoreFlag = false;
+    intlFlag = false;
+    escMode = false;
+    pdf_header();
+  }
 }
 
 void sioPrinter::pageEject()

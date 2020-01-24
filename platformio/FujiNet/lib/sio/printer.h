@@ -53,7 +53,7 @@ protected:
     void sio_write();
     void sio_status() override;
     void sio_process() override;
-    byte lastAux1=0;
+    byte lastAux1 = 0;
 
     // PDF THINGS
 
@@ -73,9 +73,6 @@ protected:
     int pdf_pageCounter = 0;
     size_t objLocations[256]; // reference table storage
     int pdf_objCtr = 0;       // count the objects
-    bool intlFlag = false;
-    bool uscoreFlag = false;
-    bool escMode = false;
 
     void pdf_header();
     void pdf_fonts();
@@ -109,6 +106,28 @@ public:
 
 class atari1027 : public sioPrinter
 {
+protected:
+    bool intlFlag = false;
+    bool uscoreFlag = false;
+    bool escMode = false;
+    void pdf_handle_char(byte c);
+
+public:
+    void initPrinter(File *f, paper_t ty);
+};
+
+class atari820 : public sioPrinter
+{
+protected:
+    paper_t paperType = PDF;
+    double pageWidth = 612.0;
+    double pageHeight = 792.0;
+    double leftMargin = 18.0;
+    double bottomMargin = 0;
+    double maxWidth = 576.0; // 8 inches
+    double lineHeight = 12.0;
+    double charWidth = 7.2;
+
     void pdf_handle_char(byte c);
 };
 
