@@ -10,30 +10,31 @@ void sioPrinter::pdf_header()
   pdf_objCtr = 1;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
+  // object 2 0 R is printed at bottom of PDF before xref  
+  pdf_fonts();
+}
 
-  // 3rd & 4th object: font catalog
-  pdf_objCtr = 3; // skip the page catalog, leave object 3 blank for ease now
+void sioPrinter::pdf_fonts()
+{
+  // 3rd object: font catalog
+  pdf_objCtr = 3;
   objLocations[pdf_objCtr] = _file->position();
-  //line = ;
-  _file->printf("3 0 obj\n<</Font <</F1 5 0 R /F2 6 0 R>>>>\nendobj\n");
-  // 3rd & 4th object: font catalog
-  //pdf_objCtr = 4; // skip the page catalog, leave object 3 blank for ease now
-  //objLocations[pdf_objCtr] = _file->position();
-  //line = ;
-  //_file->printf("4 0 obj\n<</Font <</F2 6 0 R>>>>\nendobj\n");
-  // fifth object: font 1
+  _file->printf("3 0 obj\n<</Font <</F1 4 0 R /F2 5 0 R>>>>\nendobj\n");
+  
+  // 1027 standard font
+  pdf_objCtr = 4;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("4 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding>>\nendobj\n");
+  // symbol font to put in arrows
   pdf_objCtr = 5;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding>>\nendobj\n");
-  // fifth object: font 1
-  pdf_objCtr = 6;
-  objLocations[pdf_objCtr] = _file->position();
-  _file->printf("6 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Symbol /Encoding /WinAnsiEncoding>>\nendobj\n");
+  _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Symbol /Encoding /WinAnsiEncoding>>\nendobj\n");
 }
 
 void sioPrinter::pdf_xref()
 {
-  objLocations[2] = _file->position(); // hard code page catalog as object #2
+  pdf_objCtr = 2;
+  objLocations[pdf_objCtr] = _file->position(); // hard code page catalog as object #2
   _file->printf("2 0 obj\n<</Type /Pages /Kids [ ");
   for (int i = 0; i < pdf_pageCounter; i++)
   {
@@ -75,7 +76,7 @@ void sioPrinter::pdf_new_page()
 
   TOPflag = false;
   //if (pdf_pageCounter == 0)
-  _file->printf("/F1 12 Tf\n"); // set default font
+  _file->printf("/F1 12 Tf\n");                        // set default font
   _file->printf("%g %g Td\n", leftMargin, pageHeight); // go to top of page
   // voffset = -lineHeight;     // set line spacing
   pdf_Y = pageHeight; // reset print roller to top of page
@@ -214,7 +215,7 @@ void sioPrinter::pdf_add(std::string S)
   // voffset = -lineHeight;
 
   // if wrote last line, then close the page
-  if (pdf_Y < lineHeight)
+  if (pdf_Y < lineHeight + bottomMargin)
     pdf_end_page();
 }
 
