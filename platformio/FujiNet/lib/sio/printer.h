@@ -133,7 +133,7 @@ protected:
     double printWidth = 240.0;  // 3 1/3" wide printable area
     double lineHeight = 12.0;   // 6 lines per inch
     double charWidth = 6.0;     // 12 char per inch
-    unsigned int fontSize = 10; // 10 pt font - char size is 0.123" or 8.9 pts.
+    unsigned int fontSize = 10; // 10 pt font - char size is 0.123" or 8.9 pts and width of 6. So that fits a 6x10 font.
 
     bool sideFlag = false;
 
