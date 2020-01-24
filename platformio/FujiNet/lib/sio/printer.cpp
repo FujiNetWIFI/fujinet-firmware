@@ -1,7 +1,5 @@
 #include "printer.h"
 
-const byte intlchar[32] = {225, 249, 209, 201, 231, 244, 242, 236, 163, 239, 252, 228, 214, 250, 243, 246, 220, 226, 251, 238, 233, 232, 241, 234, 229, 224, 197, 27, UPARROW, DOWNARROW, LEFTARROW, RIGHTARROW};
-
 //pdf routines
 void sioPrinter::pdf_header()
 {
@@ -10,7 +8,7 @@ void sioPrinter::pdf_header()
   pdf_objCtr = 1;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
-  // object 2 0 R is printed at bottom of PDF before xref  
+  // object 2 0 R is printed at bottom of PDF before xref
   pdf_fonts();
 }
 
@@ -20,7 +18,7 @@ void sioPrinter::pdf_fonts()
   pdf_objCtr = 3;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("3 0 obj\n<</Font <</F1 4 0 R /F2 5 0 R>>>>\nendobj\n");
-  
+
   // 1027 standard font
   pdf_objCtr = 4;
   objLocations[pdf_objCtr] = _file->position();
@@ -219,6 +217,11 @@ void sioPrinter::pdf_add(std::string S)
     pdf_end_page();
 }
 
+void sioPrinter::svg_add(std::string S)
+{
+
+}
+
 void sioPrinter::initPrinter(File *f, paper_t ty)
 {
   _file = f;
@@ -261,6 +264,8 @@ paper_t sioPrinter::getPaperType()
 void sioPrinter::writeBuffer(byte *B, int n)
 {
   int i = 0;
+  std::string output = std::string();
+
   switch (paperType)
   {
   case RAW:
@@ -292,8 +297,6 @@ void sioPrinter::writeBuffer(byte *B, int n)
     }
     break;
   case PDF:
-  default:
-    std::string output;
     while (i < n)
     {
       output.push_back(B[i]);
@@ -302,6 +305,16 @@ void sioPrinter::writeBuffer(byte *B, int n)
       i++;
     }
     pdf_add(output);
+    break;
+  case SVG:
+    while (i < n)
+    {
+      output.push_back(B[i]);
+      if (B[i] == EOL)
+        break;
+      i++;
+    }
+    svg_add(output);
   }
 }
 
