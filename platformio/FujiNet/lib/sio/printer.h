@@ -22,6 +22,8 @@
 #define BOLD 0x0400
 #define EMPHASIS 0x0800
 
+const byte intlchar[32] = {225, 249, 209, 201, 231, 244, 242, 236, 163, 239, 252, 228, 214, 250, 243, 246, 220, 226, 251, 238, 233, 232, 241, 234, 229, 224, 197, 27, UPARROW, DOWNARROW, LEFTARROW, RIGHTARROW};
+
 enum printer_t
 {
     A820,
@@ -38,17 +40,21 @@ enum paper_t
     RAW,
     TRIM,
     ASCII,
-    PDF, 
+    PDF,
     SVG
 };
 
 class sioPrinter : public sioDevice
 {
 private:
+    // SIO THINGS
+
     byte buffer[40];
     void sio_write();
     void sio_status() override;
     void sio_process() override;
+
+    // PDF THINGS
 
     paper_t paperType = PDF;
     double pageWidth = 612.0;
@@ -58,13 +64,10 @@ private:
     double maxWidth = 576.0; // 8 inches
     double lineHeight = 12.0;
     double charWidth = 7.2;
-    //int fontNumber = 1;
-    //double fontSize = 12;
     double pdf_X = 0; // across the page - columns in pts
     bool BOLflag = true;
     double pdf_Y = 0; // down the page - lines in pts
     bool TOPflag = true;
-    //double voffset; // use for EOL special handling
     int pageObjects[256];
     int pdf_pageCounter = 0;
     size_t objLocations[256]; // reference table storage
@@ -87,8 +90,13 @@ private:
     size_t idx_stream_start;  // file location of start of stream
     size_t idx_stream_stop;   // file location of end of stream
 
-    void writeBuffer(byte *B, int n);
+    // SVG THINGS
 
+    void svg_add(std::string S);
+
+    // PRINTER THINGS
+
+    void writeBuffer(byte *B, int n);
     File *_file;
 
 public:
@@ -96,6 +104,10 @@ public:
     void initPrinter(File *f);
     void pageEject();
     paper_t getPaperType();
+};
+
+class atari1027 : public sioPrinter
+{
 };
 
 #endif // guard

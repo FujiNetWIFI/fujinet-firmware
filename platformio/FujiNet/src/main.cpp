@@ -24,7 +24,7 @@
 #define TNFS_PORT 16384
 
 //File tnfs;
-sioPrinter sioP;
+atari1027 sioP;
 File atr[2];
 File paperf;
 File tnfs;
