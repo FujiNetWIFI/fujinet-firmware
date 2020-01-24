@@ -6,12 +6,14 @@
 
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
+#include <ESP8266HTTPClient.h>
 #endif
 #ifdef ESP32
 #include <SD.h>
 #include <SPI.h>
 #include <WiFi.h>
 #include <SPIFFS.h>
+#include <HTTPClient.h>
 #endif
 
 #include <FS.h>
@@ -233,6 +235,7 @@ bool load_config = true;
 char statusSkip = 0;
 void (*cmdPtr[256])(void); // command function pointers
 char totalSSIDs;
+HTTPClient http;
 
 // DEBUGGING MACROS /////////////////////////////////////////////////////////////////////////
 #ifdef DEBUG_S
@@ -423,6 +426,72 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   }
 
   return ck;
+}
+
+/**
+   HTTP Open
+*/
+void sio_http_open()
+{
+  char url[80];
+  byte ck = sio_to_peripheral((byte *)&url, sizeof(url));
+
+  if (ck == sio_checksum((byte *)&url, sizeof(url)))
+  {
+    http.begin(url);
+    if (http.connected())
+    {
+      int resultCode = http.GET();
+      
+      if (resultCode == 200)
+        sio_complete();
+      else
+        sio_error();
+    }
+    else
+    {
+      // somehow disconnected immediately
+      sio_error();
+    }
+  }
+  else // Checksum mismatch
+  {
+    sio_error();
+  }
+}
+
+/**
+   HTTP Get Characters
+*/
+void sio_http_get()
+{
+  bool err = false;
+  WiFiClient* c;
+  
+  memset(sector, 0x00, sizeof(sector));
+
+  if (http.connected())
+  {
+    // Connected
+    c=http.getStreamPtr();
+    c->read(sector, 256);
+  }
+  else
+  {
+    // Not connected
+    err = true;
+  }
+
+  sio_to_computer(sector, sizeof(sector), err);
+}
+
+/**
+   HTTP Close
+*/
+void sio_http_close()
+{
+  http.end();
+  sio_complete();
 }
 
 /**
@@ -1045,7 +1114,7 @@ void sio_read()
   byte err = false;
 
 #ifdef DEBUG
-  Debug_printf("Read sector #%u\n",sectorNum);
+  Debug_printf("Read sector #%u\n", sectorNum);
 #endif
 
   if (load_config == true) // no TNFS ATR mounted.
@@ -1060,7 +1129,7 @@ void sio_read()
   }
   else // TNFS ATR mounted and opened...
   {
-    if (sectorNum<4)
+    if (sectorNum < 4)
       ss = 128;
     else
       ss = sectorSize[deviceSlot];
@@ -1068,18 +1137,18 @@ void sio_read()
     offset = sectorNum;
     offset *= ss;
     offset -= ss;
-    
+
     // Bias adjustment for 256 bytes
-    if (ss==256)
+    if (ss == 256)
       offset -= 384;
 
 #ifdef DEBUG
-    Debug_printf("Sector size: %d\n",ss);
+    Debug_printf("Sector size: %d\n", ss);
 #endif
     offset += 16; // ATR header
 
-    tnfs_seek(deviceSlot,offset);
-    tnfs_read(deviceSlot,ss);
+    tnfs_seek(deviceSlot, offset);
+    tnfs_read(deviceSlot, ss);
     d = &sector[0];
     s = &tnfsPacket.data[3];
     memcpy(d, s, ss);
@@ -1965,6 +2034,9 @@ void setup()
   cmdPtr[0xE9] = sio_disk_image_umount;
   cmdPtr[0xE8] = sio_get_adapter_config;
   cmdPtr[0xE7] = sio_new_disk;
+  cmdPtr[0xE6] = sio_http_open;
+  cmdPtr[0xE5] = sio_http_get;
+  cmdPtr[0xE4] = sio_http_close;
 
   // Go ahead and flush anything out of the serial port
   sio_flush();
