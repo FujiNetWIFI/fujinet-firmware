@@ -29,7 +29,7 @@
 // #define DEBUG_SSID ""
 // #define DEBUG_PASSWORD ""
 
-// #define DEBUG_VERBOSE 1
+#define DEBUG_VERBOSE 1
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -438,21 +438,19 @@ void sio_http_open()
 
   if (ck == sio_checksum((byte *)&url, sizeof(url)))
   {
+    // Temporary, final version will store root certs in spiffs.
+    http.end();
     http.begin(url);
-    if (http.connected())
-    {
-      int resultCode = http.GET();
-      
-      if (resultCode == 200)
-        sio_complete();
-      else
-        sio_error();
-    }
+    int resultCode = http.GET();
+
+#ifdef DEBUG_VERBOSE
+    Debug_printf("Result code: %d\n", resultCode);
+#endif
+
+    if (resultCode == 200)
+      sio_complete();
     else
-    {
-      // somehow disconnected immediately
       sio_error();
-    }
   }
   else // Checksum mismatch
   {
@@ -467,20 +465,12 @@ void sio_http_get()
 {
   bool err = false;
   WiFiClient* c;
-  
+
   memset(sector, 0x00, sizeof(sector));
 
-  if (http.connected())
-  {
-    // Connected
-    c=http.getStreamPtr();
+  c = http.getStreamPtr();
+  if (c->available())
     c->read(sector, 256);
-  }
-  else
-  {
-    // Not connected
-    err = true;
-  }
 
   sio_to_computer(sector, sizeof(sector), err);
 }
