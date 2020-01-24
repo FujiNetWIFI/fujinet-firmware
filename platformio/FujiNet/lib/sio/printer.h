@@ -62,10 +62,12 @@ protected:
     double pageHeight = 792.0;
     double leftMargin = 18.0;
     double bottomMargin = 0;
-    double maxWidth = 576.0; // 8 inches
+    double printWidth = 576.0; // 8 inches
     double lineHeight = 12.0;
     double charWidth = 7.2;
-    double pdf_X = 0; // across the page - columns in pts
+    uint fontNumber = 1;
+    uint fontSize = 12; // default 12 pica, 10 cpi
+    double pdf_X = 0;   // across the page - columns in pts
     bool BOLflag = true;
     double pdf_Y = 0; // down the page - lines in pts
     bool TOPflag = true;
@@ -110,6 +112,8 @@ protected:
     bool intlFlag = false;
     bool uscoreFlag = false;
     bool escMode = false;
+
+    // pdf_fonts();
     void pdf_handle_char(byte c);
 
 public:
@@ -120,15 +124,24 @@ class atari820 : public sioPrinter
 {
 protected:
     paper_t paperType = PDF;
-    double pageWidth = 612.0;
-    double pageHeight = 792.0;
-    double leftMargin = 18.0;
-    double bottomMargin = 0;
-    double maxWidth = 576.0; // 8 inches
-    double lineHeight = 12.0;
-    double charWidth = 7.2;
 
+    double pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
+    double pageHeight = 792.0; // just use 11" for letter paper
+    double leftMargin = 19.5;  // fit print width on page width
+    double bottomMargin = 0.0;
+    // dimensions from Table 1-1 of Atari 820 Field Service Manual
+    double printWidth = 240.0;  // 3 1/3" wide printable area
+    double lineHeight = 12.0;   // 6 lines per inch
+    double charWidth = 6.0;     // 12 char per inch
+    unsigned int fontSize = 10; // 10 pt font - char size is 0.123" or 8.9 pts.
+
+    bool sideFlag = false;
+
+    // pdf_fonts();
     void pdf_handle_char(byte c);
+
+public:
+    void initPrinter(File *f, paper_t ty);
 };
 
 #endif // guard

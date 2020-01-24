@@ -76,10 +76,9 @@ void sioPrinter::pdf_new_page()
   _file->printf("BT\n");
 
   TOPflag = false;
-  //if (pdf_pageCounter == 0)
-  _file->printf("/F1 12 Tf\n");                        // set default font
-  _file->printf("%g %g Td\n", leftMargin, pageHeight); // go to top of page
-  // voffset = -lineHeight;     // set line spacing
+   // set default font for the page
+  _file->printf("/F%u %u Tf\n", fontNumber, fontSize);                       
+  _file->printf("%g %g Td\n", leftMargin, pageHeight); 
   pdf_Y = pageHeight; // reset print roller to top of page
   pdf_X = 0;          // set carriage to LHS
   BOLflag = true;
@@ -203,7 +202,7 @@ void sioPrinter::pdf_add(std::string S)
     byte c = byte(S[i]);
 
     // check for EOL or if at end of line and need automatic CR
-    if ((c == EOL) || (pdf_X > (maxWidth - charWidth)))
+    if ((c == EOL) || (pdf_X > (printWidth - charWidth)))
       pdf_end_line();
 
     // start a new line if we need to
@@ -254,6 +253,18 @@ void atari1027::initPrinter(File *f, paper_t ty)
     pdf_header();
   }
 }
+
+void atari820::initPrinter(File *f, paper_t ty)
+{
+  _file = f;
+  paperType = ty;
+  if (paperType == PDF)
+  {
+    sideFlag = false;
+    pdf_header();
+  }
+}
+
 
 void sioPrinter::pageEject()
 {
