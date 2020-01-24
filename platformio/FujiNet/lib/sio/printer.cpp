@@ -85,6 +85,8 @@ void sioPrinter::pdf_new_page()
 void sioPrinter::pdf_end_page()
 {
   // close text object & stream
+  if (!BOLflag)
+    pdf_end_line();
   _file->printf("ET\n");
   idx_stream_stop = _file->position();
   _file->printf("endstream\nendobj\n");
@@ -184,6 +186,8 @@ void sioPrinter::pdf_add(std::string S)
   {
     byte c = byte(S[i]);
 
+    if ((c == EOL) || (pdf_X > (maxWidth - charWidth)))
+      pdf_end_line();
     if (BOLflag)
       pdf_new_line();
     // do special case of new line and S==EOL later
@@ -197,8 +201,7 @@ void sioPrinter::pdf_add(std::string S)
     pdf_handle_char(c);
 
     // check for EOL or if at end of line and need automatic CR
-    if ((c == EOL) || (pdf_X > (maxWidth - charWidth)))
-      pdf_end_line();
+
 #ifdef DEBUG_S
     printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
     printf("TOP: %s  ", TOPflag ? "true " : "false");
@@ -219,7 +222,6 @@ void sioPrinter::pdf_add(std::string S)
 
 void sioPrinter::svg_add(std::string S)
 {
-
 }
 
 void sioPrinter::initPrinter(File *f, paper_t ty)

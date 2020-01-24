@@ -5,7 +5,7 @@
 #include "disk.h"
 #include "tnfs.h"
 #include "printer.h"
-#define PRINTMODE TRIM
+#define PRINTMODE PDF
 
 // #ifdef ESP_8266
 // #include <FS.h>
