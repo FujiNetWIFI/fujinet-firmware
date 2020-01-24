@@ -38,7 +38,8 @@ enum paper_t
     RAW,
     TRIM,
     ASCII,
-    PDF
+    PDF, 
+    SVG
 };
 
 class sioPrinter : public sioDevice
@@ -50,15 +51,15 @@ private:
     void sio_process() override;
 
     paper_t paperType = PDF;
-    double pageWidth = 612;
-    double pageHeight = 792;
-    double leftMargin = 18;
+    double pageWidth = 612.0;
+    double pageHeight = 792.0;
+    double leftMargin = 18.0;
     double bottomMargin = 0;
     double maxWidth = 576.0; // 8 inches
     double lineHeight = 12.0;
     double charWidth = 7.2;
-    int fontNumber = 1;
-    double fontSize = 12;
+    //int fontNumber = 1;
+    //double fontSize = 12;
     double pdf_X = 0; // across the page - columns in pts
     bool BOLflag = true;
     double pdf_Y = 0; // down the page - lines in pts
@@ -68,12 +69,12 @@ private:
     int pdf_pageCounter = 0;
     size_t objLocations[256]; // reference table storage
     int pdf_objCtr = 0;       // count the objects
-    bool eolFlag = false;
     bool intlFlag = false;
     bool uscoreFlag = false;
     bool escMode = false;
 
     void pdf_header();
+    void pdf_fonts();
     void pdf_xref();
     void pdf_new_page();
     void pdf_end_page();
