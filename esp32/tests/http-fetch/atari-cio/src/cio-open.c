@@ -14,9 +14,12 @@ extern unsigned char packet[256];
 void _cio_open(void)
 {
   char *p=(char *)OS.ziocb.buffer;
-
+  char i;
+  
   // remove EOL
-  p[OS.ziocb.buflen-1]=0x00;
+  for (i=0;i<OS.ziocb.buflen;i++)
+    if (p[i]==0x9B)
+      p[i]=0x00;
 
   // Scoot buffer past the N:
   p+=2;
@@ -26,24 +29,13 @@ void _cio_open(void)
 
   // Start setting up DCB.
   OS.dcb.ddevic=0x70; // Network card
+  OS.dcb.dcomnd=0xE6;
   OS.dcb.dunit=1;     // device unit 1
-  OS.dcb.dstats=0x80; // Write connect request to peripheral.
+  OS.dcb.dstats=0x80; // Write URL to peripheral
   OS.dcb.dbuf=&packet; // Packet
+  OS.dcb.dbyt=80;     // 80 bytes
   OS.dcb.dtimlo=0x1F; // Timeout
   OS.dcb.daux=0;      // no aux byte
-
-  if (OS.ziocb.aux2==128)
-    {
-      // 128 = listen
-      OS.dcb.dcomnd='l';
-      OS.dcb.dbyt=5;
-    }
-  else
-    {
-      // Connect
-      OS.dcb.dcomnd='c';
-      OS.dcb.dbyt=256;      
-    }
   
   siov();
 

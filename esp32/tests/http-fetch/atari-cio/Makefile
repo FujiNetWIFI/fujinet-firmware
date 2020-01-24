@@ -342,7 +342,7 @@ love:
 dist: $(PROGRAM)
 	mkdir -p dist
 	cp autorun.sys dist
-	dir2atr -b Dos25 ../data/http-fetch.atr dist
+	dir2atr -b Dos25 720 ../data/http-fetch.atr dist
 
 ###################################################################
 ###  Place your additional targets in the additional Makefiles  ###
