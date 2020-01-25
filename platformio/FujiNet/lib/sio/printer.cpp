@@ -65,7 +65,7 @@ endobj
   for (int i = 32; i < 253; i++)
   {
     _file->printf(" 600");
-        if ((i - 31) % 32 == 0)
+    if ((i - 31) % 32 == 0)
       _file->printf("\n");
   }
   _file->printf(" ]\nendobj\n");
@@ -341,7 +341,16 @@ void atari820::initPrinter(File *f, paper_t ty)
 {
   _file = f;
   paperType = ty;
-fontHorizontalScaling=83.333;
+  pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
+  pageHeight = 792.0; // just use 11" for letter paper
+  leftMargin = 19.5;  // fit print width on page width
+  bottomMargin = 0.0;
+  // dimensions from Table 1-1 of Atari 820 Field Service Manual
+  printWidth = 240.0; // 3 1/3" wide printable area
+  lineHeight = 12.0;  // 6 lines per inch
+  charWidth = 6.0;    // 12 char per inch
+  fontSize = 12;      // 6 lines per inch
+  fontHorizontalScaling = 83.333;
 
   if (paperType == PDF)
   {
