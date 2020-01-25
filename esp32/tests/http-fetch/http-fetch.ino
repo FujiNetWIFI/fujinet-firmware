@@ -61,8 +61,8 @@
 bool hispeed = false;
 int command_frame_counter = 0;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x00
-#define HISPEED_BAUDRATE 125984
+#define HISPEED_INDEX 0x0A
+#define HISPEED_BAUDRATE 52640
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
 
@@ -236,6 +236,7 @@ char statusSkip = 0;
 void (*cmdPtr[256])(void); // command function pointers
 char totalSSIDs;
 HTTPClient http;
+char url[80];
 
 // DEBUGGING MACROS /////////////////////////////////////////////////////////////////////////
 #ifdef DEBUG_S
@@ -429,18 +430,40 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 }
 
 /**
+ * Set Base URL
+ */
+void sio_set_base_url()
+{
+  memset(url,0x00,sizeof(url));
+  byte ck = sio_to_peripheral((byte *)&url, sizeof(url));
+#ifdef DEBUG
+  Debug_printf("\nBase URL now: %s\n",url);
+#endif
+  sio_complete();  
+}
+
+/**
    HTTP Open
 */
 void sio_http_open()
 {
-  char url[80];
-  byte ck = sio_to_peripheral((byte *)&url, sizeof(url));
+  char file[80];
+  char finalurl[80];
+  byte ck = sio_to_peripheral((byte *)&file, sizeof(file));
 
-  if (ck == sio_checksum((byte *)&url, sizeof(url)))
+  memset(&finalurl,0x00,sizeof(finalurl));
+  strcat(finalurl,url);
+  strcat(finalurl,file);
+
+#ifdef DEBUG
+  Debug_printf("\nAttempting HTTP GET for URL: %s\n",url);
+#endif
+  
+  if (ck == sio_checksum((byte *)&file, sizeof(file)))
   {
     // Temporary, final version will store root certs in spiffs.
     http.end();
-    http.begin(url);
+    http.begin(finalurl);
     int resultCode = http.GET();
 
 #ifdef DEBUG_VERBOSE
@@ -2027,7 +2050,8 @@ void setup()
   cmdPtr[0xE6] = sio_http_open;
   cmdPtr[0xE5] = sio_http_get;
   cmdPtr[0xE4] = sio_http_close;
-
+  cmdPtr[0xE3] = sio_set_base_url;
+  
   // Go ahead and flush anything out of the serial port
   sio_flush();
 }
