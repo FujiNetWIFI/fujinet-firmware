@@ -11,17 +11,17 @@ endobj
 <</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7_820/Encoding/WinAnsiEncoding/FontDescriptor 6 0 R/FirstChar 32/LastChar 127/Widths 7 0 R>>
 endobj
 6 0 obj
-<</Type/FontDescriptor/FontName/mono5by7_820/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 500/MaxWidth 500/FontWeight 400/XHeight 250/StemV 50/FontBBox[ 0  0 700 700] >>
+<</Type/FontDescriptor/FontName/mono5by7/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 50/FontBBox[ 0  0 700 700] >>
 endobj
 7 0 obj
-[ 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500
- 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500
- 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500  ] 
+[ 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+ 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+ 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600  ] 
 endobj
 8 0 obj
-<</Length 92>>
+<</Length 98>>
 stream
-BT /F1 12 Tf 20 720 Td (monospaced 5x7  : The quick brown fox jumps over the lazy dog.)Tj ET
+BT /F1 12 Tf 83 Tz 20 720 Td (monospaced 5x7  : The quick brown fox jumps over the lazy dog.)Tj ET
 endstream
 endobj
 9 0 obj <</Type /Font /Subtype /Type1/Name/F2 /BaseFont /Courier /Encoding/WinAnsiEncoding>>
@@ -29,7 +29,7 @@ endobj
 10 0 obj
 <</Length 92>>
 stream
-BT /F2 12 Tf 20 700 Td (         Courier: The quick brown fox jumps over the lazy dog.)Tj ET
+BT /F2 12 Tf 100 Tz 20 700 Td (   Courier: The quick brown fox jumps over the lazy dog.)Tj ET
 endstream
 endobj
 xref
@@ -43,9 +43,9 @@ xref
 0000000434 00000 n
 0000000641 00000 n
 0000001044 00000 n
-0000001184 00000 n
-0000001284 00000 n
+0000001186 00000 n
+0000001286 00000 n
 trailer <</Size 11/Root 1 0 R>>
 startxref
-1425
+1427
 %%EOF

@@ -29,18 +29,49 @@ void sioPrinter::pdf_fonts()
 }
 
 void atari1027::pdf_fonts()
+/*
+5 0 obj
+<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/PrestigeEliteNormal/Encoding/WinAnsiEncoding/FontDescriptor 6 0 R/FirstChar 32/LastChar 252/Widths 7 0 R>>
+endobj
+6 0 obj
+<</Type/FontDescriptor/FontName/PrestigeEliteNormal/Flags 33/ItalicAngle 0/Ascent 662/Descent -216/CapHeight 662/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 60/FontBBox[ -2 -216 625 662] >>
+endobj
+7 0 obj
+[ 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+  600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+  600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+  600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+  600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+  600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+  600 600 600 600 600 600 600 600]
+endobj
+*/
 {
   // 3rd object: font catalog
   pdf_objCtr = 3;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("3 0 obj\n<</Font <</F1 4 0 R /F2 5 0 R>>>>\nendobj\n");
+  _file->printf("3 0 obj\n<</Font <</F1 4 0 R /F2 7 0 R>>>>\nendobj\n");
 
   // 1027 standard font
   pdf_objCtr = 4;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("4 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding>>\nendobj\n");
-  // symbol font to put in arrows
+  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/PrestigeEliteNormal/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 252/Widths 6 0 R>>\nendobj\n");
   pdf_objCtr = 5;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/PrestigeEliteNormal/Flags 33/ItalicAngle 0/Ascent 662/Descent -216/CapHeight 662/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 60/FontBBox[ -2 -216 625 662]>>\nendobj\n");
+  pdf_objCtr = 6;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("6 0 obj\n[");
+  for (int i = 32; i < 253; i++)
+  {
+    _file->printf(" 600");
+        if ((i - 31) % 32 == 0)
+      _file->printf("\n");
+  }
+  _file->printf(" ]\nendobj\n");
+
+  // symbol font to put in arrows
+  pdf_objCtr = 7;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Symbol /Encoding /WinAnsiEncoding>>\nendobj\n");
 }
@@ -51,12 +82,12 @@ void atari820::pdf_fonts()
 <</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7_820/Encoding/WinAnsiEncoding/FontDescriptor 6 0 R/FirstChar 32/LastChar 127/Widths 7 0 R>>
 endobj
 6 0 obj
-<</Type/FontDescriptor/FontName/mono5by7_820/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 500/MaxWidth 500/FontWeight 400/XHeight 250/StemV 50/FontBBox[ 0  0 700 700] >>
+<</Type/FontDescriptor/FontName/mono5by7_820/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 50/FontBBox[ 0  0 700 700] >>
 endobj
 7 0 obj
-[500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500
- 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500
- 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500 500  ] 
+[600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+ 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+ 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600  ] 
 endobj
 */
 {
@@ -71,15 +102,16 @@ endobj
   _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7_820/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
   pdf_objCtr = 5;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/mono5by7_820/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 500/MaxWidth 500/FontWeight 400/XHeight 250/StemV 50/FontBBox[0 0 700 700] >>\nendobj\n");
+  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/mono5by7_820/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 50/FontBBox[0 0 700 700] >>\nendobj\n");
   pdf_objCtr = 6;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("6 0 obj\n[");
-  for (int i=0; i<32; i++) {_file->printf(" 500");}
-  _file->printf("\n");
-  for (int i=0; i<32; i++) {_file->printf(" 500");}
-  _file->printf("\n");
-  for (int i=0; i<31; i++) {_file->printf(" 500");}
+  for (int i = 32; i < 128; i++)
+  {
+    _file->printf(" 600");
+    if ((i - 31) % 32 == 0)
+      _file->printf("\n");
+  }
   _file->printf(" ]\nendobj\n");
 }
 
@@ -128,7 +160,7 @@ void sioPrinter::pdf_new_page()
 
   TOPflag = false;
   // set default font for the page
-  _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
+  _file->printf("/F%u %u Tf %g Tz\n", fontNumber, fontSize, fontHorizontalScaling);
   _file->printf("%g %g Td\n", leftMargin, pageHeight);
   pdf_Y = pageHeight; // reset print roller to top of page
   pdf_X = 0;          // set carriage to LHS
@@ -309,6 +341,8 @@ void atari820::initPrinter(File *f, paper_t ty)
 {
   _file = f;
   paperType = ty;
+fontHorizontalScaling=83.333;
+
   if (paperType == PDF)
   {
     sideFlag = false;

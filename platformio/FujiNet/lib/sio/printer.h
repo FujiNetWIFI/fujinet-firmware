@@ -67,6 +67,7 @@ protected:
     double charWidth = 7.2;
     uint fontNumber = 1;
     uint fontSize = 12; // default 12 pica, 10 cpi
+    double fontHorizontalScaling=100;
     double pdf_X = 0;   // across the page - columns in pts
     bool BOLflag = true;
     double pdf_Y = 0; // down the page - lines in pts
