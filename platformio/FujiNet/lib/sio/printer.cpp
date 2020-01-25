@@ -76,9 +76,9 @@ void sioPrinter::pdf_new_page()
   _file->printf("BT\n");
 
   TOPflag = false;
-   // set default font for the page
-  _file->printf("/F%u %u Tf\n", fontNumber, fontSize);                       
-  _file->printf("%g %g Td\n", leftMargin, pageHeight); 
+  // set default font for the page
+  _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
+  _file->printf("%g %g Td\n", leftMargin, pageHeight);
   pdf_Y = pageHeight; // reset print roller to top of page
   pdf_X = 0;          // set carriage to LHS
   BOLflag = true;
@@ -216,6 +216,7 @@ void sioPrinter::pdf_add(std::string S)
     printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
     printf("TOP: %s  ", TOPflag ? "true " : "false");
     printf("BOL: %s  ", BOLflag ? "true " : "false");
+    printf("\n");
 #endif
   }
 
@@ -256,6 +257,16 @@ void atari1027::initPrinter(File *f, paper_t ty)
 
 void atari820::initPrinter(File *f, paper_t ty)
 {
+ pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
+  pageHeight = 792.0; // just use 11" for letter paper
+  leftMargin = 19.5;  // fit print width on page width
+  bottomMargin = 0.0;
+  // dimensions from Table 1-1 of Atari 820 Field Service Manual
+   printWidth = 240.0;  // 3 1/3" wide printable area
+  lineHeight = 12.0;   // 6 lines per inch
+  charWidth = 6.0;     // 12 char per inch
+   fontSize = 10; // 10 pt font - char size is 0.123" or 8.9 pts and width of 6. So that fits a 6x10 font.
+
   _file = f;
   paperType = ty;
   if (paperType == PDF)
@@ -264,7 +275,6 @@ void atari820::initPrinter(File *f, paper_t ty)
     pdf_header();
   }
 }
-
 
 void sioPrinter::pageEject()
 {
@@ -392,8 +402,7 @@ void sioPrinter::sio_status()
   // status frame per Atari 820 service manual
   /* The printer controller will return a data frame to the computer
 reflecting the status. The STATUS DATA frame is shown below:
-DONE/ERROR
-FLAG
+DONE/ERROR FLAG
 AUX. BYTE 1 from last WRITE COMMAND
 DATA WRITE TIMEOUT
 CHECKSUM
@@ -402,8 +411,8 @@ command prior to the status request and some controller constants.
 The DATA WRITE Timeout equals the maximum time to print a
 line of data assuming worst case controller produced Timeout
 delay. This Timeout is associated with printer timeout
-discussed earlier.  */
-  /* But from 400/800 OS ROM Manual
+discussed earlier. 
+And  from 400/800 OS ROM Manual
 Command Status
 Aux 1 Byte (typo says AUX2 byte)
 Timeout
