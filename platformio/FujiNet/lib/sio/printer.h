@@ -123,18 +123,6 @@ public:
 class atari820 : public sioPrinter
 {
 protected:
-    paper_t paperType = PDF;
-
-    double pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
-    double pageHeight = 792.0; // just use 11" for letter paper
-    double leftMargin = 19.5;  // fit print width on page width
-    double bottomMargin = 0.0;
-    // dimensions from Table 1-1 of Atari 820 Field Service Manual
-    double printWidth = 240.0;  // 3 1/3" wide printable area
-    double lineHeight = 12.0;   // 6 lines per inch
-    double charWidth = 6.0;     // 12 char per inch
-    unsigned int fontSize = 10; // 10 pt font - char size is 0.123" or 8.9 pts and width of 6. So that fits a 6x10 font.
-
     bool sideFlag = false;
 
     // pdf_fonts();
