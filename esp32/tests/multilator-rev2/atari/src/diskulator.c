@@ -409,8 +409,6 @@ void diskulator_select(void)
   unsigned char e;
   unsigned char k;
 
- reopen: // yes, this is a hack.
-
   POKE(0x60F,2);
   POKE(0x610,2);
   
@@ -419,8 +417,8 @@ void diskulator_select(void)
 
   screen_puts(0,0,"    DISK IMAGES    ");
 
-  screen_puts( 0,21,"                  ");
-  screen_puts(20,21," return TO SELECT ");
+  screen_puts( 0,21,"ret PICK esc ABORT");
+  screen_puts(20,21,"                  ");
 
   while(1)
     {
@@ -487,15 +485,17 @@ void diskulator_select(void)
 	      if (e<num_entries)
 		e++;
 	      break;
+	    case 0x1B: // ESC
+	      selector_done=true;
+	      memset(path,0,sizeof(path));
+	      bar_set_color(0x97);
+	      return;
 	    case 0x9B: // Enter
 	      selector_done=true;
 	      bar_set_color(0x97);
 	      memset(path,0,sizeof(path));
 	      strcpy(path,files[e]);
-
 	      return;
-      
-	      break;
 	    }
 	  if (k>0)
 	    {
@@ -515,6 +515,10 @@ void diskulator_drive(void)
   unsigned char c,k;
   bool drive_done=false;
 
+  // If nothing is selected, simply return.
+  if (path[0]==0x00)
+    return;
+  
   POKE(0x60F,2);
   POKE(0x610,2);
   
