@@ -65,8 +65,8 @@ void screen_input(unsigned char x, unsigned char y, char* s)
       if ((k==0x7E) && (c>x)) // backspace
 	{
 	  SetChar(c+1,y,0);
+	  s[o--]=0;
 	  c--;
-	  o--;
 	  SetChar(c+1,y,GetChar(c+1,y)|0x80);
 	}
       else if (k==0x9b) // return (EOL)
