@@ -4,22 +4,40 @@
 
 #include <atari.h>
 #include <6502.h>
+#include <stdbool.h>
 #include "sio.h"
 
 extern unsigned char err;
 extern unsigned char ret;
 extern unsigned char packet[256];
+extern long filesize;
 
 extern void _cio_status(void);
 
 unsigned char packetlen;
 unsigned char* p;
+unsigned char done=false;
 
 void _cio_get_chr(void)
 {
-  err=1;
-  ret=*p++;
-  packetlen--;
+  if (done==true)
+    {
+      err=136;
+      ret=0;
+    } 
+  else if (filesize==0)
+    {
+      err=3; // EOF
+      done=true;
+      ret=0;
+    }
+  else
+    {
+      err=1; 
+      ret=*p++;
+      packetlen--;
+      filesize--;
+    }
 }
 
 void _cio_get(void)
