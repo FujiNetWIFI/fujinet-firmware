@@ -21,7 +21,7 @@ void _cio_open(void)
   
   // remove EOL
   for (i=0;i<OS.ziocb.buflen;i++)
-    if (p[i]==0x9B)
+    if ((p[i]==0x9B))
       p[i]=0x00;
 
   // Scoot buffer past the N:
@@ -30,6 +30,11 @@ void _cio_open(void)
   // Copy into packet
   strcpy(packet,p);
 
+  // remove COMMA (dos 2 copy)
+  for (i=0;i<OS.ziocb.buflen;i++)
+    if (packet[i]==',')
+      packet[i]==0x00;
+  
   // Issue HTTP open
   OS.dcb.ddevic=0x70; // Network card
   OS.dcb.dcomnd=0xE6;

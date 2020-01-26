@@ -51,5 +51,5 @@ void main(void)
   OS.hatabs[i].devhdl=&devhdl; // handler table for N: device.
 
   // Manually setting memlo, is there a symbol that can get me actual top of data?
-  OS.memlo=(void *)0x279E;
+  OS.memlo=(void *)0x2698;
 }
