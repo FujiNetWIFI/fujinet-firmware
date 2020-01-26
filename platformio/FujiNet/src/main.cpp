@@ -23,8 +23,8 @@
 #define TNFS_SERVER "192.168.1.12"
 #define TNFS_PORT 16384
 
-//File tnfs;
-atari820 sioP;
+
+atari1027 sioP;
 File atr[2];
 File paperf;
 File tnfs;

@@ -12,7 +12,7 @@ void sioPrinter::pdf_header()
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
   // object 2 0 R is printed at bottom of PDF before xref
-  pdf_fonts();
+  this->pdf_fonts(); // pdf_fonts is virtual function, call by pointer
 }
 
 void sioPrinter::pdf_fonts()
@@ -73,7 +73,7 @@ endobj
   // symbol font to put in arrows
   pdf_objCtr = 7;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Symbol /Encoding /WinAnsiEncoding>>\nendobj\n");
+  _file->printf("7 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Symbol /Encoding /WinAnsiEncoding>>\nendobj\n");
 }
 
 void atari820::pdf_fonts()
@@ -99,10 +99,10 @@ endobj
   // 1027 standard font
   pdf_objCtr = 4;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7_820/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
+  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7ascii/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
   pdf_objCtr = 5;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/mono5by7_820/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 50/FontBBox[0 0 700 700] >>\nendobj\n");
+  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/mono5by7ascii/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 50/FontBBox[0 0 700 700] >>\nendobj\n");
   pdf_objCtr = 6;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("6 0 obj\n[");
@@ -160,7 +160,10 @@ void sioPrinter::pdf_new_page()
 
   TOPflag = false;
   // set default font for the page
-  _file->printf("/F%u %u Tf %g Tz\n", fontNumber, fontSize, fontHorizontalScaling);
+  if (fontHorizontalScaling != 100)
+    _file->printf("/F%u %u Tf %g Tz\n", fontNumber, fontSize, fontHorizontalScaling);
+  else
+    _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
   _file->printf("%g %g Td\n", leftMargin, pageHeight);
   pdf_Y = pageHeight; // reset print roller to top of page
   pdf_X = 0;          // set carriage to LHS
@@ -293,7 +296,7 @@ void sioPrinter::pdf_add(std::string S)
       pdf_new_line();
 
     // disposition the current byte
-    pdf_handle_char(c);
+    this->pdf_handle_char(c);
 
 #ifdef DEBUG_S
     printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
@@ -322,7 +325,7 @@ void sioPrinter::initPrinter(File *f, paper_t ty)
 
 void sioPrinter::initPrinter(File *f)
 {
-  initPrinter(f, PDF);
+  this->initPrinter(f, PDF);
 }
 
 void atari1027::initPrinter(File *f, paper_t ty)
@@ -340,15 +343,6 @@ void atari1027::initPrinter(File *f, paper_t ty)
 
 void atari820::initPrinter(File *f, paper_t ty)
 {
- pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
-  pageHeight = 792.0; // just use 11" for letter paper
-  leftMargin = 19.5;  // fit print width on page width
-  bottomMargin = 0.0;
-  // dimensions from Table 1-1 of Atari 820 Field Service Manual
-   printWidth = 240.0;  // 3 1/3" wide printable area
-  lineHeight = 12.0;   // 6 lines per inch
-  charWidth = 6.0;     // 12 char per inch
-   fontSize = 10; // 10 pt font - char size is 0.123" or 8.9 pts and width of 6. So that fits a 6x10 font.
 
   _file = f;
   paperType = ty;
