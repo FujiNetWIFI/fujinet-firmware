@@ -293,10 +293,12 @@ void diskulator_host(void)
 	  switch(k)
 	    {
 	    case 0x1C: // UP
+	    case '-':
 	      if (c>0)
 		c--;
 	      break;
 	    case 0x1D: // DOWN
+	    case '=':
 	      if (c<8)
 		c++;
 	      break;
@@ -359,10 +361,12 @@ void diskulator_host(void)
 	  switch(k)
 	    {
 	    case 0x1C: // UP
+	    case '-':
 	      if (c>0)
 		c--;
 	      break;
 	    case 0x1D: // DOWN
+	    case '=':
 	      if (c<8)
 		c++;
 	      break;
@@ -482,10 +486,12 @@ void diskulator_select(void)
 	  switch(k)
 	    {
 	    case 0x1C: // Up
+	    case '-':
 	      if (e>0)
 		e--;
 	      break;
 	    case 0x1D: // Down
+	    case '=':
 	      if (e<num_entries)
 		e++;
 	      break;
@@ -549,10 +555,12 @@ void diskulator_drive(void)
       switch(k)
 	{
 	case 0x1C: // UP
+	case '-':
 	  if (c>0)
 	    c--;
 	  break;
 	case 0x1D: // DOWN
+	case '=':
 	  if (c<8)
 	    c++;
 	  break;
