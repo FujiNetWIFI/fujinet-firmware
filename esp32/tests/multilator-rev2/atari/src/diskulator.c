@@ -333,8 +333,12 @@ void diskulator_host(void)
 	      slot_done=true;
 	      break;
 	    }
-	  bar_clear();
-	  bar_show(c+2);
+	  if (k>0)
+	    {
+	      bar_clear();
+	      bar_show(c+2);
+	      k=0;
+	    }
 	}
       prev_consol=GTIA_READ.consol;
     }
@@ -343,6 +347,9 @@ void diskulator_host(void)
   if (slot_done==false)
     bar_show(13);
 
+  bar_clear();
+  bar_show(c+13);
+  
   c=0;
   
   while (slot_done==false)
@@ -381,30 +388,15 @@ void diskulator_host(void)
 	      diskulator_write_device_slots();
 	      break;
 	    }
-	  bar_clear();
-	  bar_show(c+13);
+	  if (k>0)
+	    {
+	      bar_clear();
+	      bar_show(c+13);
+	      k=0;
+	    }
 	}      
       prev_consol=GTIA_READ.consol;
     }
-}
-
-/**
- * Search
- */
-void diskulator_search(void)
-{
-  screen_clear();
-  bar_clear();
-
-  POKE(0x60F,2);
-  POKE(0x610,2);
-  
-  screen_puts(0, 0,"ENTER SEARCH FILTER");
-  screen_puts(0,21," EMPTY LINE CLEARS ");
-
-  screen_puts(0,1,">");
-  screen_input(1,1,filter);
-
 }
 
 /**
@@ -427,7 +419,7 @@ void diskulator_select(void)
 
   screen_puts(0,0,"    DISK IMAGES    ");
 
-  screen_puts( 0,21,"   s TO SEARCH    ");
+  screen_puts( 0,21,"                  ");
   screen_puts(20,21," return TO SELECT ");
 
   while(1)
@@ -480,9 +472,9 @@ void diskulator_select(void)
       e=0;
       while (selector_done==false)
 	{
-	  bar_clear();
-	  bar_show(e+3);
-	  k=cgetc();
+	  if (kbhit())
+	    k=cgetc();
+	  
 	  switch(k)
 	    {
 	    case 0x1C: // Up
@@ -495,10 +487,6 @@ void diskulator_select(void)
 	      if (e<num_entries)
 		e++;
 	      break;
-	    case 's': // Search
-	      diskulator_search();
-	      goto reopen;
-	      break;
 	    case 0x9B: // Enter
 	      selector_done=true;
 	      bar_set_color(0x97);
@@ -508,6 +496,12 @@ void diskulator_select(void)
 	      return;
       
 	      break;
+	    }
+	  if (k>0)
+	    {
+	      bar_clear();
+	      bar_show(e+3);
+	      k=0;
 	    }
 	}
     }
@@ -545,12 +539,12 @@ void diskulator_drive(void)
     }
 
   c=0;
+
+  bar_clear();
+  bar_show(c+3);
   
   while (drive_done==false)
     {
-      bar_clear();
-      bar_show(c+3);
-
       k=cgetc();
       switch(k)
 	{
@@ -597,6 +591,12 @@ void diskulator_drive(void)
 	drive_slot_abort:
 	  drive_done=true;
 	  break;
+	}
+      if (k>0)
+	{
+	  bar_clear();
+	  bar_show(c+3);
+	  k=0;
 	}
     }
 }
