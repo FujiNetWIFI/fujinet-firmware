@@ -345,10 +345,11 @@ void config_run(void)
     {
       screen_clear();
       screen_puts(0,0,"WELCOME TO #FUJINET!");
-      screen_puts(0,21,"SCANNING NETWORKS...");
-      
+      screen_puts(0,21,"SCANNING NETWORKS...   PLEASE WAIT.   ");
+
+      OS.ch=0xFF;
       s=config_do_scan(num_networks);
-     
+      OS.ch=0xFF;
       if (s!=1)
 	{
 	  config_print_error(s);
@@ -361,7 +362,7 @@ void config_run(void)
       screen_puts(20,21,"OR X FOR HIDDEN NET");
       
       done=false;
-      
+      OS.ch=0xff;
       while (done==false)
 	{
 	  bar_clear();
