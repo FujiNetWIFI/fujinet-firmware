@@ -340,7 +340,6 @@ void config_run(void)
   unsigned char y=0; // cursor
   unsigned char done=0; // selection done?
   unsigned char k; // keypress
-  unsigned char x; // password cursor
   
   while(successful==false)
     {
@@ -387,18 +386,9 @@ void config_run(void)
       done=false;
       
       memset(&netConfig.password,0x00,sizeof(netConfig.password));
-      
-      while (done==false)
-	{
-	  k=cgetc();
-	  if (k==126)
-	    x--;
-	  else if (k==155)
-	    done=true;
-	  else
-	    netConfig.password[x++]=k;
-	}
-      
+
+      screen_input(1,19,netConfig.password);
+            
       screen_puts(0,21,"  SETTING NETWORK                      ");
 
       OS.pcolr0=OS.pcolr1=OS.pcolr2=OS.pcolr3=COLOR_SETTING_NETWORK;
