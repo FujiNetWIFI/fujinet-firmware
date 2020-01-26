@@ -54,20 +54,33 @@ void screen_input(unsigned char x, unsigned char y, char* s)
 {
   unsigned char c,k,o;
   unsigned char outc[2]={0,0};
-
+  unsigned char q;
+  
   o=0;
   c=x;
+
+  for (q=0;q<strlen(s);q++)
+    if (s[q]==0x00)
+      break;
+    else
+      {
+	c++;
+	o++;
+      }
+  
   SetChar(c+1,y,0x80); // turn on cursor
 
+  k=0;
+  
   while (k!=155)
     {
       k=cgetc();
       if ((k==0x7E) && (c>x)) // backspace
 	{
 	  SetChar(c+1,y,0);
-	  s[o--]=0;
+	  s[--o]=0;
 	  c--;
-	  SetChar(c+1,y,GetChar(c+1,y)|0x80);
+	  SetChar(c+1,y,0x80);
 	}
       else if (k==0x9b) // return (EOL)
 	{
