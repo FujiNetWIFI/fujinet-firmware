@@ -24,7 +24,7 @@
 #define TNFS_PORT 16384
 
 //File tnfs;
-sioPrinter sioP;
+atari820 sioP;
 File atr[2];
 File paperf;
 File tnfs;
@@ -59,10 +59,14 @@ void httpService()
         if (c == '\n' && currentLineIsBlank)
         {
           // send a standard http response header
-          //client.println("HTTP/1.1 200 OK");
+          client.println("HTTP/1.1 200 OK");
 
+          sioP.pageEject();
+          paperf.seek(0);
+
+          client.println("Connection: close"); // the connection will be closed after completion of the response
           //client.println("Content-Type: application/pdf");
-          // client.println("Connection: close");  // the connection will be closed after completion of the response
+          client.println("Server: FujiNet");
           // // client.println("Refresh: 5");  // refresh the page automatically every 5 sec
           // client.println();
           // client.println("<!DOCTYPE HTML>");
@@ -70,11 +74,29 @@ void httpService()
           // client.println("Hello World!");
           // client.println("</html>");
 
-          sioP.pageEject();
-          paperf.seek(0);
+          std::string exts;
+          switch (sioP.getPaperType())
+          {
+          case RAW:
+            exts = "bin";
+            break;
+          case TRIM:
+            exts = "atascii";
+            break;
+          case ASCII:
+            exts = "txt";
+            break;
+          case PDF:
+          default:
+            exts = "pdf";
+          }
 
-          //client.println("Content-Type: application/octet-stream");
-          //client.println("Content-Disposition: attachment; filename=\"test.pdf\"");
+          client.println("Content-Type: application/octet-stream");
+          client.printf("Content-Disposition: attachment; filename=\"test.%s\"\n", exts.c_str());
+          client.printf("Content-Length: %u\n", paperf.size());
+          //client.println("Content-Disposition: inline");
+          client.printf("\n"); // critical - end of header
+
           bool ok = true;
           while (ok)
           {
