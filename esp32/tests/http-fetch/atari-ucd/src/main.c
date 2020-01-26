@@ -23,7 +23,7 @@ void set_base_url(void)
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
   OS.dcb.dcomnd=0xE3; // Set Base URL
-  OS.dcb.dstats=0x00;
+  OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&url;
   OS.dcb.dtimlo=0x0f;
   OS.dcb.dbyt=sizeof(url);
@@ -39,6 +39,8 @@ void set_base_url(void)
 
 int main(int argc, char* argv[])
 {
+  unsigned char i;
+
   OS.lmargn=2;
   
   if (_is_cmdline_dos() && argc>1)
@@ -49,6 +51,11 @@ int main(int argc, char* argv[])
       print("\x9b");
       print("ENTER BASE URL OR \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CLEAR?\x9b");
       get_line(url,sizeof(url));
+
+      // remove EOL
+      for (i=0;i<sizeof(url);i++)
+	if (url[i]==0x9b)
+	  url[i]=0x00;
     }
 
   set_base_url();
