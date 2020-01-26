@@ -78,14 +78,14 @@ protected:
     int pdf_objCtr = 0;       // count the objects
 
     void pdf_header();
-    void pdf_fonts();
+    virtual void pdf_fonts();
     void pdf_xref();
     void pdf_new_page();
     void pdf_end_page();
     void pdf_set_font();
     void pdf_new_line();
     void pdf_end_line();
-    void pdf_handle_char(byte c);
+    virtual void pdf_handle_char(byte c);
     void pdf_add(std::string output);
     size_t idx_stream_length; // file location of stream length indictor
     size_t idx_stream_start;  // file location of start of stream
@@ -101,7 +101,7 @@ protected:
     File *_file;
 
 public:
-    void initPrinter(File *f, paper_t ty);
+    virtual void initPrinter(File *f, paper_t ty);
     void initPrinter(File *f);
     void pageEject();
     paper_t getPaperType();
@@ -114,11 +114,11 @@ protected:
     bool uscoreFlag = false;
     bool escMode = false;
 
-    void pdf_fonts();
-    void pdf_handle_char(byte c);
+    void pdf_fonts() override;
+    void pdf_handle_char(byte c) override;
 
 public:
-    void initPrinter(File *f, paper_t ty);
+    void initPrinter(File *f, paper_t ty) override;
 };
 
 class atari820 : public sioPrinter
@@ -126,11 +126,11 @@ class atari820 : public sioPrinter
 protected:
     bool sideFlag = false;
 
-    void pdf_fonts();
-    void pdf_handle_char(byte c);
+    void pdf_fonts() override;
+    // void pdf_handle_char(byte c);  // will probably need a custom one to handle sideways printing
 
 public:
-    void initPrinter(File *f, paper_t ty);
+    void initPrinter(File *f, paper_t ty) override;
 };
 
 #endif // guard
