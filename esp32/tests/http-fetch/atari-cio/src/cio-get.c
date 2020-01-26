@@ -12,8 +12,6 @@ extern unsigned char ret;
 extern unsigned char packet[256];
 extern long filesize;
 
-extern void _cio_status(void);
-
 unsigned char packetlen;
 unsigned char* p;
 unsigned char done=false;
