@@ -272,7 +272,7 @@ void diskulator_host(void)
   c=0;
 
   screen_puts( 0,20,"return PICK  e EDIT");
-  screen_puts(20,20,"opt BOOT     d DEVS");
+  screen_puts(20,20,"opt BOOT     d DRVS");
   
   bar_clear();
   bar_show(2);
@@ -310,7 +310,7 @@ void diskulator_host(void)
 	      screen_input(3,c+1,hostSlots.host[c]);
 	      if (hostSlots.host[c][0]==0x00)
 		{
-		  screen_puts(3,c+1,"Empty");
+		  screen_puts(4,c+1,"Empty");
 		}
 	      diskulator_write_host_slots();
 	      break;
@@ -318,7 +318,7 @@ void diskulator_host(void)
 	      host_done=true;
 	      slot_done=false;
 	      screen_puts( 0,20,"e EJECT     h HOSTS");
-	      screen_puts(21,20,"                   ");
+	      screen_puts(20,20,"                   ");
 	      break;
 	    case 0x9B: // ENTER
 	      selected_host=c;
@@ -409,6 +409,10 @@ void diskulator_select(void)
   unsigned char e;
   unsigned char k;
 
+  // If we select an empty host, bail back to host selection.
+  if (hostSlots.host[selected_host][0]==0x00)
+    return;
+  
   POKE(0x60F,2);
   POKE(0x610,2);
   
@@ -516,7 +520,7 @@ void diskulator_drive(void)
   bool drive_done=false;
 
   // If nothing is selected, simply return.
-  if (path[0]==0x00)
+  if ((path[0]==0x00) || (hostSlots.host[selected_host][0]==0x00))
     return;
   
   POKE(0x60F,2);
