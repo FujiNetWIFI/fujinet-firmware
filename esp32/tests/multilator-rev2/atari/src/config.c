@@ -371,9 +371,9 @@ void config_run(void)
 	  k=cgetc();
 	  if (k==0x9B)
 	    done=true;
-	  else if ((k==0x1C) && (y>0))
+	  else if (((k==0x1C) || (k=='-')) && (y>0))
 	    y--;
-	  else if ((k==0x1D) && (y<num_networks[0]))
+	  else if (((k==0x1D) || (k=='=')) && (y<num_networks[0]))
 	    y++;
 	  else if (k=='x')
 	    {
