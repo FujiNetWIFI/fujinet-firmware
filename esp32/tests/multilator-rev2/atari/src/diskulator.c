@@ -530,8 +530,8 @@ void diskulator_drive(void)
   bar_clear();
   
   screen_puts(0,0,"MOUNT TO DRIVE SLOT");
-  screen_puts(0,21,"enter SELECT e EJECT");
-  screen_puts(20,21,"    esc ABORTS    ");
+  screen_puts( 0,21," 1-8 OR return PICK ");
+  screen_puts(20,21," esc ABORT  e EJECT ");
   diskulator_read_device_slots();
   
   // Display drive slots
@@ -575,7 +575,21 @@ void diskulator_drive(void)
 	case 0x1B: // ESC
 	  drive_done=true;
 	  break;
+	case 0x31:
+	case 0x32:
+	case 0x33:
+	case 0x34:
+	case 0x35:
+	case 0x36:
+	case 0x37:
+	case 0x38:
+	  c=k-0x31;
+	  bar_clear();
+	  bar_show(c+3);
+	  goto rorw;
+	  break;
 	case 0x9B: // RETURN
+	rorw:
 	  screen_puts( 0,21,"       ENTER:       ");
 	  screen_puts(20,21,"r R/O w R/W esc ABRT");
 
