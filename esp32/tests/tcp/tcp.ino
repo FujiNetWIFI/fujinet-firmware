@@ -447,24 +447,24 @@ void sio_tcp_connect()
   char* tpn;
   int port;
   byte ck;
-  unsigned char device=cmdFrame.devic-0x31;
-  
+  unsigned char device = cmdFrame.devic - 0x31;
+
   memset(sector, 0x00, sizeof(sector));
   ck = sio_to_peripheral(sector, sizeof(sector));
 
-  strip_eol(sector,sizeof(sector));
+  strip_eol(sector, sizeof(sector));
 
   if (sio_checksum(sector, sizeof(sector)) != ck)
   {
     sio_error();
     return;
   }
-  
+
   thn = strtok(sector, ":");
   tpn = strtok(NULL, ":");
   port = atoi(tpn);
 
-  if (sio_clients[device].connect(thn,port)==true)
+  if (sio_clients[device].connect(thn, port) == true)
     sio_complete();
   else
     sio_error();
@@ -475,6 +475,9 @@ void sio_tcp_connect()
 */
 void sio_tcp_disconnect()
 {
+  unsigned char device = cmdFrame.devic - 0x31;
+  sio_clients[device].stop();
+  sio_complete();
 }
 
 /**
