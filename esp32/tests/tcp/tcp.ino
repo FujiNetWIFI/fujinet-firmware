@@ -1,8 +1,8 @@
 /**
-   Test #32 - Multilator Rev2 Rewrite
+   Test #37 - Multilator Rev2 Rewrite /w TCP
 */
 
-#define TEST_NAME "#FujiNet Multi-Diskulator"
+#define TEST_NAME "#FujiNet Multi-Diskulator /w TCP"
 
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
@@ -430,87 +430,39 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 }
 
 /**
- * HTTP return file size
+ * Connect to TCP socket
  */
-void sio_http_file_size()
+void sio_tcp_connect()
 {
-  long size=http.getSize();
-  sio_to_computer((byte *)&size, sizeof(size), false);
+  
 }
 
 /**
-   Set Base URL
-*/
-void sio_set_base_url()
+ * Disconnect from TCP socket
+ */
+void sio_tcp_disconnect()
 {
-  memset(url, 0x00, sizeof(url));
-  byte ck = sio_to_peripheral((byte *)&url, sizeof(url));
-#ifdef DEBUG
-  Debug_printf("\nBase URL now: %s\n", url);
-#endif
-  sio_complete();
 }
 
 /**
-   HTTP Open
-*/
-void sio_http_open()
+ * Read from TCP socket
+ */
+void sio_tcp_read()
 {
-  char file[80];
-  char finalurl[80];
-  byte ck = sio_to_peripheral((byte *)&file, sizeof(file));
-
-  for (unsigned char h = 0; h < sizeof(file); h++)
-    if (file[h] == 0x9B)
-      file[h] = 0x00;
-
-  memset(&finalurl, 0x00, sizeof(finalurl));
-  strcat(finalurl, url);
-  strcat(finalurl, file);
-
-#ifdef DEBUG
-  Debug_printf("\nAttempting HTTP GET for URL: %s\n", finalurl);
-#endif
-
-  // Temporary, final version will store root certs in spiffs.
-  http.end();
-  http.begin(finalurl);
-  int resultCode = http.GET();
-
-#ifdef DEBUG_VERBOSE
-  Debug_printf("Result code: %d\n", resultCode);
-#endif
-
-  if (resultCode == 200)
-    sio_complete();
-  else
-    sio_error();
 }
 
 /**
-   HTTP Get Characters
-*/
-void sio_http_get()
+ * Write to TCP socket
+ */
+void sio_tcp_write()
 {
-  bool err = false;
-  WiFiClient* c;
-
-  memset(sector, 0x00, sizeof(sector));
-
-  c = http.getStreamPtr();
-  if (c->available())
-    c->read(sector, 256);
-
-  sio_to_computer(sector, sizeof(sector), err);
 }
 
 /**
-   HTTP Close
-*/
-void sio_http_close()
+ * Get Status of TCP socket
+ */
+void sio_tcp_status()
 {
-  http.end();
-  sio_complete();
 }
 
 /**
@@ -2034,9 +1986,14 @@ void setup()
   cmdPtr['S'] = sio_status;
   cmdPtr['!'] = sio_format;
   cmdPtr['"'] = sio_format;
-  //cmdPtr[0x3F] = sio_high_speed;
-  cmdPtr[0x4E] = sio_read_percom_block;
-  cmdPtr[0x4F] = sio_write_percom_block;
+  //cmdPtr['?'] = sio_high_speed;
+  cmdPtr['N'] = sio_read_percom_block;
+  cmdPtr['O'] = sio_write_percom_block;
+  cmdPtr['c'] = sio_tcp_connect;
+  cmdPtr['d'] = sio_tcp_disconnect;
+  cmdPtr['r'] = sio_tcp_read;
+  cmdPtr['s'] = sio_tcp_status;
+  cmdPtr['w'] = sio_tcp_write;
   cmdPtr[0xFD] = sio_net_scan_networks;
   cmdPtr[0xFC] = sio_net_scan_result;
   cmdPtr[0xFB] = sio_net_set_ssid;
@@ -2053,11 +2010,6 @@ void setup()
   cmdPtr[0xE9] = sio_disk_image_umount;
   cmdPtr[0xE8] = sio_get_adapter_config;
   cmdPtr[0xE7] = sio_new_disk;
-  cmdPtr[0xE6] = sio_http_open;
-  cmdPtr[0xE5] = sio_http_get;
-  cmdPtr[0xE4] = sio_http_close;
-  cmdPtr[0xE3] = sio_set_base_url;
-  cmdPtr[0xE2] = sio_http_file_size;
 
   // Go ahead and flush anything out of the serial port
   sio_flush();
