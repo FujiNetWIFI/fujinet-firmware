@@ -235,8 +235,7 @@ bool load_config = true;
 char statusSkip = 0;
 void (*cmdPtr[256])(void); // command function pointers
 char totalSSIDs;
-HTTPClient http;
-char url[80];
+WiFiClient sio_clients[8];
 
 // DEBUGGING MACROS /////////////////////////////////////////////////////////////////////////
 #ifdef DEBUG_S
@@ -430,37 +429,71 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 }
 
 /**
- * Connect to TCP socket
- */
-void sio_tcp_connect()
+   Strip EOL from input
+*/
+void strip_eol(byte* s, int len)
 {
-  
+  for (int i = 0; i < len; i++)
+    if (s[i] == 0x9B)
+      s[i] = 0x00;
 }
 
 /**
- * Disconnect from TCP socket
- */
+   Connect to TCP socket
+*/
+void sio_tcp_connect()
+{
+  char* thn;
+  char* tpn;
+  int port;
+  byte ck;
+  unsigned char device=cmdFrame.devic-0x31;
+  
+  memset(sector, 0x00, sizeof(sector));
+  ck = sio_to_peripheral(sector, sizeof(sector));
+
+  strip_eol(sector,sizeof(sector));
+
+  if (sio_checksum(sector, sizeof(sector)) != ck)
+  {
+    sio_error();
+    return;
+  }
+  
+  thn = strtok(sector, ":");
+  tpn = strtok(NULL, ":");
+  port = atoi(tpn);
+
+  if (sio_clients[device].connect(thn,port)==true)
+    sio_complete();
+  else
+    sio_error();
+}
+
+/**
+   Disconnect from TCP socket
+*/
 void sio_tcp_disconnect()
 {
 }
 
 /**
- * Read from TCP socket
- */
+   Read from TCP socket
+*/
 void sio_tcp_read()
 {
 }
 
 /**
- * Write to TCP socket
- */
+   Write to TCP socket
+*/
 void sio_tcp_write()
 {
 }
 
 /**
- * Get Status of TCP socket
- */
+   Get Status of TCP socket
+*/
 void sio_tcp_status()
 {
 }
