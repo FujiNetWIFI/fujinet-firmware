@@ -236,6 +236,7 @@ char statusSkip = 0;
 void (*cmdPtr[256])(void); // command function pointers
 char totalSSIDs;
 WiFiClient sio_clients[8];
+WiFiServer* sio_servers[8];
 
 // DEBUGGING MACROS /////////////////////////////////////////////////////////////////////////
 #ifdef DEBUG_S
@@ -460,7 +461,7 @@ void sio_tcp_connect()
     return;
   }
 
-  thn = strtok(sector, ":");
+  thn = strtok((char *)&sector, ":");
   tpn = strtok(NULL, ":");
   port = atoi(tpn);
 
@@ -476,6 +477,7 @@ void sio_tcp_connect()
 void sio_tcp_disconnect()
 {
   unsigned char device = cmdFrame.devic - 0x31;
+
   sio_clients[device].stop();
   sio_complete();
 }
@@ -485,6 +487,21 @@ void sio_tcp_disconnect()
 */
 void sio_tcp_read()
 {
+  unsigned char device = cmdFrame.devic - 0x31;
+  int req_len = cmdFrame.aux1;
+  int l;
+  bool err = false;
+
+  if (sio_clients[device] == NULL)
+    err = true;
+  else
+  {
+    l = sio_clients[device].read((byte *)&sector, req_len);
+
+    if (l < req_len)
+      err = true;
+  }
+  sio_to_computer((byte *)&sector, req_len, err);
 }
 
 /**
@@ -492,6 +509,20 @@ void sio_tcp_read()
 */
 void sio_tcp_write()
 {
+  int req_len = cmdFrame.aux1;
+  unsigned char device = cmdFrame.devic - 0x31;
+  byte ck = sio_to_peripheral((byte *)&sector, req_len);
+
+  if (sio_checksum((byte *)&sector, req_len))
+  {
+    int l = sio_clients[device].write((byte *)&sector, req_len);
+    if (l < req_len)
+      sio_error();
+    else
+      sio_complete();
+  }
+  else
+    sio_error();
 }
 
 /**
@@ -499,6 +530,70 @@ void sio_tcp_write()
 */
 void sio_tcp_status()
 {
+  byte device = cmdFrame.devic - 0x31;
+  byte status[4] = {0x00, 0x00, 0x00, 0x00};
+  bool err = false;
+
+  status[0] = sio_clients[device].available() & 0xFF;
+  status[1] = (sio_servers[device] != NULL ? sio_servers[device]->hasClient() : false);
+  status[2] = 0x00; // reserved
+  status[3] = 0x00; // reserved
+
+  sio_to_computer((byte *)&status, sizeof(status), err);
+}
+
+/**
+   Listen for incoming connections
+*/
+void sio_tcp_listen()
+{
+  byte device = cmdFrame.devic - 0x31;
+  int port = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
+
+  if (sio_servers[device] == NULL)
+  {
+    sio_servers[device] = new WiFiServer(port);
+    sio_complete();
+  }
+  else
+  {
+    // Could not bind to port.
+    sio_error();
+  }
+}
+
+/**
+   Accept a pending connection
+*/
+void sio_tcp_accept()
+{
+  byte device = cmdFrame.devic - 0x31;
+  bool err = false;
+
+  if (sio_servers[device] == NULL)
+    err = true;
+  else if (sio_servers[device]->available() == false)
+    err = true;
+  else
+    sio_clients[device] = sio_servers[device]->available();
+
+  if (err == true)
+    sio_error();
+  else
+    sio_complete();
+}
+
+/**
+   Unlisten, or tear down existing listening socket
+*/
+void sio_tcp_unlisten()
+{
+  byte device = cmdFrame.devic - 0x31;
+
+  if (sio_servers[device] != NULL)
+    sio_servers[device]->stop();
+
+  sio_complete(); // always completes.
 }
 
 /**
@@ -2030,6 +2125,9 @@ void setup()
   cmdPtr['r'] = sio_tcp_read;
   cmdPtr['s'] = sio_tcp_status;
   cmdPtr['w'] = sio_tcp_write;
+  cmdPtr['l'] = sio_tcp_listen;
+  cmdPtr['a'] = sio_tcp_accept;
+  cmdPtr['u'] = sio_tcp_unlisten;
   cmdPtr[0xFD] = sio_net_scan_networks;
   cmdPtr[0xFC] = sio_net_scan_result;
   cmdPtr[0xFB] = sio_net_set_ssid;
