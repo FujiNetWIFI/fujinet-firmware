@@ -10,7 +10,7 @@
 
 devhdl_t devhdl;
 unsigned char packet[256];
-
+unsigned char len;
 
 extern void cio_open(void);
 extern void cio_close(void);
@@ -23,10 +23,6 @@ unsigned char ret;
 unsigned char err;
 long filesize;
 
-void cio_init(void)
-{
-}
-
 void main(void)
 {
   unsigned char i;
@@ -37,14 +33,11 @@ void main(void)
   devhdl.put         = (char *)cio_put-1;
   devhdl.status      = (char *)cio_status-1;
   devhdl.special     = (char *)cio_special-1;
-  devhdl.init        = cio_init;
 
   // find next hatabs entry
   for (i=0;i<11;i++)
-    {
-      if (OS.hatabs[i].id==0x00)
-	break;
-    }
+    if (OS.hatabs[i].id==0x00)
+      break;
 
   // And inject our handler table into its slot.
   OS.hatabs[i].id='N';         // N: device
