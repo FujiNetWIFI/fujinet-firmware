@@ -5,7 +5,9 @@
 #include "disk.h"
 #include "tnfs.h"
 #include "printer.h"
-#define PRINTMODE RAW
+#include "modem.h"
+
+#define PRINTMODE PDF
 
 // #ifdef ESP_8266
 // #include <FS.h>
@@ -29,6 +31,7 @@ File atr[2];
 File paperf;
 File tnfs;
 sioDisk sioD[2];
+sioModem sioR;
 
 WiFiServer server(80);
 WiFiClient client;
@@ -158,6 +161,7 @@ void setup()
 
   SPIFFS.begin();
 
+  SIO.addDevice(&sioR, 0x50); // R:
   SIO.addDevice(&sioP, 0x40); // P:
   paperf = SPIFFS.open("/paper", "w+");
   sioP.initPrinter(&paperf, PRINTMODE);
