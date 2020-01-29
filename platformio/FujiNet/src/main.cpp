@@ -5,6 +5,8 @@
 #include "disk.h"
 #include "tnfs.h"
 #include "printer.h"
+#include "modem.h"
+
 #define PRINTMODE PDF
 
 // #ifdef ESP_8266
@@ -29,6 +31,7 @@ File atr[2];
 File paperf;
 File tnfs;
 sioDisk sioD[2];
+sioModem sioR;
 
 WiFiServer server(80);
 WiFiClient client;
@@ -158,6 +161,7 @@ void setup()
 
   SPIFFS.begin();
 
+  SIO.addDevice(&sioR, 0x50); // R:
   SIO.addDevice(&sioP, 0x40); // P:
   paperf = SPIFFS.open("/paper", "w+");
   sioP.initPrinter(&paperf, PRINTMODE);
@@ -174,9 +178,9 @@ void setup()
   }
 
   TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  tnfs = TNFS.open("/printers.atr", "r");
+  tnfs = TNFS.open("/A820.ATR", "r");
 #ifdef DEBUG_S
-  BUG_UART.println("tnfs/printers.atr");
+  BUG_UART.println("tnfs/A820.ATR");
 #endif
   sioD[1].mount(&tnfs);
   SIO.addDevice(&sioD[1], 0x31 + 1);
