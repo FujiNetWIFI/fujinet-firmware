@@ -6,10 +6,10 @@
 #include <6502.h>
 #include <string.h>
 #include "sio.h"
+#include "filename.h"
 
 extern unsigned char err;
 extern unsigned char ret;
-extern unsigned char packet[256];
 
 void _cio_special(void)
 {

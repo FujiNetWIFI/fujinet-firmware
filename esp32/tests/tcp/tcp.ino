@@ -295,7 +295,7 @@ bool sio_valid_device_id()
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
   if ((load_config == true) && (cmdFrame.devic == 0x31)) // Only respond to 0x31 if in config mode
     return true;
-  else if (cmdFrame.devic == 0x70) // respond to FujiNet Network device commands
+  else if ((cmdFrame.devic > 0x70) || (cmdFrame.devic < 0x79)) // respond to FujiNet Network device commands
     return true;
   else if (cmdFrame.devic == 0x4F) // Do not respond to Type 3/4 polls
     return false;
@@ -440,9 +440,55 @@ void strip_eol(byte* s, int len)
 }
 
 /**
-   Connect to TCP socket
+ * Open TCP (calls the below functions)
+ */
+void sio_tcp_open()
+{
+  if (cmdFrame.aux2==1)
+    sio_tcp_open_server();
+  else
+    sio_tcp_open_client();
+}
+
+/**
+ * Open a TCP server listening socket
+ */
+void sio_tcp_open_server()
+{
+  char* tdn;
+  char* tpn;
+  int port;
+  byte ck;
+  unsigned char device = cmdFrame.devic - 0x31;
+
+  memset(sector, 0x00, sizeof(sector));
+  ck = sio_to_peripheral(sector, sizeof(sector));
+  strip_eol(sector, sizeof(sector));
+
+  if (sio_checksum(sector, sizeof(sector) != ck))
+  {
+    sio_error();
+    return;  
+  }
+
+  tdn = strtok((char *)&sector, ":");
+  tpn = strtok(NULL, ":");
+  port = atoi(tpn);
+  
+  if (sio_servers[device]!=NULL)
+    {
+      sio_servers[device]->stop();
+      delete sio_servers[device];  
+    }
+    
+  sio_servers[device]=new WiFiServer(port);
+  sio_complete();
+}
+
+/**
+   Open a TCP client socket 
 */
-void sio_tcp_connect()
+void sio_tcp_open_client()
 {
   char* thn;
   char* tpn;
@@ -474,7 +520,7 @@ void sio_tcp_connect()
 /**
    Disconnect from TCP socket
 */
-void sio_tcp_disconnect()
+void sio_tcp_close()
 {
   unsigned char device = cmdFrame.devic - 0x31;
 
@@ -2120,8 +2166,8 @@ void setup()
   //cmdPtr['?'] = sio_high_speed;
   cmdPtr['N'] = sio_read_percom_block;
   cmdPtr['O'] = sio_write_percom_block;
-  cmdPtr['c'] = sio_tcp_connect;
-  cmdPtr['d'] = sio_tcp_disconnect;
+  cmdPtr['o'] = sio_tcp_open;
+  cmdPtr['c'] = sio_tcp_close;
   cmdPtr['r'] = sio_tcp_read;
   cmdPtr['s'] = sio_tcp_status;
   cmdPtr['w'] = sio_tcp_write;

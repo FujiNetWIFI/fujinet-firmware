@@ -1,7 +1,7 @@
 	;; Call SIO
 
-	.export _siov
+	.export __siov
 
-_siov:	JSR $E459
+__siov:	JSR $E459
 	RTS
 	
