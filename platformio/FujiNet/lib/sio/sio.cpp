@@ -1,11 +1,11 @@
 #include "sio.h"
 
 // ISR for falling COMMAND
-volatile bool cmdFlag = false;
-void ICACHE_RAM_ATTR sio_isr_cmd()
-{
-  cmdFlag = true;
-}
+// volatile bool cmdFlag = false;
+// void ICACHE_RAM_ATTR sio_isr_cmd()
+// {
+//   cmdFlag = true;
+// }
 
 // calculate 8-bit checksum.
 byte sioDevice::sio_checksum(byte *chunk, int length)
@@ -222,15 +222,17 @@ void sioBus::sio_get_id()
 
 void sioBus::service()
 {
-  if (cmdFlag)
-  {
+
+  // REV2: remove ISR and just poll PIN_CMD
+  //if (cmdFlag)
+  //{
     if (digitalRead(PIN_CMD) == LOW) // this check may not be necessary
     {
       busState = BUS_ID;
       cmdTimer = millis();
-      cmdFlag = false;
+      //cmdFlag = false;
     }
-  }
+  //}
 
   if (SIO_UART.available() > 0)
   {
