@@ -300,8 +300,8 @@ void sioPrinter::pdf_add(std::string S)
 
 #ifdef DEBUG_S
     printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
-    printf("TOP: %s  ", TOPflag ? "true " : "false");
-    printf("BOL: %s  ", BOLflag ? "true " : "false");
+    //printf("TOP: %s  ", TOPflag ? "true " : "false");
+    //printf("BOL: %s  ", BOLflag ? "true " : "false");
     printf("\n");
 #endif
   }
@@ -368,6 +368,8 @@ void sioPrinter::pageEject()
 {
   if (paperType == PDF)
   {
+    if (TOPflag && pdf_pageCounter == 0)
+      pdf_new_page();
     if (!BOLflag)
       pdf_end_line();
     // to do: close the text string array if !BOLflag
