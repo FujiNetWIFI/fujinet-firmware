@@ -45,7 +45,7 @@ enum cmdState_t
 /**
    ISR for falling COMMAND
 */
-void ICACHE_RAM_ATTR sio_isr_cmd();
+// void ICACHE_RAM_ATTR sio_isr_cmd();
 
 class sioBus;
 class sioDevice
