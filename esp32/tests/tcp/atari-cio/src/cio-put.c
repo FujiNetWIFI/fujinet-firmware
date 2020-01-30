@@ -6,50 +6,42 @@
 #include <6502.h>
 #include <string.h>
 #include "sio.h"
+#include "misc.h"
 
 extern unsigned char err;
 extern unsigned char ret;
-extern unsigned char aux1_save[8];
-extern unsigned char aux2_save[8];
+extern unsigned char* tp;
+extern unsigned char buffer_tx_len;
+extern unsigned char buffer_tx[256];
 
-unsigned char* putp;
-unsigned short putlen;
+/**
+ * Flush output to socket
+ */
+void cio_put_flush(void)
+{
+  err=siov(DEVIC_N,
+	   OS.ziocb.drive,
+	   'w',
+	   DSTATS_WRITE,
+	   &buffer_tx,
+	   buffer_tx_len,
+	   DTIMLO_DEFAULT,
+	   buffer_tx_len,
+	   0);
+  
+  clear_tx_buffer();
+}
 
 void _cio_put(void)
 {
-  unsigned short i;
-
-  if (putlen==0)
+  if ((ret==0x9b) || (buffer_tx_len>0xFE))
     {
-      putp=OS.ziocb.buffer;
-      putlen=OS.ziocb.buflen;
-      if (!(OS.ziocb.command&0x02))
-	{
-	  // PUTREC requested, do EOL to CR translation
-	  for (i=0;i<OS.ziocb.buflen;i++)
-	    if (putp[i]==0x9B)
-	      putp[i]=0x0D;
-	}
-    }
-  else if (putlen==OS.ziocb.buflen)
-    {
-      err=siov(DEVIC_N,
-  	       OS.ziocb.drive,
-  	       'w',
-  	       DSTATS_WRITE,
-  	       OS.ziocb.buffer,
-  	       OS.ziocb.buflen,
-  	       DTIMLO_DEFAULT,
-  	       aux1_save[OS.ziocb.drive],
-  	       aux2_save[OS.ziocb.drive]);
-      putlen=0;
+      buffer_tx[buffer_tx_len++]=0x0d;
+      buffer_tx[buffer_tx_len++]=0x0a;
+      cio_put_flush();
     }
   else
-    putlen++;
-
-  ret=putp[putlen];
-  err=1;
+    {
+      buffer_tx[buffer_tx_len++]=ret;
+    }
 }
-
-
-

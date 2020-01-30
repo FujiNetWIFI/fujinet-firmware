@@ -15,7 +15,7 @@ extern unsigned char aux2_save[8];
 
 void _cio_close(void)
 {
-  ret=err=siov(DEVIC_N,OS.ziocb.drive,
+  siov(DEVIC_N,OS.ziocb.drive,
 	       'c',
 	       DSTATS_NONE,
 	       NULL,
@@ -27,4 +27,6 @@ void _cio_close(void)
   aux1_save[OS.ziocb.drive]=
     aux2_save[OS.ziocb.drive]=0;
 
+  ret=1;
+  err=1;
 }

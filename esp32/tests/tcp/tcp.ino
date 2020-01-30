@@ -20,7 +20,7 @@
 #include <WiFiUdp.h>
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-// #define DEBUG_S
+#define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -29,7 +29,7 @@
 // #define DEBUG_SSID ""
 // #define DEBUG_PASSWORD ""
 
-// #define DEBUG_VERBOSE 1
+#define DEBUG_VERBOSE 1
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -61,8 +61,8 @@
 bool hispeed = false;
 int command_frame_counter = 0;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x0A
-#define HISPEED_BAUDRATE 52640
+#define HISPEED_INDEX 0x00
+#define HISPEED_BAUDRATE 125984
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
 
@@ -295,7 +295,7 @@ bool sio_valid_device_id()
   unsigned char deviceSlot = cmdFrame.devic - 0x31;
   if ((load_config == true) && (cmdFrame.devic == 0x31)) // Only respond to 0x31 if in config mode
     return true;
-  else if ((cmdFrame.devic > 0x70) || (cmdFrame.devic < 0x79)) // respond to FujiNet Network device commands
+  else if ((cmdFrame.devic > 0x69) && (cmdFrame.devic < 0x79)) // respond to FujiNet Network device commands
     return true;
   else if (cmdFrame.devic == 0x4F) // Do not respond to Type 3/4 polls
     return false;
@@ -440,26 +440,26 @@ void strip_eol(byte* s, int len)
 }
 
 /**
- * Open TCP (calls the below functions)
- */
+   Open TCP (calls the below functions)
+*/
 void sio_tcp_open()
 {
-  if (cmdFrame.aux2==1)
+  if (cmdFrame.aux2 == 1)
     sio_tcp_open_server();
   else
     sio_tcp_open_client();
 }
 
 /**
- * Open a TCP server listening socket
- */
+   Open a TCP server listening socket
+*/
 void sio_tcp_open_server()
 {
   char* tdn;
   char* tpn;
   int port;
   byte ck;
-  unsigned char device = cmdFrame.devic - 0x31;
+  unsigned char device = cmdFrame.devic - 0x70;
 
   memset(sector, 0x00, sizeof(sector));
   ck = sio_to_peripheral(sector, sizeof(sector));
@@ -468,48 +468,62 @@ void sio_tcp_open_server()
   if (sio_checksum(sector, sizeof(sector) != ck))
   {
     sio_error();
-    return;  
+    return;
   }
 
   tdn = strtok((char *)&sector, ":");
   tpn = strtok(NULL, ":");
   port = atoi(tpn);
-  
-  if (sio_servers[device]!=NULL)
-    {
-      sio_servers[device]->stop();
-      delete sio_servers[device];  
-    }
-    
-  sio_servers[device]=new WiFiServer(port);
+
+  if (sio_servers[device] != NULL)
+  {
+    sio_servers[device]->stop();
+    delete sio_servers[device];
+  }
+
+  sio_servers[device] = new WiFiServer(port);
   sio_complete();
 }
 
 /**
-   Open a TCP client socket 
+   Open a TCP client socket
+   N1:TCP:FOO.COM:2000
 */
 void sio_tcp_open_client()
 {
+  char* trn;
+  char* tdn;
   char* thn;
   char* tpn;
   int port;
   byte ck;
-  unsigned char device = cmdFrame.devic - 0x31;
+  unsigned char device = cmdFrame.devic - 0x70;
 
   memset(sector, 0x00, sizeof(sector));
   ck = sio_to_peripheral(sector, sizeof(sector));
 
   strip_eol(sector, sizeof(sector));
 
-  if (sio_checksum(sector, sizeof(sector)) != ck)
-  {
-    sio_error();
-    return;
-  }
+//  if (sio_checksum(sector, sizeof(sector)) != ck)
+//  {
+//    sio_error();
+//    return;
+//  }
 
-  thn = strtok((char *)&sector, ":");
+  tdn = strtok((char *)&sector, ":");
+  trn = strtok(NULL, ":");
+  thn = strtok(NULL, ":");
   tpn = strtok(NULL, ":");
   port = atoi(tpn);
+
+#ifdef DEBUG
+  printf("device: %d\n",device);
+  printf("tdn: %s\n", tdn);
+  printf("trn: %s\n", trn);
+  printf("thn: %s\n", thn);
+  printf("tpn: %s\n", tpn);
+  printf("port: %d\n", port);
+#endif
 
   if (sio_clients[device].connect(thn, port) == true)
     sio_complete();
@@ -522,7 +536,7 @@ void sio_tcp_open_client()
 */
 void sio_tcp_close()
 {
-  unsigned char device = cmdFrame.devic - 0x31;
+  unsigned char device = cmdFrame.devic - 0x70;
 
   sio_clients[device].stop();
   sio_complete();
@@ -533,21 +547,18 @@ void sio_tcp_close()
 */
 void sio_tcp_read()
 {
-  unsigned char device = cmdFrame.devic - 0x31;
+  unsigned char device = cmdFrame.devic - 0x70;
   int req_len = cmdFrame.aux1;
   int l;
   bool err = false;
+  
+  l = sio_clients[device].read((byte *)&sector, req_len);
 
-  if (sio_clients[device] == NULL)
+  if (l < req_len)
     err = true;
-  else
-  {
-    l = sio_clients[device].read((byte *)&sector, req_len);
 
-    if (l < req_len)
-      err = true;
-  }
   sio_to_computer((byte *)&sector, req_len, err);
+  memset(&sector, 0x00, sizeof(sector));
 }
 
 /**
@@ -556,8 +567,11 @@ void sio_tcp_read()
 void sio_tcp_write()
 {
   int req_len = cmdFrame.aux1;
-  unsigned char device = cmdFrame.devic - 0x31;
-  byte ck = sio_to_peripheral((byte *)&sector, req_len);
+  unsigned char device = cmdFrame.devic - 0x70;
+  byte ck; 
+
+  memset(&sector,0x00,sizeof(sector));
+  ck=sio_to_peripheral((byte *)&sector, req_len);
 
   if (sio_checksum((byte *)&sector, req_len))
   {
@@ -576,7 +590,7 @@ void sio_tcp_write()
 */
 void sio_tcp_status()
 {
-  byte device = cmdFrame.devic - 0x31;
+  byte device = cmdFrame.devic - 0x70;
   byte status[4] = {0x00, 0x00, 0x00, 0x00};
   bool err = false;
 
@@ -593,7 +607,7 @@ void sio_tcp_status()
 */
 void sio_tcp_listen()
 {
-  byte device = cmdFrame.devic - 0x31;
+  byte device = cmdFrame.devic - 0x70;
   int port = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
 
   if (sio_servers[device] == NULL)
@@ -613,7 +627,7 @@ void sio_tcp_listen()
 */
 void sio_tcp_accept()
 {
-  byte device = cmdFrame.devic - 0x31;
+  byte device = cmdFrame.devic - 0x70;
   bool err = false;
 
   if (sio_servers[device] == NULL)
@@ -634,7 +648,7 @@ void sio_tcp_accept()
 */
 void sio_tcp_unlisten()
 {
-  byte device = cmdFrame.devic - 0x31;
+  byte device = cmdFrame.devic - 0x70;
 
   if (sio_servers[device] != NULL)
     sio_servers[device]->stop();
@@ -2163,7 +2177,7 @@ void setup()
   cmdPtr['S'] = sio_status;
   cmdPtr['!'] = sio_format;
   cmdPtr['"'] = sio_format;
-  //cmdPtr['?'] = sio_high_speed;
+  cmdPtr['?'] = sio_high_speed;
   cmdPtr['N'] = sio_read_percom_block;
   cmdPtr['O'] = sio_write_percom_block;
   cmdPtr['o'] = sio_tcp_open;

@@ -6,42 +6,72 @@
 #include <6502.h>
 #include <stdbool.h>
 #include "sio.h"
+#include "misc.h"
 
 extern unsigned char err;
 extern unsigned char ret;
-extern unsigned char len;
 extern unsigned char aux1_save[8];
 extern unsigned char aux2_save[8];
+extern unsigned char* rp;
+extern unsigned char buffer_rx[256];
+extern unsigned char buffer_rx_len;
 
-unsigned char* p;
+bool skip_char;
+
+extern void _cio_status(void); // Used to get length to fetch.
 
 void _cio_get(void)
 {
-  
-  if (len==0)
+  err=1;
+  if (buffer_rx_len==0)
     {
-      ret=err=siov(DEVIC_N,
-		   OS.ziocb.drive,
-		   'r',
-		   DSTATS_READ,
-		   OS.ziocb.buffer,
-		   OS.ziocb.buflen,
-		   DTIMLO_DEFAULT,
-		   aux1_save[OS.ziocb.drive],
-		   aux2_save[OS.ziocb.drive]);
-      p=OS.ziocb.buffer;
-      len=OS.ziocb.buflen;
-    }
-  
-  if (OS.ziocb.command&0x02)
-    {
-      // GETREC requested, do EOL/CRLF translation
-      if (((*p==0x0a) && (*p+1==0x0d)) || ((*p==0x0d) && (*p+1==0x0a)))
-	p++; // scoot ahead
+      // Buffer empty, get length and read it in.
+      _cio_status();
+      buffer_rx_len=OS.dvstat[0];
 
-      if ((*p==0x0a) || (*p==0x0d))
-	*p=0x9b; // change to EOL
+      if (buffer_rx_len==0)
+	{
+	  err=ret=136;
+	  return;
+	}
+
+      err=siov(DEVIC_N,
+	       OS.ziocb.drive,
+	       'r',
+	       DSTATS_READ,
+	       &buffer_rx,
+	       buffer_rx_len,
+	       DTIMLO_DEFAULT,
+	       buffer_rx_len,
+	       0);
+      
+      rp=&buffer_rx[0];
     }
-  
-  ret=*p;
+
+  if (!(OS.ziocb.command&2)) // GETREC
+    {
+      // Convert CR/LF to EOL
+      if ((*rp==0x0d) || (*rp==0x0a))
+	{
+	  if (skip_char==true) // did we get another CR or LF?
+	    {
+	      *rp++; // Yes, skip
+	      buffer_rx_len--;
+	      skip_char=false;
+	    }
+	  else
+	    {
+	      *rp=0x9B; // Convert character to EOL
+	      skip_char=true;
+	    }
+	}
+      else
+	{ // Otherwise we are not skipping a character.
+	  skip_char=false;
+	}
+    }
+
+  // Send next char in buffer.
+  buffer_rx_len--;
+  ret=*rp++;
 }
