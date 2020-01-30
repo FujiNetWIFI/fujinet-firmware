@@ -2025,12 +2025,14 @@ void handle_hardkeys()
           bt_mode = false;
           SerialBT.end();
           SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
+          sio_led(false);
       }
       else
       {
           bt_mode = true;
           SerialBT.begin("ATARI FUJINET");
           SIO_UART.updateBaudRate(BT_BAUDRATE);
+          sio_led(true);
       }
 #endif
     }
