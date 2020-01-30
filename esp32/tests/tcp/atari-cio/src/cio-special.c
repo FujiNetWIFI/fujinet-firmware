@@ -33,13 +33,6 @@ void _cio_special(void)
     case 17: // unlisten
       dcmd='u';
       break;
-    case 20: // Info
-      dcmd='s';
-      aux1=OS.ziocb.aux1;
-      dstats=0x40;
-      dbyt=4;
-      buf=&OS.dvstat;
-      break;
     default:
       err=146; // Not implemented
     }
