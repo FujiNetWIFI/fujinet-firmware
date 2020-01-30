@@ -16,10 +16,14 @@ extern unsigned char aux2_save[8];
 void _cio_special(void)
 {
   unsigned char dcmd, dstats;
-  unsigned short dbyt;
+  unsigned short dbyt, aux1, aux2;
+  void *buf;
   
   err=1;
   dstats=dbyt=0x00;
+  aux1=aux1_save[OS.ziocb.drive];
+  aux2=aux2_save[OS.ziocb.drive];
+  buf=NULL;
   
   switch (OS.ziocb.command)
     {
@@ -29,6 +33,13 @@ void _cio_special(void)
     case 17: // unlisten
       dcmd='u';
       break;
+    case 20: // Info
+      dcmd='s';
+      aux1=OS.ziocb.aux1;
+      dstats=0x40;
+      dbyt=4;
+      buf=&OS.dvstat;
+      break;
     default:
       err=146; // Not implemented
     }
@@ -36,9 +47,9 @@ void _cio_special(void)
   ret=siov(DEVIC_N, OS.ziocb.drive,
 	   dcmd,
 	   dstats,
-	   OS.ziocb.buffer,	   
+	   buf,	   
 	   dbyt,
 	   DTIMLO_DEFAULT,
-	   aux1_save[OS.ziocb.drive],
-	   aux2_save[OS.ziocb.drive]);
+	   aux1,
+	   aux2);
 }
