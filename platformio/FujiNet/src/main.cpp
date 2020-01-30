@@ -1,3 +1,22 @@
+/*
+MAJOR REV 2 UPDATE
+1. the FujiNet SIO 0x70 device
+2. the SIO read/write/cmdFrame/etc. update
+3. tnfs update
+4. R device
+5. P: update (if needed with 2. SIO update)
+6. percom inclusion in D devices
+7. HTTP server
+8. SD card support
+need to update tnfs so we can have more than one server. 
+We can probably translate the "device slots" for the 8 disks into an array of 8 sioDisk objects .
+
+status:
+#2 is parially implemented: changed the command frame reading, ack & nak
+*/
+
+
+
 #include <Arduino.h>
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
