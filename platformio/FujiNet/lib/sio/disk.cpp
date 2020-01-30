@@ -137,7 +137,7 @@ void sioDisk::sio_process()
   default:
     sio_nak();
   }
-  cmdState = WAIT;
+  // cmdState = WAIT;
   //cmdTimer = 0;
 }
 

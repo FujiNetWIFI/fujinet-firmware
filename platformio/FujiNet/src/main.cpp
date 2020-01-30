@@ -1,18 +1,18 @@
 /*
 MAJOR REV 2 UPDATE
-1. the FujiNet SIO 0x70 device
-2. the SIO read/write/cmdFrame/etc. update
-3. tnfs update
-4. R device
-5. P: update (if needed with 2. SIO update)
-6. percom inclusion in D devices
-7. HTTP server
-8. SD card support
-need to update tnfs so we can have more than one server. 
-We can probably translate the "device slots" for the 8 disks into an array of 8 sioDisk objects .
+            1. the FujiNet SIO 0x70 device (device slots, too)
+in process  2. the SIO read/write/cmdFrame/etc. update
+            3. tnfs update  so we can have more than one server
+            4. R device
+            5. P: update (if needed with 2. SIO update)
+            6. percom inclusion in D devices
+            7. HTTP server
+            8. SD card support
+            9. convert debug messages 
 
 status:
 #2 is parially implemented: changed the command frame reading, ack & nak in the sio_process()
+
 */
 
 
@@ -57,8 +57,12 @@ status:
 #define Debug_println(...) wificlient.println( __VA_ARGS__ )
 #define DEBUG
 #endif
+#ifndef DEBUG
+#define Debug_print(...)
+#define Debug_printf(...)
+#define Debug_println(...)
+#endif
 /////////////////////////////////////////////////////////////////////////////////////////////
-
 
 
 atari820 sioP;

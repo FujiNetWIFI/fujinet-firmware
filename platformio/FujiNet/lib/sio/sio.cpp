@@ -259,7 +259,7 @@ void sioBus::service()
     byte ck = sio_checksum(tempFrame.cmdFrameData, 4);
     if (ck == tempFrame.cksum)
     {
-      busState = BUS_ID;
+    //  busState = BUS_ID;
 #ifdef ESP8266
       delayMicroseconds(DELAY_T1);
 #endif
@@ -282,23 +282,23 @@ void sioBus::service()
           {
             activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
           }
-          activeDev->cmdState = COMMAND;
-          busState = BUS_ACTIVE;
+          // activeDev->cmdState = COMMAND;
+         // busState = BUS_ACTIVE;
 #ifdef ESP8266
           delayMicroseconds(DELAY_T3);
 #endif
           activeDev->sio_process(); // execute command
         }
-        else
-        {
-          device(i)->cmdState = WAIT;
-        }
+        // else
+        // {
+        //   device(i)->cmdState = WAIT;
+        // }
       }
 
-      if (busState == BUS_ID)
-      {
-        busState = BUS_WAIT;
-      }
+      // if (busState == BUS_ID)
+      // {
+      //   busState = BUS_WAIT;
+      // }
 
     } // valid checksum
     else
@@ -404,10 +404,17 @@ void sioBus::setup()
   SIO_UART.swap();
 #endif
 
+
+#ifdef ESP_8266
+// pins
+#endif
+#ifdef ESP32
   pinMode(PIN_INT, INPUT_PULLUP);
   pinMode(PIN_PROC, INPUT_PULLUP);
   pinMode(PIN_MTR, INPUT_PULLDOWN);
   pinMode(PIN_CMD, INPUT_PULLUP);
+  pinMode(PIN_LED2, OUTPUT);
+#endif
 
   // Attach COMMAND interrupt.
   // attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
