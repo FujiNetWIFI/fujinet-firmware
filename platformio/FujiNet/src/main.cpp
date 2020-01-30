@@ -12,7 +12,7 @@ need to update tnfs so we can have more than one server.
 We can probably translate the "device slots" for the 8 disks into an array of 8 sioDisk objects .
 
 status:
-#2 is parially implemented: changed the command frame reading, ack & nak
+#2 is parially implemented: changed the command frame reading, ack & nak in the sio_process()
 */
 
 
