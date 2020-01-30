@@ -21,8 +21,8 @@ void _cio_status(void)
 	   OS.dvstat,
 	   4,
 	   DTIMLO_DEFAULT,
-	   aux1_save[OS.ziocb.drive],
-	   aux2_save[OS.ziocb.drive]);
+	   OS.ziocb.aux1,
+	   OS.ziocb.aux2);
   
   ret=OS.dvstat[0];
 }
