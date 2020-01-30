@@ -542,12 +542,16 @@ void sioPrinter::sio_process()
   switch (cmdFrame.comnd)
   {
   case 'W':
+    sio_ack();
     sio_write();
     lastAux1 = cmdFrame.aux1;
     break;
   case 'S':
+    sio_ack();
     sio_status();
     break;
+  default:
+    sio_nak();
   }
   cmdState = WAIT;
   //cmdTimer = 0;

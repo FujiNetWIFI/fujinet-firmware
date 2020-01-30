@@ -17,11 +17,12 @@
 // esp32
 #elif defined(ESP_32)
 #define SIO_UART Serial2
-#define PIN_LED 2
 #define PIN_INT 26
 #define PIN_PROC 22
 #define PIN_MTR 33
 #define PIN_CMD 21
+#define PIN_LED1 2
+#define PIN_LED2 4
 #endif
 
 #define DELAY_T5 1500
@@ -33,13 +34,25 @@ enum cmdState_t
 {
    ID,
    COMMAND,
-   AUX1,
-   AUX2,
-   CHECKSUM,
+   //AUX1,
+   //AUX2,
+   //CHECKSUM,
    ACK,
    NAK,
-   PROCESS,
+   //PROCESS,
    WAIT
+};
+
+union cmdFrame_t {
+   struct
+   {
+      unsigned char devic;
+      unsigned char comnd;
+      unsigned char aux1;
+      unsigned char aux2;
+      unsigned char cksum;
+   };
+   byte cmdFrameData[5];
 };
 
 /**
@@ -47,6 +60,10 @@ enum cmdState_t
 */
 // void ICACHE_RAM_ATTR sio_isr_cmd();
 
+//helper functions
+byte sio_checksum(byte *chunk, int length);
+
+// class def'ns
 class sioBus;
 class sioDevice
 {
@@ -58,31 +75,23 @@ protected:
 
    cmdState_t cmdState; // PROCESS state not used
 
-   union {
-      struct
-      {
-         unsigned char devic;
-         unsigned char comnd;
-         unsigned char aux1;
-         unsigned char aux2;
-         unsigned char cksum;
-      };
-      byte cmdFrameData[5];
-   } cmdFrame;
+   cmdFrame_t cmdFrame;
 
    // unsigned long cmdTimer = 0;
 
-   byte sio_checksum(byte *chunk, int length);
-   void sio_get_id();
-   void sio_get_command();
-   void sio_get_aux1();
-   void sio_get_aux2();
+   //byte sio_checksum(byte *chunk, int length); // moved outside the class def'n
+   //void sio_get_id();
+   //void sio_get_command();
+   //void sio_get_aux1();
+   //void sio_get_aux2();
    void sio_ack();
    void sio_nak();
-   void sio_get_checksum();
+   //void sio_get_checksum();
+   void sio_complete();
+   void sio_error();
    virtual void sio_status();
    virtual void sio_process();
-   void sio_incoming();
+   //void sio_incoming();
 
 public:
    //sioDevice() : cmdState(WAIT){};
@@ -97,10 +106,16 @@ class sioBus
 private:
    LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
    unsigned long cmdTimer = 0;
-   enum {BUS_ID,BUS_ACTIVE,BUS_WAIT} busState = BUS_WAIT;
-   sioDevice* activeDev = nullptr;
+   enum
+   {
+      BUS_ID,
+      BUS_ACTIVE,
+      BUS_WAIT
+   } busState = BUS_WAIT;
+   sioDevice *activeDev = nullptr;
 
-   void sio_get_id();
+   // void sio_get_id();
+   void sio_led(bool onOff);
 
 public:
    void setup();
