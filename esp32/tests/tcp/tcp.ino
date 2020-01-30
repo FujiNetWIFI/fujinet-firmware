@@ -237,6 +237,7 @@ void (*cmdPtr[256])(void); // command function pointers
 char totalSSIDs;
 WiFiClient sio_clients[8];
 WiFiServer* sio_servers[8];
+HTTPClient http_clients[8];
 
 // DEBUGGING MACROS /////////////////////////////////////////////////////////////////////////
 #ifdef DEBUG_S
@@ -504,11 +505,11 @@ void sio_tcp_open_client()
 
   strip_eol(sector, sizeof(sector));
 
-//  if (sio_checksum(sector, sizeof(sector)) != ck)
-//  {
-//    sio_error();
-//    return;
-//  }
+  //  if (sio_checksum(sector, sizeof(sector)) != ck)
+  //  {
+  //    sio_error();
+  //    return;
+  //  }
 
   tdn = strtok((char *)&sector, ":");
   trn = strtok(NULL, ":");
@@ -517,7 +518,7 @@ void sio_tcp_open_client()
   port = atoi(tpn);
 
 #ifdef DEBUG
-  printf("device: %d\n",device);
+  printf("device: %d\n", device);
   printf("tdn: %s\n", tdn);
   printf("trn: %s\n", trn);
   printf("thn: %s\n", thn);
@@ -551,7 +552,7 @@ void sio_tcp_read()
   int req_len = cmdFrame.aux1;
   int l;
   bool err = false;
-  
+
   l = sio_clients[device].read((byte *)&sector, req_len);
 
   if (l < req_len)
@@ -568,10 +569,10 @@ void sio_tcp_write()
 {
   int req_len = cmdFrame.aux1;
   unsigned char device = cmdFrame.devic - 0x70;
-  byte ck; 
+  byte ck;
 
-  memset(&sector,0x00,sizeof(sector));
-  ck=sio_to_peripheral((byte *)&sector, req_len);
+  memset(&sector, 0x00, sizeof(sector));
+  ck = sio_to_peripheral((byte *)&sector, req_len);
 
   if (sio_checksum((byte *)&sector, req_len))
   {
@@ -594,11 +595,68 @@ void sio_tcp_status()
   byte status[4] = {0x00, 0x00, 0x00, 0x00};
   bool err = false;
 
-  status[0] = sio_clients[device].available() & 0xFF;
-  status[1] = (sio_servers[device] != NULL ? sio_servers[device]->hasClient() : false);
-  status[2] = 0x00; // reserved
-  status[3] = 0x00; // reserved
+  populate_adapter_config();
 
+  if (cmdFrame.aux1 == 1) // get external ip
+  {
+    byte tmp[20];
+    // Connect to icanhazip
+    memset(&tmp, 0, sizeof(tmp));
+    http_clients[device].end();
+    http_clients[device].begin("http://icanhazip.com/");
+
+    if (http_clients[device].GET() == 200)
+    {
+      WiFiClient* c = http_clients[device].getStreamPtr();
+      c->read(tmp, 20);
+    }
+    else
+    {
+      err = true;
+    }
+
+    http_clients[device].end();
+
+    status[0] = atoi(strtok((char *)&tmp, "."));
+    status[1] = atoi(strtok(NULL, "."));
+    status[2] = atoi(strtok(NULL, "."));
+    status[3] = atoi(strtok(NULL, "."));
+  }
+  else if (cmdFrame.aux1 == 2) // get internal ip
+  {
+    status[0] = adapterConfig.localIP[0];
+    status[1] = adapterConfig.localIP[1];
+    status[2] = adapterConfig.localIP[2];
+    status[3] = adapterConfig.localIP[3];
+  }
+  else if (cmdFrame.aux1 == 3) // get gateway ip
+  {
+    status[0] = adapterConfig.gateway[0];
+    status[1] = adapterConfig.gateway[1];
+    status[2] = adapterConfig.gateway[2];
+    status[3] = adapterConfig.gateway[3];
+  }
+  else if (cmdFrame.aux1 == 4) // subnet mask
+  {
+    status[0] = adapterConfig.netmask[0];
+    status[1] = adapterConfig.netmask[1];
+    status[2] = adapterConfig.netmask[2];
+    status[3] = adapterConfig.netmask[3];
+  }
+  else if (cmdFrame.aux1 == 5) // DNS
+  {
+    status[0] = adapterConfig.dnsIP[0];
+    status[1] = adapterConfig.dnsIP[1];
+    status[2] = adapterConfig.dnsIP[2];
+    status[3] = adapterConfig.dnsIP[3];
+  }
+  else
+  {
+    status[0] = sio_clients[device].available() & 0xFF;
+    status[1] = (sio_servers[device] != NULL ? sio_servers[device]->hasClient() : false);
+    status[2] = 0x00; // reserved
+    status[3] = 0x00; // reserved
+  }
   sio_to_computer((byte *)&status, sizeof(status), err);
 }
 
@@ -713,21 +771,10 @@ void sio_new_disk()
 }
 
 /**
-   Get Adapter config.
+   populate adapter config
 */
-void sio_get_adapter_config()
+void populate_adapter_config()
 {
-  byte mac[6];
-  strcpy(adapterConfig.ssid, netConfig.ssid);
-
-#ifdef ESP8266
-  strcpy(adapterConfig.hostname, WiFi.hostname().c_str());
-#else
-  strcpy(adapterConfig.hostname, WiFi.getHostname());
-#endif
-
-  WiFi.macAddress(mac);
-
   adapterConfig.localIP[0] = WiFi.localIP()[0];
   adapterConfig.localIP[1] = WiFi.localIP()[1];
   adapterConfig.localIP[2] = WiFi.localIP()[2];
@@ -747,6 +794,25 @@ void sio_get_adapter_config()
   adapterConfig.dnsIP[1] = WiFi.dnsIP()[1];
   adapterConfig.dnsIP[2] = WiFi.dnsIP()[2];
   adapterConfig.dnsIP[3] = WiFi.dnsIP()[3];
+}
+
+/**
+   Get Adapter config.
+*/
+void sio_get_adapter_config()
+{
+  byte mac[6];
+  strcpy(adapterConfig.ssid, netConfig.ssid);
+
+#ifdef ESP8266
+  strcpy(adapterConfig.hostname, WiFi.hostname().c_str());
+#else
+  strcpy(adapterConfig.hostname, WiFi.getHostname());
+#endif
+
+  WiFi.macAddress(mac);
+
+  populate_adapter_config();
 
   adapterConfig.macAddress[0] = mac[0]; // _WHY_ ?!
   adapterConfig.macAddress[1] = mac[1];
