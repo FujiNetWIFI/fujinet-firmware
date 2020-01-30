@@ -41,7 +41,21 @@ found	lda #'N
 	;; N: drvhdl
 drvhdl	.word open-1, close-1, read-1, write-1, status-1, special-1
 
-open	rts
+open	ldy #11
+?o1	lda dcbopen,y
+	sta dcb,y
+	dey
+	bpl ?o1
+	jsr SIOV
+	ldy DSTATS
+	rts
+
+dcbopen	.byte $70,1,'o,$80
+	.byte ICBALZ, ICBAHZ
+	.byte $1F
+	.word 256
+	.byte <ICAX1Z, <ICAX2Z
+	
 close	rts
 read	rts	
 write	rts	

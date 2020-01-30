@@ -27,7 +27,7 @@ CONFIG  :=
  
 # Additional C compiler flags and options.
 # Default: none
-CFLAGS  = -Oris --static-locals
+CFLAGS  = -Os
  
 # Additional assembler flags and options.
 # Default: none
@@ -342,7 +342,7 @@ love:
 dist: $(PROGRAM)
 	mkdir -p dist
 	cp autorun.sys dist
-	dir2atr -B dosxl-template/dosxl.obx 720 ../data/http-fetch.atr dist
+	dir2atr -b dos25 720 ../data/tcp.atr dist
 
 ###################################################################
 ###  Place your additional targets in the additional Makefiles  ###
