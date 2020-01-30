@@ -30,18 +30,18 @@
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
 
-enum cmdState_t
-{
-   ID,
-   COMMAND,
-   //AUX1,
-   //AUX2,
-   //CHECKSUM,
-   ACK,
-   NAK,
-   //PROCESS,
-   WAIT
-};
+// enum cmdState_t
+// {
+//    ID,
+//    COMMAND,
+//    //AUX1,
+//    //AUX2,
+//    //CHECKSUM,
+//    ACK,
+//    NAK,
+//    //PROCESS,
+//    WAIT
+// };
 
 union cmdFrame_t {
    struct
@@ -73,7 +73,7 @@ protected:
    int _devnum;
    //String _devname; // causes linker error " undefined reference to `vtable for sioDevice' "
 
-   cmdState_t cmdState; // PROCESS state not used
+   // cmdState_t cmdState; // PROCESS state not used
 
    cmdFrame_t cmdFrame;
 
@@ -106,12 +106,12 @@ class sioBus
 private:
    LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
    unsigned long cmdTimer = 0;
-   enum
-   {
-      BUS_ID,
-      BUS_ACTIVE,
-      BUS_WAIT
-   } busState = BUS_WAIT;
+   // enum
+   // {
+   //    BUS_ID,
+   //    BUS_ACTIVE,
+   //    BUS_WAIT
+   // } busState = BUS_WAIT;
    sioDevice *activeDev = nullptr;
 
    // void sio_get_id();
