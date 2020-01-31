@@ -29,7 +29,7 @@ void _cio_get(void)
       _cio_status();
       buffer_rx_len=OS.dvstat[0];
 
-      if (buffer_rx_len==0)
+      if ((buffer_rx_len==0) || (OS.dvstat[2]==0)) // dvstat[2] = disconnected
 	{
 	  err=ret=136;
 	  return;

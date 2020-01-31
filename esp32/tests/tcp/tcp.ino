@@ -649,9 +649,9 @@ void sio_tcp_status()
   }
   else // aux1 == 0
   {
-    status[0] = sio_clients[device].available() & 0xFF;
+    status[0] = ((sio_clients[device].available() > 255) ? 255 : sio_clients[device].available());
     status[1] = (sio_servers[device] != NULL ? sio_servers[device]->hasClient() : false);
-    status[2] = 0x00; // reserved
+    status[2] = sio_clients[device].connected(); // reserved
     status[3] = 0x00; // reserved
   }
   sio_to_computer((byte *)&status, sizeof(status), err);

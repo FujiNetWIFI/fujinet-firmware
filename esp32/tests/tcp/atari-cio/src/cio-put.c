@@ -34,7 +34,11 @@ void cio_put_flush(void)
 
 void _cio_put(void)
 {
-  if ((ret==0x9b) || (buffer_tx_len>0xFE))
+  if (OS.dvstat[2]==0)
+    {
+      err=136;
+    }
+  else if ((ret==0x9b) || (buffer_tx_len>0xFE))
     {
       buffer_tx[buffer_tx_len++]=0x0d;
       buffer_tx[buffer_tx_len++]=0x0a;
