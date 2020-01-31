@@ -457,6 +457,7 @@ void sio_tcp_open()
 void sio_tcp_open_server()
 {
   char* tdn;
+  char* trn;
   char* tpn;
   int port;
   byte ck;
@@ -464,15 +465,11 @@ void sio_tcp_open_server()
 
   memset(sector, 0x00, sizeof(sector));
   ck = sio_to_peripheral(sector, sizeof(sector));
+
   strip_eol(sector, sizeof(sector));
 
-  if (sio_checksum(sector, sizeof(sector) != ck))
-  {
-    sio_error();
-    return;
-  }
-
   tdn = strtok((char *)&sector, ":");
+  trn = strtok(NULL, ":");
   tpn = strtok(NULL, ":");
   port = atoi(tpn);
 
@@ -483,6 +480,7 @@ void sio_tcp_open_server()
   }
 
   sio_servers[device] = new WiFiServer(port);
+  sio_servers[device]->begin();
   sio_complete();
 }
 
@@ -505,31 +503,33 @@ void sio_tcp_open_client()
 
   strip_eol(sector, sizeof(sector));
 
-  //  if (sio_checksum(sector, sizeof(sector)) != ck)
-  //  {
-  //    sio_error();
-  //    return;
-  //  }
-
-  tdn = strtok((char *)&sector, ":");
-  trn = strtok(NULL, ":");
-  thn = strtok(NULL, ":");
-  tpn = strtok(NULL, ":");
-  port = atoi(tpn);
+  if (sector[strlen((char *)sector) - 1] == ':')
+  {
+    // empty device, just set complete.
+    sio_complete();
+  }
+  else
+  {
+    tdn = strtok((char *)&sector, ":");
+    trn = strtok(NULL, ":");
+    thn = strtok(NULL, ":");
+    tpn = strtok(NULL, ":");
+    port = atoi(tpn);
 
 #ifdef DEBUG
-  printf("device: %d\n", device);
-  printf("tdn: %s\n", tdn);
-  printf("trn: %s\n", trn);
-  printf("thn: %s\n", thn);
-  printf("tpn: %s\n", tpn);
-  printf("port: %d\n", port);
+    printf("device: %d\n", device);
+    printf("tdn: %s\n", tdn);
+    printf("trn: %s\n", trn);
+    printf("thn: %s\n", thn);
+    printf("tpn: %s\n", tpn);
+    printf("port: %d\n", port);
 #endif
 
-  if (sio_clients[device].connect(thn, port) == true)
-    sio_complete();
-  else
-    sio_error();
+    if (sio_clients[device].connect(thn, port) == true)
+      sio_complete();
+    else
+      sio_error();
+  }
 }
 
 /**
@@ -554,9 +554,6 @@ void sio_tcp_read()
   bool err = false;
 
   l = sio_clients[device].read((byte *)&sector, req_len);
-
-  if (l < req_len)
-    err = true;
 
   sio_to_computer((byte *)&sector, req_len, err);
   memset(&sector, 0x00, sizeof(sector));
@@ -650,7 +647,7 @@ void sio_tcp_status()
     status[2] = adapterConfig.dnsIP[2];
     status[3] = adapterConfig.dnsIP[3];
   }
-  else
+  else // aux1 == 0
   {
     status[0] = sio_clients[device].available() & 0xFF;
     status[1] = (sio_servers[device] != NULL ? sio_servers[device]->hasClient() : false);
@@ -688,12 +685,7 @@ void sio_tcp_accept()
   byte device = cmdFrame.devic - 0x70;
   bool err = false;
 
-  if (sio_servers[device] == NULL)
-    err = true;
-  else if (sio_servers[device]->available() == false)
-    err = true;
-  else
-    sio_clients[device] = sio_servers[device]->available();
+  sio_clients[device] = sio_servers[device]->available();
 
   if (err == true)
     sio_error();
