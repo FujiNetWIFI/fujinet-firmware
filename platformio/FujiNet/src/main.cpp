@@ -217,7 +217,7 @@ void setup()
   }
 
   TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  tnfs = TNFS.open("/A820.ATR", "r");
+  tnfs = TNFS.open("/A820.ATR", "r+");
 #ifdef DEBUG_S
   BUG_UART.println("tnfs/A820.ATR");
 #endif
