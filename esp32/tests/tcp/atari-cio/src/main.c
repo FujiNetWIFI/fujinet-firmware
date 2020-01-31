@@ -62,5 +62,5 @@ void main(void)
     print(banner_error);
   
   // Manually setting memlo, is there a symbol that can get me actual top of data?
-  OS.memlo=(void *)0x29A7;
+  OS.memlo=(void *)0x29B7;
 }
