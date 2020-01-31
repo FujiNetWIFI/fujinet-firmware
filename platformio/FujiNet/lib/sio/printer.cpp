@@ -287,8 +287,12 @@ void sioPrinter::pdf_add(std::string S)
   {
     byte c = byte(S[i]);
 
+
+    if (BOLflag && c==EOL)
+      pdf_new_line();
+
     // check for EOL or if at end of line and need automatic CR
-    if ((c == EOL) || (pdf_X > (printWidth - charWidth)))
+    if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth))))
       pdf_end_line();
 
     // start a new line if we need to
