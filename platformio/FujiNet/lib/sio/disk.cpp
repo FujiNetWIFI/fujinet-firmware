@@ -6,12 +6,12 @@ void sioDisk::sio_read()
   // my interpretation of new without tnfs details here
   // todo: update tnfs read with caching
   int ss;
-  unsigned char deviceSlot = cmdFrame.devic - 0x31;
+  // unsigned char deviceSlot = cmdFrame.devic - 0x31;
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   //int cacheOffset = 0;
   int offset;
-  byte *s;
-  byte *d;
+ // byte *s;
+ // byte *d;
   byte err = false;
 
   //firstCachedSector[deviceSlot] = sectorNum;
