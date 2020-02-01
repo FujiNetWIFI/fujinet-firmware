@@ -1,3 +1,32 @@
+/*
+MAJOR REV 2 UPDATE
+            1. the FujiNet SIO 0x70 device (device slots, too)
+in process  2. the SIO read/write/cmdFrame/etc. update
+            3. tnfs update  so we can have more than one server
+            4. R device
+            5. P: update (if needed with 2. SIO update)
+            6. percom inclusion in D devices
+            7. HTTP server
+            8. SD card support
+            9. convert debug messages 
+
+status:
+#2 is parially implemented: changed the command frame reading, ack & nak in the sio_process()
+moved the new sio_to_peripheral and sio_to_computer over to the sioDevice
+updated disk sio_status(), sio_format(), 
+folded in some of sio_write() but left out tnfs caching and atrConfig marked by todo
+updated sio_read() to use new sectorSize and sio_to_computer() features - marked caching by todo
+
+*/
+
+/**
+ * The load_config state is set TRUE on FujiNet power-on/reset. 
+ * A load_config==TRUE throws D1: requests to the FujiNet device. 
+ * When FujiNet sends data about whats in device slots, it sets load_config to FALSE.  
+ * That must allow D1: to boot from a TNFS image on Atari pwer-on/reset.
+*/
+
+
 #include <Arduino.h>
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
@@ -24,6 +53,26 @@
 
 #define TNFS_SERVER "192.168.1.12"
 #define TNFS_PORT 16384
+
+// DEBUGGING MACROS /////////////////////////////////////////////////////////////////////////
+#ifdef DEBUG_S
+#define Debug_print(...) BUG_UART.print( __VA_ARGS__ )
+#define Debug_printf(...) BUG_UART.printf( __VA_ARGS__ )
+#define Debug_println(...) BUG_UART.println( __VA_ARGS__ )
+#define DEBUG
+#endif
+#ifdef DEBUG_N
+#define Debug_print(...) wificlient.print( __VA_ARGS__ )
+#define Debug_printf(...) wificlient.printf( __VA_ARGS__ )
+#define Debug_println(...) wificlient.println( __VA_ARGS__ )
+#define DEBUG
+#endif
+#ifndef DEBUG
+#define Debug_print(...)
+#define Debug_printf(...)
+#define Debug_println(...)
+#endif
+/////////////////////////////////////////////////////////////////////////////////////////////
 
 
 atari820 sioP;
@@ -178,7 +227,7 @@ void setup()
   }
 
   TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  tnfs = TNFS.open("/A820.ATR", "r");
+  tnfs = TNFS.open("/A820.ATR", "r+");
 #ifdef DEBUG_S
   BUG_UART.println("tnfs/A820.ATR");
 #endif

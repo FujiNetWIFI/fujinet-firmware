@@ -10,7 +10,8 @@ class sioDisk : public sioDevice
 private:
     File *_file;
 
-    byte sector[128];
+    byte sectorSize=128;
+    byte sector[256];
 
     //    byte sio_checksum(byte *chunk, int length);
     //    void sio_get_id();
