@@ -13,14 +13,14 @@ byte sio_checksum(byte *chunk, int length)
   return (byte)chkSum;
 }
 
-/*****************************************************************************************
+// *****************************************************************************************
 /**
    sio READ from PERIPHERAL to COMPUTER
    b = buffer to send to Atari
    len = length of buffer
    err = did an error happen before this read?
 */
-void sioDevice::sio_to_computer(byte* b, unsigned short len, bool err)
+void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
 {
   byte ck = sio_checksum(b, len);
 
@@ -45,7 +45,6 @@ void sioDevice::sio_to_computer(byte* b, unsigned short len, bool err)
     Debug_printf("%02x ", b[i]);
   Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
-
 }
 
 /**
@@ -54,13 +53,16 @@ void sioDevice::sio_to_computer(byte* b, unsigned short len, bool err)
    len = length
    returns checksum reported by atari
 */
-byte sioDevice::sio_to_peripheral(byte* b, unsigned short len)
+byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
 {
   byte ck;
 
   // Retrieve data frame from computer
+#ifdef DEBUG_VERBOSE
   size_t l = SIO_UART.readBytes(b, len);
-
+#else
+  SIO_UART.readBytes(b, len);
+#endif
   // Wait for checksum
   while (!SIO_UART.available())
     yield();
@@ -92,7 +94,7 @@ byte sioDevice::sio_to_peripheral(byte* b, unsigned short len)
 
   return ck;
 }
-/*****************************************************************************
+// *****************************************************************************
 
 
 
@@ -320,7 +322,7 @@ void sioBus::service()
   if (digitalRead(PIN_CMD) == LOW)
   {
     sio_led(true);
-// memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
+    // memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
 
 #ifdef ESP8266
     delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
@@ -335,7 +337,7 @@ void sioBus::service()
     byte ck = sio_checksum(tempFrame.cmdFrameData, 4);
     if (ck == tempFrame.cksum)
     {
-    //  busState = BUS_ID;
+      //  busState = BUS_ID;
 #ifdef ESP8266
       delayMicroseconds(DELAY_T1);
 #endif
@@ -359,7 +361,7 @@ void sioBus::service()
             activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
           }
           // activeDev->cmdState = COMMAND;
-         // busState = BUS_ACTIVE;
+          // busState = BUS_ACTIVE;
 #ifdef ESP8266
           delayMicroseconds(DELAY_T3);
 #endif
@@ -479,7 +481,6 @@ void sioBus::setup()
 #ifdef ESP_8266
   SIO_UART.swap();
 #endif
-
 
 #ifdef ESP_8266
 // pins
