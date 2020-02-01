@@ -29,12 +29,6 @@ void _cio_get(void)
       _cio_status();
       buffer_rx_len=OS.dvstat[0];
 
-      if ((buffer_rx_len==0) || (OS.dvstat[2]==0)) // dvstat[2] = disconnected
-	{
-	  err=ret=136;
-	  return;
-	}
-
       err=siov(DEVIC_N,
 	       OS.ziocb.drive,
 	       'r',
@@ -48,30 +42,34 @@ void _cio_get(void)
       rp=&buffer_rx[0];
     }
 
+  if ((buffer_rx_len==0) && (OS.dvstat[2]==0)) // dvstat[2] = disconnected
+    {
+      err=ret=136;
+      return;
+    }
+  else if (buffer_rx_len==0)
+    {
+      err=ret=136;
+      return;
+    }
+  
+  
   if (!(OS.ziocb.command&2)) // GETREC
     {
-      // Convert CR/LF to EOL
-      if ((*rp==0x0d) || (*rp==0x0a))
+      if (*rp==0x0a)
 	{
-	  if (skip_char==true) // did we get another CR or LF?
-	    {
-	      *rp++; // Yes, skip
-	      buffer_rx_len--;
-	      skip_char=false;
-	    }
-	  else
-	    {
-	      *rp=0x9B; // Convert character to EOL
-	      skip_char=true;
-	    }
+	  *rp=0x9b;
 	}
-      else
-	{ // Otherwise we are not skipping a character.
-	  skip_char=false;
+      else if (*rp==0x0d)
+	{
+	  *rp=0x20;
 	}
     }
 
   // Send next char in buffer.
-  buffer_rx_len--;
-  ret=*rp++;
+  if (buffer_rx_len>0)
+    {
+      buffer_rx_len--;
+      ret=*rp++;
+    }
 }
