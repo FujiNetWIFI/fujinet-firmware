@@ -288,8 +288,7 @@ void sioPrinter::pdf_add(std::string S)
   {
     byte c = byte(S[i]);
 
-
-    if (BOLflag && c==EOL)
+    if (BOLflag && c == EOL)
       pdf_new_line();
 
     // check for EOL or if at end of line and need automatic CR
@@ -452,6 +451,8 @@ void sioPrinter::sio_write()
   byte n = 40;
   byte ck;
 
+  memset(buffer, 0, n); // clear buffer
+
   // to do: size buffer based on AUX1:
   // Auxiliary Bytes 1
   // Normal Print (40 Char/Line) = 0x4E
@@ -466,33 +467,49 @@ void sioPrinter::sio_write()
     n = 40;
   else if (cmdFrame.aux1 == 'S')
     n = 29;
-  SIO_UART.readBytes(buffer, n);
-#ifdef DEBUG_S
-  for (int z = 0; z < n; z++)
-  {
-    BUG_UART.print(buffer[z], DEC);
-    BUG_UART.print(" ");
-  }
-  BUG_UART.println();
-#endif
-  ck = SIO_UART.read(); // Read checksum
-  //delayMicroseconds(350);
-  SIO_UART.write('A'); // Write ACK
+
+  // new
+
+  ck = sio_to_peripheral(buffer, n);
 
   if (ck == sio_checksum(buffer, n))
   {
     writeBuffer(buffer, n);
-    delayMicroseconds(DELAY_T5);
-    SIO_UART.write('C');
-    yield();
+    sio_complete();
   }
+  else
+  {
+    sio_error();
+  }
+
+  // old
+  //   SIO_UART.readBytes(buffer, n);
+  // #ifdef DEBUG_S
+  //   for (int z = 0; z < n; z++)
+  //   {
+  //     BUG_UART.print(buffer[z], DEC);
+  //     BUG_UART.print(" ");
+  //   }
+  //   BUG_UART.println();
+  // #endif
+  //   ck = SIO_UART.read(); // Read checksum
+  //   //delayMicroseconds(350);
+  //   SIO_UART.write('A'); // Write ACK
+
+  //   if (ck == sio_checksum(buffer, n))
+  //   {
+  //     writeBuffer(buffer, n);
+  //     delayMicroseconds(DELAY_T5);
+  //     SIO_UART.write('C');
+  //     yield();
+  //   }
 }
 
 // Status
 void sioPrinter::sio_status()
 {
   byte status[4];
-  byte ck;
+  // byte ck;
 
   // status frame per Atari 820 service manual
   /* The printer controller will return a data frame to the computer
@@ -523,22 +540,24 @@ bit 7 - intelligent controller (normally 0)
   status[2] = 5;
   status[3] = 0;
 
-  ck = sio_checksum((byte *)&status, 4);
+  sio_to_computer(status, sizeof(status), false);
 
-  delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C');         // Command always completes.
-  SIO_UART.flush();
-  delayMicroseconds(200);
-  //delay(1);
+  // ck = sio_checksum((byte *)&status, 4);
 
-  // Write data frame
-  for (int i = 0; i < 4; i++)
-    SIO_UART.write(status[i]);
+  // delayMicroseconds(DELAY_T5); // t5 delay
+  // SIO_UART.write('C');         // Command always completes.
+  // SIO_UART.flush();
+  // delayMicroseconds(200);
+  // //delay(1);
 
-  // Write checksum
-  SIO_UART.write(ck);
-  SIO_UART.flush();
-  delayMicroseconds(200);
+  // // Write data frame
+  // for (int i = 0; i < 4; i++)
+  //   SIO_UART.write(status[i]);
+
+  // // Write checksum
+  // SIO_UART.write(ck);
+  // SIO_UART.flush();
+  // delayMicroseconds(200);
 }
 
 // Process command
