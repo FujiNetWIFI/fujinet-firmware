@@ -20,7 +20,7 @@
 #include <WiFiUdp.h>
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-#define DEBUG_S
+// #define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -29,7 +29,7 @@
 // #define DEBUG_SSID ""
 // #define DEBUG_PASSWORD ""
 
-#define DEBUG_VERBOSE 1
+// #define DEBUG_VERBOSE 1
 
 #ifdef ESP8266
 #define SIO_UART Serial
