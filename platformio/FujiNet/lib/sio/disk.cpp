@@ -34,37 +34,93 @@ void sioDisk::sio_read()
 // write for W & P commands
 void sioDisk::sio_write()
 {
+
   byte ck;
+  int ss; // sector size
   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  offset *= 128;
-  offset -= 128;
-  offset += 16; // skip 16 byte ATR Header
-  _file->seek(offset);
+  int sectorNum = offset;
+  // unsigned char deviceSlot = cmdFrame.devic - 0x31;
 
-#ifdef DEBUG_S
-  BUG_UART.printf("receiving 128b data frame from computer.\n");
-#endif
-
-  SIO_UART.readBytes(sector, 128);
-  ck = SIO_UART.read(); // Read checksum
-  //delayMicroseconds(350);
-  SIO_UART.write('A'); // Write ACK
-
-  if (ck == sio_checksum(sector, 128))
+  if (sectorNum < 4)
   {
-    delayMicroseconds(DELAY_T5);
-    SIO_UART.write('C');
-    _file->write(sector, 128);
-    yield();
+    // First three sectors are always single density
+    offset *= 128;
+    offset -= 128;
+    offset += 16; // skip 16 byte ATR Header
+    ss = 128;
   }
+  else
+  {
+    // First three sectors are always single density
+    offset *= sectorSize;
+    offset -= sectorSize;
+    ss = sectorSize;
+
+    // Bias adjustment for 256 bytes
+    if (ss == 256)
+      offset -= 384;
+
+    offset += 16; // skip 16 byte ATR Header
+  }
+
+  memset(sector, 0, 256); // clear buffer
+
+  ck = sio_to_peripheral(sector, ss);
+
+  if (ck == sio_checksum(sector, ss))
+  {
+    // todo:
+    // if (load_config == true)
+    // {
+    //   atrConfig.seek(offset, SeekSet);
+    //   atrConfig.write(sector, ss);
+    //   atrConfig.flush();
+    // }
+    // else
+    //{
+      _file->seek(offset);      // tnfs_seek(deviceSlot, offset);
+      _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
+      // todo: firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
+    //}
+    sio_complete();
+  }
+  else
+  {
+    sio_error();
+  }
+
+  // ************************** old
+  //   byte ck;
+  //   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
+  //   offset *= 128;
+  //   offset -= 128;
+  //   offset += 16; // skip 16 byte ATR Header
+  //   _file->seek(offset);
+
+  // #ifdef DEBUG_S
+  //   BUG_UART.printf("receiving 128b data frame from computer.\n");
+  // #endif
+
+  //   SIO_UART.readBytes(sector, 128);
+  //   ck = SIO_UART.read(); // Read checksum
+  //   //delayMicroseconds(350);
+  //   SIO_UART.write('A'); // Write ACK
+
+  //   if (ck == sio_checksum(sector, 128))
+  //   {
+  //     delayMicroseconds(DELAY_T5);
+  //     SIO_UART.write('C');
+  //     _file->write(sector, 128);
+  //     yield();
+  //   }
 }
 
 // Status
 void sioDisk::sio_status()
 {
 
-//void sio_status()
-//{
+  //void sio_status()
+  //{
   byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
   //byte deviceSlot = cmdFrame.devic - 0x31;
 
@@ -80,9 +136,9 @@ void sioDisk::sio_status()
   // }
 
   sio_to_computer(status, sizeof(status), false); // command always completes.
-//}
+  //}
 
-// old
+  // old
   // byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
   // byte ck;
 
@@ -108,8 +164,8 @@ void sioDisk::sio_status()
 void sioDisk::sio_format()
 {
 
-//void sio_format()
-//{
+  //void sio_format()
+  //{
   //unsigned char deviceSlot = cmdFrame.devic - 0x31;
 
   // Populate bad sector map (no bad sectors)
@@ -123,28 +179,28 @@ void sioDisk::sio_format()
   sio_to_computer((byte *)sector, sectorSize, false);
 //}
 
-  // old
-  // byte ck;
+// old
+// byte ck;
 
-  // for (int i = 0; i < 128; i++)
-  //   sector[i] = 0;
+// for (int i = 0; i < 128; i++)
+//   sector[i] = 0;
 
-  // sector[0] = 0xFF; // no bad sectors.
-  // sector[1] = 0xFF;
+// sector[0] = 0xFF; // no bad sectors.
+// sector[1] = 0xFF;
 
-  // ck = sio_checksum((byte *)&sector, 128);
+// ck = sio_checksum((byte *)&sector, 128);
 
-  // delayMicroseconds(DELAY_T5); // t5 delay
-  // SIO_UART.write('C');         // Completed command
-  // SIO_UART.flush();
+// delayMicroseconds(DELAY_T5); // t5 delay
+// SIO_UART.write('C');         // Completed command
+// SIO_UART.flush();
 
-  // // Write data frame
-  // SIO_UART.write(sector, 128);
+// // Write data frame
+// SIO_UART.write(sector, 128);
 
-  // // Write data frame checksum
-  // SIO_UART.write(ck);
-  // SIO_UART.flush();
-  // delayMicroseconds(200);
+// // Write data frame checksum
+// SIO_UART.write(ck);
+// SIO_UART.flush();
+// delayMicroseconds(200);
 #ifdef DEBUG_S
   BUG_UART.printf("We faked a format.\n");
 #endif
