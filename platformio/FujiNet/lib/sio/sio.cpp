@@ -1,12 +1,5 @@
 #include "sio.h"
 
-// ISR for falling COMMAND
-// volatile bool cmdFlag = false;
-// void ICACHE_RAM_ATTR sio_isr_cmd()
-// {
-//   cmdFlag = true;
-// }
-
 // helper functions outside the class defintions
 
 // calculate 8-bit checksum.
@@ -19,6 +12,89 @@ byte sio_checksum(byte *chunk, int length)
   }
   return (byte)chkSum;
 }
+
+/*****************************************************************************************
+/**
+   sio READ from PERIPHERAL to COMPUTER
+   b = buffer to send to Atari
+   len = length of buffer
+   err = did an error happen before this read?
+*/
+void sioDevice::sio_to_computer(byte* b, unsigned short len, bool err)
+{
+  byte ck = sio_checksum(b, len);
+
+#ifdef ESP8266
+  delayMicroseconds(DELAY_T5);
+#endif
+
+  if (err == true)
+    sio_error();
+  else
+    sio_complete();
+
+  // Write data frame.
+  SIO_UART.write(b, len);
+
+  // Write checksum
+  SIO_UART.write(ck);
+
+#ifdef DEBUG_VERBOSE
+  Debug_printf("TO COMPUTER: ");
+  for (int i = 0; i < len; i++)
+    Debug_printf("%02x ", b[i]);
+  Debug_printf("\nCKSUM: %02x\n\n", ck);
+#endif
+
+}
+
+/**
+   sio WRITE from COMPUTER to PERIPHERAL
+   b = buffer from atari to fujinet
+   len = length
+   returns checksum reported by atari
+*/
+byte sioDevice::sio_to_peripheral(byte* b, unsigned short len)
+{
+  byte ck;
+
+  // Retrieve data frame from computer
+  size_t l = SIO_UART.readBytes(b, len);
+
+  // Wait for checksum
+  while (!SIO_UART.available())
+    yield();
+
+  // Receive Checksum
+  ck = SIO_UART.read();
+
+#ifdef DEBUG_VERBOSE
+  Debug_printf("l: %d\n", l);
+  Debug_printf("TO PERIPHERAL: ");
+  for (int i = 0; i < len; i++)
+    Debug_printf("%02x ", sector[i]);
+  Debug_printf("\nCKSUM: %02x\n\n", ck);
+#endif
+
+#ifdef ESP8266
+  delayMicroseconds(DELAY_T4);
+#endif
+
+  if (sio_checksum(b, len) != ck)
+  {
+    sio_nak();
+    return false;
+  }
+  else
+  {
+    sio_ack();
+  }
+
+  return ck;
+}
+/*****************************************************************************
+
+
 
 /**
    sio NAK
