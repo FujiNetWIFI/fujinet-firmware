@@ -84,6 +84,10 @@ protected:
    //void sio_get_command();
    //void sio_get_aux1();
    //void sio_get_aux2();
+
+   void sio_to_computer(byte* b, unsigned short len, bool err);
+   byte sio_to_peripheral(byte* b, unsigned short len);
+
    void sio_ack();
    void sio_nak();
    //void sio_get_checksum();
