@@ -15,10 +15,16 @@ status:
 moved the new sio_to_peripheral and sio_to_computer over to the sioDevice
 updated disk sio_status(), sio_format(), 
 folded in some of sio_write() but left out tnfs caching and atrConfig marked by todo
-
+updated sio_read() to use new sectorSize and sio_to_computer() features - marked caching by todo
 
 */
 
+/**
+ * The load_config state is set TRUE on FujiNet power-on/reset. 
+ * A load_config==TRUE throws D1: requests to the FujiNet device. 
+ * When FujiNet sends data about whats in device slots, it sets load_config to FALSE.  
+ * That must allow D1: to boot from a TNFS image on Atari pwer-on/reset.
+*/
 
 
 #include <Arduino.h>

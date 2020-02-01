@@ -3,32 +3,68 @@
 // Read
 void sioDisk::sio_read()
 {
-  byte ck;
-  int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  offset *= 128;
-  offset -= 128;
-  offset += 16;        // skip 16 byte ATR Header
-  _file->seek(offset); //SeekSet is default
-  _file->read(sector, 128);
+  // my interpretation of new without tnfs details here
+  // todo: update tnfs read with caching
+  int ss;
+  unsigned char deviceSlot = cmdFrame.devic - 0x31;
+  int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
+  //int cacheOffset = 0;
+  int offset;
+  byte *s;
+  byte *d;
+  byte err = false;
 
-  ck = sio_checksum((byte *)&sector, 128);
-  delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C');         // Completed command
-  SIO_UART.flush();
+  //firstCachedSector[deviceSlot] = sectorNum;
+  //cacheOffset = 0;
 
-  // Write data frame
-  SIO_UART.write(sector, 128);
+  if (sectorNum < 4)
+    ss = 128; // First three sectors are always single density
+  else
+    ss = sectorSize;
 
-  // Write data frame checksum
-  SIO_UART.write(ck);
-  SIO_UART.flush();
-  delayMicroseconds(200);
-#ifdef DEBUG_S
-  BUG_UART.print("SIO READ OFFSET: ");
-  BUG_UART.print(offset);
-  BUG_UART.print(" - ");
-  BUG_UART.println((offset + 128));
-#endif
+  offset = sectorNum;
+  offset *= ss;
+  offset -= ss;
+
+  // Bias adjustment for 256 bytes
+  if (ss == 256)
+    offset -= 384;
+
+  offset += 16;
+
+  _file->seek(offset); //tnfs_seek(deviceSlot, offset);
+
+  _file->read(sector, ss);
+
+   sio_to_computer((byte *)&sector, ss, err);
+
+  // old ******************************************************
+  //  byte ck;
+//   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
+//   offset *= 128;
+//   offset -= 128;
+//   offset += 16;        // skip 16 byte ATR Header
+//   _file->seek(offset); //SeekSet is default
+//   _file->read(sector, 128);
+
+//   ck = sio_checksum((byte *)&sector, 128);
+//   delayMicroseconds(DELAY_T5); // t5 delay
+//   SIO_UART.write('C');         // Completed command
+//   SIO_UART.flush();
+
+//   // Write data frame
+//   SIO_UART.write(sector, 128);
+
+//   // Write data frame checksum
+//   SIO_UART.write(ck);
+//   SIO_UART.flush();
+//   delayMicroseconds(200);
+// #ifdef DEBUG_S
+//   BUG_UART.print("SIO READ OFFSET: ");
+//   BUG_UART.print(offset);
+//   BUG_UART.print(" - ");
+//   BUG_UART.println((offset + 128));
+// #endif
 }
 
 // write for W & P commands
@@ -78,9 +114,9 @@ void sioDisk::sio_write()
     // }
     // else
     //{
-      _file->seek(offset);      // tnfs_seek(deviceSlot, offset);
-      _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
-      // todo: firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
+    _file->seek(offset);      // tnfs_seek(deviceSlot, offset);
+    _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
+    // todo: firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
     //}
     sio_complete();
   }
@@ -88,31 +124,6 @@ void sioDisk::sio_write()
   {
     sio_error();
   }
-
-  // ************************** old
-  //   byte ck;
-  //   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  //   offset *= 128;
-  //   offset -= 128;
-  //   offset += 16; // skip 16 byte ATR Header
-  //   _file->seek(offset);
-
-  // #ifdef DEBUG_S
-  //   BUG_UART.printf("receiving 128b data frame from computer.\n");
-  // #endif
-
-  //   SIO_UART.readBytes(sector, 128);
-  //   ck = SIO_UART.read(); // Read checksum
-  //   //delayMicroseconds(350);
-  //   SIO_UART.write('A'); // Write ACK
-
-  //   if (ck == sio_checksum(sector, 128))
-  //   {
-  //     delayMicroseconds(DELAY_T5);
-  //     SIO_UART.write('C');
-  //     _file->write(sector, 128);
-  //     yield();
-  //   }
 }
 
 // Status
