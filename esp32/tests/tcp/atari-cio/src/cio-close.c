@@ -13,8 +13,12 @@ extern unsigned char ret;
 extern unsigned char aux1_save[8];
 extern unsigned char aux2_save[8];
 
+extern void cio_put_flush(void);
+
 void _cio_close(void)
 {
+  cio_put_flush();
+  
   siov(DEVIC_N,OS.ziocb.drive,
 	       'c',
 	       DSTATS_NONE,
