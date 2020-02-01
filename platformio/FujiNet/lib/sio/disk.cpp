@@ -62,51 +62,89 @@ void sioDisk::sio_write()
 // Status
 void sioDisk::sio_status()
 {
-  byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
-  byte ck;
 
-  ck = sio_checksum((byte *)&status, 4);
+//void sio_status()
+//{
+  byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
+  //byte deviceSlot = cmdFrame.devic - 0x31;
 
-  delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C');         // Command always completes.
-  SIO_UART.flush();
-  delayMicroseconds(200);
-  //delay(1);
+  if (sectorSize == 256)
+  {
+    status[0] |= 0x20;
+  }
 
-  // Write data frame
-  for (int i = 0; i < 4; i++)
-    SIO_UART.write(status[i]);
+  // todo:
+  // if (percomBlock[deviceSlot].sectors_per_trackL == 26)
+  // {
+  //   status[0] |= 0x80;
+  // }
 
-  // Write checksum
-  SIO_UART.write(ck);
-  SIO_UART.flush();
-  delayMicroseconds(200);
+  sio_to_computer(status, sizeof(status), false); // command always completes.
+//}
+
+// old
+  // byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
+  // byte ck;
+
+  // ck = sio_checksum((byte *)&status, 4);
+
+  // delayMicroseconds(DELAY_T5); // t5 delay
+  // SIO_UART.write('C');         // Command always completes.
+  // SIO_UART.flush();
+  // delayMicroseconds(200);
+  // //delay(1);
+
+  // // Write data frame
+  // for (int i = 0; i < 4; i++)
+  //   SIO_UART.write(status[i]);
+
+  // // Write checksum
+  // SIO_UART.write(ck);
+  // SIO_UART.flush();
+  // delayMicroseconds(200);
 }
 
 // fake disk format
 void sioDisk::sio_format()
 {
-  byte ck;
 
-  for (int i = 0; i < 128; i++)
+//void sio_format()
+//{
+  //unsigned char deviceSlot = cmdFrame.devic - 0x31;
+
+  // Populate bad sector map (no bad sectors)
+  for (int i = 0; i < sectorSize; i++)
     sector[i] = 0;
 
   sector[0] = 0xFF; // no bad sectors.
   sector[1] = 0xFF;
 
-  ck = sio_checksum((byte *)&sector, 128);
+  // Send to computer
+  sio_to_computer((byte *)sector, sectorSize, false);
+//}
 
-  delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C');         // Completed command
-  SIO_UART.flush();
+  // old
+  // byte ck;
 
-  // Write data frame
-  SIO_UART.write(sector, 128);
+  // for (int i = 0; i < 128; i++)
+  //   sector[i] = 0;
 
-  // Write data frame checksum
-  SIO_UART.write(ck);
-  SIO_UART.flush();
-  delayMicroseconds(200);
+  // sector[0] = 0xFF; // no bad sectors.
+  // sector[1] = 0xFF;
+
+  // ck = sio_checksum((byte *)&sector, 128);
+
+  // delayMicroseconds(DELAY_T5); // t5 delay
+  // SIO_UART.write('C');         // Completed command
+  // SIO_UART.flush();
+
+  // // Write data frame
+  // SIO_UART.write(sector, 128);
+
+  // // Write data frame checksum
+  // SIO_UART.write(ck);
+  // SIO_UART.flush();
+  // delayMicroseconds(200);
 #ifdef DEBUG_S
   BUG_UART.printf("We faked a format.\n");
 #endif

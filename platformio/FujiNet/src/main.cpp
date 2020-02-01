@@ -12,6 +12,9 @@ in process  2. the SIO read/write/cmdFrame/etc. update
 
 status:
 #2 is parially implemented: changed the command frame reading, ack & nak in the sio_process()
+moved the new sio_to_peripheral and sio_to_computer over to the sioDevice
+updated disk sio_status(), sio_format(), 
+sio_write is next....
 
 */
 
