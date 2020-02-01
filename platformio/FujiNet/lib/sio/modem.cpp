@@ -66,7 +66,7 @@ void sioModem::sio_control()
   }
 
   delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C'); // Command complete
+  SIO_UART.write('C');         // Command complete
   SIO_UART.flush();
 }
 
@@ -76,7 +76,7 @@ void sioModem::sio_control()
 void sioModem::sio_config()
 {
   delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C'); // Command complete
+  SIO_UART.write('C');         // Command complete
   SIO_UART.flush();
 
   byte newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
@@ -85,30 +85,30 @@ void sioModem::sio_config()
 
   switch (newBaud)
   {
-    case 0x08:
-      modemBaud = 300;
-      break;
-    case 0x09:
-      modemBaud = 600;
-      break;
-    case 0xA:
-      modemBaud = 1200;
-      break;
-    case 0x0B:
-      modemBaud = 1800;
-      break;
-    case 0x0C:
-      modemBaud = 2400;
-      break;
-    case 0x0D:
-      modemBaud = 4800;
-      break;
-    case 0x0E:
-      modemBaud = 9600;
-      break;
-    case 0x0F:
-      modemBaud = 19200;
-      break;
+  case 0x08:
+    modemBaud = 300;
+    break;
+  case 0x09:
+    modemBaud = 600;
+    break;
+  case 0xA:
+    modemBaud = 1200;
+    break;
+  case 0x0B:
+    modemBaud = 1800;
+    break;
+  case 0x0C:
+    modemBaud = 2400;
+    break;
+  case 0x0D:
+    modemBaud = 4800;
+    break;
+  case 0x0E:
+    modemBaud = 9600;
+    break;
+  case 0x0F:
+    modemBaud = 19200;
+    break;
   }
 }
 
@@ -122,48 +122,48 @@ void sioModem::sio_stream()
 
   switch (modemBaud)
   {
-    case 300:
-      response[0] = response[4] = 0xA0;
-      response[2] = response[6] = 0x0B;
-      break;
-    case 600:
-      response[0] = response[4] = 0xCC;
-      response[2] = response[6] = 0x05;
-      break;
-    case 1200:
-      response[0] = response[4] = 0xE3;
-      response[2] = response[6] = 0x02;
-      break;
-    case 1800:
-      response[0] = response[4] = 0xEA;
-      response[2] = response[6] = 0x01;
-      break;
-    case 2400:
-      response[0] = response[4] = 0x6E;
-      response[2] = response[6] = 0x01;
-      break;
-    case 4800:
-      response[0] = response[4] = 0xB3;
-      response[2] = response[6] = 0x00;
-      break;
-    case 9600:
-      response[0] = response[4] = 0x56;
-      response[2] = response[6] = 0x00;
-      break;
-    case 19200:
-      response[0] = response[4] = 0x28;
-      response[2] = response[6] = 0x00;
-      break;
+  case 300:
+    response[0] = response[4] = 0xA0;
+    response[2] = response[6] = 0x0B;
+    break;
+  case 600:
+    response[0] = response[4] = 0xCC;
+    response[2] = response[6] = 0x05;
+    break;
+  case 1200:
+    response[0] = response[4] = 0xE3;
+    response[2] = response[6] = 0x02;
+    break;
+  case 1800:
+    response[0] = response[4] = 0xEA;
+    response[2] = response[6] = 0x01;
+    break;
+  case 2400:
+    response[0] = response[4] = 0x6E;
+    response[2] = response[6] = 0x01;
+    break;
+  case 4800:
+    response[0] = response[4] = 0xB3;
+    response[2] = response[6] = 0x00;
+    break;
+  case 9600:
+    response[0] = response[4] = 0x56;
+    response[2] = response[6] = 0x00;
+    break;
+  case 19200:
+    response[0] = response[4] = 0x28;
+    response[2] = response[6] = 0x00;
+    break;
   }
 
   ck = sio_checksum((byte *)response, 9); // Get the CHECKSUM
 
   delayMicroseconds(DELAY_T5); // t5 delay
-  SIO_UART.write('C'); // Completed command
+  SIO_UART.write('C');         // Completed command
   SIO_UART.flush();
 
   SIO_UART.write((byte *)response, 9); // Send the response
-  SIO_UART.write(ck); // Write data frame checksum
+  SIO_UART.write(ck);                  // Write data frame checksum
   SIO_UART.flush();
 
   SIO_UART.updateBaudRate(modemBaud);
@@ -175,30 +175,37 @@ void sioModem::sio_process()
 {
   switch (cmdFrame.comnd)
   {
-    case '!': // $21, Relocator Download
-      //sio_relocator();
-      break;
-    case '&': // $26, Handler download
-      //sio_handler();
-      break;
-    case '?': // $3F, Type 1 Poll
-      //sio_poll_1();
-      break;
-    case 'A': // $41, Control
-      //sio_control();
-      break;
-    case 'B': // $42, Configure
-      //sio_config();
-      break;
-    case 'S': // $53, Status
-      sio_status();
-      break;
-    case 'W': // $57, Write
-      sio_write();
-      break;
-    case 'X': // $58, Concurrent/Stream
-      sio_stream();
-      break;
+  // TODO: put in sio_ack() for valid commands
+  case '!': // $21, Relocator Download
+            // sio_ack();
+    //sio_relocator();
+    break;
+  case '&': // $26, Handler download
+    //sio_handler();
+    break;
+  case '?': // $3F, Type 1 Poll
+    //sio_poll_1();
+    break;
+  case 'A': // $41, Control
+    //sio_control();
+    break;
+  case 'B': // $42, Configure
+    //sio_config();
+    break;
+  case 'S': // $53, Status
+    sio_ack();
+    sio_status();
+    break;
+  case 'W': // $57, Write
+    sio_ack();
+    sio_write();
+    break;
+  case 'X': // $58, Concurrent/Stream
+    sio_ack();
+    sio_stream();
+    break;
+  default:
+    sio_nak();
   }
-  cmdState = WAIT;
+ // cmdState = WAIT;
 }
