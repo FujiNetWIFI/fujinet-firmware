@@ -117,6 +117,7 @@ endobj
 
 void sioPrinter::pdf_xref()
 {
+  int max_objCtr = pdf_objCtr;
   pdf_objCtr = 2;
   objLocations[pdf_objCtr] = _file->position(); // hard code page catalog as object #2
   _file->printf("2 0 obj\n<</Type /Pages /Kids [ ");
@@ -126,15 +127,15 @@ void sioPrinter::pdf_xref()
   }
   _file->printf("] /Count %d>>\nendobj\n", pdf_pageCounter);
   size_t xref = _file->position();
-  pdf_objCtr++;
+  max_objCtr++;
   _file->printf("xref\n");
-  _file->printf("0 %u\n", pdf_objCtr);
+  _file->printf("0 %u\n", max_objCtr);
   _file->printf("0000000000 65535 f\n");
-  for (int i = 1; i < pdf_objCtr; i++)
+  for (int i = 1; i < max_objCtr; i++)
   {
     _file->printf("%010u 00000 n\n", objLocations[i]);
   }
-  _file->printf("trailer <</Size %u/Root 1 0 R>>\n", pdf_objCtr);
+  _file->printf("trailer <</Size %u/Root 1 0 R>>\n", max_objCtr);
   _file->printf("startxref\n");
   _file->printf("%u\n", xref);
   _file->printf("%%%%EOF\n");
@@ -287,8 +288,12 @@ void sioPrinter::pdf_add(std::string S)
   {
     byte c = byte(S[i]);
 
+
+    if (BOLflag && c==EOL)
+      pdf_new_line();
+
     // check for EOL or if at end of line and need automatic CR
-    if ((c == EOL) || (pdf_X > (printWidth - charWidth)))
+    if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth))))
       pdf_end_line();
 
     // start a new line if we need to
@@ -542,13 +547,17 @@ void sioPrinter::sio_process()
   switch (cmdFrame.comnd)
   {
   case 'W':
+    sio_ack();
     sio_write();
     lastAux1 = cmdFrame.aux1;
     break;
   case 'S':
+    sio_ack();
     sio_status();
     break;
+  default:
+    sio_nak();
   }
-  cmdState = WAIT;
+  // cmdState = WAIT;
   //cmdTimer = 0;
 }
