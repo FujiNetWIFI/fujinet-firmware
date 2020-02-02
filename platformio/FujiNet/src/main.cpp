@@ -8,25 +8,23 @@ in process  2. the SIO read/write/cmdFrame/etc. update
             6. percom inclusion in D devices
             7. HTTP server
             8. SD card support
-            9. convert debug messages 
+            9. convert debug messages
 
 status:
 #2 is parially implemented: changed the command frame reading, ack & nak in the sio_process()
 moved the new sio_to_peripheral and sio_to_computer over to the sioDevice
-updated disk sio_status(), sio_format(), 
+updated disk sio_status(), sio_format(),
 folded in some of sio_write() but left out tnfs caching and atrConfig marked by todo
 updated sio_read() to use new sectorSize and sio_to_computer() features - marked caching by todo
 
 */
 
 /**
- * The load_config state is set TRUE on FujiNet power-on/reset. 
- * A load_config==TRUE throws D1: requests to the FujiNet device. 
- * When FujiNet sends data about whats in device slots, it sets load_config to FALSE.  
+ * The load_config state is set TRUE on FujiNet power-on/reset.
+ * A load_config==TRUE throws D1: requests to the FujiNet device.
+ * When FujiNet sends data about whats in device slots, it sets load_config to FALSE.
  * That must allow D1: to boot from a TNFS image on Atari pwer-on/reset.
 */
-
-
 #include <Arduino.h>
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
@@ -38,42 +36,21 @@ updated sio_read() to use new sectorSize and sio_to_computer() features - marked
 
 #define PRINTMODE PDF
 
-// #ifdef ESP_8266
-// #include <FS.h>
-// #define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
-// #elif defined(ESP_32)
-#include <SPIFFS.h>
-// #endif
+#ifdef ESP8266
+#include <FS.h>
+#include <ESP8266WiFi.h>
+#define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
+#endif
 
-//#ifdef ESP_8266
-//#include <ESP8266WiFi.h>
-//#elif defined(ESP_32)
+#ifdef ESP32
+#include <SPIFFS.h>
+#include <SD.h>
+#include <SPI.h>
 #include <WiFi.h>
-//#endif
+#endif
 
 #define TNFS_SERVER "192.168.1.12"
 #define TNFS_PORT 16384
-
-// DEBUGGING MACROS /////////////////////////////////////////////////////////////////////////
-#ifdef DEBUG_S
-#define Debug_print(...) BUG_UART.print( __VA_ARGS__ )
-#define Debug_printf(...) BUG_UART.printf( __VA_ARGS__ )
-#define Debug_println(...) BUG_UART.println( __VA_ARGS__ )
-#define DEBUG
-#endif
-#ifdef DEBUG_N
-#define Debug_print(...) wificlient.print( __VA_ARGS__ )
-#define Debug_printf(...) wificlient.printf( __VA_ARGS__ )
-#define Debug_println(...) wificlient.println( __VA_ARGS__ )
-#define DEBUG
-#endif
-#ifndef DEBUG
-#define Debug_print(...)
-#define Debug_printf(...)
-#define Debug_println(...)
-#endif
-/////////////////////////////////////////////////////////////////////////////////////////////
-
 
 atari820 sioP;
 File atr[2];
@@ -233,6 +210,59 @@ void setup()
 #endif
   sioD[1].mount(&tnfs);
   SIO.addDevice(&sioD[1], 0x31 + 1);
+
+/*
+  if(!SD.begin(5))
+  {
+#ifdef DEBUG
+    Debug_println("SD Card Mount Failed");
+#endif
+    // Revert to SPIFFS
+    SPIFFS.begin();
+    atr[0] = SPIFFS.open("/autorun.atr", "r+");
+    sioD[0].mount(&atr[0]);
+  }
+  else
+  {
+    atr[0] = SD.open("/autorun.atr", "r+");
+    if (!atr[0])
+    {
+#ifdef DEBUG
+      Debug_println("Unable to mount autorun.atr from SD Card");
+#endif
+      // Revert to SPIFFS
+      SPIFFS.begin();
+      atr[0] = SPIFFS.open("/autorun.atr", "r+");
+      sioD[0].mount(&atr[0]);
+    }
+    else
+    {
+      sioD[0].mount(&atr[0]);
+#ifdef DEBUG
+      Debug_println("Mounted autorun.atr from SD Card");
+#endif
+    }
+#ifdef DEBUG
+    Debug_print("SD Card Type: ");
+    switch (SD.cardType())
+    {
+      case CARD_MMC:
+        Debug_println("MMC");
+        break;
+      case CARD_SD:
+        Debug_println("SDSC");
+        break;
+      case CARD_SDHC:
+        Debug_println("SDHC");
+        break;
+      default:
+        Debug_println("UNKNOWN");
+        break;
+    }
+#endif
+  }
+  SIO.addDevice(&sioD[0], 0x31 + 0);
+*/
 
 #ifdef DEBUG_S
   BUG_UART.print(SIO.numDevices());
