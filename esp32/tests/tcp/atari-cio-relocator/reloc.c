@@ -12,11 +12,37 @@
 #include <string.h>
 #include <stdbool.h>
 #include <peekpoke.h>
+#include <conio.h>
 
 typedef unsigned int  word;
 typedef unsigned char byte;
 
+
+/*
+ * atari symbols - sometimes generates shorter code than 
+ * using the atari.h symbols.
+ */
 #define MEMLO *((word *) 0x02e7)
+
+
+/*
+ * assembly instructions we need to remap
+ */
+#define JMP  0x4c		/* JMP oper    */
+#define JSR  0x20		/* JSR oper    */
+#define LDA  0xad		/* LDA oper    */
+#define LDAX 0xbd		/* LDA oper,x  */
+#define LDAY 0xb9		/* LDA oper,y  */
+#define STA  0x8d		/* STA oper    */
+#define STAX 0x9d		/* STA oper,x  */
+#define STAY 0x99		/* STA oper,y  */
+#define STX  0x8e		/* STX oper    */
+#define LDX  0xae		/* LDX oper    */
+#define LDXY 0xbe               /* LDX oper,y  */
+#define STY  0x8c		/* STY oper    */
+#define LDY  0xac		/* LDY oper    */
+#define LDYX 0xbc 		/* LDY oper,x  */
+
 
 /*
  * exported symbols from rel.s
@@ -27,22 +53,48 @@ extern void function2( void );
 extern void function3( void );
 
 
+/*
+ * globals
+ */
 word (*funcptr1)( void );
 word (*funcptr2)( void );
 word (*funcptr3)( void );
+word memory_delta = 0;
+word code_size = 0;
+word destination = 0;
+word fixes = 0;
+word base_function_table = 0;
+word index = 0;
+
+
+void remap( byte instruction ) {
+  word index = 0;
+
+  printf("\n   %3u", instruction );
+  
+  for( index = MEMLO; index < MEMLO + code_size; index++ ) {
+    if( PEEK( index ) == instruction  ) {
+      destination = PEEKW( index + 1 );
+      if( destination >= (word)&reloc_begin && destination <= (word)&reloc_end ) {
+	destination -= memory_delta;
+	POKEW( index + 1, destination );
+	fixes += 1;
+	index += 3;
+      }
+    }
+  }  
+}
+
 
 void main( void ) {
-  word memory_delta = 0;
-  word code_size = 0;
-  word destination = 0;
-  word fixes = 0;
-  word base_function_table = 0;
-  word index = 0;
   
   /*
    * copy relocable code to MEMLO
    * and adjust MEMLO up.
    */
+  clrscr();
+  printf("Copying...\n");
+  
   code_size    = (word)&reloc_end - (word)&reloc_begin;
   memory_delta = (word)&reloc_begin - MEMLO;
   memcpy( MEMLO, &reloc_begin, code_size );
@@ -56,25 +108,34 @@ void main( void ) {
   POKEW( MEMLO + 4, PEEKW( MEMLO + 4 ) - memory_delta );
 
   /*
-   * fix JMPs and JSRs within memory region
+   * fix certain types of addresses
    */
-  for( index = MEMLO; index < MEMLO + code_size; index++ ) {
-    if( PEEK( index ) == 0x4c || PEEK( index ) == 0x20 ) {
-      destination = PEEKW( index + 1 );
-      if( destination >= (word)&reloc_begin && destination <= (word)&reloc_end ) {
-	destination -= memory_delta;
-	POKEW( index + 1, destination );
-	fixes += 1;
-	index += 3;		/* skip over JMP/JSR we modified */
-      }
-    }
-  }
+  printf("Remapping: ");
+  remap( JMP   );
+  remap( JSR   );
+  remap( LDA   );
+  remap( LDAX  );
+  remap( LDAY  );
+  remap( STA   );
+  remap( STAX  );
+  remap( STAY  );
+  remap( STX   );
+  remap( LDX   );
+  remap( LDXY  );
+  remap( STY   );
+  remap( LDY   );
+  remap( LDYX  );
 
+  clrscr();
+  
   /* 
    * adjust memlo up to protect our routines
    */
   MEMLO += code_size + 1;
-  
+
+  /*
+   * print report
+   */
   funcptr1 = PEEKW( base_function_table );
   funcptr2 = PEEKW( base_function_table + 2 );
   funcptr3 = PEEKW( base_function_table + 4 );
