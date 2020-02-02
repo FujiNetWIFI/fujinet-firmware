@@ -323,6 +323,16 @@ void sioBus::service()
   {
     sio_led(true);
     // memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
+#ifdef MODEM_H
+    if (modemActive)
+    {
+      modemActive = false;
+      SIO_UART.updateBaudRate(sioBaud);
+#ifdef DEBUG
+      Debug_println("SIO Baud");
+#endif
+    }
+#endif
 
 #ifdef ESP8266
     delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
@@ -404,7 +414,16 @@ void sioBus::service()
       //       }
     }
     sio_led(false);
-  } // command line low
+  } // END command line low
+#ifdef MODEM_H
+  else if (modemActive)
+  {
+    sio_handle_modem(); // Handle the modem
+#ifdef DEBUG
+    Debug_println("Handling modem");
+#endif
+  }
+#endif
   else
   {
     sio_led(false);
@@ -477,7 +496,7 @@ void sioBus::service()
 void sioBus::setup()
 {
   // Set up serial
-  SIO_UART.begin(19200);
+  SIO_UART.begin(sioBaud);
 #ifdef ESP_8266
   SIO_UART.swap();
 #endif
