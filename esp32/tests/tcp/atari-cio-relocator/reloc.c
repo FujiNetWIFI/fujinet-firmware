@@ -34,8 +34,10 @@ word (*funcptr3)( void );
 void main( void ) {
   word memory_delta = 0;
   word code_size = 0;
+  word destination = 0;
+  word fixes = 0;
   word base_function_table = 0;
-  word a = 0;
+  word index = 0;
   
   /*
    * copy relocable code to MEMLO
@@ -53,6 +55,21 @@ void main( void ) {
   POKEW( MEMLO + 2, PEEKW( MEMLO + 2 ) - memory_delta );
   POKEW( MEMLO + 4, PEEKW( MEMLO + 4 ) - memory_delta );
 
+  /*
+   * fix JMPs and JSRs within memory region
+   */
+  for( index = MEMLO; index < MEMLO + code_size; index++ ) {
+    if( PEEK( index ) == 0x4c || PEEK( index ) == 0x20 ) {
+      destination = PEEKW( index + 1 );
+      if( destination >= (word)&reloc_begin && destination <= (word)&reloc_end ) {
+	destination -= memory_delta;
+	POKEW( index + 1, destination );
+	fixes += 1;
+	index += 3;		/* skip over JMP/JSR we modified */
+      }
+    }
+  }
+
   /* 
    * adjust memlo up to protect our routines
    */
@@ -62,9 +79,17 @@ void main( void ) {
   funcptr2 = PEEKW( base_function_table + 2 );
   funcptr3 = PEEKW( base_function_table + 4 );
 
-  printf("\n\nMEMLO     = %u\n", MEMLO );
-  printf("F1 addr   = %u\n", funcptr1 );
-  printf("F2 addr   = %u\n", funcptr2 );
-  printf("F3 addr   = %u\n", funcptr3 );
-  printf("\n\nFunctions loaded...now for BASIC...\n");
+  printf("\n");
+  printf("-[ Relocator ]--------------------\n\n");
+  printf("MEMLO     = %6u\n", MEMLO );
+  printf("Fixes     = %6u\n", fixes );
+  printf("F1 addr   = %6u\n", funcptr1 );
+  printf("F2 addr   = %6u\n", funcptr2 );
+  printf("F3 addr   = %6u\n", funcptr3 );
+  printf("\nUsage:\n");
+  printf("  ? usr( %u ) [prints 1]\n", funcptr1 );
+  printf("  ? usr( %u ) [prints 2]\n", funcptr2 );
+  printf("  ? usr( %u ) [prints 4]\n", funcptr3 );
+  printf("\n--------------[ Ready for BASIC ]-\n");
+  
 }
