@@ -31,19 +31,6 @@
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
 
-// enum cmdState_t
-// {
-//    ID,
-//    COMMAND,
-//    //AUX1,
-//    //AUX2,
-//    //CHECKSUM,
-//    ACK,
-//    NAK,
-//    //PROCESS,
-//    WAIT
-// };
-
 union cmdFrame_t {
    struct
    {
@@ -56,16 +43,11 @@ union cmdFrame_t {
    byte cmdFrameData[5];
 };
 
-/**
-   ISR for falling COMMAND
-*/
-// void ICACHE_RAM_ATTR sio_isr_cmd();
-
 //helper functions
 byte sio_checksum(byte *chunk, int length);
 
 // class def'ns
-class sioBus;
+class sioBus; // declare early so can be friend
 class sioDevice
 {
 protected:
@@ -74,20 +56,10 @@ protected:
    int _devnum;
    //String _devname; // causes linker error " undefined reference to `vtable for sioDevice' "
 
-   // cmdState_t cmdState; // PROCESS state not used
-
    cmdFrame_t cmdFrame;
 
-   // unsigned long cmdTimer = 0;
-
-   //byte sio_checksum(byte *chunk, int length); // moved outside the class def'n
-   //void sio_get_id();
-   //void sio_get_command();
-   //void sio_get_aux1();
-   //void sio_get_aux2();
-
-   void sio_to_computer(byte* b, unsigned short len, bool err);
-   byte sio_to_peripheral(byte* b, unsigned short len);
+   void sio_to_computer(byte *b, unsigned short len, bool err);
+   byte sio_to_peripheral(byte *b, unsigned short len);
 
    void sio_ack();
    void sio_nak();
@@ -96,14 +68,9 @@ protected:
    void sio_error();
    virtual void sio_status();
    virtual void sio_process();
-   //void sio_incoming();
-
+  
 public:
-   //sioDevice() : cmdState(WAIT){};
-   //sioDevice(int devnum) : _devnum(devnum), cmdState(WAIT){};
-   //void service();
    int id() { return _devnum; };
-   //String name() { return _devname; };
 };
 
 class sioBus
@@ -111,25 +78,19 @@ class sioBus
 private:
    LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
    unsigned long cmdTimer = 0;
-   // enum
-   // {
-   //    BUS_ID,
-   //    BUS_ACTIVE,
-   //    BUS_WAIT
-   // } busState = BUS_WAIT;
    sioDevice *activeDev = nullptr;
 
-   // void sio_get_id();
    void sio_led(bool onOff);
 
 public:
-   void setup();
-   void service();
-   void addDevice(sioDevice *p, int N); //, String name);
-   void remDevice(sioDevice *p);
-   sioDevice *device(int i);
    int numDevices();
    long sioBaud = 19200; // SIO Baud rate
+
+   void setup();
+   void service();
+   void addDevice(sioDevice *p, int N);
+   void remDevice(sioDevice *p);
+   sioDevice *device(int i);
 };
 
 extern sioBus SIO;
