@@ -316,9 +316,7 @@ void sioDevice::sio_error()
 
 void sioBus::service()
 {
-
-  //***************************************************************************************
-  int a;
+ int a;
   if (digitalRead(PIN_CMD) == LOW)
   {
     sio_led(true);
@@ -347,7 +345,6 @@ void sioBus::service()
     byte ck = sio_checksum(tempFrame.cmdFrameData, 4);
     if (ck == tempFrame.cksum)
     {
-      //  busState = BUS_ID;
 #ifdef ESP8266
       delayMicroseconds(DELAY_T1);
 #endif
@@ -370,24 +367,12 @@ void sioBus::service()
           {
             activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
           }
-          // activeDev->cmdState = COMMAND;
-          // busState = BUS_ACTIVE;
 #ifdef ESP8266
           delayMicroseconds(DELAY_T3);
 #endif
           activeDev->sio_process(); // execute command
         }
-        // else
-        // {
-        //   device(i)->cmdState = WAIT;
-        // }
       }
-
-      // if (busState == BUS_ID)
-      // {
-      //   busState = BUS_WAIT;
-      // }
-
     } // valid checksum
     else
     { // HIGHSPEED
@@ -432,64 +417,6 @@ void sioBus::service()
       while (SIO_UART.available())
         SIO_UART.read(); // dump it.
   }
-  //***************************************************************************************
-
-  // REV2: remove ISR and just poll PIN_CMD
-  /*
-  if (cmdFlag)
-  {
-  if (digitalRead(PIN_CMD) == LOW) // this check may not be necessary
-  {
-    busState = BUS_ID;
-    cmdTimer = millis();
-    //cmdFlag = false;
-  }
-  }
-
-  if (SIO_UART.available() > 0)
-  {
-    switch (busState)
-    {
-    case BUS_ID:
-      sio_get_id();
-      break;
-    case BUS_ACTIVE:
-      if (activeDev != nullptr)
-      {
-        activeDev->sio_incoming();
-        if (activeDev->cmdState == WAIT)
-        {
-          busState = BUS_WAIT;
-          activeDev = nullptr;
-        }
-      }
-      break;
-    case BUS_WAIT:
-      SIO_UART.read();
-#ifdef DEBUG_S
-      BUG_UART.println("BUS_WAIT");
-#endif
-      break;
-    }
-  }
-
-  if (millis() - cmdTimer > CMD_TIMEOUT && busState != BUS_WAIT)
-  {
-    busState = BUS_WAIT;
-#ifdef DEBUG_S
-    BUG_UART.print("SIO CMD TIMEOUT: bus-");
-    BUG_UART.print(busState);
-    BUG_UART.print(" dev-");
-    if (activeDev != nullptr)
-      BUG_UART.println(activeDev->cmdState);
-#endif
-  }
-
-  if (busState == BUS_WAIT)
-  {
-    cmdTimer = 0;
-  }
-*/
 }
 
 // setup SIO bus
@@ -511,15 +438,11 @@ void sioBus::setup()
   pinMode(PIN_CMD, INPUT_PULLUP);
   pinMode(PIN_LED2, OUTPUT);
 #endif
-
-  // Attach COMMAND interrupt.
-  // attachInterrupt(digitalPinToInterrupt(PIN_CMD), sio_isr_cmd, FALLING);
 }
 
-void sioBus::addDevice(sioDevice *p, int N) //, String name)
+void sioBus::addDevice(sioDevice *p, int N)
 {
   p->_devnum = N;
-  //p->_devname = name;
   daisyChain.add(p);
 }
 
