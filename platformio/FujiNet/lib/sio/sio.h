@@ -3,6 +3,9 @@
 #include <Arduino.h>
 #include "debug.h"
 
+//#include "modem.h"
+//#include "fuji.h"
+
 #include "LinkedList.h"
 
 // pin configurations
@@ -31,6 +34,9 @@
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
 
+#define ADDR_R 0x50
+#define ADDR_P 0x40
+
 union cmdFrame_t {
    struct
    {
@@ -47,6 +53,8 @@ union cmdFrame_t {
 byte sio_checksum(byte *chunk, int length);
 
 // class def'ns
+class sioModem; // declare here so can reference it, but define in modem.h
+class sioFuji;  // declare here so can reference it, but define in fuji.h
 class sioBus; // declare early so can be friend
 class sioDevice
 {
@@ -79,6 +87,8 @@ private:
    LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
    unsigned long cmdTimer = 0;
    sioDevice *activeDev = nullptr;
+   sioModem *modemDev = nullptr;
+   sioFuji *fujiDev = nullptr;
 
    void sio_led(bool onOff);
 

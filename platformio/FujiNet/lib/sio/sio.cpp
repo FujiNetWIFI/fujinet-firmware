@@ -1,4 +1,5 @@
 #include "sio.h"
+#include "modem.h"
 
 // helper functions outside the class defintions
 
@@ -57,7 +58,7 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
 {
   byte ck;
 
-  // Retrieve data frame from computer
+// Retrieve data frame from computer
 #ifdef DEBUG_VERBOSE
   size_t l = SIO_UART.readBytes(b, len);
 #else
@@ -95,8 +96,6 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
   return ck;
 }
 // *****************************************************************************
-
-
 
 /**
    sio NAK
@@ -316,21 +315,21 @@ void sioDevice::sio_error()
 
 void sioBus::service()
 {
- int a;
+  int a;
   if (digitalRead(PIN_CMD) == LOW)
   {
     sio_led(true);
-    // memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
-#ifdef MODEM_H
-    if (modemActive)
+// memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
+// #ifdef MODEM_H
+    if (modemDev->modemActive)
     {
-      modemActive = false;
+      modemDev->modemActive = false;
       SIO_UART.updateBaudRate(sioBaud);
 #ifdef DEBUG
       Debug_println("SIO Baud");
 #endif
     }
-#endif
+// #endif
 
 #ifdef ESP8266
     delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
@@ -400,15 +399,15 @@ void sioBus::service()
     }
     sio_led(false);
   } // END command line low
-#ifdef MODEM_H
-  else if (modemActive)
+    //#ifdef MODEM_H
+  else if (modemDev->modemActive)
   {
-    sio_handle_modem(); // Handle the modem
+    modemDev->sio_handle_modem(); // Handle the modem
 #ifdef DEBUG
     Debug_println("Handling modem");
 #endif
   }
-#endif
+  //#endif
   else
   {
     sio_led(false);
@@ -442,6 +441,10 @@ void sioBus::setup()
 
 void sioBus::addDevice(sioDevice *p, int N)
 {
+  if (N == ADDR_R)
+  {
+    modemDev = (sioModem*)p;
+  }
   p->_devnum = N;
   daisyChain.add(p);
 }
