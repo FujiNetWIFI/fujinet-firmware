@@ -1,6 +1,7 @@
 #ifndef SIO_H
 #define SIO_H
 #include <Arduino.h>
+#include "debug.h"
 
 #include "LinkedList.h"
 
@@ -128,6 +129,7 @@ public:
    void remDevice(sioDevice *p);
    sioDevice *device(int i);
    int numDevices();
+   long sioBaud = 19200; // SIO Baud rate
 };
 
 extern sioBus SIO;
