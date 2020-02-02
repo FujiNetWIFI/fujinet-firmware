@@ -1,4 +1,11 @@
-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; rel.s
+;;; example of routines to be moved as a package.
+;;;
+;;; _reloc_begin & _reloc_end mark the region of 
+;;; memory to be moved.
+;;;
 
 	.export _reloc_begin
 	.export _function1
