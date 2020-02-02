@@ -10,29 +10,38 @@ class sioDisk : public sioDevice
 private:
     File *_file;
 
-    byte sectorSize=128;
+    byte sectorSize = 128;
     byte sector[256];
 
-    //    byte sio_checksum(byte *chunk, int length);
-    //    void sio_get_id();
-    //    void sio_get_command();
-    //    void sio_get_aux1();
-    //    void sio_get_aux2();
+    struct
+    {
+        unsigned char num_tracks;
+        unsigned char step_rate;
+        unsigned char sectors_per_trackM;
+        unsigned char sectors_per_trackL;
+        unsigned char num_sides;
+        unsigned char density;
+        unsigned char sector_sizeM;
+        unsigned char sector_sizeL;
+        unsigned char drive_present;
+        unsigned char reserved1;
+        unsigned char reserved2;
+        unsigned char reserved3;
+    } percomBlock;
+
     void sio_read();
     void sio_write();
     void sio_format();
     void sio_status() override;
     void sio_process() override;
-    //    void sio_ack();
-    //    void sio_nak();
-    //    void sio_get_checksum();
-    //    void sio_incoming();
+
+    void derive_percom_block(unsigned short sectorSize, unsigned short numSectors);
+    void sio_read_percom_block();
+    void sio_write_percom_block();
+    void dump_percom_block();
 
 public:
-    //sioDisk(){};
-    //sioDisk(int devnum=0x31) : _devnum(devnum){};
     void mount(File *f);
-    // void handle();
 };
 
 #endif // guard
