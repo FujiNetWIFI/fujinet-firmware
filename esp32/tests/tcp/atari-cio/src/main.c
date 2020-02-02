@@ -30,6 +30,7 @@ unsigned char buffer_rx_len;
 unsigned char buffer_tx_len;
 unsigned char* rp; // receive ptr
 unsigned char* tp; // transmit ptr
+unsigned char eol_mode;
 
 void main(void)
 {
@@ -62,5 +63,5 @@ void main(void)
     print(banner_error);
   
   // Manually setting memlo, is there a symbol that can get me actual top of data?
-  OS.memlo=(void *)0x29C2;
+  OS.memlo=(void *)0x2974;
 }

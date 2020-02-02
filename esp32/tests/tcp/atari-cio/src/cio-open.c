@@ -15,11 +15,19 @@ extern unsigned char aux1_save[8];
 extern unsigned char aux2_save[8];
 extern unsigned char* tp;
 extern unsigned char* rp;
+extern unsigned char eol_mode;
 
 void _cio_open(void)
 {  
   // Save AUX1/AUX2 values
   aux_save(OS.ziocb.drive);
+
+  if ((OS.ziocb.aux2&2) && (OS.ziocb.aux2&4))
+    eol_mode=CRLF;
+  else if (OS.ziocb.aux2&2)
+    eol_mode=CR;
+  else if (OS.ziocb.aux2&4)
+    eol_mode=LF;
   
   siov(DEVIC_N,
 	   OS.ziocb.drive,
