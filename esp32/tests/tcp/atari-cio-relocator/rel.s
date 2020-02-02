@@ -33,12 +33,21 @@ _function2:
 	
 _function3:
 	pla			; pull length byte
+	jmp	_return4instead
 	lda	#$03
+	sta	$d4
+	lda	#$00
+_return4instead:
+	jsr	privatefunction
+	rts
+
+privatefunction:
+	lda	#$04
 	sta	$d4
 	lda	#$00
 	sta	$d4+1
 	rts
-
+	
 _reloc_end:
 
 	.end
