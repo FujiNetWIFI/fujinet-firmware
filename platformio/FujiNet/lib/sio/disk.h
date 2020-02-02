@@ -42,6 +42,8 @@ private:
 
 public:
     void mount(File *f);
+    File* file();
+    
 };
 
 #endif // guard
