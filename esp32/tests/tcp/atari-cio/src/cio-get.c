@@ -16,8 +16,6 @@ extern unsigned char* rp;
 extern unsigned char buffer_rx[256];
 extern unsigned char buffer_rx_len;
 
-bool skip_char;
-
 extern void _cio_status(void); // Used to get length to fetch.
 
 void _cio_get(void)
@@ -53,23 +51,7 @@ void _cio_get(void)
       return;
     }
   
-  
-  if (!(OS.ziocb.command&2)) // GETREC
-    {
-      if (*rp==0x0a)
-	{
-	  *rp=0x9b;
-	}
-      else if (*rp==0x0d)
-	{
-	  *rp=0x20;
-	}
-    }
-
   // Send next char in buffer.
-  if (buffer_rx_len>0)
-    {
-      buffer_rx_len--;
-      ret=*rp++;
-    }
+  buffer_rx_len--;
+  ret=*rp++;
 }
