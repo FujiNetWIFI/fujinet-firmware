@@ -10,8 +10,8 @@ void sioDisk::sio_read()
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   //int cacheOffset = 0;
   int offset;
- // byte *s;
- // byte *d;
+  // byte *s;
+  // byte *d;
   byte err = false;
 
   //firstCachedSector[deviceSlot] = sectorNum;
@@ -36,35 +36,35 @@ void sioDisk::sio_read()
 
   _file->read(sector, ss);
 
-   sio_to_computer((byte *)&sector, ss, err);
+  sio_to_computer((byte *)&sector, ss, err);
 
   // old ******************************************************
   //  byte ck;
-//   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-//   offset *= 128;
-//   offset -= 128;
-//   offset += 16;        // skip 16 byte ATR Header
-//   _file->seek(offset); //SeekSet is default
-//   _file->read(sector, 128);
+  //   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
+  //   offset *= 128;
+  //   offset -= 128;
+  //   offset += 16;        // skip 16 byte ATR Header
+  //   _file->seek(offset); //SeekSet is default
+  //   _file->read(sector, 128);
 
-//   ck = sio_checksum((byte *)&sector, 128);
-//   delayMicroseconds(DELAY_T5); // t5 delay
-//   SIO_UART.write('C');         // Completed command
-//   SIO_UART.flush();
+  //   ck = sio_checksum((byte *)&sector, 128);
+  //   delayMicroseconds(DELAY_T5); // t5 delay
+  //   SIO_UART.write('C');         // Completed command
+  //   SIO_UART.flush();
 
-//   // Write data frame
-//   SIO_UART.write(sector, 128);
+  //   // Write data frame
+  //   SIO_UART.write(sector, 128);
 
-//   // Write data frame checksum
-//   SIO_UART.write(ck);
-//   SIO_UART.flush();
-//   delayMicroseconds(200);
-// #ifdef DEBUG_S
-//   BUG_UART.print("SIO READ OFFSET: ");
-//   BUG_UART.print(offset);
-//   BUG_UART.print(" - ");
-//   BUG_UART.println((offset + 128));
-// #endif
+  //   // Write data frame checksum
+  //   SIO_UART.write(ck);
+  //   SIO_UART.flush();
+  //   delayMicroseconds(200);
+  // #ifdef DEBUG_S
+  //   BUG_UART.print("SIO READ OFFSET: ");
+  //   BUG_UART.print(offset);
+  //   BUG_UART.print(" - ");
+  //   BUG_UART.println((offset + 128));
+  // #endif
 }
 
 // write for W & P commands
@@ -130,8 +130,6 @@ void sioDisk::sio_write()
 void sioDisk::sio_status()
 {
 
-  //void sio_status()
-  //{
   byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
   //byte deviceSlot = cmdFrame.devic - 0x31;
 
@@ -141,34 +139,12 @@ void sioDisk::sio_status()
   }
 
   // todo:
-  // if (percomBlock[deviceSlot].sectors_per_trackL == 26)
-  // {
-  //   status[0] |= 0x80;
-  // }
+  if (percomBlock.sectors_per_trackL == 26)
+  {
+    status[0] |= 0x80;
+  }
 
   sio_to_computer(status, sizeof(status), false); // command always completes.
-  //}
-
-  // old
-  // byte status[4] = {0x00, 0xFF, 0xFE, 0x00};
-  // byte ck;
-
-  // ck = sio_checksum((byte *)&status, 4);
-
-  // delayMicroseconds(DELAY_T5); // t5 delay
-  // SIO_UART.write('C');         // Command always completes.
-  // SIO_UART.flush();
-  // delayMicroseconds(200);
-  // //delay(1);
-
-  // // Write data frame
-  // for (int i = 0; i < 4; i++)
-  //   SIO_UART.write(status[i]);
-
-  // // Write checksum
-  // SIO_UART.write(ck);
-  // SIO_UART.flush();
-  // delayMicroseconds(200);
 }
 
 // fake disk format
@@ -217,6 +193,139 @@ void sioDisk::sio_format()
 #endif
 }
 
+// ****************************************************************************************
+
+/**
+   Update PERCOM block from the total # of sectors.
+*/
+void sioDisk::derive_percom_block(unsigned short sectorSize, unsigned short numSectors)
+{
+  // Start with 40T/1S 720 Sectors, sector size passed in
+  percomBlock.num_tracks = 40;
+  percomBlock.step_rate = 1;
+  percomBlock.sectors_per_trackM = 0;
+  percomBlock.sectors_per_trackL = 18;
+  percomBlock.num_sides = 0;
+  percomBlock.density = 0; // >128 bytes = MFM
+  percomBlock.sector_sizeM = (sectorSize == 256 ? 0x01 : 0x00);
+  percomBlock.sector_sizeL = (sectorSize == 256 ? 0x00 : 0x80);
+  percomBlock.drive_present = 255;
+  percomBlock.reserved1 = 0;
+  percomBlock.reserved2 = 0;
+  percomBlock.reserved3 = 0;
+
+  if (numSectors == 1040) // 5/25" 1050 density
+  {
+    percomBlock.sectors_per_trackM = 0;
+    percomBlock.sectors_per_trackL = 26;
+    percomBlock.density = 4; // 1050 density is MFM, override.
+  }
+  else if (numSectors == 720 && sectorSize == 256) // 5.25" SS/DD
+  {
+    percomBlock.density = 4; // 1050 density is MFM, override.
+  }
+  else if (numSectors == 1440) // 5.25" DS/DD
+  {
+    percomBlock.num_sides = 1;
+    percomBlock.density = 4; // 1050 density is MFM, override.
+  }
+  else if (numSectors == 2880) // 5.25" DS/QD
+  {
+    percomBlock.num_sides = 1;
+    percomBlock.num_tracks = 80;
+    percomBlock.density = 4; // 1050 density is MFM, override.
+  }
+  else if (numSectors == 2002 && sectorSize == 128) // SS/SD 8"
+  {
+    percomBlock.num_tracks = 77;
+    percomBlock.density = 0; // FM density
+  }
+  else if (numSectors == 2002 && sectorSize == 256) // SS/DD 8"
+  {
+    percomBlock.num_tracks = 77;
+    percomBlock.density = 4; // MFM density
+  }
+  else if (numSectors == 4004 && sectorSize == 128) // DS/SD 8"
+  {
+    percomBlock.num_tracks = 77;
+    percomBlock.density = 0; // FM density
+  }
+  else if (numSectors == 4004 && sectorSize == 256) // DS/DD 8"
+  {
+    percomBlock.num_sides = 1;
+    percomBlock.num_tracks = 77;
+    percomBlock.density = 4; // MFM density
+  }
+  else if (numSectors == 5760) // 1.44MB 3.5" High Density
+  {
+    percomBlock.num_sides = 1;
+    percomBlock.num_tracks = 80;
+    percomBlock.sectors_per_trackL = 36;
+    percomBlock.density = 8; // I think this is right.
+  }
+  else
+  {
+    // This is a custom size, one long track.
+    percomBlock.num_tracks = 1;
+    percomBlock.sectors_per_trackM = numSectors >> 8;
+    percomBlock.sectors_per_trackL = numSectors & 0xFF;
+  }
+
+#ifdef DEBUG_VERBOSE
+  Debug_printf("Percom block dump for newly mounted device slot %d\n", deviceSlot);
+  dump_percom_block(deviceSlot);
+#endif
+}
+
+/**
+   Read percom block
+*/
+void sioDisk::sio_read_percom_block()
+{
+// unsigned char deviceSlot = cmdFrame.devic - 0x31;
+#ifdef DEBUG_VERBOSE
+  dump_percom_block();
+#endif
+  sio_to_computer((byte *)&percomBlock, 12, false);
+  SIO_UART.flush();
+}
+
+/**
+   Write percom block
+*/
+void sioDisk::sio_write_percom_block()
+{
+  // unsigned char deviceSlot = cmdFrame.devic - 0x31;
+  sio_to_peripheral((byte *)&percomBlock, 12);
+#ifdef DEBUG_VERBOSE
+  dump_percom_block(deviceSlot);
+#endif
+  sio_complete();
+}
+
+/**
+   Dump PERCOM block
+*/
+void sioDisk::dump_percom_block()
+{
+#ifdef DEBUG_VERBOSE
+  Debug_printf("Percom Block Dump\n");
+  Debug_printf("-----------------\n");
+  Debug_printf("Num Tracks: %d\n", percomBlock.num_tracks);
+  Debug_printf("Step Rate: %d\n", percomBlock.step_rate);
+  Debug_printf("Sectors per Track: %d\n", (percomBlock.sectors_per_trackM * 256 + percomBlock.sectors_per_trackL));
+  Debug_printf("Num Sides: %d\n", percomBlock.num_sides);
+  Debug_printf("Density: %d\n", percomBlock.density);
+  Debug_printf("Sector Size: %d\n", (percomBlock.sector_sizeM * 256 + percomBlock.sector_sizeL));
+  Debug_printf("Drive Present: %d\n", percomBlock.drive_present);
+  Debug_printf("Reserved1: %d\n", percomBlock.reserved1);
+  Debug_printf("Reserved2: %d\n", percomBlock.reserved2);
+  Debug_printf("Reserved3: %d\n", percomBlock.reserved3);
+#endif
+}
+
+// ****************************************************************************************
+
 // Process command
 void sioDisk::sio_process()
 {
@@ -236,14 +345,21 @@ void sioDisk::sio_process()
     sio_status();
     break;
   case '!':
+  case '"':
     sio_ack();
     sio_format();
+    break;
+  case 0x4E:
+    sio_ack();
+    sio_read_percom_block();
+    break;
+  case 0x4F:
+    sio_ack();
+    sio_write_percom_block();
     break;
   default:
     sio_nak();
   }
-  // cmdState = WAIT;
-  //cmdTimer = 0;
 }
 
 // mount a disk file
