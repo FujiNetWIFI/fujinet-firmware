@@ -20,7 +20,7 @@
 #include <WiFiUdp.h>
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-#define DEBUG_S
+// #define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -29,7 +29,7 @@
 // #define DEBUG_SSID ""
 // #define DEBUG_PASSWORD ""
 
-#define DEBUG_VERBOSE 1
+// #define DEBUG_VERBOSE 1
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -61,8 +61,8 @@
 bool hispeed = false;
 int command_frame_counter = 0;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x0a
-#define HISPEED_BAUDRATE 52640
+#define HISPEED_INDEX 0x00
+#define HISPEED_BAUDRATE 125984
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
 
@@ -686,18 +686,18 @@ void sio_tcp_write()
 */
 void fill_tcp_input_buffer(byte device)
 {
-  int l,a;
+  int l, a;
 
   if (!sio_clients[device].connected())
     return;
 
   a = sio_clients[device].available();
 
-  if (a==0)
+  if (a == 0)
     return;
-    
-  if (a>255) a=255;
-  
+
+  if (a > 255) a = 255;
+
   l = sio_clients[device].read((byte *)&sector, a);
 
   for (int i = 0; i < l; i++)
@@ -722,7 +722,7 @@ void fill_tcp_input_buffer(byte device)
   }
 
 #ifdef DEBUG
-  Debug_printf(" l = %d\n tcp_input_buffer_len = %d\n",l,tcp_input_buffer_len[device]);
+  Debug_printf(" l = %d\n tcp_input_buffer_len = %d\n", l, tcp_input_buffer_len[device]);
 #endif
 
 }
@@ -790,6 +790,18 @@ void sio_tcp_status()
     status[1] = adapterConfig.dnsIP[1];
     status[2] = adapterConfig.dnsIP[2];
     status[3] = adapterConfig.dnsIP[3];
+  }
+  else if (cmdFrame.aux1 == 6) // remote IP
+  {
+    if (sio_clients[device].connected())
+    {
+      status[0] = sio_clients[device].remoteIP()[0];
+      status[1] = sio_clients[device].remoteIP()[1];
+      status[2] = sio_clients[device].remoteIP()[2];
+      status[3] = sio_clients[device].remoteIP()[3];
+    }
+    else
+      status[0] = status[1] = status[2] = status[3] = 0;
   }
   else // aux1 == 0
   {
