@@ -5,9 +5,6 @@ void sioModem::sio_write()
 {
   // for now, just complete
   sio_complete();
-#ifdef ESP32
-  SIO_UART.flush();
-#endif
 }
 
 // Status
