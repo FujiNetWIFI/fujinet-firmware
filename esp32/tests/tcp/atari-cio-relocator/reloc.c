@@ -26,8 +26,42 @@ typedef unsigned char byte;
 
 
 /*
- * assembly instructions we need to remap
+ * three byte assembly instructions we need to remap
  */
+#define ADC  0x6d
+#define ADCX 0x7d
+#define ADCY 0x79
+#define AND  0x2d
+#define ANDX 0x3d
+#define ANDY 0x39
+#define ASL  0x0e
+#define ASLX 0x1e
+#define BIT  0x2c
+#define CMP  0xcd
+#define CMPX 0xdd
+#define CMPY 0xd9
+#define CPX  0xec
+#define CPY  0xcc
+#define DEC  0xce
+#define DECX 0xde
+#define EOR  0x4d
+#define EORX 0x5d
+#define EORY 0x59
+#define INC  0xee		/* INC oper    */
+#define INCX 0xfe		/* INC oper,x  */
+#define JMPI 0x6c		/* JMP (oper)  */
+#define LSR  0x4e
+#define LSRX 0x5e
+#define ORA  0x0d
+#define ORAX 0x1d
+#define ORAY 0x19
+#define ROL  0x2e
+#define ROLX 0x3d
+#define ROR  0x6e
+#define RORX 0x7e
+#define SBC  0xed
+#define SBCX 0xfd
+#define SBCY 0xf9
 #define JMP  0x4c		/* JMP oper    */
 #define JSR  0x20		/* JSR oper    */
 #define LDA  0xad		/* LDA oper    */
@@ -70,7 +104,7 @@ word index = 0;
 void remap( byte instruction ) {
   word index = 0;
 
-  printf("\n   %3u", instruction );
+  printf("%4u", instruction );
   
   for( index = MEMLO; index < MEMLO + code_size; index++ ) {
     if( PEEK( index ) == instruction  ) {
@@ -111,21 +145,53 @@ void main( void ) {
    * fix certain types of addresses
    */
   printf("Remapping: ");
-  remap( JMP   );
-  remap( JSR   );
-  remap( LDA   );
-  remap( LDAX  );
-  remap( LDAY  );
-  remap( STA   );
-  remap( STAX  );
-  remap( STAY  );
-  remap( STX   );
-  remap( LDX   );
-  remap( LDXY  );
-  remap( STY   );
-  remap( LDY   );
-  remap( LDYX  );
-
+  remap( JMP  );
+  remap( JSR  );
+  remap( LDA  );
+  remap( LDAX );
+  remap( LDAY );
+  remap( STA  );
+  remap( STAX );
+  remap( STAY );
+  remap( STX  );
+  remap( LDX  );
+  remap( LDXY );
+  remap( STY  );
+  remap( LDY  );
+  remap( LDYX );
+  remap( ADC  );
+  remap( ADCX );
+  remap( ADCY );
+  remap( AND  );
+  remap( ANDX );
+  remap( ANDY );
+  remap( ASL  );
+  remap( ASLX );
+  remap( BIT  );
+  remap( CMP  );
+  remap( CMPX );
+  remap( CMPY );
+  remap( CPX  );
+  remap( CPY  );
+  remap( DEC  );
+  remap( DECX );
+  remap( EOR  );
+  remap( EORX );
+  remap( EORY );
+  remap( INC  );
+  remap( INCX );
+  remap( JMPI );
+  remap( LSR  );
+  remap( LSRX );
+  remap( ORA  );
+  remap( ORAX );
+  remap( ORAY );
+  remap( ROL  );
+  remap( ROLX );
+  remap( SBC  );
+  remap( SBCX );
+  remap( SBCY );
+  
   clrscr();
   
   /* 
@@ -152,5 +218,4 @@ void main( void ) {
   printf("  ? usr( %u ) [prints 2]\n", funcptr2 );
   printf("  ? usr( %u ) [prints 4]\n", funcptr3 );
   printf("\n--------------[ Ready for BASIC ]-\n");
-  
 }
