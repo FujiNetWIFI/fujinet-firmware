@@ -40,6 +40,10 @@ void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
   // Write checksum
   SIO_UART.write(ck);
 
+#ifdef ESP32
+  SIO_UART.flush();
+#endif
+
 #ifdef DEBUG_VERBOSE
   Debug_printf("TO COMPUTER: ");
   for (int i = 0; i < len; i++)
@@ -106,6 +110,9 @@ void sioDevice::sio_nak()
 #ifdef ESP32
   SIO_UART.flush();
 #endif
+#ifdef DEBUG
+  Debug_println("NAK!");
+#endif
 }
 
 /**
@@ -117,6 +124,9 @@ void sioDevice::sio_ack()
 #ifdef ESP32
   SIO_UART.flush();
 #endif
+#ifdef DEBUG
+  Debug_println("ACK!");
+#endif
 }
 
 /**
@@ -126,6 +136,9 @@ void sioDevice::sio_complete()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('C');
+#ifdef DEBUG
+  Debug_println("COMPLETE!");
+#endif
 }
 
 /**
@@ -135,6 +148,9 @@ void sioDevice::sio_error()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('E');
+#ifdef DEBUG
+  Debug_println("ERROR!");
+#endif
 }
 
 // class functions
@@ -319,9 +335,8 @@ void sioBus::service()
   if (digitalRead(PIN_CMD) == LOW)
   {
     sio_led(true);
-// memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
-// #ifdef MODEM_H
-    if (modemDev->modemActive)
+    //memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame
+    if (modemDev != nullptr && modemDev->modemActive)
     {
       modemDev->modemActive = false;
       SIO_UART.updateBaudRate(sioBaud);
@@ -329,7 +344,6 @@ void sioBus::service()
       Debug_println("SIO Baud");
 #endif
     }
-// #endif
 
 #ifdef ESP8266
     delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
@@ -341,15 +355,15 @@ void sioBus::service()
 #ifdef DEBUG
     Debug_printf("CF: %02x %02x %02x %02x %02x\n", tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
 #endif
-    byte ck = sio_checksum(tempFrame.cmdFrameData, 4);
+    byte ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
+    // Wait for CMD line to raise again
+    while (digitalRead(PIN_CMD) == LOW)
+      yield();
     if (ck == tempFrame.cksum)
     {
 #ifdef ESP8266
       delayMicroseconds(DELAY_T1);
 #endif
-      // Wait for CMD line to raise again
-      while (digitalRead(PIN_CMD) == LOW)
-        yield();
 #ifdef ESP8266
       delayMicroseconds(DELAY_T2);
 #endif
@@ -399,15 +413,10 @@ void sioBus::service()
     }
     sio_led(false);
   } // END command line low
-    //#ifdef MODEM_H
-  else if (modemDev->modemActive)
+  else if (modemDev != nullptr && modemDev->modemActive)
   {
     modemDev->sio_handle_modem(); // Handle the modem
-#ifdef DEBUG
-    Debug_println("Handling modem");
-#endif
   }
-  //#endif
   else
   {
     sio_led(false);
