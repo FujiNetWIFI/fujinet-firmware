@@ -436,15 +436,21 @@ void sioBus::setup()
   SIO_UART.swap();
 #endif
 
-#ifdef ESP_8266
-// pins
-#endif
-#ifdef ESP32
-  pinMode(PIN_INT, INPUT_PULLUP);
-  pinMode(PIN_PROC, INPUT_PULLUP);
+  pinMode(PIN_INT, OUTPUT);
+  digitalWrite(PIN_INT, HIGH);
+  pinMode(PIN_PROC, OUTPUT);
+  digitalWrite(PIN_PROC, HIGH);
   pinMode(PIN_MTR, INPUT_PULLDOWN);
   pinMode(PIN_CMD, INPUT_PULLUP);
+  pinMode(PIN_CKI, OUTPUT);
+  digitalWrite(PIN_CKI, LOW);
+#ifdef ESP32
+  pinMode(PIN_LED1, OUTPUT);
+  digitalWrite(PIN_LED1, HIGH); // OFF
   pinMode(PIN_LED2, OUTPUT);
+  digitalWrite(PIN_LED2, HIGH); // OFF
+  pinMode(PIN_CKO, INPUT);
+  pinMode(PIN_CKI, OUTPUT);
 #endif
 }
 
