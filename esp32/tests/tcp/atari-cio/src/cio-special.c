@@ -37,6 +37,8 @@ void _cio_special(void)
       break;
     case 18: // flush
       cio_put_flush();
+      err=ret=1;
+      return;
       break;
     default:
       err=146; // Not implemented

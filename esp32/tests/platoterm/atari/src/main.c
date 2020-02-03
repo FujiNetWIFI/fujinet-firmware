@@ -8,6 +8,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <atari.h>
 #include "screen.h"
 #include "touch.h"
 #include "terminal.h"
@@ -18,6 +19,7 @@ uint8_t running=true;
 
 void main(void)
 {
+  OS.soundr=0;
   screen_init();
   touch_init();
   terminal_init();
