@@ -28,7 +28,7 @@ class sioModem : public sioDevice
     bool cmdMode = true;              // Are we in AT command mode or connected mode
     bool cmdAtascii = false;          // last CMD contained an ATASCII EOL?
     bool telnet = false;              // Is telnet control code handling enabled
-    long listenPort = 8888;           // Listen to this if not connected. Set to zero to disable.
+    long listenPort = 2323;           // Listen to this if not connected. Set to zero to disable.
     WiFiClient tcpClient;             // Modem client
     WiFiServer tcpServer;           // Modem server
     unsigned long lastRingMs = 0;     // Time of last "RING" message (millis())
