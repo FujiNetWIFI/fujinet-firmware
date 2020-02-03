@@ -332,7 +332,16 @@ void sioDevice::sio_error()
 void sioBus::service()
 {
   int a;
+#ifdef ESP32
+  /*
+    Check if Atari is powered up or else we get stuck in here reading the
+    command frame. Maybe we should instead read the 5 bytes of command frame
+    in a loop with a timeout so it also works for ESP8266.
+  */
+  if (digitalRead(PIN_CMD) == LOW && sio_volts() > 3000) // 3V should be high enuf
+#else
   if (digitalRead(PIN_CMD) == LOW)
+#endif
   {
     sio_led(true);
     //memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame
@@ -451,6 +460,7 @@ void sioBus::setup()
   digitalWrite(PIN_LED2, HIGH); // OFF
   pinMode(PIN_CKO, INPUT);
   pinMode(PIN_CKI, OUTPUT);
+  pinMode(PIN_SIO5V, INPUT);
 #endif
 }
 
@@ -483,5 +493,29 @@ void sioBus::sio_led(bool onOff)
   digitalWrite(PIN_LED2, (onOff ? LOW : HIGH));
 #endif
 }
+
+/*
+  Return SIO Bus Voltage
+*/
+#ifdef ESP32
+int sioBus::sio_volts()
+{
+  int volts, i;
+  long avgV = 0;
+
+  for (i=1; i<4; i++)
+  {
+    avgV += analogRead(PIN_SIO5V);
+    delayMicroseconds(5);
+  }
+
+  if(avgV <= 0)
+    volts = 0;
+  else
+    volts = avgV / (i - 1);
+
+  return volts;
+}
+#endif
 
 sioBus SIO;

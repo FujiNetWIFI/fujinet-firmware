@@ -30,6 +30,7 @@
 #define PIN_LED2         4
 #define PIN_CKO         32
 #define PIN_CKI         27
+#define PIN_SIO5V       35
 #endif
 
 #define DELAY_T4  850
@@ -105,6 +106,9 @@ public:
    void addDevice(sioDevice *p, int N);
    void remDevice(sioDevice *p);
    sioDevice *device(int i);
+ #ifdef ESP32
+    int sio_volts();
+ #endif
 };
 
 extern sioBus SIO;
