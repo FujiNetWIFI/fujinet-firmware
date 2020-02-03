@@ -150,11 +150,6 @@ void sioDisk::sio_status()
 // fake disk format
 void sioDisk::sio_format()
 {
-
-  //void sio_format()
-  //{
-  //unsigned char deviceSlot = cmdFrame.devic - 0x31;
-
   // Populate bad sector map (no bad sectors)
   for (int i = 0; i < sectorSize; i++)
     sector[i] = 0;
@@ -164,30 +159,7 @@ void sioDisk::sio_format()
 
   // Send to computer
   sio_to_computer((byte *)sector, sectorSize, false);
-//}
 
-// old
-// byte ck;
-
-// for (int i = 0; i < 128; i++)
-//   sector[i] = 0;
-
-// sector[0] = 0xFF; // no bad sectors.
-// sector[1] = 0xFF;
-
-// ck = sio_checksum((byte *)&sector, 128);
-
-// delayMicroseconds(DELAY_T5); // t5 delay
-// SIO_UART.write('C');         // Completed command
-// SIO_UART.flush();
-
-// // Write data frame
-// SIO_UART.write(sector, 128);
-
-// // Write data frame checksum
-// SIO_UART.write(ck);
-// SIO_UART.flush();
-// delayMicroseconds(200);
 #ifdef DEBUG_S
   BUG_UART.printf("We faked a format.\n");
 #endif
@@ -366,4 +338,9 @@ void sioDisk::sio_process()
 void sioDisk::mount(File *f)
 {
   _file = f;
+}
+
+File* sioDisk::file() 
+{
+  return _file;
 }
