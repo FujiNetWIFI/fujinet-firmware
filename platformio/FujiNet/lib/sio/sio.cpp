@@ -14,7 +14,6 @@ byte sio_checksum(byte *chunk, int length)
   return (byte)chkSum;
 }
 
-// *****************************************************************************************
 /**
    sio READ from PERIPHERAL to COMPUTER
    b = buffer to send to Atari
@@ -99,7 +98,7 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
 
   return ck;
 }
-// *****************************************************************************
+
 
 /**
    sio NAK
@@ -152,137 +151,6 @@ void sioDevice::sio_error()
   Debug_println("ERROR!");
 #endif
 }
-
-// class functions
-
-// // Get Command
-// void sioDevice::sio_get_command()
-// {
-//   cmdFrame.comnd = SIO_UART.read();
-//   cmdState = AUX1;
-// #ifdef DEBUG_S
-//   BUG_UART.print("CMD CMND: ");
-//   BUG_UART.println(cmdFrame.comnd, HEX);
-// #endif
-// }
-
-// // Get aux1
-// void sioDevice::sio_get_aux1()
-// {
-//   cmdFrame.aux1 = SIO_UART.read();
-//   cmdState = AUX2;
-
-// #ifdef DEBUG_S
-//   BUG_UART.print("CMD AUX1: ");
-//   BUG_UART.println(cmdFrame.aux1, HEX);
-// #endif
-// }
-
-// // Get aux2
-// void sioDevice::sio_get_aux2()
-// {
-//   cmdFrame.aux2 = SIO_UART.read();
-//   cmdState = CHECKSUM;
-
-// #ifdef DEBUG_S
-//   BUG_UART.print("CMD AUX2: ");
-//   BUG_UART.println(cmdFrame.aux2, HEX);
-// #endif
-// }
-
-// // Get Checksum, and compare
-// void sioDevice::sio_get_checksum()
-// {
-//   byte ck;
-//   cmdFrame.cksum = SIO_UART.read();
-//   ck = sio_checksum((byte *)&cmdFrame.cmdFrameData, 4);
-
-// #ifdef DEBUG_S
-//   BUG_UART.print("CMD CKSM: ");
-//   BUG_UART.print(cmdFrame.cksum, HEX);
-// #endif
-
-//   if (ck == cmdFrame.cksum)
-//   {
-// #ifdef DEBUG_S
-//     BUG_UART.println(", ACK");
-// #endif
-//     sio_ack();
-//   }
-//   else
-//   {
-// #ifdef DEBUG_S
-//     BUG_UART.println(", NAK");
-// #endif
-//     sio_nak();
-//   }
-// }
-
-// state machine branching
-// todo: remove state machine and make direct calls.  Combine, ID, COMMAND, AUX, CHKSUM into one 5-byte read and routine.
-// void sioDevice::sio_incoming()
-// {
-//   switch (cmdState)
-//   {
-//     //case ID: //sio_get_id();
-//     //  break;
-//     //case COMMAND:
-//     //  sio_get_command();
-//     //  break;
-//     //case AUX1:
-//     //  sio_get_aux1();
-//     //  break;
-//     //case AUX2:
-//     //  sio_get_aux2();
-//     //  break;
-//     //case CHECKSUM:
-//     //  sio_get_checksum();
-//     //  break;
-//     //case ACK:
-//     //  sio_ack();
-//     //  break;
-//     //case NAK:
-//     //  sio_nak();
-//     //  break;
-//     //case PROCESS: // state not sued
-//     sio_process();
-//     //  break;
-//     //case WAIT:
-//     //SIO_UART.read(); // Toss it for now
-//     //cmdTimer = 0;
-//     //break;
-//   }
-// }
-
-// void sioBus::sio_get_id()
-// {
-//   unsigned char dn = SIO_UART.read();
-//   for (int i = 0; i < numDevices(); i++)
-//   {
-//     if (dn == device(i)->_devnum)
-//     {
-//       //BUG_UART.print("Found Device "); BUG_UART.println(dn,HEX);
-//       activeDev = device(i);
-//       activeDev->cmdFrame.devic = dn;
-//       activeDev->cmdState = COMMAND;
-//       busState = BUS_ACTIVE;
-//     }
-//     else
-//     {
-//       device(i)->cmdState = WAIT;
-//     }
-//   }
-
-//   if (busState == BUS_ID)
-//   {
-//     busState = BUS_WAIT;
-//   }
-
-// #ifdef DEBUG_S
-//   BUG_UART.print("BUS_ID DEV: ");
-//   BUG_UART.println(dn, HEX);
-// #endif
-// }
 
 // periodically handle the sioDevice in the loop()
 // how to capture command ID from the bus and hand off to the correct device? Right now ...
