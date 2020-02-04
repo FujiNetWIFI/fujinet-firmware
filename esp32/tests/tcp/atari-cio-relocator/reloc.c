@@ -9,6 +9,7 @@
 
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
 #include <peekpoke.h>
@@ -82,6 +83,8 @@ typedef unsigned char byte;
  * exported symbols from rel.s
  */
 extern word reloc_begin, reloc_end;
+extern word reloc_code_begin;
+
 extern void function1( void );
 extern void function2( void );
 extern void function3( void );
@@ -99,14 +102,15 @@ word destination = 0;
 word fixes = 0;
 word base_function_table = 0;
 word index = 0;
-
+word functions = 0;
+word code_offset = 0;
 
 void remap( byte instruction ) {
   word index = 0;
 
-  printf("%4u", instruction );
+  printf("[RELOC] Instruction 0x%02x\n", instruction );
   
-  for( index = MEMLO; index < MEMLO + code_size; index++ ) {
+  for( index = code_offset; index < MEMLO + code_size; index++ ) {
     if( PEEK( index ) == instruction  ) {
       destination = PEEKW( index + 1 );
       if( destination >= (word)&reloc_begin && destination <= (word)&reloc_end ) {
@@ -117,6 +121,57 @@ void remap( byte instruction ) {
       }
     }
   }  
+}
+
+
+/*
+ * from StickJock @ atariage
+ *
+ * 6502s apparently have a bug that is triggered when
+ * it encounters an indirect JMP instruction whos destination's
+ * low byte is 0xff - so see if that will occur post-move and
+ * if so adjust MEMLO up by one byte, recopy, and rescan.
+ *
+ * can be time consuming as it (potentially) recopies source 
+ * over and over but that's ok for now.  perhaps later we'll 
+ * scan the source  BEFORE copy - low priority as this is 
+ * boot code that runs once and is thrown away.
+ *
+ * from: http://nesdev.com/6502bugs.txt
+ *
+ * "An indirect JMP (xxFF) will fail because the MSB will be 
+ *  fetched from address xx00 instead of page xx+1."
+ *
+ * returns true if we're good to go or false if we're taking 
+ * too long ( attemps > 200 ).
+ */
+bool indirect_jump_patch( void ) {
+  word index       = 0;
+  word destination = 0;
+  byte attempts    = 0;
+  
+ try_again:
+
+  if( attempts > 200 )
+    return false;
+  
+  for( index = MEMLO; index < MEMLO + code_size; index++ ) {
+    if( PEEK( index ) == JMPI ) {
+      destination = PEEKW( index  + 1 );
+      if( destination >= (word)&reloc_begin && destination <= (word)&reloc_end ) {
+	destination -= memory_delta;
+	if(( destination & 0x00ff ) == 0x00ff ) {
+	  fixes    += 1;		/* count this as a fix made */
+	  MEMLO    += 1;		/* adjust MEMLO one byte higher */
+	  attempts += 1;		/* burn one of 200 attemps */
+	  memcpy( MEMLO, &reloc_begin, code_size );
+	  goto try_again;
+	}
+      }
+    }
+  }
+  
+  return true;
 }
 
 
@@ -131,20 +186,48 @@ void main( void ) {
   
   code_size    = (word)&reloc_end - (word)&reloc_begin;
   memory_delta = (word)&reloc_begin - MEMLO;
+  code_offset  = MEMLO + ((word)&reloc_code_begin - (word)&reloc_begin);
   memcpy( MEMLO, &reloc_begin, code_size );
 
+  printf( "[RELOC] Code:   %5u\n", code_size );
+  printf( "[RELOC] Offset: %5u\n", code_offset );
+  printf( "[RELOC] Reloc Begin: 0x%04x\n", &reloc_begin );
+  printf( "[RELOC] Reloc Code:  0x%04x\n", &reloc_code_begin );
+  printf( "[RELOC] Reloc End:   0x%04x\n", &reloc_end );
+  
+  /*
+   * handle possible JMP (addr) bug of 0x??FF
+   */
+  printf("[RELOC] Indirect Jump Patch...\n");
+  if( false == indirect_jump_patch() ) {
+    printf("[RELOC] Patch failed.  Aborting...\n");
+    exit( 0 );
+  }
+  
   /*
    * adjust function pointers
+   *
+   * format of function table:
+   *     function count (byte)
+   *     function1 (word)
+   *     function2 (word)
+   *     functionN (word)
    */
   base_function_table = MEMLO;
-  POKEW( MEMLO,     PEEKW( MEMLO     ) - memory_delta );
-  POKEW( MEMLO + 2, PEEKW( MEMLO + 2 ) - memory_delta );
-  POKEW( MEMLO + 4, PEEKW( MEMLO + 4 ) - memory_delta );
-
+  functions = PEEK( MEMLO );	/* get the number of functions we need to adjust */
+  printf( "[RELOC] %u public funcs...\n", functions );
+  for( index = 0; index < functions; index++ ) {
+    printf("[RELOC] Mapping 0x%4x to 0x%4x...\n",
+	   PEEKW( MEMLO + (index << 1) + 1),
+	   PEEKW( MEMLO + (index << 1) + 1 ) - memory_delta);
+    POKEW( MEMLO + (index << 1) + 1,
+	   PEEKW( MEMLO + (index << 1) + 1 ) - memory_delta );
+  }
+  
   /*
    * fix certain types of addresses
    */
-  printf("Remapping: ");
+  printf( "[RELOC] Remapping instructions...\n" );
   remap( JMP  );
   remap( JSR  );
   remap( LDA  );
@@ -202,6 +285,8 @@ void main( void ) {
   /*
    * print report
    */
+  base_function_table += 1;	/* skip over byte count */
+  
   funcptr1 = PEEKW( base_function_table );
   funcptr2 = PEEKW( base_function_table + 2 );
   funcptr3 = PEEKW( base_function_table + 4 );
