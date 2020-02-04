@@ -33,6 +33,7 @@ updated sio_read() to use new sectorSize and sio_to_computer() features - marked
 #include "tnfs.h"
 #include "printer.h"
 #include "modem.h"
+#include "fuji.h"
 
 #define PRINTMODE PDF
 
@@ -58,6 +59,7 @@ File paperf;
 File tnfs;
 sioDisk sioD[2];
 sioModem sioR;
+sioFuji theFuj;
 
 WiFiServer server(80);
 WiFiClient client;
@@ -191,6 +193,7 @@ void setup()
 
   SPIFFS.begin();
 
+  SIO.addDevice(&theFuj,0x70); // the FUJINET! 
   SIO.addDevice(&sioR, 0x50); // R:
   SIO.addDevice(&sioP, 0x40); // P:
   paperf = SPIFFS.open("/paper", "w+");
