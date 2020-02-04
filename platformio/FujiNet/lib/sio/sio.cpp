@@ -3,6 +3,20 @@
 
 // helper functions outside the class defintions
 
+/**
+   Drain data out of SIO port
+*/
+void sio_flush()
+{
+  while (SIO_UART.available())
+  {
+    SIO_UART.read(); // toss it.
+#ifdef DEBUG
+    Debug_printf(".");
+#endif
+  }
+}
+
 // calculate 8-bit checksum.
 byte sio_checksum(byte *chunk, int length)
 {

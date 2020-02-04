@@ -280,6 +280,8 @@ void setup()
 #ifdef DEBUG
   Debug_print("SIO Voltage: "); Debug_println(SIO.sio_volts());
 #endif
+
+void sio_flush();
 }
 
 void loop()
