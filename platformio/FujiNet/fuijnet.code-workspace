@@ -47,7 +47,8 @@
 			"streambuf": "cpp",
 			"cinttypes": "cpp",
 			"iostream": "cpp",
-			"string": "cpp"
+			"string": "cpp",
+			"regex": "cpp"
 		}
 	}
 }
