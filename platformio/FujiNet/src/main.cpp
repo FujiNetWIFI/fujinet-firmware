@@ -61,6 +61,9 @@ sioModem sioR;
 
 WiFiServer server(80);
 WiFiClient client;
+#ifdef DEBUG_N
+WiFiClient wifiDebugClient;
+#endif
 
 void httpService()
 {
@@ -174,16 +177,17 @@ void setup()
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
   BUG_UART.println();
-  BUG_UART.println("atariwifi started");
+  BUG_UART.println("FujiNet PlatformIO Started");
 #endif
 
+  // connect to wifi but DO NOT wait for it
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(10);
-  }
-  BUG_UART.println(WiFi.localIP());
-  server.begin();
+#ifdef DEBUG_S
+  if (WiFi.status() == WL_CONNECTED)
+    BUG_UART.println(WiFi.localIP());
+#endif
+
+  server.begin(); // Start the web server
 
   SPIFFS.begin();
 
@@ -270,10 +274,27 @@ void setup()
 #endif
 
   SIO.setup();
+#ifdef DEBUG
+  Debug_print("SIO Voltage: "); Debug_println(SIO.sio_volts());
+#endif
 }
 
 void loop()
 {
+#ifdef DEBUG_N
+  /* Connect to debug server if we aren't and WiFi is connected */
+  if ( !wifiDebugClient.connected() && WiFi.status() == WL_CONNECTED )
+  {
+    wifiDebugClient.connect(DEBUG_HOST, 6502);
+    wifiDebugClient.println("FujiNet PlatformIO");
+  }
+#endif
+
+  if(WiFi.status() == WL_CONNECTED)
+    digitalWrite(PIN_LED1, LOW);
+  else
+    digitalWrite(PIN_LED1, HIGH);
+
   SIO.service();
   httpService();
 }
