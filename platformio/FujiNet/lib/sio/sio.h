@@ -59,6 +59,7 @@ union cmdFrame_t {
 
 //helper functions
 byte sio_checksum(byte *chunk, int length);
+void sio_flush();
 
 // class def'ns
 class sioModem; // declare here so can reference it, but define in modem.h
