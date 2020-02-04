@@ -5,27 +5,27 @@ keyboard.o:
     RODATA            Offs=000000  Size=000149  Align=00001  Fill=0000
     BSS               Offs=000000  Size=000003  Align=00001  Fill=0000
 main.o:
-    CODE              Offs=000128  Size=00002E  Align=00001  Fill=0000
+    CODE              Offs=000128  Size=000032  Align=00001  Fill=0000
     DATA              Offs=000000  Size=000001  Align=00001  Fill=0000
 terminal.o:
-    CODE              Offs=000156  Size=0003B2  Align=00001  Fill=0000
+    CODE              Offs=00015A  Size=0003B2  Align=00001  Fill=0000
     RODATA            Offs=000149  Size=00005C  Align=00001  Fill=0000
     BSS               Offs=000003  Size=000032  Align=00001  Fill=0000
 io.o:
-    CODE              Offs=000508  Size=000131  Align=00001  Fill=0000
+    CODE              Offs=00050C  Size=00010D  Align=00001  Fill=0000
     BSS               Offs=000035  Size=001005  Align=00001  Fill=0000
     DATA              Offs=000001  Size=000101  Align=00001  Fill=0000
 touch.o:
-    CODE              Offs=000639  Size=00000F  Align=00001  Fill=0000
+    CODE              Offs=000619  Size=00000F  Align=00001  Fill=0000
     BSS               Offs=00103A  Size=000005  Align=00001  Fill=0000
     DATA              Offs=000102  Size=000002  Align=00001  Fill=0000
 screen.o:
-    CODE              Offs=000648  Size=000506  Align=00001  Fill=0000
+    CODE              Offs=000628  Size=000506  Align=00001  Fill=0000
     RODATA            Offs=0001A5  Size=000402  Align=00001  Fill=0000
     BSS               Offs=00103F  Size=00030D  Align=00001  Fill=0000
     DATA              Offs=000104  Size=000004  Align=00001  Fill=0000
 protocol.o:
-    CODE              Offs=000B4E  Size=000DC1  Align=00001  Fill=0000
+    CODE              Offs=000B2E  Size=000DC1  Align=00001  Fill=0000
     RODATA            Offs=0005A7  Size=000080  Align=00001  Fill=0000
     BSS               Offs=00134C  Size=00008E  Align=00001  Fill=0000
     DATA              Offs=000108  Size=000004  Align=00001  Fill=0000
@@ -33,143 +33,143 @@ crt0.o:
     BSS               Offs=0013DA  Size=000005  Align=00001  Fill=0000
     STARTUP           Offs=000000  Size=000068  Align=00001  Fill=0000
 screen_beep.o:
-    CODE              Offs=00190F  Size=00001E  Align=00001  Fill=0000
+    CODE              Offs=0018EF  Size=00001E  Align=00001  Fill=0000
 click.o:
-    CODE              Offs=00192D  Size=00000C  Align=00001  Fill=0000
+    CODE              Offs=00190D  Size=00000C  Align=00001  Fill=0000
 mulfuncs.o:
-    CODE              Offs=001939  Size=000046  Align=00001  Fill=0000
+    CODE              Offs=001919  Size=000046  Align=00001  Fill=0000
 fast_text.o:
-    CODE              Offs=00197F  Size=0001BD  Align=00001  Fill=0000
+    CODE              Offs=00195F  Size=0001BD  Align=00001  Fill=0000
     RODATA            Offs=000627  Size=000010  Align=00001  Fill=0000
     EXTZP             Offs=000000  Size=000009  Align=00001  Fill=0000
 sio.o:
-    CODE              Offs=001B3C  Size=00000B  Align=00001  Fill=0000
+    CODE              Offs=001B1C  Size=00000B  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(_cursor.o):
     BSS               Offs=0013DF  Size=000001  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(addysp.o):
-    CODE              Offs=001B47  Size=00000E  Align=00001  Fill=0000
+    CODE              Offs=001B27  Size=00000E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(aslax2.o):
-    CODE              Offs=001B55  Size=00000B  Align=00001  Fill=0000
+    CODE              Offs=001B35  Size=00000B  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(aslax4.o):
-    CODE              Offs=001B60  Size=000011  Align=00001  Fill=0000
+    CODE              Offs=001B40  Size=000011  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(asrax1.o):
-    CODE              Offs=001B71  Size=00000A  Align=00001  Fill=0000
+    CODE              Offs=001B51  Size=00000A  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(asrax2.o):
-    CODE              Offs=001B7B  Size=00000F  Align=00001  Fill=0000
+    CODE              Offs=001B5B  Size=00000F  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(asrax3.o):
-    CODE              Offs=001B8A  Size=000014  Align=00001  Fill=0000
+    CODE              Offs=001B6A  Size=000014  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(asrax4.o):
-    CODE              Offs=001B9E  Size=000019  Align=00001  Fill=0000
+    CODE              Offs=001B7E  Size=000019  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(callmain.o):
-    CODE              Offs=001BB7  Size=000017  Align=00001  Fill=0000
+    CODE              Offs=001B97  Size=000017  Align=00001  Fill=0000
     DATA              Offs=00010C  Size=000004  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(cgetc.o):
-    CODE              Offs=001BCE  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=001BAE  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(condes.o):
-    CODE              Offs=001BE4  Size=00000C  Align=00001  Fill=0000
+    CODE              Offs=001BC4  Size=00000C  Align=00001  Fill=0000
     DATA              Offs=000110  Size=000025  Align=00001  Fill=0000
     ONCE              Offs=000000  Size=00000C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decax1.o):
-    CODE              Offs=001BF0  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=001BD0  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decsp1.o):
-    CODE              Offs=001BF7  Size=000009  Align=00001  Fill=0000
+    CODE              Offs=001BD7  Size=000009  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decsp4.o):
-    CODE              Offs=001C00  Size=00000D  Align=00001  Fill=0000
+    CODE              Offs=001BE0  Size=00000D  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decsp6.o):
-    CODE              Offs=001C0D  Size=00000D  Align=00001  Fill=0000
+    CODE              Offs=001BED  Size=00000D  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(icmp.o):
-    CODE              Offs=001C1A  Size=00002E  Align=00001  Fill=0000
+    CODE              Offs=001BFA  Size=00002E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp1.o):
-    CODE              Offs=001C48  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=001C28  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp2.o):
-    CODE              Offs=001C4F  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=001C2F  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp4.o):
-    CODE              Offs=001C65  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=001C45  Size=000005  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp7.o):
-    CODE              Offs=001C6A  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=001C4A  Size=000005  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(kbhit.o):
-    CODE              Offs=001C6F  Size=00000B  Align=00001  Fill=0000
+    CODE              Offs=001C4F  Size=00000B  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(libref.o):
 /home/thomc/Workspace/cc65/lib/atari.lib(makebool.o):
-    CODE              Offs=001C7A  Size=00002C  Align=00001  Fill=0000
+    CODE              Offs=001C5A  Size=00002C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(mul40.o):
-    CODE              Offs=001CA6  Size=000021  Align=00001  Fill=0000
+    CODE              Offs=001C86  Size=000021  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(negabs.o):
-    CODE              Offs=001CC7  Size=000012  Align=00001  Fill=0000
+    CODE              Offs=001CA7  Size=000012  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(popa.o):
-    CODE              Offs=001CD9  Size=00000C  Align=00001  Fill=0000
+    CODE              Offs=001CB9  Size=00000C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(popptr1.o):
-    CODE              Offs=001CE5  Size=00000E  Align=00001  Fill=0000
+    CODE              Offs=001CC5  Size=00000E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(pusha.o):
-    CODE              Offs=001CF3  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=001CD3  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(pushax.o):
-    CODE              Offs=001D09  Size=00001A  Align=00001  Fill=0000
+    CODE              Offs=001CE9  Size=00001A  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(pushwsp.o):
-    CODE              Offs=001D23  Size=00001C  Align=00001  Fill=0000
+    CODE              Offs=001D03  Size=00001C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(return1.o):
-    CODE              Offs=001D3F  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=001D1F  Size=000005  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(setcursor.o):
-    CODE              Offs=001D44  Size=00003A  Align=00001  Fill=0000
+    CODE              Offs=001D24  Size=00003A  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(shl.o):
-    CODE              Offs=001D7E  Size=000033  Align=00001  Fill=0000
+    CODE              Offs=001D5E  Size=000033  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(staspidx.o):
-    CODE              Offs=001DB1  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=001D91  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(staxsp.o):
-    CODE              Offs=001DC7  Size=00000B  Align=00001  Fill=0000
+    CODE              Offs=001DA7  Size=00000B  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi-kernel.o):
-    CODE              Offs=001DD2  Size=00007F  Align=00001  Fill=0000
+    CODE              Offs=001DB2  Size=00007F  Align=00001  Fill=0000
     RODATA            Offs=000637  Size=000004  Align=00001  Fill=0000
     BSS               Offs=0013E0  Size=000028  Align=00001  Fill=0000
     DATA              Offs=000135  Size=000039  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_bar.o):
-    CODE              Offs=001E51  Size=0000A9  Align=00001  Fill=0000
+    CODE              Offs=001E31  Size=0000A9  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_clear.o):
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_clippedline.o):
-    CODE              Offs=001EFA  Size=0001E3  Align=00001  Fill=0000
+    CODE              Offs=001EDA  Size=0001E3  Align=00001  Fill=0000
     BSS               Offs=001408  Size=000008  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_colors.o):
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_done.o):
-    CODE              Offs=0020DD  Size=00000E  Align=00001  Fill=0000
+    CODE              Offs=0020BD  Size=00000E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_getmaxx.o):
-    CODE              Offs=0020EB  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=0020CB  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_getmaxy.o):
-    CODE              Offs=0020F2  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=0020D2  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_getset.o):
-    CODE              Offs=0020F9  Size=00001F  Align=00001  Fill=0000
+    CODE              Offs=0020D9  Size=00001F  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_getxres.o):
-    CODE              Offs=002118  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=0020F8  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_getyres.o):
-    CODE              Offs=00211F  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=0020FF  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_init.o):
-    CODE              Offs=002126  Size=000058  Align=00001  Fill=0000
+    CODE              Offs=002106  Size=000058  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_line.o):
-    CODE              Offs=00217E  Size=000018  Align=00001  Fill=0000
+    CODE              Offs=00215E  Size=000018  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_linepop.o):
-    CODE              Offs=002196  Size=00001C  Align=00001  Fill=0000
+    CODE              Offs=002176  Size=00001C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_outcode.o):
-    CODE              Offs=0021B2  Size=000041  Align=00001  Fill=0000
+    CODE              Offs=002192  Size=000041  Align=00001  Fill=0000
     BSS               Offs=001410  Size=000008  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_popxy.o):
-    CODE              Offs=0021F3  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=0021D3  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_setcolor.o):
-    CODE              Offs=0021FA  Size=00000E  Align=00001  Fill=0000
+    CODE              Offs=0021DA  Size=00000E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_setpixel.o):
-    CODE              Offs=002208  Size=000009  Align=00001  Fill=0000
+    CODE              Offs=0021E8  Size=000009  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_settextstyle.o):
-    CODE              Offs=002211  Size=000044  Align=00001  Fill=0000
+    CODE              Offs=0021F1  Size=000044  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(tgi_stat_stddrv.o):
 /home/thomc/Workspace/cc65/lib/atari.lib(udiv32by16r16.o):
-    CODE              Offs=002255  Size=000031  Align=00001  Fill=0000
+    CODE              Offs=002235  Size=000031  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(umul16x16r32.o):
-    CODE              Offs=002286  Size=00002C  Align=00001  Fill=0000
+    CODE              Offs=002266  Size=00002C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(umul8x16r24.o):
-    CODE              Offs=0022B2  Size=00002E  Align=00001  Fill=0000
+    CODE              Offs=002292  Size=00002E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(zerobss.o):
-    CODE              Offs=0022E0  Size=000023  Align=00001  Fill=0000
+    CODE              Offs=0022C0  Size=000023  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(zeropage.o):
     ZEROPAGE          Offs=000000  Size=00001A  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(atr8-tgi.o):
-    CODE              Offs=002303  Size=0005AE  Align=00001  Fill=0000
+    CODE              Offs=0022E3  Size=0005AE  Align=00001  Fill=0000
     RODATA            Offs=00063B  Size=000018  Align=00001  Fill=0000
     BSS               Offs=001418  Size=000013  Align=00001  Fill=0000
     DATA              Offs=00016E  Size=00003E  Align=00001  Fill=0000
@@ -183,101 +183,100 @@ ZEROPAGE              000081  00009A  00001A  00001
 EXTZP                 00009B  0000A3  000009  00001
 STARTUP               000700  000767  000068  00001
 ONCE                  000768  000773  00000C  00001
-CODE                  000774  003024  0028B1  00001
-RODATA                003025  003677  000653  00001
-DATA                  003678  003823  0001AC  00001
-BSS                   003824  004C4E  00142B  00001
+CODE                  000774  003004  002891  00001
+RODATA                003005  003657  000653  00001
+DATA                  003658  003803  0001AC  00001
+BSS                   003804  004C2E  00142B  00001
 
 
 Exports list by name:
 ---------------------
-_CharCode                 004B6A RLA    _CharHigh                 00377F RLA    
-_CharWide                 00377E RLA    _CurMem                   004B70 RLA    
-_CurMode                  004B7C RLA    _Flags                    004B6B RLA    
-_GlyphData                004B6C RLA    _Key                      00137C RLA    
-_ModeBold                 004B76 RLA    _RenderGlyph              0020F3 RLA    
-_Reverse                  004B7A RLA    _Rotate                   004B78 RLA    
-_ShowPLATO                001C4B RLA    _TTY                      004B72 RLA    
-_TTYLoc                   004B63 RLA    __BSS_RUN__               003824 RLA    
+_CharCode                 004B4A RLA    _CharHigh                 00375F RLA    
+_CharWide                 00375E RLA    _CurMem                   004B50 RLA    
+_CurMode                  004B5C RLA    _Flags                    004B4B RLA    
+_GlyphData                004B4C RLA    _Key                      00135C RLA    
+_ModeBold                 004B56 RLA    _RenderGlyph              0020D3 RLA    
+_Reverse                  004B5A RLA    _Rotate                   004B58 RLA    
+_ShowPLATO                001C2B RLA    _TTY                      004B52 RLA    
+_TTYLoc                   004B43 RLA    __BSS_RUN__               003804 RLA    
 __BSS_SIZE__              00142B REA    __CONSTRUCTOR_COUNT__     000000 REA    
 __CONSTRUCTOR_TABLE__     000774 RLA    __DESTRUCTOR_COUNT__      000000 REA    
-__DESTRUCTOR_TABLE__      003678 RLA    __LOWCODE_RUN__           000768 RLA    
+__DESTRUCTOR_TABLE__      003658 RLA    __LOWCODE_RUN__           000768 RLA    
 __LOWCODE_SIZE__          000000 REA    __RESERVED_MEMORY__       002000 REA    
 __STACKSIZE__             000800 REA    __STARTUP__               000001 REA    
-_atr8_tgi                 0037E6 RLA    _cgetc                    002342 RLA    
-_click                    0020A1 RLA    _cx                       004B67 RLA    
-_cy                       004B69 RLA    _exit                     000746 RLA    
-_fontm23                  004863 RLA    _io_done                  000DAC RLA    
-_io_init                  000C7C RLA    _io_main                  000D10 RLA    
-_io_send_byte             000CB3 RLA    _kbhit                    0023E3 RLA    
+_atr8_tgi                 0037C6 RLA    _cgetc                    002322 RLA    
+_click                    002081 RLA    _cx                       004B47 RLA    
+_cy                       004B49 RLA    _exit                     000746 RLA    
+_fontm23                  004843 RLA    _io_done                  000D8C RLA    
+_io_init                  000C80 RLA    _io_main                  000D07 RLA    
+_io_send_byte             000CB7 RLA    _kbhit                    0023C3 RLA    
 _keyboard_main            0007AD RLA    _main                     00089C RLA    
-_mul0375                  0020D4 RLA    _mul0625                  0020AD RLA    
-_mul40                    00241A RLA    _running                  003678 RLA    
-_screen_beep              002083 RLA    _screen_block_draw        000E5C RLA    
-_screen_char_draw         000FBB RLA    _screen_clear             000E37 RLA    
-_screen_done              00129C RLA    _screen_dot_draw          000EEB RLA    
-_screen_init              000DBC RLA    _screen_line_draw         000F2C RLA    
-_screen_splash            000DC9 RLA    _screen_tty_char          001131 RLA    
-_screen_wait              000E36 RLA    _siov                     0022B0 RLA    
-_terminal_char_load       00093C RLA    _terminal_init            0008CA RLA    
-_terminal_set_plato       000926 RLA    _terminal_set_tty         0008DF RLA    
-_tgi_bar                  0025C5 RLA    _tgi_clear                0037BF REA    
-_tgi_color                004C0C RLA    _tgi_colorcount           004C25 RLA    
-_tgi_curx                 004C08 RLA    _tgi_cury                 004C0A RLA    
-_tgi_done                 002851 RLA    _tgi_error                004C06 RLA    
-_tgi_flags                004C2B RLA    _tgi_font                 004C0D RLA    
-_tgi_fontheight           004C28 RLA    _tgi_fontwidth            004C27 RLA    
-_tgi_getmaxx              00285F RLA    _tgi_getmaxy              002866 RLA    
-_tgi_getxres              00288C RLA    _tgi_getyres              002893 RLA    
-_tgi_gmode                004C07 RLA    _tgi_init                 00289A RLA    
-_tgi_install              002546 RLA    _tgi_line                 0028F2 RLA    
-_tgi_setcolor             00296E RLA    _tgi_setpixel             00297C RLA    
-_tgi_settextstyle         002985 RLA    _tgi_static_stddrv        0037E6 RLA    
-_tgi_textdir              004C0E RLA    _tgi_textscalew           004C11 RLA    
-_tgi_uninstall            0025B3 RLA    _tgi_xmax                 004C1D RLA    
-_tgi_xres                 004C21 RLA    _tgi_ymax                 004C1F RLA    
-_tgi_yres                 004C23 RLA    _touch_allow              000DAF RLA    
-_touch_done               000DBB RLA    _touch_init               000DAD RLA    
-_touch_main               000DAE RLA    _trip                     00485D RLA    
-addysp                    0022BC RLA    aslaxy                    0024F9 RLA    
-asrax1                    0022E5 RLA    asrax2                    0022EF RLA    
-asrax3                    0022FE RLA    asrax4                    002312 RLA    
-booleq                    0023F4 RLA    boolult                   00240D RLA    
-callmain                  00232B RLA    cursor                    004C03 RLA    
-decax1                    002364 RLA    decsp1                    00236B RLA    
-decsp4                    002374 RLA    decsp6                    002381 RLA    
-donelib                   002358 RLA    incsp1                    0023BC RLA    
-incsp2                    0023CB RLA    incsp4                    0023D9 RLA    
-incsp7                    0023DE RLA    initlib                   000768 RLA    
-negax                     00243F RLA    popa                      00244D RLA    
-popax                     0023C3 RLA    popptr1                   002459 RLA    
-ptr1                      000089 RLZ    ptr2                      00008B RLZ    
-ptr3                      00008D RLZ    ptr4                      00008F RLZ    
-push0                     00247D RLA    pusha                     00246B RLA    
-pusha0                    00247F RLA    pushax                    002481 RLA    
-pushwysp                  002499 RLA    regsave                   000085 RLZ    
-return1                   0024B3 RLA    setcursor                 0024B8 RLA    
-shlax2                    0022C9 RLA    shlax4                    0022D4 RLA    
-sp                        000081 RLZ    sreg                      000083 RLZ    
-staspidx                  002525 RLA    stax0sp                   00253B RLA    
-staxysp                   00253D RLA    tgi_bar                   0037DD RLA    
-tgi_clear                 0037BF RLA    tgi_clip_x1               004C34 RLA    
-tgi_clip_x2               004C38 RLA    tgi_clip_y1               004C36 RLA    
-tgi_clip_y2               004C3A RLA    tgi_clippedline           002732 RLA    
-tgi_color_white           000001 REZ    tgi_done                  0037B6 RLA    
-tgi_getdefpalette         0037D1 RLA    tgi_geterror              0037B9 RLA    
-tgi_getset                00286D RLA    tgi_init                  0037B3 RLA    
-tgi_inv_arg               00259C RLA    tgi_libref                000746 RLA    
-tgi_line                  0037DA RLA    tgi_linepop               00290A RLA    
-tgi_outcode               002926 RLA    tgi_popxy                 002967 RLA    
-tgi_setcolor              0037C8 RLA    tgi_setdrawpage           0037C5 RLA    
-tgi_setpalette            0037CB RLA    tgi_setpixel              0037D4 RLA    
-tgi_setviewpage           0037C2 RLA    tmp1                      000091 RLZ    
-tmp2                      000092 RLZ    tmp3                      000093 RLZ    
-tmp4                      000094 RLZ    tosicmp0                  00238E RLA    
-udiv32by16r16             0029C9 RLA    umul16x16r32              0029FA RLA    
-umul8x16r24               002A26 RLA    zerobss                   002A54 RLA    
-
+_mul0375                  0020B4 RLA    _mul0625                  00208D RLA    
+_mul40                    0023FA RLA    _running                  003658 RLA    
+_screen_beep              002063 RLA    _screen_block_draw        000E3C RLA    
+_screen_char_draw         000F9B RLA    _screen_clear             000E17 RLA    
+_screen_done              00127C RLA    _screen_dot_draw          000ECB RLA    
+_screen_init              000D9C RLA    _screen_line_draw         000F0C RLA    
+_screen_splash            000DA9 RLA    _screen_tty_char          001111 RLA    
+_screen_wait              000E16 RLA    _siov                     002290 RLA    
+_terminal_char_load       000940 RLA    _terminal_init            0008CE RLA    
+_terminal_set_plato       00092A RLA    _terminal_set_tty         0008E3 RLA    
+_tgi_bar                  0025A5 RLA    _tgi_clear                00379F REA    
+_tgi_color                004BEC RLA    _tgi_colorcount           004C05 RLA    
+_tgi_curx                 004BE8 RLA    _tgi_cury                 004BEA RLA    
+_tgi_done                 002831 RLA    _tgi_error                004BE6 RLA    
+_tgi_flags                004C0B RLA    _tgi_font                 004BED RLA    
+_tgi_fontheight           004C08 RLA    _tgi_fontwidth            004C07 RLA    
+_tgi_getmaxx              00283F RLA    _tgi_getmaxy              002846 RLA    
+_tgi_getxres              00286C RLA    _tgi_getyres              002873 RLA    
+_tgi_gmode                004BE7 RLA    _tgi_init                 00287A RLA    
+_tgi_install              002526 RLA    _tgi_line                 0028D2 RLA    
+_tgi_setcolor             00294E RLA    _tgi_setpixel             00295C RLA    
+_tgi_settextstyle         002965 RLA    _tgi_static_stddrv        0037C6 RLA    
+_tgi_textdir              004BEE RLA    _tgi_textscalew           004BF1 RLA    
+_tgi_uninstall            002593 RLA    _tgi_xmax                 004BFD RLA    
+_tgi_xres                 004C01 RLA    _tgi_ymax                 004BFF RLA    
+_tgi_yres                 004C03 RLA    _touch_allow              000D8F RLA    
+_touch_done               000D9B RLA    _touch_init               000D8D RLA    
+_touch_main               000D8E RLA    _trip                     00483D RLA    
+addysp                    00229C RLA    aslaxy                    0024D9 RLA    
+asrax1                    0022C5 RLA    asrax2                    0022CF RLA    
+asrax3                    0022DE RLA    asrax4                    0022F2 RLA    
+booleq                    0023D4 RLA    callmain                  00230B RLA    
+cursor                    004BE3 RLA    decax1                    002344 RLA    
+decsp1                    00234B RLA    decsp4                    002354 RLA    
+decsp6                    002361 RLA    donelib                   002338 RLA    
+incsp1                    00239C RLA    incsp2                    0023AB RLA    
+incsp4                    0023B9 RLA    incsp7                    0023BE RLA    
+initlib                   000768 RLA    negax                     00241F RLA    
+popa                      00242D RLA    popax                     0023A3 RLA    
+popptr1                   002439 RLA    ptr1                      000089 RLZ    
+ptr2                      00008B RLZ    ptr3                      00008D RLZ    
+ptr4                      00008F RLZ    push0                     00245D RLA    
+pusha                     00244B RLA    pusha0                    00245F RLA    
+pushax                    002461 RLA    pushwysp                  002479 RLA    
+regsave                   000085 RLZ    return1                   002493 RLA    
+setcursor                 002498 RLA    shlax2                    0022A9 RLA    
+shlax4                    0022B4 RLA    sp                        000081 RLZ    
+sreg                      000083 RLZ    staspidx                  002505 RLA    
+stax0sp                   00251B RLA    staxysp                   00251D RLA    
+tgi_bar                   0037BD RLA    tgi_clear                 00379F RLA    
+tgi_clip_x1               004C14 RLA    tgi_clip_x2               004C18 RLA    
+tgi_clip_y1               004C16 RLA    tgi_clip_y2               004C1A RLA    
+tgi_clippedline           002712 RLA    tgi_color_white           000001 REZ    
+tgi_done                  003796 RLA    tgi_getdefpalette         0037B1 RLA    
+tgi_geterror              003799 RLA    tgi_getset                00284D RLA    
+tgi_init                  003793 RLA    tgi_inv_arg               00257C RLA    
+tgi_libref                000746 RLA    tgi_line                  0037BA RLA    
+tgi_linepop               0028EA RLA    tgi_outcode               002906 RLA    
+tgi_popxy                 002947 RLA    tgi_setcolor              0037A8 RLA    
+tgi_setdrawpage           0037A5 RLA    tgi_setpalette            0037AB RLA    
+tgi_setpixel              0037B4 RLA    tgi_setviewpage           0037A2 RLA    
+tmp1                      000091 RLZ    tmp2                      000092 RLZ    
+tmp3                      000093 RLZ    tmp4                      000094 RLZ    
+tosicmp0                  00236E RLA    udiv32by16r16             0029A9 RLA    
+umul16x16r32              0029DA RLA    umul8x16r24               002A06 RLA    
+zerobss                   002A34 RLA    
 
 
 Exports list by value:
@@ -294,81 +293,80 @@ tgi_libref                000746 RLA    _exit                     000746 RLA
 __LOWCODE_RUN__           000768 RLA    initlib                   000768 RLA    
 __CONSTRUCTOR_TABLE__     000774 RLA    _keyboard_main            0007AD RLA    
 __STACKSIZE__             000800 REA    _main                     00089C RLA    
-_terminal_init            0008CA RLA    _terminal_set_tty         0008DF RLA    
-_terminal_set_plato       000926 RLA    _terminal_char_load       00093C RLA    
-_io_init                  000C7C RLA    _io_send_byte             000CB3 RLA    
-_io_main                  000D10 RLA    _io_done                  000DAC RLA    
-_touch_init               000DAD RLA    _touch_main               000DAE RLA    
-_touch_allow              000DAF RLA    _touch_done               000DBB RLA    
-_screen_init              000DBC RLA    _screen_splash            000DC9 RLA    
-_screen_wait              000E36 RLA    _screen_clear             000E37 RLA    
-_screen_block_draw        000E5C RLA    _screen_dot_draw          000EEB RLA    
-_screen_line_draw         000F2C RLA    _screen_char_draw         000FBB RLA    
-_screen_tty_char          001131 RLA    _screen_done              00129C RLA    
-_Key                      00137C RLA    __BSS_SIZE__              00142B REA    
-_ShowPLATO                001C4B RLA    __RESERVED_MEMORY__       002000 REA    
-_screen_beep              002083 RLA    _click                    0020A1 RLA    
-_mul0625                  0020AD RLA    _mul0375                  0020D4 RLA    
-_RenderGlyph              0020F3 RLA    _siov                     0022B0 RLA    
-addysp                    0022BC RLA    shlax2                    0022C9 RLA    
-shlax4                    0022D4 RLA    asrax1                    0022E5 RLA    
-asrax2                    0022EF RLA    asrax3                    0022FE RLA    
-asrax4                    002312 RLA    callmain                  00232B RLA    
-_cgetc                    002342 RLA    donelib                   002358 RLA    
-decax1                    002364 RLA    decsp1                    00236B RLA    
-decsp4                    002374 RLA    decsp6                    002381 RLA    
-tosicmp0                  00238E RLA    incsp1                    0023BC RLA    
-popax                     0023C3 RLA    incsp2                    0023CB RLA    
-incsp4                    0023D9 RLA    incsp7                    0023DE RLA    
-_kbhit                    0023E3 RLA    booleq                    0023F4 RLA    
-boolult                   00240D RLA    _mul40                    00241A RLA    
-negax                     00243F RLA    popa                      00244D RLA    
-popptr1                   002459 RLA    pusha                     00246B RLA    
-push0                     00247D RLA    pusha0                    00247F RLA    
-pushax                    002481 RLA    pushwysp                  002499 RLA    
-return1                   0024B3 RLA    setcursor                 0024B8 RLA    
-aslaxy                    0024F9 RLA    staspidx                  002525 RLA    
-stax0sp                   00253B RLA    staxysp                   00253D RLA    
-_tgi_install              002546 RLA    tgi_inv_arg               00259C RLA    
-_tgi_uninstall            0025B3 RLA    _tgi_bar                  0025C5 RLA    
-tgi_clippedline           002732 RLA    _tgi_done                 002851 RLA    
-_tgi_getmaxx              00285F RLA    _tgi_getmaxy              002866 RLA    
-tgi_getset                00286D RLA    _tgi_getxres              00288C RLA    
-_tgi_getyres              002893 RLA    _tgi_init                 00289A RLA    
-_tgi_line                 0028F2 RLA    tgi_linepop               00290A RLA    
-tgi_outcode               002926 RLA    tgi_popxy                 002967 RLA    
-_tgi_setcolor             00296E RLA    _tgi_setpixel             00297C RLA    
-_tgi_settextstyle         002985 RLA    udiv32by16r16             0029C9 RLA    
-umul16x16r32              0029FA RLA    umul8x16r24               002A26 RLA    
-zerobss                   002A54 RLA    __DESTRUCTOR_TABLE__      003678 RLA    
-_running                  003678 RLA    _CharWide                 00377E RLA    
-_CharHigh                 00377F RLA    tgi_init                  0037B3 RLA    
-tgi_done                  0037B6 RLA    tgi_geterror              0037B9 RLA    
-tgi_clear                 0037BF RLA    _tgi_clear                0037BF REA    
-tgi_setviewpage           0037C2 RLA    tgi_setdrawpage           0037C5 RLA    
-tgi_setcolor              0037C8 RLA    tgi_setpalette            0037CB RLA    
-tgi_getdefpalette         0037D1 RLA    tgi_setpixel              0037D4 RLA    
-tgi_line                  0037DA RLA    tgi_bar                   0037DD RLA    
-_atr8_tgi                 0037E6 RLA    _tgi_static_stddrv        0037E6 RLA    
-__BSS_RUN__               003824 RLA    _trip                     00485D RLA    
-_fontm23                  004863 RLA    _TTYLoc                   004B63 RLA    
-_cx                       004B67 RLA    _cy                       004B69 RLA    
-_CharCode                 004B6A RLA    _Flags                    004B6B RLA    
-_GlyphData                004B6C RLA    _CurMem                   004B70 RLA    
-_TTY                      004B72 RLA    _ModeBold                 004B76 RLA    
-_Rotate                   004B78 RLA    _Reverse                  004B7A RLA    
-_CurMode                  004B7C RLA    cursor                    004C03 RLA    
-_tgi_error                004C06 RLA    _tgi_gmode                004C07 RLA    
-_tgi_curx                 004C08 RLA    _tgi_cury                 004C0A RLA    
-_tgi_color                004C0C RLA    _tgi_font                 004C0D RLA    
-_tgi_textdir              004C0E RLA    _tgi_textscalew           004C11 RLA    
-_tgi_xmax                 004C1D RLA    _tgi_ymax                 004C1F RLA    
-_tgi_xres                 004C21 RLA    _tgi_yres                 004C23 RLA    
-_tgi_colorcount           004C25 RLA    _tgi_fontwidth            004C27 RLA    
-_tgi_fontheight           004C28 RLA    _tgi_flags                004C2B RLA    
-tgi_clip_x1               004C34 RLA    tgi_clip_y1               004C36 RLA    
-tgi_clip_x2               004C38 RLA    tgi_clip_y2               004C3A RLA    
-
+_terminal_init            0008CE RLA    _terminal_set_tty         0008E3 RLA    
+_terminal_set_plato       00092A RLA    _terminal_char_load       000940 RLA    
+_io_init                  000C80 RLA    _io_send_byte             000CB7 RLA    
+_io_main                  000D07 RLA    _io_done                  000D8C RLA    
+_touch_init               000D8D RLA    _touch_main               000D8E RLA    
+_touch_allow              000D8F RLA    _touch_done               000D9B RLA    
+_screen_init              000D9C RLA    _screen_splash            000DA9 RLA    
+_screen_wait              000E16 RLA    _screen_clear             000E17 RLA    
+_screen_block_draw        000E3C RLA    _screen_dot_draw          000ECB RLA    
+_screen_line_draw         000F0C RLA    _screen_char_draw         000F9B RLA    
+_screen_tty_char          001111 RLA    _screen_done              00127C RLA    
+_Key                      00135C RLA    __BSS_SIZE__              00142B REA    
+_ShowPLATO                001C2B RLA    __RESERVED_MEMORY__       002000 REA    
+_screen_beep              002063 RLA    _click                    002081 RLA    
+_mul0625                  00208D RLA    _mul0375                  0020B4 RLA    
+_RenderGlyph              0020D3 RLA    _siov                     002290 RLA    
+addysp                    00229C RLA    shlax2                    0022A9 RLA    
+shlax4                    0022B4 RLA    asrax1                    0022C5 RLA    
+asrax2                    0022CF RLA    asrax3                    0022DE RLA    
+asrax4                    0022F2 RLA    callmain                  00230B RLA    
+_cgetc                    002322 RLA    donelib                   002338 RLA    
+decax1                    002344 RLA    decsp1                    00234B RLA    
+decsp4                    002354 RLA    decsp6                    002361 RLA    
+tosicmp0                  00236E RLA    incsp1                    00239C RLA    
+popax                     0023A3 RLA    incsp2                    0023AB RLA    
+incsp4                    0023B9 RLA    incsp7                    0023BE RLA    
+_kbhit                    0023C3 RLA    booleq                    0023D4 RLA    
+_mul40                    0023FA RLA    negax                     00241F RLA    
+popa                      00242D RLA    popptr1                   002439 RLA    
+pusha                     00244B RLA    push0                     00245D RLA    
+pusha0                    00245F RLA    pushax                    002461 RLA    
+pushwysp                  002479 RLA    return1                   002493 RLA    
+setcursor                 002498 RLA    aslaxy                    0024D9 RLA    
+staspidx                  002505 RLA    stax0sp                   00251B RLA    
+staxysp                   00251D RLA    _tgi_install              002526 RLA    
+tgi_inv_arg               00257C RLA    _tgi_uninstall            002593 RLA    
+_tgi_bar                  0025A5 RLA    tgi_clippedline           002712 RLA    
+_tgi_done                 002831 RLA    _tgi_getmaxx              00283F RLA    
+_tgi_getmaxy              002846 RLA    tgi_getset                00284D RLA    
+_tgi_getxres              00286C RLA    _tgi_getyres              002873 RLA    
+_tgi_init                 00287A RLA    _tgi_line                 0028D2 RLA    
+tgi_linepop               0028EA RLA    tgi_outcode               002906 RLA    
+tgi_popxy                 002947 RLA    _tgi_setcolor             00294E RLA    
+_tgi_setpixel             00295C RLA    _tgi_settextstyle         002965 RLA    
+udiv32by16r16             0029A9 RLA    umul16x16r32              0029DA RLA    
+umul8x16r24               002A06 RLA    zerobss                   002A34 RLA    
+__DESTRUCTOR_TABLE__      003658 RLA    _running                  003658 RLA    
+_CharWide                 00375E RLA    _CharHigh                 00375F RLA    
+tgi_init                  003793 RLA    tgi_done                  003796 RLA    
+tgi_geterror              003799 RLA    tgi_clear                 00379F RLA    
+_tgi_clear                00379F REA    tgi_setviewpage           0037A2 RLA    
+tgi_setdrawpage           0037A5 RLA    tgi_setcolor              0037A8 RLA    
+tgi_setpalette            0037AB RLA    tgi_getdefpalette         0037B1 RLA    
+tgi_setpixel              0037B4 RLA    tgi_line                  0037BA RLA    
+tgi_bar                   0037BD RLA    _atr8_tgi                 0037C6 RLA    
+_tgi_static_stddrv        0037C6 RLA    __BSS_RUN__               003804 RLA    
+_trip                     00483D RLA    _fontm23                  004843 RLA    
+_TTYLoc                   004B43 RLA    _cx                       004B47 RLA    
+_cy                       004B49 RLA    _CharCode                 004B4A RLA    
+_Flags                    004B4B RLA    _GlyphData                004B4C RLA    
+_CurMem                   004B50 RLA    _TTY                      004B52 RLA    
+_ModeBold                 004B56 RLA    _Rotate                   004B58 RLA    
+_Reverse                  004B5A RLA    _CurMode                  004B5C RLA    
+cursor                    004BE3 RLA    _tgi_error                004BE6 RLA    
+_tgi_gmode                004BE7 RLA    _tgi_curx                 004BE8 RLA    
+_tgi_cury                 004BEA RLA    _tgi_color                004BEC RLA    
+_tgi_font                 004BED RLA    _tgi_textdir              004BEE RLA    
+_tgi_textscalew           004BF1 RLA    _tgi_xmax                 004BFD RLA    
+_tgi_ymax                 004BFF RLA    _tgi_xres                 004C01 RLA    
+_tgi_yres                 004C03 RLA    _tgi_colorcount           004C05 RLA    
+_tgi_fontwidth            004C07 RLA    _tgi_fontheight           004C08 RLA    
+_tgi_flags                004C0B RLA    tgi_clip_x1               004C14 RLA    
+tgi_clip_y1               004C16 RLA    tgi_clip_x2               004C18 RLA    
+tgi_clip_y2               004C1A RLA    
 
 
 Imports list:
@@ -609,8 +607,6 @@ asrax4 (asrax4.o):
     protocol.o                src/protocol.s(2256)
 booleq (makebool.o):
     protocol.o                src/protocol.s(2256)
-boolult (makebool.o):
-    io.o                      src/io.s(216)
 callmain (callmain.o):
     crt0.o                    src/crt0.s(15)
 cursor (_cursor.o):
@@ -636,7 +632,7 @@ donelib (condes.o):
 incsp1 (incsp1.o):
     protocol.o                src/protocol.s(2256)
     screen.o                  src/screen.s(1817)
-    io.o                      src/io.s(216)
+    io.o                      src/io.s(199)
     keyboard.o                src/keyboard.s(516)
     keyboard.o                src/keyboard.s(516)
 incsp2 (incsp2.o):
@@ -728,7 +724,7 @@ pusha (pusha.o):
     tgi_init.o                tgi/tgi_init.s(11)
     screen.o                  src/screen.s(1817)
     screen.o                  src/screen.s(1817)
-    io.o                      src/io.s(216)
+    io.o                      src/io.s(199)
     keyboard.o                src/keyboard.s(516)
     keyboard.o                src/keyboard.s(516)
 pusha0 (pushax.o):
@@ -758,7 +754,7 @@ pushax (pushax.o):
     screen.o                  src/screen.s(1817)
     touch.o                   src/touch.s(100)
     touch.o                   src/touch.s(100)
-    io.o                      src/io.s(216)
+    io.o                      src/io.s(199)
     terminal.o                src/terminal.s(690)
     keyboard.o                src/keyboard.s(516)
 pushwysp (pushwsp.o):

@@ -40,6 +40,10 @@ void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
   // Write checksum
   SIO_UART.write(ck);
 
+#ifdef ESP32
+  SIO_UART.flush();
+#endif
+
 #ifdef DEBUG_VERBOSE
   Debug_printf("TO COMPUTER: ");
   for (int i = 0; i < len; i++)
@@ -106,6 +110,9 @@ void sioDevice::sio_nak()
 #ifdef ESP32
   SIO_UART.flush();
 #endif
+#ifdef DEBUG
+  Debug_println("NAK!");
+#endif
 }
 
 /**
@@ -117,6 +124,9 @@ void sioDevice::sio_ack()
 #ifdef ESP32
   SIO_UART.flush();
 #endif
+#ifdef DEBUG
+  Debug_println("ACK!");
+#endif
 }
 
 /**
@@ -126,6 +136,9 @@ void sioDevice::sio_complete()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('C');
+#ifdef DEBUG
+  Debug_println("COMPLETE!");
+#endif
 }
 
 /**
@@ -135,6 +148,9 @@ void sioDevice::sio_error()
 {
   delayMicroseconds(DELAY_T5);
   SIO_UART.write('E');
+#ifdef DEBUG
+  Debug_println("ERROR!");
+#endif
 }
 
 // class functions
@@ -316,12 +332,20 @@ void sioDevice::sio_error()
 void sioBus::service()
 {
   int a;
+#ifdef ESP32
+  /*
+    Check if Atari is powered up or else we get stuck in here reading the
+    command frame. Maybe we should instead read the 5 bytes of command frame
+    in a loop with a timeout so it also works for ESP8266.
+  */
+  if (digitalRead(PIN_CMD) == LOW && sio_volts() > 3000) // 3V should be high enuf
+#else
   if (digitalRead(PIN_CMD) == LOW)
+#endif
   {
     sio_led(true);
-// memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
-// #ifdef MODEM_H
-    if (modemDev->modemActive)
+    //memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame
+    if (modemDev != nullptr && modemDev->modemActive)
     {
       modemDev->modemActive = false;
       SIO_UART.updateBaudRate(sioBaud);
@@ -329,7 +353,6 @@ void sioBus::service()
       Debug_println("SIO Baud");
 #endif
     }
-// #endif
 
 #ifdef ESP8266
     delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
@@ -341,15 +364,15 @@ void sioBus::service()
 #ifdef DEBUG
     Debug_printf("CF: %02x %02x %02x %02x %02x\n", tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
 #endif
-    byte ck = sio_checksum(tempFrame.cmdFrameData, 4);
+    byte ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
+    // Wait for CMD line to raise again
+    while (digitalRead(PIN_CMD) == LOW)
+      yield();
     if (ck == tempFrame.cksum)
     {
 #ifdef ESP8266
       delayMicroseconds(DELAY_T1);
 #endif
-      // Wait for CMD line to raise again
-      while (digitalRead(PIN_CMD) == LOW)
-        yield();
 #ifdef ESP8266
       delayMicroseconds(DELAY_T2);
 #endif
@@ -399,15 +422,10 @@ void sioBus::service()
     }
     sio_led(false);
   } // END command line low
-    //#ifdef MODEM_H
-  else if (modemDev->modemActive)
+  else if (modemDev != nullptr && modemDev->modemActive)
   {
     modemDev->sio_handle_modem(); // Handle the modem
-#ifdef DEBUG
-    Debug_println("Handling modem");
-#endif
   }
-  //#endif
   else
   {
     sio_led(false);
@@ -427,15 +445,22 @@ void sioBus::setup()
   SIO_UART.swap();
 #endif
 
-#ifdef ESP_8266
-// pins
-#endif
-#ifdef ESP32
-  pinMode(PIN_INT, INPUT_PULLUP);
-  pinMode(PIN_PROC, INPUT_PULLUP);
+  pinMode(PIN_INT, OUTPUT);
+  digitalWrite(PIN_INT, HIGH);
+  pinMode(PIN_PROC, OUTPUT);
+  digitalWrite(PIN_PROC, HIGH);
   pinMode(PIN_MTR, INPUT_PULLDOWN);
   pinMode(PIN_CMD, INPUT_PULLUP);
+  pinMode(PIN_CKI, OUTPUT);
+  digitalWrite(PIN_CKI, LOW);
+#ifdef ESP32
+  pinMode(PIN_LED1, OUTPUT);
+  digitalWrite(PIN_LED1, HIGH); // OFF
   pinMode(PIN_LED2, OUTPUT);
+  digitalWrite(PIN_LED2, HIGH); // OFF
+  pinMode(PIN_CKO, INPUT);
+  pinMode(PIN_CKI, OUTPUT);
+  pinMode(PIN_SIO5V, INPUT);
 #endif
 }
 
@@ -468,5 +493,29 @@ void sioBus::sio_led(bool onOff)
   digitalWrite(PIN_LED2, (onOff ? LOW : HIGH));
 #endif
 }
+
+/*
+  Return SIO Bus Voltage
+*/
+#ifdef ESP32
+int sioBus::sio_volts()
+{
+  int volts, i;
+  long avgV = 0;
+
+  for (i=1; i<4; i++)
+  {
+    avgV += analogRead(PIN_SIO5V);
+    delayMicroseconds(5);
+  }
+
+  if(avgV <= 0)
+    volts = 0;
+  else
+    volts = avgV / (i - 1);
+
+  return volts;
+}
+#endif
 
 sioBus SIO;

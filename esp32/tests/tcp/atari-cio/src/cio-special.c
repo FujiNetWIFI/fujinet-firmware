@@ -13,6 +13,8 @@ extern unsigned char ret;
 extern unsigned char aux1_save[8];
 extern unsigned char aux2_save[8];
 
+extern void cio_put_flush(void); // from cio-put.c
+
 void _cio_special(void)
 {
   unsigned char dcmd, dstats;
@@ -32,6 +34,11 @@ void _cio_special(void)
       break;
     case 17: // unlisten
       dcmd='u';
+      break;
+    case 18: // flush
+      cio_put_flush();
+      err=ret=1;
+      return;
       break;
     default:
       err=146; // Not implemented
