@@ -263,12 +263,12 @@ void sioBus::service()
 #ifdef ESP8266
       delayMicroseconds(DELAY_T2);
 #endif
-      if (fujiDev->load_config && tempFrame.devic == 0x31)
+      if (fujiDev != nullptr && fujiDev->load_config && tempFrame.devic == 0x31)
       {
-        // this assume theFuji has been created and initialized, which is not required to use the SIO bus and devices.
-        // todo: assign a pointer when FujiNet is added to bus?
         activeDev = fujiDev->disk();
-        //BUG_UART.print("FujiNet intercepts D1:");
+#ifdef DEBUG
+        Debug_println("FujiNet intercepts D1:");
+#endif
         for (int i = 0; i < 5; i++)
         {
           activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
