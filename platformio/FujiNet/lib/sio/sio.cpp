@@ -1,5 +1,4 @@
 #include "sio.h"
-#include "modem.h"
 
 // helper functions outside the class defintions
 
@@ -112,7 +111,6 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
 
   return ck;
 }
-
 
 /**
    sio NAK
@@ -263,23 +261,39 @@ void sioBus::service()
 #ifdef ESP8266
       delayMicroseconds(DELAY_T2);
 #endif
-      // find device, ack and pass control
-      // or go back to WAIT
-      // this is what sioBus::sio_get_id() does, but need to pass the tempFrame to it
-      for (int i = 0; i < numDevices(); i++)
+      if (theFuji.config_state() && tempFrame.devic == 0x31)
       {
-        if (tempFrame.devic == device(i)->_devnum)
+        activeDev = &configDisk;
+        //BUG_UART.print("FujiNet intercepts D1:");
+        for (int i = 0; i < 5; i++)
         {
-          //BUG_UART.print("Found Device "); BUG_UART.println(dn,HEX);
-          activeDev = device(i);
-          for (int i = 0; i < 5; i++)
-          {
-            activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
-          }
+          activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
+        }
 #ifdef ESP8266
-          delayMicroseconds(DELAY_T3);
+        delayMicroseconds(DELAY_T3);
 #endif
-          activeDev->sio_process(); // execute command
+        activeDev->sio_process(); // execute command
+      }
+      else
+      {
+        // find device, ack and pass control
+        // or go back to WAIT
+        // this is what sioBus::sio_get_id() does, but need to pass the tempFrame to it
+        for (int i = 0; i < numDevices(); i++)
+        {
+          if (tempFrame.devic == device(i)->_devnum)
+          {
+            //BUG_UART.print("Found Device "); BUG_UART.println(dn,HEX);
+            activeDev = device(i);
+            for (int i = 0; i < 5; i++)
+            {
+              activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
+            }
+#ifdef ESP8266
+            delayMicroseconds(DELAY_T3);
+#endif
+            activeDev->sio_process(); // execute command
+          }
         }
       }
     } // valid checksum
@@ -355,7 +369,7 @@ void sioBus::addDevice(sioDevice *p, int N)
 {
   if (N == ADDR_R)
   {
-    modemDev = (sioModem*)p;
+    modemDev = (sioModem *)p;
   }
   p->_devnum = N;
   daisyChain.add(p);
@@ -390,13 +404,13 @@ int sioBus::sio_volts()
   int volts, i;
   long avgV = 0;
 
-  for (i=1; i<4; i++)
+  for (i = 1; i < 4; i++)
   {
     avgV += analogRead(PIN_SIO5V);
     delayMicroseconds(5);
   }
 
-  if(avgV <= 0)
+  if (avgV <= 0)
     volts = 0;
   else
     volts = avgV / (i - 1);
