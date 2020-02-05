@@ -59,7 +59,6 @@ File paperf;
 File tnfs;
 sioDisk sioD[2];
 sioModem sioR;
-sioFuji theFuj;
 
 WiFiServer server(80);
 WiFiClient client;
@@ -181,6 +180,9 @@ void setup()
   BUG_UART.println();
   BUG_UART.println("FujiNet PlatformIO Started");
 #endif
+  SPIFFS.begin();
+  
+  theFuji.begin();
 
   // connect to wifi but DO NOT wait for it
   WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -191,9 +193,8 @@ void setup()
 
   server.begin(); // Start the web server
 
-  SPIFFS.begin();
 
-  SIO.addDevice(&theFuj,0x70); // the FUJINET! 
+  SIO.addDevice(&theFuji,0x70); // the FUJINET! 
   SIO.addDevice(&sioR, 0x50); // R:
   SIO.addDevice(&sioP, 0x40); // P:
   paperf = SPIFFS.open("/paper", "w+");

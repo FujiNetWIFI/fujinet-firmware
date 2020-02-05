@@ -3,8 +3,8 @@
 #include <Arduino.h>
 #include "debug.h"
 
-//#include "modem.h"
-//#include "fuji.h"
+#include "modem.h"
+#include "fuji.h"
 
 #include "LinkedList.h"
 
