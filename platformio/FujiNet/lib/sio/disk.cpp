@@ -116,6 +116,7 @@ void sioDisk::sio_write()
     //{
     _file->seek(offset);      // tnfs_seek(deviceSlot, offset);
     _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
+    _file->flush();
     // todo: firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
     //}
     sio_complete();
@@ -340,7 +341,7 @@ void sioDisk::mount(File *f)
   _file = f;
 }
 
-File* sioDisk::file() 
+File *sioDisk::file()
 {
   return _file;
 }

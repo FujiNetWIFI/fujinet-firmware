@@ -3,41 +3,38 @@
 #include <Arduino.h>
 #include "debug.h"
 
-//#include "modem.h"
-//#include "fuji.h"
-
 #include "LinkedList.h"
 
 // pin configurations
 #ifdef ESP_8266
 #define SIO_UART Serial
-#define PIN_LED          2
-#define PIN_INT          5
-#define PIN_PROC         4
-#define PIN_MTR         16
+#define PIN_LED 2
+#define PIN_INT 5
+#define PIN_PROC 4
+#define PIN_MTR 16
 #define INPUT_PULLDOWN INPUT_PULLDOWN_16
-#define PIN_CMD         12
-#define PIN_CKI         14
+#define PIN_CMD 12
+#define PIN_CKI 14
 //#define PIN_CKO         2
-#define DELAY_T0  750
-#define DELAY_T1  650
-#define DELAY_T2  0
-#define DELAY_T3  1000
+#define DELAY_T0 750
+#define DELAY_T1 650
+#define DELAY_T2 0
+#define DELAY_T3 1000
 #elif defined(ESP_32)
 #define SIO_UART Serial2
-#define PIN_INT         26
-#define PIN_PROC        22
-#define PIN_MTR         33
-#define PIN_CMD         21
-#define PIN_LED1         2
-#define PIN_LED2         4
-#define PIN_CKO         32
-#define PIN_CKI         27
-#define PIN_SIO5V       35
+#define PIN_INT 26
+#define PIN_PROC 22
+#define PIN_MTR 33
+#define PIN_CMD 21
+#define PIN_LED1 2
+#define PIN_LED2 4
+#define PIN_CKO 32
+#define PIN_CKI 27
+#define PIN_SIO5V 35
 #endif
 
-#define DELAY_T4  850
-#define DELAY_T5  250
+#define DELAY_T4 850
+#define DELAY_T5 250
 #define READ_CMD_TIMEOUT 12
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
@@ -64,7 +61,7 @@ void sio_flush();
 // class def'ns
 class sioModem; // declare here so can reference it, but define in modem.h
 class sioFuji;  // declare here so can reference it, but define in fuji.h
-class sioBus; // declare early so can be friend
+class sioBus;   // declare early so can be friend
 class sioDevice
 {
 protected:
@@ -110,9 +107,9 @@ public:
    void addDevice(sioDevice *p, int N);
    void remDevice(sioDevice *p);
    sioDevice *device(int i);
- #ifdef ESP32
-    int sio_volts();
- #endif
+#ifdef ESP32
+   int sio_volts();
+#endif
 };
 
 extern sioBus SIO;
