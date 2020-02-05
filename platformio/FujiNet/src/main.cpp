@@ -201,7 +201,7 @@ void setup()
   sioP.initPrinter(&paperf, PRINTMODE);
 
   SPIFFS.begin();
-  atr[0] = SPIFFS.open("/autorun.atr", "r+");
+  atr[0] = SPIFFS.open("/file1.atr", "r+");
   sioD[0].mount(&atr[0]);
 #ifdef DEBUG_S
   BUG_UART.println("/autorun.atr");
