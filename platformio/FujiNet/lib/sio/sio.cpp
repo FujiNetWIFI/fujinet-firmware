@@ -1,4 +1,6 @@
 #include "sio.h"
+#include "modem.h"
+#include "fuji.h"
 
 // helper functions outside the class defintions
 
@@ -261,11 +263,11 @@ void sioBus::service()
 #ifdef ESP8266
       delayMicroseconds(DELAY_T2);
 #endif
-      if (theFuji.config_state() && tempFrame.devic == 0x31)
+      if (fujiDev->load_config && tempFrame.devic == 0x31)
       {
         // this assume theFuji has been created and initialized, which is not required to use the SIO bus and devices.
         // todo: assign a pointer when FujiNet is added to bus?
-        activeDev = &configDisk;
+        activeDev = fujiDev->disk();
         //BUG_UART.print("FujiNet intercepts D1:");
         for (int i = 0; i < 5; i++)
         {
@@ -369,7 +371,11 @@ void sioBus::setup()
 
 void sioBus::addDevice(sioDevice *p, int N)
 {
-  if (N == ADDR_R)
+  if (N == 0x70)
+  {
+    fujiDev = (sioFuji *)p;
+  }
+  else if (N == ADDR_R)
   {
     modemDev = (sioModem *)p;
   }

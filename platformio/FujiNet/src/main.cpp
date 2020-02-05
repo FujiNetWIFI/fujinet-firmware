@@ -59,6 +59,7 @@ File paperf;
 File tnfs;
 sioDisk sioD[2];
 sioModem sioR;
+sioFuji theFuji;
 
 WiFiServer server(80);
 WiFiClient client;
@@ -190,13 +191,11 @@ void setup()
   if (WiFi.status() == WL_CONNECTED)
     BUG_UART.println(WiFi.localIP());
 #endif
-
   server.begin(); // Start the web server
 
-
-  SIO.addDevice(&theFuji,0x70); // the FUJINET! 
-  SIO.addDevice(&sioR, 0x50); // R:
-  SIO.addDevice(&sioP, 0x40); // P:
+  SIO.addDevice(&theFuji, 0x70); // the FUJINET!
+  SIO.addDevice(&sioR, 0x50);    // R:
+  SIO.addDevice(&sioP, 0x40);    // P:
   paperf = SPIFFS.open("/paper", "w+");
   sioP.initPrinter(&paperf, PRINTMODE);
 
@@ -226,7 +225,7 @@ void setup()
   sioD[1].mount(&tnfs);
   SIO.addDevice(&sioD[1], 0x31 + 1);
 
-  /*
+/*
   if(!SD.begin(5))
   {
 #ifdef DEBUG
