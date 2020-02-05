@@ -1,18 +1,41 @@
 #ifndef FUJI_H
 #define FUJI_H
 #include <Arduino.h>
+#include "debug.h"
 
 #include "sio.h"
+#include "disk.h"
+
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
+#include <FS.h>
 #endif
 #ifdef ESP32
 #include <WiFi.h>
+#include <SPIFFS.h>
 #endif
 
 class sioFuji : public sioDevice
 {
-private:
+protected:
+    File atrConfig;     // autorun.atr for FujiNet configuration
+    sioDisk configDisk; // special disk drive just for configuration
+
+    union {
+        char host[8][32];
+        unsigned char rawData[256];
+    } hostSlots;
+
+    union {
+        struct
+        {
+            unsigned char hostSlot;
+            unsigned char mode;
+            char file[36];
+        } slot[8];
+        unsigned char rawData[304];
+    } deviceSlots;
+
     void sio_status() override;     // 'S'
     void sio_net_scan_networks();   // 0xFD
     void sio_net_scan_result();     // 0xFC
@@ -23,12 +46,12 @@ private:
     //   cmdPtr[0xF7] = sio_tnfs_open_directory;
     //   cmdPtr[0xF6] = sio_tnfs_read_directory_entry;
     //   cmdPtr[0xF5] = sio_tnfs_close_directory;
-    //   cmdPtr[0xF4] = sio_read_hosts_slots;
-    //   cmdPtr[0xF3] = sio_write_hosts_slots;
-    //   cmdPtr[0xF2] = sio_read_device_slots;
-    //   cmdPtr[0xF1] = sio_write_device_slots;
+    void sio_read_hosts_slots();   // 0xF4
+    void sio_write_hosts_slots();  // 0xF3
+    void sio_read_device_slots();  // 0xF2
+    void sio_write_device_slots(); // 0xF1
     //   cmdPtr[0xE9] = sio_disk_image_umount;
-    //   cmdPtr[0xE8] = sio_get_adapter_config;
+    void sio_get_adapter_config(); // 0xE8
     //   cmdPtr[0xE7] = sio_new_disk;
     void wifi_led(bool onOff);
 
@@ -53,7 +76,24 @@ private:
         unsigned char rawData[96];
     } netConfig; //Network Configuration
 
+    union {
+        struct
+        {
+            char ssid[32];
+            char hostname[64];
+            unsigned char localIP[4];
+            unsigned char gateway[4];
+            unsigned char netmask[4];
+            unsigned char dnsIP[4];
+            unsigned char macAddress[6];
+        };
+        unsigned char rawData[118];
+    } adapterConfig;
+
 public:
+    bool load_config = true;
+    sioDisk *disk();
+    void begin();
 };
 
 #endif // guard

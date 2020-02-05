@@ -59,7 +59,7 @@ File paperf;
 File tnfs;
 sioDisk sioD[2];
 sioModem sioR;
-sioFuji theFuj;
+sioFuji theFuji;
 
 WiFiServer server(80);
 WiFiClient client;
@@ -181,29 +181,31 @@ void setup()
   BUG_UART.println();
   BUG_UART.println("FujiNet PlatformIO Started");
 #endif
+  SPIFFS.begin();
 
+  theFuji.begin();
+#ifdef DEBUG_S
+  BUG_UART.println("/autorun.atr for FujiNet device");
+#endif
   // connect to wifi but DO NOT wait for it
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 #ifdef DEBUG_S
   if (WiFi.status() == WL_CONNECTED)
     BUG_UART.println(WiFi.localIP());
 #endif
-
   server.begin(); // Start the web server
 
-  SPIFFS.begin();
-
-  SIO.addDevice(&theFuj, 0x70); // the FUJINET!
-  SIO.addDevice(&sioR, 0x50);   // R:
-  SIO.addDevice(&sioP, 0x40);   // P:
+  SIO.addDevice(&theFuji, 0x70); // the FUJINET!
+  SIO.addDevice(&sioR, 0x50);    // R:
+  SIO.addDevice(&sioP, 0x40);    // P:
   paperf = SPIFFS.open("/paper", "w+");
   sioP.initPrinter(&paperf, PRINTMODE);
 
   SPIFFS.begin();
-  atr[0] = SPIFFS.open("/autorun.atr", "r+");
+  atr[0] = SPIFFS.open("/file1.atr", "r+");
   sioD[0].mount(&atr[0]);
 #ifdef DEBUG_S
-  BUG_UART.println("/autorun.atr");
+  BUG_UART.println("/file1.atr");
 #endif
   SIO.addDevice(&sioD[0], 0x31 + 0);
   //   for (int i = 0; i < 1; i++)
@@ -225,7 +227,7 @@ void setup()
   sioD[1].mount(&tnfs);
   SIO.addDevice(&sioD[1], 0x31 + 1);
 
-  /*
+/*
   if(!SD.begin(5))
   {
 #ifdef DEBUG
