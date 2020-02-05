@@ -184,7 +184,9 @@ void setup()
   SPIFFS.begin();
 
   theFuji.begin();
-
+#ifdef DEBUG_S
+  BUG_UART.println("/autorun.atr for FujiNet device");
+#endif
   // connect to wifi but DO NOT wait for it
   WiFi.begin(WIFI_SSID, WIFI_PASS);
 #ifdef DEBUG_S
@@ -203,7 +205,7 @@ void setup()
   atr[0] = SPIFFS.open("/file1.atr", "r+");
   sioD[0].mount(&atr[0]);
 #ifdef DEBUG_S
-  BUG_UART.println("/autorun.atr");
+  BUG_UART.println("/file1.atr");
 #endif
   SIO.addDevice(&sioD[0], 0x31 + 0);
   //   for (int i = 0; i < 1; i++)
