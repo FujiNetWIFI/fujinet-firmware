@@ -263,6 +263,8 @@ void sioBus::service()
 #endif
       if (theFuji.config_state() && tempFrame.devic == 0x31)
       {
+        // this assume theFuji has been created and initialized, which is not required to use the SIO bus and devices.
+        // todo: assign a pointer when FujiNet is added to bus?
         activeDev = &configDisk;
         //BUG_UART.print("FujiNet intercepts D1:");
         for (int i = 0; i < 5; i++)
