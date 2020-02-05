@@ -1,4 +1,9 @@
 #include "fuji.h"
+#include "disk.h"
+
+//File atrConfig;
+// sioFuji theFuji;
+//sioDisk configDisk;
 
 void sioFuji::sio_status()
 {
@@ -183,7 +188,7 @@ void sioFuji::sio_process()
     //   cmdPtr[0xF5] = sio_tnfs_close_directory;
     //   cmdPtr[0xE9] = sio_disk_image_umount;
     //   cmdPtr[0xE7] = sio_new_disk;
-    
+
     switch (cmdFrame.comnd)
     {
     case 'S':
@@ -224,7 +229,7 @@ void sioFuji::sio_process()
         break;
     case 0xE8:
         sio_ack();
-        sio_get_adapter_config;
+        sio_get_adapter_config();
         break;
     default:
         sio_nak();
@@ -264,6 +269,10 @@ void sioFuji::begin()
             deviceSlots.slot[i].hostSlot = 0xFF;
         }
     }
-
     configDisk.mount(&atrConfig); // set up a special disk drive not on the bus
+}
+
+sioDisk *sioFuji::disk()
+{
+    return &configDisk;
 }

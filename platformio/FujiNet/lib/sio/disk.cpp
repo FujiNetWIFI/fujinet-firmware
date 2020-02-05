@@ -341,7 +341,7 @@ void sioDisk::mount(File *f)
   _file = f;
 }
 
-File* sioDisk::file() 
+File *sioDisk::file()
 {
   return _file;
 }

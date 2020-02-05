@@ -15,28 +15,27 @@
 #include <SPIFFS.h>
 #endif
 
-extern File atrConfig;
-extern sioDisk configDisk;
-extern sioFuji theFuji;
-
-union {
-    char host[8][32];
-    unsigned char rawData[256];
-} hostSlots;
-
-union {
-    struct
-    {
-        unsigned char hostSlot;
-        unsigned char mode;
-        char file[36];
-    } slot[8];
-    unsigned char rawData[304];
-} deviceSlots;
-
 class sioFuji : public sioDevice
 {
-private:
+protected:
+    File atrConfig;     // autorun.atr for FujiNet configuration
+    sioDisk configDisk; // special disk drive just for configuration
+
+    union {
+        char host[8][32];
+        unsigned char rawData[256];
+    } hostSlots;
+
+    union {
+        struct
+        {
+            unsigned char hostSlot;
+            unsigned char mode;
+            char file[36];
+        } slot[8];
+        unsigned char rawData[304];
+    } deviceSlots;
+
     void sio_status() override;     // 'S'
     void sio_net_scan_networks();   // 0xFD
     void sio_net_scan_result();     // 0xFC
@@ -91,10 +90,9 @@ private:
         unsigned char rawData[118];
     } adapterConfig;
 
-    bool load_config = true;
-
 public:
-    bool config_state() { return load_config; }
+    bool load_config = true;
+    sioDisk *disk();
     void begin();
 };
 
