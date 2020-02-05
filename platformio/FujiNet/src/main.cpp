@@ -181,7 +181,7 @@ void setup()
   BUG_UART.println("FujiNet PlatformIO Started");
 #endif
   SPIFFS.begin();
-  
+
   theFuji.begin();
 
   // connect to wifi but DO NOT wait for it
@@ -200,16 +200,23 @@ void setup()
   paperf = SPIFFS.open("/paper", "w+");
   sioP.initPrinter(&paperf, PRINTMODE);
 
-  for (int i = 0; i < 1; i++)
-  {
-    String fname = String("/file") + String(i) + String(".atr");
+  SPIFFS.begin();
+  atr[0] = SPIFFS.open("/autorun.atr", "r+");
+  sioD[0].mount(&atr[0]);
 #ifdef DEBUG_S
-    BUG_UART.println(fname);
+  BUG_UART.println("/autorun.atr");
 #endif
-    atr[i] = SPIFFS.open(fname, "r+");
-    sioD[i].mount(&atr[i]);
-    SIO.addDevice(&sioD[i], 0x31 + i);
-  }
+  SIO.addDevice(&sioD[0], 0x31 + 0);
+  //   for (int i = 0; i < 1; i++)
+  //   {
+  //     String fname = String("/file") + String(i) + String(".atr");
+  // #ifdef DEBUG_S
+  //     BUG_UART.println(fname);
+  // #endif
+  //     atr[i] = SPIFFS.open(fname, "r+");
+  //     sioD[i].mount(&atr[i]);
+  //     SIO.addDevice(&sioD[i], 0x31 + i);
+  //   }
 
   TNFS.begin(TNFS_SERVER, TNFS_PORT);
   tnfs = TNFS.open("/A820.ATR", "r+");
@@ -219,7 +226,7 @@ void setup()
   sioD[1].mount(&tnfs);
   SIO.addDevice(&sioD[1], 0x31 + 1);
 
-/*
+  /*
   if(!SD.begin(5))
   {
 #ifdef DEBUG
@@ -279,24 +286,25 @@ void setup()
 
   SIO.setup();
 #ifdef DEBUG
-  Debug_print("SIO Voltage: "); Debug_println(SIO.sio_volts());
+  Debug_print("SIO Voltage: ");
+  Debug_println(SIO.sio_volts());
 #endif
 
-void sio_flush();
+  void sio_flush();
 }
 
 void loop()
 {
 #ifdef DEBUG_N
   /* Connect to debug server if we aren't and WiFi is connected */
-  if ( !wifiDebugClient.connected() && WiFi.status() == WL_CONNECTED )
+  if (!wifiDebugClient.connected() && WiFi.status() == WL_CONNECTED)
   {
     wifiDebugClient.connect(DEBUG_HOST, 6502);
     wifiDebugClient.println("FujiNet PlatformIO");
   }
 #endif
 
-  if(WiFi.status() == WL_CONNECTED)
+  if (WiFi.status() == WL_CONNECTED)
     digitalWrite(PIN_LED1, LOW);
   else
     digitalWrite(PIN_LED1, HIGH);
