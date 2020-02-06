@@ -44,4 +44,4 @@ void TNFSFS::end()
     _impl->mountpoint(NULL);
 }
 
-TNFSFS TNFS; // create pointer to filesystem implementation
+// TNFSFS TNFS; // create pointer to filesystem implementation

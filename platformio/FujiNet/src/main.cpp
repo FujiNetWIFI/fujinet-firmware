@@ -53,6 +53,8 @@ updated sio_read() to use new sectorSize and sio_to_computer() features - marked
 #define TNFS_SERVER "192.168.1.12"
 #define TNFS_PORT 16384
 
+fs::TNFSFS TNFS[8];
+
 atari820 sioP;
 File atr[2];
 File paperf;
@@ -219,8 +221,8 @@ void setup()
   //     SIO.addDevice(&sioD[i], 0x31 + i);
   //   }
 
-  TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  tnfs = TNFS.open("/A820.ATR", "r+");
+  TNFS[0].begin(TNFS_SERVER, TNFS_PORT);
+  tnfs = TNFS[0].open("/A820.ATR", "r+");
 #ifdef DEBUG_S
   BUG_UART.println("tnfs/A820.ATR");
 #endif

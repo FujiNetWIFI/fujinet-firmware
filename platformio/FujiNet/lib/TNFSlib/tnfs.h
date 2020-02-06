@@ -77,6 +77,6 @@ public:
 
 } // namespace fs
 
-extern fs::TNFSFS TNFS; // declare TNFS for use in main.cpp and elsewhere.
+// extern fs::TNFSFS TNFS; // declare TNFS for use in main.cpp and elsewhere.
 
 #endif
