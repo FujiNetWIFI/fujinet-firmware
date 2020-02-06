@@ -43,9 +43,9 @@ void sioDisk::sio_read()
     for (unsigned char i = 0; i < 10; i++)
     {
       _file->read(sector, 256);
-      s = &sector[0]; // &tnfsPacket.data[3];
+      //s = &sector[0]; // &tnfsPacket.data[3];
       d = &sectorCache[cacheOffset];
-      memcpy(d, s, 256);
+      memcpy(d, sector, 256);
       cacheOffset += 256;
     }
     cacheOffset = 0;
@@ -62,9 +62,9 @@ void sioDisk::sio_read()
     Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
   }
-  d = &sector[0];
+  // d = &sector[0];
   s = &sectorCache[cacheOffset];
-  memcpy(d, s, ss);
+  memcpy(sector, s, ss);
  
   sio_to_computer((byte *)&sector, ss, err);
 }
@@ -107,20 +107,11 @@ void sioDisk::sio_write()
 
   if (ck == sio_checksum(sector, ss))
   {
-    // todo:
-    // if (load_config == true)
-    // {
-    //   atrConfig.seek(offset, SeekSet);
-    //   atrConfig.write(sector, ss);
-    //   atrConfig.flush();
-    // }
-    // else
-    //{
     _file->seek(offset);      // tnfs_seek(deviceSlot, offset);
     _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
     _file->flush();
-    // todo: firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
-    //}
+    firstCachedSector = 65535; // invalidate cache
+
     sio_complete();
   }
   else
