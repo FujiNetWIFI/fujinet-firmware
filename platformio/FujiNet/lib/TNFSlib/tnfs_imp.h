@@ -49,6 +49,10 @@ protected:
     //char *_path; // used?
     //char *_mode; // used?
 
+    // Feb 6, 2020:
+    // Can we store TNFS session info here? 
+
+
 public:
     TNFSFileImpl(TNFSImpl *fs, byte fd, String host, int port);
     ~TNFSFileImpl(){};
