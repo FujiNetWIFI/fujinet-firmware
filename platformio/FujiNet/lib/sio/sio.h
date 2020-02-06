@@ -72,6 +72,8 @@ protected:
 
    cmdFrame_t cmdFrame;
 
+
+
    void sio_to_computer(byte *b, unsigned short len, bool err);
    byte sio_to_peripheral(byte *b, unsigned short len);
 
