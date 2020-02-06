@@ -271,6 +271,7 @@ void diskulator_host(void)
   // reset cursor
   c=0;
 
+ rehosts_jump:
   screen_puts( 0,20,"return PICK  e EDIT");
   screen_puts(20,20,"opt BOOT     d DRVS");
   
@@ -302,6 +303,29 @@ void diskulator_host(void)
 	      if (c<8)
 		c++;
 	      break;
+	    case 0x21: // SHIFT 1-8
+	    case 0x22:
+	    case 0x23:
+	    case 0x24:
+	    case 0x25:
+	    case 0x26:
+	    case 0x27:
+	      c=k-0x21;
+	      break;
+	    case 0x31:
+	    case 0x32:
+	    case 0x33:
+	    case 0x34:
+	    case 0x35:
+	    case 0x36:
+	    case 0x37:
+	    case 0x38:
+	      c=k-0x31;
+	      goto jump_to_devs;
+	      break;
+	    case 0x40: // special case for 8
+	      c=7;
+	      break;
 	    case 'e': // edit
 	      if (hostSlots.host[c][0]==0x00)
 		{
@@ -315,6 +339,7 @@ void diskulator_host(void)
 	      diskulator_write_host_slots();
 	      break;
 	    case 'd':
+	    jump_to_devs:
 	      host_done=true;
 	      slot_done=false;
 	      screen_puts( 0,20,"e EJECT     h HOSTS");
@@ -376,6 +401,34 @@ void diskulator_host(void)
 	    case '=':
 	      if (c<8)
 		c++;
+	      break;
+	    case 0x21:
+	    case 0x22:
+	    case 0x23:
+	    case 0x24:
+	    case 0x25:
+	    case 0x26:
+	    case 0x27:
+	      c=k-0x21;
+	      slot_done=true;
+	      host_done=false;
+	      goto rehosts_jump;
+	      break;
+	    case 0x31:
+	    case 0x32:
+	    case 0x33:
+	    case 0x34:
+	    case 0x35:
+	    case 0x36:
+	    case 0x37:
+	    case 0x38:
+	      c=k-0x31;
+	      break;
+	    case 0x40: // special case for 8
+	      c=7;
+	      slot_done=true;
+	      host_done=false;
+	      goto rehosts_jump;
 	      break;
 	    case 'h': // Hosts
 	      slot_done=true;
