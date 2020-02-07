@@ -6,17 +6,81 @@ extern tnfsPacket_t tnfsPacket;
 
 //TNFSImpl::TNFSImpl() {}
 
+std::string TNFSImpl::host()
+{
+
+  if (_mountpoint != NULL)
+  {
+    char temp[36];
+    int n = sscanf(_mountpoint, "%s", temp);
+    if (n == 1)
+      _host = temp;
+    else
+      _host.clear();
+  }
+  return _host;
+}
+
+uint16_t TNFSImpl::port()
+{
+
+  if (_mountpoint != NULL)
+  {
+    uint16_t temp;
+    int n = sscanf(_mountpoint, "%*s %u", &temp);
+    if (n == 1)
+      _port = temp;
+  }
+  return _port;
+}
+
+std::string TNFSImpl::location()
+{
+  if (_mountpoint != NULL)
+  {
+    char temp[36];
+    int n = sscanf(_mountpoint, "%*s %*u %s", temp);
+    if (n == 1)
+      _location = temp;
+    else
+      _location.clear();
+  }
+  return _location;
+}
+
+std::string TNFSImpl::userid()
+{
+  if (_mountpoint != NULL)
+  {
+    char temp[36];
+    int n = sscanf(_mountpoint, "%*s %*u %*s %s", temp);
+    if (n == 1)
+      _userid = temp;
+    else
+      _userid.clear();
+  }
+  return _userid;
+}
+
+std::string TNFSImpl::password()
+{
+  if (_mountpoint != NULL)
+  {
+    char temp[36];
+    int n = sscanf(_mountpoint, "%*s %*u %*s %*s %s", temp);
+    if (n == 1)
+      _password = temp;
+    else
+      _password.clear();
+  }
+  return _password;
+}
+
 FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 {
   byte fd;
 
   // TODO: path (filename) checking
-
-  // extract host and port from mountpoint
-  String M(mountpoint());
-  int n = M.lastIndexOf(":");
-  String host = M.substring(2, n);
-  int port = M.substring(n + 1).toInt();
 
   // translate C++ file mode to TNFS file flags
   uint16_t flag = TNFS_RDONLY;
@@ -66,7 +130,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   flag_lsb = byte(flag & 0xff);
   flag_msb = byte(flag >> 8);
 
-  int temp = tnfs_open(host, port, path, flag_lsb, flag_msb);
+  int temp = tnfs_open(this, path, flag_lsb, flag_msb);
   if (temp >= 0)
   {
     fd = (byte)temp;
@@ -77,7 +141,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
     // send debug message with -temp as error
     return NULL;
   }
-  return std::make_shared<TNFSFileImpl>(this, fd, host, port);
+  return std::make_shared<TNFSFileImpl>(this, fd);
 }
 
 bool TNFSImpl::exists(const char *path)
@@ -94,7 +158,7 @@ bool TNFSImpl::rmdir(const char *path) { return false; }
 
 /* File Implementation */
 
-TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd, String host, int port) : _fs(fs), _fd(fd), _host(host), _port(port) {}
+TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd) : _fs(fs), _fd(fd) {}
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 {

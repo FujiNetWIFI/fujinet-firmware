@@ -52,7 +52,8 @@ updated sio_read() to use new sectorSize and sio_to_computer() features - marked
 
 #define TNFS_SERVER "192.168.1.12"
 #define TNFS_PORT 16384
-fs::TNFSFS TNFS[8];
+TNFSFS TNFS[8];
+TNFSFS* hostSlots[8];
 File atr[8];
 sioDisk sioD[8];
 

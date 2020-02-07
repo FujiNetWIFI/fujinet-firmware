@@ -3,8 +3,8 @@
 
 #include <Arduino.h>
 #include <WiFiUdp.h>
-#include <tnfs.h>
-
+#include "tnfs.h"
+#include "tnfs_imp.h"
 
 
 union tnfsPacket_t
@@ -20,8 +20,9 @@ union tnfsPacket_t
   byte rawData[512];
 };
 
-bool tnfs_mount(unsigned char hostSlot);
-bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create);
+bool tnfs_mount(FSImplPtr hostPtr);//(unsigned char hostSlot);
+//bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create);
+bool tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb);
 bool tnfs_close(unsigned char deviceSlot);
 bool tnfs_opendir(unsigned char hostSlot);
 bool tnfs_readdir(unsigned char hostSlot);
