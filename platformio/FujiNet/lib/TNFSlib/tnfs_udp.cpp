@@ -33,7 +33,7 @@ MOUNT - Command ID 0x00
   false with zero in tnfsPacket.data[0] - timeout
 ------------------------------------------------------------------
 */
-bool tnfs_mount(unsigned char hostSlot)
+uint16 tnfs_mount(FSImplPtr hostPtr)  //(unsigned char hostSlot)
 {
   int start = millis();
   int dur = millis() - start;
@@ -45,7 +45,7 @@ bool tnfs_mount(unsigned char hostSlot)
 
     // Do not mount, if we already have a session ID, just bail.
     if (tnfsSessionIDs[hostSlot].session_idl != 0 && tnfsSessionIDs[hostSlot].session_idh != 0)
-      return true;
+      return tnfsSessionIDs[hostSlot].session_idl + tnfsSessionIDs[hostSlot].session_idh*256 ;
 
     tnfsPacket.session_idl = 0;
     tnfsPacket.session_idh = 0;
@@ -138,20 +138,48 @@ bool tnfs_mount(unsigned char hostSlot)
 ----------------------------------
 OPEN - Opens a file - Command 0x29
 ----------------------------------
-  Format: Standard header, flags, mode, then the null terminated filename.
+Format: Standard header, flags, mode, then the null terminated filename.
+Flags are a bit field.
 
+The flags are:
+O_RDONLY        0x0001  Open read only
+O_WRONLY        0x0002  Open write only
+O_RDWR          0x0003  Open read/write
+O_APPEND        0x0008  Append to the file, if it exists (write only)
+O_CREAT         0x0100  Create the file if it doesn't exist (write only)
+O_TRUNC         0x0200  Truncate the file on open for writing
+O_EXCL          0x0400  With O_CREAT, returns an error if the file exists
 
-  WIll not implement CHMOD mode - default to something for O_CREAT.
+The modes are the same as described by CHMOD (i.e. POSIX modes). These
+may be modified by the server process's umask. The mode only applies
+when files are created (if the O_CREAT flag is specified)
 
-  The server returns the standard header and a result code in response.
-  If the operation was successful, the byte following the result code
-  is the file descriptor:
+Examples: 
+Open a file called "/foo/bar/baz.bas" for reading:
 
-  0xBEEF 0x00 0x29 0x00 0x04 - Successful file open, file descriptor = 4
-  0xBEEF 0x00 0x29 0x01 - File open failed with "permssion denied"
+0xBEEF 0x00 0x29 0x0001 0x0000 /foo/bar/baz.bas 0x00
+
+Open a file called "/tmp/foo.dat" for writing, creating the file but
+returning an error if it exists. Modes set are S_IRUSR, S_IWUSR, S_IRGRP
+and S_IWOTH (read/write for owner, read-only for group, read-only for
+others):
+
+0xBEEF 0x00 0x29 0x0102 0x01A4 /tmp/foo.dat 0x00
+
+The server returns the standard header and a result code in response.
+If the operation was successful, the byte following the result code
+is the file descriptor:
+
+0xBEEF 0x00 0x29 0x00 0x04 - Successful file open, file descriptor = 4
+0xBEEF 0x00 0x29 0x01 - File open failed with "permssion denied"
+
+(HISTORICAL NOTE: OPEN used to have command id 0x20, but with the
+addition of extra flags, the id was changed so that servers could
+support both the old style OPEN and the new OPEN)
  */
 
-bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
+//bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
+bool tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb)
 {
   int start = millis();
   int dur = millis() - start;
@@ -160,23 +188,26 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
 
   while (retries < 5)
   {
-    strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
+    //strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
     tnfsPacket.retryCount++;  // increase sequence #
     tnfsPacket.command = 0x29; // OPEN
 
-    if (options == 0x01)
-      tnfsPacket.data[c++] = 0x01;
-    else if (options == 0x02)
-      tnfsPacket.data[c++] = 0x03;
-    else
-      tnfsPacket.data[c++] = 0x03;
+    // if (options == 0x01)
+    //   tnfsPacket.data[c++] = 0x01;
+    // else if (options == 0x02)
+    //   tnfsPacket.data[c++] = 0x03;
+    // else
+    //   tnfsPacket.data[c++] = 0x03;
+    tnfsPacket.data[c++] = flag_lsb;
+    
+    // tnfsPacket.data[c++] = (create == true ? 0x01 : 0x00); // Create flag
+    tnfsPacket.data[c++] = flag_msb;
 
-    tnfsPacket.data[c++] = (create == true ? 0x01 : 0x00); // Create flag
     tnfsPacket.data[c++] = 0xFF; // mode
-    tnfsPacket.data[c++] = 0x01; //
-    tnfsPacket.data[c++] = '/'; // Filename start
+    tnfsPacket.data[c++] = 0x01; // 0777
+    // tnfsPacket.data[c++] = '/'; // Filename start
 
     for (int i = 0; i < strlen(mountPath); i++)
     {
@@ -199,7 +230,8 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
     }
 #endif /* DEBUG_S */
 
-    UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    //UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, c + 4);
     UDP.endPacket();
 

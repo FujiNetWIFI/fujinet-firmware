@@ -1,6 +1,7 @@
 #ifndef _TNFS_IMP_H
 #define _TNFS_IMP_H
 #include <Arduino.h>
+#include <string.h>
 
 #include "tnfs.h"
 #include <FS.h>
@@ -26,15 +27,25 @@ class TNFSImpl : public FSImpl
 protected:
     //friend class TNFSFileImpl;
 
+    // TNFS host parameters
+    std::string _host="";
+    uint16_t _port;
+    std::string _location="";
+    std::string _userid="";
+    std::string _password="";
+
 public:
-    //TNFSImpl();
-    //~TNFSImpl() {}
     FileImplPtr open(const char *path, const char *mode) override;
     bool exists(const char *path) override;
     bool rename(const char *pathFrom, const char *pathTo) override;
     bool remove(const char *path) override;
     bool mkdir(const char *path) override;
     bool rmdir(const char *path) override;
+    std::string host();
+    uint16_t port();
+    std::string location();
+    std::string userid();
+    std::string password();
 };
 
 class TNFSFileImpl : public FileImpl
@@ -45,17 +56,13 @@ protected:
 
     TNFSImpl *_fs;
     byte _fd;
-    String _host;
-    int _port;
+
     //char *_path; // used?
     //char *_mode; // used?
 
-    // Feb 6, 2020:
-    // Can we store TNFS session info here? 
-
 
 public:
-    TNFSFileImpl(TNFSImpl *fs, byte fd, String host, int port);
+    TNFSFileImpl(TNFSImpl *fs, byte fd);
     ~TNFSFileImpl(){};
     size_t write(const uint8_t *buf, size_t size) override;
     size_t read(uint8_t *buf, size_t size) override;

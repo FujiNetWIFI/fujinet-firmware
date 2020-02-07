@@ -7,40 +7,22 @@ TNFSFS::TNFSFS() : FS(FSImplPtr(new TNFSImpl()))
 {
 }
 
-byte TNFSFS::begin(String host, uint16_t port, String location, String userid, String password)
+byte TNFSFS::begin(std::string host, uint16_t port, std::string location, std::string userid, std::string password)
 {
-    bool err = tnfs_mount(host, port, location, userid, password);
-    /*    Return cases:
-    true - successful mount.
-    false with error code in tnfsPacket.data[0] 
-    false with zero in tnfsPacket.data[0] - timeout
-    */
-    if (err)
-    {
-        String mp = "//" + host + ":" + String(port) + location;
-#ifdef DEBUG_S
-        BUG_UART.println(mp);
-#endif
-        int n = mp.length();
-        mp.toCharArray(mparray, n + 1);
-        _impl->mountpoint(mparray);
-        return 0;
-    }
-    else if (tnfsPacket.data[0] == 0x00)
-    {
-        return 138; // timeout!
-    }
-    else
-    {
-        return tnfsPacket.data[0]; // error code
-    }
+    char numstr[5]; // enough to hold all numbers up to 16-bits
+    sprintf(numstr, "%0u", port);
+    const char sep = ' ';
+    
+    std::string mp = host + sep + numstr + sep + location + sep + userid + sep + password;
+    mp.copy(mparray,128,0);
+    _impl->mountpoint(mparray);
+    bool err = tnfs_mount(_impl);
 }
 
 size_t TNFSFS::size() { return 0; }
 size_t TNFSFS::free() { return 0; }
 void TNFSFS::end()
 {
-    //_id = 0;
     _impl->mountpoint(NULL);
 }
 
