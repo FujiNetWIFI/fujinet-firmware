@@ -253,8 +253,20 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
   return false;
 }
 
-/**
-   Open 'autorun.atr'
+/*
+------------------------------------
+CLOSE - Closes a file - Command 0x23
+------------------------------------
+  Closes an open file. Consists of the standard header, followed by
+  the file descriptor. Example:
+
+  0xBEEF 0x00 0x23 0x04 - Close file descriptor 4
+
+  The server replies with the standard header followed by the return
+  code:
+
+  0xBEEF 0x00 0x23 0x00 - File closed.
+  0xBEEF 0x00 0x23 0x06 - Operation failed with EBADF, "bad file descriptor"
 */
 bool tnfs_close(unsigned char deviceSlot)
 {
@@ -328,8 +340,30 @@ bool tnfs_close(unsigned char deviceSlot)
   return false;
 }
 
-/**
-   TNFS Open Directory
+/*
+--------------------------------------------------------
+OPENDIR - Open a directory for reading - Command ID 0x10
+--------------------------------------------------------
+
+  Format:
+  Standard header followed by a null terminated absolute path.
+  The path delimiter is always a "/". Servers whose underlying 
+  file system uses other delimiters, such as Acorn ADFS, should 
+  translate. Note that any recent version of Windows understands "/" 
+  to be a path delimiter, so a Windows server does not need
+  to translate a "/" to a "\".
+  Clients should keep track of their own current working directory.
+
+  Example:
+  0xBEEF 0x00 0x10 /home/tnfs 0x00 - Open absolute path "/home/tnfs"
+
+  The server responds with the standard header, with byte 4 set to the
+  return code which is 0x00 for success, and if successful, byte 5 
+  is set to the directory handle.
+
+  Example:
+  0xBEEF 0x00 0x10 0x00 0x04 - Successful, handle is 0x04
+  0xBEEF 0x00 0x10 0x1F - Failed with code 0x1F
 */
 bool tnfs_opendir(unsigned char hostSlot)
 {
@@ -391,8 +425,27 @@ bool tnfs_opendir(unsigned char hostSlot)
 }
 
 /**
-   TNFS Read Directory
-   Reads the next directory entry
+---------------------------------------------------
+READDIR - Reads a directory entry - Command ID 0x11
+---------------------------------------------------
+
+  Format:
+  Standard header plus directory handle.
+
+  Example:
+  0xBEEF 0x00 0x11 0x04 - Read an entry with directory handle 0x04
+
+  The server responds with the standard header, followed by the directory
+  entry. Example:
+
+  0xBEEF 0x17 0x11 0x00 . 0x00 - Directory entry for the current working directory
+  0xBEEF 0x18 0x11 0x00 .. 0x00 - Directory entry for parent
+  0xBEEF 0x19 0x11 0x00 foo 0x00 - File named "foo"
+
+  If the end of directory is reached, or another error occurs, then the
+  status byte is set to the error number as for other commands.
+  0xBEEF 0x1A 0x11 0x21 - EOF
+  0xBEEF 0x1B 0x11 0x1F - Error code 0x1F
 */
 bool tnfs_readdir(unsigned char hostSlot)
 {
@@ -449,7 +502,21 @@ bool tnfs_readdir(unsigned char hostSlot)
 }
 
 /**
-   TNFS Close Directory
+-----------------------------------------------------
+CLOSEDIR - Close a directory handle - Command ID 0x12
+-----------------------------------------------------
+
+  Format:
+  Standard header plus directory handle.
+
+  Example, closing handle 0x04:
+  0xBEEF 0x00 0x12 0x04
+
+  The server responds with the standard header, with byte 4 set to the
+  return code which is 0x00 for success, or something else for an error.
+  Example:
+  0xBEEF 0x00 0x12 0x00 - Close operation succeeded.
+  0xBEEF 0x00 0x12 0x1F - Close failed with error code 0x1F
 */
 bool tnfs_closedir(unsigned char hostSlot)
 {
@@ -842,7 +909,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
 // CAN THIS BE MADE USING FS CALLS INSTEAD? THEN IT WILL WORK FOR EVERY FS.
 /**
    TNFS Write blank ATR
-*/
+/
 bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors)
 {
   unsigned long num_para = num_sectors_to_para(numSectors, sectorSize);
@@ -887,3 +954,5 @@ bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, u
   tnfs_write(deviceSlot, sectorSize);
   return true; //fixme
 }
+
+*/

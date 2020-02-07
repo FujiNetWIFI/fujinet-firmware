@@ -20,14 +20,16 @@ union tnfsPacket_t
   byte rawData[512];
 };
 
-void str2packet(String S);
-//void hostname(const char* mp);
-//uint16_t portnum(const char* mp);
-bool tnfs_mount(String host, int port=16384, String location="/", String userid="", String password="");
-int tnfs_open(String host, int port, String filename, byte flag_lsb=1, byte flag_msb=0);
-int tnfs_read(String host, int port, byte fd, size_t size);
-void tnfs_write(String host, int port, byte fd, const uint8_t *sector, size_t size);
-void tnfs_seek(String host, int port, byte fd, uint32_t offset);
+bool tnfs_mount(unsigned char hostSlot);
+bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create);
+bool tnfs_close(unsigned char deviceSlot);
+bool tnfs_opendir(unsigned char hostSlot);
+bool tnfs_readdir(unsigned char hostSlot);
+bool tnfs_closedir(unsigned char hostSlot);
+bool tnfs_write(unsigned char deviceSlot, unsigned short len);
+bool tnfs_read(unsigned char deviceSlot, unsigned short len);
+bool tnfs_seek(unsigned char deviceSlot, long offset);
+// bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors);
 
 #endif // _TNFS_UDP_H
 
