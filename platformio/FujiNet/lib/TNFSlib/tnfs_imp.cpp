@@ -2,9 +2,9 @@
 
 extern tnfsPacket_t tnfsPacket;
 
-/* File Ssstem Implementation */
+/* File System Implementation */
 
-TNFSImpl::TNFSImpl() {}
+//TNFSImpl::TNFSImpl() {}
 
 FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 {

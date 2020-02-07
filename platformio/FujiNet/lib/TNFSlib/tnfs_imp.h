@@ -24,11 +24,11 @@ class TNFSImpl : public FSImpl
 {
 //This class implements the physical interface for built-in functions in FS.h
 protected:
-    friend class TNFSFileImpl;
+    //friend class TNFSFileImpl;
 
 public:
-    TNFSImpl();
-    ~TNFSImpl() {}
+    //TNFSImpl();
+    //~TNFSImpl() {}
     FileImplPtr open(const char *path, const char *mode) override;
     bool exists(const char *path) override;
     bool rename(const char *pathFrom, const char *pathTo) override;
@@ -42,6 +42,7 @@ class TNFSFileImpl : public FileImpl
 //This class implements the physical interface for built-in functions in the File class defined in FS.h
 
 protected:
+
     TNFSImpl *_fs;
     byte _fd;
     String _host;
