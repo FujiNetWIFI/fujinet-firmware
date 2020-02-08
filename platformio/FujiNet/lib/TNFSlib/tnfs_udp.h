@@ -20,7 +20,13 @@ union tnfsPacket_t
   byte rawData[512];
 };
 
-bool tnfs_mount(FSImplPtr hostPtr);//(unsigned char hostSlot);
+struct tnfsSessionID_t
+{
+  unsigned char session_idl;
+  unsigned char session_idh;
+};
+
+tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr);//(unsigned char hostSlot);
 //bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create);
 bool tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb);
 bool tnfs_close(unsigned char deviceSlot);

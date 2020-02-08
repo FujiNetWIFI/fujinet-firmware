@@ -6,7 +6,6 @@ tnfsPacket_t tnfsPacket;
 //byte sector[128];
 int dataidx = 0;
 
-
 /*
 ------------------------------------------------------------------
 MOUNT - Command ID 0x00
@@ -33,8 +32,22 @@ MOUNT - Command ID 0x00
   false with zero in tnfsPacket.data[0] - timeout
 ------------------------------------------------------------------
 */
-uint16 tnfs_mount(FSImplPtr hostPtr)  //(unsigned char hostSlot)
+tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
 {
+
+  tnfsSessionID_t tempID;
+
+  std::string mp(hostPtr->mountpoint());
+
+  // extract the parameters
+  //host + sep + numstr + sep + "0 0 " + location + sep + userid + sep + password;
+  char host[36];
+  uint16_t port;
+  char location[36];
+  char userid[36];
+  char password[36];
+  int n = sscanf(mp.c_str(), "%s %u %*u %*u %s %s %s", host, &port, location, userid, password);
+
   int start = millis();
   int dur = millis() - start;
   unsigned char retries = 0;
@@ -44,8 +57,8 @@ uint16 tnfs_mount(FSImplPtr hostPtr)  //(unsigned char hostSlot)
     memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
 
     // Do not mount, if we already have a session ID, just bail.
-    if (tnfsSessionIDs[hostSlot].session_idl != 0 && tnfsSessionIDs[hostSlot].session_idh != 0)
-      return tnfsSessionIDs[hostSlot].session_idl + tnfsSessionIDs[hostSlot].session_idh*256 ;
+    // if (tnfsSessionIDs[hostSlot].session_idl != 0 && tnfsSessionIDs[hostSlot].session_idh != 0)
+    //   return true;
 
     tnfsPacket.session_idl = 0;
     tnfsPacket.session_idh = 0;
@@ -53,6 +66,7 @@ uint16 tnfs_mount(FSImplPtr hostPtr)  //(unsigned char hostSlot)
     tnfsPacket.command = 0;
     tnfsPacket.data[0] = 0x01; // vers
     tnfsPacket.data[1] = 0x00; // "  "
+    // todo: need to strcpy location, userid and password
     tnfsPacket.data[2] = 0x2F; // /
     tnfsPacket.data[3] = 0x00; // nul
     tnfsPacket.data[4] = 0x00; // no username
@@ -60,7 +74,7 @@ uint16 tnfs_mount(FSImplPtr hostPtr)  //(unsigned char hostSlot)
 
 #ifdef DEBUG_VERBOSE
     Debug_print("Mounting / from ");
-    Debug_println((char*)hostSlots.host[hostSlot]);
+    Debug_println((char *)hostSlots.host[hostSlot]);
     for (int i = 0; i < 32; i++)
       Debug_printf("%02x ", hostSlots.host[hostSlot][i]);
     Debug_printf("\n\n");
@@ -73,7 +87,7 @@ uint16 tnfs_mount(FSImplPtr hostPtr)  //(unsigned char hostSlot)
     Debug_println("");
 #endif /* DEBUG_S */
 
-    UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
+    UDP.beginPacket(host, port);
     UDP.write(tnfsPacket.rawData, 10);
     UDP.endPacket();
 
@@ -99,29 +113,31 @@ uint16 tnfs_mount(FSImplPtr hostPtr)  //(unsigned char hostSlot)
 #endif /* DEBUG_S */
         if (tnfsPacket.data[0] == 0x00)
         {
-          // Successful
+// Successful
 #ifdef DEBUG_VERBOSE
           Debug_print("Successful, Session ID: ");
           Debug_print(tnfsPacket.session_idl, HEX);
           Debug_println(tnfsPacket.session_idh, HEX);
 #endif /* DEBUG_S */
           // Persist the session ID.
-          tnfsSessionIDs[hostSlot].session_idl = tnfsPacket.session_idl;
-          tnfsSessionIDs[hostSlot].session_idh = tnfsPacket.session_idh;
-          return true;
+          tempID.session_idl = tnfsPacket.session_idl;
+          tempID.session_idh = tnfsPacket.session_idh;
+          return tempID;
         }
         else
         {
-          // Error
+// Error
 #ifdef DEBUG_VERBOSE
           Debug_print("Error #");
           Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S */
-          return false;
+          tempID.session_idh = 0;
+          tempID.session_idl = 0;
+          return tempID;
         }
       }
     }
-    // Otherwise we timed out.
+// Otherwise we timed out.
 #ifdef DEBUG_VERBOSE
     Debug_println("Timeout after 5000ms");
 #endif /* DEBUG_S */
@@ -131,7 +147,9 @@ uint16 tnfs_mount(FSImplPtr hostPtr)  //(unsigned char hostSlot)
 #ifdef DEBUG
   Debug_printf("Failed.\n");
 #endif
-  return false;
+  tempID.session_idh = 0;
+  tempID.session_idl = 0;
+  return tempID;
 }
 
 /*
@@ -179,7 +197,7 @@ support both the old style OPEN and the new OPEN)
  */
 
 //bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
-bool tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb)
+bool tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
 {
   int start = millis();
   int dur = millis() - start;
@@ -191,7 +209,7 @@ bool tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb)
     //strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
-    tnfsPacket.retryCount++;  // increase sequence #
+    tnfsPacket.retryCount++;   // increase sequence #
     tnfsPacket.command = 0x29; // OPEN
 
     // if (options == 0x01)
@@ -201,7 +219,7 @@ bool tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb)
     // else
     //   tnfsPacket.data[c++] = 0x03;
     tnfsPacket.data[c++] = flag_lsb;
-    
+
     // tnfsPacket.data[c++] = (create == true ? 0x01 : 0x00); // Create flag
     tnfsPacket.data[c++] = flag_msb;
 
@@ -263,7 +281,7 @@ bool tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb)
         }
         else
         {
-          // unsuccessful
+// unsuccessful
 #ifdef DEBUG
           Debug_print("Error code #");
           Debug_println(tnfsPacket.data[0], HEX);
@@ -312,7 +330,7 @@ bool tnfs_close(unsigned char deviceSlot)
     strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
-    tnfsPacket.retryCount++;  // increase sequence #
+    tnfsPacket.retryCount++;   // increase sequence #
     tnfsPacket.command = 0x23; // CLOSE
 
     tnfsPacket.data[c++] = tnfs_fds[deviceSlot];
@@ -350,7 +368,7 @@ bool tnfs_close(unsigned char deviceSlot)
         }
         else
         {
-          // unsuccessful
+// unsuccessful
 #ifdef DEBUG_VERBOSE
           Debug_print("Error code #");
           Debug_println(tnfsPacket.data[0], HEX);
@@ -407,9 +425,9 @@ bool tnfs_opendir(unsigned char hostSlot)
   {
     tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
-    tnfsPacket.retryCount++;  // increase sequence #
+    tnfsPacket.retryCount++;   // increase sequence #
     tnfsPacket.command = 0x10; // OPENDIR
-    tnfsPacket.data[0] = '/'; // Open root dir
+    tnfsPacket.data[0] = '/';  // Open root dir
     tnfsPacket.data[1] = 0x00; // nul terminated
 
 #ifdef DEBUG
@@ -443,7 +461,7 @@ bool tnfs_opendir(unsigned char hostSlot)
         }
       }
     }
-    // Otherwise, we timed out.
+// Otherwise, we timed out.
 #ifdef DEBUG
     Debug_println("Timeout after 5000ms.");
 #endif
@@ -489,8 +507,8 @@ bool tnfs_readdir(unsigned char hostSlot)
   {
     tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
-    tnfsPacket.retryCount++;  // increase sequence #
-    tnfsPacket.command = 0x11; // READDIR
+    tnfsPacket.retryCount++;                     // increase sequence #
+    tnfsPacket.command = 0x11;                   // READDIR
     tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
 
 #ifdef DEBUG_VERBOSE
@@ -511,7 +529,7 @@ bool tnfs_readdir(unsigned char hostSlot)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-          strcpy((char*)&current_entry, (char *)&tnfsPacket.data[1]);
+          strcpy((char *)&current_entry, (char *)&tnfsPacket.data[1]);
           return true;
         }
         else
@@ -521,7 +539,7 @@ bool tnfs_readdir(unsigned char hostSlot)
         }
       }
     }
-    // Otherwise, we timed out.
+// Otherwise, we timed out.
 #ifdef DEBUG
     Debug_println("Timeout after 5000ms.");
 #endif /* DEBUG_S */
@@ -560,8 +578,8 @@ bool tnfs_closedir(unsigned char hostSlot)
   {
     tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
-    tnfsPacket.retryCount++;  // increase sequence #
-    tnfsPacket.command = 0x12; // CLOSEDIR
+    tnfsPacket.retryCount++;                     // increase sequence #
+    tnfsPacket.command = 0x12;                   // CLOSEDIR
     tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
 
 #ifdef DEBUG_VERBOSE
@@ -591,7 +609,7 @@ bool tnfs_closedir(unsigned char hostSlot)
         }
       }
     }
-    // Otherwise, we timed out.
+// Otherwise, we timed out.
 #ifdef DEBUG
     Debug_println("Timeout after 5000ms.");
     retries++;
@@ -635,8 +653,8 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
   {
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
-    tnfsPacket.retryCount++;  // Increase sequence
-    tnfsPacket.command = 0x22; // READ
+    tnfsPacket.retryCount++;                   // Increase sequence
+    tnfsPacket.command = 0x22;                 // READ
     tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
     tnfsPacket.data[1] = len & 0xFF;
     tnfsPacket.data[2] = len >> 8;
@@ -676,7 +694,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
 #endif /* DEBUG_S */
         if (tnfsPacket.data[0] == 0x00)
         {
-          // Successful
+// Successful
 #ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif /* DEBUG_S */
@@ -684,7 +702,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
         }
         else
         {
-          // Error
+// Error
 #ifdef DEBUG
           Debug_print("Error code #");
           Debug_println(tnfsPacket.data[0], HEX);
@@ -747,11 +765,11 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
   {
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
-    tnfsPacket.retryCount++;  // Increase sequence
-    tnfsPacket.command = 0x21; // READ
+    tnfsPacket.retryCount++;                   // Increase sequence
+    tnfsPacket.command = 0x21;                 // READ
     tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
-    tnfsPacket.data[1] = len & 0xFF; // len bytes
-    tnfsPacket.data[2] = len >> 8; //
+    tnfsPacket.data[1] = len & 0xFF;           // len bytes
+    tnfsPacket.data[2] = len >> 8;             //
 
 #ifdef DEBUG_VERBOSE
     Debug_print("Reading from File descriptor: ");
@@ -788,7 +806,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
 #endif /* DEBUG_S */
         if (tnfsPacket.data[0] == 0x00)
         {
-          // Successful
+// Successful
 #ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif /* DEBUG_S */
@@ -796,7 +814,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
         }
         else
         {
-          // Error
+// Error
 #ifdef DEBUG
           Debug_print("Error code #");
           Debug_println(tnfsPacket.data[0], HEX);
@@ -854,9 +872,9 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
 
   while (retries < 5)
   {
-    offsetVal[0] = (int)((offset & 0xFF000000) >> 24 );
-    offsetVal[1] = (int)((offset & 0x00FF0000) >> 16 );
-    offsetVal[2] = (int)((offset & 0x0000FF00) >> 8 );
+    offsetVal[0] = (int)((offset & 0xFF000000) >> 24);
+    offsetVal[1] = (int)((offset & 0x00FF0000) >> 16);
+    offsetVal[2] = (int)((offset & 0x0000FF00) >> 8);
     offsetVal[3] = (int)((offset & 0X000000FF));
 
     tnfsPacket.retryCount++;
@@ -906,7 +924,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
 
         if (tnfsPacket.data[0] == 0)
         {
-          // Success.
+// Success.
 #ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif /* DEBUG_S */
@@ -914,7 +932,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
         }
         else
         {
-          // Error.
+// Error.
 #ifdef DEBUG
           Debug_print("Error code #");
           Debug_println(tnfsPacket.data[0], HEX);
@@ -936,7 +954,6 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
 #endif
   return false;
 }
-
 
 // CAN THIS BE MADE USING FS CALLS INSTEAD? THEN IT WILL WORK FOR EVERY FS.
 /**

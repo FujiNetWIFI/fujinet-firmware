@@ -7,16 +7,34 @@ TNFSFS::TNFSFS() : FS(FSImplPtr(new TNFSImpl()))
 {
 }
 
-byte TNFSFS::begin(std::string host, uint16_t port, std::string location, std::string userid, std::string password)
+bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::string userid, std::string password)
 {
     char numstr[5]; // enough to hold all numbers up to 16-bits
-    sprintf(numstr, "%0u", port);
+    sprintf(numstr, "%u", port);
     const char sep = ' ';
-    
-    std::string mp = host + sep + numstr + sep + location + sep + userid + sep + password;
-    mp.copy(mparray,128,0);
+
+    if (strlen(mparray) != 0)
+        return true;
+
+    std::string mp = host + sep + numstr + sep + "0 0 " + location + sep + userid + sep + password;
+    mp.copy(mparray, mp.length(), 0);
     _impl->mountpoint(mparray);
-    bool err = tnfs_mount(_impl);
+    tnfsSessionID_t tempID = tnfs_mount(_impl);
+
+    if (tempID.session_idl == 0 && tempID.session_idh == 0)
+    {
+        mparray[0] = '\0';
+        return false;
+    }
+    char low[3];
+    sprintf(low, "%u", tempID.session_idl);
+    char hi[3];
+    sprintf(hi, "%u", tempID.session_idh);
+    mp = host + sep + numstr + sep + hi + sep + low + sep + location + sep + userid + sep + password;
+    mp.copy(mparray, mp.length(), 0);
+    _impl->mountpoint(mparray);
+
+    return true;
 }
 
 size_t TNFSFS::size() { return 0; }
