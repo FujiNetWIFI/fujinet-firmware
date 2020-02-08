@@ -197,7 +197,7 @@ support both the old style OPEN and the new OPEN)
  */
 
 //bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
-int tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb)
+int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
 {
 
   tnfsSessionID_t sessionID = F->sid();
@@ -344,7 +344,7 @@ bool tnfs_close(TNFSImpl *F, byte fd, const char *mountPath)
     tnfsPacket.command = 0x23; // CLOSE
 
     //tnfsPacket.data[c++] = tnfs_fds[deviceSlot];
-tnfsPacket.data[c++] = fd;
+    tnfsPacket.data[c++] = fd;
 
     for (int i = 0; i < strlen(mountPath); i++)
     {
@@ -654,7 +654,7 @@ WRITE - Writes to a file - Command 0x22
   0xBEEF 0x00 0x22 0x06 - Failed write, error is "bad file descriptor"
 */
 
-bool tnfs_write(TNFSImpl* F, byte fd, const uint8_t* buf, unsigned short len)
+size_t tnfs_write(TNFSImpl *F, byte fd, const uint8_t *buf, unsigned short len)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -666,9 +666,9 @@ bool tnfs_write(TNFSImpl* F, byte fd, const uint8_t* buf, unsigned short len)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;                   // Increase sequence
-    tnfsPacket.command = 0x22;                 // READ
-    tnfsPacket.data[0] = fd; // returned file descriptor
+    tnfsPacket.retryCount++;   // Increase sequence
+    tnfsPacket.command = 0x22; // READ
+    tnfsPacket.data[0] = fd;   // returned file descriptor
     tnfsPacket.data[1] = len & 0xFF;
     tnfsPacket.data[2] = len >> 8;
 
@@ -686,7 +686,7 @@ bool tnfs_write(TNFSImpl* F, byte fd, const uint8_t* buf, unsigned short len)
 
     UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, 4 + 3);
-    UDP.write(sector, len);
+    UDP.write(buf, len);
     UDP.endPacket();
 
     while (dur < 5000)
@@ -711,7 +711,7 @@ bool tnfs_write(TNFSImpl* F, byte fd, const uint8_t* buf, unsigned short len)
 #ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif /* DEBUG_S */
-          return true;
+          return len;
         }
         else
         {
@@ -720,7 +720,7 @@ bool tnfs_write(TNFSImpl* F, byte fd, const uint8_t* buf, unsigned short len)
           Debug_print("Error code #");
           Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
-          return false;
+          return 0;
         }
       }
     }
@@ -733,6 +733,7 @@ bool tnfs_write(TNFSImpl* F, byte fd, const uint8_t* buf, unsigned short len)
 #ifdef DEBUG
   Debug_printf("Failed.\n");
 #endif
+  return 0;
 }
 
 /*
@@ -768,21 +769,24 @@ READ - Reads from a file - Command 0x21
   0xBEEF 0x00 0x21 0x21
 */
 
-bool tnfs_read(unsigned char deviceSlot, unsigned short len)
+size_t tnfs_read(TNFSImpl *F, byte fd, uint8_t *buf, unsigned short len)
 {
+
+  tnfsSessionID_t sessionID = F->sid();
+
   int start = millis();
   int dur = millis() - start;
   unsigned char retries = 0;
 
   while (retries < 5)
   {
-    tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-    tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
-    tnfsPacket.retryCount++;                   // Increase sequence
-    tnfsPacket.command = 0x21;                 // READ
-    tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
-    tnfsPacket.data[1] = len & 0xFF;           // len bytes
-    tnfsPacket.data[2] = len >> 8;             //
+    tnfsPacket.session_idl = sessionID.session_idl;
+    tnfsPacket.session_idh = sessionID.session_idh;
+    tnfsPacket.retryCount++;         // Increase sequence
+    tnfsPacket.command = 0x21;       // READ
+    tnfsPacket.data[0] = fd;         // returned file descriptor
+    tnfsPacket.data[1] = len & 0xFF; // len bytes
+    tnfsPacket.data[2] = len >> 8;   //
 
 #ifdef DEBUG_VERBOSE
     Debug_print("Reading from File descriptor: ");
@@ -796,7 +800,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
     Debug_println("");
 #endif /* DEBUG_S */
 
-    UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, 4 + 3);
     UDP.endPacket();
     start = millis();
@@ -823,7 +827,9 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
 #ifdef DEBUG_VERBOSE
           Debug_println("Successful.");
 #endif /* DEBUG_S */
-          return true;
+          uint8_t *s = &tnfsPacket.data[3];
+          memcpy(buf, s, len);
+          return len;
         }
         else
         {
@@ -832,7 +838,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
           Debug_print("Error code #");
           Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
-          return false;
+          return 0;
         }
       }
     }
@@ -847,7 +853,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
 #ifdef DEBUG
   Debug_printf("Failed.\n");
 #endif
-  return false;
+  return 0;
 }
 
 /*

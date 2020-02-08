@@ -158,8 +158,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 bool TNFSImpl::exists(const char *path)
 {
   File f = open(path, "r");
-  return (f == true); //&& !f.isDirectory();
-  //return false;
+  return (f == true && !f.isDirectory());
 }
 
 bool TNFSImpl::rename(const char *pathFrom, const char *pathTo) { return false; }
@@ -181,8 +180,11 @@ size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 #ifdef DEBUG_S
   BUG_UART.println("calling tnfs_write");
 #endif
-  tnfs_write(fs,fd, buf, size);
-  return size;
+  size_t ret = tnfs_write(fs, fd, buf, size);
+  if (size == ret)
+    return size;
+  else
+    return 0;
 }
 
 size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
@@ -190,35 +192,35 @@ size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
 #ifdef DEBUG_S
   BUG_UART.println("calling tnfs_read");
 #endif
-  int ret = tnfs_read(_host, _port, _fd, size);
+  size_t ret = tnfs_read(fs, fd, buf, size);
   // move this part into tnfs_read and pass a buffer instead
   if (size == ret)
-  {
-    for (int i = 0; i < size; i++)
-      buf[i] = tnfsPacket.data[i + 3];
     return size;
-  }
-  return 0;
+  else
+    return 0;
 }
 
 void TNFSFileImpl::flush() {}
 
 bool TNFSFileImpl::seek(uint32_t pos, SeekMode mode)
 {
-  tnfs_seek(_host, _port, _fd, pos); // implement SeekMode
+  tnfs_seek(fs, fd, pos); // implement SeekMode
   return true;
+}
+
+void TNFSFileImpl::close()
+{
+  tnfs_close(fs, fd, this->name);
+}
+
+const char *TNFSFileImpl::name() const
+{
+  return this->name;
 }
 
 // not written yet
 size_t TNFSFileImpl::position() const { return 0; }
 size_t TNFSFileImpl::size() const { return 0; }
-void TNFSFileImpl::close()
-{
-  tnfs_close(fs, fd, this->name);
-}
-const char *TNFSFileImpl::name() const { 
-  return this->name;
- }
 time_t TNFSFileImpl::getLastWrite() { return 0; }
 boolean TNFSFileImpl::isDirectory(void) { return false; }
 FileImplPtr TNFSFileImpl::openNextFile(const char *mode) { return FileImplPtr(); }
