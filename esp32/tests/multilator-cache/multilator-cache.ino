@@ -28,7 +28,7 @@
 // #define DEBUG_SSID ""
 // #define DEBUG_PASSWORD ""
 
-// #define DEBUG_VERBOSE 1
+#define DEBUG_VERBOSE 1
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -949,6 +949,31 @@ void sio_tnfs_tell_directory()
 }
 
 /**
+ * SIO tnfs tell # of directory entries in cache
+ */
+void sio_tnfs_num_directory()
+{
+  byte hostSlot = cmdFrame.aux1;
+  byte err = false;
+
+  if (hostSlot > 8)
+    err = true;
+
+  sio_to_computer((byte *)&dir_cache_num[hostSlot], 2, err);
+}
+
+/**
+ * ellipsize entry
+ */
+String ellipsize(String s, unsigned char len)
+{
+  if (s.length()<len)
+    return s;
+  else
+    return s.substring(0,(len/2)-3) + "..." + s.substring(s.length()-(len/2));
+}
+
+/**
    Read next TNFS Directory entry
 */
 void sio_tnfs_read_directory_entry()
@@ -959,7 +984,7 @@ void sio_tnfs_read_directory_entry()
 
   memset(&current_entry, 0x00, sizeof(current_entry));
 
-  if (dir_cache_pos > dir_cache_num)
+  if (dir_cache_pos[hostSlot] > dir_cache_num[hostSlot])
     err = true;
   else
   {
@@ -979,7 +1004,7 @@ void sio_tnfs_read_directory_entry()
       current_entry[strlen(current_entry)] = '/';
   }
 
-  sio_to_computer((byte *)&current_entry, len, err);
+  sio_to_computer((byte *)ellipsize(current_entry,len).c_str(), len, err);
 }
 
 /**
@@ -2090,14 +2115,20 @@ bool tnfs_cache_directory(unsigned char hostSlot)
   {
     long pos;
     char len = strlen(current_entry);
-    dirCacheFN[hostSlot].write(current_entry, len);
+    dirCacheFN[hostSlot].write((byte *)&current_entry, len);
     pos = dirCacheFN[hostSlot].position();
     dirCacheIdxEntry.len = len;
     dirCacheIdxEntry.pos = pos;
     dirCacheIX[hostSlot].write(dirCacheIdxEntry.rawData, sizeof(dirCacheIdxEntry.rawData));
     tnfs_stat(hostSlot, current_entry);
-    dirCacheST[hostSlot].write((char *)&is_dir, 1);
+    dirCacheST[hostSlot].write((byte *)&is_dir, 1);
     dir_cache_num[hostSlot]++;
+#ifdef DEBUG_VERBOSE
+    Debug_printf("name: %s\n",current_entry);
+    Debug_printf("idx_len %d\n",dirCacheIdxEntry.len);
+    Debug_printf("pos_len %d\n",dirCacheIdxEntry.pos);
+    Debug_printf("is_dir: %d\n",is_dir);
+#endif
   }
   return true;
 }
@@ -2214,6 +2245,7 @@ void setup()
   cmdPtr[0xE7] = sio_new_disk;
   cmdPtr[0xE6] = sio_tnfs_seek_directory;
   cmdPtr[0xE5] = sio_tnfs_tell_directory;
+  cmdPtr[0xE4] = sio_tnfs_num_directory;
 
   // Go ahead and flush anything out of the serial port
   sio_flush();
