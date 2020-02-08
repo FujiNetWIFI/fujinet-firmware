@@ -76,10 +76,10 @@ class TNFSFileImpl : public FileImpl
 protected:
     TNFSImpl *fs;
     byte fd;
-    char *fn[256];
+    char fn[256];
     
 public:
-    TNFSFileImpl(TNFSImpl *fs, byte fd, const char* name);
+    TNFSFileImpl(TNFSImpl *fs, byte fd, const char* filename);
     ~TNFSFileImpl(){};
     size_t write(const uint8_t *buf, size_t size) override;
     size_t read(uint8_t *buf, size_t size) override;

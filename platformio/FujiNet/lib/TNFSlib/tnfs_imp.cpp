@@ -49,7 +49,7 @@ tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
   char location[36];
   char userid[36];
   char password[36];
-  int n = sscanf(mp.c_str(), "%s %u %*u %*u %s %s %s", host, &port, location, userid, password);
+  sscanf(mp.c_str(), "%s %hu %*u %*u %s %s %s", host, &port, location, userid, password);
 
   int start = millis();
   int dur = millis() - start;
@@ -1152,7 +1152,7 @@ tnfsSessionID_t TNFSImpl::sid()
   {
     byte lo;
     byte hi;
-    int n = sscanf(_mountpoint, "%*s %*u &hhu &hhu", &lo, &hi);
+    int n = sscanf(_mountpoint, "%*s %*u %hhu %hhu", &lo, &hi);
     if (n == 1)
       _sid.session_idl = lo;
     _sid.session_idh = hi;
@@ -1288,11 +1288,11 @@ bool TNFSImpl::rmdir(const char *path) { return false; }
 
 /* File Implementation */
 
-TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd, const char *name)
+TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd, const char *filename)
 {
   this->fs = fs;
   this->fd = fd;
-  strcpy(fn, name);
+  strcpy(fn, filename);
 }
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
@@ -1330,17 +1330,17 @@ bool TNFSFileImpl::seek(uint32_t pos, SeekMode mode)
 
 void TNFSFileImpl::close()
 {
-  tnfs_close(fs, fd, this->name);
+  tnfs_close(fs, fd, fn);
 }
 
 const char *TNFSFileImpl::name() const
 {
-  return this->name;
+  return fn;
 }
 
 boolean TNFSFileImpl::isDirectory(void)
 {
-  bool is_dir = tnfs_stat(fs, this->name);
+  bool is_dir = tnfs_stat(fs, fn);
   return is_dir;
 }
 
