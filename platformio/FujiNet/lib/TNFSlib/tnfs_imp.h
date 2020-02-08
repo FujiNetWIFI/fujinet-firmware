@@ -2,11 +2,12 @@
 #define _TNFS_IMP_H
 #include <Arduino.h>
 #include <string.h>
+#include <WiFiUdp.h>
 
 #include "tnfs.h"
 #include <FS.h>
 #include <FSImpl.h>
-#include "tnfs_udp.h"
+//#include "tnfs_udp.h"
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
 #define TNFS_RDONLY 0x0001 //Open read only
@@ -18,6 +19,24 @@
 #define TNFS_EXCL 0x0400   //With TNFS_CREAT, returns an error if the file exists
 
 using namespace fs;
+
+union tnfsPacket_t {
+  struct
+  {
+    byte session_idl;
+    byte session_idh;
+    byte retryCount;
+    byte command;
+    byte data[508];
+  };
+  byte rawData[512];
+};
+
+struct tnfsSessionID_t
+{
+  unsigned char session_idl;
+  unsigned char session_idh;
+};
 
 class TNFSFileImpl;
 
@@ -57,7 +76,7 @@ class TNFSFileImpl : public FileImpl
 protected:
     TNFSImpl *fs;
     byte fd;
-    char *name[256];
+    char *fn[256];
     
 public:
     TNFSFileImpl(TNFSImpl *fs, byte fd, const char* name);
@@ -76,5 +95,19 @@ public:
     void rewindDirectory(void) override;
     operator bool();
 };
+
+
+tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr);
+int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb);
+bool tnfs_close(TNFSImpl *F, byte fd, const char *mountPath);
+int tnfs_opendir(TNFSImpl *F, const char *dirName);
+bool tnfs_readdir(TNFSImpl *F, byte fd, char *nextFile);
+bool tnfs_closedir(TNFSImpl *F, byte fd);
+size_t tnfs_write(TNFSImpl *F, byte fd, const uint8_t *buf, unsigned short len);
+size_t tnfs_read(TNFSImpl *F, byte fd, uint8_t *buf, unsigned short size);
+bool tnfs_seek(TNFSImpl *F, byte fd, long offset);
+bool tnfs_stat(TNFSImpl *F, const char *filename);
+
+//todo:  bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors);
 
 #endif //_TNFS_IMP_H
