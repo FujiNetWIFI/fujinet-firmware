@@ -426,16 +426,18 @@ OPENDIR - Open a directory for reading - Command ID 0x10
   0xBEEF 0x00 0x10 0x00 0x04 - Successful, handle is 0x04
   0xBEEF 0x00 0x10 0x1F - Failed with code 0x1F
 */
-bool tnfs_opendir(unsigned char hostSlot)
+bool tnfs_opendir(TNFSImpl *F)
 {
+  tnfsSessionID_t sessionID = F->sid();
+
   int start = millis();
   int dur = millis() - start;
   unsigned char retries = 0;
 
   while (retries < 5)
   {
-    tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
-    tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
+    tnfsPacket.session_idl = sessionID.session_idl;
+    tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.retryCount++;   // increase sequence #
     tnfsPacket.command = 0x10; // OPENDIR
     tnfsPacket.data[0] = '/';  // Open root dir
@@ -445,7 +447,7 @@ bool tnfs_opendir(unsigned char hostSlot)
     Debug_println("TNFS Open directory /");
 #endif
 
-    UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
+    UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, 2 + 4);
     UDP.endPacket();
 
@@ -508,16 +510,18 @@ READDIR - Reads a directory entry - Command ID 0x11
   0xBEEF 0x1A 0x11 0x21 - EOF
   0xBEEF 0x1B 0x11 0x1F - Error code 0x1F
 */
-bool tnfs_readdir(unsigned char hostSlot)
+bool tnfs_readdir(TNFSImpl *F)
 {
+  tnfsSessionID_t sessionID = F->sid();
+
   int start = millis();
   int dur = millis() - start;
   unsigned char retries = 0;
 
   while (retries < 5)
   {
-    tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
-    tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
+    tnfsPacket.session_idl = sessionID.session_idl;
+    tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.retryCount++;                     // increase sequence #
     tnfsPacket.command = 0x11;                   // READDIR
     tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
@@ -526,7 +530,7 @@ bool tnfs_readdir(unsigned char hostSlot)
     Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\n\n", hostSlot, tnfs_dir_fds[hostSlot]);
 #endif
 
-    UDP.beginPacket(String(hostSlots.host[hostSlot]).c_str(), 16384);
+    UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, 1 + 4);
     UDP.endPacket();
 
@@ -579,16 +583,18 @@ CLOSEDIR - Close a directory handle - Command ID 0x12
   0xBEEF 0x00 0x12 0x00 - Close operation succeeded.
   0xBEEF 0x00 0x12 0x1F - Close failed with error code 0x1F
 */
-bool tnfs_closedir(unsigned char hostSlot)
+bool tnfs_closedir(TNFSImpl *F)
 {
+  tnfsSessionID_t sessionID = F->sid();
+
   int start = millis();
   int dur = millis() - start;
   unsigned char retries = 0;
 
   while (retries < 5)
   {
-    tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
-    tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
+    tnfsPacket.session_idl = sessionID.session_idl;
+    tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.retryCount++;                     // increase sequence #
     tnfsPacket.command = 0x12;                   // CLOSEDIR
     tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
@@ -597,7 +603,7 @@ bool tnfs_closedir(unsigned char hostSlot)
     Debug_println("TNFS dir close");
 #endif
 
-    UDP.beginPacket(hostSlots.host[hostSlot], 16384);
+    UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, 1 + 4);
     UDP.endPacket();
 
@@ -882,8 +888,10 @@ LSEEK - Seeks to a new position in a file - Command 0x25
   to make a calculation to implement SEEK_CUR correctly since the server's
   file pointer will be wherever the last read block made it end up.
 */
-bool tnfs_seek(unsigned char deviceSlot, long offset)
+bool tnfs_seek(TNFSImpl *F, byte fd, long offset)
 {
+  tnfsSessionID_t sessionID = F->sid();
+
   int start = millis();
   int dur = millis() - start;
   byte offsetVal[4];
@@ -897,10 +905,10 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
     offsetVal[3] = (int)((offset & 0X000000FF));
 
     tnfsPacket.retryCount++;
-    tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-    tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+    tnfsPacket.session_idl = sessionID.session_idl;
+    tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.command = 0x25; // LSEEK
-    tnfsPacket.data[0] = tnfs_fds[deviceSlot];
+    tnfsPacket.data[0] = fd;
     tnfsPacket.data[1] = 0x00; // SEEK_SET
     tnfsPacket.data[2] = offsetVal[3];
     tnfsPacket.data[3] = offsetVal[2];
@@ -920,7 +928,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
     Debug_println("");
 #endif /* DEBUG_S*/
 
-    UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, 6 + 4);
     UDP.endPacket();
 
