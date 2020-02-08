@@ -23,7 +23,6 @@ std::string TNFSImpl::host()
 
 uint16_t TNFSImpl::port()
 {
-
   if (_mountpoint != NULL)
   {
     uint16_t temp;
@@ -32,6 +31,20 @@ uint16_t TNFSImpl::port()
       _port = temp;
   }
   return _port;
+}
+
+tnfsSessionID_t TNFSImpl::sid()
+{
+  if (_mountpoint != NULL)
+  {
+    byte lo;
+    byte hi;
+    int n = sscanf(_mountpoint, "%*s %*u &u &u", &lo, &hi);
+    if (n == 1)
+      _sid.session_idl = lo;
+    _sid.session_idh = hi;
+  }
+  return _sid;
 }
 
 std::string TNFSImpl::location()
@@ -100,7 +113,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
       flag = TNFS_WRONLY | TNFS_CREAT | TNFS_APPEND;
       break;
     default:
-      return NULL;
+      return nullptr;
     }
   }
   else if (strlen(mode) == 2)
@@ -119,27 +132,25 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
         flag = TNFS_RDWR | TNFS_CREAT | TNFS_APPEND;
         break;
       default:
-        return NULL;
+        return nullptr;
       }
     }
     else
     {
-      return NULL;
+      return nullptr;
     }
   }
   flag_lsb = byte(flag & 0xff);
   flag_msb = byte(flag >> 8);
 
   int temp = tnfs_open(this, path, flag_lsb, flag_msb);
-  if (temp >= 0)
+  if (temp != -1)
   {
     fd = (byte)temp;
   }
   else
   {
-    fd = 0;
-    // send debug message with -temp as error
-    return NULL;
+    return nullptr;
   }
   return std::make_shared<TNFSFileImpl>(this, fd);
 }

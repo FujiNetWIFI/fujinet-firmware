@@ -30,6 +30,7 @@ protected:
     // TNFS host parameters
     std::string _host="";
     uint16_t _port;
+    tnfsSessionID_t _sid;
     std::string _location="";
     std::string _userid="";
     std::string _password="";
@@ -43,6 +44,7 @@ public:
     bool rmdir(const char *path) override;
     std::string host();
     uint16_t port();
+    tnfsSessionID_t sid();
     std::string location();
     std::string userid();
     std::string password();
