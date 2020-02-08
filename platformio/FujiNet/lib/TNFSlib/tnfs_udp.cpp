@@ -197,7 +197,7 @@ support both the old style OPEN and the new OPEN)
  */
 
 //bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
-int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
+int tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb)
 {
 
   tnfsSessionID_t sessionID = F->sid();
@@ -654,19 +654,21 @@ WRITE - Writes to a file - Command 0x22
   0xBEEF 0x00 0x22 0x06 - Failed write, error is "bad file descriptor"
 */
 
-bool tnfs_write(unsigned char deviceSlot, unsigned short len)
+bool tnfs_write(TNFSImpl* F, byte fd, const uint8_t* buf, unsigned short len)
 {
+  tnfsSessionID_t sessionID = F->sid();
+
   int start = millis();
   int dur = millis() - start;
   unsigned char retries = 0;
 
   while (retries < 5)
   {
-    tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-    tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+    tnfsPacket.session_idl = sessionID.session_idl;
+    tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.retryCount++;                   // Increase sequence
     tnfsPacket.command = 0x22;                 // READ
-    tnfsPacket.data[0] = tnfs_fds[deviceSlot]; // returned file descriptor
+    tnfsPacket.data[0] = fd; // returned file descriptor
     tnfsPacket.data[1] = len & 0xFF;
     tnfsPacket.data[2] = len >> 8;
 
@@ -682,7 +684,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
     Debug_println("");
 #endif /* DEBUG_S */
 
-    UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, 4 + 3);
     UDP.write(sector, len);
     UDP.endPacket();

@@ -181,7 +181,7 @@ size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 #ifdef DEBUG_S
   BUG_UART.println("calling tnfs_write");
 #endif
-  tnfs_write(_host, _port, _fd, buf, size);
+  tnfs_write(fs,fd, buf, size);
   return size;
 }
 
