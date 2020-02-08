@@ -26,16 +26,15 @@ struct tnfsSessionID_t
   unsigned char session_idh;
 };
 
-tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr);//(unsigned char hostSlot);
-//bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create);
+tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr);
 int tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb);
 bool tnfs_close(TNFSImpl* F, byte fd, const char *mountPath);
 bool tnfs_opendir(unsigned char hostSlot);
 bool tnfs_readdir(unsigned char hostSlot);
 bool tnfs_closedir(unsigned char hostSlot);
-bool tnfs_write(unsigned char deviceSlot, unsigned short len);
-bool tnfs_read(unsigned char deviceSlot, unsigned short len);
-bool tnfs_seek(unsigned char deviceSlot, long offset);
+bool tnfs_write(TNFSImpl* F, byte fd, const uint8_t* buf, unsigned short len);
+bool tnfs_read(TNFSImpl* F, byte fd, uint8_t* buf, unsigned short len);
+bool tnfs_seek(TNFSImpl* F, byte fd, long offset);
 // bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors);
 
 #endif // _TNFS_UDP_H
