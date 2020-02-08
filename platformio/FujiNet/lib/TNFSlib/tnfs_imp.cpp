@@ -271,7 +271,8 @@ FileImplPtr TNFSFileImpl::openNextFile(const char *mode)
 
   char nextfn[36];
   byte nextfd = 0;
-  return std::make_shared<TNFSFileImpl>(this, nextfd, nextfn);
+  //return std::make_shared<TNFSFileImpl>(this, nextfd, nextfn);
+  return nullptr;
 }
 
 void TNFSFileImpl::rewindDirectory(void)
