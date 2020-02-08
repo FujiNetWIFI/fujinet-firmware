@@ -585,7 +585,7 @@ CLOSEDIR - Close a directory handle - Command ID 0x12
   0xBEEF 0x00 0x12 0x00 - Close operation succeeded.
   0xBEEF 0x00 0x12 0x1F - Close failed with error code 0x1F
 */
-bool tnfs_closedir(TNFSImpl *F)
+bool tnfs_closedir(TNFSImpl *F, byte fd)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -599,7 +599,7 @@ bool tnfs_closedir(TNFSImpl *F)
     tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.retryCount++;                     // increase sequence #
     tnfsPacket.command = 0x12;                   // CLOSEDIR
-    tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
+    tnfsPacket.data[0] = fd; // Open root dir
 
 #ifdef DEBUG_VERBOSE
     Debug_println("TNFS dir close");

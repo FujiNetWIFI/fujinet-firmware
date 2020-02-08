@@ -33,7 +33,7 @@ int tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb);
 bool tnfs_close(TNFSImpl* F, byte fd, const char *mountPath);
 int tnfs_opendir(TNFSImpl* F, const char* dirName);
 bool tnfs_readdir(TNFSImpl* F,byte fd, char* nextFile);
-bool tnfs_closedir(TNFSImpl* F);
+bool tnfs_closedir(TNFSImpl* F, byte fd);
 size_t tnfs_write(TNFSImpl* F, byte fd, const uint8_t* buf, unsigned short len);
 size_t tnfs_read(TNFSImpl* F, byte fd, uint8_t* buf, unsigned short size);
 bool tnfs_seek(TNFSImpl* F, byte fd, long offset);
