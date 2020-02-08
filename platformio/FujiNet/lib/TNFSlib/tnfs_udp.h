@@ -28,7 +28,7 @@ struct tnfsSessionID_t
 
 tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr);//(unsigned char hostSlot);
 //bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create);
-bool tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb);
+int tnfs_open(TNFSImpl* F, const char *mountPath, byte flag_lsb, byte flag_msb);
 bool tnfs_close(unsigned char deviceSlot);
 bool tnfs_opendir(unsigned char hostSlot);
 bool tnfs_readdir(unsigned char hostSlot);

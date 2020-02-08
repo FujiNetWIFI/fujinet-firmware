@@ -197,8 +197,11 @@ support both the old style OPEN and the new OPEN)
  */
 
 //bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
-bool tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
+int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
 {
+
+  tnfsSessionID_t sessionID = F->sid();
+
   int start = millis();
   int dur = millis() - start;
   int c = 0;
@@ -207,8 +210,10 @@ bool tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
   while (retries < 5)
   {
     //strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
-    tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-    tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+    //tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
+    //tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+    tnfsPacket.session_idl = sessionID.session_idl;
+    tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.retryCount++;   // increase sequence #
     tnfsPacket.command = 0x29; // OPEN
 
@@ -272,7 +277,9 @@ bool tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-          tnfs_fds[deviceSlot] = tnfsPacket.data[1];
+          //tnfs_fds[deviceSlot] = tnfsPacket.data[1];
+          int fid = tnfsPacket.data[1];
+          return fid;
 #ifdef DEBUG_VERBOSE
           Debug_print("Successful, file descriptor: #");
           Debug_println(tnfs_fds[deviceSlot], HEX);
@@ -286,7 +293,7 @@ bool tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
           Debug_print("Error code #");
           Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
-          return false;
+          return -1;
         }
       }
     }
@@ -300,7 +307,7 @@ bool tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
 #ifdef DEBUG
   Debug_printf("Failed\n");
 #endif
-  return false;
+  return -1;
 }
 
 /*

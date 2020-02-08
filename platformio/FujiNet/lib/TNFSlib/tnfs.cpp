@@ -26,11 +26,11 @@ bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::s
         mparray[0] = '\0';
         return false;
     }
-    char low[3];
-    sprintf(low, "%u", tempID.session_idl);
+    char lo[3];
+    sprintf(lo, "%u", tempID.session_idl);
     char hi[3];
     sprintf(hi, "%u", tempID.session_idh);
-    mp = host + sep + numstr + sep + hi + sep + low + sep + location + sep + userid + sep + password;
+    mp = host + sep + numstr + sep + lo + sep + hi + sep + location + sep + userid + sep + password;
     mp.copy(mparray, mp.length(), 0);
     _impl->mountpoint(mparray);
 
