@@ -91,6 +91,7 @@ std::string TNFSImpl::password()
 
 FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 {
+  int ret_fd;
   byte fd;
 
   // TODO: path (filename) checking
@@ -143,10 +144,15 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   flag_lsb = byte(flag & 0xff);
   flag_msb = byte(flag >> 8);
 
-  int temp = tnfs_open(this, path, flag_lsb, flag_msb);
-  if (temp != -1)
+  // test if path is directory
+  if (tnfs_stat(this, path))
+    ret_fd = tnfs_opendir(this, path);
+  else
+    ret_fd = tnfs_open(this, path, flag_lsb, flag_msb);
+
+  if (ret_fd != -1)
   {
-    fd = (byte)temp;
+    fd = (byte)ret_fd;
   }
   else
   {
@@ -218,11 +224,16 @@ const char *TNFSFileImpl::name() const
   return this->name;
 }
 
+boolean TNFSFileImpl::isDirectory(void)
+{
+  bool is_dir = tnfs_stat(fs, this->name);
+  return is_dir;
+}
+
 // not written yet
 size_t TNFSFileImpl::position() const { return 0; }
 size_t TNFSFileImpl::size() const { return 0; }
 time_t TNFSFileImpl::getLastWrite() { return 0; }
-boolean TNFSFileImpl::isDirectory(void) { return false; }
 FileImplPtr TNFSFileImpl::openNextFile(const char *mode) { return FileImplPtr(); }
 void TNFSFileImpl::rewindDirectory(void) {}
 TNFSFileImpl::operator bool() { return true; }

@@ -426,7 +426,7 @@ OPENDIR - Open a directory for reading - Command ID 0x10
   0xBEEF 0x00 0x10 0x00 0x04 - Successful, handle is 0x04
   0xBEEF 0x00 0x10 0x1F - Failed with code 0x1F
 */
-bool tnfs_opendir(TNFSImpl *F)
+int tnfs_opendir(TNFSImpl *F, const char *dirName)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -440,8 +440,9 @@ bool tnfs_opendir(TNFSImpl *F)
     tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.retryCount++;   // increase sequence #
     tnfsPacket.command = 0x10; // OPENDIR
-    tnfsPacket.data[0] = '/';  // Open root dir
-    tnfsPacket.data[1] = 0x00; // nul terminated
+    strcpy((char *)&tnfsPacket.data[0], dirName);
+//tnfsPacket.data[0] = '/';  // Open root dir
+//tnfsPacket.data[1] = 0x00; // nul terminated
 
 #ifdef DEBUG
     Debug_println("TNFS Open directory /");
@@ -461,16 +462,16 @@ bool tnfs_opendir(TNFSImpl *F)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-          tnfs_dir_fds[hostSlot] = tnfsPacket.data[1];
+          int handle = tnfsPacket.data[1];
 #ifdef DEBUG_VERBOSE
           Debug_printf("Opened dir on slot #%d - fd = %02x\n", hostSlot, tnfs_dir_fds[hostSlot]);
 #endif
-          return true;
+          return handle;
         }
         else
         {
           // Unsuccessful
-          return false;
+          return -1;
         }
       }
     }
@@ -484,7 +485,7 @@ bool tnfs_opendir(TNFSImpl *F)
 #ifdef DEBUG
   Debug_printf("Failed.");
 #endif
-  return false;
+  return -1;
 }
 
 /**
@@ -510,7 +511,7 @@ READDIR - Reads a directory entry - Command ID 0x11
   0xBEEF 0x1A 0x11 0x21 - EOF
   0xBEEF 0x1B 0x11 0x1F - Error code 0x1F
 */
-bool tnfs_readdir(TNFSImpl *F)
+bool tnfs_readdir(TNFSImpl *F, byte fd, char *nextFile)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -522,9 +523,9 @@ bool tnfs_readdir(TNFSImpl *F)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;                     // increase sequence #
-    tnfsPacket.command = 0x11;                   // READDIR
-    tnfsPacket.data[0] = tnfs_dir_fds[hostSlot]; // Open root dir
+    tnfsPacket.retryCount++;   // increase sequence #
+    tnfsPacket.command = 0x11; // READDIR
+    tnfsPacket.data[0] = fd;   // dir handle
 
 #ifdef DEBUG_VERBOSE
     Debug_printf("TNFS Read next dir entry, slot #%d - fd %02x\n\n", hostSlot, tnfs_dir_fds[hostSlot]);
@@ -544,7 +545,7 @@ bool tnfs_readdir(TNFSImpl *F)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-          strcpy((char *)&current_entry, (char *)&tnfsPacket.data[1]);
+          strcpy(nextFile, (char *)&tnfsPacket.data[1]);
           return true;
         }
         else
@@ -564,6 +565,7 @@ bool tnfs_readdir(TNFSImpl *F)
 #ifdef DEBUG
   Debug_printf("Failed.\n");
 #endif
+  return false;
 }
 
 /**
@@ -982,53 +984,130 @@ bool tnfs_seek(TNFSImpl *F, byte fd, long offset)
   return false;
 }
 
-// CAN THIS BE MADE USING FS CALLS INSTEAD? THEN IT WILL WORK FOR EVERY FS.
-/**
-   TNFS Write blank ATR
-/
-bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors)
-{
-  unsigned long num_para = num_sectors_to_para(numSectors, sectorSize);
-  unsigned long offset;
+/*
+-----------------------------------------------
+STAT - Get information on a file - Command 0x24
+-----------------------------------------------
+  Reads the file's information, such as size, datestamp etc. The TNFS
+  stat contains less data than the POSIX stat - information that is unlikely
+  to be of use to 8 bit systems are omitted.
+  The request consists of the standard header, followed by the full path
+  of the file to stat, terminated by a NULL. Example:
 
-  // Write header
-  atrHeader.magic1 = 0x96;
-  atrHeader.magic2 = 0x02;
-  atrHeader.filesizeH = num_para & 0xFF;
-  atrHeader.filesizeL = (num_para & 0xFF00) >> 8;
-  atrHeader.filesizeHH = (num_para & 0xFF0000) >> 16;
-  atrHeader.secsizeH = sectorSize & 0xFF;
-  atrHeader.secsizeL = sectorSize >> 8;
+  0xBEEF 0x00 0x24 /foo/bar/baz.txt 0x00
 
-#ifdef DEBUG
-  Debug_printf("TNFS: Write header\n");
-#endif
-  memcpy(sector, atrHeader.rawData, sizeof(atrHeader.rawData));
-  tnfs_write(deviceSlot, sizeof(atrHeader.rawData));
-  offset += sizeof(atrHeader.rawData);
+  The server replies with the standard header, followed by the return code.
+  On success, the file information follows this. Stat information is returned
+  in this order. Not all values are used by all servers. At least file
+  mode and size must be set to a valid value (many programs depend on these).
 
-  // Write first three 128 byte sectors
-  memset(sector, 0x00, sizeof(sector));
+  File mode       - 2 bytes: file permissions - little endian byte order
+  uid             - 2 bytes: Numeric UID of owner
+  gid             - 2 bytes: Numeric GID of owner
+  size            - 4 bytes: Unsigned 32 bit little endian size of file in bytes
+  atime           - 4 bytes: Access time in seconds since the epoch, little end.
+  mtime           - 4 bytes: Modification time in seconds since the epoch,
+                            little endian
+  ctime           - 4 bytes: Time of last status change, as above.
+  uidstring       - 0 or more bytes: Null terminated user id string
+  gidstring       - 0 or more bytes: Null terminated group id string
 
-#ifdef DEBUG
-  Debug_printf("TNFS: Write first three sectors\n");
-#endif
+  Fields that don't apply to the server in question should be left as 0x00.
+  The ´mtime' field and 'size' fields are unsigned 32 bit integers.
+  The uidstring and gidstring are helper fields so the client doesn't have
+  to then ask the server for the string representing the uid and gid.
 
-  for (unsigned char i = 0; i < 3; i++)
-  {
-    tnfs_write(deviceSlot, 128);
-    offset += 128;
-    numSectors--;
-  }
+  File mode flags will be most useful for code that is showing a directory
+  listing, and for programs that need to find out what kind of file (regular
+  file or directory, etc) a particular file may be. They follow the POSIX
+  convention which is:
 
-#ifdef DEBUG
-  Debug_printf("TNFS: Sparse Write the rest.\n");
-#endif
-  // Write the rest of the sectors via sparse seek
-  offset += (numSectors * sectorSize) - sectorSize;
-  tnfs_seek(deviceSlot, offset);
-  tnfs_write(deviceSlot, sectorSize);
-  return true; //fixme
-}
+  Flags           Octal representation
+  S_IFDIR         0040000         Directory
 
+
+  Most of these won't be of much interest to an 8 bit client, but the
+  read/write/execute permissions can be used for a client to determine whether
+  to bother even trying to open a remote file, or to automatically execute
+  certain types of files etc. (Further file metadata such as load and execution
+  addresses are platform specific and should go into a header of the file
+  in question). Note the "trivial" bit in TNFS means that the client is
+  unlikely to do anything special with a FIFO, so writing to a file of that
+  type is likely to have effects on the server, and not the client! It's also
+  worth noting that the server is responsible for enforcing read and write
+  permissions (although the permission bits can help the client work out
+  whether it should bother to send a request).
 */
+bool tnfs_stat(TNFSImpl *F, const char *filename)
+{
+  tnfsSessionID_t sessionID = F->sid();
+
+  int start = millis();
+  int dur = millis() - start;
+  int c = 0;
+  unsigned char retries = 0;
+
+  while (retries < 5)
+  {
+    tnfsPacket.session_idl = sessionID.session_idl;
+    tnfsPacket.session_idh = sessionID.session_idh;
+    tnfsPacket.retryCount++;   // increase sequence #
+    tnfsPacket.command = 0x24; // STAT
+
+    for (int i = 0; i < strlen(filename); i++)
+    {
+      tnfsPacket.data[c++] = filename[i];
+      c++;
+    }
+
+    tnfsPacket.data[c++] = 0x00;
+
+    UDP.beginPacket(F->host().c_str(), F->port());
+    UDP.write(tnfsPacket.rawData, c + 4);
+    UDP.endPacket();
+
+    while (dur < 5000)
+    {
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
+      {
+        int l = UDP.read(tnfsPacket.rawData, 516);
+#ifdef DEBUG_VERBOSE
+        Debug_print("Resp packet: ");
+        for (int i = 0; i < l; i++)
+        {
+          Debug_print(tnfsPacket.rawData[i], HEX);
+          Debug_print(" ");
+        }
+        Debug_println("");
+#endif // DEBUG_S
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
+          bool is_dir = (tnfsPacket.data[2] == 0x40);
+          return is_dir;
+        }
+        else
+        {
+// unsuccessful
+#ifdef DEBUG
+          Debug_print("Error code #");
+          Debug_println(tnfsPacket.data[0], HEX);
+#endif /* DEBUG_S*/
+          return false;
+        }
+      }
+    }
+    // Otherwise, we timed out.
+    retries++;
+    tnfsPacket.retryCount--;
+#ifdef DEBUG
+    Debug_println("Timeout after 5000ms.");
+#endif /* DEBUG_S */
+  }
+#ifdef DEBUG
+  Debug_printf("Failed\n");
+#endif
+  return false;
+}
