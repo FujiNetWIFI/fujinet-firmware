@@ -63,11 +63,11 @@ Anything extra needs to be declared here in TNFSFS.
 */
 
 private:
-    char mparray[128];
+    char mparray[256]="\0";
 
 public:
     TNFSFS();
-    byte begin(std::string host, uint16_t port=16384, std::string location="/", std::string userid="", std::string password="");
+    bool begin(std::string host, uint16_t port=16384, std::string location="/", std::string userid="", std::string password="");
     size_t size();
     size_t free();
     bool opendir(String path);
