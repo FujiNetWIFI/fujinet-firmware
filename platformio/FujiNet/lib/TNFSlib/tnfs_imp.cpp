@@ -239,28 +239,55 @@ boolean TNFSFileImpl::isDirectory(void)
 }
 
 // not written yet
-size_t TNFSFileImpl::position() const { return 0; }
-size_t TNFSFileImpl::size() const { 
-  
-// this requires a STAT call
+size_t TNFSFileImpl::position() const
+{
 
-  return 0; }
-time_t TNFSFileImpl::getLastWrite() { return 0; }
-FileImplPtr TNFSFileImpl::openNextFile(const char *mode) { 
+  // do I need to keep track while reading, writing and seeking?
 
-// call READDIR and the TNFS.open
-// but RTFM about this on ESP32
+  return 0;
+}
+
+size_t TNFSFileImpl::size() const
+{
+
+  // this requires a STAT call
+
+  return 0;
+}
+
+time_t TNFSFileImpl::getLastWrite()
+{
+
+  // this requires a STAT call
+
+  return 0;
+}
+
+FileImplPtr TNFSFileImpl::openNextFile(const char *mode)
+{
+
+  // call READDIR and the TNFS.open
+  // but RTFM about this on ESP32
 
   char nextfn[36];
-  byte nextfd=0;
-  return std::make_shared<TNFSFileImpl>(this, nextfd, nextfn); }
-void TNFSFileImpl::rewindDirectory(void) {
-
-// call tnfs_closedir and tnfs_opendir
-// but RTFM about this on ESP32
-
+  byte nextfd = 0;
+  return std::make_shared<TNFSFileImpl>(this, nextfd, nextfn);
 }
-TNFSFileImpl::operator bool() { return true; }
+
+void TNFSFileImpl::rewindDirectory(void)
+{
+
+  // call tnfs_closedir and tnfs_opendir
+  // but RTFM about this on ESP32
+}
+
+TNFSFileImpl::operator bool()
+{
+
+  // figure out a way to know if we have an open file
+
+  return true;
+}
 
 // TNFS calls
 
@@ -853,9 +880,9 @@ bool tnfs_closedir(TNFSImpl *F, byte fd)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;                     // increase sequence #
-    tnfsPacket.command = 0x12;                   // CLOSEDIR
-    tnfsPacket.data[0] = fd; // Open root dir
+    tnfsPacket.retryCount++;   // increase sequence #
+    tnfsPacket.command = 0x12; // CLOSEDIR
+    tnfsPacket.data[0] = fd;   // Open root dir
 
 #ifdef DEBUG_VERBOSE
     Debug_println("TNFS dir close");
