@@ -8,7 +8,7 @@
 #include <FSImpl.h>
 #include "tnfs_udp.h"
 
-// https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html  
+// https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
 #define TNFS_RDONLY 0x0001 //Open read only
 #define TNFS_WRONLY 0x0002 //Open write only
 #define TNFS_RDWR 0x0003   //Open read/write
@@ -23,17 +23,17 @@ class TNFSFileImpl;
 
 class TNFSImpl : public FSImpl
 {
-//This class implements the physical interface for built-in functions in FS.h
+    //This class implements the physical interface for built-in functions in FS.h
 protected:
     //friend class TNFSFileImpl;
 
     // TNFS host parameters
-    std::string _host="";
+    std::string _host = "";
     uint16_t _port;
     tnfsSessionID_t _sid;
-    std::string _location="";
-    std::string _userid="";
-    std::string _password="";
+    std::string _location = "";
+    std::string _userid = "";
+    std::string _password = "";
 
 public:
     FileImplPtr open(const char *path, const char *mode) override;
@@ -52,19 +52,15 @@ public:
 
 class TNFSFileImpl : public FileImpl
 {
-//This class implements the physical interface for built-in functions in the File class defined in FS.h
+    //This class implements the physical interface for built-in functions in the File class defined in FS.h
 
 protected:
-
-    TNFSImpl *_fs;
-    byte _fd;
-
-    //char *_path; // used?
-    //char *_mode; // used?
-
-
+    TNFSImpl *fs;
+    byte fd;
+    char *name[256];
+    
 public:
-    TNFSFileImpl(TNFSImpl *fs, byte fd);
+    TNFSFileImpl(TNFSImpl *fs, byte fd, const char* name);
     ~TNFSFileImpl(){};
     size_t write(const uint8_t *buf, size_t size) override;
     size_t read(uint8_t *buf, size_t size) override;

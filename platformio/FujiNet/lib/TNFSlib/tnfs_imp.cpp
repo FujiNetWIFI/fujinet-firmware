@@ -152,7 +152,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   {
     return nullptr;
   }
-  return std::make_shared<TNFSFileImpl>(this, fd);
+  return std::make_shared<TNFSFileImpl>(this, fd, path);
 }
 
 bool TNFSImpl::exists(const char *path)
@@ -169,7 +169,12 @@ bool TNFSImpl::rmdir(const char *path) { return false; }
 
 /* File Implementation */
 
-TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd) : _fs(fs), _fd(fd) {}
+TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fd, const char *name)
+{
+  this->fs = fs;
+  this->fd = fd;
+  strcpy(this->name, name);
+}
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 {
@@ -207,8 +212,13 @@ bool TNFSFileImpl::seek(uint32_t pos, SeekMode mode)
 // not written yet
 size_t TNFSFileImpl::position() const { return 0; }
 size_t TNFSFileImpl::size() const { return 0; }
-void TNFSFileImpl::close() {}
-const char *TNFSFileImpl::name() const { return 0; }
+void TNFSFileImpl::close()
+{
+  tnfs_close(fs, fd, this->name);
+}
+const char *TNFSFileImpl::name() const { 
+  return this->name;
+ }
 time_t TNFSFileImpl::getLastWrite() { return 0; }
 boolean TNFSFileImpl::isDirectory(void) { return false; }
 FileImplPtr TNFSFileImpl::openNextFile(const char *mode) { return FileImplPtr(); }

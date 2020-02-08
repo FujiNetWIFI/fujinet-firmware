@@ -325,8 +325,11 @@ CLOSE - Closes a file - Command 0x23
   0xBEEF 0x00 0x23 0x00 - File closed.
   0xBEEF 0x00 0x23 0x06 - Operation failed with EBADF, "bad file descriptor"
 */
-bool tnfs_close(unsigned char deviceSlot)
+//bool tnfs_close(unsigned char deviceSlot)
+bool tnfs_close(TNFSImpl *F, byte fd, const char *mountPath)
 {
+  tnfsSessionID_t sessionID = F->sid();
+
   int start = millis();
   int dur = millis() - start;
   int c = 0;
@@ -334,13 +337,14 @@ bool tnfs_close(unsigned char deviceSlot)
 
   while (retries < 5)
   {
-    strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
-    tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
-    tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
+    //strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
+    tnfsPacket.session_idl = sessionID.session_idl;
+    tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.retryCount++;   // increase sequence #
     tnfsPacket.command = 0x23; // CLOSE
 
-    tnfsPacket.data[c++] = tnfs_fds[deviceSlot];
+    //tnfsPacket.data[c++] = tnfs_fds[deviceSlot];
+tnfsPacket.data[c++] = fd;
 
     for (int i = 0; i < strlen(mountPath); i++)
     {
@@ -348,7 +352,7 @@ bool tnfs_close(unsigned char deviceSlot)
       c++;
     }
 
-    UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
+    UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, c + 4);
     UDP.endPacket();
 
