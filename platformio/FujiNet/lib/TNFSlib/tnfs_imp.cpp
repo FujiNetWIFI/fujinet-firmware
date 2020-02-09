@@ -187,8 +187,8 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   flag_msb = byte(flag >> 8);
 
   // test if path is directory
-  bool is_dir = tnfs_stat(this, path);
-  if (is_dir)
+ tnfsStat_t S = tnfs_stat(this, path);
+  if (S.isDir)
   {
 #ifdef DEBUG
     Debug_printf("opening directory %s\n", path);
@@ -286,8 +286,8 @@ const char *TNFSFileImpl::name() const
 
 boolean TNFSFileImpl::isDirectory(void)
 {
-  bool is_dir = tnfs_stat(fs, fn);
-  return is_dir;
+  tnfsStat_t S = tnfs_stat(fs, fn);
+  return S.isDir;
 }
 
 // not written yet
@@ -301,18 +301,14 @@ size_t TNFSFileImpl::position() const
 
 size_t TNFSFileImpl::size() const
 {
-
-  // this requires a STAT call
-
-  return 0;
+  tnfsStat_t S = tnfs_stat(fs, fn);
+  return S.fsize;
 }
 
 time_t TNFSFileImpl::getLastWrite()
 {
-
-  // this requires a STAT call
-
-  return 0;
+  tnfsStat_t S = tnfs_stat(fs, fn);
+  return S.mtime;
 }
 
 FileImplPtr TNFSFileImpl::openNextFile(const char *mode)
@@ -407,7 +403,7 @@ tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
     tnfsPacket.data[0] = 0x01; // vers
     tnfsPacket.data[1] = 0x00; // "  "
     // todo: need to strcpy location, userid and password
-    tnfsPacket.data[2] = 0x2F; // '/' 
+    tnfsPacket.data[2] = 0x2F; // '/'
     tnfsPacket.data[3] = 0x00; // nul
     tnfsPacket.data[4] = 0x00; // no username
     tnfsPacket.data[5] = 0x00; // no password
@@ -455,7 +451,7 @@ tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
         {
 // Successful
 #ifdef DEBUG_VERBOSE
-          Debug_printf("Successful, Session ID: %x %x\n",tnfsPacket.session_idl, tnfsPacket.session_idh);
+          Debug_printf("Successful, Session ID: %x %x\n", tnfsPacket.session_idl, tnfsPacket.session_idh);
 #endif /* DEBUG_S */
           // Persist the session ID.
           tempID.session_idl = tnfsPacket.session_idl;
@@ -796,7 +792,7 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
       yield();
       if (UDP.parsePacket())
       {
-        //int l = 
+        //int l =
         UDP.read(tnfsPacket.rawData, 516);
         if (tnfsPacket.data[0] == 0x00)
         {
@@ -880,7 +876,7 @@ bool tnfs_readdir(TNFSImpl *F, byte fid, char *nextFile)
       yield();
       if (UDP.parsePacket())
       {
-        //int l = 
+        //int l =
         UDP.read(tnfsPacket.rawData, 516);
         if (tnfsPacket.data[0] == 0x00)
         {
@@ -955,7 +951,7 @@ bool tnfs_closedir(TNFSImpl *F, byte fid)
       yield();
       if (UDP.parsePacket())
       {
-        //int l = 
+        //int l =
         UDP.read(tnfsPacket.rawData, 516);
         if (tnfsPacket.data[0] == 0x00)
         {
@@ -1379,8 +1375,10 @@ STAT - Get information on a file - Command 0x24
   permissions (although the permission bits can help the client work out
   whether it should bother to send a request).
 */
-bool tnfs_stat(TNFSImpl *F, const char *filename)
+tnfsStat_t tnfs_stat(TNFSImpl *F, const char *filename)
 {
+  tnfsStat_t retStat;
+
   tnfsSessionID_t sessionID = F->sid();
 
   int start = millis();
@@ -1436,12 +1434,24 @@ bool tnfs_stat(TNFSImpl *F, const char *filename)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-          bool is_dir = (tnfsPacket.data[2] & 0x40);
-          #ifdef DEBUG
+          retStat.isDir = (tnfsPacket.data[2] & 0x40);
+          retStat.fsize = tnfsPacket.data[7];
+          retStat.fsize += tnfsPacket.data[8] * 0x00000100;
+          retStat.fsize += tnfsPacket.data[9] * 0x00010000;
+          retStat.fsize += tnfsPacket.data[10] * 0x01000000;
+          retStat.mtime = tnfsPacket.data[15];
+          retStat.mtime += tnfsPacket.data[16] * 0x00000100;
+          retStat.mtime += tnfsPacket.data[17] * 0x00010000;
+          retStat.mtime += tnfsPacket.data[18] * 0x01000000;
+#ifdef DEBUG
           Debug_print("Returned directory status: ");
-          Debug_println(is_dir);
-          #endif
-          return is_dir;
+          Debug_println(retStat.isDir ? "true" : "false");
+          Debug_print("File size: ");
+          Debug_println(retStat.fsize, DEC);
+          Debug_print("Last write time: ");
+          Debug_println(retStat.mtime, DEC);
+#endif
+          return retStat;
         }
         else
         {
@@ -1450,7 +1460,7 @@ bool tnfs_stat(TNFSImpl *F, const char *filename)
           Debug_print("Error code #");
           Debug_println(tnfsPacket.data[0], HEX);
 #endif /* DEBUG_S*/
-          return false;
+          return retStat;
         }
       }
     }
@@ -1464,5 +1474,5 @@ bool tnfs_stat(TNFSImpl *F, const char *filename)
 #ifdef DEBUG
   Debug_printf("Status Failed\n");
 #endif
-  return false;
+  return retStat;
 }
