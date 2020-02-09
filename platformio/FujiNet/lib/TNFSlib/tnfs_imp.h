@@ -41,64 +41,68 @@ struct tnfsSessionID_t
   unsigned char session_idh;
 };
 
+struct tnfsStat_t
+{
+  boolean isDir;
+  size_t fsize;
+  time_t mtime;
+};
+
 class TNFSFileImpl;
 
 class TNFSImpl : public FSImpl
 {
-    //This class implements the physical interface for built-in functions in FS.h
+  //This class implements the physical interface for built-in functions in FS.h
 protected:
-    //friend class TNFSFileImpl;
-
-    // TNFS host parameters
-    std::string _host = "";
-    uint16_t _port;
-    tnfsSessionID_t _sid;
-    std::string _location = "";
-    std::string _userid = "";
-    std::string _password = "";
+  // TNFS host parameters
+  std::string _host = "";
+  uint16_t _port;
+  tnfsSessionID_t _sid;
+  std::string _location = "";
+  std::string _userid = "";
+  std::string _password = "";
 
 public:
-    FileImplPtr open(const char *path, const char *mode) override;
-    bool exists(const char *path) override;
-    bool rename(const char *pathFrom, const char *pathTo) override;
-    bool remove(const char *path) override;
-    bool mkdir(const char *path) override;
-    bool rmdir(const char *path) override;
-    std::string host();
-    uint16_t port();
-    tnfsSessionID_t sid();
-    std::string location();
-    std::string userid();
-    std::string password();
+  FileImplPtr open(const char *path, const char *mode) override;
+  bool exists(const char *path) override;
+  bool rename(const char *pathFrom, const char *pathTo) override;
+  bool remove(const char *path) override;
+  bool mkdir(const char *path) override;
+  bool rmdir(const char *path) override;
+  std::string host();
+  uint16_t port();
+  tnfsSessionID_t sid();
+  std::string location();
+  std::string userid();
+  std::string password();
 };
 
 class TNFSFileImpl : public FileImpl
 {
-    //This class implements the physical interface for built-in functions in the File class defined in FS.h
+  //This class implements the physical interface for built-in functions in the File class defined in FS.h
 
 protected:
-    TNFSImpl *fs;
-    byte fid;
-    char fn[256];
-    
-public:
-    TNFSFileImpl(TNFSImpl *fs, byte fid, const char* filename);
-    ~TNFSFileImpl(){};
-    size_t write(const uint8_t *buf, size_t size) override;
-    size_t read(uint8_t *buf, size_t size) override;
-    void flush() override;
-    bool seek(uint32_t pos, SeekMode mode) override;
-    size_t position() const override;
-    size_t size() const override;
-    void close() override;
-    const char *name() const override;
-    time_t getLastWrite() override;
-    boolean isDirectory(void) override;
-    FileImplPtr openNextFile(const char *mode) override;
-    void rewindDirectory(void) override;
-    operator bool();
-};
+  TNFSImpl *fs;
+  byte fid;
+  char fn[256];
 
+public:
+  TNFSFileImpl(TNFSImpl *fs, byte fid, const char *filename);
+  ~TNFSFileImpl(){};
+  size_t write(const uint8_t *buf, size_t size) override;
+  size_t read(uint8_t *buf, size_t size) override;
+  void flush() override;
+  bool seek(uint32_t pos, SeekMode mode) override;
+  size_t position() const override;
+  size_t size() const override;
+  void close() override;
+  const char *name() const override;
+  time_t getLastWrite() override;
+  boolean isDirectory(void) override;
+  FileImplPtr openNextFile(const char *mode) override;
+  void rewindDirectory(void) override;
+  operator bool();
+};
 
 tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr);
 int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb);
@@ -109,7 +113,7 @@ bool tnfs_closedir(TNFSImpl *F, byte fid);
 size_t tnfs_write(TNFSImpl *F, byte fid, const uint8_t *buf, unsigned short len);
 size_t tnfs_read(TNFSImpl *F, byte fid, uint8_t *buf, unsigned short size);
 bool tnfs_seek(TNFSImpl *F, byte fid, long offset);
-bool tnfs_stat(TNFSImpl *F, const char *filename);
+tnfsStat_t tnfs_stat(TNFSImpl *F, const char *filename);
 
 //todo:  bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors);
 
