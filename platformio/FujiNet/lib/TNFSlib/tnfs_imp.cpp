@@ -575,13 +575,12 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
     // tnfsPacket.data[c++] = '/'; // Filename start
     for (int i = 0; i < strlen(mountPath); i++)
     {
-      tnfsPacket.data[i + 5] = mountPath[i];
-      c++;
+      tnfsPacket.data[c++] = mountPath[i];
     }
 
     tnfsPacket.data[c++] = 0x00;
-    tnfsPacket.data[c++] = 0x00;
-    tnfsPacket.data[c++] = 0x00;
+    //tnfsPacket.data[c++] = 0x00;
+    //tnfsPacket.data[c++] = 0x00;
 
 #ifdef DEBUG_VERBOSE
     Debug_printf("Opening %s\n", mountPath);
@@ -688,8 +687,7 @@ bool tnfs_close(TNFSImpl *F, byte fid, const char *mountPath)
 
     for (int i = 0; i < strlen(mountPath); i++)
     {
-      tnfsPacket.data[i + 5] = mountPath[i];
-      c++;
+      tnfsPacket.data[c++] = mountPath[i];
     }
 
     UDP.beginPacket(F->host().c_str(), F->port());
