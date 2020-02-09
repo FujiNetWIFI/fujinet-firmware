@@ -1,6 +1,9 @@
 #ifndef _TNFS_H_
 #define _TNFS_H_
 #include <Arduino.h>
+#include <string.h>
+#include "debug.h"
+
 
 // UDP Implementation of TNFS for ESP Arduino
 // I read SPIFFS.h and associated files to understand how to structure a custom FS for Arduino
@@ -49,27 +52,29 @@ namespace fs
 class TNFSFS : public FS
 {
 /*
-These functions are defined by FS and implented in TNFSImpl. 
-Anything extra needs to be declared here in TNFSFS.
+The following functions are defined by FS and implented in TNFSImpl. 
+
 File open(const char* path, const char* mode = FILE_READ);
 bool exists(const char* path);
 bool remove(const char* path);
 bool rename(const char* pathFrom, const char* pathTo);
 bool mkdir(const char *path);
 bool rmdir(const char *path);
+
+Anything extra needs to be declared here in TNFSFS.
 */
 
 private:
-    char mparray[255];
+    char mparray[256]="\0";
 
 public:
     TNFSFS();
-    byte begin(String host, uint16_t port=16384, String location="/", String userid="", String password="");
+    bool begin(std::string host, uint16_t port=16384, std::string location="/", std::string userid="!", std::string password="!");
     size_t size();
     size_t free();
-    bool opendir(String path);
-    bool readdir(String  path);
-    bool closedir(String  path);
+    // bool opendir(String path);
+    // bool readdir(String  path);
+    // bool closedir(String  path);
     // stat(const char * path);
     // bool chmod(const char * path);
     void end();
@@ -77,6 +82,6 @@ public:
 
 } // namespace fs
 
-extern fs::TNFSFS TNFS; // declare TNFS for use in main.cpp and elsewhere.
+// extern fs::TNFSFS TNFS; // declare TNFS for use in main.cpp and elsewhere.
 
 #endif
