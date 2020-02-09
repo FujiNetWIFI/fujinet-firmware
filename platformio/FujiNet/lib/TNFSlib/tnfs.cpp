@@ -7,41 +7,55 @@ TNFSFS::TNFSFS() : FS(FSImplPtr(new TNFSImpl()))
 {
 }
 
-byte TNFSFS::begin(String host, uint16_t port, String location, String userid, String password)
+bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::string userid, std::string password)
 {
-    bool err = tnfs_mount(host, port, location, userid, password);
-    /*    Return cases:
-    true - successful mount.
-    false with error code in tnfsPacket.data[0] 
-    false with zero in tnfsPacket.data[0] - timeout
-    */
-    if (err)
-    {
-        String mp = "//" + host + ":" + String(port) + location;
-#ifdef DEBUG_S
-        BUG_UART.println(mp);
+    std::string mp;
+    char portstr[6]; // enough to hold all numbers up to 16-bits
+    char hi[4];
+    char lo[4];
+    const char sep = ' ';
+   
+    sprintf(portstr, "%hu", port);
+ 
+    if (strlen(mparray) != 0)
+        return true;
+
+    mp = host + sep + portstr + sep + "0 0 " + location + sep + userid + sep + password;
+    
+    mp.copy(mparray, mp.length(), 0);
+    _impl->mountpoint(mparray);
+#ifdef DEBUG
+    Debug_printf("mounting %s\n", mparray);
 #endif
-        int n = mp.length();
-        mp.toCharArray(mparray, n + 1);
-        _impl->mountpoint(mparray);
-        return 0;
-    }
-    else if (tnfsPacket.data[0] == 0x00)
+    tnfsSessionID_t tempID = tnfs_mount(_impl);
+
+    if (tempID.session_idl == 0 && tempID.session_idh == 0)
     {
-        return 138; // timeout!
+        mparray[0] = '\0';
+#ifdef DEBUG
+        Debug_println("TNFS mount failed.");
+#endif
+        return false;
     }
-    else
-    {
-        return tnfsPacket.data[0]; // error code
-    }
+    
+    sprintf(lo, "%hhu", tempID.session_idl);
+    sprintf(hi, "%hhu", tempID.session_idh);
+    //mp.clear(); // rebuild mountpoint with session ID
+    mp = host + sep + portstr + sep + lo + sep + hi + sep + location + sep + userid + sep + password;
+    mp.copy(mparray, mp.length(), 0);
+#ifdef DEBUG
+    Debug_printf("TNFS mount successful: %s\n\n", mparray);
+#endif
+    _impl->mountpoint(mparray);
+
+    return true;
 }
 
 size_t TNFSFS::size() { return 0; }
 size_t TNFSFS::free() { return 0; }
 void TNFSFS::end()
 {
-    //_id = 0;
     _impl->mountpoint(NULL);
 }
 
-TNFSFS TNFS; // create pointer to filesystem implementation
+// TNFSFS TNFS; // create pointer to filesystem implementation
