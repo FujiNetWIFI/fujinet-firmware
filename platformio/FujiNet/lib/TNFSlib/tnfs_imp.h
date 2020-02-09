@@ -1,6 +1,7 @@
 #ifndef _TNFS_IMP_H
 #define _TNFS_IMP_H
 #include <Arduino.h>
+#include "debug.h"
 #include <string.h>
 #include <WiFiUdp.h>
 
@@ -17,6 +18,8 @@
 #define TNFS_CREAT 0x0100  //Create the file if it doesn't exist (write only)
 #define TNFS_TRUNC 0x0200  //Truncate the file on open for writing
 #define TNFS_EXCL 0x0400   //With TNFS_CREAT, returns an error if the file exists
+
+extern WiFiUDP UDP;
 
 using namespace fs;
 
@@ -75,11 +78,11 @@ class TNFSFileImpl : public FileImpl
 
 protected:
     TNFSImpl *fs;
-    byte fd;
+    byte fid;
     char fn[256];
     
 public:
-    TNFSFileImpl(TNFSImpl *fs, byte fd, const char* filename);
+    TNFSFileImpl(TNFSImpl *fs, byte fid, const char* filename);
     ~TNFSFileImpl(){};
     size_t write(const uint8_t *buf, size_t size) override;
     size_t read(uint8_t *buf, size_t size) override;
@@ -99,13 +102,13 @@ public:
 
 tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr);
 int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb);
-bool tnfs_close(TNFSImpl *F, byte fd, const char *mountPath);
+bool tnfs_close(TNFSImpl *F, byte fid, const char *mountPath);
 int tnfs_opendir(TNFSImpl *F, const char *dirName);
-bool tnfs_readdir(TNFSImpl *F, byte fd, char *nextFile);
-bool tnfs_closedir(TNFSImpl *F, byte fd);
-size_t tnfs_write(TNFSImpl *F, byte fd, const uint8_t *buf, unsigned short len);
-size_t tnfs_read(TNFSImpl *F, byte fd, uint8_t *buf, unsigned short size);
-bool tnfs_seek(TNFSImpl *F, byte fd, long offset);
+bool tnfs_readdir(TNFSImpl *F, byte fid, char *nextFile);
+bool tnfs_closedir(TNFSImpl *F, byte fid);
+size_t tnfs_write(TNFSImpl *F, byte fid, const uint8_t *buf, unsigned short len);
+size_t tnfs_read(TNFSImpl *F, byte fid, uint8_t *buf, unsigned short size);
+bool tnfs_seek(TNFSImpl *F, byte fid, long offset);
 bool tnfs_stat(TNFSImpl *F, const char *filename);
 
 //todo:  bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors);
