@@ -1400,10 +1400,20 @@ bool tnfs_stat(TNFSImpl *F, const char *filename)
     for (int i = 0; i < strlen(filename); i++)
     {
       tnfsPacket.data[c++] = filename[i];
-      c++;
     }
 
     tnfsPacket.data[c++] = 0x00;
+
+#ifdef DEBUG_VERBOSE
+    Debug_printf("Status: %s\n", filename);
+    Debug_print("Req Packet: ");
+    for (int i = 0; i < c + 4; i++)
+    {
+      Debug_print(tnfsPacket.rawData[i], HEX);
+      Debug_print(" ");
+    }
+    Debug_println(" ");
+#endif /* DEBUG_S */
 
     UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, c + 4);
@@ -1428,7 +1438,11 @@ bool tnfs_stat(TNFSImpl *F, const char *filename)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-          bool is_dir = (tnfsPacket.data[2] == 0x40);
+          bool is_dir = (tnfsPacket.data[2] & 0x40);
+          #ifdef DEBUG
+          Debug_print("Returned directory status: ");
+          Debug_println(is_dir);
+          #endif
           return is_dir;
         }
         else
@@ -1450,7 +1464,7 @@ bool tnfs_stat(TNFSImpl *F, const char *filename)
 #endif /* DEBUG_S */
   }
 #ifdef DEBUG
-  Debug_printf("Failed\n");
+  Debug_printf("Status Failed\n");
 #endif
   return false;
 }
