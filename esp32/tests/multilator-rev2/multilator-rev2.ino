@@ -1148,6 +1148,7 @@ bool tnfs_mount(unsigned char hostSlot)
 
   while (retries < 5)
   {
+    start = millis();
     memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
 
     // Do not mount, if we already have a session ID, just bail.
@@ -1253,6 +1254,7 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
 
   while (retries < 5)
   {
+    start = millis();
     strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
@@ -1358,6 +1360,7 @@ bool tnfs_close(unsigned char deviceSlot)
 
   while (retries < 5)
   {
+    start = millis();
     strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
@@ -1432,6 +1435,7 @@ bool tnfs_opendir(unsigned char hostSlot)
 
   while (retries < 5)
   {
+    start = millis();
     tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
     tnfsPacket.retryCount++;  // increase sequence #
@@ -1495,6 +1499,7 @@ bool tnfs_readdir(unsigned char hostSlot)
 
   while (retries < 5)
   {
+    start = millis();
     tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
     tnfsPacket.retryCount++;  // increase sequence #
@@ -1552,6 +1557,7 @@ bool tnfs_closedir(unsigned char hostSlot)
 
   while (retries < 5)
   {
+    start = millis();
     tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
     tnfsPacket.retryCount++;  // increase sequence #
@@ -1609,6 +1615,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
 
   while (retries < 5)
   {
+    start = millis();
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
     tnfsPacket.retryCount++;  // Increase sequence
@@ -1739,6 +1746,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
 
   while (retries < 5)
   {
+    start = millis();
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
     tnfsPacket.retryCount++;  // Increase sequence
@@ -1825,6 +1833,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
 
   while (retries < 5)
   {
+    start = millis();
     offsetVal[0] = (int)((offset & 0xFF000000) >> 24 );
     offsetVal[1] = (int)((offset & 0x00FF0000) >> 16 );
     offsetVal[2] = (int)((offset & 0x0000FF00) >> 8 );
@@ -2020,19 +2029,19 @@ void handle_hardkeys()
       longPressActive = true;
       // long press detected
 #ifdef ESP32
-      if(bt_mode)
+      if (bt_mode)
       {
-          bt_mode = false;
-          SerialBT.end();
-          SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
-          sio_led(false);
+        bt_mode = false;
+        SerialBT.end();
+        SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
+        sio_led(false);
       }
       else
       {
-          bt_mode = true;
-          SerialBT.begin("ATARI FUJINET");
-          SIO_UART.updateBaudRate(BT_BAUDRATE);
-          sio_led(true);
+        bt_mode = true;
+        SerialBT.begin("ATARI FUJINET");
+        SIO_UART.updateBaudRate(BT_BAUDRATE);
+        sio_led(true);
       }
 #endif
     }
@@ -2062,7 +2071,7 @@ void loop()
   handle_hardkeys();
 
 #ifdef ESP32
-  if(bt_mode)
+  if (bt_mode)
   {
     if (SIO_UART.available()) {
       SerialBT.write(SIO_UART.read());
