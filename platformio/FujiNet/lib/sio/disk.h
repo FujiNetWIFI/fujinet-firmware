@@ -13,6 +13,10 @@ private:
     byte sectorSize = 128;
     byte sector[256];
 
+    byte sectorCache[2560];
+    int firstCachedSector = 65535;
+    unsigned char max_cached_sectors = 19;
+
     struct
     {
         unsigned char num_tracks;
@@ -42,8 +46,7 @@ private:
 
 public:
     void mount(File *f);
-    File* file();
-    
+    File *file();
 };
 
 #endif // guard
