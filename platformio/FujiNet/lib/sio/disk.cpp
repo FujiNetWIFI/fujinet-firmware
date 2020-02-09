@@ -3,68 +3,70 @@
 // Read
 void sioDisk::sio_read()
 {
-  // my interpretation of new without tnfs details here
-  // todo: update tnfs read with caching
   int ss;
-  // unsigned char deviceSlot = cmdFrame.devic - 0x31;
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  //int cacheOffset = 0;
+  int cacheOffset = 0;
   int offset;
-  // byte *s;
-  // byte *d;
+  byte *s;
+  byte *d;
   byte err = false;
 
-  //firstCachedSector[deviceSlot] = sectorNum;
-  //cacheOffset = 0;
+  max_cached_sectors = (sectorSize == 256 ? 9 : 19);
+  if ((sectorNum > (firstCachedSector + max_cached_sectors)) || (sectorNum < firstCachedSector)) // cache miss
+  {
+    firstCachedSector = sectorNum;
+    cacheOffset = 0;
 
-  if (sectorNum < 4)
-    ss = 128; // First three sectors are always single density
-  else
-    ss = sectorSize;
+    if (sectorNum < 4)
+      ss = 128; // First three sectors are always single density
+    else
+      ss = sectorSize;
 
-  offset = sectorNum;
-  offset *= ss;
-  offset -= ss;
+    offset = sectorNum;
+    offset *= ss;
+    offset -= ss;
 
-  // Bias adjustment for 256 bytes
-  if (ss == 256)
-    offset -= 384;
+    // Bias adjustment for 256 bytes
+    if (ss == 256)
+      offset -= 384;
 
-  offset += 16;
+    offset += 16;
 
-  _file->seek(offset); //tnfs_seek(deviceSlot, offset);
+#ifdef DEBUG_VERBOSE
+    Debug_printf("firstCachedSector: %d\n", firstCachedSector);
+    Debug_printf("cacheOffset: %d\n", cacheOffset);
+    Debug_printf("offset: %d\n", offset);
+#endif
 
-  _file->read(sector, ss);
+    _file->seek(offset); //tnfs_seek(deviceSlot, offset);
 
+    for (unsigned char i = 0; i < 10; i++)
+    {
+      _file->read(sector, 256);
+      //s = &sector[0]; // &tnfsPacket.data[3];
+      d = &sectorCache[cacheOffset];
+      memcpy(d, sector, 256);
+      cacheOffset += 256;
+    }
+    cacheOffset = 0;
+  }
+  else // cache hit, adjust offset
+  {
+    if (sectorNum < 4)
+      ss = 128;
+    else
+      ss = sectorSize;
+
+    cacheOffset = ((sectorNum - firstCachedSector) * ss);
+#ifdef DEBUG_VERBOSE
+    Debug_printf("cacheOffset: %d\n", cacheOffset);
+#endif
+  }
+  // d = &sector[0];
+  s = &sectorCache[cacheOffset];
+  memcpy(sector, s, ss);
+ 
   sio_to_computer((byte *)&sector, ss, err);
-
-  // old ******************************************************
-  //  byte ck;
-  //   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  //   offset *= 128;
-  //   offset -= 128;
-  //   offset += 16;        // skip 16 byte ATR Header
-  //   _file->seek(offset); //SeekSet is default
-  //   _file->read(sector, 128);
-
-  //   ck = sio_checksum((byte *)&sector, 128);
-  //   delayMicroseconds(DELAY_T5); // t5 delay
-  //   SIO_UART.write('C');         // Completed command
-  //   SIO_UART.flush();
-
-  //   // Write data frame
-  //   SIO_UART.write(sector, 128);
-
-  //   // Write data frame checksum
-  //   SIO_UART.write(ck);
-  //   SIO_UART.flush();
-  //   delayMicroseconds(200);
-  // #ifdef DEBUG_S
-  //   BUG_UART.print("SIO READ OFFSET: ");
-  //   BUG_UART.print(offset);
-  //   BUG_UART.print(" - ");
-  //   BUG_UART.println((offset + 128));
-  // #endif
 }
 
 // write for W & P commands
@@ -105,20 +107,11 @@ void sioDisk::sio_write()
 
   if (ck == sio_checksum(sector, ss))
   {
-    // todo:
-    // if (load_config == true)
-    // {
-    //   atrConfig.seek(offset, SeekSet);
-    //   atrConfig.write(sector, ss);
-    //   atrConfig.flush();
-    // }
-    // else
-    //{
     _file->seek(offset);      // tnfs_seek(deviceSlot, offset);
     _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
     _file->flush();
-    // todo: firstCachedSector[cmdFrame.devic - 0x31] = 65535; // invalidate cache
-    //}
+    firstCachedSector = 65535; // invalidate cache
+
     sio_complete();
   }
   else
