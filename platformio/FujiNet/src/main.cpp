@@ -35,6 +35,8 @@ updated sio_read() to use new sectorSize and sio_to_computer() features - marked
 #include "modem.h"
 #include "fuji.h"
 
+//#include <WiFiUdp.h>
+
 #define PRINTMODE PDF
 
 #ifdef ESP8266
@@ -52,13 +54,17 @@ updated sio_read() to use new sectorSize and sio_to_computer() features - marked
 
 #define TNFS_SERVER "192.168.1.12"
 #define TNFS_PORT 16384
+TNFSFS TNFS[8];
+TNFSFS *hostSlots[8];
+
+File atr[8];
+sioDisk sioD[8];
 
 atari820 sioP;
-File atr[2];
 File paperf;
-File tnfs;
-sioDisk sioD[2];
+
 sioModem sioR;
+
 sioFuji theFuji;
 
 WiFiServer server(80);
@@ -176,6 +182,10 @@ void httpService()
 
 void setup()
 {
+
+  // connect to wifi but DO NOT wait for it
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
   BUG_UART.println();
@@ -187,19 +197,6 @@ void setup()
 #ifdef DEBUG_S
   BUG_UART.println("/autorun.atr for FujiNet device");
 #endif
-  // connect to wifi but DO NOT wait for it
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-#ifdef DEBUG_S
-  if (WiFi.status() == WL_CONNECTED)
-    BUG_UART.println(WiFi.localIP());
-#endif
-  server.begin(); // Start the web server
-
-  SIO.addDevice(&theFuji, 0x70); // the FUJINET!
-  SIO.addDevice(&sioR, 0x50);    // R:
-  SIO.addDevice(&sioP, 0x40);    // P:
-  paperf = SPIFFS.open("/paper", "w+");
-  sioP.initPrinter(&paperf, PRINTMODE);
 
   SPIFFS.begin();
   atr[0] = SPIFFS.open("/file1.atr", "r+");
@@ -208,26 +205,32 @@ void setup()
   BUG_UART.println("/file1.atr");
 #endif
   SIO.addDevice(&sioD[0], 0x31 + 0);
-  //   for (int i = 0; i < 1; i++)
-  //   {
-  //     String fname = String("/file") + String(i) + String(".atr");
-  // #ifdef DEBUG_S
-  //     BUG_UART.println(fname);
-  // #endif
-  //     atr[i] = SPIFFS.open(fname, "r+");
-  //     sioD[i].mount(&atr[i]);
-  //     SIO.addDevice(&sioD[i], 0x31 + i);
-  //   }
 
-  TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  tnfs = TNFS.open("/A820.ATR", "r+");
+  SIO.addDevice(&theFuji, 0x70); // the FUJINET!
+
+  SIO.addDevice(&sioR, 0x50); // R:
+
+  SIO.addDevice(&sioP, 0x40); // P:
+  paperf = SPIFFS.open("/paper", "w+");
+  sioP.initPrinter(&paperf, PRINTMODE);
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
+#ifdef DEBUG_S
+    BUG_UART.println(WiFi.localIP());
+#endif
+    server.begin(); // Start the web server
+    UDP.begin(16384);
+  }
+  TNFS[0].begin(TNFS_SERVER, TNFS_PORT);
+  atr[1] = TNFS[0].open("/A820.ATR", "r+");
 #ifdef DEBUG_S
   BUG_UART.println("tnfs/A820.ATR");
 #endif
-  sioD[1].mount(&tnfs);
+  sioD[1].mount(&atr[1]);
   SIO.addDevice(&sioD[1], 0x31 + 1);
 
-/*
+  /*
   if(!SD.begin(5))
   {
 #ifdef DEBUG
