@@ -9,7 +9,7 @@ TNFSFS TNFS[8]; // up to 8 TNFS servers
 // could make a list of 8 pointers and create New TNFS objects at mounting and point to them
 // might also need to make the FS pointers so that can use SD, SPIFFS, too
 
-File dir;
+File dir[8];
 File atr[8]; // up to 8 disk drives
 sioDisk sioD[8]; // 
 
@@ -153,7 +153,7 @@ void sioFuji::sio_tnfs_open_directory()
     byte hostSlot = cmdFrame.aux1;
     byte ck = sio_to_peripheral((byte *)&current_entry, sizeof(current_entry));
 
-    dir=TNFS[hostSlot].open(current_entry,"r");
+    dir[hostSlot]=TNFS[hostSlot].open(current_entry,"r");
 
     if (dir)
         sio_complete();
@@ -164,13 +164,14 @@ void sioFuji::sio_tnfs_open_directory()
 /**
    Read next TNFS Directory entry
 */
-void sio_tnfs_read_directory_entry()
+void sioFuji::sio_tnfs_read_directory_entry()
 {
+    char current_entry[256];
     byte hostSlot = cmdFrame.aux2;
     byte len = cmdFrame.aux1;
-    byte ret = tnfs_readdir(hostSlot);
-
-    if (!ret)
+    //byte ret = tnfs_readdir(hostSlot);
+    atr[hostSlot]=dir[hostSlot].openNextFile();
+    if (!atr[hostSlot])
         current_entry[0] = 0x7F; // end of dir
 
     sio_to_computer((byte *)&current_entry, len, false);
