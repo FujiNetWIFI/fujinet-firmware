@@ -18,9 +18,8 @@
 
 extern TNFSFS TNFS[8];
 //TNFSFS *hostSlots[8];
-extern File atr[8]; // up to 8 disk drives
-extern sioDisk sioD[8]; // 
-
+extern File atr[8];     // up to 8 disk drives
+extern sioDisk sioD[8]; //
 
 class sioFuji : public sioDevice
 {
@@ -43,22 +42,22 @@ protected:
         unsigned char rawData[304];
     } deviceSlots;
 
-    void sio_status() override;     // 'S'
-    void sio_net_scan_networks();   // 0xFD
-    void sio_net_scan_result();     // 0xFC
-    void sio_net_set_ssid();        // 0xFB
-    void sio_net_get_wifi_status(); // 0xFA
-    void sio_tnfs_mount_host();     // 0xF9
-    void sio_disk_image_mount();    // 0xF8
-    void sio_tnfs_open_directory(); // 0xF7
+    void sio_status() override;           // 'S'
+    void sio_net_scan_networks();         // 0xFD
+    void sio_net_scan_result();           // 0xFC
+    void sio_net_set_ssid();              // 0xFB
+    void sio_net_get_wifi_status();       // 0xFA
+    void sio_tnfs_mount_host();           // 0xF9
+    void sio_disk_image_mount();          // 0xF8
+    void sio_tnfs_open_directory();       // 0xF7
     void sio_tnfs_read_directory_entry(); // 0xF6
-    void sio_tnfs_close_directory(); //0xF5
-    void sio_read_hosts_slots();   // 0xF4
-    void sio_write_hosts_slots();  // 0xF3
-    void sio_read_device_slots();  // 0xF2
-    void sio_write_device_slots(); // 0xF1
-    //   cmdPtr[0xE9] = sio_disk_image_umount;
-    void sio_get_adapter_config(); // 0xE8
+    void sio_tnfs_close_directory();      //0xF5
+    void sio_read_hosts_slots();          // 0xF4
+    void sio_write_hosts_slots();         // 0xF3
+    void sio_read_device_slots();         // 0xF2
+    void sio_write_device_slots();        // 0xF1
+    void sio_disk_image_umount();           //0xE9
+    void sio_get_adapter_config();        // 0xE8
     //   cmdPtr[0xE7] = sio_new_disk;
     void wifi_led(bool onOff);
 
