@@ -10,8 +10,8 @@ TNFSFS TNFS[8]; // up to 8 TNFS servers
 // might also need to make the FS pointers so that can use SD, SPIFFS, too
 
 File dir[8];
-File atr[8]; // up to 8 disk drives
-sioDisk sioD[8]; // 
+File atr[8];     // up to 8 disk drives
+sioDisk sioD[8]; //
 
 void sioFuji::sio_status()
 {
@@ -153,9 +153,15 @@ void sioFuji::sio_tnfs_open_directory()
     byte hostSlot = cmdFrame.aux1;
     byte ck = sio_to_peripheral((byte *)&current_entry, sizeof(current_entry));
 
-    dir[hostSlot]=TNFS[hostSlot].open(current_entry,"r");
+    if (sio_checksum((byte *)&current_entry, sizeof(current_entry)) != ck)
+    {
+        sio_error();
+        return;
+    }
 
-    if (dir)
+    dir[hostSlot] = TNFS[hostSlot].open(current_entry, "r");
+
+    if (dir[hostSlot])
         sio_complete();
     else
         sio_error();
@@ -170,7 +176,7 @@ void sioFuji::sio_tnfs_read_directory_entry()
     byte hostSlot = cmdFrame.aux2;
     byte len = cmdFrame.aux1;
     //byte ret = tnfs_readdir(hostSlot);
-    atr[hostSlot]=dir[hostSlot].openNextFile();
+    atr[hostSlot] = dir[hostSlot].openNextFile();
     if (!atr[hostSlot])
         current_entry[0] = 0x7F; // end of dir
 
@@ -186,7 +192,7 @@ void sioFuji::sio_tnfs_close_directory()
 
     dir[hostSlot].close();
     //if (tnfs_closedir(hostSlot))
-        sio_complete(); // always complete
+    sio_complete(); // always complete
     //else
     //    sio_error();
 }

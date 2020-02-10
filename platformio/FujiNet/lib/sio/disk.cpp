@@ -1,6 +1,5 @@
 #include "disk.h"
 
-
 /**
    Convert # of paragraphs to sectors
    para = # of paragraphs returned from ATR header
@@ -12,7 +11,6 @@ unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, u
   tmp |= para;
 
   unsigned short num_sectors = ((tmp << 4) / ss);
-
 
 #ifdef DEBUG_VERBOSE
   Debug_printf("ATR Header\n");
@@ -39,7 +37,6 @@ unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sec
 
   return file_size >> 4;
 }
-
 
 // Read
 void sioDisk::sio_read()
@@ -372,23 +369,23 @@ void sioDisk::sio_process()
 // mount a disk file
 void sioDisk::mount(File *f)
 {
-      unsigned short newss;
-    unsigned short num_para;
-    unsigned char num_para_hi;
-    unsigned short num_sectors;
+  unsigned short newss;
+  unsigned short num_para;
+  unsigned char num_para_hi;
+  unsigned short num_sectors;
   byte buf[2];
 
-        // Get file and sector size from header
-        f->seek(2);      //tnfs_seek(deviceSlot, 2);
-        f->read(buf, 2); //tnfs_read(deviceSlot, 2);
-        num_para = (256 * buf[1]) + buf[0];
-        f->read(buf, 2); //tnfs_read(deviceSlot, 2);
-        newss = (256 * buf[1]) + buf[0];
-        f->read(buf, 1); //tnfs_read(deviceSlot, 1);
-        num_para_hi = buf[0];
-        this->sectorSize=newss;
-        num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
-        derive_percom_block(num_sectors);
+  // Get file and sector size from header
+  f->seek(2);      //tnfs_seek(deviceSlot, 2);
+  f->read(buf, 2); //tnfs_read(deviceSlot, 2);
+  num_para = (256 * buf[1]) + buf[0];
+  f->read(buf, 2); //tnfs_read(deviceSlot, 2);
+  newss = (256 * buf[1]) + buf[0];
+  f->read(buf, 1); //tnfs_read(deviceSlot, 1);
+  num_para_hi = buf[0];
+  this->sectorSize = newss;
+  num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
+  derive_percom_block(num_sectors);
   _file = f;
 }
 
