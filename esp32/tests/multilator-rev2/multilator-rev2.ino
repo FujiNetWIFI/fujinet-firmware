@@ -28,7 +28,7 @@
 // #define DEBUG_SSID ""
 // #define DEBUG_PASSWORD ""
 
-// #define DEBUG_VERBOSE 1
+#define DEBUG_VERBOSE 1
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -63,6 +63,13 @@ boolean longPressActive = false;
 #define DELAY_T3  1000
 #define DELAY_T4  850
 #define DELAY_T5  250
+
+int delay_T0 = DELAY_T0;
+int delay_T1 = DELAY_T1;
+int delay_T2 = DELAY_T2;
+int delay_T3 = DELAY_T3;
+int delay_T4 = DELAY_T4;
+int delay_T5 = DELAY_T5;
 
 bool hispeed = false;
 int command_frame_counter = 0;
@@ -347,7 +354,7 @@ void sio_ack()
 */
 void sio_complete()
 {
-  delayMicroseconds(DELAY_T5);
+  delayMicroseconds(delay_T5);
   SIO_UART.write('C');
 }
 
@@ -356,7 +363,7 @@ void sio_complete()
 */
 void sio_error()
 {
-  delayMicroseconds(DELAY_T5);
+  delayMicroseconds(delay_T5);
   SIO_UART.write('E');
 }
 
@@ -371,7 +378,7 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
   byte ck = sio_checksum(b, len);
 
 #ifdef ESP8266
-  delayMicroseconds(DELAY_T5);
+  delayMicroseconds(delay_T5);
 #endif
 
   if (err == true)
@@ -423,7 +430,7 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 #endif
 
 #ifdef ESP8266
-  delayMicroseconds(DELAY_T4);
+  delayMicroseconds(delay_T4);
 #endif
 
   if (sio_checksum(b, len) != ck)
@@ -437,6 +444,60 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   }
 
   return ck;
+}
+
+/**
+ * Set T0
+ */
+void sio_set_t0(void)
+{
+  delay_T0=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
+}
+
+/**
+ * Set T1
+ */
+void sio_set_t1(void)
+{
+  delay_T1=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
+}
+
+/**
+ * Set T2
+ */
+void sio_set_t2(void)
+{
+  delay_T2=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
+}
+
+/**
+ * Set T3
+ */
+void sio_set_t3(void)
+{
+  delay_T3=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
+}
+
+/**
+ * Set T4
+ */
+void sio_set_t4(void)
+{
+  delay_T4=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
+}
+
+/**
+ * Set T5
+ */
+void sio_set_t5(void)
+{
+  delay_T5=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
 }
 
 /**
@@ -1068,15 +1129,31 @@ void sio_read()
   else // TNFS ATR mounted and opened...
   {
     max_cached_sectors = (sectorSize[deviceSlot] == 256 ? 9 : 19);
-    if ((sectorNum > (firstCachedSector[deviceSlot] + max_cached_sectors)) || (sectorNum < firstCachedSector[deviceSlot])) // cache miss
+    if (sectorNum <= 3)
     {
+#ifdef DEBUG_VERBOSE
+      Debug_printf("First three sectors!\n");
+#endif
+      ss = 128;
+      offset = sectorNum;
+      offset *= 128;
+      offset -= 128;
+      offset += 16;
+      tnfs_seek(deviceSlot, offset);
+      tnfs_read(deviceSlot, ss);
+      s = &tnfsPacket.data[3];
+      d = &sector[0];
+      memcpy(d, s, ss);
+    }
+    else if ((sectorNum > (firstCachedSector[deviceSlot] + max_cached_sectors)) || (sectorNum < firstCachedSector[deviceSlot])) // cache miss
+    {
+#ifdef DEBUG_VERBOSE
+      Debug_printf("Cache miss! Sector #%d\n", sectorNum);
+#endif
       firstCachedSector[deviceSlot] = sectorNum;
       cacheOffset = 0;
 
-      if (sectorNum < 4)
-        ss = 128; // First three sectors are always single density
-      else
-        ss = sectorSize[deviceSlot];
+      ss = sectorSize[deviceSlot];
 
       offset = sectorNum;
       offset *= ss;
@@ -1105,10 +1182,7 @@ void sio_read()
     }
     else // cache hit, adjust offset
     {
-      if (sectorNum < 4)
-        ss = 128;
-      else
-        ss = sectorSize[deviceSlot];
+      ss = sectorSize[deviceSlot];
 
       cacheOffset = ((sectorNum - firstCachedSector[deviceSlot]) * ss);
 #ifdef DEBUG_VERBOSE
@@ -2010,6 +2084,13 @@ void setup()
   cmdPtr[0xE9] = sio_disk_image_umount;
   cmdPtr[0xE8] = sio_get_adapter_config;
   cmdPtr[0xE7] = sio_new_disk;
+  cmdPtr[0xB0] = sio_set_t0;
+  cmdPtr[0xB1] = sio_set_t1;
+  cmdPtr[0xB2] = sio_set_t2;
+  cmdPtr[0xB3] = sio_set_t3;
+  cmdPtr[0xB4] = sio_set_t4;
+  cmdPtr[0xB5] = sio_set_t5;
+  
 
   // Go ahead and flush anything out of the serial port
   sio_flush();
@@ -2090,7 +2171,7 @@ void loop()
     memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
 
 #ifdef ESP8266
-    delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
+    delayMicroseconds(delay_T0); // computer is waiting for us to notice.
 #endif
 
     // read cmd frame
@@ -2103,12 +2184,12 @@ void loop()
     if (ck == cmdFrame.cksum)
     {
 #ifdef ESP8266
-      delayMicroseconds(DELAY_T1);
+      delayMicroseconds(delay_T1);
 #endif
       // Wait for CMD line to raise again
       while (digitalRead(PIN_CMD) == LOW) yield();
 #ifdef ESP8266
-      delayMicroseconds(DELAY_T2);
+      delayMicroseconds(delay_T2);
 #endif
       if (sio_valid_device_id())
       {
@@ -2120,7 +2201,7 @@ void loop()
         {
           sio_ack();
 #ifdef ESP8266
-          delayMicroseconds(DELAY_T3);
+          delayMicroseconds(delay_T3);
 #endif
           cmdPtr[cmdFrame.comnd]();
         }
