@@ -180,14 +180,15 @@ void sioFuji::sio_tnfs_read_directory_entry()
 /**
    Close TNFS Directory
 */
-void sio_tnfs_close_directory()
+void sioFuji::sio_tnfs_close_directory()
 {
     byte hostSlot = cmdFrame.aux1;
 
-    if (tnfs_closedir(hostSlot))
-        sio_complete();
-    else
-        sio_error();
+    dir[hostSlot].close();
+    //if (tnfs_closedir(hostSlot))
+        sio_complete(); // always complete
+    //else
+    //    sio_error();
 }
 
 /**
