@@ -432,7 +432,7 @@ void diskulator_select(void)
       OS.dcb.dcomnd=0xF7;
       OS.dcb.dstats=0x80;
       OS.dcb.dbuf=&path;
-      OS.dcb.dtimlo=0x0F;
+      OS.dcb.dtimlo=0xFE;
       OS.dcb.dbyt=256;
       OS.dcb.daux=selected_host;
       siov();

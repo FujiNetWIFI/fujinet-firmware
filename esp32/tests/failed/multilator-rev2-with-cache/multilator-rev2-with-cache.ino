@@ -23,12 +23,12 @@
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
-// #define DEBUG_N
-// #define DEBUG_HOST ""
-// #define DEBUG_SSID ""
-// #define DEBUG_PASSWORD ""
+//#define DEBUG_N
+//#define DEBUG_HOST "192.168.1.8"
+//#define DEBUG_SSID "Cherryhomes"
+//#define DEBUG_PASSWORD "e1xb64XC46"
 
-#define DEBUG_VERBOSE 1
+//#define DEBUG_VERBOSE 1
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -67,8 +67,8 @@ boolean longPressActive = false;
 bool hispeed = false;
 int command_frame_counter = 0;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x0A
-#define HISPEED_BAUDRATE 52640
+#define HISPEED_INDEX 0x00
+#define HISPEED_BAUDRATE 125984
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
 
@@ -431,9 +431,7 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
 
-#ifdef ESP8266
-  delayMicroseconds(DELAY_T4);
-#endif
+  delayMicroseconds(1500);
 
   if (sio_checksum(b, len) != ck)
   {
@@ -446,36 +444,6 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   }
 
   return ck;
-}
-
-/**
-   sio WRITE from COMPUTER to PERIPHERAL
-   b = buffer from atari to fujinet
-   len = length
-   returns checksum reported by atari
-*/
-void sio_to_peripheral_alt(byte* b, unsigned short len)
-{
-  // Retrieve data frame from computer
-  size_t l = SIO_UART.readBytes(b, len);
-
-  // Wait for checksum
-  while (!SIO_UART.available())
-    yield();
-
-  // Receive Checksum
-  SIO_UART.read();
-
-#ifdef DEBUG_VERBOSE
-  Debug_printf("l: %d\n", l);
-  Debug_printf("TO PERIPHERAL: ");
-  for (int i = 0; i < len; i++)
-    Debug_printf("%02x ", sector[i]);
-#endif
-
-#ifdef ESP8266
-  delayMicroseconds(DELAY_T4);
-#endif
 }
 
 /**
@@ -924,6 +892,7 @@ bool cache_dir(unsigned char hostSlot)
 {
   char datFile[14] = "/datDirCacheX";
   char idxFile[14] = "/idxDirCacheX";
+  long start=millis();
 
   idxFile[12] = hostSlot + 0x30;
   datFile[12] = hostSlot + 0x30;
@@ -932,8 +901,8 @@ bool cache_dir(unsigned char hostSlot)
   Debug_printf("idxFile = %s datFile = %s\n", idxFile, datFile);
 #endif
 
-  datDirCache[hostSlot] = SPIFFS.open(datFile, FILE_WRITE);
-  idxDirCache[hostSlot] = SPIFFS.open(idxFile, FILE_WRITE);
+  datDirCache[hostSlot] = SPIFFS.open(datFile, "w+");
+  idxDirCache[hostSlot] = SPIFFS.open(idxFile, "w+");
 
   if ((datDirCache == NULL) || (idxDirCache == NULL))
     return false;
@@ -960,8 +929,8 @@ bool cache_dir(unsigned char hostSlot)
   datDirCache[hostSlot].seek(0, SeekSet);
   idxDirCache[hostSlot].seek(0, SeekSet);
 
-#ifdef DEBUG_VERBOSE
-  Debug_printf("Cache built, cursors reset.\n");
+#ifdef DEBUG
+  Debug_printf("Cache built, cursors reset. %d msec \n",millis()-start);
 #endif
 
   return true;
@@ -987,21 +956,31 @@ void clear_cache(unsigned char hostSlot)
 #endif
 }
 
+String ellipsize(String s, unsigned char len)
+{
+  return s.substring(0,(len/2)-3) + "..." + s.substring(s.length()-(len/2));
+}
+
 /**
    Read next entry from cache
 */
-bool cache_read(unsigned char hostSlot)
+bool cache_read(unsigned char hostSlot, unsigned char len)
 {
+  String ellipsized;
   if (!idxDirCache[hostSlot].available())
-  {
-#ifdef DEBUG
-    Debug_printf("EOF on directory cache\n");
-#endif
     return false;
-  }
+
+  memset(&current_entry,0,sizeof(current_entry));
 
   idxDirCache[hostSlot].read((byte *)&dirCacheIdxEntry, sizeof(dirCacheIdxEntry));
   datDirCache[hostSlot].read((byte *)&current_entry, dirCacheIdxEntry.len);
+
+  ellipsized=String(current_entry);
+
+  ellipsized=ellipsize(current_entry,len);
+
+  strcpy(current_entry,ellipsized.c_str());
+  
 
 #ifdef DEBUG_VERBOSE
   Debug_printf("Get Entry: %s\n", current_entry);
@@ -1018,12 +997,12 @@ bool cache_read(unsigned char hostSlot)
 void sio_tnfs_open_directory()
 {
   byte hostSlot = cmdFrame.aux1;
-  sio_to_peripheral_alt((byte *)&current_entry, sizeof(current_entry));
+  byte ck = sio_to_peripheral((byte *)&current_entry, sizeof(current_entry));
 
   if (tnfs_opendir(hostSlot))
   {
-    // cache_dir(hostSlot);
-    // sio_complete();
+    cache_dir(hostSlot);
+    sio_complete();
   }
   else  
     sio_error();
@@ -1036,11 +1015,7 @@ void sio_tnfs_read_directory_entry()
 {
   byte hostSlot = cmdFrame.aux2;
   byte len = cmdFrame.aux1;
-  byte ret = cache_read(hostSlot);
-
-#ifdef DEBUG_VERBOSE
-  Debug_printf("Are we getting here?\n");
-#endif
+  byte ret = cache_read(hostSlot,len);
 
   if (!ret)
     current_entry[0] = 0x7F; // end of dir
@@ -2203,6 +2178,15 @@ void handle_hardkeys()
 void loop()
 {
   handle_hardkeys();
+
+#ifdef DEBUG_N
+  /* Connect to debug server if we aren't and WiFi is connected */
+  if ( !wificlient.connected() && WiFi.status() == WL_CONNECTED )
+  {
+    wificlient.connect(DEBUG_HOST, 6502);
+    wificlient.println(TEST_NAME);
+  }
+#endif
 
 #ifdef ESP32
   if (bt_mode)
