@@ -136,11 +136,10 @@ void sioFuji::sio_disk_image_mount()
 /**
    SIO TNFS Disk Image uMount
 */
-void sio_disk_image_umount()
+void sioFuji::sio_disk_image_umount()
 {
     unsigned char deviceSlot = cmdFrame.aux1;
-    bool opened = tnfs_close(deviceSlot);
-
+    atr[deviceSlot].close();
     sio_complete(); // always completes.
 }
 
