@@ -338,10 +338,10 @@ void TNFSFileImpl::rewindDirectory(void)
 
 TNFSFileImpl::operator bool()
 {
-
   // figure out a way to know if we have an open file
-
-  return true;
+  if (fid != -1)
+    return true;
+  return false;
 }
 
 // TNFS calls

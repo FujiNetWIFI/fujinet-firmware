@@ -14,14 +14,14 @@ bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::s
     char hi[4];
     char lo[4];
     const char sep = ' ';
-   
+
     sprintf(portstr, "%hu", port);
- 
+
     if (strlen(mparray) != 0)
         return true;
 
     mp = host + sep + portstr + sep + "0 0 " + location + sep + userid + sep + password;
-    
+
     mp.copy(mparray, mp.length(), 0);
     _impl->mountpoint(mparray);
 #ifdef DEBUG
@@ -37,7 +37,7 @@ bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::s
 #endif
         return false;
     }
-    
+
     sprintf(lo, "%hhu", tempID.session_idl);
     sprintf(hi, "%hhu", tempID.session_idh);
     //mp.clear(); // rebuild mountpoint with session ID
