@@ -1,5 +1,46 @@
 #include "disk.h"
 
+
+/**
+   Convert # of paragraphs to sectors
+   para = # of paragraphs returned from ATR header
+   ss = sector size returned from ATR header
+*/
+unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, unsigned short ss)
+{
+  unsigned long tmp = para_hi << 16;
+  tmp |= para;
+
+  unsigned short num_sectors = ((tmp << 4) / ss);
+
+
+#ifdef DEBUG_VERBOSE
+  Debug_printf("ATR Header\n");
+  Debug_printf("----------\n");
+  Debug_printf("num paragraphs: $%04x\n", para);
+  Debug_printf("Sector Size: %d\n", ss);
+  Debug_printf("num sectors: %d\n", num_sectors);
+#endif
+
+  // Adjust sector size for the fact that the first three sectors are 128 bytes
+  if (ss == 256)
+    num_sectors += 2;
+
+  return num_sectors;
+}
+
+unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sector_size)
+{
+  unsigned long file_size = (num_sectors * sector_size);
+
+  // Subtract bias for the first three sectors.
+  if (sector_size > 128)
+    file_size -= 384;
+
+  return file_size >> 4;
+}
+
+
 // Read
 void sioDisk::sio_read()
 {
@@ -65,7 +106,7 @@ void sioDisk::sio_read()
   // d = &sector[0];
   s = &sectorCache[cacheOffset];
   memcpy(sector, s, ss);
- 
+
   sio_to_computer((byte *)&sector, ss, err);
 }
 
@@ -164,7 +205,7 @@ void sioDisk::sio_format()
 /**
    Update PERCOM block from the total # of sectors.
 */
-void sioDisk::derive_percom_block(unsigned short sectorSize, unsigned short numSectors)
+void sioDisk::derive_percom_block(unsigned short numSectors)
 {
   // Start with 40T/1S 720 Sectors, sector size passed in
   percomBlock.num_tracks = 40;
@@ -331,6 +372,23 @@ void sioDisk::sio_process()
 // mount a disk file
 void sioDisk::mount(File *f)
 {
+      unsigned short newss;
+    unsigned short num_para;
+    unsigned char num_para_hi;
+    unsigned short num_sectors;
+  byte buf[2];
+
+        // Get file and sector size from header
+        f->seek(2);      //tnfs_seek(deviceSlot, 2);
+        f->read(buf, 2); //tnfs_read(deviceSlot, 2);
+        num_para = (256 * buf[1]) + buf[0];
+        f->read(buf, 2); //tnfs_read(deviceSlot, 2);
+        newss = (256 * buf[1]) + buf[0];
+        f->read(buf, 1); //tnfs_read(deviceSlot, 1);
+        num_para_hi = buf[0];
+        this->sectorSize=newss;
+        num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
+        derive_percom_block(num_sectors);
   _file = f;
 }
 
