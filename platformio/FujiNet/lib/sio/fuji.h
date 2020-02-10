@@ -5,6 +5,7 @@
 
 #include "sio.h"
 #include "disk.h"
+#include "tnfs.h"
 
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
@@ -14,6 +15,12 @@
 #include <WiFi.h>
 #include <SPIFFS.h>
 #endif
+
+extern TNFSFS TNFS[8];
+//TNFSFS *hostSlots[8];
+extern File atr[8]; // up to 8 disk drives
+extern sioDisk sioD[8]; // 
+
 
 class sioFuji : public sioDevice
 {
@@ -41,11 +48,11 @@ protected:
     void sio_net_scan_result();     // 0xFC
     void sio_net_set_ssid();        // 0xFB
     void sio_net_get_wifi_status(); // 0xFA
-    //   cmdPtr[0xF9] = sio_tnfs_mount_host;
-    //   cmdPtr[0xF8] = sio_disk_image_mount;
-    //   cmdPtr[0xF7] = sio_tnfs_open_directory;
-    //   cmdPtr[0xF6] = sio_tnfs_read_directory_entry;
-    //   cmdPtr[0xF5] = sio_tnfs_close_directory;
+    void sio_tnfs_mount_host();     // 0xF9
+    void sio_disk_image_mount();    // 0xF8
+    void sio_tnfs_open_directory(); // 0xF7
+    void sio_tnfs_read_directory_entry(); // 0xF6
+    void sio_tnfs_close_directory(); //0xF5
     void sio_read_hosts_slots();   // 0xF4
     void sio_write_hosts_slots();  // 0xF3
     void sio_read_device_slots();  // 0xF2
