@@ -329,6 +329,21 @@ void sioFuji::sio_process()
         sio_ack();
         sio_tnfs_mount_host();
         break;
+    case 0xF8:
+        sio_ack();
+        sio_disk_image_mount();
+        break;
+    case 0xF7:
+        sio_ack();
+        sio_tnfs_open_directory();
+        break;
+    case 0xF6:
+        sio_ack();
+        sio_tnfs_read_directory_entry();
+        break;
+    case 0xF5:
+        sio_ack();
+        sio_tnfs_close_directory();
     case 0xF4:
         sio_ack();
         sio_read_hosts_slots(); // 0xF4
@@ -345,10 +360,18 @@ void sioFuji::sio_process()
         sio_ack();
         sio_write_device_slots(); // 0xF1
         break;
+    case 0xE9:
+        sio_ack();
+        sio_disk_image_umount();
+        break;
     case 0xE8:
         sio_ack();
         sio_get_adapter_config();
         break;
+    case 0xE7:
+        //sio_ack();
+        //sio_new_disk();
+        //break;
     default:
         sio_nak();
     }
