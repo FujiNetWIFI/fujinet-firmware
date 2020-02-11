@@ -179,7 +179,8 @@ void sioFuji::sio_tnfs_read_directory_entry()
     atr[hostSlot] = dir[hostSlot].openNextFile();
     if (!atr[hostSlot])
         current_entry[0] = 0x7F; // end of dir
-
+    else
+        strcpy(current_entry, atr[hostSlot].name());
     sio_to_computer((byte *)&current_entry, len, false);
 }
 
