@@ -52,13 +52,10 @@ updated sio_read() to use new sectorSize and sio_to_computer() features - marked
 #include <WiFi.h>
 #endif
 
-#define TNFS_SERVER "192.168.1.12"
-#define TNFS_PORT 16384
-TNFSFS TNFS[8];
-TNFSFS *hostSlots[8];
+//#define TNFS_SERVER "192.168.1.12"
+//#define TNFS_PORT 16384
 
-File atr[8];
-sioDisk sioD[8];
+
 
 atari820 sioP;
 File paperf;
@@ -222,14 +219,14 @@ void setup()
     server.begin(); // Start the web server
     UDP.begin(16384);
   }
-  TNFS[0].begin(TNFS_SERVER, TNFS_PORT);
+/*   TNFS[0].begin(TNFS_SERVER, TNFS_PORT);
   atr[1] = TNFS[0].open("/A820.ATR", "r+");
 #ifdef DEBUG_S
   BUG_UART.println("tnfs/A820.ATR");
 #endif
   sioD[1].mount(&atr[1]);
   SIO.addDevice(&sioD[1], 0x31 + 1);
-
+ */
   /*
   if(!SD.begin(5))
   {

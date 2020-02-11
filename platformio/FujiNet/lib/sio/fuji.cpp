@@ -1,9 +1,17 @@
 #include "fuji.h"
-#include "disk.h"
+//#include "disk.h"
 
 //File atrConfig;
 // sioFuji theFuji;
 //sioDisk configDisk;
+
+TNFSFS TNFS[8]; // up to 8 TNFS servers
+// could make a list of 8 pointers and create New TNFS objects at mounting and point to them
+// might also need to make the FS pointers so that can use SD, SPIFFS, too
+
+File dir[8];
+File atr[8];     // up to 8 disk drives
+sioDisk sioD[8]; //
 
 void sioFuji::sio_status()
 {
@@ -81,6 +89,113 @@ void sioFuji::sio_net_get_wifi_status()
         wifi_led(false);
 
     sio_to_computer((byte *)&wifiStatus, 1, false);
+}
+
+/**
+   SIO TNFS Server Mount
+*/
+void sioFuji::sio_tnfs_mount_host()
+{
+    unsigned char hostSlot = cmdFrame.aux1;
+    bool err = TNFS[hostSlot].begin(hostSlots.host[hostSlot], TNFS_PORT);
+    //bool err = tnfs_mount(hostSlot);
+
+    if (!err)
+        sio_error();
+    else
+        sio_complete();
+}
+
+/**
+   SIO TNFS Disk Image Mount
+*/
+void sioFuji::sio_disk_image_mount()
+{
+    unsigned char deviceSlot = cmdFrame.aux1;
+    unsigned char options = cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
+    char flag[3] = {'r', 0, 0};
+    if (options == 2)
+    {
+        flag[1] = '+';
+    }
+
+    atr[deviceSlot] = TNFS[deviceSlots.slot[deviceSlot].hostSlot].open(deviceSlots.slot[deviceSlot].file, flag);
+    //todo: implement what does FETCH mean?
+    //bool opened = tnfs_open(deviceSlot, options, false);
+    if (!atr[deviceSlot])
+    {
+        sio_error();
+    }
+    else
+    {
+        sioD[deviceSlot].mount(&atr[deviceSlot]);
+        // moved all this stuff to .mount
+        sio_complete();
+    }
+}
+
+/**
+   SIO TNFS Disk Image uMount
+*/
+void sioFuji::sio_disk_image_umount()
+{
+    unsigned char deviceSlot = cmdFrame.aux1;
+    atr[deviceSlot].close();
+    sio_complete(); // always completes.
+}
+
+/**
+   Open TNFS Directory
+*/
+void sioFuji::sio_tnfs_open_directory()
+{
+    char current_entry[256];
+    byte hostSlot = cmdFrame.aux1;
+    byte ck = sio_to_peripheral((byte *)&current_entry, sizeof(current_entry));
+
+    if (sio_checksum((byte *)&current_entry, sizeof(current_entry)) != ck)
+    {
+        sio_error();
+        return;
+    }
+
+    dir[hostSlot] = TNFS[hostSlot].open(current_entry, "r");
+
+    if (dir[hostSlot])
+        sio_complete();
+    else
+        sio_error();
+}
+
+/**
+   Read next TNFS Directory entry
+*/
+void sioFuji::sio_tnfs_read_directory_entry()
+{
+    char current_entry[256];
+    byte hostSlot = cmdFrame.aux2;
+    byte len = cmdFrame.aux1;
+    //byte ret = tnfs_readdir(hostSlot);
+    atr[hostSlot] = dir[hostSlot].openNextFile();
+    if (!atr[hostSlot])
+        current_entry[0] = 0x7F; // end of dir
+    else
+        strcpy(current_entry, atr[hostSlot].name());
+    sio_to_computer((byte *)&current_entry, len, false);
+}
+
+/**
+   Close TNFS Directory
+*/
+void sioFuji::sio_tnfs_close_directory()
+{
+    byte hostSlot = cmdFrame.aux1;
+
+    dir[hostSlot].close();
+    //if (tnfs_closedir(hostSlot))
+    sio_complete(); // always complete
+    //else
+    //    sio_error();
 }
 
 /**
@@ -181,7 +296,7 @@ void sioFuji::sio_get_adapter_config()
 
 void sioFuji::sio_process()
 {
-    //   cmdPtr[0xF9] = sio_tnfs_mount_host;
+
     //   cmdPtr[0xF8] = sio_disk_image_mount;
     //   cmdPtr[0xF7] = sio_tnfs_open_directory;
     //   cmdPtr[0xF6] = sio_tnfs_read_directory_entry;
@@ -211,6 +326,25 @@ void sioFuji::sio_process()
         sio_ack();
         sio_net_get_wifi_status();
         break;
+    case 0xF9:
+        sio_ack();
+        sio_tnfs_mount_host();
+        break;
+    case 0xF8:
+        sio_ack();
+        sio_disk_image_mount();
+        break;
+    case 0xF7:
+        sio_ack();
+        sio_tnfs_open_directory();
+        break;
+    case 0xF6:
+        sio_ack();
+        sio_tnfs_read_directory_entry();
+        break;
+    case 0xF5:
+        sio_ack();
+        sio_tnfs_close_directory();
     case 0xF4:
         sio_ack();
         sio_read_hosts_slots(); // 0xF4
@@ -227,10 +361,18 @@ void sioFuji::sio_process()
         sio_ack();
         sio_write_device_slots(); // 0xF1
         break;
+    case 0xE9:
+        sio_ack();
+        sio_disk_image_umount();
+        break;
     case 0xE8:
         sio_ack();
         sio_get_adapter_config();
         break;
+    case 0xE7:
+        //sio_ack();
+        //sio_new_disk();
+        //break;
     default:
         sio_nak();
     }

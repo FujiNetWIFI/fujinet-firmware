@@ -134,7 +134,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   int ref_fid;
   byte fid;
 
-  // TODO: path (filename) checking
+// TODO: path (filename) checking
 #ifdef DEBUG
   Debug_printf("Attempting to open TNFS file: %s\n", path);
 #endif
@@ -187,8 +187,8 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   flag_msb = byte(flag >> 8);
 
   // test if path is directory
- tnfsStat_t S = tnfs_stat(this, path);
-  if (S.isDir)
+  tnfsStat_t stats = tnfs_stat(this, path);
+  if (stats.isDir)
   {
 #ifdef DEBUG
     Debug_printf("opening directory %s\n", path);
@@ -210,7 +210,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   {
     return nullptr;
   }
-  return std::make_shared<TNFSFileImpl>(this, fid, path);
+  return std::make_shared<TNFSFileImpl>(this, fid, path, stats);
 }
 
 bool TNFSImpl::exists(const char *path)
@@ -226,11 +226,12 @@ bool TNFSImpl::rmdir(const char *path) { return false; }
 
 /* File Implementation */
 
-TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fid, const char *filename)
+TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fid, const char *filename, tnfsStat_t stats)
 {
   this->fs = fs;
   this->fid = fid;
   strcpy(fn, filename);
+  this->stats = stats;
 }
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
@@ -286,56 +287,61 @@ const char *TNFSFileImpl::name() const
 
 boolean TNFSFileImpl::isDirectory(void)
 {
-  tnfsStat_t S = tnfs_stat(fs, fn);
-  return S.isDir;
+  //tnfsStat_t stats = tnfs_stat(fs, fn);
+  return stats.isDir;
 }
 
 // not written yet
 size_t TNFSFileImpl::position() const
 {
-
   // do I need to keep track while reading, writing and seeking?
-
   return 0;
 }
 
 size_t TNFSFileImpl::size() const
 {
-  tnfsStat_t S = tnfs_stat(fs, fn);
-  return S.fsize;
+  //tnfsStat_t stats = tnfs_stat(fs, fn);
+  return stats.fsize;
 }
 
 time_t TNFSFileImpl::getLastWrite()
 {
-  tnfsStat_t S = tnfs_stat(fs, fn);
-  return S.mtime;
+  //tnfsStat_t stats = tnfs_stat(fs, fn);
+  return stats.mtime;
 }
 
 FileImplPtr TNFSFileImpl::openNextFile(const char *mode)
 {
-
-  // call READDIR and the TNFS.open
-  // but RTFM about this on ESP32
-
-  //char nextfn[36];
-  //byte nextfd = 0;
-  //return std::make_shared<TNFSFileImpl>(this, nextfd, nextfn);
+  char path[256];
+  if (stats.isDir)
+  {
+    do
+    {
+      bool ok = tnfs_readdir(fs, fid, path);
+      if (!ok)
+        return nullptr;
+    } while (path[0] == '.');
+    return fs->open(path, "r");
+  }
   return nullptr;
 }
 
 void TNFSFileImpl::rewindDirectory(void)
 {
-
-  // call tnfs_closedir and tnfs_opendir
-  // but RTFM about this on ESP32
+  if (tnfs_closedir(fs, fid))
+  {
+    int id = tnfs_opendir(fs, fn);
+    if (id != -1)
+      fid = id;
+  }
 }
 
 TNFSFileImpl::operator bool()
 {
-
   // figure out a way to know if we have an open file
-
-  return true;
+  if (fid != -1)
+    return true;
+  return false;
 }
 
 // TNFS calls
@@ -575,8 +581,8 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
     }
 
     tnfsPacket.data[c++] = 0x00;
-    //tnfsPacket.data[c++] = 0x00;
-    //tnfsPacket.data[c++] = 0x00;
+//tnfsPacket.data[c++] = 0x00;
+//tnfsPacket.data[c++] = 0x00;
 
 #ifdef DEBUG_VERBOSE
     Debug_printf("Opening %s\n", mountPath);
@@ -775,8 +781,8 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
     tnfsPacket.retryCount++;   // increase sequence #
     tnfsPacket.command = 0x10; // OPENDIR
     strcpy((char *)&tnfsPacket.data[0], dirName);
-    //tnfsPacket.data[0] = '/';  // Open root dir
-    //tnfsPacket.data[1] = 0x00; // nul terminated
+//tnfsPacket.data[0] = '/';  // Open root dir
+//tnfsPacket.data[1] = 0x00; // nul terminated
 
 #ifdef DEBUG
     Debug_println("TNFS Open directory /");

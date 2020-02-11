@@ -46,6 +46,8 @@ unlink - remove a file                                                          
 #include "FSImpl.h"
 #include "tnfs_imp.h"
 
+#define TNFS_PORT 16384
+
 namespace fs
 {
 
