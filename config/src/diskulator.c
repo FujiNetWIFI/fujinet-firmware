@@ -224,7 +224,9 @@ void diskulator_host(void)
   // Temporarily patch display list for this screen.
   POKE(0x60F,6);
   POKE(0x610,6);
-
+  POKE(0x61B,2);
+  POKE(0x61C,2);
+  
   screen_puts(0,0,"   TNFS HOST LIST   ");
 
   diskulator_read_host_slots();
@@ -272,8 +274,8 @@ void diskulator_host(void)
   c=0;
 
  rehosts_jump:
-  screen_puts( 0,20,"return PICK  e EDIT");
-  screen_puts(20,20,"opt BOOT     d DRVS");
+  screen_puts(0,20,"\xD9\xB2\xA5\xB4\xB5\xB2\xAE\x19Pick\xD9\xA5\x19" "Edit\xD9\xA4\x19" "Drives\xD9\xAF\xB0\xB4\xA9\xAF\xAE\x19" "Boot");
+  screen_puts(0,21," \xD9\x91\x8D\x98\x19" "Drive Slots \xD9\xB3\xA8\xA9\xA6\xB4\x80\x91\x8D\x98\x19Host Slots ");
   
   bar_clear();
   bar_show(2);
@@ -342,8 +344,8 @@ void diskulator_host(void)
 	    jump_to_devs:
 	      host_done=true;
 	      slot_done=false;
-	      screen_puts( 0,20,"e EJECT     h HOSTS");
-	      screen_puts(20,20,"                   ");
+	      screen_puts(0,20,"        \xD9\xAA\x19" "Eject\xD9\xA9\x19Hosts\xD9\xAE\x19New          ");
+	      
 	      break;
 	    case 0x9B: // ENTER
 	      selected_host=c;
@@ -434,7 +436,7 @@ void diskulator_host(void)
 	      slot_done=true;
 	      host_done=false;
 	      goto rehosts;
-	    case 'e': // EJECT
+	    case 'j': // EJECT
 	      screen_puts(4,c+11,"Empty                               ");
 	      memset(deviceSlots.slot[c].file,0,sizeof(deviceSlots.slot[c].file));
 	      deviceSlots.slot[c].hostSlot=0xFF;
