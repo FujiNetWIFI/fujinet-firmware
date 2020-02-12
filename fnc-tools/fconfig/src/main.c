@@ -129,7 +129,7 @@ int main(void)
 
   print("\x9b");
 
-  if ((PEEK(0x718)==51) || (PEEK(0x718)==53) ||(PEEK(0x718)==56))
+  if (PEEK(0x718)==53)
     dos3_clear();
   
   print("           SSID: ");
