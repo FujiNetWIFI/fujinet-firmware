@@ -54,7 +54,8 @@ void config_dlist=
    DL_CHR20x8x2,
    DL_CHR20x8x2,   
    DL_JVB,
-   0x600
+   0x600,
+   0,0,0,0
   };
 
 /**
