@@ -795,9 +795,15 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
     tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.retryCount++;   // increase sequence #
     tnfsPacket.command = 0x10; // OPENDIR
-    strcpy((char *)&tnfsPacket.data[0], dirName);
-    //tnfsPacket.data[0] = '/';  // Open root dir
-    //tnfsPacket.data[1] = 0x00; // nul terminated
+    if (dirName[0] != '/')
+    {
+      tnfsPacket.data[0] = '/';
+      strcpy((char *)&tnfsPacket.data[1], dirName);
+    }
+    else
+      strcpy((char *)&tnfsPacket.data[0], dirName);
+      //tnfsPacket.data[0] = '/';  // Open root dir
+      //tnfsPacket.data[1] = 0x00; // nul terminated
 
 #ifdef DEBUG
     Debug_print("TNFS Open directory: ");
@@ -827,7 +833,10 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
         }
         else
         {
-          // Unsuccessful
+// Unsuccessful
+#ifdef DEBUG
+          Debug_printf("Failed to opened dir on host %s - err = %02x\n", F->host().c_str(), tnfsPacket.data[0]);
+#endif
           return -1;
         }
       }
