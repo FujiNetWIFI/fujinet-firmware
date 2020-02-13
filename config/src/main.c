@@ -82,7 +82,7 @@ void setup(void)
   font_ptr=(unsigned char*)FONT_MEMORY;
   memcpy(&font_ptr[520],&fontPatch,24);
 
-  OS.chbas=0x34; // use the charset
+  OS.chbas=0x78; // use the charset
   bar_clear();
   bar_setup_regs();
   
