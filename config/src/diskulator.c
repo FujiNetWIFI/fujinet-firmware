@@ -48,6 +48,19 @@ union
   unsigned char rawData[304];
 } deviceSlots;
 
+union
+{
+  struct
+  {
+    unsigned short numSectors;
+    unsigned short sectorSize;
+    unsigned char hostSlot;
+    unsigned char deviceSlot;
+    char filename[36];
+  };
+  unsigned char rawData[42];
+} newDisk;
+
 /**
  * Do coldstart
  */
@@ -159,6 +172,28 @@ void diskulator_mount_device(unsigned char c, unsigned char o)
 }
 
 /**
+ * Create New Disk
+ */
+void diskulator_new_disk(unsigned char c, unsigned short ns, unsigned short ss)
+{
+  newDisk.numSectors=ns;
+  newDisk.sectorSize=ss;
+  newDisk.hostSlot=deviceSlots.slot[c].hostSlot;
+  newDisk.deviceSlot=c;
+  strcpy(newDisk.filename,deviceSlots.slot[c].file);
+
+  OS.dcb.ddevic=0x70;
+  OS.dcb.dunit=1;
+  OS.dcb.dcomnd=0xE7; // TNFS Create Disk
+  OS.dcb.dstats=0x80;
+  OS.dcb.dbuf=&newDisk.rawData;
+  OS.dcb.dtimlo=0xFE;
+  OS.dcb.dbyt=sizeof(newDisk.rawData);
+  OS.dcb.daux=0;
+  siov();
+}
+
+/**
  * Mount all Hosts
  */
 void diskulator_mount_all_hosts(void)
@@ -217,6 +252,10 @@ void diskulator_host(void)
 {
   bool host_done=false;
   unsigned char k;
+  char tmp_str[8];
+  char disk_type;
+  unsigned short ns;
+  unsigned short ss;
   
   screen_clear();
   bar_clear();
@@ -437,10 +476,91 @@ void diskulator_host(void)
 	      host_done=false;
 	      goto rehosts;
 	    case 'j': // EJECT
+	    doeject:
 	      screen_puts(4,c+11,"Empty                               ");
 	      memset(deviceSlots.slot[c].file,0,sizeof(deviceSlots.slot[c].file));
 	      deviceSlots.slot[c].hostSlot=0xFF;
 	      diskulator_write_device_slots();
+	      break;
+	    case 'n': // NEW	      
+	      screen_puts(4,c+11,"                                    ");
+	      screen_puts(0,20,"Enter filename of new ATR image        ");
+	      screen_puts(0,21,"                                       ");
+	      memset(tmp_str,0,sizeof(tmp_str));
+	      memset(deviceSlots.slot[c].file,0,sizeof(deviceSlots.slot[c].file));
+	      screen_input(3,c+11,deviceSlots.slot[c].file);
+	      screen_puts(0,20,"Which Host Slot (1-8)?                 ");
+	      screen_puts(0,21,"                                       ");
+	      memset(tmp_str,0,sizeof(tmp_str));
+	      screen_input(23,20,tmp_str);
+	      deviceSlots.slot[c].hostSlot=atoi(tmp_str);
+	      deviceSlots.slot[c].hostSlot-=1;
+	      diskulator_mount_host(deviceSlots.slot[c].hostSlot);
+	      screen_puts(0,20,"Size?\xD9\x91\x19" "90K  \xD9\x92\x19" "130K  \xD9\x93\x19" "180K  \xD9\x94\x19" "360K  ");
+	      screen_puts(0,21,"     \xD9\x95\x19" "720K \xD9\x96\x19" "1440K \xD9\x97\x19" "Custom          ");
+	      memset(tmp_str,0,sizeof(tmp_str));
+	      screen_input(32,21,tmp_str);
+	      disk_type=atoi(tmp_str);
+	      if (disk_type==1)
+		{
+		  ns=720;
+		  ss=128;
+		}
+	      else if (disk_type==2)
+		{
+		  ns=1040;
+		  ss=128;
+		}
+	      else if (disk_type==3)
+		{
+		  ns=720;
+		  ss=256;
+		}
+	      else if (disk_type==4)
+		{
+		  ns=1440;
+		  ss=256;
+		}
+	      else if (disk_type==5)
+		{
+		  ns=2880;
+		  ss=256;
+		}
+	      else if (disk_type==6)
+		{
+		  ns=5760;
+		  ss=256;
+		}
+	      else if (disk_type==7)
+		{
+		  screen_puts(0,20,"# Sectors?                            ");
+		  screen_puts(0,21,"                                      ");
+		  memset(tmp_str,0,sizeof(tmp_str));
+		  screen_input(12,20,tmp_str);
+		  ns=atoi(tmp_str);
+		  screen_puts(0,21,"Sector size (128/256)?                ");
+		  memset(tmp_str,0,sizeof(tmp_str));
+		  screen_input(24,21,tmp_str);
+		  ss=atoi(tmp_str);
+		}
+
+	      memset(tmp_str,0,sizeof(tmp_str));
+	      screen_puts(0,20,"Are you sure (Y/N)?                     ");
+	      screen_puts(0,21,"                                        ");
+	      screen_input(21,20,tmp_str);
+	      
+	      if (tmp_str[0]=='y')
+		{
+		  screen_puts(0,20,"Creating new Disk                       ");
+		  screen_puts(0,21,"                                        ");
+		  diskulator_new_disk(c,ns,ss);
+
+		  if (OS.dcb.dstats!=1)
+		    goto doeject;
+		  goto rehosts;
+		}
+	      else
+		goto doeject;
 	      break;
 	    }
 	  if (k>0)
