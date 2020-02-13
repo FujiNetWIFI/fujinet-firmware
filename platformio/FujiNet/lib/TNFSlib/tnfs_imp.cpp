@@ -234,6 +234,14 @@ TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fid, const char *filename, tnfsSta
   this->stats = stats;
 }
 
+TNFSFileImpl::~TNFSFileImpl()
+{
+#ifdef DEBUG
+  Debug_printf("destructor attempting to close file %s\n", fn);
+#endif
+  this->close();
+}
+
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 {
 #ifdef DEBUG_S
@@ -277,7 +285,14 @@ bool TNFSFileImpl::seek(uint32_t pos, SeekMode mode)
 
 void TNFSFileImpl::close()
 {
-  tnfs_close(fs, fid, fn);
+  if (stats.isDir)
+  {
+    tnfs_closedir(fs, fid);
+  }
+  else
+  {
+    tnfs_close(fs, fid, fn);
+  }
 }
 
 const char *TNFSFileImpl::name() const
@@ -479,13 +494,13 @@ tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
     }
 // Otherwise we timed out.
 #ifdef DEBUG_VERBOSE
-    Debug_println("Timeout after 5000ms");
+    Debug_println("tnfs_mount Timeout after 5000ms");
 #endif /* DEBUG_S */
     retries++;
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("tnfs_mount Failed.\n");
 #endif
   tempID.session_idh = 0;
   tempID.session_idl = 0;
@@ -581,8 +596,8 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
     }
 
     tnfsPacket.data[c++] = 0x00;
-//tnfsPacket.data[c++] = 0x00;
-//tnfsPacket.data[c++] = 0x00;
+    //tnfsPacket.data[c++] = 0x00;
+    //tnfsPacket.data[c++] = 0x00;
 
 #ifdef DEBUG_VERBOSE
     Debug_printf("Opening %s\n", mountPath);
@@ -642,11 +657,11 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
     retries++;
     tnfsPacket.retryCount--;
 #ifdef DEBUG
-    Debug_println("Timeout after 5000ms.");
+    Debug_println("tnfs_open Timeout after 5000ms.");
 #endif /* DEBUG_S */
   }
 #ifdef DEBUG
-  Debug_printf("Failed\n");
+  Debug_printf("tnfs_open Failed\n");
 #endif
   return -1;
 }
@@ -732,11 +747,11 @@ bool tnfs_close(TNFSImpl *F, byte fid, const char *mountPath)
     retries++;
     tnfsPacket.retryCount--;
 #ifdef DEBUG
-    Debug_println("Timeout after 5000ms.");
+    Debug_println("tnfs_close Timeout after 5000ms.");
 #endif /* DEBUG_S */
   }
 #ifdef DEBUG
-  Debug_printf("Failed\n");
+  Debug_printf("tnfs_close Failed\n");
 #endif
   return false;
 }
@@ -781,11 +796,12 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
     tnfsPacket.retryCount++;   // increase sequence #
     tnfsPacket.command = 0x10; // OPENDIR
     strcpy((char *)&tnfsPacket.data[0], dirName);
-//tnfsPacket.data[0] = '/';  // Open root dir
-//tnfsPacket.data[1] = 0x00; // nul terminated
+    //tnfsPacket.data[0] = '/';  // Open root dir
+    //tnfsPacket.data[1] = 0x00; // nul terminated
 
 #ifdef DEBUG
-    Debug_println("TNFS Open directory /");
+    Debug_print("TNFS Open directory: ");
+    Debug_println(dirName);
 #endif
 
     UDP.beginPacket(F->host().c_str(), F->port());
@@ -804,7 +820,7 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
         {
           // Successful
           int handle = tnfsPacket.data[1];
-#ifdef DEBUG_VERBOSE
+#ifdef DEBUG
           Debug_printf("Opened dir on host %s - fid = %02x\n", F->host().c_str(), handle);
 #endif
           return handle;
@@ -818,13 +834,13 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
     }
 // Otherwise, we timed out.
 #ifdef DEBUG
-    Debug_println("Timeout after 5000ms.");
+    Debug_println("tnfs_opendir Timeout after 5000ms.");
 #endif
     retries++;
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.");
+  Debug_printf("tnfs_opendir Failed.");
 #endif
   return -1;
 }
@@ -888,10 +904,18 @@ bool tnfs_readdir(TNFSImpl *F, byte fid, char *nextFile)
         {
           // Successful
           strcpy(nextFile, (char *)&tnfsPacket.data[1]);
+#ifdef DEBUG
+          Debug_print("Next dir is: ");
+          Debug_println(nextFile);
+#endif
           return true;
         }
         else
         {
+#ifdef DEBUG
+          Debug_print("Next dir error: ");
+          Debug_println(tnfsPacket.data[0], HEX);
+#endif
           // Unsuccessful
           return false;
         }
@@ -899,13 +923,13 @@ bool tnfs_readdir(TNFSImpl *F, byte fid, char *nextFile)
     }
 // Otherwise, we timed out.
 #ifdef DEBUG
-    Debug_println("Timeout after 5000ms.");
+    Debug_println("tnfs_readdir Timeout after 5000ms.");
 #endif /* DEBUG_S */
     retries++;
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("tnfs_readdir Failed.\n");
 #endif
   return false;
 }
@@ -961,11 +985,18 @@ bool tnfs_closedir(TNFSImpl *F, byte fid)
         UDP.read(tnfsPacket.rawData, 516);
         if (tnfsPacket.data[0] == 0x00)
         {
+#ifdef DEBUG_VERBOSE
+          Debug_println("success");
+#endif
           // Successful
           return true;
         }
         else
         {
+#ifdef DEBUG_VERBOSE
+          Debug_print("error: ");
+          Debug_println(tnfsPacket.data[0], HEX);
+#endif
           // Unsuccessful
           return false;
         }
@@ -973,13 +1004,13 @@ bool tnfs_closedir(TNFSImpl *F, byte fid)
     }
 // Otherwise, we timed out.
 #ifdef DEBUG
-    Debug_println("Timeout after 5000ms.");
+    Debug_println("tnfs_closedir Timeout after 5000ms.");
     retries++;
     tnfsPacket.retryCount--;
 #endif /* DEBUG_S */
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("tnfs_closedir Failed.\n");
 #endif
   return false;
 }
@@ -1076,13 +1107,13 @@ size_t tnfs_write(TNFSImpl *F, byte fid, const uint8_t *buf, unsigned short len)
       }
     }
 #ifdef DEBUG
-    Debug_println("Timeout after 5000ms.");
+    Debug_println("tnfs_write Timeout after 5000ms.");
 #endif /* DEBUG_S */
     retries++;
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("tnfs_write Failed.\n");
 #endif
   return 0;
 }
@@ -1194,7 +1225,7 @@ size_t tnfs_read(TNFSImpl *F, byte fid, uint8_t *buf, unsigned short len)
       }
     }
 #ifdef DEBUG
-    Debug_println("Timeout after 5000ms.");
+    Debug_println("tnfs_read Timeout after 5000ms.");
     if (retries < 5)
       Debug_printf("Retrying...\n");
 #endif /* DEBUG_S */
@@ -1202,7 +1233,7 @@ size_t tnfs_read(TNFSImpl *F, byte fid, uint8_t *buf, unsigned short len)
     tnfsPacket.retryCount--;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("tnfs_read Failed.\n");
 #endif
   return 0;
 }
@@ -1314,7 +1345,7 @@ bool tnfs_seek(TNFSImpl *F, byte fid, long offset)
       }
     }
 #ifdef DEBUG
-    Debug_println("Timeout after 5000ms.");
+    Debug_println("tnfs_seek Timeout after 5000ms.");
     if (retries < 5)
       Debug_printf("Retrying...\n");
 #endif /* DEBUG_S */
@@ -1322,7 +1353,7 @@ bool tnfs_seek(TNFSImpl *F, byte fid, long offset)
     retries++;
   }
 #ifdef DEBUG
-  Debug_printf("Failed.\n");
+  Debug_printf("tnfs_seek Failed.\n");
 #endif
   return false;
 }
@@ -1474,11 +1505,11 @@ tnfsStat_t tnfs_stat(TNFSImpl *F, const char *filename)
     retries++;
     tnfsPacket.retryCount--;
 #ifdef DEBUG
-    Debug_println("Timeout after 5000ms.");
+    Debug_println("tnfs_stat Timeout after 5000ms.");
 #endif /* DEBUG_S */
   }
 #ifdef DEBUG
-  Debug_printf("Status Failed\n");
+  Debug_printf("tnfs_stat Status Failed\n");
 #endif
   return retStat;
 }

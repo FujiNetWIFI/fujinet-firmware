@@ -159,6 +159,21 @@ void sioFuji::sio_tnfs_open_directory()
         return;
     }
 
+#ifdef DEBUG
+    Debug_print("FujiNet is opening directory for reading: ");
+    Debug_println(current_entry);
+#endif
+
+    if (current_entry[0] != '/')
+    {
+        current_entry[0] = '/';
+        current_entry[1] = '\0';
+#ifdef DEBUG
+        Debug_print("No directory defined for reading, setting to: ");
+        Debug_println(current_entry);
+#endif
+    }
+
     dir[hostSlot] = TNFS[hostSlot].open(current_entry, "r");
 
     if (dir[hostSlot])
@@ -176,11 +191,13 @@ void sioFuji::sio_tnfs_read_directory_entry()
     byte hostSlot = cmdFrame.aux2;
     byte len = cmdFrame.aux1;
     //byte ret = tnfs_readdir(hostSlot);
-    atr[hostSlot] = dir[hostSlot].openNextFile();
-    if (!atr[hostSlot])
+    File f = dir[hostSlot].openNextFile();
+    if (!f)
         current_entry[0] = 0x7F; // end of dir
     else
-        strcpy(current_entry, atr[hostSlot].name());
+    {
+        strcpy(current_entry, f.name());
+    }
     sio_to_computer((byte *)&current_entry, len, false);
 }
 
@@ -192,10 +209,7 @@ void sioFuji::sio_tnfs_close_directory()
     byte hostSlot = cmdFrame.aux1;
 
     dir[hostSlot].close();
-    //if (tnfs_closedir(hostSlot))
-    sio_complete(); // always complete
-    //else
-    //    sio_error();
+    sio_complete();
 }
 
 /**
@@ -296,12 +310,6 @@ void sioFuji::sio_get_adapter_config()
 
 void sioFuji::sio_process()
 {
-
-    //   cmdPtr[0xF8] = sio_disk_image_mount;
-    //   cmdPtr[0xF7] = sio_tnfs_open_directory;
-    //   cmdPtr[0xF6] = sio_tnfs_read_directory_entry;
-    //   cmdPtr[0xF5] = sio_tnfs_close_directory;
-    //   cmdPtr[0xE9] = sio_disk_image_umount;
     //   cmdPtr[0xE7] = sio_new_disk;
 
     switch (cmdFrame.comnd)
