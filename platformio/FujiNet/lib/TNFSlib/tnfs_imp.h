@@ -89,7 +89,7 @@ protected:
 
 public:
   TNFSFileImpl(TNFSImpl *fs, byte fid, const char *filename, tnfsStat_t stats);
-  ~TNFSFileImpl(){};
+  ~TNFSFileImpl();
   size_t write(const uint8_t *buf, size_t size) override;
   size_t read(uint8_t *buf, size_t size) override;
   void flush() override;
