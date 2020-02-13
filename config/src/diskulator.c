@@ -470,6 +470,8 @@ void diskulator_select(void)
   
   POKE(0x60F,2);
   POKE(0x610,2);
+  POKE(0x61B,6);
+  POKE(0x61C,6);
   
   screen_clear();
   bar_clear();
@@ -580,6 +582,8 @@ void diskulator_drive(void)
   
   POKE(0x60F,2);
   POKE(0x610,2);
+  POKE(0x61B,6);
+  POKE(0x61C,6);
   
   screen_clear();
   bar_clear();
