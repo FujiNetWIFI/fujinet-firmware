@@ -419,9 +419,7 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
 
-#ifdef ESP8266
   delayMicroseconds(DELAY_T4);
-#endif
 
   if (sio_checksum(b, len) != ck)
   {
@@ -854,6 +852,14 @@ void sio_tcp_unlisten()
 void sio_new_disk()
 {
   byte ck = sio_to_peripheral(newDisk.rawData, sizeof(newDisk));
+
+#ifdef DEBUG_VERBOSE
+  Debug_printf("numSectors: %d\n",newDisk.numSectors);
+  Debug_printf("sectorSize: %d\n",newDisk.sectorSize);
+  Debug_printf("hostSlot: %d\n",newDisk.hostSlot);
+  Debug_printf("deviceSlot: %d\n",newDisk.deviceSlot);
+  Debug_printf("filename: %s\n",newDisk.filename);
+#endif
 
   if (ck == sio_checksum(newDisk.rawData, sizeof(newDisk)))
   {
