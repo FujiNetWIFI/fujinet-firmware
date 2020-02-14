@@ -113,6 +113,16 @@ void remount_all(void)
 }
 
 /**
+ * Clear up to status bar for DOS 3
+ */
+void dos3_clear(void)
+{
+  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
+  print("\xC3\xEF\xEE\xEE\xE5\xE3\xF4\xA0\xF4\xEF\xA0\xCE\xE5\xF4\xF7\xEF\xF2\xEB\x9b\x9b"); // Connect to Network
+  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
+}
+
+/**
  * main
  */
 int main(int argc, char* argv[])
@@ -136,6 +146,10 @@ int main(int argc, char* argv[])
     }
   else
     {
+      print("\x9b");
+      if (PEEK(0x718)==53)
+	dos3_clear();
+      
       // Dos 2
       print("ENTER SSID: ");
       get_line(buf,sizeof(buf));
@@ -195,5 +209,11 @@ int main(int argc, char* argv[])
 
   OS.soundr=1;
 
+  if (!_is_cmdline_dos())
+    {
+      print("\x9bPRESS \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CONTINUE.\x9b");
+      get_line(buf,sizeof(buf));
+    }  
+  
   return wifiStatus;  
 }
