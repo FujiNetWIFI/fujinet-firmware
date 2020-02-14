@@ -192,6 +192,8 @@ int main(int argc, char* argv[])
     {
       err_sio();
     }
-  
+
+  OS.soundr=1;
+
   return wifiStatus;  
 }
