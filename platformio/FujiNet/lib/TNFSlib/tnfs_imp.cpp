@@ -131,10 +131,8 @@ std::string TNFSImpl::password()
 
 FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 {
-  int ref_fid;
   int fid;
-
-// TODO: path (filename) checking
+ // TODO: path (filename) checking
 #ifdef DEBUG
   Debug_printf("Attempting to open TNFS file: %s\n", path);
 #endif
@@ -193,16 +191,16 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 #ifdef DEBUG
     Debug_printf("opening directory %s\n", path);
 #endif
-    ref_fid = tnfs_opendir(this, path);
+    fid = tnfs_opendir(this, path);
   }
   else
   {
 #ifdef DEBUG
     Debug_printf("opening file %s\n", path);
 #endif
-    ref_fid = tnfs_open(this, path, flag_lsb, flag_msb);
+    fid = tnfs_open(this, path, flag_lsb, flag_msb);
   }
-  if (ref_fid == -1)
+  if (fid == -1)
   {
     return nullptr;
   }
@@ -334,8 +332,8 @@ FileImplPtr TNFSFileImpl::openNextFile(const char *mode)
     } while (path[0] == '.');
      // return fs->open(path, "r");
     tnfsStat_t fstats = tnfs_stat(fs, path); // get stats on next file
-    // create file pointer without opening file - set FID=-1
-    return std::make_shared<TNFSFileImpl>(fs, -1, path, fstats);
+    // create file pointer without opening file - set FID=-2
+    return std::make_shared<TNFSFileImpl>(fs, -2, path, fstats);
   }
   return nullptr;
 }
