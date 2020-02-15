@@ -17,7 +17,7 @@ _bar_setup_regs:
 	sta $02C3
 	sta 559			; Go ahead and turn off SDMCTL
 
-	lda #$38		; $3800
+	lda #$7C		; $7C00
 	sta $D407		; to pmbase
 
 	lda #$03		; players/missiles

@@ -21,6 +21,8 @@
 #include "conio.h"
 #include "err.h"
 
+unsigned char buf[80];
+
 union
 {
   struct
@@ -32,25 +34,56 @@ union
 } netConfig;
 
 /**
+ * Clear up to status bar for DOS 3
+ */
+void dos3_clear(void)
+{
+  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
+  print("\xC3\xEF\xEE\xEE\xE5\xE3\xF4\xA0\xF4\xEF\xA0\xCE\xE5\xF4\xF7\xEF\xF2\xEB\x9b\x9b"); // Connect to Network
+  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
+}
+
+/**
  * main
  */
 int main(int argc, char* argv[])
 {
   unsigned char wifiStatus=0;
 
+  OS.soundr=0;
   OS.lmargn=2;
-  
-  strcpy(netConfig.ssid,argv[2]);
-  strcpy(netConfig.password,argv[3]);
 
-  if (argc==2)
-    print("Connecting to last network...");
+  if (_is_cmdline_dos())
+    {
+      if (argc<3)
+	{
+	  print(argv[0]);
+	  print(" <SSID> <PASSWORD>\x9b");
+	  exit(1);
+	}
+      
+      strcpy(netConfig.ssid,argv[1]);
+      strcpy(netConfig.password,argv[2]);
+    }
   else
     {
-      print("Connecting to network: ");
-      print(netConfig.ssid);
-      print("...");
+      print("\x9b");
+      if (PEEK(0x718)==53)
+	dos3_clear();
+      
+      // Dos 2
+      print("ENTER SSID: ");
+      get_line(buf,sizeof(buf));
+      strcpy(netConfig.ssid,buf);
+      
+      print("ENTER PASSWORD: ");
+      get_line(buf,sizeof(buf));
+      strcpy(netConfig.password,buf);      
     }
+  
+  print("Connecting to network: ");
+  print(netConfig.ssid);
+  print("...\x9b");
     
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
@@ -93,6 +126,14 @@ int main(int argc, char* argv[])
     {
       err_sio();
     }
+
+  OS.soundr=1;
+
+  if (!_is_cmdline_dos())
+    {
+      print("\x9bPRESS \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CONTINUE.\x9b");
+      get_line(buf,sizeof(buf));
+    }  
   
   return wifiStatus;  
 }
