@@ -8,7 +8,7 @@
 #include <string.h>
 #include "bar.h"
 
-unsigned char* bar_pmbase=(unsigned char *)0x3800;
+unsigned char* bar_pmbase=(unsigned char *)0x7C00;
 
 /**
  * Clear bar from screen
