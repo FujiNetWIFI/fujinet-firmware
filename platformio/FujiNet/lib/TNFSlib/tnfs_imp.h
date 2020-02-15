@@ -83,12 +83,12 @@ class TNFSFileImpl : public FileImpl
 
 protected:
   TNFSImpl *fs;
-  byte fid;
+  int fid;
   char fn[256];
   tnfsStat_t stats;
 
 public:
-  TNFSFileImpl(TNFSImpl *fs, byte fid, const char *filename, tnfsStat_t stats);
+  TNFSFileImpl(TNFSImpl *fs, int fid, const char *filename, tnfsStat_t stats);
   ~TNFSFileImpl();
   size_t write(const uint8_t *buf, size_t size) override;
   size_t read(uint8_t *buf, size_t size) override;
@@ -107,13 +107,13 @@ public:
 
 tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr);
 int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb);
-bool tnfs_close(TNFSImpl *F, byte fid, const char *mountPath);
+bool tnfs_close(TNFSImpl *F, int fid, const char *mountPath);
 int tnfs_opendir(TNFSImpl *F, const char *dirName);
-bool tnfs_readdir(TNFSImpl *F, byte fid, char *nextFile);
-bool tnfs_closedir(TNFSImpl *F, byte fid);
-size_t tnfs_write(TNFSImpl *F, byte fid, const uint8_t *buf, unsigned short len);
-size_t tnfs_read(TNFSImpl *F, byte fid, uint8_t *buf, unsigned short size);
-bool tnfs_seek(TNFSImpl *F, byte fid, long offset);
+bool tnfs_readdir(TNFSImpl *F, int fid, char *nextFile);
+bool tnfs_closedir(TNFSImpl *F, int fid);
+size_t tnfs_write(TNFSImpl *F, int fid, const uint8_t *buf, unsigned short len);
+size_t tnfs_read(TNFSImpl *F, int fid, uint8_t *buf, unsigned short size);
+bool tnfs_seek(TNFSImpl *F, int fid, long offset);
 tnfsStat_t tnfs_stat(TNFSImpl *F, const char *filename);
 
 //todo:  bool tnfs_write_blank_atr(unsigned char deviceSlot, unsigned short sectorSize, unsigned short numSectors);
