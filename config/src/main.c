@@ -16,10 +16,11 @@ extern unsigned char* dlist_ptr;
 extern unsigned short screen_memory;
 extern unsigned char* font_ptr;
 
-unsigned char fontPatch[24]={
+unsigned char fontPatch[32]={
 			 0,0,0,0,0,0,3,51,
 			 0,0,3,3,51,51,51,51,
-			 48,48,48,48,48,48,48,48
+			 48,48,48,48,48,48,48,48,
+			 0,120,87,255,255,255,255,0
 };
 
 void config_dlist=
@@ -80,7 +81,7 @@ void setup(void)
 
   // And patch it.
   font_ptr=(unsigned char*)FONT_MEMORY;
-  memcpy(&font_ptr[520],&fontPatch,24);
+  memcpy(&font_ptr[520],&fontPatch,sizeof(fontPatch));
 
   OS.chbas=0x78; // use the charset
   bar_clear();
