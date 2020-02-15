@@ -131,10 +131,8 @@ std::string TNFSImpl::password()
 
 FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 {
-  int ref_fid;
-  byte fid;
-
-// TODO: path (filename) checking
+  int fid;
+  // TODO: path (filename) checking
 #ifdef DEBUG
   Debug_printf("Attempting to open TNFS file: %s\n", path);
 #endif
@@ -193,20 +191,16 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
 #ifdef DEBUG
     Debug_printf("opening directory %s\n", path);
 #endif
-    ref_fid = tnfs_opendir(this, path);
+    fid = tnfs_opendir(this, path);
   }
   else
   {
 #ifdef DEBUG
     Debug_printf("opening file %s\n", path);
 #endif
-    ref_fid = tnfs_open(this, path, flag_lsb, flag_msb);
+    fid = tnfs_open(this, path, flag_lsb, flag_msb);
   }
-  if (ref_fid != -1)
-  {
-    fid = (byte)ref_fid;
-  }
-  else
+  if (fid == -1)
   {
     return nullptr;
   }
@@ -226,7 +220,7 @@ bool TNFSImpl::rmdir(const char *path) { return false; }
 
 /* File Implementation */
 
-TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, byte fid, const char *filename, tnfsStat_t stats)
+TNFSFileImpl::TNFSFileImpl(TNFSImpl *fs, int fid, const char *filename, tnfsStat_t stats)
 {
   this->fs = fs;
   this->fid = fid;
@@ -239,7 +233,8 @@ TNFSFileImpl::~TNFSFileImpl()
 #ifdef DEBUG
   Debug_printf("destructor attempting to close file %s\n", fn);
 #endif
-  this->close();
+  if (fid >= 0)
+    this->close();
 }
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
@@ -336,7 +331,16 @@ FileImplPtr TNFSFileImpl::openNextFile(const char *mode)
       if (!ok)
         return nullptr;
     } while (path[0] == '.');
-    return fs->open(path, "r");
+    // return fs->open(path, "r");
+    tnfsStat_t fstats = tnfs_stat(fs, path); // get stats on next file
+    // create file pointer without opening file - set FID=-2
+    if(fstats.isDir)
+    {
+    std::string P=std::string(path);
+    P.push_back('/');
+    strcpy(path,P.c_str());
+    }
+    return std::make_shared<TNFSFileImpl>(fs, -2, path, fstats);
   }
   return nullptr;
 }
@@ -682,7 +686,7 @@ CLOSE - Closes a file - Command 0x23
   0xBEEF 0x00 0x23 0x06 - Operation failed with EBADF, "bad file descriptor"
 */
 //bool tnfs_close(unsigned char deviceSlot)
-bool tnfs_close(TNFSImpl *F, byte fid, const char *mountPath)
+bool tnfs_close(TNFSImpl *F, int fid, const char *mountPath)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -700,7 +704,7 @@ bool tnfs_close(TNFSImpl *F, byte fid, const char *mountPath)
     tnfsPacket.command = 0x23; // CLOSE
 
     //tnfsPacket.data[c++] = tnfs_fds[deviceSlot];
-    tnfsPacket.data[c++] = fid;
+    tnfsPacket.data[c++] = (byte)fid;
 
     for (int i = 0; i < strlen(mountPath); i++)
     {
@@ -877,7 +881,7 @@ READDIR - Reads a directory entry - Command ID 0x11
   0xBEEF 0x1A 0x11 0x21 - EOF
   0xBEEF 0x1B 0x11 0x1F - Error code 0x1F
 */
-bool tnfs_readdir(TNFSImpl *F, byte fid, char *nextFile)
+bool tnfs_readdir(TNFSImpl *F, int fid, char *nextFile)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -889,9 +893,9 @@ bool tnfs_readdir(TNFSImpl *F, byte fid, char *nextFile)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;   // increase sequence #
-    tnfsPacket.command = 0x11; // READDIR
-    tnfsPacket.data[0] = fid;  // dir handle
+    tnfsPacket.retryCount++;        // increase sequence #
+    tnfsPacket.command = 0x11;      // READDIR
+    tnfsPacket.data[0] = (byte)fid; // dir handle
 
 #ifdef DEBUG_VERBOSE
     Debug_printf("TNFS Read next dir entry, host #%s - fid %02x\n\n", F->host().c_str(), fid);
@@ -960,7 +964,7 @@ CLOSEDIR - Close a directory handle - Command ID 0x12
   0xBEEF 0x00 0x12 0x00 - Close operation succeeded.
   0xBEEF 0x00 0x12 0x1F - Close failed with error code 0x1F
 */
-bool tnfs_closedir(TNFSImpl *F, byte fid)
+bool tnfs_closedir(TNFSImpl *F, int fid)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -972,9 +976,9 @@ bool tnfs_closedir(TNFSImpl *F, byte fid)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;   // increase sequence #
-    tnfsPacket.command = 0x12; // CLOSEDIR
-    tnfsPacket.data[0] = fid;  // Open root dir
+    tnfsPacket.retryCount++;        // increase sequence #
+    tnfsPacket.command = 0x12;      // CLOSEDIR
+    tnfsPacket.data[0] = (byte)fid; // Open root dir
 
 #ifdef DEBUG_VERBOSE
     Debug_println("TNFS dir close");
@@ -1045,7 +1049,7 @@ WRITE - Writes to a file - Command 0x22
   0xBEEF 0x00 0x22 0x06 - Failed write, error is "bad file descriptor"
 */
 
-size_t tnfs_write(TNFSImpl *F, byte fid, const uint8_t *buf, unsigned short len)
+size_t tnfs_write(TNFSImpl *F, int fid, const uint8_t *buf, unsigned short len)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -1057,9 +1061,9 @@ size_t tnfs_write(TNFSImpl *F, byte fid, const uint8_t *buf, unsigned short len)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;   // Increase sequence
-    tnfsPacket.command = 0x22; // READ
-    tnfsPacket.data[0] = fid;  // returned file descriptor
+    tnfsPacket.retryCount++;        // Increase sequence
+    tnfsPacket.command = 0x22;      // READ
+    tnfsPacket.data[0] = (byte)fid; // returned file descriptor
     tnfsPacket.data[1] = len & 0xFF;
     tnfsPacket.data[2] = len >> 8;
 
@@ -1160,7 +1164,7 @@ READ - Reads from a file - Command 0x21
   0xBEEF 0x00 0x21 0x21
 */
 
-size_t tnfs_read(TNFSImpl *F, byte fid, uint8_t *buf, unsigned short len)
+size_t tnfs_read(TNFSImpl *F, int fid, uint8_t *buf, unsigned short len)
 {
 
   tnfsSessionID_t sessionID = F->sid();
@@ -1175,7 +1179,7 @@ size_t tnfs_read(TNFSImpl *F, byte fid, uint8_t *buf, unsigned short len)
     tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.retryCount++;         // Increase sequence
     tnfsPacket.command = 0x21;       // READ
-    tnfsPacket.data[0] = fid;        // returned file descriptor
+    tnfsPacket.data[0] = (byte)fid;  // returned file descriptor
     tnfsPacket.data[1] = len & 0xFF; // len bytes
     tnfsPacket.data[2] = len >> 8;   //
 
@@ -1273,7 +1277,7 @@ LSEEK - Seeks to a new position in a file - Command 0x25
   to make a calculation to implement SEEK_CUR correctly since the server's
   file pointer will be wherever the last read block made it end up.
 */
-bool tnfs_seek(TNFSImpl *F, byte fid, long offset)
+bool tnfs_seek(TNFSImpl *F, int fid, long offset)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -1293,7 +1297,7 @@ bool tnfs_seek(TNFSImpl *F, byte fid, long offset)
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
     tnfsPacket.command = 0x25; // LSEEK
-    tnfsPacket.data[0] = fid;
+    tnfsPacket.data[0] = (byte)fid;
     tnfsPacket.data[1] = 0x00; // SEEK_SET
     tnfsPacket.data[2] = offsetVal[3];
     tnfsPacket.data[3] = offsetVal[2];
