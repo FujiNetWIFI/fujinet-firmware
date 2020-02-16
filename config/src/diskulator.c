@@ -580,7 +580,7 @@ void diskulator_host(void)
 void diskulator_select(void)
 {
   unsigned char num_entries;
-  unsigned char selector_done=false;
+  unsigned char selector_done;
   unsigned char e;
   unsigned char k;
 
@@ -600,7 +600,7 @@ void diskulator_select(void)
 
   screen_puts( 0,21,"ret PICK esc ABORT");
   screen_puts(20,21,"                  ");
-
+  
   while(1)
     {
       // Open Dir
@@ -649,6 +649,8 @@ void diskulator_select(void)
       siov();
       
       e=0;
+      bar_clear();
+      bar_show(e+3);
       while (selector_done==false)
 	{
 	  if (kbhit())
@@ -670,6 +672,7 @@ void diskulator_select(void)
 	      selector_done=true;
 	      memset(path,0,sizeof(path));
 	      bar_set_color(0x97);
+	      OS.ch=0xFF;
 	      return;
 	    case 0x9B: // Enter
 	      selector_done=true;
@@ -753,6 +756,7 @@ void diskulator_drive(void)
 	  break;
 	case 0x1B: // ESC
 	  drive_done=true;
+	  OS.ch=0xFF;
 	  break;
 	case 0x31:
 	case 0x32:
@@ -791,6 +795,7 @@ void diskulator_drive(void)
 	  diskulator_mount_device(c,o);
 	drive_slot_abort:
 	  drive_done=true;
+	  OS.ch=0xFF;
 	  break;
 	}
       if (k>0)
