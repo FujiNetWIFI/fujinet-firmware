@@ -71,7 +71,7 @@
 _reloc_begin:
 
 functab:
-	.byte 9			; (0) exposing one function
+	.byte 9			; (0) exposing nine addresses - these are remapped
 	.addr init		; (1) driver init function
 	.addr cio_open - 1	; (3) cio stuff
 	.addr cio_close - 1	; (5)
