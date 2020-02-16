@@ -46,4 +46,9 @@ void tnfs_closedir(Header *hdr, Session *s, unsigned char *databuf, int datasz);
 /* create and remove directories */
 void tnfs_mkdir(Header *hdr, Session *s, unsigned char *databuf, int datasz);
 void tnfs_rmdir(Header *hdr, Session *s, unsigned char *databuf, int datasz);
+
+/* seek/telldir directory positioning */
+void tnfs_seekdir(Header *hdr, Session *s, unsigned char *databuf, int datasz);
+void tnfs_telldir(Header *hdr, Session *s, unsigned char *databuf, int datasz);
+
 #endif
