@@ -280,14 +280,18 @@ bool TNFSFileImpl::seek(uint32_t pos, SeekMode mode)
 
 void TNFSFileImpl::close()
 {
-  if (stats.isDir)
+  if (fid >= 0)
   {
-    tnfs_closedir(fs, fid);
+    if (stats.isDir)
+    {
+      tnfs_closedir(fs, fid);
+    }
+    else
+    {
+      tnfs_close(fs, fid, fn);
+    }
   }
-  else
-  {
-    tnfs_close(fs, fid, fn);
-  }
+  fid = -1;
 }
 
 const char *TNFSFileImpl::name() const
@@ -334,11 +338,11 @@ FileImplPtr TNFSFileImpl::openNextFile(const char *mode)
     // return fs->open(path, "r");
     tnfsStat_t fstats = tnfs_stat(fs, path); // get stats on next file
     // create file pointer without opening file - set FID=-2
-    if(fstats.isDir)
+    if (fstats.isDir)
     {
-    std::string P=std::string(path);
-    P.push_back('/');
-    strcpy(path,P.c_str());
+      std::string P = std::string(path);
+      P.push_back('/');
+      strcpy(path, P.c_str());
     }
     return std::make_shared<TNFSFileImpl>(fs, -2, path, fstats);
   }
