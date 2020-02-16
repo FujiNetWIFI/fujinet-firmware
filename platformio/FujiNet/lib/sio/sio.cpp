@@ -97,9 +97,9 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
   Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
 
-#ifdef ESP8266
+//#ifdef ESP8266
   delayMicroseconds(DELAY_T4);
-#endif
+//#endif
 
   if (sio_checksum(b, len) != ck)
   {
