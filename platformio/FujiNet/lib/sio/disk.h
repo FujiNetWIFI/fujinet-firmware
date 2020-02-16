@@ -5,6 +5,9 @@
 #include "sio.h"
 #include <FS.h>
 
+unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, unsigned short ss);
+unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sector_size);
+
 class sioDisk : public sioDevice
 {
 private:
@@ -12,6 +15,10 @@ private:
 
     byte sectorSize = 128;
     byte sector[256];
+
+    byte sectorCache[2560];
+    int firstCachedSector = 65535;
+    unsigned char max_cached_sectors = 19;
 
     struct
     {
@@ -35,13 +42,14 @@ private:
     void sio_status() override;
     void sio_process() override;
 
-    void derive_percom_block(unsigned short sectorSize, unsigned short numSectors);
+    void derive_percom_block(unsigned short numSectors);
     void sio_read_percom_block();
     void sio_write_percom_block();
     void dump_percom_block();
 
 public:
     void mount(File *f);
+    File *file();
 };
 
 #endif // guard

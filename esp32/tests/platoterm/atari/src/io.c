@@ -20,7 +20,7 @@ static uint8_t status[4];
 
 extern padPt TTYLoc;
 
-static unsigned char hostname[256]="irata.online:8005";
+static unsigned char hostname[256]="N1:TCP:irata.online:8005";
 
 uint8_t xoff_enabled=false;
 
@@ -35,7 +35,7 @@ void io_init(void)
   // Establish connection
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
-  OS.dcb.dcomnd='c';
+  OS.dcb.dcomnd='o';
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&hostname;
   OS.dcb.dtimlo=0x0f;
@@ -49,10 +49,6 @@ void io_init(void)
  */
 void io_send_byte(uint8_t b)
 {
-  OS.rtclok[0]=OS.rtclok[1]=OS.rtclok[2]=0;
-
-  if (OS.rtclok[2]<8) { }
-  
   status[0]=b;
   status[1]=status[2]=status[3]=status[4]=0;
   OS.dcb.ddevic=0x70;
@@ -61,8 +57,8 @@ void io_send_byte(uint8_t b)
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&status;
   OS.dcb.dtimlo=0x0f;
-  OS.dcb.dbyt=4;
-  OS.dcb.daux1=4;
+  OS.dcb.dbyt=1;
+  OS.dcb.daux1=1;
   OS.dcb.daux2=0;
   siov();
 }
@@ -72,10 +68,6 @@ void io_send_byte(uint8_t b)
  */
 void io_main(void)
 {
-  OS.rtclok[0]=OS.rtclok[1]=OS.rtclok[2]=0;
-
-  while (OS.rtclok[2]<16) { }
-  
   // Get # of bytes waiting
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
@@ -87,7 +79,10 @@ void io_main(void)
   OS.dcb.daux=0;
   siov();
 
-  if (status[0])
+  // These functions are all I needed to change to port over to the N: device.
+
+  
+  if (status[0]>0)
     {
       // Do a read into into recv buffer and ShowPLATO
       OS.dcb.ddevic=0x70;
@@ -95,9 +90,9 @@ void io_main(void)
       OS.dcb.dcomnd='r';
       OS.dcb.dstats=0x40;
       OS.dcb.dbuf=&recv_buffer;
-      OS.dcb.dbyt=status[0]+(status[1]*256);
+      OS.dcb.dbyt=status[0];
       OS.dcb.daux1=status[0];
-      OS.dcb.daux2=status[1];
+      OS.dcb.daux2=0;
       siov();
       ShowPLATO((padByte *)recv_buffer, status[0]);
     }
