@@ -28,7 +28,7 @@
 // #define DEBUG_SSID ""
 // #define DEBUG_PASSWORD ""
 
-// #define DEBUG_VERBOSE 1
+#define DEBUG_VERBOSE 1
 
 #ifdef ESP8266
 #define SIO_UART Serial
@@ -63,6 +63,13 @@ boolean longPressActive = false;
 #define DELAY_T3  1000
 #define DELAY_T4  850
 #define DELAY_T5  250
+
+int delay_T0 = DELAY_T0;
+int delay_T1 = DELAY_T1;
+int delay_T2 = DELAY_T2;
+int delay_T3 = DELAY_T3;
+int delay_T4 = DELAY_T4;
+int delay_T5 = DELAY_T5;
 
 bool hispeed = false;
 int command_frame_counter = 0;
@@ -347,7 +354,7 @@ void sio_ack()
 */
 void sio_complete()
 {
-  delayMicroseconds(DELAY_T5);
+  delayMicroseconds(delay_T5);
   SIO_UART.write('C');
 }
 
@@ -356,7 +363,7 @@ void sio_complete()
 */
 void sio_error()
 {
-  delayMicroseconds(DELAY_T5);
+  delayMicroseconds(delay_T5);
   SIO_UART.write('E');
 }
 
@@ -371,7 +378,7 @@ void sio_to_computer(byte* b, unsigned short len, bool err)
   byte ck = sio_checksum(b, len);
 
 #ifdef ESP8266
-  delayMicroseconds(DELAY_T5);
+  delayMicroseconds(delay_T5);
 #endif
 
   if (err == true)
@@ -423,7 +430,7 @@ byte sio_to_peripheral(byte* b, unsigned short len)
 #endif
 
 #ifdef ESP8266
-  delayMicroseconds(DELAY_T4);
+  delayMicroseconds(delay_T4);
 #endif
 
   if (sio_checksum(b, len) != ck)
@@ -437,6 +444,60 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   }
 
   return ck;
+}
+
+/**
+ * Set T0
+ */
+void sio_set_t0(void)
+{
+  delay_T0=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
+}
+
+/**
+ * Set T1
+ */
+void sio_set_t1(void)
+{
+  delay_T1=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
+}
+
+/**
+ * Set T2
+ */
+void sio_set_t2(void)
+{
+  delay_T2=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
+}
+
+/**
+ * Set T3
+ */
+void sio_set_t3(void)
+{
+  delay_T3=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
+}
+
+/**
+ * Set T4
+ */
+void sio_set_t4(void)
+{
+  delay_T4=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
+}
+
+/**
+ * Set T5
+ */
+void sio_set_t5(void)
+{
+  delay_T5=(cmdFrame.aux2*256)+cmdFrame.aux1;
+  sio_complete();
 }
 
 /**
@@ -1068,15 +1129,31 @@ void sio_read()
   else // TNFS ATR mounted and opened...
   {
     max_cached_sectors = (sectorSize[deviceSlot] == 256 ? 9 : 19);
-    if ((sectorNum > (firstCachedSector[deviceSlot] + max_cached_sectors)) || (sectorNum < firstCachedSector[deviceSlot])) // cache miss
+    if (sectorNum <= 3)
     {
+#ifdef DEBUG_VERBOSE
+      Debug_printf("First three sectors!\n");
+#endif
+      ss = 128;
+      offset = sectorNum;
+      offset *= 128;
+      offset -= 128;
+      offset += 16;
+      tnfs_seek(deviceSlot, offset);
+      tnfs_read(deviceSlot, ss);
+      s = &tnfsPacket.data[3];
+      d = &sector[0];
+      memcpy(d, s, ss);
+    }
+    else if ((sectorNum > (firstCachedSector[deviceSlot] + max_cached_sectors)) || (sectorNum < firstCachedSector[deviceSlot])) // cache miss
+    {
+#ifdef DEBUG_VERBOSE
+      Debug_printf("Cache miss! Sector #%d\n", sectorNum);
+#endif
       firstCachedSector[deviceSlot] = sectorNum;
       cacheOffset = 0;
 
-      if (sectorNum < 4)
-        ss = 128; // First three sectors are always single density
-      else
-        ss = sectorSize[deviceSlot];
+      ss = sectorSize[deviceSlot];
 
       offset = sectorNum;
       offset *= ss;
@@ -1105,10 +1182,7 @@ void sio_read()
     }
     else // cache hit, adjust offset
     {
-      if (sectorNum < 4)
-        ss = 128;
-      else
-        ss = sectorSize[deviceSlot];
+      ss = sectorSize[deviceSlot];
 
       cacheOffset = ((sectorNum - firstCachedSector[deviceSlot]) * ss);
 #ifdef DEBUG_VERBOSE
@@ -1148,6 +1222,7 @@ bool tnfs_mount(unsigned char hostSlot)
 
   while (retries < 5)
   {
+    start = millis();
     memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
 
     // Do not mount, if we already have a session ID, just bail.
@@ -1253,6 +1328,7 @@ bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
 
   while (retries < 5)
   {
+    start = millis();
     strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
@@ -1358,6 +1434,7 @@ bool tnfs_close(unsigned char deviceSlot)
 
   while (retries < 5)
   {
+    start = millis();
     strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
@@ -1432,6 +1509,7 @@ bool tnfs_opendir(unsigned char hostSlot)
 
   while (retries < 5)
   {
+    start = millis();
     tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
     tnfsPacket.retryCount++;  // increase sequence #
@@ -1495,6 +1573,7 @@ bool tnfs_readdir(unsigned char hostSlot)
 
   while (retries < 5)
   {
+    start = millis();
     tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
     tnfsPacket.retryCount++;  // increase sequence #
@@ -1552,6 +1631,7 @@ bool tnfs_closedir(unsigned char hostSlot)
 
   while (retries < 5)
   {
+    start = millis();
     tnfsPacket.session_idl = tnfsSessionIDs[hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[hostSlot].session_idh;
     tnfsPacket.retryCount++;  // increase sequence #
@@ -1609,6 +1689,7 @@ bool tnfs_write(unsigned char deviceSlot, unsigned short len)
 
   while (retries < 5)
   {
+    start = millis();
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
     tnfsPacket.retryCount++;  // Increase sequence
@@ -1739,6 +1820,7 @@ bool tnfs_read(unsigned char deviceSlot, unsigned short len)
 
   while (retries < 5)
   {
+    start = millis();
     tnfsPacket.session_idl = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idl;
     tnfsPacket.session_idh = tnfsSessionIDs[deviceSlots.slot[deviceSlot].hostSlot].session_idh;
     tnfsPacket.retryCount++;  // Increase sequence
@@ -1825,6 +1907,7 @@ bool tnfs_seek(unsigned char deviceSlot, long offset)
 
   while (retries < 5)
   {
+    start = millis();
     offsetVal[0] = (int)((offset & 0xFF000000) >> 24 );
     offsetVal[1] = (int)((offset & 0x00FF0000) >> 16 );
     offsetVal[2] = (int)((offset & 0x0000FF00) >> 8 );
@@ -2001,6 +2084,13 @@ void setup()
   cmdPtr[0xE9] = sio_disk_image_umount;
   cmdPtr[0xE8] = sio_get_adapter_config;
   cmdPtr[0xE7] = sio_new_disk;
+  cmdPtr[0xB0] = sio_set_t0;
+  cmdPtr[0xB1] = sio_set_t1;
+  cmdPtr[0xB2] = sio_set_t2;
+  cmdPtr[0xB3] = sio_set_t3;
+  cmdPtr[0xB4] = sio_set_t4;
+  cmdPtr[0xB5] = sio_set_t5;
+  
 
   // Go ahead and flush anything out of the serial port
   sio_flush();
@@ -2020,19 +2110,19 @@ void handle_hardkeys()
       longPressActive = true;
       // long press detected
 #ifdef ESP32
-      if(bt_mode)
+      if (bt_mode)
       {
-          bt_mode = false;
-          SerialBT.end();
-          SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
-          sio_led(false);
+        bt_mode = false;
+        SerialBT.end();
+        SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
+        sio_led(false);
       }
       else
       {
-          bt_mode = true;
-          SerialBT.begin("ATARI FUJINET");
-          SIO_UART.updateBaudRate(BT_BAUDRATE);
-          sio_led(true);
+        bt_mode = true;
+        SerialBT.begin("ATARI FUJINET");
+        SIO_UART.updateBaudRate(BT_BAUDRATE);
+        sio_led(true);
       }
 #endif
     }
@@ -2062,7 +2152,7 @@ void loop()
   handle_hardkeys();
 
 #ifdef ESP32
-  if(bt_mode)
+  if (bt_mode)
   {
     if (SIO_UART.available()) {
       SerialBT.write(SIO_UART.read());
@@ -2081,7 +2171,7 @@ void loop()
     memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame.
 
 #ifdef ESP8266
-    delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
+    delayMicroseconds(delay_T0); // computer is waiting for us to notice.
 #endif
 
     // read cmd frame
@@ -2094,12 +2184,12 @@ void loop()
     if (ck == cmdFrame.cksum)
     {
 #ifdef ESP8266
-      delayMicroseconds(DELAY_T1);
+      delayMicroseconds(delay_T1);
 #endif
       // Wait for CMD line to raise again
       while (digitalRead(PIN_CMD) == LOW) yield();
 #ifdef ESP8266
-      delayMicroseconds(DELAY_T2);
+      delayMicroseconds(delay_T2);
 #endif
       if (sio_valid_device_id())
       {
@@ -2111,7 +2201,7 @@ void loop()
         {
           sio_ack();
 #ifdef ESP8266
-          delayMicroseconds(DELAY_T3);
+          delayMicroseconds(delay_T3);
 #endif
           cmdPtr[cmdFrame.comnd]();
         }

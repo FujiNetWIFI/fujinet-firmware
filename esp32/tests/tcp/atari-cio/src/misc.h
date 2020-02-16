@@ -2,6 +2,11 @@
 #ifndef MISC_H
 #define MISC_H
 
+// EOL modes
+#define CR 1
+#define LF 2
+#define CRLF 3
+
 /**
  * Save aux values
  */

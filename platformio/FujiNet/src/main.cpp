@@ -33,6 +33,9 @@ updated sio_read() to use new sectorSize and sio_to_computer() features - marked
 #include "tnfs.h"
 #include "printer.h"
 #include "modem.h"
+#include "fuji.h"
+
+//#include <WiFiUdp.h>
 
 #define PRINTMODE PDF
 
@@ -49,18 +52,23 @@ updated sio_read() to use new sectorSize and sio_to_computer() features - marked
 #include <WiFi.h>
 #endif
 
-#define TNFS_SERVER "192.168.1.12"
-#define TNFS_PORT 16384
+//#define TNFS_SERVER "192.168.1.12"
+//#define TNFS_PORT 16384
+
+
 
 atari820 sioP;
-File atr[2];
 File paperf;
-File tnfs;
-sioDisk sioD[2];
+
 sioModem sioR;
+
+sioFuji theFuji;
 
 WiFiServer server(80);
 WiFiClient client;
+#ifdef DEBUG_N
+WiFiClient wifiDebugClient;
+#endif
 
 void httpService()
 {
@@ -171,47 +179,55 @@ void httpService()
 
 void setup()
 {
+
+  // connect to wifi but DO NOT wait for it
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
+
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
   BUG_UART.println();
-  BUG_UART.println("atariwifi started");
+  BUG_UART.println("FujiNet PlatformIO Started");
 #endif
-
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(10);
-  }
-  BUG_UART.println(WiFi.localIP());
-  server.begin();
-
   SPIFFS.begin();
 
+  theFuji.begin();
+#ifdef DEBUG_S
+  BUG_UART.println("/autorun.atr for FujiNet device");
+#endif
+
+  SPIFFS.begin();
+  atr[0] = SPIFFS.open("/file1.atr", "r+");
+  sioD[0].mount(&atr[0]);
+#ifdef DEBUG_S
+  BUG_UART.println("/file1.atr");
+#endif
+  SIO.addDevice(&sioD[0], 0x31 + 0);
+
+  SIO.addDevice(&theFuji, 0x70); // the FUJINET!
+
   SIO.addDevice(&sioR, 0x50); // R:
+
   SIO.addDevice(&sioP, 0x40); // P:
   paperf = SPIFFS.open("/paper", "w+");
   sioP.initPrinter(&paperf, PRINTMODE);
 
-  for (int i = 0; i < 1; i++)
+  if (WiFi.status() == WL_CONNECTED)
   {
-    String fname = String("/file") + String(i) + String(".atr");
 #ifdef DEBUG_S
-    BUG_UART.println(fname);
+    BUG_UART.println(WiFi.localIP());
 #endif
-    atr[i] = SPIFFS.open(fname, "r+");
-    sioD[i].mount(&atr[i]);
-    SIO.addDevice(&sioD[i], 0x31 + i);
+    server.begin(); // Start the web server
+    UDP.begin(16384);
   }
-
-  TNFS.begin(TNFS_SERVER, TNFS_PORT);
-  tnfs = TNFS.open("/A820.ATR", "r+");
+/*   TNFS[0].begin(TNFS_SERVER, TNFS_PORT);
+  atr[1] = TNFS[0].open("/A820.ATR", "r+");
 #ifdef DEBUG_S
   BUG_UART.println("tnfs/A820.ATR");
 #endif
-  sioD[1].mount(&tnfs);
+  sioD[1].mount(&atr[1]);
   SIO.addDevice(&sioD[1], 0x31 + 1);
-
-/*
+ */
+  /*
   if(!SD.begin(5))
   {
 #ifdef DEBUG
@@ -270,10 +286,30 @@ void setup()
 #endif
 
   SIO.setup();
+#ifdef DEBUG
+  Debug_print("SIO Voltage: ");
+  Debug_println(SIO.sio_volts());
+#endif
+
+  void sio_flush();
 }
 
 void loop()
 {
+#ifdef DEBUG_N
+  /* Connect to debug server if we aren't and WiFi is connected */
+  if (!wifiDebugClient.connected() && WiFi.status() == WL_CONNECTED)
+  {
+    wifiDebugClient.connect(DEBUG_HOST, 6502);
+    wifiDebugClient.println("FujiNet PlatformIO");
+  }
+#endif
+
+  if (WiFi.status() == WL_CONNECTED)
+    digitalWrite(PIN_LED1, LOW);
+  else
+    digitalWrite(PIN_LED1, HIGH);
+
   SIO.service();
   httpService();
 }

@@ -238,6 +238,12 @@ char totalSSIDs;
 WiFiClient sio_clients[8];
 WiFiServer* sio_servers[8];
 HTTPClient http_clients[8];
+unsigned char eol_mode[8];
+unsigned char eol_skip_byte[8] = {false, false, false, false, false, false, false, false};
+unsigned char tcp_input_buffer[8][256];
+unsigned char tcp_input_buffer_len[8];
+unsigned char tcp_output_buffer[8][256];
+unsigned char tcp_output_buffer_len[8];
 
 // DEBUGGING MACROS /////////////////////////////////////////////////////////////////////////
 #ifdef DEBUG_S
@@ -413,9 +419,7 @@ byte sio_to_peripheral(byte* b, unsigned short len)
   Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
 
-#ifdef ESP8266
   delayMicroseconds(DELAY_T4);
-#endif
 
   if (sio_checksum(b, len) != ck)
   {
@@ -441,11 +445,47 @@ void strip_eol(byte* s, int len)
 }
 
 /**
+   Set EOL mode
+   0 = No translation
+   1 = CR/LF = EOL (skip byte)
+   2 = LF = EOL
+   3 = CR = EOL
+*/
+void set_eol_mode()
+{
+  unsigned char device = cmdFrame.devic - 0x70;
+
+  if ((cmdFrame.aux2 & 2) && (cmdFrame.aux2 & 4))
+    eol_mode[device] = 1;
+  else if (cmdFrame.aux2 & 2)
+    eol_mode[device] = 2;
+  else if (cmdFrame.aux2 & 4)
+    eol_mode[device] = 3;
+  else
+    eol_mode[device] = 0;
+}
+
+/**
+   Clear input buffer
+*/
+void clear_input_buffer(byte device)
+{
+  memset(tcp_input_buffer[device], 0x00, sizeof(tcp_input_buffer[device]));
+  tcp_input_buffer_len[device] = 0;
+}
+
+
+/**
    Open TCP (calls the below functions)
 */
 void sio_tcp_open()
 {
-  if (cmdFrame.aux2 == 1)
+  unsigned char device = cmdFrame.devic - 0x70;
+
+  clear_input_buffer(device);
+  set_eol_mode();
+
+  if (cmdFrame.aux2 & 1)
     sio_tcp_open_server();
   else
     sio_tcp_open_client();
@@ -539,6 +579,8 @@ void sio_tcp_close()
 {
   unsigned char device = cmdFrame.devic - 0x70;
 
+  clear_input_buffer(device);
+
   sio_clients[device].stop();
   sio_complete();
 }
@@ -550,13 +592,63 @@ void sio_tcp_read()
 {
   unsigned char device = cmdFrame.devic - 0x70;
   int req_len = cmdFrame.aux1;
-  int l;
   bool err = false;
 
-  l = sio_clients[device].read((byte *)&sector, req_len);
+  if (tcp_input_buffer_len[device] == 0)
+    fill_tcp_input_buffer(device); // Try to fill input buffer, if empty.
 
-  sio_to_computer((byte *)&sector, req_len, err);
+  if (req_len > tcp_input_buffer_len[device])
+    err = true;
+
+  tcp_input_buffer_len[device] -= req_len;
+
+  sio_to_computer((byte *)&tcp_input_buffer[device], req_len, err);
   memset(&sector, 0x00, sizeof(sector));
+}
+
+/**
+   Clear output buffer
+*/
+void clear_output_buffer(byte device)
+{
+  memset(tcp_output_buffer[device], 0x00, sizeof(tcp_output_buffer[device]));
+  tcp_output_buffer_len[device] = 0;
+}
+
+/**
+   Fill TCP output buffer
+*/
+void fill_tcp_output_buffer(byte device, byte req_len)
+{
+  clear_output_buffer(device);
+
+  for (int i = 0; i < req_len; i++)
+  {
+    if (sector[i] == 0x9B)
+    {
+      switch (eol_mode[device])
+      {
+        case 0: // EOL
+          tcp_output_buffer[device][tcp_output_buffer_len[device]++] = 0x9B;
+          break;
+        case 1: // CRLF
+          tcp_output_buffer[device][tcp_output_buffer_len[device]++] = 0x0D;
+          tcp_output_buffer[device][tcp_output_buffer_len[device]++] = 0x0A;
+          break;
+        case 2: // LF
+          tcp_output_buffer[device][tcp_output_buffer_len[device]++] = 0x0A;
+          break;
+        case 3: // CR
+          tcp_output_buffer[device][tcp_output_buffer_len[device]++] = 0x0D;
+          break;
+      }
+    }
+    else
+    {
+      // Pass rest through.
+      tcp_output_buffer[device][tcp_output_buffer_len[device]++] = sector[i];
+    }
+  }
 }
 
 /**
@@ -573,14 +665,64 @@ void sio_tcp_write()
 
   if (sio_checksum((byte *)&sector, req_len))
   {
-    int l = sio_clients[device].write((byte *)&sector, req_len);
-    if (l < req_len)
+    fill_tcp_output_buffer(device, req_len);
+    int l = sio_clients[device].write((byte *)&tcp_output_buffer[device], tcp_output_buffer_len[device]);
+
+    tcp_output_buffer_len[device] -= l;
+
+    if (l < tcp_output_buffer_len[device])
       sio_error();
     else
       sio_complete();
   }
   else
     sio_error();
+}
+
+/**
+   Fill TCP input buffer
+*/
+void fill_tcp_input_buffer(byte device)
+{
+  int l, a;
+
+  if (!sio_clients[device].connected())
+    return;
+
+  a = sio_clients[device].available();
+
+  if (a == 0)
+    return;
+
+  if (a > 255) a = 255;
+
+  l = sio_clients[device].read((byte *)&sector, a);
+
+  for (int i = 0; i < l; i++)
+  {
+    if ((sector[i] == 0x0a) || (sector[i] == 0x0d))
+    {
+      // CR or LF found, process.
+      if (eol_skip_byte[device] == false)
+      {
+        if (eol_mode[device] == 1) // CR/LF
+          eol_skip_byte[device] = true; // skip next CR or LF.
+        tcp_input_buffer[device][tcp_input_buffer_len[device]++] = 0x9B; // emit EOL.
+      }
+      else // eol_skip_byte[device]==true
+        eol_skip_byte[device] = false;
+    }
+    else
+    {
+      // Pass through
+      tcp_input_buffer[device][tcp_input_buffer_len[device]++] = sector[i];
+    }
+  }
+
+#ifdef DEBUG
+  Debug_printf(" l = %d\n tcp_input_buffer_len = %d\n", l, tcp_input_buffer_len[device]);
+#endif
+
 }
 
 /**
@@ -647,34 +789,29 @@ void sio_tcp_status()
     status[2] = adapterConfig.dnsIP[2];
     status[3] = adapterConfig.dnsIP[3];
   }
+  else if (cmdFrame.aux1 == 6) // remote IP
+  {
+    if (sio_clients[device].connected())
+    {
+      status[0] = sio_clients[device].remoteIP()[0];
+      status[1] = sio_clients[device].remoteIP()[1];
+      status[2] = sio_clients[device].remoteIP()[2];
+      status[3] = sio_clients[device].remoteIP()[3];
+    }
+    else
+      status[0] = status[1] = status[2] = status[3] = 0;
+  }
   else // aux1 == 0
   {
-    status[0] = ((sio_clients[device].available() > 255) ? 255 : sio_clients[device].available());
+    if (tcp_input_buffer_len[device] == 0)
+      fill_tcp_input_buffer(device);
+
+    status[0] = tcp_input_buffer_len[device];
     status[1] = (sio_servers[device] != NULL ? sio_servers[device]->hasClient() : false);
     status[2] = sio_clients[device].connected(); // reserved
     status[3] = 0x00; // reserved
   }
   sio_to_computer((byte *)&status, sizeof(status), err);
-}
-
-/**
-   Listen for incoming connections
-*/
-void sio_tcp_listen()
-{
-  byte device = cmdFrame.devic - 0x70;
-  int port = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
-
-  if (sio_servers[device] == NULL)
-  {
-    sio_servers[device] = new WiFiServer(port);
-    sio_complete();
-  }
-  else
-  {
-    // Could not bind to port.
-    sio_error();
-  }
 }
 
 /**
@@ -684,6 +821,9 @@ void sio_tcp_accept()
 {
   byte device = cmdFrame.devic - 0x70;
   bool err = false;
+
+  set_eol_mode();
+  clear_input_buffer(device);
 
   sio_clients[device] = sio_servers[device]->available();
 
@@ -712,6 +852,14 @@ void sio_tcp_unlisten()
 void sio_new_disk()
 {
   byte ck = sio_to_peripheral(newDisk.rawData, sizeof(newDisk));
+
+#ifdef DEBUG_VERBOSE
+  Debug_printf("numSectors: %d\n",newDisk.numSectors);
+  Debug_printf("sectorSize: %d\n",newDisk.sectorSize);
+  Debug_printf("hostSlot: %d\n",newDisk.hostSlot);
+  Debug_printf("deviceSlot: %d\n",newDisk.deviceSlot);
+  Debug_printf("filename: %s\n",newDisk.filename);
+#endif
 
   if (ck == sio_checksum(newDisk.rawData, sizeof(newDisk)))
   {
@@ -2243,7 +2391,6 @@ void setup()
   cmdPtr['r'] = sio_tcp_read;
   cmdPtr['s'] = sio_tcp_status;
   cmdPtr['w'] = sio_tcp_write;
-  cmdPtr['l'] = sio_tcp_listen;
   cmdPtr['a'] = sio_tcp_accept;
   cmdPtr['u'] = sio_tcp_unlisten;
   cmdPtr[0xFD] = sio_net_scan_networks;

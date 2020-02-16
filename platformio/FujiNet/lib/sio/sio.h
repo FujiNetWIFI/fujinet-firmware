@@ -6,7 +6,6 @@
 #include "LinkedList.h"
 
 // pin configurations
-// esp8266
 #ifdef ESP_8266
 #define SIO_UART Serial
 #define PIN_LED 2
@@ -15,7 +14,12 @@
 #define PIN_MTR 16
 #define INPUT_PULLDOWN INPUT_PULLDOWN_16
 #define PIN_CMD 12
-// esp32
+#define PIN_CKI 14
+//#define PIN_CKO         2
+#define DELAY_T0 750
+#define DELAY_T1 650
+#define DELAY_T2 0
+#define DELAY_T3 1000
 #elif defined(ESP_32)
 #define SIO_UART Serial2
 #define PIN_INT 26
@@ -24,12 +28,19 @@
 #define PIN_CMD 21
 #define PIN_LED1 2
 #define PIN_LED2 4
+#define PIN_CKO 32
+#define PIN_CKI 27
+#define PIN_SIO5V 35
 #endif
 
-#define DELAY_T5 1500
+#define DELAY_T4 850
+#define DELAY_T5 250
 #define READ_CMD_TIMEOUT 12
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
+
+#define ADDR_R 0x50
+#define ADDR_P 0x40
 
 union cmdFrame_t {
    struct
@@ -45,9 +56,12 @@ union cmdFrame_t {
 
 //helper functions
 byte sio_checksum(byte *chunk, int length);
+void sio_flush();
 
 // class def'ns
-class sioBus; // declare early so can be friend
+class sioModem; // declare here so can reference it, but define in modem.h
+class sioFuji;  // declare here so can reference it, but define in fuji.h
+class sioBus;   // declare early so can be friend
 class sioDevice
 {
 protected:
@@ -68,7 +82,7 @@ protected:
    void sio_error();
    virtual void sio_status();
    virtual void sio_process();
-  
+
 public:
    int id() { return _devnum; };
 };
@@ -79,6 +93,8 @@ private:
    LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
    unsigned long cmdTimer = 0;
    sioDevice *activeDev = nullptr;
+   sioModem *modemDev = nullptr;
+   sioFuji *fujiDev = nullptr;
 
    void sio_led(bool onOff);
 
@@ -91,6 +107,9 @@ public:
    void addDevice(sioDevice *p, int N);
    void remDevice(sioDevice *p);
    sioDevice *device(int i);
+#ifdef ESP32
+   int sio_volts();
+#endif
 };
 
 extern sioBus SIO;
