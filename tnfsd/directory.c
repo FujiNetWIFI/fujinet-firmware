@@ -227,6 +227,30 @@ void tnfs_readdir(Header *hdr, Session *s, unsigned char *databuf, int datasz)
 	}
 }
 
+/* Seek to specific directory entry # */
+void tnfs_seekdir(Header *hdr, Session *s, unsigned char *databuf, int datasz)
+{
+        long pos;
+  
+	if(datasz != 2 || 
+	  *databuf > MAX_DHND_PER_CONN || 
+	  s->dhnd[*databuf] == NULL)
+	{
+		hdr->status=TNFS_EBADF;
+		tnfs_send(s, hdr, NULL, 0);
+		return;
+	}
+
+	pos=(long *)databuf;
+	
+	
+}
+
+/* Seek to specific directory entry # */
+void tnfs_telldir(Header *hdr, Session *s, unsigned char *databuf, int datasz)
+{
+}
+  
 /* Close a directory */
 void tnfs_closedir(Header *hdr, Session *s, unsigned char *databuf, int datasz)
 {
