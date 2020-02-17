@@ -19,7 +19,7 @@
 #include <WiFiUdp.h>
 
 // Uncomment for Debug on 2nd UART (GPIO 2)
-#define DEBUG_S
+// #define DEBUG_S
 
 // Uncomment for Debug on TCP/6502 to DEBUG_HOST
 // Run:  `nc -vk -l 6502` on DEBUG_HOST
@@ -67,8 +67,8 @@ boolean longPressActive = false;
 bool hispeed = false;
 int command_frame_counter = 0;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x0A
-#define HISPEED_BAUDRATE 52640
+#define HISPEED_INDEX 0x00
+#define HISPEED_BAUDRATE 125984
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
 
@@ -1065,7 +1065,20 @@ void sio_read()
     atrConfig.seek(offset, SeekSet);
     atrConfig.read(sector, 128);
   }
-  else // TNFS ATR mounted and opened...
+  else if ((load_config == false) && (sectorNum <= 3))
+  {
+    ss = 128;
+    offset = sectorNum;
+    offset *= 128;
+    offset -= 128;
+    offset += 16;
+    tnfs_seek(deviceSlot, offset);
+    tnfs_read(deviceSlot, 128);
+    d = &sector[0];
+    s = &tnfsPacket.data[3];
+    memcpy(d, s, ss);
+  }
+  else if ((load_config == false) && (sectorNum >= 4))
   {
     max_cached_sectors = (sectorSize[deviceSlot] == 256 ? 9 : 19);
     if ((sectorNum > (firstCachedSector[deviceSlot] + max_cached_sectors)) || (sectorNum < firstCachedSector[deviceSlot])) // cache miss
@@ -1073,10 +1086,7 @@ void sio_read()
       firstCachedSector[deviceSlot] = sectorNum;
       cacheOffset = 0;
 
-      if (sectorNum < 4)
-        ss = 128; // First three sectors are always single density
-      else
-        ss = sectorSize[deviceSlot];
+      ss = sectorSize[deviceSlot];
 
       offset = sectorNum;
       offset *= ss;
@@ -1111,6 +1121,7 @@ void sio_read()
         ss = sectorSize[deviceSlot];
 
       cacheOffset = ((sectorNum - firstCachedSector[deviceSlot]) * ss);
+
 #ifdef DEBUG_VERBOSE
       Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
@@ -2020,19 +2031,19 @@ void handle_hardkeys()
       longPressActive = true;
       // long press detected
 #ifdef ESP32
-      if(bt_mode)
+      if (bt_mode)
       {
-          bt_mode = false;
-          SerialBT.end();
-          SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
-          sio_led(false);
+        bt_mode = false;
+        SerialBT.end();
+        SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
+        sio_led(false);
       }
       else
       {
-          bt_mode = true;
-          SerialBT.begin("ATARI FUJINET");
-          SIO_UART.updateBaudRate(BT_BAUDRATE);
-          sio_led(true);
+        bt_mode = true;
+        SerialBT.begin("ATARI FUJINET");
+        SIO_UART.updateBaudRate(BT_BAUDRATE);
+        sio_led(true);
       }
 #endif
     }
@@ -2062,7 +2073,7 @@ void loop()
   handle_hardkeys();
 
 #ifdef ESP32
-  if(bt_mode)
+  if (bt_mode)
   {
     if (SIO_UART.available()) {
       SerialBT.write(SIO_UART.read());
