@@ -13,7 +13,7 @@ class sioDisk : public sioDevice
 private:
     File *_file;
 
-    byte sectorSize = 128;
+    unsigned short sectorSize = 128;
     byte sector[256];
 
     byte sectorCache[2560];

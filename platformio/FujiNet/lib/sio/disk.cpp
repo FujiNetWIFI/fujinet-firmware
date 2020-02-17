@@ -82,10 +82,11 @@ void sioDisk::sio_read()
 
       offset += 16;
 
-#ifdef DEBUG_VERBOSE
+#ifdef DEBUG
       Debug_printf("firstCachedSector: %d\n", firstCachedSector);
       Debug_printf("cacheOffset: %d\n", cacheOffset);
       Debug_printf("offset: %d\n", offset);
+      Debug_printf("sectorSize: %d\n", sectorSize);
 #endif
 
       _file->seek(offset); //tnfs_seek(deviceSlot, offset);
@@ -108,7 +109,7 @@ void sioDisk::sio_read()
         ss = sectorSize;
 
       cacheOffset = ((sectorNum - firstCachedSector) * ss);
-#ifdef DEBUG_VERBOSE
+#ifdef DEBUG
       Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
     }
@@ -387,6 +388,9 @@ void sioDisk::mount(File *f)
   unsigned short num_sectors;
   byte buf[2];
 
+#ifdef DEBUG
+#endif
+
   // Get file and sector size from header
   f->seek(2);      //tnfs_seek(deviceSlot, 2);
   f->read(buf, 2); //tnfs_read(deviceSlot, 2);
@@ -395,10 +399,19 @@ void sioDisk::mount(File *f)
   newss = (256 * buf[1]) + buf[0];
   f->read(buf, 1); //tnfs_read(deviceSlot, 1);
   num_para_hi = buf[0];
-  this->sectorSize = newss;
+  sectorSize = newss;
   num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
   derive_percom_block(num_sectors);
   _file = f;
+  
+#ifdef DEBUG
+  Debug_println("mounting ATR to Disk");
+  Debug_printf("num_para: %d\n",num_para);
+  Debug_printf("sectorSize: %d\n",newss);
+  Debug_printf("num_sectors: %d\n",num_sectors);
+  Debug_println("mounted.");
+#endif
+
 }
 
 File *sioDisk::file()
