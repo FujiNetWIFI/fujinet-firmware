@@ -21,10 +21,13 @@ unsigned char c;
 unsigned char o;
 unsigned char files[16][36];
 unsigned char diskulator_done=false;
-unsigned char slot_done=true;
 unsigned char selected_host;
 unsigned char filter[32];
 unsigned char prev_consol;
+bool host_done=false;
+bool slot_done=true;
+bool selector_done=false;
+bool drive_done=false;
 
 extern unsigned char* video_ptr;
 extern unsigned char* dlist_ptr;
@@ -194,6 +197,54 @@ void diskulator_new_disk(unsigned char c, unsigned short ns, unsigned short ss)
 }
 
 /**
+ * Open Directory
+ */
+void diskulator_open_directory(unsigned char hs, char* p)
+{
+  // Open Dir
+  OS.dcb.ddevic=0x70;
+  OS.dcb.dunit=1;
+  OS.dcb.dcomnd=0xF7;
+  OS.dcb.dstats=0x80;
+  OS.dcb.dbuf=p;
+  OS.dcb.dtimlo=0x0F;
+  OS.dcb.dbyt=256;
+  OS.dcb.daux=hs;
+  siov();
+}
+
+/**
+ * Read next dir entry
+ */
+void diskulator_read_directory(unsigned char hs, char* p)
+{
+  memset(p,0,sizeof(path));
+  p[0]=0x7f;
+  OS.dcb.dcomnd=0xF6;
+  OS.dcb.dstats=0x40;
+  OS.dcb.dbuf=&path;
+  OS.dcb.dbyt=36;
+  OS.dcb.daux1=36;
+  OS.dcb.daux2=hs;
+  siov();
+}
+
+/**
+ * Close directory
+ */
+void diskulator_close_directory(unsigned char hs)
+{
+  // Close dir read
+  OS.dcb.dcomnd=0xF5;
+  OS.dcb.dstats=0x00;
+  OS.dcb.dbuf=NULL;
+  OS.dcb.dtimlo=0x01;
+  OS.dcb.dbyt=0;
+  OS.dcb.daux=hs;
+  siov();
+}
+
+/**
  * Mount all Hosts
  */
 void diskulator_mount_all_hosts(void)
@@ -248,14 +299,17 @@ void diskulator_mount_all_devices(void)
 /**
  * Enter a diskulator Host
  */
-void diskulator_host(void)
+bool diskulator_host(void)
 {
-  bool host_done=false;
   unsigned char k;
   char tmp_str[8];
   char disk_type;
   unsigned short ns;
   unsigned short ss;
+  bool ret=false;
+
+  host_done=false;
+  slot_done=true;
   
   screen_clear();
   bar_clear();
@@ -388,13 +442,17 @@ void diskulator_host(void)
 	      break;
 	    case 0x9B: // ENTER
 	      selected_host=c;
-	      
-	      // Write hosts
-	      diskulator_write_host_slots();
-	      
-	      // Mount host
-	      diskulator_mount_host(c);
-	      
+	      if (hostSlots.host[selected_host][0]!=0x00)
+		{
+		  // Write hosts
+		  diskulator_write_host_slots();
+		  
+		  // Mount host
+		  diskulator_mount_host(c);
+		  ret=true;
+		}
+	      else
+		ret=false;
 	      host_done=true;
 	      slot_done=true;
 	      break;
@@ -475,7 +533,7 @@ void diskulator_host(void)
 	      slot_done=true;
 	      host_done=false;
 	      goto rehosts;
-	    case 'j': // EJECT
+	    case 'e': // EJECT
 	    doeject:
 	      screen_puts(4,c+11,"Empty                               ");
 	      memset(deviceSlots.slot[c].file,0,sizeof(deviceSlots.slot[c].file));
@@ -572,21 +630,20 @@ void diskulator_host(void)
 	}      
       prev_consol=GTIA_READ.consol;
     }
+  return ret;
 }
 
 /**
  * Select an image
  */
-void diskulator_select(void)
+bool diskulator_select(void)
 {
   unsigned char num_entries;
-  unsigned char selector_done;
   unsigned char e;
   unsigned char k;
+  bool ret=false;
 
-  // If we select an empty host, bail back to host selection.
-  if (hostSlots.host[selected_host][0]==0x00)
-    return;
+  selector_done=false;
   
   POKE(0x60F,2);
   POKE(0x610,2);
@@ -600,95 +657,69 @@ void diskulator_select(void)
 
   screen_puts( 0,21,"ret PICK esc ABORT");
   screen_puts(20,21,"                  ");
-  
-  while(1)
+
+  diskulator_open_directory(selected_host,path);
+
+  while ((path[0]!=0x7F) || (num_entries<16))
     {
-      // Open Dir
-      OS.dcb.ddevic=0x70;
-      OS.dcb.dunit=1;
-      OS.dcb.dcomnd=0xF7;
-      OS.dcb.dstats=0x80;
-      OS.dcb.dbuf=&path;
-      OS.dcb.dtimlo=0x0F;
-      OS.dcb.dbyt=256;
-      OS.dcb.daux=selected_host;
-      siov();
-
-      // Read directory
-      while ((path[0]!=0x7F) || (num_entries<16))
+      diskulator_read_directory(selected_host,path);
+      if (path[0]=='.')
+	continue;
+      else if (path[0]==0x7F)
+	break;
+      else
 	{
-	  memset(path,0,sizeof(path));
-	  path[0]=0x7f;
-	  OS.dcb.dcomnd=0xF6;
-	  OS.dcb.dstats=0x40;
-	  OS.dcb.dbuf=&path;
-	  OS.dcb.dbyt=36;
-	  OS.dcb.daux1=36;
-	  OS.dcb.daux2=selected_host;
-	  siov();
-
-	  if (path[0]=='.')
-	    continue;
-	  else if (path[0]==0x7F)
-	    break;
-	  else
-	    {
-	      strcpy(files[num_entries],path);
-	      screen_puts(0,num_entries+2,path);
-	      num_entries++;
-	    }
-	}
-
-      // Close dir read
-      OS.dcb.dcomnd=0xF5;
-      OS.dcb.dstats=0x00;
-      OS.dcb.dbuf=NULL;
-      OS.dcb.dtimlo=0x01;
-      OS.dcb.dbyt=0;
-      OS.dcb.daux=selected_host;
-      siov();
-      
-      e=0;
-      bar_clear();
-      bar_show(e+3);
-      while (selector_done==false)
-	{
-	  if (kbhit())
-	    k=cgetc();
-	  
-	  switch(k)
-	    {
-	    case 0x1C: // Up
-	    case '-':
-	      if (e>0)
-		e--;
-	      break;
-	    case 0x1D: // Down
-	    case '=':
-	      if (e<num_entries)
-		e++;
-	      break;
-	    case 0x1B: // ESC
-	      selector_done=true;
-	      memset(path,0,sizeof(path));
-	      bar_set_color(0x97);
-	      OS.ch=0xFF;
-	      return;
-	    case 0x9B: // Enter
-	      selector_done=true;
-	      bar_set_color(0x97);
-	      memset(path,0,sizeof(path));
-	      strcpy(path,files[e]);
-	      return;
-	    }
-	  if (k>0)
-	    {
-	      bar_clear();
-	      bar_show(e+3);
-	      k=0;
-	    }
+	  strcpy(files[num_entries],path);
+	  screen_puts(0,num_entries+2,path);
+	  num_entries++;
 	}
     }
+
+  diskulator_close_directory(selected_host);
+  e=0;
+  bar_clear();
+  bar_show(e+3);
+  
+  while (selector_done==false)
+    {
+      if (kbhit())
+	k=cgetc();
+      
+      switch(k)
+	{
+	case 0x1C: // Up
+	case '-':
+	  if (e>0)
+	    e--;
+	  break;
+	case 0x1D: // Down
+	case '=':
+	  if (e<num_entries)
+	    e++;
+	  break;
+	case 0x1B: // ESC
+	  selector_done=true;
+	  memset(path,0,sizeof(path));
+	  bar_set_color(0x97);
+	  ret=false;
+	  break;
+	case 0x9B: // Enter
+	  selector_done=true;
+	  bar_set_color(0x97);
+	  memset(path,0,sizeof(path));
+	  strcpy(path,files[e]);
+	  ret=true;
+	  break;
+	}
+      if (k>0)
+	{
+	  bar_clear();
+	  bar_show(e+3);
+	  k=0;
+	}
+    }
+  
+  return ret;
 }
 
 /**
@@ -697,11 +728,8 @@ void diskulator_select(void)
 void diskulator_drive(void)
 {
   unsigned char c,k;
-  bool drive_done=false;
 
-  // If nothing is selected, simply return.
-  if ((path[0]==0x00) || (hostSlots.host[selected_host][0]==0x00))
-    return;
+  drive_done=false;
   
   POKE(0x60F,2);
   POKE(0x610,2);
@@ -756,7 +784,6 @@ void diskulator_drive(void)
 	  break;
 	case 0x1B: // ESC
 	  drive_done=true;
-	  OS.ch=0xFF;
 	  break;
 	case 0x31:
 	case 0x32:
@@ -795,7 +822,6 @@ void diskulator_drive(void)
 	  diskulator_mount_device(c,o);
 	drive_slot_abort:
 	  drive_done=true;
-	  OS.ch=0xFF;
 	  break;
 	}
       if (k>0)
@@ -812,6 +838,9 @@ void diskulator_drive(void)
  */
 void diskulator_run(void)
 {
+  bool host_selected=false;
+  bool disk_selected=false;
+  
   if (GTIA_READ.consol==0x04) // Option
     {
       diskulator_read_host_slots();
@@ -823,9 +852,15 @@ void diskulator_run(void)
   
   while (diskulator_done==false)
     {
-      diskulator_host();
-      diskulator_select();
-      diskulator_drive();
+      host_selected=diskulator_host();
+      if (host_selected==true)
+	{
+	  disk_selected=diskulator_select();
+	  if (disk_selected==true)
+	    {
+	      diskulator_drive();
+	    }
+	}
     }
   diskulator_boot();
 }
