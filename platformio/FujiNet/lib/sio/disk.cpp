@@ -49,61 +49,74 @@ void sioDisk::sio_read()
   byte *d;
   byte err = false;
 
-  max_cached_sectors = (sectorSize == 256 ? 9 : 19);
-  if ((sectorNum > (firstCachedSector + max_cached_sectors)) || (sectorNum < firstCachedSector)) // cache miss
+  if (sectorNum <= 3)
   {
-    firstCachedSector = sectorNum;
-    cacheOffset = 0;
-
-    if (sectorNum < 4)
-      ss = 128; // First three sectors are always single density
-    else
-      ss = sectorSize;
-
+    ss = 128;
     offset = sectorNum;
-    offset *= ss;
-    offset -= ss;
-
-    // Bias adjustment for 256 bytes
-    if (ss == 256)
-      offset -= 384;
-
+    offset *= 128;
+    offset -= 128;
     offset += 16;
-
-#ifdef DEBUG_VERBOSE
-    Debug_printf("firstCachedSector: %d\n", firstCachedSector);
-    Debug_printf("cacheOffset: %d\n", cacheOffset);
-    Debug_printf("offset: %d\n", offset);
-#endif
-
     _file->seek(offset); //tnfs_seek(deviceSlot, offset);
-
-    for (unsigned char i = 0; i < 10; i++)
-    {
-      _file->read(sector, 256);
-      //s = &sector[0]; // &tnfsPacket.data[3];
-      d = &sectorCache[cacheOffset];
-      memcpy(d, sector, 256);
-      cacheOffset += 256;
-    }
-    cacheOffset = 0;
+    _file->read(sector, ss); // tnfs_read(deviceSlot, 128);
+    //d = &sector[0];
+    //s = &tnfsPacket.data[3];
+    //memcpy(d, s, ss);
   }
-  else // cache hit, adjust offset
+  else if (sectorNum >= 4)
   {
-    if (sectorNum < 4)
-      ss = 128;
-    else
+    max_cached_sectors = (sectorSize == 256 ? 9 : 19);
+    if ((sectorNum > (firstCachedSector + max_cached_sectors)) || (sectorNum < firstCachedSector)) // cache miss
+    {
+      firstCachedSector = sectorNum;
+      cacheOffset = 0;
+
       ss = sectorSize;
 
-    cacheOffset = ((sectorNum - firstCachedSector) * ss);
-#ifdef DEBUG_VERBOSE
-    Debug_printf("cacheOffset: %d\n", cacheOffset);
-#endif
-  }
-  // d = &sector[0];
-  s = &sectorCache[cacheOffset];
-  memcpy(sector, s, ss);
+      offset = sectorNum;
+      offset *= ss;
+      offset -= ss;
 
+      // Bias adjustment for 256 bytes
+      if (ss == 256)
+        offset -= 384;
+
+      offset += 16;
+
+#ifdef DEBUG
+      Debug_printf("firstCachedSector: %d\n", firstCachedSector);
+      Debug_printf("cacheOffset: %d\n", cacheOffset);
+      Debug_printf("offset: %d\n", offset);
+      Debug_printf("sectorSize: %d\n", sectorSize);
+#endif
+
+      _file->seek(offset); //tnfs_seek(deviceSlot, offset);
+
+      for (unsigned char i = 0; i < 10; i++)
+      {
+        _file->read(sector, 256);
+        //s = &sector[0]; // &tnfsPacket.data[3];
+        d = &sectorCache[cacheOffset];
+        memcpy(d, sector, 256);
+        cacheOffset += 256;
+      }
+      cacheOffset = 0;
+    }
+    else // cache hit, adjust offset
+    {
+      if (sectorNum < 4)
+        ss = 128;
+      else
+        ss = sectorSize;
+
+      cacheOffset = ((sectorNum - firstCachedSector) * ss);
+#ifdef DEBUG
+      Debug_printf("cacheOffset: %d\n", cacheOffset);
+#endif
+    }
+    // d = &sector[0];
+    s = &sectorCache[cacheOffset];
+    memcpy(sector, s, ss);
+  }
   sio_to_computer((byte *)&sector, ss, err);
 }
 
@@ -375,6 +388,9 @@ void sioDisk::mount(File *f)
   unsigned short num_sectors;
   byte buf[2];
 
+#ifdef DEBUG
+#endif
+
   // Get file and sector size from header
   f->seek(2);      //tnfs_seek(deviceSlot, 2);
   f->read(buf, 2); //tnfs_read(deviceSlot, 2);
@@ -383,10 +399,19 @@ void sioDisk::mount(File *f)
   newss = (256 * buf[1]) + buf[0];
   f->read(buf, 1); //tnfs_read(deviceSlot, 1);
   num_para_hi = buf[0];
-  this->sectorSize = newss;
+  sectorSize = newss;
   num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
   derive_percom_block(num_sectors);
   _file = f;
+  
+#ifdef DEBUG
+  Debug_println("mounting ATR to Disk");
+  Debug_printf("num_para: %d\n",num_para);
+  Debug_printf("sectorSize: %d\n",newss);
+  Debug_printf("num_sectors: %d\n",num_sectors);
+  Debug_println("mounted.");
+#endif
+
 }
 
 File *sioDisk::file()
