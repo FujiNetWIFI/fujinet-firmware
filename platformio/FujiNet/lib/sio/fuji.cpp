@@ -10,9 +10,9 @@ TNFSFS TNFS[8]; // up to 8 TNFS servers
 // could make a list of 8 pointers and create New TNFS objects at mounting and point to them
 // might also need to make the FS pointers so that can use SD, SPIFFS, too
 
-File dir[8];
+File dir[8]; // maybe only need on dir file pointer?
 File atr[8];     // up to 8 disk drives
-sioDisk sioD[8]; //
+sioDisk sioD[8]; // use pointers and create objects as needed?
 
 void sioFuji::sio_status()
 {
@@ -98,7 +98,8 @@ void sioFuji::sio_net_get_wifi_status()
 void sioFuji::sio_tnfs_mount_host()
 {
     unsigned char hostSlot = cmdFrame.aux1;
-    //fileSystems[hostSlot]=new(TNFSFS); // first check for SD or SPIFFS or something else.
+    // first check for SD or SPIFFS or something else in hostSlots.host[hostSlot]
+    // fileSystems[hostSlot] = make_shared point of TNFSFS 
     //bool err = ((TNFSFS*)fileSystems[hostSlot])->begin(hostSlots.host[hostSlot], TNFS_PORT);
     bool err = TNFS[hostSlot].begin(hostSlots.host[hostSlot], TNFS_PORT);
     //bool err = tnfs_mount(hostSlot);
