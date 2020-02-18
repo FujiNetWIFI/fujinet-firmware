@@ -7,6 +7,11 @@ TNFSFS::TNFSFS() : FS(FSImplPtr(new TNFSImpl()))
 {
 }
 
+TNFSFS::~TNFSFS()
+{
+    tnfs_umount(_impl);    
+}
+
 bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::string userid, std::string password)
 {
     std::string mp;
