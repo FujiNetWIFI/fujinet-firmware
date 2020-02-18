@@ -227,18 +227,18 @@ void setup()
   sioD[1].mount(&atr[1]);
   SIO.addDevice(&sioD[1], 0x31 + 1);
  */
-  /*
+ 
   if(!SD.begin(5))
   {
 #ifdef DEBUG
     Debug_println("SD Card Mount Failed");
 #endif
     // Revert to SPIFFS
-    SPIFFS.begin();
-    atr[0] = SPIFFS.open("/autorun.atr", "r+");
-    sioD[0].mount(&atr[0]);
+    // SPIFFS.begin();
+    // atr[0] = SPIFFS.open("/autorun.atr", "r+");
+    // sioD[0].mount(&atr[0]);
   }
-  else
+ /* else
   {
     atr[0] = SD.open("/autorun.atr", "r+");
     if (!atr[0])
@@ -258,6 +258,7 @@ void setup()
       Debug_println("Mounted autorun.atr from SD Card");
 #endif
     }
+*/
 #ifdef DEBUG
     Debug_print("SD Card Type: ");
     switch (SD.cardType())
@@ -276,7 +277,7 @@ void setup()
         break;
     }
 #endif
-  }
+/*  }
   SIO.addDevice(&sioD[0], 0x31 + 0);
 */
 
