@@ -15,6 +15,7 @@
 #include <WiFi.h>
 #include <SPIFFS.h>
 #endif
+#include <SD.h>
 
 extern FS* fileSystems[8];
 extern TNFSFS TNFS[8];
