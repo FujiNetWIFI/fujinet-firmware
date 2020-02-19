@@ -49,6 +49,7 @@ private:
 
 public:
     void mount(File *f);
+    bool write_blank_atr(File *f, unsigned short sectorSize, unsigned short numSectors);
     File *file();
 };
 
