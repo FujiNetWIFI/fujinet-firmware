@@ -12,8 +12,8 @@ hacked      8. SD card support
 
 status:
 moved over everything from multilator-rev2.ino except sio new disk
-hacked in a special case for SD - set TNFS host as "SD"
-
+hacked in a special case for SD - set host as "SD" in the Atari config program
+*/
 
 #include <Arduino.h>
 
