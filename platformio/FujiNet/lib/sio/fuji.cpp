@@ -5,13 +5,14 @@
 // sioFuji theFuji;
 //sioDisk configDisk;
 
+FS *fileSystems[8];
 TNFSFS TNFS[8]; // up to 8 TNFS servers
 // could make a list of 8 pointers and create New TNFS objects at mounting and point to them
 // might also need to make the FS pointers so that can use SD, SPIFFS, too
 
-File dir[8];
+File dir[8];     // maybe only need on dir file pointer?
 File atr[8];     // up to 8 disk drives
-sioDisk sioD[8]; //
+sioDisk sioD[8]; // use pointers and create objects as needed?
 
 void sioFuji::sio_status()
 {
@@ -96,10 +97,20 @@ void sioFuji::sio_net_get_wifi_status()
 */
 void sioFuji::sio_tnfs_mount_host()
 {
+    bool err;
     unsigned char hostSlot = cmdFrame.aux1;
-    bool err = TNFS[hostSlot].begin(hostSlots.host[hostSlot], TNFS_PORT);
-    //bool err = tnfs_mount(hostSlot);
-
+    // first check for SD or SPIFFS or something else in hostSlots.host[hostSlot]
+    if (strcmp(hostSlots.host[hostSlot], "SD") == 0)
+    {
+        err = (SD.cardType() != CARD_NONE);
+        fileSystems[hostSlot] = &SD;
+    }
+    else
+    {
+        err = TNFS[hostSlot].begin(hostSlots.host[hostSlot], TNFS_PORT);
+        fileSystems[hostSlot] = &TNFS[hostSlot];
+    }
+    // fileSystems[hostSlot] = make_shared point of TNFSFS
     if (!err)
         sio_error();
     else
@@ -119,7 +130,8 @@ void sioFuji::sio_disk_image_mount()
         flag[1] = '+';
     }
 
-    atr[deviceSlot] = TNFS[deviceSlots.slot[deviceSlot].hostSlot].open(deviceSlots.slot[deviceSlot].file, flag);
+    //atr[deviceSlot] = TNFS[deviceSlots.slot[deviceSlot].hostSlot].open(deviceSlots.slot[deviceSlot].file, flag);
+    atr[deviceSlot] = fileSystems[deviceSlots.slot[deviceSlot].hostSlot]->open(deviceSlots.slot[deviceSlot].file, flag);
     //todo: implement what does FETCH mean?
     //bool opened = tnfs_open(deviceSlot, options, false);
     if (!atr[deviceSlot])
@@ -174,7 +186,8 @@ void sioFuji::sio_tnfs_open_directory()
 #endif
     }
 
-    dir[hostSlot] = TNFS[hostSlot].open(current_entry, "r");
+    dir[hostSlot] = fileSystems[hostSlot]->open(current_entry, "r");
+    //dir[hostSlot] = TNFS[hostSlot].open(current_entry, "r");
 
     if (dir[hostSlot])
         sio_complete();
@@ -379,9 +392,9 @@ void sioFuji::sio_process()
         sio_get_adapter_config();
         break;
     case 0xE7:
-        //sio_ack();
-        //sio_new_disk();
-        //break;
+    //sio_ack();
+    //sio_new_disk();
+    //break;
     default:
         sio_nak();
     }

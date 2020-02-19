@@ -516,48 +516,152 @@ tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
 }
 
 /*
+------------------------
+UMOUNT - Command ID 0x01
+------------------------
+  Format:
+  Standard header only, containing the connection ID to terminate, 0x00 as
+  the sequence number, and 0x01 as the command.
+
+  Example:
+  To UMOUNT the filesystem mounted with id 0xBEEF:
+
+  0xBEEF 0x00 0x01
+
+  The server responds with the standard header and a return code as byte 4.
+  The return code is 0x00 for OK. Example:
+
+  0xBEEF 0x00 0x01 0x00
+
+  On error, byte 4 is set to the error code, for example, for error 0x1F:
+
+  0xBEEF 0x00 0x01 0x1F
+*/
+bool tnfs_umount(FSImplPtr hostPtr)
+{
+ // tnfsSessionID_t sessionID = ((TNFSImpl)hostPtr)->sid();
+  std::string mp(hostPtr->mountpoint());
+
+  // extract the parameters
+  //host + sep + numstr + sep + lo + sep + hi + location + sep + userid + sep + password;
+  char host[36];
+  uint16_t port;
+  byte lo;
+  byte hi;
+  sscanf(mp.c_str(), "%s %hu %hhu %hhu ", host, &port, &lo, &hi);
+#ifdef DEBUG
+  Debug_println("Mounting TNFS Server:");
+  Debug_printf("host: %s\n", host);
+  Debug_printf("port: %hu\n", port);
+  Debug_printf("session id: %hhu %hhu\n", lo, hi);
+#endif
+
+  int start = millis();
+  int dur = millis() - start;
+  int c = 0;
+  unsigned char retries = 0;
+
+  while (retries < 5)
+  {
+    //strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
+    tnfsPacket.session_idl = lo;
+    tnfsPacket.session_idh = hi;
+    tnfsPacket.retryCount=0;   // reset sequence #
+    tnfsPacket.command = 0x01; // UMOUNT
+    
+    UDP.beginPacket(host, port);
+    UDP.write(tnfsPacket.rawData, c + 4);
+    UDP.endPacket();
+
+    while (dur < 5000)
+    {
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
+      {
+        int l = UDP.read(tnfsPacket.rawData, 516);
+#ifdef DEBUG_VERBOSE
+        Debug_print("Resp packet: ");
+        for (int i = 0; i < l; i++)
+        {
+          Debug_print(tnfsPacket.rawData[i], HEX);
+          Debug_print(" ");
+        }
+        Debug_println("");
+#endif // DEBUG_S
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
+          return true;
+        }
+        else
+        {
+// unsuccessful
+#ifdef DEBUG_VERBOSE
+          Debug_print("Error code #");
+          Debug_println(tnfsPacket.data[0], HEX);
+#endif /* DEBUG_S*/
+          return false;
+        }
+      }
+    }
+    // Otherwise, we timed out.
+    retries++;
+    //tnfsPacket.retryCount--;
+#ifdef DEBUG
+    Debug_println("tnfs_umount Timeout after 5000ms.");
+#endif /* DEBUG_S */
+  }
+#ifdef DEBUG
+  Debug_printf("tnfs_umount Failed\n");
+#endif
+  return false;
+}
+
+
+/*
 ----------------------------------
 OPEN - Opens a file - Command 0x29
 ----------------------------------
-Format: Standard header, flags, mode, then the null terminated filename.
-Flags are a bit field.
+  Format: Standard header, flags, mode, then the null terminated filename.
+  Flags are a bit field.
 
-The flags are:
-O_RDONLY        0x0001  Open read only
-O_WRONLY        0x0002  Open write only
-O_RDWR          0x0003  Open read/write
-O_APPEND        0x0008  Append to the file, if it exists (write only)
-O_CREAT         0x0100  Create the file if it doesn't exist (write only)
-O_TRUNC         0x0200  Truncate the file on open for writing
-O_EXCL          0x0400  With O_CREAT, returns an error if the file exists
+  The flags are:
+  O_RDONLY        0x0001  Open read only
+  O_WRONLY        0x0002  Open write only
+  O_RDWR          0x0003  Open read/write
+  O_APPEND        0x0008  Append to the file, if it exists (write only)
+  O_CREAT         0x0100  Create the file if it doesn't exist (write only)
+  O_TRUNC         0x0200  Truncate the file on open for writing
+  O_EXCL          0x0400  With O_CREAT, returns an error if the file exists
 
-The modes are the same as described by CHMOD (i.e. POSIX modes). These
-may be modified by the server process's umask. The mode only applies
-when files are created (if the O_CREAT flag is specified)
+  The modes are the same as described by CHMOD (i.e. POSIX modes). These
+  may be modified by the server process's umask. The mode only applies
+  when files are created (if the O_CREAT flag is specified)
 
-Examples: 
-Open a file called "/foo/bar/baz.bas" for reading:
+  Examples: 
+  Open a file called "/foo/bar/baz.bas" for reading:
 
-0xBEEF 0x00 0x29 0x0001 0x0000 /foo/bar/baz.bas 0x00
+  0xBEEF 0x00 0x29 0x0001 0x0000 /foo/bar/baz.bas 0x00
 
-Open a file called "/tmp/foo.dat" for writing, creating the file but
-returning an error if it exists. Modes set are S_IRUSR, S_IWUSR, S_IRGRP
-and S_IWOTH (read/write for owner, read-only for group, read-only for
-others):
+  Open a file called "/tmp/foo.dat" for writing, creating the file but
+  returning an error if it exists. Modes set are S_IRUSR, S_IWUSR, S_IRGRP
+  and S_IWOTH (read/write for owner, read-only for group, read-only for
+  others):
 
-0xBEEF 0x00 0x29 0x0102 0x01A4 /tmp/foo.dat 0x00
+  0xBEEF 0x00 0x29 0x0102 0x01A4 /tmp/foo.dat 0x00
 
-The server returns the standard header and a result code in response.
-If the operation was successful, the byte following the result code
-is the file descriptor:
+  The server returns the standard header and a result code in response.
+  If the operation was successful, the byte following the result code
+  is the file descriptor:
 
-0xBEEF 0x00 0x29 0x00 0x04 - Successful file open, file descriptor = 4
-0xBEEF 0x00 0x29 0x01 - File open failed with "permssion denied"
+  0xBEEF 0x00 0x29 0x00 0x04 - Successful file open, file descriptor = 4
+  0xBEEF 0x00 0x29 0x01 - File open failed with "permssion denied"
 
-(HISTORICAL NOTE: OPEN used to have command id 0x20, but with the
-addition of extra flags, the id was changed so that servers could
-support both the old style OPEN and the new OPEN)
- */
+  (HISTORICAL NOTE: OPEN used to have command id 0x20, but with the
+  addition of extra flags, the id was changed so that servers could
+  support both the old style OPEN and the new OPEN)
+*/
 
 //bool tnfs_open(unsigned char deviceSlot, unsigned char options, bool create)
 int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
