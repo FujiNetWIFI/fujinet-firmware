@@ -71,14 +71,10 @@ private:
 
 public:
     TNFSFS();
+    ~TNFSFS();
     bool begin(std::string host, uint16_t port=16384, std::string location="/", std::string userid="!", std::string password="!");
     size_t size();
     size_t free();
-    // bool opendir(String path);
-    // bool readdir(String  path);
-    // bool closedir(String  path);
-    // stat(const char * path);
-    // bool chmod(const char * path);
     void end();
 }; // class TNFSFS
 
