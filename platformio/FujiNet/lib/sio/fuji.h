@@ -15,9 +15,10 @@
 #include <WiFi.h>
 #include <SPIFFS.h>
 #endif
+#include <SD.h>
 
+extern FS* fileSystems[8];
 extern TNFSFS TNFS[8];
-//TNFSFS *hostSlots[8];
 extern File atr[8];     // up to 8 disk drives
 extern sioDisk sioD[8]; //
 
