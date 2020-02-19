@@ -56,7 +56,7 @@ void sioDisk::sio_read()
     offset *= 128;
     offset -= 128;
     offset += 16;
-    _file->seek(offset); //tnfs_seek(deviceSlot, offset);
+    _file->seek(offset);     //tnfs_seek(deviceSlot, offset);
     _file->read(sector, ss); // tnfs_read(deviceSlot, 128);
     //d = &sector[0];
     //s = &tnfsPacket.data[3];
@@ -403,15 +403,100 @@ void sioDisk::mount(File *f)
   num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
   derive_percom_block(num_sectors);
   _file = f;
-  
+
 #ifdef DEBUG
   Debug_println("mounting ATR to Disk");
-  Debug_printf("num_para: %d\n",num_para);
-  Debug_printf("sectorSize: %d\n",newss);
-  Debug_printf("num_sectors: %d\n",num_sectors);
+  Debug_printf("num_para: %d\n", num_para);
+  Debug_printf("sectorSize: %d\n", newss);
+  Debug_printf("num_sectors: %d\n", num_sectors);
   Debug_println("mounted.");
 #endif
+}
 
+bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short numSectors)
+{
+  union {
+    struct
+    {
+      unsigned char magic1;
+      unsigned char magic2;
+      unsigned char filesizeH;
+      unsigned char filesizeL;
+      unsigned char secsizeH;
+      unsigned char secsizeL;
+      unsigned char filesizeHH;
+      unsigned char res0;
+      unsigned char res1;
+      unsigned char res2;
+      unsigned char res3;
+      unsigned char res4;
+      unsigned char res5;
+      unsigned char res6;
+      unsigned char res7;
+      unsigned char flags;
+    };
+    unsigned char rawData[16];
+  } atrHeader;
+
+  unsigned long num_para = num_sectors_to_para(numSectors, sectorSize);
+  unsigned long offset=0;
+
+  // Write header
+  atrHeader.magic1 = 0x96;
+  atrHeader.magic2 = 0x02;
+  atrHeader.filesizeH = num_para & 0xFF;
+  atrHeader.filesizeL = (num_para & 0xFF00) >> 8;
+  atrHeader.filesizeHH = (num_para & 0xFF0000) >> 16;
+  atrHeader.secsizeH = sectorSize & 0xFF;
+  atrHeader.secsizeL = sectorSize >> 8;
+
+#ifdef DEBUG
+  Debug_printf("Write header\n");
+#endif
+  //memcpy(sector, atrHeader.rawData, sizeof(atrHeader.rawData));
+  offset += f->write(atrHeader.rawData, sizeof(atrHeader.rawData));
+  //tnfs_write(deviceSlot, sizeof(atrHeader.rawData));
+  //offset += sizeof(atrHeader.rawData);
+
+  // Write first three 128 byte sectors
+  memset(sector, 0x00, sizeof(sector));
+
+#ifdef DEBUG
+  Debug_printf("Write first three sectors\n");
+#endif
+
+  for (unsigned char i = 0; i < 3; i++)
+  {
+    //tnfs_write(deviceSlot, 128);
+    size_t out = f->write(sector, 128);
+    if (out != 128)
+    {
+#ifdef DEBUG
+      Debug_printf("Error writing sector %hhu\n", i);
+#endif
+      return false;
+    }
+    offset += 128;
+    numSectors--;
+  }
+
+#ifdef DEBUG
+  Debug_printf("Sparse Write the rest.\n");
+#endif
+  // Write the rest of the sectors via sparse seek
+  offset += (numSectors * sectorSize) - sectorSize;
+  //tnfs_seek(deviceSlot, offset);
+  //tnfs_write(deviceSlot, sectorSize);
+  f->seek(offset);
+  size_t out = f->write(sector, sectorSize);
+  if (out!=sectorSize)
+   {
+#ifdef DEBUG
+      Debug_println("Error writing last sector");
+#endif
+      return false;
+    }
+  return true; //fixme - JP fixed?
 }
 
 File *sioDisk::file()

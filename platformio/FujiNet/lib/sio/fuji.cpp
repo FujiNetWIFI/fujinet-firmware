@@ -352,23 +352,34 @@ void sioFuji::sio_new_disk()
         deviceSlots.slot[newDisk.deviceSlot].mode = 0x03; // R/W
         strcpy(deviceSlots.slot[newDisk.deviceSlot].file, newDisk.filename);
 
-        //if (tnfs_open(newDisk.deviceSlot, 0x03, true) == true) // create file
-        atr[newDisk.deviceSlot] = fileSystems[newDisk.hostSlot]->open(newDisk.filename, "r+");
-        if (atr[newDisk.deviceSlot]) // create file
+        if (fileSystems[newDisk.hostSlot]->exists(newDisk.filename))
         {
-            // todo: mount ATR file to sioD[deviceSlt]
 #ifdef DEBUG
-            Debug_printf("XXX Created file %s\n", deviceSlots.slot[newDisk.deviceSlot].file);
+            Debug_printf("XXX ATR file already exists.\n");
+#endif
+            sio_error();
+            return;
+        }
+        //if (tnfs_open(newDisk.deviceSlot, 0x03, true) == true) // create file
+        File f = fileSystems[newDisk.hostSlot]->open(newDisk.filename, "w");
+        if (f) // create file
+        {
+            atr[newDisk.deviceSlot] = f;
+// todo: mount ATR file to sioD[deviceSlt]
+#ifdef DEBUG
+            Debug_printf("Nice! Created file %s\n", deviceSlots.slot[newDisk.deviceSlot].file);
 #endif
             // todo: decide where to put write_blank_atr() and implement it
-            if (tnfs_write_blank_atr(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors) == true)
+            bool ok = sioD[newDisk.deviceSlot].write_blank_atr(&atr[newDisk.deviceSlot], newDisk.sectorSize, newDisk.numSectors);
+            if (ok)
             {
 #ifdef DEBUG
                 Debug_printf("XXX Wrote ATR data\n");
 #endif
                 // todo: make these calls for sioD ...
-                sectorSize[newDisk.deviceSlot] = newDisk.sectorSize;
-                derive_percom_block(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors);
+                //sioD[newDisk.deviceSlot].setSS(newDisk.sectorSize);
+                //derive_percom_block(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors); // this is called in sioDisk::mount()
+                sioD[newDisk.deviceSlot].mount(&atr[newDisk.deviceSlot]); // mount does all this
                 sio_complete();
                 return;
             }
@@ -399,6 +410,7 @@ void sioFuji::sio_new_disk()
         return;
     }
 }
+
 
 void sioFuji::sio_process()
 {
