@@ -60,6 +60,7 @@ size_t TNFSFS::size() { return 0; }
 size_t TNFSFS::free() { return 0; }
 void TNFSFS::end()
 {
+     tnfs_umount(_impl);  
     _impl->mountpoint(NULL);
 }
 
