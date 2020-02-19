@@ -411,7 +411,6 @@ void sioFuji::sio_new_disk()
     }
 }
 
-
 void sioFuji::sio_process()
 {
     //   cmdPtr[0xE7] = sio_new_disk;
@@ -482,9 +481,9 @@ void sioFuji::sio_process()
         sio_get_adapter_config();
         break;
     case 0xE7:
-    //sio_ack();
-    //sio_new_disk();
-    //break;
+        sio_ack();
+        sio_new_disk();
+        break;
     default:
         sio_nak();
     }
