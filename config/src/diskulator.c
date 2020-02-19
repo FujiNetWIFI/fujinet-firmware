@@ -615,6 +615,8 @@ bool diskulator_host(void)
 
 		  if (OS.dcb.dstats!=1)
 		    goto doeject;
+
+		  diskulator_write_device_slots();
 		  goto rehosts;
 		}
 	      else
