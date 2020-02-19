@@ -105,6 +105,11 @@ void sioFuji::sio_tnfs_mount_host()
         err = (SD.cardType() != CARD_NONE);
         fileSystems[hostSlot] = &SD;
     }
+    else if (strcmp(hostSlots.host[hostSlot], "SPIFFS") == 0)
+    {
+        err = true;
+        fileSystems[hostSlot] = &SPIFFS;
+    }
     else
     {
         err = TNFS[hostSlot].begin(hostSlots.host[hostSlot], TNFS_PORT);
