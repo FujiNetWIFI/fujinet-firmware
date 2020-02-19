@@ -59,7 +59,7 @@ protected:
     void sio_write_device_slots();        // 0xF1
     void sio_disk_image_umount();         //0xE9
     void sio_get_adapter_config();        // 0xE8
-    //   cmdPtr[0xE7] = sio_new_disk;
+    void sio_new_disk();                    //0xE7
     void wifi_led(bool onOff);
 
     void sio_process() override;

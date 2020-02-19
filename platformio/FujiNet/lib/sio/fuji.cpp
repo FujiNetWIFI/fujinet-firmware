@@ -327,6 +327,79 @@ void sioFuji::sio_get_adapter_config()
     sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);
 }
 
+/**
+   Make new disk and shove into device slot
+*/
+void sioFuji::sio_new_disk()
+{
+    union {
+        struct
+        {
+            unsigned short numSectors;
+            unsigned short sectorSize;
+            unsigned char hostSlot;
+            unsigned char deviceSlot;
+            char filename[36];
+        };
+        unsigned char rawData[42];
+    } newDisk;
+
+    byte ck = sio_to_peripheral(newDisk.rawData, sizeof(newDisk));
+
+    if (ck == sio_checksum(newDisk.rawData, sizeof(newDisk)))
+    {
+        deviceSlots.slot[newDisk.deviceSlot].hostSlot = newDisk.hostSlot;
+        deviceSlots.slot[newDisk.deviceSlot].mode = 0x03; // R/W
+        strcpy(deviceSlots.slot[newDisk.deviceSlot].file, newDisk.filename);
+
+        //if (tnfs_open(newDisk.deviceSlot, 0x03, true) == true) // create file
+        atr[newDisk.deviceSlot] = fileSystems[newDisk.hostSlot]->open(newDisk.filename, "r+");
+        if (atr[newDisk.deviceSlot]) // create file
+        {
+            // todo: mount ATR file to sioD[deviceSlt]
+#ifdef DEBUG
+            Debug_printf("XXX Created file %s\n", deviceSlots.slot[newDisk.deviceSlot].file);
+#endif
+            // todo: decide where to put write_blank_atr() and implement it
+            if (tnfs_write_blank_atr(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors) == true)
+            {
+#ifdef DEBUG
+                Debug_printf("XXX Wrote ATR data\n");
+#endif
+                // todo: make these calls for sioD ...
+                sectorSize[newDisk.deviceSlot] = newDisk.sectorSize;
+                derive_percom_block(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors);
+                sio_complete();
+                return;
+            }
+            else
+            {
+#ifdef DEBUG
+                Debug_printf("XXX ATR data write failed.\n");
+#endif
+                sio_error();
+                return;
+            }
+        }
+        else
+        {
+#ifdef DEBUG
+            Debug_printf("XXX Could not open file %s\n", deviceSlots.slot[newDisk.deviceSlot].file);
+#endif
+            sio_error();
+            return;
+        }
+    }
+    else
+    {
+#ifdef DEBUG
+        Debug_printf("XXX Bad Checksum.\n");
+#endif
+        sio_error();
+        return;
+    }
+}
+
 void sioFuji::sio_process()
 {
     //   cmdPtr[0xE7] = sio_new_disk;
