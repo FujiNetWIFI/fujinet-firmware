@@ -5,6 +5,14 @@
 // helper functions outside the class defintions
 
 /**
+ * Get requested buffer length from command frame
+ */
+unsigned short sioDevice::sio_get_aux()
+{
+    return (cmdFrame.aux2*256)+cmdFrame.aux1;
+}
+
+/**
    Drain data out of SIO port
 */
 void sio_flush()
