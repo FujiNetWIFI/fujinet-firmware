@@ -80,6 +80,7 @@ protected:
    //void sio_get_checksum();
    void sio_complete();
    void sio_error();
+   unsigned short sio_get_aux();
    virtual void sio_status();
    virtual void sio_process();
 

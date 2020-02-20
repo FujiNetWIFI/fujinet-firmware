@@ -7,39 +7,24 @@
 #include <ESP8266Wifi.h>
 #endif
 
-#ifdef ESP32
-#include <WiFi.h>
-#include <WiFiClient.h>
-#include <WiFiClientSecure.h>
-#include <WiFiServer.h>
-#include <HTTPClient.h>
-#endif
-
 #include "sio.h"
 
 #define NUM_DEVICES 8
-#define TCP_INPUT_BUFFER_SIZE 256
-#define TCP_OUTPUT_BUFFER_SIZE 256
+#define INPUT_BUFFER_SIZE 2048
+#define OUTPUT_BUFFER_SIZE 2048
 #define DEVICESPEC_SIZE 256
 
+#define OPEN_STATUS_DEVICE_ERROR 144
+#define OPEN_STATUS_INVALID_DEVICESPEC 165
 
 class sioNetwork : public sioDevice
 {
 
 private:
-    WiFiClient client;
-    WiFiServer* server;
-    HTTPClient* http_client;
-    char* tmp;
+    bool allocate_buffers();
 
-    unsigned char eol_mode;
-    bool eol_skip_byte;
-    unsigned char tcp_input_buffer[TCP_INPUT_BUFFER_SIZE];
-    unsigned char tcp_input_buffer_len;
-    unsigned char tcp_output_buffer[TCP_OUTPUT_BUFFER_SIZE];
-    unsigned char tcp_output_buffer_len;
-    union 
-    {
+protected:
+    union {
         struct
         {
             char device[4];
@@ -50,16 +35,30 @@ private:
         char rawData[DEVICESPEC_SIZE];
     } deviceSpec;
 
+    unsigned char err;
+    byte ck;
+    byte* rx_buf;
+    byte* tx_buf;
+
+    union {
+        struct 
+        {
+            unsigned char errorCode;
+            unsigned char reserved1;
+            unsigned char reserved2;
+            unsigned char reserved3;
+        } openStatus;
+        unsigned char rawData[4];
+    };
+
 public:
-    void open();
-    void close();
-    void read();
-    void write();
-    void status();
+    virtual void open();
+    virtual void close();
+    virtual void read();
+    virtual void write();
+    virtual void status();
 
-
-    bool parse_deviceSpec();
-
+    bool parse_deviceSpec(char *tmp);
 };
 
 #endif /* NETWORK_H */
