@@ -1,53 +1,6 @@
 #include "network.h"
 
 /**
- * Parse deviceSpecs of the format
- * Nx:PROTO:PATH:PORT or
- * Nx:PROTO:PORT
- */
-bool sioNetwork::parse_deviceSpec(char *tmp)
-{
-
-    char *p;
-    char i = 0;
-    char d = 0;
-
-    p = strtok(tmp, ":"); // Get Device spec
-
-    if (p[0] != 'N')
-        return false;
-    else
-        strcpy(deviceSpec.device, p);
-
-    while (p != NULL)
-    {
-        i++;
-        p = strtok(NULL, ":");
-        switch (i)
-        {
-        case 1:
-            strcpy(deviceSpec.protocol, p);
-            break;
-        case 2:
-            for (d = 0; d < strlen(p); d++)
-                if (!isdigit(p[d]))
-                {
-                    strcpy(deviceSpec.path, p);
-                    break;
-                }
-            deviceSpec.port = atoi(p);
-            return true;
-        case 3:
-            deviceSpec.port = atoi(p);
-            return true;
-            break;
-        default:
-            return false; // Too many parameters.
-        }
-    }
-}
-
-/**
  * Allocate input/output buffers
  */
 bool sioNetwork::allocate_buffers()
@@ -61,23 +14,38 @@ bool sioNetwork::allocate_buffers()
         return true;
 }
 
+bool sioNetwork::open_protocol()
+{
+    if (strcmp(deviceSpec.protocol,"TCP")==0)
+    {
+        
+    }
+}
+
 void sioNetwork::open()
 {
     char inp[256];
     byte ck = sio_to_peripheral((byte *)&inp, sizeof(inp));
 
-    if (parse_deviceSpec(inp) == false)
+    if (deviceSpec.parse(inp)==false)
     {
-        openStatus.errorCode = OPEN_STATUS_INVALID_DEVICESPEC;
-        openStatus.reserved1 = openStatus.reserved2 = openStatus.reserved3 = 0;
+        memset(&status_buf,0,sizeof(status_buf.rawData));
+        status_buf.error = OPEN_STATUS_INVALID_DEVICESPEC;
         sio_complete();
         return;
     }
 
     if (allocate_buffers() == false)
     {
-        openStatus.errorCode = OPEN_STATUS_DEVICE_ERROR;
-        openStatus.reserved1 = openStatus.reserved2 = openStatus.reserved3 = 0;
+        memset(&status_buf,0,sizeof(status_buf.rawData));
+        status_buf.error = OPEN_STATUS_DEVICE_ERROR;
+        sio_error();
+    }
+
+    if (open_protocol()==false)
+    {
+        memset(&status_buf,0,sizeof(status_buf.rawData));
+        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
         sio_error();
     }
 }
@@ -89,6 +57,15 @@ void sioNetwork::close()
 
 void sioNetwork::read()
 {
+    if (protocol==NULL)
+    {
+        err=true;
+        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+    }
+    else
+    {
+        err = protocol->read(rx_buf,rx_buf_len);
+    }
     sio_to_computer(rx_buf, sio_get_aux(), err);
 }
 
