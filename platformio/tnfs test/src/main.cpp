@@ -4,6 +4,11 @@
 #include "ssid.h"
 #include "debug.h"
 
+#define TNFS_SERVER "192.168.1.12"
+#define TNFS_PORT 16384
+
+TNFSFS TNFS;
+
 void setup() {
   // put your setup code here, to run once:
     WiFi.begin(WIFI_SSID, WIFI_PASS);
@@ -18,6 +23,9 @@ void setup() {
     }
     Debug_println("UDP started.");
   
+  TNFS.begin(TNFS_SERVER);
+  File f1 = TNFS.open("file1.txt","r");
+  File f2 = TNFS.open("file2.txt","r");
 }
 
 void loop() {
