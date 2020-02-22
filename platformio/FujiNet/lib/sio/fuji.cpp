@@ -71,6 +71,7 @@ void sioFuji::sio_net_set_ssid()
         Debug_printf("Connecting to net: %s password: %s\n", netConfig.ssid, netConfig.password);
 #endif
         WiFi.begin(netConfig.ssid, netConfig.password);
+        // todo: add error checking?
         // UDP.begin(16384); // move to TNFS.begin
         sio_complete();
     }
