@@ -393,6 +393,7 @@ bool sioBus::remDevice(sioDevice *p)
       return false;
   }
   daisyChain.remove(i);
+  return true;  
 }
 
 int sioBus::numDevices()
