@@ -99,7 +99,12 @@ void sioFuji::sio_tnfs_mount_host()
 {
     bool err;
     unsigned char hostSlot = cmdFrame.aux1;
-    // first check for SD or SPIFFS or something else in hostSlots.host[hostSlot]
+
+    // if already a TNFS host, then disconnect. SD and SPIFFS are always running.
+    if (TNFS[hostSlot].isConnected())
+        TNFS[hostSlot].end();
+
+    // check for SD or SPIFFS or something else in hostSlots.host[hostSlot]
     if (strcmp(hostSlots.host[hostSlot], "SD") == 0)
     {
         err = (SD.cardType() != CARD_NONE);
@@ -112,8 +117,6 @@ void sioFuji::sio_tnfs_mount_host()
     }
     else
     {
-        if (TNFS[hostSlot].isConnected())
-            TNFS[hostSlot].end();
         err = TNFS[hostSlot].begin(hostSlots.host[hostSlot], TNFS_PORT);
         fileSystems[hostSlot] = &TNFS[hostSlot];
     }
