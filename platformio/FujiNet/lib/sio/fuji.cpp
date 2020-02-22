@@ -101,10 +101,21 @@ void sioFuji::sio_tnfs_mount_host()
     bool err;
     unsigned char hostSlot = cmdFrame.aux1;
 
-    // if already a TNFS host, then disconnect. SD and SPIFFS are always running.
+    // if already a TNFS host, then disconnect. Also, SD and SPIFFS are always running.
     if (TNFS[hostSlot].isConnected())
-        TNFS[hostSlot].end();
-
+    {
+        char host[256];
+        TNFS[hostSlot].host(host);
+        if (strcmp(hostSlots.host[hostSlot], host) == 0)
+        {
+             sio_complete();
+             return;
+        }
+        else
+        {
+            TNFS[hostSlot].end();
+        }
+    }
     // check for SD or SPIFFS or something else in hostSlots.host[hostSlot]
     if (strcmp(hostSlots.host[hostSlot], "SD") == 0)
     {
@@ -141,7 +152,7 @@ void sioFuji::sio_disk_image_mount()
         flag[1] = '+';
     }
 #ifdef DEBUG
-    Debug_printf("Selecting '%s' for disk #%u as %s\n",deviceSlots.slot[deviceSlot].file,deviceSlots.slot[deviceSlot].hostSlot,flag);
+    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n", deviceSlots.slot[deviceSlot].file, deviceSlots.slot[deviceSlot].hostSlot, flag, deviceSlot);
 #endif
 
     //atr[deviceSlot] = TNFS[deviceSlots.slot[deviceSlot].hostSlot].open(deviceSlots.slot[deviceSlot].file, flag);
@@ -190,15 +201,15 @@ void sioFuji::sio_tnfs_open_directory()
     //Debug_println(current_entry);
 #endif
 
-//     if (current_entry[0] != '/')
-//     {
-//         current_entry[0] = '/';
-//         current_entry[1] = '\0';
-// #ifdef DEBUG
-//         Debug_print("No directory defined for reading, setting to: ");
-//         Debug_println(current_entry);
-// #endif
-//     }
+    //     if (current_entry[0] != '/')
+    //     {
+    //         current_entry[0] = '/';
+    //         current_entry[1] = '\0';
+    // #ifdef DEBUG
+    //         Debug_print("No directory defined for reading, setting to: ");
+    //         Debug_println(current_entry);
+    // #endif
+    //     }
 
     dir[hostSlot] = fileSystems[hostSlot]->open("/", "r");
     //dir[hostSlot] = fileSystems[hostSlot]->open(current_entry, "r");
