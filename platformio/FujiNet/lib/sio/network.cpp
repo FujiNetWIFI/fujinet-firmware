@@ -1,4 +1,6 @@
 #include "network.h"
+#include "networkProtocol.h"
+#include "networkProtocolTCP.h"
 
 /**
  * Allocate input/output buffers
@@ -16,10 +18,10 @@ bool sioNetwork::allocate_buffers()
 
 bool sioNetwork::open_protocol()
 {
-    if (strcmp(deviceSpec.protocol,"TCP")==0)
-    {
-        
-    }
+    if (strcmp(deviceSpec.protocol, "TCP") == 0)
+        protocol = new networkProtocolTCP();
+
+    return protocol->open(&deviceSpec);
 }
 
 void sioNetwork::open()
@@ -27,9 +29,9 @@ void sioNetwork::open()
     char inp[256];
     byte ck = sio_to_peripheral((byte *)&inp, sizeof(inp));
 
-    if (deviceSpec.parse(inp)==false)
+    if (deviceSpec.parse(inp) == false)
     {
-        memset(&status_buf,0,sizeof(status_buf.rawData));
+        memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = OPEN_STATUS_INVALID_DEVICESPEC;
         sio_complete();
         return;
@@ -37,14 +39,14 @@ void sioNetwork::open()
 
     if (allocate_buffers() == false)
     {
-        memset(&status_buf,0,sizeof(status_buf.rawData));
+        memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = OPEN_STATUS_DEVICE_ERROR;
         sio_error();
     }
 
-    if (open_protocol()==false)
+    if (open_protocol() == false)
     {
-        memset(&status_buf,0,sizeof(status_buf.rawData));
+        memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
         sio_error();
     }
@@ -52,28 +54,56 @@ void sioNetwork::open()
 
 void sioNetwork::close()
 {
-    sio_complete();
+    if (protocol->close())
+        sio_complete();
+    else
+        sio_error();
 }
 
 void sioNetwork::read()
 {
-    if (protocol==NULL)
+    if (protocol == NULL)
     {
-        err=true;
+        err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
     }
     else
     {
-        err = protocol->read(rx_buf,rx_buf_len);
+        err = protocol->read(rx_buf, rx_buf_len);
     }
     sio_to_computer(rx_buf, sio_get_aux(), err);
 }
 
 void sioNetwork::write()
 {
-    ck=sio_to_peripheral(tx_buf,sio_get_aux());
+    ck = sio_to_peripheral(tx_buf, sio_get_aux());
+        if (protocol==NULL)
+    {
+        err = true;
+        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+    }
+    else
+    {
+        if (protocol->write(tx_buf,tx_buf_len))
+        {
+            sio_complete();
+        }
+        else
+        {
+            sio_error();
+        }
+    }
 }
 
 void sioNetwork::status()
 {
+    if (protocol == NULL)
+    {
+        err = true;
+        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+    }
+    else
+    {
+        err = protocol->status(status_buf.rawData);
+    }
 }
