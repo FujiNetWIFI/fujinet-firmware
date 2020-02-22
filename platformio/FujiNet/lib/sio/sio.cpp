@@ -97,9 +97,9 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
   Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
 
-//#ifdef ESP8266
+  //#ifdef ESP8266
   delayMicroseconds(DELAY_T4);
-//#endif
+  //#endif
 
   if (sio_checksum(b, len) != ck)
   {
@@ -381,6 +381,19 @@ void sioBus::addDevice(sioDevice *p, int N)
   }
   p->_devnum = N;
   daisyChain.add(p);
+}
+
+bool sioBus::remDevice(sioDevice *p)
+{
+  int i = 0;
+  while (p != device(i))
+  {
+    i++;
+    if (i > numDevices())
+      return false;
+  }
+  daisyChain.remove(i);
+  return true;  
 }
 
 int sioBus::numDevices()
