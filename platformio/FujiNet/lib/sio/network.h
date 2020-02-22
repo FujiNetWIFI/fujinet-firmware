@@ -14,6 +14,7 @@
 #define NUM_DEVICES 8
 #define INPUT_BUFFER_SIZE 2048
 #define OUTPUT_BUFFER_SIZE 2048
+#define SPECIAL_BUFFER_SIZE 256
 #define DEVICESPEC_SIZE 256
 
 #define OPEN_STATUS_NOT_CONNECTED 128
@@ -36,8 +37,10 @@ protected:
     byte ck;
     byte* rx_buf;
     byte* tx_buf;
+    byte* sp_buf;
     unsigned short rx_buf_len;
     unsigned short tx_buf_len;
+    unsigned short sp_buf_len;
 
     union 
     {
@@ -57,7 +60,7 @@ public:
     virtual void read();
     virtual void write();
     virtual void status();
-    virtual void special();
+    virtual void special(char dstats);
 };
 
 #endif /* NETWORK_H */
