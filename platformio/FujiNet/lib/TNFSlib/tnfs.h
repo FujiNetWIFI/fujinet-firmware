@@ -68,11 +68,12 @@ Anything extra needs to be declared here in TNFSFS.
 
 private:
     char mparray[256]="\0";
-
+    bool connect = false;
 public:
     TNFSFS();
     ~TNFSFS();
     bool begin(std::string host, uint16_t port=16384, std::string location="/", std::string userid="!", std::string password="!");
+    bool isConnected() {return connect;};
     size_t size();
     size_t free();
     void end();
