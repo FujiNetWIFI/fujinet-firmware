@@ -105,7 +105,7 @@ public:
    void setup();
    void service();
    void addDevice(sioDevice *p, int N);
-   void remDevice(sioDevice *p);
+   bool remDevice(sioDevice *p);
    sioDevice *device(int i);
 #ifdef ESP32
    int sio_volts();
