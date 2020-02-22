@@ -189,7 +189,7 @@ void setup()
 #ifdef DEBUG_S
   BUG_UART.println("/file1.atr");
 #endif
-  for (int i = 0; i++; i < 8)
+  for (int i = 0; i < 8; i++)
   {
     SIO.addDevice(&sioD[i], 0x31 + i);
   }
@@ -267,7 +267,7 @@ void setup()
     break;
   }
 #endif
-/*  }
+  /*  }
   SIO.addDevice(&sioD[0], 0x31 + 0);
 */
 
