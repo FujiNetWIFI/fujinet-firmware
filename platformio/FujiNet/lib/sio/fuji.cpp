@@ -112,6 +112,8 @@ void sioFuji::sio_tnfs_mount_host()
     }
     else
     {
+        if (TNFS[hostSlot].isConnected())
+            TNFS[hostSlot].end();
         err = TNFS[hostSlot].begin(hostSlots.host[hostSlot], TNFS_PORT);
         fileSystems[hostSlot] = &TNFS[hostSlot];
     }

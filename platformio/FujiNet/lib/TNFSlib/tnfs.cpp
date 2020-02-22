@@ -3,13 +3,11 @@
 #include "tnfs.h"
 extern tnfsPacket_t tnfsPacket;
 
-TNFSFS::TNFSFS() : FS(FSImplPtr(new TNFSImpl()))
-{
-}
+TNFSFS::TNFSFS() : FS(FSImplPtr(new TNFSImpl())) {}
 
 TNFSFS::~TNFSFS()
 {
-    tnfs_umount(_impl);    
+    tnfs_umount(_impl);
 }
 
 bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::string userid, std::string password)
@@ -22,8 +20,8 @@ bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::s
 
     sprintf(portstr, "%hu", port);
 
-    if (strlen(mparray) != 0)
-        return true;
+    if (connect)
+        return false;
 
     mp = host + sep + portstr + sep + "0 0 " + location + sep + userid + sep + password;
 
@@ -40,6 +38,7 @@ bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::s
 #ifdef DEBUG
         Debug_println("TNFS mount failed.");
 #endif
+        connect = false;
         return false;
     }
 
@@ -52,7 +51,7 @@ bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::s
     Debug_printf("TNFS mount successful: %s\n\n", mparray);
 #endif
     _impl->mountpoint(mparray);
-
+    connect = true;
     return true;
 }
 
@@ -60,7 +59,8 @@ size_t TNFSFS::size() { return 0; }
 size_t TNFSFS::free() { return 0; }
 void TNFSFS::end()
 {
-     tnfs_umount(_impl);  
+    tnfs_umount(_impl);
+    connect = false;
     _impl->mountpoint(NULL);
 }
 
