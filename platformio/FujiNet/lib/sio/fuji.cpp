@@ -139,6 +139,9 @@ void sioFuji::sio_disk_image_mount()
     {
         flag[1] = '+';
     }
+#ifdef DEBUG
+    Debug_printf("Selecting '%s' for disk #%u as %s\n",deviceSlots.slot[deviceSlot].file,deviceSlots.slot[deviceSlot].hostSlot,flag);
+#endif
 
     //atr[deviceSlot] = TNFS[deviceSlots.slot[deviceSlot].hostSlot].open(deviceSlots.slot[deviceSlot].file, flag);
     atr[deviceSlot] = fileSystems[deviceSlots.slot[deviceSlot].hostSlot]->open(deviceSlots.slot[deviceSlot].file, flag);
@@ -182,21 +185,22 @@ void sioFuji::sio_tnfs_open_directory()
     }
 
 #ifdef DEBUG
-    Debug_print("FujiNet is opening directory for reading: ");
-    Debug_println(current_entry);
+    Debug_print("FujiNet is opening / for reading.");
+    //Debug_println(current_entry);
 #endif
 
-    if (current_entry[0] != '/')
-    {
-        current_entry[0] = '/';
-        current_entry[1] = '\0';
-#ifdef DEBUG
-        Debug_print("No directory defined for reading, setting to: ");
-        Debug_println(current_entry);
-#endif
-    }
+//     if (current_entry[0] != '/')
+//     {
+//         current_entry[0] = '/';
+//         current_entry[1] = '\0';
+// #ifdef DEBUG
+//         Debug_print("No directory defined for reading, setting to: ");
+//         Debug_println(current_entry);
+// #endif
+//     }
 
-    dir[hostSlot] = fileSystems[hostSlot]->open(current_entry, "r");
+    dir[hostSlot] = fileSystems[hostSlot]->open("/", "r");
+    //dir[hostSlot] = fileSystems[hostSlot]->open(current_entry, "r");
     //dir[hostSlot] = TNFS[hostSlot].open(current_entry, "r");
 
     if (dir[hostSlot])
@@ -366,7 +370,7 @@ void sioFuji::sio_new_disk()
             return;
         }
         //if (tnfs_open(newDisk.deviceSlot, 0x03, true) == true) // create file
-        File f = fileSystems[newDisk.hostSlot]->open(newDisk.filename, "w");
+        File f = fileSystems[newDisk.hostSlot]->open(newDisk.filename, "w+");
         if (f) // create file
         {
             atr[newDisk.deviceSlot] = f;
@@ -379,7 +383,7 @@ void sioFuji::sio_new_disk()
             if (ok)
             {
 #ifdef DEBUG
-                Debug_printf("XXX Wrote ATR data\n");
+                Debug_printf("Nice! Wrote ATR data\n");
 #endif
                 // todo: make these calls for sioD ...
                 //sioD[newDisk.deviceSlot].setSS(newDisk.sectorSize);
