@@ -204,6 +204,9 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   {
     return nullptr;
   }
+  #ifdef DEBUG
+    Debug_printf("FID is %d\n", fid);
+#endif
   return std::make_shared<TNFSFileImpl>(this, fid, path, stats);
 }
 
