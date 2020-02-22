@@ -750,10 +750,11 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
         {
           // Successful
           //tnfs_fds[deviceSlot] = tnfsPacket.data[1];
-          int fid = tnfsPacket.data[1];
+          int fid = (int)tnfsPacket.data[1];
 #ifdef DEBUG_VERBOSE
           Debug_print("Successful, file descriptor: #");
-          Debug_println(fid, HEX);
+          Debug_print(fid, HEX);
+          Debug_print(tnfsPacket.data[1],HEX);
 #endif /* DEBUG_S */
           return fid;
         }

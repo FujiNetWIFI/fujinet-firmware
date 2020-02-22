@@ -2,6 +2,9 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "C:\\Users\\Jeff\\Documents\\GitHub\\atariwifi\\platformio\\tnfs test"
 		}
 	],
 	"settings": {
