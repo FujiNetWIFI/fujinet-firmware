@@ -4,9 +4,6 @@
 class networkProtocol
 {
 public:
-/**
- * Open Protocol connection
- */
     virtual bool open(networkDeviceSpec* spec) = 0;
     virtual bool close() = 0;
     virtual bool read(byte* rx_buf, unsigned short len) = 0;
