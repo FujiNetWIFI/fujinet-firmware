@@ -9,6 +9,7 @@
 #include <WiFiClient.h>
 #endif
 
+#include "sio.h"
 #include "networkDeviceSpec.h"
 #include "networkProtocol.h"
 
@@ -23,9 +24,11 @@ public:
     virtual bool read(byte* rx_buf, unsigned short len);
     virtual bool write(byte* tx_buf, unsigned short len);
     virtual bool status(byte* status_buf);
-    virtual bool special(byte* sp_buf, unsigned short len);
+    virtual bool special(byte* sp_buf, unsigned short len, cmdFrame_t* cmdFrame);
 
 private:
     WiFiClient client;
     WiFiServer* server;
+    
+    bool special_accept_connection();
 };
