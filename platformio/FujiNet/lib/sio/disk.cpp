@@ -1,5 +1,8 @@
 #include "disk.h"
 
+bool hispeed = false;
+int command_frame_counter = 0;
+
 /**
    Convert # of paragraphs to sectors
    para = # of paragraphs returned from ATR header
@@ -341,7 +344,14 @@ void sioDisk::dump_percom_block()
 #endif
 }
 
-// ****************************************************************************************
+/**
+   (disk) High Speed
+*/
+void sioDisk::sio_high_speed()
+{
+  byte hsd = HISPEED_INDEX;
+  sio_to_computer((byte *)&hsd, 1, false);
+}
 
 // Process command
 void sioDisk::sio_process()
@@ -373,6 +383,10 @@ void sioDisk::sio_process()
   case 0x4F:
     sio_ack();
     sio_write_percom_block();
+    break;
+  case 0x3F:
+    sio_ack();
+    sio_high_speed();
     break;
   default:
     sio_nak();
@@ -439,7 +453,7 @@ bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short
   } atrHeader;
 
   unsigned long num_para = num_sectors_to_para(numSectors, sectorSize);
-  unsigned long offset=0;
+  unsigned long offset = 0;
 
   // Write header
   atrHeader.magic1 = 0x96;
@@ -489,13 +503,13 @@ bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short
   //tnfs_write(deviceSlot, sectorSize);
   f->seek(offset);
   size_t out = f->write(sector, sectorSize);
-  if (out!=sectorSize)
-   {
+  if (out != sectorSize)
+  {
 #ifdef DEBUG
-      Debug_println("Error writing last sector");
+    Debug_println("Error writing last sector");
 #endif
-      return false;
-    }
+    return false;
+  }
   return true; //fixme - JP fixed?
 }
 

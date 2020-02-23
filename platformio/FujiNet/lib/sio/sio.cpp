@@ -302,28 +302,29 @@ void sioBus::service()
       }
     } // valid checksum
     else
-    { // HIGHSPEED
-      //       command_frame_counter++;
-      //       if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
-      //       {
-      //         command_frame_counter = 0;
-      //         if (hispeed)
-      //         {
-      // #ifdef DEBUG
-      //           Debug_printf("Switching to %d baud...\n", STANDARD_BAUDRATE);
-      // #endif
-      //           SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
-      //           hispeed = false;
-      //         }
-      //         else
-      //         {
-      // #ifdef DEBUG
-      //           Debug_printf("Switching to %d baud...\n", HISPEED_BAUDRATE);
-      // #endif
-      //           SIO_UART.updateBaudRate(HISPEED_BAUDRATE);
-      //           hispeed = true;
-      //         }
-      //       }
+    { 
+      // HIGHSPEED
+             command_frame_counter++;
+             if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
+             {
+              command_frame_counter = 0;
+              if (hispeed)
+              {
+      #ifdef DEBUG
+                Debug_printf("Switching to %d baud...\n", STANDARD_BAUDRATE);
+      #endif
+                SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
+                hispeed = false;
+              }
+              else
+              {
+      #ifdef DEBUG
+                Debug_printf("Switching to %d baud...\n", HISPEED_BAUDRATE);
+      #endif
+                SIO_UART.updateBaudRate(HISPEED_BAUDRATE);
+                hispeed = true;
+              }
+            }
     }
     sio_led(false);
   } // END command line low

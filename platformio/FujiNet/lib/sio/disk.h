@@ -5,6 +5,14 @@
 #include "sio.h"
 #include <FS.h>
 
+extern bool hispeed;
+extern int command_frame_counter;
+#define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
+#define HISPEED_INDEX 0x00
+#define HISPEED_BAUDRATE 125984
+#define STANDARD_BAUDRATE 19200
+#define SERIAL_TIMEOUT 300
+
 unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, unsigned short ss);
 unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sector_size);
 
@@ -46,6 +54,8 @@ private:
     void sio_read_percom_block();
     void sio_write_percom_block();
     void dump_percom_block();
+
+    void sio_high_speed();
 
 public:
     void mount(File *f);
