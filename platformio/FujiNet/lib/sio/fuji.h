@@ -52,14 +52,15 @@ protected:
     void sio_disk_image_mount();          // 0xF8
     void sio_tnfs_open_directory();       // 0xF7
     void sio_tnfs_read_directory_entry(); // 0xF6
-    void sio_tnfs_close_directory();      //0xF5
+    void sio_tnfs_close_directory();      // 0xF5
     void sio_read_hosts_slots();          // 0xF4
     void sio_write_hosts_slots();         // 0xF3
     void sio_read_device_slots();         // 0xF2
     void sio_write_device_slots();        // 0xF1
-    void sio_disk_image_umount();         //0xE9
+    void sio_disk_image_umount();         // 0xE9
     void sio_get_adapter_config();        // 0xE8
-    //   cmdPtr[0xE7] = sio_new_disk;
+    void sio_new_disk();                  // 0xE7
+    void sio_unmount_host();              // 0xE6 - new
     void wifi_led(bool onOff);
 
     void sio_process() override;

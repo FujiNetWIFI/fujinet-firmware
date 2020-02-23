@@ -183,7 +183,6 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   }
   flag_lsb = byte(flag & 0xff);
   flag_msb = byte(flag >> 8);
-  Debug_printf("open flags (lo,hi): &%u %u\n",flag_lsb,flag_msb);
 
   // test if path is directory
   tnfsStat_t stats = tnfs_stat(this, path);
@@ -205,8 +204,8 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   {
     return nullptr;
   }
-#ifdef DEBUG
-  Debug_printf("FID is %d\n", fid);
+  #ifdef DEBUG
+    Debug_printf("FID is %d\n", fid);
 #endif
   return std::make_shared<TNFSFileImpl>(this, fid, path, stats);
 }
@@ -237,14 +236,8 @@ TNFSFileImpl::~TNFSFileImpl()
 #ifdef DEBUG
   Debug_printf("destructor attempting to close file %s\n", fn);
 #endif
-  //if (fid >= 0)
-  // {
-  this->close();
-  // }
-  // else
-  // {
-  // Debug_println("not an open file");
-  // }
+  if (fid >= 0)
+    this->close();
 }
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
@@ -294,18 +287,12 @@ void TNFSFileImpl::close()
   {
     if (stats.isDir)
     {
-      Debug_println("closing directory");
       tnfs_closedir(fs, fid);
     }
     else
     {
-      Debug_println("closing file");
-      tnfs_close(fs, fid);
+      tnfs_close(fs, fid, fn);
     }
-  }
-  else
-  {
-    Debug_println("real file not open");
   }
   fid = -1;
 }
@@ -555,7 +542,7 @@ UMOUNT - Command ID 0x01
 */
 bool tnfs_umount(FSImplPtr hostPtr)
 {
-  // tnfsSessionID_t sessionID = ((TNFSImpl)hostPtr)->sid();
+ // tnfsSessionID_t sessionID = ((TNFSImpl)hostPtr)->sid();
   std::string mp(hostPtr->mountpoint());
 
   // extract the parameters
@@ -566,7 +553,7 @@ bool tnfs_umount(FSImplPtr hostPtr)
   byte hi;
   sscanf(mp.c_str(), "%s %hu %hhu %hhu ", host, &port, &lo, &hi);
 #ifdef DEBUG
-  Debug_println("UnMounting TNFS Server:");
+  Debug_println("Mounting TNFS Server:");
   Debug_printf("host: %s\n", host);
   Debug_printf("port: %hu\n", port);
   Debug_printf("session id: %hhu %hhu\n", lo, hi);
@@ -582,9 +569,9 @@ bool tnfs_umount(FSImplPtr hostPtr)
     //strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
     tnfsPacket.session_idl = lo;
     tnfsPacket.session_idh = hi;
-    tnfsPacket.retryCount = 0; // reset sequence #
+    tnfsPacket.retryCount=0;   // reset sequence #
     tnfsPacket.command = 0x01; // UMOUNT
-
+    
     UDP.beginPacket(host, port);
     UDP.write(tnfsPacket.rawData, c + 4);
     UDP.endPacket();
@@ -633,6 +620,7 @@ bool tnfs_umount(FSImplPtr hostPtr)
 #endif
   return false;
 }
+
 
 /*
 ----------------------------------
@@ -723,8 +711,8 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
     }
 
     tnfsPacket.data[c++] = 0x00;
-    tnfsPacket.data[c++] = 0x00;
-    tnfsPacket.data[c++] = 0x00;
+    //tnfsPacket.data[c++] = 0x00;
+    //tnfsPacket.data[c++] = 0x00;
 
 #ifdef DEBUG_VERBOSE
     Debug_printf("Opening %s\n", mountPath);
@@ -762,11 +750,10 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
         {
           // Successful
           //tnfs_fds[deviceSlot] = tnfsPacket.data[1];
-          int fid = (int)tnfsPacket.data[1];
+          int fid = tnfsPacket.data[1];
 #ifdef DEBUG_VERBOSE
           Debug_print("Successful, file descriptor: #");
-          Debug_print(fid, HEX);
-          Debug_println(tnfsPacket.data[1], HEX);
+          Debug_println(fid, HEX);
 #endif /* DEBUG_S */
           return fid;
         }
@@ -810,7 +797,7 @@ CLOSE - Closes a file - Command 0x23
   0xBEEF 0x00 0x23 0x06 - Operation failed with EBADF, "bad file descriptor"
 */
 //bool tnfs_close(unsigned char deviceSlot)
-bool tnfs_close(TNFSImpl *F, int fid)
+bool tnfs_close(TNFSImpl *F, int fid, const char *mountPath)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -830,10 +817,10 @@ bool tnfs_close(TNFSImpl *F, int fid)
     //tnfsPacket.data[c++] = tnfs_fds[deviceSlot];
     tnfsPacket.data[c++] = (byte)fid;
 
-    // for (int i = 0; i < strlen(mountPath); i++)
-    // {
-    //   tnfsPacket.data[c++] = mountPath[i];
-    // }
+    for (int i = 0; i < strlen(mountPath); i++)
+    {
+      tnfsPacket.data[c++] = mountPath[i];
+    }
 
     UDP.beginPacket(F->host().c_str(), F->port());
     UDP.write(tnfsPacket.rawData, c + 4);
@@ -1022,7 +1009,7 @@ bool tnfs_readdir(TNFSImpl *F, int fid, char *nextFile)
     tnfsPacket.data[0] = (byte)fid; // dir handle
 
 #ifdef DEBUG_VERBOSE
-    Debug_printf("\nTNFS Read next dir entry, host #%s - fid %02x\n", F->host().c_str(), fid);
+    Debug_printf("TNFS Read next dir entry, host #%s - fid %02x\n\n", F->host().c_str(), fid);
 #endif
 
     UDP.beginPacket(F->host().c_str(), F->port());
@@ -1112,32 +1099,14 @@ bool tnfs_closedir(TNFSImpl *F, int fid)
     UDP.write(tnfsPacket.rawData, 1 + 4);
     UDP.endPacket();
 
-#ifdef DEBUG_VERBOSE
-    Debug_print("Req packet: ");
-    for (int i = 0; i < 5; i++)
-    {
-      Debug_print(tnfsPacket.rawData[i], HEX);
-      Debug_print(" ");
-    }
-    Debug_println(" ");
-#endif /* DEBUG_S*/
-
     while (dur < 5000)
     {
       dur = millis() - start;
       yield();
       if (UDP.parsePacket())
       {
-        int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG_VERBOSE
-        Debug_print("Resp packet: ");
-        for (int i = 0; i < l; i++)
-        {
-          Debug_print(tnfsPacket.rawData[i], HEX);
-          Debug_print(" ");
-        }
-        Debug_println("");
-#endif /* DEBUG_S */
+        //int l =
+        UDP.read(tnfsPacket.rawData, 516);
         if (tnfsPacket.data[0] == 0x00)
         {
 #ifdef DEBUG_VERBOSE

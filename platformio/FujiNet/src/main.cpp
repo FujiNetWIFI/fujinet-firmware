@@ -45,8 +45,6 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 //#define TNFS_SERVER "192.168.1.12"
 //#define TNFS_PORT 16384
 
-
-
 atari820 sioP;
 File paperf;
 
@@ -186,13 +184,15 @@ void setup()
 #endif
 
   SPIFFS.begin();
-  atr[0] = SPIFFS.open("/file1.atr", "r+");
-  sioD[0].mount(&atr[0]);
+  //atr[0] = SPIFFS.open("/file1.atr", "r+");
+  //sioD[0].mount(&atr[0]);
 #ifdef DEBUG_S
   BUG_UART.println("/file1.atr");
 #endif
-  SIO.addDevice(&sioD[0], 0x31 + 0);
-
+  for (int i = 0; i < 8; i++)
+  {
+    SIO.addDevice(&sioD[i], 0x31 + i);
+  }
   SIO.addDevice(&theFuji, 0x70); // the FUJINET!
 
   SIO.addDevice(&sioR, 0x50); // R:
@@ -209,7 +209,7 @@ void setup()
     server.begin(); // Start the web server
     UDP.begin(16384);
   }
-/*   TNFS[0].begin(TNFS_SERVER, TNFS_PORT);
+  /*   TNFS[0].begin(TNFS_SERVER, TNFS_PORT);
   atr[1] = TNFS[0].open("/A820.ATR", "r+");
 #ifdef DEBUG_S
   BUG_UART.println("tnfs/A820.ATR");
@@ -217,8 +217,8 @@ void setup()
   sioD[1].mount(&atr[1]);
   SIO.addDevice(&sioD[1], 0x31 + 1);
  */
- 
-  if(!SD.begin(5))
+
+  if (!SD.begin(5))
   {
 #ifdef DEBUG
     Debug_println("SD Card Mount Failed");
@@ -228,7 +228,7 @@ void setup()
     // atr[0] = SPIFFS.open("/autorun.atr", "r+");
     // sioD[0].mount(&atr[0]);
   }
- /* else
+/* else
   {
     atr[0] = SD.open("/autorun.atr", "r+");
     if (!atr[0])
@@ -250,24 +250,24 @@ void setup()
     }
 */
 #ifdef DEBUG
-    Debug_print("SD Card Type: ");
-    switch (SD.cardType())
-    {
-      case CARD_MMC:
-        Debug_println("MMC");
-        break;
-      case CARD_SD:
-        Debug_println("SDSC");
-        break;
-      case CARD_SDHC:
-        Debug_println("SDHC");
-        break;
-      default:
-        Debug_println("UNKNOWN");
-        break;
-    }
+  Debug_print("SD Card Type: ");
+  switch (SD.cardType())
+  {
+  case CARD_MMC:
+    Debug_println("MMC");
+    break;
+  case CARD_SD:
+    Debug_println("SDSC");
+    break;
+  case CARD_SDHC:
+    Debug_println("SDHC");
+    break;
+  default:
+    Debug_println("UNKNOWN");
+    break;
+  }
 #endif
-/*  }
+  /*  }
   SIO.addDevice(&sioD[0], 0x31 + 0);
 */
 

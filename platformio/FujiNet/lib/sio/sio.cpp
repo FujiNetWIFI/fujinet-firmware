@@ -105,9 +105,9 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
   Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
 
-//#ifdef ESP8266
+  //#ifdef ESP8266
   delayMicroseconds(DELAY_T4);
-//#endif
+  //#endif
 
   if (sio_checksum(b, len) != ck)
   {
@@ -310,28 +310,29 @@ void sioBus::service()
       }
     } // valid checksum
     else
-    { // HIGHSPEED
-      //       command_frame_counter++;
-      //       if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
-      //       {
-      //         command_frame_counter = 0;
-      //         if (hispeed)
-      //         {
-      // #ifdef DEBUG
-      //           Debug_printf("Switching to %d baud...\n", STANDARD_BAUDRATE);
-      // #endif
-      //           SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
-      //           hispeed = false;
-      //         }
-      //         else
-      //         {
-      // #ifdef DEBUG
-      //           Debug_printf("Switching to %d baud...\n", HISPEED_BAUDRATE);
-      // #endif
-      //           SIO_UART.updateBaudRate(HISPEED_BAUDRATE);
-      //           hispeed = true;
-      //         }
-      //       }
+    { 
+      // HIGHSPEED
+             command_frame_counter++;
+             if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
+             {
+              command_frame_counter = 0;
+              if (hispeed)
+              {
+      #ifdef DEBUG
+                Debug_printf("Switching to %d baud...\n", STANDARD_BAUDRATE);
+      #endif
+                SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
+                hispeed = false;
+              }
+              else
+              {
+      #ifdef DEBUG
+                Debug_printf("Switching to %d baud...\n", HISPEED_BAUDRATE);
+      #endif
+                SIO_UART.updateBaudRate(HISPEED_BAUDRATE);
+                hispeed = true;
+              }
+            }
     }
     sio_led(false);
   } // END command line low
@@ -389,6 +390,19 @@ void sioBus::addDevice(sioDevice *p, int N)
   }
   p->_devnum = N;
   daisyChain.add(p);
+}
+
+bool sioBus::remDevice(sioDevice *p)
+{
+  int i = 0;
+  while (p != device(i))
+  {
+    i++;
+    if (i > numDevices())
+      return false;
+  }
+  daisyChain.remove(i);
+  return true;  
 }
 
 int sioBus::numDevices()

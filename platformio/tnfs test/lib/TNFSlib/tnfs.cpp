@@ -55,13 +55,6 @@ bool TNFSFS::begin(std::string host, uint16_t port, std::string location, std::s
     return true;
 }
 
-void TNFSFS::host(char* h)
-{
-    sscanf(mparray, "%s" ,h);
-} 
-
-bool TNFSFS::isConnected() { return connect; }
-
 size_t TNFSFS::size() { return 0; }
 size_t TNFSFS::free() { return 0; }
 void TNFSFS::end()
