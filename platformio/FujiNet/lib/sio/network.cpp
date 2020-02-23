@@ -110,7 +110,7 @@ void sioNetwork::status()
     sio_to_computer(status_buf.rawData, 4, err);
 }
 
-void sioNetwork::special(char dstats)
+void sioNetwork::special()
 {
     if (protocol == NULL)
     {
@@ -119,21 +119,6 @@ void sioNetwork::special(char dstats)
     }
     else
     {
-        switch (dstats)
-        {
-        case 0x40:
-            sio_to_computer(rx_buf, rx_buf_len, err);
-            break;
-        case 0x80:
-            ck = sio_to_peripheral(tx_buf, tx_buf_len);
-
-            if (sio_checksum(tx_buf, tx_buf_len) == ck)
-                if (protocol->special(tx_buf, tx_buf_len) == true)
-                    sio_complete();
-                else
-                    sio_error();
-
-            break;
-        }
+        protocol->special(sp_buf,sp_buf_len, &cmdFrame);
     }
 }
