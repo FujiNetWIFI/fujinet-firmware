@@ -73,8 +73,7 @@ public:
     TNFSFS();
     ~TNFSFS();
     bool begin(std::string host, uint16_t port=16384, std::string location="/", std::string userid="!", std::string password="!");
-    void host(char* h); 
-    bool isConnected(); 
+    bool isConnected() {return connect;};
     size_t size();
     size_t free();
     void end();

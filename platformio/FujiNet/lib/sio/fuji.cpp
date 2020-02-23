@@ -71,6 +71,7 @@ void sioFuji::sio_net_set_ssid()
         Debug_printf("Connecting to net: %s password: %s\n", netConfig.ssid, netConfig.password);
 #endif
         WiFi.begin(netConfig.ssid, netConfig.password);
+        // todo: add error checking?
         // UDP.begin(16384); // move to TNFS.begin
         sio_complete();
     }
@@ -99,7 +100,23 @@ void sioFuji::sio_tnfs_mount_host()
 {
     bool err;
     unsigned char hostSlot = cmdFrame.aux1;
-    // first check for SD or SPIFFS or something else in hostSlots.host[hostSlot]
+
+    // if already a TNFS host, then disconnect. Also, SD and SPIFFS are always running.
+    if (TNFS[hostSlot].isConnected())
+    {
+        char host[256];
+        TNFS[hostSlot].host(host);
+        if (strcmp(hostSlots.host[hostSlot], host) == 0)
+        {
+            sio_complete();
+            return;
+        }
+        else
+        {
+            TNFS[hostSlot].end();
+        }
+    }
+    // check for SD or SPIFFS or something else in hostSlots.host[hostSlot]
     if (strcmp(hostSlots.host[hostSlot], "SD") == 0)
     {
         err = (SD.cardType() != CARD_NONE);
@@ -134,6 +151,9 @@ void sioFuji::sio_disk_image_mount()
     {
         flag[1] = '+';
     }
+#ifdef DEBUG
+    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n", deviceSlots.slot[deviceSlot].file, deviceSlots.slot[deviceSlot].hostSlot, flag, deviceSlot);
+#endif
 
     //atr[deviceSlot] = TNFS[deviceSlots.slot[deviceSlot].hostSlot].open(deviceSlots.slot[deviceSlot].file, flag);
     atr[deviceSlot] = fileSystems[deviceSlots.slot[deviceSlot].hostSlot]->open(deviceSlots.slot[deviceSlot].file, flag);
@@ -177,21 +197,22 @@ void sioFuji::sio_tnfs_open_directory()
     }
 
 #ifdef DEBUG
-    Debug_print("FujiNet is opening directory for reading: ");
-    Debug_println(current_entry);
+    Debug_print("FujiNet is opening / for reading.");
+//Debug_println(current_entry);
 #endif
 
-    if (current_entry[0] != '/')
-    {
-        current_entry[0] = '/';
-        current_entry[1] = '\0';
-#ifdef DEBUG
-        Debug_print("No directory defined for reading, setting to: ");
-        Debug_println(current_entry);
-#endif
-    }
+    //     if (current_entry[0] != '/')
+    //     {
+    //         current_entry[0] = '/';
+    //         current_entry[1] = '\0';
+    // #ifdef DEBUG
+    //         Debug_print("No directory defined for reading, setting to: ");
+    //         Debug_println(current_entry);
+    // #endif
+    //     }
 
-    dir[hostSlot] = fileSystems[hostSlot]->open(current_entry, "r");
+    dir[hostSlot] = fileSystems[hostSlot]->open("/", "r");
+    //dir[hostSlot] = fileSystems[hostSlot]->open(current_entry, "r");
     //dir[hostSlot] = TNFS[hostSlot].open(current_entry, "r");
 
     if (dir[hostSlot])
@@ -327,6 +348,91 @@ void sioFuji::sio_get_adapter_config()
     sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);
 }
 
+/**
+   Make new disk and shove into device slot
+*/
+void sioFuji::sio_new_disk()
+{
+    union {
+        struct
+        {
+            unsigned short numSectors;
+            unsigned short sectorSize;
+            unsigned char hostSlot;
+            unsigned char deviceSlot;
+            char filename[36];
+        };
+        unsigned char rawData[42];
+    } newDisk;
+
+    byte ck = sio_to_peripheral(newDisk.rawData, sizeof(newDisk));
+
+    if (ck == sio_checksum(newDisk.rawData, sizeof(newDisk)))
+    {
+        deviceSlots.slot[newDisk.deviceSlot].hostSlot = newDisk.hostSlot;
+        deviceSlots.slot[newDisk.deviceSlot].mode = 0x03; // R/W
+        strcpy(deviceSlots.slot[newDisk.deviceSlot].file, newDisk.filename);
+
+        if (fileSystems[newDisk.hostSlot]->exists(newDisk.filename))
+        {
+#ifdef DEBUG
+            Debug_printf("XXX ATR file already exists.\n");
+#endif
+            sio_error();
+            return;
+        }
+        //if (tnfs_open(newDisk.deviceSlot, 0x03, true) == true) // create file
+        File f = fileSystems[newDisk.hostSlot]->open(newDisk.filename, "w+");
+        if (f) // create file
+        {
+            atr[newDisk.deviceSlot] = f;
+// todo: mount ATR file to sioD[deviceSlt]
+#ifdef DEBUG
+            Debug_printf("Nice! Created file %s\n", deviceSlots.slot[newDisk.deviceSlot].file);
+#endif
+            // todo: decide where to put write_blank_atr() and implement it
+            bool ok = sioD[newDisk.deviceSlot].write_blank_atr(&atr[newDisk.deviceSlot], newDisk.sectorSize, newDisk.numSectors);
+            if (ok)
+            {
+#ifdef DEBUG
+                Debug_printf("Nice! Wrote ATR data\n");
+#endif
+                // todo: make these calls for sioD ...
+                //sioD[newDisk.deviceSlot].setSS(newDisk.sectorSize);
+                //derive_percom_block(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors); // this is called in sioDisk::mount()
+                sioD[newDisk.deviceSlot].mount(&atr[newDisk.deviceSlot]); // mount does all this
+                sio_complete();
+                return;
+            }
+            else
+            {
+#ifdef DEBUG
+                Debug_printf("XXX ATR data write failed.\n");
+#endif
+                sio_error();
+                return;
+            }
+        }
+        else
+        {
+#ifdef DEBUG
+            Debug_printf("XXX Could not open file %s\n", deviceSlots.slot[newDisk.deviceSlot].file);
+#endif
+            sio_error();
+            return;
+        }
+    }
+    else
+    {
+#ifdef DEBUG
+        Debug_printf("XXX Bad Checksum.\n");
+#endif
+        sio_error();
+        return;
+    }
+}
+
+
 void sioFuji::sio_process()
 {
     //   cmdPtr[0xE7] = sio_new_disk;
@@ -397,9 +503,9 @@ void sioFuji::sio_process()
         sio_get_adapter_config();
         break;
     case 0xE7:
-    //sio_ack();
-    //sio_new_disk();
-    //break;
+        sio_ack();
+        sio_new_disk();
+        break;
     default:
         sio_nak();
     }
