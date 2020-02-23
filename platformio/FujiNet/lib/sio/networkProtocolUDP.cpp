@@ -1,0 +1,38 @@
+#include "networkProtocolUDP.h"
+
+networkProtocolUDP::networkProtocolUDP()
+{
+
+}
+
+bool networkProtocolUDP::open(networkDeviceSpec* spec)
+{
+    return udp.begin(spec->port);
+}
+
+bool networkProtocolUDP::close()
+{
+    udp.stop();
+    return true;
+}
+
+bool networkProtocolUDP::read(byte* rx_buf, unsigned short len)
+{
+    return (udp.read(rx_buf,len)==len);
+}
+
+bool networkProtocolUDP::write(byte* tx_buf, unsigned short len)
+{
+    udp.beginPacket(dest,port);
+    udp.write(tx_buf,len);
+    udp.endPacket();
+}
+
+bool networkProtocolUDP::status(byte* status_buf)
+{
+    unsigned short len = udp.parsePacket();
+    status_buf[0]=len&0xFF;
+    status_buf[1]=len>>8;
+    status_buf[2]=status_buf[3]=0;
+    return true;
+}
