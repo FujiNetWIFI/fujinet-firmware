@@ -108,8 +108,8 @@ void sioFuji::sio_tnfs_mount_host()
         TNFS[hostSlot].host(host);
         if (strcmp(hostSlots.host[hostSlot], host) == 0)
         {
-             sio_complete();
-             return;
+            sio_complete();
+            return;
         }
         else
         {
@@ -198,7 +198,7 @@ void sioFuji::sio_tnfs_open_directory()
 
 #ifdef DEBUG
     Debug_print("FujiNet is opening / for reading.");
-    //Debug_println(current_entry);
+//Debug_println(current_entry);
 #endif
 
     //     if (current_entry[0] != '/')
@@ -431,6 +431,7 @@ void sioFuji::sio_new_disk()
         return;
     }
 }
+
 
 void sioFuji::sio_process()
 {
