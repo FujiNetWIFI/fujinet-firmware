@@ -63,10 +63,30 @@ bool networkProtocolTCP::status(byte *status_buf)
         status_buf[2] = server->available();
 }
 
-/**
- * Still deciding on how to handle special...
- */
-bool networkProtocolTCP::special(byte* sp_buf, unsigned short len)
+bool networkProtocolTCP::special(byte* sp_buf, unsigned short len, cmdFrame_t* cmdFrame)
 {
+    bool ret;
 
+    switch(cmdFrame->comnd)
+    {
+        case 'A':
+            ret=special_accept_connection();
+            break;
+    }
+
+    return ret;
+}
+
+bool networkProtocolTCP::special_accept_connection()
+{
+    bool ret;
+
+    if (server == NULL)
+    {
+        return false;
+    }
+    else
+    {
+        client=server->accept();
+    }
 }

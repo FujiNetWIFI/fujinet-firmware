@@ -60,7 +60,7 @@ public:
     virtual void read();
     virtual void write();
     virtual void status();
-    virtual void special(char dstats);
+    virtual void special();
 };
 
 #endif /* NETWORK_H */
