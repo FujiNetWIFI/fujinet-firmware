@@ -8,8 +8,14 @@
 extern bool hispeed;
 extern int command_frame_counter;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x00
-#define HISPEED_BAUDRATE 125984
+#define HISPEED_INDEX 0x05
+// 0x06
+// 10
+// 0x00
+#define HISPEED_BAUDRATE 894895/(7+HISPEED_INDEX)
+// 68837 
+// 52640 
+//125984
 #define STANDARD_BAUDRATE 19200
 #define SERIAL_TIMEOUT 300
 
