@@ -356,6 +356,9 @@ void sioDisk::sio_high_speed()
 // Process command
 void sioDisk::sio_process()
 {
+  if (_file == nullptr) // if there is no disk mounted, just return cuz there's nothing to do
+    return;
+
   switch (cmdFrame.comnd)
   {
   case 'R':
@@ -419,7 +422,8 @@ void sioDisk::mount(File *f)
   _file = f;
 
 #ifdef DEBUG
-  Debug_println("mounting ATR to Disk");
+  Debug_print("mounting ATR to Disk: ");
+  Debug_println(f->name());
   Debug_printf("num_para: %d\n", num_para);
   Debug_printf("sectorSize: %d\n", newss);
   Debug_printf("num_sectors: %d\n", num_sectors);
