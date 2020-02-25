@@ -179,16 +179,9 @@ void setup()
   SPIFFS.begin();
 
   theFuji.begin();
-#ifdef DEBUG_S
-  BUG_UART.println("/autorun.atr for FujiNet device");
-#endif
 
-  SPIFFS.begin();
   //atr[0] = SPIFFS.open("/file1.atr", "r+");
   //sioD[0].mount(&atr[0]);
-#ifdef DEBUG_S
-  BUG_UART.println("/file1.atr");
-#endif
   for (int i = 0; i < 8; i++)
   {
     SIO.addDevice(&sioD[i], 0x31 + i);
@@ -277,7 +270,7 @@ void setup()
 #endif
 
   SIO.setup();
-#ifdef DEBUG
+#if defined(DEBUG) && defined(ESP32)
   Debug_print("SIO Voltage: ");
   Debug_println(SIO.sio_volts());
 #endif
