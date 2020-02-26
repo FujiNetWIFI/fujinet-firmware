@@ -5,6 +5,9 @@
  *
  * build: 
  *  cl65 -m reloc.map -t atari -C atari.cfg -Osir -o reloc.xex reloc.c rel.s
+ *
+ * dos 2.5: fre(0)      = 32274
+ * dos 2.5 w/ N: fre(0) = 31021
  */
 
 
@@ -18,13 +21,11 @@
 typedef unsigned int  word;
 typedef unsigned char byte;
 
-
 /*
  * atari symbols - sometimes generates shorter code than 
  * using the atari.h symbols.
  */
 #define MEMLO *((word *) 0x02e7)
-
 
 /*
  * three byte assembly instructions we need to remap
@@ -78,6 +79,7 @@ typedef unsigned char byte;
 #define LDY  0xac		/* LDY oper    */
 #define LDYX 0xbc 		/* LDY oper,x  */
 
+#define insiz( which, value ) instruction_bytes[ which ] = value
 
 /*
  * exported symbols from rel.s
@@ -85,17 +87,22 @@ typedef unsigned char byte;
 extern word reloc_begin, reloc_end;
 extern word reloc_code_begin;
 
-extern void function1( void );
-extern void function2( void );
-extern void function3( void );
-
-
 /*
  * globals
  */
-word (*funcptr1)( void );
-word (*funcptr2)( void );
-word (*funcptr3)( void );
+char *banner            = "#FujiNET N: Handler v0.0.1";
+char *banner_error      = "#FujiNET Not Responding.";
+char *banner_functional = "#FujiNET Active.";
+
+byte instruction_bytes[ 256 ] = {
+  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+  2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+  2,2,2,2,2,2
+};
+
 word memory_delta = 0;
 word code_size = 0;
 word destination = 0;
@@ -104,23 +111,37 @@ word base_function_table = 0;
 word index = 0;
 word functions = 0;
 word code_offset = 0;
+word reclaimed = 0;
+word init_function = 0;
+word old_address = 0;
+word new_address = 0;
+byte (*init_function_ptr)( void );
 
-void remap( byte instruction ) {
-  word index = 0;
+void remap_all( void ) {
+  byte instruction_size;
+  word index = code_offset;
+  word length = MEMLO + code_size;
 
-  printf("[RELOC] Instruction 0x%02x\n", instruction );
-  
-  for( index = code_offset; index < MEMLO + code_size; index++ ) {
-    if( PEEK( index ) == instruction  ) {
-      destination = PEEKW( index + 1 );
+  for( index = code_offset; index < length; ) {
+    instruction_size = instruction_bytes[ PEEK( index ) ];
+    switch( instruction_size ) {
+    case 1:
+      index += 1;
+      break;
+    case 2:
+      index += 2;
+      break;
+    case 3:
+      destination  = PEEKW( index + 1 );
       if( destination >= (word)&reloc_begin && destination <= (word)&reloc_end ) {
 	destination -= memory_delta;
 	POKEW( index + 1, destination );
 	fixes += 1;
-	index += 3;
       }
+      index += 3;
+      break;
     }
-  }  
+  }    
 }
 
 
@@ -148,14 +169,15 @@ void remap( byte instruction ) {
 bool indirect_jump_patch( void ) {
   word index       = 0;
   word destination = 0;
+  word length      = MEMLO + code_size;
   byte attempts    = 0;
   
  try_again:
 
   if( attempts > 200 )
     return false;
-  
-  for( index = MEMLO; index < MEMLO + code_size; index++ ) {
+
+  for( index = MEMLO; index < length; index++ ) {
     if( PEEK( index ) == JMPI ) {
       destination = PEEKW( index  + 1 );
       if( destination >= (word)&reloc_begin && destination <= (word)&reloc_end ) {
@@ -170,10 +192,88 @@ bool indirect_jump_patch( void ) {
       }
     }
   }
-  
   return true;
 }
 
+
+void setup_instruction_table( void ) {
+  insiz( 0x0a, 1 ); // asl accum
+  insiz( 0x00, 1 ); // brk
+  insiz( 0x18, 1 ); // clc
+  insiz( 0xd8, 1 ); // cld
+  insiz( 0x58, 1 ); // cli
+  insiz( 0xba, 1 ); // clv
+  insiz( 0xca, 1 ); // dex
+  insiz( 0x88, 1 ); // dey
+  insiz( 0xe8, 1 ); // inx
+  insiz( 0xc8, 1 ); // iny
+  insiz( 0x4a, 1 ); // lsr accum
+  insiz( 0xea, 1 ); // nop
+  insiz( 0x48, 1 ); // pha
+  insiz( 0x08, 1 ); // php
+  insiz( 0x68, 1 ); // pla
+  insiz( 0x28, 1 ); // plp
+  insiz( 0x2a, 1 ); // rol accum
+  insiz( 0x6a, 1 ); // ror accum
+  insiz( 0x40, 1 ); // rti
+  insiz( 0x60, 1 ); // rts
+  insiz( 0x38, 1 ); // sec
+  insiz( 0xf8, 1 ); // sed
+  insiz( 0x78, 1 ); // sei
+  insiz( 0xaa, 1 ); // tax
+  insiz( 0xa8, 1 ); // tay
+  insiz( 0xba, 1 ); // tsx
+  insiz( 0x8a, 1 ); // txa
+  insiz( 0x9a, 1 ); // txs
+  insiz( 0x98, 1 ); // tya
+  
+  insiz( JMP,  3 );
+  insiz( JSR,  3 );
+  insiz( LDA,  3 );
+  insiz( LDAX, 3 );
+  insiz( LDAY, 3 );
+  insiz( STA,  3 );
+  insiz( STAX, 3 );
+  insiz( STAY, 3 );
+  insiz( STX,  3 );
+  insiz( LDX,  3 );
+  insiz( LDXY, 3 );
+  insiz( STY,  3 );
+  insiz( LDY,  3 );
+  insiz( LDYX, 3 );
+  insiz( ADC,  3 );
+  insiz( ADCX, 3 );
+  insiz( ADCY, 3 );
+  insiz( AND,  3 );
+  insiz( ANDX, 3 );
+  insiz( ANDY, 3 );
+  insiz( ASL,  3 );
+  insiz( ASLX, 3 );
+  insiz( BIT,  3 );
+  insiz( CMP,  3 );
+  insiz( CMPX, 3 );
+  insiz( CMPY, 3 );
+  insiz( CPX,  3 );
+  insiz( CPY,  3 );
+  insiz( DEC,  3 );
+  insiz( DECX, 3 );
+  insiz( EOR,  3 );
+  insiz( EORX, 3 );
+  insiz( EORY, 3 );
+  insiz( INC,  3 );
+  insiz( INCX, 3 );
+  insiz( JMPI, 3 );
+  insiz( LSR,  3 );
+  insiz( LSRX, 3 );
+  insiz( ORA,  3 );
+  insiz( ORAX, 3 );
+  insiz( ORAY, 3 );
+  insiz( ROL,  3 );
+  insiz( ROLX, 3 );
+  insiz( SBC,  3 );
+  insiz( SBCX, 3 );
+  insiz( SBCY, 3 );
+}
 
 void main( void ) {
   
@@ -182,125 +282,95 @@ void main( void ) {
    * and adjust MEMLO up.
    */
   clrscr();
-  printf("Copying...\n");
+  printf("\n");
+  printf("-[ Relocator ]--------------------\n\n");
+
+  setup_instruction_table();
   
   code_size    = (word)&reloc_end - (word)&reloc_begin;
   memory_delta = (word)&reloc_begin - MEMLO;
   code_offset  = MEMLO + ((word)&reloc_code_begin - (word)&reloc_begin);
   memcpy( MEMLO, &reloc_begin, code_size );
 
-  printf( "[RELOC] Code:   %5u\n", code_size );
-  printf( "[RELOC] Offset: %5u\n", code_offset );
-  printf( "[RELOC] Reloc Begin: 0x%04x\n", &reloc_begin );
-  printf( "[RELOC] Reloc Code:  0x%04x\n", &reloc_code_begin );
-  printf( "[RELOC] Reloc End:   0x%04x\n", &reloc_end );
+  /*
+  printf( "MEMLO:       %u\n", MEMLO );
+  printf( "Code:        %u\n", code_size );
+  printf( "Offset:      %u\n", code_offset );
+  printf( "Delta:       %u\n", memory_delta );
+  printf( "Reloc Begin: %u\n", &reloc_begin );
+  printf( "Reloc Code:  %u\n", &reloc_code_begin );
+  printf( "Reloc End:   %u\n", &reloc_end );
+  */
   
   /*
    * handle possible JMP (addr) bug of 0x??FF
    */
-  printf("[RELOC] Indirect Jump Patch...\n");
+  cprintf( "Indirect Jump Patch...   \r");
   if( false == indirect_jump_patch() ) {
-    printf("[RELOC] Patch failed.  Aborting...\n");
+    cprintf("Patch failed.  Aborting...      \r");
     exit( 0 );
-  }
+   }
   
   /*
    * adjust function pointers
    *
    * format of function table:
    *     function count (byte)
-   *     function1 (word)
+   *     function1 (word) [normally module init function]
    *     function2 (word)
    *     functionN (word)
    */
   base_function_table = MEMLO;
   functions = PEEK( MEMLO );	/* get the number of functions we need to adjust */
-  printf( "[RELOC] %u public funcs...\n", functions );
+  cprintf( "%u public func(s)...    \r", functions );
+  
   for( index = 0; index < functions; index++ ) {
-    printf("[RELOC] Mapping 0x%4x to 0x%4x...\n",
-	   PEEKW( MEMLO + (index << 1) + 1),
-	   PEEKW( MEMLO + (index << 1) + 1 ) - memory_delta);
-    POKEW( MEMLO + (index << 1) + 1,
-	   PEEKW( MEMLO + (index << 1) + 1 ) - memory_delta );
-  }
-  
-  /*
-   * fix certain types of addresses
-   */
-  printf( "[RELOC] Remapping instructions...\n" );
-  remap( JMP  );
-  remap( JSR  );
-  remap( LDA  );
-  remap( LDAX );
-  remap( LDAY );
-  remap( STA  );
-  remap( STAX );
-  remap( STAY );
-  remap( STX  );
-  remap( LDX  );
-  remap( LDXY );
-  remap( STY  );
-  remap( LDY  );
-  remap( LDYX );
-  remap( ADC  );
-  remap( ADCX );
-  remap( ADCY );
-  remap( AND  );
-  remap( ANDX );
-  remap( ANDY );
-  remap( ASL  );
-  remap( ASLX );
-  remap( BIT  );
-  remap( CMP  );
-  remap( CMPX );
-  remap( CMPY );
-  remap( CPX  );
-  remap( CPY  );
-  remap( DEC  );
-  remap( DECX );
-  remap( EOR  );
-  remap( EORX );
-  remap( EORY );
-  remap( INC  );
-  remap( INCX );
-  remap( JMPI );
-  remap( LSR  );
-  remap( LSRX );
-  remap( ORA  );
-  remap( ORAX );
-  remap( ORAY );
-  remap( ROL  );
-  remap( ROLX );
-  remap( SBC  );
-  remap( SBCX );
-  remap( SBCY );
-  
-  clrscr();
-  
-  /* 
-   * adjust memlo up to protect our routines
-   */
-  MEMLO += code_size + 1;
+    old_address = PEEKW( MEMLO + ( index << 1 ) + 1 );
+    new_address = old_address - memory_delta;
+    cprintf("Mapping %u to %u...      \r",
+	   old_address,
+	   new_address );
 
+    /*
+     * adjust function entry point
+     */
+    POKEW( MEMLO + ( index << 1 ) + 1, new_address );
+    
+    /*
+     * are we processing the init function?
+     */
+    if( index == 0 )
+      init_function = new_address; 
+
+  }
+
+  /*
+   * patch 3-byte instructions
+   */
+  cprintf( "Remapping Instructions...        \r" );
+  remap_all();
+  cprintf( "                                 \r" );
+  
   /*
    * print report
    */
-  base_function_table += 1;	/* skip over byte count */
+  base_function_table += 1;	/* skip over byte count */ 
   
-  funcptr1 = PEEKW( base_function_table );
-  funcptr2 = PEEKW( base_function_table + 2 );
-  funcptr3 = PEEKW( base_function_table + 4 );
+  printf("Current MEMLO   = %6u\n", init_function );
+  printf("Address Fixes   = %6u\n", fixes );
+  printf("Resident Bytes  = %6u\n", init_function - MEMLO );
+  printf("Reclaimed Bytes = %6u\n", code_size - ( init_function - MEMLO ));
+  printf("\n-----------[ Relocator Complete ]-\n\n");
+  puts( banner );
 
-  printf("\n");
-  printf("-[ Relocator ]--------------------\n\n");
-  printf("MEMLO     = %6u\n", MEMLO );
-  printf("Fixes     = %6u\n", fixes );
-  printf("F1 addr   = %6u\n", funcptr1 );
-  printf("F2 addr   = %6u\n", funcptr2 );
-  printf("F3 addr   = %6u\n", funcptr3 );
-  printf("\nUsage:\n");
-  printf("  ? usr( %u ) [prints 1]\n", funcptr1 );
-  printf("  ? usr( %u ) [prints 2]\n", funcptr2 );
-  printf("  ? usr( %u ) [prints 4]\n", funcptr3 );
-  printf("\n--------------[ Ready for BASIC ]-\n");
+  init_function_ptr = init_function;
+  
+  if( 1 == init_function_ptr() )
+    puts( banner_functional );
+  else
+    puts( banner_error );
+  
+  MEMLO = init_function;
 }
+
+
