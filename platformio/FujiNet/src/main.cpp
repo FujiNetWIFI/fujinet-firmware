@@ -170,6 +170,7 @@ void setup()
 
   // connect to wifi but DO NOT wait for it
   WiFi.begin(WIFI_SSID, WIFI_PASS);
+  server.begin(); // Start the web server
 
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
@@ -199,7 +200,6 @@ void setup()
 #ifdef DEBUG_S
     BUG_UART.println(WiFi.localIP());
 #endif
-    server.begin(); // Start the web server
     UDP.begin(16384);
   }
   /*   TNFS[0].begin(TNFS_SERVER, TNFS_PORT);
