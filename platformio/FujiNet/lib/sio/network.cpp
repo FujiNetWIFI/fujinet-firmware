@@ -122,3 +122,28 @@ void sioNetwork::special()
         protocol->special(sp_buf,sp_buf_len, &cmdFrame);
     }
 }
+
+void sioNetwork::sio_process()
+{
+    switch (cmdFrame.comnd)
+    {
+        case 'O':
+            open();
+            break;
+        case 'C':
+            close();
+            break;
+        case 'R':
+            read();
+            break;
+        case 'W':
+            write();
+            break;
+        case 'S':
+            status();
+            break;
+        default:
+            special();
+            break;
+    }
+}

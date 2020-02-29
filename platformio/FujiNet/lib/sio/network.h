@@ -61,6 +61,9 @@ public:
     virtual void write();
     virtual void status();
     virtual void special();
+
+    virtual void sio_process();
+    
 };
 
 #endif /* NETWORK_H */
