@@ -148,11 +148,11 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
       flag = TNFS_RDONLY;
       break;
     case 'w':
-      flag = TNFS_WRONLY | TNFS_CREAT | TNFS_TRUNC;
+      flag = TNFS_RDWR; // TNFS_WRONLY | TNFS_CREAT | TNFS_TRUNC;
       break;
-    case 'a':
-      flag = TNFS_WRONLY | TNFS_CREAT | TNFS_APPEND;
-      break;
+    //case 'a':
+      //flag = TNFS_WRONLY | TNFS_CREAT | TNFS_APPEND;
+      //break;
     default:
       return nullptr;
     }
@@ -167,11 +167,11 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
         flag = TNFS_RDWR;
         break;
       case 'w':
-        flag = TNFS_RDWR | TNFS_CREAT | TNFS_TRUNC;
+        flag = TNFS_RDWR; // | TNFS_CREAT | TNFS_TRUNC;
         break;
-      case 'a':
-        flag = TNFS_RDWR | TNFS_CREAT | TNFS_APPEND;
-        break;
+      //case 'a':
+      //  flag = TNFS_RDWR | TNFS_CREAT | TNFS_APPEND;
+      //  break;
       default:
         return nullptr;
       }
