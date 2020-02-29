@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "networkDeviceSpec.h"
 
+char ret[256];
+
 /**
      * Parse input string: N1:TCP:FOO.COM:2000 or N1:TCP:2000 
      * s - Input string
@@ -13,7 +15,7 @@ bool networkDeviceSpec::parse(char *s)
 {
     char *p;
     char i = 0;
-    char d = 0;
+    int d = 0;
 
     p = strtok(s, ":"); // Get Device spec
 
@@ -39,18 +41,19 @@ bool networkDeviceSpec::parse(char *s)
                     break;
                 }
             port = atoi(p);
-            isValid=true;
+            isValid = true;
             return true;
         case 3:
             port = atoi(p);
-            isValid=true;
+            isValid = true;
             return true;
             break;
         default:
-            isValid=false;
+            isValid = false;
             return false; // Too many parameters.
         }
     }
+    return false;
 }
 
 /**
@@ -58,12 +61,10 @@ bool networkDeviceSpec::parse(char *s)
      */
 const char *networkDeviceSpec::toChar()
 {
-    char ret[256];
-
-    if (strlen(path)>0)
-        sprintf(ret,"%s:%s:%s:%u",device,protocol,path,port);
+    if (strlen(path) > 0)
+        sprintf(ret, "%s:%s:%s:%u", device, protocol, path, port);
     else
-        sprintf(ret,"%s:%s:%u",device,protocol,port);
-    
+        sprintf(ret, "%s:%s:%u", device, protocol, port);
+
     return ret;
 }

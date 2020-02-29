@@ -2,10 +2,9 @@
 
 networkProtocolUDP::networkProtocolUDP()
 {
-
 }
 
-bool networkProtocolUDP::open(networkDeviceSpec* spec)
+bool networkProtocolUDP::open(networkDeviceSpec *spec)
 {
     return udp.begin(spec->port);
 }
@@ -16,23 +15,27 @@ bool networkProtocolUDP::close()
     return true;
 }
 
-bool networkProtocolUDP::read(byte* rx_buf, unsigned short len)
+bool networkProtocolUDP::read(byte *rx_buf, unsigned short len)
 {
-    return (udp.read(rx_buf,len)==len);
+    return (udp.read(rx_buf, len) == len);
 }
 
-bool networkProtocolUDP::write(byte* tx_buf, unsigned short len)
+bool networkProtocolUDP::write(byte *tx_buf, unsigned short len)
 {
-    udp.beginPacket(dest,port);
-    udp.write(tx_buf,len);
+    udp.beginPacket(dest, port);
+    int l = udp.write(tx_buf, len);
     udp.endPacket();
+    if (l < len)
+        return false;
+    else
+        return true;
 }
 
-bool networkProtocolUDP::status(byte* status_buf)
+bool networkProtocolUDP::status(byte *status_buf)
 {
     unsigned short len = udp.parsePacket();
-    status_buf[0]=len&0xFF;
-    status_buf[1]=len>>8;
-    status_buf[2]=status_buf[3]=0;
+    status_buf[0] = len & 0xFF;
+    status_buf[1] = len >> 8;
+    status_buf[2] = status_buf[3] = 0;
     return true;
 }
