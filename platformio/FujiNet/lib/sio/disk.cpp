@@ -161,17 +161,21 @@ void sioDisk::sio_write()
 
   if (ck == sio_checksum(sector, ss))
   {
-    _file->seek(offset);      // tnfs_seek(deviceSlot, offset);
-    _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
-    _file->flush();
-    firstCachedSector = 65535; // invalidate cache
+    if (_file->seek(offset)) // tnfs_seek(deviceSlot, offset);
+    {
+      size_t sz = _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
+      if (ss == sz)
+      {
+        _file->flush();
+        firstCachedSector = 65535; // invalidate cache
 
-    sio_complete();
+        sio_complete();
+        return;
+      }
+    }
   }
-  else
-  {
-    sio_error();
-  }
+
+  sio_error();
 }
 
 // Status
