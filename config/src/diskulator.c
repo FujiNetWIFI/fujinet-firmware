@@ -184,7 +184,8 @@ void diskulator_new_disk(unsigned char c, unsigned short ns, unsigned short ss)
   newDisk.hostSlot=deviceSlots.slot[c].hostSlot;
   newDisk.deviceSlot=c;
   strcpy(newDisk.filename,deviceSlots.slot[c].file);
-
+  deviceSlots.slot[c].mode=0x02;
+  
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
   OS.dcb.dcomnd=0xE7; // TNFS Create Disk
