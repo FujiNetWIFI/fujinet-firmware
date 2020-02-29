@@ -1,6 +1,8 @@
+#ifndef NETWORKPROTOCOL_H
+#define NETWORKPROTOCOL_H
+
 #include <Arduino.h>
 #include "networkDeviceSpec.h"
-#include "sio.h"
 
 class networkProtocol
 {
@@ -13,5 +15,7 @@ public:
     virtual bool special(byte* sp_buf, unsigned short len, cmdFrame_t* cmdFrame) = 0;
 
     virtual void sio_process();
-    
+
 };
+
+#endif /* NETWORKPROTOCOL_H */

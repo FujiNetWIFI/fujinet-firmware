@@ -28,7 +28,8 @@ bool sioNetwork::open_protocol()
 void sioNetwork::open()
 {
     char inp[256];
-    byte ck = sio_to_peripheral((byte *)&inp, sizeof(inp));
+    
+    sio_to_peripheral((byte *)&inp, sizeof(inp));
 
     if (deviceSpec.parse(inp) == false)
     {

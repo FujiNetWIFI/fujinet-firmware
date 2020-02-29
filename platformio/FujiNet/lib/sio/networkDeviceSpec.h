@@ -1,3 +1,6 @@
+#ifndef NETWORKDEVICESPEC_H
+#define NETWORKDEVICESPEC_H
+
 class networkDeviceSpec
 {
 public:
@@ -25,3 +28,5 @@ public:
      */
     const char* toChar();
 };
+
+#endif /* NETWORKDEVICESPEC_H */

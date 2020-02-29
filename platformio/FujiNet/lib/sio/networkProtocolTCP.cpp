@@ -61,11 +61,12 @@ bool networkProtocolTCP::status(byte *status_buf)
     }
     if (server != NULL)
         status_buf[2] = server->available();
+    return true;
 }
 
 bool networkProtocolTCP::special(byte* sp_buf, unsigned short len, cmdFrame_t* cmdFrame)
 {
-    bool ret;
+    bool ret=false;
 
     switch(cmdFrame->comnd)
     {
@@ -79,8 +80,6 @@ bool networkProtocolTCP::special(byte* sp_buf, unsigned short len, cmdFrame_t* c
 
 bool networkProtocolTCP::special_accept_connection()
 {
-    bool ret;
-
     if (server == NULL)
     {
         return false;
@@ -89,4 +88,5 @@ bool networkProtocolTCP::special_accept_connection()
     {
         client=server->accept();
     }
+    return true;
 }
