@@ -59,9 +59,6 @@ union {
 
 void sioApeTime::sio_time()
 {
-    int start = millis();
-    int retries = 0;
-    int dur;
     time_t txTim;
     tm *now;
     
@@ -69,8 +66,6 @@ void sioApeTime::sio_time()
 
     memset(&ntpdata.rawData, 0, sizeof(ntpdata.rawData));
     ntpdata.ntp_packet.li_vn_mode = 0x1b;
-    
-    start = millis();
 
     // Send NTP packet request
     UDP.beginPacket("pool.ntp.org", 123);
