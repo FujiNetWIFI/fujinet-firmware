@@ -24,6 +24,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "printer.h"
 #include "modem.h"
 #include "fuji.h"
+#include "apetime.h"
 
 //#include <WiFiUdp.h>
 
@@ -51,6 +52,8 @@ File paperf;
 sioModem sioR;
 
 sioFuji theFuji;
+
+sioApeTime apeTime;
 
 WiFiServer server(80);
 WiFiClient client;
@@ -188,6 +191,8 @@ void setup()
     SIO.addDevice(&sioD[i], 0x31 + i);
   }
   SIO.addDevice(&theFuji, 0x70); // the FUJINET!
+
+  SIO.addDevice(&apeTime, 0x45); // apetime
 
   SIO.addDevice(&sioR, 0x50); // R:
 
