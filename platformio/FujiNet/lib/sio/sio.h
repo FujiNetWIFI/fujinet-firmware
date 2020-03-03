@@ -96,11 +96,11 @@ private:
    sioModem *modemDev = nullptr;
    sioFuji *fujiDev = nullptr;
 
-   int sioBaud = 19200; // SIO Baud rate
+   void sio_led(bool onOff);
 
 public:
    int numDevices();
-   void sio_led(bool onOff);
+   long sioBaud = 19200; // SIO Baud rate
 
    void setup();
    void service();
@@ -110,7 +110,6 @@ public:
 #ifdef ESP32
    int sio_volts();
 #endif
-   void setBaudrate(int baudrate);
 };
 
 extern sioBus SIO;
