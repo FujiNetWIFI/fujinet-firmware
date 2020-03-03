@@ -176,8 +176,8 @@ void sioFuji::sio_disk_image_mount()
 void sioFuji::sio_disk_image_umount()
 {
     unsigned char deviceSlot = cmdFrame.aux1;
-    sioD[deviceSlot].umount();
-    atr[deviceSlot]=File();
+    sioD[deviceSlot].umount(); // close file and remove from sioDisk
+    atr[deviceSlot]=File(); // clear file from slot
     sio_complete(); // always completes.
 }
 
