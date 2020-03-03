@@ -155,7 +155,6 @@ void sioFuji::sio_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n", deviceSlots.slot[deviceSlot].file, deviceSlots.slot[deviceSlot].hostSlot, flag, deviceSlot);
 #endif
 
-    //atr[deviceSlot] = TNFS[deviceSlots.slot[deviceSlot].hostSlot].open(deviceSlots.slot[deviceSlot].file, flag);
     atr[deviceSlot] = fileSystems[deviceSlots.slot[deviceSlot].hostSlot]->open(deviceSlots.slot[deviceSlot].file, flag);
     //todo: implement what does FETCH mean?
     //bool opened = tnfs_open(deviceSlot, options, false);
@@ -177,7 +176,8 @@ void sioFuji::sio_disk_image_mount()
 void sioFuji::sio_disk_image_umount()
 {
     unsigned char deviceSlot = cmdFrame.aux1;
-    atr[deviceSlot].close();
+    sioD[deviceSlot].umount(); // close file and remove from sioDisk
+    atr[deviceSlot]=File(); // clear file from slot
     sio_complete(); // always completes.
 }
 
