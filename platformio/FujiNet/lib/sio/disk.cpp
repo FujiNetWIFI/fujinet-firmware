@@ -435,6 +435,13 @@ void sioDisk::mount(File *f)
 #endif
 }
 
+// mount a disk file
+void sioDisk::umount()
+{
+  _file->close();
+  _file=nullptr;
+}
+
 bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short numSectors)
 {
   union {
