@@ -175,6 +175,23 @@ void diskulator_mount_device(unsigned char c, unsigned char o)
 }
 
 /**
+ * Mount device slot
+ */
+void diskulator_umount_device(unsigned char c)
+{
+  OS.dcb.ddevic=0x70;
+  OS.dcb.dunit=1;
+  OS.dcb.dcomnd=0xE9;
+  OS.dcb.dstats=0x00;
+  OS.dcb.dbuf=NULL;
+  OS.dcb.dtimlo=0x01;
+  OS.dcb.dbyt=0;
+  OS.dcb.daux=c;
+  siov();
+}
+
+
+/**
  * Create New Disk
  */
 void diskulator_new_disk(unsigned char c, unsigned short ns, unsigned short ss)
@@ -438,7 +455,7 @@ bool diskulator_host(void)
 	    jump_to_devs:
 	      host_done=true;
 	      slot_done=false;
-	      screen_puts(0,20,"        \xD9\xAA\x19" "Eject\xD9\xA9\x19Hosts\xD9\xAE\x19New          ");
+	      screen_puts(0,20,"        \xD9\xA5\x19" "Eject\xD9\xA9\x19Hosts\xD9\xAE\x19New          ");
 	      
 	      break;
 	    case 0x9B: // ENTER
@@ -536,6 +553,7 @@ bool diskulator_host(void)
 	      goto rehosts;
 	    case 'e': // EJECT
 	    doeject:
+		  diskulator_umount_device(c);
 	      screen_puts(4,c+11,"Empty                               ");
 	      memset(deviceSlots.slot[c].file,0,sizeof(deviceSlots.slot[c].file));
 	      deviceSlots.slot[c].hostSlot=0xFF;
