@@ -310,20 +310,18 @@ void sioBus::service()
               command_frame_counter = 0;
               if (hispeed)
               {
-      #ifdef DEBUG
-                Debug_printf("Switching to %d baud...\n", STANDARD_BAUDRATE);
-      #endif
-                SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
+                sioBaud = STANDARD_BAUDRATE;
                 hispeed = false;
               }
               else
               {
-      #ifdef DEBUG
-                Debug_printf("Switching to %d baud...\n", HISPEED_BAUDRATE);
-      #endif
-                SIO_UART.updateBaudRate(HISPEED_BAUDRATE);
+                sioBaud = HISPEED_BAUDRATE;
                 hispeed = true;
               }
+      #ifdef DEBUG
+              Debug_printf("Switching to %d baud...\n", sioBaud);
+      #endif
+              SIO_UART.updateBaudRate(sioBaud);
             }
     }
     sio_led(false);
@@ -440,5 +438,11 @@ int sioBus::sio_volts()
   return volts;
 }
 #endif
+
+void sioBus::setBaudrate(int baudrate)
+{
+  sioBaud = baudrate;
+  SIO_UART.updateBaudRate(sioBaud);
+}
 
 sioBus SIO;

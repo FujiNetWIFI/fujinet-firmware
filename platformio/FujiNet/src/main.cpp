@@ -41,6 +41,8 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include <SD.h>
 #include <SPI.h>
 #include <WiFi.h>
+#include "keys.h"
+#include "bluetooth.h"
 #endif
 
 //#define TNFS_SERVER "192.168.1.12"
@@ -59,6 +61,12 @@ WiFiServer server(80);
 WiFiClient client;
 #ifdef DEBUG_N
 WiFiClient wifiDebugClient;
+#endif
+
+#ifdef ESP32
+KeyManager keyMgr;
+BluetoothManager btMgr;
+bool sio2bt_mode = false;
 #endif
 
 void httpService()
@@ -299,6 +307,35 @@ void loop()
   else
     digitalWrite(PIN_LED1, HIGH);
 
-  SIO.service();
-  httpService();
+#ifdef ESP32
+  switch(keyMgr.getBootKeyStatus())
+  {
+    case eKeyStatus::LONG_PRESSED:
+      BUG_UART.println("LONG PRESS");
+      sio2bt_mode = !sio2bt_mode;
+      if(sio2bt_mode)
+      {
+        btMgr.start();
+      }
+      else
+      {
+        btMgr.stop();
+      }
+      break;
+    case eKeyStatus::SHORT_PRESSED:
+      BUG_UART.println("SHORT PRESS");
+      break;
+    default:
+      break;
+  }
+  if(sio2bt_mode)
+  {
+    btMgr.service();
+  }
+  else
+#endif
+  {
+    SIO.service();
+    httpService();
+  }
 }
