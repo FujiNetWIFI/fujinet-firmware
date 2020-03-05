@@ -5,7 +5,6 @@
 #include "sio.h"
 #include <FS.h>
 
-extern bool hispeed;
 extern int command_frame_counter;
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
 #define HISPEED_INDEX 0x05
