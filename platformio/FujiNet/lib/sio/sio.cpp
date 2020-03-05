@@ -308,21 +308,13 @@ void sioBus::service()
              if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
              {
               command_frame_counter = 0;
-              if (hispeed)
+              if (sioBaud == HISPEED_BAUDRATE)
               {
-      #ifdef DEBUG
-                Debug_printf("Switching to %d baud...\n", STANDARD_BAUDRATE);
-      #endif
-                SIO_UART.updateBaudRate(STANDARD_BAUDRATE);
-                hispeed = false;
+                setBaudrate(STANDARD_BAUDRATE);
               }
               else
               {
-      #ifdef DEBUG
-                Debug_printf("Switching to %d baud...\n", HISPEED_BAUDRATE);
-      #endif
-                SIO_UART.updateBaudRate(HISPEED_BAUDRATE);
-                hispeed = true;
+                setBaudrate(HISPEED_BAUDRATE);
               }
             }
     }
@@ -405,6 +397,20 @@ int sioBus::numDevices()
 sioDevice *sioBus::device(int i)
 {
   return daisyChain.get(i);
+}
+
+int sioBus::getBaudrate()
+{
+  return sioBaud;
+}
+
+void sioBus::setBaudrate(int baudrate)
+{
+#ifdef DEBUG
+  sioBaud = baudrate;
+  Debug_printf("Switching to %d baud...\n", sioBaud);
+  SIO_UART.updateBaudRate(sioBaud);
+#endif
 }
 
 /**

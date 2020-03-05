@@ -44,6 +44,10 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "keys.h"
 #endif
 
+#ifdef BLUETOOTH_SUPPORT
+#include "bluetooth.h"
+#endif
+
 //#define TNFS_SERVER "192.168.1.12"
 //#define TNFS_PORT 16384
 
@@ -63,6 +67,10 @@ WiFiClient wifiDebugClient;
 #endif
 
 KeyManager keyMgr;
+
+#ifdef BLUETOOTH_SUPPORT
+BluetoothManager btMgr;
+#endif
 
 void httpService()
 {
@@ -283,6 +291,10 @@ void setup()
   Debug_println(SIO.sio_volts());
 #endif
 
+#ifdef BLUETOOTH_SUPPORT
+  btMgr.setup();
+#endif
+
   void sio_flush();
 }
 
@@ -306,14 +318,39 @@ void loop()
   {
     case eKeyStatus::LONG_PRESSED:
       BUG_UART.println("LONG PRESS");
+#ifdef BLUETOOTH_SUPPORT
+      if(btMgr.isActive())
+      {
+        btMgr.stop();
+      }
+      else
+      {
+        btMgr.start();
+      }
+#endif
       break;
     case eKeyStatus::SHORT_PRESSED:
       BUG_UART.println("SHORT PRESS");
+#ifdef BLUETOOTH_SUPPORT
+      if(btMgr.isActive())
+      {
+        btMgr.toggleBaudrate();
+      }
+#endif
       break;
     default:
       break;
   }
 
-  SIO.service();
-  httpService();
+#ifdef BLUETOOTH_SUPPORT
+  if(btMgr.isActive())
+  {
+    btMgr.service();
+  }
+  else
+#endif
+  {
+    SIO.service();
+    httpService();
+  }
 }
