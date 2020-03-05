@@ -1,6 +1,5 @@
 #include "disk.h"
 
-bool hispeed = false;
 int command_frame_counter = 0;
 
 /**
