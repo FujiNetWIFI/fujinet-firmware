@@ -12,7 +12,9 @@ void BluetoothManager::setup()
 
 void BluetoothManager::start()
 {
-  BUG_UART.println("START SIO2BT");
+#ifdef DEBUG
+  Debug_println("START SIO2BT");
+#endif
   mActive = true;
   mPrevBaudrate = SIO.getBaudrate();
   SIO.setBaudrate(mBTBaudrate);
@@ -21,7 +23,9 @@ void BluetoothManager::start()
 
 void BluetoothManager::stop()
 {
+#ifdef DEBUG
   BUG_UART.println("STOP SIO2BT");
+#endif
   mActive = false;
   SIO.setBaudrate(mPrevBaudrate);
   SIO.sio_led(false);
