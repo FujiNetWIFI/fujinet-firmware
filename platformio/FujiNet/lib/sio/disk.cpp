@@ -434,11 +434,20 @@ void sioDisk::mount(File *f)
 #endif
 }
 
+// Invalidate disk cache
+void sioDisk::invalidate_cache()
+{
+  firstCachedSector = 65535;
+}
+
 // mount a disk file
 void sioDisk::umount()
 {
-  _file->close();
-  _file=nullptr;
+  if (_file != nullptr)
+  {
+    _file->close();
+    _file = nullptr;
+  }
 }
 
 bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short numSectors)
