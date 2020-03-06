@@ -317,7 +317,9 @@ void loop()
   switch(keyMgr.getBootKeyStatus())
   {
     case eKeyStatus::LONG_PRESSED:
-      BUG_UART.println("LONG PRESS");
+#ifdef DEBUG
+      Debug_println("LONG PRESS");
+#endif
 #ifdef BLUETOOTH_SUPPORT
       if(btMgr.isActive())
       {
@@ -330,12 +332,16 @@ void loop()
 #endif
       break;
     case eKeyStatus::SHORT_PRESSED:
-      BUG_UART.println("SHORT PRESS");
+#ifdef DEBUG
+      Debug_println("SHORT PRESS");
+#endif
 #ifdef BLUETOOTH_SUPPORT
       if(btMgr.isActive())
       {
         btMgr.toggleBaudrate();
       }
+#else
+      theFuji.image_rotate();
 #endif
       break;
     default:
