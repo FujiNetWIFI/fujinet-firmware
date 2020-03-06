@@ -186,17 +186,22 @@ void sioFuji::sio_disk_image_umount()
 */
 int sioFuji::image_rotate()
 {
+    File *temp;
+
     int n = 0;
     while (sioD[n].file() != nullptr)
     {
         n++;
     }
+    
     if (n > 1)
     {
-        for (int i = 0; i < n; i++)
+        temp = sioD[n-1].file();
+        for (int i = 1; i < n; i++)
         {
-            sioD[i].mount(&atr[(i + 1) % n]);
+            sioD[i].mount(sioD[i-1].file());
         }
+        sioD[0].mount(temp);
     }
     return n;
 }
