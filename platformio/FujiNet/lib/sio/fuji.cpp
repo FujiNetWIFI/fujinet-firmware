@@ -196,8 +196,9 @@ int sioFuji::image_rotate()
     
     if (n > 1)
     {
-        temp = sioD[n-1].file();
-        for (int i = 1; i < n; i++)
+        n--;
+        temp = sioD[n].file();
+        for (int i = n; i > 0; i--)
         {
             sioD[i].mount(sioD[i-1].file());
         }
