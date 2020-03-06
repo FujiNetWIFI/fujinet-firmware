@@ -102,6 +102,7 @@ public:
     bool load_config = true;
     sioDisk *disk();
     void begin();
+    int image_rotate();
 };
 
 #endif // guard

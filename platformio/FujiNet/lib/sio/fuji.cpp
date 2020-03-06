@@ -177,8 +177,28 @@ void sioFuji::sio_disk_image_umount()
 {
     unsigned char deviceSlot = cmdFrame.aux1;
     sioD[deviceSlot].umount(); // close file and remove from sioDisk
-    atr[deviceSlot]=File(); // clear file from slot
-    sio_complete(); // always completes.
+    atr[deviceSlot] = File();  // clear file from slot
+    sio_complete();            // always completes.
+}
+
+/*
+    SIO Disk Image Rotate
+*/
+int sioFuji::image_rotate()
+{
+    int n = 0;
+    while (sioD[n].file() != nullptr)
+    {
+        n++;
+    }
+    if (n > 1)
+    {
+        for (int i = 0; i < n; i++)
+        {
+            sioD[i].mount(&atr[(i + 1) % n]);
+        }
+    }
+    return n;
 }
 
 /**
@@ -431,7 +451,6 @@ void sioFuji::sio_new_disk()
         return;
     }
 }
-
 
 void sioFuji::sio_process()
 {
