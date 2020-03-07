@@ -183,7 +183,7 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   }
   flag_lsb = byte(flag & 0xff);
   flag_msb = byte(flag >> 8);
-  Debug_printf("open flags (lo,hi): &%u %u\n",flag_lsb,flag_msb);
+  Debug_printf("open flags (lo,hi): &%u %u\n", flag_lsb, flag_msb);
 
   // test if path is directory
   tnfsStat_t stats = tnfs_stat(this, path);
@@ -1067,6 +1067,74 @@ bool tnfs_readdir(TNFSImpl *F, int fid, char *nextFile)
   }
 #ifdef DEBUG
   Debug_printf("tnfs_readdir Failed.\n");
+#endif
+  return false;
+}
+
+// TNFS seekdir
+bool tnfs_seekdir(TNFSImpl *F, int fid, long pos)
+{
+  tnfsSessionID_t sessionID = F->sid();
+
+  int start = millis();
+  int dur = millis() - start;
+  unsigned char retries = 0;
+  unsigned char offsetVal[4];
+
+  offsetVal[0] = (int)((pos & 0xFF000000) >> 24);
+  offsetVal[1] = (int)((pos & 0x00FF0000) >> 16);
+  offsetVal[2] = (int)((pos & 0x0000FF00) >> 8);
+  offsetVal[3] = (int)((pos & 0X000000FF));
+
+  while (retries < 5)
+  {
+    tnfsPacket.session_idl = sessionID.session_idl;
+    tnfsPacket.session_idh = sessionID.session_idh;
+    tnfsPacket.retryCount++;        // increase sequence #
+    tnfsPacket.command = 0x13;      // SEEKDIR
+    tnfsPacket.data[0] = (byte)fid; // dir handle
+    tnfsPacket.data[1] = offsetVal[0];
+    tnfsPacket.data[2] = offsetVal[1];
+    tnfsPacket.data[3] = offsetVal[2];
+    tnfsPacket.data[4] = offsetVal[3];
+
+#ifdef DEBUG_VERBOSE
+    Debug_printf("\nTNFS Seekdir, host #%s - fid %02x, pos: %lu\n", F->host().c_str(), fid, pos);
+#endif
+
+    UDP.beginPacket(F->host().c_str(), F->port());
+    UDP.write(tnfsPacket.rawData, 5 + 4);
+    UDP.endPacket();
+
+    while (dur < 5000)
+    {
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
+      {
+        //int l =
+        UDP.read(tnfsPacket.rawData, 516);
+        if (tnfsPacket.data[0] == 0x00)
+        {
+          // Successful
+          return true;
+        }
+        else
+        {
+          // Unsuccessful
+          return false;
+        }
+      }
+    }
+// Otherwise, we timed out.
+#ifdef DEBUG
+    Debug_println("tnfs_readdir Timeout after 5000ms.");
+#endif /* DEBUG_S */
+    retries++;
+    tnfsPacket.retryCount--;
+  }
+#ifdef DEBUG
+  Debug_printf("tnfs_seekdir Failed.\n");
 #endif
   return false;
 }
