@@ -262,6 +262,22 @@ void tnfs_seekdir(Header *hdr, Session *s, unsigned char *databuf, int datasz)
 /* Seek to specific directory entry # */
 void tnfs_telldir(Header *hdr, Session *s, unsigned char *databuf, int datasz)
 {
+  long pos;
+  unsigned char d;
+
+  if (datasz != 1 ||
+      databuf[0]>MAX_DHND_PER_CONN ||
+      s->dhnd[databuf[0]]==NULL)
+    {
+      hdr->status=TNFS_EBADF;
+      tnfs_send(s, hdr, NULL, 0);
+      return;
+    }
+
+  d=*databuf;
+  pos=telldir(s->dhnd[d]);
+  hdr->status=TNFS_SUCCESS;
+  tnfs_send(s,hdr,(unsigned char *)&pos,sizeof(pos));
 }
   
 /* Close a directory */
