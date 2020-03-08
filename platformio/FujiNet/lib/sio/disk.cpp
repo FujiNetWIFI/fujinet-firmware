@@ -1,6 +1,5 @@
 #include "disk.h"
 
-bool hispeed = false;
 int command_frame_counter = 0;
 
 /**
@@ -161,17 +160,21 @@ void sioDisk::sio_write()
 
   if (ck == sio_checksum(sector, ss))
   {
-    _file->seek(offset);      // tnfs_seek(deviceSlot, offset);
-    _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
-    _file->flush();
-    firstCachedSector = 65535; // invalidate cache
+    if (_file->seek(offset)) // tnfs_seek(deviceSlot, offset);
+    {
+      size_t sz = _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
+      if (ss == sz)
+      {
+        _file->flush();
+        firstCachedSector = 65535; // invalidate cache
 
-    sio_complete();
+        sio_complete();
+        return;
+      }
+    }
   }
-  else
-  {
-    sio_error();
-  }
+
+  sio_error();
 }
 
 // Status
@@ -429,6 +432,22 @@ void sioDisk::mount(File *f)
   Debug_printf("num_sectors: %d\n", num_sectors);
   Debug_println("mounted.");
 #endif
+}
+
+// Invalidate disk cache
+void sioDisk::invalidate_cache()
+{
+  firstCachedSector = 65535;
+}
+
+// mount a disk file
+void sioDisk::umount()
+{
+  if (_file != nullptr)
+  {
+    _file->close();
+    _file = nullptr;
+  }
 }
 
 bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short numSectors)

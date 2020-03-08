@@ -24,6 +24,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "printer.h"
 #include "modem.h"
 #include "fuji.h"
+#include "apetime.h"
 
 //#include <WiFiUdp.h>
 
@@ -40,6 +41,11 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include <SD.h>
 #include <SPI.h>
 #include <WiFi.h>
+#include "keys.h"
+#endif
+
+#ifdef BLUETOOTH_SUPPORT
+#include "bluetooth.h"
 #endif
 
 //#define TNFS_SERVER "192.168.1.12"
@@ -52,10 +58,18 @@ sioModem sioR;
 
 sioFuji theFuji;
 
+sioApeTime apeTime;
+
 WiFiServer server(80);
 WiFiClient client;
 #ifdef DEBUG_N
 WiFiClient wifiDebugClient;
+#endif
+
+KeyManager keyMgr;
+
+#ifdef BLUETOOTH_SUPPORT
+BluetoothManager btMgr;
 #endif
 
 void httpService()
@@ -189,6 +203,8 @@ void setup()
   }
   SIO.addDevice(&theFuji, 0x70); // the FUJINET!
 
+  SIO.addDevice(&apeTime, 0x45); // apetime
+
   SIO.addDevice(&sioR, 0x50); // R:
 
   SIO.addDevice(&sioP, 0x40); // P:
@@ -275,6 +291,10 @@ void setup()
   Debug_println(SIO.sio_volts());
 #endif
 
+#ifdef BLUETOOTH_SUPPORT
+  btMgr.setup();
+#endif
+
   void sio_flush();
 }
 
@@ -294,6 +314,49 @@ void loop()
   else
     digitalWrite(PIN_LED1, HIGH);
 
-  SIO.service();
-  httpService();
+  switch(keyMgr.getBootKeyStatus())
+  {
+    case eKeyStatus::LONG_PRESSED:
+#ifdef DEBUG
+      Debug_println("LONG PRESS");
+#endif
+#ifdef BLUETOOTH_SUPPORT
+      if(btMgr.isActive())
+      {
+        btMgr.stop();
+      }
+      else
+      {
+        btMgr.start();
+      }
+#endif
+      break;
+    case eKeyStatus::SHORT_PRESSED:
+#ifdef DEBUG
+      Debug_println("SHORT PRESS");
+#endif
+#ifdef BLUETOOTH_SUPPORT
+      if(btMgr.isActive())
+      {
+        btMgr.toggleBaudrate();
+      }
+#else
+      theFuji.image_rotate();
+#endif
+      break;
+    default:
+      break;
+  }
+
+#ifdef BLUETOOTH_SUPPORT
+  if(btMgr.isActive())
+  {
+    btMgr.service();
+  }
+  else
+#endif
+  {
+    SIO.service();
+    httpService();
+  }
 }
