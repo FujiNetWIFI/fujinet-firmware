@@ -630,7 +630,7 @@ void sioModem::sio_handle_modem()
 
       // Write the buffer to TCP finally
       tcpClient.write(&txBuf[0], len);
-      tcpClient.flush();
+      // tcpClient.flush();
       yield();
     }
 
