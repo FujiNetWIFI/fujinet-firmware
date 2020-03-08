@@ -29,6 +29,8 @@ void sioNetwork::open()
 {
     char inp[256];
     
+    sio_ack();
+
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
     if (deviceSpec.parse(inp) == false)
@@ -56,6 +58,7 @@ void sioNetwork::open()
 
 void sioNetwork::close()
 {
+    sio_ack();
     if (protocol->close())
         sio_complete();
     else
@@ -64,6 +67,7 @@ void sioNetwork::close()
 
 void sioNetwork::read()
 {
+    sio_ack();
     if (protocol == NULL)
     {
         err = true;
@@ -78,6 +82,7 @@ void sioNetwork::read()
 
 void sioNetwork::write()
 {
+    sio_ack();
     ck = sio_to_peripheral(tx_buf, sio_get_aux());
     if (protocol == NULL)
     {
@@ -99,6 +104,7 @@ void sioNetwork::write()
 
 void sioNetwork::status()
 {
+    sio_ack();
     if (protocol == NULL)
     {
         err = true;
@@ -113,6 +119,7 @@ void sioNetwork::status()
 
 void sioNetwork::special()
 {
+    sio_ack();
     if (protocol == NULL)
     {
         err = true;
@@ -126,6 +133,8 @@ void sioNetwork::special()
 
 void sioNetwork::sio_process()
 {
+    bool valid=true;
+
     switch (cmdFrame.comnd)
     {
         case 'O':
@@ -144,7 +153,7 @@ void sioNetwork::sio_process()
             status();
             break;
         default:
-            special();
+            sio_nak();
             break;
     }
 }
