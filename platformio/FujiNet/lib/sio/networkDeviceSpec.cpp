@@ -6,6 +6,15 @@
 
 char ret[256];
 
+void networkDeviceSpec::debug()
+{
+#ifdef DEBUG
+    Debug_printf("NetworkDeviceSpec debug\n");
+    Debug_printf("Device: %s",device);
+    Debug_printf("");
+#endif
+}
+
 /**
      * Parse input string: N1:TCP:FOO.COM:2000 or N1:TCP:2000 
      * s - Input string
@@ -42,14 +51,23 @@ bool networkDeviceSpec::parse(char *s)
                 }
             port = atoi(p);
             isValid = true;
+#ifdef DEBUG
+            debug();
+#endif
             return true;
         case 3:
             port = atoi(p);
             isValid = true;
+#ifdef DEBUG
+            debug();
+#endif
             return true;
             break;
         default:
             isValid = false;
+#ifdef DEBUG
+            debug();
+#endif
             return false; // Too many parameters.
         }
     }
