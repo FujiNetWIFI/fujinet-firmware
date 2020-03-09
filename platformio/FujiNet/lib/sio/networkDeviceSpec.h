@@ -17,6 +17,11 @@ public:
     networkDeviceSpec(char* s) { parse(s); }
 
     /**
+     * Dump devicespec to debug
+     */
+    void debug();
+
+    /**
      * Parse input string: N1:TCP:FOO.COM:2000 or N1:TCP:2000 
      * s - Input string
      * Returns: boolean for valid devicespec.

@@ -33,8 +33,15 @@ void sioNetwork::open()
 
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
+#ifdef DEBUG
+    Debug_printf("Open: %s\n",inp);
+#endif
+
     if (deviceSpec.parse(inp) == false)
     {
+#ifdef DEBUG
+        Debug_printf("Invalid devicespec\n");
+#endif
         memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = OPEN_STATUS_INVALID_DEVICESPEC;
         sio_complete();
@@ -43,6 +50,9 @@ void sioNetwork::open()
 
     if (allocate_buffers() == false)
     {
+#ifdef DEBUG
+        Debug_printf("Could not allocate memory for buffers\n");
+#endif
         memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = OPEN_STATUS_DEVICE_ERROR;
         sio_error();
@@ -50,6 +60,9 @@ void sioNetwork::open()
 
     if (open_protocol() == false)
     {
+#ifdef DEBUG
+        Debug_printf("Could not open protocol.\n");
+#endif        
         memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
         sio_error();
@@ -58,6 +71,9 @@ void sioNetwork::open()
 
 void sioNetwork::close()
 {
+#ifdef DEBUG
+    Debug_printf("Close.\n");
+#endif
     sio_ack();
     if (protocol->close())
         sio_complete();
@@ -68,6 +84,9 @@ void sioNetwork::close()
 void sioNetwork::read()
 {
     sio_ack();
+#ifdef DEBUG
+    Debug_printf("Read %d bytes\n",cmdFrame.aux2*256+cmdFrame.aux1);
+#endif
     if (protocol == NULL)
     {
         err = true;
@@ -75,7 +94,7 @@ void sioNetwork::read()
     }
     else
     {
-        err = protocol->read(rx_buf, rx_buf_len);
+        err = protocol->read(rx_buf, cmdFrame.aux2*256+cmdFrame.aux1);
     }
     sio_to_computer(rx_buf, sio_get_aux(), err);
 }
@@ -83,9 +102,15 @@ void sioNetwork::read()
 void sioNetwork::write()
 {
     sio_ack();
+#ifdef DEBUG
+    Debug_printf("Write %d bytes\n",cmdFrame.aux2*256+cmdFrame.aux1);
+#endif
     ck = sio_to_peripheral(tx_buf, sio_get_aux());
     if (protocol == NULL)
     {
+#ifdef DEBUG
+        Debug_printf("Not connected\n");
+#endif
         err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
     }
@@ -105,8 +130,14 @@ void sioNetwork::write()
 void sioNetwork::status()
 {
     sio_ack();
+#ifdef DEBUG
+    Debug_printf("STATUS\n");
+#endif
     if (protocol == NULL)
     {
+#ifdef DEBUG
+        Debug_printf("Not connected\n");
+#endif
         err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
     }
@@ -114,14 +145,23 @@ void sioNetwork::status()
     {
         err = protocol->status(status_buf.rawData);
     }
+#ifdef DEBUG
+        Debug_printf("Status bytes: %02x %02x %02x %02x\n",status_buf.rawData[0],status_buf.rawData[1],status_buf.rawData[2],status_buf.rawData[3]);
+#endif
     sio_to_computer(status_buf.rawData, 4, err);
 }
 
 void sioNetwork::special()
 {
     sio_ack();
+#ifdef DEBUG
+    Debug_printf("SPECIAL\n");
+#endif
     if (protocol == NULL)
     {
+#ifdef DEBUG
+        Debug_printf("Not connected!\n");
+#endif
         err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
     }
