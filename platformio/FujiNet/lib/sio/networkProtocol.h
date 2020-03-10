@@ -13,9 +13,6 @@ public:
     virtual bool write(byte* tx_buf, unsigned short len) = 0;
     virtual bool status(byte* status_buf) = 0;
     virtual bool special(byte* sp_buf, unsigned short len, cmdFrame_t* cmdFrame) = 0;
-
-    virtual void sio_process();
-
 };
 
 #endif /* NETWORKPROTOCOL_H */

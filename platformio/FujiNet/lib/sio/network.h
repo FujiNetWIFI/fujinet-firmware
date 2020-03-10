@@ -59,7 +59,7 @@ public:
     virtual void close();
     virtual void read();
     virtual void write();
-    virtual void status();
+    virtual void sio_status();
     virtual void special();
 
     virtual void sio_process();

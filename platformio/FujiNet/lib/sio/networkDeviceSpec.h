@@ -14,6 +14,14 @@ public:
     /**
      * ctor to create devicespec from string
      */
+    networkDeviceSpec() {
+        memset(device,0,sizeof(device));
+        memset(protocol,0,sizeof(protocol));
+        memset(path,0,sizeof(path));
+        port=0;
+        isValid=false;
+    }
+    
     networkDeviceSpec(char* s) { parse(s); }
 
     /**

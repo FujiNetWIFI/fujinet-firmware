@@ -127,7 +127,7 @@ void sioNetwork::write()
     }
 }
 
-void sioNetwork::status()
+void sioNetwork::sio_status()
 {
     sio_ack();
 #ifdef DEBUG
@@ -173,8 +173,6 @@ void sioNetwork::special()
 
 void sioNetwork::sio_process()
 {
-    bool valid=true;
-
     switch (cmdFrame.comnd)
     {
         case 'O':
@@ -190,10 +188,10 @@ void sioNetwork::sio_process()
             write();
             break;
         case 'S':
-            status();
+            sio_status();
             break;
         default:
-            sio_nak();
+            special();
             break;
     }
 }
