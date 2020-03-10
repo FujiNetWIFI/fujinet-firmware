@@ -16,6 +16,9 @@ sioDisk sioD[8]; // use pointers and create objects as needed?
 
 void sioFuji::sio_status()
 {
+    char ret[4]={0,0,0,0};
+
+    sio_to_computer((byte *)ret, 4, false);
     return;
 }
 
