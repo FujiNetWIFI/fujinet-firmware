@@ -6,7 +6,8 @@
 #include <fstream>
 //using namespace std;
 
-#define EOL -100
+#define EOL 155
+#define EOLS -100
 
 // todo:
 // specify: page size, left/bottom margins, line spacing
@@ -25,36 +26,15 @@ float svg_X=0.;
 float svg_Y=0.;
 float printWidth = 400.;
 float charWidth = 10.;
-float lineHeight = 16.66667;
-
-void svg_header()
-{
-// <!DOCTYPE html>
-// <html>
-// <body>
-// <svg height="210" width="500">
-fprintf(f,"<!DOCTYPE html>\n");
-fprintf(f,"<html>\n");
-fprintf(f,"<body>\n\n");
-fprintf(f,"<svg height=\"2000\" width=\"480\" viewBox=\"0 -1000 480 2000\">\n");
-}
-
-void svg_footer()
-{
-// </svg>
-// </body>
-// </html>
-fprintf(f,"</svg>\n\n");
-fprintf(f,"</body>\n");
-fprintf(f,"</html>\n");
-}
+float lineHeight = 21.7;
+float fontSize = 21.7;
 
 
 void svg_new_line()
 {
   // <text x="0" y="15" fill="red">I love SVG!</text>
   // position new line and start text string array
-  fprintf(f,"<text x=\"0\" y=\"%f\" font-size=\"17\" font-family=\"monospace\" fill=\"black\">", svg_Y);
+  fprintf(f,"<text x=\"0\" y=\"%f\" font-size=\"21.7\" font-family=\"monospace\" fill=\"black\">", svg_Y);
   svg_X = 0; // reinforce?
 
   BOLflag = false;
@@ -79,6 +59,32 @@ void svg_handle_char(unsigned char c)
     fputc ( c , f); //_file->write(c); 
     svg_X += charWidth; // update x position
   }
+}
+
+
+
+void svg_header()
+{
+// <!DOCTYPE html>
+// <html>
+// <body>
+// <svg height="210" width="500">
+fprintf(f,"<!DOCTYPE html>\n");
+fprintf(f,"<html>\n");
+fprintf(f,"<body>\n\n");
+fprintf(f,"<svg height=\"2000\" width=\"480\" viewBox=\"0 -1000 480 2000\">\n");
+}
+
+void svg_footer()
+{
+// </svg>
+// </body>
+// </html>
+ if (!BOLflag)
+    svg_end_line();
+fprintf(f,"</svg>\n\n");
+fprintf(f,"</body>\n");
+fprintf(f,"</html>\n");
 }
 
 
@@ -123,11 +129,11 @@ int main()
     payload.clear();
       char c='\0';
       int i=0;
-      while (c!=EOL && i<40 && !prtin.eof())  
+      while (c!=EOLS && i<40 && !prtin.eof())  
       {
         prtin.get(c);
         if (c=='\n')
-          c=EOL;
+          c=EOLS;
         payload.push_back(c);
         i++;
       }
