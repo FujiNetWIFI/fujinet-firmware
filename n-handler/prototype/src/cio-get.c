@@ -29,7 +29,7 @@ void _cio_get(void)
 
       err=siov(DEVIC_N,
 	       OS.ziocb.drive,
-	       'r',
+	       'R',
 	       DSTATS_READ,
 	       &buffer_rx,
 	       buffer_rx_len,

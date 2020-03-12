@@ -21,7 +21,7 @@ void cio_put_flush(void)
 {
   err=siov(DEVIC_N,
 	   OS.ziocb.drive,
-	   'w',
+	   'W',
 	   DSTATS_WRITE,
 	   &buffer_tx,
 	   buffer_tx_len,

@@ -30,10 +30,10 @@ void _cio_special(void)
   switch (OS.ziocb.command)
     {
     case 16: // Accept Connection
-      dcmd='a';
+      dcmd='A';
       break;
     case 17: // unlisten
-      dcmd='u';
+      dcmd='U';
       break;
     case 18: // flush
       cio_put_flush();
