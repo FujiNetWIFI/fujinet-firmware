@@ -21,9 +21,9 @@ std::ifstream prtin; // input file
 
 FILE *f; // standard C output file
 
-bool BOLflag=true;
-float svg_X=0.;
-float svg_Y=0.;
+bool BOLflag = true;
+float svg_X = 0.;
+float svg_Y = 0.;
 float printWidth = 480.;
 double leftMargin = 0.0;
 float charWidth = 12.;
@@ -31,6 +31,7 @@ float lineHeight = 20.8;
 float fontSize = 20.8;
 
 bool escMode;
+bool escResidual;
 
 void svg_new_line()
 {
@@ -38,8 +39,8 @@ void svg_new_line()
   // <text x="0" y="15" fill="red">I love SVG!</text>
   // position new line and start text string array
   //fprintf(f,"<text x=\"0\" y=\"%g\" font-size=\"%g\" font-family=\"ATARI 1020 VECTOR FONT APPROXIM\" fill=\"black\">", svg_Y,fontSize);
-  svg_Y += lineHeight;  
-  fprintf(f,"<text x=\"%g\" y=\"%g\" font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"black\">", leftMargin,svg_Y,fontSize);
+  svg_Y += lineHeight;
+  fprintf(f, "<text x=\"%g\" y=\"%g\" font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"black\">", leftMargin, svg_Y, fontSize);
   svg_X = 0; // reinforce?
 
   BOLflag = false;
@@ -48,10 +49,10 @@ void svg_new_line()
 void svg_end_line()
 {
   // <text x="0" y="15" fill="red">I love SVG!</text>
-  fprintf(f,"</text>\n"); // close the line
-   // line feed
+  fprintf(f, "</text>\n"); // close the line
+                           // line feed
   //svg_X = 0.;               // CR
-  
+
   BOLflag = true;
 }
 
@@ -88,7 +89,7 @@ CHAR. SCALE		S(0-63)			      GRAPHICS
 */
 void svg_handle_char(unsigned char c)
 {
-   if (escMode)
+  if (escMode)
   {
     // Atari 1020 escape codes:
     // ESC CTRL-G - graphics mode (simple A returns)
@@ -96,91 +97,97 @@ void svg_handle_char(unsigned char c)
     // ESC CTRL-N - 40 char mode
     // ESC CTRL-S - 80 char mode
     // ESC CTRL-W - international char set
-    // ESC CTRL-X - standard char set 
-    if (c==16)
+    // ESC CTRL-X - standard char set
+    if (c == 16)
     {
-        charWidth = 24.;
-        fontSize = 2.*20.8;
-        lineHeight = fontSize;
+      charWidth = 24.;
+      fontSize = 2. * 20.8;
+      lineHeight = fontSize;
     }
-    if (c==14)
+    if (c == 14)
     {
-        charWidth = 12.;
-        fontSize = 20.8;
-        lineHeight = fontSize;
+      charWidth = 12.;
+      fontSize = 20.8;
+      lineHeight = fontSize;
     }
-        if (c==19)
+    if (c == 19)
     {
-        charWidth = 6.;
-        fontSize = 10.4;
-        lineHeight = fontSize;
+      charWidth = 6.;
+      fontSize = 10.4;
+      lineHeight = fontSize;
     }
-       escMode = false; // TODO: What to do about EOL after escape sequence?
-   }
-     else if (c == 27)
+    escMode = false; // TODO: What to do about EOL after escape sequence?
+    escResidual = true;
+  }
+  else if (c == 27)
     escMode = true;
   else
-  // simple ASCII printer
-  if (c > 31 && c < 127)
+      // simple ASCII printer
+      if (c > 31 && c < 127)
   {
     // if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
     //   _file->write(BACKSLASH);
-    fputc ( c , f); //_file->write(c); 
+    fputc(c, f);        //_file->write(c);
     svg_X += charWidth; // update x position
     //std::cout << svg_X << " ";
   }
 }
 
-
-
 void svg_header()
 {
-// <!DOCTYPE html>
-// <html>
-// <body>
-// <svg height="210" width="500">
-//fprintf(f,"<!DOCTYPE html>\n");
-//fprintf(f,"<html>\n");
-//fprintf(f,"<body>\n\n");
-fprintf(f,"<svg height=\"2000\" width=\"480\" viewBox=\"0 -1000 480 2000\">\n");
+  // <!DOCTYPE html>
+  // <html>
+  // <body>
+  // <svg height="210" width="500">
+  //fprintf(f,"<!DOCTYPE html>\n");
+  //fprintf(f,"<html>\n");
+  //fprintf(f,"<body>\n\n");
+  fprintf(f, "<svg height=\"2000\" width=\"480\" viewBox=\"0 -1000 480 2000\">\n");
 }
 
 void svg_footer()
 {
-// </svg>
-// </body>
-// </html>
- if (!BOLflag)
+  // </svg>
+  // </body>
+  // </html>
+  if (!BOLflag)
     svg_end_line();
-fprintf(f,"</svg>\n\n");
-//fprintf(f,"</body>\n");
-//fprintf(f,"</html>\n");
+  fprintf(f, "</svg>\n\n");
+  //fprintf(f,"</body>\n");
+  //fprintf(f,"</html>\n");
 }
 
 void svg_add(std::string S)
 {
   // loop through string
   for (int i = 0; i < S.length(); i++)
-    { 
-      unsigned char c = (unsigned char)S[i];
+  {
+    unsigned char c = (unsigned char)S[i];
     //std::cout << "c=" << c << " ";
+    if (escResidual)
+    {
+      escResidual = false;
+      if (c == EOL)
+        return;
+    }
 
     if (BOLflag && c == EOL)
-       svg_new_line();
+      svg_new_line();
 
     // // check for EOL or if at end of line and need automatic CR
     if (!BOLflag && (c == EOL))
-       svg_end_line();
+      svg_end_line();
     else if (!BOLflag && (svg_X > (printWidth - charWidth)))
     {
-       svg_end_line();
-       svg_new_line();
+      svg_end_line();
+      svg_new_line();
     }
-    else if (BOLflag && c!=27 && !escMode)
-       svg_new_line();
+    else if (BOLflag && c != 27 && !escMode)
+      svg_new_line();
 
     // disposition the current byte
-    svg_handle_char(c);}
+    svg_handle_char(c);
+  }
 }
 
 int main()
@@ -197,24 +204,25 @@ int main()
 
   svg_header();
   //SIMULATE SIO:
-      //standard Atari P: handler sends 40 bytes at a time
-      //break up line into 40-byte buffers
-  do {
+  //standard Atari P: handler sends 40 bytes at a time
+  //break up line into 40-byte buffers
+  do
+  {
     payload.clear();
-      char c='\0';
-      int i=0;
-      while (c!=EOLS && i<40 && !prtin.eof())  
-      {
-        prtin.get(c);
-        if (c=='\n')
-          c=EOLS;
-        payload.push_back(c);
-        i++;
-      }
-      std::cout << payload << ", ";
+    char c = '\0';
+    int i = 0;
+    while (c != EOLS && i < 40 && !prtin.eof())
+    {
+      prtin.get(c);
+      if (c == '\n')
+        c = EOLS;
+      payload.push_back(c);
+      i++;
+    }
+    std::cout << payload << ", ";
     svg_add(payload);
     fflush(f);
-} while (!prtin.eof());
+  } while (!prtin.eof());
   svg_footer();
   fclose(f);
   return 0;
