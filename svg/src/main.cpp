@@ -24,6 +24,7 @@ FILE *f; // standard C output file
 bool BOLflag = true;
 float svg_X = 0.;
 float svg_Y = 0.;
+float pageWidth = 550.;
 float printWidth = 480.;
 double leftMargin = 0.0;
 float charWidth = 12.;
@@ -142,7 +143,7 @@ void svg_header()
   //fprintf(f,"<!DOCTYPE html>\n");
   //fprintf(f,"<html>\n");
   //fprintf(f,"<body>\n\n");
-  fprintf(f, "<svg height=\"2000\" width=\"480\" viewBox=\"0 -1000 480 2000\">\n");
+  fprintf(f, "<svg height=\"2000\" width=\"%g\" viewBox=\"0 -1000 480 2000\">\n",pageWidth);
 }
 
 void svg_footer()
