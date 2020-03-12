@@ -5,6 +5,7 @@
 
 #include "sio.h"
 #include "disk.h"
+#include "network.h"
 #include "tnfs.h"
 
 #ifdef ESP8266
@@ -21,6 +22,7 @@ extern FS* fileSystems[8];
 extern TNFSFS TNFS[8];
 extern File atr[8];     // up to 8 disk drives
 extern sioDisk sioD[8]; //
+extern sioNetwork sioN[8];
 
 class sioFuji : public sioDevice
 {
@@ -101,6 +103,7 @@ protected:
 public:
     bool load_config = true;
     sioDisk *disk();
+    sioNetwork *network();
     void begin();
     int image_rotate();
 };

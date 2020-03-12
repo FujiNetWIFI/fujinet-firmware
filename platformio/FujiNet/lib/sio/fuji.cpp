@@ -13,9 +13,13 @@ TNFSFS TNFS[8]; // up to 8 TNFS servers
 File dir[8];     // maybe only need on dir file pointer?
 File atr[8];     // up to 8 disk drives
 sioDisk sioD[8]; // use pointers and create objects as needed?
+sioNetwork sioN[8];
 
 void sioFuji::sio_status()
 {
+    char ret[4]={0,0,0,0};
+
+    sio_to_computer((byte *)ret, 4, false);
     return;
 }
 
