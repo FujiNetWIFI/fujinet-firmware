@@ -15,6 +15,14 @@ void sioPrinter::pdf_header()
   this->pdf_fonts(); // pdf_fonts is virtual function, call by pointer
 }
 
+void atari1020::svg_header()
+{
+  //fprintf(f,"<!DOCTYPE html>\n");
+//fprintf(f,"<html>\n");
+//fprintf(f,"<body>\n\n");
+_file->printf("<svg height=\"2000\" width=\"480\" viewBox=\"0 -1000 480 2000\">\n");
+}
+
 void sioPrinter::pdf_fonts()
 {
   // 3rd object: font catalog
@@ -365,6 +373,29 @@ void atari820::initPrinter(File *f, paper_t ty)
   {
     sideFlag = false;
     pdf_header();
+  }
+}
+
+void atari1020::initPrinter(File *f, paper_t ty)
+{
+
+  _file = f;
+  paperType = ty;
+  pageWidth = 480.0;  // paper roll is 3 7/8" from page 6 of owners manual
+  pageHeight = 2000.0; // just use 11" for letter paper
+  leftMargin = 0.0;  // fit print width on page width
+  bottomMargin = 0.0;
+  // dimensions from Table 1-1 of Atari 820 Field Service Manual
+  //printWidth = 240.0; // 3 1/3" wide printable area
+  lineHeight = 17.5;  // 6 lines per inch
+  charWidth = 12.0;    // 12 char per inch
+  fontSize = 17.5;      // 6 lines per inch
+  //fontHorizontalScaling = 83.333;
+
+  if (paperType == SVG)
+  {
+    textFlag = true;
+    svg_header();
   }
 }
 

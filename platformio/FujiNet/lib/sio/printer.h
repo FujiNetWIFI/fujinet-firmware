@@ -133,4 +133,15 @@ public:
     void initPrinter(File *f, paper_t ty) override;
 };
 
+class atari1020 : public sioPrinter
+{
+protected:
+    bool textFlag = true;
+    void svg_header();
+
+public:
+    void initPrinter(File *f, paper_t ty) override;
+};
+
+
 #endif // guard
