@@ -116,7 +116,7 @@ void svg_handle_char(unsigned char c)
       fontSize = 10.4;
       lineHeight = fontSize;
     }
-    escMode = false; // TODO: What to do about EOL after escape sequence?
+    escMode = false; 
     escResidual = true;
   }
   else if (c == 27)
