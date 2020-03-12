@@ -87,7 +87,6 @@ fprintf(f,"</svg>\n\n");
 //fprintf(f,"</html>\n");
 }
 
-
 void svg_add(std::string S)
 {
   // loop through string
