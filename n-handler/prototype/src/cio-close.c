@@ -20,7 +20,7 @@ void _cio_close(void)
   cio_put_flush();
   
   siov(DEVIC_N,OS.ziocb.drive,
-	       'c',
+	       'C',
 	       DSTATS_NONE,
 	       NULL,
 	       DBYT_NONE,

@@ -16,7 +16,7 @@ void _cio_status(void)
 
   err=siov(DEVIC_N,
 	   OS.ziocb.drive,
-	   's',
+	   'S',
 	   DSTATS_READ,
 	   OS.dvstat,
 	   4,

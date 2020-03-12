@@ -31,7 +31,7 @@ void _cio_open(void)
   
   siov(DEVIC_N,
 	   OS.ziocb.drive,
-	   'o',
+	   'O',
 	   DSTATS_WRITE,
 	   OS.ziocb.buffer,
 	   DBYT_OPEN,
