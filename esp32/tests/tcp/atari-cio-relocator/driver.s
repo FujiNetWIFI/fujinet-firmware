@@ -15,7 +15,11 @@
 	
 	;; equates
 	HATABS  = $031A		; where Atari's HATABS resides
+	SAVMSC  = $58
+	ROWCRS  = $54
+	COLCRS  = $55
 
+	
 	;; DCB block
 	DDEVIC  = $0300		; sio device
 	DUNIT   = $0301		; sio unit number
@@ -46,32 +50,61 @@
 	ZAUX3   = $2c		; ZIOCB aux byte 3
 	ZAUX4   = $2d		; ZIOCB aux byte 4
 	ZSPARE  = $2f		; ZIOCB spare byte
-	
-	DVSTAT0	= $02ea		; device error & command status byte
-	DVSTAT1 = $02eb		; device status byte
-	DVSTAT2 = $02ec		; maximum device timeout in seconds
-	DVSTAT3 = $02ed		; number of bytes in output buffer
-	
-	;; from sio.h
-	NDEV           = $70	; atariwifi device number
-	DSTATS_NONE    = $00
-	DSTATS_READ    = $40
-	DSTATS_WRITE   = $80
-	DTIMLO_DEFAULT = $0f
-	DBYT_NONE      = $00
-	DBYT_OPEN      = $ff
 
+	DVSTAT0			= $02ea		; device error & command status byte
+	DVSTAT1 		= $02eb		; device status byte
+	DVSTAT2 		= $02ec		; maximum device timeout in seconds
+	DVSTAT3 		= $02ed		; number of bytes in output buffer
+
+	;; 
+	;; from sio.h
+	;; 
+	NDEV           		= $70	; atariwifi device number
+	DSTATS_NONE    		= $00
+	DSTATS_READ    		= $40
+	DSTATS_WRITE   		= $80
+	DTIMLO_DEFAULT 		= $0f	; 15 seconds
+	DBYT_NONE      		= $00
+	DBYT_OPEN      		= $ff
+
+	;; 
 	;; FujiNET return values
-	FUJI_DEAD      = $00	; FN not responding
-	FUJI_OK	       = $01	; FN good to go
-	FUJI_FULL_TAB  = $02	; HATABS is full (unlikely)
+	;; 
+	FUJI_DEAD      		= $00	; FN not responding
+	FUJI_OK	       		= $03	; FN good to go
+	FUJI_FULL_TAB  		= $02	; HATABS is full (unlikely)
+
+	;;
+	;; CIO SPECIAL commands
+	;;
+	SPECIAL_FLUSH		= 18
+
+	;;
+	;; functab indexes
+	;; 
+	FUNCTION_INIT        	= 1
+	FUNCTION_CIO_OPEN    	= 3
+	FUNCTION_CIO_CLOSE   	= 5
+	FUNCTION_CIO_GET     	= 7
+	FUNCTION_CIO_PUT     	= 9
+	FUNCTION_CIO_STATUS  	= 11
+	FUNCTION_CIO_SPECIAL 	= 13
+	FUNCTION_CIO_VECTOR  	= 15
+	VARIABLE_NTAB        	= 17
+	VARIABLE_STATUS      	= 19
+	VARIABLE_DVSTAT      	= 21
+	VARIABLE_INBUF       	= 23
+	VARIABLE_OUTBUF      	= 25
+	VARIABLE_IINDEX      	= 29
+	VARIABLE_INBUFLEN    	= 31
+	MESSAGE_OPEN         	= 35
 	
 	.code
 	
 _reloc_begin:
 
 functab:
-	.byte 9			; (0) exposing nine addresses - these are remapped
+	.byte 17		; (0) exposed addresses - these are remapped
 	.addr init		; (1) driver init function
 	.addr cio_open - 1	; (3) cio stuff
 	.addr cio_close - 1	; (5)
@@ -80,8 +113,18 @@ functab:
 	.addr cio_status - 1	; (11)
 	.addr cio_special - 1	; (13)
 	.addr cio_vector	; (15)
-	.addr ntab
-	
+	.addr ntab		; (17)
+	.addr status		; (19)
+	.addr dvstatb		; (21)
+	.addr inbuf		; (23)
+	.addr outbuf		; (25)
+	.addr oindex		; (27)
+	.addr iindex		; (29) [7748]
+	.addr inbuflen		; (31) [7749]
+	.addr outbuflen		; (33) [8006]
+
+NDEBUG:	 .byte $ff
+
 status:	.byte 0			; status == FUJI_OK if we're init'd and all good
 
 cioerr:	.byte 0
@@ -100,18 +143,33 @@ ntab:	.addr 0			; open
 	.addr 0			; status
 	.addr 0			; special
 	.addr 0			; vector
-	
+
 aux1sv: .res 8, $00
 aux2sv: .res 8, $00
 inbuf:	.res $ff, $00		; input buffer
-iindex:	.byte 0			; what character are we resting on in the input buffer?
-inbuflen:	.byte 0
+iindex:	.byte $00		; what character are we resting on in the input buffer?
+inbuflen:
+	.byte $00
 outbuf:	.res $ff, $00		; output buffer
-oindex:	.byte 0			; what character are we resting on in the output buffer?
-outbuflen:	.byte 0
+oindex:	.byte $00		; what character are we resting on in the output buffer?
+outbuflen:
+	.byte $00
+
+dvstatb:
+	.byte 0
+	.byte 0
+	.byte 0
+	.byte 0
 
 _reloc_code_begin:	
 
+	
+getvar:	
+	lda	functab,x
+	sta	tempw
+	lda	functab+1,x
+	sta	tempw+1
+	rts
 	
 aux_save:
 	ldy	ZUNIT
@@ -120,6 +178,15 @@ aux_save:
 	lda	ZAUX2
 	sta	aux2sv,y
 	rts
+
+aux_load:
+	ldy	ZUNIT
+	lda	aux1sv,y
+	sta	ZAUX1
+	lda	aux2sv,y
+	sta	ZAUX2
+	rts
+
 	
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -127,85 +194,177 @@ aux_save:
 ;;;
 ;;; load up a CIO command frame with defaults
 ;;; 
-default_cio_values:
-	lda	NDEV
+set_default_cio_values:
+	lda	#NDEV
 	sta	DDEVIC
-	lda	DTIMLO_DEFAULT
+	lda	#DTIMLO_DEFAULT
 	sta	DTIMLO
 	lda	#$00
 	sta	DTIMHI
-	lda	aux1
-	sta	DAUX1
-	lda	aux2
-	sta	DAUX2
-	lda	DTIMLO_DEFAULT
-	sta	DTIMLO
 	lda	#$00
 	sta	DTIMHI
+	lda	ZUNIT
+	sta	DUNIT
 	rts
 
-	
 get_cio_return_values:
 	lda	cioret
 	ldy	cioerr
 	rts
 
-	
 set_cio_return_values:
 	sta	cioret
 	sty	cioerr
 	rts
 
+.ifdef NDEBUG
 	
+set_visual:
+	ldy	#0
+	sta	(SAVMSC),y
+	rts
+
+clr_visual:
+	pha
+	tya
+	pha
+	lda	#' '
+	ldy	#0
+	sta	(SAVMSC),y
+	iny
+	sta	(SAVMSC),y
+	pla
+	tay
+	pla
+	rts
+
+.macro	clr_vis
+	.if	.defined( NDEBUG )
+	jsr	clr_visual
+	.endif
+.endmacro
+	
+.macro	set_vis	code1, code2
+	.if	.defined( NDEBUG )
+	pha
+	tya
+	pha
+	lda	#code1
+	ldy	#0
+	sta	(SAVMSC),y
+	iny
+	lda	#code2
+	sta	(SAVMSC),y
+	pla
+	tay
+	pla
+	.endif
+.endmacro
+
+.endif
+	
+;;;
+;;; (mostly good)
+;;; 
 cio_open:
-	lda	status
-	cmp	FUJI_OK
+	clr_vis
+	set_vis	'o',' '
+	jsr	wifi_hot
+	cmp	#FUJI_OK
 	beq	cio_open_continue
 	lda	#146
 	sta	cioerr
-	lda	#0
+	lda	#146
 	sta	cioret
 	jsr	get_cio_return_values
 	rts
 cio_open_continue:
+	clr_vis
+	set_vis	'o', 'i'
+	;; 
 	jsr	aux_save
-	lda	NDEV
-	sta	ZDEVIC
+	;;
+	set_vis	'o', 'p'
+	lda	#NDEV
+	sta	DDEVIC
 	lda	#'o'
 	sta     DCOMND
-	lda	DSTATS_WRITE
+	lda	ZUNIT
+	sta	DUNIT
+	;;
+	;; 	throwing data to fuji
+	;; 
+	lda	#DSTATS_WRITE
 	sta	DSTATS
+	;;
+	;; 	whatever the caller passed us....
+	;; 
+	lda	#DBYT_OPEN
+	sta	DBYTLO
+	lda	#0
+	sta	DBYTHI
+	;; 
+	;; 	pass user supplied string to fuji
+	;;
 	lda	ZBUFLO
 	sta	DBUFLO
 	lda	ZBUFHI
 	sta	DBUFHI
-	lda	DBYT_OPEN
-	sta	DBYTLO
-	lda	DTIMLO_DEFAULT
-	sta	DTIMLO
-	ldy	ZUNIT
-	lda	aux1sv,y
-	sta	DAUX1
-	lda	aux2sv,y
-	sta	DAUX2	
-	jsr	SIOV
+	;;
+	;; 	how long are we gonna wait? (15 seconds)
 	;; 
-	;; clear input and output buffer length
+	lda	#DTIMLO_DEFAULT
+	sta	DTIMLO
+	lda	#0
+	sta	DTIMHI
+	;;
+	;; 	get aux data for this unit
+	;; 
+	lda	ZAUX1
+	sta	DAUX1
+	lda	ZAUX2
+	sta	DAUX2
+	;;
+	;; 	make sio call....
+	;;
+	set_vis	'o', 'c'
+	jsr	SIOV	
+	bmi	cio_open_error
+	;; 
+	;; 	clear input and output buffer length
 	;; 
 	lda	#0
 	sta	inbuflen
 	sta	outbuflen
 	sta	iindex
 	sta	oindex
-	
-	lda	#1		; cio return
-	ldy	#1		; cio error
+	;;
+	;;
+	;;
+	set_vis 'o', 's'
+	;;
+	;; 	set CIO return values
+	;;
+	lda	#1
+	sta	cioerr
+	lda	#1
+	sta	cioret
+	jsr	get_cio_return_values
+	rts
+cio_open_error:
+	set_vis	'o','e'
+	lda	#170
+	sta	cioerr
+	sta	cioret
+	jsr	get_cio_return_values
 	rts
 
-	
+;;;
+;;; (good) cio_close
+;;; 
 cio_close:
-	lda	status
-	cmp	FUJI_OK
+	jsr	wifi_hot
+	cmp	#FUJI_OK
 	beq	cio_close_continue
 	lda	#146
 	sta	cioerr
@@ -215,167 +374,264 @@ cio_close:
 	rts
 cio_close_continue:	
 	jsr	cio_put_flush
-	lda	NDEV
+	;;
+	;;
+	;; 
+	lda	#NDEV
 	sta	ZDEVIC
+	;;
+	;;
+	;; 
 	lda	#'o'
 	sta     DCOMND
-	lda	DSTATS_NONE
+	;;
+	;;
+	;; 
+	lda	#DSTATS_NONE
 	sta	DSTATS
+	;;
+	;;
+	;; 
 	lda	#$00
 	sta	DBUFLO
 	sta	DBUFHI
-	lda	DBYT_NONE
+	;;
+	;;
+	;; 
+	lda	#DBYT_NONE
 	sta	DBYTLO
-	lda	DTIMLO_DEFAULT
+	sta	DBYTHI
+	;;
+	;;
+	;; 
+	lda	#DTIMLO_DEFAULT
 	sta	DTIMLO
+	;;
+	;;
+	;; 
 	ldy	ZUNIT
 	lda	aux1sv,y
 	sta	DAUX1
 	lda	aux2sv,y
 	sta	DAUX2
-	jsr 	SIOV	
+	;;
+	;;
+	;; 
+	jsr 	SIOV
+	;;
+	;;
+	;; 
 	ldy	ZUNIT
 	lda	#$00
 	sta	aux1sv,y
 	sta	aux2sv,y
-	lda	#$01		; cio return
-	ldy	#$01		; cio err
-	rts
-
-	
-cio_get:
-	lda	status
-	cmp	FUJI_OK
-	beq	cio_get_continue
-	lda	#146
-	sta	cioerr
+	;;
+	;;
+	;; 
 	lda	#0
+	sta	cioerr
+	lda	#1
 	sta	cioret
 	jsr	get_cio_return_values
 	rts
-cio_get_continue:
-	brk
-	lda	#0		; used to store first character read
-	sta	tempb
 
-	lda	#1
-	sta	cioerr
-	lda	inbuflen
-	cmp	#0
-	beq	cio_get_1
-	jmp	cio_get_2
-cio_get_1:
-	jsr	cio_status
-	lda	DVSTAT0
-	sta	inbuflen
-	lda	#0
-	sta	iindex
-	lda	NDEV
-	sta	ZDEVIC
-	lda	#'r'
-	sta     DCOMND
-	lda	DSTATS_READ
-	sta	DSTATS
-	lda	inbuf
-	sta	DBUFLO
-	lda	inbuf+1
-	sta	DBUFHI
-	lda	inbuflen
-	sta	DBYTLO
-	lda	DTIMLO_DEFAULT
-	sta	DTIMLO
-	lda	inbuflen
-	sta	DAUX1
-	lda	#$00
-	sta	DAUX2
-	jsr	SIOV
-	ldy	#0
-	lda	inbuf,y
-	sta	tempb		; first character read
-cio_get_2:			; do we have data?
-	lda	inbuflen
-	cmp	#0
-	beq	cio_get_3
-	jmp	cio_get_5
-cio_get_3:			; is dvstat2 == 0
-	lda	DVSTAT2
-	cmp	#0
-	beq	cio_get_4
-	jmp	cio_get_5
-cio_get_4:			; no data and dvstat2 == 0
+;;; 
+;;; (good) cio_get
+;;;
+cio_get:
+	jsr	wifi_hot
+	cmp	#FUJI_OK
+	beq	cio_get_continue
 	lda	#136
 	sta	cioerr
 	sta	cioret
 	jsr	get_cio_return_values
 	rts
-cio_get_5:			; check ZIOCB command
-	lda	ZCOMND
-	and	#$02
-	cmp	#0
-	beq	cio_get_6
-
-	lda	tempb
-	cmp	#$0a
-	bne	cio_get_6
-	lda	#$9b
-	sta	tempb
-cio_get_6:
-	lda	tempb
-	cmp	#$0d
-	bne	cio_get_7
-	lda	#$20
-	sta	tempb
-cio_get_7:	
-	lda	inbuflen
-	cmp	iindex
-	beq	cio_get_8
-	lda	tempb
+cio_get_continue:
+	lda	inbuflen	; input buffer empty?
+	beq	cio_get_check_fuji ; input buffer has nothing so hit fuji...
+	lda	iindex
+	cmp	inbuflen
+	beq	cio_get_check_fuji ; if iindex == inbuflen
+	jmp	cio_get_character  ; inbuflen > 0 and iindex != inbuflen
+cio_get_check_fuji:
+	lda	#0		; zap current input index and input buffer length
+	sta	iindex
+	sta	inbuflen
+	jsr	cio_status	; ask fuji how many characters are waiting to be read....
+	lda	DVSTAT0		; dvstat0 holds number of bytes in fuji waiting to read
+	beq	cio_get_no_data	; nope - so bail
+	lda	DVSTAT2		; dvstat2 holds connection status -- are we connected?
+	beq	cio_get_no_data	; nope...we don't have a convo going so bail
+	jmp	cio_get_siocall
+cio_get_no_data:
+	lda	#0
 	sta	cioret
-	inc	iindex
-cio_get_8:	
+	lda	#170
+	sta	cioerr
+	jsr	get_cio_return_values
+	rts
+cio_get_siocall:
+	lda	DVSTAT0		; get characters waiting to be read
+	sta	inbuflen	; save accum (DVSTAT2) into input buffer length
+	;;
+	;;
+	;; 
+	lda	#NDEV
+	sta	DDEVIC
+	;;
+	;;
+	;; 
+	lda	#'r'
+	sta     DCOMND
+	;;
+	;;
+	;; 
+	lda	ZUNIT
+	sta	DUNIT
+	;;
+	;;
+	;; 
+	lda	#DSTATS_READ
+	sta	DSTATS
+	;;
+	;; 	get pointer to buffer - we just can't do inbuf/inbuf+1 here
+	;;  	for some reason.
+	;;
+	ldx	#VARIABLE_INBUF
+	jsr	getvar
+	lda	tempw
+	sta	DBUFLO
+	lda	tempw+1
+	sta	DBUFHI
+	;;
+	;;
+	;;
+	lda	inbuflen
+	sta	DBYTLO
+	lda	#0
+	sta	DBYTHI
+	;;
+	;;
+	;; 
+	lda	#DTIMLO_DEFAULT
+	sta	DTIMLO
+	lda	#0
+	sta	DTIMHI
+	;;
+	;;
+	;; 
+	lda	inbuflen
+	sta	DAUX1
+	lda	#0
+	sta	DAUX2
+	;;
+	;;
+	;; 
+	jsr	SIOV
+	bmi	cio_get_error
+cio_get_character:		; iindex >= 0, inbuflen >= 0, inbuf has data....
+	ldy	iindex		; nth character please
+	lda	inbuf,y		; get it
+	sta	cioret		; store it as the CIO return value
+	iny			; increment index
+	tya
+	sta	iindex		; save new index
+	lda	#1		; successful read
+	sta	cioerr		; stuff it in cio error
+	jsr	get_cio_return_values ; load regs based on cio* values
+	rts
+cio_get_error:
+	lda	#136
+	sta	cioerr
+	sta	cioret
 	jsr	get_cio_return_values
 	rts
 
-	
+
+;;;
+;;; (good)
+;;; 
 cio_put_flush:
-	lda	NDEV
+	lda	outbuflen
+	cmp	#0
+	bne	cio_put_flush_continue
+	rts
+cio_put_flush_continue:
+	lda	#NDEV
 	sta	ZDEVIC
+	;;
+	;;
+	;; 
 	lda	#'w'
 	sta     DCOMND
-	lda	DSTATS_WRITE
+	;;
+	;;
+	;; 
+	lda	#DSTATS_WRITE
 	sta	DSTATS
-	lda	outbuf
+	;;
+	;;	pointer to output buffer
+	;;
+	ldx	#VARIABLE_OUTBUF
+	jsr	getvar
+	lda	tempw
 	sta	DBUFLO
-	lda	outbuf+1
+	lda	tempw+1
 	sta	DBUFHI
+	;;
+	;;
+	;; 
 	lda	outbuflen
 	sta	DBYTLO
-	lda	DTIMLO_DEFAULT
+	lda	#0
+	sta	DBYTHI
+	;;
+	;;
+	;; 
+	lda	#DTIMLO_DEFAULT
 	sta	DTIMLO
+	;;
+	;;
+	;; 
 	lda	outbuflen
 	sta	DAUX1
-	lda	#$00
+	;;
+	;;
+	;; 
+	lda	#0
 	sta	DAUX2
+	;;
+	;;
+	;; 
 	jsr	SIOV
-	lda	#$00
+	;;
+	;;
+	;; 
+	lda	#0
 	sta	outbuflen
-	sta	oindex	
-	jsr	get_cio_return_values
-	rts
-
-	
-cio_put:
-	lda	status
-	cmp	FUJI_OK
-	beq	cio_put_continue
-	lda	#146
+	sta	oindex
+	;;
+	;;
+	;; 
+	lda	#1
 	sta	cioerr
 	lda	#0
 	sta	cioret
 	jsr	get_cio_return_values
 	rts
+
+	
+cio_put:
+	jsr	wifi_hot
+	cmp	#FUJI_OK
+	beq	cio_put_continue
+	lda	#136
+	sta	cioerr
+	sta	cioret
+	jsr	get_cio_return_values
+	rts
 cio_put_continue:
-	brk
 	lda	DVSTAT2
 	cmp	#0
 	bne	cio_put_2
@@ -383,66 +639,82 @@ cio_put_continue:
 	sta	cioerr
 	lda	#0
 	sta	cioret
-	jsr	set_cio_return_values
+	jsr	get_cio_return_values
 	rts
-cio_put_2:
-	lda	cioret
-	cmp	#$9b		; end of line?
-	beq	cio_put_3
-	lda	#$fe
-	cmp	outbuflen
-	bcs	cio_put_3	;
-	jmp	cio_put_4
-cio_put_3:
-	ldx	outbuflen
-	lda	#$0d
-	sta	outbuf,x
-	inx
-	lda	#$0a
-	sta	outbuf,x
+cio_put_2:			; at this point the char to process is in accum
+	pha			; save character
+	pha			; twice...
+	ldx	#VARIABLE_OUTBUF
+	jsr	getvar
+	ldx	oindex		; load current outbuf index
+	inx			; increment by one
+	pla			; get character to write
+	sta 	tempw,x		; store character
 	txa
-	sta	outbuflen
-	jsr	cio_put_flush
-	jmp	cio_put_5
-cio_put_4:
-	ldx	outbuflen
-	lda	cioret
-	sta	outbuf,x
-	txa
-	sta	outbuflen
-cio_put_5:
-	jsr	set_cio_return_values
+	sta	oindex		; store new output index
+	pla			; restore second copy
+	cmp	#$9b		; enter? (LF)
+	beq	cio_put_send	; ship it!
+	lda	oindex		; are we at the end of our buffer?
+	cmp	#$ff
+	beq	cio_put_send	; def. ship it now.
+	jmp	cio_put_exit
+cio_put_send:
+	jsr	cio_put_flush	; if buffer is full or EOL or ENTER then flush the buffer
+cio_put_exit:			; throw success back to the OS
+	lda	#0
+	sta	cioret
+	lda	#1
+	sta	cioerr
+	jsr	get_cio_return_values
 	rts
-	
+
+
+;;;
+;;; (good) cio_status
+;;; 
 cio_status:
-	lda	NDEV
-	sta	ZDEVIC
-	lda	#'s'
+	jsr	wifi_hot
+	cmp	#FUJI_OK
+	beq	cio_status_continue
+	lda	#146
+	sta	cioerr
+	lda	#146
+	sta	cioret
+	jsr	get_cio_return_values
+	rts	
+cio_status_continue:
+	lda	#NDEV
+	sta	DDEVIC
+	lda	ZUNIT
+	sta	DUNIT
+	lda	#'s'		; 's' command - get_tcp_status
 	sta     DCOMND
-	lda	DSTATS_READ
+	lda	#DSTATS_READ
 	sta	DSTATS
-	lda	DVSTAT0		; load dvstat bytes (4)
+	lda	#<DVSTAT0       ; we're getting 4 bytes back
 	sta	DBUFLO
-	lda	DVSTAT0+1
+	lda	#>DVSTAT0
 	sta	DBUFHI
-	lda	#4		; 4 dvstat bytes
+	lda	#4		; 4 bytes dvstat1-4
 	sta	DBYTLO
-	lda	DTIMLO_DEFAULT
+	lda	#0
+	sta	DBYTHI
+	lda	#DTIMLO_DEFAULT	; 15 seconds
 	sta	DTIMLO
-	lda	ZAUX1
+	lda	#0		; AUX1 = 0 is "get muh status"
 	sta	DAUX1
-	lda	ZAUX2
+	lda	#0
 	sta	DAUX2
 	jsr	SIOV
-	lda	#$00
-	sta	outbuflen
-	lda	DVSTAT0		; return dvstat0 in A
-	ldy	#$01		; good CIO call
+	lda	DVSTAT0
+	sta	cioret
+	lda	#1
+	stx	cioerr
+	jsr	get_cio_return_values
 	rts
-	
-dcmd:	.byte 0
-dstats:	.byte 0
-dbyt:	.byte 0
+
+	;; dcmd:	.byte 0 dstats:	.byte 0 dbyt:	.byte 0
 
 	
 cio_special:
@@ -451,48 +723,78 @@ cio_special:
 	beq	cio_special_continue
 	lda	#146
 	sta	cioerr
-	lda	#0
+	lda	#146
 	sta	cioret
 	jsr	get_cio_return_values
 	rts
-cio_special_continue:
-	brk
-	lda	#$01
-	sta	cioerr
-	lda	#$00
-	sta	dcmd
-	sta	dstats
+cio_special_continue:	
 	lda	ZCOMND
-	cmp	#16
-	bne	cio_special_next_1
-	lda	#'a'
-	sta	dcmd
-	jmp	cio_special_make_call
-cio_special_next_1:
-	lda	ZCOMND
-	cmp	#17
-	bne	cio_special_next_2
-	lda	#'u'
-	sta	dcmd
-	jmp	cio_special_make_call
-cio_special_next_2:
-	lda	#146
-	sta	cioerr
-cio_special_make_call:	
-	jsr	default_cio_values
-	lda	dcmd
-	sta	DCOMND
-	lda	ZUNIT
-	sta	DUNIT
-	lda	dstats
-	sta	DSTATS
-	jsr	SIOV
+	cmp	#SPECIAL_FLUSH
+	bne	cio_special_next_command_1
+	jsr	cio_put_flush
+	lda	#1
+	ldy	#1
+	rts
+cio_special_next_command_1:
+	lda	#1
+	ldy	#1
 	rts
 
 	
 cio_vector:
 	ldy	#1		; successful IO function
 	rts
+
+
+;;;
+;;; called by various routines to check fujinet status - is
+;;; the wifi connection active e.g. blue light on?
+;;;
+;;; sets accum and STATUS to FUJI_DEAD/FUJI_OK.
+;;; 
+wifi_hot:
+	lda	#FUJI_DEAD
+	sta	status
+	lda	#NDEV
+	sta	DDEVIC
+	lda	ZUNIT
+	sta	DUNIT
+	lda	#$fa		; is fuji wifi hot?
+	sta     DCOMND
+	lda	#DSTATS_READ
+	sta	DSTATS
+	;;
+	;; get address of status byte buffer into tempw
+	;; 
+	ldx	#VARIABLE_STATUS
+	jsr	getvar
+	;;
+	;; tempw points to global variable BUFFER
+	;; 
+	lda	tempw		; we're looking for a single status byte back
+	sta	DBUFLO
+	lda	tempw+1
+	sta	DBUFHI
+	lda	#1		; 1 status byte
+	sta	DBYTLO
+	lda	#0
+	sta	DBYTHI
+	lda	#DTIMLO_DEFAULT
+	sta	DTIMLO
+	lda	ZAUX1
+	sta	DAUX1
+	lda	ZAUX2
+	sta	DAUX2
+	jsr	SIOV
+	lda	status
+	cmp	#FUJI_OK
+	beq	wifi_hot_ok
+	lda	#FUJI_DEAD
+	sta	status
+wifi_hot_ok:	
+	lda	status
+	rts
+
 
 	
 CIOV:	ldx	#$00
@@ -516,9 +818,21 @@ SIOV:	jsr	$e459
 ;;; doesn't matter here.
 ;;;
 init:
+	;; 
 	;; assume failure with init
-	lda	FUJI_DEAD
+	;; 
+	lda	#FUJI_DEAD
 	sta	status
+	;; 
+	;; 	init buffers/vars
+	;;
+	lda	#0
+	sta	iindex
+	sta	oindex
+	sta	inbuflen
+	sta	outbuflen
+	sta	cioret
+	sta	cioerr
 	;; 
 	;; copy cio routines to ntab, could probably just use
 	;; functab to save 14 or so bytes.
@@ -566,11 +880,8 @@ found_empty_slot:		 ; add FujiNET device to HATABS
 	;; versions settled on this.  It's basically dealing with
 	;; a level of indirection here.
 	;; 
-	ldx	#17
-	lda	functab,x
-	sta	tempw
-	lda	functab+1,x
-	sta	tempw+1
+	ldx	#VARIABLE_NTAB
+	jsr	getvar
 	;; 
 	;; stuff it into HATAB
 	;; 
@@ -582,22 +893,12 @@ found_empty_slot:		 ; add FujiNET device to HATABS
 	sta	HATABS,y
 	;;
 	;; now call cio_status to see if the device is up
-	;; and running
-	;; 
-	jsr	cio_status	 ; call CIO to see if we're live
-	cpy	#$01
-	beq	failed_init	 ; nope...we aren't.
- 	ldx	#0
-	lda	FUJI_OK		 ; we're good to go! return to cc65.
-	sta	status
-	rts
-failed_init:
-	ldx	#0
-	lda	FUJI_DEAD	 ; FujiNET unresponsive
-	sta	status
+	;; and running (blue dot on?)
+	;;
+	jsr	wifi_hot	 ; check wifi and return in Accum so cc65 can pick it up
 exit_init:	
 	rts
-	
+
 _reloc_end:
 
 	.end
