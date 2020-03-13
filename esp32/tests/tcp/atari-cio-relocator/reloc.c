@@ -90,7 +90,7 @@ extern word reloc_code_begin;
 /*
  * globals
  */
-char *banner            = "#FujiNET N: Handler v0.0.1";
+char *banner            = "#FujiNET N: Handler v0.0.3";
 char *banner_error      = "#FujiNET Not Responding.";
 char *banner_functional = "#FujiNET Active.";
 
@@ -116,6 +116,7 @@ word init_function = 0;
 word old_address = 0;
 word new_address = 0;
 byte (*init_function_ptr)( void );
+byte fujinet = 0;
 
 void remap_all( void ) {
   byte instruction_size;
@@ -327,7 +328,7 @@ void main( void ) {
   for( index = 0; index < functions; index++ ) {
     old_address = PEEKW( MEMLO + ( index << 1 ) + 1 );
     new_address = old_address - memory_delta;
-    cprintf("Mapping %u to %u...      \r",
+    printf("Mapping %u to %u...      \n",
 	   old_address,
 	   new_address );
 
@@ -364,8 +365,9 @@ void main( void ) {
   puts( banner );
 
   init_function_ptr = init_function;
+  fujinet = init_function_ptr();
   
-  if( 1 == init_function_ptr() )
+  if( 3 == fujinet )
     puts( banner_functional );
   else
     puts( banner_error );
