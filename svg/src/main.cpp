@@ -31,9 +31,9 @@ float charWidth = 12.;
 float lineHeight = 20.8;
 float fontSize = 20.8;
 
-bool escMode;
-bool escResidual;
-bool textMode;
+bool escMode=false;
+bool escResidual=false;
+bool textMode=true;
 
 void svg_new_line()
 {

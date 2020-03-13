@@ -1,11 +1,9 @@
 <svg height="2000" width="550" viewBox="0 -1000 480 2000">
-<text x="0" y="20.8" font-size="20.8" font-family="FifteenTwenty" fill="black">ABCDEFGHIJKLMNOPQRSTUVWXYZ</text>
-<text x="0" y="62.4" font-size="41.6" font-family="FifteenTwenty" fill="black">0123456789</text>
-<text x="0" y="72.8" font-size="10.4" font-family="FifteenTwenty" fill="black">abcdefghijklmnopqrstuvwxyz</text>
-<text x="0" y="83.2" font-size="10.4" font-family="FifteenTwenty" fill="black">!@#$%^&*()</text>
-<text x="0" y="93.6" font-size="10.4" font-family="FifteenTwenty" fill="black">1234567890123456789012345678901234567890</text>
-<text x="0" y="114.4" font-size="20.8" font-family="FifteenTwenty" fill="black">The quick brown fox jumps over the lazy </text>
-<text x="0" y="135.2" font-size="20.8" font-family="FifteenTwenty" fill="black">dog.</text>
-<text x="0" y="156" font-size="20.8" font-family="FifteenTwenty" fill="black"></text>
+<text x="0" y="20.8" font-size="20.8" font-family="FifteenTwenty" fill="black">This is 40 column mode.</text>
+<text x="0" y="62.4" font-size="41.6" font-family="FifteenTwenty" fill="black">This is 20 col mode</text>
+<text x="0" y="104" font-size="41.6" font-family="FifteenTwenty" fill="black">And 80 column mode i</text>
+<text x="0" y="145.6" font-size="41.6" font-family="FifteenTwenty" fill="black">s very small.</text>
+<text x="0" y="166.4" font-size="20.8" font-family="FifteenTwenty" fill="black">Back to normal.</text>
+<text x="0" y="187.2" font-size="20.8" font-family="FifteenTwenty" fill="black"></text>
 </svg>
 

@@ -1,8 +1,4 @@
-ABCDEFGHIJKLMNOPQRSTUVWXYZ
-
-0123456789
-abcdefghijklmnopqrstuvwxyz
-!@#$%^&*()
-1234567890123456789012345678901234567890
-
-The quick brown fox jumps over the lazy dog.
+This is 40 column mode.
+This is 20 col mode
+And 80 column mode is very small.
+Back to normal.
