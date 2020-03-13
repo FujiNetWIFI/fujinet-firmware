@@ -14,5 +14,7 @@ Back to normal.
 H
 C3
 D100,100:0,100
+C2
+M200,-200*D0,0
 A
 done.
