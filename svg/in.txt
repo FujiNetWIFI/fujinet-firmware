@@ -6,6 +6,7 @@ And 80 column mode is very small.
 
 Back to normal.
 
+H
 D100,100
 A
 done.
