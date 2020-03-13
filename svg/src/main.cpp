@@ -49,7 +49,7 @@ void svg_new_line()
   // position new line and start text string array
   //fprintf(f,"<text x=\"0\" y=\"%g\" font-size=\"%g\" font-family=\"ATARI 1020 VECTOR FONT APPROXIM\" fill=\"black\">", svg_Y,fontSize);
   svg_Y += lineHeight;
-  fprintf(f, "<text x=\"%g\" y=\"%g\" font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"black\">", leftMargin, svg_Y, fontSize);
+  fprintf(f, "<text x=\"%g\" y=\"%g\" font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"%s\">", leftMargin, svg_Y, fontSize,svg_colors[svg_color_idx].c_str());
   svg_X = 0; // always start at left margin? not sure of behavior
 
   BOLflag = false;
@@ -62,7 +62,7 @@ void svg_end_line()
   BOLflag = true;
 }
 
-void svg_draw_line()
+void svg_plot_line()
 {
   //<line x1="0" x2="100" y1="0" y2="100" style="stroke:rgb(0,0,0);stroke-width:2 />
   int x1 = svg_X_home + svg_X;
@@ -72,7 +72,7 @@ void svg_draw_line()
   svg_X += svg_arg[0];
   svg_Y += svg_arg[1];
 
-  fprintf(f, "<line x1=\"%d\" x2=\"%d\" y1=\"%d\" y2=\"%d\" style=\"stroke:rgb(0,0,0);stroke-width:2 />\n", x1, x2, y1, y2);
+  fprintf(f, "<line x1=\"%d\" x2=\"%d\" y1=\"%d\" y2=\"%d\" style=\"stroke:%s;stroke-width:2 />\n", x1, x2, y1, y2, svg_colors[svg_color_idx].c_str());
 }
 
 /*
@@ -164,7 +164,7 @@ void svg_graphics_command(std::string S)
   case 'D':
     // get 2 args out of S and draw a line
     svg_get_2_args(S.substr(1));
-    svg_draw_line();
+    svg_plot_line();
     break;
   case 'M':
     // get 2 args out of S and ...
