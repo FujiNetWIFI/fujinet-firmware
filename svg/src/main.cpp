@@ -243,7 +243,7 @@ void svg_header()
   //fprintf(f,"<!DOCTYPE html>\n");
   //fprintf(f,"<html>\n");
   //fprintf(f,"<body>\n\n");
-  fprintf(f, "<svg height=\"2000\" width=\"%g\" viewBox=\"0 -1000 480 2000\">\n", pageWidth);
+  fprintf(f, "<svg height=\"2000\" width=\"%g\" style=\"background-color:white\" viewBox=\"0 -1000 480 2000\">\n", pageWidth);
 }
 
 void svg_footer()
