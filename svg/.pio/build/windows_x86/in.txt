@@ -1,4 +1,0 @@
-This is 40 column mode.
-This is 20 col mode
-And 80 column mode is very small.
-Back to normal.
