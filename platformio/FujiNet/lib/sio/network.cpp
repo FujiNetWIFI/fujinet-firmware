@@ -28,13 +28,13 @@ bool sioNetwork::open_protocol()
 void sioNetwork::open()
 {
     char inp[256];
-    
+
     sio_ack();
 
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
 #ifdef DEBUG
-    Debug_printf("Open: %s\n",inp);
+    Debug_printf("Open: %s\n", inp);
 #endif
 
     if (deviceSpec.parse(inp) == false)
@@ -62,7 +62,7 @@ void sioNetwork::open()
     {
 #ifdef DEBUG
         Debug_printf("Could not open protocol.\n");
-#endif        
+#endif
         memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
         sio_error();
@@ -85,7 +85,7 @@ void sioNetwork::read()
 {
     sio_ack();
 #ifdef DEBUG
-    Debug_printf("Read %d bytes\n",cmdFrame.aux2*256+cmdFrame.aux1);
+    Debug_printf("Read %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
 #endif
     if (protocol == NULL)
     {
@@ -94,7 +94,7 @@ void sioNetwork::read()
     }
     else
     {
-        err = protocol->read(rx_buf, cmdFrame.aux2*256+cmdFrame.aux1);
+        err = protocol->read(rx_buf, cmdFrame.aux2 * 256 + cmdFrame.aux1);
     }
     sio_to_computer(rx_buf, sio_get_aux(), err);
 }
@@ -103,7 +103,7 @@ void sioNetwork::write()
 {
     sio_ack();
 #ifdef DEBUG
-    Debug_printf("Write %d bytes\n",cmdFrame.aux2*256+cmdFrame.aux1);
+    Debug_printf("Write %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
 #endif
     ck = sio_to_peripheral(tx_buf, sio_get_aux());
     if (protocol == NULL)
@@ -135,18 +135,18 @@ void sioNetwork::sio_status()
 #endif
     if (protocol == NULL)
     {
-#ifdef DEBUG
-        Debug_printf("Not connected\n");
-#endif
-        err = true;
-        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+        status_buf.rawData[0] =
+            status_buf.rawData[1] =
+                status_buf.rawData[2] =
+                    status_buf.rawData[3] = 0;
+        err = false;
     }
     else
     {
         err = protocol->status(status_buf.rawData);
     }
 #ifdef DEBUG
-        Debug_printf("Status bytes: %02x %02x %02x %02x\n",status_buf.rawData[0],status_buf.rawData[1],status_buf.rawData[2],status_buf.rawData[3]);
+    Debug_printf("Status bytes: %02x %02x %02x %02x\n", status_buf.rawData[0], status_buf.rawData[1], status_buf.rawData[2], status_buf.rawData[3]);
 #endif
     sio_to_computer(status_buf.rawData, 4, err);
 }
@@ -167,7 +167,7 @@ void sioNetwork::special()
     }
     else
     {
-        protocol->special(sp_buf,sp_buf_len, &cmdFrame);
+        protocol->special(sp_buf, sp_buf_len, &cmdFrame);
     }
 }
 
@@ -175,23 +175,23 @@ void sioNetwork::sio_process()
 {
     switch (cmdFrame.comnd)
     {
-        case 'O':
-            open();
-            break;
-        case 'C':
-            close();
-            break;
-        case 'R':
-            read();
-            break;
-        case 'W':
-            write();
-            break;
-        case 'S':
-            sio_status();
-            break;
-        default:
-            special();
-            break;
+    case 'O':
+        open();
+        break;
+    case 'C':
+        close();
+        break;
+    case 'R':
+        read();
+        break;
+    case 'W':
+        write();
+        break;
+    case 'S':
+        sio_status();
+        break;
+    default:
+        special();
+        break;
     }
 }
