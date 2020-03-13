@@ -342,7 +342,7 @@ love:
 dist: $(PROGRAM)
 	mkdir -p dist
 	cp autorun.sys dist
-	dir2atr -b dos25 720 ../data/tcp.atr dist
+	dir2atr -b dos25 720 tcp.atr dist
 
 ###################################################################
 ###  Place your additional targets in the additional Makefiles  ###
