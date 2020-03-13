@@ -27,6 +27,7 @@ float svg_X = 0.;
 float svg_Y = 0.;
 float svg_X_home = 0.;
 float svg_Y_home = 0.;
+float svg_text_y_offset = 0.;
 float pageWidth = 550.;
 float printWidth = 480.;
 double leftMargin = 0.0;
@@ -41,6 +42,7 @@ int svg_arg[3] = {0, 0, 0};
 bool escMode = false;
 bool escResidual = false;
 bool textMode = true;
+bool svg_home_flag = true;
 
 void svg_new_line()
 {
@@ -48,9 +50,14 @@ void svg_new_line()
   // <text x="0" y="15" fill="red">I love SVG!</text>
   // position new line and start text string array
   //fprintf(f,"<text x=\"0\" y=\"%g\" font-size=\"%g\" font-family=\"ATARI 1020 VECTOR FONT APPROXIM\" fill=\"black\">", svg_Y,fontSize);
+  if (svg_home_flag)
+  {
+    svg_text_y_offset = -lineHeight;
+    svg_home_flag = false;
+  }
   svg_Y += lineHeight;
-  fprintf(f, "<text x=\"%g\" y=\"%g\" font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"%s\">", leftMargin, svg_Y, fontSize,svg_colors[svg_color_idx].c_str());
   svg_X = 0; // always start at left margin? not sure of behavior
+  fprintf(f, "<text x=\"%g\" y=\"%g\" font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"%s\">", leftMargin, svg_Y + svg_text_y_offset, fontSize, svg_colors[svg_color_idx].c_str());
 
   BOLflag = false;
 }
@@ -175,6 +182,7 @@ void svg_graphics_command(std::string S)
   case 'I':
     svg_X_home = svg_X;
     svg_Y_home = svg_Y;
+    svg_home_flag = true;
     break;
   default:
     break;
@@ -243,7 +251,8 @@ void svg_header()
   //fprintf(f,"<!DOCTYPE html>\n");
   //fprintf(f,"<html>\n");
   //fprintf(f,"<body>\n\n");
-  fprintf(f, "<svg height=\"2000\" width=\"%g\" style=\"background-color:white\" viewBox=\"0 -1000 480 2000\">\n", pageWidth);
+  fprintf(f, "<svg height=\"2000\" width=\"480\" style=\"background-color:white\" viewBox=\"0 -1000 480 2000\">\n");
+  svg_home_flag = true;
 }
 
 void svg_footer()
@@ -261,7 +270,12 @@ void svg_footer()
 
 void svg_add(std::string S)
 {
-  if (textMode)
+  // looks like escape codes take you out of GRAPHICS MODE
+  if (S[0] == 27)
+    textMode = true;
+  if (!textMode)
+    svg_graphics_command(S);
+  else
   {
     // loop through string
     for (int i = 0; i < S.length(); i++)
@@ -300,8 +314,6 @@ void svg_add(std::string S)
         return;
     }
   }
-  else
-    svg_graphics_command(S);
 }
 
 int main()
