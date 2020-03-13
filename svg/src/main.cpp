@@ -79,7 +79,7 @@ void svg_plot_line()
   svg_X += svg_arg[0];
   svg_Y += svg_arg[1];
 
-  fprintf(f, "<line x1=\"%d\" x2=\"%d\" y1=\"%d\" y2=\"%d\" style=\"stroke:%s;stroke-width:2 />\n", x1, x2, y1, y2, svg_colors[svg_color_idx].c_str());
+  fprintf(f, "<line x1=\"%d\" x2=\"%d\" y1=\"%d\" y2=\"%d\" style=\"stroke:%s;stroke-width:2\" />\n", x1, x2, y1, y2, svg_colors[svg_color_idx].c_str());
 }
 
 /*
@@ -148,45 +148,57 @@ void svg_graphics_command(std::string S)
   //
   // could maybe use regex but going to brute force with a bunch of cases
 
-  char c = S[0];
-  switch (c)
+  size_t cmd_pos = 0;
+  do
   {
-  case 'A':
-    textMode = true;
-    break;
-  case 'H':
-    svg_X = svg_X_home;
-    svg_Y = svg_Y_home;
-    break;
-  case 'C':
-    // get arg out of S and assign to...
-    svg_get_arg(S.substr(1), 0);
-    svg_color_idx = svg_arg[0];
-    break;
-  case 'L':
-    // get arg out of S and assign to...
-    svg_get_arg(S.substr(1), 0);
-    svg_line_type = svg_arg[0];
-    break;
-  case 'D':
-    // get 2 args out of S and draw a line
-    svg_get_2_args(S.substr(1));
-    svg_plot_line();
-    break;
-  case 'M':
-    // get 2 args out of S and ...
-    svg_get_2_args(S.substr(1));
-    svg_X = svg_X_home + svg_arg[0];
-    svg_Y = svg_Y_home + svg_arg[1];
-    break;
-  case 'I':
-    svg_X_home = svg_X;
-    svg_Y_home = svg_Y;
-    svg_home_flag = true;
-    break;
-  default:
-    break;
-  }
+    char c = S[cmd_pos];
+    switch (c)
+    {
+    case 'A':
+      textMode = true;
+      break;
+    case 'H':
+      svg_X = svg_X_home;
+      svg_Y = svg_Y_home;
+      break;
+    case 'C':
+      // get arg out of S and assign to...
+      svg_get_arg(S.substr(cmd_pos+1), 0);
+      svg_color_idx = svg_arg[0];
+      break;
+    case 'L':
+      // get arg out of S and assign to...
+      svg_get_arg(S.substr(cmd_pos+1), 0);
+      svg_line_type = svg_arg[0];
+      break;
+    case 'D':
+      // get 2 args out of S and draw a line
+      svg_get_2_args(S.substr(cmd_pos+1));
+      svg_plot_line();
+      break;
+    case 'M':
+      // get 2 args out of S and ...
+      svg_get_2_args(S.substr(cmd_pos+1));
+      svg_X = svg_X_home + svg_arg[0];
+      svg_Y = svg_Y_home + svg_arg[1];
+      break;
+    case 'I':
+      svg_X_home = svg_X;
+      svg_Y_home = svg_Y;
+      svg_home_flag = true;
+      break;
+    default:
+      return;
+    }
+    size_t new_pos = S.find_first_of(":*", cmd_pos + 1);
+    if (new_pos == std::string::npos)
+      return;
+    if (S[new_pos] == ':')
+      S[new_pos] = S[cmd_pos];
+    else if (S[new_pos] == '*')
+      new_pos++;
+    cmd_pos = new_pos;
+  } while (true);
 }
 
 void svg_handle_char(unsigned char c)
