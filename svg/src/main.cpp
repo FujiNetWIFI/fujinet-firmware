@@ -33,6 +33,7 @@ float fontSize = 20.8;
 
 bool escMode;
 bool escResidual;
+bool textMode;
 
 void svg_new_line()
 {
@@ -90,47 +91,54 @@ CHAR. SCALE		S(0-63)			      GRAPHICS
 */
 void svg_handle_char(unsigned char c)
 {
-  if (escMode)
+  if (textMode)
   {
-    // Atari 1020 escape codes:
-    // ESC CTRL-G - graphics mode (simple A returns)
-    // ESC CTRL-P - 20 char mode
-    // ESC CTRL-N - 40 char mode
-    // ESC CTRL-S - 80 char mode
-    // ESC CTRL-W - international char set
-    // ESC CTRL-X - standard char set
-    if (c == 16)
+    if (escMode)
     {
-      charWidth = 24.;
-      fontSize = 2. * 20.8;
-      lineHeight = fontSize;
+      // Atari 1020 escape codes:
+      // ESC CTRL-G - graphics mode (simple A returns)
+      // ESC CTRL-P - 20 char mode
+      // ESC CTRL-N - 40 char mode
+      // ESC CTRL-S - 80 char mode
+      // ESC CTRL-W - international char set
+      // ESC CTRL-X - standard char set
+      if (c == 16)
+      {
+        charWidth = 24.;
+        fontSize = 2. * 20.8;
+        lineHeight = fontSize;
+      }
+      if (c == 14)
+      {
+        charWidth = 12.;
+        fontSize = 20.8;
+        lineHeight = fontSize;
+      }
+      if (c == 19)
+      {
+        charWidth = 6.;
+        fontSize = 10.4;
+        lineHeight = fontSize;
+      }
+      escMode = false;
+      escResidual = true;
     }
-    if (c == 14)
+    else if (c == 27)
+      escMode = true;
+    else
+        // simple ASCII printer
+        if (c > 31 && c < 127)
     {
-      charWidth = 12.;
-      fontSize = 20.8;
-      lineHeight = fontSize;
+      // if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
+      //   _file->write(BACKSLASH);
+      fputc(c, f);        //_file->write(c);
+      svg_X += charWidth; // update x position
+      //std::cout << svg_X << " ";
     }
-    if (c == 19)
-    {
-      charWidth = 6.;
-      fontSize = 10.4;
-      lineHeight = fontSize;
-    }
-    escMode = false; 
-    escResidual = true;
   }
-  else if (c == 27)
-    escMode = true;
   else
-      // simple ASCII printer
-      if (c > 31 && c < 127)
   {
-    // if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
-    //   _file->write(BACKSLASH);
-    fputc(c, f);        //_file->write(c);
-    svg_X += charWidth; // update x position
-    //std::cout << svg_X << " ";
+    //graphics mode
   }
 }
 
@@ -143,7 +151,7 @@ void svg_header()
   //fprintf(f,"<!DOCTYPE html>\n");
   //fprintf(f,"<html>\n");
   //fprintf(f,"<body>\n\n");
-  fprintf(f, "<svg height=\"2000\" width=\"%g\" viewBox=\"0 -1000 480 2000\">\n",pageWidth);
+  fprintf(f, "<svg height=\"2000\" width=\"%g\" viewBox=\"0 -1000 480 2000\">\n", pageWidth);
 }
 
 void svg_footer()
@@ -165,26 +173,39 @@ void svg_add(std::string S)
   {
     unsigned char c = (unsigned char)S[i];
     //std::cout << "c=" << c << " ";
-    if (escResidual)
+
+    if (textMode)
     {
-      escResidual = false;
-      if (c == EOL)
+      if (escResidual)
+      {
+        escResidual = false;
+        if (c == EOL)
+          return;
+      }
+      // the following creates a blank line of text
+      if (BOLflag && c == EOL)
+      { // svg_new_line();
+        svg_Y += lineHeight;
         return;
+      }
+      // check for EOL or if at end of line and need automatic CR
+      if (!BOLflag && c == EOL)
+      {
+        svg_end_line();
+        return;
+      }
+      else if (!BOLflag && (svg_X > (printWidth - charWidth)))
+      {
+        svg_end_line();
+        svg_new_line();
+      } // or do I just need to start a new line of text
+      else if (BOLflag && c != 27 && !escMode)
+        svg_new_line();
     }
-
-    if (BOLflag && c == EOL)
-      svg_new_line();
-
-    // // check for EOL or if at end of line and need automatic CR
-    if (!BOLflag && (c == EOL))
-      svg_end_line();
-    else if (!BOLflag && (svg_X > (printWidth - charWidth)))
+    else
     {
-      svg_end_line();
-      svg_new_line();
+      // graphics mode
     }
-    else if (BOLflag && c != 27 && !escMode)
-      svg_new_line();
 
     // disposition the current byte
     svg_handle_char(c);
