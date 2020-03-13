@@ -1,13 +1,11 @@
 This is 40 column mode.
 Second line.
-
 
 C1
-A
+
 This is 20 col mode
 
 C0
-A
 
 And 80 column mode is very small.
 
@@ -15,6 +13,6 @@ Back to normal.
 
 H
 C3
-D100,100
+D100,100:0,100
 A
 done.
