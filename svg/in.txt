@@ -1,4 +1,5 @@
 This is 40 column mode.
+Second line.
 
 
 C1
