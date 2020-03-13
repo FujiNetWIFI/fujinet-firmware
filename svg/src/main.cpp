@@ -34,6 +34,8 @@ double leftMargin = 0.0;
 float charWidth = 12.;
 float lineHeight = 20.8;
 float fontSize = 20.8;
+//float svg_gfx_fontsize;
+//float svg_gfx_charWidth;
 int svg_color_idx = 0;
 std::string svg_colors[4] = {"Black", "Blue", "Green", "Red"};
 int svg_line_type = 0;
@@ -95,6 +97,90 @@ void svg_rel_plot_line()
   fprintf(f, "<line x1=\"%d\" x2=\"%d\" y1=\"%d\" y2=\"%d\" style=\"stroke:%s;stroke-width:2\" />\n", x1, x2, y1, y2, svg_colors[svg_color_idx].c_str());
 }
 
+void svg_set_text_size(int s)
+// 0 for 80 col, 1 for 40 col, 3 for 20 col
+/*
+Text scaling is shown in Atari 1020 Field Service Manual in Fig.3-2 on Page 3-5.
+Using the PDF measuring tool in Acrobat Reader, I find the following character sizes:
+S(scale)  Actual (inches)
+0         cannot tell but looks like 80 column mode
+31        1.5
+63        3.0
+64        0.1 - which is 40 column mode. Why is 64 showing 40 column mode when 0 looks likes 80 col mode?
+
+Formula for fontSize and charWidth vs. scale setting:
+80 column mode is fontSize = 10.4 and charWidth = 6
+fontSize/charWidth = 1.7333...
+
+lets scale against 63 (3 inches) and 40 column mode (0.1 inches)
+so charWidth = 12 is equivalent to S=0.1 inches, which is 30 times smaller than 3.0 inhces 
+scale of 63 would be charWidth = 12 * 30 = 360 which is 360/480 = 75% of the printWidth - let's say OK including whitespace
+I want charWidth = 6 for s=0 and =360 for s=63
+*/
+{
+  float scale = 6.*(float)(s & 63);
+  charWidth = 6. + scale;
+  fontSize = 10.4 * charWidth / 6.0;
+  lineHeight = fontSize;
+}
+
+void svg_handle_char(unsigned char c)
+{
+  if (escMode)
+  {
+    // Atari 1020 escape codes:
+    // ESC CTRL-G - graphics mode (simple A returns)
+    // ESC CTRL-P - 20 char mode
+    // ESC CTRL-N - 40 char mode
+    // ESC CTRL-S - 80 char mode
+    // ESC CTRL-W - international char set
+    // ESC CTRL-X - standard char set
+    if (c == 7)
+    {
+      textMode = false;
+      std::cout << "entering GRAPHICS mode!\n";
+      //svg_gfx_fontsize = fontSize;
+      //svg_gfx_charWidth = charWidth;
+      escMode = false;
+      return;
+    }
+    if (c == 16)
+    {
+      svg_set_text_size(3);
+      // charWidth = 24.;
+      // fontSize = 2. * 20.8;
+      // lineHeight = fontSize;
+    }
+    if (c == 14)
+    {
+       svg_set_text_size(1);
+      // charWidth = 12.;
+      // fontSize = 20.8;
+      // lineHeight = fontSize;
+    }
+    if (c == 19)
+    {
+       svg_set_text_size(0);
+      // charWidth = 6.;
+      // fontSize = 10.4;
+      // lineHeight = fontSize;
+    }
+    escMode = false;
+    escResidual = true;
+  }
+  else if (c == 27)
+    escMode = true;
+  else if (c > 31 && c < 127) // simple ASCII printer
+  {
+    // what characters need to be escaped in SVG text?
+    // if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
+    //   _file->write(BACKSLASH);
+    fputc(c, f);        //_file->write(c);
+    svg_X += charWidth; // update x position - PUT Q ROTATION HERE
+    //std::cout << svg_X << " ";
+  }
+}
+
 /*
 https://www.atarimagazines.com/v4n10/atari1020plotter.html
 
@@ -127,6 +213,18 @@ RELATIVE MOVE	RX,Y			        GRAPHICS
 (Used with Init.)
 CHAR. SCALE		S(0-63)			      GRAPHICS
 */
+
+void svg_put_text(std::string S)
+{
+  //svg_Y += lineHeight;
+  fprintf(f, "<text x=\"%g\" y=\"%g\" ", svg_X, svg_Y);
+  fprintf(f, "font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"%s\">", fontSize, svg_colors[svg_color_idx].c_str());
+  for (int i = 0; i < S.length(); i++)
+  {
+    svg_handle_char((unsigned char)S[i]);
+  }
+  fprintf(f, "</text>\n"); // close the line
+}
 
 void svg_get_arg(std::string S, int n)
 {
@@ -169,7 +267,7 @@ void svg_graphics_command(std::string S)
     {
     case 'A':
       textMode = true;
-      break;
+      return; // get outta here!
     case 'H':
       svg_X = svg_X_home;
       svg_Y = svg_Y_home;
@@ -209,6 +307,16 @@ void svg_graphics_command(std::string S)
       svg_X = svg_X + svg_arg[0];
       svg_Y = svg_Y + svg_arg[1];
       break;
+    case 'Q':
+      svg_get_arg(S.substr(cmd_pos + 1), 0);
+      break;
+    case 'P':
+      svg_put_text(S.substr(cmd_pos + 1));
+      break;
+    case 'S':
+      svg_get_arg(S.substr(cmd_pos + 1), 0);
+      svg_set_text_size(svg_arg[0]);
+      break;
     default:
       return;
     }
@@ -221,58 +329,6 @@ void svg_graphics_command(std::string S)
       new_pos++;
     cmd_pos = new_pos;
   } while (true);
-}
-
-void svg_handle_char(unsigned char c)
-{
-  if (escMode)
-  {
-    // Atari 1020 escape codes:
-    // ESC CTRL-G - graphics mode (simple A returns)
-    // ESC CTRL-P - 20 char mode
-    // ESC CTRL-N - 40 char mode
-    // ESC CTRL-S - 80 char mode
-    // ESC CTRL-W - international char set
-    // ESC CTRL-X - standard char set
-    if (c == 7)
-    {
-      textMode = false;
-      std::cout << "entering GRAPHICS mode!\n";
-      escMode = false;
-      return;
-    }
-    if (c == 16)
-    {
-      charWidth = 24.;
-      fontSize = 2. * 20.8;
-      lineHeight = fontSize;
-    }
-    if (c == 14)
-    {
-      charWidth = 12.;
-      fontSize = 20.8;
-      lineHeight = fontSize;
-    }
-    if (c == 19)
-    {
-      charWidth = 6.;
-      fontSize = 10.4;
-      lineHeight = fontSize;
-    }
-    escMode = false;
-    escResidual = true;
-  }
-  else if (c == 27)
-    escMode = true;
-  else if (c > 31 && c < 127) // simple ASCII printer
-  {
-    // what characters need to be escaped in SVG text?
-    // if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
-    //   _file->write(BACKSLASH);
-    fputc(c, f);        //_file->write(c);
-    svg_X += charWidth; // update x position
-    //std::cout << svg_X << " ";
-  }
 }
 
 void svg_header()
