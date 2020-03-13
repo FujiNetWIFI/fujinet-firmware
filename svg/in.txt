@@ -1,3 +1,9 @@
+
+D480,0
+H
+PHome
+M0,100
+A
 This is 40 column mode.
 Second line.
 
@@ -16,5 +22,13 @@ C3
 D100,100:0,100
 C2
 M200,-200*D0,0
+M0,400
+S0
+PS
+S31
+PS
+S63
+PS
 A
-done.
+
+DONE.
