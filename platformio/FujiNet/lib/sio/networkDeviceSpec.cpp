@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "networkDeviceSpec.h"
 
+using namespace std;
+
 char ret[256];
 
 void networkDeviceSpec::debug()

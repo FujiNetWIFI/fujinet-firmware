@@ -6,7 +6,7 @@
 #ifndef SIO_H
 #define SIO_H
 
-#define DEVIC_N                0x70
+#define DEVIC_N                0x71
 
 #define DSTATS_NONE            0x00
 #define DSTATS_READ            0x40
