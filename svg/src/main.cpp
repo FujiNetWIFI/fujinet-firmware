@@ -76,6 +76,18 @@ void svg_plot_line()
   int y1 = svg_Y_home + svg_Y;
   int x2 = x1 + svg_arg[0];
   int y2 = y1 + svg_arg[1];
+  svg_X = x2;
+  svg_Y = y2;
+  fprintf(f, "<line x1=\"%d\" x2=\"%d\" y1=\"%d\" y2=\"%d\" style=\"stroke:%s;stroke-width:2\" />\n", x1, x2, y1, y2, svg_colors[svg_color_idx].c_str());
+}
+
+void svg_rel_plot_line()
+{
+  //<line x1="0" x2="100" y1="0" y2="100" style="stroke:rgb(0,0,0);stroke-width:2 />
+  int x1 = svg_X_home + svg_X;
+  int y1 = svg_Y_home + svg_Y;
+  int x2 = x1 + svg_arg[0];
+  int y2 = y1 + svg_arg[1];
   svg_X += svg_arg[0];
   svg_Y += svg_arg[1];
 
