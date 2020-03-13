@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include <iomanip>
 #include <iostream>
@@ -24,16 +25,22 @@ FILE *f; // standard C output file
 bool BOLflag = true;
 float svg_X = 0.;
 float svg_Y = 0.;
+float svg_X_home = 0.;
+float svg_Y_home = 0.;
 float pageWidth = 550.;
 float printWidth = 480.;
 double leftMargin = 0.0;
 float charWidth = 12.;
 float lineHeight = 20.8;
 float fontSize = 20.8;
+int svg_color_idx = 0;
+std::string svg_colors[4] = {"Black", "Blue", "Green", "Red"};
+int svg_line_type = 0;
+int svg_arg[3] = {0, 0, 0};
 
-bool escMode=false;
-bool escResidual=false;
-bool textMode=true;
+bool escMode = false;
+bool escResidual = false;
+bool textMode = true;
 
 void svg_new_line()
 {
@@ -43,7 +50,7 @@ void svg_new_line()
   //fprintf(f,"<text x=\"0\" y=\"%g\" font-size=\"%g\" font-family=\"ATARI 1020 VECTOR FONT APPROXIM\" fill=\"black\">", svg_Y,fontSize);
   svg_Y += lineHeight;
   fprintf(f, "<text x=\"%g\" y=\"%g\" font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"black\">", leftMargin, svg_Y, fontSize);
-  svg_X = 0; // reinforce?
+  svg_X = 0; // always start at left margin? not sure of behavior
 
   BOLflag = false;
 }
@@ -52,10 +59,20 @@ void svg_end_line()
 {
   // <text x="0" y="15" fill="red">I love SVG!</text>
   fprintf(f, "</text>\n"); // close the line
-                           // line feed
-  //svg_X = 0.;               // CR
-
   BOLflag = true;
+}
+
+void svg_draw_line()
+{
+  //<line x1="0" x2="100" y1="0" y2="100" style="stroke:rgb(0,0,0);stroke-width:2 />
+  int x1 = svg_X_home + svg_X;
+  int y1 = svg_Y_home + svg_Y;
+  int x2 = x1 + svg_arg[0];
+  int y2 = y1 + svg_arg[1];
+  svg_X += svg_arg[0];
+  svg_Y += svg_arg[1];
+
+  fprintf(f, "<line x1=\"%d\" x2=\"%d\" y1=\"%d\" y2=\"%d\" style=\"stroke:rgb(0,0,0);stroke-width:2 />\n", x1, x2, y1, y2);
 }
 
 /*
@@ -81,64 +98,138 @@ DRAW			    DX,Y			        GRAPHICS
 MOVE			    MX,Y			        GRAPHICS
 ROTATE TEXT		Q(0-3)			      GRAPHICS
 (Text to be rotated must start with P)
+PRINT TEXT    P(any text)       GRAPHICS
 INITIALIZE		I			            GRAPHICS
 (Sets current X,Y as HOME or 0,0)
 RELATIVE DRAW	JX,Y			        GRAPHICS
 (Used with Init.)
 RELATIVE MOVE	RX,Y			        GRAPHICS
-(Used with mit.)
+(Used with Init.)
 CHAR. SCALE		S(0-63)			      GRAPHICS
 */
+
+void svg_get_arg(std::string S, int n)
+{
+  svg_arg[n] = atoi(S.c_str());
+  std::cout << "arg " << n << ": " << svg_arg[n] << ", ";
+}
+
+void svg_get_2_args(std::string S)
+{
+  size_t n = S.find_first_of(',');
+  svg_get_arg(S.substr(0, n), 0);
+  svg_get_arg(S.substr(n + 1), 1);
+}
+
+void svg_get_3_args(std::string S)
+{
+  size_t n1 = S.find_first_of(',');
+  size_t n2 = S.find_first_of(',', n1 + 1);
+  svg_get_arg(S.substr(0, n1 - 1), 0);
+  svg_get_arg(S.substr(n1 + 1, n2 - n1), 1);
+  svg_get_arg(S.substr(n2 + 1), 2);
+}
+
+void svg_graphics_command(std::string S)
+{
+  // parse the graphics command
+  // graphics mode commands start with a single LETTER
+  // commands have 0, 1 or 2 arg's
+  // - or X has 3 args and "P" is followed by a string
+  // commands are terminated with a "*"" or EOL
+  // a ";" after the args repeats the command CHAR
+  //
+  // could maybe use regex but going to brute force with a bunch of cases
+
+  char c = S[0];
+  switch (c)
+  {
+  case 'A':
+    textMode = true;
+    break;
+  case 'H':
+    svg_X = svg_X_home;
+    svg_Y = svg_Y_home;
+    break;
+  case 'C':
+    // get arg out of S and assign to...
+    svg_get_arg(S.substr(1), 0);
+    svg_color_idx = svg_arg[0];
+    break;
+  case 'L':
+    // get arg out of S and assign to...
+    svg_get_arg(S.substr(1), 0);
+    svg_line_type = svg_arg[0];
+    break;
+  case 'D':
+    // get 2 args out of S and draw a line
+    svg_get_2_args(S.substr(1));
+    svg_draw_line();
+    break;
+  case 'M':
+    // get 2 args out of S and ...
+    svg_get_2_args(S.substr(1));
+    svg_X = svg_X_home + svg_arg[0];
+    svg_Y = svg_Y_home + svg_arg[1];
+    break;
+  case 'I':
+    svg_X_home = svg_X;
+    svg_Y_home = svg_Y;
+    break;
+  default:
+    break;
+  }
+}
+
 void svg_handle_char(unsigned char c)
 {
-  if (textMode)
+  if (escMode)
   {
-    if (escMode)
+    // Atari 1020 escape codes:
+    // ESC CTRL-G - graphics mode (simple A returns)
+    // ESC CTRL-P - 20 char mode
+    // ESC CTRL-N - 40 char mode
+    // ESC CTRL-S - 80 char mode
+    // ESC CTRL-W - international char set
+    // ESC CTRL-X - standard char set
+    if (c == 7)
     {
-      // Atari 1020 escape codes:
-      // ESC CTRL-G - graphics mode (simple A returns)
-      // ESC CTRL-P - 20 char mode
-      // ESC CTRL-N - 40 char mode
-      // ESC CTRL-S - 80 char mode
-      // ESC CTRL-W - international char set
-      // ESC CTRL-X - standard char set
-      if (c == 16)
-      {
-        charWidth = 24.;
-        fontSize = 2. * 20.8;
-        lineHeight = fontSize;
-      }
-      if (c == 14)
-      {
-        charWidth = 12.;
-        fontSize = 20.8;
-        lineHeight = fontSize;
-      }
-      if (c == 19)
-      {
-        charWidth = 6.;
-        fontSize = 10.4;
-        lineHeight = fontSize;
-      }
+      textMode = false;
+      std::cout << "entering GRAPHICS mode!\n";
       escMode = false;
-      escResidual = true;
+      return;
     }
-    else if (c == 27)
-      escMode = true;
-    else
-        // simple ASCII printer
-        if (c > 31 && c < 127)
+    if (c == 16)
     {
-      // if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
-      //   _file->write(BACKSLASH);
-      fputc(c, f);        //_file->write(c);
-      svg_X += charWidth; // update x position
-      //std::cout << svg_X << " ";
+      charWidth = 24.;
+      fontSize = 2. * 20.8;
+      lineHeight = fontSize;
     }
+    if (c == 14)
+    {
+      charWidth = 12.;
+      fontSize = 20.8;
+      lineHeight = fontSize;
+    }
+    if (c == 19)
+    {
+      charWidth = 6.;
+      fontSize = 10.4;
+      lineHeight = fontSize;
+    }
+    escMode = false;
+    escResidual = true;
   }
-  else
+  else if (c == 27)
+    escMode = true;
+  else if (c > 31 && c < 127) // simple ASCII printer
   {
-    //graphics mode
+    // what characters need to be escaped in SVG text?
+    // if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
+    //   _file->write(BACKSLASH);
+    fputc(c, f);        //_file->write(c);
+    svg_X += charWidth; // update x position
+    //std::cout << svg_X << " ";
   }
 }
 
@@ -148,6 +239,7 @@ void svg_header()
   // <html>
   // <body>
   // <svg height="210" width="500">
+
   //fprintf(f,"<!DOCTYPE html>\n");
   //fprintf(f,"<html>\n");
   //fprintf(f,"<body>\n\n");
@@ -159,6 +251,7 @@ void svg_footer()
   // </svg>
   // </body>
   // </html>
+
   if (!BOLflag)
     svg_end_line();
   fprintf(f, "</svg>\n\n");
@@ -168,14 +261,14 @@ void svg_footer()
 
 void svg_add(std::string S)
 {
-  // loop through string
-  for (int i = 0; i < S.length(); i++)
+  if (textMode)
   {
-    unsigned char c = (unsigned char)S[i];
-    //std::cout << "c=" << c << " ";
-
-    if (textMode)
+    // loop through string
+    for (int i = 0; i < S.length(); i++)
     {
+      unsigned char c = (unsigned char)S[i];
+      //std::cout << "c=" << c << " ";
+
       if (escResidual)
       {
         escResidual = false;
@@ -201,15 +294,14 @@ void svg_add(std::string S)
       } // or do I just need to start a new line of text
       else if (BOLflag && c != 27 && !escMode)
         svg_new_line();
+      // disposition the current byte
+      svg_handle_char(c);
+      if (!textMode)
+        return;
     }
-    else
-    {
-      // graphics mode
-    }
-
-    // disposition the current byte
-    svg_handle_char(c);
   }
+  else
+    svg_graphics_command(S);
 }
 
 int main()

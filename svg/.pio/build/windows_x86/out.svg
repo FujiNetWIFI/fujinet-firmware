@@ -1,9 +1,0 @@
-<svg height="2000" width="550" viewBox="0 -1000 480 2000">
-<text x="0" y="20.8" font-size="20.8" font-family="FifteenTwenty" fill="black">This is 40 column mode.</text>
-<text x="0" y="62.4" font-size="41.6" font-family="FifteenTwenty" fill="black">This is 20 col mode</text>
-<text x="0" y="104" font-size="41.6" font-family="FifteenTwenty" fill="black">And 80 column mode i</text>
-<text x="0" y="145.6" font-size="41.6" font-family="FifteenTwenty" fill="black">s very small.</text>
-<text x="0" y="166.4" font-size="20.8" font-family="FifteenTwenty" fill="black">Back to normal.</text>
-<text x="0" y="187.2" font-size="20.8" font-family="FifteenTwenty" fill="black"></text>
-</svg>
-
