@@ -98,12 +98,13 @@ void sioDisk::sio_read()
       for (unsigned char i = 0; i < 10; i++)
       {
         int l = _file->read(sector, 256);
-        //s = &sector[0]; // &tnfsPacket.data[3];
         d = &sectorCache[cacheOffset];
         memcpy(d, sector, 256);
 
-        if (l == 256)
+        if (l != -1)
+        {
           cacheError[i] = false;
+        }
         else
         {
           cacheError[i] = true;
@@ -138,7 +139,6 @@ void sioDisk::sio_read()
       Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
     }
-    // d = &sector[0];
     s = &sectorCache[cacheOffset];
     memcpy(sector, s, ss);
   }
@@ -197,7 +197,6 @@ void sioDisk::sio_write()
       }
     }
   }
-
   sio_error();
 }
 
