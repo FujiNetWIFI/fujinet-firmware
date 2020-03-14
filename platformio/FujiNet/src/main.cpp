@@ -200,6 +200,7 @@ void setup()
   for (int i = 0; i < 8; i++)
   {
     SIO.addDevice(&sioD[i], 0x31 + i);
+    SIO.addDevice(&sioN[i], 0x71 + i);
   }
   SIO.addDevice(&theFuji, 0x70); // the FUJINET!
 

@@ -19,6 +19,9 @@
 #define TNFS_TRUNC 0x0200  //Truncate the file on open for writing
 #define TNFS_EXCL 0x0400   //With TNFS_CREAT, returns an error if the file exists
 
+#define TNFS_TIMEOUT 5000
+#define TNFS_RETRIES 5
+
 extern WiFiUDP UDP;
 
 using namespace fs;
