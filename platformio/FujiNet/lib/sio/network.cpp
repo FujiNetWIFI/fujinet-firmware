@@ -67,6 +67,10 @@ void sioNetwork::open()
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
         sio_error();
     }
+    else
+    {
+        sio_complete();
+    }
 }
 
 void sioNetwork::close()
