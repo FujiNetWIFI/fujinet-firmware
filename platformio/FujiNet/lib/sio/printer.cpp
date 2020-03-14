@@ -1,7 +1,7 @@
 #include "printer.h"
 
 //pdf routines
-void sioPrinter::pdf_header()
+void pdfPrinter::pdf_header()
 {
   pdf_Y = 0;
   pdf_X = 0;
@@ -15,15 +15,7 @@ void sioPrinter::pdf_header()
   this->pdf_fonts(); // pdf_fonts is virtual function, call by pointer
 }
 
-void atari1020::svg_header()
-{
-  //fprintf(f,"<!DOCTYPE html>\n");
-//fprintf(f,"<html>\n");
-//fprintf(f,"<body>\n\n");
-_file->printf("<svg height=\"2000\" width=\"480\" viewBox=\"0 -1000 480 2000\">\n");
-}
-
-void sioPrinter::pdf_fonts()
+void asciiPrinter::pdf_fonts()
 {
   // 3rd object: font catalog
   pdf_objCtr = 3;
@@ -123,7 +115,7 @@ endobj
   _file->printf(" ]\nendobj\n");
 }
 
-void sioPrinter::pdf_xref()
+void pdfPrinter::pdf_xref()
 {
   int max_objCtr = pdf_objCtr;
   pdf_objCtr = 2;
@@ -149,7 +141,7 @@ void sioPrinter::pdf_xref()
   _file->printf("%%%%EOF\n");
 }
 
-void sioPrinter::pdf_new_page()
+void pdfPrinter::pdf_new_page()
 { // open a new page
   pdf_objCtr++;
   pageObjects[pdf_pageCounter] = pdf_objCtr;
@@ -179,7 +171,7 @@ void sioPrinter::pdf_new_page()
   BOLflag = true;
 }
 
-void sioPrinter::pdf_end_page()
+void pdfPrinter::pdf_end_page()
 {
   // close text object & stream
   if (!BOLflag)
@@ -196,7 +188,7 @@ void sioPrinter::pdf_end_page()
   TOPflag = true;
 }
 
-void sioPrinter::pdf_new_line()
+void pdfPrinter::pdf_new_line()
 {
   // position new line and start text string array
   _file->printf("0 %g Td [(", -lineHeight);
@@ -204,7 +196,7 @@ void sioPrinter::pdf_new_line()
   BOLflag = false;
 }
 
-void sioPrinter::pdf_end_line()
+void pdfPrinter::pdf_end_line()
 {
   _file->printf(")]TJ\n"); // close the line
   pdf_Y -= lineHeight;     // line feed
@@ -212,7 +204,7 @@ void sioPrinter::pdf_end_line()
   BOLflag = true;
 }
 
-void sioPrinter::pdf_handle_char(byte c)
+void asciiPrinter::pdf_handle_char(byte c)
 {
   // simple ASCII printer
   if (c > 31 && c < 127)
@@ -286,7 +278,7 @@ void atari1027::pdf_handle_char(byte c)
   }
 }
 
-void sioPrinter::pdf_add(std::string S)
+void pdfPrinter::pdf_add(std::string S)
 {
   if (TOPflag)
     pdf_new_page();
@@ -323,41 +315,41 @@ void sioPrinter::pdf_add(std::string S)
     pdf_end_page();
 }
 
-void sioPrinter::svg_add(std::string S)
-{
-}
+// void asciiPrinter::svg_add(std::string S)
+// {
+// }
 
-void sioPrinter::initPrinter(File *f, paper_t ty)
-{
-  _file = f;
-  paperType = ty;
-  if (paperType == PDF)
-    pdf_header();
-}
-
-void sioPrinter::initPrinter(File *f)
-{
-  this->initPrinter(f, PDF);
-}
-
-void atari1027::initPrinter(File *f, paper_t ty)
+void filePrinter::initPrinter(File *f)
 {
   _file = f;
-  paperType = ty;
-  if (paperType == PDF)
-  {
-    uscoreFlag = false;
-    intlFlag = false;
-    escMode = false;
-    pdf_header();
-  }
 }
 
-void atari820::initPrinter(File *f, paper_t ty)
+void filePrinter::setPaper(paper_t ty)
 {
-
-  _file = f;
   paperType = ty;
+}
+
+void asciiPrinter::initPrinter(File *f)
+{
+  _file = f;
+  paperType = PDF;
+  pdf_header();
+}
+
+void atari1027::initPrinter(File *f)
+{
+  _file = f;
+  paperType = PDF;
+  uscoreFlag = false;
+  intlFlag = false;
+  escMode = false;
+  pdf_header();
+}
+
+void atari820::initPrinter(File *f)
+{
+  _file = f;
+  paperType = PDF;
   pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
   pageHeight = 792.0; // just use 11" for letter paper
   leftMargin = 19.5;  // fit print width on page width
@@ -369,37 +361,28 @@ void atari820::initPrinter(File *f, paper_t ty)
   fontSize = 12;      // 6 lines per inch
   fontHorizontalScaling = 83.333;
 
-  if (paperType == PDF)
-  {
-    sideFlag = false;
-    pdf_header();
-  }
+  sideFlag = false;
+  pdf_header();
 }
 
-void atari1020::initPrinter(File *f, paper_t ty)
+void atari1020::initPrinter(File *f)
 {
-
   _file = f;
-  paperType = ty;
-  pageWidth = 480.0;  // paper roll is 3 7/8" from page 6 of owners manual
-  pageHeight = 2000.0; // just use 11" for letter paper
-  leftMargin = 0.0;  // fit print width on page width
-  bottomMargin = 0.0;
-  // dimensions from Table 1-1 of Atari 820 Field Service Manual
-  //printWidth = 240.0; // 3 1/3" wide printable area
-  lineHeight = 17.5;  // 6 lines per inch
-  charWidth = 12.0;    // 12 char per inch
-  fontSize = 17.5;      // 6 lines per inch
-  //fontHorizontalScaling = 83.333;
+  paperType = SVG;
 
-  if (paperType == SVG)
-  {
-    textFlag = true;
-    svg_header();
-  }
+  textFlag = true;
+  svg_header();
 }
 
-void sioPrinter::pageEject()
+void atari1020::svg_header()
+{
+  //fprintf(f,"<!DOCTYPE html>\n");
+  //fprintf(f,"<html>\n");
+  //fprintf(f,"<body>\n\n");
+  _file->printf("<svg height=\"2000\" width=\"480\" viewBox=\"0 -1000 480 2000\">\n");
+}
+
+void pdfPrinter::pageEject()
 {
   if (paperType == PDF)
   {
@@ -419,7 +402,7 @@ paper_t sioPrinter::getPaperType()
   return paperType;
 }
 
-void sioPrinter::writeBuffer(byte *B, int n)
+void filePrinter::writeBuffer(byte *B, int n)
 {
   int i = 0;
   std::string output = std::string();
@@ -442,6 +425,7 @@ void sioPrinter::writeBuffer(byte *B, int n)
     }
     break;
   case ASCII:
+  default:
     while (i < n)
     {
       if (B[i] == EOL)
@@ -453,27 +437,22 @@ void sioPrinter::writeBuffer(byte *B, int n)
         _file->write(B[i]);
       i++;
     }
-    break;
-  case PDF:
-    while (i < n)
-    {
-      output.push_back(B[i]);
-      if (B[i] == EOL)
-        break;
-      i++;
-    }
-    pdf_add(output);
-    break;
-  case SVG:
-    while (i < n)
-    {
-      output.push_back(B[i]);
-      if (B[i] == EOL)
-        break;
-      i++;
-    }
-    svg_add(output);
   }
+}
+
+void pdfPrinter::writeBuffer(byte *B, int n)
+{
+  int i = 0;
+  std::string output = std::string();
+
+  while (i < n)
+  {
+    output.push_back(B[i]);
+    if (B[i] == EOL)
+      break;
+    i++;
+  }
+  pdf_add(output);
 }
 
 // write for W commands
@@ -484,22 +463,16 @@ void sioPrinter::sio_write()
 
   memset(buffer, 0, n); // clear buffer
 
-  // to do: size buffer based on AUX1:
   // Auxiliary Bytes 1
-  // Normal Print (40 Char/Line) = 0x4E
-  // Sideways Print (16 Char/Line) = 0x53
   // Other values in the 400/800 OS Manual
-  // Normal 0x4E 'N'    40 chars
+  // Normal   0x4E 'N'  40 chars
   // Sideways 0x53 'S'  29 chars
-  // Wide 0x57 'W'      "not supported"
-  // And the XL/XE OS ROM
+  // Wide     0x57 'W'  "not supported"
 
   if (cmdFrame.aux1 == 'N')
     n = 40;
   else if (cmdFrame.aux1 == 'S')
     n = 29;
-
-  // new
 
   ck = sio_to_peripheral(buffer, n);
 
@@ -512,28 +485,6 @@ void sioPrinter::sio_write()
   {
     sio_error();
   }
-
-  // old
-  //   SIO_UART.readBytes(buffer, n);
-  // #ifdef DEBUG_S
-  //   for (int z = 0; z < n; z++)
-  //   {
-  //     BUG_UART.print(buffer[z], DEC);
-  //     BUG_UART.print(" ");
-  //   }
-  //   BUG_UART.println();
-  // #endif
-  //   ck = SIO_UART.read(); // Read checksum
-  //   //delayMicroseconds(350);
-  //   SIO_UART.write('A'); // Write ACK
-
-  //   if (ck == sio_checksum(buffer, n))
-  //   {
-  //     writeBuffer(buffer, n);
-  //     delayMicroseconds(DELAY_T5);
-  //     SIO_UART.write('C');
-  //     yield();
-  //   }
 }
 
 // Status

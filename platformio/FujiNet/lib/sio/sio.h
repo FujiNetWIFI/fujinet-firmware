@@ -81,8 +81,8 @@ protected:
    void sio_complete();
    void sio_error();
    unsigned short sio_get_aux();
-   virtual void sio_status();
-   virtual void sio_process();
+   virtual void sio_status()=0;
+   virtual void sio_process()=0;
 
 public:
    int id() { return _devnum; };
