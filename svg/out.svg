@@ -1,22 +1,22 @@
 <svg height="2000" width="480" style="background-color:white" viewBox="0 -1000 480 2000">
-<line x1="0" x2="480" y1="0" y2="0" style="stroke:Black;stroke-width:2" />
-<text x="0" y="0" font-size="20.8" font-family="FifteenTwenty" fill="Black">Home</text>
+<line stroke="Black" stroke-width="1" stroke-linecap="round" stroke-dasharray="0,0" x1="0" x2="480" y1="0" y2="0" />
+<text x="0" y="0" font-size="20.8" font-family="FifteenTwenty" fill="Black" transform="rotate(0 0,0)">Home</text>
 <text x="0" y="100" font-size="20.8" font-family="FifteenTwenty" fill="Black">This is 40 column mode.</text>
 <text x="0" y="120.8" font-size="20.8" font-family="FifteenTwenty" fill="Black">Second line.</text>
 <text x="0" y="162.4" font-size="41.6" font-family="FifteenTwenty" fill="Blue">This is 20 col mode</text>
 <text x="0" y="172.8" font-size="10.4" font-family="FifteenTwenty" fill="Black">And 80 column mode is very small.</text>
 <text x="0" y="193.6" font-size="20.8" font-family="FifteenTwenty" fill="Black">Back to normal.</text>
-<line x1="0" x2="100" y1="0" y2="100" style="stroke:Red;stroke-width:2" />
-<line x1="100" x2="0" y1="100" y2="100" style="stroke:Red;stroke-width:2" />
-<line x1="200" x2="0" y1="-200" y2="0" style="stroke:Green;stroke-width:2" />
-<text x="0" y="400" font-size="10.4" font-family="FifteenTwenty" fill="Green">S</text>
-<text x="6" y="400" font-size="332.8" font-family="FifteenTwenty" fill="Green">S</text>
-<text x="198" y="400" font-size="665.6" font-family="FifteenTwenty" fill="Green">S</text>
-<text x="0" y="1710.4" font-size="665.6" font-family="FifteenTwenty" fill="Green">D</text>
-<text x="0" y="2376" font-size="665.6" font-family="FifteenTwenty" fill="Green">O</text>
-<text x="0" y="3041.6" font-size="665.6" font-family="FifteenTwenty" fill="Green">N</text>
-<text x="0" y="3707.2" font-size="665.6" font-family="FifteenTwenty" fill="Green">E</text>
-<text x="0" y="4372.8" font-size="665.6" font-family="FifteenTwenty" fill="Green">.</text>
-<text x="0" y="5038.4" font-size="665.6" font-family="FifteenTwenty" fill="Green"></text>
+<line stroke="Red" stroke-width="1" stroke-linecap="round" stroke-dasharray="10,10" x1="0" x2="100" y1="0" y2="100" />
+<line stroke="Red" stroke-width="1" stroke-linecap="round" stroke-dasharray="10,10" x1="100" x2="0" y1="100" y2="100" />
+<line stroke="Green" stroke-width="1" stroke-linecap="round" stroke-dasharray="0,0" x1="200" x2="0" y1="-200" y2="0" />
+<text x="0" y="400" font-size="10.4" font-family="FifteenTwenty" fill="Green" transform="rotate(0 0,400)">S</text>
+<text x="6" y="400" font-size="332.8" font-family="FifteenTwenty" fill="Green" transform="rotate(0 6,400)">S</text>
+<text x="198" y="400" font-size="665.6" font-family="FifteenTwenty" fill="Green" transform="rotate(0 198,400)">S</text>
+<text x="240" y="400" font-size="20.8" font-family="FifteenTwenty" fill="Blue" transform="rotate(0 240,400)">ROTATE 000</text>
+<text x="240" y="400" font-size="20.8" font-family="FifteenTwenty" fill="Blue" transform="rotate(90 240,400)">ROTATE 090</text>
+<text x="240" y="400" font-size="20.8" font-family="FifteenTwenty" fill="Blue" transform="rotate(180 240,400)">ROTATE 180</text>
+<text x="240" y="400" font-size="20.8" font-family="FifteenTwenty" fill="Blue" transform="rotate(270 240,400)">ROTATE 270</text>
+<text x="0" y="420.8" font-size="20.8" font-family="FifteenTwenty" fill="Blue">DONE.</text>
+<text x="0" y="441.6" font-size="20.8" font-family="FifteenTwenty" fill="Blue"></text>
 </svg>
 
