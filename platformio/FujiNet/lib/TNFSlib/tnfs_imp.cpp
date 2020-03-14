@@ -1080,7 +1080,7 @@ bool tnfs_telldir(TNFSImpl *F, int fid, long* pos)
   int dur = millis() - start;
   unsigned char *p;
   unsigned char retries = 0;
-  unsigned char offsetVal[4];
+  //unsigned char offsetVal[4];
 
   while (retries < 5)
   {

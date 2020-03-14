@@ -2,18 +2,31 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <Arduino.h>
 #include "networkDeviceSpec.h"
-
-using namespace std;
+#include "debug.h"
 
 char ret[256];
+
+bool is_num(char* s)
+{
+    for (int i=0;i<strlen(s);i++)
+    {
+        if (!isdigit(s[i]))
+            return false;
+    }
+
+    return true;
+}
 
 void networkDeviceSpec::debug()
 {
 #ifdef DEBUG
     Debug_printf("NetworkDeviceSpec debug\n");
-    Debug_printf("Device: %s",device);
-    Debug_printf("");
+    Debug_printf("Device: %s\n", device);
+    Debug_printf("Protocol: %s\n", protocol);
+    Debug_printf("Path: %s\n", path);
+    Debug_printf("Port: %d\n", port);
 #endif
 }
 
@@ -24,56 +37,37 @@ void networkDeviceSpec::debug()
      */
 bool networkDeviceSpec::parse(char *s)
 {
-    char *p;
-    char i = 0;
-    int d = 0;
+    char *token = strtok(s, ":");
+    int i = 0;
 
-    p = strtok(s, ":"); // Get Device spec
-
-    if (p[0] != 'N')
-        return false;
-    else
-        strcpy(device, p);
-
-    while (p != NULL)
+    while (token != NULL)
     {
-        i++;
-        p = strtok(NULL, ":");
-        switch (i)
+        switch (i++)
         {
+        case 0:
+            strcpy(device,token);
+            break;
         case 1:
-            strcpy(protocol, p);
+            strcpy(protocol,token);
             break;
         case 2:
-            for (d = 0; d < strlen(p); d++)
-                if (!isdigit(p[d]))
-                {
-                    strcpy(path, p);
-                    break;
-                }
-            port = atoi(p);
-            isValid = true;
-#ifdef DEBUG
-            debug();
-#endif
-            return true;
-        case 3:
-            port = atoi(p);
-            isValid = true;
-#ifdef DEBUG
-            debug();
-#endif
-            return true;
+            if (is_num(token))
+            {
+                port=atoi(token);
+            }
+            else
+            {
+                strcpy(path,token);
+            }
             break;
-        default:
-            isValid = false;
-#ifdef DEBUG
-            debug();
-#endif
-            return false; // Too many parameters.
+        case 3:
+            port=atoi(token);
+            break;
         }
+        token = strtok(NULL,":");
     }
-    return false;
+    debug();
+    return true;
 }
 
 /**
