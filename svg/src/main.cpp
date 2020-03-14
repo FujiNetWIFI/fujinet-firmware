@@ -25,6 +25,9 @@ FILE *f; // standard C output file
 bool BOLflag = true;
 float svg_X = 0.;
 float svg_Y = 0.;
+float svg_Y_min = -100;
+float svg_Y_max = 100;
+size_t svg_filepos[3];
 float svg_X_home = 0.;
 float svg_Y_home = 0.;
 float svg_text_y_offset = 0.;
@@ -47,20 +50,43 @@ bool escResidual = false;
 bool textMode = true;
 bool svg_home_flag = true;
 
+void svg_check_bounds()
+{
+  if (svg_Y < svg_Y_min)
+    svg_Y_min = svg_Y;
+  if (svg_Y > svg_Y_max)
+    svg_Y_max = svg_Y;
+}
+
+int svg_compute_weight(float fsize)
+{
+  if (fsize < 20)
+    return 700;
+  if (fsize < 30)
+    return 500;
+  if (fsize < 90)
+    return 400;
+  return 300;
+}
+
 void svg_new_line()
 {
   // http://scruss.com/blog/2016/04/23/fifteentwenty-commodore-1520-plotter-font/
   // <text x="0" y="15" fill="red">I love SVG!</text>
   // position new line and start text string array
-  //fprintf(f,"<text x=\"0\" y=\"%g\" font-size=\"%g\" font-family=\"ATARI 1020 VECTOR FONT APPROXIM\" fill=\"black\">", svg_Y,fontSize);
   if (svg_home_flag)
   {
     svg_text_y_offset = -lineHeight;
     svg_home_flag = false;
   }
   svg_Y += lineHeight;
+  svg_check_bounds();
   svg_X = 0; // always start at left margin? not sure of behavior
-  fprintf(f, "<text x=\"%g\" y=\"%g\" font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"%s\">", leftMargin, svg_Y + svg_text_y_offset, fontSize, svg_colors[svg_color_idx].c_str());
+  int fontWeight = svg_compute_weight(fontSize);
+  fprintf(f, "<text x=\"%g\" y=\"%g\" ", leftMargin, svg_Y + svg_text_y_offset);
+  fprintf(f, "font-size=\"%g\" font-family=\"FifteenTwenty\" ", fontSize);
+  fprintf(f, "font-weight=\"%d\" ", fontWeight);
+  fprintf(f, "fill=\"%s\">", svg_colors[svg_color_idx].c_str());
 
   BOLflag = false;
 }
@@ -77,8 +103,8 @@ void svg_plot_line(float x1, float x2, float y1, float y2)
   float dash = (float)svg_line_type;
   fprintf(f, "<line ");
   fprintf(f, "stroke=\"%s\" ", svg_colors[svg_color_idx].c_str());
-  fprintf(f, "stroke-width=\"1\" stroke-linecap=\"round\" ");
-  fprintf(f, "stroke-dasharray=\"%g,%g\" ",dash,dash);
+  fprintf(f, "stroke-width=\"1.5\" stroke-linecap=\"round\" ");
+  fprintf(f, "stroke-dasharray=\"%g,%g\" ", dash, dash);
   fprintf(f, "x1=\"%g\" x2=\"%g\" y1=\"%g\" y2=\"%g\" ", x1, x2, y1, y2);
   fprintf(f, "/>\n");
 }
@@ -89,9 +115,10 @@ void svg_abs_plot_line()
   float x1 = svg_X;
   float y1 = svg_Y;
   float x2 = svg_X_home + svg_arg[0];
-  float y2 = svg_Y_home + svg_arg[1];
+  float y2 = svg_Y_home + svg_arg[1] % 1000;
   svg_X = x2;
   svg_Y = y2;
+  svg_check_bounds();
   svg_plot_line(x1, x2, y1, y2);
 }
 
@@ -104,6 +131,7 @@ void svg_rel_plot_line()
   float y2 = y1 + svg_arg[1];
   svg_X = x2;
   svg_Y = y2;
+  svg_check_bounds();
   svg_plot_line(x1, x2, y1, y2);
 }
 
@@ -186,7 +214,26 @@ void svg_handle_char(unsigned char c)
     // if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
     //   _file->write(BACKSLASH);
     fputc(c, f);        //_file->write(c);
-    svg_X += charWidth; // update x position - PUT Q ROTATION HERE
+    switch (svg_rotate) // update x position - PUT Q ROTATION HERE
+    {
+    case 0:
+      svg_X += charWidth;
+      break;
+    case 90:
+      svg_Y += charWidth;
+      svg_check_bounds();
+      break;
+    case 180:
+      svg_X -= charWidth;
+      break;
+    case 270:
+      svg_Y -= charWidth;
+      svg_check_bounds();
+      break;
+    default:
+      svg_X += charWidth;
+      break;
+    }
     //std::cout << svg_X << " ";
   }
 }
@@ -226,9 +273,9 @@ CHAR. SCALE		S(0-63)			      GRAPHICS
 
 void svg_put_text(std::string S)
 {
-  //svg_Y += lineHeight;
+  int fontWeight = svg_compute_weight(fontSize);
   fprintf(f, "<text x=\"%g\" y=\"%g\" ", svg_X, svg_Y);
-  fprintf(f, "font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"%s\" ", fontSize, svg_colors[svg_color_idx].c_str());
+  fprintf(f, "font-size=\"%g\" font-family=\"FifteenTwenty\" font-weight=\"%d\" fill=\"%s\" ", fontSize, fontWeight, svg_colors[svg_color_idx].c_str());
   fprintf(f, "transform=\"rotate(%d %g,%g)\">", svg_rotate, svg_X, svg_Y);
   for (int i = 0; i < S.length(); i++)
   {
@@ -292,6 +339,7 @@ void svg_graphics_command(std::string S)
     case 'H': // GO HOME
       svg_X = svg_X_home;
       svg_Y = svg_Y_home;
+      svg_check_bounds();
       break;
     case 'I': // SET HOME HERE
       svg_X_home = svg_X;
@@ -311,7 +359,8 @@ void svg_graphics_command(std::string S)
       // get 2 args out of S and ...
       svg_get_2_args(S.substr(cmd_pos + 1));
       svg_X = svg_X_home + svg_arg[0];
-      svg_Y = svg_Y_home + svg_arg[1];
+      svg_Y = svg_Y_home + svg_arg[1] % 1000;
+      svg_check_bounds();
       break;
     case 'P': // PUT TEXT HERE
       svg_put_text(S.substr(cmd_pos + 1));
@@ -324,6 +373,7 @@ void svg_graphics_command(std::string S)
       svg_get_2_args(S.substr(cmd_pos + 1));
       svg_X = svg_X + svg_arg[0];
       svg_Y = svg_Y + svg_arg[1];
+      svg_check_bounds();
       break;
     case 'S': // SET TEXT SIZE
       svg_get_arg(S.substr(cmd_pos + 1), 0);
@@ -334,13 +384,15 @@ void svg_graphics_command(std::string S)
     default:
       return;
     }
+    // find either ':' to repeat the command
+    // or '*' to start a new command
     size_t new_pos = S.find_first_of(":*", cmd_pos + 1);
     if (new_pos == std::string::npos)
       return;
     if (S[new_pos] == ':')
-      S[new_pos] = S[cmd_pos];
+      S[new_pos] = S[cmd_pos]; // repeat command - just copy command over
     else if (S[new_pos] == '*')
-      new_pos++;
+      new_pos++; // new command so go to next char to get command
     cmd_pos = new_pos;
   } while (true);
 }
@@ -355,16 +407,33 @@ void svg_header()
   //fprintf(f,"<!DOCTYPE html>\n");
   //fprintf(f,"<html>\n");
   //fprintf(f,"<body>\n\n");
-  fprintf(f, "<svg height=\"2000\" width=\"480\" style=\"background-color:white\" viewBox=\"0 -1000 480 2000\">\n");
+  fprintf(f, "<svg height=\"");
+  svg_filepos[0] = ftell(f);
+  fprintf(f, " 400.0mm\" width=\"114mm\" style=\"background-color:white\" ");
+  fprintf(f, "viewBox=\"0 ");
+  svg_filepos[1] = ftell(f);
+  fprintf(f, " -1000 480 ");
+  svg_filepos[2] = ftell(f);
+  fprintf(f, "  2000\">\n");
   svg_home_flag = true;
 }
 
 void svg_footer()
 {
+  size_t here = ftell(f);
+  // go back and rewrite the Y extent
+  fseek(f, svg_filepos[0], 0);
+  fprintf(f, "%6.1f", 20.+(svg_Y_max-svg_Y_min)*96./480.);
+  fseek(f, svg_filepos[1], 0);
+  fprintf(f, "%6d", (int)(svg_Y_min)-50);
+  fseek(f, svg_filepos[2], 0);
+  fprintf(f, "%6d", 100+(int)(svg_Y_max-svg_Y_min));
+
+  // close out svg file
+  fseek(f, here, 0);
   // </svg>
   // </body>
   // </html>
-
   if (!BOLflag)
     svg_end_line();
   fprintf(f, "</svg>\n\n");
@@ -397,6 +466,7 @@ void svg_add(std::string S)
       if (BOLflag && c == EOL)
       { // svg_new_line();
         svg_Y += lineHeight;
+        svg_check_bounds();
         return;
       }
       // check for EOL or if at end of line and need automatic CR
