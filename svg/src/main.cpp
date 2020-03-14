@@ -34,6 +34,7 @@ double leftMargin = 0.0;
 float charWidth = 12.;
 float lineHeight = 20.8;
 float fontSize = 20.8;
+int svg_rotate = 0;
 //float svg_gfx_fontsize;
 //float svg_gfx_charWidth;
 int svg_color_idx = 0;
@@ -71,30 +72,39 @@ void svg_end_line()
   BOLflag = true;
 }
 
-void svg_plot_line()
+void svg_plot_line(float x1, float x2, float y1, float y2)
+{
+  float dash = (float)svg_line_type;
+  fprintf(f, "<line ");
+  fprintf(f, "stroke=\"%s\" ", svg_colors[svg_color_idx].c_str());
+  fprintf(f, "stroke-width=\"1\" stroke-linecap=\"round\" ");
+  fprintf(f, "stroke-dasharray=\"%g,%g\" ",dash,dash);
+  fprintf(f, "x1=\"%g\" x2=\"%g\" y1=\"%g\" y2=\"%g\" ", x1, x2, y1, y2);
+  fprintf(f, "/>\n");
+}
+
+void svg_abs_plot_line()
 {
   //<line x1="0" x2="100" y1="0" y2="100" style="stroke:rgb(0,0,0);stroke-width:2 />
-  int x1 = svg_X;
-  int y1 = svg_Y;
-  int x2 = svg_X_home + svg_arg[0];
-  int y2 = svg_Y_home + svg_arg[1];
+  float x1 = svg_X;
+  float y1 = svg_Y;
+  float x2 = svg_X_home + svg_arg[0];
+  float y2 = svg_Y_home + svg_arg[1];
   svg_X = x2;
   svg_Y = y2;
-
-  fprintf(f, "<line x1=\"%d\" x2=\"%d\" y1=\"%d\" y2=\"%d\" style=\"stroke:%s;stroke-width:2\" />\n", x1, x2, y1, y2, svg_colors[svg_color_idx].c_str());
+  svg_plot_line(x1, x2, y1, y2);
 }
 
 void svg_rel_plot_line()
 {
   //<line x1="0" x2="100" y1="0" y2="100" style="stroke:rgb(0,0,0);stroke-width:2 />
-  int x1 = svg_X;
-  int y1 = svg_Y;
-  int x2 = x1 + svg_arg[0];
-  int y2 = y1 + svg_arg[1];
+  float x1 = svg_X;
+  float y1 = svg_Y;
+  float x2 = x1 + svg_arg[0];
+  float y2 = y1 + svg_arg[1];
   svg_X = x2;
   svg_Y = y2;
-
-  fprintf(f, "<line x1=\"%d\" x2=\"%d\" y1=\"%d\" y2=\"%d\" style=\"stroke:%s;stroke-width:2\" />\n", x1, x2, y1, y2, svg_colors[svg_color_idx].c_str());
+  svg_plot_line(x1, x2, y1, y2);
 }
 
 void svg_set_text_size(int s)
@@ -118,7 +128,7 @@ scale of 63 would be charWidth = 12 * 30 = 360 which is 360/480 = 75% of the pri
 I want charWidth = 6 for s=0 and =360 for s=63
 */
 {
-  float scale = 6.*(float)(s & 63);
+  float scale = 6. * (float)(s & 63);
   charWidth = 6. + scale;
   fontSize = 10.4 * charWidth / 6.0;
   lineHeight = fontSize;
@@ -153,14 +163,14 @@ void svg_handle_char(unsigned char c)
     }
     if (c == 14)
     {
-       svg_set_text_size(1);
+      svg_set_text_size(1);
       // charWidth = 12.;
       // fontSize = 20.8;
       // lineHeight = fontSize;
     }
     if (c == 19)
     {
-       svg_set_text_size(0);
+      svg_set_text_size(0);
       // charWidth = 6.;
       // fontSize = 10.4;
       // lineHeight = fontSize;
@@ -218,7 +228,8 @@ void svg_put_text(std::string S)
 {
   //svg_Y += lineHeight;
   fprintf(f, "<text x=\"%g\" y=\"%g\" ", svg_X, svg_Y);
-  fprintf(f, "font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"%s\">", fontSize, svg_colors[svg_color_idx].c_str());
+  fprintf(f, "font-size=\"%g\" font-family=\"FifteenTwenty\" fill=\"%s\" ", fontSize, svg_colors[svg_color_idx].c_str());
+  fprintf(f, "transform=\"rotate(%d %g,%g)\">", svg_rotate, svg_X, svg_Y);
   for (int i = 0; i < S.length(); i++)
   {
     svg_handle_char((unsigned char)S[i]);
@@ -265,57 +276,60 @@ void svg_graphics_command(std::string S)
     char c = S[cmd_pos];
     switch (c)
     {
-    case 'A':
+    case 'A': // return to TEXTMODE
       textMode = true;
       return; // get outta here!
-    case 'H':
-      svg_X = svg_X_home;
-      svg_Y = svg_Y_home;
-      break;
-    case 'C':
+    case 'C': // SELECT COLOR
       // get arg out of S and assign to...
       svg_get_arg(S.substr(cmd_pos + 1), 0);
       svg_color_idx = svg_arg[0];
       break;
-    case 'L':
+    case 'D': // DRAW LINE ABS COORDS
+      // get 2 args out of S and draw a line
+      svg_get_2_args(S.substr(cmd_pos + 1));
+      svg_abs_plot_line();
+      break;
+    case 'H': // GO HOME
+      svg_X = svg_X_home;
+      svg_Y = svg_Y_home;
+      break;
+    case 'I': // SET HOME HERE
+      svg_X_home = svg_X;
+      svg_Y_home = svg_Y;
+      svg_home_flag = true;
+      break;
+    case 'J': // DRAW LINE RELATIVE COORDS
+      svg_get_2_args(S.substr(cmd_pos + 1));
+      svg_rel_plot_line();
+      break;
+    case 'L': // SET DASHED LINE TYPE
       // get arg out of S and assign to...
       svg_get_arg(S.substr(cmd_pos + 1), 0);
       svg_line_type = svg_arg[0];
       break;
-    case 'D':
-      // get 2 args out of S and draw a line
-      svg_get_2_args(S.substr(cmd_pos + 1));
-      svg_plot_line();
-      break;
-    case 'M':
+    case 'M': // MOVE ABS COORDS
       // get 2 args out of S and ...
       svg_get_2_args(S.substr(cmd_pos + 1));
       svg_X = svg_X_home + svg_arg[0];
       svg_Y = svg_Y_home + svg_arg[1];
       break;
-    case 'I':
-      svg_X_home = svg_X;
-      svg_Y_home = svg_Y;
-      svg_home_flag = true;
+    case 'P': // PUT TEXT HERE
+      svg_put_text(S.substr(cmd_pos + 1));
       break;
-    case 'J':
-      svg_get_2_args(S.substr(cmd_pos + 1));
-      svg_rel_plot_line();
+    case 'Q': // SET TEXT ROTATION
+      svg_get_arg(S.substr(cmd_pos + 1), 0);
+      svg_rotate = svg_arg[0] * 90;
       break;
-    case 'R':
+    case 'R': // MOVE RELATIVE COORDS
       svg_get_2_args(S.substr(cmd_pos + 1));
       svg_X = svg_X + svg_arg[0];
       svg_Y = svg_Y + svg_arg[1];
       break;
-    case 'Q':
-      svg_get_arg(S.substr(cmd_pos + 1), 0);
-      break;
-    case 'P':
-      svg_put_text(S.substr(cmd_pos + 1));
-      break;
-    case 'S':
+    case 'S': // SET TEXT SIZE
       svg_get_arg(S.substr(cmd_pos + 1), 0);
       svg_set_text_size(svg_arg[0]);
+      break;
+    case 'X': // DRAW GRAPH AXIS
       break;
     default:
       return;
