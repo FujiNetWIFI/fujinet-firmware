@@ -28,7 +28,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 
 //#include <WiFiUdp.h>
 
-#define PRINTMODE PDF
+#define PRINTMODE RAW
 
 #ifdef ESP8266
 #include <FS.h>
@@ -51,7 +51,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 //#define TNFS_SERVER "192.168.1.12"
 //#define TNFS_PORT 16384
 
-atari820 sioP;
+filePrinter sioP;
 File paperf;
 
 sioModem sioR;
@@ -154,7 +154,8 @@ void httpService()
           }
           paperf.close();
           paperf = SPIFFS.open("/paper", "w+");
-          sioP.initPrinter(&paperf, PRINTMODE);
+          sioP.setPaper(PRINTMODE);
+          sioP.initPrinter(&paperf);
           break;
         }
         if (c == '\n')
@@ -210,7 +211,8 @@ void setup()
 
   SIO.addDevice(&sioP, 0x40); // P:
   paperf = SPIFFS.open("/paper", "w+");
-  sioP.initPrinter(&paperf, PRINTMODE);
+  sioP.setPaper(PRINTMODE);
+  sioP.initPrinter(&paperf);
 
   if (WiFi.status() == WL_CONNECTED)
   {
@@ -277,7 +279,7 @@ void setup()
     break;
   }
 #endif
-  /*  }
+/*  }
   SIO.addDevice(&sioD[0], 0x31 + 0);
 */
 
@@ -315,42 +317,42 @@ void loop()
   else
     digitalWrite(PIN_LED1, HIGH);
 
-  switch(keyMgr.getBootKeyStatus())
+  switch (keyMgr.getBootKeyStatus())
   {
-    case eKeyStatus::LONG_PRESSED:
+  case eKeyStatus::LONG_PRESSED:
 #ifdef DEBUG
-      Debug_println("LONG PRESS");
+    Debug_println("LONG PRESS");
 #endif
 #ifdef BLUETOOTH_SUPPORT
-      if(btMgr.isActive())
-      {
-        btMgr.stop();
-      }
-      else
-      {
-        btMgr.start();
-      }
+    if (btMgr.isActive())
+    {
+      btMgr.stop();
+    }
+    else
+    {
+      btMgr.start();
+    }
 #endif
-      break;
-    case eKeyStatus::SHORT_PRESSED:
+    break;
+  case eKeyStatus::SHORT_PRESSED:
 #ifdef DEBUG
-      Debug_println("SHORT PRESS");
+    Debug_println("SHORT PRESS");
 #endif
 #ifdef BLUETOOTH_SUPPORT
-      if(btMgr.isActive())
-      {
-        btMgr.toggleBaudrate();
-      }
+    if (btMgr.isActive())
+    {
+      btMgr.toggleBaudrate();
+    }
 #else
-      theFuji.image_rotate();
+    theFuji.image_rotate();
 #endif
-      break;
-    default:
-      break;
+    break;
+  default:
+    break;
   }
 
 #ifdef BLUETOOTH_SUPPORT
-  if(btMgr.isActive())
+  if (btMgr.isActive())
   {
     btMgr.service();
   }
