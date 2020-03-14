@@ -438,7 +438,7 @@ tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
   int dur = millis() - start;
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
     tnfsPacket.session_idl = 0;
@@ -476,7 +476,7 @@ tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
     Debug_println("Wrote the packet");
 #endif
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -577,7 +577,7 @@ bool tnfs_umount(FSImplPtr hostPtr)
   int c = 0;
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     //strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
     tnfsPacket.session_idl = lo;
@@ -589,7 +589,7 @@ bool tnfs_umount(FSImplPtr hostPtr)
     UDP.write(tnfsPacket.rawData, c + 4);
     UDP.endPacket();
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -688,7 +688,7 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
   int c = 0;
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
@@ -742,7 +742,7 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
     UDP.write(tnfsPacket.rawData, c + 4);
     UDP.endPacket();
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -819,7 +819,7 @@ bool tnfs_close(TNFSImpl *F, int fid)
   int c = 0;
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     //strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
     tnfsPacket.session_idl = sessionID.session_idl;
@@ -839,7 +839,7 @@ bool tnfs_close(TNFSImpl *F, int fid)
     UDP.write(tnfsPacket.rawData, c + 4);
     UDP.endPacket();
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -917,7 +917,7 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
   int dur = millis() - start;
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
@@ -942,7 +942,7 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
     UDP.write(tnfsPacket.rawData, 2 + 4);
     UDP.endPacket();
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -1013,7 +1013,7 @@ bool tnfs_readdir(TNFSImpl *F, int fid, char *nextFile)
   int dur = millis() - start;
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
@@ -1029,7 +1029,7 @@ bool tnfs_readdir(TNFSImpl *F, int fid, char *nextFile)
     UDP.write(tnfsPacket.rawData, 1 + 4);
     UDP.endPacket();
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -1080,9 +1080,9 @@ bool tnfs_telldir(TNFSImpl *F, int fid, long* pos)
   int dur = millis() - start;
   unsigned char *p;
   unsigned char retries = 0;
-  unsigned char offsetVal[4];
+  //unsigned char offsetVal[4];
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
@@ -1098,7 +1098,7 @@ bool tnfs_telldir(TNFSImpl *F, int fid, long* pos)
     UDP.write(tnfsPacket.rawData, 5 + 1);
     UDP.endPacket();
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -1148,7 +1148,7 @@ bool tnfs_seekdir(TNFSImpl *F, int fid, long pos)
   offsetVal[2] = (int)((pos & 0x0000FF00) >> 8);
   offsetVal[3] = (int)((pos & 0X000000FF));
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
@@ -1168,7 +1168,7 @@ bool tnfs_seekdir(TNFSImpl *F, int fid, long pos)
     UDP.write(tnfsPacket.rawData, 5 + 4);
     UDP.endPacket();
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -1226,7 +1226,7 @@ bool tnfs_closedir(TNFSImpl *F, int fid)
   int dur = millis() - start;
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
@@ -1252,7 +1252,7 @@ bool tnfs_closedir(TNFSImpl *F, int fid)
     Debug_println(" ");
 #endif /* DEBUG_S*/
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -1329,7 +1329,7 @@ size_t tnfs_write(TNFSImpl *F, int fid, const uint8_t *buf, unsigned short len)
   int dur = millis() - start;
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
@@ -1356,7 +1356,7 @@ size_t tnfs_write(TNFSImpl *F, int fid, const uint8_t *buf, unsigned short len)
     UDP.write(buf, len);
     UDP.endPacket();
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -1445,7 +1445,7 @@ size_t tnfs_read(TNFSImpl *F, int fid, uint8_t *buf, unsigned short len)
   int dur = millis() - start;
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
@@ -1472,7 +1472,7 @@ size_t tnfs_read(TNFSImpl *F, int fid, uint8_t *buf, unsigned short len)
     UDP.endPacket();
     start = millis();
     dur = millis() - start;
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -1511,7 +1511,7 @@ size_t tnfs_read(TNFSImpl *F, int fid, uint8_t *buf, unsigned short len)
     }
 #ifdef DEBUG
     Debug_println("tnfs_read Timeout after 5000ms.");
-    if (retries < 5)
+    if (retries < TNFS_RETRIES)
       Debug_printf("Retrying...\n");
 #endif /* DEBUG_S */
     retries++;
@@ -1558,7 +1558,7 @@ bool tnfs_seek(TNFSImpl *F, int fid, long offset)
   byte offsetVal[4];
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     offsetVal[0] = (int)((offset & 0xFF000000) >> 24);
     offsetVal[1] = (int)((offset & 0x00FF0000) >> 16);
@@ -1593,7 +1593,7 @@ bool tnfs_seek(TNFSImpl *F, int fid, long offset)
     UDP.write(tnfsPacket.rawData, 6 + 4);
     UDP.endPacket();
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
@@ -1631,7 +1631,7 @@ bool tnfs_seek(TNFSImpl *F, int fid, long offset)
     }
 #ifdef DEBUG
     Debug_println("tnfs_seek Timeout after 5000ms.");
-    if (retries < 5)
+    if (retries < TNFS_RETRIES)
       Debug_printf("Retrying...\n");
 #endif /* DEBUG_S */
     tnfsPacket.retryCount--;
@@ -1708,7 +1708,7 @@ tnfsStat_t tnfs_stat(TNFSImpl *F, const char *filename)
   int c = 0;
   unsigned char retries = 0;
 
-  while (retries < 5)
+  while (retries < TNFS_RETRIES)
   {
     tnfsPacket.session_idl = sessionID.session_idl;
     tnfsPacket.session_idh = sessionID.session_idh;
@@ -1737,7 +1737,7 @@ tnfsStat_t tnfs_stat(TNFSImpl *F, const char *filename)
     UDP.write(tnfsPacket.rawData, c + 4);
     UDP.endPacket();
 
-    while (dur < 5000)
+    while (dur < TNFS_TIMEOUT)
     {
       dur = millis() - start;
       yield();
