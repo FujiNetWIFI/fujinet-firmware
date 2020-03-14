@@ -126,8 +126,13 @@ void httpService()
             exts = "txt";
             break;
           case PDF:
-          default:
             exts = "pdf";
+            break;
+          case SVG:
+            exts = "svg";
+            break;
+          default:
+            exts = "bin";
           }
 
           client.println("Content-Type: application/octet-stream");
