@@ -5,7 +5,7 @@
 #endif
 
 #ifdef ESP32
-#include <Wifi.h>
+#include <WiFi.h>
 #include <WiFiClient.h>
 #endif
 
