@@ -66,7 +66,11 @@ protected:
   std::string _password = "";
 
 public:
+#ifdef ESP32
   FileImplPtr open(const char *path, const char *mode) override;
+#elif defined(ESP8266)
+  FileImplPtr open(const char *path, const char *mode);
+#endif
   bool exists(const char *path) override;
   bool rename(const char *pathFrom, const char *pathTo) override;
   bool remove(const char *path) override;
@@ -102,9 +106,15 @@ public:
   void close() override;
   const char *name() const override;
   time_t getLastWrite() override;
+#ifdef ESP32
   boolean isDirectory(void) override;
   FileImplPtr openNextFile(const char *mode) override;
   void rewindDirectory(void) override;
+#elif defined(ESP8266)
+  boolean isDirectory(void);
+  FileImplPtr openNextFile(const char *mode);
+  void rewindDirectory(void);
+#endif
   operator bool();
 };
 
