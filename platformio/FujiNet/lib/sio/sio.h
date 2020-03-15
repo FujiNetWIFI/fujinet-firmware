@@ -6,7 +6,7 @@
 #include "LinkedList.h"
 
 // pin configurations
-#ifdef ESP_8266
+#ifdef ESP8266
 #define SIO_UART Serial
 #define PIN_LED 2
 #define PIN_INT 5
@@ -20,7 +20,7 @@
 #define DELAY_T1 650
 #define DELAY_T2 0
 #define DELAY_T3 1000
-#elif defined(ESP_32)
+#elif defined(ESP32)
 #define SIO_UART Serial2
 #define PIN_INT 26
 #define PIN_PROC 22
