@@ -413,14 +413,20 @@ void filePrinter::writeBuffer(byte *B, int n)
     for (i = 0; i < n; i++)
     {
       _file->write(B[i]);
+      Debug_print(B[i], HEX);
     }
+    Debug_printf("\n");
     break;
   case TRIM:
     while (i < n)
     {
       _file->write(B[i]);
+      Debug_print(B[i], HEX);
       if (B[i] == EOL)
+      {
+        Debug_printf("\n");
         break;
+      }
       i++;
     }
     break;
@@ -431,10 +437,14 @@ void filePrinter::writeBuffer(byte *B, int n)
       if (B[i] == EOL)
       {
         _file->printf("\n");
+        Debug_printf("\n");
         break;
       }
       if (B[i] > 31 && B[i] < 127)
+      {
         _file->write(B[i]);
+        Debug_printf("%c", B[i]);
+      }
       i++;
     }
   }
