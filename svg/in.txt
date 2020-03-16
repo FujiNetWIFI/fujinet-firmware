@@ -26,8 +26,8 @@ A
 C0
 A
 
-   FULL CHARACTER SET IN 80-CHAR MODE
 
+   FULL CHARACTER SET IN 80-CHAR MODE
 
 C3
 
@@ -119,8 +119,11 @@ I
 C0
 
 
+
+
    SCALE 0,31,63,64
 
+I
 C2
 M0,-400
 I
@@ -142,6 +145,7 @@ C0
    ROTATE 0 TO 4
 
 
+I
 M50,-50
 S5
 C3
