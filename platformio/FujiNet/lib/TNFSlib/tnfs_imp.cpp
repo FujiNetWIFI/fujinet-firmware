@@ -252,15 +252,7 @@ size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 #ifdef DEBUG_S
   BUG_UART.println("calling tnfs_write");
 #endif
-  size_t ret = tnfs_write(fs, fid, buf, size);
-  if (size == ret)
-  {
-    return size;
-  }
-  else
-  {
-    return 0;
-  }
+  return tnfs_write(fs, fid, buf, size);
 }
 
 size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
@@ -268,16 +260,7 @@ size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
 #ifdef DEBUG_S
   BUG_UART.println("calling tnfs_read");
 #endif
-  size_t ret = tnfs_read(fs, fid, buf, size);
-  // move this part into tnfs_read and pass a buffer instead
-  if (size == ret)
-  {
-    return size;
-  }
-  else
-  {
-    return 0;
-  }
+  return tnfs_read(fs, fid, buf, size);
 }
 
 void TNFSFileImpl::flush() {}
@@ -1072,7 +1055,7 @@ bool tnfs_readdir(TNFSImpl *F, int fid, char *nextFile)
 }
 
 // TNFS telldir
-bool tnfs_telldir(TNFSImpl *F, int fid, long* pos)
+bool tnfs_telldir(TNFSImpl *F, int fid, long *pos)
 {
   tnfsSessionID_t sessionID = F->sid();
 
@@ -1109,8 +1092,8 @@ bool tnfs_telldir(TNFSImpl *F, int fid, long* pos)
         if (tnfsPacket.data[0] == 0x00)
         {
           // Successful
-          p=&tnfsPacket.data[1];
-          pos=(long *)p;
+          p = &tnfsPacket.data[1];
+          pos = (long *)p;
           return true;
         }
         else
@@ -1400,7 +1383,7 @@ size_t tnfs_write(TNFSImpl *F, int fid, const uint8_t *buf, unsigned short len)
 #ifdef DEBUG
   Debug_printf("tnfs_write Failed.\n");
 #endif
-  return 0;
+  return -1;
 }
 
 /*
@@ -1520,7 +1503,7 @@ size_t tnfs_read(TNFSImpl *F, int fid, uint8_t *buf, unsigned short len)
 #ifdef DEBUG
   Debug_printf("tnfs_read Failed.\n");
 #endif
-  return 0;
+  return -1;
 }
 
 /*
