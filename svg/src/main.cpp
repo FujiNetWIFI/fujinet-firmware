@@ -51,7 +51,7 @@ bool escResidual = false;
 bool textMode = true;
 bool svg_home_flag = true;
 
-void svg_check_bounds()
+void svg_update_bounds()
 {
   if (svg_Y < svg_Y_min)
     svg_Y_min = svg_Y;
@@ -81,7 +81,7 @@ void svg_new_line()
     svg_home_flag = false;
   }
   svg_Y += lineHeight;
-  svg_check_bounds();
+  svg_update_bounds();
   //svg_X = 0; // always start at left margin? not sure of behavior
   int fontWeight = svg_compute_weight(fontSize);
   fprintf(f, "<text x=\"%g\" y=\"%g\" ", svg_X, svg_Y + svg_text_y_offset);
@@ -120,7 +120,7 @@ void svg_abs_plot_line()
   float y2 = svg_Y_home + svg_arg[1] % 1000;
   svg_X = x2;
   svg_Y = y2;
-  svg_check_bounds();
+  svg_update_bounds();
   svg_plot_line(x1, x2, y1, y2);
 }
 
@@ -133,7 +133,7 @@ void svg_rel_plot_line()
   float y2 = y1 + svg_arg[1];
   svg_X = x2;
   svg_Y = y2;
-  svg_check_bounds();
+  svg_update_bounds();
   svg_plot_line(x1, x2, y1, y2);
 }
 
@@ -217,14 +217,14 @@ void svg_handle_char(unsigned char c)
       break;
     case 90:
       svg_Y += charWidth;
-      svg_check_bounds();
+      svg_update_bounds();
       break;
     case 180:
       svg_X -= charWidth;
       break;
     case 270:
       svg_Y -= charWidth;
-      svg_check_bounds();
+      svg_update_bounds();
       break;
     default:
       svg_X += charWidth;
@@ -340,7 +340,7 @@ void svg_graphics_command(int n)
     case 'H': // GO HOME
       svg_X = svg_X_home;
       svg_Y = svg_Y_home;
-      svg_check_bounds();
+      svg_update_bounds();
       break;
     case 'I': // SET HOME HERE
       svg_X_home = svg_X;
@@ -358,6 +358,7 @@ void svg_graphics_command(int n)
       break;
     case 'M': // MOVE ABS COORDS
       // get 2 args out of S and ...
+      // this behavior when out of bounds is a guess
       svg_get_2_args(S.substr(cmd_pos + 1));
       if (svg_arg[0] != 1000)
         svg_X = svg_X_home + svg_arg[0];
@@ -365,7 +366,7 @@ void svg_graphics_command(int n)
         svg_Y = svg_Y_home;
       else
         svg_Y = svg_Y_home + svg_arg[1];
-      svg_check_bounds();
+      svg_update_bounds();
       break;
     case 'P': // PUT TEXT HERE
       svg_put_text(S.substr(cmd_pos + 1));
@@ -378,7 +379,7 @@ void svg_graphics_command(int n)
       svg_get_2_args(S.substr(cmd_pos + 1));
       svg_X = svg_X + svg_arg[0];
       svg_Y = svg_Y + svg_arg[1];
-      svg_check_bounds();
+      svg_update_bounds();
       break;
     case 'S': // SET TEXT SIZE
       svg_get_arg(S.substr(cmd_pos + 1), 0);
@@ -477,7 +478,7 @@ void svg_add(int n)
       { // svg_new_line();
         svg_X = 0;
         svg_Y += lineHeight;
-        svg_check_bounds();
+        svg_update_bounds();
         return;
       }
       // check for EOL or if at end of line and need automatic CR
