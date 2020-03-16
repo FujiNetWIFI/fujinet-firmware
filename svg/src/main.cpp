@@ -82,9 +82,9 @@ void svg_new_line()
   }
   svg_Y += lineHeight;
   svg_check_bounds();
-  svg_X = 0; // always start at left margin? not sure of behavior
+  //svg_X = 0; // always start at left margin? not sure of behavior
   int fontWeight = svg_compute_weight(fontSize);
-  fprintf(f, "<text x=\"%g\" y=\"%g\" ", leftMargin, svg_Y + svg_text_y_offset);
+  fprintf(f, "<text x=\"%g\" y=\"%g\" ", svg_X, svg_Y + svg_text_y_offset);
   fprintf(f, "font-size=\"%g\" font-family=\"FifteenTwenty\" ", fontSize);
   fprintf(f, "font-weight=\"%d\" ", fontWeight);
   fprintf(f, "fill=\"%s\">", svg_colors[svg_color_idx].c_str());
@@ -96,7 +96,7 @@ void svg_end_line()
 {
   // <text x="0" y="15" fill="red">I love SVG!</text>
   fprintf(f, "</text>\n"); // close the line
-  //svg_X = 0; // CR
+  svg_X = 0;               // CR
   BOLflag = true;
 }
 
@@ -325,8 +325,9 @@ void svg_graphics_command(int n)
     {
     case 'A': // return to TEXTMODE
       textMode = true;
-      return; // get outta here!
-    case 'C': // SELECT COLOR
+      svg_X = 0; //CR
+      return;    // get outta here!
+    case 'C':    // SELECT COLOR
       // get arg out of S and assign to...
       svg_get_arg(S.substr(cmd_pos + 1), 0);
       svg_color_idx = svg_arg[0];
@@ -353,13 +354,17 @@ void svg_graphics_command(int n)
     case 'L': // SET DASHED LINE TYPE
       // get arg out of S and assign to...
       svg_get_arg(S.substr(cmd_pos + 1), 0);
-      svg_line_type = svg_arg[0];
+      svg_line_type = svg_arg[0] & 15;
       break;
     case 'M': // MOVE ABS COORDS
       // get 2 args out of S and ...
       svg_get_2_args(S.substr(cmd_pos + 1));
-      svg_X = svg_X_home + svg_arg[0];
-      svg_Y = svg_Y_home + svg_arg[1] % 1000;
+      if (svg_arg[0] != 1000)
+        svg_X = svg_X_home + svg_arg[0];
+      if (svg_arg[1] == -1000)
+        svg_Y = svg_Y_home;
+      else
+        svg_Y = svg_Y_home + svg_arg[1];
       svg_check_bounds();
       break;
     case 'P': // PUT TEXT HERE
@@ -446,7 +451,10 @@ void svg_add(int n)
 {
   // looks like escape codes take you out of GRAPHICS MODE
   if (buffer[0] == 27)
+  {
     textMode = true;
+    svg_X = 0;
+  }
   if (!textMode)
     svg_graphics_command(n);
   else
@@ -478,14 +486,21 @@ void svg_add(int n)
         svg_end_line();
         return;
       }
-      else if (!BOLflag && (svg_X > (printWidth - charWidth)))
+      if (!BOLflag && (svg_X > (printWidth - charWidth)))
       {
         svg_end_line();
         svg_new_line();
       } // or do I just need to start a new line of text
-      else if (BOLflag && c != 27 && !escMode)
-        svg_new_line();
-      // disposition the current byte
+      else if (BOLflag && !escMode)
+      {
+        if (c == 32)
+        {
+          svg_X += charWidth;
+          continue;
+        }
+        if (c != 27)
+          svg_new_line();
+      } // disposition the current byte
       svg_handle_char(c);
       if (!textMode)
         return;
