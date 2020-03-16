@@ -368,6 +368,80 @@ TNFSFileImpl::operator bool()
 
 // TNFS calls
 
+/**
+ * Dump TNFS packet to debug port
+ **/
+void tnfs_debug_packet(unsigned short len)
+{
+#ifdef DEBUG
+  Debug_printf("TNFS Packet, Len: %d\n",len);
+  for (unsigned short i=0; i<len; i++)
+    Debug_printf("%02x ",tnfsPacket.rawData[i]);
+#endif
+  Debug_printf("\n");
+}
+
+/**
+ * Send constructed TNFS packet, and receive a response, with
+ * retries.
+ * 
+ * tnfsPacket is used from global space.
+ * It is expected to extract error code from tnfsPacket.data[0]
+ * if the return is true.
+ * 
+ * TNFSImpl* F - A pointer to TNFSImpl class
+ * int len - Length of raw TNFS packet
+ * 
+ * returns - true if packet was received, false if no packets
+ * were received after all attempts.
+ */
+bool tnfs_transaction(TNFSImpl *F, unsigned short len)
+{
+  byte retries = 0;
+  int dur = 0;
+  int start = 0;
+
+  while (retries < TNFS_RETRIES)
+  {
+    start = millis();
+
+    // Send packet
+    UDP.beginPacket(F->host().c_str(), F->port());
+    UDP.write(tnfsPacket.rawData, len);
+    UDP.endPacket();
+
+    while (dur < TNFS_TIMEOUT)
+    {
+      dur = millis() - start;
+      yield();
+      if (UDP.parsePacket())
+      {
+        unsigned short l = UDP.read(tnfsPacket.rawData, TNFS_PACKET_SIZE);
+        tnfs_debug_packet(l);
+        return true;         
+      }
+    }
+
+    // we timed out.
+    retries++;
+    tnfsPacket.retryCount--; // is this correct?
+    start = dur = 0;
+
+#ifdef DEBUG
+    Debug_printf("Timeout after %d milliseconds. Retrying\n",TNFS_TIMEOUT);
+#endif
+  }
+
+  // At this point, we've exhausted all attempts
+  // Indicate failure.
+
+#ifdef DEBUG
+  Debug_printf("All attempts failed");
+#endif
+
+  return false;
+}
+
 /*
 -------------------------
 MOUNT - Command ID 0x00
