@@ -46,6 +46,8 @@ void sioDisk::sio_read()
   int ss;
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int cacheOffset = 0;
+  int cacheSectorIndex;
+  int cacheSetorIndexAdjust = 1;
   int offset;
   byte *s;
   byte *d;
@@ -95,10 +97,21 @@ void sioDisk::sio_read()
 
       for (unsigned char i = 0; i < 10; i++)
       {
-        _file->read(sector, 256);
-        //s = &sector[0]; // &tnfsPacket.data[3];
+        int l = _file->read(sector, 256);
         d = &sectorCache[cacheOffset];
         memcpy(d, sector, 256);
+
+        if (l != -1)
+        {
+          cacheError[i] = false;
+        }
+        else
+        {
+          cacheError[i] = true;
+          invalidate_cache();
+          memset(&sectorCache,0,sizeof(sectorCache));
+          err=true;
+        }
         cacheOffset += 256;
       }
       cacheOffset = 0;
@@ -110,15 +123,26 @@ void sioDisk::sio_read()
       else
         ss = sectorSize;
 
-      cacheOffset = ((sectorNum - firstCachedSector) * ss);
+      cacheSectorIndex = (sectorNum - firstCachedSector);
+      cacheOffset = (cacheSectorIndex * ss);
+
+      if (ss == 128)
+        cacheSetorIndexAdjust = 1;
+      else
+        cacheSetorIndexAdjust = 0;
+
+      err = cacheError[cacheSectorIndex>>cacheSetorIndexAdjust];
+
 #ifdef DEBUG
+      Debug_printf("sectorIndex: %d\n", cacheSectorIndex);
+      Debug_printf("cacheError: %d\n", cacheError[cacheSectorIndex]);
       Debug_printf("cacheOffset: %d\n", cacheOffset);
 #endif
     }
-    // d = &sector[0];
     s = &sectorCache[cacheOffset];
     memcpy(sector, s, ss);
   }
+  
   sio_to_computer((byte *)&sector, ss, err);
 }
 
@@ -173,7 +197,6 @@ void sioDisk::sio_write()
       }
     }
   }
-
   sio_error();
 }
 

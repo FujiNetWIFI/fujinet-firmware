@@ -30,6 +30,7 @@ private:
     byte sector[256];
 
     byte sectorCache[2560];
+    bool cacheError[9];
     int firstCachedSector = 65535;
     unsigned char max_cached_sectors = 19;
 
