@@ -346,9 +346,11 @@ void loop()
       {
         btMgr.toggleBaudrate();
       }
-#else
-      theFuji.image_rotate();
+      else
 #endif
+      {
+        theFuji.image_rotate();
+      }
       break;
     default:
       break;
