@@ -53,7 +53,7 @@ void sioDisk::sio_read()
   byte *d;
   byte err = false;
 
-  if (sectorNum <= 3)
+  if (sectorNum <= UNCACHED_REGION)
   {
     ss = 128;
     offset = sectorNum;
