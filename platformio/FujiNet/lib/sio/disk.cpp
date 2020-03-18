@@ -53,13 +53,18 @@ void sioDisk::sio_read()
   byte *d;
   byte err = false;
 
-  if (sectorNum <= 3)
+  if (sectorNum <= UNCACHED_REGION)
   {
-    ss = 128;
+    ss = (sectorNum <= 3 ? 128 : sectorSize);
     offset = sectorNum;
-    offset *= 128;
-    offset -= 128;
+    offset *= ss;
+    offset -= ss;
     offset += 16;
+
+    // Bias adjustment for 256 bytes
+    if (ss == 256)
+      offset -= 384;
+
     _file->seek(offset);     //tnfs_seek(deviceSlot, offset);
     _file->read(sector, ss); // tnfs_read(deviceSlot, 128);
     //d = &sector[0];
@@ -109,8 +114,8 @@ void sioDisk::sio_read()
         {
           cacheError[i] = true;
           invalidate_cache();
-          memset(&sectorCache,0,sizeof(sectorCache));
-          err=true;
+          memset(&sectorCache, 0, sizeof(sectorCache));
+          err = true;
         }
         cacheOffset += 256;
       }
@@ -131,7 +136,7 @@ void sioDisk::sio_read()
       else
         cacheSetorIndexAdjust = 0;
 
-      err = cacheError[cacheSectorIndex>>cacheSetorIndexAdjust];
+      err = cacheError[cacheSectorIndex >> cacheSetorIndexAdjust];
 
 #ifdef DEBUG
       Debug_printf("sectorIndex: %d\n", cacheSectorIndex);
@@ -142,7 +147,7 @@ void sioDisk::sio_read()
     s = &sectorCache[cacheOffset];
     memcpy(sector, s, ss);
   }
-  
+
   sio_to_computer((byte *)&sector, ss, err);
 }
 
