@@ -209,7 +209,17 @@ void svg_handle_char(unsigned char c)
     // what characters need to be escaped in SVG text?
     // if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
     //   _file->write(BACKSLASH);
-    fputc(c, f);        //_file->write(c);
+    //     <	less than	&lt;	&#60;
+    // >	greater than	&gt;	&#62;
+    // &	ampersand	&amp;	&#38;
+    // "	double quotation mark	&quot;	&#34;
+    // '	single quotation mark (apostrophe)	&apos;	&#39;
+    if (c == '<' || c == '>' || c == '&' || c == '\'' || c == '\"')
+      fprintf(f, "&#%2d;", c);
+   else if (c == ' ')
+      fprintf(f, "&nbsp;");
+    else
+      fputc(c, f);      //_file->write(c);
     switch (svg_rotate) // update x position - PUT Q ROTATION HERE
     {
     case 0:
@@ -411,17 +421,22 @@ void svg_header()
   // <body>
   // <svg height="210" width="500">
 
+  //<svg version="1.1"
+  //  baseProfile="full"
+  //  width="300" height="200"
+  //  xmlns="http://www.w3.org/2000/svg">
+
   //fprintf(f,"<!DOCTYPE html>\n");
   //fprintf(f,"<html>\n");
   //fprintf(f,"<body>\n\n");
-  fprintf(f, "<svg height=\"");
+  fprintf(f, "<svg version=\"1.1\" height=\"");
   svg_filepos[0] = ftell(f);
   fprintf(f, " 400.0mm\" width=\"114mm\" style=\"background-color:white\" ");
   fprintf(f, "viewBox=\"0 ");
   svg_filepos[1] = ftell(f);
   fprintf(f, " -1000 480 ");
   svg_filepos[2] = ftell(f);
-  fprintf(f, "  2000\">\n");
+  fprintf(f, "  2000\" xmlns=\"http://www.w3.org/2000/svg\">\n");
   svg_home_flag = true;
 }
 
