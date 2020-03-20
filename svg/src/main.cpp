@@ -216,8 +216,8 @@ void svg_handle_char(unsigned char c)
     // '	single quotation mark (apostrophe)	&apos;	&#39;
     if (c == '<' || c == '>' || c == '&' || c == '\'' || c == '\"')
       fprintf(f, "&#%2d;", c);
-   else if (c == ' ')
-      fprintf(f, "&nbsp;");
+    else if (c == ' ')
+      fprintf(f, "&#160;");
     else
       fputc(c, f);      //_file->write(c);
     switch (svg_rotate) // update x position - PUT Q ROTATION HERE
@@ -288,6 +288,11 @@ void svg_put_text(std::string S)
     svg_handle_char((unsigned char)S[i]);
   }
   fprintf(f, "</text>\n"); // close the line
+}
+
+void svg_plot_axis()
+{
+
 }
 
 void svg_get_arg(std::string S, int n)
@@ -397,6 +402,7 @@ void svg_graphics_command(int n)
       break;
     case 'X': // DRAW GRAPH AXIS
       svg_get_3_args(S.substr(cmd_pos + 1));
+      svg_plot_axis();
       break;
     default:
       return;
@@ -545,7 +551,7 @@ int main()
       if (t == EOF)
         break;
       c = (unsigned char)(t);
-      std::cout << i;
+      std::cout << c;
       if (c == '\n')
         c = EOL;
       buffer[i++] = c;
