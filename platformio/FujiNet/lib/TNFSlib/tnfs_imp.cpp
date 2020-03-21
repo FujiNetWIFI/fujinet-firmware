@@ -742,8 +742,10 @@ OPEN - Opens a file - Command 0x29
 int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
 {
   tnfsSessionID_t sessionID = F->sid();
-
   int c = 0;
+
+  tnfsPacket.session_idl=sessionID.session_idl;
+  tnfsPacket.session_idh=sessionID.session_idh;
 
   tnfsPacket.command = 0x29; // OPEN
 
@@ -805,6 +807,9 @@ bool tnfs_close(TNFSImpl *F, int fid)
 {
   tnfsSessionID_t sessionID = F->sid();
   int c = 0;
+
+  tnfsPacket.session_idl=sessionID.session_idl;
+  tnfsPacket.session_idh=sessionID.session_idh;
 
   tnfsPacket.command = 0x23; // CLOSE
 
