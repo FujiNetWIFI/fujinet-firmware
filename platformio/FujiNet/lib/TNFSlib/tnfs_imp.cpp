@@ -1053,11 +1053,11 @@ size_t tnfs_write(TNFSImpl *F, int fid, const uint8_t *buf, unsigned short len)
   tnfsPacket.data[c++] = len & 0xFF;
   tnfsPacket.data[c++] = len >> 8;
 
-  for (int i=0;i<len;i++)
-    tnfsPacket.data[c++]=buf[i];
+  for (int i = 0; i < len; i++)
+    tnfsPacket.data[c++] = buf[i];
 
 #ifdef DEBUG_VERBOSE
-    Debug_print("Writing to File descriptor: ");
+  Debug_print("Writing to File descriptor: ");
   Debug_println(fid);
 #endif /* DEBUG_S */
 
@@ -1103,91 +1103,29 @@ READ - Reads from a file - Command 0x21
 
   0xBEEF 0x00 0x21 0x21
 */
-
 size_t tnfs_read(TNFSImpl *F, int fid, uint8_t *buf, unsigned short len)
 {
 
   tnfsSessionID_t sessionID = F->sid();
 
-  int start = millis();
-  int dur = millis() - start;
-  unsigned char retries = 0;
+  tnfsPacket.session_idl = sessionID.session_idl;
+  tnfsPacket.session_idh = sessionID.session_idh;
 
-  while (retries < TNFS_RETRIES)
+  tnfsPacket.command = 0x21; // READ
+
+  tnfsPacket.data[0] = (byte)fid;  // returned file descriptor
+  tnfsPacket.data[1] = len & 0xFF; // len bytes
+  tnfsPacket.data[2] = len >> 8;   //
+
+  if (tnfs_transaction(F->host().c_str(), F->port(), 3))
   {
-    tnfsPacket.session_idl = sessionID.session_idl;
-    tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;         // Increase sequence
-    tnfsPacket.command = 0x21;       // READ
-    tnfsPacket.data[0] = (byte)fid;  // returned file descriptor
-    tnfsPacket.data[1] = len & 0xFF; // len bytes
-    tnfsPacket.data[2] = len >> 8;   //
-
-#ifdef DEBUG_VERBOSE
-    Debug_print("Reading from File descriptor: ");
-    Debug_println(fid);
-    Debug_print("Req Packet: ");
-    for (int i = 0; i < 7; i++)
+    if (tnfsPacket.data[0] == 0x00)
     {
-      Debug_print(tnfsPacket.rawData[i], HEX);
-      Debug_print(" ");
+      uint8_t *s = &tnfsPacket.data[3];
+      memcpy(buf, s, len);
+      return len;
     }
-    Debug_println(" ");
-#endif /* DEBUG_S */
-
-    UDP.beginPacket(F->host().c_str(), F->port());
-    UDP.write(tnfsPacket.rawData, 4 + 3);
-    UDP.endPacket();
-    start = millis();
-    dur = millis() - start;
-    while (dur < TNFS_TIMEOUT)
-    {
-      dur = millis() - start;
-      yield();
-      if (UDP.parsePacket())
-      {
-        int l = UDP.read(tnfsPacket.rawData, sizeof(tnfsPacket.rawData));
-#ifdef DEBUG_VERBOSE
-        Debug_print("Resp packet: ");
-        for (int i = 0; i < l; i++)
-        {
-          Debug_print(tnfsPacket.rawData[i], HEX);
-          Debug_print(" ");
-        }
-        Debug_println("");
-#endif /* DEBUG_S */
-        if (tnfsPacket.data[0] == 0x00)
-        {
-// Successful
-#ifdef DEBUG_VERBOSE
-          Debug_println("Successful.");
-#endif /* DEBUG_S */
-          uint8_t *s = &tnfsPacket.data[3];
-          memcpy(buf, s, len);
-          return len;
-        }
-        else
-        {
-// Error
-#ifdef DEBUG
-          Debug_print("Error code #");
-          Debug_println(tnfsPacket.data[0], HEX);
-#endif /* DEBUG_S*/
-          return 0;
-        }
-      }
-    }
-#ifdef DEBUG
-    Debug_println("tnfs_read Timeout after 5000ms.");
-    if (retries < TNFS_RETRIES)
-      Debug_printf("Retrying...\n");
-#endif /* DEBUG_S */
-    retries++;
-    tnfsPacket.retryCount--;
   }
-#ifdef DEBUG
-  Debug_printf("tnfs_read Failed.\n");
-#endif
   return -1;
 }
 
