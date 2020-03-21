@@ -744,8 +744,8 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
   tnfsSessionID_t sessionID = F->sid();
   int c = 0;
 
-  tnfsPacket.session_idl=sessionID.session_idl;
-  tnfsPacket.session_idh=sessionID.session_idh;
+  tnfsPacket.session_idl = sessionID.session_idl;
+  tnfsPacket.session_idh = sessionID.session_idh;
 
   tnfsPacket.command = 0x29; // OPEN
 
@@ -808,14 +808,14 @@ bool tnfs_close(TNFSImpl *F, int fid)
   tnfsSessionID_t sessionID = F->sid();
   int c = 0;
 
-  tnfsPacket.session_idl=sessionID.session_idl;
-  tnfsPacket.session_idh=sessionID.session_idh;
+  tnfsPacket.session_idl = sessionID.session_idl;
+  tnfsPacket.session_idh = sessionID.session_idh;
 
   tnfsPacket.command = 0x23; // CLOSE
 
   tnfsPacket.data[c++] = (byte)fid;
 
-  return tnfs_transaction(F->host().c_str(),F->port(),c);
+  return tnfs_transaction(F->host().c_str(), F->port(), c);
 }
 
 /*
@@ -847,72 +847,31 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
 {
   tnfsSessionID_t sessionID = F->sid();
 
-  int start = millis();
-  int dur = millis() - start;
-  unsigned char retries = 0;
+  tnfsPacket.session_idl = sessionID.session_idl;
+  tnfsPacket.session_idh = sessionID.session_idh;
 
-  while (retries < TNFS_RETRIES)
+  tnfsPacket.command = 0x10; // OPENDIR
+
+  if (dirName[0] != '/')
   {
-    tnfsPacket.session_idl = sessionID.session_idl;
-    tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;   // increase sequence #
-    tnfsPacket.command = 0x10; // OPENDIR
-    if (dirName[0] != '/')
-    {
-      tnfsPacket.data[0] = '/';
-      strcpy((char *)&tnfsPacket.data[1], dirName);
-    }
-    else
-      strcpy((char *)&tnfsPacket.data[0], dirName);
-      //tnfsPacket.data[0] = '/';  // Open root dir
-      //tnfsPacket.data[1] = 0x00; // nul terminated
-
-#ifdef DEBUG
-    Debug_print("TNFS Open directory: ");
-    Debug_println(dirName);
-#endif
-
-    UDP.beginPacket(F->host().c_str(), F->port());
-    UDP.write(tnfsPacket.rawData, 2 + 4);
-    UDP.endPacket();
-
-    while (dur < TNFS_TIMEOUT)
-    {
-      dur = millis() - start;
-      yield();
-      if (UDP.parsePacket())
-      {
-        //int l =
-        UDP.read(tnfsPacket.rawData, 516);
-        if (tnfsPacket.data[0] == 0x00)
-        {
-          // Successful
-          int handle = tnfsPacket.data[1];
-#ifdef DEBUG
-          Debug_printf("Opened dir on host %s - fid = %02x\n", F->host().c_str(), handle);
-#endif
-          return handle;
-        }
-        else
-        {
-// Unsuccessful
-#ifdef DEBUG
-          Debug_printf("Failed to opened dir on host %s - err = %02x\n", F->host().c_str(), tnfsPacket.data[0]);
-#endif
-          return -1;
-        }
-      }
-    }
-// Otherwise, we timed out.
-#ifdef DEBUG
-    Debug_println("tnfs_opendir Timeout after 5000ms.");
-#endif
-    retries++;
-    tnfsPacket.retryCount--;
+    tnfsPacket.data[0] = '/';
+    strcpy((char *)&tnfsPacket.data[1], dirName);
   }
+  else
+    strcpy((char *)&tnfsPacket.data[0], dirName);
+
 #ifdef DEBUG
-  Debug_printf("tnfs_opendir Failed.");
+  Debug_print("TNFS Open directory: ");
+  Debug_println(dirName);
 #endif
+
+  if (tnfs_transaction(F->host().c_str(),F->port(),2)) // todo fix for other paths than /
+  {
+#ifdef DEBUG
+    Debug_printf("Directory opened, handle ID: %d\n",tnfsPacket.data[1]);
+#endif
+    return tnfsPacket.data[1];
+  }
   return -1;
 }
 
