@@ -1180,9 +1180,9 @@ bool tnfs_seek(TNFSImpl *F, int fid, long offset)
   Debug_println(offset);
 #endif /* DEBUG */
 
-  if (tnfs_transaction(F->host().c_str(),F->port(),6))
+  if (tnfs_transaction(F->host().c_str(), F->port(), 6))
   {
-    if (tnfsPacket.data[0]==0x00)
+    if (tnfsPacket.data[0] == 0x00)
       return true;
   }
   return false;
@@ -1245,101 +1245,52 @@ STAT - Get information on a file - Command 0x24
 tnfsStat_t tnfs_stat(TNFSImpl *F, const char *filename)
 {
   tnfsStat_t retStat;
-
   tnfsSessionID_t sessionID = F->sid();
 
-  int start = millis();
-  int dur = millis() - start;
   int c = 0;
-  unsigned char retries = 0;
 
-  while (retries < TNFS_RETRIES)
+  tnfsPacket.session_idl = sessionID.session_idl;
+  tnfsPacket.session_idh = sessionID.session_idh;
+
+  tnfsPacket.command = 0x24; // STAT
+
+  // FIXME: replace with strcpy()
+  for (int i = 0; i < strlen(filename); i++)
   {
-    tnfsPacket.session_idl = sessionID.session_idl;
-    tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;   // increase sequence #
-    tnfsPacket.command = 0x24; // STAT
-
-    for (int i = 0; i < strlen(filename); i++)
-    {
-      tnfsPacket.data[c++] = filename[i];
-    }
-
-    tnfsPacket.data[c++] = 0x00;
-
-#ifdef DEBUG_VERBOSE
-    Debug_printf("Status: %s\n", filename);
-    Debug_print("Req Packet: ");
-    for (int i = 0; i < c + 4; i++)
-    {
-      Debug_print(tnfsPacket.rawData[i], HEX);
-      Debug_print(" ");
-    }
-    Debug_println(" ");
-#endif /* DEBUG_S */
-
-    UDP.beginPacket(F->host().c_str(), F->port());
-    UDP.write(tnfsPacket.rawData, c + 4);
-    UDP.endPacket();
-
-    while (dur < TNFS_TIMEOUT)
-    {
-      dur = millis() - start;
-      yield();
-      if (UDP.parsePacket())
-      {
-        int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG_VERBOSE
-        Debug_print("Resp packet: ");
-        for (int i = 0; i < l; i++)
-        {
-          Debug_print(tnfsPacket.rawData[i], HEX);
-          Debug_print(" ");
-        }
-        Debug_println("");
-#endif // DEBUG_S
-        if (tnfsPacket.data[0] == 0x00)
-        {
-          // Successful
-          retStat.isDir = (tnfsPacket.data[2] & 0x40);
-          retStat.fsize = tnfsPacket.data[7];
-          retStat.fsize += tnfsPacket.data[8] * 0x00000100;
-          retStat.fsize += tnfsPacket.data[9] * 0x00010000;
-          retStat.fsize += tnfsPacket.data[10] * 0x01000000;
-          retStat.mtime = tnfsPacket.data[15];
-          retStat.mtime += tnfsPacket.data[16] * 0x00000100;
-          retStat.mtime += tnfsPacket.data[17] * 0x00010000;
-          retStat.mtime += tnfsPacket.data[18] * 0x01000000;
-#ifdef DEBUG
-          Debug_print("Returned directory status: ");
-          Debug_println(retStat.isDir ? "true" : "false");
-          Debug_print("File size: ");
-          Debug_println(retStat.fsize, DEC);
-          Debug_print("Last write time: ");
-          Debug_println(retStat.mtime, DEC);
-#endif
-          return retStat;
-        }
-        else
-        {
-// unsuccessful
-#ifdef DEBUG
-          Debug_print("Error code #");
-          Debug_println(tnfsPacket.data[0], HEX);
-#endif /* DEBUG_S*/
-          return retStat;
-        }
-      }
-    }
-    // Otherwise, we timed out.
-    retries++;
-    tnfsPacket.retryCount--;
-#ifdef DEBUG
-    Debug_println("tnfs_stat Timeout after 5000ms.");
-#endif /* DEBUG_S */
+    tnfsPacket.data[c++] = filename[i];
   }
+
+  tnfsPacket.data[c++] = 0x00;
+
+#ifdef DEBUG_VERBOSE
+  Debug_printf("Status: %s\n", filename);
+#endif /* DEBUG_S */
+
+  if (tnfs_transaction(F->host().c_str(), F->port(), c))
+  {
+    if (tnfsPacket.data[0] == 0x00)
+    {
+      retStat.isDir = (tnfsPacket.data[2] & 0x40);
+      retStat.fsize = tnfsPacket.data[7];
+      retStat.fsize += tnfsPacket.data[8] * 0x00000100;
+      retStat.fsize += tnfsPacket.data[9] * 0x00010000;
+      retStat.fsize += tnfsPacket.data[10] * 0x01000000;
+      retStat.mtime = tnfsPacket.data[15];
+      retStat.mtime += tnfsPacket.data[16] * 0x00000100;
+      retStat.mtime += tnfsPacket.data[17] * 0x00010000;
+      retStat.mtime += tnfsPacket.data[18] * 0x01000000;
 #ifdef DEBUG
-  Debug_printf("tnfs_stat Status Failed\n");
+      Debug_print("Returned directory status: ");
+      Debug_println(retStat.isDir ? "true" : "false");
+      Debug_print("File size: ");
+      Debug_println(retStat.fsize, DEC);
+      Debug_print("Last write time: ");
+      Debug_println(retStat.mtime, DEC);
 #endif
+      return retStat;
+    }
+  }
+  // Failed.
+  memset(&retStat,0x00,sizeof(retStat));
   return retStat;
 }
