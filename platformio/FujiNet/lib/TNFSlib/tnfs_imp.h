@@ -21,6 +21,7 @@
 
 #define TNFS_TIMEOUT 5000
 #define TNFS_RETRIES 5
+#define TNFS_PACKET_SIZE 516
 
 extern WiFiUDP UDP;
 
