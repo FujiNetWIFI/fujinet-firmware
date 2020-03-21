@@ -1,40 +1,57 @@
-<svg height=" 196.5mm" width="114mm" style="background-color:white" viewBox="0   -250 480    982">
-<line stroke="Black" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="0,0" x1="0" x2="480" y1="0" y2="0" />
-<text x="0" y="0" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black" transform="rotate(0 0,0)">Home</text>
-<text x="0" y="100" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">This is 40 column mode.</text>
-<text x="0" y="120.8" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">Second line.</text>
-<text x="0" y="162.4" font-size="41.6" font-family="FifteenTwenty" font-weight="400" fill="Blue">This is 20 col mode</text>
-<text x="0" y="172.8" font-size="10.4" font-family="FifteenTwenty" font-weight="700" fill="Black">And 80 column mode is very small.</text>
-<text x="0" y="193.6" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">Back to normal.</text>
-<line stroke="Red" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="15,15" x1="0" x2="100" y1="0" y2="100" />
-<line stroke="Red" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="15,15" x1="100" x2="0" y1="100" y2="100" />
-<line stroke="Green" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="0,0" x1="200" x2="0" y1="-200" y2="0" />
-<text x="0" y="400" font-size="10.4" font-family="FifteenTwenty" font-weight="700" fill="Green" transform="rotate(0 0,400)">S</text>
-<text x="6" y="400" font-size="332.8" font-family="FifteenTwenty" font-weight="300" fill="Green" transform="rotate(0 6,400)">S</text>
-<text x="148" y="500" font-size="665.6" font-family="FifteenTwenty" font-weight="300" fill="Green" transform="rotate(0 148,500)">S</text>
-<text x="240" y="400" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Blue" transform="rotate(0 240,400)">ROTATE 000</text>
-<text x="240" y="400" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Blue" transform="rotate(90 240,400)">ROTATE 090</text>
-<text x="240" y="400" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Blue" transform="rotate(180 240,400)">ROTATE 180</text>
-<text x="240" y="400" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Blue" transform="rotate(270 240,400)">ROTATE 270</text>
-<text x="0" y="300.8" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Blue">DONE.</text>
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="0,0" x1="0" x2="200" y1="682.4" y2="682.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1,1" x1="240" x2="440" y1="682.4" y2="682.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2,2" x1="0" x2="200" y1="662.4" y2="662.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3,3" x1="240" x2="440" y1="662.4" y2="662.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="4,4" x1="0" x2="200" y1="642.4" y2="642.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="5,5" x1="240" x2="440" y1="642.4" y2="642.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="6,6" x1="0" x2="200" y1="622.4" y2="622.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="7,7" x1="240" x2="440" y1="622.4" y2="622.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="8,8" x1="0" x2="200" y1="602.4" y2="602.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="9,9" x1="240" x2="440" y1="602.4" y2="602.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="10,10" x1="0" x2="200" y1="582.4" y2="582.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="11,11" x1="240" x2="440" y1="582.4" y2="582.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="12,12" x1="0" x2="200" y1="562.4" y2="562.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="13,13" x1="240" x2="440" y1="562.4" y2="562.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="14,14" x1="0" x2="200" y1="542.4" y2="542.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="15,15" x1="240" x2="440" y1="542.4" y2="542.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="16,16" x1="0" x2="200" y1="522.4" y2="522.4" />
-<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="17,17" x1="240" x2="440" y1="522.4" y2="522.4" />
-<text x="0" y="502.4" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Blue"></text>
+<svg version="1.1" height=" 384.3mm" width="114mm" style="background-color:white" viewBox="0   -150 480   1921" xmlns="http://www.w3.org/2000/svg">
+<text x="0" y="0" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">*&nbsp;1020&nbsp;FIRMWARE/HARDWARE&nbsp;CHECK&nbsp;(REV&nbsp;1)&nbsp;*</text>
+<text x="0" y="62.4" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">*&nbsp;TEXT&nbsp;MODE</text>
+<text x="36" y="83.2" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">FULL&nbsp;CHARACTER&nbsp;SET&nbsp;IN&nbsp;20-CHAR&nbsp;MODE</text>
+<text x="0" y="124.8" font-size="41.6" font-family="FifteenTwenty" font-weight="400" fill="Green"></text>
+<text x="0" y="166.4" font-size="41.6" font-family="FifteenTwenty" font-weight="400" fill="Green">&nbsp;!&#34;#$%&#38;&#39;()*+,-./0123</text>
+<text x="0" y="208" font-size="41.6" font-family="FifteenTwenty" font-weight="400" fill="Green">456789:;&#60;=&#62;?@ABCDEFG</text>
+<text x="0" y="249.6" font-size="41.6" font-family="FifteenTwenty" font-weight="400" fill="Green">HIJKLMNOPQRSTUVWXYZ[</text>
+<text x="0" y="291.2" font-size="41.6" font-family="FifteenTwenty" font-weight="400" fill="Green">\]^_`abcdefghijklmno</text>
+<text x="0" y="332.8" font-size="41.6" font-family="FifteenTwenty" font-weight="400" fill="Green">pqrstuvwxyz{|}~</text>
+<text x="36" y="374.4" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">FULL&nbsp;CHARACTER&nbsp;SET&nbsp;IN&nbsp;40-CHAR&nbsp;MODE</text>
+<text x="0" y="395.2" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Blue"></text>
+<text x="0" y="416" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Blue">&nbsp;!&#34;#$%&#38;&#39;()*+,-./0123456789:;&#60;=&#62;?@ABCDEFG</text>
+<text x="0" y="436.8" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Blue">HIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmno</text>
+<text x="0" y="457.6" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Blue">pqrstuvwxyz{|}~</text>
+<text x="36" y="499.2" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">FULL&nbsp;CHARACTER&nbsp;SET&nbsp;IN&nbsp;80-CHAR&nbsp;MODE</text>
+<text x="0" y="509.6" font-size="10.4" font-family="FifteenTwenty" font-weight="700" fill="Red"></text>
+<text x="0" y="520" font-size="10.4" font-family="FifteenTwenty" font-weight="700" fill="Red">&nbsp;!&#34;#$%&#38;&#39;()*+,-./0123456789:;&#60;=&#62;?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmno</text>
+<text x="0" y="530.4" font-size="10.4" font-family="FifteenTwenty" font-weight="700" fill="Red">pqrstuvwxyz{|}~</text>
+<text x="0" y="572" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">*&nbsp;GRAPHIC&nbsp;MODE</text>
+<text x="36" y="613.6" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">LINE&nbsp;TYPE&nbsp;0&nbsp;TO&nbsp;17</text>
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="0,0" x1="0" x2="200" y1="655.2" y2="655.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1,1" x1="240" x2="440" y1="655.2" y2="655.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="2,2" x1="0" x2="200" y1="675.2" y2="675.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="3,3" x1="240" x2="440" y1="675.2" y2="675.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="4,4" x1="0" x2="200" y1="695.2" y2="695.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="5,5" x1="240" x2="440" y1="695.2" y2="695.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="6,6" x1="0" x2="200" y1="715.2" y2="715.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="7,7" x1="240" x2="440" y1="715.2" y2="715.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="8,8" x1="0" x2="200" y1="735.2" y2="735.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="9,9" x1="240" x2="440" y1="735.2" y2="735.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="10,10" x1="0" x2="200" y1="755.2" y2="755.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="11,11" x1="240" x2="440" y1="755.2" y2="755.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="12,12" x1="0" x2="200" y1="775.2" y2="775.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="13,13" x1="240" x2="440" y1="775.2" y2="775.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="14,14" x1="0" x2="200" y1="795.2" y2="795.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="15,15" x1="240" x2="440" y1="795.2" y2="795.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="0,0" x1="0" x2="200" y1="815.2" y2="815.2" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1,1" x1="240" x2="440" y1="815.2" y2="815.2" />
+<text x="36" y="897.6" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">SCALE&nbsp;0,31,63,64</text>
+<text x="0" y="1318.4" font-size="10.4" font-family="FifteenTwenty" font-weight="700" fill="Green" transform="rotate(0 0,1318.4)">S</text>
+<text x="20" y="1349.4" font-size="332.8" font-family="FifteenTwenty" font-weight="300" fill="Green" transform="rotate(0 20,1349.4)">S</text>
+<text x="190" y="1381.4" font-size="665.6" font-family="FifteenTwenty" font-weight="300" fill="Green" transform="rotate(0 190,1381.4)">S</text>
+<text x="470" y="1318.4" font-size="10.4" font-family="FifteenTwenty" font-weight="700" fill="Green" transform="rotate(0 470,1318.4)">S</text>
+<text x="36" y="1360" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">ROTATE&nbsp;0&nbsp;TO&nbsp;4</text>
+<text x="50" y="1451.6" font-size="62.4" font-family="FifteenTwenty" font-weight="400" fill="Red" transform="rotate(0 50,1451.6)">Q0</text>
+<text x="122" y="1451.6" font-size="62.4" font-family="FifteenTwenty" font-weight="400" fill="Red" transform="rotate(90 122,1451.6)">Q1</text>
+<text x="122" y="1523.6" font-size="62.4" font-family="FifteenTwenty" font-weight="400" fill="Red" transform="rotate(180 122,1523.6)">Q2</text>
+<text x="50" y="1523.6" font-size="62.4" font-family="FifteenTwenty" font-weight="400" fill="Red" transform="rotate(270 50,1523.6)">Q3</text>
+<text x="36" y="1621.6" font-size="20.8" font-family="FifteenTwenty" font-weight="500" fill="Black">PLOTTING&nbsp;ABILITY</text>
+<line stroke="Black" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1,1" x1="240" x2="300" y1="1551.6" y2="1431.6" />
+<line stroke="Blue" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1,1" x1="1300" x2="1420" y1="1671.6" y2="1431.6" />
+<line stroke="Green" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1,1" x1="1420" x2="1540" y1="1671.6" y2="1431.6" />
+<line stroke="Red" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1,1" x1="1540" x2="1660" y1="1671.6" y2="1431.6" />
+<line stroke="Black" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1,1" x1="1660" x2="1720" y1="1671.6" y2="1551.6" />
 </svg>
 

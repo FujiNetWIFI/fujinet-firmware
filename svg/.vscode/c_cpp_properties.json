@@ -6,15 +6,15 @@
         {
             "name": "Win32",
             "includePath": [
-                "d:/userData/Jeff/GitHub/atariwifi/svg/src",
-                "C:/Users/jeff/.platformio/packages/tool-unity",
+                "c:/Users/Jeff/Documents/GitHub/atariwifi/svg/src",
+                "C:/Users/Jeff/.platformio/packages/tool-unity",
                 ""
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "d:/userData/Jeff/GitHub/atariwifi/svg/src",
-                    "C:/Users/jeff/.platformio/packages/tool-unity",
+                    "c:/Users/Jeff/Documents/GitHub/atariwifi/svg/src",
+                    "C:/Users/Jeff/.platformio/packages/tool-unity",
                     ""
                 ]
             },
@@ -23,7 +23,7 @@
                 ""
             ],
             "intelliSenseMode": "clang-x64",
-            "compilerPath": "C:/Users/jeff/.platformio/packages/toolchain-gccmingw32/bin/gcc.exe",
+            "compilerPath": "C:/Users/Jeff/.platformio/packages/toolchain-gccmingw32/bin/gcc.exe",
             "compilerArgs": [
                 ""
             ]

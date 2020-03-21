@@ -28,7 +28,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 
 //#include <WiFiUdp.h>
 
-#define PRINTMODE RAW
+#define PRINTMODE TRIM
 
 #ifdef ESP8266
 #include <FS.h>
@@ -51,7 +51,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 //#define TNFS_SERVER "192.168.1.12"
 //#define TNFS_PORT 16384
 
-filePrinter sioP;
+atari1027 sioP;
 File paperf;
 
 sioModem sioR;
