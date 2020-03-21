@@ -374,11 +374,122 @@ TNFSFileImpl::operator bool()
 void tnfs_debug_packet(unsigned short len)
 {
 #ifdef DEBUG
-  Debug_printf("TNFS Packet, Len: %d\n",len);
-  for (unsigned short i=0; i<len; i++)
-    Debug_printf("%02x ",tnfsPacket.rawData[i]);
-#endif
+  Debug_printf("TNFS Packet, Len: %d\n", len);
+  for (unsigned short i = 0; i < len; i++)
+    Debug_printf("%02x ", tnfsPacket.rawData[i]);
   Debug_printf("\n");
+
+  Debug_printf("TNFS Return Code: ");
+  switch (tnfsPacket.data[0])
+  {
+  case 0x00:
+    Debug_printf("Success.");
+    break;
+  case 0x01:
+    Debug_printf("EPERM: Operation not Permitted.");
+    break;
+  case 0x02:
+    Debug_printf("ENOENT: No such file or directory.");
+    break;
+  case 0x03:
+    Debug_printf("EIO: I/O Error");
+    break;
+  case 0x04:
+    Debug_printf("ENXIO: No such device or address");
+    break;
+  case 0x05:
+    Debug_printf("E2BIG: Argument list too long");
+    break;
+  case 0x06:
+    Debug_printf("EBADF: Bad File Number");
+    break;
+  case 0x07:
+    Debug_printf("EAGAIN: Try Again");
+    break;
+  case 0x08:
+    Debug_printf("ENOMEM: Out of memory");
+    break;
+  case 0x09:
+    Debug_printf("EACCES: Permission denied.");
+    break;
+  case 0x0A:
+    Debug_printf("EBUSY: Device or resource busy.");
+    break;
+  case 0x0B:
+    Debug_printf("EEXIST: File Exists");
+    break;
+  case 0x0C:
+    Debug_printf("ENOTDIR: Is not a directory.");
+    break;
+  case 0x0D:
+    Debug_printf("EISDIR: Is a directory.");
+    break;
+  case 0x0E:
+    Debug_printf("EINVAL: Invalid Argument.");
+    break;
+  case 0x0F:
+    Debug_printf("ENFILE: File table overflow.");
+    break;
+  case 0x10:
+    Debug_printf("EMFILE: Too many open files.");
+    break;
+  case 0x11:
+    Debug_printf("EFBIG: File too large.");
+    break;
+  case 0x12:
+    Debug_printf("ENOSPC: No space left on device.");
+    break;
+  case 0x13:
+    Debug_printf("ESPIPE: Attempt to seek on a FIFO or pipe.");
+    break;
+  case 0x14:
+    Debug_printf("EROFS: Read only filesystem.");
+    break;
+  case 0x15:
+    Debug_printf("ENAMETOOLONG: Filename too long.");
+    break;
+  case 0x16:
+    Debug_printf("ENOSYS: Function not implemented.");
+    break;
+  case 0x17:
+    Debug_printf("ENOTEMPTY: Directory not empty.");
+    break;
+  case 0x18:
+    Debug_printf("ELOOP: Too many symbolic links.");
+    break;
+  case 0x19:
+    Debug_printf("ENODATA: No data available.");
+    break;
+  case 0x1A:
+    Debug_printf("ENOSTR: Out of streams resources.");
+    break;
+  case 0x1B:
+    Debug_printf("EPROTO: Protocol Error");
+    break;
+  case 0x1C:
+    Debug_printf("EBADFD: File descriptor in bad state.");
+    break;
+  case 0x1D:
+    Debug_printf("EUSERS: Too many users.");
+    break;
+  case 0x1E:
+    Debug_printf("ENOBUFS: No buffer space avaialable.");
+    break;
+  case 0x1F:
+    Debug_printf("EALREADY: Operation already in progress.");
+    break;
+  case 0x20:
+    Debug_printf("ESTALE: Stale TNFS handle.");
+    break;
+  case 0x21:
+    Debug_printf("EOF!");
+    break;
+  case 0xFF:
+    Debug_printf("Invalid TNFS Handle");
+    break;
+  }
+  Debug_printf("\n");
+#endif /* DEBUG */
 }
 
 /**
@@ -389,13 +500,14 @@ void tnfs_debug_packet(unsigned short len)
  * It is expected to extract error code from tnfsPacket.data[0]
  * if the return is true.
  * 
- * TNFSImpl* F - A pointer to TNFSImpl class
+ * const char* host - Hostname
+ * unsigned short port - port #
  * int len - Length of raw TNFS packet
  * 
  * returns - true if packet was received, false if no packets
  * were received after all attempts.
  */
-bool tnfs_transaction(TNFSImpl *F, unsigned short len)
+bool tnfs_transaction(const char *host, unsigned short port, unsigned short len)
 {
   byte retries = 0;
   int dur = 0;
@@ -405,8 +517,10 @@ bool tnfs_transaction(TNFSImpl *F, unsigned short len)
   {
     start = millis();
 
+    tnfs_debug_packet(len);
+
     // Send packet
-    UDP.beginPacket(F->host().c_str(), F->port());
+    UDP.beginPacket(host, port);
     UDP.write(tnfsPacket.rawData, len);
     UDP.endPacket();
 
@@ -418,7 +532,7 @@ bool tnfs_transaction(TNFSImpl *F, unsigned short len)
       {
         unsigned short l = UDP.read(tnfsPacket.rawData, TNFS_PACKET_SIZE);
         tnfs_debug_packet(l);
-        return true;         
+        return true;
       }
     }
 
@@ -428,7 +542,7 @@ bool tnfs_transaction(TNFSImpl *F, unsigned short len)
     start = dur = 0;
 
 #ifdef DEBUG
-    Debug_printf("Timeout after %d milliseconds. Retrying\n",TNFS_TIMEOUT);
+    Debug_printf("Timeout after %d milliseconds. Retrying\n", TNFS_TIMEOUT);
 #endif
   }
 
@@ -468,10 +582,10 @@ MOUNT - Command ID 0x00
 */
 tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
 {
-
   tnfsSessionID_t tempID;
-
   std::string mp(hostPtr->mountpoint());
+
+  tempID.session_idh=tempID.session_idl=0;
 
   // extract the parameters
   //host + sep + numstr + sep + "0 0 " + location + sep + userid + sep + password;
@@ -491,100 +605,34 @@ tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
   Debug_printf("password: %s\n", password);
 #endif
 
-  int start = millis();
-  int dur = millis() - start;
-  unsigned char retries = 0;
+  memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
 
-  while (retries < TNFS_RETRIES)
+  tnfsPacket.session_idl = 0;
+  tnfsPacket.session_idh = 0;
+  tnfsPacket.retryCount = 0;
+  tnfsPacket.command = 0;
+
+  tnfsPacket.data[0] = 0x01; // vers
+  tnfsPacket.data[1] = 0x00; // "  "
+  // todo: need to strcpy location, userid and password
+  tnfsPacket.data[2] = 0x2F; // '/'
+  tnfsPacket.data[3] = 0x00; // nul
+  tnfsPacket.data[4] = 0x00; // no username
+  tnfsPacket.data[5] = 0x00; // no password
+
+  Debug_print("Mounting / from ");
+  Debug_println(host);
+
+  if (tnfs_transaction(host, port, 6))
   {
-    memset(tnfsPacket.rawData, 0, sizeof(tnfsPacket.rawData));
-    tnfsPacket.session_idl = 0;
-    tnfsPacket.session_idh = 0;
-    tnfsPacket.retryCount = 0;
-    tnfsPacket.command = 0;
-    tnfsPacket.data[0] = 0x01; // vers
-    tnfsPacket.data[1] = 0x00; // "  "
-    // todo: need to strcpy location, userid and password
-    tnfsPacket.data[2] = 0x2F; // '/'
-    tnfsPacket.data[3] = 0x00; // nul
-    tnfsPacket.data[4] = 0x00; // no username
-    tnfsPacket.data[5] = 0x00; // no password
-
-#ifdef DEBUG_VERBOSE
-    Debug_print("Mounting / from ");
-    Debug_println(host);
-    // for (int i = 0; i < 32; i++)
-    //   Debug_printf("%02x ", hostSlots.host[hostSlot][i]);
-    // Debug_printf("\n\n");
-    Debug_print("Req Packet: ");
-    for (int i = 0; i < 10; i++)
+    // Got a packet
+    if (tnfsPacket.data[0] == 0x00)
     {
-      Debug_print(tnfsPacket.rawData[i], HEX);
-      Debug_print(" ");
+      // Successful
+      tempID.session_idh = tnfsPacket.session_idh;
+      tempID.session_idl = tnfsPacket.session_idl;
     }
-    Debug_println(" ");
-#endif /* DEBUG_S */
-
-    UDP.beginPacket(host, port);
-    UDP.write(tnfsPacket.rawData, 10);
-    UDP.endPacket(); // todo: error checking
-
-#ifdef DEBUG_VERBOSE
-    Debug_println("Wrote the packet");
-#endif
-
-    while (dur < TNFS_TIMEOUT)
-    {
-      dur = millis() - start;
-      yield();
-      if (UDP.parsePacket())
-      {
-        int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG_VERBOSE
-        Debug_print("Resp Packet: ");
-        for (int i = 0; i < l; i++)
-        {
-          Debug_print(tnfsPacket.rawData[i], HEX);
-          Debug_print(" ");
-        }
-        Debug_println("");
-#endif /* DEBUG_S */
-        if (tnfsPacket.data[0] == 0x00)
-        {
-// Successful
-#ifdef DEBUG_VERBOSE
-          Debug_printf("Successful, Session ID: %x %x\n", tnfsPacket.session_idl, tnfsPacket.session_idh);
-#endif /* DEBUG_S */
-          // Persist the session ID.
-          tempID.session_idl = tnfsPacket.session_idl;
-          tempID.session_idh = tnfsPacket.session_idh;
-          return tempID;
-        }
-        else
-        {
-// Error
-#ifdef DEBUG_VERBOSE
-          Debug_print("Error #");
-          Debug_println(tnfsPacket.data[0], HEX);
-#endif /* DEBUG_S */
-          tempID.session_idh = 0;
-          tempID.session_idl = 0;
-          return tempID;
-        }
-      }
-    }
-// Otherwise we timed out.
-#ifdef DEBUG_VERBOSE
-    Debug_println("tnfs_mount Timeout after 5000ms");
-#endif /* DEBUG_S */
-    retries++;
-    tnfsPacket.retryCount--;
   }
-#ifdef DEBUG
-  Debug_printf("tnfs_mount Failed.\n");
-#endif
-  tempID.session_idh = 0;
-  tempID.session_idl = 0;
   return tempID;
 }
 
