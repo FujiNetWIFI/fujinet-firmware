@@ -517,11 +517,13 @@ bool tnfs_transaction(const char *host, unsigned short port, unsigned short len)
   {
     start = millis();
 
+    tnfsPacket.retryCount++;
+
     tnfs_debug_packet(len);
 
     // Send packet
     UDP.beginPacket(host, port);
-    UDP.write(tnfsPacket.rawData, len);
+    UDP.write(tnfsPacket.rawData, len + 4);
     UDP.endPacket();
 
     while (dur < TNFS_TIMEOUT)
@@ -585,7 +587,7 @@ tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
   tnfsSessionID_t tempID;
   std::string mp(hostPtr->mountpoint());
 
-  tempID.session_idh=tempID.session_idl=0;
+  tempID.session_idh = tempID.session_idl = 0;
 
   // extract the parameters
   //host + sep + numstr + sep + "0 0 " + location + sep + userid + sep + password;
@@ -677,66 +679,19 @@ bool tnfs_umount(FSImplPtr hostPtr)
   Debug_printf("session id: %hhu %hhu\n", lo, hi);
 #endif
 
-  int start = millis();
-  int dur = millis() - start;
-  int c = 0;
-  unsigned char retries = 0;
+  tnfsPacket.session_idl = lo;
+  tnfsPacket.session_idh = hi;
+  tnfsPacket.retryCount = 0; // reset sequence #
+  tnfsPacket.command = 0x01; // UMOUNT
 
-  while (retries < TNFS_RETRIES)
+  if (tnfs_transaction(host, port, 0))
   {
-    //strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
-    tnfsPacket.session_idl = lo;
-    tnfsPacket.session_idh = hi;
-    tnfsPacket.retryCount = 0; // reset sequence #
-    tnfsPacket.command = 0x01; // UMOUNT
-
-    UDP.beginPacket(host, port);
-    UDP.write(tnfsPacket.rawData, c + 4);
-    UDP.endPacket();
-
-    while (dur < TNFS_TIMEOUT)
-    {
-      dur = millis() - start;
-      yield();
-      if (UDP.parsePacket())
-      {
-        int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG_VERBOSE
-        Debug_print("Resp packet: ");
-        for (int i = 0; i < l; i++)
-        {
-          Debug_print(tnfsPacket.rawData[i], HEX);
-          Debug_print(" ");
-        }
-        Debug_println("");
-#endif // DEBUG_S
-        if (tnfsPacket.data[0] == 0x00)
-        {
-          // Successful
-          return true;
-        }
-        else
-        {
-// unsuccessful
-#ifdef DEBUG_VERBOSE
-          Debug_print("Error code #");
-          Debug_println(tnfsPacket.data[0], HEX);
-#endif /* DEBUG_S*/
-          return false;
-        }
-      }
-    }
-    // Otherwise, we timed out.
-    retries++;
-    //tnfsPacket.retryCount--;
-#ifdef DEBUG
-    Debug_println("tnfs_umount Timeout after 5000ms.");
-#endif /* DEBUG_S */
+    return true;
   }
-#ifdef DEBUG
-  Debug_printf("tnfs_umount Failed\n");
-#endif
-  return false;
+  else
+  {
+    return false;
+  }
 }
 
 /*
@@ -788,115 +743,49 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
 {
   tnfsSessionID_t sessionID = F->sid();
 
-  int start = millis();
-  int dur = millis() - start;
   int c = 0;
-  unsigned char retries = 0;
 
-  while (retries < TNFS_RETRIES)
+  tnfsPacket.session_idl = sessionID.session_idl;
+  tnfsPacket.session_idh = sessionID.session_idh;
+  tnfsPacket.retryCount++;   // increase sequence #
+  tnfsPacket.command = 0x29; // OPEN
+
+  tnfsPacket.data[c++] = flag_lsb;
+  tnfsPacket.data[c++] = flag_msb;
+
+  if (flag_msb & 0x01)
   {
-    tnfsPacket.session_idl = sessionID.session_idl;
-    tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;   // increase sequence #
-    tnfsPacket.command = 0x29; // OPEN
-
-    // if (options == 0x01)
-    //   tnfsPacket.data[c++] = 0x01;
-    // else if (options == 0x02)
-    //   tnfsPacket.data[c++] = 0x03;
-    // else
-    //   tnfsPacket.data[c++] = 0x03;
-    tnfsPacket.data[c++] = flag_lsb;
-
-    // tnfsPacket.data[c++] = (create == true ? 0x01 : 0x00); // Create flag
-    tnfsPacket.data[c++] = flag_msb;
-
-    if (flag_msb & 0x01)
-    {
-      tnfsPacket.data[c++] = 0xFF; // mode is
-      tnfsPacket.data[c++] = 0x01; // 0777
-    }
-    else
-    {
-      tnfsPacket.data[c++] = 0x00; // mode is
-      tnfsPacket.data[c++] = 0x00; // not used
-    }
-    // tnfsPacket.data[c++] = '/'; // Filename start
-    for (int i = 0; i < strlen(mountPath); i++)
-    {
-      tnfsPacket.data[c++] = mountPath[i];
-    }
-
-    tnfsPacket.data[c++] = 0x00;
-    tnfsPacket.data[c++] = 0x00;
-    tnfsPacket.data[c++] = 0x00;
-
-#ifdef DEBUG_VERBOSE
-    Debug_printf("Opening %s\n", mountPath);
-    Debug_print("Req Packet: ");
-    for (int i = 0; i < c + 4; i++)
-    {
-      Debug_print(tnfsPacket.rawData[i], HEX);
-      Debug_print(" ");
-    }
-    Debug_println(" ");
-#endif /* DEBUG_S */
-
-    //UDP.beginPacket(hostSlots.host[deviceSlots.slot[deviceSlot].hostSlot], 16384);
-    UDP.beginPacket(F->host().c_str(), F->port());
-    UDP.write(tnfsPacket.rawData, c + 4);
-    UDP.endPacket();
-
-    while (dur < TNFS_TIMEOUT)
-    {
-      dur = millis() - start;
-      yield();
-      if (UDP.parsePacket())
-      {
-        int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG_VERBOSE
-        Debug_print("Resp packet: ");
-        for (int i = 0; i < l; i++)
-        {
-          Debug_print(tnfsPacket.rawData[i], HEX);
-          Debug_print(" ");
-        }
-        Debug_println("");
-#endif // DEBUG_S
-        if (tnfsPacket.data[0] == 0x00)
-        {
-          // Successful
-          //tnfs_fds[deviceSlot] = tnfsPacket.data[1];
-          int fid = (int)tnfsPacket.data[1];
-#ifdef DEBUG_VERBOSE
-          Debug_print("Successful, file descriptor: #");
-          Debug_print(fid, HEX);
-          Debug_println(tnfsPacket.data[1], HEX);
-#endif /* DEBUG_S */
-          return fid;
-        }
-        else
-        {
-// unsuccessful
-#ifdef DEBUG
-          Debug_print("Error code #");
-          Debug_println(tnfsPacket.data[0], HEX);
-#endif /* DEBUG_S*/
-          return -1;
-        }
-      }
-    }
-    // Otherwise, we timed out.
-    retries++;
-    tnfsPacket.retryCount--;
-#ifdef DEBUG
-    Debug_println("tnfs_open Timeout after 5000ms.");
-#endif /* DEBUG_S */
+    tnfsPacket.data[c++] = 0xFF; // mode is
+    tnfsPacket.data[c++] = 0x01; // 0777
   }
+  else
+  {
+    tnfsPacket.data[c++] = 0x00; // mode is
+    tnfsPacket.data[c++] = 0x00; // not used
+  }
+
+  for (int i = 0; i < strlen(mountPath); i++)
+  {
+    tnfsPacket.data[c++] = mountPath[i];
+  }
+
+  tnfsPacket.data[c++] = 0x00;
+  tnfsPacket.data[c++] = 0x00;
+  tnfsPacket.data[c++] = 0x00;
+
 #ifdef DEBUG
-  Debug_printf("tnfs_open Failed\n");
+  Debug_printf("Opening %s\n", mountPath);
 #endif
-  return -1;
+
+  if (tnfs_transaction(F->host().c_str(), F->port(), c))
+  {
+    if (tnfsPacket.data[0] == 0x00)
+    {
+      // Successful
+      return tnfsPacket.data[1]; // Return the file ID.
+    }
+  }
+  return -1; // not successful
 }
 
 /*
