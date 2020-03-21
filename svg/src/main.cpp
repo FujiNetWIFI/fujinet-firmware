@@ -18,7 +18,8 @@
 // replace page(string) with incremental line string and accumulate lengths for pdf_xref
 // use NUMLINES to parameterize the routine
 
-std::ifstream prtin; // input file
+//std::ifstream prtin; // input file
+unsigned char buffer[40];
 
 FILE *f; // standard C output file
 
@@ -50,7 +51,7 @@ bool escResidual = false;
 bool textMode = true;
 bool svg_home_flag = true;
 
-void svg_check_bounds()
+void svg_update_bounds()
 {
   if (svg_Y < svg_Y_min)
     svg_Y_min = svg_Y;
@@ -80,10 +81,10 @@ void svg_new_line()
     svg_home_flag = false;
   }
   svg_Y += lineHeight;
-  svg_check_bounds();
-  svg_X = 0; // always start at left margin? not sure of behavior
+  svg_update_bounds();
+  //svg_X = 0; // always start at left margin? not sure of behavior
   int fontWeight = svg_compute_weight(fontSize);
-  fprintf(f, "<text x=\"%g\" y=\"%g\" ", leftMargin, svg_Y + svg_text_y_offset);
+  fprintf(f, "<text x=\"%g\" y=\"%g\" ", svg_X, svg_Y + svg_text_y_offset);
   fprintf(f, "font-size=\"%g\" font-family=\"FifteenTwenty\" ", fontSize);
   fprintf(f, "font-weight=\"%d\" ", fontWeight);
   fprintf(f, "fill=\"%s\">", svg_colors[svg_color_idx].c_str());
@@ -95,6 +96,7 @@ void svg_end_line()
 {
   // <text x="0" y="15" fill="red">I love SVG!</text>
   fprintf(f, "</text>\n"); // close the line
+  svg_X = 0;               // CR
   BOLflag = true;
 }
 
@@ -118,7 +120,7 @@ void svg_abs_plot_line()
   float y2 = svg_Y_home + svg_arg[1] % 1000;
   svg_X = x2;
   svg_Y = y2;
-  svg_check_bounds();
+  svg_update_bounds();
   svg_plot_line(x1, x2, y1, y2);
 }
 
@@ -131,7 +133,7 @@ void svg_rel_plot_line()
   float y2 = y1 + svg_arg[1];
   svg_X = x2;
   svg_Y = y2;
-  svg_check_bounds();
+  svg_update_bounds();
   svg_plot_line(x1, x2, y1, y2);
 }
 
@@ -173,36 +175,30 @@ void svg_handle_char(unsigned char c)
     // ESC CTRL-S - 80 char mode
     // ESC CTRL-W - international char set
     // ESC CTRL-X - standard char set
-    if (c == 7)
+    switch (c)
     {
+    case 7:
       textMode = false;
-      std::cout << "entering GRAPHICS mode!\n";
-      //svg_gfx_fontsize = fontSize;
-      //svg_gfx_charWidth = charWidth;
       escMode = false;
-      return;
-    }
-    if (c == 16)
-    {
-      svg_set_text_size(3);
-      // charWidth = 24.;
-      // fontSize = 2. * 20.8;
-      // lineHeight = fontSize;
-    }
-    if (c == 14)
-    {
+      std::cout << "\nentering GRAPHICS mode!\n";
+      return; // short circuit text mode logic
+    case 14:
       svg_set_text_size(1);
-      // charWidth = 12.;
-      // fontSize = 20.8;
-      // lineHeight = fontSize;
-    }
-    if (c == 19)
-    {
+      break;
+    case 16:
+      svg_set_text_size(3);
+      break;
+    case 19:
       svg_set_text_size(0);
-      // charWidth = 6.;
-      // fontSize = 10.4;
-      // lineHeight = fontSize;
+      break;
+    case 23:
+    // set international flag
+    case 24:
+      // set standard flag
+    default:
+      break;
     }
+
     escMode = false;
     escResidual = true;
   }
@@ -213,7 +209,17 @@ void svg_handle_char(unsigned char c)
     // what characters need to be escaped in SVG text?
     // if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
     //   _file->write(BACKSLASH);
-    fputc(c, f);        //_file->write(c);
+    //     <	less than	&lt;	&#60;
+    // >	greater than	&gt;	&#62;
+    // &	ampersand	&amp;	&#38;
+    // "	double quotation mark	&quot;	&#34;
+    // '	single quotation mark (apostrophe)	&apos;	&#39;
+    if (c == '<' || c == '>' || c == '&' || c == '\'' || c == '\"')
+      fprintf(f, "&#%2d;", c);
+   else if (c == ' ')
+      fprintf(f, "&nbsp;");
+    else
+      fputc(c, f);      //_file->write(c);
     switch (svg_rotate) // update x position - PUT Q ROTATION HERE
     {
     case 0:
@@ -221,14 +227,14 @@ void svg_handle_char(unsigned char c)
       break;
     case 90:
       svg_Y += charWidth;
-      svg_check_bounds();
+      svg_update_bounds();
       break;
     case 180:
       svg_X -= charWidth;
       break;
     case 270:
       svg_Y -= charWidth;
-      svg_check_bounds();
+      svg_update_bounds();
       break;
     default:
       svg_X += charWidth;
@@ -287,7 +293,7 @@ void svg_put_text(std::string S)
 void svg_get_arg(std::string S, int n)
 {
   svg_arg[n] = atoi(S.c_str());
-  std::cout << "arg " << n << ": " << svg_arg[n] << ", ";
+  std::cout << " (arg " << n << ": " << svg_arg[n] << ") ";
 }
 
 void svg_get_2_args(std::string S)
@@ -295,6 +301,7 @@ void svg_get_2_args(std::string S)
   size_t n = S.find_first_of(',');
   svg_get_arg(S.substr(0, n), 0);
   svg_get_arg(S.substr(n + 1), 1);
+  svg_arg[1] *= -1; // y-axis if flipped
 }
 
 void svg_get_3_args(std::string S)
@@ -306,7 +313,7 @@ void svg_get_3_args(std::string S)
   svg_get_arg(S.substr(n2 + 1), 2);
 }
 
-void svg_graphics_command(std::string S)
+void svg_graphics_command(int n)
 {
   // parse the graphics command
   // graphics mode commands start with a single LETTER
@@ -317,16 +324,20 @@ void svg_graphics_command(std::string S)
   //
   // could maybe use regex but going to brute force with a bunch of cases
 
+  std::string S;
+  S.assign((char *)buffer, n);
+
   size_t cmd_pos = 0;
   do
   {
-    char c = S[cmd_pos];
+    unsigned char c = buffer[cmd_pos];
     switch (c)
     {
     case 'A': // return to TEXTMODE
       textMode = true;
-      return; // get outta here!
-    case 'C': // SELECT COLOR
+      svg_X = 0; //CR
+      return;    // get outta here!
+    case 'C':    // SELECT COLOR
       // get arg out of S and assign to...
       svg_get_arg(S.substr(cmd_pos + 1), 0);
       svg_color_idx = svg_arg[0];
@@ -339,7 +350,7 @@ void svg_graphics_command(std::string S)
     case 'H': // GO HOME
       svg_X = svg_X_home;
       svg_Y = svg_Y_home;
-      svg_check_bounds();
+      svg_update_bounds();
       break;
     case 'I': // SET HOME HERE
       svg_X_home = svg_X;
@@ -353,14 +364,19 @@ void svg_graphics_command(std::string S)
     case 'L': // SET DASHED LINE TYPE
       // get arg out of S and assign to...
       svg_get_arg(S.substr(cmd_pos + 1), 0);
-      svg_line_type = svg_arg[0];
+      svg_line_type = svg_arg[0] & 15;
       break;
     case 'M': // MOVE ABS COORDS
       // get 2 args out of S and ...
+      // this behavior when out of bounds is a guess
       svg_get_2_args(S.substr(cmd_pos + 1));
-      svg_X = svg_X_home + svg_arg[0];
-      svg_Y = svg_Y_home + svg_arg[1] % 1000;
-      svg_check_bounds();
+      if (svg_arg[0] != 1000)
+        svg_X = svg_X_home + svg_arg[0];
+      if (svg_arg[1] == -1000)
+        svg_Y = svg_Y_home;
+      else
+        svg_Y = svg_Y_home + svg_arg[1];
+      svg_update_bounds();
       break;
     case 'P': // PUT TEXT HERE
       svg_put_text(S.substr(cmd_pos + 1));
@@ -373,13 +389,14 @@ void svg_graphics_command(std::string S)
       svg_get_2_args(S.substr(cmd_pos + 1));
       svg_X = svg_X + svg_arg[0];
       svg_Y = svg_Y + svg_arg[1];
-      svg_check_bounds();
+      svg_update_bounds();
       break;
     case 'S': // SET TEXT SIZE
       svg_get_arg(S.substr(cmd_pos + 1), 0);
       svg_set_text_size(svg_arg[0]);
       break;
     case 'X': // DRAW GRAPH AXIS
+      svg_get_3_args(S.substr(cmd_pos + 1));
       break;
     default:
       return;
@@ -404,17 +421,22 @@ void svg_header()
   // <body>
   // <svg height="210" width="500">
 
+  //<svg version="1.1"
+  //  baseProfile="full"
+  //  width="300" height="200"
+  //  xmlns="http://www.w3.org/2000/svg">
+
   //fprintf(f,"<!DOCTYPE html>\n");
   //fprintf(f,"<html>\n");
   //fprintf(f,"<body>\n\n");
-  fprintf(f, "<svg height=\"");
+  fprintf(f, "<svg version=\"1.1\" height=\"");
   svg_filepos[0] = ftell(f);
   fprintf(f, " 400.0mm\" width=\"114mm\" style=\"background-color:white\" ");
   fprintf(f, "viewBox=\"0 ");
   svg_filepos[1] = ftell(f);
   fprintf(f, " -1000 480 ");
   svg_filepos[2] = ftell(f);
-  fprintf(f, "  2000\">\n");
+  fprintf(f, "  2000\" xmlns=\"http://www.w3.org/2000/svg\">\n");
   svg_home_flag = true;
 }
 
@@ -423,11 +445,11 @@ void svg_footer()
   size_t here = ftell(f);
   // go back and rewrite the Y extent
   fseek(f, svg_filepos[0], 0);
-  fprintf(f, "%6.1f", 20.+(svg_Y_max-svg_Y_min)*96./480.);
+  fprintf(f, "%6.1f", 20. + (svg_Y_max - svg_Y_min) * 96. / 480.);
   fseek(f, svg_filepos[1], 0);
   fprintf(f, "%6d", (int)(svg_Y_min)-50);
   fseek(f, svg_filepos[2], 0);
-  fprintf(f, "%6d", 100+(int)(svg_Y_max-svg_Y_min));
+  fprintf(f, "%6d", 100 + (int)(svg_Y_max - svg_Y_min));
 
   // close out svg file
   fseek(f, here, 0);
@@ -441,21 +463,25 @@ void svg_footer()
   //fprintf(f,"</html>\n");
 }
 
-void svg_add(std::string S)
+void svg_add(int n)
 {
   // looks like escape codes take you out of GRAPHICS MODE
-  if (S[0] == 27)
+  if (buffer[0] == 27)
+  {
     textMode = true;
+    svg_X = 0;
+  }
   if (!textMode)
-    svg_graphics_command(S);
+    svg_graphics_command(n);
   else
   {
     // loop through string
-    for (int i = 0; i < S.length(); i++)
+    for (int i = 0; i < n; i++)
     {
-      unsigned char c = (unsigned char)S[i];
+      unsigned char c = buffer[i];
       //std::cout << "c=" << c << " ";
 
+      // clear out residual EOL from ESC sequence
       if (escResidual)
       {
         escResidual = false;
@@ -465,8 +491,9 @@ void svg_add(std::string S)
       // the following creates a blank line of text
       if (BOLflag && c == EOL)
       { // svg_new_line();
+        svg_X = 0;
         svg_Y += lineHeight;
-        svg_check_bounds();
+        svg_update_bounds();
         return;
       }
       // check for EOL or if at end of line and need automatic CR
@@ -475,14 +502,21 @@ void svg_add(std::string S)
         svg_end_line();
         return;
       }
-      else if (!BOLflag && (svg_X > (printWidth - charWidth)))
+      if (!BOLflag && (svg_X > (printWidth - charWidth)))
       {
         svg_end_line();
         svg_new_line();
       } // or do I just need to start a new line of text
-      else if (BOLflag && c != 27 && !escMode)
-        svg_new_line();
-      // disposition the current byte
+      else if (BOLflag && !escMode)
+      {
+        if (c == 32)
+        {
+          svg_X += charWidth;
+          continue;
+        }
+        if (c != 27)
+          svg_new_line();
+      } // disposition the current byte
       svg_handle_char(c);
       if (!textMode)
         return;
@@ -492,13 +526,8 @@ void svg_add(std::string S)
 
 int main()
 {
-
-  std::string payload;
-
-  int j;
-
-  prtin.open("in.txt");
-  if (prtin.fail())
+  FILE *fin = fopen("in.txt", "rb");
+  if (!fin)
     return -1;
   f = fopen("out.svg", "w");
 
@@ -508,22 +537,25 @@ int main()
   //break up line into 40-byte buffers
   do
   {
-    payload.clear();
-    char c = '\0';
+    unsigned char c = '\0';
     int i = 0;
-    while (c != EOLS && i < 40 && !prtin.eof())
+    while (c != EOL && i < 40)
     {
-      prtin.get(c);
+      int t = getc(fin);
+      if (t == EOF)
+        break;
+      c = (unsigned char)(t);
+      std::cout << i;
       if (c == '\n')
-        c = EOLS;
-      payload.push_back(c);
-      i++;
+        c = EOL;
+      buffer[i++] = c;
     }
-    std::cout << payload << ", ";
-    svg_add(payload);
+    std::cout << ", ";
+    svg_add(i);
     fflush(f);
-  } while (!prtin.eof());
+  } while (!feof(fin));
   svg_footer();
   fclose(f);
+  fclose(fin);
   return 0;
 }

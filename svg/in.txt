@@ -1,57 +1,47 @@
-
-D480,0
-H
-PHome
-M0,100
-A
-This is 40 column mode.
-Second line.
-
-C1
-
-This is 20 col mode
+
 
 C0
-
-And 80 column mode is very small.
-
-Back to normal.
+A
+* 1020 FIRMWARE/HARDWARE CHECK (REV 1) *
+
+
+* TEXT MODE
+   FULL CHARACTER SET IN 20-CHAR MODE
 
-H
-C3
-L15
-D100,100:0,100
-L0
 C2
-M200,-200*D0,0
-M0,400
-S0
-PS
-S31
-PS
-R-50,100
-S63
-PS
-S1
-C1
-M240,400
-Q0
-PROTATE 000
-M240,400
-Q1
-PROTATE 090
-M240,400
-Q2
-PROTATE 180
-M240,400
-Q3
-PROTATE 270
+
+	
+ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+
+C0
 
 
-DONE.
+   FULL CHARACTER SET IN 40-CHAR MODE
+
+C1
+A
+	
+ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+
+C0
+A
+
+
+   FULL CHARACTER SET IN 80-CHAR MODE
+
+C3
+
+	
+ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+
+C0
+
+
+* GRAPHIC MODE
+
+   LINE TYPE 0 TO 17
 
 
-R0,400
 I
 C1
 L0
@@ -126,4 +116,79 @@ D440,1000
 H
 M0,-20
 I
-A
+C0
+
+
+
+
+   SCALE 0,31,63,64
+
+I
+C2
+M0,-400
+I
+S0
+PS
+M20,-31
+S31
+PS
+M190,-63
+S63
+PS
+M470,1000
+S64
+PS
+C0
+
+
+
+   ROTATE 0 TO 4
+
+
+I
+M50,-50
+S5
+C3
+Q0
+PQ0
+Q1
+PQ1
+Q2
+PQ2
+Q3
+PQ3
+M240,-50
+Q4
+M1000,-220
+C0
+
+   PLOTTING ABILITY
+
+M240,-150
+I
+X0,20,5
+X0,20,256
+H
+X0,-20,6
+X0,1000,-1
+H
+X2,20,11
+X2,20,-256
+H
+X1,-20,12
+X1,-1000,0
+J60,120
+R1000,-240
+C1
+J120,240
+R0,-240
+C2
+J120,240
+R0,-240
+C3
+J120,240
+R0,-240
+C0
+J60,120
+R-260,-170
+
