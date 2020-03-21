@@ -865,10 +865,10 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
   Debug_println(dirName);
 #endif
 
-  if (tnfs_transaction(F->host().c_str(),F->port(),2)) // todo fix for other paths than /
+  if (tnfs_transaction(F->host().c_str(), F->port(), 2)) // todo fix for other paths than /
   {
 #ifdef DEBUG
-    Debug_printf("Directory opened, handle ID: %d\n",tnfsPacket.data[1]);
+    Debug_printf("Directory opened, handle ID: %d\n", tnfsPacket.data[1]);
 #endif
     return tnfsPacket.data[1];
   }
@@ -902,65 +902,27 @@ bool tnfs_readdir(TNFSImpl *F, int fid, char *nextFile)
 {
   tnfsSessionID_t sessionID = F->sid();
 
-  int start = millis();
-  int dur = millis() - start;
-  unsigned char retries = 0;
+  tnfsPacket.session_idl = sessionID.session_idl;
+  tnfsPacket.session_idh = sessionID.session_idh;
 
-  while (retries < TNFS_RETRIES)
-  {
-    tnfsPacket.session_idl = sessionID.session_idl;
-    tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;        // increase sequence #
-    tnfsPacket.command = 0x11;      // READDIR
-    tnfsPacket.data[0] = (byte)fid; // dir handle
+  tnfsPacket.command = 0x11;      // READDIR
+  tnfsPacket.data[0] = (byte)fid; // dir handle
 
 #ifdef DEBUG_VERBOSE
-    Debug_printf("\nTNFS Read next dir entry, host #%s - fid %02x\n", F->host().c_str(), fid);
+  Debug_printf("\nTNFS Read next dir entry, host #%s - fid %02x\n", F->host().c_str(), fid);
 #endif
 
-    UDP.beginPacket(F->host().c_str(), F->port());
-    UDP.write(tnfsPacket.rawData, 1 + 4);
-    UDP.endPacket();
-
-    while (dur < TNFS_TIMEOUT)
-    {
-      dur = millis() - start;
-      yield();
-      if (UDP.parsePacket())
+  if (tnfs_transaction(F->host().c_str(),F->port(),1))
+  {
+    if (tnfsPacket.data[0]==0x00)
       {
-        //int l =
-        UDP.read(tnfsPacket.rawData, 516);
-        if (tnfsPacket.data[0] == 0x00)
-        {
-          // Successful
-          strcpy(nextFile, (char *)&tnfsPacket.data[1]);
+        strcpy(nextFile, (char *)&tnfsPacket.data[1]);
 #ifdef DEBUG
-          Debug_print("Next dir is: ");
-          Debug_println(nextFile);
+        Debug_printf("Entry: %s\n",nextFile);
 #endif
-          return true;
-        }
-        else
-        {
-#ifdef DEBUG
-          Debug_print("Next dir error: ");
-          Debug_println(tnfsPacket.data[0], HEX);
-#endif
-          // Unsuccessful
-          return false;
-        }
+        return true;
       }
-    }
-// Otherwise, we timed out.
-#ifdef DEBUG
-    Debug_println("tnfs_readdir Timeout after 5000ms.");
-#endif /* DEBUG_S */
-    retries++;
-    tnfsPacket.retryCount--;
   }
-#ifdef DEBUG
-  Debug_printf("tnfs_readdir Failed.\n");
-#endif
   return false;
 }
 
