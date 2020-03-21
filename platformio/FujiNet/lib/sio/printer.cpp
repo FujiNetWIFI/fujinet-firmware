@@ -480,7 +480,7 @@ void sioPrinter::sio_write()
   Wide     0x57 'W'  "not supported"
 
   Atari 822 in graphics mode (SIO command 'P') 
-           0x50 'L'
+           0x50 'L'  40 bytes
   as inferred from screen print program in operators manual
 */
 

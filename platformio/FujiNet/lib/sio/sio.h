@@ -62,6 +62,7 @@ void sio_flush();
 class sioModem; // declare here so can reference it, but define in modem.h
 class sioFuji;  // declare here so can reference it, but define in fuji.h
 class sioBus;   // declare early so can be friend
+
 class sioDevice
 {
 protected:

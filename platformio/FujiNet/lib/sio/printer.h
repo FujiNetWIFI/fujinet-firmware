@@ -50,8 +50,8 @@ protected:
     // SIO THINGS
     byte buffer[40];
     void sio_write();
-    void sio_status() override;
-    void sio_process() override;
+    void sio_status();
+    void sio_process();
     byte lastAux1 = 0;
 
     // PRINTER THINGS
@@ -150,9 +150,15 @@ public:
 class atari820 : public asciiPrinter
 {
 // TODO:
-//  derive from pdfPrinter
+//  derive from pdfPrinter?
 //  replace pdf_handle_char for sideways printing
 //  update pdf_fonts for sideways printing
+
+// sidways printing options:
+// A. reverse the buffer in sioPrinter::sio_write()
+// B. reverse the buffer in pdfPrinter::writeBuffer()
+// C. reverse the buffer in pdfPrinter::pdf_add()
+// D. print from right-to-left in atari820::pdf_handle_char(c);
 
 protected:
     bool sideFlag = false;
