@@ -745,9 +745,6 @@ int tnfs_open(TNFSImpl *F, const char *mountPath, byte flag_lsb, byte flag_msb)
 
   int c = 0;
 
-  tnfsPacket.session_idl = sessionID.session_idl;
-  tnfsPacket.session_idh = sessionID.session_idh;
-  tnfsPacket.retryCount++;   // increase sequence #
   tnfsPacket.command = 0x29; // OPEN
 
   tnfsPacket.data[c++] = flag_lsb;
@@ -807,75 +804,13 @@ CLOSE - Closes a file - Command 0x23
 bool tnfs_close(TNFSImpl *F, int fid)
 {
   tnfsSessionID_t sessionID = F->sid();
-
-  int start = millis();
-  int dur = millis() - start;
   int c = 0;
-  unsigned char retries = 0;
 
-  while (retries < TNFS_RETRIES)
-  {
-    //strcpy(mountPath, deviceSlots.slot[deviceSlot].file);
-    tnfsPacket.session_idl = sessionID.session_idl;
-    tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;   // increase sequence #
-    tnfsPacket.command = 0x23; // CLOSE
+  tnfsPacket.command = 0x23; // CLOSE
 
-    //tnfsPacket.data[c++] = tnfs_fds[deviceSlot];
-    tnfsPacket.data[c++] = (byte)fid;
+  tnfsPacket.data[c++] = (byte)fid;
 
-    // for (int i = 0; i < strlen(mountPath); i++)
-    // {
-    //   tnfsPacket.data[c++] = mountPath[i];
-    // }
-
-    UDP.beginPacket(F->host().c_str(), F->port());
-    UDP.write(tnfsPacket.rawData, c + 4);
-    UDP.endPacket();
-
-    while (dur < TNFS_TIMEOUT)
-    {
-      dur = millis() - start;
-      yield();
-      if (UDP.parsePacket())
-      {
-        int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG_VERBOSE
-        Debug_print("Resp packet: ");
-        for (int i = 0; i < l; i++)
-        {
-          Debug_print(tnfsPacket.rawData[i], HEX);
-          Debug_print(" ");
-        }
-        Debug_println("");
-#endif // DEBUG_S
-        if (tnfsPacket.data[0] == 0x00)
-        {
-          // Successful
-          return true;
-        }
-        else
-        {
-// unsuccessful
-#ifdef DEBUG_VERBOSE
-          Debug_print("Error code #");
-          Debug_println(tnfsPacket.data[0], HEX);
-#endif /* DEBUG_S*/
-          return false;
-        }
-      }
-    }
-    // Otherwise, we timed out.
-    retries++;
-    tnfsPacket.retryCount--;
-#ifdef DEBUG
-    Debug_println("tnfs_close Timeout after 5000ms.");
-#endif /* DEBUG_S */
-  }
-#ifdef DEBUG
-  Debug_printf("tnfs_close Failed\n");
-#endif
-  return false;
+  return tnfs_transaction(F->host().c_str(),F->port(),c);
 }
 
 /*
