@@ -397,11 +397,6 @@ void pdfPrinter::pageEject()
   }
 }
 
-paper_t sioPrinter::getPaperType()
-{
-  return paperType;
-}
-
 void filePrinter::writeBuffer(byte *B, int n)
 {
   int i = 0;
@@ -465,6 +460,11 @@ void pdfPrinter::writeBuffer(byte *B, int n)
   pdf_add(output);
 }
 
+paper_t sioPrinter::getPaperType()
+{
+  return paperType;
+}
+
 // write for W commands
 void sioPrinter::sio_write()
 {
@@ -473,11 +473,16 @@ void sioPrinter::sio_write()
 
   memset(buffer, 0, n); // clear buffer
 
-  // Auxiliary Bytes 1
-  // Other values in the 400/800 OS Manual
-  // Normal   0x4E 'N'  40 chars
-  // Sideways 0x53 'S'  29 chars
-  // Wide     0x57 'W'  "not supported"
+/* 
+  Auxiliary Byte 1 values per 400/800 OS Manual
+  Normal   0x4E 'N'  40 chars
+  Sideways 0x53 'S'  29 chars
+  Wide     0x57 'W'  "not supported"
+
+  Atari 822 in graphics mode (SIO command 'P') 
+           0x50 'L'
+  as inferred from screen print program in operators manual
+*/
 
   if (cmdFrame.aux1 == 'N')
     n = 40;
@@ -501,55 +506,39 @@ void sioPrinter::sio_write()
 void sioPrinter::sio_status()
 {
   byte status[4];
-  // byte ck;
+/*
+  STATUS frame per the 400/800 OS ROM Manual
+  Command Status
+  Aux 1 Byte (typo says AUX2 byte)
+  Timeout
+  Unused
 
-  // status frame per Atari 820 service manual
-  /* The printer controller will return a data frame to the computer
-reflecting the status. The STATUS DATA frame is shown below:
-DONE/ERROR FLAG
-AUX. BYTE 1 from last WRITE COMMAND
-DATA WRITE TIMEOUT
-CHECKSUM
-The FLAG byte contains information relating to the most recent
-command prior to the status request and some controller constants.
-The DATA WRITE Timeout equals the maximum time to print a
-line of data assuming worst case controller produced Timeout
-delay. This Timeout is associated with printer timeout
-discussed earlier. 
-And  from 400/800 OS ROM Manual
-Command Status
-Aux 1 Byte (typo says AUX2 byte)
-Timeout
-Unused
+  OS ROM Manual continues on Command Status byte:
+  bit 0 - invalid command frame
+  bit 1 - invalid data frame
+  bit 7 - intelligent controller (normally 0)
 
-OS ROM Manual continues on Command Status:
-bit 0 - invalid command frame
-bit 1 - invalid data frame
-bit 7 - intelligent controller (normally 0)
+  STATUS frame per Atari 820 service manual
+  The printer controller will return a data frame to the computer
+  reflecting the status. The STATUS DATA frame is shown below:
+  DONE/ERROR FLAG
+  AUX. BYTE 1 from last WRITE COMMAND
+  DATA WRITE TIMEOUT
+  CHECKSUM
+  The FLAG byte contains information relating to the most recent
+  command prior to the status request and some controller constants.
+  The DATA WRITE Timeout equals the maximum time to print a
+  line of data assuming worst case controller produced Timeout
+  delay. This Timeout is associated with printer timeout
+  discussed earlier. 
 */
+
   status[0] = 0;
   status[1] = lastAux1;
   status[2] = 5;
   status[3] = 0;
 
   sio_to_computer(status, sizeof(status), false);
-
-  // ck = sio_checksum((byte *)&status, 4);
-
-  // delayMicroseconds(DELAY_T5); // t5 delay
-  // SIO_UART.write('C');         // Command always completes.
-  // SIO_UART.flush();
-  // delayMicroseconds(200);
-  // //delay(1);
-
-  // // Write data frame
-  // for (int i = 0; i < 4; i++)
-  //   SIO_UART.write(status[i]);
-
-  // // Write checksum
-  // SIO_UART.write(ck);
-  // SIO_UART.flush();
-  // delayMicroseconds(200);
 }
 
 // Process command
