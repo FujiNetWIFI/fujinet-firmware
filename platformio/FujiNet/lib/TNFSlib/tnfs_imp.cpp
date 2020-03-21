@@ -975,9 +975,9 @@ bool tnfs_seekdir(TNFSImpl *F, int fid, long pos)
   Debug_printf("\nTNFS Seekdir, host #%s - fid %02x, pos: %lu\n", F->host().c_str(), fid, pos);
 #endif
 
-  if (tnfs_transaction(F->host().c_str(),F->port(),5))
+  if (tnfs_transaction(F->host().c_str(), F->port(), 5))
   {
-    if (tnfsPacket.data[0]==0x00)
+    if (tnfsPacket.data[0] == 0x00)
       return true;
   }
 
@@ -1005,81 +1005,16 @@ bool tnfs_closedir(TNFSImpl *F, int fid)
 {
   tnfsSessionID_t sessionID = F->sid();
 
-  int start = millis();
-  int dur = millis() - start;
-  unsigned char retries = 0;
+  tnfsPacket.session_idl = sessionID.session_idl;
+  tnfsPacket.session_idh = sessionID.session_idh;
+  tnfsPacket.command = 0x12;      // CLOSEDIR
+  tnfsPacket.data[0] = (byte)fid; // Open root dir
 
-  while (retries < TNFS_RETRIES)
+  if (tnfs_transaction(F->host().c_str(),F->port(),1))
   {
-    tnfsPacket.session_idl = sessionID.session_idl;
-    tnfsPacket.session_idh = sessionID.session_idh;
-    tnfsPacket.retryCount++;        // increase sequence #
-    tnfsPacket.command = 0x12;      // CLOSEDIR
-    tnfsPacket.data[0] = (byte)fid; // Open root dir
-
-#ifdef DEBUG_VERBOSE
-    Debug_println("TNFS dir close");
-#endif
-
-    UDP.beginPacket(F->host().c_str(), F->port());
-    UDP.write(tnfsPacket.rawData, 1 + 4);
-    UDP.endPacket();
-
-#ifdef DEBUG_VERBOSE
-    Debug_print("Req packet: ");
-    for (int i = 0; i < 5; i++)
-    {
-      Debug_print(tnfsPacket.rawData[i], HEX);
-      Debug_print(" ");
-    }
-    Debug_println(" ");
-#endif /* DEBUG_S*/
-
-    while (dur < TNFS_TIMEOUT)
-    {
-      dur = millis() - start;
-      yield();
-      if (UDP.parsePacket())
-      {
-        int l = UDP.read(tnfsPacket.rawData, 516);
-#ifdef DEBUG_VERBOSE
-        Debug_print("Resp packet: ");
-        for (int i = 0; i < l; i++)
-        {
-          Debug_print(tnfsPacket.rawData[i], HEX);
-          Debug_print(" ");
-        }
-        Debug_println("");
-#endif /* DEBUG_S */
-        if (tnfsPacket.data[0] == 0x00)
-        {
-#ifdef DEBUG_VERBOSE
-          Debug_println("success");
-#endif
-          // Successful
-          return true;
-        }
-        else
-        {
-#ifdef DEBUG_VERBOSE
-          Debug_print("error: ");
-          Debug_println(tnfsPacket.data[0], HEX);
-#endif
-          // Unsuccessful
-          return false;
-        }
-      }
-    }
-// Otherwise, we timed out.
-#ifdef DEBUG
-    Debug_println("tnfs_closedir Timeout after 5000ms.");
-    retries++;
-    tnfsPacket.retryCount--;
-#endif /* DEBUG_S */
+    if (tnfsPacket.data[0]==0x00)
+      return true;
   }
-#ifdef DEBUG
-  Debug_printf("tnfs_closedir Failed.\n");
-#endif
   return false;
 }
 
