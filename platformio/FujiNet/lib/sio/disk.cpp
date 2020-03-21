@@ -43,7 +43,7 @@ unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sec
 // Read
 void sioDisk::sio_read()
 {
-  int ss;
+  int ss=128;
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int cacheOffset = 0;
   int cacheSectorIndex;
