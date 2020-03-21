@@ -512,12 +512,13 @@ bool tnfs_transaction(const char *host, unsigned short port, unsigned short len)
   byte retries = 0;
   int dur = 0;
   int start = 0;
+  byte currentRetryCount;
 
   while (retries < TNFS_RETRIES)
   {
     start = millis();
 
-    tnfsPacket.retryCount++;
+    currentRetryCount = ++tnfsPacket.retryCount;
 
     tnfs_debug_packet(len);
 
@@ -534,7 +535,17 @@ bool tnfs_transaction(const char *host, unsigned short port, unsigned short len)
       {
         unsigned short l = UDP.read(tnfsPacket.rawData, TNFS_PACKET_SIZE);
         tnfs_debug_packet(l);
-        return true;
+
+        // Out of order packet received.
+        if (currentRetryCount != tnfsPacket.retryCount)
+        {
+#ifdef DEBUG
+          Debug_printf("XXX OUT OF ORDER SEQUENCE! IGNORING.\n");
+#endif 
+          // Fall through and let retry logic handle it.
+        }
+        else
+          return true;
       }
     }
 
@@ -1291,6 +1302,6 @@ tnfsStat_t tnfs_stat(TNFSImpl *F, const char *filename)
     }
   }
   // Failed.
-  memset(&retStat,0x00,sizeof(retStat));
+  memset(&retStat, 0x00, sizeof(retStat));
   return retStat;
 }
