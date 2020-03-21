@@ -43,7 +43,7 @@ unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sec
 // Read
 void sioDisk::sio_read()
 {
-  int ss=128;
+  int ss = 128;
   int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int cacheOffset = 0;
   int cacheSectorIndex;
@@ -65,11 +65,28 @@ void sioDisk::sio_read()
     if (ss == 256)
       offset -= 384;
 
-    _file->seek(offset);     //tnfs_seek(deviceSlot, offset);
-    _file->read(sector, ss); // tnfs_read(deviceSlot, 128);
-    //d = &sector[0];
-    //s = &tnfsPacket.data[3];
-    //memcpy(d, s, ss);
+    // clear sector buffer.
+    memset(sector, 0, sizeof(sector));
+
+    if (_file->seek(offset))
+      if (_file->read(sector, ss)!=-1)
+      {
+        err=false;
+      }
+      else
+      {
+#ifdef DEBUG
+        Debug_printf("Read failed. Aborting and returning error.\n");
+#endif
+        err=true;
+      }      
+    else
+    {
+#ifdef DEBUG
+      Debug_printf("Seek failed. Aborting read and returning error.\n");
+#endif
+      err = true;
+    }
   }
   else if (sectorNum >= 4)
   {
