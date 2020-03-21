@@ -149,6 +149,11 @@ public:
 
 class atari820 : public asciiPrinter
 {
+// TODO:
+//  derive from pdfPrinter
+//  replace pdf_handle_char for sideways printing
+//  update pdf_fonts for sideways printing
+
 protected:
     bool sideFlag = false;
 

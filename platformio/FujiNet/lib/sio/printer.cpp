@@ -546,7 +546,7 @@ void sioPrinter::sio_process()
 {
   switch (cmdFrame.comnd)
   {
-  case 'P': // 0x50
+  case 'P': // 0x50 - needed by A822 for graphics mode printing
   case 'W': // 0x57
     sio_ack();
     sio_write();
