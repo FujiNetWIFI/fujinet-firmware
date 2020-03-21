@@ -557,12 +557,13 @@ void sioPrinter::sio_process()
 {
   switch (cmdFrame.comnd)
   {
-  case 'W':
+  case 'P': // 0x50
+  case 'W': // 0x57
     sio_ack();
     sio_write();
     lastAux1 = cmdFrame.aux1;
     break;
-  case 'S':
+  case 'S': // 0x53
     sio_ack();
     sio_status();
     break;
