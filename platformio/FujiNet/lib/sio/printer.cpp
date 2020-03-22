@@ -94,15 +94,15 @@ endobj
   // 3rd object: font catalog
   pdf_objCtr = 3;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("3 0 obj\n<</Font << /F1 4 0 R >>>>\nendobj\n");
+  _file->printf("3 0 obj\n<</Font << /F1 4 0 R /F2 7 0 R >>>>\nendobj\n");
 
-  // 1027 standard font
+  // 820 standard font
   pdf_objCtr = 4;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7ascii500w/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
   pdf_objCtr = 5;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/mono5by7ascii500w/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 500/MaxWidth 500/FontWeight 400/XHeight 250/StemV 50/FontBBox[0 0 700 700] >>\nendobj\n");
+  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/mono5by7ascii500w/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 500/MaxWidth 500/FontWeight 400/XHeight 500/StemV 55.9/FontBBox[33 -1 463 717] >>\nendobj\n");
   pdf_objCtr = 6;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("6 0 obj\n[");
@@ -113,6 +113,25 @@ endobj
       _file->printf("\n");
   }
   _file->printf(" ]\nendobj\n");
+
+// 820 standard font
+  pdf_objCtr = 7;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("7 0 obj\n<</Type/Font/Subtype/TrueType/Name/F2/BaseFont/mono5by7asciiSideways/Encoding/WinAnsiEncoding/FontDescriptor 8 0 R/FirstChar 32/LastChar 127/Widths 9 0 R>>\nendobj\n");
+  pdf_objCtr = 8;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("8 0 obj\n<</Type/FontDescriptor/FontName/mono5by7asciiSideways/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 675/MaxWidth 675/FontWeight 400/XHeight 500/StemV 77/FontBBox[41 -294 634 733] >>\nendobj\n");
+  pdf_objCtr = 9;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("9 0 obj\n[");
+  for (int i = 32; i < 128; i++)
+  {
+    _file->printf(" 675");
+    if ((i - 31) % 32 == 0)
+      _file->printf("\n");
+  }
+  _file->printf(" ]\nendobj\n");
+
 }
 
 void pdfPrinter::pdf_xref()
@@ -394,7 +413,7 @@ void atari820::initPrinter(File *f)
   lineHeight = 12.0;  // 6 lines per inch
   charWidth = 6.0;    // 12 char per inch
   fontSize = 12;      // 6 lines per inch
-  fontHorizontalScaling = 83.333;
+  //fontHorizontalScaling = 83.333;
 
   sideFlag = false;
   pdf_header();
