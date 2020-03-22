@@ -225,11 +225,13 @@ void atari820::pdf_handle_char(byte c)
   // aux1 == 29   sideways mode
   if (cmdFrame.aux1 == 'N' && sideFlag)
   {
-    // switch to normal font setting
+    _file->printf(")]TJ\n/F1 12 Tf [(");
+    sideFlag=false;
   }
   else if (cmdFrame.aux1 == 'S' && !sideFlag)
   {
-    // switch to sideways font settings
+    _file->printf(")]TJ\n/F2 12 Tf [(");
+    sideFlag=true;
   }
 
   // maybe printable character
