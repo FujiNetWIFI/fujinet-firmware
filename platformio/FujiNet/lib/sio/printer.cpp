@@ -482,28 +482,31 @@ void sioPrinter::sio_write()
   Atari 822 in graphics mode (SIO command 'P') 
            0x50 'L'  40 bytes
   as inferred from screen print program in operators manual
+
+  Auxiliary Byte 2 for Atari 822 might be 0 or 1 in graphics mode
 */
 
   if (cmdFrame.aux1 == 'N')
     n = 40;
   else if (cmdFrame.aux1 == 'S')
-  {
-    // reverse the buffer and replace EOL with space
-    // needed for PDF sideways printing
     n = 29;
-    byte temp[29];
-    memcpy(temp, buffer, n);
-    for (int i = 0; i < n; i++)
-    {
-      buffer[i] = temp[n - 1 - i];
-      if (buffer[i] == EOL)
-        buffer[i] = ' ';
-    }
-  }
+    
   ck = sio_to_peripheral(buffer, n);
 
   if (ck == sio_checksum(buffer, n))
   {
+    if (n == 29)
+    { // reverse the buffer and replace EOL with space
+      // needed for PDF sideways printing
+      byte temp[29];
+      memcpy(temp, buffer, n);
+      for (int i = 0; i < n; i++)
+      {
+        buffer[i] = temp[n - 1 - i];
+        if (buffer[i] == EOL)
+          buffer[i] = ' ';
+      }
+    }
     writeBuffer(buffer, n);
     sio_complete();
   }
