@@ -370,8 +370,10 @@ TNFSFileImpl::operator bool()
 
 /**
  * Dump TNFS packet to debug port
+ * unsigned short len - packet length
+ * bool isResponse - parse return value
  **/
-void tnfs_debug_packet(unsigned short len)
+void tnfs_debug_packet(unsigned short len, bool isResponse)
 {
 #ifdef DEBUG
   Debug_printf("TNFS Packet, Len: %d\n", len);
@@ -520,7 +522,7 @@ bool tnfs_transaction(const char *host, unsigned short port, unsigned short len)
 
     currentRetryCount = ++tnfsPacket.retryCount;
 
-    tnfs_debug_packet(len);
+    tnfs_debug_packet(len, false);
 
     // Send packet
     UDP.beginPacket(host, port);
@@ -534,7 +536,7 @@ bool tnfs_transaction(const char *host, unsigned short port, unsigned short len)
       if (UDP.parsePacket())
       {
         unsigned short l = UDP.read(tnfsPacket.rawData, TNFS_PACKET_SIZE);
-        tnfs_debug_packet(l);
+        tnfs_debug_packet(l, true);
 
         // Out of order packet received.
         if (currentRetryCount != tnfsPacket.retryCount)
