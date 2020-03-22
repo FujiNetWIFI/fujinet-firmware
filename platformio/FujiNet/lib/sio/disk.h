@@ -11,7 +11,7 @@ extern int command_frame_counter;
 // Normally, this is set to 3 to not cache the first three sectors, which
 // may be only 128 bytes compared to 256 bytes for double density images.
 // If you set this to 65535, then the cache is completely disabled.
-#define UNCACHED_REGION 65535
+#define UNCACHED_REGION 3
 
 #define ATARISIO_ATARI_FREQUENCY_PAL 1773447
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
@@ -41,7 +41,6 @@ private:
     bool cacheError[9];
     int firstCachedSector = 65535;
     unsigned char max_cached_sectors = 19;
-    unsigned short lastSectorNum = 65535;
 
     struct
     {
