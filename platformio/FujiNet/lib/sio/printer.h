@@ -160,6 +160,12 @@ class atari820 : public asciiPrinter
 // C. reverse the buffer in pdfPrinter::pdf_add()
 // D. print from right-to-left in atari820::pdf_handle_char(c);
 
+// option D keeps it contained in the atari820 class.
+// and we already need pdf_handle_char() to change the font
+// however, the PDF standard doesn't really handle right-to-left
+// printing. The example in section 9.7 uses reverse strings
+
+
 protected:
     bool sideFlag = false;
 
