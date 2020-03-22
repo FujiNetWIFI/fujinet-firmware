@@ -473,10 +473,10 @@ void sioPrinter::sio_write()
 
   memset(buffer, 0, n); // clear buffer
 
-/* 
+  /* 
   Auxiliary Byte 1 values per 400/800 OS Manual
   Normal   0x4E 'N'  40 chars
-  Sideways 0x53 'S'  29 chars
+  Sideways 0x53 'S'  29 chars (820 sideways printing)
   Wide     0x57 'W'  "not supported"
 
   Atari 822 in graphics mode (SIO command 'P') 
@@ -487,8 +487,19 @@ void sioPrinter::sio_write()
   if (cmdFrame.aux1 == 'N')
     n = 40;
   else if (cmdFrame.aux1 == 'S')
+  {
+    // reverse the buffer and replace EOL with space
+    // needed for PDF sideways printing
     n = 29;
-
+    byte temp[29];
+    memcpy(temp, buffer, n);
+    for (int i = 0; i < n; i++)
+    {
+      buffer[i] = temp[n - 1 - i];
+      if (buffer[i] == EOL)
+        buffer[i] = ' ';
+    }
+  }
   ck = sio_to_peripheral(buffer, n);
 
   if (ck == sio_checksum(buffer, n))
@@ -506,7 +517,7 @@ void sioPrinter::sio_write()
 void sioPrinter::sio_status()
 {
   byte status[4];
-/*
+  /*
   STATUS frame per the 400/800 OS ROM Manual
   Command Status
   Aux 1 Byte (typo says AUX2 byte)
