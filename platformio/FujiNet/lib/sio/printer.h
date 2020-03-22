@@ -149,22 +149,14 @@ public:
 
 class atari820 : public asciiPrinter
 {
+// 7x7 derived from https://scruss.com/blog/futile-fonts/
 // TODO:
 //  derive from pdfPrinter?
-//  replace pdf_handle_char for sideways printing
 //  update pdf_fonts for sideways printing
 
-// sidways printing options:
-// A. reverse the buffer in sioPrinter::sio_write()
-// B. reverse the buffer in pdfPrinter::writeBuffer()
-// C. reverse the buffer in pdfPrinter::pdf_add()
-// D. print from right-to-left in atari820::pdf_handle_char(c);
-
-// option D keeps it contained in the atari820 class.
-// and we already need pdf_handle_char() to change the font
-// however, the PDF standard doesn't really handle right-to-left
-// printing. The example in section 9.7 uses reverse strings
-
+// reverse the buffer in sioPrinter::sio_write() for sideways printing
+// the PDF standard doesn't really handle right-to-left
+// printing. The example in section 9.7 uses reverse strings.
 
 protected:
     bool sideFlag = false;
