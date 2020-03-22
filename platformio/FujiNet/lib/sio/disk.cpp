@@ -173,11 +173,12 @@ void sioDisk::sio_read()
 // write for W & P commands
 void sioDisk::sio_write()
 {
+
   byte ck;
   int ss; // sector size
   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int sectorNum = offset;
-  bool seekSuccessful = true;
+  // unsigned char deviceSlot = cmdFrame.devic - 0x31;
 
   if (sectorNum < 4)
   {
@@ -207,17 +208,17 @@ void sioDisk::sio_write()
 
   if (ck == sio_checksum(sector, ss))
   {
-    if (sectorNum != lastWriteSectorNum + 1)
+    if (_file->seek(offset)) // tnfs_seek(deviceSlot, offset);
     {
-      seekSuccessful = _file->seek(offset);
-    }
+      size_t sz = _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
+      if (ss == sz)
+      {
+        _file->flush();
+        firstCachedSector = 65535; // invalidate cache
 
-    if (seekSuccessful && _file->write(sector, ss) != -1)
-    {
-      _file->flush();
-      firstCachedSector = 65535;
-      lastWriteSectorNum = sectorNum;
-      sio_complete();
+        sio_complete();
+        return;
+      }
     }
   }
   sio_error();
