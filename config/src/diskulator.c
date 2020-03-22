@@ -117,7 +117,7 @@ void diskulator_mount_host(unsigned char c)
       OS.dcb.dcomnd=0xF9;
       OS.dcb.dstats=0x00;
       OS.dcb.dbuf=NULL;
-      OS.dcb.dtimlo=0x01;
+      OS.dcb.dtimlo=0x0f;
       OS.dcb.dbyt=0;
       OS.dcb.daux=c;
       siov();
@@ -167,7 +167,7 @@ void diskulator_mount_device(unsigned char c, unsigned char o)
   OS.dcb.dcomnd=0xF8;
   OS.dcb.dstats=0x00;
   OS.dcb.dbuf=NULL;
-  OS.dcb.dtimlo=0x01;
+  OS.dcb.dtimlo=0x0f;
   OS.dcb.dbyt=0;
   OS.dcb.daux1=c;
   OS.dcb.daux2=o;
@@ -184,7 +184,7 @@ void diskulator_umount_device(unsigned char c)
   OS.dcb.dcomnd=0xE9;
   OS.dcb.dstats=0x00;
   OS.dcb.dbuf=NULL;
-  OS.dcb.dtimlo=0x01;
+  OS.dcb.dtimlo=0x0f;
   OS.dcb.dbyt=0;
   OS.dcb.daux=c;
   siov();
@@ -256,7 +256,7 @@ void diskulator_close_directory(unsigned char hs)
   OS.dcb.dcomnd=0xF5;
   OS.dcb.dstats=0x00;
   OS.dcb.dbuf=NULL;
-  OS.dcb.dtimlo=0x01;
+  OS.dcb.dtimlo=0x0f;
   OS.dcb.dbyt=0;
   OS.dcb.daux=hs;
   siov();
