@@ -49,7 +49,6 @@ void sioDisk::sio_read()
   int cacheSectorIndex;
   int cacheSetorIndexAdjust = 1;
   int offset;
-  bool seekSuccessful = true;
   byte *s;
   byte *d;
   byte err = false;
@@ -69,26 +68,25 @@ void sioDisk::sio_read()
     // clear sector buffer.
     memset(sector, 0, sizeof(sector));
 
-    if (sectorNum != lastSectorNum + 1)
-    {
-      seekSuccessful = _file->seek(offset);
+    if (_file->seek(offset))
+      if (_file->read(sector, ss)!=-1)
+      {
+        err=false;
+      }
+      else
+      {
 #ifdef DEBUG
-      Debug_printf("Current sector not contiguous, seeking to sector: %d seek successful? %d\n", sectorNum, seekSuccessful);
+        Debug_printf("Read failed. Aborting and returning error.\n");
 #endif
-    } // seekSuccessful is implicitly true, if contiguous.
-
-    if (seekSuccessful && (_file->read(sector, ss) != -1))
-    {
-      err = false;
-    }
+        err=true;
+      }      
     else
     {
 #ifdef DEBUG
-      Debug_printf("Read or seek failed. Aborting and returning error.\n");
+      Debug_printf("Seek failed. Aborting read and returning error.\n");
 #endif
       err = true;
     }
-    lastSectorNum = sectorNum;
   }
   else if (sectorNum >= 4)
   {
@@ -173,11 +171,12 @@ void sioDisk::sio_read()
 // write for W & P commands
 void sioDisk::sio_write()
 {
+
   byte ck;
   int ss; // sector size
   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int sectorNum = offset;
-  bool seekSuccessful = true;
+  // unsigned char deviceSlot = cmdFrame.devic - 0x31;
 
   if (sectorNum < 4)
   {
@@ -207,17 +206,17 @@ void sioDisk::sio_write()
 
   if (ck == sio_checksum(sector, ss))
   {
-    if (sectorNum != lastWriteSectorNum + 1)
+    if (_file->seek(offset)) // tnfs_seek(deviceSlot, offset);
     {
-      seekSuccessful = _file->seek(offset);
-    }
+      size_t sz = _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
+      if (ss == sz)
+      {
+        _file->flush();
+        firstCachedSector = 65535; // invalidate cache
 
-    if (seekSuccessful && _file->write(sector, ss) != -1)
-    {
-      _file->flush();
-      firstCachedSector = 65535;
-      lastWriteSectorNum = sectorNum;
-      sio_complete();
+        sio_complete();
+        return;
+      }
     }
   }
   sio_error();
