@@ -506,6 +506,7 @@ void sioPrinter::sio_write()
         if (buffer[i] == EOL)
           buffer[i] = ' ';
       }
+      buffer[n++]=EOL;
     }
     writeBuffer(buffer, n);
     sio_complete();

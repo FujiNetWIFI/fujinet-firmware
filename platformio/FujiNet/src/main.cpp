@@ -51,7 +51,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 //#define TNFS_SERVER "192.168.1.12"
 //#define TNFS_PORT 16384
 
-filePrinter sioP;
+atari820 sioP;
 File paperf;
 
 sioModem sioR;
