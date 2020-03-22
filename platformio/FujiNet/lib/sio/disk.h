@@ -42,7 +42,6 @@ private:
     int firstCachedSector = 65535;
     unsigned char max_cached_sectors = 19;
     unsigned short lastSectorNum = 65535;
-    unsigned short lastWriteSectorNum = 65535;
 
     struct
     {
