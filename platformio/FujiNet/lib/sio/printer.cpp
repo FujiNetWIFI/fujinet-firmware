@@ -217,6 +217,33 @@ void asciiPrinter::pdf_handle_char(byte c)
   }
 }
 
+//=====================================================================================
+void atari820::pdf_handle_char(byte c)
+{
+  // Atari 820 modes:
+  // aux1 == 40   normal mode
+  // aux1 == 29   sideways mode
+  if (cmdFrame.aux1 == 'N' && sideFlag)
+  {
+    // switch to normal font setting
+  }
+  else if (cmdFrame.aux1 == 'S' && !sideFlag)
+  {
+    // switch to sideways font settings
+  }
+
+  // maybe printable character
+  if (c > 31 && c < 127)
+  {
+    if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
+      _file->write(BACKSLASH);
+    _file->write(c);
+
+    pdf_X += charWidth; // update x position
+  }
+}
+//=====================================================================================
+
 void atari1027::pdf_handle_char(byte c)
 {
   if (escMode)
@@ -490,7 +517,7 @@ void sioPrinter::sio_write()
     n = 40;
   else if (cmdFrame.aux1 == 'S')
     n = 29;
-    
+
   ck = sio_to_peripheral(buffer, n);
 
   if (ck == sio_checksum(buffer, n))
@@ -506,7 +533,7 @@ void sioPrinter::sio_write()
         if (buffer[i] == EOL)
           buffer[i] = ' ';
       }
-      buffer[n++]=EOL;
+      buffer[n++] = EOL;
     }
     writeBuffer(buffer, n);
     sio_complete();

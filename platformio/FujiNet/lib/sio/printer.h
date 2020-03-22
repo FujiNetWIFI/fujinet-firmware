@@ -162,7 +162,7 @@ protected:
     bool sideFlag = false;
 
     void pdf_fonts();
-    // void pdf_handle_char(byte c);  // will probably need a custom one to handle sideways printing
+    void pdf_handle_char(byte c);  // need a custom one to handle sideways printing
 
 public:
     void initPrinter(File *f);
