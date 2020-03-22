@@ -235,9 +235,14 @@ void atari820::pdf_handle_char(byte c)
   // maybe printable character
   if (c > 31 && c < 127)
   {
-    if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
-      _file->write(BACKSLASH);
-    _file->write(c);
+    if (c > 47)
+    {
+      if (c == BACKSLASH)
+        _file->write(BACKSLASH);
+      _file->write(c);
+    }
+    else
+      _file->write('32');
 
     pdf_X += charWidth; // update x position
   }
