@@ -99,16 +99,16 @@ endobj
   // 1027 standard font
   pdf_objCtr = 4;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7ascii/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
+  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7ascii500w/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
   pdf_objCtr = 5;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/mono5by7ascii/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 50/FontBBox[0 0 700 700] >>\nendobj\n");
+  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/mono5by7ascii500w/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 500/MaxWidth 500/FontWeight 400/XHeight 250/StemV 50/FontBBox[0 0 700 700] >>\nendobj\n");
   pdf_objCtr = 6;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("6 0 obj\n[");
   for (int i = 32; i < 128; i++)
   {
-    _file->printf(" 600");
+    _file->printf(" 500");
     if ((i - 31) % 32 == 0)
       _file->printf("\n");
   }
@@ -161,10 +161,10 @@ void pdfPrinter::pdf_new_page()
 
   TOPflag = false;
   // set default font for the page
-  if (fontHorizontalScaling != 100)
-    _file->printf("/F%u %u Tf %g Tz\n", fontNumber, fontSize, fontHorizontalScaling);
-  else
-    _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
+  //if (fontHorizontalScaling != 100)
+  //  _file->printf("/F%u %u Tf %g Tz\n", fontNumber, fontSize, fontHorizontalScaling);
+  //else
+  _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
   _file->printf("%g %g Td\n", leftMargin, pageHeight);
   pdf_Y = pageHeight; // reset print roller to top of page
   pdf_X = 0;          // set carriage to LHS
@@ -226,12 +226,13 @@ void atari820::pdf_handle_char(byte c)
   if (cmdFrame.aux1 == 'N' && sideFlag)
   {
     _file->printf(")]TJ\n/F1 12 Tf [(");
-    sideFlag=false;
+    sideFlag = false;
   }
   else if (cmdFrame.aux1 == 'S' && !sideFlag)
   {
     _file->printf(")]TJ\n/F2 12 Tf [(");
-    sideFlag=true;
+    sideFlag = true;
+    // could increase charWidth, but not necessary to make this work. I force EOL.
   }
 
   // maybe printable character
