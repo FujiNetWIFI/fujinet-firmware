@@ -49,7 +49,7 @@ void sioDisk::sio_read()
   int cacheSectorIndex;
   int cacheSetorIndexAdjust = 1;
   int offset;
-  bool seekSuccessful=true;
+  bool seekSuccessful = true;
   byte *s;
   byte *d;
   byte err = false;
@@ -69,26 +69,26 @@ void sioDisk::sio_read()
     // clear sector buffer.
     memset(sector, 0, sizeof(sector));
 
-    if (sectorNum!=lastSectorNum+1)
+    if (sectorNum != lastSectorNum + 1)
     {
-      seekSuccessful=_file->seek(offset);
+      seekSuccessful = _file->seek(offset);
 #ifdef DEBUG
-      Debug_printf("Current sector not contiguous, seeking to sector: %d seek successful? %d\n",sectorNum,seekSuccessful);
+      Debug_printf("Current sector not contiguous, seeking to sector: %d seek successful? %d\n", sectorNum, seekSuccessful);
 #endif
     } // seekSuccessful is implicitly true, if contiguous.
 
-    if (seekSuccessful && (_file->read(sector,ss)!=-1))
+    if (seekSuccessful && (_file->read(sector, ss) != -1))
     {
-      err=false;
+      err = false;
     }
     else
     {
 #ifdef DEBUG
       Debug_printf("Read or seek failed. Aborting and returning error.\n");
 #endif
-      err=true;
+      err = true;
     }
-    lastSectorNum=sectorNum;
+    lastSectorNum = sectorNum;
   }
   else if (sectorNum >= 4)
   {
@@ -177,7 +177,7 @@ void sioDisk::sio_write()
   int ss; // sector size
   int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   int sectorNum = offset;
-  bool seekSuccessful=true;
+  bool seekSuccessful = true;
 
   if (sectorNum < 4)
   {
@@ -207,16 +207,16 @@ void sioDisk::sio_write()
 
   if (ck == sio_checksum(sector, ss))
   {
-    if (sectorNum != lastWriteSectorNum+1)
+    if (sectorNum != lastWriteSectorNum + 1)
     {
       seekSuccessful = _file->seek(offset);
-    }    
+    }
 
     if (seekSuccessful && _file->write(sector, ss) != -1)
     {
       _file->flush();
-      firstCachedSector=65535;
-      lastWriteSectorNum=sectorNum;
+      firstCachedSector = 65535;
+      lastWriteSectorNum = sectorNum;
       sio_complete();
     }
   }
