@@ -389,7 +389,7 @@ bool diskulator_host(void)
   screen_puts(0,21," \xD9\x91\x8D\x98\x19" "Drive Slots \xD9\xB3\xA8\xA9\xA6\xB4\x80\x91\x8D\x98\x19Host Slots ");
   
   bar_clear();
-  bar_show(2);
+  bar_show(c+2);
   
   while (host_done==false)
     {
@@ -452,6 +452,7 @@ bool diskulator_host(void)
 	      diskulator_write_host_slots();
 	      break;
 	    case 'd':
+	      c=0;
 	    jump_to_devs:
 	      host_done=true;
 	      slot_done=false;
@@ -491,9 +492,7 @@ bool diskulator_host(void)
 
   bar_clear();
   bar_show(c+13);
-  
-  c=0;
-  
+    
   while (slot_done==false)
     {
       // Quick boot
