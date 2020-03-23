@@ -264,7 +264,7 @@ void atari820::pdf_handle_char(byte c)
       _file->write(c);
     }
     else
-      _file->write('32');
+      _file->write(' ');
 
     pdf_X += charWidth; // update x position
   }
