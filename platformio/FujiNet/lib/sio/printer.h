@@ -149,11 +149,6 @@ public:
 
 class atari820 : public pdfPrinter
 {
-// 7x7 derived from https://scruss.com/blog/futile-fonts/
-// TODO:
-//  derive from pdfPrinter?
-//  update pdf_fonts for sideways printing
-
 // reverse the buffer in sioPrinter::sio_write() for sideways printing
 // the PDF standard doesn't really handle right-to-left
 // printing. The example in section 9.7 uses reverse strings.
@@ -167,6 +162,19 @@ protected:
 public:
     void initPrinter(File *f);
 };
+
+class atari822 : public pdfPrinter
+{
+protected:
+    bool gfxFlag = false;
+
+    void pdf_fonts();
+    void pdf_handle_char(byte c);  // need a custom one to handle sideways printing
+
+public:
+    void initPrinter(File *f);
+};
+
 
 class atari1020 : public sioPrinter
 {
