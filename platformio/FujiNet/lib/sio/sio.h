@@ -62,6 +62,7 @@ void sio_flush();
 class sioModem; // declare here so can reference it, but define in modem.h
 class sioFuji;  // declare here so can reference it, but define in fuji.h
 class sioBus;   // declare early so can be friend
+
 class sioDevice
 {
 protected:
@@ -81,8 +82,8 @@ protected:
    void sio_complete();
    void sio_error();
    unsigned short sio_get_aux();
-   virtual void sio_status();
-   virtual void sio_process();
+   virtual void sio_status()=0;
+   virtual void sio_process()=0;
 
 public:
    int id() { return _devnum; };

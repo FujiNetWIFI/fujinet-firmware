@@ -10,7 +10,7 @@ networkProtocolUDP::networkProtocolUDP()
 bool networkProtocolUDP::open(networkDeviceSpec *spec)
 {
 #ifdef DEBUG
-    Debug_printf("networkProtocolUDP::OPEN %S \n",spec->toChar());
+    Debug_printf("networkProtocolUDP::OPEN %s \n",spec->toChar());
 #endif
     return udp.begin(spec->port);
 }
