@@ -1,5 +1,11 @@
 #include "modem.h"
 
+#ifdef ESP8266
+void sioModem::sioModem()
+{
+}
+#endif
+
 // Write for W commands
 void sioModem::sio_write()
 {

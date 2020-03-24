@@ -33,15 +33,16 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #ifdef ESP8266
 #include <FS.h>
 #include <ESP8266WiFi.h>
+#include <SDFS.h>
 #define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
 #endif
 
 #ifdef ESP32
 #include <SPIFFS.h>
-#include <SD.h>
 #include <SPI.h>
 #include <WiFi.h>
 #include "keys.h"
+#include <SD.h>
 #endif
 
 #ifdef BLUETOOTH_SUPPORT
@@ -66,7 +67,9 @@ WiFiClient client;
 WiFiClient wifiDebugClient;
 #endif
 
+#ifdef ESP32
 KeyManager keyMgr;
+#endif
 
 #ifdef BLUETOOTH_SUPPORT
 BluetoothManager btMgr;
@@ -317,12 +320,14 @@ void loop()
   }
 #endif
 
+#ifdef ESP32
   if (WiFi.status() == WL_CONNECTED)
     digitalWrite(PIN_LED1, LOW);
   else
     digitalWrite(PIN_LED1, HIGH);
 
-  switch (keyMgr.getBootKeyStatus())
+
+  switch(keyMgr.getBootKeyStatus())
   {
   case eKeyStatus::LONG_PRESSED:
 #ifdef DEBUG
@@ -344,16 +349,18 @@ void loop()
     Debug_println("SHORT PRESS");
 #endif
 #ifdef BLUETOOTH_SUPPORT
-    if (btMgr.isActive())
-    {
-      btMgr.toggleBaudrate();
-    }
-#else
-    theFuji.image_rotate();
+      if(btMgr.isActive())
+      {
+        btMgr.toggleBaudrate();
+      }
+      else
 #endif
-    break;
-  default:
-    break;
+      {
+        theFuji.image_rotate();
+      }
+      break;
+    default:
+      break;
   }
 
 #ifdef BLUETOOTH_SUPPORT
@@ -364,7 +371,10 @@ void loop()
   else
 #endif
   {
+#endif // ESP32
     SIO.service();
     httpService();
+#ifdef ESP32
   }
+#endif
 }
