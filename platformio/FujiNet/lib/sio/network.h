@@ -4,7 +4,7 @@
 #include <Arduino.h>
 
 #ifdef ESP8266
-#include <ESP8266Wifi.h>
+#include <ESP8266WiFi.h>
 #endif
 
 #include "sio.h"
@@ -29,7 +29,7 @@ private:
     bool open_protocol();
 
 protected:
-    
+
     networkDeviceSpec deviceSpec;
     networkProtocol* protocol;
 
@@ -42,7 +42,7 @@ protected:
     unsigned short tx_buf_len;
     unsigned short sp_buf_len;
 
-    union 
+    union
     {
         struct
         {
@@ -52,7 +52,7 @@ protected:
         };
         byte rawData[4];
     } status_buf;
-    
+
 
 public:
     virtual void open();
@@ -63,7 +63,7 @@ public:
     virtual void special();
 
     virtual void sio_process();
-    
+
 };
 
 #endif /* NETWORK_H */

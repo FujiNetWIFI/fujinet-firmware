@@ -187,6 +187,11 @@ void config_print_rssi(unsigned char i)
 void config_print_networks(unsigned char n)
 {
   unsigned char i;
+
+  if (n>16)
+    {
+      n=16;
+    }
   
   for (i=0;i<n;i++)
     {
