@@ -114,7 +114,7 @@ endobj
   }
   _file->printf(" ]\nendobj\n");
 
-// 820 standard font
+  // 820 standard font
   pdf_objCtr = 7;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("7 0 obj\n<</Type/Font/Subtype/TrueType/Name/F2/BaseFont/mono5by7asciiSideways/Encoding/WinAnsiEncoding/FontDescriptor 8 0 R/FirstChar 32/LastChar 127/Widths 9 0 R>>\nendobj\n");
@@ -131,7 +131,6 @@ endobj
       _file->printf("\n");
   }
   _file->printf(" ]\nendobj\n");
-
 }
 
 void pdfPrinter::pdf_xref()
@@ -263,7 +262,10 @@ void atari820::pdf_handle_char(byte c)
       _file->write(c);
     }
     else
-      _file->write(' ');
+    {
+      if (c < 48)
+        _file->write(' ');
+    }
 
     pdf_X += charWidth; // update x position
   }
@@ -271,7 +273,23 @@ void atari820::pdf_handle_char(byte c)
 
 //=====================================================================================
 
+void atari822::pdf_handle_char(byte c)
+{
+  // TODO: add gfx mode
+  // Atari 822 modes:
+  // command == 'W'   normal mode
+  // command == 'P'   graphics mode
 
+  // simple ASCII printer
+  if (c > 31 && c < 127)
+  {
+    if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
+      _file->write(BACKSLASH);
+    _file->write(c);
+
+    pdf_X += charWidth; // update x position
+  }
+}
 
 //=====================================================================================
 
