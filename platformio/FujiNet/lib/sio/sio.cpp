@@ -257,7 +257,7 @@ void sioBus::service()
     cmdFrame_t tempFrame;
     SIO_UART.readBytes(tempFrame.cmdFrameData, 5);
 #ifdef DEBUG
-    Debug_printf("CF: %02x %02x %02x %02x %02x\n", tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
+    Debug_printf("\nCF: %02x %02x %02x %02x %02x\n", tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
 #endif
     byte ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
     // Wait for CMD line to raise again
@@ -345,6 +345,9 @@ void sioBus::service()
 // setup SIO bus
 void sioBus::setup()
 {
+#ifdef DEBUG
+  Debug_println("SIO SETUP");
+#endif
   // Set up serial
   SIO_UART.begin(sioBaud);
 #ifdef ESP8266
@@ -378,6 +381,9 @@ void sioBus::addDevice(sioDevice *p, int N)
   }
   else if (N == ADDR_R)
   {
+#ifdef DEBUG
+  Debug_println( "MODEM ADDED!");
+#endif
     modemDev = (sioModem *)p;
   }
   p->_devnum = N;
