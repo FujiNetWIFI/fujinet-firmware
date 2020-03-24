@@ -345,6 +345,9 @@ void sioBus::service()
 // setup SIO bus
 void sioBus::setup()
 {
+#ifdef DEBUG
+  Debug_println("SIO SETUP");
+#endif
   // Set up serial
   SIO_UART.begin(sioBaud);
 #ifdef ESP8266

@@ -580,14 +580,14 @@ void sioModem::sio_handle_modem()
     // send from Atari to Fujinet
     if ( SIO_UART.available() && tcpClient.connected() )
     {
-    /*  // In telnet in worst case we have to escape every byte
+      // In telnet in worst case we have to escape every byte
       // so leave half of the buffer always free
       int max_buf_size;
       if (telnet == true)
         max_buf_size = TX_BUF_SIZE / 2;
       else
         max_buf_size = TX_BUF_SIZE;
-     */
+     
 
       // Read from serial, the amount available up to
       // maximum size of the buffer
