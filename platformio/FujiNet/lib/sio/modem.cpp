@@ -52,10 +52,10 @@ void sioModem::sio_control()
 
   if (cmdFrame.aux1 & 0x80)
   {
-#ifdef DEBUG
-Debug_println("---------------GOT DTR");
-#endif
     DTR = (cmdFrame.aux1 & 0x40 ? true : false);
+#ifdef DEBUG
+    Debug_print( "DTR" );Debug_println( DTR );
+#endif
   }
 
   // for now, just complete
@@ -163,6 +163,7 @@ void sioModem::sio_stream()
 void sioModem::at_cmd_println(const char* s)
 {
   SIO_UART.print(s);
+  SIO_UART.flush();
 
   if (cmdAtascii == true)
   {
@@ -270,17 +271,14 @@ void sioModem::modemCommand()
       port = "23"; // Telnet default
     }
 #ifdef DEBUG
-    Debug_print("DIALING: ");
-    Debug_println(host);
+    Debug_print("DIALING: ");Debug_println(host);
 #endif
     if (host == "5551234") // Fake it for BobTerm
     {
       delay(1300); // Wait a moment so bobterm catches it
       SIO_UART.print("CONNECT ");
       at_cmd_println(modemBaud);
-#ifdef ESP32
-      SIO_UART.flush();
-#endif
+
 #ifdef DEBUG
       Debug_println("CONNECT FAKE!");
 #endif
@@ -293,16 +291,14 @@ void sioModem::modemCommand()
       at_cmd_println(port);
 
       int portInt = port.toInt();
-      tcpClient.setNoDelay(true); // Try to disable naggle
+
       if (tcpClient.connect(host.c_str(), portInt))
       {
         tcpClient.setNoDelay(true); // Try to disable naggle
         SIO_UART.print("CONNECT ");
         at_cmd_println(modemBaud);
         cmdMode = false;
-#ifdef ESP32
-        SIO_UART.flush();
-#endif
+
         if (listenPort > 0) tcpServer.stop();
       }
       else
@@ -542,15 +538,6 @@ void sioModem::sio_handle_modem()
       // get char from Atari SIO
       char chr = SIO_UART.read();
 
-      /*if ((blockWritePending == true) && (*blockPtr != 0x00))
-        chr = *blockPtr++;
-      else if (blockWritePending == true)
-      {
-        blockWritePending = false;
-        yield();
-        return;
-      }*/
-
       // Return, enter, new line, carriage return.. anything goes to end the command
       if ((chr == '\n') || (chr == '\r') || (chr == 0x9B))
       {
@@ -591,21 +578,23 @@ void sioModem::sio_handle_modem()
   else
   {
     // send from Atari to Fujinet
-    if (SIO_UART.available()  )
+    if ( SIO_UART.available() && tcpClient.connected() )
     {
-      // In telnet in worst case we have to escape every byte
+    /*  // In telnet in worst case we have to escape every byte
       // so leave half of the buffer always free
       int max_buf_size;
       if (telnet == true)
         max_buf_size = TX_BUF_SIZE / 2;
       else
         max_buf_size = TX_BUF_SIZE;
+     */
 
       // Read from serial, the amount available up to
       // maximum size of the buffer
       size_t len = std::min(SIO_UART.available(), max_buf_size);
 
       SIO_UART.readBytes(&txBuf[0], len);
+
 
       // Disconnect if going to AT mode with "+++" sequence
       for (int i = 0; i < (int)len; i++)
@@ -620,7 +609,7 @@ void sioModem::sio_handle_modem()
           plusCount = 0;
         }
       }
-
+/*
       // Double (escape) every 0xff for telnet, shifting the following bytes
       // towards the end of the buffer from that point
       if (telnet == true)
@@ -637,26 +626,23 @@ void sioModem::sio_handle_modem()
           }
         }
       }
-
+*/
       // Write the buffer to TCP finally
       tcpClient.write(&txBuf[0], len);
-      // tcpClient.flush();
-      yield();
-    }
-    else
-    {
-#ifdef DEBUG
-  //Debug_println("no modem data avail");
-#endif
+      return;
     }
 
+
     // read from Fujinet to Atari
-    unsigned char buf[128];
-    
-    while (tcpClient.available() )
+    unsigned char buf[256];
+    int bytesAvail = 0;
+
+    bytesAvail = tcpClient.available();
+
+    if ( bytesAvail )
     {
-      int bytesRead = tcpClient.readBytes(buf,128);
-      SIO_UART.write( &buf[0], bytesRead );
+        int bytesRead = tcpClient.readBytes( buf, (bytesAvail>128) ? 128 : bytesAvail );
+        int bytesWritten = SIO_UART.write( &buf[0], bytesRead );
     }
   }
 
@@ -664,6 +650,9 @@ void sioModem::sio_handle_modem()
   // has been over a second without any more bytes, disconnect
   if (plusCount >= 3)
   {
+#ifdef DEBUG
+  Debug_println( "Received+++" );
+#endif
     if (millis() - plusTime > 1000)
     {
       tcpClient.stop();
@@ -672,7 +661,7 @@ void sioModem::sio_handle_modem()
   }
 
   // Go to command mode if TCP disconnected and not in command mode
-  if ((tcpClient.connected()) && (cmdMode == false) && (DTR == 0))
+  if ( !tcpClient.connected() && (cmdMode == false) && (DTR == 0))
   {
     tcpClient.flush();
     tcpClient.stop();
