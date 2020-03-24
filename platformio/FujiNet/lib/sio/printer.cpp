@@ -236,7 +236,6 @@ void asciiPrinter::pdf_handle_char(byte c)
   }
 }
 
-//=====================================================================================
 void atari820::pdf_handle_char(byte c)
 {
   // Atari 820 modes:
@@ -257,9 +256,9 @@ void atari820::pdf_handle_char(byte c)
   // maybe printable character
   if (c > 31 && c < 127)
   {
-    if (c > 47)
+    if (!sideFlag || c > 47)
     {
-      if (c == BACKSLASH)
+      if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
         _file->write(BACKSLASH);
       _file->write(c);
     }
@@ -269,6 +268,11 @@ void atari820::pdf_handle_char(byte c)
     pdf_X += charWidth; // update x position
   }
 }
+
+//=====================================================================================
+
+
+
 //=====================================================================================
 
 void atari1027::pdf_handle_char(byte c)
@@ -416,6 +420,28 @@ void atari820::initPrinter(File *f)
   //fontHorizontalScaling = 83.333;
 
   sideFlag = false;
+  pdf_header();
+}
+
+void atari822::initPrinter(File *f)
+{
+
+  // TODO: Change printer parameters for 822
+
+  _file = f;
+  paperType = PDF;
+  pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
+  pageHeight = 792.0; // just use 11" for letter paper
+  leftMargin = 19.5;  // fit print width on page width
+  bottomMargin = 0.0;
+  // dimensions from Table 1-1 of Atari 820 Field Service Manual
+  printWidth = 240.0; // 3 1/3" wide printable area
+  lineHeight = 12.0;  // 6 lines per inch
+  charWidth = 6.0;    // 12 char per inch
+  fontSize = 12;      // 6 lines per inch
+  //fontHorizontalScaling = 83.333;
+
+  gfxFlag = false;
   pdf_header();
 }
 
