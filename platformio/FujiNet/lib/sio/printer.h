@@ -147,7 +147,7 @@ public:
     void initPrinter(File *f);
 };
 
-class atari820 : public asciiPrinter
+class atari820 : public pdfPrinter
 {
 // 7x7 derived from https://scruss.com/blog/futile-fonts/
 // TODO:
