@@ -48,16 +48,39 @@ class sioPrinter : public sioDevice
 {
 protected:
     // SIO THINGS
-
     byte buffer[40];
     void sio_write();
-    void sio_status() override;
-    void sio_process() override;
+    void sio_status();
+    void sio_process();
     byte lastAux1 = 0;
 
-    // PDF THINGS
+    // PRINTER THINGS
+    File *_file;
+    paper_t paperType;
+    virtual void writeBuffer(byte *B, int n) = 0;
 
-    paper_t paperType = PDF;
+public:
+    virtual void initPrinter(File *f) = 0;
+    virtual void setPaper(paper_t ty) = 0;
+    virtual void pageEject() = 0;
+    paper_t getPaperType();
+};
+
+class filePrinter : public sioPrinter
+{
+protected:
+    void writeBuffer(byte *B, int n);
+
+public:
+    void setPaper(paper_t ty);
+    void initPrinter(File *f);
+    void pageEject(){};
+};
+
+class pdfPrinter : public sioPrinter
+{
+protected:
+    // PDF THINGS
     double pageWidth = 612.0;
     double pageHeight = 792.0;
     double leftMargin = 18.0;
@@ -67,8 +90,8 @@ protected:
     double charWidth = 7.2;
     uint fontNumber = 1;
     uint fontSize = 12; // default 12 pica, 10 cpi
-    double fontHorizontalScaling=100;
-    double pdf_X = 0;   // across the page - columns in pts
+    double fontHorizontalScaling = 100;
+    double pdf_X = 0; // across the page - columns in pts
     bool BOLflag = true;
     double pdf_Y = 0; // down the page - lines in pts
     bool TOPflag = true;
@@ -77,60 +100,83 @@ protected:
     size_t objLocations[256]; // reference table storage
     int pdf_objCtr = 0;       // count the objects
 
+    virtual void pdf_handle_char(byte c) = 0;
+    virtual void pdf_fonts() = 0;
     void pdf_header();
-    virtual void pdf_fonts();
     void pdf_xref();
     void pdf_new_page();
     void pdf_end_page();
     void pdf_set_font();
     void pdf_new_line();
     void pdf_end_line();
-    virtual void pdf_handle_char(byte c);
     void pdf_add(std::string output);
+
     size_t idx_stream_length; // file location of stream length indictor
     size_t idx_stream_start;  // file location of start of stream
     size_t idx_stream_stop;   // file location of end of stream
 
-    // SVG THINGS
-
-    void svg_add(std::string S);
-
     // PRINTER THINGS
-
     void writeBuffer(byte *B, int n);
-    File *_file;
 
 public:
-    virtual void initPrinter(File *f, paper_t ty);
-    void initPrinter(File *f);
     void pageEject();
-    paper_t getPaperType();
+    void setPaper(paper_t ty){};
 };
 
-class atari1027 : public sioPrinter
+class asciiPrinter : public pdfPrinter
+{
+protected:
+    virtual void pdf_fonts();
+    virtual void pdf_handle_char(byte c);
+
+public:
+    void initPrinter(File *f);
+};
+
+class atari1027 : public pdfPrinter
 {
 protected:
     bool intlFlag = false;
     bool uscoreFlag = false;
     bool escMode = false;
 
-    void pdf_fonts() override;
-    void pdf_handle_char(byte c) override;
+    void pdf_fonts();
+    void pdf_handle_char(byte c);
 
 public:
-    void initPrinter(File *f, paper_t ty) override;
+    void initPrinter(File *f);
 };
 
-class atari820 : public sioPrinter
+class atari820 : public pdfPrinter
 {
+// 7x7 derived from https://scruss.com/blog/futile-fonts/
+// TODO:
+//  derive from pdfPrinter?
+//  update pdf_fonts for sideways printing
+
+// reverse the buffer in sioPrinter::sio_write() for sideways printing
+// the PDF standard doesn't really handle right-to-left
+// printing. The example in section 9.7 uses reverse strings.
+
 protected:
     bool sideFlag = false;
 
-    void pdf_fonts() override;
-    // void pdf_handle_char(byte c);  // will probably need a custom one to handle sideways printing
+    void pdf_fonts();
+    void pdf_handle_char(byte c);  // need a custom one to handle sideways printing
 
 public:
-    void initPrinter(File *f, paper_t ty) override;
+    void initPrinter(File *f);
+};
+
+class atari1020 : public sioPrinter
+{
+protected:
+    bool textFlag = true;
+    void svg_header();
+
+public:
+    void initPrinter(File *f);
+    void setPaper(paper_t ty){};
 };
 
 #endif // guard

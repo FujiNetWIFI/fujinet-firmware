@@ -1,7 +1,7 @@
 #include "printer.h"
 
 //pdf routines
-void sioPrinter::pdf_header()
+void pdfPrinter::pdf_header()
 {
   pdf_Y = 0;
   pdf_X = 0;
@@ -15,7 +15,7 @@ void sioPrinter::pdf_header()
   this->pdf_fonts(); // pdf_fonts is virtual function, call by pointer
 }
 
-void sioPrinter::pdf_fonts()
+void asciiPrinter::pdf_fonts()
 {
   // 3rd object: font catalog
   pdf_objCtr = 3;
@@ -94,28 +94,47 @@ endobj
   // 3rd object: font catalog
   pdf_objCtr = 3;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("3 0 obj\n<</Font << /F1 4 0 R >>>>\nendobj\n");
+  _file->printf("3 0 obj\n<</Font << /F1 4 0 R /F2 7 0 R >>>>\nendobj\n");
 
-  // 1027 standard font
+  // 820 standard font
   pdf_objCtr = 4;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7ascii/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
+  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7ascii500w/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
   pdf_objCtr = 5;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/mono5by7ascii/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 50/FontBBox[0 0 700 700] >>\nendobj\n");
+  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/mono5by7ascii500w/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 500/MaxWidth 500/FontWeight 400/XHeight 500/StemV 55.9/FontBBox[33 -1 463 717] >>\nendobj\n");
   pdf_objCtr = 6;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("6 0 obj\n[");
   for (int i = 32; i < 128; i++)
   {
-    _file->printf(" 600");
+    _file->printf(" 500");
     if ((i - 31) % 32 == 0)
       _file->printf("\n");
   }
   _file->printf(" ]\nendobj\n");
+
+// 820 standard font
+  pdf_objCtr = 7;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("7 0 obj\n<</Type/Font/Subtype/TrueType/Name/F2/BaseFont/mono5by7asciiSideways/Encoding/WinAnsiEncoding/FontDescriptor 8 0 R/FirstChar 32/LastChar 127/Widths 9 0 R>>\nendobj\n");
+  pdf_objCtr = 8;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("8 0 obj\n<</Type/FontDescriptor/FontName/mono5by7asciiSideways/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 675/MaxWidth 675/FontWeight 400/XHeight 500/StemV 77/FontBBox[41 -294 634 733] >>\nendobj\n");
+  pdf_objCtr = 9;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("9 0 obj\n[");
+  for (int i = 32; i < 128; i++)
+  {
+    _file->printf(" 675");
+    if ((i - 31) % 32 == 0)
+      _file->printf("\n");
+  }
+  _file->printf(" ]\nendobj\n");
+
 }
 
-void sioPrinter::pdf_xref()
+void pdfPrinter::pdf_xref()
 {
   int max_objCtr = pdf_objCtr;
   pdf_objCtr = 2;
@@ -141,7 +160,7 @@ void sioPrinter::pdf_xref()
   _file->printf("%%%%EOF\n");
 }
 
-void sioPrinter::pdf_new_page()
+void pdfPrinter::pdf_new_page()
 { // open a new page
   pdf_objCtr++;
   pageObjects[pdf_pageCounter] = pdf_objCtr;
@@ -161,17 +180,17 @@ void sioPrinter::pdf_new_page()
 
   TOPflag = false;
   // set default font for the page
-  if (fontHorizontalScaling != 100)
-    _file->printf("/F%u %u Tf %g Tz\n", fontNumber, fontSize, fontHorizontalScaling);
-  else
-    _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
+  //if (fontHorizontalScaling != 100)
+  //  _file->printf("/F%u %u Tf %g Tz\n", fontNumber, fontSize, fontHorizontalScaling);
+  //else
+  _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
   _file->printf("%g %g Td\n", leftMargin, pageHeight);
   pdf_Y = pageHeight; // reset print roller to top of page
   pdf_X = 0;          // set carriage to LHS
   BOLflag = true;
 }
 
-void sioPrinter::pdf_end_page()
+void pdfPrinter::pdf_end_page()
 {
   // close text object & stream
   if (!BOLflag)
@@ -188,7 +207,7 @@ void sioPrinter::pdf_end_page()
   TOPflag = true;
 }
 
-void sioPrinter::pdf_new_line()
+void pdfPrinter::pdf_new_line()
 {
   // position new line and start text string array
   _file->printf("0 %g Td [(", -lineHeight);
@@ -196,7 +215,7 @@ void sioPrinter::pdf_new_line()
   BOLflag = false;
 }
 
-void sioPrinter::pdf_end_line()
+void pdfPrinter::pdf_end_line()
 {
   _file->printf(")]TJ\n"); // close the line
   pdf_Y -= lineHeight;     // line feed
@@ -204,7 +223,7 @@ void sioPrinter::pdf_end_line()
   BOLflag = true;
 }
 
-void sioPrinter::pdf_handle_char(byte c)
+void asciiPrinter::pdf_handle_char(byte c)
 {
   // simple ASCII printer
   if (c > 31 && c < 127)
@@ -216,6 +235,41 @@ void sioPrinter::pdf_handle_char(byte c)
     pdf_X += charWidth; // update x position
   }
 }
+
+//=====================================================================================
+void atari820::pdf_handle_char(byte c)
+{
+  // Atari 820 modes:
+  // aux1 == 40   normal mode
+  // aux1 == 29   sideways mode
+  if (cmdFrame.aux1 == 'N' && sideFlag)
+  {
+    _file->printf(")]TJ\n/F1 12 Tf [(");
+    sideFlag = false;
+  }
+  else if (cmdFrame.aux1 == 'S' && !sideFlag)
+  {
+    _file->printf(")]TJ\n/F2 12 Tf [(");
+    sideFlag = true;
+    // could increase charWidth, but not necessary to make this work. I force EOL.
+  }
+
+  // maybe printable character
+  if (c > 31 && c < 127)
+  {
+    if (c > 47)
+    {
+      if (c == BACKSLASH)
+        _file->write(BACKSLASH);
+      _file->write(c);
+    }
+    else
+      _file->write(' ');
+
+    pdf_X += charWidth; // update x position
+  }
+}
+//=====================================================================================
 
 void atari1027::pdf_handle_char(byte c)
 {
@@ -278,7 +332,7 @@ void atari1027::pdf_handle_char(byte c)
   }
 }
 
-void sioPrinter::pdf_add(std::string S)
+void pdfPrinter::pdf_add(std::string S)
 {
   if (TOPflag)
     pdf_new_page();
@@ -315,41 +369,41 @@ void sioPrinter::pdf_add(std::string S)
     pdf_end_page();
 }
 
-void sioPrinter::svg_add(std::string S)
-{
-}
+// void asciiPrinter::svg_add(std::string S)
+// {
+// }
 
-void sioPrinter::initPrinter(File *f, paper_t ty)
-{
-  _file = f;
-  paperType = ty;
-  if (paperType == PDF)
-    pdf_header();
-}
-
-void sioPrinter::initPrinter(File *f)
-{
-  this->initPrinter(f, PDF);
-}
-
-void atari1027::initPrinter(File *f, paper_t ty)
+void filePrinter::initPrinter(File *f)
 {
   _file = f;
-  paperType = ty;
-  if (paperType == PDF)
-  {
-    uscoreFlag = false;
-    intlFlag = false;
-    escMode = false;
-    pdf_header();
-  }
 }
 
-void atari820::initPrinter(File *f, paper_t ty)
+void filePrinter::setPaper(paper_t ty)
 {
-
-  _file = f;
   paperType = ty;
+}
+
+void asciiPrinter::initPrinter(File *f)
+{
+  _file = f;
+  paperType = PDF;
+  pdf_header();
+}
+
+void atari1027::initPrinter(File *f)
+{
+  _file = f;
+  paperType = PDF;
+  uscoreFlag = false;
+  intlFlag = false;
+  escMode = false;
+  pdf_header();
+}
+
+void atari820::initPrinter(File *f)
+{
+  _file = f;
+  paperType = PDF;
   pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
   pageHeight = 792.0; // just use 11" for letter paper
   leftMargin = 19.5;  // fit print width on page width
@@ -359,16 +413,30 @@ void atari820::initPrinter(File *f, paper_t ty)
   lineHeight = 12.0;  // 6 lines per inch
   charWidth = 6.0;    // 12 char per inch
   fontSize = 12;      // 6 lines per inch
-  fontHorizontalScaling = 83.333;
+  //fontHorizontalScaling = 83.333;
 
-  if (paperType == PDF)
-  {
-    sideFlag = false;
-    pdf_header();
-  }
+  sideFlag = false;
+  pdf_header();
 }
 
-void sioPrinter::pageEject()
+void atari1020::initPrinter(File *f)
+{
+  _file = f;
+  paperType = SVG;
+
+  textFlag = true;
+  svg_header();
+}
+
+void atari1020::svg_header()
+{
+  //fprintf(f,"<!DOCTYPE html>\n");
+  //fprintf(f,"<html>\n");
+  //fprintf(f,"<body>\n\n");
+  _file->printf("<svg height=\"2000\" width=\"480\" viewBox=\"0 -1000 480 2000\">\n");
+}
+
+void pdfPrinter::pageEject()
 {
   if (paperType == PDF)
   {
@@ -383,12 +451,7 @@ void sioPrinter::pageEject()
   }
 }
 
-paper_t sioPrinter::getPaperType()
-{
-  return paperType;
-}
-
-void sioPrinter::writeBuffer(byte *B, int n)
+void filePrinter::writeBuffer(byte *B, int n)
 {
   int i = 0;
   std::string output = std::string();
@@ -399,50 +462,61 @@ void sioPrinter::writeBuffer(byte *B, int n)
     for (i = 0; i < n; i++)
     {
       _file->write(B[i]);
+      Debug_print(B[i], HEX);
     }
+    Debug_printf("\n");
     break;
   case TRIM:
     while (i < n)
     {
       _file->write(B[i]);
+      Debug_print(B[i], HEX);
       if (B[i] == EOL)
+      {
+        Debug_printf("\n");
         break;
+      }
       i++;
     }
     break;
   case ASCII:
+  default:
     while (i < n)
     {
       if (B[i] == EOL)
       {
         _file->printf("\n");
+        Debug_printf("\n");
         break;
       }
       if (B[i] > 31 && B[i] < 127)
+      {
         _file->write(B[i]);
+        Debug_printf("%c", B[i]);
+      }
       i++;
     }
-    break;
-  case PDF:
-    while (i < n)
-    {
-      output.push_back(B[i]);
-      if (B[i] == EOL)
-        break;
-      i++;
-    }
-    pdf_add(output);
-    break;
-  case SVG:
-    while (i < n)
-    {
-      output.push_back(B[i]);
-      if (B[i] == EOL)
-        break;
-      i++;
-    }
-    svg_add(output);
   }
+}
+
+void pdfPrinter::writeBuffer(byte *B, int n)
+{
+  int i = 0;
+  std::string output = std::string();
+
+  while (i < n)
+  {
+    output.push_back(B[i]);
+    if (B[i] == EOL)
+      break;
+    i++;
+  }
+  pdf_add(output);
+}
+
+paper_t sioPrinter::getPaperType()
+{
+  return paperType;
 }
 
 // write for W commands
@@ -453,27 +527,41 @@ void sioPrinter::sio_write()
 
   memset(buffer, 0, n); // clear buffer
 
-  // to do: size buffer based on AUX1:
-  // Auxiliary Bytes 1
-  // Normal Print (40 Char/Line) = 0x4E
-  // Sideways Print (16 Char/Line) = 0x53
-  // Other values in the 400/800 OS Manual
-  // Normal 0x4E 'N'    40 chars
-  // Sideways 0x53 'S'  29 chars
-  // Wide 0x57 'W'      "not supported"
-  // And the XL/XE OS ROM
+  /* 
+  Auxiliary Byte 1 values per 400/800 OS Manual
+  Normal   0x4E 'N'  40 chars
+  Sideways 0x53 'S'  29 chars (820 sideways printing)
+  Wide     0x57 'W'  "not supported"
+
+  Atari 822 in graphics mode (SIO command 'P') 
+           0x50 'L'  40 bytes
+  as inferred from screen print program in operators manual
+
+  Auxiliary Byte 2 for Atari 822 might be 0 or 1 in graphics mode
+*/
 
   if (cmdFrame.aux1 == 'N')
     n = 40;
   else if (cmdFrame.aux1 == 'S')
     n = 29;
 
-  // new
-
   ck = sio_to_peripheral(buffer, n);
 
   if (ck == sio_checksum(buffer, n))
   {
+    if (n == 29)
+    { // reverse the buffer and replace EOL with space
+      // needed for PDF sideways printing
+      byte temp[29];
+      memcpy(temp, buffer, n);
+      for (int i = 0; i < n; i++)
+      {
+        buffer[i] = temp[n - 1 - i];
+        if (buffer[i] == EOL)
+          buffer[i] = ' ';
+      }
+      buffer[n++] = EOL;
+    }
     writeBuffer(buffer, n);
     sio_complete();
   }
@@ -481,83 +569,45 @@ void sioPrinter::sio_write()
   {
     sio_error();
   }
-
-  // old
-  //   SIO_UART.readBytes(buffer, n);
-  // #ifdef DEBUG_S
-  //   for (int z = 0; z < n; z++)
-  //   {
-  //     BUG_UART.print(buffer[z], DEC);
-  //     BUG_UART.print(" ");
-  //   }
-  //   BUG_UART.println();
-  // #endif
-  //   ck = SIO_UART.read(); // Read checksum
-  //   //delayMicroseconds(350);
-  //   SIO_UART.write('A'); // Write ACK
-
-  //   if (ck == sio_checksum(buffer, n))
-  //   {
-  //     writeBuffer(buffer, n);
-  //     delayMicroseconds(DELAY_T5);
-  //     SIO_UART.write('C');
-  //     yield();
-  //   }
 }
 
 // Status
 void sioPrinter::sio_status()
 {
   byte status[4];
-  // byte ck;
+  /*
+  STATUS frame per the 400/800 OS ROM Manual
+  Command Status
+  Aux 1 Byte (typo says AUX2 byte)
+  Timeout
+  Unused
 
-  // status frame per Atari 820 service manual
-  /* The printer controller will return a data frame to the computer
-reflecting the status. The STATUS DATA frame is shown below:
-DONE/ERROR FLAG
-AUX. BYTE 1 from last WRITE COMMAND
-DATA WRITE TIMEOUT
-CHECKSUM
-The FLAG byte contains information relating to the most recent
-command prior to the status request and some controller constants.
-The DATA WRITE Timeout equals the maximum time to print a
-line of data assuming worst case controller produced Timeout
-delay. This Timeout is associated with printer timeout
-discussed earlier. 
-And  from 400/800 OS ROM Manual
-Command Status
-Aux 1 Byte (typo says AUX2 byte)
-Timeout
-Unused
+  OS ROM Manual continues on Command Status byte:
+  bit 0 - invalid command frame
+  bit 1 - invalid data frame
+  bit 7 - intelligent controller (normally 0)
 
-OS ROM Manual continues on Command Status:
-bit 0 - invalid command frame
-bit 1 - invalid data frame
-bit 7 - intelligent controller (normally 0)
+  STATUS frame per Atari 820 service manual
+  The printer controller will return a data frame to the computer
+  reflecting the status. The STATUS DATA frame is shown below:
+  DONE/ERROR FLAG
+  AUX. BYTE 1 from last WRITE COMMAND
+  DATA WRITE TIMEOUT
+  CHECKSUM
+  The FLAG byte contains information relating to the most recent
+  command prior to the status request and some controller constants.
+  The DATA WRITE Timeout equals the maximum time to print a
+  line of data assuming worst case controller produced Timeout
+  delay. This Timeout is associated with printer timeout
+  discussed earlier. 
 */
+
   status[0] = 0;
   status[1] = lastAux1;
   status[2] = 5;
   status[3] = 0;
 
   sio_to_computer(status, sizeof(status), false);
-
-  // ck = sio_checksum((byte *)&status, 4);
-
-  // delayMicroseconds(DELAY_T5); // t5 delay
-  // SIO_UART.write('C');         // Command always completes.
-  // SIO_UART.flush();
-  // delayMicroseconds(200);
-  // //delay(1);
-
-  // // Write data frame
-  // for (int i = 0; i < 4; i++)
-  //   SIO_UART.write(status[i]);
-
-  // // Write checksum
-  // SIO_UART.write(ck);
-  // SIO_UART.flush();
-  // delayMicroseconds(200);
 }
 
 // Process command
@@ -565,12 +615,13 @@ void sioPrinter::sio_process()
 {
   switch (cmdFrame.comnd)
   {
-  case 'W':
+  case 'P': // 0x50 - needed by A822 for graphics mode printing
+  case 'W': // 0x57
     sio_ack();
     sio_write();
     lastAux1 = cmdFrame.aux1;
     break;
-  case 'S':
+  case 'S': // 0x53
     sio_ack();
     sio_status();
     break;
