@@ -46,7 +46,6 @@ void sioDisk::sio_read()
   unsigned short sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
   unsigned long offset = sector_offset(sectorNum, sectorSize);
   unsigned long ss = sector_size(sectorNum, sectorSize);
-
   byte err = false;
 
   // Clear sector buffer
@@ -62,10 +61,14 @@ void sioDisk::sio_read()
   }
   else // Cached
   {
+    int ws = (sectorNum) & 3;
+    int we = (sectorNum + 4) & 3;
+
+    
   }
 
   // Send result to Atari
-  sio_to_computer((byte *)&sector, sectorSize, err);
+  sio_to_computer((byte *)&sector, ss, err);
   lastSectorNumRead = sectorNum;
 }
 
@@ -113,7 +116,7 @@ void sioDisk::sio_write()
       if (ss == sz)
       {
         _file->flush();
-        firstCachedSector = 65535; // invalidate cache
+        // firstCachedSector = 65535; // invalidate cache
 
         sio_complete();
         return;
@@ -383,7 +386,7 @@ void sioDisk::mount(File *f)
 // Invalidate disk cache
 void sioDisk::invalidate_cache()
 {
-  firstCachedSector = 65535;
+  // firstCachedSector = 65535;
 }
 
 // mount a disk file

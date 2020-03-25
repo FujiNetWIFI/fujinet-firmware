@@ -37,10 +37,7 @@ private:
     unsigned short sectorSize = 128;
     byte sector[256];
 
-    byte sectorCache[2560];
-    bool cacheError[9];
-    int firstCachedSector = 65535;
-    unsigned char max_cached_sectors = 19;
+    byte sectorCache[4][256];
     unsigned short lastSectorNumRead = 65535;
     unsigned short lastSectorNumWrite = 65535;
 
