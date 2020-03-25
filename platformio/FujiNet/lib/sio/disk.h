@@ -41,6 +41,8 @@ private:
     bool cacheError[9];
     int firstCachedSector = 65535;
     unsigned char max_cached_sectors = 19;
+    unsigned short lastSectorNumRead = 65535;
+    unsigned short lastSectorNumWrite = 65535;
 
     struct
     {
@@ -78,5 +80,8 @@ public:
     bool write_blank_atr(File *f, unsigned short sectorSize, unsigned short numSectors);
     File *file();
 };
+
+    long sector_offset(unsigned short sectorNum, unsigned short sectorSize);
+    unsigned short sector_size(unsigned short sectorNum, unsigned short sectorSize);
 
 #endif // guard
