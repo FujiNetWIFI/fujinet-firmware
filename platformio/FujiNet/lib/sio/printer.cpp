@@ -77,19 +77,6 @@ endobj
 }
 
 void atari820::pdf_fonts()
-/*
-5 0 obj
-<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7_820/Encoding/WinAnsiEncoding/FontDescriptor 6 0 R/FirstChar 32/LastChar 127/Widths 7 0 R>>
-endobj
-6 0 obj
-<</Type/FontDescriptor/FontName/mono5by7_820/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 50/FontBBox[ 0  0 700 700] >>
-endobj
-7 0 obj
-[600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
- 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
- 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600  ] 
-endobj
-*/
 {
   // 3rd object: font catalog
   pdf_objCtr = 3;
@@ -114,7 +101,7 @@ endobj
   }
   _file->printf(" ]\nendobj\n");
 
-  // 820 standard font
+  // 820 sideways font
   pdf_objCtr = 7;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("7 0 obj\n<</Type/Font/Subtype/TrueType/Name/F2/BaseFont/mono5by7asciiSideways/Encoding/WinAnsiEncoding/FontDescriptor 8 0 R/FirstChar 32/LastChar 127/Widths 9 0 R>>\nendobj\n");
@@ -132,6 +119,53 @@ endobj
   }
   _file->printf(" ]\nendobj\n");
 }
+
+void atari822::pdf_fonts()
+{
+  // todo: update font parameters for facsimile "5x7 Monospace CE font"
+  // 3rd object: font catalog
+  pdf_objCtr = 3;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("3 0 obj\n<</Font << /F1 4 0 R /F2 7 0 R >>>>\nendobj\n");
+
+  // 820 standard font
+  pdf_objCtr = 4;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/5x7-Monospace-CE/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 126/Widths 6 0 R>>\nendobj\n");
+  pdf_objCtr = 5;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/5x7-Monospace-CE/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 875.0/AvgWidth 750/MaxWidth 750/FontWeight 400/XHeight 625.0/StemV 87.4707/FontBBox[0.0 0.0 672.85156 1000.0] >>\nendobj\n");
+  pdf_objCtr = 6;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("6 0 obj\n[");
+  for (int i = 32; i < 127; i++)
+  {
+    _file->printf(" 750");
+    if ((i - 31) % 32 == 0)
+      _file->printf("\n");
+  }
+  _file->printf(" ]\nendobj\n");
+
+/* 
+  pdf_objCtr = 7;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("7 0 obj\n<</Type/Font/Subtype/TrueType/Name/F2/BaseFont/mono5by7asciiSideways/Encoding/WinAnsiEncoding/FontDescriptor 8 0 R/FirstChar 32/LastChar 127/Widths 9 0 R>>\nendobj\n");
+  pdf_objCtr = 8;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("8 0 obj\n<</Type/FontDescriptor/FontName/mono5by7asciiSideways/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 675/MaxWidth 675/FontWeight 400/XHeight 500/StemV 77/FontBBox[41 -294 634 733] >>\nendobj\n");
+  pdf_objCtr = 9;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("9 0 obj\n[");
+  for (int i = 32; i < 128; i++)
+  {
+    _file->printf(" 675");
+    if ((i - 31) % 32 == 0)
+      _file->printf("\n");
+  }
+  _file->printf(" ]\nendobj\n");
+*/
+}
+
 
 void pdfPrinter::pdf_xref()
 {
@@ -414,6 +448,7 @@ void asciiPrinter::initPrinter(File *f)
 
 void atari1027::initPrinter(File *f)
 {
+  // todo: put page parameter assignments here
   _file = f;
   paperType = PDF;
   uscoreFlag = false;
@@ -452,7 +487,7 @@ void atari822::initPrinter(File *f)
   printWidth = 288.0; // 4" wide printable area
   lineHeight = 12.0;  // 6 lines per inch
   charWidth = 7.2;    // 10 char per inch
-  fontSize = 12;      // 6 lines per inch
+  fontSize = 10;      // 10 char per inch for close font
 
   gfxFlag = false;
   pdf_header();
