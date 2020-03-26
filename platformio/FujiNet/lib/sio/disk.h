@@ -11,6 +11,8 @@ extern int command_frame_counter;
 // Normally, this is set to 3 to not cache the first three sectors, which
 // may be only 128 bytes compared to 256 bytes for double density images.
 // If you set this to 65535, then the cache is completely disabled.
+// Please do not change this value yet, the cache has been ripped out
+// due to be rewritten.
 #define UNCACHED_REGION 65535
 
 #define ATARISIO_ATARI_FREQUENCY_PAL 1773447
@@ -37,10 +39,8 @@ private:
     unsigned short sectorSize = 128;
     byte sector[256];
 
-    byte sectorCache[2560];
-    bool cacheError[9];
-    int firstCachedSector = 65535;
-    unsigned char max_cached_sectors = 19;
+    byte sectorCache[4][256];
+    unsigned short lastSectorNum = 65535;
 
     struct
     {
@@ -59,7 +59,7 @@ private:
     } percomBlock;
 
     void sio_read();
-    void sio_write();
+    void sio_write(bool verify);
     void sio_format();
     void sio_status() override;
     void sio_process() override;
@@ -78,5 +78,8 @@ public:
     bool write_blank_atr(File *f, unsigned short sectorSize, unsigned short numSectors);
     File *file();
 };
+
+    long sector_offset(unsigned short sectorNum, unsigned short sectorSize);
+    unsigned short sector_size(unsigned short sectorNum, unsigned short sectorSize);
 
 #endif // guard

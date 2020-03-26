@@ -43,183 +43,91 @@ unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sec
 // Read
 void sioDisk::sio_read()
 {
-  int ss = 128;
-  int sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  int cacheOffset = 0;
-  int cacheSectorIndex;
-  int cacheSetorIndexAdjust = 1;
-  int offset;
-  byte *s;
-  byte *d;
+  unsigned short sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
+  unsigned long offset = sector_offset(sectorNum, sectorSize);
+  unsigned long ss = sector_size(sectorNum, sectorSize);
   byte err = false;
+
+  // Clear sector buffer
+  memset(sector, 0, sizeof(sector));
 
   if (sectorNum <= UNCACHED_REGION)
   {
-    ss = (sectorNum <= 3 ? 128 : sectorSize);
-    offset = sectorNum;
-    offset *= ss;
-    offset -= ss;
-    offset += 16;
+    if (sectorNum != (lastSectorNum + 1))
+      err = !(_file->seek(offset));
 
-    // Bias adjustment for 256 bytes
-    if (ss == 256)
-      offset -= 384;
-
-    // clear sector buffer.
-    memset(sector, 0, sizeof(sector));
-
-    if (_file->seek(offset))
-      if (_file->read(sector, ss)!=-1)
-      {
-        err=false;
-      }
-      else
-      {
-#ifdef DEBUG
-        Debug_printf("Read failed. Aborting and returning error.\n");
-#endif
-        err=true;
-      }      
-    else
-    {
-#ifdef DEBUG
-      Debug_printf("Seek failed. Aborting read and returning error.\n");
-#endif
-      err = true;
-    }
+    if (!err)
+      err = (_file->read(sector, ss) != ss);
   }
-  else if (sectorNum >= 4)
+  else // Cached
   {
-    max_cached_sectors = (sectorSize == 256 ? 9 : 19);
-    if ((sectorNum > (firstCachedSector + max_cached_sectors)) || (sectorNum < firstCachedSector)) // cache miss
-    {
-      firstCachedSector = sectorNum;
-      cacheOffset = 0;
-
-      ss = sectorSize;
-
-      offset = sectorNum;
-      offset *= ss;
-      offset -= ss;
-
-      // Bias adjustment for 256 bytes
-      if (ss == 256)
-        offset -= 384;
-
-      offset += 16;
-
-#ifdef DEBUG
-      Debug_printf("firstCachedSector: %d\n", firstCachedSector);
-      Debug_printf("cacheOffset: %d\n", cacheOffset);
-      Debug_printf("offset: %d\n", offset);
-      Debug_printf("sectorSize: %d\n", sectorSize);
-#endif
-
-      _file->seek(offset); //tnfs_seek(deviceSlot, offset);
-
-      for (unsigned char i = 0; i < 10; i++)
-      {
-        int l = _file->read(sector, 256);
-        d = &sectorCache[cacheOffset];
-        memcpy(d, sector, 256);
-
-        if (l != -1)
-        {
-          cacheError[i] = false;
-        }
-        else
-        {
-          cacheError[i] = true;
-          invalidate_cache();
-          memset(&sectorCache, 0, sizeof(sectorCache));
-          err = true;
-        }
-        cacheOffset += 256;
-      }
-      cacheOffset = 0;
-    }
-    else // cache hit, adjust offset
-    {
-      if (sectorNum < 4)
-        ss = 128;
-      else
-        ss = sectorSize;
-
-      cacheSectorIndex = (sectorNum - firstCachedSector);
-      cacheOffset = (cacheSectorIndex * ss);
-
-      if (ss == 128)
-        cacheSetorIndexAdjust = 1;
-      else
-        cacheSetorIndexAdjust = 0;
-
-      err = cacheError[cacheSectorIndex >> cacheSetorIndexAdjust];
-
-#ifdef DEBUG
-      Debug_printf("sectorIndex: %d\n", cacheSectorIndex);
-      Debug_printf("cacheError: %d\n", cacheError[cacheSectorIndex]);
-      Debug_printf("cacheOffset: %d\n", cacheOffset);
-#endif
-    }
-    s = &sectorCache[cacheOffset];
-    memcpy(sector, s, ss);
+    // implement caching.
   }
 
+  // Send result to Atari
   sio_to_computer((byte *)&sector, ss, err);
+  lastSectorNum = sectorNum;
 }
 
 // write for W & P commands
-void sioDisk::sio_write()
+void sioDisk::sio_write(bool verify)
 {
-
+  unsigned short sectorNum = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
+  long offset = sector_offset(sectorNum, sectorSize);
+  unsigned short ss = sector_size(sectorNum, sectorSize);
   byte ck;
-  int ss; // sector size
-  int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  int sectorNum = offset;
-  // unsigned char deviceSlot = cmdFrame.devic - 0x31;
 
-  if (sectorNum < 4)
-  {
-    // First three sectors are always single density
-    offset *= 128;
-    offset -= 128;
-    offset += 16; // skip 16 byte ATR Header
-    ss = 128;
-  }
-  else
-  {
-    // First three sectors are always single density
-    offset *= sectorSize;
-    offset -= sectorSize;
-    ss = sectorSize;
-
-    // Bias adjustment for 256 bytes
-    if (ss == 256)
-      offset -= 384;
-
-    offset += 16; // skip 16 byte ATR Header
-  }
-
-  memset(sector, 0, 256); // clear buffer
+  memset(sector, 0, sizeof(sector));
 
   ck = sio_to_peripheral(sector, ss);
 
-  if (ck == sio_checksum(sector, ss))
+  if (ck != sio_checksum(sector, ss))
   {
-    if (_file->seek(offset)) // tnfs_seek(deviceSlot, offset);
-    {
-      size_t sz = _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
-      if (ss == sz)
-      {
-        _file->flush();
-        firstCachedSector = 65535; // invalidate cache
+    sio_error();
+    return;
+  }
 
-        sio_complete();
-        return;
-      }
+  if (sectorNum != (lastSectorNum + 1))
+  {
+    if (!_file->seek(offset))
+    {
+      sio_error();
+      return;
     }
   }
-  sio_error();
+
+  if (_file->write(sector, ss) != ss)
+  {
+    sio_error();
+    return;
+  }
+
+  _file->flush();
+
+  if (verify)
+  {
+    if (!_file->seek(offset))
+    {
+      sio_error();
+      return;
+    }
+
+    if (_file->read(sector,ss) != ss)
+    {
+      sio_error();
+      return;
+    }
+
+    if (sio_checksum(sector,ss) != ck)
+    {
+      sio_error();
+      return;
+    }
+  }
+
+  sio_complete();
+
+  lastSectorNum = sectorNum;
 }
 
 // Status
@@ -413,14 +321,17 @@ void sioDisk::sio_process()
     sio_ack();
     sio_read();
     break;
-  case 'W':
   case 'P':
     sio_ack();
-    sio_write();
+    sio_write(false);
     break;
   case 'S':
     sio_ack();
     sio_status();
+    break;
+  case 'W':
+    sio_ack();
+    sio_write(true);
     break;
   case '!':
   case '"':
@@ -482,7 +393,7 @@ void sioDisk::mount(File *f)
 // Invalidate disk cache
 void sioDisk::invalidate_cache()
 {
-  firstCachedSector = 65535;
+  // firstCachedSector = 65535;
 }
 
 // mount a disk file
@@ -584,4 +495,35 @@ bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short
 File *sioDisk::file()
 {
   return _file;
+}
+
+/**
+ * Calculate sector size
+ * sectorNum - Sector # (1-65535)
+ * sectorSize - Sector Size (128 or 256)
+ */
+long sector_offset(unsigned short sectorNum, unsigned short sectorSize)
+{
+  long offset = sectorNum;
+
+  offset *= sectorSize;
+  offset -= sectorSize;
+  offset += 16;
+  sectorSize = (sectorNum <= 3 ? 128 : sectorSize);
+
+  // Bias adjustment for 256 bytes
+  if (sectorSize == 256)
+    offset -= 384;
+
+  return offset;
+}
+
+/**
+ * Return sector size
+ * sectorNum - Sector # (1-65535)
+ * sectorSize - Sector Size (128 or 256)
+ */
+unsigned short sector_size(unsigned short sectorNum, unsigned short sectorSize)
+{
+  return (sectorNum <= 3 ? 128 : sectorSize);
 }
