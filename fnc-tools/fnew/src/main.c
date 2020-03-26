@@ -377,9 +377,8 @@ int main(int argc, char* argv[])
   print("\x9b");
   print("CREATING DISK\x9b");
   disk_create(ns,ss,hs,ds,buf);
+  disk_write();
   
-  // Mount the disk.
-  disk_mount(ds,3);
 
   print("D");
   printc(&dsa);
