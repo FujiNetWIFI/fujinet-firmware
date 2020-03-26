@@ -70,7 +70,7 @@ void sioDisk::sio_read()
 }
 
 // write for W & P commands
-void sioDisk::sio_write()
+void sioDisk::sio_write(bool verify)
 {
   unsigned short sectorNum = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
   long offset = sector_offset(sectorNum, sectorSize);
@@ -103,6 +103,28 @@ void sioDisk::sio_write()
   }
 
   _file->flush();
+
+  if (verify)
+  {
+    if (!_file->seek(offset))
+    {
+      sio_error();
+      return;
+    }
+
+    if (_file->read(sector,ss) != ss)
+    {
+      sio_error();
+      return;
+    }
+
+    if (sio_checksum(sector,ss) != ck)
+    {
+      sio_error();
+      return;
+    }
+  }
+
   sio_complete();
 
   lastSectorNum = sectorNum;
@@ -299,14 +321,17 @@ void sioDisk::sio_process()
     sio_ack();
     sio_read();
     break;
-  case 'W':
   case 'P':
     sio_ack();
-    sio_write();
+    sio_write(false);
     break;
   case 'S':
     sio_ack();
     sio_status();
+    break;
+  case 'W':
+    sio_ack();
+    sio_write(true);
     break;
   case '!':
   case '"':

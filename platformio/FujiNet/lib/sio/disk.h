@@ -57,7 +57,7 @@ private:
     } percomBlock;
 
     void sio_read();
-    void sio_write();
+    void sio_write(bool verify);
     void sio_format();
     void sio_status() override;
     void sio_process() override;
