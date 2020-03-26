@@ -53,7 +53,7 @@ void sioDisk::sio_read()
 
   if (sectorNum <= UNCACHED_REGION)
   {
-    if (sectorNum != (lastSectorNumRead + 1))
+    if (sectorNum != (lastSectorNum + 1))
       err = !(_file->seek(offset));
 
     if (!err)
@@ -61,69 +61,51 @@ void sioDisk::sio_read()
   }
   else // Cached
   {
-    int ws = (sectorNum) & 3;
-    int we = (sectorNum + 4) & 3;
-
-    
+    // implement caching.
   }
 
   // Send result to Atari
   sio_to_computer((byte *)&sector, ss, err);
-  lastSectorNumRead = sectorNum;
+  lastSectorNum = sectorNum;
 }
 
 // write for W & P commands
 void sioDisk::sio_write()
 {
-
+  unsigned short sectorNum = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
+  long offset = sector_offset(sectorNum, sectorSize);
+  unsigned short ss = sector_size(sectorNum, sectorSize);
   byte ck;
-  int ss; // sector size
-  int offset = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-  int sectorNum = offset;
-  // unsigned char deviceSlot = cmdFrame.devic - 0x31;
 
-  if (sectorNum < 4)
-  {
-    // First three sectors are always single density
-    offset *= 128;
-    offset -= 128;
-    offset += 16; // skip 16 byte ATR Header
-    ss = 128;
-  }
-  else
-  {
-    // First three sectors are always single density
-    offset *= sectorSize;
-    offset -= sectorSize;
-    ss = sectorSize;
-
-    // Bias adjustment for 256 bytes
-    if (ss == 256)
-      offset -= 384;
-
-    offset += 16; // skip 16 byte ATR Header
-  }
-
-  memset(sector, 0, 256); // clear buffer
+  memset(sector, 0, sizeof(sector));
 
   ck = sio_to_peripheral(sector, ss);
 
-  if (ck == sio_checksum(sector, ss))
+  if (ck != sio_checksum(sector, ss))
   {
-    if (_file->seek(offset)) // tnfs_seek(deviceSlot, offset);
-    {
-      size_t sz = _file->write(sector, ss); // tnfs_write(deviceSlot, ss);
-      if (ss == sz)
-      {
-        _file->flush();
-        // firstCachedSector = 65535; // invalidate cache
+    sio_error();
+    return;
+  }
 
-        sio_complete();
-        return;
-      }
+  if (sectorNum != (lastSectorNum + 1))
+  {
+    if (!_file->seek(offset))
+    {
+      sio_error();
+      return;
     }
   }
-  sio_error();
+
+  if (_file->write(sector, ss) != ss)
+  {
+    sio_error();
+    return;
+  }
+
+  _file->flush();
+  sio_complete();
+
+  lastSectorNum = sectorNum;
 }
 
 // Status

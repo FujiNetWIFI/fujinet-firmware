@@ -38,8 +38,7 @@ private:
     byte sector[256];
 
     byte sectorCache[4][256];
-    unsigned short lastSectorNumRead = 65535;
-    unsigned short lastSectorNumWrite = 65535;
+    unsigned short lastSectorNum = 65535;
 
     struct
     {
