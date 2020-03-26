@@ -61,7 +61,7 @@ tnfsSessionID_t TNFSImpl::sid()
     }
   }
 #ifdef DEBUG
-  Debug_printf("session id: %hhu %hhu\n", _sid.session_idh, _sid.session_idl);
+  Debug_printf("session id: 0x%04x\n", _sid.session_idh * 256 + _sid.session_idl);
 #endif
   return _sid;
 }
@@ -381,116 +381,119 @@ void tnfs_debug_packet(unsigned short len, bool isResponse)
     Debug_printf("%02x ", tnfsPacket.rawData[i]);
   Debug_printf("\n");
 
-  Debug_printf("TNFS Return Code: ");
-  switch (tnfsPacket.data[0])
+  if (isResponse)
   {
-  case 0x00:
-    Debug_printf("Success.");
-    break;
-  case 0x01:
-    Debug_printf("EPERM: Operation not Permitted.");
-    break;
-  case 0x02:
-    Debug_printf("ENOENT: No such file or directory.");
-    break;
-  case 0x03:
-    Debug_printf("EIO: I/O Error");
-    break;
-  case 0x04:
-    Debug_printf("ENXIO: No such device or address");
-    break;
-  case 0x05:
-    Debug_printf("E2BIG: Argument list too long");
-    break;
-  case 0x06:
-    Debug_printf("EBADF: Bad File Number");
-    break;
-  case 0x07:
-    Debug_printf("EAGAIN: Try Again");
-    break;
-  case 0x08:
-    Debug_printf("ENOMEM: Out of memory");
-    break;
-  case 0x09:
-    Debug_printf("EACCES: Permission denied.");
-    break;
-  case 0x0A:
-    Debug_printf("EBUSY: Device or resource busy.");
-    break;
-  case 0x0B:
-    Debug_printf("EEXIST: File Exists");
-    break;
-  case 0x0C:
-    Debug_printf("ENOTDIR: Is not a directory.");
-    break;
-  case 0x0D:
-    Debug_printf("EISDIR: Is a directory.");
-    break;
-  case 0x0E:
-    Debug_printf("EINVAL: Invalid Argument.");
-    break;
-  case 0x0F:
-    Debug_printf("ENFILE: File table overflow.");
-    break;
-  case 0x10:
-    Debug_printf("EMFILE: Too many open files.");
-    break;
-  case 0x11:
-    Debug_printf("EFBIG: File too large.");
-    break;
-  case 0x12:
-    Debug_printf("ENOSPC: No space left on device.");
-    break;
-  case 0x13:
-    Debug_printf("ESPIPE: Attempt to seek on a FIFO or pipe.");
-    break;
-  case 0x14:
-    Debug_printf("EROFS: Read only filesystem.");
-    break;
-  case 0x15:
-    Debug_printf("ENAMETOOLONG: Filename too long.");
-    break;
-  case 0x16:
-    Debug_printf("ENOSYS: Function not implemented.");
-    break;
-  case 0x17:
-    Debug_printf("ENOTEMPTY: Directory not empty.");
-    break;
-  case 0x18:
-    Debug_printf("ELOOP: Too many symbolic links.");
-    break;
-  case 0x19:
-    Debug_printf("ENODATA: No data available.");
-    break;
-  case 0x1A:
-    Debug_printf("ENOSTR: Out of streams resources.");
-    break;
-  case 0x1B:
-    Debug_printf("EPROTO: Protocol Error");
-    break;
-  case 0x1C:
-    Debug_printf("EBADFD: File descriptor in bad state.");
-    break;
-  case 0x1D:
-    Debug_printf("EUSERS: Too many users.");
-    break;
-  case 0x1E:
-    Debug_printf("ENOBUFS: No buffer space avaialable.");
-    break;
-  case 0x1F:
-    Debug_printf("EALREADY: Operation already in progress.");
-    break;
-  case 0x20:
-    Debug_printf("ESTALE: Stale TNFS handle.");
-    break;
-  case 0x21:
-    Debug_printf("EOF!");
-    break;
-  case 0xFF:
-    Debug_printf("Invalid TNFS Handle");
-    break;
+    Debug_printf("TNFS Return Code: ");
+    switch (tnfsPacket.data[0])
+    {
+    case 0x00:
+      Debug_printf("Success.");
+      break;
+    case 0x01:
+      Debug_printf("EPERM: Operation not Permitted.");
+      break;
+    case 0x02:
+      Debug_printf("ENOENT: No such file or directory.");
+      break;
+    case 0x03:
+      Debug_printf("EIO: I/O Error");
+      break;
+    case 0x04:
+      Debug_printf("ENXIO: No such device or address");
+      break;
+    case 0x05:
+      Debug_printf("E2BIG: Argument list too long");
+      break;
+    case 0x06:
+      Debug_printf("EBADF: Bad File Number");
+      break;
+    case 0x07:
+      Debug_printf("EAGAIN: Try Again");
+      break;
+    case 0x08:
+      Debug_printf("ENOMEM: Out of memory");
+      break;
+    case 0x09:
+      Debug_printf("EACCES: Permission denied.");
+      break;
+    case 0x0A:
+      Debug_printf("EBUSY: Device or resource busy.");
+      break;
+    case 0x0B:
+      Debug_printf("EEXIST: File Exists");
+      break;
+    case 0x0C:
+      Debug_printf("ENOTDIR: Is not a directory.");
+      break;
+    case 0x0D:
+      Debug_printf("EISDIR: Is a directory.");
+      break;
+    case 0x0E:
+      Debug_printf("EINVAL: Invalid Argument.");
+      break;
+    case 0x0F:
+      Debug_printf("ENFILE: File table overflow.");
+      break;
+    case 0x10:
+      Debug_printf("EMFILE: Too many open files.");
+      break;
+    case 0x11:
+      Debug_printf("EFBIG: File too large.");
+      break;
+    case 0x12:
+      Debug_printf("ENOSPC: No space left on device.");
+      break;
+    case 0x13:
+      Debug_printf("ESPIPE: Attempt to seek on a FIFO or pipe.");
+      break;
+    case 0x14:
+      Debug_printf("EROFS: Read only filesystem.");
+      break;
+    case 0x15:
+      Debug_printf("ENAMETOOLONG: Filename too long.");
+      break;
+    case 0x16:
+      Debug_printf("ENOSYS: Function not implemented.");
+      break;
+    case 0x17:
+      Debug_printf("ENOTEMPTY: Directory not empty.");
+      break;
+    case 0x18:
+      Debug_printf("ELOOP: Too many symbolic links.");
+      break;
+    case 0x19:
+      Debug_printf("ENODATA: No data available.");
+      break;
+    case 0x1A:
+      Debug_printf("ENOSTR: Out of streams resources.");
+      break;
+    case 0x1B:
+      Debug_printf("EPROTO: Protocol Error");
+      break;
+    case 0x1C:
+      Debug_printf("EBADFD: File descriptor in bad state.");
+      break;
+    case 0x1D:
+      Debug_printf("EUSERS: Too many users.");
+      break;
+    case 0x1E:
+      Debug_printf("ENOBUFS: No buffer space avaialable.");
+      break;
+    case 0x1F:
+      Debug_printf("EALREADY: Operation already in progress.");
+      break;
+    case 0x20:
+      Debug_printf("ESTALE: Stale TNFS handle.");
+      break;
+    case 0x21:
+      Debug_printf("EOF!");
+      break;
+    case 0xFF:
+      Debug_printf("Invalid TNFS Handle");
+      break;
+    }
+    Debug_printf("\n");
   }
-  Debug_printf("\n");
 #endif /* DEBUG */
 }
 
@@ -543,7 +546,7 @@ bool tnfs_transaction(const char *host, unsigned short port, unsigned short len)
         {
 #ifdef DEBUG
           Debug_printf("XXX OUT OF ORDER SEQUENCE! IGNORING.\n");
-#endif 
+#endif
           // Fall through and let retry logic handle it.
         }
         else
