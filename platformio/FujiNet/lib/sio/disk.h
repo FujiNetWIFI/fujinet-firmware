@@ -11,6 +11,8 @@ extern int command_frame_counter;
 // Normally, this is set to 3 to not cache the first three sectors, which
 // may be only 128 bytes compared to 256 bytes for double density images.
 // If you set this to 65535, then the cache is completely disabled.
+// Please do not change this value yet, the cache has been ripped out
+// due to be rewritten.
 #define UNCACHED_REGION 65535
 
 #define ATARISIO_ATARI_FREQUENCY_PAL 1773447
