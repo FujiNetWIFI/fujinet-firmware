@@ -4,9 +4,14 @@
 3 0 obj <</Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 612 792] /Contents 6 0 R >> endobj
 4 0 obj <</Font <</F1 5 0 R>>>> endobj
 5 0 obj <</Type /Font /Subtype /Type1 /BaseFont /Courier>> endobj
-6 0 obj <</Length 624>> stream
+6 0 obj <</Length 717>> stream
+BT
+/F1 12 Tf
+175 520 Td
+(Hello World 1!) Tj
+ET
 q
-216 0 0 6 18 750 cm
+240 0 0 6 18 750 cm
 BI
  /W 240
  /H 6
@@ -20,9 +25,15 @@ ID
 00 00 00 00 00 00 60 00 18 18 66 60 00 6E 00 18 3C 18 66 66 66 6B 18 66 00 18 3E 00 18 3C
 55 55 55 55 00 00 60 00 0C 00 7C 60 00 76 00 18 66 00 66 7C 66 7F 18 66 00 0C 06 00 18 66
 00 00 00 00 00 00 66 18 66 18 60 60 18 66 18 18 66 18 6C 6C 7E 77 18 66 00 66 0C 18 18 66
-55 55 55 55 00 00 3C 18 3C 18 60 7E 18 3C 18 7E 3C 18 78 66 66 63 18 3C 00 3C 38 18 7E 3C >
+55 55 55 55 00 00 3C 18 3C 18 60 7E 18 3C 18 7E 3C 18 78 66 66 63 18 3C 00 3C 38 18 7E 3C
+>
 EI
 Q
+BT
+/F1 12 Tf
+175 320 Td
+(Hello World 2!) Tj
+ET
 endstream
 endobj
 xref
@@ -36,5 +47,5 @@ xref
 0000000319 00000 n
 trailer <</Size 7/Root 1 0 R>>
 startxref
-991
+1084
 %%EOF
