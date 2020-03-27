@@ -53,16 +53,6 @@ void host_read(void)
 }
 
 /**
- * Clear up to status bar for DOS 3
- */
-void dos3_clear(void)
-{
-  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
-  print("\xCC\xE9\xF3\XF4\xA0\xC8\xEF\xF3\xf4\xA0\xD3\xec\xef\xf4\xf3\x9b\x9b"); // List Host Slots
-  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
-}
-
-/**
  * main
  */
 int main(void)
@@ -75,9 +65,6 @@ int main(void)
   host_read();
 
   print("\x9b");
-
-  if (PEEK(0x718)==53)
-    dos3_clear();
 
   for (i=0;i<8;i++)
     {
@@ -100,7 +87,7 @@ int main(void)
 
   if (!_is_cmdline_dos())
     {
-      print("\x9bPRESS \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CONTINUE.\x9b");
+      print("\x9bPRESS \xD2\xC5\xD4\xD5\xD2\xCE TO CONTINUE.\x9b");
       get_line(buf,sizeof(buf));
     }  
   

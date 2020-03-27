@@ -61,16 +61,6 @@ void adapter_config(void)
 }
 
 /**
- * Clear up to status bar for DOS 3
- */
-void dos3_clear(void)
-{
-  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
-  print("\xa3\xc6\xf5\xea\xe9\xce\xe5\xf4\xa0\xce\xe5\xf4\xf7\xef\xf2\xeb\xa0\xC3\xef\xee\xe6\xe9\xe7\xf5\xf2\xe1\xf4\xe9\xef\xee\x9b\x9b"); // #FujiNet Network Configuration
-  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
-}
-
-/**
  * print a dotted quad address
  */
 void print_address(unsigned char* address)
@@ -129,9 +119,6 @@ int main(void)
 
   print("\x9b");
 
-  if (PEEK(0x718)==53)
-    dos3_clear();
-  
   print("           SSID: ");
   print(adapterConfig.ssid);
   print("\x9b");
@@ -163,7 +150,7 @@ int main(void)
 
   if (!_is_cmdline_dos())
     {
-      print("\x9bPRESS \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CONTINUE.\x9b");
+      print("\x9bPRESS \xD2\xC5\xD4\xD5\xD2\xCE TO CONTINUE.\x9b");
       get_line(buf,sizeof(buf));
     }
   
