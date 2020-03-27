@@ -142,16 +142,6 @@ void opts(char* argv[])
 }
 
 /**
- * Clear up to status bar for DOS 3
- */
-void dos3_clear(void)
-{
-  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
-  print("\xC5\xea\xe5\xe3\xf4\xa0\xc4\xe9\xf3\xeb\xa0\xc9\xed\xe1\xe7\xe5\x9b\x9b"); // Eject Disk Image
-  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
-}
-
-/**
  * main
  */
 int main(int argc, char* argv[])
@@ -173,9 +163,6 @@ int main(int argc, char* argv[])
       // DOS 2.0/MYDOS
       print("\x9b");
 
-      if (PEEK(0x718)==53)
-	dos3_clear();
-      
       print("EJECT FROM WHICH DEVICE SLOT? ");
       get_line(buf,sizeof(buf));
       s=buf[0]-0x30;
@@ -220,7 +207,7 @@ int main(int argc, char* argv[])
 
   if (!_is_cmdline_dos())
     {
-      print("\x9bPRESS \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CONTINUE.\x9b");
+      print("\x9bPRESS \xD2\xC5\xD4\xD5\xD2\xCE TO CONTINUE.\x9b");
       get_line(buf,sizeof(buf));
     }
   
