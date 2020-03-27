@@ -113,16 +113,6 @@ void opts(char* argv[])
 }
 
 /**
- * Clear up to status bar for DOS 3
- */
-void dos3_clear(void)
-{
-  print("\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c\x1c");
-  print("\xc3\xe8\xe1\xee\xe7\xe5\xaf\xC3\xec\xe5\xe1\xf2\xa0\xc8\xef\xf3\xf4\xa0\xD3\xec\xef\xf4\x9b\x9b"); // Change/Clear Host Slot
-  print("\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c\x9c");
-}
-
-/**
  * main
  */
 int main(int argc, char* argv[])
@@ -147,9 +137,6 @@ int main(int argc, char* argv[])
       // DOS 2.0
       print("\x9b");
 
-      if (PEEK(0x718)==53)
-	dos3_clear();
-      
       print("WHICH HOST SLOT (1-8)? ");
       get_line(buf,sizeof(buf));
       sa=buf[0];
@@ -199,7 +186,7 @@ int main(int argc, char* argv[])
 
   if (!_is_cmdline_dos())
     {
-      print("\x9bPRESS \xA0\xD2\xC5\xD4\xD5\xD2\xCE\xA0 TO CONTINUE.\x9b");
+      print("\x9bPRESS \xD2\xC5\xD4\xD5\xD2\xCE TO CONTINUE.\x9b");
       get_line(buf,sizeof(buf));
     }  
   

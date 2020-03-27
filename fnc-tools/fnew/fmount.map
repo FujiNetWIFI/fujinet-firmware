@@ -1,42 +1,42 @@
 Modules list:
 -------------
 main.o:
-    CODE              Offs=000000  Size=000609  Align=00001  Fill=0000
-    RODATA            Offs=000000  Size=000255  Align=00001  Fill=0000
+    CODE              Offs=000000  Size=0005EA  Align=00001  Fill=0000
+    RODATA            Offs=000000  Size=00022C  Align=00001  Fill=0000
     BSS               Offs=000000  Size=0002AA  Align=00001  Fill=0000
 err.o:
-    CODE              Offs=000609  Size=00002E  Align=00001  Fill=0000
-    RODATA            Offs=000255  Size=00004D  Align=00001  Fill=0000
+    CODE              Offs=0005EA  Size=00002E  Align=00001  Fill=0000
+    RODATA            Offs=00022C  Size=00004D  Align=00001  Fill=0000
 conio.o:
-    CODE              Offs=000637  Size=0000B6  Align=00001  Fill=0000
+    CODE              Offs=000618  Size=0000B6  Align=00001  Fill=0000
 cio.o:
-    CODE              Offs=0006ED  Size=000006  Align=00001  Fill=0000
+    CODE              Offs=0006CE  Size=000006  Align=00001  Fill=0000
 sio.o:
-    CODE              Offs=0006F3  Size=000004  Align=00001  Fill=0000
+    CODE              Offs=0006D4  Size=000004  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(addysp.o):
-    CODE              Offs=0006F7  Size=00000E  Align=00001  Fill=0000
+    CODE              Offs=0006D8  Size=00000E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(aslax1.o):
-    CODE              Offs=000705  Size=000008  Align=00001  Fill=0000
+    CODE              Offs=0006E6  Size=000008  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(aslax4.o):
-    CODE              Offs=00070D  Size=000011  Align=00001  Fill=0000
+    CODE              Offs=0006EE  Size=000011  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(atoi.o):
-    CODE              Offs=00071E  Size=000096  Align=00001  Fill=0000
+    CODE              Offs=0006FF  Size=000096  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(callmain.o):
-    CODE              Offs=0007B4  Size=000017  Align=00001  Fill=0000
+    CODE              Offs=000795  Size=000017  Align=00001  Fill=0000
     DATA              Offs=000000  Size=000004  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(condes.o):
-    CODE              Offs=0007CB  Size=00000C  Align=00001  Fill=0000
+    CODE              Offs=0007AC  Size=00000C  Align=00001  Fill=0000
     DATA              Offs=000004  Size=000025  Align=00001  Fill=0000
     ONCE              Offs=000000  Size=00000C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(crt0.o):
     BSS               Offs=0002AA  Size=000005  Align=00001  Fill=0000
     STARTUP           Offs=000000  Size=000063  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(ctype.o):
-    RODATA            Offs=0002A2  Size=000100  Align=00001  Fill=0000
+    RODATA            Offs=000279  Size=000100  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decaxy.o):
-    CODE              Offs=0007D7  Size=000009  Align=00001  Fill=0000
+    CODE              Offs=0007B8  Size=000009  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decsp1.o):
-    CODE              Offs=0007E0  Size=000009  Align=00001  Fill=0000
+    CODE              Offs=0007C1  Size=000009  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(dosdetect.o):
     DATA              Offs=000029  Size=000001  Align=00001  Fill=0000
     ONCE              Offs=00000C  Size=00004B  Align=00001  Fill=0000
@@ -49,43 +49,43 @@ sio.o:
     ONCE              Offs=000057  Size=0000A0  Align=00001  Fill=0000
     INIT              Offs=000000  Size=000063  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incax2.o):
-    CODE              Offs=0007E9  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=0007CA  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp1.o):
-    CODE              Offs=0007F0  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=0007D1  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp2.o):
-    CODE              Offs=0007F7  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=0007D8  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp4.o):
-    CODE              Offs=00080D  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=0007EE  Size=000005  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp8.o):
-    CODE              Offs=000812  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=0007F3  Size=000005  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(is_cmdline_dos.o):
-    CODE              Offs=000817  Size=000009  Align=00001  Fill=0000
+    CODE              Offs=0007F8  Size=000009  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(ldaxi.o):
-    CODE              Offs=000820  Size=00000D  Align=00001  Fill=0000
+    CODE              Offs=000801  Size=00000D  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(ldaxsp.o):
-    CODE              Offs=00082D  Size=000009  Align=00001  Fill=0000
+    CODE              Offs=00080E  Size=000009  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(leaaxsp.o):
-    CODE              Offs=000836  Size=00000C  Align=00001  Fill=0000
+    CODE              Offs=000817  Size=00000C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(lneg.o):
-    CODE              Offs=000842  Size=00001E  Align=00001  Fill=0000
+    CODE              Offs=000823  Size=00001E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(mul8.o):
-    CODE              Offs=000860  Size=00003A  Align=00001  Fill=0000
+    CODE              Offs=000841  Size=00003A  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(popptr1.o):
-    CODE              Offs=00089A  Size=00000E  Align=00001  Fill=0000
+    CODE              Offs=00087B  Size=00000E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(pusha.o):
-    CODE              Offs=0008A8  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=000889  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(pushax.o):
-    CODE              Offs=0008BE  Size=00001A  Align=00001  Fill=0000
+    CODE              Offs=00089F  Size=00001A  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(pushwsp.o):
-    CODE              Offs=0008D8  Size=00001C  Align=00001  Fill=0000
+    CODE              Offs=0008B9  Size=00001C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(staxsp.o):
-    CODE              Offs=0008F4  Size=00000B  Align=00001  Fill=0000
+    CODE              Offs=0008D5  Size=00000B  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(strcpy.o):
-    CODE              Offs=0008FF  Size=00001F  Align=00001  Fill=0000
+    CODE              Offs=0008E0  Size=00001F  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(strlen.o):
-    CODE              Offs=00091E  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=0008FF  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(zerobss.o):
-    CODE              Offs=000934  Size=000023  Align=00001  Fill=0000
+    CODE              Offs=000915  Size=000023  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(zeropage.o):
     ZEROPAGE          Offs=000000  Size=00001A  Align=00001  Fill=0000
 
@@ -100,50 +100,50 @@ MAINHDR               000000  000003  000004  00001
 ZEROPAGE              000082  00009B  00001A  00001
 STARTUP               004000  004062  000063  00001
 ONCE                  004063  00415D  0000FB  00001
-CODE                  00415E  004AB4  000957  00001
-RODATA                004AB5  004E56  0003A2  00001
-DATA                  004E57  004E80  00002A  00001
-INIT                  004E81  004EE3  000063  00001
-BSS                   004EE4  005192  0002AF  00001
+CODE                  00415E  004A95  000938  00001
+RODATA                004A96  004E0E  000379  00001
+DATA                  004E0F  004E38  00002A  00001
+INIT                  004E39  004E9B  000063  00001
+BSS                   004E9C  00514A  0002AF  00001
 
 
 Exports list by name:
 ---------------------
-__AUTOSTART__             000001 REA    __BSS_LOAD__              004EE4 RLA    
-__BSS_RUN__               004EE4 RLA    __BSS_SIZE__              0002AF REA    
+__AUTOSTART__             000001 REA    __BSS_LOAD__              004E9C RLA    
+__BSS_RUN__               004E9C RLA    __BSS_SIZE__              0002AF REA    
 __CONSTRUCTOR_COUNT__     000002 REA    __CONSTRUCTOR_TABLE__     00415A RLA    
-__DESTRUCTOR_COUNT__      000000 REA    __DESTRUCTOR_TABLE__      004E57 RLA    
+__DESTRUCTOR_COUNT__      000000 REA    __DESTRUCTOR_TABLE__      004E0F RLA    
 __EXEHDR__                000001 REA    __LOWCODE_RUN__           004063 RLA    
 __LOWCODE_SIZE__          000000 REA    __MAIN_START__            004000 RLA    
 __RESERVED_MEMORY__       000000 REA    __STACKSIZE__             000800 REA    
-__STARTUP__               000001 REA    __argc                    004E57 RLA    
-__argv                    004E59 RLA    __ctype                   004D57 RLA    
-__dos_type                004E80 RLA    __is_cmdline_dos          004975 RLA    
-_atoi                     00487C RLA    _ciov                     00484B RLA    
-_err_sio                  004767 RLA    _exit                     004041 RLA    
-_get_line                 0047E5 RLA    _main                     0043C2 RLA    
-_print                    004795 RLA    _printc                   0047C2 RLA    
-_siov                     004851 RLA    _strcpy                   004A5D RLA    
-_strlen                   004A7C RLA    addysp                    004856 RLA    
-aslax1                    004863 RLA    aslax4                    00486B RLA    
-callmain                  004912 RLA    decaxy                    004935 RLA    
-decsp1                    00493E RLA    detect                    00406F  LAI   
-donelib                   004929 RLA    incax2                    004947 RLA    
-incsp1                    00494E RLA    incsp2                    00495D RLA    
-incsp4                    00496B RLA    incsp8                    004970 RLA    
+__STARTUP__               000001 REA    __argc                    004E0F RLA    
+__argv                    004E11 RLA    __ctype                   004D0F RLA    
+__dos_type                004E38 RLA    __is_cmdline_dos          004956 RLA    
+_atoi                     00485D RLA    _ciov                     00482C RLA    
+_err_sio                  004748 RLA    _exit                     004041 RLA    
+_get_line                 0047C6 RLA    _main                     0043AD RLA    
+_print                    004776 RLA    _printc                   0047A3 RLA    
+_siov                     004832 RLA    _strcpy                   004A3E RLA    
+_strlen                   004A5D RLA    addysp                    004837 RLA    
+aslax1                    004844 RLA    aslax4                    00484C RLA    
+callmain                  0048F3 RLA    decaxy                    004916 RLA    
+decsp1                    00491F RLA    detect                    00406F  LAI   
+donelib                   00490A RLA    incax2                    004928 RLA    
+incsp1                    00492F RLA    incsp2                    00493E RLA    
+incsp4                    00494C RLA    incsp8                    004951 RLA    
 initlib                   004063 RLA    initmainargs              0040BB RLAI   
-ldax0sp                   00498B RLA    ldaxi                     00497E RLA    
-ldaxidx                   004980 RLA    ldaxysp                   00498D RLA    
-leaa0sp                   004994 RLA    negeax                    0049A0 RLA    
-popax                     004955 RLA    popptr1                   0049F8 RLA    
+ldax0sp                   00496C RLA    ldaxi                     00495F RLA    
+ldaxidx                   004961 RLA    ldaxysp                   00496E RLA    
+leaa0sp                   004975 RLA    negeax                    004981 RLA    
+popax                     004936 RLA    popptr1                   0049D9 RLA    
 ptr1                      00008A RLZ    ptr2                      00008C RLZ    
-ptr4                      000090 RLZ    pusha                     004A0A RLA    
-pusha0                    004A1E RLA    pushax                    004A20 RLA    
-pushwysp                  004A38 RLA    sp                        000082 RLZ    
+ptr4                      000090 RLZ    pusha                     0049EB RLA    
+pusha0                    0049FF RLA    pushax                    004A01 RLA    
+pushwysp                  004A19 RLA    sp                        000082 RLZ    
 sreg                      000084 RLZ    start                     004001 RLA    
-stax0sp                   004A52 RLA    staxysp                   004A54 RLA    
-tmp1                      000092 RLZ    tosmula0                  0049BE RLA    
-zerobss                   004A92 RLA    
+stax0sp                   004A33 RLA    staxysp                   004A35 RLA    
+tmp1                      000092 RLZ    tosmula0                  00499F RLA    
+zerobss                   004A73 RLA    
 
 
 Exports list by value:
@@ -157,32 +157,32 @@ ptr2                      00008C RLZ    ptr4                      000090 RLZ
 tmp1                      000092 RLZ    __BSS_SIZE__              0002AF REA    
 __STACKSIZE__             000800 REA    __MAIN_START__            004000 RLA    
 start                     004001 RLA    _exit                     004041 RLA    
-initlib                   004063 RLA    __LOWCODE_RUN__           004063 RLA    
+__LOWCODE_RUN__           004063 RLA    initlib                   004063 RLA    
 detect                    00406F  LAI   initmainargs              0040BB RLAI   
-__CONSTRUCTOR_TABLE__     00415A RLA    _main                     0043C2 RLA    
-_err_sio                  004767 RLA    _print                    004795 RLA    
-_printc                   0047C2 RLA    _get_line                 0047E5 RLA    
-_ciov                     00484B RLA    _siov                     004851 RLA    
-addysp                    004856 RLA    aslax1                    004863 RLA    
-aslax4                    00486B RLA    _atoi                     00487C RLA    
-callmain                  004912 RLA    donelib                   004929 RLA    
-decaxy                    004935 RLA    decsp1                    00493E RLA    
-incax2                    004947 RLA    incsp1                    00494E RLA    
-popax                     004955 RLA    incsp2                    00495D RLA    
-incsp4                    00496B RLA    incsp8                    004970 RLA    
-__is_cmdline_dos          004975 RLA    ldaxi                     00497E RLA    
-ldaxidx                   004980 RLA    ldax0sp                   00498B RLA    
-ldaxysp                   00498D RLA    leaa0sp                   004994 RLA    
-negeax                    0049A0 RLA    tosmula0                  0049BE RLA    
-popptr1                   0049F8 RLA    pusha                     004A0A RLA    
-pusha0                    004A1E RLA    pushax                    004A20 RLA    
-pushwysp                  004A38 RLA    stax0sp                   004A52 RLA    
-staxysp                   004A54 RLA    _strcpy                   004A5D RLA    
-_strlen                   004A7C RLA    zerobss                   004A92 RLA    
-__ctype                   004D57 RLA    __DESTRUCTOR_TABLE__      004E57 RLA    
-__argc                    004E57 RLA    __argv                    004E59 RLA    
-__dos_type                004E80 RLA    __BSS_RUN__               004EE4 RLA    
-__BSS_LOAD__              004EE4 RLA    
+__CONSTRUCTOR_TABLE__     00415A RLA    _main                     0043AD RLA    
+_err_sio                  004748 RLA    _print                    004776 RLA    
+_printc                   0047A3 RLA    _get_line                 0047C6 RLA    
+_ciov                     00482C RLA    _siov                     004832 RLA    
+addysp                    004837 RLA    aslax1                    004844 RLA    
+aslax4                    00484C RLA    _atoi                     00485D RLA    
+callmain                  0048F3 RLA    donelib                   00490A RLA    
+decaxy                    004916 RLA    decsp1                    00491F RLA    
+incax2                    004928 RLA    incsp1                    00492F RLA    
+popax                     004936 RLA    incsp2                    00493E RLA    
+incsp4                    00494C RLA    incsp8                    004951 RLA    
+__is_cmdline_dos          004956 RLA    ldaxi                     00495F RLA    
+ldaxidx                   004961 RLA    ldax0sp                   00496C RLA    
+ldaxysp                   00496E RLA    leaa0sp                   004975 RLA    
+negeax                    004981 RLA    tosmula0                  00499F RLA    
+popptr1                   0049D9 RLA    pusha                     0049EB RLA    
+pusha0                    0049FF RLA    pushax                    004A01 RLA    
+pushwysp                  004A19 RLA    stax0sp                   004A33 RLA    
+staxysp                   004A35 RLA    _strcpy                   004A3E RLA    
+_strlen                   004A5D RLA    zerobss                   004A73 RLA    
+__ctype                   004D0F RLA    __DESTRUCTOR_TABLE__      004E0F RLA    
+__argc                    004E0F RLA    __argv                    004E11 RLA    
+__dos_type                004E38 RLA    __BSS_RUN__               004E9C RLA    
+__BSS_LOAD__              004E9C RLA    
 
 
 Imports list:
@@ -255,33 +255,33 @@ _strlen (strlen.o):
 addysp (addysp.o):
     incsp8.o                  runtime/incsp8.s(8)
     incsp4.o                  runtime/incsp4.s(8)
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 aslax1 (aslax1.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 aslax4 (aslax4.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 callmain (callmain.o):
     crt0.o                    atari/crt0.s(15)
 decaxy (decaxy.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 decsp1 (decsp1.o):
     conio.o                   src/conio.s(136)
 donelib (condes.o):
     crt0.o                    atari/crt0.s(14)
 incax2 (incax2.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 incsp1 (incsp1.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 incsp2 (incsp2.o):
     popptr1.o                 runtime/popptr1.s(8)
     conio.o                   src/conio.s(136)
-    main.o                    src/main.s(913)
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
+    main.o                    src/main.s(879)
 incsp4 (incsp4.o):
     conio.o                   src/conio.s(136)
     conio.o                   src/conio.s(136)
 incsp8 (incsp8.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 initlib (condes.o):
     crt0.o                    atari/crt0.s(14)
 initmainargs (getargs.o):
@@ -289,19 +289,19 @@ initmainargs (getargs.o):
 ldax0sp (ldaxsp.o):
     conio.o                   src/conio.s(136)
     conio.o                   src/conio.s(136)
-    main.o                    src/main.s(913)
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
+    main.o                    src/main.s(879)
 ldaxi (ldaxi.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 ldaxidx (ldaxi.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 ldaxysp (ldaxsp.o):
     conio.o                   src/conio.s(136)
     conio.o                   src/conio.s(136)
-    main.o                    src/main.s(913)
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
+    main.o                    src/main.s(879)
 leaa0sp (leaaxsp.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 negeax (lneg.o):
     atoi.o                    common/atoi.s(9)
 popax (incsp2.o):
@@ -326,20 +326,20 @@ ptr4 (zeropage.o):
     mul8.o                    runtime/mul8.s(10)
 pusha (pusha.o):
     conio.o                   src/conio.s(136)
-    main.o                    src/main.s(913)
-    main.o                    src/main.s(913)
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
+    main.o                    src/main.s(879)
+    main.o                    src/main.s(879)
 pusha0 (pushax.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 pushax (pushax.o):
     callmain.o                runtime/callmain.s(11)
     conio.o                   src/conio.s(136)
     conio.o                   src/conio.s(136)
-    main.o                    src/main.s(913)
-    main.o                    src/main.s(913)
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
+    main.o                    src/main.s(879)
+    main.o                    src/main.s(879)
 pushwysp (pushwsp.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 sp (zeropage.o):
     staxsp.o                  runtime/staxsp.s(8)
     pushwsp.o                 runtime/pushwsp.s(8)
@@ -361,16 +361,16 @@ sreg (zeropage.o):
 start (crt0.o):
     exetrailer.o              atari/exetrailer.s(4)
 stax0sp (staxsp.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 staxysp (staxsp.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 tmp1 (zeropage.o):
     decaxy.o                  runtime/decaxy.s(8)
     atoi.o                    common/atoi.s(10)
     aslax4.o                  runtime/aslax4.s(8)
     aslax1.o                  runtime/aslax1.s(8)
 tosmula0 (mul8.o):
-    main.o                    src/main.s(913)
+    main.o                    src/main.s(879)
 zerobss (zerobss.o):
     crt0.o                    atari/crt0.s(15)
 
