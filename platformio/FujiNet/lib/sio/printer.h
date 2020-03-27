@@ -95,6 +95,7 @@ protected:
     bool BOLflag = true;
     double pdf_Y = 0; // down the page - lines in pts
     bool TOPflag = true;
+    bool textMode = true; 
     int pageObjects[256];
     int pdf_pageCounter = 0;
     size_t objLocations[256]; // reference table storage
@@ -167,11 +168,10 @@ public:
 class atari822 : public pdfPrinter
 {
 protected:
-    bool gfxFlag = false;
-
     void pdf_fonts();
     void pdf_handle_char(byte c);  // need a custom one to handle sideways printing
-    void pdf_add(std::string output);
+
+    int gfxNumber=0;
     
 public:
     void initPrinter(File *f);
