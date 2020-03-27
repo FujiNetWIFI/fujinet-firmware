@@ -30,21 +30,21 @@ void asciiPrinter::pdf_fonts()
 
 void atari1027::pdf_fonts()
 /*
-5 0 obj
-<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/PrestigeEliteNormal/Encoding/WinAnsiEncoding/FontDescriptor 6 0 R/FirstChar 32/LastChar 252/Widths 7 0 R>>
-endobj
-6 0 obj
-<</Type/FontDescriptor/FontName/PrestigeEliteNormal/Flags 33/ItalicAngle 0/Ascent 662/Descent -216/CapHeight 662/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 60/FontBBox[ -2 -216 625 662] >>
-endobj
-7 0 obj
-[ 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
-  600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
-  600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
-  600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
-  600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
-  600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
-  600 600 600 600 600 600 600 600]
-endobj
+  5 0 obj
+  <</Type/Font/Subtype/TrueType/Name/F1/BaseFont/PrestigeEliteNormal/Encoding/WinAnsiEncoding/FontDescriptor 6 0 R/FirstChar 32/LastChar 252/Widths 7 0 R>>
+  endobj
+  6 0 obj
+  <</Type/FontDescriptor/FontName/PrestigeEliteNormal/Flags 33/ItalicAngle 0/Ascent 662/Descent -216/CapHeight 662/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 60/FontBBox[ -2 -216 625 662] >>
+  endobj
+  7 0 obj
+  [ 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+    600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+    600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+    600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+    600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+    600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
+    600 600 600 600 600 600 600 600]
+  endobj
 */
 {
   // 3rd object: font catalog
@@ -77,19 +77,6 @@ endobj
 }
 
 void atari820::pdf_fonts()
-/*
-5 0 obj
-<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/mono5by7_820/Encoding/WinAnsiEncoding/FontDescriptor 6 0 R/FirstChar 32/LastChar 127/Widths 7 0 R>>
-endobj
-6 0 obj
-<</Type/FontDescriptor/FontName/mono5by7_820/Flags 33/ItalicAngle 0/Ascent 700/Descent 0/CapHeight 700/AvgWidth 600/MaxWidth 600/FontWeight 400/XHeight 250/StemV 50/FontBBox[ 0  0 700 700] >>
-endobj
-7 0 obj
-[600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
- 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600
- 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600  ] 
-endobj
-*/
 {
   // 3rd object: font catalog
   pdf_objCtr = 3;
@@ -114,7 +101,7 @@ endobj
   }
   _file->printf(" ]\nendobj\n");
 
-// 820 standard font
+  // 820 sideways font
   pdf_objCtr = 7;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("7 0 obj\n<</Type/Font/Subtype/TrueType/Name/F2/BaseFont/mono5by7asciiSideways/Encoding/WinAnsiEncoding/FontDescriptor 8 0 R/FirstChar 32/LastChar 127/Widths 9 0 R>>\nendobj\n");
@@ -131,7 +118,32 @@ endobj
       _file->printf("\n");
   }
   _file->printf(" ]\nendobj\n");
+}
 
+void atari822::pdf_fonts()
+{
+  // 3rd object: font catalog
+  pdf_objCtr = 3;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("3 0 obj\n<</Font << /F1 4 0 R >>>>\nendobj\n");
+
+  // 822 font
+  pdf_objCtr = 4;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/5x7-Monospace-CE/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
+  pdf_objCtr = 5;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/5x7-Monospace-CE/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 875.0/AvgWidth 750/MaxWidth 750/FontWeight 400/XHeight 625.0/StemV 87.4707/FontBBox[0.0 0.0 672.85156 1000.0] >>\nendobj\n");
+  pdf_objCtr = 6;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("6 0 obj\n[");
+  for (int i = 32; i < 128; i++)
+  {
+    _file->printf(" 750");
+    if ((i - 31) % 32 == 0)
+      _file->printf("\n");
+  }
+  _file->printf(" ]\nendobj\n");
 }
 
 void pdfPrinter::pdf_xref()
@@ -160,6 +172,18 @@ void pdfPrinter::pdf_xref()
   _file->printf("%%%%EOF\n");
 }
 
+void pdfPrinter::pdf_begin_text(double Y)
+{
+  // open new text object
+  _file->printf("BT\n");
+  TOPflag = false;
+  _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
+  _file->printf("%g %g Td\n", leftMargin, Y);
+  pdf_Y = Y; // reset print roller to top of page
+  pdf_X = 0; // set carriage to LHS
+  BOLflag = true;
+}
+
 void pdfPrinter::pdf_new_page()
 { // open a new page
   pdf_objCtr++;
@@ -170,24 +194,15 @@ void pdfPrinter::pdf_new_page()
   _file->printf("%d 0 R ", pdf_objCtr);
   _file->printf("]>>\nendobj\n");
 
-  // open new content stream and text object
+  // open content stream
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("%d 0 obj\n<</Length ", pdf_objCtr);
   idx_stream_length = _file->position();
   _file->printf("00000>>\nstream\n");
   idx_stream_start = _file->position();
-  _file->printf("BT\n");
 
-  TOPflag = false;
-  // set default font for the page
-  //if (fontHorizontalScaling != 100)
-  //  _file->printf("/F%u %u Tf %g Tz\n", fontNumber, fontSize, fontHorizontalScaling);
-  //else
-  _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
-  _file->printf("%g %g Td\n", leftMargin, pageHeight);
-  pdf_Y = pageHeight; // reset print roller to top of page
-  pdf_X = 0;          // set carriage to LHS
-  BOLflag = true;
+  // open new text object
+  pdf_begin_text(pageHeight);
 }
 
 void pdfPrinter::pdf_end_page()
@@ -236,7 +251,6 @@ void asciiPrinter::pdf_handle_char(byte c)
   }
 }
 
-//=====================================================================================
 void atari820::pdf_handle_char(byte c)
 {
   // Atari 820 modes:
@@ -257,18 +271,96 @@ void atari820::pdf_handle_char(byte c)
   // maybe printable character
   if (c > 31 && c < 127)
   {
-    if (c > 47)
+    if (!sideFlag || c > 47)
     {
-      if (c == BACKSLASH)
+      if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
         _file->write(BACKSLASH);
       _file->write(c);
     }
     else
-      _file->write(' ');
+    {
+      if (c < 48)
+        _file->write(' ');
+    }
 
     pdf_X += charWidth; // update x position
   }
 }
+
+//=====================================================================================
+
+void atari822::pdf_handle_char(byte c)
+{
+  // use PDF inline image to display line of graphics
+  /*
+ q
+240 0 0 1 18 750 cm
+BI
+ /W 240
+ /H 1
+ /CS /G
+ /BPC 1
+ /D [1 0]
+ /F /AHx
+ID
+00 00 00 00 00 00 3C 00 7E 00 7C 60 00 3C 00 18 3C 00 78 7C 18 63 7E 3C 00 7E 3C 00 18 3C
+>
+EI
+Q
+ */
+
+  // Atari 822 modes:
+  // command == 'W'   normal mode
+  // command == 'P'   graphics mode
+  if (cmdFrame.comnd == 'W' && !textMode)
+  {
+    textMode = true;
+    pdf_begin_text(pdf_Y); // open new text object
+    pdf_new_line();        // start new line of text (string array)
+  }
+  else if (cmdFrame.comnd == 'P' && textMode)
+  {
+    textMode = false;
+    if (!BOLflag)
+      pdf_end_line();      // close out string array
+    _file->printf("ET\n"); // close out text object
+  }
+
+  if (!textMode && BOLflag)
+  {
+    _file->printf("q\n %g 0 0 %g %g %g cm\n", printWidth, lineHeight / 10.0, leftMargin, pdf_Y);
+    _file->printf("BI\n /W 240\n /H 1\n /CS /G\n /BPC 1\n /D [1 0]\n /F /AHx\nID\n");
+    BOLflag = false;
+  }
+  if (!textMode)
+  {
+    if (gfxNumber < 30)
+      _file->printf(" %02X", c);
+
+    gfxNumber++;
+
+    if (gfxNumber == 40)
+    {
+      _file->printf("\n >\nEI\nQ\n");
+      pdf_Y -= lineHeight / 10.0;
+      BOLflag = true;
+      gfxNumber = 0;
+    }
+  }
+
+  // TODO: looks like auto wrapped lines are 1 dot apart and EOL lines are 3 dots apart
+
+  // simple ASCII printer
+  if (textMode && c > 31 && c < 127)
+  {
+    if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
+      _file->write(BACKSLASH);
+    _file->write(c);
+
+    pdf_X += charWidth; // update x position
+  }
+}
+
 //=====================================================================================
 
 void atari1027::pdf_handle_char(byte c)
@@ -334,6 +426,14 @@ void atari1027::pdf_handle_char(byte c)
 
 void pdfPrinter::pdf_add(std::string S)
 {
+  // algorithm for graphics:
+  // if textMode, then can do the regular stuff
+  // if !textMode, then don't deal with BOL, EOL.
+  // check for TOP always just in case.
+  // can graphics mode ignore over-flowing a page for now?
+  // textMode is set inside of pdf_handle_char at first character, so...
+  // need to test for textMode inside the loop
+
   if (TOPflag)
     pdf_new_page();
 
@@ -342,26 +442,31 @@ void pdfPrinter::pdf_add(std::string S)
   {
     byte c = byte(S[i]);
 
-    if (BOLflag && c == EOL)
-      pdf_new_line();
+    if (!textMode)
+    {
+      this->pdf_handle_char(c);
+    }
+    else
+    {
+      if (BOLflag && c == EOL)
+        pdf_new_line();
 
-    // check for EOL or if at end of line and need automatic CR
-    if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth))))
-      pdf_end_line();
+      // check for EOL or if at end of line and need automatic CR
+      if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth))))
+        pdf_end_line();
 
-    // start a new line if we need to
-    if (BOLflag)
-      pdf_new_line();
+      // start a new line if we need to
+      if (BOLflag)
+        pdf_new_line();
 
-    // disposition the current byte
-    this->pdf_handle_char(c);
+      // disposition the current byte
+      this->pdf_handle_char(c);
 
-#ifdef DEBUG_S
-    printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
-    //printf("TOP: %s  ", TOPflag ? "true " : "false");
-    //printf("BOL: %s  ", BOLflag ? "true " : "false");
-    printf("\n");
+#ifdef DEBUG
+      Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
+      Debug_printf("\n");
 #endif
+    }
   }
 
   // if wrote last line, then close the page
@@ -392,6 +497,7 @@ void asciiPrinter::initPrinter(File *f)
 
 void atari1027::initPrinter(File *f)
 {
+  // todo: put page parameter assignments here
   _file = f;
   paperType = PDF;
   uscoreFlag = false;
@@ -413,9 +519,25 @@ void atari820::initPrinter(File *f)
   lineHeight = 12.0;  // 6 lines per inch
   charWidth = 6.0;    // 12 char per inch
   fontSize = 12;      // 6 lines per inch
-  //fontHorizontalScaling = 83.333;
 
   sideFlag = false;
+  pdf_header();
+}
+
+void atari822::initPrinter(File *f)
+{
+  _file = f;
+  paperType = PDF;
+  pageWidth = 319.5;  // paper roll is 4 7/16" from page 4 of owners manual
+  pageHeight = 792.0; // just use 11" for letter paper
+  leftMargin = 15.75; // fit print width on page width
+  bottomMargin = 0.0;
+
+  printWidth = 288.0; // 4" wide printable area
+  lineHeight = 12.0;  // 6 lines per inch
+  charWidth = 7.2;    // 10 char per inch
+  fontSize = 10;      // 10 char per inch for close font
+
   pdf_header();
 }
 
@@ -551,7 +673,7 @@ void sioPrinter::sio_write()
   {
     if (n == 29)
     { // reverse the buffer and replace EOL with space
-      // needed for PDF sideways printing
+      // needed for PDF sideways printing on A820
       byte temp[29];
       memcpy(temp, buffer, n);
       for (int i = 0; i < n; i++)
