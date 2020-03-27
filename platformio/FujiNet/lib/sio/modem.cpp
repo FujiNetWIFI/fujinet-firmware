@@ -36,6 +36,10 @@ void sioModem::sio_status()
 */
 void sioModem::sio_control()
 {
+#ifdef DEBUG
+  Debug_println("::sio_control() called");
+#endif
+
   if (cmdFrame.aux1 & 0x02)
   {
     XMT = (cmdFrame.aux1 & 0x01 ? true : false);
@@ -49,6 +53,9 @@ void sioModem::sio_control()
   if (cmdFrame.aux1 & 0x80)
   {
     DTR = (cmdFrame.aux1 & 0x40 ? true : false);
+#ifdef DEBUG
+    Debug_print( "DTR" );Debug_println( DTR );
+#endif
   }
 
   // for now, just complete
@@ -156,6 +163,7 @@ void sioModem::sio_stream()
 void sioModem::at_cmd_println(const char* s)
 {
   SIO_UART.print(s);
+  SIO_UART.flush();
 
   if (cmdAtascii == true)
   {
@@ -221,20 +229,34 @@ void sioModem::modemCommand()
   cmd.trim();
   if (cmd == "") return;
   at_cmd_println("");
-  String upCmd = cmd;
-  upCmd.toUpperCase();
+  String upperCaseCmd = cmd;
+  upperCaseCmd.toUpperCase();
+
+#ifdef DEBUG
+  Debug_print("AT Cmd: ");
+  Debug_println( upperCaseCmd );
+#endif
 
   long newBps = 0;
 
   // Replace EOL with CR.
-  if (upCmd.indexOf(0x9b) != 0)
-    upCmd[upCmd.indexOf(0x9b)] = 0x0D;
+  if (upperCaseCmd.indexOf(0x9b) != 0)
+    upperCaseCmd[upperCaseCmd.indexOf(0x9b)] = 0x0D;
 
   /**** Just AT ****/
-  if (upCmd == "AT") at_cmd_println("OK");
+  if (upperCaseCmd == "AT") 
+  {
+    at_cmd_println("OK");
+  }
+
+  // hangup
+  else if ( upperCaseCmd.startsWith("+++ATH") || upperCaseCmd.startsWith("ATH") )
+  {
+   
+  }
 
   /**** Dial to host ****/
-  else if ((upCmd.indexOf("ATDT") == 0) || (upCmd.indexOf("ATDP") == 0) || (upCmd.indexOf("ATDI") == 0))
+  else if ((upperCaseCmd.indexOf("ATDT") == 0) || (upperCaseCmd.indexOf("ATDP") == 0) || (upperCaseCmd.indexOf("ATDI") == 0))
   {
     int portIndex = cmd.indexOf(":");
     String host, port;
@@ -249,17 +271,14 @@ void sioModem::modemCommand()
       port = "23"; // Telnet default
     }
 #ifdef DEBUG
-    Debug_print("DIALING: ");
-    Debug_println(host);
+    Debug_print("DIALING: ");Debug_println(host);
 #endif
     if (host == "5551234") // Fake it for BobTerm
     {
       delay(1300); // Wait a moment so bobterm catches it
       SIO_UART.print("CONNECT ");
       at_cmd_println(modemBaud);
-#ifdef ESP32
-      SIO_UART.flush();
-#endif
+
 #ifdef DEBUG
       Debug_println("CONNECT FAKE!");
 #endif
@@ -270,31 +289,27 @@ void sioModem::modemCommand()
       SIO_UART.print(host);
       SIO_UART.print(":");
       at_cmd_println(port);
-      char *hostChr = new char[host.length() + 1];
-      host.toCharArray(hostChr, host.length() + 1);
+
       int portInt = port.toInt();
-      tcpClient.setNoDelay(true); // Try to disable naggle
-      if (tcpClient.connect(hostChr, portInt))
+
+      if (tcpClient.connect(host.c_str(), portInt))
       {
         tcpClient.setNoDelay(true); // Try to disable naggle
         SIO_UART.print("CONNECT ");
         at_cmd_println(modemBaud);
         cmdMode = false;
-#ifdef ESP32
-        SIO_UART.flush();
-#endif
+
         if (listenPort > 0) tcpServer.stop();
       }
       else
       {
         at_cmd_println("NO CARRIER");
       }
-      delete hostChr;
     }
   }
 
   /**** Connect to WIFI ****/
-  else if (upCmd.indexOf("ATWIFI") == 0)
+  else if (upperCaseCmd.indexOf("ATWIFI") == 0)
   {
     int keyIndex = cmd.indexOf(",");
     String ssid, key;
@@ -308,15 +323,12 @@ void sioModem::modemCommand()
       ssid = cmd.substring(6, cmd.length());
       key = "";
     }
-    char *ssidChr = new char[ssid.length() + 1];
-    ssid.toCharArray(ssidChr, ssid.length() + 1);
-    char *keyChr = new char[key.length() + 1];
-    key.toCharArray(keyChr, key.length() + 1);
+
     SIO_UART.print("Connecting to ");
     SIO_UART.print(ssid);
     SIO_UART.print("/");
     at_cmd_println(key);
-    WiFi.begin(ssidChr, keyChr);
+    WiFi.begin( ssid.c_str(), key.c_str() );
     for (int i = 0; i < 100; i++)
     {
       delay(100);
@@ -330,35 +342,33 @@ void sioModem::modemCommand()
     {
       at_cmd_println("ERROR");
     }
-    delete ssidChr;
-    delete keyChr;
   }
 
   /**** Change baud rate from default ****/
-  else if (upCmd == "AT300") newBps = 300;
-  else if (upCmd == "AT1200") newBps = 1200;
-  else if (upCmd == "AT2400") newBps = 2400;
-  else if (upCmd == "AT4800") newBps = 4800;
-  else if (upCmd == "AT9600") newBps = 9600;
-  else if (upCmd == "AT19200") newBps = 19200;
-  else if (upCmd == "AT38400") newBps = 38400;
-  else if (upCmd == "AT57600") newBps = 57600;
-  else if (upCmd == "AT115200") newBps = 115200;
+  else if (upperCaseCmd == "AT300") newBps = 300;
+  else if (upperCaseCmd == "AT1200") newBps = 1200;
+  else if (upperCaseCmd == "AT2400") newBps = 2400;
+  else if (upperCaseCmd == "AT4800") newBps = 4800;
+  else if (upperCaseCmd == "AT9600") newBps = 9600;
+  else if (upperCaseCmd == "AT19200") newBps = 19200;
+  else if (upperCaseCmd == "AT38400") newBps = 38400;
+  else if (upperCaseCmd == "AT57600") newBps = 57600;
+  else if (upperCaseCmd == "AT115200") newBps = 115200;
 
   /**** Change telnet mode ****/
-  else if (upCmd == "ATNET0")
+  else if (upperCaseCmd == "ATNET0")
   {
     telnet = false;
     at_cmd_println("OK");
   }
-  else if (upCmd == "ATNET1")
+  else if (upperCaseCmd == "ATNET1")
   {
     telnet = true;
     at_cmd_println("OK");
   }
 
   /**** Answer to incoming connection ****/
-  else if ((upCmd == "ATA") && tcpServer.hasClient())
+  else if ((upperCaseCmd == "ATA") && tcpServer.hasClient())
   {
     tcpClient = tcpServer.available();
     tcpClient.setNoDelay(true); // try to disable naggle
@@ -372,14 +382,14 @@ void sioModem::modemCommand()
   }
 
   /**** See my IP address ****/
-  else if (upCmd == "ATIP")
+  else if (upperCaseCmd == "ATIP")
   {
     at_cmd_println(WiFi.localIP());
     at_cmd_println("OK");
   }
 
   /**** Print Help ****/
-  else if (upCmd == "AT?")
+  else if (upperCaseCmd == "AT?")
   {
     at_cmd_println("       FujiNet Virtual Modem 850");
     at_cmd_println("=======================================");
@@ -410,7 +420,7 @@ void sioModem::modemCommand()
   }
 
   /**** HTTP GET request ****/
-  else if (upCmd.indexOf("ATGET") == 0)
+  else if (upperCaseCmd.indexOf("ATGET") == 0)
   {
     // From the URL, aquire required variables
     // (12 = "ATGEThttp://")
@@ -434,8 +444,6 @@ void sioModem::modemCommand()
     host = cmd.substring(12, portIndex);
     path = cmd.substring(pathIndex, cmd.length());
     if (path == "") path = "/";
-    char *hostChr = new char[host.length() + 1];
-    host.toCharArray(hostChr, host.length() + 1);
 
     // Debug
     SIO_UART.print("Getting path ");
@@ -447,7 +455,7 @@ void sioModem::modemCommand()
     at_cmd_println("...");
 
     // Establish connection
-    if (!tcpClient.connect(hostChr, port))
+    if (!tcpClient.connect( host.c_str(), port) )
     {
       at_cmd_println("NO CARRIER");
     }
@@ -465,11 +473,10 @@ void sioModem::modemCommand()
       request += "\r\nConnection: close\r\n\r\n";
       tcpClient.print(request);
     }
-    delete hostChr;
   }
 
   /**** Set Listening Port ****/
-  else if (upCmd.indexOf("ATPORT") == 0)
+  else if (upperCaseCmd.indexOf("ATPORT") == 0)
   {
     long port;
     port = cmd.substring(6).toInt();
@@ -486,7 +493,13 @@ void sioModem::modemCommand()
   }
 
   /**** Unknown command ****/
-  else at_cmd_println("ERROR");
+  else 
+  {
+    at_cmd_println("ERROR");
+#ifdef DEBUG
+  Debug_println("*** unrecognized modem command");
+#endif
+  }
 
   /**** Tasks to do after command has been parsed ****/
   if (newBps)
@@ -520,26 +533,14 @@ void sioModem::sio_handle_modem()
     }
 
     // In command mode - don't exchange with TCP but gather characters to a string
-    if (SIO_UART.available() || blockWritePending == true)
+    if (SIO_UART.available() /*|| blockWritePending == true*/)
     {
+      // get char from Atari SIO
       char chr = SIO_UART.read();
-
-      if ((blockWritePending == true) && (*blockPtr != 0x00))
-        chr = *blockPtr++;
-      else if (blockWritePending == true)
-      {
-        blockWritePending = false;
-        yield();
-        return;
-      }
 
       // Return, enter, new line, carriage return.. anything goes to end the command
       if ((chr == '\n') || (chr == '\r') || (chr == 0x9B))
       {
-#ifdef DEBUG
-        Debug_print(cmd);
-        Debug_println(" | CR");
-#endif
         // flip which EOL to display based on last CR or EOL received.
         if (chr == 0x9B)
         {
@@ -576,11 +577,9 @@ void sioModem::sio_handle_modem()
   /**** Connected mode ****/
   else
   {
-    // Transmit from terminal to TCP
-    if (SIO_UART.available() || blockWritePending == true)
+    // send from Atari to Fujinet
+    if ( SIO_UART.available() && tcpClient.connected() )
     {
-      //led_on();
-
       // In telnet in worst case we have to escape every byte
       // so leave half of the buffer always free
       int max_buf_size;
@@ -588,20 +587,14 @@ void sioModem::sio_handle_modem()
         max_buf_size = TX_BUF_SIZE / 2;
       else
         max_buf_size = TX_BUF_SIZE;
+     
 
       // Read from serial, the amount available up to
       // maximum size of the buffer
       size_t len = std::min(SIO_UART.available(), max_buf_size);
 
-      if (blockWritePending == true)
-      {
-        //memcpy(&txBuf, &sector, 64);
-        blockWritePending = false;
-      }
-      else
-      {
-        SIO_UART.readBytes(&txBuf[0], len);
-      }
+      SIO_UART.readBytes(&txBuf[0], len);
+
 
       // Disconnect if going to AT mode with "+++" sequence
       for (int i = 0; i < (int)len; i++)
@@ -616,7 +609,7 @@ void sioModem::sio_handle_modem()
           plusCount = 0;
         }
       }
-
+/*
       // Double (escape) every 0xff for telnet, shifting the following bytes
       // towards the end of the buffer from that point
       if (telnet == true)
@@ -633,33 +626,23 @@ void sioModem::sio_handle_modem()
           }
         }
       }
-
+*/
       // Write the buffer to TCP finally
       tcpClient.write(&txBuf[0], len);
-      // tcpClient.flush();
-      yield();
+      return;
     }
 
-    // Transmit from TCP to terminal
-    if (tcpClient.available())
-    {
-      //led_on();
-      char buf[128];
-      int avail = tcpClient.available();
-      int i;
 
-      if (avail > 128)
-      {
-        tcpClient.readBytes(buf, 128);
-        for (i = 0; i < 128; i++)
-          SIO_UART.write(buf[i]);
-      }
-      else
-      {
-        tcpClient.readBytes(buf, avail);
-        for (i = 0; i < avail; i++)
-          SIO_UART.write(buf[i]);
-      }
+    // read from Fujinet to Atari
+    unsigned char buf[256];
+    int bytesAvail = 0;
+
+    bytesAvail = tcpClient.available();
+
+    if ( bytesAvail )
+    {
+        int bytesRead = tcpClient.readBytes( buf, (bytesAvail>128) ? 128 : bytesAvail );
+        int bytesWritten = SIO_UART.write( &buf[0], bytesRead );
     }
   }
 
@@ -667,6 +650,9 @@ void sioModem::sio_handle_modem()
   // has been over a second without any more bytes, disconnect
   if (plusCount >= 3)
   {
+#ifdef DEBUG
+  Debug_println( "Received+++" );
+#endif
     if (millis() - plusTime > 1000)
     {
       tcpClient.stop();
@@ -675,7 +661,7 @@ void sioModem::sio_handle_modem()
   }
 
   // Go to command mode if TCP disconnected and not in command mode
-  if ((tcpClient.connected()) && (cmdMode == false) && (DTR == 0))
+  if ( !tcpClient.connected() && (cmdMode == false) && (DTR == 0))
   {
     tcpClient.flush();
     tcpClient.stop();
@@ -696,6 +682,9 @@ void sioModem::sio_handle_modem()
 */
 void sioModem::sio_process()
 {
+#ifdef DEBUG
+        Debug_println("sioModem::sio_process() called...");
+#endif
   switch (cmdFrame.comnd)
   {
   // TODO: put in sio_ack() for valid commands
