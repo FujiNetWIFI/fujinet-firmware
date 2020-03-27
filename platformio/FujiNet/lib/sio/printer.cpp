@@ -130,14 +130,14 @@ void atari822::pdf_fonts()
   // 822 font
   pdf_objCtr = 4;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/5x7-Monospace-CE/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 126/Widths 6 0 R>>\nendobj\n");
+  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/5x7-Monospace-CE/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
   pdf_objCtr = 5;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/5x7-Monospace-CE/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 875.0/AvgWidth 750/MaxWidth 750/FontWeight 400/XHeight 625.0/StemV 87.4707/FontBBox[0.0 0.0 672.85156 1000.0] >>\nendobj\n");
   pdf_objCtr = 6;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("6 0 obj\n[");
-  for (int i = 32; i < 127; i++)
+  for (int i = 32; i < 128; i++)
   {
     _file->printf(" 750");
     if ((i - 31) % 32 == 0)
