@@ -125,7 +125,7 @@ void atari822::pdf_fonts()
    // 3rd object: font catalog
   pdf_objCtr = 3;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("3 0 obj\n<</Font << /F1 4 0 R /F2 7 0 R >>>>\nendobj\n");
+  _file->printf("3 0 obj\n<</Font << /F1 4 0 R >>>>\nendobj\n");
 
   // 822 font
   pdf_objCtr = 4;
