@@ -171,7 +171,8 @@ protected:
 
     void pdf_fonts();
     void pdf_handle_char(byte c);  // need a custom one to handle sideways printing
-
+    void pdf_add(std::string output);
+    
 public:
     void initPrinter(File *f);
 };

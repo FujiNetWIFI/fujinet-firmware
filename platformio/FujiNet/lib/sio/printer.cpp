@@ -444,6 +444,12 @@ void pdfPrinter::pdf_add(std::string S)
     pdf_end_page();
 }
 
+
+void atari822::pdf_add(std::string S)
+{
+   Debug_printf("Atari 822 pdf_add\n");
+}
+
 // void asciiPrinter::svg_add(std::string S)
 // {
 // }
