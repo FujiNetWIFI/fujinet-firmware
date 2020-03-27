@@ -380,7 +380,8 @@ void sioDisk::mount(File *f)
   num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
   derive_percom_block(num_sectors);
   _file = f;
-
+  lastSectorNum=65535; // Invalidate seek cache.
+  
 #ifdef DEBUG
   Debug_print("mounting ATR to Disk: ");
   Debug_println(f->name());
