@@ -10,7 +10,6 @@ tnfsPacket_t tnfsPacket;
 
 std::string TNFSImpl::host()
 {
-
   if (_mountpoint != NULL)
   {
     char temp[36];
@@ -375,7 +374,7 @@ TNFSFileImpl::operator bool()
  **/
 void tnfs_debug_packet(unsigned short len, bool isResponse)
 {
-#ifdef DEBUG
+#ifdef DEBUG_VERBOSE
   Debug_printf("TNFS Packet, Len: %d\n", len);
   for (unsigned short i = 0; i < len; i++)
     Debug_printf("%02x ", tnfsPacket.rawData[i]);
