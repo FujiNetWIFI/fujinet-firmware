@@ -173,6 +173,18 @@ void pdfPrinter::pdf_xref()
   _file->printf("%%%%EOF\n");
 }
 
+void pdfPrinter::pdf_begin_text(double Y)
+{
+    // open new text object
+  _file->printf("BT\n");
+  TOPflag = false;
+  _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
+  _file->printf("%g %g Td\n", leftMargin, Y);
+  pdf_Y = Y; // reset print roller to top of page
+  pdf_X = 0;          // set carriage to LHS
+  BOLflag = true;
+}
+
 void pdfPrinter::pdf_new_page()
 { // open a new page
   pdf_objCtr++;
@@ -183,24 +195,22 @@ void pdfPrinter::pdf_new_page()
   _file->printf("%d 0 R ", pdf_objCtr);
   _file->printf("]>>\nendobj\n");
 
-  // open new content stream and text object
+  // open content stream
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("%d 0 obj\n<</Length ", pdf_objCtr);
   idx_stream_length = _file->position();
   _file->printf("00000>>\nstream\n");
   idx_stream_start = _file->position();
-  _file->printf("BT\n");
 
+  // open new text object
+  pdf_begin_text(pageHeight);
+/*   _file->printf("BT\n");
   TOPflag = false;
-  // set default font for the page
-  //if (fontHorizontalScaling != 100)
-  //  _file->printf("/F%u %u Tf %g Tz\n", fontNumber, fontSize, fontHorizontalScaling);
-  //else
   _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
   _file->printf("%g %g Td\n", leftMargin, pageHeight);
   pdf_Y = pageHeight; // reset print roller to top of page
   pdf_X = 0;          // set carriage to LHS
-  BOLflag = true;
+  BOLflag = true; */
 }
 
 void pdfPrinter::pdf_end_page()

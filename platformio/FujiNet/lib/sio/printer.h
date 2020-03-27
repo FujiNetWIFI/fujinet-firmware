@@ -104,6 +104,7 @@ protected:
     virtual void pdf_fonts() = 0;
     void pdf_header();
     void pdf_xref();
+    void pdf_begin_text(double Y);
     void pdf_new_page();
     void pdf_end_page();
     //void pdf_set_font();
