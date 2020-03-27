@@ -299,7 +299,24 @@ void atari820::pdf_handle_char(byte c)
 
 void atari822::pdf_handle_char(byte c)
 {
-  // TODO: add gfx mode
+ // use PDF inline image to display line of graphics
+ /*
+ q
+240 0 0 1 18 750 cm
+BI
+ /W 240
+ /H 1
+ /CS /G
+ /BPC 1
+ /D [1 0]
+ /F /AHx
+ID
+00 00 00 00 00 00 3C 00 7E 00 7C 60 00 3C 00 18 3C 00 78 7C 18 63 7E 3C 00 7E 3C 00 18 3C
+>
+EI
+Q
+ */
+
   // Atari 822 modes:
   // command == 'W'   normal mode
   // command == 'P'   graphics mode
@@ -313,7 +330,6 @@ void atari822::pdf_handle_char(byte c)
     //_file->printf(")]TJ\n/F2 12 Tf [(");
     gfxFlag = true;
   }
-
 
  // TODO: looks like auto wrapped lines are 1 dot apart and EOL lines are 3 dots apart
 
@@ -621,14 +637,14 @@ void sioPrinter::sio_write()
     n = 40;
   else if (cmdFrame.aux1 == 'S')
     n = 29;
-
+  
   ck = sio_to_peripheral(buffer, n);
 
   if (ck == sio_checksum(buffer, n))
   {
     if (n == 29)
     { // reverse the buffer and replace EOL with space
-      // needed for PDF sideways printing
+      // needed for PDF sideways printing on A820
       byte temp[29];
       memcpy(temp, buffer, n);
       for (int i = 0; i < n; i++)
