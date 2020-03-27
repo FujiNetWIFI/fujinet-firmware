@@ -40,6 +40,8 @@ union
   unsigned char rawData[256];
 } hostSlots;
 
+  unsigned char hostSlotPath[8][256];
+
 union
 {
   struct
