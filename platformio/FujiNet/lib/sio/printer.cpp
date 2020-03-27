@@ -293,11 +293,22 @@ void atari822::pdf_handle_char(byte c)
   // Atari 822 modes:
   // command == 'W'   normal mode
   // command == 'P'   graphics mode
+  if (cmdFrame.comnd == 'W' && gfxFlag)
+  {
+    //_file->printf(")]TJ\n/F1 12 Tf [(");
+    gfxFlag = false;
+  }
+  else if (cmdFrame.comnd == 'P' && !gfxFlag)
+  {
+    //_file->printf(")]TJ\n/F2 12 Tf [(");
+    gfxFlag = true;
+  }
+
 
  // TODO: looks like auto wrapped lines are 1 dot apart and EOL lines are 3 dots apart
 
   // simple ASCII printer
-  if (c > 31 && c < 127)
+  if (!gfxFlag && c > 31 && c < 127)
   {
     if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
       _file->write(BACKSLASH);
