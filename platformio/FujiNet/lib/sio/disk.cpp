@@ -99,6 +99,7 @@ void sioDisk::sio_write(bool verify)
   if (_file->write(sector, ss) != ss)
   {
     sio_error();
+    lastSectorNum=65535; // invalidate seek cache.
     return;
   }
 
