@@ -294,6 +294,8 @@ void atari822::pdf_handle_char(byte c)
   // command == 'W'   normal mode
   // command == 'P'   graphics mode
 
+ // TODO: looks like auto wrapped lines are 1 dot apart and EOL lines are 3 dots apart
+
   // simple ASCII printer
   if (c > 31 && c < 127)
   {
@@ -469,7 +471,7 @@ void atari822::initPrinter(File *f)
   charWidth = 7.2;    // 10 char per inch
   fontSize = 10;      // 10 char per inch for close font
 
-  gfxFlag = false;
+  gfxFlag = false; 
   pdf_header();
 }
 
