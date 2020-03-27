@@ -206,6 +206,10 @@ int main(int argc, char* argv[])
 
       print("READ / WRITE (R/W)? ");
       get_line(buf,sizeof(buf));
+
+      if (buf[0]=='w')
+	buf[0]=='W';
+      
       o=(buf[0]=='W' ? 0x03 : 0x01);
 
       print("FILENAME:\x9b");
