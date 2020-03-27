@@ -122,7 +122,7 @@ void atari820::pdf_fonts()
 
 void atari822::pdf_fonts()
 {
-   // 3rd object: font catalog
+  // 3rd object: font catalog
   pdf_objCtr = 3;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("3 0 obj\n<</Font << /F1 4 0 R >>>>\nendobj\n");
@@ -145,7 +145,6 @@ void atari822::pdf_fonts()
   }
   _file->printf(" ]\nendobj\n");
 }
-
 
 void pdfPrinter::pdf_xref()
 {
@@ -175,13 +174,13 @@ void pdfPrinter::pdf_xref()
 
 void pdfPrinter::pdf_begin_text(double Y)
 {
-    // open new text object
+  // open new text object
   _file->printf("BT\n");
   TOPflag = false;
   _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
   _file->printf("%g %g Td\n", leftMargin, Y);
   pdf_Y = Y; // reset print roller to top of page
-  pdf_X = 0;          // set carriage to LHS
+  pdf_X = 0; // set carriage to LHS
   BOLflag = true;
 }
 
@@ -204,13 +203,6 @@ void pdfPrinter::pdf_new_page()
 
   // open new text object
   pdf_begin_text(pageHeight);
-/*   _file->printf("BT\n");
-  TOPflag = false;
-  _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
-  _file->printf("%g %g Td\n", leftMargin, pageHeight);
-  pdf_Y = pageHeight; // reset print roller to top of page
-  pdf_X = 0;          // set carriage to LHS
-  BOLflag = true; */
 }
 
 void pdfPrinter::pdf_end_page()
@@ -299,8 +291,8 @@ void atari820::pdf_handle_char(byte c)
 
 void atari822::pdf_handle_char(byte c)
 {
- // use PDF inline image to display line of graphics
- /*
+  // use PDF inline image to display line of graphics
+  /*
  q
 240 0 0 1 18 750 cm
 BI
@@ -320,21 +312,46 @@ Q
   // Atari 822 modes:
   // command == 'W'   normal mode
   // command == 'P'   graphics mode
-  if (cmdFrame.comnd == 'W' && gfxFlag)
+  if (cmdFrame.comnd == 'W' && !textMode)
   {
-    //_file->printf(")]TJ\n/F1 12 Tf [(");
-    gfxFlag = false;
+    textMode = true;
+    pdf_begin_text(pdf_Y); // open new text object
+    pdf_new_line();        // start new line of text (string array)
   }
-  else if (cmdFrame.comnd == 'P' && !gfxFlag)
+  else if (cmdFrame.comnd == 'P' && textMode)
   {
-    //_file->printf(")]TJ\n/F2 12 Tf [(");
-    gfxFlag = true;
+    textMode = false;
+    if (!BOLflag)
+      pdf_end_line();      // close out string array
+    _file->printf("ET\n"); // close out text object
   }
 
- // TODO: looks like auto wrapped lines are 1 dot apart and EOL lines are 3 dots apart
+  if (!textMode && BOLflag)
+  {
+    _file->printf("q\n %g 0 0 %g %g %g cm\n", printWidth, lineHeight / 10.0, leftMargin, pdf_Y);
+    _file->printf("BI\n /W 240\n /H 1\n /CS /G\n /BPC 1\n /D [1 0]\n /F /AHx\nID\n");
+    BOLflag = false;
+  }
+  if (!textMode)
+  {
+    if (gfxNumber < 30)
+      _file->printf(" %02X", c);
+
+    gfxNumber++;
+
+    if (gfxNumber == 40)
+    {
+      _file->printf("\n >\nEI\nQ\n");
+      pdf_Y -= lineHeight / 10.0;
+      BOLflag = true;
+      gfxNumber = 0;
+    }
+  }
+
+  // TODO: looks like auto wrapped lines are 1 dot apart and EOL lines are 3 dots apart
 
   // simple ASCII printer
-  if (!gfxFlag && c > 31 && c < 127)
+  if (textMode && c > 31 && c < 127)
   {
     if (c == BACKSLASH || c == LEFTPAREN || c == RIGHTPAREN)
       _file->write(BACKSLASH);
@@ -409,6 +426,14 @@ void atari1027::pdf_handle_char(byte c)
 
 void pdfPrinter::pdf_add(std::string S)
 {
+  // algorithm for graphics:
+  // if textMode, then can do the regular stuff
+  // if !textMode, then don't deal with BOL, EOL.
+  // check for TOP always just in case.
+  // can graphics mode ignore over-flowing a page for now?
+  // textMode is set inside of pdf_handle_char at first character, so...
+  // need to test for textMode inside the loop
+
   if (TOPflag)
     pdf_new_page();
 
@@ -417,37 +442,36 @@ void pdfPrinter::pdf_add(std::string S)
   {
     byte c = byte(S[i]);
 
-    if (BOLflag && c == EOL)
-      pdf_new_line();
+    if (!textMode)
+    {
+      this->pdf_handle_char(c);
+    }
+    else
+    {
+      if (BOLflag && c == EOL)
+        pdf_new_line();
 
-    // check for EOL or if at end of line and need automatic CR
-    if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth))))
-      pdf_end_line();
+      // check for EOL or if at end of line and need automatic CR
+      if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth))))
+        pdf_end_line();
 
-    // start a new line if we need to
-    if (BOLflag)
-      pdf_new_line();
+      // start a new line if we need to
+      if (BOLflag)
+        pdf_new_line();
 
-    // disposition the current byte
-    this->pdf_handle_char(c);
+      // disposition the current byte
+      this->pdf_handle_char(c);
 
-#ifdef DEBUG_S
-    printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
-    //printf("TOP: %s  ", TOPflag ? "true " : "false");
-    //printf("BOL: %s  ", BOLflag ? "true " : "false");
-    printf("\n");
+#ifdef DEBUG
+      Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
+      Debug_printf("\n");
 #endif
+    }
   }
 
   // if wrote last line, then close the page
   if (pdf_Y < lineHeight + bottomMargin)
     pdf_end_page();
-}
-
-
-void atari822::pdf_add(std::string S)
-{
-   Debug_printf("Atari 822 pdf_add\n");
 }
 
 // void asciiPrinter::svg_add(std::string S)
@@ -502,19 +526,18 @@ void atari820::initPrinter(File *f)
 
 void atari822::initPrinter(File *f)
 {
-   _file = f;
+  _file = f;
   paperType = PDF;
   pageWidth = 292.5;  // paper roll is 4 7/16" from page 4 of owners manual
   pageHeight = 792.0; // just use 11" for letter paper
-  leftMargin = 15.75;  // fit print width on page width
+  leftMargin = 15.75; // fit print width on page width
   bottomMargin = 0.0;
- 
+
   printWidth = 288.0; // 4" wide printable area
   lineHeight = 12.0;  // 6 lines per inch
   charWidth = 7.2;    // 10 char per inch
   fontSize = 10;      // 10 char per inch for close font
 
-  gfxFlag = false; 
   pdf_header();
 }
 
@@ -643,7 +666,7 @@ void sioPrinter::sio_write()
     n = 40;
   else if (cmdFrame.aux1 == 'S')
     n = 29;
-  
+
   ck = sio_to_peripheral(buffer, n);
 
   if (ck == sio_checksum(buffer, n))
