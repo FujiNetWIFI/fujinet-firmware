@@ -176,7 +176,7 @@ int main(int argc, char* argv[])
   unsigned char hs=argv[2][0]-0x30;
   unsigned char dsa=argv[1][0];
   unsigned char hsa=argv[2][0];
-  unsigned char o=(argv[3][0]=='W' ? 0x03 : 0x01);
+  unsigned char o=(argv[3][0]=='W' ? 0x02 : 0x01);
 
   OS.lmargn=2;
   
@@ -210,7 +210,7 @@ int main(int argc, char* argv[])
       if (buf[0]=='w')
 	buf[0]=='W';
       
-      o=(buf[0]=='W' ? 0x03 : 0x01);
+      o=(buf[0]=='W' ? 0x02 : 0x01);
 
       print("FILENAME:\x9b");
       get_line(buf,sizeof(buf));
@@ -255,7 +255,7 @@ int main(int argc, char* argv[])
   printc(&hsa);
   print(") ");
   print("(");
-  print((o==0x03 ? "W" : "R"));
+  print((o==0x02 ? "W" : "R"));
   print(") ");
   print(buf);
   print("\x9b\x9b");
