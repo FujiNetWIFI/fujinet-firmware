@@ -75,7 +75,7 @@ int main(void)
     {
       unsigned char n=i+0x31;
       unsigned char hs=deviceSlots.slot[i].hostSlot+0x31;
-      unsigned char m=(deviceSlots.slot[i].mode==0x03 ? 'W' : 'R');
+      unsigned char m=(deviceSlots.slot[i].mode==0x02 ? 'W' : 'R');
 
       if (deviceSlots.slot[i].hostSlot!=0xFF)
 	{
