@@ -218,6 +218,11 @@ void setup()
   SIO.addDevice(&sioR, 0x50); // R:
 
   SIO.addDevice(&sioP, 0x40); // P:
+  // check SPIFFS size if too small check for SD card and put spool there.
+  // SPIFFSFS::totalBytes()
+  // SPIFFSFS::usedBytes()
+  // https://techtutorialsx.com/2019/03/03/esp32-arduino-spiffs-getting-total-bytes-used/
+
   paperf = SPIFFS.open("/paper", "w+");
   sioP.setPaper(PRINTMODE);
   sioP.initPrinter(&paperf);
@@ -229,14 +234,7 @@ void setup()
 #endif
     UDP.begin(16384);
   }
-  /*   TNFS[0].begin(TNFS_SERVER, TNFS_PORT);
-  atr[1] = TNFS[0].open("/A820.ATR", "r+");
-#ifdef DEBUG_S
-  BUG_UART.println("tnfs/A820.ATR");
-#endif
-  sioD[1].mount(&atr[1]);
-  SIO.addDevice(&sioD[1], 0x31 + 1);
- */
+
 
   if (!SD.begin(5))
   {
