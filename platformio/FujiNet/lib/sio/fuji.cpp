@@ -241,8 +241,12 @@ void sioFuji::sio_tnfs_open_directory()
     // #endif
     //     }
 
-    dir[hostSlot] = fileSystems[hostSlot]->open("/", "r");
-    //dir[hostSlot] = fileSystems[hostSlot]->open(current_entry, "r");
+    // Remove trailing slash
+    if ((strlen(current_entry)>1) && (current_entry[strlen(current_entry)-1]=='/'))
+        current_entry[strlen(current_entry)-1]=0x00;
+
+    //dir[hostSlot] = fileSystems[hostSlot]->open("/", "r");
+    dir[hostSlot] = fileSystems[hostSlot]->open(current_entry, "r");
     //dir[hostSlot] = TNFS[hostSlot].open(current_entry, "r");
 
     if (dir[hostSlot])
