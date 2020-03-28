@@ -96,8 +96,9 @@ protected:
             unsigned char netmask[4];
             unsigned char dnsIP[4];
             unsigned char macAddress[6];
+            unsigned char bssid[6];
         };
-        unsigned char rawData[118];
+        unsigned char rawData[124];
     } adapterConfig;
 
 public:

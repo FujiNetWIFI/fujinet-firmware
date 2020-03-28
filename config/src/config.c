@@ -35,6 +35,22 @@ union
   unsigned char rawData[96];
 } netConfig;
 
+union
+{
+  struct
+  {
+    char ssid[32];
+    char hostname[64];
+    unsigned char localIP[4];
+    unsigned char gateway[4];
+    unsigned char netmask[4];
+    unsigned char dnsIP[4];
+    unsigned char macAddress[6];
+    unsigned char bssid[6];
+  };
+  unsigned char rawData[124];
+} adapterConfig;
+
 unsigned char config_sector[128];
 unsigned char wifiStatus;
 unsigned char successful=0; // connection successful?
@@ -348,9 +364,40 @@ void config_run(void)
   
   while(successful==false)
     {
+      unsigned char mactmp[3];
+      
       screen_clear();
       screen_puts(0,0,"WELCOME TO #FUJINET!");
-      screen_puts(0,21,"SCANNING NETWORKS...   PLEASE WAIT.   ");
+      screen_puts(0,21,"SCANNING NETWORKS...");
+
+      OS.dcb.ddevic=0x70;
+      OS.dcb.dunit=1;
+      OS.dcb.dcomnd=0xE8;
+      OS.dcb.dstats=0x40;
+      OS.dcb.dbuf=&adapterConfig.rawData;
+      OS.dcb.dtimlo=0x0f;
+      OS.dcb.dbyt=sizeof(adapterConfig.rawData);
+      OS.dcb.daux=0;
+      siov();
+
+      screen_puts(0,1,"MAC Address:");
+      itoa(adapterConfig.macAddress[0],mactmp,16);
+      screen_puts(13,1,mactmp);
+      screen_puts(15,1,":");
+      itoa(adapterConfig.macAddress[1],mactmp,16);
+      screen_puts(16,1,mactmp);
+      screen_puts(18,1,":");
+      itoa(adapterConfig.macAddress[2],mactmp,16);
+      screen_puts(19,1,mactmp);
+      screen_puts(21,1,":");
+      itoa(adapterConfig.macAddress[3],mactmp,16);
+      screen_puts(22,1,mactmp);
+      screen_puts(24,1,":");
+      itoa(adapterConfig.macAddress[4],mactmp,16);
+      screen_puts(25,1,mactmp);
+      screen_puts(27,1,":");
+      itoa(adapterConfig.macAddress[5],mactmp,16);
+      screen_puts(28,1,mactmp);
 
       OS.ch=0xFF;
       s=config_do_scan(num_networks);
