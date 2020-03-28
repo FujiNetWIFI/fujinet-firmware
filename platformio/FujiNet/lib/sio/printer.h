@@ -90,11 +90,12 @@ protected:
     double charWidth = 7.2;
     uint fontNumber = 1;
     uint fontSize = 12; // default 12 pica, 10 cpi
-    double fontHorizontalScaling = 100;
+   // double fontHorizontalScaling = 100;
     double pdf_X = 0; // across the page - columns in pts
     bool BOLflag = true;
     double pdf_Y = 0; // down the page - lines in pts
     bool TOPflag = true;
+    bool textMode = true; 
     int pageObjects[256];
     int pdf_pageCounter = 0;
     size_t objLocations[256]; // reference table storage
@@ -104,9 +105,10 @@ protected:
     virtual void pdf_fonts() = 0;
     void pdf_header();
     void pdf_xref();
+    void pdf_begin_text(double Y);
     void pdf_new_page();
     void pdf_end_page();
-    void pdf_set_font();
+    //void pdf_set_font();
     void pdf_new_line();
     void pdf_end_line();
     void pdf_add(std::string output);
@@ -149,11 +151,6 @@ public:
 
 class atari820 : public pdfPrinter
 {
-// 7x7 derived from https://scruss.com/blog/futile-fonts/
-// TODO:
-//  derive from pdfPrinter?
-//  update pdf_fonts for sideways printing
-
 // reverse the buffer in sioPrinter::sio_write() for sideways printing
 // the PDF standard doesn't really handle right-to-left
 // printing. The example in section 9.7 uses reverse strings.
@@ -167,6 +164,19 @@ protected:
 public:
     void initPrinter(File *f);
 };
+
+class atari822 : public pdfPrinter
+{
+protected:
+    void pdf_fonts();
+    void pdf_handle_char(byte c);  // need a custom one to handle sideways printing
+
+    int gfxNumber=0;
+    
+public:
+    void initPrinter(File *f);
+};
+
 
 class atari1020 : public sioPrinter
 {
