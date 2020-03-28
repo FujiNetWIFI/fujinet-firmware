@@ -218,7 +218,8 @@ void setup()
   SIO.addDevice(&sioR, 0x50); // R:
 
   SIO.addDevice(&sioP, 0x40); // P:
-  // check SPIFFS size if too small check for SD card and put spool there.
+  // check for SD card and put printer files there.
+  // Otherwise open on SPIFFS 
   // SPIFFSFS::totalBytes()
   // SPIFFSFS::usedBytes()
   // https://techtutorialsx.com/2019/03/03/esp32-arduino-spiffs-getting-total-bytes-used/
