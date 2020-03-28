@@ -368,12 +368,8 @@ void sioFuji::sio_get_adapter_config()
     adapterConfig.dnsIP[2] = WiFi.dnsIP()[2];
     adapterConfig.dnsIP[3] = WiFi.dnsIP()[3];
 
-    adapterConfig.macAddress[0] = WiFi.macAddress()[0];
-    adapterConfig.macAddress[1] = WiFi.macAddress()[1];
-    adapterConfig.macAddress[2] = WiFi.macAddress()[2];
-    adapterConfig.macAddress[3] = WiFi.macAddress()[3];
-    adapterConfig.macAddress[4] = WiFi.macAddress()[4];
-    adapterConfig.macAddress[5] = WiFi.macAddress()[5];
+    WiFi.macAddress(adapterConfig.macAddress);
+    strncpy((char *)adapterConfig.bssid,(const char *)WiFi.BSSID(),6);
 
     sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);
 }
