@@ -470,8 +470,8 @@ bool diskulator_host(void)
 		  
 		  // Mount host
 		  diskulator_mount_host(c);
-		  memset(path,0,sizeof(path));
-		  strcat(path,"/");
+		  memset(prefix,0,sizeof(prefix));
+		  strcat(prefix,"/");
 		  
 		  ret=true;
 		}
@@ -684,7 +684,9 @@ bool diskulator_select(void)
   screen_puts( 0,21,"ret PICK esc ABORT");
   screen_puts(20,21,"                  ");
 
-  diskulator_open_directory(selected_host,path);
+  screen_puts(0, 1, prefix);
+  
+  diskulator_open_directory(selected_host,prefix);
 
   while ((current_entry[0]!=0x7F) || (num_entries<16))
     {
@@ -710,7 +712,7 @@ bool diskulator_select(void)
   bar_clear();
   bar_show(e+3);
   
-  while (selector_done==false)
+  while (1)
     {
       if (kbhit())
 	k=cgetc();
@@ -735,17 +737,20 @@ bool diskulator_select(void)
 	  break;
 	case 0x9B: // Enter
 	  bar_set_color(0x97);
-	  strcat(path,files[e]);
 	  
 	  if (files[e][strlen(files[e])-1]=='/') // subdir
 	    {
+	      selector_done=false;
+	      strcat(prefix,files[e]);
+	      k=0;
 	      goto subdir;
 	    }
-	  else
-	    {
-	      selector_done=true;
-	      ret=true;
-	    }
+	  
+	  memset(path,0,sizeof(path));
+	  strcat(path,prefix);
+	  strcat(path,files[e]);
+	  ret=true;
+	  goto image_done;
 	  break;
 	}
       if (k>0)
@@ -755,7 +760,7 @@ bool diskulator_select(void)
 	  k=0;
 	}
     }
-  
+ image_done:
   return ret;
 }
 
