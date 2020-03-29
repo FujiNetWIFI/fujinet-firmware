@@ -275,8 +275,8 @@ void sioFuji::sio_tnfs_read_directory_entry()
             int a = strlen(current_entry);
             if (current_entry[--a] != '/')
             {
-                current_entry[a++] = '/';
-                current_entry[a] = '\0';
+                current_entry[++a] = '/';
+                current_entry[++a] = '\0';
             }
         }
     }
