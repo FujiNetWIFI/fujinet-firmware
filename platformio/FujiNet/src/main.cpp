@@ -162,7 +162,7 @@ void httpService()
             }
           }
           paperf.close();
-          paperf =  paperFS->open("/paper", "w+");
+          paperf = paperFS->open("/paper", "w+");
           sioP.setPaper(PRINTMODE);
           sioP.initPrinter(&paperf);
           break;
@@ -260,6 +260,15 @@ void setup()
     paperFS = &SPIFFS;
   }
   paperf = paperFS->open("/paper", "w+");
+  if (paperf)
+  {
+    Debug_println("printer output file opened");
+  }
+  else
+  {
+    Debug_println("error opening printer file");
+  }
+
   sioP.setPaper(PRINTMODE);
   sioP.initPrinter(&paperf);
   server.begin(); // Start the web server
