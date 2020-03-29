@@ -880,7 +880,7 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
   Debug_println(dirName);
 #endif
 
-  if (tnfs_transaction(F->host().c_str(), F->port(), 2)) // todo fix for other paths than /
+  if (tnfs_transaction(F->host().c_str(), F->port(), strlen(dirName)+1)) // todo fix for other paths than /
   {
 #ifdef DEBUG
     Debug_printf("Directory opened, handle ID: %d\n", tnfsPacket.data[1]);
