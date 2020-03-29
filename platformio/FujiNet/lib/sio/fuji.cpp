@@ -17,7 +17,7 @@ sioNetwork sioN[8];
 
 void sioFuji::sio_status()
 {
-    char ret[4]={0,0,0,0};
+    char ret[4] = {0, 0, 0, 0};
 
     sio_to_computer((byte *)ret, 4, false);
     return;
@@ -197,14 +197,14 @@ int sioFuji::image_rotate()
     {
         n++;
     }
-    
+
     if (n > 1)
     {
         n--;
         temp = sioD[n].file();
         for (int i = n; i > 0; i--)
         {
-            sioD[i].mount(sioD[i-1].file());
+            sioD[i].mount(sioD[i - 1].file());
         }
         sioD[0].mount(temp);
     }
@@ -227,8 +227,8 @@ void sioFuji::sio_tnfs_open_directory()
     }
 
 #ifdef DEBUG
-    Debug_print("FujiNet is opening / for reading.");
-//Debug_println(current_entry);
+    Debug_print("FujiNet is opening directory: ");
+    Debug_println(current_entry);
 #endif
 
     //     if (current_entry[0] != '/')
@@ -242,12 +242,11 @@ void sioFuji::sio_tnfs_open_directory()
     //     }
 
     // Remove trailing slash
-    if ((strlen(current_entry)>1) && (current_entry[strlen(current_entry)-1]=='/'))
-        current_entry[strlen(current_entry)-1]=0x00;
+    if ((strlen(current_entry) > 1) && (current_entry[strlen(current_entry) - 1] == '/'))
+        current_entry[strlen(current_entry) - 1] = 0x00;
 
     //dir[hostSlot] = fileSystems[hostSlot]->open("/", "r");
     dir[hostSlot] = fileSystems[hostSlot]->open(current_entry, "r");
-    //dir[hostSlot] = TNFS[hostSlot].open(current_entry, "r");
 
     if (dir[hostSlot])
         sio_complete();
@@ -271,6 +270,15 @@ void sioFuji::sio_tnfs_read_directory_entry()
     else
     {
         strcpy(current_entry, f.name());
+        if (f.isDirectory())
+        {
+            int a = strlen(current_entry);
+            if (current_entry[--a] != '/')
+            {
+                current_entry[a++] = '/';
+                current_entry[a] = '\0';
+            }
+        }
     }
     sio_to_computer((byte *)&current_entry, len, false);
 }
@@ -373,7 +381,7 @@ void sioFuji::sio_get_adapter_config()
     adapterConfig.dnsIP[3] = WiFi.dnsIP()[3];
 
     WiFi.macAddress(adapterConfig.macAddress);
-    strncpy((char *)adapterConfig.bssid,(const char *)WiFi.BSSID(),6);
+    strncpy((char *)adapterConfig.bssid, (const char *)WiFi.BSSID(), 6);
 
     sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);
 }
