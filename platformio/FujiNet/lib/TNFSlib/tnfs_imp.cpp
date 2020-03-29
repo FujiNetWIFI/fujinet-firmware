@@ -338,12 +338,12 @@ FileImplPtr TNFSFileImpl::openNextFile(const char *mode)
     // create file pointer without opening file - set FID=-2
    // TODO: remove this append / logic to make work like rest of FS
    // append / is now in sioFuji::sio_tnfs_read_directory_entry() 
-   if (fstats.isDir)
-    {
-      std::string P = std::string(path);
-      P.push_back('/');
-      strcpy(path, P.c_str());
-    }
+  //  if (fstats.isDir)
+  //   {
+  //     std::string P = std::string(path);
+  //     P.push_back('/');
+  //     strcpy(path, P.c_str());
+  //   }
     return std::make_shared<TNFSFileImpl>(fs, -2, path, fstats);
   }
   return nullptr;
