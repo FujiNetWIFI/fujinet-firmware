@@ -734,6 +734,7 @@ bool diskulator_select(void)
 	  memset(path,0,sizeof(path));
 	  bar_set_color(0x97);
 	  ret=false;
+	  goto image_done;
 	  break;
 	case 0x9B: // Enter
 	  bar_set_color(0x97);
