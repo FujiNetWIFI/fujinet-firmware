@@ -336,12 +336,14 @@ FileImplPtr TNFSFileImpl::openNextFile(const char *mode)
     // return fs->open(path, "r");
     tnfsStat_t fstats = tnfs_stat(fs, path); // get stats on next file
     // create file pointer without opening file - set FID=-2
-    if (fstats.isDir)
-    {
-      std::string P = std::string(path);
-      P.push_back('/');
-      strcpy(path, P.c_str());
-    }
+   // TODO: remove this append / logic to make work like rest of FS
+   // append / is now in sioFuji::sio_tnfs_read_directory_entry() 
+  //  if (fstats.isDir)
+  //   {
+  //     std::string P = std::string(path);
+  //     P.push_back('/');
+  //     strcpy(path, P.c_str());
+  //   }
     return std::make_shared<TNFSFileImpl>(fs, -2, path, fstats);
   }
   return nullptr;
@@ -880,7 +882,7 @@ int tnfs_opendir(TNFSImpl *F, const char *dirName)
   Debug_println(dirName);
 #endif
 
-  if (tnfs_transaction(F->host().c_str(), F->port(), 2)) // todo fix for other paths than /
+  if (tnfs_transaction(F->host().c_str(), F->port(), strlen(dirName)+1)) // todo fix for other paths than /
   {
 #ifdef DEBUG
     Debug_printf("Directory opened, handle ID: %d\n", tnfsPacket.data[1]);

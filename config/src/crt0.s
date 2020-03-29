@@ -37,7 +37,7 @@
 	;; Boot header
 
 	.byte	$00
-	.byte	$5C
+	.byte	$62
 	.byte	$00
 	.byte	$07
 	.byte	$C0
