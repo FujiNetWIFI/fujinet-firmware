@@ -263,11 +263,11 @@ void sioFuji::sio_tnfs_read_directory_entry()
         if (f.isDirectory())
         {
             int a = strlen(current_entry);
-            if (current_entry[--a] != '/')
+            if (current_entry[a-1] != '/')
             {
-                current_entry[++a] = '/';
-                current_entry[++a] = '\0';
-                Debug_println("append trailing /");
+                current_entry[a] = '/';
+                current_entry[a+1] = '\0';
+                //Debug_println("append trailing /");
             }
         }
     }
@@ -275,7 +275,7 @@ void sioFuji::sio_tnfs_read_directory_entry()
     if (current_entry[0] == '/')
     {
         stidx = 1;
-        Debug_println("strip leading /");
+        //Debug_println("strip leading /");
     }
     byte *ce_ptr = (byte *)&current_entry[stidx];
     sio_to_computer(ce_ptr, len, false);
