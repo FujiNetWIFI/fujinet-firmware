@@ -15,6 +15,7 @@
 #include "sio.h"
 #include "bar.h"
 #include "die.h"
+#include "info.h"
 
 unsigned char prefix[256]="/";
 unsigned char path[256];
@@ -388,7 +389,7 @@ bool diskulator_host(void)
 
  rehosts_jump:
   screen_puts(0,20,"\xD9\xB2\xA5\xB4\xB5\xB2\xAE\x19Pick\xD9\xA5\x19" "Edit\xD9\xA4\x19" "Drives\xD9\xAF\xB0\xB4\xA9\xAF\xAE\x19" "Boot");
-  screen_puts(0,21," \xD9\x91\x8D\x98\x19" "Drive Slots \xD9\xB3\xA8\xA9\xA6\xB4\x80\x91\x8D\x98\x19Host Slots ");
+  screen_puts(0,21,"    \xD9\x91\x8D\x98\x19" "Drives \xD9\xDC\x91\x8D\x98\x19" "Hosts\xD9\xA3\x19" "Config");
   
   bar_clear();
   bar_show(c+2);
@@ -440,6 +441,12 @@ bool diskulator_host(void)
 	      break;
 	    case 0x40: // special case for 8
 	      c=7;
+	      break;
+	    case 'c': // config
+	      host_done=true;
+	      slot_done=true;
+	      ret=false;
+	      info_run();
 	      break;
 	    case 'e': // edit
 	      if (hostSlots.host[c][0]==0x00)
@@ -550,6 +557,12 @@ bool diskulator_host(void)
 	      slot_done=true;
 	      host_done=false;
 	      goto rehosts_jump;
+	      break;
+	    case 'c': // config
+	      host_done=true;
+	      slot_done=true;
+	      ret=false;
+	      info_run();
 	      break;
 	    case 'h': // Hosts
 	      slot_done=true;
