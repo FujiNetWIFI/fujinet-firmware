@@ -39,7 +39,7 @@ protected:
     byte* tx_buf;
     byte* sp_buf;
     unsigned short rx_buf_len;
-    unsigned short tx_buf_len;
+    unsigned short tx_buf_len=256;
     unsigned short sp_buf_len;
 
     union
