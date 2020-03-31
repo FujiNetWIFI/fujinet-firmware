@@ -54,6 +54,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 
 atari822 sioP;
 File paperf;
+FS *paperFS;
 
 sioModem sioR;
 
@@ -104,6 +105,7 @@ void httpService()
           client.println("HTTP/1.1 200 OK");
 
           sioP.pageEject();
+          paperf.flush();
           paperf.seek(0);
 
           client.println("Connection: close"); // the connection will be closed after completion of the response
@@ -161,7 +163,7 @@ void httpService()
             }
           }
           paperf.close();
-          paperf = SPIFFS.open("/paper", "w+");
+          paperf = paperFS->open("/paper", "w+");
           sioP.setPaper(PRINTMODE);
           sioP.initPrinter(&paperf);
           break;
@@ -193,86 +195,33 @@ void setup()
 
   // connect to wifi but DO NOT wait for it
   WiFi.begin(WIFI_SSID, WIFI_PASS);
-  server.begin(); // Start the web server
 
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
   BUG_UART.println();
   BUG_UART.println("FujiNet PlatformIO Started");
 #endif
-  SPIFFS.begin();
-
-  theFuji.begin();
-
-  //atr[0] = SPIFFS.open("/file1.atr", "r+");
-  //sioD[0].mount(&atr[0]);
-  for (int i = 0; i < 8; i++)
+  if (!SPIFFS.begin())
   {
-    SIO.addDevice(&sioD[i], 0x31 + i);
-    SIO.addDevice(&sioN[i], 0x71 + i);
-  }
-  SIO.addDevice(&theFuji, 0x70); // the FUJINET!
-
-  SIO.addDevice(&apeTime, 0x45); // apetime
-
-  SIO.addDevice(&sioR, 0x50); // R:
-
-  SIO.addDevice(&sioP, 0x40); // P:
-  paperf = SPIFFS.open("/paper", "w+");
-  sioP.setPaper(PRINTMODE);
-  sioP.initPrinter(&paperf);
-
-  if (WiFi.status() == WL_CONNECTED)
-  {
-#ifdef DEBUG_S
-    BUG_UART.println(WiFi.localIP());
+#ifdef DEBUG
+    Debug_println("SPIFFS Mount Failed");
 #endif
-    UDP.begin(16384);
   }
-  /*   TNFS[0].begin(TNFS_SERVER, TNFS_PORT);
-  atr[1] = TNFS[0].open("/A820.ATR", "r+");
-#ifdef DEBUG_S
-  BUG_UART.println("tnfs/A820.ATR");
-#endif
-  sioD[1].mount(&atr[1]);
-  SIO.addDevice(&sioD[1], 0x31 + 1);
- */
 
   if (!SD.begin(5))
   {
 #ifdef DEBUG
     Debug_println("SD Card Mount Failed");
 #endif
-    // Revert to SPIFFS
-    // SPIFFS.begin();
-    // atr[0] = SPIFFS.open("/autorun.atr", "r+");
-    // sioD[0].mount(&atr[0]);
   }
-/* else
-  {
-    atr[0] = SD.open("/autorun.atr", "r+");
-    if (!atr[0])
-    {
-#ifdef DEBUG
-      Debug_println("Unable to mount autorun.atr from SD Card");
-#endif
-      // Revert to SPIFFS
-      SPIFFS.begin();
-      atr[0] = SPIFFS.open("/autorun.atr", "r+");
-      sioD[0].mount(&atr[0]);
-    }
-    else
-    {
-      sioD[0].mount(&atr[0]);
-#ifdef DEBUG
-      Debug_println("Mounted autorun.atr from SD Card");
-#endif
-    }
-*/
+
 #ifdef DEBUG
   Debug_print("SD Card Type: ");
   switch (SD.cardType())
   {
+  case CARD_NONE:
+    Debug_println("NONE");
+    break;
   case CARD_MMC:
     Debug_println("MMC");
     break;
@@ -287,9 +236,53 @@ void setup()
     break;
   }
 #endif
-/*  }
-  SIO.addDevice(&sioD[0], 0x31 + 0);
-*/
+
+  theFuji.begin();
+
+  for (int i = 0; i < 8; i++)
+  {
+    SIO.addDevice(&sioD[i], 0x31 + i);
+    SIO.addDevice(&sioN[i], 0x71 + i);
+  }
+  SIO.addDevice(&theFuji, 0x70); // the FUJINET!
+
+  SIO.addDevice(&apeTime, 0x45); // apetime
+
+  SIO.addDevice(&sioR, 0x50); // R:
+
+  SIO.addDevice(&sioP, 0x40); // P:
+
+  if (SD.cardType() != CARD_NONE)
+  {
+     paperFS = &SD;
+     Debug_println("using SD card for printer");
+  }
+  else
+  {
+   paperFS = &SPIFFS;
+   Debug_println("using SPIFFS  for printer");
+  }
+  paperf = paperFS->open("/paper", "w+");
+  if (paperf)
+  {
+    Debug_println("printer output file opened");
+  }
+  else
+  {
+    Debug_println("error opening printer file");
+  }
+
+  sioP.setPaper(PRINTMODE);
+  sioP.initPrinter(&paperf);
+  server.begin(); // Start the web server
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
+#ifdef DEBUG_S
+    BUG_UART.println(WiFi.localIP());
+#endif
+    UDP.begin(16384);
+  }
 
 #ifdef DEBUG_S
   BUG_UART.print(SIO.numDevices());
@@ -326,8 +319,7 @@ void loop()
   else
     digitalWrite(PIN_LED1, HIGH);
 
-
-  switch(keyMgr.getBootKeyStatus())
+  switch (keyMgr.getBootKeyStatus())
   {
   case eKeyStatus::LONG_PRESSED:
 #ifdef DEBUG
@@ -349,18 +341,18 @@ void loop()
     Debug_println("SHORT PRESS");
 #endif
 #ifdef BLUETOOTH_SUPPORT
-      if(btMgr.isActive())
-      {
-        btMgr.toggleBaudrate();
-      }
-      else
+    if (btMgr.isActive())
+    {
+      btMgr.toggleBaudrate();
+    }
+    else
 #endif
-      {
-        theFuji.image_rotate();
-      }
-      break;
-    default:
-      break;
+    {
+      theFuji.image_rotate();
+    }
+    break;
+  default:
+    break;
   }
 
 #ifdef BLUETOOTH_SUPPORT
