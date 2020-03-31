@@ -214,8 +214,10 @@ void pdfPrinter::pdf_end_page()
   idx_stream_stop = _file->position();
   _file->printf("endstream\nendobj\n");
   size_t idx_temp = _file->position();
+  _file->flush();
   _file->seek(idx_stream_length);
   _file->printf("%5u", (idx_stream_stop - idx_stream_start));
+  _file->flush();
   _file->seek(idx_temp);
   // set counters
   pdf_pageCounter++;
