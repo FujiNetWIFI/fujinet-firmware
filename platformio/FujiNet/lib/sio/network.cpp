@@ -110,6 +110,8 @@ void sioNetwork::write()
     Debug_printf("Write %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
 #endif
     ck = sio_to_peripheral(tx_buf, sio_get_aux());
+    tx_buf_len=cmdFrame.aux2*256+cmdFrame.aux1;
+    
     if (protocol == NULL)
     {
 #ifdef DEBUG
