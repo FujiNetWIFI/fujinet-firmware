@@ -14,7 +14,12 @@ bool sioNetwork::allocate_buffers()
     if ((rx_buf == NULL) || (tx_buf == NULL) || (sp_buf == NULL))
         return false;
     else
+    {
+        memset(rx_buf,0,INPUT_BUFFER_SIZE);
+        memset(tx_buf,0,OUTPUT_BUFFER_SIZE);
+        memset(sp_buf,0,SPECIAL_BUFFER_SIZE);
         return true;
+    }
 }
 
 bool sioNetwork::open_protocol()
@@ -111,7 +116,9 @@ void sioNetwork::write()
 #endif
     ck = sio_to_peripheral(tx_buf, sio_get_aux());
     tx_buf_len=cmdFrame.aux2*256+cmdFrame.aux1;
-    
+
+    Debug_printf("Byte stream %s\n",tx_buf);
+
     if (protocol == NULL)
     {
 #ifdef DEBUG
