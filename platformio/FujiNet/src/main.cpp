@@ -105,6 +105,7 @@ void httpService()
           client.println("HTTP/1.1 200 OK");
 
           sioP.pageEject();
+          paperf.flush();
           paperf.seek(0);
 
           client.println("Connection: close"); // the connection will be closed after completion of the response
@@ -253,11 +254,13 @@ void setup()
 
   if (SD.cardType() != CARD_NONE)
   {
-    paperFS = &SD;
+     paperFS = &SD;
+     Debug_println("using SD card for printer");
   }
   else
   {
-    paperFS = &SPIFFS;
+   paperFS = &SPIFFS;
+   Debug_println("using SPIFFS  for printer");
   }
   paperf = paperFS->open("/paper", "w+");
   if (paperf)
