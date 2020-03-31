@@ -94,7 +94,7 @@ bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
 #ifdef DEBUG
     Debug_printf("TCP write %d bytes\n",len);
 #endif 
-    return (client.write((char *)&tx_buf), len);
+    return (client.write((char *)tx_buf), len);
 }
 
 bool networkProtocolTCP::status(byte *status_buf)
