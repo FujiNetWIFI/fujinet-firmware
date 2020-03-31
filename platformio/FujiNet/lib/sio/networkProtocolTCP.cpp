@@ -5,6 +5,7 @@ networkProtocolTCP::networkProtocolTCP()
 #ifdef DEBUG
     Debug_printf("networkProtocolTCP::ctor\n");
 #endif
+    server = NULL;
 }
 
 networkProtocolTCP::~networkProtocolTCP()
@@ -16,6 +17,7 @@ networkProtocolTCP::~networkProtocolTCP()
     {
         server->stop();
         delete server;
+        server = NULL;
     }
 }
 
@@ -33,19 +35,25 @@ bool networkProtocolTCP::open(networkDeviceSpec *spec)
         Debug_printf("Creating server object on port %d\n", spec->port);
 #endif
         server = new WiFiServer(spec->port);
+        connectionIsServer=true;
     }
     else
     {
 #ifdef DEBUG
         Debug_printf("Connecting to host %s port %d\n", spec->path, spec->port);
 #endif
+        connectionIsServer=false;
         client.connect(spec->path, spec->port);
     }
 
     if (client.connected() || (server != NULL))
+    {
         ret = true;
+    }
     else
+    {
         ret = false;
+    }
 
 #ifdef DEBUG
     Debug_printf("Connected? %d\n", ret);
@@ -94,21 +102,16 @@ bool networkProtocolTCP::status(byte *status_buf)
     memset(status_buf, 0x00, 4);
     if (client.connected())
     {
-#ifdef DEBUG
-        Debug_printf("Available bytes: %d",client.available());
-#endif 
         status_buf[0] = client.available() & 0xFF;
         status_buf[1] = client.available() >> 8;
+        status_buf[2] = client.connected();
         status_buf[3] = 1;
     }
-    if (server != NULL)
+    else if ((server!=NULL) && (server->available()))
     {
-#ifdef DEBUG
-        Debug_printf("Server connected? %d",server->available());
-#endif
         status_buf[2] = server->available();
     }
-    return true;
+    return false;
 }
 
 bool networkProtocolTCP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
