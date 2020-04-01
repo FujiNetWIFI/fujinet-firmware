@@ -15,9 +15,9 @@ bool sioNetwork::allocate_buffers()
         return false;
     else
     {
-        memset(rx_buf,0,INPUT_BUFFER_SIZE);
-        memset(tx_buf,0,OUTPUT_BUFFER_SIZE);
-        memset(sp_buf,0,SPECIAL_BUFFER_SIZE);
+        memset(rx_buf, 0, INPUT_BUFFER_SIZE);
+        memset(tx_buf, 0, OUTPUT_BUFFER_SIZE);
+        memset(sp_buf, 0, SPECIAL_BUFFER_SIZE);
         return true;
     }
 }
@@ -27,13 +27,13 @@ bool sioNetwork::allocate_buffers()
  */
 void sioNetwork::deallocate_buffers()
 {
-    if (rx_buf!=nullptr)
+    if (rx_buf != nullptr)
         free(rx_buf);
 
-    if (tx_buf!=nullptr)
+    if (tx_buf != nullptr)
         free(tx_buf);
 
-    if (sp_buf!=nullptr)
+    if (sp_buf != nullptr)
         free(sp_buf);
 }
 
@@ -100,7 +100,7 @@ void sioNetwork::sio_close()
 #endif
     sio_ack();
 
-    if (protocol==nullptr)
+    if (protocol == nullptr)
         return;
 
     if (protocol->close())
@@ -109,7 +109,7 @@ void sioNetwork::sio_close()
         sio_error();
 
     delete protocol;
-    protocol=nullptr;
+    protocol = nullptr;
 
     deallocate_buffers();
 }
@@ -134,14 +134,11 @@ void sioNetwork::sio_read()
 
 void sioNetwork::sio_write()
 {
-    sio_ack();
 #ifdef DEBUG
     Debug_printf("Write %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
 #endif
-    ck = sio_to_peripheral(tx_buf, sio_get_aux());
-    tx_buf_len=cmdFrame.aux2*256+cmdFrame.aux1;
 
-    Debug_printf("Byte stream %s\n",tx_buf);
+    sio_ack();
 
     if (protocol == nullptr)
     {
@@ -150,9 +147,13 @@ void sioNetwork::sio_write()
 #endif
         err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+        sio_error();
     }
     else
     {
+        ck = sio_to_peripheral(tx_buf, sio_get_aux());
+        tx_buf_len = cmdFrame.aux2 * 256 + cmdFrame.aux1;
+
         if (protocol->write(tx_buf, tx_buf_len))
         {
             sio_complete();
