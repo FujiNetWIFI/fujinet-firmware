@@ -87,8 +87,11 @@ bool networkProtocolTCP::read(byte *rx_buf, unsigned short len)
     Debug_printf("TCP read %d bytes\n",len);
 #endif
     if (!client.connected())
+    {
+        client_error_code=128;
         return false;
-        
+    }
+    
     return (client.readBytes(rx_buf, len) == len);
 }
 
@@ -98,7 +101,10 @@ bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
     Debug_printf("TCP write %d bytes\n",len);
 #endif
     if (!client.connected())
+    {
+        client_error_code=128;
         return false;
+    }
 
     return (client.write((char *)tx_buf), len);
 }
@@ -111,7 +117,7 @@ bool networkProtocolTCP::status(byte *status_buf)
         status_buf[0] = client.available() & 0xFF;
         status_buf[1] = client.available() >> 8;
         status_buf[2] = client.connected();
-        status_buf[3] = 1;
+        status_buf[3] = client_error_code;
     }
     else if ((server!=NULL) && (server->available()))
     {

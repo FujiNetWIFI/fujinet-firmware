@@ -29,6 +29,7 @@ public:
 private:
     WiFiClient client;
     WiFiServer* server;
+    byte client_error_code;
 
     bool special_accept_connection();
 };

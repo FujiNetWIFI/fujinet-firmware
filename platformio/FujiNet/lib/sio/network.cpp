@@ -12,7 +12,9 @@ bool sioNetwork::allocate_buffers()
     sp_buf = (byte *)malloc(SPECIAL_BUFFER_SIZE);
 
     if ((rx_buf == nullptr) || (tx_buf == nullptr) || (sp_buf == nullptr))
+    {
         return false;
+    }
     else
     {
         memset(rx_buf, 0, INPUT_BUFFER_SIZE);
@@ -63,7 +65,7 @@ void sioNetwork::sio_open()
         Debug_printf("Invalid devicespec\n");
 #endif
         memset(&status_buf, 0, sizeof(status_buf.rawData));
-        status_buf.error = OPEN_STATUS_INVALID_DEVICESPEC;
+        status_buf.error = 165;
         sio_complete();
         return;
     }
@@ -74,7 +76,7 @@ void sioNetwork::sio_open()
         Debug_printf("Could not allocate memory for buffers\n");
 #endif
         memset(&status_buf, 0, sizeof(status_buf.rawData));
-        status_buf.error = OPEN_STATUS_DEVICE_ERROR;
+        status_buf.error = 129;
         sio_error();
     }
 
@@ -84,7 +86,7 @@ void sioNetwork::sio_open()
         Debug_printf("Could not open protocol.\n");
 #endif
         memset(&status_buf, 0, sizeof(status_buf.rawData));
-        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+        status_buf.error = 128;
         sio_error();
     }
     else
@@ -123,7 +125,7 @@ void sioNetwork::sio_read()
     if (protocol == nullptr)
     {
         err = true;
-        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+        status_buf.error = 128;
     }
     else
     {
@@ -146,7 +148,7 @@ void sioNetwork::sio_write()
         Debug_printf("Not connected\n");
 #endif
         err = true;
-        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+        status_buf.error = 128;
         sio_error();
     }
     else
@@ -177,6 +179,8 @@ void sioNetwork::sio_status()
             status_buf.rawData[1] =
                 status_buf.rawData[2] =
                     status_buf.rawData[3] = 0;
+                    
+        status_buf.rawData[2] = WiFi.isConnected();
         err = false;
     }
     else
