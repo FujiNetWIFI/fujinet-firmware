@@ -55,12 +55,12 @@ protected:
 
 
 public:
-    virtual void open();
-    virtual void close();
-    virtual void read();
-    virtual void write();
+    virtual void sio_open();
+    virtual void sio_close();
+    virtual void sio_read();
+    virtual void sio_write();
     virtual void sio_status();
-    virtual void special();
+    virtual void sio_special();
 
     virtual void sio_process();
 
