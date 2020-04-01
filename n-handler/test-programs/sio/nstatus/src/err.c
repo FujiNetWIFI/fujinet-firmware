@@ -22,7 +22,7 @@ const char error[]="SIO ERROR\x9b";
  */
 void err_net(void)
 {
-  switch(OS.dcb.dvstat[3])
+  switch(OS.dvstat[3])
     {
     case 0:
       print("OK");
