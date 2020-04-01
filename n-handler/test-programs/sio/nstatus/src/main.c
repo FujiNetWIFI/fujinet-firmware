@@ -41,14 +41,17 @@ void nstatus(void)
     }
   else
     {
-      print("STATUS: ");
+      print("\x9b" "STATUS: ");
       for (i=0;i<4;i++)
 	{
 	  itoa(OS.dvstat[i],tmp,16);
 	  print(tmp);
 	  print(" ");
 	}
-      print("\x9b");
+      print("NET STATUS:\x9b  ");
+      err_net();
+      
+      print("\x9b\x9b");
     }
 }
 

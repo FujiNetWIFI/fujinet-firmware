@@ -18,6 +18,34 @@ const char error_139[]="FUJINET NAK\x9b";
 const char error[]="SIO ERROR\x9b"; 
 
 /**
+ * Show network error
+ */
+void err_net(void)
+{
+  switch(OS.dcb.dvstat[3])
+    {
+    case 0:
+      print("OK");
+      break;
+    case 128:
+      print("NOT CONNECTED");
+      break;
+    case 129:
+      print("COULD NOT ALLOC BUFFERS");
+      break;
+    case 130:
+      print("COULD NOT OPEN PROTOCOL");
+      break;
+    case 165:
+      print("INVALID DEVICESPEC");
+      break;
+    case 170:
+      print("COULD NOT CONNECT.");
+      break;
+    }
+}
+
+/**
  * Show error
  */
 void err_sio(void)
