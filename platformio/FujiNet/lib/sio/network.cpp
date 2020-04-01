@@ -30,7 +30,7 @@ bool sioNetwork::open_protocol()
     return protocol->open(&deviceSpec);
 }
 
-void sioNetwork::open()
+void sioNetwork::sio_open()
 {
     char inp[256];
 
@@ -78,7 +78,7 @@ void sioNetwork::open()
     }
 }
 
-void sioNetwork::close()
+void sioNetwork::sio_close()
 {
 #ifdef DEBUG
     Debug_printf("Close.\n");
@@ -90,7 +90,7 @@ void sioNetwork::close()
         sio_error();
 }
 
-void sioNetwork::read()
+void sioNetwork::sio_read()
 {
     sio_ack();
 #ifdef DEBUG
@@ -108,7 +108,7 @@ void sioNetwork::read()
     sio_to_computer(rx_buf, sio_get_aux(), err);
 }
 
-void sioNetwork::write()
+void sioNetwork::sio_write()
 {
     sio_ack();
 #ifdef DEBUG
@@ -164,7 +164,7 @@ void sioNetwork::sio_status()
     sio_to_computer(status_buf.rawData, 4, err);
 }
 
-void sioNetwork::special()
+void sioNetwork::sio_special()
 {
     sio_ack();
 #ifdef DEBUG
@@ -189,22 +189,22 @@ void sioNetwork::sio_process()
     switch (cmdFrame.comnd)
     {
     case 'O':
-        open();
+        sio_open();
         break;
     case 'C':
-        close();
+        sio_close();
         break;
     case 'R':
-        read();
+        sio_read();
         break;
     case 'W':
-        write();
+        sio_write();
         break;
     case 'S':
         sio_status();
         break;
     default:
-        special();
+        sio_special();
         break;
     }
 }
