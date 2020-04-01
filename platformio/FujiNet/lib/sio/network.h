@@ -26,6 +26,7 @@ class sioNetwork : public sioDevice
 
 private:
     bool allocate_buffers();
+    void deallocate_buffers();
     bool open_protocol();
 
 protected:

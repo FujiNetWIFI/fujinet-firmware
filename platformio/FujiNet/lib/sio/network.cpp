@@ -11,7 +11,7 @@ bool sioNetwork::allocate_buffers()
     tx_buf = (byte *)malloc(OUTPUT_BUFFER_SIZE);
     sp_buf = (byte *)malloc(SPECIAL_BUFFER_SIZE);
 
-    if ((rx_buf == NULL) || (tx_buf == NULL) || (sp_buf == NULL))
+    if ((rx_buf == nullptr) || (tx_buf == nullptr) || (sp_buf == nullptr))
         return false;
     else
     {
@@ -20,6 +20,21 @@ bool sioNetwork::allocate_buffers()
         memset(sp_buf,0,SPECIAL_BUFFER_SIZE);
         return true;
     }
+}
+
+/**
+ * Deallocate input/output buffers
+ */
+void sioNetwork::deallocate_buffers()
+{
+    if (rx_buf!=nullptr)
+        free(rx_buf);
+
+    if (tx_buf!=nullptr)
+        free(tx_buf);
+
+    if (sp_buf!=nullptr)
+        free(sp_buf);
 }
 
 bool sioNetwork::open_protocol()
@@ -84,10 +99,19 @@ void sioNetwork::sio_close()
     Debug_printf("Close.\n");
 #endif
     sio_ack();
+
+    if (protocol==nullptr)
+        return;
+
     if (protocol->close())
         sio_complete();
     else
         sio_error();
+
+    delete protocol;
+    protocol=nullptr;
+
+    deallocate_buffers();
 }
 
 void sioNetwork::sio_read()
@@ -96,7 +120,7 @@ void sioNetwork::sio_read()
 #ifdef DEBUG
     Debug_printf("Read %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
 #endif
-    if (protocol == NULL)
+    if (protocol == nullptr)
     {
         err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
@@ -119,7 +143,7 @@ void sioNetwork::sio_write()
 
     Debug_printf("Byte stream %s\n",tx_buf);
 
-    if (protocol == NULL)
+    if (protocol == nullptr)
     {
 #ifdef DEBUG
         Debug_printf("Not connected\n");
@@ -146,7 +170,7 @@ void sioNetwork::sio_status()
 #ifdef DEBUG
     Debug_printf("STATUS\n");
 #endif
-    if (protocol == NULL)
+    if (protocol == nullptr)
     {
         status_buf.rawData[0] =
             status_buf.rawData[1] =
@@ -170,7 +194,7 @@ void sioNetwork::sio_special()
 #ifdef DEBUG
     Debug_printf("SPECIAL\n");
 #endif
-    if (protocol == NULL)
+    if (protocol == nullptr)
     {
 #ifdef DEBUG
         Debug_printf("Not connected!\n");
