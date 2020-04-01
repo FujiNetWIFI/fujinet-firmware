@@ -49,7 +49,7 @@ void main(void)
 {
   OS.lmargn=2;
 
-  print("ENTER DATA FOLLOWED BY \xD2\xC4\xD3\xD4\xD2\xCE\x9b");
+  print("ENTER DATA FOLLOWED BY \xD2\xC5\xD4\xD5\xD2\xCE\x9b");
   get_line(buf,255);
 
   nwrite();
