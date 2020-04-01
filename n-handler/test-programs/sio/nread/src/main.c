@@ -66,6 +66,7 @@ int main(int argc, char* argv[])
 	  opts(argv);
 	  return(1);
 	}
+      len=atoi(argv[1]);
     }
   else
     {
