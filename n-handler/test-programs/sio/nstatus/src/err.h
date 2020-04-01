@@ -19,4 +19,10 @@
  */
 void err_sio(void);
 
+/**
+ * Show Network Error
+ */
+void err_net(void);
+
+
 #endif /* ERR_H */
