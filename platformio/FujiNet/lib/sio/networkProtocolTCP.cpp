@@ -86,6 +86,9 @@ bool networkProtocolTCP::read(byte *rx_buf, unsigned short len)
 #ifdef DEBUG
     Debug_printf("TCP read %d bytes\n",len);
 #endif
+    if (!client.connected())
+        return false;
+        
     return (client.readBytes(rx_buf, len) == len);
 }
 
@@ -93,7 +96,10 @@ bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
 {
 #ifdef DEBUG
     Debug_printf("TCP write %d bytes\n",len);
-#endif 
+#endif
+    if (!client.connected())
+        return false;
+
     return (client.write((char *)tx_buf), len);
 }
 
