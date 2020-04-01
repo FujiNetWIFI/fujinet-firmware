@@ -26,7 +26,7 @@ void nstatus(void)
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
   OS.dcb.dcomnd='S';
-  OS.dcb.dstats=0x00;
+  OS.dcb.dstats=0x40;
   OS.dcb.dbuf=OS.dvstat;
   OS.dcb.dtimlo=0x0f;
   OS.dcb.dbyt=4;
