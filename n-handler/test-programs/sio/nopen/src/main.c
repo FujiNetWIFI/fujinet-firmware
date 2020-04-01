@@ -67,6 +67,8 @@ int main(int argc, char* argv[])
 	  opts(argv);
 	  return(1);
 	}
+
+      strcpy(buf,argv[1]);
     }
   else
     {
