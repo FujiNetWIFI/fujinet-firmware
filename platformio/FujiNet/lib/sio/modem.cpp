@@ -102,6 +102,37 @@ void sioModem::sio_config()
   }
 }
 
+
+/**
+ * Set listen port
+ */
+void sioModem::sio_listen()
+{
+  if (listenPort!=0)
+    tcpServer.close();
+  
+  listenPort = cmdFrame.aux2*256+cmdFrame.aux1;
+
+  if (listenPort<1)
+    sio_nak();
+  else
+    sio_ack();
+
+  tcpServer.begin(listenPort);
+  
+  sio_complete();
+}
+
+/**
+ * Stop listen
+ */
+void sioModem::sio_unlisten()
+{
+  sio_ack();
+  tcpServer.close();
+  sio_complete();
+}
+
 /*
  Concurrent/Stream mode
 */
@@ -409,7 +440,6 @@ void sioModem::modemCommand()
       at_cmd_println(listenPort);
       at_cmd_println("which result in RING and you can");
       at_cmd_println("answer with ATA.");
-      tcpServer.begin(listenPort);
     }
     else
     {
@@ -486,6 +516,11 @@ void sioModem::modemCommand()
     }
     else
     {
+      if (listenPort!=0)
+      {
+        tcpServer.stop();
+      }
+
       listenPort = port;
       tcpServer.begin(listenPort);
       at_cmd_println("OK");
@@ -707,6 +742,10 @@ void sioModem::sio_process()
   case 'B': // $42, Configure
     sio_ack();
     sio_config();
+    break;
+  case 'L': // $4C, Listen
+    sio_ack();
+    sio_listen();
     break;
   case 'S': // $53, Status
     sio_ack();
