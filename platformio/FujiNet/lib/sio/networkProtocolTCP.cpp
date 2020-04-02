@@ -53,6 +53,7 @@ bool networkProtocolTCP::open(networkDeviceSpec *spec)
     else
     {
         ret = false;
+        client_error_code=170;
     }
 
 #ifdef DEBUG
