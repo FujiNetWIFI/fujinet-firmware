@@ -173,13 +173,11 @@ void sioNetwork::sio_status()
 #ifdef DEBUG
     Debug_printf("STATUS\n");
 #endif
-    if (protocol == nullptr)
+    if (!protocol)
     {
         status_buf.rawData[0] =
-            status_buf.rawData[1] =
-                status_buf.rawData[2] =
-                    status_buf.rawData[3] = 0;
-                    
+            status_buf.rawData[1] = 0;
+
         status_buf.rawData[2] = WiFi.isConnected();
         err = false;
     }

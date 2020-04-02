@@ -29,7 +29,7 @@ void nopen(void)
   OS.dcb.dcomnd='O';
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&buf;
-  OS.dcb.dtimlo=0x0f;
+  OS.dcb.dtimlo=0x1f;
   OS.dcb.dbyt=256;
   OS.dcb.daux1=daux1;
   OS.dcb.daux2=daux2;

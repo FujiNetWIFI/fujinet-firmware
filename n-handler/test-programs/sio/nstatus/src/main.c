@@ -48,10 +48,10 @@ void nstatus(void)
 	  print(tmp);
 	  print(" ");
 	}
-      print("NET STATUS:\x9b  ");
+      print("\x9bNET STATUS: ");
       err_net();
       
-      print("\x9b\x9b");
+      print("\x9b");
     }
 }
 

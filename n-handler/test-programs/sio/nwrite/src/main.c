@@ -41,7 +41,7 @@ void nwrite(void)
     }
   else
     {
-      print("WRITTEN\x9b");
+      print("\x9bWRITTEN\x9b");
     }
 }
 
@@ -49,7 +49,7 @@ void main(void)
 {
   OS.lmargn=2;
 
-  print("ENTER DATA FOLLOWED BY \xD2\xC5\xD4\xD5\xD2\xCE\x9b");
+  print("\x9b" "ENTER DATA FOLLOWED BY \xD2\xC5\xD4\xD5\xD2\xCE\x9b");
   get_line(buf,255);
 
   nwrite();
