@@ -1,129 +1,149 @@
 Modules list:
 -------------
 bar.o:
-    CODE              Offs=000000  Size=00027D  Align=00001  Fill=0000
+    CODE              Offs=000000  Size=000277  Align=00001  Fill=0000
     DATA              Offs=000000  Size=000002  Align=00001  Fill=0000
 diskulator.o:
-    CODE              Offs=00027D  Size=0013ED  Align=00001  Fill=0000
+    CODE              Offs=000277  Size=001265  Align=00001  Fill=0000
     RODATA            Offs=000000  Size=00031E  Align=00001  Fill=0000
     BSS               Offs=000000  Size=0005E2  Align=00001  Fill=0000
     DATA              Offs=000002  Size=000105  Align=00001  Fill=0000
 info.o:
-    CODE              Offs=00166A  Size=000374  Align=00001  Fill=0000
+    CODE              Offs=0014DC  Size=0002E6  Align=00001  Fill=0000
     RODATA            Offs=00031E  Size=000084  Align=00001  Fill=0000
 main.o:
-    CODE              Offs=0019DE  Size=0000AE  Align=00001  Fill=0000
+    CODE              Offs=0017C2  Size=0000A8  Align=00001  Fill=0000
     DATA              Offs=000107  Size=000050  Align=00001  Fill=0000
 config.o:
-    CODE              Offs=001A8C  Size=00080E  Align=00001  Fill=0000
+    CODE              Offs=00186A  Size=00070D  Align=00001  Fill=0000
     RODATA            Offs=0003A2  Size=00016B  Align=00001  Fill=0000
     BSS               Offs=0005E2  Size=00017E  Align=00001  Fill=0000
     DATA              Offs=000157  Size=000003  Align=00001  Fill=0000
 screen.o:
-    CODE              Offs=00229A  Size=00037D  Align=00001  Fill=0000
+    CODE              Offs=001F77  Size=000352  Align=00001  Fill=0000
     RODATA            Offs=00050D  Size=000002  Align=00001  Fill=0000
     BSS               Offs=000760  Size=000008  Align=00001  Fill=0000
 die.o:
-    CODE              Offs=002617  Size=000009  Align=00001  Fill=0000
+    CODE              Offs=0022C9  Size=000009  Align=00001  Fill=0000
 crt0.o:
     BSS               Offs=000768  Size=000005  Align=00001  Fill=0000
     STARTUP           Offs=000000  Size=000068  Align=00001  Fill=0000
 sio.o:
-    CODE              Offs=002620  Size=000004  Align=00001  Fill=0000
+    CODE              Offs=0022D2  Size=000004  Align=00001  Fill=0000
 bar-setup-regs.o:
-    CODE              Offs=002624  Size=00005F  Align=00001  Fill=0000
+    CODE              Offs=0022D6  Size=00005F  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(_cursor.o):
     BSS               Offs=00076D  Size=000001  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(_hextab.o):
     RODATA            Offs=00050F  Size=000010  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(add.o):
-    CODE              Offs=002683  Size=00001C  Align=00001  Fill=0000
+    CODE              Offs=002335  Size=00001C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(addeqsp.o):
-    CODE              Offs=00269F  Size=000011  Align=00001  Fill=0000
+    CODE              Offs=002351  Size=000011  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(addysp.o):
-    CODE              Offs=0026B0  Size=00000E  Align=00001  Fill=0000
+    CODE              Offs=002362  Size=00000E  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(aslax1.o):
+    CODE              Offs=002370  Size=000008  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(aslax2.o):
+    CODE              Offs=002378  Size=00000B  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(aslax4.o):
-    CODE              Offs=0026BE  Size=000011  Align=00001  Fill=0000
+    CODE              Offs=002383  Size=000011  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(atoi.o):
-    CODE              Offs=0026CF  Size=000096  Align=00001  Fill=0000
+    CODE              Offs=002394  Size=000096  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(callmain.o):
-    CODE              Offs=002765  Size=000017  Align=00001  Fill=0000
+    CODE              Offs=00242A  Size=000017  Align=00001  Fill=0000
     DATA              Offs=00015A  Size=000004  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(cgetc.o):
-    CODE              Offs=00277C  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=002441  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(condes.o):
-    CODE              Offs=002792  Size=00000C  Align=00001  Fill=0000
+    CODE              Offs=002457  Size=00000C  Align=00001  Fill=0000
     DATA              Offs=00015E  Size=000025  Align=00001  Fill=0000
     ONCE              Offs=000000  Size=00000C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(ctype.o):
     RODATA            Offs=00051F  Size=000100  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(decax1.o):
+    CODE              Offs=002463  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(decaxy.o):
+    CODE              Offs=00246A  Size=000009  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decsp1.o):
-    CODE              Offs=00279E  Size=000009  Align=00001  Fill=0000
+    CODE              Offs=002473  Size=000009  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decsp2.o):
-    CODE              Offs=0027A7  Size=00000D  Align=00001  Fill=0000
+    CODE              Offs=00247C  Size=00000D  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decsp3.o):
-    CODE              Offs=0027B4  Size=00000D  Align=00001  Fill=0000
+    CODE              Offs=002489  Size=00000D  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decsp4.o):
-    CODE              Offs=0027C1  Size=00000D  Align=00001  Fill=0000
+    CODE              Offs=002496  Size=00000D  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decsp5.o):
-    CODE              Offs=0027CE  Size=00000D  Align=00001  Fill=0000
-/home/thomc/Workspace/cc65/lib/atari.lib(decsp6.o):
-    CODE              Offs=0027DB  Size=00000D  Align=00001  Fill=0000
+    CODE              Offs=0024A3  Size=00000D  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(icmp.o):
-    CODE              Offs=0027E8  Size=00002E  Align=00001  Fill=0000
+    CODE              Offs=0024B0  Size=00002E  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incax1.o):
+    CODE              Offs=0024DE  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incax2.o):
+    CODE              Offs=0024E5  Size=000007  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incax3.o):
+    CODE              Offs=0024EC  Size=000005  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(incaxy.o):
+    CODE              Offs=0024F1  Size=00000B  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp1.o):
-    CODE              Offs=002816  Size=000007  Align=00001  Fill=0000
+    CODE              Offs=0024FC  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp2.o):
-    CODE              Offs=00281D  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=002503  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp3.o):
-    CODE              Offs=002833  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=002519  Size=000005  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp4.o):
-    CODE              Offs=002838  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=00251E  Size=000005  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp5.o):
-    CODE              Offs=00283D  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=002523  Size=000005  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(incsp8.o):
-    CODE              Offs=002842  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=002528  Size=000005  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(itoa.o):
-    CODE              Offs=002847  Size=000094  Align=00001  Fill=0000
+    CODE              Offs=00252D  Size=000094  Align=00001  Fill=0000
     RODATA            Offs=00061F  Size=000007  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(kbhit.o):
-    CODE              Offs=0028DB  Size=00000B  Align=00001  Fill=0000
+    CODE              Offs=0025C1  Size=00000B  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(ldaxi.o):
+    CODE              Offs=0025CC  Size=00000D  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(ldaxsp.o):
+    CODE              Offs=0025D9  Size=000009  Align=00001  Fill=0000
+/home/thomc/Workspace/cc65/lib/atari.lib(leaaxsp.o):
+    CODE              Offs=0025E2  Size=00000C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(lneg.o):
-    CODE              Offs=0028E6  Size=00001E  Align=00001  Fill=0000
+    CODE              Offs=0025EE  Size=00001E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(memcpy.o):
-    CODE              Offs=002904  Size=00003C  Align=00001  Fill=0000
+    CODE              Offs=00260C  Size=00003C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(memset.o):
-    CODE              Offs=002940  Size=00005D  Align=00001  Fill=0000
+    CODE              Offs=002648  Size=00005D  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(mul40.o):
-    CODE              Offs=00299D  Size=000021  Align=00001  Fill=0000
+    CODE              Offs=0026A5  Size=000021  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(mul8.o):
-    CODE              Offs=0029BE  Size=00003A  Align=00001  Fill=0000
+    CODE              Offs=0026C6  Size=00003A  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(popptr1.o):
-    CODE              Offs=0029F8  Size=00000E  Align=00001  Fill=0000
+    CODE              Offs=002700  Size=00000E  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(pusha.o):
-    CODE              Offs=002A06  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=00270E  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(pushax.o):
-    CODE              Offs=002A1C  Size=00001A  Align=00001  Fill=0000
+    CODE              Offs=002724  Size=00001A  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(pushwsp.o):
-    CODE              Offs=002A36  Size=00001C  Align=00001  Fill=0000
+    CODE              Offs=00273E  Size=00001C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(return1.o):
-    CODE              Offs=002A52  Size=000005  Align=00001  Fill=0000
+    CODE              Offs=00275A  Size=000005  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(setcursor.o):
-    CODE              Offs=002A57  Size=00003A  Align=00001  Fill=0000
+    CODE              Offs=00275F  Size=00003A  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(staspidx.o):
-    CODE              Offs=002A91  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=002799  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(staxsp.o):
-    CODE              Offs=002AA7  Size=00000B  Align=00001  Fill=0000
+    CODE              Offs=0027AF  Size=00000B  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(strcat.o):
-    CODE              Offs=002AB2  Size=000031  Align=00001  Fill=0000
+    CODE              Offs=0027BA  Size=000031  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(strcpy.o):
-    CODE              Offs=002AE3  Size=00001F  Align=00001  Fill=0000
+    CODE              Offs=0027EB  Size=00001F  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(strlen.o):
-    CODE              Offs=002B02  Size=000016  Align=00001  Fill=0000
+    CODE              Offs=00280A  Size=000016  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(subysp.o):
-    CODE              Offs=002B18  Size=00000D  Align=00001  Fill=0000
+    CODE              Offs=002820  Size=00000D  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(zerobss.o):
-    CODE              Offs=002B25  Size=000023  Align=00001  Fill=0000
+    CODE              Offs=00282D  Size=000023  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(zeropage.o):
     ZEROPAGE          Offs=000000  Size=00001A  Align=00001  Fill=0000
 
@@ -135,110 +155,122 @@ Name                   Start     End    Size  Align
 ZEROPAGE              0000E5  0000FE  00001A  00001
 STARTUP               000700  000767  000068  00001
 ONCE                  000768  000773  00000C  00001
-CODE                  000774  0032BB  002B48  00001
-RODATA                0032BC  0038E1  000626  00001
-DATA                  0038E2  003A64  000183  00001
-BSS                   003A65  0041D2  00076E  00001
+CODE                  000774  002FC3  002850  00001
+RODATA                002FC4  0035E9  000626  00001
+DATA                  0035EA  00376C  000183  00001
+BSS                   00376D  003EDA  00076E  00001
 
 
 Exports list by name:
 ---------------------
-__BSS_RUN__               003A65 RLA    __BSS_SIZE__              00076E REA    
+__BSS_RUN__               00376D RLA    __BSS_SIZE__              00076E REA    
 __CONSTRUCTOR_COUNT__     000000 REA    __CONSTRUCTOR_TABLE__     000774 RLA    
-__DESTRUCTOR_COUNT__      000000 REA    __DESTRUCTOR_TABLE__      0038E2 RLA    
+__DESTRUCTOR_COUNT__      000000 REA    __DESTRUCTOR_TABLE__      0035EA RLA    
 __LOWCODE_RUN__           000768 RLA    __LOWCODE_SIZE__          000000 REA    
 __RESERVED_MEMORY__       000000 REA    __STACKSIZE__             000800 REA    
-__STARTUP__               000001 REA    __bzero                   0030B4 RLA    
-__ctype                   0037DB RLA    __hextab                  0037CB RLA    
-_adapterConfig            0040C8 RLA    _atoi                     002E43 RLA    
-_bar_clear                000774 RLA    _bar_set_color            0009DB RLA    
-_bar_setup_regs           002D98 RLA    _bar_show                 000784 RLA    
-_cgetc                    002EF0 RLA    _config_connect           00225A RLA    
-_config_run               002291 RLA    _configured               002200 RLA    
-_die                      002D8B RLA    _diskulator_run           0009F1 RLA    
-_dlist_ptr                0041C7 RLA    _font_ptr                 0041CB RLA    
-_info_run                 001DDE RLA    _itoa                     002FD9 RLA    
-_kbhit                    00304F RLA    _main                     0021EA RLA    
-_memcpy                   003078 RLA    _mul40                    003111 RLA    
-_screen_clear             002AA6 RLA    _screen_input             002AB6 RLA    
-_screen_memory            0041C9 RLA    _screen_puts              002A0E RLA    
-_siov                     002D94 RLA    _strcat                   003226 RLA    
-_strcpy                   003257 RLA    _strlen                   003276 RLA    
-_utoa                     00301B RLA    _video_ptr                0041C5 RLA    
-addeqysp                  002E15 RLA    addysp                    002E25 RLA    
-addysp1                   002E24 RLA    aslax4                    002E32 RLA    
-callmain                  002ED9 RLA    cursor                    0041D2 RLA    
-decsp1                    002F12 RLA    decsp2                    002F1B RLA    
-decsp3                    002F28 RLA    decsp4                    002F35 RLA    
-decsp5                    002F42 RLA    decsp6                    002F4F RLA    
-donelib                   002F06 RLA    incsp1                    002F8A RLA    
-incsp2                    002F99 RLA    incsp3                    002FA7 RLA    
-incsp4                    002FAC RLA    incsp5                    002FB1 RLA    
-incsp8                    002FB6 RLA    initlib                   000768 RLA    
-negeax                    00305A RLA    popax                     002F91 RLA    
-popptr1                   00316C RLA    ptr1                      0000ED RLZ    
+__STARTUP__               000001 REA    __bzero                   002DBC RLA    
+__ctype                   0034E3 RLA    __hextab                  0034D3 RLA    
+_adapterConfig            003DD0 RLA    _atoi                     002B08 RLA    
+_bar_clear                000774 RLA    _bar_set_color            0009D5 RLA    
+_bar_setup_regs           002A4A RLA    _bar_show                 000784 RLA    
+_cgetc                    002BB5 RLA    _config_connect           002038 RLA    
+_config_run               002067 RLA    _configured               001FDE RLA    
+_die                      002A3D RLA    _diskulator_run           0009EB RLA    
+_dlist_ptr                003ECF RLA    _font_ptr                 003ED3 RLA    
+_info_run                 001C50 RLA    _itoa                     002CBF RLA    
+_kbhit                    002D35 RLA    _main                     001FC8 RLA    
+_memcpy                   002D80 RLA    _mul40                    002E19 RLA    
+_screen_clear             00277F RLA    _screen_input             00278F RLA    
+_screen_memory            003ED1 RLA    _screen_puts              0026EB RLA    
+_siov                     002A46 RLA    _strcat                   002F2E RLA    
+_strcpy                   002F5F RLA    _strlen                   002F7E RLA    
+_utoa                     002D01 RLA    _video_ptr                003ECD RLA    
+addeqysp                  002AC7 RLA    addysp                    002AD7 RLA    
+addysp1                   002AD6 RLA    aslax1                    002AE4 RLA    
+aslax2                    002AEC RLA    aslax4                    002AF7 RLA    
+callmain                  002B9E RLA    cursor                    003EDA RLA    
+decax1                    002BD7 RLA    decaxy                    002BDE RLA    
+decsp1                    002BE7 RLA    decsp2                    002BF0 RLA    
+decsp3                    002BFD RLA    decsp4                    002C0A RLA    
+decsp5                    002C17 RLA    donelib                   002BCB RLA    
+incax1                    002C52 RLA    incax2                    002C59 RLA    
+incax3                    002C60 RLA    incax4                    002C65 RLA    
+incaxy                    002C67 RLA    incsp1                    002C70 RLA    
+incsp2                    002C7F RLA    incsp3                    002C8D RLA    
+incsp4                    002C92 RLA    incsp5                    002C97 RLA    
+incsp8                    002C9C RLA    initlib                   000768 RLA    
+ldax0sp                   002D4D RLA    ldaxi                     002D40 RLA    
+ldaxysp                   002D4F RLA    leaa0sp                   002D56 RLA    
+negeax                    002D62 RLA    popax                     002C77 RLA    
+popptr1                   002E74 RLA    ptr1                      0000ED RLZ    
 ptr2                      0000EF RLZ    ptr3                      0000F1 RLZ    
-ptr4                      0000F3 RLZ    pusha                     00317E RLA    
-pusha0                    003192 RLA    pushax                    003194 RLA    
-pushwysp                  0031AC RLA    return1                   0031C6 RLA    
-setcursor                 0031CB RLA    sp                        0000E5 RLZ    
-sreg                      0000E7 RLZ    staspidx                  003205 RLA    
-staxysp                   00321D RLA    subysp                    00328C RLA    
+ptr4                      0000F3 RLZ    pusha                     002E86 RLA    
+pusha0                    002E9A RLA    pushax                    002E9C RLA    
+pushwysp                  002EB4 RLA    return1                   002ECE RLA    
+setcursor                 002ED3 RLA    sp                        0000E5 RLZ    
+sreg                      0000E7 RLZ    staspidx                  002F0D RLA    
+staxysp                   002F25 RLA    subysp                    002F94 RLA    
 tmp1                      0000F5 RLZ    tmp3                      0000F7 RLZ    
-tmp4                      0000F8 RLZ    tosadda0                  002DF7 RLA    
-tosaddax                  002DF9 RLA    tosicmp                   002F5E RLA    
-tosmula0                  003132 RLA    tosumula0                 003132 RLA    
-zerobss                   003299 RLA    
+tmp4                      0000F8 RLZ    tosadda0                  002AA9 RLA    
+tosaddax                  002AAB RLA    tosicmp                   002C26 RLA    
+tosmula0                  002E3A RLA    tosumula0                 002E3A RLA    
+zerobss                   002FA1 RLA    
 
 
 Exports list by value:
 ----------------------
-__RESERVED_MEMORY__       000000 REA    __CONSTRUCTOR_COUNT__     000000 REA    
-__DESTRUCTOR_COUNT__      000000 REA    __LOWCODE_SIZE__          000000 REA    
+__CONSTRUCTOR_COUNT__     000000 REA    __LOWCODE_SIZE__          000000 REA    
+__DESTRUCTOR_COUNT__      000000 REA    __RESERVED_MEMORY__       000000 REA    
 __STARTUP__               000001 REA    sp                        0000E5 RLZ    
 sreg                      0000E7 RLZ    ptr1                      0000ED RLZ    
 ptr2                      0000EF RLZ    ptr3                      0000F1 RLZ    
 ptr4                      0000F3 RLZ    tmp1                      0000F5 RLZ    
 tmp3                      0000F7 RLZ    tmp4                      0000F8 RLZ    
-__LOWCODE_RUN__           000768 RLA    initlib                   000768 RLA    
-__BSS_SIZE__              00076E REA    __CONSTRUCTOR_TABLE__     000774 RLA    
-_bar_clear                000774 RLA    _bar_show                 000784 RLA    
-__STACKSIZE__             000800 REA    _bar_set_color            0009DB RLA    
-_diskulator_run           0009F1 RLA    _info_run                 001DDE RLA    
-_main                     0021EA RLA    _configured               002200 RLA    
-_config_connect           00225A RLA    _config_run               002291 RLA    
-_screen_puts              002A0E RLA    _screen_clear             002AA6 RLA    
-_screen_input             002AB6 RLA    _die                      002D8B RLA    
-_siov                     002D94 RLA    _bar_setup_regs           002D98 RLA    
-tosadda0                  002DF7 RLA    tosaddax                  002DF9 RLA    
-addeqysp                  002E15 RLA    addysp1                   002E24 RLA    
-addysp                    002E25 RLA    aslax4                    002E32 RLA    
-_atoi                     002E43 RLA    callmain                  002ED9 RLA    
-_cgetc                    002EF0 RLA    donelib                   002F06 RLA    
-decsp1                    002F12 RLA    decsp2                    002F1B RLA    
-decsp3                    002F28 RLA    decsp4                    002F35 RLA    
-decsp5                    002F42 RLA    decsp6                    002F4F RLA    
-tosicmp                   002F5E RLA    incsp1                    002F8A RLA    
-popax                     002F91 RLA    incsp2                    002F99 RLA    
-incsp3                    002FA7 RLA    incsp4                    002FAC RLA    
-incsp5                    002FB1 RLA    incsp8                    002FB6 RLA    
-_itoa                     002FD9 RLA    _utoa                     00301B RLA    
-_kbhit                    00304F RLA    negeax                    00305A RLA    
-_memcpy                   003078 RLA    __bzero                   0030B4 RLA    
-_mul40                    003111 RLA    tosmula0                  003132 RLA    
-tosumula0                 003132 RLA    popptr1                   00316C RLA    
-pusha                     00317E RLA    pusha0                    003192 RLA    
-pushax                    003194 RLA    pushwysp                  0031AC RLA    
-return1                   0031C6 RLA    setcursor                 0031CB RLA    
-staspidx                  003205 RLA    staxysp                   00321D RLA    
-_strcat                   003226 RLA    _strcpy                   003257 RLA    
-_strlen                   003276 RLA    subysp                    00328C RLA    
-zerobss                   003299 RLA    __hextab                  0037CB RLA    
-__ctype                   0037DB RLA    __DESTRUCTOR_TABLE__      0038E2 RLA    
-__BSS_RUN__               003A65 RLA    _adapterConfig            0040C8 RLA    
-_video_ptr                0041C5 RLA    _dlist_ptr                0041C7 RLA    
-_screen_memory            0041C9 RLA    _font_ptr                 0041CB RLA    
-cursor                    0041D2 RLA    
+initlib                   000768 RLA    __LOWCODE_RUN__           000768 RLA    
+__BSS_SIZE__              00076E REA    _bar_clear                000774 RLA    
+__CONSTRUCTOR_TABLE__     000774 RLA    _bar_show                 000784 RLA    
+__STACKSIZE__             000800 REA    _bar_set_color            0009D5 RLA    
+_diskulator_run           0009EB RLA    _info_run                 001C50 RLA    
+_main                     001FC8 RLA    _configured               001FDE RLA    
+_config_connect           002038 RLA    _config_run               002067 RLA    
+_screen_puts              0026EB RLA    _screen_clear             00277F RLA    
+_screen_input             00278F RLA    _die                      002A3D RLA    
+_siov                     002A46 RLA    _bar_setup_regs           002A4A RLA    
+tosadda0                  002AA9 RLA    tosaddax                  002AAB RLA    
+addeqysp                  002AC7 RLA    addysp1                   002AD6 RLA    
+addysp                    002AD7 RLA    aslax1                    002AE4 RLA    
+aslax2                    002AEC RLA    aslax4                    002AF7 RLA    
+_atoi                     002B08 RLA    callmain                  002B9E RLA    
+_cgetc                    002BB5 RLA    donelib                   002BCB RLA    
+decax1                    002BD7 RLA    decaxy                    002BDE RLA    
+decsp1                    002BE7 RLA    decsp2                    002BF0 RLA    
+decsp3                    002BFD RLA    decsp4                    002C0A RLA    
+decsp5                    002C17 RLA    tosicmp                   002C26 RLA    
+incax1                    002C52 RLA    incax2                    002C59 RLA    
+incax3                    002C60 RLA    incax4                    002C65 RLA    
+incaxy                    002C67 RLA    incsp1                    002C70 RLA    
+popax                     002C77 RLA    incsp2                    002C7F RLA    
+incsp3                    002C8D RLA    incsp4                    002C92 RLA    
+incsp5                    002C97 RLA    incsp8                    002C9C RLA    
+_itoa                     002CBF RLA    _utoa                     002D01 RLA    
+_kbhit                    002D35 RLA    ldaxi                     002D40 RLA    
+ldax0sp                   002D4D RLA    ldaxysp                   002D4F RLA    
+leaa0sp                   002D56 RLA    negeax                    002D62 RLA    
+_memcpy                   002D80 RLA    __bzero                   002DBC RLA    
+_mul40                    002E19 RLA    tosmula0                  002E3A RLA    
+tosumula0                 002E3A RLA    popptr1                   002E74 RLA    
+pusha                     002E86 RLA    pusha0                    002E9A RLA    
+pushax                    002E9C RLA    pushwysp                  002EB4 RLA    
+return1                   002ECE RLA    setcursor                 002ED3 RLA    
+staspidx                  002F0D RLA    staxysp                   002F25 RLA    
+_strcat                   002F2E RLA    _strcpy                   002F5F RLA    
+_strlen                   002F7E RLA    subysp                    002F94 RLA    
+zerobss                   002FA1 RLA    __hextab                  0034D3 RLA    
+__ctype                   0034E3 RLA    __DESTRUCTOR_TABLE__      0035EA RLA    
+__BSS_RUN__               00376D RLA    _adapterConfig            003DD0 RLA    
+_video_ptr                003ECD RLA    _dlist_ptr                003ECF RLA    
+_screen_memory            003ED1 RLA    _font_ptr                 003ED3 RLA    
+cursor                    003EDA RLA    
 
 
 Imports list:
@@ -267,9 +299,9 @@ __STACKSIZE__ ([linker generated]):
 __STARTUP__ (crt0.o):
     main.o                    src/main.s(13)
 __bzero (memset.o):
-    screen.o                  src/screen.s(491)
-    diskulator.o              src/diskulator.s(2825)
-    bar.o                     src/bar.s(413)
+    screen.o                  src/screen.s(447)
+    diskulator.o              src/diskulator.s(2500)
+    bar.o                     src/bar.s(386)
 __ctype (ctype.o):
     atoi.o                    common/atoi.s(9)
 __hextab (_hextab.o):
@@ -355,104 +387,136 @@ _utoa (itoa.o):
 _video_ptr (screen.o):
     main.o                    src/main.s(21)
 addeqysp (addeqsp.o):
-    screen.o                  src/screen.s(491)
+    screen.o                  src/screen.s(447)
 addysp (addysp.o):
     incsp8.o                  runtime/incsp8.s(8)
     incsp5.o                  runtime/incsp5.s(8)
     incsp4.o                  runtime/incsp4.s(8)
     incsp3.o                  runtime/incsp3.s(8)
-    screen.o                  src/screen.s(491)
-    info.o                    src/info.s(516)
-    info.o                    src/info.s(516)
-    diskulator.o              src/diskulator.s(2825)
+    screen.o                  src/screen.s(447)
+    info.o                    src/info.s(412)
+    info.o                    src/info.s(412)
+    diskulator.o              src/diskulator.s(2500)
 addysp1 (addysp.o):
     itoa.o                    common/itoa.s(9)
+aslax1 (aslax1.o):
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+aslax2 (aslax2.o):
+    bar.o                     src/bar.s(386)
 aslax4 (aslax4.o):
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 callmain (callmain.o):
     crt0.o                    src/crt0.s(15)
 cursor (_cursor.o):
     setcursor.o               atari/setcursor.s(7)
+decax1 (decax1.o):
+    diskulator.o              src/diskulator.s(2500)
+decaxy (decaxy.o):
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 decsp1 (decsp1.o):
-    screen.o                  src/screen.s(491)
-    screen.o                  src/screen.s(491)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
+    screen.o                  src/screen.s(447)
+    screen.o                  src/screen.s(447)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 decsp2 (decsp2.o):
-    screen.o                  src/screen.s(491)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    info.o                    src/info.s(516)
-    info.o                    src/info.s(516)
-    info.o                    src/info.s(516)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 decsp3 (decsp3.o):
-    config.o                  src/config.s(1281)
-    info.o                    src/info.s(516)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
+    config.o                  src/config.s(1082)
+    info.o                    src/info.s(412)
+    diskulator.o              src/diskulator.s(2500)
 decsp4 (decsp4.o):
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    info.o                    src/info.s(516)
-    info.o                    src/info.s(516)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
+    config.o                  src/config.s(1082)
+    info.o                    src/info.s(412)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 decsp5 (decsp5.o):
-    screen.o                  src/screen.s(491)
-    config.o                  src/config.s(1281)
-decsp6 (decsp6.o):
-    diskulator.o              src/diskulator.s(2825)
+    screen.o                  src/screen.s(447)
+    config.o                  src/config.s(1082)
 donelib (condes.o):
     crt0.o                    src/crt0.s(14)
+incax1 (incax1.o):
+    screen.o                  src/screen.s(447)
+    bar.o                     src/bar.s(386)
+incax2 (incax2.o):
+    screen.o                  src/screen.s(447)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    bar.o                     src/bar.s(386)
+incax3 (incax3.o):
+    bar.o                     src/bar.s(386)
+incax4 (incaxy.o):
+    main.o                    src/main.s(202)
+incaxy (incaxy.o):
+    incax3.o                  runtime/incax3.s(8)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    bar.o                     src/bar.s(386)
 incsp1 (incsp1.o):
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    bar.o                     src/bar.s(413)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    bar.o                     src/bar.s(386)
 incsp2 (incsp2.o):
     staspidx.o                runtime/staspidx.s(8)
     popptr1.o                 runtime/popptr1.s(8)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    bar.o                     src/bar.s(413)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    bar.o                     src/bar.s(386)
 incsp3 (incsp3.o):
-    config.o                  src/config.s(1281)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
+    config.o                  src/config.s(1082)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 incsp4 (incsp4.o):
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 incsp5 (incsp5.o):
-    screen.o                  src/screen.s(491)
-    config.o                  src/config.s(1281)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
+    screen.o                  src/screen.s(447)
+    config.o                  src/config.s(1082)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 incsp8 (incsp8.o):
-    config.o                  src/config.s(1281)
+    config.o                  src/config.s(1082)
 initlib (condes.o):
     crt0.o                    src/crt0.s(14)
+ldax0sp (ldaxsp.o):
+    config.o                  src/config.s(1082)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+ldaxi (ldaxi.o):
+    main.o                    src/main.s(202)
+ldaxysp (ldaxsp.o):
+    screen.o                  src/screen.s(447)
+    screen.o                  src/screen.s(447)
+    info.o                    src/info.s(412)
+    info.o                    src/info.s(412)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+leaa0sp (leaaxsp.o):
+    screen.o                  src/screen.s(447)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    info.o                    src/info.s(412)
+    info.o                    src/info.s(412)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 negeax (lneg.o):
     atoi.o                    common/atoi.s(9)
 popax (incsp2.o):
@@ -472,9 +536,9 @@ ptr1 (zeropage.o):
     mul8.o                    runtime/mul8.s(10)
     memset.o                  common/memset.s(20)
     memcpy.o                  common/memcpy.s(15)
+    ldaxi.o                   runtime/ldaxi.s(8)
     atoi.o                    common/atoi.s(10)
     screen.o                  src/screen.s(11)
-    main.o                    src/main.s(11)
     info.o                    src/info.s(11)
     diskulator.o              src/diskulator.s(11)
     bar.o                     src/bar.s(11)
@@ -493,56 +557,65 @@ ptr3 (zeropage.o):
 ptr4 (zeropage.o):
     mul8.o                    runtime/mul8.s(10)
 pusha (pusha.o):
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    info.o                    src/info.s(516)
-    info.o                    src/info.s(516)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    bar.o                     src/bar.s(413)
-    bar.o                     src/bar.s(413)
+    screen.o                  src/screen.s(447)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    info.o                    src/info.s(412)
+    info.o                    src/info.s(412)
+    info.o                    src/info.s(412)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    bar.o                     src/bar.s(386)
+    bar.o                     src/bar.s(386)
 pusha0 (pushax.o):
-    screen.o                  src/screen.s(491)
-    screen.o                  src/screen.s(491)
-    info.o                    src/info.s(516)
-    info.o                    src/info.s(516)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
+    screen.o                  src/screen.s(447)
+    screen.o                  src/screen.s(447)
+    config.o                  src/config.s(1082)
+    info.o                    src/info.s(412)
+    info.o                    src/info.s(412)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 pushax (pushax.o):
     callmain.o                runtime/callmain.s(11)
-    screen.o                  src/screen.s(491)
-    screen.o                  src/screen.s(491)
-    screen.o                  src/screen.s(491)
-    config.o                  src/config.s(1281)
-    config.o                  src/config.s(1281)
-    main.o                    src/main.s(208)
-    info.o                    src/info.s(516)
-    info.o                    src/info.s(516)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    bar.o                     src/bar.s(413)
+    screen.o                  src/screen.s(447)
+    screen.o                  src/screen.s(447)
+    screen.o                  src/screen.s(447)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    config.o                  src/config.s(1082)
+    main.o                    src/main.s(202)
+    info.o                    src/info.s(412)
+    info.o                    src/info.s(412)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    bar.o                     src/bar.s(386)
 pushwysp (pushwsp.o):
-    screen.o                  src/screen.s(491)
-    diskulator.o              src/diskulator.s(2825)
+    screen.o                  src/screen.s(447)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 return1 (return1.o):
     kbhit.o                   atari/kbhit.s(8)
 setcursor (setcursor.o):
@@ -557,11 +630,12 @@ sp (zeropage.o):
     popptr1.o                 runtime/popptr1.s(9)
     memset.o                  common/memset.s(20)
     memcpy.o                  common/memcpy.s(15)
+    leaaxsp.o                 runtime/leaaxsp.s(8)
+    ldaxsp.o                  runtime/ldaxsp.s(8)
     itoa.o                    common/itoa.s(11)
     incsp2.o                  runtime/incsp2.s(8)
     incsp1.o                  runtime/incsp1.s(8)
     icmp.o                    runtime/icmp.s(9)
-    decsp6.o                  runtime/decsp6.s(8)
     decsp5.o                  runtime/decsp5.s(8)
     decsp4.o                  runtime/decsp4.s(8)
     decsp3.o                  runtime/decsp3.s(8)
@@ -583,44 +657,47 @@ sreg (zeropage.o):
     atoi.o                    common/atoi.s(10)
     screen.o                  src/screen.s(10)
 staspidx (staspidx.o):
-    screen.o                  src/screen.s(491)
-    diskulator.o              src/diskulator.s(2825)
+    screen.o                  src/screen.s(447)
+    diskulator.o              src/diskulator.s(2500)
 staxysp (staxsp.o):
-    diskulator.o              src/diskulator.s(2825)
+    diskulator.o              src/diskulator.s(2500)
 subysp (subysp.o):
-    diskulator.o              src/diskulator.s(2825)
+    diskulator.o              src/diskulator.s(2500)
 tmp1 (zeropage.o):
     staspidx.o                runtime/staspidx.s(9)
     itoa.o                    common/itoa.s(11)
+    incaxy.o                  runtime/incaxy.s(8)
+    decaxy.o                  runtime/decaxy.s(8)
     atoi.o                    common/atoi.s(10)
     aslax4.o                  runtime/aslax4.s(8)
+    aslax2.o                  runtime/aslax2.s(8)
+    aslax1.o                  runtime/aslax1.s(8)
     add.o                     runtime/add.s(12)
     screen.o                  src/screen.s(11)
-    diskulator.o              src/diskulator.s(11)
 tmp3 (zeropage.o):
     strcat.o                  common/strcat.s(10)
 tmp4 (zeropage.o):
     mul40.o                   common/mul40.s(16)
 tosadda0 (add.o):
-    screen.o                  src/screen.s(491)
-    info.o                    src/info.s(516)
-    info.o                    src/info.s(516)
+    screen.o                  src/screen.s(447)
+    info.o                    src/info.s(412)
+    info.o                    src/info.s(412)
 tosaddax (add.o):
-    screen.o                  src/screen.s(491)
-    screen.o                  src/screen.s(491)
-    diskulator.o              src/diskulator.s(2825)
+    screen.o                  src/screen.s(447)
+    screen.o                  src/screen.s(447)
+    diskulator.o              src/diskulator.s(2500)
 tosicmp (icmp.o):
-    screen.o                  src/screen.s(491)
+    screen.o                  src/screen.s(447)
 tosmula0 (mul8.o):
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
-    diskulator.o              src/diskulator.s(2825)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
+    diskulator.o              src/diskulator.s(2500)
 tosumula0 (mul8.o):
-    screen.o                  src/screen.s(491)
-    screen.o                  src/screen.s(491)
+    screen.o                  src/screen.s(447)
+    screen.o                  src/screen.s(447)
 zerobss (zerobss.o):
     crt0.o                    src/crt0.s(15)
 
