@@ -71,6 +71,7 @@ int main(int argc, char* argv[])
 	  opts(argv);
 	  return(1);
 	}
+      port=atoi(argv[1]);
     }
   else
     {
