@@ -744,11 +744,9 @@ void sioModem::sio_process()
     sio_config();
     break;
   case 'L': // $4C, Listen
-    sio_ack();
     sio_listen();
     break;
   case 'M': // $4D, Unlisten
-    sio_ack();
     sio_unlisten();
     break;
   case 'S': // $53, Status
