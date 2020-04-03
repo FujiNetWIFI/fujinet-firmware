@@ -94,15 +94,6 @@ void info_run(void)
   screen_puts( 5,11,"       MAC:");
   screen_puts( 5,12,"     BSSID:");
 
-  screen_puts(17,5,adapterConfig.ssid);
-  screen_puts(17,6,adapterConfig.hostname);
-  print_ip(17,7,adapterConfig.localIP);
-  print_ip(17,8,adapterConfig.gateway);
-  print_ip(17,9,adapterConfig.dnsIP);
-  print_ip(17,10,adapterConfig.netmask);
-  print_mac(17,11,adapterConfig.macAddress);
-  print_mac(17,12,adapterConfig.bssid);
-  
   // Grab adapter config
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
@@ -113,7 +104,16 @@ void info_run(void)
   OS.dcb.dbyt=sizeof(adapterConfig.rawData);
   OS.dcb.daux=0;
   siov();    
-
+  
+  screen_puts(17,5,adapterConfig.ssid);
+  screen_puts(17,6,adapterConfig.hostname);
+  print_ip(17,7,adapterConfig.localIP);
+  print_ip(17,8,adapterConfig.gateway);
+  print_ip(17,9,adapterConfig.dnsIP);
+  print_ip(17,10,adapterConfig.netmask);
+  print_mac(17,11,adapterConfig.macAddress);
+  print_mac(17,12,adapterConfig.bssid);
+  
   while (!kbhit()) { } // Wait for key.
 
   cgetc();

@@ -27,7 +27,7 @@ CONFIG  :=
  
 # Additional C compiler flags and options.
 # Default: none
-CFLAGS  = -Oris
+CFLAGS  = -Os
  
 # Additional assembler flags and options.
 # Default: none
