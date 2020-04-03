@@ -21,7 +21,7 @@ all mostlyclean clean install zip:
 	@$(MAKE) -C fnew      --no-print-directory $@
 	@$(MAKE) -C fscan     --no-print-directory $@
 	@$(MAKE) -C rlisten   --no-print-directory $@
-
+	@$(MAKE) -C rulisten  --no-print-directory $@
 dist: all
 	mkdir -p dist
 	cp fconfig/fconfig.com dist/
@@ -36,5 +36,6 @@ dist: all
 	cp fnew/fnew.com dist/
 	cp fscan/fscan.com dist/
 	cp rlisten/rlisten.com dist/
+	cp rulisten/rulisten.com dist/
 	cp -ax doc/* dist/ 
 	dir2atr 720 fnc-tools.atr dist/
