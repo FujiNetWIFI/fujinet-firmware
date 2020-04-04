@@ -19,6 +19,11 @@ bool is_num(char* s)
     return true;
 }
 
+networkDeviceSpec::networkDeviceSpec()
+{
+    clear();
+}
+
 void networkDeviceSpec::debug()
 {
 #ifdef DEBUG
@@ -28,6 +33,14 @@ void networkDeviceSpec::debug()
     Debug_printf("Path: %s\n", path);
     Debug_printf("Port: %d\n", port);
 #endif
+}
+
+void networkDeviceSpec::clear()
+{
+    memset(&device,0,sizeof(device));
+    memset(&protocol,0,sizeof(protocol));
+    memset(&path,0,sizeof(path));
+    port=0;
 }
 
 /**
@@ -67,6 +80,11 @@ bool networkDeviceSpec::parse(char *s)
         token = strtok(NULL,":");
     }
     debug();
+
+    // Validate devicespec
+    if ((protocol[0]==0x00) || (port==0))
+        return false;
+
     return true;
 }
 
