@@ -58,6 +58,7 @@ void sioNetwork::sio_open()
 
     sio_ack();
 
+    deviceSpec.clear();
     memset(&inp,0,sizeof(inp));
     memset(&status_buf.rawData,0,sizeof(status_buf.rawData));
 
@@ -84,6 +85,7 @@ void sioNetwork::sio_open()
 #endif
         status_buf.error = 129;
         sio_error();
+        return;
     }
 
     if (open_protocol() == false)
@@ -91,7 +93,9 @@ void sioNetwork::sio_open()
 #ifdef DEBUG
         Debug_printf("Could not open protocol.\n");
 #endif
-        status_buf.error = 128;        
+        status_buf.error = 128;
+        sio_error();
+        return;     
     }
 
     if (!protocol->open(&deviceSpec))
@@ -100,12 +104,6 @@ void sioNetwork::sio_open()
         Debug_printf("Protocol unable to make connection.");
 #endif
         status_buf.error = 170;
-    }
-
-    if (status_buf.error!=0)
-    {
-        sio_error();
-        return;
     }
 
     sio_complete();
