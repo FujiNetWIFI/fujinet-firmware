@@ -254,28 +254,31 @@ void sioFuji::sio_tnfs_read_directory_entry()
     byte len = cmdFrame.aux1;
     //byte ret = tnfs_readdir(hostSlot);
     File f = dir[hostSlot].openNextFile();
-
+    int l = 0;
+    
     if (!f)
         current_entry[0] = 0x7F; // end of dir
     else
     {
-        int l=0;
-        for (l=strlen(f.name()); l-->0; )
+        if (f.name()[0] == '/')
         {
-            if (f.name()[l]=='/')
+            for (l = strlen(f.name()); l-- > 0;)
             {
-                l++;
-                break;
+                if (f.name()[l] == '/')
+                {
+                    l++;
+                    break;
+                }
             }
         }
         strcpy(current_entry, &f.name()[l]);
         if (f.isDirectory())
         {
             int a = strlen(current_entry);
-            if (current_entry[a-1] != '/')
+            if (current_entry[a - 1] != '/')
             {
                 current_entry[a] = '/';
-                current_entry[a+1] = '\0';
+                current_entry[a + 1] = '\0';
                 //Debug_println("append trailing /");
             }
         }
