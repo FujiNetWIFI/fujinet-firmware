@@ -42,9 +42,14 @@ void sioNetwork::deallocate_buffers()
 bool sioNetwork::open_protocol()
 {
     if (strcmp(deviceSpec.protocol, "TCP") == 0)
+    {
         protocol = new networkProtocolTCP();
-
-    return protocol->open(&deviceSpec);
+        return true;
+    }
+    else
+    {
+        return false;
+    }        
 }
 
 void sioNetwork::sio_open()
@@ -54,6 +59,8 @@ void sioNetwork::sio_open()
     sio_ack();
 
     memset(&inp,0,sizeof(inp));
+    memset(&status_buf.rawData,0,sizeof(status_buf.rawData));
+
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
 #ifdef DEBUG
@@ -65,7 +72,6 @@ void sioNetwork::sio_open()
 #ifdef DEBUG
         Debug_printf("Invalid devicespec\n");
 #endif
-        memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = 165;
         sio_error();
         return;
@@ -76,7 +82,6 @@ void sioNetwork::sio_open()
 #ifdef DEBUG
         Debug_printf("Could not allocate memory for buffers\n");
 #endif
-        memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = 129;
         sio_error();
     }
@@ -86,21 +91,24 @@ void sioNetwork::sio_open()
 #ifdef DEBUG
         Debug_printf("Could not open protocol.\n");
 #endif
-        memset(&status_buf, 0, sizeof(status_buf.rawData));
-        status_buf.error = 128;
-        
-        if (protocol!=nullptr)
-            {
-                delete protocol;
-                protocol=nullptr;
-            }
+        status_buf.error = 128;        
+    }
 
-        sio_error();
-    }
-    else
+    if (!protocol->open(&deviceSpec))
     {
-        sio_complete();
+#ifdef DEBUG
+        Debug_printf("Protocol unable to make connection.");
+#endif
+        status_buf.error = 170;
     }
+
+    if (status_buf.error!=0)
+    {
+        sio_error();
+        return;
+    }
+
+    sio_complete();
 }
 
 void sioNetwork::sio_close()
