@@ -8,6 +8,9 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
+Character Grid
+==============
+This PlatformIO project generates a text file with the ASCII characters in a grid.
 
 How to build PlatformIO based project
 =====================================
