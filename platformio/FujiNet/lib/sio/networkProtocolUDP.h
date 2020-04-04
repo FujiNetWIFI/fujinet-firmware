@@ -9,7 +9,7 @@ class networkProtocolUDP : public networkProtocol
 {
 public:
     networkProtocolUDP();
-    ~networkProtocolUDP();
+    virtual ~networkProtocolUDP();
 
     virtual bool open(networkDeviceSpec* spec);
     virtual bool close();
