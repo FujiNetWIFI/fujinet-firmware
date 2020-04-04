@@ -7,6 +7,7 @@
 class networkProtocol
 {
 public:
+    virtual ~networkProtocol() { }
 
     bool connectionIsServer=false;
 
