@@ -66,7 +66,7 @@ void sioNetwork::sio_open()
 #endif
         memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = 165;
-        sio_complete();
+        sio_error();
         return;
     }
 
