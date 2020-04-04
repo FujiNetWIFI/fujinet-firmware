@@ -52,7 +52,8 @@ void sioNetwork::sio_open()
     char inp[256];
 
     sio_ack();
-
+    
+    memset(&inp,0,sizeof(inp));
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
 #ifdef DEBUG
