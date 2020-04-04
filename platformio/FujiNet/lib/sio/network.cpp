@@ -93,7 +93,7 @@ void sioNetwork::sio_open()
                 delete protocol;
                 protocol=nullptr;
             }
-            
+
         sio_error();
     }
     else
@@ -119,6 +119,8 @@ void sioNetwork::sio_close()
 
     delete protocol;
     protocol = nullptr;
+
+    status_buf.error=0; // clear error
 
     deallocate_buffers();
 }
