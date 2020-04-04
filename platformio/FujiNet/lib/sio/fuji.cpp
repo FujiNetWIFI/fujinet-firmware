@@ -259,7 +259,16 @@ void sioFuji::sio_tnfs_read_directory_entry()
         current_entry[0] = 0x7F; // end of dir
     else
     {
-        strcpy(current_entry, f.name());
+        int l=0;
+        for (l=strlen(f.name()); l-->0; )
+        {
+            if (f.name()[l]=='/')
+            {
+                l++;
+                break;
+            }
+        }
+        strcpy(current_entry, &f.name()[l]);
         if (f.isDirectory())
         {
             int a = strlen(current_entry);
