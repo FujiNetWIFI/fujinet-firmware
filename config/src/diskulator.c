@@ -19,10 +19,10 @@
 
 unsigned char prefix[256]="/";
 unsigned char path[256];
-unsigned char current_entry[36];
+unsigned char current_entry[FILE_MAXLEN];
 unsigned char c;
 unsigned char o;
-unsigned char files[16][36];
+unsigned char files[FILES_MAXCOUNT][FILE_MAXLEN];
 unsigned char diskulator_done=false;
 unsigned char selected_host;
 unsigned char filter[32];
@@ -49,7 +49,7 @@ union
   {
     unsigned char hostSlot;
     unsigned char mode;
-    unsigned char file[36];
+    unsigned char file[FILE_MAXLEN];
   } slot[8];
   unsigned char rawData[304];
 } deviceSlots;
@@ -62,7 +62,7 @@ union
     unsigned short sectorSize;
     unsigned char hostSlot;
     unsigned char deviceSlot;
-    char filename[36];
+    char filename[FILE_MAXLEN];
   };
   unsigned char rawData[42];
 } newDisk;
@@ -703,14 +703,14 @@ bool diskulator_select(void)
 
   while ((current_entry[0]!=0x7F) || (num_entries<16))
     {
-      diskulator_read_directory(selected_host,current_entry,36);
+      diskulator_read_directory(selected_host,current_entry,FILE_MAXLEN);
       if (current_entry[0]=='.')
 	continue;
       else if (current_entry[0]==0x7F)
 	break;
       else
 	{
-	  strcpy(files[num_entries],current_entry);
+	  strncpy(files[num_entries],current_entry,FILE_MAXLEN -1);
 	  
 	  if (current_entry[strlen(current_entry)-1]=='/')
 	    screen_puts(0,num_entries+2,"\x04");
