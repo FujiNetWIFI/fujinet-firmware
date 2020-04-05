@@ -69,6 +69,8 @@ int main(int argc, char* argv[])
 	}
 
       strcpy(buf,argv[1]);
+      daux1=atoi(argv[2]);
+      daux2=atoi(argv[3]);
     }
   else
     {

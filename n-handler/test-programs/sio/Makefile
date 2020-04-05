@@ -14,6 +14,7 @@ all mostlyclean clean install zip:
 	@$(MAKE) -C nwrite  --no-print-directory $@	
 	@$(MAKE) -C nstatus --no-print-directory $@	
 	@$(MAKE) -C nread   --no-print-directory $@	
+	@$(MAKE) -C naccept --no-print-directory $@
 
 dist: all
 	mkdir -p dist
@@ -22,4 +23,5 @@ dist: all
 	cp nwrite/nwrite.com dist/
 	cp nstatus/nstatus.com dist/
 	cp nread/nread.com dist/
+	cp naccept/naccept.com dist/
 	dir2atr 720 n-tests.atr dist/

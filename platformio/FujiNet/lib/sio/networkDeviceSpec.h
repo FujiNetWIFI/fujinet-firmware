@@ -14,20 +14,19 @@ public:
     /**
      * ctor to create devicespec from string
      */
-    networkDeviceSpec() {
-        memset(device,0,sizeof(device));
-        memset(protocol,0,sizeof(protocol));
-        memset(path,0,sizeof(path));
-        port=0;
-        isValid=false;
-    }
-    
+    networkDeviceSpec();
+
     networkDeviceSpec(char* s) { parse(s); }
 
     /**
      * Dump devicespec to debug
      */
     void debug();
+
+    /**
+     * Clear devicespec
+     */
+    void clear();
 
     /**
      * Parse input string: N1:TCP:FOO.COM:2000 or N1:TCP:2000 

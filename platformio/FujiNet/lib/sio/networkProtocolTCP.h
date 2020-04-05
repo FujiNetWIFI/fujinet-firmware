@@ -17,7 +17,7 @@ class networkProtocolTCP : public networkProtocol
 {
 public:
     networkProtocolTCP();
-    ~networkProtocolTCP();
+    virtual ~networkProtocolTCP();
 
     virtual bool open(networkDeviceSpec* spec);
     virtual bool close();
