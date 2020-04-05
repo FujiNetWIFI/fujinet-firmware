@@ -8,9 +8,9 @@
 
 char ret[256];
 
-bool is_num(char* s)
+bool is_num(char *s)
 {
-    for (int i=0;i<strlen(s);i++)
+    for (int i = 0; i < strlen(s); i++)
     {
         if (!isdigit(s[i]))
             return false;
@@ -37,10 +37,10 @@ void networkDeviceSpec::debug()
 
 void networkDeviceSpec::clear()
 {
-    memset(&device,0,sizeof(device));
-    memset(&protocol,0,sizeof(protocol));
-    memset(&path,0,sizeof(path));
-    port=0;
+    memset(&device, 0, sizeof(device));
+    memset(&protocol, 0, sizeof(protocol));
+    memset(&path, 0, sizeof(path));
+    port = 0;
 }
 
 /**
@@ -58,31 +58,31 @@ bool networkDeviceSpec::parse(char *s)
         switch (i++)
         {
         case 0:
-            strcpy(device,token);
+            strcpy(device, token);
             break;
         case 1:
-            strcpy(protocol,token);
+            strcpy(protocol, token);
             break;
         case 2:
             if (is_num(token))
             {
-                port=atoi(token);
+                port = atoi(token);
             }
             else
             {
-                strcpy(path,token);
+                strcpy(path, token);
             }
             break;
         case 3:
-            port=atoi(token);
+            port = atoi(token);
             break;
         }
-        token = strtok(NULL,":");
+        token = strtok(NULL, ":");
     }
     debug();
 
     // Validate devicespec
-    if ((protocol[0]==0x00) || (port==0))
+    if ((protocol[0] == 0x00) || (port == 0))
         return false;
 
     return true;
