@@ -5,7 +5,7 @@ networkProtocolTCP::networkProtocolTCP()
 #ifdef DEBUG
     Debug_printf("networkProtocolTCP::ctor\n");
 #endif
-    server = NULL;
+    server = nullptr;
 }
 
 networkProtocolTCP::~networkProtocolTCP()
@@ -13,11 +13,11 @@ networkProtocolTCP::~networkProtocolTCP()
 #ifdef DEBUG
     Debug_printf("networkProtocolTCP::dtor\n");
 #endif
-    if (server != NULL)
+    if (server != nullptr)
     {
         server->stop();
         delete server;
-        server = NULL;
+        server = nullptr;
     }
 }
 
@@ -35,6 +35,7 @@ bool networkProtocolTCP::open(networkDeviceSpec *spec)
         Debug_printf("Creating server object on port %d\n", spec->port);
 #endif
         server = new WiFiServer(spec->port);
+        server->begin(spec->port);
         connectionIsServer = true;
     }
     else
