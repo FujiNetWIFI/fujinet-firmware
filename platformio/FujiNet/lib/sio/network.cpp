@@ -116,6 +116,8 @@ void sioNetwork::sio_close()
 #endif
     sio_ack();
 
+    status_buf.error=0; // clear error
+
     if (protocol == nullptr)
     {
         sio_complete();
@@ -129,8 +131,6 @@ void sioNetwork::sio_close()
 
     delete protocol;
     protocol = nullptr;
-
-    status_buf.error=0; // clear error
 
     deallocate_buffers();
 }
