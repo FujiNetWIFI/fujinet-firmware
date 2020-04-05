@@ -155,9 +155,38 @@ void sioNetwork::sio_read()
     }
     else
     {
+        rx_buf_len = cmdFrame.aux2 * 256 + cmdFrame.aux1;
         err = protocol->read(rx_buf, cmdFrame.aux2 * 256 + cmdFrame.aux1);
+
+        // Convert CR and/or LF to ATASCII EOL
+        // 1 = CR, 2 = LF, 3 = CR/LF
+        if (cmdFrame.aux2 > 0)
+        {
+            for (int i = 0; i < rx_buf_len; i++)
+            {
+                switch (cmdFrame.aux2)
+                {
+                case 1:
+                    if (rx_buf[i]==0x0D)
+                        rx_buf[i]=0x9B;
+                    break;
+                case 2:
+                    if (rx_buf[i]==0x0A)
+                        rx_buf[i]=0x9B;
+                    break;
+                case 3:
+                    if ((rx_buf[i]==0x0D) && (rx_buf[i+1]==0x0A))
+                        {
+                            memmove(&rx_buf[i-1],&rx_buf[i],rx_buf_len);
+                            rx_buf[i]=0x9B;
+                            rx_buf_len--;
+                        }
+                    break;
+                }
+            }
+        }
     }
-    sio_to_computer(rx_buf, sio_get_aux(), err);
+    sio_to_computer(rx_buf, rx_buf_len, err);
 }
 
 void sioNetwork::sio_write()
@@ -192,22 +221,19 @@ void sioNetwork::sio_write()
                 switch (aux2)
                 {
                 case 1:
-                    Debug_printf("EOL TO CR\n");
-                    if (tx_buf[i]==0x9B)
-                        tx_buf[i]=0x0D;
+                    if (tx_buf[i] == 0x9B)
+                        tx_buf[i] = 0x0D;
                     break;
                 case 2:
-                    Debug_printf("EOL TO LF\n");
-                    if (tx_buf[i]==0x9B)
-                        tx_buf[i]=0x0A;
+                    if (tx_buf[i] == 0x9B)
+                        tx_buf[i] = 0x0A;
                     break;
-                case 3:
-                    Debug_printf("EOL TO CR/LF\n");
-                    if (tx_buf[i]==0x9B)
+                case 3: 
+                    if (tx_buf[i] == 0x9B)
                     {
-                        strcpy((char *)&tx_buf[i+1],(const char *)&tx_buf[i]);
-                        tx_buf[i]=0x0D;
-                        tx_buf[i]=0x0A;
+                        memmove(&tx_buf[i+1],&tx_buf[i],tx_buf_len);
+                        tx_buf[i] = 0x0D;
+                        tx_buf[i+1] = 0x0A;
                         tx_buf_len++;
                     }
                     break;
