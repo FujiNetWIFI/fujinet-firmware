@@ -49,6 +49,7 @@ bool networkProtocolTCP::open(networkDeviceSpec *spec)
     if (client.connected() || (server != NULL))
     {
         ret = true;
+        client_error_code=0;
     }
     else
     {
