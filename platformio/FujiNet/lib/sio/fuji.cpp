@@ -255,7 +255,7 @@ void sioFuji::sio_tnfs_read_directory_entry()
     //byte ret = tnfs_readdir(hostSlot);
     File f = dir[hostSlot].openNextFile();
     int l = 0;
-    
+
     if (!f)
         current_entry[0] = 0x7F; // end of dir
     else
@@ -283,7 +283,13 @@ void sioFuji::sio_tnfs_read_directory_entry()
             }
         }
     }
-    byte *ce_ptr = (byte *)&current_entry[idx];
+    int stidx = 0;
+    if (current_entry[0] == '/')
+    {
+        stidx = 1;
+        //Debug_println("strip leading /");
+    }
+    byte *ce_ptr = (byte *)&current_entry[stidx];
     sio_to_computer(ce_ptr, len, false);
 }
 
