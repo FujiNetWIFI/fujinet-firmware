@@ -5,7 +5,7 @@ networkProtocolTCP::networkProtocolTCP()
 #ifdef DEBUG
     Debug_printf("networkProtocolTCP::ctor\n");
 #endif
-    server = NULL;
+    server = nullptr;
 }
 
 networkProtocolTCP::~networkProtocolTCP()
@@ -13,11 +13,14 @@ networkProtocolTCP::~networkProtocolTCP()
 #ifdef DEBUG
     Debug_printf("networkProtocolTCP::dtor\n");
 #endif
-    if (server != NULL)
+    if (server != nullptr)
     {
+        if (client.connected())
+            client.stop();
+            
         server->stop();
         delete server;
-        server = NULL;
+        server = nullptr;
     }
 }
 
@@ -35,25 +38,27 @@ bool networkProtocolTCP::open(networkDeviceSpec *spec)
         Debug_printf("Creating server object on port %d\n", spec->port);
 #endif
         server = new WiFiServer(spec->port);
-        connectionIsServer=true;
+        server->begin(spec->port);
+        connectionIsServer = true;
     }
     else
     {
 #ifdef DEBUG
         Debug_printf("Connecting to host %s port %d\n", spec->path, spec->port);
 #endif
-        connectionIsServer=false;
+        connectionIsServer = false;
         client.connect(spec->path, spec->port);
     }
 
     if (client.connected() || (server != NULL))
     {
         ret = true;
+        client_error_code = 0;
     }
     else
     {
         ret = false;
-        client_error_code=170;
+        client_error_code = 170;
     }
 
 #ifdef DEBUG
@@ -69,7 +74,7 @@ bool networkProtocolTCP::close()
     {
 #ifdef DEBUG
         Debug_printf("closing TCP client\n");
-#endif 
+#endif
         client.stop();
     }
     else
@@ -77,6 +82,9 @@ bool networkProtocolTCP::close()
 #ifdef DEBUG
         Debug_printf("closing TCP server\n");
 #endif
+        if (client.connected())
+            client.stop();
+            
         server->stop();
     }
     return true;
@@ -85,25 +93,25 @@ bool networkProtocolTCP::close()
 bool networkProtocolTCP::read(byte *rx_buf, unsigned short len)
 {
 #ifdef DEBUG
-    Debug_printf("TCP read %d bytes\n",len);
+    Debug_printf("TCP read %d bytes\n", len);
 #endif
     if (!client.connected())
     {
-        client_error_code=128;
+        client_error_code = 128;
         return false;
     }
-    
+
     return (client.readBytes(rx_buf, len) == len);
 }
 
 bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
 {
 #ifdef DEBUG
-    Debug_printf("TCP write %d bytes\n",len);
+    Debug_printf("TCP write %d bytes\n", len);
 #endif
     if (!client.connected())
     {
-        client_error_code=128;
+        client_error_code = 128;
         return false;
     }
 
@@ -120,9 +128,11 @@ bool networkProtocolTCP::status(byte *status_buf)
         status_buf[2] = client.connected();
         status_buf[3] = client_error_code;
     }
-    else if ((server!=NULL) && (server->available()))
+    else if (server != NULL)
     {
-        status_buf[2] = server->available();
+        if (!client.connected())
+            client = server->available();
+        status_buf[2] = client.connected();
     }
     return false;
 }

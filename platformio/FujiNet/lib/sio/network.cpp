@@ -42,9 +42,14 @@ void sioNetwork::deallocate_buffers()
 bool sioNetwork::open_protocol()
 {
     if (strcmp(deviceSpec.protocol, "TCP") == 0)
+    {
         protocol = new networkProtocolTCP();
-
-    return protocol->open(&deviceSpec);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 void sioNetwork::sio_open()
@@ -52,6 +57,10 @@ void sioNetwork::sio_open()
     char inp[256];
 
     sio_ack();
+
+    deviceSpec.clear();
+    memset(&inp, 0, sizeof(inp));
+    memset(&status_buf.rawData, 0, sizeof(status_buf.rawData));
 
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
@@ -64,9 +73,8 @@ void sioNetwork::sio_open()
 #ifdef DEBUG
         Debug_printf("Invalid devicespec\n");
 #endif
-        memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = 165;
-        sio_complete();
+        sio_error();
         return;
     }
 
@@ -75,9 +83,9 @@ void sioNetwork::sio_open()
 #ifdef DEBUG
         Debug_printf("Could not allocate memory for buffers\n");
 #endif
-        memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = 129;
         sio_error();
+        return;
     }
 
     if (open_protocol() == false)
@@ -85,14 +93,27 @@ void sioNetwork::sio_open()
 #ifdef DEBUG
         Debug_printf("Could not open protocol.\n");
 #endif
-        memset(&status_buf, 0, sizeof(status_buf.rawData));
         status_buf.error = 128;
         sio_error();
+        return;
     }
-    else
+
+    if (!protocol->open(&deviceSpec))
     {
-        sio_complete();
+#ifdef DEBUG
+        Debug_printf("Protocol unable to make connection.");
+#endif
+        protocol->close();
+        delete protocol;
+        protocol = nullptr;
+        status_buf.error = 170;
+        sio_error();
+        return;
     }
+
+    aux1 = cmdFrame.aux1;
+    aux2 = cmdFrame.aux2;
+    sio_complete();
 }
 
 void sioNetwork::sio_close()
@@ -102,8 +123,13 @@ void sioNetwork::sio_close()
 #endif
     sio_ack();
 
+    status_buf.error = 0; // clear error
+
     if (protocol == nullptr)
+    {
+        sio_complete();
         return;
+    }
 
     if (protocol->close())
         sio_complete();
@@ -129,9 +155,38 @@ void sioNetwork::sio_read()
     }
     else
     {
+        rx_buf_len = cmdFrame.aux2 * 256 + cmdFrame.aux1;
         err = protocol->read(rx_buf, cmdFrame.aux2 * 256 + cmdFrame.aux1);
+
+        // Convert CR and/or LF to ATASCII EOL
+        // 1 = CR, 2 = LF, 3 = CR/LF
+        if (cmdFrame.aux2 > 0)
+        {
+            for (int i = 0; i < rx_buf_len; i++)
+            {
+                switch (cmdFrame.aux2)
+                {
+                case 1:
+                    if (rx_buf[i]==0x0D)
+                        rx_buf[i]=0x9B;
+                    break;
+                case 2:
+                    if (rx_buf[i]==0x0A)
+                        rx_buf[i]=0x9B;
+                    break;
+                case 3:
+                    if ((rx_buf[i]==0x0D) && (rx_buf[i+1]==0x0A))
+                        {
+                            memmove(&rx_buf[i-1],&rx_buf[i],rx_buf_len);
+                            rx_buf[i]=0x9B;
+                            rx_buf_len--;
+                        }
+                    break;
+                }
+            }
+        }
     }
-    sio_to_computer(rx_buf, sio_get_aux(), err);
+    sio_to_computer(rx_buf, rx_buf_len, err);
 }
 
 void sioNetwork::sio_write()
@@ -155,6 +210,36 @@ void sioNetwork::sio_write()
     {
         ck = sio_to_peripheral(tx_buf, sio_get_aux());
         tx_buf_len = cmdFrame.aux2 * 256 + cmdFrame.aux1;
+
+        // Handle EOL to CR/LF translation.
+        // 1 = CR, 2 = LF, 3 = CR/LF
+
+        if (aux2 > 0)
+        {
+            for (int i = 0; i < tx_buf_len; i++)
+            {
+                switch (aux2)
+                {
+                case 1:
+                    if (tx_buf[i] == 0x9B)
+                        tx_buf[i] = 0x0D;
+                    break;
+                case 2:
+                    if (tx_buf[i] == 0x9B)
+                        tx_buf[i] = 0x0A;
+                    break;
+                case 3: 
+                    if (tx_buf[i] == 0x9B)
+                    {
+                        memmove(&tx_buf[i+1],&tx_buf[i],tx_buf_len);
+                        tx_buf[i] = 0x0D;
+                        tx_buf[i+1] = 0x0A;
+                        tx_buf_len++;
+                    }
+                    break;
+                }
+            }
+        }
 
         if (protocol->write(tx_buf, tx_buf_len))
         {
@@ -207,7 +292,10 @@ void sioNetwork::sio_special()
     }
     else
     {
-        protocol->special(sp_buf, sp_buf_len, &cmdFrame);
+        if (protocol->special(sp_buf, sp_buf_len, &cmdFrame))
+            sio_complete();
+        else
+            sio_error();
     }
 }
 
