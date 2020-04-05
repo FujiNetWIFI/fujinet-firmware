@@ -79,6 +79,9 @@ bool networkProtocolTCP::close()
 #ifdef DEBUG
         Debug_printf("closing TCP server\n");
 #endif
+        if (client.connected())
+            client.stop();
+            
         server->stop();
     }
     return true;
@@ -122,9 +125,11 @@ bool networkProtocolTCP::status(byte *status_buf)
         status_buf[2] = client.connected();
         status_buf[3] = client_error_code;
     }
-    else if ((server != NULL) && (server->available()))
+    else if (server != NULL)
     {
-        status_buf[2] = server->available();
+        if (!client.connected())
+            client = server->available();
+        status_buf[2] = client.connected();
     }
     return false;
 }
