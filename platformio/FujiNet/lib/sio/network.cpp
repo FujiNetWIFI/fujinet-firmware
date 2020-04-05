@@ -49,7 +49,7 @@ bool sioNetwork::open_protocol()
     else
     {
         return false;
-    }        
+    }
 }
 
 void sioNetwork::sio_open()
@@ -59,8 +59,8 @@ void sioNetwork::sio_open()
     sio_ack();
 
     deviceSpec.clear();
-    memset(&inp,0,sizeof(inp));
-    memset(&status_buf.rawData,0,sizeof(status_buf.rawData));
+    memset(&inp, 0, sizeof(inp));
+    memset(&status_buf.rawData, 0, sizeof(status_buf.rawData));
 
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
@@ -95,7 +95,7 @@ void sioNetwork::sio_open()
 #endif
         status_buf.error = 128;
         sio_error();
-        return;     
+        return;
     }
 
     if (!protocol->open(&deviceSpec))
@@ -105,14 +105,14 @@ void sioNetwork::sio_open()
 #endif
         protocol->close();
         delete protocol;
-        protocol=nullptr;
+        protocol = nullptr;
         status_buf.error = 170;
         sio_error();
         return;
     }
 
-    aux1=cmdFrame.aux1;
-    aux2=cmdFrame.aux2;
+    aux1 = cmdFrame.aux1;
+    aux2 = cmdFrame.aux2;
     sio_complete();
 }
 
@@ -123,7 +123,7 @@ void sioNetwork::sio_close()
 #endif
     sio_ack();
 
-    status_buf.error=0; // clear error
+    status_buf.error = 0; // clear error
 
     if (protocol == nullptr)
     {
@@ -182,9 +182,37 @@ void sioNetwork::sio_write()
         ck = sio_to_peripheral(tx_buf, sio_get_aux());
         tx_buf_len = cmdFrame.aux2 * 256 + cmdFrame.aux1;
 
-        for (int i=0; i<tx_buf_len; i++)
+        // Handle EOL to CR/LF translation.
+        // 1 = CR, 2 = LF, 3 = CR/LF
+
+        if (aux2 > 0)
         {
-            
+            for (int i = 0; i < tx_buf_len; i++)
+            {
+                switch (aux2)
+                {
+                case 1:
+                    Debug_printf("EOL TO CR\n");
+                    if (tx_buf[i]==0x9B)
+                        tx_buf[i]=0x0D;
+                    break;
+                case 2:
+                    Debug_printf("EOL TO LF\n");
+                    if (tx_buf[i]==0x9B)
+                        tx_buf[i]=0x0A;
+                    break;
+                case 3:
+                    Debug_printf("EOL TO CR/LF\n");
+                    if (tx_buf[i]==0x9B)
+                    {
+                        strcpy((char *)&tx_buf[i+1],(const char *)&tx_buf[i]);
+                        tx_buf[i]=0x0D;
+                        tx_buf[i]=0x0A;
+                        tx_buf_len++;
+                    }
+                    break;
+                }
+            }
         }
 
         if (protocol->write(tx_buf, tx_buf_len))
