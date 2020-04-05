@@ -42,6 +42,8 @@ protected:
     unsigned short rx_buf_len;
     unsigned short tx_buf_len=256;
     unsigned short sp_buf_len;
+    unsigned char aux1;
+    unsigned char aux2;
 
     union
     {

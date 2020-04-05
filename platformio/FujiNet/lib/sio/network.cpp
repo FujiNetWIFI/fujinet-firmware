@@ -111,6 +111,8 @@ void sioNetwork::sio_open()
         return;
     }
 
+    aux1=cmdFrame.aux1;
+    aux2=cmdFrame.aux2;
     sio_complete();
 }
 
@@ -180,6 +182,11 @@ void sioNetwork::sio_write()
         ck = sio_to_peripheral(tx_buf, sio_get_aux());
         tx_buf_len = cmdFrame.aux2 * 256 + cmdFrame.aux1;
 
+        for (int i=0; i<tx_buf_len; i++)
+        {
+            
+        }
+
         if (protocol->write(tx_buf, tx_buf_len))
         {
             sio_complete();
@@ -231,7 +238,10 @@ void sioNetwork::sio_special()
     }
     else
     {
-        protocol->special(sp_buf, sp_buf_len, &cmdFrame);
+        if (protocol->special(sp_buf, sp_buf_len, &cmdFrame))
+            sio_complete();
+        else
+            sio_error();
     }
 }
 
