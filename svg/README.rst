@@ -9,6 +9,10 @@
     See the License for the specific language governing permissions and
     limitations under the License.
 
+SVG for FujiNet
+===============
+This directory contains an x86 PlatformIO project to generate an SVG file based on Atari1020 printer commands.
+
 How to build PlatformIO based project
 =====================================
 
