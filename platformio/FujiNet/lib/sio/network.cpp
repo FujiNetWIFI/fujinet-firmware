@@ -104,6 +104,8 @@ void sioNetwork::sio_open()
         Debug_printf("Protocol unable to make connection.");
 #endif
         status_buf.error = 170;
+        sio_error();
+        return;
     }
 
     sio_complete();
