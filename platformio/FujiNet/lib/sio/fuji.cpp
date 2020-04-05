@@ -254,24 +254,24 @@ void sioFuji::sio_tnfs_read_directory_entry()
     byte len = cmdFrame.aux1;
     //byte ret = tnfs_readdir(hostSlot);
     File f = dir[hostSlot].openNextFile();
-    int idx = 0;
-
+    int l = 0;
+    
     if (!f)
         current_entry[0] = 0x7F; // end of dir
     else
     {
-        // find filename part of path
-        idx = strlen(current_entry) - 1; // 
-        while (current_entry[idx] != '/' && idx > 0)
+        if (f.name()[0] == '/')
         {
-            idx--;
+            for (l = strlen(f.name()); l-- > 0;)
+            {
+                if (f.name()[l] == '/')
+                {
+                    l++;
+                    break;
+                }
+            }
         }
-        if (current_entry[idx] == '/')
-        {
-            idx++;
-            //Debug_println("strip leading /");
-        }
-        strcpy(current_entry, f.name());
+        strcpy(current_entry, &f.name()[l]);
         if (f.isDirectory())
         {
             int a = strlen(current_entry);
