@@ -197,9 +197,9 @@ endobj
   _file->printf(" ]\nendobj\n");
   pdf_objCtr = 7;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("7 0 obj\n[");
+  _file->printf("7 0 obj\n");
   // insert fontfile stream
-  File fff = SPIFFS.open("a822font", "r");
+  File fff = SPIFFS.open("/a822font", "r");
   while (fff.available())
   {
     _file->write(fff.read());
