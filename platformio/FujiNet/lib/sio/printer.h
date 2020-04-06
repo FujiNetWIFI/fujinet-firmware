@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <string.h>
 #include <FS.h>
+#include <SPIFFS.h>
 
 #include "sio.h"
 

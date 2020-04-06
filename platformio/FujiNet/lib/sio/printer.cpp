@@ -12,7 +12,6 @@ void pdfPrinter::pdf_header()
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
   // object 2 0 R is printed at bottom of PDF before xref
-  this->pdf_fonts(); // pdf_fonts is virtual function, call by pointer
 }
 
 void asciiPrinter::pdf_fonts()
@@ -122,6 +121,35 @@ void atari820::pdf_fonts()
 
 void atari822::pdf_fonts()
 {
+  /*
+  7 0 obj
+<< 
+   /Type /Font
+   /Subtype /Type1
+   /FontDescriptor 8 0 R
+   /BaseFont /Atari-822-Thermal
+   /FirstChar 0
+   /LastChar 255
+   /Widths 10 0 R
+   /Encoding /WinAnsiEncoding
+>>
+endobj
+8 0 obj
+<< 
+   /Type /FontDescriptor
+   /FontName /Atari-822-Thermal
+   /Ascent 1000
+   /CapHeight 986
+   /Descent 0
+   /Flags 33
+   /FontBBox [0 0 490 690]
+   /ItalicAngle 0
+   /StemV 87
+   /XHeight 700
+   /FontFile3 9 0 R
+>>
+endobj
+  */
   // 3rd object: font catalog
   pdf_objCtr = 3;
   objLocations[pdf_objCtr] = _file->position();
@@ -130,20 +158,53 @@ void atari822::pdf_fonts()
   // 822 font
   pdf_objCtr = 4;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("4 0 obj\n<</Type/Font/Subtype/TrueType/Name/F1/BaseFont/5x7-Monospace-CE/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 32/LastChar 127/Widths 6 0 R>>\nendobj\n");
+  /*
+  /Type /Font
+   /Subtype /Type1
+   /FontDescriptor 8 0 R
+   /BaseFont /Atari-822-Thermal
+   /FirstChar 0
+   /LastChar 255
+   /Widths 10 0 R
+   /Encoding /WinAnsiEncoding
+  */
+  _file->printf("4 0 obj\n<<\n/Type /Font\n/Subtype /Type1\n/Name /F1\n/BaseFont /Atari-822-Thermal\n/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 0/LastChar 255/Widths 6 0 R>>\nendobj\n");
   pdf_objCtr = 5;
   objLocations[pdf_objCtr] = _file->position();
-  _file->printf("5 0 obj\n<</Type/FontDescriptor/FontName/5x7-Monospace-CE/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 875.0/AvgWidth 750/MaxWidth 750/FontWeight 400/XHeight 625.0/StemV 87.4707/FontBBox[0.0 0.0 672.85156 1000.0] >>\nendobj\n");
+  /*
+   /Type /FontDescriptor
+   /FontName /Atari-822-Thermal
+   /Ascent 1000
+   /CapHeight 986
+   /Descent 0
+   /Flags 33
+   /FontBBox [0 0 490 690]
+   /ItalicAngle 0
+   /StemV 87
+   /XHeight 700
+   /FontFile3 9 0 R
+*/
+  _file->printf("5 0 obj\n<<\n/Type/FontDescriptor\n/FontName/Atari-822-Thermal\n/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 986/FontWeight 400/XHeight 700/StemV 87/FontBBox[0 0 490 690]/FontFile3 7 0 R >>\nendobj\n");
   pdf_objCtr = 6;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("6 0 obj\n[");
-  for (int i = 32; i < 128; i++)
+  for (int i = 0; i < 256; i++)
   {
-    _file->printf(" 750");
+    _file->printf(" 600");
     if ((i - 31) % 32 == 0)
       _file->printf("\n");
   }
   _file->printf(" ]\nendobj\n");
+  pdf_objCtr = 7;
+  objLocations[pdf_objCtr] = _file->position();
+  _file->printf("7 0 obj\n");
+  // insert fontfile stream
+  File fff = SPIFFS.open("/a822font", "r");
+  while (fff.available())
+  {
+    _file->write(fff.read());
+  }
+  _file->printf("\nendobj\n");
 }
 
 void pdfPrinter::pdf_xref()
@@ -495,6 +556,7 @@ void asciiPrinter::initPrinter(File *f)
   _file = f;
   paperType = PDF;
   pdf_header();
+  pdf_fonts();
 }
 
 void atari1027::initPrinter(File *f)
@@ -506,6 +568,7 @@ void atari1027::initPrinter(File *f)
   intlFlag = false;
   escMode = false;
   pdf_header();
+  pdf_fonts();
 }
 
 void atari820::initPrinter(File *f)
@@ -524,6 +587,7 @@ void atari820::initPrinter(File *f)
 
   sideFlag = false;
   pdf_header();
+  pdf_fonts();
 }
 
 void atari822::initPrinter(File *f)
@@ -541,6 +605,7 @@ void atari822::initPrinter(File *f)
   fontSize = 10;      // 10 char per inch for close font
 
   pdf_header();
+  pdf_fonts();
 }
 
 void atari1020::initPrinter(File *f)
