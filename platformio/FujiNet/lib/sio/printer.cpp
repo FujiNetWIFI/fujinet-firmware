@@ -132,7 +132,7 @@ endobj
   _file->printf(" ]\nendobj\n");
 
   // 820 sideways font
-/*
+  /*
 7 0 obj
 << 
    /Type /Font
@@ -150,7 +150,7 @@ endobj
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("7 0 obj\n<</Type/Font/Subtype/Type1/Name/F2/BaseFont/Atari-820-Sideways/Encoding/WinAnsiEncoding/FontDescriptor 8 0 R/FirstChar 0/LastChar 255/Widths 9 0 R>>\nendobj\n");
 
-/*
+  /*
 8 0 obj
 << 
    /Type /FontDescriptor
@@ -189,17 +189,19 @@ endobj
   {
     _file->write(fff.read());
   }
+  fff.close();
   _file->printf("\nendobj\n");
 
   pdf_objCtr = 11;
   objLocations[pdf_objCtr] = _file->position();
   _file->printf("11 0 obj\n");
   // insert fontfile stream
-  File fff = SPIFFS.open("/a820side", "r");
+  fff = SPIFFS.open("/a820side", "r");
   while (fff.available())
   {
     _file->write(fff.read());
   }
+  fff.close();
   _file->printf("\nendobj\n");
 }
 
@@ -259,6 +261,7 @@ void atari822::pdf_fonts()
   {
     _file->write(fff.read());
   }
+  fff.close();
   _file->printf("\nendobj\n");
 }
 
