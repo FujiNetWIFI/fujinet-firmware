@@ -423,6 +423,8 @@ void config_run(void)
 	  k=cgetc();
 	  if (k==0x9B)
 	    done=true;
+    else if (k==0x1B)
+      done=true;
 	  else if (((k==0x1C) || (k=='-')) && (y>0))
 	    y--;
 	  else if (((k==0x1D) || (k=='=')) && (y<num_networks[0]))
@@ -433,6 +435,10 @@ void config_run(void)
 	      config_hidden_net();
 	    }
 	}
+
+  // ESC - Reload the list
+  if(k==0x1B)
+    continue;
       
       screen_puts(0,21,"  ENTER PASSWORD:                      ");
       
