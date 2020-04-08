@@ -18,6 +18,8 @@
 #endif
 #include <SD.h>
 
+#define NET_SCAN_NETWORKS_RETRIES 2
+
 extern FS* fileSystems[8];
 extern TNFSFS TNFS[8];
 extern File atr[8];     // up to 8 disk drives
