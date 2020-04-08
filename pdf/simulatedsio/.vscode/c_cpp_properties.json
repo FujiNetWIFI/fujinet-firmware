@@ -19,11 +19,14 @@
                 ]
             },
             "defines": [
-                "PLATFORMIO=40100",
+                "PLATFORMIO=40301",
                 ""
             ],
             "intelliSenseMode": "clang-x64",
-            "compilerPath": "\"C:/Users/jeff/.platformio/packages/toolchain-gccmingw32/bin/gcc.exe\" "
+            "compilerPath": "C:/Users/jeff/.platformio/packages/toolchain-gccmingw32/bin/gcc.exe",
+            "compilerArgs": [
+                ""
+            ]
         }
     ],
     "version": 4
