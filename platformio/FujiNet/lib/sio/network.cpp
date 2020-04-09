@@ -1,6 +1,7 @@
 #include "network.h"
 #include "networkProtocol.h"
 #include "networkProtocolTCP.h"
+#include "networkProtocolUDP.h"
 
 /**
  * Allocate input/output buffers
@@ -44,6 +45,11 @@ bool sioNetwork::open_protocol()
     if (strcmp(deviceSpec.protocol, "TCP") == 0)
     {
         protocol = new networkProtocolTCP();
+        return true;
+    }
+    else if (strcmp(deviceSpec.protocol, "UDP") == 0)
+    {
+        protocol = new networkProtocolUDP();
         return true;
     }
     else
@@ -167,20 +173,20 @@ void sioNetwork::sio_read()
                 switch (cmdFrame.aux2)
                 {
                 case 1:
-                    if (rx_buf[i]==0x0D)
-                        rx_buf[i]=0x9B;
+                    if (rx_buf[i] == 0x0D)
+                        rx_buf[i] = 0x9B;
                     break;
                 case 2:
-                    if (rx_buf[i]==0x0A)
-                        rx_buf[i]=0x9B;
+                    if (rx_buf[i] == 0x0A)
+                        rx_buf[i] = 0x9B;
                     break;
                 case 3:
-                    if ((rx_buf[i]==0x0D) && (rx_buf[i+1]==0x0A))
-                        {
-                            memmove(&rx_buf[i-1],&rx_buf[i],rx_buf_len);
-                            rx_buf[i]=0x9B;
-                            rx_buf_len--;
-                        }
+                    if ((rx_buf[i] == 0x0D) && (rx_buf[i + 1] == 0x0A))
+                    {
+                        memmove(&rx_buf[i - 1], &rx_buf[i], rx_buf_len);
+                        rx_buf[i] = 0x9B;
+                        rx_buf_len--;
+                    }
                     break;
                 }
             }
@@ -228,12 +234,12 @@ void sioNetwork::sio_write()
                     if (tx_buf[i] == 0x9B)
                         tx_buf[i] = 0x0A;
                     break;
-                case 3: 
+                case 3:
                     if (tx_buf[i] == 0x9B)
                     {
-                        memmove(&tx_buf[i+1],&tx_buf[i],tx_buf_len);
+                        memmove(&tx_buf[i + 1], &tx_buf[i], tx_buf_len);
                         tx_buf[i] = 0x0D;
-                        tx_buf[i+1] = 0x0A;
+                        tx_buf[i + 1] = 0x0A;
                         tx_buf_len++;
                     }
                     break;
