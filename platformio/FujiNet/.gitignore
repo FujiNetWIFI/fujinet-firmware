@@ -4,4 +4,4 @@
 .vscode/launch.json
 .vscode/ipch
 include/ssid.h
-platformio.ini
+*.ini
