@@ -50,8 +50,17 @@ void networkDeviceSpec::clear()
      */
 bool networkDeviceSpec::parse(char *s)
 {
-    char *token = strtok(s, ":");
+    char *token;
     int i = 0;
+
+    // Remove EOL
+    for (i = 0; i < strlen(s); i++)
+        if (s[i] == 0x9b)
+            s[i] = 0x00;
+
+    i = 0;
+
+    token = strtok(s, ":");
 
     while (token != NULL)
     {

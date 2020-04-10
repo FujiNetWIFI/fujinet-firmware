@@ -17,7 +17,7 @@ networkProtocolTCP::~networkProtocolTCP()
     {
         if (client.connected())
             client.stop();
-            
+
         server->stop();
         delete server;
         server = nullptr;
@@ -84,7 +84,7 @@ bool networkProtocolTCP::close()
 #endif
         if (client.connected())
             client.stop();
-            
+
         server->stop();
     }
     return true;
@@ -137,6 +137,14 @@ bool networkProtocolTCP::status(byte *status_buf)
     return false;
 }
 
+bool networkProtocolTCP::special_supported_00_command(unsigned char comnd)
+{
+    if (comnd == 'A')
+        return true;
+    else
+        return false;
+}
+
 bool networkProtocolTCP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     bool ret = false;
@@ -158,7 +166,7 @@ bool networkProtocolTCP::special_accept_connection()
 #ifdef DEBUG
         Debug_printf("accept connection attempted on non-server scoket.");
 #endif
-        return false;
+        return true; // error
     }
     else
     {
@@ -167,5 +175,5 @@ bool networkProtocolTCP::special_accept_connection()
 #endif
         client = server->accept();
     }
-    return true;
+    return false; // no error.
 }

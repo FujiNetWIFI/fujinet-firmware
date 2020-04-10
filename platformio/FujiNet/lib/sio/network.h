@@ -65,6 +65,10 @@ public:
     virtual void sio_status();
     virtual void sio_special();
 
+    void sio_special_00();
+    void sio_special_40();
+    void sio_special_80();
+
     virtual void sio_process();
 
 };

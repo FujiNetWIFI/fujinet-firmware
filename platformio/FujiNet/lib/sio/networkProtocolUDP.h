@@ -18,11 +18,12 @@ public:
     virtual bool status(byte* status_buf);
     virtual bool special(byte* sp_buf, unsigned short len, cmdFrame_t* cmdFrame);
 
+    virtual bool special_supported_80_command(unsigned char comnd);
+
 private:
     WiFiUDP udp;
     char dest[64];
     unsigned short port;
 
-    bool special_set_destination(const char* dest);
-    bool special_set_tx_buffer_size(unsigned short size);
+    bool special_set_destination(byte* sp_buf, unsigned short len, unsigned short new_port);
 };

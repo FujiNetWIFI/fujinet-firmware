@@ -1,6 +1,7 @@
 #include "network.h"
 #include "networkProtocol.h"
 #include "networkProtocolTCP.h"
+#include "networkProtocolUDP.h"
 
 /**
  * Allocate input/output buffers
@@ -44,6 +45,11 @@ bool sioNetwork::open_protocol()
     if (strcmp(deviceSpec.protocol, "TCP") == 0)
     {
         protocol = new networkProtocolTCP();
+        return true;
+    }
+    else if (strcmp(deviceSpec.protocol, "UDP") == 0)
+    {
+        protocol = new networkProtocolUDP();
         return true;
     }
     else
@@ -167,20 +173,20 @@ void sioNetwork::sio_read()
                 switch (cmdFrame.aux2)
                 {
                 case 1:
-                    if (rx_buf[i]==0x0D)
-                        rx_buf[i]=0x9B;
+                    if (rx_buf[i] == 0x0D)
+                        rx_buf[i] = 0x9B;
                     break;
                 case 2:
-                    if (rx_buf[i]==0x0A)
-                        rx_buf[i]=0x9B;
+                    if (rx_buf[i] == 0x0A)
+                        rx_buf[i] = 0x9B;
                     break;
                 case 3:
-                    if ((rx_buf[i]==0x0D) && (rx_buf[i+1]==0x0A))
-                        {
-                            memmove(&rx_buf[i-1],&rx_buf[i],rx_buf_len);
-                            rx_buf[i]=0x9B;
-                            rx_buf_len--;
-                        }
+                    if ((rx_buf[i] == 0x0D) && (rx_buf[i + 1] == 0x0A))
+                    {
+                        memmove(&rx_buf[i - 1], &rx_buf[i], rx_buf_len);
+                        rx_buf[i] = 0x9B;
+                        rx_buf_len--;
+                    }
                     break;
                 }
             }
@@ -228,12 +234,12 @@ void sioNetwork::sio_write()
                     if (tx_buf[i] == 0x9B)
                         tx_buf[i] = 0x0A;
                     break;
-                case 3: 
+                case 3:
                     if (tx_buf[i] == 0x9B)
                     {
-                        memmove(&tx_buf[i+1],&tx_buf[i],tx_buf_len);
+                        memmove(&tx_buf[i + 1], &tx_buf[i], tx_buf_len);
                         tx_buf[i] = 0x0D;
-                        tx_buf[i+1] = 0x0A;
+                        tx_buf[i + 1] = 0x0A;
                         tx_buf_len++;
                     }
                     break;
@@ -278,25 +284,56 @@ void sioNetwork::sio_status()
 
 void sioNetwork::sio_special()
 {
-    sio_ack();
-#ifdef DEBUG
-    Debug_printf("SPECIAL\n");
-#endif
+    err = false;
     if (protocol == nullptr)
     {
-#ifdef DEBUG
-        Debug_printf("Not connected!\n");
-#endif
         err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
     }
-    else
+    else if (protocol->special_supported_00_command(cmdFrame.comnd))
     {
-        if (protocol->special(sp_buf, sp_buf_len, &cmdFrame))
-            sio_complete();
-        else
-            sio_error();
+        sio_ack();
+        sio_special_00();
     }
+    else if (protocol->special_supported_40_command(cmdFrame.comnd))
+    {
+        sio_ack();
+        sio_special_40();
+    }
+    else if (protocol->special_supported_80_command(cmdFrame.comnd))
+    {
+        sio_ack();
+        sio_special_80();
+    }
+
+    if (err == true) // Unsupported command
+        sio_nak();
+
+    // sio_completes() happen in sio_special_XX()
+}
+
+// For commands with no payload.
+void sioNetwork::sio_special_00()
+{
+    if (protocol->special(sp_buf,sp_buf_len,&cmdFrame))
+        sio_complete();
+    else
+        sio_error();
+}
+
+// For commands with Peripheral->Computer payload
+void sioNetwork::sio_special_40()
+{
+    err=protocol->special(sp_buf,sp_buf_len,&cmdFrame);
+    sio_to_computer(sp_buf,sp_buf_len,err);
+}
+
+
+// For commands with Computer->Peripheral payload
+void sioNetwork::sio_special_80()
+{
+    sio_to_peripheral(sp_buf,sp_buf_len);
+    err=protocol->special(sp_buf,sp_buf_len,&cmdFrame);
 }
 
 void sioNetwork::sio_process()
