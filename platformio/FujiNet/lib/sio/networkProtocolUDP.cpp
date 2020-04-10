@@ -7,6 +7,13 @@ networkProtocolUDP::networkProtocolUDP()
 #endif
 }
 
+networkProtocolUDP::~networkProtocolUDP()
+{
+#ifdef DEBUG
+    Debug_printf("networkProtocolUDP::dtor\n");
+#endif    
+}
+
 bool networkProtocolUDP::open(networkDeviceSpec *spec)
 {
 #ifdef DEBUG
@@ -53,4 +60,10 @@ bool networkProtocolUDP::status(byte *status_buf)
     status_buf[1] = len >> 8;
     status_buf[2] = status_buf[3] = 0;
     return true;
+}
+
+bool networkProtocolUDP::special(byte* sp_buf, unsigned short len, cmdFrame_t* cmdFrame)
+{
+    // come back here and fix this.
+    return false;
 }

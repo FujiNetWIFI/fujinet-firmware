@@ -284,25 +284,16 @@ void sioNetwork::sio_status()
 
 void sioNetwork::sio_special()
 {
-    sio_ack();
-#ifdef DEBUG
-    Debug_printf("SPECIAL\n");
-#endif
     if (protocol == nullptr)
     {
-#ifdef DEBUG
-        Debug_printf("Not connected!\n");
-#endif
         err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+        sio_nak();
+        return;
     }
-    else
-    {
-        if (protocol->special(sp_buf, sp_buf_len, &cmdFrame))
-            sio_complete();
-        else
-            sio_error();
-    }
+
+
+
 }
 
 void sioNetwork::sio_process()
