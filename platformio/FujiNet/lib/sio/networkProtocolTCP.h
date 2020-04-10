@@ -25,6 +25,7 @@ public:
     virtual bool write(byte* tx_buf, unsigned short len);
     virtual bool status(byte* status_buf);
     virtual bool special(byte* sp_buf, unsigned short len, cmdFrame_t* cmdFrame);
+    virtual bool special_supported_00_command(unsigned char comnd);
 
 private:
     WiFiClient client;

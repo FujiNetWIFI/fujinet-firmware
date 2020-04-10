@@ -32,9 +32,29 @@ void sioFuji::sio_net_scan_networks()
 
     // Scan to computer
     WiFi.mode(WIFI_STA);
-    totalSSIDs = WiFi.scanNetworks();
-    ret[0] = totalSSIDs;
 
+    int retries = NET_SCAN_NETWORKS_RETRIES;
+    int result = 0;
+    do {
+        result = WiFi.scanNetworks();
+#ifdef DEBUG
+        Debug_printf("scanNetworks returned %d\n", result);
+#endif
+        // We're getting WIFI_SCAN_FAILED (-2) after attempting and failing to connect to a network
+        // End any retry attempt if we got a non-negative value
+        if(result >= 0)
+            break;
+
+    } while( --retries > 0);
+
+    // Boundary check
+    if(result < 0)
+        result = 0;
+    if(result > 50)
+        result = 50;
+
+    totalSSIDs = (char)result;
+    ret[0] = totalSSIDs;
     sio_to_computer((byte *)ret, 4, false);
 }
 
