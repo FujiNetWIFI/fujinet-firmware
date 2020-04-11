@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "networkDeviceSpec.h"
+#include "sio.h"
 
 class networkProtocol
 {
