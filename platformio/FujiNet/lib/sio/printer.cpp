@@ -453,13 +453,16 @@ Q
   // Atari 822 modes:
   // command == 'W'   normal mode
   // command == 'P'   graphics mode
-  if (cmdFrame.comnd == 'W' && !textMode)
+  
+  // was: if (cmdFrame.comnd == 'W' && !textMode)
+  if (cmdFrame.aux1 == 'N' && !textMode)
   {
     textMode = true;
     pdf_begin_text(pdf_Y); // open new text object
     pdf_new_line();        // start new line of text (string array)
   }
-  else if (cmdFrame.comnd == 'P' && textMode)
+  // was: else if (cmdFrame.comnd == 'P' && textMode)
+  else if (cmdFrame.aux1 == 'L' && textMode)
   {
     textMode = false;
     if (!BOLflag)
