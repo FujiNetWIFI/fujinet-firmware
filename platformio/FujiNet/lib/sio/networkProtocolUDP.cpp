@@ -24,7 +24,7 @@ bool networkProtocolUDP::open(networkDeviceSpec *spec)
         strcpy(dest,spec->path);
         port=spec->port;
     }
-    
+
     return udp.begin(spec->port);
 }
 
@@ -70,7 +70,7 @@ bool networkProtocolUDP::status(byte *status_buf)
     status_buf[0] = len & 0xFF;
     status_buf[1] = len >> 8;
     status_buf[2] = status_buf[3] = 0;
-    return true;
+    return false;
 }
 
 bool networkProtocolUDP::special_supported_80_command(unsigned char comnd)
