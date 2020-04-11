@@ -6,6 +6,7 @@
 #include <SPIFFS.h>
 
 #include "sio.h"
+#include "printer_emulator.h"
 
 #define EOL 155
 #define BACKSLASH 92
@@ -58,6 +59,13 @@ protected:
     // PRINTER THINGS
     File *_file;
     paper_t paperType;
+/**
+ * new design idea:
+ * remove pure virtual functions
+ * replace with pointer to printer emulator objects
+ * so code can be reused by non-SIO applications
+ * 
+ * */
     virtual void writeBuffer(byte *B, int n) = 0;
 
 public:
