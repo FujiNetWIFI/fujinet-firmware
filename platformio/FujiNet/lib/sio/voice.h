@@ -7,6 +7,9 @@
 class sioVoice : public sioDevice
 {
 protected:
+    // act like a printer for POC
+    byte lastAux1 = 0;
+
     byte buffer[40];
     void sio_write();
 

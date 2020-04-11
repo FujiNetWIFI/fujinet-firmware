@@ -25,6 +25,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "modem.h"
 #include "fuji.h"
 #include "apetime.h"
+#include "voice.h"
 
 //#include <WiFiUdp.h>
 
