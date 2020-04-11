@@ -810,7 +810,7 @@ void sioPrinter::sio_write()
   Auxiliary Byte 2 for Atari 822 might be 0 or 1 in graphics mode
 */
 
-  if (cmdFrame.aux1 == 'N')
+  if (cmdFrame.aux1 == 'N' || cmdFrame.aux1 == 'L')
     n = 40;
   else if (cmdFrame.aux1 == 'S')
     n = 29;
