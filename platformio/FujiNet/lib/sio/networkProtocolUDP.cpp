@@ -20,7 +20,11 @@ bool networkProtocolUDP::open(networkDeviceSpec *spec)
     Debug_printf("networkProtocolUDP::OPEN %s \n", spec->toChar());
 #endif
     if (spec->path[0]!=0x00)
+    {
         strcpy(dest,spec->path);
+        port=spec->port;
+    }
+
     return udp.begin(spec->port);
 }
 
@@ -41,7 +45,7 @@ bool networkProtocolUDP::read(byte *rx_buf, unsigned short len)
 bool networkProtocolUDP::write(byte *tx_buf, unsigned short len)
 {
 #ifdef DEBUG
-    Debug_printf("networkProtocolUDP::write %d bytes\n", len);
+    Debug_printf("networkProtocolUDP::write %d bytes to dest: %s port %d\n", len,dest,port);
 #endif
     udp.beginPacket(dest, port);
     int l = udp.write(tx_buf, len);
@@ -66,7 +70,7 @@ bool networkProtocolUDP::status(byte *status_buf)
     status_buf[0] = len & 0xFF;
     status_buf[1] = len >> 8;
     status_buf[2] = status_buf[3] = 0;
-    return true;
+    return false;
 }
 
 bool networkProtocolUDP::special_supported_80_command(unsigned char comnd)
