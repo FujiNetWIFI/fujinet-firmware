@@ -1,9 +1,20 @@
 #include "voice.h"
 
+#define EOL 0x9B
+
 void sioVoice::sio_sam()
 {
-    int n = 2;
-    char *a[5] = {"sam", "I am Sam."};
+    int n = 3;
+    char *a[3];
+    a[0] = (char*)("sam");
+    a[1] = (char*)("-debug");
+    int i = 0;
+    while (buffer[i] != EOL && i < 39)
+    {
+        i++;
+    }
+    buffer[i] = '\0';
+    a[2] = (char *)buffer;
     sam(n, a);
 };
 
@@ -61,5 +72,3 @@ void sioVoice::sio_process()
         sio_nak();
     }
 }
-
-

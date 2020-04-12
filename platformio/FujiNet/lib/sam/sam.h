@@ -18,7 +18,8 @@ extern "C"
 
     char *GetBuffer();
     int GetBufferLength();
-
+    void FreeBuffer();
+    
     //char input[]={"/HAALAOAO MAYN NAAMAEAE IHSTT SAEBAASTTIHAAN \x9b\x9b\0"};
     //unsigned char input[]={"/HAALAOAO \x9b\0"};
     //unsigned char input[]={"AA \x9b\0"};

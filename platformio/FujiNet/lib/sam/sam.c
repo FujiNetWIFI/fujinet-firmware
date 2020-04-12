@@ -59,6 +59,7 @@ void SetThroat(unsigned char _throat) { throat = _throat; }
 void EnableSingmode() { singmode = 1; }
 char *GetBuffer() { return buffer; }
 int GetBufferLength() { return bufferpos; }
+void FreeBuffer() { free(buffer); }
 
 void Init();
 int Parser1();
