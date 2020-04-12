@@ -31,6 +31,7 @@ bool host_done=false;
 bool slot_done=true;
 bool selector_done=false;
 bool drive_done=false;
+unsigned char k;
 
 extern unsigned char* video_ptr;
 extern unsigned char* dlist_ptr;
@@ -322,7 +323,6 @@ void diskulator_mount_all_devices(void)
  */
 bool diskulator_host(void)
 {
-  unsigned char k;
   char tmp_str[8];
   char disk_type;
   unsigned short ns;
@@ -331,6 +331,7 @@ bool diskulator_host(void)
 
   host_done=false;
   slot_done=true;
+  k=0;
   
   screen_clear();
   bar_clear();
@@ -504,7 +505,9 @@ bool diskulator_host(void)
 
   bar_clear();
   bar_show(c+13);
-    
+
+  k=0;
+  
   while (slot_done==false)
     {
       // Quick boot
@@ -678,7 +681,6 @@ bool diskulator_select(void)
 {
   unsigned char num_entries;
   unsigned char e;
-  unsigned char k;
   bool ret=false;
   
   POKE(0x60F,2);
@@ -724,6 +726,8 @@ bool diskulator_select(void)
   e=0;
   bar_clear();
   bar_show(e+3);
+
+  selector_done=false;
   
   while (1)
     {
