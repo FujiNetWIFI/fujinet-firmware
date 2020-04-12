@@ -8,14 +8,19 @@ networkProtocolHTTP::~networkProtocolHTTP()
 {
 }
 
-bool networkProtocolHTTP::startConnection()
+bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
 {
     switch (openMode)
     {
-        case GET:
-            
-        case POST:
-        case PUT:
+    case GET:
+        resultCode = client.GET();
+        break;
+    case POST:
+        resultCode = client.POST(buf, len);
+        break;
+    case PUT:
+        resultCode = client.PUT(buf, len);
+        break;
     }
 }
 
@@ -51,7 +56,7 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
 
     if (!requestStarted)
     {
-        if (!startConnection())
+        if (!startConnection(rx_buf, len))
             return false;
     }
 
@@ -72,17 +77,9 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
 
     if (!requestStarted)
     {
-        if (!startConnection())
+        if (!startConnection(tx_buf, len))
             return false;
     }
-
-    c = client.getStreamPtr();
-
-    if (c == nullptr)
-        return false;
-
-    if (c->write(tx_buf, len) != len)
-        return false;
 
     return true;
 }
@@ -94,7 +91,7 @@ bool networkProtocolHTTP::status(byte *status_buf)
 
     if (!requestStarted)
     {
-        if (!startConnection())
+        if (!startConnection(status_buf,4))
             return false;
     }
 
@@ -108,8 +105,8 @@ bool networkProtocolHTTP::status(byte *status_buf)
 
     status_buf[0] = a & 0xFF;
     status_buf[1] = a >> 8;
-    status_buf[2] = c->connected();
-    status_buf[3] = 0;
+    status_buf[2] = resultCode & 0xFF;
+    status_buf[3] = resultCode >> 8;
 
     return true;
 }

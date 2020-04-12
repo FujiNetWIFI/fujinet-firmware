@@ -21,11 +21,12 @@ public:
     virtual bool special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
 
 private:
-    virtual bool startConnection();
+    virtual bool startConnection(byte* buf, unsigned short len);
 
     HTTPClient client;
     bool requestStarted = false;
     enum {GET, POST, PUT} openMode;
+    int resultCode;
 };
 
 #endif /* NETWORKPROTOCOLHTTP */
