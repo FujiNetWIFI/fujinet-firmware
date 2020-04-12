@@ -6,6 +6,7 @@
 
 #ifdef __cplusplus
 extern char input[256];
+extern char *buffer;
 #endif
 
 int debug = 0;
@@ -154,9 +155,10 @@ void OutputSound()
     for (int i = 0; i < n; i++)
     {
         dacWrite(DAC1, s[i]);
-        delayMicroseconds(25);
+        delayMicroseconds(40);
     }
     pinMode(DAC1, INPUT);
+    FreeBuffer();
 #endif
 }
 
