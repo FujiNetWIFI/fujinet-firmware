@@ -25,6 +25,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "modem.h"
 #include "fuji.h"
 #include "apetime.h"
+#include "voice.h"
 #include "../http/httpService.h"
 
 //#include <WiFiUdp.h>
@@ -57,6 +58,10 @@ sioFuji theFuji;
 
 sioApeTime apeTime;
 
+sioVoice sioV;
+
+WiFiServer server(80);
+WiFiClient client;
 #ifdef DEBUG_N
 WiFiClient wifiDebugClient;
 #endif
@@ -153,6 +158,8 @@ void setup()
   // Choose filesystem for HTTP service and initialize it
   httpServiceSetup();
 
+
+  SIO.addDevice(&sioV, 0x43); // P3:
 
   if (WiFi.status() == WL_CONNECTED)
   {
