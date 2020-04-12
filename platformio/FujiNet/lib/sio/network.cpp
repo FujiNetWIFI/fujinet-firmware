@@ -2,6 +2,7 @@
 #include "networkProtocol.h"
 #include "networkProtocolTCP.h"
 #include "networkProtocolUDP.h"
+#include "networkProtocolHTTP.h"
 
 /**
  * Allocate input/output buffers
@@ -50,6 +51,11 @@ bool sioNetwork::open_protocol()
     else if (strcmp(deviceSpec.protocol, "UDP") == 0)
     {
         protocol = new networkProtocolUDP();
+        return true;
+    }
+    else if (strcmp(deviceSpec.protocol, "HTTP") == 0)
+    {
+        protocol = new networkProtocolHTTP();
         return true;
     }
     else

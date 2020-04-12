@@ -35,22 +35,23 @@ void sioFuji::sio_net_scan_networks()
 
     int retries = NET_SCAN_NETWORKS_RETRIES;
     int result = 0;
-    do {
+    do
+    {
         result = WiFi.scanNetworks();
 #ifdef DEBUG
         Debug_printf("scanNetworks returned %d\n", result);
 #endif
         // We're getting WIFI_SCAN_FAILED (-2) after attempting and failing to connect to a network
         // End any retry attempt if we got a non-negative value
-        if(result >= 0)
+        if (result >= 0)
             break;
 
-    } while( --retries > 0);
+    } while (--retries > 0);
 
     // Boundary check
-    if(result < 0)
+    if (result < 0)
         result = 0;
-    if(result > 50)
+    if (result > 50)
         result = 50;
 
     totalSSIDs = (char)result;
@@ -275,7 +276,7 @@ void sioFuji::sio_tnfs_read_directory_entry()
     //byte ret = tnfs_readdir(hostSlot);
     File f = dir[hostSlot].openNextFile();
     int l = 0;
-    
+
     if (!f)
         current_entry[0] = 0x7F; // end of dir
     else
@@ -390,28 +391,31 @@ void sioFuji::sio_get_adapter_config()
     strcpy(adapterConfig.hostname, WiFi.getHostname());
 #endif
 
-    adapterConfig.localIP[0] = WiFi.localIP()[0];
-    adapterConfig.localIP[1] = WiFi.localIP()[1];
-    adapterConfig.localIP[2] = WiFi.localIP()[2];
-    adapterConfig.localIP[3] = WiFi.localIP()[3];
+    if (WiFi.isConnected())
+    {
+        adapterConfig.localIP[0] = WiFi.localIP()[0];
+        adapterConfig.localIP[1] = WiFi.localIP()[1];
+        adapterConfig.localIP[2] = WiFi.localIP()[2];
+        adapterConfig.localIP[3] = WiFi.localIP()[3];
 
-    adapterConfig.gateway[0] = WiFi.gatewayIP()[0];
-    adapterConfig.gateway[1] = WiFi.gatewayIP()[1];
-    adapterConfig.gateway[2] = WiFi.gatewayIP()[2];
-    adapterConfig.gateway[3] = WiFi.gatewayIP()[3];
+        adapterConfig.gateway[0] = WiFi.gatewayIP()[0];
+        adapterConfig.gateway[1] = WiFi.gatewayIP()[1];
+        adapterConfig.gateway[2] = WiFi.gatewayIP()[2];
+        adapterConfig.gateway[3] = WiFi.gatewayIP()[3];
 
-    adapterConfig.netmask[0] = WiFi.subnetMask()[0];
-    adapterConfig.netmask[1] = WiFi.subnetMask()[1];
-    adapterConfig.netmask[2] = WiFi.subnetMask()[2];
-    adapterConfig.netmask[3] = WiFi.subnetMask()[3];
+        adapterConfig.netmask[0] = WiFi.subnetMask()[0];
+        adapterConfig.netmask[1] = WiFi.subnetMask()[1];
+        adapterConfig.netmask[2] = WiFi.subnetMask()[2];
+        adapterConfig.netmask[3] = WiFi.subnetMask()[3];
 
-    adapterConfig.dnsIP[0] = WiFi.dnsIP()[0];
-    adapterConfig.dnsIP[1] = WiFi.dnsIP()[1];
-    adapterConfig.dnsIP[2] = WiFi.dnsIP()[2];
-    adapterConfig.dnsIP[3] = WiFi.dnsIP()[3];
+        adapterConfig.dnsIP[0] = WiFi.dnsIP()[0];
+        adapterConfig.dnsIP[1] = WiFi.dnsIP()[1];
+        adapterConfig.dnsIP[2] = WiFi.dnsIP()[2];
+        adapterConfig.dnsIP[3] = WiFi.dnsIP()[3];
+        strncpy((char *)adapterConfig.bssid, (const char *)WiFi.BSSID(), 6);
+    }
 
     WiFi.macAddress(adapterConfig.macAddress);
-    strncpy((char *)adapterConfig.bssid, (const char *)WiFi.BSSID(), 6);
 
     sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);
 }

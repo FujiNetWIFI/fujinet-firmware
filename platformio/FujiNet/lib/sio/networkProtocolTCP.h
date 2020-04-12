@@ -19,7 +19,7 @@ public:
     networkProtocolTCP();
     virtual ~networkProtocolTCP();
 
-    virtual bool open(networkDeviceSpec* spec);
+    virtual bool open(networkDeviceSpec* spec, cmdFrame_t* cmdFrame);
     virtual bool close();
     virtual bool read(byte* rx_buf, unsigned short len);
     virtual bool write(byte* tx_buf, unsigned short len);
