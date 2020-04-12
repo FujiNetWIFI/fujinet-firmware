@@ -1,5 +1,6 @@
 #include <Arduino.h>
 
+#include <string>
 #include <FS.h>
 #include "printer_emulator.h"
 
@@ -34,11 +35,18 @@ struct pdfFont_t
   >>
   endobj
 */
- char subtype[];
- char basefont[];
-
+ std::string subtype;
+ std::string basefont;
+ float ascent;
+ float capheight;
+ float descent;
+ byte flags;
+ float bbox[4];
+ float stemv;
+ float xheight;
+ byte ffn;
+ std::string ffname;
 };
-
 
 class pdfPrinter: public printer_emu
 {
@@ -67,7 +75,7 @@ protected:
     virtual void pdf_handle_char(byte c) = 0;
     virtual void pdf_fonts() = 0;
     void pdf_header();
-    void pdf_add_font();
+    void pdf_add_fonts(pdfFont_t* fonts[], int n);
     void pdf_new_page();
     void pdf_begin_text(float Y);
     void pdf_new_line();
