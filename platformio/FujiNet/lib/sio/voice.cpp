@@ -1,6 +1,6 @@
 #include "voice.h"
 
-void sio_sam()
+void sioVoice::sio_sam()
 {
     int n = 2;
     char *a[5] = {"sam", "I am Sam."};
