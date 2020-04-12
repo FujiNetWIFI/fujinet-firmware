@@ -1,5 +1,12 @@
 #include "voice.h"
 
+void sio_sam()
+{
+    int n = 2;
+    char *a[5] = {"sam", "I am Sam."};
+    sam(n, a);
+};
+
 void sioVoice::sio_write()
 {
     // act like a printer for POC
@@ -55,9 +62,4 @@ void sioVoice::sio_process()
     }
 }
 
-void sio_sam()
-{
-    int n = 2;
-    char *a[5] = {"sam", "I am Sam."};
-    sam(n, a);
-};
+

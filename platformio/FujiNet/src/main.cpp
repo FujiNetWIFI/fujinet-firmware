@@ -63,6 +63,8 @@ sioFuji theFuji;
 
 sioApeTime apeTime;
 
+sioVoice sioV;
+
 WiFiServer server(80);
 WiFiClient client;
 #ifdef DEBUG_N
@@ -276,6 +278,8 @@ void setup()
   sioP.setPaper(PRINTMODE);
   sioP.initPrinter(&paperf);
   server.begin(); // Start the web server
+
+  SIO.addDevice(&sioV, 0x43); // P3:
 
   if (WiFi.status() == WL_CONNECTED)
   {

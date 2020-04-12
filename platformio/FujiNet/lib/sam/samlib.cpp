@@ -150,11 +150,13 @@ void OutputSound()
 #ifdef ESP_32
     int n = GetBufferLength() / 50;
     char *s = GetBuffer();
+    pinMode(DAC1, OUTPUT);
     for (int i = 0; i < n; i++)
     {
         dacWrite(DAC1, s[i]);
         delayMicroseconds(25);
     }
+    pinMode(DAC1, INPUT);
 #endif
 }
 
