@@ -56,14 +56,24 @@ protected:
     byte lastAux1 = 0;
 
     // PRINTER THINGS
-    File *_file;
-    paper_t paperType;
+
+    File _file;
+    FS* _FS;
+    paper_t paperType = RAW;
     virtual void writeBuffer(byte *B, int n) = 0;
 
 public:
-    virtual void initPrinter(File *f) = 0;
+    virtual void initPrinter(FS *filesystem);
     virtual void setPaper(paper_t ty) = 0;
-    virtual void pageEject() = 0;
+    virtual void pageEject(){};
+    virtual void flushOutput();
+    size_t getOutputSize() {
+        return _file.size();
+    }
+    int readFromOutput() {
+        return _file.read();
+    }
+    void resetOutput();
     paper_t getPaperType();
 };
 
@@ -74,8 +84,7 @@ protected:
 
 public:
     void setPaper(paper_t ty);
-    void initPrinter(File *f);
-    void pageEject(){};
+    void initPrinter(FS *filesystem);
 };
 
 class pdfPrinter : public sioPrinter
@@ -124,6 +133,7 @@ protected:
 public:
     void pageEject();
     void setPaper(paper_t ty){};
+    void flushOutput();
 };
 
 class asciiPrinter : public pdfPrinter
@@ -133,7 +143,7 @@ protected:
     virtual void pdf_handle_char(byte c);
 
 public:
-    void initPrinter(File *f);
+    void initPrinter(FS *filesystem);
 };
 
 class atari1027 : public pdfPrinter
@@ -147,7 +157,7 @@ protected:
     void pdf_handle_char(byte c);
 
 public:
-    void initPrinter(File *f);
+    void initPrinter(FS *filesystem);
 };
 
 class atari820 : public pdfPrinter
@@ -163,7 +173,7 @@ protected:
     void pdf_handle_char(byte c);  // need a custom one to handle sideways printing
 
 public:
-    void initPrinter(File *f);
+    void initPrinter(FS *filesystem);
 };
 
 class atari822 : public pdfPrinter
@@ -175,7 +185,7 @@ protected:
     int gfxNumber=0;
     
 public:
-    void initPrinter(File *f);
+    void initPrinter(FS *filesystem);
 };
 
 
@@ -186,7 +196,7 @@ protected:
     void svg_header();
 
 public:
-    void initPrinter(File *f);
+    void initPrinter(FS *filesystem);
     void setPaper(paper_t ty){};
 };
 
