@@ -7,3 +7,6 @@ include/ssid.h
 *.ini
 platformio/tnfs test/include/ssid.h
 platformio/FujiNet/platformio.ini
+config/.vscode/
+config/config.com
+config/config.code-workspace
