@@ -10,15 +10,16 @@ networkProtocolHTTP::~networkProtocolHTTP()
 
 }
 
-bool networkProtocolHTTP::open(networkDeviceSpec *spec)
+bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t* cmdFrame)
 {
-    
-    return false;
+    String url = "http://" + String(spec->path);
+    return client.begin(url);
 }
 
 bool networkProtocolHTTP::close()
 {
-    return false;
+    client.end();
+    return true;
 }
 
 bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
