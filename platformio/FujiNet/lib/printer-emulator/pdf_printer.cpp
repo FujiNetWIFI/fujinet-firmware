@@ -14,10 +14,67 @@ void pdfPrinter::pdf_header()
     pdf_objCtr = 2; // set up counter for pdf_add_font()
 }
 
-void pdfPrinter::pdf_add_font()
+void pdfPrinter::pdf_add_fonts(pdfFont_t* fonts[], int n)
 {
-    pdf_objCtr++; // should now = 3 coming from pdf_header()
+    pdf_objCtr = 3; // should now = 3 coming from pdf_header()
+    objLocations[pdf_objCtr] = _file->position();
+    // font catalog
+    _file->printf("3 0 obj\n<</Font <<");
+     for (int i=0; i<n; i++)
+     {
+        _file->printf("/F%d %d 0 R ",i+1,4+3*i); ///F1 4 0 R /F2 7 0 R>>>>\nendobj\n
+     }
+    _file->printf(">>>>\nendobj\n");
 
+    // font dictionary
+    for (int i=0; i<n; i++){
+        /*
+            std::string subtype;
+            std::string basefont;
+            float ascent;
+            float capheight;
+            float descent;
+            byte flags;
+            float bbox[4];
+            float stemv;
+            float xheight;
+            byte ffn;
+            std::string ffname;
+        */
+        pdf_objCtr++; // = 4;
+        objLocations[pdf_objCtr] = _file->position();
+        _file->printf("4 0 obj\n<</Type/Font");
+        _file->printf("/Subtype/Type1");
+        _file->printf("/Name/F1");
+        _file->printf("/BaseFont/PrestigeEliteStd");
+        _file->printf("/Encoding/WinAnsiEncoding");
+        _file->printf("/FontDescriptor 5 0 R");
+        _file->printf("/FirstChar 0/LastChar 255/Widths 6 0 R");
+        _file->printf(">>\nendobj\n");
+        pdf_objCtr++; // = 5;
+        objLocations[pdf_objCtr] = _file->position();
+        _file->printf("5 0 obj\n<</Type/FontDescriptor");
+        _file->printf("/FontName/PrestigeEliteStd");
+        _file->printf("/Flags 33/ItalicAngle 0");
+        _file->printf("/Ascent 656");
+        _file->printf("/Descent -334");
+        _file->printf("/CapHeight 662");
+        _file->printf("/XHeight 420");
+        _file->printf("/StemV 87");
+        _file->printf("/FontBBox[-20 -288 620 837]");
+        _file->printf("/FontFile3 7 0 R");
+        _file->printf(">>\nendobj\n");
+        pdf_objCtr++; // = 6;
+        objLocations[pdf_objCtr] = _file->position();
+        _file->printf("6 0 obj\n[");
+        for (int i = 0; i < 256; i++)
+        {
+            _file->printf(" 600");
+            if ((i - 31) % 32 == 0)
+                _file->printf("\n");
+        }
+        _file->printf(" ]\nendobj\n");
+    }
 
 }
 
