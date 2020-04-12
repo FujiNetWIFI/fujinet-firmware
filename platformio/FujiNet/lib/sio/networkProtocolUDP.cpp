@@ -14,7 +14,7 @@ networkProtocolUDP::~networkProtocolUDP()
 #endif
 }
 
-bool networkProtocolUDP::open(networkDeviceSpec *spec)
+bool networkProtocolUDP::open(networkDeviceSpec *spec, cmdFrame_t* cmdFrame)
 {
 #ifdef DEBUG
     Debug_printf("networkProtocolUDP::OPEN %s \n", spec->toChar());

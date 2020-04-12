@@ -24,7 +24,7 @@ networkProtocolTCP::~networkProtocolTCP()
     }
 }
 
-bool networkProtocolTCP::open(networkDeviceSpec *spec)
+bool networkProtocolTCP::open(networkDeviceSpec *spec, cmdFrame_t* cmdFrame)
 {
     bool ret;
 
