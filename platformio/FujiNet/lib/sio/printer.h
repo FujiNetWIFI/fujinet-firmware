@@ -11,7 +11,7 @@
 class sioPrinter : public sioDevice
 {
 protected:
-    friend void atari820::pdf_handle_char(byte c);
+    // does not work: friend void atari820::pdf_handle_char(byte c);
     // SIO THINGS
     byte buffer[40];
     void sio_write();
