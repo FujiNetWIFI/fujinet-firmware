@@ -276,8 +276,6 @@ void sioModem::modemCommand()
   Debug_println( upperCaseCmd );
 #endif
 
-  long newBps = 0;
-
   // Replace EOL with CR.
   if (upperCaseCmd.indexOf(0x9b) != 0)
     upperCaseCmd[upperCaseCmd.indexOf(0x9b)] = 0x0D;
@@ -623,7 +621,6 @@ void sioModem::sio_handle_modem()
       // Return, enter, new line, carriage return.. anything goes to end the command
       if ((chr == '\n') || (chr == '\r') || (chr == 0x9B))
       {
-        int ch = chr;
 
         // flip which EOL to display based on last CR or EOL received.
         if (chr == 0x9B)
@@ -673,11 +670,11 @@ void sioModem::sio_handle_modem()
     {
       // In telnet in worst case we have to escape every byte
       // so leave half of the buffer always free
-      int max_buf_size;
-      if (telnet == true)
-        max_buf_size = TX_BUF_SIZE / 2;
-      else
-        max_buf_size = TX_BUF_SIZE;
+      //int max_buf_size;
+      //if (telnet == true)
+      //  max_buf_size = TX_BUF_SIZE / 2;
+      //else
+      //  max_buf_size = TX_BUF_SIZE;
      
 
       // Read from serial, the amount available up to

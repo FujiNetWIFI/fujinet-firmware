@@ -33,5 +33,30 @@ public:
     void connect_printer(printer_emu *P) { _pptr = P; };
 };
 
+    // PRINTER THINGS
+
+    File _file;
+    FS* _FS;
+    paper_t paperType = RAW;
+    virtual void writeBuffer(byte *B, int n) = 0;
+
+public:
+    virtual void initPrinter(FS *filesystem);
+    virtual void setPaper(paper_t ty) = 0;
+    virtual void pageEject(){};
+    virtual void flushOutput();
+    size_t getOutputSize() {
+        return _file.size();
+    }
+    int readFromOutput() {
+        return _file.read();
+    }
+    int readFromOutput(uint8_t *buf, size_t size) {
+        return _file.read(buf, size);
+    }
+    void resetOutput();
+    paper_t getPaperType();
+};
+
 
 #endif // guard
