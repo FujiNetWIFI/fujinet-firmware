@@ -808,11 +808,11 @@ void sioPrinter::resetOutput()
   _file = _FS->open("/paper", "w+");
   if (_file)
   {
-    Debug_println("printer output file opened");
+    Debug_println("Printer output file (re)opened");
   }
   else
   {
-    Debug_println("error opening printer file");
+    Debug_println("Error opening printer file");
   }
 }
 

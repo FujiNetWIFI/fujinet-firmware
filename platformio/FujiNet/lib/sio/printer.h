@@ -73,6 +73,9 @@ public:
     int readFromOutput() {
         return _file.read();
     }
+    int readFromOutput(uint8_t *buf, size_t size) {
+        return _file.read(buf, size);
+    }
     void resetOutput();
     paper_t getPaperType();
 };
