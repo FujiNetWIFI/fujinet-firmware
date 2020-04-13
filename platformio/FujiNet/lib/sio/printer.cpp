@@ -1,6 +1,5 @@
 #include "printer.h"
 
-
 paper_t sioPrinter::getPaperType()
 {
   return paperType;
