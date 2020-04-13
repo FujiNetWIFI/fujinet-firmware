@@ -3,11 +3,11 @@
 
 #include "printer.h"
 
-extern WiFiServer server;
-void httpService();
-void httpServiceSetup();
-//extern atari822 sioP;
-//extern File paperf;
-//extern FS *paperFS;
+#define FNWS_FILE_ROOT "/www/"
+#define FNWS_SEND_BUFF_SIZE 256
+#define FNWS_ERR_FILEOPEN 1
+
+void httpServiceInit();
+
 
 #endif // HTTPSERVICE_H
