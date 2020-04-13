@@ -1,7 +1,8 @@
 #include <Arduino.h>
 
 #include <string>
-#include <FS.h>
+//#include <FS.h>
+#include <SPIFFS.h>
 #include "printer_emulator.h"
 
 struct pdfFont_t
@@ -37,6 +38,7 @@ struct pdfFont_t
 */
  std::string subtype;
  std::string basefont;
+ float width; // uniform spacing for now, todo: proportional
  float ascent;
  float capheight;
  float descent;
@@ -44,7 +46,7 @@ struct pdfFont_t
  float bbox[4];
  float stemv;
  float xheight;
- byte ffn;
+ byte ffnum;
  std::string ffname;
 };
 

@@ -32,6 +32,7 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
         /*
             std::string subtype;
             std::string basefont;
+            float width;
             float ascent;
             float capheight;
             float descent;
@@ -46,9 +47,9 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
         pdf_objCtr++; // = 4;
         objLocations[pdf_objCtr] = _file->position();
         _file->printf("%d 0 obj\n<</Type/Font", pdf_objCtr); // 4
-        _file->printf("/Subtype/Type1");
+        _file->printf("/Subtype/%s",fonts[i]->subtype.c_str()); //Type1
         _file->printf("/Name/F%d", i + 1);
-        _file->printf("/BaseFont/PrestigeEliteStd");
+        _file->printf("/BaseFont/%s",fonts[i]->basefont.c_str()); //PrestigeEliteStd
         _file->printf("/Encoding/WinAnsiEncoding");
         _file->printf("/FontDescriptor %d 0 R", pdf_objCtr + 1);                  // 5
         _file->printf("/FirstChar 0/LastChar 255/Widths %d 0 R", pdf_objCtr + 2); // 6
@@ -56,22 +57,26 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
         pdf_objCtr++; // = 5;
         objLocations[pdf_objCtr] = _file->position();
         _file->printf("%d 0 obj\n<</Type/FontDescriptor", pdf_objCtr); // 5
-        _file->printf("/FontName/PrestigeEliteStd");
-        _file->printf("/Flags 33/ItalicAngle 0");
-        _file->printf("/Ascent 656");
-        _file->printf("/Descent -334");
-        _file->printf("/CapHeight 662");
-        _file->printf("/XHeight 420");
-        _file->printf("/StemV 87");
-        _file->printf("/FontBBox[-20 -288 620 837]");
-        _file->printf("/FontFile3 %d 0 R", pdf_objCtr + 2); // 7
+        _file->printf("/FontName/%s",fonts[i]->basefont.c_str()); //PrestigeEliteStd
+        _file->printf("/Flags 33/ItalicAngle 0"); // 33 for fixed width for now todo: change for proportional when needed
+        _file->printf("/Ascent %g",fonts[i]->ascent); // 656
+        _file->printf("/Descent %g",fonts[i]->descent); // -334
+        _file->printf("/CapHeight %g",fonts[i]->capheight); // 662
+        _file->printf("/XHeight %g",fonts[i]->xheight); // 420 
+        _file->printf("/StemV %g",fonts[i]->stemv); // 87
+        _file->printf("/FontBBox[ ");
+        for (int j=0; j<4; j++)
+            _file->printf("%g ",fonts[i]->bbox[j]);
+        _file->printf("]"); // -20 -288 620 837
+        _file->printf("/FontFile%d ",fonts[i]->ffnum); // 3
+        _file->printf("%d 0 R" ,pdf_objCtr + 2); // 7
         _file->printf(">>\nendobj\n");
         pdf_objCtr++; // = 6;
         objLocations[pdf_objCtr] = _file->position();
         _file->printf("%d 0 obj\n[", pdf_objCtr); // 6
         for (int i = 0; i < 256; i++)
         {
-            _file->printf(" 600"); // todo: widths
+            _file->printf(" %g",fonts[i]->width); // 600
             if ((i - 31) % 32 == 0)
                 _file->printf("\n");
         }
@@ -81,7 +86,7 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
         objLocations[pdf_objCtr] = _file->position();
         _file->printf("%d 0 obj\n",pdf_objCtr); // 7
         // insert fontfile stream
-        File fff = SPIFFS.open("/a1027font", "r");
+        File fff = SPIFFS.open(fonts[i]->ffname.c_str(), "r"); //"/a1027font"
         while (fff.available())
         {
             _file->write(fff.read());
