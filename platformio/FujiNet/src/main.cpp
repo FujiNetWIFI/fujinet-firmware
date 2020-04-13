@@ -60,8 +60,8 @@ sioApeTime apeTime;
 
 sioVoice sioV;
 
-WiFiServer server(80);
-WiFiClient client;
+fnHttpService fnHTTPD;
+
 #ifdef DEBUG_N
 WiFiClient wifiDebugClient;
 #endif
@@ -155,9 +155,7 @@ void setup()
   }
   SIO.addDevice(&sioP, 0x40); // P:
 
-  // Choose filesystem for HTTP service and initialize it
-  //httpServiceSetup();
-  httpServiceInit();
+  fnHTTPD.httpServiceInit();
 
 
   SIO.addDevice(&sioV, 0x43); // P3:
