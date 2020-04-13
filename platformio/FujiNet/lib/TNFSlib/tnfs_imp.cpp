@@ -1,4 +1,5 @@
 #include "tnfs_imp.h"
+#include "debug.h"
 
 // #define DEBUG_VERBOSE
 
@@ -182,8 +183,9 @@ FileImplPtr TNFSImpl::open(const char *path, const char *mode)
   }
   flag_lsb = byte(flag & 0xff);
   flag_msb = byte(flag >> 8);
+#ifdef DEBUG
   Debug_printf("open flags (lo,hi): &%u %u\n", flag_lsb, flag_msb);
-
+#endif
   // test if path is directory
   tnfsStat_t stats = tnfs_stat(this, path);
   if (stats.isDir)
@@ -276,18 +278,24 @@ void TNFSFileImpl::close()
   {
     if (stats.isDir)
     {
+#ifdef DEBUG
       Debug_println("closing directory");
+#endif
       tnfs_closedir(fs, fid);
     }
     else
     {
+#ifdef DEBUG
       Debug_println("closing file");
+#endif
       tnfs_close(fs, fid);
     }
   }
   else
   {
+#ifdef DEBUG
     Debug_println("real file not open");
+#endif
   }
   fid = -1;
 }
@@ -639,8 +647,10 @@ tnfsSessionID_t tnfs_mount(FSImplPtr hostPtr) //(unsigned char hostSlot)
   tnfsPacket.data[4] = 0x00; // no username
   tnfsPacket.data[5] = 0x00; // no password
 
+#ifdef DEBUG
   Debug_print("Mounting / from ");
   Debug_println(host);
+#endif
 
   if (tnfs_transaction(host, port, 6))
   {
