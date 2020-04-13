@@ -151,7 +151,8 @@ void setup()
   SIO.addDevice(&sioP, 0x40); // P:
 
   // Choose filesystem for HTTP service and initialize it
-  httpServiceSetup();
+  //httpServiceSetup();
+  httpServiceInit();
 
 
   if (WiFi.status() == WL_CONNECTED)
@@ -243,7 +244,7 @@ void loop()
   {
 #endif // ESP32
     SIO.service();
-    httpService();
+    //httpService();
 #ifdef ESP32
   }
 #endif
