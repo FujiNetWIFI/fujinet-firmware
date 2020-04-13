@@ -110,7 +110,7 @@ void sioNetwork::sio_open()
         return;
     }
 
-    if (!protocol->open(&deviceSpec))
+    if (!protocol->open(&deviceSpec,&cmdFrame))
     {
 #ifdef DEBUG
         Debug_printf("Protocol unable to make connection.");
