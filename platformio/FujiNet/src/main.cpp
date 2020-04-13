@@ -60,8 +60,8 @@ sioApeTime apeTime;
 
 sioVoice sioV;
 
-WiFiServer server(80);
-WiFiClient client;
+// WiFiServer server(80);
+// WiFiClient client;
 #ifdef DEBUG_N
 WiFiClient wifiDebugClient;
 #endif
