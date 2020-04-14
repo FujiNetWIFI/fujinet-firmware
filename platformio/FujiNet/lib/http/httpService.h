@@ -29,8 +29,6 @@ If a file has an extention pre-determined to support parsing (see/update
 #ifndef HTTPSERVICE_H
 #define HTTPSERVICE_H
 
-#include <vector>
-
 #include <FS.h>
 #include <esp_http_server.h>
 

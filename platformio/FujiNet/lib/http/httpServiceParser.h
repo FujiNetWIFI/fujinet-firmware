@@ -20,10 +20,12 @@ Currently handled tags:
 #ifndef HTTPSERVICEPARSER_H
 #define HTTPSERVICEPARSER_H
 
+#include <vector>
+
 class fnHttpServiceParser
 {
+    static const std::string substitute_tag(const std::string &tag);
 public:
-    static std::string substitute_tag(const std::string &tag);
     static std::string parse_contents(const std::string &contents);
     static bool is_parsable(const char *extension);
 };
