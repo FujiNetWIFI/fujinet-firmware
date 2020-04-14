@@ -196,7 +196,7 @@ esp_err_t get_handler_print(httpd_req_t *req)
 #endif
 
     // A bit of a kludge for now: get printer from main routine
-    sioPrinter *currentPrinter = getCurrentPrinter();
+    printer_emu *currentPrinter = sioP.getPrinterPtr(); //getCurrentPrinter();
 
     // Build a print output name
     const char *exts;

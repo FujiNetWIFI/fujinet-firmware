@@ -4,7 +4,7 @@
 
 #include <FS.h>
 
-// #define EOL 155
+//#define EOL 155
 
 enum paper_t
 {
@@ -29,7 +29,7 @@ public:
 
     paper_t getPaperType() { return paperType; };
 
-    File *getFilePtr() { return &_file; }
+    //File *getFilePtr() { return _file; }
     // virtual void flushOutput(); // do this in pageEject
     size_t getOutputSize();
     int readFromOutput();

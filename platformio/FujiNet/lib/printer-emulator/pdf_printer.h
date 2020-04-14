@@ -3,7 +3,10 @@
 #include <string>
 //#include <FS.h>
 #include <SPIFFS.h>
+
 #include "printer_emulator.h"
+
+#define EOL 155 // pdf printer library does use Atari EOL instead of /r/n
 
 struct pdfFont_t
 {
@@ -61,7 +64,7 @@ protected:
   float printWidth;
   float lineHeight;
   float charWidth;
-  int fontNumber;
+  byte fontNumber;
   float fontSize;
 
   float pdf_X = 0.; // across the page - columns in pts
@@ -90,7 +93,7 @@ protected:
   size_t idx_stream_stop;   // file location of end of stream
 
 public:
-  virtual void initPrinter(File *f) = 0;
+  //virtual void initPrinter(FS *filesystem) = 0;
   virtual void pageEject();
   virtual bool process(const byte *buf, byte n);
 };
@@ -103,5 +106,5 @@ protected:
   void pdf_fonts();
 
 public:
-  void initPrinter(File *f);
+    virtual void initPrinter(FS *filesystem);
 };

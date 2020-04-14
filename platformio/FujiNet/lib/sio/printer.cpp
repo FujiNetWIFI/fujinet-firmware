@@ -1,5 +1,7 @@
 #include "printer.h"
 
+#define EOL 155
+
 // write for W commands
 void sioPrinter::sio_write()
 {

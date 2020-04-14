@@ -37,7 +37,9 @@ public:
 
 class atari820 : public sioPrinter
 {
-    
-}
+
+};
+
+extern sioPrinter sioP;
 
 #endif // guard
