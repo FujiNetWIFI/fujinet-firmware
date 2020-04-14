@@ -22,6 +22,7 @@ public:
 
     virtual bool special_supported_00_command(unsigned char comnd);
     virtual void special_header_toggle(unsigned char aux1);
+    virtual void special_collect_headers_toggle(unsigned char aux1);
 
 private:
     virtual bool startConnection(byte *buf, unsigned short len);
@@ -38,6 +39,7 @@ private:
     } openMode;
     int resultCode;
     bool headers = false;
+    bool collectHeaders = false;
     int headerIndex = 0;
     int numHeaders = 0;
 };

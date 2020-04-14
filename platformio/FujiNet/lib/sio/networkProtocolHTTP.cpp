@@ -120,6 +120,9 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
         headerValue = String(tmpValue);
         client.addHeader(headerKey, headerValue);
     }
+    else if (collectHeaders)
+    {
+    }
     else
     {
         if (!requestStarted)
@@ -149,6 +152,11 @@ bool networkProtocolHTTP::status(byte *status_buf)
         if (headerIndex < numHeaders)
         {
             status_buf[0] = client.header(headerIndex).length() & 0xFF;
+            status_buf[1] = client.header(headerIndex).length() >> 8;
+            status_buf[2] = resultCode & 0xFF;
+            status_buf[3] = resultCode >> 8;
+
+            return false; // no error
         }
     }
     else
@@ -164,7 +172,7 @@ bool networkProtocolHTTP::status(byte *status_buf)
         status_buf[2] = resultCode & 0xFF;
         status_buf[3] = resultCode >> 8;
 
-        return false;
+        return false; // no error
     }
     return true;
 }
@@ -173,6 +181,8 @@ bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
 {
     switch (comnd)
     {
+    case 'G': // toggle collect headers
+        return true;
     case 'H': // toggle headers
         return true;
     default:
@@ -187,10 +197,18 @@ void networkProtocolHTTP::special_header_toggle(unsigned char aux1)
     headers = (aux1 == 1 ? true : false);
 }
 
+void networkProtocolHTTP::special_collect_headers_toggle(unsigned char aux1)
+{
+    collectHeaders = (aux1 == 1 ? true : false);
+}
+
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
     {
+    case 'G': // toggle collect headers
+
+        return false;
     case 'H': // toggle headers
         special_header_toggle(cmdFrame->aux1);
         return false;
