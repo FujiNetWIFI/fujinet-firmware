@@ -43,7 +43,7 @@ void nread(void)
   else
     {
       print("READ:\x9b");
-      print(buf);
+      printl(buf,len);
       print("\x9b");
     }
 }
