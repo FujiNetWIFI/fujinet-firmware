@@ -76,11 +76,11 @@ BluetoothManager btMgr;
 
 // We need something better than this,
 // but it'll do for the moment...
-sioPrinter sioP;
-sioPrinter *getCurrentPrinter()
-{
-  return &sioP;
-}
+// sioPrinter sioP;
+// sioPrinter *getCurrentPrinter()
+// {
+//   return &sioP;
+// }
 
 void setup()
 {

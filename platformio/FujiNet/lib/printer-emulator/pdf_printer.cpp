@@ -5,11 +5,11 @@ void pdfPrinter::pdf_header()
     pdf_Y = 0;
     pdf_X = 0;
     pdf_pageCounter = 0;
-    _file->printf("%%PDF-1.4\n");
+    _file.printf("%%PDF-1.4\n");
     // first object: catalog of pages
     pdf_objCtr = 1;
-    objLocations[pdf_objCtr] = _file->position();
-    _file->printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
+    objLocations[pdf_objCtr] = _file.position();
+    _file.printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
     // object 2 0 R is printed at bottom of PDF before xref
     pdf_objCtr = 2; // set up counter for pdf_add_font()
 }
@@ -17,14 +17,14 @@ void pdfPrinter::pdf_header()
 void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
 {
     pdf_objCtr = 3; // should now = 3 coming from pdf_header()
-    objLocations[pdf_objCtr] = _file->position();
+    objLocations[pdf_objCtr] = _file.position();
     // font catalog
-    _file->printf("3 0 obj\n<</Font <<");
+    _file.printf("3 0 obj\n<</Font <<");
     for (int i = 0; i < n; i++)
     {
-        _file->printf("/F%d %d 0 R ", i + 1, 4 + 3 * i); ///F1 4 0 R /F2 7 0 R>>>>\nendobj\n
+        _file.printf("/F%d %d 0 R ", i + 1, 4 + 3 * i); ///F1 4 0 R /F2 7 0 R>>>>\nendobj\n
     }
-    _file->printf(">>>>\nendobj\n");
+    _file.printf(">>>>\nendobj\n");
 
     // font dictionary
     for (int i = 0; i < n; i++)
@@ -45,54 +45,54 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
             std::string ffname;
         */
         pdf_objCtr++; // = 4;
-        objLocations[pdf_objCtr] = _file->position();
-        _file->printf("%d 0 obj\n<</Type/Font", pdf_objCtr); // 4
-        _file->printf("/Subtype/%s",fonts[i]->subtype.c_str()); //Type1
-        _file->printf("/Name/F%d", i + 1);
-        _file->printf("/BaseFont/%s",fonts[i]->basefont.c_str()); //PrestigeEliteStd
-        _file->printf("/Encoding/WinAnsiEncoding");
-        _file->printf("/FontDescriptor %d 0 R", pdf_objCtr + 1);                  // 5
-        _file->printf("/FirstChar 0/LastChar 255/Widths %d 0 R", pdf_objCtr + 2); // 6
-        _file->printf(">>\nendobj\n");
+        objLocations[pdf_objCtr] = _file.position();
+        _file.printf("%d 0 obj\n<</Type/Font", pdf_objCtr);     // 4
+        _file.printf("/Subtype/%s", fonts[i]->subtype.c_str()); //Type1
+        _file.printf("/Name/F%d", i + 1);
+        _file.printf("/BaseFont/%s", fonts[i]->basefont.c_str()); //PrestigeEliteStd
+        _file.printf("/Encoding/WinAnsiEncoding");
+        _file.printf("/FontDescriptor %d 0 R", pdf_objCtr + 1);                  // 5
+        _file.printf("/FirstChar 0/LastChar 255/Widths %d 0 R", pdf_objCtr + 2); // 6
+        _file.printf(">>\nendobj\n");
         pdf_objCtr++; // = 5;
-        objLocations[pdf_objCtr] = _file->position();
-        _file->printf("%d 0 obj\n<</Type/FontDescriptor", pdf_objCtr); // 5
-        _file->printf("/FontName/%s",fonts[i]->basefont.c_str()); //PrestigeEliteStd
-        _file->printf("/Flags 33/ItalicAngle 0"); // 33 for fixed width for now todo: change for proportional when needed
-        _file->printf("/Ascent %g",fonts[i]->ascent); // 656
-        _file->printf("/Descent %g",fonts[i]->descent); // -334
-        _file->printf("/CapHeight %g",fonts[i]->capheight); // 662
-        _file->printf("/XHeight %g",fonts[i]->xheight); // 420 
-        _file->printf("/StemV %g",fonts[i]->stemv); // 87
-        _file->printf("/FontBBox[ ");
-        for (int j=0; j<4; j++)
-            _file->printf("%g ",fonts[i]->bbox[j]);
-        _file->printf("]"); // -20 -288 620 837
-        _file->printf("/FontFile%d ",fonts[i]->ffnum); // 3
-        _file->printf("%d 0 R" ,pdf_objCtr + 2); // 7
-        _file->printf(">>\nendobj\n");
+        objLocations[pdf_objCtr] = _file.position();
+        _file.printf("%d 0 obj\n<</Type/FontDescriptor", pdf_objCtr); // 5
+        _file.printf("/FontName/%s", fonts[i]->basefont.c_str());     //PrestigeEliteStd
+        _file.printf("/Flags 33/ItalicAngle 0");                      // 33 for fixed width for now todo: change for proportional when needed
+        _file.printf("/Ascent %g", fonts[i]->ascent);                 // 656
+        _file.printf("/Descent %g", fonts[i]->descent);               // -334
+        _file.printf("/CapHeight %g", fonts[i]->capheight);           // 662
+        _file.printf("/XHeight %g", fonts[i]->xheight);               // 420
+        _file.printf("/StemV %g", fonts[i]->stemv);                   // 87
+        _file.printf("/FontBBox[ ");
+        for (int j = 0; j < 4; j++)
+            _file.printf("%g ", fonts[i]->bbox[j]);
+        _file.printf("]");                             // -20 -288 620 837
+        _file.printf("/FontFile%d ", fonts[i]->ffnum); // 3
+        _file.printf("%d 0 R", pdf_objCtr + 2);        // 7
+        _file.printf(">>\nendobj\n");
         pdf_objCtr++; // = 6;
-        objLocations[pdf_objCtr] = _file->position();
-        _file->printf("%d 0 obj\n[", pdf_objCtr); // 6
+        objLocations[pdf_objCtr] = _file.position();
+        _file.printf("%d 0 obj\n[", pdf_objCtr); // 6
         for (int i = 0; i < 256; i++)
         {
-            _file->printf(" %g",fonts[i]->width); // 600
+            _file.printf(" %g", fonts[i]->width); // 600
             if ((i - 31) % 32 == 0)
-                _file->printf("\n");
+                _file.printf("\n");
         }
-        _file->printf(" ]\nendobj\n");
+        _file.printf(" ]\nendobj\n");
 
         pdf_objCtr++; // = 7;
-        objLocations[pdf_objCtr] = _file->position();
-        _file->printf("%d 0 obj\n",pdf_objCtr); // 7
+        objLocations[pdf_objCtr] = _file.position();
+        _file.printf("%d 0 obj\n", pdf_objCtr); // 7
         // insert fontfile stream
         File fff = SPIFFS.open(fonts[i]->ffname.c_str(), "r"); //"/a1027font"
         while (fff.available())
         {
-            _file->write(fff.read());
+            _file.write(fff.read());
         }
         fff.close();
-        _file->printf("\nendobj\n");
+        _file.printf("\nendobj\n");
     }
 }
 
@@ -100,18 +100,18 @@ void pdfPrinter::pdf_new_page()
 { // open a new page
     pdf_objCtr++;
     pageObjects[pdf_pageCounter] = pdf_objCtr;
-    objLocations[pdf_objCtr] = _file->position();
-    _file->printf("%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 3 0 R /MediaBox [0 0 %g %g] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
+    objLocations[pdf_objCtr] = _file.position();
+    _file.printf("%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 3 0 R /MediaBox [0 0 %g %g] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
     pdf_objCtr++; // increment for the contents stream object
-    _file->printf("%d 0 R ", pdf_objCtr);
-    _file->printf("]>>\nendobj\n");
+    _file.printf("%d 0 R ", pdf_objCtr);
+    _file.printf("]>>\nendobj\n");
 
     // open content stream
-    objLocations[pdf_objCtr] = _file->position();
-    _file->printf("%d 0 obj\n<</Length ", pdf_objCtr);
-    idx_stream_length = _file->position();
-    _file->printf("00000>>\nstream\n");
-    idx_stream_start = _file->position();
+    objLocations[pdf_objCtr] = _file.position();
+    _file.printf("%d 0 obj\n<</Length ", pdf_objCtr);
+    idx_stream_length = _file.position();
+    _file.printf("00000>>\nstream\n");
+    idx_stream_start = _file.position();
 
     // open new text object
     pdf_begin_text(pageHeight);
@@ -120,10 +120,10 @@ void pdfPrinter::pdf_new_page()
 void pdfPrinter::pdf_begin_text(float Y)
 {
     // open new text object
-    _file->printf("BT\n");
+    _file.printf("BT\n");
     TOPflag = false;
-    _file->printf("/F%u %u Tf\n", fontNumber, fontSize);
-    _file->printf("%g %g Td\n", leftMargin, Y);
+    _file.printf("/F%u %g Tf\n", fontNumber, fontSize);
+    _file.printf("%g %g Td\n", leftMargin, Y);
     pdf_Y = Y; // reset print roller to top of page
     pdf_X = 0; // set carriage to LHS
     BOLflag = true;
@@ -132,14 +132,14 @@ void pdfPrinter::pdf_begin_text(float Y)
 void pdfPrinter::pdf_new_line()
 {
     // position new line and start text string array
-    _file->printf("0 %g Td [(", -lineHeight);
+    _file.printf("0 %g Td [(", -lineHeight);
     pdf_X = 0; // reinforce?
     BOLflag = false;
 }
 
 void pdfPrinter::pdf_end_line()
 {
-    _file->printf(")]TJ\n"); // close the line
+    _file.printf(")]TJ\n"); // close the line
     pdf_Y -= lineHeight;     // line feed
     pdf_X = 0;               // CR
     BOLflag = true;
@@ -150,15 +150,15 @@ void pdfPrinter::pdf_end_page()
     // close text object & stream
     if (!BOLflag)
         pdf_end_line();
-    _file->printf("ET\n");
-    idx_stream_stop = _file->position();
-    _file->printf("endstream\nendobj\n");
-    size_t idx_temp = _file->position();
-    _file->flush();
-    _file->seek(idx_stream_length);
-    _file->printf("%5u", (idx_stream_stop - idx_stream_start));
-    _file->flush();
-    _file->seek(idx_temp);
+    _file.printf("ET\n");
+    idx_stream_stop = _file.position();
+    _file.printf("endstream\nendobj\n");
+    size_t idx_temp = _file.position();
+    _file.flush();
+    _file.seek(idx_stream_length);
+    _file.printf("%5u", (idx_stream_stop - idx_stream_start));
+    _file.flush();
+    _file.seek(idx_temp);
     // set counters
     pdf_pageCounter++;
     TOPflag = true;
@@ -168,26 +168,26 @@ void pdfPrinter::pdf_xref()
 {
     int max_objCtr = pdf_objCtr;
     pdf_objCtr = 2;
-    objLocations[pdf_objCtr] = _file->position(); // hard code page catalog as object #2
-    _file->printf("2 0 obj\n<</Type /Pages /Kids [ ");
+    objLocations[pdf_objCtr] = _file.position(); // hard code page catalog as object #2
+    _file.printf("2 0 obj\n<</Type /Pages /Kids [ ");
     for (int i = 0; i < pdf_pageCounter; i++)
     {
-        _file->printf("%d 0 R ", pageObjects[i]);
+        _file.printf("%d 0 R ", pageObjects[i]);
     }
-    _file->printf("] /Count %d>>\nendobj\n", pdf_pageCounter);
-    size_t xref = _file->position();
+    _file.printf("] /Count %d>>\nendobj\n", pdf_pageCounter);
+    size_t xref = _file.position();
     max_objCtr++;
-    _file->printf("xref\n");
-    _file->printf("0 %u\n", max_objCtr);
-    _file->printf("0000000000 65535 f\n");
+    _file.printf("xref\n");
+    _file.printf("0 %u\n", max_objCtr);
+    _file.printf("0000000000 65535 f\n");
     for (int i = 1; i < max_objCtr; i++)
     {
-        _file->printf("%010u 00000 n\n", objLocations[i]);
+        _file.printf("%010u 00000 n\n", objLocations[i]);
     }
-    _file->printf("trailer <</Size %u/Root 1 0 R>>\n", max_objCtr);
-    _file->printf("startxref\n");
-    _file->printf("%u\n", xref);
-    _file->printf("%%%%EOF\n");
+    _file.printf("trailer <</Size %u/Root 1 0 R>>\n", max_objCtr);
+    _file.printf("startxref\n");
+    _file.printf("%u\n", xref);
+    _file.printf("%%%%EOF\n");
 }
 
 bool pdfPrinter::process(const byte *buf, byte n)
@@ -261,13 +261,15 @@ void pdfPrinter::pageEject()
             pdf_end_page();
         pdf_xref();
     }
-    _file->flush();
-    _file->seek(0);
+    _file.flush();
+    _file.seek(0);
 }
 
-void asciiPrinter::initPrinter(File *f)
+void asciiPrinter::initPrinter(FS *filesystem)
 {
-    _file = f;
+    _FS = filesystem;
+    resetOutput();
+    //_file = f;
     paperType = PDF;
 
     pageWidth = 612.0;
@@ -288,13 +290,13 @@ void asciiPrinter::pdf_fonts()
 {
     // 3rd object: font catalog
     pdf_objCtr = 3;
-    objLocations[pdf_objCtr] = _file->position();
-    _file->printf("3 0 obj\n<</Font << /F1 4 0 R >>>>\nendobj\n");
+    objLocations[pdf_objCtr] = _file.position();
+    _file.printf("3 0 obj\n<</Font << /F1 4 0 R >>>>\nendobj\n");
 
     // 1027 standard font
     pdf_objCtr = 4;
-    objLocations[pdf_objCtr] = _file->position();
-    _file->printf("4 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding>>\nendobj\n");
+    objLocations[pdf_objCtr] = _file.position();
+    _file.printf("4 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding>>\nendobj\n");
 }
 
 void asciiPrinter::pdf_handle_char(byte c)
@@ -303,8 +305,8 @@ void asciiPrinter::pdf_handle_char(byte c)
     if (c > 31 && c < 127)
     {
         if (c == '\\' || c == '(' || c == ')')
-            _file->write('\\');
-        _file->write(c);
+            _file.write('\\');
+        _file.write(c);
 
         pdf_X += charWidth; // update x position
     }
