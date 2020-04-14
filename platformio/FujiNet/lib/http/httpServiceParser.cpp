@@ -1,16 +1,64 @@
 #include <Arduino.h>
 #include <sstream>
+#include <string>
+
+#include <WiFi.h>
+
 #include "httpServiceParser.h"
+#include "../../src/main.h"
 
 using namespace std;
 
-string fnHttpServiceParser::substitute_tag(const string &tag)
+const string fnHttpServiceParser::substitute_tag(const string &tag)
 {
-    string result(tag);
+    enum tagids {
+        FN_HOSTNAME = 0,
+        FN_VERSION,
+        FN_IPADDRESS,
+        FN_LASTTAG
+    };
+
+    const char *tagids[FN_LASTTAG] =
+    {
+        "FN_HOSTNAME",
+        "FN_VERSION",
+        "FN_IPADDRESS"
+    };
+
+    stringstream resultstream;
     #ifdef DEBUG
-        Debug_printf("Substituting tag '%s'\n", result.c_str());
+        Debug_printf("Substituting tag '%s'\n", tag.c_str());
     #endif
-    return result;
+
+    int tagid;
+    for(tagid = 0; tagid < FN_LASTTAG; tagid++)
+    {
+        if(0 == tag.compare(tagids[tagid]))
+        {
+            break;
+        }
+    }
+
+    // Provide a replacement value
+    switch(tagid)
+    {
+    case FN_HOSTNAME:
+        resultstream << WiFi.getHostname();
+        break;
+    case FN_VERSION:
+        resultstream << FUJINET_VERSION;
+        break;
+    case FN_IPADDRESS:
+        resultstream << WiFi.localIP().toString().c_str();
+        break;
+    default:
+        resultstream << tag;
+        break;
+    }
+    #ifdef DEBUG
+        Debug_printf("Substitution result: \"%s\"\n", resultstream.str().c_str());
+    #endif
+    return resultstream.str();
 }
 
 bool fnHttpServiceParser::is_parsable(const char *extension)
@@ -29,9 +77,6 @@ bool fnHttpServiceParser::is_parsable(const char *extension)
 */
 string fnHttpServiceParser::parse_contents(const string &contents)
 {
-    #ifdef DEBUG
-        Debug_println("Starting content parsing");
-    #endif
     std::stringstream ss;
     uint pos = 0, x, y;
     do {
@@ -41,20 +86,17 @@ string fnHttpServiceParser::parse_contents(const string &contents)
             break;
         }
         // Found opening tag, now find ending
-        y = contents.find("%>", pos+x+2);
+        y = contents.find("%>", x+2);
         if( y == string::npos) {
             ss << contents.substr(pos);
             break;
         }
         // Now we have starting and ending tags
         if( x > 0)
-            ss << contents.substr(pos, x);
-        ss << substitute_tag(contents.substr(pos+x+2, y-x-2));
-        pos += y+2;
+            ss << contents.substr(pos, x-pos);
+        ss << substitute_tag(contents.substr(x+2, y-x-2));
+        pos = y+2;
     } while(true);
 
-    #ifdef DEBUG
-        Debug_println("Finished parsing");
-    #endif
     return ss.str();
 }

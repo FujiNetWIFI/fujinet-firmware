@@ -1,12 +1,30 @@
+<!DOCTYPE html>
+<html>
 <head>
 <title>FujiNet</title>
+<link rel="stylesheet" href="/file?style.css">
 </head>
 <body>
-<img src="/file?fn500.png"> <br/>
-Your host name is (<%fn_hostname%>)<br/>
-<p>
-Get yer printer output right here: <br /> <br/>
-<a href="/print"><img src="/file?atari822.png"></a>
+<img src="/file?logo.png"><br/>
+<table class="info">
+<tr>
+	<td>FujiNet version:</td>
+	<td><%FN_VERSION%></td>
+</tr>
+<tr>
+	<td>Host name:</td>
+	<td><%FN_HOSTNAME%></td>
+</tr>
+<tr>
+	<td>IP address:</td>
+	<td><%FN_IPADDRESS%></td>
+</tr>
+</table>
+<br/>
+<br/>
+
+<p class="small">
+Click to download your print-out:<br /><br/>
+<a href="/print"><img src="/file?atari822.png" class="printer"></a>
 </body>
-
-
+</html>
