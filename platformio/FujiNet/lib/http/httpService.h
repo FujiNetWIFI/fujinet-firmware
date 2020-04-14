@@ -58,34 +58,8 @@ class fnHttpService
         std::string query;
     };
 
-    std::vector<httpd_uri_t> uris {
-        {
-            .uri       = "/",
-            .method    = HTTP_GET,
-            .handler   = get_handler_index,
-            .user_ctx  = NULL
-        }
-        ,
-        {
-            .uri       = "/file",
-            .method    = HTTP_GET,
-            .handler   = get_handler_file_in_query,
-            .user_ctx  = NULL
-        },
-        {
-            .uri       = "/print",
-            .method    = HTTP_GET,
-            .handler   = get_handler_print,
-            .user_ctx  = NULL
-        },
-        {
-            .uri       = "/favicon.ico",
-            .method    = HTTP_GET,
-            .handler   = get_handler_file_in_path,
-            .user_ctx  = NULL
-        }
-    };
-
+    static httpd_handle_t start_server(serverstate &state);
+    static void stop_server(httpd_handle_t hServer);
     static void return_http_error(httpd_req_t *req, _fnwserr errnum);
     static const char * find_mimetype_str(const char *extension);
     static char * get_extension(const char *filename);
@@ -100,7 +74,11 @@ public:
     static esp_err_t get_handler_file_in_path(httpd_req_t *req);
     static esp_err_t get_handler_print(httpd_req_t *req);
 
-    void httpServiceInit();
+    void start();
+    void stop();
+    bool running(void) {
+        return state.hServer != NULL;
+    }
 };
 
 #endif // HTTPSERVICE_H

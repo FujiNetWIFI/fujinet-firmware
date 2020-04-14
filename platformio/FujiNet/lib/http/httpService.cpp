@@ -4,6 +4,13 @@
 #include <map>
 #include <sstream>
 
+#include <esp_wifi.h>
+#include <esp_event.h>
+#include <esp_log.h>
+#include <esp_system.h>
+#include <nvs_flash.h>
+#include "esp_wps.h"
+
 #include "httpService.h"
 #include "httpServiceParser.h"
 #include "printer.h"
@@ -310,30 +317,99 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     return ESP_OK;
 }
 
-/* Set up and start the web server
-*/
-void fnHttpService::httpServiceInit()
+httpd_handle_t fnHttpService::start_server(serverstate &state)
 {
-    state.pFS = &SPIFFS;
-    state.hServer = NULL;
+    std::vector<httpd_uri_t> uris {
+        {
+            .uri       = "/",
+            .method    = HTTP_GET,
+            .handler   = get_handler_index,
+            .user_ctx  = NULL
+        }
+        ,
+        {
+            .uri       = "/file",
+            .method    = HTTP_GET,
+            .handler   = get_handler_file_in_query,
+            .user_ctx  = NULL
+        },
+        {
+            .uri       = "/print",
+            .method    = HTTP_GET,
+            .handler   = get_handler_print,
+            .user_ctx  = NULL
+        },
+        {
+            .uri       = "/favicon.ico",
+            .method    = HTTP_GET,
+            .handler   = get_handler_file_in_path,
+            .user_ctx  = NULL
+        }
+    };
+
+    if(WiFi.status() != WL_CONNECTED) 
+    {
+#ifdef DEBUG
+        Debug_println("WiFi not connected - aborting web server startup");
+        return NULL;
+#endif    
+    }
+
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    // Store some data we'll need when executing static functions
+    // Keep a reference to our object
     config.global_user_ctx = (void *) &state;
 
-    // Start the httpd server
 #ifdef DEBUG
     Debug_printf("Starting web server on port %d\n", config.server_port);
 #endif    
+
     if (httpd_start(&(state.hServer), &config) == ESP_OK) {
         // Register URI handlers
         for (const httpd_uri_t uridef : uris)
             httpd_register_uri_handler(state.hServer, &uridef);
-        return;
+    } 
+    else
+    {
+        state.hServer = NULL;
+#ifdef DEBUG
+        Debug_println("Error starting web server!");
+#endif
     }
 
-    state.hServer = NULL;
+    return state.hServer;
+}
+
+/* Set up and start the web server
+*/
+void fnHttpService::start()
+{
+    if(state.hServer != NULL) 
+    {
 #ifdef DEBUG
-    Debug_println("Error starting web server!");
+            Debug_println("httpServiceInit: We already have a web server handle - aborting");
 #endif
+            return;
+    }
+
+    state.pFS = &SPIFFS;
+
+    // Register event notifications to let us know when WiFi is up/down
+    // Missing the constants used here.  Need to find that...
+    //esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &connect_handler, &(state.hServer));
+    //esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &disconnect_handler, &(state.hServer));
+
+    // Go ahead and attempt starting the server for the first time
+    start_server(state);
+}
+
+void fnHttpService::stop()
+{
+#ifdef DEBUG
+    Debug_println("Stopping web service");
+#endif
+    if(state.hServer != NULL)
+        httpd_stop(state.hServer);
+    state.hServer = NULL;
+    state.pFS = NULL;
 }
