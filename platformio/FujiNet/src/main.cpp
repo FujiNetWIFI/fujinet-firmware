@@ -76,7 +76,7 @@ BluetoothManager btMgr;
 
 // We need something better than this,
 // but it'll do for the moment...
-atari822 sioP;
+sioPrinter sioP;
 sioPrinter *getCurrentPrinter()
 {
   return &sioP;

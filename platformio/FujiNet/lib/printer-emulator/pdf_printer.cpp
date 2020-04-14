@@ -261,6 +261,8 @@ void pdfPrinter::pageEject()
             pdf_end_page();
         pdf_xref();
     }
+    _file->flush();
+    _file->seek(0);
 }
 
 void asciiPrinter::initPrinter(File *f)

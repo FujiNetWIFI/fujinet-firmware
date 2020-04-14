@@ -1,34 +1,9 @@
+#include <Arduino.h>
 #include "pdf_printer.h"
 
 #include <SPIFFS.h>
 
 #include "printer.h"
-
-// #define BACKSLASH 92
-// #define LEFTPAREN 40
-// #define RIGHTPAREN 41
-// #define UPARROW 0xAD
-// #define DOWNARROW 0xAF
-// #define LEFTARROW 0xAC
-// #define RIGHTARROW 0xAE
-// #define BUFN 40
-
-// #define PLAIN 0
-// #define UNDERSCORE 0x0100
-// #define SYMBOL 0x0200
-// #define BOLD 0x0400
-// #define EMPHASIS 0x0800
-
-// enum printer_t
-// {
-//     A820,
-//     A822,
-//     A825,
-//     A1020,
-//     A1025,
-//     A1027,
-//     EMX80
-// };
 
 // to do: double check this against 1020 and 1027 test output and manuals
 const byte intlchar[28] = {225, 249, 209, 201, 231, 244, 242, 236, 163, 239, 252, 228, 214, 250, 243, 246, 220, 226, 251, 238, 233, 232, 241, 234, 229, 224, 197, 27};

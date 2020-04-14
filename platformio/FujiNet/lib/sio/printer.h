@@ -35,5 +35,9 @@ public:
     printer_emu* getPrinterPtr() {return _pptr;};
 };
 
+class atari820 : public sioPrinter
+{
+    
+}
 
 #endif // guard
