@@ -27,6 +27,8 @@ private:
     virtual bool startConnection(byte *buf, unsigned short len);
 
     HTTPClient client;
+    WiFiClient* c;
+
     bool requestStarted = false;
     enum
     {

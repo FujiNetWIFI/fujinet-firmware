@@ -2,28 +2,50 @@
 
 networkProtocolHTTP::networkProtocolHTTP()
 {
+    c = nullptr;
 }
 
 networkProtocolHTTP::~networkProtocolHTTP()
 {
+    // Delete the WiFiClient if running.
+    if (c != nullptr)
+    {
+        delete c;
+        c = nullptr;
+    }
 }
 
 bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
 {
+    bool ret = false;
+
     switch (openMode)
     {
     case GET:
         resultCode = client.GET();
         headerIndex = 0;
         numHeaders = client.headers();
+        ret = true;
         break;
     case POST:
         resultCode = client.POST(buf, len);
+        ret = true;
         break;
     case PUT:
         resultCode = client.PUT(buf, len);
+        ret = true;
+        break;
+    default:
+        ret = false;
         break;
     }
+
+    requestStarted = ret;
+
+    if (requestStarted)
+        c = client.getStreamPtr();
+
+    return ret;
 }
 
 bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
@@ -49,17 +71,15 @@ bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
 bool networkProtocolHTTP::close()
 {
     client.end();
-    return true;
+    return false;
 }
 
 bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
 {
-    WiFiClient *c;
-
     if (!requestStarted)
     {
         if (!startConnection(rx_buf, len))
-            return false;
+            return true;
     }
 
     if (headers)
@@ -67,29 +87,24 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
         if (headerIndex < numHeaders)
         {
             strcpy((char *)rx_buf, client.header(headerIndex++).c_str());
-            return true;
+            return false;
         }
         else
-            return false;
+            return true;
     }
     else
     {
-        c = client.getStreamPtr();
-
         if (c == nullptr)
-            return false;
+            return true;
 
         if (c->readBytes(rx_buf, len) != len)
-            return false;
-
-        return true;
+            return true;
     }
+    return false;
 }
 
 bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
 {
-    WiFiClient *c;
-
     if (headers)
     {
         String headerKey;
@@ -110,16 +125,15 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
         if (!requestStarted)
         {
             if (!startConnection(tx_buf, len))
-                return false;
+                return true;
         }
     }
 
-    return true;
+    return false;
 }
 
 bool networkProtocolHTTP::status(byte *status_buf)
 {
-    WiFiClient *c;
     int a; // available bytes
 
     status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0;
@@ -127,7 +141,7 @@ bool networkProtocolHTTP::status(byte *status_buf)
     if (!requestStarted)
     {
         if (!startConnection(status_buf, 4))
-            return false;
+            return true;
     }
 
     if (headers)
@@ -139,10 +153,8 @@ bool networkProtocolHTTP::status(byte *status_buf)
     }
     else
     {
-        c = client.getStreamPtr();
-
         if (c == nullptr)
-            return false;
+            return true;
 
         // Limit to reporting max of 65535 bytes available.
         a = (c->available() > 65535 ? 65535 : c->available());
@@ -152,8 +164,9 @@ bool networkProtocolHTTP::status(byte *status_buf)
         status_buf[2] = resultCode & 0xFF;
         status_buf[3] = resultCode >> 8;
 
-        return true;
+        return false;
     }
+    return true;
 }
 
 bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
@@ -180,9 +193,9 @@ bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *
     {
     case 'H': // toggle headers
         special_header_toggle(cmdFrame->aux1);
-        return true;
-    default:
         return false;
+    default:
+        return true;
     }
-    return false;
+    return true;
 }
