@@ -16,6 +16,7 @@ all mostlyclean clean install zip:
 	@$(MAKE) -C nread    --no-print-directory $@	
 	@$(MAKE) -C naccept  --no-print-directory $@
 	@$(MAKE) -C nhdrtogl --no-print-directory $@
+	@$(MAKE) -C nhdrcoll --no-print-directory $@
 
 dist: all
 	mkdir -p dist
@@ -26,4 +27,5 @@ dist: all
 	cp nread/nread.com dist/
 	cp naccept/naccept.com dist/
 	cp nhdrtogl/nhdrtogl.com dist/
+	cp nhdrcoll/nhdrcoll.com dist/
 	dir2atr 720 n-tests.atr dist/
