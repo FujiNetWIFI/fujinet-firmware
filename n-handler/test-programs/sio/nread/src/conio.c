@@ -8,8 +8,15 @@
 
 void print(const char* c)
 {
-  int l=strlen(c);
+  unsigned short l=strlen(c);
+  OS.iocb[0].buffer=c;
+  OS.iocb[0].buflen=l;
+  OS.iocb[0].command=IOCB_PUTCHR;
+  ciov();
+}
 
+void printl(const char* c, unsigned short l)
+{
   OS.iocb[0].buffer=c;
   OS.iocb[0].buflen=l;
   OS.iocb[0].command=IOCB_PUTCHR;
