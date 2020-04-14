@@ -110,7 +110,7 @@ void sioNetwork::sio_open()
         return;
     }
 
-    if (!protocol->open(&deviceSpec,NULL))
+    if (!protocol->open(&deviceSpec, &cmdFrame))
     {
 #ifdef DEBUG
         Debug_printf("Protocol unable to make connection.");
@@ -321,7 +321,7 @@ void sioNetwork::sio_special()
 // For commands with no payload.
 void sioNetwork::sio_special_00()
 {
-    if (protocol->special(sp_buf,sp_buf_len,&cmdFrame))
+    if (protocol->special(sp_buf, sp_buf_len, &cmdFrame))
         sio_complete();
     else
         sio_error();
@@ -330,16 +330,15 @@ void sioNetwork::sio_special_00()
 // For commands with Peripheral->Computer payload
 void sioNetwork::sio_special_40()
 {
-    err=protocol->special(sp_buf,sp_buf_len,&cmdFrame);
-    sio_to_computer(sp_buf,sp_buf_len,err);
+    err = protocol->special(sp_buf, sp_buf_len, &cmdFrame);
+    sio_to_computer(sp_buf, sp_buf_len, err);
 }
-
 
 // For commands with Computer->Peripheral payload
 void sioNetwork::sio_special_80()
 {
-    sio_to_peripheral(sp_buf,sp_buf_len);
-    err=protocol->special(sp_buf,sp_buf_len,&cmdFrame);
+    sio_to_peripheral(sp_buf, sp_buf_len);
+    err = protocol->special(sp_buf, sp_buf_len, &cmdFrame);
 }
 
 void sioNetwork::sio_process()
