@@ -227,7 +227,7 @@ esp_err_t get_handler_print(httpd_req_t *req)
     set_file_content_type(req, const_cast<char *>(filename.c_str()));
 
     // Flush and close the print output before continuing
-    currentPrinter->flushOutput();
+    currentPrinter->pageEject(); // flushOutput(); is now inside of pageEject()
     // Add a couple of attchment-specific details
     char hdrval1[60];
     snprintf(hdrval1, 60, "attachment; filename=\"%s\"", filename.c_str());

@@ -1,38 +1,5 @@
 #include "printer.h"
 
-paper_t sioPrinter::getPaperType()
-{
-  return paperType;
-}
-
-// close flush output file
-void sioPrinter::flushOutput()
-{
-  _file.flush();
-  _file.seek(0);
-}
-
-void sioPrinter::resetOutput()
-{
-  _file.close();
-  _file = _FS->open("/paper", "w+");
-  if (_file)
-  {
-    Debug_println("Printer output file (re)opened");
-  }
-  else
-  {
-    Debug_println("Error opening printer file");
-  }
-}
-
-// initialzie printer by creating an output file
-void sioPrinter::initPrinter(FS *filesystem)
-{
-  _FS = filesystem;
-  this->resetOutput();
-}
-
 // write for W commands
 void sioPrinter::sio_write()
 {
