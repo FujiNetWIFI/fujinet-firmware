@@ -29,11 +29,20 @@ table.info tr td:nth-child(2)
 
 .small
 {
-	font-size: 0.75em;
+	font-size: 0.85em;
 	font-style: italic;
 }
 
 img.printer
 {
 	padding-left: 2em;
+}
+
+#spiffs_storage
+{
+	float: right;
+	padding-right: 2em;
+	text-align: center;
+	font-size: 0.7em;
+	font-style: italic;
 }
