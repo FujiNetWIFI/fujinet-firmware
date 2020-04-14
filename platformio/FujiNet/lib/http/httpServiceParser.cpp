@@ -15,6 +15,14 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HOSTNAME = 0,
         FN_VERSION,
         FN_IPADDRESS,
+        FN_IPMASK,
+        FN_IPGATEWAY,
+        FN_IPDNS,
+        FN_WIFISSID,
+        FN_WIFIBSSID,
+        FN_WIFIMAC,
+        FN_SPIFFS_SIZE,
+        FN_SPIFFS_USED,
         FN_LASTTAG
     };
 
@@ -22,7 +30,15 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     {
         "FN_HOSTNAME",
         "FN_VERSION",
-        "FN_IPADDRESS"
+        "FN_IPADDRESS",
+        "FN_IPMASK",
+        "FN_IPGATEWAY",
+        "FN_IPDNS",
+        "FN_WIFISSID",
+        "FN_WIFIBSSID",
+        "FN_WIFIMAC",
+        "FN_SPIFFS_SIZE",
+        "FN_SPIFFS_USED"
     };
 
     stringstream resultstream;
@@ -50,6 +66,30 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_IPADDRESS:
         resultstream << WiFi.localIP().toString().c_str();
+        break;
+    case FN_IPMASK:
+        resultstream << WiFi.subnetMask().toString().c_str();
+        break;
+    case FN_IPGATEWAY:
+        resultstream << WiFi.gatewayIP().toString().c_str();
+        break;
+    case FN_IPDNS:
+        resultstream << WiFi.dnsIP().toString().c_str();
+        break;
+    case FN_WIFISSID:
+        resultstream << WiFi.channel();
+        break;
+    case FN_WIFIBSSID:
+        resultstream << WiFi.BSSIDstr().c_str();
+        break;
+    case FN_WIFIMAC:
+        resultstream << WiFi.macAddress().c_str();
+        break;
+    case FN_SPIFFS_SIZE:
+        resultstream << SPIFFS.totalBytes();
+        break;
+    case FN_SPIFFS_USED:
+        resultstream << SPIFFS.usedBytes();
         break;
     default:
         resultstream << tag;

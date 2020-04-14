@@ -1,11 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>FujiNet</title>
-<link rel="stylesheet" href="/file?style.css">
+	<title>FujiNet</title>
+	<link rel="stylesheet" href="/file?style.css">
+	<meta charset="utf-8"/>
 </head>
 <body>
-<img src="/file?logo.png"><br/>
+<img src="/file?logo.png">
+<br/>
+
+<div id="spiffs_storage">
+<canvas id="cvsStorage"></canvas>
+<script>
+	var iSPIFFS_total=<%FN_SPIFFS_SIZE%>;
+	var iSPIFFS_used=<%FN_SPIFFS_USED%>;
+	var iSPIFFS_free=iSPIFFS_total - iSPIFFS_used;
+</script>
+<script type="text/javascript" src="/file?storage.js"></script>
+<br/>
+SPIFFS storage free/used
+</div>
+
 <table class="info">
 <tr>
 	<td>FujiNet version:</td>
@@ -17,9 +32,40 @@
 </tr>
 <tr>
 	<td>IP address:</td>
-	<td><%FN_IPADDRESS%></td>
+	<td><%FN_IPADDRESS%>/<%FN_IPMASK%></td>
+</tr>
+<tr>
+	<td>Default gateway:</td>
+	<td><%FN_IPGATEWAY%></td>
+</tr>
+<tr>
+	<td>DNS server:</td>
+	<td><%FN_IPDNS%></td>
+</tr>
+<tr>
+	<td>WiFi SSID:</td>
+	<td><%FN_WIFISSID%></td>
+</tr>
+<tr>
+	<td>WiFi BSSID:</td>
+	<td><%FN_WIFIBSSID%></td>
+</tr>
+<tr>
+	<td>WiFi MAC address:</td>
+	<td><%FN_WIFIMAC%></td>
+</tr>
+<tr>
+	<td>SPIFFS size:</td>
+	<td><%FN_SPIFFS_SIZE%></td>
+</tr>
+<tr>
+	<td>SPIFFS used:</td>
+	<td><%FN_SPIFFS_USED%></td>
 </tr>
 </table>
+
+
+
 <br/>
 <br/>
 

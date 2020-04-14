@@ -12,10 +12,9 @@ If a file has an extention pre-determined to support parsing (see/update
     *       string substitute_tag(const string &tag)
     * function.
     * 
-Currently handled tags:
-    * FN_HOSTNAME
-    * FN_VERSION
-    * FN_IPADDRESS
+See const fnHttpServiceParser::substitute_tag() for
+currently supported tags.
+
 */
 #ifndef HTTPSERVICEPARSER_H
 #define HTTPSERVICEPARSER_H
