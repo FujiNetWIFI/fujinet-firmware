@@ -44,6 +44,7 @@ class atari820 : public pdfPrinter
 
 protected:
     bool sideFlag = false;
+    sioPrinter *my_sioP;
 
     void pdf_fonts();
     void pdf_handle_char(byte c); // need a custom one to handle sideways printing
@@ -55,6 +56,8 @@ public:
 class atari822 : public pdfPrinter
 {
 protected:
+    sioPrinter *my_sioP;
+    
     void pdf_fonts();
     void pdf_handle_char(byte c); // need a custom one to handle sideways printing
 
