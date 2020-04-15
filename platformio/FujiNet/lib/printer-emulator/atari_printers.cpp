@@ -321,12 +321,12 @@ void atari820::pdf_handle_char(byte c)
     // Atari 820 modes:
     // aux1 == 40   normal mode
     // aux1 == 29   sideways mode
-    if (sioP.lastAux1 == 'N' && sideFlag)
+    if (my_sioP->lastAux1 == 'N' && sideFlag)
     {
         _file.printf(")]TJ\n/F1 12 Tf [(");
         sideFlag = false;
     }
-    else if (sioP.lastAux1 == 'S' && !sideFlag)
+    else if (my_sioP->lastAux1 == 'S' && !sideFlag)
     {
         _file.printf(")]TJ\n/F2 12 Tf [(");
         sideFlag = true;
@@ -377,14 +377,14 @@ void atari822::pdf_handle_char(byte c)
     // aux1 == 'L'   graphics mode
 
     // was: if (cmdFrame.comnd == 'W' && !textMode)
-    if (sioP.lastAux1 == 'N' && !textMode)
+    if (my_sioP->lastAux1 == 'N' && !textMode)
     {
         textMode = true;
         pdf_begin_text(pdf_Y); // open new text object
         pdf_new_line();        // start new line of text (string array)
     }
     // was: else if (cmdFrame.comnd == 'P' && textMode)
-    else if (sioP.lastAux1 == 'L' && textMode)
+    else if (my_sioP->lastAux1 == 'L' && textMode)
     {
         textMode = false;
         if (!BOLflag)
