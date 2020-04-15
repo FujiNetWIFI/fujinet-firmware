@@ -60,8 +60,8 @@ sioApeTime apeTime;
 
 sioVoice sioV;
 
-// WiFiServer server(80);
-// WiFiClient client;
+fnHttpService fnHTTPD;
+
 #ifdef DEBUG_N
 WiFiClient wifiDebugClient;
 #endif
@@ -155,11 +155,6 @@ void setup()
   }
   SIO.addDevice(&sioP, 0x40); // P:
 
-  // Choose filesystem for HTTP service and initialize it
-  //httpServiceSetup();
-  httpServiceInit();
-
-
   SIO.addDevice(&sioV, 0x43); // P3:
 
   if (WiFi.status() == WL_CONNECTED)
@@ -201,9 +196,17 @@ void loop()
 
 #ifdef ESP32
   if (WiFi.status() == WL_CONNECTED)
+  {
     digitalWrite(PIN_LED1, LOW);
+    if(!fnHTTPD.running())
+      fnHTTPD.start();
+  }
   else
+  {
     digitalWrite(PIN_LED1, HIGH);
+    if(fnHTTPD.running())
+      fnHTTPD.stop();
+  }
 
   switch (keyMgr.getBootKeyStatus())
   {

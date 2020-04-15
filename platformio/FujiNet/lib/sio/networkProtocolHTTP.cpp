@@ -2,28 +2,45 @@
 
 networkProtocolHTTP::networkProtocolHTTP()
 {
+    c = nullptr;
 }
 
 networkProtocolHTTP::~networkProtocolHTTP()
 {
+    client.end();
 }
 
 bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
 {
+    bool ret = false;
+
     switch (openMode)
     {
     case GET:
         resultCode = client.GET();
         headerIndex = 0;
         numHeaders = client.headers();
+        ret = true;
         break;
     case POST:
         resultCode = client.POST(buf, len);
+        ret = true;
         break;
     case PUT:
         resultCode = client.PUT(buf, len);
+        ret = true;
+        break;
+    default:
+        ret = false;
         break;
     }
+
+    requestStarted = ret;
+
+    if (requestStarted)
+        c = client.getStreamPtr();
+
+    return ret;
 }
 
 bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
@@ -49,17 +66,15 @@ bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
 bool networkProtocolHTTP::close()
 {
     client.end();
-    return true;
+    return false;
 }
 
 bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
 {
-    WiFiClient *c;
-
     if (!requestStarted)
     {
         if (!startConnection(rx_buf, len))
-            return false;
+            return true;
     }
 
     if (headers)
@@ -67,29 +82,24 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
         if (headerIndex < numHeaders)
         {
             strcpy((char *)rx_buf, client.header(headerIndex++).c_str());
-            return true;
+            return false;
         }
         else
-            return false;
+            return true;
     }
     else
     {
-        c = client.getStreamPtr();
-
         if (c == nullptr)
-            return false;
+            return true;
 
         if (c->readBytes(rx_buf, len) != len)
-            return false;
-
-        return true;
+            return true;
     }
+    return false;
 }
 
 bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
 {
-    WiFiClient *c;
-
     if (headers)
     {
         String headerKey;
@@ -105,21 +115,23 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
         headerValue = String(tmpValue);
         client.addHeader(headerKey, headerValue);
     }
+    else if (collectHeaders)
+    {
+    }
     else
     {
         if (!requestStarted)
         {
             if (!startConnection(tx_buf, len))
-                return false;
+                return true;
         }
     }
 
-    return true;
+    return false;
 }
 
 bool networkProtocolHTTP::status(byte *status_buf)
 {
-    WiFiClient *c;
     int a; // available bytes
 
     status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0;
@@ -127,7 +139,7 @@ bool networkProtocolHTTP::status(byte *status_buf)
     if (!requestStarted)
     {
         if (!startConnection(status_buf, 4))
-            return false;
+            return true;
     }
 
     if (headers)
@@ -135,14 +147,17 @@ bool networkProtocolHTTP::status(byte *status_buf)
         if (headerIndex < numHeaders)
         {
             status_buf[0] = client.header(headerIndex).length() & 0xFF;
+            status_buf[1] = client.header(headerIndex).length() >> 8;
+            status_buf[2] = resultCode & 0xFF;
+            status_buf[3] = resultCode >> 8;
+
+            return false; // no error
         }
     }
     else
     {
-        c = client.getStreamPtr();
-
         if (c == nullptr)
-            return false;
+            return true;
 
         // Limit to reporting max of 65535 bytes available.
         a = (c->available() > 65535 ? 65535 : c->available());
@@ -152,14 +167,17 @@ bool networkProtocolHTTP::status(byte *status_buf)
         status_buf[2] = resultCode & 0xFF;
         status_buf[3] = resultCode >> 8;
 
-        return true;
+        return false; // no error
     }
+    return true;
 }
 
 bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
 {
     switch (comnd)
     {
+    case 'G': // toggle collect headers
+        return true;
     case 'H': // toggle headers
         return true;
     default:
@@ -174,15 +192,23 @@ void networkProtocolHTTP::special_header_toggle(unsigned char aux1)
     headers = (aux1 == 1 ? true : false);
 }
 
+void networkProtocolHTTP::special_collect_headers_toggle(unsigned char aux1)
+{
+    collectHeaders = (aux1 == 1 ? true : false);
+}
+
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
     {
+    case 'G': // toggle collect headers
+        special_collect_headers_toggle(cmdFrame->aux1);
+        return false;
     case 'H': // toggle headers
         special_header_toggle(cmdFrame->aux1);
-        return true;
-    default:
         return false;
+    default:
+        return true;
     }
-    return false;
+    return true;
 }

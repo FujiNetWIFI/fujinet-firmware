@@ -1,0 +1,48 @@
+
+body
+{
+	font-family: Tahoma, Geneva, sans-serif;
+}
+
+table.info
+{
+	margin-top: 1em;
+	margin-left: 4em;
+	border-collapse: collapse;
+}
+
+table.info td
+{
+	border-bottom: 1px solid #cccccc;
+}
+
+table.info tr td:first-child
+{
+	text-align: right;
+}
+
+table.info tr td:nth-child(2)
+{
+	font-family: "Courier New", Courier, monospace;
+	padding-left: 0.5em;
+}
+
+.small
+{
+	font-size: 0.85em;
+	font-style: italic;
+}
+
+img.printer
+{
+	padding-left: 2em;
+}
+
+#spiffs_storage
+{
+	float: right;
+	padding-right: 2em;
+	text-align: center;
+	font-size: 0.7em;
+	font-style: italic;
+}

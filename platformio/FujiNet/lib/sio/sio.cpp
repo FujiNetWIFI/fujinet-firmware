@@ -367,6 +367,8 @@ void sioBus::setup()
   digitalWrite(PIN_LED1, HIGH); // OFF
   pinMode(PIN_LED2, OUTPUT);
   digitalWrite(PIN_LED2, HIGH); // OFF
+  pinMode(PIN_LED3, OUTPUT);
+  digitalWrite(PIN_LED3, HIGH); // OFF
   pinMode(PIN_CKO, INPUT);
   pinMode(PIN_CKI, OUTPUT);
   pinMode(PIN_SIO5V, INPUT);
