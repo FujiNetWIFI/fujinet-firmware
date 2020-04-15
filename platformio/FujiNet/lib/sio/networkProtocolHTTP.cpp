@@ -7,12 +7,7 @@ networkProtocolHTTP::networkProtocolHTTP()
 
 networkProtocolHTTP::~networkProtocolHTTP()
 {
-    // Delete the WiFiClient if running.
-    if (c != nullptr)
-    {
-        delete c;
-        c = nullptr;
-    }
+    client.end();
 }
 
 bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
@@ -207,7 +202,7 @@ bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *
     switch (cmdFrame->comnd)
     {
     case 'G': // toggle collect headers
-
+        special_collect_headers_toggle(cmdFrame->aux1);
         return false;
     case 'H': // toggle headers
         special_header_toggle(cmdFrame->aux1);
