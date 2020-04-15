@@ -180,6 +180,11 @@ void setup()
   btMgr.setup();
 #endif
 
+#ifdef ESP32
+  pinMode(PIN_BOOT_BUTTON, INPUT);
+  pinMode(PIN_OTHER_BUTTON, INPUT);
+#endif
+
   void sio_flush();
 }
 
@@ -208,11 +213,27 @@ void loop()
       fnHTTPD.stop();
   }
 
+  switch (keyMgr.getOtherKeyStatus())
+  {
+    case eKeyStatus::LONG_PRESSED:
+#ifdef DEBUG
+      Debug_println("O_KEY: LONG PRESS");
+#endif
+      break;
+    case eKeyStatus::SHORT_PRESSED:
+#ifdef DEBUG
+      Debug_println("O_KEY: SHORT PRESS");
+#endif
+      break;
+    default:
+      break;
+  }
+
   switch (keyMgr.getBootKeyStatus())
   {
   case eKeyStatus::LONG_PRESSED:
 #ifdef DEBUG
-    Debug_println("LONG PRESS");
+    Debug_println("B_KEY: LONG PRESS");
 #endif
 #ifdef BLUETOOTH_SUPPORT
     if (btMgr.isActive())
@@ -227,7 +248,7 @@ void loop()
     break;
   case eKeyStatus::SHORT_PRESSED:
 #ifdef DEBUG
-    Debug_println("SHORT PRESS");
+    Debug_println("B_KEY: SHORT PRESS");
 #endif
 #ifdef BLUETOOTH_SUPPORT
     if (btMgr.isActive())
