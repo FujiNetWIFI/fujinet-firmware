@@ -102,9 +102,8 @@ class asciiPrinter : public pdfPrinter
 {
 protected:
   virtual void pdf_handle_char(byte c);
-
-  void pdf_fonts();
+  virtual void pdf_fonts();
 
 public:
-    virtual void initPrinter(FS *filesystem);
+  virtual void initPrinter(FS *filesystem);
 };

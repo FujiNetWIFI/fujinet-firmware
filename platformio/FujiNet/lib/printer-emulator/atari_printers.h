@@ -13,7 +13,7 @@ const byte intlchar[28] = {225, 249, 209, 201, 231, 244, 242, 236, 163, 239, 252
 class filePrinter : public printer_emu
 {
 public:
-    virtual void initPrinter(File *f);
+    virtual void initPrinter(FS *filesystem);
     virtual void pageEject(){};
     virtual bool process(const byte* buf, byte n);
 
@@ -33,7 +33,7 @@ protected:
     void pdf_handle_char(byte c);
 
 public:
-    void initPrinter(File *f);
+    void initPrinter(FS *filesystem);
 };
 
 class atari820 : public pdfPrinter
@@ -49,7 +49,7 @@ protected:
     void pdf_handle_char(byte c); // need a custom one to handle sideways printing
 
 public:
-    void initPrinter(File *f);
+    void initPrinter(FS *filesystem);
 };
 
 class atari822 : public pdfPrinter
@@ -61,7 +61,7 @@ protected:
     int gfxNumber = 0;
 
 public:
-    void initPrinter(File *f);
+    virtual void initPrinter(FS *filesystem);
 };
 
 // class atari1020 : public svgPlotter
