@@ -7,9 +7,13 @@
 
 #include "sio.h"
 #include "printer_emulator.h"
+#include "atari_printers.h"
 
 class sioPrinter : public sioDevice
 {
+
+friend atari820;
+
 protected:
     // does not work: friend void atari820::pdf_handle_char(byte c);
     // SIO THINGS
@@ -33,11 +37,6 @@ protected:
 public:
     void connect_printer(printer_emu *P) { _pptr = P; };
     printer_emu* getPrinterPtr() {return _pptr;};
-};
-
-class atari820 : public sioPrinter
-{
-
 };
 
 extern sioPrinter sioP;
