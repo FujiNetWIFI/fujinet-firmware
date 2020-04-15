@@ -321,7 +321,7 @@ void sioNetwork::sio_special()
 // For commands with no payload.
 void sioNetwork::sio_special_00()
 {
-    if (protocol->special(sp_buf, sp_buf_len, &cmdFrame))
+    if (!protocol->special(sp_buf, sp_buf_len, &cmdFrame))
         sio_complete();
     else
         sio_error();

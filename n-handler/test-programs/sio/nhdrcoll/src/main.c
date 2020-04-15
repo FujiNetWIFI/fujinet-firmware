@@ -1,7 +1,7 @@
 /**
  * Network Testing tools
  *
- * nread - read from network connection
+ * nhdrcoll - toggle header collect on/off
  *
  * Author: Thomas Cherryhomes
  *  <thom.cherryhomes@gmail.com>
@@ -18,21 +18,18 @@
 #include "conio.h"
 #include "err.h"
 
-unsigned char buf[256];
 unsigned char daux1=0;
-unsigned char daux2=0;
-unsigned short len;
 
-void nread(void)
+void nhdrcoll(void)
 {
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
-  OS.dcb.dcomnd='R';
-  OS.dcb.dstats=0x40;
-  OS.dcb.dbuf=&buf;
+  OS.dcb.dcomnd='G';
+  OS.dcb.dstats=0x00;
+  OS.dcb.dbuf=NULL;
   OS.dcb.dtimlo=0x0f;
-  OS.dcb.dbyt=len;
-  OS.dcb.daux=len;
+  OS.dcb.dbyt=0;
+  OS.dcb.daux=daux1;
   siov();
 
   if (OS.dcb.dstats!=1)
@@ -42,9 +39,11 @@ void nread(void)
     }
   else
     {
-      print("READ:\x9b");
-      printl(buf,len);
-      print("\x9b");
+      print("HEADER COLL TOGGLE: ");
+      if (daux1==1)
+	print("ENABLED\x9b");
+      else
+	print("DISABLED\x9b");
     }
 }
 
@@ -66,18 +65,18 @@ int main(int argc, char* argv[])
 	  opts(argv);
 	  return(1);
 	}
-      len=atoi(argv[1]);
+      daux1=atoi(argv[1]);
     }
   else
     {
       // DOS 2.0/MYDOS
       print("\x9b");
       
-      print("LEN? ");
+      print("HDR COLL TOGGLE (0=DISABLE/1=ENABLE)? ");
       get_line(tmp,sizeof(tmp));
-      len=atoi(tmp);      
+      daux1=atoi(tmp);      
     }
 
-  nread();
+  nhdrcoll();
   return(0);
 }
