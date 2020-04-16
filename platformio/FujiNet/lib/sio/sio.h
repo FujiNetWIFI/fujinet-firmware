@@ -28,7 +28,9 @@
 #define PIN_CMD 21
 #define PIN_LED1 2
 #define PIN_LED2 4
+#ifndef JTAG
 #define PIN_LED3 13
+#endif
 #define PIN_CKO 32
 #define PIN_CKI 27
 #define PIN_SIO5V 35
