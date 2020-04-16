@@ -1,68 +1,49 @@
+#include <Arduino.h>
 #include "keys.h"
 
-eKeyStatus KeyManager::getBootKeyStatus()
-{
-    eKeyStatus result = eKeyStatus::RELEASED;
+#define PIN_BOOT_KEY 0
+#define PIN_OTHER_KEY 34
 
-    if (digitalRead(PIN_BOOT_BUTTON) == LOW)
-    {
-        if (mButtonActive == false)
-        {
-            mButtonActive = true;
-            mButtonTimer = millis();
-        }
-        if ((millis() - mButtonTimer > LONGPRESS_TIME) && (mLongPressActive == false))
-        {
-            mLongPressActive = true;
-            // long press detected
-            result = eKeyStatus::LONG_PRESSED;
-        }
-    }
-    else
-    {
-        if (mButtonActive == true)
-        {
-            if (mLongPressActive == true)
-            {
-                mLongPressActive = false;
-                // long press released
-            }
-            else
-            {
-                // short press released
-                result = eKeyStatus::SHORT_PRESSED;
-            }
-            mButtonActive = false;
-        }
-    }
-    return result;
+KeyManager::KeyManager()
+{
+    memset(mButtonActive, false, sizeof(bool) * eKey::KEY_COUNT);
+    memset(mLongPressActive, false, sizeof(bool) * eKey::KEY_COUNT);
+    memset(mButtonTimer, 0, sizeof(long) * eKey::KEY_COUNT);
+    mButtonPin[eKey::BOOT_KEY] = PIN_BOOT_KEY;
+    mButtonPin[eKey::OTHER_KEY] = PIN_OTHER_KEY;
 }
 
-eKeyStatus KeyManager::getOtherKeyStatus()
+void KeyManager::setup()
+{
+    pinMode(PIN_BOOT_KEY, INPUT);
+    pinMode(PIN_OTHER_KEY, INPUT);
+}
+
+eKeyStatus KeyManager::getKeyStatus(eKey key)
 {
     eKeyStatus result = eKeyStatus::RELEASED;
 
-    if (digitalRead(PIN_OTHER_BUTTON) == LOW)
+    if (digitalRead(mButtonPin[key]) == LOW)
     {
-        if (oButtonActive == false)
+        if (mButtonActive[key] == false)
         {
-            oButtonActive = true;
-            oButtonTimer = millis();
+            mButtonActive[key] = true;
+            mButtonTimer[key] = millis();
         }
-        if ((millis() - oButtonTimer > LONGPRESS_TIME) && (oLongPressActive == false))
+        if ((millis() - mButtonTimer[key] > LONGPRESS_TIME) && (mLongPressActive[key] == false))
         {
-            oLongPressActive = true;
+            mLongPressActive[key] = true;
             // long press detected
             result = eKeyStatus::LONG_PRESSED;
         }
     }
     else
     {
-        if (oButtonActive == true)
+        if (mButtonActive[key] == true)
         {
-            if (oLongPressActive == true)
+            if (mLongPressActive[key] == true)
             {
-                oLongPressActive = false;
+                mLongPressActive[key] = false;
                 // long press released
             }
             else
@@ -70,7 +51,7 @@ eKeyStatus KeyManager::getOtherKeyStatus()
                 // short press released
                 result = eKeyStatus::SHORT_PRESSED;
             }
-            oButtonActive = false;
+            mButtonActive[key] = false;
         }
     }
     return result;
