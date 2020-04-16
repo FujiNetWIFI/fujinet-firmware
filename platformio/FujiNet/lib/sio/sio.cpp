@@ -1,6 +1,7 @@
 #include "sio.h"
 #include "modem.h"
 #include "fuji.h"
+#include "led.h"
 
 // helper functions outside the class defintions
 
@@ -238,7 +239,7 @@ void sioBus::service()
   if (digitalRead(PIN_CMD) == LOW)
 #endif
   {
-    sio_led(true);
+    ledMgr.set(eLed::LED_SIO, true);
     //memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame
     if (modemDev != nullptr && modemDev->modemActive)
     {
@@ -326,7 +327,7 @@ void sioBus::service()
               }
             }
     }
-    sio_led(false);
+    ledMgr.set(eLed::LED_SIO, false);
   } // END command line low
   else if (modemDev != nullptr && modemDev->modemActive)
   {
@@ -334,7 +335,7 @@ void sioBus::service()
   }
   else
   {
-    sio_led(false);
+    ledMgr.set(eLed::LED_SIO, false);
     a = SIO_UART.available();
     if (a)
       while (SIO_UART.available())
@@ -363,12 +364,6 @@ void sioBus::setup()
   pinMode(PIN_CKI, OUTPUT);
   digitalWrite(PIN_CKI, LOW);
 #ifdef ESP32
-  pinMode(PIN_LED1, OUTPUT);
-  digitalWrite(PIN_LED1, HIGH); // OFF
-  pinMode(PIN_LED2, OUTPUT);
-  digitalWrite(PIN_LED2, HIGH); // OFF
-  pinMode(PIN_LED3, OUTPUT);
-  digitalWrite(PIN_LED3, HIGH); // OFF
   pinMode(PIN_CKO, INPUT);
   pinMode(PIN_CKI, OUTPUT);
   pinMode(PIN_SIO5V, INPUT);
@@ -426,16 +421,6 @@ void sioBus::setBaudrate(int baudrate)
   sioBaud = baudrate;
   Debug_printf("Switching to %d baud...\n", sioBaud);
   SIO_UART.updateBaudRate(sioBaud);
-#endif
-}
-
-/**
-   Set SIO LED
-*/
-void sioBus::sio_led(bool onOff)
-{
-#ifdef ESP32
-  digitalWrite(PIN_LED2, (onOff ? LOW : HIGH));
 #endif
 }
 
