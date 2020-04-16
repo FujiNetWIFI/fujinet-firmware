@@ -384,16 +384,18 @@ void sioFuji::sio_write_device_slots()
 */
 void sioFuji::sio_get_adapter_config()
 {
-    strcpy(adapterConfig.ssid, netConfig.ssid);
-
-#ifdef ESP8266
-    strcpy(adapterConfig.hostname, WiFi.hostname().c_str());
-#else
-    strcpy(adapterConfig.hostname, WiFi.getHostname());
-#endif
+    if (netConfig.ssid[0] != 0x00)
+        strcpy(adapterConfig.ssid, netConfig.ssid);
 
     if (WiFi.isConnected())
     {
+
+#ifdef ESP8266
+        strcpy(adapterConfig.hostname, WiFi.hostname().c_str());
+#else
+        strcpy(adapterConfig.hostname, WiFi.getHostname());
+#endif
+
         adapterConfig.localIP[0] = WiFi.localIP()[0];
         adapterConfig.localIP[1] = WiFi.localIP()[1];
         adapterConfig.localIP[2] = WiFi.localIP()[2];
