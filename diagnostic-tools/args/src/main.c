@@ -24,6 +24,8 @@ void args(int argc, char* argv[])
 {
   unsigned char i;
   unsigned char tmp[5];
+
+  print("\x9b");
   
   for (i=0;i<argc;i++)
     {
@@ -31,14 +33,18 @@ void args(int argc, char* argv[])
       print(tmp);
       print(": ");
       print(argv[i]);
+      itoa(strlen(argv[i]),tmp,10);
+      print(" (");
+      print(tmp);
+      print(")");
       print("\x9b");
     }
 }
 
 int main(int argc, char* argv[])
 {
-  unsigned char daux1;
-
+  OS.lmargn=2;
+  
   if (_is_cmdline_dos())
     {
       args(argc,argv);
