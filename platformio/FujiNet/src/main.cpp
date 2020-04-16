@@ -87,7 +87,7 @@ void setup()
 {
 
   // connect to wifi but DO NOT wait for it
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  // WiFi.begin(WIFI_SSID, WIFI_PASS);
 
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
