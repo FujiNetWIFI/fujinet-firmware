@@ -8,7 +8,6 @@
 // pin configurations
 #ifdef ESP8266
 #define SIO_UART Serial
-#define PIN_LED 2
 #define PIN_INT 5
 #define PIN_PROC 4
 #define PIN_MTR 16
@@ -26,11 +25,6 @@
 #define PIN_PROC 22
 #define PIN_MTR 33
 #define PIN_CMD 21
-#define PIN_LED1 2
-#define PIN_LED2 4
-#ifndef JTAG
-#define PIN_LED3 13
-#endif
 #define PIN_CKO 32
 #define PIN_CKI 27
 #define PIN_SIO5V 35
@@ -113,7 +107,6 @@ public:
    sioDevice *device(int i);
    int getBaudrate();
    void setBaudrate(int baudrate);
-   void sio_led(bool onOff);
 #ifdef ESP32
    int sio_volts();
 #endif
