@@ -1,4 +1,5 @@
 #include "fuji.h"
+#include "led.h"
 //#include "disk.h"
 
 //File atrConfig;
@@ -587,11 +588,7 @@ void sioFuji::sio_process()
 */
 void sioFuji::wifi_led(bool onOff)
 {
-#ifdef ESP8266
-    digitalWrite(PIN_LED, (onOff ? LOW : HIGH));
-#elif defined(ESP32)
-    digitalWrite(PIN_LED1, (onOff ? LOW : HIGH));
-#endif
+    ledMgr.set(eLed::LED_WIFI, onOff);
 }
 
 void sioFuji::begin()
