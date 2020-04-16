@@ -56,6 +56,7 @@ class fnHttpService
         std::string query;
     };
 
+    static void custom_global_ctx_free(void * ctx);
     static httpd_handle_t start_server(serverstate &state);
     static void stop_server(httpd_handle_t hServer);
     static void return_http_error(httpd_req_t *req, _fnwserr errnum);

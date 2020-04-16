@@ -1,10 +1,7 @@
 #ifndef BLUETOOTH_H
 #define BLUETOOTH_H
 
-#include <Arduino.h>
-#include "debug.h"
-
-#define BT_NAME "ATARI FUJINET"
+#define BT_NAME "SIO2BT FUJINET"
 
 enum eBTBaudrate
 {
