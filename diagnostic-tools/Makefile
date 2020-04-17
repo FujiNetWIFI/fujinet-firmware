@@ -9,11 +9,13 @@
 .SUFFIXES:
 
 all mostlyclean clean install zip:
+	@$(MAKE) -C args    --no-print-directory $@
 	@$(MAKE) -C audio   --no-print-directory $@	
 	@$(MAKE) -C thwap   --no-print-directory $@	
 
 dist: all
 	mkdir -p dist
+	cp args/args.com dist/
 	cp audio/audio.com dist/
 	cp thwap/thwap.com dist/
 	dir2atr 720 diags.atr dist/
