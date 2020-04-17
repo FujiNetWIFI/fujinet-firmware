@@ -30,6 +30,9 @@ private:
     HTTPClient client;
     WiFiClient* c;
 
+    char* headerCollection[16];
+    unsigned char headerCollectionIndex=0;
+
     bool requestStarted = false;
     enum
     {

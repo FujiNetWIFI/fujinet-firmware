@@ -1,4 +1,5 @@
 #include "networkProtocolHTTP.h"
+#include "debug.h"
 
 networkProtocolHTTP::networkProtocolHTTP()
 {
@@ -7,6 +8,11 @@ networkProtocolHTTP::networkProtocolHTTP()
 
 networkProtocolHTTP::~networkProtocolHTTP()
 {
+    for (int i = 0; i < headerCollectionIndex; i++)
+    {
+        free(headerCollection[i]);
+    }
+
     client.end();
 }
 
@@ -17,7 +23,11 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
     switch (openMode)
     {
     case GET:
+        if (headerCollectionIndex > 0)
+            client.collectHeaders((const char **)headerCollection, headerCollectionIndex);
+
         resultCode = client.GET();
+
         headerIndex = 0;
         numHeaders = client.headers();
         ret = true;
@@ -81,11 +91,16 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
     {
         if (headerIndex < numHeaders)
         {
-            strcpy((char *)rx_buf, client.header(headerIndex++).c_str());
+            strncpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
             return false;
         }
         else
             return true;
+    }
+    else if (collectHeaders)
+    {
+        // collect headers is write only. Return error.
+        return true;
     }
     else
     {
@@ -117,6 +132,10 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
     }
     else if (collectHeaders)
     {
+        headerCollection[headerCollectionIndex] = (char *)malloc(len);
+        strncpy(headerCollection[headerCollectionIndex++], (char *)tx_buf, len);
+
+        return false;
     }
     else
     {

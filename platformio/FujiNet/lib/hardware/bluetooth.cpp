@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include "bluetooth.h"
-#include "sio.h"
-#include "disk.h"
+#include "../sio/sio.h"
+#include "../sio/disk.h"
 #include "debug.h"
 #include "BluetoothSerial.h"
 
