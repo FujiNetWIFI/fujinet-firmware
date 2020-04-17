@@ -323,7 +323,8 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 */
 void fnHttpService::custom_global_ctx_free(void * ctx)
 {
-    serverstate * ctx_state = (serverstate *)ctx;
+    // keep this commented for the moment to avoid warning.
+    // serverstate * ctx_state = (serverstate *)ctx;
     // We could do something fancy here, but we don't need to do anything
 }
 
