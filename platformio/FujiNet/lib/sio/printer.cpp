@@ -1,14 +1,10 @@
 #include "printer.h"
 
+sioPrinter sioP;
 
 void filePrinter::initPrinter(FS *filesystem)
 {
     printer_emu::initPrinter(filesystem);
-}
-
-void filePrinter::setPaper(paper_t ty)
-{
-    paperType = ty;
 }
 
 bool filePrinter::process(const byte *B, byte n)
