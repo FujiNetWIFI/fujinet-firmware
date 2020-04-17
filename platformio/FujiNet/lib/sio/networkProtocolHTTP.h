@@ -41,10 +41,15 @@ private:
         PUT
     } openMode;
     int resultCode;
-    bool headers = false;
-    bool collectHeaders = false;
     int headerIndex = 0;
     int numHeaders = 0;
+
+    enum
+    {
+        DATA,
+        HEADERS,
+        COLLECT_HEADERS
+    } httpState;
 };
 
 #endif /* NETWORKPROTOCOLHTTP */

@@ -4,6 +4,7 @@
 networkProtocolHTTP::networkProtocolHTTP()
 {
     c = nullptr;
+    httpState = DATA;
 }
 
 networkProtocolHTTP::~networkProtocolHTTP()
@@ -85,42 +86,52 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
             return true;
     }
 
-    if (headers)
+    switch (httpState)
     {
-        if (headerIndex < numHeaders)
-        {
-            strncpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
-            return false;
-        }
-        else
-            return true;
-    }
-    else if (collectHeaders)
-    {
-        // collect headers is write only. Return error.
-        return true;
-    }
-    else
-    {
+    case DATA:
         if (c == nullptr)
             return true;
 
         if (c->readBytes(rx_buf, len) != len)
             return true;
+        break;
+    case HEADERS:
+        if (headerIndex < numHeaders)
+        {
+            strncpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
+        }
+        else
+            return true;
+        break;
+    case COLLECT_HEADERS:
+        // collect headers is write only. Return error.
+        return true;
     }
+
     return false;
 }
 
 bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
 {
     int b;
-    if (headers)
+    String headerKey;
+    String headerValue;
+    char tmpKey[256];
+    char tmpValue[256];
+    char* p;
+
+    switch (httpState)
     {
-        String headerKey;
-        String headerValue;
-        char tmpKey[256];
-        char tmpValue[256];
-        char *p = strtok((char *)tx_buf, ":");
+    case DATA:
+        if (!requestStarted)
+        {
+            if (!startConnection(tx_buf, len))
+                return true;
+        }
+
+        break;
+    case HEADERS:
+        strtok((char *)tx_buf, ":");
 
         strcpy(tmpKey, p);
         p = strtok(NULL, "");
@@ -128,13 +139,8 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
         headerKey = String(tmpKey);
         headerValue = String(tmpValue);
         client.addHeader(headerKey, headerValue);
-    }
-    else if (collectHeaders)
-    {
-#ifdef DEBUG
-        for (b = 0; b < headerCollectionIndex; b++)
-            Debug_printf("%02d: %s\n", b, headerCollection[b]);
-#endif
+        break;
+    case COLLECT_HEADERS:
         for (b = 0; b < len; b++)
         {
             if (tx_buf[b] == 0x9B)
@@ -142,14 +148,7 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
         }
 
         headerCollection[headerCollectionIndex] = strndup((const char *)tx_buf, len);
-    }
-    else
-    {
-        if (!requestStarted)
-        {
-            if (!startConnection(tx_buf, len))
-                return true;
-        }
+        break;
     }
 
     return false;
@@ -161,24 +160,10 @@ bool networkProtocolHTTP::status(byte *status_buf)
 
     status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0;
 
-    if (headers==true)
+    switch (httpState)
     {
-        if (headerIndex < numHeaders)
-        {
-            status_buf[0] = client.header(headerIndex).length() & 0xFF;
-            status_buf[1] = client.header(headerIndex).length() >> 8;
-            status_buf[2] = resultCode & 0xFF;
-            status_buf[3] = resultCode >> 8;
-        }
-    }
-    else if (collectHeaders==true)
-    {
-        status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0xFF;
-        return false; // no error.
-    }
-    else
-    {
-        if (requestStarted==false)
+    case DATA:
+        if (requestStarted == false)
         {
             if (!startConnection(status_buf, 4))
                 return true;
@@ -194,6 +179,19 @@ bool networkProtocolHTTP::status(byte *status_buf)
         status_buf[1] = a >> 8;
         status_buf[2] = resultCode & 0xFF;
         status_buf[3] = resultCode >> 8;
+        break;
+    case HEADERS:
+        if (headerIndex < numHeaders)
+        {
+            status_buf[0] = client.header(headerIndex).length() & 0xFF;
+            status_buf[1] = client.header(headerIndex).length() >> 8;
+            status_buf[2] = resultCode & 0xFF;
+            status_buf[3] = resultCode >> 8;
+        }
+        break;
+    case COLLECT_HEADERS:
+        status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0xFF;
+        break;
     }
 
     return false;
@@ -216,12 +214,12 @@ bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
 
 void networkProtocolHTTP::special_header_toggle(unsigned char aux1)
 {
-    headers = (aux1 == 1 ? true : false);
+    httpState = (aux1 == 1 ? HEADERS : DATA);
 }
 
 void networkProtocolHTTP::special_collect_headers_toggle(unsigned char aux1)
 {
-    collectHeaders = (aux1 == 1 ? true : false);
+    httpState = (aux1 == 1 ? COLLECT_HEADERS : DATA);
 }
 
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
