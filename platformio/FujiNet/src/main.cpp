@@ -41,9 +41,11 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include <SPIFFS.h>
 #include <SPI.h>
 #include <WiFi.h>
-#include "keys.h"
 #include <SD.h>
 #endif
+
+#include "keys.h"
+#include "led.h"
 
 #ifdef BLUETOOTH_SUPPORT
 #include "bluetooth.h"
@@ -66,9 +68,8 @@ fnHttpService fnHTTPD;
 WiFiClient wifiDebugClient;
 #endif
 
-#ifdef ESP32
 KeyManager keyMgr;
-#endif
+LedManager ledMgr;
 
 #ifdef BLUETOOTH_SUPPORT
 BluetoothManager btMgr;
@@ -86,7 +87,7 @@ void setup()
 {
 
   // connect to wifi but DO NOT wait for it
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  // WiFi.begin(WIFI_SSID, WIFI_PASS);
 
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
@@ -180,6 +181,9 @@ void setup()
   btMgr.setup();
 #endif
 
+  keyMgr.setup();
+  ledMgr.setup();
+
   void sio_flush();
 }
 
@@ -197,37 +201,56 @@ void loop()
 #ifdef ESP32
   if (WiFi.status() == WL_CONNECTED)
   {
-    digitalWrite(PIN_LED1, LOW);
+    ledMgr.set(eLed::LED_WIFI, true);
     if(!fnHTTPD.running())
       fnHTTPD.start();
   }
   else
   {
-    digitalWrite(PIN_LED1, HIGH);
+    ledMgr.set(eLed::LED_WIFI, false);
     if(fnHTTPD.running())
       fnHTTPD.stop();
   }
 
-  switch (keyMgr.getBootKeyStatus())
+  switch (keyMgr.getKeyStatus(eKey::OTHER_KEY))
+  {
+    case eKeyStatus::LONG_PRESSED:
+#ifdef DEBUG
+      Debug_println("O_KEY: LONG PRESS");
+#endif
+      break;
+    case eKeyStatus::SHORT_PRESSED:
+#ifdef DEBUG
+      Debug_println("O_KEY: SHORT PRESS");
+#endif
+      break;
+    default:
+      break;
+  }
+
+  switch (keyMgr.getKeyStatus(eKey::BOOT_KEY))
   {
   case eKeyStatus::LONG_PRESSED:
 #ifdef DEBUG
-    Debug_println("LONG PRESS");
+    Debug_println("B_KEY: LONG PRESS");
 #endif
 #ifdef BLUETOOTH_SUPPORT
     if (btMgr.isActive())
     {
       btMgr.stop();
+      ledMgr.set(eLed::LED_SIO, false);
     }
     else
     {
       btMgr.start();
+      ledMgr.set(eLed::LED_SIO, true); // SIO LED always ON in Bluetooth mode
     }
 #endif
     break;
   case eKeyStatus::SHORT_PRESSED:
 #ifdef DEBUG
-    Debug_println("SHORT PRESS");
+    Debug_println("B_KEY: SHORT PRESS");
+    ledMgr.blink(eLed::LED_SIO); // blink to confirm a button press
 #endif
 #ifdef BLUETOOTH_SUPPORT
     if (btMgr.isActive())
