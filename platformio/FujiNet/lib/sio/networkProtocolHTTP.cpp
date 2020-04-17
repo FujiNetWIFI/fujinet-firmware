@@ -173,6 +173,11 @@ bool networkProtocolHTTP::status(byte *status_buf)
             return false; // no error
         }
     }
+    else if (collectHeaders)
+    {
+        status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0xFF;
+        return false; // no error.
+    }
     else
     {
         if (c == nullptr)
