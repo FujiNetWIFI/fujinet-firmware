@@ -9,9 +9,7 @@ networkProtocolHTTP::networkProtocolHTTP()
 networkProtocolHTTP::~networkProtocolHTTP()
 {
     for (int i = 0; i < headerCollectionIndex; i++)
-    {
         free(headerCollection[i]);
-    }
 
     client.end();
 }
@@ -115,6 +113,7 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
 
 bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
 {
+    int b;
     if (headers)
     {
         String headerKey;
@@ -132,10 +131,17 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
     }
     else if (collectHeaders)
     {
-        headerCollection[headerCollectionIndex] = (char *)malloc(len);
-        strncpy(headerCollection[headerCollectionIndex++], (char *)tx_buf, len);
+#ifdef DEBUG
+        for (b = 0; b < headerCollectionIndex; b++)
+            Debug_printf("%02d: %s\n", b, headerCollection[b]);
+#endif
+        for (b = 0; b < len; b++)
+        {
+            if (tx_buf[b] == 0x9B)
+                tx_buf[b] = 0x00;
+        }
 
-        return false;
+        headerCollection[headerCollectionIndex] = strndup((const char *)tx_buf, len);
     }
     else
     {
@@ -155,13 +161,7 @@ bool networkProtocolHTTP::status(byte *status_buf)
 
     status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0;
 
-    if (!requestStarted)
-    {
-        if (!startConnection(status_buf, 4))
-            return true;
-    }
-
-    if (headers)
+    if (headers==true)
     {
         if (headerIndex < numHeaders)
         {
@@ -169,17 +169,21 @@ bool networkProtocolHTTP::status(byte *status_buf)
             status_buf[1] = client.header(headerIndex).length() >> 8;
             status_buf[2] = resultCode & 0xFF;
             status_buf[3] = resultCode >> 8;
-
-            return false; // no error
         }
     }
-    else if (collectHeaders)
+    else if (collectHeaders==true)
     {
         status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0xFF;
         return false; // no error.
     }
     else
     {
+        if (requestStarted==false)
+        {
+            if (!startConnection(status_buf, 4))
+                return true;
+        }
+
         if (c == nullptr)
             return true;
 
@@ -190,10 +194,9 @@ bool networkProtocolHTTP::status(byte *status_buf)
         status_buf[1] = a >> 8;
         status_buf[2] = resultCode & 0xFF;
         status_buf[3] = resultCode >> 8;
-
-        return false; // no error
     }
-    return true;
+
+    return false;
 }
 
 bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
