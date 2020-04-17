@@ -1,4 +1,5 @@
 #include "samlib.h"
+#include <driver/dac.h>
 
 #ifdef ESP_32
 #define DAC1 25
@@ -151,13 +152,14 @@ void OutputSound()
 #ifdef ESP_32
     int n = GetBufferLength() / 50;
     char *s = GetBuffer();
-    pinMode(DAC1, OUTPUT);
+    dac_output_enable(DAC_CHANNEL_1);
+    dac_output_voltage(DAC_CHANNEL_1, 100);
     for (int i = 0; i < n; i++)
     {
         dacWrite(DAC1, s[i]);
         delayMicroseconds(40);
     }
-    pinMode(DAC1, INPUT);
+    dac_output_disable(DAC_CHANNEL_1);
     FreeBuffer();
 #endif
 }

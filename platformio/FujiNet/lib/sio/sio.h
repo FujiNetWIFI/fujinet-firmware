@@ -3,7 +3,7 @@
 #include <Arduino.h>
 #include "debug.h"
 
-#include "LinkedList.h"
+#include "../LinkedList-1.2.3/LinkedList.h"
 
 // pin configurations
 #ifdef ESP8266
