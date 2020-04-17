@@ -6,13 +6,7 @@
 #include <SPIFFS.h>
 
 #include "sio.h"
-//#include "printer_emulator.h"
 #include "pdf_printer.h"
-//#include "atari_printers.h"
-
-// class printer_emu;
-// class atari820;
-// class atari822;
 
 #define EOL 155
 
@@ -79,7 +73,7 @@ protected:
 public:
     void connect_printer(printer_emu *P) { _pptr = P; };
     printer_emu *getPrinterPtr() { return _pptr; };
-    void initPrinter(FS* fs) {};
+    void initPrinter(FS* fs) {_pptr->initPrinter(fs);};
 };
 
 extern sioPrinter sioP; // make array eventually
