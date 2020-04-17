@@ -10,7 +10,7 @@
 
 struct pdfFont_t
 {
-  /* 
+/* 
   7 0 obj
   << 
     /Type /Font
