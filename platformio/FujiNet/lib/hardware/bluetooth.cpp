@@ -1,6 +1,8 @@
+#include <Arduino.h>
 #include "bluetooth.h"
 #include "sio.h"
 #include "disk.h"
+#include "debug.h"
 #include "BluetoothSerial.h"
 
 BluetoothSerial SerialBT;
@@ -18,7 +20,6 @@ void BluetoothManager::start()
   mActive = true;
   mPrevBaudrate = SIO.getBaudrate();
   SIO.setBaudrate(mBTBaudrate);
-  SIO.sio_led(true);
 }
 
 void BluetoothManager::stop()
@@ -28,12 +29,10 @@ void BluetoothManager::stop()
 #endif
   mActive = false;
   SIO.setBaudrate(mPrevBaudrate);
-  SIO.sio_led(false);
 }
 
 eBTBaudrate BluetoothManager::toggleBaudrate()
 {
-  SIO.sio_led(false);
   if(mBTBaudrate == eBTBaudrate::BT_STANDARD_BAUDRATE)
   {
     mBTBaudrate = eBTBaudrate::BT_HISPEED_BAUDRATE;
@@ -43,7 +42,6 @@ eBTBaudrate BluetoothManager::toggleBaudrate()
     mBTBaudrate = eBTBaudrate::BT_STANDARD_BAUDRATE;
   }
   SIO.setBaudrate(mBTBaudrate);
-  SIO.sio_led(true);
   return mBTBaudrate;
 }
 
