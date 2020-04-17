@@ -15,12 +15,10 @@ class filePrinter : public printer_emu
 public:
     virtual void initPrinter(FS *filesystem);
     virtual void pageEject(){};
-    virtual bool process(const byte* buf, byte n);
+    virtual bool process(const byte *buf, byte n);
 
-    void setPaper(paper_t ty) {paperType = ty;};
+    void setPaper(paper_t ty) { paperType = ty; };
 };
-
-
 
 class atari1027 : public pdfPrinter
 {
@@ -44,20 +42,21 @@ class atari820 : public pdfPrinter
 
 protected:
     bool sideFlag = false;
-    sioPrinter *my_sioP;
+    sioPrinter *my_sioP; // added variable to point back to sioPrinter parent
 
     void pdf_fonts();
     void pdf_handle_char(byte c); // need a custom one to handle sideways printing
 
 public:
     void initPrinter(FS *filesystem);
+    void setDevice(sioPrinter *P) { my_sioP = P; };
 };
 
 class atari822 : public pdfPrinter
 {
 protected:
     sioPrinter *my_sioP;
-    
+
     void pdf_fonts();
     void pdf_handle_char(byte c); // need a custom one to handle sideways printing
 
@@ -65,6 +64,7 @@ protected:
 
 public:
     virtual void initPrinter(FS *filesystem);
+    void setDevice(sioPrinter *P) { my_sioP = P; };
 };
 
 // class atari1020 : public svgPlotter
