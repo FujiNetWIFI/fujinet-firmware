@@ -238,8 +238,8 @@ void loop()
     }
     else
     {
-      btMgr.start();
       ledMgr.set(eLed::LED_SIO, true); // SIO LED always ON in Bluetooth mode
+      btMgr.start();
     }
 #endif
     break;
