@@ -3,6 +3,7 @@
 #include <string>
 
 #include <WiFi.h>
+#include <SPIFFS.h>
 
 #include "httpServiceParser.h"
 #include "../../src/main.h"
