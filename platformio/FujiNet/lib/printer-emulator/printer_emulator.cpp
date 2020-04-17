@@ -29,6 +29,7 @@ void printer_emu::resetOutput()
 {
     _file.close();
     _file = _FS->open("/paper", "w+");
+#ifdef DEBUG
     if (_file)
     {
         Debug_println("Printer output file (re)opened");
@@ -37,4 +38,5 @@ void printer_emu::resetOutput()
     {
         Debug_println("Error opening printer file");
     }
+#endif
 }
