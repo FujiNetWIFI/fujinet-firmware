@@ -28,4 +28,5 @@ dist: all
 	cp naccept/naccept.com dist/
 	cp nhdrtogl/nhdrtogl.com dist/
 	cp nhdrcoll/nhdrcoll.com dist/
+	cp test-scripts/THTTP.EXC dist/
 	dir2atr 720 n-tests.atr dist/
