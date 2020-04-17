@@ -2,5 +2,5 @@
 
 #define FUJINET_VERSION "0.20200413"
 
-sioPrinter *getCurrentPrinter();
+//sioPrinter *getCurrentPrinter();
 
