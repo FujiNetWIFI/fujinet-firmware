@@ -317,6 +317,16 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* We're pointing global_ctx to a member of our fnHttpService object,
+*  so we don't want the libarary freeing it for us. It'll be freed when
+*  our fnHttpService object is freed.
+*/
+void fnHttpService::custom_global_ctx_free(void * ctx)
+{
+    serverstate * ctx_state = (serverstate *)ctx;
+    // We could do something fancy here, but we don't need to do anything
+}
+
 httpd_handle_t fnHttpService::start_server(serverstate &state)
 {
     std::vector<httpd_uri_t> uris {
@@ -355,10 +365,14 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
 #endif    
     }
 
+    // Set filesystem where we expect to find our static files
+    state.pFS = &SPIFFS;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     // Keep a reference to our object
     config.global_user_ctx = (void *) &state;
+    // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed
+    config.global_user_ctx_free_fn = (httpd_free_ctx_fn_t) custom_global_ctx_free;
 
 #ifdef DEBUG
     Debug_printf("Starting web server on port %d\n", config.server_port);
@@ -392,8 +406,6 @@ void fnHttpService::start()
             return;
     }
 
-    state.pFS = &SPIFFS;
-
     // Register event notifications to let us know when WiFi is up/down
     // Missing the constants used here.  Need to find that...
     //esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &connect_handler, &(state.hServer));
@@ -408,8 +420,9 @@ void fnHttpService::stop()
 #ifdef DEBUG
     Debug_println("Stopping web service");
 #endif
-    if(state.hServer != NULL)
+    if(state.hServer != NULL) {
         httpd_stop(state.hServer);
-    state.hServer = NULL;
-    state.pFS = NULL;
+        state.pFS = NULL;
+        state.hServer = NULL;
+    }
 }
