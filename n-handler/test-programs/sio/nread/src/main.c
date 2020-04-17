@@ -23,7 +23,7 @@ unsigned char daux1=0;
 unsigned char daux2=0;
 unsigned short len;
 
-void nread(void)
+unsigned char nread(void)
 {
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
@@ -38,13 +38,14 @@ void nread(void)
   if (OS.dcb.dstats!=1)
     {
       err_sio();
-      exit(OS.dcb.dstats);
+      return 1;
     }
   else
     {
       print("READ:\x9b");
       printl(buf,len);
       print("\x9b");
+      return 0;
     }
 }
 
@@ -57,7 +58,10 @@ void opts(char* argv[])
 int main(int argc, char* argv[])
 {
   char tmp[4];
+  unsigned char ret=0;
+  
   OS.lmargn=2;
+  OS.dspflg=1;
   
   if (_is_cmdline_dos())
     {
@@ -78,6 +82,8 @@ int main(int argc, char* argv[])
       len=atoi(tmp);      
     }
 
-  nread();
+  ret=nread();
+  OS.dspflg=0;
+  
   return(0);
 }
