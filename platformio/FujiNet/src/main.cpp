@@ -177,10 +177,6 @@ void setup()
   Debug_println(SIO.sio_volts());
 #endif
 
-#ifdef BLUETOOTH_SUPPORT
-  btMgr.setup();
-#endif
-
   keyMgr.setup();
   ledMgr.setup();
 
