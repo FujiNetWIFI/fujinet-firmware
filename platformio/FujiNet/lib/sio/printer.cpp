@@ -463,9 +463,7 @@ void atari1027::pdf_handle_char(byte c)
                 _file.write(byte(196));
             else if (c > 27 && c < 32)
             {
-                //_file.printf(")]TJ\n/F2 12 Tf (");
-                _file.write(intlchar[c]); // Symbol font is not monospace
-                                           //_file.printf(")Tj\n/F1 12 Tf\n[(");
+              _file.printf(")600(_"); // |^ -< -> |v
             }
 
             pdf_X += charWidth; // update x position
