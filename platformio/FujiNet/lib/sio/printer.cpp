@@ -4,13 +4,13 @@ sioPrinter sioP;
 
 void atari820::pdf_fonts()
 {
-    // 3rd object: font catalog
-    pdf_objCtr = 3;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("3 0 obj\n<</Font << /F1 4 0 R /F2 7 0 R >> >>\nendobj\n");
+  // 3rd object: font catalog
+  pdf_objCtr = 3;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("3 0 obj\n<</Font << /F1 4 0 R /F2 7 0 R >> >>\nendobj\n");
 
-    // 820 standard font
-    /*
+  // 820 standard font
+  /*
   7 0 obj
   << 
     /Type /Font
@@ -24,10 +24,10 @@ void atari820::pdf_fonts()
   >>
   endobj
   */
-    pdf_objCtr = 4;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("4 0 obj\n<</Type/Font/Subtype/Type1/Name/F1/BaseFont/Atari-820-Normal/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 0/LastChar 255/Widths 6 0 R>>\nendobj\n");
-    /*
+  pdf_objCtr = 4;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("4 0 obj\n<</Type/Font/Subtype/Type1/Name/F1/BaseFont/Atari-820-Normal/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 0/LastChar 255/Widths 6 0 R>>\nendobj\n");
+  /*
   8 0 obj
   << 
     /Type /FontDescriptor
@@ -44,22 +44,22 @@ void atari820::pdf_fonts()
   >>
   endobj
   */
-    pdf_objCtr = 5;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("5 0 obj\n<</Type/FontDescriptor/FontName/Atari-820-Normal/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 1000/XHeight 714/StemV 87/FontBBox[0 0 433 700]/FontFile3 10 0 R >>\nendobj\n");
-    pdf_objCtr = 6;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("6 0 obj\n[");
-    for (int i = 0; i < 256; i++)
-    {
-        _file.printf(" 500");
-        if ((i - 31) % 32 == 0)
-            _file.printf("\n");
-    }
-    _file.printf(" ]\nendobj\n");
+  pdf_objCtr = 5;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("5 0 obj\n<</Type/FontDescriptor/FontName/Atari-820-Normal/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 1000/XHeight 714/StemV 87/FontBBox[0 0 433 700]/FontFile3 10 0 R >>\nendobj\n");
+  pdf_objCtr = 6;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("6 0 obj\n[");
+  for (int i = 0; i < 256; i++)
+  {
+    _file.printf(" 500");
+    if ((i - 31) % 32 == 0)
+      _file.printf("\n");
+  }
+  _file.printf(" ]\nendobj\n");
 
-    // 820 sideways font
-    /*
+  // 820 sideways font
+  /*
   7 0 obj
   << 
     /Type /Font
@@ -73,11 +73,11 @@ void atari820::pdf_fonts()
   >>
   endobj
   */
-    pdf_objCtr = 7;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("7 0 obj\n<</Type/Font/Subtype/Type1/Name/F2/BaseFont/Atari-820-Sideways/Encoding/WinAnsiEncoding/FontDescriptor 8 0 R/FirstChar 0/LastChar 255/Widths 9 0 R>>\nendobj\n");
+  pdf_objCtr = 7;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("7 0 obj\n<</Type/Font/Subtype/Type1/Name/F2/BaseFont/Atari-820-Sideways/Encoding/WinAnsiEncoding/FontDescriptor 8 0 R/FirstChar 0/LastChar 255/Widths 9 0 R>>\nendobj\n");
 
-    /*
+  /*
   8 0 obj
   << 
     /Type /FontDescriptor
@@ -93,56 +93,56 @@ void atari820::pdf_fonts()
     /FontFile3 9 0 R
   >>
   */
-    pdf_objCtr = 8;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("8 0 obj\n<</Type/FontDescriptor/FontName/Atari-820-Sideways/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 1000/XHeight 1000/StemV 87/FontBBox[0 0 600 700] /FontFile3 11 0 R >>\nendobj\n");
-    pdf_objCtr = 9;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("9 0 obj\n[");
-    for (int i = 0; i < 256; i++)
-    {
-        _file.printf(" 666");
-        if ((i - 31) % 32 == 0)
-            _file.printf("\n");
-    }
-    _file.printf(" ]\nendobj\n");
+  pdf_objCtr = 8;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("8 0 obj\n<</Type/FontDescriptor/FontName/Atari-820-Sideways/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 1000/XHeight 1000/StemV 87/FontBBox[0 0 600 700] /FontFile3 11 0 R >>\nendobj\n");
+  pdf_objCtr = 9;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("9 0 obj\n[");
+  for (int i = 0; i < 256; i++)
+  {
+    _file.printf(" 666");
+    if ((i - 31) % 32 == 0)
+      _file.printf("\n");
+  }
+  _file.printf(" ]\nendobj\n");
 
-    pdf_objCtr = 10;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("10 0 obj\n");
-    // insert fontfile stream
-    File fff = SPIFFS.open("/a820norm", "r");
-    while (fff.available())
-    {
-        _file.write(fff.read());
-    }
-    fff.close();
-    _file.printf("\nendobj\n");
+  pdf_objCtr = 10;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("10 0 obj\n");
+  // insert fontfile stream
+  File fff = SPIFFS.open("/a820norm", "r");
+  while (fff.available())
+  {
+    _file.write(fff.read());
+  }
+  fff.close();
+  _file.printf("\nendobj\n");
 
-    pdf_objCtr = 11;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("11 0 obj\n");
-    // insert fontfile stream
-    fff = SPIFFS.open("/a820side", "r");
-    while (fff.available())
-    {
-        _file.write(fff.read());
-    }
-    fff.close();
-    _file.printf("\nendobj\n");
+  pdf_objCtr = 11;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("11 0 obj\n");
+  // insert fontfile stream
+  fff = SPIFFS.open("/a820side", "r");
+  while (fff.available())
+  {
+    _file.write(fff.read());
+  }
+  fff.close();
+  _file.printf("\nendobj\n");
 }
 
 void atari822::pdf_fonts()
 {
-    // 3rd object: font catalog
-    pdf_objCtr = 3;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("3 0 obj\n<</Font << /F1 4 0 R >> >>\nendobj\n");
+  // 3rd object: font catalog
+  pdf_objCtr = 3;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("3 0 obj\n<</Font << /F1 4 0 R >> >>\nendobj\n");
 
-    // 822 font
-    pdf_objCtr = 4;
-    objLocations[pdf_objCtr] = _file.position();
-    /*
+  // 822 font
+  pdf_objCtr = 4;
+  objLocations[pdf_objCtr] = _file.position();
+  /*
   /Type /Font
    /Subtype /Type1
    /FontDescriptor 8 0 R
@@ -152,10 +152,10 @@ void atari822::pdf_fonts()
    /Widths 10 0 R
    /Encoding /WinAnsiEncoding
   */
-    _file.printf("4 0 obj\n<<\n/Type/Font/Subtype/Type1/Name/F1/BaseFont/Atari-822-Thermal/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 0/LastChar 255/Widths 6 0 R>>\nendobj\n");
-    pdf_objCtr = 5;
-    objLocations[pdf_objCtr] = _file.position();
-    /*
+  _file.printf("4 0 obj\n<<\n/Type/Font/Subtype/Type1/Name/F1/BaseFont/Atari-822-Thermal/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 0/LastChar 255/Widths 6 0 R>>\nendobj\n");
+  pdf_objCtr = 5;
+  objLocations[pdf_objCtr] = _file.position();
+  /*
    /Type /FontDescriptor
    /FontName /Atari-822-Thermal
    /Ascent 1000
@@ -168,71 +168,70 @@ void atari822::pdf_fonts()
    /XHeight 700
    /FontFile3 9 0 R
   */
-    _file.printf("5 0 obj\n<<\n/Type/FontDescriptor/FontName/Atari-822-Thermal/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 986/FontWeight 400/XHeight 700/StemV 87/FontBBox[0 0 490 690]/FontFile3 7 0 R >>\nendobj\n");
-    pdf_objCtr = 6;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("6 0 obj\n[");
-    for (int i = 0; i < 256; i++)
-    {
-        _file.printf(" 600");
-        if ((i - 31) % 32 == 0)
-            _file.printf("\n");
-    }
-    _file.printf(" ]\nendobj\n");
-    pdf_objCtr = 7;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("7 0 obj\n");
-    // insert fontfile stream
-    File fff = SPIFFS.open("/a822font", "r");
-    while (fff.available())
-    {
-        _file.write(fff.read());
-    }
-    fff.close();
-    _file.printf("\nendobj\n");
+  _file.printf("5 0 obj\n<<\n/Type/FontDescriptor/FontName/Atari-822-Thermal/Flags 33/ItalicAngle 0/Ascent 1000/Descent 0/CapHeight 986/FontWeight 400/XHeight 700/StemV 87/FontBBox[0 0 490 690]/FontFile3 7 0 R >>\nendobj\n");
+  pdf_objCtr = 6;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("6 0 obj\n[");
+  for (int i = 0; i < 256; i++)
+  {
+    _file.printf(" 600");
+    if ((i - 31) % 32 == 0)
+      _file.printf("\n");
+  }
+  _file.printf(" ]\nendobj\n");
+  pdf_objCtr = 7;
+  objLocations[pdf_objCtr] = _file.position();
+  _file.printf("7 0 obj\n");
+  // insert fontfile stream
+  File fff = SPIFFS.open("/a822font", "r");
+  while (fff.available())
+  {
+    _file.write(fff.read());
+  }
+  fff.close();
+  _file.printf("\nendobj\n");
 }
-
 
 void atari820::pdf_handle_char(byte c)
 {
-    // Atari 820 modes:
-    // aux1 == 40   normal mode
-    // aux1 == 29   sideways mode
-    if (my_sioP->lastAux1 == 'N' && sideFlag)
+  // Atari 820 modes:
+  // aux1 == 40   normal mode
+  // aux1 == 29   sideways mode
+  if (my_sioP->lastAux1 == 'N' && sideFlag)
+  {
+    _file.printf(")]TJ\n/F1 12 Tf [(");
+    sideFlag = false;
+  }
+  else if (my_sioP->lastAux1 == 'S' && !sideFlag)
+  {
+    _file.printf(")]TJ\n/F2 12 Tf [(");
+    sideFlag = true;
+    // could increase charWidth, but not necessary to make this work. I force EOL.
+  }
+
+  // maybe printable character
+  if (c > 31 && c < 127)
+  {
+    if (!sideFlag || c > 47)
     {
-        _file.printf(")]TJ\n/F1 12 Tf [(");
-        sideFlag = false;
+      if (c == ('\\') || c == '(' || c == ')')
+        _file.write('\\');
+      _file.write(c);
     }
-    else if (my_sioP->lastAux1 == 'S' && !sideFlag)
+    else
     {
-        _file.printf(")]TJ\n/F2 12 Tf [(");
-        sideFlag = true;
-        // could increase charWidth, but not necessary to make this work. I force EOL.
+      if (c < 48)
+        _file.write(' ');
     }
 
-    // maybe printable character
-    if (c > 31 && c < 127)
-    {
-        if (!sideFlag || c > 47)
-        {
-            if (c == ('\\') || c == '(' || c == ')')
-                _file.write('\\');
-            _file.write(c);
-        }
-        else
-        {
-            if (c < 48)
-                _file.write(' ');
-        }
-
-        pdf_X += charWidth; // update x position
-    }
+    pdf_X += charWidth; // update x position
+  }
 }
 
 void atari822::pdf_handle_char(byte c)
 {
-    // use PDF inline image to display line of graphics
-    /*
+  // use PDF inline image to display line of graphics
+  /*
   q
   240 0 0 1 18 750 cm
   BI
@@ -249,103 +248,218 @@ void atari822::pdf_handle_char(byte c)
   Q
   */
 
-    // Atari 822 modes:
-    // aux1 == 'N'   normal mode
-    // aux1 == 'L'   graphics mode
+  // Atari 822 modes:
+  // aux1 == 'N'   normal mode
+  // aux1 == 'L'   graphics mode
 
-    // was: if (cmdFrame.comnd == 'W' && !textMode)
-    if (my_sioP->lastAux1 == 'N' && !textMode)
+  // was: if (cmdFrame.comnd == 'W' && !textMode)
+  if (my_sioP->lastAux1 == 'N' && !textMode)
+  {
+    textMode = true;
+    pdf_begin_text(pdf_Y); // open new text object
+    pdf_new_line();        // start new line of text (string array)
+  }
+  // was: else if (cmdFrame.comnd == 'P' && textMode)
+  else if (my_sioP->lastAux1 == 'L' && textMode)
+  {
+    textMode = false;
+    if (!BOLflag)
+      pdf_end_line();     // close out string array
+    _file.printf("ET\n"); // close out text object
+  }
+
+  if (!textMode && BOLflag)
+  {
+    _file.printf("q\n %g 0 0 %g %g %g cm\n", printWidth, lineHeight / 10.0, leftMargin, pdf_Y);
+    _file.printf("BI\n /W 240\n /H 1\n /CS /G\n /BPC 1\n /D [1 0]\n /F /AHx\nID\n");
+    BOLflag = false;
+  }
+  if (!textMode)
+  {
+    if (gfxNumber < 30)
+      _file.printf(" %02X", c);
+
+    gfxNumber++;
+
+    if (gfxNumber == 40)
     {
-        textMode = true;
-        pdf_begin_text(pdf_Y); // open new text object
-        pdf_new_line();        // start new line of text (string array)
+      _file.printf("\n >\nEI\nQ\n");
+      pdf_Y -= lineHeight / 10.0;
+      BOLflag = true;
+      gfxNumber = 0;
     }
-    // was: else if (cmdFrame.comnd == 'P' && textMode)
-    else if (my_sioP->lastAux1 == 'L' && textMode)
-    {
-        textMode = false;
-        if (!BOLflag)
-            pdf_end_line();    // close out string array
-        _file.printf("ET\n"); // close out text object
-    }
+  }
 
-    if (!textMode && BOLflag)
-    {
-        _file.printf("q\n %g 0 0 %g %g %g cm\n", printWidth, lineHeight / 10.0, leftMargin, pdf_Y);
-        _file.printf("BI\n /W 240\n /H 1\n /CS /G\n /BPC 1\n /D [1 0]\n /F /AHx\nID\n");
-        BOLflag = false;
-    }
-    if (!textMode)
-    {
-        if (gfxNumber < 30)
-            _file.printf(" %02X", c);
+  // TODO: looks like auto wrapped lines are 1 dot apart and EOL lines are 3 dots apart
 
-        gfxNumber++;
+  // simple ASCII printer
+  if (textMode && c > 31 && c < 127)
+  {
+    if (c == '\\' || c == '(' || c == ')')
+      _file.write('\\');
+    _file.write(c);
 
-        if (gfxNumber == 40)
-        {
-            _file.printf("\n >\nEI\nQ\n");
-            pdf_Y -= lineHeight / 10.0;
-            BOLflag = true;
-            gfxNumber = 0;
-        }
-    }
-
-    // TODO: looks like auto wrapped lines are 1 dot apart and EOL lines are 3 dots apart
-
-    // simple ASCII printer
-    if (textMode && c > 31 && c < 127)
-    {
-        if (c == '\\' || c == '(' || c == ')')
-            _file.write('\\');
-        _file.write(c);
-
-        pdf_X += charWidth; // update x position
-    }
+    pdf_X += charWidth; // update x position
+  }
 }
-
 
 void atari820::initPrinter(FS *filesystem)
 {
-    printer_emu::initPrinter(filesystem);
-    paperType = PDF;
-    pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
-    pageHeight = 792.0; // just use 11" for letter paper
-    leftMargin = 19.5;  // fit print width on page width
-    bottomMargin = 0.0;
-    // dimensions from Table 1-1 of Atari 820 Field Service Manual
-    printWidth = 240.0; // 3 1/3" wide printable area
-    lineHeight = 12.0;  // 6 lines per inch
-    charWidth = 6.0;    // 12 char per inch
-    fontNumber = 1;
-    fontSize = 10;
+  printer_emu::initPrinter(filesystem);
+  paperType = PDF;
+  pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
+  pageHeight = 792.0; // just use 11" for letter paper
+  leftMargin = 19.5;  // fit print width on page width
+  bottomMargin = 0.0;
+  // dimensions from Table 1-1 of Atari 820 Field Service Manual
+  printWidth = 240.0; // 3 1/3" wide printable area
+  lineHeight = 12.0;  // 6 lines per inch
+  charWidth = 6.0;    // 12 char per inch
+  fontNumber = 1;
+  fontSize = 10;
 
-    sideFlag = false;
-    
-    pdf_header();
-    pdf_fonts();
+  sideFlag = false;
+
+  pdf_header();
+
+  pdfFont_t F1;
+  /*
+    /Type /Font
+    /Subtype /Type1
+    /FontDescriptor 8 0 R
+    /BaseFont /Atari-820-Normal
+    /FirstChar 0
+    /LastChar 255
+    /Widths 10 0 R
+    /Encoding /WinAnsiEncoding
+    /Type /FontDescriptor
+    /FontName /Atari-820-Normal
+    /Ascent 1000
+    /CapHeight 1000
+    /Descent 0
+    /Flags 33
+    /FontBBox [0 0 433 700]
+    /ItalicAngle 0
+    /StemV 87
+    /XHeight 714
+    /FontFile3 9 0 R
+  */
+  F1.subtype = "Type1";
+  F1.basefont = "Atari-820-Normal";
+  F1.width = 500;
+  F1.ascent = 1000;
+  F1.capheight = 1000;
+  F1.descent = 0;
+  F1.flags = 33;
+  F1.bbox[0] = 0;
+  F1.bbox[1] = 0;
+  F1.bbox[2] = 433;
+  F1.bbox[3] = 700;
+  F1.stemv = 87;
+  F1.xheight = 714;
+  F1.ffnum = 3;
+  F1.ffname = "/a820norm";
+
+  pdfFont_t F2;
+  /*
+    /Type /Font
+    /Subtype /Type1
+    /FontDescriptor 8 0 R
+    /BaseFont /Atari-820-Sideways
+    /FirstChar 0
+    /LastChar 255
+    /Widths 10 0 R
+    /Encoding /WinAnsiEncoding
+    /Type /FontDescriptor
+    /FontName /Atari-820-Sideways
+    /Ascent 1000
+    /CapHeight 1000
+    /Descent 0
+    /Flags 33
+    /FontBBox [0 0 600 700]
+    /ItalicAngle 0
+    /StemV 87
+    /XHeight 1000
+    /FontFile3 9 0 R
+  */
+  F1.subtype = "Type1";
+  F1.basefont = "Atari-820-Sideways";
+  F1.width = 666;
+  F1.ascent = 1000;
+  F1.capheight = 1000;
+  F1.descent = 0;
+  F1.flags = 33;
+  F1.bbox[0] = 0;
+  F1.bbox[1] = 0;
+  F1.bbox[2] = 600;
+  F1.bbox[3] = 700;
+  F1.stemv = 87;
+  F1.xheight = 1000;
+  F1.ffnum = 3;
+  F1.ffname = "/a820side";
+
+  pdfFont_t *fontary[] = {&F1, &F2};
+  pdf_add_fonts(fontary, 2);
 }
 
 void atari822::initPrinter(FS *filesystem)
 {
-    printer_emu::initPrinter(filesystem);
-    paperType = PDF;
-    pageWidth = 319.5;  // paper roll is 4 7/16" from page 4 of owners manual
-    pageHeight = 792.0; // just use 11" for letter paper
-    leftMargin = 15.75; // fit print width on page width
-    bottomMargin = 0.0;
+  printer_emu::initPrinter(filesystem);
+  paperType = PDF;
+  pageWidth = 319.5;  // paper roll is 4 7/16" from page 4 of owners manual
+  pageHeight = 792.0; // just use 11" for letter paper
+  leftMargin = 15.75; // fit print width on page width
+  bottomMargin = 0.0;
 
-    printWidth = 288.0; // 4" wide printable area
-    lineHeight = 12.0;  // 6 lines per inch
-    charWidth = 7.2;    // 10 char per inch
-    fontNumber = 1;
-    fontSize = 12;
+  printWidth = 288.0; // 4" wide printable area
+  lineHeight = 12.0;  // 6 lines per inch
+  charWidth = 7.2;    // 10 char per inch
+  fontNumber = 1;
+  fontSize = 12;
 
-    pdf_header();
-    pdf_fonts();
+  pdf_header();
+
+  pdfFont_t F1;
+  /*
+      /Type /Font
+      /Subtype /Type1
+      /FontDescriptor 8 0 R
+      /BaseFont /Atari-822-Thermal
+      /FirstChar 0
+      /LastChar 255
+      /Widths 10 0 R
+      /Encoding /WinAnsiEncoding
+      /Type /FontDescriptor
+      /FontName /Atari-822-Thermal
+      /Ascent 1000
+      /CapHeight 986
+      /Descent 0
+      /Flags 33
+      /FontBBox [0 0 490 690]
+      /ItalicAngle 0
+      /StemV 87
+      /XHeight 700
+      /FontFile3 9 0 R
+    */
+  F1.subtype = "Type1";
+  F1.basefont = "Atari-822-Thermal";
+  F1.width = 600;
+  F1.ascent = 1000;
+  F1.capheight = 986;
+  F1.descent = 0;
+  F1.flags = 33;
+  F1.bbox[0] = 0;
+  F1.bbox[1] = 0;
+  F1.bbox[2] = 490;
+  F1.bbox[3] = 690;
+  F1.stemv = 87;
+  F1.xheight = 700;
+  F1.ffnum = 3;
+  F1.ffname = "/a822font";
+
+  pdfFont_t *fontary[] = {&F1};
+  pdf_add_fonts(fontary, 1);
 }
-
-
 
 // write for W commands
 void sioPrinter::sio_write()
