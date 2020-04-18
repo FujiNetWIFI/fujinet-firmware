@@ -105,6 +105,9 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
     case COLLECT_HEADERS:
         // collect headers is write only. Return error.
         return true;
+    case CA:
+        // CA is write only. Return error.
+        return true;
     }
 
     return false;
@@ -155,12 +158,12 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
                 tx_buf[b] = 0x00;
         }
 
-        if (strlen(caCert) + strlen((const char *)tx_buf) < sizeof(caCert))
+        if (strlen(cert) + strlen((const char *)tx_buf) < sizeof(cert))
         {
-            strcat(caCert, (const char *)tx_buf);
-            strcat(caCert, "\n");
+            strcat(cert, (const char *)tx_buf);
+            strcat(cert, "\n");
 #ifdef DEBUG
-            Debug_printf("Cert Data (%d): \n %s \n", strlen(caCert), caCert);
+            Debug_printf("Cert Data (%d): \n %s \n", strlen(cert), cert);
 #endif
         }
         break;
@@ -247,7 +250,7 @@ void networkProtocolHTTP::special_ca_toggle(unsigned char a)
     httpState = (a == 1 ? CA : DATA);
     if (a > 0)
     {
-        memset(caCert, 0, sizeof(caCert));
+        memset(cert, 0, sizeof(cert));
     }
 }
 

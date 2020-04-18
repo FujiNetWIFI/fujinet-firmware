@@ -23,6 +23,7 @@ public:
     virtual bool special_supported_00_command(unsigned char comnd);
     virtual void special_header_toggle(unsigned char a);
     virtual void special_collect_headers_toggle(unsigned char a);
+    virtual void special_ca_toggle(unsigned char a);
 
 private:
     virtual bool startConnection(byte *buf, unsigned short len);
@@ -48,8 +49,11 @@ private:
     {
         DATA,
         HEADERS,
-        COLLECT_HEADERS
+        COLLECT_HEADERS,
+        CA
     } httpState;
 };
+
+    char cert[2048];
 
 #endif /* NETWORKPROTOCOLHTTP */
