@@ -253,7 +253,7 @@ void sioNetwork::sio_write()
             }
         }
 
-        if (protocol->write(tx_buf, tx_buf_len))
+        if (!protocol->write(tx_buf, tx_buf_len))
         {
             sio_complete();
         }
