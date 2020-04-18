@@ -27,13 +27,13 @@ void fnHttpService::return_http_error(httpd_req_t *req, _fnwserr errnum)
     switch(errnum)
     {
         case fnwserr_fileopen:
-            message = "Error opening file";
+            message = MSG_ERR_OPENING_FILE;
             break;
         case fnwserr_memory:
-            message = "Ran out of memory";
+            message = MSG_ERR_OUT_OF_MEMORY;
             break;
         default:
-            message = "Unexpected web server error";
+            message = MSG_ERR_UNEXPECTED_HTTPD;
             break;
     }
     httpd_resp_send(req, message, strlen(message));
