@@ -52,8 +52,9 @@ private:
         COLLECT_HEADERS,
         CA
     } httpState;
-};
 
     char cert[2048];
+
+};
 
 #endif /* NETWORKPROTOCOLHTTP */
