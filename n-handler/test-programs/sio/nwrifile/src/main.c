@@ -17,6 +17,7 @@
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
+#include "cio.h"
 
 unsigned char buf[128];
 unsigned char daux1=0;
@@ -41,10 +42,16 @@ void nwrifile(unsigned char* buf)
     }
 }
 
+void args(char* name)
+{
+  print("\x9b");
+  print(name);
+  print(" <D:FILENAME>\x9b\x9b");
+}
+
 int main(int argc, char* argv[])
 {
   unsigned char err=1;
-  unsigned char i;
   
   OS.lmargn=2;
 
@@ -53,7 +60,7 @@ int main(int argc, char* argv[])
       // CLI DOS
       if (argc<2)
 	{
-	  args();
+	  args(argv[0]);
 	  exit(1);
 	}
 
@@ -92,7 +99,7 @@ int main(int argc, char* argv[])
   do
     {
       memset(buf,0,sizeof(buf));
-      err=ciov();
+      err=ciov(1);
       nwrifile(buf);
     } while (err!=0x88); // 0x88 = EOF
 
