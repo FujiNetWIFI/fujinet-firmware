@@ -147,8 +147,22 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
         }
 
         headerCollection[headerCollectionIndex++] = strndup((const char *)tx_buf, len);
-        for (int z=0;z<headerCollectionIndex;z++)
-            Debug_printf("%02d: %s\n",z,headerCollection[z]);
+        break;
+    case CA:
+        for (b = 0; b < len; b++)
+        {
+            if (tx_buf[b] == 0x9B || tx_buf[b] == 0x0A || tx_buf[b] == 0x0D)
+                tx_buf[b] = 0x00;
+        }
+
+        if (strlen(caCert) + strlen((const char *)tx_buf) < sizeof(caCert))
+        {
+            strcat(caCert, (const char *)tx_buf);
+            strcat(caCert, "\n");
+#ifdef DEBUG
+            Debug_printf("Cert Data (%d): \n %s \n", strlen(caCert), caCert);
+#endif
+        }
         break;
     }
 
@@ -193,6 +207,9 @@ bool networkProtocolHTTP::status(byte *status_buf)
     case COLLECT_HEADERS:
         status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0xFF;
         break;
+    case CA:
+        status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0xFE;
+        break;
     }
 
     return false;
@@ -205,6 +222,8 @@ bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
     case 'G': // toggle collect headers
         return true;
     case 'H': // toggle headers
+        return true;
+    case 'C': // Get Certificate
         return true;
     default:
         return false;
@@ -223,6 +242,15 @@ void networkProtocolHTTP::special_collect_headers_toggle(unsigned char a)
     httpState = (a == 1 ? COLLECT_HEADERS : DATA);
 }
 
+void networkProtocolHTTP::special_ca_toggle(unsigned char a)
+{
+    httpState = (a == 1 ? CA : DATA);
+    if (a > 0)
+    {
+        memset(caCert, 0, sizeof(caCert));
+    }
+}
+
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
@@ -232,6 +260,9 @@ bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *
         return false;
     case 'H': // toggle headers
         special_header_toggle(cmdFrame->aux1);
+        return false;
+    case 'C': // toggle CA
+        special_ca_toggle(cmdFrame->aux1);
         return false;
     default:
         return true;
