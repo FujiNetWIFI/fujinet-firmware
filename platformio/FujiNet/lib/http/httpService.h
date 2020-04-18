@@ -36,6 +36,10 @@ If a file has an extention pre-determined to support parsing (see/update
 #define FNWS_FILE_ROOT "/www/"
 #define FNWS_SEND_BUFF_SIZE 512
 
+#define MSG_ERR_OPENING_FILE     "Error opening file"
+#define MSG_ERR_OUT_OF_MEMORY    "Ran out of memory"
+#define MSG_ERR_UNEXPECTED_HTTPD "Unexpected web server error"
+
 class fnHttpService 
 {
     struct serverstate {
