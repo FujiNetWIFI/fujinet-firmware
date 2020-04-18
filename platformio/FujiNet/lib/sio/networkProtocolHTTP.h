@@ -21,8 +21,8 @@ public:
     virtual bool special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
 
     virtual bool special_supported_00_command(unsigned char comnd);
-    virtual void special_header_toggle(unsigned char aux1);
-    virtual void special_collect_headers_toggle(unsigned char aux1);
+    virtual void special_header_toggle(unsigned char a);
+    virtual void special_collect_headers_toggle(unsigned char a);
 
 private:
     virtual bool startConnection(byte *buf, unsigned short len);
@@ -31,7 +31,7 @@ private:
     WiFiClient* c;
 
     char* headerCollection[16];
-    unsigned char headerCollectionIndex=0;
+    size_t headerCollectionIndex=0;
 
     bool requestStarted = false;
     enum
