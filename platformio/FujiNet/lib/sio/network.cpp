@@ -172,11 +172,11 @@ void sioNetwork::sio_read()
 
         // Convert CR and/or LF to ATASCII EOL
         // 1 = CR, 2 = LF, 3 = CR/LF
-        if (cmdFrame.aux2 > 0)
+        if (aux2 > 0)
         {
             for (int i = 0; i < rx_buf_len; i++)
             {
-                switch (cmdFrame.aux2)
+                switch (aux2)
                 {
                 case 1:
                     if (rx_buf[i] == 0x0D)
