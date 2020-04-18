@@ -22,8 +22,7 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
     switch (openMode)
     {
     case GET:
-        if (headerCollectionIndex > 0)
-            client.collectHeaders((const char **)headerCollection, headerCollectionIndex);
+        client.collectHeaders((const char **)headerCollection, (const size_t)headerCollectionIndex);
 
         resultCode = client.GET();
 
@@ -118,7 +117,7 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
     String headerValue;
     char tmpKey[256];
     char tmpValue[256];
-    char* p;
+    char *p;
 
     switch (httpState)
     {
@@ -131,7 +130,7 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
 
         break;
     case HEADERS:
-        strtok((char *)tx_buf, ":");
+        p = strtok((char *)tx_buf, ":");
 
         strcpy(tmpKey, p);
         p = strtok(NULL, "");
@@ -143,11 +142,13 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
     case COLLECT_HEADERS:
         for (b = 0; b < len; b++)
         {
-            if (tx_buf[b] == 0x9B)
+            if (tx_buf[b] == 0x9B || tx_buf[b] == 0x0A || tx_buf[b] == 0x0D)
                 tx_buf[b] = 0x00;
         }
 
-        headerCollection[headerCollectionIndex] = strndup((const char *)tx_buf, len);
+        headerCollection[headerCollectionIndex++] = strndup((const char *)tx_buf, len);
+        for (int z=0;z<headerCollectionIndex;z++)
+            Debug_printf("%02d: %s\n",z,headerCollection[z]);
         break;
     }
 
@@ -212,14 +213,14 @@ bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
     return false;
 }
 
-void networkProtocolHTTP::special_header_toggle(unsigned char aux1)
+void networkProtocolHTTP::special_header_toggle(unsigned char a)
 {
-    httpState = (aux1 == 1 ? HEADERS : DATA);
+    httpState = (a == 1 ? HEADERS : DATA);
 }
 
-void networkProtocolHTTP::special_collect_headers_toggle(unsigned char aux1)
+void networkProtocolHTTP::special_collect_headers_toggle(unsigned char a)
 {
-    httpState = (aux1 == 1 ? COLLECT_HEADERS : DATA);
+    httpState = (a == 1 ? COLLECT_HEADERS : DATA);
 }
 
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
