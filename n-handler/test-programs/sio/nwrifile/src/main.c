@@ -14,6 +14,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <peekpoke.h>
+#include <stdio.h>
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
@@ -23,7 +24,7 @@ unsigned char buf[128];
 unsigned char daux1=0;
 unsigned char daux2=0;
 
-void nwrifile(unsigned char* buf)
+void nwrifile(void)
 {
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
@@ -52,6 +53,7 @@ void args(char* name)
 int main(int argc, char* argv[])
 {
   unsigned char err=1;
+  FILE* fp;
   
   OS.lmargn=2;
 
@@ -71,38 +73,26 @@ int main(int argc, char* argv[])
       // DOS 2.0
       print("\x9b");
       print("ENTER DEV:FILENAME OR \xD2\xC5\xD4\xD5\xD2\xCE TO ABORT\x9b");
-      get_line(buf,128);
+      get_line(buf,sizeof(buf));
     }
 
-  // OPEN File
-  OS.iocb[1].command=IOCB_OPEN;
-  OS.iocb[1].buffer=buf;
-  OS.iocb[1].buflen=strlen(buf);
-  OS.iocb[1].aux1=4;
-  OS.iocb[1].aux2=
-    OS.iocb[1].aux3=
-    OS.iocb[1].aux4=
-    OS.iocb[1].aux5=
-    OS.iocb[1].spare=0;
-  err=ciov(1); 
-
-  if (err!=1)
+  fp=fopen(buf,"r");
+  if (!fp)
     {
-      print("COULD NOT OPEN FILE. ABORTING.\x9b");
-      exit(1);
+      print("COULD NOT OPEN FILE.\x9b");
+      return(1);
     }
 
-  // READ data
-  OS.iocb[1].command=IOCB_GETREC;
-  OS.iocb[1].buflen=sizeof(buf);
-  
-  do
+  while (!feof(fp))
     {
       memset(buf,0,sizeof(buf));
-      err=ciov(1);
-      nwrifile(buf);
-    } while (err!=0x88); // 0x88 = EOF
+      fgets(buf,sizeof(buf),fp);
+      print(buf);
+      nwrifile();
+    }
 
+  fclose(fp);
+  
   print("\x9b" "DATA WRITTEN.\x9b");
   return(0);
 }

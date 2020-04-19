@@ -58,6 +58,11 @@ bool sioNetwork::open_protocol()
         protocol = new networkProtocolHTTP();
         return true;
     }
+    else if (strcmp(deviceSpec.protocol, "HTTPS") == 0)
+    {
+        protocol = new networkProtocolHTTP();
+        return true;
+    }
     else
     {
         return false;
@@ -208,6 +213,8 @@ void sioNetwork::sio_write()
 #endif
 
     sio_ack();
+
+    memset(tx_buf,0,OUTPUT_BUFFER_SIZE);
 
     if (protocol == nullptr)
     {
