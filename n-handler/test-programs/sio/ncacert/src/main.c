@@ -24,7 +24,7 @@ void ncacert(void)
 {
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
-  OS.dcb.dcomnd='H';
+  OS.dcb.dcomnd='C';
   OS.dcb.dstats=0x00;
   OS.dcb.dbuf=NULL;
   OS.dcb.dtimlo=0x0f;
@@ -39,7 +39,7 @@ void ncacert(void)
     }
   else
     {
-      print("HEADER TOGGLE: ");
+      print("CA CERT TOGGLE: ");
       if (daux1==1)
 	print("ENABLED\x9b");
       else
@@ -50,7 +50,7 @@ void ncacert(void)
 void opts(char* argv[])
 {
   print(argv[0]);
-  print(" <len>\x9b\x9b");
+  print(" <0|1>\x9b\x9b");
 }
 
 int main(int argc, char* argv[])
@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
       // DOS 2.0/MYDOS
       print("\x9b");
       
-      print("HEADER TOGGLE (0=DISABLE/1=ENABLE)? ");
+      print("CA CERT TOGGLE (0=DISABLE/1=ENABLE)? ");
       get_line(tmp,sizeof(tmp));
       daux1=atoi(tmp);      
     }
