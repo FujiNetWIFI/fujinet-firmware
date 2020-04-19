@@ -7,18 +7,13 @@
 
 BluetoothSerial SerialBT;
 
-void BluetoothManager::setup()
-{
-  SerialBT.begin(BT_NAME);
-}
-
 void BluetoothManager::start()
 {
 #ifdef DEBUG
   Debug_println("START SIO2BT");
 #endif
+  SerialBT.begin(BT_NAME);
   mActive = true;
-  mPrevBaudrate = SIO.getBaudrate();
   SIO.setBaudrate(mBTBaudrate);
 }
 
@@ -28,7 +23,8 @@ void BluetoothManager::stop()
   BUG_UART.println("STOP SIO2BT");
 #endif
   mActive = false;
-  SIO.setBaudrate(mPrevBaudrate);
+  SIO.setBaudrate(eBTBaudrate::BT_STANDARD_BAUDRATE);
+  SerialBT.end();
 }
 
 eBTBaudrate BluetoothManager::toggleBaudrate()

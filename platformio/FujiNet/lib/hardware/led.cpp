@@ -8,7 +8,15 @@
 #elif defined(ESP32)
 #define PIN_LED_WIFI 2
 #define PIN_LED_SIO 4
+
+// pins 12-15 are used to interface with the JTAG debugger
+// so leave them alone if we're using JTAG
+#ifndef JTAG 
 #define PIN_LED3 13
+#else
+#define PIN_LED3 4
+#endif
+
 #endif
 
 LedManager::LedManager()

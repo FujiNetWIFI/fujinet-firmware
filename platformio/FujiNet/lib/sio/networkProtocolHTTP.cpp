@@ -4,14 +4,13 @@
 networkProtocolHTTP::networkProtocolHTTP()
 {
     c = nullptr;
+    httpState = DATA;
 }
 
 networkProtocolHTTP::~networkProtocolHTTP()
 {
     for (int i = 0; i < headerCollectionIndex; i++)
-    {
         free(headerCollection[i]);
-    }
 
     client.end();
 }
@@ -23,8 +22,7 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
     switch (openMode)
     {
     case GET:
-        if (headerCollectionIndex > 0)
-            client.collectHeaders((const char **)headerCollection, headerCollectionIndex);
+        client.collectHeaders((const char **)headerCollection, (const size_t)headerCollectionIndex);
 
         resultCode = client.GET();
 
@@ -87,41 +85,55 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
             return true;
     }
 
-    if (headers)
+    switch (httpState)
     {
-        if (headerIndex < numHeaders)
-        {
-            strncpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
-            return false;
-        }
-        else
-            return true;
-    }
-    else if (collectHeaders)
-    {
-        // collect headers is write only. Return error.
-        return true;
-    }
-    else
-    {
+    case DATA:
         if (c == nullptr)
             return true;
 
         if (c->readBytes(rx_buf, len) != len)
             return true;
+        break;
+    case HEADERS:
+        if (headerIndex < numHeaders)
+        {
+            strncpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
+        }
+        else
+            return true;
+        break;
+    case COLLECT_HEADERS:
+        // collect headers is write only. Return error.
+        return true;
+    case CA:
+        // CA is write only. Return error.
+        return true;
     }
+
     return false;
 }
 
 bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
 {
-    if (headers)
+    int b;
+    String headerKey;
+    String headerValue;
+    char tmpKey[256];
+    char tmpValue[256];
+    char *p;
+
+    switch (httpState)
     {
-        String headerKey;
-        String headerValue;
-        char tmpKey[256];
-        char tmpValue[256];
-        char *p = strtok((char *)tx_buf, ":");
+    case DATA:
+        if (!requestStarted)
+        {
+            if (!startConnection(tx_buf, len))
+                return true;
+        }
+
+        break;
+    case HEADERS:
+        p = strtok((char *)tx_buf, ":");
 
         strcpy(tmpKey, p);
         p = strtok(NULL, "");
@@ -129,21 +141,32 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
         headerKey = String(tmpKey);
         headerValue = String(tmpValue);
         client.addHeader(headerKey, headerValue);
-    }
-    else if (collectHeaders)
-    {
-        headerCollection[headerCollectionIndex] = (char *)malloc(len);
-        strncpy(headerCollection[headerCollectionIndex++], (char *)tx_buf, len);
-
-        return false;
-    }
-    else
-    {
-        if (!requestStarted)
+        break;
+    case COLLECT_HEADERS:
+        for (b = 0; b < len; b++)
         {
-            if (!startConnection(tx_buf, len))
-                return true;
+            if (tx_buf[b] == 0x9B || tx_buf[b] == 0x0A || tx_buf[b] == 0x0D)
+                tx_buf[b] = 0x00;
         }
+
+        headerCollection[headerCollectionIndex++] = strndup((const char *)tx_buf, len);
+        break;
+    case CA:
+        for (b = 0; b < len; b++)
+        {
+            if (tx_buf[b] == 0x9B || tx_buf[b] == 0x0A || tx_buf[b] == 0x0D)
+                tx_buf[b] = 0x00;
+        }
+
+        if (strlen(cert) + strlen((const char *)tx_buf) < sizeof(cert))
+        {
+            strcat(cert, (const char *)tx_buf);
+            strcat(cert, "\n");
+#ifdef DEBUG
+            Debug_printf("Cert Data (%d): \n %s \n", strlen(cert), cert);
+#endif
+        }
+        break;
     }
 
     return false;
@@ -155,26 +178,15 @@ bool networkProtocolHTTP::status(byte *status_buf)
 
     status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0;
 
-    if (!requestStarted)
+    switch (httpState)
     {
-        if (!startConnection(status_buf, 4))
-            return true;
-    }
-
-    if (headers)
-    {
-        if (headerIndex < numHeaders)
+    case DATA:
+        if (requestStarted == false)
         {
-            status_buf[0] = client.header(headerIndex).length() & 0xFF;
-            status_buf[1] = client.header(headerIndex).length() >> 8;
-            status_buf[2] = resultCode & 0xFF;
-            status_buf[3] = resultCode >> 8;
-
-            return false; // no error
+            if (!startConnection(status_buf, 4))
+                return true;
         }
-    }
-    else
-    {
+
         if (c == nullptr)
             return true;
 
@@ -185,10 +197,25 @@ bool networkProtocolHTTP::status(byte *status_buf)
         status_buf[1] = a >> 8;
         status_buf[2] = resultCode & 0xFF;
         status_buf[3] = resultCode >> 8;
-
-        return false; // no error
+        break;
+    case HEADERS:
+        if (headerIndex < numHeaders)
+        {
+            status_buf[0] = client.header(headerIndex).length() & 0xFF;
+            status_buf[1] = client.header(headerIndex).length() >> 8;
+            status_buf[2] = resultCode & 0xFF;
+            status_buf[3] = resultCode >> 8;
+        }
+        break;
+    case COLLECT_HEADERS:
+        status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0xFF;
+        break;
+    case CA:
+        status_buf[0] = status_buf[1] = status_buf[2] = status_buf[3] = 0xFE;
+        break;
     }
-    return true;
+
+    return false;
 }
 
 bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
@@ -199,6 +226,8 @@ bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
         return true;
     case 'H': // toggle headers
         return true;
+    case 'I': // Get Certificate
+        return true;
     default:
         return false;
     }
@@ -206,14 +235,23 @@ bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
     return false;
 }
 
-void networkProtocolHTTP::special_header_toggle(unsigned char aux1)
+void networkProtocolHTTP::special_header_toggle(unsigned char a)
 {
-    headers = (aux1 == 1 ? true : false);
+    httpState = (a == 1 ? HEADERS : DATA);
 }
 
-void networkProtocolHTTP::special_collect_headers_toggle(unsigned char aux1)
+void networkProtocolHTTP::special_collect_headers_toggle(unsigned char a)
 {
-    collectHeaders = (aux1 == 1 ? true : false);
+    httpState = (a == 1 ? COLLECT_HEADERS : DATA);
+}
+
+void networkProtocolHTTP::special_ca_toggle(unsigned char a)
+{
+    httpState = (a == 1 ? CA : DATA);
+    if (a > 0)
+    {
+        memset(cert, 0, sizeof(cert));
+    }
 }
 
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
@@ -225,6 +263,9 @@ bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *
         return false;
     case 'H': // toggle headers
         special_header_toggle(cmdFrame->aux1);
+        return false;
+    case 'I': // toggle CA
+        special_ca_toggle(cmdFrame->aux1);
         return false;
     default:
         return true;

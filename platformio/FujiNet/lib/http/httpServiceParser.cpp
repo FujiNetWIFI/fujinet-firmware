@@ -1,12 +1,12 @@
-#include <Arduino.h>
 #include <sstream>
 #include <string>
-
-#include <WiFi.h>
-#include <SPIFFS.h>
+#include <cstdio>
 
 #include "httpServiceParser.h"
+
 #include "../../src/main.h"
+#include "../hardware/fnSystem.h"
+#include "../hardware/fnWiFi.h"
 
 using namespace std;
 
@@ -24,6 +24,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_WIFIMAC,
         FN_SPIFFS_SIZE,
         FN_SPIFFS_USED,
+        FN_UPTIME,
+        FN_HEAPSIZE,
+        FN_SYSSDK,
+        FN_SYSCPUREV,
         FN_LASTTAG
     };
 
@@ -39,7 +43,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_WIFIBSSID",
         "FN_WIFIMAC",
         "FN_SPIFFS_SIZE",
-        "FN_SPIFFS_USED"
+        "FN_SPIFFS_USED",
+        "FN_UPTIME",
+        "FN_HEAPSIZE",
+        "FN_SYSSDK",
+        "FN_SYSCPUREV"
     };
 
     stringstream resultstream;
@@ -60,37 +68,49 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     switch(tagid)
     {
     case FN_HOSTNAME:
-        resultstream << WiFi.getHostname();
+        resultstream << fnSystem.Net.get_hostname();
         break;
     case FN_VERSION:
-        resultstream << FUJINET_VERSION;
+        resultstream << fnSystem.get_fujinet_version();
         break;
     case FN_IPADDRESS:
-        resultstream << WiFi.localIP().toString().c_str();
+        resultstream << fnSystem.Net.get_ip4_address_str();
         break;
     case FN_IPMASK:
-        resultstream << WiFi.subnetMask().toString().c_str();
+        resultstream << fnSystem.Net.get_ip4_mask_str();
         break;
     case FN_IPGATEWAY:
-        resultstream << WiFi.gatewayIP().toString().c_str();
+        resultstream << fnSystem.Net.get_ip4_gateway_str();
         break;
     case FN_IPDNS:
-        resultstream << WiFi.dnsIP().toString().c_str();
+        resultstream << fnSystem.Net.get_ip4_dns_str(); 
         break;
     case FN_WIFISSID:
-        resultstream << WiFi.channel();
+        resultstream << fnWiFi.get_ssid();
         break;
     case FN_WIFIBSSID:
-        resultstream << WiFi.BSSIDstr().c_str();
+        resultstream << fnWiFi.get_bssid_str();
         break;
     case FN_WIFIMAC:
-        resultstream << WiFi.macAddress().c_str();
+        resultstream << fnWiFi.get_mac_str();
         break;
     case FN_SPIFFS_SIZE:
         resultstream << SPIFFS.totalBytes();
         break;
     case FN_SPIFFS_USED:
         resultstream << SPIFFS.usedBytes();
+        break;
+    case FN_UPTIME:
+        resultstream << format_uptime();
+        break;
+    case FN_HEAPSIZE:
+        resultstream << fnSystem.get_free_heap_size();
+        break;
+    case FN_SYSSDK:
+        resultstream << fnSystem.get_sdk_version();
+        break;
+    case FN_SYSCPUREV:
+        resultstream << fnSystem.get_cpu_rev();
         break;
     default:
         resultstream << tag;
@@ -140,4 +160,26 @@ string fnHttpServiceParser::parse_contents(const string &contents)
     } while(true);
 
     return ss.str();
+}
+
+string fnHttpServiceParser::format_uptime()
+{
+    int64_t ms = fnSystem.get_uptime();
+    long s = ms / 1000000;
+
+    int m = s / 60;
+    int h = m / 60;
+    int d = h / 24;
+
+    std::stringstream resultstream;
+    if (d)
+        resultstream << d << " days, ";
+    if (h % 24)
+        resultstream << (h % 24) << " hours, ";
+    if (m % 60)
+        resultstream << (m % 60) << " minutes, ";
+    if (s % 60)
+        resultstream << (s % 60) << " seconds";
+
+     return resultstream.str();
 }
