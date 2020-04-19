@@ -12,7 +12,6 @@ enum eBTBaudrate
 class BluetoothManager
 {
 public:
-    void setup();
     bool isActive();
     void start();
     void stop();
@@ -20,7 +19,6 @@ public:
     void service();
 private:
     eBTBaudrate mBTBaudrate = eBTBaudrate::BT_STANDARD_BAUDRATE;
-    int mPrevBaudrate = eBTBaudrate::BT_STANDARD_BAUDRATE;
     bool mActive = false;
 };
 

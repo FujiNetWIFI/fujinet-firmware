@@ -1,5 +1,8 @@
 #include "fuji.h"
 #include "led.h"
+#include "fnWiFi.h"
+#include "fnSystem.h"
+
 //#include "disk.h"
 
 //File atrConfig;
@@ -108,13 +111,18 @@ void sioFuji::sio_net_set_ssid()
 */
 void sioFuji::sio_net_get_wifi_status()
 {
-    char wifiStatus = WiFi.status();
 
+
+    /* Pulled this out, as the LED is being updated elsewhere
     // Update WiFi Status LED
     if (wifiStatus == WL_CONNECTED)
         wifi_led(true);
     else
         wifi_led(false);
+    */
+
+    // WL_CONNECTED = 3, WL_DISCONNECTED = 6
+    byte wifiStatus = fnWiFi.connected() ? 3 : 6;
 
     sio_to_computer((byte *)&wifiStatus, 1, false);
 }
@@ -384,18 +392,21 @@ void sioFuji::sio_write_device_slots()
 */
 void sioFuji::sio_get_adapter_config()
 {
-    if (netConfig.ssid[0] != 0x00)
-        strcpy(adapterConfig.ssid, netConfig.ssid);
+    memset((void *) adapterConfig.rawData, 0, sizeof(adapterConfig.rawData));
 
-    if (WiFi.isConnected())
+    if (!fnWiFi.connected())
+    {
+        strncpy(adapterConfig.ssid, "NOT CONNECTED", sizeof(adapterConfig.ssid));
+    }
+    else
     {
 
 #ifdef ESP8266
         strcpy(adapterConfig.hostname, WiFi.hostname().c_str());
 #else
-        strcpy(adapterConfig.hostname, WiFi.getHostname());
+        strncpy(adapterConfig.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(adapterConfig.hostname));
 #endif
-
+/*
         adapterConfig.localIP[0] = WiFi.localIP()[0];
         adapterConfig.localIP[1] = WiFi.localIP()[1];
         adapterConfig.localIP[2] = WiFi.localIP()[2];
@@ -415,10 +426,18 @@ void sioFuji::sio_get_adapter_config()
         adapterConfig.dnsIP[1] = WiFi.dnsIP()[1];
         adapterConfig.dnsIP[2] = WiFi.dnsIP()[2];
         adapterConfig.dnsIP[3] = WiFi.dnsIP()[3];
-        strncpy((char *)adapterConfig.bssid, (const char *)WiFi.BSSID(), 6);
-    }
 
-    WiFi.macAddress(adapterConfig.macAddress);
+        strncpy((char *)adapterConfig.bssid, (const char *)WiFi.BSSID(), 6);
+
+*/
+        strncpy(adapterConfig.ssid, fnWiFi.get_ssid().c_str(), sizeof(adapterConfig.ssid));
+        fnWiFi.get_bssid(adapterConfig.bssid);
+        fnSystem.Net.get_ip4_info(adapterConfig.localIP, adapterConfig.netmask, adapterConfig.gateway);
+        fnSystem.Net.get_ip4_dns_info(adapterConfig.dnsIP);
+    }
+    
+    //WiFi.macAddress(adapterConfig.macAddress);
+    fnWiFi.get_mac(adapterConfig.macAddress);
 
     sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);
 }

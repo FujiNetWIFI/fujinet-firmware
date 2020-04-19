@@ -27,13 +27,13 @@ void fnHttpService::return_http_error(httpd_req_t *req, _fnwserr errnum)
     switch(errnum)
     {
         case fnwserr_fileopen:
-            message = "Error opening file";
+            message = MSG_ERR_OPENING_FILE;
             break;
         case fnwserr_memory:
-            message = "Ran out of memory";
+            message = MSG_ERR_OUT_OF_MEMORY;
             break;
         default:
-            message = "Unexpected web server error";
+            message = MSG_ERR_UNEXPECTED_HTTPD;
             break;
     }
     httpd_resp_send(req, message, strlen(message));
@@ -324,7 +324,8 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 */
 void fnHttpService::custom_global_ctx_free(void * ctx)
 {
-    serverstate * ctx_state = (serverstate *)ctx;
+    // keep this commented for the moment to avoid warning.
+    // serverstate * ctx_state = (serverstate *)ctx;
     // We could do something fancy here, but we don't need to do anything
 }
 
