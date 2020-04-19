@@ -18,7 +18,7 @@
 #include "conio.h"
 #include "err.h"
 
-unsigned char buf[40];
+unsigned char buf[256];
 unsigned char daux1=0;
 unsigned char daux2=0;
 
