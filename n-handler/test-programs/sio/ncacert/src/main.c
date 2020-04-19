@@ -24,7 +24,7 @@ void ncacert(void)
 {
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
-  OS.dcb.dcomnd='C';
+  OS.dcb.dcomnd='I';
   OS.dcb.dstats=0x00;
   OS.dcb.dbuf=NULL;
   OS.dcb.dtimlo=0x0f;

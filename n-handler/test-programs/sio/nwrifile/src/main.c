@@ -23,6 +23,8 @@ unsigned char buf[128];
 unsigned char daux1=0;
 unsigned char daux2=0;
 
+#define FILE_IOCB 5
+
 void nwrifile(unsigned char* buf)
 {
   OS.dcb.ddevic=0x71;
@@ -75,16 +77,16 @@ int main(int argc, char* argv[])
     }
 
   // OPEN File
-  OS.iocb[1].command=IOCB_OPEN;
-  OS.iocb[1].buffer=buf;
-  OS.iocb[1].buflen=strlen(buf);
-  OS.iocb[1].aux1=4;
-  OS.iocb[1].aux2=
-    OS.iocb[1].aux3=
-    OS.iocb[1].aux4=
-    OS.iocb[1].aux5=
-    OS.iocb[1].spare=0;
-  err=ciov(1); 
+  OS.iocb[FILE_IOCB].command=IOCB_OPEN;
+  OS.iocb[FILE_IOCB].buffer=buf;
+  OS.iocb[FILE_IOCB].buflen=strlen(buf);
+  OS.iocb[FILE_IOCB].aux1=4;
+  OS.iocb[FILE_IOCB].aux2=
+    OS.iocb[FILE_IOCB].aux3=
+    OS.iocb[FILE_IOCB].aux4=
+    OS.iocb[FILE_IOCB].aux5=
+    OS.iocb[FILE_IOCB].spare=0;
+  err=ciov(FILE_IOCB); 
 
   if (err!=1)
     {
@@ -93,13 +95,13 @@ int main(int argc, char* argv[])
     }
 
   // READ data
-  OS.iocb[1].command=IOCB_GETREC;
-  OS.iocb[1].buflen=sizeof(buf);
+  OS.iocb[FILE_IOCB].command=IOCB_GETREC;
+  OS.iocb[FILE_IOCB].buflen=sizeof(buf);
   
   do
     {
       memset(buf,0,sizeof(buf));
-      err=ciov(1);
+      err=ciov(FILE_IOCB);
       nwrifile(buf);
     } while (err!=0x88); // 0x88 = EOF
 
