@@ -177,10 +177,6 @@ void setup()
   Debug_println(SIO.sio_volts());
 #endif
 
-#ifdef BLUETOOTH_SUPPORT
-  btMgr.setup();
-#endif
-
   keyMgr.setup();
   ledMgr.setup();
 
@@ -242,8 +238,8 @@ void loop()
     }
     else
     {
-      btMgr.start();
       ledMgr.set(eLed::LED_SIO, true); // SIO LED always ON in Bluetooth mode
+      btMgr.start();
     }
 #endif
     break;
