@@ -101,7 +101,7 @@ bool networkProtocolTCP::read(byte *rx_buf, unsigned short len)
         return false;
     }
 
-    return (client.readBytes(rx_buf, len) == len);
+    return (client.readBytes(rx_buf, len) != len);
 }
 
 bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
@@ -115,7 +115,7 @@ bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
         return false;
     }
 
-    return (client.write((char *)tx_buf), len);
+    return (client.write((char *)tx_buf), len != len);
 }
 
 bool networkProtocolTCP::status(byte *status_buf)
