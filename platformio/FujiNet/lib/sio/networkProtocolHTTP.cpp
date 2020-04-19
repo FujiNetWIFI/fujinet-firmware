@@ -226,7 +226,7 @@ bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
         return true;
     case 'H': // toggle headers
         return true;
-    case 'C': // Get Certificate
+    case 'I': // Get Certificate
         return true;
     default:
         return false;
@@ -264,7 +264,7 @@ bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *
     case 'H': // toggle headers
         special_header_toggle(cmdFrame->aux1);
         return false;
-    case 'C': // toggle CA
+    case 'I': // toggle CA
         special_ca_toggle(cmdFrame->aux1);
         return false;
     default:
