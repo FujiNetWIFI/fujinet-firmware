@@ -54,6 +54,7 @@ private:
     } httpState;
 
     char cert[2048];
+    String openedURL;
 
 };
 
