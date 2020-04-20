@@ -69,6 +69,7 @@ protected:
    //String _devname; // causes linker error " undefined reference to `vtable for sioDevice' "
 
    cmdFrame_t cmdFrame;
+   bool listen_to_type3_polls;
 
    void sio_to_computer(byte *b, unsigned short len, bool err);
    byte sio_to_peripheral(byte *b, unsigned short len);

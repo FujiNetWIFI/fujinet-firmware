@@ -289,23 +289,48 @@ void sioBus::service()
       }
       else
       {
-        // find device, ack and pass control
-        // or go back to WAIT
-        // this is what sioBus::sio_get_id() does, but need to pass the tempFrame to it
-        for (int i = 0; i < numDevices(); i++)
+        // Command $4F is a Type3 poll - send it to every device that cares
+        if (tempFrame.devic == 0x4F)
         {
-          if (tempFrame.devic == device(i)->_devnum)
+          #ifdef DEBUG
+          Debug_println("SIO TYPE3 POLL");
+          #endif
+          for (int i = 0; i < numDevices(); i++)
           {
-            //BUG_UART.print("Found Device "); BUG_UART.println(dn,HEX);
-            activeDev = device(i);
-            for (int i = 0; i < 5; i++)
+            if (device(i)->listen_to_type3_polls)
             {
-              activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
+              #ifdef DEBUG
+                Debug_printf("Sending TYPE3 poll to dev %x\n", device(i)->_devnum);
+              #endif
+              activeDev = device(i);
+              for (int i = 0; i < 5; i++)
+              {
+                activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
+              }
+              activeDev->sio_process(); // execute command
             }
-#ifdef ESP8266
-            delayMicroseconds(DELAY_T3);
-#endif
-            activeDev->sio_process(); // execute command
+          }
+        }
+        else
+        {
+          // find device, ack and pass control
+          // or go back to WAIT
+          // this is what sioBus::sio_get_id() does, but need to pass the tempFrame to it
+          for (int i = 0; i < numDevices(); i++)
+          {
+            if (tempFrame.devic == device(i)->_devnum)
+            {
+              //BUG_UART.print("Found Device "); BUG_UART.println(dn,HEX);
+              activeDev = device(i);
+              for (int i = 0; i < 5; i++)
+              {
+                activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
+              }
+  #ifdef ESP8266
+              delayMicroseconds(DELAY_T3);
+  #endif
+              activeDev->sio_process(); // execute command
+            }
           }
         }
       }

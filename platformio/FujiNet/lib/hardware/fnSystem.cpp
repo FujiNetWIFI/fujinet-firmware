@@ -1,6 +1,10 @@
+#include <Arduino.h> // Lets us get the Arduino framework version
+
 #include <string.h>
 #include <esp_system.h>
 #include <esp_timer.h>
+
+#include "../../include/version.h"
 
 #include "fnSystem.h"
 
@@ -28,7 +32,16 @@ int64_t SystemManager::get_uptime()
 
 const char * SystemManager::get_sdk_version()
 {
+#ifdef ARDUINO
+    static char _version[60];
+	int major = ARDUINO / 10000;
+	int minor = (ARDUINO % 10000) / 100;
+	int patch = ARDUINO % 100;
+    snprintf(_version, sizeof(_version), "%s; Arduino %d.%.d.%.d", esp_get_idf_version(), major, minor, patch );
+    return _version;
+#else    
     return esp_get_idf_version();
+#endif    
 }
 
 const char * SystemManager::get_fujinet_version()
