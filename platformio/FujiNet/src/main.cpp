@@ -26,7 +26,9 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "fuji.h"
 #include "apetime.h"
 #include "voice.h"
-#include "../http/httpService.h"
+#include "httpService.h"
+#include "fnSystem.h"
+#include "fnWiFi.h"
 
 //#include <WiFiUdp.h>
 
@@ -40,7 +42,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #ifdef ESP32
 #include <SPIFFS.h>
 #include <SPI.h>
-#include <WiFi.h>
+//#include <WiFi.h>
 #include <SD.h>
 #endif
 
@@ -85,15 +87,18 @@ sioPrinter *getCurrentPrinter()
 
 void setup()
 {
-
-  // connect to wifi but DO NOT wait for it
-  // WiFi.begin(WIFI_SSID, WIFI_PASS);
-
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
-  BUG_UART.println();
-  BUG_UART.println("FujiNet PlatformIO Started");
 #endif
+#ifdef DEBUG
+  Debug_println("\n--%--%--%--\nFujiNet PlatformIO Started");
+  Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());  
+#endif
+  // connect to wifi but DO NOT wait for it
+  //WiFi.begin(WIFI_SSID, WIFI_PASS);
+  fnWiFi.setup();
+  fnWiFi.start(WIFI_SSID, WIFI_PASS);
+
   if (!SPIFFS.begin())
   {
 #ifdef DEBUG
@@ -158,17 +163,16 @@ void setup()
 
   SIO.addDevice(&sioV, 0x43); // P3:
 
-  if (WiFi.status() == WL_CONNECTED)
+  if (fnWiFi.connected())
   {
-#ifdef DEBUG_S
-    BUG_UART.println(WiFi.localIP());
+#ifdef DEBUG
+    Debug_printf("IP address obtained: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
 #endif
     UDP.begin(16384);
   }
 
-#ifdef DEBUG_S
-  BUG_UART.print(SIO.numDevices());
-  BUG_UART.println(" devices registered.");
+#ifdef DEBUG
+  Debug_printf("%d devices registered\n", SIO.numDevices());
 #endif
 
   SIO.setup();
@@ -181,6 +185,10 @@ void setup()
   ledMgr.setup();
 
   void sio_flush();
+
+#ifdef DEBUG
+    Debug_printf("Available heap: %u\n", fnSystem.get_free_heap_size());
+#endif
 }
 
 void loop()
@@ -195,7 +203,7 @@ void loop()
 #endif
 
 #ifdef ESP32
-  if (WiFi.status() == WL_CONNECTED)
+  if (fnWiFi.connected())
   {
     ledMgr.set(eLed::LED_WIFI, true);
     if(!fnHTTPD.running())
@@ -273,7 +281,6 @@ void loop()
   {
 #endif // ESP32
     SIO.service();
-    //httpService();
 #ifdef ESP32
   }
 #endif
