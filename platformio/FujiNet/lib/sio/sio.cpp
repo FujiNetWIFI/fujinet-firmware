@@ -2,6 +2,7 @@
 #include "modem.h"
 #include "fuji.h"
 #include "led.h"
+#include "network.h"
 
 // helper functions outside the class defintions
 
@@ -10,7 +11,7 @@
  */
 unsigned short sioDevice::sio_get_aux()
 {
-    return (cmdFrame.aux2*256)+cmdFrame.aux1;
+  return (cmdFrame.aux2 * 256) + cmdFrame.aux1;
 }
 
 /**
@@ -292,16 +293,16 @@ void sioBus::service()
         // Command $4F is a Type3 poll - send it to every device that cares
         if (tempFrame.devic == 0x4F)
         {
-          #ifdef DEBUG
+#ifdef DEBUG
           Debug_println("SIO TYPE3 POLL");
-          #endif
+#endif
           for (int i = 0; i < numDevices(); i++)
           {
             if (device(i)->listen_to_type3_polls)
             {
-              #ifdef DEBUG
-                Debug_printf("Sending TYPE3 poll to dev %x\n", device(i)->_devnum);
-              #endif
+#ifdef DEBUG
+              Debug_printf("Sending TYPE3 poll to dev %x\n", device(i)->_devnum);
+#endif
               activeDev = device(i);
               for (int i = 0; i < 5; i++)
               {
@@ -326,9 +327,9 @@ void sioBus::service()
               {
                 activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
               }
-  #ifdef ESP8266
+#ifdef ESP8266
               delayMicroseconds(DELAY_T3);
-  #endif
+#endif
               activeDev->sio_process(); // execute command
             }
           }
@@ -338,19 +339,19 @@ void sioBus::service()
     else
     {
       // HIGHSPEED
-             command_frame_counter++;
-             if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
-             {
-              command_frame_counter = 0;
-              if (sioBaud == HISPEED_BAUDRATE)
-              {
-                setBaudrate(STANDARD_BAUDRATE);
-              }
-              else
-              {
-                setBaudrate(HISPEED_BAUDRATE);
-              }
-            }
+      command_frame_counter++;
+      if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
+      {
+        command_frame_counter = 0;
+        if (sioBaud == HISPEED_BAUDRATE)
+        {
+          setBaudrate(STANDARD_BAUDRATE);
+        }
+        else
+        {
+          setBaudrate(HISPEED_BAUDRATE);
+        }
+      }
     }
     ledMgr.set(eLed::LED_SIO, false);
   } // END command line low
@@ -365,6 +366,15 @@ void sioBus::service()
     if (a)
       while (SIO_UART.available())
         SIO_UART.read(); // dump it.
+  }
+
+  // Handle interrupts from network protocols
+  for (int i = 0; i < 8; i++)
+  {
+    if (netDev[i] != nullptr)
+    {
+      netDev[i]->sio_assert_interrupts();
+    }
   }
 }
 
@@ -404,10 +414,18 @@ void sioBus::addDevice(sioDevice *p, int N)
   else if (N == ADDR_R)
   {
 #ifdef DEBUG
-  Debug_println( "MODEM ADDED!");
+    Debug_println("MODEM ADDED!");
 #endif
     modemDev = (sioModem *)p;
   }
+  else if (N == 0x71 || N == 0x72 || N == 0x73 || N == 0x74 || N == 0x75 || N == 0x76 || N == 0x77 || N == 0x78)
+  {
+#ifdef DEBUG
+    Debug_printf("NETWORK DEVICE 0x%02x ADDED!\n", N - 0x71);
+#endif
+    netDev[N - 0x71] = (sioNetwork *)p;
+  }
+
   p->_devnum = N;
   daisyChain.add(p);
 }

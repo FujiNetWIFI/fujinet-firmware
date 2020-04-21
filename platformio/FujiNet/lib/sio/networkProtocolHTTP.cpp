@@ -223,6 +223,7 @@ bool networkProtocolHTTP::status(byte *status_buf)
         status_buf[1] = a >> 8;
         status_buf[2] = resultCode & 0xFF;
         status_buf[3] = resultCode >> 8;
+        assertInterrupt = a > 0;
         break;
     case HEADERS:
         if (headerIndex < numHeaders)
