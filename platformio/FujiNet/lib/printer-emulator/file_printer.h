@@ -7,6 +7,7 @@
 class filePrinter : public printer_emu
 {
 public:
+    filePrinter(paper_t ty = TRIM) : printer_emu{ty} {};
     virtual void initPrinter(FS *filesystem);
     virtual void pageEject(){};
     virtual bool process(const byte *buf, byte n);

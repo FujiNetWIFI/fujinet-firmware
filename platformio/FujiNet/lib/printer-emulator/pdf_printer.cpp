@@ -54,7 +54,9 @@ void pdfPrinter::pdf_add_fonts(int n) // pdfFont_t *fonts[],
             float widths;
             std::string ffname;
         */
-        Debug_printf ("%s, ",fonts[0]->basefont.c_str());
+#ifdef DEBUG
+        Debug_printf("%s; ", fonts[i]->basefont.c_str());
+#endif
         pdf_objCtr++; // = 4;
         objLocations[pdf_objCtr] = _file.position();
         _file.printf("%d 0 obj\n<</Type/Font", pdf_objCtr);     // 4
@@ -104,10 +106,10 @@ void pdfPrinter::pdf_add_fonts(int n) // pdfFont_t *fonts[],
         }
         fff.close();
         _file.printf("\nendobj\n");
-#ifdef DEBUG
-        Debug_println("done.");
-#endif
     }
+#ifdef DEBUG
+    Debug_println("done.");
+#endif
 }
 
 void pdfPrinter::pdf_new_page()
@@ -284,7 +286,7 @@ void asciiPrinter::initPrinter(FS *filesystem)
     _FS = filesystem;
     resetOutput();
     //_file = f;
-    paperType = PDF;
+    // paperType = PDF;
 
     pageWidth = 612.0;
     pageHeight = 792.0;
