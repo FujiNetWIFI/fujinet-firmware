@@ -61,8 +61,7 @@ class sioModem:public sioDevice
     bool blockWritePending = false;  // is a BLOCK WRITE pending for the modem?
     byte *blockPtr;                  // pointer in the block write (points somewhere in sector)
 
-    void sio_relocator();            // $21, '!', Booter/Relocator download
-    void sio_handler();              // $26, '&', Handler download
+    void sio_send_firmware(byte loadcommand);  // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();               // $3F, '?', Type 1 Poll
     void sio_control();              // $41, 'A', Control
     void sio_config();               // $42, 'B', Configure
