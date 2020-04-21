@@ -116,51 +116,6 @@ void atari1027::initPrinter(FS *filesystem)
 
     pdf_header();
 
-    pdfFont_t F1;
-    /*
-        7 0 obj
-        << 
-        /Type /Font
-        /Subtype /Type1
-        /FontDescriptor 8 0 R
-        /BaseFont /PrestigeEliteStd
-        /FirstChar 0
-        /LastChar 255
-        /Widths 10 0 R
-        /Encoding /WinAnsiEncoding
-        >>
-        endobj
-        8 0 obj
-        << 
-        /Type /FontDescriptor
-        /FontName /PrestigeEliteStd
-        /Ascent 656
-        /CapHeight 612
-        /Descent -344
-        /Flags 33
-        /FontBBox [-20 -288 620 837]
-        /ItalicAngle 0
-        /StemV 87
-        /XHeight 420
-        /FontFile3 9 0 R
-    */
-    F1.subtype = "Type1";
-    F1.basefont = "PrestigeEliteStd";
-    F1.width = 600;
-    F1.ascent=656;
-    F1.capheight=612;
-    F1.descent=-344;
-    F1.flags = 33;
-    F1.bbox[0]=-20;
-    F1.bbox[1]=-288;
-    F1.bbox[2]=620;
-    F1.bbox[3]= 837;
-    F1.stemv=87;;
-    F1.xheight=420;;
-    F1.ffnum = 3;
-    F1.ffname = "/a1027font";
-
-    pdfFont_t *fontary[] = {&F1};
     pdf_add_fonts(fontary, 1);
 
     uscoreFlag = false;
