@@ -100,7 +100,7 @@ bool networkProtocolTCP::read(byte *rx_buf, unsigned short len)
         client_error_code = 128;
         return false;
     }
-
+    assertProceed=true;
     return (client.readBytes(rx_buf, len) != len);
 }
 
@@ -114,7 +114,7 @@ bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
         client_error_code = 128;
         return false;
     }
-
+    assertProceed=true;
     return (client.write((char *)tx_buf), len != len);
 }
 
@@ -130,7 +130,7 @@ bool networkProtocolTCP::status(byte *status_buf)
         status_buf[1] = available_bytes >> 8;
         status_buf[2] = client.connected();
         status_buf[3] = client_error_code;
-        assertInterrupt = (available_bytes > 0);
+        assertProceed = (available_bytes > 0);
     }
     else if (server != NULL)
     {
