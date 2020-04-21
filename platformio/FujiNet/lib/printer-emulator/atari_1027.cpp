@@ -116,6 +116,7 @@ void atari1027::initPrinter(FS *filesystem)
 
     pdf_header();
 
+    fontary[0] = &F1;
     pdf_add_fonts(fontary, 1);
 
     uscoreFlag = false;
