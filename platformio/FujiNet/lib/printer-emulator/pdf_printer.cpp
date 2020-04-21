@@ -18,7 +18,7 @@ void pdfPrinter::pdf_header()
     pdf_objCtr = 2; // set up counter for pdf_add_font()
 }
 
-void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
+void pdfPrinter::pdf_add_fonts(int n) // pdfFont_t *fonts[],
 {
 #ifdef DEBUG
     Debug_print("pdf add fonts: ");
@@ -37,7 +37,7 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
     for (int i = 0; i < n; i++)
     {
 #ifdef DEBUG
-        Debug_printf("font %d, ", i + 1);
+        Debug_printf("font %d - ", i + 1);
 #endif
         /*
             std::string subtype;
@@ -54,6 +54,7 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
             float widths;
             std::string ffname;
         */
+        Debug_printf ("%s, ",fonts[0]->basefont.c_str());
         pdf_objCtr++; // = 4;
         objLocations[pdf_objCtr] = _file.position();
         _file.printf("%d 0 obj\n<</Type/Font", pdf_objCtr);     // 4
@@ -84,10 +85,10 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
         pdf_objCtr++; // = 6;
         objLocations[pdf_objCtr] = _file.position();
         _file.printf("%d 0 obj\n[", pdf_objCtr); // 6
-        for (int i = 0; i < 256; i++)
+        for (int j = 0; j < 256; j++)
         {
             _file.printf(" %d", fonts[i]->width[0]); // 600
-            if ((i - 31) % 32 == 0)
+            if ((j - 31) % 32 == 0)
                 _file.printf("\n");
         }
         _file.printf(" ]\nendobj\n");
