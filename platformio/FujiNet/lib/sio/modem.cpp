@@ -6,8 +6,8 @@
 
 #define RECVBUFSIZE 1024
 
-#define SIO_MODEMCMD_RELOCATOR_LOAD 0x21
-#define SIO_MODEMCMD_HANDLER_LOAD   0x26
+#define SIO_MODEMCMD_LOAD_RELOCATOR 0x21
+#define SIO_MODEMCMD_LOAD_HANDLER   0x26
 #define SIO_MODEMCMD_TYPE1_POLL     0x3F
 #define SIO_MODEMCMD_TYPE3_POLL     0x40
 #define SIO_MODEMCMD_CONTROL        0x41
@@ -146,37 +146,28 @@ void sioModem::sio_poll_1()
     sio_to_computer(bootBlock, sizeof(bootBlock), false);
 }
 
-// 0x21 /  '!' - RELOCATOR DOWNLOAD
-void sioModem::sio_relocator()
-{
-    // Load the A8 R: relocator code
-    char *code;
-    int codesize = load_firmware(FIRMWARE_850RELOCATOR, &code);
-    // NAK if we failed to get this
-    if(codesize < 0 || code == NULL)
-    {
-        sio_nak();
-        return;
-    }
-    // Acknoledge before continuing
-    sio_ack();
-
-    // Send it
-#ifdef DEBUG
-    Debug_printf("Modem sending %d bytes of relocator code\n", codesize);
-#endif
-    sio_to_computer((byte *)code, codesize, false);
-
-    // Free the buffer!
-    free(code);
-}
-
+// 0x21 / '!' - RELOCATOR DOWNLOAD
 // 0x26 / '&' - HANDLER DOWNLOAD
-void sioModem::sio_handler()
+void sioModem::sio_send_firmware(byte loadcommand)
 {
-    // Load the A8 R: handler code
+    const char * firmware;
+    if(loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR)
+    {
+        firmware = FIRMWARE_850RELOCATOR;
+    }
+    else
+    {
+        if(loadcommand == SIO_MODEMCMD_LOAD_HANDLER)
+        {
+            firmware = FIRMWARE_850HANDLER;
+        }
+        else
+            return;
+    }
+
+    // Load firmware from file
     char *code;
-    int codesize = load_firmware(FIRMWARE_850HANDLER, &code);
+    int codesize = load_firmware(firmware, &code);
     // NAK if we failed to get this
     if(codesize < 0 || code == NULL)
     {
@@ -188,7 +179,8 @@ void sioModem::sio_handler()
 
     // Send it
 #ifdef DEBUG
-    Debug_printf("Modem sending %d bytes of handler code\n", codesize);
+    Debug_printf("Modem sending %d bytes of %s code\n", codesize, 
+            loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
 #endif
     sio_to_computer((byte *)code, codesize, false);
 
@@ -452,8 +444,6 @@ void sioModem::sio_unlisten()
 void sioModem::at_cmd_println(const char *s, bool addEol)
 {
     SIO_UART.print(s);
-    SIO_UART.flush();
-
     if (addEol)
     {
         if (cmdAtascii == true)
@@ -466,12 +456,12 @@ void sioModem::at_cmd_println(const char *s, bool addEol)
             SIO_UART.write(ASCII_LF);
         }
     }
+    SIO_UART.flush();
 }
 
 void sioModem::at_cmd_println(long int i, bool addEol)
 {
     SIO_UART.print(i);
-
     if (addEol)
     {
         if (cmdAtascii == true)
@@ -484,12 +474,12 @@ void sioModem::at_cmd_println(long int i, bool addEol)
             SIO_UART.write(ASCII_LF);
         }
     }
+    SIO_UART.flush();
 }
 
 void sioModem::at_cmd_println(String s, bool addEol)
 {
     SIO_UART.print(s);
-
     if (addEol)
     {
         if (cmdAtascii == true)
@@ -502,12 +492,12 @@ void sioModem::at_cmd_println(String s, bool addEol)
             SIO_UART.write(ASCII_LF);
         }
     }
+    SIO_UART.flush();
 }
 
 void sioModem::at_cmd_println(IPAddress ipa, bool addEol)
 {
     SIO_UART.print(ipa);
-
     if (addEol)
     {
         if (cmdAtascii == true)
@@ -520,7 +510,9 @@ void sioModem::at_cmd_println(IPAddress ipa, bool addEol)
             SIO_UART.write(ASCII_LF);
         }
     }
+    SIO_UART.flush();
 }
+
 void sioModem::at_handle_wificonnect()
 {
     int keyIndex = cmd.indexOf(",");
@@ -536,7 +528,7 @@ void sioModem::at_handle_wificonnect()
         key = "";
     }
 
-    at_cmd_println("Connecting to ", false);
+    at_cmd_println(HELPWIFICONNECTING, false);
     at_cmd_println(ssid, false);
     at_cmd_println("/", false);
     at_cmd_println(key);
@@ -641,30 +633,31 @@ void sioModem::at_handle_get()
 
 void sioModem::at_handle_help()
 {
-    at_cmd_println("       FujiNet Virtual Modem 850");
-    at_cmd_println("=======================================");
-    at_cmd_println("");
-    at_cmd_println("ATWIFILIST        | List avail networks");
-    at_cmd_println("ATWIFICONNECT<ssid>,<key>");
-    at_cmd_println("                  | Connect to WiFi net");
-    at_cmd_println("ATDT<host>:<port> | Connect by TCP");
-    at_cmd_println("ATIP              | See my IP address");
-    at_cmd_println("ATNET0            | Disable TELNET");
-    at_cmd_println("                  | command handling");
-    at_cmd_println("ATPORT<port>      | Set listening port");
-    at_cmd_println("ATGET<URL>        | HTTP GET");
+    at_cmd_println(HELPL01);
+    at_cmd_println(HELPL02);
+    at_cmd_println(HELPL03);
+    at_cmd_println(HELPL04);
+    at_cmd_println(HELPL05);
+    at_cmd_println(HELPL06);
+    at_cmd_println(HELPL07);
+    at_cmd_println(HELPL08);
+    at_cmd_println(HELPL09);
+    at_cmd_println(HELPL10);
+    at_cmd_println(HELPL11);
+    at_cmd_println(HELPL12);
+
     at_cmd_println("");
 
     if (listenPort > 0)
     {
-        at_cmd_println("Listening to connections on port ", false);
+        at_cmd_println(HELPPORT1, false);
         at_cmd_println(listenPort);
-        at_cmd_println("which result in RING and you can");
-        at_cmd_println("answer with ATA.");
+        at_cmd_println(HELPPORT2);
+        at_cmd_println(HELPPORT3);
     }
     else
     {
-        at_cmd_println("Incoming connections are disabled.");
+        at_cmd_println(HELPPORT4);
     }
     at_cmd_println("");
     at_cmd_println("OK");
@@ -673,7 +666,7 @@ void sioModem::at_handle_help()
 void sioModem::at_handle_wifilist()
 {
     at_cmd_println("");
-    at_cmd_println("Scanning...");
+    at_cmd_println(HELPSCAN1);
 
     WiFi.mode(WIFI_STA);
     WiFi.enableSTA(true);
@@ -682,16 +675,16 @@ void sioModem::at_handle_wifilist()
 
     int n = WiFi.scanNetworks();
     at_cmd_println("");
-    at_cmd_println("Scan done");
+    at_cmd_println(HELPSCAN2);
 
     if (n == 0)
     {
-        at_cmd_println("No networks found");
+        at_cmd_println(HELPSCAN3);
     }
     else
     {
         at_cmd_println(n, false);
-        at_cmd_println(" networks found");
+        at_cmd_println(HELPSCAN4);
 
         for (int i = 0; i < n; ++i)
         {
@@ -705,7 +698,7 @@ void sioModem::at_handle_wifilist()
             at_cmd_println(" (", false);
             at_cmd_println(WiFi.BSSIDstr(i), false);
             at_cmd_println(")", false);
-            at_cmd_println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " (open)" : " (encrypted)");
+            at_cmd_println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? HELPSCAN5 : HELPSCAN6);
             delay(10);
         }
     }
@@ -871,7 +864,7 @@ void sioModem::modemCommand()
         if (WiFi.isConnected())
             at_cmd_println(WiFi.localIP());
         else
-            at_cmd_println("WiFi is not connected.");
+            at_cmd_println(HELPNOWIFI);
         at_cmd_println("OK");
         break;
     case AT_HELP:
@@ -1078,28 +1071,28 @@ void sioModem::sio_process()
     static int i21 = 0;
     static int i26 = 0;
     static int i40 = 0;
-    if (cmdFrame.comnd != '!')
+    if (cmdFrame.comnd != SIO_MODEMCMD_LOAD_RELOCATOR)
         i21 = 0;
-    if (cmdFrame.comnd != '&')
+    if (cmdFrame.comnd != SIO_MODEMCMD_LOAD_HANDLER)
         i26 = 0;
-    if (cmdFrame.comnd != '?')
+    if (cmdFrame.comnd != SIO_MODEMCMD_TYPE1_POLL)
         i3F = 0;
-    if (cmdFrame.comnd != '@')
+    if (cmdFrame.comnd != SIO_MODEMCMD_TYPE3_POLL)
         i40 = 0;
 #endif
     switch (cmdFrame.comnd)
     {
-    case SIO_MODEMCMD_RELOCATOR_LOAD:
+    case SIO_MODEMCMD_LOAD_RELOCATOR:
 #ifdef DEBUG
     Debug_printf("$21 RELOCATOR #%d\n", ++i21);
 #endif    
-        sio_relocator();
+        sio_send_firmware(cmdFrame.comnd);
         break;
-    case SIO_MODEMCMD_HANDLER_LOAD:
+    case SIO_MODEMCMD_LOAD_HANDLER:
 #ifdef DEBUG
     Debug_printf("$26 HANDLER DL #%d\n", ++i26);
 #endif    
-        sio_handler();
+        sio_send_firmware(cmdFrame.comnd);
         break;
     case SIO_MODEMCMD_TYPE1_POLL:
 #ifdef DEBUG

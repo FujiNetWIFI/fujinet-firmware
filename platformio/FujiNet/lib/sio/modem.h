@@ -11,6 +11,35 @@
 
 #include "sio.h"
 
+
+#define HELPL01 "       FujiNet Virtual Modem 850"
+#define HELPL02 "======================================="
+#define HELPL03 ""
+#define HELPL04 "ATWIFILIST        | List avail networks"
+#define HELPL05 "ATWIFICONNECT<ssid>,<key>"
+#define HELPL06 "                  | Connect to WiFi net"
+#define HELPL07 "ATDT<host>:<port> | Connect by TCP"
+#define HELPL08 "ATIP              | See my IP address"
+#define HELPL09 "ATNET0            | Disable TELNET"
+#define HELPL10 "                  | command handling"
+#define HELPL11 "ATPORT<port>      | Set listening port"
+#define HELPL12 "ATGET<URL>        | HTTP GET"
+
+#define HELPPORT1 "Listening to connections on port "
+#define HELPPORT2 "which result in RING that you can"
+#define HELPPORT3 "answer with ATA."
+#define HELPPORT4 "No incoming connections are enabled."
+
+#define HELPSCAN1 "Scanning..."
+#define HELPSCAN2 "Scan done"
+#define HELPSCAN3 "No networks found"
+#define HELPSCAN4 " networks found"
+#define HELPSCAN5 " (open)"
+#define HELPSCAN6 " (encrypted)"
+
+#define HELPNOWIFI "WiFi is not connected."
+#define HELPWIFICONNECTING "Connecting to "
+
 #define RING_INTERVAL 3000      // How often to print RING when having a new incoming connection (ms)
 #define MAX_CMD_LENGTH 256      // Maximum length for AT command
 #define TX_BUF_SIZE 256         // Buffer where to read from serial before writing to TCP (that direction is very blocking by the ESP TCP stack, so we can't do one byte a time.)
@@ -61,8 +90,7 @@ class sioModem:public sioDevice
     bool blockWritePending = false;  // is a BLOCK WRITE pending for the modem?
     byte *blockPtr;                  // pointer in the block write (points somewhere in sector)
 
-    void sio_relocator();            // $21, '!', Booter/Relocator download
-    void sio_handler();              // $26, '&', Handler download
+    void sio_send_firmware(byte loadcommand);  // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();               // $3F, '?', Type 1 Poll
     void sio_control();              // $41, 'A', Control
     void sio_config();               // $42, 'B', Configure
