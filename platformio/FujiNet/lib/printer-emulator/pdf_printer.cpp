@@ -1,7 +1,11 @@
 #include "pdf_printer.h"
+#include "debug.h"
 
 void pdfPrinter::pdf_header()
 {
+#ifdef DEBUG
+    Debug_println("pdf header");
+#endif
     pdf_Y = 0;
     pdf_X = 0;
     pdf_pageCounter = 0;
@@ -16,6 +20,9 @@ void pdfPrinter::pdf_header()
 
 void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
 {
+#ifdef DEBUG
+    Debug_print("pdf add fonts: ");
+#endif
     pdf_objCtr = 3; // should now = 3 coming from pdf_header()
     objLocations[pdf_objCtr] = _file.position();
     // font catalog
@@ -29,6 +36,9 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
     // font dictionary
     for (int i = 0; i < n; i++)
     {
+#ifdef DEBUG
+        Debug_printf("font %d, ", i + 1);
+#endif
         /*
             std::string subtype;
             std::string basefont;
@@ -93,6 +103,9 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
         }
         fff.close();
         _file.printf("\nendobj\n");
+#ifdef DEBUG
+        Debug_println("done.");
+#endif
     }
 }
 
@@ -140,8 +153,8 @@ void pdfPrinter::pdf_new_line()
 void pdfPrinter::pdf_end_line()
 {
     _file.printf(")]TJ\n"); // close the line
-    pdf_Y -= lineHeight;     // line feed
-    pdf_X = 0;               // CR
+    pdf_Y -= lineHeight;    // line feed
+    pdf_X = 0;              // CR
     BOLflag = true;
 }
 

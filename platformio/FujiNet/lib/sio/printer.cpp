@@ -322,7 +322,8 @@ void atari820::initPrinter(FS *filesystem)
 
   pdf_header();
 
-  pdfFont_t F1;
+  //pdfFont_t F1;
+  pdfFont_t *F1 = new (pdfFont_t);
   /*
     /Type /Font
     /Subtype /Type1
@@ -344,23 +345,24 @@ void atari820::initPrinter(FS *filesystem)
     /XHeight 714
     /FontFile3 9 0 R
   */
-  F1.subtype = "Type1";
-  F1.basefont = "Atari-820-Normal";
-  F1.width = 500;
-  F1.ascent = 1000;
-  F1.capheight = 1000;
-  F1.descent = 0;
-  F1.flags = 33;
-  F1.bbox[0] = 0;
-  F1.bbox[1] = 0;
-  F1.bbox[2] = 433;
-  F1.bbox[3] = 700;
-  F1.stemv = 87;
-  F1.xheight = 714;
-  F1.ffnum = 3;
-  F1.ffname = "/a820norm";
+  F1->subtype = "Type1";
+  F1->basefont = "Atari-820-Normal";
+  F1->width = 500;
+  F1->ascent = 1000;
+  F1->capheight = 1000;
+  F1->descent = 0;
+  F1->flags = 33;
+  F1->bbox[0] = 0;
+  F1->bbox[1] = 0;
+  F1->bbox[2] = 433;
+  F1->bbox[3] = 700;
+  F1->stemv = 87;
+  F1->xheight = 714;
+  F1->ffnum = 3;
+  F1->ffname = "/a820norm";
 
-  pdfFont_t F2;
+  //pdfFont_t F2;
+  pdfFont_t *F2 = new (pdfFont_t);
   /*
     /Type /Font
     /Subtype /Type1
@@ -382,24 +384,26 @@ void atari820::initPrinter(FS *filesystem)
     /XHeight 1000
     /FontFile3 9 0 R
   */
-  F1.subtype = "Type1";
-  F1.basefont = "Atari-820-Sideways";
-  F1.width = 666;
-  F1.ascent = 1000;
-  F1.capheight = 1000;
-  F1.descent = 0;
-  F1.flags = 33;
-  F1.bbox[0] = 0;
-  F1.bbox[1] = 0;
-  F1.bbox[2] = 600;
-  F1.bbox[3] = 700;
-  F1.stemv = 87;
-  F1.xheight = 1000;
-  F1.ffnum = 3;
-  F1.ffname = "/a820side";
+  F2->subtype = "Type1";
+  F2->basefont = "Atari-820-Sideways";
+  F2->width = 666;
+  F2->ascent = 1000;
+  F2->capheight = 1000;
+  F2->descent = 0;
+  F2->flags = 33;
+  F2->bbox[0] = 0;
+  F2->bbox[1] = 0;
+  F2->bbox[2] = 600;
+  F2->bbox[3] = 700;
+  F2->stemv = 87;
+  F2->xheight = 1000;
+  F2->ffnum = 3;
+  F2->ffname = "/a820side";
 
-  pdfFont_t *fontary[] = {&F1, &F2};
+  pdfFont_t *fontary[] = {F1, F2};
   pdf_add_fonts(fontary, 2);
+  delete(F1);
+  delete(F2);
 }
 
 void atari822::initPrinter(FS *filesystem)
@@ -419,7 +423,8 @@ void atari822::initPrinter(FS *filesystem)
 
   pdf_header();
 
-  pdfFont_t F1;
+    pdfFont_t *F1 = new (pdfFont_t);
+//pdfFont_t F1;
   /*
       /Type /Font
       /Subtype /Type1
@@ -441,24 +446,25 @@ void atari822::initPrinter(FS *filesystem)
       /XHeight 700
       /FontFile3 9 0 R
     */
-  F1.subtype = "Type1";
-  F1.basefont = "Atari-822-Thermal";
-  F1.width = 600;
-  F1.ascent = 1000;
-  F1.capheight = 986;
-  F1.descent = 0;
-  F1.flags = 33;
-  F1.bbox[0] = 0;
-  F1.bbox[1] = 0;
-  F1.bbox[2] = 490;
-  F1.bbox[3] = 690;
-  F1.stemv = 87;
-  F1.xheight = 700;
-  F1.ffnum = 3;
-  F1.ffname = "/a822font";
+  F1->subtype = "Type1";
+  F1->basefont = "Atari-822-Thermal";
+  F1->width = 600;
+  F1->ascent = 1000;
+  F1->capheight = 986;
+  F1->descent = 0;
+  F1->flags = 33;
+  F1->bbox[0] = 0;
+  F1->bbox[1] = 0;
+  F1->bbox[2] = 490;
+  F1->bbox[3] = 690;
+  F1->stemv = 87;
+  F1->xheight = 700;
+  F1->ffnum = 3;
+  F1->ffname = "/a822font";
 
-  pdfFont_t *fontary[] = {&F1};
+  pdfFont_t *fontary[] = {F1};
   pdf_add_fonts(fontary, 1);
+  delete(F1);
 }
 
 // write for W commands
