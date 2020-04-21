@@ -53,6 +53,11 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "bluetooth.h"
 #endif
 
+#ifdef BOARD_HAS_PSRAM
+#include <esp_spiram.h>
+#include <esp_himem.h>
+#endif
+
 //#define TNFS_SERVER "192.168.1.12"
 //#define TNFS_PORT 16384
 
@@ -93,6 +98,13 @@ void setup()
 #ifdef DEBUG
   Debug_println("\n--%--%--%--\nFujiNet PlatformIO Started");
   Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());  
+  #ifdef BOARD_HAS_PSRAM
+  Debug_printf("PsramSize %u\n", ESP.getPsramSize());
+  //Debug_printf("spiram size %u\n", esp_spiram_get_size());
+  //Debug_printf("himem free %u\n", esp_himem_get_free_size());
+  Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
+  Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
+  #endif
 #endif
   // connect to wifi but DO NOT wait for it
   //WiFi.begin(WIFI_SSID, WIFI_PASS);
