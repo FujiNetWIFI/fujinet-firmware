@@ -12,7 +12,7 @@
 #include "networkProtocol.h"
 
 #define NUM_DEVICES 8
-#define INPUT_BUFFER_SIZE 2048
+#define INPUT_BUFFER_SIZE 8192
 #define OUTPUT_BUFFER_SIZE 2048
 #define SPECIAL_BUFFER_SIZE 256
 #define DEVICESPEC_SIZE 256

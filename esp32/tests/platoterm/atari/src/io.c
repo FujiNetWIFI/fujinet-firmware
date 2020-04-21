@@ -15,7 +15,7 @@
 
 extern bool running;
 
-static uint8_t recv_buffer[4096];
+static uint8_t recv_buffer[8192];
 static uint8_t status[4];
 
 extern padPt TTYLoc;
