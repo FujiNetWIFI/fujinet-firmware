@@ -97,7 +97,7 @@ void setup()
   // connect to wifi but DO NOT wait for it
   //WiFi.begin(WIFI_SSID, WIFI_PASS);
   fnWiFi.setup();
-  fnWiFi.start(WIFI_SSID, WIFI_PASS);
+  // fnWiFi.start(WIFI_SSID, WIFI_PASS);
 
   if (!SPIFFS.begin())
   {
