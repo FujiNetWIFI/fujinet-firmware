@@ -68,7 +68,7 @@ protected:
   byte fontNumber;
   float fontSize;
 
-  pdfFont_t* fontary[6];
+  pdfFont_t* fonts[6];
 
   float pdf_X = 0.; // across the page - columns in pts
   bool BOLflag = true;
@@ -83,7 +83,7 @@ protected:
   virtual void pdf_handle_char(byte c) = 0;
 
   void pdf_header();
-  void pdf_add_fonts(pdfFont_t *fonts[], int n);
+  void pdf_add_fonts(int n); // pdfFont_t *fonts[],
   void pdf_new_page();
   void pdf_begin_text(float Y);
   void pdf_new_line();

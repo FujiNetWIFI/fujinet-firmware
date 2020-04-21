@@ -27,7 +27,6 @@ protected:
 public:
     void initPrinter(FS *filesystem);
     void setDevice(sioPrinter *P) { my_sioP = P; };
-
 };
 
 class atari822 : public pdfPrinter
@@ -40,11 +39,6 @@ protected:
 
     int gfxNumber = 0;
 
-public:
-    virtual void initPrinter(FS *filesystem);
-    void setDevice(sioPrinter *P) { my_sioP = P; };
-
-protected:
     pdfFont_t F1 = {
         //pdfFont_t F1;
         /*
@@ -81,6 +75,10 @@ protected:
         700,
         3,
         "/a822font"};
+
+public:
+    virtual void initPrinter(FS *filesystem);
+    void setDevice(sioPrinter *P) { my_sioP = P; };
 };
 
 class sioPrinter : public sioDevice
@@ -89,7 +87,6 @@ class sioPrinter : public sioDevice
     friend atari822;
 
 protected:
-    // does not work: friend void atari820::pdf_handle_char(byte c);
     // SIO THINGS
     byte buffer[40];
     void sio_write();
