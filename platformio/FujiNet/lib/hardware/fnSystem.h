@@ -10,6 +10,9 @@
 
 class SystemManager
 {
+private:
+    char _uptime_string[14];
+
 public:
     class _net
     {
@@ -52,6 +55,7 @@ public:
     static chipmodels get_cpu_model();
     static int get_cpu_rev();
     static int64_t get_uptime();
+    const char * get_uptime_str();
     static const char * get_fujinet_version();
 };
 
