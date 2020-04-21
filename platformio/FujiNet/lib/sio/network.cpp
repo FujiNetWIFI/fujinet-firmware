@@ -214,7 +214,7 @@ void sioNetwork::sio_write()
 
     sio_ack();
 
-    memset(tx_buf,0,OUTPUT_BUFFER_SIZE);
+    memset(tx_buf, 0, OUTPUT_BUFFER_SIZE);
 
     if (protocol == nullptr)
     {
@@ -346,6 +346,16 @@ void sioNetwork::sio_special_80()
 {
     sio_to_peripheral(sp_buf, sp_buf_len);
     err = protocol->special(sp_buf, sp_buf_len, &cmdFrame);
+}
+
+void sioNetwork::sio_assert_interrupts()
+{
+    if (protocol != nullptr)
+    {
+        protocol->status(status_buf.rawData); // Prime the status buffer
+        digitalWrite(PIN_INT, (protocol->assertInterrupt == true ? LOW : HIGH));
+        digitalWrite(PIN_PROC, (protocol->assertProceed == true ? LOW : HIGH));
+    }
 }
 
 void sioNetwork::sio_process()
