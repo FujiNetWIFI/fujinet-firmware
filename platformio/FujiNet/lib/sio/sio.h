@@ -23,8 +23,13 @@
 #define SIO_UART Serial2
 #define PIN_INT 26
 #define PIN_PROC 22
+#ifdef BOARD_HAS_PSRAM
+#define PIN_MTR 36
+#define PIN_CMD 39
+#else
 #define PIN_MTR 33
 #define PIN_CMD 21
+#endif
 #define PIN_CKO 32
 #define PIN_CKI 27
 #define PIN_SIO5V 35
