@@ -1,3 +1,6 @@
+#ifndef PDF_PRINTER_H
+#define PDF_PRINTER_H
+
 #include <Arduino.h>
 
 #include <string>
@@ -96,7 +99,7 @@ protected:
   size_t idx_stream_stop;   // file location of end of stream
 
 public:
-  //virtual void initPrinter(FS *filesystem) = 0;
+  pdfPrinter(paper_t ty = PDF) : printer_emu{ty} {};
   virtual void pageEject();
   virtual bool process(const byte *buf, byte n);
 
@@ -111,3 +114,5 @@ protected:
 public:
   virtual void initPrinter(FS *filesystem);
 };
+
+#endif // guard

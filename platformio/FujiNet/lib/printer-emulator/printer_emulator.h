@@ -23,6 +23,7 @@ protected:
     paper_t paperType;
 
 public:
+    printer_emu(paper_t ty = RAW) : paperType(ty) {};
     virtual void initPrinter(FS *filesystem) = 0;
     virtual void pageEject() = 0;
     virtual bool process(const byte *buf, byte n) = 0;
