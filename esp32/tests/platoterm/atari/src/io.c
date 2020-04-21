@@ -23,6 +23,9 @@ extern padPt TTYLoc;
 static unsigned char hostname[256]="N:TCP:irata.online:8005";
 static unsigned short bw=0;
 
+unsigned char trip=0;
+extern void ih(void);
+
 uint8_t xoff_enabled=false;
 
 /**
@@ -30,6 +33,8 @@ uint8_t xoff_enabled=false;
  */
 void io_init(void)
 {
+  OS.vprced=ih;
+  PIA.pactl |= 1;
   // Establish connection
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
@@ -64,6 +69,9 @@ void io_send_byte(uint8_t b)
  */
 void io_main(void)
 {
+  if (trip==0)
+    return;
+  
   // Get # of bytes waiting
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
@@ -91,9 +99,10 @@ void io_main(void)
       OS.dcb.daux=bw;
       siov();
       ShowPLATO((padByte *)recv_buffer, bw);
-      bw=0;
+      bw=trip=0;
     }
-  
+
+  PIA.pactl |= 1;
 }
 
 /**
