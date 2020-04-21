@@ -30,6 +30,23 @@ int64_t SystemManager::get_uptime()
     return esp_timer_get_time();
 }
 
+const char * SystemManager::get_uptime_str()
+{
+    int64_t ms = esp_timer_get_time();
+
+    long ml = ms / 1000;
+    long s = ml / 1000;
+    int m = s / 60;
+    int h = m / 60;
+
+    if(h > 0)
+        snprintf(_uptime_string, sizeof(_uptime_string), "%.2d:%.2d:%.2ld.%.3ld", h, m%60, s%60, ml%1000);
+    else
+        snprintf(_uptime_string, sizeof(_uptime_string), "%.2d:%.2ld.%.3ld", m, s%60, ml%1000);
+
+    return _uptime_string;
+}
+
 const char * SystemManager::get_sdk_version()
 {
 #ifdef ARDUINO
