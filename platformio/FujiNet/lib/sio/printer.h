@@ -26,6 +26,82 @@ protected:
     void pdf_fonts();
     void pdf_handle_char(byte c); // need a custom one to handle sideways printing
 
+    //pdfFont_t F1;
+    pdfFont_t F1 = {
+        /*
+    /Type /Font
+    /Subtype /Type1
+    /FontDescriptor 8 0 R
+    /BaseFont /Atari-820-Normal
+    /FirstChar 0
+    /LastChar 255
+    /Widths 10 0 R
+    /Encoding /WinAnsiEncoding
+    /Type /FontDescriptor
+    /FontName /Atari-820-Normal
+    /Ascent 1000
+    /CapHeight 1000
+    /Descent 0
+    /Flags 33
+    /FontBBox [0 0 433 700]
+    /ItalicAngle 0
+    /StemV 87
+    /XHeight 714
+    /FontFile3 9 0 R
+  */
+        "Type1",            //F1->subtype =
+        "Atari-820-Normal", //F1->basefont =
+        {500},              //  F1->width[0] =
+        1,                  // F1->numwidth
+        1000,               // F1->ascent =
+        1000,               // F1->capheight =
+        0,                  // F1->descent =
+        33,                 // F1->flags =
+        {0, 0, 433, 700},
+        87,         // F1->stemv =
+        714,        // F1->xheight =
+        3,          // F1->ffnum =
+        "/a820norm" // F1->ffname =
+    };
+
+    //pdfFont_t F2;
+    pdfFont_t F2 = {
+        /*
+    /Type /Font
+    /Subtype /Type1
+    /FontDescriptor 8 0 R
+    /BaseFont /Atari-820-Sideways
+    /FirstChar 0
+    /LastChar 255
+    /Widths 10 0 R
+    /Encoding /WinAnsiEncoding
+    /Type /FontDescriptor
+    /FontName /Atari-820-Sideways
+    /Ascent 1000
+    /CapHeight 1000
+    /Descent 0
+    /Flags 33
+    /FontBBox [0 0 600 700]
+    /ItalicAngle 0
+    /StemV 87
+    /XHeight 1000
+    /FontFile3 9 0 R
+  */
+        "Type1",              // F2->subtype =
+        "Atari-820-Sideways", // F2->basefont =
+        {666},                // F2->width[0] = ;
+        1,                    // F2->numwidth =
+        1000,                 // F2->ascent =
+        1000,                 // F2->capheight =
+        0,                    // F2->descent =
+        33,                   // F2->flags =
+        {0, 0, 600, 700},
+        87,         // F2->stemv =
+        1000,       // F2->xheight =
+        3,          // F2->ffnum =
+        "/a820side" // F2->ffname =
+    };
+
 public:
     void initPrinter(FS *filesystem);
     void setDevice(sioPrinter *P) { my_sioP = P; };

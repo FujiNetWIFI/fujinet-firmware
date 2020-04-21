@@ -132,98 +132,16 @@ void atari820::initPrinter(FS *filesystem)
 
   pdf_header();
 
-  //pdfFont_t F1;
-  pdfFont_t *F1 = new (pdfFont_t);
-  /*
-    /Type /Font
-    /Subtype /Type1
-    /FontDescriptor 8 0 R
-    /BaseFont /Atari-820-Normal
-    /FirstChar 0
-    /LastChar 255
-    /Widths 10 0 R
-    /Encoding /WinAnsiEncoding
-    /Type /FontDescriptor
-    /FontName /Atari-820-Normal
-    /Ascent 1000
-    /CapHeight 1000
-    /Descent 0
-    /Flags 33
-    /FontBBox [0 0 433 700]
-    /ItalicAngle 0
-    /StemV 87
-    /XHeight 714
-    /FontFile3 9 0 R
-  */
-  F1->subtype = "Type1";
-  F1->basefont = "Atari-820-Normal";
-  F1->width[0] = 500;
-  F1->numwidth = 1;
-  F1->ascent = 1000;
-  F1->capheight = 1000;
-  F1->descent = 0;
-  F1->flags = 33;
-  F1->bbox[0] = 0;
-  F1->bbox[1] = 0;
-  F1->bbox[2] = 433;
-  F1->bbox[3] = 700;
-  F1->stemv = 87;
-  F1->xheight = 714;
-  F1->ffnum = 3;
-  F1->ffname = "/a820norm";
-
-  //pdfFont_t F2;
-  pdfFont_t *F2 = new (pdfFont_t);
-  /*
-    /Type /Font
-    /Subtype /Type1
-    /FontDescriptor 8 0 R
-    /BaseFont /Atari-820-Sideways
-    /FirstChar 0
-    /LastChar 255
-    /Widths 10 0 R
-    /Encoding /WinAnsiEncoding
-    /Type /FontDescriptor
-    /FontName /Atari-820-Sideways
-    /Ascent 1000
-    /CapHeight 1000
-    /Descent 0
-    /Flags 33
-    /FontBBox [0 0 600 700]
-    /ItalicAngle 0
-    /StemV 87
-    /XHeight 1000
-    /FontFile3 9 0 R
-  */
-  F2->subtype = "Type1";
-  F2->basefont = "Atari-820-Sideways";
-  F2->width[0] = 666;
-  F2->numwidth = 1;
-  F2->ascent = 1000;
-  F2->capheight = 1000;
-  F2->descent = 0;
-  F2->flags = 33;
-  F2->bbox[0] = 0;
-  F2->bbox[1] = 0;
-  F2->bbox[2] = 600;
-  F2->bbox[3] = 700;
-  F2->stemv = 87;
-  F2->xheight = 1000;
-  F2->ffnum = 3;
-  F2->ffname = "/a820side";
-
-  fonts[0] = F1;
-  fonts[1] = F2;
+  fonts[0] = &F1;
+  fonts[1] = &F2;
   pdf_add_fonts(2);
-  delete (F1);
-  delete (F2);
 }
 
 void atari822::initPrinter(FS *filesystem)
 {
   printer_emu::initPrinter(filesystem);
   //paperType = PDF;
-  
+
   pageWidth = 319.5;  // paper roll is 4 7/16" from page 4 of owners manual
   pageHeight = 792.0; // just use 11" for letter paper
   leftMargin = 15.75; // fit print width on page width
