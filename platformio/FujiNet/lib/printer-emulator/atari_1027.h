@@ -20,7 +20,7 @@ protected:
 public:
     void initPrinter(FS *filesystem);
 
-private:
+protected:
     /*
         7 0 obj
         << 

@@ -86,7 +86,7 @@ void pdfPrinter::pdf_add_fonts(pdfFont_t *fonts[], int n)
         _file.printf("%d 0 obj\n[", pdf_objCtr); // 6
         for (int i = 0; i < 256; i++)
         {
-            _file.printf(" %g", fonts[i]->width); // 600
+            _file.printf(" %d", fonts[i]->width[0]); // 600
             if ((i - 31) % 32 == 0)
                 _file.printf("\n");
         }

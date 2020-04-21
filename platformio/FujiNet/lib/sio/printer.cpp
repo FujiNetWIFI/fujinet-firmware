@@ -347,7 +347,8 @@ void atari820::initPrinter(FS *filesystem)
   */
   F1->subtype = "Type1";
   F1->basefont = "Atari-820-Normal";
-  F1->width = 500;
+  F1->width[0] = 500;
+  F1->numwidth = 1;
   F1->ascent = 1000;
   F1->capheight = 1000;
   F1->descent = 0;
@@ -386,7 +387,8 @@ void atari820::initPrinter(FS *filesystem)
   */
   F2->subtype = "Type1";
   F2->basefont = "Atari-820-Sideways";
-  F2->width = 666;
+  F2->width[0] = 666;
+  F2-> numwidth = 1;
   F2->ascent = 1000;
   F2->capheight = 1000;
   F2->descent = 0;
@@ -423,48 +425,8 @@ void atari822::initPrinter(FS *filesystem)
 
   pdf_header();
 
-    pdfFont_t *F1 = new (pdfFont_t);
-//pdfFont_t F1;
-  /*
-      /Type /Font
-      /Subtype /Type1
-      /FontDescriptor 8 0 R
-      /BaseFont /Atari-822-Thermal
-      /FirstChar 0
-      /LastChar 255
-      /Widths 10 0 R
-      /Encoding /WinAnsiEncoding
-      /Type /FontDescriptor
-      /FontName /Atari-822-Thermal
-      /Ascent 1000
-      /CapHeight 986
-      /Descent 0
-      /Flags 33
-      /FontBBox [0 0 490 690]
-      /ItalicAngle 0
-      /StemV 87
-      /XHeight 700
-      /FontFile3 9 0 R
-    */
-  F1->subtype = "Type1";
-  F1->basefont = "Atari-822-Thermal";
-  F1->width = 600;
-  F1->ascent = 1000;
-  F1->capheight = 986;
-  F1->descent = 0;
-  F1->flags = 33;
-  F1->bbox[0] = 0;
-  F1->bbox[1] = 0;
-  F1->bbox[2] = 490;
-  F1->bbox[3] = 690;
-  F1->stemv = 87;
-  F1->xheight = 700;
-  F1->ffnum = 3;
-  F1->ffname = "/a822font";
-
-  pdfFont_t *fontary[] = {F1};
+  fontary[0] = &F1;
   pdf_add_fonts(fontary, 1);
-  delete(F1);
 }
 
 // write for W commands
