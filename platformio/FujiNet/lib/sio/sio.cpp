@@ -3,6 +3,7 @@
 #include "fuji.h"
 #include "led.h"
 #include "network.h"
+#include "fnSystem.h"
 
 // helper functions outside the class defintions
 
@@ -259,7 +260,8 @@ void sioBus::service()
     cmdFrame_t tempFrame;
     SIO_UART.readBytes(tempFrame.cmdFrameData, 5);
 #ifdef DEBUG
-    Debug_printf("\nCF: %02x %02x %02x %02x %02x\n", tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
+    Debug_printf("\n%s CF: %02x %02x %02x %02x %02x\n", fnSystem.get_uptime_str(), 
+            tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
 #endif
     byte ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
     // Wait for CMD line to raise again
