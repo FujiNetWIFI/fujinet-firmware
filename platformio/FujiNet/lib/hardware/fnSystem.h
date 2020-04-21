@@ -8,9 +8,6 @@
 #include <cstdint>
 #include <string>
 
-
-#define FUJINET_VERSION "0.20200418"
-
 class SystemManager
 {
 public:
