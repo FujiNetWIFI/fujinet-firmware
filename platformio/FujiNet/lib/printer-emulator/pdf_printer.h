@@ -41,7 +41,8 @@ struct pdfFont_t
 */
   std::string subtype;
   std::string basefont;
-  float width; // uniform spacing for now, todo: proportional
+  uint16_t width[256]; // uniform spacing for now, todo: proportional
+  uint16_t numwidth;
   float ascent;
   float capheight;
   float descent;
@@ -66,6 +67,8 @@ protected:
   float charWidth;
   byte fontNumber;
   float fontSize;
+
+  pdfFont_t* fontary[6];
 
   float pdf_X = 0.; // across the page - columns in pts
   bool BOLflag = true;
@@ -96,6 +99,7 @@ public:
   //virtual void initPrinter(FS *filesystem) = 0;
   virtual void pageEject();
   virtual bool process(const byte *buf, byte n);
+
 };
 
 class asciiPrinter : public pdfPrinter
