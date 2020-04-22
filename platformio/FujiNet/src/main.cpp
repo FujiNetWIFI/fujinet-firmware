@@ -254,11 +254,19 @@ void loop()
     if (btMgr.isActive())
     {
       btMgr.stop();
+#ifdef BOARD_HAS_PSRAM
+      ledMgr.set(eLed::LED_BT, false);
+#else
       ledMgr.set(eLed::LED_SIO, false);
+#endif
     }
     else
     {
+#ifdef BOARD_HAS_PSRAM
+      ledMgr.set(eLed::LED_BT, true);
+#else
       ledMgr.set(eLed::LED_SIO, true); // SIO LED always ON in Bluetooth mode
+#endif
       btMgr.start();
     }
 #endif
@@ -266,7 +274,11 @@ void loop()
   case eKeyStatus::SHORT_PRESSED:
 #ifdef DEBUG
     Debug_println("B_KEY: SHORT PRESS");
+  #ifdef BOARD_HAS_PSRAM
+    ledMgr.blink(eLed::LED_BT); // blink to confirm a button press
+  #else
     ledMgr.blink(eLed::LED_SIO); // blink to confirm a button press
+  #endif
 #endif
 #ifdef BLUETOOTH_SUPPORT
     if (btMgr.isActive())
