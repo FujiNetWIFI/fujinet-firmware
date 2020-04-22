@@ -441,6 +441,20 @@ void sioModem::sio_unlisten()
 /**
    replacement println for AT that is CR/EOL aware
 */
+void sioModem::at_cmd_println()
+{
+    if (cmdAtascii == true)
+    {
+        SIO_UART.write(ATASCII_EOL);
+    }
+    else
+    {
+        SIO_UART.write(ASCII_CR);
+        SIO_UART.write(ASCII_LF);
+    }
+    SIO_UART.flush();
+}
+
 void sioModem::at_cmd_println(const char *s, bool addEol)
 {
     SIO_UART.print(s);
@@ -459,7 +473,7 @@ void sioModem::at_cmd_println(const char *s, bool addEol)
     SIO_UART.flush();
 }
 
-void sioModem::at_cmd_println(long int i, bool addEol)
+void sioModem::at_cmd_println(int i, bool addEol)
 {
     SIO_UART.print(i);
     if (addEol)
@@ -532,27 +546,20 @@ void sioModem::at_handle_wificonnect()
     at_cmd_println(ssid, false);
     at_cmd_println("/", false);
     at_cmd_println(key);
-    WiFi.disconnect();
-    delay(100);
 
-    WiFi.mode(WIFI_STA);
-    WiFi.enableSTA(true);
-    WiFi.begin(ssid.c_str(), key.c_str());
+    fnWiFi.connect(ssid.c_str(), key.c_str());
 
     int retries = 0;
-
-    while ((WiFi.status() != WL_CONNECTED) && retries < 20)
+    while ((!fnWiFi.connected()) && retries < 20)
     {
         delay(1000);
         retries++;
         at_cmd_println(".", false);
     }
-
     if (retries >= 20)
         at_cmd_println("ERROR");
     else
         at_cmd_println("OK");
-
 }
 
 void sioModem::at_handle_port()
@@ -646,7 +653,7 @@ void sioModem::at_handle_help()
     at_cmd_println(HELPL11);
     at_cmd_println(HELPL12);
 
-    at_cmd_println("");
+    at_cmd_println();
 
     if (listenPort > 0)
     {
@@ -659,47 +666,51 @@ void sioModem::at_handle_help()
     {
         at_cmd_println(HELPPORT4);
     }
-    at_cmd_println("");
+    at_cmd_println();
     at_cmd_println("OK");
 }
 
 void sioModem::at_handle_wifilist()
 {
-    at_cmd_println("");
+    at_cmd_println();
     at_cmd_println(HELPSCAN1);
 
-    WiFi.mode(WIFI_STA);
-    WiFi.enableSTA(true);
-    WiFi.disconnect();
-    delay(100);
+    int n = fnWiFi.scan_networks();
 
-    int n = WiFi.scanNetworks();
-    at_cmd_println("");
-    at_cmd_println(HELPSCAN2);
+    at_cmd_println();
 
     if (n == 0)
     {
-        at_cmd_println(HELPSCAN3);
+        at_cmd_println(HELPSCAN2);
     }
     else
     {
         at_cmd_println(n, false);
-        at_cmd_println(HELPSCAN4);
+        at_cmd_println(HELPSCAN3);
+        at_cmd_println();
+
+        char ssid[32];
+        char bssid[18];
+        uint8_t rssi;
+        uint8_t channel;
+        uint8_t encryption;
+
 
         for (int i = 0; i < n; ++i)
         {
             // Print SSID and RSSI for each network found
+            fnWiFi.get_scan_result(i, ssid, &rssi, &channel, bssid, &encryption);
             at_cmd_println(i + 1, false);
             at_cmd_println(": ", false);
-            at_cmd_println(WiFi.SSID(i), false);
-            at_cmd_println(" (", false);
-            at_cmd_println(WiFi.channel(), false);
-            at_cmd_println(") ", false);
-            at_cmd_println(" (", false);
-            at_cmd_println(WiFi.BSSIDstr(i), false);
-            at_cmd_println(")", false);
-            at_cmd_println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? HELPSCAN5 : HELPSCAN6);
-            delay(10);
+            at_cmd_println(ssid, false);
+            at_cmd_println(" [", false);
+            at_cmd_println(channel, false);
+            at_cmd_println("/", false);
+            at_cmd_println(rssi, false);
+            at_cmd_println("]");
+            at_cmd_println("    ", false);
+            at_cmd_println(bssid, false);
+            at_cmd_println(encryption == WIFI_AUTH_OPEN ? HELPSCAN4 : HELPSCAN5);
         }
     }
 }
@@ -787,7 +798,7 @@ void sioModem::modemCommand()
     String upperCaseCmd = cmd;
     upperCaseCmd.toUpperCase();
     
-    at_cmd_println("");
+    at_cmd_println();
 
 #ifdef DEBUG
     Debug_print("AT Cmd: ");
