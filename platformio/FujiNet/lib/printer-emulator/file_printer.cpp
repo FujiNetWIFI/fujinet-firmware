@@ -9,7 +9,7 @@ void filePrinter::initPrinter(FS *filesystem)
     printer_emu::initPrinter(filesystem);
 }
 
-bool filePrinter::process(const byte *B, byte n)
+bool filePrinter::process(byte n)
 {
     int i = 0;
     //std::string output = std::string();
@@ -19,17 +19,17 @@ bool filePrinter::process(const byte *B, byte n)
     case RAW:
         for (i = 0; i < n; i++)
         {
-            _file.write(B[i]);
-            Debug_print(B[i], HEX);
+            _file.write(buffer[i]);
+            Debug_print(buffer[i], HEX);
         }
         Debug_printf("\n");
         break;
     case TRIM:
         while (i < n)
         {
-            _file.write(B[i]);
-            Debug_print(B[i], HEX);
-            if (B[i] == EOL)
+            _file.write(buffer[i]);
+            Debug_print(buffer[i], HEX);
+            if (buffer[i] == EOL)
             {
                 Debug_printf("\n");
                 break;
@@ -41,16 +41,16 @@ bool filePrinter::process(const byte *B, byte n)
     default:
         while (i < n)
         {
-            if (B[i] == EOL)
+            if (buffer[i] == EOL)
             {
                 _file.printf("\n");
                 Debug_printf("\n");
                 break;
             }
-            if (B[i] > 31 && B[i] < 127)
+            if (buffer[i] > 31 && buffer[i] < 127)
             {
-                _file.write(B[i]);
-                Debug_printf("%c", B[i]);
+                _file.write(buffer[i]);
+                Debug_printf("%c", buffer[i]);
             }
             i++;
         }

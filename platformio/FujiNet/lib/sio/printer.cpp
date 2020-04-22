@@ -206,7 +206,11 @@ void sioPrinter::sio_write()
       }
       buffer[n++] = EOL;
     }
-    if (_pptr->process(buffer, n))
+    for (int i = 0; i < n; i++)
+    {
+      _pptr->copyChar(buffer[i], i);
+    }
+    if (_pptr->process(n))
       sio_complete();
     else
     {
