@@ -90,10 +90,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << fnSystem.Net.get_ip4_dns_str(); 
         break;
     case FN_WIFISSID:
-        resultstream << fnWiFi.get_ssid();
+        resultstream << fnWiFi.get_current_ssid();
         break;
     case FN_WIFIBSSID:
-        resultstream << fnWiFi.get_bssid_str();
+        resultstream << fnWiFi.get_current_bssid_str();
         break;
     case FN_WIFIMAC:
         resultstream << fnWiFi.get_mac_str();
