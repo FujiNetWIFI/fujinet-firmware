@@ -20,13 +20,15 @@ class printer_emu
 protected:
     FS *_FS;
     File _file;
+    byte buffer[40];
     paper_t paperType;
 
 public:
     printer_emu(paper_t ty = RAW) : paperType(ty) {};
+    void copyChar(byte c, byte n);
     virtual void initPrinter(FS *filesystem) = 0;
     virtual void pageEject() = 0;
-    virtual bool process(const byte *buf, byte n) = 0;
+    virtual bool process(byte n) = 0;
 
     paper_t getPaperType() { return paperType; };
 

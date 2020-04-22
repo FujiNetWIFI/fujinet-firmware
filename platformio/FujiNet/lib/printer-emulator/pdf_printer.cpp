@@ -206,7 +206,7 @@ void pdfPrinter::pdf_xref()
     _file.printf("%%%%EOF\n");
 }
 
-bool pdfPrinter::process(const byte *buf, byte n)
+bool pdfPrinter::process(byte n)
 {
     int i = 0;
     byte c;
@@ -225,7 +225,7 @@ bool pdfPrinter::process(const byte *buf, byte n)
     // loop through string
     do
     {
-        c = byte(buf[i++]);
+        c = buffer[i++];
 
         if (!textMode)
         {

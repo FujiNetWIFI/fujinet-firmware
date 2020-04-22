@@ -10,6 +10,11 @@ void printer_emu::initPrinter(FS *filesystem)
 
 // virtual void flushOutput(); // do this in pageEject
 
+void printer_emu::copyChar(byte c, byte n)
+{
+    buffer[n] = c;
+}
+
 size_t printer_emu::getOutputSize()
 {
     return _file.size();

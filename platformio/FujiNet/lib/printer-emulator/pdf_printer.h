@@ -101,8 +101,7 @@ protected:
 public:
   pdfPrinter(paper_t ty = PDF) : printer_emu{ty} {};
   virtual void pageEject();
-  virtual bool process(const byte *buf, byte n);
-
+  virtual bool process(byte n);
 };
 
 class asciiPrinter : public pdfPrinter
