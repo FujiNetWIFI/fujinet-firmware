@@ -31,11 +31,10 @@
 #define HELPPORT4 "No incoming connections are enabled."
 
 #define HELPSCAN1 "Scanning..."
-#define HELPSCAN2 "Scan done"
-#define HELPSCAN3 "No networks found"
-#define HELPSCAN4 " networks found"
-#define HELPSCAN5 " (open)"
-#define HELPSCAN6 " (encrypted)"
+#define HELPSCAN2 "No networks found"
+#define HELPSCAN3 " networks found:"
+#define HELPSCAN4 " (open)"
+#define HELPSCAN5 " (encrypted)"
 
 #define HELPNOWIFI "WiFi is not connected."
 #define HELPWIFICONNECTING "Connecting to "
@@ -104,8 +103,9 @@ class sioModem:public sioDevice
     void modemCommand();             // Execute modem AT command
 
     // CR/EOL aware println() functions for AT mode
+    void at_cmd_println();
     void at_cmd_println(const char *s, bool addEol = true);
-    void at_cmd_println(long int i, bool addEol = true);
+    void at_cmd_println(int i, bool addEol = true);
     void at_cmd_println(String s, bool addEol = true);
     void at_cmd_println(IPAddress ipa, bool addEol = true);
 
