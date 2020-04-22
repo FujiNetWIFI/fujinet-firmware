@@ -24,7 +24,7 @@ protected:
     paper_t paperType;
 
 public:
-    printer_emu(paper_t ty = RAW) : paperType(ty) {};
+    printer_emu(paper_t ty = RAW) : paperType(ty){};
     void copyChar(byte c, byte n);
     virtual void initPrinter(FS *filesystem) = 0;
     virtual void pageEject() = 0;
@@ -38,6 +38,7 @@ public:
     int readFromOutput();
     int readFromOutput(uint8_t *buf, size_t size);
     void resetOutput();
+    void resetPrinter() { initPrinter(_FS); };
 };
 
 // close flush output file
@@ -46,6 +47,5 @@ public:
 //     _file.flush();
 //     _file.seek(0);
 // }
-
 
 #endif

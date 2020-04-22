@@ -29,7 +29,7 @@ void pdfPrinter::pdf_add_fonts(int n) // pdfFont_t *fonts[],
     _file.printf("3 0 obj\n<</Font <<");
     for (int i = 0; i < n; i++)
     {
-        _file.printf("/F%d %d 0 R ", i + 1, 4 + 3 * i); ///F1 4 0 R /F2 7 0 R>>>>\nendobj\n
+        _file.printf("/F%d %d 0 R ", i + 1, 4 + 4 * i); ///F1 4 0 R /F2 8 0 R>>>>\nendobj\n
     }
     _file.printf(">>>>\nendobj\n");
 
@@ -114,6 +114,9 @@ void pdfPrinter::pdf_add_fonts(int n) // pdfFont_t *fonts[],
 
 void pdfPrinter::pdf_new_page()
 { // open a new page
+#ifdef DEBUG
+    Debug_println("pdf new page");
+#endif
     pdf_objCtr++;
     pageObjects[pdf_pageCounter] = pdf_objCtr;
     objLocations[pdf_objCtr] = _file.position();
@@ -135,6 +138,9 @@ void pdfPrinter::pdf_new_page()
 
 void pdfPrinter::pdf_begin_text(float Y)
 {
+#ifdef DEBUG
+    Debug_println("pdf begin text");
+#endif
     // open new text object
     _file.printf("BT\n");
     TOPflag = false;
@@ -147,6 +153,9 @@ void pdfPrinter::pdf_begin_text(float Y)
 
 void pdfPrinter::pdf_new_line()
 {
+#ifdef DEBUG
+    Debug_println("pdf new line");
+#endif
     // position new line and start text string array
     _file.printf("0 %g Td [(", -lineHeight);
     pdf_X = 0; // reinforce?
@@ -155,6 +164,9 @@ void pdfPrinter::pdf_new_line()
 
 void pdfPrinter::pdf_end_line()
 {
+#ifdef DEBUG
+    Debug_println("pdf end line");
+#endif
     _file.printf(")]TJ\n"); // close the line
     pdf_Y -= lineHeight;    // line feed
     pdf_X = 0;              // CR
@@ -163,6 +175,9 @@ void pdfPrinter::pdf_end_line()
 
 void pdfPrinter::pdf_end_page()
 {
+#ifdef DEBUG
+    Debug_println("pdf end page");
+#endif
     // close text object & stream
     if (!BOLflag)
         pdf_end_line();
@@ -182,6 +197,9 @@ void pdfPrinter::pdf_end_page()
 
 void pdfPrinter::pdf_xref()
 {
+#ifdef DEBUG
+    Debug_println("pdf xref");
+#endif
     int max_objCtr = pdf_objCtr;
     pdf_objCtr = 2;
     objLocations[pdf_objCtr] = _file.position(); // hard code page catalog as object #2
@@ -211,6 +229,10 @@ bool pdfPrinter::process(byte n)
     int i = 0;
     byte c;
 
+#ifdef DEBUG
+    Debug_printf("Processing %d chars\n", n);
+#endif
+
     // algorithm for graphics:
     // if textMode, then can do the regular stuff
     // if !textMode, then don't deal with BOL, EOL.
@@ -226,6 +248,9 @@ bool pdfPrinter::process(byte n)
     do
     {
         c = buffer[i++];
+// #ifdef DEBUG
+//         Debug_print(c, HEX);
+// #endif
 
         if (!textMode)
         {
@@ -277,8 +302,9 @@ void pdfPrinter::pageEject()
             pdf_end_page();
         pdf_xref();
     }
-    _file.flush();
-    _file.seek(0);
+    printer_emu::pageEject();
+    // _file.flush();
+    // _file.seek(0);
 }
 
 void asciiPrinter::initPrinter(FS *filesystem)

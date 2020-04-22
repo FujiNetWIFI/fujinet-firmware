@@ -310,7 +310,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     free(buf);
 
     // Tell the printer it can start writing from the beginning
-    currentPrinter->resetOutput();
+    currentPrinter->resetPrinter(); // resetOutput();
 
 #ifdef DEBUG
     Debug_println("Print request completed");
