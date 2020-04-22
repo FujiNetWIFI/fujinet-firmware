@@ -141,7 +141,9 @@ void setup()
   SIO.addDevice(&sioR, 0x50); // R:
 
   // Choose filesystem for P: device and iniitalize it
-  sioP.connect_printer(new(atari820));
+  //atari822* P = new(atari822);
+  sioP.connect_printer(new(filePrinter));
+  //P->setDevice(&sioP);
   if (SD.cardType() != CARD_NONE)
   {
     Debug_println("using SD card for printer storage");

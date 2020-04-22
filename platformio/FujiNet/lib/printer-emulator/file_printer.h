@@ -7,9 +7,9 @@
 class filePrinter : public printer_emu
 {
 public:
-    filePrinter(paper_t ty = TRIM) : printer_emu{ty} {};
+    filePrinter(paper_t ty = RAW) : printer_emu{ty} {};
     virtual void initPrinter(FS *filesystem);
-    virtual void pageEject(){};
+    virtual void pageEject();
     virtual bool process(byte n);
 
     void setPaper(paper_t ty) { paperType = ty; };

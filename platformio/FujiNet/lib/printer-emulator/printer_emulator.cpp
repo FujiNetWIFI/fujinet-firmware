@@ -30,6 +30,12 @@ int printer_emu::readFromOutput(uint8_t *buf, size_t size)
     return _file.read(buf, size);
 }
 
+void printer_emu::pageEject()
+{
+    _file.flush();
+    _file.seek(0);
+}
+
 void printer_emu::resetOutput()
 {
     _file.close();

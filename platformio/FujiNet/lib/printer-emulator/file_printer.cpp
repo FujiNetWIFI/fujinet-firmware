@@ -57,3 +57,8 @@ bool filePrinter::process(byte n)
     }
     return true;
 }
+
+void filePrinter::pageEject()
+{
+    printer_emu::pageEject();
+}
