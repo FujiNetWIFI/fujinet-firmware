@@ -61,14 +61,11 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 //#define TNFS_SERVER "192.168.1.12"
 //#define TNFS_PORT 16384
 
+// sioP is declared and defined in printer.h/cpp
 sioModem sioR;
-
 sioFuji theFuji;
-
 sioApeTime apeTime;
-
 sioVoice sioV;
-
 fnHttpService fnHTTPD;
 
 #ifdef DEBUG_N
@@ -84,11 +81,11 @@ BluetoothManager btMgr;
 
 // We need something better than this,
 // but it'll do for the moment...
-atari822 sioP;
-sioPrinter *getCurrentPrinter()
-{
-  return &sioP;
-}
+// sioPrinter sioP;
+// sioPrinter *getCurrentPrinter()
+// {
+//   return &sioP;
+// }
 
 void setup()
 {
@@ -161,6 +158,9 @@ void setup()
   SIO.addDevice(&sioR, 0x50); // R:
 
   // Choose filesystem for P: device and iniitalize it
+  //atari822* P = new(atari822);
+  sioP.connect_printer(new(filePrinter));
+  //P->setDevice(&sioP);
   if (SD.cardType() != CARD_NONE)
   {
     Debug_println("using SD card for printer storage");

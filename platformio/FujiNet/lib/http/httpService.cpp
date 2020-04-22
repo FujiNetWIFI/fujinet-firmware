@@ -249,8 +249,9 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     Debug_println("Print request handler");
 #endif
 
-    // A bit of a kludge for now: get printer from main routine
-    sioPrinter *currentPrinter = getCurrentPrinter();
+    // WAS: A bit of a kludge for now: get printer from main routine
+    // IS: now get printer emulator pointer from sioP (which is now extern)
+    printer_emu *currentPrinter = sioP.getPrinterPtr(); //getCurrentPrinter();
 
     // Build a print output name
     const char *exts;
@@ -281,7 +282,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     set_file_content_type(req, filename.c_str());
 
     // Flush and close the print output before continuing
-    currentPrinter->flushOutput();
+    currentPrinter->pageEject(); // flushOutput(); is now inside of pageEject()
     // Add a couple of attchment-specific details
     char hdrval1[60];
     snprintf(hdrval1, 60, "attachment; filename=\"%s\"", filename.c_str());
@@ -308,7 +309,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     free(buf);
 
     // Tell the printer it can start writing from the beginning
-    currentPrinter->resetOutput();
+    currentPrinter->resetPrinter(); // resetOutput();
 
 #ifdef DEBUG
     Debug_println("Print request completed");

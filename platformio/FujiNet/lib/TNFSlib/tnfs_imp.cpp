@@ -1,7 +1,7 @@
 #include "tnfs_imp.h"
 #include "debug.h"
 
-// #define DEBUG_VERBOSE
+#define DEBUG_VERBOSE
 
 WiFiUDP UDP;
 
