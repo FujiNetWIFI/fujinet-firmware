@@ -9,6 +9,7 @@
 #include <serial.h>
 #include <stdbool.h>
 #include <atari.h>
+#include <stdlib.h>
 #include "io.h"
 #include "protocol.h"
 #include "sio.h"
@@ -16,12 +17,15 @@
 extern bool running;
 
 static uint8_t recv_buffer[8192];
+static uint8_t xmit_buffer[64];
+static uint8_t xmit_buffer_len=0;
 static uint8_t status[4];
 
 extern padPt TTYLoc;
 
 static unsigned char hostname[256]="N:TCP:irata.online:8005";
 static unsigned short bw=0;
+static unsigned char connected=0;
 
 unsigned char trip=0;
 extern void ih(void);
@@ -52,16 +56,7 @@ void io_init(void)
  */
 void io_send_byte(uint8_t b)
 {
-  OS.dcb.ddevic=0x71;
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd='W';
-  OS.dcb.dstats=0x80;
-  OS.dcb.dbuf=&b;
-  OS.dcb.dtimlo=0x0f;
-  OS.dcb.dbyt=1;
-  OS.dcb.daux1=1;
-  OS.dcb.daux2=0;
-  siov();
+  xmit_buffer[xmit_buffer_len++]=b;
 }
 
 /**
@@ -69,6 +64,23 @@ void io_send_byte(uint8_t b)
  */
 void io_main(void)
 {
+  if (xmit_buffer_len>0)
+    {
+      OS.dcb.ddevic=0x71;
+      OS.dcb.dunit=1;
+      OS.dcb.dcomnd='W';
+      OS.dcb.dstats=0x80;
+      OS.dcb.dbuf=&xmit_buffer;
+      OS.dcb.dtimlo=0x0f;
+      OS.dcb.dbyt=xmit_buffer_len;
+      OS.dcb.daux1=xmit_buffer_len;
+      OS.dcb.daux2=0;
+      siov();
+      
+      xmit_buffer_len=0;
+      return;
+    }
+  
   if (trip==0)
     return;
   
@@ -84,6 +96,7 @@ void io_main(void)
   siov();
 
   bw=(status[1]<<8)+status[0];
+  connected=status[2];
   
   // These functions are all I needed to change to port over to the N: device.
   
@@ -102,6 +115,11 @@ void io_main(void)
       bw=trip=0;
     }
 
+  if (connected==0)
+    {
+      io_done();
+    }
+  
   PIA.pactl |= 1;
 }
 
@@ -110,4 +128,13 @@ void io_main(void)
  */
 void io_done(void)
 {
+  ShowPLATO("\r\nDISCONNECTED.\r\n",17);
+  OS.dcb.ddevic=0x71;
+  OS.dcb.dunit=1;
+  OS.dcb.dcomnd='C';
+  OS.dcb.dstats=0x00;
+  OS.dcb.dbuf=0;
+  OS.dcb.dbyt=0;
+  OS.dcb.daux=0;
+  siov();
 }

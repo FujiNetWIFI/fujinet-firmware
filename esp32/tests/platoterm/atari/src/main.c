@@ -24,8 +24,8 @@ void main(void)
   touch_init();
   terminal_init();
   screen_splash();
-  io_init();
   screen_beep();
+  io_init();
 
   while (running==true)
     {

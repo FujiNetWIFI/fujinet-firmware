@@ -98,7 +98,7 @@ void keyboard_main(void)
     }
   else if (key!=lastkey)
     {
-      click();
+      //      click();
       keyboard_out(key_to_pkey[key]);
       POKE(764,255);
     }
