@@ -23,8 +23,13 @@
 #define SIO_UART Serial2
 #define PIN_INT 26
 #define PIN_PROC 22
+#ifdef BOARD_HAS_PSRAM
+#define PIN_MTR 36
+#define PIN_CMD 39
+#else
 #define PIN_MTR 33
 #define PIN_CMD 21
+#endif
 #define PIN_CKO 32
 #define PIN_CKI 27
 #define PIN_SIO5V 35
@@ -56,9 +61,10 @@ byte sio_checksum(byte *chunk, int length);
 void sio_flush();
 
 // class def'ns
-class sioModem; // declare here so can reference it, but define in modem.h
-class sioFuji;  // declare here so can reference it, but define in fuji.h
-class sioBus;   // declare early so can be friend
+class sioModem;   // declare here so can reference it, but define in modem.h
+class sioFuji;    // declare here so can reference it, but define in fuji.h
+class sioBus;     // declare early so can be friend
+class sioNetwork; // declare here so can reference it, but define in network.h
 
 class sioDevice
 {
@@ -69,6 +75,7 @@ protected:
    //String _devname; // causes linker error " undefined reference to `vtable for sioDevice' "
 
    cmdFrame_t cmdFrame;
+   bool listen_to_type3_polls;
 
    void sio_to_computer(byte *b, unsigned short len, bool err);
    byte sio_to_peripheral(byte *b, unsigned short len);
@@ -79,8 +86,8 @@ protected:
    void sio_complete();
    void sio_error();
    unsigned short sio_get_aux();
-   virtual void sio_status()=0;
-   virtual void sio_process()=0;
+   virtual void sio_status() = 0;
+   virtual void sio_process() = 0;
 
 public:
    int id() { return _devnum; };
@@ -94,6 +101,7 @@ private:
    sioDevice *activeDev = nullptr;
    sioModem *modemDev = nullptr;
    sioFuji *fujiDev = nullptr;
+   sioNetwork *netDev[8] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 
    int sioBaud = 19200; // SIO Baud rate
 

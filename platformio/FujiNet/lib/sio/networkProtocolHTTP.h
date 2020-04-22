@@ -29,10 +29,10 @@ private:
     virtual bool startConnection(byte *buf, unsigned short len);
 
     HTTPClient client;
-    WiFiClient* c;
+    WiFiClient *c;
 
-    char* headerCollection[16];
-    size_t headerCollectionIndex=0;
+    char *headerCollection[16];
+    size_t headerCollectionIndex = 0;
 
     bool requestStarted = false;
     enum
@@ -54,7 +54,7 @@ private:
     } httpState;
 
     char cert[2048];
-
+    String openedURL;
 };
 
 #endif /* NETWORKPROTOCOLHTTP */

@@ -24,7 +24,7 @@ networkProtocolTCP::~networkProtocolTCP()
     }
 }
 
-bool networkProtocolTCP::open(networkDeviceSpec *spec, cmdFrame_t* cmdFrame)
+bool networkProtocolTCP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
 {
     bool ret;
 
@@ -100,8 +100,8 @@ bool networkProtocolTCP::read(byte *rx_buf, unsigned short len)
         client_error_code = 128;
         return false;
     }
-
-    return (client.readBytes(rx_buf, len) == len);
+    assertProceed=true;
+    return (client.readBytes(rx_buf, len) != len);
 }
 
 bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
@@ -114,19 +114,23 @@ bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
         client_error_code = 128;
         return false;
     }
-
-    return (client.write((char *)tx_buf), len);
+    assertProceed=true;
+    return (client.write((char *)tx_buf), len != len);
 }
 
 bool networkProtocolTCP::status(byte *status_buf)
 {
+    unsigned short available_bytes;
+
     memset(status_buf, 0x00, 4);
     if (client.connected())
     {
-        status_buf[0] = client.available() & 0xFF;
-        status_buf[1] = client.available() >> 8;
+        available_bytes = client.available();
+        status_buf[0] = available_bytes & 0xFF;
+        status_buf[1] = available_bytes >> 8;
         status_buf[2] = client.connected();
         status_buf[3] = client_error_code;
+        assertProceed = (available_bytes > 0);
     }
     else if (server != NULL)
     {
