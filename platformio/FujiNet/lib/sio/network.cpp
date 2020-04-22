@@ -75,6 +75,12 @@ void sioNetwork::sio_open()
 
     sio_ack();
 
+    if (protocol!=nullptr)
+    {
+        delete protocol;
+        deallocate_buffers();
+    }
+
     deviceSpec.clear();
     memset(&inp, 0, sizeof(inp));
     memset(&status_buf.rawData, 0, sizeof(status_buf.rawData));
