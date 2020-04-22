@@ -6,9 +6,9 @@
 
 KeyManager::KeyManager()
 {
-    memset(mButtonActive, false, sizeof(bool) * eKey::KEY_COUNT);
-    memset(mLongPressActive, false, sizeof(bool) * eKey::KEY_COUNT);
-    memset(mButtonTimer, 0, sizeof(long) * eKey::KEY_COUNT);
+    memset(mButtonActive, 0, sizeof(mButtonActive));
+    memset(mLongPressActive, 0, sizeof(mLongPressActive));
+    memset(mButtonTimer, 0, sizeof(mButtonTimer));
     mButtonPin[eKey::BOOT_KEY] = PIN_BOOT_KEY;
     mButtonPin[eKey::OTHER_KEY] = PIN_OTHER_KEY;
 }
