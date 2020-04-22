@@ -63,6 +63,15 @@ int WiFiManager::setup()
 
 int WiFiManager::connect(const char *ssid, const char *password)
 {
+    if(connected() == true)
+    {
+        WiFi.disconnect();
+        delay(100);
+
+        WiFi.mode(WIFI_STA);
+        WiFi.enableSTA(true);
+    }
+    
     WiFi.begin(ssid, password);
     _started = true;
     return 0;
@@ -140,21 +149,30 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     return result;
 }
 
-int WiFiManager::get_scan_result(uint8_t index, char ssid[32], uint8_t *rssi)
+int WiFiManager::get_scan_result(uint8_t index, char ssid[32], uint8_t *rssi, uint8_t *channel, char bssid[18], uint8_t *encryption)
 {
+    String s;
     if(ssid != NULL)
     {
-        String s = WiFi.SSID(index);
+        s = WiFi.SSID(index);
         strncpy(ssid, s.c_str(), 32);
     }
-    if(rssi != NULL)
+    if(bssid != NULL)
     {
-        *rssi = WiFi.RSSI(index);
+        s = WiFi.BSSIDstr(index);
+        strncpy(bssid, s.c_str(), 18);
     }
+    if(rssi != NULL)
+        *rssi = WiFi.RSSI(index);
+    if(channel != NULL)
+        *channel = WiFi.channel(index);
+    if(encryption != NULL)
+        *encryption = WiFi.encryptionType(index);
+    
     return 0;
 }
 
-std::string WiFiManager::get_ssid()
+std::string WiFiManager::get_current_ssid()
 {
     wifi_ap_record_t apinfo;
     esp_err_t e = esp_wifi_sta_get_ap_info( &apinfo );
@@ -174,6 +192,14 @@ int WiFiManager::get_mac(uint8_t mac[6])
     return e;
 }
 
+char * WiFiManager::mac_to_string(char dest[18], uint8_t mac[6])
+{
+    if(dest != NULL)
+        sprintf(dest, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+    return dest;
+}
+
 std::string WiFiManager::get_mac_str()
 {
     std::string result;
@@ -181,12 +207,11 @@ std::string WiFiManager::get_mac_str()
     char macStr[18] = { 0 };
     esp_read_mac(mac, ESP_MAC_WIFI_STA);
 
-    sprintf(macStr, "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
-    result += macStr;
+    result += mac_to_string(macStr, mac);
     return result;
 }
 
-int WiFiManager::get_bssid(uint8_t bssid[6])
+int WiFiManager::get_current_bssid(uint8_t bssid[6])
 {
     wifi_ap_record_t apinfo;
     esp_err_t e = esp_wifi_sta_get_ap_info( &apinfo );
@@ -197,7 +222,7 @@ int WiFiManager::get_bssid(uint8_t bssid[6])
     return e;
 }    
 
-std::string WiFiManager::get_bssid_str()
+std::string WiFiManager::get_current_bssid_str()
 {
     wifi_ap_record_t apinfo;
     esp_err_t e = esp_wifi_sta_get_ap_info( &apinfo );
@@ -206,8 +231,7 @@ std::string WiFiManager::get_bssid_str()
     if(ESP_OK == e) 
     {
         char mac[18] = { 0 };
-        sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X", apinfo.bssid[0], 
-            apinfo.bssid[1], apinfo.bssid[2], apinfo.bssid[3], apinfo.bssid[4], apinfo.bssid[5]);
+        result += mac_to_string(mac, apinfo.bssid);
         result += mac;
     }
 
