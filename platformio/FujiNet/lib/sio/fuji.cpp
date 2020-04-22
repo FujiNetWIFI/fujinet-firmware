@@ -432,8 +432,8 @@ void sioFuji::sio_get_adapter_config()
         strncpy((char *)adapterConfig.bssid, (const char *)WiFi.BSSID(), 6);
 
 */
-        strncpy(adapterConfig.ssid, fnWiFi.get_ssid().c_str(), sizeof(adapterConfig.ssid));
-        fnWiFi.get_bssid(adapterConfig.bssid);
+        strncpy(adapterConfig.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(adapterConfig.ssid));
+        fnWiFi.get_current_bssid(adapterConfig.bssid);
         fnSystem.Net.get_ip4_info(adapterConfig.localIP, adapterConfig.netmask, adapterConfig.gateway);
         fnSystem.Net.get_ip4_dns_info(adapterConfig.dnsIP);
     }
