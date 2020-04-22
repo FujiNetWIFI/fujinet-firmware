@@ -13,12 +13,10 @@
 #include <FS.h>
 #endif
 #ifdef ESP32
-#include <WiFi.h>
+//#include <WiFi.h>
 #include <SPIFFS.h>
 #endif
 #include <SD.h>
-
-#define NET_SCAN_NETWORKS_RETRIES 2
 
 extern FS* fileSystems[8];
 extern TNFSFS TNFS[8];

@@ -12,7 +12,7 @@
 #include "networkProtocol.h"
 
 #define NUM_DEVICES 8
-#define INPUT_BUFFER_SIZE 2048
+#define INPUT_BUFFER_SIZE 8192
 #define OUTPUT_BUFFER_SIZE 2048
 #define SPECIAL_BUFFER_SIZE 256
 #define DEVICESPEC_SIZE 256
@@ -30,23 +30,21 @@ private:
     bool open_protocol();
 
 protected:
-
     networkDeviceSpec deviceSpec;
-    networkProtocol* protocol;
+    networkProtocol *protocol;
 
     unsigned char err;
     byte ck;
-    byte* rx_buf;
-    byte* tx_buf;
-    byte* sp_buf;
+    byte *rx_buf;
+    byte *tx_buf;
+    byte *sp_buf;
     unsigned short rx_buf_len;
-    unsigned short tx_buf_len=256;
+    unsigned short tx_buf_len = 256;
     unsigned short sp_buf_len;
     unsigned char aux1;
     unsigned char aux2;
 
-    union
-    {
+    union {
         struct
         {
             unsigned short rx_buf_len;
@@ -56,7 +54,6 @@ protected:
         byte rawData[4];
     } status_buf;
 
-
 public:
     virtual void sio_open();
     virtual void sio_close();
@@ -65,12 +62,13 @@ public:
     virtual void sio_status();
     virtual void sio_special();
 
+    void sio_assert_interrupts();
+
     void sio_special_00();
     void sio_special_40();
     void sio_special_80();
 
     virtual void sio_process();
-
 };
 
 #endif /* NETWORK_H */

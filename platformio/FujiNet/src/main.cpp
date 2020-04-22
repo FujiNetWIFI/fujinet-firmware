@@ -26,7 +26,9 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "fuji.h"
 #include "apetime.h"
 #include "voice.h"
-#include "../http/httpService.h"
+#include "httpService.h"
+#include "fnSystem.h"
+#include "fnWiFi.h"
 
 //#include <WiFiUdp.h>
 
@@ -40,7 +42,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #ifdef ESP32
 #include <SPIFFS.h>
 #include <SPI.h>
-#include <WiFi.h>
+//#include <WiFi.h>
 #include <SD.h>
 #endif
 
@@ -49,6 +51,11 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 
 #ifdef BLUETOOTH_SUPPORT
 #include "bluetooth.h"
+#endif
+
+#ifdef BOARD_HAS_PSRAM
+#include <esp_spiram.h>
+#include <esp_himem.h>
 #endif
 
 //#define TNFS_SERVER "192.168.1.12"
@@ -85,15 +92,25 @@ sioPrinter *getCurrentPrinter()
 
 void setup()
 {
-
-  // connect to wifi but DO NOT wait for it
-  // WiFi.begin(WIFI_SSID, WIFI_PASS);
-
 #ifdef DEBUG_S
   BUG_UART.begin(DEBUG_SPEED);
-  BUG_UART.println();
-  BUG_UART.println("FujiNet PlatformIO Started");
 #endif
+#ifdef DEBUG
+  Debug_println("\n--%--%--%--\nFujiNet PlatformIO Started");
+  Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());  
+  #ifdef BOARD_HAS_PSRAM
+  Debug_printf("PsramSize %u\n", ESP.getPsramSize());
+  //Debug_printf("spiram size %u\n", esp_spiram_get_size());
+  //Debug_printf("himem free %u\n", esp_himem_get_free_size());
+  Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
+  Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
+  #endif
+#endif
+  // connect to wifi but DO NOT wait for it
+  //WiFi.begin(WIFI_SSID, WIFI_PASS);
+  fnWiFi.setup();
+  // fnWiFi.start(WIFI_SSID, WIFI_PASS);
+
   if (!SPIFFS.begin())
   {
 #ifdef DEBUG
@@ -158,17 +175,16 @@ void setup()
 
   SIO.addDevice(&sioV, 0x43); // P3:
 
-  if (WiFi.status() == WL_CONNECTED)
+  if (fnWiFi.connected())
   {
-#ifdef DEBUG_S
-    BUG_UART.println(WiFi.localIP());
+#ifdef DEBUG
+    Debug_printf("IP address obtained: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
 #endif
     UDP.begin(16384);
   }
 
-#ifdef DEBUG_S
-  BUG_UART.print(SIO.numDevices());
-  BUG_UART.println(" devices registered.");
+#ifdef DEBUG
+  Debug_printf("%d devices registered\n", SIO.numDevices());
 #endif
 
   SIO.setup();
@@ -181,6 +197,10 @@ void setup()
   ledMgr.setup();
 
   void sio_flush();
+
+#ifdef DEBUG
+    Debug_printf("Available heap: %u\n", fnSystem.get_free_heap_size());
+#endif
 }
 
 void loop()
@@ -195,7 +215,7 @@ void loop()
 #endif
 
 #ifdef ESP32
-  if (WiFi.status() == WL_CONNECTED)
+  if (fnWiFi.connected())
   {
     ledMgr.set(eLed::LED_WIFI, true);
     if(!fnHTTPD.running())
@@ -234,11 +254,19 @@ void loop()
     if (btMgr.isActive())
     {
       btMgr.stop();
+#ifdef BOARD_HAS_PSRAM
+      ledMgr.set(eLed::LED_BT, false);
+#else
       ledMgr.set(eLed::LED_SIO, false);
+#endif
     }
     else
     {
+#ifdef BOARD_HAS_PSRAM
+      ledMgr.set(eLed::LED_BT, true);
+#else
       ledMgr.set(eLed::LED_SIO, true); // SIO LED always ON in Bluetooth mode
+#endif
       btMgr.start();
     }
 #endif
@@ -246,7 +274,11 @@ void loop()
   case eKeyStatus::SHORT_PRESSED:
 #ifdef DEBUG
     Debug_println("B_KEY: SHORT PRESS");
+  #ifdef BOARD_HAS_PSRAM
+    ledMgr.blink(eLed::LED_BT); // blink to confirm a button press
+  #else
     ledMgr.blink(eLed::LED_SIO); // blink to confirm a button press
+  #endif
 #endif
 #ifdef BLUETOOTH_SUPPORT
     if (btMgr.isActive())
@@ -273,7 +305,6 @@ void loop()
   {
 #endif // ESP32
     SIO.service();
-    //httpService();
 #ifdef ESP32
   }
 #endif

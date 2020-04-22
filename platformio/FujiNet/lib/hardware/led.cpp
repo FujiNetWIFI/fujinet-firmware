@@ -4,7 +4,7 @@
 #if defined(ESP8266)
 #define PIN_LED_WIFI 2
 #define PIN_LED_SIO 2
-#define PIN_LED3 2
+#define PIN_LED_BT 2
 #elif defined(ESP32)
 #define PIN_LED_WIFI 2
 #define PIN_LED_SIO 4
@@ -12,9 +12,9 @@
 // pins 12-15 are used to interface with the JTAG debugger
 // so leave them alone if we're using JTAG
 #ifndef JTAG 
-#define PIN_LED3 13
+#define PIN_LED_BT 13
 #else
-#define PIN_LED3 4
+#define PIN_LED_BT 4
 #endif
 
 #endif
@@ -24,7 +24,7 @@ LedManager::LedManager()
     memset(mLedState, false, sizeof(bool) * eLed::LED_COUNT);
     mLedPin[eLed::LED_WIFI] = PIN_LED_WIFI;
     mLedPin[eLed::LED_SIO] = PIN_LED_SIO;
-    mLedPin[eLed::LED3] = PIN_LED3;
+    mLedPin[eLed::LED_BT] = PIN_LED_BT;
 }
 
 void LedManager::setup()
@@ -35,8 +35,8 @@ void LedManager::setup()
     pinMode(PIN_LED_SIO, OUTPUT);
     digitalWrite(PIN_LED_SIO, HIGH); // OFF
  
-    pinMode(PIN_LED3, OUTPUT);
-    digitalWrite(PIN_LED3, HIGH); // OFF
+    pinMode(PIN_LED_BT, OUTPUT);
+    digitalWrite(PIN_LED_BT, HIGH); // OFF
 }
 
 void LedManager::set(eLed led, bool on)

@@ -58,6 +58,11 @@ bool sioNetwork::open_protocol()
         protocol = new networkProtocolHTTP();
         return true;
     }
+    else if (strcmp(deviceSpec.protocol, "HTTPS") == 0)
+    {
+        protocol = new networkProtocolHTTP();
+        return true;
+    }
     else
     {
         return false;
@@ -209,6 +214,8 @@ void sioNetwork::sio_write()
 
     sio_ack();
 
+    memset(tx_buf, 0, OUTPUT_BUFFER_SIZE);
+
     if (protocol == nullptr)
     {
 #ifdef DEBUG
@@ -339,6 +346,21 @@ void sioNetwork::sio_special_80()
 {
     sio_to_peripheral(sp_buf, sp_buf_len);
     err = protocol->special(sp_buf, sp_buf_len, &cmdFrame);
+}
+
+void sioNetwork::sio_assert_interrupts()
+{
+    if (protocol != nullptr)
+    {
+        protocol->status(status_buf.rawData); // Prime the status buffer
+        if (status_buf.rx_buf_len>0)
+        {
+            digitalWrite(PIN_PROC,LOW);
+            delay(10);
+            digitalWrite(PIN_PROC,HIGH);
+        }
+        // digitalWrite(PIN_PROC, (protocol->assertProceed == true ? LOW : HIGH));
+    }
 }
 
 void sioNetwork::sio_process()
