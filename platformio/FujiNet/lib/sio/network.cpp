@@ -356,7 +356,7 @@ void sioNetwork::sio_assert_interrupts()
         if (status_buf.rx_buf_len>0)
         {
             digitalWrite(PIN_PROC,LOW);
-            delay(10);
+            delayMicroseconds(200);
             digitalWrite(PIN_PROC,HIGH);
         }
         // digitalWrite(PIN_PROC, (protocol->assertProceed == true ? LOW : HIGH));
