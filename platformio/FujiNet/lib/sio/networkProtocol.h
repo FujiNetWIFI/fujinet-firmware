@@ -8,16 +8,18 @@
 class networkProtocol
 {
 public:
-    virtual ~networkProtocol() { }
+    virtual ~networkProtocol() {}
 
-    bool connectionIsServer=false;
+    bool connectionIsServer = false;
+    bool assertInterrupt = false;
+    bool assertProceed = false;
 
-    virtual bool open(networkDeviceSpec* spec, cmdFrame_t* cmdFrame) = 0;
+    virtual bool open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame) = 0;
     virtual bool close() = 0;
-    virtual bool read(byte* rx_buf, unsigned short len) = 0;
-    virtual bool write(byte* tx_buf, unsigned short len) = 0;
-    virtual bool status(byte* status_buf) = 0;
-    virtual bool special(byte* sp_buf, unsigned short len, cmdFrame_t* cmdFrame) = 0;
+    virtual bool read(byte *rx_buf, unsigned short len) = 0;
+    virtual bool write(byte *tx_buf, unsigned short len) = 0;
+    virtual bool status(byte *status_buf) = 0;
+    virtual bool special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) = 0;
 
     virtual bool special_supported_40_command(unsigned char comnd) { return false; }
     virtual bool special_supported_80_command(unsigned char comnd) { return false; }

@@ -33,7 +33,7 @@ void sioFuji::sio_status()
 void sioFuji::sio_net_scan_networks()
 {
     char ret[4] = {0, 0, 0, 0};
-
+/*
     // Scan to computer
     WiFi.mode(WIFI_STA);
 
@@ -57,8 +57,9 @@ void sioFuji::sio_net_scan_networks()
         result = 0;
     if (result > 50)
         result = 50;
+*/
+    totalSSIDs = fnWiFi.scan_networks();
 
-    totalSSIDs = (char)result;
     ret[0] = totalSSIDs;
     sio_to_computer((byte *)ret, 4, false);
 }
@@ -71,8 +72,9 @@ void sioFuji::sio_net_scan_result()
     bool err = false;
     if (cmdFrame.aux1 < totalSSIDs)
     {
-        strcpy(ssidInfo.ssid, WiFi.SSID(cmdFrame.aux1).c_str());
-        ssidInfo.rssi = (char)WiFi.RSSI(cmdFrame.aux1);
+        fnWiFi.get_scan_result(cmdFrame.aux1, ssidInfo.ssid, (uint8_t *)&ssidInfo.rssi);
+        //strcpy(ssidInfo.ssid, WiFi.SSID(cmdFrame.aux1).c_str());
+        //ssidInfo.rssi = (char)WiFi.RSSI(cmdFrame.aux1);
     }
     else
     {
@@ -99,7 +101,7 @@ void sioFuji::sio_net_set_ssid()
 #ifdef DEBUG
         Debug_printf("Connecting to net: %s password: %s\n", netConfig.ssid, netConfig.password);
 #endif
-        WiFi.begin(netConfig.ssid, netConfig.password);
+        fnWiFi.connect(netConfig.ssid, netConfig.password);
         // todo: add error checking?
         // UDP.begin(16384); // move to TNFS.begin
         sio_complete();
@@ -111,8 +113,9 @@ void sioFuji::sio_net_set_ssid()
 */
 void sioFuji::sio_net_get_wifi_status()
 {
-
-
+#ifdef DEBUG
+    Debug_println("sio_net_get_wifi_status();");
+#endif
     /* Pulled this out, as the LED is being updated elsewhere
     // Update WiFi Status LED
     if (wifiStatus == WL_CONNECTED)
@@ -123,7 +126,6 @@ void sioFuji::sio_net_get_wifi_status()
 
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     byte wifiStatus = fnWiFi.connected() ? 3 : 6;
-
     sio_to_computer((byte *)&wifiStatus, 1, false);
 }
 

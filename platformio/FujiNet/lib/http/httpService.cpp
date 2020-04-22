@@ -1,5 +1,3 @@
-#include <Arduino.h>
-#include <WiFi.h>
 #include <vector>
 #include <map>
 #include <sstream>
@@ -14,7 +12,8 @@
 #include "httpService.h"
 #include "httpServiceParser.h"
 #include "printer.h"
-//#include "../../src/main.h"
+#include "../../src/main.h"
+#include "fnWiFi.h"
 
 using namespace std;
 
@@ -359,7 +358,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         }
     };
 
-    if(WiFi.status() != WL_CONNECTED) 
+    if(!fnWiFi.connected()) 
     {
 #ifdef DEBUG
         Debug_println("WiFi not connected - aborting web server startup");
