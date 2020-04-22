@@ -2,11 +2,15 @@
 #include <string>
 #include <cstdio>
 
+#include <SPIFFS.h>
+
 #include "httpServiceParser.h"
 
 #include "../../src/main.h"
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
+
+
 
 using namespace std;
 

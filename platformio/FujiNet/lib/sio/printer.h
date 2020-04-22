@@ -6,47 +6,164 @@
 #include <SPIFFS.h>
 
 #include "sio.h"
+#include "pdf_printer.h"
+#include "atari_1027.h"
+#include "file_printer.h"
 
 #define EOL 155
-#define BACKSLASH 92
-#define LEFTPAREN 40
-#define RIGHTPAREN 41
-#define UPARROW 0xAD
-#define DOWNARROW 0xAF
-#define LEFTARROW 0xAC
-#define RIGHTARROW 0xAE
-#define BUFN 40
 
-#define PLAIN 0
-#define UNDERSCORE 0x0100
-#define SYMBOL 0x0200
-#define BOLD 0x0400
-#define EMPHASIS 0x0800
+class sioPrinter;
 
-const byte intlchar[32] = {225, 249, 209, 201, 231, 244, 242, 236, 163, 239, 252, 228, 214, 250, 243, 246, 220, 226, 251, 238, 233, 232, 241, 234, 229, 224, 197, 27, UPARROW, DOWNARROW, LEFTARROW, RIGHTARROW};
-
-enum printer_t
+class atari820 : public pdfPrinter
 {
-    A820,
-    A822,
-    A825,
-    A1020,
-    A1025,
-    A1027,
-    EMX80
+    // reverse the buffer in sioPrinter::sio_write() for sideways printing
+    // the PDF standard doesn't really handle right-to-left
+    // printing. The example in section 9.7 uses reverse strings.
+protected:
+    bool sideFlag = false;
+    sioPrinter *my_sioP; // added variable to point back to sioPrinter parent
+
+    void pdf_fonts();
+    void pdf_handle_char(byte c); // need a custom one to handle sideways printing
+
+    //pdfFont_t F1;
+    pdfFont_t F1 = {
+        /*
+    /Type /Font
+    /Subtype /Type1
+    /FontDescriptor 8 0 R
+    /BaseFont /Atari-820-Normal
+    /FirstChar 0
+    /LastChar 255
+    /Widths 10 0 R
+    /Encoding /WinAnsiEncoding
+    /Type /FontDescriptor
+    /FontName /Atari-820-Normal
+    /Ascent 1000
+    /CapHeight 1000
+    /Descent 0
+    /Flags 33
+    /FontBBox [0 0 433 700]
+    /ItalicAngle 0
+    /StemV 87
+    /XHeight 714
+    /FontFile3 9 0 R
+  */
+        "Type1",            //F1->subtype =
+        "Atari-820-Normal", //F1->basefont =
+        {500},              //  F1->width[0] =
+        1,                  // F1->numwidth
+        1000,               // F1->ascent =
+        1000,               // F1->capheight =
+        0,                  // F1->descent =
+        33,                 // F1->flags =
+        {0, 0, 433, 700},
+        87,         // F1->stemv =
+        714,        // F1->xheight =
+        3,          // F1->ffnum =
+        "/a820norm" // F1->ffname =
+    };
+
+    //pdfFont_t F2;
+    pdfFont_t F2 = {
+        /*
+    /Type /Font
+    /Subtype /Type1
+    /FontDescriptor 8 0 R
+    /BaseFont /Atari-820-Sideways
+    /FirstChar 0
+    /LastChar 255
+    /Widths 10 0 R
+    /Encoding /WinAnsiEncoding
+    /Type /FontDescriptor
+    /FontName /Atari-820-Sideways
+    /Ascent 1000
+    /CapHeight 1000
+    /Descent 0
+    /Flags 33
+    /FontBBox [0 0 600 700]
+    /ItalicAngle 0
+    /StemV 87
+    /XHeight 1000
+    /FontFile3 9 0 R
+  */
+        "Type1",              // F2->subtype =
+        "Atari-820-Sideways", // F2->basefont =
+        {666},                // F2->width[0] = ;
+        1,                    // F2->numwidth =
+        1000,                 // F2->ascent =
+        1000,                 // F2->capheight =
+        0,                    // F2->descent =
+        33,                   // F2->flags =
+        {0, 0, 600, 700},
+        87,         // F2->stemv =
+        1000,       // F2->xheight =
+        3,          // F2->ffnum =
+        "/a820side" // F2->ffname =
+    };
+
+public:
+    void initPrinter(FS *filesystem);
+    void setDevice(sioPrinter *P) { my_sioP = P; };
 };
 
-enum paper_t
+class atari822 : public pdfPrinter
 {
-    RAW,
-    TRIM,
-    ASCII,
-    PDF,
-    SVG
+protected:
+    sioPrinter *my_sioP;
+
+    void pdf_fonts();
+    void pdf_handle_char(byte c); // need a custom one to handle sideways printing
+
+    int gfxNumber = 0;
+
+    pdfFont_t F1 = {
+        //pdfFont_t F1;
+        /*
+      /Type /Font
+      /Subtype /Type1
+      /FontDescriptor 8 0 R
+      /BaseFont /Atari-822-Thermal
+      /FirstChar 0
+      /LastChar 255
+      /Widths 10 0 R
+      /Encoding /WinAnsiEncoding
+      /Type /FontDescriptor
+      /FontName /Atari-822-Thermal
+      /Ascent 1000
+      /CapHeight 986
+      /Descent 0
+      /Flags 33
+      /FontBBox [0 0 490 690]
+      /ItalicAngle 0
+      /StemV 87
+      /XHeight 700
+      /FontFile3 9 0 R
+    */
+        "Type1",
+        "Atari-822-Thermal",
+        {600},
+        1,
+        1000,
+        986,
+        0,
+        33,
+        {0, 0, 490, 690},
+        87,
+        700,
+        3,
+        "/a822font"};
+
+public:
+    virtual void initPrinter(FS *filesystem);
+    void setDevice(sioPrinter *P) { my_sioP = P; };
 };
 
 class sioPrinter : public sioDevice
 {
+    friend atari820;
+    friend atari822;
+
 protected:
     // SIO THINGS
     byte buffer[40];
@@ -55,152 +172,22 @@ protected:
     void sio_process();
     byte lastAux1 = 0;
 
-    // PRINTER THINGS
-
-    File _file;
-    FS* _FS;
-    paper_t paperType = RAW;
-    virtual void writeBuffer(byte *B, int n) = 0;
-
-public:
-    virtual void initPrinter(FS *filesystem);
-    virtual void setPaper(paper_t ty) = 0;
-    virtual void pageEject(){};
-    virtual void flushOutput();
-    size_t getOutputSize() {
-        return _file.size();
-    }
-    int readFromOutput() {
-        return _file.read();
-    }
-    int readFromOutput(uint8_t *buf, size_t size) {
-        return _file.read(buf, size);
-    }
-    void resetOutput();
-    paper_t getPaperType();
-};
-
-class filePrinter : public sioPrinter
-{
-protected:
-    void writeBuffer(byte *B, int n);
+    /**
+     * new design idea:
+     * remove pure virtual functions
+     * replace with pointer to printer emulator objects
+     * so printer emaulator code can be reused by non-SIO
+     * applications
+     * 
+     * */
+    printer_emu *_pptr;
 
 public:
-    void setPaper(paper_t ty);
-    void initPrinter(FS *filesystem);
+    void connect_printer(printer_emu *P) { _pptr = P; };
+    printer_emu *getPrinterPtr() { return _pptr; };
+    void initPrinter(FS *fs) { _pptr->initPrinter(fs); };
 };
 
-class pdfPrinter : public sioPrinter
-{
-protected:
-    // PDF THINGS
-    double pageWidth = 612.0;
-    double pageHeight = 792.0;
-    double leftMargin = 18.0;
-    double bottomMargin = 0;
-    double printWidth = 576.0; // 8 inches
-    double lineHeight = 12.0;
-    double charWidth = 7.2;
-    uint fontNumber = 1;
-    uint fontSize = 12; // default 12 pica, 10 cpi
-   // double fontHorizontalScaling = 100;
-    double pdf_X = 0; // across the page - columns in pts
-    bool BOLflag = true;
-    double pdf_Y = 0; // down the page - lines in pts
-    bool TOPflag = true;
-    bool textMode = true; 
-    int pageObjects[256];
-    int pdf_pageCounter = 0;
-    size_t objLocations[256]; // reference table storage
-    int pdf_objCtr = 0;       // count the objects
-
-    virtual void pdf_handle_char(byte c) = 0;
-    virtual void pdf_fonts() = 0;
-    void pdf_header();
-    void pdf_xref();
-    void pdf_begin_text(double Y);
-    void pdf_new_page();
-    void pdf_end_page();
-    //void pdf_set_font();
-    void pdf_new_line();
-    void pdf_end_line();
-    void pdf_add(std::string output);
-
-    size_t idx_stream_length; // file location of stream length indictor
-    size_t idx_stream_start;  // file location of start of stream
-    size_t idx_stream_stop;   // file location of end of stream
-
-    // PRINTER THINGS
-    void writeBuffer(byte *B, int n);
-
-public:
-    void pageEject();
-    void setPaper(paper_t ty){};
-    void flushOutput();
-};
-
-class asciiPrinter : public pdfPrinter
-{
-protected:
-    virtual void pdf_fonts();
-    virtual void pdf_handle_char(byte c);
-
-public:
-    void initPrinter(FS *filesystem);
-};
-
-class atari1027 : public pdfPrinter
-{
-protected:
-    bool intlFlag = false;
-    bool uscoreFlag = false;
-    bool escMode = false;
-
-    void pdf_fonts();
-    void pdf_handle_char(byte c);
-
-public:
-    void initPrinter(FS *filesystem);
-};
-
-class atari820 : public pdfPrinter
-{
-// reverse the buffer in sioPrinter::sio_write() for sideways printing
-// the PDF standard doesn't really handle right-to-left
-// printing. The example in section 9.7 uses reverse strings.
-
-protected:
-    bool sideFlag = false;
-
-    void pdf_fonts();
-    void pdf_handle_char(byte c);  // need a custom one to handle sideways printing
-
-public:
-    void initPrinter(FS *filesystem);
-};
-
-class atari822 : public pdfPrinter
-{
-protected:
-    void pdf_fonts();
-    void pdf_handle_char(byte c);  // need a custom one to handle sideways printing
-
-    int gfxNumber=0;
-    
-public:
-    void initPrinter(FS *filesystem);
-};
-
-
-class atari1020 : public sioPrinter
-{
-protected:
-    bool textFlag = true;
-    void svg_header();
-
-public:
-    void initPrinter(FS *filesystem);
-    void setPaper(paper_t ty){};
-};
+extern sioPrinter sioP; // make array eventually
 
 #endif // guard

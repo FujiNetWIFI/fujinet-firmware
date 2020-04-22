@@ -1,4 +1,4 @@
-#include "printer.h"
+//#include "printer.h"
 
-sioPrinter *getCurrentPrinter();
+// sioPrinter *getCurrentPrinter();
 
