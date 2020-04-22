@@ -5,6 +5,7 @@ networkProtocolHTTP::networkProtocolHTTP()
 {
     c = nullptr;
     httpState = DATA;
+    requestStarted=false;
 }
 
 networkProtocolHTTP::~networkProtocolHTTP()
@@ -19,6 +20,10 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
 {
     bool ret = false;
 
+#ifdef DEBUG
+    Debug_printf("startConnection()\n");
+#endif
+
     switch (openMode)
     {
     case GET:
@@ -32,6 +37,8 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
         break;
     case POST:
         resultCode = client.POST(buf, len);
+        numHeaders=client.headers();
+        headerIndex=0;
         ret = true;
         break;
     case PUT:
@@ -48,12 +55,19 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
     if (requestStarted)
         c = client.getStreamPtr();
 
+#ifdef DEBUG
+    Debug_printf("Result code: %d\n",resultCode);
+#endif
+
     return ret;
 }
 
 bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
 {
     String url = "http://" + String(spec->path);
+
+    if (strcmp(spec->protocol,"HTTPS")==0)
+        url = "https://" + String(spec->path);
 
     switch (cmdFrame->aux1)
     {
@@ -67,6 +81,8 @@ bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
         openMode = PUT;
         break;
     }
+
+    openedURL=url;
 
     return client.begin(url);
 }
@@ -133,6 +149,12 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
 
         break;
     case HEADERS:
+        for (b = 0; b < len; b++)
+        {
+            if (tx_buf[b] == 0x9B || tx_buf[b] == 0x0A || tx_buf[b] == 0x0D)
+                tx_buf[b] = 0x00;
+        }
+
         p = strtok((char *)tx_buf, ":");
 
         strcpy(tmpKey, p);
@@ -141,6 +163,10 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
         headerKey = String(tmpKey);
         headerValue = String(tmpValue);
         client.addHeader(headerKey, headerValue);
+#ifdef DEBUG
+        Debug_printf("headerKey: %s\n",headerKey.c_str());
+        Debug_printf("headerValue: %s\n",headerValue.c_str());
+#endif
         break;
     case COLLECT_HEADERS:
         for (b = 0; b < len; b++)
@@ -163,7 +189,7 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
             strcat(cert, (const char *)tx_buf);
             strcat(cert, "\n");
 #ifdef DEBUG
-            Debug_printf("Cert Data (%d): \n %s \n", strlen(cert), cert);
+            Debug_printf("(%d) %s\n", strlen(cert), cert);
 #endif
         }
         break;
@@ -197,6 +223,7 @@ bool networkProtocolHTTP::status(byte *status_buf)
         status_buf[1] = a >> 8;
         status_buf[2] = resultCode & 0xFF;
         status_buf[3] = resultCode >> 8;
+        assertInterrupt = a > 0;
         break;
     case HEADERS:
         if (headerIndex < numHeaders)
@@ -248,6 +275,19 @@ void networkProtocolHTTP::special_collect_headers_toggle(unsigned char a)
 void networkProtocolHTTP::special_ca_toggle(unsigned char a)
 {
     httpState = (a == 1 ? CA : DATA);
+    switch(a)
+    {
+        case 0:
+            if (strlen(cert)>0)
+            {
+                client.end();
+                client.begin(openedURL,cert);
+            }
+            break;
+        case 1:
+            memset(cert,0,sizeof(cert));
+            break;
+    }
     if (a > 0)
     {
         memset(cert, 0, sizeof(cert));

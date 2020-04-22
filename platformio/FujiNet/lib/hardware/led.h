@@ -7,7 +7,7 @@ enum eLed
 {
     LED_WIFI = 0,
     LED_SIO,
-    LED3,
+    LED_BT,
     LED_COUNT
 };
 
