@@ -14,18 +14,18 @@
 #include <string.h>
 #include <stdlib.h>
 #include <peekpoke.h>
-#include "sio.h"
 #include "conio.h"
-#include "err.h"
+
+unsigned char tmp[5];
+unsigned short memlo;
 
 void main(void)
 {
-  unsigned char tmp[5];
-  
+  memlo=(*(unsigned*) (0x2E7));
   OS.lmargn=2;
 
   print("\x9b");
-  itoa(OS.memlo,tmp,16);
+  itoa(memlo,tmp,16);
   print("MEMLO: $");
   print(tmp);
   print("\x9b\x9b");    
