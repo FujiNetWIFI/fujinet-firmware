@@ -20,7 +20,7 @@ extern void cio_status(void);
 extern void cio_special(void);
 
 const char banner_error[]="#FUJINET ERROR\x9b";
-const char banner_ready[]="#FujiNet OK\x9b";
+const char banner_ready[]="#FUJINET READY\x9b";
 
 unsigned char ret;
 unsigned char err;
