@@ -7,11 +7,12 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "sio.h"
+#include "config.h"
 
 extern unsigned char err;
 extern unsigned char ret;
-extern unsigned char aux1_save[8];
-extern unsigned char aux2_save[8];
+extern unsigned char aux1_save[MAX_DEVICES];
+extern unsigned char aux2_save[MAX_DEVICES];
 
 extern void cio_put_flush(void);
 

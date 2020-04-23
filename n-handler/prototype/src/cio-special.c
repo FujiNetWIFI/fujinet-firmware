@@ -7,49 +7,46 @@
 #include <string.h>
 #include "sio.h"
 #include "misc.h"
+#include "config.h"
 
 extern unsigned char err;
 extern unsigned char ret;
-extern unsigned char aux1_save[8];
-extern unsigned char aux2_save[8];
+extern unsigned char aux1_save[MAX_DEVICES];
+extern unsigned char aux2_save[MAX_DEVICES];
 
-extern void cio_put_flush(void); // from cio-put.c
+unsigned char inq_dstats;
 
 void _cio_special(void)
-{
-  unsigned char dcmd, dstats;
-  unsigned short dbyt, aux1, aux2;
-  void *buf;
-  
-  err=1;
-  dstats=dbyt=0x00;
-  aux1=aux1_save[OS.ziocb.drive];
-  aux2=aux2_save[OS.ziocb.drive];
-  buf=NULL;
-  
-  switch (OS.ziocb.command)
-    {
-    case 16: // Accept Connection
-      dcmd='A';
-      break;
-    case 17: // unlisten
-      dcmd='U';
-      break;
-    case 18: // flush
-      cio_put_flush();
-      err=ret=1;
-      return;
-      break;
-    default:
-      err=146; // Not implemented
-    }
+{ 
+  // First determine DSTATS for command
 
-  ret=siov(DEVIC_N, OS.ziocb.drive,
-	   dcmd,
-	   dstats,
-	   buf,	   
-	   dbyt,
+  err=siov(DEVIC_N,
+	   OS.ziocb.drive,
+	   0xFF, // DSTATS inquiry
+	   0x40, // Read
+	   &inq_dstats,
+	   1,    // 1 byte
 	   DTIMLO_DEFAULT,
-	   aux1,
-	   aux2);
+	   OS.ziocb.command, // Requested command
+	   0);   // not used
+
+  if (err!=1) // inquiry failed?
+    {
+      ret=err=OS.dcb.dstats;
+      return;
+    }
+  else if (inq_dstats==0xFF)
+    {
+      ret=err=146; // CIO command not implemented.
+      return;
+    }
+  
+  ret=err=siov(DEVIC_N, OS.ziocb.drive,
+	       OS.ziocb,
+	       inq_dstats,
+	       (inq_dstats==0x00 ? NULL : tx_buf[os.ziocb.drive-1]),	   
+	       256,
+	       DTIMLO_DEFAULT,
+	       OS.ziocb.aux1,
+	       OS.ziocb.aux2);
 }

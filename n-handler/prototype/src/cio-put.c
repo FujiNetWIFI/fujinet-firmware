@@ -7,12 +7,13 @@
 #include <string.h>
 #include "sio.h"
 #include "misc.h"
+#include "config.h"
 
 extern unsigned char err;
 extern unsigned char ret;
 extern unsigned char* tp;
 extern unsigned char buffer_tx_len;
-extern unsigned char buffer_tx[256];
+extern unsigned char buffer_tx[MAX_DEVICES][256];
 
 extern void _cio_status(void);
 

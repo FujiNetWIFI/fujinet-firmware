@@ -18,14 +18,13 @@ extern void cio_put(void);
 extern void cio_status(void);
 extern void cio_special(void);
 
-const char banner[]="#FujiNet N: Handler v0.1\x9b";
-const char banner_error[]="#FujiNet Not Responding\x9b";
-const char banner_ready[]="#FujiNet Active.\x9b";
+const char banner_error[]="#FUJINET ERROR\x9b";
+const char banner_ready[]="#FujiNet OK\x9b";
 
 unsigned char ret;
 unsigned char err;
-unsigned char buffer_rx[256];
-unsigned char buffer_tx[256];
+unsigned char buffer_rx[MAX_DEVICES][256];
+unsigned char buffer_tx[MAX_DEVICES][256];
 unsigned char buffer_rx_len;
 unsigned char buffer_tx_len;
 unsigned char* rp; // receive ptr
@@ -52,8 +51,6 @@ void main(void)
   // And inject our handler table into its slot.
   OS.hatabs[i].id='N';         // N: device
   OS.hatabs[i].devhdl=&devhdl; // handler table for N: device.
-
-  print(banner);
 
   cio_status();
 
