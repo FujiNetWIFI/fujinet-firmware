@@ -5,6 +5,7 @@
 #include <atari.h>
 #include <6502.h>
 #include "sio.h"
+#include "config.h"
 
 extern unsigned char err;
 extern unsigned char ret;

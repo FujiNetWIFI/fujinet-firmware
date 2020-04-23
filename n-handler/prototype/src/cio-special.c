@@ -11,8 +11,7 @@
 
 extern unsigned char err;
 extern unsigned char ret;
-extern unsigned char aux1_save[MAX_DEVICES];
-extern unsigned char aux2_save[MAX_DEVICES];
+extern unsigned char buffer_tx[MAX_DEVICES][256];
 
 unsigned char inq_dstats;
 
@@ -42,9 +41,9 @@ void _cio_special(void)
     }
   
   ret=err=siov(DEVIC_N, OS.ziocb.drive,
-	       OS.ziocb,
+	       OS.ziocb.command,
 	       inq_dstats,
-	       (inq_dstats==0x00 ? NULL : tx_buf[os.ziocb.drive-1]),	   
+	       (inq_dstats==0x00 ? NULL : buffer_tx[OS.ziocb.drive-1]),	   
 	       256,
 	       DTIMLO_DEFAULT,
 	       OS.ziocb.aux1,

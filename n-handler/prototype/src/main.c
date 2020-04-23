@@ -8,6 +8,7 @@
 #include <string.h>
 #include "cio.h"
 #include "conio.h"
+#include "config.h"
 
 devhdl_t devhdl;
 
@@ -25,11 +26,10 @@ unsigned char ret;
 unsigned char err;
 unsigned char buffer_rx[MAX_DEVICES][256];
 unsigned char buffer_tx[MAX_DEVICES][256];
-unsigned char buffer_rx_len;
-unsigned char buffer_tx_len;
+unsigned char buffer_rx_len[MAX_DEVICES];
+unsigned char buffer_tx_len[MAX_DEVICES];
 unsigned char* rp; // receive ptr
 unsigned char* tp; // transmit ptr
-unsigned char eol_mode;
 
 void main(void)
 {

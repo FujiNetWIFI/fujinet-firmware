@@ -5,6 +5,7 @@
 #include <atari.h>
 #include <string.h>
 #include "misc.h"
+#include "config.h"
 
 extern unsigned char buffer_rx_len[MAX_DEVICES];
 extern unsigned char buffer_tx_len[MAX_DEVICES];
@@ -46,9 +47,9 @@ unsigned char hi(unsigned short w)
  */
 void clear_rx_buffer(void)
 {
-  memset(&buffer_rx,0x00,sizeof(buffer_rx));
-  buffer_rx_len=0;
-  rp=&buffer_rx[0];
+  memset(&buffer_rx[OS.ziocb.drive-1],0x00,sizeof(buffer_rx[OS.ziocb.drive-1]));
+  buffer_rx_len[OS.ziocb.drive-1]=0;
+  rp[OS.ziocb.drive-1]=&buffer_rx[OS.ziocb.drive-1][0];
 }
 
 /**
@@ -56,7 +57,7 @@ void clear_rx_buffer(void)
  */
 void clear_tx_buffer(void)
 {
-  memset(&buffer_tx,0x00,sizeof(buffer_tx));
-  buffer_tx_len=0;
-  tp=&buffer_rx[0];
+  memset(&buffer_tx[OS.ziocb.drive-1],0x00,sizeof(buffer_tx[OS.ziocb.drive-1]));
+  buffer_tx_len[OS.ziocb.drive-1]=0;
+  tp[OS.ziocb.drive-1]=&buffer_rx[OS.ziocb.drive-1][0];
 }
