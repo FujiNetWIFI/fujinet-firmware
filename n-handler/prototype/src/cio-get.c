@@ -7,13 +7,14 @@
 #include <stdbool.h>
 #include "sio.h"
 #include "misc.h"
+#include "config.h"
 
 extern unsigned char err;
 extern unsigned char ret;
-extern unsigned char aux1_save[8];
-extern unsigned char aux2_save[8];
+extern unsigned char aux1_save[MAX_DEVICES];
+extern unsigned char aux2_save[MAX_DEVICES];
 extern unsigned char* rp;
-extern unsigned char buffer_rx[8][256];
+extern unsigned char buffer_rx[MAX_DEVICES][256];
 extern unsigned char buffer_rx_len;
 
 extern void _cio_status(void); // Used to get length to fetch.
