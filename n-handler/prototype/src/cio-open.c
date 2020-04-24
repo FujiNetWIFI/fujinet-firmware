@@ -33,15 +33,17 @@ void _cio_open(void)
   if (err==144)
     {
       // We got an SIO error, get the extended status error.
-      err=siov(DEVIC_N,
-	       OS.ziocb.drive,
-	       'O',
-	       DSTATS_WRITE,
-	       OS.ziocb.buffer,
-	       DBYT_OPEN,
-	       DTIMLO_DEFAULT,
-	       aux1_save[OS.ziocb.drive],
-	       aux2_save[OS.ziocb.drive]);
+      siov(DEVIC_N,
+	   OS.ziocb.drive,
+	   'S',
+	   DSTATS_READ,
+	   OS.dvstat,
+	   DBYT_OPEN,
+	   DTIMLO_DEFAULT,
+	   0,
+	   0);
+      
+      err=dvstat[3]; // Get Error code.
     }
   
   clear_rx_buffer();
