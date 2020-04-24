@@ -88,6 +88,9 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
   byte ck;
 
 // Retrieve data frame from computer
+#ifdef DEBUG
+  Debug_printf("<-SIO read %hu\n", len);
+#endif
 #ifdef DEBUG_VERBOSE
   size_t l = SIO_UART.readBytes(b, len);
 #else
