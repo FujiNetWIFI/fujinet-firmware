@@ -17,7 +17,7 @@ extern unsigned char* rp[MAX_DEVICES];
 extern unsigned char buffer_rx[MAX_DEVICES][256];
 extern unsigned char buffer_rx_len[MAX_DEVICES];
 
-extern void _cio_status(void); // Used to get length to fetch.
+extern void _cio_status_poll(void); // Used to get length to fetch.
 
 void _cio_get(void)
 {
@@ -26,7 +26,7 @@ void _cio_get(void)
   if (buffer_rx_len[OS.ziocb.drive-1]==0)
     {
       // Buffer empty, get length and read it in.
-      _cio_status();
+      _cio_status_poll();
 
       l=(OS.dvstat[1]<<8)+OS.dvstat[0];
       buffer_rx_len[OS.ziocb.drive-1]=(l<256 ? l : 255);
