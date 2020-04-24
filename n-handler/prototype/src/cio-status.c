@@ -31,17 +31,6 @@ void _cio_status_poll(void)
 
 void _cio_status(void)
 {
-
-  if (trip==1)
-    {
-      _cio_status_poll();
-      memcpy(&status_save,&OS.dvstat,4);
-    }
-  else
-    {
-      memcpy(&OS.dvstat,&status_save,4);
-    }
-  
-  ret=OS.dvstat[2];
-    
+  _cio_status_poll();  
+  ret=OS.dvstat[2];   
 }
