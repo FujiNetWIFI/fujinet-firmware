@@ -43,7 +43,7 @@ void _cio_open(void)
 	   0,
 	   0);
       
-      err=dvstat[3]; // Get Error code.
+      err=OS.dvstat[3]; // Get Error code.
     }
   
   clear_rx_buffer();
