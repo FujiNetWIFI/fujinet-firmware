@@ -71,12 +71,14 @@ bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
 
     switch (cmdFrame->aux1)
     {
+    case 4:
     case 12:
         openMode = GET;
         break;
     case 13:
         openMode = POST;
         break;
+    case 8:
     case 14:
         openMode = PUT;
         break;
