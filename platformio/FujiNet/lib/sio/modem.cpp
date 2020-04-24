@@ -3,6 +3,7 @@
 
 #include "modem.h"
 #include "fnWiFi.h"
+#include "atascii.h"
 
 #define RECVBUFSIZE 1024
 
@@ -17,19 +18,6 @@
 #define SIO_MODEMCMD_STATUS         0x53
 #define SIO_MODEMCMD_WRITE          0x57
 #define SIO_MODEMCMD_STREAM         0x58
-
-#define ATASCII_EOL 0x9B
-#define ATASCII_BS  0x7E
-#define ATASCII_CLS 0x7D
-#define ATASCII_UP  0x1C
-#define ATASCII_DN  0x1D
-#define ATASCII_LFT 0x1E
-#define ATASCII_RGT 0x1F
-
-#define ASCII_CR    0x0D
-#define ASCII_LF    0x0A
-#define ASCII_BS    0x08
-#define ASCII_DEL   0x7F
 
 #define FIRMWARE_850RELOCATOR "/850relocator.bin"
 #define FIRMWARE_850HANDLER   "/850handler.bin"
@@ -713,6 +701,8 @@ void sioModem::at_handle_wifilist()
             at_cmd_println(encryption == WIFI_AUTH_OPEN ? HELPSCAN4 : HELPSCAN5);
         }
     }
+    at_cmd_println();
+    at_cmd_println("OK");
 }
 
 void sioModem::at_handle_dial()
@@ -935,22 +925,24 @@ void sioModem::sio_handle_modem()
                 modemCommand();
             }
             // Backspace or delete deletes previous character
-            else if ((chr == ASCII_BS) || (chr == ASCII_DEL))
+            else if ((chr == ASCII_BACKSPACE) || (chr == ASCII_DELETE))
             {
                 cmd.remove(cmd.length() - 1);
                 // We don't assume that backspace is destructive
                 // Clear with a space
-                SIO_UART.write(ASCII_BS);
+                SIO_UART.write(ASCII_BACKSPACE);
                 SIO_UART.write(' ');
-                SIO_UART.write(ASCII_BS);
+                SIO_UART.write(ASCII_BACKSPACE);
             }
-            else if (chr == ATASCII_BS)
+            else if (chr == ATASCII_BACKSPACE)
             {
                 // ATASCII backspace
                 cmd.remove(cmd.length() - 1);
-                SIO_UART.write(ATASCII_BS);   // we can assume ATASCII BS is destructive.
+                SIO_UART.write(ATASCII_BACKSPACE);   // we can assume ATASCII BS is destructive.
             }
-            else if (chr == ATASCII_CLS || ((chr >= ATASCII_UP) && (chr <= ATASCII_RGT)))    // take into account arrow key movement and clear screen
+            // Take into account arrow key movement and clear screen            
+            else if (chr == ATASCII_CLEAR_SCREEN || 
+                ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
                 SIO_UART.write(chr);
             }
@@ -962,7 +954,7 @@ void sioModem::sio_handle_modem()
             }
         }
     }
-  /**** Connected mode ****/
+    // Connected mode
     else
     {
         int sioBytesAvail = SIO_UART.available();
@@ -981,7 +973,8 @@ void sioModem::sio_handle_modem()
 
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int sioBytesRead = SIO_UART.readBytes(&txBuf[0], (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
+            int sioBytesRead = SIO_UART.readBytes(&txBuf[0], 
+                (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
             for (int i = 0; i < (int) sioBytesRead; i++)
@@ -1031,7 +1024,8 @@ void sioModem::sio_handle_modem()
         if ((bytesAvail = tcpClient.available()) > 0)
         {
             // read as many as our buffer size will take (RECVBUFSIZE)
-            unsigned int bytesRead = tcpClient.readBytes(buf, (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
+            unsigned int bytesRead = tcpClient.readBytes(buf, 
+                (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
 
             SIO_UART.write(buf, bytesRead);
             SIO_UART.flush();
