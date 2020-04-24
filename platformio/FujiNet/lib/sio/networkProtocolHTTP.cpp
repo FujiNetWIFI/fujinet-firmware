@@ -296,6 +296,14 @@ void networkProtocolHTTP::special_ca_toggle(unsigned char a)
     }
 }
 
+bool networkProtocolHTTP::isConnected()
+{
+    if (c!=nullptr)
+        return c->connected();
+    else
+        return false;
+}
+
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
