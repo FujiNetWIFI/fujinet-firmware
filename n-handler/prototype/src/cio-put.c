@@ -30,17 +30,20 @@ void cio_put_flush(void)
     }
   else
     {
-      err=siov(DEVIC_N,
-	       OS.ziocb.drive,
-	       'W',
-	       DSTATS_WRITE,
-	       &buffer_tx,
-	       buffer_tx_len[OS.ziocb.drive-1],
-	       DTIMLO_DEFAULT,
-	       buffer_tx_len[OS.ziocb.drive-1],
-	       0);
-      
-      clear_tx_buffer();
+      if (buffer_tx_len[OS.ziocb.drive-1]>0)
+	{
+	  err=siov(DEVIC_N,
+		   OS.ziocb.drive,
+		   'W',
+		   DSTATS_WRITE,
+		   &buffer_tx,
+		   buffer_tx_len[OS.ziocb.drive-1],
+		   DTIMLO_DEFAULT,
+		   buffer_tx_len[OS.ziocb.drive-1],
+		   0);
+	  
+	  clear_tx_buffer();
+	}
     }
 }
 
