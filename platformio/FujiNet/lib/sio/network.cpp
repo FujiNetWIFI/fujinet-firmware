@@ -51,6 +51,8 @@ bool sioNetwork::open_protocol()
     else if (strcmp(deviceSpec.protocol, "UDP") == 0)
     {
         protocol = new networkProtocolUDP();
+        if (protocol != nullptr)
+            protocol->set_saved_rx_buffer(rx_buf, &rx_buf_len);
         return true;
     }
     else if (strcmp(deviceSpec.protocol, "HTTP") == 0)
@@ -75,7 +77,7 @@ void sioNetwork::sio_open()
 
     sio_ack();
 
-    if (protocol!=nullptr)
+    if (protocol != nullptr)
     {
         delete protocol;
         deallocate_buffers();
@@ -309,19 +311,19 @@ void sioNetwork::sio_special()
         err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
     }
-    else if (cmdFrame.comnd==0xFF) // Get DSTATS for protocol command.
+    else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
         byte ret;
         sio_ack();
         if (protocol->special_supported_00_command(cmdFrame.aux1))
-            ret=0x00;
+            ret = 0x00;
         else if (protocol->special_supported_40_command(cmdFrame.aux1))
-            ret=0x40;
+            ret = 0x40;
         else if (protocol->special_supported_80_command(cmdFrame.aux1))
-            ret=0x80;
+            ret = 0x80;
         else
-            ret=0xFF;
-        sio_to_computer(&ret,1,false);
+            ret = 0xFF;
+        sio_to_computer(&ret, 1, false);
     }
     else if (protocol->special_supported_00_command(cmdFrame.comnd))
     {
@@ -373,11 +375,11 @@ void sioNetwork::sio_assert_interrupts()
     if (protocol != nullptr)
     {
         protocol->status(status_buf.rawData); // Prime the status buffer
-        if (status_buf.rx_buf_len>0)
+        if (status_buf.rx_buf_len > 0)
         {
-            digitalWrite(PIN_PROC,LOW);
+            digitalWrite(PIN_PROC, LOW);
             delayMicroseconds(200);
-            digitalWrite(PIN_PROC,HIGH);
+            digitalWrite(PIN_PROC, HIGH);
         }
         // digitalWrite(PIN_PROC, (protocol->assertProceed == true ? LOW : HIGH));
     }
