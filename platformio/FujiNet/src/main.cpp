@@ -157,10 +157,24 @@ void setup()
 
   SIO.addDevice(&sioR, 0x50); // R:
 
-  // Choose filesystem for P: device and iniitalize it
+
+  // PRINTERS!!!!!!!!!!!
+  // for 820 or 822 - need special pointer back so printer can access SIO aux value
+  //atari820* P = new(atari820);
   //atari822* P = new(atari822);
-  sioP.connect_printer(new(atari1027));
   //P->setDevice(&sioP);
+  //sioP.connect_printer(P);
+  
+  // atari 1027
+  //sioP.connect_printer(new(atari1027));
+
+  // png printer for ClausB's GRANTIC screen dump
+  sioP.connect_printer(new(pngPrinter));
+  
+  // file printer for printer SIO capture
+  //sioP.connect_printer(new(filePrinter));
+
+  // Choose filesystem for P: device and iniitalize it
   if (SD.cardType() != CARD_NONE)
   {
     Debug_println("using SD card for printer storage");
