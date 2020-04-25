@@ -12,7 +12,8 @@ enum paper_t
     TRIM,
     ASCII,
     PDF,
-    SVG
+    SVG,
+    PNG
 };
 
 class printer_emu

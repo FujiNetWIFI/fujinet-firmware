@@ -159,7 +159,7 @@ void setup()
 
   // Choose filesystem for P: device and iniitalize it
   //atari822* P = new(atari822);
-  sioP.connect_printer(new(filePrinter));
+  sioP.connect_printer(new(atari1027));
   //P->setDevice(&sioP);
   if (SD.cardType() != CARD_NONE)
   {
