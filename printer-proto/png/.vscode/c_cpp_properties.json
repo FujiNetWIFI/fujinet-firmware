@@ -6,16 +6,16 @@
         {
             "name": "Win32",
             "includePath": [
-                "d:/userData/Jeff/PlatformIO/Projects/png/src",
-                "d:/userData/Jeff/PlatformIO/Projects/png/lib/crc32",
+                "d:/userData/Jeff/GitHub/atariwifi/printer-proto/png/src",
+                "d:/userData/Jeff/GitHub/atariwifi/printer-proto/png/lib/crc32",
                 "C:/Users/jeff/.platformio/packages/tool-unity",
                 ""
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "d:/userData/Jeff/PlatformIO/Projects/png/src",
-                    "d:/userData/Jeff/PlatformIO/Projects/png/lib/crc32",
+                    "d:/userData/Jeff/GitHub/atariwifi/printer-proto/png/src",
+                    "d:/userData/Jeff/GitHub/atariwifi/printer-proto/png/lib/crc32",
                     "C:/Users/jeff/.platformio/packages/tool-unity",
                     ""
                 ]

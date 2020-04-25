@@ -74,7 +74,7 @@ void png_header()
         0, 0, 0, 0,             // 12-15    'height' placeholder
         0x08,                   // 16       1 byte depth
         0x03,                   // 17       0x03 color with palette
-        0x00,                   // 18       no compression
+        0x00,                   // 18       compression method always 0
         0x00,                   // 19       no filter
         0x00,                   // 20       no interlace
         0, 0, 0, 0,             // 21-24    IHDR CRC-32 placeholder
@@ -185,6 +185,8 @@ void png_data()
         0x00, 0x00, 0x00, 0x00, // 0-3      size placeholder
         'I', 'D', 'A', 'T',     // 4-7      IDAT
     };
+    crc_value = crc_32(&data[4], 4); // begin CRC calculation
+
     // Compute data size
     imgSize = (width + 1) * height; // +1 per line for filter 0's
     uint32_t numBlocks = imgSize / DEFLATE_MAX_BLOCK_SIZE;
@@ -199,8 +201,6 @@ void png_data()
     uint32_to_array(dataSize, &data[0]); // store the computed size
 
     fwrite(&data[0], 1, 8, f); // write out the IDAT header
-
-    crc_value = crc_32(&data[4], 4); // begin CRC calculation
 }
 
 void png_add_data(uint8_t *buf, uint32_t n)
@@ -214,11 +214,11 @@ void png_add_data(uint8_t *buf, uint32_t n)
         // write out a ZLIB header
         // Compression method/flags code: 1 byte (For PNG compression method 0, the zlib compression method/flags code must specify method code 8 (“deflate” compression))
         c = 0x08; // ZLIB "Deflate" compression scheme
-        update_crc_32(crc_value, c);
+        crc_value = ~update_crc_32(~crc_value, c);
         fputc(c, f);
         //  Additional flags/check bits: 1 byte (must be such that method + flags, when viewed as a 16-bit unsigned integer stored in MSB order (CMF*256 + FLG), is a multiple of 31.)
         c = 0x1D; // precompute so that 0x081D is divisible by 31 [ (0x800 / 31 + 1) * 31 - 0x800 ]
-        update_crc_32(crc_value, c);
+        crc_value = ~update_crc_32(~crc_value, c);
         fputc(c, f);
 
         //printf("new image\n");
@@ -239,21 +239,21 @@ void png_add_data(uint8_t *buf, uint32_t n)
             }
 
             // write out block header
-            update_crc_32(crc_value, c);
+            crc_value = ~update_crc_32(~crc_value, c);
             fputc(c, f);
 
             // write out block size
             c = (uint8_t)(blkSize >> 0);
-            update_crc_32(crc_value, c);
+            crc_value = ~update_crc_32(~crc_value, c);
             fputc(c, f);
             c = (uint8_t)(blkSize >> 8);
-            update_crc_32(crc_value, c);
+            crc_value = ~update_crc_32(~crc_value, c);
             fputc(c, f);
             c = (uint8_t)((blkSize >> 0) ^ 0xFF);
-            update_crc_32(crc_value, c);
+            crc_value = ~update_crc_32(~crc_value, c);
             fputc(c, f);
             c = (uint8_t)((blkSize >> 8) ^ 0xFF);
-            update_crc_32(crc_value, c);
+            crc_value = ~update_crc_32(~crc_value, c);
             fputc(c, f);
 
             //printf("new block\n");
@@ -263,15 +263,18 @@ void png_add_data(uint8_t *buf, uint32_t n)
         if (Xpos == 0)
         {
             c = 0;
-            crc_value = update_crc_32(crc_value, c);
+            crc_value = ~update_crc_32(~crc_value, c);
             adler_value = update_adler32(adler_value, c);
             fputc(c, f);
             //printf("\nnew line %d ", c);
+
+            img_pos++;
+            blk_pos++;
         }
 
         // put byte from buffer
         c = buf[idx];
-        crc_value = update_crc_32(crc_value, c);
+        crc_value = ~update_crc_32(~crc_value, c);
         adler_value = update_adler32(adler_value, c);
         fputc(c, f);
         //printf("%d ", c);
@@ -291,13 +294,15 @@ void png_add_data(uint8_t *buf, uint32_t n)
             blk_pos = 0;
     };
 
-    if (++img_pos == imgSize)
+    if (img_pos == imgSize)
     {
         uint8_t data[] = {
             0, 0, 0, 0, // Adler32 Check value: 4 bytes
             0, 0, 0, 0  // CRC32: 4 bytes
         };
         uint32_to_array(adler_value, &data[0]);
+        for (int i = 0; i < 4; i++)
+            crc_value = ~update_crc_32(~crc_value, data[i]);
         uint32_to_array(crc_value, &data[4]);
         fwrite(&data[0], 1, 8, f);
     }
