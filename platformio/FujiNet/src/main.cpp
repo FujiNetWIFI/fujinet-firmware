@@ -159,7 +159,7 @@ void setup()
 
   // Choose filesystem for P: device and iniitalize it
   //atari822* P = new(atari822);
-  sioP.connect_printer(new(filePrinter));
+  sioP.connect_printer(new(atari1027));
   //P->setDevice(&sioP);
   if (SD.cardType() != CARD_NONE)
   {
@@ -190,7 +190,7 @@ void setup()
   SIO.setup();
 #if defined(DEBUG) && defined(ESP32)
   Debug_print("SIO Voltage: ");
-  Debug_println(SIO.sio_volts());
+  Debug_println(fnSystem.get_sio_voltage());
 #endif
 
   keyMgr.setup();

@@ -32,7 +32,6 @@
 #endif
 #define PIN_CKO 32
 #define PIN_CKI 27
-#define PIN_SIO5V 35
 #endif
 
 #define DELAY_T4 850
@@ -115,9 +114,6 @@ public:
    sioDevice *device(int i);
    int getBaudrate();
    void setBaudrate(int baudrate);
-#ifdef ESP32
-   int sio_volts();
-#endif
 };
 
 extern sioBus SIO;
