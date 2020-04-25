@@ -4,7 +4,7 @@
 // for Atari EOL
 #define EOL 155
 
-#include <stdio.h>
+//#include <stdio.h>
 //#include <stdint.h>
 
 // #include "crc32.h"
@@ -40,49 +40,55 @@ uint32_t pngPrinter::update_adler32(uint32_t adler, uint8_t data)
 uint32_t pngPrinter::rc_crc32(uint32_t crc, const uint8_t *buf, size_t len)
 // https://rosettacode.org/wiki/CRC-32#Implementation_2
 {
-	static uint32_t table[256];
-	static int have_table = 0;
-	uint32_t rem;
-	uint8_t octet;
-	int i, j;
-	const uint8_t *p, *q;
- 
-	/* This check is not thread safe; there is no mutex. */
-	if (have_table == 0) {
-		/* Calculate CRC table. */
-		for (i = 0; i < 256; i++) {
-			rem = i;  /* remainder from polynomial division */
-			for (j = 0; j < 8; j++) {
-				if (rem & 1) {
-					rem >>= 1;
-					rem ^= 0xedb88320;
-				} else
-					rem >>= 1;
-			}
-			table[i] = rem;
-		}
-		have_table = 1;
-	}
- 
-	crc = ~crc;
-	q = buf + len;
-	for (p = buf; p < q; p++) {
-		octet = *p;  /* Cast to unsigned octet. */
-		crc = (crc >> 8) ^ table[(crc & 0xff) ^ octet];
-	}
-	return ~crc;
+    static uint32_t table[256];
+    static int have_table = 0;
+    uint32_t rem;
+    uint8_t octet;
+    int i, j;
+    const uint8_t *p, *q;
+
+    /* This check is not thread safe; there is no mutex. */
+    if (have_table == 0)
+    {
+        /* Calculate CRC table. */
+        for (i = 0; i < 256; i++)
+        {
+            rem = i; /* remainder from polynomial division */
+            for (j = 0; j < 8; j++)
+            {
+                if (rem & 1)
+                {
+                    rem >>= 1;
+                    rem ^= 0xedb88320;
+                }
+                else
+                    rem >>= 1;
+            }
+            table[i] = rem;
+        }
+        have_table = 1;
+    }
+
+    crc = ~crc;
+    q = buf + len;
+    for (p = buf; p < q; p++)
+    {
+        octet = *p; /* Cast to unsigned octet. */
+        crc = (crc >> 8) ^ table[(crc & 0xff) ^ octet];
+    }
+    return ~crc;
 }
 
-uint32_t pngPrinter::rc_crc32(uint32_t crc, uint8_t c)
-// pass a single character
-{
-    rc_crc32(crc,&c,1);
-}
+// uint32_t pngPrinter::rc_crc32(uint32_t crc, uint8_t c)
+// // pass a single character
+// {
+//     rc_crc32(crc, &c, 1);
+// }
 
 void pngPrinter::png_signature()
 {
     uint8_t sig[] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
-    fwrite(&sig[0], 1, 8, f);
+    _file.write(&sig[0], 8);
 }
 
 void pngPrinter::png_header()
@@ -124,17 +130,17 @@ void pngPrinter::png_header()
         chunk type code and chunk data fields, but 
         not including the length field.
     */
-    crc_value = rc_crc32(0,&header[4], 17);
+    crc_value = rc_crc32(0, &header[4], 17);
     uint32_to_array(crc_value, &header[21]);
-    fwrite(&header[0], 1, 25, f);
+    _file.write(&header[0], 25);
 }
 
 void pngPrinter::png_palette()
 {
+    uint8_t len[] = {0x00, 0x00, 0x00, 0x00}; // 0-3      size placeholder
     const uint8_t data[] = {
-        // IDAT chunk
-        0x00, 0x00, 0x00, 0x00, // 0-3      size placeholder
-        'P', 'L', 'T', 'E',     // 4-7      PLTE
+        // IDAT chunk data
+        'P', 'L', 'T', 'E', // 4-7      PLTE
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x13, 0x13, 0x25, 0x25, 0x25, 0x37, 0x37, 0x37, 0x49,
         0x49, 0x49, 0x5F, 0x5F, 0x5F, 0x71, 0x71, 0x71, 0x7A, 0x7A, 0x7A, 0x8C, 0x8C, 0x8C, 0xA1, 0xA1,
         0xA1, 0xB3, 0xB3, 0xB3, 0xC5, 0xC5, 0xC5, 0xD7, 0xD7, 0xD7, 0xED, 0xED, 0xED, 0xFF, 0xFF, 0xFF,
@@ -182,15 +188,16 @@ void pngPrinter::png_palette()
         0x0A, 0xA8, 0xD6, 0x1C, 0xBA, 0xE8, 0x2E, 0xCC, 0xFA, 0x40, 0xE2, 0xFF, 0x56, 0xF4, 0xFF, 0x68,
         0x06, 0x00, 0x00, 0x18, 0x0C, 0x00, 0x2E, 0x22, 0x00, 0x40, 0x34, 0x00, 0x52, 0x46, 0x00, 0x64,
         0x58, 0x00, 0x79, 0x6E, 0x00, 0x8B, 0x80, 0x00, 0x94, 0x88, 0x00, 0xA6, 0x9A, 0x00, 0xBC, 0xB0,
-        0x10, 0xCE, 0xC2, 0x22, 0xE0, 0xD4, 0x34, 0xF2, 0xE6, 0x47, 0xFF, 0xFC, 0x5C, 0xFF, 0xFF, 0x6E,
-        0, 0, 0, 0 // crc placeholder
-    };
+        0x10, 0xCE, 0xC2, 0x22, 0xE0, 0xD4, 0x34, 0xF2, 0xE6, 0x47, 0xFF, 0xFC, 0x5C, 0xFF, 0xFF, 0x6E};
+    uint8_t ccc[] = {0, 0, 0, 0}; // crc placeholder
 
-    uint32_to_array(768, &data[0]);
-    crc_value = rc_crc32(0,&data[4], 4 + 768);
-    uint32_to_array(crc_value, &data[4 + 4 + 768]);
+    uint32_to_array(768, &len[0]);
+    crc_value = rc_crc32(0, &data[0], 4 + 768);
+    uint32_to_array(crc_value, &ccc[0]);
 
-    fwrite(&data[0], 1, 4 + 4 + 768 + 4, f);
+    _file.write(&len[0], 4);
+    _file.write(&data[0], 4 + 768);
+    _file.write(&ccc[0], 4);
 }
 
 void pngPrinter::png_data()
@@ -219,10 +226,10 @@ void pngPrinter::png_data()
         0x00, 0x00, 0x00, 0x00, // 0-3      size placeholder
         'I', 'D', 'A', 'T',     // 4-7      IDAT
     };
-    crc_value = rc_crc32(0,&data[4], 4); // begin CRC calculation
+    crc_value = rc_crc32(0, &data[4], 4); // begin CRC calculation
 
     // Compute data size
-    imgSize = (width + 1) * height; // +1 per line for filter 0's
+    // imgSize = (width + 1) * height; // +1 per line for filter 0's
     uint32_t numBlocks = imgSize / DEFLATE_MAX_BLOCK_SIZE;
     if (imgSize % DEFLATE_MAX_BLOCK_SIZE != 0)
         numBlocks++; // Round up
@@ -234,7 +241,7 @@ void pngPrinter::png_data()
 
     uint32_to_array(dataSize, &data[0]); // store the computed size
 
-    fwrite(&data[0], 1, 8, f); // write out the IDAT header
+    _file.write(&data[0], 8); // write out the IDAT header
 }
 
 void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
@@ -249,11 +256,11 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         // Compression method/flags code: 1 byte (For PNG compression method 0, the zlib compression method/flags code must specify method code 8 (“deflate” compression))
         c = 0x08; // ZLIB "Deflate" compression scheme
         crc_value = rc_crc32(crc_value, c);
-        fputc(c, f);
+        _file.write(c);
         //  Additional flags/check bits: 1 byte (must be such that method + flags, when viewed as a 16-bit unsigned integer stored in MSB order (CMF*256 + FLG), is a multiple of 31.)
         c = 0x1D; // precompute so that 0x081D is divisible by 31 [ (0x800 / 31 + 1) * 31 - 0x800 ]
         crc_value = rc_crc32(crc_value, c);
-        fputc(c, f);
+        _file.write(c);
 
         //printf("new image\n");
     }
@@ -274,21 +281,21 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
 
             // write out block header
             crc_value = rc_crc32(crc_value, c);
-            fputc(c, f);
+            _file.write(c);
 
             // write out block size
             c = (uint8_t)(blkSize >> 0);
             crc_value = rc_crc32(crc_value, c);
-            fputc(c, f);
+            _file.write(c);
             c = (uint8_t)(blkSize >> 8);
             crc_value = rc_crc32(crc_value, c);
-            fputc(c, f);
+            _file.write(c);
             c = (uint8_t)((blkSize >> 0) ^ 0xFF);
             crc_value = rc_crc32(crc_value, c);
-            fputc(c, f);
+            _file.write(c);
             c = (uint8_t)((blkSize >> 8) ^ 0xFF);
             crc_value = rc_crc32(crc_value, c);
-            fputc(c, f);
+            _file.write(c);
 
             //printf("new block\n");
         }
@@ -299,7 +306,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
             c = 0;
             crc_value = rc_crc32(crc_value, c);
             adler_value = update_adler32(adler_value, c);
-            fputc(c, f);
+            _file.write(c);
             //printf("\nnew line %d ", c);
 
             img_pos++;
@@ -310,7 +317,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         c = buf[idx];
         crc_value = rc_crc32(crc_value, c);
         adler_value = update_adler32(adler_value, c);
-        fputc(c, f);
+        _file.write(c);
         //printf("%d ", c);
 
         Xpos++;
@@ -338,7 +345,8 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         for (int i = 0; i < 4; i++)
             crc_value = rc_crc32(crc_value, data[i]);
         uint32_to_array(crc_value, &data[4]);
-        fwrite(&data[0], 1, 8, f);
+        _file.write(&data[0], 8);
+        png_end();
     }
 }
 
@@ -348,48 +356,42 @@ void pngPrinter::png_end()
         0x00, 0x00, 0x00, 0x00,  // zero length
         'I', 'E', 'N', 'D',      // IEND
         0xAE, 0x42, 0x60, 0x82}; // crc32 - precompute because always the same
-    fwrite(&end[0], 1, 12, f);
+    _file.write(&end[0], 12);
 }
 
 void pngPrinter::initPrinter(FS *filesystem)
 {
     printer_emu::initPrinter(filesystem);
 
-// call PNG header routines
-
+    // call PNG header routines
+    png_signature();
+    png_header();
+    png_palette();
+    // start IDAT chunk and now ready for data
+    png_data();
 }
 
 bool pngPrinter::process(byte n)
 {
     // copy buffer[] into linebuffer[]
-
-    // move this stuff to initPrinter or execute when img_pos==0
-    png_signature();
-    png_header();
-    png_palette();
-    png_data();
-
-    FILE *g = fopen("printout.bin", "rb");
-
-
     uint8_t N = 0;
-    for (int i = 0; i < 192; i++)
+    uint16_t i = 0;
+    while (i < n && img_pos < imgSize)
     {
-        if (N == 0)
+        if (line_index == 0)
         {
-            N = fgetc(g);
-            for (int j = 0; j < 320; j++)
-            {
-                buffer[j] = fgetc(g);
-            }
+            N = buffer[i++];
         }
-        png_add_data(&buffer[0], 320);
-        N--;
+        else
+        {
+            line_buffer[line_index++] = buffer[i++];
+        }
+        if (line_index == 320)
+        {
+            while (N-- > 0)
+                png_add_data(&line_buffer[0], 320);
+        }
     }
-    //png_add_data(&imdata[0], 256);
-    png_end();
-    fclose(f);
-
     return true;
 }
 
