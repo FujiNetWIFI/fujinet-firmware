@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "crc32.h"
+// #include "crc32.h"
 
 // rewrite of TinyPngOut https://www.nayuki.io/page/tiny-png-output
 // requires  libcrc by Lammert Bies
 
 #define DEFLATE_MAX_BLOCK_SIZE 0xFFFF
+
+#define CRC_INIT_VAL 0
 
 FILE *f;
 uint32_t width = 320;
@@ -43,6 +45,48 @@ uint32_t update_adler32(uint32_t adler, uint8_t data)
     s2 %= 65521;
 
     return (s2 << 16) | s1;
+}
+
+uint32_t rc_crc32(uint32_t crc, const uint8_t *buf, size_t len)
+// https://rosettacode.org/wiki/CRC-32#Implementation_2
+{
+	static uint32_t table[256];
+	static int have_table = 0;
+	uint32_t rem;
+	uint8_t octet;
+	int i, j;
+	const uint8_t *p, *q;
+ 
+	/* This check is not thread safe; there is no mutex. */
+	if (have_table == 0) {
+		/* Calculate CRC table. */
+		for (i = 0; i < 256; i++) {
+			rem = i;  /* remainder from polynomial division */
+			for (j = 0; j < 8; j++) {
+				if (rem & 1) {
+					rem >>= 1;
+					rem ^= 0xedb88320;
+				} else
+					rem >>= 1;
+			}
+			table[i] = rem;
+		}
+		have_table = 1;
+	}
+ 
+	crc = ~crc;
+	q = buf + len;
+	for (p = buf; p < q; p++) {
+		octet = *p;  /* Cast to unsigned octet. */
+		crc = (crc >> 8) ^ table[(crc & 0xff) ^ octet];
+	}
+	return ~crc;
+}
+
+uint32_t rc_crc32(uint32_t crc, uint8_t c)
+// pass a single character
+{
+    rc_crc32(crc,&c,1);
 }
 
 void png_signature()
@@ -90,7 +134,7 @@ void png_header()
         chunk type code and chunk data fields, but 
         not including the length field.
     */
-    crc_value = crc_32(&header[4], 17);
+    crc_value = rc_crc32(CRC_INIT_VAL,&header[4], 17);
     uint32_to_array(crc_value, &header[21]);
     fwrite(&header[0], 1, 25, f);
 }
@@ -153,7 +197,7 @@ void png_palette()
     };
 
     uint32_to_array(768, &data[0]);
-    crc_value = crc_32(&data[4], 4 + 768);
+    crc_value = rc_crc32(CRC_INIT_VAL,&data[4], 4 + 768);
     uint32_to_array(crc_value, &data[4 + 4 + 768]);
 
     fwrite(&data[0], 1, 4 + 4 + 768 + 4, f);
@@ -185,7 +229,7 @@ void png_data()
         0x00, 0x00, 0x00, 0x00, // 0-3      size placeholder
         'I', 'D', 'A', 'T',     // 4-7      IDAT
     };
-    crc_value = crc_32(&data[4], 4); // begin CRC calculation
+    crc_value = rc_crc32(CRC_INIT_VAL,&data[4], 4); // begin CRC calculation
 
     // Compute data size
     imgSize = (width + 1) * height; // +1 per line for filter 0's
@@ -214,11 +258,11 @@ void png_add_data(uint8_t *buf, uint32_t n)
         // write out a ZLIB header
         // Compression method/flags code: 1 byte (For PNG compression method 0, the zlib compression method/flags code must specify method code 8 (“deflate” compression))
         c = 0x08; // ZLIB "Deflate" compression scheme
-        crc_value = ~update_crc_32(~crc_value, c);
+        crc_value = rc_crc32(crc_value, c);
         fputc(c, f);
         //  Additional flags/check bits: 1 byte (must be such that method + flags, when viewed as a 16-bit unsigned integer stored in MSB order (CMF*256 + FLG), is a multiple of 31.)
         c = 0x1D; // precompute so that 0x081D is divisible by 31 [ (0x800 / 31 + 1) * 31 - 0x800 ]
-        crc_value = ~update_crc_32(~crc_value, c);
+        crc_value = rc_crc32(crc_value, c);
         fputc(c, f);
 
         //printf("new image\n");
@@ -239,21 +283,21 @@ void png_add_data(uint8_t *buf, uint32_t n)
             }
 
             // write out block header
-            crc_value = ~update_crc_32(~crc_value, c);
+            crc_value = rc_crc32(crc_value, c);
             fputc(c, f);
 
             // write out block size
             c = (uint8_t)(blkSize >> 0);
-            crc_value = ~update_crc_32(~crc_value, c);
+            crc_value = rc_crc32(crc_value, c);
             fputc(c, f);
             c = (uint8_t)(blkSize >> 8);
-            crc_value = ~update_crc_32(~crc_value, c);
+            crc_value = rc_crc32(crc_value, c);
             fputc(c, f);
             c = (uint8_t)((blkSize >> 0) ^ 0xFF);
-            crc_value = ~update_crc_32(~crc_value, c);
+            crc_value = rc_crc32(crc_value, c);
             fputc(c, f);
             c = (uint8_t)((blkSize >> 8) ^ 0xFF);
-            crc_value = ~update_crc_32(~crc_value, c);
+            crc_value = rc_crc32(crc_value, c);
             fputc(c, f);
 
             //printf("new block\n");
@@ -263,7 +307,7 @@ void png_add_data(uint8_t *buf, uint32_t n)
         if (Xpos == 0)
         {
             c = 0;
-            crc_value = ~update_crc_32(~crc_value, c);
+            crc_value = rc_crc32(crc_value, c);
             adler_value = update_adler32(adler_value, c);
             fputc(c, f);
             //printf("\nnew line %d ", c);
@@ -274,7 +318,7 @@ void png_add_data(uint8_t *buf, uint32_t n)
 
         // put byte from buffer
         c = buf[idx];
-        crc_value = ~update_crc_32(~crc_value, c);
+        crc_value = rc_crc32(crc_value, c);
         adler_value = update_adler32(adler_value, c);
         fputc(c, f);
         //printf("%d ", c);
@@ -302,7 +346,7 @@ void png_add_data(uint8_t *buf, uint32_t n)
         };
         uint32_to_array(adler_value, &data[0]);
         for (int i = 0; i < 4; i++)
-            crc_value = ~update_crc_32(~crc_value, data[i]);
+            crc_value = rc_crc32(crc_value, data[i]);
         uint32_to_array(crc_value, &data[4]);
         fwrite(&data[0], 1, 8, f);
     }
