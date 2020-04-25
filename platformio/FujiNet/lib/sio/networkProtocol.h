@@ -2,8 +2,8 @@
 #define NETWORKPROTOCOL_H
 
 #include <Arduino.h>
-#include "networkDeviceSpec.h"
 #include "sio.h"
+#include "EdUrlParser.h"
 
 class networkProtocol
 {
@@ -17,7 +17,7 @@ public:
     byte* saved_rx_buffer;
     unsigned short* saved_rx_buffer_len;
 
-    virtual bool open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame) = 0;
+    virtual bool open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) = 0;
     virtual bool close() = 0;
     virtual bool read(byte *rx_buf, unsigned short len) = 0;
     virtual bool write(byte *tx_buf, unsigned short len) = 0;
