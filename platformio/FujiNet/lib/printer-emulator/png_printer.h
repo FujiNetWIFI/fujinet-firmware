@@ -29,6 +29,7 @@ protected:
 
     bool BOLflag = true;
     uint16_t line_index = 0;
+    uint8_t rep_code = 0;
 
     void uint32_to_array(uint32_t src, uint8_t dest[4]);
     uint32_t update_adler32(uint32_t adler, uint8_t data);
