@@ -1,10 +1,6 @@
 #ifndef FNVERSION
 #define FNVERSION
 
-#ifdef GIT_SRC_REV
-#define FUJINET_VERSION GIT_SRC_REV
-#else
-#define FUJINET_VERSION "Missing Git revision"
-#endif
+#define FUJINET_VERSION "0.20200424"
 
 #endif // FNVERSION
