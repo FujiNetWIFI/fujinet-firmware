@@ -25,6 +25,8 @@ public:
     virtual void special_collect_headers_toggle(unsigned char a);
     virtual void special_ca_toggle(unsigned char a);
 
+    virtual bool isConnected();
+    
 private:
     virtual bool startConnection(byte *buf, unsigned short len);
 

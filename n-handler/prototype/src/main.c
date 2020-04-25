@@ -8,6 +8,7 @@
 #include <string.h>
 #include "cio.h"
 #include "conio.h"
+#include "config.h"
 
 devhdl_t devhdl;
 
@@ -16,26 +17,27 @@ extern void cio_close(void);
 extern void cio_get(void);
 extern void cio_put(void);
 extern void cio_status(void);
+extern void _cio_status_poll(void);
 extern void cio_special(void);
+extern void intr(void);
 
-const char banner[]="#FujiNet N: Handler v0.1\x9b";
-const char banner_error[]="#FujiNet Not Responding\x9b";
-const char banner_ready[]="#FujiNet Active.\x9b";
+const char banner_error[]="#FUJINET ERROR\x9b";
+const char banner_ready[]="#FUJINET READY\x9b";
 
 unsigned char ret;
 unsigned char err;
-unsigned char buffer_rx[256];
-unsigned char buffer_tx[256];
-unsigned char buffer_rx_len;
-unsigned char buffer_tx_len;
+unsigned char buffer_rx[MAX_DEVICES][256];
+unsigned char buffer_tx[MAX_DEVICES][256];
+unsigned char buffer_rx_len[MAX_DEVICES];
+unsigned char buffer_tx_len[MAX_DEVICES];
 unsigned char* rp; // receive ptr
 unsigned char* tp; // transmit ptr
-unsigned char eol_mode;
-
+unsigned char trip=0;
 void main(void)
 {
   unsigned char i;
-  OS.lmargn=2;
+
+  OS.lmargn=2;  
   // Populate a devhdl table for our new N: device.
   devhdl.open        = (char *)cio_open-1;
   devhdl.close       = (char *)cio_close-1;
@@ -53,9 +55,7 @@ void main(void)
   OS.hatabs[i].id='N';         // N: device
   OS.hatabs[i].devhdl=&devhdl; // handler table for N: device.
 
-  print(banner);
-
-  cio_status();
+  _cio_status_poll();
 
   if (err==1)
     print(banner_ready);

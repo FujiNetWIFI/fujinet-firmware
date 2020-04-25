@@ -71,12 +71,14 @@ bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
 
     switch (cmdFrame->aux1)
     {
+    case 4:
     case 12:
         openMode = GET;
         break;
     case 13:
         openMode = POST;
         break;
+    case 8:
     case 14:
         openMode = PUT;
         break;
@@ -292,6 +294,14 @@ void networkProtocolHTTP::special_ca_toggle(unsigned char a)
     {
         memset(cert, 0, sizeof(cert));
     }
+}
+
+bool networkProtocolHTTP::isConnected()
+{
+    if (c!=nullptr)
+        return c->connected();
+    else
+        return false;
 }
 
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)

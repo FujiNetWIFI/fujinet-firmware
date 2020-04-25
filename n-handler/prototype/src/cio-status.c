@@ -4,16 +4,20 @@
 
 #include <atari.h>
 #include <6502.h>
+#include <string.h>
 #include "sio.h"
+#include "config.h"
 
 extern unsigned char err;
 extern unsigned char ret;
-extern unsigned char aux1_save[8];
-extern unsigned char aux2_save[8];
+extern unsigned char aux1_save[MAX_DEVICES];
+extern unsigned char aux2_save[MAX_DEVICES];
 
-void _cio_status(void)
+static unsigned char status_save[4];
+extern unsigned char trip;
+
+void _cio_status_poll(void)
 {
-
   err=siov(DEVIC_N,
 	   OS.ziocb.drive,
 	   'S',
@@ -23,6 +27,10 @@ void _cio_status(void)
 	   DTIMLO_DEFAULT,
 	   OS.ziocb.aux1,
 	   OS.ziocb.aux2);
-  
-  ret=OS.dvstat[2];
+}
+
+void _cio_status(void)
+{
+  _cio_status_poll();  
+  ret=OS.dvstat[2];   
 }

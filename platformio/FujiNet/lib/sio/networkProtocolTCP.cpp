@@ -181,3 +181,8 @@ bool networkProtocolTCP::special_accept_connection()
     }
     return false; // no error.
 }
+
+bool networkProtocolTCP::isConnected()
+{
+    return client.connected();
+}

@@ -4,9 +4,15 @@
 
 	.import _ret
 	.import _err
+	.import _trip
 	.import __cio_open, __cio_close, __cio_get, __cio_put, __cio_status, __cio_special
-	.export _cio_open, _cio_close, _cio_get, _cio_put, _cio_status, _cio_special
+	.export _cio_open, _cio_close, _cio_get, _cio_put, _cio_status, _cio_special, _intr
 
+_intr:	LDA #$01
+	STA _trip
+	PLA
+	RTI
+	
 _cio_close:
 	jsr __cio_close
 	lda _ret
