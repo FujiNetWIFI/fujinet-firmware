@@ -374,13 +374,12 @@ void pngPrinter::initPrinter(FS *filesystem)
 bool pngPrinter::process(byte n)
 {
     // copy buffer[] into linebuffer[]
-    uint8_t N = 0;
     uint16_t i = 0;
     while (i < n && img_pos < imgSize)
     {
         if (line_index == 0)
         {
-            N = buffer[i++];
+            rep_code = buffer[i++];
         }
         else
         {
@@ -388,7 +387,7 @@ bool pngPrinter::process(byte n)
         }
         if (line_index == 320)
         {
-            while (N-- > 0)
+            while (rep_code-- > 0)
                 png_add_data(&line_buffer[0], 320);
         }
     }
