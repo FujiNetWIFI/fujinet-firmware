@@ -32,6 +32,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HEAPSIZE,
         FN_SYSSDK,
         FN_SYSCPUREV,
+        FN_SIOVOLTS,
         FN_LASTTAG
     };
 
@@ -51,7 +52,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_UPTIME",
         "FN_HEAPSIZE",
         "FN_SYSSDK",
-        "FN_SYSCPUREV"
+        "FN_SYSCPUREV",
+        "FN_SIOVOLTS"
     };
 
     stringstream resultstream;
@@ -115,6 +117,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_SYSCPUREV:
         resultstream << fnSystem.get_cpu_rev();
+        break;
+    case FN_SIOVOLTS:
+        resultstream << (float)fnSystem.get_sio_voltage()/1000.00 << "V";
         break;
     default:
         resultstream << tag;
