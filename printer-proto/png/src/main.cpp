@@ -3,14 +3,14 @@
 
 #include "crc32.h"
 
+// rewrite of TinyPngOut https://www.nayuki.io/page/tiny-png-output
+// requires  libcrc by Lammert Bies
+
 #define DEFLATE_MAX_BLOCK_SIZE 0xFFFF
 
 FILE *f;
-
-uint8_t imdata[256];
-
-uint32_t width = 16;  //320;
-uint32_t height = 16; //240;
+uint32_t width = 320;
+uint32_t height = 192;
 
 uint32_t imgSize = 0;     // size of image including BOL filter p's for IDAT chunk
 uint32_t img_pos = 0;     // serial position within image data including BOL filter p's
@@ -221,7 +221,7 @@ void png_add_data(uint8_t *buf, uint32_t n)
         update_crc_32(crc_value, c);
         fputc(c, f);
 
-        printf("new image\n");
+        //printf("new image\n");
     }
 
     uint32_t idx = 0;
@@ -256,7 +256,7 @@ void png_add_data(uint8_t *buf, uint32_t n)
             update_crc_32(crc_value, c);
             fputc(c, f);
 
-            printf("new block\n");
+            //printf("new block\n");
         }
 
         //at beginning of a line?
@@ -266,7 +266,7 @@ void png_add_data(uint8_t *buf, uint32_t n)
             crc_value = update_crc_32(crc_value, c);
             adler_value = update_adler32(adler_value, c);
             fputc(c, f);
-            printf("\nnew line %d ", c);
+            //printf("\nnew line %d ", c);
         }
 
         // put byte from buffer
@@ -274,7 +274,7 @@ void png_add_data(uint8_t *buf, uint32_t n)
         crc_value = update_crc_32(crc_value, c);
         adler_value = update_adler32(adler_value, c);
         fputc(c, f);
-        printf("%d ", c);
+        //printf("%d ", c);
 
         Xpos++;
         idx++;
@@ -320,14 +320,22 @@ int main()
     png_palette();
     png_data();
 
-    for (int i = 0; i < 16; i++)
+    FILE *g = fopen("printout.bin", "rb");
+
+    uint8_t buffer[320];
+    uint8_t N = 0;
+    for (int i = 0; i < 192; i++)
     {
-        for (int j = 0; j < 16; j++)
+        if (N == 0)
         {
-            uint8_t k = j + 16 * i;
-            imdata[k] = k;
+            N = fgetc(g);
+            for (int j = 0; j < 320; j++)
+            {
+                buffer[j] = fgetc(g);
+            }
         }
-        png_add_data(&imdata[i * 16], 16);
+        png_add_data(&buffer[0], 320);
+        N--;
     }
     //png_add_data(&imdata[0], 256);
     png_end();
