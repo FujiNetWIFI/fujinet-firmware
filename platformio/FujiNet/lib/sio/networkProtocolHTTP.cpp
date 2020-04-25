@@ -5,7 +5,7 @@ networkProtocolHTTP::networkProtocolHTTP()
 {
     c = nullptr;
     httpState = DATA;
-    requestStarted=false;
+    requestStarted = false;
 }
 
 networkProtocolHTTP::~networkProtocolHTTP()
@@ -37,8 +37,8 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
         break;
     case POST:
         resultCode = client.POST(buf, len);
-        numHeaders=client.headers();
-        headerIndex=0;
+        numHeaders = client.headers();
+        headerIndex = 0;
         ret = true;
         break;
     case PUT:
@@ -56,19 +56,14 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
         c = client.getStreamPtr();
 
 #ifdef DEBUG
-    Debug_printf("Result code: %d\n",resultCode);
+    Debug_printf("Result code: %d\n", resultCode);
 #endif
 
     return ret;
 }
 
-bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
+bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
-    String url = "http://" + String(spec->path);
-
-    if (strcmp(spec->protocol,"HTTPS")==0)
-        url = "https://" + String(spec->path);
-
     switch (cmdFrame->aux1)
     {
     case 4:
@@ -84,9 +79,15 @@ bool networkProtocolHTTP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
         break;
     }
 
-    openedURL=url;
+    if (urlParser->scheme == "HTTP")
+        urlParser->scheme = "http";
+    else if (urlParser->scheme == "HTTPS")
+        urlParser->scheme = "https";
 
-    return client.begin(url);
+    openedUrlParser = urlParser;
+    openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":"  + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
+
+    return client.begin(openedUrl.c_str());
 }
 
 bool networkProtocolHTTP::close()
@@ -166,8 +167,8 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
         headerValue = String(tmpValue);
         client.addHeader(headerKey, headerValue);
 #ifdef DEBUG
-        Debug_printf("headerKey: %s\n",headerKey.c_str());
-        Debug_printf("headerValue: %s\n",headerValue.c_str());
+        Debug_printf("headerKey: %s\n", headerKey.c_str());
+        Debug_printf("headerValue: %s\n", headerValue.c_str());
 #endif
         break;
     case COLLECT_HEADERS:
@@ -277,23 +278,31 @@ void networkProtocolHTTP::special_collect_headers_toggle(unsigned char a)
 void networkProtocolHTTP::special_ca_toggle(unsigned char a)
 {
     httpState = (a == 1 ? CA : DATA);
-    switch(a)
+    switch (a)
     {
-        case 0:
-            if (strlen(cert)>0)
-            {
-                client.end();
-                client.begin(openedURL,cert);
-            }
-            break;
-        case 1:
-            memset(cert,0,sizeof(cert));
-            break;
+    case 0:
+        if (strlen(cert) > 0)
+        {
+            client.end();
+            client.begin(openedUrl.c_str(), cert);
+        }
+        break;
+    case 1:
+        memset(cert, 0, sizeof(cert));
+        break;
     }
     if (a > 0)
     {
         memset(cert, 0, sizeof(cert));
     }
+}
+
+bool networkProtocolHTTP::isConnected()
+{
+    if (c != nullptr)
+        return c->connected();
+    else
+        return false;
 }
 
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)

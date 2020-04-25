@@ -43,22 +43,24 @@ void sioNetwork::deallocate_buffers()
 
 bool sioNetwork::open_protocol()
 {
-    if (strcmp(deviceSpec.protocol, "TCP") == 0)
+    if (urlParser->scheme == "TCP")
     {
         protocol = new networkProtocolTCP();
         return true;
     }
-    else if (strcmp(deviceSpec.protocol, "UDP") == 0)
+    else if (urlParser->scheme == "UDP")
     {
         protocol = new networkProtocolUDP();
+        if (protocol != nullptr)
+            protocol->set_saved_rx_buffer(rx_buf, &rx_buf_len);
         return true;
     }
-    else if (strcmp(deviceSpec.protocol, "HTTP") == 0)
+    else if (urlParser->scheme == "HTTP")
     {
         protocol = new networkProtocolHTTP();
         return true;
     }
-    else if (strcmp(deviceSpec.protocol, "HTTPS") == 0)
+    else if (urlParser->scheme == "HTTPS")
     {
         protocol = new networkProtocolHTTP();
         return true;
@@ -69,29 +71,46 @@ bool sioNetwork::open_protocol()
     }
 }
 
+bool sioNetwork::isValidURL(EdUrlParser* url)
+{
+    if (url->scheme == "")
+        return false;
+    else if ((url->path == "") && (url->port == ""))
+        return false;
+    else
+        return true;    
+}
+
 void sioNetwork::sio_open()
 {
     char inp[256];
+    string deviceSpec;
 
     sio_ack();
 
-    if (protocol!=nullptr)
+    if (protocol != nullptr)
     {
         delete protocol;
         deallocate_buffers();
     }
 
-    deviceSpec.clear();
+    if (urlParser != nullptr)
+        delete urlParser;
+
     memset(&inp, 0, sizeof(inp));
     memset(&status_buf.rawData, 0, sizeof(status_buf.rawData));
 
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
+    deviceSpec=string(inp).substr(string(inp).find(":")+1);
+
 #ifdef DEBUG
     Debug_printf("Open: %s\n", inp);
 #endif
 
-    if (deviceSpec.parse(inp) == false)
+    urlParser = EdUrlParser::parseUrl(deviceSpec);
+
+    if (isValidURL(urlParser)==false)
     {
 #ifdef DEBUG
         Debug_printf("Invalid devicespec\n");
@@ -121,7 +140,7 @@ void sioNetwork::sio_open()
         return;
     }
 
-    if (!protocol->open(&deviceSpec, &cmdFrame))
+    if (!protocol->open(urlParser, &cmdFrame))
     {
 #ifdef DEBUG
         Debug_printf("Protocol unable to make connection.");
@@ -309,19 +328,19 @@ void sioNetwork::sio_special()
         err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
     }
-    else if (cmdFrame.comnd==0xFF) // Get DSTATS for protocol command.
+    else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
         byte ret;
         sio_ack();
         if (protocol->special_supported_00_command(cmdFrame.aux1))
-            ret=0x00;
+            ret = 0x00;
         else if (protocol->special_supported_40_command(cmdFrame.aux1))
-            ret=0x40;
+            ret = 0x40;
         else if (protocol->special_supported_80_command(cmdFrame.aux1))
-            ret=0x80;
+            ret = 0x80;
         else
-            ret=0xFF;
-        sio_to_computer(&ret,1,false);
+            ret = 0xFF;
+        sio_to_computer(&ret, 1, false);
     }
     else if (protocol->special_supported_00_command(cmdFrame.comnd))
     {
@@ -373,11 +392,11 @@ void sioNetwork::sio_assert_interrupts()
     if (protocol != nullptr)
     {
         protocol->status(status_buf.rawData); // Prime the status buffer
-        if (status_buf.rx_buf_len>0)
+        if (status_buf.rx_buf_len > 0)
         {
-            digitalWrite(PIN_PROC,LOW);
+            digitalWrite(PIN_PROC, LOW);
             delayMicroseconds(200);
-            digitalWrite(PIN_PROC,HIGH);
+            digitalWrite(PIN_PROC, HIGH);
         }
         // digitalWrite(PIN_PROC, (protocol->assertProceed == true ? LOW : HIGH));
     }

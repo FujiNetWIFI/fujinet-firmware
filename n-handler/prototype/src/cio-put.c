@@ -54,7 +54,7 @@ void _cio_put(void)
   
   if (buffer_tx_len[OS.ziocb.drive-1]==0xFF)
     cio_put_flush();
-  else if ((OS.ziocb.command==IOCB_PUTREC) && (ret==0x9B))
+  else if (ret==0x9B)
     cio_put_flush();
   
 }

@@ -14,18 +14,18 @@ networkProtocolUDP::~networkProtocolUDP()
 #endif
 }
 
-bool networkProtocolUDP::open(networkDeviceSpec *spec, cmdFrame_t* cmdFrame)
+bool networkProtocolUDP::open(EdUrlParser* urlParser, cmdFrame_t* cmdFrame)
 {
 #ifdef DEBUG
-    Debug_printf("networkProtocolUDP::OPEN %s \n", spec->toChar());
+    Debug_printf("networkProtocolUDP::OPEN %s:%s \n", urlParser->hostName.c_str(), urlParser->port.c_str());
 #endif
-    if (spec->path[0]!=0x00)
+    if (!urlParser->hostName.empty())
     {
-        strcpy(dest,spec->path);
-        port=spec->port;
+        strcpy(dest,urlParser->hostName.c_str());
+        port=atoi(urlParser->port.c_str());
     }
 
-    return udp.begin(spec->port);
+    return udp.begin(atoi(urlParser->port.c_str()));
 }
 
 bool networkProtocolUDP::close()
@@ -39,7 +39,14 @@ bool networkProtocolUDP::read(byte *rx_buf, unsigned short len)
 #ifdef DEBUG
     Debug_printf("networkProtocolUDP::read %d bytes\n", len);
 #endif
-    return (udp.read(rx_buf, len) == len);
+    if (len>*saved_rx_buffer_len)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
 }
 
 bool networkProtocolUDP::write(byte *tx_buf, unsigned short len)
@@ -58,18 +65,19 @@ bool networkProtocolUDP::write(byte *tx_buf, unsigned short len)
 
 bool networkProtocolUDP::status(byte *status_buf)
 {
-#ifdef DEBUG
-    Debug_printf("networkProtocolUDP::status\n");
-#endif
     unsigned short len = udp.parsePacket();
 
-    // Set destination automatically to remote address.
-    strcpy(dest, udp.remoteIP().toString().c_str());
-    port = udp.remotePort();
+    if (len>0)
+    {
+        // Set destination automatically to remote address.
+        strcpy(dest, udp.remoteIP().toString().c_str());
+        port = udp.remotePort();
 
-    status_buf[0] = len & 0xFF;
-    status_buf[1] = len >> 8;
-    status_buf[2] = status_buf[3] = 0;
+        status_buf[0] = len & 0xFF;
+        status_buf[1] = len >> 8;
+        status_buf[2] = status_buf[3] = 0;
+        read(saved_rx_buffer,*saved_rx_buffer_len);
+    }
     return false;
 }
 

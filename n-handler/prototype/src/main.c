@@ -17,7 +17,9 @@ extern void cio_close(void);
 extern void cio_get(void);
 extern void cio_put(void);
 extern void cio_status(void);
+extern void _cio_status_poll(void);
 extern void cio_special(void);
+extern void intr(void);
 
 const char banner_error[]="#FUJINET ERROR\x9b";
 const char banner_ready[]="#FUJINET READY\x9b";
@@ -30,11 +32,12 @@ unsigned char buffer_rx_len[MAX_DEVICES];
 unsigned char buffer_tx_len[MAX_DEVICES];
 unsigned char* rp; // receive ptr
 unsigned char* tp; // transmit ptr
-
+unsigned char trip=0;
 void main(void)
 {
   unsigned char i;
-  OS.lmargn=2;
+
+  OS.lmargn=2;  
   // Populate a devhdl table for our new N: device.
   devhdl.open        = (char *)cio_open-1;
   devhdl.close       = (char *)cio_close-1;
@@ -52,7 +55,7 @@ void main(void)
   OS.hatabs[i].id='N';         // N: device
   OS.hatabs[i].devhdl=&devhdl; // handler table for N: device.
 
-  cio_status();
+  _cio_status_poll();
 
   if (err==1)
     print(banner_ready);
