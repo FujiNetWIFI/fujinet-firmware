@@ -9,6 +9,7 @@
 #include "pdf_printer.h"
 #include "atari_1027.h"
 #include "file_printer.h"
+#include "png_printer.h"
 
 #define EOL 155
 
