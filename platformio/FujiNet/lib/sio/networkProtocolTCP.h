@@ -10,7 +10,7 @@
 #endif
 
 #include "sio.h"
-#include "networkDeviceSpec.h"
+#include "EdUrlParser.h"
 #include "networkProtocol.h"
 
 class networkProtocolTCP : public networkProtocol
@@ -19,7 +19,7 @@ public:
     networkProtocolTCP();
     virtual ~networkProtocolTCP();
 
-    virtual bool open(networkDeviceSpec* spec, cmdFrame_t* cmdFrame);
+    virtual bool open(EdUrlParser* urlParser, cmdFrame_t* cmdFrame);
     virtual bool close();
     virtual bool read(byte* rx_buf, unsigned short len);
     virtual bool write(byte* tx_buf, unsigned short len);
