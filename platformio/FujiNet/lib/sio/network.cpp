@@ -71,14 +71,14 @@ bool sioNetwork::open_protocol()
     }
 }
 
-bool sioNetwork::isValidURL(EdUrlParser* url)
+bool sioNetwork::isValidURL(EdUrlParser *url)
 {
     if (url->scheme == "")
         return false;
     else if ((url->path == "") && (url->port == ""))
         return false;
     else
-        return true;    
+        return true;
 }
 
 void sioNetwork::sio_open()
@@ -102,14 +102,14 @@ void sioNetwork::sio_open()
 
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
-    for (int i=0;i<sizeof(inp);i++)
-        if ((inp[i]>0x7F) || (inp[i]==',') || (inp[i]=='*'))
-            inp[i]=0x00;
+    for (int i = 0; i < sizeof(inp); i++)
+        if ((inp[i] > 0x7F) || (inp[i] == ',') || (inp[i] == '*'))
+            inp[i] = 0x00;
 
-    if (prefix.length()>0)
-        deviceSpec=prefix + string(inp).substr(string(inp).find(":")+1);
+    if (prefix.length() > 0)
+        deviceSpec = prefix + string(inp).substr(string(inp).find(":") + 1);
     else
-        deviceSpec=string(inp).substr(string(inp).find(":")+1);
+        deviceSpec = string(inp).substr(string(inp).find(":") + 1);
 
 #ifdef DEBUG
     Debug_printf("Open: %s\n", deviceSpec.c_str());
@@ -117,7 +117,7 @@ void sioNetwork::sio_open()
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
 
-    if (isValidURL(urlParser)==false)
+    if (isValidURL(urlParser) == false)
     {
 #ifdef DEBUG
         Debug_printf("Invalid devicespec\n");
@@ -327,6 +327,7 @@ void sioNetwork::sio_status()
     sio_to_computer(status_buf.rawData, 4, err);
 }
 
+// Process a SPECIAL sio command (not R,W,O,C,S)
 void sioNetwork::sio_special()
 {
     err = false;
@@ -335,13 +336,13 @@ void sioNetwork::sio_special()
         char inp[256];
 
         sio_ack();
-        sio_to_peripheral((byte *)inp,256);
-        
-        for (int i=0;i<256;i++)
-            if (inp[i]==0x9B)
-                inp[i]=0x00;
-        
-        prefix=inp;
+        sio_to_peripheral((byte *)inp, 256);
+
+        for (int i = 0; i < 256; i++)
+            if (inp[i] == 0x9B)
+                inp[i] = 0x00;
+
+        prefix = inp;
         sio_complete();
     }
     else if (protocol == nullptr)
@@ -353,15 +354,33 @@ void sioNetwork::sio_special()
     {
         byte ret;
         sio_ack();
-        if (protocol->special_supported_00_command(cmdFrame.aux1))
+        if (protocol->special_supported_00_command(cmdFrame.aux1) ||
+            sio_special_supported_00_command(cmdFrame.aux1))
             ret = 0x00;
-        else if (protocol->special_supported_40_command(cmdFrame.aux1))
+        else if (protocol->special_supported_40_command(cmdFrame.aux1) ||
+                 sio_special_supported_40_command(cmdFrame.aux1))
             ret = 0x40;
-        else if (protocol->special_supported_80_command(cmdFrame.aux1))
+        else if (protocol->special_supported_80_command(cmdFrame.aux1) ||
+                 sio_special_supported_80_command(cmdFrame.aux1))
             ret = 0x80;
         else
             ret = 0xFF;
         sio_to_computer(&ret, 1, false);
+    }
+    else if (sio_special_supported_00_command(cmdFrame.comnd))
+    {
+        sio_ack();
+        sio_special_00();
+    }
+    else if (sio_special_supported_40_command(cmdFrame.comnd))
+    {
+        sio_ack();
+        sio_special_40();
+    }
+    else if (sio_special_supported_80_command(cmdFrame.comnd))
+    {
+        sio_ack();
+        sio_special_80();
     }
     else if (protocol->special_supported_00_command(cmdFrame.comnd))
     {
@@ -383,6 +402,53 @@ void sioNetwork::sio_special()
         sio_nak();
 
     // sio_completes() happen in sio_special_XX()
+}
+
+// supported global network device commands that have no payload
+bool sioNetwork::sio_special_supported_00_command(unsigned char c)
+{
+    switch (c)
+    {
+    case 0x10: // Acknowledge interrupt
+        return true;
+    }
+    return false;
+}
+
+// supported global network device commands that go Peripheral->Computer
+bool sioNetwork::sio_special_supported_40_command(unsigned char c)
+{
+    return false;
+}
+
+// supported global network device commands that go Computer->Peripheral
+bool sioNetwork::sio_special_supported_80_command(unsigned char c)
+{
+    return false;
+}
+
+// For global commands with no payload
+void sioNetwork::sio_special_00()
+{
+    switch (cmdFrame.comnd)
+    {
+    case 0x10: // Ack interrupt
+        sio_complete();
+        interruptServiced = true;
+        break;
+    }
+}
+
+// For global commands with Peripheral->Computer payload
+void sioNetwork::sio_special_40()
+{
+    sio_to_computer(sp_buf, sp_buf_len, err);
+}
+
+// For global commands with Computer->Peripheral payload
+void sioNetwork::sio_special_80()
+{
+    err = sio_to_peripheral(sp_buf, sp_buf_len);
 }
 
 // For commands with no payload.
