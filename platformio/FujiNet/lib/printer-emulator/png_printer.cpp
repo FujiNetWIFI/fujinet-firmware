@@ -87,6 +87,9 @@ uint32_t pngPrinter::rc_crc32(uint32_t crc, const uint8_t *buf, size_t len)
 
 void pngPrinter::png_signature()
 {
+#ifdef DEBUG
+    Debug_println("Writing PNG Signature.");
+#endif
     uint8_t sig[] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
     _file.write(&sig[0], 8);
 }
@@ -106,6 +109,10 @@ void pngPrinter::png_header()
         Filter method: 1 byte
         Interlace method: 1 byte
     */
+#ifdef DEBUG
+    Debug_println("Writing PNG Header.");
+#endif
+
     uint8_t header[] = {
         // IHDR chunk
         0x00, 0x00, 0x00, 0x0D, // 0-3      13 byte data length (indexes 8-20)
@@ -137,6 +144,9 @@ void pngPrinter::png_header()
 
 void pngPrinter::png_palette()
 {
+#ifdef DEBUG
+    Debug_println("Writing PNG Palette.");
+#endif
     uint8_t len[] = {0x00, 0x00, 0x00, 0x00}; // 0-3      size placeholder
     const uint8_t data[] = {
         // IDAT chunk data
@@ -221,6 +231,9 @@ void pngPrinter::png_data()
     to the encoder’s buffer size.) It is important to emphasize that IDAT chunk boundaries have no semantic
     significance and can occur at any point in the compressed datastream
 */
+#ifdef DEBUG
+    Debug_println("Starting PNG Image Data...");
+#endif
     uint8_t data[] = {
         // IDAT chunk
         0x00, 0x00, 0x00, 0x00, // 0-3      size placeholder
@@ -252,6 +265,9 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
 
     if (img_pos == 0)
     {
+#ifdef DEBUG
+        Debug_println("Writing ZLIB header.");
+#endif
         // write out a ZLIB header
         // Compression method/flags code: 1 byte (For PNG compression method 0, the zlib compression method/flags code must specify method code 8 (“deflate” compression))
         c = 0x08; // ZLIB "Deflate" compression scheme
@@ -343,7 +359,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         };
         uint32_to_array(adler_value, &data[0]);
         for (int i = 0; i < 4; i++)
-            crc_value = rc_crc32(crc_value, data[i]);
+            crc_value = rc_crc32(crc_value, data[i]); // crc_value = rc_crc32(crc_value, data[0],4); ?????????
         uint32_to_array(crc_value, &data[4]);
         _file.write(&data[0], 8);
         png_end();
