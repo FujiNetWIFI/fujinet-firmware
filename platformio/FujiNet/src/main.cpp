@@ -166,11 +166,11 @@ void setup()
   //sioP.connect_printer(P);
   
   // atari 1027
-  sioP.connect_printer(new(atari1027));
+  //sioP.connect_printer(new(atari1027));
 
   // png printer for ClausB's GRANTIC screen dump
-  //sioP.connect_printer(new(pngPrinter));
-  
+  sioP.connect_printer(new(pngPrinter));
+   
   // file printer for printer SIO capture
   //sioP.connect_printer(new(filePrinter));
 
