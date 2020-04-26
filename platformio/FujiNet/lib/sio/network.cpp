@@ -366,17 +366,17 @@ void sioNetwork::sio_special()
     else if (protocol->special_supported_00_command(cmdFrame.comnd))
     {
         sio_ack();
-        sio_special_00();
+        sio_special_protocol_00();
     }
     else if (protocol->special_supported_40_command(cmdFrame.comnd))
     {
         sio_ack();
-        sio_special_40();
+        sio_special_protocol_40();
     }
     else if (protocol->special_supported_80_command(cmdFrame.comnd))
     {
         sio_ack();
-        sio_special_80();
+        sio_special_protocol_80();
     }
 
     if (err == true) // Unsupported command
@@ -386,7 +386,7 @@ void sioNetwork::sio_special()
 }
 
 // For commands with no payload.
-void sioNetwork::sio_special_00()
+void sioNetwork::sio_special_protocol_00()
 {
     if (!protocol->special(sp_buf, sp_buf_len, &cmdFrame))
         sio_complete();
@@ -395,14 +395,14 @@ void sioNetwork::sio_special_00()
 }
 
 // For commands with Peripheral->Computer payload
-void sioNetwork::sio_special_40()
+void sioNetwork::sio_special_protocol_40()
 {
     err = protocol->special(sp_buf, sp_buf_len, &cmdFrame);
     sio_to_computer(sp_buf, sp_buf_len, err);
 }
 
 // For commands with Computer->Peripheral payload
-void sioNetwork::sio_special_80()
+void sioNetwork::sio_special_protocol_80()
 {
     sio_to_peripheral(sp_buf, sp_buf_len);
     err = protocol->special(sp_buf, sp_buf_len, &cmdFrame);
