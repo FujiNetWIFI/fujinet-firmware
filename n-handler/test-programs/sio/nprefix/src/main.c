@@ -26,12 +26,6 @@ void nprefix(void)
 {
   int i;
 
-  for (i=0;i<sizeof(buf);i++)
-    {
-      if (buf[i]==0x9B)
-	buf[i]=0x00;
-    }
-  
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
   OS.dcb.dcomnd=0xFE;
@@ -82,7 +76,7 @@ int main(int argc, char* argv[])
       print("\x9b");
       
       print("PREFIX? ");
-      get_line(buf,sizeof(buf));
+      get_line(buf,240);
     }
 
   nprefix();
