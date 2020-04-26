@@ -187,7 +187,7 @@ void setup()
   }
   SIO.addDevice(&sioP, 0x40); // P:
 
-  SIO.addDevice(&sioV, 0x43); // P3:
+  SIO.addDevice(&sioV, 0x43); // P4:
 
   if (fnWiFi.connected())
   {
