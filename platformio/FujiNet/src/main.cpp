@@ -90,113 +90,108 @@ BluetoothManager btMgr;
 void setup()
 {
 #ifdef DEBUG_S
-  BUG_UART.begin(DEBUG_SPEED);
+    BUG_UART.begin(DEBUG_SPEED);
 #endif
 #ifdef DEBUG
-  Debug_println("\n--%--%--%--\nFujiNet PlatformIO Started");
-  Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());  
-  #ifdef BOARD_HAS_PSRAM
-  Debug_printf("PsramSize %u\n", ESP.getPsramSize());
-  //Debug_printf("spiram size %u\n", esp_spiram_get_size());
-  //Debug_printf("himem free %u\n", esp_himem_get_free_size());
-  Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
-  Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
-  #endif
+    Debug_println("\n--%--%--%--\nFujiNet PlatformIO Started");
+    Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
+#ifdef BOARD_HAS_PSRAM
+    Debug_printf("PsramSize %u\n", ESP.getPsramSize());
+    //Debug_printf("spiram size %u\n", esp_spiram_get_size());
+    //Debug_printf("himem free %u\n", esp_himem_get_free_size());
+    Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
+    Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
 #endif
-  // connect to wifi but DO NOT wait for it
-  //WiFi.begin(WIFI_SSID, WIFI_PASS);
-  fnWiFi.setup();
-  // fnWiFi.start(WIFI_SSID, WIFI_PASS);
+#endif
+    // connect to wifi but DO NOT wait for it
+    //WiFi.begin(WIFI_SSID, WIFI_PASS);
+    fnWiFi.setup();
+    // fnWiFi.start(WIFI_SSID, WIFI_PASS);
 
-  if (!SPIFFS.begin())
-  {
+    if (!SPIFFS.begin())
+    {
 #ifdef DEBUG
-    Debug_println("SPIFFS Mount Failed");
+        Debug_println("SPIFFS Mount Failed");
 #endif
-  }
+    }
 
-  if (!SD.begin(5))
-  {
+    if (!SD.begin(5))
+    {
 #ifdef DEBUG
-    Debug_println("SD Card Mount Failed");
+        Debug_println("SD Card Mount Failed");
 #endif
-  }
-
-#ifdef DEBUG
-  Debug_print("SD Card Type: ");
-  switch (SD.cardType())
-  {
-  case CARD_NONE:
-    Debug_println("NONE");
-    break;
-  case CARD_MMC:
-    Debug_println("MMC");
-    break;
-  case CARD_SD:
-    Debug_println("SDSC");
-    break;
-  case CARD_SDHC:
-    Debug_println("SDHC");
-    break;
-  default:
-    Debug_println("UNKNOWN");
-    break;
-  }
-#endif
-
-  theFuji.begin();
-
-  for (int i = 0; i < 8; i++)
-  {
-    SIO.addDevice(&sioD[i], 0x31 + i);
-    SIO.addDevice(&sioN[i], 0x71 + i);
-  }
-  SIO.addDevice(&theFuji, 0x70); // the FUJINET!
-
-  SIO.addDevice(&apeTime, 0x45); // apetime
-
-  SIO.addDevice(&sioR, 0x50); // R:
-
-  // Choose filesystem for P: device and iniitalize it
-  //atari822* P = new(atari822);
-  sioP.connect_printer(new(atari1027));
-  //P->setDevice(&sioP);
-  if (SD.cardType() != CARD_NONE)
-  {
-    Debug_println("using SD card for printer storage");
-    sioP.initPrinter(&SD);
-  }
-  else
-  {
-    Debug_println("using SPIFFS for printer storage");
-    sioP.initPrinter(&SPIFFS);
-  }
-  SIO.addDevice(&sioP, 0x40); // P:
-
-  SIO.addDevice(&sioV, 0x43); // P3:
-
-  if (fnWiFi.connected())
-  {
-#ifdef DEBUG
-    Debug_printf("IP address obtained: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
-#endif
-    UDP.begin(16384);
-  }
+    }
 
 #ifdef DEBUG
-  Debug_printf("%d devices registered\n", SIO.numDevices());
+    Debug_print("SD Card Type: ");
+    switch (SD.cardType())
+    {
+    case CARD_NONE:
+        Debug_println("NONE");
+        break;
+    case CARD_MMC:
+        Debug_println("MMC");
+        break;
+    case CARD_SD:
+        Debug_println("SDSC");
+        break;
+    case CARD_SDHC:
+        Debug_println("SDHC");
+        break;
+    default:
+        Debug_println("UNKNOWN");
+        break;
+    }
 #endif
 
-  SIO.setup();
+    theFuji.setup(SIO);
+
+    SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
+
+    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // apetime
+
+    SIO.addDevice(&sioR, SIO_DEVICEID_RS232); // R:
+
+    // Choose filesystem for P: device and iniitalize it
+    //atari822* P = new(atari822);
+    sioP.connect_printer(new (atari1027));
+    //P->setDevice(&sioP);
+    if (SD.cardType() != CARD_NONE)
+    {
+        Debug_println("using SD card for printer storage");
+        sioP.initPrinter(&SD);
+    }
+    else
+    {
+        Debug_println("using SPIFFS for printer storage");
+        sioP.initPrinter(&SPIFFS);
+    }
+    SIO.addDevice(&sioP, SIO_DEVICEID_PRINTER); // P:
+
+    SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
+
+    if (fnWiFi.connected())
+    {
+#ifdef DEBUG
+        Debug_printf("WiFi connected. Current IP address: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
+#endif
+        UDP.begin(16384);
+    }
+
+#ifdef DEBUG
+    Debug_printf("%d devices registered\n", SIO.numDevices());
+#endif
+
+    SIO.setup();
 #if defined(DEBUG) && defined(ESP32)
   Debug_print("SIO Voltage: ");
   Debug_println(fnSystem.get_sio_voltage());
 #endif
 
-  keyMgr.setup();
-  ledMgr.setup();
+    keyMgr.setup();
+    ledMgr.setup();
 
-  void sio_flush();
+    void sio_flush();
 
 #ifdef DEBUG
     Debug_printf("Available heap: %u\n", fnSystem.get_free_heap_size());
@@ -206,106 +201,106 @@ void setup()
 void loop()
 {
 #ifdef DEBUG_N
-  /* Connect to debug server if we aren't and WiFi is connected */
-  if (!wifiDebugClient.connected() && WiFi.status() == WL_CONNECTED)
-  {
-    wifiDebugClient.connect(DEBUG_HOST, 6502);
-    wifiDebugClient.println("FujiNet PlatformIO");
-  }
+    /* Connect to debug server if we aren't and WiFi is connected */
+    if (!wifiDebugClient.connected() && WiFi.status() == WL_CONNECTED)
+    {
+        wifiDebugClient.connect(DEBUG_HOST, 6502);
+        wifiDebugClient.println("FujiNet PlatformIO");
+    }
 #endif
 
 #ifdef ESP32
-  if (fnWiFi.connected())
-  {
-    ledMgr.set(eLed::LED_WIFI, true);
-    if(!fnHTTPD.running())
-      fnHTTPD.start();
-  }
-  else
-  {
-    ledMgr.set(eLed::LED_WIFI, false);
-    if(fnHTTPD.running())
-      fnHTTPD.stop();
-  }
+    if (fnWiFi.connected())
+    {
+        ledMgr.set(eLed::LED_WIFI, true);
+        if (!fnHTTPD.running())
+            fnHTTPD.start();
+    }
+    else
+    {
+        ledMgr.set(eLed::LED_WIFI, false);
+        if (fnHTTPD.running())
+            fnHTTPD.stop();
+    }
 
-  switch (keyMgr.getKeyStatus(eKey::OTHER_KEY))
-  {
+    switch (keyMgr.getKeyStatus(eKey::OTHER_KEY))
+    {
     case eKeyStatus::LONG_PRESSED:
 #ifdef DEBUG
-      Debug_println("O_KEY: LONG PRESS");
+        Debug_println("O_KEY: LONG PRESS");
 #endif
-      break;
+        break;
     case eKeyStatus::SHORT_PRESSED:
 #ifdef DEBUG
-      Debug_println("O_KEY: SHORT PRESS");
+        Debug_println("O_KEY: SHORT PRESS");
 #endif
-      break;
+        break;
     default:
-      break;
-  }
+        break;
+    }
 
-  switch (keyMgr.getKeyStatus(eKey::BOOT_KEY))
-  {
-  case eKeyStatus::LONG_PRESSED:
+    switch (keyMgr.getKeyStatus(eKey::BOOT_KEY))
+    {
+    case eKeyStatus::LONG_PRESSED:
 #ifdef DEBUG
-    Debug_println("B_KEY: LONG PRESS");
+        Debug_println("B_KEY: LONG PRESS");
 #endif
+#ifdef BLUETOOTH_SUPPORT
+        if (btMgr.isActive())
+        {
+            btMgr.stop();
+#ifdef BOARD_HAS_PSRAM
+            ledMgr.set(eLed::LED_BT, false);
+#else
+            ledMgr.set(eLed::LED_SIO, false);
+#endif
+        }
+        else
+        {
+#ifdef BOARD_HAS_PSRAM
+            ledMgr.set(eLed::LED_BT, true);
+#else
+            ledMgr.set(eLed::LED_SIO, true); // SIO LED always ON in Bluetooth mode
+#endif
+            btMgr.start();
+        }
+#endif
+        break;
+    case eKeyStatus::SHORT_PRESSED:
+#ifdef DEBUG
+        Debug_println("B_KEY: SHORT PRESS");
+#ifdef BOARD_HAS_PSRAM
+        ledMgr.blink(eLed::LED_BT); // blink to confirm a button press
+#else
+        ledMgr.blink(eLed::LED_SIO);         // blink to confirm a button press
+#endif
+#endif
+#ifdef BLUETOOTH_SUPPORT
+        if (btMgr.isActive())
+        {
+            btMgr.toggleBaudrate();
+        }
+        else
+#endif
+        {
+            theFuji.image_rotate();
+        }
+        break;
+    default:
+        break;
+    }
+
 #ifdef BLUETOOTH_SUPPORT
     if (btMgr.isActive())
     {
-      btMgr.stop();
-#ifdef BOARD_HAS_PSRAM
-      ledMgr.set(eLed::LED_BT, false);
-#else
-      ledMgr.set(eLed::LED_SIO, false);
-#endif
-    }
-    else
-    {
-#ifdef BOARD_HAS_PSRAM
-      ledMgr.set(eLed::LED_BT, true);
-#else
-      ledMgr.set(eLed::LED_SIO, true); // SIO LED always ON in Bluetooth mode
-#endif
-      btMgr.start();
-    }
-#endif
-    break;
-  case eKeyStatus::SHORT_PRESSED:
-#ifdef DEBUG
-    Debug_println("B_KEY: SHORT PRESS");
-  #ifdef BOARD_HAS_PSRAM
-    ledMgr.blink(eLed::LED_BT); // blink to confirm a button press
-  #else
-    ledMgr.blink(eLed::LED_SIO); // blink to confirm a button press
-  #endif
-#endif
-#ifdef BLUETOOTH_SUPPORT
-    if (btMgr.isActive())
-    {
-      btMgr.toggleBaudrate();
+        btMgr.service();
     }
     else
 #endif
     {
-      theFuji.image_rotate();
-    }
-    break;
-  default:
-    break;
-  }
-
-#ifdef BLUETOOTH_SUPPORT
-  if (btMgr.isActive())
-  {
-    btMgr.service();
-  }
-  else
-#endif
-  {
 #endif // ESP32
-    SIO.service();
+        SIO.service();
 #ifdef ESP32
-  }
+    }
 #endif
 }
