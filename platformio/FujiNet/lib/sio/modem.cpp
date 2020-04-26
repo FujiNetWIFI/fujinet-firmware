@@ -3,7 +3,7 @@
 
 #include "modem.h"
 #include "fnWiFi.h"
-#include "atascii.h"
+#include "../../include/atascii.h"
 
 #define RECVBUFSIZE 1024
 

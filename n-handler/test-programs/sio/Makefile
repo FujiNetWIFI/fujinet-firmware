@@ -19,6 +19,7 @@ all mostlyclean clean install zip:
 	@$(MAKE) -C nhdrcoll --no-print-directory $@
 	@$(MAKE) -C nwrifile --no-print-directory $@
 	@$(MAKE) -C ncacert  --no-print-directory $@
+	@$(MAKE) -C nprefix  --no-print-directory $@
 
 dist: all
 	mkdir -p dist
@@ -32,6 +33,7 @@ dist: all
 	cp nhdrcoll/nhdrcoll.com dist/
 	cp nwrifile/nwrifile.com dist/
 	cp ncacert/ncacert.com dist/
+	cp nprefix/nprefix.com dist/
 	cp test-scripts/THTTP.EXC dist/
 	cp ../../../tls-root-certs/atascii/DIGICERT.CER dist/
 	dir2atr 720 n-tests.atr dist/

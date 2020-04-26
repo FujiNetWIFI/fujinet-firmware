@@ -8,6 +8,9 @@
 #include <cstdint>
 #include <string>
 
+#include <driver/adc.h>
+#include "esp_adc_cal.h"
+
 class SystemManager
 {
 private:
@@ -57,6 +60,7 @@ public:
     static int64_t get_uptime();
     const char * get_uptime_str();
     static const char * get_fujinet_version();
+    static int get_sio_voltage();
 };
 
 extern SystemManager fnSystem;

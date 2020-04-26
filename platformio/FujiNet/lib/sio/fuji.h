@@ -39,7 +39,7 @@ class sioFuji : public sioDevice
 private:
 
     fujiFileSystem fnFileSystems[MAX_FILESYSTEMS];
-    
+
     struct fndisks_t
     {
         File file;

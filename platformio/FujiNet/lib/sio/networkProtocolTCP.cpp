@@ -24,30 +24,33 @@ networkProtocolTCP::~networkProtocolTCP()
     }
 }
 
-bool networkProtocolTCP::open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame)
+bool networkProtocolTCP::open(EdUrlParser* urlParser, cmdFrame_t *cmdFrame)
 {
     bool ret;
 
+    if (urlParser->port.empty())
+        urlParser->port = "23";
+
 #ifdef DEBUG
-    Debug_printf("networkProtocolTCP::open %s\n", spec->toChar());
+    Debug_printf("networkProtocolTCP::open %s:%s\n", urlParser->hostName.c_str(), urlParser->port.c_str());
 #endif
 
-    if (spec->path[0] == 0x00)
+    if (urlParser->hostName == "")
     {
 #ifdef DEBUG
-        Debug_printf("Creating server object on port %d\n", spec->port);
+        Debug_printf("Creating server object on port %s\n", urlParser->port.c_str());
 #endif
-        server = new WiFiServer(spec->port);
-        server->begin(spec->port);
+        server = new WiFiServer(atoi(urlParser->port.c_str()));
+        server->begin(atoi(urlParser->port.c_str()));
         connectionIsServer = true;
     }
     else
     {
 #ifdef DEBUG
-        Debug_printf("Connecting to host %s port %d\n", spec->path, spec->port);
+        Debug_printf("Connecting to host %s port %s\n", urlParser->path.c_str(), urlParser->port.c_str());
 #endif
         connectionIsServer = false;
-        client.connect(spec->path, spec->port);
+        client.connect(urlParser->hostName.c_str(), atoi(urlParser->port.c_str()));
     }
 
     if (client.connected() || (server != NULL))

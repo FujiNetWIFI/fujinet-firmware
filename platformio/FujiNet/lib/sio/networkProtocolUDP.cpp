@@ -14,18 +14,18 @@ networkProtocolUDP::~networkProtocolUDP()
 #endif
 }
 
-bool networkProtocolUDP::open(networkDeviceSpec *spec, cmdFrame_t* cmdFrame)
+bool networkProtocolUDP::open(EdUrlParser* urlParser, cmdFrame_t* cmdFrame)
 {
 #ifdef DEBUG
-    Debug_printf("networkProtocolUDP::OPEN %s \n", spec->toChar());
+    Debug_printf("networkProtocolUDP::OPEN %s:%s \n", urlParser->hostName.c_str(), urlParser->port.c_str());
 #endif
-    if (spec->path[0]!=0x00)
+    if (!urlParser->hostName.empty())
     {
-        strcpy(dest,spec->path);
-        port=spec->port;
+        strcpy(dest,urlParser->hostName.c_str());
+        port=atoi(urlParser->port.c_str());
     }
 
-    return udp.begin(spec->port);
+    return udp.begin(atoi(urlParser->port.c_str()));
 }
 
 bool networkProtocolUDP::close()

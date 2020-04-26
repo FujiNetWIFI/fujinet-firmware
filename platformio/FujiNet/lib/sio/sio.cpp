@@ -229,17 +229,9 @@ void sioBus::service()
 {
   int a;
 #ifdef ESP32
-  /*
-    Check if Atari is powered up or else we get stuck in here reading the
-    command frame. Maybe we should instead read the 5 bytes of command frame
-    in a loop with a timeout so it also works for ESP8266.
-
-    Should we check SIO_UART.available() before trying to read the cmdframe?
-    readBytes has a timeout feature built in. The timeout can be set by
-    SIO_UART.setTimeout(). The default is 1000 ms.
-
-  */
-  if (digitalRead(PIN_CMD) == LOW && sio_volts() > 3000) // 3V should be high enuf
+  // Make sure voltage is higher than 4V to determine atari is on, otherwise
+  // we get stuck reading a LOW command pin until the atari is turned on
+  if (digitalRead(PIN_CMD) == LOW && fnSystem.get_sio_voltage() > 4000)
 #else
   if (digitalRead(PIN_CMD) == LOW)
 #endif
@@ -406,7 +398,6 @@ void sioBus::setup()
 #ifdef ESP32
   pinMode(PIN_CKO, INPUT);
   pinMode(PIN_CKI, OUTPUT);
-  pinMode(PIN_SIO5V, INPUT);
 #endif
 }
 
@@ -471,29 +462,5 @@ void sioBus::setBaudrate(int baudrate)
   SIO_UART.updateBaudRate(sioBaud);
 #endif
 }
-
-/*
-  Return SIO Bus Voltage
-*/
-#ifdef ESP32
-int sioBus::sio_volts()
-{
-  int volts, i;
-  long avgV = 0;
-
-  for (i = 1; i < 4; i++)
-  {
-    avgV += analogRead(PIN_SIO5V);
-    delayMicroseconds(5);
-  }
-
-  if (avgV <= 0)
-    volts = 0;
-  else
-    volts = avgV / (i - 1);
-
-  return volts;
-}
-#endif
 
 sioBus SIO;
