@@ -373,8 +373,10 @@ void pngPrinter::initPrinter(FS *filesystem)
 
 bool pngPrinter::process(byte n)
 {
-    // copy buffer[] into linebuffer[]
+// copy buffer[] into linebuffer[]
+#ifdef DEBUG
     Debug_printf("%d bytes rx'd by PNG printer\n", n);
+#endif
     uint16_t i = 0;
     while (i < n && img_pos < imgSize)
     {
