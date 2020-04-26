@@ -295,6 +295,9 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
                 blkSize = (uint16_t)(imgSize - img_pos);
             }
 
+#ifdef DEBUG
+            Debug_println("Writing ZLIB block header.");
+#endif
             // write out block header
             crc_value = rc_crc32(crc_value, c);
             _file.write(c);
@@ -319,6 +322,9 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         //at beginning of a line?
         if (Xpos == 0)
         {
+#ifdef DEBUG
+            Debug_printf("Starting PNG line %d ... ",Ypos);
+#endif
             c = 0;
             crc_value = rc_crc32(crc_value, c);
             adler_value = update_adler32(adler_value, c);
@@ -344,15 +350,26 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         // check for end of's
         if (Xpos == width)
         {
+#ifdef DEBUG
+            Debug_println("Finished PNG line.");
+#endif
             Xpos = 0;
             Ypos++;
         }
         if (blk_pos == blkSize)
+        {
+#ifdef DEBUG
+            Debug_println("End of ZLIB block.");
+#endif
             blk_pos = 0;
+        }
     };
 
     if (img_pos == imgSize)
     {
+#ifdef DEBUG
+        Debug_println("Writing ZLIB Adler checksum and PNG data CRC.");
+#endif
         uint8_t data[] = {
             0, 0, 0, 0, // Adler32 Check value: 4 bytes
             0, 0, 0, 0  // CRC32: 4 bytes
@@ -368,6 +385,9 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
 
 void pngPrinter::png_end()
 {
+#ifdef DEBUG
+    Debug_println("Writing PNG footer.");
+#endif
     unsigned char end[] = {
         0x00, 0x00, 0x00, 0x00,  // zero length
         'I', 'E', 'N', 'D',      // IEND
