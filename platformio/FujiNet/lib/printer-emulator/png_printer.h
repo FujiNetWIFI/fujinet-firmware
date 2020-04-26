@@ -15,7 +15,7 @@ protected:
     const uint32_t width = 320;
     const uint32_t height = 192;
 
-    uint32_t imgSize = (width + 1) * height; // size of image including BOL filter p's for IDAT chunk
+    const uint32_t imgSize = (width + 1) * height; // size of image including BOL filter p's for IDAT chunk
     uint32_t img_pos = 0;                    // serial position within image data including BOL filter p's
     uint16_t Xpos = 0;                       // current position within image line
     uint16_t Ypos = 0;                       // current image line number

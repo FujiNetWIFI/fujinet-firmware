@@ -1,16 +1,7 @@
 #include "png_printer.h"
 #include "debug.h"
 
-// for Atari EOL
-#define EOL 155
-
-//#include <stdio.h>
-//#include <stdint.h>
-
-// #include "crc32.h"
-
 // rewrite of TinyPngOut https://www.nayuki.io/page/tiny-png-output
-// requires  libcrc by Lammert Bies
 
 #define DEFLATE_MAX_BLOCK_SIZE 0xFFFF
 
