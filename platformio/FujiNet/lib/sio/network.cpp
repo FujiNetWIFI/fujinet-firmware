@@ -479,13 +479,13 @@ void sioNetwork::sio_assert_interrupts()
     if (protocol != nullptr)
     {
         protocol->status(status_buf.rawData); // Prime the status buffer
-        if (status_buf.rx_buf_len > 0)
+        if ((status_buf.rx_buf_len > 0) && (interruptServiced == true))
         {
             digitalWrite(PIN_PROC, LOW);
             delayMicroseconds(200);
             digitalWrite(PIN_PROC, HIGH);
+            interruptServiced = false;
         }
-        // digitalWrite(PIN_PROC, (protocol->assertProceed == true ? LOW : HIGH));
     }
 }
 
