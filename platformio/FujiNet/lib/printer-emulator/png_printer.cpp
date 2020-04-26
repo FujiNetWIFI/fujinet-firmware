@@ -374,12 +374,18 @@ void pngPrinter::initPrinter(FS *filesystem)
 bool pngPrinter::process(byte n)
 {
     // copy buffer[] into linebuffer[]
+    Debug_printf("%d bytes rx'd by PNG printer\n", n);
     uint16_t i = 0;
     while (i < n && img_pos < imgSize)
     {
-        if (line_index == 0)
+        //Debug_println("processing buffer.");
+        if (BOLflag)
         {
+#ifdef DEBUG
+            Debug_println("Processing new line!");
+#endif
             rep_code = buffer[i++];
+            BOLflag = false;
         }
         else
         {
@@ -388,7 +394,14 @@ bool pngPrinter::process(byte n)
         if (line_index == 320)
         {
             while (rep_code-- > 0)
+            {
+#ifdef DEBUG
+                Debug_printf("Adding line %d\n", rep_code);
+#endif
                 png_add_data(&line_buffer[0], 320);
+            }
+            BOLflag = true;
+            line_index = 0;
         }
     }
     return true;
