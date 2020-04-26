@@ -102,10 +102,17 @@ void sioNetwork::sio_open()
 
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
-    deviceSpec=string(inp).substr(string(inp).find(":")+1);
+    for (int i=0;i<sizeof(inp);i++)
+        if ((inp[i]>0x7F) || (inp[i]==',') || (inp[i]=='*'))
+            inp[i]=0x00;
+
+    if (prefix.length()>0)
+        deviceSpec=prefix + string(inp).substr(string(inp).find(":")+1);
+    else
+        deviceSpec=string(inp).substr(string(inp).find(":")+1);
 
 #ifdef DEBUG
-    Debug_printf("Open: %s\n", inp);
+    Debug_printf("Open: %s\n", deviceSpec.c_str());
 #endif
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
@@ -323,7 +330,21 @@ void sioNetwork::sio_status()
 void sioNetwork::sio_special()
 {
     err = false;
-    if (protocol == nullptr)
+    if (cmdFrame.comnd == 0xFE) // Set Prefix
+    {
+        char inp[256];
+
+        sio_ack();
+        sio_to_peripheral((byte *)inp,256);
+        
+        for (int i=0;i<256;i++)
+            if (inp[i]==0x9B)
+                inp[i]=0x00;
+        
+        prefix=inp;
+        sio_complete();
+    }
+    else if (protocol == nullptr)
     {
         err = true;
         status_buf.error = OPEN_STATUS_NOT_CONNECTED;
