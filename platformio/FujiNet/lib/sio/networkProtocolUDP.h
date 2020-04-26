@@ -2,8 +2,8 @@
 #include <WiFiUdp.h>
 
 #include "sio.h"
-#include "networkDeviceSpec.h"
 #include "networkProtocol.h"
+#include "EdUrlParser.h"
 
 class networkProtocolUDP : public networkProtocol 
 {
@@ -11,7 +11,7 @@ public:
     networkProtocolUDP();
     virtual ~networkProtocolUDP();
 
-    virtual bool open(networkDeviceSpec* spec, cmdFrame_t* cmdFrame);
+    virtual bool open(EdUrlParser* urlParser, cmdFrame_t* cmdFrame);
     virtual bool close();
     virtual bool read(byte* rx_buf, unsigned short len);
     virtual bool write(byte* tx_buf, unsigned short len);

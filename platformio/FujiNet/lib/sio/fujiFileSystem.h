@@ -42,11 +42,15 @@ public:
 
     bool mount(const char *devicename);
 
-    int dir_open(const char *path);
-    File dir_nextfile();
-    void dir_close();
+    bool exists(const char *path);
+    bool exists(const String &path);
 
-    FS *fs();
+    fs::File open(const char *path, const char *mode = "r");
+    fs::File open(const String &path, const char *mode = "r");
+
+    int dir_open(const char *path);
+    fs::File dir_nextfile();
+    void dir_close();
 
     fujiFileSystem() { _type = FNFILESYS_UNINITIALIZED; };
     ~fujiFileSystem() { set_type(FNFILESYS_UNINITIALIZED); };

@@ -8,8 +8,8 @@
 #endif
 
 #include "sio.h"
-#include "networkDeviceSpec.h"
 #include "networkProtocol.h"
+#include "EdUrlParser.h"
 
 #define NUM_DEVICES 8
 #define INPUT_BUFFER_SIZE 8192
@@ -30,8 +30,9 @@ private:
     bool open_protocol();
 
 protected:
-    networkDeviceSpec deviceSpec;
+
     networkProtocol *protocol;
+    EdUrlParser *urlParser;
 
     unsigned char err;
     byte ck;
@@ -69,6 +70,10 @@ public:
     void sio_special_80();
 
     virtual void sio_process();
+
+private:
+    bool isValidURL(EdUrlParser* url);
+
 };
 
 #endif /* NETWORK_H */

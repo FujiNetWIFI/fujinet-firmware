@@ -94,13 +94,38 @@ void fujiFileSystem::dir_close()
     _dir.close();
 }
 
-FS * fujiFileSystem::fs()
-{
-    if(_type == FNFILESYS_UNINITIALIZED)
-        return NULL;
 
-    return _fs;
+bool fujiFileSystem::exists(const char *path)
+{
+    if(_type == FNFILESYS_UNINITIALIZED || _fs == NULL)
+        return false;
+
+    return _fs->exists(path);
 }
+
+bool fujiFileSystem::exists(const String &path)
+{
+    if(_type == FNFILESYS_UNINITIALIZED || _fs == NULL)
+        return false;
+
+    return _fs->exists(path);
+}
+
+fs::File fujiFileSystem::open(const char *path, const char *mode)
+{
+    if(_type == FNFILESYS_UNINITIALIZED || _fs == NULL)
+        return File();
+
+    return _fs->open(path, mode);
+}
+
+fs::File fujiFileSystem::open(const String &path, const char *mode)
+{
+    if(_type == FNFILESYS_UNINITIALIZED || _fs == NULL)
+        return File();
+    return _fs->open(path, mode);
+}
+
 
 /* Returns pointer to current hostname or null if no hostname has been assigned
 */

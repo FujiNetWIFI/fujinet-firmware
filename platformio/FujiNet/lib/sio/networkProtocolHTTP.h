@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <HTTPClient.h>
 #include "networkProtocol.h"
-#include "networkDeviceSpec.h"
+#include "EdUrlParser.h"
 #include "sio.h"
 
 class networkProtocolHTTP : public networkProtocol
@@ -13,7 +13,7 @@ public:
     networkProtocolHTTP();
     virtual ~networkProtocolHTTP();
 
-    virtual bool open(networkDeviceSpec *spec, cmdFrame_t *cmdFrame);
+    virtual bool open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool close();
     virtual bool read(byte *rx_buf, unsigned short len);
     virtual bool write(byte *tx_buf, unsigned short len);
@@ -56,7 +56,9 @@ private:
     } httpState;
 
     char cert[2048];
-    String openedURL;
+    EdUrlParser *openedUrlParser;
+    string openedUrl;
+    
 };
 
 #endif /* NETWORKPROTOCOLHTTP */
