@@ -44,6 +44,7 @@ protected:
     unsigned short sp_buf_len;
     unsigned char aux1;
     unsigned char aux2;
+    string prefix;
 
     union {
         struct
