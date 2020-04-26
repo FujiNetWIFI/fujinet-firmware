@@ -23,7 +23,7 @@ static uint8_t status[4];
 
 extern padPt TTYLoc;
 
-static unsigned char hostname[256]="N:TCP:irata.online:8005";
+static unsigned char hostname[256]="N:TCP://irata.online:8005/";
 static unsigned short bw=0;
 static unsigned char connected=0;
 
