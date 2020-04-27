@@ -314,8 +314,10 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     free(buf);
 
     // Tell the printer it can start writing from the beginning
-    currentPrinter->resetPrinter(); // resetOutput();
-
+    // WAS:
+    // currentPrinter->resetPrinter(); // resetOutput();
+    // IS: 
+    sioP.reset_printer(); // destroy,create new printer emulator object of previous type.
 #ifdef DEBUG
     Debug_println("Print request completed");
 #endif
