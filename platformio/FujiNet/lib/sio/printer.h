@@ -104,9 +104,10 @@ protected:
     };
 
 public:
+    atari820(sioPrinter *P) { my_sioP = P; }
     void initPrinter(FS *filesystem);
-    void setDevice(sioPrinter *P) { my_sioP = P; };
-    const char * modelname() { return "Atari 820"; };
+   // void setDevice(sioPrinter *P) { my_sioP = P; };
+    const char *modelname() { return "Atari 820"; };
 };
 
 class atari822 : public pdfPrinter
@@ -157,10 +158,11 @@ protected:
         "/a822font"};
 
 public:
+    atari822(sioPrinter *P) { my_sioP = P; }
     virtual void initPrinter(FS *filesystem);
-    const char * modelname() { return "Atari 822"; };
+    const char *modelname() { return "Atari 822"; };
 
-    void setDevice(sioPrinter *P) { my_sioP = P; };
+    //void setDevice(sioPrinter *P) { my_sioP = P; };
 };
 
 class sioPrinter : public sioDevice
@@ -203,7 +205,6 @@ public:
 
     void set_printer_type(printer_type t);
     void set_storage(FS *fs);
-
 
     // Changed this to maintain a pointer in the printer object in
     // order to avoid having to send a new initPrinter every time
