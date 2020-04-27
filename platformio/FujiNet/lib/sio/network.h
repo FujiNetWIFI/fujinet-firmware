@@ -30,7 +30,6 @@ private:
     bool open_protocol();
 
 protected:
-
     networkProtocol *protocol;
     EdUrlParser *urlParser;
 
@@ -45,6 +44,7 @@ protected:
     unsigned char aux1;
     unsigned char aux2;
     string prefix;
+    bool interruptServiced = true;
 
     union {
         struct
@@ -70,11 +70,18 @@ public:
     void sio_special_40();
     void sio_special_80();
 
+    void sio_special_protocol_00();
+    void sio_special_protocol_40();
+    void sio_special_protocol_80();
+
+    bool sio_special_supported_00_command(unsigned char c);
+    bool sio_special_supported_40_command(unsigned char c);
+    bool sio_special_supported_80_command(unsigned char c);
+
     virtual void sio_process();
 
 private:
-    bool isValidURL(EdUrlParser* url);
-
+    bool isValidURL(EdUrlParser *url);
 };
 
 #endif /* NETWORK_H */
