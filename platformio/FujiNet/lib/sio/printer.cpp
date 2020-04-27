@@ -265,22 +265,6 @@ void sioPrinter::sio_status()
 
 void sioPrinter::set_printer_type(sioPrinter::printer_type t)
 {
-    // old method
-    // PRINTERS!!!!!!!!!!!
-    // for 820 or 822 - need special pointer back so printer can access SIO aux value
-    //atari820* P = new(atari820);
-    //atari822* P = new(atari822);
-    //P->setDevice(&sioP);
-    //sioP.connect_printer(P);
-
-    // atari 1027
-    //sioP.connect_printer(new(atari1027));
-
-    // png printer for ClausB's GRANTIC screen dump
-
-    // file printer for printer SIO capture
-    //sioP.connect_printer(new(filePrinter));
-
     // Destroy any current printer emu object
     delete _pptr;
 
