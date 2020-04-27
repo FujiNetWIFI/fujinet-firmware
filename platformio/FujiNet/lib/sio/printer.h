@@ -201,11 +201,9 @@ public:
     };
 
     static printer_type match_modelname(std::string modelname);
-
-    //void connect_printer(printer_emu *P) { _pptr = P; };
-
     void set_printer_type(printer_type t);
     void set_storage(FS *fs);
+    void reset_printer() { set_printer_type(pt); }; // TODO: Change call in httpService to this instead of emu_printer::reset_printer()
 
     // Changed this to maintain a pointer in the printer object in
     // order to avoid having to send a new initPrinter every time
@@ -215,6 +213,9 @@ public:
     printer_emu *getPrinterPtr() { return _pptr; };
 
     sioPrinter();
+
+private:
+    printer_type pt;
 };
 
 extern sioPrinter sioP; // make array eventually
