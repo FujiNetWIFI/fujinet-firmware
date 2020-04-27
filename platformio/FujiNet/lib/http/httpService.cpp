@@ -11,8 +11,8 @@
 
 #include "httpService.h"
 #include "httpServiceParser.h"
+#include "httpServiceConfigurator.h"
 #include "printer.h"
-#include "../../src/main.h"
 #include "fnWiFi.h"
 
 using namespace std;
@@ -51,6 +51,7 @@ const char * fnHttpService::find_mimetype_str(const char *extension)
         {"ico", "image/x-icon"},
         {"txt", "text/plain"},
         {"bin", "application/octet-stream"},
+        {"js", "text/javascript"},
         {"atascii", "application/octet-stream"}
     };
 
@@ -290,7 +291,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     char hdrval2[10];
     snprintf(hdrval2, 10, "%u", currentPrinter->getOutputSize());
 #ifdef DEBUG
-    Debug_printf("Printer says there's %u bytes in the output file\n", currentPrinter->getOutputSize());
+    Debug_printf("Printer says there are %u bytes in the output file\n", currentPrinter->getOutputSize());
 #endif    
     httpd_resp_set_hdr(req, "Content-Length", hdrval2);
 
@@ -316,6 +317,59 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 #endif
     return ESP_OK;
 }
+
+esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
+{
+#ifdef DEBUG
+    Debug_printf("Post_config request handler '%s'\n", req->uri);
+#endif
+    _fnwserr err = fnwserr_noerrr;
+
+    // Load the posted data
+    char *buf = (char *)malloc(FNWS_RECV_BUFF_SIZE);    
+    if(buf == NULL)
+    {
+        #ifdef DEBUG
+            Debug_printf("Couldn't allocate %u bytes to store POST contents\n", FNWS_RECV_BUFF_SIZE);
+        #endif
+        err = fnwserr_memory;
+    }
+    else
+    {
+        memset(buf, 0, FNWS_RECV_BUFF_SIZE);
+        // Ask for the smaller of either the posted content or our buffer size
+        size_t recv_size = req->content_len > FNWS_RECV_BUFF_SIZE ? FNWS_RECV_BUFF_SIZE : req->content_len;
+
+        int ret = httpd_req_recv(req, buf, recv_size);
+        if (ret <= 0) {  // 0 return value indicates connection closed
+#ifdef DEBUG
+            Debug_printf("Error (%d) returned trying to retrieve %u bytes posted data\n", ret, recv_size);
+#endif        
+            err = fnwserr_post_fail;
+        }
+        else
+        {
+            // Go handle what we just read...
+            ret = fnHttpServiceConfigurator::process_config_post(buf, recv_size);
+            free(buf);
+        }
+
+    }
+
+    if(err != fnwserr_noerrr)
+    {
+        return_http_error(req, err);
+        return ESP_FAIL;
+    }
+
+    // Redirect back to the main page
+    httpd_resp_set_status(req, "303 See Other");
+    httpd_resp_set_hdr(req, "Location", "/");
+    httpd_resp_send(req, NULL, 0);
+
+    return ESP_OK;
+}
+
 
 /* We're pointing global_ctx to a member of our fnHttpService object,
 *  so we don't want the libarary freeing it for us. It'll be freed when
@@ -354,6 +408,12 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
             .uri       = "/favicon.ico",
             .method    = HTTP_GET,
             .handler   = get_handler_file_in_path,
+            .user_ctx  = NULL
+        },
+        {
+            .uri       = "/config",
+            .method    = HTTP_POST,
+            .handler   = post_handler_config,
             .user_ctx  = NULL
         }
     };
