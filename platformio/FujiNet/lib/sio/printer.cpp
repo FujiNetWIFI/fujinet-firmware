@@ -182,7 +182,7 @@ void sioPrinter::sio_write()
 
   Auxiliary Byte 2 for Atari 822 might be 0 or 1 in graphics mode
 */
-
+    // todo: change to switch case structure
     if (cmdFrame.aux1 == 'N' || cmdFrame.aux1 == 'L')
         n = 40;
     else if (cmdFrame.aux1 == 'S')
@@ -265,25 +265,41 @@ void sioPrinter::sio_status()
 
 void sioPrinter::set_printer_type(sioPrinter::printer_type t)
 {
+    // old method
+    // PRINTERS!!!!!!!!!!!
+    // for 820 or 822 - need special pointer back so printer can access SIO aux value
+    //atari820* P = new(atari820);
+    //atari822* P = new(atari822);
+    //P->setDevice(&sioP);
+    //sioP.connect_printer(P);
+
+    // atari 1027
+    //sioP.connect_printer(new(atari1027));
+
+    // png printer for ClausB's GRANTIC screen dump
+
+    // file printer for printer SIO capture
+    //sioP.connect_printer(new(filePrinter));
+
     // Destroy any current printer emu object
     delete _pptr;
 
-    switch(t)
+    switch (t)
     {
     case PRINTER_RAW:
-        _pptr  = new filePrinter;
+        _pptr = new filePrinter;
         break;
     case PRINTER_ATARI_820:
-        _pptr = new atari820;
+        _pptr = new atari820(this);
         break;
     case PRINTER_ATARI_822:
-        _pptr = new atari822;
+        _pptr = new atari822(this);
         break;
     case PRINTER_ATARI_1027:
         _pptr = new atari1027;
         break;
     default:
-        _pptr  = new filePrinter;    
+        _pptr = new filePrinter;
         break;
     }
 
@@ -306,31 +322,31 @@ sioPrinter::sioPrinter()
 */
 sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
 {
-    const char * models [4] = 
-    {
-        "file printer",
-        "Atari 1027",
-        "Atari 820",
-        "Atari 822",
-    };
+    const char *models[4] =
+        {
+            "file printer",
+            "Atari 1027",
+            "Atari 820",
+            "Atari 822",
+        };
     int i;
-    for(i = 0; i < 4; i++)
-        if(modelname.compare(models[i]) == 0)
+    for (i = 0; i < 4; i++)
+        if (modelname.compare(models[i]) == 0)
             break;
 
-    switch(i)
+    switch (i)
     {
-        case 0:
-            return PRINTER_RAW;
-        case 1:
-            return PRINTER_ATARI_1027;
-        case 2:
-            return PRINTER_ATARI_820;
-        case 3:
-            return PRINTER_ATARI_822;
-        case 4:
-        default:
-            return PRINTER_UNKNOWN;
+    case 0:
+        return PRINTER_RAW;
+    case 1:
+        return PRINTER_ATARI_1027;
+    case 2:
+        return PRINTER_ATARI_820;
+    case 3:
+        return PRINTER_ATARI_822;
+    case 4:
+    default:
+        return PRINTER_UNKNOWN;
     }
 }
 
