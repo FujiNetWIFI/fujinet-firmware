@@ -106,7 +106,7 @@ protected:
 public:
     atari820(sioPrinter *P) { my_sioP = P; }
     void initPrinter(FS *filesystem);
-   // void setDevice(sioPrinter *P) { my_sioP = P; };
+    // void setDevice(sioPrinter *P) { my_sioP = P; };
     const char *modelname() { return "Atari 820"; };
 };
 
@@ -190,6 +190,7 @@ protected:
     FS *_storage = NULL;
 
 public:
+    // todo: reconcile printer_type with paper_t
     enum printer_type
     {
         PRINTER_RAW = 0,
