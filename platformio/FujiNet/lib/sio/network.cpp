@@ -4,6 +4,14 @@
 #include "networkProtocolUDP.h"
 #include "networkProtocolHTTP.h"
 
+// latch the rate limiting flag.
+void IRAM_ATTR onTimer()
+{
+    portENTER_CRITICAL_ISR(&timerMux);
+    interruptRateLimit = true;
+    portEXIT_CRITICAL_ISR(&timerMux);
+}
+
 /**
  * Allocate input/output buffers
  */
@@ -162,6 +170,21 @@ void sioNetwork::sio_open()
 
     aux1 = cmdFrame.aux1;
     aux2 = cmdFrame.aux2;
+
+    // Set up rate limiting timer.
+    if (timer != nullptr)
+    {
+        timerAlarmDisable(timer);
+        timerDetachInterrupt(timer);
+        timerEnd(timer);
+        timer = nullptr;
+    }
+
+    timer = timerBegin(0, 80, true);
+    timerAttachInterrupt(timer, &onTimer, true);
+    timerAlarmWrite(timer, 100000, true); // 100ms
+    timerAlarmEnable(timer);
+
     sio_complete();
 }
 
@@ -434,7 +457,7 @@ void sioNetwork::sio_special_00()
     {
     case 0x10: // Ack interrupt
         sio_complete();
-        interruptServiced = true;
+        interruptRateLimit = true;
         break;
     }
 }
@@ -479,12 +502,15 @@ void sioNetwork::sio_assert_interrupts()
     if (protocol != nullptr)
     {
         protocol->status(status_buf.rawData); // Prime the status buffer
-        if ((status_buf.rx_buf_len > 0) && (interruptServiced == true))
+        if ((status_buf.rx_buf_len > 0) && (interruptRateLimit == true))
         {
             digitalWrite(PIN_PROC, LOW);
-            delayMicroseconds(200);
+            delayMicroseconds(50);
             digitalWrite(PIN_PROC, HIGH);
-            interruptServiced = false;
+            
+            portENTER_CRITICAL(&timerMux);
+            interruptRateLimit = false;
+            portEXIT_CRITICAL(&timerMux);
         }
     }
 }
