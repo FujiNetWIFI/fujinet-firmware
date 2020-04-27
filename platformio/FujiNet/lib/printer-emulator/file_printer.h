@@ -12,6 +12,10 @@ public:
     virtual void pageEject();
     virtual bool process(byte n);
 
+    virtual const char * modelname() { return "file printer"; };
+
+    ~filePrinter();
+
     void setPaper(paper_t ty) { paperType = ty; };
 };
 

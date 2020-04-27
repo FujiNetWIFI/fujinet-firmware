@@ -153,19 +153,18 @@ void setup()
     SIO.addDevice(&sioR, SIO_DEVICEID_RS232); // R:
 
     // Choose filesystem for P: device and iniitalize it
-    //atari822* P = new(atari822);
-    sioP.connect_printer(new (atari1027));
-    //P->setDevice(&sioP);
+    //sioP.connect_printer(new (atari1027));
     if (SD.cardType() != CARD_NONE)
     {
         Debug_println("using SD card for printer storage");
-        sioP.initPrinter(&SD);
+        sioP.set_storage(&SD);
     }
     else
     {
         Debug_println("using SPIFFS for printer storage");
-        sioP.initPrinter(&SPIFFS);
+        sioP.set_storage(&SPIFFS);
     }
+
     SIO.addDevice(&sioP, SIO_DEVICEID_PRINTER); // P:
 
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
