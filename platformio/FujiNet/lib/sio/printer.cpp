@@ -275,9 +275,11 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
         break;
     case PRINTER_ATARI_820:
         _pptr = new atari820;
+        ((atari820 *)_pptr)->setDevice(this);
         break;
     case PRINTER_ATARI_822:
         _pptr = new atari822;
+        ((atari822 *)_pptr)->setDevice(this);
         break;
     case PRINTER_ATARI_1027:
         _pptr = new atari1027;
