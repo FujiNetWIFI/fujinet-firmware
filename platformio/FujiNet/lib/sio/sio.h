@@ -32,7 +32,6 @@
 #endif
 #define PIN_CKO 32
 #define PIN_CKI 27
-#define PIN_SIO5V 35
 #endif
 
 #define DELAY_T4 850
@@ -43,6 +42,15 @@
 
 #define ADDR_R 0x50
 #define ADDR_P 0x40
+
+#define SIO_DEVICEID_FUJINET 0x70
+#define SIO_DEVICEID_FN_NETWORK 0x71
+#define SIO_DEVICEID_FN_VOICE 0x43
+
+#define SIO_DEVICEID_APETIME 0x45
+#define SIO_DEVICEID_RS232 0x50
+#define SIO_DEVICEID_DISK 0x31
+#define SIO_DEVICEID_PRINTER 0x40
 
 union cmdFrame_t {
    struct
@@ -115,9 +123,6 @@ public:
    sioDevice *device(int i);
    int getBaudrate();
    void setBaudrate(int baudrate);
-#ifdef ESP32
-   int sio_volts();
-#endif
 };
 
 extern sioBus SIO;

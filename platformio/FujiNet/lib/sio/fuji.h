@@ -1,5 +1,6 @@
 #ifndef FUJI_H
 #define FUJI_H
+#include <cstdint>
 #include <Arduino.h>
 #include "debug.h"
 
@@ -7,7 +8,7 @@
 #include "disk.h"
 #include "network.h"
 #include "tnfs.h"
-
+#include "fujiFileSystem.h"
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
 #include <FS.h>
@@ -18,31 +19,59 @@
 #endif
 #include <SD.h>
 
-extern FS* fileSystems[8];
+#define MAX_FILESYSTEMS 8
+#define MAX_DISK_DEVICES 8
+#define MAX_NETWORK_DEVICES 8
+
+#define MAX_FILENAME_LEN 36
+#define MAX_SSID_LEN 32
+#define MAX_WIFI_PASS_LEN 64
+
+//extern FS *fileSystems[8];
 extern TNFSFS TNFS[8];
-extern File atr[8];     // up to 8 disk drives
-extern sioDisk sioD[8]; //
-extern sioNetwork sioN[8];
+//extern File atr[8]; // up to 8 disk drives
+//extern sioDisk sioD[8]; //
+//extern sioNetwork sioN[8];
+
 
 class sioFuji : public sioDevice
 {
+private:
+
+    fujiFileSystem fnFileSystems[MAX_FILESYSTEMS];
+
+    struct fndisks_t
+    {
+        File file;
+        fujiFileSystem *fnfs = NULL;
+    };
+    fndisks_t fnDisks[MAX_DISK_DEVICES];
+
+    bool validate_host_slot(uint8_t slot, const char *dgmsg = NULL);
+    bool validate_device_slot(uint8_t slot, const char *dgmsg = NULL);
+
 protected:
     File atrConfig;     // autorun.atr for FujiNet configuration
     sioDisk configDisk; // special disk drive just for configuration
 
+    struct _hostslot
+    {
+        char hostname[MAX_HOSTNAME_LEN];
+    };
     union {
-        char host[8][32];
-        unsigned char rawData[256];
+        _hostslot slot[MAX_FILESYSTEMS];
+        unsigned char rawData[sizeof(_hostslot) * MAX_FILESYSTEMS];
     } hostSlots;
 
+    struct _devslot
+    {
+        unsigned char hostSlot;
+        unsigned char mode;
+        char filename[MAX_FILENAME_LEN];
+    };
     union {
-        struct
-        {
-            unsigned char hostSlot;
-            unsigned char mode;
-            char file[36];
-        } slot[8];
-        unsigned char rawData[304];
+        _devslot slot[MAX_DISK_DEVICES];
+        unsigned char rawData[sizeof(_devslot) * MAX_DISK_DEVICES];
     } deviceSlots;
 
     void sio_status() override;           // 'S'
@@ -52,9 +81,9 @@ protected:
     void sio_net_get_wifi_status();       // 0xFA
     void sio_tnfs_mount_host();           // 0xF9
     void sio_disk_image_mount();          // 0xF8
-    void sio_tnfs_open_directory();       // 0xF7
-    void sio_tnfs_read_directory_entry(); // 0xF6
-    void sio_tnfs_close_directory();      // 0xF5
+    void sio_open_directory();            // 0xF7
+    void sio_read_directory_entry();      // 0xF6
+    void sio_close_directory();           // 0xF5
     void sio_read_hosts_slots();          // 0xF4
     void sio_write_hosts_slots();         // 0xF3
     void sio_read_device_slots();         // 0xF2
@@ -69,25 +98,25 @@ protected:
 
     char totalSSIDs;
     union {
-        struct
+        struct _ssidinf
         {
-            char ssid[32];
+            char ssid[MAX_SSID_LEN];
             char rssi;
-        };
-        unsigned char rawData[33];
+        } detail;
+        unsigned char rawData[sizeof(_ssidinf)];
     } ssidInfo; // A single SSID entry
 
     union {
-        struct
+        struct _netconf
         {
-            char ssid[32];
-            char password[64];
-        };
-        unsigned char rawData[96];
+            char ssid[MAX_SSID_LEN];
+            char password[MAX_WIFI_PASS_LEN];
+        } detail;
+        unsigned char rawData[sizeof(_netconf)];
     } netConfig; //Network Configuration
 
     union {
-        struct
+        struct _adapterconfig
         {
             char ssid[32];
             char hostname[64];
@@ -97,16 +126,17 @@ protected:
             unsigned char dnsIP[4];
             unsigned char macAddress[6];
             unsigned char bssid[6];
-        };
-        unsigned char rawData[124];
+        } detail;
+        unsigned char rawData[sizeof(_adapterconfig)];
     } adapterConfig;
 
 public:
     bool load_config = true;
     sioDisk *disk();
     sioNetwork *network();
-    void begin();
+    void setup(sioBus &mySIO);
     int image_rotate();
+    sioFuji();
 };
 
-#endif // guard
+#endif // FUJI_H

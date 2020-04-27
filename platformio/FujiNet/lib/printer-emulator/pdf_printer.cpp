@@ -1,6 +1,13 @@
 #include "pdf_printer.h"
 #include "debug.h"
 
+pdfPrinter::~pdfPrinter()
+{
+#ifdef DEBUG
+    Debug_println("~pdfPrinter");
+#endif
+}
+
 void pdfPrinter::pdf_header()
 {
 #ifdef DEBUG
