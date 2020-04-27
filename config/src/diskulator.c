@@ -699,6 +699,8 @@ bool diskulator_select(void)
 
     screen_puts(0, 1, prefix);
 
+    current_entry[0] = '\0';
+
     diskulator_open_directory(selected_host, prefix);
 
     num_entries = 0;

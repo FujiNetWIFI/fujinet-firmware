@@ -332,7 +332,7 @@ void sioFuji::sio_open_directory()
     }
 
 #ifdef DEBUG
-    Debug_printf("Opening directory: \"%s\"", current_entry);
+    Debug_printf("Opening directory: \"%s\"\n", current_entry);
 #endif
 
     // Remove trailing slash
