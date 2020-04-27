@@ -8,6 +8,16 @@ void printer_emu::initPrinter(FS *filesystem)
     this->resetOutput();
 }
 
+// destructor must be specified for the base class even though it's virtual
+printer_emu::~printer_emu()
+{
+#ifdef DEBUG
+    Debug_println("~printer_emu");
+#endif
+    if(_file)
+        _file.close();
+}
+
 // virtual void flushOutput(); // do this in pageEject
 
 void printer_emu::copyChar(byte c, byte n)
