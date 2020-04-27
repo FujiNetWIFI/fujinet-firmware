@@ -79,6 +79,11 @@ LedManager ledMgr;
 BluetoothManager btMgr;
 #endif
 
+// For the interrupt rate limiter timer
+volatile bool interruptRateLimit = true;
+hw_timer_t *rateTimer = NULL;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+
 // We need something better than this,
 // but it'll do for the moment...
 // sioPrinter sioP;
