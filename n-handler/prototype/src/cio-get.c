@@ -28,8 +28,7 @@ void _cio_get(void)
       // Buffer empty, get length and read it in.
       _cio_status_poll();
 
-      l=(OS.dvstat[1]<<8)+OS.dvstat[0];
-      buffer_rx_len[OS.ziocb.drive-1]=(l<256 ? l : 255);
+      buffer_rx_len[OS.ziocb.drive-1]=OS.dvstat[0];
 
       if (l==0)
 	{
