@@ -24,8 +24,8 @@ private:
     WiFiUDP udp;
     char dest[64];
     unsigned short port;
-    byte* saved_rx_buffer;
-    unsigned short* saved_rx_buffer_len;
+    char saved_rx_buffer[512];
+    unsigned short saved_rx_buffer_len;
 
     bool special_set_destination(byte* sp_buf, unsigned short len, unsigned short new_port);
 };
