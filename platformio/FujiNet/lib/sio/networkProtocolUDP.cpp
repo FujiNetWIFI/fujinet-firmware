@@ -14,15 +14,15 @@ networkProtocolUDP::~networkProtocolUDP()
 #endif
 }
 
-bool networkProtocolUDP::open(EdUrlParser* urlParser, cmdFrame_t* cmdFrame)
+bool networkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
 #ifdef DEBUG
     Debug_printf("networkProtocolUDP::OPEN %s:%s \n", urlParser->hostName.c_str(), urlParser->port.c_str());
 #endif
     if (!urlParser->hostName.empty())
     {
-        strcpy(dest,urlParser->hostName.c_str());
-        port=atoi(urlParser->port.c_str());
+        strcpy(dest, urlParser->hostName.c_str());
+        port = atoi(urlParser->port.c_str());
     }
 
     return udp.begin(atoi(urlParser->port.c_str()));
@@ -39,7 +39,7 @@ bool networkProtocolUDP::read(byte *rx_buf, unsigned short len)
 #ifdef DEBUG
     Debug_printf("networkProtocolUDP::read %d bytes\n", len);
 #endif
-    if (len>*saved_rx_buffer_len)
+    if (len != *saved_rx_buffer_len)
     {
         return true;
     }
@@ -52,22 +52,22 @@ bool networkProtocolUDP::read(byte *rx_buf, unsigned short len)
 bool networkProtocolUDP::write(byte *tx_buf, unsigned short len)
 {
 #ifdef DEBUG
-    Debug_printf("networkProtocolUDP::write %d bytes to dest: %s port %d\n", len,dest,port);
+    Debug_printf("networkProtocolUDP::write %d bytes to dest: %s port %d\n", len, dest, port);
 #endif
     udp.beginPacket(dest, port);
     int l = udp.write(tx_buf, len);
     udp.endPacket();
     if (l < len)
-        return false;
-    else
         return true;
+    else
+        return false;
 }
 
 bool networkProtocolUDP::status(byte *status_buf)
 {
     unsigned short len = udp.parsePacket();
 
-    if (len>0)
+    if (len > 0)
     {
         // Set destination automatically to remote address.
         strcpy(dest, udp.remoteIP().toString().c_str());
@@ -75,9 +75,10 @@ bool networkProtocolUDP::status(byte *status_buf)
 
         status_buf[0] = len & 0xFF;
         status_buf[1] = len >> 8;
-        status_buf[2] = status_buf[3] = 0;
-        read(saved_rx_buffer,*saved_rx_buffer_len);
+        status_buf[3] = 0;
+        read(saved_rx_buffer, *saved_rx_buffer_len);
     }
+    status_buf[2] = 1;
     return false;
 }
 
