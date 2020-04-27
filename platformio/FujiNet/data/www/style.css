@@ -29,15 +29,18 @@ table.info tr td:nth-child(2)
 
 .small
 {
-	font-size: 0.85em;
-	font-style: italic;
+	font-size: 0.75em;
 }
 
 img.printer
 {
 	padding-left: 2em;
+	width: 6em;
 }
-
+.printform
+{
+	vertical-align: text-top;
+}
 #spiffs_storage
 {
 	float: right;

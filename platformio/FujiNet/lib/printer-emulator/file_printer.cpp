@@ -9,6 +9,13 @@ void filePrinter::initPrinter(FS *filesystem)
     printer_emu::initPrinter(filesystem);
 }
 
+filePrinter::~filePrinter()
+{
+#ifdef DEBUG
+    Debug_println("~filePrinter");
+#endif
+}
+
 bool filePrinter::process(byte n)
 {
     int i = 0;
