@@ -268,6 +268,7 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
     // Destroy any current printer emu object
     delete _pptr;
 
+    pt = t;
     switch (t)
     {
     case PRINTER_RAW:
@@ -284,6 +285,7 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
         break;
     default:
         _pptr = new filePrinter;
+        pt = PRINTER_RAW;
         break;
     }
 
