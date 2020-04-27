@@ -30,18 +30,26 @@ void _cio_get(void)
 
       l=(OS.dvstat[1]<<8)+OS.dvstat[0];
       buffer_rx_len[OS.ziocb.drive-1]=(l<256 ? l : 255);
-      
-      err=siov(DEVIC_N,
-	       OS.ziocb.drive,
-	       'R',
-	       DSTATS_READ,
-	       &buffer_rx,
-	       buffer_rx_len[OS.ziocb.drive-1],
-	       DTIMLO_DEFAULT,
-	       buffer_rx_len[OS.ziocb.drive-1],
-	       0);
-      
-      rp[OS.ziocb.drive-1]=&buffer_rx[OS.ziocb.drive-1][0];
+
+      if (l==0)
+	{
+	  err=ret=136;
+	  return;
+	}
+      else
+	{
+	  err=siov(DEVIC_N,
+		   OS.ziocb.drive,
+		   'R',
+		   DSTATS_READ,
+		   &buffer_rx,
+		   buffer_rx_len[OS.ziocb.drive-1],
+		   DTIMLO_DEFAULT,
+		   buffer_rx_len[OS.ziocb.drive-1],
+		   0);
+	  
+	  rp[OS.ziocb.drive-1]=&buffer_rx[OS.ziocb.drive-1][0];
+	}
     }
 
   if ((buffer_rx_len[OS.ziocb.drive-1]==0) || (OS.dvstat[2]==0)) // dvstat[2] = disconnected

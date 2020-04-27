@@ -26,6 +26,9 @@ protected:
 
 public:
     printer_emu(paper_t ty = RAW) : paperType(ty){};
+    // Destructor must be virtual to allow for proper cleanup of derived classes
+    virtual ~printer_emu() = 0;
+
     void copyChar(byte c, byte n);
     virtual void initPrinter(FS *filesystem) = 0;
     virtual void pageEject() = 0;
@@ -33,6 +36,7 @@ public:
 
     paper_t getPaperType() { return paperType; };
 
+    virtual const char *modelname() = 0;
     //File *getFilePtr() { return _file; }
     // virtual void flushOutput(); // do this in pageEject
     size_t getOutputSize();
@@ -40,6 +44,7 @@ public:
     int readFromOutput(uint8_t *buf, size_t size);
     void resetOutput();
     void resetPrinter() { initPrinter(_FS); };
+
 };
 
 // close flush output file

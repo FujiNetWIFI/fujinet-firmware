@@ -34,11 +34,13 @@ If a file has an extention pre-determined to support parsing (see/update
 
 // FNWS_FILE_ROOT should end in a slash '/'
 #define FNWS_FILE_ROOT "/www/"
-#define FNWS_SEND_BUFF_SIZE 512
+#define FNWS_SEND_BUFF_SIZE 512 // Used when sending files in chunks
+#define FNWS_RECV_BUFF_SIZE 512 // Used when receiving POST data from client
 
 #define MSG_ERR_OPENING_FILE     "Error opening file"
 #define MSG_ERR_OUT_OF_MEMORY    "Ran out of memory"
 #define MSG_ERR_UNEXPECTED_HTTPD "Unexpected web server error"
+#define MSG_ERR_RECEIVE_FAILURE  "Failed to receive posted data"
 
 class fnHttpService 
 {
@@ -51,7 +53,8 @@ class fnHttpService
     {
         fnwserr_noerrr = 0,
         fnwserr_fileopen,
-        fnwserr_memory
+        fnwserr_memory,
+        fnwserr_post_fail
     };
 
     struct queryparts {
@@ -76,6 +79,8 @@ public:
     static esp_err_t get_handler_file_in_query(httpd_req_t *req);
     static esp_err_t get_handler_file_in_path(httpd_req_t *req);
     static esp_err_t get_handler_print(httpd_req_t *req);
+
+    static esp_err_t post_handler_config(httpd_req_t *req);
 
     void start();
     void stop();

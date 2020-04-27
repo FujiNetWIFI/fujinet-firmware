@@ -84,8 +84,16 @@ bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     else if (urlParser->scheme == "HTTPS")
         urlParser->scheme = "https";
 
+    if (urlParser->port.empty())
+    {
+        if (urlParser->scheme == "http")
+            urlParser->port = "80";
+        else if (urlParser->scheme == "https")
+            urlParser->port = "443";
+    }
+
     openedUrlParser = urlParser;
-    openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":"  + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
+    openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":" + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
 
     return client.begin(openedUrl.c_str());
 }

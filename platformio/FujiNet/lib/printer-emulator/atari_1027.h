@@ -20,6 +20,8 @@ protected:
 public:
     void initPrinter(FS *filesystem);
 
+    const char * modelname() { return "Atari 1027"; };
+
 protected:
     /*
         7 0 obj

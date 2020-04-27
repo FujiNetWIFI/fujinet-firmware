@@ -37,6 +37,7 @@ void main(void)
 {
   unsigned char i;
 
+  OS.vprced=intr;
   OS.lmargn=2;  
   // Populate a devhdl table for our new N: device.
   devhdl.open        = (char *)cio_open-1;

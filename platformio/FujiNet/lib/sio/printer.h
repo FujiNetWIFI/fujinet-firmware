@@ -106,6 +106,7 @@ protected:
 public:
     void initPrinter(FS *filesystem);
     void setDevice(sioPrinter *P) { my_sioP = P; };
+    const char * modelname() { return "Atari 820"; };
 };
 
 class atari822 : public pdfPrinter
@@ -157,6 +158,8 @@ protected:
 
 public:
     virtual void initPrinter(FS *filesystem);
+    const char * modelname() { return "Atari 822"; };
+
     void setDevice(sioPrinter *P) { my_sioP = P; };
 };
 
@@ -181,12 +184,35 @@ protected:
      * applications
      * 
      * */
-    printer_emu *_pptr;
+    printer_emu *_pptr = NULL;
+    FS *_storage = NULL;
 
 public:
-    void connect_printer(printer_emu *P) { _pptr = P; };
+    enum printer_type
+    {
+        PRINTER_RAW = 0,
+        PRINTER_ATARI_820,
+        PRINTER_ATARI_822,
+        PRINTER_ATARI_1027,
+        PRINTER_UNKNOWN
+    };
+
+    static printer_type match_modelname(std::string modelname);
+
+    //void connect_printer(printer_emu *P) { _pptr = P; };
+
+    void set_printer_type(printer_type t);
+    void set_storage(FS *fs);
+
+
+    // Changed this to maintain a pointer in the printer object in
+    // order to avoid having to send a new initPrinter every time
+    // we change emulation types
+    // void initPrinter(FS *fs) { _pptr->initPrinter(fs); };
+
     printer_emu *getPrinterPtr() { return _pptr; };
-    void initPrinter(FS *fs) { _pptr->initPrinter(fs); };
+
+    sioPrinter();
 };
 
 extern sioPrinter sioP; // make array eventually

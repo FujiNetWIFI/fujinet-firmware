@@ -79,9 +79,10 @@ SPIFFS storage free/used
 	<td><%FN_SYSCPUREV%></td>
 </tr>
 <tr>
-	<td></td>
-	<td></td>
+	<td>SIO Voltage:</td>
+	<td><%FN_SIOVOLTS%></td>
 </tr>
+
 </table>
 
 
@@ -89,8 +90,46 @@ SPIFFS storage free/used
 <br/>
 <br/>
 
-<p class="small">
-Click to download your print-out:<br /><br/>
-<a href="/print"><img src="/file?atari822.png" class="printer"></a>
+<table class="printer">
+<tr>
+	<td class="small">
+		Click to download your<br/>
+		current print-out:
+	<td class="small">
+		Change printer type:
+	<td>
+	</td>
+</tr>
+<tr>
+	<td>
+		<a href="/print"><img src="/file?printer.svg" class="printer"></a>
+	</td>
+	<td class="printform">
+		<form action="/config" method="post">
+			<select name="printermodel1" id="select_printermodel1">
+				<option value="file printer">file printer</option>
+<!--
+				<option value="Atari 820">Atari 820</option>
+-->
+				<option value="Atari 822">Atari 822</option>
+				<option value="Atari 1027">Atari 1027</option>
+			</select>
+			<input type="submit" value="Change">
+		</form>
+	</td>
+</tr>
+<tr>
+	<td class="small">
+		Current printer type: <%FN_PRINTER1_MODEL%>
+	</td>
+	<td>
+	</td>
+</tr>
+</table>
+<script>
+	var current_printer="<%FN_PRINTER1_MODEL%>";
+</script>
+<script type="text/javascript" src="/file?selectedprinter.js"></script>
+
 </body>
 </html>

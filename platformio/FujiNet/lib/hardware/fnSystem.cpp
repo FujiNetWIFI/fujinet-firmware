@@ -8,6 +8,8 @@
 
 #include "fnSystem.h"
 
+#include "debug.h"
+
 // Global object to manage System
 SystemManager fnSystem;
 
@@ -87,3 +89,64 @@ SystemManager::chipmodels SystemManager::get_cpu_model()
         break;
     }
 }
+
+int SystemManager::get_sio_voltage()
+{
+    // Configure ADC1 CH7
+    adc1_config_width(ADC_WIDTH_12Bit);
+    adc1_config_channel_atten(ADC1_CHANNEL_7,ADC_ATTEN_11db);
+
+    // Calculate ADC characteristics
+    esp_adc_cal_characteristics_t characteristics;
+    esp_adc_cal_get_characteristics(1100, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, &characteristics);
+
+    int i, samples = 10;
+    uint32_t avgV = 0;
+
+    for (i = 0; i < samples; i++)
+        avgV += adc1_to_voltage(ADC1_CHANNEL_7, &characteristics);
+
+    avgV /= samples;
+
+    if ((avgV <= 0) || (avgV < 501)) // ignore spurious readings
+        return 0;
+    else
+        return (avgV*5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
+}
+
+#ifdef NOT_DEPRECATED_ESP_ADC_FN
+// The above function uses deprecated esp-idf adc functions, but it works for now.
+// The following version of the same function works for a short time then causes
+// the ESP to crash. The esp-idf functions used below are not deprecated. Leaving
+// this here for future testing. Perhaps it's an upstream bug that needs fixed, or
+// I'm doing something wrong?
+int SystemManager::get_sio_voltage()
+{
+    // Configure ADC1 CH7
+    adc1_config_width(ADC_WIDTH_12Bit);
+    adc1_config_channel_atten(ADC1_CHANNEL_7,ADC_ATTEN_11db);
+
+    // Calculate ADC characteristics
+    static esp_adc_cal_characteristics_t *adc_chars;
+    adc_chars = (esp_adc_cal_characteristics_t *)calloc(1, sizeof(esp_adc_cal_characteristics_t));
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, adc_chars);
+
+    int i, samples = 10;
+    uint32_t avgV = 0;
+    uint32_t vcc = 0;
+
+    for (i = 0; i < samples; i++)
+    {
+        esp_adc_cal_get_voltage(ADC_CHANNEL_7, adc_chars, &vcc);
+        avgV += vcc;
+        //delayMicroseconds(5);
+    }
+
+    avgV /= samples;
+
+    if ((avgV <= 0) || (avgV < 501)) // ignore spurious readings
+        return 0;
+    else
+        return (avgV*5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
+}
+#endif
