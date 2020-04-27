@@ -172,18 +172,18 @@ void sioNetwork::sio_open()
     aux2 = cmdFrame.aux2;
 
     // Set up rate limiting timer.
-    if (timer != nullptr)
+    if (rateTimer != nullptr)
     {
-        timerAlarmDisable(timer);
-        timerDetachInterrupt(timer);
-        timerEnd(timer);
-        timer = nullptr;
+        timerAlarmDisable(rateTimer);
+        timerDetachInterrupt(rateTimer);
+        timerEnd(rateTimer);
+        rateTimer = nullptr;
     }
 
-    timer = timerBegin(0, 80, true);
-    timerAttachInterrupt(timer, &onTimer, true);
-    timerAlarmWrite(timer, 100000, true); // 100ms
-    timerAlarmEnable(timer);
+    rateTimer = timerBegin(0, 80, true);
+    timerAttachInterrupt(rateTimer, &onTimer, true);
+    timerAlarmWrite(rateTimer, 100000, true); // 100ms
+    timerAlarmEnable(rateTimer);
 
     sio_complete();
 }
@@ -507,7 +507,7 @@ void sioNetwork::sio_assert_interrupts()
             digitalWrite(PIN_PROC, LOW);
             delayMicroseconds(50);
             digitalWrite(PIN_PROC, HIGH);
-            
+
             portENTER_CRITICAL(&timerMux);
             interruptRateLimit = false;
             portEXIT_CRITICAL(&timerMux);

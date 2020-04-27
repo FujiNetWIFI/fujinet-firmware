@@ -22,9 +22,9 @@
 #define OPEN_STATUS_INVALID_DEVICESPEC 165
 
 // For the interrupt rate limiter timer
-volatile bool interruptRateLimit = true;
-hw_timer_t *timer = NULL;
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+extern volatile bool interruptRateLimit;
+extern hw_timer_t *rateTimer;
+extern portMUX_TYPE timerMux;
 
 class sioNetwork : public sioDevice
 {
