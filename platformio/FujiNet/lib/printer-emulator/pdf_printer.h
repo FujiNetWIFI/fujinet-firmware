@@ -71,7 +71,7 @@ protected:
     byte fontNumber;
     float fontSize;
 
-    pdfFont_t *fonts[6];
+    const pdfFont_t *fonts[6];
 
     float pdf_X = 0.; // across the page - columns in pts
     bool BOLflag = true;

@@ -9,6 +9,7 @@
 #include "pdf_printer.h"
 #include "atari_1027.h"
 #include "file_printer.h"
+#include "png_printer.h"
 
 #define EOL 155
 
@@ -26,8 +27,7 @@ protected:
     void pdf_fonts();
     void pdf_handle_char(byte c); // need a custom one to handle sideways printing
 
-    //pdfFont_t F1;
-    pdfFont_t F1 = {
+    const pdfFont_t F1 = {
         /*
     /Type /Font
     /Subtype /Type1
@@ -64,8 +64,7 @@ protected:
         "/a820norm" // F1->ffname =
     };
 
-    //pdfFont_t F2;
-    pdfFont_t F2 = {
+    const pdfFont_t F2 = {
         /*
     /Type /Font
     /Subtype /Type1
@@ -103,9 +102,10 @@ protected:
     };
 
 public:
+    atari820(sioPrinter *P) { my_sioP = P; }
     void initPrinter(FS *filesystem);
-    void setDevice(sioPrinter *P) { my_sioP = P; };
-    const char * modelname() { return "Atari 820"; };
+    // void setDevice(sioPrinter *P) { my_sioP = P; };
+    const char *modelname() { return "Atari 820"; };
 };
 
 class atari822 : public pdfPrinter
@@ -118,8 +118,7 @@ protected:
 
     int gfxNumber = 0;
 
-    pdfFont_t F1 = {
-        //pdfFont_t F1;
+    const pdfFont_t F1 = {
         /*
       /Type /Font
       /Subtype /Type1
@@ -156,10 +155,11 @@ protected:
         "/a822font"};
 
 public:
+    atari822(sioPrinter *P) { my_sioP = P; }
     virtual void initPrinter(FS *filesystem);
-    const char * modelname() { return "Atari 822"; };
+    const char *modelname() { return "Atari 822"; };
 
-    void setDevice(sioPrinter *P) { my_sioP = P; };
+    //void setDevice(sioPrinter *P) { my_sioP = P; };
 };
 
 class sioPrinter : public sioDevice
@@ -187,22 +187,21 @@ protected:
     FS *_storage = NULL;
 
 public:
+    // todo: reconcile printer_type with paper_t
     enum printer_type
     {
         PRINTER_RAW = 0,
         PRINTER_ATARI_820,
         PRINTER_ATARI_822,
         PRINTER_ATARI_1027,
+        PRINTER_PNG,
         PRINTER_UNKNOWN
     };
 
     static printer_type match_modelname(std::string modelname);
-
-    //void connect_printer(printer_emu *P) { _pptr = P; };
-
     void set_printer_type(printer_type t);
     void set_storage(FS *fs);
-
+    void reset_printer() { set_printer_type(pt); }; // TODO: Change call in httpService to this instead of emu_printer::reset_printer()
 
     // Changed this to maintain a pointer in the printer object in
     // order to avoid having to send a new initPrinter every time
@@ -212,6 +211,9 @@ public:
     printer_emu *getPrinterPtr() { return _pptr; };
 
     sioPrinter();
+
+private:
+    printer_type pt;
 };
 
 extern sioPrinter sioP; // make array eventually

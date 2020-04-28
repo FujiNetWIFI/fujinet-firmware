@@ -12,7 +12,8 @@ enum paper_t
     TRIM,
     ASCII,
     PDF,
-    SVG
+    SVG,
+    PNG
 };
 
 class printer_emu
@@ -42,7 +43,7 @@ public:
     int readFromOutput();
     int readFromOutput(uint8_t *buf, size_t size);
     void resetOutput();
-    void resetPrinter() { initPrinter(_FS); };
+    //void resetPrinter() { initPrinter(_FS); };
 
 };
 
