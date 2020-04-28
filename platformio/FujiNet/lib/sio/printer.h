@@ -194,6 +194,7 @@ public:
         PRINTER_ATARI_820,
         PRINTER_ATARI_822,
         PRINTER_ATARI_1027,
+        PRINTER_PNG,
         PRINTER_UNKNOWN
     };
 
