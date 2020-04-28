@@ -283,6 +283,9 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
     case PRINTER_ATARI_1027:
         _pptr = new atari1027;
         break;
+    case PRINTER_PNG:
+        _pptr = new pngPrinter;
+        break;
     default:
         _pptr = new filePrinter;
         pt = PRINTER_RAW;
@@ -308,15 +311,16 @@ sioPrinter::sioPrinter()
 */
 sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
 {
-    const char *models[4] =
+    const char *models[5] =
         {
             "file printer",
             "Atari 1027",
             "Atari 820",
             "Atari 822",
+            "GRANTIC"
         };
     int i;
-    for (i = 0; i < 4; i++)
+    for (i = 0; i < 5; i++)
         if (modelname.compare(models[i]) == 0)
             break;
 
@@ -331,6 +335,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
     case 3:
         return PRINTER_ATARI_822;
     case 4:
+        return PRINTER_PNG;
     default:
         return PRINTER_UNKNOWN;
     }

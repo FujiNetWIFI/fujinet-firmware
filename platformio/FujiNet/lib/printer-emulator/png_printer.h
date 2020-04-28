@@ -45,6 +45,7 @@ protected:
 
 public:
     pngPrinter(paper_t ty = PNG) : printer_emu{ty} {};
+    const char *modelname() { return "GRANTIC"; };
     virtual void initPrinter(FS *filesystem);
     virtual void pageEject();
     virtual bool process(byte n);
