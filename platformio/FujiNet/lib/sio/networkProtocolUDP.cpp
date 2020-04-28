@@ -39,10 +39,19 @@ bool networkProtocolUDP::read(byte *rx_buf, unsigned short len)
 #ifdef DEBUG
     Debug_printf("networkProtocolUDP::read %d bytes\n", len);
 #endif
-    
-    memcpy(rx_buf,saved_rx_buffer,len);
 
-    if (len==saved_rx_buffer_len)
+    if (saved_rx_buffer_len > 0)
+    {
+        memcpy(rx_buf, saved_rx_buffer, len);
+    }
+    else
+    {
+        memset(rx_buf, 0, len);
+    }
+
+    saved_rx_buffer_len = 0;
+
+    if (len == saved_rx_buffer_len)
     {
         return false;
     }
@@ -50,7 +59,6 @@ bool networkProtocolUDP::read(byte *rx_buf, unsigned short len)
     {
         return true;
     }
-    
 }
 
 bool networkProtocolUDP::write(byte *tx_buf, unsigned short len)
@@ -77,11 +85,11 @@ bool networkProtocolUDP::status(byte *status_buf)
         strcpy(dest, udp.remoteIP().toString().c_str());
         port = udp.remotePort();
 
-        saved_rx_buffer_len=len;
+        saved_rx_buffer_len = len;
         status_buf[0] = len & 0xFF;
         status_buf[1] = len >> 8;
         status_buf[3] = 0;
-        udp.read(saved_rx_buffer,len);
+        udp.read(saved_rx_buffer, len);
     }
     status_buf[2] = 1;
     return false;

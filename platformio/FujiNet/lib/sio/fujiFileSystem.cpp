@@ -172,15 +172,27 @@ const char* fujiFileSystem::get_hostname()
 int fujiFileSystem::mount_local(const char *devicename)
 {
     int result = -1;
+#ifdef DEBUG
+    Debug_printf("::mount_local Attempting mount of \"%s\"\n", devicename);
+#endif
 
-    if(strncmp(_sdhostname, devicename, sizeof(_sdhostname) == 0))
+    if(0 == strcmp(_sdhostname, devicename))
     {
         // Don't do anything if that's already what's set
         if(_type == FNFILESYS_LOCAL)
+        {
+#ifdef DEBUG
+        Debug_println("Type is already LOCAL");
+#endif        
             return 0;
+        }
         // Otherwise set the new type
+#ifdef DEBUG
+        Debug_println("Setting type to LOCAL");
+#endif        
         set_type(FNFILESYS_LOCAL);
         _fs = &SD;
+        result = 0;
     }
     return result;
 }

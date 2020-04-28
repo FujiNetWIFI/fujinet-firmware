@@ -21,6 +21,11 @@
 #define OPEN_STATUS_DEVICE_ERROR 144
 #define OPEN_STATUS_INVALID_DEVICESPEC 165
 
+// For the interrupt rate limiter timer
+extern volatile bool interruptRateLimit;
+extern hw_timer_t *rateTimer;
+extern portMUX_TYPE timerMux;
+
 class sioNetwork : public sioDevice
 {
 
@@ -44,7 +49,6 @@ protected:
     unsigned char aux1;
     unsigned char aux2;
     string prefix;
-    bool interruptServiced = true;
 
     union {
         struct

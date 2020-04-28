@@ -32,4 +32,14 @@ void clear_rx_buffer(void);
  */
 void clear_tx_buffer(void);
 
+/**
+ * Save ZP
+ */
+void zp_save(void);
+
+/**
+ * Restore ZP
+ */
+void zp_restore(void);
+
 #endif /* MISC_H */
