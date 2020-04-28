@@ -27,8 +27,7 @@ protected:
     void pdf_fonts();
     void pdf_handle_char(byte c); // need a custom one to handle sideways printing
 
-    //pdfFont_t F1;
-    pdfFont_t F1 = {
+    const pdfFont_t F1 = {
         /*
     /Type /Font
     /Subtype /Type1
@@ -65,8 +64,7 @@ protected:
         "/a820norm" // F1->ffname =
     };
 
-    //pdfFont_t F2;
-    pdfFont_t F2 = {
+    const pdfFont_t F2 = {
         /*
     /Type /Font
     /Subtype /Type1
@@ -120,8 +118,7 @@ protected:
 
     int gfxNumber = 0;
 
-    pdfFont_t F1 = {
-        //pdfFont_t F1;
+    const pdfFont_t F1 = {
         /*
       /Type /Font
       /Subtype /Type1
@@ -197,6 +194,7 @@ public:
         PRINTER_ATARI_820,
         PRINTER_ATARI_822,
         PRINTER_ATARI_1027,
+        PRINTER_PNG,
         PRINTER_UNKNOWN
     };
 
