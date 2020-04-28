@@ -51,7 +51,7 @@ void _cio_status(void)
   else
     {
       OS.dvstat[0]=buffer_rx_len[OS.ziocb.drive-1]&0xFF;
-      OS.dvstat[1]=buffer_rx_len[OS.ziocb.drive-1]>>8;
+      OS.dvstat[1]=0;
     }
   
   ret=OS.dvstat[2];   
