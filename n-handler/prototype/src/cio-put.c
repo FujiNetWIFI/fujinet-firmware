@@ -52,9 +52,9 @@ void _cio_put(void)
   buffer_tx[OS.ziocb.drive-1][buffer_tx_len[OS.ziocb.drive-1]++]=ret;
   err=1;
   
-  if (buffer_tx_len[OS.ziocb.drive-1]==0xFF)
+  if (ret==0x9B)
     cio_put_flush();
-  else if (ret==0x9B)
+  else if (buffer_tx_len[OS.ziocb.drive-1]==0xFF)
     cio_put_flush();
   
 }
