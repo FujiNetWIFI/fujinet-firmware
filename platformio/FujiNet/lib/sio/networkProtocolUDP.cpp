@@ -6,6 +6,7 @@ networkProtocolUDP::networkProtocolUDP()
     Debug_printf("networkProtocolUDP::ctor\n");
 #endif
     saved_rx_buffer_len=0;
+    strcpy(dest,"localhost");
 }
 
 networkProtocolUDP::~networkProtocolUDP()
