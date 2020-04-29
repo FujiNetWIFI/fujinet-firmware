@@ -25,6 +25,9 @@ bool networkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     {
         strcpy(dest, urlParser->hostName.c_str());
         port = atoi(urlParser->port.c_str());
+#ifdef DEBUG
+        Debug_printf("Port: %d\n",port);
+#endif
     }
 
     return udp.begin(atoi(urlParser->port.c_str()));
@@ -76,7 +79,7 @@ bool networkProtocolUDP::status(byte *status_buf)
     {
         // Set destination automatically to remote address.
         strcpy(dest, udp.remoteIP().toString().c_str());
-        port = udp.remotePort();
+        //port = udp.remotePort();
 
         saved_rx_buffer_len = len;
         udp.read(saved_rx_buffer, len);

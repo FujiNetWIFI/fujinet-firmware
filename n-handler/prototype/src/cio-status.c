@@ -36,6 +36,11 @@ void _cio_status_poll(void)
       OS.dvstat[0]=255;
       OS.dvstat[1]=0;
     }
+
+  if (l==0)
+    {
+      trip=0;
+    }
 }
 
 void _cio_status(void)
