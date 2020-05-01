@@ -20,7 +20,7 @@ protected:
 public:
     void initPrinter(FS *filesystem);
 
-    const char * modelname() { return "Atari 1027"; };
+    const char * modelname() { return "Atari 1025"; };
 
 protected:
     /*
