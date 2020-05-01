@@ -165,7 +165,9 @@ void pdfPrinter::pdf_new_line()
 #endif
     // position new line and start text string array
     _file.printf("0 %g Td [(", -lineHeight);
-    pdf_X = 0; // reinforce?
+    // TODO: move these out of end line to new line
+    // pdf_Y -= lineHeight;    // line feed
+    // pdf_X = 0;              // CR
     BOLflag = false;
 }
 
@@ -175,6 +177,7 @@ void pdfPrinter::pdf_end_line()
     Debug_println("pdf end line");
 #endif
     _file.printf(")]TJ\n"); // close the line
+    // TODO: move these out of end line to new line
     pdf_Y -= lineHeight;    // line feed
     pdf_X = 0;              // CR
     BOLflag = true;

@@ -12,13 +12,47 @@ void atari1025::pdf_handle_char(byte c)
         // ESC L - long line 80 char/line     0x4C
         // ESC S - short line 64 char/line    0x53
         // ESC 6 - use 6 lines per inch       0x36
-        // ESC 8 - use 8 lines per inch       0x38  
+        // ESC 8 - use 8 lines per inch       0x38
         // ESC CTRL-W - start international   0x17 23
         // ESC CTRL-X - stop international    0x18 24
-        if (c == 23)
+
+        switch (c)
+        {
+        case 0x0E:
+            // change font to elongated
+            charWidth = 14.4; //72.0 / 5.0;
+            break;
+        case 0x0F:
+            // change font to normal
+            charWidth = 7.2; //72.0 / 10.0;
+            break;
+        case 0x14:
+            // change font to compressed
+            charWidth = 72.0 / 16.5;
+            break;
+        case 0x17: // 23
             intlFlag = true;
-        if (c == 24)
+            break;
+        case 0x18: // 24
             intlFlag = false;
+            break;
+        case 0x36: // '6'
+            lineHeight = 12.0; //72.0/6.0;
+            break;
+        case 0x38: // '8'
+            lineHeight = 9.0; //72.0/8.0;
+            break;
+        case 0x4c: // 'L'
+            /* code */
+            break;
+        case 0x53: // 'S'
+            /* code */
+            break;
+
+        default:
+            break;
+        }
+
         escMode = false;
     }
     else if (c == 27)
