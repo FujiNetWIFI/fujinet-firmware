@@ -1,7 +1,7 @@
 #include "atari_1027.h"
 #include "debug.h"
 
-void atari1027::pdf_fonts()
+/* void atari1027::pdf_fonts()
 {
 
     // 3rd object: font catalog
@@ -39,7 +39,7 @@ void atari1027::pdf_fonts()
     fff.close();
     _file.printf("\nendobj\n");
 }
-
+ */
 void atari1027::pdf_handle_char(byte c)
 {
     if (escMode)
