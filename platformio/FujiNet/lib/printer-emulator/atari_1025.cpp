@@ -19,7 +19,7 @@ void atari1025::pdf_handle_char(byte c)
         switch (c)
         {
         case 0x0E:
-            // change font to elongated
+            // change font to elongated like         _file.printf(")]TJ\n/F2 12 Tf [(");
             charWidth = 14.4; //72.0 / 5.0;
             break;
         case 0x0F:
@@ -44,9 +44,12 @@ void atari1025::pdf_handle_char(byte c)
             break;
         case 0x4c: // 'L'
             /* code */
+            // for long and short lines, i think we end line, ET, then set the leftMargin and pageWdith and begin text
+            // challenge is to not skip a line if we're at the beginning of a line
+            // could also add a state variable so we don't unnecessarily change the line width
             break;
         case 0x53: // 'S'
-            /* code */
+            // for long and short lines, i think we end line, ET, then set the leftMargin and pageWdith and begin text
             break;
 
         default:
