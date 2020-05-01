@@ -51,20 +51,20 @@ void atari1025::pdf_handle_char(byte c)
         // ESC CTRL-Z - stop underscoring     27  26
         // ESC CTRL-W - start international   27  23
         // ESC CTRL-X - stop international    27  24
-        if (c == 25)
-            uscoreFlag = true;
-        if (c == 26)
-            uscoreFlag = false;
+        // if (c == 25)
+        //     uscoreFlag = true;
+        // if (c == 26)
+        //     uscoreFlag = false;
         if (c == 23)
             intlFlag = true;
         if (c == 24)
             intlFlag = false;
         escMode = false;
     }
-    else if (c == 15)
-        uscoreFlag = true;
-    else if (c == 14)
-        uscoreFlag = false;
+    // else if (c == 15)
+    //     uscoreFlag = true;
+    // else if (c == 14)
+    //     uscoreFlag = false;
     else if (c == 27)
         escMode = true;
     else
@@ -80,7 +80,7 @@ void atari1025::pdf_handle_char(byte c)
                 _file.write(byte(196));
             else if (c > 27 && c < 32)
             {
-                _file.printf(")600(_"); // |^ -< -> |v
+                _file.printf(")600(-"); // |^ -< -> |v
             }
 
             pdf_X += charWidth; // update x position
@@ -91,8 +91,8 @@ void atari1025::pdf_handle_char(byte c)
                 _file.write('\\');
             _file.write(c);
 
-            if (uscoreFlag)
-                _file.printf(")600(_"); // close text string, backspace, start new text string, write _
+            // if (uscoreFlag)
+            //     _file.printf(")600(_"); // close text string, backspace, start new text string, write _
 
             pdf_X += charWidth; // update x position
         }
@@ -119,7 +119,7 @@ void atari1025::initPrinter(FS *filesystem)
     fonts[0] = &F1;
     pdf_add_fonts(1);
 
-    uscoreFlag = false;
+    // uscoreFlag = false;
     intlFlag = false;
     escMode = false;
 }
