@@ -3,6 +3,7 @@
 #include <string.h>
 #include <esp_system.h>
 #include <esp_timer.h>
+#include <driver/gpio.h>
 
 #include "../../include/version.h"
 
@@ -12,6 +13,97 @@
 
 // Global object to manage System
 SystemManager fnSystem;
+
+// Temprary (?) replacement for Arduino's pinMode()
+// Handles only common cases
+// PINMODE_INPUT or PINMODE_OUTPUT
+// can be ORed with PINMODE_PULLUP or PINMODE_PULLDOWN
+void SystemManager::set_pin_mode(uint8_t pin, uint8_t mode)
+{
+    gpio_config_t io_conf;
+
+    //disable interrupt
+    io_conf.intr_type = GPIO_INTR_DISABLE;
+
+
+    // set pin mode
+    if(mode & PINMODE_INPUT) 
+    {
+        io_conf.mode = GPIO_MODE_INPUT;
+
+    } else if (mode & PINMODE_OUTPUT)
+    {
+        io_conf.mode = GPIO_MODE_OUTPUT;
+    }
+    else
+    {
+        // Make sure we have either PINMODE_INPUT or PINMODE_OUTPUT
+        // Don't continue if we get something unexpected        
+#ifdef DEBUG
+        Debug_println("set_pin_mode mode isn't INPUT or OUTPUT");
+#endif
+        abort();
+    }
+
+    //set pull-up/down mode (only one or the other)
+    io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_DISABLE;
+    io_conf.pull_up_en = gpio_pullup_t::GPIO_PULLUP_DISABLE;
+    if(mode & PINMODE_PULLDOWN)
+    {
+        io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_ENABLE;
+    } else if (mode & PINMODE_PULLUP)
+    {
+        io_conf.pull_up_en = gpio_pullup_t::GPIO_PULLUP_ENABLE;
+    }
+
+    //bit mask of the pins that you want to set
+    io_conf.pin_bit_mask = (1ULL << pin);
+
+    //configure GPIO with the given settings
+    gpio_config(&io_conf);    
+
+}
+
+// from esp32-hal-misc.
+void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
+{
+    if(val) {
+        if(pin < 32) {
+            GPIO.out_w1ts = ((uint32_t)1 << pin);
+        } else if(pin < 34) {
+            GPIO.out1_w1ts.val = ((uint32_t)1 << (pin - 32));
+        }
+    } else {
+        if(pin < 32) {
+            GPIO.out_w1tc = ((uint32_t)1 << pin);
+        } else if(pin < 34) {
+            GPIO.out1_w1tc.val = ((uint32_t)1 << (pin - 32));
+        }
+    }
+}
+
+// from esp32-hal-misc.
+int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
+{
+    if(pin < 32) {
+        return (GPIO.in >> pin) & 0x1;
+    } else if(pin < 40) {
+        return (GPIO.in1.val >> (pin - 32)) & 0x1;
+    }
+    return 0;
+}
+
+// from esp32-hal-misc.
+void SystemManager::delay(uint32_t ms)
+{
+    vTaskDelay(ms / portTICK_PERIOD_MS);
+}
+
+// from esp32-hal-misc.c
+unsigned long IRAM_ATTR SystemManager::millis()
+{
+     return (unsigned long) (esp_timer_get_time() / 1000ULL);
+}
 
 void SystemManager::reboot()
 {
@@ -90,6 +182,8 @@ SystemManager::chipmodels SystemManager::get_cpu_model()
     }
 }
 
+
+#ifndef NOT_DEPRECATED_ESP_ADC_FN
 int SystemManager::get_sio_voltage()
 {
     // Configure ADC1 CH7
@@ -114,7 +208,7 @@ int SystemManager::get_sio_voltage()
         return (avgV*5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
 }
 
-#ifdef NOT_DEPRECATED_ESP_ADC_FN
+#else
 // The above function uses deprecated esp-idf adc functions, but it works for now.
 // The following version of the same function works for a short time then causes
 // the ESP to crash. The esp-idf functions used below are not deprecated. Leaving
@@ -122,31 +216,33 @@ int SystemManager::get_sio_voltage()
 // I'm doing something wrong?
 int SystemManager::get_sio_voltage()
 {
-    // Configure ADC1 CH7
+    // Configure ADC1_CH7
     adc1_config_width(ADC_WIDTH_12Bit);
-    adc1_config_channel_atten(ADC1_CHANNEL_7,ADC_ATTEN_11db);
+    adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_11db);
 
     // Calculate ADC characteristics
-    static esp_adc_cal_characteristics_t *adc_chars;
-    adc_chars = (esp_adc_cal_characteristics_t *)calloc(1, sizeof(esp_adc_cal_characteristics_t));
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, adc_chars);
+    esp_adc_cal_characteristics_t adc_chars;
+    //adc_chars = (esp_adc_cal_characteristics_t *)calloc(1, sizeof(esp_adc_cal_characteristics_t));
+    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
 
-    int i, samples = 10;
+    int samples = 10;
     uint32_t avgV = 0;
     uint32_t vcc = 0;
 
-    for (i = 0; i < samples; i++)
+    for (int i = 0; i < samples; i++)
     {
-        esp_adc_cal_get_voltage(ADC_CHANNEL_7, adc_chars, &vcc);
+        esp_adc_cal_get_voltage(ADC_CHANNEL_7, &adc_chars, &vcc);
         avgV += vcc;
         //delayMicroseconds(5);
     }
 
     avgV /= samples;
 
-    if ((avgV <= 0) || (avgV < 501)) // ignore spurious readings
+    //avgV is unsigned
+    //if ((avgV <= 0) || (avgV < 501)) // ignore spurious readings
+    if (avgV < 501)
         return 0;
     else
-        return (avgV*5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
+        return (avgV * 5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
 }
 #endif
