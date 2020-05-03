@@ -1,4 +1,4 @@
-#include <Arduino.h>
+//#include <Arduino.h>
 #include "bluetooth.h"
 #include "../sio/sio.h"
 #include "../sio/disk.h"
