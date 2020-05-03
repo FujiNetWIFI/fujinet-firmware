@@ -111,6 +111,7 @@ public:
   ~pdfPrinter();
 };
 
+/* 
 class asciiPrinter : public pdfPrinter
 {
 protected:
@@ -123,5 +124,6 @@ public:
   virtual const char *modelname() { return "ASCII printer"; };
   ~asciiPrinter();
 };
+ */
 
 #endif // guard
