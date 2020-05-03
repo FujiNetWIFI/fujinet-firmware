@@ -135,7 +135,7 @@ void atari820::initPrinter(FS *filesystem)
 
     fonts[0] = &F1;
     fonts[1] = &F2;
-    pdf_add_fonts(2);
+    
 }
 
 void atari822::initPrinter(FS *filesystem)
@@ -157,7 +157,7 @@ void atari822::initPrinter(FS *filesystem)
     pdf_header();
 
     fonts[0] = &F1;
-    pdf_add_fonts(1);
+    
 }
 
 // write for W commands
