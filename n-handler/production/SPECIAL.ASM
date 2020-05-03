@@ -5,9 +5,11 @@ SPEC   PROC
        ; HANDLE LOCAL COMMANDS.
 
        LDA     ZICCOM
-       CMP     #$0F
-       BNE     :1
-       JSR     PFLUSH
+       CMP     #$0F    ; 15 = FLUSH
+       BNE     :1      ; NO.
+       JSR     PFLUSH  ; DO FLUSH
+       LDY     #$01    ; SUCCESS
+       RTS
 
        ; HANDLE SIO COMMANDS.
        ; GET DSTATS FOR COMMAND
@@ -37,7 +39,7 @@ SPEC   PROC
 
        LDA     DSTATS
        BPL     :DSOK
-:DSERR TAY
+:DSERR TAY             ; RET THE ERR
        RTS
 
        ; WE GOT A DSTATS INQUIRY
