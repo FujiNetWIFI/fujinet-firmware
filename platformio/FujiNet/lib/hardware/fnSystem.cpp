@@ -65,6 +65,7 @@ void SystemManager::set_pin_mode(uint8_t pin, uint8_t mode)
 }
 
 // from esp32-hal-misc.
+// Set DIGI_LOW or DIGI_HIGH
 void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
 {
     if(val) {
@@ -83,6 +84,7 @@ void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
 }
 
 // from esp32-hal-misc.
+// Returns DIGI_LOW or DIGI_HIGH
 int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
 {
     if(pin < 32) {
@@ -182,38 +184,6 @@ SystemManager::chipmodels SystemManager::get_cpu_model()
     }
 }
 
-
-#ifndef NOT_DEPRECATED_ESP_ADC_FN
-int SystemManager::get_sio_voltage()
-{
-    // Configure ADC1 CH7
-    adc1_config_width(ADC_WIDTH_12Bit);
-    adc1_config_channel_atten(ADC1_CHANNEL_7,ADC_ATTEN_11db);
-
-    // Calculate ADC characteristics
-    esp_adc_cal_characteristics_t characteristics;
-    esp_adc_cal_get_characteristics(1100, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, &characteristics);
-
-    int i, samples = 10;
-    uint32_t avgV = 0;
-
-    for (i = 0; i < samples; i++)
-        avgV += adc1_to_voltage(ADC1_CHANNEL_7, &characteristics);
-
-    avgV /= samples;
-
-    if ((avgV <= 0) || (avgV < 501)) // ignore spurious readings
-        return 0;
-    else
-        return (avgV*5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
-}
-
-#else
-// The above function uses deprecated esp-idf adc functions, but it works for now.
-// The following version of the same function works for a short time then causes
-// the ESP to crash. The esp-idf functions used below are not deprecated. Leaving
-// this here for future testing. Perhaps it's an upstream bug that needs fixed, or
-// I'm doing something wrong?
 int SystemManager::get_sio_voltage()
 {
     // Configure ADC1_CH7
@@ -222,7 +192,6 @@ int SystemManager::get_sio_voltage()
 
     // Calculate ADC characteristics
     esp_adc_cal_characteristics_t adc_chars;
-    //adc_chars = (esp_adc_cal_characteristics_t *)calloc(1, sizeof(esp_adc_cal_characteristics_t));
     esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
 
     int samples = 10;
@@ -238,11 +207,9 @@ int SystemManager::get_sio_voltage()
 
     avgV /= samples;
 
-    //avgV is unsigned
-    //if ((avgV <= 0) || (avgV < 501)) // ignore spurious readings
     if (avgV < 501)
         return 0;
     else
         return (avgV * 5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
 }
-#endif
+
