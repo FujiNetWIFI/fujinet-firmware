@@ -12,7 +12,7 @@
  */
 unsigned short sioDevice::sio_get_aux()
 {
-  return (cmdFrame.aux2 * 256) + cmdFrame.aux1;
+    return (cmdFrame.aux2 * 256) + cmdFrame.aux1;
 }
 
 /**
@@ -20,24 +20,24 @@ unsigned short sioDevice::sio_get_aux()
 */
 void sio_flush()
 {
-  while (SIO_UART.available())
-  {
-    SIO_UART.read(); // toss it.
+    while (SIO_UART.available())
+    {
+        SIO_UART.read(); // toss it.
 #ifdef DEBUG
-    Debug_printf(".");
+        Debug_printf(".");
 #endif
-  }
+    }
 }
 
 // calculate 8-bit checksum.
 byte sio_checksum(byte *chunk, int length)
 {
-  int chkSum = 0;
-  for (int i = 0; i < length; i++)
-  {
-    chkSum = ((chkSum + chunk[i]) >> 8) + ((chkSum + chunk[i]) & 0xff);
-  }
-  return (byte)chkSum;
+    int chkSum = 0;
+    for (int i = 0; i < length; i++)
+    {
+        chkSum = ((chkSum + chunk[i]) >> 8) + ((chkSum + chunk[i]) & 0xff);
+    }
+    return (byte)chkSum;
 }
 
 /**
@@ -48,32 +48,32 @@ byte sio_checksum(byte *chunk, int length)
 */
 void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
 {
-  byte ck = sio_checksum(b, len);
+    byte ck = sio_checksum(b, len);
 
 #ifdef ESP8266
-  delayMicroseconds(DELAY_T5);
+    delayMicroseconds(DELAY_T5);
 #endif
 
-  if (err == true)
-    sio_error();
-  else
-    sio_complete();
+    if (err == true)
+        sio_error();
+    else
+        sio_complete();
 
-  // Write data frame.
-  SIO_UART.write(b, len);
+    // Write data frame.
+    SIO_UART.write(b, len);
 
-  // Write checksum
-  SIO_UART.write(ck);
+    // Write checksum
+    SIO_UART.write(ck);
 
 #ifdef ESP32
-  SIO_UART.flush();
+    SIO_UART.flush();
 #endif
 
 #ifdef DEBUG_VERBOSE
-  Debug_printf("TO COMPUTER: ");
-  for (int i = 0; i < len; i++)
-    Debug_printf("%02x ", b[i]);
-  Debug_printf("\nCKSUM: %02x\n\n", ck);
+    Debug_printf("TO COMPUTER: ");
+    for (int i = 0; i < len; i++)
+        Debug_printf("%02x ", b[i]);
+    Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
 }
 
@@ -85,47 +85,47 @@ void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
 */
 byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
 {
-  byte ck;
+    byte ck;
 
 // Retrieve data frame from computer
 #ifdef DEBUG
-  Debug_printf("<-SIO read %hu\n", len);
+    Debug_printf("<-SIO read %hu\n", len);
 #endif
 #ifdef DEBUG_VERBOSE
-  size_t l = SIO_UART.readBytes(b, len);
+    size_t l = SIO_UART.readBytes(b, len);
 #else
-  SIO_UART.readBytes(b, len);
+    SIO_UART.readBytes(b, len);
 #endif
-  // Wait for checksum
-  while (!SIO_UART.available())
-    yield();
+    // Wait for checksum
+    while (!SIO_UART.available())
+        yield();
 
-  // Receive Checksum
-  ck = SIO_UART.read();
+    // Receive Checksum
+    ck = SIO_UART.read();
 
 #ifdef DEBUG_VERBOSE
-  Debug_printf("l: %d\n", l);
-  Debug_printf("TO PERIPHERAL: ");
-  for (int i = 0; i < len; i++)
-    Debug_printf("%02x ", sector[i]);
-  Debug_printf("\nCKSUM: %02x\n\n", ck);
+    Debug_printf("l: %d\n", l);
+    Debug_printf("TO PERIPHERAL: ");
+    for (int i = 0; i < len; i++)
+        Debug_printf("%02x ", sector[i]);
+    Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
 
-  //#ifdef ESP8266
-  delayMicroseconds(DELAY_T4);
-  //#endif
+    //#ifdef ESP8266
+    delayMicroseconds(DELAY_T4);
+    //#endif
 
-  if (sio_checksum(b, len) != ck)
-  {
-    sio_nak();
-    return false;
-  }
-  else
-  {
-    sio_ack();
-  }
+    if (sio_checksum(b, len) != ck)
+    {
+        sio_nak();
+        return false;
+    }
+    else
+    {
+        sio_ack();
+    }
 
-  return ck;
+    return ck;
 }
 
 /**
@@ -133,12 +133,12 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
 */
 void sioDevice::sio_nak()
 {
-  SIO_UART.write('N');
+    SIO_UART.write('N');
 #ifdef ESP32
-  SIO_UART.flush();
+    SIO_UART.flush();
 #endif
 #ifdef DEBUG
-  Debug_println("NAK!");
+    Debug_println("NAK!");
 #endif
 }
 
@@ -147,12 +147,12 @@ void sioDevice::sio_nak()
 */
 void sioDevice::sio_ack()
 {
-  SIO_UART.write('A');
+    SIO_UART.write('A');
 #ifdef ESP32
-  SIO_UART.flush();
+    SIO_UART.flush();
 #endif
 #ifdef DEBUG
-  Debug_println("ACK!");
+    Debug_println("ACK!");
 #endif
 }
 
@@ -161,10 +161,10 @@ void sioDevice::sio_ack()
 */
 void sioDevice::sio_complete()
 {
-  delayMicroseconds(DELAY_T5);
-  SIO_UART.write('C');
+    delayMicroseconds(DELAY_T5);
+    SIO_UART.write('C');
 #ifdef DEBUG
-  Debug_println("COMPLETE!");
+    Debug_println("COMPLETE!");
 #endif
 }
 
@@ -173,10 +173,10 @@ void sioDevice::sio_complete()
 */
 void sioDevice::sio_error()
 {
-  delayMicroseconds(DELAY_T5);
-  SIO_UART.write('E');
+    delayMicroseconds(DELAY_T5);
+    SIO_UART.write('E');
 #ifdef DEBUG
-  Debug_println("ERROR!");
+    Debug_println("ERROR!");
 #endif
 }
 
@@ -227,239 +227,239 @@ void sioDevice::sio_error()
 
 void sioBus::service()
 {
-  int a;
+    int a;
 #ifdef ESP32
-  // Make sure voltage is higher than 4V to determine atari is on, otherwise
-  // we get stuck reading a LOW command pin until the atari is turned on
-  if (digitalRead(PIN_CMD) == LOW && fnSystem.get_sio_voltage() > 4000)
+    // Make sure voltage is higher than 4V to determine atari is on, otherwise
+    // we get stuck reading a LOW command pin until the atari is turned on
+    if (digitalRead(PIN_CMD) == LOW && fnSystem.get_sio_voltage() > 4000)
 #else
-  if (digitalRead(PIN_CMD) == LOW)
+    if (digitalRead(PIN_CMD) == LOW)
 #endif
-  {
-    ledMgr.set(eLed::LED_SIO, true);
-    //memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame
-    if (modemDev != nullptr && modemDev->modemActive)
     {
-      modemDev->modemActive = false;
-      SIO_UART.updateBaudRate(sioBaud);
-#ifdef DEBUG
-      Debug_println("SIO Baud");
-#endif
-    }
-
-#ifdef ESP8266
-    delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
-#endif
-
-    // read cmd frame
-    cmdFrame_t tempFrame;
-    SIO_UART.readBytes(tempFrame.cmdFrameData, 5);
-#ifdef DEBUG
-    Debug_printf("\n%s CF: %02x %02x %02x %02x %02x\n", fnSystem.get_uptime_str(), 
-            tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
-#endif
-    byte ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
-    // Wait for CMD line to raise again
-    while (digitalRead(PIN_CMD) == LOW)
-      yield();
-    if (ck == tempFrame.cksum)
-    {
-#ifdef ESP8266
-      delayMicroseconds(DELAY_T1);
-#endif
-#ifdef ESP8266
-      delayMicroseconds(DELAY_T2);
-#endif
-      if (fujiDev != nullptr && fujiDev->load_config && tempFrame.devic == 0x31)
-      {
-        activeDev = fujiDev->disk();
-#ifdef DEBUG
-        Debug_println("FujiNet intercepts D1:");
-#endif
-        for (int i = 0; i < 5; i++)
+        ledMgr.set(eLed::LED_SIO, true);
+        //memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame
+        if (modemDev != nullptr && modemDev->modemActive)
         {
-          activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
+            modemDev->modemActive = false;
+            SIO_UART.updateBaudRate(sioBaud);
+#ifdef DEBUG
+            Debug_println("SIO Baud");
+#endif
         }
+
 #ifdef ESP8266
-        delayMicroseconds(DELAY_T3);
+        delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
 #endif
-        activeDev->sio_process(); // execute command
-      }
-      else
-      {
-        // Command $4F is a Type3 poll - send it to every device that cares
-        if (tempFrame.devic == 0x4F)
-        {
+
+        // read cmd frame
+        cmdFrame_t tempFrame;
+        SIO_UART.readBytes(tempFrame.cmdFrameData, 5);
 #ifdef DEBUG
-          Debug_println("SIO TYPE3 POLL");
+        Debug_printf("\n%s CF: %02x %02x %02x %02x %02x\n", fnSystem.get_uptime_str(),
+                     tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
 #endif
-          for (int i = 0; i < numDevices(); i++)
-          {
-            if (device(i)->listen_to_type3_polls)
+        byte ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
+        // Wait for CMD line to raise again
+        while (digitalRead(PIN_CMD) == LOW)
+            yield();
+        if (ck == tempFrame.cksum)
+        {
+#ifdef ESP8266
+            delayMicroseconds(DELAY_T1);
+#endif
+#ifdef ESP8266
+            delayMicroseconds(DELAY_T2);
+#endif
+            if (fujiDev != nullptr && fujiDev->load_config && tempFrame.devic == 0x31)
             {
+                activeDev = fujiDev->disk();
 #ifdef DEBUG
-              Debug_printf("Sending TYPE3 poll to dev %x\n", device(i)->_devnum);
+                Debug_println("FujiNet intercepts D1:");
 #endif
-              activeDev = device(i);
-              for (int i = 0; i < 5; i++)
-              {
-                activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
-              }
-              activeDev->sio_process(); // execute command
+                for (int i = 0; i < 5; i++)
+                {
+                    activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
+                }
+#ifdef ESP8266
+                delayMicroseconds(DELAY_T3);
+#endif
+                activeDev->sio_process(); // execute command
             }
-          }
-        }
+            else
+            {
+                // Command $4F is a Type3 poll - send it to every device that cares
+                if (tempFrame.devic == 0x4F)
+                {
+#ifdef DEBUG
+                    Debug_println("SIO TYPE3 POLL");
+#endif
+                    for (int i = 0; i < numDevices(); i++)
+                    {
+                        if (device(i)->listen_to_type3_polls)
+                        {
+#ifdef DEBUG
+                            Debug_printf("Sending TYPE3 poll to dev %x\n", device(i)->_devnum);
+#endif
+                            activeDev = device(i);
+                            for (int i = 0; i < 5; i++)
+                            {
+                                activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
+                            }
+                            activeDev->sio_process(); // execute command
+                        }
+                    }
+                }
+                else
+                {
+                    // find device, ack and pass control
+                    // or go back to WAIT
+                    // this is what sioBus::sio_get_id() does, but need to pass the tempFrame to it
+                    for (int i = 0; i < numDevices(); i++)
+                    {
+                        if (tempFrame.devic == device(i)->_devnum)
+                        {
+                            //BUG_UART.print("Found Device "); BUG_UART.println(dn,HEX);
+                            activeDev = device(i);
+                            for (int i = 0; i < 5; i++)
+                            {
+                                activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
+                            }
+#ifdef ESP8266
+                            delayMicroseconds(DELAY_T3);
+#endif
+                            activeDev->sio_process(); // execute command
+                        }
+                    }
+                }
+            }
+        } // valid checksum
         else
         {
-          // find device, ack and pass control
-          // or go back to WAIT
-          // this is what sioBus::sio_get_id() does, but need to pass the tempFrame to it
-          for (int i = 0; i < numDevices(); i++)
-          {
-            if (tempFrame.devic == device(i)->_devnum)
+            // HIGHSPEED
+            command_frame_counter++;
+            if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
             {
-              //BUG_UART.print("Found Device "); BUG_UART.println(dn,HEX);
-              activeDev = device(i);
-              for (int i = 0; i < 5; i++)
-              {
-                activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; //  need to copy an array by elements
-              }
-#ifdef ESP8266
-              delayMicroseconds(DELAY_T3);
-#endif
-              activeDev->sio_process(); // execute command
+                command_frame_counter = 0;
+                if (sioBaud == HISPEED_BAUDRATE)
+                {
+                    setBaudrate(STANDARD_BAUDRATE);
+                }
+                else
+                {
+                    setBaudrate(HISPEED_BAUDRATE);
+                }
             }
-          }
         }
-      }
-    } // valid checksum
+        ledMgr.set(eLed::LED_SIO, false);
+    } // END command line low
+    else if (modemDev != nullptr && modemDev->modemActive)
+    {
+        modemDev->sio_handle_modem(); // Handle the modem
+    }
     else
     {
-      // HIGHSPEED
-      command_frame_counter++;
-      if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
-      {
-        command_frame_counter = 0;
-        if (sioBaud == HISPEED_BAUDRATE)
-        {
-          setBaudrate(STANDARD_BAUDRATE);
-        }
-        else
-        {
-          setBaudrate(HISPEED_BAUDRATE);
-        }
-      }
+        ledMgr.set(eLed::LED_SIO, false);
+        a = SIO_UART.available();
+        if (a)
+            while (SIO_UART.available())
+                SIO_UART.read(); // dump it.
     }
-    ledMgr.set(eLed::LED_SIO, false);
-  } // END command line low
-  else if (modemDev != nullptr && modemDev->modemActive)
-  {
-    modemDev->sio_handle_modem(); // Handle the modem
-  }
-  else
-  {
-    ledMgr.set(eLed::LED_SIO, false);
-    a = SIO_UART.available();
-    if (a)
-      while (SIO_UART.available())
-        SIO_UART.read(); // dump it.
-  }
 
-  // Handle interrupts from network protocols
-  for (int i = 0; i < 8; i++)
-  {
-    if (netDev[i] != nullptr)
+    // Handle interrupts from network protocols
+    for (int i = 0; i < 8; i++)
     {
-      netDev[i]->sio_assert_interrupts();
+        if (netDev[i] != nullptr)
+        {
+            netDev[i]->sio_assert_interrupts();
+        }
     }
-  }
 }
 
 // setup SIO bus
 void sioBus::setup()
 {
 #ifdef DEBUG
-  Debug_println("SIO SETUP");
+    Debug_println("SIO SETUP");
 #endif
-  // Set up serial
-  SIO_UART.begin(sioBaud);
+    // Set up serial
+    SIO_UART.begin(sioBaud);
 #ifdef ESP8266
-  SIO_UART.swap();
+    SIO_UART.swap();
 #endif
 
-  pinMode(PIN_INT, OUTPUT);
-  digitalWrite(PIN_INT, HIGH);
-  pinMode(PIN_PROC, OUTPUT);
-  digitalWrite(PIN_PROC, HIGH);
-  pinMode(PIN_MTR, INPUT_PULLDOWN);
-  pinMode(PIN_CMD, INPUT_PULLUP);
-  pinMode(PIN_CKI, OUTPUT);
-  digitalWrite(PIN_CKI, LOW);
+    pinMode(PIN_INT, OUTPUT);
+    digitalWrite(PIN_INT, HIGH);
+    pinMode(PIN_PROC, OUTPUT);
+    digitalWrite(PIN_PROC, HIGH);
+    pinMode(PIN_MTR, INPUT_PULLDOWN);
+    pinMode(PIN_CMD, INPUT_PULLUP);
+    pinMode(PIN_CKI, OUTPUT);
+    digitalWrite(PIN_CKI, LOW);
 #ifdef ESP32
-  pinMode(PIN_CKO, INPUT);
-  pinMode(PIN_CKI, OUTPUT);
+    pinMode(PIN_CKO, INPUT);
+    pinMode(PIN_CKI, OUTPUT);
 #endif
 }
 
 void sioBus::addDevice(sioDevice *p, int N)
 {
-  if (N == 0x70)
-  {
-    fujiDev = (sioFuji *)p;
-  }
-  else if (N == ADDR_R)
-  {
+    if (N == 0x70)
+    {
+        fujiDev = (sioFuji *)p;
+    }
+    else if (N == ADDR_R)
+    {
 #ifdef DEBUG
-    Debug_println("MODEM ADDED!");
+        Debug_println("MODEM ADDED!");
 #endif
-    modemDev = (sioModem *)p;
-  }
-  else if (N == 0x71 || N == 0x72 || N == 0x73 || N == 0x74 || N == 0x75 || N == 0x76 || N == 0x77 || N == 0x78)
-  {
+        modemDev = (sioModem *)p;
+    }
+    else if (N == 0x71 || N == 0x72 || N == 0x73 || N == 0x74 || N == 0x75 || N == 0x76 || N == 0x77 || N == 0x78)
+    {
 #ifdef DEBUG
-    Debug_printf("NETWORK DEVICE 0x%02x ADDED!\n", N - 0x71);
+        Debug_printf("NETWORK DEVICE 0x%02x ADDED!\n", N - 0x71);
 #endif
-    netDev[N - 0x71] = (sioNetwork *)p;
-  }
+        netDev[N - 0x71] = (sioNetwork *)p;
+    }
 
-  p->_devnum = N;
-  daisyChain.add(p);
+    p->_devnum = N;
+    daisyChain.add(p);
 }
 
 bool sioBus::remDevice(sioDevice *p)
 {
-  int i = 0;
-  while (p != device(i))
-  {
-    i++;
-    if (i > numDevices())
-      return false;
-  }
-  daisyChain.remove(i);
-  return true;
+    int i = 0;
+    while (p != device(i))
+    {
+        i++;
+        if (i > numDevices())
+            return false;
+    }
+    daisyChain.remove(i);
+    return true;
 }
 
 int sioBus::numDevices()
 {
-  return daisyChain.size();
+    return daisyChain.size();
 }
 
 sioDevice *sioBus::device(int i)
 {
-  return daisyChain.get(i);
+    return daisyChain.get(i);
 }
 
 int sioBus::getBaudrate()
 {
-  return sioBaud;
+    return sioBaud;
 }
 
 void sioBus::setBaudrate(int baudrate)
 {
 #ifdef DEBUG
-  sioBaud = baudrate;
-  Debug_printf("Switching to %d baud...\n", sioBaud);
-  SIO_UART.updateBaudRate(sioBaud);
+    sioBaud = baudrate;
+    Debug_printf("Switching to %d baud...\n", sioBaud);
+    SIO_UART.updateBaudRate(sioBaud);
 #endif
 }
 
