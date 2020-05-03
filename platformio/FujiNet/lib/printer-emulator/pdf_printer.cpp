@@ -343,6 +343,7 @@ void pdfPrinter::pageEject()
     // _file.seek(0);
 }
 
+/* 
 void asciiPrinter::initPrinter(FS *filesystem)
 {
     _FS = filesystem;
@@ -389,3 +390,4 @@ void asciiPrinter::pdf_handle_char(byte c)
         pdf_X += charWidth; // update x position
     }
 }
+ */
