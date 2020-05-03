@@ -49,6 +49,8 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "keys.h"
 #include "led.h"
 
+#define PIN_SDCS 0x05
+
 #ifdef BLUETOOTH_SUPPORT
 #include "bluetooth.h"
 #endif
@@ -58,10 +60,9 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include <esp_himem.h>
 #endif
 
-//#define TNFS_SERVER "192.168.1.12"
-//#define TNFS_PORT 16384
-
 // sioP is declared and defined in printer.h/cpp
+// fnSystem is declared and defined in fnSystem.h/cpp
+
 sioModem sioR;
 sioFuji theFuji;
 sioApeTime apeTime;
@@ -84,14 +85,8 @@ volatile bool interruptRateLimit = true;
 hw_timer_t *rateTimer = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
-// We need something better than this,
-// but it'll do for the moment...
-// sioPrinter sioP;
-// sioPrinter *getCurrentPrinter()
-// {
-//   return &sioP;
-// }
-
+/* SET UP ALL THE THINGS
+*/
 void setup()
 {
 #ifdef DEBUG_S
@@ -113,6 +108,7 @@ void setup()
     fnWiFi.setup();
     // fnWiFi.start(WIFI_SSID, WIFI_PASS);
 
+    // Start up the SPI Flash File System
     if (!SPIFFS.begin())
     {
 #ifdef DEBUG
@@ -120,7 +116,8 @@ void setup()
 #endif
     }
 
-    if (!SD.begin(5))
+    // See if we can start the Secure Digital card file system
+    if (!SD.begin(PIN_SDCS))
     {
 #ifdef DEBUG
         Debug_println("SD Card Mount Failed");
@@ -150,15 +147,13 @@ void setup()
 #endif
 
     theFuji.setup(SIO);
-
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
-    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // apetime
+    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
     SIO.addDevice(&sioR, SIO_DEVICEID_RS232); // R:
 
     // Choose filesystem for P: device and iniitalize it
-    //sioP.connect_printer(new (atari1027));
     if (SD.cardType() != CARD_NONE)
     {
         Debug_println("using SD card for printer storage");
@@ -186,22 +181,26 @@ void setup()
     Debug_printf("%d devices registered\n", SIO.numDevices());
 #endif
 
+    keyMgr.setup();
+    ledMgr.setup();
+
+    // Go setup SIO
     SIO.setup();
+
 #if defined(DEBUG) && defined(ESP32)
   Debug_print("SIO Voltage: ");
   Debug_println(fnSystem.get_sio_voltage());
 #endif
 
-    keyMgr.setup();
-    ledMgr.setup();
-
     void sio_flush();
 
 #ifdef DEBUG
-    Debug_printf("Available heap: %u\n", fnSystem.get_free_heap_size());
+    Debug_printf("Setup complete. Available heap: %u\n", fnSystem.get_free_heap_size());
 #endif
 }
 
+/* MAIN PROGRAM LOOP
+*/
 void loop()
 {
 #ifdef DEBUG_N
@@ -214,6 +213,8 @@ void loop()
 #endif
 
 #ifdef ESP32
+    // Toggle the state of the WiFi LED based on the current WiFi status
+    // Start the web server if it hasn't been started and WiFi is connected
     if (fnWiFi.connected())
     {
         ledMgr.set(eLed::LED_WIFI, true);
@@ -227,6 +228,7 @@ void loop()
             fnHTTPD.stop();
     }
 
+    // Check on the status of the OTHER_KEY and do something useful
     switch (keyMgr.getKeyStatus(eKey::OTHER_KEY))
     {
     case eKeyStatus::LONG_PRESSED:
@@ -243,12 +245,14 @@ void loop()
         break;
     }
 
+    // Check on the status of the BOOT_KEY and do something useful
     switch (keyMgr.getKeyStatus(eKey::BOOT_KEY))
     {
     case eKeyStatus::LONG_PRESSED:
 #ifdef DEBUG
         Debug_println("B_KEY: LONG PRESS");
 #endif
+
 #ifdef BLUETOOTH_SUPPORT
         if (btMgr.isActive())
         {
@@ -268,7 +272,7 @@ void loop()
 #endif
             btMgr.start();
         }
-#endif
+#endif //BLUETOOTH_SUPPORT
         break;
     case eKeyStatus::SHORT_PRESSED:
 #ifdef DEBUG
@@ -278,7 +282,9 @@ void loop()
 #else
         ledMgr.blink(eLed::LED_SIO);         // blink to confirm a button press
 #endif
-#endif
+#endif //DEBUG
+
+// Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
 #ifdef BLUETOOTH_SUPPORT
         if (btMgr.isActive())
         {
@@ -292,8 +298,9 @@ void loop()
         break;
     default:
         break;
-    }
+    } // switch (keyMgr.getKeyStatus(eKey::BOOT_KEY))
 
+    // Go service BT if it's active
 #ifdef BLUETOOTH_SUPPORT
     if (btMgr.isActive())
     {
