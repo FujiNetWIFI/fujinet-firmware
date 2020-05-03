@@ -11,7 +11,7 @@ class atari1025 : public pdfPrinter
 {
 protected:
     bool intlFlag = false;
-    // bool uscoreFlag = false;
+    bool shortFlag = false;
     bool escMode = false;
 
     // void pdf_fonts();

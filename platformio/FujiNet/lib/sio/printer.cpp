@@ -11,12 +11,15 @@ void atari820::pdf_handle_char(byte c)
     if (my_sioP->lastAux1 == 'N' && sideFlag)
     {
         _file.printf(")]TJ\n/F1 12 Tf [(");
+        fontNumber = 1;
         sideFlag = false;
     }
     else if (my_sioP->lastAux1 == 'S' && !sideFlag)
     {
         _file.printf(")]TJ\n/F2 12 Tf [(");
+        fontNumber = 2;
         sideFlag = true;
+        fontUsed[1] = true;
         // could increase charWidth, but not necessary to make this work. I force EOL.
     }
 
@@ -135,7 +138,6 @@ void atari820::initPrinter(FS *filesystem)
 
     fonts[0] = &F1;
     fonts[1] = &F2;
-    
 }
 
 void atari822::initPrinter(FS *filesystem)
@@ -157,7 +159,6 @@ void atari822::initPrinter(FS *filesystem)
     pdf_header();
 
     fonts[0] = &F1;
-    
 }
 
 // write for W commands
@@ -317,8 +318,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
             "Atari 1027",
             "Atari 820",
             "Atari 822",
-            "GRANTIC"
-        };
+            "GRANTIC"};
     int i;
     for (i = 0; i < 5; i++)
         if (modelname.compare(models[i]) == 0)
