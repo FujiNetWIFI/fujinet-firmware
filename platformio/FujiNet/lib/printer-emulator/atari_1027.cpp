@@ -1,45 +1,6 @@
 #include "atari_1027.h"
 #include "debug.h"
 
-/* void atari1027::pdf_fonts()
-{
-
-    // 3rd object: font catalog
-    pdf_objCtr = 3;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("3 0 obj\n<</Font <</F1 4 0 R /F2 7 0 R>>>>\nendobj\n");
-
-    // 1027 standard font
-    pdf_objCtr = 4;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("4 0 obj\n<</Type/Font/Subtype/Type1/Name/F1/BaseFont/PrestigeEliteStd/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 0/LastChar 255/Widths 6 0 R>>\nendobj\n");
-    pdf_objCtr = 5;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("5 0 obj\n<</Type/FontDescriptor/FontName/PrestigeEliteStd/Flags 33/ItalicAngle 0/Ascent 656/Descent -334/CapHeight 662/XHeight 420/StemV 87/FontBBox[-20 -288 620 837]/FontFile3 7 0 R>>\nendobj\n");
-    pdf_objCtr = 6;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("6 0 obj\n[");
-    for (int i = 0; i < 256; i++)
-    {
-        _file.printf(" 600");
-        if ((i - 31) % 32 == 0)
-            _file.printf("\n");
-    }
-    _file.printf(" ]\nendobj\n");
-
-    pdf_objCtr = 7;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("7 0 obj\n");
-    // insert fontfile stream
-    File fff = SPIFFS.open("/a1027font", "r");
-    while (fff.available())
-    {
-        _file.write(fff.read());
-    }
-    fff.close();
-    _file.printf("\nendobj\n");
-}
- */
 void atari1027::pdf_handle_char(byte c)
 {
     if (escMode)
