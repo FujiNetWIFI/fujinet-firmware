@@ -53,7 +53,7 @@ void pdfPrinter::pdf_font_resource()
             //  font widths
             //  font file
             _file.printf("/F%d %d 0 R ", i + 1, pdf_objCtr + 1 + fntCtr * 4); ///F1 4 0 R /F2 8 0 R>>>>\nendobj\n
-            j++;
+            fntCtr++;
         }
     }
     _file.printf(">>>>\nendobj\n");
@@ -61,7 +61,6 @@ void pdfPrinter::pdf_font_resource()
 
 void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
 {
-    int fntCtr = 0;
 #ifdef DEBUG
     Debug_print("pdf add fonts: ");
 #endif
@@ -72,7 +71,9 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
 #ifdef DEBUG
         Debug_printf("font %d - ", i + 1);
 #endif
-        /*
+        if (fontUsed[i])
+        {
+            /*
             std::string subtype;
             std::string basefont;
             float width;
@@ -88,57 +89,64 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
             std::string ffname;
         */
 #ifdef DEBUG
-        Debug_printf("%s; ", fonts[i]->basefont.c_str());
+            Debug_printf("%s; ", fonts[i]->basefont.c_str());
 #endif
-        pdf_objCtr++; // = 4;
-        objLocations[pdf_objCtr] = _file.position();
-        _file.printf("%d 0 obj\n<</Type/Font", pdf_objCtr);     // 4
-        _file.printf("/Subtype/%s", fonts[i]->subtype.c_str()); //Type1
-        _file.printf("/Name/F%d", i + 1);
-        _file.printf("/BaseFont/%s", fonts[i]->basefont.c_str()); //PrestigeEliteStd
-        _file.printf("/Encoding/WinAnsiEncoding");
-        _file.printf("/FontDescriptor %d 0 R", pdf_objCtr + 1);                  // 5
-        _file.printf("/FirstChar 0/LastChar 255/Widths %d 0 R", pdf_objCtr + 2); // 6
-        _file.printf(">>\nendobj\n");
-        pdf_objCtr++; // = 5;
-        objLocations[pdf_objCtr] = _file.position();
-        _file.printf("%d 0 obj\n<</Type/FontDescriptor", pdf_objCtr); // 5
-        _file.printf("/FontName/%s", fonts[i]->basefont.c_str());     //PrestigeEliteStd
-        _file.printf("/Flags 33/ItalicAngle 0");                      // 33 for fixed width for now todo: change for proportional when needed
-        _file.printf("/Ascent %g", fonts[i]->ascent);                 // 656
-        _file.printf("/Descent %g", fonts[i]->descent);               // -334
-        _file.printf("/CapHeight %g", fonts[i]->capheight);           // 662
-        _file.printf("/XHeight %g", fonts[i]->xheight);               // 420
-        _file.printf("/StemV %g", fonts[i]->stemv);                   // 87
-        _file.printf("/FontBBox[ ");
-        for (int j = 0; j < 4; j++)
-            _file.printf("%g ", fonts[i]->bbox[j]);
-        _file.printf("]");                             // -20 -288 620 837
-        _file.printf("/FontFile%d ", fonts[i]->ffnum); // 3
-        _file.printf("%d 0 R", pdf_objCtr + 2);        // 7
-        _file.printf(">>\nendobj\n");
-        pdf_objCtr++; // = 6;
-        objLocations[pdf_objCtr] = _file.position();
-        _file.printf("%d 0 obj\n[", pdf_objCtr); // 6
-        for (int j = 0; j < 256; j++)
-        {
-            _file.printf(" %d", fonts[i]->width[0]); // 600
-            if ((j - 31) % 32 == 0)
-                _file.printf("\n");
-        }
-        _file.printf(" ]\nendobj\n");
+            pdf_objCtr++; // = 4;
+            objLocations[pdf_objCtr] = _file.position();
+            _file.printf("%d 0 obj\n<</Type/Font", pdf_objCtr);     // 4
+            _file.printf("/Subtype/%s", fonts[i]->subtype.c_str()); //Type1
+            _file.printf("/Name/F%d", i + 1);
+            _file.printf("/BaseFont/%s", fonts[i]->basefont.c_str()); //PrestigeEliteStd
+            _file.printf("/Encoding/WinAnsiEncoding");
+            _file.printf("/FontDescriptor %d 0 R", pdf_objCtr + 1);                  // 5
+            _file.printf("/FirstChar 0/LastChar 255/Widths %d 0 R", pdf_objCtr + 2); // 6
+            _file.printf(">>\nendobj\n");
+            pdf_objCtr++; // = 5;
+            objLocations[pdf_objCtr] = _file.position();
+            _file.printf("%d 0 obj\n<</Type/FontDescriptor", pdf_objCtr); // 5
+            _file.printf("/FontName/%s", fonts[i]->basefont.c_str());     //PrestigeEliteStd
+            _file.printf("/Flags 33/ItalicAngle 0");                      // 33 for fixed width for now todo: change for proportional when needed
+            _file.printf("/Ascent %g", fonts[i]->ascent);                 // 656
+            _file.printf("/Descent %g", fonts[i]->descent);               // -334
+            _file.printf("/CapHeight %g", fonts[i]->capheight);           // 662
+            _file.printf("/XHeight %g", fonts[i]->xheight);               // 420
+            _file.printf("/StemV %g", fonts[i]->stemv);                   // 87
+            _file.printf("/FontBBox[ ");
+            for (int j = 0; j < 4; j++)
+                _file.printf("%g ", fonts[i]->bbox[j]);
+            _file.printf("]");                             // -20 -288 620 837
+            _file.printf("/FontFile%d ", fonts[i]->ffnum); // 3
+            _file.printf("%d 0 R", pdf_objCtr + 2);        // 7
+            _file.printf(">>\nendobj\n");
+            pdf_objCtr++; // = 6;
+            objLocations[pdf_objCtr] = _file.position();
+            _file.printf("%d 0 obj\n[", pdf_objCtr); // 6
+            for (int j = 0; j < 256; j++)
+            {
+                _file.printf(" %d", fonts[i]->width[0]); // 600
+                if ((j - 31) % 32 == 0)
+                    _file.printf("\n");
+            }
+            _file.printf(" ]\nendobj\n");
 
-        pdf_objCtr++; // = 7;
-        objLocations[pdf_objCtr] = _file.position();
-        _file.printf("%d 0 obj\n", pdf_objCtr); // 7
-        // insert fontfile stream
-        File fff = SPIFFS.open(fonts[i]->ffname.c_str(), "r"); //"/a1027font"
-        while (fff.available())
-        {
-            _file.write(fff.read());
+            pdf_objCtr++; // = 7;
+            objLocations[pdf_objCtr] = _file.position();
+            _file.printf("%d 0 obj\n", pdf_objCtr); // 7
+            // insert fontfile stream
+            File fff = SPIFFS.open(fonts[i]->ffname.c_str(), "r"); //"/a1027font"
+            while (fff.available())
+            {
+                _file.write(fff.read());
+            }
+            fff.close();
+            _file.printf("\nendobj\n");
         }
-        fff.close();
-        _file.printf("\nendobj\n");
+#ifdef DEBUG
+        else
+        {
+            Debug_print("unused; ");
+        }
+#endif
     }
 #ifdef DEBUG
     Debug_println("done.");
@@ -318,17 +326,18 @@ bool pdfPrinter::process(byte n)
 
 void pdfPrinter::pageEject()
 {
-    if (paperType == PDF)
-    {
-        if (TOPflag && pdf_pageCounter == 0)
-            pdf_new_page();
-        if (!BOLflag)
-            pdf_end_line();
-        // to do: close the text string array if !BOLflag
-        if (!TOPflag || pdf_pageCounter == 0)
-            pdf_end_page();
-        pdf_xref();
-    }
+    if (TOPflag && pdf_pageCounter == 0)
+        pdf_new_page(); // make a blank page
+    if (!BOLflag)
+        pdf_end_line(); // close out the current line of text
+    // to do: close the text string array if !BOLflag
+    if (!TOPflag || pdf_pageCounter == 0)
+        pdf_end_page();
+
+    pdf_font_resource();
+    pdf_add_fonts();
+    pdf_page_resource();
+    pdf_xref();
     printer_emu::pageEject();
     // _file.flush();
     // _file.seek(0);
