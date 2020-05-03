@@ -290,6 +290,10 @@ void sioFuji::sio_disk_image_umount()
 */
 int sioFuji::image_rotate()
 {
+#ifdef DEBUG
+    Debug_println("Fuji image rotate");
+#endif
+
     File *temp;
 
     int n = 0;
