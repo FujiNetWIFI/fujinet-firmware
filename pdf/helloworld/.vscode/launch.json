@@ -12,7 +12,7 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug",
-            "executable": "c:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/.pio/build/windows_x86/program.exe",
+            "executable": "C:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/.pio/build/windows_x86/program.exe",
             "toolchainBinDir": "C:/Users/jandj/.platformio/packages/toolchain-gccmingw32/bin",
             "preLaunchTask": {
                 "type": "PlatformIO",
@@ -24,7 +24,7 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug (skip Pre-Debug)",
-            "executable": "c:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/.pio/build/windows_x86/program.exe",
+            "executable": "C:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/.pio/build/windows_x86/program.exe",
             "toolchainBinDir": "C:/Users/jandj/.platformio/packages/toolchain-gccmingw32/bin",
             "internalConsoleOptions": "openOnSessionStart"
         }
