@@ -21,27 +21,53 @@ void pdfPrinter::pdf_header()
     pdf_objCtr = 1;
     objLocations[pdf_objCtr] = _file.position();
     _file.printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
-    // object 2 0 R is printed at bottom of PDF before xref
-    pdf_objCtr = 2; // set up counter for pdf_add_font()
+    // object 2 0 R is printed by pdf_page_resource() before xref
+    // object 3 0 R is printed at pdf_font_resource() before xref
+    pdf_objCtr = 3; // set up counter for pdf_add_font()
 }
 
-void pdfPrinter::pdf_add_fonts(int n) // pdfFont_t *fonts[],
+void pdfPrinter::pdf_page_resource()
 {
+    objLocations[2] = _file.position(); // hard code page catalog as object #2
+    _file.printf("2 0 obj\n<</Type /Pages /Kids [ ");
+    for (int i = 0; i < pdf_pageCounter; i++)
+    {
+        _file.printf("%d 0 R ", pageObjects[i]);
+    }
+    _file.printf("] /Count %d>>\nendobj\n", pdf_pageCounter);
+}
+
+void pdfPrinter::pdf_font_resource()
+{
+    int fntCtr = 0;
+    objLocations[3] = _file.position();
+    // font catalog
+    _file.printf("3 0 obj\n<</Font <<");
+    for (int i = 0; i < MAXFONTS; i++)
+    {
+        if (fontUsed[i])
+        {
+            // font dictionaries take 4 objects
+            //  font dictionary
+            //  font descriptor
+            //  font widths
+            //  font file
+            _file.printf("/F%d %d 0 R ", i + 1, pdf_objCtr + 1 + fntCtr * 4); ///F1 4 0 R /F2 8 0 R>>>>\nendobj\n
+            j++;
+        }
+    }
+    _file.printf(">>>>\nendobj\n");
+}
+
+void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
+{
+    int fntCtr = 0;
 #ifdef DEBUG
     Debug_print("pdf add fonts: ");
 #endif
-    pdf_objCtr = 3; // should now = 3 coming from pdf_header()
-    objLocations[pdf_objCtr] = _file.position();
-    // font catalog
-    _file.printf("3 0 obj\n<</Font <<");
-    for (int i = 0; i < n; i++)
-    {
-        _file.printf("/F%d %d 0 R ", i + 1, 4 + 4 * i); ///F1 4 0 R /F2 8 0 R>>>>\nendobj\n
-    }
-    _file.printf(">>>>\nendobj\n");
 
     // font dictionary
-    for (int i = 0; i < n; i++)
+    for (int i = 0; i < MAXFONTS; i++)
     {
 #ifdef DEBUG
         Debug_printf("font %d - ", i + 1);
@@ -178,8 +204,8 @@ void pdfPrinter::pdf_end_line()
 #endif
     _file.printf(")]TJ\n"); // close the line
     // TODO: move these out of end line to new line
-    pdf_Y -= lineHeight;    // line feed
-    pdf_X = 0;              // CR
+    pdf_Y -= lineHeight; // line feed
+    pdf_X = 0;           // CR
     BOLflag = true;
 }
 
@@ -210,25 +236,16 @@ void pdfPrinter::pdf_xref()
 #ifdef DEBUG
     Debug_println("pdf xref");
 #endif
-    int max_objCtr = pdf_objCtr;
-    pdf_objCtr = 2;
-    objLocations[pdf_objCtr] = _file.position(); // hard code page catalog as object #2
-    _file.printf("2 0 obj\n<</Type /Pages /Kids [ ");
-    for (int i = 0; i < pdf_pageCounter; i++)
-    {
-        _file.printf("%d 0 R ", pageObjects[i]);
-    }
-    _file.printf("] /Count %d>>\nendobj\n", pdf_pageCounter);
     size_t xref = _file.position();
-    max_objCtr++;
+    pdf_objCtr++;
     _file.printf("xref\n");
-    _file.printf("0 %u\n", max_objCtr);
+    _file.printf("0 %u\n", pdf_objCtr);
     _file.printf("0000000000 65535 f\n");
-    for (int i = 1; i < max_objCtr; i++)
+    for (int i = 1; i < pdf_objCtr; i++)
     {
         _file.printf("%010u 00000 n\n", objLocations[i]);
     }
-    _file.printf("trailer <</Size %u/Root 1 0 R>>\n", max_objCtr);
+    _file.printf("trailer <</Size %u/Root 1 0 R>>\n", pdf_objCtr);
     _file.printf("startxref\n");
     _file.printf("%u\n", xref);
     _file.printf("%%%%EOF\n");
@@ -258,9 +275,9 @@ bool pdfPrinter::process(byte n)
     do
     {
         c = buffer[i++];
-// #ifdef DEBUG
-//         Debug_print(c, HEX);
-// #endif
+        // #ifdef DEBUG
+        //         Debug_print(c, HEX);
+        // #endif
 
         if (!textMode)
         {
