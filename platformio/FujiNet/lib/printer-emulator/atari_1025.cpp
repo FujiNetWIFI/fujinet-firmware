@@ -19,16 +19,31 @@ void atari1025::pdf_handle_char(byte c)
         switch (c)
         {
         case 0x0E:
-            // change font to elongated like         _file.printf(")]TJ\n/F2 12 Tf [(");
-            charWidth = 14.4; //72.0 / 5.0;
+            // change font to elongated like
+            if (fontNumber != 2)
+            {
+                _file.printf(")]TJ\n/F2 12 Tf [(");
+                charWidth = 14.4; //72.0 / 5.0;
+                fontNumber = 2;
+            }
             break;
         case 0x0F:
             // change font to normal
-            charWidth = 7.2; //72.0 / 10.0;
+            if (fontNumber != 1)
+            {
+                _file.printf(")]TJ\n/F1 12 Tf [(");
+                charWidth = 7.2; //72.0 / 10.0;
+                fontNumber = 1;
+            }
             break;
         case 0x14:
             // change font to compressed
-            charWidth = 72.0 / 16.5;
+            if (fontNumber != 3)
+            {
+                _file.printf(")]TJ\n/F3 12 Tf [(");
+                charWidth = 72.0 / 16.5;
+                fontNumber = 3;
+            }
             break;
         case 0x17: // 23
             intlFlag = true;
@@ -47,11 +62,16 @@ void atari1025::pdf_handle_char(byte c)
             // for long and short lines, i think we end line, ET, then set the leftMargin and pageWdith and begin text
             // challenge is to not skip a line if we're at the beginning of a line
             // could also add a state variable so we don't unnecessarily change the line width
+            if(shortFlag){leftMargin = 18.0;  // (8.5-8.0)/2*72
+            printWidth = 576.0; // 8 inches
+            shortFlag = false;}
             break;
         case 0x53: // 'S'
             // for long and short lines, i think we end line, ET, then set the leftMargin and pageWdith and begin text
+            if(!shortFlag){leftMargin = 75.6;  // (8.5-6.4)/2.0*72.0;
+            printWidth = 460.8; //6.4*72.0; // 6.4 inches
+            shortFlag = true;}
             break;
-
         default:
             break;
         }
