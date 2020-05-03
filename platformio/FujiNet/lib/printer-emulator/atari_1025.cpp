@@ -62,15 +62,37 @@ void atari1025::pdf_handle_char(byte c)
             // for long and short lines, i think we end line, ET, then set the leftMargin and pageWdith and begin text
             // challenge is to not skip a line if we're at the beginning of a line
             // could also add a state variable so we don't unnecessarily change the line width
-            if(shortFlag){leftMargin = 18.0;  // (8.5-8.0)/2*72
-            printWidth = 576.0; // 8 inches
-            shortFlag = false;}
+            if (shortFlag)
+            {
+                if (!BOLflag)
+                    pdf_end_line();   // close out string array
+                _file.printf("ET\n"); // close out text object
+                // set new margins
+                leftMargin = 18.0;  // (8.5-8.0)/2*72
+                printWidth = 576.0; // 8 inches
+                pdf_begin_text(pdf_Y);
+                // start text string array at beginning of line
+                _file.printf("[(");
+                BOLflag = false;
+                shortFlag = false;
+            }
             break;
         case 0x53: // 'S'
             // for long and short lines, i think we end line, ET, then set the leftMargin and pageWdith and begin text
-            if(!shortFlag){leftMargin = 75.6;  // (8.5-6.4)/2.0*72.0;
-            printWidth = 460.8; //6.4*72.0; // 6.4 inches
-            shortFlag = true;}
+            if (!shortFlag)
+            {
+                if (!BOLflag)
+                    pdf_end_line();   // close out string array
+                _file.printf("ET\n"); // close out text object
+                // set new margins
+                leftMargin = 75.6;  // (8.5-6.4)/2.0*72.0;
+                printWidth = 460.8; //6.4*72.0; // 6.4 inches
+                pdf_begin_text(pdf_Y);
+                // start text string array at beginning of line
+                _file.printf("[(");
+                BOLflag = false;
+                shortFlag = true;
+            }
             break;
         default:
             break;

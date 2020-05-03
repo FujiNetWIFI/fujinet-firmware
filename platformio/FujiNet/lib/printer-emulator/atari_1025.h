@@ -14,7 +14,6 @@ protected:
     bool shortFlag = false;
     bool escMode = false;
 
-    // void pdf_fonts();
     void pdf_handle_char(byte c);
 
 public:
