@@ -6,16 +6,16 @@
         {
             "name": "Win32",
             "includePath": [
-                "c:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/include",
-                "c:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/src",
+                "C:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/include",
+                "C:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/src",
                 "C:/Users/jandj/.platformio/packages/tool-unity",
                 ""
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "c:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/include",
-                    "c:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/src",
+                    "C:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/include",
+                    "C:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/src",
                     "C:/Users/jandj/.platformio/packages/tool-unity",
                     ""
                 ]
