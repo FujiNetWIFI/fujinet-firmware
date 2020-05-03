@@ -1,5 +1,7 @@
-#include <Arduino.h>
+//#include <Arduino.h>
+#include <cstring>
 #include "led.h"
+#include "fnSystem.h"
 
 #if defined(ESP8266)
 #define PIN_LED_WIFI 2
@@ -29,20 +31,27 @@ LedManager::LedManager()
 
 void LedManager::setup()
 {
-    pinMode(PIN_LED_WIFI, OUTPUT);
-    digitalWrite(PIN_LED_WIFI, HIGH); // OFF
+    //pinMode(PIN_LED_WIFI, OUTPUT);
+    //digitalWrite(PIN_LED_WIFI, HIGH); // OFF
+    fnSystem.set_pin_mode(PIN_LED_WIFI, PINMODE_OUTPUT);
+    fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
  
-    pinMode(PIN_LED_SIO, OUTPUT);
-    digitalWrite(PIN_LED_SIO, HIGH); // OFF
+    //pinMode(PIN_LED_SIO, OUTPUT);
+    //digitalWrite(PIN_LED_SIO, HIGH); // OFF
+    fnSystem.set_pin_mode(PIN_LED_SIO, PINMODE_OUTPUT);
+    fnSystem.digital_write(PIN_LED_SIO, DIGI_HIGH);
  
-    pinMode(PIN_LED_BT, OUTPUT);
-    digitalWrite(PIN_LED_BT, HIGH); // OFF
+    //pinMode(PIN_LED_BT, OUTPUT);
+    //digitalWrite(PIN_LED_BT, HIGH); // OFF
+    fnSystem.set_pin_mode(PIN_LED_BT, PINMODE_OUTPUT);
+    fnSystem.digital_write(PIN_LED_BT, DIGI_HIGH);    
 }
 
 void LedManager::set(eLed led, bool on)
 {
     mLedState[led] = on;
-    digitalWrite(mLedPin[led], (on ? LOW : HIGH));
+    // digitalWrite(mLedPin[led], (on ? LOW : HIGH));
+    fnSystem.digital_write(mLedPin[led], (on ? DIGI_LOW : DIGI_HIGH));
 }
 
 void LedManager::toggle(eLed led)
@@ -60,6 +69,7 @@ void LedManager::toggle(eLed led)
 void LedManager::blink(eLed led)
 {
     ledMgr.toggle(led);
-    delay(BLINKING_TIME);
+    //delay(BLINKING_TIME);
+    fnSystem.delay(BLINKING_TIME);
     ledMgr.toggle(led);
 }
