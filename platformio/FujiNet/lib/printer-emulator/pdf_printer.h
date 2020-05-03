@@ -9,12 +9,12 @@
 
 #include "printer_emulator.h"
 
-#define EOL 155 // pdf printer library does use Atari EOL instead of /r/n
+#define EOL 155    // pdf printer library does use Atari EOL instead of /r/n
 #define MAXFONTS 6 // maximum number of fonts can use
 
 struct pdfFont_t
 {
-    /* 
+  /* 
   7 0 obj
   << 
     /Type /Font
@@ -43,85 +43,85 @@ struct pdfFont_t
   >>
   endobj
 */
-    std::string subtype;
-    std::string basefont;
-    uint16_t width[256]; // uniform spacing for now, todo: proportional
-    uint16_t numwidth;
-    float ascent;
-    float capheight;
-    float descent;
-    byte flags;
-    float bbox[4];
-    float stemv;
-    float xheight;
-    byte ffnum;
-    std::string ffname;
+  std::string subtype;
+  std::string basefont;
+  uint16_t width[256]; // uniform spacing for now, todo: proportional
+  uint16_t numwidth;
+  float ascent;
+  float capheight;
+  float descent;
+  byte flags;
+  float bbox[4];
+  float stemv;
+  float xheight;
+  byte ffnum;
+  std::string ffname;
 };
 
 class pdfPrinter : public printer_emu
 {
 protected:
-    // PDF THINGS
-    float pageWidth;
-    float pageHeight;
-    float leftMargin;
-    float bottomMargin;
-    float printWidth;
-    float lineHeight;
-    float charWidth;
-    byte fontNumber;
-    float fontSize;
+  // PDF THINGS
+  float pageWidth;
+  float pageHeight;
+  float leftMargin;
+  float bottomMargin;
+  float printWidth;
+  float lineHeight;
+  float charWidth;
+  byte fontNumber;
+  float fontSize;
 
-    const pdfFont_t *fonts[MAXFONTS];
-    bool fontUsed[MAXFONTS];
+  const pdfFont_t *fonts[MAXFONTS];
+  bool fontUsed[MAXFONTS] = {true}; // initialize first one to true, always use default font
 
-    float pdf_X = 0.; // across the page - columns in pts
-    bool BOLflag = true;
-    float pdf_Y = 0.; // down the page - lines in pts
-    bool TOPflag = true;
-    bool textMode = true;
-    int pageObjects[256];
-    int pdf_pageCounter = 0.;
-    size_t objLocations[256]; // reference table storage
-    int pdf_objCtr = 0;       // count the objects
+  float pdf_X = 0.; // across the page - columns in pts
+  bool BOLflag = true;
+  float pdf_Y = 0.; // down the page - lines in pts
+  bool TOPflag = true;
+  bool textMode = true;
+  int pageObjects[256];
+  int pdf_pageCounter = 0.;
+  size_t objLocations[256]; // reference table storage
+  int pdf_objCtr = 0;       // count the objects
 
-    virtual void pdf_handle_char(byte c) = 0;
+  virtual void pdf_handle_char(byte c) = 0;
 
-    void pdf_header();
-    void pdf_add_fonts(); // pdfFont_t *fonts[],
-    void pdf_new_page();
-    void pdf_begin_text(float Y);
-    void pdf_new_line();
-    void pdf_end_line();
-    void pdf_end_page();
-    void pdf_page_resource();
-    void pdf_font_resource();
-    void pdf_xref();
+  void pdf_header();
+  void pdf_add_fonts(); // pdfFont_t *fonts[],
+  void pdf_new_page();
+  void pdf_begin_text(float Y);
+  void pdf_new_line();
+  void pdf_end_line();
+  void pdf_end_page();
+  void pdf_page_resource();
+  void pdf_font_resource();
+  void pdf_xref();
 
-    size_t idx_stream_length; // file location of stream length indictor
-    size_t idx_stream_start;  // file location of start of stream
-    size_t idx_stream_stop;   // file location of end of stream
+  size_t idx_stream_length; // file location of stream length indictor
+  size_t idx_stream_start;  // file location of start of stream
+  size_t idx_stream_stop;   // file location of end of stream
 
 public:
-    pdfPrinter(paper_t ty = PDF) : printer_emu{ty} {};
-    virtual void pageEject();
-    virtual bool process(byte n);
+  pdfPrinter(paper_t ty = PDF) : printer_emu{ty} {};
+  virtual void pageEject();
+  virtual bool process(byte n);
 
-    virtual const char * modelname() { return "PDF printer"; };
-    ~pdfPrinter();
+  virtual const char *modelname() { return "PDF printer"; };
+  ~pdfPrinter();
 };
 
 class asciiPrinter : public pdfPrinter
 {
 protected:
-    virtual void pdf_handle_char(byte c);
-    virtual void pdf_fonts();
+  virtual void pdf_handle_char(byte c);
+  virtual void pdf_fonts();
 
 public:
-    virtual void initPrinter(FS *filesystem);
+  virtual void initPrinter(FS *filesystem);
 
-    virtual const char * modelname() { return "ASCII printer"; };
-    ~asciiPrinter();
+  virtual const char *modelname() { return "ASCII printer"; };
+  ~asciiPrinter();
 };
 
 #endif // guard

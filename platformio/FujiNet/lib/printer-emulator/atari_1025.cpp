@@ -36,10 +36,10 @@ void atari1025::pdf_handle_char(byte c)
         case 0x18: // 24
             intlFlag = false;
             break;
-        case 0x36: // '6'
+        case 0x36:             // '6'
             lineHeight = 12.0; //72.0/6.0;
             break;
-        case 0x38: // '8'
+        case 0x38:            // '8'
             lineHeight = 9.0; //72.0/8.0;
             break;
         case 0x4c: // 'L'
@@ -111,7 +111,6 @@ void atari1025::initPrinter(FS *filesystem)
     pdf_header();
 
     fonts[0] = &F1;
-    pdf_add_fonts(1);
 
     // uscoreFlag = false;
     intlFlag = false;
