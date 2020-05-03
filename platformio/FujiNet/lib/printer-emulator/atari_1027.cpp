@@ -78,8 +78,13 @@ void atari1027::initPrinter(FS *filesystem)
     pdf_header();
 
     fonts[0] = &F1;
-    pdf_add_fonts(1);
-
+    fontUsed[0] = true;
+    for (int i = 1; i < 6; i++)
+    {
+        fontUsed[i] = false;
+    }
+    pdf_font_resource();
+    pdf_add_fonts();
     uscoreFlag = false;
     intlFlag = false;
     escMode = false;

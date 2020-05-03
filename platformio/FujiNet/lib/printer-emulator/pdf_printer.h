@@ -10,6 +10,7 @@
 #include "printer_emulator.h"
 
 #define EOL 155 // pdf printer library does use Atari EOL instead of /r/n
+#define MAXFONTS 6 // maximum number of fonts can use
 
 struct pdfFont_t
 {
@@ -71,7 +72,8 @@ protected:
     byte fontNumber;
     float fontSize;
 
-    const pdfFont_t *fonts[6];
+    const pdfFont_t *fonts[MAXFONTS];
+    bool fontUsed[MAXFONTS];
 
     float pdf_X = 0.; // across the page - columns in pts
     bool BOLflag = true;
@@ -86,12 +88,14 @@ protected:
     virtual void pdf_handle_char(byte c) = 0;
 
     void pdf_header();
-    void pdf_add_fonts(int n); // pdfFont_t *fonts[],
+    void pdf_add_fonts(); // pdfFont_t *fonts[],
     void pdf_new_page();
     void pdf_begin_text(float Y);
     void pdf_new_line();
     void pdf_end_line();
     void pdf_end_page();
+    void pdf_page_resource();
+    void pdf_font_resource();
     void pdf_xref();
 
     size_t idx_stream_length; // file location of stream length indictor
