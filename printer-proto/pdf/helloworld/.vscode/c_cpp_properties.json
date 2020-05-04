@@ -6,24 +6,29 @@
         {
             "name": "Win32",
             "includePath": [
-                "d:/userData/Jeff/GitHub/atariwifi/pdf/helloworld/src",
-                "C:/Users/jeff/.platformio/packages/tool-unity",
+                "C:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/include",
+                "C:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/src",
+                "C:/Users/jandj/.platformio/packages/tool-unity",
                 ""
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "d:/userData/Jeff/GitHub/atariwifi/pdf/helloworld/src",
-                    "C:/Users/jeff/.platformio/packages/tool-unity",
+                    "C:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/include",
+                    "C:/Users/jandj/Documents/GitHub/atariwifi/pdf/helloworld/src",
+                    "C:/Users/jandj/.platformio/packages/tool-unity",
                     ""
                 ]
             },
             "defines": [
-                "PLATFORMIO=40100",
+                "PLATFORMIO=40303",
                 ""
             ],
             "intelliSenseMode": "clang-x64",
-            "compilerPath": "\"C:/Users/jeff/.platformio/packages/toolchain-gccmingw32/bin/gcc.exe\" "
+            "compilerPath": "C:/Users/jandj/.platformio/packages/toolchain-gccmingw32/bin/gcc.exe",
+            "compilerArgs": [
+                ""
+            ]
         }
     ],
     "version": 4
