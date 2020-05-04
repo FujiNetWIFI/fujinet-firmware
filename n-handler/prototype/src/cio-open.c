@@ -15,6 +15,8 @@ extern unsigned char ret;
 extern unsigned char aux1_save[MAX_DEVICES];
 extern unsigned char aux2_save[MAX_DEVICES];
 
+extern unsigned char trip;
+
 void _cio_open(void)
 {  
   // Save AUX1/AUX2 values
@@ -48,6 +50,8 @@ void _cio_open(void)
   
   clear_rx_buffer();
   clear_tx_buffer();
+
+  trip=0;
     
   ret=err;
 }

@@ -63,19 +63,3 @@ void clear_tx_buffer(void)
   buffer_tx_len[OS.ziocb.drive-1]=0;
   tp[OS.ziocb.drive-1]=&buffer_rx[OS.ziocb.drive-1][0];
 }
-
-/**
- * Save ZP
- */
-void zp_save(void)
-{
-  memcpy(zp_save_data, (void *)0x0000, 256);
-}
-
-/**
- * Restore ZP
- */
-void zp_restore(void)
-{
-  memcpy((void *)0x0000, zp_save_data, 256);
-}

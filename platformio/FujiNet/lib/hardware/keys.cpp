@@ -1,4 +1,7 @@
-#include <Arduino.h>
+//#include <Arduino.h>
+#include <cstring>
+
+#include "fnSystem.h"
 #include "keys.h"
 
 #define PIN_BOOT_KEY 0
@@ -15,22 +18,24 @@ KeyManager::KeyManager()
 
 void KeyManager::setup()
 {
-    pinMode(PIN_BOOT_KEY, INPUT);
-    pinMode(PIN_OTHER_KEY, INPUT);
+    //pinMode(PIN_BOOT_KEY, INPUT);
+    //pinMode(PIN_OTHER_KEY, INPUT);
+    fnSystem.set_pin_mode(PIN_BOOT_KEY, PINMODE_INPUT);
+    fnSystem.set_pin_mode(PIN_OTHER_KEY, PINMODE_INPUT);
 }
 
 eKeyStatus KeyManager::getKeyStatus(eKey key)
 {
     eKeyStatus result = eKeyStatus::RELEASED;
 
-    if (digitalRead(mButtonPin[key]) == LOW)
+    if (fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW)
     {
         if (mButtonActive[key] == false)
         {
             mButtonActive[key] = true;
-            mButtonTimer[key] = millis();
+            mButtonTimer[key] = fnSystem.millis();
         }
-        if ((millis() - mButtonTimer[key] > LONGPRESS_TIME) && (mLongPressActive[key] == false))
+        if ((fnSystem.millis() - mButtonTimer[key] > LONGPRESS_TIME) && (mLongPressActive[key] == false))
         {
             mLongPressActive[key] = true;
             // long press detected
