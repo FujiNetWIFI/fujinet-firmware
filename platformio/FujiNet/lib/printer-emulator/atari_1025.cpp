@@ -105,19 +105,18 @@ void atari1025::pdf_handle_char(byte c)
     else
     { // maybe printable character
         //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
-        if (intlFlag && (c < 32 || c == 123))
+        if (intlFlag && (c < 32 || c == 96 || c == 123))
         {
             // not sure about ATASCII 96.
-            // todo: Codes 28-31 are arrows and require the symbol font
-            if (c < 27)
+            // todo: Codes 28-31 are arrows
+            if (c < 28)
                 _file.write(intlchar[c]);
+            else if (c < 32)
+                _file.write(c);
+            else if (c == 96)
+                _file.write(byte(161));
             else if (c == 123)
                 _file.write(byte(196));
-            else if (c > 27 && c < 32)
-            {
-                // _file.printf(")600(-"); // |^ -< -> |v
-                // 1025 does have pretty dot matrix arrows
-            }
 
             pdf_X += charWidth; // update x position
         }
