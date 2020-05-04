@@ -52,16 +52,31 @@ public:
         CHIP_ESP32
     };
 
+#define PINMODE_INPUT 0x01
+#define PINMODE_OUTPUT 0x02
+#define PINMODE_PULLDOWN 0x10
+#define PINMODE_PULLUP 0x20
+
+#define DIGI_LOW 0x00
+#define DIGI_HIGH 0x01
+
+    static void set_pin_mode(uint8_t pin, uint8_t mode);
+    static int digital_read(uint8_t pin);
+    static void digital_write(uint8_t pin, uint8_t val);
+
     static void reboot();
     static uint32_t get_free_heap_size();
     static const char * get_sdk_version();
     static chipmodels get_cpu_model();
     static int get_cpu_rev();
     static int64_t get_uptime();
+    static unsigned long millis();
+    static void delay(uint32_t ms);
     const char * get_uptime_str();
     static const char * get_fujinet_version();
     static int get_sio_voltage();
 };
+
 
 extern SystemManager fnSystem;
 

@@ -5,6 +5,8 @@ networkProtocolUDP::networkProtocolUDP()
 #ifdef DEBUG
     Debug_printf("networkProtocolUDP::ctor\n");
 #endif
+    saved_rx_buffer_len=0;
+    strcpy(dest,"localhost");
 }
 
 networkProtocolUDP::~networkProtocolUDP()
@@ -12,6 +14,7 @@ networkProtocolUDP::~networkProtocolUDP()
 #ifdef DEBUG
     Debug_printf("networkProtocolUDP::dtor\n");
 #endif
+    saved_rx_buffer_len=0;
 }
 
 bool networkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
@@ -23,6 +26,9 @@ bool networkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     {
         strcpy(dest, urlParser->hostName.c_str());
         port = atoi(urlParser->port.c_str());
+#ifdef DEBUG
+        Debug_printf("Port: %d\n",port);
+#endif
     }
 
     return udp.begin(atoi(urlParser->port.c_str()));
@@ -40,25 +46,10 @@ bool networkProtocolUDP::read(byte *rx_buf, unsigned short len)
     Debug_printf("networkProtocolUDP::read %d bytes\n", len);
 #endif
 
-    if (saved_rx_buffer_len > 0)
-    {
-        memcpy(rx_buf, saved_rx_buffer, len);
-    }
-    else
-    {
-        memset(rx_buf, 0, len);
-    }
-
+    memcpy(rx_buf, saved_rx_buffer, len);
+    memset(saved_rx_buffer, 0, len);
     saved_rx_buffer_len = 0;
-
-    if (len == saved_rx_buffer_len)
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
+    return false;
 }
 
 bool networkProtocolUDP::write(byte *tx_buf, unsigned short len)
@@ -69,6 +60,12 @@ bool networkProtocolUDP::write(byte *tx_buf, unsigned short len)
     udp.beginPacket(dest, port);
     int l = udp.write(tx_buf, len);
     udp.endPacket();
+#ifdef DEBUG
+    Debug_printf("Output: ");
+    for (int i=0; i<len; i++)
+        Debug_printf(" %02x",tx_buf[i]);
+    Debug_printf("\n");
+#endif
     if (l < len)
         return true;
     else
@@ -83,15 +80,17 @@ bool networkProtocolUDP::status(byte *status_buf)
     {
         // Set destination automatically to remote address.
         strcpy(dest, udp.remoteIP().toString().c_str());
-        port = udp.remotePort();
+        //port = udp.remotePort();
 
         saved_rx_buffer_len = len;
-        status_buf[0] = len & 0xFF;
-        status_buf[1] = len >> 8;
-        status_buf[3] = 0;
         udp.read(saved_rx_buffer, len);
     }
+
+    status_buf[0] = saved_rx_buffer_len & 0xFF;
+    status_buf[1] = saved_rx_buffer_len >> 8;
     status_buf[2] = 1;
+    status_buf[3] = 0x00;
+
     return false;
 }
 

@@ -14,6 +14,8 @@ extern unsigned char ret;
 extern unsigned char aux1_save[MAX_DEVICES];
 extern unsigned char aux2_save[MAX_DEVICES];
 
+extern unsigned char trip;
+
 extern void cio_put_flush(void);
 
 void _cio_close(void)
@@ -32,6 +34,8 @@ void _cio_close(void)
   aux1_save[OS.ziocb.drive]=
     aux2_save[OS.ziocb.drive]=0;
 
+  trip=0;
+  
   ret=1;
   err=1;
 }

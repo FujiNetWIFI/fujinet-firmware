@@ -182,7 +182,7 @@ void sioPrinter::sio_write()
 
   Auxiliary Byte 2 for Atari 822 might be 0 or 1 in graphics mode
 */
-
+    // todo: change to switch case structure
     if (cmdFrame.aux1 == 'N' || cmdFrame.aux1 == 'L')
         n = 40;
     else if (cmdFrame.aux1 == 'S')
@@ -268,24 +268,27 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
     // Destroy any current printer emu object
     delete _pptr;
 
-    switch(t)
+    pt = t;
+    switch (t)
     {
     case PRINTER_RAW:
-        _pptr  = new filePrinter;
+        _pptr = new filePrinter;
         break;
     case PRINTER_ATARI_820:
-        _pptr = new atari820;
-        ((atari820 *)_pptr)->setDevice(this);
+        _pptr = new atari820(this);
         break;
     case PRINTER_ATARI_822:
-        _pptr = new atari822;
-        ((atari822 *)_pptr)->setDevice(this);
+        _pptr = new atari822(this);
         break;
     case PRINTER_ATARI_1027:
         _pptr = new atari1027;
         break;
+    case PRINTER_PNG:
+        _pptr = new pngPrinter;
+        break;
     default:
-        _pptr  = new filePrinter;    
+        _pptr = new filePrinter;
+        pt = PRINTER_RAW;
         break;
     }
 
@@ -308,31 +311,33 @@ sioPrinter::sioPrinter()
 */
 sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
 {
-    const char * models [4] = 
-    {
-        "file printer",
-        "Atari 1027",
-        "Atari 820",
-        "Atari 822",
-    };
+    const char *models[5] =
+        {
+            "file printer",
+            "Atari 1027",
+            "Atari 820",
+            "Atari 822",
+            "GRANTIC"
+        };
     int i;
-    for(i = 0; i < 4; i++)
-        if(modelname.compare(models[i]) == 0)
+    for (i = 0; i < 5; i++)
+        if (modelname.compare(models[i]) == 0)
             break;
 
-    switch(i)
+    switch (i)
     {
-        case 0:
-            return PRINTER_RAW;
-        case 1:
-            return PRINTER_ATARI_1027;
-        case 2:
-            return PRINTER_ATARI_820;
-        case 3:
-            return PRINTER_ATARI_822;
-        case 4:
-        default:
-            return PRINTER_UNKNOWN;
+    case 0:
+        return PRINTER_RAW;
+    case 1:
+        return PRINTER_ATARI_1027;
+    case 2:
+        return PRINTER_ATARI_820;
+    case 3:
+        return PRINTER_ATARI_822;
+    case 4:
+        return PRINTER_PNG;
+    default:
+        return PRINTER_UNKNOWN;
     }
 }
 
