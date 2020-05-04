@@ -12,12 +12,14 @@ void atari820::pdf_handle_char(byte c)
     {
         _file.printf(")]TJ\n/F1 12 Tf [(");
         fontNumber = 1;
+        fontSize = 12;
         sideFlag = false;
     }
     else if (my_sioP->lastAux1 == 'S' && !sideFlag)
     {
         _file.printf(")]TJ\n/F2 12 Tf [(");
         fontNumber = 2;
+        fontSize = 12;
         sideFlag = true;
         fontUsed[1] = true;
         // could increase charWidth, but not necessary to make this work. I force EOL.
@@ -130,7 +132,7 @@ void atari820::initPrinter(FS *filesystem)
     lineHeight = 12.0;  // 6 lines per inch
     charWidth = 6.0;    // 12 char per inch
     fontNumber = 1;
-    fontSize = 10;
+    fontSize = 12;
 
     sideFlag = false;
 
