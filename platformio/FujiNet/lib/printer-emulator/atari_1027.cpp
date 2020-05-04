@@ -12,19 +12,28 @@ void atari1027::pdf_handle_char(byte c)
         // ESC CTRL-Z - stop underscoring     27  26
         // ESC CTRL-W - start international   27  23
         // ESC CTRL-X - stop international    27  24
-        if (c == 25)
+        switch (c)
+        {
+        case 25:
             uscoreFlag = true;
-        if (c == 26)
+            break;
+        case 26:
             uscoreFlag = false;
-        if (c == 23)
+            break;
+        case 23:
             intlFlag = true;
-        if (c == 24)
+            break;
+        case 24:
             intlFlag = false;
+            break;
+        default:
+            break;
+        }
         escMode = false;
     }
-    else if (c == 15)
+    else if (!intlFlag && c == 15)
         uscoreFlag = true;
-    else if (c == 14)
+    else if (!intlFlag && c == 14)
         uscoreFlag = false;
     else if (c == 27)
         escMode = true;
