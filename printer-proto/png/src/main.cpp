@@ -6,7 +6,7 @@
 // rewrite of TinyPngOut https://www.nayuki.io/page/tiny-png-output
 // requires  libcrc by Lammert Bies
 
-#define DEFLATE_MAX_BLOCK_SIZE 0xFFFF
+#define DEFLATE_MAX_BLOCK_SIZE 0x4000
 
 #define CRC_INIT_VAL 0
 
