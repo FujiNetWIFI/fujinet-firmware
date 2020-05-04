@@ -31,20 +31,66 @@ void atari1027::pdf_handle_char(byte c)
     else
     { // maybe printable character
         //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
-        if (intlFlag && (c < 32 || c == 123))
+        if (intlFlag && (c < 32 || c == 96 || c == 123))
         {
-            // not sure about ATASCII 96.
-            // todo: Codes 28-31 are arrows and require the symbol font
+            bool valid = false;
+            byte d = 0;
+
             if (c < 27)
-                _file.write(intlchar[c]);
-            else if (c == 123)
-                _file.write(byte(196));
+            {
+                d = intlchar[c];
+                valid = true;
+            }
             else if (c > 27 && c < 32)
             {
-                _file.printf(")600(_"); // |^ -< -> |v
+                // Codes 28-31 are arrows made from compound chars
+                byte d1 = '|';
+                switch (c)
+                {
+                case 28:
+                    d = (byte)'^';
+                    break;
+                case 29:
+                    d = (byte)'v';
+                    break;
+                case 30:
+                    d = (byte)'<';
+                    d1 = (byte)'-';
+                    break;
+                case 31:
+                    d = (byte)'>';
+                    d1 = (byte)'-';
+                    break;
+                default:
+                    break;
+                }
+                _file.write(d1);
+                _file.printf(")600("); // |^ -< -> |v
+                valid = true;
             }
+            else
+                switch (c)
+                {
+                case 96:
+                    d = byte(206); // use I with carot but really I with circle
+                    valid = true;
+                    break;
+                case 123:
+                    d = byte(196);
+                    valid = true;
+                    break;
+                default:
+                    valid = false;
+                    break;
+                }
+            if (valid)
+            {
+                _file.write(d);
+                if (uscoreFlag)
+                    _file.printf(")600(_"); // close text string, backspace, start new text string, write _
 
-            pdf_X += charWidth; // update x position
+                pdf_X += charWidth; // update x position
+            }
         }
         else if (c > 31 && c < 127)
         {

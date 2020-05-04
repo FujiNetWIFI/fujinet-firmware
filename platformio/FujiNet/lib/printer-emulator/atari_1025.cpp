@@ -105,19 +105,19 @@ void atari1025::pdf_handle_char(byte c)
     else
     { // maybe printable character
         //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
-        if (intlFlag)
+        if (intlFlag && (c < 32 || c == 96 || c == 123 || c == 126 || c == 127))
         {
             bool valid = false;
             byte d = 0;
-            // not sure about ATASCII 96.
-            // todo: Codes 28-31 are arrows
-            if (c < 28)
+
+            if (c < 27)
             {
                 d = intlchar[c];
                 valid = true;
             }
-            else if (c < 32)
+            else if (c > 27 && c < 32)
             {
+                // Codes 28-31 are arrows
                 d = c;
                 valid = true;
             }
