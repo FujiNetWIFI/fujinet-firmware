@@ -17,6 +17,7 @@ private:
     char _uptime_string[14];
 
 public:
+
     class _net
     {
     private:

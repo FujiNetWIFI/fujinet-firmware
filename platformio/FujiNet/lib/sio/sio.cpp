@@ -24,7 +24,7 @@ void sio_flush()
     {
         SIO_UART.read(); // toss it.
 #ifdef DEBUG
-        Debug_printf(".");
+        Debug_print(".");
 #endif
     }
 }
@@ -387,17 +387,32 @@ void sioBus::setup()
     SIO_UART.swap();
 #endif
 
-    pinMode(PIN_INT, OUTPUT);
-    digitalWrite(PIN_INT, HIGH);
-    pinMode(PIN_PROC, OUTPUT);
-    digitalWrite(PIN_PROC, HIGH);
-    pinMode(PIN_MTR, INPUT_PULLDOWN);
-    pinMode(PIN_CMD, INPUT_PULLUP);
-    pinMode(PIN_CKI, OUTPUT);
-    digitalWrite(PIN_CKI, LOW);
+    //pinMode(PIN_INT, OUTPUT);
+    fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT);
+    //digitalWrite(PIN_INT, HIGH);
+    fnSystem.digital_write(PIN_INT, DIGI_HIGH);
+
+    //pinMode(PIN_PROC, OUTPUT);
+    fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT);
+    //digitalWrite(PIN_PROC, HIGH);
+    fnSystem.set_pin_mode(PIN_PROC, DIGI_HIGH);
+
+
+    //pinMode(PIN_MTR, INPUT_PULLDOWN);
+    fnSystem.set_pin_mode(PIN_MTR, (PINMODE_INPUT | PINMODE_PULLDOWN));
+
+    //pinMode(PIN_CMD, INPUT_PULLUP);
+    fnSystem.set_pin_mode(PIN_CMD, (PINMODE_INPUT | PINMODE_PULLUP));
+
+    //pinMode(PIN_CKI, OUTPUT);
+    fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
+    //digitalWrite(PIN_CKI, LOW);
+    fnSystem.digital_write(PIN_CKI, DIGI_LOW);
+
 #ifdef ESP32
-    pinMode(PIN_CKO, INPUT);
-    pinMode(PIN_CKI, OUTPUT);
+    //pinMode(PIN_CKO, INPUT);
+    fnSystem.set_pin_mode(PIN_CKO, PINMODE_INPUT);
+    //pinMode(PIN_CKI, OUTPUT);
 #endif
 }
 

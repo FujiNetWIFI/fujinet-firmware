@@ -89,6 +89,9 @@ portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 */
 void setup()
 {
+#ifdef DEBUG_FN
+    fnUartDebug.begin(DEBUG_SPEED);
+#endif
 #ifdef DEBUG_S
     BUG_UART.begin(DEBUG_SPEED);
 #endif
