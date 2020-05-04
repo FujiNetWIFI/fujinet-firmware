@@ -23,6 +23,7 @@ public:
     int available() override;
     int peek() override;
     void flush() override;
+    void flush_input();
 
     int read() override;
     size_t readBytes(uint8_t * buffer, size_t length) override;

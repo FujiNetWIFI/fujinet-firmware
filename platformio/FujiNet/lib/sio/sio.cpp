@@ -17,19 +17,18 @@ unsigned short sioDevice::sio_get_aux()
 
 /**
    Drain data out of SIO port
-   This could be respalced with uart_flush_input() ?
 */
 void sio_flush()
 {
+    /*
     //while (SIO_UART.available())
     while (fnUartSIO.available())
     {
         //SIO_UART.read(); // toss it.
         fnUartSIO.read();
-#ifdef DEBUG
-        Debug_print(".");
-#endif
     }
+    */
+   fnUartSIO.flush_input();
 }
 
 // calculate 8-bit checksum.
@@ -248,16 +247,15 @@ void sioDevice::sio_error()
 void sioBus::service()
 {
 #ifdef ESP32
-    // Make sure voltage is higher than 4V to determine atari is on, otherwise
-    // we get stuck reading a LOW command pin until the atari is turned on
-    //if (digitalRead(PIN_CMD) == LOW && fnSystem.get_sio_voltage() > 4000)
+    // Wait for the SIO_CMD pin to go low, indicating data
+    // Make sure voltage is higher than 4V to determine if the Atari is on, otherwise
+    // we get stuck reading a LOW command pin until the Atari is turned on
     if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW && fnSystem.get_sio_voltage() > 4000)
 #else
     if (digitalRead(PIN_CMD) == LOW)
 #endif
     {
         ledMgr.set(eLed::LED_SIO, true);
-        //memset(cmdFrame.cmdFrameData, 0, 5); // clear cmd frame
         if (modemDev != nullptr && modemDev->modemActive)
         {
             modemDev->modemActive = false;
@@ -272,8 +270,14 @@ void sioBus::service()
         delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
 #endif
 
-        // read cmd frame
+        // Read CMD frame
         cmdFrame_t tempFrame;
+        tempFrame.cmdFrameData[0] = 0;
+        tempFrame.cmdFrameData[1] = 0;
+        tempFrame.cmdFrameData[2] = 0;
+        tempFrame.cmdFrameData[3] = 0;
+        tempFrame.cmdFrameData[4] = 0;
+
         //SIO_UART.readBytes(tempFrame.cmdFrameData, 5);
         fnUartSIO.readBytes((uint8_t *)tempFrame.cmdFrameData, 5);
 #ifdef DEBUG
@@ -386,9 +390,12 @@ void sioBus::service()
             while (SIO_UART.available())
                 SIO_UART.read(); // dump it.
         */
-        // This could be handled by uart_flush_input()
+        /*
         while(fnUartSIO.available())
             fnUartSIO.read();
+        */
+        if(fnUartSIO.available())
+            fnUartSIO.flush_input();
     }
 
     // Handle interrupts from network protocols
