@@ -25,7 +25,11 @@ public:
     void flush() override;
 
     int read() override;
-    size_t readBytes(char *buffer, size_t length) override;
+    size_t readBytes(uint8_t * buffer, size_t length) override;
+    inline size_t readBytes(char * buffer, size_t length) override
+    {
+        return readBytes((uint8_t *)buffer, length);
+    };
 
     size_t write(uint8_t) override;
     size_t write(const uint8_t *buffer, size_t size) override;
@@ -61,7 +65,10 @@ public:
 
 };
 
+// Only define these if the default Arduino global SerialX objects aren't declared
+//#ifdef NO_GLOBAL_SERIAL
 extern UARTManager fnUartDebug;
-//extern UARTManager fnUartSIO;
+extern UARTManager fnUartSIO;
+//#endif
 
 #endif //FNUART_H

@@ -22,8 +22,11 @@
 #define UART2_RX 16
 #define UART2_TX 17
 
+// Only define these if the default Arduino global SerialX objects aren't declared
+//#ifdef NO_GLOBAL_SERIAL
 UARTManager fnUartDebug(UART_DEBUG);
-//UARTManager fnUartSIO(UART_SIO);
+UARTManager fnUartSIO(UART_SIO);
+//#endif
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}
@@ -52,7 +55,7 @@ void UARTManager::begin(int baud)
         .rx_flow_ctrl_thresh = 122, // No idea what this is for, but shouldn't matter if flow ctrl is disabled?
     };
 
-    uart_param_config(UART_DEBUG, &uart_config);
+    uart_param_config(_uart_num, &uart_config);
     uart_set_pin(_uart_num, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
     // Don't know how this compares to what Arduino normally does?
@@ -61,7 +64,7 @@ void UARTManager::begin(int baud)
     int intr_alloc_flags = 0;
 
     // Install UART driver using an event queue here
-    uart_driver_install(UART_DEBUG, uart_buffer_size, uart_buffer_size, uart_queue_size, &_uart_q, intr_alloc_flags);
+    uart_driver_install(_uart_num, uart_buffer_size, uart_buffer_size, uart_queue_size, &_uart_q, intr_alloc_flags);
 }
 
 /* Clears input buffer and flushes out transmit buffer waiting at most
@@ -113,13 +116,13 @@ int UARTManager::read(void)
 /* Since the underlying Stream calls this Read() multiple times to get more than one
 *  character for ReadBytes(), we override with a single call to uart_read_bytes
 */
-size_t UARTManager::readBytes(char *buffer, size_t length)
+size_t UARTManager::readBytes(uint8_t *buffer, size_t length)
 {
     size_t result;
     if(ESP_FAIL == uart_get_buffered_data_len(_uart_num, &result))
         return -1;
 
-    return uart_read_bytes(_uart_num, (uint8_t *)buffer, length, MAX_READ_WAIT_TICKS);
+    return uart_read_bytes(_uart_num, buffer, length, MAX_READ_WAIT_TICKS);
 }
 
 size_t UARTManager::write(uint8_t c)

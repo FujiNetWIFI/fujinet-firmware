@@ -1,6 +1,7 @@
 #ifndef SIO_H
 #define SIO_H
-#include <Arduino.h>
+//#include <Arduino.h>
+#include "fnSystem.h"
 #include "debug.h"
 
 #include "../LinkedList-1.2.3/LinkedList.h"
@@ -20,7 +21,7 @@
    #define DELAY_T2 0
    #define DELAY_T3 1000
 #elif defined(ESP32)
-   #define SIO_UART Serial2
+   //#define SIO_UART Serial2
    #define PIN_INT 26
    #define PIN_PROC 22
 
@@ -53,6 +54,7 @@
 #define SIO_DEVICEID_RS232 0x50
 #define SIO_DEVICEID_DISK 0x31
 #define SIO_DEVICEID_PRINTER 0x40
+#define SIO_DEVICEID_TYPE3POLL 0x4F
 
 union cmdFrame_t {
    struct
