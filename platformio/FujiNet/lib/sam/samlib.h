@@ -1,5 +1,5 @@
 #ifdef ESP_32
-#include <Arduino.h>
+//#include <Arduino.h>
 #endif
 
 #include <stdio.h>

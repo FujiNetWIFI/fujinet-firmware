@@ -364,15 +364,9 @@ void sioBus::service()
             {
                 command_frame_counter = 0;
                 if (sioBaud == HISPEED_BAUDRATE)
-                {
-                    // setBaudrate(STANDARD_BAUDRATE);
-                    fnUartSIO.set_baudrate(STANDARD_BAUDRATE);
-                }
+                    setBaudrate(STANDARD_BAUDRATE);
                 else
-                {
                     setBaudrate(HISPEED_BAUDRATE);
-                    fnUartSIO.set_baudrate(HISPEED_BAUDRATE);                    
-                }
             }
         }
         ledMgr.set(eLed::LED_SIO, false);
