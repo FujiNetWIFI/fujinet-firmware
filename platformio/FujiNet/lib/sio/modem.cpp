@@ -2,6 +2,7 @@
 #include <SPIFFS.h>
 
 #include "modem.h"
+#include "fnUart.h"
 #include "fnWiFi.h"
 #include "../../include/atascii.h"
 
@@ -21,6 +22,13 @@
 
 #define FIRMWARE_850RELOCATOR "/850relocator.bin"
 #define FIRMWARE_850HANDLER   "/850handler.bin"
+
+/* Tested this delay several times on an 800 with Incognito
+   using HSIO routines. Anything much lower gave inconsistent
+   firmware loading. Delay is unnoticeable when running at
+   normal speed.
+*/
+#define DELAY_FIRMWARE_DELIVERY 3000
 
 #ifdef ESP8266
 void sioModem::sioModem()
@@ -164,6 +172,10 @@ void sioModem::sio_send_firmware(byte loadcommand)
     }
     // Acknoledge before continuing
     sio_ack();
+
+    // We need a delay here when working in high-speed mode.
+    // Doesn't negatively affect normal speed operation.
+    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
 
     // Send it
 #ifdef DEBUG
@@ -389,7 +401,8 @@ void sioModem::sio_stream()
     SIO_UART.flush();
 #endif
 
-    SIO_UART.updateBaudRate(modemBaud);
+    //SIO_UART.updateBaudRate(modemBaud);
+    fnUartSIO.set_baudrate(modemBaud);
     modemActive = true;
 #ifdef DEBUG
     Debug_printf("Modem streaming at %u baud\n", modemBaud);
@@ -433,86 +446,110 @@ void sioModem::at_cmd_println()
 {
     if (cmdAtascii == true)
     {
-        SIO_UART.write(ATASCII_EOL);
+        //SIO_UART.write(ATASCII_EOL);
+        fnUartSIO.write(ATASCII_EOL);
     }
     else
     {
-        SIO_UART.write(ASCII_CR);
-        SIO_UART.write(ASCII_LF);
+        //SIO_UART.write(ASCII_CR);
+        //SIO_UART.write(ASCII_LF);
+        fnUartSIO.write(ASCII_CR);
+        fnUartSIO.write(ASCII_LF);
     }
-    SIO_UART.flush();
+    //SIO_UART.flush();
+    fnUartSIO.flush();
 }
 
 void sioModem::at_cmd_println(const char *s, bool addEol)
 {
-    SIO_UART.print(s);
+    //SIO_UART.print(s);
+    fnUartSIO.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            SIO_UART.write(ATASCII_EOL);
+            //SIO_UART.write(ATASCII_EOL);
+            fnUartSIO.write(ATASCII_EOL);
         }
         else
         {
-            SIO_UART.write(ASCII_CR);
-            SIO_UART.write(ASCII_LF);
+            //SIO_UART.write(ASCII_CR);
+            //SIO_UART.write(ASCII_LF);
+            fnUartSIO.write(ASCII_CR);
+            fnUartSIO.write(ASCII_LF);
         }
     }
-    SIO_UART.flush();
+    //SIO_UART.flush();
+    fnUartSIO.flush();
 }
 
 void sioModem::at_cmd_println(int i, bool addEol)
 {
-    SIO_UART.print(i);
+    //SIO_UART.print(i);
+    fnUartSIO.print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            SIO_UART.write(ATASCII_EOL);
+            //SIO_UART.write(ATASCII_EOL);
+            fnUartSIO.write(ATASCII_EOL);
         }
         else
         {
-            SIO_UART.write(ASCII_CR);
-            SIO_UART.write(ASCII_LF);
+            //SIO_UART.write(ASCII_CR);
+            //SIO_UART.write(ASCII_LF);
+            fnUartSIO.write(ASCII_CR);
+            fnUartSIO.write(ASCII_LF);
         }
     }
-    SIO_UART.flush();
+    //SIO_UART.flush();
+    fnUartSIO.flush();
 }
 
 void sioModem::at_cmd_println(String s, bool addEol)
 {
-    SIO_UART.print(s);
+    //SIO_UART.print(s);
+    fnUartSIO.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            SIO_UART.write(ATASCII_EOL);
+            //SIO_UART.write(ATASCII_EOL);
+            fnUartSIO.write(ATASCII_EOL);
         }
         else
         {
-            SIO_UART.write(ASCII_CR);
-            SIO_UART.write(ASCII_LF);
+            //SIO_UART.write(ASCII_CR);
+            //SIO_UART.write(ASCII_LF);
+            fnUartSIO.write(ASCII_CR);
+            fnUartSIO.write(ASCII_LF);
         }
     }
-    SIO_UART.flush();
+    //SIO_UART.flush();
+    fnUartSIO.flush();
 }
 
 void sioModem::at_cmd_println(IPAddress ipa, bool addEol)
 {
-    SIO_UART.print(ipa);
+    //SIO_UART.print(ipa);
+    fnUartSIO.print(ipa);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            SIO_UART.write(ATASCII_EOL);
+            //SIO_UART.write(ATASCII_EOL);
+            fnUartSIO.write(ATASCII_EOL);
         }
         else
         {
-            SIO_UART.write(ASCII_CR);
-            SIO_UART.write(ASCII_LF);
+            //SIO_UART.write(ASCII_CR);
+            //SIO_UART.write(ASCII_LF);
+            fnUartSIO.write(ASCII_CR);
+            fnUartSIO.write(ASCII_LF);
         }
     }
-    SIO_UART.flush();
+    //SIO_UART.flush();
+    fnUartSIO.flush();
 }
 
 void sioModem::at_handle_wificonnect()
@@ -857,7 +894,8 @@ void sioModem::modemCommand()
             at_cmd_println("CONNECT ", false);
             at_cmd_println(modemBaud);
             cmdMode = false;
-            SIO_UART.flush();
+            //SIO_UART.flush();
+            fnUartSIO.flush();
         }
         break;
     // See my IP address
@@ -908,10 +946,12 @@ void sioModem::sio_handle_modem()
         }
 
         // In command mode - don't exchange with TCP but gather characters to a string
-        if (SIO_UART.available() /*|| blockWritePending == true */ )
+        //if (SIO_UART.available() /*|| blockWritePending == true */ )
+        if( fnUartSIO.available() )
         {
             // get char from Atari SIO
-            char chr = SIO_UART.read();
+            //char chr = SIO_UART.read();
+            char chr = fnUartSIO.read();
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))
@@ -930,34 +970,41 @@ void sioModem::sio_handle_modem()
                 cmd.remove(cmd.length() - 1);
                 // We don't assume that backspace is destructive
                 // Clear with a space
-                SIO_UART.write(ASCII_BACKSPACE);
-                SIO_UART.write(' ');
-                SIO_UART.write(ASCII_BACKSPACE);
+                //SIO_UART.write(ASCII_BACKSPACE);
+                //SIO_UART.write(' ');
+                //SIO_UART.write(ASCII_BACKSPACE);
+                fnUartSIO.write(ASCII_BACKSPACE);
+                fnUartSIO.write(' ');
+                fnUartSIO.write(ASCII_BACKSPACE);
             }
             else if (chr == ATASCII_BACKSPACE)
             {
                 // ATASCII backspace
                 cmd.remove(cmd.length() - 1);
-                SIO_UART.write(ATASCII_BACKSPACE);   // we can assume ATASCII BS is destructive.
+                //SIO_UART.write(ATASCII_BACKSPACE);   // we can assume ATASCII BS is destructive.
+                fnUartSIO.write(ATASCII_BACKSPACE);
             }
-            // Take into account arrow key movement and clear screen            
+            // Take into account arrow key movement and clear screen
             else if (chr == ATASCII_CLEAR_SCREEN || 
                 ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
-                SIO_UART.write(chr);
+                //SIO_UART.write(chr);
+                fnUartSIO.write(chr);
             }
             else
             {
                 if (cmd.length() < MAX_CMD_LENGTH)
                     cmd.concat(chr);
-                SIO_UART.write(chr);
+                //SIO_UART.write(chr);
+                fnUartSIO.write(chr);                
             }
         }
     }
     // Connected mode
     else
     {
-        int sioBytesAvail = SIO_UART.available();
+        //int sioBytesAvail = SIO_UART.available();
+        int sioBytesAvail = fnUartSIO.available();
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
@@ -973,7 +1020,7 @@ void sioModem::sio_handle_modem()
 
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int sioBytesRead = SIO_UART.readBytes(&txBuf[0], 
+            int sioBytesRead = fnUartSIO.readBytes(&txBuf[0],  //SIO_UART.readBytes(&txBuf[0], 
                 (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
@@ -1027,8 +1074,10 @@ void sioModem::sio_handle_modem()
             unsigned int bytesRead = tcpClient.readBytes(buf, 
                 (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
 
-            SIO_UART.write(buf, bytesRead);
-            SIO_UART.flush();
+            //SIO_UART.write(buf, bytesRead);
+            fnUartSIO.write(buf, bytesRead);
+            //SIO_UART.flush();
+            fnUartSIO.flush();
         }
     }
 

@@ -1,5 +1,5 @@
 #include "tnfs_imp.h"
-#include "debug.h"
+#include "../../src/debug.h"
 
 #define DEBUG_VERBOSE
 
@@ -250,16 +250,16 @@ TNFSFileImpl::~TNFSFileImpl()
 
 size_t TNFSFileImpl::write(const uint8_t *buf, size_t size)
 {
-#ifdef DEBUG_S
-  BUG_UART.println("calling tnfs_write");
+#ifdef DEBUG
+  Debug_println("calling tnfs_write");
 #endif
   return tnfs_write(fs, fid, buf, size);
 }
 
 size_t TNFSFileImpl::read(uint8_t *buf, size_t size)
 {
-#ifdef DEBUG_S
-  BUG_UART.println("calling tnfs_read");
+#ifdef DEBUG
+  Debug_println("calling tnfs_read");
 #endif
   return tnfs_read(fs, fid, buf, size);
 }
