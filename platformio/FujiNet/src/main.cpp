@@ -89,12 +89,14 @@ portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 */
 void setup()
 {
-#ifdef DEBUG_FN
-    fnUartDebug.begin(DEBUG_SPEED);
-#endif
 #ifdef DEBUG_S
-    BUG_UART.begin(DEBUG_SPEED);
+    #ifdef NO_GLOBAL_SERIAL
+        fnUartDebug.begin(DEBUG_SPEED);
+    #else
+        BUG_UART.begin(DEBUG_SPEED);
+    #endif    
 #endif
+
 #ifdef DEBUG
     Debug_println("\n--%--%--%--\nFujiNet PlatformIO Started");
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());

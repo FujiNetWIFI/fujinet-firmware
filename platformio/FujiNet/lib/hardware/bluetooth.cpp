@@ -2,7 +2,7 @@
 #include "bluetooth.h"
 #include "../sio/sio.h"
 #include "../sio/disk.h"
-#include "debug.h"
+#include "../../src/debug.h"
 #include "BluetoothSerial.h"
 
 BluetoothSerial SerialBT;

@@ -1,6 +1,6 @@
 #ifndef FILE_PRINTER_H
 #define FILE_PRINTER_H
-#include <Arduino.h>
+//#include <Arduino.h>
 
 #include "printer_emulator.h"
 
