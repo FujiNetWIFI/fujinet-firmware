@@ -1,45 +1,6 @@
 #include "atari_1027.h"
 #include "debug.h"
 
-void atari1027::pdf_fonts()
-{
-
-    // 3rd object: font catalog
-    pdf_objCtr = 3;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("3 0 obj\n<</Font <</F1 4 0 R /F2 7 0 R>>>>\nendobj\n");
-
-    // 1027 standard font
-    pdf_objCtr = 4;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("4 0 obj\n<</Type/Font/Subtype/Type1/Name/F1/BaseFont/PrestigeEliteStd/Encoding/WinAnsiEncoding/FontDescriptor 5 0 R/FirstChar 0/LastChar 255/Widths 6 0 R>>\nendobj\n");
-    pdf_objCtr = 5;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("5 0 obj\n<</Type/FontDescriptor/FontName/PrestigeEliteStd/Flags 33/ItalicAngle 0/Ascent 656/Descent -334/CapHeight 662/XHeight 420/StemV 87/FontBBox[-20 -288 620 837]/FontFile3 7 0 R>>\nendobj\n");
-    pdf_objCtr = 6;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("6 0 obj\n[");
-    for (int i = 0; i < 256; i++)
-    {
-        _file.printf(" 600");
-        if ((i - 31) % 32 == 0)
-            _file.printf("\n");
-    }
-    _file.printf(" ]\nendobj\n");
-
-    pdf_objCtr = 7;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("7 0 obj\n");
-    // insert fontfile stream
-    File fff = SPIFFS.open("/a1027font", "r");
-    while (fff.available())
-    {
-        _file.write(fff.read());
-    }
-    fff.close();
-    _file.printf("\nendobj\n");
-}
-
 void atari1027::pdf_handle_char(byte c)
 {
     if (escMode)
@@ -51,39 +12,94 @@ void atari1027::pdf_handle_char(byte c)
         // ESC CTRL-Z - stop underscoring     27  26
         // ESC CTRL-W - start international   27  23
         // ESC CTRL-X - stop international    27  24
-        if (c == 25)
+        switch (c)
+        {
+        case 25:
             uscoreFlag = true;
-        if (c == 26)
+            break;
+        case 26:
             uscoreFlag = false;
-        if (c == 23)
+            break;
+        case 23:
             intlFlag = true;
-        if (c == 24)
+            break;
+        case 24:
             intlFlag = false;
+            break;
+        default:
+            break;
+        }
         escMode = false;
     }
-    else if (c == 15)
+    else if (!intlFlag && c == 15)
         uscoreFlag = true;
-    else if (c == 14)
+    else if (!intlFlag && c == 14)
         uscoreFlag = false;
     else if (c == 27)
         escMode = true;
     else
     { // maybe printable character
         //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
-        if (intlFlag && (c < 32 || c == 123))
+        if (intlFlag && (c < 32 || c == 96 || c == 123))
         {
-            // not sure about ATASCII 96.
-            // todo: Codes 28-31 are arrows and require the symbol font
+            bool valid = false;
+            byte d = 0;
+
             if (c < 27)
-                _file.write(intlchar[c]);
-            else if (c == 123)
-                _file.write(byte(196));
+            {
+                d = intlchar[c];
+                valid = true;
+            }
             else if (c > 27 && c < 32)
             {
-                _file.printf(")600(_"); // |^ -< -> |v
+                // Codes 28-31 are arrows made from compound chars
+                byte d1 = '|';
+                switch (c)
+                {
+                case 28:
+                    d = (byte)'^';
+                    break;
+                case 29:
+                    d = (byte)'v';
+                    break;
+                case 30:
+                    d = (byte)'<';
+                    d1 = (byte)'-';
+                    break;
+                case 31:
+                    d = (byte)'>';
+                    d1 = (byte)'-';
+                    break;
+                default:
+                    break;
+                }
+                _file.write(d1);
+                _file.printf(")600("); // |^ -< -> |v
+                valid = true;
             }
+            else
+                switch (c)
+                {
+                case 96:
+                    d = byte(206); // use I with carot but really I with circle
+                    valid = true;
+                    break;
+                case 123:
+                    d = byte(196);
+                    valid = true;
+                    break;
+                default:
+                    valid = false;
+                    break;
+                }
+            if (valid)
+            {
+                _file.write(d);
+                if (uscoreFlag)
+                    _file.printf(")600(_"); // close text string, backspace, start new text string, write _
 
-            pdf_X += charWidth; // update x position
+                pdf_X += charWidth; // update x position
+            }
         }
         else if (c > 31 && c < 127)
         {
@@ -117,7 +133,6 @@ void atari1027::initPrinter(FS *filesystem)
     pdf_header();
 
     fonts[0] = &F1;
-    pdf_add_fonts(1);
 
     uscoreFlag = false;
     intlFlag = false;
