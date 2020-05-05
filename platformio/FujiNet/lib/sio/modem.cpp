@@ -28,7 +28,7 @@
    firmware loading. Delay is unnoticeable when running at
    normal speed.
 */
-#define DELAY_FIRMWARE_DELIVERY 2750
+#define DELAY_FIRMWARE_DELIVERY 3000
 
 #ifdef ESP8266
 void sioModem::sioModem()
