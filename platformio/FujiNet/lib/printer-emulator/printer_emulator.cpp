@@ -1,5 +1,5 @@
 #include "printer_emulator.h"
-#include "debug.h"
+#include "../../src/debug.h"
 
 // initialzie printer by creating an output file
 void printer_emu::initPrinter(FS *filesystem)

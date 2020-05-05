@@ -1,5 +1,5 @@
 #include "file_printer.h"
-#include "debug.h"
+#include "../../src/debug.h"
 
 // for Atari EOL
 #define EOL 155

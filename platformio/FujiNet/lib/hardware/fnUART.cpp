@@ -3,7 +3,7 @@
 #include <esp_system.h>
 #include <driver/uart.h>
 
-#include "../sio/debug.h"
+#include "../../src/debug.h"
 #include "fnUART.h"
 
 #define UART_DEBUG UART_NUM_0
@@ -22,11 +22,11 @@
 #define UART2_RX 16
 #define UART2_TX 17
 
-// Only define these if the default Arduino global SerialX objects aren't declared
-//#ifdef NO_GLOBAL_SERIAL
+// Only define these if the default Arduino global HardwareSerial objects aren't declared
+#ifdef NO_GLOBAL_SERIAL
 UARTManager fnUartDebug(UART_DEBUG);
 UARTManager fnUartSIO(UART_SIO);
-//#endif
+#endif
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}

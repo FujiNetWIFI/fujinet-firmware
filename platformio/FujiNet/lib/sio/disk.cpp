@@ -1,3 +1,5 @@
+#include "fnSystem.h"
+#include "../../src/debug.h"
 #include "disk.h"
 
 int command_frame_counter = 0;
@@ -171,8 +173,8 @@ void sioDisk::sio_format()
     // Send to computer
     sio_to_computer((byte *)sector, sectorSize, false);
 
-#ifdef DEBUG_S
-    BUG_UART.printf("We faked a format.\n");
+#ifdef DEBUG
+    Debug_printf("We faked a format.\n");
 #endif
 }
 
