@@ -1,37 +1,40 @@
 #ifndef SIO_H
 #define SIO_H
-#include <Arduino.h>
+//#include <Arduino.h>
+#include "fnSystem.h"
 #include "debug.h"
 
 #include "../LinkedList-1.2.3/LinkedList.h"
 
 // pin configurations
 #ifdef ESP8266
-#define SIO_UART Serial
-#define PIN_INT 5
-#define PIN_PROC 4
-#define PIN_MTR 16
-#define INPUT_PULLDOWN INPUT_PULLDOWN_16
-#define PIN_CMD 12
-#define PIN_CKI 14
-//#define PIN_CKO         2
-#define DELAY_T0 750
-#define DELAY_T1 650
-#define DELAY_T2 0
-#define DELAY_T3 1000
+   #define SIO_UART Serial
+   #define PIN_INT 5
+   #define PIN_PROC 4
+   #define PIN_MTR 16
+   #define INPUT_PULLDOWN INPUT_PULLDOWN_16
+   #define PIN_CMD 12
+   #define PIN_CKI 14
+   //#define PIN_CKO         2
+   #define DELAY_T0 750
+   #define DELAY_T1 650
+   #define DELAY_T2 0
+   #define DELAY_T3 1000
 #elif defined(ESP32)
-#define SIO_UART Serial2
-#define PIN_INT 26
-#define PIN_PROC 22
-#ifdef BOARD_HAS_PSRAM
-#define PIN_MTR 36
-#define PIN_CMD 39
-#else
-#define PIN_MTR 33
-#define PIN_CMD 21
-#endif
-#define PIN_CKO 32
-#define PIN_CKI 27
+   //#define SIO_UART Serial2
+   #define PIN_INT 26
+   #define PIN_PROC 22
+
+   #ifdef BOARD_HAS_PSRAM
+      #define PIN_MTR 36
+      #define PIN_CMD 39
+   #else
+      #define PIN_MTR 33
+      #define PIN_CMD 21
+   #endif
+   
+   #define PIN_CKO 32
+   #define PIN_CKI 27
 #endif
 
 #define DELAY_T4 850
@@ -51,6 +54,7 @@
 #define SIO_DEVICEID_RS232 0x50
 #define SIO_DEVICEID_DISK 0x31
 #define SIO_DEVICEID_PRINTER 0x40
+#define SIO_DEVICEID_TYPE3POLL 0x4F
 
 union cmdFrame_t {
    struct

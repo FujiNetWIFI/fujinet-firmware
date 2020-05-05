@@ -95,16 +95,45 @@ int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
     return 0;
 }
 
-// from esp32-hal-misc.
-void SystemManager::delay(uint32_t ms)
+// from esp32-hal-misc.c
+unsigned long IRAM_ATTR SystemManager::micros()
 {
-    vTaskDelay(ms / portTICK_PERIOD_MS);
+    return (unsigned long) (esp_timer_get_time());
 }
 
 // from esp32-hal-misc.c
 unsigned long IRAM_ATTR SystemManager::millis()
 {
      return (unsigned long) (esp_timer_get_time() / 1000ULL);
+}
+
+// from esp32-hal-misc.
+void SystemManager::delay(uint32_t ms)
+{
+    vTaskDelay(ms / portTICK_PERIOD_MS);
+}
+
+// from esp32-hal-misc.
+void IRAM_ATTR SystemManager::delay_microseconds(uint32_t us)
+{
+    uint32_t m = micros();
+    if(us){
+        uint32_t e = (m + us);
+        if(m > e){ //overflow
+            while(micros() > e){
+                NOP();
+            }
+        }
+        while(micros() < e){
+            NOP();
+        }
+    }
+}
+
+// from esp32-hal-misc.
+void SystemManager::yield()
+{
+    vPortYield();
 }
 
 void SystemManager::reboot()
@@ -212,4 +241,3 @@ int SystemManager::get_sio_voltage()
     else
         return (avgV * 5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
 }
-
