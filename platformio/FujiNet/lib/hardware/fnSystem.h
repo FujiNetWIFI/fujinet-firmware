@@ -11,6 +11,9 @@
 #include <driver/adc.h>
 #include "esp_adc_cal.h"
 
+// This is normally defineid in Arduino.h
+typedef uint8_t byte;
+
 class SystemManager
 {
 private:
@@ -72,10 +75,13 @@ public:
     static int get_cpu_rev();
     static int64_t get_uptime();
     static unsigned long millis();
+    static unsigned long micros();
+    static void delay_microseconds(uint32_t us);
     static void delay(uint32_t ms);
     const char * get_uptime_str();
     static const char * get_fujinet_version();
     static int get_sio_voltage();
+    static void yield();
 };
 
 

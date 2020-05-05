@@ -270,7 +270,8 @@ void sioDisk::sio_read_percom_block()
     dump_percom_block();
 #endif
     sio_to_computer((byte *)&percomBlock, 12, false);
-    SIO_UART.flush();
+    //SIO_UART.flush();
+    fnUartSIO.flush();
 }
 
 /**
