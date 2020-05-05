@@ -23,6 +23,13 @@
 #define FIRMWARE_850RELOCATOR "/850relocator.bin"
 #define FIRMWARE_850HANDLER   "/850handler.bin"
 
+/* Tested this delay several times on an 800 with Incognito
+   using HSIO routines. Anything much lower gave inconsistent
+   firmware loading. Delay is unnoticeable when running at
+   normal speed.
+*/
+#define DELAY_FIRMWARE_DELIVERY 2750
+
 #ifdef ESP8266
 void sioModem::sioModem()
 {
@@ -165,6 +172,10 @@ void sioModem::sio_send_firmware(byte loadcommand)
     }
     // Acknoledge before continuing
     sio_ack();
+
+    // We need a delay here when working in high-speed mode.
+    // Doesn't negatively affect normal speed operation.
+    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
 
     // Send it
 #ifdef DEBUG

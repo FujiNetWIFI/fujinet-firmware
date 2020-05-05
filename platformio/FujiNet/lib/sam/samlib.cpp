@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "samlib.h"
 #include <driver/dac.h>
 

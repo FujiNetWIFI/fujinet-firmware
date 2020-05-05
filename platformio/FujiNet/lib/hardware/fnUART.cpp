@@ -138,20 +138,23 @@ void UARTManager::set_baudrate(uint32_t baud)
 #endif    
 }
 
-/* Returns a single byte from the incoming stream if there's one waiting
-*  otherwise -1
+/* Returns a single byte from the incoming stream
 */
 int UARTManager::read(void)
 {
-    size_t result;
-    if(ESP_FAIL == uart_get_buffered_data_len(_uart_num, &result))
-        return -1;
-#ifdef DEBUG
-    Debug_printf("---> read available(%d)\n", result);
-#endif        
     uint8_t byte;
-    uart_read_bytes(_uart_num, &byte, 1, 0); // 0 wait since we already confirmed there's data in the buffer
-    return byte;
+    int result = uart_read_bytes(_uart_num, &byte, 1, MAX_READ_WAIT_TICKS);
+    if(result < 1)
+    {
+#ifdef DEBUG
+        if(result == 0)
+            Debug_println("### UART read() TIMEOUT ###");
+        else
+            Debug_printf("### UART read() ERROR %d ###\n", result);
+#endif        
+        return -1;
+    } else
+        return byte;
 }
 
 /* Since the underlying Stream calls this Read() multiple times to get more than one
@@ -159,13 +162,17 @@ int UARTManager::read(void)
 */
 size_t UARTManager::readBytes(uint8_t *buffer, size_t length)
 {
-    size_t result;
-    if(ESP_FAIL == uart_get_buffered_data_len(_uart_num, &result))
-        return -1;
+    int result = uart_read_bytes(_uart_num, buffer, length, MAX_READ_WAIT_TICKS);
 #ifdef DEBUG
-    Debug_printf("---> readBytes available(%d)\n", result);
+    if(result < length)
+    {
+        if(result < 0)
+            Debug_printf("### UART readBytes() ERROR %d ###\n", result);
+        else
+            Debug_println("### UART readBytes() TIMEOUT ###");
+    }
 #endif        
-    return uart_read_bytes(_uart_num, buffer, length, MAX_READ_WAIT_TICKS);
+    return result;    
 }
 
 size_t UARTManager::write(uint8_t c)
