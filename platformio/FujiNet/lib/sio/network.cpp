@@ -447,6 +447,11 @@ bool sioNetwork::sio_special_supported_40_command(unsigned char c)
 // supported global network device commands that go Computer->Peripheral
 bool sioNetwork::sio_special_supported_80_command(unsigned char c)
 {
+    switch(c)
+    {
+        case 0xFE: // Set prefix
+            return true;
+    }
     return false;
 }
 
