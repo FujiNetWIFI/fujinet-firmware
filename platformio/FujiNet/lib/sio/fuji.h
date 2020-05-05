@@ -2,7 +2,7 @@
 #define FUJI_H
 #include <cstdint>
 #include <Arduino.h>
-#include "debug.h"
+#include "../../include/debug.h"
 
 #include "sio.h"
 #include "disk.h"

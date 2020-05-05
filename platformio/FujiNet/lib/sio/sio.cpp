@@ -4,8 +4,7 @@
 #include "led.h"
 #include "network.h"
 #include "fnSystem.h"
-#include "fnUart.h"
-#include "../../src/debug.h"
+#include "../../include/debug.h"
 
 // helper functions outside the class defintions
 

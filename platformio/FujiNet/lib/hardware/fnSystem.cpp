@@ -5,11 +5,11 @@
 #include <esp_timer.h>
 #include <driver/gpio.h>
 
+#include "../../include/debug.h"
 #include "../../include/version.h"
 
 #include "fnSystem.h"
 
-#include "debug.h"
 
 // Global object to manage System
 SystemManager fnSystem;
