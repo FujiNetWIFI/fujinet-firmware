@@ -1,8 +1,8 @@
 //#include <Arduino.h>
+#include "../../include/debug.h"
 #include "bluetooth.h"
 #include "../sio/sio.h"
 #include "../sio/disk.h"
-#include "../../src/debug.h"
 #include "BluetoothSerial.h"
 
 BluetoothSerial SerialBT;

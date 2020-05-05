@@ -1,3 +1,7 @@
+#include "html_printer.h"
+#include "atari_1027.h"
+#include "file_printer.h"
+#include "png_printer.h"
 #include "printer.h"
 
 // Global printer object
@@ -289,6 +293,9 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
     case PRINTER_PNG:
         _pptr = new pngPrinter;
         break;
+    case PRINTER_HTML:
+        _pptr = new htmlPrinter;
+        break;
     default:
         _pptr = new filePrinter;
         pt = PRINTER_RAW;
@@ -314,15 +321,16 @@ sioPrinter::sioPrinter()
 */
 sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
 {
-    const char *models[5] =
+    const char *models[PRINTER_UNKNOWN] =
         {
             "file printer",
             "Atari 1027",
             "Atari 820",
             "Atari 822",
-            "GRANTIC"};
+            "GRANTIC",
+            "HTML printer"};
     int i;
-    for (i = 0; i < 5; i++)
+    for (i = 0; i < PRINTER_UNKNOWN; i++)
         if (modelname.compare(models[i]) == 0)
             break;
 
@@ -338,6 +346,8 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
         return PRINTER_ATARI_822;
     case 4:
         return PRINTER_PNG;
+    case 5:
+        return PRINTER_HTML;
     default:
         return PRINTER_UNKNOWN;
     }

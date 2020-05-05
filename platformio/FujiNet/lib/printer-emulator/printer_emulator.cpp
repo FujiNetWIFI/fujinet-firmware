@@ -1,12 +1,14 @@
 #include "printer_emulator.h"
-#include "../../src/debug.h"
+#include "../../include/debug.h"
 
 // initialzie printer by creating an output file
 void printer_emu::initPrinter(FS *filesystem)
 {
     _FS = filesystem;
     this->resetOutput();
+    this->post_new_file();
 }
+
 
 // destructor must be specified for the base class even though it's virtual
 printer_emu::~printer_emu()
@@ -42,6 +44,8 @@ int printer_emu::readFromOutput(uint8_t *buf, size_t size)
 
 void printer_emu::pageEject()
 {
+    this->pre_page_eject();
+    
     _file.flush();
     _file.seek(0);
 }
@@ -54,6 +58,7 @@ void printer_emu::resetOutput()
     if (_file)
     {
         Debug_println("Printer output file (re)opened");
+        this->post_new_file();
     }
     else
     {

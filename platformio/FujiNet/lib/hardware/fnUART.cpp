@@ -3,7 +3,7 @@
 #include <esp_system.h>
 #include <driver/uart.h>
 
-#include "../../src/debug.h"
+#include "../../include/debug.h"
 #include "fnUART.h"
 
 #define UART_DEBUG UART_NUM_0
@@ -110,10 +110,6 @@ int UARTManager::available()
     size_t result;
     if(ESP_FAIL == uart_get_buffered_data_len(_uart_num, &result))
         return -1;
-#ifdef DEBUG
-    if(result > 0)
-        Debug_printf("available(%d)\n", result);
-#endif        
     return result;
 }
 

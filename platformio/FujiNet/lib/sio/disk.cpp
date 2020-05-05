@@ -1,5 +1,5 @@
+#include "../../include/debug.h"
 #include "fnSystem.h"
-#include "../../src/debug.h"
 #include "disk.h"
 
 int command_frame_counter = 0;
