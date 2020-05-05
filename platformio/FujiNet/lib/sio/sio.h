@@ -1,9 +1,7 @@
 #ifndef SIO_H
 #define SIO_H
-//#include <Arduino.h>
-#include "fnSystem.h"
-#include "debug.h"
 
+#include "fnSystem.h"
 #include "../LinkedList-1.2.3/LinkedList.h"
 
 // pin configurations

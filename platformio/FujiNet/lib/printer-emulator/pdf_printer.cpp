@@ -1,5 +1,5 @@
 #include "pdf_printer.h"
-#include "../../src/debug.h"
+#include "../../include/debug.h"
 
 pdfPrinter::~pdfPrinter()
 {

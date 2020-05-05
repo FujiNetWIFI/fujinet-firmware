@@ -3,7 +3,7 @@
 #include <esp_system.h>
 #include <driver/uart.h>
 
-#include "../../src/debug.h"
+#include "../../include/debug.h"
 #include "fnUART.h"
 
 #define UART_DEBUG UART_NUM_0

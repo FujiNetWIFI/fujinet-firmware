@@ -4,14 +4,9 @@
 
 #include <string>
 #include <map>
-//#include <SPIFFS.h>
-//#include "debug.h"
-
-//#include "../hardware/fnSystem.h"
-//#include "../hardware/fnWiFi.h"
-#include "printer.h"
 
 #include "httpServiceConfigurator.h"
+#include "printer.h"
 
 // TODO: This was copied from another source and needs some bounds-checking!
 char* fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)

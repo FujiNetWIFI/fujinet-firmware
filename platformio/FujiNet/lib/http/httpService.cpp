@@ -278,6 +278,9 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     case PNG:
         exts = "png";
         break;
+    case HTML:
+        exts = "html";
+        break;
     default:
         exts = "bin";
     }

@@ -19,7 +19,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#include "../../src/debug.h"
+#include "../../include/debug.h"
 #include "fnWiFi.h"
 
 // Global object to manage WiFi
