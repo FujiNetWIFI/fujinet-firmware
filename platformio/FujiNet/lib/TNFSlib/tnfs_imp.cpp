@@ -1,5 +1,5 @@
 #include "tnfs_imp.h"
-#include "../../src/debug.h"
+#include "../../include/debug.h"
 
 #define DEBUG_VERBOSE
 

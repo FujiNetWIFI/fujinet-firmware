@@ -13,7 +13,8 @@ enum paper_t
     ASCII,
     PDF,
     SVG,
-    PNG
+    PNG,
+    HTML
 };
 
 class printer_emu
@@ -24,13 +25,18 @@ protected:
     byte buffer[40];
     paper_t paperType;
 
+    // executed after a new printer output file is created
+    virtual void post_new_file() {};
+    // executed before a printer output file is closed and prepared for reading
+    virtual void pre_page_eject() {};
+
 public:
     printer_emu(paper_t ty = RAW) : paperType(ty){};
     // Destructor must be virtual to allow for proper cleanup of derived classes
     virtual ~printer_emu() = 0;
 
     void copyChar(byte c, byte n);
-    virtual void initPrinter(FS *filesystem) = 0;
+    virtual void initPrinter(FS *filesystem);
     virtual void pageEject() = 0;
     virtual bool process(byte n) = 0;
 

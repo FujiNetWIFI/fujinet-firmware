@@ -9,7 +9,7 @@
 
 #include "reciter.h"
 #include "sam.h"
-#include "debug.h"
+#include "samdebug.h"
 
 #ifdef USESDL
 #include <SDL.h>

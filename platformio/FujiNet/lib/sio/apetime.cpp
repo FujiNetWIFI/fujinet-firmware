@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include "apetime.h"
 #include "tnfs.h"
 

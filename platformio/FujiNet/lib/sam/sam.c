@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "debug.h"
+#include "samdebug.h"
 #include "sam.h"
 #include "render.h"
 #include "SamTabs.h"
