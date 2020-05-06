@@ -5,6 +5,9 @@
 
 class htmlPrinter : public printer_emu
 {
+private:
+    bool inverse = false;
+        
 protected:
     virtual void post_new_file() override;
     virtual void pre_page_eject() override;
