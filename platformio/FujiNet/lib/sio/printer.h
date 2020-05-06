@@ -194,6 +194,7 @@ public:
         PRINTER_ATARI_1027,
         PRINTER_PNG,
         PRINTER_HTML,
+        PRINTER_HTML_ATASCII,
         PRINTER_UNKNOWN
     };
 

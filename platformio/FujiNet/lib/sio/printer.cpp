@@ -296,6 +296,9 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
     case PRINTER_HTML:
         _pptr = new htmlPrinter;
         break;
+    case PRINTER_HTML_ATASCII:
+        _pptr = new htmlPrinter(HTML_ATASCII);
+        break;
     default:
         _pptr = new filePrinter;
         pt = PRINTER_RAW;
@@ -328,7 +331,8 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
             "Atari 820",
             "Atari 822",
             "GRANTIC",
-            "HTML printer"};
+            "HTML printer",
+            "HTML ATASCII printer"};
     int i;
     for (i = 0; i < PRINTER_UNKNOWN; i++)
         if (modelname.compare(models[i]) == 0)
@@ -348,6 +352,8 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
         return PRINTER_PNG;
     case 5:
         return PRINTER_HTML;
+    case 6:
+        return PRINTER_HTML_ATASCII;
     default:
         return PRINTER_UNKNOWN;
     }
