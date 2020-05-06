@@ -9,7 +9,7 @@ int AtasciiToStandardUnicode[128] =
     9698, 9623, 9699, 9629, 9624, 9620, 9601, 9622,   //  16
     9827, 9484, 9472, 9532, 11044, 9604, 9615, 9516,  //  24
     9524, 9612, 9492, 8455, 8593, 8595, 8592, 8594,   //  32
-    0, 0, 0, 0, 0, 0, 38, 0,                           //  40
+    0, 0, 0, 0, 0, 0, 38, 0,                          //  40
     0, 0, 0, 0, 0, 0, 0, 0,                           //  48
     0, 0, 0, 0, 0, 0, 0, 0,                           //  56
     0, 0, 0, 0, 60, 0, 62, 0,                         //  64
@@ -39,8 +39,9 @@ bool htmlPrinter::process(byte n)
 {
     int i = 0;
     
-    const char *inv_on = "<span class=\"inv\">";
+    const char *inv_on = "<span class=\"iv\">";
     const char *inv_off = "</span>";
+    const char *escape = "&#x%x;";
 
     while (i < n)
     {
@@ -58,33 +59,56 @@ bool htmlPrinter::process(byte n)
             break;
         }
 
-        // If this is an inverse character, turn on inverse mode if it
-        // isn't already on and convert the character to non-inverse
-        if(c >= 128)
+        // Handle differently depending on wether we're doing this with an Atari font
+        if(paperType == HTML_ATASCII)
         {
-            if(false == inverse)
+            // If it's a printable character, just copy it
+            if(c >=32 && c <= 122 && c != 96)
             {
-                inverse = true;
-                _file.write((const uint8_t *)inv_on, strlen(inv_on));                
+                // One more check to make sure it's not one of the HTML characters we have to escape
+                if(AtasciiToStandardUnicode[c] != 0)
+                    _file.printf(escape, AtasciiToStandardUnicode[c]);
+                else
+                    _file.write(c);
             }
-            c -= 128;
-        }
-        // If it wasn't an inverse character and inverse was on, turn it off
-        else if(inverse)
-        {
-            inverse = false;
-            _file.write((const uint8_t *)inv_off, strlen(inv_off));
-        }
+            // It's an ATASCII character, so map it into the Private Use Area of the Atari font
+            // PUA starts at 0xE000
+            else
+            {
+                _file.printf(escape, 0xE000 + c);
+            }
 
-        // If we have a replacement HTML entitiy for this character, use that
-        if(AtasciiToStandardUnicode[c] != 0)
-        {
-            _file.printf("&#%d;", AtasciiToStandardUnicode[c]);
         }
-        // Otherwise just write the character
-        else 
+        else
         {
-            _file.write(c);
+            // If this is an inverse character, turn on inverse mode if it
+            // isn't already on and convert the character to non-inverse
+            if(c >= 128)
+            {
+                if(false == inverse)
+                {
+                    inverse = true;
+                    _file.write((const uint8_t *)inv_on, strlen(inv_on));                
+                }
+                c -= 128;
+            }
+            // If it wasn't an inverse character and inverse was on, turn it off
+            else if(inverse)
+            {
+                inverse = false;
+                _file.write((const uint8_t *)inv_off, strlen(inv_off));
+            }
+
+            // If we have a replacement HTML entitiy for this character, use that
+            if(AtasciiToStandardUnicode[c] != 0)
+            {
+                _file.printf(escape, AtasciiToStandardUnicode[c]);
+            }
+            // Otherwise just write the character
+            else 
+            {
+                _file.write(c);
+            }
         }
 
         i++;
@@ -94,15 +118,26 @@ bool htmlPrinter::process(byte n)
 
 void htmlPrinter::pre_page_eject()
 {
-    const char *htm = "</pre></html>";
+    const char *htm = "</html>";
     _file.write((const uint8_t *)htm, strlen(htm));
     inverse = false;
 }
 
 void htmlPrinter::post_new_file()
 {
-    const char *htm = "<html><head><style>.inv{color:white;background-color:black;}</style></head><pre>";
-    _file.write((const uint8_t *)htm, strlen(htm));
+    const char *htm1 = "<html><head><meta charset=\"utf-8\"/>\r\n<style>";
+    const char *css = "body{font-family:\"Courier New\",Courier,monospace;white-space:pre;} .iv{color:white;background-color:black;}\r\n";
+    const char *htm2 = "</style></head>\r\n";
+
+    _file.write((const uint8_t *)htm1, strlen(htm1));
+
+    // Load CSS that embeds the Atari font (or don't)
+    if(paperType == HTML_ATASCII)
+        copy_file_to_output("/atarifont.css");
+    else
+        _file.write((const uint8_t *)css, strlen(css));
+
+    _file.write((const uint8_t *)htm2, strlen(htm2));        
 }
 
 void htmlPrinter::pageEject()

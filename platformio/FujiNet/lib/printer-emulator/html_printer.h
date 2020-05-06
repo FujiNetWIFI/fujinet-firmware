@@ -7,7 +7,7 @@ class htmlPrinter : public printer_emu
 {
 private:
     bool inverse = false;
-        
+
 protected:
     virtual void post_new_file() override;
     virtual void pre_page_eject() override;
@@ -18,7 +18,8 @@ public:
     virtual void pageEject();
     virtual bool process(byte n);
 
-    virtual const char * modelname() { return "HTML printer"; };
+    virtual const char * modelname() { 
+        return paperType == HTML ? "HTML printer" : "HTML ATASCII printer"; };
 
     ~htmlPrinter();
 
