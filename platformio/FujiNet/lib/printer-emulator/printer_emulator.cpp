@@ -6,7 +6,6 @@ void printer_emu::initPrinter(FS *filesystem)
 {
     _FS = filesystem;
     this->resetOutput();
-    this->post_new_file();
 }
 
 
@@ -21,6 +20,36 @@ printer_emu::~printer_emu()
 }
 
 // virtual void flushOutput(); // do this in pageEject
+
+// Copy contents of given file to the current printer output file
+size_t printer_emu::copy_file_to_output(const char *filename)
+{
+#define PRINTER_FILE_COPY_BUFLEN 4096
+
+    File fInput = _FS->open(filename, "r");
+
+    if (!fInput || !fInput.available())
+    {
+#ifdef DEBUG
+        Debug_printf("Failed to open printer concatenation file: '%s'\n", filename);
+#endif
+        return 0;
+    }
+
+    // Copy the file content in chunks
+    uint8_t *buf = (uint8_t *)malloc(PRINTER_FILE_COPY_BUFLEN);
+    size_t total = 0, count = 0;
+    do
+    {
+        count = fInput.read(buf, PRINTER_FILE_COPY_BUFLEN);
+        total += _file.write(buf, count);
+    } while (count > 0);
+    fInput.close();
+
+    free(buf);
+
+    return total;
+}
 
 void printer_emu::copyChar(byte c, byte n)
 {
