@@ -57,16 +57,33 @@ int findFontList()
   return count;
 }
 
-void getFont(int i)
+string getarg(string line, string param)
+{
+  cout << "   looking for " << param << " inside of " << line;
+  size_t offset = line.find(param);
+  if (offset == string::npos)
+    return NULL;
+  string found = line.substr(offset + param.length() + 1);
+  cout << " and found '" << found << "'\n";
+  return found;
+}
+
+int getFont(int i)
 {
   // continue searching in file
   // first find object
   bool found = false;
   string line;
+  string argstr;
+  string param;
   char objstr[10];
+  char buffer[40];
+  size_t offset;
+  size_t st;
+  size_t sp;
+  int tracking = 0;
 
   sprintf(objstr, "%d 0 obj", fontObject[i]);
-
   do
   {
     line.clear();
@@ -79,7 +96,7 @@ void getFont(int i)
   cout << " object found\n";
 
   // now extract info
-/*
+  /*
   std::string subtype;
   std::string basefont;
   uint16_t width[256]; // uniform spacing for now, todo: proportional
@@ -95,7 +112,7 @@ void getFont(int i)
   std::string ffname;
 */
 
- /*  const pdfFont_t F1 = {
+  /*  const pdfFont_t F1 = {
       /Type /Font
     /Subtype /Type1
     /FontDescriptor 8 0 R
@@ -131,8 +148,26 @@ void getFont(int i)
         "/a820norm" // F1->ffname =
     };
     */
-   h << "const pdfFont_t F" << i << " = {" << endl;
-   
+  h << "const pdfFont_t F" << i << " = {" << endl;
+  getline(f, line);
+  getline(f, line);
+
+  line.clear();
+  getline(f, line);
+  param = "/Subtype";
+  argstr = getarg(line, param);
+  h << "    \"" << argstr << "\","
+    << "    // " << param << "\n";
+
+  // need to grap the font descriptor object
+  getline(f, line);
+
+  line.clear();
+  getline(f, line);
+  param = "/BaseFont";
+  argstr = getarg(line, param);
+  h << "    \"" << argstr << "\","
+    << "    // " << param << "\n";
 }
 
 int main(int argc, char **argv)
@@ -152,12 +187,12 @@ int main(int argc, char **argv)
   }
 
   // create file names
-  char gname[20]="f_";
-  char hname[20]="h_";
-  strcpy(&gname[2],argv[2]);
-  strcpy(&hname[2],argv[2]);
-  g.open(gname,ios::out | ios::binary);
-  h.open(hname,ios::out);
+  char gname[20] = "f_";
+  char hname[20] = "h_";
+  strcpy(&gname[2], argv[2]);
+  strcpy(&hname[2], argv[2]);
+  g.open(gname, ios::out | ios::binary);
+  h.open(hname, ios::out);
 
   int numFonts = findFontList();
   for (int i = 0; i < numFonts; i++)
