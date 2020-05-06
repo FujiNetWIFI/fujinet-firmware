@@ -6,7 +6,6 @@ void printer_emu::initPrinter(FS *filesystem)
 {
     _FS = filesystem;
     this->resetOutput();
-    this->post_new_file();
 }
 
 
