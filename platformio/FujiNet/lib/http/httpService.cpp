@@ -279,6 +279,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
         exts = "png";
         break;
     case HTML:
+    case HTML_ATASCII:
         exts = "html";
         break;
     default:
