@@ -2,7 +2,7 @@
 #include <SPIFFS.h>
 
 #include "modem.h"
-#include "fnUart.h"
+#include "../hardware/fnUART.h"
 #include "fnWiFi.h"
 #include "../../include/atascii.h"
 
