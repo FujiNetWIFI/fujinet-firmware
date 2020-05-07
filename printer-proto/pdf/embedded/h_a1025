@@ -1,9 +1,0 @@
-const pdfFont_t F0 = {
-    "/Type1",    // /Subtype
-    "/Atari-1025-Normal",    // /BaseFont
-const pdfFont_t F1 = {
-    "/Type1",    // /Subtype
-    "/Atari-1025-Elongated",    // /BaseFont
-const pdfFont_t F2 = {
-    "/Type1",    // /Subtype
-    "/Atari-1025-Condensed",    // /BaseFont
