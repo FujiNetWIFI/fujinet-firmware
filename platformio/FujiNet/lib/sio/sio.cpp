@@ -422,8 +422,7 @@ void sioBus::setup()
     //pinMode(PIN_PROC, OUTPUT);
     fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT);
     //digitalWrite(PIN_PROC, HIGH);
-    fnSystem.set_pin_mode(PIN_PROC, DIGI_HIGH);
-
+    fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
 
     //pinMode(PIN_MTR, INPUT_PULLDOWN);
     fnSystem.set_pin_mode(PIN_MTR, (PINMODE_INPUT | PINMODE_PULLDOWN));

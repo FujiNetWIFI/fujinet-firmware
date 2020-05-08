@@ -509,9 +509,12 @@ void sioNetwork::sio_assert_interrupts()
         protocol->status(status_buf.rawData); // Prime the status buffer
         if ((status_buf.rx_buf_len > 0) && (interruptRateLimit == true))
         {
-            digitalWrite(PIN_PROC, LOW);
-            delayMicroseconds(50);
-            digitalWrite(PIN_PROC, HIGH);
+            //digitalWrite(PIN_PROC, LOW);
+            fnSystem.digital_write(PIN_PROC, DIGI_LOW);
+            //delayMicroseconds(50);
+            fnSystem.delay_microseconds(50);
+            //digitalWrite(PIN_PROC, HIGH);
+            fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
 
             portENTER_CRITICAL(&timerMux);
             interruptRateLimit = false;
