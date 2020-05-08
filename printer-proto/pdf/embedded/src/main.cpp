@@ -14,6 +14,9 @@ ofstream h;
 int fontNumber[MAXFONTS];
 int fontObject[MAXFONTS];
 
+string fontname;
+size_t objPos[7];
+
 int findFontList()
 {
   bool found = false;
@@ -68,108 +71,6 @@ string getarg(string line, string param)
   return found;
 }
 
-int getFont(int i)
-{
-  // continue searching in file
-  // first find object
-  bool found = false;
-  string line;
-  string argstr;
-  string param;
-  char objstr[10];
-  char buffer[40];
-  size_t offset;
-  size_t st;
-  size_t sp;
-  int tracking = 0;
-
-  sprintf(objstr, "%d 0 obj", fontObject[i]);
-  do
-  {
-    line.clear();
-    getline(f, line);
-    //cout << line << ": ";
-    //cout << line.find(objstr) << "\n";
-    // count++;
-  } while (line.find(objstr) == string::npos); // count < 40 &&
-  cout << line;
-  cout << " object found\n";
-
-  // now extract info
-  /*
-  std::string subtype;
-  std::string basefont;
-  uint16_t width[256]; // uniform spacing for now, todo: proportional
-  uint16_t numwidth;
-  float ascent;
-  float capheight;
-  float descent;
-  byte flags;
-  float bbox[4];
-  float stemv;
-  float xheight;
-  byte ffnum;
-  std::string ffname;
-  */
-
-  /*  const pdfFont_t F1 = {
-      /Type /Font
-    /Subtype /Type1
-    /FontDescriptor 8 0 R
-    /BaseFont /Atari-820-Normal
-    /FirstChar 0
-    /LastChar 255
-    /Widths 10 0 R
-    /Encoding /WinAnsiEncoding
-    /Type /FontDescriptor
-    /FontName /Atari-820-Normal
-    /Ascent 1000
-    /CapHeight 1000
-    /Descent 0
-    /Flags 33
-    /FontBBox [0 0 433 700]
-    /ItalicAngle 0
-    /StemV 87
-    /XHeight 714
-    /FontFile3 9 0 R
-  
-        "Type1",            //F1->subtype =
-        "Atari-820-Normal", //F1->basefont =
-        {500},              //  F1->width[0] =
-        1,                  // F1->numwidth
-        1000,               // F1->ascent =
-        1000,               // F1->capheight =
-        0,                  // F1->descent =
-        33,                 // F1->flags =
-        {0, 0, 433, 700},
-        87,         // F1->stemv =
-        714,        // F1->xheight =
-        3,          // F1->ffnum =
-        "/a820norm" // F1->ffname =
-    };
-    */
-  h << "const pdfFont_t F" << i << " = {" << endl;
-  getline(f, line);
-  getline(f, line);
-
-  line.clear();
-  getline(f, line);
-  param = "/Subtype";
-  argstr = getarg(line, param);
-  h << "    \"" << argstr << "\","
-    << "    // " << param << "\n";
-
-  // need to grap the font descriptor object
-  getline(f, line);
-
-  line.clear();
-  getline(f, line);
-  param = "/BaseFont";
-  argstr = getarg(line, param);
-  h << "    \"" << argstr << "\","
-    << "    // " << param << "\n";
-}
-
 int copyFont(int i)
 {
   // continue searching in file
@@ -184,6 +85,7 @@ int copyFont(int i)
   size_t st;
   size_t sp;
   int tracking = 0;
+  int objCtr = 0;
 
   sprintf(objstr, "%d 0 obj", fontObject[i]);
 
@@ -196,7 +98,9 @@ int copyFont(int i)
   cout << " object found\n";
 
   // start copy
+  objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n";
+
   getline(f, line); // <<
   g << line << "\n";
   getline(f, line); //  /Type /Font
@@ -206,7 +110,9 @@ int copyFont(int i)
 
   getline(f, line); // /FontDescriptor 7 0 R
   offset = line.find_first_of("0123456789");
-  g << line.substr(0, offset) << "%d 0 obj\n";
+  g << line.substr(0, offset);
+  objPos[objCtr++] = g.tellp();
+  g << "%d 0 obj\n";
 
   getline(f, line); //  /BaseFont /Atari-1025-Normal
   g << line << "\n";
@@ -217,7 +123,9 @@ int copyFont(int i)
 
   getline(f, line); // /Widths 9 0 R
   offset = line.find_first_of("0123456789");
-  g << line.substr(0, offset) << "%d 0 obj\n";
+  g << line.substr(0, offset);
+  objPos[objCtr++] = g.tellp();
+  g << "%d 0 obj\n";
 
   getline(f, line); //  /Encoding /WinAnsiEncoding
   g << line << "\n";
@@ -227,12 +135,16 @@ int copyFont(int i)
   g << line << "\n";
 
   getline(f, line); // 7 0 obj
+  objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n";
   getline(f, line); // <<
   g << line << "\n";
   getline(f, line); // /Type /FontDescriptor
+
   g << line << "\n";
-  getline(f, line); // /FontName /Atari-1025-Normal
+  getline(f, line);                     // /FontName /Atari-1025-Normal
+  fontname = getarg(line, "/FontName"); // store away for filename
+
   g << line << "\n";
   getline(f, line); // /Ascent 1000
   g << line << "\n";
@@ -251,9 +163,19 @@ int copyFont(int i)
   getline(f, line); // /XHeight 500
   g << line << "\n";
 
-  getline(f, line);                                // /FontFile3 8 0 R
-  offset = line.find_first_of("0123456789");       // always font file 3 because of OTF
-  g << line.substr(0, offset + 2) << "%d 0 obj\n"; // always font file 3 because of OTF
+  getline(f, line); // /FontFile3 8 0 R but could be FontFile or maybe FontFile2
+  offset = line.find("/FontFile");
+  offset += 9;
+  if (line[offset] != ' ')
+  {
+    cout << "'" << line[offset] << "'";
+    offset++;
+  }
+
+  //offset = line.find_first_of("0123456789");       // always font file 3 because of OTF
+  g << line.substr(0, ++offset);
+  objPos[objCtr++] = g.tellp();
+  g << "%d 0 obj\n"; // always font file 3 because of OTF
 
   getline(f, line); // >>
   g << line << "\n";
@@ -261,6 +183,7 @@ int copyFont(int i)
   g << line << "\n";
 
   getline(f, line); // 8 0 obj
+  objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n";
   getline(f, line); // <<
   g << line << "\n";
@@ -277,28 +200,37 @@ int copyFont(int i)
   cout << line.substr(offset) << "\n";
   size_t len;
   sscanf(line.substr(offset).c_str(), "%d", &len);
-  printf("%d\n",len);
+  len++; // grab the missing EOL character
+  printf("%d\n", len);
   g << line << "\n";
 
   getline(f, line); // >>
   g << line << "\n";
   getline(f, line); // stream
   g << line << "\n";
-  
+  cout << line << "\n";
+
   for (int i = 0; i < len; i++)
     g.put(f.get());
   // copy deflated font file
 
   getline(f, line); // endstream
   g << line << "\n";
+  cout << line << "\n";
   getline(f, line); // endobj
   g << line << "\n";
+  cout << line << "\n";
   getline(f, line); // 9 0 obj
+  objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n";
+  cout << line << "\n";
   getline(f, line); // [ 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 600 ]
   g << line << "\n";
+  cout << line << "\n";
   getline(f, line); // endobj
   g << line << "\n";
+  cout << line << "\n";
+  cout << "done with font\n\n";
 }
 
 int main(int argc, char **argv)
@@ -318,16 +250,33 @@ int main(int argc, char **argv)
   }
 
   // create file names
-  char gname[20] = "f_";
+  char gname[20] = "g_";
+  char hname[20] = "fontpos.h";
   strcpy(&gname[2], argv[2]);
   g.open(gname, ios::out | ios::binary);
+  h.open(hname, ios::out | ios::binary);
 
   int numFonts = findFontList();
+
+  h << "const unsigned int fontObjPos[" << numFonts << "][6] = {\n";
+
   for (int i = 0; i < numFonts; i++)
   {
     // getFont(i);
     copyFont(i);
+    h << "{ // " << fontname << " \n";
+    h << (objPos[1] - objPos[0]) << ", // FontDescriptor Reference \n";
+    h << (objPos[2] - objPos[0]) << ", // Widths Reference \n";
+    h << (objPos[3] - objPos[0]) << ", // FontDescriptor Object \n";
+    h << (objPos[4] - objPos[0]) << ", // FontFile Reference \n";
+    h << (objPos[5] - objPos[0]) << ", // FontFile Object \n";
+    h << (objPos[6] - objPos[0]) << "  // Widths Object \n";
+    h << "}";
+    if (i != (numFonts - 1))
+      h << ",";
+    h << "\n";
   }
+  h << "};\n";
 
   return 0;
 }
