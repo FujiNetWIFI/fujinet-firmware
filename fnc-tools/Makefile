@@ -22,7 +22,7 @@ all mostlyclean clean install zip:
 	@$(MAKE) -C freset    --no-print-directory $@
 	@$(MAKE) -C fscan     --no-print-directory $@
 	@$(MAKE) -C rlisten   --no-print-directory $@
-	@$(MAKE) -C rulisten  --no-print-directory $@
+#	@$(MAKE) -C rulisten  --no-print-directory $@
 dist: all
 	mkdir -p dist
 	cp fconfig/fconfig.com dist/
