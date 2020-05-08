@@ -17,10 +17,15 @@ void IRAM_ATTR onTimer()
  */
 bool sioNetwork::allocate_buffers()
 {
+#ifdef BOARD_HAS_PSRAM
+    rx_buf = (byte *)ps_malloc(INPUT_BUFFER_SIZE);
+    tx_buf = (byte *)ps_malloc(OUTPUT_BUFFER_SIZE);
+    sp_buf = (byte *)ps_malloc(SPECIAL_BUFFER_SIZE);
+#else
     rx_buf = (byte *)malloc(INPUT_BUFFER_SIZE);
     tx_buf = (byte *)malloc(OUTPUT_BUFFER_SIZE);
     sp_buf = (byte *)malloc(SPECIAL_BUFFER_SIZE);
-
+#endif
     if ((rx_buf == nullptr) || (tx_buf == nullptr) || (sp_buf == nullptr))
     {
         return false;
