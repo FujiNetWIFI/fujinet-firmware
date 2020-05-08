@@ -236,7 +236,7 @@ void sioNetwork::sio_read()
         {
             for (int i = 0; i < rx_buf_len; i++)
             {
-                switch (aux2)
+                switch (aux2&3)
                 {
                 case 1:
                     if (rx_buf[i] == 0x0D)
@@ -292,7 +292,7 @@ void sioNetwork::sio_write()
         {
             for (int i = 0; i < tx_buf_len; i++)
             {
-                switch (aux2)
+                switch (aux2&3)
                 {
                 case 1:
                     if (tx_buf[i] == 0x9B)
