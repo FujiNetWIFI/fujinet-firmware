@@ -235,12 +235,12 @@ int copyFont(int i)
 
 int main(int argc, char **argv)
 {
-  if (argc != 3)
+  if (argc < 2)
   {
-    cout << "no filename or printer specified\n";
+    cout << "no filename specified\n";
     return -1;
   }
-  cout << "processing file: " << argv[1] << " for printer " << argv[2] << "\n";
+  cout << "processing file: " << argv[1] << "\n"; //<< " for printer " << argv[2] << "\n";
 
   f.open(argv[1], ios::in | ios::binary);
   if (!f)
@@ -250,11 +250,7 @@ int main(int argc, char **argv)
   }
 
   // create file names
-  char gname[20] = "g_";
-  char hname[20] = "fontpos.h";
-  strcpy(&gname[2], argv[2]);
-  g.open(gname, ios::out | ios::binary);
-  h.open(hname, ios::out | ios::binary);
+  h.open("fontpos.h", ios::out | ios::binary);
 
   int numFonts = findFontList();
 
@@ -262,16 +258,20 @@ int main(int argc, char **argv)
 
   for (int i = 0; i < numFonts; i++)
   {
-    // getFont(i);
+    char gname[10];
+    sprintf(gname,"F%d\0",i);
+    g.open(gname, ios::out | ios::binary);
     copyFont(i);
-    h << "{ // " << fontname << " \n";
-    h << (objPos[1] - objPos[0]) << ", // FontDescriptor Reference \n";
-    h << (objPos[2] - objPos[0]) << ", // Widths Reference \n";
-    h << (objPos[3] - objPos[0]) << ", // FontDescriptor Object \n";
-    h << (objPos[4] - objPos[0]) << ", // FontFile Reference \n";
-    h << (objPos[5] - objPos[0]) << ", // FontFile Object \n";
-    h << (objPos[6] - objPos[0]) << "  // Widths Object \n";
-    h << "}";
+    g.close();
+
+    h << "  {\n  // " << fontname << " \n";
+    h << "    " << (objPos[1] - objPos[0]) << ", // FontDescriptor Reference \n";
+    h << "    " << (objPos[2] - objPos[0]) << ", // Widths Reference \n";
+    h << "    " << (objPos[3] - objPos[0]) << ", // FontDescriptor Object \n";
+    h << "    " << (objPos[4] - objPos[0]) << ", // FontFile Reference \n";
+    h << "    " << (objPos[5] - objPos[0]) << ", // FontFile Object \n";
+    h << "    " << (objPos[6] - objPos[0]) << "  // Widths Object \n";
+    h << "  }";
     if (i != (numFonts - 1))
       h << ",";
     h << "\n";
