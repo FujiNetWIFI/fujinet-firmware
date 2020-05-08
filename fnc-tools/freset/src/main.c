@@ -51,6 +51,9 @@ int main(void)
 
   OS.lmargn=2;
   reset();
+  OS.rtclok[0]=OS.rtclok[1]=OS.rtclok[2]=0;
+  print("FUJINET RESET. REBOOTING...");
+  while (OS.rtclok[2]<255) { }
   asm("JMP $E477");
   
   return(0);
