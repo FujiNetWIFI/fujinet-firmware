@@ -38,6 +38,6 @@ dist: all
 	cp freset/freset.com dist/
 	cp fscan/fscan.com dist/
 	cp rlisten/rlisten.com dist/
-	cp rulisten/rulisten.com dist/
+#	cp rulisten/rulisten.com dist/
 	cp -ax doc/* dist/ 
 	dir2atr 720 fnc-tools.atr dist/
