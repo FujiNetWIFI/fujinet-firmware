@@ -681,6 +681,10 @@ void sioFuji::sio_process()
         sio_ack();
         sio_status();
         break;
+    case SIO_FUJICMD_RESET:
+        sio_ack();
+        sio_reset_fujinet();
+        break;
     case SIO_FUJICMD_SCAN_NETWORKS:
         sio_ack();
         sio_net_scan_networks();
