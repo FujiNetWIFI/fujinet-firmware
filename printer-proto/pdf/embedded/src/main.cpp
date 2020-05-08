@@ -259,22 +259,21 @@ int main(int argc, char **argv)
   for (int i = 0; i < numFonts; i++)
   {
     char gname[10];
-    sprintf(gname,"F%d\0",i);
+    sprintf(gname, "F%d\0", i);
     g.open(gname, ios::out | ios::binary);
     copyFont(i);
     g.close();
 
-    h << "  {\n  // " << fontname << " \n";
-    h << "    " << (objPos[1] - objPos[0]) << ", // FontDescriptor Reference \n";
-    h << "    " << (objPos[2] - objPos[0]) << ", // Widths Reference \n";
-    h << "    " << (objPos[3] - objPos[0]) << ", // FontDescriptor Object \n";
-    h << "    " << (objPos[4] - objPos[0]) << ", // FontFile Reference \n";
-    h << "    " << (objPos[5] - objPos[0]) << ", // FontFile Object \n";
-    h << "    " << (objPos[6] - objPos[0]) << "  // Widths Object \n";
-    h << "  }";
+    h << "    {\n        // " << fontname << " \n";
+    h << "        " << (objPos[1] - objPos[0]) << ", // FontDescriptor Reference \n";
+    h << "        " << (objPos[2] - objPos[0]) << ", // Widths Reference \n";
+    h << "        " << (objPos[3] - objPos[0]) << ", // FontDescriptor Object \n";
+    h << "        " << (objPos[4] - objPos[0]) << ", // FontFile Reference \n";
+    h << "        " << (objPos[5] - objPos[0]) << ", // FontFile Object \n";
+    h << "        " << (objPos[6] - objPos[0]) << "  // Widths Object \n";
+    h << "    }";
     if (i != (numFonts - 1))
-      h << ",";
-    h << "\n";
+      h << ",\n";
   }
   h << "};\n";
 
