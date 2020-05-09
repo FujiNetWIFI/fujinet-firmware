@@ -3,6 +3,7 @@
 #include "networkProtocolTCP.h"
 #include "networkProtocolUDP.h"
 #include "networkProtocolHTTP.h"
+#include "networkProtocolTNFS.h"
 
 // latch the rate limiting flag.
 void IRAM_ATTR onTimer()
@@ -76,6 +77,11 @@ bool sioNetwork::open_protocol()
     else if (urlParser->scheme == "HTTPS")
     {
         protocol = new networkProtocolHTTP();
+        return true;
+    }
+    else if (urlParser->scheme == "TNFS")
+    {
+        protocol = new networkProtocolTNFS();
         return true;
     }
     else
