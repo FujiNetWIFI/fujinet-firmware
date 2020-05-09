@@ -3,6 +3,8 @@
 #include "../../include/debug.h"
 
 
+// TODO: Combine html_printer.cpp/h and file_printer.cpp/h
+
 int AtasciiToStandardUnicode[128] = 
 {
     9829, 9500, 9621, 9496, 9508, 9488, 9585, 9586,   //   8
@@ -55,7 +57,7 @@ bool htmlPrinter::process(byte n)
                 inverse = false;
                 _file.write((const uint8_t *)inv_off, strlen(inv_off));
             }
-            _file.print("\r\n");
+            _file.print(ASCII_CRLF);
             break;
         }
 
