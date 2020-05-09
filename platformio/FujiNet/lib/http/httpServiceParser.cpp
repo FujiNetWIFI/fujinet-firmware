@@ -3,6 +3,7 @@
 #include <cstdio>
 
 #include <SPIFFS.h>
+#include <SD.h>
 
 #include "httpServiceParser.h"
 
@@ -29,6 +30,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_WIFIMAC,
         FN_SPIFFS_SIZE,
         FN_SPIFFS_USED,
+        FN_SD_SIZE,
+        FN_SD_USED,
         FN_UPTIME,
         FN_HEAPSIZE,
         FN_SYSSDK,
@@ -51,6 +54,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_WIFIMAC",
         "FN_SPIFFS_SIZE",
         "FN_SPIFFS_USED",
+        "FN_SD_SIZE",
+        "FN_SD_USED",
         "FN_UPTIME",
         "FN_HEAPSIZE",
         "FN_SYSSDK",
@@ -108,6 +113,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_SPIFFS_USED:
         resultstream << SPIFFS.usedBytes();
+        break;
+    case FN_SD_SIZE:
+        resultstream << SD.totalBytes();
+        break;
+    case FN_SD_USED:
+        resultstream << SD.usedBytes();
         break;
     case FN_UPTIME:
         resultstream << format_uptime();
