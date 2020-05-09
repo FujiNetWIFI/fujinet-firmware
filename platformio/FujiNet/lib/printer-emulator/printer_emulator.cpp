@@ -1,6 +1,8 @@
 #include "printer_emulator.h"
 #include "../../include/debug.h"
 
+#include "SPIFFS.h"
+
 // initialzie printer by creating an output file
 void printer_emu::initPrinter(FS *filesystem)
 {
@@ -22,11 +24,12 @@ printer_emu::~printer_emu()
 // virtual void flushOutput(); // do this in pageEject
 
 // Copy contents of given file to the current printer output file
+// Assumes source file is in SPIFFS
 size_t printer_emu::copy_file_to_output(const char *filename)
 {
 #define PRINTER_FILE_COPY_BUFLEN 4096
 
-    File fInput = _FS->open(filename, "r");
+    File fInput = SPIFFS.open(filename, "r");
 
     if (!fInput || !fInput.available())
     {

@@ -6,6 +6,9 @@
 
 //#define EOL 155
 
+
+// TODO: Combine html_printer.cpp/h and file_printer.cpp/h
+
 // I think the way we're using this value is as a switch to tell the printer
 // emulator what kind of output we expect or what kind of conversion to
 // perform on the incoming data.  Maybe more clear if we called it

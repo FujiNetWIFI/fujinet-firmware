@@ -66,6 +66,14 @@ SPIFFS storage free/used
 	<td><%FN_SPIFFS_USED%></td>
 </tr>
 <tr>
+	<td>SD size:</td>
+	<td><%FN_SD_SIZE%></td>
+</tr>
+<tr>
+	<td>SD used:</td>
+	<td><%FN_SD_USED%></td>
+</tr>
+<tr>
 	<td>Uptime:</td>
 	<td><%FN_UPTIME%></td>
 </tr>
@@ -110,7 +118,9 @@ SPIFFS storage free/used
 	<td class="printform">
 		<form action="/config" method="post">
 			<select name="printermodel1" id="select_printermodel1">
-				<option value="file printer">file printer</option>
+				<option value="file printer (RAW)">file printer (RAW)</option>
+				<option value="file printer (TRIM)">file printer (TRIM)</option>
+				<option value="file printer (ASCII)">file printer (ASCII)</option>
 				<option value="Atari 820">Atari 820</option>
 				<option value="Atari 822">Atari 822</option>
 				<option value="Atari 1027">Atari 1027</option>
