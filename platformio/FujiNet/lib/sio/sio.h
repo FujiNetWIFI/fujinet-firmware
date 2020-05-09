@@ -54,6 +54,11 @@
 #define SIO_DEVICEID_PRINTER 0x40
 #define SIO_DEVICEID_TYPE3POLL 0x4F
 
+// Not used, but for reference:
+#define SIO_DEVICEID_SIO2BT_NET 0x4E
+#define SIO_DEVICEID_SIO2BT_SMART 0x45 // Doubles as APETime and "High Score Submission" to URL
+
+
 union cmdFrame_t {
    struct
    {

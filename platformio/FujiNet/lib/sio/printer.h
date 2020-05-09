@@ -188,7 +188,9 @@ public:
     // todo: reconcile printer_type with paper_t
     enum printer_type
     {
-        PRINTER_RAW = 0,
+        PRINTER_FILE_RAW = 0,
+        PRINTER_FILE_TRIM,
+        PRINTER_FILE_ASCII,
         PRINTER_ATARI_820,
         PRINTER_ATARI_822,
         PRINTER_ATARI_1027,

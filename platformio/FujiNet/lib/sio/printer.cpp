@@ -278,8 +278,14 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
     pt = t;
     switch (t)
     {
-    case PRINTER_RAW:
+    case PRINTER_FILE_RAW:
+        _pptr = new filePrinter(RAW);
+        break;
+    case PRINTER_FILE_TRIM:
         _pptr = new filePrinter;
+        break;
+    case PRINTER_FILE_ASCII:
+        _pptr = new filePrinter(ASCII);
         break;
     case PRINTER_ATARI_820:
         _pptr = new atari820(this);
@@ -301,7 +307,7 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
         break;
     default:
         _pptr = new filePrinter;
-        pt = PRINTER_RAW;
+        pt = PRINTER_FILE_TRIM;
         break;
     }
 
@@ -326,10 +332,12 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
 {
     const char *models[PRINTER_UNKNOWN] =
         {
-            "file printer",
-            "Atari 1027",
+            "file printer (RAW)",
+            "file printer (TRIM)",
+            "file printer (ASCII)",
             "Atari 820",
             "Atari 822",
+            "Atari 1027",
             "GRANTIC",
             "HTML printer",
             "HTML ATASCII printer"};
@@ -338,25 +346,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
         if (modelname.compare(models[i]) == 0)
             break;
 
-    switch (i)
-    {
-    case 0:
-        return PRINTER_RAW;
-    case 1:
-        return PRINTER_ATARI_1027;
-    case 2:
-        return PRINTER_ATARI_820;
-    case 3:
-        return PRINTER_ATARI_822;
-    case 4:
-        return PRINTER_PNG;
-    case 5:
-        return PRINTER_HTML;
-    case 6:
-        return PRINTER_HTML_ATASCII;
-    default:
-        return PRINTER_UNKNOWN;
-    }
+    return (printer_type)i;
 }
 
 // Process command
@@ -377,6 +367,4 @@ void sioPrinter::sio_process()
     default:
         sio_nak();
     }
-    // cmdState = WAIT;
-    //cmdTimer = 0;
 }
