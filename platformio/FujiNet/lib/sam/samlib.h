@@ -1,5 +1,5 @@
 #ifdef ESP_32
-#include <Arduino.h>
+//#include <Arduino.h>
 #endif
 
 #include <stdio.h>
@@ -9,7 +9,7 @@
 
 #include "reciter.h"
 #include "sam.h"
-#include "debug.h"
+#include "samdebug.h"
 
 #ifdef USESDL
 #include <SDL.h>

@@ -27,4 +27,6 @@
 
 #define ASCII_CRLF "\r\n"
 
+#define ATASCII_REMOVE_INVERSE(X) (X & 127)
+
 #endif // ATASCII_H

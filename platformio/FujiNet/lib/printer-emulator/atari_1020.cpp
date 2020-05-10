@@ -1,5 +1,5 @@
 #include "atari_1020.h"
-#include "debug.h"
+#include "../../include/debug.h"
 
 // void atari1020::initPrinter(File *f)
 // {

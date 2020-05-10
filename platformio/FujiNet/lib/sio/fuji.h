@@ -2,7 +2,7 @@
 #define FUJI_H
 #include <cstdint>
 #include <Arduino.h>
-#include "debug.h"
+#include "../../include/debug.h"
 
 #include "sio.h"
 #include "disk.h"
@@ -75,6 +75,7 @@ protected:
     } deviceSlots;
 
     void sio_status() override;           // 'S'
+    void sio_reset_fujinet();             // 0xFF
     void sio_net_scan_networks();         // 0xFD
     void sio_net_scan_result();           // 0xFC
     void sio_net_set_ssid();              // 0xFB

@@ -11,6 +11,7 @@
 //sioDisk configDisk;
 
 #define SIO_FUJICMD_STATUS             0x53
+#define SIO_FUJICMD_RESET              0xFF
 #define SIO_FUJICMD_SCAN_NETWORKS      0xFD
 #define SIO_FUJICMD_GET_SCAN_RESULT    0xFC
 #define SIO_FUJICMD_SET_SSID           0xFB
@@ -84,6 +85,15 @@ void sioFuji::sio_status()
 
     sio_to_computer((byte *)ret, 4, false);
     return;
+}
+
+/**
+ * Reset FujiNet
+ */
+void sioFuji::sio_reset_fujinet()
+{
+    sio_complete();
+    ESP.restart();
 }
 
 /**
@@ -290,6 +300,10 @@ void sioFuji::sio_disk_image_umount()
 */
 int sioFuji::image_rotate()
 {
+#ifdef DEBUG
+    Debug_println("Fuji image rotate");
+#endif
+
     File *temp;
 
     int n = 0;
@@ -666,6 +680,10 @@ void sioFuji::sio_process()
     case SIO_FUJICMD_STATUS:
         sio_ack();
         sio_status();
+        break;
+    case SIO_FUJICMD_RESET:
+        sio_ack();
+        sio_reset_fujinet();
         break;
     case SIO_FUJICMD_SCAN_NETWORKS:
         sio_ack();
