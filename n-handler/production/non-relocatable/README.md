@@ -1,6 +1,9 @@
 n-handler
 =========
 
+amac
+----
+
 This directory contains the N: handler. It is currently written in Atari Macro Assembler (AMAC), and is non-relocatable.
 
 building
