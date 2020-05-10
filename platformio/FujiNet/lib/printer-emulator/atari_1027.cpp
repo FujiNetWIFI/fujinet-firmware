@@ -122,13 +122,13 @@ void atari1027::initPrinter(FS *filesystem)
 
     pageWidth = 612.0;
     pageHeight = 792.0;
-    leftMargin = 18.0;
+    leftMargin = 66.0;
     bottomMargin = 0;
-    printWidth = 576.0; // 8 inches
+    printWidth = 480.0; // 6 2/3 inches
     lineHeight = 12.0;
-    charWidth = 7.2;
+    charWidth = 6; // 12cpi 
     fontNumber = 1;
-    fontSize = 12;
+    fontSize = 10;
 
     pdf_header();
 
