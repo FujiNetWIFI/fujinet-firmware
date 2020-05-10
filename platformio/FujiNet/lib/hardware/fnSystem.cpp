@@ -241,3 +241,62 @@ int SystemManager::get_sio_voltage()
     else
         return (avgV * 5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
 }
+
+/*
+
+*/
+size_t SystemManager::copy_file(FS *source_fs, const char *source_filename, FS *dest_fs, const char *dest_filename, size_t buffer_hint)
+{
+    #ifdef DEBUG
+    Debug_printf("copy_file \"%s\" -> \"%s\"\n", source_filename, dest_filename);
+    #endif
+
+    File fin = source_fs->open(source_filename);
+    if(!fin)
+    {
+        #ifdef DEBUG
+        Debug_println("copy_file failed to open source");
+        #endif
+        return 0;
+    }
+
+    uint8_t *buffer = (uint8_t *) malloc(buffer_hint);
+    if(buffer == NULL)
+    {
+        #ifdef DEBUG
+        Debug_println("copy_file failed to allocate copy buffer");
+        #endif
+        fin.close();
+        return 0;
+    }
+
+    size_t result = 0;
+
+    File fout = dest_fs->open(dest_filename,"w");
+    if(!fout)
+    {
+        #ifdef DEBUG
+        Debug_println("copy_file failed to open destination");
+        #endif
+    }
+    else
+    {
+        size_t count = 0;
+        do
+        {
+            count = fin.read(buffer, buffer_hint);
+            result += fout.write(buffer, count);
+        } while (count > 0);
+
+        fout.close();
+    }
+
+    fin.close();
+    free(buffer);
+
+    #ifdef DEBUG
+    Debug_printf("copy_file copied %d bytes\n", result);
+    #endif
+
+    return result;
+}
