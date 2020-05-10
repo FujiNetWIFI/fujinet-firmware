@@ -15,6 +15,8 @@
 #include "printer.h"
 #include "fnWiFi.h"
 
+#include "../../include/debug.h"
+
 using namespace std;
 
 /* Send some meaningful(?) error message to client
@@ -257,6 +259,9 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 
     // Build a print output name
     const char *exts;
+
+    bool sendAsAttachment = true;
+
     // Choose an extension based on current printer papertype
     switch (currentPrinter->getPaperType())
     {
@@ -268,6 +273,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
         break;
     case ASCII:
         exts = "txt";
+        sendAsAttachment = false;
         break;
     case PDF:
         exts = "pdf";
@@ -278,20 +284,32 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     case PNG:
         exts = "png";
         break;
+    case HTML:
+    case HTML_ATASCII:
+        exts = "html";
+        sendAsAttachment = false;
+        break;
     default:
         exts = "bin";
     }
+
     string filename = "printout.";
     filename += exts;
+
     // Set the expected content type based on the filename/extension
     set_file_content_type(req, filename.c_str());
 
     // Flush and close the print output before continuing
     currentPrinter->pageEject(); // flushOutput(); is now inside of pageEject()
-    // Add a couple of attchment-specific details
-    char hdrval1[60];
-    snprintf(hdrval1, 60, "attachment; filename=\"%s\"", filename.c_str());
-    httpd_resp_set_hdr(req, "Content-Disposition", hdrval1);
+
+    if(sendAsAttachment)
+    {
+        // Add a couple of attchment-specific details
+        char hdrval1[60];
+        snprintf(hdrval1, 60, "attachment; filename=\"%s\"", filename.c_str());
+        httpd_resp_set_hdr(req, "Content-Disposition", hdrval1);
+    }
+
     char hdrval2[10];
     snprintf(hdrval2, 10, "%u", currentPrinter->getOutputSize());
 #ifdef DEBUG

@@ -19,9 +19,10 @@ all mostlyclean clean install zip:
 	@$(MAKE) -C fmall     --no-print-directory $@
 	@$(MAKE) -C fnet      --no-print-directory $@
 	@$(MAKE) -C fnew      --no-print-directory $@
+	@$(MAKE) -C freset    --no-print-directory $@
 	@$(MAKE) -C fscan     --no-print-directory $@
 	@$(MAKE) -C rlisten   --no-print-directory $@
-	@$(MAKE) -C rulisten  --no-print-directory $@
+#	@$(MAKE) -C rulisten  --no-print-directory $@
 dist: all
 	mkdir -p dist
 	cp fconfig/fconfig.com dist/
@@ -34,8 +35,9 @@ dist: all
 	cp fmall/fmall.com dist/
 	cp fnet/fnet.com dist/
 	cp fnew/fnew.com dist/
+	cp freset/freset.com dist/
 	cp fscan/fscan.com dist/
 	cp rlisten/rlisten.com dist/
-	cp rulisten/rulisten.com dist/
+#	cp rulisten/rulisten.com dist/
 	cp -ax doc/* dist/ 
 	dir2atr 720 fnc-tools.atr dist/

@@ -1,7 +1,7 @@
 #ifndef _TNFS_IMP_H
 #define _TNFS_IMP_H
 #include <Arduino.h>
-#include "debug.h"
+//#include "debug.h"
 #include <string.h>
 #include <WiFiUdp.h>
 
