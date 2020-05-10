@@ -209,10 +209,65 @@ PRCVEC	lda	#$01
 
 	;; Open
 	
-OPEN	ldy	#$01
+OPEN	jsr	GDIDX
+	
+	;; Fill in DCB
+
+	lda	ZICDNO
+	sta	OPNDCB+1
+	lda	ZICBAL
+	sta	OPNDCB+4
+	lda	ZICBAH
+	sta	OPNDCB+5
+	lda	ZICAX1
+	sta	OPNDCB+10
+	lda	ZICAX2
+	sta	OPNDCB+11
+
+	;; set up DCB
+	ldy	#$0C
+OPNL	lda	OPNDCB,y
+	sta	DCB,y
+	dey
+	bpl	OPNL
+	jsr	SIOV
+
+	;; Did we get an error 144? Get extended error code
+
+OPERR	ldy	DSTATS
+	cpy	#$90		; 144?
+	bne	OPDONE		; nope, return DSTATS
+
+	;; We got a 144, get STATUS for extended error.
+
+	jsr	STPOLL
+	ldy	DVSTAT+3	; Last byte of DVSTAT is ext err code
+
+	;; Reset buffer length and offset
+
+OPDONE	lda	#$01
+	sta	trip		; Prime the interrupt
+	jsr	GDIDX
+	lda	#$00
+	sta	RLEN,X
+	sta	ROFF,X
+	sta	TOFF,X
 	tya
 	rts
 
+OPNDCB	.byte	$71		; DDEVIC
+	.byte	$FF		; UNIT
+	.byte	'O'		; Status
+	.byte	$80		; Write
+	.byte	$FF		; ZICBAL
+	.byte	$FF		; ZICBAH
+	.byte	$0F		; DTIMLO
+	.byte	$00		; DRESVD
+	.byte	$04		; ZICBLL
+	.byte	$00		; ZICBLH
+	.byte	$FF		; ZICAX1
+	.byte	$FF		; ZICAX2
+	
 	;; Close
 	
 CLOSE	ldy	#$01
@@ -237,7 +292,43 @@ STATUS	ldy	#$01
 	tya
 	rts
 
-STPOLL	rts
+	;; Do Status Poll
+	
+STPOLL	jsr	GDIDX
+	stx	STPDCBU
+	ldy	#$0C
+STPL	lda	STPDCB,y
+	sta	DCB,y
+	dey
+	bpl	STPL
+	jsr	SIOV
+
+	;; max 255 bytes waiting
+
+	lda	DVSTAT+1
+	beq	STP2
+	lda	#$FF
+	sta	DVSTAT
+	lda	#$00
+	sta	DVSTAT+1
+
+	;; A = Connection status
+
+STP2	lda	DVSTAT+2
+	rts
+
+STPDCB	.byte	$71		; DDEVIC
+STPDCBU	.byte	$FF		; UNIT
+	.byte	'S'		; Status
+	.byte	$40		; Read
+	.byte	$EA		; DVSTAT L
+	.byte	$02		; DVSTAT H
+	.byte	$0F		; DTIMLO
+	.byte	$00		; DRESVD
+	.byte	$04		; LEN L
+	.byte	$00		; LEN H
+	.byte	$00		; AUX L
+	.byte	$00		; AUX H
 	
 	;; Special
 	
@@ -246,6 +337,26 @@ SPEC	ldy	#$01
 	rts
 
 	;; Utility Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	;; Enable PROCEED interrupt
+	
+ENPRCD	lda	PACTL
+	ora	#$01		; bit 0 = interrupt enable
+	sta	PACTL
+	rts
+
+	;; Disable PROCEED interrupt
+	
+DIPRCD	lda	PACTL
+	and	#$FE		; bit 0 = interrupt enable
+	sta	PACTL
+	rts
+
+	;; return ZIOCB as X index
+
+GDIDX	ldx	ZICDNO
+	dex
+	rts
 
 	
 	
@@ -262,8 +373,8 @@ CIOHND	.word	OPEN-1
 
 	;; Banners
 
-BERROR	.byte	"#FUJINET ERROR",$9B
-BREADY	.byte	"#FUJINET READY",$9B
+BERROR	.by	'#FUJINET ERROR',$9B
+BREADY	.by	'#FUJINET READY',$9B
 	
 	;; Variables
 
