@@ -40,6 +40,9 @@ private:
 
     fujiFileSystem fnFileSystems[MAX_FILESYSTEMS];
 
+    void populate_slots_from_config();
+    void populate_config_from_slots();
+
     struct fndisks_t
     {
         File file;
