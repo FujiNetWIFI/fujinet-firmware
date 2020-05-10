@@ -176,9 +176,6 @@ void atari1025::initPrinter(FS *filesystem)
     fontSize = 12;
 
     pdf_header();
-
-    fonts[0] = &F1;
-
     // uscoreFlag = false;
     intlFlag = false;
     escMode = false;

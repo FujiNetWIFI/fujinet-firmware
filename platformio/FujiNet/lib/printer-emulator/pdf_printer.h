@@ -12,52 +12,6 @@
 #define EOL 155    // pdf printer library does use Atari EOL instead of /r/n
 #define MAXFONTS 6 // maximum number of fonts can use
 
-struct pdfFont_t
-{
-  /* 
-  7 0 obj
-  << 
-    /Type /Font
-    /Subtype /Type1
-    /FontDescriptor 8 0 R
-    /BaseFont /Atari-820-Normal
-    /FirstChar 0
-    /LastChar 255
-    /Widths 10 0 R
-    /Encoding /WinAnsiEncoding
-  >>
-  endobj 
-  8 0 obj
-  << 
-    /Type /FontDescriptor
-    /FontName /Atari-820-Normal
-    /Ascent 1000
-    /CapHeight 1000
-    /Descent 0
-    /Flags 33
-    /FontBBox [0 0 433 700]
-    /ItalicAngle 0
-    /StemV 87
-    /XHeight 714
-    /FontFile3 9 0 R
-  >>
-  endobj
-*/
-  std::string subtype;
-  std::string basefont;
-  uint16_t width[256]; // uniform spacing for now, todo: proportional
-  uint16_t numwidth;
-  float ascent;
-  float capheight;
-  float descent;
-  byte flags;
-  float bbox[4];
-  float stemv;
-  float xheight;
-  byte ffnum;
-  std::string ffname;
-};
-
 class pdfPrinter : public printer_emu
 {
 protected:
@@ -72,8 +26,10 @@ protected:
   byte fontNumber;
   float fontSize;
 
-  const pdfFont_t *fonts[MAXFONTS];
+  std::string shortname;
   bool fontUsed[MAXFONTS] = {true}; // initialize first one to true, always use default font
+  size_t fontObjPos[256][7]; // LUT into font files for PDF objects
+  int objOffsets[7]={0,1,3,2,2};
 
   float pdf_X = 0.; // across the page - columns in pts
   bool BOLflag = true;
@@ -110,20 +66,5 @@ public:
   virtual const char *modelname() { return "PDF printer"; };
   ~pdfPrinter();
 };
-
-/* 
-class asciiPrinter : public pdfPrinter
-{
-protected:
-  virtual void pdf_handle_char(byte c);
-  virtual void pdf_fonts();
-
-public:
-  virtual void initPrinter(FS *filesystem);
-
-  virtual const char *modelname() { return "ASCII printer"; };
-  ~asciiPrinter();
-};
- */
 
 #endif // guard
