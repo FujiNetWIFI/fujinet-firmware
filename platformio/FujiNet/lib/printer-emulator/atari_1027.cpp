@@ -104,7 +104,7 @@ void atari1027::pdf_handle_char(byte c)
         }
         else if (c > 31 && c < 128)
         {
-            if (c == 123 || c == 125 || c==127)
+            if (c == 123 || c == 125 || c == 127)
                 c = ' ';
             if (c == '\\' || c == '(' || c == ')')
                 _file.write('\\');
@@ -122,7 +122,7 @@ void atari1027::initPrinter(FS *filesystem)
 {
     printer_emu::initPrinter(filesystem);
 
-    shortname="a1027";
+    shortname = "a1027";
 
     pageWidth = 612.0;
     pageHeight = 792.0;
@@ -135,7 +135,7 @@ void atari1027::initPrinter(FS *filesystem)
     fontSize = 10;
 
     pdf_header();
-    
+
     uscoreFlag = false;
     intlFlag = false;
     escMode = false;
