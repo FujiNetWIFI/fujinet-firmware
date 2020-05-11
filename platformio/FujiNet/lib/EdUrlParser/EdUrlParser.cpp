@@ -93,13 +93,17 @@ void EdUrlParser::toHex(char* desthex, char c) {
 	desthex[1] = hextable[c & 0x0f];
 }
 
+// #prgamas are to ignore warnings about variables being set and not used
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 int EdUrlParser::parsePath(vector<string>* folders, string pathstr) {
-int _url_errorno = 0;
+	int _url_errorno = 0;
 	int path_pos = 0;
 	size_t pos = 0;
 	size_t len = pathstr.size();
 	const char* str = pathstr.c_str();
 	string name;
+
 	for (pos = 0;;) {
 		WALK_CHAR(pos, str, '/');
 		path_pos = pos;
@@ -110,7 +114,10 @@ int _url_errorno = 0;
 	}
 	__PARSE_END: return folders->size();
 }
+#pragma GCC diagnostic pop
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
 void EdUrlParser::parse() {
 	int _url_errorno = 0;
 	const char *str = mRawUrl.c_str();
@@ -175,6 +182,7 @@ void EdUrlParser::parse() {
 	fragment = mRawUrl.substr(tag_pos, len - tag_pos);
 	__PARSE_END: return;
 }
+#pragma GCC diagnostic pop
 
 EdUrlParser* EdUrlParser::parseUrl(string urlstr) {
 	EdUrlParser *url = new EdUrlParser;

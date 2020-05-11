@@ -1,3 +1,5 @@
+#include "../../include/debug.h"
+#include "fnSystem.h"
 #include "disk.h"
 
 int command_frame_counter = 0;
@@ -63,6 +65,15 @@ void sioDisk::sio_read()
     {
         // implement caching.
     }
+#ifdef DEBUG
+    if(sectorNum == 720)
+    {
+        Debug_printf("SIO_READ DISK #720 (%d)\n", (int)err);
+        for (unsigned short i = 0; i < ss; i++)
+            Debug_printf("%02x ", sector[i]);
+        Debug_println();            
+    }
+#endif    
 
     // Send result to Atari
     sio_to_computer((byte *)&sector, ss, err);
@@ -89,6 +100,16 @@ void sioDisk::sio_write(bool verify)
         sio_error();
         return;
     }
+
+#ifdef DEBUG
+    if(sectorNum == 720)
+    {
+        Debug_println("SIO_WRITE DISK #720");
+        for (unsigned short i = 0; i < ss; i++)
+            Debug_printf("%02x ", sector[i]);
+        Debug_println();
+    }
+#endif    
 
     if (sectorNum != (lastSectorNum + 1))
     {
@@ -129,6 +150,9 @@ void sioDisk::sio_write(bool verify)
         }
     }
 
+#ifdef DEBUG
+    Debug_println("disk WRITE complted without error");
+#endif
     sio_complete();
 
     lastSectorNum = sectorNum;
@@ -171,8 +195,8 @@ void sioDisk::sio_format()
     // Send to computer
     sio_to_computer((byte *)sector, sectorSize, false);
 
-#ifdef DEBUG_S
-    BUG_UART.printf("We faked a format.\n");
+#ifdef DEBUG
+    Debug_printf("We faked a format.\n");
 #endif
 }
 
@@ -270,7 +294,8 @@ void sioDisk::sio_read_percom_block()
     dump_percom_block();
 #endif
     sio_to_computer((byte *)&percomBlock, 12, false);
-    SIO_UART.flush();
+    //SIO_UART.flush();
+    fnUartSIO.flush();
 }
 
 /**

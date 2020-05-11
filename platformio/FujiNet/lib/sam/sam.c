@@ -1,7 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include "debug.h"
+
+#include <esp_heap_caps.h>
+
+#include "samdebug.h"
 #include "sam.h"
 #include "render.h"
 #include "SamTabs.h"
@@ -93,7 +96,9 @@ void Init()
     bufferpos = 0;
     // TODO, check for free the memory, 10 seconds of output should be more than enough
 #ifdef BOARD_HAS_PSRAM
-    buffer = (char*)ps_malloc(22050 * 5);
+    //buffer = (char*)ps_malloc(22050 * 5);
+    // switch to ESP-IDF equivalent
+    buffer = (char *)heap_caps_malloc(22050 * 5, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 #else
     buffer = malloc(22050 * 5); // careful not to malloc too much!
 #endif

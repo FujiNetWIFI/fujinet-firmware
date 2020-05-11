@@ -1,5 +1,5 @@
 #include "pdf_printer.h"
-#include "debug.h"
+#include "../../include/debug.h"
 
 pdfPrinter::~pdfPrinter()
 {
@@ -316,7 +316,7 @@ bool pdfPrinter::process(byte n)
     } while (i < n && c != EOL);
 
     // if wrote last line, then close the page
-    if (pdf_Y < lineHeight + bottomMargin)
+    if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
         pdf_end_page();
 
     return true;

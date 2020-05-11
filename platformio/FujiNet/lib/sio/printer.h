@@ -1,17 +1,15 @@
 #ifndef PRINTER_H
 #define PRINTER_H
-#include <Arduino.h>
+//#include <Arduino.h>
 #include <string.h>
 #include <FS.h>
 #include <SPIFFS.h>
 
 #include "sio.h"
 #include "pdf_printer.h"
-#include "atari_1027.h"
-#include "file_printer.h"
-#include "png_printer.h"
+#include "printer_emulator.h"
 
-#define EOL 155
+//#define EOL 155
 
 class sioPrinter;
 
@@ -190,12 +188,16 @@ public:
     // todo: reconcile printer_type with paper_t
     enum printer_type
     {
-        PRINTER_RAW = 0,
+        PRINTER_FILE_RAW = 0,
+        PRINTER_FILE_TRIM,
+        PRINTER_FILE_ASCII,
         PRINTER_ATARI_820,
         PRINTER_ATARI_822,
         PRINTER_ATARI_1027,
         PRINTER_PNG,
-        PRINTER_UNKNOWN
+        PRINTER_HTML,
+        PRINTER_HTML_ATASCII,
+        PRINTER_INVALID
     };
 
     static printer_type match_modelname(std::string modelname);

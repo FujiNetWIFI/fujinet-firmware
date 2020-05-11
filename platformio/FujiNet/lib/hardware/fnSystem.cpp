@@ -5,11 +5,11 @@
 #include <esp_timer.h>
 #include <driver/gpio.h>
 
+#include "../../include/debug.h"
 #include "../../include/version.h"
 
 #include "fnSystem.h"
 
-#include "debug.h"
 
 // Global object to manage System
 SystemManager fnSystem;
@@ -95,16 +95,45 @@ int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
     return 0;
 }
 
-// from esp32-hal-misc.
-void SystemManager::delay(uint32_t ms)
+// from esp32-hal-misc.c
+unsigned long IRAM_ATTR SystemManager::micros()
 {
-    vTaskDelay(ms / portTICK_PERIOD_MS);
+    return (unsigned long) (esp_timer_get_time());
 }
 
 // from esp32-hal-misc.c
 unsigned long IRAM_ATTR SystemManager::millis()
 {
      return (unsigned long) (esp_timer_get_time() / 1000ULL);
+}
+
+// from esp32-hal-misc.
+void SystemManager::delay(uint32_t ms)
+{
+    vTaskDelay(ms / portTICK_PERIOD_MS);
+}
+
+// from esp32-hal-misc.
+void IRAM_ATTR SystemManager::delay_microseconds(uint32_t us)
+{
+    uint32_t m = micros();
+    if(us){
+        uint32_t e = (m + us);
+        if(m > e){ //overflow
+            while(micros() > e){
+                NOP();
+            }
+        }
+        while(micros() < e){
+            NOP();
+        }
+    }
+}
+
+// from esp32-hal-misc.
+void SystemManager::yield()
+{
+    vPortYield();
 }
 
 void SystemManager::reboot()
@@ -213,3 +242,61 @@ int SystemManager::get_sio_voltage()
         return (avgV * 5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
 }
 
+/*
+
+*/
+size_t SystemManager::copy_file(FS *source_fs, const char *source_filename, FS *dest_fs, const char *dest_filename, size_t buffer_hint)
+{
+    #ifdef DEBUG
+    Debug_printf("copy_file \"%s\" -> \"%s\"\n", source_filename, dest_filename);
+    #endif
+
+    File fin = source_fs->open(source_filename);
+    if(!fin)
+    {
+        #ifdef DEBUG
+        Debug_println("copy_file failed to open source");
+        #endif
+        return 0;
+    }
+
+    uint8_t *buffer = (uint8_t *) malloc(buffer_hint);
+    if(buffer == NULL)
+    {
+        #ifdef DEBUG
+        Debug_println("copy_file failed to allocate copy buffer");
+        #endif
+        fin.close();
+        return 0;
+    }
+
+    size_t result = 0;
+
+    File fout = dest_fs->open(dest_filename,"w");
+    if(!fout)
+    {
+        #ifdef DEBUG
+        Debug_println("copy_file failed to open destination");
+        #endif
+    }
+    else
+    {
+        size_t count = 0;
+        do
+        {
+            count = fin.read(buffer, buffer_hint);
+            result += fout.write(buffer, count);
+        } while (count > 0);
+
+        fout.close();
+    }
+
+    fin.close();
+    free(buffer);
+
+    #ifdef DEBUG
+    Debug_printf("copy_file copied %d bytes\n", result);
+    #endif
+
+    return result;
+}
