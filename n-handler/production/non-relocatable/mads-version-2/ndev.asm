@@ -482,8 +482,49 @@ PUTAX1	.byte	$FF		; ZICAX1
 	
 	;; Status
 	
-STATUS	ldy	#$01
-	tya
+STATUS	jsr	ENPRCD
+	jsr	GDIDX
+	lda	RLEN,x
+	bne	STADAT		; Is data waiting?
+	lda	TRIP
+	bne	STATR1		; is trip = 1?
+
+	;; No trip, return saved length.
+
+STADAT	lda	RLEN,x
+	sta	DVSTAT		; return in dvstat
+	lda	#$00
+	sta	DVSTAT+1	; no more than 255 bytes
+	lda	DVSTAT+2	; return connection status in A
+	ldy	#$01		; successful.
+	rts			; done.
+
+	;; Trip. Do poll and update RX len
+
+STATR1	jsr	STPOLL
+
+	;; is <= 255?
+
+	lda	DVSTAT+1
+	bne	STATR2		; > 256
+	sta	RLEN,X
+	bvc	STAUPT		; update trip
+
+	;; > 255, truncate to 255
+
+STATR2	lda	#$FF
+	sta	RLEN,x
+	sta	DVSTAT
+	lda	#$00
+	sta	DVSTAT+1
+
+STAUPT	bne	STADON
+	sta	TRIP		; TRIP = 0
+
+	;; Return connected? flag.
+	
+STADON	lda	DVSTAT+2
+	ldy	#$01
 	rts
 
 	;; Do Status Poll
