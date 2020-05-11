@@ -18,44 +18,6 @@ protected:
 public:
     void initPrinter(FS *filesystem);
     const char *modelname() { return "Atari 1025"; };
-    
-protected:
-    size_t fontObjPos[3][7] = {
-        {
-            // F1
-            // Atari-1025-Normal
-            66,   // FontDescriptor Reference
-            151,  // Widths Reference
-            200,  // FontDescriptor Object
-            420,  // FontFile Reference
-            439,  // FontFile Object
-            6150, // Widths Object
-            7194  // fragment length
-        },
-        {
-            // F2
-            // Atari-1025-Elongated
-            66,   // FontDescriptor Reference
-            154,  // Widths Reference
-            203,  // FontDescriptor Object
-            427,  // FontFile Reference
-            446,  // FontFile Object
-            4797, // Widths Object
-            6097  // fragment length
-        },
-        {
-            // F3
-            // Atari-1025-Condensed
-            66,   // FontDescriptor Reference
-            154,  // Widths Reference
-            203,  // FontDescriptor Object
-            426,  // FontFile Reference
-            445,  // FontFile Object
-            3775, // Widths Object
-            4819  // fragment length
-        }};
-
-
 };
 
 #endif

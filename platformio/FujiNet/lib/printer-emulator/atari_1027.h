@@ -18,20 +18,6 @@ protected:
 public:
     void initPrinter(FS *filesystem);
     const char *modelname() { return "Atari 1027"; };
-
-protected:
-    const size_t fontObjPos[1][7] = {
-        {
-            // F1
-            // PrestigeEliteStd
-            66,    // FontDescriptor Reference
-            150,   // Widths Reference
-            199,   // FontDescriptor Object
-            424,   // FontFile Reference
-            443,   // FontFile Object
-            21694, // Widths Object
-            22738  // fragment length
-        }};
 };
 
 #endif
