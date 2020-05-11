@@ -361,9 +361,9 @@ bool diskulator_host(void)
         screen_puts(2, c + 1, nc);
 
         if (hostSlots.host[c][0] != 0x00)
-            screen_puts(4, c + 1, hostSlots.host[c]);
+            screen_puts(5, c + 1, hostSlots.host[c]);
         else
-            screen_puts(4, c + 1, "Empty");
+            screen_puts(5, c + 1, "Empty");
     }
 
     // Display Device Slots
@@ -374,13 +374,26 @@ bool diskulator_host(void)
     // Display drive slots
     for (c = 0; c < 8; c++)
     {
-        unsigned char d[4];
-        d[0] = 'D';
-        d[1] = 0x31 + c;
-        d[2] = ':';
-        d[3] = 0x00;
+        unsigned char d[6];
+
+	d[1]=0x20;
+	d[2]=0x31+c;
+	d[4]=0x20;
+	d[5]=0x00;
+   
+	if (deviceSlots.slot[c].file[0]!=0x00)
+	  {
+	    d[0]=deviceSlots.slot[c].hostSlot+0x31;
+	    d[3]=(deviceSlots.slot[c].mode==0x02 ? 'W' : 'R');
+	  }
+	else
+	  {
+	    d[0]=0x20;
+	    d[3]=0x20;
+	  }
+	
         screen_puts(0, c + 11, d);
-        screen_puts(4, c + 11, deviceSlots.slot[c].file[0] != 0x00 ? deviceSlots.slot[c].file : "Empty");
+        screen_puts(5, c + 11, deviceSlots.slot[c].file[0] != 0x00 ? deviceSlots.slot[c].file : "Empty");
     }
 
   rehosts:
@@ -453,10 +466,10 @@ bool diskulator_host(void)
                 {
                     screen_puts(3, c + 1, "                                    ");
                 }
-                screen_input(3, c + 1, hostSlots.host[c]);
+                screen_input(4, c + 1, hostSlots.host[c]);
                 if (hostSlots.host[c][0] == 0x00)
                 {
-                    screen_puts(4, c + 1, "Empty");
+                    screen_puts(5, c + 1, "Empty");
                 }
                 diskulator_write_host_slots();
                 break;
@@ -573,7 +586,8 @@ bool diskulator_host(void)
             case 'e':          // EJECT
               doeject:
                 diskulator_umount_device(c);
-                screen_puts(4, c + 11, "Empty                               ");
+		screen_puts(0, c + 11, " ");
+                screen_puts(3, c + 11, "  Empty                               ");
                 memset(deviceSlots.slot[c].file, 0, sizeof(deviceSlots.slot[c].file));
                 deviceSlots.slot[c].hostSlot = 0xFF;
                 diskulator_write_device_slots();
@@ -584,7 +598,7 @@ bool diskulator_host(void)
                 screen_puts(0, 21, "                                       ");
                 memset(tmp_str, 0, sizeof(tmp_str));
                 memset(deviceSlots.slot[c].file, 0, sizeof(deviceSlots.slot[c].file));
-                screen_input(3, c + 11, deviceSlots.slot[c].file);
+                screen_input(4, c + 11, deviceSlots.slot[c].file);
                 screen_puts(0, 20, "Which Host Slot (1-8)?                 ");
                 screen_puts(0, 21, "                                       ");
                 memset(tmp_str, 0, sizeof(tmp_str));
