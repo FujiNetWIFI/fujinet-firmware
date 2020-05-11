@@ -126,7 +126,9 @@ void atari822::pdf_handle_char(byte c)
 void atari820::initPrinter(FS *filesystem)
 {
     printer_emu::initPrinter(filesystem);
-    // paperType = PDF;
+
+    shortname = "a820";
+
     pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
     pageHeight = 792.0; // just use 11" for letter paper
     leftMargin = 19.5;  // fit print width on page width
@@ -141,15 +143,13 @@ void atari820::initPrinter(FS *filesystem)
     sideFlag = false;
 
     pdf_header();
-
-    fonts[0] = &F1;
-    fonts[1] = &F2;
 }
 
 void atari822::initPrinter(FS *filesystem)
 {
     printer_emu::initPrinter(filesystem);
-    //paperType = PDF;
+
+    shortname = "a822";
 
     pageWidth = 319.5;  // paper roll is 4 7/16" from page 4 of owners manual
     pageHeight = 792.0; // just use 11" for letter paper
@@ -163,8 +163,6 @@ void atari822::initPrinter(FS *filesystem)
     fontSize = 12;
 
     pdf_header();
-
-    fonts[0] = &F1;
 }
 
 // write for W commands
