@@ -232,7 +232,6 @@ std::string WiFiManager::get_current_bssid_str()
     {
         char mac[18] = { 0 };
         result += mac_to_string(mac, apinfo.bssid);
-        result += mac;
     }
 
     return result;
