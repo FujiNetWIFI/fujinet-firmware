@@ -79,6 +79,7 @@ protected:
 
     void sio_status() override;           // 'S'
     void sio_reset_fujinet();             // 0xFF
+    void sio_net_get_ssid();              // 0xFE
     void sio_net_scan_networks();         // 0xFD
     void sio_net_scan_result();           // 0xFC
     void sio_net_set_ssid();              // 0xFB
@@ -95,8 +96,7 @@ protected:
     void sio_disk_image_umount();         // 0xE9
     void sio_get_adapter_config();        // 0xE8
     void sio_new_disk();                  // 0xE7
-    void sio_unmount_host();              // 0xE6 - new
-    void wifi_led(bool onOff);
+    void sio_unmount_host();              // 0xE6
 
     void sio_process() override;
 

@@ -365,7 +365,7 @@ void fnConfig::save()
     ss << "[WiFi]" LINETERM;
     ss << "SSID=" << wifi.ssid << LINETERM;
     // TODO: Encrypt passphrase!
-    ss << "passpharse=" << wifi.passphrase << LINETERM;
+    ss << "passphrase=" << wifi.passphrase << LINETERM;
 
     // HOSTS
     int i;

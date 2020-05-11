@@ -6,25 +6,26 @@
 
 #include "config.h"
 
-#define SIO_FUJICMD_STATUS             0x53
-#define SIO_FUJICMD_RESET              0xFF
-#define SIO_FUJICMD_SCAN_NETWORKS      0xFD
-#define SIO_FUJICMD_GET_SCAN_RESULT    0xFC
-#define SIO_FUJICMD_SET_SSID           0xFB
-#define SIO_FUJICMD_GET_WIFISTATUS     0xFA
-#define SIO_FUJICMD_MOUNT_HOST         0xF9
-#define SIO_FUJICMD_MOUNT_IMAGE        0xF8
-#define SIO_FUJICMD_OPEN_DIRECTORY     0xF7
-#define SIO_FUJICMD_READ_DIR_ENTRY     0xF6
-#define SIO_FUJICMD_CLOSE_DIRECTORY    0xF5
-#define SIO_FUJICMD_READ_HOST_SLOTS    0xF4
-#define SIO_FUJICMD_WRITE_HOST_SLOTS   0xF3
-#define SIO_FUJICMD_READ_DEVICE_SLOTS  0xF2
-#define SIO_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
-#define SIO_FUJICMD_UNMOUNT_IMAGE      0xE9
-#define SIO_FUJICMD_GET_ADAPTERCONFIG  0xE8
-#define SIO_FUJICMD_NEW_DISK           0xE7
-#define SIO_FUJICMD_UNMOUNT_HOST       0xE6
+#define SIO_FUJICMD_RESET               0xFF
+#define SIO_FUJICMD_GET_SSID            0xFE
+#define SIO_FUJICMD_SCAN_NETWORKS       0xFD
+#define SIO_FUJICMD_GET_SCAN_RESULT     0xFC
+#define SIO_FUJICMD_SET_SSID            0xFB
+#define SIO_FUJICMD_GET_WIFISTATUS      0xFA
+#define SIO_FUJICMD_MOUNT_HOST          0xF9
+#define SIO_FUJICMD_MOUNT_IMAGE         0xF8
+#define SIO_FUJICMD_OPEN_DIRECTORY      0xF7
+#define SIO_FUJICMD_READ_DIR_ENTRY      0xF6
+#define SIO_FUJICMD_CLOSE_DIRECTORY     0xF5
+#define SIO_FUJICMD_READ_HOST_SLOTS     0xF4
+#define SIO_FUJICMD_WRITE_HOST_SLOTS    0xF3
+#define SIO_FUJICMD_READ_DEVICE_SLOTS   0xF2
+#define SIO_FUJICMD_WRITE_DEVICE_SLOTS  0xF1
+#define SIO_FUJICMD_UNMOUNT_IMAGE       0xE9
+#define SIO_FUJICMD_GET_ADAPTERCONFIG   0xE8
+#define SIO_FUJICMD_NEW_DISK            0xE7
+#define SIO_FUJICMD_UNMOUNT_HOST        0xE6
+#define SIO_FUJICMD_STATUS              0x53
 
 #define MAX_HOSTS 8
 
@@ -131,6 +132,24 @@ void sioFuji::sio_net_scan_result()
 }
 
 /*
+  Get SSID
+*/
+void sioFuji::sio_net_get_ssid()
+{
+#ifdef DEBUG
+    Debug_println("Fuji cmd: GET SSID");
+#endif
+
+    // TODO: Get rid of netConfig and use Config directly instead
+    memset(netConfig.rawData, 0, sizeof(netConfig.rawData));
+    memcpy(netConfig.detail.ssid, Config.wifi.ssid.c_str(), 
+        Config.wifi.ssid.length() > sizeof(netConfig.detail.ssid) ? sizeof(netConfig.detail.ssid) : Config.wifi.ssid.length());
+    memcpy(netConfig.detail.password, Config.wifi.passphrase.c_str(),
+        Config.wifi.passphrase.length() > sizeof(netConfig.detail.password) ? sizeof(netConfig.detail.password) : Config.wifi.passphrase.length());
+
+    sio_to_computer(netConfig.rawData, sizeof(netConfig.rawData), false);
+}
+/*
    Set SSID
 */
 void sioFuji::sio_net_set_ssid()
@@ -139,13 +158,13 @@ void sioFuji::sio_net_set_ssid()
     Debug_println("Fuji cmd: SET SSID");
 #endif
     byte ck = sio_to_peripheral((byte *)&netConfig.rawData, sizeof(netConfig.rawData));
-
     if (sio_checksum(netConfig.rawData, sizeof(netConfig.rawData)) != ck)
     {
         sio_error();
     }
     else
     {
+        bool save = cmdFrame.aux1 != 0;
 #ifdef DEBUG
         Debug_printf("Connecting to net: %s password: %s\n", netConfig.detail.ssid, netConfig.detail.password);
 #endif
@@ -166,6 +185,8 @@ void sioFuji::sio_net_set_ssid()
                 break;
             Config.wifi.passphrase += netConfig.detail.password[i];
         }
+        if(save)
+            Config.save();
 
         // todo: add error checking?
         // UDP.begin(16384); // move to TNFS.begin
@@ -757,6 +778,10 @@ void sioFuji::sio_process()
     case SIO_FUJICMD_SET_SSID:
         sio_ack();
         sio_net_set_ssid();
+        break;
+    case SIO_FUJICMD_GET_SSID:
+        sio_ack();
+        sio_net_get_ssid();
         break;
     case SIO_FUJICMD_GET_WIFISTATUS:
         sio_ack();
