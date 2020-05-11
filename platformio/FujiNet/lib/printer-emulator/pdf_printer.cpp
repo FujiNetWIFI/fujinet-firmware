@@ -92,29 +92,38 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
             while (fp < fontObjPos[i][0])
             {
                 _file.write(fff.read());
+                fp++;
             }
             fff.read(); // '%'
+            fp++;
             fff.read(); // 'd'
+            fp++;
             _file.printf("%d", pdf_objCtr + 1); // 7
             //            _file.printf("/FontDescriptor %d 0 R", pdf_objCtr + 1);                  // 5
             while (fp < fontObjPos[i][1])
             {
                 _file.write(fff.read());
+                fp++;
             }
             fff.read(); // '%'
+            fp++;
             fff.read(); // 'd'
+            fp++;
             _file.printf("%d", pdf_objCtr + 3); // 9
             //_file.printf("/FirstChar 0/LastChar 255/Widths %d 0 R", pdf_objCtr + 2); // 6
             //_file.printf(">>\nendobj\n");
             while (fp < fontObjPos[i][2])
             {
                 _file.write(fff.read());
+                fp++;
             }
-            fff.read();   // '%'
-            fff.read();   // 'd'
+            fff.read(); // '%'
+            fp++;
+            fff.read(); // 'd'
+            fp++;
             pdf_objCtr++; // = 7;
             objLocations[pdf_objCtr] = _file.position();
-            _file.printf("%d", pdf_objCtr);  // 7
+            _file.printf("%d", pdf_objCtr); // 7
             // _file.printf("%d 0 obj\n<</Type/FontDescriptor", pdf_objCtr); // 5
             // _file.printf("/FontName/%s", fonts[i]->basefont.c_str());     //PrestigeEliteStd
             // _file.printf("/Flags 33/ItalicAngle 0");                      // 33 for fixed width for now todo: change for proportional when needed
@@ -131,18 +140,24 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
             while (fp < fontObjPos[i][3])
             {
                 _file.write(fff.read());
+                fp++;
             }
             fff.read(); // '%'
+            fp++;
             fff.read(); // 'd'
+            fp++;
             _file.printf("%d", pdf_objCtr + 1); // 8
             // _file.printf("%d 0 R", pdf_objCtr + 2); // 7
             // _file.printf(">>\nendobj\n");
             while (fp < fontObjPos[i][4])
             {
                 _file.write(fff.read());
+                fp++;
             }
             fff.read(); // '%'
+            fp++;
             fff.read(); // 'd'
+            fp++;
             pdf_objCtr++; // = 8;
             objLocations[pdf_objCtr] = _file.position();
             _file.printf("%d", pdf_objCtr); // 8
@@ -156,19 +171,23 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
             while (fp < fontObjPos[i][5])
             {
                 _file.write(fff.read());
+                fp++;
             }
             fff.read(); // '%'
+            fp++;
             fff.read(); // 'd'
-
+            fp++;
             pdf_objCtr++; // = 9;
             objLocations[pdf_objCtr] = _file.position();
             _file.printf("%d", pdf_objCtr); // 9
             // insert rest of file
-            while (fff.available())
+            while (fp < fontObjPos[i][6]) //(fff.available())
             {
                 _file.write(fff.read());
+                fp++;
             }
             fff.close();
+            _file.write('\n'); // make sure there's a seperator 
         }
 #ifdef DEBUG
         else
