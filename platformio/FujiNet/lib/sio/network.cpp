@@ -3,6 +3,7 @@
 #include "networkProtocolTCP.h"
 #include "networkProtocolUDP.h"
 #include "networkProtocolHTTP.h"
+#include "networkProtocolTNFS.h"
 
 // latch the rate limiting flag.
 void IRAM_ATTR onTimer()
@@ -17,10 +18,15 @@ void IRAM_ATTR onTimer()
  */
 bool sioNetwork::allocate_buffers()
 {
+#ifdef BOARD_HAS_PSRAM
+    rx_buf = (byte *)ps_malloc(INPUT_BUFFER_SIZE);
+    tx_buf = (byte *)ps_malloc(OUTPUT_BUFFER_SIZE);
+    sp_buf = (byte *)ps_malloc(SPECIAL_BUFFER_SIZE);
+#else
     rx_buf = (byte *)malloc(INPUT_BUFFER_SIZE);
     tx_buf = (byte *)malloc(OUTPUT_BUFFER_SIZE);
     sp_buf = (byte *)malloc(SPECIAL_BUFFER_SIZE);
-
+#endif
     if ((rx_buf == nullptr) || (tx_buf == nullptr) || (sp_buf == nullptr))
     {
         return false;
@@ -71,6 +77,11 @@ bool sioNetwork::open_protocol()
     else if (urlParser->scheme == "HTTPS")
     {
         protocol = new networkProtocolHTTP();
+        return true;
+    }
+    else if (urlParser->scheme == "TNFS")
+    {
+        protocol = new networkProtocolTNFS();
         return true;
     }
     else
@@ -236,7 +247,7 @@ void sioNetwork::sio_read()
         {
             for (int i = 0; i < rx_buf_len; i++)
             {
-                switch (aux2)
+                switch (aux2&3)
                 {
                 case 1:
                     if (rx_buf[i] == 0x0D)
@@ -292,7 +303,7 @@ void sioNetwork::sio_write()
         {
             for (int i = 0; i < tx_buf_len; i++)
             {
-                switch (aux2)
+                switch (aux2&3)
                 {
                 case 1:
                     if (tx_buf[i] == 0x9B)
@@ -447,6 +458,11 @@ bool sioNetwork::sio_special_supported_40_command(unsigned char c)
 // supported global network device commands that go Computer->Peripheral
 bool sioNetwork::sio_special_supported_80_command(unsigned char c)
 {
+    switch(c)
+    {
+        case 0xFE: // Set prefix
+            return true;
+    }
     return false;
 }
 
@@ -504,9 +520,12 @@ void sioNetwork::sio_assert_interrupts()
         protocol->status(status_buf.rawData); // Prime the status buffer
         if ((status_buf.rx_buf_len > 0) && (interruptRateLimit == true))
         {
-            digitalWrite(PIN_PROC, LOW);
-            delayMicroseconds(50);
-            digitalWrite(PIN_PROC, HIGH);
+            //digitalWrite(PIN_PROC, LOW);
+            fnSystem.digital_write(PIN_PROC, DIGI_LOW);
+            //delayMicroseconds(50);
+            fnSystem.delay_microseconds(50);
+            //digitalWrite(PIN_PROC, HIGH);
+            fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
 
             portENTER_CRITICAL(&timerMux);
             interruptRateLimit = false;

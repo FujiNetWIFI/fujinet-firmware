@@ -32,15 +32,29 @@ table.info tr td:nth-child(2)
 	font-size: 0.75em;
 }
 
+.not-important
+{
+	color: #999999;
+}
+
+img.logo
+{
+	padding-left: 2em;
+}
+
 img.printer
 {
 	padding-left: 2em;
-	width: 6em;
+	padding-top: 1em;
+	padding-bottom: 0.5em;
+	width: 5em;
 }
+
 .printform
 {
 	vertical-align: text-top;
 }
+
 #spiffs_storage
 {
 	float: right;

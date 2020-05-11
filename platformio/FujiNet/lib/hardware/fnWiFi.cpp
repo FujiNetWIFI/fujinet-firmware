@@ -19,7 +19,7 @@
 #include "lwip/err.h"
 #include "lwip/sys.h"
 
-#include "../sio/debug.h"
+#include "../../include/debug.h"
 #include "fnWiFi.h"
 
 // Global object to manage WiFi
@@ -232,7 +232,6 @@ std::string WiFiManager::get_current_bssid_str()
     {
         char mac[18] = { 0 };
         result += mac_to_string(mac, apinfo.bssid);
-        result += mac;
     }
 
     return result;
