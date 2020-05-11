@@ -15,7 +15,7 @@ int fontNumber[MAXFONTS];
 int fontObject[MAXFONTS];
 
 string fontname;
-size_t objPos[7];
+size_t objPos[8];
 
 int findFontList()
 {
@@ -98,6 +98,7 @@ int copyFont(int i)
   cout << " object found\n";
 
   // start copy
+  g.flush();
   objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n";
 
@@ -111,6 +112,7 @@ int copyFont(int i)
   getline(f, line); // /FontDescriptor 7 0 R
   offset = line.find_first_of("0123456789");
   g << line.substr(0, offset);
+  g.flush();
   objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n";
 
@@ -124,6 +126,7 @@ int copyFont(int i)
   getline(f, line); // /Widths 9 0 R
   offset = line.find_first_of("0123456789");
   g << line.substr(0, offset);
+  g.flush();
   objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n";
 
@@ -135,6 +138,7 @@ int copyFont(int i)
   g << line << "\n";
 
   getline(f, line); // 7 0 obj
+  g.flush();
   objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n";
   getline(f, line); // <<
@@ -174,6 +178,7 @@ int copyFont(int i)
 
   //offset = line.find_first_of("0123456789");       // always font file 3 because of OTF
   g << line.substr(0, ++offset);
+  g.flush();
   objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n"; // always font file 3 because of OTF
 
@@ -183,6 +188,7 @@ int copyFont(int i)
   g << line << "\n";
 
   getline(f, line); // 8 0 obj
+  g.flush();
   objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n";
   getline(f, line); // <<
@@ -221,6 +227,7 @@ int copyFont(int i)
   g << line << "\n";
   cout << line << "\n";
   getline(f, line); // 9 0 obj
+  g.flush();
   objPos[objCtr++] = g.tellp();
   g << "%d 0 obj\n";
   cout << line << "\n";
@@ -230,6 +237,8 @@ int copyFont(int i)
   getline(f, line); // endobj
   g << line << "\n";
   cout << line << "\n";
+  g.flush();
+  objPos[objCtr++] = g.tellp();
   cout << "done with font\n\n";
 }
 
@@ -254,23 +263,25 @@ int main(int argc, char **argv)
 
   int numFonts = findFontList();
 
-  h << "const unsigned int fontObjPos[" << numFonts << "][6] = {\n";
+  h << "const unsigned int fontObjPos[" << numFonts << "][7] = {\n";
 
   for (int i = 0; i < numFonts; i++)
   {
     char gname[10];
-    sprintf(gname, "F%d\0", i);
+    sprintf(gname, "F%d\0", i+1); // PDF convention is to strat counting at 1
     g.open(gname, ios::out | ios::binary);
     copyFont(i);
     g.close();
 
-    h << "    {\n        // " << fontname << " \n";
+    h << "    {\n        // " << gname << " \n";
+    h << "        // " << fontname.substr(1) << " \n";
     h << "        " << (objPos[1] - objPos[0]) << ", // FontDescriptor Reference \n";
     h << "        " << (objPos[2] - objPos[0]) << ", // Widths Reference \n";
     h << "        " << (objPos[3] - objPos[0]) << ", // FontDescriptor Object \n";
     h << "        " << (objPos[4] - objPos[0]) << ", // FontFile Reference \n";
     h << "        " << (objPos[5] - objPos[0]) << ", // FontFile Object \n";
-    h << "        " << (objPos[6] - objPos[0]) << "  // Widths Object \n";
+    h << "        " << (objPos[6] - objPos[0]) << ", // Widths Object \n";
+    h << "        " << (objPos[7] - objPos[0]) << "  // fragment length \n";
     h << "    }";
     if (i != (numFonts - 1))
       h << ",\n";
