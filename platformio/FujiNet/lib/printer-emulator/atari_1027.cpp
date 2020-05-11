@@ -134,6 +134,15 @@ void atari1027::initPrinter(FS *filesystem)
     fontNumber = 1;
     fontSize = 10;
 
+    // F1 : PrestigeEliteStd
+    fontObjPos[0][0] = 66;    // FontDescriptor Reference
+    fontObjPos[0][1] = 150;   // Widths Reference
+    fontObjPos[0][2] = 199;   // FontDescriptor Object
+    fontObjPos[0][3] = 424;   // FontFile Reference
+    fontObjPos[0][4] = 443;   // FontFile Object
+    fontObjPos[0][5] = 21694; // Widths Object
+    fontObjPos[0][6] = 22738; // fragment length
+
     pdf_header();
 
     uscoreFlag = false;

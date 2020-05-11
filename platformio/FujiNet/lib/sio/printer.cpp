@@ -140,6 +140,23 @@ void atari820::initPrinter(FS *filesystem)
     fontNumber = 1;
     fontSize = 12;
 
+    // F1 : Atari-820-Normal
+    fontObjPos[0][0] = 66;   // FontDescriptor Reference
+    fontObjPos[0][1] = 150;  // Widths Reference
+    fontObjPos[0][2] = 199;  // FontDescriptor Object
+    fontObjPos[0][3] = 418;  // FontFile Reference
+    fontObjPos[0][4] = 437;  // FontFile Object
+    fontObjPos[0][5] = 4668; // Widths Object
+    fontObjPos[0][6] = 5712; // fragment length
+    // F2 : Atari-820-Sideways
+    fontObjPos[1][0] = 66;   // FontDescriptor Reference
+    fontObjPos[1][1] = 152;  // Widths Reference
+    fontObjPos[1][2] = 201;  // FontDescriptor Object
+    fontObjPos[1][3] = 423;  // FontFile Reference
+    fontObjPos[1][4] = 442;  // FontFile Object
+    fontObjPos[1][5] = 4257; // Widths Object
+    fontObjPos[1][6] = 5301; // fragment length
+
     sideFlag = false;
 
     pdf_header();
@@ -161,6 +178,15 @@ void atari822::initPrinter(FS *filesystem)
     charWidth = 7.2;    // 10 char per inch
     fontNumber = 1;
     fontSize = 12;
+
+    // F1 : Atari-822-Thermal
+    fontObjPos[0][0] = 66;   // FontDescriptor Reference
+    fontObjPos[0][1] = 151;  // Widths Reference
+    fontObjPos[0][2] = 200;  // FontDescriptor Object
+    fontObjPos[0][3] = 419;  // FontFile Reference
+    fontObjPos[0][4] = 438;  // FontFile Object
+    fontObjPos[0][5] = 1952; // Widths Object
+    fontObjPos[0][6] = 2996; // fragment length
 
     pdf_header();
 }
