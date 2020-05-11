@@ -8,8 +8,11 @@
 #include <cstdint>
 #include <string>
 
+#include <FS.h>
 #include <driver/adc.h>
 #include "esp_adc_cal.h"
+
+#define FILE_COPY_BUFFERSIZE 2048
 
 // This is normally defineid in Arduino.h
 typedef uint8_t byte;
@@ -82,6 +85,8 @@ public:
     static const char * get_fujinet_version();
     static int get_sio_voltage();
     static void yield();
+
+    static size_t copy_file(FS *source_fs, const char *source_filename, FS *dest_fs, const char *dest_filename, size_t buffer_hint = FILE_COPY_BUFFERSIZE);
 };
 
 
