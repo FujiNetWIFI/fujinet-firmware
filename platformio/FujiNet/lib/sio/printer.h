@@ -197,7 +197,7 @@ public:
         PRINTER_PNG,
         PRINTER_HTML,
         PRINTER_HTML_ATASCII,
-        PRINTER_UNKNOWN
+        PRINTER_INVALID
     };
 
     static printer_type match_modelname(std::string modelname);

@@ -6,6 +6,7 @@
 #include <map>
 
 #include "httpServiceConfigurator.h"
+#include "config.h"
 #include "printer.h"
 
 // TODO: This was copied from another source and needs some bounds-checking!
@@ -118,7 +119,7 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
         return;
     
     sioPrinter::printer_type t = sioPrinter::match_modelname(printermodel);
-    if(t == sioPrinter::printer_type::PRINTER_UNKNOWN)
+    if(t == sioPrinter::printer_type::PRINTER_INVALID)
     {
 #ifdef DEBUG
         Debug_printf("Unknown printer type: \"%s\"\n", printermodel.c_str());
@@ -127,6 +128,8 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
     }
 
     // Finally, change the printer type!
+    Config.printer_slots[0].type = t;
+    Config.save();
     sioP.set_printer_type(t);
 }
 
