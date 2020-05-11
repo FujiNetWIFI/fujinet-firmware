@@ -1,9 +1,7 @@
 #ifndef _TNFS_H_
 #define _TNFS_H_
-#include <Arduino.h>
+//#include <Arduino.h>
 #include <string.h>
-#include "debug.h"
-
 
 // UDP Implementation of TNFS for ESP Arduino
 // I read SPIFFS.h and associated files to understand how to structure a custom FS for Arduino
