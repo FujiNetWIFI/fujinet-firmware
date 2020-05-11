@@ -567,9 +567,104 @@ STPDCBU	.byte	$FF		; UNIT
 	
 	;; Special
 	
-SPEC	ldy	#$01
+SPEC	lda	ZICCOM
+	cmp	#$0f		; PUT FLUSH?
+	bne	SP1		; no.
+	jsr	PUTFLU		; DO PUT FLUSH
+	ldy	#$01		; Success
+	rts			; done
+
+	;; Do DSTATS inquiry
+
+SP1	lda	ZICDNO
+	sta	INQDCB+1
+	lda	ZICCOM
+	sta	INQDCB+10
+
+	ldy	#$0C
+INQL	lda	INQDCB,y
+	sta	DCB,y
+	dey
+	bpl	INQL
+
+	jsr	SIOV
+
+	lda	DSTATS
+	bpl	INQOK
+	
+INQERR	tay
+	rts
+
+	;; returned $FF = invalid
+
+INQOK	lda	INQDS
+	cmp	#$ff
+	bne	SPEGO
+	ldy	#$92		; unimp command
 	tya
 	rts
+
+	;; Finally, do the special
+
+SPEGO	lda	ZICCOM
+	sta	DCOMND
+	lda	INQDS
+	sta	DSTATS
+
+	cmp	#$00
+	beq	SPE00
+	cmp	#$40
+	beq	SPE40
+	cmp	#$80
+
+SPE00	lda	#$00
+	sta	DBUFL
+	sta	DBUFH
+	sta	DBYTL
+	sta	DBYTH
+	bvc 	SPEXX
+
+SPE40	lda	ZICAX3
+	sta	DBUFL
+	lda	ZICAX4
+	sta	DBUFH
+	lda	ZICAX5
+	sta	DBYTL
+	lda	ZICAX6
+	sta	DBYTH
+	bvc	SPEXX
+
+SPE80	lda	ZICBAL
+	sta	DBUFL
+	lda	ZICBAH
+	sta	DBUFH
+	lda	ZICBLL
+	sta	DBYTL
+	lda	ZICBLH
+	sta	DBYTH
+	bvc	SPEXX
+
+SPEXX	lda	ZICAX1
+	sta	DAUXL
+	lda	ZICAX2
+	sta	DAUXH
+	jsr	SIOV
+	ldy	DSTATS
+	tya
+	rts
+	
+INQDCB	.byte	$71		; DDEVIC
+	.byte	$FF		; UNIT
+	.byte	$FF		; Command (0xFF)
+	.byte	$40		; Read
+	.byte	<INQDS		; BUF L
+	.byte	>INQDS		; BUF H
+	.byte	$0F		; DTIMLO
+	.byte 	$00		; DRESVD
+	.byte	$01		; LEN L
+	.byte	$00		; LEN H
+	.byte	$FF		; AUX L (command)
+	.byte	$00		; AUX H
 
 	;; Utility Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;
 
