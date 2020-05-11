@@ -29,7 +29,6 @@ protected:
   std::string shortname;
   bool fontUsed[MAXFONTS] = {true}; // initialize first one to true, always use default font
   size_t fontObjPos[256][7]; // LUT into font files for PDF objects
-  int objOffsets[7]={0,1,3,2,2};
 
   float pdf_X = 0.; // across the page - columns in pts
   bool BOLflag = true;
