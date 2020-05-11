@@ -53,7 +53,7 @@ void atari1027::pdf_handle_char(byte c)
             else if (c > 27 && c < 32)
             {
                 // Codes 28-31 are arrows made from compound chars
-                byte d1 = '|';
+                byte d1 = (byte)'|';
                 switch (c)
                 {
                 case 28:
@@ -61,6 +61,7 @@ void atari1027::pdf_handle_char(byte c)
                     break;
                 case 29:
                     d = (byte)'v';
+                    d1 = (byte)'!';
                     break;
                 case 30:
                     d = (byte)'<';
@@ -74,7 +75,7 @@ void atari1027::pdf_handle_char(byte c)
                     break;
                 }
                 _file.write(d1);
-                _file.printf(")600("); // |^ -< -> |v
+                _file.printf(")600("); // |^ -< -> !v
                 valid = true;
             }
             else
@@ -101,8 +102,10 @@ void atari1027::pdf_handle_char(byte c)
                 pdf_X += charWidth; // update x position
             }
         }
-        else if (c > 31 && c < 127)
+        else if (c > 31 && c < 128)
         {
+            if (c == 123 || c == 125 || c==127)
+                c = ' ';
             if (c == '\\' || c == '(' || c == ')')
                 _file.write('\\');
             _file.write(c);
@@ -126,7 +129,7 @@ void atari1027::initPrinter(FS *filesystem)
     bottomMargin = 0;
     printWidth = 480.0; // 6 2/3 inches
     lineHeight = 12.0;
-    charWidth = 6; // 12cpi 
+    charWidth = 6; // 12cpi
     fontNumber = 1;
     fontSize = 10;
 
