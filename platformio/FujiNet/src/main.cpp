@@ -29,6 +29,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "httpService.h"
 #include "fnSystem.h"
 #include "fnWiFi.h"
+#include "config.h"
 
 //#include <WiFiUdp.h>
 
@@ -108,11 +109,10 @@ void setup()
     Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
 #endif
 #endif
-    // connect to wifi but DO NOT wait for it
-    //WiFi.begin(WIFI_SSID, WIFI_PASS);
-    fnWiFi.setup();
-    // fnWiFi.start(WIFI_SSID, WIFI_PASS);
 
+    keyMgr.setup();
+    ledMgr.setup();
+    
     // Start up the SPI Flash File System
     if (!SPIFFS.begin())
     {
@@ -151,6 +151,14 @@ void setup()
     }
 #endif
 
+    // Load our stored configuration
+    Config.load();
+
+    // connect to wifi but DO NOT wait for it
+    //WiFi.begin(WIFI_SSID, WIFI_PASS);
+    fnWiFi.setup();
+    // fnWiFi.start(WIFI_SSID, WIFI_PASS);
+
     theFuji.setup(SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
@@ -169,6 +177,7 @@ void setup()
         Debug_println("using SPIFFS for printer storage");
         sioP.set_storage(&SPIFFS);
     }
+    sioP.set_printer_type(Config.printer_slots[0].type);
 
     SIO.addDevice(&sioP, SIO_DEVICEID_PRINTER); // P:
 
@@ -185,9 +194,6 @@ void setup()
 #ifdef DEBUG
     Debug_printf("%d devices registered\n", SIO.numDevices());
 #endif
-
-    keyMgr.setup();
-    ledMgr.setup();
 
     // Go setup SIO
     SIO.setup();

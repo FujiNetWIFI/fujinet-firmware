@@ -330,7 +330,7 @@ sioPrinter::sioPrinter()
 */
 sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
 {
-    const char *models[PRINTER_UNKNOWN] =
+    const char *models[PRINTER_INVALID] =
         {
             "file printer (RAW)",
             "file printer (TRIM)",
@@ -342,7 +342,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
             "HTML printer",
             "HTML ATASCII printer"};
     int i;
-    for (i = 0; i < PRINTER_UNKNOWN; i++)
+    for (i = 0; i < PRINTER_INVALID; i++)
         if (modelname.compare(models[i]) == 0)
             break;
 

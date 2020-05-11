@@ -4,31 +4,28 @@
 #include "fnWiFi.h"
 #include "fnSystem.h"
 
-//#include "disk.h"
+#include "config.h"
 
-//File atrConfig;
-//sioFuji theFuji;
-//sioDisk configDisk;
-
-#define SIO_FUJICMD_STATUS             0x53
-#define SIO_FUJICMD_RESET              0xFF
-#define SIO_FUJICMD_SCAN_NETWORKS      0xFD
-#define SIO_FUJICMD_GET_SCAN_RESULT    0xFC
-#define SIO_FUJICMD_SET_SSID           0xFB
-#define SIO_FUJICMD_GET_WIFISTATUS     0xFA
-#define SIO_FUJICMD_MOUNT_HOST         0xF9
-#define SIO_FUJICMD_MOUNT_IMAGE        0xF8
-#define SIO_FUJICMD_OPEN_DIRECTORY     0xF7
-#define SIO_FUJICMD_READ_DIR_ENTRY     0xF6
-#define SIO_FUJICMD_CLOSE_DIRECTORY    0xF5
-#define SIO_FUJICMD_READ_HOST_SLOTS    0xF4
-#define SIO_FUJICMD_WRITE_HOST_SLOTS   0xF3
-#define SIO_FUJICMD_READ_DEVICE_SLOTS  0xF2
-#define SIO_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
-#define SIO_FUJICMD_UNMOUNT_IMAGE      0xE9
-#define SIO_FUJICMD_GET_ADAPTERCONFIG  0xE8
-#define SIO_FUJICMD_NEW_DISK           0xE7
-#define SIO_FUJICMD_UNMOUNT_HOST       0xE6
+#define SIO_FUJICMD_RESET               0xFF
+#define SIO_FUJICMD_GET_SSID            0xFE
+#define SIO_FUJICMD_SCAN_NETWORKS       0xFD
+#define SIO_FUJICMD_GET_SCAN_RESULT     0xFC
+#define SIO_FUJICMD_SET_SSID            0xFB
+#define SIO_FUJICMD_GET_WIFISTATUS      0xFA
+#define SIO_FUJICMD_MOUNT_HOST          0xF9
+#define SIO_FUJICMD_MOUNT_IMAGE         0xF8
+#define SIO_FUJICMD_OPEN_DIRECTORY      0xF7
+#define SIO_FUJICMD_READ_DIR_ENTRY      0xF6
+#define SIO_FUJICMD_CLOSE_DIRECTORY     0xF5
+#define SIO_FUJICMD_READ_HOST_SLOTS     0xF4
+#define SIO_FUJICMD_WRITE_HOST_SLOTS    0xF3
+#define SIO_FUJICMD_READ_DEVICE_SLOTS   0xF2
+#define SIO_FUJICMD_WRITE_DEVICE_SLOTS  0xF1
+#define SIO_FUJICMD_UNMOUNT_IMAGE       0xE9
+#define SIO_FUJICMD_GET_ADAPTERCONFIG   0xE8
+#define SIO_FUJICMD_NEW_DISK            0xE7
+#define SIO_FUJICMD_UNMOUNT_HOST        0xE6
+#define SIO_FUJICMD_STATUS              0x53
 
 #define MAX_HOSTS 8
 
@@ -87,8 +84,8 @@ void sioFuji::sio_status()
     return;
 }
 
-/**
- * Reset FujiNet
+/*
+   Reset FujiNet
  */
 void sioFuji::sio_reset_fujinet()
 {
@@ -96,8 +93,8 @@ void sioFuji::sio_reset_fujinet()
     ESP.restart();
 }
 
-/**
-   Scan for networks
+/*
+  Scan for networks
 */
 void sioFuji::sio_net_scan_networks()
 {
@@ -105,39 +102,15 @@ void sioFuji::sio_net_scan_networks()
     Debug_println("Fuji cmd: SCAN NETWORKS");
 #endif
     char ret[4] = {0, 0, 0, 0};
-/*
-    // Scan to computer
-    WiFi.mode(WIFI_STA);
 
-    int retries = NET_SCAN_NETWORKS_RETRIES;
-    int result = 0;
-    do
-    {
-        result = WiFi.scanNetworks();
-#ifdef DEBUG
-        Debug_printf("scanNetworks returned %d\n", result);
-#endif
-        // We're getting WIFI_SCAN_FAILED (-2) after attempting and failing to connect to a network
-        // End any retry attempt if we got a non-negative value
-        if (result >= 0)
-            break;
-
-    } while (--retries > 0);
-
-    // Boundary check
-    if (result < 0)
-        result = 0;
-    if (result > 50)
-        result = 50;
-*/
     totalSSIDs = fnWiFi.scan_networks();
 
     ret[0] = totalSSIDs;
     sio_to_computer((byte *)ret, 4, false);
 }
 
-/**
-   Return scanned network entry
+/*
+  Return scanned network entry
 */
 void sioFuji::sio_net_scan_result()
 {
@@ -148,8 +121,6 @@ void sioFuji::sio_net_scan_result()
     if (cmdFrame.aux1 < totalSSIDs)
     {
         fnWiFi.get_scan_result(cmdFrame.aux1, ssidInfo.detail.ssid, (uint8_t *)&ssidInfo.detail.rssi);
-        //strcpy(ssidInfo.ssid, WiFi.SSID(cmdFrame.aux1).c_str());
-        //ssidInfo.rssi = (char)WiFi.RSSI(cmdFrame.aux1);
     }
     else
     {
@@ -160,7 +131,25 @@ void sioFuji::sio_net_scan_result()
     sio_to_computer(ssidInfo.rawData, sizeof(ssidInfo.rawData), err);
 }
 
-/**
+/*
+  Get SSID
+*/
+void sioFuji::sio_net_get_ssid()
+{
+#ifdef DEBUG
+    Debug_println("Fuji cmd: GET SSID");
+#endif
+
+    // TODO: Get rid of netConfig and use Config directly instead
+    memset(netConfig.rawData, 0, sizeof(netConfig.rawData));
+    memcpy(netConfig.detail.ssid, Config.wifi.ssid.c_str(), 
+        Config.wifi.ssid.length() > sizeof(netConfig.detail.ssid) ? sizeof(netConfig.detail.ssid) : Config.wifi.ssid.length());
+    memcpy(netConfig.detail.password, Config.wifi.passphrase.c_str(),
+        Config.wifi.passphrase.length() > sizeof(netConfig.detail.password) ? sizeof(netConfig.detail.password) : Config.wifi.passphrase.length());
+
+    sio_to_computer(netConfig.rawData, sizeof(netConfig.rawData), false);
+}
+/*
    Set SSID
 */
 void sioFuji::sio_net_set_ssid()
@@ -169,24 +158,43 @@ void sioFuji::sio_net_set_ssid()
     Debug_println("Fuji cmd: SET SSID");
 #endif
     byte ck = sio_to_peripheral((byte *)&netConfig.rawData, sizeof(netConfig.rawData));
-
     if (sio_checksum(netConfig.rawData, sizeof(netConfig.rawData)) != ck)
     {
         sio_error();
     }
     else
     {
+        bool save = cmdFrame.aux1 != 0;
 #ifdef DEBUG
         Debug_printf("Connecting to net: %s password: %s\n", netConfig.detail.ssid, netConfig.detail.password);
 #endif
         fnWiFi.connect(netConfig.detail.ssid, netConfig.detail.password);
+
+        // SSID/password may or may not have a terminating NULL, so copy the chars over to our config one by one instead
+        Config.wifi.ssid.clear();
+        for(int i = 0; i < sizeof(netConfig.detail.ssid); i++)
+        {
+            if(netConfig.detail.ssid[i] == '\0')
+                break;
+            Config.wifi.ssid += netConfig.detail.ssid[i];
+        }
+        Config.wifi.passphrase.clear();
+        for(int i = 0; i < sizeof(netConfig.detail.password); i++)
+        {
+            if(netConfig.detail.password[i] == '\0')
+                break;
+            Config.wifi.passphrase += netConfig.detail.password[i];
+        }
+        if(save)
+            Config.save();
+
         // todo: add error checking?
         // UDP.begin(16384); // move to TNFS.begin
         sio_complete();
     }
 }
 
-/**
+/*
    SIO get WiFi Status
 */
 void sioFuji::sio_net_get_wifi_status()
@@ -194,20 +202,13 @@ void sioFuji::sio_net_get_wifi_status()
 #ifdef DEBUG
     Debug_println("Fuji cmd: GET WIFI STATUS");
 #endif
-    /* Pulled this out, as the LED is being updated elsewhere
-    // Update WiFi Status LED
-    if (wifiStatus == WL_CONNECTED)
-        wifi_led(true);
-    else
-        wifi_led(false);
-    */
 
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     byte wifiStatus = fnWiFi.connected() ? 3 : 6;
     sio_to_computer((byte *)&wifiStatus, 1, false);
 }
 
-/**
+/*
    SIO TNFS Server Mount
 */
 void sioFuji::sio_tnfs_mount_host()
@@ -230,7 +231,7 @@ void sioFuji::sio_tnfs_mount_host()
         sio_complete();
 }
 
-/**
+/*
    SIO TNFS Disk Image Mount
 */
 void sioFuji::sio_disk_image_mount()
@@ -261,7 +262,6 @@ void sioFuji::sio_disk_image_mount()
         fnFileSystems[deviceSlots.slot[deviceSlot].hostSlot].open(deviceSlots.slot[deviceSlot].filename, flag);
 
     //todo: implement what does FETCH mean?
-    //bool opened = tnfs_open(deviceSlot, options, false);
     if (!fnDisks[deviceSlot].file)
     {
         sio_error();
@@ -269,12 +269,11 @@ void sioFuji::sio_disk_image_mount()
     else
     {
         sioD[deviceSlot].mount(&(fnDisks[deviceSlot].file));
-        // moved all this stuff to .mount
         sio_complete();
     }
 }
 
-/**
+/*
    SIO TNFS Disk Image uMount
 */
 void sioFuji::sio_disk_image_umount()
@@ -437,7 +436,7 @@ void sioFuji::sio_close_directory()
     sio_complete();
 }
 
-/**
+/*
    Read hosts Slots
 */
 void sioFuji::sio_read_hosts_slots()
@@ -448,7 +447,7 @@ void sioFuji::sio_read_hosts_slots()
     sio_to_computer(hostSlots.rawData, sizeof(hostSlots.rawData), false);
 }
 
-/**
+/*
    Read Device Slots
 */
 void sioFuji::sio_read_device_slots()
@@ -460,7 +459,7 @@ void sioFuji::sio_read_device_slots()
     sio_to_computer(deviceSlots.rawData, sizeof(deviceSlots.rawData), false);
 }
 
-/**
+/*
    Write hosts slots
 */
 void sioFuji::sio_write_hosts_slots()
@@ -472,16 +471,22 @@ void sioFuji::sio_write_hosts_slots()
 
     if (sio_checksum(hostSlots.rawData, sizeof(hostSlots.rawData)) == ck)
     {
+        /*
         atrConfig.seek(91792, SeekSet);
         atrConfig.write(hostSlots.rawData, sizeof(hostSlots.rawData));
         atrConfig.flush();
+        */
+        populate_config_from_slots();
+        Config.save();
+
         sio_complete();
     }
     else
         sio_error();
+
 }
 
-/**
+/*
    Write Device slots
 */
 void sioFuji::sio_write_device_slots()
@@ -493,16 +498,22 @@ void sioFuji::sio_write_device_slots()
 
     if (sio_checksum(deviceSlots.rawData, sizeof(deviceSlots.rawData)) == ck)
     {
+        /*
         atrConfig.seek(91408, SeekSet);
         atrConfig.write(deviceSlots.rawData, sizeof(deviceSlots.rawData));
         atrConfig.flush();
+        */
+
+        populate_config_from_slots();
+        Config.save();
+        
         sio_complete();
     }
     else
         sio_error();
 }
 
-/**
+/*
    Get Adapter config.
 */
 void sioFuji::sio_get_adapter_config()
@@ -536,8 +547,8 @@ void sioFuji::sio_get_adapter_config()
     sio_to_computer(adapterConfig.rawData, sizeof(adapterConfig.rawData), false);
 }
 
-/**
-   Make new disk and shove into device slot
+/*
+  Make new disk and shove into device slot
 */
 void sioFuji::sio_new_disk()
 {
@@ -588,9 +599,6 @@ void sioFuji::sio_new_disk()
 #ifdef DEBUG
                 Debug_printf("Nice! Wrote ATR data\n");
 #endif
-                // todo: make these calls for sioD ...
-                //sioD[newDisk.deviceSlot].setSS(newDisk.sectorSize);
-                //derive_percom_block(newDisk.deviceSlot, newDisk.sectorSize, newDisk.numSectors); // this is called in sioDisk::mount()
                 sioD[newDisk.deviceSlot].mount(&fnDisks[newDisk.deviceSlot].file); // mount does all this
                 sio_complete();
                 return;
@@ -623,22 +631,93 @@ void sioFuji::sio_new_disk()
     }
 }
 
-/**
-   Set WiFi LED
-*/
-void sioFuji::wifi_led(bool onOff)
+
+// Temporary(?) function while we move from old config storage to new
+void sioFuji::populate_slots_from_config()
 {
-    ledMgr.set(eLed::LED_WIFI, onOff);
+    for(int i = 0; i < MAX_FILESYSTEMS; i++)
+    {
+        if(Config.host_slots[i].type == fnConfig::host_types::HOSTTYPE_INVALID)
+            hostSlots.slot[i].hostname[0] = '\0';
+        else
+            strncpy(hostSlots.slot[i].hostname, 
+                Config.host_slots[i].name.c_str(), MAX_HOSTNAME_LEN);
+    }
+
+    for(int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        deviceSlots.slot[i].hostSlot = 0xFF;
+        deviceSlots.slot[i].filename[0] = '\0';
+
+        if(Config.mount_slots[i].host_slot != HOST_SLOT_INVALID)
+        {
+            if (Config.mount_slots[i].host_slot >=0 && Config.mount_slots[i].host_slot <= MAX_FILESYSTEMS)
+            {
+                strncpy(deviceSlots.slot[i].filename, 
+                    Config.mount_slots[i].path.c_str(), MAX_FILENAME_LEN);
+                deviceSlots.slot[i].hostSlot = Config.mount_slots[i].host_slot;
+                deviceSlots.slot[i].mode = 1; //READ
+                if(Config.mount_slots[i].mode == fnConfig::mount_modes::MOUNTMODE_WRITE)
+                    deviceSlots.slot[i].mode = 2; //WRITE
+            }
+        }
+    }
+
+}
+
+// Temporary(?) function while we move from old config storage to new
+void sioFuji::populate_config_from_slots()
+{
+    for(int i = 0; i < MAX_FILESYSTEMS; i++)
+    {
+        if(hostSlots.slot[i].hostname[0])
+        {
+            Config.host_slots[i].type = fnConfig::host_types::HOSTTYPE_TNFS;
+            Config.host_slots[i].name = hostSlots.slot[i].hostname;
+        }
+        else
+        {
+            Config.host_slots[i].type = fnConfig::host_types::HOSTTYPE_INVALID;
+            Config.host_slots[i].name.clear();
+
+        }
+    }
+
+    for(int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        if(deviceSlots.slot[i].hostSlot == 0xFF || deviceSlots.slot[i].filename[0] == '\0')
+        {
+            Config.mount_slots[i].host_slot = HOST_SLOT_INVALID;
+            Config.mount_slots[i].path.clear();
+        }
+        else
+        {
+            Config.mount_slots[i].host_slot = deviceSlots.slot[i].hostSlot;
+            Config.mount_slots[i].path = deviceSlots.slot[i].filename;
+            Config.mount_slots[i].mode = fnConfig::mount_modes::MOUNTMODE_READ;
+            if(deviceSlots.slot[i].mode == 2)
+            {
+                Config.mount_slots[i].mode = fnConfig::mount_modes::MOUNTMODE_WRITE;
+            } else if (deviceSlots.slot[i].mode != 1)
+            {
+                #ifdef DEBUG
+                Debug_printf("populate_config_from_slots - Unknown mount mode: %d\n", Config.mount_slots[i].mode);
+                #endif
+            }
+        }
+    }
+
 }
 
 /*
-    Initializes base settings and adds our devices to the SIO bus
+  Initializes base settings and adds our devices to the SIO bus
 */
 void sioFuji::setup(sioBus &mySIO)
 {
     // set up Fuji device
     atrConfig = SPIFFS.open("/autorun.atr", "r+");
 
+    /*
     // Go ahead and read the host slots from disk
     atrConfig.seek(91792, SeekSet);
     atrConfig.read(hostSlots.rawData, 256);
@@ -655,6 +734,9 @@ void sioFuji::setup(sioBus &mySIO)
             deviceSlots.slot[i].hostSlot = 0xFF;
         }
     }
+    */
+    populate_slots_from_config();
+
     configDisk.mount(&atrConfig); // set up a special disk drive not on the bus
 
     // Add our devices to the SIO bus
@@ -696,6 +778,10 @@ void sioFuji::sio_process()
     case SIO_FUJICMD_SET_SSID:
         sio_ack();
         sio_net_set_ssid();
+        break;
+    case SIO_FUJICMD_GET_SSID:
+        sio_ack();
+        sio_net_get_ssid();
         break;
     case SIO_FUJICMD_GET_WIFISTATUS:
         sio_ack();
