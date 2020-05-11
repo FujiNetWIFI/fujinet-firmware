@@ -4,16 +4,15 @@
 #include "fnSystem.h"
 #include "keys.h"
 
-#define PIN_BOOT_KEY 0
-#define PIN_OTHER_KEY 34
+
 
 KeyManager::KeyManager()
 {
     memset(mButtonActive, 0, sizeof(mButtonActive));
     memset(mLongPressActive, 0, sizeof(mLongPressActive));
     memset(mButtonTimer, 0, sizeof(mButtonTimer));
-    mButtonPin[eKey::BOOT_KEY] = PIN_BOOT_KEY;
-    mButtonPin[eKey::OTHER_KEY] = PIN_OTHER_KEY;
+    //mButtonPin[eKey::BOOT_KEY] = PIN_BOOT_KEY;
+    //mButtonPin[eKey::OTHER_KEY] = PIN_OTHER_KEY;
 }
 
 void KeyManager::setup()
@@ -22,6 +21,11 @@ void KeyManager::setup()
     //pinMode(PIN_OTHER_KEY, INPUT);
     fnSystem.set_pin_mode(PIN_BOOT_KEY, PINMODE_INPUT);
     fnSystem.set_pin_mode(PIN_OTHER_KEY, PINMODE_INPUT);
+}
+
+bool KeyManager::keyCurrentlyPressed(eKey key)
+{
+    return (fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW);
 }
 
 eKeyStatus KeyManager::getKeyStatus(eKey key)

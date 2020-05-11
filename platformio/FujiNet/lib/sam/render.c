@@ -5,7 +5,7 @@
 #include "render.h"
 #include "RenderTabs.h"
 
-#include "debug.h"
+#include "samdebug.h"
 extern int debug;
 
 unsigned char wait1 = 7;

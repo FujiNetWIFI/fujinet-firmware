@@ -1,5 +1,5 @@
 #include "png_printer.h"
-#include "debug.h"
+#include "../../include/debug.h"
 
 // rewrite of TinyPngOut https://www.nayuki.io/page/tiny-png-output
 

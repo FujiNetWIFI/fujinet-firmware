@@ -61,36 +61,6 @@ unsigned char successful=0; // connection successful?
 #define COLOR_CHECKING_NETWORK 0x26
 
 /**
- * Is device configured?
- */
-bool configured(void)
-{
-
-  if (GTIA_READ.consol==5)
-    {
-      _configured=false;
-      return _configured;
-    }
-  
-  OS.dcb.ddevic=0x31;
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd='R'; // Is device configured?
-  OS.dcb.dstats=0x40; // Peripheral->Computer
-  OS.dcb.dbuf=&config_sector;
-  OS.dcb.dtimlo=0x0F; // 15 second timeout
-  OS.dcb.dbyt=128;      // single sector
-  OS.dcb.daux=720;
-  siov();
-
-  if (config_sector[127]==0xFF)
-    _configured=true;
-  else
-    _configured=false;
-  
-  return _configured;
-}
-
-/**
  * Return number of networks
  */
 unsigned char config_do_scan(unsigned char* num_networks)
@@ -129,7 +99,7 @@ unsigned char config_scan_result(unsigned char n)
 /**
  * Write desired SSID and password to SIO
  */
-unsigned char config_set_ssid(void)
+unsigned char config_set_ssid(bool save)
 {
   OS.dcb.ddevic=0x70;
   OS.dcb.dunit=1;
@@ -138,7 +108,7 @@ unsigned char config_set_ssid(void)
   OS.dcb.dbuf=&netConfig.rawData;
   OS.dcb.dtimlo=0x0f; // 15 second timeout
   OS.dcb.dbyt=sizeof(netConfig.rawData);
-  OS.dcb.daux=0;
+  OS.dcb.daux= save ? 1 : 0;
   siov();
 
   return OS.dcb.dstats;
@@ -235,6 +205,9 @@ void config_print_error(unsigned char s)
 /**
  * Write config to "disk"
  */
+/* The SSID is saved as part of config_set_ssid
+*/
+/*
 void config_write(void)
 {
   memset(&config_sector,0x00,sizeof(config_sector));
@@ -253,24 +226,54 @@ void config_write(void)
   OS.dcb.daux=720; // 720 = the config sector.
   siov();
 }
+*/
 
 /**
- * Read config from "disk"
+ * Query FN for current config
  */
 void config_read(void)
 {
+  OS.dcb.ddevic=0x70;
+  OS.dcb.dunit=1;
+  OS.dcb.dcomnd=0xFE; //get_ssid
+  OS.dcb.dstats=0x40;
+  OS.dcb.dbuf=&netConfig.rawData;
+  OS.dcb.dtimlo=0x0F; // 15 second timeout
+  OS.dcb.dbyt=sizeof(netConfig.rawData);
+  OS.dcb.daux=0;
+  siov();
+}
+
+/**
+ * Is device configured?
+ */
+bool configured(void)
+{
+
+  if (GTIA_READ.consol==5)
+    {
+      _configured=false;
+      return _configured;
+    }
+  /*
   OS.dcb.ddevic=0x31;
   OS.dcb.dunit=1;
-  OS.dcb.dcomnd='R';
-  OS.dcb.dstats=0x40;
+  OS.dcb.dcomnd='R'; // Is device configured?
+  OS.dcb.dstats=0x40; // Peripheral->Computer
   OS.dcb.dbuf=&config_sector;
-  OS.dcb.dtimlo=0x0F;
-  OS.dcb.dbyt=128;
+  OS.dcb.dtimlo=0x0F; // 15 second timeout
+  OS.dcb.dbyt=128;      // single sector
   OS.dcb.daux=720;
   siov();
+  */
+  config_read();
 
-  strcpy(netConfig.ssid,&config_sector[0]);
-  strcpy(netConfig.password,&config_sector[32]);
+  if(netConfig.ssid[0] != '\0')
+    _configured=true;
+  else
+    _configured=false;
+  
+  return _configured;
 }
 
 /**
@@ -290,7 +293,8 @@ bool config_wait_for_wifi(void)
 	  if (wifiStatus==3)
 	    {
 	      OS.pcolr0=OS.pcolr1=OS.pcolr2=OS.pcolr3=COLOR_SETTING_SUCCESSFUL;
-	      config_write();
+	      //config_write();
+        config_set_ssid(true);
 	      
 	      OS.rtclok[0]=OS.rtclok[1]=OS.rtclok[2]=0;
 	      
@@ -335,7 +339,7 @@ bool config_connect(void)
   screen_puts(0,0,"WELCOME TO #FUJINET! CONNECTING TO NET ");
   screen_puts(2,2,netConfig.ssid);
   bar_show(3);
-  config_set_ssid();
+  config_set_ssid(false);
   return config_wait_for_wifi();
 }
 
@@ -461,7 +465,7 @@ void config_run(void)
 	  strcpy(netConfig.ssid,ssidInfo.ssid);
 	}
       
-      config_set_ssid(); // send to fujinet
+      config_set_ssid(false); // send to fujinet
 
       done=false;
 

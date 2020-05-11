@@ -1,5 +1,5 @@
 #include "atari_1025.h"
-#include "debug.h"
+#include "../../include/debug.h"
 
 void atari1025::pdf_handle_char(byte c)
 {
