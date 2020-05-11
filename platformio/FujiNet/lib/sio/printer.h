@@ -22,82 +22,7 @@ protected:
     bool sideFlag = false;
     sioPrinter *my_sioP; // added variable to point back to sioPrinter parent
 
-    void pdf_fonts();
     void pdf_handle_char(byte c); // need a custom one to handle sideways printing
-
-    const pdfFont_t F1 = {
-        /*
-    /Type /Font
-    /Subtype /Type1
-    /FontDescriptor 8 0 R
-    /BaseFont /Atari-820-Normal
-    /FirstChar 0
-    /LastChar 255
-    /Widths 10 0 R
-    /Encoding /WinAnsiEncoding
-    /Type /FontDescriptor
-    /FontName /Atari-820-Normal
-    /Ascent 1000
-    /CapHeight 1000
-    /Descent 0
-    /Flags 33
-    /FontBBox [0 0 433 700]
-    /ItalicAngle 0
-    /StemV 87
-    /XHeight 714
-    /FontFile3 9 0 R
-  */
-        "Type1",            //F1->subtype =
-        "Atari-820-Normal", //F1->basefont =
-        {500},              //  F1->width[0] =
-        1,                  // F1->numwidth
-        1000,               // F1->ascent =
-        1000,               // F1->capheight =
-        0,                  // F1->descent =
-        33,                 // F1->flags =
-        {0, 0, 433, 700},
-        87,         // F1->stemv =
-        714,        // F1->xheight =
-        3,          // F1->ffnum =
-        "/a820norm" // F1->ffname =
-    };
-
-    const pdfFont_t F2 = {
-        /*
-    /Type /Font
-    /Subtype /Type1
-    /FontDescriptor 8 0 R
-    /BaseFont /Atari-820-Sideways
-    /FirstChar 0
-    /LastChar 255
-    /Widths 10 0 R
-    /Encoding /WinAnsiEncoding
-    /Type /FontDescriptor
-    /FontName /Atari-820-Sideways
-    /Ascent 1000
-    /CapHeight 1000
-    /Descent 0
-    /Flags 33
-    /FontBBox [0 0 600 700]
-    /ItalicAngle 0
-    /StemV 87
-    /XHeight 1000
-    /FontFile3 9 0 R
-  */
-        "Type1",              // F2->subtype =
-        "Atari-820-Sideways", // F2->basefont =
-        {666},                // F2->width[0] = ;
-        1,                    // F2->numwidth =
-        1000,                 // F2->ascent =
-        1000,                 // F2->capheight =
-        0,                    // F2->descent =
-        33,                   // F2->flags =
-        {0, 0, 600, 700},
-        87,         // F2->stemv =
-        1000,       // F2->xheight =
-        3,          // F2->ffnum =
-        "/a820side" // F2->ffname =
-    };
 
 public:
     atari820(sioPrinter *P) { my_sioP = P; }
@@ -111,46 +36,10 @@ class atari822 : public pdfPrinter
 protected:
     sioPrinter *my_sioP;
 
-    void pdf_fonts();
     void pdf_handle_char(byte c); // need a custom one to handle sideways printing
 
     int gfxNumber = 0;
 
-    const pdfFont_t F1 = {
-        /*
-      /Type /Font
-      /Subtype /Type1
-      /FontDescriptor 8 0 R
-      /BaseFont /Atari-822-Thermal
-      /FirstChar 0
-      /LastChar 255
-      /Widths 10 0 R
-      /Encoding /WinAnsiEncoding
-      /Type /FontDescriptor
-      /FontName /Atari-822-Thermal
-      /Ascent 1000
-      /CapHeight 986
-      /Descent 0
-      /Flags 33
-      /FontBBox [0 0 490 690]
-      /ItalicAngle 0
-      /StemV 87
-      /XHeight 700
-      /FontFile3 9 0 R
-    */
-        "Type1",
-        "Atari-822-Thermal",
-        {600},
-        1,
-        1000,
-        986,
-        0,
-        33,
-        {0, 0, 490, 690},
-        87,
-        700,
-        3,
-        "/a822font"};
 
 public:
     atari822(sioPrinter *P) { my_sioP = P; }

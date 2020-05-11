@@ -163,7 +163,8 @@ void atari1025::pdf_handle_char(byte c)
 void atari1025::initPrinter(FS *filesystem)
 {
     printer_emu::initPrinter(filesystem);
-    //paperType = PDF;
+
+    shortname="a1025";
 
     pageWidth = 612.0;
     pageHeight = 792.0;
@@ -175,8 +176,9 @@ void atari1025::initPrinter(FS *filesystem)
     fontNumber = 1;
     fontSize = 12;
 
+
+
     pdf_header();
-    // uscoreFlag = false;
     intlFlag = false;
     escMode = false;
 }

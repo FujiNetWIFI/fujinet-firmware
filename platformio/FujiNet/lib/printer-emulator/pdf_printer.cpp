@@ -74,8 +74,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
         if (fontUsed[i])
         {
             size_t fp = 0;
-            // filename: /f/shortname/Fi
-            char fname[30];
+            char fname[30];  // filename: /f/shortname/Fi
             sprintf(fname, "/f/%s/F%d", shortname.c_str(), i + 1); // e.g. /f/a820/F2
             File fff = SPIFFS.open(fname, "r");                    // Font File File - fff
 

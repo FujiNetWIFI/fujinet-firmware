@@ -121,7 +121,8 @@ void atari1027::pdf_handle_char(byte c)
 void atari1027::initPrinter(FS *filesystem)
 {
     printer_emu::initPrinter(filesystem);
-    //paperType = PDF;
+
+    shortname="a1027";
 
     pageWidth = 612.0;
     pageHeight = 792.0;
