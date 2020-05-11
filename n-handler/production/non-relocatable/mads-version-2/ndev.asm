@@ -270,22 +270,216 @@ OPNDCB	.byte	$71		; DDEVIC
 	
 	;; Close
 	
-CLOSE	ldy	#$01
+CLOSE	lda	ZICDNO
+	sta	CLODCB+1
+	ldy	#$0C
+CLOL	lda	CLODCB,y
+	sta	DCB,y
+	dey
+	bpl	CLOL
+	jsr	SIOV
+	ldy	DSTATS
 	tya
 	rts
+
+CLODCB	.byte	$71		; DDEVIC
+	.byte	$FF		; UNIT
+	.byte	'C'		; Status
+	.byte	$00		; None
+	.byte	$00		; ZICBAL
+	.byte	$00		; ZICBAH
+	.byte	$0F		; DTIMLO
+	.byte	$00		; DRESVD
+	.byte	$00		; ZICBLL
+	.byte	$00		; ZICBLH
+	.byte	$00		; ZICAX1
+	.byte	$00		; ZICAX2
 
 	;; Get
 	
-GET	ldy	#$01
-	tya
+GET	jsr	GDIDX
+	lda	RLEN,X
+	bne	GETDRB		; Drain buffer if RLEN>0
+
+	;; len = 0, do status poll, and update len
+
+	jsr	STPOLL
+	jsr	GDIDX
+	lda	DVSTAT
+	sta	RLEN,x
+
+	;; If len=0 then ret eof, othewise, get data from sio
+
+	bne	GETDO
+	ldy	#EOF
+	lda	#EOF
 	rts
+
+	;; Do the SIO 'R'
+	
+GETDO	lda	ZICDNO
+	sta	GETDCB+1
+	jsr	GDIDX
+	lda	RBUFPAG,x
+	sta	GETBAH
+	lda	DVSTAT
+	sta	GETBLL
+	sta	GETAX1
+
+	ldy	#$0C
+GETL	lda	GETDCB,y
+	sta	DCB,y
+	dey
+	bpl	GETL
+	
+	jsr	SIOV
+	
+	;; Reset the buffer offset
+
+	jsr	GDIDX
+	lda	#$00
+	sta	ROFF,x
+
+	;; Drain Buffer
+
+GETDRB	dec	RLEN,x
+	ldy	ROFF,x
+	cpx	#$03
+	beq	GETG3
+	cpx	#$02
+	beq	GETG2
+	cpx	#$01
+	beq	GETG1
+
+	;; Return next character in buffer
+
+GETG0	lda	RBUF,y
+	bvc	GETGX
+GETG1	lda	RBUF+$100,y
+	bvc	GETGX
+GETG2	lda	RBUF+$200,y
+	bvc	GETGX
+GETG3	lda	RBUF+$300,y
+	bvc	GETGX
+GETGX	inc	ROFF,x
+	tay
+
+	;; Reset trip if LEN=0
+
+	lda	RLEN,x
+	bne	GETDONE
+	lda	#$00
+	sta	TRIP
+GETDONE	tya
+	ldy	#$01		; success
+	rts			; done
+	
+GETDCB	.byte	$71		; DDEVIC
+	.byte	$FF		; UNIT
+	.byte	'R'		; Read
+	.byte	$40		; Write
+	.byte	$00		; RBUF+PAGE
+GETBAH	.byte	$FF		; ZICBAH
+	.byte	$0F		; DTIMLO
+	.byte	$00		; DRESVD
+GETBLL	.byte	$FF		; ZICBLL
+	.byte	$00		; ZICBLH
+GETAX1	.byte	$FF		; ZICAX1
+	.byte	$00		; ZICAX2
 
 	;; Put
 	
-PUT	ldy	#$01
-	tya
+PUT	jsr	GDIDX
+	ldy	TOFF,x
+
+	cpx	#$03
+	beq	PUTP3
+	cpx	#$02
+	beq	PUTP2
+	cpx	#$01
+	beq	PUTP1
+
+PUTP0	sta	TBUF,y
+	bvc	PUTPX
+PUTP1	sta	TBUF+$100,y
+	bvc	PUTPX
+PUTP2	sta	TBUF+$200,y
+	bvc	PUTPX
+PUTP3	sta	TBUF+$300,y
+	bvc	PUTPX
+PUTPX	inc	TOFF,x
+	ldy	#$01
+
+	;; Flush buffer if EOL or full
+	cmp	#EOL
+	beq	PUTFLU
+	jsr	GDIDX
+	ldy	TOFF,x
+	cpx	#$FF
+	beq	PUTFLU
+	RTS
+
+	;; Flush buffer, if asked
+
+PUTFLU	jsr	PUTDO
 	rts
 
+	;; PUT FLUSH COMMAND
+	
+PUTDO	jsr	STPOLL
+	lda	DVSTAT+2	; Check for disconnect
+	bne	PUTDO1		; Continue with PUT if still connected
+
+	;; We got disconnected, emit EOF.
+	
+	ldy	#EOF
+	lda	#EOF
+	rts
+	
+PUTDO1	jsr	GDIDX
+	lda	TOFF,x
+	bne	PUTDO2
+
+	;; We were asked to flush, with no buffer. ignore.
+	
+	lda	#$01
+	tay
+	rts
+
+	;; Fill out and do PUT DCB
+	
+PUTDO2	ldx	ZICDNO
+	stx	PUTDCB+1
+	dex
+	lda	TBUFPAG,x
+	sta	PUTBAH
+	lda	DVSTAT
+	sta	PUTBLL
+	sta	PUTAX1
+	jsr	SIOV
+
+	;; Clear TX offset/len
+	
+	jsr	GDIDX
+	lda	#$00
+	sta	TOFF,x
+	ldy	#$01
+	rts
+
+PUTDCB	.byte	$71		; DDEVIC
+	.byte	$FF		; UNIT
+	.byte	'W'		; Read
+	.byte	$80		; Write
+	.byte	$00		; RBUF+PAGE
+PUTBAH	.byte	$FF		; ZICBAH
+	.byte	$0F		; DTIMLO
+	.byte	$00		; DRESVD
+PUTBLL	.byte	$FF		; ZICBLL
+	.byte	$00		; ZICBLH
+PUTAX1	.byte	$FF		; ZICAX1
+	.byte	$00		; ZICAX2
+
+	
 	;; Status
 	
 STATUS	ldy	#$01
@@ -385,9 +579,20 @@ ROFF	.byte	0,0,0,0		; Receive offset
 TOFF	.byte	0,0,0,0		; Transmit offset
 INQDS	.byte	$00		; DSTATS Inquiry
 
+	;; Receive Buffer page offset table
+RBUFPAG	.byte	>RBUF
+	.byte	>RBUF+1
+	.byte	>RBUF+2
+	.byte	>RBUF+3
+
+TBUFPAG	.byte	>TBUF
+	.byte	>TBUF+1
+	.byte	>TBUF+2
+	.byte	>TBUF+3
+	
 	;; Buffers
 
-	org	* + $FF & $FF00
+	.align	$100
 
 RBUF	.ds	256*MAXDEV
 TBUF	.ds	256*MAXDEV
