@@ -1,4 +1,5 @@
 #include "html_printer.h"
+#include "atari_1025.h"
 #include "atari_1027.h"
 #include "file_printer.h"
 #include "png_printer.h"
@@ -317,6 +318,9 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
     case PRINTER_ATARI_822:
         _pptr = new atari822(this);
         break;
+    case PRINTER_ATARI_1025:
+        _pptr = new atari1025;
+        break;
     case PRINTER_ATARI_1027:
         _pptr = new atari1027;
         break;
@@ -361,6 +365,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
             "file printer (ASCII)",
             "Atari 820",
             "Atari 822",
+            "Atari 1025",
             "Atari 1027",
             "GRANTIC",
             "HTML printer",

@@ -82,6 +82,7 @@ public:
         PRINTER_FILE_ASCII,
         PRINTER_ATARI_820,
         PRINTER_ATARI_822,
+        PRINTER_ATARI_1025,
         PRINTER_ATARI_1027,
         PRINTER_PNG,
         PRINTER_HTML,

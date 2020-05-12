@@ -377,7 +377,6 @@ void pdfPrinter::pageEject()
         pdf_new_page(); // make a blank page
     if (!BOLflag)
         pdf_end_line(); // close out the current line of text
-    // to do: close the text string array if !BOLflag
     if (!TOPflag || pdf_pageCounter == 0)
         pdf_end_page();
 
@@ -386,55 +385,4 @@ void pdfPrinter::pageEject()
     pdf_page_resource();
     pdf_xref();
     printer_emu::pageEject();
-    // _file.flush();
-    // _file.seek(0);
-}
-
-/* 
-void asciiPrinter::initPrinter(FS *filesystem)
-{
-    _FS = filesystem;
-    resetOutput();
-    //_file = f;
-    // paperType = PDF;
-
-    pageWidth = 612.0;
-    pageHeight = 792.0;
-    leftMargin = 18.0;
-    bottomMargin = 0;
-    printWidth = 576.0; // 8 inches
-    lineHeight = 12.0;
-    charWidth = 7.2;
-    fontNumber = 1;
-    fontSize = 12;
-
-    pdf_header();
-    pdf_fonts();
-}
-
-void asciiPrinter::pdf_fonts()
-{
-    // 3rd object: font catalog
-    pdf_objCtr = 3;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("3 0 obj\n<</Font << /F1 4 0 R >>>>\nendobj\n");
-
-    // 1027 standard font
-    pdf_objCtr = 4;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("4 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding>>\nendobj\n");
-}
-
-void asciiPrinter::pdf_handle_char(byte c)
-{
-    // simple ASCII printer
-    if (c > 31 && c < 127)
-    {
-        if (c == '\\' || c == '(' || c == ')')
-            _file.write('\\');
-        _file.write(c);
-
-        pdf_X += charWidth; // update x position
-    }
-}
- */
+ }
