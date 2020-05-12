@@ -142,20 +142,20 @@ void atari820::initPrinter(FS *filesystem)
 
     // F1 : Atari-820-Normal
     fontObjPos[0][0] = 66;   // FontDescriptor Reference
-    fontObjPos[0][1] = 150;  // Widths Reference
-    fontObjPos[0][2] = 199;  // FontDescriptor Object
-    fontObjPos[0][3] = 418;  // FontFile Reference
-    fontObjPos[0][4] = 437;  // FontFile Object
-    fontObjPos[0][5] = 4668; // Widths Object
-    fontObjPos[0][6] = 5712; // fragment length
+    fontObjPos[0][1] = 148;  // Widths Reference
+    fontObjPos[0][2] = 195;  // FontDescriptor Object
+    fontObjPos[0][3] = 414;  // FontFile Reference
+    fontObjPos[0][4] = 431;  // FontFile Object
+    fontObjPos[0][5] = 4662; // Widths Object
+    fontObjPos[0][6] = 5706; // fragment length
     // F2 : Atari-820-Sideways
     fontObjPos[1][0] = 66;   // FontDescriptor Reference
-    fontObjPos[1][1] = 152;  // Widths Reference
-    fontObjPos[1][2] = 201;  // FontDescriptor Object
-    fontObjPos[1][3] = 423;  // FontFile Reference
-    fontObjPos[1][4] = 442;  // FontFile Object
-    fontObjPos[1][5] = 4257; // Widths Object
-    fontObjPos[1][6] = 5301; // fragment length
+    fontObjPos[1][1] = 150;  // Widths Reference
+    fontObjPos[1][2] = 197;  // FontDescriptor Object
+    fontObjPos[1][3] = 419;  // FontFile Reference
+    fontObjPos[1][4] = 436;  // FontFile Object
+    fontObjPos[1][5] = 4251; // Widths Object
+    fontObjPos[1][6] = 5295; // fragment length
 
     sideFlag = false;
 
@@ -181,12 +181,12 @@ void atari822::initPrinter(FS *filesystem)
 
     // F1 : Atari-822-Thermal
     fontObjPos[0][0] = 66;   // FontDescriptor Reference
-    fontObjPos[0][1] = 151;  // Widths Reference
-    fontObjPos[0][2] = 200;  // FontDescriptor Object
-    fontObjPos[0][3] = 419;  // FontFile Reference
-    fontObjPos[0][4] = 438;  // FontFile Object
-    fontObjPos[0][5] = 1952; // Widths Object
-    fontObjPos[0][6] = 2996; // fragment length
+    fontObjPos[0][1] = 149;  // Widths Reference
+    fontObjPos[0][2] = 196;  // FontDescriptor Object
+    fontObjPos[0][3] = 415;  // FontFile Reference
+    fontObjPos[0][4] = 432;  // FontFile Object
+    fontObjPos[0][5] = 1946; // Widths Object
+    fontObjPos[0][6] = 2990; // fragment length
 
     pdf_header();
 }
