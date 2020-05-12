@@ -128,7 +128,7 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
     }
 
     // Finally, change the printer type!
-    Config.printer_slots[0].type = t;
+    Config.store_printer(0, t);
     Config.save();
     sioP.set_printer_type(t);
 }
