@@ -13,7 +13,51 @@
 
 class fnConfig
 {
+public:
+    enum host_types
+    {
+        HOSTTYPE_SD = 0,
+        HOSTTYPE_TNFS,
+        HOSTTYPE_INVALID
+    };
+    typedef host_types host_type_t;
+    host_type_t host_type_from_string(const char *str);
+
+    enum mount_modes
+    {
+        MOUNTMODE_READ = 0,
+        MOUNTMODE_WRITE,
+        MOUNTMODE_INVALID
+    };
+    typedef mount_modes mount_mode_t;
+    mount_mode_t mount_mode_from_string(const char *str);
+
+    sioPrinter::printer_type get_printer_type(uint8_t num);
+    void store_printer(uint8_t num, sioPrinter::printer_type ptype);
+
+    std::string get_wifi_ssid() { return _wifi.ssid; };
+    std::string get_wifi_passphrase() { return _wifi.passphrase; };
+    void store_wifi_ssid(const char *ssid_octets, int num_octets);
+    void store_wifi_passphrase(const char *passphrase_octets, int num_octets);
+    void reset_wifi() { _wifi.ssid.clear(); _wifi.passphrase.clear(); };
+
+    std::string get_host_name(uint8_t num);
+    host_type_t get_host_type(uint8_t num);
+    void store_host(uint8_t num, const char *hostname, host_type_t type);
+    void clear_host(uint8_t num);
+
+    std::string get_mount_path(uint8_t num);
+    mount_mode_t get_mount_mode(uint8_t num);
+    int get_mount_host_slot(uint8_t num);
+    void store_mount(uint8_t num, int hostslot, const char *path, mount_mode_t mode);
+    void clear_mount(uint8_t num);
+
+    void load();
+    void save();
+
 private:
+    bool _dirty = false;
+
     int _read_line(std::stringstream &ss, std::string &line, char abort_if_starts_with = '\0');
 
     void _read_section_wifi(std::stringstream &ss);
@@ -31,21 +75,14 @@ private:
     section_match _find_section_in_line(std::string &line, int &index);
     bool _split_name_value(std::string &line, std::string &name, std::string &value);
 
-public:
-    enum host_types
-    {
-        HOSTTYPE_SD = 0,
-        HOSTTYPE_TNFS,
-        HOSTTYPE_INVALID
-    };
-    typedef host_types host_type_t;
-
-    const char * host_type_names[HOSTTYPE_INVALID] = {
+    const char * _host_type_names[HOSTTYPE_INVALID] = {
         "SD",
         "TNFS"
     };
-
-    host_type_t host_type_from_string(const char *str);
+    const char * _mount_mode_names[MOUNTMODE_INVALID] = {
+        "r",
+        "w"
+    };
 
     struct host_info
     {
@@ -53,25 +90,10 @@ public:
         std::string name;
     };
 
-    enum mount_modes
-    {
-        MOUNTMODE_READ = 0,
-        MOUNTMODE_WRITE,
-        MOUNTMODE_INVALID
-    };
-    typedef mount_modes mount_mode_t;
-
-    const char * mount_mode_names[MOUNTMODE_INVALID] = {
-        "r",
-        "w"
-    };
-
-    mount_mode_t mount_mode_from_string(const char *str);
-
     struct mount_info
     {
         int host_slot = HOST_SLOT_INVALID;
-        mount_mode_t mode = MOUNTMODE_READ;
+        mount_mode_t mode = MOUNTMODE_INVALID;
         std::string path;
     };
 
@@ -80,19 +102,30 @@ public:
         sioPrinter::printer_type type = sioPrinter::printer_type::PRINTER_INVALID;
     };
 
+/*
+     802.11 standard speficies a length 0 to 32 octets for SSID.
+     No character encoding is specified, and all octet values are valid including
+     zero. Although most SSIDs are treatred as ASCII strings, they are not subject
+     to those limitations.
+     We set asside 33 characters to allow for a zero terminator in a 32-char SSID
+     and treat it as string instead of an array of arbitrary byte values.
+     
+     Similarly, the PSK (passphrase/password) is 64 octets.
+     User-facing systems will typically take an 8 to 63 ASCII string and hash
+     that into a 64 octet value. Although we're storing that ASCII string,
+     we'll allow for 65 characters to allow for a zero-terminated 64 char
+     string.
+*/
     struct wifi_info
     {
         std::string ssid;
         std::string passphrase;
     };
 
-    host_info host_slots[MAX_HOST_SLOTS];
-    mount_info mount_slots[MAX_MOUNT_SLOTS];
-    printer_info printer_slots[MAX_PRINTER_SLOTS];
-    wifi_info wifi;
-
-    void load();
-    void save();
+    host_info _host_slots[MAX_HOST_SLOTS];
+    mount_info _mount_slots[MAX_MOUNT_SLOTS];
+    printer_info _printer_slots[MAX_PRINTER_SLOTS];
+    wifi_info _wifi;
 };
 
 extern fnConfig Config;
