@@ -1,6 +1,10 @@
 #include "atari_1025.h"
 #include "../../include/debug.h"
 
+#define WIDE_WIDTH 572.0
+#define WIDE_MARGIN 18.0
+#define 
+
 void atari1025::pdf_handle_char(byte c)
 {
     if (escMode)
@@ -25,6 +29,7 @@ void atari1025::pdf_handle_char(byte c)
                 _file.printf(")]TJ\n/F2 12 Tf [(");
                 charWidth = 14.4; //72.0 / 5.0;
                 fontNumber = 2;
+                fontUsed[1]=true;
             }
             break;
         case 0x0F:
@@ -34,6 +39,7 @@ void atari1025::pdf_handle_char(byte c)
                 _file.printf(")]TJ\n/F1 12 Tf [(");
                 charWidth = 7.2; //72.0 / 10.0;
                 fontNumber = 1;
+                // fontUsed[0]=true; // redundant
             }
             break;
         case 0x14:
@@ -43,6 +49,7 @@ void atari1025::pdf_handle_char(byte c)
                 _file.printf(")]TJ\n/F3 12 Tf [(");
                 charWidth = 72.0 / 16.5;
                 fontNumber = 3;
+                fontUsed[2]=true;
             }
             break;
         case 0x17: // 23

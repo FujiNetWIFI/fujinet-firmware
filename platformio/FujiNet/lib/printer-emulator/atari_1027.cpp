@@ -130,7 +130,7 @@ void atari1027::initPrinter(FS *filesystem)
     bottomMargin = 0;
     printWidth = 480.0; // 6 2/3 inches
     lineHeight = 12.0;
-    charWidth = 6; // 12cpi
+    charWidth = 6.0; // 12cpi
     fontNumber = 1;
     fontSize = 10;
 
