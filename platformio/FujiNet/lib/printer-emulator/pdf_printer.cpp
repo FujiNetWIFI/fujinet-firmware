@@ -74,12 +74,14 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
         if (fontUsed[i])
         {
             size_t fp = 0;
-            char fname[30];  // filename: /f/shortname/Fi
+            char fname[30];                                        // filename: /f/shortname/Fi
             sprintf(fname, "/f/%s/F%d", shortname.c_str(), i + 1); // e.g. /f/a820/F2
             File fff = SPIFFS.open(fname, "r");                    // Font File File - fff
 
-            fff.read();   // '%'
-            fff.read();   // 'd'
+            fff.read(); // '%'
+            fp++;
+            fff.read(); // 'd'
+            fp++;
             pdf_objCtr++; // = 6;
             objLocations[pdf_objCtr] = _file.position();
             _file.printf("%d", pdf_objCtr); // 6
@@ -186,7 +188,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
                 fp++;
             }
             fff.close();
-            _file.write('\n'); // make sure there's a seperator 
+            _file.write('\n'); // make sure there's a seperator
         }
 #ifdef DEBUG
         else

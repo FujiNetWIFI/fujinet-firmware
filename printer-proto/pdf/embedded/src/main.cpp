@@ -114,7 +114,7 @@ void copyFont(int i)
   g << line.substr(0, offset);
   g.flush();
   objPos[objCtr++] = g.tellp();
-  g << "%d 0 obj\n";
+  g << "%d 0 R\n";
 
   getline(f, line); //  /BaseFont /Atari-1025-Normal
   g << line << "\n";
@@ -128,7 +128,7 @@ void copyFont(int i)
   g << line.substr(0, offset);
   g.flush();
   objPos[objCtr++] = g.tellp();
-  g << "%d 0 obj\n";
+  g << "%d 0 R\n";
 
   getline(f, line); //  /Encoding /WinAnsiEncoding
   g << line << "\n";
@@ -180,7 +180,7 @@ void copyFont(int i)
   g << line.substr(0, ++offset);
   g.flush();
   objPos[objCtr++] = g.tellp();
-  g << "%d 0 obj\n"; // always font file 3 because of OTF
+  g << "%d 0 R\n"; // always font file 3 because of OTF
 
   getline(f, line); // >>
   g << line << "\n";
