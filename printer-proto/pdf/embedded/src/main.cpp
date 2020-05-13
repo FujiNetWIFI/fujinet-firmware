@@ -259,7 +259,7 @@ int main(int argc, char **argv)
   }
 
   // create file names
-  h.open("fontpos.cpp", ios::out | ios::binary);
+  h.open("LUT", ios::out | ios::binary);
 
   int numFonts = findFontList();
 
@@ -271,14 +271,19 @@ int main(int argc, char **argv)
     copyFont(i);
     g.close();
 
-    h << "// " << gname << " : " << fontname.substr(1) << "\n";
-    h << "fontObjPos[" << i << "][0] = " << (objPos[1] - objPos[0]) << "; // FontDescriptor Reference \n";
-    h << "fontObjPos[" << i << "][1] = " << (objPos[2] - objPos[0]) << "; // Widths Reference \n";
-    h << "fontObjPos[" << i << "][2] = " << (objPos[3] - objPos[0]) << "; // FontDescriptor Object \n";
-    h << "fontObjPos[" << i << "][3] = " << (objPos[4] - objPos[0]) << "; // FontFile Reference \n";
-    h << "fontObjPos[" << i << "][4] = " << (objPos[5] - objPos[0]) << "; // FontFile Object \n";
-    h << "fontObjPos[" << i << "][5] = " << (objPos[6] - objPos[0]) << "; // Widths Object \n";
-    h << "fontObjPos[" << i << "][6] = " << (objPos[7] - objPos[0]) << "; // fragment length \n";
+    for (int j = 1; j < 8; j++)
+    {
+      h << (objPos[j] - objPos[0]) << " ";
+    }
+    h << "\n";
+    // h << "// " << gname << " : " << fontname.substr(1) << "\n";
+    // h << "fontObjPos[" << i << "][0] = " << (objPos[1] - objPos[0]) << "; // FontDescriptor Reference \n";
+    // h << "fontObjPos[" << i << "][1] = " << (objPos[2] - objPos[0]) << "; // Widths Reference \n";
+    // h << "fontObjPos[" << i << "][2] = " << (objPos[3] - objPos[0]) << "; // FontDescriptor Object \n";
+    // h << "fontObjPos[" << i << "][3] = " << (objPos[4] - objPos[0]) << "; // FontFile Reference \n";
+    // h << "fontObjPos[" << i << "][4] = " << (objPos[5] - objPos[0]) << "; // FontFile Object \n";
+    // h << "fontObjPos[" << i << "][5] = " << (objPos[6] - objPos[0]) << "; // Widths Object \n";
+    // h << "fontObjPos[" << i << "][6] = " << (objPos[7] - objPos[0]) << "; // fragment length \n";
   }
   return 0;
 }
