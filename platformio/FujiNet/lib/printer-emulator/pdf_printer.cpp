@@ -69,6 +69,8 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
     char fname[30]; // filename: /f/shortname/Fi
     sprintf(fname, "/f/%s/LUT", shortname.c_str());
     File lut = SPIFFS.open(fname);
+    int maxFonts = lut.parseInt();
+    
     // font dictionary
     for (int i = 0; i < maxFonts; i++)
     {
@@ -325,7 +327,7 @@ bool pdfPrinter::process(byte n)
                 pdf_new_line();
 
             // check for EOL or if at end of line and need automatic CR
-            if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth))))
+            if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth +.072))))
                 pdf_end_line();
 
             // start a new line if we need to

@@ -263,6 +263,8 @@ int main(int argc, char **argv)
 
   int numFonts = findFontList();
 
+  h << numFonts << "\n";
+  
   for (int i = 0; i < numFonts; i++)
   {
     char gname[10];
