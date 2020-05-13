@@ -178,7 +178,6 @@ void atari1025::initPrinter(FS *filesystem)
     charWidth = 7.2;
     fontNumber = 1;
     fontSize = 12;
-    maxFonts = 3;
     
     pdf_header();
     intlFlag = false;

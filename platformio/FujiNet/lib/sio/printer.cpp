@@ -140,7 +140,6 @@ void atari820::initPrinter(FS *filesystem)
     charWidth = 6.0;    // 12 char per inch
     fontNumber = 1;
     fontSize = 12;
-    maxFonts = 2;
     sideFlag = false;
 
     pdf_header();
@@ -162,7 +161,6 @@ void atari822::initPrinter(FS *filesystem)
     charWidth = 7.2;    // 10 char per inch
     fontNumber = 1;
     fontSize = 12;
-    maxFonts = 1;
 
     pdf_header();
 }

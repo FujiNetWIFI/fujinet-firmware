@@ -133,7 +133,6 @@ void atari1027::initPrinter(FS *filesystem)
     charWidth = 6.0; // 12cpi
     fontNumber = 1;
     fontSize = 10;
-    maxFonts = 1;
 
     pdf_header();
 
