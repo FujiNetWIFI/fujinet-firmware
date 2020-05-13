@@ -42,6 +42,8 @@ If a file has an extention pre-determined to support parsing (see/update
 #define MSG_ERR_UNEXPECTED_HTTPD "Unexpected web server error"
 #define MSG_ERR_RECEIVE_FAILURE  "Failed to receive posted data"
 
+#define PRINTER_BUSY_TIME 2000 // milliseconds to wait until printer is done
+
 class fnHttpService 
 {
     struct serverstate {
