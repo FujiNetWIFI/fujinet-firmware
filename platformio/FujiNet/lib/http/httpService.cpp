@@ -53,8 +53,7 @@ const char *fnHttpService::find_mimetype_str(const char *extension)
         {"txt", "text/plain"},
         {"bin", "application/octet-stream"},
         {"js", "text/javascript"},
-        {"atascii", "application/octet-stream"}
-    };
+        {"atascii", "application/octet-stream"}};
 
     if (extension != NULL)
     {
@@ -253,6 +252,13 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     Debug_println("Print request handler");
 #endif
 
+    time_t now = fnSystem.millis();
+    if (now - sioP.lastPrintTime() < PRINTER_BUSY_TIME)
+    {
+        _fnwserr err = fnwserr_post_fail;
+        return_http_error(req, err);
+        return ESP_FAIL;
+    }
     // WAS: A bit of a kludge for now: get printer from main routine
     // IS: now get printer emulator pointer from sioP (which is now extern)
     printer_emu *currentPrinter = sioP.getPrinterPtr(); //getCurrentPrinter();
@@ -302,7 +308,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     // Flush and close the print output before continuing
     currentPrinter->pageEject(); // flushOutput(); is now inside of pageEject()
 
-    if(sendAsAttachment)
+    if (sendAsAttachment)
     {
         // Add a couple of attchment-specific details
         char hdrval1[60];
@@ -314,7 +320,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     snprintf(hdrval2, 10, "%u", currentPrinter->getOutputSize());
 #ifdef DEBUG
     Debug_printf("Printer says there are %u bytes in the output file\n", currentPrinter->getOutputSize());
-#endif    
+#endif
     httpd_resp_set_hdr(req, "Content-Length", hdrval2);
 
     // Finally, write the data
@@ -334,7 +340,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     // Tell the printer it can start writing from the beginning
     // WAS:
     // currentPrinter->resetPrinter(); // resetOutput();
-    // IS: 
+    // IS:
     sioP.reset_printer(); // destroy,create new printer emulator object of previous type.
 #ifdef DEBUG
     Debug_println("Print request completed");
@@ -350,12 +356,12 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
     _fnwserr err = fnwserr_noerrr;
 
     // Load the posted data
-    char *buf = (char *)malloc(FNWS_RECV_BUFF_SIZE);    
-    if(buf == NULL)
+    char *buf = (char *)malloc(FNWS_RECV_BUFF_SIZE);
+    if (buf == NULL)
     {
-        #ifdef DEBUG
-            Debug_printf("Couldn't allocate %u bytes to store POST contents\n", FNWS_RECV_BUFF_SIZE);
-        #endif
+#ifdef DEBUG
+        Debug_printf("Couldn't allocate %u bytes to store POST contents\n", FNWS_RECV_BUFF_SIZE);
+#endif
         err = fnwserr_memory;
     }
     else
@@ -365,10 +371,11 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
         size_t recv_size = req->content_len > FNWS_RECV_BUFF_SIZE ? FNWS_RECV_BUFF_SIZE : req->content_len;
 
         int ret = httpd_req_recv(req, buf, recv_size);
-        if (ret <= 0) {  // 0 return value indicates connection closed
+        if (ret <= 0)
+        { // 0 return value indicates connection closed
 #ifdef DEBUG
             Debug_printf("Error (%d) returned trying to retrieve %u bytes posted data\n", ret, recv_size);
-#endif        
+#endif
             err = fnwserr_post_fail;
         }
         else
@@ -377,10 +384,9 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
             ret = fnHttpServiceConfigurator::process_config_post(buf, recv_size);
             free(buf);
         }
-
     }
 
-    if(err != fnwserr_noerrr)
+    if (err != fnwserr_noerrr)
     {
         return_http_error(req, err);
         return ESP_FAIL;
@@ -393,7 +399,6 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
 
     return ESP_OK;
 }
-
 
 /* We're pointing global_ctx to a member of our fnHttpService object,
 *  so we don't want the libarary freeing it for us. It'll be freed when
@@ -408,41 +413,29 @@ void fnHttpService::custom_global_ctx_free(void *ctx)
 
 httpd_handle_t fnHttpService::start_server(serverstate &state)
 {
-    std::vector<httpd_uri_t> uris {
-        {
-            .uri       = "/",
-            .method    = HTTP_GET,
-            .handler   = get_handler_index,
-            .user_ctx  = NULL
-        }
-        ,
-        {
-            .uri       = "/file",
-            .method    = HTTP_GET,
-            .handler   = get_handler_file_in_query,
-            .user_ctx  = NULL
-        },
-        {
-            .uri       = "/print",
-            .method    = HTTP_GET,
-            .handler   = get_handler_print,
-            .user_ctx  = NULL
-        },
-        {
-            .uri       = "/favicon.ico",
-            .method    = HTTP_GET,
-            .handler   = get_handler_file_in_path,
-            .user_ctx  = NULL
-        },
-        {
-            .uri       = "/config",
-            .method    = HTTP_POST,
-            .handler   = post_handler_config,
-            .user_ctx  = NULL
-        }
-    };
+    std::vector<httpd_uri_t> uris{
+        {.uri = "/",
+         .method = HTTP_GET,
+         .handler = get_handler_index,
+         .user_ctx = NULL},
+        {.uri = "/file",
+         .method = HTTP_GET,
+         .handler = get_handler_file_in_query,
+         .user_ctx = NULL},
+        {.uri = "/print",
+         .method = HTTP_GET,
+         .handler = get_handler_print,
+         .user_ctx = NULL},
+        {.uri = "/favicon.ico",
+         .method = HTTP_GET,
+         .handler = get_handler_file_in_path,
+         .user_ctx = NULL},
+        {.uri = "/config",
+         .method = HTTP_POST,
+         .handler = post_handler_config,
+         .user_ctx = NULL}};
 
-    if(!fnWiFi.connected()) 
+    if (!fnWiFi.connected())
     {
 #ifdef DEBUG
         Debug_println("WiFi not connected - aborting web server startup");
