@@ -359,10 +359,12 @@ void sioPrinter::sio_process()
     case 'P': // 0x50 - needed by A822 for graphics mode printing
     case 'W': // 0x57
         lastAux1 = cmdFrame.aux1;
+        last_ms = fnSystem.millis();
         sio_ack();
         sio_write();
         break;
     case 'S': // 0x53
+        last_ms = fnSystem.millis();
         sio_ack();
         sio_status();
         break;
