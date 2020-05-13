@@ -16,23 +16,221 @@
 
 fnConfig Config;
 
-
-fnConfig::host_type_t fnConfig::host_type_from_string(const char *str)
+/* Replaces stored SSID with up to num_octets bytes, but stops if '\0' is reached
+*/
+void fnConfig::store_wifi_ssid(const char *ssid_octets, int num_octets)
 {
-    int i = 0;
-    for(;i < host_type_t::HOSTTYPE_INVALID; i++)
-        if(strcasecmp(host_type_names[i], str) == 0)
-            break;
-    return (host_type_t) i;
+    if(_wifi.ssid.compare(0, num_octets, ssid_octets) == 0)
+        return;
+    _dirty = true;
+    _wifi.ssid.assign(ssid_octets, num_octets);
 }
 
-fnConfig::mount_mode_t fnConfig::mount_mode_from_string(const char *str)
+/* Replaces stored passphrase with up to num_octets bytes, but stops if '\0' is reached
+*/
+void fnConfig::store_wifi_passphrase(const char *passphrase_octets, int num_octets)
 {
-    int i = 0;
-    for(;i < mount_mode_t::MOUNTMODE_INVALID; i++)
-        if(strcasecmp(mount_mode_names[i], str) == 0)
-            break;
-    return (mount_mode_t) i;
+    if(_wifi.passphrase.compare(0, num_octets, passphrase_octets) == 0)
+        return;
+    _dirty = true;
+    _wifi.passphrase.assign(passphrase_octets, num_octets);
+}
+
+std::string fnConfig::get_host_name(uint8_t num)
+{
+    if(num < MAX_HOST_SLOTS)
+        return _host_slots[num].name;
+    else
+        return "";
+}
+
+fnConfig::host_type_t fnConfig::get_host_type(uint8_t num)
+{
+    if(num < MAX_HOST_SLOTS)
+        return _host_slots[num].type;
+    else
+        return host_type_t::HOSTTYPE_INVALID;
+}
+
+void fnConfig::store_host(uint8_t num, const char *hostname, host_type_t type)
+{
+    if(num < MAX_HOST_SLOTS)
+    {
+        if(_host_slots[num].type == type && _host_slots[num].name.compare(hostname) ==0)
+            return;
+        _dirty = true;
+        _host_slots[num].type = type;
+        _host_slots[num].name = hostname;
+    }
+}
+
+void fnConfig::clear_host(uint8_t num)
+{
+    if(num < MAX_HOST_SLOTS)
+    {
+        if(_host_slots[num].type == HOSTTYPE_INVALID && _host_slots[num].name.length() == 0)
+            return;
+        _dirty = true;
+        _host_slots[num].type = HOSTTYPE_INVALID;
+        _host_slots[num].name.clear();
+    }
+}
+
+std::string fnConfig::get_mount_path(uint8_t num)
+{
+    if(num < MAX_MOUNT_SLOTS)
+        return _mount_slots[num].path;
+    else
+        return "";
+}
+
+fnConfig::mount_mode_t fnConfig::get_mount_mode(uint8_t num)
+{
+    if(num < MAX_MOUNT_SLOTS)
+        return _mount_slots[num].mode;
+    else
+        return mount_mode_t::MOUNTMODE_INVALID;
+}
+
+int fnConfig::get_mount_host_slot(uint8_t num)
+{
+    if(num < MAX_MOUNT_SLOTS)
+        return _mount_slots[num].host_slot;
+    else
+        return HOST_SLOT_INVALID;
+}
+
+void fnConfig::store_mount(uint8_t num, int hostslot, const char *path, mount_mode_t mode)
+{
+    if(num < MAX_MOUNT_SLOTS)
+    {
+        if(_mount_slots[num].host_slot == hostslot && _mount_slots[num].mode == mode && _mount_slots[num].path.compare(path) ==0)
+            return;
+        _dirty = true;
+        _mount_slots[num].host_slot = hostslot;
+        _mount_slots[num].mode = mode;
+        _mount_slots[num].path = path;
+    }
+}
+
+void fnConfig::clear_mount(uint8_t num)
+{
+    if (num < MAX_MOUNT_SLOTS)
+    {
+        if(_mount_slots[num].host_slot == HOST_SLOT_INVALID && _mount_slots[num].mode == MOUNTMODE_INVALID
+            && _mount_slots[num].path.length() == 0)
+            return;
+        _dirty = true;            
+        _mount_slots[num].path.clear();
+        _mount_slots[num].host_slot = HOST_SLOT_INVALID;
+        _mount_slots[num].mode = MOUNTMODE_INVALID;
+    }
+}
+
+// Returns printer type stored in configuration for printer slot
+sioPrinter::printer_type fnConfig::get_printer_type(uint8_t num)
+{
+    if(num >= 0 && num < MAX_PRINTER_SLOTS)
+        return _printer_slots[num].type;
+    else
+        return sioPrinter::printer_type::PRINTER_INVALID;
+}
+
+// Saves printer type stored in configuration for printer slot
+void fnConfig::store_printer(uint8_t num, sioPrinter::printer_type ptype)
+{
+    if(num >= 0 && num < MAX_PRINTER_SLOTS)
+    {
+        if(_printer_slots[num].type != num)
+        {
+            _dirty = true;
+            _printer_slots[num].type = ptype;
+        }
+    }
+}
+
+
+/* Save configuration data to SPIFFS. If SD is mounted, save a backup copy there.
+*/
+void fnConfig::save()
+{
+#ifdef DEBUG
+    Debug_println("fnConfig::save");
+#endif
+
+    if(!_dirty)
+    {
+#ifdef DEBUG
+        Debug_println("fnConfig::save not dirty, not saving");
+#endif
+        return;
+    }
+
+    // We're going to write a stringstream so that we have only one write to file at the end
+    std::stringstream ss;
+
+#define LINETERM "\r\n"
+
+    // WIFI
+    ss << "[WiFi]" LINETERM;
+    ss << "SSID=" << _wifi.ssid << LINETERM;
+    // TODO: Encrypt passphrase!
+    ss << "passphrase=" << _wifi.passphrase << LINETERM;
+
+    // HOSTS
+    int i;
+    for(i=0; i < MAX_HOST_SLOTS; i++)
+    {
+        if(_host_slots[i].type != HOSTTYPE_INVALID)
+        {
+            ss << LINETERM << "[Host" << (i+1) << "]" LINETERM;
+            ss << "type=" << _host_type_names[_host_slots[i].type] << LINETERM;
+            ss << "name=" << _host_slots[i].name << LINETERM;
+        }
+    }
+    
+    // MOUNTS
+    for(i=0; i < MAX_MOUNT_SLOTS; i++)
+    {
+        if(_mount_slots[i].host_slot >= 0)
+        {
+            ss << LINETERM << "[Mount" << (i+1) << "]" LINETERM;
+            ss << "hostslot=" << (_mount_slots[i].host_slot + 1) << LINETERM; // Write host slot as 1-based
+            ss << "path=" << _mount_slots[i].path << LINETERM;
+            ss << "mode=" << _mount_mode_names[_mount_slots[i].mode] << LINETERM;
+        }
+    }
+
+    // PRINTERS
+    for(i=0; i < MAX_PRINTER_SLOTS; i++)
+    {
+        if(_printer_slots[i].type != sioPrinter::printer_type::PRINTER_INVALID)
+        {
+            ss << LINETERM << "[Printer" << (i+1) << "]" LINETERM;
+            ss << "type=" << _printer_slots[i].type << LINETERM;
+        }
+    }
+
+    // Write the results out
+    File fout = SPIFFS.open(CONFIG_FILENAME, "w");
+    std::string result = ss.str();
+    fout.write((uint8_t *)result.c_str(), result.length());
+    fout.close();
+
+    _dirty = false;
+
+    // Copy to SD if possible
+    if(SD.cardType() != CARD_NONE)
+    {
+        Debug_println("Attemptiong config copy to SD");
+        if(0 ==fnSystem.copy_file(&SPIFFS, CONFIG_FILENAME, &SD, CONFIG_FILENAME))
+        {
+            #ifdef DEBUG
+            Debug_println("Failed to copy config to SD");
+            #endif
+            return;
+        }
+    }
 }
 
 /* Load configuration data from SPIFFS. If no config file exists in SPIFFS,
@@ -52,6 +250,7 @@ void fnConfig::load()
         #endif
         if(SPIFFS.exists(CONFIG_FILENAME))
             SPIFFS.remove(CONFIG_FILENAME);
+        _dirty = true; // We have a new config, so we treat it as needing to be saved
         return;
     }
 
@@ -74,6 +273,7 @@ void fnConfig::load()
         }
         else
         {
+            _dirty = true; // We have a new config, so we treat it as needing to be saved            
             return; // No local copy and no copy on SD - ABORT
         }
     }
@@ -128,13 +328,15 @@ void fnConfig::load()
         }
     }
 
+    _dirty = false;
+
 }
 
 void fnConfig::_read_section_wifi(std::stringstream &ss)
 {
     // Throw out any existing data
-    wifi.ssid.clear();
-    wifi.passphrase.clear();
+    _wifi.ssid.clear();
+    _wifi.passphrase.clear();
 
     std::string line;
     // Read lines until one starts with '[' which indicates a new section
@@ -146,14 +348,14 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
         {
             if(strcasecmp(name.c_str(), "SSID") == 0)
             {
-                wifi.ssid = value;
+                _wifi.ssid = value;
                 #ifdef DEBUG
                 Debug_printf("config wifi=\"%s\"\n", value.c_str());
                 #endif
             }
             else if (strcasecmp(name.c_str(), "passphrase") == 0)
             {
-                wifi.passphrase = value;
+                _wifi.passphrase = value;
                 #ifdef DEBUG
                 Debug_printf("config passphrase=\"%s\"\n", value.c_str());
                 #endif
@@ -165,8 +367,8 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
 void fnConfig::_read_section_host(std::stringstream &ss, int index)
 {
     // Throw out any existing data for this index
-    host_slots[index].type = HOSTTYPE_INVALID;
-    host_slots[index].name.clear();
+    _host_slots[index].type = HOSTTYPE_INVALID;
+    _host_slots[index].name.clear();
 
     std::string line;
     // Read lines until one starts with '[' which indicates a new section
@@ -178,16 +380,16 @@ void fnConfig::_read_section_host(std::stringstream &ss, int index)
         {
             if(strcasecmp(name.c_str(), "name") == 0)
             {
-                host_slots[index].name = value;
+                _host_slots[index].name = value;
                 #ifdef DEBUG
                 Debug_printf("config host %d name=\"%s\"\n", index, value.c_str());
                 #endif
             }
             else if (strcasecmp(name.c_str(), "type") == 0)
             {
-                host_slots[index].type = host_type_from_string(value.c_str());
+                _host_slots[index].type = host_type_from_string(value.c_str());
                 #ifdef DEBUG
-                Debug_printf("config host %d type=%d (\"%s\")\n", index, host_slots[index].type, value.c_str());
+                Debug_printf("config host %d type=%d (\"%s\")\n", index, _host_slots[index].type, value.c_str());
                 #endif
             }
         }
@@ -197,9 +399,9 @@ void fnConfig::_read_section_host(std::stringstream &ss, int index)
 void fnConfig::_read_section_mount(std::stringstream &ss, int index)
 {
     // Throw out any existing data for this index
-    mount_slots[index].host_slot = HOST_SLOT_INVALID;
-    mount_slots[index].mode = MOUNTMODE_INVALID;
-    mount_slots[index].path.clear();
+    _mount_slots[index].host_slot = HOST_SLOT_INVALID;
+    _mount_slots[index].mode = MOUNTMODE_INVALID;
+    _mount_slots[index].path.clear();
 
     std::string line;
     // Read lines until one starts with '[' which indicates a new section
@@ -214,21 +416,21 @@ void fnConfig::_read_section_mount(std::stringstream &ss, int index)
                 int slot = atoi(value.c_str()) -1;
                 if(slot < 0 || slot >= MAX_HOST_SLOTS)
                     slot = HOST_SLOT_INVALID;
-                mount_slots[index].host_slot = slot;
+                _mount_slots[index].host_slot = slot;
                 #ifdef DEBUG
                 Debug_printf("config mount %d hostslot=%d\n", index, slot);
                 #endif
             }
             else if (strcasecmp(name.c_str(), "mode") == 0)
             {
-                mount_slots[index].mode = mount_mode_from_string(value.c_str());
+                _mount_slots[index].mode = mount_mode_from_string(value.c_str());
                 #ifdef DEBUG
-                Debug_printf("config mount %d mode=%d (\"%s\")\n", index, mount_slots[index].mode, value.c_str());
+                Debug_printf("config mount %d mode=%d (\"%s\")\n", index, _mount_slots[index].mode, value.c_str());
                 #endif
             }
             else if (strcasecmp(name.c_str(), "path") == 0)
             {
-                mount_slots[index].path = value;
+                _mount_slots[index].path = value;
                 #ifdef DEBUG
                 Debug_printf("config mount %d path=\"%s\"\n", index, value.c_str());
                 #endif
@@ -240,7 +442,7 @@ void fnConfig::_read_section_mount(std::stringstream &ss, int index)
 void fnConfig::_read_section_printer(std::stringstream &ss, int index)
 {
     // Throw out any existing data for this index
-    printer_slots[index].type = sioPrinter::printer_type::PRINTER_INVALID;
+    _printer_slots[index].type = sioPrinter::printer_type::PRINTER_INVALID;
 
     std::string line;
     // Read lines until one starts with '[' which indicates a new section
@@ -256,31 +458,13 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
                 if(type < 0 || type >= sioPrinter::printer_type::PRINTER_INVALID)
                     type = sioPrinter::printer_type::PRINTER_INVALID;
 
-                printer_slots[index].type = (sioPrinter::printer_type)type;
+                _printer_slots[index].type = (sioPrinter::printer_type)type;
                 #ifdef DEBUG
                 Debug_printf("config printer %d type=%d\n", index, type);
                 #endif
             }
         }
     }
-}
-
-bool fnConfig::_split_name_value(std::string &line, std::string &name, std::string &value)
-{
-    // Look for '='
-    //Debug_printf("_split_name_value \"%s\"\n", line.c_str());
-    size_t eq = line.find_first_of('=');
-    if(eq > 1)
-    {
-        name = line.substr(0, eq);
-        util_trim(name);
-        //Debug_printf("name \"%s\"\n", name.c_str());
-        value = line.substr(eq+1);
-        util_trim(value);
-        //Debug_printf("value \"%s\"\n", value.c_str());        
-        return true;
-    }
-    return false;
 }
 
 /*
@@ -347,92 +531,49 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
     return SECTION_UNKNOWN;
 }
 
-
-/* Save configuration data to SPIFFS. If SD is mounted, save a backup copy there.
-*/
-void fnConfig::save()
+fnConfig::host_type_t fnConfig::host_type_from_string(const char *str)
 {
-#ifdef DEBUG
-    Debug_println("fnConfig::save");
-#endif
-
-    // We're going to write a stringstream so that we have only one write to file at the end
-    std::stringstream ss;
-
-#define LINETERM "\r\n"
-
-    // WIFI
-    ss << "[WiFi]" LINETERM;
-    ss << "SSID=" << wifi.ssid << LINETERM;
-    // TODO: Encrypt passphrase!
-    ss << "passphrase=" << wifi.passphrase << LINETERM;
-
-    // HOSTS
-    int i;
-    for(i=0; i < MAX_HOST_SLOTS; i++)
-    {
-        if(host_slots[i].type != HOSTTYPE_INVALID)
-        {
-            ss << LINETERM << "[Host" << (i+1) << "]" LINETERM;
-            ss << "type=" << host_type_names[host_slots[i].type] << LINETERM;
-            ss << "name=" << host_slots[i].name << LINETERM;
-        }
-    }
-    
-    // MOUNTS
-    for(i=0; i < MAX_MOUNT_SLOTS; i++)
-    {
-        if(mount_slots[i].host_slot >= 0)
-        {
-            ss << LINETERM << "[Mount" << (i+1) << "]" LINETERM;
-            ss << "hostslot=" << (mount_slots[i].host_slot + 1) << LINETERM; // Write host slot as 1-based
-            ss << "path=" << mount_slots[i].path << LINETERM;
-            ss << "mode=" << mount_mode_names[mount_slots[i].mode] << LINETERM;
-        }
-    }
-
-    // PRINTERS
-    for(i=0; i < MAX_PRINTER_SLOTS; i++)
-    {
-        if(printer_slots[i].type != sioPrinter::printer_type::PRINTER_INVALID)
-        {
-            ss << LINETERM << "[Printer" << (i+1) << "]" LINETERM;
-            ss << "type=" << printer_slots[i].type << LINETERM;
-        }
-    }
-
-    // Write the results out
-    File fout = SPIFFS.open(CONFIG_FILENAME, "w");
-    std::string result = ss.str();
-    fout.write((uint8_t *)result.c_str(), result.length());
-    fout.close();
-
-    // Copy to SD if possible
-    if(SD.cardType() != CARD_NONE)
-    {
-        Debug_println("Attemptiong config copy to SD");
-        if(0 ==fnSystem.copy_file(&SPIFFS, CONFIG_FILENAME, &SD, CONFIG_FILENAME))
-        {
-            #ifdef DEBUG
-            Debug_println("Failed to copy config to SD");
-            #endif
-            return;
-        }
-    }
+    int i = 0;
+    for(;i < host_type_t::HOSTTYPE_INVALID; i++)
+        if(strcasecmp(_host_type_names[i], str) == 0)
+            break;
+    return (host_type_t) i;
 }
 
+fnConfig::mount_mode_t fnConfig::mount_mode_from_string(const char *str)
+{
+    int i = 0;
+    for(;i < mount_mode_t::MOUNTMODE_INVALID; i++)
+        if(strcasecmp(_mount_mode_names[i], str) == 0)
+            break;
+    return (mount_mode_t) i;
+}
+
+bool fnConfig::_split_name_value(std::string &line, std::string &name, std::string &value)
+{
+    // Look for '='
+    size_t eq = line.find_first_of('=');
+    if(eq > 1)
+    {
+        name = line.substr(0, eq);
+        util_trim(name);
+        value = line.substr(eq+1);
+        util_trim(value);
+        return true;
+    }
+    return false;
+}
 
 int fnConfig::_read_line(std::stringstream &ss, std::string &line, char abort_if_starts_with)
 {
+    line.erase();
+
     char c;
-    size_t z = 0;
+    size_t count = 0;
     size_t err = 0;
     bool iseof = false;
-
-    line.erase();
     bool have_read_non_whitespace = false;
-
-    std::streampos p = ss.tellg();
+    std::streampos linestart = ss.tellg();
 
     while((iseof = ss.eof()) == false)
     {
@@ -451,7 +592,7 @@ int fnConfig::_read_line(std::stringstream &ss, std::string &line, char abort_if
         // Rewind to start of line if we found the abort character
         if(have_read_non_whitespace == false && abort_if_starts_with != '\0' && abort_if_starts_with == c)
         {
-            ss.seekg(p);
+            ss.seekg(linestart);
             err = -1;
             break;
         }
@@ -459,8 +600,8 @@ int fnConfig::_read_line(std::stringstream &ss, std::string &line, char abort_if
             have_read_non_whitespace = (c != 32 && c != 9);
 
         line += c;
+        count++;
     }
 
-    return (iseof || err != 0) ? -1 : z;
+    return (iseof || err ) ? -1 : count;
 }
-

@@ -99,7 +99,8 @@ void setup()
 #endif
 
 #ifdef DEBUG
-    Debug_println("\n--%--%--%--\nFujiNet PlatformIO Started");
+    unsigned long startms = fnSystem.millis();
+    Debug_printf("\n\n--~--~--~--\nFujiNet PlatformIO Started @ %lu\n", startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
 #ifdef BOARD_HAS_PSRAM
     Debug_printf("PsramSize %u\n", ESP.getPsramSize());
@@ -177,7 +178,7 @@ void setup()
         Debug_println("using SPIFFS for printer storage");
         sioP.set_storage(&SPIFFS);
     }
-    sioP.set_printer_type(Config.printer_slots[0].type);
+    sioP.set_printer_type(Config.get_printer_type(0));
 
     SIO.addDevice(&sioP, SIO_DEVICEID_PRINTER); // P:
 
@@ -206,7 +207,8 @@ void setup()
     void sio_flush();
 
 #ifdef DEBUG
-    Debug_printf("Setup complete. Available heap: %u\n", fnSystem.get_free_heap_size());
+    unsigned long endms = fnSystem.millis();
+    Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms-startms);
 #endif
 }
 

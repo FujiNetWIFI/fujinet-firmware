@@ -142,10 +142,10 @@ void sioFuji::sio_net_get_ssid()
 
     // TODO: Get rid of netConfig and use Config directly instead
     memset(netConfig.rawData, 0, sizeof(netConfig.rawData));
-    memcpy(netConfig.detail.ssid, Config.wifi.ssid.c_str(), 
-        Config.wifi.ssid.length() > sizeof(netConfig.detail.ssid) ? sizeof(netConfig.detail.ssid) : Config.wifi.ssid.length());
-    memcpy(netConfig.detail.password, Config.wifi.passphrase.c_str(),
-        Config.wifi.passphrase.length() > sizeof(netConfig.detail.password) ? sizeof(netConfig.detail.password) : Config.wifi.passphrase.length());
+    memcpy(netConfig.detail.ssid, Config.get_wifi_ssid().c_str(), 
+        Config.get_wifi_ssid().length() > sizeof(netConfig.detail.ssid) ? sizeof(netConfig.detail.ssid) : Config.get_wifi_ssid().length());
+    memcpy(netConfig.detail.password, Config.get_wifi_passphrase().c_str(),
+        Config.get_wifi_passphrase().length() > sizeof(netConfig.detail.password) ? sizeof(netConfig.detail.password) : Config.get_wifi_passphrase().length());
 
     sio_to_computer(netConfig.rawData, sizeof(netConfig.rawData), false);
 }
@@ -170,26 +170,14 @@ void sioFuji::sio_net_set_ssid()
 #endif
         fnWiFi.connect(netConfig.detail.ssid, netConfig.detail.password);
 
-        // SSID/password may or may not have a terminating NULL, so copy the chars over to our config one by one instead
-        Config.wifi.ssid.clear();
-        for(int i = 0; i < sizeof(netConfig.detail.ssid); i++)
-        {
-            if(netConfig.detail.ssid[i] == '\0')
-                break;
-            Config.wifi.ssid += netConfig.detail.ssid[i];
-        }
-        Config.wifi.passphrase.clear();
-        for(int i = 0; i < sizeof(netConfig.detail.password); i++)
-        {
-            if(netConfig.detail.password[i] == '\0')
-                break;
-            Config.wifi.passphrase += netConfig.detail.password[i];
-        }
+        // Only save these if we're asked to, otherwise I assume it was a test for connectivity
         if(save)
+        {
+            Config.store_wifi_ssid(netConfig.detail.ssid, sizeof(netConfig.detail.ssid));
+            Config.store_wifi_passphrase(netConfig.detail.password, sizeof(netConfig.detail.password));
             Config.save();
-
+        }
         // todo: add error checking?
-        // UDP.begin(16384); // move to TNFS.begin
         sio_complete();
     }
 }
@@ -637,11 +625,11 @@ void sioFuji::populate_slots_from_config()
 {
     for(int i = 0; i < MAX_FILESYSTEMS; i++)
     {
-        if(Config.host_slots[i].type == fnConfig::host_types::HOSTTYPE_INVALID)
+        if(Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
             hostSlots.slot[i].hostname[0] = '\0';
         else
             strncpy(hostSlots.slot[i].hostname, 
-                Config.host_slots[i].name.c_str(), MAX_HOSTNAME_LEN);
+                Config.get_host_name(i).c_str(), MAX_HOSTNAME_LEN);
     }
 
     for(int i = 0; i < MAX_DISK_DEVICES; i++)
@@ -649,16 +637,17 @@ void sioFuji::populate_slots_from_config()
         deviceSlots.slot[i].hostSlot = 0xFF;
         deviceSlots.slot[i].filename[0] = '\0';
 
-        if(Config.mount_slots[i].host_slot != HOST_SLOT_INVALID)
+        if(Config.get_mount_host_slot(i) != HOST_SLOT_INVALID)
         {
-            if (Config.mount_slots[i].host_slot >=0 && Config.mount_slots[i].host_slot <= MAX_FILESYSTEMS)
+            if (Config.get_mount_host_slot(i) >=0 && Config.get_mount_host_slot(i) <= MAX_FILESYSTEMS)
             {
                 strncpy(deviceSlots.slot[i].filename, 
-                    Config.mount_slots[i].path.c_str(), MAX_FILENAME_LEN);
-                deviceSlots.slot[i].hostSlot = Config.mount_slots[i].host_slot;
-                deviceSlots.slot[i].mode = 1; //READ
-                if(Config.mount_slots[i].mode == fnConfig::mount_modes::MOUNTMODE_WRITE)
-                    deviceSlots.slot[i].mode = 2; //WRITE
+                    Config.get_mount_path(i).c_str(), MAX_FILENAME_LEN);
+                deviceSlots.slot[i].hostSlot = Config.get_mount_host_slot(i);
+                if(Config.get_mount_mode(i) == fnConfig::mount_modes::MOUNTMODE_WRITE)
+                    deviceSlots.slot[i].mode = 2; // WRITE
+                else 
+                    deviceSlots.slot[i].mode = 1; //READ
             }
         }
     }
@@ -671,40 +660,18 @@ void sioFuji::populate_config_from_slots()
     for(int i = 0; i < MAX_FILESYSTEMS; i++)
     {
         if(hostSlots.slot[i].hostname[0])
-        {
-            Config.host_slots[i].type = fnConfig::host_types::HOSTTYPE_TNFS;
-            Config.host_slots[i].name = hostSlots.slot[i].hostname;
-        }
+            Config.store_host(i, hostSlots.slot[i].hostname, fnConfig::host_types::HOSTTYPE_TNFS);
         else
-        {
-            Config.host_slots[i].type = fnConfig::host_types::HOSTTYPE_INVALID;
-            Config.host_slots[i].name.clear();
-
-        }
+            Config.clear_host(i);
     }
 
     for(int i = 0; i < MAX_DISK_DEVICES; i++)
     {
         if(deviceSlots.slot[i].hostSlot == 0xFF || deviceSlots.slot[i].filename[0] == '\0')
-        {
-            Config.mount_slots[i].host_slot = HOST_SLOT_INVALID;
-            Config.mount_slots[i].path.clear();
-        }
+            Config.clear_mount(i);
         else
-        {
-            Config.mount_slots[i].host_slot = deviceSlots.slot[i].hostSlot;
-            Config.mount_slots[i].path = deviceSlots.slot[i].filename;
-            Config.mount_slots[i].mode = fnConfig::mount_modes::MOUNTMODE_READ;
-            if(deviceSlots.slot[i].mode == 2)
-            {
-                Config.mount_slots[i].mode = fnConfig::mount_modes::MOUNTMODE_WRITE;
-            } else if (deviceSlots.slot[i].mode != 1)
-            {
-                #ifdef DEBUG
-                Debug_printf("populate_config_from_slots - Unknown mount mode: %d\n", Config.mount_slots[i].mode);
-                #endif
-            }
-        }
+            Config.store_mount(i, deviceSlots.slot[i].hostSlot, deviceSlots.slot[i].filename,
+                (deviceSlots.slot[i].mode == 2) ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
     }
 
 }

@@ -104,7 +104,7 @@ void atari1027::pdf_handle_char(byte c)
         }
         else if (c > 31 && c < 128)
         {
-            if (c == 123 || c == 125 || c==127)
+            if (c == 123 || c == 125 || c == 127)
                 c = ' ';
             if (c == '\\' || c == '(' || c == ')')
                 _file.write('\\');
@@ -121,7 +121,8 @@ void atari1027::pdf_handle_char(byte c)
 void atari1027::initPrinter(FS *filesystem)
 {
     printer_emu::initPrinter(filesystem);
-    //paperType = PDF;
+
+    shortname = "a1027";
 
     pageWidth = 612.0;
     pageHeight = 792.0;
@@ -129,13 +130,20 @@ void atari1027::initPrinter(FS *filesystem)
     bottomMargin = 0;
     printWidth = 480.0; // 6 2/3 inches
     lineHeight = 12.0;
-    charWidth = 6; // 12cpi
+    charWidth = 6.0; // 12cpi
     fontNumber = 1;
     fontSize = 10;
 
-    pdf_header();
+    // F1 : PrestigeEliteStd
+    fontObjPos[0][0] = 66;    // FontDescriptor Reference
+    fontObjPos[0][1] = 148;   // Widths Reference
+    fontObjPos[0][2] = 195;   // FontDescriptor Object
+    fontObjPos[0][3] = 420;   // FontFile Reference
+    fontObjPos[0][4] = 437;   // FontFile Object
+    fontObjPos[0][5] = 21688; // Widths Object
+    fontObjPos[0][6] = 22732; // fragment length
 
-    fonts[0] = &F1;
+    pdf_header();
 
     uscoreFlag = false;
     intlFlag = false;
