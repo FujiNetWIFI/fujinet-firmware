@@ -1,4 +1,5 @@
 #include "html_printer.h"
+#include "atari_1025.h"
 #include "atari_1027.h"
 #include "file_printer.h"
 #include "png_printer.h"
@@ -126,7 +127,9 @@ void atari822::pdf_handle_char(byte c)
 void atari820::initPrinter(FS *filesystem)
 {
     printer_emu::initPrinter(filesystem);
-    // paperType = PDF;
+
+    shortname = "a820";
+
     pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
     pageHeight = 792.0; // just use 11" for letter paper
     leftMargin = 19.5;  // fit print width on page width
@@ -138,18 +141,33 @@ void atari820::initPrinter(FS *filesystem)
     fontNumber = 1;
     fontSize = 12;
 
+    // F1 : Atari-820-Normal
+    fontObjPos[0][0] = 66;   // FontDescriptor Reference
+    fontObjPos[0][1] = 148;  // Widths Reference
+    fontObjPos[0][2] = 195;  // FontDescriptor Object
+    fontObjPos[0][3] = 414;  // FontFile Reference
+    fontObjPos[0][4] = 431;  // FontFile Object
+    fontObjPos[0][5] = 4662; // Widths Object
+    fontObjPos[0][6] = 5706; // fragment length
+    // F2 : Atari-820-Sideways
+    fontObjPos[1][0] = 66;   // FontDescriptor Reference
+    fontObjPos[1][1] = 150;  // Widths Reference
+    fontObjPos[1][2] = 197;  // FontDescriptor Object
+    fontObjPos[1][3] = 419;  // FontFile Reference
+    fontObjPos[1][4] = 436;  // FontFile Object
+    fontObjPos[1][5] = 4251; // Widths Object
+    fontObjPos[1][6] = 5295; // fragment length
+
     sideFlag = false;
 
     pdf_header();
-
-    fonts[0] = &F1;
-    fonts[1] = &F2;
 }
 
 void atari822::initPrinter(FS *filesystem)
 {
     printer_emu::initPrinter(filesystem);
-    //paperType = PDF;
+
+    shortname = "a822";
 
     pageWidth = 319.5;  // paper roll is 4 7/16" from page 4 of owners manual
     pageHeight = 792.0; // just use 11" for letter paper
@@ -162,9 +180,16 @@ void atari822::initPrinter(FS *filesystem)
     fontNumber = 1;
     fontSize = 12;
 
-    pdf_header();
+    // F1 : Atari-822-Thermal
+    fontObjPos[0][0] = 66;   // FontDescriptor Reference
+    fontObjPos[0][1] = 149;  // Widths Reference
+    fontObjPos[0][2] = 196;  // FontDescriptor Object
+    fontObjPos[0][3] = 415;  // FontFile Reference
+    fontObjPos[0][4] = 432;  // FontFile Object
+    fontObjPos[0][5] = 1946; // Widths Object
+    fontObjPos[0][6] = 2990; // fragment length
 
-    fonts[0] = &F1;
+    pdf_header();
 }
 
 // write for W commands
@@ -293,6 +318,9 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
     case PRINTER_ATARI_822:
         _pptr = new atari822(this);
         break;
+    case PRINTER_ATARI_1025:
+        _pptr = new atari1025;
+        break;
     case PRINTER_ATARI_1027:
         _pptr = new atari1027;
         break;
@@ -337,6 +365,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
             "file printer (ASCII)",
             "Atari 820",
             "Atari 822",
+            "Atari 1025",
             "Atari 1027",
             "GRANTIC",
             "HTML printer",

@@ -71,7 +71,7 @@ string getarg(string line, string param)
   return found;
 }
 
-int copyFont(int i)
+void copyFont(int i)
 {
   // continue searching in file
   // first find object
@@ -114,7 +114,7 @@ int copyFont(int i)
   g << line.substr(0, offset);
   g.flush();
   objPos[objCtr++] = g.tellp();
-  g << "%d 0 obj\n";
+  g << "%d 0 R\n";
 
   getline(f, line); //  /BaseFont /Atari-1025-Normal
   g << line << "\n";
@@ -128,7 +128,7 @@ int copyFont(int i)
   g << line.substr(0, offset);
   g.flush();
   objPos[objCtr++] = g.tellp();
-  g << "%d 0 obj\n";
+  g << "%d 0 R\n";
 
   getline(f, line); //  /Encoding /WinAnsiEncoding
   g << line << "\n";
@@ -180,7 +180,7 @@ int copyFont(int i)
   g << line.substr(0, ++offset);
   g.flush();
   objPos[objCtr++] = g.tellp();
-  g << "%d 0 obj\n"; // always font file 3 because of OTF
+  g << "%d 0 R\n"; // always font file 3 because of OTF
 
   getline(f, line); // >>
   g << line << "\n";
@@ -259,34 +259,26 @@ int main(int argc, char **argv)
   }
 
   // create file names
-  h.open("fontpos.h", ios::out | ios::binary);
+  h.open("fontpos.cpp", ios::out | ios::binary);
 
   int numFonts = findFontList();
-
-  h << "const unsigned int fontObjPos[" << numFonts << "][7] = {\n";
 
   for (int i = 0; i < numFonts; i++)
   {
     char gname[10];
-    sprintf(gname, "F%d\0", i+1); // PDF convention is to strat counting at 1
+    sprintf(gname, "F%d\0", i + 1); // PDF convention is to strat counting at 1
     g.open(gname, ios::out | ios::binary);
     copyFont(i);
     g.close();
 
-    h << "    {\n        // " << gname << " \n";
-    h << "        // " << fontname.substr(1) << " \n";
-    h << "        " << (objPos[1] - objPos[0]) << ", // FontDescriptor Reference \n";
-    h << "        " << (objPos[2] - objPos[0]) << ", // Widths Reference \n";
-    h << "        " << (objPos[3] - objPos[0]) << ", // FontDescriptor Object \n";
-    h << "        " << (objPos[4] - objPos[0]) << ", // FontFile Reference \n";
-    h << "        " << (objPos[5] - objPos[0]) << ", // FontFile Object \n";
-    h << "        " << (objPos[6] - objPos[0]) << ", // Widths Object \n";
-    h << "        " << (objPos[7] - objPos[0]) << "  // fragment length \n";
-    h << "    }";
-    if (i != (numFonts - 1))
-      h << ",\n";
+    h << "// " << gname << " : " << fontname.substr(1) << "\n";
+    h << "fontObjPos[" << i << "][0] = " << (objPos[1] - objPos[0]) << "; // FontDescriptor Reference \n";
+    h << "fontObjPos[" << i << "][1] = " << (objPos[2] - objPos[0]) << "; // Widths Reference \n";
+    h << "fontObjPos[" << i << "][2] = " << (objPos[3] - objPos[0]) << "; // FontDescriptor Object \n";
+    h << "fontObjPos[" << i << "][3] = " << (objPos[4] - objPos[0]) << "; // FontFile Reference \n";
+    h << "fontObjPos[" << i << "][4] = " << (objPos[5] - objPos[0]) << "; // FontFile Object \n";
+    h << "fontObjPos[" << i << "][5] = " << (objPos[6] - objPos[0]) << "; // Widths Object \n";
+    h << "fontObjPos[" << i << "][6] = " << (objPos[7] - objPos[0]) << "; // fragment length \n";
   }
-  h << "};\n";
-
   return 0;
 }
