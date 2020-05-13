@@ -40,7 +40,6 @@ protected:
 
     int gfxNumber = 0;
 
-
 public:
     atari822(sioPrinter *P) { my_sioP = P; }
     virtual void initPrinter(FS *filesystem);
@@ -62,16 +61,10 @@ protected:
     void sio_process();
     byte lastAux1 = 0;
 
-    /**
-     * new design idea:
-     * remove pure virtual functions
-     * replace with pointer to printer emulator objects
-     * so printer emaulator code can be reused by non-SIO
-     * applications
-     * 
-     * */
     printer_emu *_pptr = NULL;
     FS *_storage = NULL;
+
+    time_t last_ms;
 
 public:
     // todo: reconcile printer_type with paper_t
@@ -93,12 +86,8 @@ public:
     static printer_type match_modelname(std::string modelname);
     void set_printer_type(printer_type t);
     void set_storage(FS *fs);
-    void reset_printer() { set_printer_type(pt); }; // TODO: Change call in httpService to this instead of emu_printer::reset_printer()
-
-    // Changed this to maintain a pointer in the printer object in
-    // order to avoid having to send a new initPrinter every time
-    // we change emulation types
-    // void initPrinter(FS *fs) { _pptr->initPrinter(fs); };
+    void reset_printer() { set_printer_type(pt); };
+    time_t lastPrintTime() { return last_ms; };
 
     printer_emu *getPrinterPtr() { return _pptr; };
 
