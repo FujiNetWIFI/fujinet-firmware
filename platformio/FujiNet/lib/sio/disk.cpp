@@ -66,14 +66,14 @@ void sioDisk::sio_read()
         // implement caching.
     }
 #ifdef DEBUG
-    if(sectorNum == 720)
+    if (sectorNum == 720)
     {
         Debug_printf("SIO_READ DISK #720 (%d)\n", (int)err);
         for (unsigned short i = 0; i < ss; i++)
             Debug_printf("%02x ", sector[i]);
-        Debug_println();            
+        Debug_println();
     }
-#endif    
+#endif
 
     // Send result to Atari
     sio_to_computer((byte *)&sector, ss, err);
@@ -102,14 +102,14 @@ void sioDisk::sio_write(bool verify)
     }
 
 #ifdef DEBUG
-    if(sectorNum == 720)
+    if (sectorNum == 720)
     {
         Debug_println("SIO_WRITE DISK #720");
         for (unsigned short i = 0; i < ss; i++)
             Debug_printf("%02x ", sector[i]);
         Debug_println();
     }
-#endif    
+#endif
 
     if (sectorNum != (lastSectorNum + 1))
     {
@@ -341,7 +341,6 @@ void sioDisk::sio_high_speed()
     sio_to_computer((byte *)&hsd, 1, false);
 }
 
-
 // mount a disk file
 void sioDisk::mount(File *f)
 {
@@ -533,8 +532,13 @@ void sioDisk::sio_process()
         sio_write(false);
         break;
     case 'S':
-        sio_ack();
-        sio_status();
+        if ((is_config_device == true) && (status_wait_count == 0))
+        {
+            sio_ack();
+            sio_status();
+        }
+        else
+            status_wait_count--;
         break;
     case 'W':
         sio_ack();
