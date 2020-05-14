@@ -532,13 +532,21 @@ void sioDisk::sio_process()
         sio_write(false);
         break;
     case 'S':
-        if ((is_config_device == true) && (status_wait_count == 0))
+        if (is_config_device == true)
+        {
+            if (status_wait_count == 0)
+            {
+                sio_ack();
+                sio_status();
+            }
+            else
+                status_wait_count--;
+        }
+        else
         {
             sio_ack();
             sio_status();
         }
-        else
-            status_wait_count--;
         break;
     case 'W':
         sio_ack();
