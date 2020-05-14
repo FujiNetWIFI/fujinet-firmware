@@ -6,33 +6,33 @@
 
 // pin configurations
 #ifdef ESP8266
-   #define SIO_UART Serial
-   #define PIN_INT 5
-   #define PIN_PROC 4
-   #define PIN_MTR 16
-   #define INPUT_PULLDOWN INPUT_PULLDOWN_16
-   #define PIN_CMD 12
-   #define PIN_CKI 14
-   //#define PIN_CKO         2
-   #define DELAY_T0 750
-   #define DELAY_T1 650
-   #define DELAY_T2 0
-   #define DELAY_T3 1000
+#define SIO_UART Serial
+#define PIN_INT 5
+#define PIN_PROC 4
+#define PIN_MTR 16
+#define INPUT_PULLDOWN INPUT_PULLDOWN_16
+#define PIN_CMD 12
+#define PIN_CKI 14
+//#define PIN_CKO         2
+#define DELAY_T0 750
+#define DELAY_T1 650
+#define DELAY_T2 0
+#define DELAY_T3 1000
 #elif defined(ESP32)
-   //#define SIO_UART Serial2
-   #define PIN_INT 26
-   #define PIN_PROC 22
+//#define SIO_UART Serial2
+#define PIN_INT 26
+#define PIN_PROC 22
 
-   #ifdef BOARD_HAS_PSRAM
-      #define PIN_MTR 36
-      #define PIN_CMD 39
-   #else
-      #define PIN_MTR 33
-      #define PIN_CMD 21
-   #endif
-   
-   #define PIN_CKO 32
-   #define PIN_CKI 27
+#ifdef BOARD_HAS_PSRAM
+#define PIN_MTR 36
+#define PIN_CMD 39
+#else
+#define PIN_MTR 33
+#define PIN_CMD 21
+#endif
+
+#define PIN_CKO 32
+#define PIN_CKI 27
 #endif
 
 #define DELAY_T4 850
@@ -57,7 +57,6 @@
 // Not used, but for reference:
 #define SIO_DEVICEID_SIO2BT_NET 0x4E
 #define SIO_DEVICEID_SIO2BT_SMART 0x45 // Doubles as APETime and "High Score Submission" to URL
-
 
 union cmdFrame_t {
    struct
@@ -91,6 +90,7 @@ protected:
 
    cmdFrame_t cmdFrame;
    bool listen_to_type3_polls;
+   unsigned char status_wait_count = 4;
 
    void sio_to_computer(byte *b, unsigned short len, bool err);
    byte sio_to_peripheral(byte *b, unsigned short len);
@@ -106,6 +106,7 @@ protected:
 
 public:
    int id() { return _devnum; };
+   bool is_config_device=false;
 };
 
 class sioBus
