@@ -290,6 +290,32 @@ void pdfPrinter::pdf_xref()
 
 bool pdfPrinter::process(byte n)
 {
+    /**
+     * idea for 850-connected printers. The 850 translates EOL to CR.
+     * could make EOL = either 155 or 13. So if its an SIO printer,
+     * we keep EOL = 155. If its an 850 printer, we convert 155 to 13
+     * and then check for 13's on newline, etc. This would allow 13's
+     * to pass through and be executed. 
+     * 
+     * Then there's the problem of the printer either having auto LF or not.
+     * The 825 has auto LF unless the hardware is modified.
+     * Epson FX80 comes default with no auto LF, but I suspect an Atari
+     * user would make it auto linefeed. 
+     * 
+     * Could add an "autolinefeed" flag to the pdf-printer class.
+     * Could add an EOL-CR conversion flag in the pdf-printer class to have
+     * 850 emulation. 
+     * 
+     * How to make a CR command and a LF command?
+     *  CR is easy - just a " 0 0 Td " pdf command
+     *  LF with a CR is what we're already doing - e.g., " 0 -18 Td "
+     *  LF by itself is probably necessary - 2 cases
+     *      1 - when the carriage is at 0, then this is just like a LFCR
+     *      2 - in the middle of the line, we need to start printing at the
+     *          current pdf_X value. However, the pdf commands are well
+     *          suited for this. 
+    
+    */
     int i = 0;
     byte c;
 
