@@ -705,7 +705,8 @@ void sioFuji::setup(sioBus &mySIO)
     populate_slots_from_config();
 
     configDisk.mount(&atrConfig); // set up a special disk drive not on the bus
-
+    configDisk.is_config_device=true;
+    
     // Add our devices to the SIO bus
     for (int i = 0; i < 8; i++)
     {
