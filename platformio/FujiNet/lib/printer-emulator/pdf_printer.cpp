@@ -312,9 +312,15 @@ bool pdfPrinter::process(byte n)
      *  LF by itself is probably necessary - 2 cases
      *      1 - when the carriage is at 0, then this is just like a LFCR
      *      2 - in the middle of the line, we need to start printing at the
-     *          current pdf_X value. However, the pdf commands are well
-     *          suited for this. 
-    
+     *          current pdf_X value. However, the pdf commands aren't well
+     *          suited for this. A pdf "pdf_X -18 Td" would do the trick, but 
+     *          it then sets the relative 0,0 coordinate to the middle of the
+     *          line and a CR won't take it back like it does now. Would need
+     *          to remember that we were in the middle of a line and adjust
+     *          with a "-last_X 0 Td" for the next CR. Another option is to do
+     *          absolute positioning of each and every line, which I think requires
+     *          each line to be it's own text object and is what i was
+     *          doing originally. Not my first choice.
     */
     int i = 0;
     byte c;
