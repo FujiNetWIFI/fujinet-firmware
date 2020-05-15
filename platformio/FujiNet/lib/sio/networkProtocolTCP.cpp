@@ -24,7 +24,7 @@ networkProtocolTCP::~networkProtocolTCP()
     }
 }
 
-bool networkProtocolTCP::open(EdUrlParser* urlParser, cmdFrame_t *cmdFrame)
+bool networkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     bool ret;
 
@@ -103,7 +103,7 @@ bool networkProtocolTCP::read(byte *rx_buf, unsigned short len)
         client_error_code = 128;
         return false;
     }
-    assertProceed=true;
+    assertProceed = true;
     return (client.readBytes(rx_buf, len) != len);
 }
 
@@ -117,7 +117,7 @@ bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
         client_error_code = 128;
         return false;
     }
-    assertProceed=true;
+    assertProceed = true;
     return (client.write((char *)tx_buf), len != len);
 }
 
@@ -138,8 +138,9 @@ bool networkProtocolTCP::status(byte *status_buf)
     else if (server != NULL)
     {
         if (!client.connected())
-            client = server->available();
-        status_buf[2] = client.connected();
+            status_buf[2] = server->hasClient();
+        else
+            status_buf[2] = client.connected();
     }
     return false;
 }
@@ -180,7 +181,14 @@ bool networkProtocolTCP::special_accept_connection()
 #ifdef DEBUG
         Debug_printf("accepting connection.");
 #endif
-        client = server->accept();
+        if (server->hasClient())
+        {
+            client = server->available();
+        }
+        else
+        {
+            return true;    // error.
+        }
     }
     return false; // no error.
 }

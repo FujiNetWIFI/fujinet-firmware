@@ -1,3 +1,6 @@
+#include "../../include/debug.h"
+#include "fnSystem.h"
+#include "fnWiFi.h"
 #include "network.h"
 #include "networkProtocol.h"
 #include "networkProtocolTCP.h"
@@ -247,7 +250,7 @@ void sioNetwork::sio_read()
         {
             for (int i = 0; i < rx_buf_len; i++)
             {
-                switch (aux2&3)
+                switch (aux2 & 3)
                 {
                 case 1:
                     if (rx_buf[i] == 0x0D)
@@ -303,7 +306,7 @@ void sioNetwork::sio_write()
         {
             for (int i = 0; i < tx_buf_len; i++)
             {
-                switch (aux2&3)
+                switch (aux2 & 3)
                 {
                 case 1:
                     if (tx_buf[i] == 0x9B)
@@ -337,6 +340,40 @@ void sioNetwork::sio_write()
     }
 }
 
+void sioNetwork::sio_status_local()
+{
+    uint8_t ipAddress[4];
+    uint8_t ipNetmask[4];
+    uint8_t ipGateway[4];
+    uint8_t ipDNS[4];
+
+    fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
+    fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
+
+    switch (cmdFrame.aux2)
+    {
+    case 1: // IP Address
+        memcpy(status_buf.rawData, &ipAddress, sizeof(ipAddress));
+        break;
+    case 2: // Netmask
+        memcpy(status_buf.rawData, &ipNetmask, sizeof(ipNetmask));
+        break;
+    case 3: // Gateway
+        memcpy(status_buf.rawData, &ipGateway, sizeof(ipGateway));
+        break;
+    case 4: // DNS
+        memcpy(status_buf.rawData, &ipDNS, sizeof(ipDNS));
+        break;
+    default:
+        status_buf.rawData[0] =
+            status_buf.rawData[1] = 0;
+        status_buf.rawData[2] = WiFi.isConnected();
+        status_buf.rawData[3] = 1;
+        break;
+    }
+    Debug_printf("Output: %u.%u.%u.%u\n",status_buf.rawData[0],status_buf.rawData[1],status_buf.rawData[2],status_buf.rawData[3]);
+}
+
 void sioNetwork::sio_status()
 {
     sio_ack();
@@ -344,13 +381,7 @@ void sioNetwork::sio_status()
     Debug_printf("STATUS\n");
 #endif
     if (!protocol)
-    {
-        status_buf.rawData[0] =
-            status_buf.rawData[1] = 0;
-
-        status_buf.rawData[2] = WiFi.isConnected();
-        err = false;
-    }
+        sio_status_local();
     else
     {
         err = protocol->status(status_buf.rawData);
@@ -458,10 +489,10 @@ bool sioNetwork::sio_special_supported_40_command(unsigned char c)
 // supported global network device commands that go Computer->Peripheral
 bool sioNetwork::sio_special_supported_80_command(unsigned char c)
 {
-    switch(c)
+    switch (c)
     {
-        case 0xFE: // Set prefix
-            return true;
+    case 0xFE: // Set prefix
+        return true;
     }
     return false;
 }
