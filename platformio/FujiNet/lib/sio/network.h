@@ -74,6 +74,7 @@ public:
     virtual void sio_special();
 
     void sio_assert_interrupts();
+    void sio_status_local();
 
     void sio_special_00();
     void sio_special_40();
