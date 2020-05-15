@@ -587,7 +587,7 @@ bool diskulator_host(void)
               doeject:
                 diskulator_umount_device(c);
 		screen_puts(0, c + 11, " ");
-                screen_puts(3, c + 11, "  Empty                               ");
+                screen_puts(3, c + 11, "  Empty                              ");
                 memset(deviceSlots.slot[c].file, 0, sizeof(deviceSlots.slot[c].file));
                 deviceSlots.slot[c].hostSlot = 0xFF;
                 diskulator_write_device_slots();
