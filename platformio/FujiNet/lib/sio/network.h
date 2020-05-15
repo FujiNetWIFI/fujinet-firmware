@@ -65,6 +65,8 @@ protected:
         byte rawData[4];
     } status_buf;
 
+    unsigned char previous_connection_status;
+    
 public:
     virtual void sio_open();
     virtual void sio_close();
