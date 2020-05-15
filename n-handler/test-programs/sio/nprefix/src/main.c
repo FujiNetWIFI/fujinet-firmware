@@ -24,8 +24,6 @@ unsigned char daux2=0;
 
 void nprefix(void)
 {
-  int i;
-
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
   OS.dcb.dcomnd=0xFE;
@@ -50,12 +48,6 @@ void nprefix(void)
     }
 }
 
-void opts(char* argv[])
-{
-  print(argv[0]);
-  print(" <prefix>\x9b\x9b");
-}
-
 int main(int argc, char* argv[])
 {
   OS.lmargn=2;
@@ -64,18 +56,18 @@ int main(int argc, char* argv[])
     {
       if (argc<2)
 	{
-	  opts(argv);
-	  return(1);
+	  print("PREFIX CLEARED\x9b");
+	  strcpy(buf,"\x9b");
 	}
-
-      strcpy(buf,argv[1]);
+      else
+	strcpy(buf,argv[1]);
     }
   else
     {
       // DOS 2.0/MYDOS
       print("\x9b");
-      
-      print("PREFIX? ");
+      print("");
+      print("ENTER PREFIX OR \xD2\xC5\xD4\xD5\xD2\xCE TO CLEAR\x9b");
       get_line(buf,240);
     }
 
