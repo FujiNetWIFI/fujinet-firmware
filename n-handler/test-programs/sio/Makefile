@@ -36,4 +36,5 @@ dist: all
 	cp nstest/nstest.com dist/
 	cp test-scripts/THTTP.EXC dist/
 	cp ../../../tls-root-certs/atascii/DIGICERT.CER dist/
-	dir2atr 720 n-tests.atr dist/
+	cp DOS.SYS dist/
+	dir2atr -b DosXL230 720 n-tests.atr dist/
