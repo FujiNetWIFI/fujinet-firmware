@@ -555,8 +555,12 @@ void sioNetwork::sio_assert_interrupts()
 {
     if (protocol != nullptr)
     {
+        if (status_buf.connection_status != previous_connection_status)
+        {
+            Debug_printf("Fliggy!\n");
+        }
         protocol->status(status_buf.rawData); // Prime the status buffer
-        if ((status_buf.rx_buf_len > 0) && (interruptRateLimit == true))
+        if (((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status)) && (interruptRateLimit == true))
         {
             fnSystem.digital_write(PIN_PROC, DIGI_LOW);
             fnSystem.delay_microseconds(50);
@@ -566,6 +570,7 @@ void sioNetwork::sio_assert_interrupts()
             interruptRateLimit = false;
             portEXIT_CRITICAL(&timerMux);
         }
+        previous_connection_status = status_buf.connection_status;
     }
 }
 
