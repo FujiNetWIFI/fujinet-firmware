@@ -118,7 +118,7 @@ START:
 	LDA	#<RESET
 	STA	DOSINI
 	LDA	#>RESET
-	STA	DOSINI
+	STA	DOSINI+1
 
 RESET:
 	JSR	$FFFF		; Jump to extant DOSINI
@@ -129,7 +129,7 @@ RESET:
 	LDA	#<PGEND		
 	STA	MEMLO
 	LDA	#>PGEND
-	STA	MEMLO
+	STA	MEMLO+1
 
 	;; Back to DOS
 	
@@ -190,9 +190,9 @@ OBERR:
 	;; Status returned ready.
 	
 OBRDY:	
-	LDA	#>BREADY
-	STA	ICBAL,X
 	LDA	#<BREADY
+	STA	ICBAL,X
+	LDA	#>BREADY
 	STA	ICBAH,X
 
 OBCIO:
@@ -503,7 +503,7 @@ TB1:	CPX     #$01		; N4: TX Buffer
 	LDA	#>TBUF+1
 	BVC	TBX
 
-TB0:	LDA	#<TBUF
+TB0:	LDA	#>TBUF
 
        ; FINISH DCB AND DO SIOV
 
@@ -771,7 +771,7 @@ I1:	CPX	#$01
 	LDA	#>RBUF+1
 	BVC	IX
 
-I0:	LDA	#>RBUF+1
+I0:	LDA	#>RBUF
 
 IX:	RTS
 	
