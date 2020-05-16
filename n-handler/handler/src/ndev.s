@@ -674,7 +674,7 @@ DSERR:
 DSOK:
 	LDA     INQDS
        CMP     #$FF    ; INVALID?
-       BNE     :DSGO   ; DO THE CMD
+       BNE     DSGO   ; DO THE CMD
        LDY     #$92    ; UNIMP CMD
        TYA
        RTS
@@ -682,7 +682,7 @@ DSOK:
 	;; Do the special, since we want to pass in all the IOCB
 	;; Parameters to the DCB, This is being done long-hand.
 	
-	LDA	#DEVIDN
+DSGO:	LDA	#DEVIDN
 	STA	DDEVIC
 	LDA	ZICDNO
 	STA	DUNIT
@@ -696,14 +696,14 @@ DSOK:
 	STA	DBUFH
 	LDA	#$0F
 	STA	DTIMLO
-	LDA	ZICBLL
+	LDA	#$00		; 256 bytes
 	STA	DBYTL
-	LDA	ZICBLH
+	LDA	#$01
 	STA	DBYTH
 	LDA	ZICAX1
-	STA	DAUX1
+	STA	DAUXL
 	LDA	ZICAX2
-	STA	DAUX2
+	STA	DAUXH
 
 	JSR	SIOV
 
