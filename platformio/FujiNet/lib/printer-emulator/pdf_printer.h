@@ -8,13 +8,17 @@
 #include <SPIFFS.h>
 
 #include "printer_emulator.h"
+#include "../../include/atascii.h"
 
-#define EOL 155    // pdf printer library does use Atari EOL instead of /r/n
 #define MAXFONTS 6 // maximum number of fonts can use
 
 class pdfPrinter : public printer_emu
 {
-protected:
+protected:  
+  // ATARI THINGS
+  bool translate850 = false; // default to sio printer
+  byte _eol = ATASCII_EOL; // default to atascii eol
+
   // PDF THINGS
   float pageWidth;
   float pageHeight;
@@ -25,10 +29,8 @@ protected:
   float charWidth;
   byte fontNumber;
   float fontSize;
-
   std::string shortname;
   bool fontUsed[MAXFONTS] = {true}; // initialize first one to true, always use default font
-
   float pdf_X = 0.; // across the page - columns in pts
   bool BOLflag = true;
   float pdf_Y = 0.; // down the page - lines in pts
