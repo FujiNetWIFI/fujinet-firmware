@@ -104,7 +104,7 @@ EOL     =     $9B     ; EOL CHAR
 	.ENDL
 	.ENDM
 	
-	org $2300
+	org $3100
 	
 ;;; Initialization ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	
@@ -679,48 +679,41 @@ DSOK:
        TYA
        RTS
 
-DSGO:
-	JSR     GDIDX
-       LDA     #DEVIDN ; $71
-       STA     DDEVIC
-       LDA     ZICCOM
-       STA     DCOMND
-       LDA     INQDS
-       STA     DSTATS
-DSG3:
-	CPX     #$03
-       BNE     :DSG2
-       LDA     #>TBUF+3    
-       BVC     :DSGX
-DSG2:
-	CPX     #$02
-       BNE     :DSG1
-       LDA     #>TBUF+2    
-	BVC     :DSGX
-DSG1:
-	CPX     #$01
-       BNE     :DSG0
-       LDA     #>TBUF+1    
-       BVC     :DSGX
-DSG0:
-	LDA     #>TBUF
-DSGX:
-	STA     DBUFH
-       LDA     #$00
-       STA     DBUFL
-       STA     DBYTH
-       LDA     #$0F
-       STA     DTIMLO
-       LDA     ZICAX1
-       ORA     AX1SV,X
-       STA     DAUXL
-       LDA     ZICAX2
-       ORA     AX2SV,X
-       STA     DAUXH
-       JSR     SIOV
-       LDY     DSTATS
-       TYA
-       RTS
+	;; Do the special, since we want to pass in all the IOCB
+	;; Parameters to the DCB, This is being done long-hand.
+	
+	LDA	#DEVIDN
+	STA	DDEVIC
+	LDA	ZICDNO
+	STA	DUNIT
+	LDA	ZICCOM
+	STA	DCOMND
+	LDA	INQDS
+	STA	DSTATS
+	LDA	ZICBAL
+	STA	DBUFL
+	LDA	ZICBAH
+	STA	DBUFH
+	LDA	#$0F
+	STA	DTIMLO
+	LDA	ZICBLL
+	STA	DBYTL
+	LDA	ZICBLH
+	STA	DBYTH
+	LDA	ZICAX1
+	STA	DAUX1
+	LDA	ZICAX2
+	STA	DAUX2
+
+	JSR	SIOV
+
+	;; Return DSTATS in Y and A
+
+	LDA	DSTATS
+	TAY
+
+	RTS
+
 	
 ;;; End CIO SPECIAL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
