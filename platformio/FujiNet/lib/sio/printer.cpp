@@ -1,3 +1,4 @@
+#include "../../include/atascii.h"
 #include "html_printer.h"
 #include "atari_1025.h"
 #include "atari_1027.h"
@@ -207,10 +208,10 @@ void sioPrinter::sio_write()
             for (int i = 0; i < n; i++)
             {
                 buffer[i] = temp[n - 1 - i];
-                if (buffer[i] == EOL)
+                if (buffer[i] == ATASCII_EOL)
                     buffer[i] = ' ';
             }
-            buffer[n++] = EOL;
+            buffer[n++] = ATASCII_EOL;
         }
         for (int i = 0; i < n; i++)
         {

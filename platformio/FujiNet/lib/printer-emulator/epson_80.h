@@ -4,17 +4,17 @@
 
 #include "pdf_printer.h"
 
-
 class epson80 : public pdfPrinter
 {
 protected:
-    void pdf_handle_char(byte c);
-
-    enum state_t
+    struct epson_cmd_t
     {
-        TEXT,
-        ESC
-    };
+        byte N;
+        byte ctr;
+    } epson_cmd;
+    bool escMode = false;
+
+    void pdf_handle_char(byte c);
 
 public:
     void initPrinter(FS *filesystem);

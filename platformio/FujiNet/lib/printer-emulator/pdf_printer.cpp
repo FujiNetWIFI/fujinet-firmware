@@ -70,7 +70,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
     sprintf(fname, "/f/%s/LUT", shortname.c_str());
     File lut = SPIFFS.open(fname);
     int maxFonts = lut.parseInt();
-    
+
     // font dictionary
     for (int i = 0; i < maxFonts; i++)
     {
@@ -352,6 +352,9 @@ bool pdfPrinter::process(byte n)
     do
     {
         c = buffer[i++];
+        if (translate850 && c == ATASCII_EOL)
+            c = ASCII_CR; // the 850 interface converts EOL to CR
+            
         // #ifdef DEBUG
         //         Debug_print(c, HEX);
         // #endif
@@ -363,11 +366,11 @@ bool pdfPrinter::process(byte n)
         }
         else
         {
-            if (BOLflag && c == EOL)
+            if (BOLflag && c == _eol)
                 pdf_new_line();
 
             // check for EOL or if at end of line and need automatic CR
-            if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth +.072))))
+            if (!BOLflag && ((c == _eol) || (pdf_X > (printWidth - charWidth + .072))))
                 pdf_end_line();
 
             // start a new line if we need to
@@ -384,7 +387,7 @@ bool pdfPrinter::process(byte n)
 #endif
         }
 
-    } while (i < n && c != EOL);
+    } while (i < n && c != _eol);
 
     // if wrote last line, then close the page
     if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
