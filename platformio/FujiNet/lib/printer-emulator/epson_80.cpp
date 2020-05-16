@@ -5,16 +5,7 @@ void epson80::pdf_handle_char(byte c)
 {
     if (escMode)
     {
-        // Atari 1025 escape codes:
-        // ESC CTRL-T - 16.5 char/inch        0x14
-        // ESC CTRL-O - 10 char/inch          0x0F
-        // ESC CTRL-N - 5 char/inch           0x0E
-        // ESC L - long line 80 char/line     0x4C
-        // ESC S - short line 64 char/line    0x53
-        // ESC 6 - use 6 lines per inch       0x36
-        // ESC 8 - use 8 lines per inch       0x38
-        // ESC CTRL-W - start international   0x17 23
-        // ESC CTRL-X - stop international    0x18 24
+
 
         switch (c)
         {
@@ -180,6 +171,5 @@ void epson80::initPrinter(FS *filesystem)
     fontSize = 12;
     
     pdf_header();
-    intlFlag = false;
     escMode = false;
 }

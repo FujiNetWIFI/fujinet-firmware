@@ -321,6 +321,14 @@ bool pdfPrinter::process(byte n)
      *          absolute positioning of each and every line, which I think requires
      *          each line to be it's own text object and is what i was
      *          doing originally. Not my first choice.
+     *      3 - I think this: when at start of line, do #1
+     *          but when in middle of line use the pdf rendering variable called 
+     *          "rise" to adjust the baseline of printing. Make a variable to
+     *          keep track of rise, which is an offset from the baseline. 
+     *          Could set rise back to zero on a CR by adding the rise to the
+     *          lineHeight in pdf_new_line(). Explicitly set rise to 0 on
+     *          CR/EOL when rise/=0. simply put "0 Ts" in the stream.
+     * 
     */
     int i = 0;
     byte c;
