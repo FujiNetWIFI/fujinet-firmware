@@ -7,7 +7,7 @@
 all: ndev.com
 
 ndev.com:
-	atasm -ondev.com -lndev.lab -gndev.lst src/ndev.s
+	mads src/ndev.s -l:ndev.lst -o:ndev.com
 
 dist: ndev.com
 	cp ndev.com dist/
