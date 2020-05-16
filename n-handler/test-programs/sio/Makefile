@@ -20,6 +20,7 @@ all mostlyclean clean install zip:
 	@$(MAKE) -C nwrifile --no-print-directory $@
 	@$(MAKE) -C ncacert  --no-print-directory $@
 	@$(MAKE) -C nstest   --no-print-directory $@
+	@$(MAKE) -C nudpdest --no-print-directory $@
 
 dist: all
 	mkdir -p dist
@@ -34,6 +35,7 @@ dist: all
 	cp nwrifile/nwrifile.com dist/
 	cp ncacert/ncacert.com dist/
 	cp nstest/nstest.com dist/
+	cp nudpdest/nudpdest.com dist/
 	cp test-scripts/THTTP.EXC dist/
 	cp ../../../tls-root-certs/atascii/DIGICERT.CER dist/
 	cp DOS.SYS dist/

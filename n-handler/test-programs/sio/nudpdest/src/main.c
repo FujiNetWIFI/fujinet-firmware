@@ -1,7 +1,7 @@
 /**
  * Network Testing tools
  *
- * nudpdest - set N: prefix.
+ * nudpdest - set N: UDP Dest
  *
  * Author: Thomas Cherryhomes
  *  <thom.cherryhomes@gmail.com>
@@ -26,7 +26,7 @@ void nudpdest(void)
 {
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
-  OS.dcb.dcomnd=0xFE;
+  OS.dcb.dcomnd='D'
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&buf;
   OS.dcb.dtimlo=0x1f;
@@ -42,7 +42,7 @@ void nudpdest(void)
     }
   else
     {
-      print("N: = ");
+      print("UDP DEST = ");
       print(buf);
       print("\x9b");
     }
@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
     {
       if (argc<2)
 	{
-	  print("PREFIX CLEARED\x9b");
+	  print("DEST CLEARED\x9b");
 	  strcpy(buf,"\x9b");
 	}
       else
@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
       // DOS 2.0/MYDOS
       print("\x9b");
       print("");
-      print("ENTER PREFIX OR \xD2\xC5\xD4\xD5\xD2\xCE TO CLEAR\x9b");
+      print("ENTER DEST OR \xD2\xC5\xD4\xD5\xD2\xCE TO CLEAR\x9b");
       get_line(buf,240);
     }
 
