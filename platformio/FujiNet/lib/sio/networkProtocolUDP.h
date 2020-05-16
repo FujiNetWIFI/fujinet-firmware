@@ -27,5 +27,5 @@ private:
     char saved_rx_buffer[512];
     unsigned short saved_rx_buffer_len=0;
 
-    bool special_set_destination(byte* sp_buf, unsigned short len, unsigned short new_port);
+    bool special_set_destination(byte* sp_buf, unsigned short len);
 };

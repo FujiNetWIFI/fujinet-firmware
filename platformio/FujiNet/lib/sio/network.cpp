@@ -519,19 +519,28 @@ void sioNetwork::sio_special_00()
 // For global commands with Peripheral->Computer payload
 void sioNetwork::sio_special_40()
 {
-    sio_to_computer(sp_buf, sp_buf_len, err);
+    sio_to_computer(sp_buf, 4, err); // size of DVSTAT
 }
 
 // For global commands with Computer->Peripheral payload
 void sioNetwork::sio_special_80()
 {
-    err = sio_to_peripheral(sp_buf, sp_buf_len);
+    err = sio_to_peripheral(sp_buf, 256);
+
+    for (int i = 0; i < 256; i++)
+        if (sp_buf[i] == 0x9b)
+            sp_buf[i] = 0x00;
+
+    if (err == true)
+        sio_error();
+    else
+        sio_complete();
 }
 
 // For commands with no payload.
 void sioNetwork::sio_special_protocol_00()
 {
-    if (!protocol->special(sp_buf, sp_buf_len, &cmdFrame))
+    if (!protocol->special(sp_buf, 0, &cmdFrame))
         sio_complete();
     else
         sio_error();
@@ -540,25 +549,30 @@ void sioNetwork::sio_special_protocol_00()
 // For commands with Peripheral->Computer payload
 void sioNetwork::sio_special_protocol_40()
 {
-    err = protocol->special(sp_buf, sp_buf_len, &cmdFrame);
+    err = protocol->special(sp_buf, 4, &cmdFrame);
     sio_to_computer(sp_buf, sp_buf_len, err);
 }
 
 // For commands with Computer->Peripheral payload
 void sioNetwork::sio_special_protocol_80()
 {
-    sio_to_peripheral(sp_buf, sp_buf_len);
+    sio_to_peripheral(sp_buf, 256);
+
+    for (int i = 0; i < 256; i++)
+        if (sp_buf[i] == 0x9b)
+            sp_buf[i] = 0x00;
+
     err = protocol->special(sp_buf, sp_buf_len, &cmdFrame);
+    if (err == true)
+        sio_error();
+    else
+        sio_complete();
 }
 
 void sioNetwork::sio_assert_interrupts()
 {
     if (protocol != nullptr)
     {
-        if (status_buf.connection_status != previous_connection_status)
-        {
-            Debug_printf("Fliggy!\n");
-        }
         protocol->status(status_buf.rawData); // Prime the status buffer
         if (((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status)) && (interruptRateLimit == true))
         {
