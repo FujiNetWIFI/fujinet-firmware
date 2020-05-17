@@ -142,7 +142,7 @@ void epson80::pdf_handle_char(byte c)
             // Format: <ESC>"D" NI N2 N3 ... NN 0.
             // Terminate TAB sequence with zero or 128.
             esc_not_implemented();
-            if ((c & 0x7F) == 0)
+            if (((c & 0x7F) == 0) || (epson_cmd.ctr > 28))
                 reset_cmd();
             break;
         case 'E': // Turns on emphasized mode. Can't mix with superscript, subscript, or compressed modes
@@ -161,6 +161,7 @@ void epson80::pdf_handle_char(byte c)
             clear_mode(fnt_doublestrike | fnt_superscript | fnt_subscript);
             reset_cmd();
             break;
+        case 'j': // FX-80 immediate reverse line feed just like 'J'
         case 'J': // Sets line spacing to N/216" for one line only and
                   // when received causes contents of buffer to print
                   // IMMEDIATE LINE FEED OF SIZE N/216
@@ -171,16 +172,34 @@ void epson80::pdf_handle_char(byte c)
             }
             break;
         case 'K': // Sets dot graphics mode to 480 dots per 8" line
-            /* Format: <ESC>"K" Nl N2, N1 and N2 determine line length.
+            /* 
+               Format: <ESC>"K" Nl N2, N1 and N2 determine line length.
                Line length = N1 +. 256*N2.
                1 < = N1 < = 255.
-               0 < = N2 < = 255 (Modulo 8, i.e. 8 = 0) */
+               0 < = N2 < = 255 (Modulo 8, i.e. 8 = 0) 
+            */
+            esc_not_implemented();
+            {
+                uint16_t N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & 0x07));
+                if (epson_cmd.ctr > (N + 1))
+                    reset_cmd();
+                // NEED TO IMPLEMENT GFX MODE
+            }
             break;
         case 'L': // Sets dot graphics mode to 960 dots per 8" line
-            /* Format: <ESC>"K" Nl N2, N1 and N2 determine line length.
+            /* 
+               Format: <ESC>"K" Nl N2, N1 and N2 determine line length.
                Line length = N1 +. 256*N2.
                1 < = N1 < = 255.
-               0 < = N2 < = 255 (Modulo 8, i.e. 8 = 0) */
+               0 < = N2 < = 255 (Modulo 8, i.e. 8 = 0) 
+            */
+            esc_not_implemented();
+            {
+                uint16_t N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & 0x07));
+                if (epson_cmd.ctr > (N + 1))
+                    reset_cmd();
+                // NEED TO IMPLEMENT GFX MODE
+            }
             break;
         case 'N': // Sets skip over perforation to N lines
             esc_not_implemented();
@@ -193,9 +212,10 @@ void epson80::pdf_handle_char(byte c)
             esc_not_implemented();
             break;
         case 'Q': // Sets column width to N
-            esc_not_implemented();
+            // esc_not_implemented();
             if (epson_cmd.ctr > 0)
             {
+                printWidth = epson_cmd.N1 * charWidth;
                 reset_cmd();
             }
             break;
@@ -311,7 +331,7 @@ void epson80::pdf_handle_char(byte c)
         //escMode = false;
     }
     else
-    {  // check for other commands or printable character
+    { // check for other commands or printable character
         switch (c)
         {
         case 7: // Sounds buzzer for 113 second. Paper out rings for 3 seconds
@@ -368,7 +388,7 @@ void epson80::pdf_handle_char(byte c)
         }
     }
     if (epson_font_mask != current_font_mask)
-    { 
+    {
         // update font?
     }
 }
