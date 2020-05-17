@@ -103,10 +103,10 @@ EOL     =     $9B     ; EOL CHAR
 	BPL	?DCBL
 	.ENDL
 	.ENDM
-	
-	org $3100
-	
+		
 ;;; Initialization ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+	org $3100
 	
 START:	
 	LDA	DOSINI
@@ -120,6 +120,15 @@ START:
 	LDA	#>RESET
 	STA	DOSINI+1
 
+	;;  Alter MEMLO
+	
+	LDA	#<PGEND		
+	STA	MEMLO
+	LDA	#>PGEND
+	STA	MEMLO+1
+
+	BVC	IHTBS
+	
 RESET:
 	JSR	$FFFF		; Jump to extant DOSINI
 	JSR	IHTBS		; Insert into HATABS
