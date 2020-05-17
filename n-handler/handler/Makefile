@@ -21,5 +21,5 @@ dist: ndev.com
 	dir2atr -S -b DosXL230 n-handler.atr dist
 
 clean:
-	rm -rf ndev* dist/ndev* n-handler.atr relwork-dist/ndev*
+	rm -rf ndev* dist/ndev* n-handler.atr relwork-dist/ndev* relwork.atr
 
