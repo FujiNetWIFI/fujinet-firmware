@@ -1,13 +1,240 @@
 #include "epson_80.h"
 #include "../../include/debug.h"
 
+void epson80::not_implemented()
+{
+    byte c = epson_cmd.cmd;
+#ifdef DEBUG
+    Debug_printf("Command not implemented: %u %x %c\n", c, c, c);
+#endif
+}
+
+void epson80::esc_not_implemented()
+{
+    byte c = epson_cmd.cmd;
+#ifdef DEBUG
+    Debug_printf("Command not implemented: ESC %u %x %c\n", c, c, c);
+#endif
+}
+
+void epson80::reset_cmd()
+{
+    escMode = false;
+    epson_cmd.cmd = 0;
+    epson_cmd.ctr = 0;
+    epson_cmd.N1 = 0;
+    epson_cmd.N2 = 0;
+}
+
+void epson80::set_mode(uint16_t m)
+{
+    epson_font_mask |= m;
+}
+
+void epson80::clear_mode(uint16_t m)
+{
+    epson_font_mask &= ~m;
+}
+
 void epson80::pdf_handle_char(byte c)
 {
+    uint16_t current_font_mask = epson_font_mask;
     if (escMode)
     {
-        switch (c)
+        // command state machine switching
+        if (epson_cmd.cmd == 0)
         {
+            reset_cmd();
+            epson_cmd.cmd = c; // assign command char
+        }
+        else
+        {
+            epson_cmd.ctr++; // increment counter to keep track of the byte in the command
+        }
+        if (epson_cmd.ctr == 1)
+            epson_cmd.N1 = c;
+        else if (epson_cmd.ctr == 2)
+            epson_cmd.N2 = c;
 
+        // state machine actions
+        switch (epson_cmd.cmd)
+        {
+        case '#': // accept 8th bit "as is"
+            esc_not_implemented();
+            break;
+        case '-': // underline
+            if (epson_cmd.ctr > 0)
+            {
+                if (epson_cmd.N1 != 0)
+                    set_mode(fnt_underline); // underline mode ON
+                else
+                    clear_mode(fnt_underline); // underline mode OFF
+                reset_cmd();
+            }
+            break;
+        case '0': // 1/8 inch spacing 9 pts
+            lineHeight = 72 / 8;
+            reset_cmd();
+            break;
+        case '1': // 7/72" spacing
+            lineHeight = 7;
+            reset_cmd();
+            break;
+        case '2': //Returns line spacing to default of 1/6
+            lineHeight = 72 / 6;
+            reset_cmd();
+            break;
+        case '3': // Sets line spacing to N/216". Stays on until changed
+            if (epson_cmd.ctr > 0)
+            {
+                lineHeight = 72.0 * (double)epson_cmd.N1 / 216.0;
+                reset_cmd();
+            }
+            break;
+        case '4': // Italic character set ON
+            set_mode(fnt_italic);
+            reset_cmd();
+            break;
+        case '5': // Italic character set OFF
+            clear_mode(fnt_italic);
+            reset_cmd();
+            break;
+        case '8':
+        case '9':
+        case '<':
+        case '=':
+        case '>':
+            esc_not_implemented();
+            reset_cmd();
+            break;
+        case '@': // Resets all special modes to power up state including Top Of Form
+            // need to reset font to normal
+            // execute a CR?
+            // not sure what to do about TOF?
+            esc_not_implemented();
+            reset_cmd();
+            break;
+        case 'A': //Sets spacing of LF (line feed) to N/72
+            if (epson_cmd.ctr > 0)
+            {
+                lineHeight = epson_cmd.N1;
+                reset_cmd();
+            }
+            break;
+        case 'C':
+            // Sets form length (FL) to N lines. Default is 66
+            // Format: <ESC>"C" N, 1 < = N < = 127.
+            // Resets top of form.
+            // Sets form length (FL) to N inches. Default is 11
+            // Format: <ESC>"C" 0 N, 1 < = N < = 22.
+            // Resets top of form.
+            esc_not_implemented();
+            if (epson_cmd.ctr == 1 && epson_cmd.N1 > 0)
+                reset_cmd();
+            else if (epson_cmd.ctr == 2)
+                reset_cmd();
+            break;
+        case 'D':
+            // Reset current tabs and sets up to 28 HT (horiz tabs) ................. 9-4
+            // TABs may range up to maximum width for character and
+            // printer size. E.G. Maximum TAB for normal characters on
+            // MX-80 is 80.
+            // Format: <ESC>"D" NI N2 N3 ... NN 0.
+            // Terminate TAB sequence with zero or 128.
+            esc_not_implemented();
+            if ((c & 0x7F) == 0)
+                reset_cmd();
+            break;
+        case 'E': // Turns on emphasized mode. Can't mix with superscript, subscript, or compressed modes
+            set_mode(fnt_emphasized);
+            reset_cmd();
+            break;
+        case 'F': // Turns off emphasized mode
+            clear_mode(fnt_emphasized);
+            reset_cmd();
+            break;
+        case 'G': // Turns on double strike mode.
+            set_mode(fnt_doublestrike);
+            reset_cmd();
+            break;
+        case 'H': // Turns off double strike mode, superscript, and subscript modes
+            clear_mode(fnt_doublestrike | fnt_superscript | fnt_subscript);
+            reset_cmd();
+            break;
+        case 'J': // Sets line spacing to N/216" for one line only and
+                  // when received causes contents of buffer to print
+                  // IMMEDIATE LINE FEED OF SIZE N/216
+            esc_not_implemented();
+            if (epson_cmd.ctr > 0)
+            {
+                reset_cmd();
+            }
+            break;
+        case 'K': // Sets dot graphics mode to 480 dots per 8" line
+            /* Format: <ESC>"K" Nl N2, N1 and N2 determine line length.
+               Line length = N1 +. 256*N2.
+               1 < = N1 < = 255.
+               0 < = N2 < = 255 (Modulo 8, i.e. 8 = 0) */
+            break;
+        case 'L': // Sets dot graphics mode to 960 dots per 8" line
+            /* Format: <ESC>"K" Nl N2, N1 and N2 determine line length.
+               Line length = N1 +. 256*N2.
+               1 < = N1 < = 255.
+               0 < = N2 < = 255 (Modulo 8, i.e. 8 = 0) */
+            break;
+        case 'N': // Sets skip over perforation to N lines
+            esc_not_implemented();
+            if (epson_cmd.ctr > 0)
+            {
+                reset_cmd();
+            }
+            break;
+        case 'O': // Resets skip over perforation to 0 lines
+            esc_not_implemented();
+            break;
+        case 'Q': // Sets column width to N
+            esc_not_implemented();
+            if (epson_cmd.ctr > 0)
+            {
+                reset_cmd();
+            }
+            break;
+        case 'S': // Sets superscript/subscript modes
+            // N=0 = > superscript, N>0 = > subscript.
+            if (epson_cmd.ctr > 0)
+            {
+                if (epson_cmd.N1 != 0)
+                    set_mode(fnt_subscript);
+                else
+                    set_mode(fnt_superscript);
+                reset_cmd();
+            }
+            break;
+        case 'T': // Resets superscript, subscript, and unidrectional printing
+            // does not turn off double strike from script modes
+            clear_mode(fnt_superscript | fnt_subscript);
+            reset_cmd();
+            break;
+        case 'U': // Unidirectional printing. Prints each line from left to right
+                  // N=0 = > OFF,N>0 = > ON.
+            esc_not_implemented();
+            if (epson_cmd.ctr > 0)
+            {
+                reset_cmd();
+            }
+            break;
+        case 'W': // Double width printing. Stays ON until turned OFF
+            // N=0 = > OFF, N=1 = > ON.
+            // Has precedence over Shift Out (SO = CHR$(14))
+            if (epson_cmd.ctr > 0)
+            {
+                if (epson_cmd.N1 != 0)
+                    set_mode(fnt_expanded);
+                else
+                    clear_mode(fnt_expanded);
+                reset_cmd();
+            }
+            break;
         case 0x0E:
             // change font to elongated like
             if (fontNumber != 2)
@@ -38,19 +265,8 @@ void epson80::pdf_handle_char(byte c)
                 fontUsed[2] = true;
             }
             break;
-        case 0x17: // 23
-            //intlFlag = true;
-            break;
-        case 0x18: // 24
-            //intlFlag = false;
-            break;
-        case 0x36:             // '6'
-            lineHeight = 12.0; //72.0/6.0;
-            break;
-        case 0x38:            // '8'
-            lineHeight = 9.0; //72.0/8.0;
-            break;
-        case 0x4c: // 'L'
+
+            //        case 0x4c: // 'L'
             /* code */
             // for long and short lines, i think we end line, ET, then set the leftMargin and pageWdith and begin text
             // challenge is to not skip a line if we're at the beginning of a line
@@ -69,8 +285,8 @@ void epson80::pdf_handle_char(byte c)
                 BOLflag = false;
                 shortFlag = false;
             } */
-            break;
-        case 0x53: // 'S'
+            //            break;
+            //        case 0x53: // 'S'
             // for long and short lines, i think we end line, ET, then set the leftMargin and pageWdith and begin text
             /* if (!shortFlag)
             {
@@ -86,56 +302,62 @@ void epson80::pdf_handle_char(byte c)
                 BOLflag = false;
                 shortFlag = true;
             } */
-            break;
+            //            break;
         default:
+            reset_cmd();
             break;
         }
 
-        escMode = false;
+        //escMode = false;
     }
     else
-    { // maybe printable character
+    {  // check for other commands or printable character
         switch (c)
         {
-        case 7: // BEL
+        case 7: // Sounds buzzer for 113 second. Paper out rings for 3 seconds
             // would be fun to make a buzzer
             break;
-        case 8: // BS
-            // back space
-            _file.printf(")%d(", charWidth / lineHeight * 1000); // need to figure out charwidth
-            pdf_X -= charWidth;                                  // update x position
+        case 8: // Backspace. Empties printer buffer, then backspaces print head one space
+            /*MX Printer with GRAFTRAXplus Manual page 6-3:
+            One quirk in using the backspace. In expanded mode, CHR$(8) causes a full double
+            width backspace as we would expect. The fun begins when several backspaces
+            are done in succession. All except for the first one are normal-width backspaces */
+            _file.printf(")%d(", (int)(charWidth / lineHeight * 1000.0));
+            pdf_X -= charWidth; // update x position
             break;
-        case 9: // TAB
-// not implemented
-#ifdef DEBUG
-            Debug_printf("command not implemented: %d\n", c);
-#endif
+        case 9: // Horizontal Tabulation. Print head moves to next tab stop
+            not_implemented();
             break;
-        case 10: // LF
-        case 11: // VT (same as LF on MX80)
-#ifdef DEBUG
-            Debug_printf("command not implemented: %d\n", c);
-#endif
+        case 10: // Line Feed. Printer empties its buffer and does line feed at
+                 // current line spacing and Resets buffer pointer to zero
+        case 11: //Vertical Tab - does single line feed (same as LF on MX80)
+            not_implemented();
             break;
-        case 12: // FF
+        case 12: // Advances paper to next logical TOF (top of form)
             pdf_end_page();
             break;
-        //case 13: // CR - implemented outside in pdf_printer()
-        case 14: // double width mode ON
-            // set double width bit in font mode code
+        case 13: // Carriage Return.
+            // Prints buffer contents and resets buffer character count to zero
+            // Implemented outside in pdf_printer()
             break;
-        case 15: // compressed mode
-            // set compresed mode bit in font code
+        case 14: // Turns on double width mode to end of line unless cancelled by 20
+            set_mode(fnt_SOwide);
             break;
-        case 18: // turns off compressed
+        case 15: // Turns on compressed character mode. Does not work with
+                 // emphasized mode. Stays on until cancelled by OC2 (18)
+            set_mode(fnt_compressed);
             break;
-        case 20: // turns off double width
+        case 18: // Turns off compressed characters and empties buffer
+            clear_mode(fnt_compressed);
+            break;
+        case 20: // Turns off double width mode (14 only)
+            clear_mode(fnt_SOwide);
             break;
         case 27: // ESC mode
             escMode = true;
             break;
-        default:
-            if (c > 31 && c < 127)
+        default:        // maybe printable character
+            if (c > 31) // && c < 127)
             {
                 if (c == '\\' || c == '(' || c == ')')
                     _file.write('\\');
@@ -145,7 +367,10 @@ void epson80::pdf_handle_char(byte c)
             break;
         }
     }
-// update font?
+    if (epson_font_mask != current_font_mask)
+    { 
+        // update font?
+    }
 }
 
 void epson80::initPrinter(FS *filesystem)
