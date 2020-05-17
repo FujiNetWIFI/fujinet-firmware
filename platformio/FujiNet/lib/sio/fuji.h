@@ -15,9 +15,9 @@
 #endif
 #ifdef ESP32
 //#include <WiFi.h>
-#include <SPIFFS.h>
+//#include <SPIFFS.h>
 #endif
-#include <SD.h>
+//#include <SD.h>
 
 #define MAX_FILESYSTEMS 8
 #define MAX_DISK_DEVICES 8
@@ -45,7 +45,7 @@ private:
 
     struct fndisks_t
     {
-        File file;
+        FILE* file;
         fujiFileSystem *fnfs = NULL;
     };
     fndisks_t fnDisks[MAX_DISK_DEVICES];
@@ -54,7 +54,7 @@ private:
     bool validate_device_slot(uint8_t slot, const char *dgmsg = NULL);
 
 protected:
-    File atrConfig;     // autorun.atr for FujiNet configuration
+    FILE * atrConfig;     // autorun.atr for FujiNet configuration
     sioDisk configDisk; // special disk drive just for configuration
 
     struct _hostslot

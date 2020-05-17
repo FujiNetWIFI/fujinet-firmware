@@ -3,7 +3,7 @@
 #include "led.h"
 #include "fnWiFi.h"
 #include "fnSystem.h"
-
+#include "../FileSystem/fnFsSPIF.h"
 #include "config.h"
 
 #define SIO_FUJICMD_RESET               0xFF
@@ -256,7 +256,7 @@ void sioFuji::sio_disk_image_mount()
     }
     else
     {
-        sioD[deviceSlot].mount(&(fnDisks[deviceSlot].file));
+        sioD[deviceSlot].mount(fnDisks[deviceSlot].file);
         sio_complete();
     }
 }
@@ -278,7 +278,7 @@ void sioFuji::sio_disk_image_umount()
     }
 
     sioD[deviceSlot].umount(); // close file and remove from sioDisk
-    fnDisks[deviceSlot].file = File();  // clear file from slot
+    fnDisks[deviceSlot].file = nullptr; //= File();  // clear file from slot
     sio_complete();            // always completes.
 }
 
@@ -291,7 +291,7 @@ int sioFuji::image_rotate()
     Debug_println("Fuji image rotate");
 #endif
 
-    File *temp;
+    FILE *temp;
 
     int n = 0;
     while (sioD[n].file() != nullptr)
@@ -363,31 +363,32 @@ void sioFuji::sio_read_directory_entry()
     }
 
     //byte ret = tnfs_readdir(hostSlot);
-    File f = fnFileSystems[hostSlot].dir_nextfile();
+    struct dirent * f = fnFileSystems[hostSlot].dir_nextfile();
     int l = 0;
 
-    if (!f)
+    if (f == nullptr)
     {
         current_entry[0] = 0x7F; // end of dir
+        fnFileSystems[hostSlot].dir_close();
 #ifdef DEBUG
         Debug_println("Reached end of of directory");
 #endif        
     }
     else
     {
-        if (f.name()[0] == '/')
+        if (f->d_name[0] == '/')
         {
-            for (l = strlen(f.name()); l-- > 0;)
+            for (l = strlen(f->d_name); l-- > 0;)
             {
-                if (f.name()[l] == '/')
+                if (f->d_name[l] == '/')
                 {
                     l++;
                     break;
                 }
             }
         }
-        strcpy(current_entry, &f.name()[l]);
-        if (f.isDirectory())
+        strcpy(current_entry, &f->d_name[l]);
+        if (f->d_type == DT_DIR)
         {
             int a = strlen(current_entry);
             if (current_entry[a - 1] != '/')
@@ -573,21 +574,21 @@ void sioFuji::sio_new_disk()
             return;
         }
         // Create file
-        File f = fnFileSystems[newDisk.hostSlot].open(newDisk.filename, "w+");
-        if (f)
+        FILE * f = fnFileSystems[newDisk.hostSlot].open(newDisk.filename, "w+");
+        if (f != nullptr)
         {
             fnDisks[newDisk.deviceSlot].file = f;
 #ifdef DEBUG
             Debug_printf("Nice! Created file %s\n", deviceSlots.slot[newDisk.deviceSlot].filename);
 #endif
 
-            bool ok = sioD[newDisk.deviceSlot].write_blank_atr(&fnDisks[newDisk.deviceSlot].file, newDisk.sectorSize, newDisk.numSectors);
+            bool ok = sioD[newDisk.deviceSlot].write_blank_atr(fnDisks[newDisk.deviceSlot].file, newDisk.sectorSize, newDisk.numSectors);
             if (ok)
             {
 #ifdef DEBUG
                 Debug_printf("Nice! Wrote ATR data\n");
 #endif
-                sioD[newDisk.deviceSlot].mount(&fnDisks[newDisk.deviceSlot].file); // mount does all this
+                sioD[newDisk.deviceSlot].mount(fnDisks[newDisk.deviceSlot].file); // mount does all this
                 sio_complete();
                 return;
             }
@@ -682,7 +683,7 @@ void sioFuji::populate_config_from_slots()
 void sioFuji::setup(sioBus &mySIO)
 {
     // set up Fuji device
-    atrConfig = SPIFFS.open("/autorun.atr", "r+");
+    atrConfig = fnSPIFFS.file_open("/autorun.atr");
 
     /*
     // Go ahead and read the host slots from disk
@@ -704,7 +705,7 @@ void sioFuji::setup(sioBus &mySIO)
     */
     populate_slots_from_config();
 
-    configDisk.mount(&atrConfig); // set up a special disk drive not on the bus
+    configDisk.mount(atrConfig); // set up a special disk drive not on the bus
     configDisk.is_config_device=true;
     
     // Add our devices to the SIO bus
