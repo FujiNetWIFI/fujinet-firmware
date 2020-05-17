@@ -105,8 +105,6 @@ EOL     =     $9B     ; EOL CHAR
 	.ENDM
 		
 ;;; Initialization ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-	org $2300
 	
 START:	
 	LDA	DOSINI
