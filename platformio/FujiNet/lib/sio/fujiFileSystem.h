@@ -1,8 +1,8 @@
 #ifndef FUJIFILESYSTEM_H
 #define FUJIFILESYSTEM_H
 
-#include <FS.h>
-#include <SD.h>
+//#include <FS.h>
+//#include <SD.h>
 
 #include "tnfs.h"
 
@@ -19,9 +19,8 @@ class fujiFileSystem
 {
 private:
     const char * _sdhostname = "SD";
-    FS *_fs;
+    FileSystem *_fs = nullptr;
     TNFSFS *_tnfs;
-    File _dir;
     fujiFSType _type;
     char _hostname[MAX_HOSTNAME_LEN];
 
@@ -45,11 +44,11 @@ public:
     bool exists(const char *path);
     bool exists(const String &path);
 
-    fs::File open(const char *path, const char *mode = "r");
-    fs::File open(const String &path, const char *mode = "r");
+    FILE * open(const char *path, const char *mode = "r");
+    FILE * open(const String &path, const char *mode = "r");
 
-    int dir_open(const char *path);
-    fs::File dir_nextfile();
+    bool dir_open(const char *path);
+    struct dirent * dir_nextfile();
     void dir_close();
 
     fujiFileSystem() { _type = FNFILESYS_UNINITIALIZED; };

@@ -5,6 +5,9 @@
 #include <string>
 #include <map>
 
+#include "esp_task.h"
+#include "esp_heap_task_info.h"
+
 #include "httpServiceConfigurator.h"
 #include "config.h"
 #include "printer.h"
@@ -144,7 +147,7 @@ int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t
 
     std::map<std::string, std::string> postvals = parse_postdata(decoded_buf, postlen);
 
-    free(decoded_buf);
+    delete decoded_buf;
 
     for(std::map<std::string, std::string>::iterator i = postvals.begin(); i != postvals.end(); i++)
     {

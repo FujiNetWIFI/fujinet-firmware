@@ -82,7 +82,7 @@ void pngPrinter::png_signature()
     Debug_println("Writing PNG Signature.");
 #endif
     uint8_t sig[] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
-    _file.write(&sig[0], 8);
+    fwrite(sig, 1, 8, _file);
 }
 
 void pngPrinter::png_header()
@@ -130,7 +130,7 @@ void pngPrinter::png_header()
     */
     crc_value = rc_crc32(0, &header[4], 17);
     uint32_to_array(crc_value, &header[21]);
-    _file.write(&header[0], 25);
+    fwrite(header, 1, 25, _file);
 }
 
 void pngPrinter::png_palette()
@@ -196,9 +196,9 @@ void pngPrinter::png_palette()
     crc_value = rc_crc32(0, &data[0], 4 + 768);
     uint32_to_array(crc_value, &ccc[0]);
 
-    _file.write(&len[0], 4);
-    _file.write(&data[0], 4 + 768);
-    _file.write(&ccc[0], 4);
+    fwrite(len, 1, 4, _file);
+    fwrite(data, 1, 4 + 768, _file);
+    fwrite(ccc, 1, 4, _file);
 }
 
 void pngPrinter::png_data()
@@ -245,7 +245,7 @@ void pngPrinter::png_data()
 
     uint32_to_array(dataSize, &data[0]); // store the computed size
 
-    _file.write(&data[0], 8); // write out the IDAT header
+    fwrite(data, 1, 8, _file); // write out the IDAT header
 }
 
 void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
@@ -263,11 +263,11 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         // Compression method/flags code: 1 byte (For PNG compression method 0, the zlib compression method/flags code must specify method code 8 (“deflate” compression))
         c = 0x08; // ZLIB "Deflate" compression scheme
         crc_value = rc_crc32(crc_value, c);
-        _file.write(c);
+        fputc(c, _file);
         //  Additional flags/check bits: 1 byte (must be such that method + flags, when viewed as a 16-bit unsigned integer stored in MSB order (CMF*256 + FLG), is a multiple of 31.)
         c = 0x1D; // precompute so that 0x081D is divisible by 31 [ (0x800 / 31 + 1) * 31 - 0x800 ]
         crc_value = rc_crc32(crc_value, c);
-        _file.write(c);
+        fputc(c, _file);
 
         //printf("new image\n");
     }
@@ -291,21 +291,21 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
 #endif
             // write out block header
             crc_value = rc_crc32(crc_value, c);
-            _file.write(c);
+            fputc(c, _file);
 
             // write out block size
             c = (uint8_t)(blkSize >> 0);
             crc_value = rc_crc32(crc_value, c);
-            _file.write(c);
+            fputc(c, _file);
             c = (uint8_t)(blkSize >> 8);
             crc_value = rc_crc32(crc_value, c);
-            _file.write(c);
+            fputc(c, _file);
             c = (uint8_t)((blkSize >> 0) ^ 0xFF);
             crc_value = rc_crc32(crc_value, c);
-            _file.write(c);
+            fputc(c, _file);
             c = (uint8_t)((blkSize >> 8) ^ 0xFF);
             crc_value = rc_crc32(crc_value, c);
-            _file.write(c);
+            fputc(c, _file);
 
             //printf("new block\n");
         }
@@ -319,7 +319,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
             c = 0;
             crc_value = rc_crc32(crc_value, c);
             adler_value = update_adler32(adler_value, c);
-            _file.write(c);
+            fputc(c, _file);
             //printf("\nnew line %d ", c);
 
             img_pos++;
@@ -330,7 +330,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         c = buf[idx];
         crc_value = rc_crc32(crc_value, c);
         adler_value = update_adler32(adler_value, c);
-        _file.write(c);
+        fputc(c, _file);
         //printf("%d ", c);
 
         Xpos++;
@@ -369,7 +369,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         for (int i = 0; i < 4; i++)
             crc_value = rc_crc32(crc_value, data[i]); // crc_value = rc_crc32(crc_value, data[0],4); ?????????
         uint32_to_array(crc_value, &data[4]);
-        _file.write(&data[0], 8);
+        fwrite(data, 1, 8, _file);
         png_end();
     }
 }
@@ -383,12 +383,12 @@ void pngPrinter::png_end()
         0x00, 0x00, 0x00, 0x00,  // zero length
         'I', 'E', 'N', 'D',      // IEND
         0xAE, 0x42, 0x60, 0x82}; // crc32 - precompute because always the same
-    _file.write(&end[0], 12);
+    fwrite(end, 1, 12, _file);
 }
 
-void pngPrinter::initPrinter(FS *filesystem)
+void pngPrinter::initPrinter(FileSystem *fs)
 {
-    printer_emu::initPrinter(filesystem);
+    printer_emu::initPrinter(fs);
 
     // call PNG header routines
     png_signature();

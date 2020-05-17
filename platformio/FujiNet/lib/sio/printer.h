@@ -2,8 +2,11 @@
 #define PRINTER_H
 //#include <Arduino.h>
 #include <string.h>
-#include <FS.h>
-#include <SPIFFS.h>
+//#include <FS.h>
+//#include <SPIFFS.h>
+
+#include "fnFsSD.h"
+#include "fnFsSPIF.h"
 
 #include "sio.h"
 #include "pdf_printer.h"
@@ -26,7 +29,7 @@ protected:
 
 public:
     atari820(sioPrinter *P) { my_sioP = P; }
-    void initPrinter(FS *filesystem);
+    void initPrinter(FileSystem *fs);
     // void setDevice(sioPrinter *P) { my_sioP = P; };
     const char *modelname() { return "Atari 820"; };
 };
@@ -42,7 +45,7 @@ protected:
 
 public:
     atari822(sioPrinter *P) { my_sioP = P; }
-    virtual void initPrinter(FS *filesystem);
+    virtual void initPrinter(FileSystem *fs);
     const char *modelname() { return "Atari 822"; };
 
     //void setDevice(sioPrinter *P) { my_sioP = P; };
@@ -61,8 +64,8 @@ protected:
     void sio_process();
     byte lastAux1 = 0;
 
-    printer_emu *_pptr = NULL;
-    FS *_storage = NULL;
+    printer_emu *_pptr = nullptr;
+    FileSystem *_storage = nullptr;
 
     time_t last_ms;
 
@@ -85,7 +88,7 @@ public:
 
     static printer_type match_modelname(std::string modelname);
     void set_printer_type(printer_type t);
-    void set_storage(FS *fs);
+    void set_storage(FileSystem *fs);
     void reset_printer() { set_printer_type(pt); };
     time_t lastPrintTime() { return last_ms; };
 

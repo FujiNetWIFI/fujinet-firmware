@@ -29,8 +29,8 @@ If a file has an extention pre-determined to support parsing (see/update
 #ifndef HTTPSERVICE_H
 #define HTTPSERVICE_H
 
-#include <FS.h>
 #include <esp_http_server.h>
+#include "fnFS.h"
 
 // FNWS_FILE_ROOT should end in a slash '/'
 #define FNWS_FILE_ROOT "/www/"
@@ -48,7 +48,7 @@ class fnHttpService
 {
     struct serverstate {
         httpd_handle_t hServer;
-        FS* pFS;
+        FileSystem *_FS = nullptr;
     } state;
 
     enum _fnwserr

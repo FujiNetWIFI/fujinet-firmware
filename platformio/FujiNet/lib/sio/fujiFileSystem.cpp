@@ -1,4 +1,6 @@
 #include "fuji.h"
+#include "../FileSystem/fnFS.h"
+#include "../FileSystem/fnFsSD.h"
 #include "fujiFileSystem.h"
 
 
@@ -11,7 +13,10 @@ void fujiFileSystem::unmount()
 */
 void fujiFileSystem::cleanup()
 {
-    _dir.close();
+    if(_fs != nullptr)
+        _fs->dir_close();
+    _fs = nullptr;
+
     if(_tnfs != NULL)
     {
         if(_tnfs->isConnected())
@@ -19,7 +24,6 @@ void fujiFileSystem::cleanup()
     }
     delete _tnfs;
     _hostname[0] = '\0';
-    _fs = NULL;
 }
 
 /* Set the type of filesystem we're using, performing any cleanup if needed
@@ -42,27 +46,26 @@ void fujiFileSystem::set_type(fujiFSType type)
     _type = type;
 }
 
-int fujiFileSystem::dir_open(const char *path)
+bool fujiFileSystem::dir_open(const char *path)
 {
 
-    int result = -1;
 #ifdef DEBUG
     Debug_printf("::dir_open {%d:%d} \"%s\"\n", slotid, _type, path);
 #endif
-    if(_fs == NULL)
+    if(_fs == nullptr)
     {
 #ifdef DEBUG
-    Debug_println("::dir_open no FS*");
+    Debug_println("::dir_open no FileSystem set");
 #endif
-        return -1;
+        return false;
     }
 
+    int result = false;
     switch(_type)
     {
     case FNFILESYS_LOCAL:
     case FNFILESYS_TNFS:
-        _dir = _fs->open(path, "r");
-        result = _dir ? 0 : -1;
+        result =_fs->dir_open(path);
         break;
     case FNFILESYS_UNINITIALIZED:
         break;        
@@ -70,7 +73,7 @@ int fujiFileSystem::dir_open(const char *path)
     return result;
 }
 
-File fujiFileSystem::dir_nextfile()
+struct dirent * fujiFileSystem::dir_nextfile()
 {
 #ifdef DEBUG
     Debug_printf("::dir_nextfile {%d:%d}\n", slotid, _type);
@@ -79,25 +82,25 @@ File fujiFileSystem::dir_nextfile()
     switch(_type)
     {
     case FNFILESYS_LOCAL:
-        return _dir.openNextFile();;
+        return _fs->dir_read();
     case FNFILESYS_TNFS:
-        return _dir.openNextFile();;
+        return _fs->dir_read();
     case FNFILESYS_UNINITIALIZED:
         break;
     }
 
-    return File();
+    return nullptr;
 }
 
 void fujiFileSystem::dir_close()
 {
-    _dir.close();
+    _fs->dir_close();
 }
 
 
 bool fujiFileSystem::exists(const char *path)
 {
-    if(_type == FNFILESYS_UNINITIALIZED || _fs == NULL)
+    if(_type == FNFILESYS_UNINITIALIZED || _fs == nullptr)
         return false;
 
     return _fs->exists(path);
@@ -105,25 +108,20 @@ bool fujiFileSystem::exists(const char *path)
 
 bool fujiFileSystem::exists(const String &path)
 {
-    if(_type == FNFILESYS_UNINITIALIZED || _fs == NULL)
-        return false;
-
-    return _fs->exists(path);
+    return exists(path.c_str());
 }
 
-fs::File fujiFileSystem::open(const char *path, const char *mode)
+FILE * fujiFileSystem::open(const char *path, const char *mode)
 {
-    if(_type == FNFILESYS_UNINITIALIZED || _fs == NULL)
-        return File();
+    if(_type == FNFILESYS_UNINITIALIZED || _fs == nullptr)
+        return nullptr;
 
-    return _fs->open(path, mode);
+    return _fs->file_open(path, mode);
 }
 
-fs::File fujiFileSystem::open(const String &path, const char *mode)
+FILE * fujiFileSystem::open(const String &path, const char *mode)
 {
-    if(_type == FNFILESYS_UNINITIALIZED || _fs == NULL)
-        return File();
-    return _fs->open(path, mode);
+    return open(path.c_str(), mode);
 }
 
 
@@ -191,7 +189,7 @@ int fujiFileSystem::mount_local(const char *devicename)
         Debug_println("Setting type to LOCAL");
 #endif        
         set_type(FNFILESYS_LOCAL);
-        _fs = &SD;
+        _fs = &fnSDFAT;
         result = 0;
     }
     return result;
@@ -203,6 +201,7 @@ int fujiFileSystem::mount_local(const char *devicename)
 */
 int fujiFileSystem::mount_tnfs(const char *hostname)
 {
+    /*
 #ifdef DEBUG
         Debug_printf("::mount_tnfs {%d:%d} \"%s\"\n", slotid, _type, hostname);
 #endif
@@ -241,7 +240,7 @@ int fujiFileSystem::mount_tnfs(const char *hostname)
             return 0;
         }
     }
-
+    */
     return -1;
 }
 
