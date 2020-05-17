@@ -461,8 +461,8 @@ POFF:	INC	TOFF,X		; Increment TX cursor
 	CMP     #EOL    ; EOL?
 	BEQ     FLUSH  ; FLUSH BUFFER
 	JSR     GDIDX   ; GET OFFSET
-	LDY     TOFF,X
-        CPY     #$FF    ; LEN = $FF?
+	LDA     TOFF,X
+        CMP     #$FF    ; LEN = $FF?
         BEQ     FLUSH  ; FLUSH BUFFER
         RTS
 
