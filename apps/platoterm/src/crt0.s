@@ -33,11 +33,13 @@
 .segment        "STARTUP"
 
 ; Real entry point:
+
+	.incbin	"header.atr"
 	
 	;; Boot header
 
 	.byte	$00
-	.byte	$64
+	.byte	$66
 	.byte	$00
 	.byte	$07
 	.byte	$C0

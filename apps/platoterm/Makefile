@@ -209,7 +209,7 @@ TARGETLIST := $(subst $(COMMA),$(SPACE),$(TARGETS))
 ifeq ($(words $(TARGETLIST)),1)
  
 # Set PROGRAM to something like 'myprog.c64'.
-override PROGRAM := $(PROGRAM).com
+override PROGRAM := $(PROGRAM).bin
  
 # Set SOURCES to something like 'src/foo.c src/bar.s'.
 # Use of assembler files with names ending differently than .s is deprecated!
@@ -309,6 +309,7 @@ $(TARGETOBJDIR)/%.o: %.a65 | $(TARGETOBJDIR)
  
 $(PROGRAM): $(CONFIG) $(OBJECTS) $(LIBS)
 	$(CC) -t $(CC65TARGET) $(LDFLAGS) -o $@ $(patsubst %.cfg,-C %.cfg,$^)
+
  
 test: $(PROGRAM)
 	$(PREEMUCMD)
@@ -320,6 +321,8 @@ clean:
 	$(call RMFILES,$(DEPENDS))
 	$(call RMFILES,$(REMOVES))
 	$(call RMFILES,$(PROGRAM))
+	$(call RMFILES,plato.map)
+	$(call RMFILES,plato.atr)
  
 else # $(words $(TARGETLIST)),1
  
@@ -340,10 +343,9 @@ love:
 	@echo "Not war, eh?"
 
 disk: $(PROGRAM)
-	FILESIZE=$(stat --printf="%s" plato.com)
-	PADDINGSIZE=$(expr 92160 - $(FILESIZE))
-	dd if=/dev/zero of=padding bs=1 count=$(PADDINGSIZE)
-	cat header.atr plato.com padding >platoterm.atr
+	dd if=/dev/zero of=padding bs=1 count=$(shell expr 92176 - $(shell stat --printf "%s" plato.bin))
+	cat plato.bin padding >plato.atr
+	$(call RMFILES,padding)
 
 ###################################################################
 ###  Place your additional targets in the additional Makefiles  ###
