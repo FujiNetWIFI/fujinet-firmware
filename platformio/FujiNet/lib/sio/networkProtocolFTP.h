@@ -32,7 +32,7 @@ private:
     string controlResponse;
     long dataSize;
     unsigned short dataPort;
-
+    unsigned char aux1;
 };
 
 #endif /* NETWORKPROTOCOLFTP */
