@@ -55,15 +55,13 @@ int main(int argc, char* argv[])
   if (_is_cmdline_dos())
     {
       if (argc<2)
-	{
-	  print("PREFIX CLEARED\x9b");
-	  strcpy(buf,"\x9b");
-	}
+	goto interactive;
       else
 	strcpy(buf,argv[1]);
     }
   else
     {
+    interactive:
       // DOS 2.0/MYDOS
       print("\x9b");
       print("");
