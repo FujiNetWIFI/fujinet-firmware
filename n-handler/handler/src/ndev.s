@@ -1,5 +1,5 @@
 	;; N: Device Handler
-	;; Compile with ATASM
+	;; Compile with MADS
 
 	;; Author: Thomas Cherryhomes
 	;;   <thom.cherryhomes@gmail.com>
