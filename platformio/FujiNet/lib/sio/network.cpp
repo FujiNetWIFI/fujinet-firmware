@@ -408,6 +408,7 @@ void sioNetwork::sio_status()
 // Process a SPECIAL sio command (not R,W,O,C,S)
 void sioNetwork::sio_special()
 {
+    Debug_printf("special.\n");
     err = false;
     if (cmdFrame.comnd == 0xFE) // Set Prefix
     {
@@ -423,26 +424,64 @@ void sioNetwork::sio_special()
         prefix = inp;
         sio_complete();
     }
-    else if (protocol == nullptr)
+    else if (cmdFrame.comnd == 0x2C) // CHDIR
     {
-        err = true;
-        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+        char inp[256];
+        Debug_printf("CHDIR\n");
+        size_t start_pos=0;
+        string path;
+
+        sio_ack();
+        sio_to_peripheral((byte *)inp, 256);
+
+        for (int i = 0; i < 256; i++)
+            if (inp[i] == 0x9B)
+                inp[i] = 0x00;
+
+        path = inp;
+        path = path.substr(path.find_first_of(":")+1);
+        prefix += path;
+        prefix += "/";
+
+        sio_complete();
     }
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
-        byte ret;
+        byte ret=0xFF;
+        Debug_printf("INQ\n");
         sio_ack();
-        if (protocol->special_supported_00_command(cmdFrame.aux1) ||
-            sio_special_supported_00_command(cmdFrame.aux1))
-            ret = 0x00;
-        else if (protocol->special_supported_40_command(cmdFrame.aux1) ||
-                 sio_special_supported_40_command(cmdFrame.aux1))
-            ret = 0x40;
-        else if (protocol->special_supported_80_command(cmdFrame.aux1) ||
-                 sio_special_supported_80_command(cmdFrame.aux1))
-            ret = 0x80;
+        if (protocol == nullptr)
+        {
+            if (sio_special_supported_00_command(cmdFrame.aux1))
+            {
+                ret = 0x00;
+            }
+            else if (sio_special_supported_40_command(cmdFrame.aux1))
+            {
+                ret = 0x40;
+            }
+            else if (sio_special_supported_80_command(cmdFrame.aux1))
+            {
+                ret = 0x80;
+            }
+            Debug_printf("Local Ret %d\n",ret);
+        }
         else
-            ret = 0xFF;
+        {
+            if (protocol->special_supported_00_command(cmdFrame.aux1))
+            {
+                ret = 0x00;
+            }
+            else if (protocol->special_supported_40_command(cmdFrame.aux1))
+            {
+                ret = 0x40;
+            }
+            else if (protocol->special_supported_80_command(cmdFrame.aux1))
+            {
+                ret = 0x80;
+            }
+            Debug_printf("Protocol Ret %d\n",ret);
+        }
         sio_to_computer(&ret, 1, false);
     }
     else if (sio_special_supported_00_command(cmdFrame.comnd))
@@ -476,8 +515,10 @@ void sioNetwork::sio_special()
         sio_special_protocol_80();
     }
 
-    if (err == true) // Unsupported command
+    if (err == true)
+    {
         sio_nak();
+    }
 
     // sio_completes() happen in sio_special_XX()
 }
@@ -504,6 +545,8 @@ bool sioNetwork::sio_special_supported_80_command(unsigned char c)
 {
     switch (c)
     {
+    case 0x2C: // CHDIR
+        return true;
     case 0xFE: // Set prefix
         return true;
     }
