@@ -73,7 +73,7 @@ bool fujiFileSystem::dir_open(const char *path)
     return result;
 }
 
-dirent * fujiFileSystem::dir_nextfile()
+fsdir_entry_t * fujiFileSystem::dir_nextfile()
 {
 #ifdef DEBUG
     Debug_printf("::dir_nextfile {%d:%d}\n", slotid, _type);

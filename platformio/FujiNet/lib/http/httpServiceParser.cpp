@@ -211,11 +211,23 @@ string fnHttpServiceParser::format_uptime()
     TnfsFileSystem tnfs;
     tnfs.start("eris.just.lan");
     tnfs.dir_open("/");
-    struct dirent *de;
+    struct fsdir_entry *de;
     while((de = tnfs.dir_read()) != nullptr)
     {
-        Debug_printf("DE: \"%s\"\n", de->d_name);
+        struct tm *ti = localtime(&de->modified_time);
+
+        Debug_printf("DE: \"%s\", D=%d, S=%u, T=\"%s\"\n", de->filename, de->isDir ? 1: 0, de->size, asctime(ti));
     }
     tnfs.dir_close();
+
+    fnSPIFFS.dir_open("");
+    while((de = fnSPIFFS.dir_read()) != nullptr)
+    {
+        struct tm *ti = localtime(&de->modified_time);
+
+        Debug_printf("DE: \"%s\", D=%d, S=%u, T=\"%s\"\n", de->filename, de->isDir ? 1: 0, de->size, asctime(ti));
+    }
+    tnfs.dir_close();
+
     return resultstream.str();
 }

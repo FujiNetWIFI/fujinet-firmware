@@ -20,13 +20,21 @@ enum fsType
     FSTYPE_COUNT
 };
 
+struct fsdir_entry
+{
+    char filename[MAX_PATHLEN];
+    bool isDir;
+    uint32_t size;
+    time_t modified_time;
+};
+typedef struct fsdir_entry fsdir_entry_t;
 
 class FileSystem
 {
 protected:
     const char * _basepath;
     bool _started = false;
-
+    fsdir_entry _direntry;
     char *_make_fullpath(const char *path);
 
 public:
@@ -48,7 +56,7 @@ public:
     virtual bool rename(const char* pathFrom, const char* pathTo) = 0;
 
     virtual bool dir_open(const char *path) = 0;
-    virtual dirent *dir_read() = 0;
+    virtual fsdir_entry_t *dir_read() = 0;
     virtual void dir_close() = 0;
 };
 

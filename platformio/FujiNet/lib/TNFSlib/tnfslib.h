@@ -19,6 +19,9 @@
 #define TNFS_CMD_OPENDIR 0x10
 #define TNFS_CMD_READDIR 0x11
 #define TNFS_CMD_CLOSEDIR 0x12
+#define TNFS_CMD_MKDIR 0x13
+#define TNFS_CMD_RMDIR 0x14
+#define TNFS_CMD_STAT 0x24
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
 #define TNFS_RDONLY 0x0001 //Open read only
@@ -80,7 +83,7 @@ union tnfsPacket {
     {
         uint8_t session_idl;
         uint8_t session_idh;
-        uint8_t retryCount;
+        uint8_t sequence_num;
         uint8_t command;
         uint8_t payload[504];
     };
@@ -90,6 +93,10 @@ union tnfsPacket {
 #define TNFS_SESSID_SHORT(x) ((uint16_t)x.session_idh << 8 | x.session_idl)
 
 #define TNFS_UINT16_FROM_HILOBYTES(high, low) ((uint16_t)high << 8 | low)
+
+#define TNFS_UINT16_FROM_LOHI_BYTEPTR(bytep) ( (uint16_t)(*(bytep+1)) << 8 | (*(bytep+0)))
+#define TNFS_UINT32_FROM_LOHI_BYTEPTR(bytep) ( (uint32_t)(*(bytep+3)) << 24 | (uint32_t)(*(bytep+2)) << 16 | (uint32_t)(*(bytep+1)) << 8 | (*(bytep+0)))
+
 #define TNFS_HIBYTE_FROM_UINT16(value) ((uint8_t)((value >> 8) & 0xFF))
 #define TNFS_LOBYTE_FROM_UINT16(value) ((uint8_t)(value & 0xFF))
 
@@ -107,14 +114,17 @@ struct tnfsMountInfo
     uint16_t server_version = 0;  // Stored from server's response to TNFS_MOUNT
     uint8_t max_retries = TNFS_RETRIES;
     int timeout_ms = TNFS_TIMEOUT;
-    uint8_t dir_handle = 0; // Stored from server's response to TNFS_OPENDIR
+    uint8_t current_sequence_num = 0; // Updated with each transaction to the server
+    int dir_handle = -1; // Stored from server's response to TNFS_OPENDIR
 };
 
-struct tnfsStat_t
+struct tnfsStat
 {
     bool isDir;
-    size_t fsize;
-    time_t mtime;
+    uint32_t filesize;
+    uint32_t a_time;
+    uint32_t m_time;
+    uint32_t c_time;
 };
 
 class TNFSImpl
@@ -154,11 +164,9 @@ protected:
     TNFSImpl *fs;
     int fid;
     char fn[256];
-    tnfsStat_t stats;
+    //tnfsStat_t stats;
 
 public:
-    TNFSFileImpl(TNFSImpl *fs, int fid, const char *filename, tnfsStat_t stats);
-    ~TNFSFileImpl();
     size_t write(const uint8_t *buf, size_t size);
     size_t read(uint8_t *buf, size_t size);
     void flush();
@@ -181,6 +189,12 @@ bool tnfs_opendir(tnfsMountInfo &m_info, const char *directory);
 bool tnfs_readdir(tnfsMountInfo &m_info, char *dir_entry, int dir_entry_len);
 bool tnfs_closedir(tnfsMountInfo &m_info);
 
+int tnfs_rmdir(tnfsMountInfo &m_info, const char *directory);
+int tnfs_mkdir(tnfsMountInfo &m_info, const char *directory);
+
+int tnfs_stat(tnfsMountInfo &m_info, tnfsStat &filestat, const char *filepath);
+
+
 /*
 int tnfs_open(TNFSImpl *F, const char *mountPath, uint8_tflag_lsb, uint8_tflag_msb);
 */
@@ -188,6 +202,5 @@ bool tnfs_close(TNFSImpl *F, int fid);
 size_t tnfs_write(TNFSImpl *F, int fid, const uint8_t *buf, unsigned short len);
 size_t tnfs_read(TNFSImpl *F, int fid, uint8_t *buf, unsigned short size);
 bool tnfs_seek(TNFSImpl *F, int fid, long offset);
-tnfsStat_t tnfs_stat(TNFSImpl *F, const char *filename);
 
 #endif //_TNFSLIB_H

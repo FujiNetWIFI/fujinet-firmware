@@ -8,7 +8,6 @@
 class TnfsFileSystem : public FileSystem
 {
 private:
-    dirent _dirent;
     bool _connected = false;
     tnfsMountInfo _mountinfo;
     unsigned long _last_dns_refresh;
@@ -30,7 +29,7 @@ public:
     bool rename(const char* pathFrom, const char* pathTo) override {return false;};
 
     bool dir_open(const char * path) override;
-    dirent *dir_read() override;
+    fsdir_entry *dir_read() override;
     void dir_close();
 };
 

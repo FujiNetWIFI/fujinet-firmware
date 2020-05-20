@@ -4,7 +4,7 @@
 #include "../utils/utils.h"
 #include "../hardware/fnSystem.h"
 
-bool _tnfs_transaction(const tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t datalen);
+bool _tnfs_transaction(tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t datalen);
 
 const char *_tnfs_result_code_string(int resultcode);
 void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short len, bool isResponse = false);
@@ -219,6 +219,10 @@ status byte is set to the error number as for other commands.
 */
 bool tnfs_readdir(tnfsMountInfo &m_info, char *dir_entry, int dir_entry_len)
 {
+    // Check for a valid open handle ID
+    if(m_info.dir_handle < 0 || m_info.dir_handle > 255)
+        return false;
+
     tnfsPacket packet;
     packet.command = TNFS_CMD_READDIR;
     packet.payload[0] = m_info.dir_handle;
@@ -277,6 +281,205 @@ bool tnfs_closedir(tnfsMountInfo &m_info)
 }
 
 /*
+MKDIR - Make a new directory - Command ID 0x13
+----------------------------------------------
+
+Format:
+Standard header plus a null-terminated absolute path.
+
+Example:
+0xBEEF 0x00 0x13 /foo/bar/baz 0x00
+
+The server responds with the standard header plus the return code:
+0xBEEF 0x00 0x13 0x00 - Directory created successfully
+0xBEEF 0x00 0x13 0x02 - Directory creation failed with error 0x02
+*/
+/*
+    Creates directory.
+    Return 0 on success.
+    Returns -1 on command transmission failure.
+    Otherwise returns server response code
+*/
+int tnfs_mkdir(tnfsMountInfo &m_info, const char *directory)
+{
+    if (directory == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_MKDIR;
+
+    // Make sure we start with a '/'
+    if (directory[0] != '/')
+    {
+        packet.payload[0] = '/';
+        strncpy((char *)&packet.payload[1], directory, sizeof(packet.payload) - 1);
+    }
+    else
+    {
+        strncpy((char *)&packet.payload[0], directory, sizeof(packet.payload));
+    }
+
+#ifdef DEBUG
+    Debug_printf("TNFS make directory: \"%s\"\n", (char *)packet.payload);
+#endif
+
+    int len = strlen((char *)packet.payload) + 1;
+    if (_tnfs_transaction(m_info, packet, len))
+    {
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+/*
+RMDIR - Remove a directory - Command ID 0x14
+--------------------------------------------
+
+Format:
+Standard header plus a null-terminated absolute path.
+
+Example:
+0xBEEF 0x00 0x14 /foo/bar/baz 0x00
+
+The server responds with the standard header plus the return code:
+0xBEEF 0x00 0x14 0x00 - Directory was deleted.
+0xBEEF 0x00 0x14 0x02 - Directory delete operation failed with error 0x02
+*/
+/*
+    Deletes directory.
+    Return 0 on success.
+    Returns -1 on command transmission failure.
+    Otherwise returns server response code
+*/
+int tnfs_rmdir(tnfsMountInfo &m_info, const char *directory)
+{
+    if (directory == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_RMDIR;
+
+    // Make sure we start with a '/'
+    if (directory[0] != '/')
+    {
+        packet.payload[0] = '/';
+        strncpy((char *)&packet.payload[1], directory, sizeof(packet.payload) - 1);
+    }
+    else
+    {
+        strncpy((char *)&packet.payload[0], directory, sizeof(packet.payload));
+    }
+
+#ifdef DEBUG
+    Debug_printf("TNFS remove directory: \"%s\"\n", (char *)packet.payload);
+#endif
+
+    int len = strlen((char *)packet.payload) + 1;
+    if (_tnfs_transaction(m_info, packet, len))
+    {
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+
+/*
+STAT - Get information on a file - Command 0x24
+-----------------------------------------------
+The request consists of the standard header, followed by the full path
+of the file to stat, terminated by a NULL. Example:
+
+0xBEEF 0x00 0x24 /foo/bar/baz.txt 0x00
+
+The server replies with the standard header, followed by the return code.
+On success, the file information follows this. Stat information is returned
+in this order. Not all values are used by all servers. At least file
+mode and size must be set to a valid value (many programs depend on these).
+
+File mode	- 2 bytes: file permissions - little endian byte order
+uid		- 2 bytes: Numeric UID of owner
+gid		- 2 bytes: Numeric GID of owner
+size		- 4 bytes: Unsigned 32 bit little endian size of file in bytes
+atime		- 4 bytes: Access time in seconds since the epoch, little end.
+mtime		- 4 bytes: Modification time in seconds since the epoch,
+                           little endian
+ctime		- 4 bytes: Time of last status change, as above.
+uidstring	- 0 or more bytes: Null terminated user id string
+gidstring	- 0 or more bytes: Null terminated group id string
+
+Fields that don't apply to the server in question should be left as 0x00.
+The ´mtime' field and 'size' fields are unsigned 32 bit integers.
+The uidstring and gidstring are helper fields so the client doesn't have
+to then ask the server for the string representing the uid and gid.
+
+File mode flags will be most useful for code that is showing a directory
+listing, and for programs that need to find out what kind of file (regular
+file or directory, etc) a particular file may be. They follow the POSIX
+convention which is:
+
+Flags		Octal representation
+S_IFREG		0100000		Is a regular file
+S_IFDIR		0040000		Directory
+*/
+/*
+    Returns file information filled in tnfsStat.
+    Return 0 on success.
+    Returns -1 on command transmission failure.
+    Otherwise returns server response code
+*/
+int tnfs_stat(tnfsMountInfo &m_info, tnfsStat &filestat, const char *filepath)
+{
+#define OFFSET_FILEMODE 1
+#define OFFSET_UID 3
+#define OFFSET_GID 5
+#define OFFSET_FILESIZE 7
+#define OFFSET_ATIME 11
+#define OFFSET_MTIME 15
+#define OFFSET_CTIME 19
+
+    if (filepath == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_STAT;
+
+    // Make sure we start with a '/'
+    if (filepath[0] != '/')
+    {
+        packet.payload[0] = '/';
+        strncpy((char *)&packet.payload[1], filepath, sizeof(packet.payload) - 1);
+    }
+    else
+    {
+        strncpy((char *)&packet.payload[0], filepath, sizeof(packet.payload));
+    }
+
+#ifdef DEBUG
+    Debug_printf("TNFS stat: \"%s\"\n", (char *)packet.payload);
+#endif
+
+    int len = strlen((char *)packet.payload) + 1;
+    if (_tnfs_transaction(m_info, packet, len))
+    {
+        uint16_t filemode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILEMODE);
+        filestat.isDir = (filemode & S_IFDIR) ? true : false;
+
+        filestat.filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILESIZE);
+
+        filestat.a_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_ATIME);
+        filestat.m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_MTIME);
+        filestat.c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_CTIME);
+
+#ifdef DEBUG
+    Debug_printf("\tdir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", filestat.isDir ? 1 : 0,
+        filestat.filesize, filestat.a_time, filestat.m_time, filestat.c_time );
+#endif
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+/*
   Send constructed TNFS packet and check for reply
   The send/receive loop will be attempted tnfsPacket.max_retries times (default: TNFS_RETRIES)
   Each retry attempt is limited to tnfsPacket.timeout_ms (default: TNFS_TIMEOUT)
@@ -289,24 +492,24 @@ bool tnfs_closedir(tnfsMountInfo &m_info)
   returns - true if response packet was received
             false if no response received during retries/timeout period
  */
-bool _tnfs_transaction(const tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t payload_size)
+bool _tnfs_transaction(tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t payload_size)
 {
     fnUDP udp;
 
     // Set our session ID
     pkt.session_idl = TNFS_LOBYTE_FROM_UINT16(m_info.session);
     pkt.session_idh = TNFS_HIBYTE_FROM_UINT16(m_info.session);
-    pkt.retryCount = 0;
 
     // Start a new retry sequence
-    int ms_start = 0;
-    while (pkt.retryCount < m_info.max_retries)
+    int retry = 0;
+    while (retry < m_info.max_retries)
     {
+        // Set the sequence number
+        pkt.sequence_num = m_info.current_sequence_num++;
+
 #ifdef DEBUG
         _tnfs_debug_packet(pkt, payload_size);
 #endif
-
-        ms_start = fnSystem.millis();
 
         // Send packet
         bool sent = false;
@@ -330,8 +533,9 @@ bool _tnfs_transaction(const tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t pa
         }
         else
         {
-            uint8_t current_retry_count = pkt.retryCount;
             // Wait for a response at most TNFS_TIMEOUT milliseconds
+            int ms_start = fnSystem.millis();
+            uint8_t current_sequence_num = pkt.sequence_num;
             do
             {
                 if (udp.parsePacket())
@@ -344,7 +548,7 @@ bool _tnfs_transaction(const tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t pa
 #endif
 
                     // Out of order packet received.
-                    if (pkt.retryCount != current_retry_count)
+                    if (pkt.sequence_num != current_sequence_num)
                     {
 #ifdef DEBUG
                         Debug_println("TNFS OUT OF ORDER SEQUENCE! RETRYING");
@@ -365,7 +569,7 @@ bool _tnfs_transaction(const tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t pa
 
         // Make sure we wait before retrying
         vTaskDelay(m_info.min_retry_ms / portTICK_PERIOD_MS);
-        ++pkt.retryCount;
+        retry++;
     }
 
 #ifdef DEBUG
@@ -391,7 +595,7 @@ void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short payload_size, bool
     else
         Debug_printf("TNFS >> TX packet, len: %d\n", payload_size);
 
-    Debug_printf("\t[%02x%02x %02x %02x] ", pkt.session_idh, pkt.session_idl, pkt.retryCount, pkt.command);
+    Debug_printf("\t[%02x%02x %02x %02x] ", pkt.session_idh, pkt.session_idl, pkt.sequence_num, pkt.command);
     for (int i = 0; i < payload_size; i++)
         Debug_printf("%02x ", pkt.payload[i]);
     Debug_println();

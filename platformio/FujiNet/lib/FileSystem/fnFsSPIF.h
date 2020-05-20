@@ -21,7 +21,7 @@ public:
     bool rename(const char* pathFrom, const char* pathTo) override;
 
     bool dir_open(const char * path) override;
-    dirent *dir_read() override;
+    fsdir_entry *dir_read() override;
     void dir_close() override;
 
     uint64_t total_bytes();
