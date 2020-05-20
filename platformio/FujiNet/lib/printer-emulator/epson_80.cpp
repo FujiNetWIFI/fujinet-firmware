@@ -56,7 +56,9 @@ void epson80::pdf_handle_char(byte c)
         // command state machine switching
         if (epson_cmd.cmd == 0)
         {
-            reset_cmd();
+            epson_cmd.ctr = 0;
+            // epson_cmd.N1 = 0;
+            // epson_cmd.N2 = 0;
             epson_cmd.cmd = c; // assign command char
         }
         else
@@ -218,7 +220,8 @@ void epson80::pdf_handle_char(byte c)
                         charWidth = 0.3;
                         break;
                     }
-                    _file.printf(")]TJ\n/F0 12 Tf [("); // set font to GFX mode
+                    _file.printf(")]TJ\n/F2 12 Tf [("); // set font to GFX mode
+                    fontUsed[1] = true;
                 }
 
                 if (epson_cmd.ctr > 2)
