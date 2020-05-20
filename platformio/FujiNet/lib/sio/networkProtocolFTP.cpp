@@ -113,6 +113,21 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         control.write("\r\n");
 
         break;
+    case 8:
+        control.write("EPSV\r\n");
+
+        if (!ftpExpect("229"))
+            return false;
+
+        dataPort = parsePort(controlResponse);
+
+        control.write("STOR ");
+        control.write(urlParser->path.c_str());
+        control.write("\r\n");
+        
+        break;
+    default:
+        return false;
     }
 
     if (!data.connect(hostName.c_str(), dataPort))
@@ -130,10 +145,11 @@ bool networkProtocolFTP::close()
 
     if (control.connected())
     {
+        ftpExpect("150");
+        ftpExpect("226");
         control.write("QUIT\r\n");
+        ftpExpect("221");
     }
-
-    ftpExpect("221");
 
     control.stop();
     return true;
@@ -161,6 +177,9 @@ bool networkProtocolFTP::read(byte *rx_buf, unsigned short len)
 
 bool networkProtocolFTP::write(byte *tx_buf, unsigned short len)
 {
+    if (data.write(tx_buf,len) != len)
+        return true;
+
     return false;
 }
 
