@@ -16,6 +16,7 @@ enum fsType
 {
     FSTYPE_SPIFFS,
     FSTYPE_SDFAT,
+    FSTYPE_TNFS,
     FSTYPE_COUNT
 };
 
@@ -33,7 +34,10 @@ public:
     virtual fsType type()=0;
 
     static long filesize(FILE *);
-    virtual bool start()=0;
+
+    // Different FS implemenations may require different startup parameters,
+    // so each should define its own version of start()
+    //virtual bool start()=0;
 
     virtual FILE * file_open(const char* path, const char* mode = FILE_READ) = 0;
 
@@ -44,7 +48,7 @@ public:
     virtual bool rename(const char* pathFrom, const char* pathTo) = 0;
 
     virtual bool dir_open(const char *path) = 0;
-    virtual struct dirent *dir_read() = 0;
+    virtual dirent *dir_read() = 0;
     virtual void dir_close() = 0;
 };
 

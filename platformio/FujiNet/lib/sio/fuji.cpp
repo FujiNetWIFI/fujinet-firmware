@@ -363,7 +363,7 @@ void sioFuji::sio_read_directory_entry()
     }
 
     //byte ret = tnfs_readdir(hostSlot);
-    struct dirent * f = fnFileSystems[hostSlot].dir_nextfile();
+    dirent * f = fnFileSystems[hostSlot].dir_nextfile();
     int l = 0;
 
     if (f == nullptr)

@@ -31,6 +31,8 @@
 #ifdef NO_GLOBAL_SERIAL
 UARTManager fnUartDebug(UART_DEBUG);
 UARTManager fnUartSIO(UART_SIO);
+#else
+#pragma GCC error "Arduino serial interfaces must be disabled with NO_GLOBAL_SERIAL!"
 #endif
 
 // Constructor

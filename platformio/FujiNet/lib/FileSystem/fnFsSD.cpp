@@ -25,7 +25,7 @@ void SdFileSystem::dir_close()
 {
     f_closedir(&_dir);
 }
-struct dirent * SdFileSystem::dir_read()
+dirent * SdFileSystem::dir_read()
 {
     FILINFO finfo;
     FRESULT result = f_readdir(&_dir, &finfo);
@@ -43,7 +43,7 @@ FILE * SdFileSystem::file_open(const char* path, const char* mode)
     //Debug_printf("sdfileopen1: task hwm %u, %p\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
     char * fpath = _make_fullpath(path);
     FILE * result = fopen(fpath, mode);
-    delete fpath;
+    free(fpath);
     //Debug_printf("sdfileopen2: task hwm %u, %p\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
 #ifdef DEBUG
     //Debug_printf("fopen = %s\n", result == nullptr ? "err" : "ok");

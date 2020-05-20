@@ -13,10 +13,10 @@ bool SpifFileSystem::dir_open(const char * path)
 {
     char * fpath = _make_fullpath(path);
     _dir = opendir(fpath);
-    delete fpath;
+    free(fpath);
     return(_dir != nullptr);
 }
-struct dirent * SpifFileSystem::dir_read()
+dirent * SpifFileSystem::dir_read()
 {
     return readdir(_dir);
 }
@@ -29,7 +29,7 @@ FILE * SpifFileSystem::file_open(const char* path, const char* mode)
 {
     char * fpath = _make_fullpath(path);
     FILE * result = fopen(fpath, mode);
-    delete fpath;
+    free(fpath);
     return result;
 }
 
@@ -41,7 +41,7 @@ bool SpifFileSystem::exists(const char* path)
 #ifdef DEBUG
     //Debug_printf("SpifFileSystem::exists returned %d on \"%s\" (%s)\n", i, path, fpath);
 #endif
-    delete fpath;
+    free(fpath);
     return (i == 0);
 }
 
@@ -52,7 +52,7 @@ bool SpifFileSystem::remove(const char* path)
 #ifdef DEBUG
     Debug_printf("SpifFileSystem::remove returned %d on \"%s\" (%s)\n", i, path, fpath);
 #endif
-    delete fpath;
+    free(fpath);
     return (i == 0);
 }
 
@@ -64,8 +64,8 @@ bool SpifFileSystem::rename(const char* pathFrom, const char* pathTo)
 #ifdef DEBUG
     Debug_printf("SpifFileSystem::rename returned %d on \"%s\" -> \"%s\" (%s -> %s)\n", i, pathFrom, pathTo, spath, dpath);
 #endif
-    delete spath;
-    delete dpath;
+    free(spath);
+    free(dpath);
     return (i == 0);
 }
 

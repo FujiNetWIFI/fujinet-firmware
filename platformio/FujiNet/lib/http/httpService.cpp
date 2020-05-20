@@ -118,7 +118,7 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
         set_file_content_type(req, filename);
         // We're going to load the whole thing into memory, so watch out for big files!
         size_t sz = FileSystem::filesize(fInput) + 1;
-        char *buf = (char *)malloc(sz);
+        char *buf = (char *)calloc(sz, 1);
         if (buf == NULL)
         {
 #ifdef DEBUG
@@ -128,10 +128,9 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
         }
         else
         {
-            memset(buf, 0, sz); // Make sure we have a zero terminator
             fread(buf, 1, sz, fInput);
             string contents(buf);
-            delete buf;
+            free(buf);
             contents = fnHttpServiceParser::parse_contents(contents);
 
             httpd_resp_send(req, contents.c_str(), contents.length());
@@ -189,7 +188,7 @@ void fnHttpService::send_file(httpd_req_t *req, const char *filename)
             httpd_resp_send_chunk(req, buf, count);
         } while (count > 0);
         fclose(fInput);
-        delete buf;
+        free(buf);
     }
 }
 
@@ -339,7 +338,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     #ifdef DEBUG
         Debug_printf("Sent %u bytes total from print file\n", total);
     #endif    
-    delete buf;
+    free(buf);
 
     // Tell the printer it can start writing from the beginning
     // WAS:
@@ -360,7 +359,7 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
     _fnwserr err = fnwserr_noerrr;
 
     // Load the posted data
-    char *buf = (char *)malloc(FNWS_RECV_BUFF_SIZE);
+    char *buf = (char *)calloc(FNWS_RECV_BUFF_SIZE, 1);
     if (buf == NULL)
     {
 #ifdef DEBUG
@@ -370,7 +369,6 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
     }
     else
     {
-        memset(buf, 0, FNWS_RECV_BUFF_SIZE);
         // Ask for the smaller of either the posted content or our buffer size
         size_t recv_size = req->content_len > FNWS_RECV_BUFF_SIZE ? FNWS_RECV_BUFF_SIZE : req->content_len;
 
@@ -386,8 +384,8 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
         {
             // Go handle what we just read...
             ret = fnHttpServiceConfigurator::process_config_post(buf, recv_size);
-            delete buf;
         }
+        free(buf);
     }
 
     if (err != fnwserr_noerrr)
