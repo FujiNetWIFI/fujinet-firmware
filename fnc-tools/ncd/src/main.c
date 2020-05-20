@@ -1,7 +1,7 @@
 /**
  * Network Testing tools
  *
- * nprefix - set N: prefix.
+ * ncd - set N: prefix.
  *
  * Author: Thomas Cherryhomes
  *  <thom.cherryhomes@gmail.com>
@@ -22,11 +22,11 @@ unsigned char buf[256];
 unsigned char daux1=0;
 unsigned char daux2=0;
 
-void nprefix(void)
+void ncd(void)
 {
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=1;
-  OS.dcb.dcomnd=0xFE;
+  OS.dcb.dcomnd=0x2C;
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&buf;
   OS.dcb.dtimlo=0x1f;
@@ -39,12 +39,6 @@ void nprefix(void)
     {
       err_sio();
       exit(OS.dcb.dstats);
-    }
-  else
-    {
-      print("N: = ");
-      print(buf);
-      print("\x9b");
     }
 }
 
@@ -64,11 +58,10 @@ int main(int argc, char* argv[])
     interactive:
       // DOS 2.0/MYDOS
       print("\x9b");
-      print("");
       print("ENTER PREFIX OR \xD2\xC5\xD4\xD5\xD2\xCE TO CLEAR\x9b");
       get_line(buf,240);
     }
 
-  nprefix();
+  ncd();
   return(0);
 }
