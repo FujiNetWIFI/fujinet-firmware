@@ -2,8 +2,7 @@
 #include <string>
 #include <cstdio>
 
-//#include <SPIFFS.h>
-//#include <SD.h>
+#include "../../include/debug.h"
 
 #include "httpServiceParser.h"
 
@@ -13,7 +12,6 @@
 #include "../hardware/fnWiFi.h"
 #include "fnFsSPIF.h"
 #include "fnFsSD.h"
-
 
 using namespace std;
 
@@ -189,6 +187,8 @@ string fnHttpServiceParser::parse_contents(const string &contents)
     return ss.str();
 }
 
+#include "fnFsTNFS.h"
+
 string fnHttpServiceParser::format_uptime()
 {
     int64_t ms = fnSystem.get_uptime();
@@ -208,5 +208,14 @@ string fnHttpServiceParser::format_uptime()
     if (s % 60)
         resultstream << (s % 60) << " seconds";
 
-     return resultstream.str();
+    TnfsFileSystem tnfs;
+    tnfs.start("eris.just.lan");
+    tnfs.dir_open("/");
+    struct dirent *de;
+    while((de = tnfs.dir_read()) != nullptr)
+    {
+        Debug_printf("DE: \"%s\"\n", de->d_name);
+    }
+    tnfs.dir_close();
+    return resultstream.str();
 }

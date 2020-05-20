@@ -8,7 +8,8 @@ class SpifFileSystem : public FileSystem
 private:
     DIR * _dir;
 public:
-    bool start() override;
+    bool start();
+    
     fsType type() override { return FSTYPE_SPIFFS; };
 
     FILE * file_open(const char* path, const char* mode = FILE_READ) override;
@@ -20,7 +21,7 @@ public:
     bool rename(const char* pathFrom, const char* pathTo) override;
 
     bool dir_open(const char * path) override;
-    struct dirent *dir_read() override;
+    dirent *dir_read() override;
     void dir_close() override;
 
     uint64_t total_bytes();

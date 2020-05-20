@@ -82,7 +82,7 @@ int sioModem::load_firmware(const char * filename, char **buffer)
         }
         else
         {
-            delete result;
+            free(result);
             bytes_read = -1;
 #ifdef DEBUG
             Debug_printf("load_firmware only read %u bytes out of %u - failing\n", bytes_read, file_size);

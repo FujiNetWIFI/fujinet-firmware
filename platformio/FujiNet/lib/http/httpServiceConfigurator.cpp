@@ -147,7 +147,7 @@ int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t
 
     std::map<std::string, std::string> postvals = parse_postdata(decoded_buf, postlen);
 
-    delete decoded_buf;
+    free(decoded_buf);
 
     for(std::map<std::string, std::string>::iterator i = postvals.begin(); i != postvals.end(); i++)
     {

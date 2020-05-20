@@ -48,7 +48,7 @@ public:
     FILE * open(const String &path, const char *mode = "r");
 
     bool dir_open(const char *path);
-    struct dirent * dir_nextfile();
+    dirent * dir_nextfile();
     void dir_close();
 
     fujiFileSystem() { _type = FNFILESYS_UNINITIALIZED; };
