@@ -428,7 +428,6 @@ void sioNetwork::sio_special()
     {
         char inp[256];
         Debug_printf("CHDIR\n");
-        size_t start_pos=0;
         string path;
 
         sio_ack();
@@ -439,15 +438,41 @@ void sioNetwork::sio_special()
                 inp[i] = 0x00;
 
         path = inp;
-        path = path.substr(path.find_first_of(":")+1);
-        prefix += path;
-        prefix += "/";
+        path = path.substr(path.find_first_of(":") + 1);
+
+        if (path.empty())
+        {
+            prefix = "";
+            initial_prefix = "";
+        }
+        else if (path.find(":") != string::npos)
+        {
+            prefix = path;
+            initial_prefix = prefix;
+        }
+        else if (path[0] == '/')
+        {
+            prefix = initial_prefix;
+
+            if (prefix[prefix.length()-1]=='/')
+                path=path.substr(1);
+            prefix += path;
+        }
+        else
+        {
+            if (prefix[prefix.length()-1] != '/')
+                prefix += "/";
+            prefix += path;
+        }
+
+        Debug_printf("NCD: %s\r\n", prefix.c_str());
 
         sio_complete();
     }
+
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
-        byte ret=0xFF;
+        byte ret = 0xFF;
         Debug_printf("INQ\n");
         sio_ack();
         if (protocol == nullptr)
@@ -464,7 +489,7 @@ void sioNetwork::sio_special()
             {
                 ret = 0x80;
             }
-            Debug_printf("Local Ret %d\n",ret);
+            Debug_printf("Local Ret %d\n", ret);
         }
         else
         {
@@ -480,7 +505,7 @@ void sioNetwork::sio_special()
             {
                 ret = 0x80;
             }
-            Debug_printf("Protocol Ret %d\n",ret);
+            Debug_printf("Protocol Ret %d\n", ret);
         }
         sio_to_computer(&ret, 1, false);
     }
@@ -537,6 +562,11 @@ bool sioNetwork::sio_special_supported_00_command(unsigned char c)
 // supported global network device commands that go Peripheral->Computer
 bool sioNetwork::sio_special_supported_40_command(unsigned char c)
 {
+    switch (c)
+    {
+    case 0x30: // ?DIR
+        return true;
+    }
     return false;
 }
 
@@ -568,7 +598,16 @@ void sioNetwork::sio_special_00()
 // For global commands with Peripheral->Computer payload
 void sioNetwork::sio_special_40()
 {
-    sio_to_computer(sp_buf, 4, err); // size of DVSTAT
+    char buf[256];
+
+    switch (cmdFrame.comnd)
+    {
+    case 0x30: // ?DIR
+        strcpy((char *)buf, prefix.c_str());
+        break;
+    }
+    Debug_printf("Read buf: %s\n",buf);
+    sio_to_computer((byte *)buf, 256, err); // size of DVSTAT
 }
 
 // For global commands with Computer->Peripheral payload
