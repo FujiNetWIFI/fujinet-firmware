@@ -2,6 +2,7 @@
 */
 
 #include <memory>
+#include <time.h>
 #include <esp_vfs.h>
 #include "esp_vfs_fat.h"
 
@@ -25,7 +26,8 @@ void SdFileSystem::dir_close()
 {
     f_closedir(&_dir);
 }
-dirent * SdFileSystem::dir_read()
+
+fsdir_entry * SdFileSystem::dir_read()
 {
     FILINFO finfo;
     FRESULT result = f_readdir(&_dir, &finfo);
@@ -33,9 +35,53 @@ dirent * SdFileSystem::dir_read()
     if(result != FR_OK || finfo.fname[0] == '\0')
         return nullptr;
 
-    strncpy(_dirent.d_name, finfo.fname, sizeof(_dirent.d_name));
-    _dirent.d_type = finfo.fattrib & AM_DIR ? DT_DIR : DT_REG;
-    return &_dirent;
+    strncpy(_direntry.filename, finfo.fname, sizeof(_direntry.filename));
+
+    _direntry.isDir = finfo.fattrib & AM_DIR ? true : false;
+    _direntry.size = finfo.fsize;
+
+    // Convert date and time
+
+    // 5 bits 4-0 = seconds / 2 (0-29)
+    #define TIMEBITS_SECOND 0x001FUL
+    // 6 bits 10-5 = minutes (0-59)
+    #define TIMEBITS_MINUTE 0x07E0UL
+    // 5 bits 15-11 = hour (0-23)
+    #define TIMEBITS_HOUR 0xF800UL
+
+    // 5 bits 4-0 = day (0-31)
+    #define DATEBITS_DAY 0x001FUL
+    // 4 bits 8-5 = month (1-12)
+    #define DATEBITS_MONTH 0x01E0UL
+    // 7 bits 15-9 = year from 1980 (0-127)
+    #define DATEBITS_YEAR 0xFE00UL
+
+    struct tm tmtime;
+
+    tmtime.tm_sec = (finfo.ftime & TIMEBITS_SECOND) * 2;
+    tmtime.tm_min = (finfo.ftime & TIMEBITS_MINUTE) >> 5;
+    tmtime.tm_hour = (finfo.ftime & TIMEBITS_HOUR) >> 11;
+
+    tmtime.tm_mday = (finfo.fdate & DATEBITS_DAY);
+    tmtime.tm_mon = ((finfo.fdate & DATEBITS_MONTH) >> 5) -1; // tm_mon = months 0-11
+    tmtime.tm_year = ((finfo.fdate & DATEBITS_YEAR) >> 9) + 80; //tm_year = years since 1900
+
+    tmtime.tm_isdst = 0;
+
+    #ifdef DEBUG
+    /*
+        Debug_printf("SdFileSystem direntry: \"%s\"\n", _direntry.filename);
+        Debug_printf("SdFileSystem date (0x%04x): yr=%d, mn=%d, da=%d; time (0x%04x) hr=%d, mi=%d, se=%d\n", 
+            finfo.fdate,
+            tmtime.tm_year, tmtime.tm_mon, tmtime.tm_mday,
+            finfo.ftime,
+            tmtime.tm_hour, tmtime.tm_min, tmtime.tm_sec);
+    */
+    #endif
+
+    _direntry.modified_time = mktime(&tmtime);
+    
+    return &_direntry;
 }
 
 FILE * SdFileSystem::file_open(const char* path, const char* mode)

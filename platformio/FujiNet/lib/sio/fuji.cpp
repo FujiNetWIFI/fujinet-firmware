@@ -363,7 +363,7 @@ void sioFuji::sio_read_directory_entry()
     }
 
     //byte ret = tnfs_readdir(hostSlot);
-    dirent * f = fnFileSystems[hostSlot].dir_nextfile();
+    fsdir_entry_t * f = fnFileSystems[hostSlot].dir_nextfile();
     int l = 0;
 
     if (f == nullptr)
@@ -376,19 +376,19 @@ void sioFuji::sio_read_directory_entry()
     }
     else
     {
-        if (f->d_name[0] == '/')
+        if (f->filename[0] == '/')
         {
-            for (l = strlen(f->d_name); l-- > 0;)
+            for (l = strlen(f->filename); l-- > 0;)
             {
-                if (f->d_name[l] == '/')
+                if (f->filename[l] == '/')
                 {
                     l++;
                     break;
                 }
             }
         }
-        strcpy(current_entry, &f->d_name[l]);
-        if (f->d_type == DT_DIR)
+        strcpy(current_entry, &f->filename[l]);
+        if (f->isDir)
         {
             int a = strlen(current_entry);
             if (current_entry[a - 1] != '/')

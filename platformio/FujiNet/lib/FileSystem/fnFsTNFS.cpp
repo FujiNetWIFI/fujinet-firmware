@@ -78,16 +78,29 @@ bool TnfsFileSystem::dir_open(const char * path)
     return tnfs_opendir(_mountinfo, path);
 }
 
-dirent * TnfsFileSystem::dir_read()
+fsdir_entry * TnfsFileSystem::dir_read()
 {
-    _dirent.d_ino = 0;
-    _dirent.d_type = DT_UNKNOWN;
-    _dirent.d_name[0] = '\0';
+    // Skip "." and ".."; server returns EINVAL on trying to stat ".."
+    bool skip;
+    do 
+    {
+        _direntry.filename[0] = '\0';
+        if(false == tnfs_readdir(_mountinfo, _direntry.filename, sizeof(_direntry.filename)))
+            return nullptr;
 
-    if(tnfs_readdir(_mountinfo, _dirent.d_name, sizeof(_dirent.d_name)))
-        return &_dirent;
-    else
-        return nullptr;
+        skip = (_direntry.filename[0] == '.' && _direntry.filename[1] == '\0') || 
+                        (_direntry.filename[0] == '.' && _direntry.filename[1] == '.' && _direntry.filename[2] == '\0');
+    } while (skip);
+
+    tnfsStat fstat;
+    if(tnfs_stat(_mountinfo, fstat, _direntry.filename) == 0)
+    {
+        _direntry.size = fstat.filesize;
+        _direntry.modified_time = fstat.m_time;
+        _direntry.isDir = fstat.isDir;
+        return &_direntry;
+    }
+    return nullptr;
 }
 
 void TnfsFileSystem::dir_close()

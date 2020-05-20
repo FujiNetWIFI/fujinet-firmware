@@ -1,5 +1,6 @@
 #include <esp_vfs.h>
 #include "esp_spiffs.h"
+#include "errno.h"
 
 #include "fnFsSPIF.h"
 #include "../../include/debug.h"
@@ -16,13 +17,44 @@ bool SpifFileSystem::dir_open(const char * path)
     free(fpath);
     return(_dir != nullptr);
 }
-dirent * SpifFileSystem::dir_read()
+
+fsdir_entry * SpifFileSystem::dir_read()
 {
-    return readdir(_dir);
+    if(_dir == nullptr)
+        return nullptr;
+
+    struct dirent *d;
+    d = readdir(_dir);
+    if(d != nullptr)
+    {
+        strncpy(_direntry.filename, d->d_name, sizeof(_direntry.filename));
+
+        _direntry.isDir = (d->d_type & DT_DIR) ? true : false;
+
+        _direntry.size = 0;
+        _direntry.modified_time = 0;
+
+        // isDir will always be false - SPIFFS doesn't store directories ("dir/name" is really just "name_part1/name_part2")
+        // timestamps aren't stored when files are uploaded during firmware deployment
+        char * fpath = _make_fullpath(_direntry.filename);
+        struct stat s;
+        if(stat(fpath, &s) == 0)
+        {
+            _direntry.size = s.st_size;
+            _direntry.modified_time = s.st_mtime;
+        }
+        #ifdef DEBUG
+            // Debug_printf("stat \"%s\" errno %d\n", fpath, errno);
+        #endif
+        return &_direntry;
+    }
+    return nullptr;
 }
+
 void SpifFileSystem::dir_close()
 {
     closedir(_dir);
+    _dir = nullptr;
 }
 
 FILE * SpifFileSystem::file_open(const char* path, const char* mode)
