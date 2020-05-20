@@ -229,8 +229,12 @@ void pdfPrinter::pdf_new_line()
     Debug_println("pdf new line");
 #endif
     // position new line and start text string array
-    _file.printf("0 %g Td [(", -lineHeight);
-    pdf_Y -= lineHeight; // line feed
+    if (pdf_dY != 0)
+        _file.printf("0 Ts ");
+    pdf_dY -= lineHeight;
+    _file.printf("0 %g Td [(", pdf_dY);
+    pdf_Y -= pdf_dY; // line feed
+    pdf_dY = 0;
     // pdf_X = 0;              // CR over in end line()
     BOLflag = false;
 }
@@ -244,6 +248,11 @@ void pdfPrinter::pdf_end_line()
     // pdf_Y -= lineHeight; // line feed - moved to new line()
     pdf_X = 0; // CR
     BOLflag = true;
+}
+
+void pdfPrinter::pdf_set_rise()
+{
+    _file.printf(")]TJ %g Ts [(", pdf_dY);
 }
 
 void pdfPrinter::pdf_end_page()
@@ -354,7 +363,7 @@ bool pdfPrinter::process(byte n)
         c = buffer[i++];
         if (translate850 && c == ATASCII_EOL)
             c = ASCII_CR; // the 850 interface converts EOL to CR
-            
+
         // #ifdef DEBUG
         //         Debug_print(c, HEX);
         // #endif
