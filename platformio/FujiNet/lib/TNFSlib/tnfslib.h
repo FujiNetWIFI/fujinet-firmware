@@ -16,21 +16,48 @@
 
 #define TNFS_CMD_MOUNT 0x00
 #define TNFS_CMD_UNMOUNT 0x01
+
 #define TNFS_CMD_OPENDIR 0x10
 #define TNFS_CMD_READDIR 0x11
 #define TNFS_CMD_CLOSEDIR 0x12
 #define TNFS_CMD_MKDIR 0x13
 #define TNFS_CMD_RMDIR 0x14
+
+#define TNFS_CMD_READ 0x21
+#define TNFS_CMD_WRITE 0x22
+#define TNFS_CMD_CLOSE 0x23
 #define TNFS_CMD_STAT 0x24
+#define TNFS_CMD_LSEEK 0x25
+#define TNFS_CMD_UNLINK 0x26
+#define TNFS_CMD_CHMOD 0x27
+#define TNFS_CMD_RENAME 0x28
+#define TNFS_CMD_OPEN 0x29
+
+#define TNFS_CMD_SIZE 0x30
+#define TNFS_CMD_FREE 0x31
+
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
-#define TNFS_RDONLY 0x0001 //Open read only
-#define TNFS_WRONLY 0x0002 //Open write only
-#define TNFS_RDWR 0x0003   //Open read/write
-#define TNFS_APPEND 0x0008 //Append to the file, if it exists (write only)
-#define TNFS_CREAT 0x0100  //Create the file if it doesn't exist (write only)
-#define TNFS_TRUNC 0x0200  //Truncate the file on open for writing
-#define TNFS_EXCL 0x0400   //With TNFS_CREAT, returns an error if the file exists
+#define TNFS_OPENMODE_READDONLY 0x0001 //Open read only
+#define TNFS_OPENMODE_WRITEONLY 0x0002 //Open write only
+#define TNFS_OPENMODE_READWRITE 0x0003   //Open read/write
+#define TNFS_OPENMODE_APPEND 0x0008 //Append to the file, if it exists (write only)
+#define TNFS_OPENMODE_CREATE 0x0100  //Create the file if it doesn't exist (write only)
+#define TNFS_OPENMODE_TRUNCATE 0x0200  //Truncate the file on open for writing
+#define TNFS_OPENMODE_EXCLUSIVE 0x0400   //With TNFS_OPENMODE_CREATE, returns an error if the file exists
+
+#define TNFS_CREATEPERM_S_ISUID 04000 //set user ID on execution
+#define TNFS_CREATEPERM_S_ISGID 02000 //set group ID on execution
+#define TNFS_CREATEPERM_S_ISVTX 01000 //sticky bit
+#define TNFS_CREATEPERM_S_IRUSR 00400 //read by owner
+#define TNFS_CREATEPERM_S_IWUSR 00200 //write by owner
+#define TNFS_CREATEPERM_S_IXUSR 00100 //execute/search by owner
+#define TNFS_CREATEPERM_S_IRGRP 00040 //read by group
+#define TNFS_CREATEPERM_S_IWGRP 00020 //write by group
+#define TNFS_CREATEPERM_S_IXGRP 00010 //execute/search by group
+#define TNFS_CREATEPERM_S_IROTH 00004 //read by others
+#define TNFS_CREATEPERM_S_IWOTH 00002 //write by others
+#define TNFS_CREATEPERM_S_IXOTH 00001 //execute/search by others
 
 #define TNFS_RESULT_SUCCESS 0x00
 #define TNFS_RESULT_NOT_PERMITTED 0x01

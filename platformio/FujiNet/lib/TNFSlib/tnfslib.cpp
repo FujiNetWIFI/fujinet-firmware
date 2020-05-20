@@ -129,6 +129,92 @@ bool tnfs_umount(tnfsMountInfo &m_info)
 }
 
 /*
+OPEN - Opens a file - Command 0x29
+----------------------------------
+Format: Standard header, flags, mode, then the null terminated filename.
+Flags are a bit field.
+
+The flags are:
+O_RDONLY	0x0001	Open read only
+O_WRONLY	0x0002	Open write only
+O_RDWR		0x0003	Open read/write
+O_APPEND	0x0008	Append to the file, if it exists (write only)
+O_CREAT		0x0100	Create the file if it doesn't exist (write only)
+O_TRUNC		0x0200	Truncate the file on open for writing
+O_EXCL		0x0400	With O_CREAT, returns an error if the file exists
+
+The modes are the same as described by CHMOD (i.e. POSIX modes). These
+may be modified by the server process's umask. The mode only applies
+when files are created (if the O_CREAT flag is specified)
+
+Examples: 
+Open a file called "/foo/bar/baz.bas" for reading:
+
+0xBEEF 0x00 0x29 0x0001 0x0000 /foo/bar/baz.bas 0x00
+
+Open a file called "/tmp/foo.dat" for writing, creating the file but
+returning an error if it exists. Modes set are S_IRUSR, S_IWUSR, S_IRGRP
+and S_IWOTH (read/write for owner, read-only for group, read-only for
+others):
+
+0xBEEF 0x00 0x29 0x0102 0x01A4 /tmp/foo.dat 0x00
+
+The server returns the standard header and a result code in response.
+If the operation was successful, the byte following the result code
+is the file descriptor:
+
+0xBEEF 0x00 0x29 0x00 0x04 - Successful file open, file descriptor = 4
+0xBEEF 0x00 0x29 0x01 - File open failed with "permssion denied"
+*/
+/* Open a file
+ open_mode: TNFS_OPENFLAG_*
+ create_perms: TNFS_CREATEPERM_* (only meaningful when creating files)
+*/
+int tnfs_open(tnfsMountInfo &m_info, const char *filepath, uint16_t open_mode, uint16_t create_perms)
+{
+    if (filepath == nullptr)
+        return false;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_OPEN;
+
+    // Set the open mode (does not appear to be little-endian)
+    packet.payload[0] = TNFS_HIBYTE_FROM_UINT16(open_mode);
+    packet.payload[1] = TNFS_LOBYTE_FROM_UINT16(open_mode);
+
+    // Set create permissions (does not appear to be little-endian)
+    packet.payload[2] = TNFS_HIBYTE_FROM_UINT16(create_perms);
+    packet.payload[3] = TNFS_LOBYTE_FROM_UINT16(create_perms);
+
+    int offset_filename = 4; // Where the filename starts in the buffer
+
+    // Make sure we start with a '/'
+    if (filepath[0] != '/')
+    {
+        packet.payload[offset_filename] = '/';
+        strncpy((char *)&packet.payload[offset_filename + 1], filepath, sizeof(packet.payload) - offset_filename - 1);
+    }
+    else
+    {
+        strncpy((char *)&packet.payload[offset_filename], filepath, sizeof(packet.payload) - offset_filename);
+    }
+
+#ifdef DEBUG
+    Debug_printf("TNFS open file: \"%s\" (0x%04x, 0x%04x)\n", (char *)&packet.payload[offset_filename], open_mode, create_perms);
+#endif
+
+    int len = offset_filename + strlen((char *)(&packet.payload[offset_filename])) + 1;
+    if (_tnfs_transaction(m_info, packet, len))
+    {
+#ifdef DEBUG
+        Debug_printf("Directory opened, handle ID: %hhd\n", m_info.dir_handle);
+#endif
+        return true;
+    }
+    return -1;
+}
+
+/*
 OPENDIR - Open a directory for reading - Command ID 0x10
 --------------------------------------------------------
 
