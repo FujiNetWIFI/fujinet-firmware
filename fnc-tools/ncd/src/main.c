@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
 	  for (i=1;i<=argc;i++)
 	    {
 	      strcat(buf,argv[i]);
-	      if (i!=argc)
+	      if (i<argc-1)
 		strcat(buf," ");
 	    }
 	}
@@ -79,16 +79,10 @@ int main(int argc, char* argv[])
       memmove(&buf[2],&buf[0],sizeof(buf)-3);
       buf[0]='N';
       buf[1]=':';
-      print("Adding N:\x9b");
     }
   else if (buf[2]==':')
     u=buf[1]-0x30;
 
-  print("unit = ");
-  itoa(u,tmp,10);
-  print(tmp);
-  print("\x9b");
-    
   ncd(u);
   
   return(0);
