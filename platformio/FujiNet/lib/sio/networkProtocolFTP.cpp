@@ -34,7 +34,7 @@ unsigned short networkProtocolFTP::parsePort(string response)
     pos_start++;
     pos_end--;
     port = (atoi(response.substr(pos_start, pos_end).c_str()));
-    Debug_printf("port string %s\r\n", response.substr(pos_start, pos_end));
+    Debug_printf("port string %s\r\n", response.substr(pos_start, pos_end).c_str());
     Debug_printf("Parsed port is: %d\n", port);
     return port;
 }
@@ -49,6 +49,9 @@ networkProtocolFTP::~networkProtocolFTP()
 
 bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
+    string tmpPath;
+    string tmpChdirPath;
+
     if (urlParser->port.empty())
         urlParser->port = "21";
 
@@ -75,19 +78,41 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (!ftpExpect("200"))
         return false;
 
+    tmpPath = urlParser->path.substr(0,urlParser->path.find("*")-1);
+
+    control.write("CWD ");
+    control.write(tmpPath.c_str());
+    control.write("\r\n");
+
+    if (!ftpExpect("250"))
+    {
+        string tmp=tmpPath;
+
+        // Trim off last part of filename, hopefully to just a dir path
+        tmp=tmp.substr(0,tmp.find_last_of("/"));
+
+        // and try again.
+        control.write("CWD ");
+        control.write(tmp.c_str());
+        control.write("\r\n");
+
+        if (!ftpExpect("250"))
+            return false;   // Still can't find.
+    }
+
     aux1 = cmdFrame->aux1;
 
     switch (cmdFrame->aux1)
     {
     case 4:
-        control.write("SIZE ");
-        control.write(urlParser->path.c_str());
-        control.write("\r\n");
+        // control.write("SIZE ");
+        // control.write(urlParser->path.c_str());
+        // control.write("\r\n");
 
-        if (!ftpExpect("213"))
-            return false;
+        // if (!ftpExpect("213"))
+        //     return false;
 
-        dataSize = atol(controlResponse.c_str());
+        // dataSize = atol(controlResponse.c_str());
 
         control.write("EPSV\r\n");
 
@@ -108,10 +133,15 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
         dataPort = parsePort(controlResponse);
 
-        control.write("NLST ");
-        control.write(urlParser->path.c_str());
+        control.write("NLST");
+        tmpPath=urlParser->path.substr(urlParser->path.find_last_of("/")+1);
+        Debug_printf("tmpPath: %s",tmpPath.c_str());
+        if ((tmpPath!="*.*") && (tmpPath!="*") && (tmpPath!="**.*"))
+        {
+            control.write(" ");
+            control.write(tmpPath.c_str());
+        }
         control.write("\r\n");
-
         break;
     case 8:
         control.write("EPSV\r\n");
@@ -156,7 +186,7 @@ bool networkProtocolFTP::close()
 }
 
 bool networkProtocolFTP::read(byte *rx_buf, unsigned short len)
-{
+{   
     if (data.readBytes(rx_buf, len) != len)
         return true;
     else

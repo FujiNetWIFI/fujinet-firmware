@@ -130,9 +130,19 @@ void sioNetwork::sio_open()
 
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
-    for (int i = 0; i < sizeof(inp); i++)
-        if ((inp[i] > 0x7F) || (inp[i] == ',') || (inp[i] == '*'))
-            inp[i] = 0x00;
+    if (cmdFrame.aux1 != 6)
+    {
+        for (int i = 0; i < sizeof(inp); i++)
+            if ((inp[i] > 0x7F) || (inp[i] == ',') || (inp[i] == '*'))
+                inp[i] = 0x00;
+    }
+    else
+    {
+        for (int i = 0; i < sizeof(inp); i++)
+            if ((inp[i] > 0x7F))
+                inp[i] = 0x00;        
+    }
+    
 
     if (prefix.length() > 0)
         deviceSpec = prefix + string(inp).substr(string(inp).find(":") + 1);
@@ -454,13 +464,13 @@ void sioNetwork::sio_special()
         {
             prefix = initial_prefix;
 
-            if (prefix[prefix.length()-1]=='/')
-                path=path.substr(1);
+            if (prefix[prefix.length() - 1] == '/')
+                path = path.substr(1);
             prefix += path;
         }
         else
         {
-            if (prefix[prefix.length()-1] != '/')
+            if (prefix[prefix.length() - 1] != '/')
                 prefix += "/";
             prefix += path;
         }
@@ -606,7 +616,7 @@ void sioNetwork::sio_special_40()
         strcpy((char *)buf, prefix.c_str());
         break;
     }
-    Debug_printf("Read buf: %s\n",buf);
+    Debug_printf("Read buf: %s\n", buf);
     sio_to_computer((byte *)buf, 256, err); // size of DVSTAT
 }
 
