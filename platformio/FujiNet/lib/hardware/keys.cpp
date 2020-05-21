@@ -5,15 +5,16 @@
 #include "keys.h"
 
 
-
+/*
 KeyManager::KeyManager()
 {
-    memset(mButtonActive, 0, sizeof(mButtonActive));
-    memset(mLongPressActive, 0, sizeof(mLongPressActive));
-    memset(mButtonTimer, 0, sizeof(mButtonTimer));
+    //memset(mButtonActive, 0, sizeof(mButtonActive));
+    //memset(mLongPressActive, 0, sizeof(mLongPressActive));
+    //memset(mButtonTimer, 0, sizeof(mButtonTimer));
     //mButtonPin[eKey::BOOT_KEY] = PIN_BOOT_KEY;
     //mButtonPin[eKey::OTHER_KEY] = PIN_OTHER_KEY;
 }
+*/
 
 void KeyManager::setup()
 {

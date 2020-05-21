@@ -184,9 +184,9 @@ bool SdFileSystem::start()
 {
     if(_started)
         return true;
-        
-    static const char * bp = "/sd";
-    _basepath = bp;
+
+    // Set our basepath
+    strncpy(_basepath, "/sd", sizeof(_basepath));
 
     // Set up a configuration to the SD host interface
     sdmmc_host_t host_config = SDSPI_HOST_DEFAULT();

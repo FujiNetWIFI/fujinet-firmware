@@ -20,7 +20,7 @@ public:
 
     fsType type() override { return FSTYPE_TNFS; };
 
-    FILE * file_open(const char* path, const char* mode = FILE_READ) override {return NULL;};
+    FILE * file_open(const char* path, const char* mode = FILE_READ) override;
 
     bool exists(const char* path) override {return false;};
 

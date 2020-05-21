@@ -119,9 +119,9 @@ bool SpifFileSystem::start()
 {
     if(_started)
         return true;
-        
-    static const char * bp = "/spiffs";
-    _basepath = bp;
+
+    // Set our basepath
+    strncpy(_basepath, "/spiffs", sizeof(_basepath));
 
     esp_vfs_spiffs_conf_t conf = {
       .base_path = _basepath,

@@ -214,20 +214,24 @@ string fnHttpServiceParser::format_uptime()
     struct fsdir_entry *de;
     while((de = tnfs.dir_read()) != nullptr)
     {
-        struct tm *ti = localtime(&de->modified_time);
-
-        Debug_printf("DE: \"%s\", D=%d, S=%u, T=\"%s\"\n", de->filename, de->isDir ? 1: 0, de->size, asctime(ti));
+        Debug_printf("DE: \"%s\", D=%d, S=%u\n", de->filename, de->isDir ? 1: 0, de->size);
     }
     tnfs.dir_close();
 
-    fnSPIFFS.dir_open("");
-    while((de = fnSPIFFS.dir_read()) != nullptr)
-    {
-        struct tm *ti = localtime(&de->modified_time);
+    char t[40];
+    sprintf(t, "%s/grantic.atr", tnfs.basepath());
+    FILE * f = fopen(t, "r");
+    Debug_printf("fopen = %p\n", f);
 
-        Debug_printf("DE: \"%s\", D=%d, S=%u, T=\"%s\"\n", de->filename, de->isDir ? 1: 0, de->size, asctime(ti));
-    }
-    tnfs.dir_close();
+    uint8_t *pp = new uint8_t[498];
+    int fr = fread(pp, 1, 498, f);
+    Debug_printf("fread = %d\n", fr);
+    delete[] pp;
+
+    int c = fclose(f);
+    Debug_printf("fclose = %d [%d]\n", c, errno);
+    int z = fnSystem.copy_file(&tnfs, "/grantic.atr", &fnSDFAT, "/grantic.atr");
+    Debug_printf("copyfile = %d\n", z);
 
     return resultstream.str();
 }
