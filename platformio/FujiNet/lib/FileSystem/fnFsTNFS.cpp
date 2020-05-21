@@ -3,17 +3,19 @@
 #include "../tcpip/fnDNS.h"
 #include "../hardware/fnSystem.h"
 #include "../../include/debug.h"
+#include "fnFsTNFSvfs.h"
 
 TnfsFileSystem::TnfsFileSystem()
 {
-    // Allocate space for our TNFS packet so it doesn't have to get put on the stack
-    // DO OR NO DO?
+    // TODO: Maybe allocate space for our TNFS packet so it doesn't have to get put on the stack?
 }
 
 TnfsFileSystem::~TnfsFileSystem()
 {
     if (_connected)
-        tnfs_umount(_mountinfo);
+        tnfs_umount(&_mountinfo);
+    if(_basepath[0] != '\0')
+        vfs_tnfs_unregister(_basepath);
 }
 
 bool TnfsFileSystem::start(const char *host, uint16_t port, const char * mountpath, const char * userid, const char * password)
@@ -33,10 +35,11 @@ bool TnfsFileSystem::start(const char *host, uint16_t port, const char * mountpa
         Debug_printf("Failed to resolve hostname \"%s\"\n", host);
         return false;
     }
+    // TODO: Refresh the DNS name we resolved after X amount of time
     _last_dns_refresh = fnSystem.millis();
 
     _mountinfo.port = port;
-    _mountinfo.session = 0;
+    _mountinfo.session = TNFS_INVALID_SESSION;
 
     if(mountpath != nullptr)
         strncpy(_mountinfo.mountpath, mountpath, sizeof(_mountinfo.mountpath));
@@ -57,35 +60,65 @@ bool TnfsFileSystem::start(const char *host, uint16_t port, const char * mountpa
     Debug_printf("TNFS mount %s[%s]:%hu\n", _mountinfo.hostname, inet_ntoa(_mountinfo.host_ip), _mountinfo.port);
 #endif
 
-    if (tnfs_mount(_mountinfo) == false)
+    int r = tnfs_mount(&_mountinfo);
+    if (r != TNFS_RESULT_SUCCESS)
     {
 #ifdef DEBUG
-        Debug_println("TNFS mount failed");
+        Debug_printf("TNFS mount failed with code %d\n", r);
 #endif
         _mountinfo.mountpath[0] = '\0';
         _connected = false;
         return false;
     }
-    _connected = true;
 #ifdef DEBUG
     Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%hx, min_retry: %hums\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
 #endif
+
+    // Register a new VFS driver to handle this connection
+    if(vfs_tnfs_register(_mountinfo, _basepath, sizeof(_basepath)) != 0)
+    {
+        #ifdef DEBUG
+        Debug_println("Failed to register VFS driver!");
+        #endif
+        return false;
+    }
+
+    _connected = true;
+
     return true;
+}
+
+FILE * TnfsFileSystem::file_open(const char* path, const char* mode)
+{
+    if(!_connected || path == nullptr)
+        return nullptr;
+
+    char * fpath = _make_fullpath(path);
+    FILE * result = fopen(fpath, mode);
+    free(fpath);
+    return result;
 }
 
 bool TnfsFileSystem::dir_open(const char * path)
 {
-    return tnfs_opendir(_mountinfo, path);
+    if(!_connected)
+        return false;
+
+    int r = tnfs_opendir(&_mountinfo, path);
+    return (r == TNFS_RESULT_SUCCESS);
 }
 
 fsdir_entry * TnfsFileSystem::dir_read()
 {
+    if(!_connected)
+        return nullptr;
+
     // Skip "." and ".."; server returns EINVAL on trying to stat ".."
     bool skip;
     do 
     {
         _direntry.filename[0] = '\0';
-        if(false == tnfs_readdir(_mountinfo, _direntry.filename, sizeof(_direntry.filename)))
+        if(TNFS_RESULT_SUCCESS != tnfs_readdir(&_mountinfo, _direntry.filename, sizeof(_direntry.filename)))
             return nullptr;
 
         skip = (_direntry.filename[0] == '.' && _direntry.filename[1] == '\0') || 
@@ -93,7 +126,7 @@ fsdir_entry * TnfsFileSystem::dir_read()
     } while (skip);
 
     tnfsStat fstat;
-    if(tnfs_stat(_mountinfo, fstat, _direntry.filename) == 0)
+    if(tnfs_stat(&_mountinfo, &fstat, _direntry.filename) == TNFS_RESULT_SUCCESS)
     {
         _direntry.size = fstat.filesize;
         _direntry.modified_time = fstat.m_time;
@@ -105,5 +138,8 @@ fsdir_entry * TnfsFileSystem::dir_read()
 
 void TnfsFileSystem::dir_close()
 {
-    tnfs_closedir(_mountinfo);
+    if(!_connected)
+        return;
+
+    tnfs_closedir(&_mountinfo);
 }

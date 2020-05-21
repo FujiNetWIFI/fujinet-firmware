@@ -13,6 +13,10 @@
 #define TNFS_RETRY_DELAY 1000
 #define TNFS_RETRIES 5
 #define TNFS_DEFAULT_PORT 16384
+#define TNFS_MAX_FILE_HANDLES 8
+
+#define TNFS_INVALID_HANDLE -1
+#define TNFS_INVALID_SESSION 0 // We're assuming a '0' is never a valid session ID
 
 #define TNFS_CMD_MOUNT 0x00
 #define TNFS_CMD_UNMOUNT 0x01
@@ -38,13 +42,13 @@
 
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
-#define TNFS_OPENMODE_READDONLY 0x0001 //Open read only
-#define TNFS_OPENMODE_WRITEONLY 0x0002 //Open write only
-#define TNFS_OPENMODE_READWRITE 0x0003   //Open read/write
-#define TNFS_OPENMODE_APPEND 0x0008 //Append to the file, if it exists (write only)
-#define TNFS_OPENMODE_CREATE 0x0100  //Create the file if it doesn't exist (write only)
-#define TNFS_OPENMODE_TRUNCATE 0x0200  //Truncate the file on open for writing
-#define TNFS_OPENMODE_EXCLUSIVE 0x0400   //With TNFS_OPENMODE_CREATE, returns an error if the file exists
+#define TNFS_OPENMODE_READDONLY 0x0001 // Open read only
+#define TNFS_OPENMODE_WRITEONLY 0x0002 // Open write only
+#define TNFS_OPENMODE_READWRITE 0x0003 // Open read/write
+#define TNFS_OPENMODE_APPEND 0x0008    // Append to the file if it exists (write only)
+#define TNFS_OPENMODE_CREATE 0x0100    // Create the file if it doesn't exist (write only)
+#define TNFS_OPENMODE_TRUNCATE 0x0200  // Truncate the file on open for writing
+#define TNFS_OPENMODE_EXCLUSIVE 0x0400 // With TNFS_OPENMODE_CREATE, returns an error if the file exists
 
 #define TNFS_CREATEPERM_S_ISUID 04000 //set user ID on execution
 #define TNFS_CREATEPERM_S_ISGID 02000 //set group ID on execution
@@ -102,9 +106,8 @@
 
  https://stackoverflow.com/questions/1098897/what-is-the-largest-safe-udp-packet-size-on-the-internet
 */
-
 #define TNFS_HEADER_SIZE 4
-
+#define TNFS_PAYLOAD_SIZE 504
 union tnfsPacket {
     struct
     {
@@ -112,37 +115,9 @@ union tnfsPacket {
         uint8_t session_idh;
         uint8_t sequence_num;
         uint8_t command;
-        uint8_t payload[504];
+        uint8_t payload[TNFS_PAYLOAD_SIZE];
     };
-    uint8_t rawData[508];
-};
-
-#define TNFS_SESSID_SHORT(x) ((uint16_t)x.session_idh << 8 | x.session_idl)
-
-#define TNFS_UINT16_FROM_HILOBYTES(high, low) ((uint16_t)high << 8 | low)
-
-#define TNFS_UINT16_FROM_LOHI_BYTEPTR(bytep) ( (uint16_t)(*(bytep+1)) << 8 | (*(bytep+0)))
-#define TNFS_UINT32_FROM_LOHI_BYTEPTR(bytep) ( (uint32_t)(*(bytep+3)) << 24 | (uint32_t)(*(bytep+2)) << 16 | (uint32_t)(*(bytep+1)) << 8 | (*(bytep+0)))
-
-#define TNFS_HIBYTE_FROM_UINT16(value) ((uint8_t)((value >> 8) & 0xFF))
-#define TNFS_LOBYTE_FROM_UINT16(value) ((uint8_t)(value & 0xFF))
-
-struct tnfsMountInfo
-{
-    // These char[] sizes are abitrary...
-    char hostname[64];
-    in_addr_t host_ip = IPADDR_NONE;
-    uint16_t port = TNFS_DEFAULT_PORT;
-    char mountpath[64];
-    char user[36];
-    char password[36];
-    uint16_t session; // Stored from server's response to TNFS_MOUNT
-    uint16_t min_retry_ms = TNFS_RETRY_DELAY; // Updated from server's response to TNFS_MOUNT
-    uint16_t server_version = 0;  // Stored from server's response to TNFS_MOUNT
-    uint8_t max_retries = TNFS_RETRIES;
-    int timeout_ms = TNFS_TIMEOUT;
-    uint8_t current_sequence_num = 0; // Updated with each transaction to the server
-    int dir_handle = -1; // Stored from server's response to TNFS_OPENDIR
+    uint8_t rawData[TNFS_HEADER_SIZE + TNFS_PAYLOAD_SIZE];
 };
 
 struct tnfsStat
@@ -154,80 +129,57 @@ struct tnfsStat
     uint32_t c_time;
 };
 
-class TNFSImpl
-{
-    //This class implements the physical interface for built-in functions in FS.h
-protected:
-    // TNFS host parameters
-    std::string _host = "";
-    uint16_t _port;
-    //tnfsSessionID_t _sid;
-    std::string _location = "";
-    std::string _userid = "";
-    std::string _password = "";
+// Retruns a uint16 value given two bytes in high-low order
+#define TNFS_UINT16_FROM_HILOBYTES(high, low) ((uint16_t)high << 8 | low)
 
-public:
-    /*
-    FileImplPtr open(const char *path, const char *mode) 
-    bool exists(const char *path) 
-    bool rename(const char *pathFrom, const char *pathTo) 
-    bool remove(const char *path) 
-    bool mkdir(const char *path) 
-    bool rmdir(const char *path) 
-    std::string host();
-    uint16_t port();
-    tnfsSessionID_t sid();
-    std::string location();
-    std::string userid();
-    std::string password();
-    */
+// Returns a uint16 value from a pointer to two bytes in little-ending order
+#define TNFS_UINT16_FROM_LOHI_BYTEPTR(bytep) ( (uint16_t)(*(bytep+1)) << 8 | (*(bytep+0)))
+// Returns a uint32 value from a pointer to four bytes in little-ending order
+#define TNFS_UINT32_FROM_LOHI_BYTEPTR(bytep) ( (uint32_t)(*(bytep+3)) << 24 | (uint32_t)(*(bytep+2)) << 16 | (uint32_t)(*(bytep+1)) << 8 | (*(bytep+0)))
+
+// Returns the high byte (MSB) of a uint16 value
+#define TNFS_HIBYTE_FROM_UINT16(value) ((uint8_t)((value >> 8) & 0xFF))
+// Returns the low byte (LSB) of a uint16 value
+#define TNFS_LOBYTE_FROM_UINT16(value) ((uint8_t)(value & 0xFF))
+
+// Checks that value is >= 0 and <= 255
+#define TNFS_VALID_AS_UINT8(value) (value >= 0 && value <= 255)
+
+struct tnfsMountInfo
+{
+    // These char[] sizes are abitrary...
+    char hostname[64];
+    in_addr_t host_ip = IPADDR_NONE;
+    uint16_t port = TNFS_DEFAULT_PORT;
+    char mountpath[64];
+    char user[36];
+    char password[36];
+    uint16_t session = TNFS_INVALID_SESSION; // Stored from server's response to TNFS_MOUNT
+    uint16_t min_retry_ms = TNFS_RETRY_DELAY; // Updated from server's response to TNFS_MOUNT
+    uint16_t server_version = 0;  // Stored from server's response to TNFS_MOUNT
+    uint8_t max_retries = TNFS_RETRIES;
+    int timeout_ms = TNFS_TIMEOUT;
+    uint8_t current_sequence_num = 0; // Updated with each transaction to the server
+    int16_t dir_handle = TNFS_INVALID_HANDLE; // Stored from server's response to TNFS_OPENDIR
 };
 
-class TNFSFileImpl
-{
-    //This class implements the physical interface for built-in functions in the File class defined in FS.h
+int tnfs_mount(tnfsMountInfo *m_info);
+int tnfs_umount(tnfsMountInfo *m_info);
 
-protected:
-    TNFSImpl *fs;
-    int fid;
-    char fn[256];
-    //tnfsStat_t stats;
+int tnfs_opendir(tnfsMountInfo *m_info, const char *directory);
+int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len);
+int tnfs_closedir(tnfsMountInfo *m_info);
 
-public:
-    size_t write(const uint8_t *buf, size_t size);
-    size_t read(uint8_t *buf, size_t size);
-    void flush();
-    //bool seek(uint32_t pos, SeekMode mode);
-    size_t position() const;
-    size_t size() const;
-    void close();
-    const char *name() const;
-    time_t getLastWrite();
-    bool isDirectory(void);
-    struct dirent openNextFile(const char *mode);
-    void rewindDirectory(void);
-    operator bool();
-};
+int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory);
+int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory);
 
-bool tnfs_mount(tnfsMountInfo &m_info);
-bool tnfs_umount(tnfsMountInfo &m_info);
+int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath);
 
-bool tnfs_opendir(tnfsMountInfo &m_info, const char *directory);
-bool tnfs_readdir(tnfsMountInfo &m_info, char *dir_entry, int dir_entry_len);
-bool tnfs_closedir(tnfsMountInfo &m_info);
+int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, uint16_t create_perms, int16_t *file_handle);
+int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle);
 
-int tnfs_rmdir(tnfsMountInfo &m_info, const char *directory);
-int tnfs_mkdir(tnfsMountInfo &m_info, const char *directory);
+int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
 
-int tnfs_stat(tnfsMountInfo &m_info, tnfsStat &filestat, const char *filepath);
-
-
-/*
-int tnfs_open(TNFSImpl *F, const char *mountPath, uint8_tflag_lsb, uint8_tflag_msb);
-*/
-bool tnfs_close(TNFSImpl *F, int fid);
-size_t tnfs_write(TNFSImpl *F, int fid, const uint8_t *buf, unsigned short len);
-size_t tnfs_read(TNFSImpl *F, int fid, uint8_t *buf, unsigned short size);
-bool tnfs_seek(TNFSImpl *F, int fid, long offset);
+int tnfs_code_to_errno(int tnfs_code);
 
 #endif //_TNFSLIB_H

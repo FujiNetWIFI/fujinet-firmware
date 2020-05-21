@@ -23,7 +23,7 @@
 
 LedManager::LedManager()
 {
-    memset(mLedState, false, sizeof(bool) * eLed::LED_COUNT);
+    //memset(mLedState, false, sizeof(bool) * eLed::LED_COUNT);
     mLedPin[eLed::LED_WIFI] = PIN_LED_WIFI;
     mLedPin[eLed::LED_SIO] = PIN_LED_SIO;
     mLedPin[eLed::LED_BT] = PIN_LED_BT;

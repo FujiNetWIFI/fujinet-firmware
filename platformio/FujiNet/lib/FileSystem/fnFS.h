@@ -32,13 +32,16 @@ typedef struct fsdir_entry fsdir_entry_t;
 class FileSystem
 {
 protected:
-    const char * _basepath;
+    char _basepath[20] = { '\0' };
     bool _started = false;
     fsdir_entry _direntry;
+
     char *_make_fullpath(const char *path);
 
 public:
     virtual bool running() { return _started; };
+    virtual const char * basepath() { return _basepath; };
+    
     virtual fsType type()=0;
 
     static long filesize(FILE *);

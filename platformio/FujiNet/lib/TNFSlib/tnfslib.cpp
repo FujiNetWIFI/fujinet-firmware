@@ -4,7 +4,7 @@
 #include "../utils/utils.h"
 #include "../hardware/fnSystem.h"
 
-bool _tnfs_transaction(tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t datalen);
+bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
 
 const char *_tnfs_result_code_string(int resultcode);
 void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short len, bool isResponse = false);
@@ -55,12 +55,15 @@ Example: A failed MOUNT command with error 1F for a version 3.5 server:
  Currently, mountpath, userid and password are ignored.
  port, timeout_ms, and max_retries may be set or left to defaults.
 */
-bool tnfs_mount(tnfsMountInfo &m_info)
+int tnfs_mount(tnfsMountInfo *m_info)
 {
+    if(m_info == nullptr)
+        return -1;
+
     // Unmount if we happen to have sesssion
-    if (m_info.session != 0)
+    if (m_info->session != TNFS_INVALID_SESSION)
         tnfs_umount(m_info);
-    m_info.session = 0; // In case tnfs_umount fails - throw out the current session ID
+    m_info->session = TNFS_INVALID_SESSION; // In case tnfs_umount fails - throw out the current session ID
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_MOUNT;
@@ -78,16 +81,16 @@ bool tnfs_mount(tnfsMountInfo &m_info)
 
     if (_tnfs_transaction(m_info, packet, 6))
     {
-        // Zero on success
-        if (packet.payload[0] == 0)
+        // Success
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
-            m_info.session = TNFS_UINT16_FROM_HILOBYTES(packet.session_idh, packet.session_idl);
-            m_info.server_version = TNFS_UINT16_FROM_HILOBYTES(packet.payload[2], packet.payload[1]);
-            m_info.min_retry_ms = TNFS_UINT16_FROM_HILOBYTES(packet.payload[4], packet.payload[3]);
-            return true;
+            m_info->session = TNFS_UINT16_FROM_HILOBYTES(packet.session_idh, packet.session_idl);
+            m_info->server_version = TNFS_UINT16_FROM_HILOBYTES(packet.payload[2], packet.payload[1]);
+            m_info->min_retry_ms = TNFS_UINT16_FROM_HILOBYTES(packet.payload[4], packet.payload[3]);
         }
+        return packet.payload[0];
     }
-    return false;
+    return -1;
 }
 
 /*
@@ -114,18 +117,23 @@ On error, byte 4 is set to the error code, for example, for error 0x1F:
 */
 /* Logs off TNFS server given data (session, host) in tnfsMountInfo
 */
-bool tnfs_umount(tnfsMountInfo &m_info)
+int tnfs_umount(tnfsMountInfo *m_info)
 {
+    if(m_info == nullptr)
+        return -1;
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_UNMOUNT;
 
     if (_tnfs_transaction(m_info, packet, 0))
     {
-        m_info.session = 0;
-        return true;
+        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            m_info->session = TNFS_INVALID_SESSION;
+        }
+        return packet.payload[0];
     }
-    return false;
+    return -1;
 }
 
 /*
@@ -169,11 +177,15 @@ is the file descriptor:
 /* Open a file
  open_mode: TNFS_OPENFLAG_*
  create_perms: TNFS_CREATEPERM_* (only meaningful when creating files)
+ file_handle: if successful, server's file handle is stored here
+ returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
 */
-int tnfs_open(tnfsMountInfo &m_info, const char *filepath, uint16_t open_mode, uint16_t create_perms)
+int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, uint16_t create_perms, int16_t *file_handle)
 {
-    if (filepath == nullptr)
-        return false;
+    if (m_info == nullptr || filepath == nullptr || file_handle == nullptr)
+        return -1;
+
+    *file_handle = TNFS_INVALID_HANDLE;
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPEN;
@@ -203,13 +215,125 @@ int tnfs_open(tnfsMountInfo &m_info, const char *filepath, uint16_t open_mode, u
     Debug_printf("TNFS open file: \"%s\" (0x%04x, 0x%04x)\n", (char *)&packet.payload[offset_filename], open_mode, create_perms);
 #endif
 
+    // Offset to filename + filename length + zero terminator
     int len = offset_filename + strlen((char *)(&packet.payload[offset_filename])) + 1;
     if (_tnfs_transaction(m_info, packet, len))
     {
-#ifdef DEBUG
-        Debug_printf("Directory opened, handle ID: %hhd\n", m_info.dir_handle);
-#endif
-        return true;
+        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            *file_handle = packet.payload[1];            
+            #ifdef DEBUG
+            Debug_printf("File opened, handle ID: %hhd\n", *file_handle);
+            #endif
+        }
+        return packet.payload[0];
+
+    }
+    return -1;
+}
+
+/*
+CLOSE - Closes a file - Command 0x23
+------------------------------------
+Closes an open file. Consists of the standard header, followed by
+the file descriptor. Example:
+
+0xBEEF 0x00 0x23 0x04 - Close file descriptor 4
+
+The server replies with the standard header followed by the return
+code:
+
+0xBEEF 0x00 0x23 0x00 - File closed.
+0xBEEF 0x00 0x23 0x06 - Operation failed with EBADF, "bad file descriptor"
+*/
+/*
+ Closes an open file
+ returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
+*/
+int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle)
+{
+    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle))
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_CLOSE;
+    packet.payload[0] = file_handle;
+
+    if (_tnfs_transaction(m_info, packet, 1))
+    {
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+/*
+READ - Reads from a file - Command 0x21
+---------------------------------------
+Reads a block of data from a file. Consists of the standard header
+followed by the file descriptor as returned by OPEN, then a 16 bit
+little endian integer specifying the size of data that is requested.
+
+The server will only reply with as much data as fits in the maximum
+TNFS datagram size of 1K when using UDP as a transport. For the
+TCP transport, sequencing and buffering etc. are just left up to
+the TCP stack, so a READ operation can return blocks of up to 64K. 
+
+If there is less than the size requested remaining in the file, 
+the server will return the remainder of the file.  Subsequent READ 
+commands will return the code EOF.
+
+Examples:
+Read from fd 4, maximum 256 bytes:
+
+0xBEEF 0x00 0x21 0x04 0x00 0x01
+
+The server will reply with the standard header, followed by the single
+byte return code, the actual amount of bytes read as a 16 bit unsigned
+little endian value, then the data, for example, 256 bytes:
+
+0xBEEF 0x00 0x21 0x00 0x00 0x01 ...data...
+
+End-of-file reached:
+
+0xBEEF 0x00 0x21 0x21
+*/
+/*
+ Reads from an open file.
+ Max bufflen is TNFS_PAYLOAD_SIZE - 3; any larger size will return an error
+ Bytes actually read will be placed in resultlen
+ Returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
+ */
+int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen)
+{
+    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || buffer == nullptr || bufflen > (TNFS_PAYLOAD_SIZE -3) || resultlen == nullptr)
+        return -1;
+
+    *resultlen = 0;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_READ;
+    packet.payload[0] = file_handle;
+    packet.payload[1] = TNFS_LOBYTE_FROM_UINT16(bufflen);
+    packet.payload[2] = TNFS_HIBYTE_FROM_UINT16(bufflen);
+
+    if (_tnfs_transaction(m_info, packet, 3))
+    {
+        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            *resultlen = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 1);
+            if(*resultlen <= (TNFS_PAYLOAD_SIZE -3))
+            {
+                memcpy(buffer, packet.payload + 3, *resultlen);
+            }
+            else
+            {
+                #ifdef DEBUG
+                Debug_printf("tnfs_read result size (%u) would overrun buffer!\n", *resultlen);
+                #endif
+                return -1;
+            }
+        }
+        return packet.payload[0];
     }
     return -1;
 }
@@ -240,11 +364,12 @@ Example:
 */
 /*
     Opens directory and stores directory handle in tnfsMountInfo.dir_handle
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
 */
-bool tnfs_opendir(tnfsMountInfo &m_info, const char *directory)
+int tnfs_opendir(tnfsMountInfo *m_info, const char *directory)
 {
-    if (directory == nullptr)
-        return false;
+    if (m_info == nullptr || directory == nullptr)
+        return -1;
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPENDIR;
@@ -267,13 +392,16 @@ bool tnfs_opendir(tnfsMountInfo &m_info, const char *directory)
     int len = strlen((char *)packet.payload) + 1;
     if (_tnfs_transaction(m_info, packet, len))
     {
-        m_info.dir_handle = packet.payload[1];
-#ifdef DEBUG
-        Debug_printf("Directory opened, handle ID: %hhd\n", m_info.dir_handle);
-#endif
-        return true;
+        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            m_info->dir_handle = packet.payload[1];
+            #ifdef DEBUG
+            Debug_printf("Directory opened, handle ID: %hhd\n", m_info->dir_handle);
+            #endif
+        }
+        return packet.payload[0];
     }
-    return false;
+    return -1;
 }
 
 /*
@@ -302,26 +430,28 @@ status byte is set to the error number as for other commands.
 /*
     Reads next available file using open directory handle specified in
     tnfsMountInfo.dir_handle
+    dir_entry filled with filename up to dir_entry_len
+ returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
 */
-bool tnfs_readdir(tnfsMountInfo &m_info, char *dir_entry, int dir_entry_len)
+int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len)
 {
     // Check for a valid open handle ID
-    if(m_info.dir_handle < 0 || m_info.dir_handle > 255)
-        return false;
+    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
+        return -1;
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_READDIR;
-    packet.payload[0] = m_info.dir_handle;
+    packet.payload[0] = m_info->dir_handle;
 
     if (_tnfs_transaction(m_info, packet, 1))
     {
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             strncpy(dir_entry, (char *)&packet.payload[1], dir_entry_len);
-            return true;
         }
+        return packet.payload[0];
     }
-    return false;
+    return -1;
 }
 
 /*
@@ -342,28 +472,26 @@ Example:
 */
 /*
     Closes current directory handle specificed in tnfsMountInfo
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
 */
-bool tnfs_closedir(tnfsMountInfo &m_info)
+int tnfs_closedir(tnfsMountInfo *m_info)
 {
+    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
+        return -1;
+
     tnfsPacket packet;
     packet.command = TNFS_CMD_CLOSEDIR;
-    packet.payload[0] = m_info.dir_handle;
+    packet.payload[0] = m_info->dir_handle;
 
     if (_tnfs_transaction(m_info, packet, 1))
     {
-        if (packet.payload[0] == 0)
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
-            m_info.dir_handle = 0;
-            return true;
+            m_info->dir_handle = TNFS_INVALID_HANDLE;
         }
-        else
-        {
-#ifdef DEBUG
-            Debug_printf("TNFS close dir failed with code %hhu \"%s\"\n", packet.payload[0], _tnfs_result_code_string(packet.payload[0]));
-#endif
-        }
+        return packet.payload[0];
     }
-    return false;
+    return -1;
 }
 
 /*
@@ -382,13 +510,11 @@ The server responds with the standard header plus the return code:
 */
 /*
     Creates directory.
-    Return 0 on success.
-    Returns -1 on command transmission failure.
-    Otherwise returns server response code
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
 */
-int tnfs_mkdir(tnfsMountInfo &m_info, const char *directory)
+int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory)
 {
-    if (directory == nullptr)
+    if (m_info == nullptr || directory == nullptr)
         return -1;
 
     tnfsPacket packet;
@@ -433,13 +559,11 @@ The server responds with the standard header plus the return code:
 */
 /*
     Deletes directory.
-    Return 0 on success.
-    Returns -1 on command transmission failure.
-    Otherwise returns server response code
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
 */
-int tnfs_rmdir(tnfsMountInfo &m_info, const char *directory)
+int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory)
 {
-    if (directory == nullptr)
+    if (m_info == nullptr || directory == nullptr)
         return -1;
 
     tnfsPacket packet;
@@ -509,21 +633,11 @@ S_IFDIR		0040000		Directory
 */
 /*
     Returns file information filled in tnfsStat.
-    Return 0 on success.
-    Returns -1 on command transmission failure.
-    Otherwise returns server response code
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
 */
-int tnfs_stat(tnfsMountInfo &m_info, tnfsStat &filestat, const char *filepath)
+int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
 {
-#define OFFSET_FILEMODE 1
-#define OFFSET_UID 3
-#define OFFSET_GID 5
-#define OFFSET_FILESIZE 7
-#define OFFSET_ATIME 11
-#define OFFSET_MTIME 15
-#define OFFSET_CTIME 19
-
-    if (filepath == nullptr)
+    if (m_info == nullptr || filepath == nullptr || filestat == nullptr)
         return -1;
 
     tnfsPacket packet;
@@ -544,22 +658,33 @@ int tnfs_stat(tnfsMountInfo &m_info, tnfsStat &filestat, const char *filepath)
     Debug_printf("TNFS stat: \"%s\"\n", (char *)packet.payload);
 #endif
 
+#define OFFSET_FILEMODE 1
+#define OFFSET_UID 3
+#define OFFSET_GID 5
+#define OFFSET_FILESIZE 7
+#define OFFSET_ATIME 11
+#define OFFSET_MTIME 15
+#define OFFSET_CTIME 19
+
     int len = strlen((char *)packet.payload) + 1;
     if (_tnfs_transaction(m_info, packet, len))
     {
-        uint16_t filemode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILEMODE);
-        filestat.isDir = (filemode & S_IFDIR) ? true : false;
+        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            uint16_t filemode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILEMODE);
+            filestat->isDir = (filemode & S_IFDIR) ? true : false;
 
-        filestat.filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILESIZE);
+            filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILESIZE);
 
-        filestat.a_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_ATIME);
-        filestat.m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_MTIME);
-        filestat.c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_CTIME);
+            filestat->a_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_ATIME);
+            filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_MTIME);
+            filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_CTIME);
 
-#ifdef DEBUG
-    Debug_printf("\tdir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", filestat.isDir ? 1 : 0,
-        filestat.filesize, filestat.a_time, filestat.m_time, filestat.c_time );
-#endif
+            #ifdef DEBUG
+            Debug_printf("\tdir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", filestat->isDir ? 1 : 0,
+                filestat->filesize, filestat->a_time, filestat->m_time, filestat->c_time );
+            #endif
+        }
         return packet.payload[0];
     }
     return -1;
@@ -578,20 +703,20 @@ int tnfs_stat(tnfsMountInfo &m_info, tnfsStat &filestat, const char *filepath)
   returns - true if response packet was received
             false if no response received during retries/timeout period
  */
-bool _tnfs_transaction(tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t payload_size)
+bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
 {
     fnUDP udp;
 
     // Set our session ID
-    pkt.session_idl = TNFS_LOBYTE_FROM_UINT16(m_info.session);
-    pkt.session_idh = TNFS_HIBYTE_FROM_UINT16(m_info.session);
+    pkt.session_idl = TNFS_LOBYTE_FROM_UINT16(m_info->session);
+    pkt.session_idh = TNFS_HIBYTE_FROM_UINT16(m_info->session);
 
     // Start a new retry sequence
     int retry = 0;
-    while (retry < m_info.max_retries)
+    while (retry < m_info->max_retries)
     {
         // Set the sequence number
-        pkt.sequence_num = m_info.current_sequence_num++;
+        pkt.sequence_num = m_info->current_sequence_num++;
 
 #ifdef DEBUG
         _tnfs_debug_packet(pkt, payload_size);
@@ -600,10 +725,10 @@ bool _tnfs_transaction(tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t payload_
         // Send packet
         bool sent = false;
         // Use the IP address if we have it
-        if (m_info.host_ip != IPADDR_NONE)
-            sent = udp.beginPacket(m_info.host_ip, m_info.port);
+        if (m_info->host_ip != IPADDR_NONE)
+            sent = udp.beginPacket(m_info->host_ip, m_info->port);
         else
-            sent = udp.beginPacket(m_info.hostname, m_info.port);
+            sent = udp.beginPacket(m_info->hostname, m_info->port);
 
         if (sent)
         {
@@ -646,15 +771,15 @@ bool _tnfs_transaction(tnfsMountInfo &m_info, tnfsPacket &pkt, uint16_t payload_
                 }
                 fnSystem.yield();
 
-            } while ((fnSystem.millis() - ms_start) < m_info.timeout_ms);
+            } while ((fnSystem.millis() - ms_start) < m_info->timeout_ms);
 
 #ifdef DEBUG
-            Debug_printf("Timeout after %d milliseconds. Retrying\n", m_info.timeout_ms);
+            Debug_printf("Timeout after %d milliseconds. Retrying\n", m_info->timeout_ms);
 #endif
         }
 
         // Make sure we wait before retrying
-        vTaskDelay(m_info.min_retry_ms / portTICK_PERIOD_MS);
+        vTaskDelay(m_info->min_retry_ms / portTICK_PERIOD_MS);
         retry++;
     }
 
@@ -769,4 +894,85 @@ const char *_tnfs_result_code_string(int resultcode)
 #else
     return nullptr;
 #endif
+}
+
+int tnfs_code_to_errno(int tnfs_code)
+{
+    switch(tnfs_code)
+    {
+    case TNFS_RESULT_SUCCESS:
+        return 0;
+    case TNFS_RESULT_NOT_PERMITTED:
+        return EPERM;
+    case TNFS_RESULT_FILE_NOT_FOUND:
+        return ENOENT;
+    case TNFS_RESULT_IO_ERROR:
+        return EIO;
+    case TNFS_RESULT_NO_SUCH_DEVICE:
+        return ENXIO;
+    case TNFS_RESULT_LIST_TOO_LONG:
+        return E2BIG;
+    case TNFS_RESULT_BAD_FILENUM:
+        return EBADF;
+    case TNFS_RESULT_TRY_AGAIN:
+        return EAGAIN;
+    case TNFS_RESULT_OUT_OF_MEMORY:
+        return ENOMEM;
+    case TNFS_RESULT_ACCESS_DENIED:
+        return EACCES;
+    case TNFS_RESULT_RESOURCE_BUSY:
+        return EBUSY;
+    case TNFS_RESULT_FILE_EXISTS:
+        return EEXIST;
+    case TNFS_RESULT_NOT_A_DIRECTORY:
+        return ENOTDIR;
+    case TNFS_RESULT_IS_DIRECTORY:
+        return EISDIR;
+    case TNFS_RESULT_INVALID_ARGUMENT:
+        return EINVAL;
+    case TNFS_RESULT_FILE_TABLE_OVERFLOW:
+        return ENFILE;
+    case TNFS_RESULT_TOO_MANY_FILES_OPEN:
+        return EMFILE;
+    case TNFS_RESULT_FILE_TOO_LARGE:
+        return EFBIG;
+    case TNFS_RESULT_NO_SPACE_ON_DEVICE:
+        return ENOSPC;
+    case TNFS_RESULT_CANNOT_SEEK_PIPE:
+        return ESPIPE;
+    case TNFS_RESULT_READONLY_FILESYSTEM:
+        return EROFS;
+    case TNFS_RESULT_NAME_TOO_LONG:
+        return ENAMETOOLONG;
+    case TNFS_RESULT_FUNCTION_UNIMPLEMENTED:
+        return ENOSYS;
+    case TNFS_RESULT_DIRECTORY_NOT_EMPTY:
+        return ENOTEMPTY;
+    case TNFS_RESULT_TOO_MANY_SYMLINKS:
+        return ELOOP;
+    case TNFS_RESULT_NO_DATA_AVAILABLE:
+        return ENODATA;
+    case TNFS_RESULT_OUT_OF_STREAMS:
+        return ENOSTR;
+    case TNFS_RESULT_PROTOCOL_ERROR:
+        return EPROTO;
+    case TNFS_RESULT_BAD_FILE_DESCRIPTOR:
+        return EBADF; // Different from EBADFD documented
+    case TNFS_RESULT_TOO_MANY_USERS:
+        return 0xFF;
+    case TNFS_RESULT_OUT_OF_BUFFER_SPACE:
+        return ENOBUFS;
+    case TNFS_RESULT_ALREADY_IN_PROGRESS:
+        return EALREADY;
+    case TNFS_RESULT_STALE_HANDLE:
+        return ESTALE;
+    case TNFS_RESULT_END_OF_FILE:
+        return EOF;
+    case TNFS_RESULT_INVALID_HANDLE:
+        return 0xFF;
+    case -1:
+        return ENETRESET; // Generic "network error"
+    default:
+        return 0xFF;
+    }
 }
