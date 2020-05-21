@@ -21,11 +21,12 @@
 unsigned char buf[256];
 unsigned char daux1=0;
 unsigned char daux2=0;
+unsigned char i=0;
 
-void ncd(void)
+void ncd(unsigned char unit)
 {
   OS.dcb.ddevic=0x71;
-  OS.dcb.dunit=1;
+  OS.dcb.dunit=unit;
   OS.dcb.dcomnd=0x2C;
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&buf;
@@ -44,6 +45,9 @@ void ncd(void)
 
 int main(int argc, char* argv[])
 {
+  unsigned char tmp[2]={0,0};
+  unsigned char u=1;
+  
   OS.lmargn=2;
   
   if (_is_cmdline_dos())
@@ -51,7 +55,14 @@ int main(int argc, char* argv[])
       if (argc<2)
 	goto interactive;
       else
-	strcpy(buf,argv[1]);
+	{
+	  for (i=1;i<=argc;i++)
+	    {
+	      strcat(buf,argv[i]);
+	      if (i!=argc)
+		strcat(buf," ");
+	    }
+	}
     }
   else
     {
@@ -62,6 +73,23 @@ int main(int argc, char* argv[])
       get_line(buf,240);
     }
 
-  ncd();
+  // if no device, set a device path.
+  if ((buf[1]!=':') && (buf[2]!=':'))
+    {
+      memmove(&buf[2],&buf[0],sizeof(buf)-3);
+      buf[0]='N';
+      buf[1]=':';
+      print("Adding N:\x9b");
+    }
+  else if (buf[2]==':')
+    u=buf[1]-0x30;
+
+  print("unit = ");
+  itoa(u,tmp,10);
+  print(tmp);
+  print("\x9b");
+    
+  ncd(u);
+  
   return(0);
 }
