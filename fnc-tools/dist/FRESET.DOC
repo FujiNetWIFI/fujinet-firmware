@@ -1,0 +1,1 @@
+FRESET            Fujinet CLI Tools›Reset #FujiNet and do a Cold start.››Usage:›FRESET››Description:››This command tells the #FujiNet to›reset itself. After waiting a few›moments, a cold start is performed.››Parameters:››This command has no parameters.››Returns:››This command will always perform a›cold start.›
