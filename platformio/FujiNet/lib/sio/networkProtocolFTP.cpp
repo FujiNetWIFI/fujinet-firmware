@@ -6,14 +6,18 @@ bool networkProtocolFTP::ftpExpect(string resultCode)
     char buf[512];
     string sbuf;
 
+    memset(buf,0,sizeof(buf));
+    
     if (!control.connected())
         return false;
+
+    while (!control.available()) { yield(); }
 
     control.readBytesUntil('\n', buf, sizeof(buf));
     sbuf = string(buf);
     controlResponse = sbuf.substr(4);
 
-    Debug_printf("Got response: %s\n", sbuf.c_str());
+    Debug_printf("Got response: %s\n", buf);
     Debug_printf("Returning response: %s\n", controlResponse.c_str());
     return (sbuf.find_first_of(resultCode) == 0 ? true : false);
 }
