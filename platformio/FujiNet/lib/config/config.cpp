@@ -23,7 +23,14 @@ void fnConfig::store_wifi_ssid(const char *ssid_octets, int num_octets)
     if(_wifi.ssid.compare(0, num_octets, ssid_octets) == 0)
         return;
     _dirty = true;
-    _wifi.ssid.assign(ssid_octets, num_octets);
+    _wifi.ssid.clear();
+    for(int i = 0; i < num_octets; i++)
+    {
+        if (ssid_octets[i] == '\0')
+            break;
+        else
+            _wifi.ssid += ssid_octets[i];
+    }
 }
 
 /* Replaces stored passphrase with up to num_octets bytes, but stops if '\0' is reached
@@ -33,7 +40,14 @@ void fnConfig::store_wifi_passphrase(const char *passphrase_octets, int num_octe
     if(_wifi.passphrase.compare(0, num_octets, passphrase_octets) == 0)
         return;
     _dirty = true;
-    _wifi.passphrase.assign(passphrase_octets, num_octets);
+    _wifi.passphrase.clear();
+    for(int i = 0; i < num_octets; i++)
+    {
+        if (passphrase_octets[i] == '\0')
+            break;
+        else
+            _wifi.passphrase += passphrase_octets[i];
+    }
 }
 
 std::string fnConfig::get_host_name(uint8_t num)
@@ -141,7 +155,7 @@ void fnConfig::store_printer(uint8_t num, sioPrinter::printer_type ptype)
 {
     if(num >= 0 && num < MAX_PRINTER_SLOTS)
     {
-        if(_printer_slots[num].type != num)
+        if(_printer_slots[num].type != ptype)
         {
             _dirty = true;
             _printer_slots[num].type = ptype;
