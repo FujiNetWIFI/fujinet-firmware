@@ -42,20 +42,19 @@ void npwd(void)
 }
 
 int main(int argc, char* argv[])
-{
+{  
   OS.lmargn=2;
 
   if (argc<2)
     unit=1;
   else if (argv[1][1]==':')
     unit=1;
-  else if ((argv[1][2]>'0') || (argv[1][2]<'9'))
-    unit=argv[1][2]-0x30;
+  else if ((argv[1][1]>'0') || (argv[1][1]<'9'))
+    unit=argv[1][1]-0x30;
   else
     unit=1;
   
   npwd();
-
   print(buf);
   print("\x9b");
   
