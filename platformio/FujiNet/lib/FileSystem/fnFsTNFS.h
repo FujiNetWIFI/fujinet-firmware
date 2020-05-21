@@ -22,7 +22,7 @@ public:
 
     FILE * file_open(const char* path, const char* mode = FILE_READ) override;
 
-    bool exists(const char* path) override {return false;};
+    bool exists(const char* path) override;
 
     bool remove(const char* path) override {return false;};
 

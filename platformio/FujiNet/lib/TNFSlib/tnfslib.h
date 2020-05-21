@@ -7,16 +7,9 @@
 
 #include <lwip/netdb.h>
 
+#include "tnfslibMountInfo.h"
+
 #define TNFS_DEBUG_VERBOSE
-
-#define TNFS_TIMEOUT 6000
-#define TNFS_RETRY_DELAY 1000
-#define TNFS_RETRIES 5
-#define TNFS_DEFAULT_PORT 16384
-#define TNFS_MAX_FILE_HANDLES 8
-
-#define TNFS_INVALID_HANDLE -1
-#define TNFS_INVALID_SESSION 0 // We're assuming a '0' is never a valid session ID
 
 #define TNFS_CMD_MOUNT 0x00
 #define TNFS_CMD_UNMOUNT 0x01
@@ -39,7 +32,6 @@
 
 #define TNFS_CMD_SIZE 0x30
 #define TNFS_CMD_FREE 0x31
-
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
 #define TNFS_OPENMODE_READDONLY 0x0001 // Open read only
@@ -137,6 +129,13 @@ struct tnfsStat
 // Returns a uint32 value from a pointer to four bytes in little-ending order
 #define TNFS_UINT32_FROM_LOHI_BYTEPTR(bytep) ( (uint32_t)(*(bytep+3)) << 24 | (uint32_t)(*(bytep+2)) << 16 | (uint32_t)(*(bytep+1)) << 8 | (*(bytep+0)))
 
+#define TNFS_UINT32_TO_LOHI_BYTEPTR(value, bytep) { \
+    (bytep)[0] = value & 0xFFUL; \
+    (bytep)[1] = value >> 8 & 0xFFUL; \
+    (bytep)[2] = value >> 16 & 0xFFUL; \
+    (bytep)[3] = value >> 24 & 0xFFUL; \
+}
+
 // Returns the high byte (MSB) of a uint16 value
 #define TNFS_HIBYTE_FROM_UINT16(value) ((uint8_t)((value >> 8) & 0xFF))
 // Returns the low byte (LSB) of a uint16 value
@@ -144,24 +143,6 @@ struct tnfsStat
 
 // Checks that value is >= 0 and <= 255
 #define TNFS_VALID_AS_UINT8(value) (value >= 0 && value <= 255)
-
-struct tnfsMountInfo
-{
-    // These char[] sizes are abitrary...
-    char hostname[64];
-    in_addr_t host_ip = IPADDR_NONE;
-    uint16_t port = TNFS_DEFAULT_PORT;
-    char mountpath[64];
-    char user[36];
-    char password[36];
-    uint16_t session = TNFS_INVALID_SESSION; // Stored from server's response to TNFS_MOUNT
-    uint16_t min_retry_ms = TNFS_RETRY_DELAY; // Updated from server's response to TNFS_MOUNT
-    uint16_t server_version = 0;  // Stored from server's response to TNFS_MOUNT
-    uint8_t max_retries = TNFS_RETRIES;
-    int timeout_ms = TNFS_TIMEOUT;
-    uint8_t current_sequence_num = 0; // Updated with each transaction to the server
-    int16_t dir_handle = TNFS_INVALID_HANDLE; // Stored from server's response to TNFS_OPENDIR
-};
 
 int tnfs_mount(tnfsMountInfo *m_info);
 int tnfs_umount(tnfsMountInfo *m_info);
@@ -179,6 +160,9 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
 int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle);
 
 int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
+int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
+
+int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type);
 
 int tnfs_code_to_errno(int tnfs_code);
 

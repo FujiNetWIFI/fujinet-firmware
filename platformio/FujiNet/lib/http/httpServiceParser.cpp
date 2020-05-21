@@ -219,19 +219,21 @@ string fnHttpServiceParser::format_uptime()
     tnfs.dir_close();
 
     char t[40];
-    sprintf(t, "%s/grantic.atr", tnfs.basepath());
+    sprintf(t, "%s/BigTest.iso", tnfs.basepath());
     FILE * f = fopen(t, "r");
     Debug_printf("fopen = %p\n", f);
 
     uint8_t *pp = new uint8_t[498];
-    int fr = fread(pp, 1, 498, f);
-    Debug_printf("fread = %d\n", fr);
+    int r = fread(pp, 1, 498, f);
+    Debug_printf("fread = %d\n", r);
     delete[] pp;
 
-    int c = fclose(f);
-    Debug_printf("fclose = %d [%d]\n", c, errno);
-    int z = fnSystem.copy_file(&tnfs, "/grantic.atr", &fnSDFAT, "/grantic.atr");
-    Debug_printf("copyfile = %d\n", z);
+    //r = fseek(f, 0xDEADBEEF, SEEK_CUR);
+    r = fseek(f, 16, SEEK_CUR);
+    Debug_printf("lseek = %d\n", r);
+
+    r = fclose(f);
+    Debug_printf("fclose = %d [%d]\n", r, errno);
 
     return resultstream.str();
 }
