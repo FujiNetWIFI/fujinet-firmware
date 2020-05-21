@@ -12,24 +12,25 @@
     These are the 23 functions that can be registered (not including 6 fucntions for select())
     from esp_vfs.h:
 
+    IMPLEMENTED:
     int (*open_p)(void* ctx, const char * path, int flags, int mode);
     int (*close_p)(void* ctx, int fd);
-
     ssize_t (*read_p)(void* ctx, int fd, void * dst, size_t size);
-
+    int (*stat_p)(void* ctx, const char * path, struct stat * st);
     ssize_t (*write_p)(void* p, int fd, const void * data, size_t size);
     off_t (*lseek_p)(void* p, int fd, off_t size, int mode);
+
+    NOT IMPLEMENTED:
+    DIR* (*opendir_p)(void* ctx, const char* name);
+    int (*readdir_r_p)(void* ctx, DIR* pdir, struct dirent* entry, struct dirent** out_dirent);
+    int (*closedir_p)(void* ctx, DIR* pdir);
     int (*fstat_p)(void* ctx, int fd, struct stat * st);
-    int (*stat_p)(void* ctx, const char * path, struct stat * st);
     int (*link_p)(void* ctx, const char* n1, const char* n2);
     int (*unlink_p)(void* ctx, const char *path);
     int (*rename_p)(void* ctx, const char *src, const char *dst);
-    DIR* (*opendir_p)(void* ctx, const char* name);
     struct dirent* (*readdir_p)(void* ctx, DIR* pdir);
-    int (*readdir_r_p)(void* ctx, DIR* pdir, struct dirent* entry, struct dirent** out_dirent);
     long (*telldir_p)(void* ctx, DIR* pdir);
     void (*seekdir_p)(void* ctx, DIR* pdir, long offset);
-    int (*closedir_p)(void* ctx, DIR* pdir);
     int (*mkdir_p)(void* ctx, const char* name, mode_t mode);
     int (*rmdir_p)(void* ctx, const char* name);
     int (*fcntl_p)(void* ctx, int fd, int cmd, va_list args);
@@ -89,6 +90,63 @@ ssize_t vfs_tnfs_read(void* ctx, int fd, void * dst, size_t size)
     return readcount;
 }
 
+ssize_t vfs_tnfs_write(void* ctx, int fd, const void * data, size_t size)
+{
+    tnfsMountInfo *mi = (tnfsMountInfo *)ctx;
+
+    uint16_t writecount;
+    int result = tnfs_write(mi, fd, (uint8_t *)data, size, &writecount);
+
+    if(result != TNFS_RESULT_SUCCESS)
+    {
+        errno = tnfs_code_to_errno(result);
+        return -1;
+    }
+    errno = 0;
+    return writecount;
+}
+
+off_t vfs_tnfs_lseek(void* ctx, int fd, off_t size, int mode)
+{
+    tnfsMountInfo *mi = (tnfsMountInfo *)ctx;
+
+    Debug_printf("vfs_tnfs_lseek: fd=%d, off=%ld, mod=%d\n", fd, size, mode);
+    int result = tnfs_lseek(mi, fd, size, mode);
+
+    if(result != TNFS_RESULT_SUCCESS)
+    {
+        errno = tnfs_code_to_errno(result);
+        return -1;
+    }
+    errno = 0;
+    return 0;
+}
+
+int vfs_tnfs_stat(void* ctx, const char * path, struct stat * st)
+{
+    tnfsMountInfo *mi = (tnfsMountInfo *)ctx;
+
+    tnfsStat tstat;
+
+    int result = tnfs_stat(mi, &tstat, path);
+    if(result != TNFS_RESULT_SUCCESS)
+    {
+        errno = tnfs_code_to_errno(result);
+        return -1;
+    }
+
+    memset(st, 0, sizeof(struct stat));
+    st->st_size = tstat.filesize;
+    st->st_atime = tstat.a_time;
+    st->st_mtime = tstat.m_time;
+    st->st_ctime = tstat.c_time;
+    st->st_mode = tstat.isDir ? S_IFDIR : S_IFREG;
+
+    errno = 0;
+    return 0;
+}
+
+
 // Register our functions and use tnfsMountInfo as our context
 // New basepath will be stored in basepath
 esp_err_t vfs_tnfs_register(tnfsMountInfo &m_info, char *basepath, int basepathlen)
@@ -101,6 +159,9 @@ esp_err_t vfs_tnfs_register(tnfsMountInfo &m_info, char *basepath, int basepathl
     vfs.open_p = &vfs_tnfs_open;
     vfs.close_p = &vfs_tnfs_close;
     vfs.read_p = &vfs_tnfs_read;
+    vfs.write_p = &vfs_tnfs_write;
+    vfs.stat_p = &vfs_tnfs_stat;
+    vfs.lseek_p = &vfs_tnfs_lseek;
 
     // We'll use the address of our tnfsMountInfo to provide a unique base path
     // for this instance wihtout keeping track of how many we create

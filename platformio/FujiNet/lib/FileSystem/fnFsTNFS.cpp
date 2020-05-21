@@ -88,6 +88,15 @@ bool TnfsFileSystem::start(const char *host, uint16_t port, const char * mountpa
     return true;
 }
 
+bool TnfsFileSystem::exists(const char* path)
+{
+    tnfsStat tstat;
+
+    int result = tnfs_stat(&_mountinfo, &tstat, path);
+
+    return result == TNFS_RESULT_SUCCESS;
+}
+
 FILE * TnfsFileSystem::file_open(const char* path, const char* mode)
 {
     if(!_connected || path == nullptr)

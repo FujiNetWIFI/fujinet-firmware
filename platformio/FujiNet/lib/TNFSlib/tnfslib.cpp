@@ -6,8 +6,10 @@
 
 bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
 
-const char *_tnfs_result_code_string(int resultcode);
 void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short len, bool isResponse = false);
+
+const char *_tnfs_command_string(int command);
+const char *_tnfs_result_code_string(int resultcode);
 
 /*
 MOUNT - Command ID 0x00
@@ -187,6 +189,8 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
 
     *file_handle = TNFS_INVALID_HANDLE;
 
+    // Find a free slot in our table of file handles
+
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPEN;
 
@@ -333,6 +337,106 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
                 return -1;
             }
         }
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+/*
+WRITE - Writes to a file - Command 0x22
+---------------------------------------
+Writes a block of data to a file. Consists of the standard header,
+followed by the file descriptor, followed by a 16 bit little endian
+value containing the size of the data, followed by the data. The
+entire message must fit in a single datagram.
+
+Examples:
+Write to fd 4, 256 bytes of data:
+
+0xBEEF 0x00 0x22 0x04 0x00 0x01 ...data...
+
+The server replies with the standard header, followed by the return
+code, and the number of bytes actually written. For example:
+
+0xBEEF 0x00 0x22 0x00 0x00 0x01 - Successful write of 256 bytes
+0xBEEF 0x00 0x22 0x06 - Failed write, error is "bad file descriptor"
+*/
+/*
+ Write to an open file.
+ Max bufflen is TNFS_PAYLOAD_SIZE - 3; any larger size will return an error
+ Bytes actually written will be placed in resultlen
+ Returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
+ */
+int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen)
+{
+    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || buffer == nullptr || bufflen > (TNFS_PAYLOAD_SIZE -3) || resultlen == nullptr)
+        return -1;
+
+    *resultlen = 0;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_WRITE;
+    packet.payload[0] = file_handle;
+    packet.payload[1] = TNFS_LOBYTE_FROM_UINT16(bufflen);
+    packet.payload[2] = TNFS_HIBYTE_FROM_UINT16(bufflen);
+
+    memcpy(packet.payload + 3, buffer, bufflen);
+
+    if (_tnfs_transaction(m_info, packet, bufflen + 3))
+    {
+        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            *resultlen = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 1);
+        }
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+/*
+LSEEK - Seeks to a new position in a file - Command 0x25
+--------------------------------------------------------
+Seeks to an absolute position in a file, or a relative offset in a file,
+or to the end of a file.
+The request consists of the header, followed by the file descriptor,
+followed by the seek type (SEEK_SET, SEEK_CUR or SEEK_END), followed
+by the position to seek to. The seek position is a signed 32 bit integer,
+little endian. (2GB file sizes should be more than enough for 8 bit
+systems!)
+
+The seek types are defined as follows:
+0x00		SEEK_SET - Go to an absolute position in the file
+0x01		SEEK_CUR - Go to a relative offset from the current position
+0x02		SEEK_END - Seek to EOF
+
+Example:
+
+File descriptor is 4, type is SEEK_SET, and position is 0xDEADBEEF:
+0xBEEF 0x00 0x25 0x04 0x00 0xEF 0xBE 0xAD 0xDE
+
+Note that clients that buffer reads for single-byte reads will have
+to make a calculation to implement SEEK_CUR correctly since the server's
+file pointer will be wherever the last read block made it end up.
+*/
+/*
+ Seek to different position in open file
+ Returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
+ */
+int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type)
+{
+    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle))
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_LSEEK;
+    packet.payload[0] = file_handle;
+    packet.payload[1] = type;
+    TNFS_UINT32_TO_LOHI_BYTEPTR(position, packet.payload+2);
+
+    Debug_printf("tnfs_lseek h:%02x, t:%d, p:%08x\n", file_handle, type, position);
+
+    if (_tnfs_transaction(m_info, packet, 6))
+    {
         return packet.payload[0];
     }
     return -1;
@@ -690,6 +794,11 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
     return -1;
 }
 
+// ------------------------------------------------
+// INTERNAL UTILITY FUNCTIONS
+// ------------------------------------------------
+
+
 /*
   Send constructed TNFS packet and check for reply
   The send/receive loop will be attempted tnfsPacket.max_retries times (default: TNFS_RETRIES)
@@ -789,6 +898,10 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
     return false;
 }
 
+
+// ------------------------------------------------
+// DEBUG STUFF FROM HERE DOWN
+// ------------------------------------------------
 /*
   Dump TNFS packet to debug
   unsigned short len - packet data payload length
@@ -801,15 +914,64 @@ void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short payload_size, bool
     if (isResponse)
     {
         payload_size -= TNFS_HEADER_SIZE;
-        Debug_printf("TNFS << RX packet, len: %d, response (%hhu): %s\n", payload_size, pkt.payload[0], _tnfs_result_code_string((int)pkt.payload[0]));
+        Debug_printf("TNFS << RX cmd: %s, len: %d, response (%hhu): %s\n", _tnfs_command_string(pkt.command), payload_size, pkt.payload[0], _tnfs_result_code_string(pkt.payload[0]));
     }
     else
-        Debug_printf("TNFS >> TX packet, len: %d\n", payload_size);
+        Debug_printf("TNFS >> TX cmd: %s, len: %d\n", _tnfs_command_string(pkt.command), payload_size);
 
     Debug_printf("\t[%02x%02x %02x %02x] ", pkt.session_idh, pkt.session_idl, pkt.sequence_num, pkt.command);
     for (int i = 0; i < payload_size; i++)
         Debug_printf("%02x ", pkt.payload[i]);
     Debug_println();
+#endif
+}
+
+const char *_tnfs_command_string(int command)
+{
+#ifdef TNFS_DEBUG_VERBOSE
+    switch(command)
+    {
+        case TNFS_CMD_MOUNT:
+            return "MOUNT";
+        case TNFS_CMD_UNMOUNT:
+            return "UNMOUNT";
+        case TNFS_CMD_OPENDIR:
+            return "OPENDIR";
+        case TNFS_CMD_READDIR:
+            return "READDIR";
+        case TNFS_CMD_CLOSEDIR:
+            return "CLOSEDIR";
+        case TNFS_CMD_MKDIR:
+            return "MKDIR";
+        case TNFS_CMD_RMDIR:
+            return "RMDIR";
+        case TNFS_CMD_READ:
+            return "READ";
+        case TNFS_CMD_WRITE:
+            return "WRITE";
+        case TNFS_CMD_CLOSE:
+            return "CLOSE";
+        case TNFS_CMD_STAT:
+            return "STAT";
+        case TNFS_CMD_LSEEK:
+            return "LSEEK";
+        case TNFS_CMD_UNLINK:
+            return "UNLINK";
+        case TNFS_CMD_CHMOD:
+            return "CHMOD";
+        case TNFS_CMD_RENAME:
+            return "RENAME";
+        case TNFS_CMD_OPEN:
+            return "OPEN";
+        case TNFS_CMD_SIZE:
+            return "SIZE";
+        case TNFS_CMD_FREE:
+            return "FREE";
+        default:
+            return "?";
+    }
+#else
+    return nullptr;
 #endif
 }
 
