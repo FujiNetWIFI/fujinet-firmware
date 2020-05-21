@@ -55,7 +55,12 @@ int main(int argc, char* argv[])
     unit=1;
   
   npwd();
-  print(buf);
+  
+  if (buf[0]==0x00)
+    print("NO PREFIX SET.\x9b");
+  else
+    print(buf);
+
   print("\x9b");
   
   return(0);
