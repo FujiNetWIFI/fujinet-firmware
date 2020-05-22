@@ -1,9 +1,10 @@
-#include <FS.h>
-#include <SPIFFS.h>
+//#include <FS.h>
+//#include <SPIFFS.h>
 
 #include "modem.h"
 #include "../hardware/fnUART.h"
 #include "fnWiFi.h"
+#include "fnFSSPIF.h"
 #include "../../include/atascii.h"
 
 #define RECVBUFSIZE 1024
@@ -28,7 +29,7 @@
    firmware loading. Delay is unnoticeable when running at
    normal speed.
 */
-#define DELAY_FIRMWARE_DELIVERY 3000
+#define DELAY_FIRMWARE_DELIVERY 5000
 
 #ifdef ESP8266
 void sioModem::sioModem()
@@ -44,7 +45,7 @@ int sioModem::load_firmware(const char * filename, char **buffer)
 #ifdef DEBUG
     Debug_printf("load_firmware '%s'\n", filename);
 #endif    
-    if(SPIFFS.exists(filename) == false)
+    if(fnSPIFFS.exists(filename) == false)
     {
 #ifdef DEBUG
         Debug_println("load_firmware FILE NOT FOUND");
@@ -52,15 +53,15 @@ int sioModem::load_firmware(const char * filename, char **buffer)
         return -1;
     }
 
-    File f = SPIFFS.open(filename);
-    size_t file_size = f.size();
+    FILE * f = fnSPIFFS.file_open(filename);
+    size_t file_size = FileSystem::filesize(f);
 #ifdef DEBUG
         Debug_printf("load_firmware file size = %u\n", file_size);
 #endif
 
     if(buffer == NULL)
     {
-        f.close();
+        fclose(f);
         return file_size;
     }
 
@@ -74,7 +75,7 @@ int sioModem::load_firmware(const char * filename, char **buffer)
     }
     else
     {
-        bytes_read = f.readBytes(result, file_size);
+        bytes_read = fread(result, 1, file_size, f);
         if(bytes_read == file_size)
         {
             *buffer = result;
@@ -89,7 +90,7 @@ int sioModem::load_firmware(const char * filename, char **buffer)
         }
     }
 
-    f.close();
+    fclose(f);
     return bytes_read;
 }
 
@@ -104,11 +105,13 @@ void sioModem::sio_poll_1()
         loaders that use JSR $0506 to run the loader.
     */
 
-    // Don't respond if we already have previously
+    // According to documentation, we're only supposed to respond to this once
+    /*
     if (count_PollType1 != 0)
         return;
     count_PollType1++;
-
+    */
+    
     // Get size of relocator
     int filesize = load_firmware(FIRMWARE_850RELOCATOR, NULL);
     // Simply return (without ACK) if we failed to get this
@@ -139,6 +142,8 @@ void sioModem::sio_poll_1()
 #ifdef DEBUG
     Debug_println("Modem acknowledging Type 1 Poll");
 #endif
+    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
+
     sio_to_computer(bootBlock, sizeof(bootBlock), false);
 }
 

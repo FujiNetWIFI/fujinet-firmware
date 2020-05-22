@@ -2,8 +2,7 @@
 #include <string>
 #include <cstdio>
 
-#include <SPIFFS.h>
-#include <SD.h>
+#include "../../include/debug.h"
 
 #include "httpServiceParser.h"
 
@@ -11,8 +10,8 @@
 
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
-
-
+#include "fnFsSPIF.h"
+#include "fnFsSD.h"
 
 using namespace std;
 
@@ -66,7 +65,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 
     stringstream resultstream;
     #ifdef DEBUG
-        Debug_printf("Substituting tag '%s'\n", tag.c_str());
+        //Debug_printf("Substituting tag '%s'\n", tag.c_str());
     #endif
 
     int tagid;
@@ -109,16 +108,16 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << fnWiFi.get_mac_str();
         break;
     case FN_SPIFFS_SIZE:
-        resultstream << SPIFFS.totalBytes();
+        resultstream << fnSPIFFS.total_bytes();
         break;
     case FN_SPIFFS_USED:
-        resultstream << SPIFFS.usedBytes();
+        resultstream << fnSPIFFS.used_bytes();
         break;
     case FN_SD_SIZE:
-        resultstream << SD.totalBytes();
+        resultstream << fnSDFAT.total_bytes();
         break;
     case FN_SD_USED:
-        resultstream << SD.usedBytes();
+        resultstream << fnSDFAT.used_bytes();
         break;
     case FN_UPTIME:
         resultstream << format_uptime();
@@ -143,7 +142,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     }
     #ifdef DEBUG
-        Debug_printf("Substitution result: \"%s\"\n", resultstream.str().c_str());
+        // Debug_printf("Substitution result: \"%s\"\n", resultstream.str().c_str());
     #endif
     return resultstream.str();
 }
@@ -188,6 +187,8 @@ string fnHttpServiceParser::parse_contents(const string &contents)
     return ss.str();
 }
 
+#include "fnFsTNFS.h"
+
 string fnHttpServiceParser::format_uptime()
 {
     int64_t ms = fnSystem.get_uptime();
@@ -207,5 +208,63 @@ string fnHttpServiceParser::format_uptime()
     if (s % 60)
         resultstream << (s % 60) << " seconds";
 
-     return resultstream.str();
+/*
+    TnfsFileSystem tnfs;
+    tnfs.start("eris.just.lan");
+
+    tnfs.dir_open("/");
+    struct fsdir_entry *de;
+    while((de = tnfs.dir_read()) != nullptr)
+    {
+        Debug_printf("DE: \"%s\", D=%d, S=%u\n", de->filename, de->isDir ? 1: 0, de->size);
+    }
+    tnfs.dir_close();
+
+    char t[40];
+    sprintf(t, "%s/test123.txt", tnfs.basepath());
+    FILE * f = fopen(t, "r");
+    Debug_printf("fopen = %p\n", f);
+
+    int r = fread(t, 1, 10, f);
+    if(r > 0)
+        t[r] = '\0';
+    Debug_printf("fread = %d \"%s\"\n", r, t);
+
+    r = fseek(f, 2, SEEK_CUR);
+    Debug_printf("lseek = %d\n", r);
+
+    r = fread(t, 1, 10, f);
+    if(r > 0)
+        t[r] = '\0';
+    Debug_printf("fread = %d \"%s\"\n", r, t);
+
+    r = fseek(f, 50, SEEK_CUR);
+    Debug_printf("lseek = %d\n", r);
+
+    r = fread(t, 1, 10, f);
+    if(r > 0)
+        t[r] = '\0';
+    Debug_printf("fread = %d \"%s\"\n", r, t);
+
+    r = fseek(f, 0, SEEK_SET);
+    Debug_printf("lseek = %d\n", r);
+
+    r = fread(t, 1, 10, f);
+    if(r > 0)
+        t[r] = '\0';
+    Debug_printf("fread = %d \"%s\"\n", r, t);
+
+    r = fseek(f, -12, SEEK_END);
+    Debug_printf("lseek = %d\n", r);
+
+    r = fread(t, 1, 10, f);
+    if(r > 0)
+        t[r] = '\0';
+    Debug_printf("fread = %d \"%s\"\n", r, t);
+
+    r = fclose(f);
+    Debug_printf("fclose = %d [%d]\n", r, errno);
+    */
+
+    return resultstream.str();
 }

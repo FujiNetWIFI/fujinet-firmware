@@ -1,9 +1,9 @@
 #ifndef DISK_H
 #define DISK_H
-#include <Arduino.h>
+//#include <Arduino.h>
 
 #include "sio.h"
-#include <FS.h>
+//#include <FS.h>
 
 extern int command_frame_counter;
 
@@ -34,7 +34,7 @@ unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sec
 class sioDisk : public sioDevice
 {
 private:
-    File *_file;
+    FILE *_file;
 
     unsigned short sectorSize = 128;
     byte sector[256];
@@ -72,11 +72,11 @@ private:
     void sio_high_speed();
 
 public:
-    void mount(File *f);
+    void mount(FILE *f);
     void umount();
     void invalidate_cache();
-    bool write_blank_atr(File *f, unsigned short sectorSize, unsigned short numSectors);
-    File *file();
+    bool write_blank_atr(FILE *f, unsigned short sectorSize, unsigned short numSectors);
+    FILE *file();
 };
 
     long sector_offset(unsigned short sectorNum, unsigned short sectorSize);

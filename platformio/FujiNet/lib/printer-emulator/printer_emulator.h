@@ -2,10 +2,8 @@
 #define PRINTER_EMU_H
 #include <Arduino.h>
 
-#include <FS.h>
-
-//#define EOL 155
-
+#include "fnFsSD.h"
+#include "fnFsSPIF.h"
 
 // TODO: Combine html_printer.cpp/h and file_printer.cpp/h
 
@@ -28,8 +26,8 @@ enum paper_t
 class printer_emu
 {
 protected:
-    FS *_FS;
-    File _file;
+    FileSystem *_FS = nullptr;
+    FILE * _file = nullptr;
     byte buffer[40];
     paper_t paperType;
 
@@ -46,7 +44,7 @@ public:
     virtual ~printer_emu() = 0;
 
     void copyChar(byte c, byte n);
-    virtual void initPrinter(FS *filesystem);
+    virtual void initPrinter(FileSystem *fs);
     virtual void pageEject() = 0;
     virtual bool process(byte n) = 0;
 

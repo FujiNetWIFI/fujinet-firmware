@@ -1,6 +1,6 @@
 #ifndef PNG_PRINTER_H
 #define PNG_PRINTER_H
-#include <Arduino.h>
+//#include <Arduino.h>
 //#include <stdio.h>
 //#include <stdint.h>
 
@@ -46,7 +46,7 @@ protected:
 public:
     pngPrinter(paper_t ty = PNG) : printer_emu{ty} {};
     const char *modelname() { return "GRANTIC"; };
-    virtual void initPrinter(FS *filesystem);
+    virtual void initPrinter(FileSystem *fs);
     virtual void pageEject();
     virtual bool process(byte n);
 };

@@ -15,14 +15,14 @@ void atari820::pdf_handle_char(byte c)
     // aux1 == 29   sideways mode
     if (my_sioP->lastAux1 == 'N' && sideFlag)
     {
-        _file.printf(")]TJ\n/F1 12 Tf [(");
+        fprintf(_file,")]TJ\n/F1 12 Tf [(");
         fontNumber = 1;
         fontSize = 12;
         sideFlag = false;
     }
     else if (my_sioP->lastAux1 == 'S' && !sideFlag)
     {
-        _file.printf(")]TJ\n/F2 12 Tf [(");
+        fprintf(_file, ")]TJ\n/F2 12 Tf [(");
         fontNumber = 2;
         fontSize = 12;
         sideFlag = true;
@@ -36,13 +36,13 @@ void atari820::pdf_handle_char(byte c)
         if (!sideFlag || c > 47)
         {
             if (c == ('\\') || c == '(' || c == ')')
-                _file.write('\\');
-            _file.write(c);
+                fwrite("\\", 1, 1, _file);
+            fwrite(&c, 1, 1, _file);
         }
         else
         {
             if (c < 48)
-                _file.write(' ');
+                fwrite(" ", 1, 1, _file);
         }
 
         pdf_X += charWidth; // update x position
@@ -86,25 +86,25 @@ void atari822::pdf_handle_char(byte c)
         textMode = false;
         if (!BOLflag)
             pdf_end_line();   // close out string array
-        _file.printf("ET\n"); // close out text object
+        fprintf(_file, "ET\n"); // close out text object
     }
 
     if (!textMode && BOLflag)
     {
-        _file.printf("q\n %g 0 0 %g %g %g cm\n", printWidth, lineHeight / 10.0, leftMargin, pdf_Y);
-        _file.printf("BI\n /W 240\n /H 1\n /CS /G\n /BPC 1\n /D [1 0]\n /F /AHx\nID\n");
+        fprintf(_file, "q\n %g 0 0 %g %g %g cm\n", printWidth, lineHeight / 10.0, leftMargin, pdf_Y);
+        fprintf(_file, "BI\n /W 240\n /H 1\n /CS /G\n /BPC 1\n /D [1 0]\n /F /AHx\nID\n");
         BOLflag = false;
     }
     if (!textMode)
     {
         if (gfxNumber < 30)
-            _file.printf(" %02X", c);
+            fprintf(_file, " %02X", c);
 
         gfxNumber++;
 
         if (gfxNumber == 40)
         {
-            _file.printf("\n >\nEI\nQ\n");
+            fprintf(_file, "\n >\nEI\nQ\n");
             pdf_Y -= lineHeight / 10.0;
             BOLflag = true;
             gfxNumber = 0;
@@ -117,16 +117,16 @@ void atari822::pdf_handle_char(byte c)
     if (textMode && c > 31 && c < 127)
     {
         if (c == '\\' || c == '(' || c == ')')
-            _file.write('\\');
-        _file.write(c);
+            fwrite("\\", 1, 1, _file);
+        fwrite(&c, 1, 1, _file);
 
         pdf_X += charWidth; // update x position
     }
 }
 
-void atari820::initPrinter(FS *filesystem)
+void atari820::initPrinter(FileSystem *fs)
 {
-    printer_emu::initPrinter(filesystem);
+    printer_emu::initPrinter(fs);
 
     shortname = "a820";
 
@@ -145,9 +145,9 @@ void atari820::initPrinter(FS *filesystem)
     pdf_header();
 }
 
-void atari822::initPrinter(FS *filesystem)
+void atari822::initPrinter(FileSystem *fs)
 {
-    printer_emu::initPrinter(filesystem);
+    printer_emu::initPrinter(fs);
 
     shortname = "a822";
 
@@ -315,7 +315,7 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
     _pptr->initPrinter(_storage);
 }
 
-void sioPrinter::set_storage(FS *fs)
+void sioPrinter::set_storage(FileSystem *fs)
 {
     _storage = fs;
     _pptr->initPrinter(_storage);

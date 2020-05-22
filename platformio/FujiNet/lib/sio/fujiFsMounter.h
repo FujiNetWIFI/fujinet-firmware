@@ -1,10 +1,7 @@
-#ifndef FUJIFILESYSTEM_H
-#define FUJIFILESYSTEM_H
+#ifndef _FUJIFSMOUNTER_H
+#define _FUJIFSMOUNTER_H
 
-#include <FS.h>
-#include <SD.h>
-
-#include "tnfs.h"
+#include "../FileSystem/fnFS.h"
 
 #define MAX_HOSTNAME_LEN 32
 
@@ -15,13 +12,11 @@ enum fujiFSType
     FNFILESYS_TNFS
 };
 
-class fujiFileSystem
+class fujiFsMounter
 {
 private:
     const char * _sdhostname = "SD";
-    FS *_fs;
-    TNFSFS *_tnfs;
-    File _dir;
+    FileSystem *_fs = nullptr;
     fujiFSType _type;
     char _hostname[MAX_HOSTNAME_LEN];
 
@@ -45,15 +40,15 @@ public:
     bool exists(const char *path);
     bool exists(const String &path);
 
-    fs::File open(const char *path, const char *mode = "r");
-    fs::File open(const String &path, const char *mode = "r");
+    FILE * open(const char *path, const char *mode = "r");
+    FILE * open(const String &path, const char *mode = "r");
 
-    int dir_open(const char *path);
-    fs::File dir_nextfile();
+    bool dir_open(const char *path);
+    fsdir_entry_t * dir_nextfile();
     void dir_close();
 
-    fujiFileSystem() { _type = FNFILESYS_UNINITIALIZED; };
-    ~fujiFileSystem() { set_type(FNFILESYS_UNINITIALIZED); };
+    fujiFsMounter() { _type = FNFILESYS_UNINITIALIZED; };
+    ~fujiFsMounter() { set_type(FNFILESYS_UNINITIALIZED); };
 };
 
-#endif // FUJIFILESYSTEM_H
+#endif // _FUJIFSMOUNTER_H

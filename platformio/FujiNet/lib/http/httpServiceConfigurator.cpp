@@ -5,6 +5,9 @@
 #include <string>
 #include <map>
 
+#include "esp_task.h"
+#include "esp_heap_task_info.h"
+
 #include "httpServiceConfigurator.h"
 #include "config.h"
 #include "printer.h"

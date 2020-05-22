@@ -25,15 +25,15 @@ int AtasciiToStandardUnicode[128] =
     0, 0, 0, 9824, 9475, 8598, 9658, 9668             // 128
 };
 
-void htmlPrinter::initPrinter(FS *filesystem)
+void htmlPrinter::initPrinter(FileSystem *fs)
 {
-    printer_emu::initPrinter(filesystem);
+    printer_emu::initPrinter(fs);
 }
 
 htmlPrinter::~htmlPrinter()
 {
 #ifdef DEBUG
-    Debug_println("~htmlPrinter");
+    //Debug_println("~htmlPrinter");
 #endif
 }
 
@@ -55,9 +55,9 @@ bool htmlPrinter::process(byte n)
         {
             if(inverse) {
                 inverse = false;
-                _file.write((const uint8_t *)inv_off, strlen(inv_off));
+                fputs(inv_off, _file);
             }
-            _file.print(ASCII_CRLF);
+            fputs(ASCII_CRLF, _file);
             break;
         }
 
@@ -69,15 +69,15 @@ bool htmlPrinter::process(byte n)
             {
                 // One more check to make sure it's not one of the HTML characters we have to escape
                 if(AtasciiToStandardUnicode[c] != 0)
-                    _file.printf(escape, AtasciiToStandardUnicode[c]);
+                    fprintf(_file, escape, AtasciiToStandardUnicode[c]);
                 else
-                    _file.write(c);
+                    fputc(c,_file);
             }
             // It's an ATASCII character, so map it into the Private Use Area of the Atari font
             // PUA starts at 0xE000
             else
             {
-                _file.printf(escape, 0xE000 + c);
+                fprintf(_file, escape, 0xE000 + c);
             }
 
         }
@@ -90,7 +90,7 @@ bool htmlPrinter::process(byte n)
                 if(false == inverse)
                 {
                     inverse = true;
-                    _file.write((const uint8_t *)inv_on, strlen(inv_on));                
+                    fputs(inv_on, _file);
                 }
                 c -= 128;
             }
@@ -98,18 +98,18 @@ bool htmlPrinter::process(byte n)
             else if(inverse)
             {
                 inverse = false;
-                _file.write((const uint8_t *)inv_off, strlen(inv_off));
+                fputs(inv_off,  _file);
             }
 
             // If we have a replacement HTML entitiy for this character, use that
             if(AtasciiToStandardUnicode[c] != 0)
             {
-                _file.printf(escape, AtasciiToStandardUnicode[c]);
+                fprintf(_file, escape, AtasciiToStandardUnicode[c]);
             }
             // Otherwise just write the character
             else 
             {
-                _file.write(c);
+                fputc(c, _file);
             }
         }
 
@@ -121,7 +121,7 @@ bool htmlPrinter::process(byte n)
 void htmlPrinter::pre_page_eject()
 {
     const char *htm = "</html>";
-    _file.write((const uint8_t *)htm, strlen(htm));
+    fputs(htm, _file);
     inverse = false;
 }
 
@@ -131,15 +131,15 @@ void htmlPrinter::post_new_file()
     const char *css = "body{font-family:\"Courier New\",Courier,monospace;white-space:pre;} .iv{color:white;background-color:black;}\r\n";
     const char *htm2 = "</style></head>\r\n";
 
-    _file.write((const uint8_t *)htm1, strlen(htm1));
+    fputs(htm1, _file);
 
     // Load CSS that embeds the Atari font (or don't)
     if(paperType == HTML_ATASCII)
         copy_file_to_output("/atarifont.css");
     else
-        _file.write((const uint8_t *)css, strlen(css));
+        fputs(css, _file);
 
-    _file.write((const uint8_t *)htm2, strlen(htm2));        
+    fputs(htm2, _file);
 }
 
 void htmlPrinter::pageEject()

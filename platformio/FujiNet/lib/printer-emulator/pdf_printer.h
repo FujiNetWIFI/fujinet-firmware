@@ -1,11 +1,11 @@
 #ifndef PDF_PRINTER_H
 #define PDF_PRINTER_H
 
-#include <Arduino.h>
+//#include <Arduino.h>
 
 #include <string>
 //#include <FS.h>
-#include <SPIFFS.h>
+//#include <SPIFFS.h>
 
 #include "printer_emulator.h"
 

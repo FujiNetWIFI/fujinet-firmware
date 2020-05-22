@@ -103,9 +103,9 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
 
     // Retrieve server state
     serverstate *pState = (serverstate *)httpd_get_global_user_ctx(req->handle);
-    File fInput = pState->pFS->open(filename, "r");
+    FILE * fInput = pState->_FS->file_open(filename);
 
-    if (!fInput || !fInput.available())
+    if (fInput == nullptr)
     {
 #ifdef DEBUG
         Debug_println("Failed to open file for parsing");
@@ -117,8 +117,8 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
         // Set the response content type
         set_file_content_type(req, filename);
         // We're going to load the whole thing into memory, so watch out for big files!
-        size_t sz = fInput.size() + 1;
-        char *buf = (char *)malloc(sz);
+        size_t sz = FileSystem::filesize(fInput) + 1;
+        char *buf = (char *)calloc(sz, 1);
         if (buf == NULL)
         {
 #ifdef DEBUG
@@ -128,8 +128,7 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
         }
         else
         {
-            memset(buf, 0, sz); // Make sure we have a zero terminator
-            fInput.readBytes(buf, sz);
+            fread(buf, 1, sz, fInput);
             string contents(buf);
             free(buf);
             contents = fnHttpServiceParser::parse_contents(contents);
@@ -138,8 +137,8 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
         }
     }
 
-    if (fInput)
-        fInput.close();
+    if (fInput != nullptr)
+        fclose(fInput);
 
     if (err != fnwserr_noerrr)
         return_http_error(req, err);
@@ -163,8 +162,8 @@ void fnHttpService::send_file(httpd_req_t *req, const char *filename)
     // Retrieve server state
     serverstate *pState = (serverstate *)httpd_get_global_user_ctx(req->handle);
 
-    File fInput = pState->pFS->open(fpath.c_str(), "r");
-    if (!fInput || !fInput.available())
+    FILE * fInput = pState->_FS->file_open(fpath.c_str());
+    if (fInput == nullptr)
     {
 #ifdef DEBUG
         Debug_printf("Failed to open file for sending: '%s'\n", fpath.c_str());
@@ -177,7 +176,7 @@ void fnHttpService::send_file(httpd_req_t *req, const char *filename)
         set_file_content_type(req, fpath.c_str());
         // Set the expected length of the content
         char hdrval[10];
-        snprintf(hdrval, 10, "%u", fInput.size());
+        snprintf(hdrval, 10, "%ld", FileSystem::filesize(fInput));
         httpd_resp_set_hdr(req, "Content-Length", hdrval);
 
         // Send the file content out in chunks
@@ -185,10 +184,10 @@ void fnHttpService::send_file(httpd_req_t *req, const char *filename)
         size_t count = 0;
         do
         {
-            count = fInput.read((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
+            count = fread(buf, 1, FNWS_SEND_BUFF_SIZE, fInput);
             httpd_resp_send_chunk(req, buf, count);
         } while (count > 0);
-        fInput.close();
+        fclose(fInput);
         free(buf);
     }
 }
@@ -221,7 +220,7 @@ esp_err_t fnHttpService::get_handler_index(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_file_in_query(httpd_req_t *req)
 {
 #ifdef DEBUG
-    Debug_printf("File_in_query request handler '%s'\n", req->uri);
+    //Debug_printf("File_in_query request handler '%s'\n", req->uri);
 #endif
 
     // Get the file to send from the query
@@ -235,7 +234,7 @@ esp_err_t fnHttpService::get_handler_file_in_query(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_file_in_path(httpd_req_t *req)
 {
 #ifdef DEBUG
-    Debug_printf("File_in_path request handler '%s'\n", req->uri);
+    //Debug_printf("File_in_path request handler '%s'\n", req->uri);
 #endif
 
     // Get the file to send from the query
@@ -326,15 +325,19 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     // Finally, write the data
     // Send the file content out in chunks
     char *buf = (char *)malloc(FNWS_SEND_BUFF_SIZE);
-    size_t count = 0;
+    size_t count = 0, total = 0;
     do
     {
         count = currentPrinter->readFromOutput((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
+        total += count;
 #ifdef DEBUG
-        Debug_printf("Read %u bytes from print file\n", count);
+        // Debug_printf("Read %u bytes from print file\n", count);
 #endif
         httpd_resp_send_chunk(req, buf, count);
     } while (count > 0);
+    #ifdef DEBUG
+        Debug_printf("Sent %u bytes total from print file\n", total);
+    #endif    
     free(buf);
 
     // Tell the printer it can start writing from the beginning
@@ -356,7 +359,7 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
     _fnwserr err = fnwserr_noerrr;
 
     // Load the posted data
-    char *buf = (char *)malloc(FNWS_RECV_BUFF_SIZE);
+    char *buf = (char *)calloc(FNWS_RECV_BUFF_SIZE, 1);
     if (buf == NULL)
     {
 #ifdef DEBUG
@@ -366,7 +369,6 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
     }
     else
     {
-        memset(buf, 0, FNWS_RECV_BUFF_SIZE);
         // Ask for the smaller of either the posted content or our buffer size
         size_t recv_size = req->content_len > FNWS_RECV_BUFF_SIZE ? FNWS_RECV_BUFF_SIZE : req->content_len;
 
@@ -382,8 +384,8 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
         {
             // Go handle what we just read...
             ret = fnHttpServiceConfigurator::process_config_post(buf, recv_size);
-            free(buf);
         }
+        free(buf);
     }
 
     if (err != fnwserr_noerrr)
@@ -444,9 +446,10 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     }
 
     // Set filesystem where we expect to find our static files
-    state.pFS = &SPIFFS;
+    state._FS = &fnSPIFFS;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+    config.stack_size = 8192;
     // Keep a reference to our object
     config.global_user_ctx = (void *)&state;
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed
@@ -499,10 +502,10 @@ void fnHttpService::stop()
 #ifdef DEBUG
     Debug_println("Stopping web service");
 #endif
-    if (state.hServer != NULL)
+    if (state.hServer != nullptr)
     {
         httpd_stop(state.hServer);
-        state.pFS = NULL;
-        state.hServer = NULL;
+        state._FS = nullptr;
+        state.hServer = nullptr;
     }
 }

@@ -451,7 +451,7 @@ void sioBus::addDevice(sioDevice *p, int N)
     else if (N == ADDR_R)
     {
 #ifdef DEBUG
-        Debug_println("MODEM ADDED!");
+        //Debug_println("MODEM ADDED!");
 #endif
         modemDev = (sioModem *)p;
     }
