@@ -6,24 +6,26 @@
         {
             "name": "Win32",
             "includePath": [
-                "c:/Users/Jeff/Documents/GitHub/atariwifi/svg/src",
-                "C:/Users/Jeff/.platformio/packages/tool-unity",
+                "c:/Users/jandj/Documents/GitHub/atariwifi/printer-proto/svg/include",
+                "c:/Users/jandj/Documents/GitHub/atariwifi/printer-proto/svg/src",
+                "C:/Users/jandj/.platformio/packages/tool-unity",
                 ""
             ],
             "browse": {
                 "limitSymbolsToIncludedHeaders": true,
                 "path": [
-                    "c:/Users/Jeff/Documents/GitHub/atariwifi/svg/src",
-                    "C:/Users/Jeff/.platformio/packages/tool-unity",
+                    "c:/Users/jandj/Documents/GitHub/atariwifi/printer-proto/svg/include",
+                    "c:/Users/jandj/Documents/GitHub/atariwifi/printer-proto/svg/src",
+                    "C:/Users/jandj/.platformio/packages/tool-unity",
                     ""
                 ]
             },
             "defines": [
-                "PLATFORMIO=40201",
+                "PLATFORMIO=40303",
                 ""
             ],
             "intelliSenseMode": "clang-x64",
-            "compilerPath": "C:/Users/Jeff/.platformio/packages/toolchain-gccmingw32/bin/gcc.exe",
+            "compilerPath": "C:/mingw/x86_64-8.1.0-win32-seh-rt_v6-rev0/mingw64/bin/gcc.exe",
             "compilerArgs": [
                 ""
             ]
