@@ -12,8 +12,8 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug",
-            "executable": "c:/Users/Jeff/Documents/GitHub/atariwifi/svg/.pio/build/windows_x86/program.exe",
-            "toolchainBinDir": "C:/Users/Jeff/.platformio/packages/toolchain-gccmingw32/bin",
+            "executable": "c:/Users/jandj/Documents/GitHub/atariwifi/printer-proto/svg/.pio/build/native/program.exe",
+            "toolchainBinDir": "",
             "preLaunchTask": {
                 "type": "PlatformIO",
                 "task": "Pre-Debug"
@@ -24,8 +24,8 @@
             "type": "platformio-debug",
             "request": "launch",
             "name": "PIO Debug (skip Pre-Debug)",
-            "executable": "c:/Users/Jeff/Documents/GitHub/atariwifi/svg/.pio/build/windows_x86/program.exe",
-            "toolchainBinDir": "C:/Users/Jeff/.platformio/packages/toolchain-gccmingw32/bin",
+            "executable": "c:/Users/jandj/Documents/GitHub/atariwifi/printer-proto/svg/.pio/build/native/program.exe",
+            "toolchainBinDir": "",
             "internalConsoleOptions": "openOnSessionStart"
         }
     ]
