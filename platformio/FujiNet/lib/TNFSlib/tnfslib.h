@@ -100,6 +100,8 @@
 */
 #define TNFS_HEADER_SIZE 4
 #define TNFS_PAYLOAD_SIZE 504
+
+
 union tnfsPacket {
     struct
     {

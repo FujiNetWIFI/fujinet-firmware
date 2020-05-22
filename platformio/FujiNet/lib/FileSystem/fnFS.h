@@ -41,6 +41,9 @@ protected:
 public:
     virtual ~FileSystem() {};
 
+    // The global (fnSDFAT and fnSPIFFS) will return true so we can check before attempting to free/delete
+    virtual bool is_global() { return false; };
+
     virtual bool running() { return _started; };
     virtual const char * basepath() { return _basepath; };
     

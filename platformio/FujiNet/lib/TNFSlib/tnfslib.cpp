@@ -391,7 +391,7 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
                 memcpy(buffer, packet.payload + 3, *resultlen);
                 // Keep track of our file position
                 uint32_t new_pos = pFileInf->position + *resultlen;
-                Debug_printf("tnfs_read prev_pos: %u, read: %u, new_pos: %u\n", pFileInf->position, *resultlen, new_pos);
+                //Debug_printf("tnfs_read prev_pos: %u, read: %u, new_pos: %u\n", pFileInf->position, *resultlen, new_pos);
                 pFileInf->position = new_pos;
             }
             else
@@ -459,7 +459,7 @@ int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint
             *resultlen = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 1);
             // Keep track of our file position
             uint32_t new_pos = pFileInf->position + *resultlen;
-            Debug_printf("tnfs_write prev_pos: %u, read: %u, new_pos: %u\n", pFileInf->position, *resultlen, new_pos);
+            // Debug_printf("tnfs_write prev_pos: %u, read: %u, new_pos: %u\n", pFileInf->position, *resultlen, new_pos);
             pFileInf->position = new_pos;
         }
         return packet.payload[0];
@@ -516,7 +516,7 @@ int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uin
     packet.payload[1] = type;
     TNFS_UINT32_TO_LOHI_BYTEPTR(position, packet.payload+2);
 
-    Debug_printf("tnfs_lseek h:%02x, t:%d, p:%08x\n", file_handle, type, position);
+    // Debug_printf("tnfs_lseek h:%02x, t:%d, p:%08x\n", file_handle, type, position);
 
     if (_tnfs_transaction(m_info, packet, 6))
     {
@@ -595,7 +595,7 @@ int tnfs_opendir(tnfsMountInfo *m_info, const char *directory)
         {
             m_info->dir_handle = packet.payload[1];
             #ifdef DEBUG
-            Debug_printf("Directory opened, handle ID: %hhd\n", m_info->dir_handle);
+            // Debug_printf("Directory opened, handle ID: %hhd\n", m_info->dir_handle);
             #endif
         }
         return packet.payload[0];
@@ -854,7 +854,7 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
     }
 
 #ifdef DEBUG
-    Debug_printf("TNFS stat: \"%s\"\n", (char *)packet.payload);
+    // Debug_printf("TNFS stat: \"%s\"\n", (char *)packet.payload);
 #endif
 
 #define OFFSET_FILEMODE 1
@@ -880,8 +880,8 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
             filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_CTIME);
 
             #ifdef DEBUG
-            Debug_printf("\tdir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", filestat->isDir ? 1 : 0,
-                filestat->filesize, filestat->a_time, filestat->m_time, filestat->c_time );
+            //Debug_printf("\tdir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", filestat->isDir ? 1 : 0,
+            //    filestat->filesize, filestat->a_time, filestat->m_time, filestat->c_time );
             #endif
         }
         return packet.payload[0];

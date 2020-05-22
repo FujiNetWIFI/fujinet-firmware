@@ -115,7 +115,7 @@ bool FileSystemTNFS::dir_open(const char * path)
 
     if(TNFS_RESULT_SUCCESS == tnfs_opendir(&_mountinfo, path))
     {
-        // Save the direcotry for later use, making sure it starts and ends with '/''
+        // Save the directory for later use, making sure it starts and ends with '/''
         if(path[0] != '/')
         {
             _current_dirpath[0] = '/';
@@ -131,7 +131,6 @@ bool FileSystemTNFS::dir_open(const char * path)
             _current_dirpath[l+1] = '\0';
         }
 
-        Debug_printf("Current directory stored: \"%s\"\n", _current_dirpath);
         return true;
     }
 
@@ -161,7 +160,7 @@ fsdir_entry * FileSystemTNFS::dir_read()
     char fullpath[TNFS_MAX_FILELEN];
     strncpy(fullpath, _current_dirpath, sizeof(fullpath));
     strncat(fullpath, _direntry.filename, sizeof(fullpath));
-    Debug_printf("Current directory stored: \"%s\", current filepath: \"%s\", combined: \"%s\"\n", _current_dirpath, _direntry.filename, fullpath);
+    // Debug_printf("Current directory stored: \"%s\", current filepath: \"%s\", combined: \"%s\"\n", _current_dirpath, _direntry.filename, fullpath);
 
     if(tnfs_stat(&_mountinfo, &fstat, fullpath) == TNFS_RESULT_SUCCESS)
     {

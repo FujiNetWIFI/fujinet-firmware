@@ -1,6 +1,6 @@
 #ifndef DISK_H
 #define DISK_H
-#include <Arduino.h>
+//#include <Arduino.h>
 
 #include "sio.h"
 //#include <FS.h>
