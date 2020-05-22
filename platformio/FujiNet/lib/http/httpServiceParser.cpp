@@ -208,8 +208,10 @@ string fnHttpServiceParser::format_uptime()
     if (s % 60)
         resultstream << (s % 60) << " seconds";
 
+/*
     TnfsFileSystem tnfs;
     tnfs.start("eris.just.lan");
+
     tnfs.dir_open("/");
     struct fsdir_entry *de;
     while((de = tnfs.dir_read()) != nullptr)
@@ -219,21 +221,50 @@ string fnHttpServiceParser::format_uptime()
     tnfs.dir_close();
 
     char t[40];
-    sprintf(t, "%s/BigTest.iso", tnfs.basepath());
+    sprintf(t, "%s/test123.txt", tnfs.basepath());
     FILE * f = fopen(t, "r");
     Debug_printf("fopen = %p\n", f);
 
-    uint8_t *pp = new uint8_t[498];
-    int r = fread(pp, 1, 498, f);
-    Debug_printf("fread = %d\n", r);
-    delete[] pp;
+    int r = fread(t, 1, 10, f);
+    if(r > 0)
+        t[r] = '\0';
+    Debug_printf("fread = %d \"%s\"\n", r, t);
 
-    //r = fseek(f, 0xDEADBEEF, SEEK_CUR);
-    r = fseek(f, 16, SEEK_CUR);
+    r = fseek(f, 2, SEEK_CUR);
     Debug_printf("lseek = %d\n", r);
+
+    r = fread(t, 1, 10, f);
+    if(r > 0)
+        t[r] = '\0';
+    Debug_printf("fread = %d \"%s\"\n", r, t);
+
+    r = fseek(f, 50, SEEK_CUR);
+    Debug_printf("lseek = %d\n", r);
+
+    r = fread(t, 1, 10, f);
+    if(r > 0)
+        t[r] = '\0';
+    Debug_printf("fread = %d \"%s\"\n", r, t);
+
+    r = fseek(f, 0, SEEK_SET);
+    Debug_printf("lseek = %d\n", r);
+
+    r = fread(t, 1, 10, f);
+    if(r > 0)
+        t[r] = '\0';
+    Debug_printf("fread = %d \"%s\"\n", r, t);
+
+    r = fseek(f, -12, SEEK_END);
+    Debug_printf("lseek = %d\n", r);
+
+    r = fread(t, 1, 10, f);
+    if(r > 0)
+        t[r] = '\0';
+    Debug_printf("fread = %d \"%s\"\n", r, t);
 
     r = fclose(f);
     Debug_printf("fclose = %d [%d]\n", r, errno);
+    */
 
     return resultstream.str();
 }

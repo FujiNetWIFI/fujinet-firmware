@@ -1,10 +1,7 @@
 #ifndef FUJIFILESYSTEM_H
 #define FUJIFILESYSTEM_H
 
-//#include <FS.h>
-//#include <SD.h>
-
-#include "tnfs.h"
+#include "../FileSystem/fnFS.h"
 
 #define MAX_HOSTNAME_LEN 32
 
@@ -20,7 +17,6 @@ class fujiFileSystem
 private:
     const char * _sdhostname = "SD";
     FileSystem *_fs = nullptr;
-    TNFSFS *_tnfs;
     fujiFSType _type;
     char _hostname[MAX_HOSTNAME_LEN];
 

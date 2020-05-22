@@ -340,23 +340,34 @@ void sioDisk::mount(FILE *f)
     unsigned short num_para;
     unsigned char num_para_hi;
     unsigned short num_sectors;
-    byte buf[2];
+    byte buf[5];
 
 #ifdef DEBUG
-    Debug_println("disk MOUNT");
+    Debug_println("sioDisk::MOUNT");
 #endif
     // Get file and sector size from header
     //f->seek(2);      //tnfs_seek(deviceSlot, 2);
-    fseek(f, 2, SEEK_SET);
+
+    if(fseek(f, 2, SEEK_SET) < 0)
+    {
+        #ifdef DEBUG
+        Debug_println("failed seeking to header on disk image");
+        #endif
+        return;
+    }
     //f->read(buf, 2); //tnfs_read(deviceSlot, 2);
-    fread(buf, 1, 2, f);
+    if(fread(buf, 1, 5, f) != 5)
+    {
+        #ifdef DEBUG
+        Debug_println("failed reading 5 header bytes");
+        #endif
+        return;
+    }
     num_para = (256 * buf[1]) + buf[0];
     //f->read(buf, 2); //tnfs_read(deviceSlot, 2);
-    fread(buf, 1, 2, f);
-    newss = (256 * buf[1]) + buf[0];
+    newss = (256 * buf[3]) + buf[2];
     //f->read(buf, 1); //tnfs_read(deviceSlot, 1);
-    fread(buf, 1, 1, f);
-    num_para_hi = buf[0];
+    num_para_hi = buf[4];
     sectorSize = newss;
     num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
     derive_percom_block(num_sectors);

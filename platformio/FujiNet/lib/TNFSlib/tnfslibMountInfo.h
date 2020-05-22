@@ -19,6 +19,7 @@ struct tnfsFileHandleInfo
 {
     uint8_t handle_id = 0;
     uint32_t position = 0;
+    uint32_t size = 0;
     char filename[TNFS_MAX_FILELEN];
 };
 
@@ -34,6 +35,7 @@ public:
     tnfsFileHandleInfo * new_filehandleinfo();
     tnfsFileHandleInfo * get_filehandleinfo(uint8_t filehandle);
     void delete_filehandleinfo(uint8_t filehandle);
+    void delete_filehandleinfo(tnfsFileHandleInfo * pFilehandle);
 
 
     // These char[] sizes are abitrary...

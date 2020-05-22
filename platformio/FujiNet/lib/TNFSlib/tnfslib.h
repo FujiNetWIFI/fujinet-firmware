@@ -34,13 +34,13 @@
 #define TNFS_CMD_FREE 0x31
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
-#define TNFS_OPENMODE_READDONLY 0x0001 // Open read only
-#define TNFS_OPENMODE_WRITEONLY 0x0002 // Open write only
+#define TNFS_OPENMODE_READ 0x0001 // Open read only
+#define TNFS_OPENMODE_WRITE 0x0002 // Open write only
 #define TNFS_OPENMODE_READWRITE 0x0003 // Open read/write
-#define TNFS_OPENMODE_APPEND 0x0008    // Append to the file if it exists (write only)
-#define TNFS_OPENMODE_CREATE 0x0100    // Create the file if it doesn't exist (write only)
-#define TNFS_OPENMODE_TRUNCATE 0x0200  // Truncate the file on open for writing
-#define TNFS_OPENMODE_EXCLUSIVE 0x0400 // With TNFS_OPENMODE_CREATE, returns an error if the file exists
+#define TNFS_OPENMODE_WRITE_APPEND 0x0008    // Append to the file if it exists (write only)
+#define TNFS_OPENMODE_WRITE_CREATE 0x0100    // Create the file if it doesn't exist (write only)
+#define TNFS_OPENMODE_WRITE_TRUNCATE 0x0200  // Truncate the file on open for writing
+#define TNFS_OPENMODE_CREATE_EXCLUSIVE 0x0400 // With TNFS_OPENMODE_CREATE, returns an error if the file exists
 
 #define TNFS_CREATEPERM_S_ISUID 04000 //set user ID on execution
 #define TNFS_CREATEPERM_S_ISGID 02000 //set group ID on execution
@@ -155,6 +155,7 @@ int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory);
 int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory);
 
 int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath);
+const char * tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle);
 
 int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, uint16_t create_perms, int16_t *file_handle);
 int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle);
@@ -162,7 +163,7 @@ int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle);
 int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
 int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
 
-int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type);
+int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position);
 
 int tnfs_code_to_errno(int tnfs_code);
 

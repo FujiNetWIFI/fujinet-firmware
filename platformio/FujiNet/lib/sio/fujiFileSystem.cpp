@@ -1,6 +1,9 @@
 #include "fuji.h"
+
 #include "../FileSystem/fnFS.h"
 #include "../FileSystem/fnFsSD.h"
+#include "../FileSystem/fnFsTNFS.h"
+
 #include "fujiFileSystem.h"
 
 
@@ -15,14 +18,12 @@ void fujiFileSystem::cleanup()
 {
     if(_fs != nullptr)
         _fs->dir_close();
+
+    // Delete our pointer if it's a dynamic filesystem.  Need a better way to do this...
+    if(_type == FNFILESYS_TNFS)
+        delete _fs;
     _fs = nullptr;
 
-    if(_tnfs != NULL)
-    {
-        if(_tnfs->isConnected())
-            _tnfs->end();
-    }
-    delete _tnfs;
     _hostname[0] = '\0';
 }
 
@@ -136,7 +137,7 @@ const char* fujiFileSystem::get_hostname(char *buffer, size_t buffersize)
         result = _sdhostname;
         break;
     case FNFILESYS_TNFS:
-        if(_tnfs != NULL)
+        if(_fs != NULL)
             result = _hostname;
         break;
     case FNFILESYS_UNINITIALIZED:
@@ -201,7 +202,6 @@ int fujiFileSystem::mount_local(const char *devicename)
 */
 int fujiFileSystem::mount_tnfs(const char *hostname)
 {
-    /*
 #ifdef DEBUG
         Debug_printf("::mount_tnfs {%d:%d} \"%s\"\n", slotid, _type, hostname);
 #endif
@@ -209,7 +209,7 @@ int fujiFileSystem::mount_tnfs(const char *hostname)
     // Don't do anything if that's already what's set
     if(_type == FNFILESYS_TNFS)
     {
-        if(_tnfs != NULL && _tnfs->isConnected())
+        if(_fs != NULL && _fs->running());
         {
 #ifdef DEBUG
         Debug_printf("::mount_tnfs Currently connected to host \"%s\"\n", _hostname);
@@ -221,8 +221,9 @@ int fujiFileSystem::mount_tnfs(const char *hostname)
     // In any other case, unmount whatever we have and start fresh
     set_type(FNFILESYS_TNFS);
 
-    _tnfs = new TNFSFS();
-    if(_tnfs == NULL)
+    _fs = new TnfsFileSystem;
+
+    if(_fs == nullptr)
     {
 #ifdef DEBUG
         Debug_println("Couldn't create a new TNFSFS in fujiFileSystem::mount_tnfs!");
@@ -230,17 +231,16 @@ int fujiFileSystem::mount_tnfs(const char *hostname)
     }
     else
     {
-        _fs = _tnfs;
 #ifdef DEBUG
         Debug_println("Calling TNFS::begin");
 #endif
-        if(_tnfs->begin(hostname, TNFS_PORT))
+        if(((TnfsFileSystem *)_fs)->start(hostname))
         {
             strncpy(_hostname, hostname, sizeof(_hostname));
             return 0;
         }
     }
-    */
+
     return -1;
 }
 

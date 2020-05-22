@@ -8,7 +8,6 @@
 class TnfsFileSystem : public FileSystem
 {
 private:
-    bool _connected = false;
     tnfsMountInfo _mountinfo;
     unsigned long _last_dns_refresh;
 
