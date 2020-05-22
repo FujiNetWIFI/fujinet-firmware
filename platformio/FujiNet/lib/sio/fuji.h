@@ -1,7 +1,7 @@
 #ifndef FUJI_H
 #define FUJI_H
 #include <cstdint>
-#include <Arduino.h>
+//#include <Arduino.h>
 #include "../../include/debug.h"
 
 #include "sio.h"

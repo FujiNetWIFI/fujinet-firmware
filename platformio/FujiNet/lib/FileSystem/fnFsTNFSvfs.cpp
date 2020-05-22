@@ -66,7 +66,7 @@ int vfs_tnfs_open(void* ctx, const char * path, int flags, int mode)
     if(result != TNFS_RESULT_SUCCESS)
     {
         #ifdef DEBUG
-        Debug_printf("vfs_tnfs_open = %d\n", result);
+        //Debug_printf("vfs_tnfs_open = %d\n", result);
         #endif
         errno = tnfs_code_to_errno(result);
         return -1;
@@ -125,7 +125,7 @@ off_t vfs_tnfs_lseek(void* ctx, int fd, off_t size, int mode)
 {
     tnfsMountInfo *mi = (tnfsMountInfo *)ctx;
 
-    Debug_printf("vfs_tnfs_lseek: fd=%d, off=%ld, mod=%d\n", fd, size, mode);
+    // Debug_printf("vfs_tnfs_lseek: fd=%d, off=%ld, mod=%d\n", fd, size, mode);
     uint32_t new_pos;
     int result = tnfs_lseek(mi, fd, size, mode, &new_pos);
 
@@ -135,7 +135,7 @@ off_t vfs_tnfs_lseek(void* ctx, int fd, off_t size, int mode)
         return -1;
     }
     errno = 0;
-    Debug_printf("\treturning %u\n", new_pos);
+    //Debug_printf("\treturning %u\n", new_pos);
     return new_pos;
 }
 
@@ -146,7 +146,7 @@ int vfs_tnfs_stat(void* ctx, const char * path, struct stat * st)
 
     tnfsStat tstat;
 
-    Debug_printf("vfs_tnfs_stat: \"%s\"\n", path);
+    //Debug_printf("vfs_tnfs_stat: \"%s\"\n", path);
 
     int result = tnfs_stat(mi, &tstat, path);
     if(result != TNFS_RESULT_SUCCESS)
@@ -168,7 +168,7 @@ int vfs_tnfs_stat(void* ctx, const char * path, struct stat * st)
 
 int vfs_tnfs_fstat(void* ctx, int fd, struct stat * st)
 {
-    Debug_printf("vfs_tnfs_fstat: %d\n", fd);    
+    //Debug_printf("vfs_tnfs_fstat: %d\n", fd);    
     tnfsMountInfo *mi = (tnfsMountInfo *)ctx;
 
     const char *path = tnfs_filepath(mi, fd);

@@ -11,6 +11,7 @@ public:
     bool start();
     
     fsType type() override { return FSTYPE_SPIFFS; };
+    virtual bool is_global() override { return true; };    
 
     FILE * file_open(const char* path, const char* mode = FILE_READ) override;
 

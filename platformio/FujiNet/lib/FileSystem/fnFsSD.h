@@ -10,6 +10,7 @@ private:
     uint64_t _card_capacity = 0;
 public:
     bool start();
+    virtual bool is_global() override { return true; };
 
     fsType type() override { return FSTYPE_SDFAT; };
 

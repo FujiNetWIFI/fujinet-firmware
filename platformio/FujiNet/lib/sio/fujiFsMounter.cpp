@@ -19,9 +19,10 @@ void fujiFsMounter::cleanup()
     if(_fs != nullptr)
         _fs->dir_close();
 
-    // Delete our pointer if it's a dynamic filesystem.  Need a better way to do this...
-    if(_type == FNFILESYS_TNFS)
+    // Delete the filesystem if it's not one of the global oens
+    if(_fs->is_global() == false)
         delete _fs;
+
     _fs = nullptr;
 
     _hostname[0] = '\0';
@@ -83,7 +84,6 @@ fsdir_entry_t * fujiFsMounter::dir_nextfile()
     switch(_type)
     {
     case FNFILESYS_LOCAL:
-        return _fs->dir_read();
     case FNFILESYS_TNFS:
         return _fs->dir_read();
     case FNFILESYS_UNINITIALIZED:
@@ -95,7 +95,8 @@ fsdir_entry_t * fujiFsMounter::dir_nextfile()
 
 void fujiFsMounter::dir_close()
 {
-    _fs->dir_close();
+    if(_type != FNFILESYS_UNINITIALIZED && _fs != nullptr)
+        _fs->dir_close();
 }
 
 
