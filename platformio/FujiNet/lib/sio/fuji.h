@@ -8,7 +8,7 @@
 #include "disk.h"
 #include "network.h"
 // #include "tnfs.h"
-#include "fujiFileSystem.h"
+#include "fujiFsMounter.h"
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
 #include <FS.h>
@@ -38,7 +38,7 @@ class sioFuji : public sioDevice
 {
 private:
 
-    fujiFileSystem fnFileSystems[MAX_FILESYSTEMS];
+    fujiFsMounter fnFileSystems[MAX_FILESYSTEMS];
 
     void populate_slots_from_config();
     void populate_config_from_slots();
@@ -46,7 +46,7 @@ private:
     struct fndisks_t
     {
         FILE* file;
-        fujiFileSystem *fnfs = NULL;
+        fujiFsMounter *fnfs = NULL;
     };
     fndisks_t fnDisks[MAX_DISK_DEVICES];
 

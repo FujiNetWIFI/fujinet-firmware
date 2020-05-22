@@ -1,5 +1,5 @@
-#ifndef FUJIFILESYSTEM_H
-#define FUJIFILESYSTEM_H
+#ifndef _FUJIFSMOUNTER_H
+#define _FUJIFSMOUNTER_H
 
 #include "../FileSystem/fnFS.h"
 
@@ -12,7 +12,7 @@ enum fujiFSType
     FNFILESYS_TNFS
 };
 
-class fujiFileSystem
+class fujiFsMounter
 {
 private:
     const char * _sdhostname = "SD";
@@ -47,8 +47,8 @@ public:
     fsdir_entry_t * dir_nextfile();
     void dir_close();
 
-    fujiFileSystem() { _type = FNFILESYS_UNINITIALIZED; };
-    ~fujiFileSystem() { set_type(FNFILESYS_UNINITIALIZED); };
+    fujiFsMounter() { _type = FNFILESYS_UNINITIALIZED; };
+    ~fujiFsMounter() { set_type(FNFILESYS_UNINITIALIZED); };
 };
 
-#endif // FUJIFILESYSTEM_H
+#endif // _FUJIFSMOUNTER_H

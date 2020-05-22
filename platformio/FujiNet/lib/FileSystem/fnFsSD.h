@@ -3,7 +3,7 @@
 
 #include "esp_vfs_fat.h"
 #include "fnFS.h"
-class SdFileSystem : public FileSystem
+class FileSystemSDFAT : public FileSystem
 {
 private:
     FF_DIR _dir;
@@ -31,6 +31,6 @@ public:
     const char *partition_type();
 };
 
-extern SdFileSystem fnSDFAT;
+extern FileSystemSDFAT fnSDFAT;
 
 #endif // _FN_FSSD_

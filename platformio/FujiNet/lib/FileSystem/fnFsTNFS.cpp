@@ -5,12 +5,12 @@
 #include "../../include/debug.h"
 #include "fnFsTNFSvfs.h"
 
-TnfsFileSystem::TnfsFileSystem()
+FileSystemTNFS::FileSystemTNFS()
 {
     // TODO: Maybe allocate space for our TNFS packet so it doesn't have to get put on the stack?
 }
 
-TnfsFileSystem::~TnfsFileSystem()
+FileSystemTNFS::~FileSystemTNFS()
 {
     if (_started)
         tnfs_umount(&_mountinfo);
@@ -18,7 +18,7 @@ TnfsFileSystem::~TnfsFileSystem()
         vfs_tnfs_unregister(_basepath);
 }
 
-bool TnfsFileSystem::start(const char *host, uint16_t port, const char * mountpath, const char * userid, const char * password)
+bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpath, const char * userid, const char * password)
 {
     if (_started)
         return false;
@@ -88,7 +88,7 @@ bool TnfsFileSystem::start(const char *host, uint16_t port, const char * mountpa
     return true;
 }
 
-bool TnfsFileSystem::exists(const char* path)
+bool FileSystemTNFS::exists(const char* path)
 {
     tnfsStat tstat;
 
@@ -97,7 +97,7 @@ bool TnfsFileSystem::exists(const char* path)
     return result == TNFS_RESULT_SUCCESS;
 }
 
-FILE * TnfsFileSystem::file_open(const char* path, const char* mode)
+FILE * FileSystemTNFS::file_open(const char* path, const char* mode)
 {
     if(!_started || path == nullptr)
         return nullptr;
@@ -108,7 +108,7 @@ FILE * TnfsFileSystem::file_open(const char* path, const char* mode)
     return result;
 }
 
-bool TnfsFileSystem::dir_open(const char * path)
+bool FileSystemTNFS::dir_open(const char * path)
 {
     if(!_started)
         return false;
@@ -130,7 +130,7 @@ bool TnfsFileSystem::dir_open(const char * path)
             _current_dirpath[l] = '/';
             _current_dirpath[l+1] = '\0';
         }
-        
+
         Debug_printf("Current directory stored: \"%s\"\n", _current_dirpath);
         return true;
     }
@@ -138,7 +138,7 @@ bool TnfsFileSystem::dir_open(const char * path)
     return false;
 }
 
-fsdir_entry * TnfsFileSystem::dir_read()
+fsdir_entry * FileSystemTNFS::dir_read()
 {
     if(!_started)
         return nullptr;
@@ -174,7 +174,7 @@ fsdir_entry * TnfsFileSystem::dir_read()
     return nullptr;
 }
 
-void TnfsFileSystem::dir_close()
+void FileSystemTNFS::dir_close()
 {
     if(!_started)
         return;

@@ -8,9 +8,9 @@
 #define SPIFFS_MAXPATH 512
 
 // Our global SD interface
-SpifFileSystem fnSPIFFS;
+FileSystemSPIFFS fnSPIFFS;
 
-bool SpifFileSystem::dir_open(const char * path)
+bool FileSystemSPIFFS::dir_open(const char * path)
 {
     char * fpath = _make_fullpath(path);
     _dir = opendir(fpath);
@@ -18,7 +18,7 @@ bool SpifFileSystem::dir_open(const char * path)
     return(_dir != nullptr);
 }
 
-fsdir_entry * SpifFileSystem::dir_read()
+fsdir_entry * FileSystemSPIFFS::dir_read()
 {
     if(_dir == nullptr)
         return nullptr;
@@ -51,13 +51,13 @@ fsdir_entry * SpifFileSystem::dir_read()
     return nullptr;
 }
 
-void SpifFileSystem::dir_close()
+void FileSystemSPIFFS::dir_close()
 {
     closedir(_dir);
     _dir = nullptr;
 }
 
-FILE * SpifFileSystem::file_open(const char* path, const char* mode)
+FILE * FileSystemSPIFFS::file_open(const char* path, const char* mode)
 {
     char * fpath = _make_fullpath(path);
     FILE * result = fopen(fpath, mode);
@@ -65,57 +65,57 @@ FILE * SpifFileSystem::file_open(const char* path, const char* mode)
     return result;
 }
 
-bool SpifFileSystem::exists(const char* path)
+bool FileSystemSPIFFS::exists(const char* path)
 {
     char * fpath = _make_fullpath(path);
     struct stat st;
     int i = stat(fpath, &st);
 #ifdef DEBUG
-    //Debug_printf("SpifFileSystem::exists returned %d on \"%s\" (%s)\n", i, path, fpath);
+    //Debug_printf("FileSystemSPIFFS::exists returned %d on \"%s\" (%s)\n", i, path, fpath);
 #endif
     free(fpath);
     return (i == 0);
 }
 
-bool SpifFileSystem::remove(const char* path)
+bool FileSystemSPIFFS::remove(const char* path)
 {
     char * fpath = _make_fullpath(path);
     int i = ::remove(fpath);
 #ifdef DEBUG
-    Debug_printf("SpifFileSystem::remove returned %d on \"%s\" (%s)\n", i, path, fpath);
+    Debug_printf("FileSystemSPIFFS::remove returned %d on \"%s\" (%s)\n", i, path, fpath);
 #endif
     free(fpath);
     return (i == 0);
 }
 
-bool SpifFileSystem::rename(const char* pathFrom, const char* pathTo)
+bool FileSystemSPIFFS::rename(const char* pathFrom, const char* pathTo)
 {
     char * spath = _make_fullpath(pathFrom);
     char * dpath = _make_fullpath(pathTo);
     int i = ::rename(spath, dpath);
 #ifdef DEBUG
-    Debug_printf("SpifFileSystem::rename returned %d on \"%s\" -> \"%s\" (%s -> %s)\n", i, pathFrom, pathTo, spath, dpath);
+    Debug_printf("FileSystemSPIFFS::rename returned %d on \"%s\" -> \"%s\" (%s -> %s)\n", i, pathFrom, pathTo, spath, dpath);
 #endif
     free(spath);
     free(dpath);
     return (i == 0);
 }
 
-uint64_t SpifFileSystem::total_bytes()
+uint64_t FileSystemSPIFFS::total_bytes()
 {
     size_t total = 0, used = 0;
 	esp_spiffs_info(NULL, &total, &used);
     return (uint64_t)total;
 }
 
-uint64_t SpifFileSystem::used_bytes()
+uint64_t FileSystemSPIFFS::used_bytes()
 {
     size_t total = 0, used = 0;
 	esp_spiffs_info(NULL, &total, &used);
     return (uint64_t)used;
 }
 
-bool SpifFileSystem::start()
+bool FileSystemSPIFFS::start()
 {
     if(_started)
         return true;

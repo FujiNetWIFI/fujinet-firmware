@@ -15,19 +15,19 @@
 #define SD_HOST_SCK GPIO_NUM_18
 
 // Our global SD interface
-SdFileSystem fnSDFAT;
+FileSystemSDFAT fnSDFAT;
 
-bool SdFileSystem::dir_open(const char * path)
+bool FileSystemSDFAT::dir_open(const char * path)
 {
     FRESULT result = f_opendir(&_dir, path);
     return (result == FR_OK);
 }
-void SdFileSystem::dir_close()
+void FileSystemSDFAT::dir_close()
 {
     f_closedir(&_dir);
 }
 
-fsdir_entry * SdFileSystem::dir_read()
+fsdir_entry * FileSystemSDFAT::dir_read()
 {
     FILINFO finfo;
     FRESULT result = f_readdir(&_dir, &finfo);
@@ -70,8 +70,8 @@ fsdir_entry * SdFileSystem::dir_read()
 
     #ifdef DEBUG
     /*
-        Debug_printf("SdFileSystem direntry: \"%s\"\n", _direntry.filename);
-        Debug_printf("SdFileSystem date (0x%04x): yr=%d, mn=%d, da=%d; time (0x%04x) hr=%d, mi=%d, se=%d\n", 
+        Debug_printf("FileSystemSDFAT direntry: \"%s\"\n", _direntry.filename);
+        Debug_printf("FileSystemSDFAT date (0x%04x): yr=%d, mn=%d, da=%d; time (0x%04x) hr=%d, mi=%d, se=%d\n", 
             finfo.fdate,
             tmtime.tm_year, tmtime.tm_mon, tmtime.tm_mday,
             finfo.ftime,
@@ -84,7 +84,7 @@ fsdir_entry * SdFileSystem::dir_read()
     return &_direntry;
 }
 
-FILE * SdFileSystem::file_open(const char* path, const char* mode)
+FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
 {
     //Debug_printf("sdfileopen1: task hwm %u, %p\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
     char * fpath = _make_fullpath(path);
@@ -97,7 +97,7 @@ FILE * SdFileSystem::file_open(const char* path, const char* mode)
     return result;
 }
 
-bool SdFileSystem::exists(const char* path)
+bool FileSystemSDFAT::exists(const char* path)
 {
     FRESULT result = f_stat(path, NULL);
 #ifdef DEBUG
@@ -106,7 +106,7 @@ bool SdFileSystem::exists(const char* path)
     return (result == FR_OK);
 }
 
-bool SdFileSystem::remove(const char* path)
+bool FileSystemSDFAT::remove(const char* path)
 {
     FRESULT result = f_unlink(path);
 #ifdef DEBUG
@@ -115,7 +115,7 @@ bool SdFileSystem::remove(const char* path)
     return (result == FR_OK);
 }
 
-bool SdFileSystem::rename(const char* pathFrom, const char* pathTo)
+bool FileSystemSDFAT::rename(const char* pathFrom, const char* pathTo)
 {
     FRESULT result = f_rename(pathFrom, pathTo);
 #ifdef DEBUG
@@ -124,12 +124,12 @@ bool SdFileSystem::rename(const char* pathFrom, const char* pathTo)
     return (result == FR_OK);
 }
 
-uint64_t SdFileSystem::card_size()
+uint64_t FileSystemSDFAT::card_size()
 {
     return _card_capacity;
 }
 
-uint64_t SdFileSystem::total_bytes()
+uint64_t FileSystemSDFAT::total_bytes()
 {
 	FATFS* fsinfo;
 	DWORD fre_clust;
@@ -143,7 +143,7 @@ uint64_t SdFileSystem::total_bytes()
 	return size;
 }
 
-uint64_t SdFileSystem::used_bytes()
+uint64_t FileSystemSDFAT::used_bytes()
 {
 	FATFS* fsinfo;
 	DWORD fre_clust;
@@ -157,7 +157,7 @@ uint64_t SdFileSystem::used_bytes()
 	return size;
 }
 
-const char * SdFileSystem::partition_type()
+const char * FileSystemSDFAT::partition_type()
 {
     static const char *names[] = 
     {
@@ -180,7 +180,7 @@ const char * SdFileSystem::partition_type()
     return names[i];
 }
 
-bool SdFileSystem::start()
+bool FileSystemSDFAT::start()
 {
     if(_started)
         return true;
