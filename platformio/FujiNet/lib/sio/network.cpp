@@ -140,9 +140,8 @@ void sioNetwork::sio_open()
     {
         for (int i = 0; i < sizeof(inp); i++)
             if ((inp[i] > 0x7F))
-                inp[i] = 0x00;        
+                inp[i] = 0x00;
     }
-    
 
     if (prefix.length() > 0)
         deviceSpec = prefix + string(inp).substr(string(inp).find(":") + 1);
@@ -467,6 +466,27 @@ void sioNetwork::sio_special()
             if (prefix[prefix.length() - 1] == '/')
                 path = path.substr(1);
             prefix += path;
+        }
+        else if (path == "..")
+        {
+            vector<int> pathLocations;
+            int o;
+            for (int i = 0; i < prefix.size(); i++)
+            {
+                if (prefix[i] == '/')
+                {
+                    pathLocations.push_back(i);
+                }
+            }
+
+            if (prefix[prefix.size()] == '/')
+            {
+                // Get rid of last path segment.
+                pathLocations.pop_back();
+            }
+            
+            // truncate to that location.
+            prefix = prefix.substr(0, pathLocations.back() + 1);
         }
         else
         {
