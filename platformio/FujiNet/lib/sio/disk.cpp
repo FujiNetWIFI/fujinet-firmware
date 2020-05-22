@@ -2,6 +2,7 @@
 #include "fnSystem.h"
 #include "disk.h"
 
+
 int command_frame_counter = 0;
 
 /**
@@ -48,7 +49,7 @@ void sioDisk::sio_read()
     unsigned short sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
     unsigned long offset = sector_offset(sectorNum, sectorSize);
     unsigned long ss = sector_size(sectorNum, sectorSize);
-    byte err = false;
+    bool err = false;
 
     // Clear sector buffer
     memset(sector, 0, sizeof(sector));
@@ -56,25 +57,17 @@ void sioDisk::sio_read()
     if (sectorNum <= UNCACHED_REGION)
     {
         if (sectorNum != (lastSectorNum + 1))
-            err = !(_file->seek(offset));
+            //err = !(_file->seek(offset));
+            err = fseek(_file, offset, SEEK_SET) != 0;
 
         if (!err)
-            err = (_file->read(sector, ss) != ss);
+            //err = (_file->read(sector, ss) != ss);
+            err = fread(sector, 1, ss, _file) != ss;
     }
     else // Cached
     {
         // implement caching.
     }
-#ifdef DEBUG
-    if (sectorNum == 720)
-    {
-        Debug_printf("SIO_READ DISK #720 (%d)\n", (int)err);
-        for (unsigned short i = 0; i < ss; i++)
-            Debug_printf("%02x ", sector[i]);
-        Debug_println();
-    }
-#endif
-
     // Send result to Atari
     sio_to_computer((byte *)&sector, ss, err);
     lastSectorNum = sectorNum;
@@ -113,31 +106,31 @@ void sioDisk::sio_write(bool verify)
 
     if (sectorNum != (lastSectorNum + 1))
     {
-        if (!_file->seek(offset))
+        if (fseek(_file, offset, SEEK_SET) != 0) //!_file->seek(offset))
         {
             sio_error();
             return;
         }
     }
 
-    if (_file->write(sector, ss) != ss)
+    if (fwrite(sector, 1, ss, _file) != ss) //_file->write(sector, ss) != ss)
     {
         sio_error();
         lastSectorNum = 65535; // invalidate seek cache.
         return;
     }
 
-    _file->flush();
+    fflush(_file); //_file->flush();
 
     if (verify)
     {
-        if (!_file->seek(offset))
+        if (fseek(_file, offset, SEEK_SET) != 0) //!_file->seek(offset))
         {
             sio_error();
             return;
         }
 
-        if (_file->read(sector, ss) != ss)
+        if (fread(sector, 1, ss, _file) != ss) //_file->read(sector, ss) != ss)
         {
             sio_error();
             return;
@@ -342,26 +335,40 @@ void sioDisk::sio_high_speed()
 }
 
 // mount a disk file
-void sioDisk::mount(File *f)
+void sioDisk::mount(FILE *f)
 {
     unsigned short newss;
     unsigned short num_para;
     unsigned char num_para_hi;
     unsigned short num_sectors;
-    byte buf[2];
+    byte buf[5];
 
 #ifdef DEBUG
-    Debug_println("disk MOUNT");
+    Debug_println("sioDisk::MOUNT");
 #endif
-
     // Get file and sector size from header
-    f->seek(2);      //tnfs_seek(deviceSlot, 2);
-    f->read(buf, 2); //tnfs_read(deviceSlot, 2);
+    //f->seek(2);      //tnfs_seek(deviceSlot, 2);
+
+    if(fseek(f, 2, SEEK_SET) < 0)
+    {
+        #ifdef DEBUG
+        Debug_println("failed seeking to header on disk image");
+        #endif
+        return;
+    }
+    //f->read(buf, 2); //tnfs_read(deviceSlot, 2);
+    if(fread(buf, 1, 5, f) != 5)
+    {
+        #ifdef DEBUG
+        Debug_println("failed reading 5 header bytes");
+        #endif
+        return;
+    }
     num_para = (256 * buf[1]) + buf[0];
-    f->read(buf, 2); //tnfs_read(deviceSlot, 2);
-    newss = (256 * buf[1]) + buf[0];
-    f->read(buf, 1); //tnfs_read(deviceSlot, 1);
-    num_para_hi = buf[0];
+    //f->read(buf, 2); //tnfs_read(deviceSlot, 2);
+    newss = (256 * buf[3]) + buf[2];
+    //f->read(buf, 1); //tnfs_read(deviceSlot, 1);
+    num_para_hi = buf[4];
     sectorSize = newss;
     num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
     derive_percom_block(num_sectors);
@@ -369,12 +376,11 @@ void sioDisk::mount(File *f)
     lastSectorNum = 65535; // Invalidate seek cache.
 
 #ifdef DEBUG
-    Debug_print("mounting ATR to Disk: ");
-    Debug_println(f->name());
+    Debug_println("mounted ATR to Disk:");
+    //Debug_println(f->name());
     Debug_printf("num_para: %d\n", num_para);
     Debug_printf("sectorSize: %d\n", newss);
     Debug_printf("num_sectors: %d\n", num_sectors);
-    Debug_println("mounted.");
 #endif
 }
 
@@ -389,12 +395,12 @@ void sioDisk::umount()
 {
     if (_file != nullptr)
     {
-        _file->close();
+        fclose(_file); // _file->close();
         _file = nullptr;
     }
 }
 
-bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short numSectors)
+bool sioDisk::write_blank_atr(FILE *f, unsigned short sectorSize, unsigned short numSectors)
 {
     union {
         struct
@@ -432,10 +438,12 @@ bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short
     atrHeader.secsizeL = sectorSize >> 8;
 
 #ifdef DEBUG
-    Debug_printf("Write header to \"%s\"\n", f->name());
+    //Debug_printf("Write header to \"%s\"\n", f->name());
+    Debug_println("Write header to ATR");
 #endif
 
-    offset = f->write(atrHeader.rawData, sizeof(atrHeader.rawData));
+    //offset = f->write(atrHeader.rawData, sizeof(atrHeader.rawData));
+    offset = fwrite(atrHeader.rawData, 1, sizeof(atrHeader.rawData), f);
 
     // Write first three 128 byte sectors
     memset(sector, 0x00, sizeof(sector));
@@ -447,7 +455,7 @@ bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short
     for (unsigned char i = 0; i < 3; i++)
     {
         //tnfs_write(deviceSlot, 128);
-        size_t out = f->write(sector, 128);
+        size_t out = fwrite(sector, 1, 128, f); //f->write(sector, 128);
         if (out != 128)
         {
 #ifdef DEBUG
@@ -466,8 +474,8 @@ bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short
     offset += (numSectors * sectorSize) - sectorSize;
     //tnfs_seek(deviceSlot, offset);
     //tnfs_write(deviceSlot, sectorSize);
-    f->seek(offset);
-    size_t out = f->write(sector, sectorSize);
+    fseek(f, offset, SEEK_SET); //f->seek(offset);
+    size_t out = fwrite(sector, 1, sectorSize, f); //f->write(sector, sectorSize);
     if (out != sectorSize)
     {
 #ifdef DEBUG
@@ -479,7 +487,7 @@ bool sioDisk::write_blank_atr(File *f, unsigned short sectorSize, unsigned short
     return true; //fixme - JP fixed?
 }
 
-File *sioDisk::file()
+FILE *sioDisk::file()
 {
     return _file;
 }

@@ -74,8 +74,8 @@ void atari1027::pdf_handle_char(byte c)
                 default:
                     break;
                 }
-                _file.write(d1);
-                _file.printf(")600("); // |^ -< -> !v
+                fputc(d1, _file);
+                fprintf(_file, ")600("); // |^ -< -> !v
                 valid = true;
             }
             else
@@ -95,9 +95,9 @@ void atari1027::pdf_handle_char(byte c)
                 }
             if (valid)
             {
-                _file.write(d);
+                fputc(d, _file);
                 if (uscoreFlag)
-                    _file.printf(")600(_"); // close text string, backspace, start new text string, write _
+                    fprintf(_file, ")600(_"); // close text string, backspace, start new text string, write _
 
                 pdf_X += charWidth; // update x position
             }
@@ -107,20 +107,20 @@ void atari1027::pdf_handle_char(byte c)
             if (c == 123 || c == 125 || c == 127)
                 c = ' ';
             if (c == '\\' || c == '(' || c == ')')
-                _file.write('\\');
-            _file.write(c);
+                fputc('\\', _file);
+            fputc(c, _file);
 
             if (uscoreFlag)
-                _file.printf(")600(_"); // close text string, backspace, start new text string, write _
+                fprintf(_file, ")600(_"); // close text string, backspace, start new text string, write _
 
             pdf_X += charWidth; // update x position
         }
     }
 }
 
-void atari1027::initPrinter(FS *filesystem)
+void atari1027::initPrinter(FileSystem *fs)
 {
-    printer_emu::initPrinter(filesystem);
+    printer_emu::initPrinter(fs);
 
     shortname = "a1027";
 
