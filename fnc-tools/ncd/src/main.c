@@ -1,7 +1,7 @@
 /**
  * Network Testing tools
  *
- * nprefix - set N: prefix.
+ * ncd - set N: prefix.
  *
  * Author: Thomas Cherryhomes
  *  <thom.cherryhomes@gmail.com>
@@ -21,12 +21,13 @@
 unsigned char buf[256];
 unsigned char daux1=0;
 unsigned char daux2=0;
+unsigned char i=0;
 
-void nprefix(void)
+void ncd(unsigned char unit)
 {
   OS.dcb.ddevic=0x71;
-  OS.dcb.dunit=1;
-  OS.dcb.dcomnd=0xFE;
+  OS.dcb.dunit=unit;
+  OS.dcb.dcomnd=0x2C;
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&buf;
   OS.dcb.dtimlo=0x1f;
@@ -40,37 +41,49 @@ void nprefix(void)
       err_sio();
       exit(OS.dcb.dstats);
     }
-  else
-    {
-      print("N: = ");
-      print(buf);
-      print("\x9b");
-    }
 }
 
 int main(int argc, char* argv[])
 {
+  unsigned char tmp[2]={0,0};
+  unsigned char u=1;
+  
   OS.lmargn=2;
   
   if (_is_cmdline_dos())
     {
       if (argc<2)
-	{
-	  print("PREFIX CLEARED\x9b");
-	  strcpy(buf,"\x9b");
-	}
+	goto interactive;
       else
-	strcpy(buf,argv[1]);
+	{
+	  for (i=1;i<=argc;i++)
+	    {
+	      strcat(buf,argv[i]);
+	      if (i<argc-1)
+		strcat(buf," ");
+	    }
+	}
     }
   else
     {
+    interactive:
       // DOS 2.0/MYDOS
       print("\x9b");
-      print("");
       print("ENTER PREFIX OR \xD2\xC5\xD4\xD5\xD2\xCE TO CLEAR\x9b");
       get_line(buf,240);
     }
 
-  nprefix();
+  // if no device, set a device path.
+  if ((buf[1]!=':') && (buf[2]!=':'))
+    {
+      memmove(&buf[2],&buf[0],sizeof(buf)-3);
+      buf[0]='N';
+      buf[1]=':';
+    }
+  else if (buf[2]==':')
+    u=buf[1]-0x30;
+
+  ncd(u);
+  
   return(0);
 }

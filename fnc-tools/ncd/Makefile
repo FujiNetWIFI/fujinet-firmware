@@ -13,7 +13,7 @@ TARGETS := atari
  
 # Name of the final, single-file executable.
 # Default: name of the current dir with target name appended
-PROGRAM := nprefix
+PROGRAM := ncd
  
 # Path(s) to additional libraries required for linking the program
 # Use only if you don't want to place copies of the libraries in SRCDIR
@@ -36,7 +36,7 @@ ASFLAGS =
 # Additional linker flags and options.
 # Default: none
 LDFLAGS = $(LDFLAGS.$(TARGETS))
-LDFLAGS.atari = --mapfile nprefix.map
+LDFLAGS.atari = --mapfile ncd.map
  
 # Path to the directory containing C and ASM sources.
 # Default: src
