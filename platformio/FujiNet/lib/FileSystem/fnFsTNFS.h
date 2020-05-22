@@ -5,7 +5,7 @@
 #include "../TNFSlib/tnfslib.h"
 
 
-class TnfsFileSystem : public FileSystem
+class FileSystemTNFS : public FileSystem
 {
 private:
     tnfsMountInfo _mountinfo;
@@ -13,8 +13,8 @@ private:
     char _current_dirpath[TNFS_MAX_FILELEN];
 
 public:
-    TnfsFileSystem();
-    ~TnfsFileSystem();
+    FileSystemTNFS();
+    ~FileSystemTNFS();
 
     bool start(const char *host, uint16_t port=TNFS_DEFAULT_PORT, const char * mountpath=nullptr, const char * userid=nullptr, const char * password=nullptr);
 

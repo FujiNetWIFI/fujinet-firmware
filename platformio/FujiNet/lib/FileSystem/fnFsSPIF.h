@@ -3,7 +3,7 @@
 
 #include <dirent.h>
 #include "fnFS.h"
-class SpifFileSystem : public FileSystem
+class FileSystemSPIFFS : public FileSystem
 {
 private:
     DIR * _dir;
@@ -28,6 +28,6 @@ public:
     uint64_t used_bytes();
 };
 
-extern SpifFileSystem fnSPIFFS;
+extern FileSystemSPIFFS fnSPIFFS;
 
 #endif // _FN_FSSPIF_
