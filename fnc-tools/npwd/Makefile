@@ -13,7 +13,7 @@ TARGETS := atari
  
 # Name of the final, single-file executable.
 # Default: name of the current dir with target name appended
-PROGRAM := plato
+PROGRAM := npwd
  
 # Path(s) to additional libraries required for linking the program
 # Use only if you don't want to place copies of the libraries in SRCDIR
@@ -27,7 +27,7 @@ CONFIG  :=
  
 # Additional C compiler flags and options.
 # Default: none
-CFLAGS  = -Oris
+CFLAGS  = -Os
  
 # Additional assembler flags and options.
 # Default: none
@@ -36,7 +36,7 @@ ASFLAGS =
 # Additional linker flags and options.
 # Default: none
 LDFLAGS = $(LDFLAGS.$(TARGETS))
-LDFLAGS.atari = --mapfile plato.map
+LDFLAGS.atari = --mapfile npwd.map
  
 # Path to the directory containing C and ASM sources.
 # Default: src
@@ -209,7 +209,7 @@ TARGETLIST := $(subst $(COMMA),$(SPACE),$(TARGETS))
 ifeq ($(words $(TARGETLIST)),1)
  
 # Set PROGRAM to something like 'myprog.c64'.
-override PROGRAM := $(PROGRAM).bin
+override PROGRAM := $(PROGRAM).com
  
 # Set SOURCES to something like 'src/foo.c src/bar.s'.
 # Use of assembler files with names ending differently than .s is deprecated!
@@ -309,7 +309,6 @@ $(TARGETOBJDIR)/%.o: %.a65 | $(TARGETOBJDIR)
  
 $(PROGRAM): $(CONFIG) $(OBJECTS) $(LIBS)
 	$(CC) -t $(CC65TARGET) $(LDFLAGS) -o $@ $(patsubst %.cfg,-C %.cfg,$^)
-
  
 test: $(PROGRAM)
 	$(PREEMUCMD)
@@ -321,8 +320,6 @@ clean:
 	$(call RMFILES,$(DEPENDS))
 	$(call RMFILES,$(REMOVES))
 	$(call RMFILES,$(PROGRAM))
-	$(call RMFILES,plato.map)
-	$(call RMFILES,plato.atr)
  
 else # $(words $(TARGETLIST)),1
  
@@ -341,11 +338,6 @@ zap:
  
 love:
 	@echo "Not war, eh?"
-
-disk: $(PROGRAM)
-	dd if=/dev/zero of=padding bs=1 count=$(shell expr 92176 - $(shell stat --printf "%s" plato.bin))
-	cat plato.bin padding >plato.atr
-	$(call RMFILES,padding)
 
 ###################################################################
 ###  Place your additional targets in the additional Makefiles  ###

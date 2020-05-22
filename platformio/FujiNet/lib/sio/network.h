@@ -54,6 +54,7 @@ protected:
     unsigned char aux1;
     unsigned char aux2;
     string prefix;
+    string initial_prefix;
 
     union {
         struct

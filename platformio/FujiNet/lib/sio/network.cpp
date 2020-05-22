@@ -7,6 +7,7 @@
 #include "networkProtocolUDP.h"
 #include "networkProtocolHTTP.h"
 #include "networkProtocolTNFS.h"
+#include "networkProtocolFTP.h"
 
 // latch the rate limiting flag.
 void IRAM_ATTR onTimer()
@@ -87,6 +88,11 @@ bool sioNetwork::open_protocol()
         protocol = new networkProtocolTNFS();
         return true;
     }
+    else if (urlParser->scheme == "FTP")
+    {
+        protocol = new networkProtocolFTP();
+        return true;
+    }
     else
     {
         return false;
@@ -124,9 +130,18 @@ void sioNetwork::sio_open()
 
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
-    for (int i = 0; i < sizeof(inp); i++)
-        if ((inp[i] > 0x7F) || (inp[i] == ',') || (inp[i] == '*'))
-            inp[i] = 0x00;
+    if (cmdFrame.aux1 != 6)
+    {
+        for (int i = 0; i < sizeof(inp); i++)
+            if ((inp[i] > 0x7F) || (inp[i] == ',') || (inp[i] == '*'))
+                inp[i] = 0x00;
+    }
+    else
+    {
+        for (int i = 0; i < sizeof(inp); i++)
+            if ((inp[i] > 0x7F))
+                inp[i] = 0x00;
+    }
 
     if (prefix.length() > 0)
         deviceSpec = prefix + string(inp).substr(string(inp).find(":") + 1);
@@ -402,6 +417,7 @@ void sioNetwork::sio_status()
 // Process a SPECIAL sio command (not R,W,O,C,S)
 void sioNetwork::sio_special()
 {
+    Debug_printf("special.\n");
     err = false;
     if (cmdFrame.comnd == 0xFE) // Set Prefix
     {
@@ -417,26 +433,110 @@ void sioNetwork::sio_special()
         prefix = inp;
         sio_complete();
     }
-    else if (protocol == nullptr)
+    else if (cmdFrame.comnd == 0x2C) // CHDIR
     {
-        err = true;
-        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+        char inp[256];
+        Debug_printf("CHDIR\n");
+        string path;
+
+        sio_ack();
+        sio_to_peripheral((byte *)inp, 256);
+
+        for (int i = 0; i < 256; i++)
+            if (inp[i] == 0x9B)
+                inp[i] = 0x00;
+
+        path = inp;
+        path = path.substr(path.find_first_of(":") + 1);
+
+        if (path.empty())
+        {
+            prefix = "";
+            initial_prefix = "";
+        }
+        else if (path.find(":") != string::npos)
+        {
+            prefix = path;
+            initial_prefix = prefix;
+        }
+        else if (path[0] == '/')
+        {
+            prefix = initial_prefix;
+
+            if (prefix[prefix.length() - 1] == '/')
+                path = path.substr(1);
+            prefix += path;
+        }
+        else if (path == "..")
+        {
+            vector<int> pathLocations;
+            int o;
+            for (int i = 0; i < prefix.size(); i++)
+            {
+                if (prefix[i] == '/')
+                {
+                    pathLocations.push_back(i);
+                }
+            }
+
+            if (prefix[prefix.size()] == '/')
+            {
+                // Get rid of last path segment.
+                pathLocations.pop_back();
+            }
+            
+            // truncate to that location.
+            prefix = prefix.substr(0, pathLocations.back() + 1);
+        }
+        else
+        {
+            if (prefix[prefix.length() - 1] != '/')
+                prefix += "/";
+            prefix += path;
+        }
+
+        Debug_printf("NCD: %s\r\n", prefix.c_str());
+
+        sio_complete();
     }
+
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
-        byte ret;
+        byte ret = 0xFF;
+        Debug_printf("INQ\n");
         sio_ack();
-        if (protocol->special_supported_00_command(cmdFrame.aux1) ||
-            sio_special_supported_00_command(cmdFrame.aux1))
-            ret = 0x00;
-        else if (protocol->special_supported_40_command(cmdFrame.aux1) ||
-                 sio_special_supported_40_command(cmdFrame.aux1))
-            ret = 0x40;
-        else if (protocol->special_supported_80_command(cmdFrame.aux1) ||
-                 sio_special_supported_80_command(cmdFrame.aux1))
-            ret = 0x80;
+        if (protocol == nullptr)
+        {
+            if (sio_special_supported_00_command(cmdFrame.aux1))
+            {
+                ret = 0x00;
+            }
+            else if (sio_special_supported_40_command(cmdFrame.aux1))
+            {
+                ret = 0x40;
+            }
+            else if (sio_special_supported_80_command(cmdFrame.aux1))
+            {
+                ret = 0x80;
+            }
+            Debug_printf("Local Ret %d\n", ret);
+        }
         else
-            ret = 0xFF;
+        {
+            if (protocol->special_supported_00_command(cmdFrame.aux1))
+            {
+                ret = 0x00;
+            }
+            else if (protocol->special_supported_40_command(cmdFrame.aux1))
+            {
+                ret = 0x40;
+            }
+            else if (protocol->special_supported_80_command(cmdFrame.aux1))
+            {
+                ret = 0x80;
+            }
+            Debug_printf("Protocol Ret %d\n", ret);
+        }
         sio_to_computer(&ret, 1, false);
     }
     else if (sio_special_supported_00_command(cmdFrame.comnd))
@@ -470,8 +570,10 @@ void sioNetwork::sio_special()
         sio_special_protocol_80();
     }
 
-    if (err == true) // Unsupported command
+    if (err == true)
+    {
         sio_nak();
+    }
 
     // sio_completes() happen in sio_special_XX()
 }
@@ -490,6 +592,11 @@ bool sioNetwork::sio_special_supported_00_command(unsigned char c)
 // supported global network device commands that go Peripheral->Computer
 bool sioNetwork::sio_special_supported_40_command(unsigned char c)
 {
+    switch (c)
+    {
+    case 0x30: // ?DIR
+        return true;
+    }
     return false;
 }
 
@@ -498,6 +605,8 @@ bool sioNetwork::sio_special_supported_80_command(unsigned char c)
 {
     switch (c)
     {
+    case 0x2C: // CHDIR
+        return true;
     case 0xFE: // Set prefix
         return true;
     }
@@ -519,7 +628,16 @@ void sioNetwork::sio_special_00()
 // For global commands with Peripheral->Computer payload
 void sioNetwork::sio_special_40()
 {
-    sio_to_computer(sp_buf, 4, err); // size of DVSTAT
+    char buf[256];
+
+    switch (cmdFrame.comnd)
+    {
+    case 0x30: // ?DIR
+        strcpy((char *)buf, prefix.c_str());
+        break;
+    }
+    Debug_printf("Read buf: %s\n", buf);
+    sio_to_computer((byte *)buf, 256, err); // size of DVSTAT
 }
 
 // For global commands with Computer->Peripheral payload

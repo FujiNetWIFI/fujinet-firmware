@@ -532,14 +532,17 @@ void sioDisk::sio_process()
     switch (cmdFrame.comnd)
     {
     case 'R':
+    case 0xD2:
         sio_ack();
         sio_read();
         break;
     case 'P':
+    case 0xD0:
         sio_ack();
         sio_write(false);
         break;
     case 'S':
+    case 0xD3:
         if (is_config_device == true)
         {
             if (status_wait_count == 0)
@@ -557,11 +560,14 @@ void sioDisk::sio_process()
         }
         break;
     case 'W':
+    case 0xD7:
         sio_ack();
         sio_write(true);
         break;
     case '!':
+    case 0xA1:
     case '"':
+    case 0xA2:
         sio_ack();
         sio_format();
         break;

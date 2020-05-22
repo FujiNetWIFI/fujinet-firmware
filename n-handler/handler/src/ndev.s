@@ -1,5 +1,5 @@
 	;; N: Device Handler
-	;; Compile with ATASM
+	;; Compile with MADS
 
 	;; Author: Thomas Cherryhomes
 	;;   <thom.cherryhomes@gmail.com>
@@ -103,9 +103,7 @@ EOL     =     $9B     ; EOL CHAR
 	BPL	?DCBL
 	.ENDL
 	.ENDM
-	
-	org $3100
-	
+		
 ;;; Initialization ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 	
 START:	
@@ -120,6 +118,15 @@ START:
 	LDA	#>RESET
 	STA	DOSINI+1
 
+	;;  Alter MEMLO
+	
+	LDA	#<PGEND		
+	STA	MEMLO
+	LDA	#>PGEND
+	STA	MEMLO+1
+
+	BVC	IHTBS
+	
 RESET:
 	JSR	$FFFF		; Jump to extant DOSINI
 	JSR	IHTBS		; Insert into HATABS
@@ -454,8 +461,8 @@ POFF:	INC	TOFF,X		; Increment TX cursor
 	CMP     #EOL    ; EOL?
 	BEQ     FLUSH  ; FLUSH BUFFER
 	JSR     GDIDX   ; GET OFFSET
-	LDY     TOFF,X
-        CPX     #$FF    ; LEN = $FF?
+	LDA     TOFF,X
+        CMP     #$FF    ; LEN = $FF?
         BEQ     FLUSH  ; FLUSH BUFFER
         RTS
 
