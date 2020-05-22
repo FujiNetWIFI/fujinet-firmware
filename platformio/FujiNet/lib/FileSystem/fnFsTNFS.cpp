@@ -112,8 +112,30 @@ bool TnfsFileSystem::dir_open(const char * path)
 {
     if(!_started)
         return false;
-    int r = tnfs_opendir(&_mountinfo, path);
-    return (r == TNFS_RESULT_SUCCESS);
+
+    if(TNFS_RESULT_SUCCESS == tnfs_opendir(&_mountinfo, path))
+    {
+        // Save the direcotry for later use, making sure it starts and ends with '/''
+        if(path[0] != '/')
+        {
+            _current_dirpath[0] = '/';
+            strncpy(_current_dirpath + 1, path, sizeof(_current_dirpath)-1);
+        } else
+        {
+            strncpy(_current_dirpath, path, sizeof(_current_dirpath));
+        }
+        int l = strlen(_current_dirpath);
+        if((l > 0) && (l < sizeof(_current_dirpath) -2) && (_current_dirpath[l -1] != '/'))
+        {
+            _current_dirpath[l] = '/';
+            _current_dirpath[l+1] = '\0';
+        }
+        
+        Debug_printf("Current directory stored: \"%s\"\n", _current_dirpath);
+        return true;
+    }
+
+    return false;
 }
 
 fsdir_entry * TnfsFileSystem::dir_read()
@@ -134,11 +156,19 @@ fsdir_entry * TnfsFileSystem::dir_read()
     } while (skip);
 
     tnfsStat fstat;
-    if(tnfs_stat(&_mountinfo, &fstat, _direntry.filename) == TNFS_RESULT_SUCCESS)
+
+    // Combine the current directory path with the read filename before trying to stat()...
+    char fullpath[TNFS_MAX_FILELEN];
+    strncpy(fullpath, _current_dirpath, sizeof(fullpath));
+    strncat(fullpath, _direntry.filename, sizeof(fullpath));
+    Debug_printf("Current directory stored: \"%s\", current filepath: \"%s\", combined: \"%s\"\n", _current_dirpath, _direntry.filename, fullpath);
+
+    if(tnfs_stat(&_mountinfo, &fstat, fullpath) == TNFS_RESULT_SUCCESS)
     {
         _direntry.size = fstat.filesize;
         _direntry.modified_time = fstat.m_time;
         _direntry.isDir = fstat.isDir;
+
         return &_direntry;
     }
     return nullptr;
@@ -148,6 +178,6 @@ void TnfsFileSystem::dir_close()
 {
     if(!_started)
         return;
-
     tnfs_closedir(&_mountinfo);
+    _current_dirpath[0] = '\0';
 }
