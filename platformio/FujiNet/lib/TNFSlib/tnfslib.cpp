@@ -188,19 +188,43 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
         return -1;
 
     *file_handle = TNFS_INVALID_HANDLE;
-
+   
     // Find a free slot in our table of file handles
+    tnfsFileHandleInfo * pFileInf = m_info->new_filehandleinfo();
+    if(pFileInf == nullptr)
+        return TNFS_RESULT_TOO_MANY_FILES_OPEN;
 
+    // First, stat the file so we can get its length (if it exists), which we'll need to
+    // keep track of the file position.
+    tnfsStat tstat;
+    int rs = tnfs_stat(m_info, &tstat, filepath);
+    bool file_exists = false;
+    // The only error we'll accept is TNFS_RESULT_FILE_NOT_FOUND, otherwise abort
+    if(rs == TNFS_RESULT_SUCCESS)
+    {
+        file_exists = true;
+        pFileInf->size = tstat.filesize;
+    }
+    else
+    {
+        if(rs != TNFS_RESULT_FILE_NOT_FOUND)
+        {
+            m_info->delete_filehandleinfo(pFileInf);
+            return rs;
+        }
+    }
+
+    // Done with STAT - now try to actually open the file
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPEN;
 
     // Set the open mode (does not appear to be little-endian)
-    packet.payload[0] = TNFS_HIBYTE_FROM_UINT16(open_mode);
-    packet.payload[1] = TNFS_LOBYTE_FROM_UINT16(open_mode);
+    packet.payload[0] = TNFS_LOBYTE_FROM_UINT16(open_mode);
+    packet.payload[1] = TNFS_HIBYTE_FROM_UINT16(open_mode);
 
     // Set create permissions (does not appear to be little-endian)
-    packet.payload[2] = TNFS_HIBYTE_FROM_UINT16(create_perms);
-    packet.payload[3] = TNFS_LOBYTE_FROM_UINT16(create_perms);
+    packet.payload[2] = TNFS_LOBYTE_FROM_UINT16(create_perms);
+    packet.payload[3] = TNFS_HIBYTE_FROM_UINT16(create_perms);
 
     int offset_filename = 4; // Where the filename starts in the buffer
 
@@ -215,25 +239,48 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
         strncpy((char *)&packet.payload[offset_filename], filepath, sizeof(packet.payload) - offset_filename);
     }
 
+    // Store the path we used as part of our file handle info
+    strncpy(pFileInf->filename, (const char *)&packet.payload[offset_filename], TNFS_MAX_FILELEN);
+
 #ifdef DEBUG
     Debug_printf("TNFS open file: \"%s\" (0x%04x, 0x%04x)\n", (char *)&packet.payload[offset_filename], open_mode, create_perms);
 #endif
 
     // Offset to filename + filename length + zero terminator
+    int result = -1;
     int len = offset_filename + strlen((char *)(&packet.payload[offset_filename])) + 1;
     if (_tnfs_transaction(m_info, packet, len))
     {
         if(packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
-            *file_handle = packet.payload[1];            
+            // Since everything went okay, save our file info
+            pFileInf->handle_id = packet.payload[1];
+            pFileInf->position = 0;
+
+            *file_handle = pFileInf->handle_id;
+
+            // Depending on the file mode and wether the file aready existed,
+            // we need to do something different with the position of the file
+            if(file_exists && (open_mode & TNFS_OPENMODE_WRITE))
+            {
+                if(open_mode & TNFS_OPENMODE_WRITE_APPEND)
+                    pFileInf->position = pFileInf->size;
+                else if(open_mode & TNFS_OPENMODE_WRITE_TRUNCATE)
+                    pFileInf->position = pFileInf->size = 0;
+            }
+
             #ifdef DEBUG
-            Debug_printf("File opened, handle ID: %hhd\n", *file_handle);
+            Debug_printf("File opened, handle ID: %hhd, size: %u, pos: %u\n", *file_handle, pFileInf->size, pFileInf->position);
             #endif
         }
-        return packet.payload[0];
-
+        result = packet.payload[0];
     }
-    return -1;
+
+    // Get rid fo the filehandleinfo if we're not going to use it
+    if(result != TNFS_RESULT_SUCCESS)
+        m_info->delete_filehandleinfo(pFileInf);
+
+    return result;
 }
 
 /*
@@ -259,14 +306,23 @@ int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle)
     if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle))
         return -1;
 
+    // Find info on this handle
+    tnfsFileHandleInfo * pFileInf = m_info->get_filehandleinfo(file_handle);
+    if(pFileInf == nullptr)
+        return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
+
     tnfsPacket packet;
     packet.command = TNFS_CMD_CLOSE;
     packet.payload[0] = file_handle;
 
+
     if (_tnfs_transaction(m_info, packet, 1))
     {
+        // We're going to go ahead and delete our info even though the server could reject it
+        m_info->delete_filehandleinfo(pFileInf);
         return packet.payload[0];
     }
+
     return -1;
 }
 
@@ -314,6 +370,11 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
 
     *resultlen = 0;
 
+    // Find info on this handle
+    tnfsFileHandleInfo * pFileInf = m_info->get_filehandleinfo(file_handle);
+    if(pFileInf == nullptr)
+        return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
+
     tnfsPacket packet;
     packet.command = TNFS_CMD_READ;
     packet.payload[0] = file_handle;
@@ -328,6 +389,10 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
             if(*resultlen <= (TNFS_PAYLOAD_SIZE -3))
             {
                 memcpy(buffer, packet.payload + 3, *resultlen);
+                // Keep track of our file position
+                uint32_t new_pos = pFileInf->position + *resultlen;
+                Debug_printf("tnfs_read prev_pos: %u, read: %u, new_pos: %u\n", pFileInf->position, *resultlen, new_pos);
+                pFileInf->position = new_pos;
             }
             else
             {
@@ -374,6 +439,11 @@ int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint
 
     *resultlen = 0;
 
+    // Find info on this handle
+    tnfsFileHandleInfo * pFileInf = m_info->get_filehandleinfo(file_handle);
+    if(pFileInf == nullptr)
+        return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
+
     tnfsPacket packet;
     packet.command = TNFS_CMD_WRITE;
     packet.payload[0] = file_handle;
@@ -387,6 +457,10 @@ int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint
         if(packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             *resultlen = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 1);
+            // Keep track of our file position
+            uint32_t new_pos = pFileInf->position + *resultlen;
+            Debug_printf("tnfs_write prev_pos: %u, read: %u, new_pos: %u\n", pFileInf->position, *resultlen, new_pos);
+            pFileInf->position = new_pos;
         }
         return packet.payload[0];
     }
@@ -422,10 +496,19 @@ file pointer will be wherever the last read block made it end up.
  Seek to different position in open file
  Returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
  */
-int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type)
+int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position)
 {
-    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle))
+    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || new_position == nullptr)
         return -1;
+
+    // Make sure we're using a valid seek type
+    if(type != SEEK_SET && type != SEEK_CUR && type != SEEK_END)
+        return TNFS_RESULT_INVALID_ARGUMENT;
+
+    // Find info on this handle
+    tnfsFileHandleInfo * pFileInf = m_info->get_filehandleinfo(file_handle);
+    if(pFileInf == nullptr)
+        return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_LSEEK;
@@ -437,6 +520,18 @@ int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uin
 
     if (_tnfs_transaction(m_info, packet, 6))
     {
+        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            // Keep track of our file position
+            if(type == SEEK_SET)
+                pFileInf->position = position;
+            else if(type == SEEK_CUR)
+                pFileInf->position += position;
+            else
+                pFileInf->position = (pFileInf->size + position);
+
+            *new_position = pFileInf->position;
+        }
         return packet.payload[0];
     }
     return -1;
@@ -794,10 +889,30 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
     return -1;
 }
 
+
+// ------------------------------------------------
+// HELPER TNFS FUNCTIONS
+// ------------------------------------------------
+
+/*
+ Returns the filepath associated with an open filehandle
+*/
+const char * tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle)
+{
+    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle))
+        return nullptr;
+
+    // Find info on this handle
+    tnfsFileHandleInfo * pFileInf = m_info->get_filehandleinfo(file_handle);
+    if(pFileInf == nullptr)
+        return nullptr;
+
+    return pFileInf->filename;
+}
+
 // ------------------------------------------------
 // INTERNAL UTILITY FUNCTIONS
 // ------------------------------------------------
-
 
 /*
   Send constructed TNFS packet and check for reply

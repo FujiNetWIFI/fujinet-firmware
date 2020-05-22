@@ -7,7 +7,7 @@
 #include "sio.h"
 #include "disk.h"
 #include "network.h"
-#include "tnfs.h"
+// #include "tnfs.h"
 #include "fujiFileSystem.h"
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
@@ -28,7 +28,7 @@
 #define MAX_WIFI_PASS_LEN 64
 
 //extern FS *fileSystems[8];
-extern TNFSFS TNFS[8];
+//extern TNFSFS TNFS[8];
 //extern File atr[8]; // up to 8 disk drives
 //extern sioDisk sioD[8]; //
 //extern sioNetwork sioN[8];

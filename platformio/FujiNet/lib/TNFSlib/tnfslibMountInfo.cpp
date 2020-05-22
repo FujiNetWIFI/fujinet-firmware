@@ -68,3 +68,19 @@ void tnfsMountInfo::delete_filehandleinfo(uint8_t filehandle)
         }
     }
 }
+
+/*
+ Removes any existing tnfsFileHandleInfo with a matching pointer
+*/
+void tnfsMountInfo::delete_filehandleinfo(tnfsFileHandleInfo * pFilehandle)
+{
+    // Find a matching tnfsFileHandleInfo
+    for(int i=0; i < TNFS_MAX_FILE_HANDLES; i++)
+    {
+        if(_file_handles[i] == pFilehandle)
+        {
+            delete _file_handles[i];
+            _file_handles[i] = nullptr;
+        }
+    }
+}

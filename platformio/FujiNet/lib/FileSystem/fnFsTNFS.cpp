@@ -12,7 +12,7 @@ TnfsFileSystem::TnfsFileSystem()
 
 TnfsFileSystem::~TnfsFileSystem()
 {
-    if (_connected)
+    if (_started)
         tnfs_umount(&_mountinfo);
     if(_basepath[0] != '\0')
         vfs_tnfs_unregister(_basepath);
@@ -20,7 +20,7 @@ TnfsFileSystem::~TnfsFileSystem()
 
 bool TnfsFileSystem::start(const char *host, uint16_t port, const char * mountpath, const char * userid, const char * password)
 {
-    if (_connected)
+    if (_started)
         return false;
 
     if(host == nullptr || host[0] == '\0')
@@ -67,7 +67,7 @@ bool TnfsFileSystem::start(const char *host, uint16_t port, const char * mountpa
         Debug_printf("TNFS mount failed with code %d\n", r);
 #endif
         _mountinfo.mountpath[0] = '\0';
-        _connected = false;
+        _started = false;
         return false;
     }
 #ifdef DEBUG
@@ -83,7 +83,7 @@ bool TnfsFileSystem::start(const char *host, uint16_t port, const char * mountpa
         return false;
     }
 
-    _connected = true;
+    _started = true;
 
     return true;
 }
@@ -99,7 +99,7 @@ bool TnfsFileSystem::exists(const char* path)
 
 FILE * TnfsFileSystem::file_open(const char* path, const char* mode)
 {
-    if(!_connected || path == nullptr)
+    if(!_started || path == nullptr)
         return nullptr;
 
     char * fpath = _make_fullpath(path);
@@ -110,16 +110,15 @@ FILE * TnfsFileSystem::file_open(const char* path, const char* mode)
 
 bool TnfsFileSystem::dir_open(const char * path)
 {
-    if(!_connected)
+    if(!_started)
         return false;
-
     int r = tnfs_opendir(&_mountinfo, path);
     return (r == TNFS_RESULT_SUCCESS);
 }
 
 fsdir_entry * TnfsFileSystem::dir_read()
 {
-    if(!_connected)
+    if(!_started)
         return nullptr;
 
     // Skip "." and ".."; server returns EINVAL on trying to stat ".."
@@ -147,7 +146,7 @@ fsdir_entry * TnfsFileSystem::dir_read()
 
 void TnfsFileSystem::dir_close()
 {
-    if(!_connected)
+    if(!_started)
         return;
 
     tnfs_closedir(&_mountinfo);

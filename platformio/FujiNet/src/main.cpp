@@ -174,7 +174,7 @@ void setup()
 #ifdef DEBUG
         Debug_printf("WiFi connected. Current IP address: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
 #endif
-        UDP.begin(16384); // Why do we do this?
+        // UDP.begin(16384); // Why do we do this?
     }
 
 #ifdef DEBUG

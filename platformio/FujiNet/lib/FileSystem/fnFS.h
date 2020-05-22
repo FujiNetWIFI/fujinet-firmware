@@ -39,6 +39,8 @@ protected:
     char *_make_fullpath(const char *path);
 
 public:
+    virtual ~FileSystem() {};
+
     virtual bool running() { return _started; };
     virtual const char * basepath() { return _basepath; };
     
