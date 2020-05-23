@@ -218,11 +218,9 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPEN;
 
-    // Set the open mode (does not appear to be little-endian)
     packet.payload[0] = TNFS_LOBYTE_FROM_UINT16(open_mode);
     packet.payload[1] = TNFS_HIBYTE_FROM_UINT16(open_mode);
 
-    // Set create permissions (does not appear to be little-endian)
     packet.payload[2] = TNFS_LOBYTE_FROM_UINT16(create_perms);
     packet.payload[3] = TNFS_HIBYTE_FROM_UINT16(create_perms);
 
