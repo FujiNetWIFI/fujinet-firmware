@@ -131,6 +131,7 @@ struct tnfsStat
 // Returns a uint32 value from a pointer to four bytes in little-ending order
 #define TNFS_UINT32_FROM_LOHI_BYTEPTR(bytep) ( (uint32_t)(*(bytep+3)) << 24 | (uint32_t)(*(bytep+2)) << 16 | (uint32_t)(*(bytep+1)) << 8 | (*(bytep+0)))
 
+// Takes UINT32 value and pushes it into 4 consecutive bytes in little-endian order
 #define TNFS_UINT32_TO_LOHI_BYTEPTR(value, bytep) { \
     (bytep)[0] = value & 0xFFUL; \
     (bytep)[1] = value >> 8 & 0xFFUL; \

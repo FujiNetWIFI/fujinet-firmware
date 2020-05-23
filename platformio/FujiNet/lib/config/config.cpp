@@ -279,6 +279,9 @@ void fnConfig::load()
         return;
     }
 
+/*
+Original behavior: read from SPIFFS first and only read from SD if nothing found on SPIFFS.
+
     // See if we have a file in SPIFFS
     if(false == fnSPIFFS.exists(CONFIG_FILENAME))
     {
@@ -298,9 +301,35 @@ void fnConfig::load()
         }
         else
         {
-            _dirty = true; // We have a new config, so we treat it as needing to be saved            
+            _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved            
             return; // No local copy and no copy on SD - ABORT
         }
+    }
+*/
+/*
+New behavior: copy from SD first if available, then read SPIFFS.
+*/
+    // See if we have a copy on SD (only copy from SD if we don't have a local copy)
+    if(fnSDFAT.running() && fnSDFAT.exists(CONFIG_FILENAME))
+    {
+        #ifdef DEBUG
+        Debug_println("Found copy of config file on SD - copying that to SPIFFS");
+        #endif
+        if(0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
+        {
+            #ifdef DEBUG
+            Debug_println("Failed to copy config from SD");
+            #endif
+        }
+    }
+    // See if we have a file in SPIFFS (either originally or something copied from SD)
+    if(false == fnSPIFFS.exists(CONFIG_FILENAME))
+    {
+        _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved
+        #ifdef DEBUG
+        Debug_println("No config found - starting fresh!");
+        #endif
+        return; // No local copy - ABORT
     }
 
     // Read INI file into buffer (for speed)
