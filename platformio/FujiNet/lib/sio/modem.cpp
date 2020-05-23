@@ -4,7 +4,7 @@
 #include "modem.h"
 #include "../hardware/fnUART.h"
 #include "fnWiFi.h"
-#include "fnFSSPIF.h"
+#include "fnFsSPIF.h"
 #include "../../include/atascii.h"
 
 #define RECVBUFSIZE 1024
