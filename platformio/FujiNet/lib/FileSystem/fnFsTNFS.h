@@ -24,9 +24,9 @@ public:
 
     bool exists(const char* path) override;
 
-    bool remove(const char* path) override {return false;};
+    bool remove(const char* path) override;
 
-    bool rename(const char* pathFrom, const char* pathTo) override {return false;};
+    bool rename(const char* pathFrom, const char* pathTo) override;
 
     bool dir_open(const char * path) override;
     fsdir_entry *dir_read() override;

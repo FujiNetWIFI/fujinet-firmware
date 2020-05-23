@@ -97,6 +97,31 @@ bool FileSystemTNFS::exists(const char* path)
     return result == TNFS_RESULT_SUCCESS;
 }
 
+bool FileSystemTNFS::remove(const char* path)
+{
+    if(path == nullptr)
+        return false;
+
+    // Figure out if this is a file or directory
+    tnfsStat tstat;
+    if(TNFS_RESULT_SUCCESS != tnfs_stat(&_mountinfo, &tstat, path))
+        return false;
+
+    int result;
+    if(tstat.isDir)
+        result = tnfs_rmdir(&_mountinfo, path);
+    else
+        result = tnfs_unlink(&_mountinfo, path);
+
+    return result == TNFS_RESULT_SUCCESS;
+}
+
+bool FileSystemTNFS::rename(const char* pathFrom, const char* pathTo)
+{
+    int result = tnfs_rename(&_mountinfo, pathFrom, pathTo);
+    return result == TNFS_RESULT_SUCCESS;    
+}
+
 FILE * FileSystemTNFS::file_open(const char* path, const char* mode)
 {
     if(!_started || path == nullptr)
