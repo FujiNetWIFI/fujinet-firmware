@@ -14,6 +14,12 @@
 
 //#define EOL 155
 
+/*
+TODO: Switch to opening/closing printer output file as needed.
+The way we're currently handling printer output by leaving a file open for writing all the time
+results in FAT corruption on SD (unknown how/if it affects SPIFFS) since the file is never closed
+during reboot/power-down. We should switch to opening/closing the file as needed.
+*/
 class sioPrinter;
 
 class atari820 : public pdfPrinter
