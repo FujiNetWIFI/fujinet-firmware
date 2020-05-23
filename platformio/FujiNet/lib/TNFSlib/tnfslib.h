@@ -153,21 +153,23 @@ int tnfs_umount(tnfsMountInfo *m_info);
 int tnfs_opendir(tnfsMountInfo *m_info, const char *directory);
 int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len);
 int tnfs_closedir(tnfsMountInfo *m_info);
-
 int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory);
 int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory);
 
-int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath);
-const char * tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle);
+int tnfs_size(tnfsMountInfo *m_info, uint32_t *size);
+int tnfs_free(tnfsMountInfo *m_info, uint32_t *size);
 
 int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, uint16_t create_perms, int16_t *file_handle);
-int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle);
-
 int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
 int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
-
+int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle);
+int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath);
 int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position);
+int tnfs_unlink(tnfsMountInfo *m_info, const char *filepath);
+int tnfs_chmod(tnfsMountInfo *m_info, const char *filepath, uint16_t mode);
+int tnfs_rename(tnfsMountInfo *m_info, const char *old_filepath, const char *new_filepath);
 
+const char * tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle);
 int tnfs_code_to_errno(int tnfs_code);
 
 #endif //_TNFSLIB_H
