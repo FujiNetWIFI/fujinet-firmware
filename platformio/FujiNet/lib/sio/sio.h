@@ -90,7 +90,7 @@ protected:
 
    cmdFrame_t cmdFrame;
    bool listen_to_type3_polls;
-   unsigned char status_wait_count = 4;
+   unsigned char status_wait_count = 5;
 
    void sio_to_computer(byte *b, unsigned short len, bool err);
    byte sio_to_peripheral(byte *b, unsigned short len);
@@ -106,7 +106,8 @@ protected:
 
 public:
    int id() { return _devnum; };
-   bool is_config_device=false;
+   bool is_config_device = false;
+   bool device_active = true;
 };
 
 class sioBus
