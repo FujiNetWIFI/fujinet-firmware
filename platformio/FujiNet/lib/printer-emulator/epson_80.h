@@ -12,7 +12,8 @@ protected:
         byte cmd;
         byte N1;
         byte N2;
-        byte ctr;
+        uint16_t N;
+        uint16_t ctr;
     } epson_cmd = {0, 0, 0, 0};
     bool escMode = false;
 
