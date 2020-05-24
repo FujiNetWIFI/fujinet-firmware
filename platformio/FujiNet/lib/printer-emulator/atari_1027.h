@@ -1,6 +1,5 @@
 #ifndef ATARI_1027_H
 #define ATARI_1027_H
-#include <Arduino.h>
 
 #include "pdf_printer.h"
 
