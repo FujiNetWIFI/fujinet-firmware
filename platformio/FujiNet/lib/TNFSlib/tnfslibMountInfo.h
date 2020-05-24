@@ -31,6 +31,7 @@ private:
 
 public:
     ~tnfsMountInfo();
+
     tnfsMountInfo(){};
     tnfsMountInfo(const char *host_name, uint16_t host_port = TNFS_DEFAULT_PORT);
     tnfsMountInfo(in_addr_t host_address, uint16_t host_port = TNFS_DEFAULT_PORT);
@@ -45,8 +46,9 @@ public:
     in_addr_t host_ip = IPADDR_NONE;
     uint16_t port = TNFS_DEFAULT_PORT;
     char mountpath[64] = { '\0' };
-    char user[36] = { '\0' };
-    char password[36] = { '\0' };
+    char user[12] = { '\0' };
+    char password[12] = { '\0' };
+    char current_working_directory[TNFS_MAX_FILELEN] = { '\0' };
     uint16_t session = TNFS_INVALID_SESSION; // Stored from server's response to TNFS_MOUNT
     uint16_t min_retry_ms = TNFS_RETRY_DELAY; // Updated from server's response to TNFS_MOUNT
     uint16_t server_version = 0;  // Stored from server's response to TNFS_MOUNT
