@@ -74,6 +74,9 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     directory = urlParser->path.substr(0, urlParser->path.find_last_of("/") - 1);
     filename = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
 
+    if (filename == "*.*")
+        filename = "*";
+
     aux1 = cmdFrame->aux1;
 
     if (!urlParser->port.empty())
@@ -87,9 +90,6 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         // Directory open.
         string dirPath = urlParser->path.substr(0, urlParser->path.find_last_of("/"));
 
-        //        if (tnfs_stat(&mountInfo, &fileStat, dirPath.c_str()))
-        //            return false;
-
         if (tnfs_opendir(&mountInfo, dirPath.c_str()))
             return false; // error
     }
@@ -102,24 +102,27 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         switch (cmdFrame->aux1)
         {
         case 4:
-            mode = O_RDONLY;
+            mode = 1;
             break;
         case 8:
-            mode = O_WRONLY | O_CREAT;
+            mode = 0x103;
             create_perms = 0x1FF;
             break;
         case 9:
-            mode = O_WRONLY | O_APPEND | O_CREAT;
+            mode = 0x10B;
             create_perms = 0x1FF;
             break;
         case 12:
-            mode = O_RDWR | O_CREAT;
+            mode = 0x103;
             create_perms = 0x1FF;
             break;
         }
 
-        if (tnfs_stat(&mountInfo, &fileStat, urlParser->path.c_str()))
-            return false; // error
+        if (aux1==4)
+        {
+            if (tnfs_stat(&mountInfo, &fileStat, urlParser->path.c_str()))
+                return false; // error
+        }
 
         if (tnfs_open(&mountInfo, urlParser->path.c_str(), mode, create_perms, &fileHandle))
             return false; // error
@@ -144,6 +147,8 @@ bool networkProtocolTNFS::close()
 
 bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
 {
+    uint16_t actual_len;
+
     if (aux1 == 6) // are we reading directory?
     {
         if (len == 0)
@@ -155,12 +160,14 @@ bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
     else
     {
         // Reading from a file
-        if (tnfs_read(&mountInfo, fileHandle, rx_buf, len, NULL))
+        if (int ret=tnfs_read(&mountInfo, fileHandle, rx_buf, len, &actual_len)!=0)
         {
+            Debug_printf("blarg! %d\n",ret);
             return true;
         }
         else
         {
+            Debug_print("the right path\n");
             fileStat.filesize -= len;
         }
     }
@@ -169,7 +176,8 @@ bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
 
 bool networkProtocolTNFS::write(byte *tx_buf, unsigned short len)
 {
-    if (tnfs_write(&mountInfo, fileHandle, tx_buf, len, NULL))
+    uint16_t actual_len=0;
+    if (tnfs_write(&mountInfo, fileHandle, tx_buf, len, &actual_len))
         return true;
 
     return false;
@@ -178,20 +186,39 @@ bool networkProtocolTNFS::write(byte *tx_buf, unsigned short len)
 bool networkProtocolTNFS::status(byte *status_buf)
 {
     status_buf[0] = status_buf[1] = 0;
+    char tmp[256];
+
+    memset(tmp,0,sizeof(tmp));
 
     if (aux1 == 0x06)
     {
-        if (entryBuf==0)
+        if (entryBuf[0] == 0x00)
         {
-            if (tnfs_readdir(&mountInfo,entryBuf,255)!=0)
+        skip_entry:
+            if (tnfs_readdir(&mountInfo, tmp, 255) != 0)
                 return true;
 
-            entryBuf[strlen(entryBuf)-1]=0x9B; // EOL
+            if (strmatch(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
+            {
+                tmp[strlen(tmp)] = 0x9B;     // EOL
+                tmp[strlen(tmp) + 1] = 0x00; // EOS
+                strcpy(entryBuf, tmp);
+            }
+            else
+                goto skip_entry;
         }
         status_buf[0] = strlen(entryBuf);
     }
+    else
+    {
+        // File
+        status_buf[0] = fileStat.filesize & 0xFF;
+        status_buf[1] = fileStat.filesize >> 8;
+    }
+
     status_buf[2] = 1;
     status_buf[3] = 1;
+
     return false;
 }
 
