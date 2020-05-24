@@ -8,6 +8,7 @@
 #define TNFS_RETRIES 5 // Number of times to retry if we fail to send/receive a packet
 #define TNFS_TIMEOUT 3000 // This is how long we wait for a reply packet from the server before trying again
 #define TNFS_RETRY_DELAY 1000 // Default delay before retrying. Server will provide a minimum during TNFS_CMD_MOUNT
+#define TNFS_MAX_BACKOFF_DELAY 3000 // Longest we'll wait if server sends us a EAGAIN error
 #define TNFS_MAX_FILE_HANDLES 8 // Max number of file handles we'll open to the server
 #define TNFS_MAX_FILELEN 256
 
@@ -31,6 +32,7 @@ private:
 
 public:
     ~tnfsMountInfo();
+
     tnfsMountInfo(){};
     tnfsMountInfo(const char *host_name, uint16_t host_port = TNFS_DEFAULT_PORT);
     tnfsMountInfo(in_addr_t host_address, uint16_t host_port = TNFS_DEFAULT_PORT);
@@ -45,8 +47,9 @@ public:
     in_addr_t host_ip = IPADDR_NONE;
     uint16_t port = TNFS_DEFAULT_PORT;
     char mountpath[64] = { '\0' };
-    char user[36] = { '\0' };
-    char password[36] = { '\0' };
+    char user[12] = { '\0' };
+    char password[12] = { '\0' };
+    char current_working_directory[TNFS_MAX_FILELEN] = { '\0' };
     uint16_t session = TNFS_INVALID_SESSION; // Stored from server's response to TNFS_MOUNT
     uint16_t min_retry_ms = TNFS_RETRY_DELAY; // Updated from server's response to TNFS_MOUNT
     uint16_t server_version = 0;  // Stored from server's response to TNFS_MOUNT

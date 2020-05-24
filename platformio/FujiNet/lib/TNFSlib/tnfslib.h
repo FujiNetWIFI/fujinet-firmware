@@ -169,7 +169,10 @@ int tnfs_unlink(tnfsMountInfo *m_info, const char *filepath);
 int tnfs_chmod(tnfsMountInfo *m_info, const char *filepath, uint16_t mode);
 int tnfs_rename(tnfsMountInfo *m_info, const char *old_filepath, const char *new_filepath);
 
+int tnfs_chdir(tnfsMountInfo *m_info, const char *dirpath);
+const char * tnfs_getcwd(tnfsMountInfo *m_info);
 const char * tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle);
+
 int tnfs_code_to_errno(int tnfs_code);
 
 #endif //_TNFSLIB_H
