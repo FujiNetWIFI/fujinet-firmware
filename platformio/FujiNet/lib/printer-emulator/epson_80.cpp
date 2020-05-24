@@ -70,6 +70,8 @@ void epson80::pdf_handle_char(byte c)
             epson_cmd.N1 = c;
         else if (epson_cmd.ctr == 2)
             epson_cmd.N2 = c;
+        else if (epson_cmd.ctr == 3)
+            epson_cmd.N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & 0x07));
 
         // state machine actions
         switch (epson_cmd.cmd)
@@ -226,8 +228,8 @@ void epson80::pdf_handle_char(byte c)
 
                 if (epson_cmd.ctr > 2)
                 {
-                    uint16_t N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & 0x07));
-                    if (epson_cmd.ctr > (N + 1))
+
+                    if (epson_cmd.ctr > (epson_cmd.N + 1))
                     {
                         // reset font
                         epson_set_font(fontNumber, charWidth);
