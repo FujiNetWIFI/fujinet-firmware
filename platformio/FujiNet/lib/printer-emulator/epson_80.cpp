@@ -45,7 +45,7 @@ void epson80::print_8bit_gfx(byte c)
     for (int i = 0; i < 8; i++)
     {
         if ((c >> i) & 0x01)
-            _file.printf(")100(%u", i + 1);
+            _file.printf(")133(%u", i + 1);
     }
 }
 
@@ -60,19 +60,39 @@ void epson80::pdf_handle_char(byte c)
             // epson_cmd.N1 = 0;
             // epson_cmd.N2 = 0;
             epson_cmd.cmd = c; // assign command char
+#ifdef DEBUG
+            Debug_printf("Command: %c\n", c);
+#endif
         }
         else
         {
             epson_cmd.ctr++; // increment counter to keep track of the byte in the command
+#ifdef DEBUG
+            Debug_printf("Command counter: %d\n", epson_cmd.ctr);
+#endif
         }
 
         if (epson_cmd.ctr == 1)
+        {
             epson_cmd.N1 = c;
+#ifdef DEBUG
+            Debug_printf("N1: %d\n", c);
+#endif
+        }
         else if (epson_cmd.ctr == 2)
+        {
             epson_cmd.N2 = c;
+#ifdef DEBUG
+            Debug_printf("N2: %d\n", c);
+#endif
+        }
         else if (epson_cmd.ctr == 3)
+        {
             epson_cmd.N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & 0x07));
-
+#ifdef DEBUG
+            Debug_printf("N: %d\n", epson_cmd.N);
+#endif
+        }
         // state machine actions
         switch (epson_cmd.cmd)
         {
@@ -125,8 +145,11 @@ void epson80::pdf_handle_char(byte c)
             reset_cmd();
             break;
         case '@': // Resets all special modes to power up state including Top Of Form
-            // need to reset font to normal
-            // not sure what to do about TOF?
+                  // need to reset font to normal
+                  // not sure what to do about TOF?
+#ifdef DEBUG
+            Debug_printf("@ reset!\n");
+#endif
             at_reset();
             epson_set_font(epson_font_lookup(0), 7.2);
             reset_cmd();
@@ -201,55 +224,57 @@ void epson80::pdf_handle_char(byte c)
 
                Y&Z mode gotcha - store lastchar and print c&~lastchar
             */
+
+            if (epson_cmd.ctr == 0)
             {
-                if (epson_cmd.ctr == 0)
-                    textMode = false;
-                // first change fonts to GFX font
-                // then print GFX for each ctr value > 2
-                // finally change fonts back to whatever it was for ctr == N+2
-                if (epson_cmd.ctr == 2)
+                textMode = false;
+#ifdef DEBUG
+                Debug_printf("Switch to GFX mode\n");
+#endif
+            } // first change fonts to GFX font
+            // then print GFX for each ctr value > 2
+            // finally change fonts back to whatever it was for ctr == N+2
+            if (epson_cmd.ctr == 2)
+            {
+                switch (epson_cmd.cmd)
                 {
-                    switch (epson_cmd.cmd)
-                    {
-                    case 'K':
-                        charWidth = 1.2;
-                        break;
-                    case 'L': // Sets dot graphics mode to 960 dots per 8" line
-                    case 'Y': // on FX-80 this is double speed but with gotcha
-                        charWidth = 0.6;
-                        break;
-                    case 'Z': // on FX-80 this is double speed but with gotcha
-                        charWidth = 0.3;
-                        break;
-                    }
-                    _file.printf(")]TJ\n/F2 12 Tf [("); // set font to GFX mode
-                    fontUsed[1] = true;
+                case 'K':
+                    charWidth = 1.2;
+                    break;
+                case 'L': // Sets dot graphics mode to 960 dots per 8" line
+                case 'Y': // on FX-80 this is double speed but with gotcha
+                    charWidth = 0.6;
+                    break;
+                case 'Z': // on FX-80 this is double speed but with gotcha
+                    charWidth = 0.3;
+                    break;
                 }
+                _file.printf(")]TJ /F2 9 Tf [("); // set font to GFX mode
+                fontUsed[1] = true;
+            }
 
-                if (epson_cmd.ctr > 2)
+            if (epson_cmd.ctr > 2)
+            {
+                print_8bit_gfx(c);
+                switch (epson_cmd.cmd)
                 {
-
-                    if (epson_cmd.ctr > (epson_cmd.N + 1))
-                    {
-                        // reset font
-                        epson_set_font(fontNumber, charWidth);
-                        textMode = true;
-                        reset_cmd();
-                    }
-                    else
-                    {
-                        print_8bit_gfx(c);
-                        switch (epson_cmd.cmd)
-                        {
-                        case 'L': // Sets dot graphics mode to 960 dots per 8" line
-                        case 'Y': // on FX-80 this is double speed but with gotcha
-                            _file.printf(")50(");
-                            break;
-                        case 'Z': // on FX-80 this is double speed but with gotcha
-                            _file.printf(")75(");
-                            break;
-                        }
-                    }
+                case 'L': // Sets dot graphics mode to 960 dots per 8" line
+                case 'Y': // on FX-80 this is double speed but with gotcha
+                    _file.printf(")66.5(");
+                    break;
+                case 'Z': // on FX-80 this is double speed but with gotcha
+                    _file.printf(")99.75(");
+                    break;
+                }
+                if (epson_cmd.ctr == (epson_cmd.N + 2))
+                {
+                    // reset font
+                    epson_set_font(fontNumber, charWidth);
+                    textMode = true;
+                    reset_cmd();
+#ifdef DEBUG
+                    Debug_printf("Finished GFX mode\n");
+#endif
                 }
             }
             break;
@@ -375,8 +400,6 @@ void epson80::pdf_handle_char(byte c)
             reset_cmd();
             break;
         }
-
-        //escMode = false;
     }
     else
     { // check for other commands or printable character
@@ -480,7 +503,7 @@ float epson80::epson_font_width(uint16_t code)
 
 void epson80::epson_set_font(byte F, float w)
 {
-    _file.printf(")]TJ\n/F%u 10.8 Tf [(", F + 1);
+    _file.printf(")]TJ /F%u 9 Tf [(", F);
     charWidth = w;
     fontNumber = F;
     fontUsed[F] = true;
@@ -494,7 +517,7 @@ void epson80::at_reset()
     lineHeight = 12.0;
     charWidth = 7.2;
     fontNumber = 1;
-    fontSize = 12;
+    fontSize = 9;
     textMode = true;
 }
 
