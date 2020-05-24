@@ -11,8 +11,6 @@ bool networkProtocolFTP::ftpExpect(string resultCode)
     if (!control.connected())
         return false;
 
-    while (!control.available()) { yield(); }
-
     control.readBytesUntil('\n', buf, sizeof(buf));
     sbuf = string(buf);
     controlResponse = sbuf.substr(4);
