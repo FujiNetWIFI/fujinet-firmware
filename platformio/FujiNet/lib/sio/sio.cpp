@@ -323,12 +323,13 @@ void sioBus::service()
 #endif
                     for (int i = 0; i < numDevices(); i++)
                     {
-                        if (device(i)->listen_to_type3_polls)
+                        sioDevice * siodev = deviceByIndex(i);                        
+                        if (siodev->listen_to_type3_polls)
                         {
 #ifdef DEBUG
-                            Debug_printf("Sending TYPE3 poll to dev %x\n", device(i)->_devnum);
+                            Debug_printf("Sending TYPE3 poll to dev %x\n", siodev->_devnum);
 #endif
-                            activeDev = device(i);
+                            activeDev = siodev;
                             for (int i = 0; i < 5; i++)
                                 activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
 
@@ -343,9 +344,10 @@ void sioBus::service()
                     // this is what sioBus::sio_get_id() does, but need to pass the tempFrame to it
                     for (int i = 0; i < numDevices(); i++)
                     {
-                        if (tempFrame.devic == device(i)->_devnum)
+                        sioDevice * siodev = deviceByIndex(i);
+                        if (tempFrame.devic == siodev->_devnum)
                         {
-                            activeDev = device(i);
+                            activeDev = siodev;
                             for (int i = 0; i < 5; i++)
                                 activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
 #ifdef ESP8266
@@ -448,7 +450,7 @@ void sioBus::addDevice(sioDevice *p, int N)
     {
         fujiDev = (sioFuji *)p;
     }
-    else if (N == ADDR_R)
+    else if (N == SIO_DEVICEID_RS232)
     {
 #ifdef DEBUG
         //Debug_println("MODEM ADDED!");
@@ -470,7 +472,7 @@ void sioBus::addDevice(sioDevice *p, int N)
 bool sioBus::remDevice(sioDevice *p)
 {
     int i = 0;
-    while (p != device(i))
+    while (p != daisyChain.get(i))
     {
         i++;
         if (i > numDevices())
@@ -485,9 +487,21 @@ int sioBus::numDevices()
     return daisyChain.size();
 }
 
-sioDevice *sioBus::device(int i)
+sioDevice *sioBus::deviceByIndex(int i)
 {
     return daisyChain.get(i);
+}
+
+sioDevice *sioBus::deviceById(int id)
+{
+    int l = daisyChain.size();
+    for(int i = 0; i < l; i++)
+    {
+        sioDevice *dev = daisyChain.get(i);
+        if(dev->_devnum == id)
+            return dev;
+    }
+    return nullptr;
 }
 
 int sioBus::getBaudrate()
