@@ -330,7 +330,7 @@ GET:
 	
 	JSR	STPOLL		; Status Poll
 	JSR	GDIDX		; IOCB UNIT -1 into X (because Poll trashes X)
-	LDA	DVSTAT		; # of bytes waiting (0-255)
+	LDA	DVSTAT		; # of bytes waiting (0-127)
 	STA	RLEN,X		; Store in RX Len
 	BNE     GETDO		; We have something waiting...
 
@@ -344,7 +344,7 @@ GET:
 GETDO:
 	LDA	ZICDNO		; Get IOCB UNIT #
 	STA	GETDCB+1	; Store into DUNIT
-	JSR	ICD2B		; A = IOCB's buffer high page
+	LDA	#>RBUF		; Buffer ptr
 	STA	GETDCB+5	; store into DBUFH
 	LDA	DVSTAT		; # of bytes waiting
 	STA	GETDCB+8	; Store into DBYT...
@@ -376,24 +376,8 @@ GETUPDP:
 
 	;; Return Next char from appropriate RX buffer.
 	
-G3:	CPX	#$03		; Buffer for N4:
-	BNE	G2
-	LDA	RBUF+$300,y
-	BVC	GX
+	LDA	RBUF,y
 	
-G2:	CPX	#$02		; Buffer for N3:
-	BNE	G1
-	LDA	RBUF+$200,y
-	BVC	GX
-	
-G1:	CPX	#$01		; Buffer for N2:
-	BNE	G0
-	LDA	RBUF+$100,y
-	BVC	GX
-	
-G0:	LDA	RBUF,y		; Buffer for N1:
-	BVC	GX
-
 	;; Increment RX offset
 	
 GX:	INC	ROFF,X		; Increment RX offset.
@@ -433,26 +417,11 @@ GETDCB .BYTE     DEVIDN  ; DDEVIC
 
 PUT:
 	;; Add to TX buffer.
-       
+
 	JSR	GDIDX
 	LDY	TOFF,X  ; GET TX cursor.
+	STA	TBUF,Y		; TX Buffer
 	
-P3:	CPX	#$03		; N4: TX buffer
-	BNE	P2
-	STA	TBUF+$300,Y
-	BVC	POFF
-	
-P2:	CPX	#$02		; N3: TX buffer
-	BNE	P1
-	STA	TBUF+$200,Y
-	BVC	POFF
-	
-P1:	CPX	#$01		; N2: TX buffer
-	BNE	P0
-	STA	TBUF+$100,Y
-	BVC	POFF
-	
-P0:	STA	TBUF,Y		; N1: TX buffer
 POFF:	INC	TOFF,X		; Increment TX cursor
 	LDY	#$01		; SUCCESSFUL
 
@@ -462,7 +431,7 @@ POFF:	INC	TOFF,X		; Increment TX cursor
 	BEQ     FLUSH  ; FLUSH BUFFER
 	JSR     GDIDX   ; GET OFFSET
 	LDA     TOFF,X
-        CMP     #$FF    ; LEN = $FF?
+        CMP     #$7F    ; LEN = $FF?
         BEQ     FLUSH  ; FLUSH BUFFER
         RTS
 
@@ -495,23 +464,8 @@ PF2:	LDA     ZICDNO
 
        ; PICK APROPOS BUFFER PAGE
        
-TB3:	CPX     #$03		; N4: TX Buffer
-	BNE     TB2
-	LDA	#>TBUF+3
-	BVC	TBX
-
-TB2:	CPX     #$02		; N3: TX Buffer
-	BNE     TB1
-	LDA	#>TBUF+2
-	BVC	TBX
-
-TB1:	CPX     #$01		; N4: TX Buffer
-	BNE     TB0
-	LDA	#>TBUF+1
-	BVC	TBX
-
-TB0:	LDA	#>TBUF
-
+	LDA	#>TBUF
+	
        ; FINISH DCB AND DO SIOV
 
 TBX:	STA     PUTDCB+5
@@ -536,7 +490,7 @@ PUTDCB .BYTE      DEVIDN  ; DDEVIC
        .BYTE      $FF     ; DUNIT
        .BYTE      'W'     ; DCOMND
        .BYTE      $80     ; DSTATS
-       .BYTE      $00     ; DBUFL
+       .BYTE      $80     ; DBUFL
        .BYTE      $FF     ; DBUFH
        .BYTE      $0F     ; DTIMLO
        .BYTE      $00     ; DRESVD
@@ -568,19 +522,8 @@ STSLEN LDA     RLEN,X  ; GET RLEN
        ; DO POLL AND UPDATE RCV LEN
 
 STTRI1 JSR     STPOLL  ; POLL FOR ST
-       
-       ; IS <= 256?
-
-       LDA     DVSTAT+1
-       BNE     STTRI2  ; > 256
-       STA     RLEN,X
-       JMP     STTRIU  ; UPDATE TRIP
-
-       ; > 256, SET TO 256
-
-STTRI2 LDA     #$FF
-       STA     RLEN,X
-
+	STA	RLEN,X
+		
        ; UPDATE TRIP FLAG
 
 STTRIU BNE     STDONE
@@ -598,18 +541,22 @@ STPOLL:
        STA     STADCB+1
 
 	DCBC	STADCB
-	
+
        JSR     SIOV    ; DO IT...
 
-       ; MAX 256 BYTES WAITING.
+	;; > 127 bytes? make it 127 bytes.
 
-       LDA     DVSTAT+1
-       BEQ     STP2
-       LDA     #$FF
-       STA     DVSTAT
-       LDA     #$00
-       STA     DVSTAT+1
+	LDA	DVSTAT+1
+	BNE	STADJ
+	LDA	DVSTAT
+	BMI	STADJ
+	BVC	STP2		; <= 127 bytes...
 
+STADJ	LDA	#$7F
+	STA	DVSTAT
+	LDA	#$00
+	STA	DVSTAT+1
+	
        ; A = CONNECTION STATUS
 
 STP2   LDA     DVSTAT+2
@@ -748,32 +695,6 @@ GDIDX:
        LDX     ZICDNO  ; IOCB UNIT #
        DEX             ; - 1
        RTS
-
-       ; CONVERT ZICDNO TO BUFFER
-       ; PAGE, RETURN IN A
-
-ICD2B:
-	LDX	ZICDNO
-	DEX
-	
-I3:	CPX	#$03
-	BNE	I2
-	LDA	#>RBUF+3
-	BVC	IX
-
-I2:	CPX	#$02
-	BNE	I1
-	LDA	#>RBUF+2
-	BVC	IX
-
-I1:	CPX	#$01
-	BNE	I0
-	LDA	#>RBUF+1
-	BVC	IX
-
-I0:	LDA	#>RBUF
-
-IX:	RTS
 	
 ;;; End Utility Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -817,12 +738,12 @@ INQDS  .DS      1       ; DSTATS INQ
 
        ; BUFFERS (PAGE ALIGNED)
 
-       .ALIGN	$100
-
-RBUF   .DS      256*MAXDEV      ; RX
-TBUF   .DS      256*MAXDEV      ; TX
-
-PGEND  =       *
+	.ALIGN	$100
+	
+RBUF	.DS	$80		; 128 bytes
+TBUF	.DS	$80		; 128 bytes
+	
+PGEND	= *
 
 	RUN	START
        END
