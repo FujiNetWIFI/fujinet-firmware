@@ -1218,7 +1218,20 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
                         // Fall through and let retry logic handle it.
                     }
                     else
-                        return true;
+                    {
+                        // Check in case the server asks us to wait and try again
+                        if(pkt.payload[0] != TNFS_RESULT_TRY_AGAIN)
+                            return true;
+                        else
+                        {
+                            // Server should tell us how long it wants us to wait
+                            uint16_t backoffms = TNFS_UINT16_FROM_LOHI_BYTEPTR(pkt.payload + 1);
+                            Debug_printf("Server asked us to TRY AGAIN after %ums\n", backoffms);
+                            if(backoffms > TNFS_MAX_BACKOFF_DELAY)
+                                backoffms = TNFS_MAX_BACKOFF_DELAY;
+                            vTaskDelay(backoffms / portTICK_PERIOD_MS);
+                        }
+                    }
                 }
                 fnSystem.yield();
 
