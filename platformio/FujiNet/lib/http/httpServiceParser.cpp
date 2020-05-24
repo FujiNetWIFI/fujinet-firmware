@@ -135,7 +135,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << (float)fnSystem.get_sio_voltage()/1000.00 << "V";
         break;
     case FN_PRINTER1_MODEL:
-        resultstream << sioP.getPrinterPtr()->modelname();
+        resultstream << ((sioPrinter *)SIO.deviceById(SIO_DEVICEID_PRINTER))->getPrinterPtr()->modelname();
         break;
     default:
         resultstream << tag;

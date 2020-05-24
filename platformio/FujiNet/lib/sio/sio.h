@@ -41,8 +41,8 @@
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
 
-#define ADDR_R 0x50
-#define ADDR_P 0x40
+//#define ADDR_R 0x50
+//#define ADDR_P 0x40
 
 #define SIO_DEVICEID_FUJINET 0x70
 #define SIO_DEVICEID_FN_NETWORK 0x71
@@ -118,7 +118,7 @@ private:
    sioDevice *activeDev = nullptr;
    sioModem *modemDev = nullptr;
    sioFuji *fujiDev = nullptr;
-   sioNetwork *netDev[8] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
+   sioNetwork *netDev[8] = {nullptr};
 
    int sioBaud = 19200; // SIO Baud rate
 
@@ -129,7 +129,8 @@ public:
    void service();
    void addDevice(sioDevice *p, int N);
    bool remDevice(sioDevice *p);
-   sioDevice *device(int i);
+   sioDevice *deviceByIndex(int i);
+   sioDevice *deviceById(int id);
    int getBaudrate();
    void setBaudrate(int baudrate);
 };

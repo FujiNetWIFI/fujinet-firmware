@@ -14,11 +14,12 @@
 
 enum fsType
 {
-    FSTYPE_SPIFFS,
+    FSTYPE_SPIFFS = 0,
     FSTYPE_SDFAT,
     FSTYPE_TNFS,
     FSTYPE_COUNT
 };
+
 
 struct fsdir_entry
 {
@@ -48,6 +49,9 @@ public:
     virtual const char * basepath() { return _basepath; };
     
     virtual fsType type()=0;
+    virtual const char *typestring()=0;
+
+    static const char *type_to_string(fsType type);
 
     static long filesize(FILE *);
 

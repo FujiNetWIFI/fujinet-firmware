@@ -13,6 +13,7 @@ public:
     virtual bool is_global() override { return true; };
 
     fsType type() override { return FSTYPE_SDFAT; };
+    const char * typestring() override { return type_to_string(FSTYPE_SDFAT); };
 
     FILE * file_open(const char* path, const char* mode = FILE_READ) override;
 

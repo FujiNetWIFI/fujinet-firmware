@@ -1,169 +1,12 @@
-#include "html_printer.h"
-#include "atari_1025.h"
-#include "atari_1027.h"
-#include "file_printer.h"
-#include "png_printer.h"
 #include "printer.h"
 
-// Global printer object
-sioPrinter sioP;
-
-void atari820::pdf_handle_char(byte c)
-{
-    // Atari 820 modes:
-    // aux1 == 40   normal mode
-    // aux1 == 29   sideways mode
-    if (my_sioP->lastAux1 == 'N' && sideFlag)
-    {
-        fprintf(_file,")]TJ\n/F1 12 Tf [(");
-        fontNumber = 1;
-        fontSize = 12;
-        sideFlag = false;
-    }
-    else if (my_sioP->lastAux1 == 'S' && !sideFlag)
-    {
-        fprintf(_file, ")]TJ\n/F2 12 Tf [(");
-        fontNumber = 2;
-        fontSize = 12;
-        sideFlag = true;
-        fontUsed[1] = true;
-        // could increase charWidth, but not necessary to make this work. I force EOL.
-    }
-
-    // maybe printable character
-    if (c > 31 && c < 127)
-    {
-        if (!sideFlag || c > 47)
-        {
-            if (c == ('\\') || c == '(' || c == ')')
-                fwrite("\\", 1, 1, _file);
-            fwrite(&c, 1, 1, _file);
-        }
-        else
-        {
-            if (c < 48)
-                fwrite(" ", 1, 1, _file);
-        }
-
-        pdf_X += charWidth; // update x position
-    }
-}
-
-void atari822::pdf_handle_char(byte c)
-{
-    // use PDF inline image to display line of graphics
-    /*
-  q
-  240 0 0 1 18 750 cm
-  BI
-  /W 240
-  /H 1
-  /CS /G
-  /BPC 1
-  /D [1 0]
-  /F /AHx
-  ID
-  00 00 00 00 00 00 3C 00 7E 00 7C 60 00 3C 00 18 3C 00 78 7C 18 63 7E 3C 00 7E 3C 00 18 3C
-  >
-  EI
-  Q
-  */
-
-    // Atari 822 modes:
-    // aux1 == 'N'   normal mode
-    // aux1 == 'L'   graphics mode
-
-    // was: if (cmdFrame.comnd == 'W' && !textMode)
-    if (my_sioP->lastAux1 == 'N' && !textMode)
-    {
-        textMode = true;
-        pdf_begin_text(pdf_Y); // open new text object
-        pdf_new_line();        // start new line of text (string array)
-    }
-    // was: else if (cmdFrame.comnd == 'P' && textMode)
-    else if (my_sioP->lastAux1 == 'L' && textMode)
-    {
-        textMode = false;
-        if (!BOLflag)
-            pdf_end_line();   // close out string array
-        fprintf(_file, "ET\n"); // close out text object
-    }
-
-    if (!textMode && BOLflag)
-    {
-        fprintf(_file, "q\n %g 0 0 %g %g %g cm\n", printWidth, lineHeight / 10.0, leftMargin, pdf_Y);
-        fprintf(_file, "BI\n /W 240\n /H 1\n /CS /G\n /BPC 1\n /D [1 0]\n /F /AHx\nID\n");
-        BOLflag = false;
-    }
-    if (!textMode)
-    {
-        if (gfxNumber < 30)
-            fprintf(_file, " %02X", c);
-
-        gfxNumber++;
-
-        if (gfxNumber == 40)
-        {
-            fprintf(_file, "\n >\nEI\nQ\n");
-            pdf_Y -= lineHeight / 10.0;
-            BOLflag = true;
-            gfxNumber = 0;
-        }
-    }
-
-    // TODO: looks like auto wrapped lines are 1 dot apart and EOL lines are 3 dots apart
-
-    // simple ASCII printer
-    if (textMode && c > 31 && c < 127)
-    {
-        if (c == '\\' || c == '(' || c == ')')
-            fwrite("\\", 1, 1, _file);
-        fwrite(&c, 1, 1, _file);
-
-        pdf_X += charWidth; // update x position
-    }
-}
-
-void atari820::initPrinter(FileSystem *fs)
-{
-    printer_emu::initPrinter(fs);
-
-    shortname = "a820";
-
-    pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual
-    pageHeight = 792.0; // just use 11" for letter paper
-    leftMargin = 19.5;  // fit print width on page width
-    bottomMargin = 0.0;
-    // dimensions from Table 1-1 of Atari 820 Field Service Manual
-    printWidth = 240.0; // 3 1/3" wide printable area
-    lineHeight = 12.0;  // 6 lines per inch
-    charWidth = 6.0;    // 12 char per inch
-    fontNumber = 1;
-    fontSize = 12;
-    sideFlag = false;
-
-    pdf_header();
-}
-
-void atari822::initPrinter(FileSystem *fs)
-{
-    printer_emu::initPrinter(fs);
-
-    shortname = "a822";
-
-    pageWidth = 319.5;  // paper roll is 4 7/16" from page 4 of owners manual
-    pageHeight = 792.0; // just use 11" for letter paper
-    leftMargin = 15.75; // fit print width on page width
-    bottomMargin = 0.0;
-
-    printWidth = 288.0; // 4" wide printable area
-    lineHeight = 12.0;  // 6 lines per inch
-    charWidth = 7.2;    // 10 char per inch
-    fontNumber = 1;
-    fontSize = 12;
-
-    pdf_header();
-}
+#include "file_printer.h"
+#include "html_printer.h"
+#include "atari_820.h"
+#include "atari_822.h"
+#include "atari_1025.h"
+#include "atari_1027.h"
+#include "png_printer.h"
 
 // write for W commands
 void sioPrinter::sio_write()
@@ -171,7 +14,7 @@ void sioPrinter::sio_write()
     byte n = 40;
     byte ck;
 
-    memset(buffer, 0, n); // clear buffer
+    memset(_buffer, 0, n); // clear _buffer
 
     /* 
   Auxiliary Byte 1 values per 400/800 OS Manual
@@ -195,26 +38,26 @@ void sioPrinter::sio_write()
     else if (cmdFrame.aux1 == 'D')
         n = 20;
 
-    ck = sio_to_peripheral(buffer, n);
+    ck = sio_to_peripheral(_buffer, n);
 
-    if (ck == sio_checksum(buffer, n))
+    if (ck == sio_checksum(_buffer, n))
     {
         if (n == 29)
-        { // reverse the buffer and replace EOL with space
+        { // reverse the _buffer and replace EOL with space
             // needed for PDF sideways printing on A820
             byte temp[29];
-            memcpy(temp, buffer, n);
+            memcpy(temp, _buffer, n);
             for (int i = 0; i < n; i++)
             {
-                buffer[i] = temp[n - 1 - i];
-                if (buffer[i] == EOL)
-                    buffer[i] = ' ';
+                _buffer[i] = temp[n - 1 - i];
+                if (_buffer[i] == EOL)
+                    _buffer[i] = ' ';
             }
-            buffer[n++] = EOL;
+            _buffer[n++] = EOL;
         }
         for (int i = 0; i < n; i++)
         {
-            _pptr->copyChar(buffer[i], i);
+            _pptr->copyChar(_buffer[i], i);
         }
         if (_pptr->process(n))
             sio_complete();
@@ -261,20 +104,20 @@ void sioPrinter::sio_status()
 */
 
     status[0] = 0;
-    status[1] = lastAux1;
+    status[1] = _lastAux1;
     status[2] = 5;
     status[3] = 0;
 
     sio_to_computer(status, sizeof(status), false);
 }
 
-void sioPrinter::set_printer_type(sioPrinter::printer_type t)
+void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
 {
     // Destroy any current printer emu object
     delete _pptr;
 
-    pt = t;
-    switch (t)
+    _ptype = printer_type;
+    switch (printer_type)
     {
     case PRINTER_FILE_RAW:
         _pptr = new filePrinter(RAW);
@@ -308,28 +151,31 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type t)
         break;
     default:
         _pptr = new filePrinter;
-        pt = PRINTER_FILE_TRIM;
+        _ptype = PRINTER_FILE_TRIM;
         break;
     }
 
     _pptr->initPrinter(_storage);
 }
 
+/*
 void sioPrinter::set_storage(FileSystem *fs)
 {
     _storage = fs;
     _pptr->initPrinter(_storage);
 }
+*/
 
 // Constructor just sets a default printer type
-sioPrinter::sioPrinter()
+sioPrinter::sioPrinter(FileSystem *filesystem, printer_type print_type)
 {
-    _pptr = new filePrinter;
+    _storage = filesystem;
+   set_printer_type(print_type);
 }
 
 /* Returns a printer type given a string model name
 */
-sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
+sioPrinter::printer_type sioPrinter::match_modelname(std::string model_name)
 {
     const char *models[PRINTER_INVALID] =
         {
@@ -345,7 +191,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string modelname)
             "HTML ATASCII printer"};
     int i;
     for (i = 0; i < PRINTER_INVALID; i++)
-        if (modelname.compare(models[i]) == 0)
+        if (model_name.compare(models[i]) == 0)
             break;
 
     return (printer_type)i;
@@ -358,13 +204,13 @@ void sioPrinter::sio_process()
     {
     case 'P': // 0x50 - needed by A822 for graphics mode printing
     case 'W': // 0x57
-        lastAux1 = cmdFrame.aux1;
-        last_ms = fnSystem.millis();
+        _lastAux1 = cmdFrame.aux1;
+        _last_ms = fnSystem.millis();
         sio_ack();
         sio_write();
         break;
     case 'S': // 0x53
-        last_ms = fnSystem.millis();
+        _last_ms = fnSystem.millis();
         sio_ack();
         sio_status();
         break;
