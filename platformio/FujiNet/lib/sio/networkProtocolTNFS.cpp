@@ -74,21 +74,23 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     directory = urlParser->path.substr(0, urlParser->path.find_last_of("/") - 1);
     filename = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
 
+    aux1 = cmdFrame->aux1;
+
     if (!urlParser->port.empty())
         mountInfo.port = atoi(urlParser->port.c_str());
 
-    if (!tnfs_mount(&mountInfo))
+    if (tnfs_mount(&mountInfo))
         return false; // error
 
     if (cmdFrame->aux1 == 6)
     {
         // Directory open.
-        string dirPath = urlParser->path.substr(0, urlParser->path.find_last_of("/") - 1);
+        string dirPath = urlParser->path.substr(0, urlParser->path.find_last_of("/"));
 
-        if (!tnfs_stat(&mountInfo, &fileStat, dirPath.c_str()))
-            return false;
+        //        if (tnfs_stat(&mountInfo, &fileStat, dirPath.c_str()))
+        //            return false;
 
-        if (!tnfs_opendir(&mountInfo, dirPath.c_str()))
+        if (tnfs_opendir(&mountInfo, dirPath.c_str()))
             return false; // error
     }
     else
@@ -116,10 +118,10 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
             break;
         }
 
-        if (!tnfs_stat(&mountInfo, &fileStat, urlParser->path.c_str()))
+        if (tnfs_stat(&mountInfo, &fileStat, urlParser->path.c_str()))
             return false; // error
 
-        if (!tnfs_open(&mountInfo, urlParser->path.c_str(), mode, create_perms, &fileHandle))
+        if (tnfs_open(&mountInfo, urlParser->path.c_str(), mode, create_perms, &fileHandle))
             return false; // error
     }
 
@@ -128,7 +130,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
 bool networkProtocolTNFS::close()
 {
-    if (mountInfo.dir_handle != 0)
+    if (aux1 == 6)
         tnfs_closedir(&mountInfo);
 
     if (fileHandle != 0)
@@ -142,30 +144,24 @@ bool networkProtocolTNFS::close()
 
 bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
 {
-    if (mountInfo.dir_handle != 0) // are we reading directory?
+    if (aux1 == 6) // are we reading directory?
     {
-        char tmp[256];
-        string wildcard = filename;
+        if (len == 0)
+            return true;
 
-    nextEntry:
-        if (tnfs_readdir(&mountInfo, (char *)tmp, len) != 0)
-            return true; // error
-
-        if (strmatch(tmp, (char *)wildcard.c_str(), strlen(tmp), wildcard.length()))
-            strcpy((char *)rx_buf, tmp);
-        else
-            goto nextEntry;
+        strcpy((char *)rx_buf, entryBuf);
+        memset(entryBuf, 0, sizeof(entryBuf));
     }
     else
     {
         // Reading from a file
-        if (!tnfs_read(&mountInfo,fileHandle,rx_buf,len,NULL))
+        if (tnfs_read(&mountInfo, fileHandle, rx_buf, len, NULL))
         {
             return true;
         }
         else
         {
-            fileStat.filesize-=len;
+            fileStat.filesize -= len;
         }
     }
     return false;
@@ -173,17 +169,27 @@ bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
 
 bool networkProtocolTNFS::write(byte *tx_buf, unsigned short len)
 {
-    if (!tnfs_write(&mountInfo,fileHandle,tx_buf,len,NULL))
+    if (tnfs_write(&mountInfo, fileHandle, tx_buf, len, NULL))
         return true;
-        
+
     return false;
 }
 
 bool networkProtocolTNFS::status(byte *status_buf)
 {
-    unsigned short available_bytes = (fileStat.filesize > 65535 ? 65535 : fileStat.filesize);
-    status_buf[0] = available_bytes & 0xFF;
-    status_buf[1] = available_bytes >> 8;
+    status_buf[0] = status_buf[1] = 0;
+
+    if (aux1 == 0x06)
+    {
+        if (entryBuf==0)
+        {
+            if (tnfs_readdir(&mountInfo,entryBuf,255)!=0)
+                return true;
+
+            entryBuf[strlen(entryBuf)-1]=0x9B; // EOL
+        }
+        status_buf[0] = strlen(entryBuf);
+    }
     status_buf[2] = 1;
     status_buf[3] = 1;
     return false;

@@ -27,7 +27,8 @@ private:
     string filename;
     string directory;
     tnfsStat fileStat;
-
+    char entryBuf[256];
+    char aux1;
 };
 
 #endif /* NETWORKPROTOCOLTNFS */
