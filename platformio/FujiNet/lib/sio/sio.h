@@ -1,8 +1,9 @@
 #ifndef SIO_H
 #define SIO_H
 
+#include <forward_list>
+
 #include "fnSystem.h"
-#include "../LinkedList-1.2.3/LinkedList.h"
 
 // pin configurations
 #ifdef ESP8266
@@ -44,8 +45,11 @@
 //#define ADDR_R 0x50
 //#define ADDR_P 0x40
 
+#define SIO_DAISYCHAIN_STARTING_SIZE 32
+
 #define SIO_DEVICEID_FUJINET 0x70
 #define SIO_DEVICEID_FN_NETWORK 0x71
+#define SIO_DEVICEID_FN_NETWORK_LAST 0x78
 #define SIO_DEVICEID_FN_VOICE 0x43
 
 #define SIO_DEVICEID_APETIME 0x45
@@ -113,24 +117,21 @@ public:
 class sioBus
 {
 private:
-   LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
+   std::forward_list<sioDevice *> daisyChain;
    unsigned long cmdTimer = 0;
    sioDevice *activeDev = nullptr;
    sioModem *modemDev = nullptr;
    sioFuji *fujiDev = nullptr;
    sioNetwork *netDev[8] = {nullptr};
-
    int sioBaud = 19200; // SIO Baud rate
 
 public:
-   int numDevices();
-
    void setup();
    void service();
-   void addDevice(sioDevice *p, int N);
-   bool remDevice(sioDevice *p);
-   sioDevice *deviceByIndex(int i);
-   sioDevice *deviceById(int id);
+   int numDevices();
+   void addDevice(sioDevice *pDevice, int device_id);
+   void remDevice(sioDevice *pDevice);
+   sioDevice *deviceById(int device_id);
    int getBaudrate();
    void setBaudrate(int baudrate);
 };
