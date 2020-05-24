@@ -16,7 +16,7 @@ void pdfPrinter::pdf_header()
     pdf_Y = 0;
     pdf_X = 0;
     pdf_pageCounter = 0;
-    _file.printf("%%PDF-1.4\n");
+    _file.printf("%%PDF-1.4\n%%%c%c%c%c\n",'F'+128,'U'+128,'J'+128,'I'+128);
     // first object: catalog of pages
     pdf_objCtr = 1;
     objLocations[pdf_objCtr] = _file.position();
@@ -370,7 +370,6 @@ bool pdfPrinter::process(byte n)
 
         if (!textMode)
         {
-            //this->
             pdf_handle_char(c);
         }
         else
