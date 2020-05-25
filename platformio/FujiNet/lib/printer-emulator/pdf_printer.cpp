@@ -198,7 +198,7 @@ void pdfPrinter::pdf_new_page()
     objLocations[pdf_objCtr] = ftell(_file);
     fprintf(_file, "%d 0 obj\n<</Length ", pdf_objCtr);
     idx_stream_length = ftell(_file);
-    fprintf(_file, "00000>>\nstream\n");
+    fprintf(_file, "0000000000 >>\nstream\n");
     idx_stream_start = ftell(_file);
 
     // open new text object
@@ -266,7 +266,7 @@ void pdfPrinter::pdf_end_page()
     size_t idx_temp = ftell(_file);
     fflush(_file);
     fseek(_file, idx_stream_length, SEEK_SET);
-    fprintf(_file, "%5u", (idx_stream_stop - idx_stream_start));
+    fprintf(_file, "%10u", (idx_stream_stop - idx_stream_start));
     fflush(_file);
     fseek(_file, idx_temp, SEEK_SET);
     // set counters
