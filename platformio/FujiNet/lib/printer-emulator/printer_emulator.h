@@ -67,12 +67,8 @@ public:
     void setPaper(paper_t ptype) { _paper_type = ptype; };
 
     virtual const char *modelname() = 0;
-    //File *getFilePtr() { return _file; }
-    // virtual void flushOutput(); // do this in pageEject
     size_t getOutputSize();
-    //int readFromOutput();
-    //int readFromOutput(uint8_t *buf, size_t size);
-    //void resetPrinter() { initPrinter(_FS); };
+
 };
 
 #endif // PRINTER_EMU_H

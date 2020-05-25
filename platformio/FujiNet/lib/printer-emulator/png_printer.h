@@ -47,6 +47,7 @@ protected:
     virtual void pre_close_file() override;
     virtual bool process_buffer(byte linelen, byte aux1, byte aux2);
 public:
+    pngPrinter() { _paper_type = PNG;};
     const char *modelname() { return "GRANTIC"; };
 
 };
