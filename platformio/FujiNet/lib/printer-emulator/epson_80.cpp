@@ -40,7 +40,7 @@ void epson80::print_8bit_gfx(byte c)
 {
     // e.g., [(0)100(1)100(4)100(50)]TJ
     // lead with '0' to enter a space
-    // then shift back with 100 and print each pin
+    // then shift back with 133 and print each pin
     fprintf(_file, "0");
     for (int i = 0; i < 8; i++)
     {
@@ -258,14 +258,18 @@ void epson80::pdf_handle_char(byte c, byte aux1, byte aux2)
                 print_8bit_gfx(c);
                 switch (epson_cmd.cmd)
                 {
+                case 'K':
+                    fprintf(_file, ")");
+                    break;
                 case 'L': // Sets dot graphics mode to 960 dots per 8" line
                 case 'Y': // on FX-80 this is double speed but with gotcha
-                    fprintf(_file, ")66.5(");
+                    fprintf(_file, ")66.5");
                     break;
                 case 'Z': // on FX-80 this is double speed but with gotcha
-                    fprintf(_file, ")99.75(");
+                    fprintf(_file, ")99.75");
                     break;
                 }
+                fprintf(_file, "]TJ [(");
                 if (epson_cmd.ctr == (epson_cmd.N + 2))
                 {
                     // reset font
