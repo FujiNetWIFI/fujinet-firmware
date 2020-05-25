@@ -23,7 +23,7 @@ static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BOOT_KEY, PIN_OTHER_KEY};
 class KeyManager
 {
 public:
-    KeyManager();
+    //KeyManager();
     void setup();
     eKeyStatus getKeyStatus(eKey key);
     static bool keyCurrentlyPressed(eKey key);
@@ -32,9 +32,9 @@ public:
 
 private:
 
-    long mButtonTimer[eKey::KEY_COUNT];
-    bool mButtonActive[eKey::KEY_COUNT];
-    bool mLongPressActive[eKey::KEY_COUNT];
+    long mButtonTimer[eKey::KEY_COUNT] = {0};
+    bool mButtonActive[eKey::KEY_COUNT] = {0};
+    bool mLongPressActive[eKey::KEY_COUNT] = {0};
 };
 
 extern KeyManager keyMgr;

@@ -5,6 +5,9 @@
 #include <string>
 #include <map>
 
+#include "esp_task.h"
+#include "esp_heap_task_info.h"
+
 #include "httpServiceConfigurator.h"
 #include "config.h"
 #include "printer.h"
@@ -130,7 +133,10 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
     // Finally, change the printer type!
     Config.store_printer(0, t);
     Config.save();
-    sioP.set_printer_type(t);
+
+    // Get a pointer to the current (only) printer
+    sioPrinter *printer = (sioPrinter *)SIO.deviceById(SIO_DEVICEID_PRINTER);
+    printer->set_printer_type(t);
 }
 
 int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t postlen)

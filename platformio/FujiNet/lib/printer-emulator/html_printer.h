@@ -14,7 +14,7 @@ protected:
 
 public:
     htmlPrinter(paper_t ty = HTML) : printer_emu{ty} {};
-    virtual void initPrinter(FS *filesystem);
+    virtual void initPrinter(FileSystem *fs);
     virtual void pageEject();
     virtual bool process(byte n);
 

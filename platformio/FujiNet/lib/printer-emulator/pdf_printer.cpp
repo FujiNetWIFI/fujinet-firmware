@@ -1,10 +1,12 @@
 #include "pdf_printer.h"
+#include "../utils/utils.h"
 #include "../../include/debug.h"
+#include "fnFsSPIF.h"
 
 pdfPrinter::~pdfPrinter()
 {
 #ifdef DEBUG
-    Debug_println("~pdfPrinter");
+    //Debug_println("~pdfPrinter");
 #endif
 }
 
@@ -16,11 +18,11 @@ void pdfPrinter::pdf_header()
     pdf_Y = 0;
     pdf_X = 0;
     pdf_pageCounter = 0;
-    _file.printf("%%PDF-1.4\n%%%c%c%c%c\n",'F'+128,'U'+128,'J'+128,'I'+128);
+    fprintf(_file, "%%PDF-1.4\n");
     // first object: catalog of pages
     pdf_objCtr = 1;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
+    objLocations[pdf_objCtr] = ftell(_file);
+    fprintf(_file, "1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n");
     // object 2 0 R is printed by pdf_page_resource() before xref
     // object 3 0 R is printed at pdf_font_resource() before xref
     pdf_objCtr = 3; // set up counter for pdf_add_font()
@@ -28,21 +30,21 @@ void pdfPrinter::pdf_header()
 
 void pdfPrinter::pdf_page_resource()
 {
-    objLocations[2] = _file.position(); // hard code page catalog as object #2
-    _file.printf("2 0 obj\n<</Type /Pages /Kids [ ");
+    objLocations[2] = ftell(_file); // hard code page catalog as object #2
+    fprintf(_file, "2 0 obj\n<</Type /Pages /Kids [ ");
     for (int i = 0; i < pdf_pageCounter; i++)
     {
-        _file.printf("%d 0 R ", pageObjects[i]);
+        fprintf(_file, "%d 0 R ", pageObjects[i]);
     }
-    _file.printf("] /Count %d>>\nendobj\n", pdf_pageCounter);
+    fprintf(_file, "] /Count %d>>\nendobj\n", pdf_pageCounter);
 }
 
 void pdfPrinter::pdf_font_resource()
 {
     int fntCtr = 0;
-    objLocations[3] = _file.position();
+    objLocations[3] = ftell(_file);
     // font catalog
-    _file.printf("3 0 obj\n<</Font <<");
+    fprintf(_file, "3 0 obj\n<</Font <<");
     for (int i = 0; i < MAXFONTS; i++)
     {
         if (fontUsed[i])
@@ -52,11 +54,11 @@ void pdfPrinter::pdf_font_resource()
             //  font descriptor
             //  font widths
             //  font file
-            _file.printf("/F%d %d 0 R ", i + 1, pdf_objCtr + 1 + fntCtr * 4); ///F1 4 0 R /F2 8 0 R>>>>\nendobj\n
+            fprintf(_file, "/F%d %d 0 R ", i + 1, pdf_objCtr + 1 + fntCtr * 4); ///F1 4 0 R /F2 8 0 R>>>>\nendobj\n
             fntCtr++;
         }
     }
-    _file.printf(">>>>\nendobj\n");
+    fprintf(_file, ">>>>\nendobj\n");
 }
 
 void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
@@ -68,8 +70,8 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
     // OPEN LUT FILE
     char fname[30]; // filename: /f/shortname/Fi
     sprintf(fname, "/f/%s/LUT", shortname.c_str());
-    File lut = SPIFFS.open(fname);
-    int maxFonts = lut.parseInt();
+    FILE *lut = fnSPIFFS.file_open(fname);
+    int maxFonts = util_parseInt(lut);
 
     // font dictionary
     for (int i = 0; i < maxFonts; i++)
@@ -85,92 +87,92 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
             size_t fp = 0;
             char fname[30];                                        // filename: /f/shortname/Fi
             sprintf(fname, "/f/%s/F%d", shortname.c_str(), i + 1); // e.g. /f/a820/F2
-            File fff = SPIFFS.open(fname, "r");                    // Font File File - fff
+            FILE *fff = fnSPIFFS.file_open(fname);                 // Font File File - fff
 
             for (int j = 0; j < 7; j++)
-                fontObjPos[j] = lut.parseInt();
+                fontObjPos[j] = util_parseInt(lut);
 
-            fff.read(); // '%'
+            fgetc(fff); // '%'
             fp++;
-            fff.read(); // 'd'
+            fgetc(fff); // 'd'
             fp++;
             pdf_objCtr++; // = 6;
-            objLocations[pdf_objCtr] = _file.position();
-            _file.printf("%d", pdf_objCtr); // 6
+            objLocations[pdf_objCtr] = ftell(_file);
+            fprintf(_file, "%d", pdf_objCtr); // 6
             while (fp < fontObjPos[0])
             {
-                _file.write(fff.read());
+                fputc(fgetc(fff), _file);
                 fp++;
             }
-            fff.read(); // '%'
+            fgetc(fff); // '%'
             fp++;
-            fff.read(); // 'd'
+            fgetc(fff); // 'd'
             fp++;
-            _file.printf("%d", pdf_objCtr + 1); // 7
+            fprintf(_file, "%d", pdf_objCtr + 1); // 7
             while (fp < fontObjPos[1])
             {
-                _file.write(fff.read());
+                fputc(fgetc(fff), _file);
                 fp++;
             }
-            fff.read(); // '%'
+            fgetc(fff); // '%'
             fp++;
-            fff.read(); // 'd'
+            fgetc(fff); // 'd'
             fp++;
-            _file.printf("%d", pdf_objCtr + 3); // 9
+            fprintf(_file, "%d", pdf_objCtr + 3); // 9
             while (fp < fontObjPos[2])
             {
-                _file.write(fff.read());
+                fputc(fgetc(fff), _file);
                 fp++;
             }
-            fff.read(); // '%'
+            fgetc(fff); // '%'
             fp++;
-            fff.read(); // 'd'
+            fgetc(fff); // 'd'
             fp++;
             pdf_objCtr++; // = 7;
-            objLocations[pdf_objCtr] = _file.position();
-            _file.printf("%d", pdf_objCtr); // 7
+            objLocations[pdf_objCtr] = ftell(_file);
+            fprintf(_file, "%d", pdf_objCtr); // 7
             while (fp < fontObjPos[3])
             {
-                _file.write(fff.read());
+                fputc(fgetc(fff), _file);
                 fp++;
             }
-            fff.read(); // '%'
+            fgetc(fff); // '%'
             fp++;
-            fff.read(); // 'd'
+            fgetc(fff); // 'd'
             fp++;
-            _file.printf("%d", pdf_objCtr + 1); // 8
+            fprintf(_file, "%d", pdf_objCtr + 1); // 8
             while (fp < fontObjPos[4])
             {
-                _file.write(fff.read());
+                fputc(fgetc(fff), _file);
                 fp++;
             }
-            fff.read(); // '%'
+            fgetc(fff); // '%'
             fp++;
-            fff.read(); // 'd'
+            fgetc(fff); // 'd'
             fp++;
             pdf_objCtr++; // = 8;
-            objLocations[pdf_objCtr] = _file.position();
-            _file.printf("%d", pdf_objCtr); // 8
+            objLocations[pdf_objCtr] = ftell(_file);
+            fprintf(_file, "%d", pdf_objCtr); // 8
             while (fp < fontObjPos[5])
             {
-                _file.write(fff.read());
+                fputc(fgetc(fff), _file);
                 fp++;
             }
-            fff.read(); // '%'
+            fgetc(fff); // '%'
             fp++;
-            fff.read(); // 'd'
+            fgetc(fff); // 'd'
             fp++;
             pdf_objCtr++; // = 9;
-            objLocations[pdf_objCtr] = _file.position();
-            _file.printf("%d", pdf_objCtr); // 9
+            objLocations[pdf_objCtr] = ftell(_file);
+            fprintf(_file, "%d", pdf_objCtr); // 9
             // insert rest of file
             while (fp < fontObjPos[6]) //(fff.available())
             {
-                _file.write(fff.read());
+                fputc(fgetc(fff), _file);
                 fp++;
             }
-            fff.close();
-            _file.write('\n'); // make sure there's a seperator
+            fclose(fff);
+            fputc('\n', _file); // make sure there's a seperator
         }
 #ifdef DEBUG
         else
@@ -179,6 +181,8 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
         }
 #endif
     }
+
+    fclose(lut);
 #ifdef DEBUG
     Debug_println("done.");
 #endif
@@ -191,18 +195,18 @@ void pdfPrinter::pdf_new_page()
 #endif
     pdf_objCtr++;
     pageObjects[pdf_pageCounter] = pdf_objCtr;
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 3 0 R /MediaBox [0 0 %g %g] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
+    objLocations[pdf_objCtr] = ftell(_file);
+    fprintf(_file, "%d 0 obj\n<</Type /Page /Parent 2 0 R /Resources 3 0 R /MediaBox [0 0 %g %g] /Contents [ ", pdf_objCtr, pageWidth, pageHeight);
     pdf_objCtr++; // increment for the contents stream object
-    _file.printf("%d 0 R ", pdf_objCtr);
-    _file.printf("]>>\nendobj\n");
+    fprintf(_file, "%d 0 R ", pdf_objCtr);
+    fprintf(_file, "]>>\nendobj\n");
 
     // open content stream
-    objLocations[pdf_objCtr] = _file.position();
-    _file.printf("%d 0 obj\n<</Length ", pdf_objCtr);
-    idx_stream_length = _file.position();
-    _file.printf("00000>>\nstream\n");
-    idx_stream_start = _file.position();
+    objLocations[pdf_objCtr] = ftell(_file);
+    fprintf(_file, "%d 0 obj\n<</Length ", pdf_objCtr);
+    idx_stream_length = ftell(_file);
+    fprintf(_file, "00000>>\nstream\n");
+    idx_stream_start = ftell(_file);
 
     // open new text object
     pdf_begin_text(pageHeight);
@@ -214,10 +218,10 @@ void pdfPrinter::pdf_begin_text(float Y)
     Debug_println("pdf begin text");
 #endif
     // open new text object
-    _file.printf("BT\n");
+    fprintf(_file, "BT\n");
     TOPflag = false;
-    _file.printf("/F%u %g Tf\n", fontNumber, fontSize);
-    _file.printf("%g %g Td\n", leftMargin, Y);
+    fprintf(_file, "/F%u %g Tf\n", fontNumber, fontSize);
+    fprintf(_file, "%g %g Td\n", leftMargin, Y);
     pdf_Y = Y; // reset print roller to top of page
     pdf_X = 0; // set carriage to LHS
     BOLflag = true;
@@ -230,9 +234,9 @@ void pdfPrinter::pdf_new_line()
 #endif
     // position new line and start text string array
     if (pdf_dY != 0)
-        _file.printf("0 Ts ");
+        fprintf(_file, "0 Ts ");
     pdf_dY -= lineHeight;
-    _file.printf("0 %g Td [(", pdf_dY);
+    fprintf(_file, "0 %g Td [(", pdf_dY);
     pdf_Y -= pdf_dY; // line feed
     pdf_dY = 0;
     // pdf_X = 0;              // CR over in end line()
@@ -244,7 +248,7 @@ void pdfPrinter::pdf_end_line()
 #ifdef DEBUG
     Debug_println("pdf end line");
 #endif
-    _file.printf(")]TJ\n"); // close the line
+    fprintf(_file, ")]TJ\n"); // close the line
     // pdf_Y -= lineHeight; // line feed - moved to new line()
     pdf_X = 0; // CR
     BOLflag = true;
@@ -263,15 +267,15 @@ void pdfPrinter::pdf_end_page()
     // close text object & stream
     if (!BOLflag)
         pdf_end_line();
-    _file.printf("ET\n");
-    idx_stream_stop = _file.position();
-    _file.printf("endstream\nendobj\n");
-    size_t idx_temp = _file.position();
-    _file.flush();
-    _file.seek(idx_stream_length);
-    _file.printf("%5u", (idx_stream_stop - idx_stream_start));
-    _file.flush();
-    _file.seek(idx_temp);
+    fprintf(_file, "ET\n");
+    idx_stream_stop = ftell(_file);
+    fprintf(_file, "endstream\nendobj\n");
+    size_t idx_temp = ftell(_file);
+    fflush(_file);
+    fseek(_file, idx_stream_length, SEEK_SET);
+    fprintf(_file, "%5u", (idx_stream_stop - idx_stream_start));
+    fflush(_file);
+    fseek(_file, idx_temp, SEEK_SET);
     // set counters
     pdf_pageCounter++;
     TOPflag = true;
@@ -282,19 +286,19 @@ void pdfPrinter::pdf_xref()
 #ifdef DEBUG
     Debug_println("pdf xref");
 #endif
-    size_t xref = _file.position();
+    size_t xref = ftell(_file);
     pdf_objCtr++;
-    _file.printf("xref\n");
-    _file.printf("0 %u\n", pdf_objCtr);
-    _file.printf("0000000000 65535 f\n");
+    fprintf(_file, "xref\n");
+    fprintf(_file, "0 %u\n", pdf_objCtr);
+    fprintf(_file, "0000000000 65535 f\n");
     for (int i = 1; i < pdf_objCtr; i++)
     {
-        _file.printf("%010u 00000 n\n", objLocations[i]);
+        fprintf(_file, "%010u 00000 n\n", objLocations[i]);
     }
-    _file.printf("trailer <</Size %u/Root 1 0 R>>\n", pdf_objCtr);
-    _file.printf("startxref\n");
-    _file.printf("%u\n", xref);
-    _file.printf("%%%%EOF\n");
+    fprintf(_file, "trailer <</Size %u/Root 1 0 R>>\n", pdf_objCtr);
+    fprintf(_file, "startxref\n");
+    fprintf(_file, "%u\n", xref);
+    fprintf(_file, "%%%%EOF\n");
 }
 
 bool pdfPrinter::process(byte n)

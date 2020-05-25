@@ -1,5 +1,9 @@
+// Arudino needed for CONFIGTIME
+#include <Arduino.h>
+//#include <WiFiUdp.h>
+#include "../tcpip/fnUDP.h"
+
 #include "apetime.h"
-#include "tnfs.h"
 
 #define NTP_TIMESTAMP_DELTA 2208988800ull
 
@@ -58,6 +62,10 @@ union {
 
 void sioApeTime::sio_time()
 {
+#ifdef DEBUG
+    Debug_println("APETIME time query");
+#endif
+
     time_t txTim;
     tm *now;
     
@@ -66,16 +74,21 @@ void sioApeTime::sio_time()
     memset(&ntpdata.rawData, 0, sizeof(ntpdata.rawData));
     ntpdata.ntp_packet.li_vn_mode = 0x1b;
 
+    //WiFiUDP udp;
+    fnUDP udp;
     // Send NTP packet request
-    UDP.beginPacket("pool.ntp.org", 123);
-    UDP.write(ntpdata.rawData, sizeof(ntpdata.rawData));
-    UDP.endPacket();
+    udp.beginPacket("pool.ntp.org", 123);
+    udp.write(ntpdata.rawData, sizeof(ntpdata.rawData));
+    udp.endPacket();
 
     delay(100);
 
-    if (UDP.parsePacket())
+    if (udp.parsePacket())
     {
-        UDP.read(ntpdata.rawData, sizeof(ntpdata.rawData));
+#ifdef DEBUG
+    Debug_println("parsePacket succeeded");
+#endif
+        udp.read(ntpdata.rawData, sizeof(ntpdata.rawData));
         ntpdata.ntp_packet.rxTm_s=ntohl(ntpdata.ntp_packet.rxTm_s);
         txTim = (time_t)(ntpdata.ntp_packet.rxTm_s - NTP_TIMESTAMP_DELTA);
         now = localtime(&txTim);
@@ -94,6 +107,9 @@ void sioApeTime::sio_time()
     }
     else
     {
+#ifdef DEBUG
+    Debug_println("parsePacket failed");
+#endif
         byte sio_ts[6]={0,0,0,0,0,0};
         sio_to_computer(sio_ts,sizeof(sio_ts),true);
     }
@@ -102,6 +118,9 @@ void sioApeTime::sio_time()
 
 void sioApeTime::sio_timezone()
 {
+#ifdef DEBUG
+    Debug_println("APETIME TZ response");
+#endif
     sio_to_peripheral(tz.rawData,sizeof(tz.rawData));
     sio_complete();
 }
