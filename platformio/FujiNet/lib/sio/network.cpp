@@ -482,7 +482,7 @@ void sioNetwork::sio_special()
                 }
             }
 
-            if (prefix[prefix.size()] == '/')
+            if (prefix[prefix.size()-1] == '/')
             {
                 // Get rid of last path segment.
                 pathLocations.pop_back();
