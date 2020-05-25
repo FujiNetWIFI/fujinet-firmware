@@ -109,11 +109,11 @@ Source: ndev.s
    107 				;;; Initialization ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    108 					
    109 				START:	
-   110 FFFF> 3100-341B> A5 0C		LDA	DOSINI
-   111 3102 8D 1A 34			STA	DSAV
+   110 FFFF> 3100-3425> A5 0C		LDA	DOSINI
+   111 3102 8D 24 34			STA	DSAV
    112 3105 8D 25 31			STA	RESET+1
    113 3108 A5 0D			LDA	DOSINI+1
-   114 310A 8D 1B 34			STA	DSAV+1
+   114 310A 8D 25 34			STA	DSAV+1
    115 310D 8D 26 31			STA	RESET+2
    116 3110 A9 24			LDA	#<RESET
    117 3112 85 0C			STA	DOSINI
@@ -163,7 +163,7 @@ Source: ndev.s
    161 3147			HFND:
    162 3147 A9 4E			LDA	#'N'
    163 3149 99 1A 03			STA	HATABS,Y
-   164 314C A9 F0			LDA	#<CIOHND
+   164 314C A9 FA			LDA	#<CIOHND
    165 314E 99 1B 03			STA	HATABS+1,Y
    166 3151 A9 33			LDA	#>CIOHND
    167 3153 99 1C 03			STA	HATABS+2,Y
@@ -172,7 +172,7 @@ Source: ndev.s
    170
    171 					;; Query FUJINET
    172
-   173 3156 20 27 33			JSR	STPOLL
+   173 3156 20 31 33			JSR	STPOLL
    174
    175 					;; Output Ready/Error
    176
@@ -190,7 +190,7 @@ Source: ndev.s
    188 					;; Status returned error.
    189 					
    190 316F			OBERR:
-   191 316F A9 0B			LDA	#<BERROR
+   191 316F A9 15			LDA	#<BERROR
    192 3171 9D 44 03			STA	ICBAL,X
    193 3174 A9 34			LDA	#>BERROR
    194 3176 9D 45 03			STA	ICBAH,X
@@ -199,9 +199,9 @@ Source: ndev.s
    197 					;; Status returned ready.
    198 					
    199 317B			OBRDY:	
-   200 317B A9 FC			LDA	#<BREADY
+   200 317B A9 06			LDA	#<BREADY
    201 317D 9D 44 03			STA	ICBAL,X
-   202 3180 A9 33			LDA	#>BREADY
+   202 3180 A9 34			LDA	#>BREADY
    203 3182 9D 45 03			STA	ICBAH,X
    204
    205 3185			OBCIO:
@@ -210,7 +210,7 @@ Source: ndev.s
    208 					;; Vector in proceed interrupt
    209
    210 3188			SPRCED:
-   211 3188 A9 E9			LDA	#<PRCVEC
+   211 3188 A9 F3			LDA	#<PRCVEC
    212 318A 8D 02 02			STA	VPRCED
    213 318D A9 33			LDA	#>PRCVEC
    214 318F 8D 03 02			STA	VPRCED+1
@@ -226,7 +226,7 @@ Source: ndev.s
    224 3193			OPEN:
    225 					;; Prepare DCB
    226 					
-   227 3193 20 E5 33			JSR	GDIDX		; Get Device ID in X (0-3)
+   227 3193 20 EF 33			JSR	GDIDX		; Get Device ID in X (0-3)
    228 3196 A5 21			LDA	ZICDNO		; IOCB UNIT # (1-4)
    229 3198 8D E6 31			STA	OPNDCB+1	; Store in DUNIT
    230 319B A5 24			LDA	ZICBAL		; Get filename buffer
@@ -235,10 +235,10 @@ Source: ndev.s
    233 31A2 8D EA 31			STA	OPNDCB+5	; ...
    234 31A5 A5 2A			LDA	ZICAX1		; Get desired AUX1/AUX2
    235 31A7 8D EF 31			STA	OPNDCB+10	; Save them, and store in DAUX1/DAUX2
-   236 31AA 9D 1D 34			STA	AX1SV,X		; ...
+   236 31AA 9D 27 34			STA	AX1SV,X		; ...
    237 31AD A5 2B			LDA	ZICAX2		; ...
    238 31AF 8D F0 31			STA	OPNDCB+11	; ...
-   239 31B2 9D 21 34			STA	AX2SV,X		; ...
+   239 31B2 9D 2B 34			STA	AX2SV,X		; ...
    240
    241 					;;  Copy DCB template to DCB
    242 					
@@ -264,19 +264,19 @@ Source: ndev.s
    255 				       
    256 					;; 144 - get extended error
    257
-   258 31CA 20 27 33			JSR	STPOLL  	; POLL FOR STATUS
+   258 31CA 20 31 33			JSR	STPOLL  	; POLL FOR STATUS
    259 31CD AC ED 02			LDY	DVSTAT+3
    260
    261 				       ; RESET BUFFER LENGTH + OFFSET
    262 				       
    263 31D0			OPDONE:
    264 31D0 A9 01			LDA	#$01
-   265 31D2 8D 1C 34			STA	TRIP
-   266 31D5 20 E5 33			JSR     GDIDX
+   265 31D2 8D 26 34			STA	TRIP
+   266 31D5 20 EF 33			JSR     GDIDX
    267 31D8 A9 00			LDA     #$00
-   268 31DA 9D 35 34			STA     RLEN,X
-   269 31DD 9D 3D 34			STA     TOFF,X
-   270 31E0 9D 39 34			STA     ROFF,X
+   268 31DA 9D 3F 34			STA     RLEN,X
+   269 31DD 9D 47 34			STA     TOFF,X
+   270 31E0 9D 43 34			STA     ROFF,X
    271 31E3 98				TYA
    272 31E4 60				RTS             ; AY = ERROR
    273
@@ -299,8 +299,8 @@ Source: ndev.s
    290 				;;; CIO CLOSE ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    291
    292 31F1			CLOSE:	
-   293 31F1 20 DC 33			JSR     DIPRCD		; Disable Interrupts
-   294 31F4 20 E5 33			JSR	GDIDX
+   293 31F1 20 E6 33			JSR     DIPRCD		; Disable Interrupts
+   294 31F4 20 EF 33			JSR	GDIDX
    295 31F7 20 AF 32			JSR	PFLUSH		; Do a Put Flush if needed.
    296
    297 31FA A5 21			LDA     ZICDNO		; IOCB Unit #
@@ -339,16 +339,16 @@ Source: ndev.s
    323 				;;; CIO GET ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    324
    325 321E			GET:
-   326 321E 20 E5 33			JSR	GDIDX		; IOCB UNIT #-1 into X 
-   327 3221 BD 35 34			LDA	RLEN,X		; Get # of RX chars waiting
+   326 321E 20 EF 33			JSR	GDIDX		; IOCB UNIT #-1 into X 
+   327 3221 BD 3F 34			LDA	RLEN,X		; Get # of RX chars waiting
    328 3224 D0 37			BNE     GETDISC		; LEN > 0?
    329
    330 					;; If RX buffer is empty, get # of chars waiting...
    331 					
-   332 3226 20 27 33			JSR	STPOLL		; Status Poll
-   333 3229 20 E5 33			JSR	GDIDX		; IOCB UNIT -1 into X (because Poll trashes X)
+   332 3226 20 31 33			JSR	STPOLL		; Status Poll
+   333 3229 20 EF 33			JSR	GDIDX		; IOCB UNIT -1 into X (because Poll trashes X)
    334 322C AD EA 02			LDA	DVSTAT		; # of bytes waiting (0-127)
-   335 322F 9D 35 34			STA	RLEN,X		; Store in RX Len
+   335 322F 9D 3F 34			STA	RLEN,X		; Store in RX Len
    336 3232 D0 05			BNE     GETDO		; We have something waiting...
    337
    338 					;; At this point, if RLEN is still zero, then return
@@ -378,9 +378,9 @@ Source: ndev.s
    355
    356 					;; Clear the Receive buffer offset.
    357 					
-   358 3255 20 E5 33			JSR	GDIDX		; IOCB UNIT #-1 into X
+   358 3255 20 EF 33			JSR	GDIDX		; IOCB UNIT #-1 into X
    359 3258 A9 00			LDA	#$00
-   360 325A 9D 39 34			STA     ROFF,X
+   360 325A 9D 43 34			STA     ROFF,X
    361
    362 325D			GETDISC:
    363 325D AD EC 02			LDA     DVSTAT+2	; Did we disconnect?
@@ -393,8 +393,8 @@ Source: ndev.s
    370 3266 60				RTS			; buh-bye.
    371
    372 3267			GETUPDP:
-   373 3267 DE 35 34			DEC     RLEN,X		; Decrement RX length.
-   374 326A BC 39 34			LDY     ROFF,X		; Get RX offset cursor.
+   373 3267 DE 3F 34			DEC     RLEN,X		; Decrement RX length.
+   374 326A BC 43 34			LDY     ROFF,X		; Get RX offset cursor.
    375
    376 					;; Return Next char from appropriate RX buffer.
    377 					
@@ -402,15 +402,15 @@ Source: ndev.s
    379 					
    380 					;; Increment RX offset
    381 					
-   382 3270 FE 39 34		GX:	INC	ROFF,X		; Increment RX offset.
+   382 3270 FE 43 34		GX:	INC	ROFF,X		; Increment RX offset.
    383 3273 A8				TAY			; stuff returned val into Y temporarily.
    384
    385 					;; If requested RX buffer is empty, reset TRIP.
    386
-   387 3274 BD 35 34			LDA	RLEN,X
+   387 3274 BD 3F 34			LDA	RLEN,X
    388 3277 D0 05			BNE	GETDONE
    389 3279 A9 00			LDA     #$00
-   390 327B 8D 1C 34			STA     TRIP
+   390 327B 8D 26 34			STA     TRIP
    391
    392 					;; Return byte back to CIO.
    393 					
@@ -440,19 +440,19 @@ Source: ndev.s
    417 328E			PUT:
    418 					;; Add to TX buffer.
    419
-   420 328E 20 E5 33			JSR	GDIDX
-   421 3291 BC 3D 34			LDY	TOFF,X  ; GET TX cursor.
+   420 328E 20 EF 33			JSR	GDIDX
+   421 3291 BC 47 34			LDY	TOFF,X  ; GET TX cursor.
    422 3294 99 80 35			STA	TBUF,Y		; TX Buffer
    423 					
-   424 3297 FE 3D 34		POFF:	INC	TOFF,X		; Increment TX cursor
+   424 3297 FE 47 34		POFF:	INC	TOFF,X		; Increment TX cursor
    425 329A A0 01			LDY	#$01		; SUCCESSFUL
    426
    427 					;; Do a PUT FLUSH if EOL or buffer full.
    428
    429 329C C9 9B			CMP     #EOL    ; EOL?
    430 329E F0 0B			BEQ     FLUSH  ; FLUSH BUFFER
-   431 32A0 20 E5 33			JSR     GDIDX   ; GET OFFSET
-   432 32A3 BD 3D 34			LDA     TOFF,X
+   431 32A0 20 EF 33			JSR     GDIDX   ; GET OFFSET
+   432 32A3 BD 47 34			LDA     TOFF,X
    433 32A6 C9 7F		        CMP     #$7F    ; LEN = $FF?
    434 32A8 F0 01		        BEQ     FLUSH  ; FLUSH BUFFER
    435 32AA 60			        RTS
@@ -467,15 +467,15 @@ Source: ndev.s
    444 				       ; CHECK CONNECTION, AND EOF
    445 				       ; IF DISCONNECTED.
    446
-   447 32AF 20 27 33		       JSR     STPOLL  ; GET STATUS
+   447 32AF 20 31 33		       JSR     STPOLL  ; GET STATUS
    448 32B2 AD EC 02		       LDA     DVSTAT+2
    449 32B5 D0 05		       BNE     PF1   
    450 32B7 A0 88		       LDY     #EOF
    451 32B9 A9 88		       LDA     #EOF
    452 32BB 60			       RTS
    453
-   454 32BC 20 E5 33		PF1:	JSR     GDIDX   ; GET DEV X
-   455 32BF BD 3D 34		       LDA     TOFF,X
+   454 32BC 20 EF 33		PF1:	JSR     GDIDX   ; GET DEV X
+   455 32BF BD 47 34		       LDA     TOFF,X
    456 32C2 D0 03		       BNE     PF2
    457 32C4 4C EB 32		       JMP     PDONE
    458
@@ -486,7 +486,7 @@ Source: ndev.s
    463 					
    464 				       ; FINISH DCB AND DO SIOV
    465
-   466 32CC BD 3D 34		TBX:	LDA     TOFF,X
+   466 32CC BD 47 34		TBX:	LDA     TOFF,X
    467 32CF 8D F6 32			STA     PUTDCB+8
    468 32D2 8D F8 32			STA     PUTDCB+10
    469
@@ -503,9 +503,9 @@ Source: ndev.s
    473 				       ; CLEAR THE OFFSET CURSOR
    474 				       ; AND LENGTH
    475
-   476 32E3 20 E5 33		       JSR     GDIDX
+   476 32E3 20 EF 33		       JSR     GDIDX
    477 32E6 A9 00		       LDA     #$00
-   478 32E8 9D 3D 34		       STA     TOFF,X
+   478 32E8 9D 47 34		       STA     TOFF,X
    479
    480 32EB A0 01		PDONE:	LDY     #$01
    481 32ED 60			       RTS
@@ -528,251 +528,256 @@ Source: ndev.s
    498 				;;; CIO STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    499
    500 32FA			STATUS:
-   501 32FA 20 D3 33			JSR     ENPRCD  ; ENABLE PRCD
-   502 32FD 20 E5 33		       JSR     GDIDX   ; GET DEVICE#
-   503 3300 BD 35 34		       LDA     RLEN,X  ; GET RLEN
+   501 32FA 20 DD 33			JSR     ENPRCD  ; ENABLE PRCD
+   502 32FD 20 EF 33		       JSR     GDIDX   ; GET DEVICE#
+   503 3300 BD 3F 34		       LDA     RLEN,X  ; GET RLEN
    504 3303 D0 05		       BNE     STSLEN  ; RLEN > 0?
-   505 3305 AD 1C 34		       LDA     TRIP
-   506 3308 D0 0E		       BNE     STTRI1  ; TRIP = 1?
+   505 3305 AD 26 34		       LDA     TRIP
+   506 3308 D0 16		       BNE     STTRI1  ; TRIP = 1?
    507
    508 				       ; NO TRIP, RETURN SAVED LEN
    509
-   510 330A BD 35 34		STSLEN LDA     RLEN,X  ; GET RLEN
+   510 330A BD 3F 34		STSLEN LDA     RLEN,X  ; GET RLEN
    511 330D 8D EA 02		       STA     DVSTAT  ; RET IN DVSTAT
    512 3310 A9 00		       LDA     #$00
-   513 3312 8D EB 02		       STA     DVSTAT+1
-   514 3315 4C 23 33		       JMP     STDONE  ; DONE.
-   515
-   516 				       ; DO POLL AND UPDATE RCV LEN
-   517
-   518 3318 20 27 33		STTRI1 JSR     STPOLL  ; POLL FOR ST
-   519 331B 9D 35 34			STA	RLEN,X
-   520 						
-   521 				       ; UPDATE TRIP FLAG
-   522
-   523 331E D0 03		STTRIU BNE     STDONE
-   524 3320 8D 1C 34		       STA     TRIP    ; RLEN = 0
-   525
-   526 				       ; RETURN CONNECTED? FLAG.
-   527
-   528 3323 AD EC 02		STDONE LDA     DVSTAT+2
-   529 3326 60			       RTS
-   530
-   531 				       ; ASK FUJINET FOR STATUS
-   532
-   533 3327			STPOLL:	
-   534 3327 A5 21		       LDA     ZICDNO  ; IOCB #
-   535 3329 8D 55 33		       STA     STADCB+1
-   536
-   537 332C				DCBC	STADCB
+   513 3312 8D EB 02			STA     DVSTAT+1
+   514 3315 A9 01			LDA	#$01
+   515 3317 8D EC 02			STA	DVSTAT+2
+   516 331A 8D ED 02			STA	DVSTAT+3
+   517 					
+   518 331D 4C 2B 33		       JMP     STDONE  ; DONE.
+   519
+   520 				       ; DO POLL AND UPDATE RCV LEN
+   521
+   522 3320 20 31 33		STTRI1 JSR     STPOLL  ; POLL FOR ST
+   523 3323 9D 3F 34			STA	RLEN,X
+   524 						
+   525 				       ; UPDATE TRIP FLAG
+   526
+   527 3326 D0 03		STTRIU BNE     STDONE
+   528 3328 8D 26 34		       STA     TRIP    ; RLEN = 0
+   529
+   530 				       ; RETURN CONNECTED? FLAG.
+   531
+   532 332B AD EC 02		STDONE LDA     DVSTAT+2
+   533 332E A0 01			LDY	#$01
+   534 3330 60			       RTS
+   535
+   536 				       ; ASK FUJINET FOR STATUS
+   537
+   538 3331			STPOLL:	
+   539 3331 A5 21		       LDA     ZICDNO  ; IOCB #
+   540 3333 8D 5F 33		       STA     STADCB+1
+   541
+   542 3336				DCBC	STADCB
 Macro: DCBC [Source: ndev.s]
-     2 332C A0 0C			LDY	#$0C
-     3 332E B9 54 33		?DCBL	LDA	STADCB,Y
-     4 3331 99 00 03			STA	DCB,Y
-     5 3334 88				DEY
-     6 3335 10 F7			BPL	?DCBL
+     2 3336 A0 0C			LDY	#$0C
+     3 3338 B9 5E 33		?DCBL	LDA	STADCB,Y
+     4 333B 99 00 03			STA	DCB,Y
+     5 333E 88				DEY
+     6 333F 10 F7			BPL	?DCBL
 Source: ndev.s
-   538
-   539 3337 20 59 E4		       JSR     SIOV    ; DO IT...
-   540
-   541 					;; > 127 bytes? make it 127 bytes.
-   542
-   543 333A AD EB 02			LDA	DVSTAT+1
-   544 333D D0 07			BNE	STADJ
-   545 333F AD EA 02			LDA	DVSTAT
-   546 3342 30 02			BMI	STADJ
-   547 3344 50 0A			BVC	STP2		; <= 127 bytes...
-   548
-   549 3346 A9 7F		STADJ	LDA	#$7F
-   550 3348 8D EA 02			STA	DVSTAT
-   551 334B A9 00			LDA	#$00
-   552 334D 8D EB 02			STA	DVSTAT+1
-   553 					
-   554 				       ; A = CONNECTION STATUS
-   555
-   556 3350 AD EC 02		STP2   LDA     DVSTAT+2
-   557 3353 60			       RTS
-   558
-   559 3354 71			STADCB .BYTE      DEVIDN  ; DDEVIC
-   560 3355 FF			       .BYTE      $FF     ; DUNIT
-   561 3356 53			       .BYTE      'S'     ; DCOMND
-   562 3357 40			       .BYTE      $40     ; DSTATS
-   563 3358 EA			       .BYTE      $EA     ; DBUFL
-   564 3359 02			       .BYTE      $02     ; DBUFH
-   565 335A 0F			       .BYTE      $0F     ; DTIMLO
-   566 335B 00			       .BYTE      $00     ; DRESVD
-   567 335C 04			       .BYTE      $04     ; DBYTL
-   568 335D 00			       .BYTE      $00     ; DBYTH
-   569 335E 00			       .BYTE      $00     ; DAUX1
-   570 335F 00			       .BYTE      $00     ; DAUX2
-   571 					
-   572 				;;; End CIO STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   573
-   574 				;;; CIO SPECIAL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   575
-   576 3360			SPEC:
-   577 				       ; HANDLE LOCAL COMMANDS.
+   543
+   544 3341 20 59 E4		       JSR     SIOV    ; DO IT...
+   545
+   546 					;; > 127 bytes? make it 127 bytes.
+   547
+   548 3344 AD EB 02			LDA	DVSTAT+1
+   549 3347 D0 07			BNE	STADJ
+   550 3349 AD EA 02			LDA	DVSTAT
+   551 334C 30 02			BMI	STADJ
+   552 334E 50 0A			BVC	STP2		; <= 127 bytes...
+   553
+   554 3350 A9 7F		STADJ	LDA	#$7F
+   555 3352 8D EA 02			STA	DVSTAT
+   556 3355 A9 00			LDA	#$00
+   557 3357 8D EB 02			STA	DVSTAT+1
+   558 					
+   559 				       ; A = CONNECTION STATUS
+   560
+   561 335A AD EC 02		STP2   LDA     DVSTAT+2
+   562 335D 60			       RTS
+   563
+   564 335E 71			STADCB .BYTE      DEVIDN  ; DDEVIC
+   565 335F FF			       .BYTE      $FF     ; DUNIT
+   566 3360 53			       .BYTE      'S'     ; DCOMND
+   567 3361 40			       .BYTE      $40     ; DSTATS
+   568 3362 EA			       .BYTE      $EA     ; DBUFL
+   569 3363 02			       .BYTE      $02     ; DBUFH
+   570 3364 0F			       .BYTE      $0F     ; DTIMLO
+   571 3365 00			       .BYTE      $00     ; DRESVD
+   572 3366 04			       .BYTE      $04     ; DBYTL
+   573 3367 00			       .BYTE      $00     ; DBYTH
+   574 3368 00			       .BYTE      $00     ; DAUX1
+   575 3369 00			       .BYTE      $00     ; DAUX2
+   576 					
+   577 				;;; End CIO STATUS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
    578
-   579 3360 A5 22		       LDA     ZICCOM
-   580 3362 C9 0F		       CMP     #$0F    ; 15 = FLUSH
-   581 3364 D0 06		       BNE     S1      ; NO.
-   582 3366 20 AF 32		       JSR     PFLUSH  ; DO FLUSH
-   583 3369 A0 01		       LDY     #$01    ; SUCCESS
-   584 336B 60			       RTS
-   585
-   586 				       ; HANDLE SIO COMMANDS.
-   587 				       ; GET DSTATS FOR COMMAND
-   588
-   589 336C A5 21		S1:	LDA	ZICDNO
-   590 336E 8D C8 33			STA	SPEDCB+1
-   591 3371 A5 22			LDA	ZICCOM
-   592 3373 8D D1 33			STA	SPEDCB+10
-   593 					
-   594 3376				DCBC	SPEDCB
+   579 				;;; CIO SPECIAL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   580
+   581 336A			SPEC:
+   582 				       ; HANDLE LOCAL COMMANDS.
+   583
+   584 336A A5 22		       LDA     ZICCOM
+   585 336C C9 0F		       CMP     #$0F    ; 15 = FLUSH
+   586 336E D0 06		       BNE     S1      ; NO.
+   587 3370 20 AF 32		       JSR     PFLUSH  ; DO FLUSH
+   588 3373 A0 01		       LDY     #$01    ; SUCCESS
+   589 3375 60			       RTS
+   590
+   591 				       ; HANDLE SIO COMMANDS.
+   592 				       ; GET DSTATS FOR COMMAND
+   593
+   594 3376 A5 21		S1:	LDA	ZICDNO
+   595 3378 8D D2 33			STA	SPEDCB+1
+   596 337B A5 22			LDA	ZICCOM
+   597 337D 8D DB 33			STA	SPEDCB+10
+   598 					
+   599 3380				DCBC	SPEDCB
 Macro: DCBC [Source: ndev.s]
-     2 3376 A0 0C			LDY	#$0C
-     3 3378 B9 C7 33		?DCBL	LDA	SPEDCB,Y
-     4 337B 99 00 03			STA	DCB,Y
-     5 337E 88				DEY
-     6 337F 10 F7			BPL	?DCBL
+     2 3380 A0 0C			LDY	#$0C
+     3 3382 B9 D1 33		?DCBL	LDA	SPEDCB,Y
+     4 3385 99 00 03			STA	DCB,Y
+     5 3388 88				DEY
+     6 3389 10 F7			BPL	?DCBL
 Source: ndev.s
-   595 3381 20 59 E4		       JSR     SIOV    ; DO IT...
-   596
-   597 3384 AD 03 03		       LDA     DSTATS
-   598 3387 10 02		       BPL     :DSOK
-   599 3389			DSERR:
-   600 3389 A8				TAY             ; RET THE ERR
-   601 338A 60			       RTS
-   602
-   603 				       ; WE GOT A DSTATS INQUIRY
-   604 				       ; IF $FF, THE COMMAND IS
-   605 				       ; INVALID
-   606
-   607 338B			DSOK:
-   608 338B AD 41 34			LDA     INQDS
-   609 338E C9 FF		       CMP     #$FF    ; INVALID?
-   610 3390 D0 04		       BNE     DSGO   ; DO THE CMD
-   611 3392 A0 92		       LDY     #$92    ; UNIMP CMD
-   612 3394 98			       TYA
-   613 3395 60			       RTS
-   614
-   615 					;; Do the special, since we want to pass in all the IOCB
-   616 					;; Parameters to the DCB, This is being done long-hand.
-   617 					
-   618 3396 A5 22		DSGO:	LDA	ZICCOM
-   619 3398 8D 02 03			STA	DCOMND
-   620 339B AD 41 34			LDA	INQDS
-   621 339E 8D 03 03			STA	DSTATS
-   622 33A1 A5 24			LDA	ZICBAL
-   623 33A3 8D 04 03			STA	DBUFL
-   624 33A6 A5 25			LDA	ZICBAH
-   625 33A8 8D 05 03			STA	DBUFH
-   626 33AB A9 00			LDA	#$00		; 256 bytes
-   627 33AD 8D 08 03			STA	DBYTL
-   628 33B0 A9 01			LDA	#$01
-   629 33B2 8D 09 03			STA	DBYTH
-   630 33B5 A5 2A			LDA	ZICAX1
-   631 33B7 8D 0A 03			STA	DAUXL
-   632 33BA A5 2B			LDA	ZICAX2
-   633 33BC 8D 0B 03			STA	DAUXH
-   634
-   635 33BF 20 59 E4			JSR	SIOV
-   636
-   637 					;; Return DSTATS in Y and A
-   638
-   639 33C2 AD 03 03			LDA	DSTATS
-   640 33C5 A8				TAY
+   600 338B 20 59 E4		       JSR     SIOV    ; DO IT...
+   601
+   602 338E AD 03 03		       LDA     DSTATS
+   603 3391 10 02		       BPL     :DSOK
+   604 3393			DSERR:
+   605 3393 A8				TAY             ; RET THE ERR
+   606 3394 60			       RTS
+   607
+   608 				       ; WE GOT A DSTATS INQUIRY
+   609 				       ; IF $FF, THE COMMAND IS
+   610 				       ; INVALID
+   611
+   612 3395			DSOK:
+   613 3395 AD 4B 34			LDA     INQDS
+   614 3398 C9 FF		       CMP     #$FF    ; INVALID?
+   615 339A D0 04		       BNE     DSGO   ; DO THE CMD
+   616 339C A0 92		       LDY     #$92    ; UNIMP CMD
+   617 339E 98			       TYA
+   618 339F 60			       RTS
+   619
+   620 					;; Do the special, since we want to pass in all the IOCB
+   621 					;; Parameters to the DCB, This is being done long-hand.
+   622 					
+   623 33A0 A5 22		DSGO:	LDA	ZICCOM
+   624 33A2 8D 02 03			STA	DCOMND
+   625 33A5 AD 4B 34			LDA	INQDS
+   626 33A8 8D 03 03			STA	DSTATS
+   627 33AB A5 24			LDA	ZICBAL
+   628 33AD 8D 04 03			STA	DBUFL
+   629 33B0 A5 25			LDA	ZICBAH
+   630 33B2 8D 05 03			STA	DBUFH
+   631 33B5 A9 00			LDA	#$00		; 256 bytes
+   632 33B7 8D 08 03			STA	DBYTL
+   633 33BA A9 01			LDA	#$01
+   634 33BC 8D 09 03			STA	DBYTH
+   635 33BF A5 2A			LDA	ZICAX1
+   636 33C1 8D 0A 03			STA	DAUXL
+   637 33C4 A5 2B			LDA	ZICAX2
+   638 33C6 8D 0B 03			STA	DAUXH
+   639
+   640 33C9 20 59 E4			JSR	SIOV
    641
-   642 33C6 60				RTS
+   642 					;; Return DSTATS in Y and A
    643
-   644 33C7 71			SPEDCB .BYTE      DEVIDN  ; DDEVIC
-   645 33C8 FF			       .BYTE      $FF     ; DUNIT
-   646 33C9 FF			       .BYTE      $FF     ; DCOMND ; inq
-   647 33CA 40			       .BYTE      $40     ; DSTATS
-   648 33CB 41			       .BYTE      <INQDS  ; DBUFL
-   649 33CC 34			       .BYTE      >INQDS  ; DBUFH
-   650 33CD 0F			       .BYTE      $0F     ; DTIMLO
-   651 33CE 00			       .BYTE      $00     ; DRESVD
-   652 33CF 01			       .BYTE      $01     ; DBYTL
-   653 33D0 00			       .BYTE      $00     ; DBYTH
-   654 33D1 FF			       .BYTE      $FF     ; DAUX1
-   655 33D2 FF			       .BYTE      $FF     ; DAUX2	
-   656 					
-   657 				;;; End CIO SPECIAL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   658
-   659 				;;; Utility Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   660
-   661 				       ; ENABLE PROCEED INTERRUPT
-   662
-   663 33D3			ENPRCD:
-   664 33D3 AD 02 D3			LDA     PACTL
-   665 33D6 09 01		       ORA     #$01    ; ENABLE BIT 0
-   666 33D8 8D 02 D3		       STA     PACTL
-   667 33DB 60			       RTS
-   668
-   669 				       ; DISABLE PROCEED INTERRUPT
-   670
-   671 33DC			DIPRCD:
-   672 33DC AD 02 D3			LDA     PACTL
-   673 33DF 29 FE		       AND     #$FE    ; DISABLE BIT0
-   674 33E1 8D 02 D3		       STA     PACTL
-   675 33E4 60			       RTS
-   676
-   677 				       ; GET ZIOCB DEVNO - 1 INTO X
-   678 				       
-   679 33E5			GDIDX:	
-   680 33E5 A6 21		       LDX     ZICDNO  ; IOCB UNIT #
-   681 33E7 CA			       DEX             ; - 1
-   682 33E8 60			       RTS
-   683 					
-   684 				;;; End Utility Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   685
-   686 				;;; Proceed Vector ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   687
-   688 33E9			PRCVEC 
-   689 33E9 A9 01		       LDA     #$01
-   690 33EB 8D 1C 34		       STA     TRIP
-   691 33EE 68			       PLA
-   692 33EF 40			       RTI
-   693 					
-   694 				;;; End Proceed Vector ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-   695
-   696 				;;; Variables
-   697
-   698 				       ; DEVHDL TABLE FOR N:
-   699
-   700 33F0 92 31		CIOHND .WORD      OPEN-1
-   701 33F2 F0 31		       .WORD      CLOSE-1
-   702 33F4 1D 32		       .WORD      GET-1
-   703 33F6 8D 32		       .WORD      PUT-1
-   704 33F8 F9 32		       .WORD      STATUS-1
-   705 33FA 5F 33		       .WORD      SPEC-1
-   706
-   707 				       ; BANNERS
-   708 				       
-   709 33FC 23 46 55 4A 49 4E + BREADY .BYTE      '#FUJINET READY',$9B
-   710 340B 23 46 55 4A 49 4E + BERROR .BYTE      '#FUJINET ERROR',$9B
+   644 33CC AD 03 03			LDA	DSTATS
+   645 33CF A8				TAY
+   646
+   647 33D0 60				RTS
+   648
+   649 33D1 71			SPEDCB .BYTE      DEVIDN  ; DDEVIC
+   650 33D2 FF			       .BYTE      $FF     ; DUNIT
+   651 33D3 FF			       .BYTE      $FF     ; DCOMND ; inq
+   652 33D4 40			       .BYTE      $40     ; DSTATS
+   653 33D5 4B			       .BYTE      <INQDS  ; DBUFL
+   654 33D6 34			       .BYTE      >INQDS  ; DBUFH
+   655 33D7 0F			       .BYTE      $0F     ; DTIMLO
+   656 33D8 00			       .BYTE      $00     ; DRESVD
+   657 33D9 01			       .BYTE      $01     ; DBYTL
+   658 33DA 00			       .BYTE      $00     ; DBYTH
+   659 33DB FF			       .BYTE      $FF     ; DAUX1
+   660 33DC FF			       .BYTE      $FF     ; DAUX2	
+   661 					
+   662 				;;; End CIO SPECIAL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   663
+   664 				;;; Utility Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   665
+   666 				       ; ENABLE PROCEED INTERRUPT
+   667
+   668 33DD			ENPRCD:
+   669 33DD AD 02 D3			LDA     PACTL
+   670 33E0 09 01		       ORA     #$01    ; ENABLE BIT 0
+   671 33E2 8D 02 D3		       STA     PACTL
+   672 33E5 60			       RTS
+   673
+   674 				       ; DISABLE PROCEED INTERRUPT
+   675
+   676 33E6			DIPRCD:
+   677 33E6 AD 02 D3			LDA     PACTL
+   678 33E9 29 FE		       AND     #$FE    ; DISABLE BIT0
+   679 33EB 8D 02 D3		       STA     PACTL
+   680 33EE 60			       RTS
+   681
+   682 				       ; GET ZIOCB DEVNO - 1 INTO X
+   683 				       
+   684 33EF			GDIDX:	
+   685 33EF A6 21		       LDX     ZICDNO  ; IOCB UNIT #
+   686 33F1 CA			       DEX             ; - 1
+   687 33F2 60			       RTS
+   688 					
+   689 				;;; End Utility Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   690
+   691 				;;; Proceed Vector ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   692
+   693 33F3			PRCVEC 
+   694 33F3 A9 01		       LDA     #$01
+   695 33F5 8D 26 34		       STA     TRIP
+   696 33F8 68			       PLA
+   697 33F9 40			       RTI
+   698 					
+   699 				;;; End Proceed Vector ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   700
+   701 				;;; Variables
+   702
+   703 				       ; DEVHDL TABLE FOR N:
+   704
+   705 33FA 92 31		CIOHND .WORD      OPEN-1
+   706 33FC F0 31		       .WORD      CLOSE-1
+   707 33FE 1D 32		       .WORD      GET-1
+   708 3400 8D 32		       .WORD      PUT-1
+   709 3402 F9 32		       .WORD      STATUS-1
+   710 3404 69 33		       .WORD      SPEC-1
    711
-   712 				       ; VARIABLES
-   713
-   714 341A 00 00		DSAV   .WORD      $0000
-   715 = 341C			TRIP   .DS      1       ; INTR FLAG
-   716 = 341D			AX1SV  .DS      MAXDEV  ; AUX1 SAVE
-   717 = 3421			AX2SV  .DS      MAXDEV  ; AUX2 SAVE
-   718 = 3425			STSV   .DS      4*MAXDEV ; STATUS SAVE
-   719 = 3435			RLEN   .DS      MAXDEV  ; RCV LEN
-   720 = 3439			ROFF   .DS      MAXDEV  ; RCV OFFSET
-   721 = 343D			TOFF   .DS      MAXDEV  ; TRX OFFSET
-   722 = 3441			INQDS  .DS      1       ; DSTATS INQ
-   723
-   724 				       ; BUFFERS (PAGE ALIGNED)
-   725
-   726 3442				.ALIGN	$100
-   727 					
-   728 = 3500			RBUF	.DS	$80		; 128 bytes
-   729 = 3580			TBUF	.DS	$80		; 128 bytes
-   730 					
-   731 = 3600			PGEND	= *
-   732
-   733 02E0-02E1> 00 31			RUN	START
-   734 				       END
+   712 				       ; BANNERS
+   713 				       
+   714 3406 23 46 55 4A 49 4E + BREADY .BYTE      '#FUJINET READY',$9B
+   715 3415 23 46 55 4A 49 4E + BERROR .BYTE      '#FUJINET ERROR',$9B
+   716
+   717 				       ; VARIABLES
+   718
+   719 3424 00 00		DSAV   .WORD      $0000
+   720 = 3426			TRIP   .DS      1       ; INTR FLAG
+   721 = 3427			AX1SV  .DS      MAXDEV  ; AUX1 SAVE
+   722 = 342B			AX2SV  .DS      MAXDEV  ; AUX2 SAVE
+   723 = 342F			STSV   .DS      4*MAXDEV ; STATUS SAVE
+   724 = 343F			RLEN   .DS      MAXDEV  ; RCV LEN
+   725 = 3443			ROFF   .DS      MAXDEV  ; RCV OFFSET
+   726 = 3447			TOFF   .DS      MAXDEV  ; TRX OFFSET
+   727 = 344B			INQDS  .DS      1       ; DSTATS INQ
+   728
+   729 				       ; BUFFERS (PAGE ALIGNED)
+   730
+   731 344C				.ALIGN	$100
+   732 					
+   733 = 3500			RBUF	.DS	$80		; 128 bytes
+   734 = 3580			TBUF	.DS	$80		; 128 bytes
+   735 					
+   736 = 3600			PGEND	= *
+   737
+   738 02E0-02E1> 00 31			RUN	START
+   739 				       END
