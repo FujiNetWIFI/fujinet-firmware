@@ -287,9 +287,11 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
         break;
     case SVG:
         exts = "svg";
+        sendAsAttachment = false;        
         break;
     case PNG:
         exts = "png";
+        sendAsAttachment = false;        
         break;
     case HTML:
     case HTML_ATASCII:
@@ -306,23 +308,17 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     // Set the expected content type based on the filename/extension
     set_file_content_type(req, filename.c_str());
 
-    // Flush and close the print output before continuing
-    currentPrinter->pageEject(); // flushOutput(); is now inside of pageEject()
+    // Tell printer to finish its output and get a read handle to the file
+    FILE * poutput = currentPrinter->closeOutputAndProvideReadHandle();
 
+    char hdrval1[60];
     if (sendAsAttachment)
     {
         // Add a couple of attchment-specific details
-        char hdrval1[60];
-        snprintf(hdrval1, 60, "attachment; filename=\"%s\"", filename.c_str());
+        snprintf(hdrval1, sizeof(hdrval1), "attachment; filename=\"%s\"", filename.c_str());
         httpd_resp_set_hdr(req, "Content-Disposition", hdrval1);
     }
-
-    char hdrval2[10];
-    snprintf(hdrval2, 10, "%u", currentPrinter->getOutputSize());
-#ifdef DEBUG
-    Debug_printf("Printer says there are %u bytes in the output file\n", currentPrinter->getOutputSize());
-#endif
-    httpd_resp_set_hdr(req, "Content-Length", hdrval2);
+    // NOTE: Don't set the Content-Length, as it's invalid when using CHUNKED
 
     // Finally, write the data
     // Send the file content out in chunks
@@ -330,7 +326,8 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     size_t count = 0, total = 0;
     do
     {
-        count = currentPrinter->readFromOutput((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
+        count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, poutput);
+        //count = currentPrinter->readFromOutput((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
         total += count;
 #ifdef DEBUG
         // Debug_printf("Read %u bytes from print file\n", count);
@@ -339,8 +336,9 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     } while (count > 0);
     #ifdef DEBUG
         Debug_printf("Sent %u bytes total from print file\n", total);
-    #endif    
+    #endif
     free(buf);
+    fclose(poutput);
 
     // Tell the printer it can start writing from the beginning
     printer->reset_printer(); // destroy,create new printer emulator object of previous type.
@@ -449,6 +447,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192;
+    config.max_resp_headers = 12;
     // Keep a reference to our object
     config.global_user_ctx = (void *)&state;
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed
