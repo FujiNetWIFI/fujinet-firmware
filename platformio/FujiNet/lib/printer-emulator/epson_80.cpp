@@ -201,13 +201,22 @@ void epson80::pdf_handle_char(byte c)
             clear_mode(fnt_doublestrike | fnt_superscript | fnt_subscript);
             reset_cmd();
             break;
-        case 'j': // FX-80 immediate reverse line feed just like 'J'
         case 'J': // Sets line spacing to N/216" for one line only and
                   // when received causes contents of buffer to print
                   // IMMEDIATE LINE FEED OF SIZE N/216
             if (epson_cmd.ctr > 0)
             {
-                pdf_dY -= 72. * (float)epson_cmd.N1 / 216.; // set pdf_dY and rise to N1/216.
+                pdf_dY -= 72. * ((float)epson_cmd.N1) / 216.; // set pdf_dY and rise to N1/216.
+                pdf_set_rise();
+                reset_cmd();
+            }
+            break;
+        case 'j': // FX-80 immediate reverse line feed just like 'J'
+                  // when received causes contents of buffer to print
+                  // IMMEDIATE REVERSE LINE FEED OF SIZE N/216
+            if (epson_cmd.ctr > 0)
+            {
+                pdf_dY += 72. * (float)epson_cmd.N1 / 216.; // set pdf_dY and rise to N1/216.
                 pdf_set_rise();
                 reset_cmd();
             }
@@ -259,17 +268,17 @@ void epson80::pdf_handle_char(byte c)
                 switch (epson_cmd.cmd)
                 {
                 case 'K':
-                    fprintf(_file, ")");
+                    //fprintf(_file, ")");
                     break;
                 case 'L': // Sets dot graphics mode to 960 dots per 8" line
                 case 'Y': // on FX-80 this is double speed but with gotcha
-                    fprintf(_file, ")66.5");
+                    fprintf(_file, ")66.5(");
                     break;
                 case 'Z': // on FX-80 this is double speed but with gotcha
-                    fprintf(_file, ")99.75");
+                    fprintf(_file, ")99.75(");
                     break;
                 }
-                fprintf(_file, "]TJ [(");
+                //fprintf(_file, "]TJ [(");
                 if (epson_cmd.ctr == (epson_cmd.N + 2))
                 {
                     // reset font
@@ -545,6 +554,7 @@ void epson80::initPrinter(FileSystem *fs)
     // fontNumber = 1;
     // fontSize = 12;
     at_reset(); // moved all those parameters so could be excuted with ESC-@ command
+    pdf_dY = lineHeight;
 
     pdf_header();
     escMode = false;
