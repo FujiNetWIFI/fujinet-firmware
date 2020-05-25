@@ -291,14 +291,15 @@ OPNDCB:
 
 CLOSE:	
 	JSR     DIPRCD		; Disable Interrupts
+	JSR	GDIDX
+	JSR	PFLUSH		; Do a Put Flush if needed.
+
 	LDA     ZICDNO		; IOCB Unit #
 	STA     CLODCB+1	; to DCB...
 	
 	DCBC	CLODCB		; Copy DCB into place
 
 	JSR	SIOV
-
-	JSR	PFLUSH		; Do a Put Flush if needed.
 
 	LDY	DSTATS		; Return SIO status
 	TYA

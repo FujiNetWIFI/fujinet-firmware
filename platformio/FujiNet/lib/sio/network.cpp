@@ -246,6 +246,10 @@ void sioNetwork::sio_close()
 void sioNetwork::sio_read()
 {
     sio_ack();
+
+    // Clean out RX buffer.
+    memset(rx_buf,0,INPUT_BUFFER_SIZE);
+
 #ifdef DEBUG
     Debug_printf("Read %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
 #endif
@@ -470,7 +474,6 @@ void sioNetwork::sio_special()
         else if (path == "..")
         {
             vector<int> pathLocations;
-            int o;
             for (int i = 0; i < prefix.size(); i++)
             {
                 if (prefix[i] == '/')

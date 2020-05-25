@@ -79,6 +79,9 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     aux1 = cmdFrame->aux1;
 
+    if (aux1==6 && filename.empty())
+        filename="*";
+
     if (!urlParser->port.empty())
         mountInfo.port = atoi(urlParser->port.c_str());
 
@@ -162,12 +165,10 @@ bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
         // Reading from a file
         if (int ret=tnfs_read(&mountInfo, fileHandle, rx_buf, len, &actual_len)!=0)
         {
-            Debug_printf("blarg! %d\n",ret);
             return true;
         }
         else
         {
-            Debug_print("the right path\n");
             fileStat.filesize -= len;
         }
     }
