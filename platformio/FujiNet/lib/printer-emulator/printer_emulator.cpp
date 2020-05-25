@@ -6,8 +6,10 @@
 #define PRINTER_OUTFILE "/paper"
 
 // initialzie printer by creating an output file
-void printer_emu::initPrinter(FileSystem *fs, paper_t ptype = RAW)
+void printer_emu::initPrinter(FileSystem *fs)
 {
+    _FS = fs;
+    
     resetOutput();
 }
 
@@ -80,7 +82,7 @@ bool printer_emu::process(byte linelen, byte aux1, byte aux2)
 }
 
 // This is only called from the HTTP server to request the file be closed before sending it to the user
-void printer_emu::pageEject()
+void printer_emu::closeOutput()
 {
     if(_file != nullptr)
         fclose(_file);

@@ -30,32 +30,36 @@ class printer_emu
 protected:
     FileSystem *_FS = nullptr;
     FILE * _file = nullptr;
-    paper_t _paper_type;
+    paper_t _paper_type = RAW;
 
     byte buffer[40];
 
-    // executed after a new printer output file is created
+    // Called after a new printer output file is created (allows for providing header data)
     virtual void post_new_file()=0;
 
-    // executed before a printer output file is closed and prepared for reading
+    // Called before a printer output file is closed to send to the user (allows for providing footer data)
     virtual void pre_close_file()=0;
     
+    // Called to actually process the printer output from the Atari as bytes
     virtual bool process_buffer(byte linelen, byte aux1, byte aux2)=0;
 
     size_t copy_file_to_output(const char *filename);
 
 public:
     // Destructor must be virtual to allow for proper cleanup of derived classes
-    virtual ~printer_emu() = 0;
+    virtual ~printer_emu();
 
-    void initPrinter(FileSystem *fs, paper_t ptype = RAW);
+    void initPrinter(FileSystem *fs);
 
-    virtual void pageEject() = 0;
+    void closeOutput();
+
     bool process(byte linelen, byte aux1, byte aux2);
 
     paper_t getPaperType() { return _paper_type; };
 
     byte *provideBuffer() { return buffer; };
+
+    void setPaper(paper_t ptype) { _paper_type = ptype; };
 
     virtual const char *modelname() = 0;
     //File *getFilePtr() { return _file; }
@@ -65,7 +69,6 @@ public:
     int readFromOutput(uint8_t *buf, size_t size);
     void resetOutput();
     //void resetPrinter() { initPrinter(_FS); };
-
 };
 
 #endif // PRINTER_EMU_H

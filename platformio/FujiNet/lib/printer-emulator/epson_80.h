@@ -37,15 +37,15 @@ protected:
     void set_mode(uint16_t m);
     void clear_mode(uint16_t m);
     void reset_cmd();
-    void pdf_handle_char(byte c);
     byte epson_font_lookup(uint16_t code);
     float epson_font_width(uint16_t code);
     void epson_set_font(byte F, float w);
     void at_reset();
 
+    void pdf_handle_char(byte c, byte aux1, byte aux2) override;
+    virtual void post_new_file() override;
 public:
     const char *modelname() { return "Epson 80"; };
-    void initPrinter();
 };
 
 #endif

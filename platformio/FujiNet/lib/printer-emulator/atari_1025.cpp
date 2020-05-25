@@ -163,7 +163,7 @@ void atari1025::pdf_handle_char(byte c, byte aux1, byte aux2)
     }
 }
 
-void atari1025::initPrinter()
+void atari1025::post_new_file()
 {
     shortname = "a1025";
 

@@ -1,6 +1,9 @@
 #ifndef PDF_PRINTER_H
 #define PDF_PRINTER_H
 
+/* This is really a virtual class, as it's not meant to be instantiated on its own, but
+ inherited from by other, full-fledged printer classes (e.g. Atari 820/822)
+*/
 #include <string>
 
 #include "printer_emulator.h"
@@ -56,15 +59,11 @@ protected:
     size_t idx_stream_stop;   // file location of end of stream
 
     virtual void pdf_handle_char(byte c, byte aux1, byte aux2) = 0;
-    virtual bool process_buffer(byte linelen, byte aux1, byte aux2);
+    virtual bool process_buffer(byte linelen, byte aux1, byte aux2) override;
+
+    virtual void pre_close_file() override;
 
 public:
-    ~pdfPrinter();
-    pdfPrinter(FileSystem *fs, paper_t ty = PDF) { initPrinter(fs, ty); };
-
-    virtual void pageEject();
-
-    virtual const char *modelname() { return "PDF printer"; };
 };
 
 #endif // guard

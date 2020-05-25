@@ -7,18 +7,13 @@
 class atari822 : public pdfPrinter
 {
 protected:
-    //sioPrinter *my_sioP;
-
-    void pdf_handle_char(byte c, byte aux1, byte aux2); // need a custom one to handle sideways printing
-
     int gfxNumber = 0;
 
-public:
-    //atari822(sioPrinter *P) { my_sioP = P; }
-    virtual void initPrinter();
-    const char *modelname() { return "Atari 822"; };
+    virtual void post_new_file() override;
+    void pdf_handle_char(byte c, byte aux1, byte aux2) override; // need a custom one to handle sideways printing
 
-    //void setDevice(sioPrinter *P) { my_sioP = P; };
+public:
+    const char *modelname() { return "Atari 822"; };
 };
 
 #endif // _ATARI822_H
