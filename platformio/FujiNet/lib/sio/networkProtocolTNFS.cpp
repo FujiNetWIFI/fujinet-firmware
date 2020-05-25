@@ -163,7 +163,7 @@ bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
     else
     {
         // Reading from a file
-        if (int ret=tnfs_read(&mountInfo, fileHandle, rx_buf, len, &actual_len)!=0)
+        if (tnfs_read(&mountInfo, fileHandle, rx_buf, len, &actual_len)!=0)
         {
             return true;
         }
