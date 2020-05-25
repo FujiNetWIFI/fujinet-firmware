@@ -249,7 +249,7 @@ void epson80::pdf_handle_char(byte c)
                     charWidth = 0.3;
                     break;
                 }
-                _file.printf(")]TJ /F2 9 Tf [("); // set font to GFX mode
+                _file.printf(")]TJ /F2 9 Tf 100 Tz [("); // set font to GFX mode
                 fontUsed[1] = true;
             }
 
@@ -503,7 +503,7 @@ float epson80::epson_font_width(uint16_t code)
 
 void epson80::epson_set_font(byte F, float w)
 {
-    _file.printf(")]TJ /F%u 9 Tf [(", F);
+    _file.printf(")]TJ /F%u 9 Tf 120 Tz [(", F);
     charWidth = w;
     fontNumber = F;
     fontUsed[F] = true;
