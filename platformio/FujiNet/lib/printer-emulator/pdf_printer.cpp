@@ -3,7 +3,6 @@
 #include "../../include/debug.h"
 #include "fnFsSPIF.h"
 
-
 pdfPrinter::~pdfPrinter()
 {
 #ifdef DEBUG
@@ -71,9 +70,9 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
     // OPEN LUT FILE
     char fname[30]; // filename: /f/shortname/Fi
     sprintf(fname, "/f/%s/LUT", shortname.c_str());
-    FILE * lut = fnSPIFFS.file_open(fname);
+    FILE *lut = fnSPIFFS.file_open(fname);
     int maxFonts = util_parseInt(lut);
-    
+
     // font dictionary
     for (int i = 0; i < maxFonts; i++)
     {
@@ -88,7 +87,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
             size_t fp = 0;
             char fname[30];                                        // filename: /f/shortname/Fi
             sprintf(fname, "/f/%s/F%d", shortname.c_str(), i + 1); // e.g. /f/a820/F2
-            FILE *fff = fnSPIFFS.file_open(fname);                    // Font File File - fff
+            FILE *fff = fnSPIFFS.file_open(fname);                 // Font File File - fff
 
             for (int j = 0; j < 7; j++)
                 fontObjPos[j] = util_parseInt(lut);
@@ -182,7 +181,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
         }
 #endif
     }
-    
+
     fclose(lut);
 #ifdef DEBUG
     Debug_println("done.");
@@ -221,7 +220,7 @@ void pdfPrinter::pdf_begin_text(float Y)
     // open new text object
     fprintf(_file, "BT\n");
     TOPflag = false;
-    fprintf(_file, "/F%u %g Tf\n", fontNumber, fontSize);
+    fprintf(_file, "/F%u %g Tf %d Tz\n", fontNumber, fontSize, fontHorizScale);
     fprintf(_file, "%g %g Td\n", leftMargin, Y);
     pdf_Y = Y; // reset print roller to top of page
     pdf_X = 0; // set carriage to LHS
@@ -234,8 +233,12 @@ void pdfPrinter::pdf_new_line()
     Debug_println("pdf new line");
 #endif
     // position new line and start text string array
-    fprintf(_file, "0 %g Td [(", -lineHeight);
-    pdf_Y -= lineHeight; // line feed
+    if (pdf_dY != 0)
+        fprintf(_file, "0 Ts ");
+    pdf_dY -= lineHeight;
+    fprintf(_file, "0 %g Td [(", pdf_dY);
+    pdf_Y += pdf_dY; // line feed
+    pdf_dY = 0;
     // pdf_X = 0;              // CR over in end line()
     BOLflag = false;
 }
@@ -249,6 +252,11 @@ void pdfPrinter::pdf_end_line()
     // pdf_Y -= lineHeight; // line feed - moved to new line()
     pdf_X = 0; // CR
     BOLflag = true;
+}
+
+void pdfPrinter::pdf_set_rise()
+{
+    fprintf(_file, ")]TJ %g Ts [(", pdf_dY);
 }
 
 void pdfPrinter::pdf_end_page()
@@ -295,6 +303,46 @@ void pdfPrinter::pdf_xref()
 
 bool pdfPrinter::process(byte n)
 {
+    /**
+     * idea for 850-connected printers. The 850 translates EOL to CR.
+     * could make EOL = either 155 or 13. So if its an SIO printer,
+     * we keep EOL = 155. If its an 850 printer, we convert 155 to 13
+     * and then check for 13's on newline, etc. This would allow 13's
+     * to pass through and be executed. 
+     * 
+     * Then there's the problem of the printer either having auto LF or not.
+     * The 825 has auto LF unless the hardware is modified.
+     * Epson FX80 comes default with no auto LF, but I suspect an Atari
+     * user would make it auto linefeed. 
+     * 
+     * Could add an "autolinefeed" flag to the pdf-printer class.
+     * Could add an EOL-CR conversion flag in the pdf-printer class to have
+     * 850 emulation. 
+     * 
+     * How to make a CR command and a LF command?
+     *  CR is easy - just a " 0 0 Td " pdf command
+     *  LF with a CR is what we're already doing - e.g., " 0 -18 Td "
+     *  LF by itself is probably necessary - 2 cases
+     *      1 - when the carriage is at 0, then this is just like a LFCR
+     *      2 - in the middle of the line, we need to start printing at the
+     *          current pdf_X value. However, the pdf commands aren't well
+     *          suited for this. A pdf "pdf_X -18 Td" would do the trick, but 
+     *          it then sets the relative 0,0 coordinate to the middle of the
+     *          line and a CR won't take it back like it does now. Would need
+     *          to remember that we were in the middle of a line and adjust
+     *          with a "-last_X 0 Td" for the next CR. Another option is to do
+     *          absolute positioning of each and every line, which I think requires
+     *          each line to be it's own text object and is what i was
+     *          doing originally. Not my first choice.
+     *      3 - I think this: when at start of line, do #1
+     *          but when in middle of line use the pdf rendering variable called 
+     *          "rise" to adjust the baseline of printing. Make a variable to
+     *          keep track of rise, which is an offset from the baseline. 
+     *          Could set rise back to zero on a CR by adding the rise to the
+     *          lineHeight in pdf_new_line(). Explicitly set rise to 0 on
+     *          CR/EOL when rise/=0. simply put "0 Ts" in the stream.
+     * 
+    */
     int i = 0;
     byte c;
 
@@ -317,22 +365,24 @@ bool pdfPrinter::process(byte n)
     do
     {
         c = buffer[i++];
+        if (translate850 && c == ATASCII_EOL)
+            c = ASCII_CR; // the 850 interface converts EOL to CR
+
         // #ifdef DEBUG
         //         Debug_print(c, HEX);
         // #endif
 
         if (!textMode)
         {
-            //this->
             pdf_handle_char(c);
         }
         else
         {
-            if (BOLflag && c == EOL)
+            if (BOLflag && c == _eol)
                 pdf_new_line();
 
             // check for EOL or if at end of line and need automatic CR
-            if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth +.072))))
+            if (!BOLflag && ((c == _eol) || (pdf_X > (printWidth - charWidth + .072))))
                 pdf_end_line();
 
             // start a new line if we need to
@@ -349,7 +399,7 @@ bool pdfPrinter::process(byte n)
 #endif
         }
 
-    } while (i < n && c != EOL);
+    } while (i < n && c != _eol);
 
     // if wrote last line, then close the page
     if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
