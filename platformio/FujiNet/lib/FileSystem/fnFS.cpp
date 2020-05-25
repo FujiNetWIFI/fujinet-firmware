@@ -38,3 +38,18 @@ long FileSystem::filesize(FILE *f)
     fseek(f, curr, SEEK_SET);
     return end;
 }
+
+const char * FileSystem::type_to_string(fsType type)
+{
+    switch(type)
+    {
+        case FSTYPE_SPIFFS:
+            return "FS_SPIFFS";
+        case FSTYPE_SDFAT:
+            return "FS_SDFAT";
+        case FSTYPE_TNFS:
+            return "FS_TNFS";
+        default:
+            return "UNKNOWN FS TYPE";
+    }
+}

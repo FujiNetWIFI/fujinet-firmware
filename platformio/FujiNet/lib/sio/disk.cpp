@@ -529,6 +529,9 @@ void sioDisk::sio_process()
     if (_file == nullptr) // if there is no disk mounted, just return cuz there's nothing to do
         return;
 
+    if (device_active==false && (cmdFrame.comnd != 'S' && cmdFrame.comnd != 0x3F))
+        return;
+
     switch (cmdFrame.comnd)
     {
     case 'R':
@@ -547,11 +550,14 @@ void sioDisk::sio_process()
         {
             if (status_wait_count == 0)
             {
+                device_active=true;
                 sio_ack();
                 sio_status();
             }
             else
+            {
                 status_wait_count--;
+            }
         }
         else
         {

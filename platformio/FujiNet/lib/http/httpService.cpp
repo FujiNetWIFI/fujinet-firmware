@@ -252,15 +252,17 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 #endif
 
     time_t now = fnSystem.millis();
-    if (now - sioP.lastPrintTime() < PRINTER_BUSY_TIME)
+    // Get a pointer to the current (only) printer
+    sioPrinter *printer = (sioPrinter *)SIO.deviceById(SIO_DEVICEID_PRINTER);
+
+    if (now - printer->lastPrintTime() < PRINTER_BUSY_TIME)
     {
         _fnwserr err = fnwserr_post_fail;
         return_http_error(req, err);
         return ESP_FAIL;
     }
-    // WAS: A bit of a kludge for now: get printer from main routine
-    // IS: now get printer emulator pointer from sioP (which is now extern)
-    printer_emu *currentPrinter = sioP.getPrinterPtr(); //getCurrentPrinter();
+    // Get printer emulator pointer from sioP (which is now extern)
+    printer_emu *currentPrinter = printer->getPrinterPtr();
 
     // Build a print output name
     const char *exts;
@@ -341,10 +343,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     free(buf);
 
     // Tell the printer it can start writing from the beginning
-    // WAS:
-    // currentPrinter->resetPrinter(); // resetOutput();
-    // IS:
-    sioP.reset_printer(); // destroy,create new printer emulator object of previous type.
+    printer->reset_printer(); // destroy,create new printer emulator object of previous type.
 #ifdef DEBUG
     Debug_println("Print request completed");
 #endif

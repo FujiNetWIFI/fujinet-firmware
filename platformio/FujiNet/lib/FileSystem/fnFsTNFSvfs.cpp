@@ -20,28 +20,96 @@
     ssize_t (*write_p)(void* p, int fd, const void * data, size_t size);
     off_t (*lseek_p)(void* p, int fd, off_t size, int mode);
     int (*fstat_p)(void* ctx, int fd, struct stat * st);
-
-    NOT IMPLEMENTED:
-    int (*link_p)(void* ctx, const char* n1, const char* n2);
     int (*unlink_p)(void* ctx, const char *path);
     int (*rename_p)(void* ctx, const char *src, const char *dst);
-
-    DIR* (*opendir_p)(void* ctx, const char* name);
-    int (*readdir_r_p)(void* ctx, DIR* pdir, struct dirent* entry, struct dirent** out_dirent);
-    int (*closedir_p)(void* ctx, DIR* pdir);
-    struct dirent* (*readdir_p)(void* ctx, DIR* pdir);
-    long (*telldir_p)(void* ctx, DIR* pdir);
-    void (*seekdir_p)(void* ctx, DIR* pdir, long offset);
     int (*mkdir_p)(void* ctx, const char* name, mode_t mode);
     int (*rmdir_p)(void* ctx, const char* name);
 
+    NOT IMPLEMENTED:
+    DIR* (*opendir_p)(void* ctx, const char* name);
+    int (*closedir_p)(void* ctx, DIR* pdir);
+    struct dirent* (*readdir_p)(void* ctx, DIR* pdir);
+    int (*readdir_r_p)(void* ctx, DIR* pdir, struct dirent* entry, struct dirent** out_dirent);
+    long (*telldir_p)(void* ctx, DIR* pdir);
+    void (*seekdir_p)(void* ctx, DIR* pdir, long offset);
+
+    int (*access_p)(void* ctx, const char *path, int amode);
+    int (*truncate_p)(void* ctx, const char *path, off_t length);
+
+    int (*link_p)(void* ctx, const char* n1, const char* n2);
     int (*fcntl_p)(void* ctx, int fd, int cmd, va_list args);
     int (*ioctl_p)(void* ctx, int fd, int cmd, va_list args);
     int (*fsync_p)(void* ctx, int fd);
-    int (*access_p)(void* ctx, const char *path, int amode);
-    int (*truncate_p)(void* ctx, const char *path, off_t length);
 */
 
+int vfs_tnfs_mkdir(void* ctx, const char* name, mode_t mode)
+{
+    tnfsMountInfo *mi = (tnfsMountInfo *)ctx;
+
+    // Note that we ignore 'mode'
+    int result = tnfs_mkdir(mi, name);
+    if(result != TNFS_RESULT_SUCCESS)
+    {
+        #ifdef DEBUG
+        //Debug_printf("vfs_tnfs_mkdir = %d\n", result);
+        #endif
+        errno = tnfs_code_to_errno(result);
+        return -1;
+    }
+    errno = 0;
+    return 0;
+}
+
+int vfs_tnfs_rmdir(void* ctx, const char* name)
+{
+    tnfsMountInfo *mi = (tnfsMountInfo *)ctx;
+
+    int result = tnfs_rmdir(mi, name);
+    if(result != TNFS_RESULT_SUCCESS)
+    {
+        #ifdef DEBUG
+        //Debug_printf("vfs_tnfs_rmdir = %d\n", result);
+        #endif
+        errno = tnfs_code_to_errno(result);
+        return -1;
+    }
+    errno = 0;
+    return 0;
+}
+
+int vfs_tnfs_unlink(void* ctx, const char *path)
+{
+    tnfsMountInfo *mi = (tnfsMountInfo *)ctx;
+
+    int result = tnfs_unlink(mi, path);
+    if(result != TNFS_RESULT_SUCCESS)
+    {
+        #ifdef DEBUG
+        //Debug_printf("vfs_tnfs_unlink = %d\n", result);
+        #endif
+        errno = tnfs_code_to_errno(result);
+        return -1;
+    }
+    errno = 0;
+    return 0;
+}
+
+int vfs_tnfs_rename(void* ctx, const char *src, const char *dst)
+{
+    tnfsMountInfo *mi = (tnfsMountInfo *)ctx;
+
+    int result = tnfs_rename(mi, src, dst);
+    if(result != TNFS_RESULT_SUCCESS)
+    {
+        #ifdef DEBUG
+        //Debug_printf("vfs_tnfs_rename = %d\n", result);
+        #endif
+        errno = tnfs_code_to_errno(result);
+        return -1;
+    }
+    errno = 0;
+    return 0;
+}
 
 int vfs_tnfs_open(void* ctx, const char * path, int flags, int mode)
 {
@@ -192,6 +260,8 @@ esp_err_t vfs_tnfs_register(tnfsMountInfo &m_info, char *basepath, int basepathl
     vfs.stat_p = &vfs_tnfs_stat;
     vfs.fstat_p = &vfs_tnfs_fstat;
     vfs.lseek_p = &vfs_tnfs_lseek;
+    vfs.unlink_p = &vfs_tnfs_unlink;
+    vfs.rename_p = &vfs_tnfs_rename;
 
     // We'll use the address of our tnfsMountInfo to provide a unique base path
     // for this instance wihtout keeping track of how many we create

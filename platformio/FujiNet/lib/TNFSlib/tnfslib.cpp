@@ -1,4 +1,6 @@
 #include <string.h>
+#include <memory>
+
 #include "tnfslib.h"
 #include "../tcpip/fnUDP.h"
 #include "../utils/utils.h"
@@ -6,10 +8,14 @@
 
 bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
 
+int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char *source, int bufflen);
+
 void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short len, bool isResponse = false);
 
 const char *_tnfs_command_string(int command);
 const char *_tnfs_result_code_string(int resultcode);
+
+using namespace std;
 
 /*
 MOUNT - Command ID 0x00
@@ -73,15 +79,29 @@ int tnfs_mount(tnfsMountInfo *m_info)
     // TNFS VERSION
     packet.payload[0] = 0x00; // TNFS Version Minor (LSB)
     packet.payload[1] = 0x01; // TNFS Version Major (MSB)
-    // TODO: Copy mountpath while observing max packet size
-    packet.payload[2] = 0x2F; // '/'
-    packet.payload[3] = 0x00; // nul
-    // TODO: Copy username while observing max packet size
-    // TODO: Copy password while observing max packet size
-    packet.payload[4] = 0x00;
-    packet.payload[5] = 0x00;
 
-    if (_tnfs_transaction(m_info, packet, 6))
+    int payload_offset = 2;
+
+    // If we weren't provided a mountpath, set the default
+    if(m_info->mountpath[0] == '\0')
+        m_info->mountpath[0] = '/';
+
+    // Copy the mountpath to the payload 
+    strncpy((char *)packet.payload + payload_offset, m_info->mountpath, sizeof(packet.payload) - payload_offset);
+    payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
+
+    // Copy user
+    strncpy((char *)packet.payload + payload_offset, m_info->user, sizeof(packet.payload) - payload_offset);
+    payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
+
+    // Copy password
+    strncpy((char *)packet.payload + payload_offset, m_info->password, sizeof(packet.payload) - payload_offset);
+    payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
+
+    // Make sure we have the right starting working directory
+    m_info->current_working_directory[0]  = '/';
+
+    if (_tnfs_transaction(m_info, packet, payload_offset))
     {
         // Success
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
@@ -145,13 +165,13 @@ Format: Standard header, flags, mode, then the null terminated filename.
 Flags are a bit field.
 
 The flags are:
-O_RDONLY	0x0001	Open read only
-O_WRONLY	0x0002	Open write only
-O_RDWR		0x0003	Open read/write
-O_APPEND	0x0008	Append to the file, if it exists (write only)
-O_CREAT		0x0100	Create the file if it doesn't exist (write only)
-O_TRUNC		0x0200	Truncate the file on open for writing
-O_EXCL		0x0400	With O_CREAT, returns an error if the file exists
+TNFS_OPENMODE_READ             0x0001 // Open read only
+TNFS_OPENMODE_WRITE            0x0002 // Open write only
+TNFS_OPENMODE_READWRITE        0x0003 // Open read/write
+TNFS_OPENMODE_WRITE_APPEND     0x0008 // Append to the file if it exists (write only)
+TNFS_OPENMODE_WRITE_CREATE     0x0100 // Create the file if it doesn't exist (write only)
+TNFS_OPENMODE_WRITE_TRUNCATE   0x0200 // Truncate the file on open for writing
+TNFS_OPENMODE_CREATE_EXCLUSIVE 0x0400 // With TNFS_OPENMODE_CREATE, returns an error if the file exists
 
 The modes are the same as described by CHMOD (i.e. POSIX modes). These
 may be modified by the server process's umask. The mode only applies
@@ -196,9 +216,9 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
 
     // First, stat the file so we can get its length (if it exists), which we'll need to
     // keep track of the file position.
+    bool file_exists = false;    
     tnfsStat tstat;
     int rs = tnfs_stat(m_info, &tstat, filepath);
-    bool file_exists = false;
     // The only error we'll accept is TNFS_RESULT_FILE_NOT_FOUND, otherwise abort
     if(rs == TNFS_RESULT_SUCCESS)
     {
@@ -218,26 +238,15 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPEN;
 
-    // Set the open mode (does not appear to be little-endian)
     packet.payload[0] = TNFS_LOBYTE_FROM_UINT16(open_mode);
     packet.payload[1] = TNFS_HIBYTE_FROM_UINT16(open_mode);
 
-    // Set create permissions (does not appear to be little-endian)
     packet.payload[2] = TNFS_LOBYTE_FROM_UINT16(create_perms);
     packet.payload[3] = TNFS_HIBYTE_FROM_UINT16(create_perms);
 
     int offset_filename = 4; // Where the filename starts in the buffer
 
-    // Make sure we start with a '/'
-    if (filepath[0] != '/')
-    {
-        packet.payload[offset_filename] = '/';
-        strncpy((char *)&packet.payload[offset_filename + 1], filepath, sizeof(packet.payload) - offset_filename - 1);
-    }
-    else
-    {
-        strncpy((char *)&packet.payload[offset_filename], filepath, sizeof(packet.payload) - offset_filename);
-    }
+    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload + offset_filename, filepath, sizeof(packet.payload) - offset_filename);
 
     // Store the path we used as part of our file handle info
     strncpy(pFileInf->filename, (const char *)&packet.payload[offset_filename], TNFS_MAX_FILELEN);
@@ -248,7 +257,7 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
 
     // Offset to filename + filename length + zero terminator
     int result = -1;
-    int len = offset_filename + strlen((char *)(&packet.payload[offset_filename])) + 1;
+    len = len + offset_filename + 1;
     if (_tnfs_transaction(m_info, packet, len))
     {
         if(packet.payload[0] == TNFS_RESULT_SUCCESS)
@@ -572,24 +581,13 @@ int tnfs_opendir(tnfsMountInfo *m_info, const char *directory)
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPENDIR;
-
-    // Make sure we start with a '/'
-    if (directory[0] != '/')
-    {
-        packet.payload[0] = '/';
-        strncpy((char *)&packet.payload[1], directory, sizeof(packet.payload) - 1);
-    }
-    else
-    {
-        strncpy((char *)&packet.payload[0], directory, sizeof(packet.payload));
-    }
+    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, directory, sizeof(packet.payload));
 
 #ifdef DEBUG
     Debug_printf("TNFS open directory: \"%s\"\n", (char *)packet.payload);
 #endif
 
-    int len = strlen((char *)packet.payload) + 1;
-    if (_tnfs_transaction(m_info, packet, len))
+    if (_tnfs_transaction(m_info, packet, len + 1))
     {
         if(packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
@@ -719,23 +717,13 @@ int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory)
     tnfsPacket packet;
     packet.command = TNFS_CMD_MKDIR;
 
-    // Make sure we start with a '/'
-    if (directory[0] != '/')
-    {
-        packet.payload[0] = '/';
-        strncpy((char *)&packet.payload[1], directory, sizeof(packet.payload) - 1);
-    }
-    else
-    {
-        strncpy((char *)&packet.payload[0], directory, sizeof(packet.payload));
-    }
+    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, directory, sizeof(packet.payload));
 
 #ifdef DEBUG
     Debug_printf("TNFS make directory: \"%s\"\n", (char *)packet.payload);
 #endif
 
-    int len = strlen((char *)packet.payload) + 1;
-    if (_tnfs_transaction(m_info, packet, len))
+    if (_tnfs_transaction(m_info, packet, len + 1))
     {
         return packet.payload[0];
     }
@@ -768,23 +756,13 @@ int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory)
     tnfsPacket packet;
     packet.command = TNFS_CMD_RMDIR;
 
-    // Make sure we start with a '/'
-    if (directory[0] != '/')
-    {
-        packet.payload[0] = '/';
-        strncpy((char *)&packet.payload[1], directory, sizeof(packet.payload) - 1);
-    }
-    else
-    {
-        strncpy((char *)&packet.payload[0], directory, sizeof(packet.payload));
-    }
+    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, directory, sizeof(packet.payload));
 
 #ifdef DEBUG
     Debug_printf("TNFS remove directory: \"%s\"\n", (char *)packet.payload);
 #endif
 
-    int len = strlen((char *)packet.payload) + 1;
-    if (_tnfs_transaction(m_info, packet, len))
+    if (_tnfs_transaction(m_info, packet, len + 1))
     {
         return packet.payload[0];
     }
@@ -842,16 +820,7 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
     tnfsPacket packet;
     packet.command = TNFS_CMD_STAT;
 
-    // Make sure we start with a '/'
-    if (filepath[0] != '/')
-    {
-        packet.payload[0] = '/';
-        strncpy((char *)&packet.payload[1], filepath, sizeof(packet.payload) - 1);
-    }
-    else
-    {
-        strncpy((char *)&packet.payload[0], filepath, sizeof(packet.payload));
-    }
+    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, filepath, sizeof(packet.payload));
 
 #ifdef DEBUG
     // Debug_printf("TNFS stat: \"%s\"\n", (char *)packet.payload);
@@ -865,8 +834,7 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
 #define OFFSET_MTIME 15
 #define OFFSET_CTIME 19
 
-    int len = strlen((char *)packet.payload) + 1;
-    if (_tnfs_transaction(m_info, packet, len))
+    if (_tnfs_transaction(m_info, packet, len + 1))
     {
         if(packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
@@ -889,9 +857,224 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
     return -1;
 }
 
+/*
+UNLINK - Unlinks (deletes) a file - Command 0x26
+------------------------------------------------
+Removes the specified file. The request consists of the header then
+the null terminated full path to the file. The reply consists of the
+header and the return code.
+
+Example:
+Unlink file "/foo/bar/baz.bas"
+0xBEEF 0x00 0x26 /foo/bar/baz.bas 0x00
+*/
+/*
+    Deletes file.
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
+*/
+int tnfs_unlink(tnfsMountInfo *m_info, const char *filepath)
+{
+    if (m_info == nullptr || filepath == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_UNLINK;
+
+    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, filepath, sizeof(packet.payload));
+
+#ifdef DEBUG
+    Debug_printf("TNFS unlink file: \"%s\"\n", (char *)packet.payload);
+#endif
+
+    if (_tnfs_transaction(m_info, packet, len + 1))
+    {
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+/*
+RENAME - Moves a file within a filesystem - Command 0x28
+--------------------------------------------------------
+Renames a file (or moves a file within a filesystem - it must be possible
+to move a file to a different directory within the same FS on the
+server using this command).
+The request consists of the header, followed by the null terminated
+source path, and the null terminated destination path.
+
+Example: Move file "foo.txt" to "bar.txt"
+0xBEEF 0x00 0x28 foo.txt 0x00 bar.txt 0x00
+*/
+/*
+    Renames file from old_filepath to new_filepath
+    Relative paths ("../file") won't work.
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
+*/
+int tnfs_rename(tnfsMountInfo *m_info, const char *old_filepath, const char *new_filepath)
+{
+    if (m_info == nullptr || old_filepath == nullptr || new_filepath == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_RENAME;
+
+    int l1 = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, old_filepath, sizeof(packet.payload)) + 1;
+    int l2 = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload + l1, new_filepath, sizeof(packet.payload) -l1) + 1;
+
+#ifdef DEBUG
+    Debug_printf("TNFS rename file: \"%s\" -> \"%s\"\n", (char *)packet.payload, (char *)(packet.payload + l1));
+#endif
+
+    if (_tnfs_transaction(m_info, packet, l1 + l2))
+    {
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+/*
+CHMOD - Changes permissions on a file - Command 0x27
+----------------------------------------------------
+Changes file permissions on the specified file, using POSIX permissions
+semantics. Not all permissions may be supported by all servers - most 8
+bit systems, for example, may only support removing the write bit.
+A server running on something Unixish will support everything.
+
+The request consists of the header, followed by the 16 bit file mode,
+followed by the null terminated filename. Filemode is sent as a little
+endian value. See the Unix manpage for chmod(2) for further information.
+
+File modes are as defined by POSIX. The POSIX definitions are as follows:
+              
+Flag      Octal Description
+S_ISUID   04000 set user ID on execution
+S_ISGID   02000 set group ID on execution
+S_ISVTX   01000 sticky bit
+S_IRUSR   00400 read by owner
+S_IWUSR   00200 write by owner
+S_IXUSR   00100 execute/search by owner
+S_IRGRP   00040 read by group
+S_IWGRP   00020 write by group
+S_IXGRP   00010 execute/search by group
+S_IROTH   00004 read by others
+S_IWOTH   00002 write by others
+S_IXOTH   00001 execute/search by others
+
+Example: Set permissions to 755 on /foo/bar/baz.bas:
+0xBEEF 0x00 0x27 0xED 0x01 /foo/bar/baz.bas
+
+The reply is the standard header plus the return code of the chmod operation.
+*/
+/*
+    THIS ISN'T IMPLEMENTED IN THE CURRENT TNFSD CODE
+    Changes permissions on file
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
+*/
+int tnfs_chmod(tnfsMountInfo *m_info, const char *filepath, uint16_t mode)
+{
+    if (m_info == nullptr || filepath == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_CHMOD;
+
+    packet.payload[0] = TNFS_LOBYTE_FROM_UINT16(mode);
+    packet.payload[1] = TNFS_HIBYTE_FROM_UINT16(mode);
+
+    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload +2, filepath, sizeof(packet.payload) -2);
+
+#ifdef DEBUG
+    Debug_printf("TNFS chmod file: \"%s\", %ho\n", (char *)packet.payload +2, mode);
+#endif
+
+    if (_tnfs_transaction(m_info, packet, len + 3))
+    {
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+/*
+SIZE - Requests the size of the mounted filesystem - Command 0x30
+-----------------------------------------------------------------
+Finds the size, in kilobytes, of the filesystem that is currently mounted.
+The request consists of a standard header and nothing more.
+
+Example:
+0xBEEF 0x00 0x30
+
+The reply is the standard header, followed by the return code, followed
+by a 32 bit little endian integer which is the size of the filesystem
+in kilobytes, for example:
+
+0xBEEF 0x00 0x30 0x00 0xD0 0x02 0x00 0x00 - Filesystem is 720kbytes
+0xBEEF 0x00 0x30 0xFF - Request failed with error code 0xFF
+*/
+/*
+    THIS ISN'T IMPLEMENTED IN THE CURRENT TNFSD CODE
+    Returns size of mounted filesystem in kilobytes in the 'size' parameter
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
+*/
+int tnfs_size(tnfsMountInfo *m_info, uint32_t *size)
+{
+    if (m_info == nullptr || size == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_SIZE;
+
+    if (_tnfs_transaction(m_info, packet, 0))
+    {
+        if(packet.payload[0] == 0)
+        {
+            *size = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);
+        }
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+/*
+FREE - Requests the amount of free space on the filesystem - Command 0x31
+-------------------------------------------------------------------------
+Finds the size, in kilobytes, of the free space remaining on the mounted
+filesystem. The request consists of the standard header and nothing more.
+
+Example:
+0xBEEF 0x00 0x31
+
+The reply is as for SIZE - the standard header, return code, and little
+endian integer for the free space in kilobytes, for example:
+
+0xBEEF 0x00 0x31 0x00 0x64 0x00 0x00 0x00 - There is 64K free.
+0xBEEF 0x00 0x31 0x1F - Request failed with error 0x1F
+*/
+/*
+    THIS ISN'T IMPLEMENTED IN THE CURRENT TNFSD CODE
+    Returns free kilobytes in mounted filesystem in the 'size' parameter
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
+*/
+int tnfs_free(tnfsMountInfo *m_info, uint32_t *size)
+{
+    if (m_info == nullptr || size == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_FREE;
+
+    if (_tnfs_transaction(m_info, packet, 0))
+    {
+        if(packet.payload[0] == 0)
+        {
+            *size = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);
+        }
+        return packet.payload[0];
+    }
+    return -1;
+}
 
 // ------------------------------------------------
-// HELPER TNFS FUNCTIONS
+// HELPER TNFS FUNCTIONS (Aren't actual TNFSD commands)
 // ------------------------------------------------
 
 /*
@@ -910,6 +1093,50 @@ const char * tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle)
     return pFileInf->filename;
 }
 
+/*
+ Sets the internally-tracked current working directory after confirming that
+ the given directory exists.
+ ".." can be used to go up one (and only one) directory
+*/
+int tnfs_chdir(tnfsMountInfo *m_info, const char *dirpath)
+{
+    if(m_info == nullptr || dirpath == nullptr)
+        return -1;
+
+    // Check for ".."
+    if(dirpath[0] == '.' && dirpath[1] == '.' && dirpath[2] == '\0')
+    {
+        // Figure out what the previous directory is
+        char * lslash = strrchr(m_info->current_working_directory, '/');
+        // Assuming we're not alraedy at the root, just truncate the string at the last slash
+        if(lslash != nullptr && lslash != m_info->current_working_directory)
+            *lslash = '\0';
+        return TNFS_RESULT_SUCCESS;
+    }
+
+    tnfsStat tstat;
+    int rs = tnfs_stat(m_info, &tstat, dirpath);
+    if(rs != TNFS_RESULT_SUCCESS)
+        return rs;
+
+    if(tstat.isDir == false)
+        return TNFS_RESULT_NOT_A_DIRECTORY;
+
+    // Looks okay - store it
+    _tnfs_adjust_with_full_path(m_info, m_info->current_working_directory, dirpath, sizeof(m_info->current_working_directory));
+
+    return TNFS_RESULT_SUCCESS;
+}
+
+/*
+ Returns directory path we currently have stored
+*/
+const char * tnfs_getcwd(tnfsMountInfo *m_info)
+{
+    if(m_info == nullptr)
+        return nullptr;
+    return m_info->current_working_directory;
+}
 // ------------------------------------------------
 // INTERNAL UTILITY FUNCTIONS
 // ------------------------------------------------
@@ -991,7 +1218,20 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
                         // Fall through and let retry logic handle it.
                     }
                     else
-                        return true;
+                    {
+                        // Check in case the server asks us to wait and try again
+                        if(pkt.payload[0] != TNFS_RESULT_TRY_AGAIN)
+                            return true;
+                        else
+                        {
+                            // Server should tell us how long it wants us to wait
+                            uint16_t backoffms = TNFS_UINT16_FROM_LOHI_BYTEPTR(pkt.payload + 1);
+                            Debug_printf("Server asked us to TRY AGAIN after %ums\n", backoffms);
+                            if(backoffms > TNFS_MAX_BACKOFF_DELAY)
+                                backoffms = TNFS_MAX_BACKOFF_DELAY;
+                            vTaskDelay(backoffms / portTICK_PERIOD_MS);
+                        }
+                    }
                 }
                 fnSystem.yield();
 
@@ -1013,6 +1253,40 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
     return false;
 }
 
+// Copies to buffer while ensuring that we start with a '/'
+// Returns length of new full path or -1 on failure
+int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char *source, int bufflen)
+{
+    if(buffer == nullptr || bufflen < 2)
+        return -1;
+
+    // Use the cwd to bulid the full path
+    strncpy(buffer, m_info->current_working_directory, bufflen);
+
+    // Figure out whether or not we need to add a slash
+    int ll;
+    ll = strlen(buffer);
+    if(ll < 1 || ll > (bufflen - 2))
+        return -1;
+
+    bool dir_slash = buffer[ll-1] == '/';
+    bool needs_slash = source[0] != '/';
+    if(needs_slash && dir_slash == false)
+    {
+        buffer[ll] = '/';
+        buffer[++ll] = '\0';
+    }
+    if(needs_slash == false && dir_slash)
+    {
+        buffer[--ll] = '\0';
+    }
+
+    // Finally copy the source filepath
+    strncpy(buffer + ll, source, bufflen - ll);
+
+    // And return the new length because that ends up being useful
+    return strlen(buffer);
+}
 
 // ------------------------------------------------
 // DEBUG STUFF FROM HERE DOWN
@@ -1098,71 +1372,71 @@ const char *_tnfs_result_code_string(int resultcode)
     case TNFS_RESULT_SUCCESS:
         return "Success";
     case TNFS_RESULT_NOT_PERMITTED:
-        return "EPERM: Operation not permitted";
+        return "Operation not permitted";
     case TNFS_RESULT_FILE_NOT_FOUND:
-        return "ENOENT: No such file or directory";
+        return "No such file or directory";
     case TNFS_RESULT_IO_ERROR:
-        return "EIO: I/O error";
+        return "I/O error";
     case TNFS_RESULT_NO_SUCH_DEVICE:
-        return "ENXIO: No such device or address";
+        return "No such device or address";
     case TNFS_RESULT_LIST_TOO_LONG:
-        return "E2BIG: Argument list too long";
+        return "Argument list too long";
     case TNFS_RESULT_BAD_FILENUM:
-        return "EBADF: Bad file number";
+        return "Bad file number";
     case TNFS_RESULT_TRY_AGAIN:
-        return "EAGAIN: Try again";
+        return "Try again";
     case TNFS_RESULT_OUT_OF_MEMORY:
-        return "ENOMEM: Out of memory";
+        return "Out of memory";
     case TNFS_RESULT_ACCESS_DENIED:
-        return "EACCES: Permission denied";
+        return "Permission denied";
     case TNFS_RESULT_RESOURCE_BUSY:
-        return "EBUSY: Device or resource busy";
+        return "Device or resource busy";
     case TNFS_RESULT_FILE_EXISTS:
-        return "EEXIST: File exists";
+        return "File exists";
     case TNFS_RESULT_NOT_A_DIRECTORY:
-        return "ENOTDIR: Is not a directory";
+        return "Is not a directory";
     case TNFS_RESULT_IS_DIRECTORY:
-        return "EISDIR: Is a directory";
+        return "Is a directory";
     case TNFS_RESULT_INVALID_ARGUMENT:
-        return "EINVAL: Invalid argument";
+        return "Invalid argument";
     case TNFS_RESULT_FILE_TABLE_OVERFLOW:
-        return "ENFILE: File table overflow";
+        return "File table overflow";
     case TNFS_RESULT_TOO_MANY_FILES_OPEN:
-        return "EMFILE: Too many open files";
+        return "Too many open files";
     case TNFS_RESULT_FILE_TOO_LARGE:
-        return "EFBIG: File too large";
+        return "File too large";
     case TNFS_RESULT_NO_SPACE_ON_DEVICE:
-        return "ENOSPC: No space left on device";
+        return "No space left on device";
     case TNFS_RESULT_CANNOT_SEEK_PIPE:
-        return "ESPIPE: Attempt to seek on a FIFO or pipe";
+        return "Attempt to seek on a FIFO or pipe";
     case TNFS_RESULT_READONLY_FILESYSTEM:
-        return "EROFS: Read only filesystem";
+        return "Read only filesystem";
     case TNFS_RESULT_NAME_TOO_LONG:
-        return "ENAMETOOLONG: Filename too long";
+        return "Filename too long";
     case TNFS_RESULT_FUNCTION_UNIMPLEMENTED:
-        return "ENOSYS: Function not implemented";
+        return "Function not implemented";
     case TNFS_RESULT_DIRECTORY_NOT_EMPTY:
-        return "ENOTEMPTY: Directory not empty";
+        return "Directory not empty";
     case TNFS_RESULT_TOO_MANY_SYMLINKS:
-        return "ELOOP: Too many symbolic links";
+        return "Too many symbolic links";
     case TNFS_RESULT_NO_DATA_AVAILABLE:
-        return "ENODATA: No data available";
+        return "No data available";
     case TNFS_RESULT_OUT_OF_STREAMS:
-        return "ENOSTR: Out of streams resources";
+        return "Out of streams resources";
     case TNFS_RESULT_PROTOCOL_ERROR:
-        return "EPROTO: Protocol error";
+        return "Protocol error";
     case TNFS_RESULT_BAD_FILE_DESCRIPTOR:
-        return "EBADFD: File descriptor in bad state";
+        return "File descriptor in bad state";
     case TNFS_RESULT_TOO_MANY_USERS:
-        return "EUSERS: Too many users";
+        return "Too many users";
     case TNFS_RESULT_OUT_OF_BUFFER_SPACE:
-        return "ENOBUFS: No buffer space avaialable";
+        return "No buffer space avaialable";
     case TNFS_RESULT_ALREADY_IN_PROGRESS:
-        return "EALREADY: Operation already in progress";
+        return "Operation already in progress";
     case TNFS_RESULT_STALE_HANDLE:
-        return "ESTALE: Stale TNFS handle";
+        return "Stale TNFS handle";
     case TNFS_RESULT_END_OF_FILE:
-        return "EOF: End of file";
+        return "End of file";
     case TNFS_RESULT_INVALID_HANDLE:
         return "Invalid TNFS handle";
     default:
