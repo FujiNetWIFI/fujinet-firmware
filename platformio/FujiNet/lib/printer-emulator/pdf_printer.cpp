@@ -394,7 +394,7 @@ bool pdfPrinter::process(byte n)
             pdf_handle_char(c);
 
 #ifdef DEBUG
-            Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);
+            Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y+pdf_dY);
             Debug_printf("\n");
 #endif
         }
