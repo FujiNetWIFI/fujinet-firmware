@@ -345,8 +345,6 @@ GET:
 GETDO:
 	LDA	ZICDNO		; Get IOCB UNIT #
 	STA	GETDCB+1	; Store into DUNIT
-	LDA	#>RBUF		; Buffer ptr
-	STA	GETDCB+5	; store into DBUFH
 	LDA	DVSTAT		; # of bytes waiting
 	STA	GETDCB+8	; Store into DBYT...
 	STA	GETDCB+10	; and DAUX1...
@@ -404,7 +402,7 @@ GETDCB .BYTE     DEVIDN  ; DDEVIC
        .BYTE     'R'     ; DCOMND
        .BYTE     $40     ; DSTATS
        .BYTE     $00     ; DBUFL
-       .BYTE     $FF     ; DBUFH
+       .BYTE     >RBUF   ; DBUFH
        .BYTE     $0F     ; DTIMLO
        .BYTE     $00     ; DRESVD
        .BYTE     $FF     ; DBYTL
@@ -462,15 +460,10 @@ PF1:	JSR     GDIDX   ; GET DEV X
 
 PF2:	LDA     ZICDNO
        STA     PUTDCB+1
-
-       ; PICK APROPOS BUFFER PAGE
-       
-	LDA	#>TBUF
 	
        ; FINISH DCB AND DO SIOV
 
-TBX:	STA     PUTDCB+5
-	LDA     TOFF,X
+TBX:	LDA     TOFF,X
 	STA     PUTDCB+8
 	STA     PUTDCB+10
 
@@ -492,7 +485,7 @@ PUTDCB .BYTE      DEVIDN  ; DDEVIC
        .BYTE      'W'     ; DCOMND
        .BYTE      $80     ; DSTATS
        .BYTE      $80     ; DBUFL
-       .BYTE      $FF     ; DBUFH
+       .BYTE      >TBUF   ; DBUFH
        .BYTE      $0F     ; DTIMLO
        .BYTE      $00     ; DRESVD
        .BYTE      $FF     ; DBYTL
@@ -593,27 +586,12 @@ SPEC:
        ; HANDLE SIO COMMANDS.
        ; GET DSTATS FOR COMMAND
 
-S1:	LDA     #DEVIDN ; $71
-       STA     DDEVIC
-       LDA     ZICDNO  ; UNIT #
-       STA     DUNIT
-       LDA     #$FF    ; DS INQ
-       STA     DCOMND
-       LDA     #DSREAD
-       STA     DSTATS
-       LDA     #<INQDS
-       STA     DBUFL
-       LDA     #>INQDS
-       STA     DBUFH
-       LDA     #$01
-       STA     DBYTL
-       LDA     #$00
-       STA     DBYTH
-       STA     DAUXH
-       LDA     #$0F
-       STA     DTIMLO
-       LDA     ZICCOM
-       STA     DAUXL
+S1:	LDA	ZICDNO
+	STA	SPEDCB+1
+	LDA	ZICCOM
+	STA	SPEDCB+10
+	
+	DCBC	SPEDCB
        JSR     SIOV    ; DO IT...
 
        LDA     DSTATS
@@ -637,11 +615,7 @@ DSOK:
 	;; Do the special, since we want to pass in all the IOCB
 	;; Parameters to the DCB, This is being done long-hand.
 	
-DSGO:	LDA	#DEVIDN
-	STA	DDEVIC
-	LDA	ZICDNO
-	STA	DUNIT
-	LDA	ZICCOM
+DSGO:	LDA	ZICCOM
 	STA	DCOMND
 	LDA	INQDS
 	STA	DSTATS
@@ -649,8 +623,6 @@ DSGO:	LDA	#DEVIDN
 	STA	DBUFL
 	LDA	ZICBAH
 	STA	DBUFH
-	LDA	#$0F
-	STA	DTIMLO
 	LDA	#$00		; 256 bytes
 	STA	DBYTL
 	LDA	#$01
@@ -669,6 +641,18 @@ DSGO:	LDA	#DEVIDN
 
 	RTS
 
+SPEDCB .BYTE      DEVIDN  ; DDEVIC
+       .BYTE      $FF     ; DUNIT
+       .BYTE      $FF     ; DCOMND ; inq
+       .BYTE      $40     ; DSTATS
+       .BYTE      <INQDS  ; DBUFL
+       .BYTE      >INQDS  ; DBUFH
+       .BYTE      $0F     ; DTIMLO
+       .BYTE      $00     ; DRESVD
+       .BYTE      $01     ; DBYTL
+       .BYTE      $00     ; DBYTH
+       .BYTE      $FF     ; DAUX1
+       .BYTE      $FF     ; DAUX2	
 	
 ;;; End CIO SPECIAL ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
