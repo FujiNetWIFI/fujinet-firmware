@@ -120,8 +120,8 @@ void atari1025::pdf_handle_char(byte c)
             }
             else if (c > 27 && c < 32)
             {
-                // Codes 28-31 are arrows
-                d = c;
+                // Codes 28-31 are arrows located at 28-31 + 160
+                d = c + 0xA0;
                 valid = true;
             }
             else
