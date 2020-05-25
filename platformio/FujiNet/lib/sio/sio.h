@@ -90,10 +90,9 @@ protected:
    friend sioBus;
 
    int _devnum;
-   //String _devname; // causes linker error " undefined reference to `vtable for sioDevice' "
 
    cmdFrame_t cmdFrame;
-   bool listen_to_type3_polls;
+   bool listen_to_type3_polls = false;
    unsigned char status_wait_count = 5;
 
    void sio_to_computer(byte *b, unsigned short len, bool err);
