@@ -51,11 +51,11 @@ void sioPrinter::sio_write()
             memcpy(temp, _buffer, n);
             for (int i = 0; i < n; i++)
             {
-                buffer[i] = temp[n - 1 - i];
-                if (buffer[i] == ATASCII_EOL)
-                    buffer[i] = ' ';
+                _buffer[i] = temp[n - 1 - i];
+                if (_buffer[i] == ATASCII_EOL)
+                    _buffer[i] = ' ';
             }
-            buffer[n++] = ATASCII_EOL;
+            _buffer[n++] = ATASCII_EOL;
         }
         for (int i = 0; i < n; i++)
         {

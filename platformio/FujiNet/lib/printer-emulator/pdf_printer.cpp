@@ -220,7 +220,7 @@ void pdfPrinter::pdf_begin_text(float Y)
     // open new text object
     fprintf(_file, "BT\n");
     TOPflag = false;
-    fprintf(_file, "/F%u %g Tf\n", fontNumber, fontSize);
+    fprintf(_file, "/F%u %g Tf %d Tz\n", fontNumber, fontSize, fontHorizScale);
     fprintf(_file, "%g %g Td\n", leftMargin, Y);
     pdf_Y = Y; // reset print roller to top of page
     pdf_X = 0; // set carriage to LHS
@@ -237,7 +237,7 @@ void pdfPrinter::pdf_new_line()
         fprintf(_file, "0 Ts ");
     pdf_dY -= lineHeight;
     fprintf(_file, "0 %g Td [(", pdf_dY);
-    pdf_Y -= pdf_dY; // line feed
+    pdf_Y += pdf_dY; // line feed
     pdf_dY = 0;
     // pdf_X = 0;              // CR over in end line()
     BOLflag = false;
@@ -256,7 +256,7 @@ void pdfPrinter::pdf_end_line()
 
 void pdfPrinter::pdf_set_rise()
 {
-    _file.printf(")]TJ %g Ts [(", pdf_dY);
+    fprintf(_file, ")]TJ %g Ts [(", pdf_dY);
 }
 
 void pdfPrinter::pdf_end_page()

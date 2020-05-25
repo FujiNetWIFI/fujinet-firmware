@@ -41,11 +41,11 @@ void epson80::print_8bit_gfx(byte c)
     // e.g., [(0)100(1)100(4)100(50)]TJ
     // lead with '0' to enter a space
     // then shift back with 100 and print each pin
-    _file.printf("0");
+    fprintf(_file, "0");
     for (int i = 0; i < 8; i++)
     {
         if ((c >> i) & 0x01)
-            _file.printf(")133(%u", i + 1);
+            fprintf(_file, ")133(%u", i + 1);
     }
 }
 
@@ -249,7 +249,7 @@ void epson80::pdf_handle_char(byte c)
                     charWidth = 0.3;
                     break;
                 }
-                _file.printf(")]TJ /F2 9 Tf 100 Tz [("); // set font to GFX mode
+                fprintf(_file, ")]TJ /F2 9 Tf 100 Tz [("); // set font to GFX mode
                 fontUsed[1] = true;
             }
 
@@ -260,10 +260,10 @@ void epson80::pdf_handle_char(byte c)
                 {
                 case 'L': // Sets dot graphics mode to 960 dots per 8" line
                 case 'Y': // on FX-80 this is double speed but with gotcha
-                    _file.printf(")66.5(");
+                    fprintf(_file, ")66.5(");
                     break;
                 case 'Z': // on FX-80 this is double speed but with gotcha
-                    _file.printf(")99.75(");
+                    fprintf(_file, ")99.75(");
                     break;
                 }
                 if (epson_cmd.ctr == (epson_cmd.N + 2))
@@ -368,13 +368,13 @@ void epson80::pdf_handle_char(byte c)
             {
                 if (!BOLflag)
                     pdf_end_line();   // close out string array
-                _file.printf("ET\n"); // close out text object
+                fprintf(_file,"ET\n"); // close out text object
                 // set new margins
                 leftMargin = 18.0;  // (8.5-8.0)/2*72
                 printWidth = 576.0; // 8 inches
                 pdf_begin_text(pdf_Y);
                 // start text string array at beginning of line
-                _file.printf("[(");
+                fprintf(_file,"[(");
                 BOLflag = false;
                 shortFlag = false;
             } */
@@ -385,13 +385,13 @@ void epson80::pdf_handle_char(byte c)
             {
                 if (!BOLflag)
                     pdf_end_line();   // close out string array
-                _file.printf("ET\n"); // close out text object
+                fprintf(_file,"ET\n"); // close out text object
                 // set new margins
                 leftMargin = 75.6;  // (8.5-6.4)/2.0*72.0;
                 printWidth = 460.8; //6.4*72.0; // 6.4 inches
                 pdf_begin_text(pdf_Y);
                 // start text string array at beginning of line
-                _file.printf("[(");
+                fprintf(_file,"[(");
                 BOLflag = false;
                 shortFlag = true;
             } */
@@ -413,7 +413,7 @@ void epson80::pdf_handle_char(byte c)
             One quirk in using the backspace. In expanded mode, CHR$(8) causes a full double
             width backspace as we would expect. The fun begins when several backspaces
             are done in succession. All except for the first one are normal-width backspaces */
-            _file.printf(")%d(", (int)(charWidth / lineHeight * 1000.0));
+            fprintf(_file, ")%d(", (int)(charWidth / lineHeight * 1000.0));
             pdf_X -= charWidth; // update x position
             break;
         case 9: // Horizontal Tabulation. Print head moves to next tab stop
@@ -461,8 +461,8 @@ void epson80::pdf_handle_char(byte c)
                     epson_set_font(new_F, new_w);
                 }
                 if (c == '\\' || c == '(' || c == ')')
-                    _file.write('\\');
-                _file.write(c);
+                    fputc('\\', _file);
+                fputc(c, _file);
                 pdf_X += charWidth; // update x position
             }
             break;
@@ -503,7 +503,7 @@ float epson80::epson_font_width(uint16_t code)
 
 void epson80::epson_set_font(byte F, float w)
 {
-    _file.printf(")]TJ /F%u 9 Tf 120 Tz [(", F);
+    fprintf(_file, ")]TJ /F%u 9 Tf 120 Tz [(", F);
     charWidth = w;
     fontNumber = F;
     fontUsed[F] = true;
@@ -518,12 +518,13 @@ void epson80::at_reset()
     charWidth = 7.2;
     fontNumber = 1;
     fontSize = 9;
+    fontHorizScale = 120;
     textMode = true;
 }
 
-void epson80::initPrinter(FS *filesystem)
+void epson80::initPrinter(FileSystem *fs)
 {
-    printer_emu::initPrinter(filesystem);
+    printer_emu::initPrinter(fs);
 
     translate850 = true;
     _eol = ASCII_CR;

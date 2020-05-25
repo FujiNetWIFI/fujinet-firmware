@@ -25,6 +25,7 @@ protected:
   float charWidth;
   byte fontNumber;
   float fontSize;
+  byte fontHorizScale = 100;
   std::string shortname;
   bool fontUsed[MAXFONTS] = {true}; // initialize first one to true, always use default font
   float pdf_X = 0.;                 // across the page - columns in pts
