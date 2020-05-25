@@ -25,19 +25,7 @@ int AtasciiToStandardUnicode[128] =
     0, 0, 0, 9824, 9475, 8598, 9658, 9668             // 128
 };
 
-void htmlPrinter::initPrinter(FileSystem *fs)
-{
-    printer_emu::initPrinter(fs);
-}
-
-htmlPrinter::~htmlPrinter()
-{
-#ifdef DEBUG
-    //Debug_println("~htmlPrinter");
-#endif
-}
-
-bool htmlPrinter::process(byte n)
+bool htmlPrinter::process_buffer(byte n, byte aux1, byte aux2)
 {
     int i = 0;
     
@@ -62,7 +50,7 @@ bool htmlPrinter::process(byte n)
         }
 
         // Handle differently depending on wether we're doing this with an Atari font
-        if(paperType == HTML_ATASCII)
+        if(_paper_type == HTML_ATASCII)
         {
             // If it's a printable character, just copy it
             if(c >=32 && c <= 122 && c != 96)
@@ -118,7 +106,7 @@ bool htmlPrinter::process(byte n)
     return true;
 }
 
-void htmlPrinter::pre_page_eject()
+void htmlPrinter::pre_close_file()
 {
     const char *htm = "</html>";
     fputs(htm, _file);
@@ -134,15 +122,10 @@ void htmlPrinter::post_new_file()
     fputs(htm1, _file);
 
     // Load CSS that embeds the Atari font (or don't)
-    if(paperType == HTML_ATASCII)
+    if(_paper_type == HTML_ATASCII)
         copy_file_to_output("/atarifont.css");
     else
         fputs(css, _file);
 
     fputs(htm2, _file);
-}
-
-void htmlPrinter::pageEject()
-{
-    printer_emu::pageEject();
 }

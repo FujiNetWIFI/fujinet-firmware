@@ -2,6 +2,8 @@
 #define PRINTER_EMU_H
 #include <Arduino.h>
 
+#include "../../include/atascii.h"
+
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
 
@@ -25,47 +27,48 @@ enum paper_t
 
 class printer_emu
 {
+private:
+    bool _output_started = false;
+
 protected:
     FileSystem *_FS = nullptr;
     FILE * _file = nullptr;
-    byte buffer[40];
-    paper_t paperType;
+    paper_t _paper_type = RAW;
 
-    // executed after a new printer output file is created
-    virtual void post_new_file() {};
-    // executed before a printer output file is closed and prepared for reading
-    virtual void pre_page_eject() {};
+    byte buffer[40];
+
+    // Called after a new printer output file is created (allows for providing header data)
+    virtual void post_new_file()=0;
+
+    // Called before a printer output file is closed to send to the user (allows for providing footer data)
+    virtual void pre_close_file()=0;
+    
+    // Called to actually process the printer output from the Atari as bytes
+    virtual bool process_buffer(byte linelen, byte aux1, byte aux2)=0;
 
     size_t copy_file_to_output(const char *filename);
-
+    void restart_output();
+    
 public:
-    printer_emu(paper_t ty = RAW) : paperType(ty){};
     // Destructor must be virtual to allow for proper cleanup of derived classes
-    virtual ~printer_emu() = 0;
+    virtual ~printer_emu();
 
-    void copyChar(byte c, byte n);
-    virtual void initPrinter(FileSystem *fs);
-    virtual void pageEject() = 0;
-    virtual bool process(byte n) = 0;
+    void initPrinter(FileSystem *fs);
 
-    paper_t getPaperType() { return paperType; };
+    void closeOutput();
+    FILE * closeOutputAndProvideReadHandle();
+
+    bool process(byte linelen, byte aux1, byte aux2);
+
+    paper_t getPaperType() { return _paper_type; };
+
+    byte *provideBuffer() { return buffer; };
+
+    void setPaper(paper_t ptype) { _paper_type = ptype; };
 
     virtual const char *modelname() = 0;
-    //File *getFilePtr() { return _file; }
-    // virtual void flushOutput(); // do this in pageEject
     size_t getOutputSize();
-    int readFromOutput();
-    int readFromOutput(uint8_t *buf, size_t size);
-    void resetOutput();
-    //void resetPrinter() { initPrinter(_FS); };
 
 };
 
-// close flush output file
-// void sioPrinter::flushOutput()
-// {
-//     _file.flush();
-//     _file.seek(0);
-// }
-
-#endif
+#endif // PRINTER_EMU_H
