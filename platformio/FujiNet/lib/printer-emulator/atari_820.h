@@ -13,13 +13,13 @@ protected:
     bool sideFlag = false;
     //sioPrinter *my_sioP; // added variable to point back to sioPrinter parent
     virtual void post_new_file() override;
-    void pdf_handle_char(byte c, byte aux1, byte aux2); // need a custom one to handle sideways printing
+    void pdf_handle_char(byte c, byte aux1, byte aux2) override; // need a custom one to handle sideways printing
 
 public:
     //atari820(sioPrinter *P) { my_sioP = P; }
     //void initPrinter();
     // void setDevice(sioPrinter *P) { my_sioP = P; };
-    const char *modelname() { return "Atari 820"; };
+    const char *modelname()  override { return "Atari 820"; };
 };
 
 #endif // _ATARI820_H

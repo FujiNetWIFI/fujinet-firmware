@@ -15,8 +15,8 @@ protected:
     // SIO THINGS
     byte _buffer[40];
     void sio_write(byte aux1, byte aux2);
-    void sio_status();
-    void sio_process();
+    void sio_status() override;
+    void sio_process() override;
 
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;

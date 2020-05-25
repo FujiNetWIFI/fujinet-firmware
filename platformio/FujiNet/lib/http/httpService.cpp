@@ -306,8 +306,8 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     // Set the expected content type based on the filename/extension
     set_file_content_type(req, filename.c_str());
 
-    // Flush and close the print output before continuing
-    currentPrinter->pageEject(); // flushOutput(); is now inside of pageEject()
+    // Tell printer to finish its output before continuing
+    currentPrinter->closeOutput();
 
     if (sendAsAttachment)
     {

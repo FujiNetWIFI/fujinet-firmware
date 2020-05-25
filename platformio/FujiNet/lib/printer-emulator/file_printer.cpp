@@ -4,22 +4,12 @@
 
 // TODO: Combine html_printer.cpp/h and file_printer.cpp/h
 
-void filePrinter::initPrinter()
-{
-}
 
-filePrinter::~filePrinter()
-{
-#ifdef DEBUG
-    //Debug_println("~filePrinter");
-#endif
-}
-
-bool filePrinter::process(byte n, byte aux1, byte aux2)
+bool filePrinter::process_buffer(byte n, byte aux1, byte aux2)
 {
     int i;
 
-    switch (paperType)
+    switch (_paper_type)
     {
     // Entire record contents are written, even data after the ATASCII_EOL
     case RAW:
@@ -56,9 +46,4 @@ bool filePrinter::process(byte n, byte aux1, byte aux2)
          }
     }
     return true;
-}
-
-void filePrinter::pageEject()
-{
-    printer_emu::pageEject();
 }

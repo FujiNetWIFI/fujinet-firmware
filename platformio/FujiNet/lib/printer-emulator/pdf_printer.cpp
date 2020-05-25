@@ -3,13 +3,6 @@
 #include "../../include/debug.h"
 #include "fnFsSPIF.h"
 
-pdfPrinter::~pdfPrinter()
-{
-#ifdef DEBUG
-    //Debug_println("~pdfPrinter");
-#endif
-}
-
 void pdfPrinter::pdf_header()
 {
 #ifdef DEBUG
@@ -301,7 +294,7 @@ void pdfPrinter::pdf_xref()
     fprintf(_file, "%%%%EOF\n");
 }
 
-bool pdfPrinter::process(byte n, byte aux1, byte aux2)
+bool pdfPrinter::process_buffer(byte n, byte aux1, byte aux2)
 {
     /**
      * idea for 850-connected printers. The 850 translates EOL to CR.
@@ -408,7 +401,7 @@ bool pdfPrinter::process(byte n, byte aux1, byte aux2)
     return true;
 }
 
-void pdfPrinter::pageEject()
+void pdfPrinter::pre_close_file()
 {
     if (TOPflag && pdf_pageCounter == 0)
         pdf_new_page(); // make a blank page
@@ -421,5 +414,6 @@ void pdfPrinter::pageEject()
     pdf_add_fonts();
     pdf_page_resource();
     pdf_xref();
-    printer_emu::pageEject();
+
+    //printer_emu::pageEject(); 
 }

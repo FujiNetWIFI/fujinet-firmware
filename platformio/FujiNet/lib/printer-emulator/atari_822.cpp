@@ -1,6 +1,6 @@
 #include "atari_822.h"
 
-void atari822::initPrinter()
+void atari822::post_new_file()
 {
     shortname = "a822";
 

@@ -43,12 +43,12 @@ protected:
     void png_add_data(uint8_t *buf, uint32_t n);
     void png_end();
 
+    virtual void post_new_file() override;
+    virtual void pre_close_file() override;
+    virtual bool process_buffer(byte linelen, byte aux1, byte aux2);
 public:
-    pngPrinter(FileSystem *fs, paper_t ty = PNG) : printer_emu{fs, ty} {};
     const char *modelname() { return "GRANTIC"; };
-    virtual void initPrinter();
-    virtual void pageEject();
-    virtual bool process(byte linelen, byte aux1, byte aux2);
+
 };
 
 #endif

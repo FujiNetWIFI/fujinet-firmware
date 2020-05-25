@@ -10,20 +10,14 @@ private:
 
 protected:
     virtual void post_new_file() override;
-    virtual void pre_page_eject() override;
+    virtual void pre_close_file() override;
+    virtual bool process_buffer(byte linelen, byte aux1, byte aux2);
 
 public:
-    htmlPrinter(FileSystem *fs, paper_t ty = HTML) : printer_emu{fs, ty} {};
-    virtual void initPrinter();
-    virtual void pageEject();
-    virtual bool process(byte linelen, byte aux1, byte aux2);
+    htmlPrinter(paper_t ptype=HTML) { _paper_type = ptype; };
 
     virtual const char * modelname() { 
-        return paperType == HTML ? "HTML printer" : "HTML ATASCII printer"; };
-
-    ~htmlPrinter();
-
-    void setPaper(paper_t ty) { paperType = ty; };
+        return _paper_type == HTML ? "HTML printer" : "HTML ATASCII printer"; };
 };
 
 #endif
