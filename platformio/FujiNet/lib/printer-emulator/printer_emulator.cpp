@@ -9,8 +9,6 @@
 void printer_emu::initPrinter(FileSystem *fs)
 {
     _FS = fs;
-    
-    restart_output();
 }
 
 
@@ -71,19 +69,6 @@ size_t printer_emu::getOutputSize()
     return result == -1 ? 0 : result;
 }
 
-/*
-int printer_emu::readFromOutput()
-{
-    return fgetc(_file);
-}
-
-int printer_emu::readFromOutput(uint8_t *buf, size_t size)
-{
-    return fread(buf, 1, size, _file);
-}
-*/
-
-
 // All the work is done here in the derived classes. Open and close the output file before proceeding
 bool printer_emu::process(byte linelen, byte aux1, byte aux2)
 {
@@ -97,11 +82,12 @@ bool printer_emu::process(byte linelen, byte aux1, byte aux2)
     }
 
     // Open output file for appending
-    _file = _FS->file_open(PRINTER_OUTFILE, "a+"); // This is supposed to open the file for writing at the end, but reading at the beginnig
+    _file = _FS->file_open(PRINTER_OUTFILE, "r+"); // This is supposed to open the file for writing at the end, but reading at the beginnig
     fseek(_file, 0, SEEK_END); // Make sure we're at the end of the file for reading in case the emaulator code expects that
 
     bool result = process_buffer(linelen, aux1, aux2);
 
+    fflush(_file);
     fclose(_file);
     _file = nullptr;
 
@@ -112,7 +98,7 @@ bool printer_emu::process(byte linelen, byte aux1, byte aux2)
 FILE * printer_emu::closeOutputAndProvideReadHandle()
 {
     closeOutput();
-    return _FS->file_open(PRINTER_OUTFILE, "r");
+    return _FS->file_open(PRINTER_OUTFILE);
 }
 
 // Closes the output file, giving the printer emulators a chance to provide closing output
@@ -124,7 +110,10 @@ void printer_emu::closeOutput()
 
     // Give printer emulator chance to finish output
     if(_file == nullptr)
-        _file = _FS->file_open(PRINTER_OUTFILE, "a"); // Append
+    {
+        _file = _FS->file_open(PRINTER_OUTFILE, "r+"); // Seeks don't work right if we use "append" mode - use "r+"
+        fseek(_file, 0, SEEK_END);
+    }
 
     pre_close_file();
 

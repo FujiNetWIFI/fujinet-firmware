@@ -287,9 +287,11 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
         break;
     case SVG:
         exts = "svg";
+        sendAsAttachment = false;        
         break;
     case PNG:
         exts = "png";
+        sendAsAttachment = false;        
         break;
     case HTML:
     case HTML_ATASCII:
@@ -302,27 +304,21 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 
     string filename = "printout.";
     filename += exts;
-    Debug_printf("exts = \"%s\", filename = \"%s\"\n", exts, filename.c_str());
+
     // Set the expected content type based on the filename/extension
     set_file_content_type(req, filename.c_str());
 
     // Tell printer to finish its output and get a read handle to the file
     FILE * poutput = currentPrinter->closeOutputAndProvideReadHandle();
 
+    char hdrval1[60];
     if (sendAsAttachment)
     {
         // Add a couple of attchment-specific details
-        char hdrval1[60];
-        snprintf(hdrval1, 60, "attachment; filename=\"%s\"", filename.c_str());
+        snprintf(hdrval1, sizeof(hdrval1), "attachment; filename=\"%s\"", filename.c_str());
         httpd_resp_set_hdr(req, "Content-Disposition", hdrval1);
     }
-
-    char hdrval2[10];
-    snprintf(hdrval2, 10, "%ld", FileSystem::filesize(poutput));
-#ifdef DEBUG
-    Debug_printf("Printer output file contains %s bytes\n", hdrval2);
-#endif
-    httpd_resp_set_hdr(req, "Content-Length", hdrval2);
+    // NOTE: Don't set the Content-Length, as it's invalid when using CHUNKED
 
     // Finally, write the data
     // Send the file content out in chunks
@@ -451,6 +447,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192;
+    config.max_resp_headers = 12;
     // Keep a reference to our object
     config.global_user_ctx = (void *)&state;
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed
