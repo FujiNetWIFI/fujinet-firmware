@@ -1,3 +1,4 @@
+#include "../../include/atascii.h"
 #include "printer.h"
 
 #include "file_printer.h"
@@ -6,6 +7,7 @@
 #include "atari_822.h"
 #include "atari_1025.h"
 #include "atari_1027.h"
+#include "epson_80.h"
 #include "png_printer.h"
 
 // write for W commands
@@ -50,10 +52,10 @@ void sioPrinter::sio_write()
             for (int i = 0; i < n; i++)
             {
                 _buffer[i] = temp[n - 1 - i];
-                if (_buffer[i] == EOL)
+                if (_buffer[i] == ATASCII_EOL)
                     _buffer[i] = ' ';
             }
-            _buffer[n++] = EOL;
+            _buffer[n++] = ATASCII_EOL;
         }
         for (int i = 0; i < n; i++)
         {
@@ -140,6 +142,9 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
     case PRINTER_ATARI_1027:
         _pptr = new atari1027;
         break;
+    case PRINTER_EPSON:
+        _pptr = new epson80;
+        break;
     case PRINTER_PNG:
         _pptr = new pngPrinter;
         break;
@@ -186,6 +191,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string model_name)
             "Atari 822",
             "Atari 1025",
             "Atari 1027",
+            "Epson 80",
             "GRANTIC",
             "HTML printer",
             "HTML ATASCII printer"};
