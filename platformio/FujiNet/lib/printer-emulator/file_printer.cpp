@@ -4,9 +4,8 @@
 
 // TODO: Combine html_printer.cpp/h and file_printer.cpp/h
 
-void filePrinter::initPrinter(FileSystem *fs)
+void filePrinter::initPrinter()
 {
-    printer_emu::initPrinter(fs);
 }
 
 filePrinter::~filePrinter()

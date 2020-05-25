@@ -26,10 +26,6 @@ protected:
     byte _lastaux2;
 
 public:
-    // Temporary cheat - _lastAux1 should be private or protected...
-    //byte _lastAux1;
-    //byte _lastAux2;
-
     // todo: reconcile printer_type with paper_t
     enum printer_type
     {
@@ -46,6 +42,8 @@ public:
         PRINTER_HTML_ATASCII,
         PRINTER_INVALID
     };
+    
+    sioPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
 
     static printer_type match_modelname(std::string model_name);
     void set_printer_type(printer_type printer_type);
@@ -54,7 +52,6 @@ public:
 
     printer_emu *getPrinterPtr() { return _pptr; };
 
-    sioPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
 
 private:
     printer_type _ptype;

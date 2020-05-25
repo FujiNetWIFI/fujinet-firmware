@@ -57,19 +57,6 @@ void sioPrinter::sio_write(byte aux1, byte aux2)
     {
         if (linelen == 29)
         {
-            /*
-            // reverse the _buffer and replace EOL with space
-            // needed for PDF sideways printing on A820
-            byte temp[linelen];
-            memcpy(temp, _buffer, linelen);
-            for (int i = 0; i < linelen; i++)
-            {
-                _buffer[i] = temp[linelen - 1 - i];
-                if (_buffer[i] == EOL)
-                    _buffer[i] = ' ';
-            }
-            _buffer[linelen+1] = EOL;
-            */
             for (int i = 0; i < (linelen / 2); i++)
             {
                 byte tmp = _buffer[i];
@@ -184,14 +171,6 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
 
     _pptr->initPrinter(_storage);
 }
-
-/*
-void sioPrinter::set_storage(FileSystem *fs)
-{
-    _storage = fs;
-    _pptr->initPrinter(_storage);
-}
-*/
 
 // Constructor just sets a default printer type
 sioPrinter::sioPrinter(FileSystem *filesystem, printer_type print_type)

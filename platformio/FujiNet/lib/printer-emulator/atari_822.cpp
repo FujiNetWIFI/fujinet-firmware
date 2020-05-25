@@ -1,9 +1,7 @@
 #include "atari_822.h"
 
-void atari822::initPrinter(FileSystem *fs)
+void atari822::initPrinter()
 {
-    printer_emu::initPrinter(fs);
-
     shortname = "a822";
 
     pageWidth = 319.5;  // paper roll is 4 7/16" from page 4 of owners manual

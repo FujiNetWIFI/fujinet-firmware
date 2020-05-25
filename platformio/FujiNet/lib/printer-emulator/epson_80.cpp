@@ -522,10 +522,8 @@ void epson80::at_reset()
     textMode = true;
 }
 
-void epson80::initPrinter(FileSystem *fs)
+void epson80::initPrinter()
 {
-    printer_emu::initPrinter(fs);
-
     translate850 = true;
     _eol = ASCII_CR;
 

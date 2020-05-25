@@ -44,8 +44,8 @@ protected:
     void at_reset();
 
 public:
-    void initPrinter(FileSystem *fs);
     const char *modelname() { return "Epson 80"; };
+    void initPrinter();
 };
 
 #endif

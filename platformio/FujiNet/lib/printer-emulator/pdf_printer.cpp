@@ -374,7 +374,7 @@ bool pdfPrinter::process(byte n, byte aux1, byte aux2)
 
         if (!textMode)
         {
-            pdf_handle_char(c);
+            pdf_handle_char(c, aux1, aux2);
         }
         else
         {
