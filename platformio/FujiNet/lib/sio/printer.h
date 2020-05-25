@@ -40,6 +40,7 @@ public:
         PRINTER_ATARI_822,
         PRINTER_ATARI_1025,
         PRINTER_ATARI_1027,
+        PRINTER_EPSON,
         PRINTER_PNG,
         PRINTER_HTML,
         PRINTER_HTML_ATASCII,

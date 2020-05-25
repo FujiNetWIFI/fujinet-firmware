@@ -6,14 +6,27 @@ bool networkProtocolFTP::ftpExpect(string resultCode)
     char buf[512];
     string sbuf;
 
-    memset(buf,0,sizeof(buf));
-    
+    memset(buf, 0, sizeof(buf));
+
     if (!control.connected())
         return false;
 
-    control.readBytesUntil('\n', buf, sizeof(buf));
-    sbuf = string(buf);
-    controlResponse = sbuf.substr(4);
+    control.setTimeout(5);
+
+    delay(250);
+
+    int l = control.readBytesUntil('\n', buf, sizeof(buf));
+    Debug_printf("We got %d bytes back\n", l);
+
+    if (l > 4)
+    {
+        sbuf = string(buf);
+        controlResponse = sbuf.substr(4);
+    }
+    else
+    {
+        return false;
+    }
 
     Debug_printf("Got response: %s\n", buf);
     Debug_printf("Returning response: %s\n", controlResponse.c_str());
@@ -62,25 +75,37 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (!control.connect(urlParser->hostName.c_str(), atoi(urlParser->port.c_str())))
         return false; // Error
 
+    Debug_printf("Waiting for banner.\n");
+
     if (!ftpExpect("220"))
         return false; // error
+
+    Debug_printf("Got user, sending USER.\n");
 
     control.write("USER anonymous\r\n");
 
     if (!ftpExpect("331"))
         return false;
 
+    Debug_printf("User Ok, sending password.\n");
+
     control.write("PASS fujinet@fujinet.online\r\n");
+
+    Debug_printf("Logged in.\n");
 
     if (!ftpExpect("230"))
         return false;
+
+    Debug_printf("Setting type to IMAGE\n");
 
     control.write("TYPE I\r\n");
 
     if (!ftpExpect("200"))
         return false;
 
-    tmpPath = urlParser->path.substr(0,urlParser->path.find("*")-1);
+    tmpPath = urlParser->path.substr(0, urlParser->path.find("*") - 1);
+
+    Debug_printf("TYPE I OK. Attempting to CWD to %s\n", tmpPath.c_str());
 
     control.write("CWD ");
     control.write(tmpPath.c_str());
@@ -88,10 +113,12 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     if (!ftpExpect("250"))
     {
-        string tmp=tmpPath;
+        string tmp = tmpPath;
 
         // Trim off last part of filename, hopefully to just a dir path
-        tmp=tmp.substr(0,tmp.find_last_of("/"));
+        tmp = tmp.substr(0, tmp.find_last_of("/"));
+
+        Debug_printf("Workaround, trying again... with %s \n", tmp.c_str());
 
         // and try again.
         control.write("CWD ");
@@ -99,46 +126,34 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         control.write("\r\n");
 
         if (!ftpExpect("250"))
-            return false;   // Still can't find.
+            return false; // Still can't find.
     }
 
     aux1 = cmdFrame->aux1;
 
+    Debug_printf("Attempting to get passive port\n");
+    control.write("EPSV\r\n");
+
+    if (!ftpExpect("229"))
+        return false;
+
+    dataPort = parsePort(controlResponse);
+    Debug_printf("Received EPSV response. Port %d\n", dataPort);
+
     switch (cmdFrame->aux1)
     {
     case 4:
-        // control.write("SIZE ");
-        // control.write(urlParser->path.c_str());
-        // control.write("\r\n");
-
-        // if (!ftpExpect("213"))
-        //     return false;
-
-        // dataSize = atol(controlResponse.c_str());
-
-        control.write("EPSV\r\n");
-
-        if (!ftpExpect("229"))
-            return false;
-
-        dataPort = parsePort(controlResponse);
+        Debug_printf("Attempting to open RETR. to %s\n", urlParser->path.c_str());
 
         control.write("RETR ");
         control.write(urlParser->path.c_str());
         control.write("\r\n");
         break;
     case 6:
-        control.write("EPSV\r\n");
-
-        if (!ftpExpect("229"))
-            return false;
-
-        dataPort = parsePort(controlResponse);
-
+        tmpPath = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
+        Debug_printf("Attempting NLST to %s", tmpPath.c_str());
         control.write("NLST");
-        tmpPath=urlParser->path.substr(urlParser->path.find_last_of("/")+1);
-        Debug_printf("tmpPath: %s",tmpPath.c_str());
-        if ((tmpPath!="*.*") && (tmpPath!="*") && (tmpPath!="**.*"))
+        if ((tmpPath != "*.*") && (tmpPath != "*") && (tmpPath != "**.*") && (tmpPath != "**"))
         {
             control.write(" ");
             control.write(tmpPath.c_str());
@@ -146,19 +161,13 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         control.write("\r\n");
         break;
     case 8:
-        control.write("EPSV\r\n");
-
-        if (!ftpExpect("229"))
-            return false;
-
-        dataPort = parsePort(controlResponse);
-
+        Debug_printf("Storing file %s\n", urlParser->path.c_str());
         control.write("STOR ");
         control.write(urlParser->path.c_str());
         control.write("\r\n");
-        
         break;
     default:
+        Debug_printf("Unimplemented aux1 = %d", cmdFrame->aux1);
         return false;
     }
 
@@ -166,6 +175,8 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         return false;
 
     delay(500);
+
+    Debug_printf("Connected to data port: %d", dataPort);
 
     return true;
 }
@@ -177,6 +188,7 @@ bool networkProtocolFTP::close()
 
     if (control.connected())
     {
+        Debug_printf("Connected to data port, closing it.\n");
         ftpExpect("150");
         ftpExpect("226");
         control.write("QUIT\r\n");
@@ -188,28 +200,28 @@ bool networkProtocolFTP::close()
 }
 
 bool networkProtocolFTP::read(byte *rx_buf, unsigned short len)
-{   
+{
     if (data.readBytes(rx_buf, len) != len)
         return true;
     else
         dataSize -= len;
 
-    if (aux1==6)
+    if (aux1 == 6)
     {
-        for (int i=0;i<len;i++)
-            {
-                if (rx_buf[i]==0x0D)
-                    rx_buf[i]=0x20;
-                else if (rx_buf[i]==0x0A)
-                    rx_buf[i]=0x9B;
-            }
+        for (int i = 0; i < len; i++)
+        {
+            if (rx_buf[i] == 0x0D)
+                rx_buf[i] = 0x20;
+            else if (rx_buf[i] == 0x0A)
+                rx_buf[i] = 0x9B;
+        }
     }
     return false;
 }
 
 bool networkProtocolFTP::write(byte *tx_buf, unsigned short len)
 {
-    if (data.write(tx_buf,len) != len)
+    if (data.write(tx_buf, len) != len)
         return true;
 
     return false;
