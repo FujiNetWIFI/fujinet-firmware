@@ -34,12 +34,12 @@
 #define TNFS_CMD_FREE 0x31
 
 // https://pubs.opengroup.org/onlinepubs/9699919799/functions/fopen.html
-#define TNFS_OPENMODE_READ 0x0001 // Open read only
-#define TNFS_OPENMODE_WRITE 0x0002 // Open write only
-#define TNFS_OPENMODE_READWRITE 0x0003 // Open read/write
-#define TNFS_OPENMODE_WRITE_APPEND 0x0008    // Append to the file if it exists (write only)
-#define TNFS_OPENMODE_WRITE_CREATE 0x0100    // Create the file if it doesn't exist (write only)
-#define TNFS_OPENMODE_WRITE_TRUNCATE 0x0200  // Truncate the file on open for writing
+#define TNFS_OPENMODE_READ 0x0001             // Open read only
+#define TNFS_OPENMODE_WRITE 0x0002            // Open write only
+#define TNFS_OPENMODE_READWRITE 0x0003        // Open read/write
+#define TNFS_OPENMODE_WRITE_APPEND 0x0008     // Append to the file if it exists (write only)
+#define TNFS_OPENMODE_WRITE_CREATE 0x0100     // Create the file if it doesn't exist (write only)
+#define TNFS_OPENMODE_WRITE_TRUNCATE 0x0200   // Truncate the file on open for writing
 #define TNFS_OPENMODE_CREATE_EXCLUSIVE 0x0400 // With TNFS_OPENMODE_CREATE, returns an error if the file exists
 
 #define TNFS_CREATEPERM_S_ISUID 04000 //set user ID on execution
@@ -101,7 +101,6 @@
 #define TNFS_HEADER_SIZE 4
 #define TNFS_PAYLOAD_SIZE 504
 
-
 union tnfsPacket {
     struct
     {
@@ -127,16 +126,18 @@ struct tnfsStat
 #define TNFS_UINT16_FROM_HILOBYTES(high, low) ((uint16_t)high << 8 | low)
 
 // Returns a uint16 value from a pointer to two bytes in little-ending order
-#define TNFS_UINT16_FROM_LOHI_BYTEPTR(bytep) ( (uint16_t)(*(bytep+1)) << 8 | (*(bytep+0)))
+#define TNFS_UINT16_FROM_LOHI_BYTEPTR(bytep) ((uint16_t)(*(bytep + 1)) << 8 | (*(bytep + 0)))
 // Returns a uint32 value from a pointer to four bytes in little-ending order
-#define TNFS_UINT32_FROM_LOHI_BYTEPTR(bytep) ( (uint32_t)(*(bytep+3)) << 24 | (uint32_t)(*(bytep+2)) << 16 | (uint32_t)(*(bytep+1)) << 8 | (*(bytep+0)))
+#define TNFS_UINT32_FROM_LOHI_BYTEPTR(bytep) ((uint32_t)(*(bytep + 3)) << 24 | (uint32_t)(*(bytep + 2)) << 16 | (uint32_t)(*(bytep + 1)) << 8 | (*(bytep + 0)))
 
-#define TNFS_UINT32_TO_LOHI_BYTEPTR(value, bytep) { \
-    (bytep)[0] = value & 0xFFUL; \
-    (bytep)[1] = value >> 8 & 0xFFUL; \
-    (bytep)[2] = value >> 16 & 0xFFUL; \
-    (bytep)[3] = value >> 24 & 0xFFUL; \
-}
+// Takes UINT32 value and pushes it into 4 consecutive bytes in little-endian order
+#define TNFS_UINT32_TO_LOHI_BYTEPTR(value, bytep) \
+    {                                             \
+        (bytep)[0] = value & 0xFFUL;              \
+        (bytep)[1] = value >> 8 & 0xFFUL;         \
+        (bytep)[2] = value >> 16 & 0xFFUL;        \
+        (bytep)[3] = value >> 24 & 0xFFUL;        \
+    }
 
 // Returns the high byte (MSB) of a uint16 value
 #define TNFS_HIBYTE_FROM_UINT16(value) ((uint8_t)((value >> 8) & 0xFF))
@@ -152,20 +153,25 @@ int tnfs_umount(tnfsMountInfo *m_info);
 int tnfs_opendir(tnfsMountInfo *m_info, const char *directory);
 int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len);
 int tnfs_closedir(tnfsMountInfo *m_info);
-
 int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory);
 int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory);
 
-int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath);
-const char * tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle);
+int tnfs_size(tnfsMountInfo *m_info, uint32_t *size);
+int tnfs_free(tnfsMountInfo *m_info, uint32_t *size);
 
 int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, uint16_t create_perms, int16_t *file_handle);
-int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle);
-
 int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
 int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
-
+int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle);
+int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath);
 int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position);
+int tnfs_unlink(tnfsMountInfo *m_info, const char *filepath);
+int tnfs_chmod(tnfsMountInfo *m_info, const char *filepath, uint16_t mode);
+int tnfs_rename(tnfsMountInfo *m_info, const char *old_filepath, const char *new_filepath);
+
+int tnfs_chdir(tnfsMountInfo *m_info, const char *dirpath);
+const char *tnfs_getcwd(tnfsMountInfo *m_info);
+const char *tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle);
 
 int tnfs_code_to_errno(int tnfs_code);
 

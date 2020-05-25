@@ -152,20 +152,16 @@ void setup()
 
     SIO.addDevice(&sioR, SIO_DEVICEID_RS232); // R:
 
-    // Choose filesystem for P: device and iniitalize it
-    if ( fnSDFAT.running() )//SD.cardType() != CARD_NONE)
-    {
-        Debug_println("using SD card for printer storage");
-        sioP.set_storage(&fnSDFAT);
-    }
-    else
-    {
-        Debug_println("using SPIFFS for printer storage");
-        sioP.set_storage(&fnSPIFFS);
-    }
-    sioP.set_printer_type(Config.get_printer_type(0));
-
-    SIO.addDevice(&sioP, SIO_DEVICEID_PRINTER); // P:
+    // Create a new printer object, setting its output depending on whether we have SD or not
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    sioPrinter::printer_type ptype = Config.get_printer_type(0);
+    if(ptype == sioPrinter::printer_type::PRINTER_INVALID)
+        ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
+    #ifdef DEBUG
+        Debug_printf("Creating a default printer using %s storage and %d type\n", ptrfs->typestring(), ptype);
+    #endif        
+    sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
+    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER); // P:
 
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
 

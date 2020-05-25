@@ -1,8 +1,9 @@
 #ifndef SIO_H
 #define SIO_H
 
+#include <forward_list>
+
 #include "fnSystem.h"
-#include "../LinkedList-1.2.3/LinkedList.h"
 
 // pin configurations
 #ifdef ESP8266
@@ -41,11 +42,14 @@
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
 
-#define ADDR_R 0x50
-#define ADDR_P 0x40
+//#define ADDR_R 0x50
+//#define ADDR_P 0x40
+
+#define SIO_DAISYCHAIN_STARTING_SIZE 32
 
 #define SIO_DEVICEID_FUJINET 0x70
 #define SIO_DEVICEID_FN_NETWORK 0x71
+#define SIO_DEVICEID_FN_NETWORK_LAST 0x78
 #define SIO_DEVICEID_FN_VOICE 0x43
 
 #define SIO_DEVICEID_APETIME 0x45
@@ -86,11 +90,10 @@ protected:
    friend sioBus;
 
    int _devnum;
-   //String _devname; // causes linker error " undefined reference to `vtable for sioDevice' "
 
    cmdFrame_t cmdFrame;
-   bool listen_to_type3_polls;
-   unsigned char status_wait_count = 4;
+   bool listen_to_type3_polls = false;
+   unsigned char status_wait_count = 5;
 
    void sio_to_computer(byte *b, unsigned short len, bool err);
    byte sio_to_peripheral(byte *b, unsigned short len);
@@ -106,29 +109,28 @@ protected:
 
 public:
    int id() { return _devnum; };
-   bool is_config_device=false;
+   bool is_config_device = false;
+   bool device_active = true;
 };
 
 class sioBus
 {
 private:
-   LinkedList<sioDevice *> daisyChain = LinkedList<sioDevice *>();
+   std::forward_list<sioDevice *> daisyChain;
    unsigned long cmdTimer = 0;
    sioDevice *activeDev = nullptr;
    sioModem *modemDev = nullptr;
    sioFuji *fujiDev = nullptr;
-   sioNetwork *netDev[8] = {nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
-
+   sioNetwork *netDev[8] = {nullptr};
    int sioBaud = 19200; // SIO Baud rate
 
 public:
-   int numDevices();
-
    void setup();
    void service();
-   void addDevice(sioDevice *p, int N);
-   bool remDevice(sioDevice *p);
-   sioDevice *device(int i);
+   int numDevices();
+   void addDevice(sioDevice *pDevice, int device_id);
+   void remDevice(sioDevice *pDevice);
+   sioDevice *deviceById(int device_id);
    int getBaudrate();
    void setBaudrate(int baudrate);
 };
