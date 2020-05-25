@@ -11,7 +11,7 @@ class filePrinter : public printer_emu
     virtual void pre_close_file() {};
 
 public:
-    filePrinter(paper_t ptype=RAW) { _paper_type = ptype; };
+    filePrinter(paper_t ptype=TRIM) { _paper_type = ptype; };
 
     virtual const char * modelname() 
     {

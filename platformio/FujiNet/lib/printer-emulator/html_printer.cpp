@@ -129,4 +129,3 @@ void htmlPrinter::post_new_file()
 
     fputs(htm2, _file);
 }
-

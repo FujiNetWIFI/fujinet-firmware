@@ -64,6 +64,7 @@ protected:
     virtual void pre_close_file() override;
 
 public:
+    pdfPrinter() { _paper_type = PDF;};
 };
 
 #endif // guard

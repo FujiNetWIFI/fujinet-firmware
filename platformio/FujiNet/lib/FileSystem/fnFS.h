@@ -54,6 +54,7 @@ public:
     static const char *type_to_string(fsType type);
 
     static long filesize(FILE *);
+    static long filesize(const char *filepath);
 
     // Different FS implemenations may require different startup parameters,
     // so each should define its own version of start()

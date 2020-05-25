@@ -10,7 +10,7 @@ void printer_emu::initPrinter(FileSystem *fs)
 {
     _FS = fs;
     
-    resetOutput();
+    restart_output();
 }
 
 
@@ -60,11 +60,18 @@ size_t printer_emu::copy_file_to_output(const char *filename)
     return total;
 }
 
+
 size_t printer_emu::getOutputSize()
 {
-    return FileSystem::filesize(_file);
+    if(_file != nullptr)
+        return FileSystem::filesize(_file);
+
+    long result = FileSystem::filesize(PRINTER_OUTFILE);
+
+    return result == -1 ? 0 : result;
 }
 
+/*
 int printer_emu::readFromOutput()
 {
     return fgetc(_file);
@@ -74,37 +81,74 @@ int printer_emu::readFromOutput(uint8_t *buf, size_t size)
 {
     return fread(buf, 1, size, _file);
 }
+*/
+
 
 // All the work is done here in the derived classes. Open and close the output file before proceeding
 bool printer_emu::process(byte linelen, byte aux1, byte aux2)
 {
-    return process_buffer(linelen, aux1, aux2);
+    // Make sure the file has been initialized
+    if(_output_started == false)
+    {
+        restart_output();
+        // Make sure that worked...
+        if(_output_started == false)
+            return false;
+    }
+
+    // Open output file for appending
+    _file = _FS->file_open(PRINTER_OUTFILE, "a+"); // This is supposed to open the file for writing at the end, but reading at the beginnig
+    fseek(_file, 0, SEEK_END); // Make sure we're at the end of the file for reading in case the emaulator code expects that
+
+    bool result = process_buffer(linelen, aux1, aux2);
+
+    fclose(_file);
+    _file = nullptr;
+
+    return result;
 }
 
-// This is only called from the HTTP server to request the file be closed before sending it to the user
+// Closes the output file and provides an open read handle to it afterwards
+FILE * printer_emu::closeOutputAndProvideReadHandle()
+{
+    closeOutput();
+    return _FS->file_open(PRINTER_OUTFILE, "r");
+}
+
+// Closes the output file, giving the printer emulators a chance to provide closing output
 void printer_emu::closeOutput()
 {
-    if(_file != nullptr)
-        fclose(_file);
+    // Assume there's nothing to do if output hasn't been started
+    if (_output_started == false)
+        return;
 
-    _file = _FS->file_open(PRINTER_OUTFILE, "a"); // Append
+    // Give printer emulator chance to finish output
+    if(_file == nullptr)
+        _file = _FS->file_open(PRINTER_OUTFILE, "a"); // Append
 
     pre_close_file();
-    
+
+    // Close the file    
     fflush(_file);
-    fseek(_file, 0, SEEK_SET);
+    fclose(_file);
+    _file = nullptr;
+    _output_started = false;
 }
 
-void printer_emu::resetOutput()
+void printer_emu::restart_output()
 {
+    _output_started = false;
     if(_file != nullptr)
         fclose(_file);
-    _file = _FS->file_open(PRINTER_OUTFILE, "w+");
+    _file = _FS->file_open(PRINTER_OUTFILE, "w"); // This should create/truncate the file
 #ifdef DEBUG
     if (_file != nullptr)
     {
-        Debug_println("Printer output file (re)opened");
+        Debug_println("Printer output file initialized");
         post_new_file();
+        fclose(_file);
+        _file = nullptr;
+        _output_started = true;
     }
     else
     {
