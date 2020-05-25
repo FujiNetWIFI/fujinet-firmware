@@ -27,6 +27,9 @@ enum paper_t
 
 class printer_emu
 {
+private:
+    bool _output_started = false;
+
 protected:
     FileSystem *_FS = nullptr;
     FILE * _file = nullptr;
@@ -44,7 +47,8 @@ protected:
     virtual bool process_buffer(byte linelen, byte aux1, byte aux2)=0;
 
     size_t copy_file_to_output(const char *filename);
-
+    void restart_output();
+    
 public:
     // Destructor must be virtual to allow for proper cleanup of derived classes
     virtual ~printer_emu();
@@ -52,6 +56,7 @@ public:
     void initPrinter(FileSystem *fs);
 
     void closeOutput();
+    FILE * closeOutputAndProvideReadHandle();
 
     bool process(byte linelen, byte aux1, byte aux2);
 
@@ -65,9 +70,8 @@ public:
     //File *getFilePtr() { return _file; }
     // virtual void flushOutput(); // do this in pageEject
     size_t getOutputSize();
-    int readFromOutput();
-    int readFromOutput(uint8_t *buf, size_t size);
-    void resetOutput();
+    //int readFromOutput();
+    //int readFromOutput(uint8_t *buf, size_t size);
     //void resetPrinter() { initPrinter(_FS); };
 };
 

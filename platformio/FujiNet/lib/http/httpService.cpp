@@ -302,12 +302,12 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 
     string filename = "printout.";
     filename += exts;
-
+    Debug_printf("exts = \"%s\", filename = \"%s\"\n", exts, filename.c_str());
     // Set the expected content type based on the filename/extension
     set_file_content_type(req, filename.c_str());
 
-    // Tell printer to finish its output before continuing
-    currentPrinter->closeOutput();
+    // Tell printer to finish its output and get a read handle to the file
+    FILE * poutput = currentPrinter->closeOutputAndProvideReadHandle();
 
     if (sendAsAttachment)
     {
@@ -318,9 +318,9 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     }
 
     char hdrval2[10];
-    snprintf(hdrval2, 10, "%u", currentPrinter->getOutputSize());
+    snprintf(hdrval2, 10, "%ld", FileSystem::filesize(poutput));
 #ifdef DEBUG
-    Debug_printf("Printer says there are %u bytes in the output file\n", currentPrinter->getOutputSize());
+    Debug_printf("Printer output file contains %s bytes\n", hdrval2);
 #endif
     httpd_resp_set_hdr(req, "Content-Length", hdrval2);
 
@@ -330,7 +330,8 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     size_t count = 0, total = 0;
     do
     {
-        count = currentPrinter->readFromOutput((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
+        count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, poutput);
+        //count = currentPrinter->readFromOutput((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
         total += count;
 #ifdef DEBUG
         // Debug_printf("Read %u bytes from print file\n", count);
@@ -339,8 +340,9 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     } while (count > 0);
     #ifdef DEBUG
         Debug_printf("Sent %u bytes total from print file\n", total);
-    #endif    
+    #endif
     free(buf);
+    fclose(poutput);
 
     // Tell the printer it can start writing from the beginning
     printer->reset_printer(); // destroy,create new printer emulator object of previous type.
