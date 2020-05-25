@@ -1,5 +1,7 @@
 #include "printer.h"
 
+#include "../../include/atascii.h"
+
 #include "file_printer.h"
 #include "html_printer.h"
 #include "atari_820.h"
@@ -8,15 +10,15 @@
 #include "atari_1027.h"
 #include "png_printer.h"
 
+#define SIO_PRINTERCMD_PUT 0x50
+#define SIO_PRINTERCMD_WRITE 0x57
+#define SIO_PRINTERCMD_STATUS 0x53
+
 // write for W commands
-void sioPrinter::sio_write()
+void sioPrinter::sio_write(byte aux1, byte aux2)
 {
-    byte n = 40;
-    byte ck;
-
-    memset(_buffer, 0, n); // clear _buffer
-
     /* 
+  How many bytes the Atari will be sending us:
   Auxiliary Byte 1 values per 400/800 OS Manual
   Normal   0x4E 'N'  40 chars
   Sideways 0x53 'S'  29 chars (820 sideways printing)
@@ -30,36 +32,56 @@ void sioPrinter::sio_write()
 
   Auxiliary Byte 2 for Atari 822 might be 0 or 1 in graphics mode
 */
-    // todo: change to switch case structure
-    if (cmdFrame.aux1 == 'N' || cmdFrame.aux1 == 'L')
-        n = 40;
-    else if (cmdFrame.aux1 == 'S')
-        n = 29;
-    else if (cmdFrame.aux1 == 'D')
-        n = 20;
-
-    ck = sio_to_peripheral(_buffer, n);
-
-    if (ck == sio_checksum(_buffer, n))
+    byte linelen;
+    switch (aux1)
     {
-        if (n == 29)
-        { // reverse the _buffer and replace EOL with space
+    case 'N':
+    case 'L':
+        linelen = 40;
+        break;
+    case 'S':
+        linelen = 29;
+        break;
+    case 'D':
+        linelen = 20;
+    default:
+        linelen = 40;
+    }
+
+    memset(_buffer, 0, sizeof(_buffer)); // clear _buffer
+    byte ck = sio_to_peripheral(_buffer, linelen);
+
+    if (ck == sio_checksum(_buffer, linelen))
+    {
+        if (linelen == 29)
+        {
+            /*
+            // reverse the _buffer and replace EOL with space
             // needed for PDF sideways printing on A820
-            byte temp[29];
-            memcpy(temp, _buffer, n);
-            for (int i = 0; i < n; i++)
+            byte temp[linelen];
+            memcpy(temp, _buffer, linelen);
+            for (int i = 0; i < linelen; i++)
             {
-                _buffer[i] = temp[n - 1 - i];
+                _buffer[i] = temp[linelen - 1 - i];
                 if (_buffer[i] == EOL)
                     _buffer[i] = ' ';
             }
-            _buffer[n++] = EOL;
+            _buffer[linelen+1] = EOL;
+            */
+            for (int i = 0; i < (linelen / 2); i++)
+            {
+                byte tmp = _buffer[i];
+                _buffer[i] = _buffer[linelen - i - 1];
+                _buffer[linelen - i - 1] = tmp;
+                if (_buffer[i] == ATASCII_EOL)
+                    _buffer[i] = ' ';
+            }
+            _buffer[linelen] = ATASCII_EOL;
         }
-        for (int i = 0; i < n; i++)
-        {
-            _pptr->copyChar(_buffer[i], i);
-        }
-        if (_pptr->process(n))
+        // Copy the data to the printer emulator's buffer
+        memcpy(_pptr->provideBuffer(), _buffer, linelen);
+
+        if (_pptr->process(linelen, aux1, aux2))
             sio_complete();
         else
         {
@@ -75,8 +97,7 @@ void sioPrinter::sio_write()
 // Status
 void sioPrinter::sio_status()
 {
-    byte status[4];
-    /*
+/*
   STATUS frame per the 400/800 OS ROM Manual
   Command Status
   Aux 1 Byte (typo says AUX2 byte)
@@ -102,9 +123,10 @@ void sioPrinter::sio_status()
   delay. This Timeout is associated with printer timeout
   discussed earlier. 
 */
+    byte status[4];
 
     status[0] = 0;
-    status[1] = _lastAux1;
+    status[1] = _lastaux1;
     status[2] = 5;
     status[3] = 0;
 
@@ -129,10 +151,10 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
         _pptr = new filePrinter(ASCII);
         break;
     case PRINTER_ATARI_820:
-        _pptr = new atari820(this);
+        _pptr = new atari820;
         break;
     case PRINTER_ATARI_822:
-        _pptr = new atari822(this);
+        _pptr = new atari822;
         break;
     case PRINTER_ATARI_1025:
         _pptr = new atari1025;
@@ -170,7 +192,7 @@ void sioPrinter::set_storage(FileSystem *fs)
 sioPrinter::sioPrinter(FileSystem *filesystem, printer_type print_type)
 {
     _storage = filesystem;
-   set_printer_type(print_type);
+    set_printer_type(print_type);
 }
 
 /* Returns a printer type given a string model name
@@ -202,14 +224,15 @@ void sioPrinter::sio_process()
 {
     switch (cmdFrame.comnd)
     {
-    case 'P': // 0x50 - needed by A822 for graphics mode printing
-    case 'W': // 0x57
-        _lastAux1 = cmdFrame.aux1;
+    case SIO_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
+    case SIO_PRINTERCMD_WRITE:
+        _lastaux1 = cmdFrame.aux1;
+        _lastaux2 = cmdFrame.aux2;
         _last_ms = fnSystem.millis();
         sio_ack();
-        sio_write();
+        sio_write(_lastaux1, _lastaux2);
         break;
-    case 'S': // 0x53
+    case SIO_PRINTERCMD_STATUS:
         _last_ms = fnSystem.millis();
         sio_ack();
         sio_status();

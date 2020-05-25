@@ -1,12 +1,13 @@
-#include "printer_emulator.h"
 #include "../../include/debug.h"
+#include "printer_emulator.h"
 
 #include "fnFsSPIF.h"
 
+#define PRINTER_OUTFILE "/paper"
+
 // initialzie printer by creating an output file
-void printer_emu::initPrinter(FileSystem *fs)
+void printer_emu::initPrinter()
 {
-    _FS = fs;
     resetOutput();
 }
 
@@ -30,7 +31,7 @@ printer_emu::~printer_emu()
 // Assumes source file is in SPIFFS
 size_t printer_emu::copy_file_to_output(const char *filename)
 {
-#define PRINTER_FILE_COPY_BUFLEN 4096
+#define PRINTER_FILE_COPY_BUFLEN 2048
 
     FILE * fInput = fnSPIFFS.file_open(filename);
 
@@ -57,11 +58,6 @@ size_t printer_emu::copy_file_to_output(const char *filename)
     return total;
 }
 
-void printer_emu::copyChar(byte c, byte n)
-{
-    buffer[n] = c;
-}
-
 size_t printer_emu::getOutputSize()
 {
     return FileSystem::filesize(_file);
@@ -77,9 +73,21 @@ int printer_emu::readFromOutput(uint8_t *buf, size_t size)
     return fread(buf, 1, size, _file);
 }
 
+// All the work is done here in the derived classes. Open and close the output file before proceeding
+bool printer_emu::process(byte linelen, byte aux1, byte aux2)
+{
+    return process_buffer(linelen, aux1, aux2);
+}
+
+// This is only called from the HTTP server to request the file be closed before sending it to the user
 void printer_emu::pageEject()
 {
-    this->pre_page_eject();
+    if(_file != nullptr)
+        fclose(_file);
+
+    _file = _FS->file_open(PRINTER_OUTFILE, "a"); // Append
+
+    pre_page_eject();
     
     fflush(_file);
     fseek(_file, 0, SEEK_SET);
@@ -89,7 +97,7 @@ void printer_emu::resetOutput()
 {
     if(_file != nullptr)
         fclose(_file);
-    _file = _FS->file_open("/paper", "w+");
+    _file = _FS->file_open(PRINTER_OUTFILE, "w+");
 #ifdef DEBUG
     if (_file != nullptr)
     {

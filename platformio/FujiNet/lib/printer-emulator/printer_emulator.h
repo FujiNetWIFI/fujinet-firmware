@@ -35,20 +35,26 @@ protected:
     virtual void post_new_file() {};
     // executed before a printer output file is closed and prepared for reading
     virtual void pre_page_eject() {};
+    
+    virtual bool process_buffer(byte linelen, byte aux1, byte aux2)=0;
 
     size_t copy_file_to_output(const char *filename);
 
 public:
-    printer_emu(paper_t ty = RAW) : paperType(ty){};
+    printer_emu(FileSystem *fs, paper_t ty = RAW) : _FS(fs), paperType(ty) {};
     // Destructor must be virtual to allow for proper cleanup of derived classes
     virtual ~printer_emu() = 0;
 
-    void copyChar(byte c, byte n);
-    virtual void initPrinter(FileSystem *fs);
+    //void copyChar(byte c, byte n);
+    virtual void initPrinter();
     virtual void pageEject() = 0;
-    virtual bool process(byte n) = 0;
+    bool process(byte linelen, byte aux1, byte aux2);
+
+
 
     paper_t getPaperType() { return paperType; };
+
+    byte *provideBuffer() { return buffer; };
 
     virtual const char *modelname() = 0;
     //File *getFilePtr() { return _file; }

@@ -3,7 +3,6 @@
 #include "../../include/debug.h"
 #include "fnFsSPIF.h"
 
-
 pdfPrinter::~pdfPrinter()
 {
 #ifdef DEBUG
@@ -71,9 +70,9 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
     // OPEN LUT FILE
     char fname[30]; // filename: /f/shortname/Fi
     sprintf(fname, "/f/%s/LUT", shortname.c_str());
-    FILE * lut = fnSPIFFS.file_open(fname);
+    FILE *lut = fnSPIFFS.file_open(fname);
     int maxFonts = util_parseInt(lut);
-    
+
     // font dictionary
     for (int i = 0; i < maxFonts; i++)
     {
@@ -88,7 +87,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
             size_t fp = 0;
             char fname[30];                                        // filename: /f/shortname/Fi
             sprintf(fname, "/f/%s/F%d", shortname.c_str(), i + 1); // e.g. /f/a820/F2
-            FILE *fff = fnSPIFFS.file_open(fname);                    // Font File File - fff
+            FILE *fff = fnSPIFFS.file_open(fname);                 // Font File File - fff
 
             for (int j = 0; j < 7; j++)
                 fontObjPos[j] = util_parseInt(lut);
@@ -182,7 +181,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
         }
 #endif
     }
-    
+
     fclose(lut);
 #ifdef DEBUG
     Debug_println("done.");
@@ -293,7 +292,7 @@ void pdfPrinter::pdf_xref()
     fprintf(_file, "%%%%EOF\n");
 }
 
-bool pdfPrinter::process(byte n)
+bool pdfPrinter::process(byte n, byte aux1, byte aux2)
 {
     int i = 0;
     byte c;
@@ -324,7 +323,7 @@ bool pdfPrinter::process(byte n)
         if (!textMode)
         {
             //this->
-            pdf_handle_char(c);
+            pdf_handle_char(c, aux1, aux2);
         }
         else
         {
@@ -332,7 +331,7 @@ bool pdfPrinter::process(byte n)
                 pdf_new_line();
 
             // check for EOL or if at end of line and need automatic CR
-            if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth +.072))))
+            if (!BOLflag && ((c == EOL) || (pdf_X > (printWidth - charWidth + .072))))
                 pdf_end_line();
 
             // start a new line if we need to
@@ -341,7 +340,7 @@ bool pdfPrinter::process(byte n)
 
             // disposition the current byte
             //this->
-            pdf_handle_char(c);
+            pdf_handle_char(c, aux1, aux2);
 
 #ifdef DEBUG
             Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y);

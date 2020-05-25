@@ -20,7 +20,7 @@ void atari822::initPrinter(FileSystem *fs)
     pdf_header();
 }
 
-void atari822::pdf_handle_char(byte c)
+void atari822::pdf_handle_char(byte c, byte aux1, byte aux2)
 {
     // use PDF inline image to display line of graphics
     /*
@@ -45,14 +45,14 @@ void atari822::pdf_handle_char(byte c)
     // aux1 == 'L'   graphics mode
 
     // was: if (cmdFrame.comnd == 'W' && !textMode)
-    if (my_sioP->_lastAux1 == 'N' && !textMode)
+    if (aux1 == 'N' && !textMode)
     {
         textMode = true;
         pdf_begin_text(pdf_Y); // open new text object
         pdf_new_line();        // start new line of text (string array)
     }
     // was: else if (cmdFrame.comnd == 'P' && textMode)
-    else if (my_sioP->_lastAux1 == 'L' && textMode)
+    else if (aux1 == 'L' && textMode)
     {
         textMode = false;
         if (!BOLflag)

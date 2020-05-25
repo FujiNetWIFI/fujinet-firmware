@@ -48,7 +48,7 @@ public:
     const char *modelname() { return "GRANTIC"; };
     virtual void initPrinter(FileSystem *fs);
     virtual void pageEject();
-    virtual bool process(byte n);
+    virtual bool process(byte linelen, byte aux1, byte aux2);
 };
 
 #endif

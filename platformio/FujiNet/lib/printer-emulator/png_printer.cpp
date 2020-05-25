@@ -398,7 +398,7 @@ void pngPrinter::initPrinter(FileSystem *fs)
     png_data();
 }
 
-bool pngPrinter::process(byte n)
+bool pngPrinter::process(byte n, byte aux1, byte aux2)
 {
 // copy buffer[] into linebuffer[]
 #ifdef DEBUG

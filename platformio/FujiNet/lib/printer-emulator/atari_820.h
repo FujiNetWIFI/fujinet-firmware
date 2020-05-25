@@ -11,12 +11,12 @@ class atari820 : public pdfPrinter
     // printing. The example in section 9.7 uses reverse strings.
 protected:
     bool sideFlag = false;
-    sioPrinter *my_sioP; // added variable to point back to sioPrinter parent
+    //sioPrinter *my_sioP; // added variable to point back to sioPrinter parent
 
-    void pdf_handle_char(byte c); // need a custom one to handle sideways printing
+    void pdf_handle_char(byte c, byte aux1, byte aux2); // need a custom one to handle sideways printing
 
 public:
-    atari820(sioPrinter *P) { my_sioP = P; }
+    //atari820(sioPrinter *P) { my_sioP = P; }
     void initPrinter(FileSystem *fs);
     // void setDevice(sioPrinter *P) { my_sioP = P; };
     const char *modelname() { return "Atari 820"; };
