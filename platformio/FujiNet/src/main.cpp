@@ -20,7 +20,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
 #include "sio.h"
 #include "disk.h"
-#include "tnfs.h"
+//#include "tnfs.h"
 #include "printer.h"
 #include "modem.h"
 #include "fuji.h"
@@ -30,6 +30,8 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "fnSystem.h"
 #include "fnWiFi.h"
 #include "config.h"
+#include "fnFsSD.h"
+#include "fnFsSPIF.h"
 
 //#include <WiFiUdp.h>
 
@@ -41,10 +43,10 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #endif
 
 #ifdef ESP32
-#include <SPIFFS.h>
-#include <SPI.h>
+//#include <SPIFFS.h>
+//#include <SPI.h>
 //#include <WiFi.h>
-#include <SD.h>
+//#include <SD.h>
 #endif
 
 #include "keys.h"
@@ -113,7 +115,8 @@ void setup()
 
     keyMgr.setup();
     ledMgr.setup();
-    
+
+/*    
     // Start up the SPI Flash File System
     if (!SPIFFS.begin())
     {
@@ -121,7 +124,8 @@ void setup()
         Debug_println("SPIFFS Mount Failed");
 #endif
     }
-
+*/
+/*
     // See if we can start the Secure Digital card file system
     if (!SD.begin(PIN_SDCS))
     {
@@ -129,29 +133,10 @@ void setup()
         Debug_println("SD Card Mount Failed");
 #endif
     }
-
-#ifdef DEBUG
-    Debug_print("SD Card Type: ");
-    switch (SD.cardType())
-    {
-    case CARD_NONE:
-        Debug_println("NONE");
-        break;
-    case CARD_MMC:
-        Debug_println("MMC");
-        break;
-    case CARD_SD:
-        Debug_println("SDSC");
-        break;
-    case CARD_SDHC:
-        Debug_println("SDHC");
-        break;
-    default:
-        Debug_println("UNKNOWN");
-        break;
-    }
-#endif
-
+*/
+    fnSPIFFS.start();
+    fnSDFAT.start();
+    
     // Load our stored configuration
     Config.load();
 
@@ -167,20 +152,16 @@ void setup()
 
     SIO.addDevice(&sioR, SIO_DEVICEID_RS232); // R:
 
-    // Choose filesystem for P: device and iniitalize it
-    if (SD.cardType() != CARD_NONE)
-    {
-        Debug_println("using SD card for printer storage");
-        sioP.set_storage(&SD);
-    }
-    else
-    {
-        Debug_println("using SPIFFS for printer storage");
-        sioP.set_storage(&SPIFFS);
-    }
-    sioP.set_printer_type(Config.get_printer_type(0));
-
-    SIO.addDevice(&sioP, SIO_DEVICEID_PRINTER); // P:
+    // Create a new printer object, setting its output depending on whether we have SD or not
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    sioPrinter::printer_type ptype = Config.get_printer_type(0);
+    if(ptype == sioPrinter::printer_type::PRINTER_INVALID)
+        ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
+    #ifdef DEBUG
+        Debug_printf("Creating a default printer using %s storage and %d type\n", ptrfs->typestring(), ptype);
+    #endif        
+    sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
+    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER); // P:
 
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
 
@@ -189,7 +170,7 @@ void setup()
 #ifdef DEBUG
         Debug_printf("WiFi connected. Current IP address: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
 #endif
-        UDP.begin(16384);
+        // UDP.begin(16384); // Why do we do this?
     }
 
 #ifdef DEBUG

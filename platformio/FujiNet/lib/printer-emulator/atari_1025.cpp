@@ -22,7 +22,7 @@ void atari1025::pdf_handle_char(byte c)
             // change font to elongated like
             if (fontNumber != 2)
             {
-                _file.printf(")]TJ\n/F2 12 Tf [(");
+                fprintf(_file, ")]TJ\n/F2 12 Tf [(");
                 charWidth = 14.4; //72.0 / 5.0;
                 fontNumber = 2;
                 fontUsed[1]=true;
@@ -32,7 +32,7 @@ void atari1025::pdf_handle_char(byte c)
             // change font to normal
             if (fontNumber != 1)
             {
-                _file.printf(")]TJ\n/F1 12 Tf [(");
+                fprintf(_file, ")]TJ\n/F1 12 Tf [(");
                 charWidth = 7.2; //72.0 / 10.0;
                 fontNumber = 1;
                 // fontUsed[0]=true; // redundant
@@ -42,7 +42,7 @@ void atari1025::pdf_handle_char(byte c)
             // change font to compressed
             if (fontNumber != 3)
             {
-                _file.printf(")]TJ\n/F3 12 Tf [(");
+                fprintf(_file, ")]TJ\n/F3 12 Tf [(");
                 charWidth = 72.0 / 16.5;
                 fontNumber = 3;
                 fontUsed[2]=true;
@@ -69,13 +69,13 @@ void atari1025::pdf_handle_char(byte c)
             {
                 if (!BOLflag)
                     pdf_end_line();   // close out string array
-                _file.printf("ET\n"); // close out text object
+                fprintf(_file, "ET\n"); // close out text object
                 // set new margins
                 leftMargin = 18.0;  // (8.5-8.0)/2*72
                 printWidth = 576.0; // 8 inches
                 pdf_begin_text(pdf_Y);
                 // start text string array at beginning of line
-                _file.printf("[(");
+                fprintf(_file, "[(");
                 BOLflag = false;
                 shortFlag = false;
             }
@@ -86,13 +86,13 @@ void atari1025::pdf_handle_char(byte c)
             {
                 if (!BOLflag)
                     pdf_end_line();   // close out string array
-                _file.printf("ET\n"); // close out text object
+                fprintf(_file, "ET\n"); // close out text object
                 // set new margins
                 leftMargin = 75.6;  // (8.5-6.4)/2.0*72.0;
                 printWidth = 460.8; //6.4*72.0; // 6.4 inches
                 pdf_begin_text(pdf_Y);
                 // start text string array at beginning of line
-                _file.printf("[(");
+                fprintf(_file, "[(");
                 BOLflag = false;
                 shortFlag = true;
             }
@@ -149,23 +149,23 @@ void atari1025::pdf_handle_char(byte c)
                 }
             if (valid)
             {
-                _file.write(d);
+                fputc(d, _file);
                 pdf_X += charWidth; // update x position
             }
         }
         else if (c > 31 && c < 127)
         {
             if (c == '\\' || c == '(' || c == ')')
-                _file.write('\\');
-            _file.write(c);
+                fputc('\\', _file);
+            fputc(c, _file);
             pdf_X += charWidth; // update x position
         }
     }
 }
 
-void atari1025::initPrinter(FS *filesystem)
+void atari1025::initPrinter(FileSystem *fs)
 {
-    printer_emu::initPrinter(filesystem);
+    printer_emu::initPrinter(fs);
 
     shortname = "a1025";
 

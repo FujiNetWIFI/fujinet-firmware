@@ -1,23 +1,23 @@
 #ifndef FUJI_H
 #define FUJI_H
 #include <cstdint>
-#include <Arduino.h>
+//#include <Arduino.h>
 #include "../../include/debug.h"
 
 #include "sio.h"
 #include "disk.h"
 #include "network.h"
-#include "tnfs.h"
-#include "fujiFileSystem.h"
+// #include "tnfs.h"
+#include "fujiFsMounter.h"
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
 #include <FS.h>
 #endif
 #ifdef ESP32
 //#include <WiFi.h>
-#include <SPIFFS.h>
+//#include <SPIFFS.h>
 #endif
-#include <SD.h>
+//#include <SD.h>
 
 #define MAX_FILESYSTEMS 8
 #define MAX_DISK_DEVICES 8
@@ -28,7 +28,7 @@
 #define MAX_WIFI_PASS_LEN 64
 
 //extern FS *fileSystems[8];
-extern TNFSFS TNFS[8];
+//extern TNFSFS TNFS[8];
 //extern File atr[8]; // up to 8 disk drives
 //extern sioDisk sioD[8]; //
 //extern sioNetwork sioN[8];
@@ -38,15 +38,15 @@ class sioFuji : public sioDevice
 {
 private:
 
-    fujiFileSystem fnFileSystems[MAX_FILESYSTEMS];
+    fujiFsMounter fnFileSystems[MAX_FILESYSTEMS];
 
     void populate_slots_from_config();
     void populate_config_from_slots();
 
     struct fndisks_t
     {
-        File file;
-        fujiFileSystem *fnfs = NULL;
+        FILE* file;
+        fujiFsMounter *fnfs = NULL;
     };
     fndisks_t fnDisks[MAX_DISK_DEVICES];
 
@@ -54,7 +54,7 @@ private:
     bool validate_device_slot(uint8_t slot, const char *dgmsg = NULL);
 
 protected:
-    File atrConfig;     // autorun.atr for FujiNet configuration
+    FILE * atrConfig;     // autorun.atr for FujiNet configuration
     sioDisk configDisk; // special disk drive just for configuration
 
     struct _hostslot

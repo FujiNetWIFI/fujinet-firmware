@@ -1,13 +1,13 @@
 #include "printer_emulator.h"
 #include "../../include/debug.h"
 
-#include "SPIFFS.h"
+#include "fnFsSPIF.h"
 
 // initialzie printer by creating an output file
-void printer_emu::initPrinter(FS *filesystem)
+void printer_emu::initPrinter(FileSystem *fs)
 {
-    _FS = filesystem;
-    this->resetOutput();
+    _FS = fs;
+    resetOutput();
 }
 
 
@@ -15,10 +15,13 @@ void printer_emu::initPrinter(FS *filesystem)
 printer_emu::~printer_emu()
 {
 #ifdef DEBUG
-    Debug_println("~printer_emu");
+    //Debug_println("~printer_emu");
 #endif
-    if(_file)
-        _file.close();
+    if(_file != nullptr)
+    {
+        fclose(_file);
+        _file = nullptr;
+    }
 }
 
 // virtual void flushOutput(); // do this in pageEject
@@ -29,9 +32,9 @@ size_t printer_emu::copy_file_to_output(const char *filename)
 {
 #define PRINTER_FILE_COPY_BUFLEN 4096
 
-    File fInput = SPIFFS.open(filename, "r");
+    FILE * fInput = fnSPIFFS.file_open(filename);
 
-    if (!fInput || !fInput.available())
+    if (fInput == nullptr)
     {
 #ifdef DEBUG
         Debug_printf("Failed to open printer concatenation file: '%s'\n", filename);
@@ -44,10 +47,10 @@ size_t printer_emu::copy_file_to_output(const char *filename)
     size_t total = 0, count = 0;
     do
     {
-        count = fInput.read(buf, PRINTER_FILE_COPY_BUFLEN);
-        total += _file.write(buf, count);
+        count = fread(buf, 1, PRINTER_FILE_COPY_BUFLEN, fInput);
+        total += fwrite(buf, 1, count, _file);
     } while (count > 0);
-    fInput.close();
+    fclose(fInput);
 
     free(buf);
 
@@ -61,36 +64,37 @@ void printer_emu::copyChar(byte c, byte n)
 
 size_t printer_emu::getOutputSize()
 {
-    return _file.size();
+    return FileSystem::filesize(_file);
 }
 
 int printer_emu::readFromOutput()
 {
-    return _file.read();
+    return fgetc(_file);
 }
 
 int printer_emu::readFromOutput(uint8_t *buf, size_t size)
 {
-    return _file.read(buf, size);
+    return fread(buf, 1, size, _file);
 }
 
 void printer_emu::pageEject()
 {
     this->pre_page_eject();
     
-    _file.flush();
-    _file.seek(0);
+    fflush(_file);
+    fseek(_file, 0, SEEK_SET);
 }
 
 void printer_emu::resetOutput()
 {
-    _file.close();
-    _file = _FS->open("/paper", "w+");
+    if(_file != nullptr)
+        fclose(_file);
+    _file = _FS->file_open("/paper", "w+");
 #ifdef DEBUG
-    if (_file)
+    if (_file != nullptr)
     {
         Debug_println("Printer output file (re)opened");
-        this->post_new_file();
+        post_new_file();
     }
     else
     {

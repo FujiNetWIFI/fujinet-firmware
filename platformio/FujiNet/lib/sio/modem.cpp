@@ -1,34 +1,35 @@
-#include <FS.h>
-#include <SPIFFS.h>
+//#include <FS.h>
+//#include <SPIFFS.h>
 
 #include "modem.h"
 #include "../hardware/fnUART.h"
 #include "fnWiFi.h"
+#include "fnFsSPIF.h"
 #include "../../include/atascii.h"
 
 #define RECVBUFSIZE 1024
 
 #define SIO_MODEMCMD_LOAD_RELOCATOR 0x21
-#define SIO_MODEMCMD_LOAD_HANDLER   0x26
-#define SIO_MODEMCMD_TYPE1_POLL     0x3F
-#define SIO_MODEMCMD_TYPE3_POLL     0x40
-#define SIO_MODEMCMD_CONTROL        0x41
-#define SIO_MODEMCMD_CONFIGURE      0x42
-#define SIO_MODEMCMD_LISTEN         0x4C
-#define SIO_MODEMCMD_UNLISTEN       0x4D
-#define SIO_MODEMCMD_STATUS         0x53
-#define SIO_MODEMCMD_WRITE          0x57
-#define SIO_MODEMCMD_STREAM         0x58
+#define SIO_MODEMCMD_LOAD_HANDLER 0x26
+#define SIO_MODEMCMD_TYPE1_POLL 0x3F
+#define SIO_MODEMCMD_TYPE3_POLL 0x40
+#define SIO_MODEMCMD_CONTROL 0x41
+#define SIO_MODEMCMD_CONFIGURE 0x42
+#define SIO_MODEMCMD_LISTEN 0x4C
+#define SIO_MODEMCMD_UNLISTEN 0x4D
+#define SIO_MODEMCMD_STATUS 0x53
+#define SIO_MODEMCMD_WRITE 0x57
+#define SIO_MODEMCMD_STREAM 0x58
 
 #define FIRMWARE_850RELOCATOR "/850relocator.bin"
-#define FIRMWARE_850HANDLER   "/850handler.bin"
+#define FIRMWARE_850HANDLER "/850handler.bin"
 
 /* Tested this delay several times on an 800 with Incognito
    using HSIO routines. Anything much lower gave inconsistent
    firmware loading. Delay is unnoticeable when running at
    normal speed.
 */
-#define DELAY_FIRMWARE_DELIVERY 3000
+#define DELAY_FIRMWARE_DELIVERY 5000
 
 #ifdef ESP8266
 void sioModem::sioModem()
@@ -39,34 +40,34 @@ void sioModem::sioModem()
 /*
     If buffer is NULL, simply returns size of file
 */
-int sioModem::load_firmware(const char * filename, char **buffer)
+int sioModem::load_firmware(const char *filename, char **buffer)
 {
 #ifdef DEBUG
     Debug_printf("load_firmware '%s'\n", filename);
-#endif    
-    if(SPIFFS.exists(filename) == false)
+#endif
+    if (fnSPIFFS.exists(filename) == false)
     {
 #ifdef DEBUG
         Debug_println("load_firmware FILE NOT FOUND");
-#endif    
+#endif
         return -1;
     }
 
-    File f = SPIFFS.open(filename);
-    size_t file_size = f.size();
+    FILE *f = fnSPIFFS.file_open(filename);
+    size_t file_size = FileSystem::filesize(f);
 #ifdef DEBUG
-        Debug_printf("load_firmware file size = %u\n", file_size);
+    Debug_printf("load_firmware file size = %u\n", file_size);
 #endif
 
-    if(buffer == NULL)
+    if (buffer == NULL)
     {
-        f.close();
+        fclose(f);
         return file_size;
     }
 
     int bytes_read = -1;
     char *result = (char *)malloc(file_size);
-    if(result == NULL)
+    if (result == NULL)
     {
 #ifdef DEBUG
         Debug_println("load_firmware failed to malloc");
@@ -74,8 +75,8 @@ int sioModem::load_firmware(const char * filename, char **buffer)
     }
     else
     {
-        bytes_read = f.readBytes(result, file_size);
-        if(bytes_read == file_size)
+        bytes_read = fread(result, 1, file_size, f);
+        if (bytes_read == file_size)
         {
             *buffer = result;
         }
@@ -89,7 +90,7 @@ int sioModem::load_firmware(const char * filename, char **buffer)
         }
     }
 
-    f.close();
+    fclose(f);
     return bytes_read;
 }
 
@@ -104,31 +105,33 @@ void sioModem::sio_poll_1()
         loaders that use JSR $0506 to run the loader.
     */
 
-    // Don't respond if we already have previously
+    // According to documentation, we're only supposed to respond to this once
+    /*
     if (count_PollType1 != 0)
         return;
     count_PollType1++;
+    */
 
     // Get size of relocator
     int filesize = load_firmware(FIRMWARE_850RELOCATOR, NULL);
     // Simply return (without ACK) if we failed to get this
-    if(filesize < 0)
+    if (filesize < 0)
         return;
 
     // Acknoledge before continuing
     sio_ack();
 
-    uint8_t bootBlock[12]={
-        0x50,		// DDEVIC
-        0x01,		// DUNIT
-        0x21,		// DCOMND = '!' (boot)
-        0x40,		// DSTATS
-        0x00, 0x05,	// DBUFLO, DBUFHI == $0500
-        0x08,		// DTIMLO = 8 vblanks
-        0x00,		// not used
-        0x00, 0x00,	// DBYTLO, DBYTHI
-        0x00,		// DAUX1
-        0x00,		// DAUX2
+    uint8_t bootBlock[12] = {
+        0x50,       // DDEVIC
+        0x01,       // DUNIT
+        0x21,       // DCOMND = '!' (boot)
+        0x40,       // DSTATS
+        0x00, 0x05, // DBUFLO, DBUFHI == $0500
+        0x08,       // DTIMLO = 8 vblanks
+        0x00,       // not used
+        0x00, 0x00, // DBYTLO, DBYTHI
+        0x00,       // DAUX1
+        0x00,       // DAUX2
     };
 
     // Stuff the size into the block
@@ -139,6 +142,8 @@ void sioModem::sio_poll_1()
 #ifdef DEBUG
     Debug_println("Modem acknowledging Type 1 Poll");
 #endif
+    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
+
     sio_to_computer(bootBlock, sizeof(bootBlock), false);
 }
 
@@ -146,14 +151,14 @@ void sioModem::sio_poll_1()
 // 0x26 / '&' - HANDLER DOWNLOAD
 void sioModem::sio_send_firmware(byte loadcommand)
 {
-    const char * firmware;
-    if(loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR)
+    const char *firmware;
+    if (loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR)
     {
         firmware = FIRMWARE_850RELOCATOR;
     }
     else
     {
-        if(loadcommand == SIO_MODEMCMD_LOAD_HANDLER)
+        if (loadcommand == SIO_MODEMCMD_LOAD_HANDLER)
         {
             firmware = FIRMWARE_850HANDLER;
         }
@@ -165,7 +170,7 @@ void sioModem::sio_send_firmware(byte loadcommand)
     char *code;
     int codesize = load_firmware(firmware, &code);
     // NAK if we failed to get this
-    if(codesize < 0 || code == NULL)
+    if (codesize < 0 || code == NULL)
     {
         sio_nak();
         return;
@@ -179,8 +184,8 @@ void sioModem::sio_send_firmware(byte loadcommand)
 
     // Send it
 #ifdef DEBUG
-    Debug_printf("Modem sending %d bytes of %s code\n", codesize, 
-            loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
+    Debug_printf("Modem sending %d bytes of %s code\n", codesize,
+                 loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
 #endif
     sio_to_computer((byte *)code, codesize, false);
 
@@ -193,7 +198,7 @@ void sioModem::sio_write()
 {
 #ifdef DEBUG
     Debug_println("Modem cmd: WRITE");
-#endif    
+#endif
     /* AUX1: Bytes in payload, 0-64
        AUX2: NA
        Payload always padded to 64 bytes
@@ -207,7 +212,7 @@ void sioModem::sio_status()
 {
 #ifdef DEBUG
     Debug_println("Modem cmd: STATUS");
-#endif    
+#endif
     /* AUX1: NA
        AUX2: NA
        First payload byte = error status bits
@@ -222,7 +227,7 @@ void sioModem::sio_status()
           1: 0
           0: RCV state (0=space, 1=mark)
     */
-    byte status[2] = { 0x00, 0x0C };
+    byte status[2] = {0x00, 0x0C};
     sio_to_computer(status, sizeof(status), false);
 }
 
@@ -279,20 +284,20 @@ void sioModem::sio_config()
 {
 #ifdef DEBUG
     Debug_println("Modem cmd: CONFIGURE");
-#endif    
+#endif
     /* AUX1:
          7: Stop bits (0=1, 1=2)
          6: NA
        4,5: Word size (00=5,01=6,10=7,11=8)
        3-0: Baud rate:
     */
-#define BAUD_300   0x8
-#define BAUD_600   0x9
-#define BAUD_1200  0xA
-#define BAUD_1800  0xB
-#define BAUD_2400  0xC
-#define BAUD_4800  0xD
-#define BAUD_9600  0xE
+#define BAUD_300 0x8
+#define BAUD_600 0x9
+#define BAUD_1200 0xA
+#define BAUD_1800 0xB
+#define BAUD_2400 0xC
+#define BAUD_4800 0xD
+#define BAUD_9600 0xE
 #define BAUD_19200 0xF
     /*
        AUX2:
@@ -304,7 +309,7 @@ void sioModem::sio_config()
     // Complete and then set newbaud
     sio_complete();
 
-    byte newBaud = 0x0F & cmdFrame.aux1;        // Get baud rate
+    byte newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
     //byte wordSize = 0x30 & cmdFrame.aux1; // Get word size
     //byte stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits
 
@@ -337,7 +342,7 @@ void sioModem::sio_config()
     default:
 #ifdef DEBUG
         Debug_printf("Unexpected baud value: %hu", newBaud);
-#endif    
+#endif
         modemBaud = 300;
         break;
     }
@@ -358,7 +363,7 @@ void sioModem::sio_stream()
       RESPONSE
       Payload: 9 bytes to configure POKEY baud rate ($D200-$D208)
     */
-    char response[] = { 0x28, 0xA0, 0x00, 0xA0, 0x28, 0xA0, 0x00, 0xA0, 0x78 }; // 19200
+    char response[] = {0x28, 0xA0, 0x00, 0xA0, 0x28, 0xA0, 0x00, 0xA0, 0x78}; // 19200
 
     switch (modemBaud)
     {
@@ -396,7 +401,7 @@ void sioModem::sio_stream()
         break;
     }
 
-    sio_to_computer((byte *) response, sizeof(response), false);
+    sio_to_computer((byte *)response, sizeof(response), false);
 #ifndef ESP32
     SIO_UART.flush();
 #endif
@@ -611,8 +616,8 @@ void sioModem::at_handle_get()
 {
     // From the URL, aquire required variables
     // (12 = "ATGEThttp://")
-    int portIndex = cmd.indexOf(":", 12);   // Index where port number might begin
-    int pathIndex = cmd.indexOf("/", 12);   // Index first host name and possible port ends and path begins
+    int portIndex = cmd.indexOf(":", 12); // Index where port number might begin
+    int pathIndex = cmd.indexOf("/", 12); // Index first host name and possible port ends and path begins
     int port;
     String path, host;
     if (pathIndex < 0)
@@ -720,7 +725,6 @@ void sioModem::at_handle_wifilist()
         uint8_t channel;
         uint8_t encryption;
 
-
         for (int i = 0; i < n; ++i)
         {
             // Print SSID and RSSI for each network found
@@ -744,87 +748,86 @@ void sioModem::at_handle_wifilist()
 
 void sioModem::at_handle_dial()
 {
-        int portIndex = cmd.indexOf(":");
-        String host, port;
-        if (portIndex != -1)
-        {
-            host = cmd.substring(4, portIndex);
-            port = cmd.substring(portIndex + 1, cmd.length());
-        }
-        else
-        {
-            host = cmd.substring(4, cmd.length());
-            port = "23";        // Telnet default
-        }
+    int portIndex = cmd.indexOf(":");
+    String host, port;
+    if (portIndex != -1)
+    {
+        host = cmd.substring(4, portIndex);
+        port = cmd.substring(portIndex + 1, cmd.length());
+    }
+    else
+    {
+        host = cmd.substring(4, cmd.length());
+        port = "23"; // Telnet default
+    }
 #ifdef DEBUG
-        Debug_printf("DIALING: %s\n", host.c_str());
+    Debug_printf("DIALING: %s\n", host.c_str());
 #endif
-        if (host == "5551234")  // Fake it for BobTerm
+    if (host == "5551234") // Fake it for BobTerm
+    {
+        delay(1300); // Wait a moment so bobterm catches it
+        at_cmd_println("CONNECT ", false);
+        at_cmd_println(modemBaud);
+#ifdef DEBUG
+        Debug_println("CONNECT FAKE!");
+#endif
+    }
+    else
+    {
+        at_cmd_println("Connecting to ", false);
+        at_cmd_println(host, false);
+        at_cmd_println(":", false);
+        at_cmd_println(port);
+
+        int portInt = port.toInt();
+
+        if (tcpClient.connect(host.c_str(), portInt))
         {
-            delay(1300);        // Wait a moment so bobterm catches it
+            tcpClient.setNoDelay(true); // Try to disable naggle
+
             at_cmd_println("CONNECT ", false);
             at_cmd_println(modemBaud);
-#ifdef DEBUG
-            Debug_println("CONNECT FAKE!");
-#endif
+            cmdMode = false;
+
+            if (listenPort > 0)
+                tcpServer.stop();
         }
         else
         {
-            at_cmd_println("Connecting to ", false);
-            at_cmd_println(host, false);
-            at_cmd_println(":", false);
-            at_cmd_println(port);
-
-            int portInt = port.toInt();
-
-            if (tcpClient.connect(host.c_str(), portInt))
-            {
-                tcpClient.setNoDelay(true);     // Try to disable naggle
-
-                at_cmd_println("CONNECT ", false);
-                at_cmd_println(modemBaud);
-                cmdMode = false;
-
-                if (listenPort > 0)
-                    tcpServer.stop();
-            }
-            else
-            {
-                at_cmd_println("NO CARRIER");
-            }
+            at_cmd_println("NO CARRIER");
         }
+    }
 }
 /*
    Perform a command given in AT Modem command mode
 */
 void sioModem::modemCommand()
 {
-    static const char * at_cmds [_at_cmds::AT_ENUMCOUNT] = 
-    {
-        "AT",
-        "ATNET0",
-        "ATNET1",
-        "ATA",
-        "ATIP",
-        "AT?",
-        "ATH",
-        "+++ATH",
-        "ATDT",
-        "ATDP",
-        "ATDI",
-        "ATWIFILIST",
-        "ATWIFICONNECT",
-        "ATGET",
-        "ATPORT"
-    };
+    static const char *at_cmds[_at_cmds::AT_ENUMCOUNT] =
+        {
+            "AT",
+            "ATNET0",
+            "ATNET1",
+            "ATA",
+            "ATIP",
+            "AT?",
+            "ATH",
+            "+++ATH",
+            "ATDT",
+            "ATDP",
+            "ATDI",
+            "ATWIFILIST",
+            "ATWIFICONNECT",
+            "ATGET",
+            "ATPORT"};
 
     cmd.trim();
     if (cmd == "")
         return;
-    
+
     String upperCaseCmd = cmd;
     upperCaseCmd.toUpperCase();
-    
+
     at_cmd_println();
 
 #ifdef DEBUG
@@ -841,14 +844,16 @@ void sioModem::modemCommand()
     if (upperCaseCmd == "AT")
     {
         cmd_match = AT_AT;
-    } else {
+    }
+    else
+    {
         // Make sure we skip the plain AT command when matching
-        for(cmd_match = _at_cmds::AT_AT + 1; cmd_match < _at_cmds::AT_ENUMCOUNT; cmd_match++)
-            if(upperCaseCmd.startsWith(at_cmds[cmd_match]))
+        for (cmd_match = _at_cmds::AT_AT + 1; cmd_match < _at_cmds::AT_ENUMCOUNT; cmd_match++)
+            if (upperCaseCmd.startsWith(at_cmds[cmd_match]))
                 break;
     }
 
-    switch(cmd_match)
+    switch (cmd_match)
     {
     // plain AT
     case AT_AT:
@@ -886,10 +891,10 @@ void sioModem::modemCommand()
         at_cmd_println("OK");
         break;
     case AT_A:
-        if(tcpServer.hasClient())
+        if (tcpServer.hasClient())
         {
             tcpClient = tcpServer.available();
-            tcpClient.setNoDelay(true);     // try to disable naggle
+            tcpClient.setNoDelay(true); // try to disable naggle
             tcpServer.stop();
             at_cmd_println("CONNECT ", false);
             at_cmd_println(modemBaud);
@@ -931,7 +936,7 @@ void sioModem::modemCommand()
 */
 void sioModem::sio_handle_modem()
 {
-  /**** AT command mode ****/
+    /**** AT command mode ****/
     if (cmdMode == true)
     {
         // In command mode but new unanswered incoming connection on server listen socket
@@ -947,7 +952,7 @@ void sioModem::sio_handle_modem()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-        if( fnUartSIO.available() )
+        if (fnUartSIO.available())
         {
             // get char from Atari SIO
             //char chr = SIO_UART.read();
@@ -985,8 +990,8 @@ void sioModem::sio_handle_modem()
                 fnUartSIO.write(ATASCII_BACKSPACE);
             }
             // Take into account arrow key movement and clear screen
-            else if (chr == ATASCII_CLEAR_SCREEN || 
-                ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
+            else if (chr == ATASCII_CLEAR_SCREEN ||
+                     ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
                 //SIO_UART.write(chr);
                 fnUartSIO.write(chr);
@@ -996,7 +1001,7 @@ void sioModem::sio_handle_modem()
                 if (cmd.length() < MAX_CMD_LENGTH)
                     cmd.concat(chr);
                 //SIO_UART.write(chr);
-                fnUartSIO.write(chr);                
+                fnUartSIO.write(chr);
             }
         }
     }
@@ -1017,14 +1022,13 @@ void sioModem::sio_handle_modem()
             //else
             //  max_buf_size = TX_BUF_SIZE;
 
-
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int sioBytesRead = fnUartSIO.readBytes(&txBuf[0],  //SIO_UART.readBytes(&txBuf[0], 
-                (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
+            int sioBytesRead = fnUartSIO.readBytes(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
+                                                   (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
-            for (int i = 0; i < (int) sioBytesRead; i++)
+            for (int i = 0; i < (int)sioBytesRead; i++)
             {
                 if (txBuf[i] == '+')
                     plusCount++;
@@ -1062,7 +1066,6 @@ void sioModem::sio_handle_modem()
             tcpClient.write(&txBuf[0], sioBytesRead);
         }
 
-
         // read from Fujinet to Atari
         unsigned char buf[RECVBUFSIZE];
         int bytesAvail = 0;
@@ -1071,8 +1074,8 @@ void sioModem::sio_handle_modem()
         if ((bytesAvail = tcpClient.available()) > 0)
         {
             // read as many as our buffer size will take (RECVBUFSIZE)
-            unsigned int bytesRead = tcpClient.readBytes(buf, 
-                (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
+            unsigned int bytesRead = tcpClient.readBytes(buf,
+                                                         (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
 
             //SIO_UART.write(buf, bytesRead);
             fnUartSIO.write(buf, bytesRead);
@@ -1138,28 +1141,28 @@ void sioModem::sio_process()
     {
     case SIO_MODEMCMD_LOAD_RELOCATOR:
 #ifdef DEBUG
-    Debug_printf("$21 RELOCATOR #%d\n", ++i21);
-#endif    
+        Debug_printf("$21 RELOCATOR #%d\n", ++i21);
+#endif
         sio_send_firmware(cmdFrame.comnd);
         break;
     case SIO_MODEMCMD_LOAD_HANDLER:
 #ifdef DEBUG
-    Debug_printf("$26 HANDLER DL #%d\n", ++i26);
-#endif    
+        Debug_printf("$26 HANDLER DL #%d\n", ++i26);
+#endif
         sio_send_firmware(cmdFrame.comnd);
         break;
     case SIO_MODEMCMD_TYPE1_POLL:
 #ifdef DEBUG
-    Debug_printf("$3F TYPE 1 POLL #%d\n", ++i3F);
-#endif    
+        Debug_printf("$3F TYPE 1 POLL #%d\n", ++i3F);
+#endif
         sio_poll_1();
         break;
     case SIO_MODEMCMD_TYPE3_POLL:
 #ifdef DEBUG
-    Debug_printf("$40 TYPE 3 POLL #%d\n", ++i40);
-#endif    
+        Debug_printf("$40 TYPE 3 POLL #%d\n", ++i40);
+#endif
         // ignore for now
-        break;        
+        break;
     case SIO_MODEMCMD_CONTROL:
         sio_ack();
         sio_control();

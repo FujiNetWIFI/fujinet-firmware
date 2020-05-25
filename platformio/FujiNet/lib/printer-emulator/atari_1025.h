@@ -16,7 +16,7 @@ protected:
     void pdf_handle_char(byte c);
 
 public:
-    void initPrinter(FS *filesystem);
+    void initPrinter(FileSystem *fs);
     const char *modelname() { return "Atari 1025"; };
 };
 

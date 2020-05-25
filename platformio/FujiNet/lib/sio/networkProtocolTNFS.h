@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include "networkProtocol.h"
 #include "sio.h"
+#include "tnfslib.h"
 
 class networkProtocolTNFS : public networkProtocol
 {
@@ -20,6 +21,14 @@ public:
 
     virtual bool special_supported_00_command(unsigned char comnd);
 
+private:
+    tnfsMountInfo mountInfo;
+    int16_t fileHandle;
+    string filename;
+    string directory;
+    tnfsStat fileStat;
+    char entryBuf[256];
+    char aux1;
 };
 
 #endif /* NETWORKPROTOCOLTNFS */

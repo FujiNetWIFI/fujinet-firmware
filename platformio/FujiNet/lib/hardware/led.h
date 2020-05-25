@@ -21,7 +21,7 @@ public:
     void blink(eLed led);
 
 private:
-    bool mLedState[eLed::LED_COUNT];
+    bool mLedState[eLed::LED_COUNT] = { 0 };
     int mLedPin[eLed::LED_COUNT];
 };
 

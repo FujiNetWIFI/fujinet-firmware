@@ -4,35 +4,24 @@
 #include "led.h"
 #include "network.h"
 #include "fnSystem.h"
+#include "utils.h"
 #include "../../include/debug.h"
 
-// helper functions outside the class defintions
+// Helper functions outside the class defintions
 
-/**
- * Get requested buffer length from command frame
- */
+// Get requested buffer length from command frame
 unsigned short sioDevice::sio_get_aux()
 {
     return (cmdFrame.aux2 * 256) + cmdFrame.aux1;
 }
 
-/**
-   Drain data out of SIO port
-*/
+// Drain data out of SIO port
 void sio_flush()
 {
-    /*
-    //while (SIO_UART.available())
-    while (fnUartSIO.available())
-    {
-        //SIO_UART.read(); // toss it.
-        fnUartSIO.read();
-    }
-    */
-   fnUartSIO.flush_input();
+    fnUartSIO.flush_input();
 }
 
-// calculate 8-bit checksum.
+// Calculate 8-bit checksum
 byte sio_checksum(byte *chunk, int length)
 {
     int chkSum = 0;
@@ -43,8 +32,8 @@ byte sio_checksum(byte *chunk, int length)
     return (byte)chkSum;
 }
 
-/**
-   sio READ from PERIPHERAL to COMPUTER
+/*
+   SIO READ from PERIPHERAL to COMPUTER
    b = buffer to send to Atari
    len = length of buffer
    err = did an error happen before this read?
@@ -62,16 +51,13 @@ void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
     else
         sio_complete();
 
-    // Write data frame.
-    //SIO_UART.write(b, len);
+    // Write data frame
     fnUartSIO.write(b, len);
 
     // Write checksum
-    //SIO_UART.write(ck);
     fnUartSIO.write(ck);
 
 #ifdef ESP32
-    //SIO_UART.flush();
     fnUartSIO.flush();
 #endif
 
@@ -83,8 +69,8 @@ void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
 #endif
 }
 
-/**
-   sio WRITE from COMPUTER to PERIPHERAL
+/*
+   SIO WRITE from COMPUTER to PERIPHERAL
    b = buffer from atari to fujinet
    len = length
    returns checksum reported by atari
@@ -98,20 +84,15 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
     Debug_printf("<-SIO read %hu\n", len);
 #endif
 #ifdef DEBUG_VERBOSE
-    //size_t l = SIO_UART.readBytes(b, len);
     size_t l = fnSIO_UART.readBytes(b, len);
 #else
-    //SIO_UART.readBytes(b, len);
     fnUartSIO.readBytes(b, len);
 #endif
     // Wait for checksum
-    //while (!SIO_UART.available())
-    //        yield();
     while (0 == fnUartSIO.available())
         fnSystem.yield();
 
-    // Receive Checksum
-    //ck = SIO_UART.read();
+    // Receive checksum
     ck = fnUartSIO.read();
 
 #ifdef DEBUG_VERBOSE
@@ -122,10 +103,7 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
     Debug_printf("\nCKSUM: %02x\n\n", ck);
 #endif
 
-    //#ifdef ESP8266
-    //delayMicroseconds(DELAY_T4);
     fnSystem.delay_microseconds(DELAY_T4);
-    //#endif
 
     if (sio_checksum(b, len) != ck)
     {
@@ -140,31 +118,23 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
     return ck;
 }
 
-/**
-   sio NAK
-*/
+// SIO NAK
 void sioDevice::sio_nak()
 {
-    //SIO_UART.write('N');
     fnUartSIO.write('N');
 #ifdef ESP32
-    //SIO_UART.flush();
-    fnUartSIO.flush();    
+    fnUartSIO.flush();
 #endif
 #ifdef DEBUG
     Debug_println("NAK!");
 #endif
 }
 
-/**
-   sio ACK
-*/
+// SIO ACK
 void sioDevice::sio_ack()
 {
-    //SIO_UART.write('A');
     fnUartSIO.write('A');
 #ifdef ESP32
-    //SIO_UART.flush();
     fnUartSIO.flush();
 #endif
 #ifdef DEBUG
@@ -172,79 +142,72 @@ void sioDevice::sio_ack()
 #endif
 }
 
-/**
-   sio COMPLETE
-*/
+// SIO COMPLETE
 void sioDevice::sio_complete()
 {
-    //delayMicroseconds(DELAY_T5);
     fnSystem.delay_microseconds(DELAY_T5);
-    //SIO_UART.write('C');
     fnUartSIO.write('C');
 #ifdef DEBUG
     Debug_println("COMPLETE!");
 #endif
 }
 
-/**
-   sio ERROR
-*/
+// SIO ERROR
 void sioDevice::sio_error()
 {
-    //delayMicroseconds(DELAY_T5);
     fnSystem.delay_microseconds(DELAY_T5);
-    //SIO_UART.write('E');
     fnUartSIO.write('E');
 #ifdef DEBUG
     Debug_println("ERROR!");
 #endif
 }
 
-// periodically handle the sioDevice in the loop()
-// how to capture command ID from the bus and hand off to the correct device? Right now ...
-// when we detect the CMD_PIN active low, we set the state machine to ID, start the command timer,
-// then if there's serial data, we go to sio_get_id() by way of sio_incoming().
-// then we check the ID and if it's right, we jump to COMMAND state, return and move on.
-// Also, during WAIT we toss UART data.
-//
-// so ...
-//
-// we move the CMD_PIN handling and sio_get_id() to the sioBus class, grab the ID, start the command timer,
-// then search through the daisyChain for a matching ID. Once we find an ID, we set it's sioDevice cmdState to COMMAND.
-// We change service() so it only reads the SIO_UART when cmdState != WAIT.
-// or rather, only call sioDevice->service() when sioDevice->state() != WAIT.
-// we never will call sio_incoming when there's a WAIT state.
-// need to figure out reseting cmdTimer when state goes to WAIT or there's a NAK
-// if no device is != WAIT, we toss the SIO_UART byte & set cmdTimer to 0.
-// Maybe we have a BUSY state for the sioBus that's an OR of all the cmdState != WAIT.
-//
-// todo: cmdTimer to sioBus, assign cmdState after finding device ID
-// when checking cmdState loop through devices?
-// make *activeDev when found device ID. call activeDev->sio_incoming() != nullPtr. otherwise toss UART.read
-// if activeDev->cmdState == WAIT then activeDev = mullPtr
-//
-// NEED TO GET device state machine out of the bus state machine
-// bus states: WAIT, ID, PROCESS
-// WAIT->ID when cmdFlag is set
-// ID->PROCESS when device # matches
-// bus->WAIT when timeout or when device->WAIT after a NAK or PROCESS
-// timeout occurs when a device is active and it's taking too long
-//
-// dev states inside of sioBus: ID, ACTIVE, WAIT
-// device no longer needs ID state - need to remove it from logic
-// WAIT -> ID - WHEN IRQ
-// ID - >ACTIVE when _devnum matches dn else ID -> WAIT
-// ACTIVE -> WAIT at timeout
-
-// now folding in MULTILATOR REV-2 logic
-// read all 5 bytes of cmdframe at once
-// checksum before passing off control to a device - checksum is now a helper function not part of a class
-// determine device ID and then copy tempframe into object cmdFrame, which can be done in most of sio_incoming
-// watchout because cmdFrame is accessible from sioBus through friendship, but it's a deadend because sioDevice isn't a real device
-// remove cmdTimer
-// left off on line 301 but need to call sio_process() line 268
-// put things in sioSetup
-
+/*
+ Periodically handle the sioDevice in the loop()
+ How to capture command ID from the bus and hand off to the correct device? Right now ...
+ When we detect the CMD_PIN active low, we set the state machine to ID, start the command timer,
+ then if there's serial data, we go to sio_get_id() by way of sio_incoming().
+ Then we check the ID and if it's right, we jump to COMMAND state, return and move on.
+ Also, during WAIT we toss UART data.
+ 
+ So ...
+ 
+ We move the CMD_PIN handling and sio_get_id() to the sioBus class, grab the ID, start the command timer,
+ then search through the daisyChain for a matching ID. Once we find an ID, we set it's sioDevice cmdState to COMMAND.
+ We change service() so it only reads the SIO_UART when cmdState != WAIT.
+ Or rather, only call sioDevice->service() when sioDevice->state() != WAIT.
+ We never will call sio_incoming when there's a WAIT state.
+ Need to figure out reseting cmdTimer when state goes to WAIT or there's a NAK
+ if no device is != WAIT, we toss the SIO_UART byte & set cmdTimer to 0.
+ Maybe we have a BUSY state for the sioBus that's an OR of all the cmdState != WAIT.
+ 
+ TODO: cmdTimer to sioBus, assign cmdState after finding device ID
+ when checking cmdState loop through devices?
+ make *activeDev when found device ID. call activeDev->sio_incoming() != nullPtr. otherwise toss UART.read
+ if activeDev->cmdState == WAIT then activeDev = mullPtr
+ 
+ NEED TO GET device state machine out of the bus state machine
+ bus states: WAIT, ID, PROCESS
+ WAIT->ID when cmdFlag is set
+ ID->PROCESS when device # matches
+ bus->WAIT when timeout or when device->WAIT after a NAK or PROCESS
+ timeout occurs when a device is active and it's taking too long
+ 
+ dev states inside of sioBus: ID, ACTIVE, WAIT
+ device no longer needs ID state - need to remove it from logic
+ WAIT -> ID - WHEN IRQ
+ ID - >ACTIVE when _devnum matches dn else ID -> WAIT
+ ACTIVE -> WAIT at timeout
+ 
+ now folding in MULTILATOR REV-2 logic
+ read all 5 bytes of cmdframe at once
+ checksum before passing off control to a device - checksum is now a helper function not part of a class
+ determine device ID and then copy tempframe into object cmdFrame, which can be done in most of sio_incoming
+ watchout because cmdFrame is accessible from sioBus through friendship, but it's a deadend because sioDevice isn't a real device
+ remove cmdTimer
+ left off on line 301 but need to call sio_process() line 268
+ put things in sioSetup
+*/
 void sioBus::service()
 {
 #ifdef ESP32
@@ -260,7 +223,6 @@ void sioBus::service()
         if (modemDev != nullptr && modemDev->modemActive)
         {
             modemDev->modemActive = false;
-            //SIO_UART.updateBaudRate(sioBaud);
 #ifdef DEBUG
             Debug_println("Modem was active - resetting SIO baud");
 #endif
@@ -279,16 +241,13 @@ void sioBus::service()
         tempFrame.cmdFrameData[3] = 0;
         tempFrame.cmdFrameData[4] = 0;
 
-        //SIO_UART.readBytes(tempFrame.cmdFrameData, 5);
         fnUartSIO.readBytes((uint8_t *)tempFrame.cmdFrameData, 5);
 #ifdef DEBUG
         Debug_printf("\n%s CF: %02x %02x %02x %02x %02x\n", fnSystem.get_uptime_str(),
                      tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
 #endif
         // Wait for CMD line to raise again
-        //while (digitalRead(PIN_CMD) == LOW)
-        //    yield();
-        while(fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+        while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
             fnSystem.yield();
 
         byte ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
@@ -321,14 +280,14 @@ void sioBus::service()
 #ifdef DEBUG
                     Debug_println("SIO TYPE3 POLL");
 #endif
-                    for (int i = 0; i < numDevices(); i++)
+                    for (auto devicep : daisyChain)
                     {
-                        if (device(i)->listen_to_type3_polls)
+                        if (devicep->listen_to_type3_polls)
                         {
 #ifdef DEBUG
-                            Debug_printf("Sending TYPE3 poll to dev %x\n", device(i)->_devnum);
+                            Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_devnum);
 #endif
-                            activeDev = device(i);
+                            activeDev = devicep;
                             for (int i = 0; i < 5; i++)
                                 activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
 
@@ -340,12 +299,11 @@ void sioBus::service()
                 {
                     // find device, ack and pass control
                     // or go back to WAIT
-                    // this is what sioBus::sio_get_id() does, but need to pass the tempFrame to it
-                    for (int i = 0; i < numDevices(); i++)
+                    for (auto devicep : daisyChain)
                     {
-                        if (tempFrame.devic == device(i)->_devnum)
+                        if (tempFrame.devic == devicep->_devnum)
                         {
-                            activeDev = device(i);
+                            activeDev = devicep;
                             for (int i = 0; i < 5; i++)
                                 activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
 #ifdef ESP8266
@@ -379,17 +337,8 @@ void sioBus::service()
     else
     {
         ledMgr.set(eLed::LED_SIO, false);
-        /*
-        a = SIO_UART.available();
-        if (a)
-            while (SIO_UART.available())
-                SIO_UART.read(); // dump it.
-        */
-        /*
-        while(fnUartSIO.available())
-            fnUartSIO.read();
-        */
-        if(fnUartSIO.available())
+
+        if (fnUartSIO.available())
             fnUartSIO.flush_input();
     }
 
@@ -401,93 +350,86 @@ void sioBus::service()
     }
 }
 
-// setup SIO bus
+// Setup SIO bus
 void sioBus::setup()
 {
 #ifdef DEBUG
     Debug_println("SIO SETUP");
 #endif
     // Set up serial
-    //SIO_UART.begin(sioBaud);
     fnUartSIO.begin(sioBaud);
 #ifdef ESP8266
     SIO_UART.swap();
 #endif
 
-    //pinMode(PIN_INT, OUTPUT);
     fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT);
-    //digitalWrite(PIN_INT, HIGH);
     fnSystem.digital_write(PIN_INT, DIGI_HIGH);
 
-    //pinMode(PIN_PROC, OUTPUT);
     fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT);
-    //digitalWrite(PIN_PROC, HIGH);
     fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
 
-    //pinMode(PIN_MTR, INPUT_PULLDOWN);
     fnSystem.set_pin_mode(PIN_MTR, (PINMODE_INPUT | PINMODE_PULLDOWN));
 
-    //pinMode(PIN_CMD, INPUT_PULLUP);
     fnSystem.set_pin_mode(PIN_CMD, (PINMODE_INPUT | PINMODE_PULLUP));
 
-    //pinMode(PIN_CKI, OUTPUT);
     fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
-    //digitalWrite(PIN_CKI, LOW);
     fnSystem.digital_write(PIN_CKI, DIGI_LOW);
 
 #ifdef ESP32
-    //pinMode(PIN_CKO, INPUT);
     fnSystem.set_pin_mode(PIN_CKO, PINMODE_INPUT);
-    //pinMode(PIN_CKI, OUTPUT);
 #endif
 }
 
-void sioBus::addDevice(sioDevice *p, int N)
+// Add device to SIO bus
+void sioBus::addDevice(sioDevice *pDevice, int device_id)
 {
-    if (N == 0x70)
+    if (device_id == SIO_DEVICEID_FUJINET)
     {
-        fujiDev = (sioFuji *)p;
+        fujiDev = (sioFuji *)pDevice;
     }
-    else if (N == ADDR_R)
+    else if (device_id == SIO_DEVICEID_RS232)
+    {
+        modemDev = (sioModem *)pDevice;
+    }
+    else if (device_id >= SIO_DEVICEID_FN_NETWORK && device_id <= SIO_DEVICEID_FN_NETWORK_LAST)
     {
 #ifdef DEBUG
-        Debug_println("MODEM ADDED!");
+        Debug_printf("NETWORK DEVICE 0x%02x ADDED!\n", device_id - SIO_DEVICEID_FN_NETWORK);
 #endif
-        modemDev = (sioModem *)p;
-    }
-    else if (N == 0x71 || N == 0x72 || N == 0x73 || N == 0x74 || N == 0x75 || N == 0x76 || N == 0x77 || N == 0x78)
-    {
-#ifdef DEBUG
-        Debug_printf("NETWORK DEVICE 0x%02x ADDED!\n", N - 0x71);
-#endif
-        netDev[N - 0x71] = (sioNetwork *)p;
+        netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (sioNetwork *)pDevice;
     }
 
-    p->_devnum = N;
-    daisyChain.add(p);
+    pDevice->_devnum = device_id;
+
+    daisyChain.push_front(pDevice);
 }
 
-bool sioBus::remDevice(sioDevice *p)
+// Removes device from the SIO bus.
+// Note that the destructor is called on the device!
+void sioBus::remDevice(sioDevice *p)
 {
-    int i = 0;
-    while (p != device(i))
-    {
-        i++;
-        if (i > numDevices())
-            return false;
-    }
-    daisyChain.remove(i);
-    return true;
+    daisyChain.remove(p);
 }
 
+// Should avoid using this as it requires counting through the list
 int sioBus::numDevices()
 {
-    return daisyChain.size();
+    int i = 0;
+    __BEGIN_IGNORE_UNUSEDVARS
+    for (auto devicep : daisyChain)
+        i++;
+    return i;
+    __END_IGNORE_UNUSEDVARS
 }
 
-sioDevice *sioBus::device(int i)
+sioDevice *sioBus::deviceById(int device_id)
 {
-    return daisyChain.get(i);
+    for (auto devicep : daisyChain)
+    {
+        if (devicep->_devnum == device_id)
+            return devicep;
+    }
+    return nullptr;
 }
 
 int sioBus::getBaudrate()

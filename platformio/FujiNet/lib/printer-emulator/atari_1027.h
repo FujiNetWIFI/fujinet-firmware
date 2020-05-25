@@ -1,6 +1,5 @@
 #ifndef ATARI_1027_H
 #define ATARI_1027_H
-#include <Arduino.h>
 
 #include "pdf_printer.h"
 
@@ -16,7 +15,7 @@ protected:
     void pdf_handle_char(byte c);
 
 public:
-    void initPrinter(FS *filesystem);
+    void initPrinter(FileSystem *fs);
     const char *modelname() { return "Atari 1027"; };
 };
 

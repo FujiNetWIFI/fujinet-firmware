@@ -4,15 +4,15 @@
 
 // TODO: Combine html_printer.cpp/h and file_printer.cpp/h
 
-void filePrinter::initPrinter(FS *filesystem)
+void filePrinter::initPrinter(FileSystem *fs)
 {
-    printer_emu::initPrinter(filesystem);
+    printer_emu::initPrinter(fs);
 }
 
 filePrinter::~filePrinter()
 {
 #ifdef DEBUG
-    Debug_println("~filePrinter");
+    //Debug_println("~filePrinter");
 #endif
 }
 
@@ -25,13 +25,13 @@ bool filePrinter::process(byte n)
     // Entire record contents are written, even data after the ATASCII_EOL
     case RAW:
         for (i = 0; i < n; i++)
-            _file.write(buffer[i]);
+            fputc(buffer[i], _file);
         break;
     // Everything up to and including the ATASCII_EOL is written without modification
     case TRIM:
         for (i = 0; i < n; i++)
          {
-            _file.write(buffer[i]);
+            fputc(buffer[i], _file);
             if (buffer[i] == ATASCII_EOL)
                 break;
          }
@@ -44,7 +44,7 @@ bool filePrinter::process(byte n)
          {
             if (buffer[i] == ATASCII_EOL)
             {
-                _file.print(ASCII_CRLF);
+                fputs(ASCII_CRLF, _file);
                 break;
             }
             // If it's an inverse character, convert to normal
@@ -52,7 +52,7 @@ bool filePrinter::process(byte n)
             // If it's a printable character, just copy it
             if(c >=32 && c <= 122 && c != 96)            
             {
-                _file.write(c);
+                fputc(c, _file);
             }
          }
     }

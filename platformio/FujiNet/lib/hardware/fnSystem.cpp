@@ -245,35 +245,33 @@ int SystemManager::get_sio_voltage()
 /*
 
 */
-size_t SystemManager::copy_file(FS *source_fs, const char *source_filename, FS *dest_fs, const char *dest_filename, size_t buffer_hint)
+size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filename, FileSystem *dest_fs, const char *dest_filename, size_t buffer_hint)
 {
     #ifdef DEBUG
     Debug_printf("copy_file \"%s\" -> \"%s\"\n", source_filename, dest_filename);
     #endif
 
-    File fin = source_fs->open(source_filename);
-    if(!fin)
+    FILE * fin = source_fs->file_open(source_filename);
+    if(fin == nullptr)
     {
         #ifdef DEBUG
         Debug_println("copy_file failed to open source");
         #endif
         return 0;
     }
-
     uint8_t *buffer = (uint8_t *) malloc(buffer_hint);
     if(buffer == NULL)
     {
         #ifdef DEBUG
         Debug_println("copy_file failed to allocate copy buffer");
         #endif
-        fin.close();
+        fclose(fin);
         return 0;
     }
 
     size_t result = 0;
-
-    File fout = dest_fs->open(dest_filename,"w");
-    if(!fout)
+    FILE * fout = dest_fs->file_open(dest_filename, "w");
+    if(fout == nullptr)
     {
         #ifdef DEBUG
         Debug_println("copy_file failed to open destination");
@@ -284,14 +282,14 @@ size_t SystemManager::copy_file(FS *source_fs, const char *source_filename, FS *
         size_t count = 0;
         do
         {
-            count = fin.read(buffer, buffer_hint);
-            result += fout.write(buffer, count);
+            count = fread(buffer, 1, buffer_hint, fin);
+            result += fwrite(buffer, 1, count, fout);
         } while (count > 0);
 
-        fout.close();
+        fclose(fout);
     }
 
-    fin.close();
+    fclose(fin);
     free(buffer);
 
     #ifdef DEBUG

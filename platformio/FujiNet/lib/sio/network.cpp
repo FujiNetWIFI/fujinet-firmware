@@ -1,9 +1,13 @@
+#include "../../include/debug.h"
+#include "fnSystem.h"
+#include "fnWiFi.h"
 #include "network.h"
 #include "networkProtocol.h"
 #include "networkProtocolTCP.h"
 #include "networkProtocolUDP.h"
 #include "networkProtocolHTTP.h"
 #include "networkProtocolTNFS.h"
+#include "networkProtocolFTP.h"
 
 // latch the rate limiting flag.
 void IRAM_ATTR onTimer()
@@ -84,6 +88,11 @@ bool sioNetwork::open_protocol()
         protocol = new networkProtocolTNFS();
         return true;
     }
+    else if (urlParser->scheme == "FTP")
+    {
+        protocol = new networkProtocolFTP();
+        return true;
+    }
     else
     {
         return false;
@@ -121,9 +130,18 @@ void sioNetwork::sio_open()
 
     sio_to_peripheral((byte *)&inp, sizeof(inp));
 
-    for (int i = 0; i < sizeof(inp); i++)
-        if ((inp[i] > 0x7F) || (inp[i] == ',') || (inp[i] == '*'))
-            inp[i] = 0x00;
+    if (cmdFrame.aux1 != 6)
+    {
+        for (int i = 0; i < sizeof(inp); i++)
+            if ((inp[i] > 0x7F) || (inp[i] == ',') || (inp[i] == '*'))
+                inp[i] = 0x00;
+    }
+    else
+    {
+        for (int i = 0; i < sizeof(inp); i++)
+            if ((inp[i] > 0x7F))
+                inp[i] = 0x00;
+    }
 
     if (prefix.length() > 0)
         deviceSpec = prefix + string(inp).substr(string(inp).find(":") + 1);
@@ -228,6 +246,10 @@ void sioNetwork::sio_close()
 void sioNetwork::sio_read()
 {
     sio_ack();
+
+    // Clean out RX buffer.
+    memset(rx_buf,0,INPUT_BUFFER_SIZE);
+
 #ifdef DEBUG
     Debug_printf("Read %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
 #endif
@@ -247,7 +269,7 @@ void sioNetwork::sio_read()
         {
             for (int i = 0; i < rx_buf_len; i++)
             {
-                switch (aux2&3)
+                switch (aux2 & 3)
                 {
                 case 1:
                     if (rx_buf[i] == 0x0D)
@@ -303,7 +325,7 @@ void sioNetwork::sio_write()
         {
             for (int i = 0; i < tx_buf_len; i++)
             {
-                switch (aux2&3)
+                switch (aux2 & 3)
                 {
                 case 1:
                     if (tx_buf[i] == 0x9B)
@@ -337,6 +359,40 @@ void sioNetwork::sio_write()
     }
 }
 
+void sioNetwork::sio_status_local()
+{
+    uint8_t ipAddress[4];
+    uint8_t ipNetmask[4];
+    uint8_t ipGateway[4];
+    uint8_t ipDNS[4];
+
+    fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
+    fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
+
+    switch (cmdFrame.aux2)
+    {
+    case 1: // IP Address
+        memcpy(status_buf.rawData, &ipAddress, sizeof(ipAddress));
+        break;
+    case 2: // Netmask
+        memcpy(status_buf.rawData, &ipNetmask, sizeof(ipNetmask));
+        break;
+    case 3: // Gateway
+        memcpy(status_buf.rawData, &ipGateway, sizeof(ipGateway));
+        break;
+    case 4: // DNS
+        memcpy(status_buf.rawData, &ipDNS, sizeof(ipDNS));
+        break;
+    default:
+        status_buf.rawData[0] =
+            status_buf.rawData[1] = 0;
+        status_buf.rawData[2] = WiFi.isConnected();
+        status_buf.rawData[3] = 1;
+        break;
+    }
+    Debug_printf("Output: %u.%u.%u.%u\n", status_buf.rawData[0], status_buf.rawData[1], status_buf.rawData[2], status_buf.rawData[3]);
+}
+
 void sioNetwork::sio_status()
 {
     sio_ack();
@@ -350,6 +406,7 @@ void sioNetwork::sio_status()
 
         status_buf.rawData[2] = WiFi.isConnected();
         err = false;
+        // sio_status_local();
     }
     else
     {
@@ -364,6 +421,7 @@ void sioNetwork::sio_status()
 // Process a SPECIAL sio command (not R,W,O,C,S)
 void sioNetwork::sio_special()
 {
+    Debug_printf("special.\n");
     err = false;
     if (cmdFrame.comnd == 0xFE) // Set Prefix
     {
@@ -379,26 +437,109 @@ void sioNetwork::sio_special()
         prefix = inp;
         sio_complete();
     }
-    else if (protocol == nullptr)
+    else if (cmdFrame.comnd == 0x2C) // CHDIR
     {
-        err = true;
-        status_buf.error = OPEN_STATUS_NOT_CONNECTED;
+        char inp[256];
+        Debug_printf("CHDIR\n");
+        string path;
+
+        sio_ack();
+        sio_to_peripheral((byte *)inp, 256);
+
+        for (int i = 0; i < 256; i++)
+            if (inp[i] == 0x9B)
+                inp[i] = 0x00;
+
+        path = inp;
+        path = path.substr(path.find_first_of(":") + 1);
+
+        if (path.empty())
+        {
+            prefix = "";
+            initial_prefix = "";
+        }
+        else if (path.find(":") != string::npos)
+        {
+            prefix = path;
+            initial_prefix = prefix;
+        }
+        else if (path[0] == '/')
+        {
+            prefix = initial_prefix;
+
+            if (prefix[prefix.length() - 1] == '/')
+                path = path.substr(1);
+            prefix += path;
+        }
+        else if (path == "..")
+        {
+            vector<int> pathLocations;
+            for (int i = 0; i < prefix.size(); i++)
+            {
+                if (prefix[i] == '/')
+                {
+                    pathLocations.push_back(i);
+                }
+            }
+
+            if (prefix[prefix.size()] == '/')
+            {
+                // Get rid of last path segment.
+                pathLocations.pop_back();
+            }
+            
+            // truncate to that location.
+            prefix = prefix.substr(0, pathLocations.back() + 1);
+        }
+        else
+        {
+            if (prefix[prefix.length() - 1] != '/')
+                prefix += "/";
+            prefix += path;
+        }
+
+        Debug_printf("NCD: %s\r\n", prefix.c_str());
+
+        sio_complete();
     }
+
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
-        byte ret;
+        byte ret = 0xFF;
+        Debug_printf("INQ\n");
         sio_ack();
-        if (protocol->special_supported_00_command(cmdFrame.aux1) ||
-            sio_special_supported_00_command(cmdFrame.aux1))
-            ret = 0x00;
-        else if (protocol->special_supported_40_command(cmdFrame.aux1) ||
-                 sio_special_supported_40_command(cmdFrame.aux1))
-            ret = 0x40;
-        else if (protocol->special_supported_80_command(cmdFrame.aux1) ||
-                 sio_special_supported_80_command(cmdFrame.aux1))
-            ret = 0x80;
+        if (protocol == nullptr)
+        {
+            if (sio_special_supported_00_command(cmdFrame.aux1))
+            {
+                ret = 0x00;
+            }
+            else if (sio_special_supported_40_command(cmdFrame.aux1))
+            {
+                ret = 0x40;
+            }
+            else if (sio_special_supported_80_command(cmdFrame.aux1))
+            {
+                ret = 0x80;
+            }
+            Debug_printf("Local Ret %d\n", ret);
+        }
         else
-            ret = 0xFF;
+        {
+            if (protocol->special_supported_00_command(cmdFrame.aux1))
+            {
+                ret = 0x00;
+            }
+            else if (protocol->special_supported_40_command(cmdFrame.aux1))
+            {
+                ret = 0x40;
+            }
+            else if (protocol->special_supported_80_command(cmdFrame.aux1))
+            {
+                ret = 0x80;
+            }
+            Debug_printf("Protocol Ret %d\n", ret);
+        }
         sio_to_computer(&ret, 1, false);
     }
     else if (sio_special_supported_00_command(cmdFrame.comnd))
@@ -432,8 +573,10 @@ void sioNetwork::sio_special()
         sio_special_protocol_80();
     }
 
-    if (err == true) // Unsupported command
+    if (err == true)
+    {
         sio_nak();
+    }
 
     // sio_completes() happen in sio_special_XX()
 }
@@ -452,16 +595,23 @@ bool sioNetwork::sio_special_supported_00_command(unsigned char c)
 // supported global network device commands that go Peripheral->Computer
 bool sioNetwork::sio_special_supported_40_command(unsigned char c)
 {
+    switch (c)
+    {
+    case 0x30: // ?DIR
+        return true;
+    }
     return false;
 }
 
 // supported global network device commands that go Computer->Peripheral
 bool sioNetwork::sio_special_supported_80_command(unsigned char c)
 {
-    switch(c)
+    switch (c)
     {
-        case 0xFE: // Set prefix
-            return true;
+    case 0x2C: // CHDIR
+        return true;
+    case 0xFE: // Set prefix
+        return true;
     }
     return false;
 }
@@ -481,19 +631,37 @@ void sioNetwork::sio_special_00()
 // For global commands with Peripheral->Computer payload
 void sioNetwork::sio_special_40()
 {
-    sio_to_computer(sp_buf, sp_buf_len, err);
+    char buf[256];
+
+    switch (cmdFrame.comnd)
+    {
+    case 0x30: // ?DIR
+        strcpy((char *)buf, prefix.c_str());
+        break;
+    }
+    Debug_printf("Read buf: %s\n", buf);
+    sio_to_computer((byte *)buf, 256, err); // size of DVSTAT
 }
 
 // For global commands with Computer->Peripheral payload
 void sioNetwork::sio_special_80()
 {
-    err = sio_to_peripheral(sp_buf, sp_buf_len);
+    err = sio_to_peripheral(sp_buf, 256);
+
+    for (int i = 0; i < 256; i++)
+        if (sp_buf[i] == 0x9b)
+            sp_buf[i] = 0x00;
+
+    if (err == true)
+        sio_error();
+    else
+        sio_complete();
 }
 
 // For commands with no payload.
 void sioNetwork::sio_special_protocol_00()
 {
-    if (!protocol->special(sp_buf, sp_buf_len, &cmdFrame))
+    if (!protocol->special(sp_buf, 0, &cmdFrame))
         sio_complete();
     else
         sio_error();
@@ -502,15 +670,24 @@ void sioNetwork::sio_special_protocol_00()
 // For commands with Peripheral->Computer payload
 void sioNetwork::sio_special_protocol_40()
 {
-    err = protocol->special(sp_buf, sp_buf_len, &cmdFrame);
+    err = protocol->special(sp_buf, 4, &cmdFrame);
     sio_to_computer(sp_buf, sp_buf_len, err);
 }
 
 // For commands with Computer->Peripheral payload
 void sioNetwork::sio_special_protocol_80()
 {
-    sio_to_peripheral(sp_buf, sp_buf_len);
+    sio_to_peripheral(sp_buf, 256);
+
+    for (int i = 0; i < 256; i++)
+        if (sp_buf[i] == 0x9b)
+            sp_buf[i] = 0x00;
+
     err = protocol->special(sp_buf, sp_buf_len, &cmdFrame);
+    if (err == true)
+        sio_error();
+    else
+        sio_complete();
 }
 
 void sioNetwork::sio_assert_interrupts()
@@ -518,19 +695,17 @@ void sioNetwork::sio_assert_interrupts()
     if (protocol != nullptr)
     {
         protocol->status(status_buf.rawData); // Prime the status buffer
-        if ((status_buf.rx_buf_len > 0) && (interruptRateLimit == true))
+        if (((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status)) && (interruptRateLimit == true))
         {
-            //digitalWrite(PIN_PROC, LOW);
             fnSystem.digital_write(PIN_PROC, DIGI_LOW);
-            //delayMicroseconds(50);
             fnSystem.delay_microseconds(50);
-            //digitalWrite(PIN_PROC, HIGH);
             fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
 
             portENTER_CRITICAL(&timerMux);
             interruptRateLimit = false;
             portEXIT_CRITICAL(&timerMux);
         }
+        previous_connection_status = status_buf.connection_status;
     }
 }
 

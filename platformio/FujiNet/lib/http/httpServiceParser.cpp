@@ -2,8 +2,7 @@
 #include <string>
 #include <cstdio>
 
-#include <SPIFFS.h>
-#include <SD.h>
+#include "../../include/debug.h"
 
 #include "httpServiceParser.h"
 
@@ -11,8 +10,8 @@
 
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
-
-
+#include "fnFsSPIF.h"
+#include "fnFsSD.h"
 
 using namespace std;
 
@@ -66,7 +65,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 
     stringstream resultstream;
     #ifdef DEBUG
-        Debug_printf("Substituting tag '%s'\n", tag.c_str());
+        //Debug_printf("Substituting tag '%s'\n", tag.c_str());
     #endif
 
     int tagid;
@@ -109,16 +108,16 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << fnWiFi.get_mac_str();
         break;
     case FN_SPIFFS_SIZE:
-        resultstream << SPIFFS.totalBytes();
+        resultstream << fnSPIFFS.total_bytes();
         break;
     case FN_SPIFFS_USED:
-        resultstream << SPIFFS.usedBytes();
+        resultstream << fnSPIFFS.used_bytes();
         break;
     case FN_SD_SIZE:
-        resultstream << SD.totalBytes();
+        resultstream << fnSDFAT.total_bytes();
         break;
     case FN_SD_USED:
-        resultstream << SD.usedBytes();
+        resultstream << fnSDFAT.used_bytes();
         break;
     case FN_UPTIME:
         resultstream << format_uptime();
@@ -136,14 +135,14 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << (float)fnSystem.get_sio_voltage()/1000.00 << "V";
         break;
     case FN_PRINTER1_MODEL:
-        resultstream << sioP.getPrinterPtr()->modelname();
+        resultstream << ((sioPrinter *)SIO.deviceById(SIO_DEVICEID_PRINTER))->getPrinterPtr()->modelname();
         break;
     default:
         resultstream << tag;
         break;
     }
     #ifdef DEBUG
-        Debug_printf("Substitution result: \"%s\"\n", resultstream.str().c_str());
+        // Debug_printf("Substitution result: \"%s\"\n", resultstream.str().c_str());
     #endif
     return resultstream.str();
 }
@@ -207,5 +206,5 @@ string fnHttpServiceParser::format_uptime()
     if (s % 60)
         resultstream << (s % 60) << " seconds";
 
-     return resultstream.str();
+    return resultstream.str();
 }

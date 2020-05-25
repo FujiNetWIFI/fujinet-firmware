@@ -22,7 +22,7 @@ private:
 
 
 public:
-    EventGroupHandle_t _wifi_event_group;
+    //EventGroupHandle_t _wifi_event_group;
     int retries;
 
     bool connected();
