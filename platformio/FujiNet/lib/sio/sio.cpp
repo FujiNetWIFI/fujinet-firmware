@@ -280,7 +280,7 @@ void sioBus::service()
 #ifdef DEBUG
                     Debug_println("SIO TYPE3 POLL");
 #endif
-                    for(auto devicep : daisyChain)
+                    for (auto devicep : daisyChain)
                     {
                         if (devicep->listen_to_type3_polls)
                         {
@@ -299,7 +299,7 @@ void sioBus::service()
                 {
                     // find device, ack and pass control
                     // or go back to WAIT
-                    for(auto devicep : daisyChain)
+                    for (auto devicep : daisyChain)
                     {
                         if (tempFrame.devic == devicep->_devnum)
                         {
@@ -415,18 +415,18 @@ void sioBus::remDevice(sioDevice *p)
 int sioBus::numDevices()
 {
     int i = 0;
-__BEGIN_IGNORE_UNUSEDVARS    
-    for(auto devicep : daisyChain)
+    __BEGIN_IGNORE_UNUSEDVARS
+    for (auto devicep : daisyChain)
         i++;
     return i;
-__END_IGNORE_UNUSEDVARS    
+    __END_IGNORE_UNUSEDVARS
 }
 
 sioDevice *sioBus::deviceById(int device_id)
 {
-    for(auto devicep : daisyChain)
+    for (auto devicep : daisyChain)
     {
-        if(devicep->_devnum == device_id)
+        if (devicep->_devnum == device_id)
             return devicep;
     }
     return nullptr;
