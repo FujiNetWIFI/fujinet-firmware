@@ -163,10 +163,8 @@ void atari1025::pdf_handle_char(byte c, byte aux1, byte aux2)
     }
 }
 
-void atari1025::initPrinter(FileSystem *fs)
+void atari1025::initPrinter()
 {
-    printer_emu::initPrinter(fs);
-
     shortname = "a1025";
 
     pageWidth = 612.0;

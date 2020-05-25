@@ -25,9 +25,9 @@ int AtasciiToStandardUnicode[128] =
     0, 0, 0, 9824, 9475, 8598, 9658, 9668             // 128
 };
 
-void htmlPrinter::initPrinter(FileSystem *fs)
+void htmlPrinter::initPrinter()
 {
-    printer_emu::initPrinter(fs);
+
 }
 
 htmlPrinter::~htmlPrinter()

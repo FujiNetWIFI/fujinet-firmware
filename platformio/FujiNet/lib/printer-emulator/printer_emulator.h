@@ -2,6 +2,8 @@
 #define PRINTER_EMU_H
 #include <Arduino.h>
 
+#include "../../include/atascii.h"
+
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
 
@@ -28,31 +30,30 @@ class printer_emu
 protected:
     FileSystem *_FS = nullptr;
     FILE * _file = nullptr;
+    paper_t _paper_type;
+
     byte buffer[40];
-    paper_t paperType;
 
     // executed after a new printer output file is created
-    virtual void post_new_file() {};
+    virtual void post_new_file()=0;
+
     // executed before a printer output file is closed and prepared for reading
-    virtual void pre_page_eject() {};
+    virtual void pre_close_file()=0;
     
     virtual bool process_buffer(byte linelen, byte aux1, byte aux2)=0;
 
     size_t copy_file_to_output(const char *filename);
 
 public:
-    printer_emu(FileSystem *fs, paper_t ty = RAW) : _FS(fs), paperType(ty) {};
     // Destructor must be virtual to allow for proper cleanup of derived classes
     virtual ~printer_emu() = 0;
 
-    //void copyChar(byte c, byte n);
-    virtual void initPrinter();
+    void initPrinter(FileSystem *fs, paper_t ptype = RAW);
+
     virtual void pageEject() = 0;
     bool process(byte linelen, byte aux1, byte aux2);
 
-
-
-    paper_t getPaperType() { return paperType; };
+    paper_t getPaperType() { return _paper_type; };
 
     byte *provideBuffer() { return buffer; };
 
@@ -67,11 +68,4 @@ public:
 
 };
 
-// close flush output file
-// void sioPrinter::flushOutput()
-// {
-//     _file.flush();
-//     _file.seek(0);
-// }
-
-#endif
+#endif // PRINTER_EMU_H

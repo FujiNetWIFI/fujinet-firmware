@@ -1,6 +1,5 @@
 #ifndef ATARI_1020_H
 #define ATARI_1020_H
-#include <Arduino.h>
 
 #include "pdf_printer.h"
 

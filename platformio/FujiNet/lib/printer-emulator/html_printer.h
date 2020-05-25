@@ -13,8 +13,8 @@ protected:
     virtual void pre_page_eject() override;
 
 public:
-    htmlPrinter(paper_t ty = HTML) : printer_emu{ty} {};
-    virtual void initPrinter(FileSystem *fs);
+    htmlPrinter(FileSystem *fs, paper_t ty = HTML) : printer_emu{fs, ty} {};
+    virtual void initPrinter();
     virtual void pageEject();
     virtual bool process(byte linelen, byte aux1, byte aux2);
 

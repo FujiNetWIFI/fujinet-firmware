@@ -6,7 +6,7 @@
 #define PRINTER_OUTFILE "/paper"
 
 // initialzie printer by creating an output file
-void printer_emu::initPrinter()
+void printer_emu::initPrinter(FileSystem *fs, paper_t ptype = RAW)
 {
     resetOutput();
 }
@@ -87,7 +87,7 @@ void printer_emu::pageEject()
 
     _file = _FS->file_open(PRINTER_OUTFILE, "a"); // Append
 
-    pre_page_eject();
+    pre_close_file();
     
     fflush(_file);
     fseek(_file, 0, SEEK_SET);

@@ -15,7 +15,7 @@ protected:
 
 public:
     //atari822(sioPrinter *P) { my_sioP = P; }
-    virtual void initPrinter(FileSystem *fs);
+    virtual void initPrinter();
     const char *modelname() { return "Atari 822"; };
 
     //void setDevice(sioPrinter *P) { my_sioP = P; };

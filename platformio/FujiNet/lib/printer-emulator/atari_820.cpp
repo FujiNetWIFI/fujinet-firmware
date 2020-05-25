@@ -1,9 +1,7 @@
 #include "atari_820.h"
 
-void atari820::initPrinter(FileSystem *fs)
+void atari820::post_new_file()
 {
-    printer_emu::initPrinter(fs);
-
     shortname = "a820";
 
     pageWidth = 279.0;  // paper roll is 3 7/8" from page 6 of owners manual

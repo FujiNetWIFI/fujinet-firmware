@@ -386,10 +386,8 @@ void pngPrinter::png_end()
     fwrite(end, 1, 12, _file);
 }
 
-void pngPrinter::initPrinter(FileSystem *fs)
+void pngPrinter::initPrinter()
 {
-    printer_emu::initPrinter(fs);
-
     // call PNG header routines
     png_signature();
     png_header();
