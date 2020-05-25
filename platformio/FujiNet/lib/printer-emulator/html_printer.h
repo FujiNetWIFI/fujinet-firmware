@@ -16,7 +16,7 @@ public:
     htmlPrinter(paper_t ty = HTML) : printer_emu{ty} {};
     virtual void initPrinter(FileSystem *fs);
     virtual void pageEject();
-    virtual bool process(byte n);
+    virtual bool process(byte linelen, byte aux1, byte aux2);
 
     virtual const char * modelname() { 
         return paperType == HTML ? "HTML printer" : "HTML ATASCII printer"; };

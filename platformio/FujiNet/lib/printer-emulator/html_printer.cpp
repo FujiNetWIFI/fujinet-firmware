@@ -37,7 +37,7 @@ htmlPrinter::~htmlPrinter()
 #endif
 }
 
-bool htmlPrinter::process(byte n)
+bool htmlPrinter::process(byte n, byte aux1, byte aux2)
 {
     int i = 0;
     

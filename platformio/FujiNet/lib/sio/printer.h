@@ -14,7 +14,7 @@ class sioPrinter : public sioDevice
 protected:
     // SIO THINGS
     byte _buffer[40];
-    void sio_write();
+    void sio_write(byte aux1, byte aux2);
     void sio_status();
     void sio_process();
 
@@ -22,10 +22,13 @@ protected:
     FileSystem *_storage = nullptr;
 
     time_t _last_ms;
+    byte _lastaux1;
+    byte _lastaux2;
 
 public:
     // Temporary cheat - _lastAux1 should be private or protected...
-    byte _lastAux1 = 0;
+    //byte _lastAux1;
+    //byte _lastAux2;
 
     // todo: reconcile printer_type with paper_t
     enum printer_type

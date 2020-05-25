@@ -10,7 +10,7 @@ public:
     filePrinter(paper_t ty = TRIM) : printer_emu{ty} {};
     virtual void initPrinter(FileSystem *fs);
     virtual void pageEject();
-    virtual bool process(byte n);
+    virtual bool process(byte linelen, byte aux1, byte aux2);
 
     virtual const char * modelname() 
     {

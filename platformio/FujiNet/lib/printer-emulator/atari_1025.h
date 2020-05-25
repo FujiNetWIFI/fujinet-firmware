@@ -13,7 +13,7 @@ protected:
     bool shortFlag = false;
     bool escMode = false;
 
-    void pdf_handle_char(byte c);
+    void pdf_handle_char(byte c, byte aux1, byte aux2);
 
 public:
     void initPrinter(FileSystem *fs);

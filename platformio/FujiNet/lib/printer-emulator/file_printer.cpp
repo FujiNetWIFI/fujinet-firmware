@@ -16,7 +16,7 @@ filePrinter::~filePrinter()
 #endif
 }
 
-bool filePrinter::process(byte n)
+bool filePrinter::process(byte n, byte aux1, byte aux2)
 {
     int i;
 

@@ -1,7 +1,7 @@
 #include "atari_1025.h"
 #include "../../include/debug.h"
 
-void atari1025::pdf_handle_char(byte c)
+void atari1025::pdf_handle_char(byte c, byte aux1, byte aux2)
 {
     if (escMode)
     {

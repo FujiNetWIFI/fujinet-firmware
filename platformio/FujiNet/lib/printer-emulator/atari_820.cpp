@@ -21,19 +21,19 @@ void atari820::initPrinter(FileSystem *fs)
     pdf_header();
 }
 
-void atari820::pdf_handle_char(byte c)
+void atari820::pdf_handle_char(byte c, byte aux1, byte aux2)
 {
     // Atari 820 modes:
     // aux1 == 40   normal mode
     // aux1 == 29   sideways mode
-    if (my_sioP->_lastAux1 == 'N' && sideFlag)
+    if (aux1 == 'N' && sideFlag)
     {
-        fprintf(_file,")]TJ\n/F1 12 Tf [(");
+        fprintf(_file, ")]TJ\n/F1 12 Tf [(");
         fontNumber = 1;
         fontSize = 12;
         sideFlag = false;
     }
-    else if (my_sioP->_lastAux1 == 'S' && !sideFlag)
+    else if (aux1 == 'S' && !sideFlag)
     {
         fprintf(_file, ")]TJ\n/F2 12 Tf [(");
         fontNumber = 2;
