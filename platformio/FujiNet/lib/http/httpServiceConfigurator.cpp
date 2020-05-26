@@ -10,7 +10,7 @@
 
 #include "httpServiceConfigurator.h"
 #include "config.h"
-#include "printer.h"
+#include "printerlist.h"
 
 // TODO: This was copied from another source and needs some bounds-checking!
 char* fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
@@ -82,7 +82,7 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
                 Debug_printf("key=\"%s\"\n", sKey.c_str());
                 #endif
             
-                iVal = ++i;
+                iVal = i+1;
                 s = STATE_SEARCH_ENDVALUE;
             }
             break;
@@ -107,36 +107,70 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
     return results;
 }
 
-void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::string printermodel)
+void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::string printermodel, std::string printerport)
 {
 
     // Take the last char in the 'printernumber' string and turn it into a digit
     int pn = 1;
     char pc = printernumber[printernumber.length()-1];
 
-    if(pc >= '1' && pc <= '9')
+    if(pc >= '0' && pc <= '9')
         pn = pc - '0';
 
     // Only handle 1 printer for now
     if(pn != 1)
-        return;
-    
-    sioPrinter::printer_type t = sioPrinter::match_modelname(printermodel);
-    if(t == sioPrinter::printer_type::PRINTER_INVALID)
     {
-#ifdef DEBUG
-        Debug_printf("Unknown printer type: \"%s\"\n", printermodel.c_str());
-#endif    
+        #ifdef DEBUG
+        Debug_printf("config_printer invalid printer %d\n", pn);
+        #endif
         return;
     }
 
-    // Finally, change the printer type!
-    Config.store_printer(0, t);
-    Config.save();
+    if(printerport.empty())
+    {
+        sioPrinter::printer_type t = sioPrinter::match_modelname(printermodel);
+        if(t == sioPrinter::printer_type::PRINTER_INVALID)
+        {
+            #ifdef DEBUG
+            Debug_printf("Unknown printer type: \"%s\"\n", printermodel.c_str());
+            #endif    
+            return;
+        }
+        #ifdef DEBUG
+        Debug_printf("config_printer changing printer %d type to %d\n", pn, t);
+        #endif
+        // Store our change in Config
+        Config.store_printer_type(pn - 1, t);
+        // Store our change in the printer list
+        fnPrinters.set_type(0, t);
+        // Tell the printer to change its type
+        fnPrinters.get_ptr(0)->set_printer_type(t);
+    }
+    else
+    {
+        int port = -1;
+        pc = printerport[0];
+        if(pc >= '0' && pc <= '9')
+            port = pc - '1';
 
-    // Get a pointer to the current (only) printer
-    sioPrinter *printer = (sioPrinter *)SIO.deviceById(SIO_DEVICEID_PRINTER);
-    printer->set_printer_type(t);
+        if(port < 0 || port > 3) 
+        {
+            #ifdef DEBUG
+            Debug_printf("Bad printer port number: %d\n", port);
+            #endif
+            return;
+        }
+        #ifdef DEBUG
+        Debug_printf("config_printer changing printer %d port to %d\n", pn, port);
+        #endif
+        // Store our change in Config        
+        Config.store_printer_port(pn - 1 , port);
+        // Store our change in the printer list
+        fnPrinters.set_port(0, port);
+        // Tell the SIO daisy chain to change the device ID for this printer
+        SIO.changeDeviceId(fnPrinters.get_ptr(0), SIO_DEVICEID_PRINTER + port);
+    }
+    Config.save();
 }
 
 int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t postlen)
@@ -156,7 +190,11 @@ int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t
     {
         if(i->first.compare("printermodel1") == 0)
         {
-            config_printer(i->first, i->second);
+            config_printer(i->first, i->second, std::string());
+        }
+        if(i->first.compare("printerport1") == 0)
+        {
+            config_printer(i->first, std::string(), i->second);
         }
 
     }

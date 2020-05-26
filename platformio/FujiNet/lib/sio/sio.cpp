@@ -422,6 +422,15 @@ int sioBus::numDevices()
     __END_IGNORE_UNUSEDVARS
 }
 
+void sioBus::changeDeviceId(sioDevice *p, int device_id)
+{
+    for (auto devicep : daisyChain)
+    {
+        if (devicep == p)
+            devicep->_devnum = device_id;
+    }
+}
+
 sioDevice *sioBus::deviceById(int device_id)
 {
     for (auto devicep : daisyChain)
