@@ -20,8 +20,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
 #include "sio.h"
 #include "disk.h"
-//#include "tnfs.h"
-#include "printer.h"
+//#include "printer.h"
 #include "modem.h"
 #include "fuji.h"
 #include "apetime.h"
@@ -32,8 +31,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "config.h"
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
-
-//#include <WiFiUdp.h>
+#include "printerlist.h"
 
 #ifdef ESP8266
 #include <FS.h>
@@ -158,10 +156,12 @@ void setup()
     if(ptype == sioPrinter::printer_type::PRINTER_INVALID)
         ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
     #ifdef DEBUG
-        Debug_printf("Creating a default printer using %s storage and %d type\n", ptrfs->typestring(), ptype);
+        Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
     #endif        
     sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
-    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER); // P:
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
 

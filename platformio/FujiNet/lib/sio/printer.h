@@ -7,8 +7,6 @@
 #include "printer_emulator.h"
 #include "fnFS.h"
 
-class sioPrinter;
-
 class sioPrinter : public sioDevice
 {
 protected:
@@ -44,6 +42,7 @@ public:
     };
     
     sioPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
+    ~sioPrinter();
 
     static printer_type match_modelname(std::string model_name);
     void set_printer_type(printer_type printer_type);

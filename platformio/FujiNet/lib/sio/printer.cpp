@@ -16,6 +16,11 @@
 #define SIO_PRINTERCMD_WRITE 0x57
 #define SIO_PRINTERCMD_STATUS 0x53
 
+sioPrinter::~sioPrinter()
+{
+    delete _pptr;
+}
+
 // write for W commands
 void sioPrinter::sio_write(byte aux1, byte aux2)
 {

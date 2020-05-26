@@ -6,7 +6,8 @@
 
 #include "httpServiceParser.h"
 
-#include "printer.h"
+//#include "printer.h"
+#include "printerlist.h"
 
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
@@ -37,6 +38,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_SYSCPUREV,
         FN_SIOVOLTS,
         FN_PRINTER1_MODEL,
+        FN_PRINTER1_PORT,
         FN_LASTTAG
     };
 
@@ -60,7 +62,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_SYSSDK",
         "FN_SYSCPUREV",
         "FN_SIOVOLTS",
-        "FN_PRINTER1_MODEL"
+        "FN_PRINTER1_MODEL",
+        "FN_PRINTER1_PORT"
     };
 
     stringstream resultstream;
@@ -135,7 +138,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << (float)fnSystem.get_sio_voltage()/1000.00 << "V";
         break;
     case FN_PRINTER1_MODEL:
-        resultstream << ((sioPrinter *)SIO.deviceById(SIO_DEVICEID_PRINTER))->getPrinterPtr()->modelname();
+        resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
+        break;
+    case FN_PRINTER1_PORT:
+        resultstream << (fnPrinters.get_port(0) + 1);
         break;
     default:
         resultstream << tag;
