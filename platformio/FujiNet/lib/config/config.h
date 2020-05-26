@@ -33,7 +33,9 @@ public:
     mount_mode_t mount_mode_from_string(const char *str);
 
     sioPrinter::printer_type get_printer_type(uint8_t num);
-    void store_printer(uint8_t num, sioPrinter::printer_type ptype);
+    int get_printer_port(uint8_t num);
+    void store_printer_type(uint8_t num, sioPrinter::printer_type ptype);
+    void store_printer_port(uint8_t num, int port);
 
     std::string get_wifi_ssid() { return _wifi.ssid; };
     std::string get_wifi_passphrase() { return _wifi.passphrase; };
@@ -100,6 +102,7 @@ private:
     struct printer_info
     {
         sioPrinter::printer_type type = sioPrinter::printer_type::PRINTER_INVALID;
+        int port = 0;
     };
 
 /*

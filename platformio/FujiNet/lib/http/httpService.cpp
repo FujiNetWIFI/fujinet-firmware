@@ -12,7 +12,7 @@
 #include "httpService.h"
 #include "httpServiceParser.h"
 #include "httpServiceConfigurator.h"
-#include "printer.h"
+#include "printerlist.h"
 #include "fnWiFi.h"
 
 #include "../../include/debug.h"
@@ -253,7 +253,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 
     time_t now = fnSystem.millis();
     // Get a pointer to the current (only) printer
-    sioPrinter *printer = (sioPrinter *)SIO.deviceById(SIO_DEVICEID_PRINTER);
+    sioPrinter *printer = (sioPrinter *)fnPrinters.get_ptr(0);
 
     if (now - printer->lastPrintTime() < PRINTER_BUSY_TIME)
     {
