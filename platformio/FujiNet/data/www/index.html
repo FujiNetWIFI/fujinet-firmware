@@ -115,7 +115,7 @@ SPIFFS storage free/used
 	<td>
 		<a href="/print"><img src="/file?printer.svg" class="printer"></a>
 	</td>
-	<td class="printform">
+	<td class="printform small">
 		<form action="/config" method="post">
 			<select name="printermodel1" id="select_printermodel1">
 				<option value="file printer (RAW)">file printer (RAW)</option>
@@ -132,11 +132,20 @@ SPIFFS storage free/used
 			</select>
 			<input type="submit" value="Change">
 		</form>
+		<br />Change printer port:
+		<form action="/config" method="post">
+			<select name="printerport1" id="select_printerport1">
+				<option value="1">P1:</option>
+				<option value="2">P2:</option>
+				<option value="3">P3:</option>
+			</select>
+			<input type="submit" value="Change">
+		</form>
 	</td>
 </tr>
 <tr>
 	<td class="small">
-		Current printer type: <%FN_PRINTER1_MODEL%>
+		Current: <%FN_PRINTER1_MODEL%> on P<%FN_PRINTER1_PORT%>:
 	</td>
 	<td>
 	</td>
@@ -144,6 +153,7 @@ SPIFFS storage free/used
 </table>
 <script>
 	var current_printer="<%FN_PRINTER1_MODEL%>";
+	var current_printerport="<%FN_PRINTER1_PORT%>";
 </script>
 <script type="text/javascript" src="/file?selectedprinter.js"></script>
 
