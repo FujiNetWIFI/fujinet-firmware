@@ -88,7 +88,7 @@ void epson80::pdf_handle_char(byte c)
         }
         else if (epson_cmd.ctr == 3)
         {
-            epson_cmd.N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & 0x07));
+            epson_cmd.N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & (byte)0x07));
 #ifdef DEBUG
             Debug_printf("N: %d\n", epson_cmd.N);
 #endif
@@ -248,14 +248,14 @@ void epson80::pdf_handle_char(byte c)
                 switch (epson_cmd.cmd)
                 {
                 case 'K':
-                    charWidth = 1.2;
+                   charWidth = 1.2;
                     break;
                 case 'L': // Sets dot graphics mode to 960 dots per 8" line
                 case 'Y': // on FX-80 this is double speed but with gotcha
-                    charWidth = 0.6;
+                   charWidth = 0.6;
                     break;
                 case 'Z': // on FX-80 this is double speed but with gotcha
-                    charWidth = 0.3;
+                   charWidth = 0.3;
                     break;
                 }
                 fprintf(_file, ")]TJ /F2 9 Tf 100 Tz [("); // set font to GFX mode
@@ -268,7 +268,6 @@ void epson80::pdf_handle_char(byte c)
                 switch (epson_cmd.cmd)
                 {
                 case 'K':
-                    //fprintf(_file, ")");
                     break;
                 case 'L': // Sets dot graphics mode to 960 dots per 8" line
                 case 'Y': // on FX-80 this is double speed but with gotcha
@@ -282,7 +281,7 @@ void epson80::pdf_handle_char(byte c)
                 if (epson_cmd.ctr == (epson_cmd.N + 2))
                 {
                     // reset font
-                    epson_set_font(fontNumber, charWidth);
+                    epson_set_font(1, 7.2);
                     textMode = true;
                     reset_cmd();
 #ifdef DEBUG
@@ -426,7 +425,7 @@ void epson80::pdf_handle_char(byte c)
             One quirk in using the backspace. In expanded mode, CHR$(8) causes a full double
             width backspace as we would expect. The fun begins when several backspaces
             are done in succession. All except for the first one are normal-width backspaces */
-            fprintf(_file, ")%d(", (int)(charWidth / lineHeight * 1000.0));
+            fprintf(_file, ")%d(", (int)(charWidth / lineHeight * 900.));
             pdf_X -= charWidth; // update x position
             break;
         case 9: // Horizontal Tabulation. Print head moves to next tab stop
