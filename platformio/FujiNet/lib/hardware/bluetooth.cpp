@@ -1,4 +1,3 @@
-//#include <Arduino.h>
 #include "../../include/debug.h"
 #include "bluetooth.h"
 #include "../sio/sio.h"

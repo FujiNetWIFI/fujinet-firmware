@@ -1,4 +1,3 @@
-//#include <Arduino.h>
 #include <cstring>
 #include "led.h"
 #include "fnSystem.h"

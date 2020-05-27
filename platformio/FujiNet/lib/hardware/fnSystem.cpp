@@ -4,6 +4,8 @@
 #include <esp_system.h>
 #include <esp_timer.h>
 #include <driver/gpio.h>
+#include <driver/dac.h>
+#include "soc/sens_reg.h"
 
 #include "../../include/debug.h"
 #include "../../include/version.h"
@@ -297,4 +299,47 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
     #endif
 
     return result;
+}
+
+
+// From esp32-hal-dac.c
+void IRAM_ATTR SystemManager::dac_write(uint8_t pin, uint8_t value)
+{
+    if(pin < 25 || pin > 26){
+        return;//not dac pin
+    }
+    pinMode(pin, ANALOG);
+    uint8_t channel = pin - 25;
+
+    //Disable Tone
+    CLEAR_PERI_REG_MASK(SENS_SAR_DAC_CTRL1_REG, SENS_SW_TONE_EN);
+
+    if (channel) {
+        //Disable Channel Tone
+        CLEAR_PERI_REG_MASK(SENS_SAR_DAC_CTRL2_REG, SENS_DAC_CW_EN2_M);
+        //Set the Dac value
+        SET_PERI_REG_BITS(RTC_IO_PAD_DAC2_REG, RTC_IO_PDAC2_DAC, value, RTC_IO_PDAC2_DAC_S);   //dac_output
+        //Channel output enable
+        SET_PERI_REG_MASK(RTC_IO_PAD_DAC2_REG, RTC_IO_PDAC2_XPD_DAC | RTC_IO_PDAC2_DAC_XPD_FORCE);
+    } else {
+        //Disable Channel Tone
+        CLEAR_PERI_REG_MASK(SENS_SAR_DAC_CTRL2_REG, SENS_DAC_CW_EN1_M);
+        //Set the Dac value
+        SET_PERI_REG_BITS(RTC_IO_PAD_DAC1_REG, RTC_IO_PDAC1_DAC, value, RTC_IO_PDAC1_DAC_S);   //dac_output
+        //Channel output enable
+        SET_PERI_REG_MASK(RTC_IO_PAD_DAC1_REG, RTC_IO_PDAC1_XPD_DAC | RTC_IO_PDAC1_DAC_XPD_FORCE);
+    }
+}
+
+esp_err_t SystemManager::dac_output_disable(dac_channel_t channel)
+{
+    return ::dac_output_disable((::dac_channel_t)channel);
+}
+esp_err_t SystemManager::dac_output_enable(dac_channel_t channel)
+{
+    return ::dac_output_enable((::dac_channel_t)channel);
+}
+esp_err_t SystemManager::dac_output_voltage(dac_channel_t channel, uint8_t dac_value)
+{
+    return ::dac_output_voltage((::dac_channel_t)channel, dac_value);
 }

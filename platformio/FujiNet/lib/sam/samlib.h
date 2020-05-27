@@ -1,7 +1,3 @@
-#ifdef ESP_32
-//#include <Arduino.h>
-#endif
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -17,7 +13,7 @@
 #endif
 
 #ifdef ESP_32
-#define DAC1 25
+#define PIN_DAC1 25
 #endif
 
 #ifdef __cplusplus
