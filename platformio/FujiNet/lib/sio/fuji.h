@@ -1,23 +1,16 @@
 #ifndef FUJI_H
 #define FUJI_H
 #include <cstdint>
-//#include <Arduino.h>
-#include "../../include/debug.h"
 
+#include "../../include/debug.h"
 #include "sio.h"
 #include "disk.h"
 #include "network.h"
-// #include "tnfs.h"
 #include "fujiFsMounter.h"
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
 #include <FS.h>
 #endif
-#ifdef ESP32
-//#include <WiFi.h>
-//#include <SPIFFS.h>
-#endif
-//#include <SD.h>
 
 #define MAX_FILESYSTEMS 8
 #define MAX_DISK_DEVICES 8

@@ -1,12 +1,11 @@
 #ifndef FILE_PRINTER_H
 #define FILE_PRINTER_H
-//#include <Arduino.h>
 
 #include "printer_emulator.h"
 
 class filePrinter : public printer_emu
 {
-    virtual bool process_buffer(byte linelen, byte aux1, byte aux2);
+    virtual bool process_buffer(uint8_t linelen, uint8_t aux1, uint8_t aux2);
     virtual void post_new_file() {};
     virtual void pre_close_file() {};
 

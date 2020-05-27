@@ -1,9 +1,7 @@
 #ifndef DISK_H
 #define DISK_H
-//#include <Arduino.h>
 
 #include "sio.h"
-//#include <FS.h>
 
 extern int command_frame_counter;
 

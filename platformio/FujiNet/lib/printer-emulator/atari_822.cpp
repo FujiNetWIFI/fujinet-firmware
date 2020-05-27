@@ -18,7 +18,7 @@ void atari822::post_new_file()
     pdf_header();
 }
 
-void atari822::pdf_handle_char(byte c, byte aux1, byte aux2)
+void atari822::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
     // use PDF inline image to display line of graphics
     /*

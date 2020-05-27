@@ -1,8 +1,5 @@
 #ifndef PNG_PRINTER_H
 #define PNG_PRINTER_H
-//#include <Arduino.h>
-//#include <stdio.h>
-//#include <stdint.h>
 
 #include "printer_emulator.h"
 
@@ -45,7 +42,7 @@ protected:
 
     virtual void post_new_file() override;
     virtual void pre_close_file() override;
-    virtual bool process_buffer(byte linelen, byte aux1, byte aux2);
+    virtual bool process_buffer(uint8_t linelen, uint8_t aux1, uint8_t aux2);
 public:
     pngPrinter() { _paper_type = PNG;};
     const char *modelname() { return "GRANTIC"; };

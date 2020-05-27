@@ -5,7 +5,7 @@
 // TODO: Combine html_printer.cpp/h and file_printer.cpp/h
 
 
-bool filePrinter::process_buffer(byte n, byte aux1, byte aux2)
+bool filePrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 {
     int i;
 
