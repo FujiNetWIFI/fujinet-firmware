@@ -294,7 +294,7 @@ void pdfPrinter::pdf_xref()
     fprintf(_file, "%%%%EOF\n");
 }
 
-bool pdfPrinter::process_buffer(byte n, byte aux1, byte aux2)
+bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 {
     /**
      * idea for 850-connected printers. The 850 translates EOL to CR.
@@ -337,7 +337,7 @@ bool pdfPrinter::process_buffer(byte n, byte aux1, byte aux2)
      * 
     */
     int i = 0;
-    byte c;
+    uint8_t c;
 
 #ifdef DEBUG
     Debug_printf("Processing %d chars\n", n);

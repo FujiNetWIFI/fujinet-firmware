@@ -836,10 +836,16 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
 
     if (_tnfs_transaction(m_info, packet, len + 1))
     {
+__BEGIN_IGNORE_UNUSEDVARS
         if(packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
+
             uint16_t filemode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILEMODE);
             filestat->isDir = (filemode & S_IFDIR) ? true : false;
+
+            uint16_t uid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_UID);
+            uint16_t gid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_GID);
+
 
             filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILESIZE);
 
@@ -848,10 +854,14 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
             filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_CTIME);
 
             #ifdef DEBUG
-            //Debug_printf("\tdir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", filestat->isDir ? 1 : 0,
-            //    filestat->filesize, filestat->a_time, filestat->m_time, filestat->c_time );
+            /*
+            Debug_printf("\ttnfs_stat: mode: %ho, uid: %hu, gid: %hu, dir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", 
+                filemode, uid, gid,
+                filestat->isDir ? 1 : 0, filestat->filesize, filestat->a_time, filestat->m_time, filestat->c_time );
+            */
             #endif
         }
+__END_IGNORE_UNUSEDVARS
         return packet.payload[0];
     }
     return -1;

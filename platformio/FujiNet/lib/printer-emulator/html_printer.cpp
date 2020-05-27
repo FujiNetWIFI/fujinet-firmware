@@ -25,7 +25,7 @@ int AtasciiToStandardUnicode[128] =
     0, 0, 0, 9824, 9475, 8598, 9658, 9668             // 128
 };
 
-bool htmlPrinter::process_buffer(byte n, byte aux1, byte aux2)
+bool htmlPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 {
     int i = 0;
     

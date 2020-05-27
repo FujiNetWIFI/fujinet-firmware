@@ -1,7 +1,5 @@
-// Arudino needed for CONFIGTIME
-#include <Arduino.h>
-//#include <WiFiUdp.h>
 #include "../tcpip/fnUDP.h"
+#include "../tcpip/fnSNTP.h"
 
 #include "apetime.h"
 
@@ -69,7 +67,7 @@ void sioApeTime::sio_time()
     time_t txTim;
     tm *now;
     
-    configTime(tz.gmt,tz.dst,"pool.ntp.org");
+    config_time(tz.gmt,tz.dst,"pool.ntp.org");
 
     memset(&ntpdata.rawData, 0, sizeof(ntpdata.rawData));
     ntpdata.ntp_packet.li_vn_mode = 0x1b;
@@ -81,7 +79,7 @@ void sioApeTime::sio_time()
     udp.write(ntpdata.rawData, sizeof(ntpdata.rawData));
     udp.endPacket();
 
-    delay(100);
+    fnSystem.delay(100);
 
     if (udp.parsePacket())
     {
