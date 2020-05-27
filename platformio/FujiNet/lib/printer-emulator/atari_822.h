@@ -10,7 +10,7 @@ protected:
     int gfxNumber = 0;
 
     virtual void post_new_file() override;
-    void pdf_handle_char(byte c, byte aux1, byte aux2) override; // need a custom one to handle sideways printing
+    void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override; // need a custom one to handle sideways printing
 
 public:
     const char *modelname() { return "Atari 822"; };
