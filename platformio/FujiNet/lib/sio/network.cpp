@@ -1,4 +1,7 @@
 #include "../../include/debug.h"
+
+#include "driver/timer.h"
+
 #include "fnSystem.h"
 #include "fnWiFi.h"
 #include "network.h"
@@ -9,8 +12,15 @@
 #include "networkProtocolTNFS.h"
 #include "networkProtocolFTP.h"
 
-// latch the rate limiting flag.
-void IRAM_ATTR onTimer()
+volatile bool interruptRateLimit = true;
+//hw_timer_t *rateTimer = NULL;
+esp_timer_handle_t rateTimerHandle = nullptr; // Used a different name just to be clear
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+
+// Latch the rate limiting flag
+// The esp_timer_* functions don't mention requiring the callback being in IRAM, so removing that 
+//void IRAM_ATTR onTimer()
+void onTimer(void *info)
 {
     portENTER_CRITICAL_ISR(&timerMux);
     interruptRateLimit = true;
@@ -200,7 +210,8 @@ void sioNetwork::sio_open()
     aux1 = cmdFrame.aux1;
     aux2 = cmdFrame.aux2;
 
-    // Set up rate limiting timer.
+    // Destroy any existing timer
+    /*
     if (rateTimer != nullptr)
     {
         timerAlarmDisable(rateTimer);
@@ -208,11 +219,28 @@ void sioNetwork::sio_open()
         timerEnd(rateTimer);
         rateTimer = nullptr;
     }
+    */
+    if (rateTimerHandle != nullptr)
+    {
+        esp_timer_stop(rateTimerHandle);
+        esp_timer_delete(rateTimerHandle);
+        rateTimerHandle = nullptr;
+    }
 
-    rateTimer = timerBegin(0, 80, true);
-    timerAttachInterrupt(rateTimer, &onTimer, true);
-    timerAlarmWrite(rateTimer, 100000, true); // 100ms
+    // Set up a new rate limiting timer
+    /*
+    rateTimer = timerBegin(0, 80, true); // counter_number, divider, count_up
+    timerAttachInterrupt(rateTimer, &onTimer, true); // counter_id, function, on_edge
+    timerAlarmWrite(rateTimer, 100000, true); // counter_id, alarm_at, auto_reload // 100ms
     timerAlarmEnable(rateTimer);
+    */
+    esp_timer_create_args_t tcfg;
+    tcfg.arg = nullptr;
+    tcfg.callback = onTimer;
+    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
+    tcfg.name = nullptr;
+    esp_timer_create(&tcfg, &rateTimerHandle);
+    esp_timer_start_periodic(rateTimerHandle, 100000); // 100ms
 
     sio_complete();
 }
@@ -701,6 +729,8 @@ void sioNetwork::sio_assert_interrupts()
             fnSystem.delay_microseconds(50);
             fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
 
+            // The timer_* (as opposed to esp_timer_*) functions allow for much more granular control, including
+            // pausing and restarting the timer.  Would be nice here, but it's also a lot more work to use...
             portENTER_CRITICAL(&timerMux);
             interruptRateLimit = false;
             portEXIT_CRITICAL(&timerMux);
