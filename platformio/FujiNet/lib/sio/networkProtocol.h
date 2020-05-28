@@ -1,7 +1,7 @@
 #ifndef NETWORKPROTOCOL_H
 #define NETWORKPROTOCOL_H
 
-#include <Arduino.h>
+//#include <Arduino.h>
 #include "sio.h"
 #include "EdUrlParser.h"
 

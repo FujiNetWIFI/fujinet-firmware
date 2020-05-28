@@ -69,10 +69,11 @@ LedManager ledMgr;
 BluetoothManager btMgr;
 #endif
 
+// *** Moved these to network.cpp since that's the only place they're used ***
 // For the interrupt rate limiter timer
-volatile bool interruptRateLimit = true;
-hw_timer_t *rateTimer = NULL;
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+//volatile bool interruptRateLimit = true;
+//hw_timer_t *rateTimer = NULL;
+//portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 /* SET UP ALL THE THINGS
 */
