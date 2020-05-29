@@ -153,7 +153,7 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         tmpPath = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
         Debug_printf("Attempting NLST to %s", tmpPath.c_str());
         control.write("NLST");
-        if ((tmpPath != "*.*") && (tmpPath != "*") && (tmpPath != "**.*") && (tmpPath != "**"))
+        if ((tmpPath != "*.*") && (tmpPath != "*") && (tmpPath != "**.*") && (tmpPath != "**") && (tmpPath != "-"))
         {
             control.write(" ");
             control.write(tmpPath.c_str());
