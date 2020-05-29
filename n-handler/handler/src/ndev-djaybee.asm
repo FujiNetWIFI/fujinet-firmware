@@ -3,8 +3,10 @@
 
 	;; Author: Thomas Cherryhomes
 	;;   <thom.cherryhomes@gmail.com>
-		
 	;; CURRENT IOCB IN ZERO PAGE
+
+	;; Optimizations being done by djaybee!
+	;; Thank you so much!
 	
 ZIOCB   =     $20      ; ZP IOCB
 ZICHID  =     ZIOCB    ; ID
@@ -108,10 +110,10 @@ EOL     =     $9B     ; EOL CHAR
 	
 START:	
 	LDA	DOSINI
-	STA	DSAV
+;	STA	DSAV
 	STA	RESET+1
 	LDA	DOSINI+1
-	STA	DSAV+1
+;	STA	DSAV+1
 	STA	RESET+2
 	LDA	#<RESET
 	STA	DOSINI
@@ -120,10 +122,11 @@ START:
 
 	;;  Alter MEMLO
 	
-	LDA	#<PGEND		
-	STA	MEMLO
-	LDA	#>PGEND
-	STA	MEMLO+1
+;	LDA	#<PGEND		
+;	STA	MEMLO
+;	LDA	#>PGEND
+;	STA	MEMLO+1
+	JSR	ALTMEML
 
 	BVC	IHTBS
 	
@@ -133,6 +136,7 @@ RESET:
 
 	;;  Alter MEMLO
 	
+ALTMEML:	
 	LDA	#<PGEND		
 	STA	MEMLO
 	LDA	#>PGEND
@@ -201,12 +205,11 @@ OBERR:
 OBRDY:	
 	LDA	#<BREADY
 ;	STA	ICBAL,X
-;	LDA	#>BREADY
-;	STA	ICBAH,X
 	LDY	#>BREADY
 
 OBCIO:
 	STA	ICBAL,X
+;	LDA	#>BREADY
 	TYA
 	STA	ICBAH,X
 
@@ -255,10 +258,8 @@ OPEN:
 	STA	OPNDCB+5	; ...
 	LDA	ZICAX1		; Get desired AUX1/AUX2
 	STA	OPNDCB+10	; Save them, and store in DAUX1/DAUX2
-	STA	AX1SV,X		; ...
 	LDA	ZICAX2		; ...
 	STA	OPNDCB+11	; ...
-	STA	AX2SV,X		; ...
 
 	;;  Copy DCB template to DCB
 	
@@ -362,7 +363,7 @@ GET:
 	LDA	DVSTAT		; # of bytes waiting (0-127)
 	STA	RLEN,X		; Store in RX Len
 ;	BNE     GETDO		; We have something waiting...
-	BEQ	NOGETDO
+	BEQ	RETEOF
 
 	;; At this point, if RLEN is still zero, then return
 	;; with an EOF.
@@ -397,7 +398,7 @@ GETDISC:
 
 	;; We disconnected, emit an EOF.
 
-NOGETDO:	
+RETEOF:	
 ;	LDA	#EOF
 	LDY	#EOF
 	TYA
@@ -420,7 +421,7 @@ GX:	INC	ROFF,X		; Increment RX offset.
 
 	LDA	RLEN,X
 	BNE	GETDONE
-	LDA     #$00
+;	LDA     #$00
 	STA     TRIP
 
 	;; Return byte back to CIO.
@@ -480,11 +481,12 @@ PFLUSH:
 
        JSR     STPOLL  ; GET STATUS
        LDA     DVSTAT+2
-       BNE     PF1   
-       LDY     #EOF
+;       BNE     PF1
+	BEQ	RETEOF
+
+;       LDY     #EOF
 ;       LDA     #EOF
-       TYA
-       RTS
+;       RTS
 
 PF1:	JSR     GDIDX   ; GET DEV X
        LDA     TOFF,X
@@ -647,10 +649,11 @@ S1:	LDA	ZICDNO
 	JSR	DOSIOV
 
 ;       LDA     DSTATS
-       BPL     :DSOK
-DSERR:
+;       BPL     :DSOK
+	BMI	:DSERR
+;DSERR:
 ;	TAY             ; RET THE ERR
-       RTS
+;       RTS
 
        ; WE GOT A DSTATS INQUIRY
        ; IF $FF, THE COMMAND IS
@@ -662,34 +665,55 @@ DSOK:
        BNE     DSGO   ; DO THE CMD
        LDY     #$92    ; UNIMP CMD
        TYA
+DSERR:
        RTS
 
 	;; Do the special, since we want to pass in all the IOCB
 	;; Parameters to the DCB, This is being done long-hand.
 	
 DSGO:	LDA	ZICCOM
-	STA	DCOMND
+	PHA
+;	STA	DCOMND
+	LDA	#$00
+	PHA
 	LDA	INQDS
-	STA	DSTATS
+	PHA
+;	STA	DSTATS
+	LDA	#$01
+	PHA
 	LDA	ZICBAL
-	STA	DBUFL
-	LDA	ZICBAH
-	STA	DBUFH
-;	LDA	#$00		; 256 bytes
-;	STA	DBYTL
-	LDY	#$00		; 256 bytes
-	STY	DBYTL
-;	LDA	#$01
-;	STA	DBYTH
-	INY
-	STY	DBYTH
+	PHA
+;	STA	DBUFL
 	LDA	ZICAX1
-	STA	DAUXL
+	PHA
+	LDA	ZICBAH
+	PHA
+;	STA	DBUFH
 	LDA	ZICAX2
-	STA	DAUXH
+	PHA
+;;	LDA	#$00		; 256 bytes
+;;	STA	DBYTL
+;	LDY	#$00		; 256 bytes
+;	STY	DBYTL
+;;	LDA	#$01
+;;	STA	DBYTH
+;	INY
+;	STY	DBYTH
+;	LDA	ZICAX1
+;	STA	DAUXL
+;	LDA	ZICAX2
+;	STA	DAUXH
+	LDY	#$03
+DSGOL:
+	PLA
+	STA	DBYTL,Y
+	PLA
+	STA	DCOMND,Y
+	DEY
+	BPL DSGOL
 
 ;	JSR	SIOV
-	JSR	SIOVDST
+	JMP	SIOVDST
 
 	;; Return DSTATS in Y and A
 
@@ -768,11 +792,8 @@ BERROR .BYTE      '#FUJINET ERROR',$9B
 
        ; VARIABLES
 
-DSAV   .WORD      $0000
+;DSAV   .WORD      $0000
 TRIP   .DS      1       ; INTR FLAG
-AX1SV  .DS      MAXDEV  ; AUX1 SAVE
-AX2SV  .DS      MAXDEV  ; AUX2 SAVE
-STSV   .DS      4*MAXDEV ; STATUS SAVE
 RLEN   .DS      MAXDEV  ; RCV LEN
 ROFF   .DS      MAXDEV  ; RCV OFFSET
 TOFF   .DS      MAXDEV  ; TRX OFFSET
