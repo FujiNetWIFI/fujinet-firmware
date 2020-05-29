@@ -107,7 +107,7 @@ EOL     =     $9B     ; EOL CHAR
 ;	.ENDM
 		
 ;;; Initialization ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-	
+
 START:	
 	LDA	DOSINI
 ;	STA	DSAV
@@ -129,7 +129,7 @@ START:
 	JSR	ALTMEML
 
 	BVC	IHTBS
-	
+
 RESET:
 	JSR	$FFFF		; Jump to extant DOSINI
 	JSR	IHTBS		; Insert into HATABS
@@ -807,6 +807,6 @@ RBUF	.DS	$80		; 128 bytes
 TBUF	.DS	$80		; 128 bytes
 	
 PGEND	= *
-
+	
 	RUN	START
        END
