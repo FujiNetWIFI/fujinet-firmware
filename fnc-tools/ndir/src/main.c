@@ -23,17 +23,77 @@ unsigned char daux1=0;
 unsigned char daux2=0;
 unsigned char i=0;
 
-void ndir(unsigned char unit)
+void nopen(unsigned char unit)
 {
   OS.dcb.ddevic=0x71;
   OS.dcb.dunit=unit;
-  OS.dcb.dcomnd=0x2C;
+  OS.dcb.dcomnd='O';
   OS.dcb.dstats=0x80;
   OS.dcb.dbuf=&buf;
   OS.dcb.dtimlo=0x1f;
   OS.dcb.dbyt=256;
-  OS.dcb.daux1=daux1;
-  OS.dcb.daux2=daux2;
+  OS.dcb.daux1=6;
+  OS.dcb.daux2=0;
+  siov();
+
+  if (OS.dcb.dstats!=1)
+    {
+      err_sio();
+      exit(OS.dcb.dstats);
+    }
+}
+
+void nclose(unsigned char unit)
+{
+  OS.dcb.ddevic=0x71;
+  OS.dcb.dunit=unit;
+  OS.dcb.dcomnd='C';
+  OS.dcb.dstats=0x00;
+  OS.dcb.dbuf=NULL;
+  OS.dcb.dtimlo=0x1f;
+  OS.dcb.dbyt=0;
+  OS.dcb.daux1=0;
+  OS.dcb.daux2=0;
+  siov();
+
+  if (OS.dcb.dstats!=1)
+    {
+      err_sio();
+      exit(OS.dcb.dstats);
+    }
+}
+
+void nread(unsigned char unit, unsigned short len)
+{
+  OS.dcb.ddevic=0x71;
+  OS.dcb.dunit=unit;
+  OS.dcb.dcomnd='R';
+  OS.dcb.dstats=0x40;
+  OS.dcb.dbuf=&buf;
+  OS.dcb.dtimlo=0x1f;
+  OS.dcb.dbyt=len;
+  OS.dcb.daux1=len;
+  OS.dcb.daux2=0;
+  siov();
+
+  if (OS.dcb.dstats!=1)
+    {
+      err_sio();
+      exit(OS.dcb.dstats);
+    }
+}
+
+void nstatus(unsigned char unit)
+{
+  OS.dcb.ddevic=0x71;
+  OS.dcb.dunit=unit;
+  OS.dcb.dcomnd='S';
+  OS.dcb.dstats=0x40;
+  OS.dcb.dbuf=&OS.dvstat;
+  OS.dcb.dtimlo=0x1f;
+  OS.dcb.dbyt=4;
+  OS.dcb.daux1=0;
+  OS.dcb.daux2=0;
   siov();
 
   if (OS.dcb.dstats!=1)
@@ -45,8 +105,8 @@ void ndir(unsigned char unit)
 
 int main(int argc, char* argv[])
 {
-  unsigned char tmp[2]={0,0};
   unsigned char u=1;
+  unsigned short ab=0;
   
   OS.lmargn=2;
   
@@ -69,7 +129,7 @@ int main(int argc, char* argv[])
     interactive:
       // DOS 2.0/MYDOS
       print("\x9b");
-      print("ENTER PREFIX OR \xD2\xC5\xD4\xD5\xD2\xCE TO CLEAR\x9b");
+      print("ENTER PATH, WILDCARD OR \xD2\xC5\xD4\xD5\xD2\xCE\x9b");
       get_line(buf,240);
     }
 
@@ -83,7 +143,27 @@ int main(int argc, char* argv[])
   else if (buf[2]==':')
     u=buf[1]-0x30;
 
-  ndir(u);
+  nopen(u);
+
+  do {
+    nstatus(u);
+    
+    ab=OS.dvstat[1]*256+OS.dvstat[0];
+
+    if (ab>255)
+      ab=255;
+    else if (ab==0)
+      break;
+
+    memset(&buf,0,sizeof(buf));
+
+    nread(u,ab);
+
+    print(buf);
+    
+  } while(ab!=0);
+
+  nclose(u);
   
   return(0);
 }
