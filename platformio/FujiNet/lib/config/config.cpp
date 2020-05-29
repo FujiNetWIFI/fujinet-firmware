@@ -294,6 +294,7 @@ void fnConfig::load()
 #endif
 
     // Clear the config file if key is currently pressed
+#ifdef BOARD_HAS_PSRAM
     if(KeyManager::keyCurrentlyPressed(OTHER_KEY))
     {
         #ifdef DEBUG
@@ -304,6 +305,7 @@ void fnConfig::load()
         _dirty = true; // We have a new config, so we treat it as needing to be saved
         return;
     }
+#endif
 
 /*
 Original behavior: read from SPIFFS first and only read from SD if nothing found on SPIFFS.

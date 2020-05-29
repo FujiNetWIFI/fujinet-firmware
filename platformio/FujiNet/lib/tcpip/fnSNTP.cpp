@@ -1,10 +1,13 @@
-//#include <Arduino.h>
+/*
+    VSCODE WILL COMPLAIN THAT IT DOESN'T KNOW WHAT SETENV() and TZSET() ARE
+    ** IT LIES **
+    JUST CLOSE THE FILE AND COMPILE.
+    HAS SOMETHING TO DO WITH THE WAY THE HEADERS ARE SET UP.
+    https://community.platformio.org/t/issue-with-esp-idf-time-h/6986/8
 
+*/
 #include <stdlib.h>
 #include <time.h>
-//#include <esp32-hal.h>
-#include <lwip/apps/sntp.h>
-
 
 #include "../hardware/fnSystem.h"
 #include "fnSNTP.h"
@@ -32,7 +35,7 @@ void set_time_zone(long offset, int daylight)
     setenv("TZ", tz, 1);
     tzset(); 
 }
-#include <Arduino.h>
+
 /*
  * configTime
  * Source: https://github.com/esp8266/Arduino/blob/master/cores/esp8266/time.c
