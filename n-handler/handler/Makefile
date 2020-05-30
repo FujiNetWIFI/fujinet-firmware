@@ -14,7 +14,7 @@ endif
 all: ndev.com
 
 ndev.com:
-	mads src/ndev.s -b:$(RUNADDRESS) -l:ndev.lst -o:$(OUTFILE)
+	mads src/ndev-djaybee.asm -b:$(RUNADDRESS) -l:ndev.lst -o:$(OUTFILE)
 
 dist: ndev.com
 	cp ndev.com dist/

@@ -74,7 +74,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     directory = urlParser->path.substr(0, urlParser->path.find_last_of("/") - 1);
     filename = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
 
-    if (filename == "*.*")
+    if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
         filename = "*";
 
     aux1 = cmdFrame->aux1;
