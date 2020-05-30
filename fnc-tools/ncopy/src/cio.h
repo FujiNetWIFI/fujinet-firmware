@@ -3,3 +3,4 @@
  */
 
 void ciov();
+void dciov();
