@@ -1,7 +1,8 @@
 /**
  * Network Testing tools
  *
- * ncopy - return N: directory.
+ * ncopy - copy files 
+ *  N:<->D: D:<->N: or N:<->N:
  *
  * Author: Thomas Cherryhomes
  *  <thom.cherryhomes@gmail.com>
@@ -14,71 +15,128 @@
 #include <string.h>
 #include <stdlib.h>
 #include <peekpoke.h>
+#include <stdbool.h>
 #include "sio.h"
 #include "conio.h"
 #include "err.h"
 #include "nsio.h"
+#include "blockio.h"
 
-char primary_buf[12288];
-unsigned char i=0;
-unsigned char valid=0;
-unsigned char source_device=0;
-unsigned char destination_device=0;
-unsigned char source_unit=1;
-unsigned char destination_unit=1;
-unsigned char source_pos=0;
-unsigned char destination_pos=0;
-unsigned char comma_pos=0;
+unsigned char yvar;
 
-unsigned char parse_filespec(char* buf)
+unsigned char i;
+unsigned char argbuf[255];
+unsigned char sourceDeviceSpec[255];
+unsigned char destDeviceSpec[255];
+unsigned char data[8192];
+unsigned short data_len;
+unsigned char* dp;
+char errnum[4];
+
+char* pToken;
+unsigned char sourceUnit=1, destUnit=1;
+
+void print_error(void)
+{
+  print("ERROR- ");
+  itoa(yvar,errnum,10);
+  print(errnum);
+  print("\x9b");
+}
+
+bool parse_filespec(char* buf)
 {
   // Find comma.
+  pToken=strtok(buf,",");
   
-  for (comma_pos=0;comma_pos<strlen(buf);comma_pos++)
+  if (pToken==NULL)
     {
-      if (buf[comma_pos]==',')
-	break;
+      print("NO COMMA\x9b");
+      return false;
     }
 
-  // Invalid device character.
-  if (buf[0]<0x41 || buf[0]>0x5A)
-    return 0;
-  
-  // Get source device.
-  source_device=buf[0];
-  
-  // Get destination device.
-  for (i=comma_pos;i<strlen(buf);i++)
-    {
-      if (buf[i]==0x20) // SPACE
-	continue;
-      else
-	break; // i now has pos of destination device.
-    }
-  destination_device=buf[i];
-  destination_pos=i;
-  
-  if (destination_device<0x41 || destination_device>0x5A)
-    return 0;
+  strcpy(sourceDeviceSpec,pToken);
+  pToken=strtok(NULL,",");
 
-  // Get unit numbers, if available.
-  if (buf[source_pos+1]>0x30 || buf[source_pos+1]<0x40)
-    {
-      source_unit=buf[source_pos+1]-0x30;
-    }
-
-  if (buf[destination_pos+1]>0x30 || buf[destination_pos+1]<0x40)
-    {
-      destination_unit=buf[destination_pos+1]-0x30;
-    }
-
-  // Finally, break apart specs by replacing comma with EOL
-  buf[comma_pos]=0x9B;
+  while (*pToken==0x20) { pToken++; }
   
+  strcpy(destDeviceSpec,pToken);
+
+  // Put EOLs on the end.
+  sourceDeviceSpec[strlen(sourceDeviceSpec)]=0x9B;
+  destDeviceSpec[strlen(destDeviceSpec)]=0x9B;
+
+  // Check for valid device name chars
+  if (sourceDeviceSpec[0]<0x41 || sourceDeviceSpec[0]>0x5A)
+    return false;
+  else if (destDeviceSpec[0]<0x41 || destDeviceSpec[0]>0x5A)
+    return false;
+
+  // Check for proper colon placement
+  if (sourceDeviceSpec[1]!=':' && sourceDeviceSpec[2]!=':')
+    return false;
+  else if (destDeviceSpec[1]!=':' && destDeviceSpec[2]!=':')
+    return false;
+
+  // Try to assign unit numbers.
+  if (sourceDeviceSpec[1] != ':')
+    sourceUnit=sourceDeviceSpec[1]-0x30;
+  if (destDeviceSpec[1] != ':')
+    destUnit=destDeviceSpec[1]-0x30;
+
+  print(sourceDeviceSpec);
+  print(destDeviceSpec);
+  
+  return true;
 }
 
 int copy_d_to_n(void)
 {
+  open(sourceDeviceSpec,strlen(sourceDeviceSpec),4);
+
+  if (yvar!=1)
+    {
+      print_error();
+      close();
+      return yvar;
+    }
+
+  nopen(destUnit,destDeviceSpec,8);
+
+  if (OS.dcb.dstats!=1)
+    {
+      nstatus(destUnit);
+      yvar=OS.dvstat[3];
+      print_error();
+      close();
+      nclose(destUnit);
+    }
+
+  while (yvar==1)
+    {
+      get(data,sizeof(data));
+      data_len=OS.iocb[2].buflen;
+      dp=&data[0];
+
+      while (data_len>0)
+	{
+	  if (data_len>256)
+	    {
+	      nwrite(destUnit,data,256);
+	      dp+=256;
+	      data_len-=256;
+	    }
+	  else
+	    {
+	      nwrite(destUnit,data,data_len);
+	      dp+=data_len;
+	      data_len-=data_len;
+	    }
+	}
+    }
+
+  close();
+  nclose(destUnit);
   
   return 0;
 }
@@ -94,63 +152,38 @@ int copy_n_to_n(void)
 }
 
 int main(int argc, char* argv[])
-{  
+{
   OS.lmargn=2;
 
-  memset(primary_buf,0,sizeof(primary_buf));
-
-  // Args processing.
-  
-  if (argc>2)
+  // Args processing.  
+  if (argc>1)
     {
       // CLI DOS, concatenate arguments together.
-      for (i=0;i<argc;i++)
+      for (i=1;i<argc;i++)
 	{
-	  strcat(primary_buf,argv[i]);
+	  strcat(argbuf,argv[i]);
 	  if (i<argc-1)
-	    strcat(primary_buf," ");
+	    strcat(argbuf," ");
 	}
     }
   else
     {
       // Interactive
       print("NET COPY--FROM, TO?\x9b");
-      get_line(primary_buf,256);
+      get_line(argbuf,255);
     }
 
-  // Validate for comma.
-  for (i=0;i<strlen(primary_buf);i++)
-    {
-      if (primary_buf[i]==',')
-	{
-	  valid=1;
-	  break;
-	}
-    }
-
-  if (valid==0)
-    {
-      print("ERROR- NO COMMA FOUND.\x9b");
-      return(1);
-    }
-
-  if (parse_filespec(primary_buf)==0)
+  if (parse_filespec(argbuf)==0)
     {
       print("COULD NOT PARSE FILESPEC.\x9b");
       return(1);
     }
 
-  if (source_device=='D' && destination_device=='D')
-    {
-      print("USE DOS COPY.\x9b");
-      return(1);
-    }
-
-  if (source_device=='D' && destination_device=='N')
-    return(copy_d_to_n());
-  else if (source_device=='N' && destination_device=='D')
-    return(copy_n_to_d());
-  else if (source_device=='N' && destination_device=='N')
-    return(copy_n_to_n());
+  if (sourceDeviceSpec[0]=='D' && destDeviceSpec[0]=='N')
+    return copy_d_to_n();
+  else if (sourceDeviceSpec[0]=='N' && destDeviceSpec[0]=='D')
+    return copy_n_to_d();
+  else if (sourceDeviceSpec[0]=='N' && destDeviceSpec[0]=='N')
+    return copy_n_to_n();
   
 }
