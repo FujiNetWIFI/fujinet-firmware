@@ -1,7 +1,7 @@
 #ifndef NETWORKPROTOCOLTNFS
 #define NETWORKPROTOCOLTNFS
 
-#include <Arduino.h>
+//#include <Arduino.h>
 #include "networkProtocol.h"
 #include "sio.h"
 #include "tnfslib.h"

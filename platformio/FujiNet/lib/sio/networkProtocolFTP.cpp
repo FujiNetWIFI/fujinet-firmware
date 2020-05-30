@@ -1,5 +1,7 @@
-#include "networkProtocolFTP.h"
+#include "fnSystem.h"
 #include "../../include/debug.h"
+
+#include "networkProtocolFTP.h"
 
 bool networkProtocolFTP::ftpExpect(string resultCode)
 {
@@ -13,9 +15,11 @@ bool networkProtocolFTP::ftpExpect(string resultCode)
 
     control.setTimeout(5);
 
-    delay(250);
+    //delay(250);
+    fnSystem.delay(250);
 
-    int l = control.readBytesUntil('\n', buf, sizeof(buf));
+    //int l = control.readBytesUntil('\n', buf, sizeof(buf));
+    int l = control.read_until('\n', buf, sizeof(buf));
     Debug_printf("We got %d bytes back\n", l);
 
     if (l > 4)
@@ -174,7 +178,8 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (!data.connect(hostName.c_str(), dataPort))
         return false;
 
-    delay(500);
+    //delay(500);
+    fnSystem.delay(500);
 
     Debug_printf("Connected to data port: %d", dataPort);
 
@@ -201,7 +206,8 @@ bool networkProtocolFTP::close()
 
 bool networkProtocolFTP::read(byte *rx_buf, unsigned short len)
 {
-    if (data.readBytes(rx_buf, len) != len)
+    //if (data.readBytes(rx_buf, len) != len)
+    if (data.read(rx_buf, len) != len)    
         return true;
     else
         dataSize -= len;
