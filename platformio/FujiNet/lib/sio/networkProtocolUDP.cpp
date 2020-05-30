@@ -80,7 +80,9 @@ bool networkProtocolUDP::status(byte *status_buf)
     if (len > 0)
     {
         // Set destination automatically to remote address.
-        strcpy(dest, udp.remoteIP().toString().c_str());
+        //strcpy(dest, udp.remoteIP().toString().c_str());
+        in_addr_t addr = udp.remoteIP();
+        strcpy(dest, inet_ntoa(addr));
         //port = udp.remotePort();
 
         saved_rx_buffer_len = len;
