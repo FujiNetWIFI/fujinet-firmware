@@ -71,6 +71,10 @@ unsigned char parse_filespec(char* buf)
     {
       destination_unit=buf[destination_pos+1]-0x30;
     }
+
+  // Finally, break apart specs by replacing comma with EOL
+  buf[comma_pos]=0x9B;
+  
 }
 
 int copy_d_to_n(void)
