@@ -16,9 +16,9 @@ void print(const char* c)
   ciov();
 }
 
-void printc(char* c)
+void printc(char c)
 {
-  OS.iocb[0].buffer=c;
+  OS.iocb[0].buffer=&c;
   OS.iocb[0].buflen=1;
   OS.iocb[0].command=IOCB_PUTCHR;
   ciov();
