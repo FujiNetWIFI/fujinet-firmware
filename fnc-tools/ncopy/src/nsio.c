@@ -29,6 +29,7 @@ void nopen(unsigned char unit, char* buf, unsigned char aux1)
   OS.dcb.dtimlo=0x1f;
   OS.dcb.dbyt=256;
   OS.dcb.daux1=aux1;
+  OS.dcb.daux2=0; // NO TRANSLATION!
   siov();
 }
 
