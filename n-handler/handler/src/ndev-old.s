@@ -3,10 +3,8 @@
 
 	;; Author: Thomas Cherryhomes
 	;;   <thom.cherryhomes@gmail.com>
-	;; CURRENT IOCB IN ZERO PAGE
 
-	;; Optimizations being done by djaybee!
-	;; Thank you so much!
+	;; CURRENT IOCB IN ZERO PAGE
 	
 ZIOCB   =     $20      ; ZP IOCB
 ZICHID  =     ZIOCB    ; ID
@@ -96,24 +94,24 @@ EOL     =     $9B     ; EOL CHAR
 
 ;;; Macros ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;	.MACRO DCBC
-;	.LOCAL
-;	LDY	#$0C
-;?DCBL	LDA	%%1,Y
-;	STA	DCB,Y
-;	DEY
-;	BPL	?DCBL
-;	.ENDL
-;	.ENDM
+	.MACRO DCBC
+	.LOCAL
+	LDY	#$0C
+?DCBL	LDA	%%1,Y
+	STA	DCB,Y
+	DEY
+	BPL	?DCBL
+	.ENDL
+	.ENDM
 		
 ;;; Initialization ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
+	
 START:	
 	LDA	DOSINI
-;	STA	DSAV
+	STA	DSAV
 	STA	RESET+1
 	LDA	DOSINI+1
-;	STA	DSAV+1
+	STA	DSAV+1
 	STA	RESET+2
 	LDA	#<RESET
 	STA	DOSINI
@@ -122,21 +120,19 @@ START:
 
 	;;  Alter MEMLO
 	
-;	LDA	#<PGEND		
-;	STA	MEMLO
-;	LDA	#>PGEND
-;	STA	MEMLO+1
-	JSR	ALTMEML
+	LDA	#<PGEND		
+	STA	MEMLO
+	LDA	#>PGEND
+	STA	MEMLO+1
 
 	BVC	IHTBS
-
+	
 RESET:
 	JSR	$FFFF		; Jump to extant DOSINI
 	JSR	IHTBS		; Insert into HATABS
 
 	;;  Alter MEMLO
 	
-ALTMEML:	
 	LDA	#<PGEND		
 	STA	MEMLO
 	LDA	#>PGEND
@@ -184,8 +180,7 @@ OBANR:
 	STA	ICCOM,X
 	LDA	#$28		; 40 CHARS Max
 	STA	ICBLL,X
-;	LDA	#$00
-	TXA
+	LDA	#$00
 	STA	ICBLH,X
 	LDA	DSTATS		; Check DSTATS
 	BPL	OBRDY		; < 128 = Ready
@@ -194,25 +189,20 @@ OBANR:
 	
 OBERR:
 	LDA	#<BERROR
-;	STA	ICBAL,X
-;	LDA	#>BERROR
-	LDY	#>BERROR
-;	STA	ICBAH,X
+	STA	ICBAL,X
+	LDA	#>BERROR
+	STA	ICBAH,X
 	BVC	OBCIO
 
 	;; Status returned ready.
 	
 OBRDY:	
 	LDA	#<BREADY
-;	STA	ICBAL,X
-	LDY	#>BREADY
-
-OBCIO:
 	STA	ICBAL,X
-;	LDA	#>BREADY
-	TYA
+	LDA	#>BREADY
 	STA	ICBAH,X
 
+OBCIO:
 	JSR	CIOV
 
 	;; Vector in proceed interrupt
@@ -229,21 +219,6 @@ SPRCED:
 
 ;;; End Initialization Code ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-DOSIOV:
-	STA	DODCBL+1
-	STY	DODCBL+2
-	LDY	#$0C
-DODCBL	LDA	$FFFF,Y
-	STA	DCB,Y
-	DEY
-	BPL	DODCBL
-
-SIOVDST:	
-	JSR	SIOV
-	LDY	DSTATS
-	TYA
-	RTS
-
 ;;; CIO OPEN ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 OPEN:
@@ -258,24 +233,23 @@ OPEN:
 	STA	OPNDCB+5	; ...
 	LDA	ZICAX1		; Get desired AUX1/AUX2
 	STA	OPNDCB+10	; Save them, and store in DAUX1/DAUX2
+	STA	AX1SV,X		; ...
 	LDA	ZICAX2		; ...
 	STA	OPNDCB+11	; ...
+	STA	AX2SV,X		; ...
 
 	;;  Copy DCB template to DCB
 	
-;	DCBC	OPNDCB
-	LDA	#<OPNDCB
-	LDY	#>OPNDCB
+	DCBC	OPNDCB
 
 	;;  Send to #FujiNet
 	
-;	JSR	SIOV
-	JSR	DOSIOV
+	JSR	SIOV
                                     
 	;; Return DSTATS, unless 144, then get extended error
 	
 OPCERR:
-;	LDY	DSTATS		; GET SIO STATUS
+	LDY	DSTATS		; GET SIO STATUS
 	CPY	#$90		; ERR 144?
 	BNE	OPDONE		; NOPE. RETURN DSTATS
        
@@ -323,16 +297,13 @@ CLOSE:
 	LDA     ZICDNO		; IOCB Unit #
 	STA     CLODCB+1	; to DCB...
 	
-;	DCBC	CLODCB		; Copy DCB into place
-	LDA	#<CLODCB
-	LDY	#>CLODCB
+	DCBC	CLODCB		; Copy DCB into place
 
-;	JSR	SIOV
-	JMP	DOSIOV
+	JSR	SIOV
 
-;	LDY	DSTATS		; Return SIO status
-;	TYA
-;	RTS			; Done.
+	LDY	DSTATS		; Return SIO status
+	TYA
+	RTS			; Done.
 
 CLODCB .BYTE	DEVIDN		; DDEVIC
        .BYTE	$FF		; DUNIT
@@ -362,15 +333,14 @@ GET:
 	JSR	GDIDX		; IOCB UNIT -1 into X (because Poll trashes X)
 	LDA	DVSTAT		; # of bytes waiting (0-127)
 	STA	RLEN,X		; Store in RX Len
-;	BNE     GETDO		; We have something waiting...
-	BEQ	RETEOF
+	BNE     GETDO		; We have something waiting...
 
 	;; At this point, if RLEN is still zero, then return
 	;; with an EOF.
 	
-;	LDY     #EOF		; ERROR 136 - End of File
-;	LDA     #EOF
-;	RTS
+	LDY     #EOF		; ERROR 136 - End of File
+	LDA     #EOF
+	RTS
 
 GETDO:
 	LDA	ZICDNO		; Get IOCB UNIT #
@@ -379,12 +349,9 @@ GETDO:
 	STA	GETDCB+8	; Store into DBYT...
 	STA	GETDCB+10	; and DAUX1...
        
-;	DCBC	GETDCB		; Prepare DCB
-	LDA	#<GETDCB
-	LDY	#>GETDCB
+	DCBC	GETDCB		; Prepare DCB
 	
-;	JSR	SIOV		; Call SIO to do the GET
-	JSR	DOSIOV
+	JSR	SIOV		; Call SIO to do the GET
 
 	;; Clear the Receive buffer offset.
 	
@@ -397,11 +364,9 @@ GETDISC:
 	BNE     GETUPDP		; nope, update the buffer cursor.
 
 	;; We disconnected, emit an EOF.
-
-RETEOF:	
-;	LDA	#EOF
+	
+	LDA	#EOF
 	LDY	#EOF
-	TYA
 	RTS			; buh-bye.
 
 GETUPDP:
@@ -410,7 +375,7 @@ GETUPDP:
 
 	;; Return Next char from appropriate RX buffer.
 	
-	LDA	RBUF,Y
+	LDA	RBUF,y
 	
 	;; Increment RX offset
 	
@@ -421,7 +386,7 @@ GX:	INC	ROFF,X		; Increment RX offset.
 
 	LDA	RLEN,X
 	BNE	GETDONE
-;	LDA     #$00
+	LDA     #$00
 	STA     TRIP
 
 	;; Return byte back to CIO.
@@ -481,12 +446,10 @@ PFLUSH:
 
        JSR     STPOLL  ; GET STATUS
        LDA     DVSTAT+2
-;       BNE     PF1
-	BEQ	RETEOF
-
-;       LDY     #EOF
-;       LDA     #EOF
-;       RTS
+       BNE     PF1   
+       LDY     #EOF
+       LDA     #EOF
+       RTS
 
 PF1:	JSR     GDIDX   ; GET DEV X
        LDA     TOFF,X
@@ -504,11 +467,8 @@ TBX:	LDA     TOFF,X
 	STA     PUTDCB+8
 	STA     PUTDCB+10
 
-;	DCBC	PUTDCB
-	LDA	#<PUTDCB
-	LDY	#>PUTDCB
-;	JSR     SIOV
-	JSR     DOSIOV
+	DCBC	PUTDCB
+	JSR     SIOV
        
        ; CLEAR THE OFFSET CURSOR
        ; AND LENGTH
@@ -549,16 +509,13 @@ STATUS:
 
 STSLEN LDA     RLEN,X  ; GET RLEN
        STA     DVSTAT  ; RET IN DVSTAT
-; If you don't need to preserve Y then use it instead of A
        LDA     #$00
 	STA     DVSTAT+1
-; and INY here
 	LDA	#$01
 	STA	DVSTAT+2
 	STA	DVSTAT+3
 	
-;       JMP     STDONE  ; DONE.
-	BNE	STDONE
+       JMP     STDONE  ; DONE.
 
        ; DO POLL AND UPDATE RCV LEN
 
@@ -582,12 +539,9 @@ STPOLL:
        LDA     ZICDNO  ; IOCB #
        STA     STADCB+1
 
-;	DCBC	STADCB
-	LDA	#<STADCB
-	LDY	#>STADCB
+	DCBC	STADCB
 
-;       JSR     SIOV    ; DO IT...
-	JSR	DOSIOV
+       JSR     SIOV    ; DO IT...
 
 	;; > 127 bytes? make it 127 bytes.
 
@@ -642,18 +596,14 @@ S1:	LDA	ZICDNO
 	LDA	ZICCOM
 	STA	SPEDCB+10
 	
-;	DCBC	SPEDCB
-	LDA	#<SPEDCB
-	LDY	#>SPEDCB
-;       JSR     SIOV    ; DO IT...
-	JSR	DOSIOV
+	DCBC	SPEDCB
+       JSR     SIOV    ; DO IT...
 
-;       LDA     DSTATS
-;       BPL     :DSOK
-	BMI	:DSERR
-;DSERR:
-;	TAY             ; RET THE ERR
-;       RTS
+       LDA     DSTATS
+       BPL     :DSOK
+DSERR:
+	TAY             ; RET THE ERR
+       RTS
 
        ; WE GOT A DSTATS INQUIRY
        ; IF $FF, THE COMMAND IS
@@ -665,62 +615,36 @@ DSOK:
        BNE     DSGO   ; DO THE CMD
        LDY     #$92    ; UNIMP CMD
        TYA
-DSERR:
        RTS
 
 	;; Do the special, since we want to pass in all the IOCB
 	;; Parameters to the DCB, This is being done long-hand.
 	
 DSGO:	LDA	ZICCOM
-	PHA
-;	STA	DCOMND
-	LDA	#$00
-	PHA
+	STA	DCOMND
 	LDA	INQDS
-	PHA
-;	STA	DSTATS
-	LDA	#$01
-	PHA
+	STA	DSTATS
 	LDA	ZICBAL
-	PHA
-;	STA	DBUFL
-	LDA	ZICAX1
-	PHA
+	STA	DBUFL
 	LDA	ZICBAH
-	PHA
-;	STA	DBUFH
+	STA	DBUFH
+	LDA	#$00		; 256 bytes
+	STA	DBYTL
+	LDA	#$01
+	STA	DBYTH
+	LDA	ZICAX1
+	STA	DAUXL
 	LDA	ZICAX2
-	PHA
-;;	LDA	#$00		; 256 bytes
-;;	STA	DBYTL
-;	LDY	#$00		; 256 bytes
-;	STY	DBYTL
-;;	LDA	#$01
-;;	STA	DBYTH
-;	INY
-;	STY	DBYTH
-;	LDA	ZICAX1
-;	STA	DAUXL
-;	LDA	ZICAX2
-;	STA	DAUXH
-	LDY	#$03
-DSGOL:
-	PLA
-	STA	DBYTL,Y
-	PLA
-	STA	DCOMND,Y
-	DEY
-	BPL DSGOL
+	STA	DAUXH
 
-;	JSR	SIOV
-	JMP	SIOVDST
+	JSR	SIOV
 
 	;; Return DSTATS in Y and A
 
-;	LDA	DSTATS
-;	TAY
+	LDA	DSTATS
+	TAY
 
-;	RTS
+	RTS
 
 SPEDCB .BYTE      DEVIDN  ; DDEVIC
        .BYTE      $FF     ; DUNIT
@@ -761,7 +685,7 @@ GDIDX:
        LDX     ZICDNO  ; IOCB UNIT #
        DEX             ; - 1
        RTS
-
+	
 ;;; End Utility Functions ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; Proceed Vector ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -792,8 +716,11 @@ BERROR .BYTE      '#FUJINET ERROR',$9B
 
        ; VARIABLES
 
-;DSAV   .WORD      $0000
+DSAV   .WORD      $0000
 TRIP   .DS      1       ; INTR FLAG
+AX1SV  .DS      MAXDEV  ; AUX1 SAVE
+AX2SV  .DS      MAXDEV  ; AUX2 SAVE
+STSV   .DS      4*MAXDEV ; STATUS SAVE
 RLEN   .DS      MAXDEV  ; RCV LEN
 ROFF   .DS      MAXDEV  ; RCV OFFSET
 TOFF   .DS      MAXDEV  ; TRX OFFSET
@@ -807,6 +734,7 @@ RBUF	.DS	$80		; 128 bytes
 TBUF	.DS	$80		; 128 bytes
 	
 PGEND	= *
-	
+
 	RUN	START
        END
+
