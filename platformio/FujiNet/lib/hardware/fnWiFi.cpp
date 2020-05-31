@@ -20,6 +20,7 @@
 #include "lwip/sys.h"
 
 #include "../../include/debug.h"
+#include "../utils/utils.h"
 #include "fnWiFi.h"
 
 // Global object to manage WiFi
@@ -246,7 +247,7 @@ esp_err_t WiFiManager::fnwifi_event_handler(void *ctx, system_event_t *event)
     // Get a pointer to our fnWiFi object
     WiFiManager * pFnWiFi = (WiFiManager *)ctx;
     esp_err_t e;
-
+    __IGNORE_UNUSED_VAR(e);
     switch(event->event_id) 
     {
     case SYSTEM_EVENT_STA_START:
