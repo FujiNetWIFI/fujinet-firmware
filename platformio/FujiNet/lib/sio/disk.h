@@ -15,7 +15,7 @@ extern int command_frame_counter;
 
 #define ATARISIO_ATARI_FREQUENCY_PAL 1773447
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define HISPEED_INDEX 0x00
+#define HISPEED_INDEX 0x06
 // 0x06
 // 10
 // 0x00
