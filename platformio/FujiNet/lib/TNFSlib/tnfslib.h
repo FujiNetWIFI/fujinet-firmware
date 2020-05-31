@@ -101,6 +101,8 @@
 #define TNFS_HEADER_SIZE 4
 #define TNFS_PAYLOAD_SIZE 504
 
+#define TNFS_MAX_READWRITE_PAYLOAD (TNFS_PAYLOAD_SIZE - 3)  // 1 byte is needed for FD and 2 for size
+
 union tnfsPacket {
     struct
     {
