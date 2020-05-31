@@ -12,6 +12,7 @@ void open(char* buf, unsigned short len, unsigned char aux1)
   OS.iocb[2].buflen=len;
   OS.iocb[2].command=IOCB_OPEN;
   OS.iocb[2].aux1=aux1;
+  OS.iocb[2].aux2=0; // Make sure we don't flip on any translation!
   dciov();
 }
 
