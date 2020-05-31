@@ -101,6 +101,7 @@
 #define TNFS_HEADER_SIZE 4
 #define TNFS_PAYLOAD_SIZE 504
 
+// Maximum size of buffer during tnfs_read() and tnfs_write()
 #define TNFS_MAX_READWRITE_PAYLOAD (TNFS_PAYLOAD_SIZE - 3)  // 1 byte is needed for FD and 2 for size
 
 union tnfsPacket {
