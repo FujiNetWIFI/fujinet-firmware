@@ -386,10 +386,14 @@ void pngPrinter::png_end()
     fwrite(end, 1, 12, _file);
 }
 
-void pngPrinter::initPrinter(FileSystem *fs)
+// TODO: Anything here?
+void pngPrinter::pre_close_file()
 {
-    printer_emu::initPrinter(fs);
 
+}
+
+void pngPrinter::post_new_file()
+{
     // call PNG header routines
     png_signature();
     png_header();
@@ -398,7 +402,7 @@ void pngPrinter::initPrinter(FileSystem *fs)
     png_data();
 }
 
-bool pngPrinter::process(byte n)
+bool pngPrinter::process_buffer(byte n, byte aux1, byte aux2)
 {
 // copy buffer[] into linebuffer[]
 #ifdef DEBUG
@@ -436,7 +440,3 @@ bool pngPrinter::process(byte n)
     return true;
 }
 
-void pngPrinter::pageEject()
-{
-    printer_emu::pageEject();
-}

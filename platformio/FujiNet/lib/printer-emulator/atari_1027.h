@@ -12,10 +12,9 @@ protected:
     bool uscoreFlag = false;
     bool escMode = false;
 
-    void pdf_handle_char(byte c);
-
+    void pdf_handle_char(byte c, byte aux1, byte aux2);
+    virtual void post_new_file() override;
 public:
-    void initPrinter(FileSystem *fs);
     const char *modelname() { return "Atari 1027"; };
 };
 
