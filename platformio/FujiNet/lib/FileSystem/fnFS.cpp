@@ -39,6 +39,15 @@ long FileSystem::filesize(FILE *f)
     return end;
 }
 
+// Returns size of file given path
+long FileSystem::filesize(const char *filepath)
+{
+    struct stat fstat;
+    if( 0 == stat(filepath, &fstat))
+        return fstat.st_size;
+    return -1;
+}
+
 const char * FileSystem::type_to_string(fsType type)
 {
     switch(type)

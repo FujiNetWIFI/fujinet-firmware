@@ -49,7 +49,7 @@ void epson80::print_8bit_gfx(byte c)
     }
 }
 
-void epson80::pdf_handle_char(byte c)
+void epson80::pdf_handle_char(byte c, byte aux1, byte aux2)
 {
     if (escMode)
     {
@@ -534,10 +534,8 @@ void epson80::at_reset()
     textMode = true;
 }
 
-void epson80::initPrinter(FileSystem *fs)
+void epson80::post_new_file()
 {
-    printer_emu::initPrinter(fs);
-
     translate850 = true;
     _eol = ASCII_CR;
 

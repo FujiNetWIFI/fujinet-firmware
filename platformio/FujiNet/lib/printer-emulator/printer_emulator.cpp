@@ -1,13 +1,14 @@
-#include "printer_emulator.h"
 #include "../../include/debug.h"
+#include "printer_emulator.h"
 
 #include "fnFsSPIF.h"
+
+#define PRINTER_OUTFILE "/paper"
 
 // initialzie printer by creating an output file
 void printer_emu::initPrinter(FileSystem *fs)
 {
     _FS = fs;
-    resetOutput();
 }
 
 
@@ -30,7 +31,7 @@ printer_emu::~printer_emu()
 // Assumes source file is in SPIFFS
 size_t printer_emu::copy_file_to_output(const char *filename)
 {
-#define PRINTER_FILE_COPY_BUFLEN 4096
+#define PRINTER_FILE_COPY_BUFLEN 2048
 
     FILE * fInput = fnSPIFFS.file_open(filename);
 
@@ -57,44 +58,86 @@ size_t printer_emu::copy_file_to_output(const char *filename)
     return total;
 }
 
-void printer_emu::copyChar(byte c, byte n)
-{
-    buffer[n] = c;
-}
 
 size_t printer_emu::getOutputSize()
 {
-    return FileSystem::filesize(_file);
+    if(_file != nullptr)
+        return FileSystem::filesize(_file);
+
+    long result = FileSystem::filesize(PRINTER_OUTFILE);
+
+    return result == -1 ? 0 : result;
 }
 
-int printer_emu::readFromOutput()
+// All the work is done here in the derived classes. Open and close the output file before proceeding
+bool printer_emu::process(byte linelen, byte aux1, byte aux2)
 {
-    return fgetc(_file);
-}
+    // Make sure the file has been initialized
+    if(_output_started == false)
+    {
+        restart_output();
+        // Make sure that worked...
+        if(_output_started == false)
+            return false;
+    }
 
-int printer_emu::readFromOutput(uint8_t *buf, size_t size)
-{
-    return fread(buf, 1, size, _file);
-}
+    // Open output file for appending
+    _file = _FS->file_open(PRINTER_OUTFILE, "r+"); // This is supposed to open the file for writing at the end, but reading at the beginnig
+    fseek(_file, 0, SEEK_END); // Make sure we're at the end of the file for reading in case the emaulator code expects that
 
-void printer_emu::pageEject()
-{
-    this->pre_page_eject();
-    
+    bool result = process_buffer(linelen, aux1, aux2);
+
     fflush(_file);
-    fseek(_file, 0, SEEK_SET);
+    fclose(_file);
+    _file = nullptr;
+
+    return result;
 }
 
-void printer_emu::resetOutput()
+// Closes the output file and provides an open read handle to it afterwards
+FILE * printer_emu::closeOutputAndProvideReadHandle()
 {
+    closeOutput();
+    return _FS->file_open(PRINTER_OUTFILE);
+}
+
+// Closes the output file, giving the printer emulators a chance to provide closing output
+void printer_emu::closeOutput()
+{
+    // Assume there's nothing to do if output hasn't been started
+    if (_output_started == false)
+        return;
+
+    // Give printer emulator chance to finish output
+    if(_file == nullptr)
+    {
+        _file = _FS->file_open(PRINTER_OUTFILE, "r+"); // Seeks don't work right if we use "append" mode - use "r+"
+        fseek(_file, 0, SEEK_END);
+    }
+
+    pre_close_file();
+
+    // Close the file    
+    fflush(_file);
+    fclose(_file);
+    _file = nullptr;
+    _output_started = false;
+}
+
+void printer_emu::restart_output()
+{
+    _output_started = false;
     if(_file != nullptr)
         fclose(_file);
-    _file = _FS->file_open("/paper", "w+");
+    _file = _FS->file_open(PRINTER_OUTFILE, "w"); // This should create/truncate the file
 #ifdef DEBUG
     if (_file != nullptr)
     {
-        Debug_println("Printer output file (re)opened");
+        Debug_println("Printer output file initialized");
         post_new_file();
+        fclose(_file);
+        _file = nullptr;
+        _output_started = true;
     }
     else
     {
