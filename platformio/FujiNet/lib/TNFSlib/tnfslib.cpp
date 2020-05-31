@@ -251,9 +251,7 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
     // Store the path we used as part of our file handle info
     strncpy(pFileInf->filename, (const char *)&packet.payload[offset_filename], TNFS_MAX_FILELEN);
 
-#ifdef DEBUG
     Debug_printf("TNFS open file: \"%s\" (0x%04x, 0x%04x)\n", (char *)&packet.payload[offset_filename], open_mode, create_perms);
-#endif
 
     // Offset to filename + filename length + zero terminator
     int result = -1;
@@ -277,10 +275,7 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
                 else if(open_mode & TNFS_OPENMODE_WRITE_TRUNCATE)
                     pFileInf->position = pFileInf->size = 0;
             }
-
-            #ifdef DEBUG
             Debug_printf("File opened, handle ID: %hhd, size: %u, pos: %u\n", *file_handle, pFileInf->size, pFileInf->position);
-            #endif
         }
         result = packet.payload[0];
     }
@@ -405,9 +400,7 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
             }
             else
             {
-                #ifdef DEBUG
                 Debug_printf("tnfs_read result size (%u) would overrun buffer!\n", *resultlen);
-                #endif
                 return -1;
             }
         }
@@ -583,18 +576,14 @@ int tnfs_opendir(tnfsMountInfo *m_info, const char *directory)
     packet.command = TNFS_CMD_OPENDIR;
     int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, directory, sizeof(packet.payload));
 
-#ifdef DEBUG
     Debug_printf("TNFS open directory: \"%s\"\n", (char *)packet.payload);
-#endif
 
     if (_tnfs_transaction(m_info, packet, len + 1))
     {
         if(packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             m_info->dir_handle = packet.payload[1];
-            #ifdef DEBUG
             // Debug_printf("Directory opened, handle ID: %hhd\n", m_info->dir_handle);
-            #endif
         }
         return packet.payload[0];
     }
@@ -719,9 +708,7 @@ int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory)
 
     int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, directory, sizeof(packet.payload));
 
-#ifdef DEBUG
     Debug_printf("TNFS make directory: \"%s\"\n", (char *)packet.payload);
-#endif
 
     if (_tnfs_transaction(m_info, packet, len + 1))
     {
@@ -758,9 +745,7 @@ int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory)
 
     int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, directory, sizeof(packet.payload));
 
-#ifdef DEBUG
     Debug_printf("TNFS remove directory: \"%s\"\n", (char *)packet.payload);
-#endif
 
     if (_tnfs_transaction(m_info, packet, len + 1))
     {
@@ -822,9 +807,7 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
 
     int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, filepath, sizeof(packet.payload));
 
-#ifdef DEBUG
     // Debug_printf("TNFS stat: \"%s\"\n", (char *)packet.payload);
-#endif
 
 #define OFFSET_FILEMODE 1
 #define OFFSET_UID 3
@@ -853,13 +836,11 @@ __BEGIN_IGNORE_UNUSEDVARS
             filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_MTIME);
             filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_CTIME);
 
-            #ifdef DEBUG
             /*
             Debug_printf("\ttnfs_stat: mode: %ho, uid: %hu, gid: %hu, dir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", 
                 filemode, uid, gid,
                 filestat->isDir ? 1 : 0, filestat->filesize, filestat->a_time, filestat->m_time, filestat->c_time );
             */
-            #endif
         }
 __END_IGNORE_UNUSEDVARS
         return packet.payload[0];
@@ -892,9 +873,7 @@ int tnfs_unlink(tnfsMountInfo *m_info, const char *filepath)
 
     int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, filepath, sizeof(packet.payload));
 
-#ifdef DEBUG
     Debug_printf("TNFS unlink file: \"%s\"\n", (char *)packet.payload);
-#endif
 
     if (_tnfs_transaction(m_info, packet, len + 1))
     {
@@ -931,9 +910,7 @@ int tnfs_rename(tnfsMountInfo *m_info, const char *old_filepath, const char *new
     int l1 = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, old_filepath, sizeof(packet.payload)) + 1;
     int l2 = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload + l1, new_filepath, sizeof(packet.payload) -l1) + 1;
 
-#ifdef DEBUG
     Debug_printf("TNFS rename file: \"%s\" -> \"%s\"\n", (char *)packet.payload, (char *)(packet.payload + l1));
-#endif
 
     if (_tnfs_transaction(m_info, packet, l1 + l2))
     {
@@ -993,9 +970,7 @@ int tnfs_chmod(tnfsMountInfo *m_info, const char *filepath, uint16_t mode)
 
     int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload +2, filepath, sizeof(packet.payload) -2);
 
-#ifdef DEBUG
     Debug_printf("TNFS chmod file: \"%s\", %ho\n", (char *)packet.payload +2, mode);
-#endif
 
     if (_tnfs_transaction(m_info, packet, len + 3))
     {
@@ -1199,9 +1174,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
 
         if (!sent)
         {
-#ifdef DEBUG
             Debug_println("Failed to send packet - retrying");
-#endif
         }
         else
         {
@@ -1212,9 +1185,8 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
             {
                 if (udp.parsePacket())
                 {
-                    __BEGIN_IGNORE_UNUSEDVARS
                     unsigned short l = udp.read(pkt.rawData, sizeof(pkt.rawData));
-                    __END_IGNORE_UNUSEDVARS
+                    __IGNORE_UNUSED_VAR(l);
 #ifdef DEBUG
                     _tnfs_debug_packet(pkt, l, true);
 #endif
@@ -1222,9 +1194,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
                     // Out of order packet received.
                     if (pkt.sequence_num != current_sequence_num)
                     {
-#ifdef DEBUG
                         Debug_println("TNFS OUT OF ORDER SEQUENCE! RETRYING");
-#endif
                         // Fall through and let retry logic handle it.
                     }
                     else
@@ -1247,9 +1217,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
 
             } while ((fnSystem.millis() - ms_start) < m_info->timeout_ms);
 
-#ifdef DEBUG
             Debug_printf("Timeout after %d milliseconds. Retrying\n", m_info->timeout_ms);
-#endif
         }
 
         // Make sure we wait before retrying
@@ -1257,9 +1225,8 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
         retry++;
     }
 
-#ifdef DEBUG
     Debug_println("Retry attempts failed");
-#endif
+
     return false;
 }
 

@@ -1,20 +1,19 @@
 #include "epson_80.h"
+#include "../utils/utils.h"
 #include "../../include/debug.h"
 
 void epson80::not_implemented()
 {
     uint8_t c = epson_cmd.cmd;
-#ifdef DEBUG
+    __IGNORE_UNUSED_VAR(c);
     Debug_printf("Command not implemented: %u %x %c\n", c, c, c);
-#endif
 }
 
 void epson80::esc_not_implemented()
 {
     uint8_t c = epson_cmd.cmd;
-#ifdef DEBUG
+    __IGNORE_UNUSED_VAR(c);
     Debug_printf("Command not implemented: ESC %u %x %c\n", c, c, c);
-#endif
 }
 
 void epson80::reset_cmd()

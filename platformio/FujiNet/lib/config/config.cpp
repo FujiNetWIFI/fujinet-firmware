@@ -263,9 +263,8 @@ void fnConfig::save()
     FILE * fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w");
     std::string result = ss.str();
     size_t z = fwrite(result.c_str(), 1, result.length(), fout);
-    #ifdef DEBUG
+    (void)z; // Get around unused var
     Debug_printf("fnConfig::save wrote %d bytes\n", z);
-    #endif
     fclose(fout);
 
     _dirty = false;
