@@ -28,8 +28,9 @@ unsigned char i;
 unsigned char argbuf[255];
 unsigned char sourceDeviceSpec[255];
 unsigned char destDeviceSpec[255];
-unsigned char data[8192];
+unsigned char data[4096];
 unsigned short data_len;
+unsigned short block_len;
 unsigned char* dp;
 char errnum[4];
 
@@ -116,23 +117,9 @@ int copy_d_to_n(void)
     {
       get(data,sizeof(data));
       data_len=OS.iocb[2].buflen;
-      dp=&data[0];
 
-      while (data_len>0)
-	{
-	  if (data_len>256)
-	    {
-	      nwrite(destUnit,data,256);
-	      dp+=256;
-	      data_len-=256;
-	    }
-	  else
-	    {
-	      nwrite(destUnit,data,data_len);
-	      dp+=data_len;
-	      data_len-=data_len;
-	    }
-	}
+      nwrite(destUnit,data,data_len);
+      data_len-=data_len;	  
     }
 
   close();
@@ -143,11 +130,89 @@ int copy_d_to_n(void)
 
 int copy_n_to_d(void)
 {
+  nopen(sourceUnit,sourceDeviceSpec,4);
+
+  if (OS.dcb.dstats!=1)
+    {
+      nstatus(destUnit);
+      yvar=OS.dvstat[3];
+      print_error();
+      nclose(destUnit);
+    }
+
+  open(destDeviceSpec,strlen(destDeviceSpec),8);
+
+  if (yvar!=1)
+    {
+      print_error();
+      close();
+      return yvar;
+    }  
+
+  do
+    {
+      nstatus(sourceUnit);
+      data_len=OS.dvstat[1]*256+OS.dvstat[0];
+
+      if (data_len==0)
+	break;
+      
+      // Be sure not to overflow buffer!
+      if (data_len>sizeof(data))
+	data_len=sizeof(data);
+
+      nread(sourceUnit,data,data_len); // add err chk
+      put(data,data_len);
+    } while (data_len>0);
+
+  nclose(sourceUnit);
+  close();
   return 0;
 }
 
 int copy_n_to_n(void)
 {
+  nopen(sourceUnit,sourceDeviceSpec,4);
+
+  if (OS.dcb.dstats!=1)
+    {
+      nstatus(sourceUnit);
+      yvar=OS.dvstat[3];
+      print_error();
+      nclose(sourceUnit);
+    }
+  
+  nopen(destUnit,destDeviceSpec,8);
+
+  if (OS.dcb.dstats!=1)
+    {
+      nstatus(destUnit);
+      yvar=OS.dvstat[3];
+      print_error();
+      nclose(sourceUnit);
+      nclose(destUnit);
+    }
+
+  do
+    {
+      nstatus(sourceUnit);
+      data_len=OS.dvstat[1]*256+OS.dvstat[0];
+
+      if (data_len==0)
+	break;
+      
+      // Be sure not to overflow buffer!
+      if (data_len>sizeof(data))
+	data_len=sizeof(data);
+
+      nread(sourceUnit,data,data_len); // add err chk
+      nwrite(destUnit,data,data_len);
+      
+    } while (data_len>0);  
+  
+  nclose(sourceUnit);
+  nclose(destUnit);
+  
   return 0;
 }
 
