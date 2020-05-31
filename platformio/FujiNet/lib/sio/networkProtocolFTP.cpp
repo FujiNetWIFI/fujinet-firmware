@@ -5,15 +5,21 @@ bool networkProtocolFTP::ftpExpect(string resultCode)
 {
     char buf[512];
     string sbuf;
+    long tstart=fnSystem.millis();
+    long tdur=0;
 
     memset(buf, 0, sizeof(buf));
 
     if (!control.connected())
         return false;
 
-    control.setTimeout(5);
+    while (tdur<10000)
+    {
+        if (control.available()>0)
+            break;
 
-    delay(250);
+        tdur=fnSystem.millis()-tstart;
+    }
 
     int l = control.readBytesUntil('\n', buf, sizeof(buf));
     Debug_printf("We got %d bytes back\n", l);
