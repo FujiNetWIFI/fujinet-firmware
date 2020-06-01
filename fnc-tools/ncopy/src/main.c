@@ -101,7 +101,7 @@ bool parse_filespec(char* buf)
   return true;
 }
 
-int copy_d_to_n(void)
+int _copy_d_to_n(void)
 {
   open(D_DEVICE_DATA,4,sourceDeviceSpec,strlen(sourceDeviceSpec));
 
@@ -139,7 +139,13 @@ int copy_d_to_n(void)
   return 0;
 }
 
-int copy_n_to_d(void)
+int copy_d_to_n(void)
+{
+  if (detect_wildcard(sourceDeviceSpec)==false)
+    return _copy_d_to_n();
+}
+
+int _copy_n_to_d(void)
 {
   nopen(sourceUnit,sourceDeviceSpec,4);
 
@@ -183,7 +189,13 @@ int copy_n_to_d(void)
   return 0;
 }
 
-int copy_n_to_n(void)
+int copy_n_to_d(void)
+{
+  if (detect_wildcard(sourceDeviceSpec)==false)
+    return _copy_n_to_d();
+}
+
+int _copy_n_to_n(void)
 {
   nopen(sourceUnit,sourceDeviceSpec,4);
 
@@ -227,6 +239,12 @@ int copy_n_to_n(void)
   nclose(destUnit);
   
   return 0;
+}
+
+int copy_n_to_n(void)
+{
+  if (detect_wildcard(sourceDeviceSpec))
+    return _copy_n_to_n();
 }
 
 bool valid_network_device(char d)
