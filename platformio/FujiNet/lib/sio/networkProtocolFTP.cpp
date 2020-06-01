@@ -7,7 +7,6 @@
 bool networkProtocolFTP::ftpExpect(string resultCode)
 {
     char buf[512];
-    string sbuf;
     long tstart=fnSystem.millis();
     long tdur=0;
 
@@ -28,19 +27,16 @@ bool networkProtocolFTP::ftpExpect(string resultCode)
     int l = control.read_until('\n', buf, sizeof(buf));
     Debug_printf("We got %d bytes back\n", l);
 
-    if (l > 4)
-    {
-        sbuf = string(buf);
-        controlResponse = sbuf.substr(4);
-    }
-    else
-    {
+    if (l < 4)
         return false;
-    }
 
-    Debug_printf("Got response: %s\n", buf);
-    Debug_printf("Returning response: %s\n", controlResponse.c_str());
-    return (sbuf.find_first_of(resultCode) == 0 ? true : false);
+    string sbuf = string(buf);
+    controlResponse = sbuf.substr(4);
+
+    Debug_printf("Expect '%s', response: '%s'\n", resultCode.c_str(), sbuf.c_str());
+    // Debug_printf("Returning response: %s\n", controlResponse.c_str());
+
+    return sbuf.compare(0, 3, resultCode) == 0;
 }
 
 unsigned short networkProtocolFTP::parsePort(string response)
@@ -88,30 +84,23 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         return false; // Error
 
     Debug_printf("Waiting for banner.\n");
-
     if (!ftpExpect("220"))
         return false; // error
 
     Debug_printf("Got user, sending USER.\n");
-
     control.write("USER anonymous\r\n");
-
     if (!ftpExpect("331"))
         return false;
 
     Debug_printf("User Ok, sending password.\n");
-
     control.write("PASS fujinet@fujinet.online\r\n");
-
-    Debug_printf("Logged in.\n");
-
     if (!ftpExpect("230"))
         return false;
 
+    Debug_printf("Logged in.\n");
+
     Debug_printf("Setting type to IMAGE\n");
-
     control.write("TYPE I\r\n");
-
     if (!ftpExpect("200"))
         return false;
 
@@ -200,7 +189,7 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         }
 
         Debug_println("Waiting for data on DATA channel");
-        delay(250);
+        fnSystem.delay(250);
         delaymax += 250;
     }
 
@@ -229,7 +218,7 @@ bool networkProtocolFTP::close()
 bool networkProtocolFTP::read(byte *rx_buf, unsigned short len)
 {
     Debug_print("networkProtocolFTP::read()... ");
-    size_t z = data.readBytes(rx_buf, len);
+    size_t z = data.read(rx_buf, len);
     Debug_printf("%u of %hu bytes\n", z, len);
 
     if (z != len)
