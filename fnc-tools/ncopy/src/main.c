@@ -33,8 +33,8 @@ unsigned short data_len;
 unsigned short block_len;
 unsigned char* dp;
 char errnum[4];
-
 char* pToken;
+char* pWildcardStar, *pWildcardChar;
 unsigned char sourceUnit=1, destUnit=1;
 
 void print_error(void)
@@ -43,6 +43,13 @@ void print_error(void)
   itoa(yvar,errnum,10);
   print(errnum);
   print("\x9b");
+}
+
+bool detect_wildcard(char* buf)
+{
+  pWildcardStar=strchr(buf, '*');
+  pWildcardChar=strchr(buf, '?');
+  return ((pWildcardStar!=NULL) || (pWildcardChar!=NULL));
 }
 
 bool parse_filespec(char* buf)
