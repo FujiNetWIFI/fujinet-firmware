@@ -176,7 +176,6 @@ bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
 
 bool networkProtocolTNFS::write(byte *tx_buf, unsigned short len)
 {
-    uint16_t actual_len=0;
     if (block_write(tx_buf,len))
         return true;
 
@@ -235,13 +234,13 @@ bool networkProtocolTNFS::special_supported_00_command(unsigned char comnd)
 bool networkProtocolTNFS::block_read(byte *rx_buf, unsigned short len)
 {
     unsigned short total_len=len;
-    unsigned short block_len=256;
+    unsigned short block_len=TNFS_MAX_READWRITE_PAYLOAD;
     uint16_t actual_len;
 
     while (total_len>0)
     {
-        if (total_len>256)
-            block_len=256;
+        if (total_len>TNFS_MAX_READWRITE_PAYLOAD)
+            block_len=TNFS_MAX_READWRITE_PAYLOAD;
         else
             block_len=total_len;
 
@@ -261,17 +260,15 @@ bool networkProtocolTNFS::block_read(byte *rx_buf, unsigned short len)
 bool networkProtocolTNFS::block_write(byte *tx_buf, unsigned short len)
 {
     unsigned short total_len=len;
-    unsigned short block_len=256;
+    unsigned short block_len=TNFS_MAX_READWRITE_PAYLOAD;
     uint16_t actual_len;
 
     while (total_len>0)
     {
-        if (total_len>256)
-            block_len=256;
+        if (total_len>TNFS_MAX_READWRITE_PAYLOAD)
+            block_len=TNFS_MAX_READWRITE_PAYLOAD;
         else
             block_len=total_len;
-
-        Debug_printf("Block Len is %d\n",block_len);
         
         if (tnfs_write(&mountInfo, fileHandle, tx_buf, block_len, &actual_len)!=0)
         {
