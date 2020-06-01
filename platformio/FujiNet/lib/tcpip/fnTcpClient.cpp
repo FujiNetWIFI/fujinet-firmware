@@ -406,7 +406,7 @@ size_t fnTcpClient::write(const char *buff)
     if(buff == nullptr)
         return 0;
     size_t len = strlen(buff);
-    return write((uint8_t *)&buff, len);
+    return write((uint8_t *)buff, len);
 }
 
 // Send just one byte of data
@@ -533,10 +533,10 @@ uint8_t fnTcpClient::connected()
             case ECONNREFUSED:
             case ECONNABORTED:
                 _connected = false;
-                Debug_printf("Disconnected: RES: %d, ERR: %d", res, errno);
+                Debug_printf("Disconnected: res %d, errno %d\n", res, errno);
                 break;
             default:
-                Debug_printf("Unexpected: RES: %d, ERR: %d", res, errno);
+                Debug_printf("Unexpected: res %d, errno %d\n", res, errno);
                 _connected = true;
                 break;
             }

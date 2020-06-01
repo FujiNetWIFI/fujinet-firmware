@@ -8,7 +8,7 @@
 #include <WiFi.h>
 #include <WiFiClient.h>
 #endif
-
+#include "../tcpip/fnTcpClient.h"
 #include "sio.h"
 #include "EdUrlParser.h"
 #include "networkProtocol.h"
@@ -29,8 +29,8 @@ public:
     virtual bool isConnected();
     
 private:
-    WiFiClient client;
-    WiFiServer* server;
+    fnTcpClient client;
+    WiFiServer * server;
     byte client_error_code;
 
     bool special_accept_connection();
