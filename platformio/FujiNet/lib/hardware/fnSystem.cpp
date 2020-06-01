@@ -11,7 +11,8 @@
 #include "../../include/version.h"
 
 #include "fnSystem.h"
-
+#include "fnFsSD.h"
+#include "fnFsSPIF.h"
 
 // Global object to manage System
 SystemManager fnSystem;
@@ -138,6 +139,7 @@ void SystemManager::yield()
     vPortYield();
 }
 
+// TODO: Close open files first
 void SystemManager::reboot()
 {
     esp_restart();
@@ -245,8 +247,44 @@ int SystemManager::get_sio_voltage()
 }
 
 /*
-
+ Create temporary file using provided FileSystem.
+ Filename will be 8 characters long. If provided, generated filename will be placed in result_filename
+ File opened in "w+" mode.
 */
+FILE * SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
+{
+    if(fs == nullptr || !fs->running())
+        return nullptr;
+
+    // Generate a 'random' filename by using timer ticks
+    uint32_t ms = micros();
+
+    char buff[9];
+    char *fname;
+    if(result_filename != nullptr)
+        fname = result_filename;
+    else
+        fname = buff;
+
+    sprintf(fname, "%08u", ms);
+    return fs->file_open(fname, "w+");
+}
+
+/*
+ Create temporary file. fnSDFAT will be used if available, otherwise fnSPIFFS.
+ Filename will be 8 characters long. If provided, generated filename will be placed in result_filename
+ File opened in "w+" mode.
+*/
+FILE * SystemManager::make_tempfile(char *result_filename)
+{
+    if(fnSDFAT.running())
+        return make_tempfile(&fnSDFAT, result_filename);
+    else
+        return make_tempfile(&fnSPIFFS, result_filename);
+}
+
+
+// Copy file from source filesystem/filename to destination filesystem/name using optional buffer_hint for buffer size
 size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filename, FileSystem *dest_fs, const char *dest_filename, size_t buffer_hint)
 {
     #ifdef DEBUG
