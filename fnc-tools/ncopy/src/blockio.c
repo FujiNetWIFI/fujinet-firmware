@@ -6,34 +6,33 @@
 #include "blockio.h"
 #include "cio.h"
 
-void open(char* buf, unsigned short len, unsigned char aux1)
+void open(unsigned char channel, unsigned char aux1, char* buf, unsigned short len)
 {
-  OS.iocb[2].buffer=buf;
-  OS.iocb[2].buflen=len;
-  OS.iocb[2].command=IOCB_OPEN;
-  OS.iocb[2].aux1=aux1;
-  OS.iocb[2].aux2=0; // Make sure we don't flip on any translation!
-  dciov();
+  OS.iocb[channel].buffer=buf;
+  OS.iocb[channel].buflen=len;
+  OS.iocb[channel].command=IOCB_OPEN;
+  OS.iocb[channel].aux1=aux1;
+  dciov(channel);
 }
 
-void close(void)
+void close(unsigned char channel)
 {
-  OS.iocb[2].command=IOCB_CLOSE;
-  dciov();
+  OS.iocb[channel].command=IOCB_CLOSE;
+  dciov(channel);
 }
 
-void get(char* buf, unsigned short len)
+void get(unsigned char channel, char* buf, unsigned short len)
 {
-  OS.iocb[2].buffer=buf;
-  OS.iocb[2].buflen=len;
-  OS.iocb[2].command=IOCB_GETCHR;
-  dciov();
+  OS.iocb[channel].buffer=buf;
+  OS.iocb[channel].buflen=len;
+  OS.iocb[channel].command=IOCB_GETCHR;
+  dciov(channel);
 }
 
-void put(char* buf, unsigned short len)
+void put(unsigned char channel, char* buf, unsigned short len)
 {
-  OS.iocb[2].buffer=buf;
-  OS.iocb[2].buflen=len;
-  OS.iocb[2].command=IOCB_PUTCHR;
-  dciov();
+  OS.iocb[channel].buffer=buf;
+  OS.iocb[channel].buflen=len;
+  OS.iocb[channel].command=IOCB_PUTCHR;
+  dciov(channel);
 }

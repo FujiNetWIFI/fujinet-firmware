@@ -22,6 +22,9 @@
 #include "nsio.h"
 #include "blockio.h"
 
+#define D_DEVICE_DATA      1
+#define D_DEVICE_DIRECTORY 2
+
 unsigned char yvar;
 
 unsigned char i;
@@ -100,12 +103,12 @@ bool parse_filespec(char* buf)
 
 int copy_d_to_n(void)
 {
-  open(sourceDeviceSpec,strlen(sourceDeviceSpec),4);
+  open(D_DEVICE_DATA,4,sourceDeviceSpec,strlen(sourceDeviceSpec));
 
   if (yvar!=1)
     {
       print_error();
-      close();
+      close(D_DEVICE_DATA);
       return yvar;
     }
 
@@ -116,20 +119,20 @@ int copy_d_to_n(void)
       nstatus(destUnit);
       yvar=OS.dvstat[3];
       print_error();
-      close();
+      close(D_DEVICE_DATA);
       nclose(destUnit);
     }
 
   while (yvar==1)
     {
-      get(data,sizeof(data));
+      get(D_DEVICE_DATA,data,sizeof(data));
       data_len=OS.iocb[2].buflen;
 
       nwrite(destUnit,data,data_len);
       data_len-=data_len;	  
     }
 
-  close();
+  close(D_DEVICE_DATA);
   nclose(destUnit);
   
   return 0;
@@ -147,12 +150,12 @@ int copy_n_to_d(void)
       nclose(destUnit);
     }
 
-  open(destDeviceSpec,strlen(destDeviceSpec),8);
+  open(D_DEVICE_DATA,8,destDeviceSpec,strlen(destDeviceSpec));
 
   if (yvar!=1)
     {
       print_error();
-      close();
+      close(D_DEVICE_DATA);
       return yvar;
     }  
 
@@ -169,11 +172,11 @@ int copy_n_to_d(void)
 	data_len=sizeof(data);
 
       nread(sourceUnit,data,data_len); // add err chk
-      put(data,data_len);
+      put(D_DEVICE_DATA,data,data_len);
     } while (data_len>0);
 
   nclose(sourceUnit);
-  close();
+  close(D_DEVICE_DATA);
   return 0;
 }
 
