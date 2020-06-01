@@ -2,5 +2,5 @@
  * Function to call cio
  */
 
-void ciov();
-void dciov();
+void __fastcall__ ciov(void);
+void __fastcall__ dciov(unsigned char channel);

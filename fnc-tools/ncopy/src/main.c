@@ -22,6 +22,9 @@
 #include "nsio.h"
 #include "blockio.h"
 
+#define D_DEVICE_DATA      1
+#define D_DEVICE_DIRECTORY 2
+
 unsigned char yvar;
 
 unsigned char i;
@@ -33,8 +36,8 @@ unsigned short data_len;
 unsigned short block_len;
 unsigned char* dp;
 char errnum[4];
-
 char* pToken;
+char* pWildcardStar, *pWildcardChar;
 unsigned char sourceUnit=1, destUnit=1;
 
 void print_error(void)
@@ -43,6 +46,13 @@ void print_error(void)
   itoa(yvar,errnum,10);
   print(errnum);
   print("\x9b");
+}
+
+bool detect_wildcard(char* buf)
+{
+  pWildcardStar=strchr(buf, '*');
+  pWildcardChar=strchr(buf, '?');
+  return ((pWildcardStar!=NULL) || (pWildcardChar!=NULL));
 }
 
 bool parse_filespec(char* buf)
@@ -91,14 +101,14 @@ bool parse_filespec(char* buf)
   return true;
 }
 
-int copy_d_to_n(void)
+int _copy_d_to_n(void)
 {
-  open(sourceDeviceSpec,strlen(sourceDeviceSpec),4);
+  open(D_DEVICE_DATA,4,sourceDeviceSpec,strlen(sourceDeviceSpec));
 
   if (yvar!=1)
     {
       print_error();
-      close();
+      close(D_DEVICE_DATA);
       return yvar;
     }
 
@@ -109,26 +119,33 @@ int copy_d_to_n(void)
       nstatus(destUnit);
       yvar=OS.dvstat[3];
       print_error();
-      close();
+      close(D_DEVICE_DATA);
       nclose(destUnit);
     }
 
   while (yvar==1)
     {
-      get(data,sizeof(data));
-      data_len=OS.iocb[2].buflen;
+      get(D_DEVICE_DATA,data,sizeof(data));
+
+      data_len=OS.iocb[D_DEVICE_DATA].buflen;
 
       nwrite(destUnit,data,data_len);
       data_len-=data_len;	  
     }
 
-  close();
+  close(D_DEVICE_DATA);
   nclose(destUnit);
   
   return 0;
 }
 
-int copy_n_to_d(void)
+int copy_d_to_n(void)
+{
+  if (detect_wildcard(sourceDeviceSpec)==false)
+    return _copy_d_to_n();
+}
+
+int _copy_n_to_d(void)
 {
   nopen(sourceUnit,sourceDeviceSpec,4);
 
@@ -140,12 +157,12 @@ int copy_n_to_d(void)
       nclose(destUnit);
     }
 
-  open(destDeviceSpec,strlen(destDeviceSpec),8);
+  open(D_DEVICE_DATA,8,destDeviceSpec,strlen(destDeviceSpec));
 
   if (yvar!=1)
     {
       print_error();
-      close();
+      close(D_DEVICE_DATA);
       return yvar;
     }  
 
@@ -162,15 +179,23 @@ int copy_n_to_d(void)
 	data_len=sizeof(data);
 
       nread(sourceUnit,data,data_len); // add err chk
-      put(data,data_len);
+
+      put(D_DEVICE_DATA,data,data_len);
+      
     } while (data_len>0);
 
   nclose(sourceUnit);
-  close();
+  close(D_DEVICE_DATA);
   return 0;
 }
 
-int copy_n_to_n(void)
+int copy_n_to_d(void)
+{
+  if (detect_wildcard(sourceDeviceSpec)==false)
+    return _copy_n_to_d();
+}
+
+int _copy_n_to_n(void)
 {
   nopen(sourceUnit,sourceDeviceSpec,4);
 
@@ -216,6 +241,22 @@ int copy_n_to_n(void)
   return 0;
 }
 
+int copy_n_to_n(void)
+{
+  if (detect_wildcard(sourceDeviceSpec))
+    return _copy_n_to_n();
+}
+
+bool valid_network_device(char d)
+{
+  return (d=='N');
+}
+
+bool valid_cio_device(char d)
+{
+  return (d!='N' && (d>0x40 && d<0x5B));
+}
+
 int main(int argc, char* argv[])
 {
   OS.lmargn=2;
@@ -244,11 +285,11 @@ int main(int argc, char* argv[])
       return(1);
     }
 
-  if (sourceDeviceSpec[0]=='D' && destDeviceSpec[0]=='N')
+  if (valid_cio_device(sourceDeviceSpec[0]) && valid_network_device(destDeviceSpec[0]))
     return copy_d_to_n();
-  else if (sourceDeviceSpec[0]=='N' && destDeviceSpec[0]=='D')
+  else if (valid_network_device(sourceDeviceSpec[0]) && valid_cio_device(destDeviceSpec[0]))
     return copy_n_to_d();
-  else if (sourceDeviceSpec[0]=='N' && destDeviceSpec[0]=='N')
+  else if (valid_network_device(sourceDeviceSpec[0]) && valid_network_device(destDeviceSpec[0]))
     return copy_n_to_n();
   
 }
