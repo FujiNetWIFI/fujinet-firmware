@@ -126,7 +126,8 @@ int copy_d_to_n(void)
   while (yvar==1)
     {
       get(D_DEVICE_DATA,data,sizeof(data));
-      data_len=OS.iocb[2].buflen;
+
+      data_len=OS.iocb[D_DEVICE_DATA].buflen;
 
       nwrite(destUnit,data,data_len);
       data_len-=data_len;	  
@@ -172,7 +173,9 @@ int copy_n_to_d(void)
 	data_len=sizeof(data);
 
       nread(sourceUnit,data,data_len); // add err chk
+
       put(D_DEVICE_DATA,data,data_len);
+      
     } while (data_len>0);
 
   nclose(sourceUnit);
@@ -226,6 +229,16 @@ int copy_n_to_n(void)
   return 0;
 }
 
+bool valid_network_device(char d)
+{
+  return (d=='N');
+}
+
+bool valid_cio_device(char d)
+{
+  return (d!='N' && (d>0x40 && d<0x5B));
+}
+
 int main(int argc, char* argv[])
 {
   OS.lmargn=2;
@@ -254,11 +267,11 @@ int main(int argc, char* argv[])
       return(1);
     }
 
-  if (sourceDeviceSpec[0]=='D' && destDeviceSpec[0]=='N')
+  if (valid_cio_device(sourceDeviceSpec[0]) && valid_network_device(destDeviceSpec[0]))
     return copy_d_to_n();
-  else if (sourceDeviceSpec[0]=='N' && destDeviceSpec[0]=='D')
+  else if (valid_network_device(sourceDeviceSpec[0]) && valid_cio_device(destDeviceSpec[0]))
     return copy_n_to_d();
-  else if (sourceDeviceSpec[0]=='N' && destDeviceSpec[0]=='N')
+  else if (valid_network_device(sourceDeviceSpec[0]) && valid_network_device(destDeviceSpec[0]))
     return copy_n_to_n();
   
 }
