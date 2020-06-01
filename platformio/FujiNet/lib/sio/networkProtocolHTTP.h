@@ -58,6 +58,8 @@ private:
     char cert[2048];
     EdUrlParser *openedUrlParser;
     string openedUrl;
+    FILE* fpPUT;
+    char nPUT[32];
     
 };
 
