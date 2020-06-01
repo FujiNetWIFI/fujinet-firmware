@@ -3,7 +3,7 @@ Modules list:
 main.o:
     CODE              Offs=000000  Size=00048B  Align=00001  Fill=0000
     RODATA            Offs=000000  Size=000044  Align=00001  Fill=0000
-    BSS               Offs=000000  Size=00130B  Align=00001  Fill=0000
+    BSS               Offs=000000  Size=00430B  Align=00001  Fill=0000
     DATA              Offs=000000  Size=000002  Align=00001  Fill=0000
 err.o:
     CODE              Offs=00048B  Size=000023  Align=00001  Fill=0000
@@ -30,7 +30,7 @@ sio.o:
     DATA              Offs=000006  Size=000025  Align=00001  Fill=0000
     ONCE              Offs=000000  Size=00000C  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(crt0.o):
-    BSS               Offs=00130B  Size=000005  Align=00001  Fill=0000
+    BSS               Offs=00430B  Size=000005  Align=00001  Fill=0000
     STARTUP           Offs=000000  Size=000063  Align=00001  Fill=0000
 /home/thomc/Workspace/cc65/lib/atari.lib(decax1.o):
     CODE              Offs=000720  Size=000007  Align=00001  Fill=0000
@@ -113,13 +113,13 @@ CODE                  00355E  003F92  000A35  00001
 RODATA                003F93  00401D  00008B  00001
 DATA                  00401E  00404B  00002E  00001
 INIT                  00404C  0040AE  000063  00001
-BSS                   0040AF  0053BE  001310  00001
+BSS                   0040AF  0083BE  004310  00001
 
 
 Exports list by name:
 ---------------------
 __AUTOSTART__             000001 REA    __BSS_LOAD__              0040AF RLA    
-__BSS_RUN__               0040AF RLA    __BSS_SIZE__              001310 REA    
+__BSS_RUN__               0040AF RLA    __BSS_SIZE__              004310 REA    
 __CONSTRUCTOR_COUNT__     000002 REA    __CONSTRUCTOR_TABLE__     00355A RLA    
 __DESTRUCTOR_COUNT__      000000 REA    __DESTRUCTOR_TABLE__      00401E RLA    
 __EXEHDR__                000001 REA    __LOWCODE_RUN__           003463 RLA    
@@ -164,46 +164,46 @@ zerobss                   003F70 RLA
 Exports list by value:
 ----------------------
 __DESTRUCTOR_COUNT__      000000 REA    __RESERVED_MEMORY__       000000 REA    
-__LOWCODE_SIZE__          000000 REA    __EXEHDR__                000001 REA    
-__STARTUP__               000001 REA    __AUTOSTART__             000001 REA    
+__LOWCODE_SIZE__          000000 REA    __STARTUP__               000001 REA    
+__EXEHDR__                000001 REA    __AUTOSTART__             000001 REA    
 __CONSTRUCTOR_COUNT__     000002 REA    sp                        000082 RLZ    
 sreg                      000084 RLZ    ptr1                      00008A RLZ    
 ptr2                      00008C RLZ    ptr3                      00008E RLZ    
 tmp1                      000092 RLZ    tmp3                      000094 RLZ    
 regbank                   000096 RLZ    __STACKSIZE__             000800 REA    
-__BSS_SIZE__              001310 REA    __MAIN_START__            003400 RLA    
-start                     003401 RLA    __LOWCODE_RUN__           003463 RLA    
-initlib                   003463 RLA    detect                    00346F  LAI   
-initmainargs              0034BB RLAI   __CONSTRUCTOR_TABLE__     00355A RLA    
-_main                     003908 RLA    _nopen                    003A0C RLA    
-_nclose                   003A4D RLA    _nread                    003A83 RLA    
-_nwrite                   003AC5 RLA    _nstatus                  003B07 RLA    
-_open                     003B46 RLA    _close                    003B74 RLA    
-_get                      003B7E RLA    _put                      003BA2 RLA    
-_print                    003BC6 RLA    _get_line                 003C17 RLA    
-_ciov                     003C3A RLA    _dciov                    003C40 RLA    
-_siov                     003C49 RLA    addysp1                   003C4D RLA    
-addysp                    003C4E RLA    callmain                  003C5B RLA    
-donelib                   003C72 RLA    decax1                    003C7E RLA    
-decaxy                    003C85 RLA    decsp3                    003C8E RLA    
-tosicmp                   003C9D RLA    incax1                    003CC9 RLA    
-incsp1                    003CD0 RLA    popax                     003CD7 RLA    
-incsp2                    003CDF RLA    incsp3                    003CED RLA    
-incsp4                    003CF2 RLA    incsp5                    003CF7 RLA    
-incsp7                    003CFC RLA    _itoa                     003D1F RLA    
-ldaxi                     003D95 RLA    ldax0sp                   003DA2 RLA    
-ldaxysp                   003DA4 RLA    pusha                     003DAF RLA    
-push0                     003DC1 RLA    pusha0                    003DC3 RLA    
-pushax                    003DC5 RLA    pushw0sp                  003DDB RLA    
-pushwysp                  003DDD RLA    regswap2                  003DF7 RLA    
-stax0sp                   003E0D RLA    _strcat                   003E18 RLA    
-_strchr                   003E49 RLA    _strcpy                   003E70 RLA    
-_strlen                   003E8F RLA    _strtok                   003EA5 RLA    
-zerobss                   003F70 RLA    __hextab                  004007 RLA    
-__DESTRUCTOR_TABLE__      00401E RLA    __argc                    004020 RLA    
-__argv                    004022 RLA    __dos_type                004049 RLA    
-__BSS_RUN__               0040AF RLA    _yvar                     0040AF RLA    
-__BSS_LOAD__              0040AF RLA    
+__MAIN_START__            003400 RLA    start                     003401 RLA    
+initlib                   003463 RLA    __LOWCODE_RUN__           003463 RLA    
+detect                    00346F  LAI   initmainargs              0034BB RLAI   
+__CONSTRUCTOR_TABLE__     00355A RLA    _main                     003908 RLA    
+_nopen                    003A0C RLA    _nclose                   003A4D RLA    
+_nread                    003A83 RLA    _nwrite                   003AC5 RLA    
+_nstatus                  003B07 RLA    _open                     003B46 RLA    
+_close                    003B74 RLA    _get                      003B7E RLA    
+_put                      003BA2 RLA    _print                    003BC6 RLA    
+_get_line                 003C17 RLA    _ciov                     003C3A RLA    
+_dciov                    003C40 RLA    _siov                     003C49 RLA    
+addysp1                   003C4D RLA    addysp                    003C4E RLA    
+callmain                  003C5B RLA    donelib                   003C72 RLA    
+decax1                    003C7E RLA    decaxy                    003C85 RLA    
+decsp3                    003C8E RLA    tosicmp                   003C9D RLA    
+incax1                    003CC9 RLA    incsp1                    003CD0 RLA    
+popax                     003CD7 RLA    incsp2                    003CDF RLA    
+incsp3                    003CED RLA    incsp4                    003CF2 RLA    
+incsp5                    003CF7 RLA    incsp7                    003CFC RLA    
+_itoa                     003D1F RLA    ldaxi                     003D95 RLA    
+ldax0sp                   003DA2 RLA    ldaxysp                   003DA4 RLA    
+pusha                     003DAF RLA    push0                     003DC1 RLA    
+pusha0                    003DC3 RLA    pushax                    003DC5 RLA    
+pushw0sp                  003DDB RLA    pushwysp                  003DDD RLA    
+regswap2                  003DF7 RLA    stax0sp                   003E0D RLA    
+_strcat                   003E18 RLA    _strchr                   003E49 RLA    
+_strcpy                   003E70 RLA    _strlen                   003E8F RLA    
+_strtok                   003EA5 RLA    zerobss                   003F70 RLA    
+__hextab                  004007 RLA    __DESTRUCTOR_TABLE__      00401E RLA    
+__argc                    004020 RLA    __argv                    004022 RLA    
+__dos_type                004049 RLA    _yvar                     0040AF RLA    
+__BSS_LOAD__              0040AF RLA    __BSS_RUN__               0040AF RLA    
+__BSS_SIZE__              004310 REA    
 
 
 Imports list:
