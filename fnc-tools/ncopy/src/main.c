@@ -28,7 +28,7 @@ unsigned char i;
 unsigned char argbuf[255];
 unsigned char sourceDeviceSpec[255];
 unsigned char destDeviceSpec[255];
-unsigned char data[4096];
+unsigned char data[16384];
 unsigned short data_len;
 unsigned short block_len;
 unsigned char* dp;
