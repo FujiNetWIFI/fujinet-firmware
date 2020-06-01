@@ -42,7 +42,7 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
         ret = true;
         break;
     case PUT:
-        resultCode = client.PUT(buf, len);
+        // Don't start connection here.
         ret = true;
         break;
     default:
@@ -95,11 +95,32 @@ bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     openedUrlParser = urlParser;
     openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":" + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
 
+    if (openMode == PUT)
+    {
+        fpPUT = fnSystem.make_tempfile(nPUT);
+    }
+
     return client.begin(openedUrl.c_str());
 }
 
 bool networkProtocolHTTP::close()
 {
+    size_t putPos;
+    uint8_t* putBuf;
+
+    // Close and Remove temporary PUT file, if needed.
+    if (openMode == PUT)
+    {
+        putPos=ftell(fpPUT);
+        putBuf=(uint8_t *)malloc(putPos);
+        rewind(fpPUT);
+        fread(putBuf,1,putPos,fpPUT);
+        client.PUT(putBuf,putPos);
+        fclose(fpPUT);
+        unlink(nPUT);
+        free(putBuf);
+    }
+
     client.end();
     return false;
 }
@@ -152,12 +173,22 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
     switch (httpState)
     {
     case DATA:
-        if (!requestStarted)
+        if (openMode == PUT)
         {
-            if (!startConnection(tx_buf, len))
+            if (!fpPUT)
+                return true;
+            
+            if (fwrite(tx_buf,1,len,fpPUT) != len)
                 return true;
         }
-
+        else
+        {
+            if (!requestStarted)
+            {
+                if (!startConnection(tx_buf, len))
+                    return true;
+            }
+        }
         break;
     case HEADERS:
         for (b = 0; b < len; b++)
