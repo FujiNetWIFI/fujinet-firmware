@@ -50,7 +50,8 @@
 			"string": "cpp",
 			"regex": "cpp",
 			"random": "cpp",
-			"bitset": "cpp"
+			"bitset": "cpp",
+			"forward_list": "cpp"
 		}
 	}
 }
