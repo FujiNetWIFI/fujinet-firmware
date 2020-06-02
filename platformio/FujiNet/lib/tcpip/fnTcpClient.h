@@ -15,10 +15,11 @@ class fnTcpClient
 protected:
     std::shared_ptr<fnTcpClientRxBuffer> _rxBuffer;
     std::shared_ptr<fnTcpClientSocketHandle> _clientSocketHandle;
-    bool _connected;
+    bool _connected = false;
 
 public:
-    fnTcpClient();
+    fnTcpClient() {};
+    fnTcpClient(int fd);
     ~fnTcpClient();
 
     void stop();

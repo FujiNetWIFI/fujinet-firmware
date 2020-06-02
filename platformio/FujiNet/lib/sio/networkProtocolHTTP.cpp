@@ -52,8 +52,10 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
 
     requestStarted = ret;
 
+/*
     if (requestStarted)
         c = client.getStreamPtr();
+        */
 
 #ifdef DEBUG
     Debug_printf("Result code: %d\n", resultCode);
@@ -139,7 +141,7 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
         if (c == nullptr)
             return true;
 
-        if (c->readBytes(rx_buf, len) != len)
+        if (c->read(rx_buf, len) != len)
             return true;
         break;
     case HEADERS:

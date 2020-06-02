@@ -162,8 +162,11 @@ public:
     int fd() { return _sockfd; }
 };
 
-fnTcpClient::fnTcpClient() : _connected(false)
+fnTcpClient::fnTcpClient(int fd)
 {
+    _connected = true;
+    _clientSocketHandle.reset(new fnTcpClientSocketHandle(fd));
+    _rxBuffer.reset(new fnTcpClientRxBuffer(fd));
 }
 
 fnTcpClient::~fnTcpClient()

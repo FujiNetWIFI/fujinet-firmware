@@ -1,9 +1,10 @@
 #ifndef NETWORKPROTOCOLHTTP
 #define NETWORKPROTOCOLHTTP
 
-#include <Arduino.h>
+//#include <Arduino.h>
 #include <HTTPClient.h>
 #include "networkProtocol.h"
+#include "../tcpip/fnTcpClient.h"
 #include "EdUrlParser.h"
 #include "sio.h"
 
@@ -31,7 +32,7 @@ private:
     virtual bool startConnection(byte *buf, unsigned short len);
 
     HTTPClient client;
-    WiFiClient *c;
+    fnTcpClient *c;
 
     char *headerCollection[16];
     size_t headerCollectionIndex = 0;

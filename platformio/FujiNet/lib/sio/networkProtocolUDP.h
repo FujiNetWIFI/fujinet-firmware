@@ -1,6 +1,5 @@
-//#include <Arduino.h>
-//#include <WiFiUdp.h>
-
+#ifndef NETWORKPROTOCOLUDP
+#define NETWORKPROTOCOLUDP
 #include "../tcpip/fnUDP.h"
 
 #include "sio.h"
@@ -32,3 +31,5 @@ private:
 
     bool special_set_destination(byte* sp_buf, unsigned short len);
 };
+
+#endif // NETWORKPROTOCOLUDP

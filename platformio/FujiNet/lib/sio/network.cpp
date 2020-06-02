@@ -1,10 +1,18 @@
-#include "../../include/debug.h"
+/*
+TODO: Figure out why there's now a conflict between INADDR_NONE used in
+\Users\omf\.platformio\packages\framework-arduinoespressif32\cores\esp32/IPAddress.h:94
+and that defined in 
+\Users\omf\.platformio\packages\framework-arduinoespressif32\tools\sdk\include\lwip/lwip/ip4_addr.h:79
 
+*/
 #include "driver/timer.h"
+#include "../../include/debug.h"
 
 #include "fnSystem.h"
 #include "fnWiFi.h"
+
 #include "network.h"
+
 #include "networkProtocol.h"
 #include "networkProtocolTCP.h"
 #include "networkProtocolUDP.h"

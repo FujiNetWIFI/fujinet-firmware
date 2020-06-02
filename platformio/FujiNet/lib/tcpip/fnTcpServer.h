@@ -22,19 +22,18 @@ class fnTcpServer
     void listenOnLocalhost(){}
 
     fnTcpServer(uint16_t port=80, uint8_t max_clients=4): _port(port), _max_clients(max_clients){}
-    ~fnTcpServer(){ end(); }
+    ~fnTcpServer(){ stop(); }
 
     void begin(uint16_t port=0);
 
     fnTcpClient accept(){ return available(); }
-    void setNoDelay(bool nodelay);
-    bool getNoDelay();
+    void setNoDelay(bool nodelay) { _noDelay = nodelay; };
+    bool getNoDelay() {return _noDelay; };
     int setTimeout(uint32_t seconds);
 
     bool hasClient();
     fnTcpClient available();
 
-    void end();
     void stop();
 
     operator bool(){ return _listening; }
