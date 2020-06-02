@@ -7,20 +7,20 @@ bool networkProtocolFTP::ftpExpect(string resultCode)
 {
     char buf[512];
     string sbuf;
-    long tstart=fnSystem.millis();
-    long tdur=0;
+    long tstart = fnSystem.millis();
+    long tdur = 0;
 
     memset(buf, 0, sizeof(buf));
 
     if (!control.connected())
         return false;
 
-    while (tdur<10000)
+    while (tdur < 10000)
     {
-        if (control.available()>0)
+        if (control.available() > 0)
             break;
 
-        tdur=fnSystem.millis()-tstart;
+        tdur = fnSystem.millis() - tstart;
     }
 
     int l = control.readBytesUntil('\n', buf, sizeof(buf));
@@ -186,22 +186,24 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     Debug_printf("%s Connected to data port: %d\n", fnSystem.get_uptime_str(), dataPort);
 
-    // Wait for data to become available before letting the Atari cut loose...
-    int delaymax = 0;
-    while(data.available() == 0)
+    if (cmdFrame->aux1 != 8) // do not do this for write!
     {
-        if(delaymax >= 8000)
+        // Wait for data to become available before letting the Atari cut loose...
+        int delaymax = 0;
+        while (data.available() == 0)
         {
-            Debug_println("Timed out waiting for data on DATA channel");
-            data.stop();
-            return false;
+            if (delaymax >= 8000)
+            {
+                Debug_println("Timed out waiting for data on DATA channel");
+                data.stop();
+                return false;
+            }
+
+            Debug_println("Waiting for data on DATA channel");
+            delay(250);
+            delaymax += 250;
         }
-
-        Debug_println("Waiting for data on DATA channel");
-        delay(250);
-        delaymax += 250;
     }
-
     return true;
 }
 
