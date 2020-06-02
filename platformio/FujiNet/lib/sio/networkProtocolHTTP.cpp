@@ -114,9 +114,11 @@ bool networkProtocolHTTP::close()
     if (openMode == PUT)
     {
         putPos=ftell(fpPUT);
+        Debug_printf("putPos is %d",putPos);
         putBuf=(uint8_t *)malloc(putPos);
-        rewind(fpPUT);
-        fread(putBuf,1,putPos,fpPUT);
+        fseek(fpPUT,0,SEEK_SET);
+        fread(putBuf,1,putPos,fpPUT);    
+        Debug_printf("\n");
         client.PUT(putBuf,putPos);
         fclose(fpPUT);
         unlink(nPUT);
@@ -124,7 +126,7 @@ bool networkProtocolHTTP::close()
     }
 
     client.end();
-    return false;
+    return true;
 }
 
 bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
@@ -180,8 +182,8 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
             if (!fpPUT)
                 return true;
             
-            if (fwrite(tx_buf,1,len,fpPUT) != len)
-                return true;
+            fwrite(tx_buf,1,len,fpPUT);
+            Debug_printf("pos is %d\n",ftell(fpPUT));
         }
         else
         {
