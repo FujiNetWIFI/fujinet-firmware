@@ -1,8 +1,6 @@
 #include "../../include/atascii.h"
 #include "printer.h"
 
-#include "../../include/atascii.h"
-
 #include "file_printer.h"
 #include "html_printer.h"
 #include "atari_820.h"

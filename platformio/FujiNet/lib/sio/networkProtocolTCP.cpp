@@ -36,7 +36,7 @@ bool networkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 #ifdef DEBUG
         Debug_printf("Creating server object on port %s\n", urlParser->port.c_str());
 #endif
-        server = new WiFiServer(atoi(urlParser->port.c_str()));
+        server = new fnTcpServer(atoi(urlParser->port.c_str()));
         server->begin(atoi(urlParser->port.c_str()));
         connectionIsServer = true;
     }
