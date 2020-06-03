@@ -121,11 +121,44 @@ bool sioNetwork::isValidURL(EdUrlParser *url)
         return true;
 }
 
+bool sioNetwork::parseURL()
+{
+    if (urlParser != nullptr)
+        delete urlParser;
+
+    if (cmdFrame.aux1==0)
+        return false;
+
+    // Preprocess URL
+    if (cmdFrame.aux1 != 6)
+    {
+        for (int i = 0; i < sizeof(filespecBuf); i++)
+            if ((filespecBuf[i] > 0x7F) || (filespecBuf[i] == ',') || (filespecBuf[i] == '*'))
+                filespecBuf[i] = 0x00;
+    }
+    else
+    {
+        for (int i = 0; i < sizeof(filespecBuf); i++)
+            if ((filespecBuf[i] > 0x7F))
+                filespecBuf[i] = 0x00;
+    }
+
+    if (prefix.length() > 0)
+        deviceSpec = prefix + string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
+    else
+        deviceSpec = string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
+
+    urlParser = EdUrlParser::parseUrl(deviceSpec);
+
+    return (isValidURL(urlParser));
+}
+
 void sioNetwork::sio_open()
 {
     Debug_println("sioNetwork::sio_open()");
-    char inp[256];
-    string deviceSpec;
+
+    aux1 = cmdFrame.aux1;
+    aux2 = cmdFrame.aux2;
 
     sio_ack();
 
@@ -135,43 +168,21 @@ void sioNetwork::sio_open()
         deallocate_buffers();
     }
 
-    if (urlParser != nullptr)
-        delete urlParser;
-
-    memset(&inp, 0, sizeof(inp));
+    memset(&filespecBuf, 0, sizeof(filespecBuf));
     memset(&status_buf.rawData, 0, sizeof(status_buf.rawData));
 
-    sio_to_peripheral((byte *)&inp, sizeof(inp));
+    sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
 
-    if (cmdFrame.aux1 != 6)
-    {
-        for (int i = 0; i < sizeof(inp); i++)
-            if ((inp[i] > 0x7F) || (inp[i] == ',') || (inp[i] == '*'))
-                inp[i] = 0x00;
-    }
-    else
-    {
-        for (int i = 0; i < sizeof(inp); i++)
-            if ((inp[i] > 0x7F))
-                inp[i] = 0x00;
-    }
-
-    if (prefix.length() > 0)
-        deviceSpec = prefix + string(inp).substr(string(inp).find(":") + 1);
-    else
-        deviceSpec = string(inp).substr(string(inp).find(":") + 1);
-
-    Debug_printf("Open: %s\n", deviceSpec.c_str());
-
-    urlParser = EdUrlParser::parseUrl(deviceSpec);
-
-    if (isValidURL(urlParser) == false)
+    if (parseURL()==false)
     {
         Debug_printf("Invalid devicespec\n");
         status_buf.error = 165;
         sio_error();
         return;
     }
+
+    // deviceSpec set by parseURL.
+    Debug_printf("Open: %s\n", deviceSpec.c_str());
 
     if (allocate_buffers() == false)
     {
@@ -200,19 +211,6 @@ void sioNetwork::sio_open()
         return;
     }
 
-    aux1 = cmdFrame.aux1;
-    aux2 = cmdFrame.aux2;
-
-    // Destroy any existing timer
-    /*
-    if (rateTimer != nullptr)
-    {
-        timerAlarmDisable(rateTimer);
-        timerDetachInterrupt(rateTimer);
-        timerEnd(rateTimer);
-        rateTimer = nullptr;
-    }
-    */
     if (rateTimerHandle != nullptr)
     {
         Debug_println("Deleting rateTimer");
@@ -221,13 +219,6 @@ void sioNetwork::sio_open()
         rateTimerHandle = nullptr;
     }
 
-    // Set up a new rate limiting timer
-    /*
-    rateTimer = timerBegin(0, 80, true); // counter_number, divider, count_up
-    timerAttachInterrupt(rateTimer, &onTimer, true); // counter_id, function, on_edge
-    timerAlarmWrite(rateTimer, 100000, true); // counter_id, alarm_at, auto_reload // 100ms
-    timerAlarmEnable(rateTimer);
-    */
     esp_timer_create_args_t tcfg;
     tcfg.arg = nullptr;
     tcfg.callback = onTimer;
