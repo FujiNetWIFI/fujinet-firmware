@@ -493,6 +493,52 @@ void sioNetwork::sio_special()
 
         sio_complete();
     }
+    else if (cmdFrame.comnd == 0x20) // RENAME
+    {
+        sio_ack();
+        sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
+
+        if (parseURL() == false)
+        {
+            Debug_printf("Invalid devicespec\n");
+            status_buf.error = 165;
+            sio_error();
+            return;
+        }
+
+        // deviceSpec set by parseURL.
+        Debug_printf("Rename: %s\n", deviceSpec.c_str());
+
+        if (allocate_buffers() == false)
+        {
+            Debug_printf("Could not allocate memory for buffers\n");
+            status_buf.error = 129;
+            sio_error();
+            return;
+        }
+
+        if (open_protocol() == false)
+        {
+            Debug_printf("Could not open protocol.\n");
+            status_buf.error = 128;
+            sio_error();
+            return;
+        }
+
+        if (!protocol->rename(urlParser, &cmdFrame))
+        {
+            Debug_printf("Protocol unable to perform rename.");
+            protocol->close();
+            delete protocol;
+            protocol = nullptr;
+            status_buf.error = 170;
+            sio_error();
+            return;
+        }
+
+        protocol->close();
+        sio_complete();
+    }
     else if (cmdFrame.comnd == 0x21) // DELETE
     {
         sio_ack();
@@ -644,6 +690,8 @@ bool sioNetwork::sio_special_supported_80_command(unsigned char c)
 {
     switch (c)
     {
+    case 0x20: // RENAME
+        return true;
     case 0x21: // DELETE
         return true;
     case 0x2C: // CHDIR
