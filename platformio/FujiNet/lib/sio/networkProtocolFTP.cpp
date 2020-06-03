@@ -284,7 +284,7 @@ bool networkProtocolFTP::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (ftpLogin(urlParser) == false)
         return false;
 
-    // Remove trailing slash!
+    // Remove leading slash!
     urlParser->path=urlParser->path.substr(1);
 
     Debug_printf("Deleting file %s\n", urlParser->path.c_str());
@@ -293,6 +293,48 @@ bool networkProtocolFTP::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     control.write("\r\n");
 
     return ftpExpect("250");
+}
+
+bool networkProtocolFTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    string rnFrom;
+    string rnTo;
+    size_t comma_pos;
+
+    if (urlParser->port.empty())
+        urlParser->port = "21";
+
+    // Remove leading slash!
+    urlParser->path=urlParser->path.substr(1);
+
+    comma_pos=urlParser->path.find(",");
+
+    if (comma_pos==string::npos)
+        return false;
+    
+    rnFrom=urlParser->path.substr(0,comma_pos);
+    rnTo=urlParser->path.substr(comma_pos+1);
+
+    // Remove dest from path, for login.
+    urlParser->path=urlParser->path.substr(0,comma_pos);
+
+    if (ftpLogin(urlParser) == false)
+        return false;
+
+    Debug_printf("Renaming %s to %s\n",rnFrom.c_str(),rnTo.c_str());
+    control.write("RNFR ");
+    control.write(rnFrom.c_str());
+    control.write("\r\n");
+
+    if (!ftpExpect("350"))
+        return false;
+
+    control.write("RNTO ");
+    control.write(rnTo.c_str());
+    control.write("\r\n");
+
+    return ftpExpect("250");
+    return true;
 }
 
 bool networkProtocolFTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
