@@ -18,7 +18,7 @@ esp_timer_handle_t rateTimerHandle = nullptr; // Used a different name just to b
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 // Latch the rate limiting flag
-// The esp_timer_* functions don't mention requiring the callback being in IRAM, so removing that 
+// The esp_timer_* functions don't mention requiring the callback being in IRAM, so removing that
 //void IRAM_ATTR onTimer()
 void onTimer(void *info)
 {
@@ -126,7 +126,7 @@ bool sioNetwork::parseURL()
     if (urlParser != nullptr)
         delete urlParser;
 
-    if (cmdFrame.aux1==0)
+    if (cmdFrame.aux1 == 0)
         return false;
 
     // Preprocess URL
@@ -173,7 +173,7 @@ void sioNetwork::sio_open()
 
     sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
 
-    if (parseURL()==false)
+    if (parseURL() == false)
     {
         Debug_printf("Invalid devicespec\n");
         status_buf.error = 165;
@@ -257,7 +257,7 @@ void sioNetwork::sio_close()
 void sioNetwork::sio_read()
 {
     Debug_println("sioNetwork::sio_read()");
-    if(rx_buf == nullptr)
+    if (rx_buf == nullptr)
     {
         Debug_println("Unallocated read buffer!");
         sio_nak();
@@ -266,7 +266,7 @@ void sioNetwork::sio_read()
     sio_ack();
 
     // Clean out RX buffer.
-    memset(rx_buf,0,INPUT_BUFFER_SIZE);
+    memset(rx_buf, 0, INPUT_BUFFER_SIZE);
 
     Debug_printf("Read %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
 
@@ -473,12 +473,12 @@ void sioNetwork::sio_special()
                 }
             }
 
-            if (prefix[prefix.size()-1] == '/')
+            if (prefix[prefix.size() - 1] == '/')
             {
                 // Get rid of last path segment.
                 pathLocations.pop_back();
             }
-            
+
             // truncate to that location.
             prefix = prefix.substr(0, pathLocations.back() + 1);
         }
@@ -492,6 +492,52 @@ void sioNetwork::sio_special()
         Debug_printf("NCD: %s\r\n", prefix.c_str());
 
         sio_complete();
+    }
+    else if (cmdFrame.comnd == 0x21) // DELETE
+    {
+        sio_ack();
+        sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
+
+        if (parseURL() == false)
+        {
+            Debug_printf("Invalid devicespec\n");
+            status_buf.error = 165;
+            sio_error();
+            return;
+        }
+
+        // deviceSpec set by parseURL.
+        Debug_printf("Delete: %s\n", deviceSpec.c_str());
+
+        if (allocate_buffers() == false)
+        {
+            Debug_printf("Could not allocate memory for buffers\n");
+            status_buf.error = 129;
+            sio_error();
+            return;
+        }
+
+        if (open_protocol() == false)
+        {
+            Debug_printf("Could not open protocol.\n");
+            status_buf.error = 128;
+            sio_error();
+            return;
+        }
+
+        if (!protocol->open(urlParser, &cmdFrame))
+        {
+            Debug_printf("Protocol unable to perform delete.");
+            protocol->close();
+            delete protocol;
+            protocol = nullptr;
+            status_buf.error = 170;
+            sio_error();
+            return;
+        }
+
+        deallocate_buffers();
+
     }
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
@@ -705,7 +751,7 @@ void sioNetwork::sio_assert_interrupts()
 void sioNetwork::sio_process()
 {
     Debug_printf("sioNetwork::sio_process 0x%02hx '%c': 0x%02hx, 0x%02hx\n",
-        cmdFrame.comnd, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
+                 cmdFrame.comnd, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
 
     switch (cmdFrame.comnd)
     {
