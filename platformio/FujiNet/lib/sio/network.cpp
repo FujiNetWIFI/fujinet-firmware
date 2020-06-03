@@ -433,18 +433,15 @@ void sioNetwork::sio_special()
     err = false;
     if (cmdFrame.comnd == 0x2C) // CHDIR
     {
-        char inp[256];
-        Debug_printf("CHDIR\n");
         string path;
-
         sio_ack();
-        sio_to_peripheral((byte *)inp, 256);
+        sio_to_peripheral((byte *)filespecBuf, 256);
 
         for (int i = 0; i < 256; i++)
-            if (inp[i] == 0x9B)
-                inp[i] = 0x00;
+            if (filespecBuf[i] == 0x9B)
+                filespecBuf[i] = 0x00;
 
-        path = inp;
+        path = filespecBuf;
         path = path.substr(path.find_first_of(":") + 1);
 
         if (path.empty())
@@ -496,7 +493,6 @@ void sioNetwork::sio_special()
 
         sio_complete();
     }
-
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
         byte ret = 0xFF;
