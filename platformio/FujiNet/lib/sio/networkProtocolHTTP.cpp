@@ -162,7 +162,6 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
                     else if (rx_buf[z]==0x0A)
                         rx_buf[z]=0x9B;
                 }
-            // filter out 
         }
         else
         {
