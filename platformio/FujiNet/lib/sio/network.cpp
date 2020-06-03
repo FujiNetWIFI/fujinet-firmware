@@ -525,7 +525,7 @@ void sioNetwork::sio_special()
             return;
         }
 
-        if (!protocol->open(urlParser, &cmdFrame))
+        if (!protocol->del(urlParser, &cmdFrame))
         {
             Debug_printf("Protocol unable to perform delete.");
             protocol->close();
@@ -536,8 +536,8 @@ void sioNetwork::sio_special()
             return;
         }
 
-        deallocate_buffers();
-
+        protocol->close();
+        sio_complete();
     }
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
@@ -644,6 +644,8 @@ bool sioNetwork::sio_special_supported_80_command(unsigned char c)
 {
     switch (c)
     {
+    case 0x21: // DELETE
+        return true;
     case 0x2C: // CHDIR
         return true;
     case 0xFE: // Set prefix
