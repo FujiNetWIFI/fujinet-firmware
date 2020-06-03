@@ -50,7 +50,11 @@
 			"string": "cpp",
 			"regex": "cpp",
 			"random": "cpp",
-			"bitset": "cpp"
+			"bitset": "cpp",
+			"hash_map": "cpp",
+			"hash_set": "cpp",
+			"forward_list": "cpp",
+			"string_view": "cpp"
 		}
 	}
 }
