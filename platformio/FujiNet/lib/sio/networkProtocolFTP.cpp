@@ -326,7 +326,7 @@ bool networkProtocolFTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     control.write(rnFrom.c_str());
     control.write("\r\n");
 
-    if (!ftpExpect("350"))
+    if (!ftpExpect("350")==false)
         return false;
 
     control.write("RNTO ");
