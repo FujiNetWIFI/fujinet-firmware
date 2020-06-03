@@ -3,6 +3,14 @@
 
 #include "networkProtocolFTP.h"
 
+networkProtocolFTP::networkProtocolFTP()
+{
+}
+
+networkProtocolFTP::~networkProtocolFTP()
+{
+}
+
 bool networkProtocolFTP::ftpExpect(string resultCode)
 {
     char buf[512];
@@ -62,25 +70,9 @@ unsigned short networkProtocolFTP::parsePort(string response)
     return port;
 }
 
-networkProtocolFTP::networkProtocolFTP()
+bool networkProtocolFTP::ftpLogin(EdUrlParser *urlParser)
 {
-}
-
-networkProtocolFTP::~networkProtocolFTP()
-{
-}
-
-bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
-{
-    Debug_println("networkProtocolFTP::open()");
-
     string tmpPath;
-    string tmpChdirPath;
-
-    if (urlParser->port.empty())
-        urlParser->port = "21";
-
-    hostName = urlParser->hostName;
 
     if (!control.connect(urlParser->hostName.c_str(), atoi(urlParser->port.c_str())))
         return false; // Error
@@ -92,14 +84,14 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     Debug_printf("Got user, sending USER.\n");
 
-    control.write("USER anonymous\r\n");
+    control.write("USER thomc\r\n");
 
     if (!ftpExpect("331"))
         return false;
 
     Debug_printf("User Ok, sending password.\n");
 
-    control.write("PASS fujinet@fujinet.online\r\n");
+    control.write("PASS e1xb64XC62\r\n");
 
     Debug_printf("Logged in.\n");
 
@@ -138,8 +130,22 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         if (!ftpExpect("250"))
             return false; // Still can't find.
     }
+    return true;
+}
 
+bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    string tmpPath;
+    Debug_println("networkProtocolFTP::open()");
+
+    if (urlParser->port.empty())
+        urlParser->port = "21";
+
+    hostName = urlParser->hostName;
     aux1 = cmdFrame->aux1;
+
+    if (ftpLogin(urlParser) == false)
+        return false;
 
     Debug_printf("Attempting to get passive port\n");
     control.write("EPSV\r\n");
@@ -216,10 +222,7 @@ bool networkProtocolFTP::close()
     if (control.connected())
     {
         Debug_printf("Connected to data port, closing it.\n");
-        ftpExpect("150");
-        ftpExpect("226");
         control.write("QUIT\r\n");
-        ftpExpect("221");
     }
 
     control.stop();
@@ -273,6 +276,25 @@ bool networkProtocolFTP::status(byte *status_buf)
     status_buf[2] = 1;
     status_buf[3] = 1;
     return false;
+}
+
+bool networkProtocolFTP::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    if (urlParser->port.empty())
+        urlParser->port = "21";
+
+    if (ftpLogin(urlParser) == false)
+        return false;
+
+    // Remove trailing slash!
+    urlParser->path=urlParser->path.substr(1);
+
+    Debug_printf("Deleting file %s\n", urlParser->path.c_str());
+    control.write("DELE ");
+    control.write(urlParser->path.c_str());
+    control.write("\r\n");
+
+    return ftpExpect("250");
 }
 
 bool networkProtocolFTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
