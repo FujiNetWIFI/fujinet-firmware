@@ -19,7 +19,7 @@ networkProtocolHTTP::~networkProtocolHTTP()
 bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
 {
     bool ret = false;
-    
+
 #ifdef DEBUG
     Debug_printf("startConnection()\n");
 #endif
@@ -27,9 +27,9 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
     switch (openMode)
     {
     case DIR:
-        client.addHeader("Depth","1");
-        resultCode = client.sendRequest("PROPFIND","<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n</D:prop>\r\n</D:propfind>\r\n");
-        ret=true;
+        client.addHeader("Depth", "1");
+        resultCode = client.sendRequest("PROPFIND", "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n</D:prop>\r\n</D:propfind>\r\n");
+        ret = true;
         break;
     case GET:
         client.collectHeaders((const char **)headerCollection, (const size_t)headerCollectionIndex);
@@ -148,20 +148,20 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
     case DATA:
         if (openMode == DIR)
         {
-            if (c==nullptr)
+            if (c == nullptr)
                 return true;
 
             if (c->readBytes(rx_buf, len) != len)
                 return true;
 
             // massage data slightly.
-            for (int z=0;z<len;z++)
-                {
-                    if (rx_buf[z]==0x0D)
-                        rx_buf[z]=0x20;
-                    else if (rx_buf[z]==0x0A)
-                        rx_buf[z]=0x9B;
-                }
+            for (int z = 0; z < len; z++)
+            {
+                if (rx_buf[z] == 0x0D)
+                    rx_buf[z] = 0x20;
+                else if (rx_buf[z] == 0x0A)
+                    rx_buf[z] = 0x9B;
+            }
         }
         else
         {
@@ -371,6 +371,27 @@ bool networkProtocolHTTP::isConnected()
         return c->connected();
     else
         return false;
+}
+
+bool networkProtocolHTTP::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    if (urlParser->scheme == "HTTP")
+        urlParser->scheme = "http";
+    else if (urlParser->scheme == "HTTPS")
+        urlParser->scheme = "https";
+
+    if (urlParser->port.empty())
+    {
+        if (urlParser->scheme == "http")
+            urlParser->port = "80";
+        else if (urlParser->scheme == "https")
+            urlParser->port = "443";
+    }
+
+    openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":" + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
+    client.begin(openedUrl.c_str());
+
+    return client.sendRequest("DELETE");
 }
 
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
