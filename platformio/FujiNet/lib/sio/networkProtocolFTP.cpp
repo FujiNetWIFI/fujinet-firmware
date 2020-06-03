@@ -269,8 +269,6 @@ bool networkProtocolFTP::status(byte *status_buf)
 {
     int a = data.available();
     __IGNORE_UNUSED_VAR(a);
-    //Debug_printf("networkProtocolFTP::status() %d\n", a);
-
     status_buf[0] = a & 0xFF;
     status_buf[1] = a >> 8;
     status_buf[2] = 1;
