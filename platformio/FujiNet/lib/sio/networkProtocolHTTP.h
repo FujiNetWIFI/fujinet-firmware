@@ -41,7 +41,8 @@ private:
     {
         GET,
         POST,
-        PUT
+        PUT,
+        DIR
     } openMode;
     int resultCode;
     int headerIndex = 0;
