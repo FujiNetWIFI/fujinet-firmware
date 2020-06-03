@@ -209,7 +209,6 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
                 return true;
 
             fwrite(tx_buf, 1, len, fpPUT);
-            Debug_printf("pos is %d\n", ftell(fpPUT));
         }
         else
         {
