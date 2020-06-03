@@ -84,14 +84,14 @@ bool networkProtocolFTP::ftpLogin(EdUrlParser *urlParser)
 
     Debug_printf("Got user, sending USER.\n");
 
-    control.write("USER thomc\r\n");
+    control.write("USER anonymous\r\n");
 
     if (!ftpExpect("331"))
         return false;
 
     Debug_printf("User Ok, sending password.\n");
 
-    control.write("PASS e1xb64XC62\r\n");
+    control.write("PASS fujinet@fujinet.online\r\n");
 
     Debug_printf("Logged in.\n");
 
