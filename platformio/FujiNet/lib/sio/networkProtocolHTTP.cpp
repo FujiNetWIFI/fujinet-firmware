@@ -19,13 +19,18 @@ networkProtocolHTTP::~networkProtocolHTTP()
 bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
 {
     bool ret = false;
-
+    
 #ifdef DEBUG
     Debug_printf("startConnection()\n");
 #endif
 
     switch (openMode)
     {
+    case DIR:
+        client.addHeader("Depth","1");
+        resultCode = client.sendRequest("PROPFIND","<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n</D:prop>\r\n</D:propfind>\r\n");
+        ret=true;
+        break;
     case GET:
         client.collectHeaders((const char **)headerCollection, (const size_t)headerCollectionIndex);
 
@@ -66,6 +71,9 @@ bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->aux1)
     {
+    case 6:
+        openMode = DIR;
+        break;
     case 4:
     case 12:
         openMode = GET;
@@ -106,18 +114,18 @@ bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 bool networkProtocolHTTP::close()
 {
     size_t putPos;
-    uint8_t* putBuf;
+    uint8_t *putBuf;
 
     // Close and Remove temporary PUT file, if needed.
     if (openMode == PUT)
     {
-        putPos=ftell(fpPUT);
-        Debug_printf("putPos is %d",putPos);
-        putBuf=(uint8_t *)malloc(putPos);
-        fseek(fpPUT,0,SEEK_SET);
-        fread(putBuf,1,putPos,fpPUT);    
+        putPos = ftell(fpPUT);
+        Debug_printf("putPos is %d", putPos);
+        putBuf = (uint8_t *)malloc(putPos);
+        fseek(fpPUT, 0, SEEK_SET);
+        fread(putBuf, 1, putPos, fpPUT);
         Debug_printf("\n");
-        client.PUT(putBuf,putPos);
+        client.PUT(putBuf, putPos);
         fclose(fpPUT);
         unlink(nPUT);
         free(putBuf);
@@ -138,19 +146,40 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
     switch (httpState)
     {
     case DATA:
-        if (c == nullptr)
-            return true;
-
-        if (c->readBytes(rx_buf, len) != len)
-            return true;
-        break;
-    case HEADERS:
-        if (headerIndex < numHeaders)
+        if (openMode == DIR)
         {
-            strncpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
+            if (c==nullptr)
+                return true;
+
+            if (c->readBytes(rx_buf, len) != len)
+                return true;
+
+            // massage data slightly.
+            for (int z=0;z<len;z++)
+                {
+                    if (rx_buf[z]==0x0D)
+                        rx_buf[z]=0x20;
+                    else if (rx_buf[z]==0x0A)
+                        rx_buf[z]=0x9B;
+                }
+            // filter out 
         }
         else
-            return true;
+        {
+            if (c == nullptr)
+                return true;
+
+            if (c->readBytes(rx_buf, len) != len)
+                return true;
+            break;
+        case HEADERS:
+            if (headerIndex < numHeaders)
+            {
+                strncpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
+            }
+            else
+                return true;
+        }
         break;
     case COLLECT_HEADERS:
         // collect headers is write only. Return error.
@@ -179,9 +208,9 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
         {
             if (!fpPUT)
                 return true;
-            
-            fwrite(tx_buf,1,len,fpPUT);
-            Debug_printf("pos is %d\n",ftell(fpPUT));
+
+            fwrite(tx_buf, 1, len, fpPUT);
+            Debug_printf("pos is %d\n", ftell(fpPUT));
         }
         else
         {
