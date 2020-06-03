@@ -431,21 +431,7 @@ void sioNetwork::sio_special()
 {
     Debug_printf("sioNetwork::sio_special\n");
     err = false;
-    if (cmdFrame.comnd == 0xFE) // Set Prefix
-    {
-        char inp[256];
-
-        sio_ack();
-        sio_to_peripheral((byte *)inp, 256);
-
-        for (int i = 0; i < 256; i++)
-            if (inp[i] == 0x9B)
-                inp[i] = 0x00;
-
-        prefix = inp;
-        sio_complete();
-    }
-    else if (cmdFrame.comnd == 0x2C) // CHDIR
+    if (cmdFrame.comnd == 0x2C) // CHDIR
     {
         char inp[256];
         Debug_printf("CHDIR\n");
