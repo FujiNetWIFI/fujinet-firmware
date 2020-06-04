@@ -338,6 +338,7 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     */
     int i = 0;
     uint8_t c;
+    uint8_t cc;
 
 #ifdef DEBUG
     Debug_printf("Processing %d chars\n", n);
@@ -358,6 +359,7 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     do
     {
         c = buffer[i++];
+        cc = c;
         if (translate850 && c == ATASCII_EOL)
             c = ASCII_CR; // the 850 interface converts EOL to CR
 
@@ -387,12 +389,12 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
             pdf_handle_char(c, aux1, aux2);
 
 #ifdef DEBUG
-            Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y+pdf_dY);
+            Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y + pdf_dY);
             Debug_printf("\n");
 #endif
         }
 
-    } while (i < n && c != _eol);
+    } while (i < n && (cc != ATASCII_EOL));
 
     // if wrote last line, then close the page
     if (pdf_Y < bottomMargin) // lineHeight + bottomMargin

@@ -21,7 +21,7 @@
                 ]
             },
             "defines": [
-                "PLATFORMIO=40303",
+                "PLATFORMIO=40304",
                 ""
             ],
             "intelliSenseMode": "clang-x64",
