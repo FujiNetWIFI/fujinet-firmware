@@ -188,7 +188,7 @@ void sioNetwork::sio_open()
 
     if (parseURL() == false)
     {
-        Debug_printf("Invalid devicespec\n");
+        Debug_printf("Invalid devicespec %s\n",filespecBuf);
         status_buf.error = 165;
         sio_error();
         return;
