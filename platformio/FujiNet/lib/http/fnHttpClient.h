@@ -16,12 +16,9 @@ private:
     int _buffer_pos = 0;
     int _buffer_len = 0;
 
-    //SemaphoreHandle_t _finished_reading_headers = nullptr;
-    //SemaphoreHandle_t _read_data = nullptr;
-
     TaskHandle_t _taskh_consumer = nullptr;
-    TaskHandle_t _taskh_http = nullptr;
-    TaskHandle_t _taskh_process = nullptr;
+    //TaskHandle_t _taskh_http = nullptr;
+    TaskHandle_t _taskh_subtask = nullptr;
 
     bool _data_download_done = true;
 
@@ -30,8 +27,14 @@ private:
 
     esp_http_client_handle_t _handle = nullptr;
 
-public:
+    static void _perform_subtask(void *param);
+    static esp_err_t _httpevent_handler(esp_http_client_event_t *evt);
 
+    void _delete_subtask_if_running();
+
+    int _perform();
+
+public:
 
     fnHttpClient();
     ~fnHttpClient();
@@ -40,16 +43,18 @@ public:
     void close();
 
     int GET();
+    int HEAD();
+    int POST(const char *post_data, int post_datalen);
 
     int read(uint8_t *dest_buffer, int dest_bufflen);
+    int write(const uint8_t *src_buffer, int src_bufflen);
 
+    bool set_url(const char *url);
     bool set_header(const char *header_key, const char *header_value);
+
     const std::string get_header(const char *header);
+    int get_header_count();
 
-    static esp_err_t _event_handler(esp_http_client_event_t *evt);
-    int proceed();
-
-    static void proceed_task(void *param);
     void collect_headers(const char* headerKeys[], const size_t headerKeysCount);
 };
 

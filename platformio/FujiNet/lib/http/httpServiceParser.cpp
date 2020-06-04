@@ -213,10 +213,13 @@ string fnHttpServiceParser::format_uptime()
     if (s % 60)
         resultstream << (s % 60) << " seconds";
 
+
     fnHttpClient c;
-    c.begin("http://www.justified.com");
+    //c.begin("http://www.justified.com");
+    c.begin("https://postman-echo.com/post");
+    
+    //c.GET();
     /*
-    c.GET();
     const char *lm = c.get_header("User-Agent");
     if(lm != nullptr) 
         Debug_printf("header = %s\n", lm);
@@ -225,15 +228,20 @@ string fnHttpServiceParser::format_uptime()
     buff[255] = '\0';
     Debug_printf("read = %d\n\t%s", x, buff);
     */
+   /*
     const char * hdrs[2] = {"Last-Modified", "Server"};
 
     c.collect_headers(hdrs, 2);
-
-    c.proceed();
+*/  
+    c.set_header("Content-Type", "application/json");
+    //c.POST("field1=value1&field2=value2", 27);
+    c.POST("{\"field1\":\"value1\"}", 19);
+    /*
     std::string s1 = c.get_header("Last-Modified");
     std::string s2 = c.get_header("Server");
     std::string s3 = c.get_header("Unknown");
     Debug_printf("s1 = %s, s2 = %s, s3 = %s\n",s1.c_str(), s2.c_str(), s3.c_str());
+    */
     char buff[129];
     int br;
     while((br = c.read((uint8_t *)buff, 128)) > 0)
@@ -241,9 +249,11 @@ string fnHttpServiceParser::format_uptime()
         buff[br] = '\0';
         Debug_printf("r: %d \"%s\"\n", br, buff);
     }
-    //vTaskDelay(pdMS_TO_TICKS(5000));
-    //Debug_println("closeing");
+    
+
+    Debug_println("closing");
     c.close();
+
 
     return resultstream.str();
 }
