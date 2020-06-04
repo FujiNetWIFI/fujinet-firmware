@@ -152,10 +152,10 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
         {
             if (c == nullptr)
                 return true;
-
+/*
             if (c->readBytes(rx_buf, len) != len)
                 return true;
-
+*/
             // massage data slightly.
             for (int z = 0; z < len; z++)
             {
@@ -169,9 +169,10 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
         {
             if (c == nullptr)
                 return true;
-
+/*
             if (c->readBytes(rx_buf, len) != len)
                 return true;
+                */
             break;
         case HEADERS:
             if (headerIndex < numHeaders)
