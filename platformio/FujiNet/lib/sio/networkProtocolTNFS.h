@@ -33,6 +33,8 @@ private:
     tnfsStat fileStat;
     char entryBuf[256];
     char aux1;
+    size_t comma_pos;
+    string rnTo;
 };
 
 #endif /* NETWORKPROTOCOLTNFS */

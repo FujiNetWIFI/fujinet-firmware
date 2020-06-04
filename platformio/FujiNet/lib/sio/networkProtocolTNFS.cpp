@@ -79,8 +79,8 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     aux1 = cmdFrame->aux1;
 
-    if (aux1==6 && filename.empty())
-        filename="*";
+    if (aux1 == 6 && filename.empty())
+        filename = "*";
 
     if (!urlParser->port.empty())
         mountInfo.port = atoi(urlParser->port.c_str());
@@ -121,7 +121,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
             break;
         }
 
-        if (aux1==4)
+        if (aux1 == 4)
         {
             if (tnfs_stat(&mountInfo, &fileStat, urlParser->path.c_str()))
                 return false; // error
@@ -176,7 +176,7 @@ bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
 
 bool networkProtocolTNFS::write(byte *tx_buf, unsigned short len)
 {
-    if (block_write(tx_buf,len))
+    if (block_write(tx_buf, len))
         return true;
 
     return false;
@@ -187,7 +187,7 @@ bool networkProtocolTNFS::status(byte *status_buf)
     status_buf[0] = status_buf[1] = 0;
     char tmp[256];
 
-    memset(tmp,0,sizeof(tmp));
+    memset(tmp, 0, sizeof(tmp));
 
     if (aux1 == 0x06)
     {
@@ -233,25 +233,25 @@ bool networkProtocolTNFS::special_supported_00_command(unsigned char comnd)
 
 bool networkProtocolTNFS::block_read(byte *rx_buf, unsigned short len)
 {
-    unsigned short total_len=len;
-    unsigned short block_len=TNFS_MAX_READWRITE_PAYLOAD;
+    unsigned short total_len = len;
+    unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;
     uint16_t actual_len;
 
-    while (total_len>0)
+    while (total_len > 0)
     {
-        if (total_len>TNFS_MAX_READWRITE_PAYLOAD)
-            block_len=TNFS_MAX_READWRITE_PAYLOAD;
+        if (total_len > TNFS_MAX_READWRITE_PAYLOAD)
+            block_len = TNFS_MAX_READWRITE_PAYLOAD;
         else
-            block_len=total_len;
+            block_len = total_len;
 
-        if (tnfs_read(&mountInfo, fileHandle, rx_buf, block_len, &actual_len)!=0)
+        if (tnfs_read(&mountInfo, fileHandle, rx_buf, block_len, &actual_len) != 0)
         {
             return true; // error.
         }
         else
         {
-            rx_buf+=block_len;
-            total_len-=block_len;
+            rx_buf += block_len;
+            total_len -= block_len;
         }
     }
     return false; // no error
@@ -259,25 +259,25 @@ bool networkProtocolTNFS::block_read(byte *rx_buf, unsigned short len)
 
 bool networkProtocolTNFS::block_write(byte *tx_buf, unsigned short len)
 {
-    unsigned short total_len=len;
-    unsigned short block_len=TNFS_MAX_READWRITE_PAYLOAD;
+    unsigned short total_len = len;
+    unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;
     uint16_t actual_len;
 
-    while (total_len>0)
+    while (total_len > 0)
     {
-        if (total_len>TNFS_MAX_READWRITE_PAYLOAD)
-            block_len=TNFS_MAX_READWRITE_PAYLOAD;
+        if (total_len > TNFS_MAX_READWRITE_PAYLOAD)
+            block_len = TNFS_MAX_READWRITE_PAYLOAD;
         else
-            block_len=total_len;
-        
-        if (tnfs_write(&mountInfo, fileHandle, tx_buf, block_len, &actual_len)!=0)
+            block_len = total_len;
+
+        if (tnfs_write(&mountInfo, fileHandle, tx_buf, block_len, &actual_len) != 0)
         {
             return true; // error.
         }
         else
         {
-            tx_buf+=block_len;
-            total_len-=block_len;
+            tx_buf += block_len;
+            total_len -= block_len;
         }
     }
     return false; // no error
@@ -285,10 +285,38 @@ bool networkProtocolTNFS::block_write(byte *tx_buf, unsigned short len)
 
 bool networkProtocolTNFS::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
+    int ret=0;
 
+    strcpy(mountInfo.hostname, urlParser->hostName.c_str());
+    strcpy(mountInfo.mountpath, "/");
+
+    if (!urlParser->port.empty())
+        mountInfo.port = atoi(urlParser->port.c_str());
+
+    directory = urlParser->path.substr(0, urlParser->path.find_last_of("/") + 1);
+    filename = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
+    comma_pos = filename.find_first_of(",");
+
+    if (comma_pos == string::npos)
+        return false;
+
+    rnTo = directory + filename.substr(comma_pos + 1);
+    filename = directory + filename.substr(0, comma_pos);
+
+    if (tnfs_mount(&mountInfo))
+        return false; // error
+
+    ret=tnfs_rename(&mountInfo, filename.c_str(), rnTo.c_str());
+
+    if (mountInfo.session != 0)
+        tnfs_umount(&mountInfo);
 }
 
 bool networkProtocolTNFS::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
+    strcpy(mountInfo.hostname, urlParser->hostName.c_str());
+    strcpy(mountInfo.mountpath, "/");
 
+    directory = urlParser->path.substr(0, urlParser->path.find_last_of("/") - 1);
+    filename = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
 }
