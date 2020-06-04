@@ -285,7 +285,7 @@ bool networkProtocolTNFS::block_write(byte *tx_buf, unsigned short len)
 
 bool networkProtocolTNFS::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
-    int ret=0;
+    int ret = 0;
 
     strcpy(mountInfo.hostname, urlParser->hostName.c_str());
     strcpy(mountInfo.mountpath, "/");
@@ -306,17 +306,31 @@ bool networkProtocolTNFS::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (tnfs_mount(&mountInfo))
         return false; // error
 
-    ret=tnfs_rename(&mountInfo, filename.c_str(), rnTo.c_str());
+    ret = tnfs_rename(&mountInfo, filename.c_str(), rnTo.c_str());
 
     if (mountInfo.session != 0)
         tnfs_umount(&mountInfo);
+
+    return ret;
 }
 
 bool networkProtocolTNFS::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
+    int ret = 0;
+
     strcpy(mountInfo.hostname, urlParser->hostName.c_str());
     strcpy(mountInfo.mountpath, "/");
 
-    directory = urlParser->path.substr(0, urlParser->path.find_last_of("/") - 1);
-    filename = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
+    if (!urlParser->port.empty())
+        mountInfo.port = atoi(urlParser->port.c_str());
+
+    if (tnfs_mount(&mountInfo))
+        return false; // error
+
+    ret = tnfs_unlink(&mountInfo, urlParser->path.c_str());
+
+    if (mountInfo.session != 0)
+        tnfs_umount(&mountInfo);
+
+    return ret;
 }
