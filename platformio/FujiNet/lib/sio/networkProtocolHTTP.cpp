@@ -145,6 +145,9 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
 
     switch (httpState)
     {
+    case CMD:
+        // Do nothing.
+        break;
     case DATA:
         if (openMode == DIR)
         {
@@ -219,6 +222,9 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
             }
         }
         break;
+    case CMD:
+        // Do nothing
+        break;
     case HEADERS:
         for (b = 0; b < len; b++)
         {
@@ -277,24 +283,40 @@ bool networkProtocolHTTP::status(byte *status_buf)
 
     switch (httpState)
     {
+    case CMD:
+        status_buf[0] = 0;
+        status_buf[1] = 0;
+        status_buf[2] = 1;
+        status_buf[3] = 0;
+        break;
     case DATA:
-        if (requestStarted == false)
+        if (openMode == PUT)
         {
-            if (!startConnection(status_buf, 4))
-                return true;
+            status_buf[0]=0;
+            status_buf[1]=0;
+            status_buf[2]=1;
+            status_buf[3]=0;
         }
+        else
+        {
+            if (requestStarted == false)
+            {
+                if (!startConnection(status_buf, 4))
+                    return true;
+            }
 
-        if (c == nullptr)
-            return true;
+            if (c == nullptr)
+                return true;
 
-        // Limit to reporting max of 65535 bytes available.
-        a = (c->available() > 65535 ? 65535 : c->available());
+            // Limit to reporting max of 65535 bytes available.
+            a = (c->available() > 65535 ? 65535 : c->available());
 
-        status_buf[0] = a & 0xFF;
-        status_buf[1] = a >> 8;
-        status_buf[2] = resultCode & 0xFF;
-        status_buf[3] = resultCode >> 8;
-        assertInterrupt = a > 0;
+            status_buf[0] = a & 0xFF;
+            status_buf[1] = a >> 8;
+            status_buf[2] = resultCode & 0xFF;
+            status_buf[3] = resultCode >> 8;
+            assertInterrupt = a > 0;
+        }
         break;
     case HEADERS:
         if (headerIndex < numHeaders)
@@ -375,6 +397,7 @@ bool networkProtocolHTTP::isConnected()
 
 bool networkProtocolHTTP::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
+    httpState = CMD;
     if (urlParser->scheme == "HTTP")
         urlParser->scheme = "http";
     else if (urlParser->scheme == "HTTPS")
@@ -392,6 +415,45 @@ bool networkProtocolHTTP::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     client.begin(openedUrl.c_str());
 
     return client.sendRequest("DELETE");
+}
+
+bool networkProtocolHTTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    httpState = CMD;
+    if (urlParser->scheme == "HTTP")
+        urlParser->scheme = "http";
+    else if (urlParser->scheme == "HTTPS")
+        urlParser->scheme = "https";
+
+    if (urlParser->port.empty())
+    {
+        if (urlParser->scheme == "http")
+            urlParser->port = "80";
+        else if (urlParser->scheme == "https")
+            urlParser->port = "443";
+    }
+
+    // Remove leading slash!
+    urlParser->path = urlParser->path.substr(1);
+
+    // parse away the src, dest file.
+    comma_pos = urlParser->path.find(",");
+
+    if (comma_pos == string::npos)
+        return false;
+
+    rnFrom = urlParser->path.substr(0, comma_pos);
+    rnTo = urlParser->path.substr(comma_pos + 1);
+    rnTo = "/" + rnTo;
+    urlParser->path = urlParser->path.substr(0, comma_pos);
+
+    openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":" + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
+    client.begin(openedUrl.c_str());
+
+    client.addHeader("Destination", rnTo.c_str());
+    client.addHeader("Overwrite", "F");
+    client.addHeader("translate", "f");
+    return client.sendRequest("MOVE");
 }
 
 bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)

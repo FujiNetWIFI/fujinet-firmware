@@ -25,6 +25,7 @@ public:
     virtual void special_collect_headers_toggle(unsigned char a);
     virtual void special_ca_toggle(unsigned char a);
     virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool isConnected();
     
 private:
@@ -53,7 +54,8 @@ private:
         DATA,
         HEADERS,
         COLLECT_HEADERS,
-        CA
+        CA,
+        CMD
     } httpState;
 
     char cert[2048];
@@ -62,6 +64,10 @@ private:
     FILE* fpPUT;
     char nPUT[32];
     
+    string rnFrom;
+    string rnTo;
+    string destURL;
+    size_t comma_pos;
 };
 
 #endif /* NETWORKPROTOCOLHTTP */
