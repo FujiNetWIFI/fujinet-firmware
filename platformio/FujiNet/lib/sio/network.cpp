@@ -127,8 +127,16 @@ bool sioNetwork::parseURL()
     if (cmdFrame.aux1 == 0)
         return false;
 
+    Debug_printf("parseURL: %s\r\n",filespecBuf);
+
     // Preprocess URL
-    if (cmdFrame.aux1 != 6)
+    if (cmdFrame.comnd==0x20)
+    {
+        for (int i = 0; i < sizeof(filespecBuf); i++)
+            if ((filespecBuf[i] > 0x7F))
+                filespecBuf[i] = 0x00;
+    }
+    else if (cmdFrame.aux1 != 6)
     {
         for (int i = 0; i < sizeof(filespecBuf); i++)
             if ((filespecBuf[i] > 0x7F) || (filespecBuf[i] == ',') || (filespecBuf[i] == '*'))
@@ -141,12 +149,17 @@ bool sioNetwork::parseURL()
                 filespecBuf[i] = 0x00;
     }
 
+    if (filespecBuf[strlen(filespecBuf)-1]=='.')
+        filespecBuf[strlen(filespecBuf)-1]=0x00;
+
     if (prefix.length() > 0)
         deviceSpec = prefix + string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
     else
         deviceSpec = string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
+
+    Debug_printf("parseURL isValidURL: %s",deviceSpec.c_str());
 
     return (isValidURL(urlParser));
 }

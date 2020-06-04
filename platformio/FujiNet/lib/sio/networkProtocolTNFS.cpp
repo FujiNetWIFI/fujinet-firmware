@@ -282,3 +282,13 @@ bool networkProtocolTNFS::block_write(byte *tx_buf, unsigned short len)
     }
     return false; // no error
 }
+
+bool networkProtocolTNFS::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+
+}
+
+bool networkProtocolTNFS::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+
+}
