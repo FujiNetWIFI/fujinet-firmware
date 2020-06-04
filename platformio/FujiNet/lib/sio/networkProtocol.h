@@ -24,6 +24,9 @@ public:
     virtual bool status(byte *status_buf) = 0;
     virtual bool special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) = 0;
 
+    virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
+    virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
+    
     virtual bool isConnected() { return true; }
 
     void set_saved_rx_buffer(byte* rx_buf, unsigned short* len)
