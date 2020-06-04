@@ -90,7 +90,7 @@ void sioFuji::sio_status()
 void sioFuji::sio_reset_fujinet()
 {
     sio_complete();
-    ESP.restart();
+    fnSystem.reboot();
 }
 
 /*

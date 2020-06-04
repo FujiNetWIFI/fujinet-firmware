@@ -1,12 +1,11 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include <Arduino.h>
-
 #ifdef ESP8266
 #include <ESP8266WiFi.h>
 #endif
 
+#include "esp_timer.h"
 #include "sio.h"
 #include "networkProtocol.h"
 #include "EdUrlParser.h"
@@ -26,10 +25,12 @@
 #define OPEN_STATUS_DEVICE_ERROR 144
 #define OPEN_STATUS_INVALID_DEVICESPEC 165
 
+//#include <Arduino.h>
+// *** Pulled these out since they're only used in network.cpp
 // For the interrupt rate limiter timer
-extern volatile bool interruptRateLimit;
-extern hw_timer_t *rateTimer;
-extern portMUX_TYPE timerMux;
+//extern volatile bool interruptRateLimit;
+//extern hw_timer_t *rateTimer;
+//extern portMUX_TYPE timerMux;
 
 class sioNetwork : public sioDevice
 {
@@ -38,6 +39,7 @@ private:
     bool allocate_buffers();
     void deallocate_buffers();
     bool open_protocol();
+    void start_timer();
 
 protected:
     networkProtocol *protocol;

@@ -1,20 +1,19 @@
 #include "epson_80.h"
+#include "../utils/utils.h"
 #include "../../include/debug.h"
 
 void epson80::not_implemented()
 {
-    byte c = epson_cmd.cmd;
-#ifdef DEBUG
+    uint8_t c = epson_cmd.cmd;
+    __IGNORE_UNUSED_VAR(c);
     Debug_printf("Command not implemented: %u %x %c\n", c, c, c);
-#endif
 }
 
 void epson80::esc_not_implemented()
 {
-    byte c = epson_cmd.cmd;
-#ifdef DEBUG
+    uint8_t c = epson_cmd.cmd;
+    __IGNORE_UNUSED_VAR(c);
     Debug_printf("Command not implemented: ESC %u %x %c\n", c, c, c);
-#endif
 }
 
 void epson80::reset_cmd()
@@ -36,7 +35,7 @@ void epson80::clear_mode(uint16_t m)
     epson_font_mask &= ~m;
 }
 
-void epson80::print_8bit_gfx(byte c)
+void epson80::print_8bit_gfx(uint8_t c)
 {
     // e.g., [(0)100(1)100(4)100(50)]TJ
     // lead with '0' to enter a space
@@ -49,7 +48,7 @@ void epson80::print_8bit_gfx(byte c)
     }
 }
 
-void epson80::pdf_handle_char(byte c, byte aux1, byte aux2)
+void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
     if (escMode)
     {
@@ -466,7 +465,7 @@ void epson80::pdf_handle_char(byte c, byte aux1, byte aux2)
         default:        // maybe printable character
             if (c > 31) // && c < 127)
             {
-                byte new_F = epson_font_lookup(epson_font_mask);
+                uint8_t new_F = epson_font_lookup(epson_font_mask);
                 if (fontNumber != new_F)
                 {
                     float new_w = epson_font_width(epson_font_mask);
@@ -482,7 +481,7 @@ void epson80::pdf_handle_char(byte c, byte aux1, byte aux2)
     }
 }
 
-byte epson80::epson_font_lookup(uint16_t code)
+uint8_t epson80::epson_font_lookup(uint16_t code)
 {
     /**
       * Table G-3 Mode Priorities (FX Manual Vol 2)
@@ -513,7 +512,7 @@ float epson80::epson_font_width(uint16_t code)
     return 7.2; // 10 cpi for now
 }
 
-void epson80::epson_set_font(byte F, float w)
+void epson80::epson_set_font(uint8_t F, float w)
 {
     fprintf(_file, ")]TJ /F%u 9 Tf 120 Tz [(", F);
     charWidth = w;

@@ -1,7 +1,7 @@
 #include "atari_1027.h"
 #include "../../include/debug.h"
 
-void atari1027::pdf_handle_char(byte c, byte aux1, byte aux2)
+void atari1027::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
     if (escMode)
     {
@@ -43,7 +43,7 @@ void atari1027::pdf_handle_char(byte c, byte aux1, byte aux2)
         if (intlFlag && (c < 32 || c == 96 || c == 123))
         {
             bool valid = false;
-            byte d = 0;
+            uint8_t d = 0;
 
             if (c < 27)
             {
@@ -53,23 +53,23 @@ void atari1027::pdf_handle_char(byte c, byte aux1, byte aux2)
             else if (c > 27 && c < 32)
             {
                 // Codes 28-31 are arrows made from compound chars
-                byte d1 = (byte)'|';
+                uint8_t d1 = (uint8_t)'|';
                 switch (c)
                 {
                 case 28:
-                    d = (byte)'^';
+                    d = (uint8_t)'^';
                     break;
                 case 29:
-                    d = (byte)'v';
-                    d1 = (byte)'!';
+                    d = (uint8_t)'v';
+                    d1 = (uint8_t)'!';
                     break;
                 case 30:
-                    d = (byte)'<';
-                    d1 = (byte)'-';
+                    d = (uint8_t)'<';
+                    d1 = (uint8_t)'-';
                     break;
                 case 31:
-                    d = (byte)'>';
-                    d1 = (byte)'-';
+                    d = (uint8_t)'>';
+                    d1 = (uint8_t)'-';
                     break;
                 default:
                     break;
@@ -82,11 +82,11 @@ void atari1027::pdf_handle_char(byte c, byte aux1, byte aux2)
                 switch (c)
                 {
                 case 96:
-                    d = byte(206); // use I with carot but really I with circle
+                    d = uint8_t(206); // use I with carot but really I with circle
                     valid = true;
                     break;
                 case 123:
-                    d = byte(196);
+                    d = uint8_t(196);
                     valid = true;
                     break;
                 default:

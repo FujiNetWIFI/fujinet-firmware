@@ -1,4 +1,7 @@
 #include "../../include/debug.h"
+
+#include "driver/timer.h"
+
 #include "fnSystem.h"
 #include "fnWiFi.h"
 #include "network.h"
@@ -9,8 +12,15 @@
 #include "networkProtocolTNFS.h"
 #include "networkProtocolFTP.h"
 
-// latch the rate limiting flag.
-void IRAM_ATTR onTimer()
+volatile bool interruptRateLimit = true;
+//hw_timer_t *rateTimer = NULL;
+esp_timer_handle_t rateTimerHandle = nullptr; // Used a different name just to be clear
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+
+// Latch the rate limiting flag
+// The esp_timer_* functions don't mention requiring the callback being in IRAM, so removing that 
+//void IRAM_ATTR onTimer()
+void onTimer(void *info)
 {
     portENTER_CRITICAL_ISR(&timerMux);
     interruptRateLimit = true;
@@ -22,6 +32,7 @@ void IRAM_ATTR onTimer()
  */
 bool sioNetwork::allocate_buffers()
 {
+    Debug_println("sioNetwork +++ ALLOCATING BUFFERS +++");
 #ifdef BOARD_HAS_PSRAM
     rx_buf = (byte *)ps_malloc(INPUT_BUFFER_SIZE);
     tx_buf = (byte *)ps_malloc(OUTPUT_BUFFER_SIZE);
@@ -49,6 +60,7 @@ bool sioNetwork::allocate_buffers()
  */
 void sioNetwork::deallocate_buffers()
 {
+    Debug_println("sioNetwork --- DEALLOCATING BUFFERS ---");
     if (rx_buf != nullptr)
         free(rx_buf);
 
@@ -111,6 +123,7 @@ bool sioNetwork::isValidURL(EdUrlParser *url)
 
 void sioNetwork::sio_open()
 {
+    Debug_println("sioNetwork::sio_open()");
     char inp[256];
     string deviceSpec;
 
@@ -148,17 +161,13 @@ void sioNetwork::sio_open()
     else
         deviceSpec = string(inp).substr(string(inp).find(":") + 1);
 
-#ifdef DEBUG
     Debug_printf("Open: %s\n", deviceSpec.c_str());
-#endif
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
 
     if (isValidURL(urlParser) == false)
     {
-#ifdef DEBUG
         Debug_printf("Invalid devicespec\n");
-#endif
         status_buf.error = 165;
         sio_error();
         return;
@@ -166,9 +175,7 @@ void sioNetwork::sio_open()
 
     if (allocate_buffers() == false)
     {
-#ifdef DEBUG
         Debug_printf("Could not allocate memory for buffers\n");
-#endif
         status_buf.error = 129;
         sio_error();
         return;
@@ -176,9 +183,7 @@ void sioNetwork::sio_open()
 
     if (open_protocol() == false)
     {
-#ifdef DEBUG
         Debug_printf("Could not open protocol.\n");
-#endif
         status_buf.error = 128;
         sio_error();
         return;
@@ -186,9 +191,7 @@ void sioNetwork::sio_open()
 
     if (!protocol->open(urlParser, &cmdFrame))
     {
-#ifdef DEBUG
         Debug_printf("Protocol unable to make connection.");
-#endif
         protocol->close();
         delete protocol;
         protocol = nullptr;
@@ -200,7 +203,8 @@ void sioNetwork::sio_open()
     aux1 = cmdFrame.aux1;
     aux2 = cmdFrame.aux2;
 
-    // Set up rate limiting timer.
+    // Destroy any existing timer
+    /*
     if (rateTimer != nullptr)
     {
         timerAlarmDisable(rateTimer);
@@ -208,20 +212,36 @@ void sioNetwork::sio_open()
         timerEnd(rateTimer);
         rateTimer = nullptr;
     }
+    */
+    if (rateTimerHandle != nullptr)
+    {
+        Debug_println("Deleting rateTimer");
+        esp_timer_stop(rateTimerHandle);
+        esp_timer_delete(rateTimerHandle);
+        rateTimerHandle = nullptr;
+    }
 
-    rateTimer = timerBegin(0, 80, true);
-    timerAttachInterrupt(rateTimer, &onTimer, true);
-    timerAlarmWrite(rateTimer, 100000, true); // 100ms
+    // Set up a new rate limiting timer
+    /*
+    rateTimer = timerBegin(0, 80, true); // counter_number, divider, count_up
+    timerAttachInterrupt(rateTimer, &onTimer, true); // counter_id, function, on_edge
+    timerAlarmWrite(rateTimer, 100000, true); // counter_id, alarm_at, auto_reload // 100ms
     timerAlarmEnable(rateTimer);
+    */
+    esp_timer_create_args_t tcfg;
+    tcfg.arg = nullptr;
+    tcfg.callback = onTimer;
+    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
+    tcfg.name = nullptr;
+    esp_timer_create(&tcfg, &rateTimerHandle);
+    esp_timer_start_periodic(rateTimerHandle, 100000); // 100ms
 
     sio_complete();
 }
 
 void sioNetwork::sio_close()
 {
-#ifdef DEBUG
-    Debug_printf("Close.\n");
-#endif
+    Debug_println("sioNetwork::sio_close()\n");
     sio_ack();
 
     status_buf.error = 0; // clear error
@@ -245,14 +265,20 @@ void sioNetwork::sio_close()
 
 void sioNetwork::sio_read()
 {
+    Debug_println("sioNetwork::sio_read()");
+    if(rx_buf == nullptr)
+    {
+        Debug_println("Unallocated read buffer!");
+        sio_nak();
+        return;
+    }
     sio_ack();
 
     // Clean out RX buffer.
     memset(rx_buf,0,INPUT_BUFFER_SIZE);
 
-#ifdef DEBUG
     Debug_printf("Read %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
-#endif
+
     if (protocol == nullptr)
     {
         err = true;
@@ -296,19 +322,14 @@ void sioNetwork::sio_read()
 
 void sioNetwork::sio_write()
 {
-#ifdef DEBUG
-    Debug_printf("Write %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
-#endif
-
+    Debug_printf("sioNetwork::sio_write() %d bytes\n", cmdFrame.aux2 * 256 + cmdFrame.aux1);
     sio_ack();
 
     memset(tx_buf, 0, OUTPUT_BUFFER_SIZE);
 
     if (protocol == nullptr)
     {
-#ifdef DEBUG
         Debug_printf("Not connected\n");
-#endif
         err = true;
         status_buf.error = 128;
         sio_error();
@@ -396,9 +417,7 @@ void sioNetwork::sio_status_local()
 void sioNetwork::sio_status()
 {
     sio_ack();
-#ifdef DEBUG
-    Debug_printf("STATUS\n");
-#endif
+    Debug_printf("sioNetwork::sio_status()\n");
     if (!protocol)
     {
         status_buf.rawData[0] =
@@ -412,16 +431,14 @@ void sioNetwork::sio_status()
     {
         err = protocol->status(status_buf.rawData);
     }
-#ifdef DEBUG
     Debug_printf("Status bytes: %02x %02x %02x %02x\n", status_buf.rawData[0], status_buf.rawData[1], status_buf.rawData[2], status_buf.rawData[3]);
-#endif
     sio_to_computer(status_buf.rawData, 4, err);
 }
 
 // Process a SPECIAL sio command (not R,W,O,C,S)
 void sioNetwork::sio_special()
 {
-    Debug_printf("special.\n");
+    Debug_printf("sioNetwork::sio_special\n");
     err = false;
     if (cmdFrame.comnd == 0xFE) // Set Prefix
     {
@@ -697,10 +714,13 @@ void sioNetwork::sio_assert_interrupts()
         protocol->status(status_buf.rawData); // Prime the status buffer
         if (((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status)) && (interruptRateLimit == true))
         {
+            Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
             fnSystem.digital_write(PIN_PROC, DIGI_LOW);
             fnSystem.delay_microseconds(50);
             fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
 
+            // The timer_* (as opposed to esp_timer_*) functions allow for much more granular control, including
+            // pausing and restarting the timer.  Would be nice here, but it's also a lot more work to use...
             portENTER_CRITICAL(&timerMux);
             interruptRateLimit = false;
             portEXIT_CRITICAL(&timerMux);
@@ -711,6 +731,9 @@ void sioNetwork::sio_assert_interrupts()
 
 void sioNetwork::sio_process()
 {
+    Debug_printf("sioNetwork::sio_process 0x%02hx '%c': 0x%02hx, 0x%02hx\n",
+        cmdFrame.comnd, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
+
     switch (cmdFrame.comnd)
     {
     case 'O':

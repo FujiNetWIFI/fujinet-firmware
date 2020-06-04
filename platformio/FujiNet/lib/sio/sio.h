@@ -140,6 +140,7 @@ public:
    void addDevice(sioDevice *pDevice, int device_id);
    void remDevice(sioDevice *pDevice);
    sioDevice *deviceById(int device_id);
+   void changeDeviceId(sioDevice *pDevice, int device_id);
    int getBaudrate();
    void setBaudrate(int baudrate);
 };

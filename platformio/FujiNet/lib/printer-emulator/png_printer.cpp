@@ -402,7 +402,7 @@ void pngPrinter::post_new_file()
     png_data();
 }
 
-bool pngPrinter::process_buffer(byte n, byte aux1, byte aux2)
+bool pngPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 {
 // copy buffer[] into linebuffer[]
 #ifdef DEBUG

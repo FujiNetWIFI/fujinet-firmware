@@ -8,6 +8,9 @@
         _Pragma("GCC diagnostic ignored \"-Wunused-variable\"")
 #define __END_IGNORE_UNUSEDVARS _Pragma("GCC diagnostic pop")
 
+#define __IGNORE_UNUSED_VAR(v) (void)v
+#define __IGNORE_UNSUED_PVAR(v) (void*)v
+
 void util_ltrim(std::string &s);
 void util_rtrim(std::string &s);
 void util_trim(std::string &s);

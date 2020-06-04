@@ -87,7 +87,20 @@ public:
     static int get_sio_voltage();
     static void yield();
 
+    typedef enum {
+        DAC_CHANNEL_1 = 1,  /*!< DAC channel 1 is GPIO25 */
+        DAC_CHANNEL_2,      /*!< DAC channel 2 is GPIO26 */
+        DAC_CHANNEL_MAX,
+    } dac_channel_t;
+
+    static void IRAM_ATTR dac_write(uint8_t pin, uint8_t value);
+    static esp_err_t dac_output_disable(dac_channel_t channel);
+    static esp_err_t dac_output_enable(dac_channel_t channel);
+    static esp_err_t dac_output_voltage(dac_channel_t channel, uint8_t dac_value);
+
     static size_t copy_file(FileSystem *source_fs, const char *source_filename, FileSystem *dest_fs, const char *dest_filename, size_t buffer_hint = FILE_COPY_BUFFERSIZE);
+    static FILE * make_tempfile(FileSystem *fs, char *result_filename);
+    static FILE * make_tempfile(char *result_filename);
 };
 
 

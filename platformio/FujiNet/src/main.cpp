@@ -15,13 +15,9 @@ moved over everything from multilator-rev2.ino except sio new disk
 hacked in a special case for SD - set host as "SD" in the Atari config program
 */
 
-#include <Arduino.h>
-
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
 #include "sio.h"
 #include "disk.h"
-//#include "tnfs.h"
-#include "printer.h"
 #include "modem.h"
 #include "fuji.h"
 #include "apetime.h"
@@ -32,8 +28,9 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include "config.h"
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
-
-//#include <WiFiUdp.h>
+#include "printerlist.h"
+#include "keys.h"
+#include "led.h"
 
 #ifdef ESP8266
 #include <FS.h>
@@ -42,15 +39,6 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
 #endif
 
-#ifdef ESP32
-//#include <SPIFFS.h>
-//#include <SPI.h>
-//#include <WiFi.h>
-//#include <SD.h>
-#endif
-
-#include "keys.h"
-#include "led.h"
 
 #define PIN_SDCS 0x05
 
@@ -63,9 +51,7 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 #include <esp_himem.h>
 #endif
 
-// sioP is declared and defined in printer.h/cpp
 // fnSystem is declared and defined in fnSystem.h/cpp
-
 sioModem sioR;
 sioFuji theFuji;
 sioApeTime apeTime;
@@ -83,10 +69,11 @@ LedManager ledMgr;
 BluetoothManager btMgr;
 #endif
 
+// *** Moved these to network.cpp since that's the only place they're used ***
 // For the interrupt rate limiter timer
-volatile bool interruptRateLimit = true;
-hw_timer_t *rateTimer = NULL;
-portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+//volatile bool interruptRateLimit = true;
+//hw_timer_t *rateTimer = NULL;
+//portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 /* SET UP ALL THE THINGS
 */
@@ -116,24 +103,6 @@ void setup()
     keyMgr.setup();
     ledMgr.setup();
 
-/*    
-    // Start up the SPI Flash File System
-    if (!SPIFFS.begin())
-    {
-#ifdef DEBUG
-        Debug_println("SPIFFS Mount Failed");
-#endif
-    }
-*/
-/*
-    // See if we can start the Secure Digital card file system
-    if (!SD.begin(PIN_SDCS))
-    {
-#ifdef DEBUG
-        Debug_println("SD Card Mount Failed");
-#endif
-    }
-*/
     fnSPIFFS.start();
     fnSDFAT.start();
     
@@ -158,10 +127,12 @@ void setup()
     if(ptype == sioPrinter::printer_type::PRINTER_INVALID)
         ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
     #ifdef DEBUG
-        Debug_printf("Creating a default printer using %s storage and %d type\n", ptrfs->typestring(), ptype);
+        Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
     #endif        
     sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
-    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER); // P:
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
 

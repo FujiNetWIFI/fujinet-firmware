@@ -19,7 +19,7 @@ void atari820::post_new_file()
     pdf_header();
 }
 
-void atari820::pdf_handle_char(byte c, byte aux1, byte aux2)
+void atari820::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
     // Atari 820 modes:
     // aux1 == 40   normal mode

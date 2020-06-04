@@ -74,7 +74,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     directory = urlParser->path.substr(0, urlParser->path.find_last_of("/") - 1);
     filename = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
 
-    if (filename == "*.*")
+    if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
         filename = "*";
 
     aux1 = cmdFrame->aux1;
@@ -150,7 +150,6 @@ bool networkProtocolTNFS::close()
 
 bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
 {
-    uint16_t actual_len;
 
     if (aux1 == 6) // are we reading directory?
     {
@@ -163,7 +162,7 @@ bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
     else
     {
         // Reading from a file
-        if (tnfs_read(&mountInfo, fileHandle, rx_buf, len, &actual_len)!=0)
+        if (block_read(rx_buf, len))
         {
             return true;
         }
@@ -177,8 +176,7 @@ bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
 
 bool networkProtocolTNFS::write(byte *tx_buf, unsigned short len)
 {
-    uint16_t actual_len=0;
-    if (tnfs_write(&mountInfo, fileHandle, tx_buf, len, &actual_len))
+    if (block_write(tx_buf,len))
         return true;
 
     return false;
@@ -231,4 +229,56 @@ bool networkProtocolTNFS::special(byte *sp_buf, unsigned short len, cmdFrame_t *
 bool networkProtocolTNFS::special_supported_00_command(unsigned char comnd)
 {
     return false;
+}
+
+bool networkProtocolTNFS::block_read(byte *rx_buf, unsigned short len)
+{
+    unsigned short total_len=len;
+    unsigned short block_len=TNFS_MAX_READWRITE_PAYLOAD;
+    uint16_t actual_len;
+
+    while (total_len>0)
+    {
+        if (total_len>TNFS_MAX_READWRITE_PAYLOAD)
+            block_len=TNFS_MAX_READWRITE_PAYLOAD;
+        else
+            block_len=total_len;
+
+        if (tnfs_read(&mountInfo, fileHandle, rx_buf, block_len, &actual_len)!=0)
+        {
+            return true; // error.
+        }
+        else
+        {
+            rx_buf+=block_len;
+            total_len-=block_len;
+        }
+    }
+    return false; // no error
+}
+
+bool networkProtocolTNFS::block_write(byte *tx_buf, unsigned short len)
+{
+    unsigned short total_len=len;
+    unsigned short block_len=TNFS_MAX_READWRITE_PAYLOAD;
+    uint16_t actual_len;
+
+    while (total_len>0)
+    {
+        if (total_len>TNFS_MAX_READWRITE_PAYLOAD)
+            block_len=TNFS_MAX_READWRITE_PAYLOAD;
+        else
+            block_len=total_len;
+        
+        if (tnfs_write(&mountInfo, fileHandle, tx_buf, block_len, &actual_len)!=0)
+        {
+            return true; // error.
+        }
+        else
+        {
+            tx_buf+=block_len;
+            total_len-=block_len;
+        }
+    }
+    return false; // no error
 }

@@ -1,10 +1,6 @@
-#include <Arduino.h>
 #include "samlib.h"
-#include <driver/dac.h>
 
-#ifdef ESP_32
-#define DAC1 25
-#endif
+#include "../../lib/hardware/fnSystem.h"
 
 #ifdef __cplusplus
 extern char input[256];
@@ -155,14 +151,16 @@ void OutputSound()
 #ifdef ESP_32
     int n = GetBufferLength() / 50;
     char *s = GetBuffer();
-    dac_output_enable(DAC_CHANNEL_1);
-    dac_output_voltage(DAC_CHANNEL_1, 100);
+    fnSystem.dac_output_enable(SystemManager::dac_channel_t::DAC_CHANNEL_1);
+    fnSystem.dac_output_voltage(SystemManager::dac_channel_t::DAC_CHANNEL_1, 100);
     for (int i = 0; i < n; i++)
     {
-        dacWrite(DAC1, s[i]);
-        delayMicroseconds(40);
+        //dacWrite(DAC1, s[i]);
+        fnSystem.dac_write(PIN_DAC1, s[i]);
+        //delayMicroseconds(40);
+        fnSystem.delay_microseconds(40);
     }
-    dac_output_disable(DAC_CHANNEL_1);
+    fnSystem.dac_output_disable(SystemManager::dac_channel_t::DAC_CHANNEL_1);
     FreeBuffer();
 #endif
 }
