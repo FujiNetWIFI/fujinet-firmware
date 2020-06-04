@@ -39,6 +39,9 @@ protected:
     bool escResidual = false;
     bool textMode = true;
     bool svg_home_flag = true;
+
+    std::string shortname;
+
     void svg_update_bounds();
     int svg_compute_weight(float fsize);
     void svg_new_line();
@@ -57,11 +60,13 @@ protected:
 
     void graphics_command(int n);
 
-    void svg_handle_char(unsigned char c); //virtual void svg_handle_char(unsigned char c) = 0; //     virtual void pdf_handle_char(byte c, byte aux1, byte aux2) = 0;
+    void svg_handle_char(unsigned char c);                                    //virtual void svg_handle_char(unsigned char c) = 0; //     virtual void pdf_handle_char(byte c, byte aux1, byte aux2) = 0;
     virtual bool process_buffer(byte linelen, byte aux1, byte aux2) override; //void svg_add(int n);
     virtual void pre_close_file() override;
+    virtual void post_new_file() override;
 
 public:
+    const char *modelname() { return "Atari 1020"; };
     svgPlotter() { _paper_type = SVG; };
 };
 
