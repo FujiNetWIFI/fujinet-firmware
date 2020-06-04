@@ -40,27 +40,18 @@ void onTimer(void *info)
  */
 bool sioNetwork::allocate_buffers()
 {
-    Debug_println("sioNetwork +++ ALLOCATING BUFFERS +++");
 #ifdef BOARD_HAS_PSRAM
-    rx_buf = (byte *)ps_malloc(INPUT_BUFFER_SIZE);
-    tx_buf = (byte *)ps_malloc(OUTPUT_BUFFER_SIZE);
-    sp_buf = (byte *)ps_malloc(SPECIAL_BUFFER_SIZE);
+    rx_buf = (byte *)ps_calloc(1, INPUT_BUFFER_SIZE);
+    tx_buf = (byte *)ps_calloc(1, OUTPUT_BUFFER_SIZE);
+    sp_buf = (byte *)ps_calloc(1, SPECIAL_BUFFER_SIZE);
 #else
-    rx_buf = (byte *)malloc(INPUT_BUFFER_SIZE);
-    tx_buf = (byte *)malloc(OUTPUT_BUFFER_SIZE);
-    sp_buf = (byte *)malloc(SPECIAL_BUFFER_SIZE);
+    rx_buf = (byte *)calloc(1, INPUT_BUFFER_SIZE);
+    tx_buf = (byte *)calloc(1, OUTPUT_BUFFER_SIZE);
+    sp_buf = (byte *)calloc(1, SPECIAL_BUFFER_SIZE);
 #endif
     if ((rx_buf == nullptr) || (tx_buf == nullptr) || (sp_buf == nullptr))
-    {
         return false;
-    }
-    else
-    {
-        memset(rx_buf, 0, INPUT_BUFFER_SIZE);
-        memset(tx_buf, 0, OUTPUT_BUFFER_SIZE);
-        memset(sp_buf, 0, SPECIAL_BUFFER_SIZE);
-        return true;
-    }
+    return true;
 }
 
 /**
@@ -68,7 +59,6 @@ bool sioNetwork::allocate_buffers()
  */
 void sioNetwork::deallocate_buffers()
 {
-    Debug_println("sioNetwork --- DEALLOCATING BUFFERS ---");
     if (rx_buf != nullptr)
         free(rx_buf);
 

@@ -191,13 +191,9 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
             }
 
             Debug_println("Waiting for data on DATA channel");
-            delay(250);
+            fnSystem.delay(250);
             delaymax += 250;
         }
-
-        Debug_println("Waiting for data on DATA channel");
-        fnSystem.delay(250);
-        delaymax += 250;
     }
     return true;
 }

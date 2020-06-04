@@ -192,6 +192,7 @@ string fnHttpServiceParser::parse_contents(const string &contents)
 
     return ss.str();
 }
+#include "fnHttpClient.h"
 
 string fnHttpServiceParser::format_uptime()
 {
@@ -211,6 +212,38 @@ string fnHttpServiceParser::format_uptime()
         resultstream << (m % 60) << " minutes, ";
     if (s % 60)
         resultstream << (s % 60) << " seconds";
+
+    fnHttpClient c;
+    c.begin("http://www.justified.com");
+    /*
+    c.GET();
+    const char *lm = c.get_header("User-Agent");
+    if(lm != nullptr) 
+        Debug_printf("header = %s\n", lm);
+    char buff[256];
+    int x = c.read(buff, sizeof(buff));
+    buff[255] = '\0';
+    Debug_printf("read = %d\n\t%s", x, buff);
+    */
+    const char * hdrs[2] = {"Last-Modified", "Server"};
+
+    c.collect_headers(hdrs, 2);
+
+    c.proceed();
+    std::string s1 = c.get_header("Last-Modified");
+    std::string s2 = c.get_header("Server");
+    std::string s3 = c.get_header("Unknown");
+    Debug_printf("s1 = %s, s2 = %s, s3 = %s\n",s1.c_str(), s2.c_str(), s3.c_str());
+    char buff[129];
+    int br;
+    while((br = c.read((uint8_t *)buff, 128)) > 0)
+    {
+        buff[br] = '\0';
+        Debug_printf("r: %d \"%s\"\n", br, buff);
+    }
+    //vTaskDelay(pdMS_TO_TICKS(5000));
+    //Debug_println("closeing");
+    c.close();
 
     return resultstream.str();
 }
