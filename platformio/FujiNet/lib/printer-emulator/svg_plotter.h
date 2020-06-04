@@ -9,6 +9,8 @@
 #include "printer_emulator.h"
 #include "../../include/atascii.h"
 
+typedef uint8_t byte;
+
 class svgPlotter : public printer_emu
 {
 protected:
