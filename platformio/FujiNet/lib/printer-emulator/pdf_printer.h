@@ -16,7 +16,7 @@ class pdfPrinter : public printer_emu
 protected:
     // ATARI THINGS
     bool translate850 = false; // default to sio printer
-    byte _eol = ATASCII_EOL;   // default to atascii eol
+    uint8_t _eol = ATASCII_EOL;   // default to atascii eol
 
     // PDF THINGS
     float pageWidth;
@@ -26,9 +26,9 @@ protected:
     float printWidth;
     float lineHeight;
     float charWidth;
-    byte fontNumber;
+    uint8_t fontNumber;
     float fontSize;
-    byte fontHorizScale = 100;
+    uint8_t fontHorizScale = 100;
     std::string shortname;
     bool fontUsed[MAXFONTS] = {true}; // initialize first one to true, always use default font
     float pdf_X = 0.;                 // across the page - columns in pts
@@ -58,8 +58,8 @@ protected:
     size_t idx_stream_start;  // file location of start of stream
     size_t idx_stream_stop;   // file location of end of stream
 
-    virtual void pdf_handle_char(byte c, byte aux1, byte aux2) = 0;
-    virtual bool process_buffer(byte linelen, byte aux1, byte aux2) override;
+    virtual void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) = 0;
+    virtual bool process_buffer(uint8_t linelen, uint8_t aux1, uint8_t aux2) override;
 
     virtual void pre_close_file() override;
 

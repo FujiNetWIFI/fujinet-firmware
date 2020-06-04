@@ -1,6 +1,5 @@
 #ifndef PRINTER_EMU_H
 #define PRINTER_EMU_H
-#include <Arduino.h>
 
 #include "../../include/atascii.h"
 
@@ -35,7 +34,7 @@ protected:
     FILE * _file = nullptr;
     paper_t _paper_type = RAW;
 
-    byte buffer[40];
+    uint8_t buffer[40];
 
     // Called after a new printer output file is created (allows for providing header data)
     virtual void post_new_file()=0;
@@ -43,8 +42,8 @@ protected:
     // Called before a printer output file is closed to send to the user (allows for providing footer data)
     virtual void pre_close_file()=0;
     
-    // Called to actually process the printer output from the Atari as bytes
-    virtual bool process_buffer(byte linelen, byte aux1, byte aux2)=0;
+    // Called to actually process the printer output from the Atari as uint8_ts
+    virtual bool process_buffer(uint8_t linelen, uint8_t aux1, uint8_t aux2)=0;
 
     size_t copy_file_to_output(const char *filename);
     void restart_output();
@@ -58,11 +57,11 @@ public:
     void closeOutput();
     FILE * closeOutputAndProvideReadHandle();
 
-    bool process(byte linelen, byte aux1, byte aux2);
+    bool process(uint8_t linelen, uint8_t aux1, uint8_t aux2);
 
     paper_t getPaperType() { return _paper_type; };
 
-    byte *provideBuffer() { return buffer; };
+    uint8_t *provideBuffer() { return buffer; };
 
     void setPaper(paper_t ptype) { _paper_type = ptype; };
 

@@ -1,6 +1,5 @@
 #ifndef EPSON_80_H
 #define EPSON_80_H
-#include <Arduino.h>
 
 #include "pdf_printer.h"
 
@@ -9,9 +8,9 @@ class epson80 : public pdfPrinter
 protected:
     struct epson_cmd_t
     {
-        byte cmd;
-        byte N1;
-        byte N2;
+        uint8_t cmd;
+        uint8_t N1;
+        uint8_t N2;
         uint16_t N;
         uint16_t ctr;
     } epson_cmd = {0, 0, 0, 0};
@@ -31,18 +30,18 @@ protected:
 
     uint16_t epson_font_mask = 0; // need to set to normal TODO
 
-    void print_8bit_gfx(byte c);
+    void print_8bit_gfx(uint8_t c);
     void not_implemented();
     void esc_not_implemented();
     void set_mode(uint16_t m);
     void clear_mode(uint16_t m);
     void reset_cmd();
-    byte epson_font_lookup(uint16_t code);
+    uint8_t epson_font_lookup(uint16_t code);
     float epson_font_width(uint16_t code);
-    void epson_set_font(byte F, float w);
+    void epson_set_font(uint8_t F, float w);
     void at_reset();
 
-    void pdf_handle_char(byte c, byte aux1, byte aux2) override;
+    void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;
 public:
     const char *modelname() { return "Epson 80"; };

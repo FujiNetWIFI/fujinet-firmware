@@ -80,9 +80,7 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
     byte ck;
 
 // Retrieve data frame from computer
-#ifdef DEBUG
     Debug_printf("<-SIO read %hu\n", len);
-#endif
 #ifdef DEBUG_VERBOSE
     size_t l = fnSIO_UART.readBytes(b, len);
 #else
@@ -125,9 +123,7 @@ void sioDevice::sio_nak()
 #ifdef ESP32
     fnUartSIO.flush();
 #endif
-#ifdef DEBUG
     Debug_println("NAK!");
-#endif
 }
 
 // SIO ACK
@@ -137,9 +133,7 @@ void sioDevice::sio_ack()
 #ifdef ESP32
     fnUartSIO.flush();
 #endif
-#ifdef DEBUG
     Debug_println("ACK!");
-#endif
 }
 
 // SIO COMPLETE
@@ -147,9 +141,7 @@ void sioDevice::sio_complete()
 {
     fnSystem.delay_microseconds(DELAY_T5);
     fnUartSIO.write('C');
-#ifdef DEBUG
     Debug_println("COMPLETE!");
-#endif
 }
 
 // SIO ERROR
@@ -157,9 +149,7 @@ void sioDevice::sio_error()
 {
     fnSystem.delay_microseconds(DELAY_T5);
     fnUartSIO.write('E');
-#ifdef DEBUG
     Debug_println("ERROR!");
-#endif
 }
 
 /*
@@ -223,9 +213,7 @@ void sioBus::service()
         if (modemDev != nullptr && modemDev->modemActive)
         {
             modemDev->modemActive = false;
-#ifdef DEBUG
             Debug_println("Modem was active - resetting SIO baud");
-#endif
             fnUartSIO.set_baudrate(sioBaud);
         }
 
@@ -242,10 +230,8 @@ void sioBus::service()
         tempFrame.cmdFrameData[4] = 0;
 
         fnUartSIO.readBytes((uint8_t *)tempFrame.cmdFrameData, 5);
-#ifdef DEBUG
         Debug_printf("\n%s CF: %02x %02x %02x %02x %02x\n", fnSystem.get_uptime_str(),
                      tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
-#endif
         // Wait for CMD line to raise again
         while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
             fnSystem.yield();
@@ -262,9 +248,7 @@ void sioBus::service()
             if (fujiDev != nullptr && fujiDev->load_config && tempFrame.devic == SIO_DEVICEID_DISK)
             {
                 activeDev = fujiDev->disk();
-#ifdef DEBUG
                 Debug_println("FujiNet intercepts D1:");
-#endif
                 for (int i = 0; i < 5; i++)
                     activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
 #ifdef ESP8266
@@ -277,16 +261,12 @@ void sioBus::service()
                 // Command SIO_DEVICEID_TYPE3POLL is a Type3 poll - send it to every device that cares
                 if (tempFrame.devic == SIO_DEVICEID_TYPE3POLL)
                 {
-#ifdef DEBUG
                     Debug_println("SIO TYPE3 POLL");
-#endif
                     for (auto devicep : daisyChain)
                     {
                         if (devicep->listen_to_type3_polls)
                         {
-#ifdef DEBUG
                             Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_devnum);
-#endif
                             activeDev = devicep;
                             for (int i = 0; i < 5; i++)
                                 activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
@@ -353,9 +333,7 @@ void sioBus::service()
 // Setup SIO bus
 void sioBus::setup()
 {
-#ifdef DEBUG
     Debug_println("SIO SETUP");
-#endif
     // Set up serial
     fnUartSIO.begin(sioBaud);
 #ifdef ESP8266
@@ -393,9 +371,7 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
     }
     else if (device_id >= SIO_DEVICEID_FN_NETWORK && device_id <= SIO_DEVICEID_FN_NETWORK_LAST)
     {
-#ifdef DEBUG
         Debug_printf("NETWORK DEVICE 0x%02x ADDED!\n", device_id - SIO_DEVICEID_FN_NETWORK);
-#endif
         netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (sioNetwork *)pDevice;
     }
 
@@ -422,6 +398,15 @@ int sioBus::numDevices()
     __END_IGNORE_UNUSEDVARS
 }
 
+void sioBus::changeDeviceId(sioDevice *p, int device_id)
+{
+    for (auto devicep : daisyChain)
+    {
+        if (devicep == p)
+            devicep->_devnum = device_id;
+    }
+}
+
 sioDevice *sioBus::deviceById(int device_id)
 {
     for (auto devicep : daisyChain)
@@ -439,9 +424,7 @@ int sioBus::getBaudrate()
 
 void sioBus::setBaudrate(int baudrate)
 {
-#ifdef DEBUG
     Debug_printf("Switching to %d baud...\n", sioBaud);
-#endif
     sioBaud = baudrate;
     //SIO_UART.updateBaudRate(sioBaud);
     fnUartSIO.set_baudrate(sioBaud);

@@ -155,11 +155,20 @@ sioPrinter::printer_type fnConfig::get_printer_type(uint8_t num)
         return sioPrinter::printer_type::PRINTER_INVALID;
 }
 
+// Returns printer type stored in configuration for printer slot
+int fnConfig::get_printer_port(uint8_t num)
+{
+    if(num >= 0 && num < MAX_PRINTER_SLOTS)
+        return _printer_slots[num].port;
+    else
+        return 0;
+}
+
 // Saves printer type stored in configuration for printer slot
-void fnConfig::store_printer(uint8_t num, sioPrinter::printer_type ptype)
+void fnConfig::store_printer_type(uint8_t num, sioPrinter::printer_type ptype)
 {
     #ifdef DEBUG
-    Debug_printf("store_printer %d, %d\n", num, ptype);
+    Debug_printf("store_printer_type %d, %d\n", num, ptype);
     #endif
     if(num >= 0 && num < MAX_PRINTER_SLOTS)
     {
@@ -167,6 +176,22 @@ void fnConfig::store_printer(uint8_t num, sioPrinter::printer_type ptype)
         {
             _dirty = true;
             _printer_slots[num].type = ptype;
+        }
+    }
+}
+
+// Saves printer port stored in configuration for printer slot
+void fnConfig::store_printer_port(uint8_t num, int port)
+{
+    #ifdef DEBUG
+    Debug_printf("store_printer_port %d, %d\n", num, port);
+    #endif
+    if(num >= 0 && num < MAX_PRINTER_SLOTS)
+    {
+        if(_printer_slots[num].port != port)
+        {
+            _dirty = true;
+            _printer_slots[num].port = port;
         }
     }
 }
@@ -230,6 +255,7 @@ void fnConfig::save()
         {
             ss << LINETERM << "[Printer" << (i+1) << "]" LINETERM;
             ss << "type=" << _printer_slots[i].type << LINETERM;
+            ss << "port=" << (_printer_slots[i].port + 1) << LINETERM; // Write port # as 1-based
         }
     }
 
@@ -237,9 +263,8 @@ void fnConfig::save()
     FILE * fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w");
     std::string result = ss.str();
     size_t z = fwrite(result.c_str(), 1, result.length(), fout);
-    #ifdef DEBUG
+    (void)z; // Get around unused var
     Debug_printf("fnConfig::save wrote %d bytes\n", z);
-    #endif
     fclose(fout);
 
     _dirty = false;
@@ -268,6 +293,7 @@ void fnConfig::load()
 #endif
 
     // Clear the config file if key is currently pressed
+#ifdef BOARD_HAS_PSRAM
     if(KeyManager::keyCurrentlyPressed(OTHER_KEY))
     {
         #ifdef DEBUG
@@ -278,6 +304,7 @@ void fnConfig::load()
         _dirty = true; // We have a new config, so we treat it as needing to be saved
         return;
     }
+#endif
 
 /*
 Original behavior: read from SPIFFS first and only read from SD if nothing found on SPIFFS.
@@ -518,6 +545,16 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
                 _printer_slots[index].type = (sioPrinter::printer_type)type;
                 #ifdef DEBUG
                 Debug_printf("config printer %d type=%d\n", index, type);
+                #endif
+            } else if (strcasecmp(name.c_str(), "port") == 0)
+            {
+                int port = atoi(value.c_str()) - 1;
+                if(port < 0 || port > 3)
+                    port = 0;
+
+                _printer_slots[index].port = port;
+                #ifdef DEBUG
+                Debug_printf("config printer %d port=%d\n", index, port + 1);
                 #endif
             }
         }

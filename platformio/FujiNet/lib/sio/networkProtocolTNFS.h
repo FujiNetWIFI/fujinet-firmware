@@ -17,11 +17,14 @@ public:
     virtual bool read(byte *rx_buf, unsigned short len);
     virtual bool write(byte *tx_buf, unsigned short len);
     virtual bool status(byte *status_buf);
-    virtual bool special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
+    virtual bool special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);    
 
     virtual bool special_supported_00_command(unsigned char comnd);
 
 private:
+    bool block_read(byte *rx_buf, unsigned short len);
+    bool block_write(byte *tx_buf, unsigned short len);
+
     tnfsMountInfo mountInfo;
     int16_t fileHandle;
     string filename;
