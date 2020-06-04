@@ -25,7 +25,7 @@ public:
     virtual void special_header_toggle(unsigned char a);
     virtual void special_collect_headers_toggle(unsigned char a);
     virtual void special_ca_toggle(unsigned char a);
-
+    virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool isConnected();
     
 private:
@@ -42,7 +42,8 @@ private:
     {
         GET,
         POST,
-        PUT
+        PUT,
+        DIR
     } openMode;
     int resultCode;
     int headerIndex = 0;

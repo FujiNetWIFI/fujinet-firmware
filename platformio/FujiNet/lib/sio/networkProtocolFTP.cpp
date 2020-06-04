@@ -4,6 +4,14 @@
 
 #include "networkProtocolFTP.h"
 
+networkProtocolFTP::networkProtocolFTP()
+{
+}
+
+networkProtocolFTP::~networkProtocolFTP()
+{
+}
+
 bool networkProtocolFTP::ftpExpect(string resultCode)
 {
     char buf[512];
@@ -60,25 +68,9 @@ unsigned short networkProtocolFTP::parsePort(string response)
     return port;
 }
 
-networkProtocolFTP::networkProtocolFTP()
+bool networkProtocolFTP::ftpLogin(EdUrlParser *urlParser)
 {
-}
-
-networkProtocolFTP::~networkProtocolFTP()
-{
-}
-
-bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
-{
-    Debug_println("networkProtocolFTP::open()");
-
     string tmpPath;
-    string tmpChdirPath;
-
-    if (urlParser->port.empty())
-        urlParser->port = "21";
-
-    hostName = urlParser->hostName;
 
     if (!control.connect(urlParser->hostName.c_str(), atoi(urlParser->port.c_str())))
         return false; // Error
@@ -129,8 +121,22 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         if (!ftpExpect("250"))
             return false; // Still can't find.
     }
+    return true;
+}
 
+bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    string tmpPath;
+    Debug_println("networkProtocolFTP::open()");
+
+    if (urlParser->port.empty())
+        urlParser->port = "21";
+
+    hostName = urlParser->hostName;
     aux1 = cmdFrame->aux1;
+
+    if (ftpLogin(urlParser) == false)
+        return false;
 
     Debug_printf("Attempting to get passive port\n");
     control.write("EPSV\r\n");
@@ -207,10 +213,7 @@ bool networkProtocolFTP::close()
     if (control.connected())
     {
         Debug_printf("Connected to data port, closing it.\n");
-        ftpExpect("150");
-        ftpExpect("226");
         control.write("QUIT\r\n");
-        ftpExpect("221");
     }
 
     control.stop();
@@ -257,13 +260,72 @@ bool networkProtocolFTP::status(byte *status_buf)
 {
     int a = data.available();
     __IGNORE_UNUSED_VAR(a);
-    //Debug_printf("networkProtocolFTP::status() %d\n", a);
-
     status_buf[0] = a & 0xFF;
     status_buf[1] = a >> 8;
     status_buf[2] = 1;
     status_buf[3] = 1;
     return false;
+}
+
+bool networkProtocolFTP::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    if (urlParser->port.empty())
+        urlParser->port = "21";
+
+    if (ftpLogin(urlParser) == false)
+        return false;
+
+    // Remove leading slash!
+    urlParser->path=urlParser->path.substr(1);
+
+    Debug_printf("Deleting file %s\n", urlParser->path.c_str());
+    control.write("DELE ");
+    control.write(urlParser->path.c_str());
+    control.write("\r\n");
+
+    return ftpExpect("250");
+}
+
+bool networkProtocolFTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    string rnFrom;
+    string rnTo;
+    size_t comma_pos;
+
+    if (urlParser->port.empty())
+        urlParser->port = "21";
+
+    // Remove leading slash!
+    urlParser->path=urlParser->path.substr(1);
+
+    comma_pos=urlParser->path.find(",");
+
+    if (comma_pos==string::npos)
+        return false;
+    
+    rnFrom=urlParser->path.substr(0,comma_pos);
+    rnTo=urlParser->path.substr(comma_pos+1);
+
+    // Remove dest from path, for login.
+    urlParser->path=urlParser->path.substr(0,comma_pos);
+
+    if (ftpLogin(urlParser) == false)
+        return false;
+
+    Debug_printf("Renaming %s to %s\n",rnFrom.c_str(),rnTo.c_str());
+    control.write("RNFR ");
+    control.write(rnFrom.c_str());
+    control.write("\r\n");
+
+    if (!ftpExpect("350")==false)
+        return false;
+
+    control.write("RNTO ");
+    control.write(rnTo.c_str());
+    control.write("\r\n");
+
+    return ftpExpect("250");
+    return true;
 }
 
 bool networkProtocolFTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)

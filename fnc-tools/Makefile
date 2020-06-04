@@ -26,6 +26,7 @@ all mostlyclean clean install zip:
 	@$(MAKE) -C npwd      --no-print-directory $@
 	@$(MAKE) -C ndir      --no-print-directory $@
 	@$(MAKE) -C ncopy     --no-print-directory $@
+	@$(MAKE) -C ndel      --no-print-directory $@
 #	@$(MAKE) -C rulisten  --no-print-directory $@
 dist: all
 	mkdir -p dist
@@ -46,6 +47,7 @@ dist: all
 	cp npwd/npwd.com dist/
 	cp ndir/ndir.com dist/
 	cp ncopy/ncopy.com dist/
+	cp ndel/ndel.com dist/
 #	cp rulisten/rulisten.com dist/
 	cp -ax doc/* dist/ 
 	dir2atr 720 fnc-tools.atr dist/
