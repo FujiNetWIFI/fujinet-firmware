@@ -42,21 +42,6 @@ private:
     void start_timer();
 
 protected:
-    networkProtocol *protocol;
-    EdUrlParser *urlParser;
-
-    unsigned char err;
-    byte ck;
-    byte *rx_buf;
-    byte *tx_buf;
-    byte *sp_buf;
-    unsigned short rx_buf_len;
-    unsigned short tx_buf_len = 256;
-    unsigned short sp_buf_len;
-    unsigned char aux1;
-    unsigned char aux2;
-    string prefix;
-    string initial_prefix;
 
     union {
         struct
@@ -96,6 +81,24 @@ public:
     virtual void sio_process();
 
 private:
+    string deviceSpec;
+    networkProtocol *protocol;
+    EdUrlParser *urlParser;
+    unsigned char err;
+    byte ck;
+    byte *rx_buf;
+    byte *tx_buf;
+    byte *sp_buf;
+    unsigned short rx_buf_len;
+    unsigned short tx_buf_len = 256;
+    unsigned short sp_buf_len;
+    unsigned char aux1;
+    unsigned char aux2;
+    string prefix;
+    string initial_prefix;
+    char filespecBuf[256];
+
+    bool parseURL();
     bool isValidURL(EdUrlParser *url);
 };
 
