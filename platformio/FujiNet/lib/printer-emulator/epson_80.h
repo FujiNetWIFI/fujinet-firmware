@@ -3,6 +3,8 @@
 
 #include "pdf_printer.h"
 
+typedef uint8_t byte;
+
 class epson80 : public pdfPrinter
 {
 protected:
