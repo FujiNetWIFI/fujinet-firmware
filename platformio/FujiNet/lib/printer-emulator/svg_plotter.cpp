@@ -446,7 +446,7 @@ bool svgPlotter::process_buffer(byte n, byte aux1, byte aux2)
             {
                 escResidual = false;
                 if (c == ATASCII_EOL)
-                    return;
+                    return true;
             }
             // the following creates a blank line of text
             if (BOLflag && c == ATASCII_EOL)
@@ -454,13 +454,13 @@ bool svgPlotter::process_buffer(byte n, byte aux1, byte aux2)
                 svg_X = 0;
                 svg_Y += lineHeight;
                 svg_update_bounds();
-                return;
+                return true;
             }
             // check for EOL or if at end of line and need automatic CR
             if (!BOLflag && c == ATASCII_EOL)
             {
                 svg_end_line();
-                return;
+                return true;
             }
             if (!BOLflag && (svg_X > (printWidth - charWidth)))
             {
@@ -479,7 +479,33 @@ bool svgPlotter::process_buffer(byte n, byte aux1, byte aux2)
             } // disposition the current byte
             svg_handle_char(c);
             if (!textMode)
-                return;
+                return true;
         }
     }
+    return true;
+}
+
+void svgPlotter::post_new_file()
+{
+    shortname = "a1020";
+
+    // pageWidth = 612.0;
+    // //pageHeight = 792.0;
+    // leftMargin = 18.0;
+    // //bottomMargin = 0;
+    // printWidth = 576.0; // 8 inches
+    // lineHeight = 12.0;
+    // charWidth = 7.2;
+    // //fontNumber = 1;
+    // fontSize = 12;
+    
+    svg_header();
+    //intlFlag = false;
+    //escMode = false;
+}
+
+void svgPlotter::pre_close_file()
+{
+    svg_footer();
+    //printer_emu::pageEject();
 }
