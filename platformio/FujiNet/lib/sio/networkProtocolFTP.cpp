@@ -286,6 +286,25 @@ bool networkProtocolFTP::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return ftpExpect("250");
 }
 
+bool networkProtocolFTP::mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    if (urlParser->port.empty())
+        urlParser->port = "21";
+
+    if (ftpLogin(urlParser) == false)
+        return false;
+
+    // Remove leading slash!
+    urlParser->path=urlParser->path.substr(1);
+
+    Debug_printf("Making directory %s\n", urlParser->path.c_str());
+    control.write("MKD ");
+    control.write(urlParser->path.c_str());
+    control.write("\r\n");
+
+    return ftpExpect("250");
+}
+
 bool networkProtocolFTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     string rnFrom;
