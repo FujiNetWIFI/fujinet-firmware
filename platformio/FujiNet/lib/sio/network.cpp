@@ -126,9 +126,6 @@ bool sioNetwork::parseURL()
     if (urlParser != nullptr)
         delete urlParser;
 
-    if (cmdFrame.aux1 == 0)
-        return false;
-
     Debug_printf("parseURL: %s\r\n", filespecBuf);
 
     // Preprocess URL
