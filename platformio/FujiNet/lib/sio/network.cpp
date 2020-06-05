@@ -127,10 +127,10 @@ bool sioNetwork::parseURL()
     if (cmdFrame.aux1 == 0)
         return false;
 
-    Debug_printf("parseURL: %s\r\n",filespecBuf);
+    Debug_printf("parseURL: %s\r\n", filespecBuf);
 
     // Preprocess URL
-    if (cmdFrame.comnd==0x20)
+    if (cmdFrame.comnd == 0x20)
     {
         for (int i = 0; i < sizeof(filespecBuf); i++)
             if ((filespecBuf[i] > 0x7F))
@@ -149,8 +149,8 @@ bool sioNetwork::parseURL()
                 filespecBuf[i] = 0x00;
     }
 
-    if (filespecBuf[strlen(filespecBuf)-1]=='.')
-        filespecBuf[strlen(filespecBuf)-1]=0x00;
+    if (filespecBuf[strlen(filespecBuf) - 1] == '.')
+        filespecBuf[strlen(filespecBuf) - 1] = 0x00;
 
     if (prefix.length() > 0)
         deviceSpec = prefix + string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
@@ -159,7 +159,7 @@ bool sioNetwork::parseURL()
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
 
-    Debug_printf("parseURL isValidURL: %s",deviceSpec.c_str());
+    Debug_printf("parseURL isValidURL: %s", deviceSpec.c_str());
 
     return (isValidURL(urlParser));
 }
@@ -186,7 +186,7 @@ void sioNetwork::sio_open()
 
     if (parseURL() == false)
     {
-        Debug_printf("Invalid devicespec\n");
+        Debug_printf("Invalid devicespec %s\n",filespecBuf);
         status_buf.error = 165;
         sio_error();
         return;
@@ -520,14 +520,6 @@ void sioNetwork::sio_special()
         // deviceSpec set by parseURL.
         Debug_printf("Rename: %s\n", deviceSpec.c_str());
 
-        if (allocate_buffers() == false)
-        {
-            Debug_printf("Could not allocate memory for buffers\n");
-            status_buf.error = 129;
-            sio_error();
-            return;
-        }
-
         if (open_protocol() == false)
         {
             Debug_printf("Could not open protocol.\n");
@@ -547,8 +539,10 @@ void sioNetwork::sio_special()
             return;
         }
 
-        protocol->close();
         sio_complete();
+        protocol->close();
+        delete protocol;
+        protocol = nullptr;
     }
     else if (cmdFrame.comnd == 0x21) // DELETE
     {
@@ -565,14 +559,6 @@ void sioNetwork::sio_special()
 
         // deviceSpec set by parseURL.
         Debug_printf("Delete: %s\n", deviceSpec.c_str());
-
-        if (allocate_buffers() == false)
-        {
-            Debug_printf("Could not allocate memory for buffers\n");
-            status_buf.error = 129;
-            sio_error();
-            return;
-        }
 
         if (open_protocol() == false)
         {
@@ -593,8 +579,10 @@ void sioNetwork::sio_special()
             return;
         }
 
-        protocol->close();
         sio_complete();
+        protocol->close();
+        delete protocol;
+        protocol=nullptr;
     }
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {

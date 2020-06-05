@@ -5,6 +5,7 @@
 #include "html_printer.h"
 #include "atari_820.h"
 #include "atari_822.h"
+#include "svg_plotter.h"
 #include "atari_1025.h"
 #include "atari_1027.h"
 #include "epson_80.h"
@@ -89,7 +90,7 @@ void sioPrinter::sio_write(byte aux1, byte aux2)
 // Status
 void sioPrinter::sio_status()
 {
-/*
+    /*
   STATUS frame per the 400/800 OS ROM Manual
   Command Status
   Aux 1 Byte (typo says AUX2 byte)
@@ -148,6 +149,9 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
     case PRINTER_ATARI_822:
         _pptr = new atari822;
         break;
+    case PRINTER_ATARI_1020:
+        _pptr = new svgPlotter;
+        break;
     case PRINTER_ATARI_1025:
         _pptr = new atari1025;
         break;
@@ -193,6 +197,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string model_name)
             "file printer (ASCII)",
             "Atari 820",
             "Atari 822",
+            "Atari 1020",
             "Atari 1025",
             "Atari 1027",
             "Epson 80",
