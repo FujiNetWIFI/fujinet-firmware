@@ -511,6 +511,10 @@ void sioNetwork::sio_special()
         sio_ack();
         sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
 
+        for (int i = 0; i < 256; i++)
+            if (filespecBuf[i] == 0x9B)
+                filespecBuf[i] = 0x00;
+
         if (parseURL() == false)
         {
             Debug_printf("Invalid devicespec\n");
@@ -550,6 +554,10 @@ void sioNetwork::sio_special()
     {
         sio_ack();
         sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
+
+        for (int i = 0; i < 256; i++)
+            if (filespecBuf[i] == 0x9B)
+                filespecBuf[i] = 0x00;
 
         if (parseURL() == false)
         {
@@ -591,9 +599,13 @@ void sioNetwork::sio_special()
         sio_ack();
         sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
 
+        for (int i = 0; i < 256; i++)
+            if (filespecBuf[i] == 0x9B)
+                filespecBuf[i] = 0x00;
+
         if (parseURL() == false)
         {
-            Debug_printf("Invalid devicespec\n");
+            Debug_printf("Invalid devicespec %s \n",filespecBuf);
             status_buf.error = 165;
             sio_error();
             return;
