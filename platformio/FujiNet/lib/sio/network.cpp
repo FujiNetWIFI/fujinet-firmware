@@ -586,6 +586,46 @@ void sioNetwork::sio_special()
         delete protocol;
         protocol=nullptr;
     }
+    else if (cmdFrame.comnd == 0x2A) // MKDIR
+    {
+        sio_ack();
+        sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
+
+        if (parseURL() == false)
+        {
+            Debug_printf("Invalid devicespec\n");
+            status_buf.error = 165;
+            sio_error();
+            return;
+        }
+
+        // deviceSpec set by parseURL.
+        Debug_printf("Mkdir: %s\n", deviceSpec.c_str());
+
+        if (open_protocol() == false)
+        {
+            Debug_printf("Could not open protocol.\n");
+            status_buf.error = 128;
+            sio_error();
+            return;
+        }
+
+        if (!protocol->mkdir(urlParser, &cmdFrame))
+        {
+            Debug_printf("Protocol unable to perform mkdir.");
+            protocol->close();
+            delete protocol;
+            protocol = nullptr;
+            status_buf.error = 170;
+            sio_error();
+            return;
+        }
+
+        sio_complete();
+        protocol->close();
+        delete protocol;
+        protocol=nullptr;
+    }
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
         byte ret = 0xFF;
@@ -696,6 +736,8 @@ bool sioNetwork::sio_special_supported_80_command(unsigned char c)
     case 0x21: // DELETE
         return true;
     case 0x2C: // CHDIR
+        return true;
+    case 0x2A: // MKDIR
         return true;
     case 0xFE: // Set prefix
         return true;
