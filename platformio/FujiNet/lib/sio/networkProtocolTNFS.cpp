@@ -60,6 +60,7 @@ bool strmatch(char str[], char pattern[],
 
 networkProtocolTNFS::networkProtocolTNFS()
 {
+    memset(entryBuf,0,sizeof(entryBuf));
 }
 
 networkProtocolTNFS::~networkProtocolTNFS()
