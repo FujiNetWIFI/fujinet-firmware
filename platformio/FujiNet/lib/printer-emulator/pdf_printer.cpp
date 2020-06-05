@@ -225,6 +225,8 @@ void pdfPrinter::pdf_new_line()
 #ifdef DEBUG
     Debug_println("pdf new line");
 #endif
+    // clear any one-line modes
+    pdf_clear_modes();
     // position new line and start text string array
     if (pdf_dY != 0)
         fprintf(_file, "0 Ts ");
