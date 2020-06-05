@@ -26,6 +26,8 @@ public:
     virtual void special_ca_toggle(unsigned char a);
     virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+
     virtual bool isConnected();
     
 private:

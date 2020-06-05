@@ -417,6 +417,28 @@ bool networkProtocolHTTP::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return client.sendRequest("DELETE");
 }
 
+bool networkProtocolHTTP::mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    httpState = CMD;
+    if (urlParser->scheme == "HTTP")
+        urlParser->scheme = "http";
+    else if (urlParser->scheme == "HTTPS")
+        urlParser->scheme = "https";
+
+    if (urlParser->port.empty())
+    {
+        if (urlParser->scheme == "http")
+            urlParser->port = "80";
+        else if (urlParser->scheme == "https")
+            urlParser->port = "443";
+    }
+
+    openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":" + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
+    client.begin(openedUrl.c_str());
+
+    return client.sendRequest("MKCOL");
+}
+
 bool networkProtocolHTTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     httpState = CMD;
