@@ -26,6 +26,7 @@ public:
     virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
     virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
     virtual bool mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
+    virtual bool rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
 
     virtual bool isConnected() { return true; }
 
