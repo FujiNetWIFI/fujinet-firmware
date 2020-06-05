@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <string.h>
 #include <FreeRTOS.h>
 #include "../../include/debug.h"
@@ -70,7 +71,7 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
     }
 
     // Nothing left to read - later ESP-IDF versions provide esp_http_client_is_complete_data_received()
-    if(_data_download_done)
+    if(_transaction_done)
     {
         Debug_println("::read download done");
         return 0;
@@ -99,7 +100,7 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
         return -1;
     }
     Debug_println("::read got notification");
-    if(_data_download_done || _buffer_len < 0)
+    if(_transaction_done || _buffer_len < 0)
     {
         Debug_println("::read download done");
         return 0;
@@ -121,6 +122,7 @@ void fnHttpClient::close()
     if(_handle != nullptr)
         esp_http_client_close(_handle);
     Debug_println("::close closed client");
+    _stored_headers.clear();
 }
 
 /*
@@ -151,9 +153,14 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
     case HTTP_EVENT_HEADER_SENT:     // After sending all the headers to the server
         Debug_printf("HTTP_EVENT_HEADER_SENT %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
         break;
+
     case HTTP_EVENT_ON_HEADER:       // Occurs when receiving each header sent from the server
     {
         Debug_printf("HTTP_EVENT_ON_HEADER %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
+        // Check to see if we should store this response header
+        if(client->_stored_headers.size() <= 0)
+            break;
+
         std::string hkey(evt->header_key);
         header_map_t::iterator it = client->_stored_headers.find(hkey);
         if(it != client->_stored_headers.end())
@@ -166,13 +173,20 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
     case HTTP_EVENT_ON_DATA:         // Occurs multiple times when receiving body data from the server. MAY BE SKIPPED IF BODY IS EMPTY!
     {
         Debug_printf("HTTP_EVENT_ON_DATA %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
-        // Assume a value of -1 for _buffer_len means this is our first time through this loop
-        if(client->_buffer_len == -1)
+
+        // Don't do any of this if we're told to ignore the response
+        if(client->_ignore_response_body == true)
+            break;
+
+        // Check if this is our first time this event has been triggered
+        if(client->_transaction_begin == true)
         {
+            client->_transaction_begin = false;
+            client->_transaction_done = false;
             // Let the main thread know we're done reading headers and have moved on to the data
-            client->_data_download_done = false;
             xTaskNotifyGive(client->_taskh_consumer);
         }
+
         // Wait to be told we can fill the buffer
         Debug_println("Waiting to start reading");
         ulTaskNotifyTake(1, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_CONSUMER_TASK));
@@ -187,27 +201,32 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
         xTaskNotifyGive(client->_taskh_consumer);
         break;
     }
+
     case HTTP_EVENT_ON_FINISH:       // Occurs when finish a HTTP session
     {
         Debug_printf("HTTP_EVENT_ON_FINISH %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
-        // We're going to wait here to be called for a final READ (returning 0)
-        // If _buff_len is still -1 we skipped the DATA event, so don't wait to be notified: the original _perform() function is still waiting for us to tell it we're done
-        if(client->_buffer_len != -1)
-            ulTaskNotifyTake(1, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_CONSUMER_TASK));
 
         // Indicate there's nothing else to read
-        client->_data_download_done = true;
-        client->_buffer_pos = -1;
-        client->_buffer_len = -1;
+        client->_transaction_done = true;
+
+        // Don't do anything else if we're told to ignore the response
+        if(client->_ignore_response_body)
+            break;
+
+        // We're going to wait here to be called for a final READ (returning 0)
+
+        // If _transaction_begin is still true, then we skipped the DATA event (because there was no response body)
+        // so don't wait to be notified: the original _perform() function is still waiting for us to tell it we're done
+        if(!client->_transaction_begin)
+            ulTaskNotifyTake(1, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_CONSUMER_TASK));
 
         // Tell either the _perform() or read() tasks we're done
         xTaskNotifyGive(client->_taskh_consumer);
         break;
     }
+
     case HTTP_EVENT_DISCONNECTED:    // The connection has been disconnected
         Debug_printf("HTTP_EVENT_DISCONNECTED %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
-        break;
-    default:
         break;
     }
     return ESP_OK;
@@ -222,7 +241,6 @@ void fnHttpClient::_perform_subtask(void *param)
     TaskHandle_t tmp = parent->_taskh_subtask;
     parent->_taskh_subtask = nullptr;
     vTaskDelete(tmp);
-    Debug_println("_perform_subtask LIFE AFTER DEATH");
 }
 
 void fnHttpClient::_delete_subtask_if_running()
@@ -235,11 +253,20 @@ void fnHttpClient::_delete_subtask_if_running()
     }
 }
 
+/*
+ Performs an HTTP transaction using esp_http_client_perform()
+ Outside of POST data, this can't write to the server.  However, it's the only way to
+ retrieve response headers using the esp_http_client library, so we use it
+ for all non-write methods: GET, HEAD, POST
+*/
 int fnHttpClient::_perform()
 {
     Debug_printf("%08lx _perform\n", fnSystem.millis());
-    // Reset our buffer position
-    _buffer_len = _buffer_pos = -1;
+
+    // Reset our transaction state markers
+    _transaction_begin = true;
+    _transaction_done = false;
+
     // Handle the that HTTP task will use to notify us
     _taskh_consumer = xTaskGetCurrentTaskHandle();
     // Start a new task to perform the http client work
@@ -264,6 +291,104 @@ int fnHttpClient::_perform()
 
     Debug_printf("status = %d, length = %d, chunked = %d\n", status, length, chunked ? 1 : 0);
     return status;
+}
+
+/*
+ Performs an HTTP transaction using esp_http_client_open() and subsequent "streaming" functions.
+ Although this is more flexible than the esp_http_client_perform() method, there doesn't
+ seem to be a way of retrieving response headers from the server this way.  So we only use
+ it for write-focused methods: PUT and arbitrary methods specified using send_request()
+*/
+int fnHttpClient::_perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size)
+{
+    Debug_printf("%08lx _perform_write\n", fnSystem.millis());
+
+    if(_handle == nullptr)
+        return -1;
+
+    /* Headers added by HttpClient
+        <METHOD> <URI> HTTP/1.1
+        Host: <HOST>
+        User-Agent: <UserAgent>
+        Connection: <keep-alive/close>
+        Accept-Encoding: <encoding>
+        Authorization: Basic <authorization>
+    */
+
+    // Set method
+    esp_err_t e = esp_http_client_set_method(_handle, method);
+
+    // Add header specifying expected content size
+    if(write_data != nullptr && write_size > 0)
+    {
+        char buff[12];
+        __itoa(write_size, buff, 10);
+        set_header("Content-Length", buff);
+    }
+
+    Debug_printf("%08lx _perform_write open+write\n", fnSystem.millis());
+    e = esp_http_client_open(_handle, write_size);
+    if(e != ESP_OK)
+    {
+        Debug_printf("_perform_write error %d during open\n", e);
+        return -1;
+    }
+
+    e = esp_http_client_write(_handle, (char *)write_data, write_size);
+    if(e < 0)
+    {
+        Debug_printf("_perform_write error during write\n");
+        return -1;
+    }
+
+    e = esp_http_client_fetch_headers(_handle);
+    if(e < 0)
+    {
+        Debug_printf("_perform_write error during fetch headers\n");
+        return -1;
+    }
+
+    // Collect results
+    bool chunked = esp_http_client_is_chunked_response(_handle);
+    int status = esp_http_client_get_status_code(_handle);
+    int length = esp_http_client_get_content_length(_handle);
+    Debug_printf("status = %d, length = %d, chunked = %d\n", status, length, chunked ? 1 : 0);
+
+    // Read any returned data
+    int r = esp_http_client_read(_handle, _buffer, DEFAULT_HTTP_BUF_SIZE);
+    if( r > 0)
+    {
+        _buffer_len = r;
+        Debug_printf("_perform_write read %d bytes\n", r);
+    }
+
+    return status;
+}
+
+/*
+*/
+int fnHttpClient::PUT2(const char *put_data, int put_datalen)
+{
+    return _perform_stream(esp_http_client_method_t::HTTP_METHOD_PUT, (uint8_t *)put_data, put_datalen);
+}
+
+int fnHttpClient::PUT(const char *put_data, int put_datalen)
+{
+    if(_handle == nullptr || put_data == nullptr || put_datalen < 1)
+        return -1;
+
+    // Set method
+    esp_http_client_set_method(_handle, esp_http_client_method_t::HTTP_METHOD_PUT);
+    // See if a content-type has been set and set a default one if not
+    // Call this before esp_http_client_set_post_field() otherwise that function will definitely set the content type to form
+    char *value = nullptr;
+    esp_http_client_get_header(_handle, "Content-Type", &value);
+    if(value == nullptr)
+        esp_http_client_set_header(_handle, "Content-Type", "application/octet-stream");
+    // esp_http_client_set_post_field() sets the content of the body of the transaction
+    esp_http_client_set_post_field(_handle, put_data, put_datalen);
+
+    return _perform();
 }
 
 /*
@@ -360,4 +485,11 @@ void fnHttpClient::collect_headers(const char* headerKeys[], const size_t header
 
     for (int i = 0; i < headerKeysCount; i++)
         _stored_headers.insert(header_entry_t(headerKeys[i], std::string()));
+}
+
+const char * fnHttpClient::buffer_contents(int *buffer_len)
+{
+    if(buffer_len != nullptr)
+        *buffer_len = _buffer_len;
+    return _buffer;
 }
