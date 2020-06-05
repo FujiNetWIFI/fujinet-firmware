@@ -20,6 +20,8 @@ public:
     virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+
     virtual bool special_supported_00_command(unsigned char comnd);
 
 private:

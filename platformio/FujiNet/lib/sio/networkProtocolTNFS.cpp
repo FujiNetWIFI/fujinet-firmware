@@ -60,6 +60,7 @@ bool strmatch(char str[], char pattern[],
 
 networkProtocolTNFS::networkProtocolTNFS()
 {
+    memset(entryBuf, 0, sizeof(entryBuf));
 }
 
 networkProtocolTNFS::~networkProtocolTNFS()
@@ -199,8 +200,15 @@ bool networkProtocolTNFS::status(byte *status_buf)
 
             if (strmatch(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
+                if (tnfs_stat(&mountInfo, &fileStat, tmp) != 0)
+                    return true;
+
+                if (fileStat.isDir == true)
+                    tmp[strlen(tmp)] = '/';
+
                 tmp[strlen(tmp)] = 0x9B;     // EOL
                 tmp[strlen(tmp) + 1] = 0x00; // EOS
+
                 strcpy(entryBuf, tmp);
             }
             else
@@ -349,6 +357,27 @@ bool networkProtocolTNFS::mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         return false; // error
 
     ret = tnfs_mkdir(&mountInfo, urlParser->path.c_str());
+
+    if (mountInfo.session != 0)
+        tnfs_umount(&mountInfo);
+
+    return ret;
+}
+
+bool networkProtocolTNFS::rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    int ret = 0;
+
+    strcpy(mountInfo.hostname, urlParser->hostName.c_str());
+    strcpy(mountInfo.mountpath, "/");
+
+    if (!urlParser->port.empty())
+        mountInfo.port = atoi(urlParser->port.c_str());
+
+    if (tnfs_mount(&mountInfo))
+        return false; // error
+
+    ret = tnfs_rmdir(&mountInfo, urlParser->path.c_str());
 
     if (mountInfo.session != 0)
         tnfs_umount(&mountInfo);
