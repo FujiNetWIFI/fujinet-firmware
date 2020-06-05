@@ -216,7 +216,7 @@ string fnHttpServiceParser::format_uptime()
 
     fnHttpClient c;
     //c.begin("http://www.justified.com");
-    c.begin("https://postman-echo.com/post");
+    c.begin("http://postman-echo.com/put");
     
     //c.GET();
     /*
@@ -233,15 +233,17 @@ string fnHttpServiceParser::format_uptime()
 
     c.collect_headers(hdrs, 2);
 */  
-    c.set_header("Content-Type", "application/json");
+    //c.set_header("Content-Type", "application/json");
     //c.POST("field1=value1&field2=value2", 27);
-    c.POST("{\"field1\":\"value1\"}", 19);
+    //c.POST("{\"field1\":\"value1\"}", 19);
+    c.PUT("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz9876543210", 72);
     /*
     std::string s1 = c.get_header("Last-Modified");
     std::string s2 = c.get_header("Server");
     std::string s3 = c.get_header("Unknown");
     Debug_printf("s1 = %s, s2 = %s, s3 = %s\n",s1.c_str(), s2.c_str(), s3.c_str());
     */
+    
     char buff[129];
     int br;
     while((br = c.read((uint8_t *)buff, 128)) > 0)
@@ -250,6 +252,14 @@ string fnHttpServiceParser::format_uptime()
         Debug_printf("r: %d \"%s\"\n", br, buff);
     }
     
+   /*
+    int bl;
+    const char * p = c.buffer_contents(&bl);
+    Debug_printf("Buffer has %d chars\n", bl);
+    if(bl >0)
+        Debug_printf("\t%s\n", p);
+    */
+
 
     Debug_println("closing");
     c.close();

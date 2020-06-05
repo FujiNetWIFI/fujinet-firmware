@@ -17,10 +17,11 @@ private:
     int _buffer_len = 0;
 
     TaskHandle_t _taskh_consumer = nullptr;
-    //TaskHandle_t _taskh_http = nullptr;
     TaskHandle_t _taskh_subtask = nullptr;
 
-    bool _data_download_done = true;
+    bool _ignore_response_body = false;
+    bool _transaction_begin;
+    bool _transaction_done;
 
     uint16_t _port = 80;
     header_map_t _stored_headers;
@@ -33,6 +34,7 @@ private:
     void _delete_subtask_if_running();
 
     int _perform();
+    int _perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size);
 
 public:
 
@@ -45,6 +47,8 @@ public:
     int GET();
     int HEAD();
     int POST(const char *post_data, int post_datalen);
+    int PUT(const char *put_data, int put_datalen);
+    int PUT2(const char *put_data, int put_datalen);
 
     int read(uint8_t *dest_buffer, int dest_bufflen);
     int write(const uint8_t *src_buffer, int src_bufflen);
@@ -56,6 +60,8 @@ public:
     int get_header_count();
 
     void collect_headers(const char* headerKeys[], const size_t headerKeysCount);
+
+    const char * buffer_contents(int *buffer_len);
 };
 
 #endif // _FN_HTTPCLIENT_H_
