@@ -60,7 +60,7 @@ bool strmatch(char str[], char pattern[],
 
 networkProtocolTNFS::networkProtocolTNFS()
 {
-    memset(entryBuf,0,sizeof(entryBuf));
+    memset(entryBuf, 0, sizeof(entryBuf));
 }
 
 networkProtocolTNFS::~networkProtocolTNFS()
@@ -200,8 +200,15 @@ bool networkProtocolTNFS::status(byte *status_buf)
 
             if (strmatch(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
+                if (tnfs_stat(&mountInfo, &fileStat, tmp) != 0)
+                    return true;
+
+                if (fileStat.isDir == true)
+                    tmp[strlen(tmp)] = '/';
+
                 tmp[strlen(tmp)] = 0x9B;     // EOL
                 tmp[strlen(tmp) + 1] = 0x00; // EOS
+
                 strcpy(entryBuf, tmp);
             }
             else
