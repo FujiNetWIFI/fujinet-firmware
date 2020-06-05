@@ -635,6 +635,50 @@ void sioNetwork::sio_special()
         delete protocol;
         protocol=nullptr;
     }
+    else if (cmdFrame.comnd == 0x2B) // RMDIR
+    {
+        sio_ack();
+        sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
+
+        for (int i = 0; i < 256; i++)
+            if (filespecBuf[i] == 0x9B)
+                filespecBuf[i] = 0x00;
+
+        if (parseURL() == false)
+        {
+            Debug_printf("Invalid devicespec %s \n",filespecBuf);
+            status_buf.error = 165;
+            sio_error();
+            return;
+        }
+
+        // deviceSpec set by parseURL.
+        Debug_printf("Rmdir: %s\n", deviceSpec.c_str());
+
+        if (open_protocol() == false)
+        {
+            Debug_printf("Could not open protocol.\n");
+            status_buf.error = 128;
+            sio_error();
+            return;
+        }
+
+        if (!protocol->rmdir(urlParser, &cmdFrame))
+        {
+            Debug_printf("Protocol unable to perform rmdir.");
+            protocol->close();
+            delete protocol;
+            protocol = nullptr;
+            status_buf.error = 170;
+            sio_error();
+            return;
+        }
+
+        sio_complete();
+        protocol->close();
+        delete protocol;
+        protocol=nullptr;
+    }
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
         byte ret = 0xFF;
@@ -747,6 +791,8 @@ bool sioNetwork::sio_special_supported_80_command(unsigned char c)
     case 0x2C: // CHDIR
         return true;
     case 0x2A: // MKDIR
+        return true;
+    case 0x2B: // RMDIR
         return true;
     case 0xFE: // Set prefix
         return true;
