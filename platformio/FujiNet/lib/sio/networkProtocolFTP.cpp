@@ -314,6 +314,25 @@ bool networkProtocolFTP::mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return ftpExpect("250");
 }
 
+bool networkProtocolFTP::rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    if (urlParser->port.empty())
+        urlParser->port = "21";
+
+    if (ftpLogin(urlParser) == false)
+        return false;
+
+    // Remove leading slash!
+    urlParser->path=urlParser->path.substr(1);
+
+    Debug_printf("Removing directory %s\n", urlParser->path.c_str());
+    control.write("RMD ");
+    control.write(urlParser->path.c_str());
+    control.write("\r\n");
+
+    return ftpExpect("250");
+}
+
 bool networkProtocolFTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     string rnFrom;

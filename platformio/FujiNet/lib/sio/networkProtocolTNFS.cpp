@@ -355,3 +355,24 @@ bool networkProtocolTNFS::mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     return ret;
 }
+
+bool networkProtocolTNFS::rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+{
+    int ret = 0;
+
+    strcpy(mountInfo.hostname, urlParser->hostName.c_str());
+    strcpy(mountInfo.mountpath, "/");
+
+    if (!urlParser->port.empty())
+        mountInfo.port = atoi(urlParser->port.c_str());
+
+    if (tnfs_mount(&mountInfo))
+        return false; // error
+
+    ret = tnfs_rmdir(&mountInfo, urlParser->path.c_str());
+
+    if (mountInfo.session != 0)
+        tnfs_umount(&mountInfo);
+
+    return ret;
+}
