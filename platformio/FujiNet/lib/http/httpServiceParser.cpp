@@ -216,9 +216,10 @@ string fnHttpServiceParser::format_uptime()
 
     fnHttpClient c;
     //c.begin("http://www.justified.com");
-    c.begin("http://postman-echo.com/put");
+    //c.begin("http://postman-echo.com/put");
+    c.begin("http://postman-echo.com/stream/1024");
     
-    //c.GET();
+    c.GET();
     /*
     const char *lm = c.get_header("User-Agent");
     if(lm != nullptr) 
@@ -236,7 +237,7 @@ string fnHttpServiceParser::format_uptime()
     //c.set_header("Content-Type", "application/json");
     //c.POST("field1=value1&field2=value2", 27);
     //c.POST("{\"field1\":\"value1\"}", 19);
-    c.PUT("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz9876543210", 72);
+    //c.PUT("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz9876543210", 72);
     /*
     std::string s1 = c.get_header("Last-Modified");
     std::string s2 = c.get_header("Server");
