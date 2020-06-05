@@ -46,7 +46,7 @@ void svgPlotter::svg_end_line()
 {
     // <text x="0" y="15" fill="red">I love SVG!</text>
     fprintf(_file, "</text>\n"); // close the line
-    svg_X = 0;                   // CR
+    svg_X = 0.;                  // CR
     BOLflag = true;
 }
 
@@ -66,10 +66,17 @@ void svgPlotter::svg_abs_plot_line()
     //<line x1="0" x2="100" y1="0" y2="100" style="stroke:rgb(0,0,0);stroke-width:2 />
     float x1 = svg_X;
     float y1 = svg_Y;
-    float x2 = svg_X_home + svg_arg[0];
-    float y2 = svg_Y_home + svg_arg[1] % 1000;
+    float x2 = x1;
+    float y2 = y1;
+    if ((float)svg_arg[0] > -1000 && (float)svg_arg[0] < 1000)
+        x2 = svg_X_home + (float)svg_arg[0];
+    if ((float)svg_arg[1] > -1000 && (float)svg_arg[1] < 1000)
+        y2 = svg_Y_home + (float)svg_arg[1]; // the modulo is not right
     svg_X = x2;
     svg_Y = y2;
+#ifdef DEBUG
+    Debug_printf("abs line: x1=\"%g\" x2=\"%g\" y1=\"%g\" y2=\"%g\" \n", x1, x2, y1, y2);
+#endif
     svg_update_bounds();
     svg_plot_line(x1, x2, y1, y2);
 }
@@ -79,8 +86,8 @@ void svgPlotter::svg_rel_plot_line()
     //<line x1="0" x2="100" y1="0" y2="100" style="stroke:rgb(0,0,0);stroke-width:2 />
     float x1 = svg_X;
     float y1 = svg_Y;
-    float x2 = x1 + svg_arg[0];
-    float y2 = y1 + svg_arg[1];
+    float x2 = x1 + (float)svg_arg[0];
+    float y2 = y1 + (float)svg_arg[1];
     svg_X = x2;
     svg_Y = y2;
     svg_update_bounds();
@@ -250,8 +257,7 @@ void svgPlotter::svg_get_arg(std::string S, int n)
 {
     svg_arg[n] = atoi(S.c_str());
 #ifdef DEBUG
-    Debug_printf(" (arg %d : %d) ", n, svg_arg[n]);
-    Debug_println("Writing PNG Signature.");
+    Debug_printf(" (arg %d : %d)\n", n, svg_arg[n]);
 #endif
 }
 
@@ -343,9 +349,9 @@ void svgPlotter::graphics_command(int n)
         {
         case 'A': // return to TEXTMODE
             textMode = true;
-            svg_X = 0; //CR
-            return;    // get outta here!
-        case 'C':      // SELECT COLOR
+            svg_X = 0.; //CR
+            return;     // get outta here!
+        case 'C':       // SELECT COLOR
             // get arg out of S and assign to...
             svg_get_arg(S.substr(cmd_pos + 1), 0);
             svg_color_idx = svg_arg[0];
@@ -377,13 +383,12 @@ void svgPlotter::graphics_command(int n)
         case 'M': // MOVE ABS COORDS
             // get 2 args out of S and ...
             // this behavior when out of bounds is a guess
+            // i bet it's don't change it
             svg_get_2_args(S.substr(cmd_pos + 1));
-            if (svg_arg[0] != 1000)
-                svg_X = svg_X_home + svg_arg[0];
-            if (svg_arg[1] == -1000)
-                svg_Y = svg_Y_home;
-            else
-                svg_Y = svg_Y_home + svg_arg[1];
+            if (svg_arg[0] > -1000 && svg_arg[0] < 1000) // probably >-1000 && <1000
+                svg_X = svg_X_home + (float)svg_arg[0];
+            if (svg_arg[1] > -1000 && svg_arg[1] < 1000)
+                svg_Y = svg_Y_home + (float)svg_arg[1]; // probably >-1000 && <1000
             svg_update_bounds();
             break;
         case 'P': // PUT TEXT HERE
@@ -395,8 +400,8 @@ void svgPlotter::graphics_command(int n)
             break;
         case 'R': // MOVE RELATIVE COORDS
             svg_get_2_args(S.substr(cmd_pos + 1));
-            svg_X = svg_X + svg_arg[0];
-            svg_Y = svg_Y + svg_arg[1];
+            svg_X = svg_X + (float)svg_arg[0];
+            svg_Y = svg_Y + (float)svg_arg[1];
             svg_update_bounds();
             break;
         case 'S': // SET TEXT SIZE
@@ -424,22 +429,38 @@ void svgPlotter::graphics_command(int n)
 }
 
 bool svgPlotter::process_buffer(byte n, byte aux1, byte aux2)
-//void svg_add(int n)
+//void svg_add(int n) // prototype expected n to be length up to including EOL
+// but here n==40
 {
+    uint8_t new_n = 0;
+    while (buffer[new_n++] != ATASCII_EOL && new_n < n)
+    {
+#ifdef DEBUG
+        Debug_printf("%c", buffer[new_n - 1]);
+#endif
+    }
+    //new_n++;
+#ifdef DEBUG
+    Debug_printf(" : End of buffer, char %x at %d\n", buffer[new_n - 1], new_n - 1);
+#endif
+
     // looks like escape codes take you out of GRAPHICS MODE
     if (buffer[0] == 27)
     {
         textMode = true;
-        svg_X = 0;
+        svg_X = 0.;
+#ifdef DEBUG
+        Debug_printf("Text Mode!\n");
+#endif
     }
     if (!textMode)
-        graphics_command(n);
+        graphics_command(new_n);
     else
     {
         // loop through string
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < new_n; i++)
         {
-            unsigned char c = buffer[i];
+            uint8_t c = buffer[i];
 
             // clear out residual EOL from ESC sequence
             if (escResidual)
@@ -451,7 +472,7 @@ bool svgPlotter::process_buffer(byte n, byte aux1, byte aux2)
             // the following creates a blank line of text
             if (BOLflag && c == ATASCII_EOL)
             { // svg_new_line();
-                svg_X = 0;
+                svg_X = 0.;
                 svg_Y += lineHeight;
                 svg_update_bounds();
                 return true;
@@ -498,7 +519,7 @@ void svgPlotter::post_new_file()
     // charWidth = 7.2;
     // //fontNumber = 1;
     // fontSize = 12;
-    
+
     svg_header();
     //intlFlag = false;
     //escMode = false;
