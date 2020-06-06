@@ -18,5 +18,6 @@ long util_parseInt(FILE *f, char skipChar);
 long util_parseInt(FILE *f);
 unsigned char util_checksum(const char *chunk, int length);
 std::string util_crunch(std::string filename);
+std::string util_entry(std::string crunched);
 
 #endif // _FN_UTILS_H
