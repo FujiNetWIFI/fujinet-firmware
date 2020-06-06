@@ -20,21 +20,8 @@
 #include "sdkconfig.h"
 #include "esp_err.h"
 #include "esp_tls.h"
+#include "esp_transport.h"
 
-extern "C" {
-// Items missing from Arduino-ESP32 headers
-
-typedef struct esp_tls_last_error {
-    esp_err_t last_error;               /*!< error code (based on ESP_ERR_ESP_TLS_BASE) of the last occurred error */
-    int       esp_tls_error_code;       /*!< esp_tls error code from last esp_tls failed api */
-    int       esp_tls_flags;            /*!< last certification verification flags */
-} esp_tls_last_error_t;
-
-typedef struct esp_tls_last_error* esp_tls_error_handle_t;
-
-extern esp_tls_error_handle_t esp_transport_get_error_handle(esp_transport_handle_t t);
-void esp_transport_ssl_skip_common_name_check(esp_transport_handle_t t);
-}
 
 namespace fujinet
 {
@@ -97,6 +84,13 @@ typedef enum {
     HTTP_METHOD_SUBSCRIBE,  /*!< HTTP SUBSCRIBE Method */
     HTTP_METHOD_UNSUBSCRIBE,/*!< HTTP UNSUBSCRIBE Method */
     HTTP_METHOD_OPTIONS,    /*!< HTTP OPTIONS Method */
+    HTTP_METHOD_COPY,       // WebDAV method
+    HTTP_METHOD_LOCK,       // WebDAV method
+    HTTP_METHOD_MKCOL,      // WebDAV method
+    HTTP_METHOD_MOVE,       // WebDAV method
+    HTTP_METHOD_PROPFIND,   // WebDAV method
+    HTTP_METHOD_PROPPATCH,  // WebDAV method
+    HTTP_METHOD_UNLOCK,     // WebDAV method
     HTTP_METHOD_MAX,
 } esp_http_client_method_t;
 

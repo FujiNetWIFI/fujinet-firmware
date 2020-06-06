@@ -3,8 +3,9 @@
 
 #include <string>
 #include <map>
-#include <esp_http_client.h>
+#include "../fn_esp_http_client/fn_esp_http_client.h"
 
+using namespace fujinet;
 
 class fnHttpClient
 {
@@ -22,6 +23,9 @@ private:
     bool _ignore_response_body = false;
     bool _transaction_begin;
     bool _transaction_done;
+    int _redirect_count;
+    int _max_redirects;
+    esp_http_client_auth_type_t _auth_type;
 
     uint16_t _port = 80;
     header_map_t _stored_headers;
@@ -48,7 +52,6 @@ public:
     int HEAD();
     int POST(const char *post_data, int post_datalen);
     int PUT(const char *put_data, int put_datalen);
-    int PUT2(const char *put_data, int put_datalen);
 
     int read(uint8_t *dest_buffer, int dest_bufflen);
     int write(const uint8_t *src_buffer, int src_bufflen);
