@@ -152,6 +152,15 @@ void sioDevice::sio_error()
     Debug_println("ERROR!");
 }
 
+/**
+   (disk) High Speed
+*/
+void sioDevice::sio_high_speed()
+{
+    byte hsd = HISPEED_INDEX;
+    sio_to_computer((byte *)&hsd, 1, false);
+}
+
 /*
  Periodically handle the sioDevice in the loop()
  How to capture command ID from the bus and hand off to the correct device? Right now ...

@@ -86,3 +86,74 @@ long util_parseInt(FILE *f, char skipChar)
     }
     return value;
 }
+
+// Calculate 8-bit checksum
+unsigned char util_checksum(const char *chunk, int length)
+{
+    int chkSum = 0;
+    for (int i = 0; i < length; i++)
+    {
+        chkSum = ((chkSum + chunk[i]) >> 8) + ((chkSum + chunk[i]) & 0xff);
+    }
+    return (unsigned char)chkSum;
+}
+
+std::string util_crunch(std::string filename)
+{
+  std::string basename_long;
+  std::string basename;
+  std::string ext;
+  size_t base_pos = 8;
+  size_t ext_pos;
+  unsigned char cksum;
+  char cksum_txt[3];
+
+  // Remove spaces
+  filename.erase(remove(filename.begin(), filename.end(), ' '), filename.end());
+
+  ext_pos = filename.find_last_of(".");
+
+  if (ext_pos != std::string::npos)
+    {
+      if (ext_pos > 8)
+        base_pos = 8;
+      else
+        base_pos = ext_pos;
+    }
+
+  if (ext_pos != std::string::npos)
+    {
+      basename_long = filename.substr(0,ext_pos);
+    }
+  else
+    {
+      basename_long = filename;
+    }
+
+  basename = basename_long.substr(0,base_pos);
+
+
+  // Convert to uppercase
+  std::for_each(basename.begin(), basename.end(), [](char & c){
+                                                    c = ::toupper(c);
+                                                  });
+
+  if (ext_pos != std::string::npos)
+    {
+      ext = "." + filename.substr(ext_pos+1);
+    }
+
+  std::for_each(ext.begin(), ext.end(), [](char & c){
+                                          c = ::toupper(c);
+                                        });
+
+  if (basename_long.length()>8)
+    {
+      cksum = util_checksum(basename_long.c_str(),basename_long.length());
+      sprintf(cksum_txt,"%02X",cksum);
+      basename[basename.length()-2]=cksum_txt[0];
+      basename[basename.length()-1]=cksum_txt[1];
+    }
+
+  return basename + ext;
+}
