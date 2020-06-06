@@ -5,13 +5,14 @@
 #include "fnSystem.h"
 #include "fnHttpClient.h"
 
-#define HTTPCLIENT_WAIT_FOR_CONSUMER_TASK 30000 // 30s
+using namespace fujinet;
+
+#define HTTPCLIENT_WAIT_FOR_CONSUMER_TASK 16000 // 16s
 #define HTTPCLIENT_WAIT_FOR_HTTP_TASK 8000 // 8s
 
 fnHttpClient::fnHttpClient()
 {
     _buffer = (char *)malloc(DEFAULT_HTTP_BUF_SIZE);
-
 }
 
 // Close connection, destroy any resoruces
@@ -33,6 +34,11 @@ bool fnHttpClient::begin(std::string url)
     cfg.url = url.c_str();
     cfg.event_handler = _httpevent_handler;
     cfg.user_data = this;
+ 
+    // Keep track of what the max redirect count is set to (the default is 10)
+    _max_redirects = cfg.max_redirection_count == 0 ? 10 : cfg.max_redirection_count;
+    // Keep track of the auth type set
+    _auth_type = cfg.auth_type;
 
     _handle = esp_http_client_init(&cfg);
     if(_handle == nullptr)
@@ -145,18 +151,18 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
     switch (evt->event_id)
     {
     case HTTP_EVENT_ERROR:           // This event occurs when there are any errors during execution
-        Debug_printf("HTTP_EVENT_ERROR %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
+        Debug_printf("HTTP_EVENT_ERROR %u\n", uxTaskGetStackHighWaterMark(nullptr));
         break;
     case HTTP_EVENT_ON_CONNECTED:    // Once the HTTP has been connected to the server, no data exchange has been performed
-        Debug_printf("HTTP_EVENT_ON_CONNECTED %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
+        Debug_printf("HTTP_EVENT_ON_CONNECTED %u\n", uxTaskGetStackHighWaterMark(nullptr));
         break;
     case HTTP_EVENT_HEADER_SENT:     // After sending all the headers to the server
-        Debug_printf("HTTP_EVENT_HEADER_SENT %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
+        Debug_printf("HTTP_EVENT_HEADER_SENT %u\n", uxTaskGetStackHighWaterMark(nullptr));
         break;
 
     case HTTP_EVENT_ON_HEADER:       // Occurs when receiving each header sent from the server
     {
-        Debug_printf("HTTP_EVENT_ON_HEADER %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
+        Debug_printf("HTTP_EVENT_ON_HEADER %u\n", uxTaskGetStackHighWaterMark(nullptr));
         // Check to see if we should store this response header
         if(client->_stored_headers.size() <= 0)
             break;
@@ -172,11 +178,29 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
     }
     case HTTP_EVENT_ON_DATA:         // Occurs multiple times when receiving body data from the server. MAY BE SKIPPED IF BODY IS EMPTY!
     {
-        Debug_printf("HTTP_EVENT_ON_DATA %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
+        Debug_printf("HTTP_EVENT_ON_DATA %u\n", uxTaskGetStackHighWaterMark(nullptr));
 
         // Don't do any of this if we're told to ignore the response
         if(client->_ignore_response_body == true)
             break;
+        
+        // esp_http_client will automatically retry redirects, so ignore all but the last attemp
+        int status = esp_http_client_get_status_code(client->_handle);
+        if((status == HttpStatus_Found || status == HttpStatus_MovedPermanently) 
+            && client->_redirect_count < (client->_max_redirects -1))
+        {
+            Debug_println("Ignoring redirect response");
+            break;
+        }
+        /*
+         If auth type is set to NONE, esp_http_client will automatically retry auth failures by attempting to set the auth type to
+         BASIC or DIGEST depending on the server response code. Ignore this attempt.
+        */ 
+        if(status == HttpStatus_Unauthorized && client->_auth_type == HTTP_AUTH_TYPE_NONE && client->_redirect_count == 0)
+        {
+            Debug_println("Ignoring UNAUTHORIZED response");
+            break;
+        }
 
         // Check if this is our first time this event has been triggered
         if(client->_transaction_begin == true)
@@ -204,24 +228,10 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
 
     case HTTP_EVENT_ON_FINISH:       // Occurs when finish a HTTP session
     {
-        Debug_printf("HTTP_EVENT_ON_FINISH %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
-
-        // Indicate there's nothing else to read
-        client->_transaction_done = true;
-
-        // Don't do anything else if we're told to ignore the response
-        if(client->_ignore_response_body)
-            break;
-
-        // We're going to wait here to be called for a final READ (returning 0)
-
-        // If _transaction_begin is still true, then we skipped the DATA event (because there was no response body)
-        // so don't wait to be notified: the original _perform() function is still waiting for us to tell it we're done
-        if(!client->_transaction_begin)
-            ulTaskNotifyTake(1, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_CONSUMER_TASK));
-
-        // Tell either the _perform() or read() tasks we're done
-        xTaskNotifyGive(client->_taskh_consumer);
+        // This may get called more than once if esp_http_client decides to retry in order to handle a redirect or auth response
+        Debug_printf("HTTP_EVENT_ON_FINISH %u\n", uxTaskGetStackHighWaterMark(nullptr));
+        // Keep track of how many times we "finish" reading a response from the server
+        client->_redirect_count++;
         break;
     }
 
@@ -235,7 +245,35 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
 void fnHttpClient::_perform_subtask(void *param)
 {
     fnHttpClient *parent = (fnHttpClient *)param;
-    esp_http_client_perform(parent->_handle);
+
+    // Reset our transaction state markers
+    parent->_transaction_begin = true;
+    parent->_transaction_done = false;
+    parent->_redirect_count = 0;
+
+    esp_err_t e = esp_http_client_perform(parent->_handle);
+    Debug_printf("esp_http_client_perform returned %d, stack HWM %u\n", e, uxTaskGetStackHighWaterMark(nullptr));
+
+    // Indicate there's nothing else to read
+    parent->_transaction_done = true;
+
+    // Don't send notifications if we're ignoring the response body
+    if(false == parent->_ignore_response_body)
+    {
+        /*
+         If _transaction_begin is false, then we handled the HTTP_EVENT_ON_DATA event, and 
+         read() has sent us a notification we need to accept before continuing.
+        */
+        if(false == parent->_transaction_begin)
+            ulTaskNotifyTake(1, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_CONSUMER_TASK));
+
+        /*
+         If we handled the HTTP_EVENT_ON_DATA event, then read() is waiting for a notification.
+         If we didn't handle that event, then _perform() is waiting for a notification.
+         Notify whichever of the two that they can continue.
+        */
+        xTaskNotifyGive(parent->_taskh_consumer);
+    }
 
     Debug_println("_perform_subtask_exiting");
     TaskHandle_t tmp = parent->_taskh_subtask;
@@ -263,12 +301,12 @@ int fnHttpClient::_perform()
 {
     Debug_printf("%08lx _perform\n", fnSystem.millis());
 
-    // Reset our transaction state markers
-    _transaction_begin = true;
-    _transaction_done = false;
+    // We want to process the response body (if any)
+    _ignore_response_body = false;
 
     // Handle the that HTTP task will use to notify us
     _taskh_consumer = xTaskGetCurrentTaskHandle();
+
     // Start a new task to perform the http client work
     _delete_subtask_if_running();
     xTaskCreate(_perform_subtask, "perform_subtask", 4096, this, 5, &_taskh_subtask);
@@ -365,12 +403,6 @@ int fnHttpClient::_perform_stream(esp_http_client_method_t method, uint8_t *writ
     return status;
 }
 
-/*
-*/
-int fnHttpClient::PUT2(const char *put_data, int put_datalen)
-{
-    return _perform_stream(esp_http_client_method_t::HTTP_METHOD_PUT, (uint8_t *)put_data, put_datalen);
-}
 
 int fnHttpClient::PUT(const char *put_data, int put_datalen)
 {

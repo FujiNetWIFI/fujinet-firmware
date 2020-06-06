@@ -1,3 +1,24 @@
+/*
+This is the esp_http_client library copied from ESP-IDF 4.0
+There's no way to add HTTP methods to the library, so this
+copy was created to add the WebDAV request methods.
+
+Also, the existing code treated attempts to automatically set the right
+authorization type the same as redirects. This meant that a bad password
+would be retried 10 times by default, likely triggering a security lock-down
+on the server.  Changed the behavior to only attempt this once.
+
+Note that two other changes had to be made in these functions:
+ esp_http_client_init
+ esp_http_client_close
+
+These are commented with "OMF".
+
+Arduino-ESP32 is missing a couple of functions used here. Once the
+project is migrated to ESP-IDF the functions can be restored to
+their original behavior.
+*/
+
 // Copyright 2015-2018 Espressif Systems (Shanghai) PTE LTD
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -154,7 +175,14 @@ static const char *HTTP_METHOD_MAPPING[] = {
     "NOTIFY",
     "SUBSCRIBE",
     "UNSUBSCRIBE",
-    "OPTIONS"
+    "OPTIONS",
+    "COPY",
+    "LOCK",
+    "MKCOL",
+    "MOVE",
+    "PROPFIND",
+    "PROPPATCH",
+    "UNLOCK"
 };
 
 static esp_err_t esp_http_client_request_send(esp_http_client_handle_t client, int write_len);
@@ -465,12 +493,15 @@ static esp_err_t esp_http_client_prepare(esp_http_client_handle_t client)
     client->response->data_process = 0;
     client->first_line_prepared = false;
     http_parser_init(client->parser, HTTP_RESPONSE);
+    ESP_LOGD(TAG, "esp_http_client_prepare");
     if (client->connection_info.username) {
         char *auth_response = NULL;
 
         if (client->connection_info.auth_type == HTTP_AUTH_TYPE_BASIC) {
+            ESP_LOGD(TAG, "esp_http_client_prepare BASIC");
             auth_response = http_auth_basic(client->connection_info.username, client->connection_info.password);
         } else if (client->connection_info.auth_type == HTTP_AUTH_TYPE_DIGEST && client->auth_data) {
+            ESP_LOGD(TAG, "esp_http_client_prepare DIGEST");            
             client->auth_data->uri = client->connection_info.path;
             client->auth_data->cnonce = ((uint64_t)esp_random() << 32) + esp_random();
             auth_response = http_auth_digest(client->connection_info.username, client->connection_info.password, client->auth_data);
@@ -548,9 +579,13 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
         esp_transport_ssl_set_client_key_data(ssl, config->client_key_pem, strlen(config->client_key_pem));
     }
 
+    // TODO: Put the original call back when the project is switched to ESP-IDF
+    // OMF this method isn't available in the Arduino-ESP32 library
     if (config->skip_cert_common_name_check) {
-        esp_transport_ssl_skip_common_name_check(ssl);
+        // esp_transport_ssl_skip_common_name_check(ssl);
+        ESP_LOGD(TAG, "esp_transport_ssl_skip_common_name_check() skipped");
     }
+    
 #endif
 
     if (_set_config(client, config) != ESP_OK) {
@@ -908,6 +943,7 @@ esp_err_t esp_http_client_perform(esp_http_client_handle_t client)
                     }
                 }
                 while (client->response->data_process < client->response->content_length) {
+                    ESP_LOGD(TAG, "Calling esp_http_client_get_data");
                     if (esp_http_client_get_data(client) <= 0) {
                         if (client->is_async && errno == EAGAIN) {
                             return ESP_ERR_HTTP_EAGAIN;
@@ -931,6 +967,7 @@ esp_err_t esp_http_client_perform(esp_http_client_handle_t client)
                 default:
                 break;
         }
+        ESP_LOGD(TAG, "Process again? %d", client->process_again);
     } while (client->process_again);
     return ESP_OK;
 }
@@ -1177,7 +1214,10 @@ int esp_http_client_write(esp_http_client_handle_t client, const char *buffer, i
 esp_err_t esp_http_client_close(esp_http_client_handle_t client)
 {
     if (client->state >= HTTP_STATE_INIT) {
-        http_dispatch_event(client, HTTP_EVENT_DISCONNECTED, esp_transport_get_error_handle(client->transport), 0);
+        // TODO: Put the original call back when the project is switched to ESP-IDF
+        // OMF esp_transport_get_error_handle() not available in Arduino-ESP32 library
+        //http_dispatch_event(client, HTTP_EVENT_DISCONNECTED, esp_transport_get_error_handle(client->transport), 0);
+        http_dispatch_event(client, HTTP_EVENT_DISCONNECTED, NULL, 0);
         client->state = HTTP_STATE_INIT;
         return esp_transport_close(client->transport);
     }
@@ -1248,6 +1288,9 @@ void esp_http_client_add_auth(esp_http_client_handle_t client)
     if (client->state != HTTP_STATE_RES_COMPLETE_HEADER) {
         return;
     }
+    // OMF Don't retry if auth_type has already been set 
+    if (client->connection_info.auth_type != HTTP_AUTH_TYPE_NONE)
+        return;
 
     char *auth_header = client->auth_header;
     if (auth_header) {
@@ -1257,11 +1300,11 @@ void esp_http_client_add_auth(esp_http_client_handle_t client)
         if (http_utils_str_starts_with(auth_header, "Digest") == 0) {
             ESP_LOGD(TAG, "type = Digest");
             client->connection_info.auth_type = HTTP_AUTH_TYPE_DIGEST;
-#ifdef CONFIG_ESP_HTTP_CLIENT_ENABLE_BASIC_AUTH
+// OMF REMOVED #ifdef CONFIG_ESP_HTTP_CLIENT_ENABLE_BASIC_AUTH
         } else if (http_utils_str_starts_with(auth_header, "Basic") == 0) {
             ESP_LOGD(TAG, "type = Basic");
             client->connection_info.auth_type = HTTP_AUTH_TYPE_BASIC;
-#endif
+//#endif
         } else {
             client->connection_info.auth_type = HTTP_AUTH_TYPE_NONE;
             ESP_LOGE(TAG, "This authentication method is not supported: %s", auth_header);
