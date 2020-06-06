@@ -13,18 +13,6 @@ extern int command_frame_counter;
 // due to be rewritten.
 #define UNCACHED_REGION 65535
 
-#define ATARISIO_ATARI_FREQUENCY_PAL 1773447
-#define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-// 0x06
-// 10
-// 0x00
-#define HISPEED_BAUDRATE (ATARISIO_ATARI_FREQUENCY_PAL * 10) / (10 * (2 * (HISPEED_INDEX + 7)) + 3)
-// 68837 
-// 52640 
-//125984
-#define STANDARD_BAUDRATE 19200
-#define SERIAL_TIMEOUT 300
-
 unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, unsigned short ss);
 unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sector_size);
 
@@ -65,8 +53,6 @@ private:
     void sio_read_percom_block();
     void sio_write_percom_block();
     void dump_percom_block();
-
-    void sio_high_speed();
 
 public:
     void mount(FILE *f);
