@@ -325,15 +325,6 @@ void sioDisk::dump_percom_block()
 #endif
 }
 
-/**
-   (disk) High Speed
-*/
-void sioDisk::sio_high_speed()
-{
-    byte hsd = HISPEED_INDEX;
-    sio_to_computer((byte *)&hsd, 1, false);
-}
-
 // mount a disk file
 void sioDisk::mount(FILE *f)
 {
