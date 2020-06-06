@@ -903,6 +903,10 @@ void sioNetwork::sio_process()
 
     switch (cmdFrame.comnd)
     {
+    case 0x3f:
+        sio_ack();
+        sio_high_speed();
+        break;
     case 'O':
         sio_open();
         break;
