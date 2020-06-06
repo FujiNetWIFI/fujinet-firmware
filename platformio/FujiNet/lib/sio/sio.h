@@ -42,6 +42,9 @@
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
 
+// The High speed SIO index.
+#define HISPEED_INDEX 0x06
+
 #define SIO_DEVICEID_DISK 0x31
 #define SIO_DEVICEID_DISK_LAST 0x3F
 
