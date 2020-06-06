@@ -42,6 +42,15 @@
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
 
+// The High speed SIO index.
+#define HISPEED_INDEX 0x06
+
+#define ATARISIO_ATARI_FREQUENCY_PAL 1773447
+#define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
+#define HISPEED_BAUDRATE (ATARISIO_ATARI_FREQUENCY_PAL * 10) / (10 * (2 * (HISPEED_INDEX + 7)) + 3)
+#define STANDARD_BAUDRATE 19200
+#define SERIAL_TIMEOUT 300
+
 #define SIO_DEVICEID_DISK 0x31
 #define SIO_DEVICEID_DISK_LAST 0x3F
 
@@ -118,6 +127,7 @@ protected:
 
 public:
    int id() { return _devnum; };
+   virtual void sio_high_speed();
    bool is_config_device = false;
    bool device_active = true;
 };

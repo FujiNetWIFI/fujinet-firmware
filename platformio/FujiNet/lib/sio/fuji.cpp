@@ -724,6 +724,10 @@ void sioFuji::sio_process()
 #endif
     switch (cmdFrame.comnd)
     {
+    case 0x3F:
+        sio_ack();
+        sio_high_speed();
+        break;
     case SIO_FUJICMD_STATUS:
         sio_ack();
         sio_status();
