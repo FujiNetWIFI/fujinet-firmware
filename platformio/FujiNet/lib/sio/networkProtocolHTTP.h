@@ -2,9 +2,12 @@
 #define NETWORKPROTOCOLHTTP
 
 //#include <Arduino.h>
-#include <HTTPClient.h>
+//#include <HTTPClient.h>
 #include "networkProtocol.h"
-#include "../tcpip/fnTcpClient.h"
+
+//#include "../tcpip/fnTcpClient.h"
+#include "../http/fnHttpClient.h"
+
 #include "EdUrlParser.h"
 #include "sio.h"
 
@@ -35,8 +38,9 @@ public:
 private:
     virtual bool startConnection(byte *buf, unsigned short len);
 
-    HTTPClient client;
-    fnTcpClient *c;
+    //HTTPClient client;
+    fnHttpClient client;
+    //fnTcpClient *c;
 
     char *headerCollection[16];
     size_t headerCollectionIndex = 0;

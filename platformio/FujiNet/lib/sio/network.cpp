@@ -9,7 +9,7 @@ and that defined in
 #include "../../include/debug.h"
 
 #include "fnSystem.h"
-#include "fnWiFi.h"
+#include "../hardware/fnWiFi.h"
 
 #include "network.h"
 
@@ -406,7 +406,7 @@ void sioNetwork::sio_status_local()
     default:
         status_buf.rawData[0] =
             status_buf.rawData[1] = 0;
-        status_buf.rawData[2] = WiFi.isConnected();
+        status_buf.rawData[2] = fnWiFi.connected() ? 1 : 0;
         status_buf.rawData[3] = 1;
         break;
     }
@@ -422,7 +422,7 @@ void sioNetwork::sio_status()
         status_buf.rawData[0] =
             status_buf.rawData[1] = 0;
 
-        status_buf.rawData[2] = WiFi.isConnected();
+        status_buf.rawData[2] = fnWiFi.connected() ? 1 : 0;
         err = false;
         // sio_status_local();
     }

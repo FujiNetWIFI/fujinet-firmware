@@ -1,6 +1,6 @@
 #ifndef FNVERSION
 #define FNVERSION
 
-#define FUJINET_VERSION "0.20200601"
+#define FUJINET_VERSION "0.20200606"
 
 #endif // FNVERSION
