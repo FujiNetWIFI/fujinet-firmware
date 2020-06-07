@@ -217,7 +217,7 @@ string fnHttpServiceParser::format_uptime()
     fnHttpClient c;
     //c.begin("http://www.justified.com");
     //c.begin("https://postman-echo.com/put");
-    c.begin("http://omf:Laska.@192.168.192.207/shared/t1.txt");
+    c.begin("http://omf:,Laska.@192.168.192.207/shared");
     //c.begin("http://192.168.192.207/redir");
     
     //c.GET();
@@ -238,7 +238,9 @@ string fnHttpServiceParser::format_uptime()
     //c.set_header("Content-Type", "application/json");
     //c.POST("field1=value1&field2=value2", 27);
     //c.POST("{\"field1\":\"value1\"}", 19);
-    c.PUT("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz9876543210", 72);
+    //c.PUT("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz9876543210", 72);
+    c.PROPFIND(fnHttpClient::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n</D:prop>\r\n</D:propfind>\r\n");
+
     /*
     std::string s1 = c.get_header("Last-Modified");
     std::string s2 = c.get_header("Server");
@@ -248,6 +250,17 @@ string fnHttpServiceParser::format_uptime()
     
     char buff[129];
     int br;
+
+    c.set_url("http://192.168.192.207/shared/delme");
+    c.MKCOL();
+    c.set_url("http://192.168.192.207/shared/delme/");    
+    c.DELETE();
+    c.set_url("http://192.168.192.207/shared/newfile");
+    c.PUT("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz9876543210", 72);
+    c.COPY("/shared/copiedfile", false);
+    c.set_url("http://192.168.192.207/shared/copiedfile");    
+    c.MOVE("/shared/movedfile", false);
+
     while((br = c.read((uint8_t *)buff, 128)) > 0)
     {
         buff[br] = '\0';

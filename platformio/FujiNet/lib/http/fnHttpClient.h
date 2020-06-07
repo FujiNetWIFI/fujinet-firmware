@@ -14,8 +14,9 @@ private:
     typedef std::pair<std::string,std::string> header_entry_t;
 
     char *_buffer; // Will be allocated to DEFAULT_HTTP_BUF_SIZE
-    int _buffer_pos = 0;
-    int _buffer_len = 0;
+    int _buffer_pos;
+    int _buffer_len;
+    int _buffer_total_read;
 
     TaskHandle_t _taskh_consumer = nullptr;
     TaskHandle_t _taskh_subtask = nullptr;
@@ -37,6 +38,8 @@ private:
 
     void _delete_subtask_if_running();
 
+    void _flush_response();
+
     int _perform();
     int _perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size);
 
@@ -45,6 +48,13 @@ public:
     fnHttpClient();
     ~fnHttpClient();
 
+    enum webdav_depth
+    {
+        DEPTH_0 = 0,
+        DEPTH_1,
+        DEPTH_INFINITY
+    };
+
     bool begin(std::string url);
     void close();
 
@@ -52,19 +62,30 @@ public:
     int HEAD();
     int POST(const char *post_data, int post_datalen);
     int PUT(const char *put_data, int put_datalen);
+    int PROPFIND(webdav_depth depth, const char *properties_xml);
+    int DELETE();
+    int MKCOL();
+    int COPY(const char *destination, bool overwrite, bool move = false);
+    int MOVE(const char *destination, bool overwrite);
+
+    int available();
 
     int read(uint8_t *dest_buffer, int dest_bufflen);
-    int write(const uint8_t *src_buffer, int src_bufflen);
+
+    //int write(const uint8_t *src_buffer, int src_bufflen);
 
     bool set_url(const char *url);
-    bool set_header(const char *header_key, const char *header_value);
 
+    bool set_header(const char *header_key, const char *header_value);
+    
     const std::string get_header(const char *header);
+    const std::string get_header(int index);
+    char * get_header(int index, char *buffer, int buffer_len);
     int get_header_count();
 
     void collect_headers(const char* headerKeys[], const size_t headerKeysCount);
 
-    const char * buffer_contents(int *buffer_len);
+    //const char * buffer_contents(int *buffer_len);
 };
 
 #endif // _FN_HTTPCLIENT_H_
