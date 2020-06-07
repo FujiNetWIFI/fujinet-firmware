@@ -106,20 +106,23 @@ bool networkProtocolFTP::ftpLogin(EdUrlParser *urlParser)
 
     if (!ftpExpect("250"))
     {
-        string tmp = tmpPath;
-
         // Trim off last part of filename, hopefully to just a dir path
-        tmp = tmp.substr(0, tmp.find_last_of("/"));
+        string tmp = tmpPath;
+        int lastof = tmp.find_last_of("/");
+        if(lastof != string::npos)
+        {
+            tmp = tmp.substr(0, lastof + 1);
+            Debug_printf("Workaround, trying again... with \"%s\"\n", tmp.c_str());
 
-        Debug_printf("Workaround, trying again... with %s\n", tmp.c_str());
+            control.write("CWD ");
+            control.write(tmp.c_str());
+            control.write("\r\n");
 
-        // and try again.
-        control.write("CWD ");
-        control.write(tmp.c_str());
-        control.write("\r\n");
-
-        if (!ftpExpect("250"))
-            return false; // Still can't find.
+            if (ftpExpect("250"))
+                return true; // OK!
+        }
+        Debug_println("Failed CWD");
+        return false;
     }
     return true;
 }
