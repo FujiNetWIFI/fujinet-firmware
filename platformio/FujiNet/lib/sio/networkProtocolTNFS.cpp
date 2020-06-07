@@ -2,63 +2,6 @@
 #include "../../include/debug.h"
 #include "utils.h"
 
-// Function that matches input str with
-// given wildcard pattern
-bool strmatch(char str[], char pattern[],
-              int n, int m)
-{
-    // empty pattern can only match with
-    // empty string
-    if (m == 0)
-        return (n == 0);
-
-    // lookup table for storing results of
-    // subproblems
-    bool lookup[n + 1][m + 1];
-
-    // initailze lookup table to false
-    memset(lookup, false, sizeof(lookup));
-
-    // empty pattern can match with empty string
-    lookup[0][0] = true;
-
-    // Only '*' can match with empty string
-    for (int j = 1; j <= m; j++)
-        if (pattern[j - 1] == '*')
-            lookup[0][j] = lookup[0][j - 1];
-
-    // fill the table in bottom-up fashion
-    for (int i = 1; i <= n; i++)
-    {
-        for (int j = 1; j <= m; j++)
-        {
-            // Two cases if we see a '*'
-            // a) We ignore ‘*’ character and move
-            //    to next  character in the pattern,
-            //     i.e., ‘*’ indicates an empty sequence.
-            // b) '*' character matches with ith
-            //     character in input
-            if (pattern[j - 1] == '*')
-                lookup[i][j] = lookup[i][j - 1] ||
-                               lookup[i - 1][j];
-
-            // Current characters are considered as
-            // matching in two cases
-            // (a) current character of pattern is '?'
-            // (b) characters actually match
-            else if (pattern[j - 1] == '?' ||
-                     str[i - 1] == pattern[j - 1])
-                lookup[i][j] = lookup[i - 1][j - 1];
-
-            // If characters don't match
-            else
-                lookup[i][j] = false;
-        }
-    }
-
-    return lookup[n][m];
-}
-
 networkProtocolTNFS::networkProtocolTNFS()
 {
     memset(entryBuf, 0, sizeof(entryBuf));
@@ -223,36 +166,42 @@ unsigned char networkProtocolTNFS::status_dir()
 
         while (res == 0)
         {
-            if (strmatch(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
+            if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
                 tmp[strlen(tmp)] = 0x00;
                 entry = tmp;
 
-                tnfs_stat(&mountInfo,&fileStat,tmp);
+                tnfs_stat(&mountInfo, &fileStat, tmp);
 
-                entry = util_entry(util_crunch(tmp));
-
-                if (strcmp(tmp,".") == 0)
-                    entry.replace(2,1,".");
-                else if (strcmp(tmp,"..")==0)
-                    entry.replace(2,1,"..");
-
-                if (fileStat.isDir)
-                    entry.replace(10,3,"DIR");
-
-                if (fileStat.filesize > 255744)
-                    sectors = 999;
-                else
+                if (aux2 == 128) // extended dir
                 {
-                    sectors = fileStat.filesize >> 8;
                 }
-                
-                sprintf(tmp2,"%03d",sectors);
-                sectorStr = tmp2; 
+                else // 8.3 with sectors
+                {
+                    entry = util_entry(util_crunch(tmp));
 
-                entry.replace(14,3,sectorStr);
+                    if (strcmp(tmp, ".") == 0)
+                        entry.replace(2, 1, ".");
+                    else if (strcmp(tmp, "..") == 0)
+                        entry.replace(2, 1, "..");
 
-                entry += "\x9b";
+                    if (fileStat.isDir)
+                        entry.replace(10, 3, "DIR");
+
+                    if (fileStat.filesize > 255744)
+                        sectors = 999;
+                    else
+                    {
+                        sectors = fileStat.filesize >> 8;
+                    }
+
+                    sprintf(tmp2, "%03d", sectors);
+                    sectorStr = tmp2;
+
+                    entry.replace(14, 3, sectorStr);
+
+                    entry += "\x9b";
+                }
 
                 strcpy(entryBuf, entry.c_str());
                 return (unsigned char)strlen(entryBuf);
