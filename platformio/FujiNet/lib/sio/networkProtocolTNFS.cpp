@@ -1,62 +1,6 @@
 #include "networkProtocolTNFS.h"
 #include "../../include/debug.h"
-
-// Function that matches input str with
-// given wildcard pattern
-bool strmatch(char str[], char pattern[],
-              int n, int m)
-{
-    // empty pattern can only match with
-    // empty string
-    if (m == 0)
-        return (n == 0);
-
-    // lookup table for storing results of
-    // subproblems
-    bool lookup[n + 1][m + 1];
-
-    // initailze lookup table to false
-    memset(lookup, false, sizeof(lookup));
-
-    // empty pattern can match with empty string
-    lookup[0][0] = true;
-
-    // Only '*' can match with empty string
-    for (int j = 1; j <= m; j++)
-        if (pattern[j - 1] == '*')
-            lookup[0][j] = lookup[0][j - 1];
-
-    // fill the table in bottom-up fashion
-    for (int i = 1; i <= n; i++)
-    {
-        for (int j = 1; j <= m; j++)
-        {
-            // Two cases if we see a '*'
-            // a) We ignore ‘*’ character and move
-            //    to next  character in the pattern,
-            //     i.e., ‘*’ indicates an empty sequence.
-            // b) '*' character matches with ith
-            //     character in input
-            if (pattern[j - 1] == '*')
-                lookup[i][j] = lookup[i][j - 1] ||
-                               lookup[i - 1][j];
-
-            // Current characters are considered as
-            // matching in two cases
-            // (a) current character of pattern is '?'
-            // (b) characters actually match
-            else if (pattern[j - 1] == '?' ||
-                     str[i - 1] == pattern[j - 1])
-                lookup[i][j] = lookup[i - 1][j - 1];
-
-            // If characters don't match
-            else
-                lookup[i][j] = false;
-        }
-    }
-
-    return lookup[n][m];
-}
+#include "utils.h"
 
 networkProtocolTNFS::networkProtocolTNFS()
 {
@@ -79,6 +23,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         filename = "*";
 
     aux1 = cmdFrame->aux1;
+    aux2 = cmdFrame->aux2;
 
     if (aux1 == 6 && filename.empty())
         filename = "*";
@@ -186,35 +131,11 @@ bool networkProtocolTNFS::write(byte *tx_buf, unsigned short len)
 bool networkProtocolTNFS::status(byte *status_buf)
 {
     status_buf[0] = status_buf[1] = 0;
-    char tmp[256];
-
-    memset(tmp, 0, sizeof(tmp));
 
     if (aux1 == 0x06)
     {
-        if (entryBuf[0] == 0x00)
-        {
-        skip_entry:
-            if (tnfs_readdir(&mountInfo, tmp, 255) != 0)
-                return true;
-
-            if (strmatch(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
-            {
-                if (tnfs_stat(&mountInfo, &fileStat, tmp) != 0)
-                    return true;
-
-                if (fileStat.isDir == true)
-                    tmp[strlen(tmp)] = '/';
-
-                tmp[strlen(tmp)] = 0x9B;     // EOL
-                tmp[strlen(tmp) + 1] = 0x00; // EOS
-
-                strcpy(entryBuf, tmp);
-            }
-            else
-                goto skip_entry;
-        }
-        status_buf[0] = strlen(entryBuf);
+        status_buf[0] = status_dir();
+        status_buf[1] = 0;
     }
     else
     {
@@ -227,6 +148,69 @@ bool networkProtocolTNFS::status(byte *status_buf)
     status_buf[3] = 1;
 
     return false;
+}
+
+unsigned char networkProtocolTNFS::status_dir()
+{
+    char tmp[256];
+    string entry;
+    int res;
+
+    memset(tmp, 0, sizeof(tmp));
+
+    if (entryBuf[0] == 0x00)
+    {
+        res = tnfs_readdir(&mountInfo, tmp, 255);
+
+        while (res == 0)
+        {
+            if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
+            {
+                tmp[strlen(tmp)] = 0x00;
+                entry = tmp;
+
+                tnfs_stat(&mountInfo, &fileStat, tmp);
+
+                if (aux2 == 128) // extended dir
+                {
+                    if (fileStat.isDir)
+                    {
+                        tmp[strlen(tmp)] = '/';
+                        tmp[strlen(tmp)] = 0x00;
+                    }
+
+                    entry = tmp;
+                    entry = util_long_entry(entry,fileStat.filesize);
+                }
+                else // 8.3 with sectors
+                {
+                    entry = util_entry(util_crunch(tmp), fileStat.filesize);
+
+                    if (strcmp(tmp, ".") == 0)
+                        entry.replace(2, 1, ".");
+                    else if (strcmp(tmp, "..") == 0)
+                        entry.replace(2, 1, "..");
+
+                    if (fileStat.isDir)
+                        entry.replace(10, 3, "DIR");
+                }
+                
+                entry += "\x9b";
+                strcpy(entryBuf, entry.c_str());
+                return (unsigned char)strlen(entryBuf);
+            }
+            else
+                tnfs_readdir(&mountInfo, tmp, 255);
+        }
+
+        if (dirEOF == false)
+        {
+            dirEOF = true;
+            strcpy(entryBuf, "000 FREE SECTORS\x9b");
+        }
+    }
+
+    return (unsigned char)strlen(entryBuf);
 }
 
 bool networkProtocolTNFS::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
