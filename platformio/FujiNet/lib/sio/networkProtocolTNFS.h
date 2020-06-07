@@ -37,6 +37,7 @@ private:
     tnfsStat fileStat;
     char entryBuf[256];
     char aux1;
+    char aux2;
     size_t comma_pos;
     string rnTo;
     bool dirEOF=false;
