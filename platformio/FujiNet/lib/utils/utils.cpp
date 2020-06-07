@@ -169,20 +169,35 @@ std::string util_crunch(std::string filename)
     return basename + ext;
 }
 
-std::string util_entry(std::string crunched)
+std::string util_entry(std::string crunched, size_t fileSize)
 {
     std::string returned_entry = "                 ";
     size_t ext_pos = crunched.find(".");
     std::string basename = crunched.substr(0, ext_pos);
     std::string ext = crunched.substr(ext_pos + 1);
+    char tmp[4];
+    unsigned short sectors;
+    std::string sectorStr;
 
     if (ext_pos != std::string::npos)
     {
         returned_entry.replace(10, 3, ext);
     }
 
-    // returned_entry.replace(14, 3, "000");
     returned_entry.replace(2, (basename.size() < 8 ? basename.size() : 8), basename);
+
+    if (fileSize > 255744)
+        sectors = 999;
+    else
+    {
+        sectors = fileSize >> 8;
+    }
+
+    sprintf(tmp, "%03d", sectors);
+    sectorStr = tmp;
+
+    returned_entry.replace(14, 3, sectorStr);
+
     return returned_entry;
 }
 
