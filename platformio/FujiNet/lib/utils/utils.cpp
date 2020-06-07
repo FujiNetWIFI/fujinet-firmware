@@ -180,7 +180,7 @@ std::string util_entry(std::string crunched)
         returned_entry.replace(10, 3, ext);
     }
 
-    returned_entry.replace(14, 3, "000");
+    // returned_entry.replace(14, 3, "000");
     returned_entry.replace(2, (basename.size() < 8 ? basename.size() : 8), basename);
     return returned_entry;
 }
