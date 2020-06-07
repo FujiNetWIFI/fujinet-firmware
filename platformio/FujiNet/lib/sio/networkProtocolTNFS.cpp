@@ -1,5 +1,6 @@
 #include "networkProtocolTNFS.h"
 #include "../../include/debug.h"
+#include "utils.h"
 
 // Function that matches input str with
 // given wildcard pattern
@@ -186,35 +187,11 @@ bool networkProtocolTNFS::write(byte *tx_buf, unsigned short len)
 bool networkProtocolTNFS::status(byte *status_buf)
 {
     status_buf[0] = status_buf[1] = 0;
-    char tmp[256];
-
-    memset(tmp, 0, sizeof(tmp));
 
     if (aux1 == 0x06)
     {
-        if (entryBuf[0] == 0x00)
-        {
-        skip_entry:
-            if (tnfs_readdir(&mountInfo, tmp, 255) != 0)
-                return true;
-
-            if (strmatch(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
-            {
-                if (tnfs_stat(&mountInfo, &fileStat, tmp) != 0)
-                    return true;
-
-                if (fileStat.isDir == true)
-                    tmp[strlen(tmp)] = '/';
-
-                tmp[strlen(tmp)] = 0x9B;     // EOL
-                tmp[strlen(tmp) + 1] = 0x00; // EOS
-
-                strcpy(entryBuf, tmp);
-            }
-            else
-                goto skip_entry;
-        }
-        status_buf[0] = strlen(entryBuf);
+        status_buf[0] = status_dir();
+        status_buf[1] = 0;
     }
     else
     {
@@ -227,6 +204,71 @@ bool networkProtocolTNFS::status(byte *status_buf)
     status_buf[3] = 1;
 
     return false;
+}
+
+unsigned char networkProtocolTNFS::status_dir()
+{
+    char tmp[256];
+    string entry;
+    char tmp2[4];
+    string sectorStr;
+    int sectors;
+    int res;
+
+    memset(tmp, 0, sizeof(tmp));
+
+    if (entryBuf[0] == 0x00)
+    {
+        res = tnfs_readdir(&mountInfo, tmp, 255);
+
+        while (res == 0)
+        {
+            if (strmatch(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
+            {
+                tmp[strlen(tmp)] = 0x00;
+                entry = tmp;
+
+                tnfs_stat(&mountInfo,&fileStat,tmp);
+
+                entry = util_entry(util_crunch(tmp));
+
+                if (strcmp(tmp,".") == 0)
+                    entry.replace(2,1,".");
+                else if (strcmp(tmp,"..")==0)
+                    entry.replace(2,1,"..");
+
+                if (fileStat.isDir)
+                    entry.replace(10,3,"DIR");
+
+                if (fileStat.filesize > 255744)
+                    sectors = 999;
+                else
+                {
+                    sectors = fileStat.filesize >> 8;
+                }
+                
+                sprintf(tmp2,"%03d",sectors);
+                sectorStr = tmp2; 
+
+                entry.replace(14,3,sectorStr);
+
+                entry += "\x9b";
+
+                strcpy(entryBuf, entry.c_str());
+                return (unsigned char)strlen(entryBuf);
+            }
+            else
+                tnfs_readdir(&mountInfo, tmp, 255);
+        }
+
+        if (dirEOF == false)
+        {
+            dirEOF = true;
+            strcpy(entryBuf, "000 FREE SECTORS\x9b");
+        }
+    }
+
+    return (unsigned char)strlen(entryBuf);
 }
 
 bool networkProtocolTNFS::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)

@@ -28,6 +28,7 @@ public:
 private:
     bool block_read(byte *rx_buf, unsigned short len);
     bool block_write(byte *tx_buf, unsigned short len);
+    unsigned char status_dir();
 
     tnfsMountInfo mountInfo;
     int16_t fileHandle;
@@ -38,6 +39,7 @@ private:
     char aux1;
     size_t comma_pos;
     string rnTo;
+    bool dirEOF=false;
 };
 
 #endif /* NETWORKPROTOCOLTNFS */
