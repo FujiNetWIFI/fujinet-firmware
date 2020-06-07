@@ -175,10 +175,11 @@ unsigned char networkProtocolTNFS::status_dir()
 
                 if (aux2 == 128) // extended dir
                 {
+
                 }
                 else // 8.3 with sectors
                 {
-                    entry = util_entry(util_crunch(tmp));
+                    entry = util_entry(util_crunch(tmp),fileStat.filesize);
 
                     if (strcmp(tmp, ".") == 0)
                         entry.replace(2, 1, ".");
@@ -187,18 +188,6 @@ unsigned char networkProtocolTNFS::status_dir()
 
                     if (fileStat.isDir)
                         entry.replace(10, 3, "DIR");
-
-                    if (fileStat.filesize > 255744)
-                        sectors = 999;
-                    else
-                    {
-                        sectors = fileStat.filesize >> 8;
-                    }
-
-                    sprintf(tmp2, "%03d", sectors);
-                    sectorStr = tmp2;
-
-                    entry.replace(14, 3, sectorStr);
 
                     entry += "\x9b";
                 }
