@@ -23,6 +23,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         filename = "*";
 
     aux1 = cmdFrame->aux1;
+    aux2 = cmdFrame->aux2;
 
     if (aux1 == 6 && filename.empty())
         filename = "*";
@@ -153,9 +154,6 @@ unsigned char networkProtocolTNFS::status_dir()
 {
     char tmp[256];
     string entry;
-    char tmp2[4];
-    string sectorStr;
-    int sectors;
     int res;
 
     memset(tmp, 0, sizeof(tmp));
@@ -181,7 +179,8 @@ unsigned char networkProtocolTNFS::status_dir()
                         tmp[strlen(tmp)] = 0x00;
                     }
 
-                    entry = util_long_entry(tmp, fileStat.filesize);
+                    entry = tmp;
+                    entry = util_long_entry(entry,fileStat.filesize);
                 }
                 else // 8.3 with sectors
                 {

@@ -3,6 +3,8 @@
 #include <cstring>
 
 #include "utils.h"
+#include "debug.h"
+
 // trim from start (in place)
 void util_ltrim(std::string &s)
 {
@@ -206,9 +208,9 @@ std::string util_long_entry(std::string filename, size_t fileSize)
     std::string returned_entry = "                                     ";
     std::string ellpisized_filename = util_ellipsize(filename, 30);
     std::string stylized_fileSize;
-    char tmp[5];
+    char tmp[8];
 
-    returned_entry.replace(0, 32, ellpisized_filename);
+    returned_entry.replace(0, ellpisized_filename.length(), ellpisized_filename);
 
     if (fileSize > 1048576)
         sprintf(tmp, "%2dM", (fileSize >> 20));
