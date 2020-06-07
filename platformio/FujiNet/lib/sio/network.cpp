@@ -40,10 +40,17 @@ void onTimer(void *info)
  */
 bool sioNetwork::allocate_buffers()
 {
+    // NOTE: ps_calloc() results in heap corruption, at least in Arduino-ESP. 
 #ifdef BOARD_HAS_PSRAM
-    rx_buf = (byte *)ps_calloc(1, INPUT_BUFFER_SIZE);
-    tx_buf = (byte *)ps_calloc(1, OUTPUT_BUFFER_SIZE);
-    sp_buf = (byte *)ps_calloc(1, SPECIAL_BUFFER_SIZE);
+/*
+    rx_buf = (byte *)ps_calloc(INPUT_BUFFER_SIZE, 1);
+    tx_buf = (byte *)ps_calloc(OUTPUT_BUFFER_SIZE, 1);
+    sp_buf = (byte *)ps_calloc(SPECIAL_BUFFER_SIZE, 1);
+*/
+    rx_buf = (byte *)ps_malloc(INPUT_BUFFER_SIZE);
+    tx_buf = (byte *)ps_malloc(OUTPUT_BUFFER_SIZE);
+    sp_buf = (byte *)ps_malloc(SPECIAL_BUFFER_SIZE);
+
 #else
     rx_buf = (byte *)calloc(1, INPUT_BUFFER_SIZE);
     tx_buf = (byte *)calloc(1, OUTPUT_BUFFER_SIZE);
@@ -51,6 +58,12 @@ bool sioNetwork::allocate_buffers()
 #endif
     if ((rx_buf == nullptr) || (tx_buf == nullptr) || (sp_buf == nullptr))
         return false;
+
+    memset(rx_buf, 0, INPUT_BUFFER_SIZE);
+    memset(tx_buf, 0, OUTPUT_BUFFER_SIZE);
+    memset(sp_buf, 0, SPECIAL_BUFFER_SIZE);
+
+    HEAP_CHECK("sioNetwork::allocate_buffers");
     return true;
 }
 
@@ -61,10 +74,8 @@ void sioNetwork::deallocate_buffers()
 {
     if (rx_buf != nullptr)
         free(rx_buf);
-
     if (tx_buf != nullptr)
         free(tx_buf);
-
     if (sp_buf != nullptr)
         free(sp_buf);
 }
@@ -292,6 +303,7 @@ void sioNetwork::sio_read()
         // 1 = CR, 2 = LF, 3 = CR/LF
         if (aux2 > 0)
         {
+            Debug_printf("sio_read conversion rx_buf_len = %hu\n",rx_buf_len);
             for (int i = 0; i < rx_buf_len; i++)
             {
                 switch (aux2 & 3)
