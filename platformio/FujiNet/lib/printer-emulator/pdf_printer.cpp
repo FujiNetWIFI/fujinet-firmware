@@ -225,8 +225,7 @@ void pdfPrinter::pdf_new_line()
 #ifdef DEBUG
     Debug_println("pdf new line");
 #endif
-    // clear any one-line modes
-    pdf_clear_modes();
+
     // position new line and start text string array
     if (pdf_dY != 0)
         fprintf(_file, "0 Ts ");
@@ -247,6 +246,8 @@ void pdfPrinter::pdf_end_line()
     // pdf_Y -= lineHeight; // line feed - moved to new line()
     pdf_X = 0; // CR
     BOLflag = true;
+    // clear any one-line modes
+    pdf_clear_modes();
 }
 
 void pdfPrinter::pdf_set_rise()
@@ -419,5 +420,5 @@ void pdfPrinter::pre_close_file()
     pdf_page_resource();
     pdf_xref();
 
-    //printer_emu::pageEject(); 
+    //printer_emu::pageEject();
 }
