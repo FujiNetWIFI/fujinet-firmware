@@ -175,11 +175,17 @@ unsigned char networkProtocolTNFS::status_dir()
 
                 if (aux2 == 128) // extended dir
                 {
+                    if (fileStat.isDir)
+                    {
+                        tmp[strlen(tmp)] = '/';
+                        tmp[strlen(tmp)] = 0x00;
+                    }
 
+                    entry = util_long_entry(tmp, fileStat.filesize);
                 }
                 else // 8.3 with sectors
                 {
-                    entry = util_entry(util_crunch(tmp),fileStat.filesize);
+                    entry = util_entry(util_crunch(tmp), fileStat.filesize);
 
                     if (strcmp(tmp, ".") == 0)
                         entry.replace(2, 1, ".");
@@ -188,10 +194,9 @@ unsigned char networkProtocolTNFS::status_dir()
 
                     if (fileStat.isDir)
                         entry.replace(10, 3, "DIR");
-
-                    entry += "\x9b";
                 }
-
+                
+                entry += "\x9b";
                 strcpy(entryBuf, entry.c_str());
                 return (unsigned char)strlen(entryBuf);
             }

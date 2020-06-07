@@ -201,6 +201,29 @@ std::string util_entry(std::string crunched, size_t fileSize)
     return returned_entry;
 }
 
+std::string util_long_entry(std::string filename, size_t fileSize)
+{
+    std::string returned_entry = "                                     ";
+    std::string ellpisized_filename = util_ellipsize(filename, 30);
+    std::string stylized_fileSize;
+    char tmp[5];
+
+    returned_entry.replace(0, 32, ellpisized_filename);
+
+    if (fileSize > 1048576)
+        sprintf(tmp, "%2dM", (fileSize >> 20));
+    else if (fileSize > 1024)
+        sprintf(tmp, "%4dK", (fileSize >> 10));
+    else
+        sprintf(tmp, "%4d", fileSize);
+
+    stylized_fileSize = tmp;
+
+    returned_entry.replace(37-stylized_fileSize.length(), stylized_fileSize.length(), stylized_fileSize);
+
+    return returned_entry;
+}
+
 std::string util_ellipsize(std::string longString, int maxLength)
 {
     size_t partSize = (maxLength - 3) >> 1; // size of left/right parts.
