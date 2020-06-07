@@ -80,13 +80,13 @@ public:
 
 private:
     string deviceSpec;
-    networkProtocol *protocol;
-    EdUrlParser *urlParser;
+    networkProtocol *protocol = nullptr;
+    EdUrlParser *urlParser = nullptr;
     unsigned char err;
     byte ck;
-    byte *rx_buf;
-    byte *tx_buf;
-    byte *sp_buf;
+    byte *rx_buf = nullptr;
+    byte *tx_buf = nullptr;
+    byte *sp_buf = nullptr;
     unsigned short rx_buf_len;
     unsigned short tx_buf_len = 256;
     unsigned short sp_buf_len;

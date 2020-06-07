@@ -28,10 +28,15 @@
     #define DEBUG
 #endif
 
+#ifdef DEBUG
+    #define HEAP_CHECK(x) Debug_printf("HEAP CHECK %s " x "\n", heap_caps_check_integrity_all(true) ? "PASSED":"FAILED")
+#endif
+
 #ifndef DEBUG
     #define Debug_print(...)
     #define Debug_printf(...)
     #define Debug_println(...)
 #endif
+
 
 #endif // _DEBUG_H_

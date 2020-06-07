@@ -214,9 +214,9 @@ bool networkProtocolFTP::close()
     {
         Debug_printf("Connected to data port, closing it.\n");
         control.write("QUIT\r\n");
+        control.stop();
     }
 
-    control.stop();
     return true;
 }
 
