@@ -1,10 +1,12 @@
-#include "../../include/debug.h"
-
 #include "driver/timer.h"
+#include "esp32-hal-psram.h"
 
-#include "fnSystem.h"
-#include "fnWiFi.h"
+#include "../../include/debug.h"
+#include "../hardware/fnSystem.h"
+#include "../hardware/fnWiFi.h"
+
 #include "network.h"
+
 #include "networkProtocol.h"
 #include "networkProtocolTCP.h"
 #include "networkProtocolUDP.h"
@@ -32,27 +34,31 @@ void onTimer(void *info)
  */
 bool sioNetwork::allocate_buffers()
 {
-    Debug_println("sioNetwork +++ ALLOCATING BUFFERS +++");
+    // NOTE: ps_calloc() results in heap corruption, at least in Arduino-ESP. 
 #ifdef BOARD_HAS_PSRAM
+/*
+    rx_buf = (byte *)ps_calloc(INPUT_BUFFER_SIZE, 1);
+    tx_buf = (byte *)ps_calloc(OUTPUT_BUFFER_SIZE, 1);
+    sp_buf = (byte *)ps_calloc(SPECIAL_BUFFER_SIZE, 1);
+*/
     rx_buf = (byte *)ps_malloc(INPUT_BUFFER_SIZE);
     tx_buf = (byte *)ps_malloc(OUTPUT_BUFFER_SIZE);
     sp_buf = (byte *)ps_malloc(SPECIAL_BUFFER_SIZE);
+
 #else
-    rx_buf = (byte *)malloc(INPUT_BUFFER_SIZE);
-    tx_buf = (byte *)malloc(OUTPUT_BUFFER_SIZE);
-    sp_buf = (byte *)malloc(SPECIAL_BUFFER_SIZE);
+    rx_buf = (byte *)calloc(1, INPUT_BUFFER_SIZE);
+    tx_buf = (byte *)calloc(1, OUTPUT_BUFFER_SIZE);
+    sp_buf = (byte *)calloc(1, SPECIAL_BUFFER_SIZE);
 #endif
     if ((rx_buf == nullptr) || (tx_buf == nullptr) || (sp_buf == nullptr))
-    {
         return false;
-    }
-    else
-    {
-        memset(rx_buf, 0, INPUT_BUFFER_SIZE);
-        memset(tx_buf, 0, OUTPUT_BUFFER_SIZE);
-        memset(sp_buf, 0, SPECIAL_BUFFER_SIZE);
-        return true;
-    }
+
+    memset(rx_buf, 0, INPUT_BUFFER_SIZE);
+    memset(tx_buf, 0, OUTPUT_BUFFER_SIZE);
+    memset(sp_buf, 0, SPECIAL_BUFFER_SIZE);
+
+    HEAP_CHECK("sioNetwork::allocate_buffers");
+    return true;
 }
 
 /**
@@ -60,13 +66,10 @@ bool sioNetwork::allocate_buffers()
  */
 void sioNetwork::deallocate_buffers()
 {
-    Debug_println("sioNetwork --- DEALLOCATING BUFFERS ---");
     if (rx_buf != nullptr)
         free(rx_buf);
-
     if (tx_buf != nullptr)
         free(tx_buf);
-
     if (sp_buf != nullptr)
         free(sp_buf);
 }
@@ -158,7 +161,7 @@ bool sioNetwork::parseURL()
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
 
-    Debug_printf("parseURL isValidURL: %s", deviceSpec.c_str());
+    Debug_printf("parseURL isValidURL: %s\n", deviceSpec.c_str());
 
     return (isValidURL(urlParser));
 }
@@ -294,6 +297,7 @@ void sioNetwork::sio_read()
         // 1 = CR, 2 = LF, 3 = CR/LF
         if (aux2 > 0)
         {
+            Debug_printf("sio_read conversion rx_buf_len = %hu\n",rx_buf_len);
             for (int i = 0; i < rx_buf_len; i++)
             {
                 switch (aux2 & 3)
@@ -408,7 +412,7 @@ void sioNetwork::sio_status_local()
     default:
         status_buf.rawData[0] =
             status_buf.rawData[1] = 0;
-        status_buf.rawData[2] = WiFi.isConnected();
+        status_buf.rawData[2] = fnWiFi.connected() ? 1 : 0;
         status_buf.rawData[3] = 1;
         break;
     }
@@ -424,7 +428,7 @@ void sioNetwork::sio_status()
         status_buf.rawData[0] =
             status_buf.rawData[1] = 0;
 
-        status_buf.rawData[2] = WiFi.isConnected();
+        status_buf.rawData[2] = fnWiFi.connected() ? 1 : 0;
         err = false;
         // sio_status_local();
     }
@@ -881,7 +885,7 @@ void sioNetwork::sio_assert_interrupts()
         protocol->status(status_buf.rawData); // Prime the status buffer
         if (((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status)) && (interruptRateLimit == true))
         {
-            Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
+            //Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
             fnSystem.digital_write(PIN_PROC, DIGI_LOW);
             fnSystem.delay_microseconds(50);
             fnSystem.digital_write(PIN_PROC, DIGI_HIGH);

@@ -1,10 +1,10 @@
 #ifndef NETWORKPROTOCOLFTP
 #define NETWORKPROTOCOLFTP
 
-#include <Arduino.h>
+#include "../tcpip/fnTcpClient.h"
+
 #include "networkProtocol.h"
 #include "sio.h"
-#include "WiFiClient.h"
 #include "EdUrlParser.h"
 
 class networkProtocolFTP : public networkProtocol
@@ -28,8 +28,8 @@ public:
 
 private:
     string hostName;
-    WiFiClient control;
-    WiFiClient data;
+    fnTcpClient control;
+    fnTcpClient data;
     string controlResponse;
     long dataSize;
     unsigned short dataPort;

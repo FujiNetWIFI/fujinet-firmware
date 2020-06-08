@@ -1,16 +1,13 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#ifdef ESP8266
-#include <ESP8266WiFi.h>
-#endif
-
 #include "esp_timer.h"
 #include "sio.h"
 #include "networkProtocol.h"
 #include "EdUrlParser.h"
 
 #define NUM_DEVICES 8
+
 #ifdef BOARD_HAS_PSRAM
 #define INPUT_BUFFER_SIZE 65535
 #define OUTPUT_BUFFER_SIZE 65535
@@ -18,6 +15,7 @@
 #define INPUT_BUFFER_SIZE 8192
 #define OUTPUT_BUFFER_SIZE 2048
 #endif
+
 #define SPECIAL_BUFFER_SIZE 256
 #define DEVICESPEC_SIZE 256
 
@@ -82,13 +80,13 @@ public:
 
 private:
     string deviceSpec;
-    networkProtocol *protocol;
-    EdUrlParser *urlParser;
+    networkProtocol *protocol = nullptr;
+    EdUrlParser *urlParser = nullptr;
     unsigned char err;
     byte ck;
-    byte *rx_buf;
-    byte *tx_buf;
-    byte *sp_buf;
+    byte *rx_buf = nullptr;
+    byte *tx_buf = nullptr;
+    byte *sp_buf = nullptr;
     unsigned short rx_buf_len;
     unsigned short tx_buf_len = 256;
     unsigned short sp_buf_len;
