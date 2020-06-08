@@ -103,12 +103,12 @@ void atari1029::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             clear_mode(fnt_expanded); // expanded mode OFF
             reset_cmd();
             break;
-        case 23:                // international mode
-            intlFlag=true;
+        case 23: // international mode
+            intlFlag = true;
             reset_cmd();
             break;
         case 24:
-            intlFlag=false;
+            intlFlag = false;
             reset_cmd();
             break;
         case 25:                     // underline
@@ -176,64 +176,69 @@ void atari1029::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     }
     else
     { // maybe printable character
-        uint8_t new_F = epson_font_lookup(epson_font_mask);
-        if (fontNumber != new_F)
+        if (c == 27)
+            escMode = true;
+        else
         {
-            float new_w = epson_font_width(epson_font_mask);
-            epson_set_font(new_F, new_w);
-        }
-        //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
-        if (intlFlag && (c < 32 || c == 96 || c == 123 || c == 126 || c == 127))
-        {
-            bool valid = false;
-            uint8_t d = 0;
+            uint8_t new_F = epson_font_lookup(epson_font_mask);
+            if (fontNumber != new_F)
+            {
+                float new_w = epson_font_width(epson_font_mask);
+                epson_set_font(new_F, new_w);
+            }
+            //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
+            if (intlFlag && (c < 32 || c == 96 || c == 123 || c == 126 || c == 127))
+            {
+                bool valid = false;
+                uint8_t d = 0;
 
-            if (c < 27)
-            {
-                d = intlchar[c];
-                valid = true;
-            }
-            else if (c > 27 && c < 32)
-            {
-                // Codes 28-31 are arrows located at 28-31 + 160
-                d = c + 0xA0;
-                valid = true;
-            }
-            else
-                switch (c)
+                if (c < 27)
                 {
-                case 96:
-                    d = uint8_t(161);
+                    d = intlchar[c];
                     valid = true;
-                    break;
-                case 123:
-                    d = uint8_t(196);
-                    valid = true;
-                    break;
-                case 126:
-                    d = uint8_t(182); // service manual shows EOL ATASCII symbol
-                    valid = true;
-                    break;
-                case 127:
-                    d = uint8_t(171); // service manual show <| block arrow symbol
-                    valid = true;
-                    break;
-                default:
-                    valid = false;
-                    break;
                 }
-            if (valid)
+                else if (c > 27 && c < 32)
+                {
+                    // Codes 28-31 are arrows located at 28-31 + 160
+                    d = c + 0xA0;
+                    valid = true;
+                }
+                else
+                    switch (c)
+                    {
+                    case 96:
+                        d = uint8_t(161);
+                        valid = true;
+                        break;
+                    case 123:
+                        d = uint8_t(196);
+                        valid = true;
+                        break;
+                    case 126:
+                        d = uint8_t(182); // service manual shows EOL ATASCII symbol
+                        valid = true;
+                        break;
+                    case 127:
+                        d = uint8_t(171); // service manual show <| block arrow symbol
+                        valid = true;
+                        break;
+                    default:
+                        valid = false;
+                        break;
+                    }
+                if (valid)
+                {
+                    fputc(d, _file);
+                    pdf_X += charWidth; // update x position
+                }
+            }
+            else if (c > 31 && c < 127)
             {
-                fputc(d, _file);
+                if (c == '\\' || c == '(' || c == ')')
+                    fputc('\\', _file);
+                fputc(c, _file);
                 pdf_X += charWidth; // update x position
             }
-        }
-        else if (c > 31 && c < 127)
-        {
-            if (c == '\\' || c == '(' || c == ')')
-                fputc('\\', _file);
-            fputc(c, _file);
-            pdf_X += charWidth; // update x position
         }
     }
 }
@@ -243,7 +248,7 @@ uint8_t atari1029::epson_font_lookup(uint16_t code)
     // four fonts:
 
     //
-    return (code & (fnt_expanded || fnt_underline));
+    return code + 1;
 }
 
 float atari1029::epson_font_width(uint16_t code)
@@ -259,12 +264,12 @@ void atari1029::epson_set_font(uint8_t F, float w)
     fprintf(_file, ")]TJ /F%u 12 Tf [(", F);
     charWidth = w;
     fontNumber = F;
-    fontUsed[F] = true;
+    fontUsed[F - 1] = true;
 }
 
 void atari1029::pdf_clear_modes()
 {
-    clear_mode(fnt_expanded || fnt_underline);
+    clear_mode(fnt_expanded | fnt_underline);
 }
 
 void atari1029::post_new_file()
