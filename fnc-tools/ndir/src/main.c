@@ -33,7 +33,7 @@ void nopen(unsigned char unit)
   OS.dcb.dtimlo=0x1f;
   OS.dcb.dbyt=256;
   OS.dcb.daux1=6;
-  OS.dcb.daux2=0;
+  OS.dcb.daux2=128; // Long dir.
   siov();
 
   if (OS.dcb.dstats!=1)
