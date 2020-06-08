@@ -73,17 +73,17 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
         Debug_printf("font %d - ", i + 1);
 #endif
         // READ LINE IN LUT FILE
+        size_t fontObjPos[7];
+        for (int j = 0; j < 7; j++)
+            fontObjPos[j] = util_parseInt(lut);
+
         // assign fontObjPos[] matrix
         if (fontUsed[i])
         {
-            size_t fontObjPos[7];
             size_t fp = 0;
             char fname[30];                                        // filename: /f/shortname/Fi
             sprintf(fname, "/f/%s/F%d", shortname.c_str(), i + 1); // e.g. /f/a820/F2
             FILE *fff = fnSPIFFS.file_open(fname);                 // Font File File - fff
-
-            for (int j = 0; j < 7; j++)
-                fontObjPos[j] = util_parseInt(lut);
 
             fgetc(fff); // '%'
             fp++;
@@ -225,6 +225,7 @@ void pdfPrinter::pdf_new_line()
 #ifdef DEBUG
     Debug_println("pdf new line");
 #endif
+
     // position new line and start text string array
     if (pdf_dY != 0)
         fprintf(_file, "0 Ts ");
@@ -245,6 +246,8 @@ void pdfPrinter::pdf_end_line()
     // pdf_Y -= lineHeight; // line feed - moved to new line()
     pdf_X = 0; // CR
     BOLflag = true;
+    // clear any one-line modes
+    pdf_clear_modes();
 }
 
 void pdfPrinter::pdf_set_rise()
@@ -417,5 +420,5 @@ void pdfPrinter::pre_close_file()
     pdf_page_resource();
     pdf_xref();
 
-    //printer_emu::pageEject(); 
+    //printer_emu::pageEject();
 }
