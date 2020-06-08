@@ -1,9 +1,13 @@
 #ifndef NETWORKPROTOCOLHTTP
 #define NETWORKPROTOCOLHTTP
 
-#include <Arduino.h>
-#include <HTTPClient.h>
+//#include <Arduino.h>
+//#include <HTTPClient.h>
 #include "networkProtocol.h"
+
+//#include "../tcpip/fnTcpClient.h"
+#include "../http/fnHttpClient.h"
+
 #include "EdUrlParser.h"
 #include "sio.h"
 
@@ -26,13 +30,17 @@ public:
     virtual void special_ca_toggle(unsigned char a);
     virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+
     virtual bool isConnected();
     
 private:
     virtual bool startConnection(byte *buf, unsigned short len);
 
-    HTTPClient client;
-    WiFiClient *c;
+    //HTTPClient client;
+    fnHttpClient client;
+    //fnTcpClient *c;
 
     char *headerCollection[16];
     size_t headerCollectionIndex = 0;

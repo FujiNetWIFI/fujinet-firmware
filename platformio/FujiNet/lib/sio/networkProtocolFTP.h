@@ -1,10 +1,10 @@
 #ifndef NETWORKPROTOCOLFTP
 #define NETWORKPROTOCOLFTP
 
-#include <Arduino.h>
+#include "../tcpip/fnTcpClient.h"
+
 #include "networkProtocol.h"
 #include "sio.h"
-#include "WiFiClient.h"
 #include "EdUrlParser.h"
 
 class networkProtocolFTP : public networkProtocol
@@ -21,12 +21,15 @@ public:
     virtual bool special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
     virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+
     virtual bool special_supported_00_command(unsigned char comnd);
 
 private:
     string hostName;
-    WiFiClient control;
-    WiFiClient data;
+    fnTcpClient control;
+    fnTcpClient data;
     string controlResponse;
     long dataSize;
     unsigned short dataPort;

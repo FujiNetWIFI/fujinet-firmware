@@ -2,17 +2,13 @@
 
 networkProtocolTCP::networkProtocolTCP()
 {
-#ifdef DEBUG
     Debug_printf("networkProtocolTCP::ctor\n");
-#endif
     server = nullptr;
 }
 
 networkProtocolTCP::~networkProtocolTCP()
 {
-#ifdef DEBUG
     Debug_printf("networkProtocolTCP::dtor\n");
-#endif
     if (server != nullptr)
     {
         if (client.connected())
@@ -40,7 +36,7 @@ bool networkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 #ifdef DEBUG
         Debug_printf("Creating server object on port %s\n", urlParser->port.c_str());
 #endif
-        server = new WiFiServer(atoi(urlParser->port.c_str()));
+        server = new fnTcpServer(atoi(urlParser->port.c_str()));
         server->begin(atoi(urlParser->port.c_str()));
         connectionIsServer = true;
     }
@@ -95,23 +91,21 @@ bool networkProtocolTCP::close()
 
 bool networkProtocolTCP::read(byte *rx_buf, unsigned short len)
 {
-#ifdef DEBUG
     Debug_printf("TCP read %d bytes\n", len);
-#endif
+
     if (!client.connected())
     {
         client_error_code = 128;
         return false;
     }
     assertProceed = true;
-    return (client.readBytes(rx_buf, len) != len);
+    return (client.read(rx_buf, len) != len);
 }
 
 bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
 {
-#ifdef DEBUG
     Debug_printf("TCP write %d bytes\n", len);
-#endif
+
     if (!client.connected())
     {
         client_error_code = 128;
@@ -171,16 +165,12 @@ bool networkProtocolTCP::special_accept_connection()
 {
     if (server == NULL)
     {
-#ifdef DEBUG
         Debug_printf("accept connection attempted on non-server scoket.");
-#endif
         return true; // error
     }
     else
     {
-#ifdef DEBUG
         Debug_printf("accepting connection.");
-#endif
         if (server->hasClient())
         {
             client = server->available();
