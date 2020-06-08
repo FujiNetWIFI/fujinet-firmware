@@ -15,8 +15,8 @@ class pdfPrinter : public printer_emu
 {
 protected:
     // ATARI THINGS
-    bool translate850 = false; // default to sio printer
-    uint8_t _eol = ATASCII_EOL;   // default to atascii eol
+    bool translate850 = false;  // default to sio printer
+    uint8_t _eol = ATASCII_EOL; // default to atascii eol
 
     // PDF THINGS
     float pageWidth;
@@ -58,13 +58,14 @@ protected:
     size_t idx_stream_start;  // file location of start of stream
     size_t idx_stream_stop;   // file location of end of stream
 
+    virtual void pdf_clear_modes() = 0;
     virtual void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) = 0;
     virtual bool process_buffer(uint8_t linelen, uint8_t aux1, uint8_t aux2) override;
 
     virtual void pre_close_file() override;
 
 public:
-    pdfPrinter() { _paper_type = PDF;};
+    pdfPrinter() { _paper_type = PDF; };
 };
 
 #endif // guard

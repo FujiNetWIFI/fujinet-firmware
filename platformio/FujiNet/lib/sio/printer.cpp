@@ -8,6 +8,7 @@
 #include "svg_plotter.h"
 #include "atari_1025.h"
 #include "atari_1027.h"
+#include "atari_1029.h"
 #include "epson_80.h"
 #include "png_printer.h"
 
@@ -158,6 +159,9 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
     case PRINTER_ATARI_1027:
         _pptr = new atari1027;
         break;
+    case PRINTER_ATARI_1029:
+        _pptr = new atari1029;
+        break;
     case PRINTER_EPSON:
         _pptr = new epson80;
         break;
@@ -200,6 +204,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string model_name)
             "Atari 1020",
             "Atari 1025",
             "Atari 1027",
+            "Atari 1029",
             "Epson 80",
             "GRANTIC",
             "HTML printer",
