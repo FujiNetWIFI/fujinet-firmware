@@ -42,8 +42,12 @@
 #define CMD_TIMEOUT 50
 #define STATUS_SKIP 8
 
-// The High speed SIO index.
+// The High speed SIO index
+#ifndef FN_HISPEED_INDEX
 #define HISPEED_INDEX 0x06
+#else
+#define HISPEED_INDEX FN_HISPEED_INDEX
+#endif
 
 #define ATARISIO_ATARI_FREQUENCY_PAL 1773447
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
