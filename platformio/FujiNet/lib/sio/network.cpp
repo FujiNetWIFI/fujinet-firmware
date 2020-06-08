@@ -167,7 +167,7 @@ bool sioNetwork::parseURL()
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
 
-    Debug_printf("parseURL isValidURL: %s", deviceSpec.c_str());
+    Debug_printf("parseURL isValidURL: %s\n", deviceSpec.c_str());
 
     return (isValidURL(urlParser));
 }
