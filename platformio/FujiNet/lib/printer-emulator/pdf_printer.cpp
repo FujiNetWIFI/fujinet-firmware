@@ -73,17 +73,17 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
         Debug_printf("font %d - ", i + 1);
 #endif
         // READ LINE IN LUT FILE
+        size_t fontObjPos[7];
+        for (int j = 0; j < 7; j++)
+            fontObjPos[j] = util_parseInt(lut);
+
         // assign fontObjPos[] matrix
         if (fontUsed[i])
         {
-            size_t fontObjPos[7];
             size_t fp = 0;
             char fname[30];                                        // filename: /f/shortname/Fi
             sprintf(fname, "/f/%s/F%d", shortname.c_str(), i + 1); // e.g. /f/a820/F2
             FILE *fff = fnSPIFFS.file_open(fname);                 // Font File File - fff
-
-            for (int j = 0; j < 7; j++)
-                fontObjPos[j] = util_parseInt(lut);
 
             fgetc(fff); // '%'
             fp++;
