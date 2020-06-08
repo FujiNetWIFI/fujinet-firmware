@@ -5,7 +5,6 @@
 
 #include "networkProtocol.h"
 #include "sio.h"
-#include "WiFiClient.h"
 #include "EdUrlParser.h"
 
 class networkProtocolFTP : public networkProtocol
