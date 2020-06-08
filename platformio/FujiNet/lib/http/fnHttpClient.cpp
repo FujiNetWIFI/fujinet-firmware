@@ -61,7 +61,7 @@ int fnHttpClient::available()
     int len = esp_http_client_get_content_length(_handle);
     if (len - _buffer_total_read >= 0)
         result = len - _buffer_total_read;
-    
+
     //Debug_printf(" %d\n", result);
     return result;
 }
@@ -80,8 +80,10 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
 
     int bytes_left;
     int bytes_to_copy;
+
     int bytes_copied = 0;
-    // Use our own buffer if there's still data there
+
+    // Start by using our own buffer if there's still data there
     if (_buffer_pos > 0 && _buffer_pos < _buffer_len)
     {
         bytes_left = _buffer_len - _buffer_pos;
@@ -103,7 +105,7 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
     if (_transaction_done)
     {
         //Debug_println("::read download done");
-        return 0;
+        return bytes_copied;
     }
 
     // Make sure store our current task handle to respond to
@@ -112,8 +114,8 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
     // Our HTTP subtask is gone - say there's nothing left to read...
     if (_taskh_subtask == nullptr)
     {
-        //Debug_println("::read subtask gone");
-        return 0;
+        Debug_println("::read subtask gone");
+        return bytes_copied;
     }
 
     while (bytes_copied < dest_bufflen)
@@ -123,22 +125,25 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
         xTaskNotifyGive(_taskh_subtask);
         // Wait till the HTTP task lets us know it's filled the buffer
         //Debug_println("::read notifyTake...");
-        uint32_t v = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK));
-        // Abort if we timed-out receiving the data
-        if (v != 1)
+        if(ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) != 1)
         {
+            // Abort if we timed-out receiving the data
             Debug_println("::read time-out");
             return -1;
         }
         //Debug_println("::read got notification");
-        if (_transaction_done || _buffer_len < 0)
+        if (_buffer_len <= 0)
         {
             //Debug_println("::read download done");
-            return 0;
+            return bytes_copied;
         }
 
         int dest_size = dest_bufflen - bytes_copied;
-        bytes_to_copy = dest_size > _buffer_len ? _buffer_len : dest_bufflen;
+        bytes_to_copy = dest_size > _buffer_len ? _buffer_len : dest_size;
+
+        //Debug_printf("dest_size=%d, dest_bufflen=%d, bytes_copied=%d, bytes_to_copy=%d\n",
+                     //dest_size, dest_bufflen, bytes_copied, bytes_to_copy);
+
         memcpy(dest_buffer + bytes_copied, _buffer, bytes_to_copy);
         _buffer_pos += bytes_to_copy;
         _buffer_total_read += bytes_to_copy;
@@ -179,7 +184,7 @@ void fnHttpClient::_flush_response()
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK));
 
     } while (!_transaction_done);
-    Debug_println("fnHttpClient::flush_response done.");    
+    Debug_println("fnHttpClient::flush_response done.");
 }
 
 // Close connection, but keep request resources
