@@ -167,7 +167,7 @@ bool sioNetwork::parseURL()
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
 
-    Debug_printf("parseURL isValidURL: %s", deviceSpec.c_str());
+    Debug_printf("parseURL isValidURL: %s\n", deviceSpec.c_str());
 
     return (isValidURL(urlParser));
 }
@@ -891,7 +891,7 @@ void sioNetwork::sio_assert_interrupts()
         protocol->status(status_buf.rawData); // Prime the status buffer
         if (((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status)) && (interruptRateLimit == true))
         {
-            Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
+            //Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
             fnSystem.digital_write(PIN_PROC, DIGI_LOW);
             fnSystem.delay_microseconds(50);
             fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
