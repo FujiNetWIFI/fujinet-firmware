@@ -1,5 +1,6 @@
-#include <Arduino.h>
-#include <WiFiUdp.h>
+#ifndef NETWORKPROTOCOLUDP
+#define NETWORKPROTOCOLUDP
+#include "../tcpip/fnUDP.h"
 
 #include "sio.h"
 #include "networkProtocol.h"
@@ -21,7 +22,8 @@ public:
     virtual bool special_supported_80_command(unsigned char comnd);
 
 private:
-    WiFiUDP udp;
+    //WiFiUDP udp;
+    fnUDP udp;
     char dest[64];
     unsigned short port;
     char saved_rx_buffer[512];
@@ -29,3 +31,5 @@ private:
 
     bool special_set_destination(byte* sp_buf, unsigned short len);
 };
+
+#endif // NETWORKPROTOCOLUDP

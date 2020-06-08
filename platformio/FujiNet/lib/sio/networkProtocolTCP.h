@@ -1,13 +1,8 @@
-#include <Arduino.h>
+#ifndef NETWORKPROTOCOLTCP
+#define NETWORKPROTOCOLTCP
 
-#ifdef ESP8266
-#include <ESP8266WiFi.h>
-#endif
-
-#ifdef ESP32
-#include <WiFi.h>
-#include <WiFiClient.h>
-#endif
+#include "../tcpip/fnTcpClient.h"
+#include "../tcpip/fnTcpServer.h"
 
 #include "sio.h"
 #include "EdUrlParser.h"
@@ -29,9 +24,11 @@ public:
     virtual bool isConnected();
     
 private:
-    WiFiClient client;
-    WiFiServer* server;
+    fnTcpClient client;
+    fnTcpServer * server;
     byte client_error_code;
 
     bool special_accept_connection();
 };
+
+#endif // NETWORKPROTOCOLTCP
