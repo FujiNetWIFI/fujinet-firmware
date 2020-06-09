@@ -34,9 +34,9 @@ void onTimer(void *info)
  */
 bool sioNetwork::allocate_buffers()
 {
-    // NOTE: ps_calloc() results in heap corruption, at least in Arduino-ESP. 
+    // NOTE: ps_calloc() results in heap corruption, at least in Arduino-ESP.
 #ifdef BOARD_HAS_PSRAM
-/*
+    /*
     rx_buf = (byte *)ps_calloc(INPUT_BUFFER_SIZE, 1);
     tx_buf = (byte *)ps_calloc(OUTPUT_BUFFER_SIZE, 1);
     sp_buf = (byte *)ps_calloc(SPECIAL_BUFFER_SIZE, 1);
@@ -188,7 +188,7 @@ void sioNetwork::sio_open()
 
     if (parseURL() == false)
     {
-        Debug_printf("Invalid devicespec %s\n",filespecBuf);
+        Debug_printf("Invalid devicespec %s\n", filespecBuf);
         status_buf.error = 165;
         sio_error();
         return;
@@ -297,7 +297,7 @@ void sioNetwork::sio_read()
         // 1 = CR, 2 = LF, 3 = CR/LF
         if (aux2 > 0)
         {
-            Debug_printf("sio_read conversion rx_buf_len = %hu\n",rx_buf_len);
+            Debug_printf("sio_read conversion rx_buf_len = %hu\n", rx_buf_len);
             for (int i = 0; i < rx_buf_len; i++)
             {
                 switch (aux2 & 3)
@@ -311,12 +311,10 @@ void sioNetwork::sio_read()
                         rx_buf[i] = 0x9B;
                     break;
                 case 3:
-                    if ((rx_buf[i] == 0x0D) && (rx_buf[i + 1] == 0x0A))
-                    {
-                        memmove(&rx_buf[i - 1], &rx_buf[i], rx_buf_len);
-                        rx_buf[i] = 0x9B;
-                        rx_buf_len--;
-                    }
+                    if (rx_buf[i] == 0x0D)
+                        rx_buf[i] = 0x20;
+                    else if (rx_buf[i] == 0x0A)
+                        rx_buf[i] = 0x9b;
                     break;
                 }
             }
@@ -593,7 +591,7 @@ void sioNetwork::sio_special()
         sio_complete();
         protocol->close();
         delete protocol;
-        protocol=nullptr;
+        protocol = nullptr;
     }
     else if (cmdFrame.comnd == 0x2A) // MKDIR
     {
@@ -606,7 +604,7 @@ void sioNetwork::sio_special()
 
         if (parseURL() == false)
         {
-            Debug_printf("Invalid devicespec %s \n",filespecBuf);
+            Debug_printf("Invalid devicespec %s \n", filespecBuf);
             status_buf.error = 165;
             sio_error();
             return;
@@ -637,7 +635,7 @@ void sioNetwork::sio_special()
         sio_complete();
         protocol->close();
         delete protocol;
-        protocol=nullptr;
+        protocol = nullptr;
     }
     else if (cmdFrame.comnd == 0x2B) // RMDIR
     {
@@ -650,7 +648,7 @@ void sioNetwork::sio_special()
 
         if (parseURL() == false)
         {
-            Debug_printf("Invalid devicespec %s \n",filespecBuf);
+            Debug_printf("Invalid devicespec %s \n", filespecBuf);
             status_buf.error = 165;
             sio_error();
             return;
@@ -681,7 +679,7 @@ void sioNetwork::sio_special()
         sio_complete();
         protocol->close();
         delete protocol;
-        protocol=nullptr;
+        protocol = nullptr;
     }
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
