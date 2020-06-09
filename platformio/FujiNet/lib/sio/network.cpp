@@ -766,6 +766,8 @@ bool sioNetwork::sio_special_supported_00_command(unsigned char c)
     {
     case 0x10: // Acknowledge interrupt
         return true;
+    case 'T': // Set translation
+        return true;
     }
     return false;
 }
@@ -807,6 +809,9 @@ void sioNetwork::sio_special_00()
 {
     switch (cmdFrame.comnd)
     {
+    case 'T': // Set translation
+        sio_special_set_translation();
+        break;
     case 0x10: // Ack interrupt
         sio_complete();
         interruptRateLimit = true;
@@ -874,6 +879,13 @@ void sioNetwork::sio_special_protocol_80()
         sio_error();
     else
         sio_complete();
+}
+
+void sioNetwork::sio_special_set_translation()
+{
+    aux1=cmdFrame.aux1;
+    aux2=cmdFrame.aux2;
+    sio_complete();
 }
 
 void sioNetwork::sio_assert_interrupts()
