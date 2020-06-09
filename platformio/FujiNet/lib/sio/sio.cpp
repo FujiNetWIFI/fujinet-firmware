@@ -42,10 +42,6 @@ void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
 {
     byte ck = sio_checksum(b, len);
 
-#ifdef ESP8266
-    delayMicroseconds(DELAY_T5);
-#endif
-
     if (err == true)
         sio_error();
     else
@@ -57,9 +53,7 @@ void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
     // Write checksum
     fnUartSIO.write(ck);
 
-#ifdef ESP32
     fnUartSIO.flush();
-#endif
 
 #ifdef DEBUG_VERBOSE
     Debug_printf("TO COMPUTER: ");
@@ -120,9 +114,7 @@ byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
 void sioDevice::sio_nak()
 {
     fnUartSIO.write('N');
-#ifdef ESP32
     fnUartSIO.flush();
-#endif
     Debug_println("NAK!");
 }
 
@@ -130,9 +122,7 @@ void sioDevice::sio_nak()
 void sioDevice::sio_ack()
 {
     fnUartSIO.write('A');
-#ifdef ESP32
     fnUartSIO.flush();
-#endif
     Debug_println("ACK!");
 }
 
@@ -209,14 +199,10 @@ void sioDevice::sio_high_speed()
 */
 void sioBus::service()
 {
-#ifdef ESP32
     // Wait for the SIO_CMD pin to go low, indicating data
     // Make sure voltage is higher than 4V to determine if the Atari is on, otherwise
     // we get stuck reading a LOW command pin until the Atari is turned on
     if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW && fnSystem.get_sio_voltage() > 4000)
-#else
-    if (digitalRead(PIN_CMD) == LOW)
-#endif
     {
         ledMgr.set(eLed::LED_SIO, true);
         if (modemDev != nullptr && modemDev->modemActive)
@@ -225,10 +211,6 @@ void sioBus::service()
             Debug_println("Modem was active - resetting SIO baud");
             fnUartSIO.set_baudrate(sioBaud);
         }
-
-#ifdef ESP8266
-        delayMicroseconds(DELAY_T0); // computer is waiting for us to notice.
-#endif
 
         // Read CMD frame
         cmdFrame_t tempFrame;
@@ -248,21 +230,13 @@ void sioBus::service()
         byte ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
         if (ck == tempFrame.cksum)
         {
-#ifdef ESP8266
-            delayMicroseconds(DELAY_T1);
-#endif
-#ifdef ESP8266
-            delayMicroseconds(DELAY_T2);
-#endif
             if (fujiDev != nullptr && fujiDev->load_config && tempFrame.devic == SIO_DEVICEID_DISK)
             {
                 activeDev = fujiDev->disk();
                 Debug_println("FujiNet intercepts D1:");
                 for (int i = 0; i < 5; i++)
                     activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
-#ifdef ESP8266
-                delayMicroseconds(DELAY_T3);
-#endif
+
                 activeDev->sio_process(); // handle command
             }
             else
@@ -295,9 +269,7 @@ void sioBus::service()
                             activeDev = devicep;
                             for (int i = 0; i < 5; i++)
                                 activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
-#ifdef ESP8266
-                            delayMicroseconds(DELAY_T3);
-#endif
+
                             activeDev->sio_process(); // handle command
                         }
                     }
@@ -345,9 +317,6 @@ void sioBus::setup()
     Debug_println("SIO SETUP");
     // Set up serial
     fnUartSIO.begin(sioBaud);
-#ifdef ESP8266
-    SIO_UART.swap();
-#endif
 
     fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_INT, DIGI_HIGH);
@@ -362,9 +331,7 @@ void sioBus::setup()
     fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_CKI, DIGI_LOW);
 
-#ifdef ESP32
     fnSystem.set_pin_mode(PIN_CKO, PINMODE_INPUT);
-#endif
 }
 
 // Add device to SIO bus
@@ -435,8 +402,7 @@ void sioBus::setBaudrate(int baudrate)
 {
     Debug_printf("Switching to %d baud...\n", sioBaud);
     sioBaud = baudrate;
-    //SIO_UART.updateBaudRate(sioBaud);
     fnUartSIO.set_baudrate(sioBaud);
 }
 
-sioBus SIO;
+sioBus SIO; // Global SIO object
