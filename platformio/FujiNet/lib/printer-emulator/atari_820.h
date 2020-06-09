@@ -12,6 +12,7 @@ class atari820 : public pdfPrinter
 protected:
     bool sideFlag = false;
     //sioPrinter *my_sioP; // added variable to point back to sioPrinter parent
+    virtual void pdf_clear_modes() override {};
     virtual void post_new_file() override;
     void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override; // need a custom one to handle sideways printing
 
