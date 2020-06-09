@@ -1,7 +1,7 @@
 #fujinet   
 =========
 
-A multi-function peripheral being developed for the Atari 8-bit systems, built upon ESP8266 and ESP32 hardware.
+A multi-function peripheral being developed for the Atari 8-bit systems, built on ESP32 hardware.
 
 It currently provides the following devices:
 
@@ -12,8 +12,7 @@ It currently provides the following devices:
 
 The current Filesystem can be divided into the following areas:
 
-* esp32 - The ESP32 tests are going here, written in Arduino.
-* platformio - This is where the production firmware is being developed. It is almost ready.
+* platformio - This is where the production firmware is being developed.
 * config - Source code for the CONFIG program that is stored in SPIFFS, to allow the Atari to configure #FujiNet.
 * build-tools - Source code for various tools used by the maintainers.
 * diagnostic-tools - Source code used for various diagnostic tools used by maintainers.

@@ -1,5 +1,7 @@
 #ifndef NETWORK_H
 #define NETWORK_H
+//#include <Arduino.h>
+//#include <WiFi.h>
 
 #include "esp_timer.h"
 #include "sio.h"
