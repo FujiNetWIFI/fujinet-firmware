@@ -35,6 +35,7 @@ public:
         PRINTER_ATARI_1020,
         PRINTER_ATARI_1025,
         PRINTER_ATARI_1027,
+        PRINTER_ATARI_1029,
         PRINTER_EPSON,
         PRINTER_PNG,
         PRINTER_HTML,
