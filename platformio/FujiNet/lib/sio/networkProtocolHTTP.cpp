@@ -21,6 +21,8 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
 {
     bool ret = false;
 
+    fnSystem.delay(1);
+
 #ifdef DEBUG
     Debug_printf("startConnection()\n");
 #endif
