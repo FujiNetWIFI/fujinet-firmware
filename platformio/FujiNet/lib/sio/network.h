@@ -74,6 +74,8 @@ public:
     void sio_special_protocol_40();
     void sio_special_protocol_80();
 
+    void sio_special_set_translation();
+
     bool sio_special_supported_00_command(unsigned char c);
     bool sio_special_supported_40_command(unsigned char c);
     bool sio_special_supported_80_command(unsigned char c);
