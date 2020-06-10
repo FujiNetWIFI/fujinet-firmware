@@ -12,19 +12,14 @@ enum eBTBaudrate
 class BluetoothManager
 {
 public:
-    bool isActive();
+    inline bool isActive() { return _mActive; };
     void start();
     void stop();
     eBTBaudrate toggleBaudrate();
     void service();
 private:
-    eBTBaudrate mBTBaudrate = eBTBaudrate::BT_STANDARD_BAUDRATE;
-    bool mActive = false;
+    eBTBaudrate _mBTBaudrate = eBTBaudrate::BT_STANDARD_BAUDRATE;
+    bool _mActive = false;
 };
-
-inline bool BluetoothManager::isActive()
-{
-    return mActive;
-}
 
 #endif // guard
