@@ -16,39 +16,30 @@ hacked in a special case for SD - set host as "SD" in the Atari config program
 */
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
+
+#include "fnSystem.h"
+#include "fnWiFi.h"
+#include "fnFsSD.h"
+#include "fnFsSPIF.h"
+#include "keys.h"
+#include "led.h"
+#include "config.h"
 #include "sio.h"
 #include "disk.h"
-#include "modem.h"
 #include "fuji.h"
+#include "modem.h"
 #include "apetime.h"
 #include "voice.h"
 #include "httpService.h"
-#include "fnSystem.h"
-#include "fnWiFi.h"
-#include "config.h"
-#include "fnFsSD.h"
-#include "fnFsSPIF.h"
 #include "printerlist.h"
-#include "keys.h"
-#include "led.h"
-
-#ifdef ESP8266
-#include <FS.h>
-#include <ESP8266WiFi.h>
-#include <SDFS.h>
-#define INPUT_PULLDOWN INPUT_PULLDOWN_16 // for motor pin
-#endif
-
-
-#define PIN_SDCS 0x05
-
-#ifdef BLUETOOTH_SUPPORT
-#include "bluetooth.h"
-#endif
 
 #ifdef BOARD_HAS_PSRAM
 #include <esp_spiram.h>
 #include <esp_himem.h>
+#endif
+
+#ifdef BLUETOOTH_SUPPORT
+#include "bluetooth.h"
 #endif
 
 // fnSystem is declared and defined in fnSystem.h/cpp
@@ -69,22 +60,15 @@ LedManager ledMgr;
 BluetoothManager btMgr;
 #endif
 
-// *** Moved these to network.cpp since that's the only place they're used ***
-// For the interrupt rate limiter timer
-//volatile bool interruptRateLimit = true;
-//hw_timer_t *rateTimer = NULL;
-//portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
-
-/* SET UP ALL THE THINGS
-*/
+// SET UP ALL THE THINGS
 void setup()
 {
 #ifdef DEBUG_S
-    #ifdef NO_GLOBAL_SERIAL
-        fnUartDebug.begin(DEBUG_SPEED);
-    #else
-        BUG_UART.begin(DEBUG_SPEED);
-    #endif    
+#ifdef NO_GLOBAL_SERIAL
+    fnUartDebug.begin(DEBUG_SPEED);
+#else
+    BUG_UART.begin(DEBUG_SPEED);
+#endif
 #endif
 
 #ifdef DEBUG
@@ -105,7 +89,7 @@ void setup()
 
     fnSPIFFS.start();
     fnSDFAT.start();
-    
+
     // Load our stored configuration
     Config.load();
 
@@ -124,11 +108,11 @@ void setup()
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     sioPrinter::printer_type ptype = Config.get_printer_type(0);
-    if(ptype == sioPrinter::printer_type::PRINTER_INVALID)
+    if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
         ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
-    #ifdef DEBUG
-        Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
-    #endif        
+
+    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+
     sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
@@ -138,34 +122,26 @@ void setup()
 
     if (fnWiFi.connected())
     {
-#ifdef DEBUG
         Debug_printf("WiFi connected. Current IP address: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
-#endif
-        // UDP.begin(16384); // Why do we do this?
     }
 
-#ifdef DEBUG
     Debug_printf("%d devices registered\n", SIO.numDevices());
-#endif
 
     // Go setup SIO
     SIO.setup();
 
-#if defined(DEBUG) && defined(ESP32)
-  Debug_print("SIO Voltage: ");
-  Debug_println(fnSystem.get_sio_voltage());
-#endif
+    Debug_print("SIO Voltage: ");
+    Debug_println(fnSystem.get_sio_voltage());
 
     void sio_flush();
 
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
-    Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms-startms);
+    Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
 #endif
 }
 
-/* MAIN PROGRAM LOOP
-*/
+// MAIN PROGRAM LOOP
 void loop()
 {
 #ifdef DEBUG_N
@@ -177,7 +153,6 @@ void loop()
     }
 #endif
 
-#ifdef ESP32
     // Toggle the state of the WiFi LED based on the current WiFi status
     // Start the web server if it hasn't been started and WiFi is connected
     if (fnWiFi.connected())
@@ -197,14 +172,10 @@ void loop()
     switch (keyMgr.getKeyStatus(eKey::OTHER_KEY))
     {
     case eKeyStatus::LONG_PRESSED:
-#ifdef DEBUG
         Debug_println("O_KEY: LONG PRESS");
-#endif
         break;
     case eKeyStatus::SHORT_PRESSED:
-#ifdef DEBUG
         Debug_println("O_KEY: SHORT PRESS");
-#endif
         break;
     default:
         break;
@@ -214,9 +185,7 @@ void loop()
     switch (keyMgr.getKeyStatus(eKey::BOOT_KEY))
     {
     case eKeyStatus::LONG_PRESSED:
-#ifdef DEBUG
         Debug_println("B_KEY: LONG PRESS");
-#endif
 
 #ifdef BLUETOOTH_SUPPORT
         if (btMgr.isActive())
@@ -274,9 +243,6 @@ void loop()
     else
 #endif
     {
-#endif // ESP32
         SIO.service();
-#ifdef ESP32
     }
-#endif
 }
