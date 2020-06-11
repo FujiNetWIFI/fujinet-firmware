@@ -15,6 +15,9 @@ N1: <the output of NPWD> <EOL>
 [] <-- cursor
 ```
 
+A mock image has been made (everything after DOS):
+![NOS Mock-up](https://i.imgur.com/3NoZt05.jpg)
+
 Commands (three character minimum, any other characters ignored)
 
 * CAR: Jump back to cartridge.
