@@ -137,7 +137,7 @@ bool networkProtocolHTTP::close()
         Debug_printf("\n");
         client.PUT((const char *)putBuf, putPos);
         fclose(fpPUT);
-        unlink(nPUT);
+        fnSystem.delete_tempfile(nPUT);
         free(putBuf);
     }
 
