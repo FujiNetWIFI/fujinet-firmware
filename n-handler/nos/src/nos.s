@@ -26,6 +26,7 @@ ZICAX4  =     ZIOCB+13 ; AUX 4
 ZICAX5  =     ZIOCB+14 ; AUX 5
 ZICAX6  =     ZIOCB+15 ; AUX 6
 
+DOSVEC  =     $0A       	; DOSVEC
 DOSINI  =     $0C      ; DOSINI
 
        ; INTERRUPT VECTORS
@@ -127,11 +128,15 @@ START:
 	STA	DOSINI
 	LDA	#>RESET
 	STA	DOSINI+1
+	LDA	#<GODOS
+	STA	DOSVEC
+	LDA	#>GODOS
+	STA	DOSVEC+1
 
 	JSR	ALTMEML
 
-	BVC	IHTBS
-
+	RTS
+	
 RESET:
 	JSR	$FFFF		; Jump to extant DOSINI
 	JSR	IHTBS		; Insert into HATABS
@@ -717,7 +722,26 @@ PRCVEC
 	
 ;;; End Proceed Vector ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;;; CP is here ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+	
+GODOS:
+	RTS
+	
+;;; End CP ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Variables
+
+	;; Command Table
+CMDTBL
+	.BYTE	'CD '
+	.BYTE	'COP'
+	.BYTE	'DIR'
+	.BYTE	'DEL'
+	.BYTE	'LOA'
+	.BYTE	'LOC'
+	.BYTE	'MKD'
+	.BYTE	'RMD'
+	.BYTE	'UNL'
+	.BYTE	$FF
 
        ; DEVHDL TABLE FOR N:
 
@@ -735,6 +759,7 @@ BERROR .BYTE      '#FUJINET ERROR',$9B
 
        ; VARIABLES
 
+DOSDR	.BYTE	1		; DOS DRIVE
 TRIP   .DS      1       ; INTR FLAG
 RLEN   .DS      MAXDEV  ; RCV LEN
 ROFF   .DS      MAXDEV  ; RCV OFFSET
