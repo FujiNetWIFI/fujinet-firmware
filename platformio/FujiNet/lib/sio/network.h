@@ -1,5 +1,7 @@
 #ifndef NETWORK_H
 #define NETWORK_H
+//#include <Arduino.h>
+//#include <WiFi.h>
 
 #include "esp_timer.h"
 #include "sio.h"
@@ -71,6 +73,8 @@ public:
     void sio_special_protocol_00();
     void sio_special_protocol_40();
     void sio_special_protocol_80();
+
+    void sio_special_set_translation();
 
     bool sio_special_supported_00_command(unsigned char c);
     bool sio_special_supported_40_command(unsigned char c);
