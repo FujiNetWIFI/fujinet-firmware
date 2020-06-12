@@ -1,3 +1,6 @@
+// TODO: Figure out why time-outs against bad addresses seem to take about 18s no matter
+// what we set the timeout value to.
+
 #include <cstdlib>
 #include <string.h>
 #include <FreeRTOS.h>
@@ -7,8 +10,8 @@
 #include "utils.h"
 using namespace fujinet;
 
-#define HTTPCLIENT_WAIT_FOR_CONSUMER_TASK 16000 // 16s
-#define HTTPCLIENT_WAIT_FOR_HTTP_TASK 8000      // 8s
+#define HTTPCLIENT_WAIT_FOR_CONSUMER_TASK 20000 // 20s
+#define HTTPCLIENT_WAIT_FOR_HTTP_TASK 20000     // 20s
 
 const char *webdav_depths[] = {"0", "1", "infinity"};
 
@@ -38,6 +41,7 @@ bool fnHttpClient::begin(std::string url)
     cfg.url = url.c_str();
     cfg.event_handler = _httpevent_handler;
     cfg.user_data = this;
+    cfg.timeout_ms = 3500; // Timeouts seem to actually be twice this value
 
     // Keep track of what the max redirect count is set to (the default is 10)
     _max_redirects = cfg.max_redirection_count == 0 ? 10 : cfg.max_redirection_count;
@@ -52,7 +56,6 @@ bool fnHttpClient::begin(std::string url)
 
 int fnHttpClient::available()
 {
-    //Debug_print("fnHttpClient::available:");
     if (_handle == nullptr)
         return 0;
 
@@ -62,7 +65,6 @@ int fnHttpClient::available()
     if (len - _buffer_total_read >= 0)
         result = len - _buffer_total_read;
 
-    //Debug_printf(" %d\n", result);
     return result;
 }
 
@@ -156,8 +158,7 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
 // Thorws out any waiting response body without closing the connection
 void fnHttpClient::_flush_response()
 {
-    Debug_println("fnHttpClient::flush_response");
-    //Debug_println("::flush_response");
+    //Debug_println("fnHttpClient::flush_response");
     if (_handle == nullptr)
         return;
 
@@ -184,7 +185,7 @@ void fnHttpClient::_flush_response()
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK));
 
     } while (!_transaction_done);
-    Debug_println("fnHttpClient::flush_response done.");
+    //Debug_println("fnHttpClient::flush_response done");
 }
 
 // Close connection, but keep request resources
@@ -319,6 +320,8 @@ void fnHttpClient::_perform_subtask(void *param)
     parent->_redirect_count = 0;
     parent->_buffer_len = 0;
 
+    //Debug_printf("esp_http_client_perform start\n");
+
     esp_err_t e = esp_http_client_perform(parent->_handle);
     __IGNORE_UNUSED_VAR(e);
 
@@ -387,7 +390,7 @@ int fnHttpClient::_perform()
     if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) == 0)
     {
         Debug_printf("Timed-out waiting for headers to load\n");
-        _delete_subtask_if_running();
+        //_delete_subtask_if_running();
         return -1;
     }
     //Debug_printf("%08lx _perform notified\n", fnSystem.millis());

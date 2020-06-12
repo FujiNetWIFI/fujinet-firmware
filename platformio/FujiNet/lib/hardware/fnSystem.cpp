@@ -270,6 +270,26 @@ FILE * SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
     return fs->file_open(fname, "w+");
 }
 
+void SystemManager::delete_tempfile(FileSystem *fs, const char* filename)
+{
+    if (fs==nullptr || !fs->running())
+        return;
+    
+    fs->remove(filename);
+}
+
+/*
+ Remove specified temporary file, if fnSDFAT available, then file is deleted there,
+ otherwise deleted from SPIFFS
+*/
+void SystemManager::delete_tempfile(const char* filename)
+{
+    if (fnSDFAT.running())
+        delete_tempfile(&fnSDFAT, filename);
+    else
+        delete_tempfile(&fnSPIFFS, filename);
+}
+
 /*
  Create temporary file. fnSDFAT will be used if available, otherwise fnSPIFFS.
  Filename will be 8 characters long. If provided, generated filename will be placed in result_filename

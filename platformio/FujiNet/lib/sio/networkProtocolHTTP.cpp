@@ -21,6 +21,8 @@ bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
 {
     bool ret = false;
 
+    fnSystem.delay(1);
+
 #ifdef DEBUG
     Debug_printf("startConnection()\n");
 #endif
@@ -135,7 +137,7 @@ bool networkProtocolHTTP::close()
         Debug_printf("\n");
         client.PUT((const char *)putBuf, putPos);
         fclose(fpPUT);
-        unlink(nPUT);
+        fnSystem.delete_tempfile(nPUT);
         free(putBuf);
     }
 
@@ -333,7 +335,7 @@ bool networkProtocolHTTP::status(byte *status_buf)
             a = (c->available() > 65535 ? 65535 : c->available());
             */
             a = client.available();
-            a = a > 65535 ? 65535 : a;
+            a = a > 0xFFFF ? 0xFFFF : a;
 
             status_buf[0] = a & 0xFF;
             status_buf[1] = a >> 8;
@@ -418,12 +420,12 @@ void networkProtocolHTTP::special_ca_toggle(unsigned char a)
 
 bool networkProtocolHTTP::isConnected()
 {
-    /*
-    if (c != nullptr)
-        return c->connected();
-    else
-        return false;
-    */
+    //
+    //if (c != nullptr)
+    //    return c->connected();
+    //else
+    //    return false;
+    //
     return client.available() > 0;
 }
 

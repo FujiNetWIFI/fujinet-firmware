@@ -1,11 +1,8 @@
 #ifndef NETWORKPROTOCOLHTTP
 #define NETWORKPROTOCOLHTTP
 
-//#include <Arduino.h>
-//#include <HTTPClient.h>
 #include "networkProtocol.h"
 
-//#include "../tcpip/fnTcpClient.h"
 #include "../http/fnHttpClient.h"
 
 #include "EdUrlParser.h"
