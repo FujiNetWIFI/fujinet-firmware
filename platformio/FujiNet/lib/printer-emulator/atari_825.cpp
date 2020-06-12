@@ -35,7 +35,7 @@ void atari825::clear_mode(uint16_t m)
     epson_font_mask &= ~m;
 }
 
-void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
+void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
     if (escMode)
     {
@@ -92,62 +92,46 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // need either 1-dot glyph or need to do a spacing adjustment like backspace
             if (epson_cmd.ctr > 0)
             {
-                pdfX += 1.2 * (float)c;
+                pdf_X += 1.2 * (float)c;
                 reset_cmd();
             }
             break;
-        case '4': // Italic character set ON
-            set_mode(fnt_italic);
+        case 17: // Proportional character set ON
+            set_mode(fnt_proportional);
+            clear_mode(fnt_compressed);
             reset_cmd();
             break;
-        case '5': // Italic character set OFF
-            clear_mode(fnt_italic);
+        case 19: // Select 10 CPI
+            clear_mode(fnt_proportional | fnt_compressed);
             reset_cmd();
             break;
-        case 'E': // Turns on emphasized mode. Can't mix with superscript, subscript, or compressed modes
-            set_mode(fnt_emphasized);
+        case 20: // Turns on compressed mode.
+            set_mode(fnt_compressed);
+            clear_mode(fnt_proportional);
             reset_cmd();
             break;
-        case 'F': // Turns off emphasized mode
-            clear_mode(fnt_emphasized);
+        case 10:                  // full reverse line feed
+            pdf_dY += lineHeight; // set pdf_dY and rise to N1/216.
+            pdf_set_rise();
             reset_cmd();
             break;
-        case 'J': // Sets line spacing to N/216" for one line only and
-                  // when received causes contents of buffer to print
-                  // IMMEDIATE LINE FEED OF SIZE N/216
-            if (epson_cmd.ctr > 0)
-            {
-                pdf_dY -= 72. * ((float)epson_cmd.N1) / 216.; // set pdf_dY and rise to N1/216.
-                pdf_set_rise();
-                reset_cmd();
-            }
+        case 14: // Double width printing. Stays ON until turned OFF
+            set_mode(fnt_expanded);
+            reset_cmd();
             break;
-        case 'j': // FX-80 immediate reverse line feed just like 'J'
-                  // when received causes contents of buffer to print
-                  // IMMEDIATE REVERSE LINE FEED OF SIZE N/216
-            if (epson_cmd.ctr > 0)
-            {
-                pdf_dY += 72. * (float)epson_cmd.N1 / 216.; // set pdf_dY and rise to N1/216.
-                pdf_set_rise();
-                reset_cmd();
-            }
+        case 15:
+            clear_mode(fnt_expanded);
+            reset_cmd();
             break;
-        case 'W': // Double width printing. Stays ON until turned OFF
-            // N=0 = > OFF, N=1 = > ON.
-            // Has precedence over Shift Out (SO = CHR$(14))
-            // Clears SO/14 mode
-            // Looks like modulo 48 from FX Printer Manual
-            if (epson_cmd.ctr > 0)
-            {
-                if (epson_cmd.N1 != 0)
-                    set_mode(fnt_expanded);
-                else
-                {
-                    clear_mode(fnt_expanded);
-                    clear_mode(fnt_SOwide);
-                }
-                reset_cmd();
-            }
+        case 28:                       // half forward line feed
+            pdf_dY -= lineHeight / 2.; // set pdf_dY and rise to N1/216.
+            pdf_set_rise();
+            reset_cmd();
+            break;
+        case 30:                       // half reverse line feed
+            pdf_dY += lineHeight / 2.; // set pdf_dY and rise to N1/216.
+            pdf_set_rise();
+            reset_cmd();
             break;
         default:
             reset_cmd();
