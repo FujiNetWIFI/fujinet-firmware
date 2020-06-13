@@ -16,17 +16,17 @@ public:
 
     virtual bool open(EdUrlParser* urlParser, cmdFrame_t* cmdFrame);
     virtual bool close();
-    virtual bool read(byte* rx_buf, unsigned short len);
-    virtual bool write(byte* tx_buf, unsigned short len);
-    virtual bool status(byte* status_buf);
-    virtual bool special(byte* sp_buf, unsigned short len, cmdFrame_t* cmdFrame);
+    virtual bool read(uint8_t* rx_buf, unsigned short len);
+    virtual bool write(uint8_t* tx_buf, unsigned short len);
+    virtual bool status(uint8_t* status_buf);
+    virtual bool special(uint8_t* sp_buf, unsigned short len, cmdFrame_t* cmdFrame);
     virtual bool special_supported_00_command(unsigned char comnd);
     virtual bool isConnected();
     
 private:
     fnTcpClient client;
     fnTcpServer * server;
-    byte client_error_code;
+    uint8_t client_error_code;
 
     bool special_accept_connection();
 };

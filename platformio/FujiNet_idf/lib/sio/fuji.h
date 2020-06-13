@@ -7,10 +7,6 @@
 #include "disk.h"
 #include "network.h"
 #include "fujiFsMounter.h"
-#ifdef ESP8266
-#include <ESP8266WiFi.h>
-#include <FS.h>
-#endif
 
 #define MAX_FILESYSTEMS 8
 #define MAX_DISK_DEVICES 8

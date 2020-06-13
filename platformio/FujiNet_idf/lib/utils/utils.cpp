@@ -5,8 +5,23 @@
 #include "utils.h"
 #include "debug.h"
 
+
+// convert to lowercase (in place)
+void util_string_tolower(std::string &s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+        [](unsigned char c){ return std::tolower(c); });
+}
+
+// convert to uppercase (in place)
+void util_string_toupper(std::string &s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+        [](unsigned char c){ return std::toupper(c); });
+}
+
 // trim from start (in place)
-void util_ltrim(std::string &s)
+void util_string_ltrim(std::string &s)
 {
     s.erase(
         s.begin(),
@@ -14,17 +29,17 @@ void util_ltrim(std::string &s)
 }
 
 // trim from end (in place)
-void util_rtrim(std::string &s)
+void util_string_rtrim(std::string &s)
 {
     s.erase(
         std::find_if(s.rbegin(), s.rend(), [](int ch) { return !std::isspace(ch); }).base(), s.end());
 }
 
 // trim from both ends (in place)
-void util_trim(std::string &s)
+void util_string_trim(std::string &s)
 {
-    util_ltrim(s);
-    util_rtrim(s);
+    util_string_ltrim(s);
+    util_string_rtrim(s);
 }
 
 int _util_peek(FILE *f)

@@ -30,7 +30,7 @@ private:
             return 0;
         }
         int count;
-        int res = lwip_ioctl_r(_fd, FIONREAD, &count);
+        int res = lwip_ioctl(_fd, FIONREAD, &count);
         if (res < 0)
         {
             _failed = true;
@@ -201,7 +201,7 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     serveraddr.sin_port = htons(port);
 
     // Connect to the server
-    int res = lwip_connect_r(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
+    int res = lwip_connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
     if (res < 0 && errno != EINPROGRESS)
     {
         Debug_printf("connect on fd %d, errno: %d, \"%s\"", sockfd, errno, strerror(errno));
@@ -401,6 +401,12 @@ size_t fnTcpClient::write(const uint8_t *buf, size_t size)
         }
     }
     return totalBytesSent;
+}
+
+// Send std::string of data
+size_t fnTcpClient::write(const std::string str)
+{
+    return write((uint8_t *)str.c_str(), str.length());
 }
 
 // Send zero-terminated string of data

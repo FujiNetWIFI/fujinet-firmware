@@ -11,11 +11,16 @@
 #define __IGNORE_UNUSED_VAR(v) (void)v
 #define __IGNORE_UNSUED_PVAR(v) (void*)v
 
-void util_ltrim(std::string &s);
-void util_rtrim(std::string &s);
-void util_trim(std::string &s);
+void util_string_ltrim(std::string &s);
+void util_string_rtrim(std::string &s);
+void util_string_trim(std::string &s);
+
+void util_string_tolower(std::string &s);
+void util_string_toupper(std::string &s);
+
 long util_parseInt(FILE *f, char skipChar);
 long util_parseInt(FILE *f);
+
 unsigned char util_checksum(const char *chunk, int length);
 std::string util_crunch(std::string filename);
 std::string util_entry(std::string crunched, size_t fileSize);

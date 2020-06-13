@@ -1,13 +1,9 @@
 #ifndef MODEM_H
 #define MODEM_H
 
-#ifdef ESP8266
-#include <ESP8266WiFi.h>
-#endif
-#ifdef ESP32
-#include <WiFi.h>
-#endif
-
+#include <string>
+#include "fnTcpServer.h"
+#include "fnTcpClient.h"
 #include "sio.h"
 
 #define HELPL01 "       FujiNet Virtual Modem 850"
@@ -73,21 +69,21 @@ private:
     int load_firmware(const char *filename, char **buffer);
 
     /* Modem Active Variables */
-    String cmd = "";               // Gather a new AT command to this string from serial
+    std::string cmd = "";          // Gather a new AT command to this string from serial
     bool cmdMode = true;           // Are we in AT command mode or connected mode
     bool cmdAtascii = false;       // last CMD contained an ATASCII EOL?
     bool telnet = false;           // Is telnet control code handling enabled
     unsigned short listenPort = 0; // Listen to this if not connected. Set to zero to disable.
-    WiFiClient tcpClient;          // Modem client
-    WiFiServer tcpServer;          // Modem server
+    fnTcpClient tcpClient;          // Modem client
+    fnTcpServer tcpServer;          // Modem server
     unsigned long lastRingMs = 0;  // Time of last "RING" message (millis())
     char plusCount = 0;            // Go to AT mode at "+++" sequence, that has to be counted
     unsigned long plusTime = 0;    // When did we last receive a "+++" sequence
     uint8_t txBuf[TX_BUF_SIZE];
     bool blockWritePending = false; // is a BLOCK WRITE pending for the modem?
-    byte *blockPtr;                 // pointer in the block write (points somewhere in sector)
+    uint8_t *blockPtr;                 // pointer in the block write (points somewhere in sector)
 
-    void sio_send_firmware(byte loadcommand); // $21 and $26: Booter/Relocator download; Handler download
+    void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                        // $3F, '?', Type 1 Poll
     void sio_control();                       // $41, 'A', Control
     void sio_config();                        // $42, 'B', Configure
@@ -104,8 +100,8 @@ private:
     void at_cmd_println();
     void at_cmd_println(const char *s, bool addEol = true);
     void at_cmd_println(int i, bool addEol = true);
-    void at_cmd_println(String s, bool addEol = true);
-    void at_cmd_println(IPAddress ipa, bool addEol = true);
+    void at_cmd_println(std::string s, bool addEol = true);
+    void at_cmd_println(in_addr_t ipa, bool addEol = true);
 
     // Command handlers
     void at_handle_dial();

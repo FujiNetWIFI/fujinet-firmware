@@ -43,20 +43,15 @@ public:
 
     size_t println(const char *format, ...);
     size_t println() { return print("\r\n"); };
-    //size_t println(const char *str);
+    size_t println(std::string str);
     size_t println(int num, int base = 10);
 
-    //size_t print(const char *str) { return write(str); };
     size_t print(const char *format, ...);
+    size_t print(std::string str);
     size_t print(int n, int base = 10);
     size_t print(unsigned int n, int base = 10);
     size_t print(long n, int base = 10);
     size_t print(unsigned long n, int base = 10);
-
-    //uint32_t baudRate();
-    //operator bool() const;
-    //size_t setRxBufferSize(size_t);
-    //void setDebugOutput(bool);
 };
 
 // Only define these if the default Arduino global SerialX objects aren't declared

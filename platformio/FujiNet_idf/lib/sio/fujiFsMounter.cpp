@@ -108,7 +108,7 @@ bool fujiFsMounter::exists(const char *path)
     return _fs->exists(path);
 }
 
-bool fujiFsMounter::exists(const String &path)
+bool fujiFsMounter::exists(const string path)
 {
     return exists(path.c_str());
 }
@@ -121,7 +121,7 @@ FILE * fujiFsMounter::open(const char *path, const char *mode)
     return _fs->file_open(path, mode);
 }
 
-FILE * fujiFsMounter::open(const String &path, const char *mode)
+FILE * fujiFsMounter::open(const string path, const char *mode)
 {
     return open(path.c_str(), mode);
 }

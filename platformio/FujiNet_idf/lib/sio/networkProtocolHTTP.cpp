@@ -17,7 +17,7 @@ networkProtocolHTTP::~networkProtocolHTTP()
     client.close();
 }
 
-bool networkProtocolHTTP::startConnection(byte *buf, unsigned short len)
+bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
 {
     bool ret = false;
 
@@ -146,7 +146,7 @@ bool networkProtocolHTTP::close()
     return true;
 }
 
-bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
+bool networkProtocolHTTP::read(uint8_t *rx_buf, unsigned short len)
 {
     if (!requestStarted)
     {
@@ -213,11 +213,11 @@ bool networkProtocolHTTP::read(byte *rx_buf, unsigned short len)
     return false;
 }
 
-bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
+bool networkProtocolHTTP::write(uint8_t *tx_buf, unsigned short len)
 {
     int b;
-    String headerKey;
-    String headerValue;
+    string headerKey;
+    string headerValue;
     char tmpKey[256];
     char tmpValue[256];
     char *p;
@@ -297,7 +297,7 @@ bool networkProtocolHTTP::write(byte *tx_buf, unsigned short len)
     return false;
 }
 
-bool networkProtocolHTTP::status(byte *status_buf)
+bool networkProtocolHTTP::status(uint8_t *status_buf)
 {
     int a; // available bytes
 
@@ -540,7 +540,7 @@ bool networkProtocolHTTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return client.MOVE(rnTo.c_str(), false);
 }
 
-bool networkProtocolHTTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+bool networkProtocolHTTP::special(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
     {

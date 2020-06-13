@@ -59,7 +59,7 @@ bool fnTcpServer::hasClient()
 
     struct sockaddr_in _client;
     int cs = sizeof(struct sockaddr_in);
-    _accepted_sockfd = lwip_accept_r(_sockfd, (struct sockaddr *)&_client, (socklen_t *)&cs);
+    _accepted_sockfd = lwip_accept(_sockfd, (struct sockaddr *)&_client, (socklen_t *)&cs);
 
     if (_accepted_sockfd >= 0)
     {
@@ -90,7 +90,7 @@ fnTcpClient fnTcpServer::available()
     {
         struct sockaddr_in _client;
         int cs = sizeof(struct sockaddr_in);
-        client_sock = lwip_accept_r(_sockfd, (struct sockaddr *)&_client, (socklen_t *)&cs);
+        client_sock = lwip_accept(_sockfd, (struct sockaddr *)&_client, (socklen_t *)&cs);
     }
 
     // If we have a client, turn on SO_KEEPALIVE and TCP_NODELAY and return new fnTcpClient
@@ -123,7 +123,7 @@ int fnTcpServer::setTimeout(uint32_t seconds)
 // Closes listening socket
 void fnTcpServer::stop()
 {
-    lwip_close_r(_sockfd);
+    lwip_close(_sockfd);
     _sockfd = -1;
     _listening = false;
 }

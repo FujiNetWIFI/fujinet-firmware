@@ -11,8 +11,8 @@ class sioPrinter : public sioDevice
 {
 protected:
     // SIO THINGS
-    byte _buffer[40];
-    void sio_write(byte aux1, byte aux2);
+    uint8_t _buffer[40];
+    void sio_write(uint8_t aux1, uint8_t aux2);
     void sio_status() override;
     void sio_process() override;
 
@@ -20,8 +20,8 @@ protected:
     FileSystem *_storage = nullptr;
 
     time_t _last_ms;
-    byte _lastaux1;
-    byte _lastaux2;
+    uint8_t _lastaux1;
+    uint8_t _lastaux2;
 
 public:
     // todo: reconcile printer_type with paper_t

@@ -30,6 +30,7 @@ public:
     size_t write(uint8_t data);
     size_t write(const uint8_t *buf, size_t size);
     size_t write(const char *buff);
+    size_t write(const std::string str);
 
     int read();
     int read(uint8_t *buf, size_t size);

@@ -41,7 +41,7 @@ bool networkProtocolUDP::close()
     return true;
 }
 
-bool networkProtocolUDP::read(byte *rx_buf, unsigned short len)
+bool networkProtocolUDP::read(uint8_t *rx_buf, unsigned short len)
 {
 #ifdef DEBUG
     Debug_printf("networkProtocolUDP::read %d bytes\n", len);
@@ -53,7 +53,7 @@ bool networkProtocolUDP::read(byte *rx_buf, unsigned short len)
     return false;
 }
 
-bool networkProtocolUDP::write(byte *tx_buf, unsigned short len)
+bool networkProtocolUDP::write(uint8_t *tx_buf, unsigned short len)
 {
 #ifdef DEBUG
     Debug_printf("networkProtocolUDP::write %d bytes to dest: %s port %d\n", len, dest, port);
@@ -73,7 +73,7 @@ bool networkProtocolUDP::write(byte *tx_buf, unsigned short len)
         return false;
 }
 
-bool networkProtocolUDP::status(byte *status_buf)
+bool networkProtocolUDP::status(uint8_t *status_buf)
 {
     unsigned short len = udp.parsePacket();
 
@@ -105,7 +105,7 @@ bool networkProtocolUDP::special_supported_80_command(unsigned char comnd)
         return false;
 }
 
-bool networkProtocolUDP::special_set_destination(byte *sp_buf, unsigned short len)
+bool networkProtocolUDP::special_set_destination(uint8_t *sp_buf, unsigned short len)
 {
 #ifdef DEBUG
     Debug_printf("Dest Path Passed in: %s\n", sp_buf);
@@ -134,7 +134,7 @@ bool networkProtocolUDP::special_set_destination(byte *sp_buf, unsigned short le
     return false; // no error.
 }
 
-bool networkProtocolUDP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+bool networkProtocolUDP::special(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     bool err = false;
 

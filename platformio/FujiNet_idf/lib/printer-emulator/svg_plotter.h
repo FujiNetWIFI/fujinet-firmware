@@ -63,7 +63,7 @@ protected:
     void graphics_command(int n);
 
     void svg_handle_char(unsigned char c);                                    //virtual void svg_handle_char(unsigned char c) = 0; //     virtual void pdf_handle_char(byte c, byte aux1, byte aux2) = 0;
-    virtual bool process_buffer(byte linelen, byte aux1, byte aux2) override; //void svg_add(int n);
+    virtual bool process_buffer(uint8_t linelen, uint8_t aux1, uint8_t aux2) override; //void svg_add(int n);
     virtual void pre_close_file() override;
     virtual void post_new_file() override;
 
