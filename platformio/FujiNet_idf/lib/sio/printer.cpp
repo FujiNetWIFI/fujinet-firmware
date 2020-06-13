@@ -22,7 +22,7 @@ sioPrinter::~sioPrinter()
 }
 
 // write for W commands
-void sioPrinter::sio_write(byte aux1, byte aux2)
+void sioPrinter::sio_write(uint8_t aux1, uint8_t aux2)
 {
     /* 
   How many bytes the Atari will be sending us:
@@ -39,7 +39,7 @@ void sioPrinter::sio_write(byte aux1, byte aux2)
 
   Auxiliary Byte 2 for Atari 822 might be 0 or 1 in graphics mode
 */
-    byte linelen;
+    uint8_t linelen;
     switch (aux1)
     {
     case 'N':
@@ -56,7 +56,7 @@ void sioPrinter::sio_write(byte aux1, byte aux2)
     }
 
     memset(_buffer, 0, sizeof(_buffer)); // clear _buffer
-    byte ck = sio_to_peripheral(_buffer, linelen);
+    uint8_t ck = sio_to_peripheral(_buffer, linelen);
 
     if (ck == sio_checksum(_buffer, linelen))
     {
@@ -64,7 +64,7 @@ void sioPrinter::sio_write(byte aux1, byte aux2)
         {
             for (int i = 0; i < (linelen / 2); i++)
             {
-                byte tmp = _buffer[i];
+                uint8_t tmp = _buffer[i];
                 _buffer[i] = _buffer[linelen - i - 1];
                 _buffer[linelen - i - 1] = tmp;
                 if (_buffer[i] == ATASCII_EOL)
@@ -94,11 +94,11 @@ void sioPrinter::sio_status()
     /*
   STATUS frame per the 400/800 OS ROM Manual
   Command Status
-  Aux 1 Byte (typo says AUX2 byte)
+  Aux 1 Byte (typo says AUX2 uint8_t)
   Timeout
   Unused
 
-  OS ROM Manual continues on Command Status byte:
+  OS ROM Manual continues on Command Status uint8_t:
   bit 0 - invalid command frame
   bit 1 - invalid data frame
   bit 7 - intelligent controller (normally 0)
@@ -110,14 +110,14 @@ void sioPrinter::sio_status()
   AUX. BYTE 1 from last WRITE COMMAND
   DATA WRITE TIMEOUT
   CHECKSUM
-  The FLAG byte contains information relating to the most recent
+  The FLAG uint8_t contains information relating to the most recent
   command prior to the status request and some controller constants.
   The DATA WRITE Timeout equals the maximum time to print a
   line of data assuming worst case controller produced Timeout
   delay. This Timeout is associated with printer timeout
   discussed earlier. 
 */
-    byte status[4];
+    uint8_t status[4];
 
     status[0] = 0;
     status[1] = _lastaux1;

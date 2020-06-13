@@ -1,4 +1,6 @@
 #include "../../include/debug.h"
+#include <memory.h>
+#include <string.h>
 #include "fnSystem.h"
 #include "disk.h"
 
@@ -69,7 +71,7 @@ void sioDisk::sio_read()
         // implement caching.
     }
     // Send result to Atari
-    sio_to_computer((byte *)&sector, ss, err);
+    sio_to_computer((uint8_t *)&sector, ss, err);
     lastSectorNum = sectorNum;
 }
 
@@ -82,7 +84,7 @@ void sioDisk::sio_write(bool verify)
     unsigned short sectorNum = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
     long offset = sector_offset(sectorNum, sectorSize);
     unsigned short ss = sector_size(sectorNum, sectorSize);
-    byte ck;
+    uint8_t ck;
 
     memset(sector, 0, sizeof(sector));
 
@@ -155,8 +157,8 @@ void sioDisk::sio_write(bool verify)
 void sioDisk::sio_status()
 {
 
-    byte status[4] = {0x10, 0xDF, 0xFE, 0x00};
-    //byte deviceSlot = cmdFrame.devic - 0x31;
+    uint8_t status[4] = {0x10, 0xDF, 0xFE, 0x00};
+    //uint8_t deviceSlot = cmdFrame.devic - 0x31;
 
     if (sectorSize == 256)
     {
@@ -186,7 +188,7 @@ void sioDisk::sio_format()
     sector[1] = 0xFF;
 
     // Send to computer
-    sio_to_computer((byte *)sector, sectorSize, false);
+    sio_to_computer((uint8_t *)sector, sectorSize, false);
 
 #ifdef DEBUG
     Debug_printf("We faked a format.\n");
@@ -286,7 +288,7 @@ void sioDisk::sio_read_percom_block()
 #ifdef DEBUG_VERBOSE
     dump_percom_block();
 #endif
-    sio_to_computer((byte *)&percomBlock, 12, false);
+    sio_to_computer((uint8_t *)&percomBlock, 12, false);
     //SIO_UART.flush();
     fnUartSIO.flush();
 }
@@ -297,7 +299,7 @@ void sioDisk::sio_read_percom_block()
 void sioDisk::sio_write_percom_block()
 {
     // unsigned char deviceSlot = cmdFrame.devic - 0x31;
-    sio_to_peripheral((byte *)&percomBlock, 12);
+    sio_to_peripheral((uint8_t *)&percomBlock, 12);
 #ifdef DEBUG_VERBOSE
     dump_percom_block(deviceSlot);
 #endif
@@ -332,7 +334,7 @@ void sioDisk::mount(FILE *f)
     unsigned short num_para;
     unsigned char num_para_hi;
     unsigned short num_sectors;
-    byte buf[5];
+    uint8_t buf[5];
 
 #ifdef DEBUG
     Debug_println("sioDisk::MOUNT");
@@ -436,7 +438,7 @@ bool sioDisk::write_blank_atr(FILE *f, unsigned short sectorSize, unsigned short
     //offset = f->write(atrHeader.rawData, sizeof(atrHeader.rawData));
     offset = fwrite(atrHeader.rawData, 1, sizeof(atrHeader.rawData), f);
 
-    // Write first three 128 byte sectors
+    // Write first three 128 uint8_t sectors
     memset(sector, 0x00, sizeof(sector));
 
 #ifdef DEBUG

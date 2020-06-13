@@ -22,9 +22,9 @@ private:
     FILE *_file;
 
     unsigned short sectorSize = 128;
-    byte sector[256];
+    uint8_t sector[256];
 
-    byte sectorCache[4][256];
+    uint8_t sectorCache[4][256];
     unsigned short lastSectorNum = 65535;
 
     struct

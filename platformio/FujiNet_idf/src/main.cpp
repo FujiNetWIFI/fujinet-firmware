@@ -1,21 +1,13 @@
 /*
-MAJOR REV 2 UPDATE
-done        1. the FujiNet SIO 0x70 device (device slots, too)
-need sio new disk        2. the SIO read/write/cmdFrame/etc. update
-done        3. tnfs update  so we can have more than one server
-            4. R device
-            5. P: update (if needed with 2. SIO update)
-done        6. percom inclusion in D devices
-            7. HTTP server
-hacked      8. SD card support
-            9. convert debug messages
-
-status:
-moved over everything from multilator-rev2.ino except sio new disk
-hacked in a special case for SD - set host as "SD" in the Atari config program
+MAJOR REV 3 UPDATE - June 12, 2020
+After transitioning the Arduino-ESP components from the project to ESP-IDF equivalent
+code, the source files have been copied into a new ESP-IDF project. Code massaging and
+testing commences...
 */
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
+
+#include "debug.h"
 
 #include "fnSystem.h"
 #include "fnWiFi.h"
@@ -60,8 +52,12 @@ LedManager ledMgr;
 BluetoothManager btMgr;
 #endif
 
-// SET UP ALL THE THINGS
-void setup()
+TaskHandle_t _taskh_main_loop;
+
+/*
+* Initial setup
+*/
+void main_setup()
 {
 #ifdef DEBUG_S
 #ifdef NO_GLOBAL_SERIAL
@@ -76,7 +72,7 @@ void setup()
     Debug_printf("\n\n--~--~--~--\nFujiNet PlatformIO Started @ %lu\n", startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
 #ifdef BOARD_HAS_PSRAM
-    Debug_printf("PsramSize %u\n", ESP.getPsramSize());
+    Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
     //Debug_printf("spiram size %u\n", esp_spiram_get_size());
     //Debug_printf("himem free %u\n", esp_himem_get_free_size());
     Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
@@ -141,8 +137,10 @@ void setup()
 #endif
 }
 
-// MAIN PROGRAM LOOP
-void loop()
+/*
+* Main activity loop
+*/
+void main_loop(void *param)
 {
 #ifdef DEBUG_N
     /* Connect to debug server if we aren't and WiFi is connected */
@@ -245,4 +243,20 @@ void loop()
     {
         SIO.service();
     }
+}
+
+/*
+* This is the start/entry point for an ESP-IDF program
+*/
+void app_main()
+{
+    // Call our setup routing
+    main_setup();
+
+    // Start a new task to run the loop that was previously
+    // the core of the Arduino-ESP project
+#define MAIN_LOOP_STACK_SIZE 4096
+#define MAIN_LOOP_PRIORITY 5    
+    xTaskCreate(main_loop, "main_loop", MAIN_LOOP_STACK_SIZE, nullptr, MAIN_LOOP_PRIORITY, &_taskh_main_loop);
+
 }

@@ -76,11 +76,11 @@ union cmdFrame_t {
       unsigned char aux2;
       unsigned char cksum;
    };
-   byte cmdFrameData[5];
+   uint8_t cmdFrameData[5];
 };
 
 //helper functions
-byte sio_checksum(byte *chunk, int length);
+uint8_t sio_checksum(uint8_t *chunk, int length);
 void sio_flush();
 
 // class def'ns
@@ -100,8 +100,8 @@ protected:
    bool listen_to_type3_polls = false;
    unsigned char status_wait_count = 5;
 
-   void sio_to_computer(byte *b, unsigned short len, bool err);
-   byte sio_to_peripheral(byte *b, unsigned short len);
+   void sio_to_computer(uint8_t *b, unsigned short len, bool err);
+   uint8_t sio_to_peripheral(uint8_t *b, unsigned short len);
 
    void sio_ack();
    void sio_nak();

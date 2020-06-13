@@ -22,14 +22,14 @@ void sio_flush()
 }
 
 // Calculate 8-bit checksum
-byte sio_checksum(byte *chunk, int length)
+uint8_t sio_checksum(uint8_t *chunk, int length)
 {
     int chkSum = 0;
     for (int i = 0; i < length; i++)
     {
         chkSum = ((chkSum + chunk[i]) >> 8) + ((chkSum + chunk[i]) & 0xff);
     }
-    return (byte)chkSum;
+    return (uint8_t)chkSum;
 }
 
 /*
@@ -38,9 +38,9 @@ byte sio_checksum(byte *chunk, int length)
    len = length of buffer
    err = did an error happen before this read?
 */
-void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
+void sioDevice::sio_to_computer(uint8_t *b, unsigned short len, bool err)
 {
-    byte ck = sio_checksum(b, len);
+    uint8_t ck = sio_checksum(b, len);
 
     if (err == true)
         sio_error();
@@ -69,9 +69,9 @@ void sioDevice::sio_to_computer(byte *b, unsigned short len, bool err)
    len = length
    returns checksum reported by atari
 */
-byte sioDevice::sio_to_peripheral(byte *b, unsigned short len)
+uint8_t sioDevice::sio_to_peripheral(uint8_t *b, unsigned short len)
 {
-    byte ck;
+    uint8_t ck;
 
 // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu\n", len);
@@ -147,8 +147,8 @@ void sioDevice::sio_error()
 */
 void sioDevice::sio_high_speed()
 {
-    byte hsd = HISPEED_INDEX;
-    sio_to_computer((byte *)&hsd, 1, false);
+    uint8_t hsd = HISPEED_INDEX;
+    sio_to_computer((uint8_t *)&hsd, 1, false);
 }
 
 /*
@@ -167,7 +167,7 @@ void sioDevice::sio_high_speed()
  Or rather, only call sioDevice->service() when sioDevice->state() != WAIT.
  We never will call sio_incoming when there's a WAIT state.
  Need to figure out reseting cmdTimer when state goes to WAIT or there's a NAK
- if no device is != WAIT, we toss the SIO_UART byte & set cmdTimer to 0.
+ if no device is != WAIT, we toss the SIO_UART uint8_t & set cmdTimer to 0.
  Maybe we have a BUSY state for the sioBus that's an OR of all the cmdState != WAIT.
  
  TODO: cmdTimer to sioBus, assign cmdState after finding device ID
@@ -227,7 +227,7 @@ void sioBus::service()
         while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
             fnSystem.yield();
 
-        byte ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
+        uint8_t ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
         if (ck == tempFrame.cksum)
         {
             if (fujiDev != nullptr && fujiDev->load_config && tempFrame.devic == SIO_DEVICEID_DISK)

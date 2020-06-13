@@ -1,6 +1,8 @@
 #include "samlib.h"
 
-#include "../../lib/hardware/fnSystem.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/timers.h>
+#include <driver/dac.h>
 
 #ifdef __cplusplus
 extern char input[256];
@@ -151,16 +153,25 @@ void OutputSound()
 #ifdef ESP_32
     int n = GetBufferLength() / 50;
     char *s = GetBuffer();
-    fnSystem.dac_output_enable(SystemManager::dac_channel_t::DAC_CHANNEL_1);
-    fnSystem.dac_output_voltage(SystemManager::dac_channel_t::DAC_CHANNEL_1, 100);
+
+    //fnSystem.dac_output_enable(SystemManager::dac_channel_t::DAC_CHANNEL_1);
+    //fnSystem.dac_output_voltage(SystemManager::dac_channel_t::DAC_CHANNEL_1, 100);
+
+    dac_output_enable(DAC_CHANNEL_1);
+
     for (int i = 0; i < n; i++)
     {
         //dacWrite(DAC1, s[i]);
-        fnSystem.dac_write(PIN_DAC1, s[i]);
+        // fnSystem.dac_write(PIN_DAC1, s[i]);
+        dac_output_voltage(DAC_CHANNEL_1, s[i]);
         //delayMicroseconds(40);
-        fnSystem.delay_microseconds(40);
+        //fnSystem.delay_microseconds(40);
+        vTaskDelay(40 / portTICK_PERIOD_MS / 1000);
     }
-    fnSystem.dac_output_disable(SystemManager::dac_channel_t::DAC_CHANNEL_1);
+
+    //fnSystem.dac_output_disable(SystemManager::dac_channel_t::DAC_CHANNEL_1);
+    dac_output_disable(DAC_CHANNEL_1);
+
     FreeBuffer();
 #endif
 }

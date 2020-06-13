@@ -3,7 +3,6 @@
 
 #include "pdf_printer.h"
 
-typedef uint8_t byte;
 
 class atari1029 : public pdfPrinter
 {

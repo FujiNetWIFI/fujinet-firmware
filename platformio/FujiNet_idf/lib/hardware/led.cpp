@@ -2,14 +2,8 @@
 #include "led.h"
 #include "fnSystem.h"
 
-#if defined(ESP8266)
-#define PIN_LED_WIFI 2
-#define PIN_LED_SIO 2
-#define PIN_LED_BT 2
-#elif defined(ESP32)
 #define PIN_LED_WIFI 2
 #define PIN_LED_SIO 4
-
 // pins 12-15 are used to interface with the JTAG debugger
 // so leave them alone if we're using JTAG
 #ifndef JTAG 
@@ -18,7 +12,7 @@
 #define PIN_LED_BT 4
 #endif
 
-#endif
+
 
 LedManager::LedManager()
 {

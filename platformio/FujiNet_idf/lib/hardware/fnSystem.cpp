@@ -1,11 +1,15 @@
-#include <Arduino.h> // Lets us get the Arduino framework version
+//#include <Arduino.h> // Lets us get the Arduino framework version
 
-#include <string.h>
+#include <freertos/task.h>
 #include <esp_system.h>
+#include <esp_err.h>
 #include <esp_timer.h>
 #include <driver/gpio.h>
 #include <driver/dac.h>
+#include <driver/adc.h>
 #include "soc/sens_reg.h"
+#include "esp_adc_cal.h"
+
 
 #include "../../include/debug.h"
 #include "../../include/version.h"
@@ -13,6 +17,8 @@
 #include "fnSystem.h"
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
+
+#define NOP() asm volatile ("nop")
 
 // Global object to manage System
 SystemManager fnSystem;
@@ -361,34 +367,40 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
 
 
 // From esp32-hal-dac.c
+/*
 void IRAM_ATTR SystemManager::dac_write(uint8_t pin, uint8_t value)
 {
-    if(pin < 25 || pin > 26){
-        return;//not dac pin
-    }
-    pinMode(pin, ANALOG);
-    uint8_t channel = pin - 25;
+    if(pin != DAC_CHANNEL_1_GPIO_NUM && pin != DAC_CHANNEL_2_GPIO_NUM)
+        return; // Not a DAC pin
+    
+    dac_channel_t dac_chan = pin == DAC_CHANNEL_1_GPIO_NUM ? DAC_CHANNEL_1 : DAC_CHANNEL_2;
 
-    //Disable Tone
+    ESP_ERROR_CHECK(dac_output_enable(dac_chan));
+
+    // Disable tone
     CLEAR_PERI_REG_MASK(SENS_SAR_DAC_CTRL1_REG, SENS_SW_TONE_EN);
 
-    if (channel) {
-        //Disable Channel Tone
+    if (dac_chan == DAC_CHANNEL_2)
+    {
+        // Disable channel tone
         CLEAR_PERI_REG_MASK(SENS_SAR_DAC_CTRL2_REG, SENS_DAC_CW_EN2_M);
-        //Set the Dac value
+        // Set the DAC value
         SET_PERI_REG_BITS(RTC_IO_PAD_DAC2_REG, RTC_IO_PDAC2_DAC, value, RTC_IO_PDAC2_DAC_S);   //dac_output
-        //Channel output enable
+        // Channel output enable
         SET_PERI_REG_MASK(RTC_IO_PAD_DAC2_REG, RTC_IO_PDAC2_XPD_DAC | RTC_IO_PDAC2_DAC_XPD_FORCE);
-    } else {
-        //Disable Channel Tone
+    }
+    else
+    {
+        // Disable Channel tone
         CLEAR_PERI_REG_MASK(SENS_SAR_DAC_CTRL2_REG, SENS_DAC_CW_EN1_M);
-        //Set the Dac value
+        // Set the DAC value
         SET_PERI_REG_BITS(RTC_IO_PAD_DAC1_REG, RTC_IO_PDAC1_DAC, value, RTC_IO_PDAC1_DAC_S);   //dac_output
-        //Channel output enable
+        // Channel output enable
         SET_PERI_REG_MASK(RTC_IO_PAD_DAC1_REG, RTC_IO_PDAC1_XPD_DAC | RTC_IO_PDAC1_DAC_XPD_FORCE);
     }
 }
-
+*/
+/*
 esp_err_t SystemManager::dac_output_disable(dac_channel_t channel)
 {
     return ::dac_output_disable((::dac_channel_t)channel);
@@ -400,4 +412,12 @@ esp_err_t SystemManager::dac_output_enable(dac_channel_t channel)
 esp_err_t SystemManager::dac_output_voltage(dac_channel_t channel, uint8_t dac_value)
 {
     return ::dac_output_voltage((::dac_channel_t)channel, dac_value);
+}
+*/
+
+uint32_t SystemManager::get_psram_size()
+{
+    multi_heap_info_t info;
+    heap_caps_get_info(&info, MALLOC_CAP_SPIRAM);
+    return info.total_free_bytes + info.total_allocated_bytes;
 }

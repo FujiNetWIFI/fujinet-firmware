@@ -94,13 +94,13 @@ void sioApeTime::sio_time()
         now->tm_mon++;
         now->tm_year-=100;
 
-        byte sio_ts[6] = {
-            (byte)now->tm_mday,
-            (byte)now->tm_mon,
-            (byte)now->tm_year,
-            (byte)now->tm_hour,
-            (byte)now->tm_min,
-            (byte)now->tm_sec};
+        uint8_t sio_ts[6] = {
+            (uint8_t)now->tm_mday,
+            (uint8_t)now->tm_mon,
+            (uint8_t)now->tm_year,
+            (uint8_t)now->tm_hour,
+            (uint8_t)now->tm_min,
+            (uint8_t)now->tm_sec};
         sio_to_computer(sio_ts, sizeof(sio_ts), false);
     }
     else
@@ -108,7 +108,7 @@ void sioApeTime::sio_time()
 #ifdef DEBUG
     Debug_println("parsePacket failed");
 #endif
-        byte sio_ts[6]={0,0,0,0,0,0};
+        uint8_t sio_ts[6]={0,0,0,0,0,0};
         sio_to_computer(sio_ts,sizeof(sio_ts),true);
     }
 

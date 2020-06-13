@@ -10,9 +10,9 @@ class sioVoice : public sioDevice
 {
 protected:
     // act like a printer for POC
-    byte lastAux1 = 0;
+    uint8_t lastAux1 = 0;
 
-    byte buffer[41];
+    uint8_t buffer[41];
     void sio_write();
 
     virtual void sio_process();
