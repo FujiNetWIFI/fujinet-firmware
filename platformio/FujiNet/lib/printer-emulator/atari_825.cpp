@@ -220,7 +220,7 @@ void atari825::post_new_file()
     translate850 = true;
     _eol = ASCII_CR;
 
-    shortname = "epson";
+    shortname = "a1025"; //  TODO: change to Atari 825 fonts a825
 
     pageWidth = 612.0;
     pageHeight = 792.0;

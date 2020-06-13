@@ -201,6 +201,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string model_name)
             "file printer (ASCII)",
             "Atari 820",
             "Atari 822",
+            "Atari 825",
             "Atari 1020",
             "Atari 1025",
             "Atari 1027",
