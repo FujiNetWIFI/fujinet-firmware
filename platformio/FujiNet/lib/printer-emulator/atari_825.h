@@ -34,11 +34,11 @@ protected:
     uint8_t epson_font_lookup(uint16_t code);
     float epson_font_width(uint16_t code);
     void epson_set_font(uint8_t F, float w);
-    //void at_reset();
 
-   virtual void pdf_clear_modes() override {};
+    virtual void pdf_clear_modes() override{};
     void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;
+
 public:
     const char *modelname() { return "Atari 825"; };
 };
