@@ -247,14 +247,14 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 switch (epson_cmd.cmd)
                 {
                 case 'K':
-                   charWidth = 1.2;
+                    charWidth = 1.2;
                     break;
                 case 'L': // Sets dot graphics mode to 960 dots per 8" line
                 case 'Y': // on FX-80 this is double speed but with gotcha
-                   charWidth = 0.6;
+                    charWidth = 0.6;
                     break;
                 case 'Z': // on FX-80 this is double speed but with gotcha
-                   charWidth = 0.3;
+                    charWidth = 0.3;
                     break;
                 }
                 fprintf(_file, ")]TJ /F2 9 Tf 100 Tz [("); // set font to GFX mode
@@ -432,6 +432,9 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 10: // Line Feed. Printer empties its buffer and does line feed at
                  // current line spacing and Resets buffer pointer to zero
+            pdf_dY -= lineHeight; // set pdf_dY and rise to one line
+            pdf_set_rise();
+            break;
         case 11: //Vertical Tab - does single line feed (same as LF on MX80)
             not_implemented();
             // set pdf_dY -= lineHeight;
