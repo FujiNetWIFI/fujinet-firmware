@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>FujiNet</title>
+	<link rel="stylesheet" href="/file?style.css">
+	<meta charset="utf-8"/>
+</head>
+<body>
+<a href="https://github.com/FujiNetWIFI/atariwifi">
+<img class="logo" src="/file?logo.png"></a>
+<br/>
+
+<!--
+<div id="spiffs_storage">
+<canvas id="cvsStorage"></canvas>
+<script>
+	var iSPIFFS_total=<%FN_SPIFFS_SIZE%>;
+	var iSPIFFS_used=<%FN_SPIFFS_USED%>;
+	var iSPIFFS_free=iSPIFFS_total - iSPIFFS_used;
+</script>
+<script type="text/javascript" src="/file?storage.js"></script>
+<br/>
+SPIFFS storage free/used
+</div>
+-->
+
+<table class="info">
+<tr>
+	<td>FujiNet version:</td>
+	<td><%FN_VERSION%></td>
+</tr>
+<tr>
+	<td>Host name:</td>
+	<td><%FN_HOSTNAME%></td>
+</tr>
+<tr>
+	<td>IP address:</td>
+	<td><%FN_IPADDRESS%>/<%FN_IPMASK%></td>
+</tr>
+<tr>
+	<td>Default gateway:</td>
+	<td><%FN_IPGATEWAY%></td>
+</tr>
+<tr>
+	<td>DNS server:</td>
+	<td><%FN_IPDNS%></td>
+</tr>
+<tr>
+	<td>WiFi SSID:</td>
+	<td><%FN_WIFISSID%></td>
+</tr>
+<tr>
+	<td>WiFi BSSID:</td>
+	<td><%FN_WIFIBSSID%></td>
+</tr>
+<tr>
+	<td>WiFi MAC address:</td>
+	<td><%FN_WIFIMAC%></td>
+</tr>
+<tr>
+	<td>SPIFFS size:</td>
+	<td><%FN_SPIFFS_SIZE%></td>
+</tr>
+<tr>
+	<td>SPIFFS used:</td>
+	<td><%FN_SPIFFS_USED%></td>
+</tr>
+<tr>
+	<td>SD size:</td>
+	<td><%FN_SD_SIZE%></td>
+</tr>
+<tr>
+	<td>SD used:</td>
+	<td><%FN_SD_USED%></td>
+</tr>
+<tr>
+	<td>Uptime:</td>
+	<td><%FN_UPTIME%></td>
+</tr>
+<tr>
+	<td>Free heap:</td>
+	<td><%FN_HEAPSIZE%></td>
+</tr>
+<tr>
+	<td>SOC SDK:</td>
+	<td><%FN_SYSSDK%></td>
+</tr>
+<tr>
+	<td>CPU revision:</td>
+	<td><%FN_SYSCPUREV%></td>
+</tr>
+<tr>
+	<td>SIO Voltage:</td>
+	<td><%FN_SIOVOLTS%></td>
+</tr>
+
+</table>
+
+
+
+<br/>
+<br/>
+
+<table class="printer">
+<tr>
+	<td class="small not-important">
+		Click to download<br/>
+		your current print-out:
+	<td class="small">
+		Change printer type:
+	<td>
+	</td>
+</tr>
+<tr>
+	<td>
+		<a href="/print"><img src="/file?printer.svg" class="printer"></a>
+	</td>
+	<td class="printform small">
+		<form action="/config" method="post">
+			<select name="printermodel1" id="select_printermodel1">
+				<option value="file printer (RAW)">file printer (RAW)</option>
+				<option value="file printer (TRIM)">file printer (TRIM)</option>
+				<option value="file printer (ASCII)">file printer (ASCII)</option>
+				<option value="Atari 820">Atari 820</option>
+				<option value="Atari 822">Atari 822</option>
+				<option value="Atari 1020">Atari 1020</option>
+				<option value="Atari 1025">Atari 1025</option>
+				<option value="Atari 1027">Atari 1027</option>
+				<option value="Atari 1029">Atari 1029</option>
+				<option value="Epson 80">Epson 80</option>
+				<option value="GRANTIC">GRANTIC</option>
+				<option value="HTML printer">HTML printer</option>
+				<option value="HTML ATASCII printer">HTML ATASCII printer</option>
+			</select>
+			<input type="submit" value="Change">
+		</form>
+		<br />Change printer port:
+		<form action="/config" method="post">
+			<select name="printerport1" id="select_printerport1">
+				<option value="1">P1:</option>
+				<option value="2">P2:</option>
+				<option value="3">P3:</option>
+			</select>
+			<input type="submit" value="Change">
+		</form>
+	</td>
+</tr>
+<tr>
+	<td class="small">
+		Current: <%FN_PRINTER1_MODEL%> on P<%FN_PRINTER1_PORT%>:
+	</td>
+	<td>
+	</td>
+</tr>
+</table>
+<script>
+	var current_printer="<%FN_PRINTER1_MODEL%>";
+	var current_printerport="<%FN_PRINTER1_PORT%>";
+</script>
+<script type="text/javascript" src="/file?selectedprinter.js"></script>
+
+</body>
+</html>
