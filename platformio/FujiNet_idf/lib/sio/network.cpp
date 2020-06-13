@@ -1,5 +1,5 @@
 #include "driver/timer.h"
-#include "esp32-hal-psram.h"
+//#include "esp32-hal-psram.h"
 
 #include "../../include/debug.h"
 #include "../hardware/fnSystem.h"
@@ -35,20 +35,21 @@ void onTimer(void *info)
 bool sioNetwork::allocate_buffers()
 {
     // NOTE: ps_calloc() results in heap corruption, at least in Arduino-ESP.
+    // TODO: try using heap_caps_calloc()
 #ifdef BOARD_HAS_PSRAM
     /*
-    rx_buf = (byte *)ps_calloc(INPUT_BUFFER_SIZE, 1);
-    tx_buf = (byte *)ps_calloc(OUTPUT_BUFFER_SIZE, 1);
-    sp_buf = (byte *)ps_calloc(SPECIAL_BUFFER_SIZE, 1);
+    rx_buf = (uint8_t *)ps_calloc(INPUT_BUFFER_SIZE, 1);
+    tx_buf = (uint8_t *)ps_calloc(OUTPUT_BUFFER_SIZE, 1);
+    sp_buf = (uint8_t *)ps_calloc(SPECIAL_BUFFER_SIZE, 1);
 */
-    rx_buf = (byte *)ps_malloc(INPUT_BUFFER_SIZE);
-    tx_buf = (byte *)ps_malloc(OUTPUT_BUFFER_SIZE);
-    sp_buf = (byte *)ps_malloc(SPECIAL_BUFFER_SIZE);
+    rx_buf = (uint8_t *)heap_caps_malloc(INPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    tx_buf = (uint8_t *)heap_caps_malloc(OUTPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    sp_buf = (uint8_t *)heap_caps_malloc(SPECIAL_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
 #else
-    rx_buf = (byte *)calloc(1, INPUT_BUFFER_SIZE);
-    tx_buf = (byte *)calloc(1, OUTPUT_BUFFER_SIZE);
-    sp_buf = (byte *)calloc(1, SPECIAL_BUFFER_SIZE);
+    rx_buf = (uint8_t *)calloc(1, INPUT_BUFFER_SIZE);
+    tx_buf = (uint8_t *)calloc(1, OUTPUT_BUFFER_SIZE);
+    sp_buf = (uint8_t *)calloc(1, SPECIAL_BUFFER_SIZE);
 #endif
     if ((rx_buf == nullptr) || (tx_buf == nullptr) || (sp_buf == nullptr))
         return false;
@@ -184,7 +185,7 @@ void sioNetwork::sio_open()
     memset(&filespecBuf, 0, sizeof(filespecBuf));
     memset(&status_buf.rawData, 0, sizeof(status_buf.rawData));
 
-    sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
+    sio_to_peripheral((uint8_t *)&filespecBuf, sizeof(filespecBuf));
 
     if (parseURL() == false)
     {
@@ -447,7 +448,7 @@ void sioNetwork::sio_special()
     {
         string path;
         sio_ack();
-        sio_to_peripheral((byte *)filespecBuf, 256);
+        sio_to_peripheral((uint8_t *)filespecBuf, 256);
 
         for (int i = 0; i < 256; i++)
             if (filespecBuf[i] == 0x9B)
@@ -508,7 +509,7 @@ void sioNetwork::sio_special()
     else if (cmdFrame.comnd == 0x20) // RENAME
     {
         sio_ack();
-        sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
+        sio_to_peripheral((uint8_t *)&filespecBuf, sizeof(filespecBuf));
 
         for (int i = 0; i < 256; i++)
             if (filespecBuf[i] == 0x9B)
@@ -552,7 +553,7 @@ void sioNetwork::sio_special()
     else if (cmdFrame.comnd == 0x21) // DELETE
     {
         sio_ack();
-        sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
+        sio_to_peripheral((uint8_t *)&filespecBuf, sizeof(filespecBuf));
 
         for (int i = 0; i < 256; i++)
             if (filespecBuf[i] == 0x9B)
@@ -596,7 +597,7 @@ void sioNetwork::sio_special()
     else if (cmdFrame.comnd == 0x2A) // MKDIR
     {
         sio_ack();
-        sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
+        sio_to_peripheral((uint8_t *)&filespecBuf, sizeof(filespecBuf));
 
         for (int i = 0; i < 256; i++)
             if (filespecBuf[i] == 0x9B)
@@ -640,7 +641,7 @@ void sioNetwork::sio_special()
     else if (cmdFrame.comnd == 0x2B) // RMDIR
     {
         sio_ack();
-        sio_to_peripheral((byte *)&filespecBuf, sizeof(filespecBuf));
+        sio_to_peripheral((uint8_t *)&filespecBuf, sizeof(filespecBuf));
 
         for (int i = 0; i < 256; i++)
             if (filespecBuf[i] == 0x9B)
@@ -683,7 +684,7 @@ void sioNetwork::sio_special()
     }
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
-        byte ret = 0xFF;
+        uint8_t ret = 0xFF;
         Debug_printf("INQ\n");
         sio_ack();
         if (protocol == nullptr)
@@ -831,7 +832,7 @@ void sioNetwork::sio_special_40()
         break;
     }
     Debug_printf("Read buf: %s\n", buf);
-    sio_to_computer((byte *)buf, 256, err); // size of DVSTAT
+    sio_to_computer((uint8_t *)buf, 256, err); // size of DVSTAT
 }
 
 // For global commands with Computer->Peripheral payload

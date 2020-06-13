@@ -94,7 +94,7 @@ bool networkProtocolTNFS::close()
     return false;
 }
 
-bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
+bool networkProtocolTNFS::read(uint8_t *rx_buf, unsigned short len)
 {
 
     if (aux1 == 6) // are we reading directory?
@@ -120,7 +120,7 @@ bool networkProtocolTNFS::read(byte *rx_buf, unsigned short len)
     return false;
 }
 
-bool networkProtocolTNFS::write(byte *tx_buf, unsigned short len)
+bool networkProtocolTNFS::write(uint8_t *tx_buf, unsigned short len)
 {
     if (block_write(tx_buf, len))
         return true;
@@ -128,7 +128,7 @@ bool networkProtocolTNFS::write(byte *tx_buf, unsigned short len)
     return false;
 }
 
-bool networkProtocolTNFS::status(byte *status_buf)
+bool networkProtocolTNFS::status(uint8_t *status_buf)
 {
     status_buf[0] = status_buf[1] = 0;
 
@@ -213,7 +213,7 @@ unsigned char networkProtocolTNFS::status_dir()
     return (unsigned char)strlen(entryBuf);
 }
 
-bool networkProtocolTNFS::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+bool networkProtocolTNFS::special(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     return false;
 }
@@ -223,7 +223,7 @@ bool networkProtocolTNFS::special_supported_00_command(unsigned char comnd)
     return false;
 }
 
-bool networkProtocolTNFS::block_read(byte *rx_buf, unsigned short len)
+bool networkProtocolTNFS::block_read(uint8_t *rx_buf, unsigned short len)
 {
     unsigned short total_len = len;
     unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;
@@ -249,7 +249,7 @@ bool networkProtocolTNFS::block_read(byte *rx_buf, unsigned short len)
     return false; // no error
 }
 
-bool networkProtocolTNFS::block_write(byte *tx_buf, unsigned short len)
+bool networkProtocolTNFS::block_write(uint8_t *tx_buf, unsigned short len)
 {
     unsigned short total_len = len;
     unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;

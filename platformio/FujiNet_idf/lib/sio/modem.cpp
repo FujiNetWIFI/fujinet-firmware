@@ -1,11 +1,11 @@
-//#include <FS.h>
-//#include <SPIFFS.h>
 
+
+#include "../../include/atascii.h"
 #include "modem.h"
 #include "../hardware/fnUART.h"
 #include "fnWiFi.h"
 #include "fnFsSPIF.h"
-#include "../../include/atascii.h"
+#include "../utils/utils.h"
 
 #define RECVBUFSIZE 1024
 
@@ -98,7 +98,7 @@ int sioModem::load_firmware(const char *filename, char **buffer)
 void sioModem::sio_poll_1()
 {
     /*  From Altirra sources - rs232.cpp
-        Send back SIO command for booting. This is a 12 byte + chk block that
+        Send back SIO command for booting. This is a 12 uint8_t + chk block that
         is meant to be written to the SIO parameter block starting at DDEVIC ($0300).
 
 		The boot block MUST start at $0500. There are both BASIC-based and cart-based
@@ -149,7 +149,7 @@ void sioModem::sio_poll_1()
 
 // 0x21 / '!' - RELOCATOR DOWNLOAD
 // 0x26 / '&' - HANDLER DOWNLOAD
-void sioModem::sio_send_firmware(byte loadcommand)
+void sioModem::sio_send_firmware(uint8_t loadcommand)
 {
     const char *firmware;
     if (loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR)
@@ -187,7 +187,7 @@ void sioModem::sio_send_firmware(byte loadcommand)
     Debug_printf("Modem sending %d bytes of %s code\n", codesize,
                  loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
 #endif
-    sio_to_computer((byte *)code, codesize, false);
+    sio_to_computer((uint8_t *)code, codesize, false);
 
     // Free the buffer!
     free(code);
@@ -215,8 +215,8 @@ void sioModem::sio_status()
 #endif
     /* AUX1: NA
        AUX2: NA
-       First payload byte = error status bits
-      Second payload byte = handshake state bits
+       First payload uint8_t = error status bits
+      Second payload uint8_t = handshake state bits
              00 Always low since last check
              01 Currently low, but has been high since last check
              10 Currently high, but has been low since last check
@@ -227,7 +227,7 @@ void sioModem::sio_status()
           1: 0
           0: RCV state (0=space, 1=mark)
     */
-    byte status[2] = {0x00, 0x0C};
+    uint8_t status[2] = {0x00, 0x0C};
     sio_to_computer(status, sizeof(status), false);
 }
 
@@ -309,9 +309,9 @@ void sioModem::sio_config()
     // Complete and then set newbaud
     sio_complete();
 
-    byte newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
-    //byte wordSize = 0x30 & cmdFrame.aux1; // Get word size
-    //byte stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits
+    uint8_t newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
+    //uint8_t wordSize = 0x30 & cmdFrame.aux1; // Get word size
+    //uint8_t stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits
 
     switch (newBaud)
     {
@@ -401,17 +401,11 @@ void sioModem::sio_stream()
         break;
     }
 
-    sio_to_computer((byte *)response, sizeof(response), false);
-#ifndef ESP32
-    SIO_UART.flush();
-#endif
+    sio_to_computer((uint8_t *)response, sizeof(response), false);
 
-    //SIO_UART.updateBaudRate(modemBaud);
     fnUartSIO.set_baudrate(modemBaud);
     modemActive = true;
-#ifdef DEBUG
     Debug_printf("Modem streaming at %u baud\n", modemBaud);
-#endif
 }
 
 /**
@@ -420,7 +414,7 @@ void sioModem::sio_stream()
 void sioModem::sio_listen()
 {
     if (listenPort != 0)
-        tcpServer.close();
+        tcpServer.stop();
 
     listenPort = cmdFrame.aux2 * 256 + cmdFrame.aux1;
 
@@ -440,7 +434,7 @@ void sioModem::sio_listen()
 void sioModem::sio_unlisten()
 {
     sio_ack();
-    tcpServer.close();
+    tcpServer.stop();
     sio_complete();
 }
 
@@ -511,7 +505,7 @@ void sioModem::at_cmd_println(int i, bool addEol)
     fnUartSIO.flush();
 }
 
-void sioModem::at_cmd_println(String s, bool addEol)
+void sioModem::at_cmd_println(std::string s, bool addEol)
 {
     //SIO_UART.print(s);
     fnUartSIO.print(s);
@@ -534,7 +528,7 @@ void sioModem::at_cmd_println(String s, bool addEol)
     fnUartSIO.flush();
 }
 
-void sioModem::at_cmd_println(IPAddress ipa, bool addEol)
+void sioModem::at_cmd_println(in_addr_t ipa, bool addEol)
 {
     //SIO_UART.print(ipa);
     fnUartSIO.print(ipa);
@@ -559,16 +553,18 @@ void sioModem::at_cmd_println(IPAddress ipa, bool addEol)
 
 void sioModem::at_handle_wificonnect()
 {
-    int keyIndex = cmd.indexOf(",");
-    String ssid, key;
-    if (keyIndex != -1)
+    int keyIndex = cmd.find(',');
+    std::string ssid, key;
+    if (keyIndex != std::string::npos)
     {
-        ssid = cmd.substring(13, keyIndex);
-        key = cmd.substring(keyIndex + 1, cmd.length());
+        ssid = cmd.substr(13, keyIndex - 13 + 1);
+        //key = cmd.substring(keyIndex + 1, cmd.length());
+        key = cmd.substr(keyIndex + 1);
     }
     else
     {
-        ssid = cmd.substring(6, cmd.length());
+        //ssid = cmd.substring(6, cmd.length());
+        ssid = cmd.substr(6);
         key = "";
     }
 
@@ -582,7 +578,7 @@ void sioModem::at_handle_wificonnect()
     int retries = 0;
     while ((!fnWiFi.connected()) && retries < 20)
     {
-        delay(1000);
+        fnSystem.delay(1000);
         retries++;
         at_cmd_println(".", false);
     }
@@ -594,7 +590,8 @@ void sioModem::at_handle_wificonnect()
 
 void sioModem::at_handle_port()
 {
-    int port = cmd.substring(6).toInt();
+    //int port = cmd.substring(6).toInt();
+    int port = std::stoi(cmd.substr(6));
     if (port > 65535 || port < 0)
     {
         at_cmd_println("ERROR");
@@ -616,10 +613,10 @@ void sioModem::at_handle_get()
 {
     // From the URL, aquire required variables
     // (12 = "ATGEThttp://")
-    int portIndex = cmd.indexOf(":", 12); // Index where port number might begin
-    int pathIndex = cmd.indexOf("/", 12); // Index first host name and possible port ends and path begins
+    int portIndex = cmd.find(':', 12); // Index where port number might begin
+    int pathIndex = cmd.find('/', 12); // Index first host name and possible port ends and path begins
     int port;
-    String path, host;
+    std::string path, host;
     if (pathIndex < 0)
     {
         pathIndex = cmd.length();
@@ -631,11 +628,14 @@ void sioModem::at_handle_get()
     }
     else
     {
-        port = cmd.substring(portIndex + 1, pathIndex).toInt();
+        //port = cmd.substring(portIndex + 1, pathIndex).toInt();
+        port = std::stoi(cmd.substr(portIndex + 1, pathIndex - (portIndex + 1)  + 1));
     }
-    host = cmd.substring(12, portIndex);
-    path = cmd.substring(pathIndex, cmd.length());
-    if (path == "")
+    //host = cmd.substring(12, portIndex);
+    host = cmd.substr(12, portIndex - 12 + 1);
+    //path = cmd.substring(pathIndex, cmd.length());
+    path = cmd.substr(pathIndex);
+    if (path.empty())
         path = "/";
 
     // Debug
@@ -659,12 +659,12 @@ void sioModem::at_handle_get()
         cmdMode = false;
 
         // Send a HTTP request before continuing the connection as usual
-        String request = "GET ";
+        std::string request = "GET ";
         request += path;
         request += " HTTP/1.1\r\nHost: ";
         request += host;
         request += "\r\nConnection: close\r\n\r\n";
-        tcpClient.print(request);
+        tcpClient.write(request);
     }
 }
 
@@ -748,24 +748,27 @@ void sioModem::at_handle_wifilist()
 
 void sioModem::at_handle_dial()
 {
-    int portIndex = cmd.indexOf(":");
-    String host, port;
-    if (portIndex != -1)
+    int portIndex = cmd.find(':');
+    std::string host, port;
+    if (portIndex != std::string::npos)
     {
-        host = cmd.substring(4, portIndex);
-        port = cmd.substring(portIndex + 1, cmd.length());
+        //host = cmd.substring(4, portIndex);
+        host = cmd.substr(4, portIndex - 4 + 1);
+        //port = cmd.substring(portIndex + 1, cmd.length());
+        port = cmd.substr(portIndex + 1);
     }
     else
     {
-        host = cmd.substring(4, cmd.length());
+        //host = cmd.substring(4, cmd.length());
+        host = cmd.substr(4);
         port = "23"; // Telnet default
     }
-#ifdef DEBUG
+
     Debug_printf("DIALING: %s\n", host.c_str());
-#endif
+
     if (host == "5551234") // Fake it for BobTerm
     {
-        delay(1300); // Wait a moment so bobterm catches it
+        fnSystem.delay(1300); // Wait a moment so bobterm catches it
         at_cmd_println("CONNECT ", false);
         at_cmd_println(modemBaud);
 #ifdef DEBUG
@@ -779,7 +782,7 @@ void sioModem::at_handle_dial()
         at_cmd_println(":", false);
         at_cmd_println(port);
 
-        int portInt = port.toInt();
+        int portInt = std::stoi(port);
 
         if (tcpClient.connect(host.c_str(), portInt))
         {
@@ -821,12 +824,14 @@ void sioModem::modemCommand()
             "ATGET",
             "ATPORT"};
 
-    cmd.trim();
-    if (cmd == "")
+    //cmd.trim();
+    util_string_trim(cmd);
+    if (cmd.empty())
         return;
 
-    String upperCaseCmd = cmd;
-    upperCaseCmd.toUpperCase();
+    std::string upperCaseCmd = cmd;
+    //upperCaseCmd.toUpperCase();
+    util_string_toupper(upperCaseCmd);
 
     at_cmd_println();
 
@@ -836,12 +841,15 @@ void sioModem::modemCommand()
 #endif
 
     // Replace EOL with CR
-    if (upperCaseCmd.indexOf(ATASCII_EOL) != 0)
-        upperCaseCmd[upperCaseCmd.indexOf(ATASCII_EOL)] = ASCII_CR;
+    //if (upperCaseCmd.indexOf(ATASCII_EOL) != 0)
+    //    upperCaseCmd[upperCaseCmd.indexOf(ATASCII_EOL)] = ASCII_CR;
+    int eol1 = upperCaseCmd.find(ATASCII_EOL);
+    if (eol1 != std::string::npos)
+        upperCaseCmd[eol1] = ASCII_CR;
 
     // Just AT
     int cmd_match = AT_ENUMCOUNT;
-    if (upperCaseCmd == "AT")
+    if (upperCaseCmd.compare("AT") == 0)
     {
         cmd_match = AT_AT;
     }
@@ -849,8 +857,11 @@ void sioModem::modemCommand()
     {
         // Make sure we skip the plain AT command when matching
         for (cmd_match = _at_cmds::AT_AT + 1; cmd_match < _at_cmds::AT_ENUMCOUNT; cmd_match++)
-            if (upperCaseCmd.startsWith(at_cmds[cmd_match]))
+        {
+            //if (upperCaseCmd.startsWith(at_cmds[cmd_match]))
+            if (upperCaseCmd.compare(0, strlen(at_cmds[cmd_match]), at_cmds[cmd_match]) == 0)
                 break;
+        }
     }
 
     switch (cmd_match)
@@ -905,8 +916,8 @@ void sioModem::modemCommand()
         break;
     // See my IP address
     case AT_IP:
-        if (WiFi.isConnected())
-            at_cmd_println(WiFi.localIP());
+        if (fnWiFi.connected())
+            at_cmd_println(fnSystem.Net.get_ip4_address_str());
         else
             at_cmd_println(HELPNOWIFI);
         at_cmd_println("OK");
@@ -922,9 +933,6 @@ void sioModem::modemCommand()
         break;
     default:
         at_cmd_println("ERROR");
-#ifdef DEBUG
-        Debug_println("*** unrecognized modem command");
-#endif
         break;
     }
 
@@ -943,10 +951,10 @@ void sioModem::sio_handle_modem()
         if ((listenPort > 0) && (tcpServer.hasClient()))
         {
             // Print RING every now and then while the new incoming connection exists
-            if ((millis() - lastRingMs) > RING_INTERVAL)
+            if ((fnSystem.millis() - lastRingMs) > RING_INTERVAL)
             {
                 at_cmd_println("RING");
-                lastRingMs = millis();
+                lastRingMs = fnSystem.millis();
             }
         }
 
@@ -972,7 +980,8 @@ void sioModem::sio_handle_modem()
             // Backspace or delete deletes previous character
             else if ((chr == ASCII_BACKSPACE) || (chr == ASCII_DELETE))
             {
-                cmd.remove(cmd.length() - 1);
+                //cmd.remove(cmd.length() - 1);
+                cmd.erase(cmd.length() - 1);
                 // We don't assume that backspace is destructive
                 // Clear with a space
                 //SIO_UART.write(ASCII_BACKSPACE);
@@ -985,7 +994,8 @@ void sioModem::sio_handle_modem()
             else if (chr == ATASCII_BACKSPACE)
             {
                 // ATASCII backspace
-                cmd.remove(cmd.length() - 1);
+                //cmd.remove(cmd.length() - 1);
+                cmd.erase(cmd.length() - 1);
                 //SIO_UART.write(ATASCII_BACKSPACE);   // we can assume ATASCII BS is destructive.
                 fnUartSIO.write(ATASCII_BACKSPACE);
             }
@@ -999,7 +1009,10 @@ void sioModem::sio_handle_modem()
             else
             {
                 if (cmd.length() < MAX_CMD_LENGTH)
-                    cmd.concat(chr);
+                {
+                    //cmd.concat(chr);
+                    cmd += chr;
+                }
                 //SIO_UART.write(chr);
                 fnUartSIO.write(chr);
             }
@@ -1014,7 +1027,7 @@ void sioModem::sio_handle_modem()
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
         {
-            // In telnet in worst case we have to escape every byte
+            // In telnet in worst case we have to escape every uint8_t
             // so leave half of the buffer always free
             //int max_buf_size;
             //if (telnet == true)
@@ -1036,7 +1049,7 @@ void sioModem::sio_handle_modem()
                     plusCount = 0;
                 if (plusCount >= 3)
                 {
-                    plusTime = millis();
+                    plusTime = fnSystem.millis();
                 }
                 if (txBuf[i] != '+')
                 {
@@ -1074,8 +1087,8 @@ void sioModem::sio_handle_modem()
         if ((bytesAvail = tcpClient.available()) > 0)
         {
             // read as many as our buffer size will take (RECVBUFSIZE)
-            unsigned int bytesRead = tcpClient.readBytes(buf,
-                                                         (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
+            unsigned int bytesRead =
+                tcpClient.read(buf, (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
 
             //SIO_UART.write(buf, bytesRead);
             fnUartSIO.write(buf, bytesRead);
@@ -1088,7 +1101,7 @@ void sioModem::sio_handle_modem()
     // has been over a second without any more bytes, disconnect
     if (plusCount >= 3)
     {
-        if (millis() - plusTime > 1000)
+        if (fnSystem.millis() - plusTime > 1000)
         {
 #ifdef DEBUG
             Debug_println("Hanging up...");
@@ -1152,15 +1165,11 @@ void sioModem::sio_process()
         sio_send_firmware(cmdFrame.comnd);
         break;
     case SIO_MODEMCMD_TYPE1_POLL:
-#ifdef DEBUG
         Debug_printf("$3F TYPE 1 POLL #%d\n", ++i3F);
-#endif
         sio_poll_1();
         break;
     case SIO_MODEMCMD_TYPE3_POLL:
-#ifdef DEBUG
         Debug_printf("$40 TYPE 3 POLL #%d\n", ++i40);
-#endif
         // ignore for now
         break;
     case SIO_MODEMCMD_CONTROL:

@@ -50,7 +50,7 @@ protected:
             unsigned char connection_status;
             unsigned char error;
         };
-        byte rawData[4];
+        uint8_t rawData[4];
     } status_buf;
 
     unsigned char previous_connection_status;
@@ -87,10 +87,10 @@ private:
     networkProtocol *protocol = nullptr;
     EdUrlParser *urlParser = nullptr;
     unsigned char err;
-    byte ck;
-    byte *rx_buf = nullptr;
-    byte *tx_buf = nullptr;
-    byte *sp_buf = nullptr;
+    uint8_t ck;
+    uint8_t *rx_buf = nullptr;
+    uint8_t *tx_buf = nullptr;
+    uint8_t *sp_buf = nullptr;
     unsigned short rx_buf_len;
     unsigned short tx_buf_len = 256;
     unsigned short sp_buf_len;

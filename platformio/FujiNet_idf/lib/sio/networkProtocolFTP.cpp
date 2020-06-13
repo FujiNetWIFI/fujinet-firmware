@@ -223,7 +223,7 @@ bool networkProtocolFTP::close()
     return true;
 }
 
-bool networkProtocolFTP::read(byte *rx_buf, unsigned short len)
+bool networkProtocolFTP::read(uint8_t *rx_buf, unsigned short len)
 {
     Debug_print("networkProtocolFTP::read()... ");
     size_t z = data.read(rx_buf, len);
@@ -247,7 +247,7 @@ bool networkProtocolFTP::read(byte *rx_buf, unsigned short len)
     return false;
 }
 
-bool networkProtocolFTP::write(byte *tx_buf, unsigned short len)
+bool networkProtocolFTP::write(uint8_t *tx_buf, unsigned short len)
 {
     Debug_print("networkProtocolFTP::write()... ");
     size_t z = data.write(tx_buf, len);
@@ -259,7 +259,7 @@ bool networkProtocolFTP::write(byte *tx_buf, unsigned short len)
     return false;
 }
 
-bool networkProtocolFTP::status(byte *status_buf)
+bool networkProtocolFTP::status(uint8_t *status_buf)
 {
     int a = data.available();
     __IGNORE_UNUSED_VAR(a);
@@ -369,7 +369,7 @@ bool networkProtocolFTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return true;
 }
 
-bool networkProtocolFTP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+bool networkProtocolFTP::special(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     return false;
 }

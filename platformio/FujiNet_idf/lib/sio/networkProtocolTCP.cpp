@@ -89,7 +89,7 @@ bool networkProtocolTCP::close()
     return true;
 }
 
-bool networkProtocolTCP::read(byte *rx_buf, unsigned short len)
+bool networkProtocolTCP::read(uint8_t *rx_buf, unsigned short len)
 {
     Debug_printf("TCP read %d bytes\n", len);
 
@@ -102,7 +102,7 @@ bool networkProtocolTCP::read(byte *rx_buf, unsigned short len)
     return (client.read(rx_buf, len) != len);
 }
 
-bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
+bool networkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
 {
     Debug_printf("TCP write %d bytes\n", len);
 
@@ -115,7 +115,7 @@ bool networkProtocolTCP::write(byte *tx_buf, unsigned short len)
     return (client.write((char *)tx_buf), len != len);
 }
 
-bool networkProtocolTCP::status(byte *status_buf)
+bool networkProtocolTCP::status(uint8_t *status_buf)
 {
     unsigned short available_bytes;
 
@@ -147,7 +147,7 @@ bool networkProtocolTCP::special_supported_00_command(unsigned char comnd)
         return false;
 }
 
-bool networkProtocolTCP::special(byte *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+bool networkProtocolTCP::special(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     bool ret = false;
 

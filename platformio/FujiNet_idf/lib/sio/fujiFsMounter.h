@@ -1,6 +1,8 @@
 #ifndef _FUJIFSMOUNTER_H
 #define _FUJIFSMOUNTER_H
 
+#include <string>
+
 #include "../FileSystem/fnFS.h"
 
 #define MAX_HOSTNAME_LEN 32
@@ -38,10 +40,10 @@ public:
     bool mount(const char *devicename);
 
     bool exists(const char *path);
-    bool exists(const String &path);
+    bool exists(const string path);
 
     FILE * open(const char *path, const char *mode = "r");
-    FILE * open(const String &path, const char *mode = "r");
+    FILE * open(const string path, const char *mode = "r");
 
     bool dir_open(const char *path);
     fsdir_entry_t * dir_nextfile();
