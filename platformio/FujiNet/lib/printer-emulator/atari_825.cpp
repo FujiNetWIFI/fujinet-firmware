@@ -96,6 +96,19 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 reset_cmd();
             }
             break;
+        case 10:                  // full reverse line feed
+            pdf_dY += lineHeight; // set pdf_dY and rise to N1/216.
+            pdf_set_rise();
+            reset_cmd();
+            break;
+        case 14: // Double width printing. Stays ON until turned OFF
+            set_mode(fnt_expanded);
+            reset_cmd();
+            break;
+        case 15: // double width OFF
+            clear_mode(fnt_expanded);
+            reset_cmd();
+            break;
         case 17: // Proportional character set ON
             set_mode(fnt_proportional);
             clear_mode(fnt_compressed);
@@ -108,19 +121,6 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 20: // Turns on compressed mode.
             set_mode(fnt_compressed);
             clear_mode(fnt_proportional);
-            reset_cmd();
-            break;
-        case 10:                  // full reverse line feed
-            pdf_dY += lineHeight; // set pdf_dY and rise to N1/216.
-            pdf_set_rise();
-            reset_cmd();
-            break;
-        case 14: // Double width printing. Stays ON until turned OFF
-            set_mode(fnt_expanded);
-            reset_cmd();
-            break;
-        case 15:
-            clear_mode(fnt_expanded);
             reset_cmd();
             break;
         case 28:                       // half forward line feed
@@ -184,40 +184,32 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     }
 }
 
-uint8_t epson80::epson_font_lookup(uint16_t code)
+uint8_t atari825::epson_font_lookup(uint16_t code)
 {
-    /**
-      * Table G-3 Mode Priorities (FX Manual Vol 2)
-      * elite
-      * proportional
-      * emphasized (bold)
-      * compressed
-      * pica
-      * 
-      * 
-      * */
+    // substitude 1025 fonts for now
+    // TODO: change to 825 fonts
+    uint16_t c = code & (fnt_expanded | fnt_compressed);
+    if (c == 0)
+        return 1;
+    else if (c & fnt_expanded)
+        return 2;
+    else
+        return 3;
     return 1;
 }
 
-float epson80::epson_font_width(uint16_t code)
+float atari825::epson_font_width(uint16_t code)
 {
-    /**
-      * Table G-3 Mode Priorities (FX Manual Vol 2)
-      * elite
-      * proportional
-      * emphasized (bold)
-      * compressed
-      * pica
-      * 
-      * 
-      * */
-    // compute font width from code
-    return 7.2; // 10 cpi for now
+    // substitude 1025 fonts for now
+    // TODO: change to 825 fonts
+    uint8_t F = epson_font_lookup(code);
+    const float w[] = {7.2, 14.4, 4.0};
+    return w[F];
 }
 
-void epson80::epson_set_font(uint8_t F, float w)
+void atari825::epson_set_font(uint8_t F, float w)
 {
-    fprintf(_file, ")]TJ /F%u 9 Tf 120 Tz [(", F);
+    fprintf(_file, ")]TJ /F%u 12 Tf [(", F);
     charWidth = w;
     fontNumber = F;
     fontUsed[F] = true;
