@@ -8,6 +8,10 @@
         _Pragma("GCC diagnostic ignored \"-Wunused-variable\"")
 #define __END_IGNORE_UNUSEDVARS _Pragma("GCC diagnostic pop")
 
+#define __BEGIN_IGNORE_TYPELIMITS _Pragma("GCC diagnostic push")    \
+    _Pragma("GCC diagnostic ignored \"-Wtype-limits\"")
+#define __END_IGNORE_TYPELIMITS _Pragma("GCC diagnostic pop")
+
 #define __IGNORE_UNUSED_VAR(v) (void)v
 #define __IGNORE_UNSUED_PVAR(v) (void*)v
 

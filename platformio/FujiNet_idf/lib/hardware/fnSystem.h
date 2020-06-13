@@ -15,7 +15,7 @@
 class SystemManager
 {
 private:
-    char _uptime_string[14];
+    char _uptime_string[18];
 
 public:
 

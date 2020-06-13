@@ -4,7 +4,7 @@
 #include "fnWiFi.h"
 #include "fnSystem.h"
 #include "../FileSystem/fnFsSPIF.h"
-#include "config.h"
+#include "../config/fnConfig.h"
 
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE
@@ -340,7 +340,7 @@ void sioFuji::sio_open_directory()
     if ((strlen(current_entry) > 1) && (current_entry[strlen(current_entry) - 1] == '/'))
         current_entry[strlen(current_entry) - 1] = 0x00;
 
-    if (fnFileSystems[hostSlot].dir_open(current_entry) >= 0)
+    if (fnFileSystems[hostSlot].dir_open(current_entry))
         sio_complete();
     else
         sio_error();
@@ -775,6 +775,7 @@ void sioFuji::sio_process()
     case SIO_FUJICMD_CLOSE_DIRECTORY:
         sio_ack();
         sio_close_directory();
+        break;
     case SIO_FUJICMD_READ_HOST_SLOTS:
         sio_ack();
         sio_read_hosts_slots(); // 0xF4

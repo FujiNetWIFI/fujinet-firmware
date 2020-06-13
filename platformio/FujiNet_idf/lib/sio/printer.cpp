@@ -51,6 +51,7 @@ void sioPrinter::sio_write(uint8_t aux1, uint8_t aux2)
         break;
     case 'D':
         linelen = 20;
+        break;
     default:
         linelen = 40;
     }

@@ -210,11 +210,9 @@ int fujiFsMounter::mount_tnfs(const char *hostname)
     // Don't do anything if that's already what's set
     if(_type == FNFILESYS_TNFS)
     {
-        if(_fs != NULL && _fs->running());
+        if(_fs != nullptr && _fs->running())
         {
-#ifdef DEBUG
-        Debug_printf("::mount_tnfs Currently connected to host \"%s\"\n", _hostname);
-#endif
+            Debug_printf("::mount_tnfs Currently connected to host \"%s\"\n", _hostname);
             if(strcmp(_hostname, hostname) == 0)
                 return 0;
         }

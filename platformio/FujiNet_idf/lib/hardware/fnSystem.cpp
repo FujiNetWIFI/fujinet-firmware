@@ -1,5 +1,6 @@
 //#include <Arduino.h> // Lets us get the Arduino framework version
 
+#include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_system.h>
 #include <esp_err.h>
@@ -175,9 +176,9 @@ const char * SystemManager::get_uptime_str()
     int h = m / 60;
 
     if(h > 0)
-        snprintf(_uptime_string, sizeof(_uptime_string), "%.2d:%.2d:%.2ld.%.3ld", h, m%60, s%60, ml%1000);
+        snprintf(_uptime_string, sizeof(_uptime_string), "%02d:%02d:%02ld.%03ld", h, m%60, s%60, ml%1000);
     else
-        snprintf(_uptime_string, sizeof(_uptime_string), "%.2d:%.2ld.%.3ld", m, s%60, ml%1000);
+        snprintf(_uptime_string, sizeof(_uptime_string), "%02d:%02ld.%03ld", m, s%60, ml%1000);
 
     return _uptime_string;
 }

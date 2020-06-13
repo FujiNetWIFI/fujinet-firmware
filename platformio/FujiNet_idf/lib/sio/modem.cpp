@@ -1,4 +1,5 @@
 
+#include <string.h>
 
 #include "../../include/atascii.h"
 #include "modem.h"

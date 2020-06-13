@@ -3,7 +3,7 @@
 #include <cstring>
 
 #include "utils.h"
-#include "debug.h"
+#include "../../include/debug.h"
 
 
 // convert to lowercase (in place)

@@ -61,6 +61,7 @@ void UARTManager::begin(int baud)
         .stop_bits = UART_STOP_BITS_1,
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .rx_flow_ctrl_thresh = 122, // No idea what this is for, but shouldn't matter if flow ctrl is disabled?
+        .use_ref_tick = false // ?
     };
     uart_param_config(_uart_num, &uart_config);
 
@@ -182,13 +183,6 @@ size_t UARTManager::write(uint8_t c)
 {
     int z = uart_write_bytes(_uart_num, (const char *)&c, 1);
     //uart_wait_tx_done(_uart_num, MAX_WRITE_BYTE_TICKS);
-    return z;
-}
-
-size_t UARTManager::write(const uint8_t *buffer, size_t size)
-{
-    int z = uart_write_bytes(_uart_num, (const char *)buffer, size);
-    //uart_wait_tx_done(_uart_num, MAX_WRITE_BUFFER_TICKS);
     return z;
 }
 

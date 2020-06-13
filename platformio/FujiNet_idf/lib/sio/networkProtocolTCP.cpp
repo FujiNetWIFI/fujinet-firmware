@@ -1,3 +1,4 @@
+#include <string.h>
 #include "networkProtocolTCP.h"
 
 networkProtocolTCP::networkProtocolTCP()
@@ -112,7 +113,7 @@ bool networkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
         return false;
     }
     assertProceed = true;
-    return (client.write((char *)tx_buf), len != len);
+    return client.write(tx_buf, len) != len;
 }
 
 bool networkProtocolTCP::status(uint8_t *status_buf)

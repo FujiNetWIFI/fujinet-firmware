@@ -4,7 +4,7 @@
 
 
 #include <memory>
-#include <lwip/sockets.h>
+//#include <lwip/sockets.h>
 
 #include "fnTcpClient.h"
 
