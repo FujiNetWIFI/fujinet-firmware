@@ -1,0 +1,5 @@
+.pio
+.vscode
+include/ssid.h
+platformio.ini
+*.code-workspace
