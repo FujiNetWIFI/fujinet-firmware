@@ -192,15 +192,214 @@ size_t UARTManager::write(const uint8_t *buffer, size_t size)
     return z;
 }
 
-/*
-void UARTManager::printf(const char * fmt...)
+size_t UARTManager::write(const uint8_t *buffer, size_t size)
 {
+    int z = uart_write_bytes(_uart_num, (const char *)buffer, size);
+    //uart_wait_tx_done(_uart_num, MAX_WRITE_BUFFER_TICKS);
+    return z;
+}
+
+size_t UARTManager::write(const char *str)
+{
+    int z = uart_write_bytes(_uart_num, str, strlen(str));
+    return z;
+}
+
+size_t UARTManager::printf(const char * fmt...)
+{
+    char * result = nullptr;
     va_list vargs;
     va_start(vargs, fmt);
-    char * result;
+
     int z = vasprintf(&result, fmt, vargs);
-    uart_write_bytes(UART_DEBUG, result, z);
-    free(result);
-    uart_wait_tx_done(_uart_num, MAX_WRITE_BUFFER_TICKS);
+
+    if(z > 0)
+        uart_write_bytes(_uart_num, result, z);
+
+    va_end(vargs);
+
+    if(result != nullptr)
+        free(result);
+
+    //uart_wait_tx_done(_uart_num, MAX_WRITE_BUFFER_TICKS);
+
+    return z >=0 ? z : 0;
+}
+
+size_t UARTManager::_print_number(unsigned long n, uint8_t base)
+{
+    char buf[8 * sizeof(long) + 1]; // Assumes 8-bit chars plus zero byte.
+    char *str = &buf[sizeof(buf) - 1];
+
+    *str = '\0';
+
+    // prevent crash if called with base == 1
+    if(base < 2)
+        base = 10;
+
+    do {
+        unsigned long m = n;
+        n /= base;
+        char c = m - base * n;
+        *--str = c < 10 ? c + '0' : c + 'A' - 10;
+    } while(n);
+
+    return write(str);
+}
+
+size_t UARTManager::print(int n, int base)
+{
+    return print((long) n, base);
+}
+
+size_t UARTManager::print(unsigned int n, int base)
+{
+    return print((unsigned long) n, base);
+}
+
+size_t UARTManager::print(long n, int base)
+{
+    if(base == 0) {
+        return write(n);
+    } else if(base == 10) {
+        if(n < 0) {
+            int t = print('-');
+            n = -n;
+            return _print_number(n, 10) + t;
+        }
+        return _print_number(n, 10);
+    } else {
+        return _print_number(n, base);
+    }
+}
+
+size_t UARTManager::print(unsigned long n, int base)
+{
+    if(base == 0) {
+        return write(n);
+    } else {
+        return _print_number(n, base);
+    }
+}
+
+/*
+size_t UARTManager::println(const char *str)
+{
+    size_t n = print(str);
+    n += println();
+    return n;
+}
+*/
+size_t UARTManager::println(int num, int base)
+{
+    size_t n = print(num, base);
+    n += println();
+    return n;
+}
+
+/*
+
+size_t Print::print(const __FlashStringHelper *ifsh)
+{
+    return print(reinterpret_cast<const char *>(ifsh));
+}
+
+
+size_t Print::print(char c)
+{
+    return write(c);
+}
+
+size_t Print::print(unsigned char b, int base)
+{
+    return print((unsigned long) b, base);
+}
+
+
+size_t Print::print(double n, int digits)
+{
+    return printFloat(n, digits);
+}
+
+size_t Print::println(const __FlashStringHelper *ifsh)
+{
+    size_t n = print(ifsh);
+    n += println();
+    return n;
+}
+
+size_t Print::print(const Printable& x)
+{
+    return x.printTo(*this);
+}
+
+size_t Print::print(struct tm * timeinfo, const char * format)
+{
+    const char * f = format;
+    if(!f){
+        f = "%c";
+    }
+    char buf[64];
+    size_t written = strftime(buf, 64, f, timeinfo);
+    if(written == 0){
+        return written;
+    }
+    return print(buf);
+}
+
+size_t Print::println(char c)
+{
+    size_t n = print(c);
+    n += println();
+    return n;
+}
+
+size_t Print::println(unsigned char b, int base)
+{
+    size_t n = print(b, base);
+    n += println();
+    return n;
+}
+
+size_t Print::println(unsigned int num, int base)
+{
+    size_t n = print(num, base);
+    n += println();
+    return n;
+}
+
+size_t Print::println(long num, int base)
+{
+    size_t n = print(num, base);
+    n += println();
+    return n;
+}
+
+size_t Print::println(unsigned long num, int base)
+{
+    size_t n = print(num, base);
+    n += println();
+    return n;
+}
+
+size_t Print::println(double num, int digits)
+{
+    size_t n = print(num, digits);
+    n += println();
+    return n;
+}
+
+size_t Print::println(const Printable& x)
+{
+    size_t n = print(x);
+    n += println();
+    return n;
+}
+
+size_t Print::println(struct tm * timeinfo, const char * format)
+{
+    size_t n = print(timeinfo, format);
+    n += println();
+    return n;
 }
 */

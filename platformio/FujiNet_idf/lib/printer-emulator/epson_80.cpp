@@ -87,7 +87,7 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         }
         else if (epson_cmd.ctr == 3)
         {
-            epson_cmd.N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & (byte)0x07));
+            epson_cmd.N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & (uint8_t)0x07));
 #ifdef DEBUG
             Debug_printf("N: %d\n", epson_cmd.N);
 #endif

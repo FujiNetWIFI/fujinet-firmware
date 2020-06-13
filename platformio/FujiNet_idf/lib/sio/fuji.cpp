@@ -80,7 +80,7 @@ void sioFuji::sio_status()
 #endif
     char ret[4] = {0, 0, 0, 0};
 
-    sio_to_computer((byte *)ret, 4, false);
+    sio_to_computer((uint8_t *)ret, 4, false);
     return;
 }
 
@@ -106,7 +106,7 @@ void sioFuji::sio_net_scan_networks()
     totalSSIDs = fnWiFi.scan_networks();
 
     ret[0] = totalSSIDs;
-    sio_to_computer((byte *)ret, 4, false);
+    sio_to_computer((uint8_t *)ret, 4, false);
 }
 
 /*
@@ -157,7 +157,7 @@ void sioFuji::sio_net_set_ssid()
 #ifdef DEBUG
     Debug_println("Fuji cmd: SET SSID");
 #endif
-    byte ck = sio_to_peripheral((byte *)&netConfig.rawData, sizeof(netConfig.rawData));
+    uint8_t ck = sio_to_peripheral((uint8_t *)&netConfig.rawData, sizeof(netConfig.rawData));
     if (sio_checksum(netConfig.rawData, sizeof(netConfig.rawData)) != ck)
     {
         sio_error();
@@ -192,8 +192,8 @@ void sioFuji::sio_net_get_wifi_status()
 #endif
 
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
-    byte wifiStatus = fnWiFi.connected() ? 3 : 6;
-    sio_to_computer((byte *)&wifiStatus, 1, false);
+    uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
+    sio_to_computer((uint8_t *)&wifiStatus, 1, false);
 }
 
 /*
@@ -318,10 +318,10 @@ void sioFuji::sio_open_directory()
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 #endif
     char current_entry[256];
-    byte hostSlot = cmdFrame.aux1;
-    byte ck = sio_to_peripheral((byte *)&current_entry, sizeof(current_entry));
+    uint8_t hostSlot = cmdFrame.aux1;
+    uint8_t ck = sio_to_peripheral((uint8_t *)&current_entry, sizeof(current_entry));
 
-    if (sio_checksum((byte *)&current_entry, sizeof(current_entry)) != ck)
+    if (sio_checksum((uint8_t *)&current_entry, sizeof(current_entry)) != ck)
     {
         sio_error();
         return;
@@ -352,8 +352,8 @@ void sioFuji::sio_read_directory_entry()
     Debug_println("Fuji cmd: READ DIRECTORY ENTRY");
 #endif
     char current_entry[256];
-    byte len = cmdFrame.aux1;
-    byte hostSlot = cmdFrame.aux2;
+    uint8_t len = cmdFrame.aux1;
+    uint8_t hostSlot = cmdFrame.aux2;
 
     if (!validate_host_slot(hostSlot, "sio_read_directory_entry"))
     {
@@ -361,7 +361,7 @@ void sioFuji::sio_read_directory_entry()
         return;
     }
 
-    //byte ret = tnfs_readdir(hostSlot);
+    //uint8_t ret = tnfs_readdir(hostSlot);
     fsdir_entry_t *f = fnFileSystems[hostSlot].dir_nextfile();
     int l = 0;
 
@@ -404,7 +404,7 @@ void sioFuji::sio_read_directory_entry()
         stidx = 1;
         //Debug_println("strip leading /");
     }
-    byte *ce_ptr = (byte *)&current_entry[stidx];
+    uint8_t *ce_ptr = (uint8_t *)&current_entry[stidx];
     sio_to_computer(ce_ptr, len, false);
 }
 
@@ -413,7 +413,7 @@ void sioFuji::sio_close_directory()
 #ifdef DEBUG
     Debug_println("Fuji cmd: CLOSE DIRECTORY");
 #endif
-    byte hostSlot = cmdFrame.aux1;
+    uint8_t hostSlot = cmdFrame.aux1;
 
     if (!validate_host_slot(hostSlot))
     {
@@ -455,7 +455,7 @@ void sioFuji::sio_write_hosts_slots()
 #ifdef DEBUG
     Debug_println("Fuji cmd: WRITE HOST SLOTS");
 #endif
-    byte ck = sio_to_peripheral(hostSlots.rawData, sizeof(hostSlots.rawData));
+    uint8_t ck = sio_to_peripheral(hostSlots.rawData, sizeof(hostSlots.rawData));
 
     if (sio_checksum(hostSlots.rawData, sizeof(hostSlots.rawData)) == ck)
     {
@@ -481,7 +481,7 @@ void sioFuji::sio_write_device_slots()
 #ifdef DEBUG
     Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
 #endif
-    byte ck = sio_to_peripheral(deviceSlots.rawData, sizeof(deviceSlots.rawData));
+    uint8_t ck = sio_to_peripheral(deviceSlots.rawData, sizeof(deviceSlots.rawData));
 
     if (sio_checksum(deviceSlots.rawData, sizeof(deviceSlots.rawData)) == ck)
     {
@@ -555,7 +555,7 @@ void sioFuji::sio_new_disk()
     } newDisk;
 
     // Ask for details on the new disk to create
-    byte ck = sio_to_peripheral(newDisk.rawData, sizeof(newDisk));
+    uint8_t ck = sio_to_peripheral(newDisk.rawData, sizeof(newDisk));
 
     if (ck == sio_checksum(newDisk.rawData, sizeof(newDisk)))
     {

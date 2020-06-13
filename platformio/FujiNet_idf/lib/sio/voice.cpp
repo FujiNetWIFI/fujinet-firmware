@@ -21,8 +21,8 @@ void sioVoice::sio_sam()
 void sioVoice::sio_write()
 {
     // act like a printer for POC
-    byte n = 40;
-    byte ck;
+    uint8_t n = 40;
+    uint8_t ck;
 
     memset(buffer, 0, n); // clear buffer
 
@@ -43,7 +43,7 @@ void sioVoice::sio_write()
 void sioVoice::sio_status()
 {
     // act like a printer for POC
-    byte status[4];
+    uint8_t status[4];
 
     status[0] = 0;
     status[1] = lastAux1;

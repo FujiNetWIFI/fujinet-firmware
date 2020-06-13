@@ -18,7 +18,7 @@ class sioApeTime : public sioDevice
             unsigned short gmt;
             unsigned short dst;    
         };
-        byte rawData[4];
+        uint8_t rawData[4];
     } tz;
 
     void sio_time();
