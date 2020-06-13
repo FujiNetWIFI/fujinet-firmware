@@ -2,6 +2,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
+#include <driver/gpio.h>
 #include <driver/dac.h>
 
 #ifdef __cplusplus
@@ -273,7 +274,7 @@ int sam(int argc, char **argv)
 
     if (!phonetic)
     {
-        strncat(input, "[", 256);
+        strncat(input, "[", sizeof(input) - strlen(input));
         // printf("TextToPhonemes\n");
         if (!TextToPhonemes((unsigned char *)input))
             return 1;
@@ -281,7 +282,7 @@ int sam(int argc, char **argv)
             printf("phonetic input: %s\n", input);
     }
     else
-        strncat(input, "\x9b", 256);
+        strncat(input, "\x9b", sizeof(input) - strlen(input));
 
         // printf("done phonetic processing\n");
 

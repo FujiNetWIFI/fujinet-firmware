@@ -5,7 +5,7 @@
 
 
 #include <memory>
-#include <lwip/sockets.h>
+//#include <lwip/sockets.h>
 
 class fnTcpClientSocketHandle;
 class fnTcpClientRxBuffer;

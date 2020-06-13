@@ -13,9 +13,9 @@ testing commences...
 #include "fnWiFi.h"
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
+#include "fnConfig.h"
 #include "keys.h"
 #include "led.h"
-#include "config.h"
 #include "sio.h"
 #include "disk.h"
 #include "fuji.h"
@@ -26,8 +26,8 @@ testing commences...
 #include "printerlist.h"
 
 #ifdef BOARD_HAS_PSRAM
-#include <esp_spiram.h>
-#include <esp_himem.h>
+#include <esp32/spiram.h>
+#include <esp32/himem.h>
 #endif
 
 #ifdef BLUETOOTH_SUPPORT
@@ -89,10 +89,8 @@ void main_setup()
     // Load our stored configuration
     Config.load();
 
-    // connect to wifi but DO NOT wait for it
-    //WiFi.begin(WIFI_SSID, WIFI_PASS);
-    fnWiFi.setup();
-    // fnWiFi.start(WIFI_SSID, WIFI_PASS);
+    // Set up the WiFi adapter
+    fnWiFi.start();
 
     theFuji.setup(SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!

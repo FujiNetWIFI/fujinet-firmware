@@ -428,7 +428,7 @@ void svgPlotter::graphics_command(int n)
     } while (true);
 }
 
-bool svgPlotter::process_buffer(byte n, byte aux1, byte aux2)
+bool svgPlotter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 //void svg_add(int n) // prototype expected n to be length up to including EOL
 // but here n==40
 {

@@ -1,5 +1,5 @@
 #include "networkProtocolHTTP.h"
-#include "debug.h"
+#include "../../include/debug.h"
 
 networkProtocolHTTP::networkProtocolHTTP()
 {
@@ -37,7 +37,7 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
         break;
     case GET:
         //client.collectHeaders((const char **)headerCollection, (const size_t)headerCollectionIndex);
-        client.collect_headers((const char **)headerCollection, (const size_t)headerCollectionIndex);
+        client.collect_headers((const char **)headerCollection, headerCollectionIndex);
 
         resultCode = client.GET();
 

@@ -2,16 +2,12 @@
 #include <iostream>
 #include <sstream>
 
-#include "config.h"
+#include "fnConfig.h"
 #include "../FileSystem/fnFsSPIF.h"
 #include "../FileSystem/fnFsSD.h"
 #include "../hardware/keys.h"
 #include "../utils/utils.h"
 #include "../../include/debug.h"
-
-//#include <SPIFFS.h>
-//#include <SD.h>
-
 
 #define CONFIG_FILENAME "/fnconfig.ini"
 #define CONFIG_FILEBUFFSIZE 2048
@@ -24,9 +20,9 @@ void fnConfig::store_wifi_ssid(const char *ssid_octets, int num_octets)
 {
     if(_wifi.ssid.compare(0, num_octets, ssid_octets) == 0)
         return;
-#ifdef DEBUG
+
     Debug_println("new SSID provided");
-#endif        
+
     _dirty = true;
     _wifi.ssid.clear();
     for(int i = 0; i < num_octets; i++)
@@ -149,7 +145,7 @@ void fnConfig::clear_mount(uint8_t num)
 // Returns printer type stored in configuration for printer slot
 sioPrinter::printer_type fnConfig::get_printer_type(uint8_t num)
 {
-    if(num >= 0 && num < MAX_PRINTER_SLOTS)
+    if(num < MAX_PRINTER_SLOTS)
         return _printer_slots[num].type;
     else
         return sioPrinter::printer_type::PRINTER_INVALID;
@@ -158,7 +154,7 @@ sioPrinter::printer_type fnConfig::get_printer_type(uint8_t num)
 // Returns printer type stored in configuration for printer slot
 int fnConfig::get_printer_port(uint8_t num)
 {
-    if(num >= 0 && num < MAX_PRINTER_SLOTS)
+    if(num < MAX_PRINTER_SLOTS)
         return _printer_slots[num].port;
     else
         return 0;
@@ -167,10 +163,8 @@ int fnConfig::get_printer_port(uint8_t num)
 // Saves printer type stored in configuration for printer slot
 void fnConfig::store_printer_type(uint8_t num, sioPrinter::printer_type ptype)
 {
-    #ifdef DEBUG
     Debug_printf("store_printer_type %d, %d\n", num, ptype);
-    #endif
-    if(num >= 0 && num < MAX_PRINTER_SLOTS)
+    if(num < MAX_PRINTER_SLOTS)
     {
         if(_printer_slots[num].type != ptype)
         {
@@ -183,10 +177,8 @@ void fnConfig::store_printer_type(uint8_t num, sioPrinter::printer_type ptype)
 // Saves printer port stored in configuration for printer slot
 void fnConfig::store_printer_port(uint8_t num, int port)
 {
-    #ifdef DEBUG
     Debug_printf("store_printer_port %d, %d\n", num, port);
-    #endif
-    if(num >= 0 && num < MAX_PRINTER_SLOTS)
+    if(num < MAX_PRINTER_SLOTS)
     {
         if(_printer_slots[num].port != port)
         {
@@ -201,15 +193,12 @@ void fnConfig::store_printer_port(uint8_t num, int port)
 */
 void fnConfig::save()
 {
-#ifdef DEBUG
+
     Debug_println("fnConfig::save");
-#endif
 
     if(!_dirty)
     {
-#ifdef DEBUG
         Debug_println("fnConfig::save not dirty, not saving");
-#endif
         return;
     }
 
@@ -275,9 +264,7 @@ void fnConfig::save()
         Debug_println("Attemptiong config copy to SD");
         if(0 == fnSystem.copy_file(&fnSPIFFS, CONFIG_FILENAME, &fnSDFAT, CONFIG_FILENAME))
         {
-            #ifdef DEBUG
             Debug_println("Failed to copy config to SD");
-            #endif
             return;
         }
     }
@@ -288,17 +275,13 @@ void fnConfig::save()
 */
 void fnConfig::load()
 {
-#ifdef DEBUG
     Debug_println("fnConfig::load");
-#endif
 
     // Clear the config file if key is currently pressed
 #ifdef BOARD_HAS_PSRAM
     if(KeyManager::keyCurrentlyPressed(OTHER_KEY))
     {
-        #ifdef DEBUG
         Debug_println("fnConfig deleting configuration file and skipping SD check");
-        #endif
         if(fnSPIFFS.exists(CONFIG_FILENAME))
             fnSPIFFS.remove(CONFIG_FILENAME);
         _dirty = true; // We have a new config, so we treat it as needing to be saved
@@ -315,14 +298,10 @@ Original behavior: read from SPIFFS first and only read from SD if nothing found
         // See if we have a copy on SD (only copy from SD if we don't have a local copy)
         if(fnSDFAT.running() && fnSDFAT.exists(CONFIG_FILENAME))
         {
-            #ifdef DEBUG
             Debug_println("Found copy of config file on SD - copying that to SPIFFS");
-            #endif
             if(0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
             {
-                #ifdef DEBUG
                 Debug_println("Failed to copy config from SD");
-                #endif
                 return; // No local copy and couldn't copy from SD - ABORT
             }
         }
@@ -339,23 +318,17 @@ New behavior: copy from SD first if available, then read SPIFFS.
     // See if we have a copy on SD (only copy from SD if we don't have a local copy)
     if(fnSDFAT.running() && fnSDFAT.exists(CONFIG_FILENAME))
     {
-        #ifdef DEBUG
         Debug_println("Found copy of config file on SD - copying that to SPIFFS");
-        #endif
         if(0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
         {
-            #ifdef DEBUG
             Debug_println("Failed to copy config from SD");
-            #endif
         }
     }
     // See if we have a file in SPIFFS (either originally or something copied from SD)
     if(false == fnSPIFFS.exists(CONFIG_FILENAME))
     {
         _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved
-        #ifdef DEBUG
         Debug_println("No config found - starting fresh!");
-        #endif
         return; // No local copy - ABORT
     }
 
@@ -365,21 +338,17 @@ New behavior: copy from SD first if available, then read SPIFFS.
     char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
     if(inibuffer == nullptr)
     {
-        #ifdef DEBUG
         Debug_printf("Failed to allocate %d bytes to read config file\n", CONFIG_FILEBUFFSIZE);
-        #endif
         return;
     }
     int i = fread(inibuffer, 1, CONFIG_FILEBUFFSIZE-1, fin);
     fclose(fin);
-    #ifdef DEBUG
+
     Debug_printf("fnConfig::load read %d bytes from config file\n", i);
-    #endif
+
     if(i < 0)
     {
-        #ifdef DEBUG
         Debug_println("Failed to read data from configuration file");
-        #endif
         free(inibuffer);
         return;
     }
@@ -433,16 +402,12 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
             if(strcasecmp(name.c_str(), "SSID") == 0)
             {
                 _wifi.ssid = value;
-                #ifdef DEBUG
                 Debug_printf("config wifi=\"%s\"\n", value.c_str());
-                #endif
             }
             else if (strcasecmp(name.c_str(), "passphrase") == 0)
             {
                 _wifi.passphrase = value;
-                #ifdef DEBUG
                 Debug_printf("config passphrase=\"%s\"\n", value.c_str());
-                #endif
             }
         }
     }
@@ -465,16 +430,12 @@ void fnConfig::_read_section_host(std::stringstream &ss, int index)
             if(strcasecmp(name.c_str(), "name") == 0)
             {
                 _host_slots[index].name = value;
-                #ifdef DEBUG
                 Debug_printf("config host %d name=\"%s\"\n", index, value.c_str());
-                #endif
             }
             else if (strcasecmp(name.c_str(), "type") == 0)
             {
                 _host_slots[index].type = host_type_from_string(value.c_str());
-                #ifdef DEBUG
                 Debug_printf("config host %d type=%d (\"%s\")\n", index, _host_slots[index].type, value.c_str());
-                #endif
             }
         }
     }
@@ -501,23 +462,17 @@ void fnConfig::_read_section_mount(std::stringstream &ss, int index)
                 if(slot < 0 || slot >= MAX_HOST_SLOTS)
                     slot = HOST_SLOT_INVALID;
                 _mount_slots[index].host_slot = slot;
-                #ifdef DEBUG
                 Debug_printf("config mount %d hostslot=%d\n", index, slot);
-                #endif
             }
             else if (strcasecmp(name.c_str(), "mode") == 0)
             {
                 _mount_slots[index].mode = mount_mode_from_string(value.c_str());
-                #ifdef DEBUG
                 Debug_printf("config mount %d mode=%d (\"%s\")\n", index, _mount_slots[index].mode, value.c_str());
-                #endif
             }
             else if (strcasecmp(name.c_str(), "path") == 0)
             {
                 _mount_slots[index].path = value;
-                #ifdef DEBUG
                 Debug_printf("config mount %d path=\"%s\"\n", index, value.c_str());
-                #endif
             }
         }
     }
@@ -543,9 +498,7 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
                     type = sioPrinter::printer_type::PRINTER_INVALID;
 
                 _printer_slots[index].type = (sioPrinter::printer_type)type;
-                #ifdef DEBUG
                 Debug_printf("config printer %d type=%d\n", index, type);
-                #endif
             } else if (strcasecmp(name.c_str(), "port") == 0)
             {
                 int port = atoi(value.c_str()) - 1;
@@ -553,9 +506,7 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
                     port = 0;
 
                 _printer_slots[index].port = port;
-                #ifdef DEBUG
                 Debug_printf("config printer %d port=%d\n", index, port + 1);
-                #endif
             }
         }
     }
@@ -582,9 +533,7 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                 index = atoi((const char *)(s1.c_str()+4)) -1;
                 if(index < 0 || index >= MAX_HOST_SLOTS)
                 {
-                    #ifdef DEBUG
                     Debug_println("Invalid index value - discarding");
-                    #endif                    
                     return SECTION_UNKNOWN;
                 }
                 //Debug_printf("Found HOST %d\n", index);
@@ -595,9 +544,7 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                 index = atoi((const char *)(s1.c_str()+5)) -1;
                 if(index < 0 || index >= MAX_MOUNT_SLOTS)
                 {
-                    #ifdef DEBUG
                     Debug_println("Invalid index value - discarding");
-                    #endif                    
                     return SECTION_UNKNOWN;
                 }
                 //Debug_printf("Found MOUNT %d\n", index);
@@ -608,9 +555,7 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                 index = atoi((const char *)(s1.c_str()+7) -1);
                 if(index < 0 || index >= MAX_PRINTER_SLOTS)
                 {
-                    #ifdef DEBUG
                     Debug_println("Invalid index value - discarding");
-                    #endif                    
                     return SECTION_UNKNOWN;
                 }
                 //Debug_printf("Found PRINTER %d\n", index);
@@ -650,9 +595,9 @@ bool fnConfig::_split_name_value(std::string &line, std::string &name, std::stri
     if(eq > 1)
     {
         name = line.substr(0, eq);
-        util_trim(name);
+        util_string_trim(name);
         value = line.substr(eq+1);
-        util_trim(value);
+        util_string_trim(value);
         return true;
     }
     return false;

@@ -184,7 +184,7 @@ fsdir_entry * FileSystemTNFS::dir_read()
     // Combine the current directory path with the read filename before trying to stat()...
     char fullpath[TNFS_MAX_FILELEN];
     strncpy(fullpath, _current_dirpath, sizeof(fullpath));
-    strncat(fullpath, _direntry.filename, sizeof(fullpath));
+    strncat(fullpath, _direntry.filename, sizeof(fullpath) - strlen(fullpath) - 1);
     // Debug_printf("Current directory stored: \"%s\", current filepath: \"%s\", combined: \"%s\"\n", _current_dirpath, _direntry.filename, fullpath);
 
     if(tnfs_stat(&_mountinfo, &fstat, fullpath) == TNFS_RESULT_SUCCESS)

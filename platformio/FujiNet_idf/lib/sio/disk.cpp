@@ -3,7 +3,7 @@
 #include <string.h>
 #include "fnSystem.h"
 #include "disk.h"
-
+#include "../utils/utils.h"
 
 int command_frame_counter = 0;
 
@@ -56,6 +56,7 @@ void sioDisk::sio_read()
     // Clear sector buffer
     memset(sector, 0, sizeof(sector));
 
+__BEGIN_IGNORE_TYPELIMITS
     if (sectorNum <= UNCACHED_REGION)
     {
         if (sectorNum != (lastSectorNum + 1))
@@ -70,6 +71,8 @@ void sioDisk::sio_read()
     {
         // implement caching.
     }
+__END_IGNORE_TYPELIMITS
+    
     // Send result to Atari
     sio_to_computer((uint8_t *)&sector, ss, err);
     lastSectorNum = sectorNum;

@@ -1,3 +1,4 @@
+#include <string.h>
 #include "fnSystem.h"
 #include "../utils/utils.h"
 #include "../../include/debug.h"

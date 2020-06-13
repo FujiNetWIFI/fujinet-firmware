@@ -9,7 +9,7 @@
 #include "esp_heap_task_info.h"
 
 #include "httpServiceConfigurator.h"
-#include "config.h"
+#include "fnConfig.h"
 #include "printerlist.h"
 
 // TODO: This was copied from another source and needs some bounds-checking!

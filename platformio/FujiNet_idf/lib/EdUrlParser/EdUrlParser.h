@@ -30,7 +30,7 @@ public:
 	static EdUrlParser* parseUrl(string urlstr);
 	static int parsePath(vector<string> *pdirlist, string pathstr);
 	static string urlDecode(string str);
-	static char toChar(const char* hex);
+	static bool toChar(const char* hex, char *result);
 	static string urlEncode(string s);
 	static void toHex(char *desthex, char c);
 	static size_t parseKeyValueMap(unordered_map<string, string> *kvmap, string str, bool strict=true);

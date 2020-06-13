@@ -3,7 +3,7 @@
 #ifndef FNUART_H
 #define FNUART_H
 
-//#include "Stream.h"
+#include <string>
 #include <driver/uart.h>
 
 class UARTManager

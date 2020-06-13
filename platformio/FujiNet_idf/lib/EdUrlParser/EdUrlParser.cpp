@@ -44,15 +44,18 @@ string EdUrlParser::urlDecode(string str) {
 			goto __PARSE_END;
 		if (buf[pos] == '%') {
 			CHECK_REMAIN_END(pos, len, 3);
-			try {
-				char c = EdUrlParser::toChar(buf + pos + 1);
-				decstr.push_back(c);
-				pos += 3;
-				per = pos;
-			} catch (int err) {
-				_url_errorno = err;
+
+			char c;
+			if(false == EdUrlParser::toChar(buf + pos + 1, &c))
+			{
+				_url_errorno = 200;
 				goto __PARSE_END;
 			}
+
+			decstr.push_back(c);
+			pos += 3;
+			per = pos;
+
 			if (pos >= len)
 				goto __PARSE_END;
 		} else if (buf[pos] == '+') {
@@ -191,7 +194,7 @@ EdUrlParser* EdUrlParser::parseUrl(string urlstr) {
 	return url;
 }
 
-char EdUrlParser::toChar(const char* hex) {
+bool EdUrlParser::toChar(const char* hex, char *result) {
 	unsigned char nible[2];
 	unsigned char c, base;
 	for (int i = 0; i < 2; i++) {
@@ -203,11 +206,12 @@ char EdUrlParser::toChar(const char* hex) {
 		} else if (c >= 'a' && c <= 'f') {
 			base = 'a' - 10;
 		} else {
-			throw 200;
+			return false;
 		}
 		nible[i] = c - base;
 	}
-	return ((nible[0] << 4) | nible[1]);
+	*result = ((nible[0] << 4) | nible[1]);
+	return true;
 }
 
 size_t EdUrlParser::parseKeyValueMap(unordered_map<string, string> *kvmap, string rawstr, bool strict) {
