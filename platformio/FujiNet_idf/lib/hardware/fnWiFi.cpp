@@ -284,39 +284,78 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
     Debug_printf("_wifi_event_handler base: %d event: %d\n", event_base, event_id);
 
     // Get a pointer to our fnWiFi object
-    //WiFiManager *pFnWiFi = (WiFiManager *)arg;
+    WiFiManager *pFnWiFi = (WiFiManager *)arg;
     esp_err_t e;
     __IGNORE_UNUSED_VAR(e);
-/*
-    switch (event->event_id)
+
+    // IP_EVENT NOTIFICATIONS
+    if(event_base == IP_EVENT)
     {
-    case SYSTEM_EVENT_STA_START:
-        Debug_println("fnwifi_event_handler SYSTEM_EVENT_STA_START");
-        e = esp_wifi_connect();
-        Debug_printf("he = %d\n", e);
-        break;
-    case SYSTEM_EVENT_STA_GOT_IP:
-        Debug_printf("fnwifi_event_handler SYSTEM_EVENT_STA_GOT_IP: %s\n", ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
-        //pFnWiFi->retries = 0;
-        //xEventGroupSetBits(pFnWiFi->_wifi_event_group, FNWIFI_BIT_CONNECTED);
-        break;
-    case SYSTEM_EVENT_STA_DISCONNECTED:
-        Debug_println("fnwifi_event_handler SYSTEM_EVENT_STA_DISCONNECTED");
+        switch (event_id)
         {
-            if (pFnWiFi->retries < FNWIFI_RECONNECT_RETRIES)
-            {
-                xEventGroupClearBits(pFnWiFi->_wifi_event_group, FNWIFI_BIT_CONNECTED);
-                esp_wifi_connect();
-                pFnWiFi->retries++;
-                Debug_printf("Attempting WiFi reconnect %d/%d", pFnWiFi->retries, FNWIFI_RECONNECT_RETRIES); 
-            }
-            Debug_println("Max WiFi reconnects exhausted");
-            break;
+            case IP_EVENT_STA_GOT_IP:
+                Debug_println("IP_EVENT_STA_GOT_IP");
+                pFnWiFi->_connected = true;
+                break;
+            case IP_EVENT_STA_LOST_IP:
+                Debug_println("IP_EVENT_STA_LOS_IP");
+                break;
+            case IP_EVENT_ETH_GOT_IP:
+                Debug_println("IP_EVENT_ETH_GOT_IP");
+                break;
+
         }
-        break;
-    default:
-        Debug_printf("fnwifi_event_handler UNHANDLED TYPE #%d\n", event->event_id);
-        break;
+
     }
-*/
+    // WIFI_EVENT NOTIFICATIONS
+    else if(event_base == WIFI_EVENT)
+    {
+        switch (event_id)
+        {
+        case WIFI_EVENT_WIFI_READY:
+            Debug_println("WIFI_EVENT_WIFI_READ");
+            break;
+        case WIFI_EVENT_SCAN_DONE:
+            Debug_println("WIFI_EVENT_SCAN_DONE");
+            break;
+        case WIFI_EVENT_STA_START:
+            Debug_println("WIFI_EVENT_STA_START");
+            break;
+        case WIFI_EVENT_STA_STOP:
+            Debug_println("WIFI_EVENT_STA_STOP");
+            break;
+        case WIFI_EVENT_STA_CONNECTED:
+            Debug_println("WIFI_EVENT_STA_CONNECTED");
+            break;
+        case WIFI_EVENT_STA_DISCONNECTED:
+            Debug_println("WIFI_EVENT_STA_DISCONNECTED");
+            pFnWiFi->_connected = false;
+            break;
+        case WIFI_EVENT_STA_AUTHMODE_CHANGE:
+            Debug_println("WIFI_EVENT_STA_AUTHMODE_CHANGE");
+            break;
+        /*
+        case SYSTEM_EVENT_STA_GOT_IP:
+            Debug_printf("fnwifi_event_handler SYSTEM_EVENT_STA_GOT_IP: %s\n", ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
+            //pFnWiFi->retries = 0;
+            //xEventGroupSetBits(pFnWiFi->_wifi_event_group, FNWIFI_BIT_CONNECTED);
+            break;
+        case SYSTEM_EVENT_STA_DISCONNECTED:
+            Debug_println("fnwifi_event_handler SYSTEM_EVENT_STA_DISCONNECTED");
+            {
+                if (pFnWiFi->retries < FNWIFI_RECONNECT_RETRIES)
+                {
+                    xEventGroupClearBits(pFnWiFi->_wifi_event_group, FNWIFI_BIT_CONNECTED);
+                    esp_wifi_connect();
+                    pFnWiFi->retries++;
+                    Debug_printf("Attempting WiFi reconnect %d/%d", pFnWiFi->retries, FNWIFI_RECONNECT_RETRIES); 
+                }
+                Debug_println("Max WiFi reconnects exhausted");
+                break;
+            }
+            break;
+        */
+        }
+
+    }
 }

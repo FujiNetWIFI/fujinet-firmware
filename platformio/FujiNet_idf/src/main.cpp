@@ -246,6 +246,8 @@ extern "C"
         // Run our main loop FOREVER
         while (true)
         {
+            // We don't have any delays in this loop, so IDLE threads will be starved
+            // Shouldn't be a problem, but something to keep in mind...
             main_loop();
         }
     }
