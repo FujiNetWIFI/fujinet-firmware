@@ -33,6 +33,8 @@ bool selector_done = false;
 bool drive_done = false;
 unsigned char k;
 
+int retval = 0;
+
 extern unsigned char *video_ptr;
 extern unsigned char *dlist_ptr;
 extern unsigned short screen_memory;
@@ -429,7 +431,7 @@ bool diskulator_host(void)
                 break;
             case 0x1D:         // DOWN
             case '=':
-                if (c < 8)
+                if (c < 7)
                     c++;
                 break;
             case 0x21:         // SHIFT 1-8
@@ -542,7 +544,7 @@ bool diskulator_host(void)
                 break;
             case 0x1D:         // DOWN
             case '=':
-                if (c < 8)
+                if (c < 7)
                     c++;
                 break;
             case 0x21:
@@ -598,7 +600,26 @@ bool diskulator_host(void)
                 screen_puts(0, 21, "                                       ");
                 memset(tmp_str, 0, sizeof(tmp_str));
                 memset(deviceSlots.slot[c].file, 0, sizeof(deviceSlots.slot[c].file));
-                screen_input(4, c + 11, deviceSlots.slot[c].file);
+                
+// #8bitandmore             
+                retval  = screen_input(4, c + 11, deviceSlots.slot[c].file);
+                if ( strcmp( deviceSlots.slot[c].file, "" ) == 0 || retval == -1)
+                {
+                    diskulator_umount_device(c);
+                    screen_puts(0, c + 11, " ");
+                    screen_puts(3, c + 11, "  Empty                              ");
+                    memset(deviceSlots.slot[c].file, 0, sizeof(deviceSlots.slot[c].file));
+                    deviceSlots.slot[c].hostSlot = 0xFF;
+                    diskulator_write_device_slots();
+                    screen_puts(0, 20, "                                       ");
+                    host_done = true;
+                    slot_done = false;
+                    screen_puts(0, 20, "        \xD9\xA5\x19" "Eject\xD9\xA8\x19Hosts\xD9\xAE\x19New          ");
+                    screen_puts(0, 21, "    \xD9\x91\x8D\x98\x19" "Drives \xD9\xDC\x91\x8D\x98\x19" "Hosts\xD9\xA3\x19" "Config");
+                    break;
+                }
+//
+                           
                 screen_puts(0, 20, "Which Host Slot (1-8)?                 ");
                 screen_puts(0, 21, "                                       ");
                 memset(tmp_str, 0, sizeof(tmp_str));
@@ -852,7 +873,7 @@ void diskulator_drive(void)
             break;
         case 0x1D:             // DOWN
         case '=':
-            if (c < 8)
+            if (c < 7)
                 c++;
             break;
         case 'e':              // E

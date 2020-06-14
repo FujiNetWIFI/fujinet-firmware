@@ -50,7 +50,7 @@ void screen_puts(unsigned char x,unsigned char y,char *s)
 /**
  * Input a string at x,y
  */
-void screen_input(unsigned char x, unsigned char y, char* s)
+int screen_input(unsigned char x, unsigned char y, char* s)
 {
   unsigned char c,k,o;
   unsigned char outc[2]={0,0};
@@ -75,6 +75,10 @@ void screen_input(unsigned char x, unsigned char y, char* s)
   while (k!=155)
     {
       k=cgetc();
+
+      if ( k== 0x1B ) // ESC key to cancel
+        return -1;
+
       if ((k==0x7E) && (c>x)) // backspace
 	{
 	  SetChar(c+1,y,0);
