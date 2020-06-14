@@ -4,3 +4,4 @@ platformio.ini
 include/ssid.h
 config/config.com
 config/config.code-workspace
+config/obj
