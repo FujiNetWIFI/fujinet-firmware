@@ -25,6 +25,9 @@ testing commences...
 #include "httpService.h"
 #include "printerlist.h"
 
+#include <esp_system.h>
+#include <nvs_flash.h>
+
 #ifdef BOARD_HAS_PSRAM
 #include <esp32/spiram.h>
 #include <esp32/himem.h>
@@ -73,7 +76,7 @@ void main_setup()
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
 #ifdef BOARD_HAS_PSRAM
     Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
-    //Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
+    //Debug_printf("himem phys %u\n", esp_himem_get_phys_size()); // This is resulting in a linker error
     Debug_printf("himem free %u\n", esp_himem_get_free_size());
     Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
 #endif
@@ -137,7 +140,7 @@ void main_setup()
 /*
 * Main activity loop
 */
-void main_loop(void *param)
+void main_loop()
 {
 #ifdef DEBUG_N
     /* Connect to debug server if we aren't and WiFi is connected */
@@ -249,14 +252,22 @@ extern "C"
 {
     void app_main()
     {
+        esp_err_t e = nvs_flash_init();
+        if(e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND)
+        {
+            Debug_println("Erasing flash");
+            ESP_ERROR_CHECK(nvs_flash_erase());
+            e = nvs_flash_init();
+        }
+        ESP_ERROR_CHECK(e);
+
         // Call our setup routing
         main_setup();
 
-        // Start a new task to run the loop that was previously
-        // the core of the Arduino-ESP project
-    #define MAIN_LOOP_STACK_SIZE 4096
-    #define MAIN_LOOP_PRIORITY 5    
-        xTaskCreate(main_loop, "main_loop", MAIN_LOOP_STACK_SIZE, nullptr, MAIN_LOOP_PRIORITY, &_taskh_main_loop);
-
+        // Run our main loop FOREVER
+        while (true)
+        {
+            main_loop();
+        }
     }
 }
