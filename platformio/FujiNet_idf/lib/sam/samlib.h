@@ -12,7 +12,7 @@
 #include <SDL_audio.h>
 #endif
 
-#ifdef ESP_32
+#ifdef ESP_PLATFORM
 #define PIN_DAC1 25
 #endif
 
@@ -20,9 +20,9 @@
 extern char input[256];
 #endif
 
-#ifndef ESP_32
+#ifndef ESP_PLATFORM
 void WriteWav(char *filename, char *buffer, int bufferlength);
-#endif // ESP_32
+#endif // ESP_PLATFORM
 
 void PrintUsage();
 
