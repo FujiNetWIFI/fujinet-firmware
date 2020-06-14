@@ -6,7 +6,6 @@ testing commences...
 */
 
 #include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
-
 #include "debug.h"
 
 #include "fnSystem.h"
@@ -44,10 +43,6 @@ sioApeTime apeTime;
 sioVoice sioV;
 fnHttpService fnHTTPD;
 
-#ifdef DEBUG_N
-WiFiClient wifiDebugClient;
-#endif
-
 KeyManager keyMgr;
 LedManager ledMgr;
 
@@ -62,21 +57,14 @@ TaskHandle_t _taskh_main_loop;
 */
 void main_setup()
 {
-#ifdef DEBUG_S
-#ifdef NO_GLOBAL_SERIAL
-    fnUartDebug.begin(DEBUG_SPEED);
-#else
-    BUG_UART.begin(DEBUG_SPEED);
-#endif
-#endif
-
 #ifdef DEBUG
+    fnUartDebug.begin(DEBUG_SPEED);
     unsigned long startms = fnSystem.millis();
     Debug_printf("\n\n--~--~--~--\nFujiNet PlatformIO Started @ %lu\n", startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
 #ifdef BOARD_HAS_PSRAM
     Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
-    //Debug_printf("himem phys %u\n", esp_himem_get_phys_size()); // This is resulting in a linker error
+    Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
     Debug_printf("himem free %u\n", esp_himem_get_free_size());
     Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
 #endif
@@ -142,15 +130,6 @@ void main_setup()
 */
 void main_loop()
 {
-#ifdef DEBUG_N
-    /* Connect to debug server if we aren't and WiFi is connected */
-    if (!wifiDebugClient.connected() && WiFi.status() == WL_CONNECTED)
-    {
-        wifiDebugClient.connect(DEBUG_HOST, 6502);
-        wifiDebugClient.println("FujiNet PlatformIO");
-    }
-#endif
-
     // Toggle the state of the WiFi LED based on the current WiFi status
     // Start the web server if it hasn't been started and WiFi is connected
     if (fnWiFi.connected())
@@ -261,7 +240,7 @@ extern "C"
         }
         ESP_ERROR_CHECK(e);
 
-        // Call our setup routing
+        // Call our setup routine
         main_setup();
 
         // Run our main loop FOREVER
