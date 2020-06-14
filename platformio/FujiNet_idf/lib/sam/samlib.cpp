@@ -12,7 +12,7 @@ extern char *buffer;
 
 int debug = 0;
 
-#ifndef ESP_32
+#ifndef ESP_PLATFORM
 
 void WriteWav(char *filename, char *buffer, int bufferlength)
 {
@@ -48,7 +48,7 @@ void WriteWav(char *filename, char *buffer, int bufferlength)
 
     fclose(file);
 }
-#endif // NOT ESP_32
+#endif // NOT ESP_PLATFORM
 
 void PrintUsage()
 {
@@ -151,7 +151,7 @@ void OutputSound()
 
 void OutputSound()
 {
-#ifdef ESP_32
+#ifdef ESP_PLATFORM
     int n = GetBufferLength() / 50;
     char *s = GetBuffer();
 
@@ -184,7 +184,7 @@ int sam(int argc, char **argv)
     int i;
     int phonetic = 0;
 
-#ifndef ESP_32
+#ifndef ESP_PLATFORM
     char *wavfilename = NULL;
 #endif
 
@@ -210,7 +210,7 @@ int sam(int argc, char **argv)
 
             if (strcmp(&argv[i][1], "wav") == 0)
             {
-#ifndef ESP_32
+#ifndef ESP_PLATFORM
                 wavfilename = argv[i + 1];
 #endif
                 i++;
@@ -308,11 +308,11 @@ int sam(int argc, char **argv)
     }
     // printf("right after SAMMain");
 
-#ifndef ESP_32
+#ifndef ESP_PLATFORM
     if (wavfilename != NULL)
         WriteWav(wavfilename, GetBuffer(), GetBufferLength() / 50);
     else
-#endif // ESP_32
+#endif // ESP_PLATFORM
         OutputSound();
 
     return 0;
