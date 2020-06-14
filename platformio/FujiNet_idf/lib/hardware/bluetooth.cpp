@@ -5,6 +5,8 @@
 #include "bluetooth.h"
 #include "fnBluetooth.h"
 
+#if defined(CONFIG_BT_ENABLED) && defined(CONFIG_BLUEDROID_ENABLED)
+
 fnBluetooth SerialBT;
 
 /*
@@ -55,3 +57,5 @@ void BluetoothManager::service()
         fnUartSIO.write(SerialBT.read());
     }
 }
+
+#endif
