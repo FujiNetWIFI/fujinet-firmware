@@ -241,6 +241,17 @@ size_t UARTManager::_print_number(unsigned long n, uint8_t base)
     return write(str);
 }
 
+size_t UARTManager::print(const char *str)
+{
+    int z = strlen(str);
+    return uart_write_bytes(_uart_num, str, z);;
+}
+
+size_t UARTManager::print(std::string str)
+{
+    return print(str.c_str());
+}
+
 size_t UARTManager::print(int n, int base)
 {
     return print((long) n, base);
@@ -276,14 +287,21 @@ size_t UARTManager::print(unsigned long n, int base)
     }
 }
 
-/*
+
 size_t UARTManager::println(const char *str)
 {
     size_t n = print(str);
     n += println();
     return n;
 }
-*/
+
+size_t UARTManager::println(std::string str)
+{
+    size_t n = print(str);
+    n += println();
+    return n;
+}
+
 size_t UARTManager::println(int num, int base)
 {
     size_t n = print(num, base);
