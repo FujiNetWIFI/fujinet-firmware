@@ -27,13 +27,8 @@
 #define UART2_TX 17
 #endif
 
-// Only define these if the default Arduino global HardwareSerial objects aren't declared
-#ifdef NO_GLOBAL_SERIAL
 UARTManager fnUartDebug(UART_DEBUG);
 UARTManager fnUartSIO(UART_SIO);
-#else
-#pragma GCC error "Arduino serial interfaces must be disabled with NO_GLOBAL_SERIAL!"
-#endif
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}

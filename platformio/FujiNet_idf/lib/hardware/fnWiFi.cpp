@@ -118,10 +118,13 @@ but this is compatible with the Arduino WiFi setup we currently have
 */
 bool WiFiManager::connected()
 {
+    /*
     wifi_ap_record_t apinfo;
     esp_err_t e = esp_wifi_sta_get_ap_info(&apinfo);
 
     return (e == ESP_OK);
+    */
+   return _connected;
 }
 
 /* Initiates a WiFi network scan and returns number of networks found
