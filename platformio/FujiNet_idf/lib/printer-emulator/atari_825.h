@@ -8,12 +8,12 @@ class atari825 : public pdfPrinter
 protected:
     struct epson_cmd_t
     {
-        uint8_t cmd;
-        uint8_t N1;
-        uint8_t N2;
-        uint16_t N;
-        uint16_t ctr;
-    } epson_cmd = {0, 0, 0, 0};
+        uint8_t cmd = 0;
+        uint8_t N1 = 0;
+        uint8_t N2 = 0;
+        uint16_t N = 0;
+        uint16_t ctr = 0;
+    } epson_cmd;
     bool escMode = false;
 
     const uint16_t fnt_underline = 0x001;
