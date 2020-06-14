@@ -1,5 +1,6 @@
 
 #include <string.h>
+#include <lwip/netdb.h>
 
 #include "../../include/atascii.h"
 #include "modem.h"
@@ -532,7 +533,7 @@ void sioModem::at_cmd_println(std::string s, bool addEol)
 void sioModem::at_cmd_println(in_addr_t ipa, bool addEol)
 {
     //SIO_UART.print(ipa);
-    fnUartSIO.print(ipa);
+    fnUartSIO.print(inet_ntoa(ipa));
     if (addEol)
     {
         if (cmdAtascii == true)
