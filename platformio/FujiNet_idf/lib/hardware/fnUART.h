@@ -56,10 +56,7 @@ public:
     size_t print(unsigned long n, int base = 10);
 };
 
-// Only define these if the default Arduino global SerialX objects aren't declared
-#ifdef NO_GLOBAL_SERIAL
 extern UARTManager fnUartDebug;
 extern UARTManager fnUartSIO;
-#endif
 
 #endif //FNUART_H
