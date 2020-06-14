@@ -2,4 +2,5 @@
 .vscode
 include/ssid.h
 platformio.ini
+sdkconfig
 *.code-workspace
