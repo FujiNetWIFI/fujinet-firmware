@@ -281,12 +281,8 @@ std::string WiFiManager::get_current_bssid_str()
 void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                                              int32_t event_id, void *event_data)
 {
-    Debug_printf("_wifi_event_handler base: %d event: %d\n", event_base, event_id);
-
     // Get a pointer to our fnWiFi object
     WiFiManager *pFnWiFi = (WiFiManager *)arg;
-    esp_err_t e;
-    __IGNORE_UNUSED_VAR(e);
 
     // IP_EVENT NOTIFICATIONS
     if(event_base == IP_EVENT)
@@ -298,7 +294,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                 pFnWiFi->_connected = true;
                 break;
             case IP_EVENT_STA_LOST_IP:
-                Debug_println("IP_EVENT_STA_LOS_IP");
+                Debug_println("IP_EVENT_STA_LOST_IP");
                 break;
             case IP_EVENT_ETH_GOT_IP:
                 Debug_println("IP_EVENT_ETH_GOT_IP");
@@ -330,6 +326,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
         case WIFI_EVENT_STA_DISCONNECTED:
             Debug_println("WIFI_EVENT_STA_DISCONNECTED");
             pFnWiFi->_connected = false;
+            esp_wifi_connect();
             break;
         case WIFI_EVENT_STA_AUTHMODE_CHANGE:
             Debug_println("WIFI_EVENT_STA_AUTHMODE_CHANGE");
