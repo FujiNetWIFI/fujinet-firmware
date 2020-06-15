@@ -5,6 +5,8 @@
 #include <driver/gpio.h>
 #include <driver/dac.h>
 
+#include "fnSystem.h"
+
 #ifdef __cplusplus
 extern char input[256];
 extern char *buffer;
@@ -166,8 +168,7 @@ void OutputSound()
         // fnSystem.dac_write(PIN_DAC1, s[i]);
         dac_output_voltage(DAC_CHANNEL_1, s[i]);
         //delayMicroseconds(40);
-        //fnSystem.delay_microseconds(40);
-        vTaskDelay(40 / portTICK_PERIOD_MS / 1000);
+        fnSystem.delay_microseconds(40);
     }
 
     //fnSystem.dac_output_disable(SystemManager::dac_channel_t::DAC_CHANNEL_1);
