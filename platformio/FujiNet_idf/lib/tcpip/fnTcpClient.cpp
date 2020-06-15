@@ -528,7 +528,10 @@ uint8_t fnTcpClient::connected()
         uint8_t dummy;
         int res = recv(fd(), &dummy, 0, MSG_DONTWAIT);
 
-        if (res <= 0)
+        // Since the move to ESP-IDF, recv() has started returning 0 with errno 0
+        // Seems to work otherwise, so changed the if() below:
+        //if (res <= 0)
+        if (res < 0)
         {
             switch (errno)
             {
