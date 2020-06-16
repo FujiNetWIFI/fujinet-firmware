@@ -147,7 +147,7 @@ void sioDevice::sio_error()
 */
 void sioDevice::sio_high_speed()
 {
-    uint8_t hsd = HISPEED_INDEX;
+    uint8_t hsd = SIO_HISPEED_INDEX;
     sio_to_computer((uint8_t *)&hsd, 1, false);
 }
 
@@ -221,7 +221,7 @@ void sioBus::service()
         tempFrame.cmdFrameData[4] = 0;
 
         fnUartSIO.readBytes((uint8_t *)tempFrame.cmdFrameData, 5);
-        Debug_printf("\n%s CF: %02x %02x %02x %02x %02x\n", fnSystem.get_uptime_str(),
+        Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                      tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
         // Wait for CMD line to raise again
         while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
@@ -283,10 +283,10 @@ void sioBus::service()
             if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
             {
                 command_frame_counter = 0;
-                if (sioBaud == HISPEED_BAUDRATE)
-                    setBaudrate(STANDARD_BAUDRATE);
+                if (sioBaud == SIO_HISPEED_BAUDRATE)
+                    setBaudrate(SIO_STANDARD_BAUDRATE);
                 else
-                    setBaudrate(HISPEED_BAUDRATE);
+                    setBaudrate(SIO_HISPEED_BAUDRATE);
             }
         }
         ledMgr.set(eLed::LED_SIO, false);
