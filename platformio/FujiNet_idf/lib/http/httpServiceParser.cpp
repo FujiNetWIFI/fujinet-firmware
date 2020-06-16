@@ -36,6 +36,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_SYSSDK,
         FN_SYSCPUREV,
         FN_SIOVOLTS,
+        FN_SIO_HSINDEX,
+        FN_SIO_HSBAUD,
         FN_PRINTER1_MODEL,
         FN_PRINTER1_PORT,
         FN_LASTTAG
@@ -61,6 +63,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_SYSSDK",
         "FN_SYSCPUREV",
         "FN_SIOVOLTS",
+        "FN_SIO_HSINDEX",
+        "FN_SIO_HSBAUD",
         "FN_PRINTER1_MODEL",
         "FN_PRINTER1_PORT"
     };
@@ -135,6 +139,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_SIOVOLTS:
         resultstream << (float)fnSystem.get_sio_voltage()/1000.00 << "V";
+        break;
+    case FN_SIO_HSINDEX:
+        resultstream << SIO_HISPEED_INDEX;
+        break;
+    case FN_SIO_HSBAUD:
+        resultstream << SIO_HISPEED_BAUDRATE;
         break;
     case FN_PRINTER1_MODEL:
         resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();

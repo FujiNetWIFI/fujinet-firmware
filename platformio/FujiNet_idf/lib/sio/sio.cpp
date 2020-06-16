@@ -147,7 +147,7 @@ void sioDevice::sio_error()
 */
 void sioDevice::sio_high_speed()
 {
-    uint8_t hsd = HISPEED_INDEX;
+    uint8_t hsd = SIO_HISPEED_INDEX;
     sio_to_computer((uint8_t *)&hsd, 1, false);
 }
 
@@ -283,10 +283,10 @@ void sioBus::service()
             if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
             {
                 command_frame_counter = 0;
-                if (sioBaud == HISPEED_BAUDRATE)
-                    setBaudrate(STANDARD_BAUDRATE);
+                if (sioBaud == SIO_HISPEED_BAUDRATE)
+                    setBaudrate(SIO_STANDARD_BAUDRATE);
                 else
-                    setBaudrate(HISPEED_BAUDRATE);
+                    setBaudrate(SIO_HISPEED_BAUDRATE);
             }
         }
         ledMgr.set(eLed::LED_SIO, false);
