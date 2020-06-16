@@ -1,2 +1,14 @@
 # Visual Studio Code workspace files
-*-workspace
+*.code-workspace
+
+# VS Code build directory
+**/.vscode
+
+# PlatformIO build directory
+**/.pio
+
+# PlatformIO project settings
+platformio.ini
+
+# ESP-IDF SDK configuration file
+sdkconfig
