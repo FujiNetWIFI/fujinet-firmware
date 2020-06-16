@@ -221,7 +221,7 @@ void sioBus::service()
         tempFrame.cmdFrameData[4] = 0;
 
         fnUartSIO.readBytes((uint8_t *)tempFrame.cmdFrameData, 5);
-        Debug_printf("\n%s CF: %02x %02x %02x %02x %02x\n", fnSystem.get_uptime_str(),
+        Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                      tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
         // Wait for CMD line to raise again
         while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)

@@ -5,7 +5,6 @@ code, the source files have been copied into a new ESP-IDF project. Code massagi
 testing commences...
 */
 
-#include "ssid.h" // Define WIFI_SSID and WIFI_PASS in include/ssid.h. File is ignored by GIT
 #include "debug.h"
 
 #include "fnSystem.h"
@@ -186,14 +185,12 @@ void main_loop()
 #endif //BLUETOOTH_SUPPORT
         break;
     case eKeyStatus::SHORT_PRESSED:
-#ifdef DEBUG
         Debug_println("B_KEY: SHORT PRESS");
 #ifdef BOARD_HAS_PSRAM
         ledMgr.blink(eLed::LED_BT); // blink to confirm a button press
 #else
         ledMgr.blink(eLed::LED_SIO);         // blink to confirm a button press
 #endif
-#endif //DEBUG
 
 // Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
 #ifdef BLUETOOTH_SUPPORT
