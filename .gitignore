@@ -1,7 +1,2 @@
-.pio
-.vscode
-platformio.ini
-include/ssid.h
-config/config.com
-config/config.code-workspace
-config/obj
+# Visual Studio Code workspace files
+*-workspace
