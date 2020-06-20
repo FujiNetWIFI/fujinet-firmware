@@ -32,10 +32,14 @@
 #define SIO_HISPEED_INDEX FN_HISPEED_INDEX
 #endif
 
-#define ATARISIO_ATARI_FREQUENCY_PAL 1773447
-#define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
-#define SIO_HISPEED_BAUDRATE ((ATARISIO_ATARI_FREQUENCY_PAL * 10) / (10 * (2 * (SIO_HISPEED_INDEX + 7)) + 3))
+#define SIO_ATARI_PAL_FREQUENCY 1773447
+#define SIO_ATARI_NTSC_FREQUENCY 1789790
+
+#define SIO_HISPEED_BAUDRATE ((SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (SIO_HISPEED_INDEX + 7)) + 3))
+
 #define SIO_STANDARD_BAUDRATE 19200
+
+#define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
 #define SERIAL_TIMEOUT 300
 
 #define SIO_DEVICEID_DISK 0x31
@@ -66,17 +70,16 @@
 #define SIO_DEVICEID_ASPEQT 0x46
 #define SIO_DEVICEID_PCLINK 0x6F
 
-
 union cmdFrame_t {
-   struct
-   {
-      unsigned char devic;
-      unsigned char comnd;
-      unsigned char aux1;
-      unsigned char aux2;
-      unsigned char cksum;
-   };
-   uint8_t cmdFrameData[5];
+    struct
+    {
+        unsigned char devic;
+        unsigned char comnd;
+        unsigned char aux1;
+        unsigned char aux2;
+        unsigned char cksum;
+    };
+    uint8_t cmdFrameData[5];
 };
 
 //helper functions
@@ -92,54 +95,54 @@ class sioNetwork; // declare here so can reference it, but define in network.h
 class sioDevice
 {
 protected:
-   friend sioBus;
+    friend sioBus;
 
-   int _devnum;
+    int _devnum;
 
-   cmdFrame_t cmdFrame;
-   bool listen_to_type3_polls = false;
-   unsigned char status_wait_count = 5;
+    cmdFrame_t cmdFrame;
+    bool listen_to_type3_polls = false;
+    unsigned char status_wait_count = 5;
 
-   void sio_to_computer(uint8_t *b, unsigned short len, bool err);
-   uint8_t sio_to_peripheral(uint8_t *b, unsigned short len);
+    void sio_to_computer(uint8_t *b, unsigned short len, bool err);
+    uint8_t sio_to_peripheral(uint8_t *b, unsigned short len);
 
-   void sio_ack();
-   void sio_nak();
-   //void sio_get_checksum();
-   void sio_complete();
-   void sio_error();
-   unsigned short sio_get_aux();
-   virtual void sio_status() = 0;
-   virtual void sio_process() = 0;
+    void sio_ack();
+    void sio_nak();
+    //void sio_get_checksum();
+    void sio_complete();
+    void sio_error();
+    unsigned short sio_get_aux();
+    virtual void sio_status() = 0;
+    virtual void sio_process() = 0;
 
 public:
-   int id() { return _devnum; };
-   virtual void sio_high_speed();
-   bool is_config_device = false;
-   bool device_active = true;
+    int id() { return _devnum; };
+    virtual void sio_high_speed();
+    bool is_config_device = false;
+    bool device_active = true;
 };
 
 class sioBus
 {
 private:
-   std::forward_list<sioDevice *> daisyChain;
-   unsigned long cmdTimer = 0;
-   sioDevice *activeDev = nullptr;
-   sioModem *modemDev = nullptr;
-   sioFuji *fujiDev = nullptr;
-   sioNetwork *netDev[8] = {nullptr};
-   int sioBaud = 19200; // SIO Baud rate
+    std::forward_list<sioDevice *> daisyChain;
+    unsigned long cmdTimer = 0;
+    sioDevice *activeDev = nullptr;
+    sioModem *modemDev = nullptr;
+    sioFuji *fujiDev = nullptr;
+    sioNetwork *netDev[8] = {nullptr};
+    int sioBaud = 19200; // SIO Baud rate
 
 public:
-   void setup();
-   void service();
-   int numDevices();
-   void addDevice(sioDevice *pDevice, int device_id);
-   void remDevice(sioDevice *pDevice);
-   sioDevice *deviceById(int device_id);
-   void changeDeviceId(sioDevice *pDevice, int device_id);
-   int getBaudrate();
-   void setBaudrate(int baudrate);
+    void setup();
+    void service();
+    int numDevices();
+    void addDevice(sioDevice *pDevice, int device_id);
+    void remDevice(sioDevice *pDevice);
+    sioDevice *deviceById(int device_id);
+    void changeDeviceId(sioDevice *pDevice, int device_id);
+    int getBaudrate();
+    void setBaudrate(int baudrate);
 };
 
 extern sioBus SIO;

@@ -91,4 +91,5 @@ public:
     }
 };
 
+extern fnHttpService fnHTTPD;
 #endif // HTTPSERVICE_H
