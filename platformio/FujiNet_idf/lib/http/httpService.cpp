@@ -19,6 +19,9 @@
 
 using namespace std;
 
+// Global HTTPD
+fnHttpService fnHTTPD;
+
 /* Send some meaningful(?) error message to client
 */
 void fnHttpService::return_http_error(httpd_req_t *req, _fnwserr errnum)

@@ -16,7 +16,7 @@ class LedManager
 public:
     LedManager();
     void setup();
-    void set(eLed led, bool on=true);
+    void set(eLed led, bool one=true);
     void toggle(eLed led);
     void blink(eLed led);
 
@@ -25,6 +25,5 @@ private:
     int mLedPin[eLed::LED_COUNT];
 };
 
-extern LedManager ledMgr;
-
+extern LedManager fnLedManager;
 #endif // guard
