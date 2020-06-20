@@ -232,7 +232,7 @@ void atari825::epson_set_font(uint8_t F, float w)
     fprintf(_file, ")]TJ /F%u 12 Tf [(", F);
     charWidth = w;
     fontNumber = F;
-    fontUsed[F] = true;
+    fontUsed[F-1] = true;
 }
 
 void atari825::post_new_file()
@@ -250,8 +250,8 @@ void atari825::post_new_file()
     lineHeight = 12.0;
     charWidth = 7.2;
     fontNumber = 1;
-    fontSize = 9;
-    fontHorizScale = 120;
+    fontSize = 12;
+    fontHorizScale = 100;
     textMode = true;
     pdf_dY = 0;
 
