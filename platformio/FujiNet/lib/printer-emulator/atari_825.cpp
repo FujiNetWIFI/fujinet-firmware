@@ -186,24 +186,22 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 
 uint8_t atari825::epson_font_lookup(uint16_t code)
 {
-    // substitude 1025 fonts for now
-    // TODO: change to 825 fonts
-    uint16_t c = code & (fnt_expanded | fnt_compressed);
-    if (c == 0)
-        return 1;
-    else if (c & fnt_expanded)
-        return 2;
-    else
-        return 3;
-    return 1;
+    return code + 1; // got them organized perfect!
+    // if (c == 0)
+    //     return 1;
+    // else if (c & fnt_expanded)
+    //     return 2;
+    // else
+    //     return 3;
+    // return 1;
 }
 
 float atari825::epson_font_width(uint16_t code)
 {
     // substitude 1025 fonts for now
     // TODO: change to 825 fonts
-    uint8_t F = epson_font_lookup(code);
-    const float w[] = {7.2, 14.4, 4.0};
+    uint8_t F = code >> 1; // get rid of underline bit
+    const float w[] = {7.2, 14.4, 4.32, 8.64, 5.76, 11.52};
     return w[F];
 }
 
@@ -220,7 +218,7 @@ void atari825::post_new_file()
     translate850 = true;
     _eol = ASCII_CR;
 
-    shortname = "a825"; 
+    shortname = "a825";
 
     pageWidth = 612.0;
     pageHeight = 792.0;
