@@ -175,7 +175,7 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             escMode = true;
             break;
         default:        // maybe printable character
-            if (c > 31) // && c < 127)
+            if (c > 31 && c < 127)
             {
                 uint8_t new_F = epson_font_lookup(epson_font_mask);
                 if (fontNumber != new_F)
