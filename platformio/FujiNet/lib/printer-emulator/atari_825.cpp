@@ -92,7 +92,16 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // need either 1-dot glyph or need to do a spacing adjustment like backspace
             if (epson_cmd.ctr > 0)
             {
-                pdf_X += 1.2 * (float)c;
+                // TODO: fix this
+                int n = 7 - epson_cmd.cmd;
+                if (epson_font_mask & (fnt_compressed | fnt_proportional))
+                {
+                    fprintf(_file, " )%d(", (int)(n*40));
+                pdf_X += 0.48 * (float)epson_cmd.cmd;
+                }
+                else
+                    fprintf(_file, " )%d(", (int)(n*40));
+                    pdf_X += 0.6 * (float)epson_cmd.cmd;
                 reset_cmd();
             }
             break;
@@ -173,11 +182,24 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 {
                     float new_w = epson_font_width(epson_font_mask);
                     epson_set_font(new_F, new_w);
+                    if (epson_font_mask & (fnt_compressed | fnt_proportional))
+                        pageWidth = 1185. * 0.48;
+                    else
+                        pageWidth = 7.2 * 80.;
                 }
                 if (c == '\\' || c == '(' || c == ')')
                     fputc('\\', _file);
                 fputc(c, _file);
-                pdf_X += charWidth; // update x position
+                if (epson_font_mask & fnt_proportional)
+                {
+                    float dx;
+                    dx = (float)char_widths_825[c - 32];
+                    if (epson_font_mask & fnt_expanded)
+                        dx *= 2;
+                    pdf_X += dx * 0.48;
+                }
+                else
+                    pdf_X += charWidth; // update x position
             }
             break;
         }
