@@ -10,5 +10,8 @@
 # PlatformIO project settings
 platformio.ini
 
+# PlatformIO monitor logs
+platformio-device-monitor-*.log
+
 # ESP-IDF SDK configuration file
 sdkconfig

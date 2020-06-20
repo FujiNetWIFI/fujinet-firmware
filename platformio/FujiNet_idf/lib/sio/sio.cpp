@@ -153,14 +153,7 @@ void sioDevice::sio_high_speed()
 
 /*
  Periodically handle the sioDevice in the loop()
- How to capture command ID from the bus and hand off to the correct device? Right now ...
- When we detect the CMD_PIN active low, we set the state machine to ID, start the command timer,
- then if there's serial data, we go to sio_get_id() by way of sio_incoming().
- Then we check the ID and if it's right, we jump to COMMAND state, return and move on.
- Also, during WAIT we toss UART data.
- 
- So ...
- 
+
  We move the CMD_PIN handling and sio_get_id() to the sioBus class, grab the ID, start the command timer,
  then search through the daisyChain for a matching ID. Once we find an ID, we set it's sioDevice cmdState to COMMAND.
  We change service() so it only reads the SIO_UART when cmdState != WAIT.
@@ -199,12 +192,16 @@ void sioDevice::sio_high_speed()
 */
 void sioBus::service()
 {
-    // Wait for the SIO_CMD pin to go low, indicating data
-    // Make sure voltage is higher than 4V to determine if the Atari is on, otherwise
-    // we get stuck reading a LOW command pin until the Atari is turned on
+    /*
+     Wait for the SIO_CMD pin to go low, indicating available data
+     Make sure voltage is higher than 4V to determine if the Atari is on, otherwise
+     we get stuck reading a LOW command pin until the Atari is turned on
+    */
     if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW && fnSystem.get_sio_voltage() > 4000)
     {
-        ledMgr.set(eLed::LED_SIO, true);
+        // Turn on the SIO indicator LED
+        fnLedManager.set(eLed::LED_SIO, true);
+
         if (modemDev != nullptr && modemDev->modemActive)
         {
             modemDev->modemActive = false;
@@ -289,7 +286,7 @@ void sioBus::service()
                     setBaudrate(SIO_HISPEED_BAUDRATE);
             }
         }
-        ledMgr.set(eLed::LED_SIO, false);
+        fnLedManager.set(eLed::LED_SIO, false);
     } // END command line low
     else if (modemDev != nullptr && modemDev->modemActive)
     {
@@ -297,7 +294,7 @@ void sioBus::service()
     }
     else
     {
-        ledMgr.set(eLed::LED_SIO, false);
+        fnLedManager.set(eLed::LED_SIO, false);
 
         if (fnUartSIO.available())
             fnUartSIO.flush_input();
@@ -332,6 +329,8 @@ void sioBus::setup()
     fnSystem.digital_write(PIN_CKI, DIGI_LOW);
 
     fnSystem.set_pin_mode(PIN_CKO, PINMODE_INPUT);
+
+    sio_flush();    
 }
 
 // Add device to SIO bus

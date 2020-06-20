@@ -36,14 +36,15 @@ testing commences...
 #endif
 
 // fnSystem is declared and defined in fnSystem.h/cpp
+// fnLedManager is declared and defined in led.h/cpp
+// fnHTTPD is declared and defineid in HttpService.h/cpp
+
 sioModem sioR;
 sioFuji theFuji;
 sioApeTime apeTime;
 sioVoice sioV;
-fnHttpService fnHTTPD;
 
 KeyManager keyMgr;
-LedManager ledMgr;
 
 #ifdef BLUETOOTH_SUPPORT
 BluetoothManager btMgr;
@@ -70,7 +71,7 @@ void main_setup()
 #endif
 
     keyMgr.setup();
-    ledMgr.setup();
+    fnLedManager.setup();
 
     fnSPIFFS.start();
     fnSDFAT.start();
@@ -103,22 +104,14 @@ void main_setup()
 
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
 
-    if (fnWiFi.connected())
-    {
-        Debug_printf("WiFi connected. Current IP address: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
-    }
-
     Debug_printf("%d devices registered\n", SIO.numDevices());
 
     // Go setup SIO
     SIO.setup();
 
+#ifdef DEBUG
     Debug_print("SIO Voltage: ");
     Debug_println(fnSystem.get_sio_voltage());
-
-    void sio_flush();
-
-#ifdef DEBUG
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
 #endif
@@ -129,21 +122,6 @@ void main_setup()
 */
 void main_loop()
 {
-    // Toggle the state of the WiFi LED based on the current WiFi status
-    // Start the web server if it hasn't been started and WiFi is connected
-    if (fnWiFi.connected())
-    {
-        ledMgr.set(eLed::LED_WIFI, true);
-        if (!fnHTTPD.running())
-            fnHTTPD.start();
-    }
-    else
-    {
-        ledMgr.set(eLed::LED_WIFI, false);
-        if (fnHTTPD.running())
-            fnHTTPD.stop();
-    }
-
     // Check on the status of the OTHER_KEY and do something useful
     switch (keyMgr.getKeyStatus(eKey::OTHER_KEY))
     {
@@ -187,7 +165,7 @@ void main_loop()
     case eKeyStatus::SHORT_PRESSED:
         Debug_println("B_KEY: SHORT PRESS");
 #ifdef BOARD_HAS_PSRAM
-        ledMgr.blink(eLed::LED_BT); // blink to confirm a button press
+        fnLedManager.blink(eLed::LED_BT); // blink to confirm a button press
 #else
         ledMgr.blink(eLed::LED_SIO);         // blink to confirm a button press
 #endif
