@@ -20,6 +20,9 @@
 #include "fnWiFi.h"
 #include "fnSystem.h"
 
+#include "httpService.h"
+#include "led.h"
+
 // Global object to manage WiFi
 WiFiManager fnWiFi;
 
@@ -289,9 +292,13 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
     {
         switch (event_id)
         {
+            // Consider WiFi connected once we get an IP address
             case IP_EVENT_STA_GOT_IP:
                 Debug_println("IP_EVENT_STA_GOT_IP");
+                Debug_printf("Obtained IP address: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
                 pFnWiFi->_connected = true;
+                fnLedManager.set(eLed::LED_WIFI, true);
+                fnHTTPD.start();
                 break;
             case IP_EVENT_STA_LOST_IP:
                 Debug_println("IP_EVENT_STA_LOST_IP");
@@ -323,9 +330,13 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
         case WIFI_EVENT_STA_CONNECTED:
             Debug_println("WIFI_EVENT_STA_CONNECTED");
             break;
+        // Set WiFi to disconnected
         case WIFI_EVENT_STA_DISCONNECTED:
             Debug_println("WIFI_EVENT_STA_DISCONNECTED");
             pFnWiFi->_connected = false;
+            fnLedManager.set(eLed::LED_WIFI, false);
+            fnHTTPD.stop();
+            // Try to reconnect; TODO: Disable retries in certain conditions?
             esp_wifi_connect();
             break;
         case WIFI_EVENT_STA_AUTHMODE_CHANGE:
