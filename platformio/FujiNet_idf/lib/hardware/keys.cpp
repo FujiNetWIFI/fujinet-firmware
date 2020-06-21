@@ -58,6 +58,30 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
     return result;
 }
 
+#ifdef DEBUG
+// Dumps list of current tasks
+void _debug_print_tasks()
+{
+    static const char * status[] = {"Running", "Ready", "Blocked", "Suspened", "Deleted"};
+
+    uint32_t n = uxTaskGetNumberOfTasks();
+    TaskStatus_t *pTasks = (TaskStatus_t *) malloc(sizeof(TaskStatus_t) * n);
+    n = uxTaskGetSystemState(pTasks, n, nullptr);
+
+    for(int i = 0; i < n; i++)
+    {
+        Debug_printf("Task %2d %c (%2d,%2d) %4d; %10d %8s: %s\n",
+            i+1,
+            pTasks[i].xCoreID == tskNO_AFFINITY ? '-' : ('0' + pTasks[i].xCoreID),
+            pTasks[i].uxBasePriority, pTasks[i].uxCurrentPriority,
+            pTasks[i].usStackHighWaterMark,
+            pTasks[i].ulRunTimeCounter,
+            status[pTasks[i].eCurrentState],
+            pTasks[i].pcTaskName);
+    }
+}
+#endif
+
 void KeyManager::_keystate_task(void *param)
 {
 #ifdef BOARD_HAS_PSRAM
@@ -71,25 +95,11 @@ void KeyManager::_keystate_task(void *param)
     {
         vTaskDelay(200 / portTICK_PERIOD_MS);
 
-        // Check on the status of the OTHER_KEY and do something useful
-        switch (pKM->getKeyStatus(eKey::OTHER_KEY))
-        {
-        case eKeyStatus::LONG_PRESSED:
-            Debug_println("O_KEY: LONG PRESS");
-            break;
-        case eKeyStatus::SHORT_PRESSED:
-            Debug_println("O_KEY: SHORT PRESS");
-            break;
-        default:
-            break;
-        }
-
         // Check on the status of the BOOT_KEY and do something useful
         switch (pKM->getKeyStatus(eKey::BOOT_KEY))
         {
         case eKeyStatus::LONG_PRESSED:
-            Debug_println("B_KEY: LONG PRESS");
-
+            Debug_println("BOOT_KEY: LONG PRESS");
 #ifdef BLUETOOTH_SUPPORT
             if (btMgr.isActive())
             {
@@ -104,20 +114,36 @@ void KeyManager::_keystate_task(void *param)
 #endif //BLUETOOTH_SUPPORT
             break;
         case eKeyStatus::SHORT_PRESSED:
-            Debug_println("B_KEY: SHORT PRESS");
-            fnLedManager.blink(BLUETOOTH_LED); // blink to confirm a button press
-
+            Debug_println("BOOT_KEY: SHORT PRESS");
+            fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
 // Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
 #ifdef BLUETOOTH_SUPPORT
             if (btMgr.isActive())
                 btMgr.toggleBaudrate();
             else
 #endif
-                Debug_println("TODO: Re-connect theFuji.image_rotate()!!");
+                Debug_println("TODO: Re-connect theFuji.image_rotate()");
             //theFuji.image_rotate();
             break;
         default:
             break;
-        }
+        } // BOOT_KEY
+
+        // Check on the status of the OTHER_KEY and do something useful
+        switch (pKM->getKeyStatus(eKey::OTHER_KEY))
+        {
+        case eKeyStatus::LONG_PRESSED:
+            Debug_println("OTHER_KEY: LONG PRESS");
+            break;
+        case eKeyStatus::SHORT_PRESSED:
+            Debug_println("OTHER_KEY: SHORT PRESS");
+            #ifdef DEBUG
+            _debug_print_tasks();
+            #endif
+            break;
+        default:
+            break;
+        } // OTHER KEY
+
     }
 }
