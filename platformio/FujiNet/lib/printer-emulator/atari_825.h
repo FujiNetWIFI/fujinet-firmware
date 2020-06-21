@@ -17,6 +17,7 @@ protected:
         uint16_t ctr;
     } epson_cmd = {0, 0, 0, 0};
     bool escMode = false;
+    bool backMode = false;
 
     const uint16_t fnt_underline = 0x001;
     const uint16_t fnt_expanded = 0x002;
