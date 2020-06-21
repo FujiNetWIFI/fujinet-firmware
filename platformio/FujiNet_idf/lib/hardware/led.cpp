@@ -12,6 +12,8 @@
 #define PIN_LED_BT 4
 #endif
 
+#define BLINKING_TIME 100 // 200 ms
+
 
 // Global LED manager object
 LedManager fnLedManager;
@@ -44,12 +46,17 @@ void LedManager::set(eLed led, bool on)
 
 void LedManager::toggle(eLed led)
 {
-    set(led, !mLedPin[led]);
+    set(led, !mLedState[led]);
 }
 
-void LedManager::blink(eLed led)
+void LedManager::blink(eLed led, int count)
 {
-    toggle(led);
-    fnSystem.delay(BLINKING_TIME);
-    toggle(led);
+    for(int i = 0; i < count; i++)
+    {
+        toggle(led);
+        fnSystem.delay(BLINKING_TIME);
+        toggle(led);
+        if(i < count - 1)
+            fnSystem.delay(BLINKING_TIME);
+    }
 }

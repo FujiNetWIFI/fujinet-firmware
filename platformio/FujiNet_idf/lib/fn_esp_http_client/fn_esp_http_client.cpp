@@ -579,10 +579,8 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
         esp_transport_ssl_set_client_key_data(ssl, config->client_key_pem, strlen(config->client_key_pem));
     }
 
-    // TODO: Put the original call back when the project is switched to ESP-IDF
-    // OMF this method isn't available in the Arduino-ESP32 library
     if (config->skip_cert_common_name_check) {
-        // esp_transport_ssl_skip_common_name_check(ssl);
+        esp_transport_ssl_skip_common_name_check(ssl);
         ESP_LOGD(TAG, "esp_transport_ssl_skip_common_name_check() skipped");
     }
     
@@ -1214,10 +1212,7 @@ int esp_http_client_write(esp_http_client_handle_t client, const char *buffer, i
 esp_err_t esp_http_client_close(esp_http_client_handle_t client)
 {
     if (client->state >= HTTP_STATE_INIT) {
-        // TODO: Put the original call back when the project is switched to ESP-IDF
-        // OMF esp_transport_get_error_handle() not available in Arduino-ESP32 library
-        //http_dispatch_event(client, HTTP_EVENT_DISCONNECTED, esp_transport_get_error_handle(client->transport), 0);
-        http_dispatch_event(client, HTTP_EVENT_DISCONNECTED, NULL, 0);
+        http_dispatch_event(client, HTTP_EVENT_DISCONNECTED, esp_transport_get_error_handle(client->transport), 0);
         client->state = HTTP_STATE_INIT;
         return esp_transport_close(client->transport);
     }
@@ -1300,11 +1295,11 @@ void esp_http_client_add_auth(esp_http_client_handle_t client)
         if (http_utils_str_starts_with(auth_header, "Digest") == 0) {
             ESP_LOGD(TAG, "type = Digest");
             client->connection_info.auth_type = HTTP_AUTH_TYPE_DIGEST;
-// OMF REMOVED #ifdef CONFIG_ESP_HTTP_CLIENT_ENABLE_BASIC_AUTH
+#ifdef CONFIG_ESP_HTTP_CLIENT_ENABLE_BASIC_AUTH
         } else if (http_utils_str_starts_with(auth_header, "Basic") == 0) {
             ESP_LOGD(TAG, "type = Basic");
             client->connection_info.auth_type = HTTP_AUTH_TYPE_BASIC;
-//#endif
+#endif
         } else {
             client->connection_info.auth_type = HTTP_AUTH_TYPE_NONE;
             ESP_LOGE(TAG, "This authentication method is not supported: %s", auth_header);
