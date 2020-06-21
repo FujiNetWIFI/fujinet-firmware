@@ -1,26 +1,18 @@
 #include <cstring>
 
 #include "fnSystem.h"
+#include "led.h"
 #include "keys.h"
 
-
-/*
-KeyManager::KeyManager()
-{
-    //memset(mButtonActive, 0, sizeof(mButtonActive));
-    //memset(mLongPressActive, 0, sizeof(mLongPressActive));
-    //memset(mButtonTimer, 0, sizeof(mButtonTimer));
-    //mButtonPin[eKey::BOOT_KEY] = PIN_BOOT_KEY;
-    //mButtonPin[eKey::OTHER_KEY] = PIN_OTHER_KEY;
-}
-*/
+KeyManager fnKeyManager;
 
 void KeyManager::setup()
 {
-    //pinMode(PIN_BOOT_KEY, INPUT);
-    //pinMode(PIN_OTHER_KEY, INPUT);
     fnSystem.set_pin_mode(PIN_BOOT_KEY, PINMODE_INPUT);
     fnSystem.set_pin_mode(PIN_OTHER_KEY, PINMODE_INPUT);
+
+    // Start a new task to check the status of the buttons
+    xTaskCreate(_keystate_task, "fnKeys", 4096, this, 1, nullptr);
 }
 
 bool KeyManager::keyCurrentlyPressed(eKey key)
@@ -64,4 +56,68 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
         }
     }
     return result;
+}
+
+void KeyManager::_keystate_task(void *param)
+{
+#ifdef BOARD_HAS_PSRAM
+#define BLUETOOTH_LED eLed::LED_BT
+#else
+#define BLUETOOTH_LED eLed::LED_SIO
+#endif
+    KeyManager *pKM = (KeyManager *)param;
+
+    while (true)
+    {
+        vTaskDelay(200 / portTICK_PERIOD_MS);
+
+        // Check on the status of the OTHER_KEY and do something useful
+        switch (pKM->getKeyStatus(eKey::OTHER_KEY))
+        {
+        case eKeyStatus::LONG_PRESSED:
+            Debug_println("O_KEY: LONG PRESS");
+            break;
+        case eKeyStatus::SHORT_PRESSED:
+            Debug_println("O_KEY: SHORT PRESS");
+            break;
+        default:
+            break;
+        }
+
+        // Check on the status of the BOOT_KEY and do something useful
+        switch (pKM->getKeyStatus(eKey::BOOT_KEY))
+        {
+        case eKeyStatus::LONG_PRESSED:
+            Debug_println("B_KEY: LONG PRESS");
+
+#ifdef BLUETOOTH_SUPPORT
+            if (btMgr.isActive())
+            {
+                btMgr.stop();
+                ledMgr.set(BLUETOOTH_LED, false);
+            }
+            else
+            {
+                ledMgr.set(BLUETOOTH_LED, true); // SIO LED always ON in Bluetooth mode
+                btMgr.start();
+            }
+#endif //BLUETOOTH_SUPPORT
+            break;
+        case eKeyStatus::SHORT_PRESSED:
+            Debug_println("B_KEY: SHORT PRESS");
+            fnLedManager.blink(BLUETOOTH_LED); // blink to confirm a button press
+
+// Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
+#ifdef BLUETOOTH_SUPPORT
+            if (btMgr.isActive())
+                btMgr.toggleBaudrate();
+            else
+#endif
+                Debug_println("TODO: Re-connect theFuji.image_rotate()!!");
+            //theFuji.image_rotate();
+            break;
+        default:
+            break;
+        }
+    }
 }
