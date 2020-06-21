@@ -154,13 +154,36 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         }
     }
+    else if (backMode)
+    {
+        // Backspace. Empties printer buffer, then backspaces N dot spaces
+        backMode = false; // update x position
+        check_font();
+        if (epson_font_mask & fnt_proportional)
+        {
+            // fprintf(_file, " )%d(", (int)(280 - epson_cmd.cmd * 40));
+            fprintf(_file, ")%d(", (int)(epson_cmd.cmd * 40));
+            pdf_X += 0.48 * (float)epson_cmd.cmd;
+        }
+        else if (epson_font_mask & fnt_compressed)
+        {
+            // fprintf(_file, " )%d(", (int)(360 - epson_cmd.cmd * 40)); // need correct value for 16.7 CPI
+            fprintf(_file, ")%d(", (int)(epson_cmd.cmd * 40));
+            pdf_X += 0.48 * (float)epson_cmd.cmd;
+        }
+        else
+        {
+            // fprintf(_file, " )%d(", (int)(600 - epson_cmd.cmd * 60)); // need correct value for 10 CPI
+            fprintf(_file, ")%d(", (int)(epson_cmd.cmd * 60));
+            pdf_X += 0.6 * (float)epson_cmd.cmd;
+        }
+    }
     else
     { // check for other commands or printable character
         switch (c)
         {
-        case 8:                                                            // Backspace. Empties printer buffer, then backspaces print head one space
-            fprintf(_file, ")%d(", (int)(charWidth / lineHeight * 1000.)); // TODO update for 825 font
-            pdf_X -= charWidth;                                            // update x position
+        case 8:
+            backMode = true;
             break;
         case 10:                  // Line Feed. Printer empties its buffer and does line feed at
                                   // current line spacing and Resets buffer pointer to zero
