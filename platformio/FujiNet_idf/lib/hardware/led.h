@@ -1,8 +1,6 @@
 #ifndef LED_H
 #define LED_H
 
-#define BLINKING_TIME 200 // 200 ms
-
 enum eLed
 {
     LED_WIFI = 0,
@@ -18,7 +16,7 @@ public:
     void setup();
     void set(eLed led, bool one=true);
     void toggle(eLed led);
-    void blink(eLed led);
+    void blink(eLed led, int count=1);
 
 private:
     bool mLedState[eLed::LED_COUNT] = { 0 };
