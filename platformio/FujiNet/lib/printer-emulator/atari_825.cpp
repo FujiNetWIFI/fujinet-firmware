@@ -164,11 +164,10 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // Prints buffer contents and resets buffer character count to zero
             // Implemented outside in pdf_printer()
             break;
-        case 14: // Turns on double width mode to end of line unless cancelled by 20
+        case 14: // Turns off underline
             clear_mode(fnt_underline);
             break;
-        case 15: // Turns on compressed character mode. Does not work with
-                 // emphasized mode. Stays on until cancelled by OC2 (18)
+        case 15: // Turns on underline
             set_mode(fnt_underline);
             break;
         case 27: // ESC mode
