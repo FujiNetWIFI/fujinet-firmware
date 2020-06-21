@@ -90,11 +90,27 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 6:
             // forward dot spaces
             // need either 1-dot glyph or need to do a spacing adjustment like backspace
-            if (epson_cmd.ctr > 0)
+
+            // TODO: fix this
+            check_font();
+
+            if (epson_font_mask & fnt_proportional)
             {
-                pdf_X += 1.2 * (float)c;
-                reset_cmd();
+                fprintf(_file, " )%d(", (int)(280 - epson_cmd.cmd * 40));
+                pdf_X += 0.48 * (float)epson_cmd.cmd;
             }
+            else if (epson_font_mask & fnt_compressed)
+            {
+                fprintf(_file, " )%d(", (int)(360 - epson_cmd.cmd * 40)); // need correct value for 16.7 CPI
+                pdf_X += 0.48 * (float)epson_cmd.cmd;
+            }
+            else
+            {
+                fprintf(_file, " )%d(", (int)(600 - epson_cmd.cmd * 60)); // need correct value for 10 CPI
+                pdf_X += 0.72 * (float)epson_cmd.cmd;
+            }
+
+            reset_cmd();
             break;
         case 10:                  // full reverse line feed
             pdf_dY += lineHeight; // set pdf_dY and rise to N1/216.
@@ -138,13 +154,40 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         }
     }
+    else if (backMode)
+    {
+#ifdef DEBUG
+        Debug_printf("backspace mode: %u\n", c);
+#endif
+        // Backspace. Empties printer buffer, then backspaces N dot spaces
+        c &= 0x7F;        // ignore MSB
+        backMode = false; // update x position
+        check_font();
+        if (epson_font_mask & fnt_proportional)
+        {
+            // fprintf(_file, " )%d(", (int)(280 - epson_cmd.cmd * 40));
+            fprintf(_file, ")%d(", (int)(c * 40));
+            pdf_X -= 0.48 * (float)c;
+        }
+        else if (epson_font_mask & fnt_compressed)
+        {
+            // fprintf(_file, " )%d(", (int)(360 - epson_cmd.cmd * 40)); // need correct value for 16.7 CPI
+            fprintf(_file, ")%d(", (int)(c * 40));
+            pdf_X -= 0.48 * (float)c;
+        }
+        else
+        {
+            // fprintf(_file, " )%d(", (int)(600 - epson_cmd.cmd * 60)); // need correct value for 10 CPI
+            fprintf(_file, ")%d(", (int)(c * 60));
+            pdf_X -= 0.72 * (float)c;
+        }
+    }
     else
     { // check for other commands or printable character
         switch (c)
         {
-        case 8:                                                            // Backspace. Empties printer buffer, then backspaces print head one space
-            fprintf(_file, ")%d(", (int)(charWidth / lineHeight * 1000.)); // TODO update for 825 font
-            pdf_X -= charWidth;                                            // update x position
+        case 8:
+            backMode = true;
             break;
         case 10:                  // Line Feed. Printer empties its buffer and does line feed at
                                   // current line spacing and Resets buffer pointer to zero
@@ -155,55 +198,70 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // Prints buffer contents and resets buffer character count to zero
             // Implemented outside in pdf_printer()
             break;
-        case 14: // Turns on double width mode to end of line unless cancelled by 20
+        case 14: // Turns off underline
             clear_mode(fnt_underline);
             break;
-        case 15: // Turns on compressed character mode. Does not work with
-                 // emphasized mode. Stays on until cancelled by OC2 (18)
+        case 15: // Turns on underline
             set_mode(fnt_underline);
             break;
         case 27: // ESC mode
             escMode = true;
             break;
-        default:        // maybe printable character
-            if (c > 31) // && c < 127)
+        default: // maybe printable character
+            if (c > 31 && c < 127)
             {
-                uint8_t new_F = epson_font_lookup(epson_font_mask);
-                if (fontNumber != new_F)
-                {
-                    float new_w = epson_font_width(epson_font_mask);
-                    epson_set_font(new_F, new_w);
-                }
+                check_font();
                 if (c == '\\' || c == '(' || c == ')')
                     fputc('\\', _file);
                 fputc(c, _file);
-                pdf_X += charWidth; // update x position
+                if (epson_font_mask & fnt_proportional)
+                {
+                    float dx;
+                    dx = (float)char_widths_825[c - 32];
+                    if (epson_font_mask & fnt_expanded)
+                        dx *= 2;
+                    pdf_X += dx * 0.48;
+                }
+                else
+                    pdf_X += charWidth; // update x position
             }
             break;
         }
     }
 }
 
+void atari825::check_font()
+{
+    uint8_t new_F = epson_font_lookup(epson_font_mask);
+    if (fontNumber != new_F)
+    {
+        float new_w = epson_font_width(epson_font_mask);
+        epson_set_font(new_F, new_w);
+        if (epson_font_mask & (fnt_compressed | fnt_proportional))
+            pageWidth = 1185. * 0.48;
+        else
+            pageWidth = 7.2 * 80.;
+    }
+}
+
 uint8_t atari825::epson_font_lookup(uint16_t code)
 {
-    // substitude 1025 fonts for now
-    // TODO: change to 825 fonts
-    uint16_t c = code & (fnt_expanded | fnt_compressed);
-    if (c == 0)
-        return 1;
-    else if (c & fnt_expanded)
-        return 2;
-    else
-        return 3;
-    return 1;
+    return code + 1; // got them organized perfect!
+    // if (c == 0)
+    //     return 1;
+    // else if (c & fnt_expanded)
+    //     return 2;
+    // else
+    //     return 3;
+    // return 1;
 }
 
 float atari825::epson_font_width(uint16_t code)
 {
     // substitude 1025 fonts for now
     // TODO: change to 825 fonts
-    uint8_t F = epson_font_lookup(code);
-    const float w[] = {7.2, 14.4, 4.0};
+    uint8_t F = code >> 1; // get rid of underline bit
+    const float w[] = {7.2, 14.4, 4.32, 8.64, 5.76, 11.52};
     return w[F];
 }
 
@@ -212,7 +270,7 @@ void atari825::epson_set_font(uint8_t F, float w)
     fprintf(_file, ")]TJ /F%u 12 Tf [(", F);
     charWidth = w;
     fontNumber = F;
-    fontUsed[F] = true;
+    fontUsed[F - 1] = true;
 }
 
 void atari825::post_new_file()
@@ -220,7 +278,7 @@ void atari825::post_new_file()
     translate850 = true;
     _eol = ASCII_CR;
 
-    shortname = "a1025"; //  TODO: change to Atari 825 fonts a825
+    shortname = "a825";
 
     pageWidth = 612.0;
     pageHeight = 792.0;
@@ -230,8 +288,8 @@ void atari825::post_new_file()
     lineHeight = 12.0;
     charWidth = 7.2;
     fontNumber = 1;
-    fontSize = 9;
-    fontHorizScale = 120;
+    fontSize = 12;
+    fontHorizScale = 100;
     textMode = true;
     pdf_dY = 0;
 

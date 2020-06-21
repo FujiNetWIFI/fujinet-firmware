@@ -3,19 +3,17 @@
 
 #include "pdf_printer.h"
 
-typedef uint8_t byte;
-
 class atari825 : public pdfPrinter
 {
 protected:
     struct epson_cmd_t
     {
-        uint8_t cmd;
-        uint8_t N1;
-        uint8_t N2;
-        uint16_t N;
-        uint16_t ctr;
-    } epson_cmd = {0, 0, 0, 0};
+        uint8_t cmd = 0;
+        uint8_t N1 = 0;
+        uint8_t N2 = 0;
+        uint16_t N = 0;
+        uint16_t ctr = 0;
+    } epson_cmd;
     bool escMode = false;
     bool backMode = false;
 
@@ -45,7 +43,7 @@ public:
     const char *modelname() { return "Atari 825"; };
 
 private:
-    const byte char_widths_825[95] = {
+    const uint8_t char_widths_825[95] = {
         7,  //	32
         7,  //	33	!
         10, //	34	"

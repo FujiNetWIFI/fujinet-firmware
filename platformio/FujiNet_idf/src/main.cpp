@@ -69,6 +69,14 @@ void main_setup()
     Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
 #endif
 #endif
+    esp_err_t e = nvs_flash_init();
+    if(e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        Debug_println("Erasing flash");
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        e = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(e);
 
     keyMgr.setup();
     fnLedManager.setup();
@@ -167,7 +175,7 @@ void main_loop()
 #ifdef BOARD_HAS_PSRAM
         fnLedManager.blink(eLed::LED_BT); // blink to confirm a button press
 #else
-        ledMgr.blink(eLed::LED_SIO);         // blink to confirm a button press
+        ledMgr.blink(eLed::LED_SIO); // blink to confirm a button press
 #endif
 
 // Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
@@ -206,15 +214,6 @@ extern "C"
 {
     void app_main()
     {
-        esp_err_t e = nvs_flash_init();
-        if(e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND)
-        {
-            Debug_println("Erasing flash");
-            ESP_ERROR_CHECK(nvs_flash_erase());
-            e = nvs_flash_init();
-        }
-        ESP_ERROR_CHECK(e);
-
         // Call our setup routine
         main_setup();
 
