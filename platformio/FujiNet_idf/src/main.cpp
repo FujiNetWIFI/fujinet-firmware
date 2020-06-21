@@ -123,6 +123,21 @@ void main_setup()
 #endif
 }
 
+void fn_service_loop(void *param)
+{
+    while (true)
+    {
+        // We don't have any delays in this loop, so IDLE threads will be starved
+        // Shouldn't be a problem, but something to keep in mind...
+        // Go service BT if it's active
+    #ifdef BLUETOOTH_SUPPORT
+        if (btMgr.isActive())
+            btMgr.service();
+        else
+    #endif
+            SIO.service();
+    }
+}
 
 /*
 * This is the start/entry point for an ESP-IDF program (must use "C" linkage)
@@ -134,18 +149,16 @@ extern "C"
         // Call our setup routine
         main_setup();
 
-        // Run our main loop FOREVER
+        // Create a new high-priority task to handle the main loop
+        // This is assigned to CPU1 the WiFi task ends up on CPU0
+        #define MAIN_STACKSIZE 4096
+        #define MAIN_PRIORITY 10
+        #define MAIN_CPUAFFINITY 1
+        xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
+            MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
+
+        // Sit here twiddling our thumbs
         while (true)
-        {
-            // We don't have any delays in this loop, so IDLE threads will be starved
-            // Shouldn't be a problem, but something to keep in mind...
-            // Go service BT if it's active
-#ifdef BLUETOOTH_SUPPORT
-            if (btMgr.isActive())
-                btMgr.service();
-            else
-#endif
-                SIO.service();
-        }
+            vTaskDelay(9000 / portTICK_PERIOD_MS);
     }
 }

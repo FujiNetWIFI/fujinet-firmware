@@ -28,6 +28,7 @@
 
 /*
 Examples of values that can be defined in PLATFORMIO.INI
+First number is calculated based on the index, second is what the ESP32 actually reports
 
 FN_HISPEED_INDEX=0 // 124,017 (124,018) baud
 FN_HISPEED_INDEX=1 // 108,800 (108,806) baud
@@ -44,6 +45,7 @@ FN_HISPEED_INDEX=30 //  23,868 (23,868) baud
 FN_HISPEED_INDEX=38 //  19,639 (19,640) baud
 FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 */
+//#define FN_HISPEED_INDEX 0
 
 // The High speed SIO index
 #ifndef FN_HISPEED_INDEX
