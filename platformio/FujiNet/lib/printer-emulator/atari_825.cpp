@@ -107,7 +107,7 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             else
             {
                 fprintf(_file, " )%d(", (int)(600 - epson_cmd.cmd * 60)); // need correct value for 10 CPI
-                pdf_X += 0.6 * (float)epson_cmd.cmd;
+                pdf_X += 0.72 * (float)epson_cmd.cmd;
             }
 
             reset_cmd();
@@ -179,7 +179,7 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         {
             // fprintf(_file, " )%d(", (int)(600 - epson_cmd.cmd * 60)); // need correct value for 10 CPI
             fprintf(_file, ")%d(", (int)(c * 60));
-            pdf_X -= 0.6 * (float)c;
+            pdf_X -= 0.72 * (float)c;
         }
     }
     else
