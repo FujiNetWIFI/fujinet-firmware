@@ -93,24 +93,23 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 
             // TODO: fix this
             check_font();
+
+            if (epson_font_mask & fnt_proportional)
             {
-                int n = 7 - epson_cmd.cmd;
-                if (epson_font_mask & fnt_proportional)
-                {
-                    fprintf(_file, " )%d(", (int)(n * 40));
-                    pdf_X += 0.48 * (float)epson_cmd.cmd;
-                }
-                else if (epson_font_mask & fnt_compressed)
-                {
-                    fprintf(_file, " )%d(", (int)(n * 40)); // need correct value for 16.7 CPI
-                    pdf_X += 0.48 * (float)epson_cmd.cmd;
-                }
-                else
-                {
-                    fprintf(_file, " )%d(", (int)(n * 40)); // need correct value for 10 CPI
-                    pdf_X += 0.6 * (float)epson_cmd.cmd;
-                }
+                fprintf(_file, " )%d(", (int)(280 - epson_cmd.cmd * 40));
+                pdf_X += 0.48 * (float)epson_cmd.cmd;
             }
+            else if (epson_font_mask & fnt_compressed)
+            {
+                fprintf(_file, " )%d(", (int)(360 - epson_cmd.cmd * 40)); // need correct value for 16.7 CPI
+                pdf_X += 0.48 * (float)epson_cmd.cmd;
+            }
+            else
+            {
+                fprintf(_file, " )%d(", (int)(600 - epson_cmd.cmd * 60)); // need correct value for 10 CPI
+                pdf_X += 0.6 * (float)epson_cmd.cmd;
+            }
+
             reset_cmd();
             break;
         case 10:                  // full reverse line feed
