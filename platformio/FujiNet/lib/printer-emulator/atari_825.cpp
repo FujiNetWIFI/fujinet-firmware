@@ -156,7 +156,11 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     }
     else if (backMode)
     {
+#ifdef DEBUG
+        Debug_printf("backspace mode: %u\n", c);
+#endif
         // Backspace. Empties printer buffer, then backspaces N dot spaces
+        c &= 0x7F;        // ignore MSB
         backMode = false; // update x position
         check_font();
         if (epson_font_mask & fnt_proportional)
