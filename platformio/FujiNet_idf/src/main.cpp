@@ -37,14 +37,12 @@ testing commences...
 
 // fnSystem is declared and defined in fnSystem.h/cpp
 // fnLedManager is declared and defined in led.h/cpp
+// fnKeyManager is declared and defined in keys.h/cpp
 // fnHTTPD is declared and defineid in HttpService.h/cpp
-
 sioModem sioR;
 sioFuji theFuji;
 sioApeTime apeTime;
 sioVoice sioV;
-
-KeyManager keyMgr;
 
 #ifdef BLUETOOTH_SUPPORT
 BluetoothManager btMgr;
@@ -70,7 +68,7 @@ void main_setup()
 #endif
 #endif
     esp_err_t e = nvs_flash_init();
-    if(e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    if (e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
         Debug_println("Erasing flash");
         ESP_ERROR_CHECK(nvs_flash_erase());
@@ -78,7 +76,7 @@ void main_setup()
     }
     ESP_ERROR_CHECK(e);
 
-    keyMgr.setup();
+    fnKeyManager.setup();
     fnLedManager.setup();
 
     fnSPIFFS.start();
@@ -125,87 +123,6 @@ void main_setup()
 #endif
 }
 
-/*
-* Main activity loop
-*/
-void main_loop()
-{
-    // Check on the status of the OTHER_KEY and do something useful
-    switch (keyMgr.getKeyStatus(eKey::OTHER_KEY))
-    {
-    case eKeyStatus::LONG_PRESSED:
-        Debug_println("O_KEY: LONG PRESS");
-        break;
-    case eKeyStatus::SHORT_PRESSED:
-        Debug_println("O_KEY: SHORT PRESS");
-        break;
-    default:
-        break;
-    }
-
-    // Check on the status of the BOOT_KEY and do something useful
-    switch (keyMgr.getKeyStatus(eKey::BOOT_KEY))
-    {
-    case eKeyStatus::LONG_PRESSED:
-        Debug_println("B_KEY: LONG PRESS");
-
-#ifdef BLUETOOTH_SUPPORT
-        if (btMgr.isActive())
-        {
-            btMgr.stop();
-#ifdef BOARD_HAS_PSRAM
-            ledMgr.set(eLed::LED_BT, false);
-#else
-            ledMgr.set(eLed::LED_SIO, false);
-#endif
-        }
-        else
-        {
-#ifdef BOARD_HAS_PSRAM
-            ledMgr.set(eLed::LED_BT, true);
-#else
-            ledMgr.set(eLed::LED_SIO, true); // SIO LED always ON in Bluetooth mode
-#endif
-            btMgr.start();
-        }
-#endif //BLUETOOTH_SUPPORT
-        break;
-    case eKeyStatus::SHORT_PRESSED:
-        Debug_println("B_KEY: SHORT PRESS");
-#ifdef BOARD_HAS_PSRAM
-        fnLedManager.blink(eLed::LED_BT); // blink to confirm a button press
-#else
-        ledMgr.blink(eLed::LED_SIO); // blink to confirm a button press
-#endif
-
-// Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
-#ifdef BLUETOOTH_SUPPORT
-        if (btMgr.isActive())
-        {
-            btMgr.toggleBaudrate();
-        }
-        else
-#endif
-        {
-            theFuji.image_rotate();
-        }
-        break;
-    default:
-        break;
-    } // switch (keyMgr.getKeyStatus(eKey::BOOT_KEY))
-
-    // Go service BT if it's active
-#ifdef BLUETOOTH_SUPPORT
-    if (btMgr.isActive())
-    {
-        btMgr.service();
-    }
-    else
-#endif
-    {
-        SIO.service();
-    }
-}
 
 /*
 * This is the start/entry point for an ESP-IDF program (must use "C" linkage)
@@ -222,7 +139,13 @@ extern "C"
         {
             // We don't have any delays in this loop, so IDLE threads will be starved
             // Shouldn't be a problem, but something to keep in mind...
-            main_loop();
+            // Go service BT if it's active
+#ifdef BLUETOOTH_SUPPORT
+            if (btMgr.isActive())
+                btMgr.service();
+            else
+#endif
+                SIO.service();
         }
     }
 }
