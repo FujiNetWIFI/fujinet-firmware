@@ -402,12 +402,12 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
             if(strcasecmp(name.c_str(), "SSID") == 0)
             {
                 _wifi.ssid = value;
-                Debug_printf("config wifi=\"%s\"\n", value.c_str());
+                //Debug_printf("config wifi=\"%s\"\n", value.c_str());
             }
             else if (strcasecmp(name.c_str(), "passphrase") == 0)
             {
                 _wifi.passphrase = value;
-                Debug_printf("config passphrase=\"%s\"\n", value.c_str());
+                //Debug_printf("config passphrase=\"%s\"\n", value.c_str());
             }
         }
     }
@@ -430,12 +430,12 @@ void fnConfig::_read_section_host(std::stringstream &ss, int index)
             if(strcasecmp(name.c_str(), "name") == 0)
             {
                 _host_slots[index].name = value;
-                Debug_printf("config host %d name=\"%s\"\n", index, value.c_str());
+                //Debug_printf("config host %d name=\"%s\"\n", index, value.c_str());
             }
             else if (strcasecmp(name.c_str(), "type") == 0)
             {
                 _host_slots[index].type = host_type_from_string(value.c_str());
-                Debug_printf("config host %d type=%d (\"%s\")\n", index, _host_slots[index].type, value.c_str());
+                //Debug_printf("config host %d type=%d (\"%s\")\n", index, _host_slots[index].type, value.c_str());
             }
         }
     }
@@ -462,17 +462,17 @@ void fnConfig::_read_section_mount(std::stringstream &ss, int index)
                 if(slot < 0 || slot >= MAX_HOST_SLOTS)
                     slot = HOST_SLOT_INVALID;
                 _mount_slots[index].host_slot = slot;
-                Debug_printf("config mount %d hostslot=%d\n", index, slot);
+                //Debug_printf("config mount %d hostslot=%d\n", index, slot);
             }
             else if (strcasecmp(name.c_str(), "mode") == 0)
             {
                 _mount_slots[index].mode = mount_mode_from_string(value.c_str());
-                Debug_printf("config mount %d mode=%d (\"%s\")\n", index, _mount_slots[index].mode, value.c_str());
+                //Debug_printf("config mount %d mode=%d (\"%s\")\n", index, _mount_slots[index].mode, value.c_str());
             }
             else if (strcasecmp(name.c_str(), "path") == 0)
             {
                 _mount_slots[index].path = value;
-                Debug_printf("config mount %d path=\"%s\"\n", index, value.c_str());
+                //Debug_printf("config mount %d path=\"%s\"\n", index, value.c_str());
             }
         }
     }
@@ -498,7 +498,7 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
                     type = sioPrinter::printer_type::PRINTER_INVALID;
 
                 _printer_slots[index].type = (sioPrinter::printer_type)type;
-                Debug_printf("config printer %d type=%d\n", index, type);
+                //Debug_printf("config printer %d type=%d\n", index, type);
             } else if (strcasecmp(name.c_str(), "port") == 0)
             {
                 int port = atoi(value.c_str()) - 1;
@@ -506,7 +506,7 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
                     port = 0;
 
                 _printer_slots[index].port = port;
-                Debug_printf("config printer %d port=%d\n", index, port + 1);
+                //Debug_printf("config printer %d port=%d\n", index, port + 1);
             }
         }
     }
