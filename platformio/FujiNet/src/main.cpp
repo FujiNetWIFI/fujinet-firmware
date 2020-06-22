@@ -47,7 +47,6 @@ sioModem sioR;
 sioFuji theFuji;
 sioApeTime apeTime;
 sioVoice sioV;
-fnHttpService fnHTTPD;
 
 #ifdef DEBUG_N
 WiFiClient wifiDebugClient;
