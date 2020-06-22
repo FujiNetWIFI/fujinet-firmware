@@ -12,6 +12,9 @@
 #include "sio.h"
 #include "bar.h"
 #include "die.h"
+#include "config.h"
+
+unsigned char kchar;
 
 extern union
 {
@@ -84,7 +87,8 @@ void info_run(void)
   POKE(0x610,2);
 
   screen_puts(0,4, "  #FUJINET  CONFIG  ");
-  screen_puts(11,14,"Press any key.");
+  screen_puts(11,14,"Press \xD9\xA3\x19 reconnect");
+  screen_puts(9,15,"Any other key to return");
   screen_puts( 5,5, "      SSID:");
   screen_puts( 5,6, "  Hostname:");
   screen_puts( 5,7, "IP Address:");
@@ -115,8 +119,13 @@ void info_run(void)
   print_mac(17,12,adapterConfig.bssid);
   
   while (!kbhit()) { } // Wait for key.
+  
+  kchar = cgetc();
 
-  cgetc();
+  if ( kchar == 67 || kchar == 99 )
+  {
+    config_connect();
+  }
 
   // Patch it back
   POKE(0x60A,2);
