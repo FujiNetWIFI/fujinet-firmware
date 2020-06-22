@@ -122,8 +122,10 @@ void sioDevice::sio_nak()
 void sioDevice::sio_ack()
 {
     fnUartSIO.write('A');
+    fnSystem.delay_microseconds(DELAY_T5); //?
+    Debug_print("ack flush\n");
     fnUartSIO.flush();
-    Debug_println("ACK!");
+    Debug_print("ACK!\n");
 }
 
 // SIO COMPLETE
@@ -222,17 +224,13 @@ void sioBus::service()
         Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                      tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
         // Wait for CMD line to raise again
-        int z = 0;
         while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
-        {   z++;
             fnSystem.yield();
-        }
-        Debug_printf("PIN_CMD raised after %d checks\n", z);
 
         uint8_t ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
         if (ck == tempFrame.cksum)
         {
-            Debug_println("checksum_ok");
+            Debug_print("checksum_ok\n");
             if (fujiDev != nullptr && fujiDev->load_config && tempFrame.devic == SIO_DEVICEID_DISK)
             {
                 activeDev = fujiDev->disk();
