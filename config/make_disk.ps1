@@ -5,7 +5,7 @@ $headerfile = "header.atr"
 $programfile = "config.com"
 $diskfile = "autorun.atr"
 
-$loc = (get-location).path + "\"
+$loc = (get-location).path + [System.IO.Path]::DirectorySeparatorChar
 
 $bytes_header = [io.file]::readallbytes($loc + $headerfile)
 $bytes_program = [io.file]::readallbytes($loc + $programfile)
@@ -23,5 +23,4 @@ if($loader_byte -ne $loader_size_sectors_rounded)
   $bytes_program[$loader_sector_byte_loc] = $loader_size_sectors_rounded
 }
 
-[io.file]::writeallbytes
-  ($loc + $diskfile, $bytes_header + $bytes_program + $bytes_padding)
+[io.file]::writeallbytes($loc + $diskfile, $bytes_header + $bytes_program + $bytes_padding)
