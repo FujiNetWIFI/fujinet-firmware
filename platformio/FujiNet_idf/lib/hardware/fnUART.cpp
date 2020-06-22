@@ -10,7 +10,7 @@
 #define UART_SIO   UART_NUM_2
 
 // Number of RTOS ticks to wait for data in TX buffer to complete sending
-#define MAX_FLUSH_WAIT_TICKS 200
+#define MAX_FLUSH_WAIT_TICKS 100
 #define MAX_READ_WAIT_TICKS 1000
 #define MAX_WRITE_BYTE_TICKS 100
 #define MAX_WRITE_BUFFER_TICKS 1000

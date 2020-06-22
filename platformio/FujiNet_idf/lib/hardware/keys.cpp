@@ -58,6 +58,9 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
     return result;
 }
 
+
+TaskHandle_t handle_WiFi = nullptr;
+
 #ifdef DEBUG
 // Dumps list of current tasks
 void _debug_print_tasks()
@@ -70,14 +73,18 @@ void _debug_print_tasks()
 
     for(int i = 0; i < n; i++)
     {
-        Debug_printf("Task %2d %c (%2d,%2d) %4d; %10d %8s: %s\n",
+        Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\n",
             i+1,
-            pTasks[i].xCoreID == tskNO_AFFINITY ? '-' : ('0' + pTasks[i].xCoreID),
+            pTasks[i].xHandle,
+            pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
             pTasks[i].uxBasePriority, pTasks[i].uxCurrentPriority,
             pTasks[i].usStackHighWaterMark,
             pTasks[i].ulRunTimeCounter,
             status[pTasks[i].eCurrentState],
             pTasks[i].pcTaskName);
+
+        if(strcmp(pTasks[i].pcTaskName, "wifi") == 0)
+            handle_WiFi = pTasks[i].xHandle;
     }
 }
 #endif
