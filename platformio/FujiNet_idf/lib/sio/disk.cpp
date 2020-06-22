@@ -528,6 +528,7 @@ void sioDisk::sio_process()
     if (device_active==false && (cmdFrame.comnd != 'S' && cmdFrame.comnd != 0x3F))
         return;
 
+    Debug_print("sio_process()\n");
     switch (cmdFrame.comnd)
     {
     case 'R':

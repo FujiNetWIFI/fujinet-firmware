@@ -10,7 +10,7 @@
 #define UART_SIO   UART_NUM_2
 
 // Number of RTOS ticks to wait for data in TX buffer to complete sending
-#define MAX_FLUSH_WAIT_TICKS 100
+#define MAX_FLUSH_WAIT_TICKS 200
 #define MAX_READ_WAIT_TICKS 1000
 #define MAX_WRITE_BYTE_TICKS 100
 #define MAX_WRITE_BUFFER_TICKS 1000
@@ -82,7 +82,7 @@ void UARTManager::begin(int baud)
     uart_set_pin(_uart_num, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
     // Arduino default buffer size is 256
-    int uart_buffer_size = 512;
+    int uart_buffer_size = 256;
     int uart_queue_size = 10;
     int intr_alloc_flags = 0;
 
