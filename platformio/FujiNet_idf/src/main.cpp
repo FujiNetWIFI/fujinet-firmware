@@ -116,8 +116,6 @@ void main_setup()
     SIO.setup();
 
 #ifdef DEBUG
-    Debug_print("SIO Voltage: ");
-    Debug_println(fnSystem.get_sio_voltage());
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
 #endif
@@ -152,7 +150,7 @@ extern "C"
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1 the WiFi task ends up on CPU0
         #define MAIN_STACKSIZE 4096
-        #define MAIN_PRIORITY 10
+        #define MAIN_PRIORITY 20
         #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
             MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);

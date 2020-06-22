@@ -19,6 +19,9 @@
 
 using namespace std;
 
+// Global HTTPD
+fnHttpService fnHTTPD;
+
 /* Send some meaningful(?) error message to client
 */
 void fnHttpService::return_http_error(httpd_req_t *req, _fnwserr errnum)
@@ -95,9 +98,7 @@ void fnHttpService::set_file_content_type(httpd_req_t *req, const char *filepath
 void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
 {
     // Note that we don't add FNWS_FILE_ROOT as it should've been done in send_file()
-#ifdef DEBUG
     Debug_printf("Opening file for parsing: '%s'\n", filename);
-#endif
 
     _fnwserr err = fnwserr_noerrr;
 
@@ -107,9 +108,7 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
 
     if (fInput == nullptr)
     {
-#ifdef DEBUG
         Debug_println("Failed to open file for parsing");
-#endif
         err = fnwserr_fileopen;
     }
     else
@@ -121,9 +120,7 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
         char *buf = (char *)calloc(sz, 1);
         if (buf == NULL)
         {
-#ifdef DEBUG
             Debug_printf("Couldn't allocate %u bytes to load file contents!\n", sz);
-#endif
             err = fnwserr_memory;
         }
         else
@@ -165,9 +162,7 @@ void fnHttpService::send_file(httpd_req_t *req, const char *filename)
     FILE * fInput = pState->_FS->file_open(fpath.c_str());
     if (fInput == nullptr)
     {
-#ifdef DEBUG
         Debug_printf("Failed to open file for sending: '%s'\n", fpath.c_str());
-#endif
         return_http_error(req, fnwserr_fileopen);
     }
     else
@@ -209,9 +204,7 @@ void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
 
 esp_err_t fnHttpService::get_handler_index(httpd_req_t *req)
 {
-#ifdef DEBUG
     Debug_println("Index request handler");
-#endif
 
     send_file(req, "index.html");
     return ESP_OK;
@@ -219,9 +212,7 @@ esp_err_t fnHttpService::get_handler_index(httpd_req_t *req)
 
 esp_err_t fnHttpService::get_handler_file_in_query(httpd_req_t *req)
 {
-#ifdef DEBUG
     //Debug_printf("File_in_query request handler '%s'\n", req->uri);
-#endif
 
     // Get the file to send from the query
     queryparts qp;
@@ -233,9 +224,7 @@ esp_err_t fnHttpService::get_handler_file_in_query(httpd_req_t *req)
 
 esp_err_t fnHttpService::get_handler_file_in_path(httpd_req_t *req)
 {
-#ifdef DEBUG
     //Debug_printf("File_in_path request handler '%s'\n", req->uri);
-#endif
 
     // Get the file to send from the query
     queryparts qp;
@@ -247,9 +236,7 @@ esp_err_t fnHttpService::get_handler_file_in_path(httpd_req_t *req)
 
 esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 {
-#ifdef DEBUG
     Debug_println("Print request handler");
-#endif
 
     time_t now = fnSystem.millis();
     // Get a pointer to the current (only) printer
@@ -329,39 +316,39 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
         count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, poutput);
         //count = currentPrinter->readFromOutput((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
         total += count;
-#ifdef DEBUG
+
         // Debug_printf("Read %u bytes from print file\n", count);
-#endif
+
         httpd_resp_send_chunk(req, buf, count);
     } while (count > 0);
-    #ifdef DEBUG
-        Debug_printf("Sent %u bytes total from print file\n", total);
-    #endif
+
+    Debug_printf("Sent %u bytes total from print file\n", total);
+
     free(buf);
     fclose(poutput);
 
     // Tell the printer it can start writing from the beginning
     printer->reset_printer(); // destroy,create new printer emulator object of previous type.
-#ifdef DEBUG
+
     Debug_println("Print request completed");
-#endif
+
     return ESP_OK;
 }
 
 esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
 {
-#ifdef DEBUG
+
     Debug_printf("Post_config request handler '%s'\n", req->uri);
-#endif
+
     _fnwserr err = fnwserr_noerrr;
 
     // Load the posted data
     char *buf = (char *)calloc(FNWS_RECV_BUFF_SIZE, 1);
     if (buf == NULL)
     {
-#ifdef DEBUG
+
         Debug_printf("Couldn't allocate %u bytes to store POST contents\n", FNWS_RECV_BUFF_SIZE);
-#endif
+
         err = fnwserr_memory;
     }
     else
@@ -372,9 +359,7 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
         int ret = httpd_req_recv(req, buf, recv_size);
         if (ret <= 0)
         { // 0 return value indicates connection closed
-#ifdef DEBUG
             Debug_printf("Error (%d) returned trying to retrieve %u bytes posted data\n", ret, recv_size);
-#endif
             err = fnwserr_post_fail;
         }
         else
@@ -436,10 +421,8 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
 
     if (!fnWiFi.connected())
     {
-#ifdef DEBUG
         Debug_println("WiFi not connected - aborting web server startup");
-        return NULL;
-#endif
+        return nullptr;
     }
 
     // Set filesystem where we expect to find our static files
@@ -453,9 +436,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed
     config.global_user_ctx_free_fn = (httpd_free_ctx_fn_t)custom_global_ctx_free;
 
-#ifdef DEBUG
     Debug_printf("Starting web server on port %d\n", config.server_port);
-#endif
 
     if (httpd_start(&(state.hServer), &config) == ESP_OK)
     {
@@ -466,9 +447,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     else
     {
         state.hServer = NULL;
-#ifdef DEBUG
         Debug_println("Error starting web server!");
-#endif
     }
 
     return state.hServer;
@@ -480,9 +459,7 @@ void fnHttpService::start()
 {
     if (state.hServer != NULL)
     {
-#ifdef DEBUG
         Debug_println("httpServiceInit: We already have a web server handle - aborting");
-#endif
         return;
     }
 
@@ -497,9 +474,8 @@ void fnHttpService::start()
 
 void fnHttpService::stop()
 {
-#ifdef DEBUG
     Debug_println("Stopping web service");
-#endif
+
     if (state.hServer != nullptr)
     {
         httpd_stop(state.hServer);

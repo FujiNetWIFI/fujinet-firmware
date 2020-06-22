@@ -45,7 +45,7 @@ FN_HISPEED_INDEX=30 //  23,868 (23,868) baud
 FN_HISPEED_INDEX=38 //  19,639 (19,640) baud
 FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 */
-//#define FN_HISPEED_INDEX 0
+#define FN_HISPEED_INDEX 0
 
 // The High speed SIO index
 #ifndef FN_HISPEED_INDEX
@@ -168,5 +168,6 @@ public:
 };
 
 extern sioBus SIO;
+extern int sioVoltage;
 
 #endif // guard
