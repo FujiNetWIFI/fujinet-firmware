@@ -362,7 +362,6 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
     }
     else if (device_id >= SIO_DEVICEID_FN_NETWORK && device_id <= SIO_DEVICEID_FN_NETWORK_LAST)
     {
-        Debug_printf("NETWORK DEVICE 0x%02x ADDED!\n", device_id - SIO_DEVICEID_FN_NETWORK);
         netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (sioNetwork *)pDevice;
     }
 
