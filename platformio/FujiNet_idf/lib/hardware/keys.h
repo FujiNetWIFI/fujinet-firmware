@@ -20,12 +20,15 @@ enum eKeyStatus
 
 static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BOOT_KEY, PIN_OTHER_KEY};
 
+extern TaskHandle_t handle_WiFi;
+
 class KeyManager
 {
 public:
     void setup();
     eKeyStatus getKeyStatus(eKey key);
     static bool keyCurrentlyPressed(eKey key);
+
 
 private:
     long mButtonTimer[eKey::KEY_COUNT] = {0};
