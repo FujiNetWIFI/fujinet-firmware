@@ -197,7 +197,8 @@ void sioBus::service()
      Make sure voltage is higher than 4V to determine if the Atari is on, otherwise
      we get stuck reading a LOW command pin until the Atari is turned on
     */
-    if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW && fnSystem.get_sio_voltage() > 4000)
+    //if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW && fnSystem.get_sio_voltage() > 4000)   
+    if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW && sioVoltage > 4000)
     {
         // Turn on the SIO indicator LED
         fnLedManager.set(eLed::LED_SIO, true);
@@ -221,12 +222,17 @@ void sioBus::service()
         Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                      tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
         // Wait for CMD line to raise again
+        int z = 0;
         while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+        {   z++;
             fnSystem.yield();
+        }
+        Debug_printf("PIN_CMD raised after %d checks\n", z);
 
         uint8_t ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
         if (ck == tempFrame.cksum)
         {
+            Debug_println("checksum_ok");
             if (fujiDev != nullptr && fujiDev->load_config && tempFrame.devic == SIO_DEVICEID_DISK)
             {
                 activeDev = fujiDev->disk();
@@ -275,6 +281,7 @@ void sioBus::service()
         } // valid checksum
         else
         {
+            Debug_printf("CHECKSUM_ERROR");
             // Switch to/from hispeed SIO if we get enough failed frame checksums
             command_frame_counter++;
             if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
@@ -306,6 +313,17 @@ void sioBus::service()
         if (netDev[i] != nullptr)
             netDev[i]->sio_assert_interrupts();
     }
+
+    // We're going to check sioVoltage every once in a while here where
+    // it's less likely to interfere with a transmission
+    static ulong lastSioVcheck = fnSystem.millis();
+    ulong ulNow = fnSystem.millis();
+    if(ulNow - lastSioVcheck > 2000)
+    {
+        lastSioVcheck = ulNow;
+        sioVoltage = fnSystem.get_sio_voltage();
+    }
+
 }
 
 // Setup SIO bus
@@ -321,9 +339,9 @@ void sioBus::setup()
     fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
 
-    fnSystem.set_pin_mode(PIN_MTR, (PINMODE_INPUT | PINMODE_PULLDOWN));
+    fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN));
 
-    fnSystem.set_pin_mode(PIN_CMD, (PINMODE_INPUT | PINMODE_PULLUP));
+    fnSystem.set_pin_mode(PIN_CMD, PINMODE_INPUT | PINMODE_PULLUP));
 
     fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_CKI, DIGI_LOW);
@@ -399,9 +417,10 @@ int sioBus::getBaudrate()
 
 void sioBus::setBaudrate(int baudrate)
 {
-    Debug_printf("Switching to %d baud...\n", sioBaud);
+    Debug_printf("Switching from %d to %d baud...\n", sioBaud, baudrate);
     sioBaud = baudrate;
     fnUartSIO.set_baudrate(sioBaud);
 }
 
 sioBus SIO; // Global SIO object
+int sioVoltage = 0; // Global SIO voltage tracker
