@@ -48,8 +48,6 @@ sioVoice sioV;
 BluetoothManager btMgr;
 #endif
 
-TaskHandle_t _taskh_main_loop;
-
 /*
 * Initial setup
 */
@@ -110,8 +108,6 @@ void main_setup()
 
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
 
-    Debug_printf("%d devices registered\n", SIO.numDevices());
-
     // Go setup SIO
     SIO.setup();
 
@@ -150,7 +146,7 @@ extern "C"
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1 the WiFi task ends up on CPU0
         #define MAIN_STACKSIZE 4096
-        #define MAIN_PRIORITY 20
+        #define MAIN_PRIORITY 10
         #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
             MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
