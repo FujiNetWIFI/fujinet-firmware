@@ -138,7 +138,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << fnSystem.get_cpu_rev();
         break;
     case FN_SIOVOLTS:
-        resultstream << (float)sioVoltage/1000.00 << "V";
+        resultstream << ((float) fnSystem.get_sio_voltage()) /1000.00 << "V";
         break;
     case FN_SIO_HSINDEX:
         resultstream << SIO_HISPEED_INDEX;
