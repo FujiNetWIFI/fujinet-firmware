@@ -59,8 +59,6 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 }
 
 
-TaskHandle_t handle_WiFi = nullptr;
-
 #ifdef DEBUG
 // Dumps list of current tasks
 void _debug_print_tasks()
@@ -82,9 +80,6 @@ void _debug_print_tasks()
             pTasks[i].ulRunTimeCounter,
             status[pTasks[i].eCurrentState],
             pTasks[i].pcTaskName);
-
-        if(strcmp(pTasks[i].pcTaskName, "wifi") == 0)
-            handle_WiFi = pTasks[i].xHandle;
     }
 }
 #endif
