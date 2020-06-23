@@ -73,7 +73,7 @@ uint8_t sioDevice::sio_to_peripheral(uint8_t *b, unsigned short len)
 {
     uint8_t ck;
 
-// Retrieve data frame from computer
+    // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu\n", len);
 #ifdef DEBUG_VERBOSE
     size_t l = fnSIO_UART.readBytes(b, len);
@@ -153,175 +153,133 @@ void sioDevice::sio_high_speed()
     sio_to_computer((uint8_t *)&hsd, 1, false);
 }
 
-/*
- Periodically handle the sioDevice in the loop()
-
- We move the CMD_PIN handling and sio_get_id() to the sioBus class, grab the ID, start the command timer,
- then search through the daisyChain for a matching ID. Once we find an ID, we set it's sioDevice cmdState to COMMAND.
- We change service() so it only reads the SIO_UART when cmdState != WAIT.
- Or rather, only call sioDevice->service() when sioDevice->state() != WAIT.
- We never will call sio_incoming when there's a WAIT state.
- Need to figure out reseting cmdTimer when state goes to WAIT or there's a NAK
- if no device is != WAIT, we toss the SIO_UART uint8_t & set cmdTimer to 0.
- Maybe we have a BUSY state for the sioBus that's an OR of all the cmdState != WAIT.
- 
- TODO: cmdTimer to sioBus, assign cmdState after finding device ID
- when checking cmdState loop through devices?
- make *activeDev when found device ID. call activeDev->sio_incoming() != nullPtr. otherwise toss UART.read
- if activeDev->cmdState == WAIT then activeDev = mullPtr
- 
- NEED TO GET device state machine out of the bus state machine
- bus states: WAIT, ID, PROCESS
- WAIT->ID when cmdFlag is set
- ID->PROCESS when device # matches
- bus->WAIT when timeout or when device->WAIT after a NAK or PROCESS
- timeout occurs when a device is active and it's taking too long
- 
- dev states inside of sioBus: ID, ACTIVE, WAIT
- device no longer needs ID state - need to remove it from logic
- WAIT -> ID - WHEN IRQ
- ID - >ACTIVE when _devnum matches dn else ID -> WAIT
- ACTIVE -> WAIT at timeout
- 
- now folding in MULTILATOR REV-2 logic
- read all 5 bytes of cmdframe at once
- checksum before passing off control to a device - checksum is now a helper function not part of a class
- determine device ID and then copy tempframe into object cmdFrame, which can be done in most of sio_incoming
- watchout because cmdFrame is accessible from sioBus through friendship, but it's a deadend because sioDevice isn't a real device
- remove cmdTimer
- left off on line 301 but need to call sio_process() line 268
- put things in sioSetup
-*/
-void sioBus::service()
+// Read and process a command frame from SIO
+void sioBus::_sio_process_cmd()
 {
-    /*
-     Wait for the SIO_CMD pin to go low, indicating available data
-     Make sure voltage is higher than 4V to determine if the Atari is on, otherwise
-     we get stuck reading a LOW command pin until the Atari is turned on
-    */
-    //if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW && fnSystem.get_sio_voltage() > 4000)   
-    if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW && sioVoltage > 4000)
+    // Turn on the SIO indicator LED
+    fnLedManager.set(eLed::LED_SIO, true);
+
+    if (_modemDev != nullptr && _modemDev->modemActive)
     {
-        // Turn on the SIO indicator LED
-        fnLedManager.set(eLed::LED_SIO, true);
+        _modemDev->modemActive = false;
+        Debug_println("Modem was active - resetting SIO baud");
+        fnUartSIO.set_baudrate(_sioBaud);
+    }
 
-        if (modemDev != nullptr && modemDev->modemActive)
+    // Read CMD frame
+    cmdFrame_t tempFrame;
+    tempFrame.cmdFrameData[0] = 0;
+    tempFrame.cmdFrameData[1] = 0;
+    tempFrame.cmdFrameData[2] = 0;
+    tempFrame.cmdFrameData[3] = 0;
+    tempFrame.cmdFrameData[4] = 0;
+
+    if (fnUartSIO.readBytes((uint8_t *)tempFrame.cmdFrameData, 5) != 5)
+    {
+        Debug_println("Timeout waiting for data after CMD pin asserted");
+        return;
+    }
+
+    Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
+                 tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
+    // Wait for CMD line to raise again
+    while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+        fnSystem.yield();
+
+    uint8_t ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
+    if (ck == tempFrame.cksum)
+    {
+        Debug_print("checksum_ok\n");
+        if (_fujiDev != nullptr && _fujiDev->load_config && tempFrame.devic == SIO_DEVICEID_DISK)
         {
-            modemDev->modemActive = false;
-            Debug_println("Modem was active - resetting SIO baud");
-            fnUartSIO.set_baudrate(sioBaud);
+            _activeDev = _fujiDev->disk();
+            Debug_println("FujiNet intercepts D1:");
+            for (int i = 0; i < 5; i++)
+                _activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
+
+            _activeDev->sio_process(); // handle command
         }
-
-        // Read CMD frame
-        cmdFrame_t tempFrame;
-        tempFrame.cmdFrameData[0] = 0;
-        tempFrame.cmdFrameData[1] = 0;
-        tempFrame.cmdFrameData[2] = 0;
-        tempFrame.cmdFrameData[3] = 0;
-        tempFrame.cmdFrameData[4] = 0;
-
-        fnUartSIO.readBytes((uint8_t *)tempFrame.cmdFrameData, 5);
-        Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
-                     tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
-        // Wait for CMD line to raise again
-        while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
-            fnSystem.yield();
-
-        uint8_t ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
-        if (ck == tempFrame.cksum)
+        else
         {
-            Debug_print("checksum_ok\n");
-            if (fujiDev != nullptr && fujiDev->load_config && tempFrame.devic == SIO_DEVICEID_DISK)
+            // Command SIO_DEVICEID_TYPE3POLL is a Type3 poll - send it to every device that cares
+            if (tempFrame.devic == SIO_DEVICEID_TYPE3POLL)
             {
-                activeDev = fujiDev->disk();
-                Debug_println("FujiNet intercepts D1:");
-                for (int i = 0; i < 5; i++)
-                    activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
+                Debug_println("SIO TYPE3 POLL");
+                for (auto devicep : _daisyChain)
+                {
+                    if (devicep->listen_to_type3_polls)
+                    {
+                        Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_devnum);
+                        _activeDev = devicep;
+                        for (int i = 0; i < 5; i++)
+                            _activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
 
-                activeDev->sio_process(); // handle command
+                        _activeDev->sio_process(); // handle command
+                    }
+                }
             }
             else
             {
-                // Command SIO_DEVICEID_TYPE3POLL is a Type3 poll - send it to every device that cares
-                if (tempFrame.devic == SIO_DEVICEID_TYPE3POLL)
+                // find device, ack and pass control
+                // or go back to WAIT
+                for (auto devicep : _daisyChain)
                 {
-                    Debug_println("SIO TYPE3 POLL");
-                    for (auto devicep : daisyChain)
+                    if (tempFrame.devic == devicep->_devnum)
                     {
-                        if (devicep->listen_to_type3_polls)
-                        {
-                            Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_devnum);
-                            activeDev = devicep;
-                            for (int i = 0; i < 5; i++)
-                                activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
+                        _activeDev = devicep;
+                        for (int i = 0; i < 5; i++)
+                            _activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
 
-                            activeDev->sio_process(); // handle command
-                        }
+                        _activeDev->sio_process(); // handle command
                     }
                 }
-                else
-                {
-                    // find device, ack and pass control
-                    // or go back to WAIT
-                    for (auto devicep : daisyChain)
-                    {
-                        if (tempFrame.devic == devicep->_devnum)
-                        {
-                            activeDev = devicep;
-                            for (int i = 0; i < 5; i++)
-                                activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
-
-                            activeDev->sio_process(); // handle command
-                        }
-                    }
-                }
-            }
-        } // valid checksum
-        else
-        {
-            Debug_printf("CHECKSUM_ERROR");
-            // Switch to/from hispeed SIO if we get enough failed frame checksums
-            command_frame_counter++;
-            if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
-            {
-                command_frame_counter = 0;
-                if (sioBaud == SIO_HISPEED_BAUDRATE)
-                    setBaudrate(SIO_STANDARD_BAUDRATE);
-                else
-                    setBaudrate(SIO_HISPEED_BAUDRATE);
             }
         }
-        fnLedManager.set(eLed::LED_SIO, false);
-    } // END command line low
-    else if (modemDev != nullptr && modemDev->modemActive)
-    {
-        modemDev->sio_handle_modem(); // Handle the modem
-    }
+    } // valid checksum
     else
     {
-        fnLedManager.set(eLed::LED_SIO, false);
+        Debug_print("CHECKSUM_ERROR\n");
+        // Switch to/from hispeed SIO if we get enough failed frame checksums
+        command_frame_counter++;
+        if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
+        {
+            command_frame_counter = 0;
+            toggleBaudrate();
+        }
+    }
+    fnLedManager.set(eLed::LED_SIO, false);
+}
 
-        if (fnUartSIO.available())
-            fnUartSIO.flush_input();
+/*
+ Primary SIO serivce loop:
+ 1. If CMD line asserted, try reading CMD frame and sending it to appropriate device
+ 2. If CMD line not asserted but MODEM is active, give it a chance to read incoming data
+ 3. Throw out stray input on SIO if neither of the above two are true
+ 4. Give NETWORK devices an opportunity to signal available data
+ */
+void sioBus::service()
+{
+    // Go process a command frame if the SIO CMD line is asserted
+    if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+    {
+        _sio_process_cmd();
+    }
+    // Go check if the modem needs to read data if it's active
+    else if (_modemDev != nullptr && _modemDev->modemActive)
+    {
+        _modemDev->sio_handle_modem();
+    } else
+    // Neither CMD nor active modem, so throw out any stray input data
+    {
+        fnUartSIO.flush_input();
     }
 
     // Handle interrupts from network protocols
     for (int i = 0; i < 8; i++)
     {
-        if (netDev[i] != nullptr)
-            netDev[i]->sio_assert_interrupts();
+        if (_netDev[i] != nullptr)
+            _netDev[i]->sio_assert_interrupts();
     }
-
-    // We're going to check sioVoltage every once in a while here where
-    // it's less likely to interfere with a transmission
-    static ulong lastSioVcheck = fnSystem.millis();
-    ulong ulNow = fnSystem.millis();
-    if(ulNow - lastSioVcheck > 2000)
-    {
-        lastSioVcheck = ulNow;
-        sioVoltage = fnSystem.get_sio_voltage();
-    }
-
 }
 
 // Setup SIO bus
@@ -329,7 +287,7 @@ void sioBus::setup()
 {
     Debug_println("SIO SETUP");
     // Set up serial
-    fnUartSIO.begin(sioBaud);
+    fnUartSIO.begin(_sioBaud);
 
     fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_INT, DIGI_HIGH);
@@ -346,7 +304,7 @@ void sioBus::setup()
 
     fnSystem.set_pin_mode(PIN_CKO, PINMODE_INPUT);
 
-    sio_flush();    
+    sio_flush();
 }
 
 // Add device to SIO bus
@@ -354,27 +312,27 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
 {
     if (device_id == SIO_DEVICEID_FUJINET)
     {
-        fujiDev = (sioFuji *)pDevice;
+        _fujiDev = (sioFuji *)pDevice;
     }
     else if (device_id == SIO_DEVICEID_RS232)
     {
-        modemDev = (sioModem *)pDevice;
+        _modemDev = (sioModem *)pDevice;
     }
     else if (device_id >= SIO_DEVICEID_FN_NETWORK && device_id <= SIO_DEVICEID_FN_NETWORK_LAST)
     {
-        netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (sioNetwork *)pDevice;
+        _netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (sioNetwork *)pDevice;
     }
 
     pDevice->_devnum = device_id;
 
-    daisyChain.push_front(pDevice);
+    _daisyChain.push_front(pDevice);
 }
 
 // Removes device from the SIO bus.
 // Note that the destructor is called on the device!
 void sioBus::remDevice(sioDevice *p)
 {
-    daisyChain.remove(p);
+    _daisyChain.remove(p);
 }
 
 // Should avoid using this as it requires counting through the list
@@ -382,7 +340,7 @@ int sioBus::numDevices()
 {
     int i = 0;
     __BEGIN_IGNORE_UNUSEDVARS
-    for (auto devicep : daisyChain)
+    for (auto devicep : _daisyChain)
         i++;
     return i;
     __END_IGNORE_UNUSEDVARS
@@ -390,7 +348,7 @@ int sioBus::numDevices()
 
 void sioBus::changeDeviceId(sioDevice *p, int device_id)
 {
-    for (auto devicep : daisyChain)
+    for (auto devicep : _daisyChain)
     {
         if (devicep == p)
             devicep->_devnum = device_id;
@@ -399,7 +357,7 @@ void sioBus::changeDeviceId(sioDevice *p, int device_id)
 
 sioDevice *sioBus::deviceById(int device_id)
 {
-    for (auto devicep : daisyChain)
+    for (auto devicep : _daisyChain)
     {
         if (devicep->_devnum == device_id)
             return devicep;
@@ -407,17 +365,12 @@ sioDevice *sioBus::deviceById(int device_id)
     return nullptr;
 }
 
-int sioBus::getBaudrate()
+void sioBus::toggleBaudrate()
 {
-    return sioBaud;
+    int baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? SIO_HISPEED_BAUDRATE : SIO_STANDARD_BAUDRATE;
+    Debug_printf("Toggling baudrate from %d to %d\n", _sioBaud, baudrate);
+    _sioBaud = baudrate;
+    fnUartSIO.set_baudrate(_sioBaud);
 }
 
-void sioBus::setBaudrate(int baudrate)
-{
-    Debug_printf("Switching from %d to %d baud...\n", sioBaud, baudrate);
-    sioBaud = baudrate;
-    fnUartSIO.set_baudrate(sioBaud);
-}
-
-sioBus SIO; // Global SIO object
-int sioVoltage = 0; // Global SIO voltage tracker
+sioBus SIO;         // Global SIO object
