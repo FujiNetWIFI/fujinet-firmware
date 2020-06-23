@@ -2,7 +2,6 @@
 #define SIO_H
 
 #include <forward_list>
-
 #include "fnSystem.h"
 
 // Pin configurations
@@ -21,9 +20,6 @@
 
 #define DELAY_T4 850
 #define DELAY_T5 250
-//#define READ_CMD_TIMEOUT 12
-//#define CMD_TIMEOUT 50
-//#define STATUS_SKIP 8
 
 
 /*
@@ -146,27 +142,30 @@ public:
 class sioBus
 {
 private:
-    std::forward_list<sioDevice *> daisyChain;
-    unsigned long cmdTimer = 0;
-    sioDevice *activeDev = nullptr;
-    sioModem *modemDev = nullptr;
-    sioFuji *fujiDev = nullptr;
-    sioNetwork *netDev[8] = {nullptr};
-    int sioBaud = 19200; // SIO Baud rate
+    std::forward_list<sioDevice *> _daisyChain;
+
+    sioDevice *_activeDev = nullptr;
+    sioModem *_modemDev = nullptr;
+    sioFuji *_fujiDev = nullptr;
+    sioNetwork *_netDev[8] = { nullptr };
+
+    int _sioBaud = SIO_STANDARD_BAUDRATE;
+
+    void _sio_process_cmd();
 
 public:
     void setup();
     void service();
+
     int numDevices();
     void addDevice(sioDevice *pDevice, int device_id);
     void remDevice(sioDevice *pDevice);
     sioDevice *deviceById(int device_id);
     void changeDeviceId(sioDevice *pDevice, int device_id);
-    int getBaudrate();
-    void setBaudrate(int baudrate);
+
+    void toggleBaudrate();
 };
 
 extern sioBus SIO;
-extern int sioVoltage;
 
 #endif // guard
