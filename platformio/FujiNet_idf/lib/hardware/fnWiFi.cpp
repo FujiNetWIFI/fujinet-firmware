@@ -8,12 +8,6 @@
 #include "esp_log.h"
 
 #include <cstring>
-/*
-#include "nvs_flash.h"
-
-//#include "lwip/err.h"
-//#include "lwip/sys.h"
-*/
 
 #include "../../include/debug.h"
 #include "../utils/utils.h"
@@ -115,18 +109,9 @@ void WiFiManager::stop()
     _connected = false;
 }
 
-/*
-This should be handled by an ESP-IDF connect/disconnect event handler,
-but this is compatible with the Arduino WiFi setup we currently have
-*/
+
 bool WiFiManager::connected()
 {
-    /*
-    wifi_ap_record_t apinfo;
-    esp_err_t e = esp_wifi_sta_get_ap_info(&apinfo);
-
-    return (e == ESP_OK);
-    */
    return _connected;
 }
 
@@ -342,27 +327,6 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
         case WIFI_EVENT_STA_AUTHMODE_CHANGE:
             Debug_println("WIFI_EVENT_STA_AUTHMODE_CHANGE");
             break;
-        /*
-        case SYSTEM_EVENT_STA_GOT_IP:
-            Debug_printf("fnwifi_event_handler SYSTEM_EVENT_STA_GOT_IP: %s\n", ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
-            //pFnWiFi->retries = 0;
-            //xEventGroupSetBits(pFnWiFi->_wifi_event_group, FNWIFI_BIT_CONNECTED);
-            break;
-        case SYSTEM_EVENT_STA_DISCONNECTED:
-            Debug_println("fnwifi_event_handler SYSTEM_EVENT_STA_DISCONNECTED");
-            {
-                if (pFnWiFi->retries < FNWIFI_RECONNECT_RETRIES)
-                {
-                    xEventGroupClearBits(pFnWiFi->_wifi_event_group, FNWIFI_BIT_CONNECTED);
-                    esp_wifi_connect();
-                    pFnWiFi->retries++;
-                    Debug_printf("Attempting WiFi reconnect %d/%d", pFnWiFi->retries, FNWIFI_RECONNECT_RETRIES); 
-                }
-                Debug_println("Max WiFi reconnects exhausted");
-                break;
-            }
-            break;
-        */
         }
 
     }
