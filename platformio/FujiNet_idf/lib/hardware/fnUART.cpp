@@ -166,9 +166,13 @@ size_t UARTManager::readBytes(uint8_t *buffer, size_t length)
     if(result < length)
     {
         if(result < 0)
+        {
             Debug_printf("### UART readBytes() ERROR %d ###\n", result);
+        }
         else
-            Debug_println("### UART readBytes() TIMEOUT ###");
+        {
+             // Debug_println("### UART readBytes() TIMEOUT ###");
+        }
     }
 #endif        
     return result;    

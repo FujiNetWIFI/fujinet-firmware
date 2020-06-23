@@ -216,8 +216,8 @@ esp_err_t fnHttpService::get_handler_test(httpd_req_t *req)
     TaskHandle_t task = xTaskGetCurrentTaskHandle();
     Debug_printf("Test request handler %p\n", task);
 
-    Debug_printf("WiFI handle %p\n", handle_WiFi);
-    vTaskPrioritySet(handle_WiFi, 5);
+    //Debug_printf("WiFI handle %p\n", handle_WiFi);
+    //vTaskPrioritySet(handle_WiFi, 5);
 
     // Send the file content out in chunks
     char testln[100];
