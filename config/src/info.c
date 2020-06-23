@@ -13,6 +13,7 @@
 #include "bar.h"
 #include "die.h"
 #include "config.h"
+#include "../../platformio/FujiNet_idf/include/version.h"
 
 unsigned char kchar;
 
@@ -87,8 +88,8 @@ void info_run(void)
   POKE(0x610,2);
 
   screen_puts(0,4, "  #FUJINET  CONFIG  ");
-  screen_puts(11,14,"Press \xD9\xA3\x19 reconnect");
-  screen_puts(9,15,"Any other key to return");
+  screen_puts(11,15,"Press \xD9\xA3\x19 reconnect");
+  screen_puts(9,16,"Any other key to return");
   screen_puts( 5,5, "      SSID:");
   screen_puts( 5,6, "  Hostname:");
   screen_puts( 5,7, "IP Address:");
@@ -97,6 +98,7 @@ void info_run(void)
   screen_puts( 5,10,"   Netmask:");
   screen_puts( 5,11,"       MAC:");
   screen_puts( 5,12,"     BSSID:");
+  screen_puts( 5,13,"   Version:");
 
   // Grab adapter config
   OS.dcb.ddevic=0x70;
@@ -117,7 +119,8 @@ void info_run(void)
   print_ip(17,10,adapterConfig.netmask);
   print_mac(17,11,adapterConfig.macAddress);
   print_mac(17,12,adapterConfig.bssid);
-  
+  screen_puts(17,13, VERSION_SHORT );
+
   while (!kbhit()) { } // Wait for key.
   
   kchar = cgetc();

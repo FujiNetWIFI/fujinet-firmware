@@ -914,7 +914,7 @@ void diskulator_drive(void)
     screen_clear();
     bar_clear();
 
-    screen_puts(0, 0, "MOUNT TO DRIVE SLOT");
+    screen_puts(0, 0, "MOUNT TO DRIVE SLOTX");
     screen_puts(0, 21, "\xD9\x91\x8D\x98\x80\xAF\xB2\x80\xB2\xA5\xB4\xB5\xB2\xAE\x19PICK");
     screen_puts(20, 21, "\xD9\xA5\xB3\xA3\x19" "ABORT  \xD9\xA5\x19" "EJECT ");
     diskulator_read_device_slots();
@@ -950,6 +950,18 @@ void diskulator_drive(void)
         case '=':
             if (c < 7)
                 c++;
+            break;
+        case 95:          // SHIFT + UP ARROW
+            luminanceIncrease();
+            break;
+        case 124:          // SHIFT + DOWN ARROW
+            luminanceDecrease();
+            break;
+        case 92:          // SHIFT + LEFT ARROW
+            hueDecrease();
+            break;
+        case 94:          // SHIFT + RIGHT ARROW
+            hueIncrease();
             break;
         case 'e':              // E
             screen_puts(4, c + 2, "Empty                               ");

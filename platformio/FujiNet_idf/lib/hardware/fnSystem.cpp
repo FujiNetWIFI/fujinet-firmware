@@ -199,7 +199,8 @@ const char * SystemManager::get_sdk_version()
 
 const char * SystemManager::get_fujinet_version()
 {
-    return FUJINET_VERSION;
+    //return FUJINET_VERSION;
+    return VERSION_SHORT;
 }
 int SystemManager::get_cpu_rev()
 {
