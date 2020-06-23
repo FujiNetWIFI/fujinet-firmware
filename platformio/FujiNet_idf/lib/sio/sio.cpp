@@ -154,9 +154,6 @@ void sioDevice::sio_high_speed()
 // Read and process a command frame from SIO
 void sioBus::_sio_process_cmd()
 {
-    // Turn on the SIO indicator LED
-    fnLedManager.set(eLed::LED_SIO, true);
-
     if (_modemDev != nullptr && _modemDev->modemActive)
     {
         _modemDev->modemActive = false;
@@ -177,6 +174,8 @@ void sioBus::_sio_process_cmd()
         // Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
     }
+    // Turn on the SIO indicator LED
+    fnLedManager.set(eLed::LED_SIO, true);
 
     Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                  tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
