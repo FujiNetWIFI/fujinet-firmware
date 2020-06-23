@@ -199,7 +199,7 @@ const char * SystemManager::get_sdk_version()
 
 const char * SystemManager::get_fujinet_version()
 {
-    return FN_VERSION_FULL FN_VERSION_DATE;
+    return FN_VERSION_FULL " " FN_VERSION_DATE;
 }
 int SystemManager::get_cpu_rev()
 {

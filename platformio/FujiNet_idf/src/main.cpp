@@ -56,7 +56,7 @@ void main_setup()
 #ifdef DEBUG
     fnUartDebug.begin(DEBUG_SPEED);
     unsigned long startms = fnSystem.millis();
-    Debug_printf("\n\n--~--~--~--\nFujiNet PlatformIO Started @ %lu\n", startms);
+    Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
 #ifdef BOARD_HAS_PSRAM
     Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
