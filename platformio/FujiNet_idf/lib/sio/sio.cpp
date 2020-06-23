@@ -144,9 +144,7 @@ void sioDevice::sio_error()
     Debug_println("ERROR!");
 }
 
-/**
-   (disk) High Speed
-*/
+// SIO HIGH SPEED REQUEST
 void sioDevice::sio_high_speed()
 {
     uint8_t hsd = SIO_HISPEED_INDEX;
@@ -176,7 +174,7 @@ void sioBus::_sio_process_cmd()
 
     if (fnUartSIO.readBytes((uint8_t *)tempFrame.cmdFrameData, 5) != 5)
     {
-        Debug_println("Timeout waiting for data after CMD pin asserted");
+        // Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
     }
 
