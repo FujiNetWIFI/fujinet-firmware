@@ -1,1 +1,0 @@
-FMALL             Fujinet CLI Tools›Mounts all Device Slots››Usage:›FMALL››Description:››FMALL reads the currently saved›device slots and mounts them all.››This command is typically used›after FNET.››Parameters:››This command has no parameters.››Returns:››Returns 0 on success. Otherwise the›SIO error code is returned.
