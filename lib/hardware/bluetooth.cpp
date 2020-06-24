@@ -9,6 +9,8 @@
 
 fnBluetooth SerialBT;
 
+BluetoothManager fnBtManager;
+
 /*
 .begin
 .end

@@ -39,14 +39,13 @@ testing commences...
 // fnLedManager is declared and defined in led.h/cpp
 // fnKeyManager is declared and defined in keys.h/cpp
 // fnHTTPD is declared and defineid in HttpService.h/cpp
+// fnBtManager is declare and defined in bluetooth.h/cpp
+
 sioModem sioR;
 sioFuji theFuji;
 sioApeTime apeTime;
 sioVoice sioV;
 
-#ifdef BLUETOOTH_SUPPORT
-BluetoothManager btMgr;
-#endif
 
 /*
 * Initial setup
@@ -125,8 +124,8 @@ void fn_service_loop(void *param)
         // Shouldn't be a problem, but something to keep in mind...
         // Go service BT if it's active
     #ifdef BLUETOOTH_SUPPORT
-        if (btMgr.isActive())
-            btMgr.service();
+        if (fnBtManager.isActive())
+            fnBtManager.service();
         else
     #endif
             SIO.service();

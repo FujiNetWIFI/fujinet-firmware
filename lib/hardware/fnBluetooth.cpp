@@ -14,6 +14,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
+/*
 #include "esp_bt.h"
 #include "esp_bt_main.h"
 #include "esp_gap_bt_api.h"
@@ -21,12 +22,15 @@
 #include "esp_spp_api.h"
 #include "esp32-hal-log.h"
 #include "esp32-hal-bt.h"
+*/
 #include <esp_log.h>
 
 #include "fnSystem.h"
 #include "fnBluetooth.h"
 
 const char *_spp_server_name = "ESP32SPP";
+
+static const char *TAG = "FNBLUETOOTH";
 
 #define RX_QUEUE_SIZE 512
 #define TX_QUEUE_SIZE 32
@@ -65,6 +69,68 @@ typedef struct
     size_t len;
     uint8_t data[];
 } spp_packet_t;
+
+// ---- START: FROM ARDUINO ESP32-HAL-BT.C
+
+#ifdef CONFIG_CLASSIC_BT_ENABLED
+#define BT_MODE ESP_BT_MODE_BTDM
+#else
+#define BT_MODE ESP_BT_MODE_BLE
+#endif
+
+bool btStarted(){
+    return (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED);
+}
+
+bool btStart(){
+    esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED){
+        return true;
+    }
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_IDLE){
+        esp_bt_controller_init(&cfg);
+        while(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_IDLE){}
+    }
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_INITED){
+        if (esp_bt_controller_enable(BT_MODE)) {
+            ESP_LOGE(TAG, "BT Enable failed");
+            return false;
+        }
+    }
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED){
+        return true;
+    }
+    ESP_LOGE(TAG, "BT Start failed");
+    return false;
+}
+
+bool btStop(){
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_IDLE){
+        return true;
+    }
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED){
+        if (esp_bt_controller_disable()) {
+            ESP_LOGE(TAG, "BT Disable failed");
+            return false;
+        }
+        while(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED);
+    }
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_INITED){
+        if (esp_bt_controller_deinit()) {
+			ESP_LOGE(TAG, "BT deint failed");
+			return false;
+		}
+		vTaskDelay(1);
+		if (esp_bt_controller_get_status() != ESP_BT_CONTROLLER_STATUS_IDLE) {			
+			return false;		
+		}
+        return true;
+    }
+    ESP_LOGE(TAG, "BT Stop failed");
+    return false;
+}
+
+// ---- END: FROM ARDUINO ESP32-HAL-BT.C
 
 #if (ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_INFO)
 static char *bda2str(esp_bd_addr_t bda, char *str, size_t size)
@@ -114,13 +180,13 @@ static bool btSetPin()
     {
         if (_pin_len)
         {
-            log_i("pin set");
+            ESP_LOGI(TAG, "pin set");
             pin_type = ESP_BT_PIN_TYPE_FIXED;
         }
         else
         {
             _isPinSet = false;
-            log_i("pin reset");
+            ESP_LOGI(TAG, "pin reset");
             pin_type = ESP_BT_PIN_TYPE_VARIABLE; // pin_code would be ignored (default)
         }
         return (esp_bt_gap_set_pin(pin_type, _pin_len, _pin_code) == ESP_OK);
@@ -132,20 +198,20 @@ static esp_err_t _spp_queue_packet(uint8_t *data, size_t len)
 {
     if (!data || !len)
     {
-        log_w("No data provided");
+        ESP_LOGW(TAG, "No data provided");
         return ESP_OK;
     }
     spp_packet_t *packet = (spp_packet_t *)malloc(sizeof(spp_packet_t) + len);
     if (!packet)
     {
-        log_e("SPP TX Packet Malloc Failed!");
+        ESP_LOGE(TAG, "SPP TX Packet Malloc Failed!");
         return ESP_FAIL;
     }
     packet->len = len;
     memcpy(packet->data, data, len);
     if (xQueueSend(_spp_tx_queue, &packet, portMAX_DELAY) != pdPASS)
     {
-        log_e("SPP TX Queue Send Failed!");
+        ESP_LOGE(TAG, "SPP TX Queue Send Failed!");
         free(packet);
         return ESP_FAIL;
     }
@@ -163,13 +229,13 @@ static bool _spp_send_buffer()
         esp_err_t err = esp_spp_write(_spp_client, _spp_tx_buffer_len, _spp_tx_buffer);
         if (err != ESP_OK)
         {
-            log_e("SPP Write Failed! [0x%X]", err);
+            ESP_LOGE(TAG, "SPP Write Failed! [0x%X]", err);
             return false;
         }
         _spp_tx_buffer_len = 0;
         if (xSemaphoreTake(_spp_tx_done, portMAX_DELAY) != pdTRUE)
         {
-            log_e("SPP Ack Failed!");
+            ESP_LOGE(TAG, "SPP Ack Failed!");
             return false;
         }
         return true;
@@ -230,7 +296,7 @@ static void _spp_tx_task(void *arg)
         }
         else
         {
-            log_e("Something went horribly wrong");
+            ESP_LOGE(TAG, "Something went horribly wrong");
         }
     }
     vTaskDelete(NULL);
@@ -242,18 +308,19 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     switch (event)
     {
     case ESP_SPP_INIT_EVT:
-        log_i("ESP_SPP_INIT_EVT");
-        esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
+        ESP_LOGI(TAG, "ESP_SPP_INIT_EVT");
+        // OMF changed from: esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
+        esp_bt_gap_set_scan_mode(esp_bt_connection_mode_t::ESP_BT_CONNECTABLE, esp_bt_discovery_mode_t::ESP_BT_GENERAL_DISCOVERABLE);
         if (!_isMaster)
         {
-            log_i("ESP_SPP_INIT_EVT: slave: start");
+            ESP_LOGI(TAG, "ESP_SPP_INIT_EVT: slave: start");
             esp_spp_start_srv(ESP_SPP_SEC_NONE, ESP_SPP_ROLE_SLAVE, 0, _spp_server_name);
         }
         xEventGroupSetBits(_spp_event_group, SPP_RUNNING);
         break;
 
     case ESP_SPP_SRV_OPEN_EVT: //Server connection open
-        log_i("ESP_SPP_SRV_OPEN_EVT");
+        ESP_LOGI(TAG, "ESP_SPP_SRV_OPEN_EVT");
         if (!_spp_client)
         {
             _spp_client = param->open.handle;
@@ -268,7 +335,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         break;
 
     case ESP_SPP_CLOSE_EVT: //Client connection closed
-        log_i("ESP_SPP_CLOSE_EVT");
+        ESP_LOGI(TAG, "ESP_SPP_CLOSE_EVT");
         if (secondConnectionAttempt)
         {
             secondConnectionAttempt = false;
@@ -290,7 +357,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         {
             xEventGroupSetBits(_spp_event_group, SPP_CONGESTED);
         }
-        log_v("ESP_SPP_CONG_EVT: %s", param->cong.cong ? "CONGESTED" : "FREE");
+        ESP_LOGI(TAG, "ESP_SPP_CONG_EVT: %s", param->cong.cong ? "CONGESTED" : "FREE");
         break;
 
     case ESP_SPP_WRITE_EVT: //write operation completed
@@ -299,11 +366,11 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             xEventGroupClearBits(_spp_event_group, SPP_CONGESTED);
         }
         xSemaphoreGive(_spp_tx_done); //we can try to send another packet
-        log_v("ESP_SPP_WRITE_EVT: %u %s", param->write.len, param->write.cong ? "CONGESTED" : "FREE");
+        ESP_LOGI(TAG, "ESP_SPP_WRITE_EVT: %u %s", param->write.len, param->write.cong ? "CONGESTED" : "FREE");
         break;
 
     case ESP_SPP_DATA_IND_EVT: //connection received data
-        log_v("ESP_SPP_DATA_IND_EVT len=%d handle=%d", param->data_ind.len, param->data_ind.handle);
+        ESP_LOGI(TAG, "ESP_SPP_DATA_IND_EVT len=%d handle=%d", param->data_ind.len, param->data_ind.handle);
         //esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len); //for low level debug
         //ets_printf("r:%u\n", param->data_ind.len);
 
@@ -317,7 +384,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             {
                 if (xQueueSend(_spp_rx_queue, param->data_ind.data + i, (TickType_t)0) != pdTRUE)
                 {
-                    log_e("RX Full! Discarding %u bytes", param->data_ind.len - i);
+                    ESP_LOGE(TAG, "RX Full! Discarding %u bytes", param->data_ind.len - i);
                     break;
                 }
             }
@@ -325,16 +392,16 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         break;
 
     case ESP_SPP_DISCOVERY_COMP_EVT: //discovery complete
-        log_i("ESP_SPP_DISCOVERY_COMP_EVT");
+        ESP_LOGI(TAG, "ESP_SPP_DISCOVERY_COMP_EVT");
         if (param->disc_comp.status == ESP_SPP_SUCCESS)
         {
-            log_i("ESP_SPP_DISCOVERY_COMP_EVT: spp connect to remote");
+            ESP_LOGI(TAG, "ESP_SPP_DISCOVERY_COMP_EVT: spp connect to remote");
             esp_spp_connect(ESP_SPP_SEC_AUTHENTICATE, ESP_SPP_ROLE_MASTER, param->disc_comp.scn[0], _peer_bd_addr);
         }
         break;
 
     case ESP_SPP_OPEN_EVT: //Client connection open
-        log_i("ESP_SPP_OPEN_EVT");
+        ESP_LOGI(TAG, "ESP_SPP_OPEN_EVT");
         if (!_spp_client)
         {
             _spp_client = param->open.handle;
@@ -349,11 +416,11 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         break;
 
     case ESP_SPP_START_EVT: //server started
-        log_i("ESP_SPP_START_EVT");
+        ESP_LOGI(TAG, "ESP_SPP_START_EVT");
         break;
 
     case ESP_SPP_CL_INIT_EVT: //client initiated a connection
-        log_i("ESP_SPP_CL_INIT_EVT");
+        ESP_LOGI(TAG, "ESP_SPP_CL_INIT_EVT");
         break;
 
     default:
@@ -373,10 +440,10 @@ static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
     switch (event)
     {
     case ESP_BT_GAP_DISC_RES_EVT:
-        log_i("ESP_BT_GAP_DISC_RES_EVT");
+        ESP_LOGI(TAG, "ESP_BT_GAP_DISC_RES_EVT");
 #if (ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_INFO)
         char bda_str[18];
-        log_i("Scanned device: %s", bda2str(param->disc_res.bda, bda_str, 18));
+        ESP_LOGI(TAG, "Scanned device: %s", bda2str(param->disc_res.bda, bda_str, 18));
 #endif
         for (int i = 0; i < param->disc_res.num_prop; i++)
         {
@@ -387,10 +454,10 @@ static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
             case ESP_BT_GAP_DEV_PROP_EIR:
                 if (get_name_from_eir((uint8_t *)param->disc_res.prop[i].val, peer_bdname, &peer_bdname_len))
                 {
-                    log_i("ESP_BT_GAP_DISC_RES_EVT : EIR : %s : %d", peer_bdname, peer_bdname_len);
+                    ESP_LOGI(TAG, "ESP_BT_GAP_DISC_RES_EVT : EIR : %s : %d", peer_bdname, peer_bdname_len);
                     if (strlen(_remote_name) == peer_bdname_len && strncmp(peer_bdname, _remote_name, peer_bdname_len) == 0)
                     {
-                        log_v("ESP_BT_GAP_DISC_RES_EVT : SPP_START_DISCOVERY_EIR : %s", peer_bdname, peer_bdname_len);
+                        ESP_LOGI(TAG, "ESP_BT_GAP_DISC_RES_EVT : SPP_START_DISCOVERY_EIR : %s", peer_bdname);//, peer_bdname_len);
                         _isRemoteAddressSet = true;
                         memcpy(_peer_bd_addr, param->disc_res.bda, ESP_BD_ADDR_LEN);
                         esp_bt_gap_cancel_discovery();
@@ -403,10 +470,10 @@ static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
                 peer_bdname_len = param->disc_res.prop[i].len;
                 memcpy(peer_bdname, param->disc_res.prop[i].val, peer_bdname_len);
                 peer_bdname_len--; // len includes 0 terminator
-                log_v("ESP_BT_GAP_DISC_RES_EVT : BDNAME :  %s : %d", peer_bdname, peer_bdname_len);
+                ESP_LOGI(TAG, "ESP_BT_GAP_DISC_RES_EVT : BDNAME :  %s : %d", peer_bdname, peer_bdname_len);
                 if (strlen(_remote_name) == peer_bdname_len && strncmp(peer_bdname, _remote_name, peer_bdname_len) == 0)
                 {
-                    log_i("ESP_BT_GAP_DISC_RES_EVT : SPP_START_DISCOVERY_BDNAME : %s", peer_bdname);
+                    ESP_LOGI(TAG, "ESP_BT_GAP_DISC_RES_EVT : SPP_START_DISCOVERY_BDNAME : %s", peer_bdname);
                     _isRemoteAddressSet = true;
                     memcpy(_peer_bd_addr, param->disc_res.bda, ESP_BD_ADDR_LEN);
                     esp_bt_gap_cancel_discovery();
@@ -415,11 +482,11 @@ static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
                 break;
 
             case ESP_BT_GAP_DEV_PROP_COD:
-                log_d("ESP_BT_GAP_DEV_PROP_COD");
+                ESP_LOGD(TAG, "ESP_BT_GAP_DEV_PROP_COD");
                 break;
 
             case ESP_BT_GAP_DEV_PROP_RSSI:
-                log_d("ESP_BT_GAP_DEV_PROP_RSSI");
+                ESP_LOGD(TAG, "ESP_BT_GAP_DEV_PROP_RSSI");
                 break;
 
             default:
@@ -430,41 +497,41 @@ static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
         }
         break;
     case ESP_BT_GAP_DISC_STATE_CHANGED_EVT:
-        log_i("ESP_BT_GAP_DISC_STATE_CHANGED_EVT");
+        ESP_LOGI(TAG, "ESP_BT_GAP_DISC_STATE_CHANGED_EVT");
         break;
 
     case ESP_BT_GAP_RMT_SRVCS_EVT:
-        log_i("ESP_BT_GAP_RMT_SRVCS_EVT");
+        ESP_LOGI(TAG, "ESP_BT_GAP_RMT_SRVCS_EVT");
         break;
 
     case ESP_BT_GAP_RMT_SRVC_REC_EVT:
-        log_i("ESP_BT_GAP_RMT_SRVC_REC_EVT");
+        ESP_LOGI(TAG, "ESP_BT_GAP_RMT_SRVC_REC_EVT");
         break;
 
     case ESP_BT_GAP_AUTH_CMPL_EVT:
         if (param->auth_cmpl.stat == ESP_BT_STATUS_SUCCESS)
         {
-            log_v("authentication success: %s", param->auth_cmpl.device_name);
+            ESP_LOGI(TAG, "authentication success: %s", param->auth_cmpl.device_name);
         }
         else
         {
-            log_e("authentication failed, status:%d", param->auth_cmpl.stat);
+            ESP_LOGE(TAG, "authentication failed, status:%d", param->auth_cmpl.stat);
         }
         break;
 
     case ESP_BT_GAP_PIN_REQ_EVT:
         // default pairing pins
-        log_i("ESP_BT_GAP_PIN_REQ_EVT min_16_digit:%d", param->pin_req.min_16_digit);
+        ESP_LOGI(TAG, "ESP_BT_GAP_PIN_REQ_EVT min_16_digit:%d", param->pin_req.min_16_digit);
         if (param->pin_req.min_16_digit)
         {
-            log_i("Input pin code: 0000 0000 0000 0000");
+            ESP_LOGI(TAG, "Input pin code: 0000 0000 0000 0000");
             esp_bt_pin_code_t pin_code;
             memset(pin_code, '0', ESP_BT_PIN_CODE_LEN);
             esp_bt_gap_pin_reply(param->pin_req.bda, true, 16, pin_code);
         }
         else
         {
-            log_i("Input pin code: 1234");
+            ESP_LOGI(TAG, "Input pin code: 1234");
             esp_bt_pin_code_t pin_code;
             memcpy(pin_code, "1234", 4);
             esp_bt_gap_pin_reply(param->pin_req.bda, true, 4, pin_code);
@@ -472,16 +539,16 @@ static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *pa
         break;
 
     case ESP_BT_GAP_CFM_REQ_EVT:
-        log_i("ESP_BT_GAP_CFM_REQ_EVT Please compare the numeric value: %d", param->cfm_req.num_val);
+        ESP_LOGI(TAG, "ESP_BT_GAP_CFM_REQ_EVT Please compare the numeric value: %d", param->cfm_req.num_val);
         esp_bt_gap_ssp_confirm_reply(param->cfm_req.bda, true);
         break;
 
     case ESP_BT_GAP_KEY_NOTIF_EVT:
-        log_i("ESP_BT_GAP_KEY_NOTIF_EVT passkey:%d", param->key_notif.passkey);
+        ESP_LOGI(TAG, "ESP_BT_GAP_KEY_NOTIF_EVT passkey:%d", param->key_notif.passkey);
         break;
 
     case ESP_BT_GAP_KEY_REQ_EVT:
-        log_i("ESP_BT_GAP_KEY_REQ_EVT Please enter passkey!");
+        ESP_LOGI(TAG, "ESP_BT_GAP_KEY_REQ_EVT Please enter passkey!");
         break;
 
     default:
@@ -496,7 +563,7 @@ static bool _init_bt(const char *deviceName)
         _spp_event_group = xEventGroupCreate();
         if (!_spp_event_group)
         {
-            log_e("SPP Event Group Create Failed!");
+            ESP_LOGE(TAG, "SPP Event Group Create Failed!");
             return false;
         }
         xEventGroupClearBits(_spp_event_group, 0xFFFFFF);
@@ -508,7 +575,7 @@ static bool _init_bt(const char *deviceName)
         _spp_rx_queue = xQueueCreate(RX_QUEUE_SIZE, sizeof(uint8_t)); //initialize the queue
         if (_spp_rx_queue == NULL)
         {
-            log_e("RX Queue Create Failed");
+            ESP_LOGE(TAG, "RX Queue Create Failed");
             return false;
         }
     }
@@ -517,7 +584,7 @@ static bool _init_bt(const char *deviceName)
         _spp_tx_queue = xQueueCreate(TX_QUEUE_SIZE, sizeof(spp_packet_t *)); //initialize the queue
         if (_spp_tx_queue == NULL)
         {
-            log_e("TX Queue Create Failed");
+            ESP_LOGE(TAG, "TX Queue Create Failed");
             return false;
         }
     }
@@ -526,7 +593,7 @@ static bool _init_bt(const char *deviceName)
         _spp_tx_done = xSemaphoreCreateBinary();
         if (_spp_tx_done == NULL)
         {
-            log_e("TX Semaphore Create Failed");
+            ESP_LOGE(TAG, "TX Semaphore Create Failed");
             return false;
         }
         xSemaphoreTake(_spp_tx_done, 0);
@@ -537,14 +604,14 @@ static bool _init_bt(const char *deviceName)
         xTaskCreatePinnedToCore(_spp_tx_task, "spp_tx", 4096, NULL, 2, &_spp_task_handle, 0);
         if (!_spp_task_handle)
         {
-            log_e("Network Event Task Start Failed!");
+            ESP_LOGE(TAG, "Network Event Task Start Failed!");
             return false;
         }
     }
 
     if (!btStarted() && !btStart())
     {
-        log_e("initialize controller failed");
+        ESP_LOGE(TAG, "initialize controller failed");
         return false;
     }
 
@@ -553,7 +620,7 @@ static bool _init_bt(const char *deviceName)
     {
         if (esp_bluedroid_init())
         {
-            log_e("initialize bluedroid failed");
+            ESP_LOGE(TAG, "initialize bluedroid failed");
             return false;
         }
     }
@@ -562,35 +629,35 @@ static bool _init_bt(const char *deviceName)
     {
         if (esp_bluedroid_enable())
         {
-            log_e("enable bluedroid failed");
+            ESP_LOGE(TAG, "enable bluedroid failed");
             return false;
         }
     }
 
     if (_isMaster && esp_bt_gap_register_callback(esp_bt_gap_cb) != ESP_OK)
     {
-        log_e("gap register failed");
+        ESP_LOGE(TAG, "gap register failed");
         return false;
     }
 
     if (esp_spp_register_callback(esp_spp_cb) != ESP_OK)
     {
-        log_e("spp register failed");
+        ESP_LOGE(TAG, "spp register failed");
         return false;
     }
 
     if (esp_spp_init(ESP_SPP_MODE_CB) != ESP_OK)
     {
-        log_e("spp init failed");
+        ESP_LOGE(TAG, "spp init failed");
         return false;
     }
 
     if (esp_bt_sleep_disable() != ESP_OK)
     {
-        log_e("esp_bt_sleep_disable failed");
+        ESP_LOGE(TAG, "esp_bt_sleep_disable failed");
     }
 
-    log_i("device name set");
+    ESP_LOGI(TAG, "device name set");
     esp_bt_dev_set_device_name(deviceName);
 
     if (_isPinSet)
@@ -600,7 +667,7 @@ static bool _init_bt(const char *deviceName)
 
     if (_enableSSP)
     {
-        log_i("Simple Secure Pairing");
+        ESP_LOGI(TAG, "Simple Secure Pairing");
         esp_bt_sp_param_t param_type = ESP_BT_SP_IOCAP_MODE;
         esp_bt_io_cap_t iocap = ESP_BT_IO_CAP_IO;
         esp_bt_gap_set_security_param(param_type, &iocap, sizeof(uint8_t));
@@ -613,7 +680,7 @@ static bool _init_bt(const char *deviceName)
     cod.service = 0b00000010110;
     if (esp_bt_gap_set_cod(cod, ESP_BT_INIT_COD) != ESP_OK)
     {
-        log_e("set cod failed");
+        ESP_LOGE(TAG, "set cod failed");
         return false;
     }
     return true;
@@ -807,16 +874,17 @@ bool fnBluetooth::connect(string remoteName)
         return false;
     if (remoteName.empty() || remoteName.length() < 1)
     {
-        log_e("No remote name is provided");
+        ESP_LOGE(TAG, "No remote name is provided");
         return false;
     }
     disconnect();
     _isRemoteAddressSet = false;
     strncpy(_remote_name, remoteName.c_str(), ESP_BT_GAP_MAX_BDNAME_LEN);
     _remote_name[ESP_BT_GAP_MAX_BDNAME_LEN] = 0;
-    log_i("master : remoteName");
+    ESP_LOGI(TAG, "master : remoteName");
     // will first resolve name to address
-    esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
+    // OMF changed from: esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
+    esp_bt_gap_set_scan_mode(esp_bt_connection_mode_t::ESP_BT_CONNECTABLE, esp_bt_discovery_mode_t::ESP_BT_GENERAL_DISCOVERABLE);
     if (esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, INQ_LEN, INQ_NUM_RSPS) == ESP_OK)
     {
         return waitForConnect(SCAN_TIMEOUT);
@@ -830,14 +898,14 @@ bool fnBluetooth::connect(uint8_t remoteAddress[])
         return false;
     if (!remoteAddress)
     {
-        log_e("No remote address is provided");
+        ESP_LOGE(TAG, "No remote address is provided");
         return false;
     }
     disconnect();
     _remote_name[0] = 0;
     _isRemoteAddressSet = true;
     memcpy(_peer_bd_addr, remoteAddress, ESP_BD_ADDR_LEN);
-    log_i("master : remoteAddress");
+    ESP_LOGI(TAG, "master : remoteAddress");
     if (esp_spp_start_discovery(_peer_bd_addr) == ESP_OK)
     {
         return waitForConnect(READY_TIMEOUT);
@@ -853,7 +921,7 @@ bool fnBluetooth::connect()
     {
         disconnect();
         // use resolved or set address first
-        log_i("master : remoteAddress");
+        ESP_LOGI(TAG, "master : remoteAddress");
         if (esp_spp_start_discovery(_peer_bd_addr) == ESP_OK)
         {
             return waitForConnect(READY_TIMEOUT);
@@ -863,16 +931,17 @@ bool fnBluetooth::connect()
     else if (_remote_name[0])
     {
         disconnect();
-        log_i("master : remoteName");
+        ESP_LOGI(TAG, "master : remoteName");
         // will resolve name to address first - it may take a while
-        esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
+        // OMF changed from: esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
+        esp_bt_gap_set_scan_mode(esp_bt_connection_mode_t::ESP_BT_CONNECTABLE, esp_bt_discovery_mode_t::ESP_BT_GENERAL_DISCOVERABLE);
         if (esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, INQ_LEN, INQ_NUM_RSPS) == ESP_OK)
         {
             return waitForConnect(SCAN_TIMEOUT);
         }
         return false;
     }
-    log_e("Neither Remote name nor address was provided");
+    ESP_LOGE(TAG, "Neither Remote name nor address was provided");
     return false;
 }
 
@@ -881,7 +950,7 @@ bool fnBluetooth::disconnect()
     if (_spp_client)
     {
         flush();
-        log_i("disconnecting");
+        ESP_LOGI(TAG, "disconnecting");
         if (esp_spp_disconnect(_spp_client) == ESP_OK)
         {
             TickType_t xTicksToWait = READY_TIMEOUT / portTICK_PERIOD_MS;
@@ -895,7 +964,7 @@ bool fnBluetooth::unpairDevice(uint8_t remoteAddress[])
 {
     if (isReady(false, READY_TIMEOUT))
     {
-        log_i("removing bonded device");
+        ESP_LOGI(TAG, "removing bonded device");
         return (esp_bt_gap_remove_bond_device(remoteAddress) == ESP_OK);
     }
     return false;
@@ -910,12 +979,12 @@ bool fnBluetooth::isReady(bool checkMaster, int timeout)
 {
     if (checkMaster && !_isMaster)
     {
-        log_e("Master mode is not active. Call begin(localName, true) to enable Master mode");
+        ESP_LOGE(TAG, "Master mode is not active. Call begin(localName, true) to enable Master mode");
         return false;
     }
     if (!btStarted())
     {
-        log_e("BT is not initialized. Call begin() first");
+        ESP_LOGE(TAG, "BT is not initialized. Call begin() first");
         return false;
     }
     TickType_t xTicksToWait = timeout / portTICK_PERIOD_MS;

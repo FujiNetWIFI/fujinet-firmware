@@ -1,6 +1,7 @@
 #include <cstring>
 
 #include "fnSystem.h"
+#include "bluetooth.h"
 #include "led.h"
 #include "keys.h"
 
@@ -103,15 +104,15 @@ void KeyManager::_keystate_task(void *param)
         case eKeyStatus::LONG_PRESSED:
             Debug_println("BOOT_KEY: LONG PRESS");
 #ifdef BLUETOOTH_SUPPORT
-            if (btMgr.isActive())
+            if (fnBtManager.isActive())
             {
-                btMgr.stop();
-                ledMgr.set(BLUETOOTH_LED, false);
+                fnBtManager.stop();
+                fnLedManager.set(BLUETOOTH_LED, false);
             }
             else
             {
-                ledMgr.set(BLUETOOTH_LED, true); // SIO LED always ON in Bluetooth mode
-                btMgr.start();
+                fnLedManager.set(BLUETOOTH_LED, true); // SIO LED always ON in Bluetooth mode
+                fnBtManager.start();
             }
 #endif //BLUETOOTH_SUPPORT
             break;
@@ -120,8 +121,8 @@ void KeyManager::_keystate_task(void *param)
             fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
 // Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
 #ifdef BLUETOOTH_SUPPORT
-            if (btMgr.isActive())
-                btMgr.toggleBaudrate();
+            if (fnBtManager.isActive())
+                fnBtManager.toggleBaudrate();
             else
 #endif
                 Debug_println("TODO: Re-connect theFuji.image_rotate()");
