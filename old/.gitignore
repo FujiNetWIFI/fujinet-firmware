@@ -1,7 +1,0 @@
-obj/
-*.map
-*.com
-
-# Don't ignore .COM files in the dist folder
-!**/dist/*.com
-!**/relwork-dist/*.com
