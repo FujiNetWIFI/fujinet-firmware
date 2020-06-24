@@ -1,8 +1,12 @@
 import subprocess
 import datetime
 import re
+import sys
 
-ver_build = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],encoding="ASCII").strip()
+if sys.version_info[0] < 3:
+  ver_build = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).strip()
+else:
+  ver_build = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],encoding="ASCII").strip()
 
 header_file = "include/version.h"
 
