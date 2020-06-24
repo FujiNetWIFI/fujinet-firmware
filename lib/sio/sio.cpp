@@ -370,4 +370,11 @@ void sioBus::toggleBaudrate()
     fnUartSIO.set_baudrate(_sioBaud);
 }
 
+void sioBus::setBaudrate(int baud)
+{
+    Debug_printf("Changing baudrate from %d to %d\n", _sioBaud, baud);
+    _sioBaud = baud;
+    fnUartSIO.set_baudrate(baud);
+}
+
 sioBus SIO;         // Global SIO object

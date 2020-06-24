@@ -163,6 +163,7 @@ public:
     sioDevice *deviceById(int device_id);
     void changeDeviceId(sioDevice *pDevice, int device_id);
 
+    void setBaudrate(int baud);
     void toggleBaudrate();
 };
 

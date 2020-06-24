@@ -22,4 +22,5 @@ private:
     bool _mActive = false;
 };
 
+extern BluetoothManager fnBtManager;
 #endif // guard
