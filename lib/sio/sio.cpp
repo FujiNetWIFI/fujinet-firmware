@@ -372,6 +372,12 @@ void sioBus::toggleBaudrate()
 
 void sioBus::setBaudrate(int baud)
 {
+    if(_sioBaud == baud)
+    {
+        Debug_printf("Baudrate already at %d - nothing to do\n", baud);
+        return;
+    }
+    
     Debug_printf("Changing baudrate from %d to %d\n", _sioBaud, baud);
     _sioBaud = baud;
     fnUartSIO.set_baudrate(baud);
