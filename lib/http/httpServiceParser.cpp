@@ -90,7 +90,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << fnSystem.Net.get_hostname();
         break;
     case FN_VERSION:
-        resultstream << fnSystem.get_fujinet_version();
+        resultstream << fnSystem.get_fujinet_version(false);
         break;
     case FN_IPADDRESS:
         resultstream << fnSystem.Net.get_ip4_address_str();
