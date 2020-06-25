@@ -119,8 +119,9 @@ protected:
             unsigned char dnsIP[4];
             unsigned char macAddress[6];
             unsigned char bssid[6];
+            char firmware[15];
         } detail;
-        unsigned char rawData[sizeof(_adapterconfig)];
+        unsigned char rawData[/*sizeof(_adapterconfig)*/139];
     } adapterConfig;
 
 public:
