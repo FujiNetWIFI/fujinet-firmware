@@ -829,6 +829,7 @@ void sioNetwork::sio_special_40()
     {
     case 0x30: // ?DIR
         strcpy((char *)buf, prefix.c_str());
+        strcat((char *)buf, "\x9b");
         break;
     }
     Debug_printf("Read buf: %s\n", buf);
