@@ -33,11 +33,6 @@
 */
 #define DELAY_FIRMWARE_DELIVERY 5000
 
-#ifdef ESP8266
-void sioModem::sioModem()
-{
-}
-#endif
 
 /*
     If buffer is NULL, simply returns size of file

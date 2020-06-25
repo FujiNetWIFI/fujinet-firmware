@@ -72,34 +72,37 @@ typedef struct
 
 // ---- START: FROM ARDUINO ESP32-HAL-BT.C
 
-#ifdef CONFIG_CLASSIC_BT_ENABLED
-#define BT_MODE ESP_BT_MODE_BTDM
-#else
-#define BT_MODE ESP_BT_MODE_BLE
-#endif
-
 bool btStarted(){
     return (esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED);
 }
 
-bool btStart(){
-    esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
-    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED){
+bool btStart()
+{
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED)
         return true;
-    }
-    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_IDLE){
+
+    esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_IDLE)
+    {
         esp_bt_controller_init(&cfg);
         while(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_IDLE){}
     }
-    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_INITED){
-        if (esp_bt_controller_enable(BT_MODE)) {
-            ESP_LOGE(TAG, "BT Enable failed");
+
+    esp_err_t e;
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_INITED)
+    {
+        e = esp_bt_controller_enable(esp_bt_mode_t::ESP_BT_MODE_CLASSIC_BT);
+
+        if (ESP_OK != e) 
+        {
+            ESP_LOGE(TAG, "BT Enable failed: %d", e);
             return false;
         }
     }
-    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED){
+
+    if(esp_bt_controller_get_status() == ESP_BT_CONTROLLER_STATUS_ENABLED)
         return true;
-    }
+
     ESP_LOGE(TAG, "BT Start failed");
     return false;
 }

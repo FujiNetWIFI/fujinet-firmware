@@ -112,9 +112,6 @@ private:
     void at_handle_port();
 
 public:
-#ifdef ESP8266
-    void sioModem();
-#endif
     bool modemActive = false; // If we are in modem mode or not
     void sio_handle_modem();  // Handle incoming & outgoing data for modem
 

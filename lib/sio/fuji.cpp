@@ -510,7 +510,7 @@ void sioFuji::sio_get_adapter_config()
 #endif
     memset((void *)adapterConfig.rawData, 0, sizeof(adapterConfig.rawData));
 
-    strncpy(adapterConfig.detail.firmware, fnSystem.get_fujinet_version(true), sizeof(adapterConfig.detail.firmware));
+    strncpy(adapterConfig.detail.fn_version, fnSystem.get_fujinet_version(true), sizeof(adapterConfig.detail.fn_version));
 
     if (!fnWiFi.connected())
     {
@@ -519,11 +519,7 @@ void sioFuji::sio_get_adapter_config()
     else
     {
 
-#ifdef ESP8266
-        strcpy(adapterConfig.hostname, WiFi.hostname().c_str());
-#else
         strncpy(adapterConfig.detail.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(adapterConfig.detail.hostname));
-#endif
         strncpy(adapterConfig.detail.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(adapterConfig.detail.ssid));
         fnWiFi.get_current_bssid(adapterConfig.detail.bssid);
         fnSystem.Net.get_ip4_info(adapterConfig.detail.localIP, adapterConfig.detail.netmask, adapterConfig.detail.gateway);

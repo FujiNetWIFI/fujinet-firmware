@@ -185,25 +185,17 @@ const char * SystemManager::get_uptime_str()
 
 const char * SystemManager::get_sdk_version()
 {
-#ifdef ARDUINO
-    static char _version[60];
-	int major = ARDUINO / 10000;
-	int minor = (ARDUINO % 10000) / 100;
-	int patch = ARDUINO % 100;
-    snprintf(_version, sizeof(_version), "%s; Arduino %d.%.d.%.d", esp_get_idf_version(), major, minor, patch );
-    return _version;
-#else    
     return esp_get_idf_version();
-#endif    
 }
 
-const char * SystemManager::get_fujinet_version(  bool shortVersionOnly )
+const char * SystemManager::get_fujinet_version(bool shortVersionOnly)
 {
-    if ( shortVersionOnly )
+    if (shortVersionOnly)
         return FN_VERSION_FULL;
     else
         return FN_VERSION_FULL " " FN_VERSION_DATE;
 }
+
 int SystemManager::get_cpu_rev()
 {
     esp_chip_info_t chipinfo;
