@@ -5,7 +5,6 @@
 #include "fnSystem.h"
 #include "../FileSystem/fnFsSPIF.h"
 #include "../config/fnConfig.h"
-#include "../../include/version.h"
 
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE
@@ -511,11 +510,7 @@ void sioFuji::sio_get_adapter_config()
 #endif
     memset((void *)adapterConfig.rawData, 0, sizeof(adapterConfig.rawData));
 
-#ifdef ESP8266
-    strncpy(adapterConfig.firmware, FN_VERSION_FULL, sizeof(adapterConfig.detail.firmware));
-#else
-    strncpy(adapterConfig.detail.firmware, FN_VERSION_FULL, sizeof(adapterConfig.detail.firmware));
-#endif
+    strncpy(adapterConfig.detail.firmware, fnSystem.get_fujinet_version(true), sizeof(adapterConfig.detail.firmware));
 
     if (!fnWiFi.connected())
     {
