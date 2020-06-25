@@ -2,9 +2,7 @@
 	2018 Evandro Luis Copercini
 */
 
-#include "sdkconfig.h"
-
-#if defined(CONFIG_BT_ENABLED) && defined(CONFIG_BLUEDROID_ENABLED)
+#ifdef BLUETOOTH_SUPPORT
 
 #include <cstdint>
 #include <cstdio>
@@ -49,7 +47,7 @@ static fnBluetoothDataCb custom_data_callback = nullptr;
 static esp_bd_addr_t _peer_bd_addr;
 static char _remote_name[ESP_BT_GAP_MAX_BDNAME_LEN + 1];
 static bool _isRemoteAddressSet;
-static bool _isMaster;
+static bool _isServer;
 static esp_bt_pin_code_t _pin_code;
 static int _pin_len;
 static bool _isPinSet;
@@ -152,7 +150,7 @@ bool _btStop()
 
 
 
-#if (ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_INFO)
+#ifdef DEBUG
 static char *bda2str(esp_bd_addr_t bda, char *str, size_t size)
 {
     if (bda == nullptr || str == nullptr || size < 18)
@@ -250,13 +248,13 @@ static bool _spp_send_buffer()
         esp_err_t err = esp_spp_write(_spp_client, _spp_tx_buffer_len, _spp_tx_buffer);
         if (err != ESP_OK)
         {
-            Debug_printf( "SPP write failed [0x%X]", err);
+            Debug_printf( "SPP write failed [0x%X]\n", err);
             return false;
         }
         _spp_tx_buffer_len = 0;
         if (xSemaphoreTake(_spp_tx_done, portMAX_DELAY) != pdTRUE)
         {
-            Debug_printf( "SPP ack failed");
+            Debug_println( "SPP ack failed");
             return false;
         }
         return true;
@@ -269,7 +267,8 @@ static void _spp_tx_task(void *arg)
     spp_packet_t *packet = nullptr;
     size_t len = 0, to_send = 0;
     uint8_t *data = nullptr;
-    for (;;)
+
+    while(true)
     {
         if (_spp_tx_queue && xQueueReceive(_spp_tx_queue, &packet, portMAX_DELAY) == pdTRUE && packet)
         {
@@ -317,7 +316,7 @@ static void _spp_tx_task(void *arg)
         }
         else
         {
-            Debug_println( "Something went horribly wrong");
+            Debug_println( "_spp_tx_task quitting");
         }
     }
 
@@ -333,9 +332,9 @@ static void _esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         Debug_println( "ESP_SPP_INIT_EVT");
         // OMF changed from: esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
         esp_bt_gap_set_scan_mode(esp_bt_connection_mode_t::ESP_BT_CONNECTABLE, esp_bt_discovery_mode_t::ESP_BT_GENERAL_DISCOVERABLE);
-        if (!_isMaster)
+        if (!_isServer)
         {
-            Debug_println( "ESP_SPP_INIT_EVT: slave: start");
+            Debug_println( "ESP_SPP_INIT_EVT: client: start");
             esp_spp_start_srv(ESP_SPP_SEC_NONE, ESP_SPP_ROLE_SLAVE, 0, _spp_server_name);
         }
         xEventGroupSetBits(_spp_event_group, SPP_RUNNING);
@@ -379,7 +378,7 @@ static void _esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         {
             xEventGroupSetBits(_spp_event_group, SPP_CONGESTED);
         }
-        Debug_printf( "ESP_SPP_CONG_EVT: %s", param->cong.cong ? "CONGESTED" : "FREE");
+        Debug_printf( "ESP_SPP_CONG_EVT: %s\n", param->cong.cong ? "CONGESTED" : "FREE");
         break;
 
     case ESP_SPP_WRITE_EVT: //write operation completed
@@ -388,11 +387,11 @@ static void _esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             xEventGroupClearBits(_spp_event_group, SPP_CONGESTED);
         }
         xSemaphoreGive(_spp_tx_done); //we can try to send another packet
-        Debug_printf( "ESP_SPP_WRITE_EVT: %u %s", param->write.len, param->write.cong ? "CONGESTED" : "FREE");
+        Debug_printf( "ESP_SPP_WRITE_EVT: %u %s\n", param->write.len, param->write.cong ? "CONGESTED" : "FREE");
         break;
 
     case ESP_SPP_DATA_IND_EVT: //connection received data
-        Debug_printf( "ESP_SPP_DATA_IND_EVT len=%d handle=%d", param->data_ind.len, param->data_ind.handle);
+        Debug_printf( "ESP_SPP_DATA_IND_EVT len=%d handle=%d\n", param->data_ind.len, param->data_ind.handle);
         //esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len); //for low level debug
         //ets_printf("r:%u\n", param->data_ind.len);
 
@@ -406,7 +405,7 @@ static void _esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             {
                 if (xQueueSend(_spp_rx_queue, param->data_ind.data + i, (TickType_t)0) != pdTRUE)
                 {
-                    Debug_printf( "RX Full! Discarding %u bytes", param->data_ind.len - i);
+                    Debug_printf( "RX Full! Discarding %u bytes\n", param->data_ind.len - i);
                     break;
                 }
             }
@@ -463,10 +462,10 @@ static void _esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *p
     switch (event)
     {
     case ESP_BT_GAP_DISC_RES_EVT:
-        Debug_printf( "ESP_BT_GAP_DISC_RES_EVT");
-#if (ARDUHAL_LOG_LEVEL >= ARDUHAL_LOG_LEVEL_INFO)
+        Debug_println( "ESP_BT_GAP_DISC_RES_EVT");
+#ifdef DEBUG
         char bda_str[18];
-        Debug_printf( "Scanned device: %s", bda2str(param->disc_res.bda, bda_str, 18));
+        Debug_printf( "Scanned device: %s\n", bda2str(param->disc_res.bda, bda_str, 18));
 #endif
         for (int i = 0; i < param->disc_res.num_prop; i++)
         {
@@ -664,8 +663,8 @@ static bool _init_bt(const char *deviceName)
         }
     }
 
-    // Register GAP callback if we're a master
-    if (_isMaster && (e = esp_bt_gap_register_callback(_esp_bt_gap_cb)) != ESP_OK)
+    // Register GAP callback if we're a server
+    if (_isServer && (e = esp_bt_gap_register_callback(_esp_bt_gap_cb)) != ESP_OK)
     {
         Debug_printf( "GAP register failed (%d): %s", e, esp_err_to_name(e));
         return false;
@@ -788,9 +787,9 @@ fnBluetoothSPP::~fnBluetoothSPP(void)
     _stop_bt();
 }
 
-bool fnBluetoothSPP::begin(string localName, bool isMaster)
+bool fnBluetoothSPP::begin(string localName, bool isServer)
 {
-    _isMaster = isMaster;
+    _isServer = isServer;
 
     if (localName.length())
         local_name = localName;
@@ -916,7 +915,7 @@ bool fnBluetoothSPP::connect(string remoteName)
     _isRemoteAddressSet = false;
     strncpy(_remote_name, remoteName.c_str(), ESP_BT_GAP_MAX_BDNAME_LEN);
     _remote_name[ESP_BT_GAP_MAX_BDNAME_LEN] = 0;
-    Debug_printf( "master : remoteName");
+    Debug_println( "server : remoteName");
     // will first resolve name to address
     // OMF changed from: esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
     esp_bt_gap_set_scan_mode(esp_bt_connection_mode_t::ESP_BT_CONNECTABLE, esp_bt_discovery_mode_t::ESP_BT_GENERAL_DISCOVERABLE);
@@ -933,14 +932,14 @@ bool fnBluetoothSPP::connect(uint8_t remoteAddress[])
         return false;
     if (!remoteAddress)
     {
-        Debug_printf( "No remote address is provided");
+        Debug_println( "No remote address is provided");
         return false;
     }
     disconnect();
     _remote_name[0] = 0;
     _isRemoteAddressSet = true;
     memcpy(_peer_bd_addr, remoteAddress, ESP_BD_ADDR_LEN);
-    Debug_printf( "master : remoteAddress");
+    Debug_println( "server : remoteAddress");
     if (esp_spp_start_discovery(_peer_bd_addr) == ESP_OK)
     {
         return waitForConnect(READY_TIMEOUT);
@@ -956,7 +955,7 @@ bool fnBluetoothSPP::connect()
     {
         disconnect();
         // use resolved or set address first
-        Debug_printf( "master : remoteAddress");
+        Debug_println( "server : remoteAddress");
         if (esp_spp_start_discovery(_peer_bd_addr) == ESP_OK)
         {
             return waitForConnect(READY_TIMEOUT);
@@ -966,7 +965,7 @@ bool fnBluetoothSPP::connect()
     else if (_remote_name[0])
     {
         disconnect();
-        Debug_printf( "master : remoteName");
+        Debug_println( "server : remoteName");
         // will resolve name to address first - it may take a while
         // OMF changed from: esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
         esp_bt_gap_set_scan_mode(esp_bt_connection_mode_t::ESP_BT_CONNECTABLE, esp_bt_discovery_mode_t::ESP_BT_GENERAL_DISCOVERABLE);
@@ -976,7 +975,7 @@ bool fnBluetoothSPP::connect()
         }
         return false;
     }
-    Debug_printf( "Neither Remote name nor address was provided");
+    Debug_println( "Neither remote name nor address were provided");
     return false;
 }
 
@@ -1010,16 +1009,16 @@ bool fnBluetoothSPP::connected(int timeout)
     return waitForConnect(timeout);
 }
 
-bool fnBluetoothSPP::isReady(bool checkMaster, int timeout)
+bool fnBluetoothSPP::isReady(bool checkServer, int timeout)
 {
-    if (checkMaster && !_isMaster)
+    if (checkServer && !_isServer)
     {
-        Debug_printf( "Master mode is not active. Call begin(localName, true) to enable Master mode");
+        Debug_println( "Server mode is not active. Call begin(localName, true) to enable server mode");
         return false;
     }
     if (!_btStarted())
     {
-        Debug_printf( "BT is not initialized. Call begin() first");
+        Debug_println( "BT is not initialized. Call begin() first");
         return false;
     }
     TickType_t xTicksToWait = timeout / portTICK_PERIOD_MS;

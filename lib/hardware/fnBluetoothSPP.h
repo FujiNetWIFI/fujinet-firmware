@@ -7,7 +7,7 @@
 
 #include "sdkconfig.h"
 
-#if defined(CONFIG_BT_ENABLED) && defined(CONFIG_BLUEDROID_ENABLED)
+#ifdef BLUETOOTH_SUPPORT
 
 #include <string>
 #include <functional>
@@ -35,7 +35,7 @@ public:
     fnBluetoothSPP();
     ~fnBluetoothSPP();
 
-    bool begin(string localName = string(), bool isMaster = false);
+    bool begin(string localName = string(), bool isServer = false);
     int available(void);
     int peek(void);
     bool hasClient(void);
@@ -53,11 +53,11 @@ public:
     bool connect(uint8_t remoteAddress[]);
     bool connect();
     bool connected(int timeout = 0);
-    bool isReady(bool checkMaster = false, int timeout = 0);
+    bool isReady(bool checkServer = false, int timeout = 0);
     bool disconnect();
     bool unpairDevice(uint8_t remoteAddress[]);
 };
 
-#endif // defined(CONFIG_BT_ENABLED) && defined(CONFIG_BLUEDROID_ENABLED)
+#endif // defined BLUETOOTH_SUPPORT
 
 #endif // _FN_BLUETOOTH_SPP_H_

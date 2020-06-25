@@ -5,13 +5,16 @@
 #include "fnBluetooth.h"
 #include "fnBluetoothSPP.h"
 
-#if defined(CONFIG_BT_ENABLED) && defined(CONFIG_BLUEDROID_ENABLED)
+#ifdef BLUETOOTH_SUPPORT
 
 fnBluetoothSPP btSpp;
 
 BluetoothManager fnBtManager;
 
+#define BT_NAME "SIO2BT #FujiNet"
+
 /*
+Only Bluetooth SPP functions we need:
 .begin
 .end
 .read
@@ -20,7 +23,7 @@ BluetoothManager fnBtManager;
 
 void BluetoothManager::start()
 {
-    Debug_println("START SIO2BT");
+    Debug_println("Starting SIO2BT");
     btSpp.begin(BT_NAME);
     _mActive = true;
     SIO.setBaudrate(_mBTBaudrate);
@@ -28,7 +31,7 @@ void BluetoothManager::start()
 
 void BluetoothManager::stop()
 {
-    Debug_println("STOP SIO2BT");
+    Debug_println("Stopping SIO2BT");
     _mActive = false;
     SIO.setBaudrate(eBTBaudrate::BT_STANDARD_BAUDRATE);
     btSpp.end();
