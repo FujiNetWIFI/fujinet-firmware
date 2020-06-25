@@ -1,8 +1,6 @@
 #ifndef BLUETOOTH_H
 #define BLUETOOTH_H
 
-#define BT_NAME "SIO2BT FUJINET"
-
 enum eBTBaudrate
 {
     BT_STANDARD_BAUDRATE = 19200,
