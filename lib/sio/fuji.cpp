@@ -510,6 +510,8 @@ void sioFuji::sio_get_adapter_config()
 #endif
     memset((void *)adapterConfig.rawData, 0, sizeof(adapterConfig.rawData));
 
+    strncpy(adapterConfig.detail.firmware, fnSystem.get_fujinet_version(true), sizeof(adapterConfig.detail.firmware));
+
     if (!fnWiFi.connected())
     {
         strncpy(adapterConfig.detail.ssid, "NOT CONNECTED", sizeof(adapterConfig.detail.ssid));

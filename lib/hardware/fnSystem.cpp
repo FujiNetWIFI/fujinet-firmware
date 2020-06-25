@@ -197,9 +197,12 @@ const char * SystemManager::get_sdk_version()
 #endif    
 }
 
-const char * SystemManager::get_fujinet_version()
+const char * SystemManager::get_fujinet_version(  bool shortVersionOnly )
 {
-    return FN_VERSION_FULL " " FN_VERSION_DATE;
+    if ( shortVersionOnly )
+        return FN_VERSION_FULL;
+    else
+        return FN_VERSION_FULL " " FN_VERSION_DATE;
 }
 int SystemManager::get_cpu_rev()
 {

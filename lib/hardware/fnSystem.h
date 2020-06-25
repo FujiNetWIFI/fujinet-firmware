@@ -78,7 +78,7 @@ public:
     static void delay_microseconds(uint32_t us);
     static void delay(uint32_t ms);
     const char * get_uptime_str();
-    static const char * get_fujinet_version();
+    static const char * get_fujinet_version( bool shortVersionOnly );
     static int get_sio_voltage();
     static void yield();
     
