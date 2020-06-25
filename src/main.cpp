@@ -32,14 +32,14 @@ testing commences...
 #endif
 
 #ifdef BLUETOOTH_SUPPORT
-#include "bluetooth.h"
+#include "fnBluetooth.h"
 #endif
 
 // fnSystem is declared and defined in fnSystem.h/cpp
+// fnBtManager is declared and defined in fnBluetooth.h/cpp
 // fnLedManager is declared and defined in led.h/cpp
 // fnKeyManager is declared and defined in keys.h/cpp
 // fnHTTPD is declared and defineid in HttpService.h/cpp
-// fnBtManager is declare and defined in bluetooth.h/cpp
 
 sioModem sioR;
 sioFuji theFuji;

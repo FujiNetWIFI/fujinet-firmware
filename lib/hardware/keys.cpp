@@ -1,7 +1,7 @@
 #include <cstring>
 
 #include "fnSystem.h"
-#include "bluetooth.h"
+#include "fnBluetooth.h"
 #include "led.h"
 #include "keys.h"
 
