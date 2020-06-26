@@ -247,6 +247,22 @@ void sioBus::_sio_process_cmd()
     fnLedManager.set(eLed::LED_SIO, false);
 }
 
+// Look to see if we have any waiting messages and process them accordingly
+void sioBus::_sio_process_queue()
+{
+    sio_message_t msg;
+    if(xQueueReceive(qSioMessages, &msg, 0) == pdTRUE)
+    {
+        switch(msg.message_id)
+        {
+        case(SIOMSG_DISKSWAP):
+        if(_fujiDev != nullptr)
+            _fujiDev->image_rotate();
+        break;
+        }
+    }
+}
+
 /*
  Primary SIO serivce loop:
  1. If CMD line asserted, try reading CMD frame and sending it to appropriate device
@@ -277,29 +293,35 @@ void sioBus::service()
         if (_netDev[i] != nullptr)
             _netDev[i]->sio_assert_interrupts();
     }
+
+    // Check for any messages in our queue
+    _sio_process_queue();
 }
 
 // Setup SIO bus
 void sioBus::setup()
 {
     Debug_println("SIO SETUP");
-    // Set up serial
-    fnUartSIO.begin(_sioBaud);
 
+    // Set up UART
+    fnUartSIO.begin(_sioBaud);
+    // INT PIN
     fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_INT, DIGI_HIGH);
-
+    // PROC PIN
     fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
-
-    fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN);
-
+    // MTR PIN
+    fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN); // Don't think PULLDOWN/PULLUP options are relevant to input-only pins
+    // CMD PIN
     fnSystem.set_pin_mode(PIN_CMD, PINMODE_INPUT | PINMODE_PULLUP);
-
+    // CKI PIN
     fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_CKI, DIGI_LOW);
-
+    // CKO PIN
     fnSystem.set_pin_mode(PIN_CKO, PINMODE_INPUT);
+    // Create a message queue
+    qSioMessages =  xQueueCreate(4, sizeof(sio_message_t));
 
     sio_flush();
 }

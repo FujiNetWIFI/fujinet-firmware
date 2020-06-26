@@ -4,6 +4,7 @@
 #include "fnBluetooth.h"
 #include "led.h"
 #include "keys.h"
+#include "sio.h"
 
 KeyManager fnKeyManager;
 
@@ -126,8 +127,12 @@ void KeyManager::_keystate_task(void *param)
                 fnBtManager.toggleBaudrate();
             else
 #endif
-                Debug_println("TODO: Re-connect theFuji.image_rotate()");
-            //theFuji.image_rotate();
+            {
+                Debug_println("Send image_rotate message to SIO queue");
+                sio_message_t msg;
+                msg.message_id = SIOMSG_DISKSWAP;
+                xQueueSend(SIO.qSioMessages, &msg ,0);
+            }
             break;
         default:
             break;

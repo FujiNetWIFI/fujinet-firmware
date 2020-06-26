@@ -139,6 +139,19 @@ public:
     bool device_active = true;
 };
 
+enum sio_message : uint16_t
+{
+    SIOMSG_DISKSWAP
+};
+
+struct sio_message_t
+{
+    sio_message message_id;
+    uint16_t message_arg;
+};
+
+// typedef sio_message_t sio_message_t;
+
 class sioBus
 {
 private:
@@ -152,8 +165,10 @@ private:
     int _sioBaud = SIO_STANDARD_BAUDRATE;
 
     void _sio_process_cmd();
+    void _sio_process_queue();
 
 public:
+
     void setup();
     void service();
 
@@ -165,6 +180,8 @@ public:
 
     void setBaudrate(int baud);
     void toggleBaudrate();
+
+    QueueHandle_t qSioMessages = nullptr;
 };
 
 extern sioBus SIO;
