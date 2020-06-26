@@ -195,6 +195,11 @@ sioPrinter::sioPrinter(FileSystem *filesystem, printer_type print_type)
     set_printer_type(print_type);
 }
 
+void sioPrinter::shutdown()
+{
+    if(_pptr != nullptr)
+        _pptr->closeOutput();
+}
 /* Returns a printer type given a string model name
 */
 sioPrinter::printer_type sioPrinter::match_modelname(std::string model_name)

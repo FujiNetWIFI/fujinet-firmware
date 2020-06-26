@@ -16,13 +16,6 @@
 #define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
 
-//extern FS *fileSystems[8];
-//extern TNFSFS TNFS[8];
-//extern File atr[8]; // up to 8 disk drives
-//extern sioDisk sioD[8]; //
-//extern sioNetwork sioN[8];
-
-
 class sioFuji : public sioDevice
 {
 private:
@@ -35,12 +28,9 @@ private:
     struct fndisks_t
     {
         FILE* file;
-        fujiFsMounter *fnfs = NULL;
+        fujiFsMounter *fnfs = nullptr;
     };
     fndisks_t fnDisks[MAX_DISK_DEVICES];
-
-    bool validate_host_slot(uint8_t slot, const char *dgmsg = NULL);
-    bool validate_device_slot(uint8_t slot, const char *dgmsg = NULL);
 
 protected:
     FILE * atrConfig;     // autorun.atr for FujiNet configuration
@@ -88,6 +78,8 @@ protected:
     void sio_unmount_host();              // 0xE6
 
     void sio_process() override;
+
+    void shutdown() override;
 
     char totalSSIDs;
     union {

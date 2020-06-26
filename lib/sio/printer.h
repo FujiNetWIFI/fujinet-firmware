@@ -15,6 +15,7 @@ protected:
     void sio_write(uint8_t aux1, uint8_t aux2);
     void sio_status() override;
     void sio_process() override;
+    void shutdown() override;
 
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;

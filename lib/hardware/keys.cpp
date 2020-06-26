@@ -143,6 +143,7 @@ void KeyManager::_keystate_task(void *param)
         {
         case eKeyStatus::LONG_PRESSED:
             Debug_println("OTHER_KEY: LONG PRESS");
+            fnSystem.reboot();
             break;
         case eKeyStatus::SHORT_PRESSED:
             Debug_println("OTHER_KEY: SHORT PRESS");

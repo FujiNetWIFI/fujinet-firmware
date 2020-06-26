@@ -47,9 +47,14 @@ sioApeTime apeTime;
 sioVoice sioV;
 
 
-/*
-* Initial setup
-*/
+void main_shutdown_handler()
+{
+    Debug_println("Shutdown handler called");
+    // Give devices an opportunity to clean up before rebooting
+    SIO.shutdown();
+}
+
+// Initial setup
 void main_setup()
 {
 #ifdef DEBUG
@@ -64,6 +69,9 @@ void main_setup()
     Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
 #endif
 #endif
+    // Install a reboot handler
+    esp_register_shutdown_handler(main_shutdown_handler);
+
     esp_err_t e = nvs_flash_init();
     if (e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND)
     {
