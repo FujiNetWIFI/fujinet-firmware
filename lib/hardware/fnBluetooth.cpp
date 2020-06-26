@@ -13,14 +13,6 @@ BluetoothManager fnBtManager;
 
 #define BT_NAME "SIO2BT #FujiNet"
 
-/*
-Only Bluetooth SPP functions we need:
-.begin
-.end
-.read
-.write
-*/
-
 void BluetoothManager::start()
 {
     Debug_println("Starting SIO2BT");
@@ -33,20 +25,15 @@ void BluetoothManager::stop()
 {
     Debug_println("Stopping SIO2BT");
     _mActive = false;
-    SIO.setBaudrate(eBTBaudrate::BT_STANDARD_BAUDRATE);
+    SIO.setBaudrate(BT_STANDARD_BAUDRATE);
     btSpp.end();
 }
 
 eBTBaudrate BluetoothManager::toggleBaudrate()
 {
-    if (_mBTBaudrate == eBTBaudrate::BT_STANDARD_BAUDRATE)
-    {
-        _mBTBaudrate = eBTBaudrate::BT_HISPEED_BAUDRATE;
-    }
-    else
-    {
-        _mBTBaudrate = eBTBaudrate::BT_STANDARD_BAUDRATE;
-    }
+    _mBTBaudrate =
+        _mBTBaudrate == BT_STANDARD_BAUDRATE ? BT_HISPEED_BAUDRATE : BT_STANDARD_BAUDRATE;
+
     SIO.setBaudrate(_mBTBaudrate);
     return _mBTBaudrate;
 }

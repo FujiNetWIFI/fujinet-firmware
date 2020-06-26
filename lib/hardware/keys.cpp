@@ -82,6 +82,7 @@ void _debug_print_tasks()
             status[pTasks[i].eCurrentState],
             pTasks[i].pcTaskName);
     }
+    Debug_printf("\nCPU MHz: %d\n", fnSystem.get_cpu_frequency());
 }
 #endif
 

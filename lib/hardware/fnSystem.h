@@ -18,7 +18,6 @@ private:
     char _uptime_string[18];
 
 public:
-
     class _net
     {
     private:
@@ -34,17 +33,17 @@ public:
             IP4_DNS_PRIMARY = 0
         };
 
-        static std::string _get_ip4_address_str(_ip4_address_type iptype);
-        static std::string _get_ip4_dns_str(_ip4_dns_type dnstype);
+        std::string _get_ip4_address_str(_ip4_address_type iptype);
+        std::string _get_ip4_dns_str(_ip4_dns_type dnstype);
 
     public:
-        static std::string get_hostname();
-        static std::string get_ip4_address_str();
-        static std::string get_ip4_mask_str();
-        static std::string get_ip4_gateway_str();
-        static int get_ip4_info(uint8_t ip4address[4], uint8_t ip4mask[4], uint8_t ip4gateway[4]);
-        static std::string get_ip4_dns_str();
-        static int get_ip4_dns_info(uint8_t ip4dnsprimary[4]);
+        std::string get_hostname();
+        std::string get_ip4_address_str();
+        std::string get_ip4_mask_str();
+        std::string get_ip4_gateway_str();
+        int get_ip4_info(uint8_t ip4address[4], uint8_t ip4mask[4], uint8_t ip4gateway[4]);
+        std::string get_ip4_dns_str();
+        int get_ip4_dns_info(uint8_t ip4dnsprimary[4]);
     };
     _net Net;
 
@@ -62,40 +61,33 @@ public:
 #define DIGI_LOW 0x00
 #define DIGI_HIGH 0x01
 
-    static void set_pin_mode(uint8_t pin, uint8_t mode);
-    static int digital_read(uint8_t pin);
-    static void digital_write(uint8_t pin, uint8_t val);
+    void set_pin_mode(uint8_t pin, uint8_t mode);
+    int digital_read(uint8_t pin);
+    void digital_write(uint8_t pin, uint8_t val);
 
-    static void reboot();
-    static uint32_t get_free_heap_size();
-    static uint32_t get_psram_size();
-    static const char * get_sdk_version();
-    static chipmodels get_cpu_model();
-    static int get_cpu_rev();
-    static int64_t get_uptime();
-    static unsigned long millis();
-    static unsigned long micros();
-    static void delay_microseconds(uint32_t us);
-    static void delay(uint32_t ms);
-    const char * get_uptime_str();
-    static const char * get_fujinet_version(bool shortVersionOnly=false);
-    static int get_sio_voltage();
-    static void yield();
-    
-    /*
-    static void IRAM_ATTR dac_write(uint8_t pin, uint8_t value);
-    static esp_err_t dac_output_disable(dac_channel_t channel);
-    static esp_err_t dac_output_enable(dac_channel_t channel);
-    static esp_err_t dac_output_voltage(dac_channel_t channel, uint8_t dac_value);
-    */
+    void reboot();
+    uint32_t get_cpu_frequency();
+    uint32_t get_free_heap_size();
+    uint32_t get_psram_size();
+    const char *get_sdk_version();
+    chipmodels get_cpu_model();
+    int get_cpu_rev();
+    int64_t get_uptime();
+    unsigned long millis();
+    unsigned long micros();
+    void delay_microseconds(uint32_t us);
+    void delay(uint32_t ms);
+    const char *get_uptime_str();
+    const char *get_fujinet_version(bool shortVersionOnly = false);
+    int get_sio_voltage();
+    void yield();
 
-    static size_t copy_file(FileSystem *source_fs, const char *source_filename, FileSystem *dest_fs, const char *dest_filename, size_t buffer_hint = FILE_COPY_BUFFERSIZE);
-    static FILE * make_tempfile(FileSystem *fs, char *result_filename);
-    static FILE * make_tempfile(char *result_filename);
-    static void delete_tempfile(FileSystem *fs, const char *filename);
-    static void delete_tempfile(const char *filename);
+    size_t copy_file(FileSystem *source_fs, const char *source_filename, FileSystem *dest_fs, const char *dest_filename, size_t buffer_hint = FILE_COPY_BUFFERSIZE);
+    FILE *make_tempfile(FileSystem *fs, char *result_filename);
+    FILE *make_tempfile(char *result_filename);
+    void delete_tempfile(FileSystem *fs, const char *filename);
+    void delete_tempfile(const char *filename);
 };
-
 
 extern SystemManager fnSystem;
 

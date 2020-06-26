@@ -9,6 +9,7 @@
 #include <driver/dac.h>
 #include <driver/adc.h>
 #include "soc/sens_reg.h"
+#include "soc/rtc.h"
 #include "esp_adc_cal.h"
 
 
@@ -23,6 +24,15 @@
 
 // Global object to manage System
 SystemManager fnSystem;
+
+
+// Returns current CPU frequency in MHz
+uint32_t SystemManager::get_cpu_frequency()
+{
+    rtc_cpu_freq_config_t cfg;
+    rtc_clk_cpu_freq_get_config(&cfg);
+    return cfg.freq_mhz;
+}
 
 // Temprary (?) replacement for Arduino's pinMode()
 // Handles only common cases

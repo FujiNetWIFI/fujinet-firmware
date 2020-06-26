@@ -44,6 +44,10 @@ static bool secondConnectionAttempt;
 static esp_spp_cb_t *custom_spp_callback = nullptr;
 static fnBluetoothDataCb custom_data_callback = nullptr;
 
+const uint16_t SPP_TX_MAX = 330;
+static uint8_t _spp_tx_buffer[SPP_TX_MAX];
+static uint16_t _spp_tx_buffer_len = 0;
+
 static esp_bd_addr_t _peer_bd_addr;
 static char _remote_name[ESP_BT_GAP_MAX_BDNAME_LEN + 1];
 static bool _isRemoteAddressSet;
@@ -168,18 +172,15 @@ static char *bda2str(esp_bd_addr_t bda, char *str, size_t size)
 static bool _get_name_from_eir(uint8_t *eir, char *bdname, uint8_t *bdname_len)
 {
     if (!eir || !bdname || !bdname_len)
-    {
         return false;
-    }
 
     uint8_t *rmt_bdname, rmt_bdname_len;
     *bdname = *bdname_len = rmt_bdname_len = 0;
 
     rmt_bdname = esp_bt_gap_resolve_eir_data(eir, ESP_BT_EIR_TYPE_CMPL_LOCAL_NAME, &rmt_bdname_len);
     if (!rmt_bdname)
-    {
         rmt_bdname = esp_bt_gap_resolve_eir_data(eir, ESP_BT_EIR_TYPE_SHORT_LOCAL_NAME, &rmt_bdname_len);
-    }
+
     if (rmt_bdname)
     {
         rmt_bdname_len = rmt_bdname_len > ESP_BT_GAP_MAX_BDNAME_LEN ? ESP_BT_GAP_MAX_BDNAME_LEN : rmt_bdname_len;
@@ -188,6 +189,7 @@ static bool _get_name_from_eir(uint8_t *eir, char *bdname, uint8_t *bdname_len)
         *bdname_len = rmt_bdname_len;
         return true;
     }
+
     return false;
 }
 
@@ -215,17 +217,19 @@ static bool _btSetPin()
 
 static esp_err_t _spp_queue_packet(uint8_t *data, size_t len)
 {
-    if (!data || !len)
-    {
-        Debug_println( "No data provided");
+    if (data == nullptr || len == 0)
         return ESP_OK;
-    }
+
+    // OMF This memory seems to get freed in _spp_tx_task(), but it's not clear
+    // how this happens since the xQueueSend function works by making a copy
+    // of the data, not using a reference.
     spp_packet_t *packet = (spp_packet_t *)malloc(sizeof(spp_packet_t) + len);
     if (!packet)
     {
         Debug_println( "SPP TX packet malloc failed");
         return ESP_FAIL;
     }
+
     packet->len = len;
     memcpy(packet->data, data, len);
     if (xQueueSend(_spp_tx_queue, &packet, portMAX_DELAY) != pdPASS)
@@ -234,31 +238,32 @@ static esp_err_t _spp_queue_packet(uint8_t *data, size_t len)
         free(packet);
         return ESP_FAIL;
     }
+
     return ESP_OK;
 }
 
-const uint16_t SPP_TX_MAX = 330;
-static uint8_t _spp_tx_buffer[SPP_TX_MAX];
-static uint16_t _spp_tx_buffer_len = 0;
 
 static bool _spp_send_buffer()
 {
     if ((xEventGroupWaitBits(_spp_event_group, SPP_CONGESTED, pdFALSE, pdTRUE, portMAX_DELAY) & SPP_CONGESTED) != 0)
     {
-        esp_err_t err = esp_spp_write(_spp_client, _spp_tx_buffer_len, _spp_tx_buffer);
-        if (err != ESP_OK)
+        esp_err_t e = esp_spp_write(_spp_client, _spp_tx_buffer_len, _spp_tx_buffer);
+        if (e != ESP_OK)
         {
-            Debug_printf( "SPP write failed [0x%X]\n", err);
+            Debug_printf( "SPP write failed (%d): %s\n", e, esp_err_to_name(e));
             return false;
         }
+
         _spp_tx_buffer_len = 0;
         if (xSemaphoreTake(_spp_tx_done, portMAX_DELAY) != pdTRUE)
         {
             Debug_println( "SPP ack failed");
             return false;
         }
+
         return true;
     }
+
     return false;
 }
 
@@ -270,7 +275,9 @@ static void _spp_tx_task(void *arg)
 
     while(true)
     {
-        if (_spp_tx_queue && xQueueReceive(_spp_tx_queue, &packet, portMAX_DELAY) == pdTRUE && packet)
+        if (_spp_tx_queue != nullptr && 
+            xQueueReceive(_spp_tx_queue, &packet, portMAX_DELAY) == pdTRUE &&
+             packet != nullptr)
         {
             if (packet->len <= (SPP_TX_MAX - _spp_tx_buffer_len))
             {
@@ -279,9 +286,7 @@ static void _spp_tx_task(void *arg)
                 free(packet);
                 packet = nullptr;
                 if (SPP_TX_MAX == _spp_tx_buffer_len || uxQueueMessagesWaiting(_spp_tx_queue) == 0)
-                {
                     _spp_send_buffer();
-                }
             }
             else
             {
@@ -293,6 +298,7 @@ static void _spp_tx_task(void *arg)
                 data += to_send;
                 len -= to_send;
                 _spp_send_buffer();
+
                 while (len >= SPP_TX_MAX)
                 {
                     memcpy(_spp_tx_buffer, data, SPP_TX_MAX);
@@ -301,15 +307,15 @@ static void _spp_tx_task(void *arg)
                     len -= SPP_TX_MAX;
                     _spp_send_buffer();
                 }
+
                 if (len)
                 {
                     memcpy(_spp_tx_buffer, data, len);
                     _spp_tx_buffer_len += len;
                     if (uxQueueMessagesWaiting(_spp_tx_queue) == 0)
-                    {
                         _spp_send_buffer();
-                    }
                 }
+
                 free(packet);
                 packet = nullptr;
             }
@@ -371,21 +377,17 @@ static void _esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 
     case ESP_SPP_CONG_EVT: //connection congestion status changed
         if (param->cong.cong)
-        {
             xEventGroupClearBits(_spp_event_group, SPP_CONGESTED);
-        }
         else
-        {
             xEventGroupSetBits(_spp_event_group, SPP_CONGESTED);
-        }
+
         Debug_printf( "ESP_SPP_CONG_EVT: %s\n", param->cong.cong ? "CONGESTED" : "FREE");
         break;
 
     case ESP_SPP_WRITE_EVT: //write operation completed
         if (param->write.cong)
-        {
             xEventGroupClearBits(_spp_event_group, SPP_CONGESTED);
-        }
+
         xSemaphoreGive(_spp_tx_done); //we can try to send another packet
         Debug_printf( "ESP_SPP_WRITE_EVT: %u %s\n", param->write.len, param->write.cong ? "CONGESTED" : "FREE");
         break;
@@ -448,13 +450,8 @@ static void _esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         break;
     }
 
-    if (custom_spp_callback)
+    if (custom_spp_callback != nullptr)
         (*custom_spp_callback)(event, param);
-}
-
-void fnBluetoothSPP::onData(fnBluetoothDataCb cb)
-{
-    custom_data_callback = cb;
 }
 
 static void _esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
@@ -721,6 +718,7 @@ static bool _stop_bt()
     {
         if (_spp_client)
             esp_spp_disconnect(_spp_client);
+
         esp_spp_deinit();
         esp_bluedroid_disable();
         esp_bluedroid_deinit();
@@ -782,9 +780,14 @@ fnBluetoothSPP::fnBluetoothSPP()
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_BLE));
 }
 
-fnBluetoothSPP::~fnBluetoothSPP(void)
+fnBluetoothSPP::~fnBluetoothSPP()
 {
     _stop_bt();
+}
+
+void fnBluetoothSPP::onData(fnBluetoothDataCb cb)
+{
+    custom_data_callback = cb;
 }
 
 bool fnBluetoothSPP::begin(string localName, bool isServer)
@@ -795,6 +798,11 @@ bool fnBluetoothSPP::begin(string localName, bool isServer)
         local_name = localName;
 
     return _init_bt(local_name.c_str());
+}
+
+bool fnBluetoothSPP::hasClient(void)
+{
+    return _spp_client > 0;
 }
 
 int fnBluetoothSPP::available(void)
@@ -810,15 +818,9 @@ int fnBluetoothSPP::peek(void)
 {
     uint8_t c;
     if (_spp_rx_queue && xQueuePeek(_spp_rx_queue, &c, 0))
-    {
         return c;
-    }
+        
     return -1;
-}
-
-bool fnBluetoothSPP::hasClient(void)
-{
-    return _spp_client > 0;
 }
 
 int fnBluetoothSPP::read(void)
@@ -826,10 +828,18 @@ int fnBluetoothSPP::read(void)
 
     uint8_t c = 0;
     if (_spp_rx_queue && xQueueReceive(_spp_rx_queue, &c, 0))
-    {
         return c;
-    }
+
     return -1;
+}
+
+
+size_t fnBluetoothSPP::write(const uint8_t *buffer, size_t size)
+{
+    if (_spp_client == 0)
+        return 0;
+
+    return (_spp_queue_packet((uint8_t *)buffer, size) == ESP_OK) ? size : 0;
 }
 
 size_t fnBluetoothSPP::write(uint8_t c)
@@ -837,23 +847,12 @@ size_t fnBluetoothSPP::write(uint8_t c)
     return write(&c, 1);
 }
 
-size_t fnBluetoothSPP::write(const uint8_t *buffer, size_t size)
-{
-    if (!_spp_client)
-    {
-        return 0;
-    }
-    return (_spp_queue_packet((uint8_t *)buffer, size) == ESP_OK) ? size : 0;
-}
-
 void fnBluetoothSPP::flush()
 {
     if (_spp_tx_queue != nullptr)
     {
         while (uxQueueMessagesWaiting(_spp_tx_queue) > 0)
-        {
             fnSystem.delay(5);
-        }
     }
 }
 
@@ -920,9 +919,8 @@ bool fnBluetoothSPP::connect(string remoteName)
     // OMF changed from: esp_bt_gap_set_scan_mode(ESP_BT_SCAN_MODE_CONNECTABLE_DISCOVERABLE);
     esp_bt_gap_set_scan_mode(esp_bt_connection_mode_t::ESP_BT_CONNECTABLE, esp_bt_discovery_mode_t::ESP_BT_GENERAL_DISCOVERABLE);
     if (esp_bt_gap_start_discovery(ESP_BT_INQ_MODE_GENERAL_INQUIRY, INQ_LEN, INQ_NUM_RSPS) == ESP_OK)
-    {
         return waitForConnect(SCAN_TIMEOUT);
-    }
+
     return false;
 }
 
@@ -930,20 +928,22 @@ bool fnBluetoothSPP::connect(uint8_t remoteAddress[])
 {
     if (!isReady(true, READY_TIMEOUT))
         return false;
+
     if (!remoteAddress)
     {
         Debug_println( "No remote address is provided");
         return false;
     }
+
     disconnect();
     _remote_name[0] = 0;
     _isRemoteAddressSet = true;
     memcpy(_peer_bd_addr, remoteAddress, ESP_BD_ADDR_LEN);
     Debug_println( "server : remoteAddress");
+
     if (esp_spp_start_discovery(_peer_bd_addr) == ESP_OK)
-    {
         return waitForConnect(READY_TIMEOUT);
-    }
+
     return false;
 }
 
@@ -951,15 +951,15 @@ bool fnBluetoothSPP::connect()
 {
     if (!isReady(true, READY_TIMEOUT))
         return false;
+
     if (_isRemoteAddressSet)
     {
         disconnect();
         // use resolved or set address first
         Debug_println( "server : remoteAddress");
         if (esp_spp_start_discovery(_peer_bd_addr) == ESP_OK)
-        {
             return waitForConnect(READY_TIMEOUT);
-        }
+
         return false;
     }
     else if (_remote_name[0])
@@ -975,6 +975,7 @@ bool fnBluetoothSPP::connect()
         }
         return false;
     }
+
     Debug_println( "Neither remote name nor address were provided");
     return false;
 }
@@ -998,7 +999,7 @@ bool fnBluetoothSPP::unpairDevice(uint8_t remoteAddress[])
 {
     if (isReady(false, READY_TIMEOUT))
     {
-        Debug_printf( "removing bonded device");
+        Debug_printf( "Removing bonded device");
         return (esp_bt_gap_remove_bond_device(remoteAddress) == ESP_OK);
     }
     return false;
