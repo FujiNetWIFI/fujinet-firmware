@@ -4,21 +4,24 @@
 enum eBTBaudrate
 {
     BT_STANDARD_BAUDRATE = 19200,
-    BT_HISPEED_BAUDRATE = 57600
+    BT_HISPEED_BAUDRATE =  57600
 };
 
 class BluetoothManager
 {
+private:
+    eBTBaudrate _mBTBaudrate = BT_STANDARD_BAUDRATE;
+    bool _mActive = false;
+
 public:
     inline bool isActive() { return _mActive; };
     void start();
     void stop();
     eBTBaudrate toggleBaudrate();
     void service();
-private:
-    eBTBaudrate _mBTBaudrate = eBTBaudrate::BT_STANDARD_BAUDRATE;
-    bool _mActive = false;
 };
 
 extern BluetoothManager fnBtManager;
-#endif // guard
+
+#endif
+

@@ -5,8 +5,6 @@
 #ifndef _FN_BLUETOOTH_SPP_H_
 #define _FN_BLUETOOTH_SPP_H_
 
-#include "sdkconfig.h"
-
 #ifdef BLUETOOTH_SUPPORT
 
 #include <string>
