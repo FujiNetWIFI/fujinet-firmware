@@ -1,8 +1,10 @@
 #include <cstdint>
+
 #include "fuji.h"
 #include "led.h"
 #include "fnWiFi.h"
 #include "fnSystem.h"
+
 #include "../FileSystem/fnFsSPIF.h"
 #include "../config/fnConfig.h"
 
@@ -29,64 +31,69 @@
 
 #define MAX_HOSTS 8
 
-//FS *fileSystems[MAX_HOSTS];
-//TNFSFS TNFS[MAX_HOSTS]; // up to 8 TNFS servers
-// could make a list of 8 pointers and create New TNFS objects at mounting and point to them
-// might also need to make the FS pointers so that can use SD, SPIFFS, too
-
-//File dir[MAX_HOSTS];     // maybe only need on dir file pointer?
-//File atr[MAX_HOSTS];     // up to 8 disk drives
 sioDisk sioD[MAX_HOSTS]; // use pointers and create objects as needed?
 sioNetwork sioN[MAX_HOSTS];
+
+bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
+bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
+
+
+bool _validate_host_slot(uint8_t slot, const char *dmsg)
+{
+    if (slot < MAX_HOSTS)
+        return true;
+
+    if (dmsg == NULL)
+    {
+        Debug_printf("!! Invalid host slot %hu\n", slot);
+    }
+    else
+    {
+        Debug_printf("!! Invalid host slot %hu @ %s\n", slot, dmsg);
+    }
+
+    return false;
+}
+
+bool _validate_device_slot(uint8_t slot, const char *dmsg)
+{
+    if (slot < MAX_DISK_DEVICES)
+        return true;
+
+    if (dmsg == NULL)
+    {
+        Debug_printf("!! Invalid device slot %hu\n", slot);
+    }
+    else
+    {
+        Debug_printf("!! Invalid device slot %hu @ %s\n", slot, dmsg);
+    }
+
+    return false;
+}
+
 
 // Constructor
 sioFuji::sioFuji()
 {
-    // Help debugging...
+    // Helpful for debugging
     for (int i = 0; i < MAX_FILESYSTEMS; i++)
         fnFileSystems[i].slotid = i;
 }
 
-bool sioFuji::validate_host_slot(uint8_t slot, const char *dmsg)
-{
-    if (slot < MAX_HOSTS)
-        return true;
-#ifdef DEBUG
-    if (dmsg == NULL)
-        Debug_printf("!! Invalid host slot %hu\n", slot);
-    else
-        Debug_printf("!! Invalid host slot %hu @ %s\n", slot, dmsg);
-#endif
-    return false;
-}
-
-bool sioFuji::validate_device_slot(uint8_t slot, const char *dmsg)
-{
-    if (slot < MAX_DISK_DEVICES)
-        return true;
-#ifdef DEBUG
-    if (dmsg == NULL)
-        Debug_printf("!! Invalid device slot %hu\n", slot);
-    else
-        Debug_printf("!! Invalid device slot %hu @ %s\n", slot, dmsg);
-#endif
-    return false;
-}
-
+// Status
 void sioFuji::sio_status()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: STATUS");
-#endif
-    char ret[4] = {0, 0, 0, 0};
 
-    sio_to_computer((uint8_t *)ret, 4, false);
+    char ret[4] = {0};
+
+    sio_to_computer((uint8_t *)ret, sizeof(ret), false);
     return;
 }
 
-/*
-   Reset FujiNet
- */
+
+// Reset FujiNet
 void sioFuji::sio_reset_fujinet()
 {
     sio_complete();
@@ -98,9 +105,8 @@ void sioFuji::sio_reset_fujinet()
 */
 void sioFuji::sio_net_scan_networks()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: SCAN NETWORKS");
-#endif
+
     char ret[4] = {0, 0, 0, 0};
 
     totalSSIDs = fnWiFi.scan_networks();
@@ -114,9 +120,8 @@ void sioFuji::sio_net_scan_networks()
 */
 void sioFuji::sio_net_scan_result()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: GET SCAN RESULT");
-#endif
+
     bool err = false;
     if (cmdFrame.aux1 < totalSSIDs)
     {
@@ -136,9 +141,7 @@ void sioFuji::sio_net_scan_result()
 */
 void sioFuji::sio_net_get_ssid()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: GET SSID");
-#endif
 
     // TODO: Get rid of netConfig and use Config directly instead
     memset(netConfig.rawData, 0, sizeof(netConfig.rawData));
@@ -149,14 +152,14 @@ void sioFuji::sio_net_get_ssid()
 
     sio_to_computer(netConfig.rawData, sizeof(netConfig.rawData), false);
 }
+
 /*
    Set SSID
 */
 void sioFuji::sio_net_set_ssid()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: SET SSID");
-#endif
+
     uint8_t ck = sio_to_peripheral((uint8_t *)&netConfig.rawData, sizeof(netConfig.rawData));
     if (sio_checksum(netConfig.rawData, sizeof(netConfig.rawData)) != ck)
     {
@@ -165,9 +168,9 @@ void sioFuji::sio_net_set_ssid()
     else
     {
         bool save = cmdFrame.aux1 != 0;
-#ifdef DEBUG
+
         Debug_printf("Connecting to net: %s password: %s\n", netConfig.detail.ssid, netConfig.detail.password);
-#endif
+
         fnWiFi.connect(netConfig.detail.ssid, netConfig.detail.password);
 
         // Only save these if we're asked to, otherwise I assume it was a test for connectivity
@@ -187,9 +190,7 @@ void sioFuji::sio_net_set_ssid()
 */
 void sioFuji::sio_net_get_wifi_status()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: GET WIFI STATUS");
-#endif
 
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
@@ -201,13 +202,12 @@ void sioFuji::sio_net_get_wifi_status()
 */
 void sioFuji::sio_tnfs_mount_host()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: MOUNT HOST");
-#endif
+
     unsigned char hostSlot = cmdFrame.aux1;
 
     // Make sure we weren't given a bad hostSlot
-    if (!validate_host_slot(hostSlot, "sio_tnfs_mount_hosts"))
+    if (!_validate_host_slot(hostSlot, "sio_tnfs_mount_hosts"))
     {
         sio_error();
         return;
@@ -224,9 +224,8 @@ void sioFuji::sio_tnfs_mount_host()
 */
 void sioFuji::sio_disk_image_mount()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: MOUNT IMAGE");
-#endif
+
     unsigned char deviceSlot = cmdFrame.aux1;
     unsigned char options = cmdFrame.aux2; // 1=R | 2=R/W | 128=FETCH
     char flag[3] = {'r', 0, 0};
@@ -235,16 +234,14 @@ void sioFuji::sio_disk_image_mount()
         flag[1] = '+';
     }
     // Make sure we weren't given a bad hostSlot
-    if (!validate_device_slot(deviceSlot))
+    if (!_validate_device_slot(deviceSlot))
     {
         sio_error();
         return;
     }
 
-#ifdef DEBUG
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  deviceSlots.slot[deviceSlot].filename, deviceSlots.slot[deviceSlot].hostSlot, flag, deviceSlot + 1);
-#endif
 
     fnDisks[deviceSlot].file =
         fnFileSystems[deviceSlots.slot[deviceSlot].hostSlot].open(deviceSlots.slot[deviceSlot].filename, flag);
@@ -266,12 +263,11 @@ void sioFuji::sio_disk_image_mount()
 */
 void sioFuji::sio_disk_image_umount()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: UNMOUNT IMAGE");
-#endif
+
     unsigned char deviceSlot = cmdFrame.aux1;
     // Make sure we weren't given a bad deviceSlot
-    if (!validate_device_slot(deviceSlot))
+    if (!_validate_device_slot(deviceSlot))
     {
         sio_error();
         return;
@@ -281,15 +277,18 @@ void sioFuji::sio_disk_image_umount()
     fnDisks[deviceSlot].file = nullptr; //= File();  // clear file from slot
     sio_complete();                     // always completes.
 }
+void sioFuji::shutdown()
+{
+    for(int i = 0; i < MAX_DISK_DEVICES; i++)
+        sioD[i].umount();
+}
 
 /*
     SIO Disk Image Rotate
 */
 int sioFuji::image_rotate()
 {
-#ifdef DEBUG
     Debug_println("Fuji image rotate");
-#endif
 
     FILE *temp;
 
@@ -314,9 +313,8 @@ int sioFuji::image_rotate()
 
 void sioFuji::sio_open_directory()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: OPEN DIRECTORY");
-#endif
+
     char current_entry[256];
     uint8_t hostSlot = cmdFrame.aux1;
     uint8_t ck = sio_to_peripheral((uint8_t *)&current_entry, sizeof(current_entry));
@@ -326,15 +324,13 @@ void sioFuji::sio_open_directory()
         sio_error();
         return;
     }
-    if (!validate_host_slot(hostSlot))
+    if (!_validate_host_slot(hostSlot))
     {
         sio_error();
         return;
     }
 
-#ifdef DEBUG
     Debug_printf("Opening directory: \"%s\"\n", current_entry);
-#endif
 
     // Remove trailing slash
     if ((strlen(current_entry) > 1) && (current_entry[strlen(current_entry) - 1] == '/'))
@@ -348,14 +344,13 @@ void sioFuji::sio_open_directory()
 
 void sioFuji::sio_read_directory_entry()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: READ DIRECTORY ENTRY");
-#endif
+
     char current_entry[256];
     uint8_t len = cmdFrame.aux1;
     uint8_t hostSlot = cmdFrame.aux2;
 
-    if (!validate_host_slot(hostSlot, "sio_read_directory_entry"))
+    if (!_validate_host_slot(hostSlot, "sio_read_directory_entry"))
     {
         sio_error();
         return;
@@ -369,9 +364,7 @@ void sioFuji::sio_read_directory_entry()
     {
         current_entry[0] = 0x7F; // end of dir
         fnFileSystems[hostSlot].dir_close();
-#ifdef DEBUG
         Debug_println("Reached end of of directory");
-#endif
     }
     else
     {
@@ -410,12 +403,11 @@ void sioFuji::sio_read_directory_entry()
 
 void sioFuji::sio_close_directory()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: CLOSE DIRECTORY");
-#endif
+
     uint8_t hostSlot = cmdFrame.aux1;
 
-    if (!validate_host_slot(hostSlot))
+    if (!_validate_host_slot(hostSlot))
     {
         sio_error();
         return;
@@ -429,9 +421,8 @@ void sioFuji::sio_close_directory()
 */
 void sioFuji::sio_read_hosts_slots()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: READ HOST SLOTS");
-#endif
+
     sio_to_computer(hostSlots.rawData, sizeof(hostSlots.rawData), false);
 }
 
@@ -440,9 +431,8 @@ void sioFuji::sio_read_hosts_slots()
 */
 void sioFuji::sio_read_device_slots()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: READ DEVICE SLOTS");
-#endif
+
     load_config = false;
     sio_to_computer(deviceSlots.rawData, sizeof(deviceSlots.rawData), false);
 }
@@ -452,18 +442,12 @@ void sioFuji::sio_read_device_slots()
 */
 void sioFuji::sio_write_hosts_slots()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: WRITE HOST SLOTS");
-#endif
+
     uint8_t ck = sio_to_peripheral(hostSlots.rawData, sizeof(hostSlots.rawData));
 
     if (sio_checksum(hostSlots.rawData, sizeof(hostSlots.rawData)) == ck)
     {
-        /*
-        atrConfig.seek(91792, SeekSet);
-        atrConfig.write(hostSlots.rawData, sizeof(hostSlots.rawData));
-        atrConfig.flush();
-        */
         populate_config_from_slots();
         Config.save();
 
@@ -478,19 +462,12 @@ void sioFuji::sio_write_hosts_slots()
 */
 void sioFuji::sio_write_device_slots()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
-#endif
+
     uint8_t ck = sio_to_peripheral(deviceSlots.rawData, sizeof(deviceSlots.rawData));
 
     if (sio_checksum(deviceSlots.rawData, sizeof(deviceSlots.rawData)) == ck)
     {
-        /*
-        atrConfig.seek(91408, SeekSet);
-        atrConfig.write(deviceSlots.rawData, sizeof(deviceSlots.rawData));
-        atrConfig.flush();
-        */
-
         populate_config_from_slots();
         Config.save();
 
@@ -505,9 +482,8 @@ void sioFuji::sio_write_device_slots()
 */
 void sioFuji::sio_get_adapter_config()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
-#endif
+
     memset((void *)adapterConfig.rawData, 0, sizeof(adapterConfig.rawData));
 
     strncpy(adapterConfig.detail.fn_version, fnSystem.get_fujinet_version(true), sizeof(adapterConfig.detail.fn_version));
@@ -537,9 +513,8 @@ void sioFuji::sio_get_adapter_config()
 */
 void sioFuji::sio_new_disk()
 {
-#ifdef DEBUG
     Debug_println("Fuji cmd: NEW DISK");
-#endif
+
     union {
         struct
         {
@@ -563,9 +538,7 @@ void sioFuji::sio_new_disk()
 
         if (fnFileSystems[newDisk.hostSlot].exists(newDisk.filename))
         {
-#ifdef DEBUG
             Debug_printf("XXX ATR file already exists.\n");
-#endif
             sio_error();
             return;
         }
@@ -574,43 +547,33 @@ void sioFuji::sio_new_disk()
         if (f != nullptr)
         {
             fnDisks[newDisk.deviceSlot].file = f;
-#ifdef DEBUG
             Debug_printf("Nice! Created file %s\n", deviceSlots.slot[newDisk.deviceSlot].filename);
-#endif
 
             bool ok = sioD[newDisk.deviceSlot].write_blank_atr(fnDisks[newDisk.deviceSlot].file, newDisk.sectorSize, newDisk.numSectors);
             if (ok)
             {
-#ifdef DEBUG
                 Debug_printf("Nice! Wrote ATR data\n");
-#endif
                 sioD[newDisk.deviceSlot].mount(fnDisks[newDisk.deviceSlot].file); // mount does all this
                 sio_complete();
                 return;
             }
             else
             {
-#ifdef DEBUG
                 Debug_printf("XXX ATR data write failed.\n");
-#endif
                 sio_error();
                 return;
             }
         }
         else
         {
-#ifdef DEBUG
             Debug_printf("XXX Could not open file %s\n", deviceSlots.slot[newDisk.deviceSlot].filename);
-#endif
             sio_error();
             return;
         }
     }
     else
     {
-#ifdef DEBUG
         Debug_printf("XXX Bad Checksum.\n");
-#endif
         sio_error();
         return;
     }
@@ -678,24 +641,6 @@ void sioFuji::setup(sioBus &mySIO)
     // set up Fuji device
     atrConfig = fnSPIFFS.file_open("/autorun.atr");
 
-    /*
-    // Go ahead and read the host slots from disk
-    atrConfig.seek(91792, SeekSet);
-    atrConfig.read(hostSlots.rawData, 256);
-
-    // And populate the device slots
-    atrConfig.seek(91408, SeekSet);
-    atrConfig.read(deviceSlots.rawData, 304);
-
-    // Go ahead and mark all device slots local
-    for (int i = 0; i < 8; i++)
-    {
-        if (deviceSlots.slot[i].filename[0] == 0x00)
-        {
-            deviceSlots.slot[i].hostSlot = 0xFF;
-        }
-    }
-    */
     populate_slots_from_config();
 
     configDisk.mount(atrConfig); // set up a special disk drive not on the bus
@@ -717,9 +662,8 @@ sioDisk *sioFuji::disk()
 
 void sioFuji::sio_process()
 {
-#ifdef DEBUG
     Debug_println("sioFuji::sio_process() called");
-#endif
+
     switch (cmdFrame.comnd)
     {
     case 0x3F:
@@ -776,19 +720,19 @@ void sioFuji::sio_process()
         break;
     case SIO_FUJICMD_READ_HOST_SLOTS:
         sio_ack();
-        sio_read_hosts_slots(); // 0xF4
+        sio_read_hosts_slots();
         break;
     case SIO_FUJICMD_WRITE_HOST_SLOTS:
         sio_ack();
-        sio_write_hosts_slots(); // 0xF3
+        sio_write_hosts_slots();
         break;
     case SIO_FUJICMD_READ_DEVICE_SLOTS:
         sio_ack();
-        sio_read_device_slots(); // 0xF2
+        sio_read_device_slots();
         break;
     case SIO_FUJICMD_WRITE_DEVICE_SLOTS:
         sio_ack();
-        sio_write_device_slots(); // 0xF1
+        sio_write_device_slots();
         break;
     case SIO_FUJICMD_UNMOUNT_IMAGE:
         sio_ack();

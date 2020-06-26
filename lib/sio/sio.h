@@ -125,12 +125,16 @@ protected:
 
     void sio_ack();
     void sio_nak();
-    //void sio_get_checksum();
+
     void sio_complete();
     void sio_error();
     unsigned short sio_get_aux();
+
     virtual void sio_status() = 0;
     virtual void sio_process() = 0;
+
+    // Optional shutdown/reboot cleanup routine
+    virtual void shutdown() {};
 
 public:
     int id() { return _devnum; };
@@ -171,6 +175,7 @@ public:
 
     void setup();
     void service();
+    void shutdown();
 
     int numDevices();
     void addDevice(sioDevice *pDevice, int device_id);

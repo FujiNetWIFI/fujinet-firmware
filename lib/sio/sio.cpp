@@ -384,6 +384,13 @@ sioDevice *sioBus::deviceById(int device_id)
     return nullptr;
 }
 
+// Give devices an opportunity to clean up before a reboot
+void sioBus::shutdown()
+{
+    for (auto devicep : _daisyChain)
+        devicep->shutdown();
+}
+
 void sioBus::toggleBaudrate()
 {
     int baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? SIO_HISPEED_BAUDRATE : SIO_STANDARD_BAUDRATE;
