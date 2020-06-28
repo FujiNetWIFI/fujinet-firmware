@@ -236,7 +236,8 @@ bool networkProtocolTNFS::block_read(uint8_t *rx_buf, unsigned short len)
         else
             block_len = total_len;
 
-        if (tnfs_read(&mountInfo, fileHandle, rx_buf, block_len, &actual_len) != 0)
+        int result = tnfs_read(&mountInfo, fileHandle, rx_buf, block_len, &actual_len);
+        if (result != 0 && result != TNFS_RESULT_END_OF_FILE)
         {
             return true; // error.
         }

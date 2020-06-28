@@ -353,6 +353,13 @@ int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest
     Debug_printf("_tnfs_read_from_cache: buffpos=%d, cache_start=%d, cache_avail=%d, dest_size=%d, dest_used=%d\n",
                  pFHI->cached_pos, pFHI->cache_start, pFHI->cache_available, dest_size, *dest_used);
 
+    // Report if we've reached the end of the file
+    if (pFHI->cached_pos >= pFHI->file_size)
+    {
+        Debug_print("_tnfs_read_from_cache - attempting to read past EOF\n");
+        return TNFS_RESULT_END_OF_FILE;
+    }
+    // Reject if we have nothing in the cache
     if (pFHI->cache_available == 0)
     {
         Debug_print("_tnfs_read_from_cache - nothing in cache\n");
@@ -386,7 +393,10 @@ int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest
 
             // Report if we've reached the end of the file
             if (pFHI->cached_pos >= pFHI->file_size)
+            {
+                Debug_print("_tnfs_read_from_cache - reached EOF\n");
                 return TNFS_RESULT_END_OF_FILE;
+            }
         }
     }
 
@@ -434,7 +444,7 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
         if (_tnfs_transaction(m_info, packet, 3))
         {
             int tnfs_result = packet.payload[0];
-            if (tnfs_result == TNFS_RESULT_SUCCESS || tnfs_result == TNFS_RESULT_END_OF_FILE)
+            if (tnfs_result == TNFS_RESULT_SUCCESS)
             {
                 // Copy the actual number of bytes returned to us into our cache
                 // (offset by how many bytes we've already put in the cache)
@@ -448,14 +458,12 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
                 bytes_remaining_to_load -= bytes_read;
 
                 Debug_printf("_tnfs_fill_cache got %u bytes, %u more bytes needed\n", bytes_read, bytes_remaining_to_load);
-
+            }
+            else if(tnfs_result == TNFS_RESULT_END_OF_FILE)
+            {
                 // Stop if we got an EOF result
-                if (tnfs_result == TNFS_RESULT_END_OF_FILE)
-                {
-                    Debug_print("_tnfs_fill_cache got EOF\n");
-                    error = TNFS_RESULT_END_OF_FILE;
-                    break;
-                }
+                Debug_print("_tnfs_fill_cache got EOF\n");
+                break;
             }
             else
             {
@@ -473,7 +481,7 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
     }
 
     // If we're successful, note the total number of valid bytes in our cache
-    if (error == 0 || error == TNFS_RESULT_END_OF_FILE)
+    if (error == 0)
     {
         pFHI->cache_available = sizeof(pFHI->cache) - bytes_remaining_to_load;
 #ifdef DEBUG
