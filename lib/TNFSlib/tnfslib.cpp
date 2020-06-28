@@ -378,7 +378,7 @@ int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest
             memcpy(dest + (*dest_used), pFHI->cache + (pFHI->cached_pos - pFHI->cache_start), bytes_provided);
 
 #ifdef DEBUG
-            _tnfs_cache_dump("CACHE PROVIDED", dest + (*dest_used), bytes_provided);
+            //_tnfs_cache_dump("CACHE PROVIDED", dest + (*dest_used), bytes_provided);
 #endif
 
             pFHI->cached_pos += bytes_provided;
@@ -466,7 +466,7 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
         }
         else
         {
-            Debug_printf("_tnfs_fill_cache received failure condition on TNFS read attempt\n");
+            Debug_print("_tnfs_fill_cache received failure condition on TNFS read attempt\n");
             error = -1;
             break;
         }
@@ -477,7 +477,7 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
     {
         pFHI->cache_available = sizeof(pFHI->cache) - bytes_remaining_to_load;
 #ifdef DEBUG
-        _tnfs_cache_dump("CACHE FILL RESULTS", pFHI->cache, pFHI->cache_available);
+        //_tnfs_cache_dump("CACHE FILL RESULTS", pFHI->cache, pFHI->cache_available);
 #endif
     }
 
