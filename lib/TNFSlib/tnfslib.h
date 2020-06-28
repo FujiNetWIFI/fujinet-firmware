@@ -167,7 +167,7 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
 int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
 int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle);
 int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath);
-int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position);
+int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position=nullptr, bool skip_cache=false);
 int tnfs_unlink(tnfsMountInfo *m_info, const char *filepath);
 int tnfs_chmod(tnfsMountInfo *m_info, const char *filepath, uint16_t mode);
 int tnfs_rename(tnfsMountInfo *m_info, const char *old_filepath, const char *new_filepath);
