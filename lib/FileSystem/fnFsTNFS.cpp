@@ -56,30 +56,22 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     else
         _mountinfo.password[0] = '\0';
 
-#ifdef DEBUG
     Debug_printf("TNFS mount %s[%s]:%hu\n", _mountinfo.hostname, inet_ntoa(_mountinfo.host_ip), _mountinfo.port);
-#endif
 
     int r = tnfs_mount(&_mountinfo);
     if (r != TNFS_RESULT_SUCCESS)
     {
-#ifdef DEBUG
         Debug_printf("TNFS mount failed with code %d\n", r);
-#endif
         _mountinfo.mountpath[0] = '\0';
         _started = false;
         return false;
     }
-#ifdef DEBUG
     Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%hx, min_retry: %hums\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
-#endif
 
     // Register a new VFS driver to handle this connection
     if(vfs_tnfs_register(_mountinfo, _basepath, sizeof(_basepath)) != 0)
     {
-        #ifdef DEBUG
         Debug_println("Failed to register VFS driver!");
-        #endif
         return false;
     }
 
@@ -145,7 +137,8 @@ bool FileSystemTNFS::dir_open(const char * path)
         {
             _current_dirpath[0] = '/';
             strncpy(_current_dirpath + 1, path, sizeof(_current_dirpath)-1);
-        } else
+        } 
+        else
         {
             strncpy(_current_dirpath, path, sizeof(_current_dirpath));
         }

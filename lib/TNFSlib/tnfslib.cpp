@@ -65,7 +65,7 @@ Example: A failed MOUNT command with error 1F for a version 3.5 server:
 */
 int tnfs_mount(tnfsMountInfo *m_info)
 {
-    if(m_info == nullptr)
+    if (m_info == nullptr)
         return -1;
 
     // Unmount if we happen to have sesssion
@@ -83,10 +83,10 @@ int tnfs_mount(tnfsMountInfo *m_info)
     int payload_offset = 2;
 
     // If we weren't provided a mountpath, set the default
-    if(m_info->mountpath[0] == '\0')
+    if (m_info->mountpath[0] == '\0')
         m_info->mountpath[0] = '/';
 
-    // Copy the mountpath to the payload 
+    // Copy the mountpath to the payload
     strncpy((char *)packet.payload + payload_offset, m_info->mountpath, sizeof(packet.payload) - payload_offset);
     payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
 
@@ -99,7 +99,7 @@ int tnfs_mount(tnfsMountInfo *m_info)
     payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
 
     // Make sure we have the right starting working directory
-    m_info->current_working_directory[0]  = '/';
+    m_info->current_working_directory[0] = '/';
 
     if (_tnfs_transaction(m_info, packet, payload_offset))
     {
@@ -141,7 +141,7 @@ On error, byte 4 is set to the error code, for example, for error 0x1F:
 */
 int tnfs_umount(tnfsMountInfo *m_info)
 {
-    if(m_info == nullptr)
+    if (m_info == nullptr)
         return -1;
 
     tnfsPacket packet;
@@ -149,7 +149,7 @@ int tnfs_umount(tnfsMountInfo *m_info)
 
     if (_tnfs_transaction(m_info, packet, 0))
     {
-        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             m_info->session = TNFS_INVALID_SESSION;
         }
@@ -208,26 +208,26 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
         return -1;
 
     *file_handle = TNFS_INVALID_HANDLE;
-   
+
     // Find a free slot in our table of file handles
-    tnfsFileHandleInfo * pFileInf = m_info->new_filehandleinfo();
-    if(pFileInf == nullptr)
+    tnfsFileHandleInfo *pFileInf = m_info->new_filehandleinfo();
+    if (pFileInf == nullptr)
         return TNFS_RESULT_TOO_MANY_FILES_OPEN;
 
     // First, stat the file so we can get its length (if it exists), which we'll need to
     // keep track of the file position.
-    bool file_exists = false;    
+    bool file_exists = false;
     tnfsStat tstat;
     int rs = tnfs_stat(m_info, &tstat, filepath);
     // The only error we'll accept is TNFS_RESULT_FILE_NOT_FOUND, otherwise abort
-    if(rs == TNFS_RESULT_SUCCESS)
+    if (rs == TNFS_RESULT_SUCCESS)
     {
         file_exists = true;
-        pFileInf->size = tstat.filesize;
+        pFileInf->file_size = tstat.filesize;
     }
     else
     {
-        if(rs != TNFS_RESULT_FILE_NOT_FOUND)
+        if (rs != TNFS_RESULT_FILE_NOT_FOUND)
         {
             m_info->delete_filehandleinfo(pFileInf);
             return rs;
@@ -258,30 +258,30 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
     len = len + offset_filename + 1;
     if (_tnfs_transaction(m_info, packet, len))
     {
-        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             // Since everything went okay, save our file info
             pFileInf->handle_id = packet.payload[1];
-            pFileInf->position = 0;
+            pFileInf->file_position = pFileInf->buffered_pos = 0;
 
             *file_handle = pFileInf->handle_id;
 
             // Depending on the file mode and wether the file aready existed,
             // we need to do something different with the position of the file
-            if(file_exists && (open_mode & TNFS_OPENMODE_WRITE))
+            if (file_exists && (open_mode & TNFS_OPENMODE_WRITE))
             {
-                if(open_mode & TNFS_OPENMODE_WRITE_APPEND)
-                    pFileInf->position = pFileInf->size;
-                else if(open_mode & TNFS_OPENMODE_WRITE_TRUNCATE)
-                    pFileInf->position = pFileInf->size = 0;
+                if (open_mode & TNFS_OPENMODE_WRITE_APPEND)
+                    pFileInf->file_position = pFileInf->buffered_pos = pFileInf->file_size;
+                else if (open_mode & TNFS_OPENMODE_WRITE_TRUNCATE)
+                    pFileInf->file_size = 0;
             }
-            Debug_printf("File opened, handle ID: %hhd, size: %u, pos: %u\n", *file_handle, pFileInf->size, pFileInf->position);
+            Debug_printf("File opened, handle ID: %hhd, size: %u, pos: %u\n", *file_handle, pFileInf->file_size, pFileInf->file_position);
         }
         result = packet.payload[0];
     }
 
     // Get rid fo the filehandleinfo if we're not going to use it
-    if(result != TNFS_RESULT_SUCCESS)
+    if (result != TNFS_RESULT_SUCCESS)
         m_info->delete_filehandleinfo(pFileInf);
 
     return result;
@@ -307,18 +307,17 @@ code:
 */
 int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle)
 {
-    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle))
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle))
         return -1;
 
     // Find info on this handle
-    tnfsFileHandleInfo * pFileInf = m_info->get_filehandleinfo(file_handle);
-    if(pFileInf == nullptr)
+    tnfsFileHandleInfo *pFileInf = m_info->get_filehandleinfo(file_handle);
+    if (pFileInf == nullptr)
         return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_CLOSE;
     packet.payload[0] = file_handle;
-
 
     if (_tnfs_transaction(m_info, packet, 1))
     {
@@ -328,6 +327,142 @@ int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle)
     }
 
     return -1;
+}
+
+/*
+ Fills destination buffer with data available in internal buffer, if any
+ Returns 0 on success, TNFS_RESULT_END_OF_FILE, or -1 if not all bytes requested could be fulfilled
+*/
+int _tnfs_read_from_buffer(tnfsFileHandleInfo *pFHI, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen)
+{
+    Debug_printf("_tnfs_read_from_buffer: buffpos=%d, buffstart=%d, buffavail=%d, destlen=%d, destresult=%d\n",
+      pFHI->buffered_pos, pFHI->buffer_start, pFHI->buffer_available, bufflen, resultlen);
+
+    if (pFHI->buffer_available == 0)
+    {
+        Debug_print("_tnfs_read_from_buffer nothing in buffer\n");
+        return bufflen;
+    }
+
+    // See if the current file position is within the bounds of our buffer
+    if (pFHI->buffered_pos >= pFHI->buffer_start)
+    {
+        uint32_t buffer_end = pFHI->buffer_start + pFHI->buffer_available;
+        if (pFHI->buffered_pos < buffer_end)
+        {
+            uint32_t bytes_available = buffer_end - pFHI->buffered_pos;
+            uint16_t dest_free = bufflen - *resultlen; // Account for an earlier partially-fulfilled request
+            uint16_t bytes_used = dest_free > bytes_available ? bytes_available : dest_free;
+
+            Debug_printf("TNFS Buffer providing %u bytes\n", bytes_used);
+            memcpy(buffer + (*resultlen), pFHI->buffer + (pFHI->buffered_pos - pFHI->buffer_start), bytes_used);
+            pFHI->buffered_pos += bytes_used;
+            *resultlen += bytes_used;
+
+            #ifdef DEBUG
+            Debug_printf("\nBUFFER PROVIDED %d\n", bytes_used);
+            for (int i = 0; i < bytes_used; i +=16)
+            {
+                for(int j = 0; (j+i) < bytes_used && j < 16; j++)
+                    Debug_printf("%02X ", buffer[j+i]);
+                Debug_println();
+            }
+            Debug_println();
+            #endif
+
+            // Say there's nothing left to read if we've reached the end of the file
+            if (pFHI->buffered_pos >= pFHI->file_size)
+                return TNFS_RESULT_END_OF_FILE;
+        }
+    }
+
+    return (bufflen - *resultlen) > 0 ? -1 : 0;
+}
+
+/* 
+ Executes as many READ calls as needed to populate our internal buffer
+ Returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
+*/
+int _tnfs_load_buffer(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
+{
+    Debug_printf("_tnfs_load_buffer fh=%d, filepos=%d\n", pFHI->handle_id, pFHI->file_position);
+
+    // Reset the current buffer values so the buffer is invalid if we fail below
+    pFHI->buffer_available = 0;
+    pFHI->buffer_start = pFHI->file_position;
+
+    uint32_t bytes_remaining_to_load = sizeof(pFHI->buffer);
+
+    int error = 0;
+
+    while (bytes_remaining_to_load > 0)
+    {
+
+        tnfsPacket packet;
+        packet.command = TNFS_CMD_READ;
+        packet.payload[0] = pFHI->handle_id;
+
+        uint16_t bytes_to_load = bytes_remaining_to_load > TNFS_MAX_READWRITE_PAYLOAD ? TNFS_MAX_READWRITE_PAYLOAD : bytes_remaining_to_load;
+
+        packet.payload[1] = TNFS_LOBYTE_FROM_UINT16(bytes_to_load);
+        packet.payload[2] = TNFS_HIBYTE_FROM_UINT16(bytes_to_load);
+
+        Debug_printf("_tnfs_load_buffer getting %u bytes\n", bytes_to_load);
+
+        if (_tnfs_transaction(m_info, packet, 3))
+        {
+            int tnfs_result = packet.payload[0];
+            if (tnfs_result == TNFS_RESULT_SUCCESS || tnfs_result == TNFS_RESULT_END_OF_FILE)
+            {
+                uint16_t bytes_read = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 1);
+                memcpy(pFHI->buffer + (sizeof(pFHI->buffer) - bytes_remaining_to_load),
+                       packet.payload + 3, bytes_read);
+                // Keep track of our file position
+                pFHI->file_position = pFHI->file_position + bytes_read;
+
+                bytes_remaining_to_load -= bytes_read;
+
+                Debug_printf("_tnfs_load_buffer got %u bytes, %u more bytes needed\n", bytes_read, bytes_remaining_to_load);
+
+                if (tnfs_result == TNFS_RESULT_END_OF_FILE)
+                {
+                    Debug_printf("_tnfs_load_buffer reached EOF\n", bytes_read);
+                    error = TNFS_RESULT_END_OF_FILE;
+                    break;
+                }
+            }
+            else
+            {
+                Debug_printf("_tnfs_load_buffer received unexepcted value: %u\n", tnfs_result);
+                error = tnfs_result;
+                break;
+            }
+        }
+        else
+        {
+            Debug_printf("_tnfs_load_buffer received failure condition on read attempt\n");
+            error = -1;
+            break;
+        }
+    }
+
+    if (error == 0 || error == TNFS_RESULT_END_OF_FILE)
+    {
+        pFHI->buffer_available = sizeof(pFHI->buffer) - bytes_remaining_to_load;
+
+        #ifdef DEBUG
+        Debug_printf("\nBUFFER RESULTS %d\n", pFHI->buffer_available);
+        for (int i = 0; i < pFHI->buffer_available; i +=16)
+        {
+            for(int j = 0; (j+i) < pFHI->buffer_available && j < 16; j++)
+                Debug_printf("%02X ", pFHI->buffer[j+i]);
+            Debug_println();
+        }
+        Debug_println();
+        #endif
+    }
+
+    return error;
 }
 
 /*
@@ -369,44 +504,33 @@ End-of-file reached:
  */
 int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen)
 {
-    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || buffer == nullptr || bufflen > (TNFS_PAYLOAD_SIZE -3) || resultlen == nullptr)
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) ||
+        buffer == nullptr || bufflen > (TNFS_PAYLOAD_SIZE - 3) || resultlen == nullptr)
         return -1;
 
     *resultlen = 0;
 
     // Find info on this handle
-    tnfsFileHandleInfo * pFileInf = m_info->get_filehandleinfo(file_handle);
-    if(pFileInf == nullptr)
+    tnfsFileHandleInfo *pFileInf = m_info->get_filehandleinfo(file_handle);
+    if (pFileInf == nullptr)
         return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
 
-    tnfsPacket packet;
-    packet.command = TNFS_CMD_READ;
-    packet.payload[0] = file_handle;
-    packet.payload[1] = TNFS_LOBYTE_FROM_UINT16(bufflen);
-    packet.payload[2] = TNFS_HIBYTE_FROM_UINT16(bufflen);
+    Debug_printf("tnfs_read fh=%d, len=%d\n", file_handle, bufflen);
 
-    if (_tnfs_transaction(m_info, packet, 3))
+    int result = 0;
+    // Try to fulfill the request using our buffered data
+    while ((result = _tnfs_read_from_buffer(pFileInf, buffer, bufflen, resultlen)) != 0 && result != TNFS_RESULT_END_OF_FILE)
     {
-        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        // Reload the buffer if we didn't fulfill the request
+        result = _tnfs_load_buffer(m_info, pFileInf);
+        if (result != 0)
         {
-            *resultlen = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 1);
-            if(*resultlen <= (TNFS_PAYLOAD_SIZE -3))
-            {
-                memcpy(buffer, packet.payload + 3, *resultlen);
-                // Keep track of our file position
-                uint32_t new_pos = pFileInf->position + *resultlen;
-                //Debug_printf("tnfs_read prev_pos: %u, read: %u, new_pos: %u\n", pFileInf->position, *resultlen, new_pos);
-                pFileInf->position = new_pos;
-            }
-            else
-            {
-                Debug_printf("tnfs_read result size (%u) would overrun buffer!\n", *resultlen);
-                return -1;
-            }
+            Debug_printf("tnfs_read buffer reload failed (%u) - aborting", result);
+            break;
         }
-        return packet.payload[0];
     }
-    return -1;
+
+    return result;
 }
 
 /*
@@ -436,14 +560,14 @@ code, and the number of bytes actually written. For example:
  */
 int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen)
 {
-    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || buffer == nullptr || bufflen > (TNFS_PAYLOAD_SIZE -3) || resultlen == nullptr)
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || buffer == nullptr || bufflen > (TNFS_PAYLOAD_SIZE - 3) || resultlen == nullptr)
         return -1;
 
     *resultlen = 0;
 
     // Find info on this handle
-    tnfsFileHandleInfo * pFileInf = m_info->get_filehandleinfo(file_handle);
-    if(pFileInf == nullptr)
+    tnfsFileHandleInfo *pFileInf = m_info->get_filehandleinfo(file_handle);
+    if (pFileInf == nullptr)
         return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
 
     tnfsPacket packet;
@@ -456,16 +580,49 @@ int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint
 
     if (_tnfs_transaction(m_info, packet, bufflen + 3))
     {
-        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             *resultlen = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 1);
             // Keep track of our file position
-            uint32_t new_pos = pFileInf->position + *resultlen;
-            // Debug_printf("tnfs_write prev_pos: %u, read: %u, new_pos: %u\n", pFileInf->position, *resultlen, new_pos);
-            pFileInf->position = new_pos;
+            uint32_t new_pos = pFileInf->file_position + *resultlen;
+            // Debug_printf("tnfs_write prev_pos: %u, read: %u, new_pos: %u\n", pFileInf->file_position, *resultlen, new_pos);
+            pFileInf->file_position = new_pos;
         }
         return packet.payload[0];
     }
+    return -1;
+}
+
+/*
+  See if our seek position is within our internal buffer
+  Return 0 on success
+*/
+int _tnfs_buffer_seek(tnfsFileHandleInfo *pFHI, int32_t position, uint8_t type)
+{
+    if (pFHI->buffer_available == 0)
+        return -1;
+
+    uint32_t destination_pos;
+
+    if (type == SEEK_SET)
+        destination_pos = position;
+    else if (type == SEEK_CUR)
+        destination_pos = pFHI->buffered_pos + position;
+    else
+        destination_pos = pFHI->file_size + position;
+
+    uint32_t buff_end = pFHI->buffer_start + pFHI->buffer_available;
+    Debug_printf("_tnfs_buffer_seek curr=%u, dest=%u, buff_start=%u, buff_end=%u\n",
+                 pFHI->buffered_pos, destination_pos, pFHI->buffer_start, buff_end);
+
+    if (destination_pos >= pFHI->buffer_start && destination_pos < buff_end)
+    {
+        Debug_println("_tnfs_buffer_seek within buffer");
+        pFHI->buffered_pos = destination_pos;
+        return 0;
+    }
+
+    Debug_println("_tnfs_buffer_seek outside buffer");
     return -1;
 }
 
@@ -500,39 +657,52 @@ file pointer will be wherever the last read block made it end up.
  */
 int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position)
 {
-    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || new_position == nullptr)
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || new_position == nullptr)
         return -1;
 
     // Make sure we're using a valid seek type
-    if(type != SEEK_SET && type != SEEK_CUR && type != SEEK_END)
+    if (type != SEEK_SET && type != SEEK_CUR && type != SEEK_END)
         return TNFS_RESULT_INVALID_ARGUMENT;
 
     // Find info on this handle
-    tnfsFileHandleInfo * pFileInf = m_info->get_filehandleinfo(file_handle);
-    if(pFileInf == nullptr)
+    tnfsFileHandleInfo *pFileInf = m_info->get_filehandleinfo(file_handle);
+    if (pFileInf == nullptr)
         return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
 
+    Debug_printf("tnfs_lseek currpos=%d, pos=%d, typ=%d\n", pFileInf->buffered_pos, position, type);
+
+    // Try to fulfill the seek within our internal buffer
+    if (_tnfs_buffer_seek(pFileInf, position, type) == 0)
+    {
+        *new_position = pFileInf->buffered_pos;
+        return 0;
+    }
+    // Invalidate our internal buffer
+    pFileInf->buffer_available = 0;
+
+    // Couldn't fulfill it within our buffer - go ahead and execute a new request
     tnfsPacket packet;
     packet.command = TNFS_CMD_LSEEK;
     packet.payload[0] = file_handle;
     packet.payload[1] = type;
-    TNFS_UINT32_TO_LOHI_BYTEPTR(position, packet.payload+2);
-
-    // Debug_printf("tnfs_lseek h:%02x, t:%d, p:%08x\n", file_handle, type, position);
+    TNFS_UINT32_TO_LOHI_BYTEPTR(position, packet.payload + 2);
 
     if (_tnfs_transaction(m_info, packet, 6))
     {
-        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             // Keep track of our file position
-            if(type == SEEK_SET)
-                pFileInf->position = position;
-            else if(type == SEEK_CUR)
-                pFileInf->position += position;
+            if (type == SEEK_SET)
+                pFileInf->file_position = position;
+            else if (type == SEEK_CUR)
+                pFileInf->file_position += position;
             else
-                pFileInf->position = (pFileInf->size + position);
+                pFileInf->file_position = (pFileInf->file_size + position);
 
-            *new_position = pFileInf->position;
+            pFileInf->buffered_pos = pFileInf->file_position;
+
+            *new_position = pFileInf->file_position;
+            Debug_printf("tnfs_lseek success, new pos=%u\n", *new_position);
         }
         return packet.payload[0];
     }
@@ -580,7 +750,7 @@ int tnfs_opendir(tnfsMountInfo *m_info, const char *directory)
 
     if (_tnfs_transaction(m_info, packet, len + 1))
     {
-        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             m_info->dir_handle = packet.payload[1];
             // Debug_printf("Directory opened, handle ID: %hhd\n", m_info->dir_handle);
@@ -622,7 +792,7 @@ status byte is set to the error number as for other commands.
 int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len)
 {
     // Check for a valid open handle ID
-    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
         return -1;
 
     tnfsPacket packet;
@@ -662,7 +832,7 @@ Example:
 */
 int tnfs_closedir(tnfsMountInfo *m_info)
 {
-    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
         return -1;
 
     tnfsPacket packet;
@@ -754,7 +924,6 @@ int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory)
     return -1;
 }
 
-
 /*
 STAT - Get information on a file - Command 0x24
 -----------------------------------------------
@@ -819,8 +988,8 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
 
     if (_tnfs_transaction(m_info, packet, len + 1))
     {
-__BEGIN_IGNORE_UNUSEDVARS
-        if(packet.payload[0] == TNFS_RESULT_SUCCESS)
+        __BEGIN_IGNORE_UNUSEDVARS
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
 
             uint16_t filemode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILEMODE);
@@ -828,7 +997,6 @@ __BEGIN_IGNORE_UNUSEDVARS
 
             uint16_t uid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_UID);
             uint16_t gid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_GID);
-
 
             filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILESIZE);
 
@@ -842,7 +1010,7 @@ __BEGIN_IGNORE_UNUSEDVARS
                 filestat->isDir ? 1 : 0, filestat->filesize, filestat->a_time, filestat->m_time, filestat->c_time );
             */
         }
-__END_IGNORE_UNUSEDVARS
+        __END_IGNORE_UNUSEDVARS
         return packet.payload[0];
     }
     return -1;
@@ -908,7 +1076,7 @@ int tnfs_rename(tnfsMountInfo *m_info, const char *old_filepath, const char *new
     packet.command = TNFS_CMD_RENAME;
 
     int l1 = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, old_filepath, sizeof(packet.payload)) + 1;
-    int l2 = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload + l1, new_filepath, sizeof(packet.payload) -l1) + 1;
+    int l2 = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload + l1, new_filepath, sizeof(packet.payload) - l1) + 1;
 
     Debug_printf("TNFS rename file: \"%s\" -> \"%s\"\n", (char *)packet.payload, (char *)(packet.payload + l1));
 
@@ -968,9 +1136,9 @@ int tnfs_chmod(tnfsMountInfo *m_info, const char *filepath, uint16_t mode)
     packet.payload[0] = TNFS_LOBYTE_FROM_UINT16(mode);
     packet.payload[1] = TNFS_HIBYTE_FROM_UINT16(mode);
 
-    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload +2, filepath, sizeof(packet.payload) -2);
+    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload + 2, filepath, sizeof(packet.payload) - 2);
 
-    Debug_printf("TNFS chmod file: \"%s\", %ho\n", (char *)packet.payload +2, mode);
+    Debug_printf("TNFS chmod file: \"%s\", %ho\n", (char *)packet.payload + 2, mode);
 
     if (_tnfs_transaction(m_info, packet, len + 3))
     {
@@ -1010,7 +1178,7 @@ int tnfs_size(tnfsMountInfo *m_info, uint32_t *size)
 
     if (_tnfs_transaction(m_info, packet, 0))
     {
-        if(packet.payload[0] == 0)
+        if (packet.payload[0] == 0)
         {
             *size = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);
         }
@@ -1049,7 +1217,7 @@ int tnfs_free(tnfsMountInfo *m_info, uint32_t *size)
 
     if (_tnfs_transaction(m_info, packet, 0))
     {
-        if(packet.payload[0] == 0)
+        if (packet.payload[0] == 0)
         {
             *size = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);
         }
@@ -1065,14 +1233,14 @@ int tnfs_free(tnfsMountInfo *m_info, uint32_t *size)
 /*
  Returns the filepath associated with an open filehandle
 */
-const char * tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle)
+const char *tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle)
 {
-    if(m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle))
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle))
         return nullptr;
 
     // Find info on this handle
-    tnfsFileHandleInfo * pFileInf = m_info->get_filehandleinfo(file_handle);
-    if(pFileInf == nullptr)
+    tnfsFileHandleInfo *pFileInf = m_info->get_filehandleinfo(file_handle);
+    if (pFileInf == nullptr)
         return nullptr;
 
     return pFileInf->filename;
@@ -1085,26 +1253,26 @@ const char * tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle)
 */
 int tnfs_chdir(tnfsMountInfo *m_info, const char *dirpath)
 {
-    if(m_info == nullptr || dirpath == nullptr)
+    if (m_info == nullptr || dirpath == nullptr)
         return -1;
 
     // Check for ".."
-    if(dirpath[0] == '.' && dirpath[1] == '.' && dirpath[2] == '\0')
+    if (dirpath[0] == '.' && dirpath[1] == '.' && dirpath[2] == '\0')
     {
         // Figure out what the previous directory is
-        char * lslash = strrchr(m_info->current_working_directory, '/');
+        char *lslash = strrchr(m_info->current_working_directory, '/');
         // Assuming we're not alraedy at the root, just truncate the string at the last slash
-        if(lslash != nullptr && lslash != m_info->current_working_directory)
+        if (lslash != nullptr && lslash != m_info->current_working_directory)
             *lslash = '\0';
         return TNFS_RESULT_SUCCESS;
     }
 
     tnfsStat tstat;
     int rs = tnfs_stat(m_info, &tstat, dirpath);
-    if(rs != TNFS_RESULT_SUCCESS)
+    if (rs != TNFS_RESULT_SUCCESS)
         return rs;
 
-    if(tstat.isDir == false)
+    if (tstat.isDir == false)
         return TNFS_RESULT_NOT_A_DIRECTORY;
 
     // Looks okay - store it
@@ -1116,9 +1284,9 @@ int tnfs_chdir(tnfsMountInfo *m_info, const char *dirpath)
 /*
  Returns directory path we currently have stored
 */
-const char * tnfs_getcwd(tnfsMountInfo *m_info)
+const char *tnfs_getcwd(tnfsMountInfo *m_info)
 {
-    if(m_info == nullptr)
+    if (m_info == nullptr)
         return nullptr;
     return m_info->current_working_directory;
 }
@@ -1200,14 +1368,14 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
                     else
                     {
                         // Check in case the server asks us to wait and try again
-                        if(pkt.payload[0] != TNFS_RESULT_TRY_AGAIN)
+                        if (pkt.payload[0] != TNFS_RESULT_TRY_AGAIN)
                             return true;
                         else
                         {
                             // Server should tell us how long it wants us to wait
                             uint16_t backoffms = TNFS_UINT16_FROM_LOHI_BYTEPTR(pkt.payload + 1);
                             Debug_printf("Server asked us to TRY AGAIN after %ums\n", backoffms);
-                            if(backoffms > TNFS_MAX_BACKOFF_DELAY)
+                            if (backoffms > TNFS_MAX_BACKOFF_DELAY)
                                 backoffms = TNFS_MAX_BACKOFF_DELAY;
                             vTaskDelay(backoffms / portTICK_PERIOD_MS);
                         }
@@ -1234,7 +1402,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
 // Returns length of new full path or -1 on failure
 int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char *source, int bufflen)
 {
-    if(buffer == nullptr || bufflen < 2)
+    if (buffer == nullptr || bufflen < 2)
         return -1;
 
     // Use the cwd to bulid the full path
@@ -1243,17 +1411,17 @@ int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char 
     // Figure out whether or not we need to add a slash
     int ll;
     ll = strlen(buffer);
-    if(ll < 1 || ll > (bufflen - 2))
+    if (ll < 1 || ll > (bufflen - 2))
         return -1;
 
-    bool dir_slash = buffer[ll-1] == '/';
+    bool dir_slash = buffer[ll - 1] == '/';
     bool needs_slash = source[0] != '/';
-    if(needs_slash && dir_slash == false)
+    if (needs_slash && dir_slash == false)
     {
         buffer[ll] = '/';
         buffer[++ll] = '\0';
     }
-    if(needs_slash == false && dir_slash)
+    if (needs_slash == false && dir_slash)
     {
         buffer[--ll] = '\0';
     }
@@ -1295,46 +1463,46 @@ void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short payload_size, bool
 const char *_tnfs_command_string(int command)
 {
 #ifdef TNFS_DEBUG_VERBOSE
-    switch(command)
+    switch (command)
     {
-        case TNFS_CMD_MOUNT:
-            return "MOUNT";
-        case TNFS_CMD_UNMOUNT:
-            return "UNMOUNT";
-        case TNFS_CMD_OPENDIR:
-            return "OPENDIR";
-        case TNFS_CMD_READDIR:
-            return "READDIR";
-        case TNFS_CMD_CLOSEDIR:
-            return "CLOSEDIR";
-        case TNFS_CMD_MKDIR:
-            return "MKDIR";
-        case TNFS_CMD_RMDIR:
-            return "RMDIR";
-        case TNFS_CMD_READ:
-            return "READ";
-        case TNFS_CMD_WRITE:
-            return "WRITE";
-        case TNFS_CMD_CLOSE:
-            return "CLOSE";
-        case TNFS_CMD_STAT:
-            return "STAT";
-        case TNFS_CMD_LSEEK:
-            return "LSEEK";
-        case TNFS_CMD_UNLINK:
-            return "UNLINK";
-        case TNFS_CMD_CHMOD:
-            return "CHMOD";
-        case TNFS_CMD_RENAME:
-            return "RENAME";
-        case TNFS_CMD_OPEN:
-            return "OPEN";
-        case TNFS_CMD_SIZE:
-            return "SIZE";
-        case TNFS_CMD_FREE:
-            return "FREE";
-        default:
-            return "?";
+    case TNFS_CMD_MOUNT:
+        return "MOUNT";
+    case TNFS_CMD_UNMOUNT:
+        return "UNMOUNT";
+    case TNFS_CMD_OPENDIR:
+        return "OPENDIR";
+    case TNFS_CMD_READDIR:
+        return "READDIR";
+    case TNFS_CMD_CLOSEDIR:
+        return "CLOSEDIR";
+    case TNFS_CMD_MKDIR:
+        return "MKDIR";
+    case TNFS_CMD_RMDIR:
+        return "RMDIR";
+    case TNFS_CMD_READ:
+        return "READ";
+    case TNFS_CMD_WRITE:
+        return "WRITE";
+    case TNFS_CMD_CLOSE:
+        return "CLOSE";
+    case TNFS_CMD_STAT:
+        return "STAT";
+    case TNFS_CMD_LSEEK:
+        return "LSEEK";
+    case TNFS_CMD_UNLINK:
+        return "UNLINK";
+    case TNFS_CMD_CHMOD:
+        return "CHMOD";
+    case TNFS_CMD_RENAME:
+        return "RENAME";
+    case TNFS_CMD_OPEN:
+        return "OPEN";
+    case TNFS_CMD_SIZE:
+        return "SIZE";
+    case TNFS_CMD_FREE:
+        return "FREE";
+    default:
+        return "?";
     }
 #else
     return nullptr;
@@ -1426,7 +1594,7 @@ const char *_tnfs_result_code_string(int resultcode)
 
 int tnfs_code_to_errno(int tnfs_code)
 {
-    switch(tnfs_code)
+    switch (tnfs_code)
     {
     case TNFS_RESULT_SUCCESS:
         return 0;

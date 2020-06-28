@@ -123,7 +123,6 @@ void sioDevice::sio_ack()
 {
     fnUartSIO.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
-    Debug_print("ack flush\n");
     fnUartSIO.flush();
     Debug_print("ACK!\n");
 }
@@ -147,6 +146,7 @@ void sioDevice::sio_error()
 // SIO HIGH SPEED REQUEST
 void sioDevice::sio_high_speed()
 {
+    Debug_print("sio HSIO INDEX\n");
     uint8_t hsd = SIO_HISPEED_INDEX;
     sio_to_computer((uint8_t *)&hsd, 1, false);
 }

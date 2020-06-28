@@ -50,15 +50,10 @@ void fujiFsMounter::set_type(fujiFSType type)
 
 bool fujiFsMounter::dir_open(const char *path)
 {
-
-#ifdef DEBUG
     Debug_printf("::dir_open {%d:%d} \"%s\"\n", slotid, _type, path);
-#endif
     if(_fs == nullptr)
     {
-#ifdef DEBUG
-    Debug_println("::dir_open no FileSystem set");
-#endif
+        Debug_println("::dir_open no FileSystem set");
         return false;
     }
 
@@ -77,9 +72,7 @@ bool fujiFsMounter::dir_open(const char *path)
 
 fsdir_entry_t * fujiFsMounter::dir_nextfile()
 {
-#ifdef DEBUG
     Debug_printf("::dir_nextfile {%d:%d}\n", slotid, _type);
-#endif
 
     switch(_type)
     {
@@ -172,24 +165,19 @@ const char* fujiFsMounter::get_hostname()
 int fujiFsMounter::mount_local(const char *devicename)
 {
     int result = -1;
-#ifdef DEBUG
     Debug_printf("::mount_local Attempting mount of \"%s\"\n", devicename);
-#endif
 
     if(0 == strcmp(_sdhostname, devicename))
     {
         // Don't do anything if that's already what's set
         if(_type == FNFILESYS_LOCAL)
         {
-#ifdef DEBUG
-        Debug_println("Type is already LOCAL");
-#endif        
+            Debug_println("Type is already LOCAL");
             return 0;
         }
         // Otherwise set the new type
-#ifdef DEBUG
         Debug_println("Setting type to LOCAL");
-#endif        
+
         set_type(FNFILESYS_LOCAL);
         _fs = &fnSDFAT;
         result = 0;
@@ -203,9 +191,7 @@ int fujiFsMounter::mount_local(const char *devicename)
 */
 int fujiFsMounter::mount_tnfs(const char *hostname)
 {
-#ifdef DEBUG
-        Debug_printf("::mount_tnfs {%d:%d} \"%s\"\n", slotid, _type, hostname);
-#endif
+    Debug_printf("::mount_tnfs {%d:%d} \"%s\"\n", slotid, _type, hostname);
 
     // Don't do anything if that's already what's set
     if(_type == FNFILESYS_TNFS)
@@ -224,15 +210,11 @@ int fujiFsMounter::mount_tnfs(const char *hostname)
 
     if(_fs == nullptr)
     {
-#ifdef DEBUG
         Debug_println("Couldn't create a new TNFSFS in fujiFsMounter::mount_tnfs!");
-#endif
     }
     else
     {
-#ifdef DEBUG
         Debug_println("Calling TNFS::begin");
-#endif
         if(((FileSystemTNFS *)_fs)->start(hostname))
         {
             strncpy(_hostname, hostname, sizeof(_hostname));
@@ -250,9 +232,7 @@ int fujiFsMounter::mount_tnfs(const char *hostname)
 */
 bool fujiFsMounter::mount(const char * devicename)
 {
-#ifdef DEBUG
     Debug_printf("::mount {%d} \"%s\"\n", slotid, devicename);
-#endif
 
     if(devicename == NULL)
         return false;
