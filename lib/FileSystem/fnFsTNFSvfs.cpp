@@ -50,9 +50,7 @@ int vfs_tnfs_mkdir(void* ctx, const char* name, mode_t mode)
     int result = tnfs_mkdir(mi, name);
     if(result != TNFS_RESULT_SUCCESS)
     {
-        #ifdef DEBUG
         //Debug_printf("vfs_tnfs_mkdir = %d\n", result);
-        #endif
         errno = tnfs_code_to_errno(result);
         return -1;
     }
@@ -67,9 +65,7 @@ int vfs_tnfs_rmdir(void* ctx, const char* name)
     int result = tnfs_rmdir(mi, name);
     if(result != TNFS_RESULT_SUCCESS)
     {
-        #ifdef DEBUG
         //Debug_printf("vfs_tnfs_rmdir = %d\n", result);
-        #endif
         errno = tnfs_code_to_errno(result);
         return -1;
     }
@@ -84,9 +80,7 @@ int vfs_tnfs_unlink(void* ctx, const char *path)
     int result = tnfs_unlink(mi, path);
     if(result != TNFS_RESULT_SUCCESS)
     {
-        #ifdef DEBUG
         //Debug_printf("vfs_tnfs_unlink = %d\n", result);
-        #endif
         errno = tnfs_code_to_errno(result);
         return -1;
     }
@@ -101,9 +95,7 @@ int vfs_tnfs_rename(void* ctx, const char *src, const char *dst)
     int result = tnfs_rename(mi, src, dst);
     if(result != TNFS_RESULT_SUCCESS)
     {
-        #ifdef DEBUG
         //Debug_printf("vfs_tnfs_rename = %d\n", result);
-        #endif
         errno = tnfs_code_to_errno(result);
         return -1;
     }
@@ -268,9 +260,7 @@ esp_err_t vfs_tnfs_register(tnfsMountInfo &m_info, char *basepath, int basepathl
     snprintf(basepath, basepathlen, "/tnfs%p", &m_info);
     esp_err_t e = esp_vfs_register(basepath, &vfs, &m_info);
 
-    #ifdef DEBUG
     Debug_printf("vfs_tnfs_register \"%s\" @ %p = %d \"%s\"\n", basepath, &m_info, e, esp_err_to_name(e));
-    #endif
     
     return e;
 }

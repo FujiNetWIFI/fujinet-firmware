@@ -12,6 +12,8 @@
 #define TNFS_MAX_FILE_HANDLES 8 // Max number of file handles we'll open to the server
 #define TNFS_MAX_FILELEN 256
 
+#define TNFS_FILE_BUFFER_SIZE 1408 // This is (128 * 11) and fits within TNFS_MAX_READWRITE_PAYLOAD * 3
+
 #define TNFS_INVALID_HANDLE -1
 #define TNFS_INVALID_SESSION 0 // We're assuming a '0' is never a valid session ID
 
@@ -19,8 +21,13 @@
 struct tnfsFileHandleInfo
 {
     uint8_t handle_id = 0;
-    uint32_t position = 0;
-    uint32_t size = 0;
+    uint32_t file_position = 0;
+    uint32_t file_size = 0;
+    uint32_t buffered_pos = 0;
+    uint32_t buffer_start = 0;
+    uint32_t buffer_available = 0;
+
+    uint8_t buffer[TNFS_FILE_BUFFER_SIZE];
     char filename[TNFS_MAX_FILELEN];
 };
 

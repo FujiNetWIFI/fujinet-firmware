@@ -5,6 +5,24 @@
 #include "disk.h"
 #include "../utils/utils.h"
 
+#define SIO_DISKCMD_FORMAT 0x21
+#define SIO_DISKCMD_FORMAT_MEDIUM 0x22
+#define SIO_DISKCMD_PUT 0x50
+#define SIO_DISKCMD_READ 0x52
+#define SIO_DISKCMD_STATUS 0x53
+#define SIO_DISKCMD_WRITE 0x57
+
+#define SIO_DISKCMD_HSIO_INDEX 0x3F
+#define SIO_DISKCMD_HSIO_FORMAT 0xA1
+#define SIO_DISKCMD_HSIO_FORMAT_MEDIUM 0xA2
+#define SIO_DISKCMD_HSIO_PUT 0xD0
+#define SIO_DISKCMD_HSIO_READ 0xD2
+#define SIO_DISKCMD_HSIO_STATUS 0xD3
+#define SIO_DISKCMD_HSIO_WRITE 0xD7
+
+#define SIO_DISKCMD_PERCOM_READ 0x4E
+#define SIO_DISKCMD_PERCOM_WRITE 0x4F
+
 int command_frame_counter = 0;
 
 /**
@@ -48,6 +66,8 @@ unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sec
 // Read
 void sioDisk::sio_read()
 {
+    Debug_print("disk READ\n");
+
     unsigned short sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
     unsigned long offset = sector_offset(sectorNum, sectorSize);
     unsigned long ss = sector_size(sectorNum, sectorSize);
@@ -56,7 +76,7 @@ void sioDisk::sio_read()
     // Clear sector buffer
     memset(sector, 0, sizeof(sector));
 
-__BEGIN_IGNORE_TYPELIMITS
+    __BEGIN_IGNORE_TYPELIMITS
     if (sectorNum <= UNCACHED_REGION)
     {
         if (sectorNum != (lastSectorNum + 1))
@@ -71,8 +91,8 @@ __BEGIN_IGNORE_TYPELIMITS
     {
         // implement caching.
     }
-__END_IGNORE_TYPELIMITS
-    
+    __END_IGNORE_TYPELIMITS
+
     // Send result to Atari
     sio_to_computer((uint8_t *)&sector, ss, err);
     lastSectorNum = sectorNum;
@@ -81,9 +101,8 @@ __END_IGNORE_TYPELIMITS
 // write for W & P commands
 void sioDisk::sio_write(bool verify)
 {
-#ifdef DEBUG
-    Debug_println("disk WRITE");
-#endif
+    Debug_print("disk WRITE\n");
+
     unsigned short sectorNum = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
     long offset = sector_offset(sectorNum, sectorSize);
     unsigned short ss = sector_size(sectorNum, sectorSize);
@@ -98,16 +117,6 @@ void sioDisk::sio_write(bool verify)
         sio_error();
         return;
     }
-
-#ifdef DEBUG
-    if (sectorNum == 720)
-    {
-        Debug_println("SIO_WRITE DISK #720");
-        for (unsigned short i = 0; i < ss; i++)
-            Debug_printf("%02x ", sector[i]);
-        Debug_println();
-    }
-#endif
 
     if (sectorNum != (lastSectorNum + 1))
     {
@@ -148,9 +157,8 @@ void sioDisk::sio_write(bool verify)
         }
     }
 
-#ifdef DEBUG
     Debug_println("disk WRITE complted without error");
-#endif
+
     sio_complete();
 
     lastSectorNum = sectorNum;
@@ -159,20 +167,16 @@ void sioDisk::sio_write(bool verify)
 // Status
 void sioDisk::sio_status()
 {
+    Debug_print("disk STATUS\n");
 
     uint8_t status[4] = {0x10, 0xDF, 0xFE, 0x00};
-    //uint8_t deviceSlot = cmdFrame.devic - 0x31;
 
     if (sectorSize == 256)
-    {
         status[0] |= 0x20;
-    }
 
     // todo:
     if (percomBlock.sectors_per_trackL == 26)
-    {
         status[0] |= 0x80;
-    }
 
     sio_to_computer(status, sizeof(status), false); // command always completes.
 }
@@ -180,9 +184,8 @@ void sioDisk::sio_status()
 // fake disk format
 void sioDisk::sio_format()
 {
-#ifdef DEBUG
-    Debug_println("disk FORMAT");
-#endif
+    Debug_print("disk FORMAT\n");
+
     // Populate bad sector map (no bad sectors)
     for (int i = 0; i < sectorSize; i++)
         sector[i] = 0;
@@ -193,9 +196,7 @@ void sioDisk::sio_format()
     // Send to computer
     sio_to_computer((uint8_t *)sector, sectorSize, false);
 
-#ifdef DEBUG
-    Debug_printf("We faked a format.\n");
-#endif
+    Debug_println("We faked a format");
 }
 
 // ****************************************************************************************
@@ -333,37 +334,28 @@ void sioDisk::dump_percom_block()
 // mount a disk file
 void sioDisk::mount(FILE *f)
 {
+    Debug_print("disk MOUNT\n");
+
     unsigned short newss;
     unsigned short num_para;
     unsigned char num_para_hi;
     unsigned short num_sectors;
     uint8_t buf[5];
 
-#ifdef DEBUG
-    Debug_println("sioDisk::MOUNT");
-#endif
     // Get file and sector size from header
-    //f->seek(2);      //tnfs_seek(deviceSlot, 2);
 
-    if(fseek(f, 2, SEEK_SET) < 0)
+    if (fseek(f, 2, SEEK_SET) < 0)
     {
-        #ifdef DEBUG
         Debug_println("failed seeking to header on disk image");
-        #endif
         return;
     }
-    //f->read(buf, 2); //tnfs_read(deviceSlot, 2);
-    if(fread(buf, 1, 5, f) != 5)
+    if (fread(buf, 1, 5, f) != 5)
     {
-        #ifdef DEBUG
         Debug_println("failed reading 5 header bytes");
-        #endif
         return;
     }
     num_para = (256 * buf[1]) + buf[0];
-    //f->read(buf, 2); //tnfs_read(deviceSlot, 2);
     newss = (256 * buf[3]) + buf[2];
-    //f->read(buf, 1); //tnfs_read(deviceSlot, 1);
     num_para_hi = buf[4];
     sectorSize = newss;
     num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
@@ -371,13 +363,10 @@ void sioDisk::mount(FILE *f)
     _file = f;
     lastSectorNum = 65535; // Invalidate seek cache.
 
-#ifdef DEBUG
     Debug_println("mounted ATR to Disk:");
-    //Debug_println(f->name());
     Debug_printf("num_para: %d\n", num_para);
     Debug_printf("sectorSize: %d\n", newss);
     Debug_printf("num_sectors: %d\n", num_sectors);
-#endif
 }
 
 // Invalidate disk cache
@@ -389,9 +378,11 @@ void sioDisk::invalidate_cache()
 // mount a disk file
 void sioDisk::umount()
 {
+    Debug_printf("disk UNMOUNT\n");
+
     if (_file != nullptr)
     {
-        fclose(_file); // _file->close();
+        fclose(_file);
         _file = nullptr;
     }
 }
@@ -433,50 +424,35 @@ bool sioDisk::write_blank_atr(FILE *f, unsigned short sectorSize, unsigned short
     atrHeader.secsizeH = sectorSize & 0xFF;
     atrHeader.secsizeL = sectorSize >> 8;
 
-#ifdef DEBUG
-    //Debug_printf("Write header to \"%s\"\n", f->name());
     Debug_println("Write header to ATR");
-#endif
 
-    //offset = f->write(atrHeader.rawData, sizeof(atrHeader.rawData));
     offset = fwrite(atrHeader.rawData, 1, sizeof(atrHeader.rawData), f);
 
     // Write first three 128 uint8_t sectors
     memset(sector, 0x00, sizeof(sector));
 
-#ifdef DEBUG
     Debug_printf("Write first three sectors\n");
-#endif
 
     for (unsigned char i = 0; i < 3; i++)
     {
-        //tnfs_write(deviceSlot, 128);
         size_t out = fwrite(sector, 1, 128, f); //f->write(sector, 128);
         if (out != 128)
         {
-#ifdef DEBUG
             Debug_printf("Error writing sector %hhu\n", i);
-#endif
             return false;
         }
         offset += 128;
         numSectors--;
     }
 
-#ifdef DEBUG
     Debug_printf("Sparse Write the rest.\n");
-#endif
     // Write the rest of the sectors via sparse seek
     offset += (numSectors * sectorSize) - sectorSize;
-    //tnfs_seek(deviceSlot, offset);
-    //tnfs_write(deviceSlot, sectorSize);
-    fseek(f, offset, SEEK_SET); //f->seek(offset);
-    size_t out = fwrite(sector, 1, sectorSize, f); //f->write(sector, sectorSize);
+    fseek(f, offset, SEEK_SET);
+    size_t out = fwrite(sector, 1, sectorSize, f);
     if (out != sectorSize)
     {
-#ifdef DEBUG
         Debug_println("Error writing last sector");
-#endif
         return false;
     }
 
@@ -522,32 +498,34 @@ unsigned short sector_size(unsigned short sectorNum, unsigned short sectorSize)
 // Process command
 void sioDisk::sio_process()
 {
-    if (_file == nullptr) // if there is no disk mounted, just return cuz there's nothing to do
+    if (_file == nullptr) // If there is no disk mounted, just return cuz there's nothing to do
         return;
 
-    if (device_active==false && (cmdFrame.comnd != 'S' && cmdFrame.comnd != 0x3F))
+    if (device_active == false &&
+        (cmdFrame.comnd != SIO_DISKCMD_STATUS && cmdFrame.comnd != SIO_DISKCMD_HSIO_INDEX))
         return;
 
-    Debug_print("sio_process()\n");
+    Debug_print("disk sio_process()\n");
+
     switch (cmdFrame.comnd)
     {
-    case 'R':
-    case 0xD2:
+    case SIO_DISKCMD_READ:
+    case SIO_DISKCMD_HSIO_READ:
         sio_ack();
         sio_read();
         break;
-    case 'P':
-    case 0xD0:
+    case SIO_DISKCMD_PUT:
+    case SIO_DISKCMD_HSIO_PUT:
         sio_ack();
         sio_write(false);
         break;
-    case 'S':
-    case 0xD3:
+    case SIO_DISKCMD_STATUS:
+    case SIO_DISKCMD_HSIO_STATUS:
         if (is_config_device == true)
         {
             if (status_wait_count == 0)
             {
-                device_active=true;
+                device_active = true;
                 sio_ack();
                 sio_status();
             }
@@ -562,27 +540,27 @@ void sioDisk::sio_process()
             sio_status();
         }
         break;
-    case 'W':
-    case 0xD7:
+    case SIO_DISKCMD_WRITE:
+    case SIO_DISKCMD_HSIO_WRITE:
         sio_ack();
         sio_write(true);
         break;
-    case '!':
-    case 0xA1:
-    case '"':
-    case 0xA2:
+    case SIO_DISKCMD_FORMAT:
+    case SIO_DISKCMD_FORMAT_MEDIUM:
+    case SIO_DISKCMD_HSIO_FORMAT:
+    case SIO_DISKCMD_HSIO_FORMAT_MEDIUM:
         sio_ack();
         sio_format();
         break;
-    case 0x4E:
+    case SIO_DISKCMD_PERCOM_READ:
         sio_ack();
         sio_read_percom_block();
         break;
-    case 0x4F:
+    case SIO_DISKCMD_PERCOM_WRITE:
         sio_ack();
         sio_write_percom_block();
         break;
-    case 0x3F:
+    case SIO_DISKCMD_HSIO_INDEX:
         sio_ack();
         sio_high_speed();
         break;
