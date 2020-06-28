@@ -262,7 +262,7 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
         {
             // Since everything went okay, save our file info
             pFileInf->handle_id = packet.payload[1];
-            pFileInf->file_position = pFileInf->buffered_pos = 0;
+            pFileInf->file_position = pFileInf->cached_pos = 0;
 
             *file_handle = pFileInf->handle_id;
 
@@ -271,7 +271,7 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
             if (file_exists && (open_mode & TNFS_OPENMODE_WRITE))
             {
                 if (open_mode & TNFS_OPENMODE_WRITE_APPEND)
-                    pFileInf->file_position = pFileInf->buffered_pos = pFileInf->file_size;
+                    pFileInf->file_position = pFileInf->cached_pos = pFileInf->file_size;
                 else if (open_mode & TNFS_OPENMODE_WRITE_TRUNCATE)
                     pFileInf->file_size = 0;
             }
@@ -329,137 +329,156 @@ int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle)
     return -1;
 }
 
-/*
- Fills destination buffer with data available in internal buffer, if any
- Returns 0 on success, TNFS_RESULT_END_OF_FILE, or -1 if not all bytes requested could be fulfilled
-*/
-int _tnfs_read_from_buffer(tnfsFileHandleInfo *pFHI, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen)
+#ifdef DEBUG
+void _tnfs_cache_dump(const char *title, uint8_t *cache, uint32_t cache_size)
 {
-    Debug_printf("_tnfs_read_from_buffer: buffpos=%d, buffstart=%d, buffavail=%d, destlen=%d, destresult=%d\n",
-      pFHI->buffered_pos, pFHI->buffer_start, pFHI->buffer_available, bufflen, resultlen);
-
-    if (pFHI->buffer_available == 0)
+    int bytes_per_line = 16;
+    Debug_printf("\n%s %u\n", title, cache_size);
+    for (int j = 0; j < cache_size; j += bytes_per_line)
     {
-        Debug_print("_tnfs_read_from_buffer nothing in buffer\n");
-        return bufflen;
+        for (int k = 0; (k + j) < cache_size && k < bytes_per_line; k++)
+            Debug_printf("%02X ", cache[k + j]);
+        Debug_println();
+    }
+    Debug_println();
+}
+#endif    
+
+/*
+ Fills destination buffer with data available in internal cache, if any
+ Returns 0: success; TNFS_RESULT_END_OF_FILE: EOF; -1: if not all bytes requested could be fulfilled by cache
+*/
+int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest_size, uint16_t *dest_used)
+{
+    Debug_printf("_tnfs_read_from_cache: buffpos=%d, cache_start=%d, cache_avail=%d, dest_size=%d, dest_used=%d\n",
+                 pFHI->cached_pos, pFHI->cache_start, pFHI->cache_available, dest_size, *dest_used);
+
+    if (pFHI->cache_available == 0)
+    {
+        Debug_print("_tnfs_read_from_cache - nothing in cache\n");
+        return -1;
     }
 
-    // See if the current file position is within the bounds of our buffer
-    if (pFHI->buffered_pos >= pFHI->buffer_start)
+    // See if the current file position is at or after the start of our cache
+    if (pFHI->cached_pos >= pFHI->cache_start)
     {
-        uint32_t buffer_end = pFHI->buffer_start + pFHI->buffer_available;
-        if (pFHI->buffered_pos < buffer_end)
+        // See if the current file position falls before the end of our cache
+        uint32_t cache_end = pFHI->cache_start + pFHI->cache_available;
+        if (pFHI->cached_pos < cache_end)
         {
-            uint32_t bytes_available = buffer_end - pFHI->buffered_pos;
-            uint16_t dest_free = bufflen - *resultlen; // Account for an earlier partially-fulfilled request
-            uint16_t bytes_used = dest_free > bytes_available ? bytes_available : dest_free;
+            // Our current file position is within the cached region
+            // Calculate how many bytes to provide:
+            // Either from the position to the end of the cache
+            // Or the bytes free at the destination if that's smaller
+            uint32_t bytes_available = cache_end - pFHI->cached_pos;
+            uint16_t dest_free = dest_size - *dest_used; // This accounts for an earlier partially-fulfilled request
+            uint16_t bytes_provided = dest_free > bytes_available ? bytes_available : dest_free;
 
-            Debug_printf("TNFS Buffer providing %u bytes\n", bytes_used);
-            memcpy(buffer + (*resultlen), pFHI->buffer + (pFHI->buffered_pos - pFHI->buffer_start), bytes_used);
-            pFHI->buffered_pos += bytes_used;
-            *resultlen += bytes_used;
+            Debug_printf("TNFS cache providing %u bytes\n", bytes_provided);
+            memcpy(dest + (*dest_used), pFHI->cache + (pFHI->cached_pos - pFHI->cache_start), bytes_provided);
 
-            #ifdef DEBUG
-            Debug_printf("\nBUFFER PROVIDED %d\n", bytes_used);
-            for (int i = 0; i < bytes_used; i +=16)
-            {
-                for(int j = 0; (j+i) < bytes_used && j < 16; j++)
-                    Debug_printf("%02X ", buffer[j+i]);
-                Debug_println();
-            }
-            Debug_println();
-            #endif
+#ifdef DEBUG
+            _tnfs_cache_dump("CACHE PROVIDED", dest + (*dest_used), bytes_provided);
+#endif
 
-            // Say there's nothing left to read if we've reached the end of the file
-            if (pFHI->buffered_pos >= pFHI->file_size)
+            pFHI->cached_pos += bytes_provided;
+            *dest_used += bytes_provided;
+
+            // Report if we've reached the end of the file
+            if (pFHI->cached_pos >= pFHI->file_size)
                 return TNFS_RESULT_END_OF_FILE;
         }
     }
 
-    return (bufflen - *resultlen) > 0 ? -1 : 0;
+    // Return value depends on whether we filled the destination buffer
+    if (dest_size - *dest_used)
+        return -1;
+    else
+        return 0;
 }
 
 /* 
- Executes as many READ calls as needed to populate our internal buffer
- Returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
+ Executes as many READ calls as needed to populate our internal cache
+ Returns: 0: success; -1: failed to deliver/receive packet; other: TNFS error result code
 */
-int _tnfs_load_buffer(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
+int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
 {
-    Debug_printf("_tnfs_load_buffer fh=%d, filepos=%d\n", pFHI->handle_id, pFHI->file_position);
-
-    // Reset the current buffer values so the buffer is invalid if we fail below
-    pFHI->buffer_available = 0;
-    pFHI->buffer_start = pFHI->file_position;
-
-    uint32_t bytes_remaining_to_load = sizeof(pFHI->buffer);
+    // Note that when we're filling the cache, we're dealing with the "real" file position,
+    // not the cached_position we also keep track of on behalf of the client
+    Debug_printf("_TNFS_FILL_CACHE fh=%d, file_position=%d\n", pFHI->handle_id, pFHI->file_position);
 
     int error = 0;
 
+    // Reset the current cache values so it's invalid if we fail below
+    pFHI->cache_available = 0;
+    pFHI->cache_start = pFHI->file_position;
+
+    // How many bytes until we finish loading the cache
+    uint32_t bytes_remaining_to_load = sizeof(pFHI->cache);
+
+    // Keep making TNFS READ calls as long as we still have bytes to read
     while (bytes_remaining_to_load > 0)
     {
-
         tnfsPacket packet;
         packet.command = TNFS_CMD_READ;
         packet.payload[0] = pFHI->handle_id;
 
-        uint16_t bytes_to_load = bytes_remaining_to_load > TNFS_MAX_READWRITE_PAYLOAD ? TNFS_MAX_READWRITE_PAYLOAD : bytes_remaining_to_load;
+        // How many bytes to read in this call
+        uint16_t bytes_to_read = bytes_remaining_to_load > TNFS_MAX_READWRITE_PAYLOAD ? TNFS_MAX_READWRITE_PAYLOAD : bytes_remaining_to_load;
 
-        packet.payload[1] = TNFS_LOBYTE_FROM_UINT16(bytes_to_load);
-        packet.payload[2] = TNFS_HIBYTE_FROM_UINT16(bytes_to_load);
+        packet.payload[1] = TNFS_LOBYTE_FROM_UINT16(bytes_to_read);
+        packet.payload[2] = TNFS_HIBYTE_FROM_UINT16(bytes_to_read);
 
-        Debug_printf("_tnfs_load_buffer getting %u bytes\n", bytes_to_load);
+        Debug_printf("_tnfs_fill_cache requesting %u bytes\n", bytes_to_read);
 
         if (_tnfs_transaction(m_info, packet, 3))
         {
             int tnfs_result = packet.payload[0];
             if (tnfs_result == TNFS_RESULT_SUCCESS || tnfs_result == TNFS_RESULT_END_OF_FILE)
             {
+                // Copy the actual number of bytes returned to us into our cache
+                // (offset by how many bytes we've already put in the cache)
                 uint16_t bytes_read = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 1);
-                memcpy(pFHI->buffer + (sizeof(pFHI->buffer) - bytes_remaining_to_load),
+                memcpy(pFHI->cache + (sizeof(pFHI->cache) - bytes_remaining_to_load),
                        packet.payload + 3, bytes_read);
+
                 // Keep track of our file position
                 pFHI->file_position = pFHI->file_position + bytes_read;
-
+                // Keep track of how many more bytes we have to go
                 bytes_remaining_to_load -= bytes_read;
 
-                Debug_printf("_tnfs_load_buffer got %u bytes, %u more bytes needed\n", bytes_read, bytes_remaining_to_load);
+                Debug_printf("_tnfs_fill_cache got %u bytes, %u more bytes needed\n", bytes_read, bytes_remaining_to_load);
 
+                // Stop if we got an EOF result
                 if (tnfs_result == TNFS_RESULT_END_OF_FILE)
                 {
-                    Debug_printf("_tnfs_load_buffer reached EOF\n", bytes_read);
+                    Debug_print("_tnfs_fill_cache got EOF\n");
                     error = TNFS_RESULT_END_OF_FILE;
                     break;
                 }
             }
             else
             {
-                Debug_printf("_tnfs_load_buffer received unexepcted value: %u\n", tnfs_result);
+                Debug_printf("_tnfs_fill_cache unexepcted result: %u\n", tnfs_result);
                 error = tnfs_result;
                 break;
             }
         }
         else
         {
-            Debug_printf("_tnfs_load_buffer received failure condition on read attempt\n");
+            Debug_printf("_tnfs_fill_cache received failure condition on TNFS read attempt\n");
             error = -1;
             break;
         }
     }
 
+    // If we're successful, note the total number of valid bytes in our cache
     if (error == 0 || error == TNFS_RESULT_END_OF_FILE)
     {
-        pFHI->buffer_available = sizeof(pFHI->buffer) - bytes_remaining_to_load;
-
-        #ifdef DEBUG
-        Debug_printf("\nBUFFER RESULTS %d\n", pFHI->buffer_available);
-        for (int i = 0; i < pFHI->buffer_available; i +=16)
-        {
-            for(int j = 0; (j+i) < pFHI->buffer_available && j < 16; j++)
-                Debug_printf("%02X ", pFHI->buffer[j+i]);
-            Debug_println();
-        }
-        Debug_println();
-        #endif
+        pFHI->cache_available = sizeof(pFHI->cache) - bytes_remaining_to_load;
+#ifdef DEBUG
+        _tnfs_cache_dump("CACHE FILL RESULTS", pFHI->cache, pFHI->cache_available);
+#endif
     }
 
     return error;
@@ -518,20 +537,21 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
     Debug_printf("tnfs_read fh=%d, len=%d\n", file_handle, bufflen);
 
     int result = 0;
-    // Try to fulfill the request using our buffered data
-    while ((result = _tnfs_read_from_buffer(pFileInf, buffer, bufflen, resultlen)) != 0 && result != TNFS_RESULT_END_OF_FILE)
+    // Try to fulfill the request using our internal cache
+    while ((result = _tnfs_read_from_cache(pFileInf, buffer, bufflen, resultlen)) != 0 && result != TNFS_RESULT_END_OF_FILE)
     {
-        // Reload the buffer if we didn't fulfill the request
-        result = _tnfs_load_buffer(m_info, pFileInf);
+        // Reload the cache if we couldn't fulfill the request
+        result = _tnfs_fill_cache(m_info, pFileInf);
         if (result != 0)
         {
-            Debug_printf("tnfs_read buffer reload failed (%u) - aborting", result);
+            Debug_printf("tnfs_read cache fill failed (%u) - aborting", result);
             break;
         }
     }
 
     return result;
 }
+
 
 /*
 WRITE - Writes to a file - Command 0x22
@@ -560,7 +580,8 @@ code, and the number of bytes actually written. For example:
  */
 int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen)
 {
-    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || buffer == nullptr || bufflen > (TNFS_PAYLOAD_SIZE - 3) || resultlen == nullptr)
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || 
+        buffer == nullptr || bufflen > (TNFS_PAYLOAD_SIZE - 3) || resultlen == nullptr)
         return -1;
 
     *resultlen = 0;
@@ -569,6 +590,18 @@ int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint
     tnfsFileHandleInfo *pFileInf = m_info->get_filehandleinfo(file_handle);
     if (pFileInf == nullptr)
         return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
+
+    // For now, invalidate our cache and seek to the current position in the file before writing
+    pFileInf->cache_available = 0;
+    if(pFileInf->cached_pos != pFileInf->file_position)
+    {
+        int result = tnfs_lseek(m_info, file_handle, pFileInf->cached_pos, SEEK_SET, nullptr, true);
+        if(result != 0)
+        {
+            Debug_print("TNFS seek failed during write\n");
+            return result;
+        }
+    }
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_WRITE;
@@ -586,7 +619,7 @@ int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint
             // Keep track of our file position
             uint32_t new_pos = pFileInf->file_position + *resultlen;
             // Debug_printf("tnfs_write prev_pos: %u, read: %u, new_pos: %u\n", pFileInf->file_position, *resultlen, new_pos);
-            pFileInf->file_position = new_pos;
+            pFileInf->file_position = pFileInf->cached_pos = new_pos;
         }
         return packet.payload[0];
     }
@@ -594,35 +627,36 @@ int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint
 }
 
 /*
-  See if our seek position is within our internal buffer
-  Return 0 on success
+  Try to seek within our internal cache
+  Return 0 on success, -1 on failure
 */
-int _tnfs_buffer_seek(tnfsFileHandleInfo *pFHI, int32_t position, uint8_t type)
+int _tnfs_cache_seek(tnfsFileHandleInfo *pFHI, int32_t position, uint8_t type)
 {
-    if (pFHI->buffer_available == 0)
+    if (pFHI->cache_available == 0)
         return -1;
 
+    // Calculate where we're supposed to end up to see if it's within the cached region
     uint32_t destination_pos;
-
     if (type == SEEK_SET)
         destination_pos = position;
     else if (type == SEEK_CUR)
-        destination_pos = pFHI->buffered_pos + position;
+        destination_pos = pFHI->cached_pos + position;
     else
         destination_pos = pFHI->file_size + position;
 
-    uint32_t buff_end = pFHI->buffer_start + pFHI->buffer_available;
-    Debug_printf("_tnfs_buffer_seek curr=%u, dest=%u, buff_start=%u, buff_end=%u\n",
-                 pFHI->buffered_pos, destination_pos, pFHI->buffer_start, buff_end);
+    uint32_t cache_end = pFHI->cache_start + pFHI->cache_available;
+    Debug_printf("_tnfs_cache_seek current=%u, destination=%u, cache_start=%u, cache_end=%u\n",
+                 pFHI->cached_pos, destination_pos, pFHI->cache_start, cache_end);
 
-    if (destination_pos >= pFHI->buffer_start && destination_pos < buff_end)
+    // Just update our position if we're within the cached region
+    if (destination_pos >= pFHI->cache_start && destination_pos < cache_end)
     {
-        Debug_println("_tnfs_buffer_seek within buffer");
-        pFHI->buffered_pos = destination_pos;
+        Debug_println("_tnfs_cache_seek within cached region");
+        pFHI->cached_pos = destination_pos;
         return 0;
     }
 
-    Debug_println("_tnfs_buffer_seek outside buffer");
+    Debug_println("_tnfs_cache_seek outside cached region");
     return -1;
 }
 
@@ -655,9 +689,9 @@ file pointer will be wherever the last read block made it end up.
  Seek to different position in open file
  Returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
  */
-int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position)
+int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position, bool skip_cache)
 {
-    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || new_position == nullptr)
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle))
         return -1;
 
     // Make sure we're using a valid seek type
@@ -669,18 +703,19 @@ int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uin
     if (pFileInf == nullptr)
         return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
 
-    Debug_printf("tnfs_lseek currpos=%d, pos=%d, typ=%d\n", pFileInf->buffered_pos, position, type);
+    Debug_printf("tnfs_lseek currpos=%d, pos=%d, typ=%d\n", pFileInf->cached_pos, position, type);
 
-    // Try to fulfill the seek within our internal buffer
-    if (_tnfs_buffer_seek(pFileInf, position, type) == 0)
+    // Try to fulfill the seek within our internal cache
+    if (skip_cache == false && _tnfs_cache_seek(pFileInf, position, type) == 0)
     {
-        *new_position = pFileInf->buffered_pos;
+        if(new_position != nullptr)
+            *new_position = pFileInf->cached_pos;
         return 0;
     }
-    // Invalidate our internal buffer
-    pFileInf->buffer_available = 0;
+    // Cache seek failed - invalidate the internal cache
+    pFileInf->cache_available = 0;
 
-    // Couldn't fulfill it within our buffer - go ahead and execute a new request
+    // Go ahead and execute a new TNFS SEEK request
     tnfsPacket packet;
     packet.command = TNFS_CMD_LSEEK;
     packet.payload[0] = file_handle;
@@ -699,10 +734,11 @@ int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uin
             else
                 pFileInf->file_position = (pFileInf->file_size + position);
 
-            pFileInf->buffered_pos = pFileInf->file_position;
+            pFileInf->cached_pos = pFileInf->file_position;
 
-            *new_position = pFileInf->file_position;
-            Debug_printf("tnfs_lseek success, new pos=%u\n", *new_position);
+            if(new_position != nullptr)
+                *new_position = pFileInf->file_position;
+            Debug_printf("tnfs_lseek success, new pos=%u\n", pFileInf->file_position);
         }
         return packet.payload[0];
     }
