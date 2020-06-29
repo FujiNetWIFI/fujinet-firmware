@@ -12,10 +12,7 @@
 #define TNFS_MAX_FILE_HANDLES 8 // Max number of file handles we'll open to the server
 #define TNFS_MAX_FILELEN 256
 
-//#define TNFS_FILE_CACHE_SIZE 384 // This is (128 * 3) and fits within TNFS_MAX_READWRITE_PAYLOAD
-#define TNFS_FILE_CACHE_SIZE 896 // This is (128 * 7) and fits within TNFS_MAX_READWRITE_PAYLOAD * 2
-//#define TNFS_FILE_CACHE_SIZE 1408 // This is (128 * 11) and fits within TNFS_MAX_READWRITE_PAYLOAD * 3
-//#define TNFS_FILE_CACHE_SIZE 1920 // This is (128 * 15) and fits within TNFS_MAX_READWRITE_PAYLOAD * 4
+#define TNFS_FILE_CACHE_SIZE 512 // 4 * 128 fits in a single packet when TNFS_MAX_READWRITE_PAYLOAD is 512
 
 #define TNFS_INVALID_HANDLE -1
 #define TNFS_INVALID_SESSION 0 // We're assuming a '0' is never a valid session ID
