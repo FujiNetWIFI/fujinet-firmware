@@ -33,6 +33,7 @@ private:
     int16_t fileHandle;
     string filename;
     string directory;
+    string path;
     tnfsStat fileStat;
     char entryBuf[256];
     char aux1;
