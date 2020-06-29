@@ -99,7 +99,14 @@
  https://stackoverflow.com/questions/1098897/what-is-the-largest-safe-udp-packet-size-on-the-internet
 */
 #define TNFS_HEADER_SIZE 4
-#define TNFS_PAYLOAD_SIZE 504
+
+// 504 gives us (68 + 4 + 504) 576-byte packets, which are ideal according to reference above, but don't match
+// the packet size TNFSD is built with
+//#define TNFS_PAYLOAD_SIZE 504
+
+// 515 gives us (68 + 4 + 515) 587-byte packets - a little bigger than recommended, but allows for the
+// 512-byte payloads TNFSD is built with byt default; allows for 4 128-byte sectors (6 * 128 = 512) to be transmitted
+#define TNFS_PAYLOAD_SIZE 515 
 
 // Maximum size of buffer during tnfs_read() and tnfs_write()
 #define TNFS_MAX_READWRITE_PAYLOAD (TNFS_PAYLOAD_SIZE - 3)  // 1 byte is needed for FD and 2 for size
