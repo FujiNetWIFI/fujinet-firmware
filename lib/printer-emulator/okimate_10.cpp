@@ -146,5 +146,5 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 void okimate10::post_new_file()
 {
     atari1025::post_new_file();
-    // shortname = "oki10";
+    shortname = "oki10";
 }
