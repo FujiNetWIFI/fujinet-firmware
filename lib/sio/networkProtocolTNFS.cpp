@@ -16,6 +16,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     strcpy(mountInfo.hostname, urlParser->hostName.c_str());
     strcpy(mountInfo.mountpath, "/");
 
+    path = urlParser->path;
     directory = urlParser->path.substr(0, urlParser->path.find_last_of("/") - 1);
     filename = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
 
@@ -167,9 +168,9 @@ unsigned char networkProtocolTNFS::status_dir()
             if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
                 tmp[strlen(tmp)] = 0x00;
-                entry = tmp;
+                entry = "/" + path + tmp;
 
-                tnfs_stat(&mountInfo, &fileStat, tmp);
+                tnfs_stat(&mountInfo, &fileStat, entry.c_str());
 
                 if (aux2 == 128) // extended dir
                 {
