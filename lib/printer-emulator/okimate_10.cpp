@@ -265,12 +265,40 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     }
     else if (cmdMode)
     {
-        okimate_cmd.ctr++;
+        // command state machine switching
+        if (okimate_cmd.ctr == 0)
+        {
+#ifdef DEBUG
+            Debug_printf("Command: %c\n", okimate_cmd.cmd);
+#endif
+        }
+
+        okimate_cmd.ctr++; // increment counter to keep track of the byte in the command
+#ifdef DEBUG
+        Debug_printf("Command counter: %d\n", okimate_cmd.ctr);
+#endif
+
+        if (okimate_cmd.ctr == 1)
+        {
+            okimate_cmd.n = c;
+#ifdef DEBUG
+            Debug_printf("n: %d\n", c);
+#endif
+        }
+        else if (okimate_cmd.ctr == 2)
+        {
+            okimate_cmd.data = c;
+#ifdef DEBUG
+            Debug_printf("data: %d\n", c);
+#endif
+        }
+
         switch (okimate_cmd.cmd)
         {
         case 0x8A: // n/144" line advance (n * 1/2 pt vertial line feed)
             /* code */
-            esc_not_implemented();
+            pdf_dY -= float(c) / 144.; // set pdf_dY and rise to fraction of line
+            pdf_set_rise();
             reset_cmd();
             break;
         case 0x90: //0x90 n - dot column horizontal tab
@@ -315,6 +343,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x8A: // n/144" line advance (n * 1/2 pt vertial line feed)
             cmdMode = true;
             okimate_cmd.cmd = c;
+            okimate_cmd.ctr = 0;
             break;
         case 0x8C: // formfeed!
             cmd_not_implemented(c);
@@ -322,6 +351,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x90: // 0x90 n - dot column horizontal tab
             cmdMode = true;
             okimate_cmd.cmd = c;
+            okimate_cmd.ctr = 0;
             break;
         case 0x91: // not needed - implement in graphics handling in ESC mode state
             // stop graphics mode
@@ -342,6 +372,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x9A: // 0x9A n data - repeat graphics data n times
             cmdMode = true;
             okimate_cmd.cmd = c;
+            okimate_cmd.ctr = 0;
             break;
         case 0x9B: // 0x9B     EOL for color mode
             cmd_not_implemented(c);
