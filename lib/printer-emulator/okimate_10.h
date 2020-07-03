@@ -35,7 +35,7 @@ protected:
     void print_7bit_gfx(uint8_t c);
     void set_mode(uint8_t m);
     void clear_mode(uint8_t m);
-    void okimate_update_font(); // change typeface and/or color
+    void okimate_handle_font(); // change typeface and/or color
 
     virtual void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;
