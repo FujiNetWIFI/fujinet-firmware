@@ -8,6 +8,19 @@
  * The Okimate 10 has both ESC and direct commands
  * Several commands have an additional argument and one has two arguments 
  * 
+ * I use the epson_cmd state machine approach for both direct commands and ESC sequences.
+ * There are two flags: cmdMode and escMode. cmdMode is set once a direct command with an argument is called.
+ * escMode is set when ESC is received like normal. I chose to use the dot graphics like epson, too. This
+ * allows mixed text and graphics in color. 
+ * 
+ * The colorMode is very different than anything else. Instead of printing char by char, three complete lines
+ * of text and/or graphics will be buffered up as received. CMD and ESC sequences will be executed. For any
+ * action that would normally write to the PDF immediately, a special COLOR case will be added to write to
+ * an accompanying state array that parallels the buffer arrays. Once all three lines are received (CMY colors),
+ * they will be printed in color. This will require a seperate loop to print. The colors will be chosen by 
+ * comparing the character/graphics bytes across the CMY buffers and setting the color register appropriately.
+ * If there's a characeter mismatch between buffers (except for SPACE), then I might just print the two chars 
+ * in CMY order overlapping. Otherwise, the correct colors will be chosen.
  */
 void okimate10::esc_not_implemented()
 {
@@ -42,9 +55,9 @@ void okimate10::reset_cmd()
     okimate_cmd.data = 0;
 }
 
-void okimate10::okimate_update_font()
+void okimate10::okimate_handle_font()
 {
-    if (okimate_current_fnt_mask != okimate_new_fnt_mask)
+    if ((okimate_current_fnt_mask != okimate_new_fnt_mask) || (okimate_new_fnt_mask & fnt_inverse))
     {
         fprintf(_file, ")]TJ\n ");
         // check and change typeface
@@ -72,14 +85,19 @@ void okimate10::okimate_update_font()
                 charWidth = 7.2; //72.0 / 10.0;
                 break;
             }
-
-        // check and change color
+        // check and change color also for reverse
         if ((okimate_current_fnt_mask & 0xF4) != (okimate_new_fnt_mask & 0xF4))
         {
-            if (okimate_new_fnt_mask & fnt_inverse)
-                fprintf(_file, " 0 0 0 0 k");
-            else
-                fprintf(_file, " 0 0 0 1 k");
+            for (int i = 0; i < 4; i++)
+            {
+                fprintf(_file, " %d", (okimate_new_fnt_mask >> (i + 4) & 0x01));
+            }
+            fprintf(_file, " k ");
+        }
+        if (okimate_new_fnt_mask & fnt_inverse)
+        {
+            // make a rectangle "x y l w re f"
+            fprintf(_file, "%g %g %g 7 re f 0 0 0 0 k ", pdf_X, pdf_Y, charWidth);
         }
         fprintf(_file, " [(");
         okimate_current_fnt_mask = okimate_new_fnt_mask;
@@ -292,11 +310,11 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 0x92: // start REVERSE mode
             set_mode(fnt_inverse);
-            cmd_not_implemented(c);
+            // cmd_not_implemented(c);
             break;
         case 0x93: // stop REVERSE mode
             clear_mode(fnt_inverse);
-            cmd_not_implemented(c);
+            // cmd_not_implemented(c);
             break;
         case 0x99: // 0x99     Align Ribbon (for color mode)
             cmd_not_implemented(c);
@@ -310,7 +328,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             cmd_not_implemented(c);
             break;
         default:
-            okimate_update_font();
+            okimate_handle_font();
             print_char(c);
             break;
         }
