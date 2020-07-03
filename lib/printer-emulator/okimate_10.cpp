@@ -231,10 +231,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 }
                 else if (c == 0x9A) // repeat graphics command
                 {
-                    escMode=false;
-                    cmdMode=true;
-                    okimate_cmd.cmd=0x9A;
-                    okimate_cmd.ctr=0;
+                    escMode = false;
+                    cmdMode = true;
+                    okimate_cmd.cmd = 0x9A;
+                    okimate_cmd.ctr = 0;
                 }
                 else
                     print_7bit_gfx(c);
@@ -249,10 +249,12 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case 0x41: // PERFORATION SKIP OFF
+            bottomMargin = 0;
             esc_not_implemented();
             reset_cmd();
             break;
         case 0x42: // PERFORATION SKIP ON
+            bottomMargin = 72;
             esc_not_implemented();
             reset_cmd();
             break;
@@ -309,6 +311,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case 0x90: //0x90 n - dot column horizontal tab
+                   // todo: capture ASCII number of up to 3 digits
+                   // use .n, .data and c for .ctr==1,2,3
             esc_not_implemented();
             reset_cmd();
             break;
@@ -319,10 +323,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 {
                     print_7bit_gfx(okimate_cmd.data);
                 }
-                cmdMode=false;
-                escMode=true;
-                okimate_cmd.cmd=37; // graphics
-                okimate_cmd.ctr=1;
+                cmdMode = false;
+                escMode = true;
+                okimate_cmd.cmd = 37; // graphics
+                okimate_cmd.ctr = 1;
             }
             break;
         default:
