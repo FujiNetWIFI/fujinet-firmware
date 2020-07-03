@@ -210,9 +210,28 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case 37: // GRAPHICS MODE ON
-            esc_not_implemented();
-            reset_cmd();
-            // TODO: switch font to dot graphics
+            if (okimate_cmd.ctr == 0)
+            {
+                charWidth = 1.2;
+                fprintf(_file, ")]TJ /F2 12 Tf 100 Tz [("); // set font to GFX mode
+                fontUsed[1] = true;
+            }
+            else if (okimate_cmd.ctr > 0)
+            {
+                if (c == 0x91) // stop graphics mode command
+                {
+                    // reset font
+                    okimate_new_fnt_mask = 0x80;
+                    okimate_handle_font();
+                    textMode = true;
+                    reset_cmd();
+#ifdef DEBUG
+                    Debug_printf("Finished GFX mode\n");
+#endif
+                }
+                else
+                    print_7bit_gfx(c);
+            }
             break;
         case 0x36:             // '6'
             lineHeight = 12.0; //72.0/6.0;
