@@ -229,6 +229,13 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     Debug_printf("Finished GFX mode\n");
 #endif
                 }
+                else if (c == 0x9A) // repeat graphics command
+                {
+                    escMode=false;
+                    cmdMode=true;
+                    okimate_cmd.cmd=0x9A;
+                    okimate_cmd.ctr=0;
+                }
                 else
                     print_7bit_gfx(c);
             }
@@ -297,7 +304,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         {
         case 0x8A: // n/144" line advance (n * 1/2 pt vertial line feed)
             /* code */
-            pdf_dY -= float(c) / 144.; // set pdf_dY and rise to fraction of line
+            pdf_dY -= float(okimate_cmd.n) / 144.; // set pdf_dY and rise to fraction of line
             pdf_set_rise();
             reset_cmd();
             break;
@@ -308,8 +315,14 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x9A: // 0x9A n data - repeat graphics data n times
             if (okimate_cmd.ctr > 1)
             {
-                esc_not_implemented();
-                reset_cmd();
+                for (int i = 0; i < okimate_cmd.n; i++)
+                {
+                    print_7bit_gfx(okimate_cmd.data);
+                }
+                cmdMode=false;
+                escMode=true;
+                okimate_cmd.cmd=37; // graphics
+                okimate_cmd.ctr=1;
             }
             break;
         default:
