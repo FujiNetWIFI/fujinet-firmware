@@ -33,6 +33,7 @@ protected:
     void cmd_not_implemented(uint8_t c);
     void reset_cmd();
     void print_7bit_gfx(uint8_t c);
+    uint16_t okimate_cmd_ascii_to_int(uint8_t c);
     void set_mode(uint8_t m);
     void clear_mode(uint8_t m);
     void okimate_handle_font(); // change typeface and/or color

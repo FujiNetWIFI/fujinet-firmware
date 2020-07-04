@@ -104,16 +104,30 @@ void okimate10::okimate_handle_font()
     }
 }
 
+uint16_t okimate10::okimate_cmd_ascii_to_int(uint8_t c)
+{
+    uint16_t N = okimate_cmd.n - 48;
+    if (okimate_cmd.ctr == 1)
+        return N;
+    N *= 10;
+    N += okimate_cmd.data - 48;
+    if (okimate_cmd.ctr == 2)
+        return N;
+    N *= 10;
+    N += c - 48;
+    return N;
+}
+
 void okimate10::print_7bit_gfx(uint8_t c)
 {
     // e.g., [(0)100(1)100(4)100(50)]TJ
     // lead with '0' to enter a space
-    // then shift back with 133 and print each pin
+    // then shift back with 100 and print each pin
     fprintf(_file, "0");
     for (int i = 0; i < 7; i++)
     {
         if ((c >> i) & 0x01)
-            fprintf(_file, ")133(%u", i + 1);
+            fprintf(_file, ")100(%u", i + 1);
     }
 }
 
@@ -231,6 +245,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 }
                 else if (c == 0x9A) // repeat graphics command
                 {
+                    // toss control over to the Direct Command switch statement
                     escMode = false;
                     cmdMode = true;
                     okimate_cmd.cmd = 0x9A;
@@ -249,12 +264,12 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case 0x41: // PERFORATION SKIP OFF
-            bottomMargin = 0;
+            bottomMargin = 0.0;
             esc_not_implemented();
             reset_cmd();
             break;
         case 0x42: // PERFORATION SKIP ON
-            bottomMargin = 72;
+            bottomMargin = 72.0;
             esc_not_implemented();
             reset_cmd();
             break;
@@ -311,18 +326,30 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case 0x90: //0x90 n - dot column horizontal tab
-                   // todo: capture ASCII number of up to 3 digits
-                   // use .n, .data and c for .ctr==1,2,3
-            esc_not_implemented();
-            reset_cmd();
+            if (((c < 48) && (c > 57)) || (okimate_cmd.ctr == 3))
+            {
+                uint16_t N = okimate_cmd_ascii_to_int(c);
+                charWidth = 1.2;
+                fprintf(_file, ")]TJ /F2 12 Tf 100 Tz [("); // set font to GFX mode
+                fontUsed[1] = true;
+                for (int i = 1; i < N; i++)
+                {
+                    fprintf(_file, " ");
+                }
+                okimate_new_fnt_mask = 0x80;
+                okimate_handle_font();
+                reset_cmd();
+            }
             break;
         case 0x9A: // 0x9A n data - repeat graphics data n times
+            // receive control from the ESC-37 graphics mode
             if (okimate_cmd.ctr > 1)
             {
                 for (int i = 0; i < okimate_cmd.n; i++)
                 {
                     print_7bit_gfx(okimate_cmd.data);
                 }
+                // toss control back over to ESC-37 graphics mode
                 cmdMode = false;
                 escMode = true;
                 okimate_cmd.cmd = 37; // graphics
