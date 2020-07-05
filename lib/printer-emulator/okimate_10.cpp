@@ -131,6 +131,11 @@ void okimate10::print_7bit_gfx(uint8_t c)
     }
 }
 
+void okimate10::pdf_clear_modes() 
+{
+    clear_mode(fnt_inverse); // implied by Atari manual page 28. Explicit in Commode manual page 26.
+}
+
 void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
     // Okimate 10 extras codes:
@@ -405,7 +410,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         //     cmd_not_implemented(c);
         //     break;
         case 0x92: // start REVERSE mode
-            set_mode(fnt_inverse);
+            set_mode(fnt_inverse); // see clear_modes(), reverse clears at EOL
             // cmd_not_implemented(c);
             break;
         case 0x93: // stop REVERSE mode
