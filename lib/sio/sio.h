@@ -141,6 +141,7 @@ public:
     virtual void sio_high_speed();
     bool is_config_device = false;
     bool device_active = true;
+    sioBus sio_get_bus();
 };
 
 enum sio_message : uint16_t
@@ -183,6 +184,7 @@ public:
     sioDevice *deviceById(int device_id);
     void changeDeviceId(sioDevice *pDevice, int device_id);
 
+    int getBaudrate();
     void setBaudrate(int baud);
     void toggleBaudrate();
 

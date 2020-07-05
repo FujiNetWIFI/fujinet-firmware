@@ -399,6 +399,11 @@ void sioBus::toggleBaudrate()
     fnUartSIO.set_baudrate(_sioBaud);
 }
 
+int sioBus::getBaudrate()
+{
+    return _sioBaud;
+}
+
 void sioBus::setBaudrate(int baud)
 {
     if(_sioBaud == baud)

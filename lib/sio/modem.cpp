@@ -193,6 +193,8 @@ void sioModem::sio_send_firmware(uint8_t loadcommand)
 // 0x57 / 'W' - WRITE
 void sioModem::sio_write()
 {
+    uint8_t ck;
+    int oldBaudRate;
 #ifdef DEBUG
     Debug_println("Modem cmd: WRITE");
 #endif
@@ -200,8 +202,20 @@ void sioModem::sio_write()
        AUX2: NA
        Payload always padded to 64 bytes
     */
-    // For now, just complete
-    sio_complete();
+    ck = sio_to_peripheral(txBuf,64);
+    
+    if (ck!=sio_checksum(txBuf,64)!=ck)
+    {
+        sio_error();
+    }
+    else
+    {
+        oldBaudRate=SIO.getBaudrate();
+        fnUartSIO.set_baudrate(modemBaud);
+        fnUartSIO.write(txBuf,cmdFrame.aux1);
+        fnUartSIO.set_baudrate(oldBaudRate);
+        sio_complete();
+    }
 }
 
 // 0x53 / 'S' - STATUS
