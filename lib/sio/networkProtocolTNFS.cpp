@@ -172,7 +172,7 @@ unsigned char networkProtocolTNFS::status_dir()
 
                 tnfs_stat(&mountInfo, &fileStat, entry.c_str());
 
-                if (aux2 == 128) // extended dir
+                if (aux2&0x80) // extended dir
                 {
                     if (fileStat.isDir)
                     {
