@@ -235,6 +235,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 if (c == 0x91) // stop graphics mode command
                 {
                     // reset font
+                    okimate_current_fnt_mask = 0xFF; // invalidate font mask
                     okimate_new_fnt_mask = 0x80;
                     okimate_handle_font();
                     textMode = true;
@@ -336,6 +337,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 {
                     fprintf(_file, " ");
                 }
+                okimate_current_fnt_mask = 0xFF; // invalidate font mask
                 okimate_new_fnt_mask = 0x80;
                 okimate_handle_font();
                 reset_cmd();
