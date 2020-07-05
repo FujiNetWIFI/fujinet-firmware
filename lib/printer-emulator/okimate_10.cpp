@@ -327,7 +327,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case 0x90: //0x90 n - dot column horizontal tab
-            if (((c < 48) && (c > 57)) || (okimate_cmd.ctr == 3))
+            if ((c < 48) || (c > 57) || (okimate_cmd.ctr == 3))
             {
                 uint16_t N = okimate_cmd_ascii_to_int(c);
                 charWidth = 1.2;
@@ -337,8 +337,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 {
                     fprintf(_file, " ");
                 }
-                okimate_current_fnt_mask = 0xFF; // invalidate font mask
-                okimate_new_fnt_mask = 0x80;
+                okimate_new_fnt_mask = okimate_current_fnt_mask; // reset font
+                okimate_current_fnt_mask = 0xFF;                 // invalidate font mask
                 okimate_handle_font();
                 reset_cmd();
             }
@@ -400,10 +400,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.cmd = c;
             okimate_cmd.ctr = 0;
             break;
-        case 0x91: // not needed - implement in graphics handling in ESC mode state
-            // stop graphics mode
-            cmd_not_implemented(c);
-            break;
+        // case 0x91: // not needed - implement in graphics handling in ESC mode state
+        //     // stop graphics mode
+        //     cmd_not_implemented(c);
+        //     break;
         case 0x92: // start REVERSE mode
             set_mode(fnt_inverse);
             // cmd_not_implemented(c);
