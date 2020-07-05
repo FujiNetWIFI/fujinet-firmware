@@ -66,7 +66,7 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
         _started = false;
         return false;
     }
-    Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%hx, min_retry: %hums\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
+    Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%04hx, min_retry: %hums\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
 
     // Register a new VFS driver to handle this connection
     if(vfs_tnfs_register(_mountinfo, _basepath, sizeof(_basepath)) != 0)
@@ -162,18 +162,24 @@ fsdir_entry * FileSystemTNFS::dir_read()
 
     // Skip "." and ".."; server returns EINVAL on trying to stat ".."
     bool skip;
+    tnfsStat fstat;
     do 
     {
         _direntry.filename[0] = '\0';
-        if(TNFS_RESULT_SUCCESS != tnfs_readdir(&_mountinfo, _direntry.filename, sizeof(_direntry.filename)))
+        if(TNFS_RESULT_SUCCESS != tnfs_readdirx(&_mountinfo, &fstat, _direntry.filename, sizeof(_direntry.filename)))
             return nullptr;
 
         skip = (_direntry.filename[0] == '.' && _direntry.filename[1] == '\0') || 
                         (_direntry.filename[0] == '.' && _direntry.filename[1] == '.' && _direntry.filename[2] == '\0');
     } while (skip);
 
-    tnfsStat fstat;
+    _direntry.size = fstat.filesize;
+    _direntry.modified_time = fstat.m_time;
+    _direntry.isDir = fstat.isDir;
 
+    return &_direntry;
+
+    /*
     // Combine the current directory path with the read filename before trying to stat()...
     char fullpath[TNFS_MAX_FILELEN];
     strncpy(fullpath, _current_dirpath, sizeof(fullpath));
@@ -189,6 +195,7 @@ fsdir_entry * FileSystemTNFS::dir_read()
         return &_direntry;
     }
     return nullptr;
+    */
 }
 
 void FileSystemTNFS::dir_close()

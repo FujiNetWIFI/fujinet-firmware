@@ -62,6 +62,11 @@ Example: A failed MOUNT command with error 1F for a version 3.5 server:
  If the host_ip is set, it will be used in all transactions instead of hostname.
  Currently, mountpath, userid and password are ignored.
  port, timeout_ms, and max_retries may be set or left to defaults.
+ Returns:
+  0 - success
+ -1 - failure to send/receive command
+ TNFS_RESULT_FUNCTION_UNIMPLEMENTED - returned server version lower than min requried
+ other - TNFS_RESULT_*
 */
 int tnfs_mount(tnfsMountInfo *m_info)
 {
@@ -109,6 +114,15 @@ int tnfs_mount(tnfsMountInfo *m_info)
             m_info->session = TNFS_UINT16_FROM_HILOBYTES(packet.session_idh, packet.session_idl);
             m_info->server_version = TNFS_UINT16_FROM_HILOBYTES(packet.payload[2], packet.payload[1]);
             m_info->min_retry_ms = TNFS_UINT16_FROM_HILOBYTES(packet.payload[4], packet.payload[3]);
+
+            // Check server version
+            // TODO: Return error on bad version
+            if(m_info->server_version < 0x0102)
+            {
+                Debug_printf("Server version 0x%04hx lower than minimum required\n", m_info->server_version);
+                // tnfs_umount(m_info);
+                // return TNFS_RESULT_FUNCTION_UNIMPLEMENTED;
+            }
         }
         return packet.payload[0];
     }
@@ -746,7 +760,15 @@ int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uin
 
             if(new_position != nullptr)
                 *new_position = pFileInf->file_position;
-            Debug_printf("tnfs_lseek success, new pos=%u\n", pFileInf->file_position);
+            uint32_t response_pos = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);    
+            Debug_printf("tnfs_lseek success, new pos=%u, response pos=%u\n", pFileInf->file_position, response_pos);
+
+            // TODO: This is temporary while we confirm that the recently-changed TNFSD code matches what we've been doing prior
+            if(pFileInf->file_position != response_pos)
+            {
+                Debug_print("CALCULATED AND RESPONSE POS DON'T MATCH!\n");
+                vTaskDelay(5000 / portTICK_PERIOD_MS);
+            }
         }
         return packet.payload[0];
     }
@@ -833,6 +855,7 @@ status byte is set to the error number as for other commands.
     dir_entry filled with filename up to dir_entry_len
  returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
 */
+/*
 int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len)
 {
     // Check for a valid open handle ID
@@ -848,6 +871,44 @@ int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len)
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             strncpy(dir_entry, (char *)&packet.payload[1], dir_entry_len);
+        }
+        return packet.payload[0];
+    }
+    return -1;
+}
+*/
+
+int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, int dir_entry_len)
+{
+    // Check for a valid open handle ID
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
+        return -1;
+
+#define OFFSET_READDIRX_FLAGS 1
+#define OFFSET_READDIRX_SIZE 2
+#define OFFSET_READDIRX_MTIME 6
+#define OFFSET_READDIRX_CTIME 10
+#define OFFSET_READDIRX_PATH 14
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_READDIRX;
+    packet.payload[0] = m_info->dir_handle;
+
+    if (_tnfs_transaction(m_info, packet, 1))
+    {
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            filestat->isDir = (packet.payload[OFFSET_READDIRX_FLAGS] & TNFS_READDIRX_DIR) ? true : false;
+            filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_READDIRX_SIZE);
+            filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_READDIRX_MTIME);
+            filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_READDIRX_CTIME);
+            filestat->a_time = 0;
+
+            strncpy(dir_entry, (char *)packet.payload + OFFSET_READDIRX_PATH, dir_entry_len);
+
+            Debug_printf("\ttnfs_readdirx: dir: %d, size: %u, mtime: 0x%04x, ctime: 0x%04x \"%s\"\n", 
+                filestat->isDir ? 1 : 0, filestat->filesize, filestat->m_time, filestat->c_time, dir_entry );
+
         }
         return packet.payload[0];
     }
@@ -1022,13 +1083,13 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
 
     // Debug_printf("TNFS stat: \"%s\"\n", (char *)packet.payload);
 
-#define OFFSET_FILEMODE 1
-#define OFFSET_UID 3
-#define OFFSET_GID 5
-#define OFFSET_FILESIZE 7
-#define OFFSET_ATIME 11
-#define OFFSET_MTIME 15
-#define OFFSET_CTIME 19
+#define OFFSET_STAT_FILEMODE 1
+#define OFFSET_STAT_UID 3
+#define OFFSET_STAT_GID 5
+#define OFFSET_STAT_FILESIZE 7
+#define OFFSET_STAT_ATIME 11
+#define OFFSET_STAT_MTIME 15
+#define OFFSET_STAT_CTIME 19
 
     if (_tnfs_transaction(m_info, packet, len + 1))
     {
@@ -1036,17 +1097,17 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
 
-            uint16_t filemode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILEMODE);
+            uint16_t filemode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_FILEMODE);
             filestat->isDir = (filemode & S_IFDIR) ? true : false;
 
-            uint16_t uid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_UID);
-            uint16_t gid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_GID);
+            uint16_t uid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_UID);
+            uint16_t gid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_GID);
 
-            filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILESIZE);
+            filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_FILESIZE);
 
-            filestat->a_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_ATIME);
-            filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_MTIME);
-            filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_CTIME);
+            filestat->a_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_ATIME);
+            filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_MTIME);
+            filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_CTIME);
 
             /*
             Debug_printf("\ttnfs_stat: mode: %ho, uid: %hu, gid: %hu, dir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", 
@@ -1545,6 +1606,14 @@ const char *_tnfs_command_string(int command)
         return "SIZE";
     case TNFS_CMD_FREE:
         return "FREE";
+    case TNFS_CMD_TELLDIR:
+        return "TELLDIR";
+    case TNFS_CMD_SEEKDIR:
+        return "SEEKDIR";
+    case TNFS_CMD_OPENDIRX:
+        return "OPENDIRX";
+    case TNFS_CMD_READDIRX:
+        return "READDIRX";
     default:
         return "?";
     }

@@ -19,6 +19,10 @@
 #define TNFS_CMD_CLOSEDIR 0x12
 #define TNFS_CMD_MKDIR 0x13
 #define TNFS_CMD_RMDIR 0x14
+#define TNFS_CMD_TELLDIR 0x15
+#define TNFS_CMD_SEEKDIR 0x16
+#define TNFS_CMD_OPENDIRX 0x17
+#define TNFS_CMD_READDIRX 0x18
 
 #define TNFS_CMD_READ 0x21
 #define TNFS_CMD_WRITE 0x22
@@ -54,6 +58,8 @@
 #define TNFS_CREATEPERM_S_IROTH 00004 //read by others
 #define TNFS_CREATEPERM_S_IWOTH 00002 //write by others
 #define TNFS_CREATEPERM_S_IXOTH 00001 //execute/search by others
+
+#define TNFS_READDIRX_DIR 0x01 // Flag returned in tnfs_reddirx
 
 #define TNFS_RESULT_SUCCESS 0x00
 #define TNFS_RESULT_NOT_PERMITTED 0x01
@@ -161,8 +167,10 @@ int tnfs_mount(tnfsMountInfo *m_info);
 int tnfs_umount(tnfsMountInfo *m_info);
 
 int tnfs_opendir(tnfsMountInfo *m_info, const char *directory);
-int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len);
+//int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len);
+int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, int dir_entry_len);
 int tnfs_closedir(tnfsMountInfo *m_info);
+
 int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory);
 int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory);
 

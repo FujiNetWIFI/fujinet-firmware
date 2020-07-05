@@ -356,7 +356,6 @@ void sioFuji::sio_read_directory_entry()
         return;
     }
 
-    //uint8_t ret = tnfs_readdir(hostSlot);
     fsdir_entry_t *f = fnFileSystems[hostSlot].dir_nextfile();
     int l = 0;
 
