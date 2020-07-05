@@ -803,6 +803,7 @@ Example:
     Opens directory and stores directory handle in tnfsMountInfo.dir_handle
     Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
 */
+/*
 int tnfs_opendir(tnfsMountInfo *m_info, const char *directory)
 {
     if (m_info == nullptr || directory == nullptr)
@@ -820,6 +821,30 @@ int tnfs_opendir(tnfsMountInfo *m_info, const char *directory)
         {
             m_info->dir_handle = packet.payload[1];
             // Debug_printf("Directory opened, handle ID: %hhd\n", m_info->dir_handle);
+        }
+        return packet.payload[0];
+    }
+    return -1;
+}
+*/
+int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory)
+{
+    if (m_info == nullptr || directory == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_OPENDIRX;
+    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, directory, sizeof(packet.payload));
+
+    Debug_printf("TNFS open directory: \"%s\"\n", (char *)packet.payload);
+
+    if (_tnfs_transaction(m_info, packet, len + 1))
+    {
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            m_info->dir_handle = packet.payload[1];
+            m_info->dir_entries = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 2);
+            Debug_printf("Directory opened, handle ID: %hhd, entries: %u\n", m_info->dir_handle, m_info->dir_entries);
         }
         return packet.payload[0];
     }
@@ -912,6 +937,45 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
         }
         return packet.payload[0];
     }
+    return -1;
+}
+
+int tnfs_telldir(tnfsMountInfo *m_info, uint32_t *position)
+{
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
+        return -1;
+
+    if(position == nullptr)
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_TELLDIR;
+    packet.payload[0] = m_info->dir_handle;
+
+    if (_tnfs_transaction(m_info, packet, 1))
+    {
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            *position = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);
+        }
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+int tnfs_seekdir(tnfsMountInfo *m_info, uint32_t position)
+{
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
+        return -1;
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_SEEKDIR;
+    packet.payload[0] = m_info->dir_handle;
+    TNFS_UINT32_TO_LOHI_BYTEPTR(position, packet.payload + 1);
+
+    if (_tnfs_transaction(m_info, packet, 5))
+        return packet.payload[0];
+
     return -1;
 }
 
