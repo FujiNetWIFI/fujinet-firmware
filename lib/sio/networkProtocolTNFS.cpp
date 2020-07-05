@@ -40,7 +40,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         // Directory open.
         string dirPath = urlParser->path.substr(0, urlParser->path.find_last_of("/"));
 
-        if (tnfs_opendir(&mountInfo, dirPath.c_str()))
+        if (tnfs_opendirx(&mountInfo, dirPath.c_str()))
             return false; // error
     }
     else

@@ -166,10 +166,14 @@ struct tnfsStat
 int tnfs_mount(tnfsMountInfo *m_info);
 int tnfs_umount(tnfsMountInfo *m_info);
 
-int tnfs_opendir(tnfsMountInfo *m_info, const char *directory);
+//int tnfs_opendir(tnfsMountInfo *m_info, const char *directory);
+int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory);
 //int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len);
 int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, int dir_entry_len);
 int tnfs_closedir(tnfsMountInfo *m_info);
+
+int tnfs_telldir(tnfsMountInfo *m_info, uint32_t *position);
+int tnfs_seekdir(tnfsMountInfo *m_info, uint32_t position);
 
 int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory);
 int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory);

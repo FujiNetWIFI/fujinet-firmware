@@ -130,7 +130,7 @@ bool FileSystemTNFS::dir_open(const char * path)
     if(!_started)
         return false;
 
-    if(TNFS_RESULT_SUCCESS == tnfs_opendir(&_mountinfo, path))
+    if(TNFS_RESULT_SUCCESS == tnfs_opendirx(&_mountinfo, path))
     {
         // Save the directory for later use, making sure it starts and ends with '/''
         if(path[0] != '/')
