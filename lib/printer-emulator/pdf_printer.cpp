@@ -202,7 +202,7 @@ void pdfPrinter::pdf_new_page()
     idx_stream_start = ftell(_file);
 
     // open new text object
-    pdf_begin_text(pageHeight);
+    pdf_begin_text(pageHeight - topMargin);
 }
 
 void pdfPrinter::pdf_begin_text(float Y)
