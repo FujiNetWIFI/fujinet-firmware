@@ -266,11 +266,13 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 0x41: // PERFORATION SKIP OFF
             bottomMargin = 0.0;
+            topMargin = 0.0;
             esc_not_implemented();
             reset_cmd();
             break;
         case 0x42: // PERFORATION SKIP ON
             bottomMargin = 72.0;
+            topMargin = 72.0;
             esc_not_implemented();
             reset_cmd();
             break;
@@ -435,4 +437,7 @@ void okimate10::post_new_file()
 {
     atari1025::post_new_file();
     shortname = "oki10";
+    topMargin = 72.0; // perf skip is default
+    pdf_dY = 72.0; // but start at top of first page
+    bottomMargin = 72.0; // perf skip is default
 }
