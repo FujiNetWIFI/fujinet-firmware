@@ -204,7 +204,7 @@ void sioModem::sio_write()
     */
     ck = sio_to_peripheral(txBuf,64);
     
-    if (ck!=sio_checksum(txBuf,64)!=ck)
+    if (ck!=sio_checksum(txBuf,64))
     {
         sio_error();
     }
