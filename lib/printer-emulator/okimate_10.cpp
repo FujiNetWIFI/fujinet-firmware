@@ -400,6 +400,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         switch (c)
         {
         case 27:
+            reset_cmd(); // clear command record to set up for fresh esc sequence
             escMode = true;
             break;
         case 0x8A: // n/144" line advance (n * 1/2 pt vertial line feed)
