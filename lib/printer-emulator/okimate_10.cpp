@@ -62,7 +62,7 @@ void okimate10::okimate_handle_font()
         fprintf(_file, ")]TJ\n ");
         // check and change typeface
         if (okimate_current_fnt_mask == 0xFF)
-            fprintf(_file,"/F1 12 Tf ");
+            fprintf(_file, "/F1 12 Tf ");
         if ((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03))
             switch (okimate_new_fnt_mask & 0x03)
             {
@@ -439,7 +439,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.ctr = 0;
             break;
         case 0x9B: // 0x9B     EOL for color mode
-            cmd_not_implemented(c);
+            if (colorMode)
+                cmd_not_implemented(c);
             break;
         default:
             okimate_handle_font();
