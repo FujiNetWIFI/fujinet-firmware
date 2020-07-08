@@ -86,7 +86,7 @@ void okimate10::okimate_handle_font()
                 break;
             }
         // check and change color also for reverse
-        if ((okimate_current_fnt_mask & 0xF4) != (okimate_new_fnt_mask & 0xF4))
+        if ((okimate_current_fnt_mask & 0xF0) != (okimate_new_fnt_mask & 0xF0))
         {
             for (int i = 0; i < 4; i++)
             {
@@ -94,13 +94,18 @@ void okimate10::okimate_handle_font()
             }
             fprintf(_file, " k ");
         }
-        if (okimate_new_fnt_mask & fnt_inverse)
+        okimate_current_fnt_mask = okimate_new_fnt_mask;
+        if (okimate_current_fnt_mask & fnt_inverse)
         {
             // make a rectangle "x y l w re f"
-            fprintf(_file, "%g %g %g 7 re f 0 0 0 0 k ", pdf_X, pdf_Y, charWidth);
+            for (int i = 0; i < 4; i++)
+            {
+                fprintf(_file, " %d", (okimate_current_fnt_mask >> (i + 4) & 0x01));
+            }
+            fprintf(_file, " k ");
+            fprintf(_file, "%g %g %g 7 re f 0 0 0 0 k ", pdf_X + leftMargin, pdf_Y, charWidth);
         }
         fprintf(_file, " [(");
-        okimate_current_fnt_mask = okimate_new_fnt_mask;
     }
 }
 
@@ -131,7 +136,7 @@ void okimate10::print_7bit_gfx(uint8_t c)
     }
 }
 
-void okimate10::pdf_clear_modes() 
+void okimate10::pdf_clear_modes()
 {
     clear_mode(fnt_inverse); // implied by Atari manual page 28. Explicit in Commode manual page 26.
 }
@@ -410,7 +415,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         //     // stop graphics mode
         //     cmd_not_implemented(c);
         //     break;
-        case 0x92: // start REVERSE mode
+        case 0x92:                 // start REVERSE mode
             set_mode(fnt_inverse); // see clear_modes(), reverse clears at EOL
             // cmd_not_implemented(c);
             break;
