@@ -61,6 +61,8 @@ void okimate10::okimate_handle_font()
     {
         fprintf(_file, ")]TJ\n ");
         // check and change typeface
+        if (okimate_current_fnt_mask == 0xFF)
+            fprintf(_file,"/F1 12 Tf ");
         if ((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03))
             switch (okimate_new_fnt_mask & 0x03)
             {
