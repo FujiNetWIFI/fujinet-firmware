@@ -168,6 +168,9 @@ unsigned char networkProtocolTNFS::status_dir()
             if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
                 tmp[strlen(tmp)] = 0x00;
+#ifdef DEBUG
+                Debug_printf("path: %s - tmp: %s\n",path.c_str(),tmp);
+#endif
                 entry = "/" + path + tmp;
 
                 tnfs_stat(&mountInfo, &fileStat, entry.c_str());
@@ -207,7 +210,7 @@ unsigned char networkProtocolTNFS::status_dir()
         if (dirEOF == false)
         {
             dirEOF = true;
-            strcpy(entryBuf, "000 FREE SECTORS\x9b");
+            strcpy(entryBuf, "999+FREE SECTORS\x9b");
         }
     }
 
