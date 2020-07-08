@@ -240,6 +240,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 charWidth = 1.2;
                 fprintf(_file, ")]TJ /F2 12 Tf 100 Tz [("); // set font to GFX mode
                 fontUsed[1] = true;
+                textMode = false;
             }
             else if (okimate_cmd.ctr > 0)
             {
@@ -338,6 +339,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case 0x90: //0x90 n - dot column horizontal tab
+            textMode = false;
             if ((c < 48) || (c > 57) || (okimate_cmd.ctr == 3))
             {
                 uint16_t N = okimate_cmd_ascii_to_int(c);
@@ -351,6 +353,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 okimate_new_fnt_mask = okimate_current_fnt_mask; // reset font
                 okimate_current_fnt_mask = 0xFF;                 // invalidate font mask
                 okimate_handle_font();
+                textMode = true;
                 reset_cmd();
             }
             break;
