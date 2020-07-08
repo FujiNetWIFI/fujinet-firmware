@@ -217,6 +217,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 0x14: // fine ESC & 20
             // change font to compressed
+            clear_mode(fnt_expanded); // remove wide print mode - shown in Commod'e manual
             set_mode(fnt_compressed);
             reset_cmd();
             break;
