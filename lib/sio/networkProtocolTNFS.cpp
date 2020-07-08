@@ -193,7 +193,7 @@ unsigned char networkProtocolTNFS::status_dir()
                     if (strcmp(tmp, ".") == 0)
                         entry.replace(2, 1, ".");
                     else if (strcmp(tmp, "..") == 0)
-                        entry.replace(2, 1, "..");
+                        entry.replace(2, 2, "..");
 
                     if (fileStat.isDir)
                         entry.replace(10, 3, "DIR");
