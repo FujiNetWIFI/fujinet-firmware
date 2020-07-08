@@ -154,8 +154,18 @@ bool networkProtocolTNFS::status(uint8_t *status_buf)
 unsigned char networkProtocolTNFS::status_dir()
 {
     char tmp[256];
+    string path_fixed;
     string entry;
     int res;
+    size_t fix_pos;
+
+    path_fixed = path;
+    fix_pos = path_fixed.find("*");
+
+    if (fix_pos!=string::npos)
+    {
+        path_fixed = path_fixed.substr(0,fix_pos);
+    }
 
     memset(tmp, 0, sizeof(tmp));
 
@@ -171,7 +181,7 @@ unsigned char networkProtocolTNFS::status_dir()
 #ifdef DEBUG
                 Debug_printf("path: %s - tmp: %s\n",path.c_str(),tmp);
 #endif
-                entry = "/" + path + tmp;
+                entry = "/" + path_fixed + tmp;
 
                 tnfs_stat(&mountInfo, &fileStat, entry.c_str());
 
