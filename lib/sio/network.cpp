@@ -594,6 +594,24 @@ void sioNetwork::sio_special()
         delete protocol;
         protocol = nullptr;
     }
+    else if (cmdFrame.comnd == 0x25) // POINT
+    {
+        sio_ack();
+        sio_to_peripheral(note_pos.rawData, 3);
+        Debug_printf("Point Request: %ld\n",note_pos);
+
+        if (protocol == nullptr)
+        {
+            status_buf.error = 166; // Invalid POINT
+            sio_error();
+        }
+        else if (!protocol->point(urlParser,&cmdFrame))
+        {
+            status_buf.error = 166; // Invalid POINT
+            sio_error(); 
+        }
+        sio_complete();
+    }
     else if (cmdFrame.comnd == 0x2A) // MKDIR
     {
         sio_ack();
@@ -778,6 +796,8 @@ bool sioNetwork::sio_special_supported_40_command(unsigned char c)
 {
     switch (c)
     {
+    case 0x26: // NOTE
+        return true;
     case 0x30: // ?DIR
         return true;
     }
@@ -792,6 +812,8 @@ bool sioNetwork::sio_special_supported_80_command(unsigned char c)
     case 0x20: // RENAME
         return true;
     case 0x21: // DELETE
+        return true;
+    case 0x25: // POINT
         return true;
     case 0x2C: // CHDIR
         return true;
@@ -824,16 +846,21 @@ void sioNetwork::sio_special_00()
 void sioNetwork::sio_special_40()
 {
     char buf[256];
+    int bufsiz = 256;
 
     switch (cmdFrame.comnd)
     {
+    case 0x26:
+        bufsiz = 3; // 24 bit value.
+        memcpy(buf, (void *)note_pos.rawData, bufsiz);
+        break;
     case 0x30: // ?DIR
         strcpy((char *)buf, prefix.c_str());
         strcat((char *)buf, "\x9b");
         break;
     }
     Debug_printf("Read buf: %s\n", buf);
-    sio_to_computer((uint8_t *)buf, 256, err); // size of DVSTAT
+    sio_to_computer((uint8_t *)buf, bufsiz, err); // size of DVSTAT
 }
 
 // For global commands with Computer->Peripheral payload
@@ -885,8 +912,8 @@ void sioNetwork::sio_special_protocol_80()
 
 void sioNetwork::sio_special_set_translation()
 {
-    aux1=cmdFrame.aux1;
-    aux2=cmdFrame.aux2;
+    aux1 = cmdFrame.aux1;
+    aux2 = cmdFrame.aux2;
     sio_complete();
 }
 

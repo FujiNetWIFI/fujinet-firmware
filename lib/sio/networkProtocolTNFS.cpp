@@ -162,9 +162,9 @@ unsigned char networkProtocolTNFS::status_dir()
     path_fixed = path;
     fix_pos = path_fixed.find("*");
 
-    if (fix_pos!=string::npos)
+    if (fix_pos != string::npos)
     {
-        path_fixed = path_fixed.substr(0,fix_pos);
+        path_fixed = path_fixed.substr(0, fix_pos);
     }
 
     memset(tmp, 0, sizeof(tmp));
@@ -179,13 +179,13 @@ unsigned char networkProtocolTNFS::status_dir()
             {
                 tmp[strlen(tmp)] = 0x00;
 #ifdef DEBUG
-                Debug_printf("path: %s - tmp: %s\n",path.c_str(),tmp);
+                Debug_printf("path: %s - tmp: %s\n", path.c_str(), tmp);
 #endif
                 entry = "/" + path_fixed + tmp;
 
                 tnfs_stat(&mountInfo, &fileStat, entry.c_str());
 
-                if (aux2&0x80) // extended dir
+                if (aux2 & 0x80) // extended dir
                 {
                     if (fileStat.isDir)
                     {
@@ -194,7 +194,7 @@ unsigned char networkProtocolTNFS::status_dir()
                     }
 
                     entry = tmp;
-                    entry = util_long_entry(entry,fileStat.filesize);
+                    entry = util_long_entry(entry, fileStat.filesize);
                 }
                 else // 8.3 with sectors
                 {
@@ -208,7 +208,7 @@ unsigned char networkProtocolTNFS::status_dir()
                     if (fileStat.isDir)
                         entry.replace(10, 3, "DIR");
                 }
-                
+
                 entry += "\x9b";
                 strcpy(entryBuf, entry.c_str());
                 return (unsigned char)strlen(entryBuf);
@@ -234,6 +234,26 @@ bool networkProtocolTNFS::special(uint8_t *sp_buf, unsigned short len, cmdFrame_
 
 bool networkProtocolTNFS::special_supported_00_command(unsigned char comnd)
 {
+    return false;
+}
+
+bool networkProtocolTNFS::special_supported_40_command(unsigned char comnd)
+{
+    switch (comnd)
+    {
+    case 0x26: // NOTE
+        return true;
+    }
+    return false;
+}
+
+bool networkProtocolTNFS::special_supported_80_command(unsigned char comnd)
+{
+    switch (comnd)
+    {
+    case 0x25: // POINT
+        return true;
+    }
     return false;
 }
 
