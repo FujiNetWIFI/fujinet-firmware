@@ -87,7 +87,7 @@ void okimate10::okimate_handle_font()
                 charWidth = 7.2; //72.0 / 10.0;
                 break;
             }
-        // check and change color also for reverse
+        // check and change color
         if ((okimate_current_fnt_mask & 0xF0) != (okimate_new_fnt_mask & 0xF0))
         {
             for (int i = 0; i < 4; i++)
@@ -95,6 +95,14 @@ void okimate10::okimate_handle_font()
                 fprintf(_file, " %d", (okimate_new_fnt_mask >> (i + 4) & 0x01));
             }
             fprintf(_file, " k ");
+        }
+        // reset font color when leaving REVERSE mode
+        if ((okimate_current_fnt_mask & fnt_inverse) && !(okimate_new_fnt_mask & fnt_inverse))
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                fprintf(_file, " %d", (okimate_new_fnt_mask >> (i + 4) & 0x01));
+            }
         }
         okimate_current_fnt_mask = okimate_new_fnt_mask;
         if (okimate_current_fnt_mask & fnt_inverse)
