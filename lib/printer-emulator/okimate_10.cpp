@@ -191,7 +191,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.ctr = 0;
             okimate_cmd.cmd = c; // assign command char
 #ifdef DEBUG
-            Debug_printf("Command: %c\n", c);
+            Debug_printf("Command: %x\n", c);
 #endif
         }
         else
@@ -244,18 +244,21 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             intlFlag = false;
             reset_cmd();
             break;
-        case 37: // GRAPHICS MODE ON
+        case 0x25: // 37, '%': // GRAPHICS MODE ON
             if (okimate_cmd.ctr == 0)
             {
                 charWidth = 1.2;
                 fprintf(_file, ")]TJ /F2 12 Tf 100 Tz [("); // set font to GFX mode
                 fontUsed[1] = true;
                 textMode = false;
+#ifdef DEBUG
+                Debug_printf("Entering GFX mode\n");
+#endif
             }
-            else if (okimate_cmd.ctr > 0)
-            {
-                if (c == 0x91) // stop graphics mode command
+            else
+                switch (c)
                 {
+                case 0x91: // end gfx mode
                     // reset font
                     okimate_current_fnt_mask = 0xFF; // invalidate font mask
                     okimate_new_fnt_mask = 0x80;
@@ -265,18 +268,21 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 #ifdef DEBUG
                     Debug_printf("Finished GFX mode\n");
 #endif
-                }
-                else if (c == 0x9A) // repeat graphics command
-                {
+                    break;
+                case 0x9A: // repeat gfx char n times
                     // toss control over to the Direct Command switch statement
                     escMode = false;
                     cmdMode = true;
                     okimate_cmd.cmd = 0x9A;
                     okimate_cmd.ctr = 0;
-                }
-                else
+#ifdef DEBUG
+                    Debug_printf("Go to repeated gfx char\n");
+#endif
+                    break;
+                default:
                     print_7bit_gfx(c);
-            }
+                    break;
+                }
             break;
         case 0x36:             // '6'
             lineHeight = 12.0; //72.0/6.0;
@@ -308,7 +314,6 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         }
-        escMode = false;
     }
     else if (cmdMode)
     {
