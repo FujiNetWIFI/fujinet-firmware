@@ -29,6 +29,14 @@ void onTimer(void *info)
     portEXIT_CRITICAL_ISR(&timerMux);
 }
 
+string remove_spaces(const string &s)
+{
+  int last = s.size() - 1;
+  while (last >= 0 && s[last] == ' ')
+    --last;
+  return s.substr(0, last + 1);
+}
+
 /**
  * Allocate input/output buffers
  */
@@ -159,6 +167,8 @@ bool sioNetwork::parseURL()
         deviceSpec = prefix + string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
     else
         deviceSpec = string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
+    
+    deviceSpec = remove_spaces(deviceSpec);
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
 
