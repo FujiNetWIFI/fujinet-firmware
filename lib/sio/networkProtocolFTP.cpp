@@ -41,9 +41,9 @@ string networkProtocolFTP::ftpResult()
     string sbuf = string(buf);
     controlResponse = sbuf.substr(4);
 
-    Debug_printf("FTP Result: %s -  %s",sbuf.substr(0,2),sbuf.c_str());
+    Debug_printf("FTP Result: %s -  %s\n",sbuf.substr(0,3).c_str(),sbuf.c_str());
     
-    return sbuf.substr(0,2);
+    return sbuf.substr(0,3);
 }
 
 unsigned short networkProtocolFTP::parsePort(string response)
@@ -97,6 +97,9 @@ bool networkProtocolFTP::ftpLogin(EdUrlParser *urlParser)
 
     tmpPath = urlParser->path.substr(0, urlParser->path.find("*") - 1);
 
+    if (tmpPath.empty())
+        tmpPath = "/";
+
     Debug_printf("Type I OK.\nAttempting to CWD to \"%s\"\n", tmpPath.c_str());
 
     control.write("CWD ");
@@ -117,7 +120,7 @@ bool networkProtocolFTP::ftpLogin(EdUrlParser *urlParser)
             control.write(tmp.c_str());
             control.write("\r\n");
 
-            if (ftpResult()!="250")
+            if (ftpResult()=="250")
                 return true; // OK!
         }
         Debug_println("Failed CWD");
