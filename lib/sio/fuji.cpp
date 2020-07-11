@@ -494,7 +494,6 @@ void sioFuji::sio_get_adapter_config()
     }
     else
     {
-
         strncpy(adapterConfig.detail.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(adapterConfig.detail.hostname));
         strncpy(adapterConfig.detail.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(adapterConfig.detail.ssid));
         fnWiFi.get_current_bssid(adapterConfig.detail.bssid);

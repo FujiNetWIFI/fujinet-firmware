@@ -13,7 +13,7 @@ networkProtocolFTP::~networkProtocolFTP()
 {
 }
 
-bool networkProtocolFTP::ftpExpect(string resultCode)
+string networkProtocolFTP::ftpResult()
 {
     char buf[512];
     long tstart=fnSystem.millis();
@@ -22,7 +22,7 @@ bool networkProtocolFTP::ftpExpect(string resultCode)
     memset(buf, 0, sizeof(buf));
 
     if (!control.connected())
-        return false;
+        return "";
 
     while (tdur < 10000)
     {
@@ -32,20 +32,18 @@ bool networkProtocolFTP::ftpExpect(string resultCode)
         tdur = fnSystem.millis() - tstart;
     }
 
-    //int l = control.readBytesUntil('\n', buf, sizeof(buf));
     int l = control.read_until('\n', buf, sizeof(buf));
     Debug_printf("We got %d bytes back\n", l);
 
     if (l < 4)
-        return false;
+        return "";
 
     string sbuf = string(buf);
     controlResponse = sbuf.substr(4);
 
-    Debug_printf("Expect '%s', response: '%s'\n", resultCode.c_str(), sbuf.c_str());
-    // Debug_printf("Returning response: %s\n", controlResponse.c_str());
-
-    return sbuf.compare(0, 3, resultCode) == 0;
+    Debug_printf("FTP Result: %s -  %s\n",sbuf.substr(0,3).c_str(),sbuf.c_str());
+    
+    return sbuf.substr(0,3);
 }
 
 unsigned short networkProtocolFTP::parsePort(string response)
@@ -77,27 +75,30 @@ bool networkProtocolFTP::ftpLogin(EdUrlParser *urlParser)
         return false; // Error
 
     Debug_printf("Waiting for banner.\n");
-    if (!ftpExpect("220"))
+    if (ftpResult()!="220")
         return false; // error
 
     Debug_printf("Got user, sending USER.\n");
     control.write("USER anonymous\r\n");
-    if (!ftpExpect("331"))
+    if (ftpResult()!="331")
         return false;
 
     Debug_printf("User Ok, sending password.\n");
     control.write("PASS fujinet@fujinet.online\r\n");
-    if (!ftpExpect("230"))
+    if (ftpResult()!="230")
         return false;
 
     Debug_printf("Logged in.\n");
 
     Debug_printf("Setting type to IMAGE\n");
     control.write("TYPE I\r\n");
-    if (!ftpExpect("200"))
+    if (ftpResult()!="200")
         return false;
 
     tmpPath = urlParser->path.substr(0, urlParser->path.find("*") - 1);
+
+    if (tmpPath.empty())
+        tmpPath = "/";
 
     Debug_printf("Type I OK.\nAttempting to CWD to \"%s\"\n", tmpPath.c_str());
 
@@ -105,7 +106,7 @@ bool networkProtocolFTP::ftpLogin(EdUrlParser *urlParser)
     control.write(tmpPath.c_str());
     control.write("\r\n");
 
-    if (!ftpExpect("250"))
+    if (ftpResult()!="250")
     {
         // Trim off last part of filename, hopefully to just a dir path
         string tmp = tmpPath;
@@ -119,7 +120,7 @@ bool networkProtocolFTP::ftpLogin(EdUrlParser *urlParser)
             control.write(tmp.c_str());
             control.write("\r\n");
 
-            if (ftpExpect("250"))
+            if (ftpResult()=="250")
                 return true; // OK!
         }
         Debug_println("Failed CWD");
@@ -145,7 +146,7 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     Debug_printf("Attempting to get passive port\n");
     control.write("EPSV\r\n");
 
-    if (!ftpExpect("229"))
+    if (ftpResult()!="229")
         return false;
 
     dataPort = parsePort(controlResponse);
@@ -287,7 +288,7 @@ bool networkProtocolFTP::del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     control.write(urlParser->path.c_str());
     control.write("\r\n");
 
-    return ftpExpect("250");
+    return ftpResult()=="250";
 }
 
 bool networkProtocolFTP::mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
@@ -306,7 +307,7 @@ bool networkProtocolFTP::mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     control.write(urlParser->path.c_str());
     control.write("\r\n");
 
-    return ftpExpect("250");
+    return ftpResult()=="250";
 }
 
 bool networkProtocolFTP::rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
@@ -325,7 +326,7 @@ bool networkProtocolFTP::rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     control.write(urlParser->path.c_str());
     control.write("\r\n");
 
-    return ftpExpect("250");
+    return ftpResult()=="250";
 }
 
 bool networkProtocolFTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
@@ -359,15 +360,14 @@ bool networkProtocolFTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     control.write(rnFrom.c_str());
     control.write("\r\n");
 
-    if (!ftpExpect("350")==false)
+    if (ftpResult()=="350")
         return false;
 
     control.write("RNTO ");
     control.write(rnTo.c_str());
     control.write("\r\n");
 
-    return ftpExpect("250");
-    return true;
+    return ftpResult()=="250";
 }
 
 bool networkProtocolFTP::special(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
