@@ -55,8 +55,19 @@ void okimate10::reset_cmd()
     okimate_cmd.data = 0;
 }
 
+void okimate10::fprint_color_array(uint8_t font_mask)
+{
+    for (int i = 0; i < 4; i++)
+    {
+        fprintf(_file, " %d", (font_mask >> (i + 4) & 0x01));
+    }
+    fprintf(_file, " k ");
+}
+
 void okimate10::okimate_handle_font()
 {
+    // 10 CPI, 16.5 CPI, 5 CPI, 8.25 CPI
+    const double font_widths[] = {100., 100. * 80. / 132., 2. * 100., 2. * 100. * 80. / 132.};
     if ((okimate_current_fnt_mask != okimate_new_fnt_mask) || (okimate_new_fnt_mask & fnt_inverse))
     {
         fprintf(_file, ")]TJ\n ");
@@ -64,47 +75,20 @@ void okimate10::okimate_handle_font()
         if (okimate_current_fnt_mask == 0xFF)
             fprintf(_file, "/F1 12 Tf ");
         if ((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03))
-            switch (okimate_new_fnt_mask & 0x03)
-            {
-            case 0: // normal
-                fprintf(_file, "100 Tz");
-                charWidth = 7.2; //72.0 / 10.0;
-                break;
-            case 1: // fine
-                fprintf(_file, "60.606 Tz");
-                charWidth = 72.0 / 16.5;
-                break;
-            case 2: // wide
-                fprintf(_file, "200 Tz");
-                charWidth = 14.4; //72.0 / 5.0;
-                break;
-            case 3: // bold
-                fprintf(_file, "121.21 Tz");
-                charWidth = 72.0 / 8.25;
-                break;
-            default:
-                fprintf(_file, "100 Tz");
-                charWidth = 7.2; //72.0 / 10.0;
-                break;
-            }
-        // check and change color or reset font color when leaving REVERSE mode
+        {
+            double w = font_widths[okimate_new_fnt_mask & 0x03];
+            fprintf(_file, "%g Tz",w);
+            charWidth = w * 7.2/100.;
+        } // check and change color or reset font color when leaving REVERSE mode
         if (((okimate_current_fnt_mask & 0xF0) != (okimate_new_fnt_mask & 0xF0)) || ((okimate_current_fnt_mask & fnt_inverse) && !(okimate_new_fnt_mask & fnt_inverse)))
         {
-            for (int i = 0; i < 4; i++)
-            {
-                fprintf(_file, " %d", (okimate_new_fnt_mask >> (i + 4) & 0x01));
-            }
-            fprintf(_file, " k ");
+            fprint_color_array(okimate_new_fnt_mask);
         }
         okimate_current_fnt_mask = okimate_new_fnt_mask;
         if (okimate_current_fnt_mask & fnt_inverse)
         {
             // make a rectangle "x y l w re f"
-            for (int i = 0; i < 4; i++)
-            {
-                fprintf(_file, " %d", (okimate_current_fnt_mask >> (i + 4) & 0x01));
-            }
-            fprintf(_file, " k ");
+            fprint_color_array(okimate_current_fnt_mask);
             fprintf(_file, "%g %g %g 7 re f 0 0 0 0 k ", pdf_X + leftMargin, pdf_Y, charWidth);
         }
         fprintf(_file, " [(");
@@ -422,21 +406,14 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.cmd = c;
             okimate_cmd.ctr = 0;
             break;
-        // case 0x91: // not needed - implement in graphics handling in ESC mode state
-        //     // stop graphics mode
-        //     cmd_not_implemented(c);
-        //     break;
         case 0x92:                 // start REVERSE mode
             set_mode(fnt_inverse); // see clear_modes(), reverse clears at EOL
-            // cmd_not_implemented(c);
             break;
         case 0x93: // stop REVERSE mode
             clear_mode(fnt_inverse);
-            // cmd_not_implemented(c);
             break;
         case 0x99: // 0x99     Align Ribbon (for color mode)
-            cmd_not_implemented(c);
-            colorMode = true;
+            colorMode = CYAN;
             break;
         case 0x9A: // 0x9A n data - repeat graphics data n times
             cmdMode = true;
@@ -444,8 +421,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.ctr = 0;
             break;
         case 0x9B: // 0x9B     EOL for color mode
-            if (colorMode)
-                cmd_not_implemented(c);
+            colorMode++;
+            if (colorMode == PROCESS)
+            {
+            }
             break;
         default:
             okimate_handle_font();

@@ -36,6 +36,7 @@ protected:
     uint16_t okimate_cmd_ascii_to_int(uint8_t c);
     void set_mode(uint8_t m);
     void clear_mode(uint8_t m);
+    void fprint_color_array(uint8_t font_mask);
     void okimate_handle_font(); // change typeface and/or color
 
     virtual void pdf_clear_modes() override;
