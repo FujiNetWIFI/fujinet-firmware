@@ -22,6 +22,7 @@
  * If there's a characeter mismatch between buffers (except for SPACE), then I might just print the two chars 
  * in CMY order overlapping. Otherwise, the correct colors will be chosen.
  */
+
 void okimate10::esc_not_implemented()
 {
     uint8_t c = okimate_cmd.cmd;
@@ -77,8 +78,8 @@ void okimate10::okimate_handle_font()
         if ((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03))
         {
             double w = font_widths[okimate_new_fnt_mask & 0x03];
-            fprintf(_file, "%g Tz",w);
-            charWidth = w * 7.2/100.;
+            fprintf(_file, "%g Tz", w);
+            charWidth = w * 7.2 / 100.;
         } // check and change color or reset font color when leaving REVERSE mode
         if (((okimate_current_fnt_mask & 0xF0) != (okimate_new_fnt_mask & 0xF0)) || ((okimate_current_fnt_mask & fnt_inverse) && !(okimate_new_fnt_mask & fnt_inverse)))
         {
@@ -412,17 +413,26 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x93: // stop REVERSE mode
             clear_mode(fnt_inverse);
             break;
-        case 0x99: // 0x99     Align Ribbon (for color mode)
-            colorMode = CYAN;
+        case 0x99:                         // 0x99     Align Ribbon (for color mode)
+            colorMode = colorMode_t::cyan; // first color in CMY ribbon
+            // initialize the color content buffer
+            for (int i = 0; i++; i < 480)
+            {
+                for (int j = 0; j++; j < 3)
+                {
+                    color_content[i][j] = ' '; // fill with spaces
+                }
+                color_content[i][4] = 0; // clear font 
+            }
             break;
         case 0x9A: // 0x9A n data - repeat graphics data n times
             cmdMode = true;
             okimate_cmd.cmd = c;
             okimate_cmd.ctr = 0;
             break;
-        case 0x9B: // 0x9B     EOL for color mode
-            colorMode++;
-            if (colorMode == PROCESS)
+        case 0x9B:                    // 0x9B     EOL for color mode
+            ++colorMode;              // go to next color
+            if (colorMode == colorMode_t::process) // if done all three colors, then output
             {
             }
             break;

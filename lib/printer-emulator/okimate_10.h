@@ -15,7 +15,8 @@ protected:
     } okimate_cmd;
     bool cmdMode = false;
     bool escMode = false;
-    bool colorMode = false;
+
+    uint8_t color_content[480][4];
 
     const uint8_t fnt_compressed = 0x01;
     const uint8_t fnt_expanded = 0x02;

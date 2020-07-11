@@ -11,6 +11,21 @@
 
 #define MAXFONTS 12 // maximum number of fonts can use
 
+enum class colorMode_t
+{
+    off = 0,
+    cyan,
+    yellow,
+    magenta,
+    process
+};
+
+colorMode_t& operator++(colorMode_t& c)
+{
+    return c = (c == colorMode_t::process) ? colorMode_t::off : static_cast<colorMode_t>(static_cast<int>(c)+1);
+}
+
+
 class pdfPrinter : public printer_emu
 {
 protected:
@@ -38,14 +53,8 @@ protected:
     float pdf_dY = 0.; // used for linefeeds with pdf rise parameter
     bool TOPflag = true;
     bool textMode = true;
-    enum
-    {
-        OFF = 0,
-        CYAN,
-        YELLOW,
-        MAGENTA,
-        PROCESS
-    } colorMode = OFF;
+    colorMode_t colorMode = colorMode_t::off;
+
     int pageObjects[256];
     int pdf_pageCounter = 0.;
     size_t objLocations[256]; // reference table storage
