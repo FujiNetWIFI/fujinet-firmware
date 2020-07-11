@@ -75,7 +75,13 @@ void okimate10::okimate_handle_font()
         // check and change typeface
         if (okimate_current_fnt_mask == 0xFF)
             fprintf(_file, "/F1 12 Tf ");
-        if ((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03))
+        if ((okimate_new_fnt_mask & fnt_gfx) && !(okimate_current_fnt_mask & fnt_gfx))
+        {
+            charWidth = 1.2;
+            fprintf(_file, "/F2 12 Tf 100 Tz"); // set font to GFX mode
+            fontUsed[1] = true;
+        }
+        else if ((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03))
         {
             double w = font_widths[okimate_new_fnt_mask & 0x03];
             fprintf(_file, "%g Tz", w);
@@ -224,9 +230,15 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x25: // 37, '%': // GRAPHICS MODE ON
             if (okimate_cmd.ctr == 0)
             {
-                charWidth = 1.2;
-                fprintf(_file, ")]TJ /F2 12 Tf 100 Tz [("); // set font to GFX mode
-                fontUsed[1] = true;
+                set_mode(fnt_gfx);
+                clear_mode(fnt_compressed | fnt_inverse | fnt_expanded); // may not be necessary
+                // charWidth = 1.2;
+                // fprintf(_file, ")]TJ /F2 12 Tf 100 Tz [("); // set font to GFX mode
+                // fontUsed[1] = true;
+                if (colorMode == colorMode_t::off)
+                    okimate_handle_font();
+                else
+                    okimate_current_fnt_mask = okimate_new_fnt_mask;
                 textMode = false;
 #ifdef DEBUG
                 Debug_printf("Entering GFX mode\n");
@@ -239,7 +251,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     // reset font
                     okimate_current_fnt_mask = 0xFF; // invalidate font mask
                     okimate_new_fnt_mask = 0x80;
-                    okimate_handle_font();
+                    if (colorMode == colorMode_t::off)
+                        okimate_handle_font();
+                    else
+                        okimate_current_fnt_mask = okimate_new_fnt_mask;
                     textMode = true;
                     reset_cmd();
 #ifdef DEBUG
@@ -257,7 +272,14 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 #endif
                     break;
                 default:
-                    print_7bit_gfx(c);
+                    if (colorMode == colorMode_t::off)
+                        print_7bit_gfx(c);
+                    else
+                    {
+                        color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
+                        color_buffer[color_counter++][static_cast<int>(colorMode)] = c;
+                    }
+
                     break;
                 }
             break;
@@ -280,11 +302,17 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case 0x4c: // 'L'
-            set_line_long();
+            if (colorMode == colorMode_t::off)
+                set_line_long();
+            else
+                cmd_not_implemented(c);
             reset_cmd();
             break;
         case 0x53: // 'S'
-            set_line_short();
+            if (colorMode == colorMode_t::off)
+                set_line_short();
+            else
+                cmd_not_implemented(c);
             reset_cmd();
             break;
         default:
@@ -335,16 +363,29 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             if ((c < 48) || (c > 57) || (okimate_cmd.ctr == 3))
             {
                 uint16_t N = okimate_cmd_ascii_to_int(c);
-                charWidth = 1.2;
-                fprintf(_file, ")]TJ /F2 12 Tf 100 Tz [("); // set font to GFX mode
-                fontUsed[1] = true;
+                set_mode(fnt_gfx);
+                clear_mode(fnt_compressed | fnt_inverse | fnt_expanded); // may not be necessary
+                if (colorMode == colorMode_t::off)
+                    okimate_handle_font();
+                else
+                    okimate_current_fnt_mask = okimate_new_fnt_mask;
                 for (int i = 1; i < N; i++)
                 {
-                    fprintf(_file, " ");
+                    // if in color mode, store a ' ' in the buffer
+                    if (colorMode == colorMode_t::off)
+                        fprintf(_file, " ");
+                    else
+                    {
+                        color_buffer[color_counter][0] = okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
+                        color_buffer[color_counter++][static_cast<int>(colorMode)] = ' ';
+                    }
                 }
                 okimate_new_fnt_mask = okimate_current_fnt_mask; // reset font
                 okimate_current_fnt_mask = 0xFF;                 // invalidate font mask
-                okimate_handle_font();
+                if (colorMode == colorMode_t::off)
+                    okimate_handle_font();
+                else
+                    okimate_current_fnt_mask = okimate_new_fnt_mask;
                 textMode = true;
                 reset_cmd();
             }
@@ -355,7 +396,13 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             {
                 for (int i = 0; i < okimate_cmd.n; i++)
                 {
-                    print_7bit_gfx(okimate_cmd.data);
+                    if (colorMode == colorMode_t::off)
+                        print_7bit_gfx(okimate_cmd.data);
+                    else
+                    {
+                        color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
+                        color_buffer[color_counter++][static_cast<int>(colorMode)] = okimate_cmd.data;
+                    }
                 }
                 // toss control back over to ESC-37 graphics mode
                 cmdMode = false;
@@ -415,14 +462,15 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 0x99:                         // 0x99     Align Ribbon (for color mode)
             colorMode = colorMode_t::cyan; // first color in CMY ribbon
+            color_counter = 0;
             // initialize the color content buffer
-            for (int i = 0; i++; i < 480)
+            for (int i = 0; i++; i < 480) // max 480 dots per line
             {
-                for (int j = 0; j++; j < 3)
+                color_buffer[i][0] = 0; // clear font
+                for (int j = 1; j++; j < 4)
                 {
-                    color_content[i][j] = ' '; // fill with spaces
+                    color_buffer[i][j] = ' '; // fill with spaces
                 }
-                color_content[i][4] = 0; // clear font 
             }
             break;
         case 0x9A: // 0x9A n data - repeat graphics data n times
@@ -430,15 +478,24 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.cmd = c;
             okimate_cmd.ctr = 0;
             break;
-        case 0x9B:                    // 0x9B     EOL for color mode
-            ++colorMode;              // go to next color
+        case 0x9B:                                 // 0x9B     EOL for color mode
+            ++colorMode;                           // go to next color
             if (colorMode == colorMode_t::process) // if done all three colors, then output
             {
             }
             break;
         default:
-            okimate_handle_font();
-            print_char(c);
+            if (colorMode == colorMode_t::off)
+            {
+                okimate_handle_font();
+                print_char(c);
+            }
+            else
+            {
+                okimate_current_fnt_mask = okimate_new_fnt_mask;
+                color_buffer[color_counter][0] = okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
+                color_buffer[color_counter++][static_cast<int>(colorMode)] = c;
+            }
             break;
         }
     }
