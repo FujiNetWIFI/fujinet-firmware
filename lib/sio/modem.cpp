@@ -545,29 +545,6 @@ void sioModem::at_cmd_println(std::string s, bool addEol)
     fnUartSIO.flush();
 }
 
-void sioModem::at_cmd_println(in_addr_t ipa, bool addEol)
-{
-    //SIO_UART.print(ipa);
-    fnUartSIO.print(inet_ntoa(ipa));
-    if (addEol)
-    {
-        if (cmdAtascii == true)
-        {
-            //SIO_UART.write(ATASCII_EOL);
-            fnUartSIO.write(ATASCII_EOL);
-        }
-        else
-        {
-            //SIO_UART.write(ASCII_CR);
-            //SIO_UART.write(ASCII_LF);
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
-        }
-    }
-    //SIO_UART.flush();
-    fnUartSIO.flush();
-}
-
 void sioModem::at_handle_wificonnect()
 {
     int keyIndex = cmd.find(',');
