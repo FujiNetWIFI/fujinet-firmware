@@ -187,7 +187,7 @@ void sioModem::sio_send_firmware(uint8_t loadcommand)
 
     // Free the buffer!
     free(code);
-    DTR=XMT=RTS=0;
+    DTR = XMT = RTS = 0;
 }
 
 // 0x57 / 'W' - WRITE
