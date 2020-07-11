@@ -22,6 +22,7 @@ protected:
     float pageWidth;
     float pageHeight;
     float leftMargin;
+    float topMargin = 0.0;
     float bottomMargin;
     float printWidth;
     float lineHeight;
