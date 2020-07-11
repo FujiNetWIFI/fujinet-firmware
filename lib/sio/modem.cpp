@@ -194,7 +194,6 @@ void sioModem::sio_send_firmware(uint8_t loadcommand)
 void sioModem::sio_write()
 {
     uint8_t ck;
-    int oldBaudRate;
 #ifdef DEBUG
     Debug_println("Modem cmd: WRITE");
 #endif
