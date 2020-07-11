@@ -215,10 +215,6 @@ void sioModem::sio_write()
         }
         else
         {
-            // oldBaudRate=SIO.getBaudrate();
-            // fnUartSIO.set_baudrate(modemBaud);
-            // fnUartSIO.write(txBuf,cmdFrame.aux1);
-            // fnUartSIO.set_baudrate(oldBaudRate);
             sio_complete();
         }
     }
