@@ -33,7 +33,6 @@
 */
 #define DELAY_FIRMWARE_DELIVERY 5000
 
-
 /*
     If buffer is NULL, simply returns size of file
 */
@@ -188,11 +187,14 @@ void sioModem::sio_send_firmware(uint8_t loadcommand)
 
     // Free the buffer!
     free(code);
+    DTR=XMT=RTS=0;
 }
 
 // 0x57 / 'W' - WRITE
 void sioModem::sio_write()
 {
+    uint8_t ck;
+    int oldBaudRate;
 #ifdef DEBUG
     Debug_println("Modem cmd: WRITE");
 #endif
@@ -200,8 +202,27 @@ void sioModem::sio_write()
        AUX2: NA
        Payload always padded to 64 bytes
     */
-    // For now, just complete
-    sio_complete();
+    if (cmdFrame.aux1 == 0)
+    {
+        sio_complete();
+    }
+    else
+    {
+        ck = sio_to_peripheral(txBuf, 64);
+
+        if (ck != sio_checksum(txBuf, 64))
+        {
+            sio_error();
+        }
+        else
+        {
+            // oldBaudRate=SIO.getBaudrate();
+            // fnUartSIO.set_baudrate(modemBaud);
+            // fnUartSIO.write(txBuf,cmdFrame.aux1);
+            // fnUartSIO.set_baudrate(oldBaudRate);
+            sio_complete();
+        }
+    }
 }
 
 // 0x53 / 'S' - STATUS
@@ -626,7 +647,7 @@ void sioModem::at_handle_get()
     else
     {
         //port = cmd.substring(portIndex + 1, pathIndex).toInt();
-        port = std::stoi(cmd.substr(portIndex + 1, pathIndex - (portIndex + 1)  + 1));
+        port = std::stoi(cmd.substr(portIndex + 1, pathIndex - (portIndex + 1) + 1));
     }
     //host = cmd.substring(12, portIndex);
     host = cmd.substr(12, portIndex - 12 + 1);

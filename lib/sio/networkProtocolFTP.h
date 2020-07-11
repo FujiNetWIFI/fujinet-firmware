@@ -35,7 +35,7 @@ private:
     unsigned char aux1;
 
     bool ftpLogin(EdUrlParser *urlParser);
-    bool ftpExpect(string resultCode);
+    string ftpResult();
     unsigned short parsePort(string response);
 };
 

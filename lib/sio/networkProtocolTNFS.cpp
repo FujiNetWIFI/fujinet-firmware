@@ -154,8 +154,18 @@ bool networkProtocolTNFS::status(uint8_t *status_buf)
 unsigned char networkProtocolTNFS::status_dir()
 {
     char tmp[256];
+    string path_fixed;
     string entry;
     int res;
+    size_t fix_pos;
+
+    path_fixed = path;
+    fix_pos = path_fixed.find("*");
+
+    if (fix_pos != string::npos)
+    {
+        path_fixed = path_fixed.substr(0, fix_pos);
+    }
 
     memset(tmp, 0, sizeof(tmp));
 
@@ -168,11 +178,14 @@ unsigned char networkProtocolTNFS::status_dir()
             if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
                 tmp[strlen(tmp)] = 0x00;
-                entry = "/" + path + tmp;
+#ifdef DEBUG
+                Debug_printf("path: %s - tmp: %s\n", path.c_str(), tmp);
+#endif
+                entry = "/" + path_fixed + tmp;
 
                 // tnfs_stat(&mountInfo, &fileStat, entry.c_str());
 
-                if (aux2 == 128) // extended dir
+                if (aux2 & 0x80) // extended dir
                 {
                     if (fileStat.isDir)
                     {
@@ -181,7 +194,7 @@ unsigned char networkProtocolTNFS::status_dir()
                     }
 
                     entry = tmp;
-                    entry = util_long_entry(entry,fileStat.filesize);
+                    entry = util_long_entry(entry, fileStat.filesize);
                 }
                 else // 8.3 with sectors
                 {
@@ -190,12 +203,12 @@ unsigned char networkProtocolTNFS::status_dir()
                     if (strcmp(tmp, ".") == 0)
                         entry.replace(2, 1, ".");
                     else if (strcmp(tmp, "..") == 0)
-                        entry.replace(2, 1, "..");
+                        entry.replace(2, 2, "..");
 
                     if (fileStat.isDir)
                         entry.replace(10, 3, "DIR");
                 }
-                
+
                 entry += "\x9b";
                 strcpy(entryBuf, entry.c_str());
                 return (unsigned char)strlen(entryBuf);
@@ -207,7 +220,7 @@ unsigned char networkProtocolTNFS::status_dir()
         if (dirEOF == false)
         {
             dirEOF = true;
-            strcpy(entryBuf, "000 FREE SECTORS\x9b");
+            strcpy(entryBuf, "999+FREE SECTORS\x9b");
         }
     }
 
@@ -221,6 +234,26 @@ bool networkProtocolTNFS::special(uint8_t *sp_buf, unsigned short len, cmdFrame_
 
 bool networkProtocolTNFS::special_supported_00_command(unsigned char comnd)
 {
+    return false;
+}
+
+bool networkProtocolTNFS::special_supported_40_command(unsigned char comnd)
+{
+    switch (comnd)
+    {
+    case 0x26: // NOTE
+        return true;
+    }
+    return false;
+}
+
+bool networkProtocolTNFS::special_supported_80_command(unsigned char comnd)
+{
+    switch (comnd)
+    {
+    case 0x25: // POINT
+        return true;
+    }
     return false;
 }
 

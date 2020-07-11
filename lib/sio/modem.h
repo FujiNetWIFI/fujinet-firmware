@@ -74,25 +74,24 @@ private:
     bool cmdAtascii = false;       // last CMD contained an ATASCII EOL?
     bool telnet = false;           // Is telnet control code handling enabled
     unsigned short listenPort = 0; // Listen to this if not connected. Set to zero to disable.
-    fnTcpClient tcpClient;          // Modem client
-    fnTcpServer tcpServer;          // Modem server
+    fnTcpClient tcpClient;         // Modem client
+    fnTcpServer tcpServer;         // Modem server
     unsigned long lastRingMs = 0;  // Time of last "RING" message (millis())
     char plusCount = 0;            // Go to AT mode at "+++" sequence, that has to be counted
     unsigned long plusTime = 0;    // When did we last receive a "+++" sequence
     uint8_t txBuf[TX_BUF_SIZE];
-    bool blockWritePending = false; // is a BLOCK WRITE pending for the modem?
-    uint8_t *blockPtr;                 // pointer in the block write (points somewhere in sector)
+    
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
-    void sio_poll_1();                        // $3F, '?', Type 1 Poll
-    void sio_control();                       // $41, 'A', Control
-    void sio_config();                        // $42, 'B', Configure
-    void sio_listen();                        // $4C, 'L', Listen
-    void sio_unlisten();                      // $4D, 'M', Unlisten
-    void sio_status() override;               // $53, 'S', Status
-    void sio_write();                         // $57, 'W', Write
-    void sio_stream();                        // $58, 'X', Concurrent/Stream
-    void sio_process() override;              // Process the command
+    void sio_poll_1();                           // $3F, '?', Type 1 Poll
+    void sio_control();                          // $41, 'A', Control
+    void sio_config();                           // $42, 'B', Configure
+    void sio_listen();                           // $4C, 'L', Listen
+    void sio_unlisten();                         // $4D, 'M', Unlisten
+    void sio_status() override;                  // $53, 'S', Status
+    void sio_write();                            // $57, 'W', Write
+    void sio_stream();                           // $58, 'X', Concurrent/Stream
+    void sio_process() override;                 // Process the command
 
     void modemCommand(); // Execute modem AT command
 
