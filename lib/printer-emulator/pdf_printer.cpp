@@ -370,7 +370,7 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
         //         Debug_print(c, HEX);
         // #endif
 
-        if (!textMode || colorMode)
+        if (!textMode || static_cast<bool>(colorMode))
         {
             pdf_handle_char(c, aux1, aux2);
         }
