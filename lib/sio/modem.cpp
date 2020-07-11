@@ -215,6 +215,17 @@ void sioModem::sio_write()
         }
         else
         {
+            if (cmdMode == true)
+            {
+                cmd = (char *)txBuf;
+                modemCommand();
+            }
+            else
+            {
+                if (tcpClient.connected())
+                    tcpClient.write(txBuf, cmdFrame.aux1);
+            }
+
             sio_complete();
         }
     }
@@ -288,7 +299,12 @@ void sioModem::sio_control()
         Debug_println(DTR);
 #endif
         if (DTR == 0 && tcpClient.connected())
+        {
             tcpClient.stop(); // Hang up if DTR drops.
+
+            if (listenPort > 0)
+                tcpServer.begin(listenPort); // and re-listen if listenPort set.
+        }
     }
     // for now, just complete
     sio_complete();
