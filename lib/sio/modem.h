@@ -100,7 +100,6 @@ private:
     void at_cmd_println(const char *s, bool addEol = true);
     void at_cmd_println(int i, bool addEol = true);
     void at_cmd_println(std::string s, bool addEol = true);
-    void at_cmd_println(in_addr_t ipa, bool addEol = true);
 
     // Command handlers
     void at_handle_dial();
