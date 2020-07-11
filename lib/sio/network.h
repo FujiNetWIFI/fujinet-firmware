@@ -42,8 +42,8 @@ private:
     void start_timer();
 
 protected:
-
-    union {
+    union
+    {
         struct
         {
             unsigned short rx_buf_len;
@@ -54,7 +54,7 @@ protected:
     } status_buf;
 
     unsigned char previous_connection_status;
-    
+
 public:
     virtual void sio_open();
     virtual void sio_close();
@@ -99,6 +99,16 @@ private:
     string prefix;
     string initial_prefix;
     char filespecBuf[256];
+
+    union
+    {
+        struct
+        {
+            unsigned short sector;
+            unsigned short offset;
+        };
+        uint8_t rawData[3];
+    } note_pos;
 
     bool parseURL();
     bool isValidURL(EdUrlParser *url);
