@@ -41,7 +41,9 @@ protected:
     enum
     {
         OFF = 0,
-        GATHER,
+        CYAN,
+        YELLOW,
+        MAGENTA,
         PROCESS
     } colorMode = OFF;
     int pageObjects[256];
