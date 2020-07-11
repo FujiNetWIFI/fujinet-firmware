@@ -291,6 +291,8 @@ void sioModem::sio_control()
         Debug_print("DTR=");
         Debug_println(DTR);
 #endif
+        if (DTR == 0 && tcpClient.connected())
+            tcpClient.stop(); // Hang up if DTR drops.
     }
     // for now, just complete
     sio_complete();
