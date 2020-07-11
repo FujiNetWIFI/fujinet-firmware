@@ -38,6 +38,12 @@ protected:
     float pdf_dY = 0.; // used for linefeeds with pdf rise parameter
     bool TOPflag = true;
     bool textMode = true;
+    enum
+    {
+        OFF = 0,
+        GATHER,
+        PROCESS
+    } colorMode = OFF;
     int pageObjects[256];
     int pdf_pageCounter = 0.;
     size_t objLocations[256]; // reference table storage
