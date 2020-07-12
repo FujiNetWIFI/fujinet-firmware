@@ -944,7 +944,20 @@ void sioModem::modemCommand()
             "ATV1",
             "AT&F",
             "ATS0=0",
-            "ATS0=1"};
+            "ATS0=1",
+            "ATS2=43",
+            "ATS5=8",
+            "ATS6=2",
+            "ATS7=30",
+            "ATS12=20",
+            "ATE0",
+            "ATE1",
+            "ATM0",
+            "ATM1",
+            "ATX1",
+            "AT&C1",
+            "AT&D2",
+            "AT&W"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -1067,12 +1080,6 @@ void sioModem::modemCommand()
         at_cmd_println("OK");
         numericResultCode = false;
         break;
-    case AT_ANDF: // These all fall through.
-        if (numericResultCode == true)
-            at_cmd_resultCode(RESULT_CODE_OK);
-        else
-            at_cmd_println("OK");
-        break;
     case AT_S0E0:
         autoAnswer = false;
         if (numericResultCode == true)
@@ -1082,6 +1089,37 @@ void sioModem::modemCommand()
         break;
     case AT_S0E1:
         autoAnswer = true;
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_E0:
+        commandEcho = false;
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_E1:
+        commandEcho = true;
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_ANDF: // These are all ignored.
+    case AT_S2E43:
+    case AT_S5E8:
+    case AT_S6E2:
+    case AT_S7E30:
+    case AT_S12E20:
+    case AT_M0:
+    case AT_M1:
+    case AT_X1:
+    case AT_AC1:
+    case AT_AD2:
+    case AT_AW:
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1153,27 +1191,26 @@ void sioModem::sio_handle_modem()
                 cmd.erase(cmd.length() - 1);
                 // We don't assume that backspace is destructive
                 // Clear with a space
-                //SIO_UART.write(ASCII_BACKSPACE);
-                //SIO_UART.write(' ');
-                //SIO_UART.write(ASCII_BACKSPACE);
-                fnUartSIO.write(ASCII_BACKSPACE);
-                fnUartSIO.write(' ');
-                fnUartSIO.write(ASCII_BACKSPACE);
+                if (commandEcho == true)
+                {
+                    fnUartSIO.write(ASCII_BACKSPACE);
+                    fnUartSIO.write(' ');
+                    fnUartSIO.write(ASCII_BACKSPACE);
+                }
             }
             else if (chr == ATASCII_BACKSPACE)
             {
                 // ATASCII backspace
-                //cmd.remove(cmd.length() - 1);
                 cmd.erase(cmd.length() - 1);
-                //SIO_UART.write(ATASCII_BACKSPACE);   // we can assume ATASCII BS is destructive.
-                fnUartSIO.write(ATASCII_BACKSPACE);
+                if (commandEcho == true)
+                    fnUartSIO.write(ATASCII_BACKSPACE);
             }
             // Take into account arrow key movement and clear screen
             else if (chr == ATASCII_CLEAR_SCREEN ||
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
-                //SIO_UART.write(chr);
-                fnUartSIO.write(chr);
+                if (commandEcho == true)
+                    fnUartSIO.write(chr);
             }
             else
             {
@@ -1182,8 +1219,8 @@ void sioModem::sio_handle_modem()
                     //cmd.concat(chr);
                     cmd += chr;
                 }
-                //SIO_UART.write(chr);
-                fnUartSIO.write(chr);
+                if (commandEcho == true)
+                    fnUartSIO.write(chr);
             }
         }
     }
