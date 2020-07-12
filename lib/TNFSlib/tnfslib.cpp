@@ -1,5 +1,5 @@
-#include <string.h>
 #include <memory>
+#include <string.h>
 
 #include "tnfslib.h"
 #include "../tcpip/fnUDP.h"
@@ -832,13 +832,33 @@ int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory)
     if (m_info == nullptr || directory == nullptr)
         return -1;
 
+#define OFFSET_OPENDIRX_DIROPT 0
+#define OFFSET_OPENDIRX_SORTOPT 1
+#define OFFSET_OPENDIRX_MAXRESULTS 2
+#define OFFSET_OPENDIRX_PATTERN 4
+
+// Number of bytes before the two null-terminated strings start
+#define OPENDIRX_HEADERBYTES 4
+
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPENDIRX;
-    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, directory, sizeof(packet.payload));
+    packet.payload[OFFSET_OPENDIRX_DIROPT] = 0;
+    packet.payload[OFFSET_OPENDIRX_SORTOPT] = 0;
+    packet.payload[OFFSET_OPENDIRX_MAXRESULTS] = TNFS_LOBYTE_FROM_UINT16(0);
+    packet.payload[OFFSET_OPENDIRX_MAXRESULTS + 1] = TNFS_HIBYTE_FROM_UINT16(0);
 
-    Debug_printf("TNFS open directory: \"%s\"\n", (char *)packet.payload);
+    strncpy((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN), "",
+        sizeof(packet.payload) - OPENDIRX_HEADERBYTES - 1);
 
-    if (_tnfs_transaction(m_info, packet, len + 1))
+    int pathoffset = strlen((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN)) + OPENDIRX_HEADERBYTES + 1;
+
+    int len = _tnfs_adjust_with_full_path(m_info, 
+        (char *)(packet.payload + pathoffset), directory, sizeof(packet.payload) - pathoffset);
+
+    Debug_printf("TNFS open directory: 0x%02x 0x%02x 0x%04x \"%s\" \"%s\"\n",
+     0, 0, 0, (char *)(packet.payload + OFFSET_OPENDIRX_PATTERN), (char *)(packet.payload + pathoffset));
+
+    if (_tnfs_transaction(m_info, packet, pathoffset + len + 1))
     {
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
