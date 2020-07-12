@@ -310,8 +310,8 @@ void sioModem::sio_control()
 
             if (listenPort > 0)
             {
-                tcpServer.stop();
-                tcpServer.begin(listenPort); // and re-listen if listenPort set.
+                // tcpServer.stop();
+                // tcpServer.begin(listenPort); // and re-listen if listenPort set.
             }
         }
     }
@@ -454,7 +454,10 @@ void sioModem::sio_stream()
 void sioModem::sio_listen()
 {
     if (listenPort != 0)
+    {
+        tcpClient.stop();
         tcpServer.stop();
+    }
 
     listenPort = cmdFrame.aux2 * 256 + cmdFrame.aux1;
 
@@ -463,7 +466,7 @@ void sioModem::sio_listen()
     else
         sio_ack();
 
-    tcpServer.begin(listenPort);
+//    tcpServer.begin(listenPort);
 
     sio_complete();
 }
@@ -474,6 +477,7 @@ void sioModem::sio_listen()
 void sioModem::sio_unlisten()
 {
     sio_ack();
+    tcpClient.stop();
     tcpServer.stop();
     sio_complete();
 }
@@ -673,6 +677,7 @@ void sioModem::at_handle_port()
     {
         if (listenPort != 0)
         {
+            tcpClient.stop();
             tcpServer.stop();
         }
 
@@ -836,7 +841,7 @@ void sioModem::at_handle_answer()
     {
         tcpClient = tcpServer.available();
         tcpClient.setNoDelay(true); // try to disable naggle
-        tcpServer.stop();
+//        tcpServer.stop();
         if (numericResultCode == true)
             at_connect_resultCode(modemBaud);
         else
@@ -909,7 +914,9 @@ void sioModem::at_handle_dial()
 
             cmdMode = false;
             if (listenPort > 0)
-                tcpServer.stop();
+            {
+//                tcpServer.stop();
+            }
         }
         else
         {
@@ -1025,8 +1032,8 @@ void sioModem::modemCommand()
                 at_cmd_println("NO CARRIER");
             if (listenPort > 0)
             {
-                tcpServer.stop();
-                tcpServer.begin();
+//                tcpServer.stop();
+//                tcpServer.begin(listenPort);
             }
         }
         else
@@ -1345,8 +1352,8 @@ void sioModem::sio_handle_modem()
             at_cmd_println("NO CARRIER");
         if (listenPort > 0)
         {
-            tcpServer.stop();
-            tcpServer.begin();
+            // tcpServer.stop();
+            // tcpServer.begin(listenPort);
         }
     }
     else if ((!tcpClient.connected()) && (cmdMode == false))
@@ -1358,8 +1365,8 @@ void sioModem::sio_handle_modem()
             at_cmd_println("NO CARRIER");
         if (listenPort > 0)
         {
-            tcpServer.stop();
-            tcpServer.begin();
+            // tcpServer.stop();
+            // tcpServer.begin(listenPort);
         }
     }
 }
