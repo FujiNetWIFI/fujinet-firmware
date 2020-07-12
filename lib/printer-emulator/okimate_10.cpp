@@ -484,9 +484,14 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.ctr = 0;
             break;
         case 0x9B:                                 // 0x9B     EOL for color mode
-            colorMode++;                           // go to next color
             if (colorMode == colorMode_t::process) // if done all three colors, then output
             {
+                // output the color buffer and reset the colorMode state var
+                colorMode = colorMode_t::off;
+            }
+            else
+            {
+                colorMode = static_cast<colorMode_t>(static_cast<int>(colorMode) + 1); // increment colorMode
             }
             break;
         default:
