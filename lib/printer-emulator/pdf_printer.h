@@ -20,12 +20,6 @@ enum class colorMode_t
     process
 };
 
-colorMode_t& operator++(colorMode_t& c)
-{
-    return c = (c == colorMode_t::process) ? colorMode_t::off : static_cast<colorMode_t>(static_cast<int>(c)+1);
-}
-
-
 class pdfPrinter : public printer_emu
 {
 protected:
