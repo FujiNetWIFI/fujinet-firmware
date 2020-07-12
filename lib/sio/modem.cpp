@@ -826,6 +826,27 @@ void sioModem::at_handle_wifilist()
         at_cmd_println("OK");
 }
 
+void sioModem::at_handle_answer()
+{
+    if (tcpServer.hasClient())
+    {
+        tcpClient = tcpServer.available();
+        tcpClient.setNoDelay(true); // try to disable naggle
+        tcpServer.stop();
+        if (numericResultCode == true)
+            at_connect_resultCode(modemBaud);
+        else
+        {
+            at_cmd_println("CONNECT ", false);
+            at_cmd_println(modemBaud);
+            /* code */
+        }
+
+        cmdMode = false;
+        fnUartSIO.flush();
+    }
+}
+
 void sioModem::at_handle_dial()
 {
     int portIndex = cmd.find(':');
@@ -911,6 +932,7 @@ void sioModem::modemCommand()
             "AT?",
             "ATH",
             "+++ATH",
+            "ATH1",
             "ATDT",
             "ATDP",
             "ATDI",
@@ -919,7 +941,10 @@ void sioModem::modemCommand()
             "ATGET",
             "ATPORT",
             "ATV0",
-            "ATV1"};
+            "ATV1",
+            "AT&F",
+            "ATS0=0",
+            "ATS0=1"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -972,6 +997,7 @@ void sioModem::modemCommand()
         break;
     // hangup
     case AT_H:
+    case AT_H1:
     case AT_H2:
         tcpClient.flush();
         tcpClient.stop();
@@ -1011,23 +1037,7 @@ void sioModem::modemCommand()
             at_cmd_println("OK");
         break;
     case AT_A:
-        if (tcpServer.hasClient())
-        {
-            tcpClient = tcpServer.available();
-            tcpClient.setNoDelay(true); // try to disable naggle
-            tcpServer.stop();
-            if (numericResultCode == true)
-                at_connect_resultCode(modemBaud);
-            else
-            {
-                at_cmd_println("CONNECT ", false);
-                at_cmd_println(modemBaud);
-                /* code */
-            }
-
-            cmdMode = false;
-            fnUartSIO.flush();
-        }
+        at_handle_answer();
         break;
     // See my IP address
     case AT_IP:
@@ -1057,6 +1067,26 @@ void sioModem::modemCommand()
         at_cmd_println("OK");
         numericResultCode = false;
         break;
+    case AT_ANDF: // These all fall through.
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_S0E0:
+        autoAnswer = false;
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_S0E1:
+        autoAnswer = true;
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
     default:
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_ERROR);
@@ -1079,14 +1109,21 @@ void sioModem::sio_handle_modem()
         // In command mode but new unanswered incoming connection on server listen socket
         if ((listenPort > 0) && (tcpServer.hasClient()))
         {
-            // Print RING every now and then while the new incoming connection exists
-            if ((fnSystem.millis() - lastRingMs) > RING_INTERVAL)
+            if (autoAnswer == true)
             {
-                if (numericResultCode == true)
-                    at_cmd_resultCode(RESULT_CODE_RING);
-                else
-                    at_cmd_println("RING");
-                lastRingMs = fnSystem.millis();
+                at_handle_answer();
+            }
+            else
+            {
+                // Print RING every now and then while the new incoming connection exists
+                if ((fnSystem.millis() - lastRingMs) > RING_INTERVAL)
+                {
+                    if (numericResultCode == true)
+                        at_cmd_resultCode(RESULT_CODE_RING);
+                    else
+                        at_cmd_println("RING");
+                    lastRingMs = fnSystem.millis();
+                }
             }
         }
 

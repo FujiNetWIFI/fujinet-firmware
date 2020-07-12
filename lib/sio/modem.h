@@ -63,6 +63,7 @@ private:
         AT_IP,
         AT_HELP,
         AT_H,
+        AT_H1,
         AT_H2,
         AT_DT,
         AT_DP,
@@ -73,6 +74,9 @@ private:
         AT_PORT,
         AT_V0,
         AT_V1,
+        AT_ANDF,
+        AT_S0E0,
+        AT_S0E1,
         AT_ENUMCOUNT
     };
 
@@ -98,6 +102,7 @@ private:
     uint8_t txBuf[TX_BUF_SIZE];
     bool cmdOutput=true;            // toggle whether to emit command output
     bool numericResultCode=false;   // Use numeric result codes? (ATV0)
+    bool autoAnswer=false;          // Auto answer? (ATS0?)
     
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
@@ -122,6 +127,7 @@ private:
     void at_cmd_println(std::string s, bool addEol = true);
 
     // Command handlers
+    void at_handle_answer();
     void at_handle_dial();
     void at_handle_wifilist();
     void at_handle_wificonnect();
