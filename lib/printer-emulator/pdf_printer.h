@@ -15,8 +15,8 @@ enum class colorMode_t
 {
     off = 0,
     cyan,
-    yellow,
     magenta,
+    yellow,
     process
 };
 
