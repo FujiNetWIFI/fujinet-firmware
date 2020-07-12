@@ -207,6 +207,8 @@ void sioModem::sio_write()
     }
     else
     {
+        memset(txBuf,0,sizeof(txBuf));
+
         ck = sio_to_peripheral(txBuf, 64);
 
         if (ck != sio_checksum(txBuf, 64))
@@ -217,8 +219,12 @@ void sioModem::sio_write()
         {
             if (cmdMode == true)
             {
+                cmdOutput=false;
                 cmd = (char *)txBuf;
                 modemCommand();
+                fnUartSIO.flush();
+                fnUartSIO.flush_input();
+                cmdOutput=true;
             }
             else
             {
@@ -474,88 +480,81 @@ void sioModem::sio_unlisten()
 */
 void sioModem::at_cmd_println()
 {
+    if (cmdOutput==false)
+        return;
+
     if (cmdAtascii == true)
     {
-        //SIO_UART.write(ATASCII_EOL);
         fnUartSIO.write(ATASCII_EOL);
     }
     else
     {
-        //SIO_UART.write(ASCII_CR);
-        //SIO_UART.write(ASCII_LF);
         fnUartSIO.write(ASCII_CR);
         fnUartSIO.write(ASCII_LF);
     }
-    //SIO_UART.flush();
     fnUartSIO.flush();
 }
 
 void sioModem::at_cmd_println(const char *s, bool addEol)
 {
-    //SIO_UART.print(s);
+    if (cmdOutput==false)
+        return;
+
     fnUartSIO.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            //SIO_UART.write(ATASCII_EOL);
             fnUartSIO.write(ATASCII_EOL);
         }
         else
         {
-            //SIO_UART.write(ASCII_CR);
-            //SIO_UART.write(ASCII_LF);
             fnUartSIO.write(ASCII_CR);
             fnUartSIO.write(ASCII_LF);
         }
     }
-    //SIO_UART.flush();
     fnUartSIO.flush();
 }
 
 void sioModem::at_cmd_println(int i, bool addEol)
 {
-    //SIO_UART.print(i);
+    if (cmdOutput==false)
+        return;
+
     fnUartSIO.print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            //SIO_UART.write(ATASCII_EOL);
             fnUartSIO.write(ATASCII_EOL);
         }
         else
         {
-            //SIO_UART.write(ASCII_CR);
-            //SIO_UART.write(ASCII_LF);
             fnUartSIO.write(ASCII_CR);
             fnUartSIO.write(ASCII_LF);
         }
     }
-    //SIO_UART.flush();
     fnUartSIO.flush();
 }
 
 void sioModem::at_cmd_println(std::string s, bool addEol)
 {
-    //SIO_UART.print(s);
+    if (cmdOutput==false)
+        return;
+
     fnUartSIO.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            //SIO_UART.write(ATASCII_EOL);
             fnUartSIO.write(ATASCII_EOL);
         }
         else
         {
-            //SIO_UART.write(ASCII_CR);
-            //SIO_UART.write(ASCII_LF);
             fnUartSIO.write(ASCII_CR);
             fnUartSIO.write(ASCII_LF);
         }
     }
-    //SIO_UART.flush();
     fnUartSIO.flush();
 }
 

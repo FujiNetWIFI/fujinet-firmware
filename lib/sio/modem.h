@@ -80,6 +80,7 @@ private:
     char plusCount = 0;            // Go to AT mode at "+++" sequence, that has to be counted
     unsigned long plusTime = 0;    // When did we last receive a "+++" sequence
     uint8_t txBuf[TX_BUF_SIZE];
+    bool cmdOutput=true;            // toggle whether to emit command output
     
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
