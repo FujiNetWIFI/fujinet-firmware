@@ -207,7 +207,7 @@ void sioModem::sio_write()
     }
     else
     {
-        memset(txBuf,0,sizeof(txBuf));
+        memset(txBuf, 0, sizeof(txBuf));
 
         ck = sio_to_peripheral(txBuf, 64);
 
@@ -219,12 +219,12 @@ void sioModem::sio_write()
         {
             if (cmdMode == true)
             {
-                cmdOutput=false;
+                cmdOutput = false;
                 cmd = (char *)txBuf;
                 modemCommand();
                 fnUartSIO.flush();
                 fnUartSIO.flush_input();
-                cmdOutput=true;
+                cmdOutput = true;
             }
             else
             {
@@ -475,12 +475,53 @@ void sioModem::sio_unlisten()
     sio_complete();
 }
 
+void sioModem::at_connect_resultCode(int modemBaud)
+{
+    int resultCode = 0;
+    switch (modemBaud)
+    {
+    case 300:
+        resultCode = 1;
+        break;
+    case 1200:
+        resultCode = 5;
+        break;
+    case 2400:
+        resultCode = 10;
+        break;
+    case 4800:
+        resultCode = 18;
+        break;
+    case 9600:
+        resultCode = 13;
+        break;
+    case 19200:
+        resultCode = 85;
+        break;
+    default:
+        resultCode = 1;
+        break;
+    }
+    fnUartSIO.print(resultCode);
+    fnUartSIO.write(ASCII_CR);
+}
+
+/**
+ * Emit result code if ATV0
+ * No Atascii translation here, as this is intended for machine reading.
+ */
+void sioModem::at_cmd_resultCode(int resultCode)
+{
+    fnUartSIO.print(resultCode);
+    fnUartSIO.write(ASCII_CR);
+}
+
 /**
    replacement println for AT that is CR/EOL aware
 */
 void sioModem::at_cmd_println()
 {
-    if (cmdOutput==false)
+    if (cmdOutput == false)
         return;
 
     if (cmdAtascii == true)
@@ -497,7 +538,7 @@ void sioModem::at_cmd_println()
 
 void sioModem::at_cmd_println(const char *s, bool addEol)
 {
-    if (cmdOutput==false)
+    if (cmdOutput == false)
         return;
 
     fnUartSIO.print(s);
@@ -518,7 +559,7 @@ void sioModem::at_cmd_println(const char *s, bool addEol)
 
 void sioModem::at_cmd_println(int i, bool addEol)
 {
-    if (cmdOutput==false)
+    if (cmdOutput == false)
         return;
 
     fnUartSIO.print(i);
@@ -539,7 +580,7 @@ void sioModem::at_cmd_println(int i, bool addEol)
 
 void sioModem::at_cmd_println(std::string s, bool addEol)
 {
-    if (cmdOutput==false)
+    if (cmdOutput == false)
         return;
 
     fnUartSIO.print(s);
@@ -590,9 +631,27 @@ void sioModem::at_handle_wificonnect()
         at_cmd_println(".", false);
     }
     if (retries >= 20)
-        at_cmd_println("ERROR");
+    {
+        if (numericResultCode == true)
+        {
+            at_cmd_resultCode(RESULT_CODE_ERROR);
+        }
+        else
+        {
+            at_cmd_println("ERROR");
+        }
+    }
     else
-        at_cmd_println("OK");
+    {
+        if (numericResultCode == true)
+        {
+            at_cmd_resultCode(RESULT_CODE_OK);
+        }
+        else
+        {
+            at_cmd_println("OK");
+        }
+    }
 }
 
 void sioModem::at_handle_port()
@@ -601,7 +660,10 @@ void sioModem::at_handle_port()
     int port = std::stoi(cmd.substr(6));
     if (port > 65535 || port < 0)
     {
-        at_cmd_println("ERROR");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_ERROR);
+        else
+            at_cmd_println("ERROR");
     }
     else
     {
@@ -612,7 +674,10 @@ void sioModem::at_handle_port()
 
         listenPort = port;
         tcpServer.begin(listenPort);
-        at_cmd_println("OK");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
     }
 }
 
@@ -645,24 +710,24 @@ void sioModem::at_handle_get()
     if (path.empty())
         path = "/";
 
-    // Debug
-    at_cmd_println("Getting path ", false);
-    at_cmd_println(path, false);
-    at_cmd_println(" from port ", false);
-    at_cmd_println(port, false);
-    at_cmd_println(" of host ", false);
-    at_cmd_println(host, false);
-    at_cmd_println("...");
-
     // Establish connection
     if (!tcpClient.connect(host.c_str(), port))
     {
-        at_cmd_println("NO CARRIER");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+        else
+            at_cmd_println("NO CARRIER");
     }
     else
     {
-        at_cmd_println("CONNECT ", false);
-        at_cmd_println(modemBaud);
+        if (numericResultCode == true)
+            at_connect_resultCode(modemBaud);
+        else
+        {
+            at_cmd_println("CONNECT ", false);
+            at_cmd_println(modemBaud);
+        }
+
         cmdMode = false;
 
         // Send a HTTP request before continuing the connection as usual
@@ -704,7 +769,11 @@ void sioModem::at_handle_help()
         at_cmd_println(HELPPORT4);
     }
     at_cmd_println();
-    at_cmd_println("OK");
+
+    if (numericResultCode == true)
+        at_cmd_resultCode(RESULT_CODE_OK);
+    else
+        at_cmd_println("OK");
 }
 
 void sioModem::at_handle_wifilist()
@@ -750,7 +819,11 @@ void sioModem::at_handle_wifilist()
         }
     }
     at_cmd_println();
-    at_cmd_println("OK");
+
+    if (numericResultCode == true)
+        at_cmd_resultCode(RESULT_CODE_OK);
+    else
+        at_cmd_println("OK");
 }
 
 void sioModem::at_handle_dial()
@@ -759,14 +832,11 @@ void sioModem::at_handle_dial()
     std::string host, port;
     if (portIndex != std::string::npos)
     {
-        //host = cmd.substring(4, portIndex);
         host = cmd.substr(4, portIndex - 4 + 1);
-        //port = cmd.substring(portIndex + 1, cmd.length());
         port = cmd.substr(portIndex + 1);
     }
     else
     {
-        //host = cmd.substring(4, cmd.length());
         host = cmd.substr(4);
         port = "23"; // Telnet default
     }
@@ -776,8 +846,16 @@ void sioModem::at_handle_dial()
     if (host == "5551234") // Fake it for BobTerm
     {
         fnSystem.delay(1300); // Wait a moment so bobterm catches it
-        at_cmd_println("CONNECT ", false);
-        at_cmd_println(modemBaud);
+
+        if (numericResultCode == true)
+            at_connect_resultCode(modemBaud);
+        else
+        {
+            at_cmd_println("CONNECT ", false);
+            at_cmd_println(modemBaud);
+            /* code */
+        }
+
 #ifdef DEBUG
         Debug_println("CONNECT FAKE!");
 #endif
@@ -795,8 +873,15 @@ void sioModem::at_handle_dial()
         {
             tcpClient.setNoDelay(true); // Try to disable naggle
 
-            at_cmd_println("CONNECT ", false);
-            at_cmd_println(modemBaud);
+            if (numericResultCode == true)
+                at_connect_resultCode(modemBaud);
+            else
+            {
+                at_cmd_println("CONNECT ", false);
+                at_cmd_println(modemBaud);
+                /* code */
+            }
+
             cmdMode = false;
 
             if (listenPort > 0)
@@ -804,7 +889,10 @@ void sioModem::at_handle_dial()
         }
         else
         {
-            at_cmd_println("NO CARRIER");
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+            else
+                at_cmd_println("NO CARRIER");
         }
     }
 }
@@ -829,7 +917,9 @@ void sioModem::modemCommand()
             "ATWIFILIST",
             "ATWIFICONNECT",
             "ATGET",
-            "ATPORT"};
+            "ATPORT",
+            "ATV0",
+            "ATV1"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -875,7 +965,10 @@ void sioModem::modemCommand()
     {
     // plain AT
     case AT_AT:
-        at_cmd_println("OK");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
         break;
     // hangup
     case AT_H:
@@ -883,7 +976,10 @@ void sioModem::modemCommand()
         tcpClient.flush();
         tcpClient.stop();
         cmdMode = true;
-        at_cmd_println("NO CARRIER");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+        else
+            at_cmd_println("NO CARRIER");
         if (listenPort > 0)
             tcpServer.begin();
         break;
@@ -902,11 +998,17 @@ void sioModem::modemCommand()
     // Change telnet mode
     case AT_NET0:
         telnet = false;
-        at_cmd_println("OK");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
         break;
     case AT_NET1:
         telnet = true;
-        at_cmd_println("OK");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
         break;
     case AT_A:
         if (tcpServer.hasClient())
@@ -914,10 +1016,16 @@ void sioModem::modemCommand()
             tcpClient = tcpServer.available();
             tcpClient.setNoDelay(true); // try to disable naggle
             tcpServer.stop();
-            at_cmd_println("CONNECT ", false);
-            at_cmd_println(modemBaud);
+            if (numericResultCode == true)
+                at_connect_resultCode(modemBaud);
+            else
+            {
+                at_cmd_println("CONNECT ", false);
+                at_cmd_println(modemBaud);
+                /* code */
+            }
+
             cmdMode = false;
-            //SIO_UART.flush();
             fnUartSIO.flush();
         }
         break;
@@ -927,7 +1035,10 @@ void sioModem::modemCommand()
             at_cmd_println(fnSystem.Net.get_ip4_address_str());
         else
             at_cmd_println(HELPNOWIFI);
-        at_cmd_println("OK");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
         break;
     case AT_HELP:
         at_handle_help();
@@ -938,8 +1049,19 @@ void sioModem::modemCommand()
     case AT_PORT:
         at_handle_port();
         break;
+    case AT_V0:
+        at_cmd_resultCode(RESULT_CODE_OK);
+        numericResultCode = true;
+        break;
+    case AT_V1:
+        at_cmd_println("OK");
+        numericResultCode = false;
+        break;
     default:
-        at_cmd_println("ERROR");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_ERROR);
+        else
+            at_cmd_println("ERROR");
         break;
     }
 
@@ -960,7 +1082,10 @@ void sioModem::sio_handle_modem()
             // Print RING every now and then while the new incoming connection exists
             if ((fnSystem.millis() - lastRingMs) > RING_INTERVAL)
             {
-                at_cmd_println("RING");
+                if (numericResultCode == true)
+                    at_cmd_resultCode(RESULT_CODE_RING);
+                else
+                    at_cmd_println("RING");
                 lastRingMs = fnSystem.millis();
             }
         }
@@ -1124,14 +1249,20 @@ void sioModem::sio_handle_modem()
         tcpClient.flush();
         tcpClient.stop();
         cmdMode = true;
-        at_cmd_println("NO CARRIER");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+        else
+            at_cmd_println("NO CARRIER");
         if (listenPort > 0)
             tcpServer.begin();
     }
     else if ((!tcpClient.connected()) && (cmdMode == false))
     {
         cmdMode = true;
-        at_cmd_println("NO CARRIER");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+        else
+            at_cmd_println("NO CARRIER");
         if (listenPort > 0)
             tcpServer.begin();
     }

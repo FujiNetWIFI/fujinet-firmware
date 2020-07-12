@@ -40,6 +40,20 @@
 class sioModem : public sioDevice
 {
 private:
+
+#define RESULT_CODE_OK              0
+#define RESULT_CODE_CONNECT         1
+#define RESULT_CODE_RING            2
+#define RESULT_CODE_NO_CARRIER      3
+#define RESULT_CODE_ERROR           4
+#define RESULT_CODE_CONNECT_1200    5
+#define RESULT_CODE_BUSY            7
+#define RESULT_CODE_NO_ANSWER       8
+#define RESULT_CODE_CONNECT_2400    10
+#define RESULT_CODE_CONNECT_9600    13
+#define RESULT_CODE_CONNECT_4800    18
+#define RESULT_CODE_CONNECT_19200   85
+
     enum _at_cmds
     {
         AT_AT = 0,
@@ -57,6 +71,8 @@ private:
         AT_WIFICONNECT,
         AT_GET,
         AT_PORT,
+        AT_V0,
+        AT_V1,
         AT_ENUMCOUNT
     };
 
@@ -81,6 +97,7 @@ private:
     unsigned long plusTime = 0;    // When did we last receive a "+++" sequence
     uint8_t txBuf[TX_BUF_SIZE];
     bool cmdOutput=true;            // toggle whether to emit command output
+    bool numericResultCode=false;   // Use numeric result codes? (ATV0)
     
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
@@ -97,6 +114,8 @@ private:
     void modemCommand(); // Execute modem AT command
 
     // CR/EOL aware println() functions for AT mode
+    void at_connect_resultCode(int modemBaud);
+    void at_cmd_resultCode(int resultCode);
     void at_cmd_println();
     void at_cmd_println(const char *s, bool addEol = true);
     void at_cmd_println(int i, bool addEol = true);
