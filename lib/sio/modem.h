@@ -77,6 +77,19 @@ private:
         AT_ANDF,
         AT_S0E0,
         AT_S0E1,
+        AT_S2E43,
+        AT_S5E8,
+        AT_S6E2,
+        AT_S7E30,
+        AT_S12E20,
+        AT_E0,
+        AT_E1,
+        AT_M0,
+        AT_M1,
+        AT_X1,
+        AT_AC1,
+        AT_AD2,
+        AT_AW,
         AT_ENUMCOUNT
     };
 
@@ -103,6 +116,7 @@ private:
     bool cmdOutput=true;            // toggle whether to emit command output
     bool numericResultCode=false;   // Use numeric result codes? (ATV0)
     bool autoAnswer=false;          // Auto answer? (ATS0?)
+    bool commandEcho=true;          // Echo MODEM input. (ATEx)
     
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
