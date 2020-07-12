@@ -353,9 +353,14 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         switch (okimate_cmd.cmd)
         {
         case 0x8A: // n/144" line advance (n * 1/2 pt vertial line feed)
-            /* code */
-            pdf_dY -= float(okimate_cmd.n) / 144.; // set pdf_dY and rise to fraction of line
-            pdf_set_rise();
+                   /* code */
+            if (colorMode == colorMode_t::off)
+            {
+                pdf_dY -= float(okimate_cmd.n) / 144.; // set pdf_dY and rise to fraction of line
+                pdf_set_rise();
+            }
+            else
+                cmd_not_implemented(0x8A);
             reset_cmd();
             break;
         case 0x90: //0x90 n - dot column horizontal tab
@@ -464,10 +469,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             colorMode = colorMode_t::cyan; // first color in CMY ribbon
             color_counter = 0;
             // initialize the color content buffer
-            for (int i = 0; i++; i < 480) // max 480 dots per line
+            for (int i = 0; i < 480; i++) // max 480 dots per line
             {
                 color_buffer[i][0] = 0; // clear font
-                for (int j = 1; j++; j < 4)
+                for (int j = 1; j < 4; j++)
                 {
                     color_buffer[i][j] = ' '; // fill with spaces
                 }
@@ -479,7 +484,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.ctr = 0;
             break;
         case 0x9B:                                 // 0x9B     EOL for color mode
-            ++colorMode;                           // go to next color
+            colorMode++;                           // go to next color
             if (colorMode == colorMode_t::process) // if done all three colors, then output
             {
             }
