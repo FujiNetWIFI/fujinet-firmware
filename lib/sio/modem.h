@@ -64,7 +64,6 @@ private:
         AT_HELP,
         AT_H,
         AT_H1,
-        AT_H2,
         AT_DT,
         AT_DP,
         AT_DI,
@@ -90,8 +89,9 @@ private:
         AT_AC1,
         AT_AD2,
         AT_AW,
-        AT_ENUMCOUNT
-    };
+        AT_OFFHOOK,
+        AT_ZPPP,
+        AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
     bool DTR = false;

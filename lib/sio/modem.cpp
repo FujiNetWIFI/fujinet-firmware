@@ -309,7 +309,10 @@ void sioModem::sio_control()
             tcpClient.stop(); // Hang up if DTR drops.
 
             if (listenPort > 0)
+            {
+                tcpServer.stop();
                 tcpServer.begin(listenPort); // and re-listen if listenPort set.
+            }
         }
     }
     // for now, just complete
@@ -514,6 +517,7 @@ void sioModem::at_cmd_resultCode(int resultCode)
 {
     fnUartSIO.print(resultCode);
     fnUartSIO.write(ASCII_CR);
+    fnUartSIO.write(ASCII_LF);
 }
 
 /**
@@ -904,7 +908,6 @@ void sioModem::at_handle_dial()
             }
 
             cmdMode = false;
-
             if (listenPort > 0)
                 tcpServer.stop();
         }
@@ -932,7 +935,6 @@ void sioModem::modemCommand()
             "AT?",
             "ATH",
             "+++ATH",
-            "ATH1",
             "ATDT",
             "ATDP",
             "ATDI",
@@ -957,7 +959,9 @@ void sioModem::modemCommand()
             "ATX1",
             "AT&C1",
             "AT&D2",
-            "AT&W"};
+            "AT&W",
+            "ATH2",
+            "+++ATZ"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -968,7 +972,8 @@ void sioModem::modemCommand()
     //upperCaseCmd.toUpperCase();
     util_string_toupper(upperCaseCmd);
 
-    at_cmd_println();
+    if (commandEcho == true)
+        at_cmd_println();
 
 #ifdef DEBUG
     Debug_print("AT Cmd: ");
@@ -992,11 +997,8 @@ void sioModem::modemCommand()
     {
         // Make sure we skip the plain AT command when matching
         for (cmd_match = _at_cmds::AT_AT + 1; cmd_match < _at_cmds::AT_ENUMCOUNT; cmd_match++)
-        {
-            //if (upperCaseCmd.startsWith(at_cmds[cmd_match]))
             if (upperCaseCmd.compare(0, strlen(at_cmds[cmd_match]), at_cmds[cmd_match]) == 0)
                 break;
-        }
     }
 
     switch (cmd_match)
@@ -1008,19 +1010,32 @@ void sioModem::modemCommand()
         else
             at_cmd_println("OK");
         break;
+    case AT_OFFHOOK: // Off hook, should be ignored.
     // hangup
     case AT_H:
     case AT_H1:
-    case AT_H2:
-        tcpClient.flush();
-        tcpClient.stop();
-        cmdMode = true;
-        if (numericResultCode == true)
-            at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+        if (tcpClient.connected() == true)
+        {
+            tcpClient.flush();
+            tcpClient.stop();
+            cmdMode = true;
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+            else
+                at_cmd_println("NO CARRIER");
+            if (listenPort > 0)
+            {
+                tcpServer.stop();
+                tcpServer.begin();
+            }
+        }
         else
-            at_cmd_println("NO CARRIER");
-        if (listenPort > 0)
-            tcpServer.begin();
+        {
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_OK);
+            else
+                at_cmd_println("OK");
+        }
         break;
     // dial to host
     case AT_DT:
@@ -1120,6 +1135,7 @@ void sioModem::modemCommand()
     case AT_AC1:
     case AT_AD2:
     case AT_AW:
+    case AT_ZPPP:
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1328,7 +1344,10 @@ void sioModem::sio_handle_modem()
         else
             at_cmd_println("NO CARRIER");
         if (listenPort > 0)
+        {
+            tcpServer.stop();
             tcpServer.begin();
+        }
     }
     else if ((!tcpClient.connected()) && (cmdMode == false))
     {
@@ -1338,7 +1357,10 @@ void sioModem::sio_handle_modem()
         else
             at_cmd_println("NO CARRIER");
         if (listenPort > 0)
+        {
+            tcpServer.stop();
             tcpServer.begin();
+        }
     }
 }
 
