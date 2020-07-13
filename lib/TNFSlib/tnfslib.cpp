@@ -843,8 +843,8 @@ int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory)
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPENDIRX;
     packet.payload[OFFSET_OPENDIRX_DIROPT] = 0;
-    packet.payload[OFFSET_OPENDIRX_SORTOPT] = 0;
-    packet.payload[OFFSET_OPENDIRX_MAXRESULTS] = TNFS_LOBYTE_FROM_UINT16(0);
+    packet.payload[OFFSET_OPENDIRX_SORTOPT] =  0;
+    packet.payload[OFFSET_OPENDIRX_MAXRESULTS] = TNFS_LOBYTE_FROM_UINT16(8);
     packet.payload[OFFSET_OPENDIRX_MAXRESULTS + 1] = TNFS_HIBYTE_FROM_UINT16(0);
 
     strncpy((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN), "",
@@ -951,8 +951,19 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
 
             strncpy(dir_entry, (char *)packet.payload + OFFSET_READDIRX_PATH, dir_entry_len);
 
-            Debug_printf("\ttnfs_readdirx: dir: %d, size: %u, mtime: 0x%04x, ctime: 0x%04x \"%s\"\n", 
-                filestat->isDir ? 1 : 0, filestat->filesize, filestat->m_time, filestat->c_time, dir_entry );
+#ifdef DEBUG
+
+            char t_m[80];
+            char t_c[80];
+            const char *tfmt ="%Y-%m-%d %H:%M:%S";
+            time_t tt = filestat->m_time;
+            strftime(t_m, sizeof(t_m), tfmt, localtime(&tt));
+            tt = filestat->c_time;
+            strftime(t_c, sizeof(t_c), tfmt, localtime(&tt));
+            Debug_printf("\ttnfs_readdirx: dir: %s, size: %u, mtime: %s, ctime: %s \"%s\"\n", 
+                filestat->isDir ? "Yes" : "no",
+                 filestat->filesize, t_m, t_c, dir_entry );
+#endif
 
         }
         return packet.payload[0];
