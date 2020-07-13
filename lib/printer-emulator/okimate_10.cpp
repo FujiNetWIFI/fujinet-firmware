@@ -487,8 +487,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             if (colorMode != colorMode_t::off) // are we in color mode?
             {
                 // expect 3 EOL's in color mode, one after each color.
+                color_counter = 0;
                 colorMode = static_cast<colorMode_t>(static_cast<int>(colorMode) + 1); // increment colorMode
-                if (colorMode == colorMode_t::process) // if done all three colors, then output
+                if (colorMode == colorMode_t::process)                                 // if done all three colors, then output
                 {
                     // output the color buffer and reset the colorMode state var
                     colorMode = colorMode_t::off;
