@@ -46,31 +46,31 @@
 #define TNFS_OPENMODE_WRITE_TRUNCATE 0x0200   // Truncate the file on open for writing
 #define TNFS_OPENMODE_CREATE_EXCLUSIVE 0x0400 // With TNFS_OPENMODE_CREATE, returns an error if the file exists
 
-#define TNFS_CREATEPERM_S_ISUID 04000 //set user ID on execution
-#define TNFS_CREATEPERM_S_ISGID 02000 //set group ID on execution
-#define TNFS_CREATEPERM_S_ISVTX 01000 //sticky bit
-#define TNFS_CREATEPERM_S_IRUSR 00400 //read by owner
-#define TNFS_CREATEPERM_S_IWUSR 00200 //write by owner
-#define TNFS_CREATEPERM_S_IXUSR 00100 //execute/search by owner
-#define TNFS_CREATEPERM_S_IRGRP 00040 //read by group
-#define TNFS_CREATEPERM_S_IWGRP 00020 //write by group
-#define TNFS_CREATEPERM_S_IXGRP 00010 //execute/search by group
-#define TNFS_CREATEPERM_S_IROTH 00004 //read by others
-#define TNFS_CREATEPERM_S_IWOTH 00002 //write by others
-#define TNFS_CREATEPERM_S_IXOTH 00001 //execute/search by others
+#define TNFS_CREATEPERM_S_ISUID 04000 // Set user ID on execution
+#define TNFS_CREATEPERM_S_ISGID 02000 // Set group ID on execution
+#define TNFS_CREATEPERM_S_ISVTX 01000 // Sticky bit
+#define TNFS_CREATEPERM_S_IRUSR 00400 // Read by owner
+#define TNFS_CREATEPERM_S_IWUSR 00200 // Write by owner
+#define TNFS_CREATEPERM_S_IXUSR 00100 // Execute/search by owner
+#define TNFS_CREATEPERM_S_IRGRP 00040 // Read by group
+#define TNFS_CREATEPERM_S_IWGRP 00020 // Write by group
+#define TNFS_CREATEPERM_S_IXGRP 00010 // Execute/search by group
+#define TNFS_CREATEPERM_S_IROTH 00004 // Read by others
+#define TNFS_CREATEPERM_S_IWOTH 00002 // Write by others
+#define TNFS_CREATEPERM_S_IXOTH 00001 // Execute/search by others
 
 #define TNFS_READDIRX_DIR 0x01 // Flag returned in tnfs_reddirx
 
-#define TNFS_DIROPT_NO_FOLDERSFIRST 0x01 
-#define TNFS_DIROPT_NO_SKIPHIDDEN 0x02
-#define TNFS_DIROPT_NO_SKIPSPECIAL 0x04
-#define TNFS_DIROPT_DIR_PATTERN 0x08
+#define TNFS_DIROPT_NO_FOLDERSFIRST 0x01 // Don't return folders before files
+#define TNFS_DIROPT_NO_SKIPHIDDEN 0x02   // Don't skip hidden files
+#define TNFS_DIROPT_NO_SKIPSPECIAL 0x04  // Don't skip special files
+#define TNFS_DIROPT_DIR_PATTERN 0x08     // Apply wildcard pattern to directories, too
 
-#define TNFS_DIRSORT_NONE 0x01
-#define TNFS_DIRSORT_CASE 0x02
-#define TNFS_DIRSORT_DESCENDING 0x04
-#define TNFS_DIRSORT_MODIFIED 0x08
-#define TNFS_DIRSORT_SIZE 0x10
+#define TNFS_DIRSORT_NONE 0x01       // Do not perform any sorting
+#define TNFS_DIRSORT_CASE 0x02       // Perform case-sensitve sort
+#define TNFS_DIRSORT_DESCENDING 0x04 // Sort in descending order
+#define TNFS_DIRSORT_MODIFIED 0x08   // Sort by modified time, not name
+#define TNFS_DIRSORT_SIZE 0x10       // Sort by size, not name
 
 #define TNFS_RESULT_SUCCESS 0x00
 #define TNFS_RESULT_NOT_PERMITTED 0x01
@@ -123,10 +123,10 @@
 
 // 515 gives us (68 + 4 + 515) 587-byte packets - a little bigger than recommended, but allows for the
 // 512-byte payloads TNFSD is built with bye default; allows for 4 128-byte sectors to be transmitted
-#define TNFS_PAYLOAD_SIZE 515 
+#define TNFS_PAYLOAD_SIZE 515
 
 // Maximum size of buffer during tnfs_read() and tnfs_write()
-#define TNFS_MAX_READWRITE_PAYLOAD (TNFS_PAYLOAD_SIZE - 3)  // 1 byte is needed for FD and 2 for size
+#define TNFS_MAX_READWRITE_PAYLOAD (TNFS_PAYLOAD_SIZE - 3) // 1 byte is needed for FD and 2 for size
 
 union tnfsPacket {
     struct
@@ -178,7 +178,7 @@ int tnfs_mount(tnfsMountInfo *m_info);
 int tnfs_umount(tnfsMountInfo *m_info);
 
 //int tnfs_opendir(tnfsMountInfo *m_info, const char *directory);
-int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory);
+int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory, uint8_t sortopts = 0, uint8_t diropts = 0, const char *pattern = nullptr, uint16_t maxresults = 0);
 //int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len);
 int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, int dir_entry_len);
 int tnfs_closedir(tnfsMountInfo *m_info);
@@ -197,7 +197,7 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
 int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen);
 int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle);
 int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath);
-int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position=nullptr, bool skip_cache=false);
+int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uint8_t type, uint32_t *new_position = nullptr, bool skip_cache = false);
 int tnfs_unlink(tnfsMountInfo *m_info, const char *filepath);
 int tnfs_chmod(tnfsMountInfo *m_info, const char *filepath, uint16_t mode);
 int tnfs_rename(tnfsMountInfo *m_info, const char *old_filepath, const char *new_filepath);

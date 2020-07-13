@@ -827,7 +827,15 @@ int tnfs_opendir(tnfsMountInfo *m_info, const char *directory)
     return -1;
 }
 */
-int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory)
+/*
+    Opens directory and stores directory handle in tnfsMountInfo.dir_handle
+    sortopts = zero or more TNFS_DIRSORT flags
+    diropts = zero or more TNFS_DIROPT flags
+    pattern = zero-terminated wildcard pattern string
+    maxresults = max number of results to return or zero for unlimited
+    Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
+*/
+int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory, uint8_t sortopts, uint8_t diropts, const char *pattern, uint16_t maxresults)
 {
     if (m_info == nullptr || directory == nullptr)
         return -1;
@@ -842,23 +850,29 @@ int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory)
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPENDIRX;
-    packet.payload[OFFSET_OPENDIRX_DIROPT] = 0;
-    packet.payload[OFFSET_OPENDIRX_SORTOPT] =  0;
-    packet.payload[OFFSET_OPENDIRX_MAXRESULTS] = TNFS_LOBYTE_FROM_UINT16(8);
-    packet.payload[OFFSET_OPENDIRX_MAXRESULTS + 1] = TNFS_HIBYTE_FROM_UINT16(0);
 
-    strncpy((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN), "",
+    packet.payload[OFFSET_OPENDIRX_DIROPT] = diropts;
+    packet.payload[OFFSET_OPENDIRX_SORTOPT] =  sortopts;
+
+    packet.payload[OFFSET_OPENDIRX_MAXRESULTS] = TNFS_LOBYTE_FROM_UINT16(maxresults);
+    packet.payload[OFFSET_OPENDIRX_MAXRESULTS + 1] = TNFS_HIBYTE_FROM_UINT16(maxresults);
+
+    // Copy the pattern or an empty string
+    strncpy((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN),
+        pattern == nullptr ? "" : pattern,
         sizeof(packet.payload) - OPENDIRX_HEADERBYTES - 1);
 
+    // Calculate the new offset to the path taking the pattern string into account
     int pathoffset = strlen((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN)) + OPENDIRX_HEADERBYTES + 1;
 
-    int len = _tnfs_adjust_with_full_path(m_info, 
+    // Copy the directory into the right spot in the packet and get its string len
+    int pathlen = _tnfs_adjust_with_full_path(m_info, 
         (char *)(packet.payload + pathoffset), directory, sizeof(packet.payload) - pathoffset);
 
-    Debug_printf("TNFS open directory: 0x%02x 0x%02x 0x%04x \"%s\" \"%s\"\n",
-     0, 0, 0, (char *)(packet.payload + OFFSET_OPENDIRX_PATTERN), (char *)(packet.payload + pathoffset));
+    Debug_printf("TNFS open directory: sortopts=0x%02x diropts=0x%02x maxresults=0x%04x pattern=\"%s\" path=\"%s\"\n",
+     sortopts, diropts, maxresults, (char *)(packet.payload + OFFSET_OPENDIRX_PATTERN), (char *)(packet.payload + pathoffset));
 
-    if (_tnfs_transaction(m_info, packet, pathoffset + len + 1))
+    if (_tnfs_transaction(m_info, packet, pathoffset + pathlen + 1))
     {
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
