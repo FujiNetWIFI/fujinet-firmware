@@ -8,7 +8,7 @@
 
 #include "fnTcpServer.h"
 
-// Configures a listening TCP socket on given port 
+// Configures a listening TCP socket on given port
 void fnTcpServer::begin(uint16_t port)
 {
     if (_listening)
@@ -34,6 +34,12 @@ void fnTcpServer::begin(uint16_t port)
     {
         Debug_printf("fnTcpServer::begin failed to bind socket, err %d\n", errno);
         return;
+    }
+
+    int enable = 1;
+    if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+    {
+        Debug_printf("fnTcpServer::begin failed to set SO_REUSEADDR, err %d", errno);
     }
 
     // Now listen in on this socket
