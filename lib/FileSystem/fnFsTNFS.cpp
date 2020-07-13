@@ -160,42 +160,17 @@ fsdir_entry * FileSystemTNFS::dir_read()
     if(!_started)
         return nullptr;
 
-    // Skip "." and ".."; server returns EINVAL on trying to stat ".."
-    bool skip;
     tnfsStat fstat;
-    do 
-    {
-        _direntry.filename[0] = '\0';
-        if(TNFS_RESULT_SUCCESS != tnfs_readdirx(&_mountinfo, &fstat, _direntry.filename, sizeof(_direntry.filename)))
-            return nullptr;
 
-        skip = (_direntry.filename[0] == '.' && _direntry.filename[1] == '\0') || 
-                        (_direntry.filename[0] == '.' && _direntry.filename[1] == '.' && _direntry.filename[2] == '\0');
-    } while (skip);
+    _direntry.filename[0] = '\0';
+    if(TNFS_RESULT_SUCCESS != tnfs_readdirx(&_mountinfo, &fstat, _direntry.filename, sizeof(_direntry.filename)))
+        return nullptr;
 
     _direntry.size = fstat.filesize;
     _direntry.modified_time = fstat.m_time;
     _direntry.isDir = fstat.isDir;
 
     return &_direntry;
-
-    /*
-    // Combine the current directory path with the read filename before trying to stat()...
-    char fullpath[TNFS_MAX_FILELEN];
-    strncpy(fullpath, _current_dirpath, sizeof(fullpath));
-    strncat(fullpath, _direntry.filename, sizeof(fullpath) - strlen(fullpath) - 1);
-    // Debug_printf("Current directory stored: \"%s\", current filepath: \"%s\", combined: \"%s\"\n", _current_dirpath, _direntry.filename, fullpath);
-
-    if(tnfs_stat(&_mountinfo, &fstat, fullpath) == TNFS_RESULT_SUCCESS)
-    {
-        _direntry.size = fstat.filesize;
-        _direntry.modified_time = fstat.m_time;
-        _direntry.isDir = fstat.isDir;
-
-        return &_direntry;
-    }
-    return nullptr;
-    */
 }
 
 void FileSystemTNFS::dir_close()
