@@ -63,7 +63,7 @@ private:
         AT_IP,
         AT_HELP,
         AT_H,
-        AT_H2,
+        AT_H1,
         AT_DT,
         AT_DP,
         AT_DI,
@@ -73,8 +73,25 @@ private:
         AT_PORT,
         AT_V0,
         AT_V1,
-        AT_ENUMCOUNT
-    };
+        AT_ANDF,
+        AT_S0E0,
+        AT_S0E1,
+        AT_S2E43,
+        AT_S5E8,
+        AT_S6E2,
+        AT_S7E30,
+        AT_S12E20,
+        AT_E0,
+        AT_E1,
+        AT_M0,
+        AT_M1,
+        AT_X1,
+        AT_AC1,
+        AT_AD2,
+        AT_AW,
+        AT_OFFHOOK,
+        AT_ZPPP,
+        AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
     bool DTR = false;
@@ -98,6 +115,8 @@ private:
     uint8_t txBuf[TX_BUF_SIZE];
     bool cmdOutput=true;            // toggle whether to emit command output
     bool numericResultCode=false;   // Use numeric result codes? (ATV0)
+    bool autoAnswer=false;          // Auto answer? (ATS0?)
+    bool commandEcho=true;          // Echo MODEM input. (ATEx)
     
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
@@ -122,6 +141,7 @@ private:
     void at_cmd_println(std::string s, bool addEol = true);
 
     // Command handlers
+    void at_handle_answer();
     void at_handle_dial();
     void at_handle_wifilist();
     void at_handle_wificonnect();

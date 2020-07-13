@@ -26,6 +26,12 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 {
     eKeyStatus result = eKeyStatus::RELEASED;
 
+// Ignore requests for OTHER_KEY if this seems to be a WROOM board
+#ifndef BOARD_HAS_PSRAM
+    if(key == OTHER_KEY)
+        return result;
+#endif
+
     if (fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW)
     {
         if (mButtonActive[key] == false)
