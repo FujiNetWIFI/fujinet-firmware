@@ -257,7 +257,7 @@ void sioModem::sio_status()
           1: 0
           0: RCV state (0=space, 1=mark)
     */
-    uint8_t status[2] = {0x00, 0x0C};
+    uint8_t status[2] = {0x00, 0xFC};
     sio_to_computer(status, sizeof(status), false);
 }
 
@@ -466,7 +466,7 @@ void sioModem::sio_listen()
     else
         sio_ack();
 
-//    tcpServer.begin(listenPort);
+    tcpServer.begin(listenPort);
 
     sio_complete();
 }
