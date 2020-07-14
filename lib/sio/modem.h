@@ -97,6 +97,7 @@ private:
     bool DTR = false;
     bool RTS = false;
     bool XMT = false;
+    bool baudLock = false; // lock modem baud rate from further changes.
 
     int count_PollType1 = 0; // Keep track of how many times we've seen command 0x3F
     int load_firmware(const char *filename, char **buffer);
@@ -125,6 +126,7 @@ private:
     void sio_config();                           // $42, 'B', Configure
     void sio_listen();                           // $4C, 'L', Listen
     void sio_unlisten();                         // $4D, 'M', Unlisten
+    void sio_baudlock();                         // $4E, 'N', Baud lock
     void sio_status() override;                  // $53, 'S', Status
     void sio_write();                            // $57, 'W', Write
     void sio_stream();                           // $58, 'X', Concurrent/Stream
