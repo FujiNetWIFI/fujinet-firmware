@@ -19,6 +19,7 @@
 #define SIO_MODEMCMD_CONFIGURE 0x42
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
+#define SIO_MODEMCMD_BAUDLOCK 0x4E
 #define SIO_MODEMCMD_STATUS 0x53
 #define SIO_MODEMCMD_WRITE 0x57
 #define SIO_MODEMCMD_STREAM 0x58
@@ -353,6 +354,10 @@ void sioModem::sio_config()
     //uint8_t wordSize = 0x30 & cmdFrame.aux1; // Get word size
     //uint8_t stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits
 
+    // Do not reset MODEM baud rate if locked.
+    if (baudLock==true)
+        return;
+
     switch (newBaud)
     {
     case BAUD_300:
@@ -479,6 +484,16 @@ void sioModem::sio_unlisten()
     sio_ack();
     tcpClient.stop();
     tcpServer.stop();
+    sio_complete();
+}
+
+/**
+ * Lock MODEM baud rate to last configured value
+ */
+void sioModem::sio_baudlock()
+{
+    sio_ack();
+    baudLock = (cmdFrame.aux1==1 ? true : false);
     sio_complete();
 }
 
@@ -1426,6 +1441,9 @@ void sioModem::sio_process()
         break;
     case SIO_MODEMCMD_UNLISTEN:
         sio_unlisten();
+        break;
+    case SIO_MODEMCMD_BAUDLOCK:
+        sio_baudlock();
         break;
     case SIO_MODEMCMD_STATUS:
         sio_ack();
