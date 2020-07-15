@@ -67,7 +67,7 @@ public:
     int timeout_ms = TNFS_TIMEOUT;
     uint8_t current_sequence_num = 0; // Updated with each transaction to the server
     int16_t dir_handle = TNFS_INVALID_HANDLE; // Stored from server's response to TNFS_OPENDIR
-    uint32_t dir_entries = 0; // Stored from server's response to TNFS_OPENDIRX
+    uint16_t dir_entries = 0; // Stored from server's response to TNFS_OPENDIRX
 };
 
 #endif // _TNFSLIB_MOUNTINFO_H

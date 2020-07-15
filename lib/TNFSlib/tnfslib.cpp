@@ -877,7 +877,7 @@ int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory, uint8_t sortopts
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             m_info->dir_handle = packet.payload[1];
-            m_info->dir_entries = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 2);
+            m_info->dir_entries = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 2);
             Debug_printf("Directory opened, handle ID: %hhd, entries: %u\n", m_info->dir_handle, m_info->dir_entries);
         }
         return packet.payload[0];
@@ -952,21 +952,29 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
     tnfsPacket packet;
     packet.command = TNFS_CMD_READDIRX;
     packet.payload[0] = m_info->dir_handle;
+    // Number of responses to read
+    packet.payload[1] = 1;
 
-    if (_tnfs_transaction(m_info, packet, 1))
+    if (_tnfs_transaction(m_info, packet, 2))
     {
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
-            filestat->isDir = (packet.payload[OFFSET_READDIRX_FLAGS] & TNFS_READDIRX_DIR) ? true : false;
-            filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_READDIRX_SIZE);
-            filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_READDIRX_MTIME);
-            filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_READDIRX_CTIME);
+            uint8_t response_count = packet.payload[1];
+            uint16_t dirpos = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 2 );
+
+            Debug_printf("tnfs_readdirx resp_count=%hu, dirpos=%hu\n", response_count, dirpos);
+
+            int offset = 3;
+
+            filestat->isDir = (packet.payload[offset + OFFSET_READDIRX_FLAGS] & TNFS_READDIRX_DIR) ? true : false;
+            filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + offset + OFFSET_READDIRX_SIZE);
+            filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + offset + OFFSET_READDIRX_MTIME);
+            filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + offset + OFFSET_READDIRX_CTIME);
             filestat->a_time = 0;
 
-            strncpy(dir_entry, (char *)packet.payload + OFFSET_READDIRX_PATH, dir_entry_len);
+            strncpy(dir_entry, (char *)packet.payload + offset + OFFSET_READDIRX_PATH, dir_entry_len);
 
 #ifdef DEBUG
-
             char t_m[80];
             char t_c[80];
             const char *tfmt ="%Y-%m-%d %H:%M:%S";
@@ -985,6 +993,9 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
     return -1;
 }
 
+/*
+    TELLDIR
+*/
 int tnfs_telldir(tnfsMountInfo *m_info, uint32_t *position)
 {
     if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
@@ -1008,6 +1019,9 @@ int tnfs_telldir(tnfsMountInfo *m_info, uint32_t *position)
     return -1;
 }
 
+/*
+    SEEKDIR
+*/
 int tnfs_seekdir(tnfsMountInfo *m_info, uint32_t position)
 {
     if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))

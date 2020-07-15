@@ -122,7 +122,7 @@
 //#define TNFS_PAYLOAD_SIZE 504
 
 // 515 gives us (68 + 4 + 515) 587-byte packets - a little bigger than recommended, but allows for the
-// 512-byte payloads TNFSD is built with bye default; allows for 4 128-byte sectors to be transmitted
+// 512-byte IO payloads TNFSD is built with by default; allows for 4 128-byte sectors to be transmitted
 #define TNFS_PAYLOAD_SIZE 515
 
 // Maximum size of buffer during tnfs_read() and tnfs_write()
