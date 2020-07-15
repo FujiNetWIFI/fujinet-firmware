@@ -493,7 +493,10 @@ void sioModem::sio_unlisten()
 void sioModem::sio_baudlock()
 {
     sio_ack();
-    baudLock = (cmdFrame.aux1==1 ? true : false);
+    baudLock = (cmdFrame.aux1>0 ? true : false);
+#ifdef DEBUG
+    Debug_printf("baudLock: %d\n",baudLock);
+#endif
     sio_complete();
 }
 
@@ -999,7 +1002,7 @@ void sioModem::modemCommand()
 
 #ifdef DEBUG
     Debug_print("AT Cmd: ");
-    Debug_println(upperCaseCmd);
+    Debug_println(upperCaseCmd.c_str());
 #endif
 
     // Replace EOL with CR
