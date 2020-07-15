@@ -91,6 +91,7 @@ private:
         AT_AW,
         AT_OFFHOOK,
         AT_ZPPP,
+        AT_BBSX,
         AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
@@ -118,6 +119,9 @@ private:
     bool numericResultCode=false;   // Use numeric result codes? (ATV0)
     bool autoAnswer=false;          // Auto answer? (ATS0?)
     bool commandEcho=true;          // Echo MODEM input. (ATEx)
+    bool CRX=false;                 // CRX flag.
+    unsigned char crxval=0;         // CRX value.
+    bool answerHack=false;          // ATA answer hack on SIO write.
     
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
@@ -131,6 +135,8 @@ private:
     void sio_write();                            // $57, 'W', Write
     void sio_stream();                           // $58, 'X', Concurrent/Stream
     void sio_process() override;                 // Process the command
+    
+    void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command
 
