@@ -56,6 +56,7 @@ private:
     tnfsDirCacheEntry * _dir_cache[TNFS_MAX_DIRCACHE_ENTRIES] = { nullptr };
     uint16_t _dir_cache_current = 0;
     uint16_t _dir_cache_count = 0;
+    bool _dir_cache_eof = false;
 
 public:
     ~tnfsMountInfo();
@@ -75,6 +76,8 @@ public:
     int tell_dircache_entry();
     void empty_dircache();
     uint16_t count_dircache() { return _dir_cache_count; };
+    void set_dircache_eof() { _dir_cache_eof = true; };
+    bool get_dircache_eof() { return _dir_cache_eof; };
 
     // These char[] sizes are abitrary...
     char hostname[64] = { '\0' };

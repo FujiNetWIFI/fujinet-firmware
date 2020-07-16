@@ -1,6 +1,6 @@
 The TNFS Protocol
 ===========================
-Updated July 14, 2020
+Updated July 15, 2020
 
 ### Rationale
 
@@ -389,6 +389,12 @@ than that many entries, although less than that may be provided if that
 number will not fit in a single response or if there are less than that many
 entries remaining.
 
+When the final available directory entires are returned, the `status` byte
+will indicate the end of the directory by setting the `TNFS_DIRSTATUS_EOF`
+flag. This tells the client the end fo the directory has been reached
+without needing another round trip. Subsequent `READDIRX` attempts will return
+a standard `EOF` status.
+
 Example:
 
 Read at most two directory entries with the open directory handle of 0x04:
@@ -401,8 +407,9 @@ On success, the file information follows this in the following order:
 Bytes | Item   | Description
 :---: | ------ | -------------------------------------------------------
   1   | count  | Number of entries returned
+  1   | status | `TNFS_DIRSTATUS` flags
   2   | dirpos | Position of first entry as given by `TELLDIR`
-  1   | flags  | Entry flags providing additional information (see below)
+  1   | flags  | `TNFS_DIRENTRY` flags providing additional information (see below)
   4   | size   | Entry size in bytes as unsigned 32-bit little endian value
   4   | mtime  | Entry modification time in seconds since epoch
   4   | ctime  | Entry change time (as above)
@@ -421,6 +428,12 @@ simply calculated by incrementing the initial value by one for each entry.
 `TNFS_DIRENTRY` flags:
 
 * TNFS_DIRENTRY_DIR  - Entry denotes a directory
+* TNFS_DIRENTRY_HIDDEN - Entry is hidden
+* TNFS_DIRENTRY_SPECIAL - Entry is special (as defined by host OS)
+
+`TNFS_DIRSTATUS` flags:
+
+* TNFS_DIRSTATUS_EOF - The end of the directory has been reached
 
 Example:
 

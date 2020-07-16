@@ -59,7 +59,11 @@
 #define TNFS_CREATEPERM_S_IWOTH 00002 // Write by others
 #define TNFS_CREATEPERM_S_IXOTH 00001 // Execute/search by others
 
-#define TNFS_READDIRX_DIR 0x01 // Flag returned in tnfs_reddirx
+#define TNFS_READDIRX_DIR 0x01 // Entry flag returned in tnfs_reddirx
+#define TNFS_READDIRX_HIDDEN 0x02 // Entry flag returned in tnfs_reddirx
+#define TNFS_READDIRX_SPECIAL 0x04 // Entry flag returned in tnfs_reddirx
+
+#define TNFS_READDIRX_STATUS_EOF 0x01 // Status flag returned by tnfs_readdirx
 
 #define TNFS_DIROPT_NO_FOLDERSFIRST 0x01 // Don't return folders before files
 #define TNFS_DIROPT_NO_SKIPHIDDEN 0x02   // Don't skip hidden files
