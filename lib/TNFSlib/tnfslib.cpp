@@ -92,15 +92,15 @@ int tnfs_mount(tnfsMountInfo *m_info)
         m_info->mountpath[0] = '/';
 
     // Copy the mountpath to the payload
-    strncpy((char *)packet.payload + payload_offset, m_info->mountpath, sizeof(packet.payload) - payload_offset);
+    strlcpy((char *)packet.payload + payload_offset, m_info->mountpath, sizeof(packet.payload) - payload_offset);
     payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
 
     // Copy user
-    strncpy((char *)packet.payload + payload_offset, m_info->user, sizeof(packet.payload) - payload_offset);
+    strlcpy((char *)packet.payload + payload_offset, m_info->user, sizeof(packet.payload) - payload_offset);
     payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
 
     // Copy password
-    strncpy((char *)packet.payload + payload_offset, m_info->password, sizeof(packet.payload) - payload_offset);
+    strlcpy((char *)packet.payload + payload_offset, m_info->password, sizeof(packet.payload) - payload_offset);
     payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
 
     // Make sure we have the right starting working directory
@@ -263,7 +263,7 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
     int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload + offset_filename, filepath, sizeof(packet.payload) - offset_filename);
 
     // Store the path we used as part of our file handle info
-    strncpy(pFileInf->filename, (const char *)&packet.payload[offset_filename], TNFS_MAX_FILELEN);
+    strlcpy(pFileInf->filename, (const char *)&packet.payload[offset_filename], TNFS_MAX_FILELEN);
 
     Debug_printf("TNFS open file: \"%s\" (0x%04x, 0x%04x)\n", (char *)&packet.payload[offset_filename], open_mode, create_perms);
 
@@ -848,6 +848,9 @@ int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory, uint8_t sortopts
 // Number of bytes before the two null-terminated strings start
 #define OPENDIRX_HEADERBYTES 4
 
+    // Throw out any existing cached directory entries
+    m_info->empty_dircache();
+
     tnfsPacket packet;
     packet.command = TNFS_CMD_OPENDIRX;
 
@@ -858,7 +861,7 @@ int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory, uint8_t sortopts
     packet.payload[OFFSET_OPENDIRX_MAXRESULTS + 1] = TNFS_HIBYTE_FROM_UINT16(maxresults);
 
     // Copy the pattern or an empty string
-    strncpy((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN),
+    strlcpy((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN),
         pattern == nullptr ? "" : pattern,
         sizeof(packet.payload) - OPENDIRX_HEADERBYTES - 1);
 
@@ -929,7 +932,7 @@ int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len)
     {
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
-            strncpy(dir_entry, (char *)&packet.payload[1], dir_entry_len);
+            strlcpy(dir_entry, (char *)&packet.payload[1], dir_entry_len);
         }
         return packet.payload[0];
     }
@@ -937,54 +940,107 @@ int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len)
 }
 */
 
+void _readdirx_fill_response(tnfsDirCacheEntry *pCached, tnfsStat *filestat, char *dir_entry, int dir_entry_len)
+{
+    filestat->isDir = pCached->flags & TNFS_READDIRX_DIR ? true : false;
+    filestat->filesize = pCached->filesize;
+    filestat->m_time = pCached->m_time;
+    filestat->c_time = pCached->c_time;
+    filestat->a_time = 0;
+
+    strlcpy(dir_entry, pCached->entryname, dir_entry_len);
+}
+
 int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, int dir_entry_len)
 {
     // Check for a valid open handle ID
     if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
         return -1;
 
-#define OFFSET_READDIRX_FLAGS 1
-#define OFFSET_READDIRX_SIZE 2
-#define OFFSET_READDIRX_MTIME 6
-#define OFFSET_READDIRX_CTIME 10
-#define OFFSET_READDIRX_PATH 14
+    // See if we have an entry in our directory cache to return first
+    tnfsDirCacheEntry *pCached = m_info->next_dircache_entry();
+    if(pCached != nullptr)
+    {
+        _readdirx_fill_response(pCached, filestat, dir_entry, dir_entry_len);
+        return 0;
+    }
+    // Invalidate the cache before loading more
+    m_info->empty_dircache();
+
+#define OFFSET_READDIRX_FLAGS 0
+#define OFFSET_READDIRX_SIZE 1
+#define OFFSET_READDIRX_MTIME 5
+#define OFFSET_READDIRX_CTIME 9
+#define OFFSET_READDIRX_PATH 13
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_READDIRX;
     packet.payload[0] = m_info->dir_handle;
     // Number of responses to read
-    packet.payload[1] = 1;
+    packet.payload[1] = TNFS_MAX_DIRCACHE_ENTRIES;
 
     if (_tnfs_transaction(m_info, packet, 2))
     {
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             uint8_t response_count = packet.payload[1];
-            uint16_t dirpos = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 2 );
+            uint16_t dirpos = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 2);
 
             Debug_printf("tnfs_readdirx resp_count=%hu, dirpos=%hu\n", response_count, dirpos);
 
-            int offset = 3;
+            // Fill our directory cache using the returned values
+            int current_offset = 4;
+            for(int i = 0; i < response_count; i++)
+            {
+                tnfsDirCacheEntry *pEntry = m_info->new_dircache_entry();
+                if(pEntry != nullptr)
+                {
+                    pEntry->dirpos = dirpos + i;
+                    pEntry->flags = 
+                        packet.payload[current_offset + OFFSET_READDIRX_FLAGS];
+                    pEntry->filesize = 
+                        TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + current_offset + OFFSET_READDIRX_SIZE);
+                    pEntry->m_time = 
+                        TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + current_offset + OFFSET_READDIRX_MTIME);
+                    pEntry->c_time = 
+                        TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + current_offset + OFFSET_READDIRX_CTIME);
 
-            filestat->isDir = (packet.payload[offset + OFFSET_READDIRX_FLAGS] & TNFS_READDIRX_DIR) ? true : false;
-            filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + offset + OFFSET_READDIRX_SIZE);
-            filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + offset + OFFSET_READDIRX_MTIME);
-            filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + offset + OFFSET_READDIRX_CTIME);
-            filestat->a_time = 0;
+                    int name_len = strlcpy(pEntry->entryname, 
+                        (char *)packet.payload + current_offset + OFFSET_READDIRX_PATH, sizeof(pEntry->entryname));
 
-            strncpy(dir_entry, (char *)packet.payload + offset + OFFSET_READDIRX_PATH, dir_entry_len);
+                    /*
+                     Adjust our offset to point to the next entry within the packet
+                     flags (1) + size (4) + mtime (4) + ctime (4) + null (1) = 14
+                    */ 
+                    current_offset += 14 + name_len;
+                }
+                else
+                {
+                    Debug_print("tnfs_readdirx Failed to allocate new dircache entry!\n");
+                    break;
+                }
+            }
+
+            int loaded = m_info->count_dircache();
+            Debug_printf("tnfs_readdirx cached %d entries\n", loaded);
+            // Now that we've cached our entries, return the first one
+            if(loaded > 0)
+                _readdirx_fill_response(m_info->next_dircache_entry(), filestat, dir_entry, dir_entry_len);
 
 #ifdef DEBUG
-            char t_m[80];
-            char t_c[80];
-            const char *tfmt ="%Y-%m-%d %H:%M:%S";
-            time_t tt = filestat->m_time;
-            strftime(t_m, sizeof(t_m), tfmt, localtime(&tt));
-            tt = filestat->c_time;
-            strftime(t_c, sizeof(t_c), tfmt, localtime(&tt));
-            Debug_printf("\ttnfs_readdirx: dir: %s, size: %u, mtime: %s, ctime: %s \"%s\"\n", 
-                filestat->isDir ? "Yes" : "no",
-                 filestat->filesize, t_m, t_c, dir_entry );
+            if(loaded > 0)
+            {
+                char t_m[80];
+                char t_c[80];
+                const char *tfmt ="%Y-%m-%d %H:%M:%S";
+                time_t tt = filestat->m_time;
+                strftime(t_m, sizeof(t_m), tfmt, localtime(&tt));
+                tt = filestat->c_time;
+                strftime(t_c, sizeof(t_c), tfmt, localtime(&tt));
+                Debug_printf("\ttnfs_readdirx: dir: %s, size: %u, mtime: %s, ctime: %s \"%s\"\n", 
+                    filestat->isDir ? "Yes" : "no",
+                    filestat->filesize, t_m, t_c, dir_entry );
+            }
 #endif
 
         }
@@ -1003,6 +1059,14 @@ int tnfs_telldir(tnfsMountInfo *m_info, uint32_t *position)
 
     if(position == nullptr)
         return -1;
+
+    // First see if we're pointing at a currently-cached directory entry and return that
+    int cached = m_info->tell_dircache_entry();
+    if (cached > -1)
+    {
+        *position = cached;
+        return 0;
+    }
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_TELLDIR;
@@ -1026,6 +1090,9 @@ int tnfs_seekdir(tnfsMountInfo *m_info, uint32_t position)
 {
     if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
         return -1;
+
+    // A SEEKDIR will always invalidate our directory cache
+    m_info->empty_dircache();
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_SEEKDIR;
@@ -1062,6 +1129,9 @@ int tnfs_closedir(tnfsMountInfo *m_info)
 {
     if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
         return -1;
+
+    // Throw out any existing cached directory entries
+    m_info->empty_dircache();
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_CLOSEDIR;
@@ -1634,7 +1704,7 @@ int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char 
         return -1;
 
     // Use the cwd to bulid the full path
-    strncpy(buffer, m_info->current_working_directory, bufflen);
+    strlcpy(buffer, m_info->current_working_directory, bufflen);
 
     // Figure out whether or not we need to add a slash
     int ll;
@@ -1655,7 +1725,7 @@ int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char 
     }
 
     // Finally copy the source filepath
-    strncpy(buffer + ll, source, bufflen - ll);
+    strlcpy(buffer + ll, source, bufflen - ll);
 
     // And return the new length because that ends up being useful
     return strlen(buffer);
