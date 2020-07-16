@@ -152,10 +152,30 @@ void okimate10::okimate_output_color_line()
         else
         {
             // color text
-            // figure out color
-            // create fnt code
+            uint8_t c;
+            // first, set the font mode
+            okimate_new_fnt_mask = color_buffer[i][0] & 0x0f;
+            // then figure out color
+            clear_mode(fnt_C | fnt_M | fnt_Y | fnt_K);
+            if (color_buffer[i][1] > ' ')
+            {
+                set_mode(fnt_C);
+                c = color_buffer[i][1];
+            }
+            if (color_buffer[i][2] > ' ')
+            {
+                set_mode(fnt_M);
+                c = color_buffer[i][2];
+            }
+            if (color_buffer[i][3] > ' ')
+            {
+                set_mode(fnt_Y);
+                c = color_buffer[i][3];
+            }
             // handle fnt
+            okimate_handle_font();
             // output character
+            print_char(c);
         }
     }
 }
