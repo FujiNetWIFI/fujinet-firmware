@@ -68,20 +68,25 @@ void okimate10::fprint_color_array(uint8_t font_mask)
 void okimate10::okimate_handle_font()
 {
     // 10 CPI, 16.5 CPI, 5 CPI, 8.25 CPI
-    const double font_widths[] = {100., 100. * 80. / 132., 2. * 100., 2. * 100. * 80. / 132.};
+    const double font_widths[] = {
+        100.,                  // standard
+        100. * 80. / 132.,     // compressed
+        2. * 100.,             // wide
+        2. * 100. * 80. / 132. // bold
+    };
     if ((okimate_current_fnt_mask != okimate_new_fnt_mask) || (okimate_new_fnt_mask & fnt_inverse))
     {
         fprintf(_file, ")]TJ\n ");
         // check and change typeface
-        if (okimate_current_fnt_mask == 0xFF)
+        if (okimate_current_fnt_mask == 0xFF) // if invalidated fnt mask force font 1
             fprintf(_file, "/F1 12 Tf ");
-        if ((okimate_new_fnt_mask & fnt_gfx) && !(okimate_current_fnt_mask & fnt_gfx))
+        if ((okimate_new_fnt_mask & fnt_gfx) && !(okimate_current_fnt_mask & fnt_gfx)) // if going to gfx
         {
             charWidth = 1.2;
             fprintf(_file, "/F2 12 Tf 100 Tz"); // set font to GFX mode
             fontUsed[1] = true;
         }
-        else if ((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03))
+        else if ((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03)) // if text mode changed
         {
             double w = font_widths[okimate_new_fnt_mask & 0x03];
             fprintf(_file, "%g Tz", w);
@@ -132,6 +137,27 @@ void okimate10::print_7bit_gfx(uint8_t c)
 void okimate10::pdf_clear_modes()
 {
     clear_mode(fnt_inverse); // implied by Atari manual page 28. Explicit in Commode manual page 26.
+}
+
+void okimate10::okimate_output_color_line()
+{
+    uint16_t i = 0;
+    while (color_buffer[i][0] != 0)
+    {
+        // in text or gfx mode?
+        if (color_buffer[i][0] & fnt_gfx)
+        {
+            // color dot graphics
+        }
+        else
+        {
+            // color text
+            // figure out color
+            // create fnt code
+            // handle fnt
+            // output character
+        }
+    }
 }
 
 void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
@@ -492,6 +518,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 if (colorMode == colorMode_t::process)                                 // if done all three colors, then output
                 {
                     // output the color buffer and reset the colorMode state var
+                    okimate_output_color_line();
                     colorMode = colorMode_t::off;
                 }
             }
