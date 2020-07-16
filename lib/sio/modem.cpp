@@ -19,6 +19,7 @@
 #define SIO_MODEMCMD_CONFIGURE 0x42
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
+#define SIO_MODEMCMD_BAUDLOCK 0x4E
 #define SIO_MODEMCMD_STATUS 0x53
 #define SIO_MODEMCMD_WRITE 0x57
 #define SIO_MODEMCMD_STREAM 0x58
@@ -187,14 +188,13 @@ void sioModem::sio_send_firmware(uint8_t loadcommand)
 
     // Free the buffer!
     free(code);
-    DTR=XMT=RTS=0;
+    DTR = XMT = RTS = 0;
 }
 
 // 0x57 / 'W' - WRITE
 void sioModem::sio_write()
 {
     uint8_t ck;
-    int oldBaudRate;
 #ifdef DEBUG
     Debug_println("Modem cmd: WRITE");
 #endif
@@ -208,6 +208,8 @@ void sioModem::sio_write()
     }
     else
     {
+        memset(txBuf, 0, sizeof(txBuf));
+
         ck = sio_to_peripheral(txBuf, 64);
 
         if (ck != sio_checksum(txBuf, 64))
@@ -216,10 +218,24 @@ void sioModem::sio_write()
         }
         else
         {
-            // oldBaudRate=SIO.getBaudrate();
-            // fnUartSIO.set_baudrate(modemBaud);
-            // fnUartSIO.write(txBuf,cmdFrame.aux1);
-            // fnUartSIO.set_baudrate(oldBaudRate);
+            if (cmdMode == true)
+            {
+                cmdOutput = false;
+                cmd.assign((char *)txBuf, cmdFrame.aux1);
+
+                if (cmd == "ATA\r")
+                    answerHack = true;
+                else
+                    modemCommand();
+
+                cmdOutput = true;
+            }
+            else
+            {
+                if (tcpClient.connected())
+                    tcpClient.write(txBuf, cmdFrame.aux1);
+            }
+
             sio_complete();
         }
     }
@@ -245,7 +261,27 @@ void sioModem::sio_status()
           1: 0
           0: RCV state (0=space, 1=mark)
     */
-    uint8_t status[2] = {0x00, 0x0C};
+    uint8_t status[2] = {0x00, crxval};
+
+    if ((CRX == false) && (crxval == 0))
+        crxval = 0;
+    else if ((CRX == false) && (crxval == 4))
+        crxval = 0;
+    else if ((CRX == false) && (crxval == 8))
+        crxval = 4;
+    else if ((CRX == false) && (crxval == 12))
+        crxval = 4;
+    else if ((CRX == true) && (crxval == 0))
+        crxval = 8;
+    else if ((CRX == true) && (crxval == 4))
+        crxval = 8;
+    else if ((CRX == true) && (crxval == 8))
+        crxval = 12;
+    else if ((CRX == false) && (crxval == 12))
+        crxval = 12;
+
+    status[1] = crxval;
+
     sio_to_computer(status, sizeof(status), false);
 }
 
@@ -292,6 +328,16 @@ void sioModem::sio_control()
         Debug_print("DTR=");
         Debug_println(DTR);
 #endif
+        if (DTR == 0 && tcpClient.connected())
+        {
+            tcpClient.stop(); // Hang up if DTR drops.
+
+            if (listenPort > 0)
+            {
+                // tcpServer.stop();
+                // tcpServer.begin(listenPort); // and re-listen if listenPort set.
+            }
+        }
     }
     // for now, just complete
     sio_complete();
@@ -330,6 +376,10 @@ void sioModem::sio_config()
     uint8_t newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
     //uint8_t wordSize = 0x30 & cmdFrame.aux1; // Get word size
     //uint8_t stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits
+
+    // Do not reset MODEM baud rate if locked.
+    if (baudLock == true)
+        return;
 
     switch (newBaud)
     {
@@ -432,7 +482,10 @@ void sioModem::sio_stream()
 void sioModem::sio_listen()
 {
     if (listenPort != 0)
+    {
+        tcpClient.stop();
         tcpServer.stop();
+    }
 
     listenPort = cmdFrame.aux2 * 256 + cmdFrame.aux1;
 
@@ -452,8 +505,64 @@ void sioModem::sio_listen()
 void sioModem::sio_unlisten()
 {
     sio_ack();
+    tcpClient.stop();
     tcpServer.stop();
     sio_complete();
+}
+
+/**
+ * Lock MODEM baud rate to last configured value
+ */
+void sioModem::sio_baudlock()
+{
+    sio_ack();
+    baudLock = (cmdFrame.aux1 > 0 ? true : false);
+#ifdef DEBUG
+    Debug_printf("baudLock: %d\n", baudLock);
+#endif
+    sio_complete();
+}
+
+void sioModem::at_connect_resultCode(int modemBaud)
+{
+    int resultCode = 0;
+    switch (modemBaud)
+    {
+    case 300:
+        resultCode = 1;
+        break;
+    case 1200:
+        resultCode = 5;
+        break;
+    case 2400:
+        resultCode = 10;
+        break;
+    case 4800:
+        resultCode = 18;
+        break;
+    case 9600:
+        resultCode = 13;
+        break;
+    case 19200:
+        resultCode = 85;
+        break;
+    default:
+        resultCode = 1;
+        break;
+    }
+    fnUartSIO.print(resultCode);
+    fnUartSIO.write(ASCII_CR);
+}
+
+/**
+ * Emit result code if ATV0
+ * No Atascii translation here, as this is intended for machine reading.
+ */
+void sioModem::at_cmd_resultCode(int resultCode)
+{
+    fnUartSIO.print(resultCode);
+    fnUartSIO.write(ASCII_CR);
+    fnUartSIO.write(ASCII_LF);
 }
 
 /**
@@ -461,111 +570,81 @@ void sioModem::sio_unlisten()
 */
 void sioModem::at_cmd_println()
 {
+    if (cmdOutput == false)
+        return;
+
     if (cmdAtascii == true)
     {
-        //SIO_UART.write(ATASCII_EOL);
         fnUartSIO.write(ATASCII_EOL);
     }
     else
     {
-        //SIO_UART.write(ASCII_CR);
-        //SIO_UART.write(ASCII_LF);
         fnUartSIO.write(ASCII_CR);
         fnUartSIO.write(ASCII_LF);
     }
-    //SIO_UART.flush();
     fnUartSIO.flush();
 }
 
 void sioModem::at_cmd_println(const char *s, bool addEol)
 {
-    //SIO_UART.print(s);
+    if (cmdOutput == false)
+        return;
+
     fnUartSIO.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            //SIO_UART.write(ATASCII_EOL);
             fnUartSIO.write(ATASCII_EOL);
         }
         else
         {
-            //SIO_UART.write(ASCII_CR);
-            //SIO_UART.write(ASCII_LF);
             fnUartSIO.write(ASCII_CR);
             fnUartSIO.write(ASCII_LF);
         }
     }
-    //SIO_UART.flush();
     fnUartSIO.flush();
 }
 
 void sioModem::at_cmd_println(int i, bool addEol)
 {
-    //SIO_UART.print(i);
+    if (cmdOutput == false)
+        return;
+
     fnUartSIO.print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            //SIO_UART.write(ATASCII_EOL);
             fnUartSIO.write(ATASCII_EOL);
         }
         else
         {
-            //SIO_UART.write(ASCII_CR);
-            //SIO_UART.write(ASCII_LF);
             fnUartSIO.write(ASCII_CR);
             fnUartSIO.write(ASCII_LF);
         }
     }
-    //SIO_UART.flush();
     fnUartSIO.flush();
 }
 
 void sioModem::at_cmd_println(std::string s, bool addEol)
 {
-    //SIO_UART.print(s);
+    if (cmdOutput == false)
+        return;
+
     fnUartSIO.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            //SIO_UART.write(ATASCII_EOL);
             fnUartSIO.write(ATASCII_EOL);
         }
         else
         {
-            //SIO_UART.write(ASCII_CR);
-            //SIO_UART.write(ASCII_LF);
             fnUartSIO.write(ASCII_CR);
             fnUartSIO.write(ASCII_LF);
         }
     }
-    //SIO_UART.flush();
-    fnUartSIO.flush();
-}
-
-void sioModem::at_cmd_println(in_addr_t ipa, bool addEol)
-{
-    //SIO_UART.print(ipa);
-    fnUartSIO.print(inet_ntoa(ipa));
-    if (addEol)
-    {
-        if (cmdAtascii == true)
-        {
-            //SIO_UART.write(ATASCII_EOL);
-            fnUartSIO.write(ATASCII_EOL);
-        }
-        else
-        {
-            //SIO_UART.write(ASCII_CR);
-            //SIO_UART.write(ASCII_LF);
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
-        }
-    }
-    //SIO_UART.flush();
     fnUartSIO.flush();
 }
 
@@ -601,9 +680,27 @@ void sioModem::at_handle_wificonnect()
         at_cmd_println(".", false);
     }
     if (retries >= 20)
-        at_cmd_println("ERROR");
+    {
+        if (numericResultCode == true)
+        {
+            at_cmd_resultCode(RESULT_CODE_ERROR);
+        }
+        else
+        {
+            at_cmd_println("ERROR");
+        }
+    }
     else
-        at_cmd_println("OK");
+    {
+        if (numericResultCode == true)
+        {
+            at_cmd_resultCode(RESULT_CODE_OK);
+        }
+        else
+        {
+            at_cmd_println("OK");
+        }
+    }
 }
 
 void sioModem::at_handle_port()
@@ -612,18 +709,25 @@ void sioModem::at_handle_port()
     int port = std::stoi(cmd.substr(6));
     if (port > 65535 || port < 0)
     {
-        at_cmd_println("ERROR");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_ERROR);
+        else
+            at_cmd_println("ERROR");
     }
     else
     {
         if (listenPort != 0)
         {
+            tcpClient.stop();
             tcpServer.stop();
         }
 
         listenPort = port;
         tcpServer.begin(listenPort);
-        at_cmd_println("OK");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
     }
 }
 
@@ -656,24 +760,26 @@ void sioModem::at_handle_get()
     if (path.empty())
         path = "/";
 
-    // Debug
-    at_cmd_println("Getting path ", false);
-    at_cmd_println(path, false);
-    at_cmd_println(" from port ", false);
-    at_cmd_println(port, false);
-    at_cmd_println(" of host ", false);
-    at_cmd_println(host, false);
-    at_cmd_println("...");
-
     // Establish connection
     if (!tcpClient.connect(host.c_str(), port))
     {
-        at_cmd_println("NO CARRIER");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+        else
+            at_cmd_println("NO CARRIER");
+        CRX = false;
     }
     else
     {
-        at_cmd_println("CONNECT ", false);
-        at_cmd_println(modemBaud);
+        if (numericResultCode == true)
+            at_connect_resultCode(modemBaud);
+        else
+        {
+            at_cmd_println("CONNECT ", false);
+            at_cmd_println(modemBaud);
+            CRX = true;
+        }
+
         cmdMode = false;
 
         // Send a HTTP request before continuing the connection as usual
@@ -715,7 +821,11 @@ void sioModem::at_handle_help()
         at_cmd_println(HELPPORT4);
     }
     at_cmd_println();
-    at_cmd_println("OK");
+
+    if (numericResultCode == true)
+        at_cmd_resultCode(RESULT_CODE_OK);
+    else
+        at_cmd_println("OK");
 }
 
 void sioModem::at_handle_wifilist()
@@ -761,7 +871,35 @@ void sioModem::at_handle_wifilist()
         }
     }
     at_cmd_println();
-    at_cmd_println("OK");
+
+    if (numericResultCode == true)
+        at_cmd_resultCode(RESULT_CODE_OK);
+    else
+        at_cmd_println("OK");
+}
+
+void sioModem::at_handle_answer()
+{
+    Debug_printf("HANDLE ANSWER !!!\n");
+    if (tcpServer.hasClient())
+    {
+        tcpClient = tcpServer.available();
+        tcpClient.setNoDelay(true); // try to disable naggle
+                                    //        tcpServer.stop();
+        if (numericResultCode == true)
+            at_connect_resultCode(modemBaud);
+        else
+        {
+            at_cmd_println("CONNECT ", false);
+            at_cmd_println(modemBaud);
+            CRX = true;
+            /* code */
+        }
+
+        cmdMode = false;
+        fnUartSIO.flush();
+        answerHack = false;
+    }
 }
 
 void sioModem::at_handle_dial()
@@ -770,14 +908,11 @@ void sioModem::at_handle_dial()
     std::string host, port;
     if (portIndex != std::string::npos)
     {
-        //host = cmd.substring(4, portIndex);
         host = cmd.substr(4, portIndex - 4 + 1);
-        //port = cmd.substring(portIndex + 1, cmd.length());
         port = cmd.substr(portIndex + 1);
     }
     else
     {
-        //host = cmd.substring(4, cmd.length());
         host = cmd.substr(4);
         port = "23"; // Telnet default
     }
@@ -787,8 +922,17 @@ void sioModem::at_handle_dial()
     if (host == "5551234") // Fake it for BobTerm
     {
         fnSystem.delay(1300); // Wait a moment so bobterm catches it
-        at_cmd_println("CONNECT ", false);
-        at_cmd_println(modemBaud);
+
+        if (numericResultCode == true)
+            at_connect_resultCode(modemBaud);
+        else
+        {
+            at_cmd_println("CONNECT ", false);
+            at_cmd_println(modemBaud);
+            CRX = true;
+            /* code */
+        }
+
 #ifdef DEBUG
         Debug_println("CONNECT FAKE!");
 #endif
@@ -806,16 +950,29 @@ void sioModem::at_handle_dial()
         {
             tcpClient.setNoDelay(true); // Try to disable naggle
 
-            at_cmd_println("CONNECT ", false);
-            at_cmd_println(modemBaud);
-            cmdMode = false;
+            if (numericResultCode == true)
+                at_connect_resultCode(modemBaud);
+            else
+            {
+                at_cmd_println("CONNECT ", false);
+                at_cmd_println(modemBaud);
+                CRX = true;
+                /* code */
+            }
 
+            cmdMode = false;
             if (listenPort > 0)
-                tcpServer.stop();
+            {
+                //                tcpServer.stop();
+            }
         }
         else
         {
-            at_cmd_println("NO CARRIER");
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+            else
+                at_cmd_println("NO CARRIER");
+            CRX = false;
         }
     }
 }
@@ -840,7 +997,28 @@ void sioModem::modemCommand()
             "ATWIFILIST",
             "ATWIFICONNECT",
             "ATGET",
-            "ATPORT"};
+            "ATPORT",
+            "ATV0",
+            "ATV1",
+            "AT&F",
+            "ATS0=0",
+            "ATS0=1",
+            "ATS2=43",
+            "ATS5=8",
+            "ATS6=2",
+            "ATS7=30",
+            "ATS12=20",
+            "ATE0",
+            "ATE1",
+            "ATM0",
+            "ATM1",
+            "ATX1",
+            "AT&C1",
+            "AT&D2",
+            "AT&W",
+            "ATH2",
+            "+++ATZ",
+            "ATS2=128 X1 M0"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -851,11 +1029,12 @@ void sioModem::modemCommand()
     //upperCaseCmd.toUpperCase();
     util_string_toupper(upperCaseCmd);
 
-    at_cmd_println();
+    if (commandEcho == true)
+        at_cmd_println();
 
 #ifdef DEBUG
     Debug_print("AT Cmd: ");
-    Debug_println(upperCaseCmd);
+    Debug_println(upperCaseCmd.c_str());
 #endif
 
     // Replace EOL with CR
@@ -875,28 +1054,48 @@ void sioModem::modemCommand()
     {
         // Make sure we skip the plain AT command when matching
         for (cmd_match = _at_cmds::AT_AT + 1; cmd_match < _at_cmds::AT_ENUMCOUNT; cmd_match++)
-        {
-            //if (upperCaseCmd.startsWith(at_cmds[cmd_match]))
             if (upperCaseCmd.compare(0, strlen(at_cmds[cmd_match]), at_cmds[cmd_match]) == 0)
                 break;
-        }
     }
 
     switch (cmd_match)
     {
     // plain AT
     case AT_AT:
-        at_cmd_println("OK");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
         break;
+    case AT_OFFHOOK: // Off hook, should be ignored.
     // hangup
     case AT_H:
-    case AT_H2:
-        tcpClient.flush();
-        tcpClient.stop();
-        cmdMode = true;
-        at_cmd_println("NO CARRIER");
-        if (listenPort > 0)
-            tcpServer.begin();
+    case AT_H1:
+        if (tcpClient.connected() == true)
+        {
+            tcpClient.flush();
+            tcpClient.stop();
+            cmdMode = true;
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+            else
+                at_cmd_println("NO CARRIER");
+
+            CRX = false;
+
+            if (listenPort > 0)
+            {
+                //                tcpServer.stop();
+                //                tcpServer.begin(listenPort);
+            }
+        }
+        else
+        {
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_OK);
+            else
+                at_cmd_println("OK");
+        }
         break;
     // dial to host
     case AT_DT:
@@ -913,24 +1112,20 @@ void sioModem::modemCommand()
     // Change telnet mode
     case AT_NET0:
         telnet = false;
-        at_cmd_println("OK");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
         break;
     case AT_NET1:
         telnet = true;
-        at_cmd_println("OK");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
         break;
     case AT_A:
-        if (tcpServer.hasClient())
-        {
-            tcpClient = tcpServer.available();
-            tcpClient.setNoDelay(true); // try to disable naggle
-            tcpServer.stop();
-            at_cmd_println("CONNECT ", false);
-            at_cmd_println(modemBaud);
-            cmdMode = false;
-            //SIO_UART.flush();
-            fnUartSIO.flush();
-        }
+        at_handle_answer();
         break;
     // See my IP address
     case AT_IP:
@@ -938,7 +1133,10 @@ void sioModem::modemCommand()
             at_cmd_println(fnSystem.Net.get_ip4_address_str());
         else
             at_cmd_println(HELPNOWIFI);
-        at_cmd_println("OK");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
         break;
     case AT_HELP:
         at_handle_help();
@@ -949,8 +1147,66 @@ void sioModem::modemCommand()
     case AT_PORT:
         at_handle_port();
         break;
+    case AT_V0:
+        at_cmd_resultCode(RESULT_CODE_OK);
+        numericResultCode = true;
+        break;
+    case AT_V1:
+        at_cmd_println("OK");
+        numericResultCode = false;
+        break;
+    case AT_S0E0:
+        autoAnswer = false;
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_S0E1:
+        autoAnswer = true;
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_E0:
+        commandEcho = false;
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_E1:
+        commandEcho = true;
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_ANDF: // These are all ignored.
+    case AT_S2E43:
+    case AT_S5E8:
+    case AT_S6E2:
+    case AT_S7E30:
+    case AT_S12E20:
+    case AT_M0:
+    case AT_M1:
+    case AT_X1:
+    case AT_AC1:
+    case AT_AD2:
+    case AT_AW:
+    case AT_ZPPP:
+    case AT_BBSX:
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
     default:
-        at_cmd_println("ERROR");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_ERROR);
+        else
+            at_cmd_println("ERROR");
         break;
     }
 
@@ -965,14 +1221,33 @@ void sioModem::sio_handle_modem()
     /**** AT command mode ****/
     if (cmdMode == true)
     {
+        if (answerHack == true)
+        {
+            Debug_printf("XXX ANSWERHACK !!! SENDING ATA! ");
+            cmd = "ATA";
+            modemCommand();
+            answerHack = false;
+            return;
+        }
+
         // In command mode but new unanswered incoming connection on server listen socket
         if ((listenPort > 0) && (tcpServer.hasClient()))
         {
-            // Print RING every now and then while the new incoming connection exists
-            if ((fnSystem.millis() - lastRingMs) > RING_INTERVAL)
+            if (autoAnswer == true)
             {
-                at_cmd_println("RING");
-                lastRingMs = fnSystem.millis();
+                at_handle_answer();
+            }
+            else
+            {
+                // Print RING every now and then while the new incoming connection exists
+                if ((fnSystem.millis() - lastRingMs) > RING_INTERVAL)
+                {
+                    if (numericResultCode == true)
+                        at_cmd_resultCode(RESULT_CODE_RING);
+                    else
+                        at_cmd_println("RING");
+                    lastRingMs = fnSystem.millis();
+                }
             }
         }
 
@@ -1002,27 +1277,26 @@ void sioModem::sio_handle_modem()
                 cmd.erase(cmd.length() - 1);
                 // We don't assume that backspace is destructive
                 // Clear with a space
-                //SIO_UART.write(ASCII_BACKSPACE);
-                //SIO_UART.write(' ');
-                //SIO_UART.write(ASCII_BACKSPACE);
-                fnUartSIO.write(ASCII_BACKSPACE);
-                fnUartSIO.write(' ');
-                fnUartSIO.write(ASCII_BACKSPACE);
+                if (commandEcho == true)
+                {
+                    fnUartSIO.write(ASCII_BACKSPACE);
+                    fnUartSIO.write(' ');
+                    fnUartSIO.write(ASCII_BACKSPACE);
+                }
             }
             else if (chr == ATASCII_BACKSPACE)
             {
                 // ATASCII backspace
-                //cmd.remove(cmd.length() - 1);
                 cmd.erase(cmd.length() - 1);
-                //SIO_UART.write(ATASCII_BACKSPACE);   // we can assume ATASCII BS is destructive.
-                fnUartSIO.write(ATASCII_BACKSPACE);
+                if (commandEcho == true)
+                    fnUartSIO.write(ATASCII_BACKSPACE);
             }
             // Take into account arrow key movement and clear screen
             else if (chr == ATASCII_CLEAR_SCREEN ||
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
-                //SIO_UART.write(chr);
-                fnUartSIO.write(chr);
+                if (commandEcho == true)
+                    fnUartSIO.write(chr);
             }
             else
             {
@@ -1031,8 +1305,8 @@ void sioModem::sio_handle_modem()
                     //cmd.concat(chr);
                     cmd += chr;
                 }
-                //SIO_UART.write(chr);
-                fnUartSIO.write(chr);
+                if (commandEcho == true)
+                    fnUartSIO.write(chr);
             }
         }
     }
@@ -1135,16 +1409,30 @@ void sioModem::sio_handle_modem()
         tcpClient.flush();
         tcpClient.stop();
         cmdMode = true;
-        at_cmd_println("NO CARRIER");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+        else
+            at_cmd_println("NO CARRIER");
+        CRX = false;
         if (listenPort > 0)
-            tcpServer.begin();
+        {
+            // tcpServer.stop();
+            // tcpServer.begin(listenPort);
+        }
     }
     else if ((!tcpClient.connected()) && (cmdMode == false))
     {
         cmdMode = true;
-        at_cmd_println("NO CARRIER");
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
+        else
+            at_cmd_println("NO CARRIER");
+        CRX = false;
         if (listenPort > 0)
-            tcpServer.begin();
+        {
+            // tcpServer.stop();
+            // tcpServer.begin(listenPort);
+        }
     }
 }
 
@@ -1203,6 +1491,9 @@ void sioModem::sio_process()
         break;
     case SIO_MODEMCMD_UNLISTEN:
         sio_unlisten();
+        break;
+    case SIO_MODEMCMD_BAUDLOCK:
+        sio_baudlock();
         break;
     case SIO_MODEMCMD_STATUS:
         sio_ack();

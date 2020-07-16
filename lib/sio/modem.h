@@ -40,6 +40,20 @@
 class sioModem : public sioDevice
 {
 private:
+
+#define RESULT_CODE_OK              0
+#define RESULT_CODE_CONNECT         1
+#define RESULT_CODE_RING            2
+#define RESULT_CODE_NO_CARRIER      3
+#define RESULT_CODE_ERROR           4
+#define RESULT_CODE_CONNECT_1200    5
+#define RESULT_CODE_BUSY            7
+#define RESULT_CODE_NO_ANSWER       8
+#define RESULT_CODE_CONNECT_2400    10
+#define RESULT_CODE_CONNECT_9600    13
+#define RESULT_CODE_CONNECT_4800    18
+#define RESULT_CODE_CONNECT_19200   85
+
     enum _at_cmds
     {
         AT_AT = 0,
@@ -49,7 +63,7 @@ private:
         AT_IP,
         AT_HELP,
         AT_H,
-        AT_H2,
+        AT_H1,
         AT_DT,
         AT_DP,
         AT_DI,
@@ -57,13 +71,34 @@ private:
         AT_WIFICONNECT,
         AT_GET,
         AT_PORT,
-        AT_ENUMCOUNT
-    };
+        AT_V0,
+        AT_V1,
+        AT_ANDF,
+        AT_S0E0,
+        AT_S0E1,
+        AT_S2E43,
+        AT_S5E8,
+        AT_S6E2,
+        AT_S7E30,
+        AT_S12E20,
+        AT_E0,
+        AT_E1,
+        AT_M0,
+        AT_M1,
+        AT_X1,
+        AT_AC1,
+        AT_AD2,
+        AT_AW,
+        AT_OFFHOOK,
+        AT_ZPPP,
+        AT_BBSX,
+        AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
     bool DTR = false;
     bool RTS = false;
     bool XMT = false;
+    bool baudLock = false; // lock modem baud rate from further changes.
 
     int count_PollType1 = 0; // Keep track of how many times we've seen command 0x3F
     int load_firmware(const char *filename, char **buffer);
@@ -80,6 +115,13 @@ private:
     char plusCount = 0;            // Go to AT mode at "+++" sequence, that has to be counted
     unsigned long plusTime = 0;    // When did we last receive a "+++" sequence
     uint8_t txBuf[TX_BUF_SIZE];
+    bool cmdOutput=true;            // toggle whether to emit command output
+    bool numericResultCode=false;   // Use numeric result codes? (ATV0)
+    bool autoAnswer=false;          // Auto answer? (ATS0?)
+    bool commandEcho=true;          // Echo MODEM input. (ATEx)
+    bool CRX=false;                 // CRX flag.
+    unsigned char crxval=0;         // CRX value.
+    bool answerHack=false;          // ATA answer hack on SIO write.
     
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
@@ -88,21 +130,26 @@ private:
     void sio_config();                           // $42, 'B', Configure
     void sio_listen();                           // $4C, 'L', Listen
     void sio_unlisten();                         // $4D, 'M', Unlisten
+    void sio_baudlock();                         // $4E, 'N', Baud lock
     void sio_status() override;                  // $53, 'S', Status
     void sio_write();                            // $57, 'W', Write
     void sio_stream();                           // $58, 'X', Concurrent/Stream
     void sio_process() override;                 // Process the command
+    
+    void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command
 
     // CR/EOL aware println() functions for AT mode
+    void at_connect_resultCode(int modemBaud);
+    void at_cmd_resultCode(int resultCode);
     void at_cmd_println();
     void at_cmd_println(const char *s, bool addEol = true);
     void at_cmd_println(int i, bool addEol = true);
     void at_cmd_println(std::string s, bool addEol = true);
-    void at_cmd_println(in_addr_t ipa, bool addEol = true);
 
     // Command handlers
+    void at_handle_answer();
     void at_handle_dial();
     void at_handle_wifilist();
     void at_handle_wificonnect();
