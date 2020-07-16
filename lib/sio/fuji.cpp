@@ -485,16 +485,16 @@ void sioFuji::sio_get_adapter_config()
 
     memset((void *)adapterConfig.rawData, 0, sizeof(adapterConfig.rawData));
 
-    strncpy(adapterConfig.detail.fn_version, fnSystem.get_fujinet_version(true), sizeof(adapterConfig.detail.fn_version));
+    strlcpy(adapterConfig.detail.fn_version, fnSystem.get_fujinet_version(true), sizeof(adapterConfig.detail.fn_version));
 
     if (!fnWiFi.connected())
     {
-        strncpy(adapterConfig.detail.ssid, "NOT CONNECTED", sizeof(adapterConfig.detail.ssid));
+        strlcpy(adapterConfig.detail.ssid, "NOT CONNECTED", sizeof(adapterConfig.detail.ssid));
     }
     else
     {
-        strncpy(adapterConfig.detail.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(adapterConfig.detail.hostname));
-        strncpy(adapterConfig.detail.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(adapterConfig.detail.ssid));
+        strlcpy(adapterConfig.detail.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(adapterConfig.detail.hostname));
+        strlcpy(adapterConfig.detail.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(adapterConfig.detail.ssid));
         fnWiFi.get_current_bssid(adapterConfig.detail.bssid);
         fnSystem.Net.get_ip4_info(adapterConfig.detail.localIP, adapterConfig.detail.netmask, adapterConfig.detail.gateway);
         fnSystem.Net.get_ip4_dns_info(adapterConfig.detail.dnsIP);
@@ -585,7 +585,7 @@ void sioFuji::populate_slots_from_config()
         if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
             hostSlots.slot[i].hostname[0] = '\0';
         else
-            strncpy(hostSlots.slot[i].hostname,
+            strlcpy(hostSlots.slot[i].hostname,
                     Config.get_host_name(i).c_str(), MAX_HOSTNAME_LEN);
     }
 
@@ -598,7 +598,7 @@ void sioFuji::populate_slots_from_config()
         {
             if (Config.get_mount_host_slot(i) >= 0 && Config.get_mount_host_slot(i) <= MAX_FILESYSTEMS)
             {
-                strncpy(deviceSlots.slot[i].filename,
+                strlcpy(deviceSlots.slot[i].filename,
                         Config.get_mount_path(i).c_str(), MAX_FILENAME_LEN);
                 deviceSlots.slot[i].hostSlot = Config.get_mount_host_slot(i);
                 if (Config.get_mount_mode(i) == fnConfig::mount_modes::MOUNTMODE_WRITE)
