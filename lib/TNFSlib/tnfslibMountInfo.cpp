@@ -40,6 +40,7 @@ void tnfsMountInfo::empty_dircache()
     }
     _dir_cache_current = 0;
     _dir_cache_count = 0;
+    _dir_cache_eof = false;
 }
 
 /*

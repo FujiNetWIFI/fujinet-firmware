@@ -613,7 +613,7 @@ int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory, uint8_t sortopts
     packet.command = TNFS_CMD_OPENDIRX;
 
     packet.payload[OFFSET_OPENDIRX_DIROPT] = diropts;
-    packet.payload[OFFSET_OPENDIRX_SORTOPT] =  sortopts;
+    packet.payload[OFFSET_OPENDIRX_SORTOPT] = sortopts;
 
     packet.payload[OFFSET_OPENDIRX_MAXRESULTS] = TNFS_LOBYTE_FROM_UINT16(maxresults);
     packet.payload[OFFSET_OPENDIRX_MAXRESULTS + 1] = TNFS_HIBYTE_FROM_UINT16(maxresults);
@@ -676,6 +676,11 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
         _readdirx_fill_response(pCached, filestat, dir_entry, dir_entry_len);
         return 0;
     }
+    
+    // If the cache was empty and the EOF flag was set, just respond with an EOF error
+    if(m_info->get_dircache_eof() == true)
+        return TNFS_RESULT_END_OF_FILE;
+
     // Invalidate the cache before loading more
     m_info->empty_dircache();
 
@@ -696,12 +701,17 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             uint8_t response_count = packet.payload[1];
-            uint16_t dirpos = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 2);
+            uint8_t response_status = packet.payload[2];
+            uint16_t dirpos = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 3);
 
-            Debug_printf("tnfs_readdirx resp_count=%hu, dirpos=%hu\n", response_count, dirpos);
+            // Set our EOF flag if the server tells us there's no more after this
+            if(response_status & TNFS_READDIRX_STATUS_EOF)
+                m_info->set_dircache_eof();
+
+            Debug_printf("tnfs_readdirx resp_count=%hu, dirpos=%hu, status=%hu\n", response_count, dirpos, response_status);
 
             // Fill our directory cache using the returned values
-            int current_offset = 4;
+            int current_offset = 5;
             for(int i = 0; i < response_count; i++)
             {
                 tnfsDirCacheEntry *pEntry = m_info->new_dircache_entry();
