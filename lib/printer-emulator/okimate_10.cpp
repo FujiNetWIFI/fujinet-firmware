@@ -142,7 +142,7 @@ void okimate10::pdf_clear_modes()
 void okimate10::okimate_output_color_line()
 {
     uint16_t i = 0;
-    while (color_buffer[i][0] != 0)
+    while (color_buffer[i][0] != 0 && i<480)
     {
         // in text or gfx mode?
         if (color_buffer[i][0] & fnt_gfx)
@@ -152,11 +152,11 @@ void okimate10::okimate_output_color_line()
         else
         {
             // color text
-            uint8_t c;
-            // first, set the font mode
+            uint8_t c = ' ';
+            // first, set the font mode and clear color
             okimate_new_fnt_mask = color_buffer[i][0] & 0x0f;
             // then figure out color
-            clear_mode(fnt_C | fnt_M | fnt_Y | fnt_K);
+            // clear_mode(fnt_C | fnt_M | fnt_Y | fnt_K);
             if (color_buffer[i][1] > ' ')
             {
                 set_mode(fnt_C);
@@ -177,6 +177,7 @@ void okimate10::okimate_output_color_line()
             // output character
             print_char(c);
         }
+        i++;
     }
 }
 
