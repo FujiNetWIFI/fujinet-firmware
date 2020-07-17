@@ -27,13 +27,13 @@ void okimate10::esc_not_implemented()
 {
     uint8_t c = okimate_cmd.cmd;
     __IGNORE_UNUSED_VAR(c);
-    Debug_printf("Command not implemented: ESC %u %x %c\n", c, c, c);
+    Debug_printf("Command not implemented: ESC %u %02x %c\n", c, c, c);
 }
 
 void okimate10::cmd_not_implemented(uint8_t c)
 {
     __IGNORE_UNUSED_VAR(c);
-    Debug_printf("Command not implemented: %u %x %c\n", c, c, c);
+    Debug_printf("Command not implemented: %u %02x %c\n", c, c, c);
 }
 
 void okimate10::set_mode(uint8_t m)
@@ -142,37 +142,40 @@ void okimate10::pdf_clear_modes()
 void okimate10::okimate_output_color_line()
 {
     uint16_t i = 0;
+    Debug_printf("Color buffer element 0: %02x\n", color_buffer[0][0]);
     while (color_buffer[i][0] != 0 && i < 480)
     {
+        Debug_printf("Color buffer position %d\n", i);
         // in text or gfx mode?
         if (color_buffer[i][0] & fnt_gfx)
         {
             // color dot graphics
+            Debug_printf("color gfx: ctr, char's: %03d %02x %02x %02x\n", i, color_buffer[i][1], color_buffer[i][2], color_buffer[i][3]);
         }
         else
         {
             // color text
             uint8_t c = ' ';
             // first, set the font mode and clear color
-            okimate_new_fnt_mask = color_buffer[i][0] & 0x0f;
+            okimate_new_fnt_mask = color_buffer[i][0] & 0x07;
             // then figure out color
             // clear_mode(fnt_C | fnt_M | fnt_Y | fnt_K);
-            if (color_buffer[i][1] > ' ')
+            if (color_buffer[i][1] != ' ')
             {
                 set_mode(fnt_C);
                 c = color_buffer[i][1];
             }
-            if (color_buffer[i][2] > ' ')
+            if (color_buffer[i][2] != ' ')
             {
                 set_mode(fnt_M);
                 c = color_buffer[i][2];
             }
-            if (color_buffer[i][3] > ' ')
+            if (color_buffer[i][3] != ' ')
             {
                 set_mode(fnt_Y);
                 c = color_buffer[i][3];
             }
-            Debug_printf("ctr, font, char: %03d %02x %02x\n", i, okimate_new_fnt_mask, c);
+            Debug_printf("color text: ctr, font, char: %03d %02x %02x\n", i, okimate_new_fnt_mask, c);
             // handle fnt
             okimate_handle_font();
             // output character
@@ -222,7 +225,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.ctr = 0;
             okimate_cmd.cmd = c; // assign command char
 #ifdef DEBUG
-            Debug_printf("Command: %x\n", c);
+            Debug_printf("Command: %02x\n", c);
 #endif
         }
         else
@@ -374,7 +377,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         if (okimate_cmd.ctr == 0)
         {
 #ifdef DEBUG
-            Debug_printf("Command: %c\n", okimate_cmd.cmd);
+            Debug_printf("Command: %02x\n", okimate_cmd.cmd);
 #endif
         }
 
@@ -430,11 +433,12 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     else
                     {
                         color_buffer[color_counter][0] = okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
-                        color_buffer[color_counter++][static_cast<int>(colorMode)] = ' ';
+                        color_buffer[color_counter++][static_cast<int>(colorMode)] = 0;   // space no dots
                     }
                 }
-                okimate_new_fnt_mask = okimate_current_fnt_mask; // reset font
-                okimate_current_fnt_mask = 0xFF;                 // invalidate font mask
+                okimate_new_fnt_mask = 0x80; // set to normal
+                // old statement: okimate_new_fnt_mask = okimate_current_fnt_mask; // this doesn't do anything because of next line
+                okimate_current_fnt_mask = 0xFF; // invalidate font mask
                 if (colorMode == colorMode_t::off)
                     okimate_handle_font();
                 else
@@ -538,7 +542,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 // expect 3 EOL's in color mode, one after each color.
                 color_counter = 0;
                 colorMode = static_cast<colorMode_t>(static_cast<int>(colorMode) + 1); // increment colorMode
-                Debug_printf("EOL received. colorMode = %d", static_cast<int>(colorMode));
+                Debug_printf("EOL received. colorMode = %d\n", static_cast<int>(colorMode));
                 if (colorMode == colorMode_t::process) // if done all three colors, then output
                 {
                     // output the color buffer and reset the colorMode state var
@@ -558,7 +562,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             else
             {
                 okimate_current_fnt_mask = okimate_new_fnt_mask;
-                color_buffer[color_counter][0] = okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
+                color_buffer[color_counter][0] = okimate_current_fnt_mask & 0x07; // just need font state - not color
                 color_buffer[color_counter++][static_cast<int>(colorMode)] = c;
             }
             break;
