@@ -161,37 +161,37 @@ void okimate10::okimate_output_color_line()
             okimate_handle_font();
             print_7bit_gfx(c);
             // 110 C&M
-            c = color_buffer[i][1] & color_buffer[i][2] & !color_buffer[i][3];
+            c = color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
             set_mode(fnt_C | fnt_M);
             clear_mode(fnt_Y);
             okimate_handle_font();
             print_7bit_gfx(c);
             // 101 C&Y
-            c = color_buffer[i][1] & !color_buffer[i][2] & color_buffer[i][3];
+            c = color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
             set_mode(fnt_C | fnt_Y);
             clear_mode(fnt_M);
             okimate_handle_font();
             print_7bit_gfx(c);
             // 110 M&Y
-            c = !color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
+            c = ~color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
             set_mode(fnt_M | fnt_Y);
             clear_mode(fnt_C);
             okimate_handle_font();
             print_7bit_gfx(c);
             // 100 C
-            c = color_buffer[i][1] & !color_buffer[i][2] & !color_buffer[i][3];
+            c = color_buffer[i][1] & ~color_buffer[i][2] & ~color_buffer[i][3];
             set_mode(fnt_C);
             clear_mode(fnt_Y | fnt_M);
             okimate_handle_font();
             print_7bit_gfx(c);
             // 010 Y
-            c = !color_buffer[i][1] & color_buffer[i][2] & !color_buffer[i][3];
+            c = ~color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
             set_mode(fnt_Y);
             clear_mode(fnt_C | fnt_M);
             okimate_handle_font();
             print_7bit_gfx(c);
             // 001 M
-            c = !color_buffer[i][1] & !color_buffer[i][2] & color_buffer[i][3];
+            c = ~color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
             set_mode(fnt_M);
             clear_mode(fnt_C | fnt_Y);
             okimate_handle_font();
