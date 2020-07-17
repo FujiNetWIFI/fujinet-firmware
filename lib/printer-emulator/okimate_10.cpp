@@ -142,7 +142,7 @@ void okimate10::pdf_clear_modes()
 void okimate10::okimate_output_color_line()
 {
     uint16_t i = 0;
-    while (color_buffer[i][0] != 0 && i<480)
+    while (color_buffer[i][0] != 0 && i < 480)
     {
         // in text or gfx mode?
         if (color_buffer[i][0] & fnt_gfx)
@@ -172,6 +172,7 @@ void okimate10::okimate_output_color_line()
                 set_mode(fnt_Y);
                 c = color_buffer[i][3];
             }
+            Debug_printf("ctr, font, char: %03d %02x %02x\n", i, okimate_new_fnt_mask, c);
             // handle fnt
             okimate_handle_font();
             // output character
@@ -512,7 +513,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x93: // stop REVERSE mode
             clear_mode(fnt_inverse);
             break;
-        case 0x99:                         // 0x99     Align Ribbon (for color mode)
+        case 0x99: // 0x99     Align Ribbon (for color mode)
+            Debug_println("Align Ribbon");
             colorMode = colorMode_t::cyan; // first color in CMY ribbon
             color_counter = 0;
             // initialize the color content buffer
@@ -536,10 +538,13 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 // expect 3 EOL's in color mode, one after each color.
                 color_counter = 0;
                 colorMode = static_cast<colorMode_t>(static_cast<int>(colorMode) + 1); // increment colorMode
-                if (colorMode == colorMode_t::process)                                 // if done all three colors, then output
+                Debug_printf("EOL received. colorMode = %d", static_cast<int>(colorMode));
+                if (colorMode == colorMode_t::process) // if done all three colors, then output
                 {
                     // output the color buffer and reset the colorMode state var
+                    Debug_println("Will now output color line.");
                     okimate_output_color_line();
+                    Debug_println("Resetting colorMode to OFF");
                     colorMode = colorMode_t::off;
                 }
             }
