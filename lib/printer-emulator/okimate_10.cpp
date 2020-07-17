@@ -149,8 +149,53 @@ void okimate10::okimate_output_color_line()
         // in text or gfx mode?
         if (color_buffer[i][0] & fnt_gfx)
         {
+            uint8_t c = 0;
             // color dot graphics
             Debug_printf("color gfx: ctr, char's: %03d %02x %02x %02x\n", i, color_buffer[i][1], color_buffer[i][2], color_buffer[i][3]);
+            okimate_new_fnt_mask = 0;
+            set_mode(fnt_gfx);
+            // brute force coding for colors
+            // 111 C&M&Y black
+            c = color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
+            set_mode(fnt_C | fnt_M | fnt_Y);
+            okimate_handle_font();
+            print_7bit_gfx(c);
+            // 110 C&M
+            c = color_buffer[i][1] & color_buffer[i][2] & !color_buffer[i][3];
+            set_mode(fnt_C | fnt_M);
+            clear_mode(fnt_Y);
+            okimate_handle_font();
+            print_7bit_gfx(c);
+            // 101 C&Y
+            c = color_buffer[i][1] & !color_buffer[i][2] & color_buffer[i][3];
+            set_mode(fnt_C | fnt_Y);
+            clear_mode(fnt_M);
+            okimate_handle_font();
+            print_7bit_gfx(c);
+            // 110 M&Y
+            c = !color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
+            set_mode(fnt_M | fnt_Y);
+            clear_mode(fnt_C);
+            okimate_handle_font();
+            print_7bit_gfx(c);
+            // 100 C
+            c = color_buffer[i][1] & !color_buffer[i][2] & !color_buffer[i][3];
+            set_mode(fnt_C);
+            clear_mode(fnt_Y | fnt_M);
+            okimate_handle_font();
+            print_7bit_gfx(c);
+            // 010 Y
+            c = !color_buffer[i][1] & color_buffer[i][2] & !color_buffer[i][3];
+            set_mode(fnt_Y);
+            clear_mode(fnt_C | fnt_M);
+            okimate_handle_font();
+            print_7bit_gfx(c);
+            // 001 M
+            c = !color_buffer[i][1] & !color_buffer[i][2] & color_buffer[i][3];
+            set_mode(fnt_M);
+            clear_mode(fnt_C | fnt_Y);
+            okimate_handle_font();
+            print_7bit_gfx(c);
         }
         else
         {
