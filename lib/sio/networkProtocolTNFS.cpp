@@ -156,7 +156,6 @@ unsigned char networkProtocolTNFS::status_dir()
     char tmp[256];
     string path_fixed;
     string entry;
-    int res;
     size_t fix_pos;
 
     path_fixed = path;
@@ -171,9 +170,7 @@ unsigned char networkProtocolTNFS::status_dir()
 
     if (entryBuf[0] == 0x00)
     {
-        res = tnfs_readdirx(&mountInfo, &fileStat, tmp, 255);
-
-        while (res == 0)
+        while (tnfs_readdirx(&mountInfo, &fileStat, tmp, 255))
         {
             if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
@@ -213,8 +210,6 @@ unsigned char networkProtocolTNFS::status_dir()
                 strcpy(entryBuf, entry.c_str());
                 return (unsigned char)strlen(entryBuf);
             }
-            else
-                tnfs_readdirx(&mountInfo, &fileStat, tmp, 255);
         }
 
         if (dirEOF == false)
