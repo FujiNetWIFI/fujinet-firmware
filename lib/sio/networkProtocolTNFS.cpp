@@ -40,7 +40,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         // Directory open.
         string dirPath = urlParser->path.substr(0, urlParser->path.find_last_of("/"));
 
-        if (tnfs_opendir(&mountInfo, dirPath.c_str()))
+        if (tnfs_opendirx(&mountInfo, dirPath.c_str()))
             return false; // error
     }
     else
@@ -171,7 +171,7 @@ unsigned char networkProtocolTNFS::status_dir()
 
     if (entryBuf[0] == 0x00)
     {
-        res = tnfs_readdir(&mountInfo, tmp, 255);
+        res = tnfs_readdirx(&mountInfo, &fileStat, tmp, 255);
 
         while (res == 0)
         {
@@ -183,7 +183,7 @@ unsigned char networkProtocolTNFS::status_dir()
 #endif
                 entry = "/" + path_fixed + tmp;
 
-                tnfs_stat(&mountInfo, &fileStat, entry.c_str());
+                // tnfs_stat(&mountInfo, &fileStat, entry.c_str());
 
                 if (aux2 & 0x80) // extended dir
                 {
@@ -214,7 +214,7 @@ unsigned char networkProtocolTNFS::status_dir()
                 return (unsigned char)strlen(entryBuf);
             }
             else
-                tnfs_readdir(&mountInfo, tmp, 255);
+                tnfs_readdirx(&mountInfo, &fileStat, tmp, 255);
         }
 
         if (dirEOF == false)

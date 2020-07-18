@@ -35,7 +35,7 @@ fsdir_entry * FileSystemSDFAT::dir_read()
     if(result != FR_OK || finfo.fname[0] == '\0')
         return nullptr;
 
-    strncpy(_direntry.filename, finfo.fname, sizeof(_direntry.filename));
+    strlcpy(_direntry.filename, finfo.fname, sizeof(_direntry.filename));
 
     _direntry.isDir = finfo.fattrib & AM_DIR ? true : false;
     _direntry.size = finfo.fsize;
@@ -186,7 +186,7 @@ bool FileSystemSDFAT::start()
         return true;
 
     // Set our basepath
-    strncpy(_basepath, "/sd", sizeof(_basepath));
+    strlcpy(_basepath, "/sd", sizeof(_basepath));
 
     // Set up a configuration to the SD host interface
     sdmmc_host_t host_config = SDSPI_HOST_DEFAULT();
