@@ -655,6 +655,21 @@ void _readdirx_fill_response(tnfsDirCacheEntry *pCached, tnfsStat *filestat, cha
     filestat->a_time = 0;
 
     strlcpy(dir_entry, pCached->entryname, dir_entry_len);
+
+#ifdef DEBUG
+    {
+        char t_m[80];
+        char t_c[80];
+        const char *tfmt ="%Y-%m-%d %H:%M:%S";
+        time_t tt = filestat->m_time;
+        strftime(t_m, sizeof(t_m), tfmt, localtime(&tt));
+        tt = filestat->c_time;
+        strftime(t_c, sizeof(t_c), tfmt, localtime(&tt));
+        Debug_printf("\t_readdirx_fill_response: dir: %s, size: %u, mtime: %s, ctime: %s \"%s\"\n", 
+            filestat->isDir ? "Yes" : "no",
+            filestat->filesize, t_m, t_c, dir_entry );
+    }
+#endif
 }
 
 /*
@@ -673,13 +688,17 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
     tnfsDirCacheEntry *pCached = m_info->next_dircache_entry();
     if(pCached != nullptr)
     {
+        Debug_print("tnfs_readdirx responding from cached entry\n");
         _readdirx_fill_response(pCached, filestat, dir_entry, dir_entry_len);
         return 0;
     }
     
     // If the cache was empty and the EOF flag was set, just respond with an EOF error
     if(m_info->get_dircache_eof() == true)
+    {
+        Debug_print("tnfs_readdirx returning EOF based on cached value\n");
         return TNFS_RESULT_END_OF_FILE;
+    }
 
     // Invalidate the cache before loading more
     m_info->empty_dircache();
@@ -748,24 +767,6 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
             // Now that we've cached our entries, return the first one
             if(loaded > 0)
                 _readdirx_fill_response(m_info->next_dircache_entry(), filestat, dir_entry, dir_entry_len);
-
-#ifdef DEBUG
-/*
-            if(loaded > 0)
-            {
-                char t_m[80];
-                char t_c[80];
-                const char *tfmt ="%Y-%m-%d %H:%M:%S";
-                time_t tt = filestat->m_time;
-                strftime(t_m, sizeof(t_m), tfmt, localtime(&tt));
-                tt = filestat->c_time;
-                strftime(t_c, sizeof(t_c), tfmt, localtime(&tt));
-                Debug_printf("\ttnfs_readdirx: dir: %s, size: %u, mtime: %s, ctime: %s \"%s\"\n", 
-                    filestat->isDir ? "Yes" : "no",
-                    filestat->filesize, t_m, t_c, dir_entry );
-            }
-*/            
-#endif
 
         }
         return packet.payload[0];
