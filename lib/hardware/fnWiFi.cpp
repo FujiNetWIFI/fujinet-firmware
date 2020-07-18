@@ -73,8 +73,8 @@ int WiFiManager::connect(const char *ssid, const char *password)
     wifi_config_t wifi_config;
     memset(&wifi_config, 0, sizeof(wifi_config));
 
-    strncpy((char *)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
-    strncpy((char *)wifi_config.sta.password, password, sizeof(wifi_config.sta.password));
+    strlcpy((char *)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
+    strlcpy((char *)wifi_config.sta.password, password, sizeof(wifi_config.sta.password));
 
     wifi_config.sta.pmf_cfg.capable = true;
     ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
@@ -190,7 +190,7 @@ int WiFiManager::get_scan_result(uint8_t index, char ssid[32], uint8_t *rssi, ui
     wifi_ap_record_t * ap = &_scan_records[index];
 
     if (ssid != nullptr)
-        strncpy(ssid, (const char *)ap->ssid, 32);
+        strlcpy(ssid, (const char *)ap->ssid, 32);
 
     if (bssid != nullptr)
         _mac_to_string(bssid, ap->bssid);

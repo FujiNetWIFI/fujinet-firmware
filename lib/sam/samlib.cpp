@@ -203,8 +203,8 @@ int sam(int argc, char **argv)
     {
         if (argv[i][0] != '-')
         {
-            strncat(input, argv[i], 255);
-            strncat(input, " ", 255);
+            strlcat(input, argv[i], 255);
+            strlcat(input, " ", 255);
         }
         else
         {
@@ -275,7 +275,7 @@ int sam(int argc, char **argv)
 
     if (!phonetic)
     {
-        strncat(input, "[", sizeof(input) - strlen(input));
+        strlcat(input, "[", sizeof(input) - strlen(input));
         // printf("TextToPhonemes\n");
         if (!TextToPhonemes((unsigned char *)input))
             return 1;
@@ -283,7 +283,7 @@ int sam(int argc, char **argv)
             printf("phonetic input: %s\n", input);
     }
     else
-        strncat(input, "\x9b", sizeof(input) - strlen(input));
+        strlcat(input, "\x9b", sizeof(input) - strlen(input));
 
         // printf("done phonetic processing\n");
 
