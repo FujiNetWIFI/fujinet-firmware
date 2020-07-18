@@ -1,5 +1,4 @@
 #include "driver/timer.h"
-//#include "esp32-hal-psram.h"
 
 #include "../../include/debug.h"
 #include "../hardware/fnSystem.h"
@@ -15,13 +14,11 @@
 #include "networkProtocolFTP.h"
 
 volatile bool interruptRateLimit = true;
-//hw_timer_t *rateTimer = NULL;
 esp_timer_handle_t rateTimerHandle = nullptr; // Used a different name just to be clear
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 // Latch the rate limiting flag
 // The esp_timer_* functions don't mention requiring the callback being in IRAM, so removing that
-//void IRAM_ATTR onTimer()
 void onTimer(void *info)
 {
     portENTER_CRITICAL_ISR(&timerMux);
@@ -45,11 +42,6 @@ bool sioNetwork::allocate_buffers()
     // NOTE: ps_calloc() results in heap corruption, at least in Arduino-ESP.
     // TODO: try using heap_caps_calloc()
 #ifdef BOARD_HAS_PSRAM
-    /*
-    rx_buf = (uint8_t *)ps_calloc(INPUT_BUFFER_SIZE, 1);
-    tx_buf = (uint8_t *)ps_calloc(OUTPUT_BUFFER_SIZE, 1);
-    sp_buf = (uint8_t *)ps_calloc(SPECIAL_BUFFER_SIZE, 1);
-*/
     rx_buf = (uint8_t *)heap_caps_malloc(INPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     tx_buf = (uint8_t *)heap_caps_malloc(OUTPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     sp_buf = (uint8_t *)heap_caps_malloc(SPECIAL_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -439,7 +431,6 @@ void sioNetwork::sio_status()
 
         status_buf.rawData[2] = fnWiFi.connected() ? 1 : 0;
         err = false;
-        // sio_status_local();
     }
     else
     {
