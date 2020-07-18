@@ -18,7 +18,8 @@ protected:
 
     uint8_t color_buffer[480][4];
     uint16_t color_counter;
-
+    const uint8_t invalid_font = 0xff;
+    
     const uint8_t fnt_compressed = 0x01;
     const uint8_t fnt_expanded = 0x02;
     const uint8_t fnt_inverse = 0x04;

@@ -143,7 +143,7 @@ void okimate10::okimate_output_color_line()
 {
     uint16_t i = 0;
     Debug_printf("Color buffer element 0: %02x\n", color_buffer[0][0]);
-    while (color_buffer[i][0] != 0 && i < 480)
+    while (color_buffer[i][0] != invalid_font && i < 480)
     {
         Debug_printf("Color buffer position %d\n", i);
         // in text or gfx mode?
@@ -569,7 +569,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // initialize the color content buffer
             for (int i = 0; i < 480; i++) // max 480 dots per line
             {
-                color_buffer[i][0] = 0; // clear font
+                color_buffer[i][0] = invalid_font; // clear font
                 for (int j = 1; j < 4; j++)
                 {
                     color_buffer[i][j] = ' '; // fill with spaces
