@@ -170,14 +170,15 @@ unsigned char networkProtocolTNFS::status_dir()
 
     if (entryBuf[0] == 0x00)
     {
-        while (tnfs_readdirx(&mountInfo, &fileStat, tmp, 255))
+        while (tnfs_readdirx(&mountInfo, &fileStat, tmp, 255) == 0)
         {
+            Debug_printf("tnfs::status_dir got \"%s\"\n", tmp);
             if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
-                tmp[strlen(tmp)] = 0x00;
-#ifdef DEBUG
-                Debug_printf("path: %s - tmp: %s\n", path.c_str(), tmp);
-#endif
+                //tmp[strlen(tmp)] = 0x00; - no point, otherwise strlen() would've failed
+
+                Debug_printf("tnfs::status_dir path: %s - tmp: %s\n", path.c_str(), tmp);
+
                 entry = "/" + path_fixed + tmp;
 
                 // tnfs_stat(&mountInfo, &fileStat, entry.c_str());
@@ -207,6 +208,7 @@ unsigned char networkProtocolTNFS::status_dir()
                 }
 
                 entry += "\x9b";
+                Debug_printf("tnfs::status_dir entry: \"%s\"\n", entry.c_str());
                 strcpy(entryBuf, entry.c_str());
                 return (unsigned char)strlen(entryBuf);
             }
