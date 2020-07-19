@@ -207,7 +207,7 @@ void okimate10::okimate_output_color_line()
             // clear_mode(fnt_C | fnt_M | fnt_Y | fnt_K);
             if (color_buffer[i][1] != ' ')
             {
-                set_mode(fnt_C);
+                set_mode(fnt_Y);
                 c = color_buffer[i][1];
             }
             if (color_buffer[i][2] != ' ')
@@ -217,7 +217,7 @@ void okimate10::okimate_output_color_line()
             }
             if (color_buffer[i][3] != ' ')
             {
-                set_mode(fnt_Y);
+                set_mode(fnt_C);
                 c = color_buffer[i][3];
             }
             Debug_printf("color text: ctr, font, char: %03d %02x %02x\n", i, okimate_new_fnt_mask, c);
