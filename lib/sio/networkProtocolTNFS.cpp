@@ -176,13 +176,9 @@ unsigned char networkProtocolTNFS::status_dir()
             Debug_printf("tnfs::status_dir got \"%s\"\n", tmp);
             if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
-                //tmp[strlen(tmp)] = 0x00; - no point, otherwise strlen() would've failed
-
                 Debug_printf("tnfs::status_dir path: %s - tmp: %s\n", path.c_str(), tmp);
 
                 entry = "/" + path_fixed + tmp;
-
-                // tnfs_stat(&mountInfo, &fileStat, entry.c_str());
 
                 if (aux2 & 0x80) // extended dir
                 {
