@@ -141,7 +141,7 @@ const char* fujiFsMounter::get_hostname(char *buffer, size_t buffersize)
     if(buffer != NULL)
     {
         if(result != NULL)
-            strncpy(buffer, result, buffersize);
+            strlcpy(buffer, result, buffersize);
         else
             if(buffersize > 0)
                 buffer[0] = '\0';
@@ -217,7 +217,7 @@ int fujiFsMounter::mount_tnfs(const char *hostname)
         Debug_println("Calling TNFS::begin");
         if(((FileSystemTNFS *)_fs)->start(hostname))
         {
-            strncpy(_hostname, hostname, sizeof(_hostname));
+            strlcpy(_hostname, hostname, sizeof(_hostname));
             return 0;
         }
     }

@@ -26,7 +26,7 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     if(host == nullptr || host[0] == '\0')
         return false;
     
-    strncpy(_mountinfo.hostname, host, sizeof(_mountinfo.hostname));
+    strlcpy(_mountinfo.hostname, host, sizeof(_mountinfo.hostname));
 
     // Try to resolve the hostname and store that so we don't have to keep looking it up
     _mountinfo.host_ip = get_ip4_addr_by_name(host);
@@ -42,17 +42,17 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     _mountinfo.session = TNFS_INVALID_SESSION;
 
     if(mountpath != nullptr)
-        strncpy(_mountinfo.mountpath, mountpath, sizeof(_mountinfo.mountpath));
+        strlcpy(_mountinfo.mountpath, mountpath, sizeof(_mountinfo.mountpath));
     else
         _mountinfo.mountpath[0] = '\0';
 
     if(userid != nullptr)
-        strncpy(_mountinfo.user, userid, sizeof(_mountinfo.user));
+        strlcpy(_mountinfo.user, userid, sizeof(_mountinfo.user));
     else
         _mountinfo.user[0] = '\0';
 
     if(password != nullptr)
-        strncpy(_mountinfo.password, password, sizeof(_mountinfo.password));
+        strlcpy(_mountinfo.password, password, sizeof(_mountinfo.password));
     else
         _mountinfo.password[0] = '\0';
 
@@ -136,11 +136,11 @@ bool FileSystemTNFS::dir_open(const char * path)
         if(path[0] != '/')
         {
             _current_dirpath[0] = '/';
-            strncpy(_current_dirpath + 1, path, sizeof(_current_dirpath)-1);
+            strlcpy(_current_dirpath + 1, path, sizeof(_current_dirpath)-1);
         } 
         else
         {
-            strncpy(_current_dirpath, path, sizeof(_current_dirpath));
+            strlcpy(_current_dirpath, path, sizeof(_current_dirpath));
         }
         int l = strlen(_current_dirpath);
         if((l > 0) && (l < sizeof(_current_dirpath) -2) && (_current_dirpath[l -1] != '/'))

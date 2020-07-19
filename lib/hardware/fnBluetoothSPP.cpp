@@ -912,7 +912,7 @@ bool fnBluetoothSPP::connect(string remoteName)
     }
     disconnect();
     _isRemoteAddressSet = false;
-    strncpy(_remote_name, remoteName.c_str(), ESP_BT_GAP_MAX_BDNAME_LEN);
+    strlcpy(_remote_name, remoteName.c_str(), ESP_BT_GAP_MAX_BDNAME_LEN);
     _remote_name[ESP_BT_GAP_MAX_BDNAME_LEN] = 0;
     Debug_println( "server : remoteName");
     // will first resolve name to address

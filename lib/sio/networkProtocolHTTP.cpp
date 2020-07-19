@@ -195,7 +195,7 @@ bool networkProtocolHTTP::read(uint8_t *rx_buf, unsigned short len)
         case HEADERS:
             if (headerIndex < numHeaders)
             {
-                //strncpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
+                //strlcpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
                 client.get_header(headerIndex++, (char *)rx_buf, len);
             }
             else
