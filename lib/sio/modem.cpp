@@ -19,6 +19,7 @@
 #define SIO_MODEMCMD_CONFIGURE 0x42
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
+#define SIO_MODEMCMD_BAUDLOCK 0x4E
 #define SIO_MODEMCMD_STATUS 0x53
 #define SIO_MODEMCMD_WRITE 0x57
 #define SIO_MODEMCMD_STREAM 0x58
@@ -220,10 +221,13 @@ void sioModem::sio_write()
             if (cmdMode == true)
             {
                 cmdOutput = false;
-                cmd = (char *)txBuf;
-                modemCommand();
-                fnUartSIO.flush();
-                fnUartSIO.flush_input();
+                cmd.assign((char *)txBuf, cmdFrame.aux1);
+
+                if (cmd == "ATA\r")
+                    answerHack = true;
+                else
+                    modemCommand();
+
                 cmdOutput = true;
             }
             else
@@ -257,7 +261,27 @@ void sioModem::sio_status()
           1: 0
           0: RCV state (0=space, 1=mark)
     */
-    uint8_t status[2] = {0x00, 0x0C};
+    uint8_t status[2] = {0x00, crxval};
+
+    if ((CRX == false) && (crxval == 0))
+        crxval = 0;
+    else if ((CRX == false) && (crxval == 4))
+        crxval = 0;
+    else if ((CRX == false) && (crxval == 8))
+        crxval = 4;
+    else if ((CRX == false) && (crxval == 12))
+        crxval = 4;
+    else if ((CRX == true) && (crxval == 0))
+        crxval = 8;
+    else if ((CRX == true) && (crxval == 4))
+        crxval = 8;
+    else if ((CRX == true) && (crxval == 8))
+        crxval = 12;
+    else if ((CRX == false) && (crxval == 12))
+        crxval = 12;
+
+    status[1] = crxval;
+
     sio_to_computer(status, sizeof(status), false);
 }
 
@@ -352,6 +376,10 @@ void sioModem::sio_config()
     uint8_t newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
     //uint8_t wordSize = 0x30 & cmdFrame.aux1; // Get word size
     //uint8_t stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits
+
+    // Do not reset MODEM baud rate if locked.
+    if (baudLock == true)
+        return;
 
     switch (newBaud)
     {
@@ -466,7 +494,7 @@ void sioModem::sio_listen()
     else
         sio_ack();
 
-//    tcpServer.begin(listenPort);
+    tcpServer.begin(listenPort);
 
     sio_complete();
 }
@@ -479,6 +507,19 @@ void sioModem::sio_unlisten()
     sio_ack();
     tcpClient.stop();
     tcpServer.stop();
+    sio_complete();
+}
+
+/**
+ * Lock MODEM baud rate to last configured value
+ */
+void sioModem::sio_baudlock()
+{
+    sio_ack();
+    baudLock = (cmdFrame.aux1 > 0 ? true : false);
+#ifdef DEBUG
+    Debug_printf("baudLock: %d\n", baudLock);
+#endif
     sio_complete();
 }
 
@@ -726,6 +767,7 @@ void sioModem::at_handle_get()
             at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
         else
             at_cmd_println("NO CARRIER");
+        CRX = false;
     }
     else
     {
@@ -735,6 +777,7 @@ void sioModem::at_handle_get()
         {
             at_cmd_println("CONNECT ", false);
             at_cmd_println(modemBaud);
+            CRX = true;
         }
 
         cmdMode = false;
@@ -837,22 +880,25 @@ void sioModem::at_handle_wifilist()
 
 void sioModem::at_handle_answer()
 {
+    Debug_printf("HANDLE ANSWER !!!\n");
     if (tcpServer.hasClient())
     {
         tcpClient = tcpServer.available();
         tcpClient.setNoDelay(true); // try to disable naggle
-//        tcpServer.stop();
+                                    //        tcpServer.stop();
         if (numericResultCode == true)
             at_connect_resultCode(modemBaud);
         else
         {
             at_cmd_println("CONNECT ", false);
             at_cmd_println(modemBaud);
+            CRX = true;
             /* code */
         }
 
         cmdMode = false;
         fnUartSIO.flush();
+        answerHack = false;
     }
 }
 
@@ -883,6 +929,7 @@ void sioModem::at_handle_dial()
         {
             at_cmd_println("CONNECT ", false);
             at_cmd_println(modemBaud);
+            CRX = true;
             /* code */
         }
 
@@ -909,13 +956,14 @@ void sioModem::at_handle_dial()
             {
                 at_cmd_println("CONNECT ", false);
                 at_cmd_println(modemBaud);
+                CRX = true;
                 /* code */
             }
 
             cmdMode = false;
             if (listenPort > 0)
             {
-//                tcpServer.stop();
+                //                tcpServer.stop();
             }
         }
         else
@@ -924,6 +972,7 @@ void sioModem::at_handle_dial()
                 at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
             else
                 at_cmd_println("NO CARRIER");
+            CRX = false;
         }
     }
 }
@@ -968,7 +1017,8 @@ void sioModem::modemCommand()
             "AT&D2",
             "AT&W",
             "ATH2",
-            "+++ATZ"};
+            "+++ATZ",
+            "ATS2=128 X1 M0"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -984,7 +1034,7 @@ void sioModem::modemCommand()
 
 #ifdef DEBUG
     Debug_print("AT Cmd: ");
-    Debug_println(upperCaseCmd);
+    Debug_println(upperCaseCmd.c_str());
 #endif
 
     // Replace EOL with CR
@@ -1030,10 +1080,13 @@ void sioModem::modemCommand()
                 at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
             else
                 at_cmd_println("NO CARRIER");
+
+            CRX = false;
+
             if (listenPort > 0)
             {
-//                tcpServer.stop();
-//                tcpServer.begin(listenPort);
+                //                tcpServer.stop();
+                //                tcpServer.begin(listenPort);
             }
         }
         else
@@ -1143,6 +1196,7 @@ void sioModem::modemCommand()
     case AT_AD2:
     case AT_AW:
     case AT_ZPPP:
+    case AT_BBSX:
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1167,6 +1221,15 @@ void sioModem::sio_handle_modem()
     /**** AT command mode ****/
     if (cmdMode == true)
     {
+        if (answerHack == true)
+        {
+            Debug_printf("XXX ANSWERHACK !!! SENDING ATA! ");
+            cmd = "ATA";
+            modemCommand();
+            answerHack = false;
+            return;
+        }
+
         // In command mode but new unanswered incoming connection on server listen socket
         if ((listenPort > 0) && (tcpServer.hasClient()))
         {
@@ -1350,6 +1413,7 @@ void sioModem::sio_handle_modem()
             at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
         else
             at_cmd_println("NO CARRIER");
+        CRX = false;
         if (listenPort > 0)
         {
             // tcpServer.stop();
@@ -1363,6 +1427,7 @@ void sioModem::sio_handle_modem()
             at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
         else
             at_cmd_println("NO CARRIER");
+        CRX = false;
         if (listenPort > 0)
         {
             // tcpServer.stop();
@@ -1426,6 +1491,9 @@ void sioModem::sio_process()
         break;
     case SIO_MODEMCMD_UNLISTEN:
         sio_unlisten();
+        break;
+    case SIO_MODEMCMD_BAUDLOCK:
+        sio_baudlock();
         break;
     case SIO_MODEMCMD_STATUS:
         sio_ack();
