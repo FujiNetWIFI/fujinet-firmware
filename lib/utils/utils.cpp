@@ -5,19 +5,18 @@
 #include "utils.h"
 #include "../../include/debug.h"
 
-
 // convert to lowercase (in place)
 void util_string_tolower(std::string &s)
 {
     std::transform(s.begin(), s.end(), s.begin(),
-        [](unsigned char c){ return std::tolower(c); });
+                   [](unsigned char c) { return std::tolower(c); });
 }
 
 // convert to uppercase (in place)
 void util_string_toupper(std::string &s)
 {
     std::transform(s.begin(), s.end(), s.begin(),
-        [](unsigned char c){ return std::toupper(c); });
+                   [](unsigned char c) { return std::toupper(c); });
 }
 
 // trim from start (in place)
@@ -221,11 +220,15 @@ std::string util_entry(std::string crunched, size_t fileSize)
 std::string util_long_entry(std::string filename, size_t fileSize)
 {
     std::string returned_entry = "                                     ";
-    std::string ellpisized_filename = util_ellipsize(filename, 30);
-    std::string stylized_fileSize;
+    std::string stylized_filesize;
+
     char tmp[8];
 
-    returned_entry.replace(0, ellpisized_filename.length(), ellpisized_filename);
+    // Double size of returned entry if > 30 chars.
+    if (filename.length() > 30)
+        returned_entry += returned_entry;
+
+    returned_entry.replace(0, filename.length(), filename);
 
     if (fileSize > 1048576)
         sprintf(tmp, "%2dM", (fileSize >> 20));
@@ -234,9 +237,9 @@ std::string util_long_entry(std::string filename, size_t fileSize)
     else
         sprintf(tmp, "%4d", fileSize);
 
-    stylized_fileSize = tmp;
+    stylized_filesize = tmp;
 
-    returned_entry.replace(37-stylized_fileSize.length(), stylized_fileSize.length(), stylized_fileSize);
+    returned_entry.replace(returned_entry.length()-stylized_filesize.length()-1,stylized_filesize.length(),stylized_filesize);
 
     return returned_entry;
 }
