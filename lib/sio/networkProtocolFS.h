@@ -24,6 +24,10 @@ public:
     virtual bool rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool note(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool point(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+
+protected:
+    bool canRead = false;           // Can read 
+    bool canWrite = false;          // Can write
 };
 
 #endif /* NETWORKPROTOCOLFS_H */
