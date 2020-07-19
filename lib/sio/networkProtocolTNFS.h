@@ -21,6 +21,8 @@ public:
     virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool note(uint8_t *rx_buf);
+    virtual bool point(uint8_t *tx_buf);
 
     virtual bool special_supported_40_command(unsigned char comnd);
     virtual bool special_supported_80_command(unsigned char comnd);
@@ -42,7 +44,7 @@ private:
     char aux2;
     size_t comma_pos;
     string rnTo;
-    bool dirEOF=false;
+    bool dirEOF = false;
 };
 
 #endif /* NETWORKPROTOCOLTNFS */
