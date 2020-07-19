@@ -28,10 +28,10 @@ void onTimer(void *info)
 
 string remove_spaces(const string &s)
 {
-  int last = s.size() - 1;
-  while (last >= 0 && s[last] == ' ')
-    --last;
-  return s.substr(0, last + 1);
+    int last = s.size() - 1;
+    while (last >= 0 && s[last] == ' ')
+        --last;
+    return s.substr(0, last + 1);
 }
 
 /**
@@ -159,7 +159,7 @@ bool sioNetwork::parseURL()
         deviceSpec = prefix + string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
     else
         deviceSpec = string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
-    
+
     deviceSpec = remove_spaces(deviceSpec);
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
@@ -598,20 +598,38 @@ void sioNetwork::sio_special()
     else if (cmdFrame.comnd == 0x25) // POINT
     {
         sio_ack();
-        sio_to_peripheral(note_pos.rawData, 3);
-        Debug_printf("Point Request: %ld\n",note_pos);
+        sio_to_peripheral(tx_buf, 3);
+        Debug_printf("Point Request: %ld\n", note_pos);
 
         if (protocol == nullptr)
         {
             status_buf.error = 166; // Invalid POINT
             sio_error();
         }
-        else if (!protocol->point(urlParser,&cmdFrame))
+        else if (!protocol->point(tx_buf))
         {
             status_buf.error = 166; // Invalid POINT
-            sio_error(); 
+            sio_error();
         }
         sio_complete();
+    }
+    else if (cmdFrame.comnd == 0x26) // NOTE
+    {
+        bool e = false;
+
+        sio_ack();
+
+        if (protocol == nullptr)
+        {
+            status_buf.error = 166; // Invalid NOTE
+            e = true;
+        }
+        else if (!protocol->note(rx_buf))
+        {
+            status_buf.error = 166; // Invalid NOTE
+            e = true;
+        }
+        sio_to_computer(rx_buf, 3, e);
     }
     else if (cmdFrame.comnd == 0x2A) // MKDIR
     {

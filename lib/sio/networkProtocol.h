@@ -27,8 +27,8 @@ public:
     virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
     virtual bool mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
     virtual bool rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
-    virtual bool note(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
-    virtual bool point(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
+    virtual bool note(uint8_t *rx_buf) { return false; }
+    virtual bool point(uint8_t *tx_buf) { return false; }
 
     virtual bool isConnected() { return true; }
 
