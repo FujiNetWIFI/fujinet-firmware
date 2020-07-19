@@ -154,16 +154,16 @@ void okimate10::okimate_output_color_line()
             Debug_printf("color gfx: ctr, char's: %03d %02x %02x %02x\n", i, color_buffer[i][1], color_buffer[i][2], color_buffer[i][3]);
             okimate_new_fnt_mask = 0;
             set_mode(fnt_gfx);
-            // brute force coding for colors
-            // 111 C&M&Y black
+            // brute force coding for colors: okimate prints in Y-M-C order
+            // 111 Y&M&C black
             c = color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
             set_mode(fnt_C | fnt_M | fnt_Y);
             okimate_handle_font();
             print_7bit_gfx(c);
-            // 110 C&M
+            // 110 Y&M
             c = color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
-            set_mode(fnt_C | fnt_M);
-            clear_mode(fnt_Y);
+            set_mode(fnt_Y | fnt_M);
+            clear_mode(fnt_C);
             okimate_handle_font();
             print_7bit_gfx(c);
             // 101 C&Y
@@ -172,28 +172,28 @@ void okimate10::okimate_output_color_line()
             clear_mode(fnt_M);
             okimate_handle_font();
             print_7bit_gfx(c);
-            // 110 M&Y
+            // 110 M&C
             c = ~color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
-            set_mode(fnt_M | fnt_Y);
-            clear_mode(fnt_C);
+            set_mode(fnt_M | fnt_C);
+            clear_mode(fnt_Y);
             okimate_handle_font();
             print_7bit_gfx(c);
-            // 100 C
+            // 100 Y
             c = color_buffer[i][1] & ~color_buffer[i][2] & ~color_buffer[i][3];
-            set_mode(fnt_C);
-            clear_mode(fnt_Y | fnt_M);
-            okimate_handle_font();
-            print_7bit_gfx(c);
-            // 010 Y
-            c = ~color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
             set_mode(fnt_Y);
             clear_mode(fnt_C | fnt_M);
             okimate_handle_font();
             print_7bit_gfx(c);
-            // 001 M
-            c = ~color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
+            // 010 M
+            c = ~color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
             set_mode(fnt_M);
             clear_mode(fnt_C | fnt_Y);
+            okimate_handle_font();
+            print_7bit_gfx(c);
+            // 001 C
+            c = ~color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
+            set_mode(fnt_C);
+            clear_mode(fnt_M | fnt_Y);
             okimate_handle_font();
             print_7bit_gfx(c);
         }
@@ -563,8 +563,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             clear_mode(fnt_inverse);
             break;
         case 0x99: // 0x99     Align Ribbon (for color mode)
-            Debug_println("Align Ribbon");
-            colorMode = colorMode_t::cyan; // first color in CMY ribbon
+            colorMode = colorMode_t::yellow; // first color in CMY ribbon
+            Debug_printf("Align Ribbon. colorMode = %d\n", static_cast<int>(colorMode));
             color_counter = 0;
             // initialize the color content buffer
             for (int i = 0; i < 480; i++) // max 480 dots per line
