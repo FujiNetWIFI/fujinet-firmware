@@ -21,7 +21,7 @@ networkProtocolTCP::~networkProtocolTCP()
     }
 }
 
-bool networkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool networkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt)
 {
     bool ret;
 
@@ -68,7 +68,7 @@ bool networkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return ret;
 }
 
-bool networkProtocolTCP::close()
+bool networkProtocolTCP::close(enable_interrupt_t enable_interrupt)
 {
     if (server == NULL)
     {
