@@ -2,11 +2,14 @@
 
 bool networkProtocolFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
-    if (cmdFrame->aux1&4)
+    if (cmdFrame->aux1 & 4)
         canRead = true;
-    
-    if (cmdFrame->aux1&8)
+
+    if (cmdFrame->aux1 & 8)
         canWrite = true;
+
+    if (cmdFrame->aux1 == 6)
+        dirRead = true;
 
     return true;
 }

@@ -28,6 +28,8 @@ public:
 protected:
     bool canRead = false;           // Can read 
     bool canWrite = false;          // Can write
+    bool dirRead = false;           // Reading directory?
+    unsigned long filePos;          // File position for note/point
 };
 
 #endif /* NETWORKPROTOCOLFS_H */
