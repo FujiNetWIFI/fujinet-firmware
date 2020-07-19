@@ -599,19 +599,22 @@ void sioNetwork::sio_special()
     {
         sio_ack();
         sio_to_peripheral(tx_buf, 3);
-        Debug_printf("Point Request: %ld\n", note_pos);
+        Debug_printf("Point Request: %ld\n", tx_buf);
 
         if (protocol == nullptr)
         {
             status_buf.error = 166; // Invalid POINT
             sio_error();
         }
-        else if (!protocol->point(tx_buf))
+        else if (protocol->point(tx_buf) != 0)
         {
             status_buf.error = 166; // Invalid POINT
             sio_error();
         }
-        sio_complete();
+        else
+        {
+            sio_complete();
+        }
     }
     else if (cmdFrame.comnd == 0x26) // NOTE
     {
