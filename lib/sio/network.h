@@ -1,7 +1,5 @@
 #ifndef NETWORK_H
 #define NETWORK_H
-//#include <Arduino.h>
-//#include <WiFi.h>
 
 #include "esp_timer.h"
 #include "sio.h"
@@ -28,7 +26,7 @@
 //#include <Arduino.h>
 // *** Pulled these out since they're only used in network.cpp
 // For the interrupt rate limiter timer
-//extern volatile bool interruptRateLimit;
+//extern volatile bool interruptProceed;
 //extern hw_timer_t *rateTimer;
 //extern portMUX_TYPE timerMux;
 
@@ -64,6 +62,9 @@ public:
     virtual void sio_special();
 
     void sio_assert_interrupts();
+
+    static void sio_enable_interrupts(bool enable = true);
+
     void sio_status_local();
 
     void sio_special_00();

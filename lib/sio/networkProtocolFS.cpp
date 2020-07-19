@@ -1,6 +1,6 @@
 #include "networkProtocolFS.h"
 
-bool networkProtocolFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool networkProtocolFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt)
 {
     if (cmdFrame->aux1 & 4)
         canRead = true;
@@ -14,7 +14,7 @@ bool networkProtocolFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return true;
 }
 
-bool networkProtocolFS::close()
+bool networkProtocolFS::close(enable_interrupt_t enable_interrupt)
 {
     return true;
 }
