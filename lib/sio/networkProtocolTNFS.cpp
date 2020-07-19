@@ -42,6 +42,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
         if (tnfs_opendirx(&mountInfo, dirPath.c_str()))
             return false; // error
+
     }
     else
     {
