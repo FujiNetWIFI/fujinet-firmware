@@ -185,13 +185,9 @@ unsigned char networkProtocolTNFS::status_dir()
             Debug_printf("tnfs::status_dir got \"%s\"\n", tmp);
             if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
-                //tmp[strlen(tmp)] = 0x00; - no point, otherwise strlen() would've failed
-
                 Debug_printf("tnfs::status_dir path: %s - tmp: %s\n", path.c_str(), tmp);
 
                 entry = "/" + path_fixed + tmp;
-
-                // tnfs_stat(&mountInfo, &fileStat, entry.c_str());
 
                 if (aux2 & 0x80) // extended dir
                 {
@@ -409,4 +405,31 @@ bool networkProtocolTNFS::rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         tnfs_umount(&mountInfo);
 
     return ret;
+}
+
+bool networkProtocolTNFS::note(uint8_t *rx_buf)
+{
+    uint32_t pos;
+    bool ret;
+
+    ret = tnfs_lseek(&mountInfo, fileHandle, 0, SEEK_CUR, &pos);
+
+    if (ret == 0x00)
+    {
+        pos &= 0xFFFFFF; // 24 bit value.
+
+        memcpy(rx_buf, &pos, 3);
+        return true;
+    }
+
+    return false;
+}
+
+bool networkProtocolTNFS::point(uint8_t *tx_buf)
+{
+    uint32_t pos;
+
+    memcpy(&pos, tx_buf, 3);
+
+    return tnfs_lseek(&mountInfo, fileHandle, pos, SEEK_SET, NULL);
 }

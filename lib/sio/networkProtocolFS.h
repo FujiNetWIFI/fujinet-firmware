@@ -26,8 +26,12 @@ public:
     virtual bool point(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
 
 protected:
+    EdUrlParser url;                // URL passed to protocol.
+    cmdFrame_t cmdFrame;            // Command frame.
     bool canRead = false;           // Can read 
     bool canWrite = false;          // Can write
+    bool dirRead = false;           // Reading directory?
+    unsigned long filePos;          // File position for note/point
 };
 
 #endif /* NETWORKPROTOCOLFS_H */
