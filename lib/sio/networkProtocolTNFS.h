@@ -27,6 +27,7 @@ public:
     virtual bool special_supported_00_command(unsigned char comnd);
 
 private:
+    
     bool block_read(uint8_t *rx_buf, unsigned short len);
     bool block_write(uint8_t *tx_buf, unsigned short len);
     unsigned char status_dir();
