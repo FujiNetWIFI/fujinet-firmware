@@ -58,27 +58,39 @@ int WiFiManager::start()
     return 0;
 }
 
+int WiFiManager::connect()
+{
+    return connect(nullptr, nullptr);
+}
+
 int WiFiManager::connect(const char *ssid, const char *password)
 {
-    if (_connected == true)
+    // Only set an SSID and password if given
+    if (ssid != nullptr)
     {
-        ESP_ERROR_CHECK(esp_wifi_disconnect());
-        fnSystem.delay(750);
+        // Disconnect if we're connected to a different ssid
+        if(_connected == true)
+        {
+            std::string current_ssid = get_current_ssid();
+            if(current_ssid.compare(ssid) != 0)
+            {
+                esp_wifi_disconnect();
+                fnSystem.delay(500);
+            }
+        }
+
+        // Set the new values
+        wifi_config_t wifi_config;
+        memset(&wifi_config, 0, sizeof(wifi_config));
+
+        strlcpy((char *)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
+        strlcpy((char *)wifi_config.sta.password, password, sizeof(wifi_config.sta.password));
+
+        wifi_config.sta.pmf_cfg.capable = true;
+        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
     }
 
-    // Set WiFi mode to Station
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-
-    // Some more config details...
-    wifi_config_t wifi_config;
-    memset(&wifi_config, 0, sizeof(wifi_config));
-
-    strlcpy((char *)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
-    strlcpy((char *)wifi_config.sta.password, password, sizeof(wifi_config.sta.password));
-
-    wifi_config.sta.pmf_cfg.capable = true;
-    ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
-
+    // Now connect
     esp_err_t e = esp_wifi_connect();
     Debug_printf("esp_wifi_connect returned %d\n", e);
     return e;
