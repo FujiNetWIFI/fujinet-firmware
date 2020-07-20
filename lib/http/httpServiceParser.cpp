@@ -202,8 +202,6 @@ string fnHttpServiceParser::parse_contents(const string &contents)
     return ss.str();
 }
 
-#include "tnfslib.h"
-
 string fnHttpServiceParser::format_uptime()
 {
     int64_t ms = fnSystem.get_uptime();
@@ -222,36 +220,6 @@ string fnHttpServiceParser::format_uptime()
         resultstream << (m % 60) << " minutes, ";
     if (s % 60)
         resultstream << (s % 60) << " seconds";
-
-    tnfsMountInfo tmi;
-    strcpy(tmi.hostname, "eris.just.lan");
-
-    int r;
-    r = tnfs_mount(&tmi);
-    Debug_printf("mount: %d\n",r);
-
-    r = tnfs_opendirx(&tmi, "/");
-    Debug_printf("opendir: %d\n",r);
-
-    tnfsStat tStat;
-    char filepath[256];
-    bool done = false;
-    while(tnfs_readdirx(&tmi, &tStat, filepath, sizeof(filepath)) == 0)
-    {
-        uint32_t pos = 0;
-        Debug_printf("Entry: %s\n", filepath);
-        r = tnfs_telldir(&tmi, &pos);
-        Debug_printf("\ttell res=%d, pos=%d\n", r, pos);
-        if(pos == 15 && !done)
-        {
-            done = true;
-            r = tnfs_seekdir(&tmi, 1);
-            Debug_printf("\tSEEK res=%d\n",r);
-        }
-    }
-
-    r = tnfs_closedir(&tmi);
-    Debug_printf("closedir: %d\n",r);
 
     return resultstream.str();
 }
