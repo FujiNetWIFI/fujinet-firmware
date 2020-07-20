@@ -188,7 +188,7 @@ void sioNetwork::sio_open()
 
     aux1 = cmdFrame.aux1;
     aux2 = cmdFrame.aux2;
-
+    aux2 |= trans_aux2;
 
     if (protocol != nullptr)
     {
@@ -949,8 +949,7 @@ void sioNetwork::sio_special_protocol_80()
 
 void sioNetwork::sio_special_set_translation()
 {
-    aux1 = cmdFrame.aux1;
-    aux2 = cmdFrame.aux2;
+    trans_aux2 = cmdFrame.aux2;
     sio_complete();
 }
 
