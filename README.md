@@ -23,7 +23,7 @@ How to contact us outside of GitHub:
 
 There is active discussion and work on Discord: https://discord.gg/hhKm9AH
 
-There are two active thread on the AtariAge forums:  
+There are two active threads on the AtariAge forums:  
 * Software development discussion in
 ["#FujiNet - a WIP SIO Network Adapter for the Atari 8-bit"](https://atariage.com/forums/topic/298720-fujinet-a-wip-sio-network-adapter-for-the-atari-8-bit/)  
 * Hardware discussion in
