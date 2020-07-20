@@ -97,6 +97,7 @@ private:
     unsigned short sp_buf_len;
     unsigned char aux1;
     unsigned char aux2;
+    unsigned char trans_aux2;
     string prefix;
     string initial_prefix;
     char filespecBuf[256];
