@@ -77,7 +77,7 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
     return ret;
 }
 
-bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt)
 {
     switch (cmdFrame->aux1)
     {
@@ -121,7 +121,7 @@ bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return client.begin(openedUrl.c_str());
 }
 
-bool networkProtocolHTTP::close()
+bool networkProtocolHTTP::close(enable_interrupt_t enable_interrupt)
 {
     size_t putPos;
     uint8_t *putBuf;
