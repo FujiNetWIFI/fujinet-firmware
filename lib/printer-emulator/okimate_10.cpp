@@ -129,9 +129,10 @@ void okimate10::print_7bit_gfx(uint8_t c)
     fprintf(_file, "0");
     for (int i = 0; i < 7; i++)
     {
-        if ((c >> i) & 0x01)
+        if ((c >> (6-i)) & 0x01) // have the gfx font points backwards or Okimate dot-graphics are upside down
             fprintf(_file, ")100(%u", i + 1);
     }
+    pdf_X += charWidth;
 }
 
 void okimate10::pdf_clear_modes()
