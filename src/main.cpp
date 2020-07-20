@@ -92,6 +92,8 @@ void main_setup()
 
     // Set up the WiFi adapter
     fnWiFi.start();
+    // Go ahead and use whatever the last creds were to reconnect
+    fnWiFi.connect();
 
     theFuji.setup(SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
