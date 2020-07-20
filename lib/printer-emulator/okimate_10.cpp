@@ -137,7 +137,7 @@ void okimate10::print_7bit_gfx(uint8_t c)
 
 void okimate10::pdf_clear_modes()
 {
-    clear_mode(fnt_inverse); // implied by Atari manual page 28. Explicit in Commode manual page 26.
+    clear_mode(fnt_inverse); // implied by Atari manual page 28. Explicit in Commod'e manual page 26.
 }
 
 void okimate10::okimate_output_color_line()
@@ -455,8 +455,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                    /* code */
             if (colorMode == colorMode_t::off)
             {
-                pdf_dY -= float(okimate_cmd.n) / 144.; // set pdf_dY and rise to fraction of line
+                pdf_dY -= float(okimate_cmd.n) / 144. - lineHeight; // set pdf_dY and rise to fraction of line
                 pdf_set_rise();
+                pdf_end_line(); // execute a CR and custom line feed
+                pdf_new_line();
             }
             else
                 cmd_not_implemented(0x8A);
@@ -566,7 +568,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             clear_mode(fnt_inverse);
             break;
         case 0x99:                           // 0x99     Align Ribbon (for color mode)
-            colorMode = colorMode_t::yellow; // first color in CMY ribbon
+            colorMode = colorMode_t::yellow; // first color in YMC ribbon
             Debug_printf("Align Ribbon. colorMode = %d\n", static_cast<int>(colorMode));
             color_counter = 0;
             // initialize the color content buffer
