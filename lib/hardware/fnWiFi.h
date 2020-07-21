@@ -40,6 +40,7 @@ public:
 
     bool connected();
     std::string get_current_ssid();
+    const char * get_current_detail_str();
     int get_current_bssid(uint8_t bssid[6]);
     std::string get_current_bssid_str();
     int get_mac(uint8_t mac[6]);

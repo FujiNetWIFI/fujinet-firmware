@@ -19,6 +19,7 @@ table.info td
 table.info tr td:first-child
 {
 	text-align: right;
+	white-space: nowrap; 
 }
 
 table.info tr td:nth-child(2)
