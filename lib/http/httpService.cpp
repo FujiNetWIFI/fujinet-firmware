@@ -503,10 +503,9 @@ void fnHttpService::start()
 
 void fnHttpService::stop()
 {
-    Debug_println("Stopping web service");
-
     if (state.hServer != nullptr)
     {
+        Debug_println("Stopping web service");
         httpd_stop(state.hServer);
         state._FS = nullptr;
         state.hServer = nullptr;

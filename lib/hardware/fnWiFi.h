@@ -36,6 +36,7 @@ public:
     ~WiFiManager();
 
     int connect(const char *ssid, const char *password);
+    int connect();
 
     bool connected();
     std::string get_current_ssid();
