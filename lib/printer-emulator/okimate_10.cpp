@@ -476,7 +476,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                    /* code */
             if (colorMode == colorMode_t::off)
             {
-                pdf_dY -= float(okimate_cmd.n) / 144. - lineHeight; // set pdf_dY and rise to fraction of line
+                pdf_dY -= float(okimate_cmd.n) * 72. / 144. - lineHeight; // set pdf_dY and rise to fraction of line
                 pdf_set_rise();
                 pdf_end_line(); // execute a CR and custom line feed
                 pdf_new_line();
