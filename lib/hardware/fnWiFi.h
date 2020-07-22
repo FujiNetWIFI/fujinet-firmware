@@ -20,6 +20,7 @@ private:
 
     wifi_ap_record_t * _scan_records = nullptr;
     uint16_t _scan_record_count = 0;
+    bool _scan_in_progress = false;
 
     uint16_t _reconnect_attempts = 0;
 

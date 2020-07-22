@@ -144,6 +144,7 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     // Free any existing scan records
     if (_scan_records != nullptr)
         free(_scan_records);
+    _scan_records = nullptr;
     _scan_record_count = 0;
 
     wifi_scan_config_t scan_conf;
@@ -155,53 +156,70 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     scan_conf.scan_time.active.min = 100; // ms; 100 is what Arduino-ESP uses
     scan_conf.scan_time.active.max = 300; // ms; 300 is what Arduino-ESP uses
 
-    int retries = 0;
+    bool temporary_disconnect = false;
     uint16_t result = 0;
-    esp_err_t e;
+    uint8_t final_count = 0;
 
-    do
+
+    // If we're currently connected, disconnect to allow the scan to happen
+    if(_connected == true)
     {
-        e = esp_wifi_scan_start(&scan_conf, true);
-        if (e == ESP_OK)
-        {
-            e = esp_wifi_scan_get_ap_num(&result);
-            if (e == ESP_OK)
-                break;
-            Debug_printf("esp_wifi_scan_get_ap_num returned error %d\n", e);
-        }
-        else
-        {
-            Debug_printf("esp_wifi_scan_start returned error %d\n", e);
-        }
-
-    } while (++retries <= FNWIFI_RECONNECT_RETRIES);
-
-    Debug_printf("esp_wifi_scan returned %d\n", result);
-
-    // Boundary check
-    if (result > maxresults)
-        result = maxresults;
-
-    // Allocate memory to store the results
-    if (result > 0)
-    {
-        uint16_t numloaded = result;
-        _scan_records = (wifi_ap_record_t *)malloc(result * sizeof(wifi_ap_record_t));
-
-        e = esp_wifi_scan_get_ap_records(&numloaded, _scan_records);
-        if (e != ESP_OK)
-        {
-            Debug_printf("esp_wifi_scan_get_ap_records returned error %d\n", e);
-            if (_scan_records != nullptr)
-                free(_scan_records);
-            _scan_record_count = 0;
-            return 0;
-        }
-        _scan_record_count = numloaded;
-        return _scan_record_count;
+        temporary_disconnect = true;
+        esp_wifi_disconnect();
     }
 
-    return 0;
+    _scan_in_progress = true;
+    esp_err_t e = esp_wifi_scan_start(&scan_conf, true);
+    if (e == ESP_OK)
+    {
+        e = esp_wifi_scan_get_ap_num(&result);
+        if (e != ESP_OK)
+            Debug_printf("esp_wifi_scan_get_ap_num returned error %d\n", e);
+    }
+    else
+    {
+        Debug_printf("esp_wifi_scan_start returned error %d\n", e);
+    }
+
+    if(e == ESP_OK)
+    {
+        Debug_printf("esp_wifi_scan returned %d results\n", result);
+
+        // Boundary check
+        if (result > maxresults)
+            result = maxresults;
+
+        // Allocate memory to store the results
+        if (result > 0)
+        {
+            uint16_t numloaded = result;
+            _scan_records = (wifi_ap_record_t *)malloc(result * sizeof(wifi_ap_record_t));
+
+            e = esp_wifi_scan_get_ap_records(&numloaded, _scan_records);
+            if (e != ESP_OK)
+            {
+                Debug_printf("esp_wifi_scan_get_ap_records returned error %d\n", e);
+                if (_scan_records != nullptr)
+                    free(_scan_records);
+                _scan_records = nullptr;
+                _scan_record_count = 0;
+
+                final_count = 0;
+            }
+            else
+            {
+                _scan_record_count = numloaded;
+                final_count = _scan_record_count;
+            }
+            
+        }
+    }
+
+    // Reconnect to WiFi if we disconnected ourselves
+    if(temporary_disconnect == true)
+        esp_wifi_connect();
+
+    return final_count;
 }
 
 int WiFiManager::get_scan_result(uint8_t index, char ssid[32], uint8_t *rssi, uint8_t *channel, char bssid[18], uint8_t *encryption)
@@ -405,6 +423,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             Debug_println("WIFI_EVENT_WIFI_READ");
             break;
         case WIFI_EVENT_SCAN_DONE:
+            pFnWiFi->_scan_in_progress = false;
             Debug_println("WIFI_EVENT_SCAN_DONE");
             break;
         case WIFI_EVENT_STA_START:
@@ -427,7 +446,8 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                 fnHTTPD.stop();
             }
             // Try to reconnect
-            if(pFnWiFi->_reconnect_attempts < FNWIFI_RECONNECT_RETRIES && Config.have_wifi_info())
+            if(pFnWiFi->_scan_in_progress == false &&
+                pFnWiFi->_reconnect_attempts < FNWIFI_RECONNECT_RETRIES && Config.have_wifi_info())
             {
                 pFnWiFi->_reconnect_attempts++;
                 Debug_printf("WiFi reconnect attempt %u of %d\n", pFnWiFi->_reconnect_attempts, FNWIFI_RECONNECT_RETRIES);
