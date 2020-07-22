@@ -13,12 +13,15 @@
 #include "../utils/utils.h"
 #include "fnWiFi.h"
 #include "fnSystem.h"
+#include "fnConfig.h"
 
 #include "httpService.h"
 #include "led.h"
 
 // Global object to manage WiFi
 WiFiManager fnWiFi;
+
+
 
 WiFiManager::~WiFiManager()
 {
@@ -58,21 +61,28 @@ int WiFiManager::start()
     return 0;
 }
 
+// Attempts to connect using information in Config (if any)
 int WiFiManager::connect()
 {
-    return connect(nullptr, nullptr);
+    if(Config.have_wifi_info())
+        return connect(Config.get_wifi_ssid().c_str(), Config.get_wifi_passphrase().c_str());
+    else
+        return -1;
+    
 }
 
 int WiFiManager::connect(const char *ssid, const char *password)
 {
+    Debug_printf("WiFi connect attempt to SSID \"%s\"\n", ssid == nullptr ? "" : ssid);
+
     // Only set an SSID and password if given
     if (ssid != nullptr)
     {
         // Disconnect if we're connected to a different ssid
-        if(_connected == true)
+        if (_connected == true)
         {
             std::string current_ssid = get_current_ssid();
-            if(current_ssid.compare(ssid) != 0)
+            if (current_ssid.compare(ssid) != 0)
             {
                 esp_wifi_disconnect();
                 fnSystem.delay(500);
@@ -91,6 +101,7 @@ int WiFiManager::connect(const char *ssid, const char *password)
     }
 
     // Now connect
+    _reconnect_attempts = 0;
     esp_err_t e = esp_wifi_connect();
     Debug_printf("esp_wifi_connect returned %d\n", e);
     return e;
@@ -99,7 +110,7 @@ int WiFiManager::connect(const char *ssid, const char *password)
 // Remove resources and shut down WiFi driver
 void WiFiManager::stop()
 {
-   
+
     // Un-register event handler
     ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, _wifi_event_handler));
     ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, _wifi_event_handler));
@@ -112,7 +123,7 @@ void WiFiManager::stop()
     ESP_ERROR_CHECK(esp_wifi_stop());
     ESP_ERROR_CHECK(esp_wifi_deinit());
 
-    if(_scan_records != nullptr)
+    if (_scan_records != nullptr)
         free(_scan_records);
     _scan_records = nullptr;
     _scan_record_count = 0;
@@ -121,10 +132,9 @@ void WiFiManager::stop()
     _connected = false;
 }
 
-
 bool WiFiManager::connected()
 {
-   return _connected;
+    return _connected;
 }
 
 /* Initiates a WiFi network scan and returns number of networks found
@@ -132,7 +142,7 @@ bool WiFiManager::connected()
 uint8_t WiFiManager::scan_networks(uint8_t maxresults)
 {
     // Free any existing scan records
-    if(_scan_records != nullptr)
+    if (_scan_records != nullptr)
         free(_scan_records);
     _scan_record_count = 0;
 
@@ -151,11 +161,11 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
 
     do
     {
-        e =  esp_wifi_scan_start(&scan_conf, true);
-        if(e == ESP_OK)
+        e = esp_wifi_scan_start(&scan_conf, true);
+        if (e == ESP_OK)
         {
             e = esp_wifi_scan_get_ap_num(&result);
-            if(e== ESP_OK)
+            if (e == ESP_OK)
                 break;
             Debug_printf("esp_wifi_scan_get_ap_num returned error %d\n", e);
         }
@@ -163,7 +173,7 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
         {
             Debug_printf("esp_wifi_scan_start returned error %d\n", e);
         }
-        
+
     } while (++retries <= FNWIFI_RECONNECT_RETRIES);
 
     Debug_printf("esp_wifi_scan returned %d\n", result);
@@ -173,16 +183,16 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
         result = maxresults;
 
     // Allocate memory to store the results
-    if(result > 0)
+    if (result > 0)
     {
         uint16_t numloaded = result;
         _scan_records = (wifi_ap_record_t *)malloc(result * sizeof(wifi_ap_record_t));
 
         e = esp_wifi_scan_get_ap_records(&numloaded, _scan_records);
-        if(e != ESP_OK)
+        if (e != ESP_OK)
         {
             Debug_printf("esp_wifi_scan_get_ap_records returned error %d\n", e);
-            if(_scan_records != nullptr)
+            if (_scan_records != nullptr)
                 free(_scan_records);
             _scan_record_count = 0;
             return 0;
@@ -196,10 +206,10 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
 
 int WiFiManager::get_scan_result(uint8_t index, char ssid[32], uint8_t *rssi, uint8_t *channel, char bssid[18], uint8_t *encryption)
 {
-    if(index > _scan_record_count)
+    if (index > _scan_record_count)
         return -1;
 
-    wifi_ap_record_t * ap = &_scan_records[index];
+    wifi_ap_record_t *ap = &_scan_records[index];
 
     if (ssid != nullptr)
         strlcpy(ssid, (const char *)ap->ssid, 32);
@@ -253,6 +263,87 @@ std::string WiFiManager::get_mac_str()
     return result;
 }
 
+const char *_wifi_country_string(wifi_country_t *cinfo)
+{
+    static char buff[100];
+
+    snprintf(buff, sizeof(buff), "ccode=0x%02hx%02hx%02hx, firstchan=%hu, numchan=%hu, maxpwr=%hd, policy=%s",
+             cinfo->cc[0], cinfo->cc[1], cinfo->cc[2], cinfo->schan, cinfo->nchan, cinfo->max_tx_power,
+             cinfo->policy == WIFI_COUNTRY_POLICY_MANUAL ? "manual" : "auto");
+
+    return buff;
+}
+
+const char *_wifi_cipher_string(wifi_cipher_type_t cipher)
+{
+    const char *cipherstrings[WIFI_CIPHER_TYPE_UNKNOWN] =
+        {
+            "WIFI_CIPHER_TYPE_NONE",
+            "WIFI_CIPHER_TYPE_WEP40",
+            "WIFI_CIPHER_TYPE_WEP104",
+            "WIFI_CIPHER_TYPE_TKIP",
+            "WIFI_CIPHER_TYPE_CCMP",
+            "WIFI_CIPHER_TYPE_TKIP_CCMP",
+            "WIFI_CIPHER_TYPE_AES_CMAC128"};
+
+    if (cipher < WIFI_CIPHER_TYPE_UNKNOWN)
+        return cipherstrings[cipher];
+    else
+        return "WIFI_CIPHER_TYPE_UNKNOWN";
+}
+
+const char *_wifi_auth_string(wifi_auth_mode_t mode)
+{
+    const char *modestrings[WIFI_AUTH_MAX] =
+        {
+            "WIFI_AUTH_OPEN",
+            "WIFI_AUTH_WEP",
+            "WIFI_AUTH_WPA_PSK",
+            "WIFI_AUTH_WPA2_PSK",
+            "WIFI_AUTH_WPA_WPA2_PSK",
+            "WIFI_AUTH_WPA2_ENTERPRISE",
+            "WIFI_AUTH_WPA3_PSK",
+            "WIFI_AUTH_WPA2_WPA3_PSK"};
+
+    if (mode < WIFI_AUTH_MAX)
+        return modestrings[mode];
+    else
+        return "UNKNOWN MODE";
+}
+
+const char *WiFiManager::get_current_detail_str()
+{
+    static char buff[256];
+    buff[0] = '\0';
+
+    wifi_ap_record_t apinfo;
+    esp_err_t e = esp_wifi_sta_get_ap_info(&apinfo);
+
+    if (ESP_OK == e)
+    {
+        const char *second = "20-none";
+        if (apinfo.second == WIFI_SECOND_CHAN_ABOVE)
+            second = "40-above";
+        else if (apinfo.second == WIFI_SECOND_CHAN_BELOW)
+            second = "40-below";
+
+        snprintf(buff, sizeof(buff),
+                 "chan=%hu, chan2=%s, rssi=%hd, auth=%s, paircipher=%s, groupcipher=%s, ant=%u "
+                 "11b=%c, 11g=%c, 11n=%c, lowr=%c, wps=%c, (%s)",
+                 apinfo.primary, second, 
+                 apinfo.rssi, 
+                 _wifi_auth_string(apinfo.authmode),
+                 _wifi_cipher_string(apinfo.pairwise_cipher), _wifi_cipher_string(apinfo.group_cipher),
+                 apinfo.ant,
+                 apinfo.phy_11b ? 'y' : 'n', apinfo.phy_11g ? 'y' : 'n', apinfo.phy_11n ? 'y' : 'n',
+                 apinfo.phy_lr ? 'y' : 'n',
+                 apinfo.wps ? 'y' : 'n',
+                 _wifi_country_string(&apinfo.country));
+    }
+
+    return buff;
+}
+
 int WiFiManager::get_current_bssid(uint8_t bssid[6])
 {
     wifi_ap_record_t apinfo;
@@ -279,36 +370,34 @@ std::string WiFiManager::get_current_bssid_str()
 }
 
 void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
-                                             int32_t event_id, void *event_data)
+                                      int32_t event_id, void *event_data)
 {
     // Get a pointer to our fnWiFi object
     WiFiManager *pFnWiFi = (WiFiManager *)arg;
 
     // IP_EVENT NOTIFICATIONS
-    if(event_base == IP_EVENT)
+    if (event_base == IP_EVENT)
     {
         switch (event_id)
         {
-            // Consider WiFi connected once we get an IP address
-            case IP_EVENT_STA_GOT_IP:
-                Debug_println("IP_EVENT_STA_GOT_IP");
-                Debug_printf("Obtained IP address: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
-                pFnWiFi->_connected = true;
-                fnLedManager.set(eLed::LED_WIFI, true);
-                fnHTTPD.start();
-                break;
-            case IP_EVENT_STA_LOST_IP:
-                Debug_println("IP_EVENT_STA_LOST_IP");
-                break;
-            case IP_EVENT_ETH_GOT_IP:
-                Debug_println("IP_EVENT_ETH_GOT_IP");
-                break;
-
+        // Consider WiFi connected once we get an IP address
+        case IP_EVENT_STA_GOT_IP:
+            Debug_println("IP_EVENT_STA_GOT_IP");
+            Debug_printf("Obtained IP address: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
+            pFnWiFi->_connected = true;
+            fnLedManager.set(eLed::LED_WIFI, true);
+            fnHTTPD.start();
+            break;
+        case IP_EVENT_STA_LOST_IP:
+            Debug_println("IP_EVENT_STA_LOST_IP");
+            break;
+        case IP_EVENT_ETH_GOT_IP:
+            Debug_println("IP_EVENT_ETH_GOT_IP");
+            break;
         }
-
     }
     // WIFI_EVENT NOTIFICATIONS
-    else if(event_base == WIFI_EVENT)
+    else if (event_base == WIFI_EVENT)
     {
         switch (event_id)
         {
@@ -326,20 +415,28 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             break;
         case WIFI_EVENT_STA_CONNECTED:
             Debug_println("WIFI_EVENT_STA_CONNECTED");
+            pFnWiFi->_reconnect_attempts = 0;
             break;
         // Set WiFi to disconnected
         case WIFI_EVENT_STA_DISCONNECTED:
-            Debug_println("WIFI_EVENT_STA_DISCONNECTED");
-            pFnWiFi->_connected = false;
-            fnLedManager.set(eLed::LED_WIFI, false);
-            fnHTTPD.stop();
-            // Try to reconnect; TODO: Disable retries in certain conditions?
-            esp_wifi_connect();
+            if(pFnWiFi->_connected == true)
+            {
+                Debug_println("WIFI_EVENT_STA_DISCONNECTED");
+                pFnWiFi->_connected = false;
+                fnLedManager.set(eLed::LED_WIFI, false);
+                fnHTTPD.stop();
+            }
+            // Try to reconnect
+            if(pFnWiFi->_reconnect_attempts < FNWIFI_RECONNECT_RETRIES && Config.have_wifi_info())
+            {
+                pFnWiFi->_reconnect_attempts++;
+                Debug_printf("WiFi reconnect attempt %u of %d\n", pFnWiFi->_reconnect_attempts, FNWIFI_RECONNECT_RETRIES);
+                esp_wifi_connect();
+            }
             break;
         case WIFI_EVENT_STA_AUTHMODE_CHANGE:
             Debug_println("WIFI_EVENT_STA_AUTHMODE_CHANGE");
             break;
         }
-
     }
 }
