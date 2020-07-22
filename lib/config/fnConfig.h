@@ -37,6 +37,7 @@ public:
     void store_printer_type(uint8_t num, sioPrinter::printer_type ptype);
     void store_printer_port(uint8_t num, int port);
 
+    bool have_wifi_info() { return _wifi.ssid.empty() == false; }
     std::string get_wifi_ssid() { return _wifi.ssid; };
     std::string get_wifi_passphrase() { return _wifi.passphrase; };
     void store_wifi_ssid(const char *ssid_octets, int num_octets);

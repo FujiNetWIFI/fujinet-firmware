@@ -13,12 +13,15 @@
 #include "../utils/utils.h"
 #include "fnWiFi.h"
 #include "fnSystem.h"
+#include "fnConfig.h"
 
 #include "httpService.h"
 #include "led.h"
 
 // Global object to manage WiFi
 WiFiManager fnWiFi;
+
+
 
 WiFiManager::~WiFiManager()
 {
@@ -58,13 +61,20 @@ int WiFiManager::start()
     return 0;
 }
 
+// Attempts to connect using information in Config (if any)
 int WiFiManager::connect()
 {
-    return connect(nullptr, nullptr);
+    if(Config.have_wifi_info())
+        return connect(Config.get_wifi_ssid().c_str(), Config.get_wifi_passphrase().c_str());
+    else
+        return -1;
+    
 }
 
 int WiFiManager::connect(const char *ssid, const char *password)
 {
+    Debug_printf("WiFi connect attempt to SSID \"%s\"\n", ssid == nullptr ? "" : ssid);
+
     // Only set an SSID and password if given
     if (ssid != nullptr)
     {
@@ -91,6 +101,7 @@ int WiFiManager::connect(const char *ssid, const char *password)
     }
 
     // Now connect
+    _reconnect_attempts = 0;
     esp_err_t e = esp_wifi_connect();
     Debug_printf("esp_wifi_connect returned %d\n", e);
     return e;
@@ -404,15 +415,24 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             break;
         case WIFI_EVENT_STA_CONNECTED:
             Debug_println("WIFI_EVENT_STA_CONNECTED");
+            pFnWiFi->_reconnect_attempts = 0;
             break;
         // Set WiFi to disconnected
         case WIFI_EVENT_STA_DISCONNECTED:
-            Debug_println("WIFI_EVENT_STA_DISCONNECTED");
-            pFnWiFi->_connected = false;
-            fnLedManager.set(eLed::LED_WIFI, false);
-            fnHTTPD.stop();
-            // Try to reconnect; TODO: Disable retries in certain conditions?
-            esp_wifi_connect();
+            if(pFnWiFi->_connected == true)
+            {
+                Debug_println("WIFI_EVENT_STA_DISCONNECTED");
+                pFnWiFi->_connected = false;
+                fnLedManager.set(eLed::LED_WIFI, false);
+                fnHTTPD.stop();
+            }
+            // Try to reconnect
+            if(pFnWiFi->_reconnect_attempts < FNWIFI_RECONNECT_RETRIES && Config.have_wifi_info())
+            {
+                pFnWiFi->_reconnect_attempts++;
+                Debug_printf("WiFi reconnect attempt %u of %d\n", pFnWiFi->_reconnect_attempts, FNWIFI_RECONNECT_RETRIES);
+                esp_wifi_connect();
+            }
             break;
         case WIFI_EVENT_STA_AUTHMODE_CHANGE:
             Debug_println("WIFI_EVENT_STA_AUTHMODE_CHANGE");
