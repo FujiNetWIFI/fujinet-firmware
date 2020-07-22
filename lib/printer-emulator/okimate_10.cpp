@@ -129,7 +129,7 @@ void okimate10::print_7bit_gfx(uint8_t c)
     fprintf(_file, "0");
     for (int i = 0; i < 7; i++)
     {
-        if ((c >> (6-i)) & 0x01) // have the gfx font points backwards or Okimate dot-graphics are upside down
+        if ((c >> (6 - i)) & 0x01) // have the gfx font points backwards or Okimate dot-graphics are upside down
             fprintf(_file, ")100(%u", i + 1);
     }
     pdf_X += charWidth;
@@ -158,45 +158,66 @@ void okimate10::okimate_output_color_line()
             // brute force coding for colors: okimate prints in Y-M-C order
             // 111 Y&M&C black
             c = color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
-            set_mode(fnt_C | fnt_M | fnt_Y);
-            okimate_handle_font();
-            print_7bit_gfx(c);
+            if (c)
+            {
+                set_mode(fnt_C | fnt_M | fnt_Y);
+                okimate_handle_font();
+                print_7bit_gfx(c);
+            }
             // 110 Y&M
             c = color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
-            set_mode(fnt_Y | fnt_M);
-            clear_mode(fnt_C);
-            okimate_handle_font();
-            print_7bit_gfx(c);
+            if (c)
+            {
+                set_mode(fnt_Y | fnt_M);
+                clear_mode(fnt_C);
+                okimate_handle_font();
+                print_7bit_gfx(c);
+            }
             // 101 C&Y
             c = color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
-            set_mode(fnt_C | fnt_Y);
-            clear_mode(fnt_M);
-            okimate_handle_font();
-            print_7bit_gfx(c);
+            if (c)
+            {
+                set_mode(fnt_C | fnt_Y);
+                clear_mode(fnt_M);
+                okimate_handle_font();
+                print_7bit_gfx(c);
+            }
             // 110 M&C
             c = ~color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
-            set_mode(fnt_M | fnt_C);
-            clear_mode(fnt_Y);
-            okimate_handle_font();
-            print_7bit_gfx(c);
+            if (c)
+            {
+                set_mode(fnt_M | fnt_C);
+                clear_mode(fnt_Y);
+                okimate_handle_font();
+                print_7bit_gfx(c);
+            }
             // 100 Y
             c = color_buffer[i][1] & ~color_buffer[i][2] & ~color_buffer[i][3];
-            set_mode(fnt_Y);
-            clear_mode(fnt_C | fnt_M);
-            okimate_handle_font();
-            print_7bit_gfx(c);
+            if (c)
+            {
+                set_mode(fnt_Y);
+                clear_mode(fnt_C | fnt_M);
+                okimate_handle_font();
+                print_7bit_gfx(c);
+            }
             // 010 M
             c = ~color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
-            set_mode(fnt_M);
-            clear_mode(fnt_C | fnt_Y);
-            okimate_handle_font();
-            print_7bit_gfx(c);
+            if (c)
+            {
+                set_mode(fnt_M);
+                clear_mode(fnt_C | fnt_Y);
+                okimate_handle_font();
+                print_7bit_gfx(c);
+            }
             // 001 C
             c = ~color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
-            set_mode(fnt_C);
-            clear_mode(fnt_M | fnt_Y);
-            okimate_handle_font();
-            print_7bit_gfx(c);
+            if (c)
+            {
+                set_mode(fnt_C);
+                clear_mode(fnt_M | fnt_Y);
+                okimate_handle_font();
+                print_7bit_gfx(c);
+            }
         }
         else
         {
