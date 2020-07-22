@@ -92,7 +92,7 @@ void main_setup()
 
     // Set up the WiFi adapter
     fnWiFi.start();
-    // Go ahead and use whatever the last creds were to reconnect
+    // Go ahead and try reconnecting to WiFi
     fnWiFi.connect();
 
     theFuji.setup(SIO);
