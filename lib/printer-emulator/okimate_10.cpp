@@ -163,6 +163,7 @@ void okimate10::okimate_output_color_line()
                 set_mode(fnt_C | fnt_M | fnt_Y);
                 okimate_handle_font();
                 print_7bit_gfx(c);
+                fprintf(_file, ")100(");
             }
             // 110 Y&M
             c = color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
@@ -172,6 +173,7 @@ void okimate10::okimate_output_color_line()
                 clear_mode(fnt_C);
                 okimate_handle_font();
                 print_7bit_gfx(c);
+                fprintf(_file, ")100(");
             }
             // 101 C&Y
             c = color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
@@ -181,6 +183,7 @@ void okimate10::okimate_output_color_line()
                 clear_mode(fnt_M);
                 okimate_handle_font();
                 print_7bit_gfx(c);
+                fprintf(_file, ")100(");
             }
             // 110 M&C
             c = ~color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
@@ -190,6 +193,7 @@ void okimate10::okimate_output_color_line()
                 clear_mode(fnt_Y);
                 okimate_handle_font();
                 print_7bit_gfx(c);
+                fprintf(_file, ")100(");
             }
             // 100 Y
             c = color_buffer[i][1] & ~color_buffer[i][2] & ~color_buffer[i][3];
@@ -199,6 +203,7 @@ void okimate10::okimate_output_color_line()
                 clear_mode(fnt_C | fnt_M);
                 okimate_handle_font();
                 print_7bit_gfx(c);
+                fprintf(_file, ")100(");
             }
             // 010 M
             c = ~color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
@@ -208,6 +213,7 @@ void okimate10::okimate_output_color_line()
                 clear_mode(fnt_C | fnt_Y);
                 okimate_handle_font();
                 print_7bit_gfx(c);
+                fprintf(_file, ")100(");
             }
             // 001 C
             c = ~color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
@@ -217,7 +223,9 @@ void okimate10::okimate_output_color_line()
                 clear_mode(fnt_M | fnt_Y);
                 okimate_handle_font();
                 print_7bit_gfx(c);
+                fprintf(_file, ")100(");
             }
+            fprintf(_file, " ");
         }
         else
         {
