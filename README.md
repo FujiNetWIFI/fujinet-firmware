@@ -1,9 +1,14 @@
 #FujiNet   
 =========
-
 A multi-function peripheral built on ESP32 hardware being developed for the Atari 8-bit systems
 
-It currently provides the following devices:
+### Please see the [GitHub wiki](https://github.com/FujiNetWIFI/fujinet-platformio/wiki) for documenation and additional details.
+
+### A dedicated web site is also available at https://fujinet.online/
+
+-------------------------------------------------
+
+FujiNet currently provides the following devices:
 
 * D: for disk emulation, allowing disk images to be read or written to on SD cards or TNFS servers over the local network or Internet.
 * P: for printing emulation, providing printer emulation for various types of popular printers, including Atari-branded, Epson, and other alternatives.
@@ -16,8 +21,6 @@ This is the primary ESP32 firmware project. In addition, there are several relat
 * fujinet-nhandler: Atari 8bit "N:" device handler
 * fujinet-config-tools: Additional Atari 8bit programs to directly control FujiNet
 * fujinet-hardware: Schematics and design files for FujiNet hardware
-
-### Please see the [GitHub wiki](https://github.com/FujiNetWIFI/fujinet-platformio/wiki) for documenation and additional details.
 
 How to contact us outside of GitHub:
 
