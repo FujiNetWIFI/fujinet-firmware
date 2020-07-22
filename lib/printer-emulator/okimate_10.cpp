@@ -235,17 +235,17 @@ void okimate10::okimate_output_color_line()
             okimate_new_fnt_mask = color_buffer[i][0] & 0x07;
             // then figure out color
             // clear_mode(fnt_C | fnt_M | fnt_Y | fnt_K);
-            if (color_buffer[i][1] != ' ')
+            if ((color_buffer[i][1] != 0) && (color_buffer[i][1] != ' '))
             {
                 set_mode(fnt_Y);
                 c = color_buffer[i][1];
             }
-            if (color_buffer[i][2] != ' ')
+            if ((color_buffer[i][2] != 0) && (color_buffer[i][2] != ' '))
             {
                 set_mode(fnt_M);
                 c = color_buffer[i][2];
             }
-            if (color_buffer[i][3] != ' ')
+            if ((color_buffer[i][3] != 0) && (color_buffer[i][3] != ' '))
             {
                 set_mode(fnt_C);
                 c = color_buffer[i][3];
@@ -606,7 +606,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 color_buffer[i][0] = invalid_font; // clear font
                 for (int j = 1; j < 4; j++)
                 {
-                    color_buffer[i][j] = ' '; // fill with spaces
+                    color_buffer[i][j] = 0; // fill
                 }
             }
             break;
