@@ -6,7 +6,7 @@
 #include "freertos/event_groups.h"
 #include "esp_event.h"
 
-#define FNWIFI_RECONNECT_RETRIES 5
+#define FNWIFI_RECONNECT_RETRIES 8
 #define FNWIFI_SCAN_RESULTS_MAX 20
 #define FNWIFI_BIT_CONNECTED BIT0
 
@@ -20,6 +20,8 @@ private:
 
     wifi_ap_record_t * _scan_records = nullptr;
     uint16_t _scan_record_count = 0;
+
+    uint16_t _reconnect_attempts = 0;
 
     char *_mac_to_string(char dest[18], uint8_t mac[6]);
 
@@ -40,6 +42,7 @@ public:
 
     bool connected();
     std::string get_current_ssid();
+    const char * get_current_detail_str();
     int get_current_bssid(uint8_t bssid[6]);
     std::string get_current_bssid_str();
     int get_mac(uint8_t mac[6]);
