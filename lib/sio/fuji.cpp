@@ -27,6 +27,8 @@
 #define SIO_FUJICMD_GET_ADAPTERCONFIG 0xE8
 #define SIO_FUJICMD_NEW_DISK 0xE7
 #define SIO_FUJICMD_UNMOUNT_HOST 0xE6
+#define SIO_FUJICMD_SEEK_DIR 0xE5
+#define SIO_FUJICMD_TELL_DIR 0xE4
 #define SIO_FUJICMD_STATUS 0x53
 
 #define MAX_HOSTS 8
@@ -577,6 +579,16 @@ void sioFuji::sio_new_disk()
     }
 }
 
+void sioFuji::sio_seek_directory()
+{
+
+}
+
+void sioFuji::sio_tell_directory()
+{
+
+}
+
 // Temporary(?) function while we move from old config storage to new
 void sioFuji::populate_slots_from_config()
 {
@@ -743,6 +755,13 @@ void sioFuji::sio_process()
     case SIO_FUJICMD_NEW_DISK:
         sio_ack();
         sio_new_disk();
+        break;
+    case SIO_FUJICMD_SEEK_DIR:
+        sio_ack();
+        sio_seek_directory();
+        break;
+    case SIO_FUJICMD_TELL_DIR:
+        sio_ack();
         break;
     default:
         sio_nak();
