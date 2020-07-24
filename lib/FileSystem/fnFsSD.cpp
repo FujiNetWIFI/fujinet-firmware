@@ -3,6 +3,10 @@
 
 #include <memory>
 #include <time.h>
+
+#include <vector>
+#include <algorithm>
+
 #include <esp_vfs.h>
 #include "esp_vfs_fat.h"
 
@@ -17,29 +21,19 @@
 // Our global SD interface
 FileSystemSDFAT fnSDFAT;
 
-bool FileSystemSDFAT::dir_open(const char * path)
+/*
+ We maintain directory information cached to allow
+ for sorting and to provide telldir/seekdir
+*/
+std::vector<fsdir_entry> _dir_entries;
+int _dir_entry_current = 0;
+
+
+/*
+  Converts the FatFs ftime and fdate to a POSIX time_t value
+*/
+time_t _fssd_fatdatetime_to_epoch(WORD ftime, WORD fdate)
 {
-    FRESULT result = f_opendir(&_dir, path);
-    return (result == FR_OK);
-}
-void FileSystemSDFAT::dir_close()
-{
-    f_closedir(&_dir);
-}
-
-fsdir_entry * FileSystemSDFAT::dir_read()
-{
-    FILINFO finfo;
-    FRESULT result = f_readdir(&_dir, &finfo);
-
-    if(result != FR_OK || finfo.fname[0] == '\0')
-        return nullptr;
-
-    strlcpy(_direntry.filename, finfo.fname, sizeof(_direntry.filename));
-
-    _direntry.isDir = finfo.fattrib & AM_DIR ? true : false;
-    _direntry.size = finfo.fsize;
-
     // Convert date and time
 
     // 5 bits 4-0 = seconds / 2 (0-29)
@@ -58,13 +52,13 @@ fsdir_entry * FileSystemSDFAT::dir_read()
 
     struct tm tmtime;
 
-    tmtime.tm_sec = (finfo.ftime & TIMEBITS_SECOND) * 2;
-    tmtime.tm_min = (finfo.ftime & TIMEBITS_MINUTE) >> 5;
-    tmtime.tm_hour = (finfo.ftime & TIMEBITS_HOUR) >> 11;
+    tmtime.tm_sec = (ftime & TIMEBITS_SECOND) * 2;
+    tmtime.tm_min = (ftime & TIMEBITS_MINUTE) >> 5;
+    tmtime.tm_hour = (ftime & TIMEBITS_HOUR) >> 11;
 
-    tmtime.tm_mday = (finfo.fdate & DATEBITS_DAY);
-    tmtime.tm_mon = ((finfo.fdate & DATEBITS_MONTH) >> 5) -1; // tm_mon = months 0-11
-    tmtime.tm_year = ((finfo.fdate & DATEBITS_YEAR) >> 9) + 80; //tm_year = years since 1900
+    tmtime.tm_mday = (fdate & DATEBITS_DAY);
+    tmtime.tm_mon = ((fdate & DATEBITS_MONTH) >> 5) -1; // tm_mon = months 0-11
+    tmtime.tm_year = ((fdate & DATEBITS_YEAR) >> 9) + 80; //tm_year = years since 1900
 
     tmtime.tm_isdst = 0;
 
@@ -79,9 +73,90 @@ fsdir_entry * FileSystemSDFAT::dir_read()
     */
     #endif
 
-    _direntry.modified_time = mktime(&tmtime);
-    
-    return &_direntry;
+    return mktime(&tmtime);
+
+}
+
+
+bool FileSystemSDFAT::dir_open(const char * path)
+{
+    // Throw out any existing directory entry data
+    _dir_entries.clear();
+
+    Debug_print("sdfat::dir_open\n");
+    FRESULT result = f_opendir(&_dir, path);
+    if(result != FR_OK)
+        return false;
+
+    // Read all the directory entries and store them
+    // We temporarily keep separate lists of files and directories so we can sort them separately
+    std::vector<fsdir_entry> store_directories;
+    std::vector<fsdir_entry> store_files;
+    fsdir_entry *entry;
+    FILINFO finfo;
+    while(f_readdir(&_dir, &finfo) == FR_OK)
+    {
+        Debug_printf("# %s\n", finfo.fname);
+
+        // An empty name indicates the end of the directory
+        if(finfo.fname[0] == '\0')
+            break;
+        // Ignore items starting with '.'
+        if(finfo.fname[0] == '.')
+            continue;
+        // Ignore items marked hidden
+        if(finfo.fattrib & AM_HID || finfo.fattrib & AM_SYS)
+            continue;
+
+        // Determine which list to put this in
+        if(finfo.fattrib & AM_DIR)
+        {
+            store_directories.push_back(fsdir_entry());
+            entry = &store_directories.back();
+            entry->isDir = true;
+        }
+        else
+        {
+            store_files.push_back(fsdir_entry());
+            entry = &store_files.back();
+            entry->isDir = false;
+        }
+
+        // Copy the data we want into the record
+        strlcpy(entry->filename, finfo.fname, sizeof(entry->filename));
+        entry->size = finfo.fsize;
+        entry->modified_time = _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate);
+
+        Debug_printf("sdfat::dir_open adding \"%s\"\n", entry->filename);
+    }
+    // Combine the folder and file entries
+    _dir_entries.reserve( store_directories.size() + store_files.size() );
+    _dir_entries.insert( _dir_entries.end(), store_directories.begin(), store_directories.end() );
+    _dir_entries.insert( _dir_entries.end(), store_files.begin(), store_files.end() );
+
+    Debug_printf("sdfat::dir_open dirs=%d, fils=%d, cmb=%d\n", store_directories.size(), store_files.size(), _dir_entries.size());
+    // Future operations will be performed on the cache
+    f_closedir(&_dir);
+
+    return true;
+}
+
+void FileSystemSDFAT::dir_close()
+{
+    // Throw out any existing directory entry data
+    _dir_entries.clear();
+    _dir_entry_current = 0;
+}
+
+fsdir_entry * FileSystemSDFAT::dir_read()
+{
+    if(_dir_entry_current < _dir_entries.size())
+    {
+        Debug_printf("#%d = \"%s\"\n", _dir_entry_current, _dir_entries[_dir_entry_current].filename);
+        return &_dir_entries[_dir_entry_current++];
+    }
+    else
+        return nullptr;
 }
 
 FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
