@@ -26,7 +26,28 @@ FileSystemSDFAT fnSDFAT;
  for sorting and to provide telldir/seekdir
 */
 std::vector<fsdir_entry> _dir_entries;
-int _dir_entry_current = 0;
+uint16_t _dir_entry_current = 0;
+
+
+bool _fssd_fsdir_sort_name_ascend(fsdir_entry &left, fsdir_entry &right)
+{
+    return strcasecmp(left.filename, right.filename) < 0;
+}
+
+bool _fssd_fsdir_sort_name_descend(fsdir_entry &left, fsdir_entry &right)
+{
+    return strcasecmp(left.filename, right.filename) > 0;
+}
+
+bool _fssd_fsdir_sort_time_ascend(fsdir_entry &left, fsdir_entry &right)
+{
+    return left.modified_time > right.modified_time;
+}
+
+bool _fssd_fsdir_sort_time_descend(fsdir_entry &left, fsdir_entry &right)
+{
+    return left.modified_time < right.modified_time;
+}
 
 
 /*
@@ -83,7 +104,6 @@ bool FileSystemSDFAT::dir_open(const char * path)
     // Throw out any existing directory entry data
     _dir_entries.clear();
 
-    Debug_print("sdfat::dir_open\n");
     FRESULT result = f_opendir(&_dir, path);
     if(result != FR_OK)
         return false;
@@ -94,18 +114,20 @@ bool FileSystemSDFAT::dir_open(const char * path)
     std::vector<fsdir_entry> store_files;
     fsdir_entry *entry;
     FILINFO finfo;
+
     while(f_readdir(&_dir, &finfo) == FR_OK)
     {
-        Debug_printf("# %s\n", finfo.fname);
-
         // An empty name indicates the end of the directory
         if(finfo.fname[0] == '\0')
             break;
         // Ignore items starting with '.'
         if(finfo.fname[0] == '.')
             continue;
-        // Ignore items marked hidden
+        // Ignore items marked hidden or system
         if(finfo.fattrib & AM_HID || finfo.fattrib & AM_SYS)
+            continue;
+        // Ignore some special files we create on SD
+        if(strcmp(finfo.fname, "paper") == 0 || strcmp(finfo.fname, "fnconfig.ini") == 0)
             continue;
 
         // Determine which list to put this in
@@ -126,15 +148,17 @@ bool FileSystemSDFAT::dir_open(const char * path)
         strlcpy(entry->filename, finfo.fname, sizeof(entry->filename));
         entry->size = finfo.fsize;
         entry->modified_time = _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate);
-
-        Debug_printf("sdfat::dir_open adding \"%s\"\n", entry->filename);
     }
+
+    // Sort each list
+    std::sort(store_directories.begin(), store_directories.end(), _fssd_fsdir_sort_name_ascend);
+    std::sort(store_files.begin(), store_files.end(), _fssd_fsdir_sort_name_ascend);
+
     // Combine the folder and file entries
     _dir_entries.reserve( store_directories.size() + store_files.size() );
-    _dir_entries.insert( _dir_entries.end(), store_directories.begin(), store_directories.end() );
+    _dir_entries = store_directories; // This copies the contents from one vector to the other
     _dir_entries.insert( _dir_entries.end(), store_files.begin(), store_files.end() );
 
-    Debug_printf("sdfat::dir_open dirs=%d, fils=%d, cmb=%d\n", store_directories.size(), store_files.size(), _dir_entries.size());
     // Future operations will be performed on the cache
     f_closedir(&_dir);
 
@@ -152,12 +176,32 @@ fsdir_entry * FileSystemSDFAT::dir_read()
 {
     if(_dir_entry_current < _dir_entries.size())
     {
-        Debug_printf("#%d = \"%s\"\n", _dir_entry_current, _dir_entries[_dir_entry_current].filename);
+        //Debug_printf("#%d = \"%s\"\n", _dir_entry_current, _dir_entries[_dir_entry_current].filename);
         return &_dir_entries[_dir_entry_current++];
     }
     else
         return nullptr;
 }
+
+uint16_t FileSystemSDFAT::dir_tell()
+{
+    if(_dir_entries.empty())
+        return FNFS_INVALID_DIRPOS;
+    else
+        return _dir_entry_current;
+}
+
+bool FileSystemSDFAT::dir_seek(uint16_t pos)
+{
+    if(pos < _dir_entries.size())
+    {
+        _dir_entry_current = pos;
+        return true;
+    }
+    else
+        return false;
+}
+
 
 FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
 {

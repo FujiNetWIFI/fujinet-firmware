@@ -180,3 +180,23 @@ void FileSystemTNFS::dir_close()
     tnfs_closedir(&_mountinfo);
     _current_dirpath[0] = '\0';
 }
+
+uint16_t FileSystemTNFS::dir_tell()
+{
+    if(!_started)
+        return FNFS_INVALID_DIRPOS;;
+
+    uint16_t position;
+    if(0 != tnfs_telldir(&_mountinfo, &position))
+        position = FNFS_INVALID_DIRPOS;
+
+    return position;
+}
+
+bool FileSystemTNFS::dir_seek(uint16_t position)
+{
+    if(!_started)
+        return false;
+
+    return 0 == tnfs_seekdir(&_mountinfo, position);
+}

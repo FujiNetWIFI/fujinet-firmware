@@ -48,6 +48,8 @@ public:
     bool dir_open(const char *path);
     fsdir_entry_t * dir_nextfile();
     void dir_close();
+    uint16_t dir_tell();
+    bool dir_seek(uint16_t position);
 
     fujiFsMounter() { _type = FNFILESYS_UNINITIALIZED; };
     ~fujiFsMounter() { set_type(FNFILESYS_UNINITIALIZED); };
