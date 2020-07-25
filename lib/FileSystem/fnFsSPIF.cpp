@@ -57,6 +57,16 @@ void FileSystemSPIFFS::dir_close()
     _dir = nullptr;
 }
 
+uint16_t FileSystemSPIFFS::dir_tell()
+{
+    return 0;
+}
+
+bool FileSystemSPIFFS::dir_seek(uint16_t)
+{
+    return false;
+}
+
 FILE * FileSystemSPIFFS::file_open(const char* path, const char* mode)
 {
     char * fpath = _make_fullpath(path);
