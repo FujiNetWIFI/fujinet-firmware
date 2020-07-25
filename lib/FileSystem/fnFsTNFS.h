@@ -32,6 +32,8 @@ public:
     bool dir_open(const char * path) override;
     fsdir_entry *dir_read() override;
     void dir_close();
+    uint16_t dir_tell() override;
+    bool dir_seek(uint16_t) override;
 };
 
 #endif // _FN_FSTNFS_

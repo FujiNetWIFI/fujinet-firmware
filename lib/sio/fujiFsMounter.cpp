@@ -48,6 +48,44 @@ void fujiFsMounter::set_type(fujiFSType type)
     _type = type;
 }
 
+uint16_t fujiFsMounter::dir_tell()
+{
+    Debug_printf("::dir_tell {%d:%d}\n", slotid, _type);
+    if(_fs == nullptr)
+        return FNFS_INVALID_DIRPOS;
+
+    uint16_t result = FNFS_INVALID_DIRPOS;
+    switch(_type)
+    {
+    case FNFILESYS_LOCAL:
+    case FNFILESYS_TNFS:
+        result =_fs->dir_tell();
+        break;
+    case FNFILESYS_UNINITIALIZED:
+        break;
+    }
+    return result;
+}
+
+bool fujiFsMounter::dir_seek(uint16_t pos)
+{
+    Debug_printf("::dir_seek {%d:%d} %hu\n", slotid, _type, pos);
+    if(_fs == nullptr)
+        return false;
+
+    bool result = false;
+    switch(_type)
+    {
+    case FNFILESYS_LOCAL:
+    case FNFILESYS_TNFS:
+        result =_fs->dir_seek(pos);
+        break;
+    case FNFILESYS_UNINITIALIZED:
+        break;
+    }
+    return result;
+}
+
 bool fujiFsMounter::dir_open(const char *path)
 {
     Debug_printf("::dir_open {%d:%d} \"%s\"\n", slotid, _type, path);
