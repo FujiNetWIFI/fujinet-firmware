@@ -777,7 +777,7 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
 /*
     TELLDIR
 */
-int tnfs_telldir(tnfsMountInfo *m_info, uint32_t *position)
+int tnfs_telldir(tnfsMountInfo *m_info, uint16_t *position)
 {
     if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
         return -1;
@@ -811,7 +811,7 @@ int tnfs_telldir(tnfsMountInfo *m_info, uint32_t *position)
 /*
     SEEKDIR
 */
-int tnfs_seekdir(tnfsMountInfo *m_info, uint32_t position)
+int tnfs_seekdir(tnfsMountInfo *m_info, uint16_t position)
 {
     if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
         return -1;
@@ -822,7 +822,8 @@ int tnfs_seekdir(tnfsMountInfo *m_info, uint32_t position)
     tnfsPacket packet;
     packet.command = TNFS_CMD_SEEKDIR;
     packet.payload[0] = m_info->dir_handle;
-    TNFS_UINT32_TO_LOHI_BYTEPTR(position, packet.payload + 1);
+    uint32_t pos = position;
+    TNFS_UINT32_TO_LOHI_BYTEPTR(pos, packet.payload + 1);
 
     if (_tnfs_transaction(m_info, packet, 5))
         return packet.payload[0];
