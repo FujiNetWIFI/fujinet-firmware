@@ -184,8 +184,8 @@ int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory, uint8_t sortopts
 int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, int dir_entry_len);
 int tnfs_closedir(tnfsMountInfo *m_info);
 
-int tnfs_telldir(tnfsMountInfo *m_info, uint32_t *position);
-int tnfs_seekdir(tnfsMountInfo *m_info, uint32_t position);
+int tnfs_telldir(tnfsMountInfo *m_info, uint16_t *position);
+int tnfs_seekdir(tnfsMountInfo *m_info, uint16_t position);
 
 int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory);
 int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory);

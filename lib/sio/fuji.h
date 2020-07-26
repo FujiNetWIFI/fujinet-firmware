@@ -21,6 +21,7 @@ class sioFuji : public sioDevice
 private:
 
     fujiFsMounter fnFileSystems[MAX_FILESYSTEMS];
+    int _current_open_directory_slot = -1;
 
     void populate_slots_from_config();
     void populate_config_from_slots();
@@ -76,8 +77,8 @@ protected:
     void sio_get_adapter_config();        // 0xE8
     void sio_new_disk();                  // 0xE7
     void sio_unmount_host();              // 0xE6
-    void sio_seek_directory();            // 0xE5
-    void sio_tell_directory();            // 0xE4
+    void sio_get_directory_position();    // 0xE5
+    void sio_set_directory_position();    // 0xE4
 
     void sio_process() override;
 
