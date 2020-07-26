@@ -27,8 +27,8 @@
 #define SIO_FUJICMD_GET_ADAPTERCONFIG 0xE8
 #define SIO_FUJICMD_NEW_DISK 0xE7
 #define SIO_FUJICMD_UNMOUNT_HOST 0xE6
-#define SIO_FUJICMD_SEEK_DIR 0xE5
-#define SIO_FUJICMD_TELL_DIR 0xE4
+#define SIO_FUJICMD_GET_DIRECTORY_POSITION 0xE5
+#define SIO_FUJICMD_SET_DIRECTORY_POSITION 0xE4
 #define SIO_FUJICMD_STATUS 0x53
 
 #define MAX_HOSTS 8
@@ -38,7 +38,6 @@ sioNetwork sioN[MAX_HOSTS];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
-
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg)
 {
@@ -74,7 +73,6 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
     return false;
 }
 
-
 // Constructor
 sioFuji::sioFuji()
 {
@@ -93,7 +91,6 @@ void sioFuji::sio_status()
     sio_to_computer((uint8_t *)ret, sizeof(ret), false);
     return;
 }
-
 
 // Reset FujiNet
 void sioFuji::sio_reset_fujinet()
@@ -281,7 +278,7 @@ void sioFuji::sio_disk_image_umount()
 }
 void sioFuji::shutdown()
 {
-    for(int i = 0; i < MAX_DISK_DEVICES; i++)
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
         sioD[i].umount();
 }
 
@@ -332,6 +329,14 @@ void sioFuji::sio_open_directory()
         return;
     }
 
+    // If we already have a directory open, close it first
+    if(_current_open_directory_slot != -1)
+    {
+        Debug_print("Directory was already open - closign it first\n");
+        fnFileSystems[_current_open_directory_slot].dir_close();
+        _current_open_directory_slot = -1;
+    }
+
     Debug_printf("Opening directory: \"%s\"\n", current_entry);
 
     // Remove trailing slash
@@ -339,7 +344,10 @@ void sioFuji::sio_open_directory()
         current_entry[strlen(current_entry) - 1] = 0x00;
 
     if (fnFileSystems[hostSlot].dir_open(current_entry))
+    {
+        _current_open_directory_slot = hostSlot;
         sio_complete();
+    }
     else
         sio_error();
 }
@@ -350,21 +358,31 @@ void sioFuji::sio_read_directory_entry()
 
     char current_entry[256];
     uint8_t len = cmdFrame.aux1;
-    uint8_t hostSlot = cmdFrame.aux2;
+    //uint8_t hostSlot = cmdFrame.aux2;
 
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("No currently open directory\n");
+        sio_error();
+        return;
+    }
+    /*
     if (!_validate_host_slot(hostSlot, "sio_read_directory_entry"))
     {
         sio_error();
         return;
     }
+    */
 
-    fsdir_entry_t *f = fnFileSystems[hostSlot].dir_nextfile();
+    //fsdir_entry_t *f = fnFileSystems[hostSlot].dir_nextfile();
+    fsdir_entry_t *f = fnFileSystems[_current_open_directory_slot].dir_nextfile();
     int l = 0;
 
     if (f == nullptr)
     {
         current_entry[0] = 0x7F; // end of dir
-        fnFileSystems[hostSlot].dir_close();
+        // fnFileSystems[hostSlot].dir_close(); // We should wait for an explicit close command
         Debug_println("Reached end of of directory");
     }
     else
@@ -392,20 +410,23 @@ void sioFuji::sio_read_directory_entry()
             }
         }
     }
+
     int stidx = 0;
     if (current_entry[0] == '/')
     {
         stidx = 1;
         //Debug_println("strip leading /");
     }
+
     uint8_t *ce_ptr = (uint8_t *)&current_entry[stidx];
     sio_to_computer(ce_ptr, len, false);
 }
 
-void sioFuji::sio_close_directory()
+void sioFuji::sio_get_directory_position()
 {
-    Debug_println("Fuji cmd: CLOSE DIRECTORY");
+    Debug_println("Fuji cmd: GET DIRECTORY POSITION");
 
+    /*
     uint8_t hostSlot = cmdFrame.aux1;
 
     if (!_validate_host_slot(hostSlot))
@@ -413,7 +434,73 @@ void sioFuji::sio_close_directory()
         sio_error();
         return;
     }
-    fnFileSystems[hostSlot].dir_close();
+    */
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("No currently open directory\n");
+        sio_error();
+        return;
+    }
+
+    uint16_t pos = fnFileSystems[_current_open_directory_slot].dir_tell();
+    if (pos == FNFS_INVALID_DIRPOS)
+    {
+        sio_error();
+        return;
+    }
+    // Return the value we read
+    sio_to_computer((uint8_t *)&pos, sizeof(pos), false);
+}
+
+void sioFuji::sio_set_directory_position()
+{
+    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
+    /*
+    uint8_t hostSlot = cmdFrame.aux1;
+
+    if (!_validate_host_slot(hostSlot))
+    {
+        sio_error();
+        return;
+    }
+    */
+
+    // DAUX1 and DAUX2 hold the position to seek to in low/high order
+    uint16_t pos = ((uint16_t)cmdFrame.aux2 << 8 | cmdFrame.aux1);
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("No currently open directory\n");
+        sio_error();
+        return;
+    }
+
+    bool result = fnFileSystems[_current_open_directory_slot].dir_seek(pos);
+    if (result == false)
+    {
+        sio_error();
+        return;
+    }
+    sio_complete();
+}
+
+void sioFuji::sio_close_directory()
+{
+    Debug_println("Fuji cmd: CLOSE DIRECTORY");
+
+    //uint8_t hostSlot = cmdFrame.aux1;
+    /*
+    if (!_validate_host_slot(hostSlot))
+    {
+        sio_error();
+        return;
+    }
+    */
+    if(_current_open_directory_slot != -1)
+        fnFileSystems[_current_open_directory_slot].dir_close();
+
+    _current_open_directory_slot = -1;    
     sio_complete();
 }
 
@@ -727,6 +814,14 @@ void sioFuji::sio_process()
     case SIO_FUJICMD_CLOSE_DIRECTORY:
         sio_ack();
         sio_close_directory();
+        break;
+    case SIO_FUJICMD_GET_DIRECTORY_POSITION:
+        sio_ack();
+        sio_get_directory_position();
+        break;
+    case SIO_FUJICMD_SET_DIRECTORY_POSITION:
+        sio_ack();
+        sio_set_directory_position();
         break;
     case SIO_FUJICMD_READ_HOST_SLOTS:
         sio_ack();
