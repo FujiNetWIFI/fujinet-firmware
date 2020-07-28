@@ -290,12 +290,14 @@ int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest
             pFHI->cached_pos += bytes_provided;
             *dest_used += bytes_provided;
 
+            /*
             // Report if we've reached the end of the file
-            if (pFHI->cached_pos >= pFHI->file_size)
+            if (pFHI->cached_pos > pFHI->file_size)
             {
                 Debug_print("_tnfs_read_from_cache - reached EOF\n");
                 return TNFS_RESULT_END_OF_FILE;
             }
+            */
         }
     }
 
@@ -1298,7 +1300,7 @@ int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char 
 */
 void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short payload_size, bool isResponse)
 {
-#ifdef TNFS_DEBUG_VERBOSE
+#ifdef VERBOSE_TNFS
     // Remove header bytes from count of response packets since we only care about the count of the data payload
     if (isResponse)
     {
@@ -1317,7 +1319,7 @@ void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short payload_size, bool
 
 const char *_tnfs_command_string(int command)
 {
-#ifdef TNFS_DEBUG_VERBOSE
+#ifdef VERBOSE_TNFS
     switch (command)
     {
     case TNFS_CMD_MOUNT:
@@ -1374,7 +1376,7 @@ const char *_tnfs_command_string(int command)
 
 const char *_tnfs_result_code_string(int resultcode)
 {
-#ifdef TNFS_DEBUG_VERBOSE
+#ifdef VERBOSE_TNFS
     switch (resultcode)
     {
     case TNFS_RESULT_SUCCESS:

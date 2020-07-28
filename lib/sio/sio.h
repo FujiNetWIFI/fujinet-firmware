@@ -100,8 +100,7 @@ union cmdFrame_t {
 };
 
 //helper functions
-uint8_t sio_checksum(uint8_t *chunk, int length);
-void sio_flush();
+uint8_t sio_checksum(uint8_t *buf, unsigned short len);
 
 // class def'ns
 class sioModem;   // declare here so can reference it, but define in modem.h

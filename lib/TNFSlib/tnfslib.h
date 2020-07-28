@@ -9,8 +9,6 @@
 
 #include "tnfslibMountInfo.h"
 
-#define TNFS_DEBUG_VERBOSE
-
 #define TNFS_CMD_MOUNT 0x00
 #define TNFS_CMD_UNMOUNT 0x01
 
