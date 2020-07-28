@@ -15,99 +15,88 @@ unsigned short sioDevice::sio_get_aux()
     return (cmdFrame.aux2 * 256) + cmdFrame.aux1;
 }
 
-// Drain data out of SIO port
-void sio_flush()
-{
-    fnUartSIO.flush_input();
-}
-
 // Calculate 8-bit checksum
-uint8_t sio_checksum(uint8_t *chunk, int length)
+uint8_t sio_checksum(uint8_t *buf, unsigned short len)
 {
-    int chkSum = 0;
-    for (int i = 0; i < length; i++)
-    {
-        chkSum = ((chkSum + chunk[i]) >> 8) + ((chkSum + chunk[i]) & 0xff);
-    }
-    return (uint8_t)chkSum;
+    unsigned int chk = 0;
+
+    for (int i = 0; i < len; i++)
+        chk = ((chk + buf[i]) >> 8) + ((chk + buf[i]) & 0xff);
+
+    return chk;
 }
 
 /*
-   SIO READ from PERIPHERAL to COMPUTER
-   b = buffer to send to Atari
+   SIO WRITE to ATARI from DEVICE
+   buf = buffer to send to Atari
    len = length of buffer
-   err = did an error happen before this read?
+   err = along with data, send ERROR status to Atari rather than COMPLETE
 */
-void sioDevice::sio_to_computer(uint8_t *b, unsigned short len, bool err)
+void sioDevice::sio_to_computer(uint8_t *buf, unsigned short len, bool err)
 {
-    uint8_t ck = sio_checksum(b, len);
+    // Write data frame to computer
+    Debug_printf("->SIO write %hu bytes\n", len);
+#ifdef VERBOSE_SIO
+    Debug_printf("SEND <%u> BYTES\n\t", len);
+    for (int i = 0; i < len; i++)
+        Debug_printf("%02x ", buf[i]);
+    Debug_print("\n");        
+#endif
 
+    // Write ERROR or COMPLETE status
     if (err == true)
         sio_error();
     else
         sio_complete();
 
     // Write data frame
-    fnUartSIO.write(b, len);
-
+    fnUartSIO.write(buf, len);
     // Write checksum
-    fnUartSIO.write(ck);
+    fnUartSIO.write( sio_checksum(buf, len) );
 
     fnUartSIO.flush();
-
-#ifdef DEBUG_VERBOSE
-    Debug_printf("TO COMPUTER: ");
-    for (int i = 0; i < len; i++)
-        Debug_printf("%02x ", b[i]);
-    Debug_printf("\nCKSUM: %02x\n\n", ck);
-#endif
 }
 
 /*
-   SIO WRITE from COMPUTER to PERIPHERAL
-   b = buffer from atari to fujinet
+   SIO READ from ATARI by DEVICE
+   buf = buffer from atari to fujinet
    len = length
-   returns checksum reported by atari
+   Returns checksum
 */
-uint8_t sioDevice::sio_to_peripheral(uint8_t *b, unsigned short len)
+uint8_t sioDevice::sio_to_peripheral(uint8_t *buf, unsigned short len)
 {
-    uint8_t ck;
-
     // Retrieve data frame from computer
-    Debug_printf("<-SIO read %hu\n", len);
-#ifdef DEBUG_VERBOSE
-    size_t l = fnSIO_UART.readBytes(b, len);
-#else
-    fnUartSIO.readBytes(b, len);
-#endif
+    Debug_printf("<-SIO read %hu bytes\n", len);
+
+__BEGIN_IGNORE_UNUSEDVARS
+    size_t l = fnUartSIO.readBytes(buf, len);
+__END_IGNORE_UNUSEDVARS
+
     // Wait for checksum
     while (0 == fnUartSIO.available())
         fnSystem.yield();
+    uint8_t ck_rcv = fnUartSIO.read();
 
-    // Receive checksum
-    ck = fnUartSIO.read();
+    uint8_t ck_tst = sio_checksum(buf, len);
 
-#ifdef DEBUG_VERBOSE
-    Debug_printf("l: %d\n", l);
-    Debug_printf("TO PERIPHERAL: ");
+#ifdef VERBOSE_SIO
+    Debug_printf("RECV <%u> BYTES, checksum: %hu\n\t", l, ck_rcv);
     for (int i = 0; i < len; i++)
-        Debug_printf("%02x ", sector[i]);
-    Debug_printf("\nCKSUM: %02x\n\n", ck);
+        Debug_printf("%02x ", buf[i]);
+    Debug_print("\n");
 #endif
 
     fnSystem.delay_microseconds(DELAY_T4);
 
-    if (sio_checksum(b, len) != ck)
+    if (ck_rcv != ck_tst)
     {
         sio_nak();
         return false;
     }
     else
-    {
         sio_ack();
-    }
 
-    return ck;
+    return ck_rcv;
 }
 
 // SIO NAK
@@ -124,7 +113,7 @@ void sioDevice::sio_ack()
     fnUartSIO.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
     fnUartSIO.flush();
-    Debug_print("ACK!\n");
+    Debug_println("ACK!");
 }
 
 // SIO COMPLETE
@@ -186,7 +175,6 @@ void sioBus::_sio_process_cmd()
     uint8_t ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
     if (ck == tempFrame.cksum)
     {
-        Debug_print("checksum_ok\n");
         if (_fujiDev != nullptr && _fujiDev->load_config && tempFrame.devic == SIO_DEVICEID_DISK)
         {
             _activeDev = _fujiDev->disk();
@@ -323,7 +311,7 @@ void sioBus::setup()
     // Create a message queue
     qSioMessages =  xQueueCreate(4, sizeof(sio_message_t));
 
-    sio_flush();
+    fnUartSIO.flush_input();
 }
 
 // Add device to SIO bus
