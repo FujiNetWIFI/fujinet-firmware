@@ -120,31 +120,33 @@ void sioDisk::sio_write(bool verify)
 
     if (sectorNum != (lastSectorNum + 1))
     {
-        if (fseek(_file, offset, SEEK_SET) != 0) //!_file->seek(offset))
+        if (fseek(_file, offset, SEEK_SET) != 0)
         {
             sio_error();
             return;
         }
     }
 
-    if (fwrite(sector, 1, ss, _file) != ss) //_file->write(sector, ss) != ss)
+    if (fwrite(sector, 1, ss, _file) != ss)
     {
         sio_error();
         lastSectorNum = 65535; // invalidate seek cache.
         return;
     }
 
-    fflush(_file); //_file->flush();
+    int ret = fflush(_file); // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
+    ret = fsync(fileno(_file)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
+    Debug_printf("sioDisk::sio_write fsync:%d\n", ret);
 
     if (verify)
     {
-        if (fseek(_file, offset, SEEK_SET) != 0) //!_file->seek(offset))
+        if (fseek(_file, offset, SEEK_SET) != 0)
         {
             sio_error();
             return;
         }
 
-        if (fread(sector, 1, ss, _file) != ss) //_file->read(sector, ss) != ss)
+        if (fread(sector, 1, ss, _file) != ss)
         {
             sio_error();
             return;
@@ -157,7 +159,7 @@ void sioDisk::sio_write(bool verify)
         }
     }
 
-    Debug_println("disk WRITE complted without error");
+    Debug_println("disk WRITE completed");
 
     sio_complete();
 
@@ -369,12 +371,6 @@ void sioDisk::mount(FILE *f)
     Debug_printf("num_sectors: %d\n", num_sectors);
 }
 
-// Invalidate disk cache
-void sioDisk::invalidate_cache()
-{
-    // firstCachedSector = 65535;
-}
-
 // mount a disk file
 void sioDisk::umount()
 {
@@ -446,17 +442,20 @@ bool sioDisk::write_blank_atr(FILE *f, unsigned short sectorSize, unsigned short
     }
 
     Debug_printf("Sparse Write the rest.\n");
+
     // Write the rest of the sectors via sparse seek
     offset += (numSectors * sectorSize) - sectorSize;
     fseek(f, offset, SEEK_SET);
     size_t out = fwrite(sector, 1, sectorSize, f);
+    fclose(f);
+
     if (out != sectorSize)
     {
         Debug_println("Error writing last sector");
         return false;
     }
 
-    return true; //fixme - JP fixed?
+    return true;
 }
 
 FILE *sioDisk::file()

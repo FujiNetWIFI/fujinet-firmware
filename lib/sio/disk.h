@@ -57,7 +57,6 @@ private:
 public:
     void mount(FILE *f);
     void umount();
-    void invalidate_cache();
     bool write_blank_atr(FILE *f, unsigned short sectorSize, unsigned short numSectors);
     FILE *file();
 };
