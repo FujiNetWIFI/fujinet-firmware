@@ -13,35 +13,32 @@ extern int command_frame_counter;
 // due to be rewritten.
 #define UNCACHED_REGION 65535
 
-unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, unsigned short ss);
-unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sector_size);
-
 class sioDisk : public sioDevice
 {
 private:
     FILE *_file;
 
-    unsigned short sectorSize = 128;
-    uint8_t sector[256];
+    uint16_t _sectorSize = 128;
+    uint8_t _sector[256];
 
-    uint8_t sectorCache[4][256];
-    unsigned short lastSectorNum = 65535;
+    uint8_t _sectorCache[4][256];
+    uint16_t _lastSectorNum = 65535;
 
     struct
     {
-        unsigned char num_tracks;
-        unsigned char step_rate;
-        unsigned char sectors_per_trackM;
-        unsigned char sectors_per_trackL;
-        unsigned char num_sides;
-        unsigned char density;
-        unsigned char sector_sizeM;
-        unsigned char sector_sizeL;
-        unsigned char drive_present;
-        unsigned char reserved1;
-        unsigned char reserved2;
-        unsigned char reserved3;
-    } percomBlock;
+        uint8_t num_tracks;
+        uint8_t step_rate;
+        uint8_t sectors_per_trackM;
+        uint8_t sectors_per_trackL;
+        uint8_t num_sides;
+        uint8_t density;
+        uint8_t sector_sizeM;
+        uint8_t sector_sizeL;
+        uint8_t drive_present;
+        uint8_t reserved1;
+        uint8_t reserved2;
+        uint8_t reserved3;
+    } _percomBlock;
 
     void sio_read();
     void sio_write(bool verify);
@@ -49,7 +46,7 @@ private:
     void sio_status() override;
     void sio_process() override;
 
-    void derive_percom_block(unsigned short numSectors);
+    void derive_percom_block(uint16_t numSectors);
     void sio_read_percom_block();
     void sio_write_percom_block();
     void dump_percom_block();
@@ -57,11 +54,9 @@ private:
 public:
     void mount(FILE *f);
     void umount();
-    bool write_blank_atr(FILE *f, unsigned short sectorSize, unsigned short numSectors);
+    bool write_blank_atr(FILE *f, uint16_t sectorSize, uint16_t numSectors);
     FILE *file();
 };
 
-    long sector_offset(unsigned short sectorNum, unsigned short sectorSize);
-    unsigned short sector_size(unsigned short sectorNum, unsigned short sectorSize);
+#endif
 
-#endif // guard
