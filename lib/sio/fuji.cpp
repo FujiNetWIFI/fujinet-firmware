@@ -637,6 +637,8 @@ void sioFuji::sio_new_disk()
             Debug_printf("Nice! Created file %s\n", deviceSlots.slot[newDisk.deviceSlot].filename);
 
             bool ok = sioD[newDisk.deviceSlot].write_blank_atr(fnDisks[newDisk.deviceSlot].file, newDisk.sectorSize, newDisk.numSectors);
+            fclose(fnDisks[newDisk.deviceSlot].file);
+            
             if (ok)
             {
                 Debug_printf("Nice! Wrote ATR data\n");
