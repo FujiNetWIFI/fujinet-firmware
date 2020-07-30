@@ -15,6 +15,14 @@
 #define __IGNORE_UNUSED_VAR(v) (void)v
 #define __IGNORE_UNSUED_PVAR(v) (void*)v
 
+
+// Retruns a uint16 value given two bytes in high-low order
+#define UINT16_FROM_HILOBYTES(high, low) ((uint16_t)high << 8 | low)
+// Returns the high byte (MSB) of a uint16 value
+#define HIBYTE_FROM_UINT16(value) ((uint8_t)((value >> 8) & 0xFF))
+// Returns the low byte (LSB) of a uint16 value
+#define LOBYTE_FROM_UINT16(value) ((uint8_t)(value & 0xFF))
+
 void util_string_ltrim(std::string &s);
 void util_string_rtrim(std::string &s);
 void util_string_trim(std::string &s);

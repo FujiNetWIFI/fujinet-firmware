@@ -320,7 +320,7 @@ bool FileSystemSDFAT::start()
     // Fat FS configuration options
     esp_vfs_fat_mount_config_t mount_config;
     mount_config.format_if_mount_failed = false;
-    mount_config.max_files = 5;
+    mount_config.max_files = 16;
 
     // This is the information we'll be given in return
     sdmmc_card_t *sdcard_info;
