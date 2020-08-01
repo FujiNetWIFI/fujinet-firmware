@@ -908,7 +908,7 @@ void sioModem::at_handle_dial()
     std::string host, port;
     if (portIndex != std::string::npos)
     {
-        host = cmd.substr(4, portIndex - 4 + 1);
+        host = cmd.substr(4, portIndex - 4);
         port = cmd.substr(portIndex + 1);
     }
     else
