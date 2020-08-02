@@ -28,12 +28,6 @@
 int command_frame_counter = 0;
 
 
-// Returns the internal file handle
-FILE *sioDisk::file()
-{
-    return _file;
-}
-
 // Returns byte offset of given sector number (1-based)
 uint32_t sector_to_offset(uint16_t sectorNum, uint16_t sectorSize)
 {
@@ -326,9 +320,11 @@ void sioDisk::dump_percom_block()
  
  07-0F have two possible interpretations but are no critical for our use
 */
-void sioDisk::mount(FILE *f)
+disktype_t sioDisk::mount(FILE *f, const char *filename, disktype_t disk_type)
 {
     Debug_print("disk MOUNT\n");
+
+    disktype_t result = DISKTYPE_UNKNOWN;
 
     uint16_t num_bytes_sector;
     uint32_t num_paragraphs;
@@ -340,19 +336,19 @@ void sioDisk::mount(FILE *f)
     if (fseek(f, 0, SEEK_SET) < 0)
     {
         Debug_println("failed seeking to header on disk image");
-        return;
+        return result;
     }
     int i;
     if ((i = fread(buf, 1, sizeof(buf), f)) != sizeof(buf))
     {
         Debug_printf("failed reading header bytes (%d, %d)\n", i, errno);
-        return;
+        return result;
     }
     // Check the magic number
     if (UINT16_FROM_HILOBYTES(buf[1], buf[0]) != ATR_MAGIC_HEADER)
     {
         Debug_println("ATR header missing 'NICKATARI'");
-        return;
+        return result;
     }
 
     num_bytes_sector = UINT16_FROM_HILOBYTES(buf[5], buf[4]);
@@ -374,6 +370,8 @@ void sioDisk::mount(FILE *f)
 
     Debug_printf("mounted ATR: paragraphs=%hu, sect_size=%hu, sect_count=%hu\n",
                  num_paragraphs, num_bytes_sector, num_sectors);
+
+    return DISKTYPE_ATR;
 }
 
 // mount a disk file

@@ -2,6 +2,7 @@
 #define DISK_H
 
 #include "sio.h"
+#include "diskType.h"
 
 extern int command_frame_counter;
 
@@ -17,6 +18,7 @@ class sioDisk : public sioDevice
 {
 private:
     FILE *_file;
+    disktype_t _disktype = DISKTYPE_UNKNOWN;
 
     uint16_t _sectorSize = 128;
     uint8_t _sector[256];
@@ -52,10 +54,12 @@ private:
     void dump_percom_block();
 
 public:
-    void mount(FILE *f);
+    disktype_t mount(FILE *f, const char *filename, disktype_t disk_type = DISKTYPE_UNKNOWN);
     void umount();
     bool write_blank_atr(FILE *f, uint16_t sectorSize, uint16_t numSectors);
-    FILE *file();
+
+    FILE *file() { return _file; };
+    disktype_t disktype() { return _disktype; };
 };
 
 #endif

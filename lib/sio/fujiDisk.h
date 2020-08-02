@@ -1,0 +1,33 @@
+#ifndef _FUJI_DISK_
+#define _FUJI_DISK_
+
+#include <string>
+
+#include "disk.h"
+#include "fujiHost.h"
+
+#define MAX_FILENAME_LEN 36
+
+#define DISK_ACCESS_MODE_READ 1
+#define DISK_ACCESS_MODE_WRITE 2
+#define DISK_ACCESS_MODE_FETCH 128
+
+#define INVALID_HOST_IDX 0xFF
+
+class fujiDisk
+{
+public:    
+    FILE* file = nullptr;
+    uint8_t access_mode = DISK_ACCESS_MODE_READ;
+    disktype_t disk_type = DISKTYPE_UNKNOWN;
+    fujiHost *host = nullptr;
+    uint8_t hostidx = INVALID_HOST_IDX;
+    char filename[MAX_FILENAME_LEN] = { '\0' };
+    sioDisk disk_dev;
+
+    void reset();
+    void reset(const char *filename, uint8_t hostslot, uint8_t access_mode);
+};
+
+
+#endif // _FUJI_DISK_
