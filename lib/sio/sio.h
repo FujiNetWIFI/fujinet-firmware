@@ -117,10 +117,10 @@ protected:
 
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
-    unsigned char status_wait_count = 5;
+    uint8_t status_wait_count = 5;
 
-    void sio_to_computer(uint8_t *b, unsigned short len, bool err);
-    uint8_t sio_to_peripheral(uint8_t *b, unsigned short len);
+    void sio_to_computer(uint8_t *buff, uint16_t len, bool err);
+    uint8_t sio_to_peripheral(uint8_t *buff, uint16_t len);
 
     void sio_ack();
     void sio_nak();
@@ -160,6 +160,8 @@ class sioBus
 {
 private:
     std::forward_list<sioDevice *> _daisyChain;
+
+    int _command_frame_counter = 0;
 
     sioDevice *_activeDev = nullptr;
     sioModem *_modemDev = nullptr;
