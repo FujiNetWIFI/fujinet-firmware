@@ -32,7 +32,7 @@ uint8_t sio_checksum(uint8_t *buf, unsigned short len)
    len = length of buffer
    err = along with data, send ERROR status to Atari rather than COMPLETE
 */
-void sioDevice::sio_to_computer(uint8_t *buf, unsigned short len, bool err)
+void sioDevice::sio_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
     Debug_printf("->SIO write %hu bytes\n", len);
@@ -225,10 +225,10 @@ void sioBus::_sio_process_cmd()
     {
         Debug_print("CHECKSUM_ERROR\n");
         // Switch to/from hispeed SIO if we get enough failed frame checksums
-        command_frame_counter++;
-        if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == command_frame_counter)
+        _command_frame_counter++;
+        if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == _command_frame_counter)
         {
-            command_frame_counter = 0;
+            _command_frame_counter = 0;
             toggleBaudrate();
         }
     }

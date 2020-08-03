@@ -4,7 +4,7 @@
 
 void fujiDisk::reset()
 {
-    hostidx = INVALID_HOST_IDX;
+    host_slot = INVALID_HOST_SLOT;
     filename[0] = '\0';
     file = nullptr;
     access_mode = DISK_ACCESS_MODE_READ;
@@ -18,7 +18,7 @@ void fujiDisk::reset(const char *fname, uint8_t hostslot, uint8_t mode)
     disk_type = DISKTYPE_UNKNOWN;
     host = nullptr;
 
-    hostidx = hostslot;
+    host_slot = hostslot;
     access_mode = mode;
     strlcpy(filename, fname, sizeof(filename));
 }

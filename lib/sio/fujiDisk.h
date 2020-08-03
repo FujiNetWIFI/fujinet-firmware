@@ -12,7 +12,7 @@
 #define DISK_ACCESS_MODE_WRITE 2
 #define DISK_ACCESS_MODE_FETCH 128
 
-#define INVALID_HOST_IDX 0xFF
+#define INVALID_HOST_SLOT 0xFF
 
 class fujiDisk
 {
@@ -21,7 +21,7 @@ public:
     uint8_t access_mode = DISK_ACCESS_MODE_READ;
     disktype_t disk_type = DISKTYPE_UNKNOWN;
     fujiHost *host = nullptr;
-    uint8_t hostidx = INVALID_HOST_IDX;
+    uint8_t host_slot = INVALID_HOST_SLOT;
     char filename[MAX_FILENAME_LEN] = { '\0' };
     sioDisk disk_dev;
 

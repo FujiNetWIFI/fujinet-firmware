@@ -252,10 +252,10 @@ void sioFuji::sio_disk_image_mount()
 
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  _fnDisks[deviceSlot].filename,
-                 _fnDisks[deviceSlot].hostidx, flag, deviceSlot + 1);
+                 _fnDisks[deviceSlot].host_slot, flag, deviceSlot + 1);
 
     _fnDisks[deviceSlot].file =
-        _fnHosts[_fnDisks[deviceSlot].hostidx].open(_fnDisks[deviceSlot].filename, flag);
+        _fnHosts[_fnDisks[deviceSlot].host_slot].open(_fnDisks[deviceSlot].filename, flag);
 
     if (!_fnDisks[deviceSlot].file)
     {
@@ -263,7 +263,7 @@ void sioFuji::sio_disk_image_mount()
     }
     else
     {
-        _fnDisks[deviceSlot].disk_type = 
+        _fnDisks[deviceSlot].disk_type =
             _fnDisks[deviceSlot].disk_dev.mount(_fnDisks[deviceSlot].file, _fnDisks[deviceSlot].filename);
         sio_complete();
     }
@@ -282,7 +282,7 @@ void sioFuji::sio_disk_image_umount()
         return;
     }
 
-    _fnDisks[deviceSlot].disk_dev.umount();
+    _fnDisks[deviceSlot].disk_dev.unmount();
     _fnDisks[deviceSlot].reset();
     sio_complete();
 }
@@ -301,16 +301,16 @@ void sioFuji::image_rotate()
     while (_fnDisks[count].file != nullptr)
         count++;
 
-    if(count > 1)
+    if (count > 1)
     {
         count--;
 
         // Save the device ID of the disk in the last slot
         int last_id = _fnDisks[count].disk_dev.id();
 
-        for(int n = count; n > 0; n--)
+        for (int n = count; n > 0; n--)
         {
-            int swap = _fnDisks[n-1].disk_dev.id();
+            int swap = _fnDisks[n - 1].disk_dev.id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
             _sio_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
         }
@@ -324,7 +324,7 @@ void sioFuji::image_rotate()
 void sioFuji::shutdown()
 {
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _fnDisks[i].disk_dev.umount();
+        _fnDisks[i].disk_dev.unmount();
 }
 
 void sioFuji::sio_open_directory()
@@ -550,14 +550,14 @@ void sioFuji::sio_new_disk()
         sio_error();
         return;
     }
-    if(newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
+    if (newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
     {
         Debug_print("sio_new_disk Bad disk or host slot parameter\n");
         sio_error();
         return;
     }
 
-    _fnDisks[newDisk.deviceSlot].hostidx = newDisk.hostSlot;
+    _fnDisks[newDisk.deviceSlot].host_slot = newDisk.hostSlot;
     _fnDisks[newDisk.deviceSlot].access_mode = DISK_ACCESS_MODE_WRITE;
     strlcpy(_fnDisks[newDisk.deviceSlot].filename, newDisk.filename, sizeof(fujiDisk::filename));
 
@@ -578,7 +578,7 @@ void sioFuji::sio_new_disk()
 
     _fnDisks[newDisk.deviceSlot].file = f;
 
-    bool ok = _fnDisks[newDisk.deviceSlot].disk_dev.write_blank_atr(_fnDisks[newDisk.deviceSlot].file, newDisk.sectorSize, newDisk.numSectors);
+    bool ok = _fnDisks[newDisk.deviceSlot].disk_dev.write_blank(_fnDisks[newDisk.deviceSlot].file, newDisk.sectorSize, newDisk.numSectors);
     fclose(_fnDisks[newDisk.deviceSlot].file);
 
     if (ok)
@@ -645,10 +645,10 @@ void sioFuji::sio_read_device_slots()
     } diskSlots[MAX_DISK_DEVICES];
 
     // Load the data from our current device array
-    for(int i=0; i < MAX_DISK_DEVICES; i++)
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
         diskSlots[i].mode = _fnDisks[i].access_mode;
-        diskSlots[i].hostSlot = _fnDisks[i].hostidx;
+        diskSlots[i].hostSlot = _fnDisks[i].host_slot;
         strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_FILENAME_LEN);
     }
 
@@ -675,7 +675,7 @@ void sioFuji::sio_write_device_slots()
     if (ck == sio_checksum((uint8_t *)&diskSlots, sizeof(diskSlots)))
     {
         // Load the data into our current device array
-        for(int i=0; i < MAX_DISK_DEVICES; i++)
+        for (int i = 0; i < MAX_DISK_DEVICES; i++)
             _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
 
         // Save the data to disk
@@ -687,7 +687,6 @@ void sioFuji::sio_write_device_slots()
     else
         sio_error();
 }
-
 
 // Temporary(?) function while we move from old config storage to new
 void sioFuji::_populate_slots_from_config()
@@ -710,7 +709,7 @@ void sioFuji::_populate_slots_from_config()
             {
                 strlcpy(_fnDisks[i].filename,
                         Config.get_mount_path(i).c_str(), sizeof(fujiDisk::filename));
-                _fnDisks[i].hostidx = Config.get_mount_host_slot(i);
+                _fnDisks[i].host_slot = Config.get_mount_host_slot(i);
                 if (Config.get_mount_mode(i) == fnConfig::mount_modes::MOUNTMODE_WRITE)
                     _fnDisks[i].access_mode = DISK_ACCESS_MODE_WRITE;
                 else
@@ -726,7 +725,7 @@ void sioFuji::_populate_config_from_slots()
     for (int i = 0; i < MAX_HOSTS; i++)
     {
         fujiHostType htype = _fnHosts[i].get_type();
-        const char * hname = _fnHosts[i].get_hostname();
+        const char *hname = _fnHosts[i].get_hostname();
 
         if (hname[0] == '\0')
         {
@@ -734,19 +733,18 @@ void sioFuji::_populate_config_from_slots()
         }
         else
         {
-            Config.store_host(i, hname, 
-                htype == HOSTTYPE_TNFS ? fnConfig::host_types::HOSTTYPE_TNFS : fnConfig::host_types::HOSTTYPE_SD);
+            Config.store_host(i, hname,
+                              htype == HOSTTYPE_TNFS ? fnConfig::host_types::HOSTTYPE_TNFS : fnConfig::host_types::HOSTTYPE_SD);
         }
     }
 
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
-        if (_fnDisks[i].hostidx >= MAX_HOSTS || _fnDisks[i].filename[0] == '\0')
+        if (_fnDisks[i].host_slot >= MAX_HOSTS || _fnDisks[i].filename[0] == '\0')
             Config.clear_mount(i);
         else
-            Config.store_mount(i, _fnDisks[i].hostidx, _fnDisks[i].filename,
-                _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? 
-                    fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
+            Config.store_mount(i, _fnDisks[i].host_slot, _fnDisks[i].filename,
+                               _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
     }
 }
 
