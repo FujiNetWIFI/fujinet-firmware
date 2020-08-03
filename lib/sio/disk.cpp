@@ -7,6 +7,7 @@
 
 #include "disk.h"
 #include "diskTypeAtr.h"
+#include "diskTypeXex.h"
 
 #define SIO_DISKCMD_FORMAT 0x21
 #define SIO_DISKCMD_FORMAT_MEDIUM 0x22
@@ -77,7 +78,38 @@ void sioDisk::sio_status()
 {
     Debug_print("disk STATUS\n");
 
-    uint8_t _status[4] = {0x10, 0xDF, 0xFE, 0x00};
+    /* STATUS BYTES
+        #0 - Drive status
+            Bit 7 = 1: 26 sectors per track (1050/XF551 drive)
+            Bit 6 = 1: Double sided disk (XF551 drive)
+            Bit 5 = 1: Double density (XF551 drive)
+            Bit 4 = 1: Motor running (always 0 on XF551)
+
+            Bit 3 = 1: Failed due to write protected disk
+            Bit 2 = 1: Unsuccessful PUT operation
+            Bit 1 = 0: Receive error on last data frame (XF551)
+            Bit 0 = 0: REceive error on last command frame (XF551)
+
+        #1 - Floppy drive controller status (inverted from FDC)
+            Bit 7 = 0: Not ready (1050 drive)
+            Bit 6 = 0: Write protect error
+            Bit 5 = 0: Deleted sector (sector marked as deleted in sector header)
+            Bit 4 = 0: Record not found (missing sector)
+
+            Bit 3 = 0: CRC error
+            Bit 2 = 0: Lost data
+            Bit 1 = 0: Data pending
+            Bit 0 = 0: Busy
+
+        #2 - Default timeout
+            810 drive: $E0 = 224 vertical blanks
+            XF551 drive: $FE
+
+        #3 - Unused ($00)    
+    */
+    // TODO: Why $DF for second byte? 
+    // TODO: Set bit 4 of drive status and bit 6 of FDC status on read-only disk
+    uint8_t _status[4] = {0x00, 0xFF, 0xFE, 0x00};
 
     if (_disk != nullptr)
         _disk->status(_status);
@@ -149,8 +181,6 @@ disktype_t sioDisk::mount(FILE *f, const char *filename, disktype_t disk_type)
 {
     Debug_print("disk MOUNT\n");
 
-    disktype_t dtype = disk_type;
-
     // Destroy any existing DiskType
     if (_disk != nullptr)
     {
@@ -158,9 +188,31 @@ disktype_t sioDisk::mount(FILE *f, const char *filename, disktype_t disk_type)
         _disk = nullptr;
     }
 
-    switch (dtype)
+    // Determine DiskType based on filename extension
+    if (disk_type == DISKTYPE_UNKNOWN && filename != nullptr)
     {
+        
+        int l = strlen(filename);
+        if(l > 4 && filename[l - 4] == '.')
+        {
+            // Check the last 3 characters of the string
+            l = l - 3;
+            if(strcasecmp(filename + l, "COM") == 0) {
+                disk_type = DISKTYPE_XEX;
+            } else if(strcasecmp(filename + l, "XEX") == 0) {
+                disk_type = DISKTYPE_XEX;
+            }
+        }
+    }
+
+    // Now mount based on DiskType
+    switch (disk_type)
+    {
+    case DISKTYPE_XEX:
+        _disk = new DiskTypeXEX();
+        return _disk->mount(f);
     case DISKTYPE_ATR:
+    case DISKTYPE_UNKNOWN:
     default:
         _disk = new DiskTypeATR();
         return _disk->mount(f);
@@ -227,6 +279,7 @@ void sioDisk::sio_process()
             }
             else
             {
+                Debug_print("ignoring status command\n");
                 status_wait_count--;
             }
         }

@@ -30,6 +30,7 @@
 #define SIO_FUJICMD_GET_DIRECTORY_POSITION 0xE5
 #define SIO_FUJICMD_SET_DIRECTORY_POSITION 0xE4
 #define SIO_FUJICMD_STATUS 0x53
+#define SIO_FUJICMD_HSIO_INDEX 0x3F
 
 //sioDisk sioDiskDevs[MAX_HOSTS];
 sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
@@ -758,13 +759,14 @@ void sioFuji::setup(sioBus *siobus)
 
     const char *boot_atr = "/autorun.atr";
 
-    atrConfig = fnSPIFFS.file_open(boot_atr);
+    FILE *fBoot = fnSPIFFS.file_open(boot_atr);
 
     _populate_slots_from_config();
 
-    configDisk.mount(atrConfig, boot_atr); // set up a special disk drive not on the bus
-    configDisk.is_config_device = true;
-    configDisk.device_active = false;
+    _bootDisk.mount(fBoot, boot_atr); // set up a special disk drive not on the bus
+
+    _bootDisk.is_config_device = true;
+    _bootDisk.device_active = false;
 
     // Add our devices to the SIO bus
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
@@ -774,9 +776,9 @@ void sioFuji::setup(sioBus *siobus)
         _sio_bus->addDevice(&sioNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
 }
 
-sioDisk *sioFuji::disk()
+sioDisk *sioFuji::bootdisk()
 {
-    return &configDisk;
+    return &_bootDisk;
 }
 
 void sioFuji::sio_process()
@@ -785,7 +787,7 @@ void sioFuji::sio_process()
 
     switch (cmdFrame.comnd)
     {
-    case 0x3F:
+    case SIO_FUJICMD_HSIO_INDEX:
         sio_ack();
         sio_high_speed();
         break;

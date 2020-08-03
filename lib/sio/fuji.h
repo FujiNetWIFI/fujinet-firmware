@@ -27,8 +27,7 @@ private:
 
     int _current_open_directory_slot = -1;
 
-    FILE *atrConfig;    // autorun.atr for FujiNet configuration
-    sioDisk configDisk; // special disk drive just for configuration
+    sioDisk _bootDisk; // special disk drive just for configuration
 
     uint8_t _countScannedSSIDs = 0;
 
@@ -65,7 +64,7 @@ protected:
 
 public:
     bool load_config = true;
-    sioDisk *disk();
+    sioDisk *bootdisk();
     sioNetwork *network();
     void setup(sioBus *siobus);
     void image_rotate();

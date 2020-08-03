@@ -177,7 +177,7 @@ void sioBus::_sio_process_cmd()
     {
         if (_fujiDev != nullptr && _fujiDev->load_config && tempFrame.devic == SIO_DEVICEID_DISK)
         {
-            _activeDev = _fujiDev->disk();
+            _activeDev = _fujiDev->bootdisk();
             Debug_println("FujiNet intercepts D1:");
             for (int i = 0; i < 5; i++)
                 _activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer

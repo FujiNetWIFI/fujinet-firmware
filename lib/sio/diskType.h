@@ -53,9 +53,12 @@ public:
 
     virtual ~DiskType();
 
+    // Returns TRUE if an error condition occurred
     virtual bool format(uint16_t *respopnsesize) = 0;
 
+    // Returns TRUE if an error condition occurred
     virtual bool read(uint16_t sectornum, uint16_t *readcount) = 0;
+    // Returns TRUE if an error condition occurred
     virtual bool write(uint16_t sectornum, bool verify) = 0;
 
     virtual uint16_t sector_size(uint16_t sectornum) = 0;
