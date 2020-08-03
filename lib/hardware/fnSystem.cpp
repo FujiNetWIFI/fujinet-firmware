@@ -427,3 +427,55 @@ uint32_t SystemManager::get_psram_size()
     heap_caps_get_info(&info, MALLOC_CAP_SPIRAM);
     return info.total_free_bytes + info.total_allocated_bytes;
 }
+
+
+/*
+    If buffer is NULL, simply returns size of file. Otherwise
+    allocates buffer for reading file contents. Buffer must be freed by caller.
+*/
+int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
+{
+    Debug_printf("load_firmware '%s'\n", filename);
+    
+    if (fnSPIFFS.exists(filename) == false)
+    {
+        Debug_println("load_firmware FILE NOT FOUND");
+        return -1;
+    }
+
+    FILE *f = fnSPIFFS.file_open(filename);
+    size_t file_size = FileSystem::filesize(f);
+
+    Debug_printf("load_firmware file size = %u\n", file_size);
+
+    if (buffer == NULL)
+    {
+        fclose(f);
+        return file_size;
+    }
+
+    int bytes_read = -1;
+    uint8_t *result = (uint8_t *)malloc(file_size);
+    if (result == NULL)
+    {
+        Debug_println("load_firmware failed to malloc");
+    }
+    else
+    {
+        bytes_read = fread(result, 1, file_size, f);
+        if (bytes_read == file_size)
+        {
+            *buffer = result;
+        }
+        else
+        {
+            free(result);
+            bytes_read = -1;
+
+            Debug_printf("load_firmware only read %u bytes out of %u - failing\n", bytes_read, file_size);
+        }
+    }
+
+    fclose(f);
+    return bytes_read;
+}

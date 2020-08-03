@@ -1,7 +1,6 @@
 #include <memory.h>
 #include <string.h>
 
-
 #include "../../include/debug.h"
 #include "../utils/utils.h"
 
@@ -59,7 +58,7 @@ bool DiskTypeATR::read(uint16_t sectornum, uint16_t *readcount)
     if (err == false)
         err = fread(_sectorbuff, 1, sectorSize, _file) != sectorSize;
 
-    if(err == false)
+    if (err == false)
         _lastSectorNum = sectornum;
     else
         _lastSectorNum = INVALID_SECTOR_VALUE;
@@ -102,19 +101,15 @@ bool DiskTypeATR::write(uint16_t sectornum, bool verify)
 
 void DiskTypeATR::status(uint8_t statusbuff[4])
 {
-    statusbuff[0] = 0x10;
-    statusbuff[1] = 0xDF;
-    statusbuff[2] = 0xFE;
-    statusbuff[3] = 0x00;
 
-    if (_sectorSize== 256)
+    // TODO: bit 6 for double-sided
+    if (_sectorSize == 256)
         statusbuff[0] |= 0x20;
 
-    // todo:
+    // TODO: bit 7 should be set whenever we have 26 sectors per track (1050 Enahanced)
     if (_percomBlock.sectors_per_trackL == 26)
         statusbuff[0] |= 0x80;
 }
-
 
 // Returns TRUE if an error condition occurred
 bool DiskTypeATR::format(uint16_t *responsesize)
@@ -252,7 +247,7 @@ bool DiskTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
     uint32_t offset = fwrite(&atrHeader, 1, sizeof(atrHeader), f);
 
     // Write first three 128 uint8_t sectors
-    uint8_t blank[256] = { 0 };
+    uint8_t blank[256] = {0};
 
     for (int i = 0; i < 3; i++)
     {
