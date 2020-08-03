@@ -7,6 +7,7 @@
 #include "../hardware/fnUART.h"
 #include "fnWiFi.h"
 #include "fnFsSPIF.h"
+#include "fnSystem.h"
 #include "../utils/utils.h"
 
 #define RECVBUFSIZE 1024
@@ -34,63 +35,6 @@
 */
 #define DELAY_FIRMWARE_DELIVERY 5000
 
-/*
-    If buffer is NULL, simply returns size of file
-*/
-int sioModem::load_firmware(const char *filename, char **buffer)
-{
-#ifdef DEBUG
-    Debug_printf("load_firmware '%s'\n", filename);
-#endif
-    if (fnSPIFFS.exists(filename) == false)
-    {
-#ifdef DEBUG
-        Debug_println("load_firmware FILE NOT FOUND");
-#endif
-        return -1;
-    }
-
-    FILE *f = fnSPIFFS.file_open(filename);
-    size_t file_size = FileSystem::filesize(f);
-#ifdef DEBUG
-    Debug_printf("load_firmware file size = %u\n", file_size);
-#endif
-
-    if (buffer == NULL)
-    {
-        fclose(f);
-        return file_size;
-    }
-
-    int bytes_read = -1;
-    char *result = (char *)malloc(file_size);
-    if (result == NULL)
-    {
-#ifdef DEBUG
-        Debug_println("load_firmware failed to malloc");
-#endif
-    }
-    else
-    {
-        bytes_read = fread(result, 1, file_size, f);
-        if (bytes_read == file_size)
-        {
-            *buffer = result;
-        }
-        else
-        {
-            free(result);
-            bytes_read = -1;
-#ifdef DEBUG
-            Debug_printf("load_firmware only read %u bytes out of %u - failing\n", bytes_read, file_size);
-#endif
-        }
-    }
-
-    fclose(f);
-    return bytes_read;
-}
-
 // 0x3F / '?' - TYPE 1 POLL
 void sioModem::sio_poll_1()
 {
@@ -110,7 +54,7 @@ void sioModem::sio_poll_1()
     */
 
     // Get size of relocator
-    int filesize = load_firmware(FIRMWARE_850RELOCATOR, NULL);
+    int filesize = fnSystem.load_firmware(FIRMWARE_850RELOCATOR, NULL);
     // Simply return (without ACK) if we failed to get this
     if (filesize < 0)
         return;
@@ -136,9 +80,9 @@ void sioModem::sio_poll_1()
     bootBlock[8] = (uint8_t)relsize;
     bootBlock[9] = (uint8_t)(relsize >> 8);
 
-#ifdef DEBUG
+
     Debug_println("Modem acknowledging Type 1 Poll");
-#endif
+
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
 
     sio_to_computer(bootBlock, sizeof(bootBlock), false);
@@ -164,8 +108,8 @@ void sioModem::sio_send_firmware(uint8_t loadcommand)
     }
 
     // Load firmware from file
-    char *code;
-    int codesize = load_firmware(firmware, &code);
+    uint8_t *code;
+    int codesize = fnSystem.load_firmware(firmware, &code);
     // NAK if we failed to get this
     if (codesize < 0 || code == NULL)
     {
@@ -180,11 +124,11 @@ void sioModem::sio_send_firmware(uint8_t loadcommand)
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
 
     // Send it
-#ifdef DEBUG
+
     Debug_printf("Modem sending %d bytes of %s code\n", codesize,
                  loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
-#endif
-    sio_to_computer((uint8_t *)code, codesize, false);
+
+    sio_to_computer(code, codesize, false);
 
     // Free the buffer!
     free(code);
@@ -195,9 +139,9 @@ void sioModem::sio_send_firmware(uint8_t loadcommand)
 void sioModem::sio_write()
 {
     uint8_t ck;
-#ifdef DEBUG
+
     Debug_println("Modem cmd: WRITE");
-#endif
+
     /* AUX1: Bytes in payload, 0-64
        AUX2: NA
        Payload always padded to 64 bytes
@@ -244,9 +188,9 @@ void sioModem::sio_write()
 // 0x53 / 'S' - STATUS
 void sioModem::sio_status()
 {
-#ifdef DEBUG
+
     Debug_println("Modem cmd: STATUS");
-#endif
+
     /* AUX1: NA
        AUX2: NA
        First payload uint8_t = error status bits
@@ -299,35 +243,28 @@ void sioModem::sio_control()
         0: New XMT state
       AUX2: NA
     */
-#ifdef DEBUG
+
     Debug_println("Modem cmd: CONTROL");
-#endif
+
 
     if (cmdFrame.aux1 & 0x02)
     {
         XMT = (cmdFrame.aux1 & 0x01 ? true : false);
-#ifdef DEBUG
-        Debug_print("XMT=");
-        Debug_println(DTR);
-#endif
+        Debug_printf("XMT=%d\n", XMT);
     }
 
     if (cmdFrame.aux1 & 0x20)
     {
         RTS = (cmdFrame.aux1 & 0x10 ? true : false);
-#ifdef DEBUG
-        Debug_print("RTS=");
-        Debug_println(DTR);
-#endif
+        Debug_printf("RTS=%d\n", RTS);
     }
 
     if (cmdFrame.aux1 & 0x80)
     {
         DTR = (cmdFrame.aux1 & 0x40 ? true : false);
-#ifdef DEBUG
-        Debug_print("DTR=");
-        Debug_println(DTR);
-#endif
+
+        Debug_printf("DTR=%d\n", DTR);
+
         if (DTR == 0 && tcpClient.connected())
         {
             tcpClient.stop(); // Hang up if DTR drops.
@@ -346,9 +283,9 @@ void sioModem::sio_control()
 // 0x42 / 'B' - CONFIGURE
 void sioModem::sio_config()
 {
-#ifdef DEBUG
+
     Debug_println("Modem cmd: CONFIGURE");
-#endif
+
     /* AUX1:
          7: Stop bits (0=1, 1=2)
          6: NA
@@ -408,9 +345,7 @@ void sioModem::sio_config()
         modemBaud = 19200;
         break;
     default:
-#ifdef DEBUG
         Debug_printf("Unexpected baud value: %hu", newBaud);
-#endif
         modemBaud = 300;
         break;
     }
@@ -419,9 +354,7 @@ void sioModem::sio_config()
 // 0x58 / 'X' - STREAM
 void sioModem::sio_stream()
 {
-#ifdef DEBUG
     Debug_println("Modem cmd: STREAM");
-#endif
     /* AUX1: I/O direction
         7-2: NA
           1: Read from 850 direction enable
@@ -517,9 +450,9 @@ void sioModem::sio_baudlock()
 {
     sio_ack();
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
-#ifdef DEBUG
+
     Debug_printf("baudLock: %d\n", baudLock);
-#endif
+
     sio_complete();
 }
 
@@ -932,10 +865,7 @@ void sioModem::at_handle_dial()
             CRX = true;
             /* code */
         }
-
-#ifdef DEBUG
         Debug_println("CONNECT FAKE!");
-#endif
     }
     else
     {
@@ -1032,10 +962,7 @@ void sioModem::modemCommand()
     if (commandEcho == true)
         at_cmd_println();
 
-#ifdef DEBUG
-    Debug_print("AT Cmd: ");
-    Debug_println(upperCaseCmd.c_str());
-#endif
+    Debug_printf("AT Cmd: %s\n", upperCaseCmd.c_str());
 
     // Replace EOL with CR
     //if (upperCaseCmd.indexOf(ATASCII_EOL) != 0)
@@ -1395,9 +1322,8 @@ void sioModem::sio_handle_modem()
     {
         if (fnSystem.millis() - plusTime > 1000)
         {
-#ifdef DEBUG
             Debug_println("Hanging up...");
-#endif
+
             tcpClient.stop();
             plusCount = 0;
         }
@@ -1459,15 +1385,11 @@ void sioModem::sio_process()
     switch (cmdFrame.comnd)
     {
     case SIO_MODEMCMD_LOAD_RELOCATOR:
-#ifdef DEBUG
         Debug_printf("$21 RELOCATOR #%d\n", ++i21);
-#endif
         sio_send_firmware(cmdFrame.comnd);
         break;
     case SIO_MODEMCMD_LOAD_HANDLER:
-#ifdef DEBUG
         Debug_printf("$26 HANDLER DL #%d\n", ++i26);
-#endif
         sio_send_firmware(cmdFrame.comnd);
         break;
     case SIO_MODEMCMD_TYPE1_POLL:
