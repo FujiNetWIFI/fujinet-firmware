@@ -8,7 +8,7 @@
 
 #include "diskTypeXex.h"
 
-#define BOOTLOADER "/xboot.obx"
+#define BOOTLOADER "/picoboot.bin"
 
 #define BOOTLOADER_END 0x03
 
