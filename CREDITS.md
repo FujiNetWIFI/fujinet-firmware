@@ -10,9 +10,9 @@ The Alitrra Hardware Reference Manual is an invaluable resource to anyone
 writing Atari 8-bit code or creating compatible hardware. Altirra's R: handler
 and relocator code are used for FujiNet's modem emulation.
 
-### xxl
-https://xxl.atari.pl/  
-xBOOT Loader (part of xBIOS) is used as the bootloader for Atari XEX files.
+### Matthias Reichl
+https://www.horus.com/~hias/atari/  
+PicoBoot, part of MyPicoDos, is used as the bootloader for Atari XEX files.
 
 ### Mark Simonson
 http://members.bitstream.net/marksim/atarimac/fonts.html  
