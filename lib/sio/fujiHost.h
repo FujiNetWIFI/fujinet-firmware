@@ -47,7 +47,9 @@ public:
     FILE * open(const char *path, const char *mode = "r");
     FILE * open(const std::string path, const char *mode = "r");
 
-    FILE * get_filehandle();
+    //FILE * get_filehandle();
+
+    long get_filesize(FILE *filehandle);
 
     bool dir_open(const char *path);
     fsdir_entry_t * dir_nextfile();

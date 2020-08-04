@@ -160,6 +160,14 @@ bool fujiHost::exists(const string path)
     return exists(path.c_str());
 }
 
+long fujiHost::get_filesize(FILE *filehandle)
+{
+    Debug_print("::get_filesize\n");
+    if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
+        return -1;
+    return _fs->FileSystem::filesize(filehandle);
+}
+
 FILE *fujiHost::open(const char *path, const char *mode)
 {
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
