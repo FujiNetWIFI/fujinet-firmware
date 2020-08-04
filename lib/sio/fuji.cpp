@@ -264,8 +264,12 @@ void sioFuji::sio_disk_image_mount()
     }
     else
     {
+        // We need the file size for loading XEX files, so get that too
+        _fnDisks[deviceSlot].disk_size =
+            _fnHosts[_fnDisks[deviceSlot].host_slot].get_filesize(_fnDisks[deviceSlot].file);
+        // And now mount it
         _fnDisks[deviceSlot].disk_type =
-            _fnDisks[deviceSlot].disk_dev.mount(_fnDisks[deviceSlot].file, _fnDisks[deviceSlot].filename);
+            _fnDisks[deviceSlot].disk_dev.mount(_fnDisks[deviceSlot].file, _fnDisks[deviceSlot].filename, _fnDisks[deviceSlot].disk_size);
         sio_complete();
     }
 }
@@ -763,7 +767,7 @@ void sioFuji::setup(sioBus *siobus)
 
     _populate_slots_from_config();
 
-    _bootDisk.mount(fBoot, boot_atr); // set up a special disk drive not on the bus
+    _bootDisk.mount(fBoot, boot_atr, 0); // set up a special disk drive not on the bus
 
     _bootDisk.is_config_device = true;
     _bootDisk.device_active = false;

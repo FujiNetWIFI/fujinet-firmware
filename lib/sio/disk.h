@@ -21,11 +21,10 @@ private:
     void dump_percom_block();
 
 public:
-    disktype_t mount(FILE *f, const char *filename, disktype_t disk_type = DISKTYPE_UNKNOWN);
+    disktype_t mount(FILE *f, const char *filename, uint32_t disksize, disktype_t disk_type = DISKTYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 
-    //FILE *file() { return _file; };
     disktype_t disktype() { return _disk == nullptr ? DISKTYPE_UNKNOWN : _disk->_disktype; };
 
     ~sioDisk();

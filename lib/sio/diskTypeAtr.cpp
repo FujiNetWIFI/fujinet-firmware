@@ -139,7 +139,7 @@ bool DiskTypeATR::format(uint16_t *responsesize)
  
  07-0F have two possible interpretations but are no critical for our use
 */
-disktype_t DiskTypeATR::mount(FILE *f)
+disktype_t DiskTypeATR::mount(FILE *f, uint32_t disksize)
 {
     Debug_print("ATR MOUNT\n");
 
@@ -185,6 +185,7 @@ disktype_t DiskTypeATR::mount(FILE *f)
     derive_percom_block(num_sectors);
 
     _file = f;
+    _disksize = disksize;
     _lastSectorNum = INVALID_SECTOR_VALUE;
 
     Debug_printf("mounted ATR: paragraphs=%hu, sect_size=%hu, sect_count=%hu\n",

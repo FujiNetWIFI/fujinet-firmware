@@ -87,8 +87,8 @@ void sioDisk::sio_status()
 
             Bit 3 = 1: Failed due to write protected disk
             Bit 2 = 1: Unsuccessful PUT operation
-            Bit 1 = 0: Receive error on last data frame (XF551)
-            Bit 0 = 0: REceive error on last command frame (XF551)
+            Bit 1 = 1: Receive error on last data frame (XF551)
+            Bit 0 = 1: REceive error on last command frame (XF551)
 
         #1 - Floppy drive controller status (inverted from FDC)
             Bit 7 = 0: Not ready (1050 drive)
@@ -102,7 +102,7 @@ void sioDisk::sio_status()
             Bit 0 = 0: Busy
 
         #2 - Default timeout
-            810 drive: $E0 = 224 vertical blanks
+              810 drive: $E0 = 224 vertical blanks
             XF551 drive: $FE
 
         #3 - Unused ($00)    
@@ -177,7 +177,7 @@ void sioDisk::sio_write_percom_block()
    then we assume it's DISKTYPE_ATR.
    Return value is DISKTYPE_UNKNOWN in case of failure.
 */
-disktype_t sioDisk::mount(FILE *f, const char *filename, disktype_t disk_type)
+disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disktype_t disk_type)
 {
     Debug_print("disk MOUNT\n");
 
@@ -201,6 +201,8 @@ disktype_t sioDisk::mount(FILE *f, const char *filename, disktype_t disk_type)
                 disk_type = DISKTYPE_XEX;
             } else if(strcasecmp(filename + l, "XEX") == 0) {
                 disk_type = DISKTYPE_XEX;
+            } else if(strcasecmp(filename + l, "BIN") == 0) {
+                disk_type = DISKTYPE_XEX;
             }
         }
     }
@@ -210,12 +212,12 @@ disktype_t sioDisk::mount(FILE *f, const char *filename, disktype_t disk_type)
     {
     case DISKTYPE_XEX:
         _disk = new DiskTypeXEX();
-        return _disk->mount(f);
+        return _disk->mount(f, disksize);
     case DISKTYPE_ATR:
     case DISKTYPE_UNKNOWN:
     default:
         _disk = new DiskTypeATR();
-        return _disk->mount(f);
+        return _disk->mount(f, disksize);
     }
 }
 
