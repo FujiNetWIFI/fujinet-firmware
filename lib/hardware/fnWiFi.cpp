@@ -84,6 +84,7 @@ int WiFiManager::connect(const char *ssid, const char *password)
             std::string current_ssid = get_current_ssid();
             if (current_ssid.compare(ssid) != 0)
             {
+                Debug_printf("Disconnecting from current SSID \"%s\"\n", current_ssid.c_str());
                 esp_wifi_disconnect();
                 fnSystem.delay(500);
             }
@@ -95,6 +96,8 @@ int WiFiManager::connect(const char *ssid, const char *password)
 
         strlcpy((char *)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
         strlcpy((char *)wifi_config.sta.password, password, sizeof(wifi_config.sta.password));
+
+        // Debug_printf("WiFi config double-check: \"%s\", \"%s\"\n", (char *)wifi_config.sta.ssid, (char *)wifi_config.sta.password );
 
         wifi_config.sta.pmf_cfg.capable = true;
         ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
