@@ -18,6 +18,7 @@ class DiskType
 {
 protected:
     FILE *_file = nullptr;
+    uint32_t _disksize = 0;
 
     uint16_t _sectorSize = 128;
 
@@ -48,7 +49,7 @@ public:
 
     disktype_t _disktype = DISKTYPE_UNKNOWN;
 
-    virtual disktype_t mount(FILE *f) = 0;
+    virtual disktype_t mount(FILE *f, uint32_t disksize) = 0;
     virtual void unmount();
 
     virtual ~DiskType();

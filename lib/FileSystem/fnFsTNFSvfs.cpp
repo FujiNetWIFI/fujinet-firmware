@@ -156,13 +156,14 @@ ssize_t vfs_tnfs_read(void* ctx, int fd, void * dst, size_t size)
     uint16_t readcount;
     int result = tnfs_read(mi, fd, (uint8_t *)dst, size, &readcount);
 
-    if(result != TNFS_RESULT_SUCCESS)
+    if(result == TNFS_RESULT_SUCCESS || (result == TNFS_RESULT_END_OF_FILE && result > 0))
     {
-        errno = tnfs_code_to_errno(result);
-        return -1;
+        errno = 0;
+        return readcount;
     }
-    errno = 0;
-    return readcount;
+
+    errno = tnfs_code_to_errno(result);
+    return -1;
 }
 
 ssize_t vfs_tnfs_write(void* ctx, int fd, const void * data, size_t size)
