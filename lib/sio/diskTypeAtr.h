@@ -14,7 +14,7 @@ public:
 
     virtual bool format(uint16_t *respopnsesize) override;
 
-    virtual disktype_t mount(FILE *f) override;
+    virtual disktype_t mount(FILE *f, uint32_t disksize) override;
 
     virtual uint16_t sector_size(uint16_t sectornum) override;
 
