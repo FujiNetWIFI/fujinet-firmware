@@ -56,6 +56,7 @@ protected:
     void sio_unmount_host();           // 0xE6
     void sio_get_directory_position(); // 0xE5
     void sio_set_directory_position(); // 0xE4
+    void sio_set_hsio_index();         // 0xE3
 
     void sio_status() override;
     void sio_process() override;
