@@ -28,9 +28,18 @@ table.info tr td:nth-child(2)
 	padding-left: 0.5em;
 }
 
+table.general
+{
+	margin-top: 1.5em;
+}
 .small
 {
 	font-size: 0.75em;
+}
+
+.light
+{
+	opacity: 0.85;
 }
 
 .not-important
@@ -51,7 +60,21 @@ img.printer
 	width: 5em;
 }
 
+img.hsio
+{
+	padding-left: 2em;
+	padding-right: 1.75em;
+	padding-top: 0em;
+	padding-bottom: 0em;
+	width: 11em;
+}
+
 .printform
+{
+	vertical-align: text-top;
+}
+
+.hsioform
 {
 	vertical-align: text-top;
 }
