@@ -4,22 +4,22 @@
 
 /**
  * Okimate 10 state machine
- * 
+ *
  * The Okimate 10 has both ESC and direct commands
- * Several commands have an additional argument and one has two arguments 
- * 
+ * Several commands have an additional argument and one has two arguments
+ *
  * I use the epson_cmd state machine approach for both direct commands and ESC sequences.
  * There are two flags: cmdMode and escMode. cmdMode is set once a direct command with an argument is called.
  * escMode is set when ESC is received like normal. I chose to use the dot graphics like epson, too. This
- * allows mixed text and graphics in color. 
- * 
+ * allows mixed text and graphics in color.
+ *
  * The colorMode is very different than anything else. Instead of printing char by char, three complete lines
  * of text and/or graphics will be buffered up as received. CMD and ESC sequences will be executed. For any
  * action that would normally write to the PDF immediately, a special COLOR case will be added to write to
  * an accompanying state array that parallels the buffer arrays. Once all three lines are received (CMY colors),
- * they will be printed in color. This will require a seperate loop to print. The colors will be chosen by 
+ * they will be printed in color. This will require a seperate loop to print. The colors will be chosen by
  * comparing the character/graphics bytes across the CMY buffers and setting the color register appropriately.
- * If there's a characeter mismatch between buffers (except for SPACE), then I might just print the two chars 
+ * If there's a characeter mismatch between buffers (except for SPACE), then I might just print the two chars
  * in CMY order overlapping. Otherwise, the correct colors will be chosen.
  */
 
@@ -68,7 +68,7 @@ void okimate10::fprint_color_array(uint8_t font_mask)
 void okimate10::okimate_handle_font()
 {
     // 10 CPI, 16.5 CPI, 5 CPI, 8.25 CPI
-    const double font_widths[] = {
+    const double font_widths[] ={
         100.,                  // standard
         100. * 80. / 132.,     // compressed
         2. * 100.,             // wide
@@ -143,16 +143,16 @@ void okimate10::pdf_clear_modes()
 void okimate10::okimate_output_color_line()
 {
     uint16_t i = 0;
-    Debug_printf("Color buffer element 0: %02x\n", color_buffer[0][0]);
+    // Debug_printf("Color buffer element 0: %02x\n", color_buffer[0][0]);
     while (color_buffer[i][0] != invalid_font && i < 480)
     {
-        Debug_printf("Color buffer position %d\n", i);
+        // Debug_printf("Color buffer position %d\n", i);
         // in text or gfx mode?
         if (color_buffer[i][0] & fnt_gfx)
         {
             uint8_t c = 0;
             // color dot graphics
-            Debug_printf("color gfx: ctr, char's: %03d %02x %02x %02x\n", i, color_buffer[i][1], color_buffer[i][2], color_buffer[i][3]);
+            // Debug_printf("color gfx: ctr, char's: %03d %02x %02x %02x\n", i, color_buffer[i][1], color_buffer[i][2], color_buffer[i][3]);
             okimate_new_fnt_mask = 0;
             set_mode(fnt_gfx);
             // brute force coding for colors: okimate prints in Y-M-C order
@@ -259,7 +259,14 @@ void okimate10::okimate_output_color_line()
         i++;
     }
     //okimate_current_fnt_mask = 0xFF;
-    okimate_new_fnt_mask = 0x80; // set color back to black
+    okimate_new_fnt_mask = 0x80; // set color back to 
+    #ifdef DEBUG
+    Debug_println("Color output line complete");
+    Debug_printf("BOLflag: %s", BOLflag ? "true" : "false");
+    Debug_printf("  pdf_X: %g", pdf_X);
+    
+    #endif
+
 }
 
 void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
@@ -301,31 +308,31 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         {
             okimate_cmd.ctr = 0;
             okimate_cmd.cmd = c; // assign command char
-#ifdef DEBUG
+            #ifdef DEBUG
             Debug_printf("Command: %02x\n", c);
-#endif
+            #endif
         }
         else
         {
             okimate_cmd.ctr++; // increment counter to keep track of the byte in the command
-#ifdef DEBUG
+            #ifdef DEBUG
             Debug_printf("Command counter: %d\n", okimate_cmd.ctr);
-#endif
+            #endif
         }
 
         if (okimate_cmd.ctr == 1)
         {
             okimate_cmd.n = c;
-#ifdef DEBUG
+            #ifdef DEBUG
             Debug_printf("n: %d\n", c);
-#endif
+            #endif
         }
         else if (okimate_cmd.ctr == 2)
         {
             okimate_cmd.data = c;
-#ifdef DEBUG
+            #ifdef DEBUG
             Debug_printf("data: %d\n", c);
-#endif
+            #endif
         }
 
         // state machine actions
@@ -368,9 +375,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 else
                     okimate_current_fnt_mask = okimate_new_fnt_mask;
                 textMode = false;
-#ifdef DEBUG
+                #ifdef DEBUG
                 Debug_printf("Entering GFX mode\n");
-#endif
+                #endif
             }
             else
                 switch (c)
@@ -385,9 +392,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                         okimate_current_fnt_mask = okimate_new_fnt_mask;
                     textMode = true;
                     reset_cmd();
-#ifdef DEBUG
+                    #ifdef DEBUG
                     Debug_printf("Finished GFX mode\n");
-#endif
+                    #endif
                     break;
                 case 0x9A: // repeat gfx char n times
                     // toss control over to the Direct Command switch statement
@@ -395,9 +402,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     cmdMode = true;
                     okimate_cmd.cmd = 0x9A;
                     okimate_cmd.ctr = 0;
-#ifdef DEBUG
+                    #ifdef DEBUG
                     Debug_printf("Go to repeated gfx char\n");
-#endif
+                    #endif
                     break;
                 default:
                     if (colorMode == colorMode_t::off)
@@ -453,29 +460,29 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         // command state machine switching
         if (okimate_cmd.ctr == 0)
         {
-#ifdef DEBUG
+            #ifdef DEBUG
             Debug_printf("Command: %02x\n", okimate_cmd.cmd);
-#endif
+            #endif
         }
 
         okimate_cmd.ctr++; // increment counter to keep track of the byte in the command
-#ifdef DEBUG
+        #ifdef DEBUG
         Debug_printf("Command counter: %d\n", okimate_cmd.ctr);
-#endif
+        #endif
 
         if (okimate_cmd.ctr == 1)
         {
             okimate_cmd.n = c;
-#ifdef DEBUG
+            #ifdef DEBUG
             Debug_printf("n: %d\n", c);
-#endif
+            #endif
         }
         else if (okimate_cmd.ctr == 2)
         {
             okimate_cmd.data = c;
-#ifdef DEBUG
+            #ifdef DEBUG
             Debug_printf("data: %d\n", c);
-#endif
+            #endif
         }
 
         switch (okimate_cmd.cmd)
