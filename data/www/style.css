@@ -1,7 +1,20 @@
+@font-face {
+    font-family: "Poppins";
+    src: url("/file?Poppins-Light.ttf") format('truetype');
+    font-weight: 300;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: "Inconsolata";
+    src: url("/file?Inconsolata-Light.ttf") format('truetype');
+    font-weight: 300;
+    font-style: normal;
+}
 
 body
 {
-	font-family: Tahoma, Geneva, sans-serif;
+	font-family: Poppins, Tahoma, Geneva, sans-serif;
 }
 
 table.info
@@ -24,7 +37,7 @@ table.info tr td:first-child
 
 table.info tr td:nth-child(2)
 {
-	font-family: "Courier New", Courier, monospace;
+	font-family: Inconsolata, "Courier New", Courier, monospace;
 	padding-left: 0.5em;
 }
 
