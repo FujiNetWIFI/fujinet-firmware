@@ -137,7 +137,7 @@ private:
 
     struct general_info
     {
-        std::string devicename = "FujiNet";
+        std::string devicename = "fujinet";
         int hsio_index = HSIO_INVALID_INDEX;
     };
 
