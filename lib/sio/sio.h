@@ -52,7 +52,8 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define SIO_ATARI_PAL_FREQUENCY 1773447
 #define SIO_ATARI_NTSC_FREQUENCY 1789790
 
-#define SIO_HISPEED_BAUDRATE ((SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (SIO_HISPEED_INDEX + 7)) + 3))
+// We calculate this dynamically now in sioBus::setHighSpeedIndex()
+// #define SIO_HISPEED_BAUDRATE ((SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (SIO_HISPEED_INDEX + 7)) + 3))
 
 #define SIO_STANDARD_BAUDRATE 19200
 
@@ -169,6 +170,8 @@ private:
     sioNetwork *_netDev[8] = { nullptr };
 
     int _sioBaud = SIO_STANDARD_BAUDRATE;
+    int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
+    int _sioBaudHigh;
 
     void _sio_process_cmd();
     void _sio_process_queue();
@@ -185,9 +188,13 @@ public:
     sioDevice *deviceById(int device_id);
     void changeDeviceId(sioDevice *pDevice, int device_id);
 
-    int getBaudrate();
-    void setBaudrate(int baud);
-    void toggleBaudrate();
+    int getBaudrate(); // Gets current SIO baud rate setting
+    void setBaudrate(int baud); // Sets SIO to specific baud rate
+    void toggleBaudrate(); // Toggle between standard and high speed SIO baud rate
+
+    int setHighSpeedIndex(int hsio_index); // Set HSIO index. Sets high speed SIO baud and also returns that value.
+    int getHighSpeedIndex(); // Gets current HSIO index
+    int getHighSpeedBaud(); // Gets current HSIO baud
 
     QueueHandle_t qSioMessages = nullptr;
 };
