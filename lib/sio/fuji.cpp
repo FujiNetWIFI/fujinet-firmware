@@ -29,6 +29,7 @@
 #define SIO_FUJICMD_UNMOUNT_HOST 0xE6
 #define SIO_FUJICMD_GET_DIRECTORY_POSITION 0xE5
 #define SIO_FUJICMD_SET_DIRECTORY_POSITION 0xE4
+#define SIO_FUJICMD_SET_HSIO_INDEX 0xE3
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -753,6 +754,34 @@ void sioFuji::_populate_config_from_slots()
     }
 }
 
+// AUX1 is our index value (from 0 to SIO_HISPEED_LOWEST_INDEX)
+// AUX2 requests a save of the change if set to 1
+void sioFuji::sio_set_hsio_index()
+{
+    Debug_println("Fuji cmd: SET HSIO INDEX");
+
+    // DAUX1 holds the desired index value
+    uint8_t index = cmdFrame.aux1;
+
+    // Make sure it's a valid value
+    if (index > SIO_HISPEED_LOWEST_INDEX)
+    {
+        sio_error();
+        return;
+    }
+
+    SIO.setHighSpeedIndex(index);
+
+    // Go ahead and save it if AUX2 = 1
+    if(cmdFrame.aux2 & 1)
+    {
+        Config.store_general_hsioindex(index);
+        Config.save();        
+    }
+
+    sio_complete();
+}
+
 /*
   Initializes base settings and adds our devices to the SIO bus
 */
@@ -794,6 +823,10 @@ void sioFuji::sio_process()
     case SIO_FUJICMD_HSIO_INDEX:
         sio_ack();
         sio_high_speed();
+        break;
+    case SIO_FUJICMD_SET_HSIO_INDEX:
+        sio_ack();
+        sio_set_hsio_index();
         break;
     case SIO_FUJICMD_STATUS:
         sio_ack();
