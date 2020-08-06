@@ -11,6 +11,8 @@
 
 #define HOST_SLOT_INVALID -1
 
+#define HSIO_INVALID_INDEX -1
+
 class fnConfig
 {
 public:
@@ -37,7 +39,12 @@ public:
     void store_printer_type(uint8_t num, sioPrinter::printer_type ptype);
     void store_printer_port(uint8_t num, int port);
 
-    bool have_wifi_info() { return _wifi.ssid.empty() == false; }
+    std::string get_general_devicename() { return _general.devicename; };
+    int get_general_hsioindex() { return _general.hsio_index; };
+    void store_general_devicename(const char *devicename);
+    void store_general_hsioindex(int hsio_index);
+
+    bool have_wifi_info() { return _wifi.ssid.empty() == false; };
     std::string get_wifi_ssid() { return _wifi.ssid; };
     std::string get_wifi_passphrase() { return _wifi.passphrase; };
     void store_wifi_ssid(const char *ssid_octets, int num_octets);
@@ -63,12 +70,14 @@ private:
 
     int _read_line(std::stringstream &ss, std::string &line, char abort_if_starts_with = '\0');
 
+    void _read_section_general(std::stringstream &ss);
     void _read_section_wifi(std::stringstream &ss);
     void _read_section_host(std::stringstream &ss, int index);
     void _read_section_mount(std::stringstream &ss, int index);
     void _read_section_printer(std::stringstream &ss, int index);
 
     enum section_match {
+        SECTION_GENERAL,
         SECTION_WIFI,
         SECTION_HOST,
         SECTION_MOUNT,
@@ -126,10 +135,17 @@ private:
         std::string passphrase;
     };
 
+    struct general_info
+    {
+        std::string devicename = "FujiNet";
+        int hsio_index = HSIO_INVALID_INDEX;
+    };
+
     host_info _host_slots[MAX_HOST_SLOTS];
     mount_info _mount_slots[MAX_MOUNT_SLOTS];
     printer_info _printer_slots[MAX_PRINTER_SLOTS];
     wifi_info _wifi;
+    general_info _general;
 };
 
 extern fnConfig Config;

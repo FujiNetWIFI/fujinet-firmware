@@ -146,10 +146,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << ((float) fnSystem.get_sio_voltage()) /1000.00 << "V";
         break;
     case FN_SIO_HSINDEX:
-        resultstream << SIO_HISPEED_INDEX;
+        resultstream << SIO.getHighSpeedIndex();
         break;
     case FN_SIO_HSBAUD:
-        resultstream << SIO_HISPEED_BAUDRATE;
+        resultstream << SIO.getHighSpeedBaud();
         break;
     case FN_PRINTER1_MODEL:
         resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();

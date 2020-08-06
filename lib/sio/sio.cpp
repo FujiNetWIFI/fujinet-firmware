@@ -4,6 +4,7 @@
 #include "led.h"
 #include "network.h"
 #include "fnSystem.h"
+#include "fnConfig.h"
 #include "utils.h"
 #include "../../include/debug.h"
 
@@ -136,7 +137,7 @@ void sioDevice::sio_error()
 void sioDevice::sio_high_speed()
 {
     Debug_print("sio HSIO INDEX\n");
-    uint8_t hsd = SIO_HISPEED_INDEX;
+    uint8_t hsd = SIO.getHighSpeedIndex();
     sio_to_computer((uint8_t *)&hsd, 1, false);
 }
 
@@ -293,6 +294,7 @@ void sioBus::setup()
 
     // Set up UART
     fnUartSIO.begin(_sioBaud);
+
     // INT PIN
     fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_INT, DIGI_HIGH);
@@ -308,8 +310,17 @@ void sioBus::setup()
     fnSystem.digital_write(PIN_CKI, DIGI_LOW);
     // CKO PIN
     fnSystem.set_pin_mode(PIN_CKO, PINMODE_INPUT);
+
     // Create a message queue
-    qSioMessages =  xQueueCreate(4, sizeof(sio_message_t));
+    qSioMessages = xQueueCreate(4, sizeof(sio_message_t));
+
+    // Set the initial HSIO index
+    // First see if Config has read a value
+    int i = Config.get_general_hsioindex();
+    if(i != HSIO_INVALID_INDEX)
+        setHighSpeedIndex(i);
+    else
+        setHighSpeedIndex(_sioHighSpeedIndex);
 
     fnUartSIO.flush_input();
 }
@@ -381,7 +392,7 @@ void sioBus::shutdown()
 
 void sioBus::toggleBaudrate()
 {
-    int baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? SIO_HISPEED_BAUDRATE : SIO_STANDARD_BAUDRATE;
+    int baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? _sioBaudHigh : SIO_STANDARD_BAUDRATE;
     Debug_printf("Toggling baudrate from %d to %d\n", _sioBaud, baudrate);
     _sioBaud = baudrate;
     fnUartSIO.set_baudrate(_sioBaud);
@@ -403,6 +414,29 @@ void sioBus::setBaudrate(int baud)
     Debug_printf("Changing baudrate from %d to %d\n", _sioBaud, baud);
     _sioBaud = baud;
     fnUartSIO.set_baudrate(baud);
+}
+
+// Set HSIO index. Sets high speed SIO baud and also returns that value.
+int sioBus::setHighSpeedIndex(int hsio_index)
+{
+    int temp = _sioBaudHigh;
+    _sioBaudHigh = (SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (hsio_index + 7)) + 3);
+    _sioHighSpeedIndex = hsio_index;
+
+    int alt = SIO_ATARI_PAL_FREQUENCY / (2 * hsio_index + 14);
+
+    Debug_printf("Set HSIO baud from %d to %d (index %d), alt=%d\n", temp, _sioBaudHigh, hsio_index, alt);
+    return _sioBaudHigh;
+}
+
+int sioBus::getHighSpeedIndex()
+{
+    return _sioHighSpeedIndex;
+}
+
+int sioBus::getHighSpeedBaud()
+{
+    return _sioBaudHigh;
 }
 
 sioBus SIO;         // Global SIO object

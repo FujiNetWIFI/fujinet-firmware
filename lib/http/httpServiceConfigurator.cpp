@@ -107,6 +107,24 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
     return results;
 }
 
+void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
+{
+    int index = -1;
+    char pc = hsioindex[0];
+    if(pc >= '0' && pc <= '9')
+        index = pc - '0';
+    else
+    {
+        Debug_printf("Bad HSIO index value: %s\n", hsioindex);
+        return;
+    }
+
+    SIO.setHighSpeedIndex(index);
+    // Store our change in Config        
+    Config.store_general_hsioindex(index);
+    Config.save();
+}
+
 void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::string printermodel, std::string printerport)
 {
 
@@ -120,9 +138,7 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
     // Only handle 1 printer for now
     if(pn != 1)
     {
-        #ifdef DEBUG
         Debug_printf("config_printer invalid printer %d\n", pn);
-        #endif
         return;
     }
 
@@ -131,14 +147,10 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
         sioPrinter::printer_type t = sioPrinter::match_modelname(printermodel);
         if(t == sioPrinter::printer_type::PRINTER_INVALID)
         {
-            #ifdef DEBUG
             Debug_printf("Unknown printer type: \"%s\"\n", printermodel.c_str());
-            #endif    
             return;
         }
-        #ifdef DEBUG
         Debug_printf("config_printer changing printer %d type to %d\n", pn, t);
-        #endif
         // Store our change in Config
         Config.store_printer_type(pn - 1, t);
         // Store our change in the printer list
@@ -191,12 +203,13 @@ int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t
         if(i->first.compare("printermodel1") == 0)
         {
             config_printer(i->first, i->second, std::string());
-        }
-        if(i->first.compare("printerport1") == 0)
+        } else if(i->first.compare("printerport1") == 0)
         {
             config_printer(i->first, std::string(), i->second);
+        } else if(i->first.compare("hsioindex") == 0)
+        {
+            config_hsio(i->second);
         }
-
     }
 
     return 0;
