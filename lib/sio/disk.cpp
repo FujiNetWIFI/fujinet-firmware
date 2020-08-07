@@ -246,8 +246,11 @@ bool sioDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 }
 
 // Process command
-void sioDisk::sio_process()
+void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
 {
+    cmdFrame.commanddata = commanddata;
+    cmdFrame.checksum = checksum;
+
     if (_disk == nullptr || _disk->_disktype == DISKTYPE_UNKNOWN)
         return;
 

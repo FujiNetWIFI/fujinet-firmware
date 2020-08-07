@@ -979,8 +979,11 @@ void sioNetwork::sio_assert_interrupts()
     }
 }
 
-void sioNetwork::sio_process()
+void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 {
+    cmdFrame.commanddata = commanddata;
+    cmdFrame.checksum = checksum;
+
     Debug_printf("sioNetwork::sio_process 0x%02hx '%c': 0x%02hx, 0x%02hx\n",
                  cmdFrame.comnd, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
 

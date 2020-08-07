@@ -59,12 +59,12 @@ protected:
     void sio_set_hsio_index();         // 0xE3
 
     void sio_status() override;
-    void sio_process() override;
+    void sio_process(uint32_t commanddata, uint8_t checksum) override;
 
     void shutdown() override;
 
 public:
-    bool load_config = true;
+    bool boot_config = true;
     sioDisk *bootdisk();
     sioNetwork *network();
     void setup(sioBus *siobus);

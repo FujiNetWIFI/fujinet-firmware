@@ -93,13 +93,17 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 union cmdFrame_t {
     struct
     {
-        unsigned char devic;
-        unsigned char comnd;
-        unsigned char aux1;
-        unsigned char aux2;
-        unsigned char cksum;
+        uint8_t device;
+        uint8_t comnd;
+        uint8_t aux1;
+        uint8_t aux2;
+        uint8_t cksum;
     };
-    uint8_t cmdFrameData[5];
+    struct
+    {
+        uint32_t commanddata;
+        uint8_t checksum;
+    } __attribute__((packed));
 };
 
 //helper functions
@@ -133,7 +137,7 @@ protected:
     unsigned short sio_get_aux();
 
     virtual void sio_status() = 0;
-    virtual void sio_process() = 0;
+    virtual void sio_process(uint32_t commanddata, uint8_t checksum) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown() {};

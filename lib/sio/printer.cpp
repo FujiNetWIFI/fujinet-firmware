@@ -234,8 +234,11 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string model_name)
 }
 
 // Process command
-void sioPrinter::sio_process()
+void sioPrinter::sio_process(uint32_t commanddata, uint8_t checksum)
 {
+    cmdFrame.commanddata = commanddata;
+    cmdFrame.checksum = checksum;
+
     switch (cmdFrame.comnd)
     {
     case SIO_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
