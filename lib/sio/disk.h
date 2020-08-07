@@ -13,7 +13,7 @@ private:
     void sio_write(bool verify);
     void sio_format();
     void sio_status() override;
-    void sio_process() override;
+    void sio_process(uint32_t commanddata, uint8_t checksum) override;
 
     void derive_percom_block(uint16_t numSectors);
     void sio_read_percom_block();

@@ -58,7 +58,6 @@ public:
     virtual void sio_close();
     virtual void sio_read();
     virtual void sio_write();
-    virtual void sio_status();
     virtual void sio_special();
 
     void sio_assert_interrupts();
@@ -81,7 +80,8 @@ public:
     bool sio_special_supported_40_command(unsigned char c);
     bool sio_special_supported_80_command(unsigned char c);
 
-    virtual void sio_process();
+    virtual void sio_status() override;
+    void sio_process(uint32_t commanddata, uint8_t checksum) override;
 
 private:
     string deviceSpec;

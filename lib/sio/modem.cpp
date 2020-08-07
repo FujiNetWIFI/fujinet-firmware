@@ -1365,8 +1365,11 @@ void sioModem::sio_handle_modem()
 /*
   Process command
 */
-void sioModem::sio_process()
+void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
 {
+    cmdFrame.commanddata = commanddata;
+    cmdFrame.checksum = checksum;
+
 #ifdef DEBUG
     Debug_println("sioModem::sio_process() called");
     static int i3F = 0;
