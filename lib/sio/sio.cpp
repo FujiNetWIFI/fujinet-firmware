@@ -153,13 +153,10 @@ void sioBus::_sio_process_cmd()
 
     // Read CMD frame
     cmdFrame_t tempFrame;
-    tempFrame.cmdFrameData[0] = 0;
-    tempFrame.cmdFrameData[1] = 0;
-    tempFrame.cmdFrameData[2] = 0;
-    tempFrame.cmdFrameData[3] = 0;
-    tempFrame.cmdFrameData[4] = 0;
+    tempFrame.commanddata = 0;
+    tempFrame.checksum = 0;
 
-    if (fnUartSIO.readBytes((uint8_t *)tempFrame.cmdFrameData, 5) != 5)
+    if (fnUartSIO.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
         // Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
@@ -168,27 +165,25 @@ void sioBus::_sio_process_cmd()
     fnLedManager.set(eLed::LED_SIO, true);
 
     Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
-                 tempFrame.devic, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
+                 tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
     // Wait for CMD line to raise again
     while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
         fnSystem.yield();
 
-    uint8_t ck = sio_checksum(tempFrame.cmdFrameData, 4); // Calculate Checksum
-    if (ck == tempFrame.cksum)
+    uint8_t ck = sio_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
+    if (ck == tempFrame.checksum)
     {
-        if (_fujiDev != nullptr && _fujiDev->load_config && tempFrame.devic == SIO_DEVICEID_DISK)
+        if (tempFrame.device == SIO_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = _fujiDev->bootdisk();
             Debug_println("FujiNet intercepts D1:");
-            for (int i = 0; i < 5; i++)
-                _activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
-
-            _activeDev->sio_process(); // handle command
+            // handle command
+            _activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
         }
         else
         {
             // Command SIO_DEVICEID_TYPE3POLL is a Type3 poll - send it to every device that cares
-            if (tempFrame.devic == SIO_DEVICEID_TYPE3POLL)
+            if (tempFrame.device == SIO_DEVICEID_TYPE3POLL)
             {
                 Debug_println("SIO TYPE3 POLL");
                 for (auto devicep : _daisyChain)
@@ -197,10 +192,8 @@ void sioBus::_sio_process_cmd()
                     {
                         Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_devnum);
                         _activeDev = devicep;
-                        for (int i = 0; i < 5; i++)
-                            _activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
-
-                        _activeDev->sio_process(); // handle command
+                        // handle command
+                        _activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
                     }
                 }
             }
@@ -210,13 +203,11 @@ void sioBus::_sio_process_cmd()
                 // or go back to WAIT
                 for (auto devicep : _daisyChain)
                 {
-                    if (tempFrame.devic == devicep->_devnum)
+                    if (tempFrame.device == devicep->_devnum)
                     {
                         _activeDev = devicep;
-                        for (int i = 0; i < 5; i++)
-                            _activeDev->cmdFrame.cmdFrameData[i] = tempFrame.cmdFrameData[i]; // copy data to device's buffer
-
-                        _activeDev->sio_process(); // handle command
+                        // handle command
+                        _activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
                     }
                 }
             }

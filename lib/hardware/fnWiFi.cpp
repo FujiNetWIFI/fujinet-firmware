@@ -58,7 +58,7 @@ int WiFiManager::start()
     ESP_ERROR_CHECK(esp_wifi_start());
 
     // Set a hostname from our configuration
-    esp_err_t e = tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, Config.get_general_devicename().c_str());
+    tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, Config.get_general_devicename().c_str());
 
     _started = true;
     return 0;

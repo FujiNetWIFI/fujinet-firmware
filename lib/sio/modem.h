@@ -133,7 +133,7 @@ private:
     void sio_status() override;                  // $53, 'S', Status
     void sio_write();                            // $57, 'W', Write
     void sio_stream();                           // $58, 'X', Concurrent/Stream
-    void sio_process() override;                 // Process the command
+    void sio_process(uint32_t commanddata, uint8_t checksum) override;
     
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
