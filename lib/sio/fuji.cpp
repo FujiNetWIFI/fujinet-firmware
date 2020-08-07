@@ -259,20 +259,23 @@ void sioFuji::sio_disk_image_mount()
     _fnDisks[deviceSlot].file =
         _fnHosts[_fnDisks[deviceSlot].host_slot].open(_fnDisks[deviceSlot].filename, flag);
 
-    if (!_fnDisks[deviceSlot].file)
+    if (_fnDisks[deviceSlot].file == nullptr)
     {
         sio_error();
+        return;
     }
-    else
-    {
-        // We need the file size for loading XEX files, so get that too
-        _fnDisks[deviceSlot].disk_size =
-            _fnHosts[_fnDisks[deviceSlot].host_slot].get_filesize(_fnDisks[deviceSlot].file);
-        // And now mount it
-        _fnDisks[deviceSlot].disk_type =
-            _fnDisks[deviceSlot].disk_dev.mount(_fnDisks[deviceSlot].file, _fnDisks[deviceSlot].filename, _fnDisks[deviceSlot].disk_size);
-        sio_complete();
-    }
+
+    // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+    boot_config = false;
+
+    // We need the file size for loading XEX files, so get that too
+    _fnDisks[deviceSlot].disk_size =
+        _fnHosts[_fnDisks[deviceSlot].host_slot].get_filesize(_fnDisks[deviceSlot].file);
+    // And now mount it
+    _fnDisks[deviceSlot].disk_type =
+        _fnDisks[deviceSlot].disk_dev.mount(_fnDisks[deviceSlot].file, _fnDisks[deviceSlot].filename, _fnDisks[deviceSlot].disk_size);
+
+    sio_complete();
 }
 
 // Disk Image Unmount
@@ -658,9 +661,6 @@ void sioFuji::sio_read_device_slots()
         strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_FILENAME_LEN);
     }
 
-    // This turns off our CONFIG boot ATR disk
-    load_config = false;
-
     sio_to_computer((uint8_t *)&diskSlots, sizeof(diskSlots), false);
 }
 
@@ -814,8 +814,11 @@ sioDisk *sioFuji::bootdisk()
     return &_bootDisk;
 }
 
-void sioFuji::sio_process()
+void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
 {
+    cmdFrame.commanddata = commanddata;
+    cmdFrame.checksum = checksum;
+
     Debug_println("sioFuji::sio_process() called");
 
     switch (cmdFrame.comnd)
