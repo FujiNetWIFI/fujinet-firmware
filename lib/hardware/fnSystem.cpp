@@ -177,14 +177,20 @@ int64_t SystemManager::get_uptime()
     return esp_timer_get_time();
 }
 
+void SystemManager::update_timezone(const char *timezone)
+{
+    if(timezone != nullptr && timezone[0] != '\0')
+        setenv("TZ", timezone, 1);
+
+    tzset();
+}
+
 const char *SystemManager::get_current_time_str()
 {
-    struct timeval tval;
-    gettimeofday(&tval, nullptr);
+    time_t tt = time(nullptr);
+    struct tm * tinfo = localtime(&tt);
 
-    struct tm * tinfo = localtime(&tval.tv_sec);
-
-    strftime(_currenttime_string, sizeof(_currenttime_string), "%a %b %e %H:%M:%S %Y %z", tinfo);
+    strftime(_currenttime_string, sizeof(_currenttime_string), "%a %b %e, %H:%M:%S %Y %z", tinfo);
 
     return _currenttime_string;
 }
