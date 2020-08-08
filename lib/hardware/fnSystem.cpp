@@ -479,3 +479,31 @@ int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
     fclose(f);
     return bytes_read;
 }
+
+
+// Dumps list of current tasks
+void SystemManager::debug_print_tasks()
+{
+#ifdef DEBUG
+
+    static const char * status[] ={ "Running", "Ready", "Blocked", "Suspened", "Deleted" };
+
+    uint32_t n = uxTaskGetNumberOfTasks();
+    TaskStatus_t *pTasks = (TaskStatus_t *)malloc(sizeof(TaskStatus_t) * n);
+    n = uxTaskGetSystemState(pTasks, n, nullptr);
+
+    for (int i = 0; i < n; i++)
+    {
+        Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\n",
+            i+1,
+            pTasks[i].xHandle,
+            pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
+            pTasks[i].uxBasePriority, pTasks[i].uxCurrentPriority,
+            pTasks[i].usStackHighWaterMark,
+            pTasks[i].ulRunTimeCounter,
+            status[pTasks[i].eCurrentState],
+            pTasks[i].pcTaskName);
+    }
+    Debug_printf("\nCPU MHz: %d\n", fnSystem.get_cpu_frequency());
+#endif
+}

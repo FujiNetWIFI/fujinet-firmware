@@ -1,41 +1,39 @@
 #ifndef KEYS_H
 #define KEYS_H
 
-#define LONGPRESS_TIME 1000 // 1 second
-#define PIN_BOOT_KEY 0
-#define PIN_OTHER_KEY 34
 enum eKey
 {
-    BOOT_KEY = 0,
-    OTHER_KEY,
+    BUTTON_A = 0,
+    BUTTON_B,
     KEY_COUNT
 };
 
 enum eKeyStatus
 {
-    RELEASED,
-    SHORT_PRESSED,
-    LONG_PRESSED
+    INACTIVE,
+    SINGLE_TAP,
+    DOUBLE_TAP,
+    SHORT_PRESS,
+    LONG_PRESS
 };
-
-static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BOOT_KEY, PIN_OTHER_KEY};
 
 class KeyManager
 {
 public:
     void setup();
     eKeyStatus getKeyStatus(eKey key);
-    static bool keyCurrentlyPressed(eKey key);
-
+    bool keyCurrentlyPressed(eKey key);
+    void ignoreKeyPress(eKey key);
 
 private:
-    long mButtonTimer[eKey::KEY_COUNT] = {0};
-    bool mButtonActive[eKey::KEY_COUNT] = {0};
-    bool mLongPressActive[eKey::KEY_COUNT] = {0};
+    long _buttonLastTap[eKey::KEY_COUNT] = {0};
+    long _buttonActionStarted[eKey::KEY_COUNT] = {0};
+    bool _buttonActive[eKey::KEY_COUNT] = {0};
 
     static void _keystate_task(void *param);
 };
 
+// Global KeyManager object
 extern KeyManager fnKeyManager;
 
 #endif
