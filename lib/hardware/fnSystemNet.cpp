@@ -152,6 +152,9 @@ void SystemManager::_net::start_sntp_client()
 
     Debug_print("SNTP client start\n");
 
+    // Update system timezone data
+    fnSystem.update_timezone(Config.get_general_timezone().c_str());
+
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
     // Set a server if we have one defined, otherwise try DHCP

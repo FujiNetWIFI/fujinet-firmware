@@ -82,12 +82,26 @@ img.hsio
 	width: 11em;
 }
 
+img.tz
+{
+	padding-left: 4em;
+	padding-right: 1.75em;
+	padding-top: 0em;
+	padding-bottom: 0em;
+	width: 5em;
+}
+
 .printform
 {
 	vertical-align: text-top;
 }
 
 .hsioform
+{
+	vertical-align: text-top;
+}
+
+.tzform
 {
 	vertical-align: text-top;
 }

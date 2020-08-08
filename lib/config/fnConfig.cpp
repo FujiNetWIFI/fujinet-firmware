@@ -30,6 +30,14 @@ void fnConfig::store_general_devicename(const char *devicename)
     _general.devicename = devicename;
     _dirty = true;
 }
+void fnConfig::store_general_timezone(const char *timezone)
+{
+    if(_general.timezone.compare(timezone) == 0)
+        return;
+
+    _general.timezone = timezone;
+    _dirty = true;
+}
 
 void fnConfig::store_general_hsioindex(int hsio_index)
 {
@@ -237,16 +245,20 @@ void fnConfig::save()
     // GENERAL
     ss << "[General]" LINETERM;
     ss << "devicename=" << _general.devicename << LINETERM;
-    ss << "hsioindex=" << _general.hsio_index << LINETERM << LINETERM;
+    ss << "hsioindex=" << _general.hsio_index << LINETERM;
+    if(_general.timezone.empty() == false)
+        ss << "timezone=" << _general.timezone << LINETERM;
+
+    ss << LINETERM;
 
     // WIFI
-    ss << "[WiFi]" LINETERM;
+    ss << LINETERM << "[WiFi]" LINETERM;
     ss << "SSID=" << _wifi.ssid << LINETERM;
     // TODO: Encrypt passphrase!
-    ss << "passphrase=" << _wifi.passphrase << LINETERM << LINETERM;
+    ss << "passphrase=" << _wifi.passphrase << LINETERM;
 
     // NETWORK
-    ss << "[Network]" LINETERM;
+    ss << LINETERM << "[Network]" LINETERM;
     ss << "sntpserver=" << _network.sntpserver << LINETERM;
 
     // HOSTS
@@ -450,6 +462,9 @@ void fnConfig::_read_section_general(std::stringstream &ss)
                 int index = atoi(value.c_str());
                 if(index >= 0 && index < 10)
                     _general.hsio_index = index;
+            } else if (strcasecmp(name.c_str(), "timezone") == 0)
+            {
+                _general.timezone = value;
             }
         }
     }

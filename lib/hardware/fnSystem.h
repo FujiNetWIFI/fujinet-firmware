@@ -87,9 +87,13 @@ public:
     unsigned long micros();
     void delay_microseconds(uint32_t us);
     void delay(uint32_t ms);
+
     const char *get_uptime_str();
     const char *get_current_time_str();
+    void update_timezone(const char *timezone);
+
     const char *get_fujinet_version(bool shortVersionOnly = false);
+
     int get_sio_voltage();
     void yield();
 
