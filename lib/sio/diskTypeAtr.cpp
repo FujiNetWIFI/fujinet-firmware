@@ -79,14 +79,21 @@ bool DiskTypeATR::write(uint16_t sectornum, bool verify)
     _lastSectorNum = INVALID_SECTOR_VALUE;
 
     // Perform a seek if we're writing to the sector after the last one
+    int e;
     if (sectornum != _lastSectorNum + 1)
     {
-        if (fseek(_file, offset, SEEK_SET) != 0)
+        e = fseek(_file, offset, SEEK_SET);
+        if (e != 0)
+        {
+            Debug_printf("::write seek error %d\n", e);
             return true;
+        }
     }
-
-    if (fwrite(_sectorbuff, 1, sectorSize, _file) != sectorSize)
+    // Write the data
+    e = fwrite(_sectorbuff, 1, sectorSize, _file);
+    if (e != sectorSize)
     {
+        Debug_printf("::write error %d, %d\n", e, errno);
         return true;
     }
 
