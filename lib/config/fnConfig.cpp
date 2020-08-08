@@ -304,11 +304,16 @@ void fnConfig::load()
 
     // Clear the config file if key is currently pressed
 #ifdef BOARD_HAS_PSRAM
-    if(KeyManager::keyCurrentlyPressed(OTHER_KEY))
+    if(fnKeyManager.keyCurrentlyPressed(BUTTON_B))
     {
         Debug_println("fnConfig deleting configuration file and skipping SD check");
+        
+        // Tell the keymanager to ignore this keypress
+        fnKeyManager.ignoreKeyPress(BUTTON_B);
+
         if(fnSPIFFS.exists(CONFIG_FILENAME))
             fnSPIFFS.remove(CONFIG_FILENAME);
+            
         _dirty = true; // We have a new config, so we treat it as needing to be saved
         return;
     }

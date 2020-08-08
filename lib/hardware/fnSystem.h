@@ -89,6 +89,7 @@ public:
     void delete_tempfile(const char *filename);
 
     int load_firmware(const char *filename, uint8_t **buffer);
+    void debug_print_tasks();
 };
 
 extern SystemManager fnSystem;
