@@ -6,112 +6,124 @@
 #include "keys.h"
 #include "sio.h"
 
+#define LONGPRESS_TIME 2000 // 2 seconds to detect long press
+#define SHORTPRESS_TIME 500 // 0.5 seconds to detect short press
+#define TAP_MAXTIME 500 // 0.5 seconds max time between single/double tap detection
+
+#define PIN_BUTTON_A 0
+#define PIN_BUTTON_B 34
+
+// Global KeyManager object
 KeyManager fnKeyManager;
+
+static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B};
 
 void KeyManager::setup()
 {
-    fnSystem.set_pin_mode(PIN_BOOT_KEY, PINMODE_INPUT);
-    fnSystem.set_pin_mode(PIN_OTHER_KEY, PINMODE_INPUT);
+    fnSystem.set_pin_mode(PIN_BUTTON_A, PINMODE_INPUT);
+    fnSystem.set_pin_mode(PIN_BUTTON_B, PINMODE_INPUT);
 
     // Start a new task to check the status of the buttons
     xTaskCreate(_keystate_task, "fnKeys", 4096, this, 1, nullptr);
 }
 
+// Ignores the current key press
+void KeyManager::ignoreKeyPress(eKey key)
+{
+    // A value of -1 here is our indication to ignore this key press
+    _buttonActionStarted[key] = -1;
+}
+
 bool KeyManager::keyCurrentlyPressed(eKey key)
 {
-    return (fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW);
+    return fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW;
 }
 
 eKeyStatus KeyManager::getKeyStatus(eKey key)
 {
-    eKeyStatus result = eKeyStatus::RELEASED;
+    eKeyStatus result = eKeyStatus::INACTIVE;
 
-// Ignore requests for OTHER_KEY if this seems to be a WROOM board
+    // Ignore requests for BUTTON_B if this seems to be a WROOM board
 #ifndef BOARD_HAS_PSRAM
-    if(key == OTHER_KEY)
+    if (key == BUTTON_B)
         return result;
 #endif
 
+    // Button is PRESSED when DIGI_LOW
     if (fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW)
     {
-        if (mButtonActive[key] == false)
+        // Mark this button as ACTIVE and note the time
+        if (_buttonActive[key] == false)
         {
-            mButtonActive[key] = true;
-            mButtonTimer[key] = fnSystem.millis();
-        }
-        if ((fnSystem.millis() - mButtonTimer[key] > LONGPRESS_TIME) && (mLongPressActive[key] == false))
-        {
-            mLongPressActive[key] = true;
-            // long press detected
-            result = eKeyStatus::LONG_PRESSED;
+            _buttonActive[key] = true;
+            _buttonActionStarted[key] = fnSystem.millis();
         }
     }
+    // Button is NOT pressed when DIGI_HIGH
     else
     {
-        if (mButtonActive[key] == true)
+        // If we'd previously marked the key as active
+        if (_buttonActive[key] == true)
         {
-            if (mLongPressActive[key] == true)
+            /* Only register an action if we logged a _buttonActionStarted value > 0
+             otherwise we ignore this key press
+            */
+            if(_buttonActionStarted[key] > 0)
             {
-                mLongPressActive[key] = false;
-                // long press released
+                unsigned long ms = fnSystem.millis();
+
+                if (ms - _buttonActionStarted[key] > LONGPRESS_TIME)
+                    result = eKeyStatus::LONG_PRESS;
+                else if (ms - _buttonActionStarted[key] > SHORTPRESS_TIME)
+                    result = eKeyStatus::SHORT_PRESS;
+                else
+                // Anything shorter than SHORTPRESS_TIME counts as a TAP
+                {
+                    // Detect double-tap
+                    if(_buttonLastTap[key] > 0 && (ms - _buttonLastTap[key] < TAP_MAXTIME))
+                    {
+                        result = eKeyStatus::DOUBLE_TAP;
+                        _buttonLastTap[key] = 0;
+                    }
+                    else
+                    {
+                        result = eKeyStatus::SINGLE_TAP;
+                        _buttonLastTap[key] = ms;
+                    }
+
+                }
             }
-            else
-            {
-                // short press released
-                result = eKeyStatus::SHORT_PRESSED;
-            }
-            mButtonActive[key] = false;
+            // Since the button has been released, mark it as inactive
+            _buttonActive[key] = false;
         }
     }
+
     return result;
 }
-
-
-#ifdef DEBUG
-// Dumps list of current tasks
-void _debug_print_tasks()
-{
-    static const char * status[] = {"Running", "Ready", "Blocked", "Suspened", "Deleted"};
-
-    uint32_t n = uxTaskGetNumberOfTasks();
-    TaskStatus_t *pTasks = (TaskStatus_t *) malloc(sizeof(TaskStatus_t) * n);
-    n = uxTaskGetSystemState(pTasks, n, nullptr);
-
-    for(int i = 0; i < n; i++)
-    {
-        Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\n",
-            i+1,
-            pTasks[i].xHandle,
-            pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
-            pTasks[i].uxBasePriority, pTasks[i].uxCurrentPriority,
-            pTasks[i].usStackHighWaterMark,
-            pTasks[i].ulRunTimeCounter,
-            status[pTasks[i].eCurrentState],
-            pTasks[i].pcTaskName);
-    }
-    Debug_printf("\nCPU MHz: %d\n", fnSystem.get_cpu_frequency());
-}
-#endif
 
 void KeyManager::_keystate_task(void *param)
 {
 #ifdef BOARD_HAS_PSRAM
-#define BLUETOOTH_LED eLed::LED_BT
+    #define BLUETOOTH_LED eLed::LED_BT
 #else
-#define BLUETOOTH_LED eLed::LED_SIO
+    #define BLUETOOTH_LED eLed::LED_SIO
 #endif
+
     KeyManager *pKM = (KeyManager *)param;
 
     while (true)
     {
-        vTaskDelay(200 / portTICK_PERIOD_MS);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
 
-        // Check on the status of the BOOT_KEY and do something useful
-        switch (pKM->getKeyStatus(eKey::BOOT_KEY))
+        // Check on the status of the BUTTON_A and do something useful
+        switch (pKM->getKeyStatus(eKey::BUTTON_A))
         {
-        case eKeyStatus::LONG_PRESSED:
-            Debug_println("BOOT_KEY: LONG PRESS");
+        case eKeyStatus::LONG_PRESS:
+            Debug_println("BUTTON_A: LONG PRESS");
+
 #ifdef BLUETOOTH_SUPPORT
+            Debug_println("ACTION: Bluetooth toggle");
+
             if (fnBtManager.isActive())
             {
                 fnBtManager.stop();
@@ -124,42 +136,66 @@ void KeyManager::_keystate_task(void *param)
             }
 #endif //BLUETOOTH_SUPPORT
             break;
-        case eKeyStatus::SHORT_PRESSED:
-            Debug_println("BOOT_KEY: SHORT PRESS");
+
+        case eKeyStatus::SHORT_PRESS:
+            Debug_println("BUTTON_A: SHORT PRESS");
+
             fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
+
 // Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
 #ifdef BLUETOOTH_SUPPORT
             if (fnBtManager.isActive())
+            {
+                Debug_println("ACTION: Bluetooth baud rate toggle");
                 fnBtManager.toggleBaudrate();
+            }
             else
 #endif
             {
-                Debug_println("Send image_rotate message to SIO queue");
+                Debug_println("ACTION: Send image_rotate message to SIO queue");
                 sio_message_t msg;
                 msg.message_id = SIOMSG_DISKSWAP;
-                xQueueSend(SIO.qSioMessages, &msg ,0);
+                xQueueSend(SIO.qSioMessages, &msg, 0);
             }
             break;
+
+        case eKeyStatus::SINGLE_TAP:
+            // Debug_println("BUTTON_A: SINGLE-TAP");
+            break;
+
+        case eKeyStatus::DOUBLE_TAP:
+            Debug_println("BUTTON_A: DOUBLE-TAP");
+            break;
+
         default:
             break;
-        } // BOOT_KEY
+        } // BUTTON_A
 
-        // Check on the status of the OTHER_KEY and do something useful
-        switch (pKM->getKeyStatus(eKey::OTHER_KEY))
+        // Check on the status of the BUTTON_B and do something useful
+        switch (pKM->getKeyStatus(eKey::BUTTON_B))
         {
-        case eKeyStatus::LONG_PRESSED:
-            Debug_println("OTHER_KEY: LONG PRESS");
+        case eKeyStatus::LONG_PRESS:
+            Debug_println("BUTTON_B: LONG PRESS");
+            Debug_println("ACTION: Reboot");
             fnSystem.reboot();
             break;
-        case eKeyStatus::SHORT_PRESSED:
-            Debug_println("OTHER_KEY: SHORT PRESS");
-            #ifdef DEBUG
-            _debug_print_tasks();
-            #endif
+
+        case eKeyStatus::SHORT_PRESS:
+            Debug_println("BUTTON_B: SHORT PRESS");
             break;
+
+        case eKeyStatus::SINGLE_TAP:
+            // Debug_println("BUTTON_B: SINGLE-TAP");
+            break;
+
+        case eKeyStatus::DOUBLE_TAP:
+            Debug_println("BUTTON_B: DOUBLE-TAP");
+            fnSystem.debug_print_tasks();
+            break;
+
         default:
             break;
-        } // OTHER KEY
+        } // BUTTON_B
 
     }
 }
