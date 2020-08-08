@@ -1,5 +1,4 @@
 #include "driver/timer.h"
-//#include "esp32-hal-psram.h"
 
 #include "../../include/debug.h"
 #include "../hardware/fnSystem.h"
@@ -14,27 +13,26 @@
 #include "networkProtocolTNFS.h"
 #include "networkProtocolFTP.h"
 
-volatile bool interruptRateLimit = true;
-//hw_timer_t *rateTimer = NULL;
-esp_timer_handle_t rateTimerHandle = nullptr; // Used a different name just to be clear
+volatile bool interruptEnabled = false;
+volatile bool interruptProceed = false;
+esp_timer_handle_t rateTimerHandle = nullptr;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
 // Latch the rate limiting flag
 // The esp_timer_* functions don't mention requiring the callback being in IRAM, so removing that
-//void IRAM_ATTR onTimer()
 void onTimer(void *info)
 {
     portENTER_CRITICAL_ISR(&timerMux);
-    interruptRateLimit = true;
+    interruptProceed = true;
     portEXIT_CRITICAL_ISR(&timerMux);
 }
 
 string remove_spaces(const string &s)
 {
-  int last = s.size() - 1;
-  while (last >= 0 && s[last] == ' ')
-    --last;
-  return s.substr(0, last + 1);
+    int last = s.size() - 1;
+    while (last >= 0 && s[last] == ' ')
+        --last;
+    return s.substr(0, last + 1);
 }
 
 /**
@@ -45,11 +43,6 @@ bool sioNetwork::allocate_buffers()
     // NOTE: ps_calloc() results in heap corruption, at least in Arduino-ESP.
     // TODO: try using heap_caps_calloc()
 #ifdef BOARD_HAS_PSRAM
-    /*
-    rx_buf = (uint8_t *)ps_calloc(INPUT_BUFFER_SIZE, 1);
-    tx_buf = (uint8_t *)ps_calloc(OUTPUT_BUFFER_SIZE, 1);
-    sp_buf = (uint8_t *)ps_calloc(SPECIAL_BUFFER_SIZE, 1);
-*/
     rx_buf = (uint8_t *)heap_caps_malloc(INPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     tx_buf = (uint8_t *)heap_caps_malloc(OUTPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     sp_buf = (uint8_t *)heap_caps_malloc(SPECIAL_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
@@ -104,6 +97,7 @@ bool sioNetwork::open_protocol()
     }
     else if (urlParser->scheme == "HTTPS")
     {
+        sio_enable_interrupts(false);
         protocol = new networkProtocolHTTP();
         return true;
     }
@@ -167,7 +161,7 @@ bool sioNetwork::parseURL()
         deviceSpec = prefix + string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
     else
         deviceSpec = string(filespecBuf).substr(string(filespecBuf).find(":") + 1);
-    
+
     deviceSpec = remove_spaces(deviceSpec);
 
     urlParser = EdUrlParser::parseUrl(deviceSpec);
@@ -181,10 +175,21 @@ void sioNetwork::sio_open()
 {
     Debug_println("sioNetwork::sio_open()");
 
-    aux1 = cmdFrame.aux1;
-    aux2 = cmdFrame.aux2;
+    // Delete existing timer
+    if (rateTimerHandle != nullptr)
+    {
+        Debug_println("Deleting existing rateTimer");
+        esp_timer_stop(rateTimerHandle);
+        esp_timer_delete(rateTimerHandle);
+        rateTimerHandle = nullptr;
+    }
+    interruptEnabled = true;
 
     sio_ack();
+
+    aux1 = cmdFrame.aux1;
+    aux2 = cmdFrame.aux2;
+    aux2 |= trans_aux2;
 
     if (protocol != nullptr)
     {
@@ -224,10 +229,10 @@ void sioNetwork::sio_open()
         return;
     }
 
-    if (!protocol->open(urlParser, &cmdFrame))
+    if (!protocol->open(urlParser, &cmdFrame, sio_enable_interrupts))
     {
         Debug_printf("Protocol unable to make connection.");
-        protocol->close();
+        protocol->close(sio_enable_interrupts);
         delete protocol;
         protocol = nullptr;
         status_buf.error = 170;
@@ -235,13 +240,8 @@ void sioNetwork::sio_open()
         return;
     }
 
-    if (rateTimerHandle != nullptr)
-    {
-        Debug_println("Deleting rateTimer");
-        esp_timer_stop(rateTimerHandle);
-        esp_timer_delete(rateTimerHandle);
-        rateTimerHandle = nullptr;
-    }
+    Debug_print("Creating new rateTimer\n");
+    interruptProceed = true;
 
     esp_timer_create_args_t tcfg;
     tcfg.arg = nullptr;
@@ -252,6 +252,14 @@ void sioNetwork::sio_open()
     esp_timer_start_periodic(rateTimerHandle, 100000); // 100ms
 
     sio_complete();
+}
+
+void sioNetwork::sio_enable_interrupts(bool enable)
+{
+    Debug_printf("sio_enable_interrupts: %s\n", enable ? "true":"false");
+    portENTER_CRITICAL(&timerMux);
+    interruptEnabled = enable;
+    portEXIT_CRITICAL(&timerMux);
 }
 
 void sioNetwork::sio_close()
@@ -267,7 +275,7 @@ void sioNetwork::sio_close()
         return;
     }
 
-    if (protocol->close())
+    if (protocol->close(sio_enable_interrupts))
         sio_complete();
     else
         sio_error();
@@ -439,7 +447,6 @@ void sioNetwork::sio_status()
 
         status_buf.rawData[2] = fnWiFi.connected() ? 1 : 0;
         err = false;
-        // sio_status_local();
     }
     else
     {
@@ -547,7 +554,7 @@ void sioNetwork::sio_special()
         if (!protocol->rename(urlParser, &cmdFrame))
         {
             Debug_printf("Protocol unable to perform rename.");
-            protocol->close();
+            protocol->close(sio_enable_interrupts);
             delete protocol;
             protocol = nullptr;
             status_buf.error = 170;
@@ -556,7 +563,7 @@ void sioNetwork::sio_special()
         }
 
         sio_complete();
-        protocol->close();
+        protocol->close(sio_enable_interrupts);
         delete protocol;
         protocol = nullptr;
     }
@@ -591,7 +598,7 @@ void sioNetwork::sio_special()
         if (!protocol->del(urlParser, &cmdFrame))
         {
             Debug_printf("Protocol unable to perform delete.");
-            protocol->close();
+            protocol->close(sio_enable_interrupts);
             delete protocol;
             protocol = nullptr;
             status_buf.error = 170;
@@ -600,27 +607,48 @@ void sioNetwork::sio_special()
         }
 
         sio_complete();
-        protocol->close();
+        protocol->close(sio_enable_interrupts);
         delete protocol;
         protocol = nullptr;
     }
     else if (cmdFrame.comnd == 0x25) // POINT
     {
         sio_ack();
-        sio_to_peripheral(note_pos.rawData, 3);
-        Debug_printf("Point Request: %ld\n",note_pos);
+        sio_to_peripheral(tx_buf, 3);
+        Debug_printf("Point Request: %ld\n", tx_buf);
 
         if (protocol == nullptr)
         {
             status_buf.error = 166; // Invalid POINT
             sio_error();
         }
-        else if (!protocol->point(urlParser,&cmdFrame))
+        else if (protocol->point(tx_buf) != 0)
         {
             status_buf.error = 166; // Invalid POINT
-            sio_error(); 
+            sio_error();
         }
-        sio_complete();
+        else
+        {
+            sio_complete();
+        }
+    }
+    else if (cmdFrame.comnd == 0x26) // NOTE
+    {
+        bool e = false;
+
+        sio_ack();
+
+        if (protocol == nullptr)
+        {
+            status_buf.error = 166; // Invalid NOTE
+            e = true;
+        }
+        else if (!protocol->note(rx_buf))
+        {
+            status_buf.error = 166; // Invalid NOTE
+            e = true;
+        }
+        sio_to_computer(rx_buf, 3, e);
     }
     else if (cmdFrame.comnd == 0x2A) // MKDIR
     {
@@ -653,7 +681,7 @@ void sioNetwork::sio_special()
         if (!protocol->mkdir(urlParser, &cmdFrame))
         {
             Debug_printf("Protocol unable to perform mkdir.");
-            protocol->close();
+            protocol->close(sio_enable_interrupts);
             delete protocol;
             protocol = nullptr;
             status_buf.error = 170;
@@ -662,7 +690,7 @@ void sioNetwork::sio_special()
         }
 
         sio_complete();
-        protocol->close();
+        protocol->close(sio_enable_interrupts);
         delete protocol;
         protocol = nullptr;
     }
@@ -697,7 +725,7 @@ void sioNetwork::sio_special()
         if (!protocol->rmdir(urlParser, &cmdFrame))
         {
             Debug_printf("Protocol unable to perform rmdir.");
-            protocol->close();
+            protocol->close(sio_enable_interrupts);
             delete protocol;
             protocol = nullptr;
             status_buf.error = 170;
@@ -706,7 +734,7 @@ void sioNetwork::sio_special()
         }
 
         sio_complete();
-        protocol->close();
+        protocol->close(sio_enable_interrupts);
         delete protocol;
         protocol = nullptr;
     }
@@ -847,7 +875,7 @@ void sioNetwork::sio_special_00()
         break;
     case 0x10: // Ack interrupt
         sio_complete();
-        interruptRateLimit = true;
+        interruptProceed = true;
         break;
     }
 }
@@ -922,35 +950,40 @@ void sioNetwork::sio_special_protocol_80()
 
 void sioNetwork::sio_special_set_translation()
 {
-    aux1 = cmdFrame.aux1;
-    aux2 = cmdFrame.aux2;
+    trans_aux2 = cmdFrame.aux2;
     sio_complete();
 }
 
 void sioNetwork::sio_assert_interrupts()
 {
-    if (protocol != nullptr)
+    if (interruptEnabled == true && protocol != nullptr)
     {
         protocol->status(status_buf.rawData); // Prime the status buffer
-        if (((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status)) && (interruptRateLimit == true))
+        if(interruptProceed == true)
         {
-            //Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
-            fnSystem.digital_write(PIN_PROC, DIGI_LOW);
-            fnSystem.delay_microseconds(50);
-            fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
+            if ((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status))
+            {
+                //Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
+                fnSystem.digital_write(PIN_PROC, DIGI_LOW);
+                fnSystem.delay_microseconds(50);
+                fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
 
-            // The timer_* (as opposed to esp_timer_*) functions allow for much more granular control, including
-            // pausing and restarting the timer.  Would be nice here, but it's also a lot more work to use...
-            portENTER_CRITICAL(&timerMux);
-            interruptRateLimit = false;
-            portEXIT_CRITICAL(&timerMux);
+                // The timer_* (as opposed to esp_timer_*) functions allow for much more granular control, including
+                // pausing and restarting the timer.  Would be nice here, but it's also a lot more work to use...
+                portENTER_CRITICAL(&timerMux);
+                interruptProceed = false;
+                portEXIT_CRITICAL(&timerMux);
+            }
         }
         previous_connection_status = status_buf.connection_status;
     }
 }
 
-void sioNetwork::sio_process()
+void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 {
+    cmdFrame.commanddata = commanddata;
+    cmdFrame.checksum = checksum;
+
     Debug_printf("sioNetwork::sio_process 0x%02hx '%c': 0x%02hx, 0x%02hx\n",
                  cmdFrame.comnd, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
 

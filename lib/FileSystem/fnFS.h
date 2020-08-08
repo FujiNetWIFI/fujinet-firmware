@@ -12,6 +12,8 @@
 
 #define MAX_PATHLEN 256
 
+#define FNFS_INVALID_DIRPOS 0xFFFF
+
 enum fsType
 {
     FSTYPE_SPIFFS = 0,
@@ -68,9 +70,14 @@ public:
 
     virtual bool rename(const char* pathFrom, const char* pathTo) = 0;
 
+    // By default, a directory should be sorted and special/hidden items should be filtered out
     virtual bool dir_open(const char *path) = 0;
     virtual fsdir_entry_t *dir_read() = 0;
     virtual void dir_close() = 0;
+    // Returns current position in directory stream or FNFS_INVALID_DIRPOS on error
+    virtual uint16_t dir_tell() = 0;
+    // Sets current position in directory stream. Returns false on error.
+    virtual bool dir_seek(uint16_t position) = 0;
 };
 
 #endif //_FN_FS_

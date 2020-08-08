@@ -26,7 +26,7 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     if(host == nullptr || host[0] == '\0')
         return false;
     
-    strncpy(_mountinfo.hostname, host, sizeof(_mountinfo.hostname));
+    strlcpy(_mountinfo.hostname, host, sizeof(_mountinfo.hostname));
 
     // Try to resolve the hostname and store that so we don't have to keep looking it up
     _mountinfo.host_ip = get_ip4_addr_by_name(host);
@@ -42,17 +42,17 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     _mountinfo.session = TNFS_INVALID_SESSION;
 
     if(mountpath != nullptr)
-        strncpy(_mountinfo.mountpath, mountpath, sizeof(_mountinfo.mountpath));
+        strlcpy(_mountinfo.mountpath, mountpath, sizeof(_mountinfo.mountpath));
     else
         _mountinfo.mountpath[0] = '\0';
 
     if(userid != nullptr)
-        strncpy(_mountinfo.user, userid, sizeof(_mountinfo.user));
+        strlcpy(_mountinfo.user, userid, sizeof(_mountinfo.user));
     else
         _mountinfo.user[0] = '\0';
 
     if(password != nullptr)
-        strncpy(_mountinfo.password, password, sizeof(_mountinfo.password));
+        strlcpy(_mountinfo.password, password, sizeof(_mountinfo.password));
     else
         _mountinfo.password[0] = '\0';
 
@@ -66,7 +66,7 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
         _started = false;
         return false;
     }
-    Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%hx, min_retry: %hums\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
+    Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%04hx, min_retry: %hums\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
 
     // Register a new VFS driver to handle this connection
     if(vfs_tnfs_register(_mountinfo, _basepath, sizeof(_basepath)) != 0)
@@ -130,17 +130,17 @@ bool FileSystemTNFS::dir_open(const char * path)
     if(!_started)
         return false;
 
-    if(TNFS_RESULT_SUCCESS == tnfs_opendir(&_mountinfo, path))
+    if(TNFS_RESULT_SUCCESS == tnfs_opendirx(&_mountinfo, path))
     {
         // Save the directory for later use, making sure it starts and ends with '/''
         if(path[0] != '/')
         {
             _current_dirpath[0] = '/';
-            strncpy(_current_dirpath + 1, path, sizeof(_current_dirpath)-1);
+            strlcpy(_current_dirpath + 1, path, sizeof(_current_dirpath)-1);
         } 
         else
         {
-            strncpy(_current_dirpath, path, sizeof(_current_dirpath));
+            strlcpy(_current_dirpath, path, sizeof(_current_dirpath));
         }
         int l = strlen(_current_dirpath);
         if((l > 0) && (l < sizeof(_current_dirpath) -2) && (_current_dirpath[l -1] != '/'))
@@ -160,35 +160,17 @@ fsdir_entry * FileSystemTNFS::dir_read()
     if(!_started)
         return nullptr;
 
-    // Skip "." and ".."; server returns EINVAL on trying to stat ".."
-    bool skip;
-    do 
-    {
-        _direntry.filename[0] = '\0';
-        if(TNFS_RESULT_SUCCESS != tnfs_readdir(&_mountinfo, _direntry.filename, sizeof(_direntry.filename)))
-            return nullptr;
-
-        skip = (_direntry.filename[0] == '.' && _direntry.filename[1] == '\0') || 
-                        (_direntry.filename[0] == '.' && _direntry.filename[1] == '.' && _direntry.filename[2] == '\0');
-    } while (skip);
-
     tnfsStat fstat;
 
-    // Combine the current directory path with the read filename before trying to stat()...
-    char fullpath[TNFS_MAX_FILELEN];
-    strncpy(fullpath, _current_dirpath, sizeof(fullpath));
-    strncat(fullpath, _direntry.filename, sizeof(fullpath) - strlen(fullpath) - 1);
-    // Debug_printf("Current directory stored: \"%s\", current filepath: \"%s\", combined: \"%s\"\n", _current_dirpath, _direntry.filename, fullpath);
+    _direntry.filename[0] = '\0';
+    if(TNFS_RESULT_SUCCESS != tnfs_readdirx(&_mountinfo, &fstat, _direntry.filename, sizeof(_direntry.filename)))
+        return nullptr;
 
-    if(tnfs_stat(&_mountinfo, &fstat, fullpath) == TNFS_RESULT_SUCCESS)
-    {
-        _direntry.size = fstat.filesize;
-        _direntry.modified_time = fstat.m_time;
-        _direntry.isDir = fstat.isDir;
+    _direntry.size = fstat.filesize;
+    _direntry.modified_time = fstat.m_time;
+    _direntry.isDir = fstat.isDir;
 
-        return &_direntry;
-    }
-    return nullptr;
+    return &_direntry;
 }
 
 void FileSystemTNFS::dir_close()
@@ -197,4 +179,24 @@ void FileSystemTNFS::dir_close()
         return;
     tnfs_closedir(&_mountinfo);
     _current_dirpath[0] = '\0';
+}
+
+uint16_t FileSystemTNFS::dir_tell()
+{
+    if(!_started)
+        return FNFS_INVALID_DIRPOS;;
+
+    uint16_t position;
+    if(0 != tnfs_telldir(&_mountinfo, &position))
+        position = FNFS_INVALID_DIRPOS;
+
+    return position;
+}
+
+bool FileSystemTNFS::dir_seek(uint16_t position)
+{
+    if(!_started)
+        return false;
+
+    return 0 == tnfs_seekdir(&_mountinfo, position);
 }

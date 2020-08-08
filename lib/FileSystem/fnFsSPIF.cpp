@@ -27,7 +27,7 @@ fsdir_entry * FileSystemSPIFFS::dir_read()
     d = readdir(_dir);
     if(d != nullptr)
     {
-        strncpy(_direntry.filename, d->d_name, sizeof(_direntry.filename));
+        strlcpy(_direntry.filename, d->d_name, sizeof(_direntry.filename));
 
         _direntry.isDir = (d->d_type & DT_DIR) ? true : false;
 
@@ -55,6 +55,16 @@ void FileSystemSPIFFS::dir_close()
 {
     closedir(_dir);
     _dir = nullptr;
+}
+
+uint16_t FileSystemSPIFFS::dir_tell()
+{
+    return 0;
+}
+
+bool FileSystemSPIFFS::dir_seek(uint16_t)
+{
+    return false;
 }
 
 FILE * FileSystemSPIFFS::file_open(const char* path, const char* mode)
@@ -121,7 +131,7 @@ bool FileSystemSPIFFS::start()
         return true;
 
     // Set our basepath
-    strncpy(_basepath, "/spiffs", sizeof(_basepath));
+    strlcpy(_basepath, "/spiffs", sizeof(_basepath));
 
     esp_vfs_spiffs_conf_t conf = {
       .base_path = _basepath,

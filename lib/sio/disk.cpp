@@ -1,9 +1,13 @@
-#include "../../include/debug.h"
 #include <memory.h>
 #include <string.h>
-#include "fnSystem.h"
-#include "disk.h"
+
+//#include "fnSystem.h"
+#include "../../include/debug.h"
 #include "../utils/utils.h"
+
+#include "disk.h"
+#include "diskTypeAtr.h"
+#include "diskTypeXex.h"
 
 #define SIO_DISKCMD_FORMAT 0x21
 #define SIO_DISKCMD_FORMAT_MEDIUM 0x22
@@ -23,145 +27,50 @@
 #define SIO_DISKCMD_PERCOM_READ 0x4E
 #define SIO_DISKCMD_PERCOM_WRITE 0x4F
 
-int command_frame_counter = 0;
-
-/**
-   Convert # of paragraphs to sectors
-   para = # of paragraphs returned from ATR header
-   ss = sector size returned from ATR header
-*/
-unsigned short para_to_num_sectors(unsigned short para, unsigned char para_hi, unsigned short ss)
-{
-    unsigned long tmp = para_hi << 16;
-    tmp |= para;
-
-    unsigned short num_sectors = ((tmp << 4) / ss);
-
-#ifdef DEBUG_VERBOSE
-    Debug_printf("ATR Header\n");
-    Debug_printf("----------\n");
-    Debug_printf("num paragraphs: $%04x\n", para);
-    Debug_printf("Sector Size: %d\n", ss);
-    Debug_printf("num sectors: %d\n", num_sectors);
-#endif
-
-    // Adjust sector size for the fact that the first three sectors are 128 bytes
-    if (ss == 256)
-        num_sectors += 2;
-
-    return num_sectors;
-}
-
-unsigned long num_sectors_to_para(unsigned short num_sectors, unsigned short sector_size)
-{
-    unsigned long file_size = (num_sectors * sector_size);
-
-    // Subtract bias for the first three sectors
-    if (sector_size > 128)
-        file_size -= (3 * 128);
-
-    return file_size >> 4;
-}
-
-// Read
+// Read disk data and send to computer
 void sioDisk::sio_read()
 {
     Debug_print("disk READ\n");
 
-    unsigned short sectorNum = (256 * cmdFrame.aux2) + cmdFrame.aux1;
-    unsigned long offset = sector_offset(sectorNum, sectorSize);
-    unsigned long ss = sector_size(sectorNum, sectorSize);
-    bool err = false;
-
-    // Clear sector buffer
-    memset(sector, 0, sizeof(sector));
-
-    __BEGIN_IGNORE_TYPELIMITS
-    if (sectorNum <= UNCACHED_REGION)
+    if (_disk == nullptr)
     {
-        if (sectorNum != (lastSectorNum + 1))
-            //err = !(_file->seek(offset));
-            err = fseek(_file, offset, SEEK_SET) != 0;
+        sio_error();
+        return;
+    }
 
-        if (!err)
-            //err = (_file->read(sector, ss) != ss);
-            err = fread(sector, 1, ss, _file) != ss;
-    }
-    else // Cached
-    {
-        // implement caching.
-    }
-    __END_IGNORE_TYPELIMITS
+    uint16_t readcount;
+
+    bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
 
     // Send result to Atari
-    sio_to_computer((uint8_t *)&sector, ss, err);
-    lastSectorNum = sectorNum;
+    sio_to_computer(_disk->_sectorbuff, readcount, err);
 }
 
-// write for W & P commands
+// Write disk data from computer
 void sioDisk::sio_write(bool verify)
 {
     Debug_print("disk WRITE\n");
 
-    unsigned short sectorNum = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
-    long offset = sector_offset(sectorNum, sectorSize);
-    unsigned short ss = sector_size(sectorNum, sectorSize);
-    uint8_t ck;
-
-    memset(sector, 0, sizeof(sector));
-
-    ck = sio_to_peripheral(sector, ss);
-
-    if (ck != sio_checksum(sector, ss))
+    if (_disk != nullptr)
     {
-        sio_error();
-        return;
-    }
+        uint16_t sectorNum = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+        uint16_t sectorSize = _disk->sector_size(sectorNum);
 
-    if (sectorNum != (lastSectorNum + 1))
-    {
-        if (fseek(_file, offset, SEEK_SET) != 0) //!_file->seek(offset))
+        memset(_disk->_sectorbuff, 0, DISK_SECTORBUF_SIZE);
+
+        uint8_t ck = sio_to_peripheral(_disk->_sectorbuff, sectorSize);
+
+        if (ck == sio_checksum(_disk->_sectorbuff, sectorSize))
         {
-            sio_error();
-            return;
+            if (_disk->write(sectorNum, verify) == false)
+            {
+                sio_complete();
+                return;
+            }
         }
     }
 
-    if (fwrite(sector, 1, ss, _file) != ss) //_file->write(sector, ss) != ss)
-    {
-        sio_error();
-        lastSectorNum = 65535; // invalidate seek cache.
-        return;
-    }
-
-    fflush(_file); //_file->flush();
-
-    if (verify)
-    {
-        if (fseek(_file, offset, SEEK_SET) != 0) //!_file->seek(offset))
-        {
-            sio_error();
-            return;
-        }
-
-        if (fread(sector, 1, ss, _file) != ss) //_file->read(sector, ss) != ss)
-        {
-            sio_error();
-            return;
-        }
-
-        if (sio_checksum(sector, ss) != ck)
-        {
-            sio_error();
-            return;
-        }
-    }
-
-    Debug_println("disk WRITE complted without error");
-
-    sio_complete();
-
-    lastSectorNum = sectorNum;
+    sio_error();
 }
 
 // Status
@@ -169,336 +78,180 @@ void sioDisk::sio_status()
 {
     Debug_print("disk STATUS\n");
 
-    uint8_t status[4] = {0x10, 0xDF, 0xFE, 0x00};
+    /* STATUS BYTES
+        #0 - Drive status
+            Bit 7 = 1: 26 sectors per track (1050/XF551 drive)
+            Bit 6 = 1: Double sided disk (XF551 drive)
+            Bit 5 = 1: Double density (XF551 drive)
+            Bit 4 = 1: Motor running (always 0 on XF551)
 
-    if (sectorSize == 256)
-        status[0] |= 0x20;
+            Bit 3 = 1: Failed due to write protected disk
+            Bit 2 = 1: Unsuccessful PUT operation
+            Bit 1 = 1: Receive error on last data frame (XF551)
+            Bit 0 = 1: REceive error on last command frame (XF551)
 
-    // todo:
-    if (percomBlock.sectors_per_trackL == 26)
-        status[0] |= 0x80;
+        #1 - Floppy drive controller status (inverted from FDC)
+            Bit 7 = 0: Not ready (1050 drive)
+            Bit 6 = 0: Write protect error
+            Bit 5 = 0: Deleted sector (sector marked as deleted in sector header)
+            Bit 4 = 0: Record not found (missing sector)
 
-    sio_to_computer(status, sizeof(status), false); // command always completes.
+            Bit 3 = 0: CRC error
+            Bit 2 = 0: Lost data
+            Bit 1 = 0: Data pending
+            Bit 0 = 0: Busy
+
+        #2 - Default timeout
+              810 drive: $E0 = 224 vertical blanks
+            XF551 drive: $FE
+
+        #3 - Unused ($00)    
+    */
+    // TODO: Why $DF for second byte? 
+    // TODO: Set bit 4 of drive status and bit 6 of FDC status on read-only disk
+    uint8_t _status[4] = {0x00, 0xFF, 0xFE, 0x00};
+
+    if (_disk != nullptr)
+        _disk->status(_status);
+
+    sio_to_computer(_status, sizeof(_status), false);
 }
 
-// fake disk format
+// Disk format
 void sioDisk::sio_format()
 {
     Debug_print("disk FORMAT\n");
 
-    // Populate bad sector map (no bad sectors)
-    for (int i = 0; i < sectorSize; i++)
-        sector[i] = 0;
+    if (_disk == nullptr)
+    {
+        sio_error();
+        return;
+    }
 
-    sector[0] = 0xFF; // no bad sectors.
-    sector[1] = 0xFF;
+    uint16_t responsesize;
+    bool err = _disk->format(&responsesize);
 
     // Send to computer
-    sio_to_computer((uint8_t *)sector, sectorSize, false);
-
-    Debug_println("We faked a format");
+    sio_to_computer(_disk->_sectorbuff, responsesize, err);
 }
 
-// ****************************************************************************************
-
-/**
-   Update PERCOM block from the total # of sectors.
-*/
-void sioDisk::derive_percom_block(unsigned short numSectors)
-{
-    // Start with 40T/1S 720 Sectors, sector size passed in
-    percomBlock.num_tracks = 40;
-    percomBlock.step_rate = 1;
-    percomBlock.sectors_per_trackM = 0;
-    percomBlock.sectors_per_trackL = 18;
-    percomBlock.num_sides = 0;
-    percomBlock.density = 0; // >128 bytes = MFM
-    percomBlock.sector_sizeM = (sectorSize == 256 ? 0x01 : 0x00);
-    percomBlock.sector_sizeL = (sectorSize == 256 ? 0x00 : 0x80);
-    percomBlock.drive_present = 255;
-    percomBlock.reserved1 = 0;
-    percomBlock.reserved2 = 0;
-    percomBlock.reserved3 = 0;
-
-    if (numSectors == 1040) // 5/25" 1050 density
-    {
-        percomBlock.sectors_per_trackM = 0;
-        percomBlock.sectors_per_trackL = 26;
-        percomBlock.density = 4; // 1050 density is MFM, override.
-    }
-    else if (numSectors == 720 && sectorSize == 256) // 5.25" SS/DD
-    {
-        percomBlock.density = 4; // 1050 density is MFM, override.
-    }
-    else if (numSectors == 1440) // 5.25" DS/DD
-    {
-        percomBlock.num_sides = 1;
-        percomBlock.density = 4; // 1050 density is MFM, override.
-    }
-    else if (numSectors == 2880) // 5.25" DS/QD
-    {
-        percomBlock.num_sides = 1;
-        percomBlock.num_tracks = 80;
-        percomBlock.density = 4; // 1050 density is MFM, override.
-    }
-    else if (numSectors == 2002 && sectorSize == 128) // SS/SD 8"
-    {
-        percomBlock.num_tracks = 77;
-        percomBlock.density = 0; // FM density
-    }
-    else if (numSectors == 2002 && sectorSize == 256) // SS/DD 8"
-    {
-        percomBlock.num_tracks = 77;
-        percomBlock.density = 4; // MFM density
-    }
-    else if (numSectors == 4004 && sectorSize == 128) // DS/SD 8"
-    {
-        percomBlock.num_tracks = 77;
-        percomBlock.density = 0; // FM density
-    }
-    else if (numSectors == 4004 && sectorSize == 256) // DS/DD 8"
-    {
-        percomBlock.num_sides = 1;
-        percomBlock.num_tracks = 77;
-        percomBlock.density = 4; // MFM density
-    }
-    else if (numSectors == 5760) // 1.44MB 3.5" High Density
-    {
-        percomBlock.num_sides = 1;
-        percomBlock.num_tracks = 80;
-        percomBlock.sectors_per_trackL = 36;
-        percomBlock.density = 8; // I think this is right.
-    }
-    else
-    {
-        // This is a custom size, one long track.
-        percomBlock.num_tracks = 1;
-        percomBlock.sectors_per_trackM = numSectors >> 8;
-        percomBlock.sectors_per_trackL = numSectors & 0xFF;
-    }
-
-#ifdef DEBUG_VERBOSE
-    Debug_printf("Percom block dump for newly mounted device slot %d\n", deviceSlot);
-    dump_percom_block(deviceSlot);
-#endif
-}
-
-/**
-   Read percom block
-*/
+// Read percom block
 void sioDisk::sio_read_percom_block()
 {
-// unsigned char deviceSlot = cmdFrame.devic - 0x31;
-#ifdef DEBUG_VERBOSE
-    dump_percom_block();
+    Debug_print("disk READ PERCOM BLOCK\n");
+
+    if (_disk == nullptr)
+    {
+        sio_error();
+        return;
+    }
+
+#ifdef VERBOSE_DISK
+    _disk->dump_percom_block();
 #endif
-    sio_to_computer((uint8_t *)&percomBlock, 12, false);
-    //SIO_UART.flush();
-    fnUartSIO.flush();
+    sio_to_computer((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
 }
 
-/**
-   Write percom block
-*/
+// Write percom block
 void sioDisk::sio_write_percom_block()
 {
-    // unsigned char deviceSlot = cmdFrame.devic - 0x31;
-    sio_to_peripheral((uint8_t *)&percomBlock, 12);
-#ifdef DEBUG_VERBOSE
-    dump_percom_block(deviceSlot);
+    Debug_print("disk WRITE PERCOM BLOCK\n");
+
+    if (_disk == nullptr)
+    {
+        sio_error();
+        return;
+    }
+
+    sio_to_peripheral((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock));
+#ifdef VERBOSE_DISK
+    _disk->dump_percom_block();
 #endif
     sio_complete();
 }
 
-/**
-   Dump PERCOM block
+/* Mount Disk
+   We determine the type of image based on the filename extension.
+   If the disk_type value passed is not DISKTYPE_UNKNOWN then that's used instead.
+   If filename has no extension or is NULL and disk_type is DISKTYPE_UNKOWN,
+   then we assume it's DISKTYPE_ATR.
+   Return value is DISKTYPE_UNKNOWN in case of failure.
 */
-void sioDisk::dump_percom_block()
-{
-#ifdef DEBUG_VERBOSE
-    Debug_printf("Percom Block Dump\n");
-    Debug_printf("-----------------\n");
-    Debug_printf("Num Tracks: %d\n", percomBlock.num_tracks);
-    Debug_printf("Step Rate: %d\n", percomBlock.step_rate);
-    Debug_printf("Sectors per Track: %d\n", (percomBlock.sectors_per_trackM * 256 + percomBlock.sectors_per_trackL));
-    Debug_printf("Num Sides: %d\n", percomBlock.num_sides);
-    Debug_printf("Density: %d\n", percomBlock.density);
-    Debug_printf("Sector Size: %d\n", (percomBlock.sector_sizeM * 256 + percomBlock.sector_sizeL));
-    Debug_printf("Drive Present: %d\n", percomBlock.drive_present);
-    Debug_printf("Reserved1: %d\n", percomBlock.reserved1);
-    Debug_printf("Reserved2: %d\n", percomBlock.reserved2);
-    Debug_printf("Reserved3: %d\n", percomBlock.reserved3);
-#endif
-}
-
-// mount a disk file
-void sioDisk::mount(FILE *f)
+disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disktype_t disk_type)
 {
     Debug_print("disk MOUNT\n");
 
-    unsigned short newss;
-    unsigned short num_para;
-    unsigned char num_para_hi;
-    unsigned short num_sectors;
-    uint8_t buf[5];
-
-    // Get file and sector size from header
-
-    if (fseek(f, 2, SEEK_SET) < 0)
+    // Destroy any existing DiskType
+    if (_disk != nullptr)
     {
-        Debug_println("failed seeking to header on disk image");
-        return;
+        delete _disk;
+        _disk = nullptr;
     }
-    if (fread(buf, 1, 5, f) != 5)
+
+    // Determine DiskType based on filename extension
+    if (disk_type == DISKTYPE_UNKNOWN && filename != nullptr)
     {
-        Debug_println("failed reading 5 header bytes");
-        return;
-    }
-    num_para = (256 * buf[1]) + buf[0];
-    newss = (256 * buf[3]) + buf[2];
-    num_para_hi = buf[4];
-    sectorSize = newss;
-    num_sectors = para_to_num_sectors(num_para, num_para_hi, newss);
-    derive_percom_block(num_sectors);
-    _file = f;
-    lastSectorNum = 65535; // Invalidate seek cache.
-
-    Debug_println("mounted ATR to Disk:");
-    Debug_printf("num_para: %d\n", num_para);
-    Debug_printf("sectorSize: %d\n", newss);
-    Debug_printf("num_sectors: %d\n", num_sectors);
-}
-
-// Invalidate disk cache
-void sioDisk::invalidate_cache()
-{
-    // firstCachedSector = 65535;
-}
-
-// mount a disk file
-void sioDisk::umount()
-{
-    Debug_printf("disk UNMOUNT\n");
-
-    if (_file != nullptr)
-    {
-        fclose(_file);
-        _file = nullptr;
-    }
-}
-
-bool sioDisk::write_blank_atr(FILE *f, unsigned short sectorSize, unsigned short numSectors)
-{
-    union {
-        struct
+        
+        int l = strlen(filename);
+        if(l > 4 && filename[l - 4] == '.')
         {
-            unsigned char magic1;
-            unsigned char magic2;
-            unsigned char filesizeH;
-            unsigned char filesizeL;
-            unsigned char secsizeH;
-            unsigned char secsizeL;
-            unsigned char filesizeHH;
-            unsigned char res0;
-            unsigned char res1;
-            unsigned char res2;
-            unsigned char res3;
-            unsigned char res4;
-            unsigned char res5;
-            unsigned char res6;
-            unsigned char res7;
-            unsigned char flags;
-        };
-        unsigned char rawData[16];
-    } atrHeader;
-
-    unsigned long num_para = num_sectors_to_para(numSectors, sectorSize);
-    unsigned long offset = 0;
-
-    // Write header
-    atrHeader.magic1 = 0x96;
-    atrHeader.magic2 = 0x02;
-    atrHeader.filesizeH = num_para & 0xFF;
-    atrHeader.filesizeL = (num_para & 0xFF00) >> 8;
-    atrHeader.filesizeHH = (num_para & 0xFF0000) >> 16;
-    atrHeader.secsizeH = sectorSize & 0xFF;
-    atrHeader.secsizeL = sectorSize >> 8;
-
-    Debug_println("Write header to ATR");
-
-    offset = fwrite(atrHeader.rawData, 1, sizeof(atrHeader.rawData), f);
-
-    // Write first three 128 uint8_t sectors
-    memset(sector, 0x00, sizeof(sector));
-
-    Debug_printf("Write first three sectors\n");
-
-    for (unsigned char i = 0; i < 3; i++)
-    {
-        size_t out = fwrite(sector, 1, 128, f); //f->write(sector, 128);
-        if (out != 128)
-        {
-            Debug_printf("Error writing sector %hhu\n", i);
-            return false;
+            // Check the last 3 characters of the string
+            l = l - 3;
+            if(strcasecmp(filename + l, "COM") == 0) {
+                disk_type = DISKTYPE_XEX;
+            } else if(strcasecmp(filename + l, "XEX") == 0) {
+                disk_type = DISKTYPE_XEX;
+            } else if(strcasecmp(filename + l, "BIN") == 0) {
+                disk_type = DISKTYPE_XEX;
+            }
         }
-        offset += 128;
-        numSectors--;
     }
 
-    Debug_printf("Sparse Write the rest.\n");
-    // Write the rest of the sectors via sparse seek
-    offset += (numSectors * sectorSize) - sectorSize;
-    fseek(f, offset, SEEK_SET);
-    size_t out = fwrite(sector, 1, sectorSize, f);
-    if (out != sectorSize)
+    // Now mount based on DiskType
+    switch (disk_type)
     {
-        Debug_println("Error writing last sector");
-        return false;
+    case DISKTYPE_XEX:
+        _disk = new DiskTypeXEX();
+        return _disk->mount(f, disksize);
+    case DISKTYPE_ATR:
+    case DISKTYPE_UNKNOWN:
+    default:
+        _disk = new DiskTypeATR();
+        return _disk->mount(f, disksize);
     }
-
-    return true; //fixme - JP fixed?
 }
 
-FILE *sioDisk::file()
+// Destructor
+sioDisk::~sioDisk()
 {
-    return _file;
+    if (_disk != nullptr)
+        delete _disk;
 }
 
-/**
- * Calculate sector size
- * sectorNum - Sector # (1-65535)
- * sectorSize - Sector Size (128 or 256)
- */
-long sector_offset(unsigned short sectorNum, unsigned short sectorSize)
+// Unmount disk file
+void sioDisk::unmount()
 {
-    long offset = sectorNum;
+    Debug_print("disk UNMOUNT\n");
 
-    offset *= sectorSize;
-    offset -= sectorSize;
-    offset += 16;
-    sectorSize = (sectorNum <= 3 ? 128 : sectorSize);
-
-    // Bias adjustment for 256 bytes
-    if (sectorSize == 256)
-        offset -= 384;
-
-    return offset;
+    if (_disk != nullptr)
+        _disk->unmount();
 }
 
-/**
- * Return sector size
- * sectorNum - Sector # (1-65535)
- * sectorSize - Sector Size (128 or 256)
- */
-unsigned short sector_size(unsigned short sectorNum, unsigned short sectorSize)
+// Create blank disk
+bool sioDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
-    return (sectorNum <= 3 ? 128 : sectorSize);
+    Debug_print("disk CREATE NEW IMAGE\n");
+
+    return DiskTypeATR::create(f, sectorSize, numSectors);
 }
 
 // Process command
-void sioDisk::sio_process()
+void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
 {
-    if (_file == nullptr) // If there is no disk mounted, just return cuz there's nothing to do
+    cmdFrame.commanddata = commanddata;
+    cmdFrame.checksum = checksum;
+
+    if (_disk == nullptr || _disk->_disktype == DISKTYPE_UNKNOWN)
         return;
 
     if (device_active == false &&
@@ -531,6 +284,7 @@ void sioDisk::sio_process()
             }
             else
             {
+                Debug_print("ignoring status command\n");
                 status_wait_count--;
             }
         }

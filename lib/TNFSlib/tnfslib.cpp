@@ -1,5 +1,5 @@
-#include <string.h>
 #include <memory>
+#include <string.h>
 
 #include "tnfslib.h"
 #include "../tcpip/fnUDP.h"
@@ -17,51 +17,16 @@ const char *_tnfs_result_code_string(int resultcode);
 
 using namespace std;
 
-/*
-MOUNT - Command ID 0x00
------------------------
-
-Format:
-Standard header followed by:
-Bytes 4+: 16 bit version number, little endian, LSB = minor, MSB = major
-          NULL terminated string: mount location
-          NULL terminated string: user id (optional - NULL if no user id)
-          NULL terminated string: password (optional - NULL if no passwd)
-
-Example:
-
-To mount /home/tnfs on the server, with user id "example" and password of
-"password", using version 1.2 of the protocol:
-0x0000 0x00 0x00 0x02 0x01 /home/tnfs 0x00 example 0x00 password 0x00
-
-To mount "a:" anonymously, using version 1.2 of the protocol:
-0x0000 0x00 0x00 0x02 0x01 a: 0x00 0x00 0x00
-
-The server responds with the standard header. If the operation was successful,
-the standard header contains the session number, and the TNFS protocol
-version that the server is using following the header, followed by the
-minimum retry time in milliseconds as a little-endian 16 bit number.
-Clients must respect this minimum retry value, especially for a server
-with a slow underlying file system such as a floppy disc, to avoid swamping
-the server. A client should also never have more than one request "in flight"
-at any one time for any operation where order is important, so for example,
-if reading a file, don't send a new request to read from a given file handle
-before completing the last request.
-
-Example: A successful MOUNT command was carried out, with a server that
-supports version 2.6, and has a minimum retry time of 5 seconds (5000 ms,
-hex 0x1388). Session ID is 0xBEEF:
-
-0xBEEF 0x00 0x00 0x00 0x06 0x02 0x88 0x13
-
-Example: A failed MOUNT command with error 1F for a version 3.5 server:
-0x0000 0x00 0x00 0x1F 0x05 0x03
-*/
 /* Logs-in to the TNFS server by providing a mount path, user and password.
  Success will result in a session ID set in tnfsMountInfo.
  If the host_ip is set, it will be used in all transactions instead of hostname.
  Currently, mountpath, userid and password are ignored.
  port, timeout_ms, and max_retries may be set or left to defaults.
+ Returns:
+  0 - success
+ -1 - failure to send/receive command
+ TNFS_RESULT_FUNCTION_UNIMPLEMENTED - returned server version lower than min requried
+ other - TNFS_RESULT_*
 */
 int tnfs_mount(tnfsMountInfo *m_info)
 {
@@ -87,15 +52,15 @@ int tnfs_mount(tnfsMountInfo *m_info)
         m_info->mountpath[0] = '/';
 
     // Copy the mountpath to the payload
-    strncpy((char *)packet.payload + payload_offset, m_info->mountpath, sizeof(packet.payload) - payload_offset);
+    strlcpy((char *)packet.payload + payload_offset, m_info->mountpath, sizeof(packet.payload) - payload_offset);
     payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
 
     // Copy user
-    strncpy((char *)packet.payload + payload_offset, m_info->user, sizeof(packet.payload) - payload_offset);
+    strlcpy((char *)packet.payload + payload_offset, m_info->user, sizeof(packet.payload) - payload_offset);
     payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
 
     // Copy password
-    strncpy((char *)packet.payload + payload_offset, m_info->password, sizeof(packet.payload) - payload_offset);
+    strlcpy((char *)packet.payload + payload_offset, m_info->password, sizeof(packet.payload) - payload_offset);
     payload_offset += strlen((char *)packet.payload + payload_offset) + 1;
 
     // Make sure we have the right starting working directory
@@ -109,34 +74,20 @@ int tnfs_mount(tnfsMountInfo *m_info)
             m_info->session = TNFS_UINT16_FROM_HILOBYTES(packet.session_idh, packet.session_idl);
             m_info->server_version = TNFS_UINT16_FROM_HILOBYTES(packet.payload[2], packet.payload[1]);
             m_info->min_retry_ms = TNFS_UINT16_FROM_HILOBYTES(packet.payload[4], packet.payload[3]);
+
+            // Check server version
+            if(m_info->server_version < 0x0102)
+            {
+                Debug_printf("Server version 0x%04hx lower than minimum required\n", m_info->server_version);
+                tnfs_umount(m_info);
+                return TNFS_RESULT_FUNCTION_UNIMPLEMENTED;
+            }
         }
         return packet.payload[0];
     }
     return -1;
 }
 
-/*
-UMOUNT - Command ID 0x01
-------------------------
-
-Format:
-Standard header only, containing the connection ID to terminate, 0x00 as
-the sequence number, and 0x01 as the command.
-
-Example:
-To UMOUNT the filesystem mounted with id 0xBEEF:
-
-0xBEEF 0x00 0x01
-
-The server responds with the standard header and a return code as byte 4.
-The return code is 0x00 for OK. Example:
-
-0xBEEF 0x00 0x01 0x00
-
-On error, byte 4 is set to the error code, for example, for error 0x1F:
-
-0xBEEF 0x00 0x01 0x1F
-*/
 /* Logs off TNFS server given data (session, host) in tnfsMountInfo
 */
 int tnfs_umount(tnfsMountInfo *m_info)
@@ -158,44 +109,6 @@ int tnfs_umount(tnfsMountInfo *m_info)
     return -1;
 }
 
-/*
-OPEN - Opens a file - Command 0x29
-----------------------------------
-Format: Standard header, flags, mode, then the null terminated filename.
-Flags are a bit field.
-
-The flags are:
-TNFS_OPENMODE_READ             0x0001 // Open read only
-TNFS_OPENMODE_WRITE            0x0002 // Open write only
-TNFS_OPENMODE_READWRITE        0x0003 // Open read/write
-TNFS_OPENMODE_WRITE_APPEND     0x0008 // Append to the file if it exists (write only)
-TNFS_OPENMODE_WRITE_CREATE     0x0100 // Create the file if it doesn't exist (write only)
-TNFS_OPENMODE_WRITE_TRUNCATE   0x0200 // Truncate the file on open for writing
-TNFS_OPENMODE_CREATE_EXCLUSIVE 0x0400 // With TNFS_OPENMODE_CREATE, returns an error if the file exists
-
-The modes are the same as described by CHMOD (i.e. POSIX modes). These
-may be modified by the server process's umask. The mode only applies
-when files are created (if the O_CREAT flag is specified)
-
-Examples: 
-Open a file called "/foo/bar/baz.bas" for reading:
-
-0xBEEF 0x00 0x29 0x0001 0x0000 /foo/bar/baz.bas 0x00
-
-Open a file called "/tmp/foo.dat" for writing, creating the file but
-returning an error if it exists. Modes set are S_IRUSR, S_IWUSR, S_IRGRP
-and S_IWOTH (read/write for owner, read-only for group, read-only for
-others):
-
-0xBEEF 0x00 0x29 0x0102 0x01A4 /tmp/foo.dat 0x00
-
-The server returns the standard header and a result code in response.
-If the operation was successful, the byte following the result code
-is the file descriptor:
-
-0xBEEF 0x00 0x29 0x00 0x04 - Successful file open, file descriptor = 4
-0xBEEF 0x00 0x29 0x01 - File open failed with "permssion denied"
-*/
 /* Open a file
  open_mode: TNFS_OPENFLAG_*
  create_perms: TNFS_CREATEPERM_* (only meaningful when creating files)
@@ -249,7 +162,7 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
     int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload + offset_filename, filepath, sizeof(packet.payload) - offset_filename);
 
     // Store the path we used as part of our file handle info
-    strncpy(pFileInf->filename, (const char *)&packet.payload[offset_filename], TNFS_MAX_FILELEN);
+    strlcpy(pFileInf->filename, (const char *)&packet.payload[offset_filename], TNFS_MAX_FILELEN);
 
     Debug_printf("TNFS open file: \"%s\" (0x%04x, 0x%04x)\n", (char *)&packet.payload[offset_filename], open_mode, create_perms);
 
@@ -287,20 +200,6 @@ int tnfs_open(tnfsMountInfo *m_info, const char *filepath, uint16_t open_mode, u
     return result;
 }
 
-/*
-CLOSE - Closes a file - Command 0x23
-------------------------------------
-Closes an open file. Consists of the standard header, followed by
-the file descriptor. Example:
-
-0xBEEF 0x00 0x23 0x04 - Close file descriptor 4
-
-The server replies with the standard header followed by the return
-code:
-
-0xBEEF 0x00 0x23 0x00 - File closed.
-0xBEEF 0x00 0x23 0x06 - Operation failed with EBADF, "bad file descriptor"
-*/
 /*
  Closes an open file
  returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
@@ -391,12 +290,14 @@ int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest
             pFHI->cached_pos += bytes_provided;
             *dest_used += bytes_provided;
 
+            /*
             // Report if we've reached the end of the file
-            if (pFHI->cached_pos >= pFHI->file_size)
+            if (pFHI->cached_pos > pFHI->file_size)
             {
                 Debug_print("_tnfs_read_from_cache - reached EOF\n");
                 return TNFS_RESULT_END_OF_FILE;
             }
+            */
         }
     }
 
@@ -493,37 +394,6 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
 }
 
 /*
-READ - Reads from a file - Command 0x21
----------------------------------------
-Reads a block of data from a file. Consists of the standard header
-followed by the file descriptor as returned by OPEN, then a 16 bit
-little endian integer specifying the size of data that is requested.
-
-The server will only reply with as much data as fits in the maximum
-TNFS datagram size of 1K when using UDP as a transport. For the
-TCP transport, sequencing and buffering etc. are just left up to
-the TCP stack, so a READ operation can return blocks of up to 64K. 
-
-If there is less than the size requested remaining in the file, 
-the server will return the remainder of the file.  Subsequent READ 
-commands will return the code EOF.
-
-Examples:
-Read from fd 4, maximum 256 bytes:
-
-0xBEEF 0x00 0x21 0x04 0x00 0x01
-
-The server will reply with the standard header, followed by the single
-byte return code, the actual amount of bytes read as a 16 bit unsigned
-little endian value, then the data, for example, 256 bytes:
-
-0xBEEF 0x00 0x21 0x00 0x00 0x01 ...data...
-
-End-of-file reached:
-
-0xBEEF 0x00 0x21 0x21
-*/
-/*
  Reads from an open file.
  Max bufflen is TNFS_PAYLOAD_SIZE - 3; any larger size will return an error
  Bytes actually read will be placed in resultlen
@@ -561,25 +431,6 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
 }
 
 
-/*
-WRITE - Writes to a file - Command 0x22
----------------------------------------
-Writes a block of data to a file. Consists of the standard header,
-followed by the file descriptor, followed by a 16 bit little endian
-value containing the size of the data, followed by the data. The
-entire message must fit in a single datagram.
-
-Examples:
-Write to fd 4, 256 bytes of data:
-
-0xBEEF 0x00 0x22 0x04 0x00 0x01 ...data...
-
-The server replies with the standard header, followed by the return
-code, and the number of bytes actually written. For example:
-
-0xBEEF 0x00 0x22 0x00 0x00 0x01 - Successful write of 256 bytes
-0xBEEF 0x00 0x22 0x06 - Failed write, error is "bad file descriptor"
-*/
 /*
  Write to an open file.
  Max bufflen is TNFS_PAYLOAD_SIZE - 3; any larger size will return an error
@@ -669,31 +520,6 @@ int _tnfs_cache_seek(tnfsFileHandleInfo *pFHI, int32_t position, uint8_t type)
 }
 
 /*
-LSEEK - Seeks to a new position in a file - Command 0x25
---------------------------------------------------------
-Seeks to an absolute position in a file, or a relative offset in a file,
-or to the end of a file.
-The request consists of the header, followed by the file descriptor,
-followed by the seek type (SEEK_SET, SEEK_CUR or SEEK_END), followed
-by the position to seek to. The seek position is a signed 32 bit integer,
-little endian. (2GB file sizes should be more than enough for 8 bit
-systems!)
-
-The seek types are defined as follows:
-0x00		SEEK_SET - Go to an absolute position in the file
-0x01		SEEK_CUR - Go to a relative offset from the current position
-0x02		SEEK_END - Seek to EOF
-
-Example:
-
-File descriptor is 4, type is SEEK_SET, and position is 0xDEADBEEF:
-0xBEEF 0x00 0x25 0x04 0x00 0xEF 0xBE 0xAD 0xDE
-
-Note that clients that buffer reads for single-byte reads will have
-to make a calculation to implement SEEK_CUR correctly since the server's
-file pointer will be wherever the last read block made it end up.
-*/
-/*
  Seek to different position in open file
  Returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
  */
@@ -746,7 +572,15 @@ int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uin
 
             if(new_position != nullptr)
                 *new_position = pFileInf->file_position;
-            Debug_printf("tnfs_lseek success, new pos=%u\n", pFileInf->file_position);
+            uint32_t response_pos = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);    
+            Debug_printf("tnfs_lseek success, new pos=%u, response pos=%u\n", pFileInf->file_position, response_pos);
+
+            // TODO: This is temporary while we confirm that the recently-changed TNFSD code matches what we've been doing prior
+            if(pFileInf->file_position != response_pos)
+            {
+                Debug_print("CALCULATED AND RESPONSE POS DON'T MATCH!\n");
+                vTaskDelay(5000 / portTICK_PERIOD_MS);
+            }
         }
         return packet.payload[0];
     }
@@ -754,100 +588,188 @@ int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uin
 }
 
 /*
-OPENDIR - Open a directory for reading - Command ID 0x10
---------------------------------------------------------
-
-Format:
-Standard header followed by a null terminated absolute path.
-The path delimiter is always a "/". Servers whose underlying 
-file system uses other delimiters, such as Acorn ADFS, should 
-translate. Note that any recent version of Windows understands "/" 
-to be a path delimiter, so a Windows server does not need
-to translate a "/" to a "\".
-Clients should keep track of their own current working directory.
-
-Example:
-0xBEEF 0x00 0x10 /home/tnfs 0x00 - Open absolute path "/home/tnfs"
-
-The server responds with the standard header, with byte 4 set to the
-return code which is 0x00 for success, and if successful, byte 5 
-is set to the directory handle.
-
-Example:
-0xBEEF 0x00 0x10 0x00 0x04 - Successful, handle is 0x04
-0xBEEF 0x00 0x10 0x1F - Failed with code 0x1F
-*/
-/*
     Opens directory and stores directory handle in tnfsMountInfo.dir_handle
+    sortopts = zero or more TNFS_DIRSORT flags
+    diropts = zero or more TNFS_DIROPT flags
+    pattern = zero-terminated wildcard pattern string
+    maxresults = max number of results to return or zero for unlimited
     Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
 */
-int tnfs_opendir(tnfsMountInfo *m_info, const char *directory)
+int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory, uint8_t sortopts, uint8_t diropts, const char *pattern, uint16_t maxresults)
 {
     if (m_info == nullptr || directory == nullptr)
         return -1;
 
+#define OFFSET_OPENDIRX_DIROPT 0
+#define OFFSET_OPENDIRX_SORTOPT 1
+#define OFFSET_OPENDIRX_MAXRESULTS 2
+#define OFFSET_OPENDIRX_PATTERN 4
+
+// Number of bytes before the two null-terminated strings start
+#define OPENDIRX_HEADERBYTES 4
+
+    // Throw out any existing cached directory entries
+    m_info->empty_dircache();
+
     tnfsPacket packet;
-    packet.command = TNFS_CMD_OPENDIR;
-    int len = _tnfs_adjust_with_full_path(m_info, (char *)packet.payload, directory, sizeof(packet.payload));
+    packet.command = TNFS_CMD_OPENDIRX;
 
-    Debug_printf("TNFS open directory: \"%s\"\n", (char *)packet.payload);
+    packet.payload[OFFSET_OPENDIRX_DIROPT] = diropts;
+    packet.payload[OFFSET_OPENDIRX_SORTOPT] = sortopts;
 
-    if (_tnfs_transaction(m_info, packet, len + 1))
+    packet.payload[OFFSET_OPENDIRX_MAXRESULTS] = TNFS_LOBYTE_FROM_UINT16(maxresults);
+    packet.payload[OFFSET_OPENDIRX_MAXRESULTS + 1] = TNFS_HIBYTE_FROM_UINT16(maxresults);
+
+    // Copy the pattern or an empty string
+    strlcpy((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN),
+        pattern == nullptr ? "" : pattern,
+        sizeof(packet.payload) - OPENDIRX_HEADERBYTES - 1);
+
+    // Calculate the new offset to the path taking the pattern string into account
+    int pathoffset = strlen((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN)) + OPENDIRX_HEADERBYTES + 1;
+
+    // Copy the directory into the right spot in the packet and get its string len
+    int pathlen = _tnfs_adjust_with_full_path(m_info, 
+        (char *)(packet.payload + pathoffset), directory, sizeof(packet.payload) - pathoffset);
+
+    Debug_printf("TNFS open directory: sortopts=0x%02x diropts=0x%02x maxresults=0x%04x pattern=\"%s\" path=\"%s\"\n",
+     sortopts, diropts, maxresults, (char *)(packet.payload + OFFSET_OPENDIRX_PATTERN), (char *)(packet.payload + pathoffset));
+
+    if (_tnfs_transaction(m_info, packet, pathoffset + pathlen + 1))
     {
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
             m_info->dir_handle = packet.payload[1];
-            // Debug_printf("Directory opened, handle ID: %hhd\n", m_info->dir_handle);
+            m_info->dir_entries = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 2);
+            Debug_printf("Directory opened, handle ID: %hhd, entries: %u\n", m_info->dir_handle, m_info->dir_entries);
         }
         return packet.payload[0];
     }
     return -1;
 }
 
-/*
-READDIR - Reads a directory entry - Command ID 0x11
----------------------------------------------------
+void _readdirx_fill_response(tnfsDirCacheEntry *pCached, tnfsStat *filestat, char *dir_entry, int dir_entry_len)
+{
+    filestat->isDir = pCached->flags & TNFS_READDIRX_DIR ? true : false;
+    filestat->filesize = pCached->filesize;
+    filestat->m_time = pCached->m_time;
+    filestat->c_time = pCached->c_time;
+    filestat->a_time = 0;
 
-Format:
-Standard header plus directory handle.
+    strlcpy(dir_entry, pCached->entryname, dir_entry_len);
 
-Example:
-0xBEEF 0x00 0x11 0x04 - Read an entry with directory handle 0x04
+#ifdef DEBUG
+    {
+        char t_m[80];
+        char t_c[80];
+        const char *tfmt ="%Y-%m-%d %H:%M:%S";
+        time_t tt = filestat->m_time;
+        strftime(t_m, sizeof(t_m), tfmt, localtime(&tt));
+        tt = filestat->c_time;
+        strftime(t_c, sizeof(t_c), tfmt, localtime(&tt));
+        Debug_printf("\t_readdirx_fill_response: dir: %s, size: %u, mtime: %s, ctime: %s \"%s\"\n", 
+            filestat->isDir ? "Yes" : "no",
+            filestat->filesize, t_m, t_c, dir_entry );
+    }
+#endif
+}
 
-The server responds with the standard header, followed by the directory
-entry. Example:
-
-0xBEEF 0x17 0x11 0x00 . 0x00 - Directory entry for the current working directory
-0xBEEF 0x18 0x11 0x00 .. 0x00 - Directory entry for parent
-0xBEEF 0x19 0x11 0x00 foo 0x00 - File named "foo"
-
-If the end of directory is reached, or another error occurs, then the
-status byte is set to the error number as for other commands.
-0xBEEF 0x1A 0x11 0x21 - EOF
-0xBEEF 0x1B 0x11 0x1F - Error code 0x1F
-
-*/
 /*
     Reads next available file using open directory handle specified in
     tnfsMountInfo.dir_handle
     dir_entry filled with filename up to dir_entry_len
  returns: 0: success, -1: failed to deliver/receive packet, other: TNFS error result code
 */
-int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len)
+int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, int dir_entry_len)
 {
     // Check for a valid open handle ID
     if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
         return -1;
 
-    tnfsPacket packet;
-    packet.command = TNFS_CMD_READDIR;
-    packet.payload[0] = m_info->dir_handle;
+    // See if we have an entry in our directory cache to return first
+    tnfsDirCacheEntry *pCached = m_info->next_dircache_entry();
+    if(pCached != nullptr)
+    {
+        Debug_print("tnfs_readdirx responding from cached entry\n");
+        _readdirx_fill_response(pCached, filestat, dir_entry, dir_entry_len);
+        return 0;
+    }
+    
+    // If the cache was empty and the EOF flag was set, just respond with an EOF error
+    if(m_info->get_dircache_eof() == true)
+    {
+        Debug_print("tnfs_readdirx returning EOF based on cached value\n");
+        return TNFS_RESULT_END_OF_FILE;
+    }
 
-    if (_tnfs_transaction(m_info, packet, 1))
+    // Invalidate the cache before loading more
+    m_info->empty_dircache();
+
+#define OFFSET_READDIRX_FLAGS 0
+#define OFFSET_READDIRX_SIZE 1
+#define OFFSET_READDIRX_MTIME 5
+#define OFFSET_READDIRX_CTIME 9
+#define OFFSET_READDIRX_PATH 13
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_READDIRX;
+    packet.payload[0] = m_info->dir_handle;
+    // Number of responses to read
+    packet.payload[1] = TNFS_MAX_DIRCACHE_ENTRIES;
+
+    if (_tnfs_transaction(m_info, packet, 2))
     {
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
-            strncpy(dir_entry, (char *)&packet.payload[1], dir_entry_len);
+            uint8_t response_count = packet.payload[1];
+            uint8_t response_status = packet.payload[2];
+            uint16_t dirpos = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + 3);
+
+            // Set our EOF flag if the server tells us there's no more after this
+            if(response_status & TNFS_READDIRX_STATUS_EOF)
+                m_info->set_dircache_eof();
+
+            Debug_printf("tnfs_readdirx resp_count=%hu, dirpos=%hu, status=%hu\n", response_count, dirpos, response_status);
+
+            // Fill our directory cache using the returned values
+            int current_offset = 5;
+            for(int i = 0; i < response_count; i++)
+            {
+                tnfsDirCacheEntry *pEntry = m_info->new_dircache_entry();
+                if(pEntry != nullptr)
+                {
+                    pEntry->dirpos = dirpos + i;
+                    pEntry->flags = 
+                        packet.payload[current_offset + OFFSET_READDIRX_FLAGS];
+                    pEntry->filesize = 
+                        TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + current_offset + OFFSET_READDIRX_SIZE);
+                    pEntry->m_time = 
+                        TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + current_offset + OFFSET_READDIRX_MTIME);
+                    pEntry->c_time = 
+                        TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + current_offset + OFFSET_READDIRX_CTIME);
+
+                    int name_len = strlcpy(pEntry->entryname, 
+                        (char *)packet.payload + current_offset + OFFSET_READDIRX_PATH, sizeof(pEntry->entryname));
+
+                    /*
+                     Adjust our offset to point to the next entry within the packet
+                     flags (1) + size (4) + mtime (4) + ctime (4) + null (1) = 14
+                    */ 
+                    current_offset += 14 + name_len;
+                }
+                else
+                {
+                    Debug_print("tnfs_readdirx Failed to allocate new dircache entry!\n");
+                    break;
+                }
+            }
+
+            int loaded = m_info->count_dircache();
+            Debug_printf("tnfs_readdirx cached %d entries\n", loaded);
+            // Now that we've cached our entries, return the first one
+            if(loaded > 0)
+                _readdirx_fill_response(m_info->next_dircache_entry(), filestat, dir_entry, dir_entry_len);
+
         }
         return packet.payload[0];
     }
@@ -855,21 +777,62 @@ int tnfs_readdir(tnfsMountInfo *m_info, char *dir_entry, int dir_entry_len)
 }
 
 /*
-CLOSEDIR - Close a directory handle - Command ID 0x12
------------------------------------------------------
-
-Format:
-Standard header plus directory handle.
-
-Example, closing handle 0x04:
-0xBEEF 0x00 0x12 0x04
-
-The server responds with the standard header, with byte 4 set to the
-return code which is 0x00 for success, or something else for an error.
-Example:
-0xBEEF 0x00 0x12 0x00 - Close operation succeeded.
-0xBEEF 0x00 0x12 0x1F - Close failed with error code 0x1F
+    TELLDIR
 */
+int tnfs_telldir(tnfsMountInfo *m_info, uint16_t *position)
+{
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
+        return -1;
+
+    if(position == nullptr)
+        return -1;
+
+    // First see if we're pointing at a currently-cached directory entry and return that
+    int cached = m_info->tell_dircache_entry();
+    if (cached > -1)
+    {
+        *position = cached;
+        return 0;
+    }
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_TELLDIR;
+    packet.payload[0] = m_info->dir_handle;
+
+    if (_tnfs_transaction(m_info, packet, 1))
+    {
+        if (packet.payload[0] == TNFS_RESULT_SUCCESS)
+        {
+            *position = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);
+        }
+        return packet.payload[0];
+    }
+    return -1;
+}
+
+/*
+    SEEKDIR
+*/
+int tnfs_seekdir(tnfsMountInfo *m_info, uint16_t position)
+{
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
+        return -1;
+
+    // A SEEKDIR will always invalidate our directory cache
+    m_info->empty_dircache();
+
+    tnfsPacket packet;
+    packet.command = TNFS_CMD_SEEKDIR;
+    packet.payload[0] = m_info->dir_handle;
+    uint32_t pos = position;
+    TNFS_UINT32_TO_LOHI_BYTEPTR(pos, packet.payload + 1);
+
+    if (_tnfs_transaction(m_info, packet, 5))
+        return packet.payload[0];
+
+    return -1;
+}
+
 /*
     Closes current directory handle specificed in tnfsMountInfo
     Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
@@ -878,6 +841,9 @@ int tnfs_closedir(tnfsMountInfo *m_info)
 {
     if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(m_info->dir_handle))
         return -1;
+
+    // Throw out any existing cached directory entries
+    m_info->empty_dircache();
 
     tnfsPacket packet;
     packet.command = TNFS_CMD_CLOSEDIR;
@@ -894,20 +860,6 @@ int tnfs_closedir(tnfsMountInfo *m_info)
     return -1;
 }
 
-/*
-MKDIR - Make a new directory - Command ID 0x13
-----------------------------------------------
-
-Format:
-Standard header plus a null-terminated absolute path.
-
-Example:
-0xBEEF 0x00 0x13 /foo/bar/baz 0x00
-
-The server responds with the standard header plus the return code:
-0xBEEF 0x00 0x13 0x00 - Directory created successfully
-0xBEEF 0x00 0x13 0x02 - Directory creation failed with error 0x02
-*/
 /*
     Creates directory.
     Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
@@ -932,20 +884,6 @@ int tnfs_mkdir(tnfsMountInfo *m_info, const char *directory)
 }
 
 /*
-RMDIR - Remove a directory - Command ID 0x14
---------------------------------------------
-
-Format:
-Standard header plus a null-terminated absolute path.
-
-Example:
-0xBEEF 0x00 0x14 /foo/bar/baz 0x00
-
-The server responds with the standard header plus the return code:
-0xBEEF 0x00 0x14 0x00 - Directory was deleted.
-0xBEEF 0x00 0x14 0x02 - Directory delete operation failed with error 0x02
-*/
-/*
     Deletes directory.
     Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
 */
@@ -969,44 +907,6 @@ int tnfs_rmdir(tnfsMountInfo *m_info, const char *directory)
 }
 
 /*
-STAT - Get information on a file - Command 0x24
------------------------------------------------
-The request consists of the standard header, followed by the full path
-of the file to stat, terminated by a NULL. Example:
-
-0xBEEF 0x00 0x24 /foo/bar/baz.txt 0x00
-
-The server replies with the standard header, followed by the return code.
-On success, the file information follows this. Stat information is returned
-in this order. Not all values are used by all servers. At least file
-mode and size must be set to a valid value (many programs depend on these).
-
-File mode	- 2 bytes: file permissions - little endian byte order
-uid		- 2 bytes: Numeric UID of owner
-gid		- 2 bytes: Numeric GID of owner
-size		- 4 bytes: Unsigned 32 bit little endian size of file in bytes
-atime		- 4 bytes: Access time in seconds since the epoch, little end.
-mtime		- 4 bytes: Modification time in seconds since the epoch,
-                           little endian
-ctime		- 4 bytes: Time of last status change, as above.
-uidstring	- 0 or more bytes: Null terminated user id string
-gidstring	- 0 or more bytes: Null terminated group id string
-
-Fields that don't apply to the server in question should be left as 0x00.
-The ´mtime' field and 'size' fields are unsigned 32 bit integers.
-The uidstring and gidstring are helper fields so the client doesn't have
-to then ask the server for the string representing the uid and gid.
-
-File mode flags will be most useful for code that is showing a directory
-listing, and for programs that need to find out what kind of file (regular
-file or directory, etc) a particular file may be. They follow the POSIX
-convention which is:
-
-Flags		Octal representation
-S_IFREG		0100000		Is a regular file
-S_IFDIR		0040000		Directory
-*/
-/*
     Returns file information filled in tnfsStat.
     Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
 */
@@ -1022,13 +922,13 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
 
     // Debug_printf("TNFS stat: \"%s\"\n", (char *)packet.payload);
 
-#define OFFSET_FILEMODE 1
-#define OFFSET_UID 3
-#define OFFSET_GID 5
-#define OFFSET_FILESIZE 7
-#define OFFSET_ATIME 11
-#define OFFSET_MTIME 15
-#define OFFSET_CTIME 19
+#define OFFSET_STAT_FILEMODE 1
+#define OFFSET_STAT_UID 3
+#define OFFSET_STAT_GID 5
+#define OFFSET_STAT_FILESIZE 7
+#define OFFSET_STAT_ATIME 11
+#define OFFSET_STAT_MTIME 15
+#define OFFSET_STAT_CTIME 19
 
     if (_tnfs_transaction(m_info, packet, len + 1))
     {
@@ -1036,17 +936,17 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
 
-            uint16_t filemode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILEMODE);
+            uint16_t filemode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_FILEMODE);
             filestat->isDir = (filemode & S_IFDIR) ? true : false;
 
-            uint16_t uid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_UID);
-            uint16_t gid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_GID);
+            uint16_t uid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_UID);
+            uint16_t gid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_GID);
 
-            filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_FILESIZE);
+            filestat->filesize = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_FILESIZE);
 
-            filestat->a_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_ATIME);
-            filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_MTIME);
-            filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_CTIME);
+            filestat->a_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_ATIME);
+            filestat->m_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_MTIME);
+            filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_CTIME);
 
             /*
             Debug_printf("\ttnfs_stat: mode: %ho, uid: %hu, gid: %hu, dir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", 
@@ -1060,17 +960,6 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
     return -1;
 }
 
-/*
-UNLINK - Unlinks (deletes) a file - Command 0x26
-------------------------------------------------
-Removes the specified file. The request consists of the header then
-the null terminated full path to the file. The reply consists of the
-header and the return code.
-
-Example:
-Unlink file "/foo/bar/baz.bas"
-0xBEEF 0x00 0x26 /foo/bar/baz.bas 0x00
-*/
 /*
     Deletes file.
     Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
@@ -1094,18 +983,6 @@ int tnfs_unlink(tnfsMountInfo *m_info, const char *filepath)
     return -1;
 }
 
-/*
-RENAME - Moves a file within a filesystem - Command 0x28
---------------------------------------------------------
-Renames a file (or moves a file within a filesystem - it must be possible
-to move a file to a different directory within the same FS on the
-server using this command).
-The request consists of the header, followed by the null terminated
-source path, and the null terminated destination path.
-
-Example: Move file "foo.txt" to "bar.txt"
-0xBEEF 0x00 0x28 foo.txt 0x00 bar.txt 0x00
-*/
 /*
     Renames file from old_filepath to new_filepath
     Relative paths ("../file") won't work.
@@ -1131,39 +1008,6 @@ int tnfs_rename(tnfsMountInfo *m_info, const char *old_filepath, const char *new
     return -1;
 }
 
-/*
-CHMOD - Changes permissions on a file - Command 0x27
-----------------------------------------------------
-Changes file permissions on the specified file, using POSIX permissions
-semantics. Not all permissions may be supported by all servers - most 8
-bit systems, for example, may only support removing the write bit.
-A server running on something Unixish will support everything.
-
-The request consists of the header, followed by the 16 bit file mode,
-followed by the null terminated filename. Filemode is sent as a little
-endian value. See the Unix manpage for chmod(2) for further information.
-
-File modes are as defined by POSIX. The POSIX definitions are as follows:
-              
-Flag      Octal Description
-S_ISUID   04000 set user ID on execution
-S_ISGID   02000 set group ID on execution
-S_ISVTX   01000 sticky bit
-S_IRUSR   00400 read by owner
-S_IWUSR   00200 write by owner
-S_IXUSR   00100 execute/search by owner
-S_IRGRP   00040 read by group
-S_IWGRP   00020 write by group
-S_IXGRP   00010 execute/search by group
-S_IROTH   00004 read by others
-S_IWOTH   00002 write by others
-S_IXOTH   00001 execute/search by others
-
-Example: Set permissions to 755 on /foo/bar/baz.bas:
-0xBEEF 0x00 0x27 0xED 0x01 /foo/bar/baz.bas
-
-The reply is the standard header plus the return code of the chmod operation.
-*/
 /*
     THIS ISN'T IMPLEMENTED IN THE CURRENT TNFSD CODE
     Changes permissions on file
@@ -1192,22 +1036,6 @@ int tnfs_chmod(tnfsMountInfo *m_info, const char *filepath, uint16_t mode)
 }
 
 /*
-SIZE - Requests the size of the mounted filesystem - Command 0x30
------------------------------------------------------------------
-Finds the size, in kilobytes, of the filesystem that is currently mounted.
-The request consists of a standard header and nothing more.
-
-Example:
-0xBEEF 0x00 0x30
-
-The reply is the standard header, followed by the return code, followed
-by a 32 bit little endian integer which is the size of the filesystem
-in kilobytes, for example:
-
-0xBEEF 0x00 0x30 0x00 0xD0 0x02 0x00 0x00 - Filesystem is 720kbytes
-0xBEEF 0x00 0x30 0xFF - Request failed with error code 0xFF
-*/
-/*
     THIS ISN'T IMPLEMENTED IN THE CURRENT TNFSD CODE
     Returns size of mounted filesystem in kilobytes in the 'size' parameter
     Returns: 0: success, -1: failed to send/receive packet, other: TNFS server response
@@ -1231,21 +1059,6 @@ int tnfs_size(tnfsMountInfo *m_info, uint32_t *size)
     return -1;
 }
 
-/*
-FREE - Requests the amount of free space on the filesystem - Command 0x31
--------------------------------------------------------------------------
-Finds the size, in kilobytes, of the free space remaining on the mounted
-filesystem. The request consists of the standard header and nothing more.
-
-Example:
-0xBEEF 0x00 0x31
-
-The reply is as for SIZE - the standard header, return code, and little
-endian integer for the free space in kilobytes, for example:
-
-0xBEEF 0x00 0x31 0x00 0x64 0x00 0x00 0x00 - There is 64K free.
-0xBEEF 0x00 0x31 0x1F - Request failed with error 0x1F
-*/
 /*
     THIS ISN'T IMPLEMENTED IN THE CURRENT TNFSD CODE
     Returns free kilobytes in mounted filesystem in the 'size' parameter
@@ -1450,7 +1263,7 @@ int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char 
         return -1;
 
     // Use the cwd to bulid the full path
-    strncpy(buffer, m_info->current_working_directory, bufflen);
+    strlcpy(buffer, m_info->current_working_directory, bufflen);
 
     // Figure out whether or not we need to add a slash
     int ll;
@@ -1471,7 +1284,7 @@ int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char 
     }
 
     // Finally copy the source filepath
-    strncpy(buffer + ll, source, bufflen - ll);
+    strlcpy(buffer + ll, source, bufflen - ll);
 
     // And return the new length because that ends up being useful
     return strlen(buffer);
@@ -1487,7 +1300,7 @@ int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char 
 */
 void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short payload_size, bool isResponse)
 {
-#ifdef TNFS_DEBUG_VERBOSE
+#ifdef VERBOSE_TNFS
     // Remove header bytes from count of response packets since we only care about the count of the data payload
     if (isResponse)
     {
@@ -1506,7 +1319,7 @@ void _tnfs_debug_packet(const tnfsPacket &pkt, unsigned short payload_size, bool
 
 const char *_tnfs_command_string(int command)
 {
-#ifdef TNFS_DEBUG_VERBOSE
+#ifdef VERBOSE_TNFS
     switch (command)
     {
     case TNFS_CMD_MOUNT:
@@ -1545,6 +1358,14 @@ const char *_tnfs_command_string(int command)
         return "SIZE";
     case TNFS_CMD_FREE:
         return "FREE";
+    case TNFS_CMD_TELLDIR:
+        return "TELLDIR";
+    case TNFS_CMD_SEEKDIR:
+        return "SEEKDIR";
+    case TNFS_CMD_OPENDIRX:
+        return "OPENDIRX";
+    case TNFS_CMD_READDIRX:
+        return "READDIRX";
     default:
         return "?";
     }
@@ -1555,7 +1376,7 @@ const char *_tnfs_command_string(int command)
 
 const char *_tnfs_result_code_string(int resultcode)
 {
-#ifdef TNFS_DEBUG_VERBOSE
+#ifdef VERBOSE_TNFS
     switch (resultcode)
     {
     case TNFS_RESULT_SUCCESS:

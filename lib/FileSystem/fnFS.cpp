@@ -11,7 +11,7 @@ char * FileSystem::_make_fullpath(const char *path)
     {
         // Build full path
         char *fullpath = (char *)malloc(MAX_PATHLEN);
-        strncpy(fullpath, _basepath, MAX_PATHLEN);
+        strlcpy(fullpath, _basepath, MAX_PATHLEN);
         // Make sure there's a '/' separating the base from the give path
         if(path[0] != '/')
         {
@@ -19,7 +19,7 @@ char * FileSystem::_make_fullpath(const char *path)
             fullpath[l] = '/';
             fullpath[l+1] = '\0';
         }
-        strncat(fullpath, path, MAX_PATHLEN);
+        strlcat(fullpath, path, MAX_PATHLEN);
         #ifdef DEBUG
         //Debug_printf("_make_fullpath \"%s\" -> \"%s\"\n", path, fullpath);
         #endif

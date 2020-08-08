@@ -52,9 +52,12 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define SIO_ATARI_PAL_FREQUENCY 1773447
 #define SIO_ATARI_NTSC_FREQUENCY 1789790
 
-#define SIO_HISPEED_BAUDRATE ((SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (SIO_HISPEED_INDEX + 7)) + 3))
+// We calculate this dynamically now in sioBus::setHighSpeedIndex()
+// #define SIO_HISPEED_BAUDRATE ((SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (SIO_HISPEED_INDEX + 7)) + 3))
 
 #define SIO_STANDARD_BAUDRATE 19200
+
+#define SIO_HISPEED_LOWEST_INDEX 0x0A // Lowest HSIO index we'll accept
 
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
 #define SERIAL_TIMEOUT 300
@@ -90,18 +93,21 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 union cmdFrame_t {
     struct
     {
-        unsigned char devic;
-        unsigned char comnd;
-        unsigned char aux1;
-        unsigned char aux2;
-        unsigned char cksum;
+        uint8_t device;
+        uint8_t comnd;
+        uint8_t aux1;
+        uint8_t aux2;
+        uint8_t cksum;
     };
-    uint8_t cmdFrameData[5];
+    struct
+    {
+        uint32_t commanddata;
+        uint8_t checksum;
+    } __attribute__((packed));
 };
 
 //helper functions
-uint8_t sio_checksum(uint8_t *chunk, int length);
-void sio_flush();
+uint8_t sio_checksum(uint8_t *buf, unsigned short len);
 
 // class def'ns
 class sioModem;   // declare here so can reference it, but define in modem.h
@@ -118,10 +124,10 @@ protected:
 
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
-    unsigned char status_wait_count = 5;
+    uint8_t status_wait_count = 5;
 
-    void sio_to_computer(uint8_t *b, unsigned short len, bool err);
-    uint8_t sio_to_peripheral(uint8_t *b, unsigned short len);
+    void sio_to_computer(uint8_t *buff, uint16_t len, bool err);
+    uint8_t sio_to_peripheral(uint8_t *buff, uint16_t len);
 
     void sio_ack();
     void sio_nak();
@@ -131,7 +137,7 @@ protected:
     unsigned short sio_get_aux();
 
     virtual void sio_status() = 0;
-    virtual void sio_process() = 0;
+    virtual void sio_process(uint32_t commanddata, uint8_t checksum) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown() {};
@@ -162,12 +168,16 @@ class sioBus
 private:
     std::forward_list<sioDevice *> _daisyChain;
 
+    int _command_frame_counter = 0;
+
     sioDevice *_activeDev = nullptr;
     sioModem *_modemDev = nullptr;
     sioFuji *_fujiDev = nullptr;
     sioNetwork *_netDev[8] = { nullptr };
 
     int _sioBaud = SIO_STANDARD_BAUDRATE;
+    int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
+    int _sioBaudHigh;
 
     void _sio_process_cmd();
     void _sio_process_queue();
@@ -184,9 +194,13 @@ public:
     sioDevice *deviceById(int device_id);
     void changeDeviceId(sioDevice *pDevice, int device_id);
 
-    int getBaudrate();
-    void setBaudrate(int baud);
-    void toggleBaudrate();
+    int getBaudrate(); // Gets current SIO baud rate setting
+    void setBaudrate(int baud); // Sets SIO to specific baud rate
+    void toggleBaudrate(); // Toggle between standard and high speed SIO baud rate
+
+    int setHighSpeedIndex(int hsio_index); // Set HSIO index. Sets high speed SIO baud and also returns that value.
+    int getHighSpeedIndex(); // Gets current HSIO index
+    int getHighSpeedBaud(); // Gets current HSIO baud
 
     QueueHandle_t qSioMessages = nullptr;
 };

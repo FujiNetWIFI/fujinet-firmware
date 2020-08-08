@@ -11,7 +11,7 @@ networkProtocolTNFS::~networkProtocolTNFS()
 {
 }
 
-bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt)
 {
     strcpy(mountInfo.hostname, urlParser->hostName.c_str());
     strcpy(mountInfo.mountpath, "/");
@@ -35,17 +35,23 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (tnfs_mount(&mountInfo))
         return false; // error
 
+    // This is a directory open request
     if (cmdFrame->aux1 == 6)
     {
-        // Directory open.
+        // Disable interrupts
+        enable_interrupt(false);
+
         string dirPath = urlParser->path.substr(0, urlParser->path.find_last_of("/"));
 
-        if (tnfs_opendir(&mountInfo, dirPath.c_str()))
+        if (tnfs_opendirx(&mountInfo, dirPath.c_str()))
+        {
+            enable_interrupt(true);
             return false; // error
+        }
     }
+    // This is a file open request
     else
     {
-        // File. Open file handle.
         int mode = 1;
         int create_perms = 0;
 
@@ -81,10 +87,14 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return true;
 }
 
-bool networkProtocolTNFS::close()
+bool networkProtocolTNFS::close(enable_interrupt_t enable_interrupt)
 {
     if (aux1 == 6)
+    {
         tnfs_closedir(&mountInfo);
+        enable_interrupt(true);
+    }
+
 
     if (fileHandle != 0)
         tnfs_close(&mountInfo, fileHandle);
@@ -92,7 +102,7 @@ bool networkProtocolTNFS::close()
     if (mountInfo.session != 0)
         tnfs_umount(&mountInfo);
 
-    return false;
+    return true;
 }
 
 bool networkProtocolTNFS::read(uint8_t *rx_buf, unsigned short len)
@@ -156,7 +166,6 @@ unsigned char networkProtocolTNFS::status_dir()
     char tmp[256];
     string path_fixed;
     string entry;
-    int res;
     size_t fix_pos;
 
     path_fixed = path;
@@ -171,19 +180,14 @@ unsigned char networkProtocolTNFS::status_dir()
 
     if (entryBuf[0] == 0x00)
     {
-        res = tnfs_readdir(&mountInfo, tmp, 255);
-
-        while (res == 0)
+        while (tnfs_readdirx(&mountInfo, &fileStat, tmp, 255) == 0)
         {
+            Debug_printf("tnfs::status_dir got \"%s\"\n", tmp);
             if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
             {
-                tmp[strlen(tmp)] = 0x00;
-#ifdef DEBUG
-                Debug_printf("path: %s - tmp: %s\n", path.c_str(), tmp);
-#endif
-                entry = "/" + path_fixed + tmp;
+                Debug_printf("tnfs::status_dir path: %s - tmp: %s\n", path.c_str(), tmp);
 
-                tnfs_stat(&mountInfo, &fileStat, entry.c_str());
+                entry = "/" + path_fixed + tmp;
 
                 if (aux2 & 0x80) // extended dir
                 {
@@ -210,11 +214,10 @@ unsigned char networkProtocolTNFS::status_dir()
                 }
 
                 entry += "\x9b";
+                Debug_printf("tnfs::status_dir entry: \"%s\"\n", entry.c_str());
                 strcpy(entryBuf, entry.c_str());
                 return (unsigned char)strlen(entryBuf);
             }
-            else
-                tnfs_readdir(&mountInfo, tmp, 255);
         }
 
         if (dirEOF == false)
@@ -402,4 +405,31 @@ bool networkProtocolTNFS::rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         tnfs_umount(&mountInfo);
 
     return ret;
+}
+
+bool networkProtocolTNFS::note(uint8_t *rx_buf)
+{
+    uint32_t pos;
+    bool ret;
+
+    ret = tnfs_lseek(&mountInfo, fileHandle, 0, SEEK_CUR, &pos);
+
+    if (ret == 0x00)
+    {
+        pos &= 0xFFFFFF; // 24 bit value.
+
+        memcpy(rx_buf, &pos, 3);
+        return true;
+    }
+
+    return false;
+}
+
+bool networkProtocolTNFS::point(uint8_t *tx_buf)
+{
+    uint32_t pos;
+
+    memcpy(&pos, tx_buf, 3);
+
+    return tnfs_lseek(&mountInfo, fileHandle, pos, SEEK_SET, NULL);
 }

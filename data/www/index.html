@@ -58,6 +58,10 @@ SPIFFS storage free/used
 	<td><%FN_WIFIMAC%></td>
 </tr>
 <tr>
+	<td>WiFi details:</td>
+	<td class="small"><%FN_WIFIDETAIL%></td>
+</tr>
+<tr>
 	<td>SPIFFS size:</td>
 	<td><%FN_SPIFFS_SIZE%></td>
 </tr>
@@ -153,7 +157,7 @@ SPIFFS storage free/used
 </tr>
 <tr>
 	<td class="small">
-		Current: <%FN_PRINTER1_MODEL%> on P<%FN_PRINTER1_PORT%>:
+		Current: <%FN_PRINTER1_MODEL%> on P<%FN_PRINTER1_PORT%>
 	</td>
 	<td>
 	</td>
@@ -163,7 +167,37 @@ SPIFFS storage free/used
 	var current_printer="<%FN_PRINTER1_MODEL%>";
 	var current_printerport="<%FN_PRINTER1_PORT%>";
 </script>
-<script type="text/javascript" src="/file?selectedprinter.js"></script>
+
+<table class="general">
+<tr>
+	<td class="small light">
+		<a href="/print"><img src="/file?hsio.svg" class="hsio"></a>
+	</td>
+	<td class="hsioform small">
+	Change HSIO index:
+		<form action="/config" method="post">
+			<select name="hsioindex" id="select_hsioindex">
+				<option value="0">0</option>
+				<option value="1">1</option>
+				<option value="2">2</option>
+				<option value="3">3</option>
+				<option value="4">4</option>
+				<option value="5">5</option>
+				<option value="6">6</option>
+				<option value="7">7</option>
+				<option value="8">8</option>
+				<option value="9">9</option>
+			</select>
+			<input type="submit" value="Change">
+		</form>
+	</td>
+</tr>
+</table>
+<script>
+	var current_hsioindex="<%FN_SIO_HSINDEX%>";
+</script>
+
+<script type="text/javascript" src="/file?selectedoptions.js"></script>
 
 </body>
 </html>

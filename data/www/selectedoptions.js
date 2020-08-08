@@ -17,3 +17,13 @@ for (var opt, j = 0; opt = opts[j]; j++) {
 		break;
 	}
 }
+
+var mySelect = document.getElementById("select_hsioindex");
+
+var opts = mySelect.options;
+for (var opt, j = 0; opt = opts[j]; j++) {
+	if (opt.value == current_hsioindex) {
+		mySelect.selectedIndex = j;
+		break;
+	}
+}

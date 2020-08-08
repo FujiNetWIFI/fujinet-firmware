@@ -14,6 +14,26 @@
 
 fnConfig Config;
 
+
+void fnConfig::store_general_devicename(const char *devicename)
+{
+    if(_general.devicename.compare(devicename) == 0)
+        return;
+
+    _general.devicename = devicename;
+    _dirty = true;
+}
+
+void fnConfig::store_general_hsioindex(int hsio_index)
+{
+    if(_general.hsio_index == hsio_index)
+        return;
+
+    _general.hsio_index = hsio_index;
+    _dirty = true;
+
+}
+
 /* Replaces stored SSID with up to num_octets bytes, but stops if '\0' is reached
 */
 void fnConfig::store_wifi_ssid(const char *ssid_octets, int num_octets)
@@ -207,6 +227,11 @@ void fnConfig::save()
 
 #define LINETERM "\r\n"
 
+    // GENERAL
+    ss << "[General]" LINETERM;
+    ss << "devicename=" << _general.devicename << LINETERM;
+    ss << "hsioindex=" << _general.hsio_index << LINETERM << LINETERM;
+
     // WIFI
     ss << "[WiFi]" LINETERM;
     ss << "SSID=" << _wifi.ssid << LINETERM;
@@ -364,6 +389,9 @@ New behavior: copy from SD first if available, then read SPIFFS.
         int index = 0;
         switch(_find_section_in_line(line, index))
         {
+        case SECTION_GENERAL:
+            _read_section_general(ss);
+            break;
         case SECTION_WIFI:
             _read_section_wifi(ss);
             break;
@@ -385,6 +413,32 @@ New behavior: copy from SD first if available, then read SPIFFS.
 
 }
 
+void fnConfig::_read_section_general(std::stringstream &ss)
+{
+    Debug_print("Reading GENERAL\n");
+    std::string line;
+    // Read lines until one starts with '[' which indicates a new section
+    while(_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if(_split_name_value(line, name, value))
+        {
+            if(strcasecmp(name.c_str(), "devicename") == 0)
+            {
+                _general.devicename = value;
+                Debug_printf("devicename=%s\n",_general.devicename.c_str());
+            } else if (strcasecmp(name.c_str(), "hsioindex") == 0)
+            {
+                int index = atoi(value.c_str());
+                Debug_printf("hsioindex=%d\n",index);
+                if(index >= 0 && index < 10)
+                    _general.hsio_index = index;
+            }
+        }
+    }
+}
+
 void fnConfig::_read_section_wifi(std::stringstream &ss)
 {
     // Throw out any existing data
@@ -402,16 +456,15 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
             if(strcasecmp(name.c_str(), "SSID") == 0)
             {
                 _wifi.ssid = value;
-                //Debug_printf("config wifi=\"%s\"\n", value.c_str());
             }
             else if (strcasecmp(name.c_str(), "passphrase") == 0)
             {
                 _wifi.passphrase = value;
-                //Debug_printf("config passphrase=\"%s\"\n", value.c_str());
             }
         }
     }
 }
+
 
 void fnConfig::_read_section_host(std::stringstream &ss, int index)
 {
@@ -430,12 +483,10 @@ void fnConfig::_read_section_host(std::stringstream &ss, int index)
             if(strcasecmp(name.c_str(), "name") == 0)
             {
                 _host_slots[index].name = value;
-                //Debug_printf("config host %d name=\"%s\"\n", index, value.c_str());
             }
             else if (strcasecmp(name.c_str(), "type") == 0)
             {
                 _host_slots[index].type = host_type_from_string(value.c_str());
-                //Debug_printf("config host %d type=%d (\"%s\")\n", index, _host_slots[index].type, value.c_str());
             }
         }
     }
@@ -518,7 +569,7 @@ Returns which SectionName was found and sets index to X if X is an integer
 */
 fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &index)
 {
-    // Look for soemthing in brackets
+    // Look for something in brackets
     size_t b1 = line.find_first_of('[');
     if(b1 != std::string::npos)
     {
@@ -564,6 +615,10 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             {
                 //Debug_printf("Found WIFI\n");
                 return SECTION_WIFI;
+            } else if (strncasecmp("General", s1.c_str(), 7) == 0)
+            {
+                // Debug_printf("Found General\n");
+                return SECTION_GENERAL;
             }
         }
     }

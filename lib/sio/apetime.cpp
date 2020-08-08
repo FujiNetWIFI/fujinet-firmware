@@ -127,8 +127,11 @@ void sioApeTime::sio_status()
 {
 }
 
-void sioApeTime::sio_process()
+void sioApeTime::sio_process(uint32_t commanddata, uint8_t checksum)
 {
+    cmdFrame.commanddata = commanddata;
+    cmdFrame.checksum = checksum;
+    
     switch (cmdFrame.comnd)
     {
     case 0x93:

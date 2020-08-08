@@ -6,8 +6,8 @@
 class sioApeTime : public sioDevice
 {
     public:
-    virtual void sio_process();
-    virtual void sio_status();
+    void sio_process(uint32_t commanddata, uint8_t checksum) override;
+    virtual void sio_status() override;
 
     private:
 
