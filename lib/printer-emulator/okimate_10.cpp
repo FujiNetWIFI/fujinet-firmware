@@ -262,11 +262,12 @@ void okimate10::okimate_output_color_line()
     okimate_new_fnt_mask = 0x80; // set color back to 
     #ifdef DEBUG
     Debug_println("Color output line complete");
-    Debug_printf("BOLflag: %s\n", BOLflag ? "true" : "false");
-    Debug_printf("  pdf_X: %g\n", pdf_X);
-
     #endif
-
+    fprintf(_file, ")]TJ\n"); // close the line
+    pdf_X = 0; // CR
+    pdf_clear_modes();
+    fprintf(_file, "0 0 Td [(");
+    BOLflag = false;
 }
 
 void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
