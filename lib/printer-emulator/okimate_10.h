@@ -15,8 +15,11 @@ protected:
     } okimate_cmd;
     bool cmdMode = false;
     bool escMode = false;
-    bool colorMode = false;
 
+    uint8_t color_buffer[480][4];
+    uint16_t color_counter;
+    const uint8_t invalid_font = 0xff;
+    
     const uint8_t fnt_compressed = 0x01;
     const uint8_t fnt_expanded = 0x02;
     const uint8_t fnt_inverse = 0x04;
@@ -36,7 +39,9 @@ protected:
     uint16_t okimate_cmd_ascii_to_int(uint8_t c);
     void set_mode(uint8_t m);
     void clear_mode(uint8_t m);
+    void fprint_color_array(uint8_t font_mask);
     void okimate_handle_font(); // change typeface and/or color
+    void okimate_output_color_line(); 
 
     virtual void pdf_clear_modes() override;
     virtual void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
