@@ -5,19 +5,12 @@
 
 class sioApeTime : public sioDevice
 {
+private:
+    void _sio_get_time();
+
 public:
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
-    virtual void sio_status() override;
-
-private:
-    struct 
-    {
-        unsigned short gmt;
-        unsigned short dst;    
-    } _tz;
-
-    void _sio_time();
-    void _sio_timezone();
+    virtual void sio_status() override {};
 };
 
 #endif // APETIME_H
