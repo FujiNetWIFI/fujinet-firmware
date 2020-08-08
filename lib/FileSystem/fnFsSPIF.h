@@ -26,6 +26,8 @@ public:
     bool dir_open(const char * path) override;
     fsdir_entry *dir_read() override;
     void dir_close() override;
+    uint16_t dir_tell() override;
+    bool dir_seek(uint16_t) override;
 
     uint64_t total_bytes();
     uint64_t used_bytes();

@@ -101,7 +101,6 @@ private:
     bool baudLock = false; // lock modem baud rate from further changes.
 
     int count_PollType1 = 0; // Keep track of how many times we've seen command 0x3F
-    int load_firmware(const char *filename, char **buffer);
 
     /* Modem Active Variables */
     std::string cmd = "";          // Gather a new AT command to this string from serial
@@ -134,7 +133,7 @@ private:
     void sio_status() override;                  // $53, 'S', Status
     void sio_write();                            // $57, 'W', Write
     void sio_stream();                           // $58, 'X', Concurrent/Stream
-    void sio_process() override;                 // Process the command
+    void sio_process(uint32_t commanddata, uint8_t checksum) override;
     
     void crx_toggle(bool toggle);                // CRX active/inactive?
 

@@ -77,7 +77,7 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
     return ret;
 }
 
-bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt)
 {
     switch (cmdFrame->aux1)
     {
@@ -121,7 +121,7 @@ bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return client.begin(openedUrl.c_str());
 }
 
-bool networkProtocolHTTP::close()
+bool networkProtocolHTTP::close(enable_interrupt_t enable_interrupt)
 {
     size_t putPos;
     uint8_t *putBuf;
@@ -195,7 +195,7 @@ bool networkProtocolHTTP::read(uint8_t *rx_buf, unsigned short len)
         case HEADERS:
             if (headerIndex < numHeaders)
             {
-                //strncpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
+                //strlcpy((char *)rx_buf, client.header(headerIndex++).c_str(), len);
                 client.get_header(headerIndex++, (char *)rx_buf, len);
             }
             else

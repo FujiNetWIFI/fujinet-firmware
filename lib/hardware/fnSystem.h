@@ -87,6 +87,8 @@ public:
     FILE *make_tempfile(char *result_filename);
     void delete_tempfile(FileSystem *fs, const char *filename);
     void delete_tempfile(const char *filename);
+
+    int load_firmware(const char *filename, uint8_t **buffer);
 };
 
 extern SystemManager fnSystem;

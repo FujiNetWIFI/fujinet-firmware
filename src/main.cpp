@@ -92,8 +92,10 @@ void main_setup()
 
     // Set up the WiFi adapter
     fnWiFi.start();
+    // Go ahead and try reconnecting to WiFi
+    fnWiFi.connect();
 
-    theFuji.setup(SIO);
+    theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
     SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime

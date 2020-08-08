@@ -27,6 +27,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_WIFISSID,
         FN_WIFIBSSID,
         FN_WIFIMAC,
+        FN_WIFIDETAIL,
         FN_SPIFFS_SIZE,
         FN_SPIFFS_USED,
         FN_SD_SIZE,
@@ -54,6 +55,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_WIFISSID",
         "FN_WIFIBSSID",
         "FN_WIFIMAC",
+        "FN_WIFIDETAIL",
         "FN_SPIFFS_SIZE",
         "FN_SPIFFS_USED",
         "FN_SD_SIZE",
@@ -113,6 +115,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_WIFIMAC:
         resultstream << fnWiFi.get_mac_str();
         break;
+    case FN_WIFIDETAIL:
+        resultstream << fnWiFi.get_current_detail_str();
+        break;
     case FN_SPIFFS_SIZE:
         resultstream << fnSPIFFS.total_bytes();
         break;
@@ -141,10 +146,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << ((float) fnSystem.get_sio_voltage()) /1000.00 << "V";
         break;
     case FN_SIO_HSINDEX:
-        resultstream << SIO_HISPEED_INDEX;
+        resultstream << SIO.getHighSpeedIndex();
         break;
     case FN_SIO_HSBAUD:
-        resultstream << SIO_HISPEED_BAUDRATE;
+        resultstream << SIO.getHighSpeedBaud();
         break;
     case FN_PRINTER1_MODEL:
         resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
