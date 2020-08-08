@@ -132,7 +132,6 @@ void okimate10::print_7bit_gfx(uint8_t c)
         if ((c >> (6 - i)) & 0x01) // have the gfx font points backwards or Okimate dot-graphics are upside down
             fprintf(_file, ")99(%u", i + 1);
     }
-    pdf_X += charWidth;
 }
 
 void okimate10::pdf_clear_modes()
@@ -226,6 +225,7 @@ void okimate10::okimate_output_color_line()
                 fprintf(_file, ")99(");
             }
             fprintf(_file, " ");
+            pdf_X += charWidth;
         }
         else
         {
@@ -262,9 +262,9 @@ void okimate10::okimate_output_color_line()
     okimate_new_fnt_mask = 0x80; // set color back to 
     #ifdef DEBUG
     Debug_println("Color output line complete");
-    Debug_printf("BOLflag: %s", BOLflag ? "true" : "false");
-    Debug_printf("  pdf_X: %g", pdf_X);
-    
+    Debug_printf("BOLflag: %s\n", BOLflag ? "true" : "false");
+    Debug_printf("  pdf_X: %g\n", pdf_X);
+
     #endif
 
 }
@@ -505,6 +505,11 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             if ((c < 48) || (c > 57) || (okimate_cmd.ctr == 3))
             {
                 uint16_t N = okimate_cmd_ascii_to_int(c);
+                if (N>480)
+                {
+                    N=0;
+                    Debug_printf("!!!!Tab Value out of Range: %d", N);
+                }
                 set_mode(fnt_gfx);
                 clear_mode(fnt_compressed | fnt_inverse | fnt_expanded); // may not be necessary
                 if (colorMode == colorMode_t::off)
@@ -540,7 +545,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 for (int i = 0; i < okimate_cmd.n; i++)
                 {
                     if (colorMode == colorMode_t::off)
+                    {
                         print_7bit_gfx(okimate_cmd.data);
+                        pdf_X+=charWidth;
+                    }
                     else
                     {
                         color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
