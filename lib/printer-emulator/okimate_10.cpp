@@ -109,15 +109,16 @@ void okimate10::okimate_handle_font()
 
 uint16_t okimate10::okimate_cmd_ascii_to_int(uint8_t c)
 {
-    uint16_t N = okimate_cmd.n - 48;
+    // now bytes to int
+    uint16_t N = okimate_cmd.n;// - 48;
     if (okimate_cmd.ctr == 1)
         return N;
     N *= 10;
-    N += okimate_cmd.data - 48;
+    N += okimate_cmd.data;// - 48;
     if (okimate_cmd.ctr == 2)
         return N;
     N *= 10;
-    N += c - 48;
+    N += c;// - 48;
     return N;
 }
 
@@ -503,7 +504,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 0x90: //0x90 n - dot column horizontal tab
             textMode = false;
-            if ((c < 48) || (c > 57) || (okimate_cmd.ctr == 3))
+            if ((c > 9)  || (okimate_cmd.ctr == 3))
             {
                 uint16_t N = okimate_cmd_ascii_to_int(c);
                 if (N>480)
