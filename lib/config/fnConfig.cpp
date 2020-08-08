@@ -12,8 +12,15 @@
 #define CONFIG_FILENAME "/fnconfig.ini"
 #define CONFIG_FILEBUFFSIZE 2048
 
+#define CONFIG_DEFAULT_SNTPSERVER "pool.ntp.org"
+
 fnConfig Config;
 
+// Initialize some defaults
+fnConfig::fnConfig()
+{
+    strlcpy(_network.sntpserver, CONFIG_DEFAULT_SNTPSERVER, sizeof(_network.sntpserver));
+}
 
 void fnConfig::store_general_devicename(const char *devicename)
 {
@@ -236,7 +243,11 @@ void fnConfig::save()
     ss << "[WiFi]" LINETERM;
     ss << "SSID=" << _wifi.ssid << LINETERM;
     // TODO: Encrypt passphrase!
-    ss << "passphrase=" << _wifi.passphrase << LINETERM;
+    ss << "passphrase=" << _wifi.passphrase << LINETERM << LINETERM;
+
+    // NETWORK
+    ss << "[Network]" LINETERM;
+    ss << "sntpserver=" << _network.sntpserver << LINETERM;
 
     // HOSTS
     int i;
@@ -400,6 +411,9 @@ New behavior: copy from SD first if available, then read SPIFFS.
         case SECTION_WIFI:
             _read_section_wifi(ss);
             break;
+        case SECTION_NETWORK:
+            _read_section_network(ss);
+            break;
         case SECTION_HOST:
             _read_section_host(ss, index);
             break;
@@ -420,7 +434,6 @@ New behavior: copy from SD first if available, then read SPIFFS.
 
 void fnConfig::_read_section_general(std::stringstream &ss)
 {
-    Debug_print("Reading GENERAL\n");
     std::string line;
     // Read lines until one starts with '[' which indicates a new section
     while(_read_line(ss, line, '[') >= 0)
@@ -432,13 +445,29 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             if(strcasecmp(name.c_str(), "devicename") == 0)
             {
                 _general.devicename = value;
-                Debug_printf("devicename=%s\n",_general.devicename.c_str());
             } else if (strcasecmp(name.c_str(), "hsioindex") == 0)
             {
                 int index = atoi(value.c_str());
-                Debug_printf("hsioindex=%d\n",index);
                 if(index >= 0 && index < 10)
                     _general.hsio_index = index;
+            }
+        }
+    }
+}
+
+void fnConfig::_read_section_network(std::stringstream &ss)
+{
+    std::string line;
+    // Read lines until one starts with '[' which indicates a new section
+    while(_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if(_split_name_value(line, name, value))
+        {
+            if(strcasecmp(name.c_str(), "sntpserver") == 0)
+            {
+                strlcpy(_network.sntpserver, value.c_str(), sizeof(_network.sntpserver));
             }
         }
     }
@@ -624,7 +653,12 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             {
                 // Debug_printf("Found General\n");
                 return SECTION_GENERAL;
+            } else if (strncasecmp("Network", s1.c_str(), 7) == 0)
+            {
+                // Debug_printf("Found Network\n");
+                return SECTION_NETWORK;
             }
+
         }
     }
     return SECTION_UNKNOWN;
