@@ -1,9 +1,14 @@
 /* NOTE: esp_idf 4.x replaces the tcpip_adapter library with esp_netif
 */
 #include <string.h>
+#include <lwip/netdb.h>
+#include "esp_sntp.h"
 #include <esp_system.h>
 #include <tcpip_adapter.h>
+
+
 #include "fnSystem.h"
+#include "fnConfig.h"
 
 std::string SystemManager::_net::get_hostname()
 {
@@ -118,4 +123,52 @@ std::string SystemManager::_net::_get_ip4_dns_str(_ip4_dns_type dnstype)
 std::string SystemManager::_net::get_ip4_dns_str()
 {
     return _get_ip4_dns_str(IP4_DNS_PRIMARY);
+}
+
+void SystemManager::_net::set_sntp_lastsync()
+{
+    _sntp_last_sync = fnSystem.millis();
+}
+
+// Static function for SNTP event notifications
+void SystemManager::_net::_sntp_time_sync_notification(struct timeval *tv)
+{
+    fnSystem.Net.set_sntp_lastsync();
+    Debug_printf("SNTP time sync event: %s\n", fnSystem.get_current_time_str());
+}
+
+
+void SystemManager::_net::stop_sntp_client()
+{
+    // TODO: Determine if we really need to stop this when our network connection is lost
+    // sntp_stop();
+}
+
+void SystemManager::_net::start_sntp_client()
+{
+    // Don't do anything if we've already initialized
+    if (_sntp_initialized == true)
+        return;
+
+    Debug_print("SNTP client start\n");
+
+    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+
+    // Set a server if we have one defined, otherwise try DHCP
+    const char * sntpserver = Config.get_network_sntpserver();
+    // sntp_setservername does NOT copy the string passed, so it must be in a static buffer
+    if (sntpserver != nullptr && sntpserver[0] != '\0')
+        sntp_setservername(0, sntpserver); 
+    else
+    {
+        Debug_print("No SNTP server defined - attempting DHCP setting\n");
+        // This will only do something if SNTP_GET_SERVERS_FROM_DHCP is set in the LWIP library
+        sntp_servermode_dhcp(1);
+    }
+
+    // Set a notification callback function
+    sntp_set_time_sync_notification_cb(_sntp_time_sync_notification);
+
+    sntp_init();
+    _sntp_initialized = true;
 }

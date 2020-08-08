@@ -44,6 +44,8 @@ public:
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
 
+    const char * get_network_sntpserver() { return _network.sntpserver; };
+
     bool have_wifi_info() { return _wifi.ssid.empty() == false; };
     std::string get_wifi_ssid() { return _wifi.ssid; };
     std::string get_wifi_passphrase() { return _wifi.passphrase; };
@@ -65,6 +67,8 @@ public:
     void load();
     void save();
 
+    fnConfig();
+
 private:
     bool _dirty = false;
 
@@ -72,6 +76,7 @@ private:
 
     void _read_section_general(std::stringstream &ss);
     void _read_section_wifi(std::stringstream &ss);
+    void _read_section_network(std::stringstream &ss);
     void _read_section_host(std::stringstream &ss, int index);
     void _read_section_mount(std::stringstream &ss, int index);
     void _read_section_printer(std::stringstream &ss, int index);
@@ -82,6 +87,7 @@ private:
         SECTION_HOST,
         SECTION_MOUNT,
         SECTION_PRINTER,
+        SECTION_NETWORK,
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -135,16 +141,23 @@ private:
         std::string passphrase;
     };
 
+    struct network_info
+    {
+        char sntpserver [40];
+    };
+
     struct general_info
     {
         std::string devicename = "fujinet";
         int hsio_index = HSIO_INVALID_INDEX;
+        std::string timezone = "-7";
     };
 
     host_info _host_slots[MAX_HOST_SLOTS];
     mount_info _mount_slots[MAX_MOUNT_SLOTS];
     printer_info _printer_slots[MAX_PRINTER_SLOTS];
     wifi_info _wifi;
+    network_info _network;
     general_info _general;
 };
 
