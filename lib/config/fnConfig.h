@@ -41,8 +41,10 @@ public:
 
     std::string get_general_devicename() { return _general.devicename; };
     int get_general_hsioindex() { return _general.hsio_index; };
+    std::string get_general_timezone() { return _general.timezone; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
+    void store_general_timezone(const char *timezone);
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
 
@@ -150,7 +152,7 @@ private:
     {
         std::string devicename = "fujinet";
         int hsio_index = HSIO_INVALID_INDEX;
-        std::string timezone = "-7";
+        std::string timezone;
     };
 
     host_info _host_slots[MAX_HOST_SLOTS];
