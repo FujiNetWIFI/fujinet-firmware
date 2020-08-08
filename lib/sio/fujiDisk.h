@@ -6,7 +6,8 @@
 #include "disk.h"
 #include "fujiHost.h"
 
-#define MAX_FILENAME_LEN 36
+#define MAX_DISPLAY_FILENAME_LEN 36
+#define MAX_FILENAME_LEN 256
 
 #define DISK_ACCESS_MODE_READ 1
 #define DISK_ACCESS_MODE_WRITE 2

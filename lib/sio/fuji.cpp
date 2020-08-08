@@ -650,7 +650,7 @@ void sioFuji::sio_read_device_slots()
     {
         uint8_t hostSlot;
         uint8_t mode;
-        char filename[MAX_FILENAME_LEN];
+        char filename[MAX_DISPLAY_FILENAME_LEN];
     } diskSlots[MAX_DISK_DEVICES];
 
     // Load the data from our current device array
@@ -658,7 +658,7 @@ void sioFuji::sio_read_device_slots()
     {
         diskSlots[i].mode = _fnDisks[i].access_mode;
         diskSlots[i].hostSlot = _fnDisks[i].host_slot;
-        strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_FILENAME_LEN);
+        strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
     }
 
     sio_to_computer((uint8_t *)&diskSlots, sizeof(diskSlots), false);
@@ -673,7 +673,7 @@ void sioFuji::sio_write_device_slots()
     {
         uint8_t hostSlot;
         uint8_t mode;
-        char filename[MAX_FILENAME_LEN];
+        char filename[MAX_DISPLAY_FILENAME_LEN];
     } diskSlots[MAX_DISK_DEVICES];
 
     uint8_t ck = sio_to_peripheral((uint8_t *)&diskSlots, sizeof(diskSlots));
@@ -780,6 +780,29 @@ void sioFuji::sio_set_hsio_index()
     }
 
     sio_complete();
+}
+
+/**
+ * Write a 256 byte filename to the device slot
+ */
+void sioFuji::sio_set_device_slot_filename()
+{
+    char tmp[MAX_FILENAME_LEN];
+    uint8_t ck = sio_to_peripheral((uint8_t *)tmp,MAX_FILENAME_LEN);
+
+    Debug_printf("Fuji cmd: SET DEVICE SLOT FILENAME: %s\n",tmp);
+
+    if (sio_checksum((uint8_t *)tmp,MAX_FILENAME_LEN) != ck)
+        {
+            sio_error();
+            return;
+        }
+        else
+        {
+            memcpy(_fnDisks[cmdFrame.aux1].filename,tmp,MAX_FILENAME_LEN);
+            sio_complete();
+            return;
+        }
 }
 
 /*
