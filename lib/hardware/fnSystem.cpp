@@ -5,6 +5,7 @@
 #include <esp_system.h>
 #include <esp_err.h>
 #include <esp_timer.h>
+#include <time.h>
 #include <driver/gpio.h>
 #include <driver/dac.h>
 #include <driver/adc.h>
@@ -174,6 +175,18 @@ uint32_t SystemManager::get_free_heap_size()
 int64_t SystemManager::get_uptime()
 {
     return esp_timer_get_time();
+}
+
+const char *SystemManager::get_current_time_str()
+{
+    struct timeval tval;
+    gettimeofday(&tval, nullptr);
+
+    struct tm * tinfo = localtime(&tval.tv_sec);
+
+    strftime(_currenttime_string, sizeof(_currenttime_string), "%a %b %e %H:%M:%S %Y %z", tinfo);
+
+    return _currenttime_string;
 }
 
 const char * SystemManager::get_uptime_str()

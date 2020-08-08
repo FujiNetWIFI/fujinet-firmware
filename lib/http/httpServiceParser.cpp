@@ -33,6 +33,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_SD_SIZE,
         FN_SD_USED,
         FN_UPTIME,
+        FN_CURRENTTIME,
         FN_HEAPSIZE,
         FN_SYSSDK,
         FN_SYSCPUREV,
@@ -61,6 +62,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_SD_SIZE",
         "FN_SD_USED",
         "FN_UPTIME",
+        "FN_CURRENTTIME",
         "FN_HEAPSIZE",
         "FN_SYSSDK",
         "FN_SYSCPUREV",
@@ -132,6 +134,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_UPTIME:
         resultstream << format_uptime();
+        break;
+    case FN_CURRENTTIME:
+        resultstream << fnSystem.get_current_time_str();
         break;
     case FN_HEAPSIZE:
         resultstream << fnSystem.get_free_heap_size();

@@ -410,6 +410,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             Debug_printf("Obtained IP address: %s\n", fnSystem.Net.get_ip4_address_str().c_str());
             pFnWiFi->_connected = true;
             fnLedManager.set(eLed::LED_WIFI, true);
+            fnSystem.Net.start_sntp_client();
             fnHTTPD.start();
             break;
         case IP_EVENT_STA_LOST_IP:
@@ -450,6 +451,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                 pFnWiFi->_connected = false;
                 fnLedManager.set(eLed::LED_WIFI, false);
                 fnHTTPD.stop();
+                fnSystem.Net.stop_sntp_client();
             }
             // Try to reconnect
             if(pFnWiFi->_scan_in_progress == false &&
