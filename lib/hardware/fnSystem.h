@@ -65,6 +65,7 @@ public:
 
 #define PINMODE_INPUT 0x01
 #define PINMODE_OUTPUT 0x02
+#define PINMODE_OUTPUT_OD 0x03
 #define PINMODE_PULLDOWN 0x10
 #define PINMODE_PULLUP 0x20
 
