@@ -384,6 +384,20 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             else
                 switch (c)
                 {
+                case 0x8A: // line advance by n
+                    // logic needed: 
+                    // set cmdMode and clear escMode
+                    // pass control to 0x8A mode
+                    // let it execute a line advance
+                    // get control back
+                    escMode = false;
+                    cmdMode = true;
+                    okimate_cmd.cmd = 0x8A;
+                    okimate_cmd.ctr = 0;
+                    #ifdef DEBUG
+                    Debug_printf("Go to line advance from gfx\n");
+                    #endif
+                    break;
                 case 0x91: // end gfx mode
                     // reset font
                     okimate_current_fnt_mask = 0xFF; // invalidate font mask
@@ -500,7 +514,16 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             }
             else
                 cmd_not_implemented(0x8A);
-            reset_cmd();
+            if (textMode)
+                reset_cmd();
+            else
+            {
+                // pass control back to graphics mode
+                cmdMode = false;
+                escMode = true;
+                okimate_cmd.cmd = 37; // graphics
+                okimate_cmd.ctr = 1;
+            }
             break;
         case 0x90: //0x90 n - dot column horizontal tab
             textMode = false;
