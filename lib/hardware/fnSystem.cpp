@@ -48,16 +48,24 @@ void SystemManager::set_pin_mode(uint8_t pin, uint8_t mode)
 
 
     // set pin mode
-    if(mode & PINMODE_INPUT) 
+    if (mode == PINMODE_OUTPUT_OD)
+    {
+        io_conf.mode = GPIO_MODE_OUTPUT_OD;
+#ifdef DEBUG
+        Debug_printf("set_pin_mode %x GPIO %d as OPEN DRAIN\n", mode, pin);
+#endif
+    }else if(mode & PINMODE_INPUT)
     {
         io_conf.mode = GPIO_MODE_INPUT;
-
+#ifdef DEBUG
+        Debug_printf("set_pin_mode %x GPIO %d as INPUT\n", mode, pin);
+#endif
     } else if (mode & PINMODE_OUTPUT)
     {
         io_conf.mode = GPIO_MODE_OUTPUT;
-    } else if (mode & PINMODE_OUTPUT_OD)
-    {
-        io_conf.mode = GPIO_MODE_OUTPUT_OD;
+#ifdef DEBUG
+        Debug_printf("set_pin_mode %x GPIO %d as OUTPUT\n", mode, pin);
+#endif
     }
     else
     {

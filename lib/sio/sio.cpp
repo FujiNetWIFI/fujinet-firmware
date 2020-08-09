@@ -287,12 +287,12 @@ void sioBus::setup()
     fnUartSIO.begin(_sioBaud);
 
     // INT PIN
-    //fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT_OD);
-    fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT);
+    fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT_OD);
+    //fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_INT, DIGI_HIGH);
     // PROC PIN
-    //fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT_OD);
-    fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT);
+    fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT_OD);
+    //fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT);
     fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
     // MTR PIN
     fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN); // Don't think PULLDOWN/PULLUP options are relevant to input-only pins
