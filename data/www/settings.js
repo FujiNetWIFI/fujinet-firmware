@@ -27,3 +27,8 @@ for (var opt, j = 0; opt = opts[j]; j++) {
 		break;
 	}
 }
+
+function changeTz() {
+	var sel = document.getElementById("select_tz").value;
+	document.getElementById("txt_timezone").value = sel;
+}
