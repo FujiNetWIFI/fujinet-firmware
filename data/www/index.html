@@ -146,7 +146,7 @@ SPIFFS storage free/used
 				<option value="HTML printer">HTML printer</option>
 				<option value="HTML ATASCII printer">HTML ATASCII printer</option>
 			</select>
-			<input type="submit" value="Change">
+			<input type="submit" value="Save">
 		</form>
 		<br />Change printer port:
 		<form action="/config" method="post">
@@ -155,7 +155,7 @@ SPIFFS storage free/used
 				<option value="2">P2:</option>
 				<option value="3">P3:</option>
 			</select>
-			<input type="submit" value="Change">
+			<input type="submit" value="Save">
 		</form>
 	</td>
 </tr>
@@ -181,18 +181,18 @@ SPIFFS storage free/used
 	Change HSIO index:
 		<form action="/config" method="post">
 			<select name="hsioindex" id="select_hsioindex">
-				<option value="0">0</option>
-				<option value="1">1</option>
-				<option value="2">2</option>
-				<option value="3">3</option>
-				<option value="4">4</option>
-				<option value="5">5</option>
-				<option value="6">6</option>
-				<option value="7">7</option>
-				<option value="8">8</option>
-				<option value="9">9</option>
+				<option value="0">0: 124Kb</option>
+				<option value="1">1: 109Kb</option>
+				<option value="2">2: 97Kb</option>
+				<option value="3">3: 87Kb</option>
+				<option value="4">4: 79Kb</option>
+				<option value="5">5: 73Kb</option>
+				<option value="6">6: 67Kb</option>
+				<option value="7">7: 63Kb</option>
+				<option value="8">8: 58Kb</option>
+				<option value="9">9: 55Kb</option>
 			</select>
-			<input type="submit" value="Change">
+			<input type="submit" value="Save">
 		</form>
 	</td>
 </tr>
@@ -209,15 +209,39 @@ SPIFFS storage free/used
 	<td class="tz small">
 	Change Time Zone:
 		<form action="/config" method="post">
+
+			<select name="tzindex" id="select_tz" onchange="changeTz()">
+				<option value="" selected>Choose</option>
+				<option value="PST8PDT">America Pacific UTC-8/UTC-7</option>
+				<option value="MST7MDT">America Mountain UTC-7/UTC-6</option>
+				<option value="MST7">America Arizona UTC-7</option>
+				<option value="CST6CDT">America Central UTC-6/UTC-5</option>
+				<option value="EST5EDT">America Eastern UTC-5/UTC-4</option>
+				<option value="UTC0">UTC</option>
+				<option value="BDT0BST">UK UTC/UTC+1</option>
+				<option value="CEDT-1CEST">Europe Central UTC+1/UTC+2</option>
+				<option value="EEDT-2EEST">Europe Eastern UTC+2/UTC+3</option>
+				<option value="FNTZ-3">UTC +3</option>
+				<option value="FNTZ-4">UTC +4</option>
+				<option value="FNTZ-5">UTC +5</option>
+				<option value="FNTZ-6">UTC +6</option>
+				<option value="FNTZ-7">UTC +7</option>
+				<option value="FNTZ-8">UTC +8</option>
+				<option value="FNTZ-9">UTC +9</option>
+				<option value="FNTZ-10">UTC +10</option>
+				<option value="FNTZ-11">UTC +11</option>
+				<option value="FNTZ-12">UTC +12</option>
+			</select>
+
 			<input type="text" name="timezone" id="txt_timezone" value="<%FN_TIMEZONE%>">
-			<input type="submit" value="Change">
+			<input type="submit" value="Save">
 			<a href="https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html">?</a>
 		</form>
 	</td>
 </tr>
 </table>
 
-<script type="text/javascript" src="/file?selectedoptions.js"></script>
+<script type="text/javascript" src="/file?settings.js"></script>
 
 </body>
 </html>
