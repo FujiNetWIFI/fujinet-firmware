@@ -55,6 +55,9 @@ void SystemManager::set_pin_mode(uint8_t pin, uint8_t mode)
     } else if (mode & PINMODE_OUTPUT)
     {
         io_conf.mode = GPIO_MODE_OUTPUT;
+    } else if (mode & PINMODE_OUTPUT_OD)
+    {
+        io_conf.mode = GPIO_MODE_OUTPUT_OD;
     }
     else
     {
