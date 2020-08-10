@@ -591,19 +591,15 @@ void sioFuji::sio_new_disk()
     bool ok = _fnDisks[newDisk.deviceSlot].disk_dev.write_blank(_fnDisks[newDisk.deviceSlot].file, newDisk.sectorSize, newDisk.numSectors);
     fclose(_fnDisks[newDisk.deviceSlot].file);
 
-    if (ok)
-    {
-        Debug_print("sio_new_disk Wrote new disk data\n");
-        _fnDisks[newDisk.deviceSlot].disk_dev.mount(_fnDisks[newDisk.deviceSlot].file, newDisk.filename, DISKTYPE_ATR);
-        sio_complete();
-        return;
-    }
-    else
+    if(ok == false)
     {
         Debug_print("sio_new_disk Data write failed\n");
         sio_error();
         return;
     }
+
+    Debug_print("sio_new_disk succeeded\n");
+    sio_complete();
 }
 
 // Send host slot data to computer
