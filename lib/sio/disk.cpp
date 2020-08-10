@@ -114,6 +114,8 @@ void sioDisk::sio_status()
     if (_disk != nullptr)
         _disk->status(_status);
 
+    Debug_printf("byte 0 = 0x%02X\n", _status[0]);
+    
     sio_to_computer(_status, sizeof(_status), false);
 }
 
