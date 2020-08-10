@@ -28,13 +28,13 @@ LedManager::LedManager()
 // Sets required pins to OUTPUT mode and makes sure they're initially off
 void LedManager::setup()
 {
-    fnSystem.set_pin_mode(PIN_LED_SIO, PINMODE_OUTPUT);
+    fnSystem.set_pin_mode(PIN_LED_SIO, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_SIO, DIGI_HIGH);
  
-    fnSystem.set_pin_mode(PIN_LED_BT, PINMODE_OUTPUT);
+    fnSystem.set_pin_mode(PIN_LED_BT, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_BT, DIGI_HIGH);    
 
-    fnSystem.set_pin_mode(PIN_LED_WIFI, PINMODE_OUTPUT);
+    fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
 }
 
