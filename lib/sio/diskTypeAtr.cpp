@@ -43,13 +43,20 @@ bool DiskTypeATR::read(uint16_t sectornum, uint16_t *readcount)
 
     *readcount = 0;
 
+    // Return an error if we're trying to read beyond the end of the disk
+    if(sectornum > _numSectors)
+    {
+        Debug_printf("::read sector %d > %d\n", sectornum, _numSectors);        
+        return true;
+    }
+
     uint16_t sectorSize = sector_size(sectornum);
 
     memset(_sectorbuff, 0, sizeof(_sectorbuff));
 
     bool err = false;
     // Perform a seek if we're not reading the sector after the last one we read
-    if (sectornum != _lastSectorNum + 1)
+    if (sectornum != _lastSectorUsed + 1)
     {
         uint32_t offset = _sector_to_offset(sectornum);
         err = fseek(_file, offset, SEEK_SET) != 0;
@@ -59,9 +66,9 @@ bool DiskTypeATR::read(uint16_t sectornum, uint16_t *readcount)
         err = fread(_sectorbuff, 1, sectorSize, _file) != sectorSize;
 
     if (err == false)
-        _lastSectorNum = sectornum;
+        _lastSectorUsed = sectornum;
     else
-        _lastSectorNum = INVALID_SECTOR_VALUE;
+        _lastSectorUsed = INVALID_SECTOR_VALUE;
 
     *readcount = sectorSize;
 
@@ -71,16 +78,23 @@ bool DiskTypeATR::read(uint16_t sectornum, uint16_t *readcount)
 // Returns TRUE if an error condition occurred
 bool DiskTypeATR::write(uint16_t sectornum, bool verify)
 {
-    Debug_print("ATR WRITE\n");
+    Debug_printf("ATR WRITE\n", sectornum, _numSectors);
+
+    // Return an error if we're trying to write beyond the end of the disk
+    if(sectornum > _numSectors)
+    {
+        Debug_printf("::write sector %d > %d\n", sectornum, _numSectors);
+        return true;
+    }
 
     uint16_t sectorSize = sector_size(sectornum);
     uint32_t offset = _sector_to_offset(sectornum);
 
-    _lastSectorNum = INVALID_SECTOR_VALUE;
+    _lastSectorUsed = INVALID_SECTOR_VALUE;
 
     // Perform a seek if we're writing to the sector after the last one
     int e;
-    if (sectornum != _lastSectorNum + 1)
+    if (sectornum != _lastSectorUsed + 1)
     {
         e = fseek(_file, offset, SEEK_SET);
         if (e != 0)
@@ -101,31 +115,37 @@ bool DiskTypeATR::write(uint16_t sectornum, bool verify)
     ret = fsync(fileno(_file)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("ATR::write fsync:%d\n", ret);
 
-    _lastSectorNum = sectornum;
+    _lastSectorUsed = sectornum;
 
     return false;
 }
 
 void DiskTypeATR::status(uint8_t statusbuff[4])
 {
-
-    // TODO: bit 6 for double-sided
     if (_sectorSize == 256)
-        statusbuff[0] |= 0x20;
+        statusbuff[0] |= 0x20; // XF551 double-density bit
 
-    // TODO: bit 7 should be set whenever we have 26 sectors per track (1050 Enahanced)
+    if (_percomBlock.num_sides == 1)
+        statusbuff[0] |= 0x40; // XF551 double-sided bit
+
     if (_percomBlock.sectors_per_trackL == 26)
-        statusbuff[0] |= 0x80;
+        statusbuff[0] |= 0x80; // 1050 enhanced-density bit
 }
 
+/*
+    From Altirra manual:
+    The format command formats a disk, writing 40 tracks and then verifying all sectors.
+    All sectors are filleded with the data byte $00. On completion, the drive returns
+    a sector-sized buffer containing a list of 16-bit bad sector numbers terminated by $FFFF.
+*/
 // Returns TRUE if an error condition occurred
 bool DiskTypeATR::format(uint16_t *responsesize)
 {
     Debug_print("ATR FORMAT\n");
 
-    // Populate bad sector map (no bad sectors)
+    // Populate an empty bad sector map
     memset(_sectorbuff, 0, sizeof(_sectorbuff));
-    _sectorbuff[0] = 0xFF; // no bad sectors.
+    _sectorbuff[0] = 0xFF;
     _sectorbuff[1] = 0xFF;
 
     *responsesize = _sectorSize;
@@ -154,17 +174,15 @@ disktype_t DiskTypeATR::mount(FILE *f, uint32_t disksize)
 
     uint16_t num_bytes_sector;
     uint32_t num_paragraphs;
-    uint16_t num_sectors;
     uint8_t buf[7];
 
     // Get file and sector size from header
-
-    if (fseek(f, 0, SEEK_SET) < 0)
+    int i;
+    if ((i = fseek(f, 0, SEEK_SET)) < 0)
     {
-        Debug_println("failed seeking to header on disk image");
+        Debug_printf("failed seeking to header on disk image (%d, %d)\n", i, errno);
         return _disktype;
     }
-    int i;
     if ((i = fread(buf, 1, sizeof(buf), f)) != sizeof(buf))
     {
         Debug_printf("failed reading header bytes (%d, %d)\n", i, errno);
@@ -184,19 +202,19 @@ disktype_t DiskTypeATR::mount(FILE *f, uint32_t disksize)
 
     _sectorSize = num_bytes_sector;
 
-    num_sectors = (num_paragraphs * 16) / num_bytes_sector;
+    _numSectors = (num_paragraphs * 16) / num_bytes_sector;
     // Adjust sector size for the fact that the first three sectors are *always* 128 bytes
     if (num_bytes_sector == 256)
-        num_sectors += 2;
+        _numSectors += 2;
 
-    derive_percom_block(num_sectors);
+    derive_percom_block(_numSectors);
 
     _file = f;
-    _disksize = disksize;
-    _lastSectorNum = INVALID_SECTOR_VALUE;
+    _imageSize = disksize;
+    _lastSectorUsed = INVALID_SECTOR_VALUE;
 
-    Debug_printf("mounted ATR: paragraphs=%hu, sect_size=%hu, sect_count=%hu\n",
-                 num_paragraphs, num_bytes_sector, num_sectors);
+    Debug_printf("mounted ATR: paragraphs=%d, sect_size=%d, sect_count=%d, disk_size=%d\n",
+                 num_paragraphs, num_bytes_sector, _numSectors, disksize);
 
     _disktype = DISKTYPE_ATR;
 
@@ -208,26 +226,24 @@ bool DiskTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
     Debug_print("ATR CREATE\n");
 
-    union {
-        struct
-        {
-            uint8_t magicL;
-            uint8_t magicH;
-            uint8_t filesizeL;
-            uint8_t filesizeH;
-            uint8_t secsizeL;
-            uint8_t secsizeH;
-            uint8_t filesizeHH;
-            uint8_t res0;
-            uint8_t res1;
-            uint8_t res2;
-            uint8_t res3;
-            uint8_t res4;
-            uint8_t res5;
-            uint8_t res6;
-            uint8_t res7;
-            uint8_t flags;
-        };
+    struct
+    {
+        uint8_t magicL;
+        uint8_t magicH;
+        uint8_t filesizeL;
+        uint8_t filesizeH;
+        uint8_t secsizeL;
+        uint8_t secsizeH;
+        uint8_t filesizeHH;
+        uint8_t res0;
+        uint8_t res1;
+        uint8_t res2;
+        uint8_t res3;
+        uint8_t res4;
+        uint8_t res5;
+        uint8_t res6;
+        uint8_t res7;
+        uint8_t flags;
     } atrHeader;
 
     memset(&atrHeader, 0, sizeof(atrHeader));
@@ -250,7 +266,8 @@ bool DiskTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
     atrHeader.secsizeL = LOBYTE_FROM_UINT16(sectorSize);
     atrHeader.secsizeH = HIBYTE_FROM_UINT16(sectorSize);
 
-    Debug_printf("Write header to ATR: sec_size=%hu, sectors=%hu, paragraphs=%hu\n");
+    Debug_printf("Write header to ATR: sec_size=%d, sectors=%d, paragraphs=%d, bytes=%d\n",
+        sectorSize, numSectors, num_paragraphs, total_size);
 
     uint32_t offset = fwrite(&atrHeader, 1, sizeof(atrHeader), f);
 
@@ -269,7 +286,7 @@ bool DiskTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
         numSectors--;
     }
 
-    // Write the rest of the sectors via sparse seek
+    // Write the rest of the sectors via sparse seek to the last sector
     offset += (numSectors * sectorSize) - sectorSize;
     fseek(f, offset, SEEK_SET);
     size_t out = fwrite(blank, 1, sectorSize, f);
