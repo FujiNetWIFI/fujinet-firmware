@@ -287,23 +287,23 @@ void sioBus::setup()
     fnUartSIO.begin(_sioBaud);
 
     // INT PIN
-    fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT_OD);
-    //fnSystem.set_pin_mode(PIN_INT, PINMODE_OUTPUT);
+    fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
     fnSystem.digital_write(PIN_INT, DIGI_HIGH);
     // PROC PIN
-    fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT_OD);
-    //fnSystem.set_pin_mode(PIN_PROC, PINMODE_OUTPUT);
+    fnSystem.set_pin_mode(PIN_PROC, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
     fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
     // MTR PIN
-    fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN); // Don't think PULLDOWN/PULLUP options are relevant to input-only pins
+    //fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
+    fnSystem.set_pin_mode(PIN_MTR, gpio_mode_t::GPIO_MODE_INPUT);
     // CMD PIN
-    fnSystem.set_pin_mode(PIN_CMD, PINMODE_INPUT | PINMODE_PULLUP);
+    //fnSystem.set_pin_mode(PIN_CMD, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
+    fnSystem.set_pin_mode(PIN_CMD, gpio_mode_t::GPIO_MODE_INPUT);
     // CKI PIN
-    //fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT_OD);
-    fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
+    //fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
+    fnSystem.set_pin_mode(PIN_CKI, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
     fnSystem.digital_write(PIN_CKI, DIGI_LOW);
     // CKO PIN
-    fnSystem.set_pin_mode(PIN_CKO, PINMODE_INPUT);
+    fnSystem.set_pin_mode(PIN_CKO, gpio_mode_t::GPIO_MODE_INPUT);
 
     // Create a message queue
     qSioMessages = xQueueCreate(4, sizeof(sio_message_t));

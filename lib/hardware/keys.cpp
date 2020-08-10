@@ -20,8 +20,8 @@ static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B};
 
 void KeyManager::setup()
 {
-    fnSystem.set_pin_mode(PIN_BUTTON_A, PINMODE_INPUT);
-    fnSystem.set_pin_mode(PIN_BUTTON_B, PINMODE_INPUT);
+    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT);
+    fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT);
 
     // Start a new task to check the status of the buttons
     #define KEYS_STACKSIZE 2048

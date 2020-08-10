@@ -35,65 +35,33 @@ uint32_t SystemManager::get_cpu_frequency()
     return cfg.freq_mhz;
 }
 
-// Temprary (?) replacement for Arduino's pinMode()
-// Handles only common cases
-// PINMODE_INPUT or PINMODE_OUTPUT
-// can be ORed with PINMODE_PULLUP or PINMODE_PULLDOWN
-void SystemManager::set_pin_mode(uint8_t pin, uint8_t mode)
+// Set pin mode. No option to enable interrupts, although this is possible
+void SystemManager::set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode)
 {
     gpio_config_t io_conf;
 
-    //disable interrupt
+    // disable interrupt
     io_conf.intr_type = GPIO_INTR_DISABLE;
 
+    // set mode
+    io_conf.mode = mode;
 
-    // set pin mode
-    if (mode == PINMODE_OUTPUT_OD)
-    {
-        io_conf.mode = GPIO_MODE_OUTPUT_OD;
-#ifdef DEBUG
-        Debug_printf("set_pin_mode %x GPIO %d as OPEN DRAIN\n", mode, pin);
-#endif
-    }else if(mode & PINMODE_INPUT)
-    {
-        io_conf.mode = GPIO_MODE_INPUT;
-#ifdef DEBUG
-        Debug_printf("set_pin_mode %x GPIO %d as INPUT\n", mode, pin);
-#endif
-    } else if (mode & PINMODE_OUTPUT)
-    {
-        io_conf.mode = GPIO_MODE_OUTPUT;
-#ifdef DEBUG
-        Debug_printf("set_pin_mode %x GPIO %d as OUTPUT\n", mode, pin);
-#endif
-    }
-    else
-    {
-        // Make sure we have either PINMODE_INPUT or PINMODE_OUTPUT
-        // Don't continue if we get something unexpected        
-#ifdef DEBUG
-        Debug_println("set_pin_mode mode isn't INPUT or OUTPUT");
-#endif
-        abort();
-    }
-
-    //set pull-up/down mode (only one or the other)
-    io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_DISABLE;
-    io_conf.pull_up_en = gpio_pullup_t::GPIO_PULLUP_DISABLE;
-    if(mode & PINMODE_PULLDOWN)
-    {
-        io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_ENABLE;
-    } else if (mode & PINMODE_PULLUP)
-    {
+    // set pull-up pull-down modes
+    if(pull_mode == PULL_BOTH || pull_mode == PULL_UP)
         io_conf.pull_up_en = gpio_pullup_t::GPIO_PULLUP_ENABLE;
-    }
+    else
+        io_conf.pull_up_en = gpio_pullup_t::GPIO_PULLUP_DISABLE;    
 
-    //bit mask of the pins that you want to set
-    io_conf.pin_bit_mask = (1ULL << pin);
+    if(pull_mode == PULL_BOTH || pull_mode == PULL_DOWN)
+        io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_ENABLE;
+    else
+        io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_DISABLE;    
 
-    //configure GPIO with the given settings
+    // bit mask of the pin to set
+    io_conf.pin_bit_mask = 1ULL << pin;
+
+    // configure GPIO with the given settings
     gpio_config(&io_conf);    
-
 }
 
 // from esp32-hal-misc.
@@ -349,24 +317,18 @@ FILE * SystemManager::make_tempfile(char *result_filename)
 // Copy file from source filesystem/filename to destination filesystem/name using optional buffer_hint for buffer size
 size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filename, FileSystem *dest_fs, const char *dest_filename, size_t buffer_hint)
 {
-    #ifdef DEBUG
     Debug_printf("copy_file \"%s\" -> \"%s\"\n", source_filename, dest_filename);
-    #endif
 
     FILE * fin = source_fs->file_open(source_filename);
     if(fin == nullptr)
     {
-        #ifdef DEBUG
         Debug_println("copy_file failed to open source");
-        #endif
         return 0;
     }
     uint8_t *buffer = (uint8_t *) malloc(buffer_hint);
     if(buffer == NULL)
     {
-        #ifdef DEBUG
         Debug_println("copy_file failed to allocate copy buffer");
-        #endif
         fclose(fin);
         return 0;
     }
@@ -375,9 +337,7 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
     FILE * fout = dest_fs->file_open(dest_filename, "w");
     if(fout == nullptr)
     {
-        #ifdef DEBUG
         Debug_println("copy_file failed to open destination");
-        #endif
     }
     else
     {
@@ -394,9 +354,7 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
     fclose(fin);
     free(buffer);
 
-    #ifdef DEBUG
     Debug_printf("copy_file copied %d bytes\n", result);
-    #endif
 
     return result;
 }
