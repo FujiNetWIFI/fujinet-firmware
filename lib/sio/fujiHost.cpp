@@ -103,9 +103,9 @@ bool fujiHost::dir_seek(uint16_t pos)
     return result;
 }
 
-bool fujiHost::dir_open(const char *path)
+bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
 {
-    Debug_printf("::dir_open {%d:%d} \"%s\"\n", slotid, _type, path);
+    Debug_printf("::dir_open {%d:%d} \"%s\", pattern \"%s\"\n", slotid, _type, path, pattern ? pattern : "");
     if (_fs == nullptr)
     {
         Debug_println("::dir_open no FileSystem set");
@@ -117,7 +117,7 @@ bool fujiHost::dir_open(const char *path)
     {
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
-        result = _fs->dir_open(path);
+        result = _fs->dir_open(path, pattern, options);
         break;
     case HOSTTYPE_UNINITIALIZED:
         break;
@@ -168,7 +168,7 @@ long fujiHost::get_filesize(FILE *filehandle)
     return _fs->FileSystem::filesize(filehandle);
 }
 
-FILE *fujiHost::open(const char *path, const char *mode)
+FILE *fujiHost::open_file(const char *path, const char *mode)
 {
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
         return nullptr;
@@ -176,9 +176,9 @@ FILE *fujiHost::open(const char *path, const char *mode)
     return _fs->file_open(path, mode);
 }
 
-FILE *fujiHost::open(const string path, const char *mode)
+FILE *fujiHost::open_file(const string path, const char *mode)
 {
-    return open(path.c_str(), mode);
+    return open_file(path.c_str(), mode);
 }
 
 /* Returns pointer to current hostname and, if provided, fills buffer with that string
