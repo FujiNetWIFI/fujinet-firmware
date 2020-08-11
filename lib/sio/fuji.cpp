@@ -258,7 +258,7 @@ void sioFuji::sio_disk_image_mount()
         _fnDisks[deviceSlot].host_slot, flag, deviceSlot + 1);
 
     _fnDisks[deviceSlot].file =
-        _fnHosts[_fnDisks[deviceSlot].host_slot].open(_fnDisks[deviceSlot].filename, flag);
+        _fnHosts[_fnDisks[deviceSlot].host_slot].open_file(_fnDisks[deviceSlot].filename, flag);
 
     if (_fnDisks[deviceSlot].file == nullptr)
     {
@@ -364,13 +364,24 @@ void sioFuji::sio_open_directory()
         _current_open_directory_slot = -1;
     }
 
-    Debug_printf("Opening directory: \"%s\"\n", current_entry);
+    // See if there's a search pattern after the directory path
+    const char *pattern = nullptr;
+    int pathlen = strnlen(current_entry, sizeof(current_entry));
+    if(pathlen < sizeof(current_entry) - 3) // Allow for two NULLs and a 1-char pattern
+    {
+        pattern = current_entry + pathlen + 1;
+        int patternlen = strnlen(pattern, sizeof(current_entry) - pathlen -1);
+        if(patternlen < 1)
+            pattern = nullptr;
+    }
+
+    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", current_entry, pattern ? pattern : "");
 
     // Remove trailing slash
     if ((strlen(current_entry) > 1) && (current_entry[strlen(current_entry) - 1] == '/'))
         current_entry[strlen(current_entry) - 1] = 0x00;
 
-    if (_fnHosts[hostSlot].dir_open(current_entry))
+    if (_fnHosts[hostSlot].dir_open(current_entry, pattern, 0))
     {
         _current_open_directory_slot = hostSlot;
         sio_complete();
@@ -578,7 +589,7 @@ void sioFuji::sio_new_disk()
         return;
     }
 
-    FILE *f = _fnHosts[newDisk.hostSlot].open(_fnDisks[newDisk.deviceSlot].filename, "w");
+    FILE *f = _fnHosts[newDisk.hostSlot].open_file(_fnDisks[newDisk.deviceSlot].filename, "w");
     if (f == nullptr)
     {
         Debug_printf("sio_new_disk Couldn't open file for writing: \"%s\"\n", _fnDisks[newDisk.deviceSlot].filename);

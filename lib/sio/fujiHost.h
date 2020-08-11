@@ -44,14 +44,13 @@ public:
     bool exists(const char *path);
     bool exists(const std::string path);
 
-    FILE * open(const char *path, const char *mode = "r");
-    FILE * open(const std::string path, const char *mode = "r");
-
-    //FILE * get_filehandle();
+    FILE * open_file(const char *path, const char *mode = "r");
+    FILE * open_file(const std::string path, const char *mode = "r");
 
     long get_filesize(FILE *filehandle);
 
-    bool dir_open(const char *path);
+    bool dir_open(const char *path, const char *pattern, uint16_t options = 0);
+    
     fsdir_entry_t * dir_nextfile();
     void dir_close();
     uint16_t dir_tell();
