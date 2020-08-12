@@ -135,6 +135,8 @@ bool FileSystemTNFS::dir_open(const char * path, const char *pattern, uint16_t d
 
     if(diropts & DIR_OPTION_DESCENDING)
         s_opt |= TNFS_DIRSORT_DESCENDING;
+    if(diropts & DIR_OPTION_FILEDATE)
+        s_opt |= TNFS_DIRSORT_MODIFIED;
 
     if(TNFS_RESULT_SUCCESS == tnfs_opendirx(&_mountinfo, path, s_opt, d_opt, pattern, 0))
     {
