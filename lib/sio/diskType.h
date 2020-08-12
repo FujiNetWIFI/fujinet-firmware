@@ -10,6 +10,7 @@
 enum disktype_t {
     DISKTYPE_UNKNOWN = 0,
     DISKTYPE_ATR,
+    DISKTYPE_ATX,
     DISKTYPE_XEX,
     DISKTYPE_COUNT
 };
@@ -67,6 +68,8 @@ public:
     virtual uint16_t sector_size(uint16_t sectornum) = 0;
     
     virtual void status(uint8_t statusbuff[4]) = 0;
+
+    static disktype_t discover_disktype(const char *filename);
 };
 
 #endif // _DISKTYPE_

@@ -1,3 +1,5 @@
+#include <string.h>
+
 #include "../../include/debug.h"
 #include "../utils/utils.h"
 
@@ -111,6 +113,28 @@ void DiskType::unmount()
         fclose(_file);
         _file = nullptr;
     }
+}
+
+disktype_t DiskType::discover_disktype(const char *filename)
+{
+    int l = strlen(filename);
+    if(l > 4 && filename[l - 4] == '.')
+    {
+        // Check the last 3 characters of the string
+        const char *ext = filename + l - 3;
+        if(strcasecmp(ext, "XEX") == 0) {
+            return DISKTYPE_XEX;
+        } else if(strcasecmp(ext, "COM") == 0) {
+            return DISKTYPE_XEX;
+        } else if(strcasecmp(ext, "BIN") == 0) {
+            return DISKTYPE_XEX;
+        } else if(strcasecmp(ext, "ATR") == 0) {
+            return DISKTYPE_ATR;
+        } else if(strcasecmp(ext, "ATX") == 0) {
+            return DISKTYPE_ATX;
+        }
+    }
+    return DISKTYPE_UNKNOWN;
 }
 
 DiskType::~DiskType()
