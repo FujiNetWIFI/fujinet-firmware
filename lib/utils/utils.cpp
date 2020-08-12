@@ -261,8 +261,14 @@ std::string util_ellipsize(std::string longString, int maxLength)
 
 // Function that matches input str with
 // given wildcard pattern
-bool util_wildcard_match(char str[], char pattern[], int n, int m)
+bool util_wildcard_match(const char *str, const char *pattern)
 {
+    if(str == nullptr || pattern == nullptr)
+        return false;
+    
+    int m = strlen(pattern);
+    int n = strlen(str);
+
     // empty pattern can only match with
     // empty string
     if (m == 0)
