@@ -11,6 +11,7 @@
 #include "esp_vfs_fat.h"
 
 #include "fnFsSD.h"
+#include "../utils/utils.h"
 #include "../../include/debug.h"
 
 #define SD_HOST_CS GPIO_NUM_5
@@ -27,7 +28,6 @@ FileSystemSDFAT fnSDFAT;
 */
 std::vector<fsdir_entry> _dir_entries;
 uint16_t _dir_entry_current = 0;
-
 
 bool _fssd_fsdir_sort_name_ascend(fsdir_entry &left, fsdir_entry &right)
 {
@@ -49,6 +49,7 @@ bool _fssd_fsdir_sort_time_descend(fsdir_entry &left, fsdir_entry &right)
     return left.modified_time < right.modified_time;
 }
 
+typedef bool (*sort_fn_t)(fsdir_entry &left, fsdir_entry &right);
 
 /*
   Converts the FatFs ftime and fdate to a POSIX time_t value
@@ -110,6 +111,8 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
     if(result != FR_OK)
         return false;
 
+    bool have_pattern = pattern != nullptr && pattern[0] != '\0';
+
     // Read all the directory entries and store them
     // We temporarily keep separate lists of files and directories so we can sort them separately
     std::vector<fsdir_entry> store_directories;
@@ -141,6 +144,10 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         }
         else
         {
+            // Skip this entry if we have a search filter and it doesn't match it
+            if(have_pattern && util_wildcard_match(finfo.fname, pattern) == false)
+                continue;
+
             store_files.push_back(fsdir_entry());
             entry = &store_files.back();
             entry->isDir = false;
@@ -152,9 +159,20 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         entry->modified_time = _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate);
     }
 
+    // Choose the appropriate sorting function
+    sort_fn_t sortfn;
+    if (diropts & DIR_OPTION_FILEDATE)
+    {
+        sortfn = (diropts & DIR_OPTION_DESCENDING) ? _fssd_fsdir_sort_time_descend : _fssd_fsdir_sort_time_ascend;
+    }
+    else
+    {
+        sortfn = (diropts & DIR_OPTION_DESCENDING) ? _fssd_fsdir_sort_name_descend : _fssd_fsdir_sort_name_ascend;        
+    }
+
     // Sort each list
-    std::sort(store_directories.begin(), store_directories.end(), _fssd_fsdir_sort_name_ascend);
-    std::sort(store_files.begin(), store_files.end(), _fssd_fsdir_sort_name_ascend);
+    std::sort(store_directories.begin(), store_directories.end(), sortfn);
+    std::sort(store_files.begin(), store_files.end(), sortfn);
 
     // Combine the folder and file entries
     _dir_entries.reserve( store_directories.size() + store_files.size() );

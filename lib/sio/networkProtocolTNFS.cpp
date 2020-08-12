@@ -183,7 +183,7 @@ unsigned char networkProtocolTNFS::status_dir()
         while (tnfs_readdirx(&mountInfo, &fileStat, tmp, 255) == 0)
         {
             Debug_printf("tnfs::status_dir got \"%s\"\n", tmp);
-            if (util_wildcard_match(tmp, (char *)filename.c_str(), strlen(tmp), filename.length()))
+            if (util_wildcard_match(tmp, filename.c_str()))
             {
                 Debug_printf("tnfs::status_dir path: %s - tmp: %s\n", path.c_str(), tmp);
 
