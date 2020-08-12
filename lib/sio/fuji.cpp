@@ -5,6 +5,7 @@
 #include "fnWiFi.h"
 #include "fnSystem.h"
 
+#include "../utils/utils.h"
 #include "../FileSystem/fnFsSPIF.h"
 #include "../config/fnConfig.h"
 
@@ -390,12 +391,45 @@ void sioFuji::sio_open_directory()
         sio_error();
 }
 
+void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+{
+    // File modified date-time
+    struct tm * modtime = localtime(&f->modified_time);
+    modtime->tm_mon++;
+    modtime->tm_year-=70;
+
+    dest[0] = modtime->tm_year;
+    dest[1] = modtime->tm_mon;
+    dest[2] = modtime->tm_mday;
+    dest[3] = modtime->tm_hour;
+    dest[4] = modtime->tm_min;
+    dest[5] = modtime->tm_sec;
+
+    // File size
+    uint16_t fsize = f->size;
+    dest[6] = LOBYTE_FROM_UINT16(fsize);
+    dest[7] = HIBYTE_FROM_UINT16(fsize);
+
+    // File flags
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
+
+    dest[8] = f->isDir ? FF_DIR : 0;
+
+    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
+    if(f->isDir) // Also subtract a byte for a terminating slash on directories
+        maxlen--;
+    if(strlen(f->filename) >= maxlen)
+        dest[8] |= FF_TRUNC;
+
+    // File type
+    dest[9] = DiskType::discover_disktype(f->filename);
+}
+
 void sioFuji::sio_read_directory_entry()
 {
-    Debug_println("Fuji cmd: READ DIRECTORY ENTRY");
-
-    char current_entry[256];
-    uint8_t len = cmdFrame.aux1;
+    uint8_t maxlen = cmdFrame.aux1;
+    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
     // Make sure we have a current open directory
     if (_current_open_directory_slot == -1)
@@ -405,50 +439,45 @@ void sioFuji::sio_read_directory_entry()
         return;
     }
 
+    char current_entry[256];
+
     fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-    int l = 0;
 
     if (f == nullptr)
     {
-        current_entry[0] = 0x7F; // end of dir
-        // fnFileSystems[hostSlot].dir_close(); // We should wait for an explicit close command
         Debug_println("Reached end of of directory");
+        current_entry[0] = 0x7F;
+        current_entry[1] = 0x7F;
     }
     else
     {
-        if (f->filename[0] == '/')
+        Debug_printf("::read_direntry \"%s\"\n", f->filename);
+
+        int bufsize = sizeof(current_entry);
+        char *filenamedest = current_entry;
+
+#define ADDITIONAL_DETAILS_BYTES 10
+        // If 0x80 is set on AUX2, send back additional information
+        if(cmdFrame.aux2 & 0x80)
         {
-            for (l = strlen(f->filename); l-- > 0;)
-            {
-                if (f->filename[l] == '/')
-                {
-                    l++;
-                    break;
-                }
-            }
+            _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+            // Adjust remaining size of buffer and file path destination 
+            bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
+            filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
         }
-        strcpy(current_entry, &f->filename[l]);
-        if (f->isDir)
+
+        int filelen = strlcpy(filenamedest, f->filename, bufsize);
+
+        // Add a slash at the end of directory entries
+        if (f->isDir && filelen < (bufsize - 2))
         {
-            int a = strlen(current_entry);
-            if (current_entry[a - 1] != '/')
-            {
-                current_entry[a] = '/';
-                current_entry[a + 1] = '\0';
-                //Debug_println("append trailing /");
-            }
+            current_entry[filelen] = '/';
+            current_entry[filelen + 1] = '\0';
         }
+
     }
 
-    int stidx = 0;
-    if (current_entry[0] == '/')
-    {
-        stidx = 1;
-        //Debug_println("strip leading /");
-    }
-
-    uint8_t *ce_ptr = (uint8_t *)&current_entry[stidx];
-    sio_to_computer(ce_ptr, len, false);
+    sio_to_computer((uint8_t *)current_entry, maxlen, false);
 }
 
 void sioFuji::sio_get_directory_position()

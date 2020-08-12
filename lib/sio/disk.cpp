@@ -192,22 +192,7 @@ disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disk
 
     // Determine DiskType based on filename extension
     if (disk_type == DISKTYPE_UNKNOWN && filename != nullptr)
-    {
-        
-        int l = strlen(filename);
-        if(l > 4 && filename[l - 4] == '.')
-        {
-            // Check the last 3 characters of the string
-            l = l - 3;
-            if(strcasecmp(filename + l, "COM") == 0) {
-                disk_type = DISKTYPE_XEX;
-            } else if(strcasecmp(filename + l, "XEX") == 0) {
-                disk_type = DISKTYPE_XEX;
-            } else if(strcasecmp(filename + l, "BIN") == 0) {
-                disk_type = DISKTYPE_XEX;
-            }
-        }
-    }
+        disk_type = DiskType::discover_disktype(filename);
 
     // Now mount based on DiskType
     switch (disk_type)
