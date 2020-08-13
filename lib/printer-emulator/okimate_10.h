@@ -31,6 +31,7 @@ protected:
 
     uint8_t okimate_current_fnt_mask = 0x80; // black normal typeface
     uint8_t okimate_new_fnt_mask = 0x80;     // black normal typeface
+    uint8_t okimate_old_fnt_mask = 0x80; 
 
     void esc_not_implemented();
     void cmd_not_implemented(uint8_t c);

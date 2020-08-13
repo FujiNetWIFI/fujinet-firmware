@@ -367,6 +367,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x25: // 37, '%': // GRAPHICS MODE ON
             if (okimate_cmd.ctr == 0)
             {
+                okimate_old_fnt_mask = okimate_current_fnt_mask;
                 set_mode(fnt_gfx);
                 clear_mode(fnt_compressed | fnt_inverse | fnt_expanded); // may not be necessary
                 // charWidth = 1.2;
@@ -401,7 +402,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 case 0x91: // end gfx mode
                     // reset font
                     okimate_current_fnt_mask = 0xFF; // invalidate font mask
-                    okimate_new_fnt_mask = 0x80;
+                    okimate_new_fnt_mask = okimate_old_fnt_mask; // restore old font
                     if (colorMode == colorMode_t::off)
                         okimate_handle_font();
                     else
@@ -545,7 +546,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                  *      N converts to pts by 60 dots per inch = 72 pts per inch : 72/60 = 1.2
                  *      need to insert N-pdf_X/1.2 dots from current position
                 */
-                uint8_t old_font_mask = okimate_current_fnt_mask;
+                okimate_old_fnt_mask = okimate_current_fnt_mask;
                 set_mode(fnt_gfx);
                 clear_mode(fnt_compressed | fnt_inverse | fnt_expanded); // may not be necessary
                 if (colorMode == colorMode_t::off)
@@ -568,7 +569,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                             color_counter++;
                     }
                 }
-                okimate_new_fnt_mask = old_font_mask; // set back to old state
+                okimate_new_fnt_mask = okimate_old_fnt_mask; // set back to old state
                 // old statement: okimate_new_fnt_mask = okimate_current_fnt_mask; // this doesn't do anything because of next line
                 okimate_current_fnt_mask = 0xFF; // invalidate font mask
                 if (colorMode == colorMode_t::off)
