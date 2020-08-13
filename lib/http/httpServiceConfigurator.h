@@ -12,6 +12,8 @@ class fnHttpServiceConfigurator
 {
     static void config_printer(std::string printernumber, std::string printermodel, std::string printerport);
     static void config_hsio(std::string hsio_index);
+    static void config_timezone(std::string timezone);
+
 public:
     static char * url_decode(char * dst, const char * src, size_t dstsize);
     static std::map<std::string, std::string> parse_postdata(const char * postdata, size_t postlen);

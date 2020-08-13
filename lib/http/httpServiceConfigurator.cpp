@@ -107,6 +107,7 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
     return results;
 }
 
+
 void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
 {
     int index = -1;
@@ -122,6 +123,18 @@ void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
     SIO.setHighSpeedIndex(index);
     // Store our change in Config        
     Config.store_general_hsioindex(index);
+    Config.save();
+}
+
+void fnHttpServiceConfigurator::config_timezone(std::string timezone)
+{
+    Debug_printf("New timezone value: %s\n", timezone.c_str());
+
+    // Store our change in Config
+    Config.store_general_timezone(timezone.c_str());
+    // Update the system timezone variable
+    fnSystem.update_timezone(timezone.c_str());
+    // Save change
     Config.save();
 }
 
@@ -209,6 +222,9 @@ int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t
         } else if(i->first.compare("hsioindex") == 0)
         {
             config_hsio(i->second);
+        } else if(i->first.compare("timezone") == 0)
+        {
+            config_timezone(i->second);
         }
     }
 

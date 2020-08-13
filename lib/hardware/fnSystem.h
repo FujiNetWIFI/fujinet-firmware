@@ -16,6 +16,7 @@ class SystemManager
 {
 private:
     char _uptime_string[18];
+    char _currenttime_string[40];
 
 public:
     class _net
@@ -33,8 +34,13 @@ public:
             IP4_DNS_PRIMARY = 0
         };
 
+        bool _sntp_initialized = false;
+        unsigned long _sntp_last_sync = 0;
+
         std::string _get_ip4_address_str(_ip4_address_type iptype);
         std::string _get_ip4_dns_str(_ip4_dns_type dnstype);
+
+        static void _sntp_time_sync_notification(struct timeval *tv);
 
     public:
         std::string get_hostname();
@@ -44,6 +50,10 @@ public:
         int get_ip4_info(uint8_t ip4address[4], uint8_t ip4mask[4], uint8_t ip4gateway[4]);
         std::string get_ip4_dns_str();
         int get_ip4_dns_info(uint8_t ip4dnsprimary[4]);
+
+        void start_sntp_client();
+        void stop_sntp_client();
+        void set_sntp_lastsync();
     };
     _net Net;
 
@@ -77,8 +87,13 @@ public:
     unsigned long micros();
     void delay_microseconds(uint32_t us);
     void delay(uint32_t ms);
+
     const char *get_uptime_str();
+    const char *get_current_time_str();
+    void update_timezone(const char *timezone);
+
     const char *get_fujinet_version(bool shortVersionOnly = false);
+
     int get_sio_voltage();
     void yield();
 
