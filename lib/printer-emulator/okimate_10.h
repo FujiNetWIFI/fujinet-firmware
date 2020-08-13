@@ -69,5 +69,6 @@ public:
  * option 1: make padding GFX spaces, back up after a letter is printed by charWidth-1.2 pts (need to figure out math for font coordinate system)
  * option 2: make padding some special code (not FF, maybe FE?) that the loop just skips over. Need to pad out to charWidth in dot spaces.
  * 
- * 
+ * option 2 makes more sense
+ * if receive a char, insert it into current dot position. Determine dot width=charWidth/1.2
  **/

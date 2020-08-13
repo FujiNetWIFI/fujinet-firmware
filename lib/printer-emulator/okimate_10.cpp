@@ -67,12 +67,12 @@ void okimate10::fprint_color_array(uint8_t font_mask)
 
 void okimate10::okimate_handle_font()
 {
-    // 10 CPI, 16.5 CPI, 5 CPI, 8.25 CPI
+    // 10 CPI, 17 CPI, 5 CPI, 8.5 CPI
     const double font_widths[] = {
         100.,                  // standard
-        100. * 80. / 132.,     // compressed
+        100. * 80. / 136.,     // compressed
         2. * 100.,             // wide
-        2. * 100. * 80. / 132. // bold
+        2. * 100. * 80. / 136. // bold
     };
     if ((okimate_current_fnt_mask != okimate_new_fnt_mask) || (okimate_new_fnt_mask & fnt_inverse))
     {
