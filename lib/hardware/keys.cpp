@@ -6,8 +6,8 @@
 #include "keys.h"
 #include "sio.h"
 
-#define LONGPRESS_TIME 2000 // 2 seconds to detect long press
-#define SHORTPRESS_TIME 500 // 0.5 seconds to detect short press
+#define LONGPRESS_TIME 1750 // 1.75 seconds to detect long press
+#define SHORTPRESS_TIME 300 // 0.3 seconds to detect short press
 #define TAP_MAXTIME 500 // 0.5 seconds max time between single/double tap detection
 
 #define PIN_BUTTON_A 0
@@ -24,7 +24,10 @@ void KeyManager::setup()
     fnSystem.set_pin_mode(PIN_BUTTON_B, PINMODE_INPUT);
 
     // Start a new task to check the status of the buttons
-    xTaskCreate(_keystate_task, "fnKeys", 4096, this, 1, nullptr);
+    #define KEYS_STACKSIZE 2048
+    #define KEYS_PRIORITY 1
+
+    xTaskCreate(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr);
 }
 
 // Ignores the current key press
@@ -49,15 +52,31 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
         return result;
 #endif
 
+    unsigned long ms;
+
     // Button is PRESSED when DIGI_LOW
     if (fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW)
     {
+        ms = fnSystem.millis();
+
         // Mark this button as ACTIVE and note the time
         if (_buttonActive[key] == false)
         {
             _buttonActive[key] = true;
-            _buttonActionStarted[key] = fnSystem.millis();
+            _buttonActionStarted[key] = ms;
         }
+        // Detect long-press when time runs out instead of waiting for release
+        else
+        {
+            if (ms - _buttonActionStarted[key] > LONGPRESS_TIME && _buttonActionStarted[key] > 0)
+            {
+                result = eKeyStatus::LONG_PRESS;
+                // Indicate we ignore further activity until the button is released
+                _buttonActionStarted[key] = -1;
+            }
+
+        }
+        
     }
     // Button is NOT pressed when DIGI_HIGH
     else
@@ -70,11 +89,9 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
             */
             if(_buttonActionStarted[key] > 0)
             {
-                unsigned long ms = fnSystem.millis();
+                ms = fnSystem.millis();
 
-                if (ms - _buttonActionStarted[key] > LONGPRESS_TIME)
-                    result = eKeyStatus::LONG_PRESS;
-                else if (ms - _buttonActionStarted[key] > SHORTPRESS_TIME)
+                if (ms - _buttonActionStarted[key] > SHORTPRESS_TIME)
                     result = eKeyStatus::SHORT_PRESS;
                 else
                 // Anything shorter than SHORTPRESS_TIME counts as a TAP

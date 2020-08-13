@@ -126,6 +126,8 @@ void main_setup()
 #endif
 }
 
+
+// Main high-priority service loop
 void fn_service_loop(void *param)
 {
     while (true)
@@ -153,13 +155,13 @@ extern "C"
         main_setup();
 
         // Create a new high-priority task to handle the main loop
-        // This is assigned to CPU1 the WiFi task ends up on CPU0
+        // This is assigned to CPU1; the WiFi task ends up on CPU0
         #define MAIN_STACKSIZE 4096
         #define MAIN_PRIORITY 10
         #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
             MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
-
+            
         // Sit here twiddling our thumbs
         while (true)
             vTaskDelay(9000 / portTICK_PERIOD_MS);

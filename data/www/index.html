@@ -82,6 +82,10 @@ SPIFFS storage free/used
 	<td><%FN_UPTIME%></td>
 </tr>
 <tr>
+	<td>Current time:</td>
+	<td><%FN_CURRENTTIME%></td>
+</tr>
+<tr>
 	<td>Free heap:</td>
 	<td><%FN_HEAPSIZE%></td>
 </tr>
@@ -171,7 +175,7 @@ SPIFFS storage free/used
 <table class="general">
 <tr>
 	<td class="small light">
-		<a href="/print"><img src="/file?hsio.svg" class="hsio"></a>
+		<img src="/file?hsio.svg" class="hsio">
 	</td>
 	<td class="hsioform small">
 	Change HSIO index:
@@ -196,6 +200,22 @@ SPIFFS storage free/used
 <script>
 	var current_hsioindex="<%FN_SIO_HSINDEX%>";
 </script>
+
+<table class="general">
+<tr>
+	<td>
+		<img src="/file?tz.svg" class="tz">
+	</td>
+	<td class="tz small">
+	Change Time Zone:
+		<form action="/config" method="post">
+			<input type="text" name="timezone" id="txt_timezone" value="<%FN_TIMEZONE%>">
+			<input type="submit" value="Change">
+			<a href="https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html">?</a>
+		</form>
+	</td>
+</tr>
+</table>
 
 <script type="text/javascript" src="/file?selectedoptions.js"></script>
 
