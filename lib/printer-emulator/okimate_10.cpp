@@ -68,7 +68,7 @@ void okimate10::fprint_color_array(uint8_t font_mask)
 void okimate10::okimate_handle_font()
 {
     // 10 CPI, 16.5 CPI, 5 CPI, 8.25 CPI
-    const double font_widths[] ={
+    const double font_widths[] = {
         100.,                  // standard
         100. * 80. / 132.,     // compressed
         2. * 100.,             // wide
@@ -110,15 +110,15 @@ void okimate10::okimate_handle_font()
 uint16_t okimate10::okimate_cmd_ascii_to_int(uint8_t c)
 {
     // now bytes to int
-    uint16_t N = okimate_cmd.n;// - 48;
+    uint16_t N = okimate_cmd.n; // - 48;
     if (okimate_cmd.ctr == 1)
         return N;
     N *= 10;
-    N += okimate_cmd.data;// - 48;
+    N += okimate_cmd.data; // - 48;
     if (okimate_cmd.ctr == 2)
         return N;
     N *= 10;
-    N += c;// - 48;
+    N += c; // - 48;
     return N;
 }
 
@@ -260,12 +260,12 @@ void okimate10::okimate_output_color_line()
         i++;
     }
     //okimate_current_fnt_mask = 0xFF;
-    okimate_new_fnt_mask = 0x80; // set color back to 
-    #ifdef DEBUG
+    okimate_new_fnt_mask = 0x80; // set color back to
+#ifdef DEBUG
     Debug_println("Color output line complete");
-    #endif
+#endif
     fprintf(_file, ")]TJ\n"); // close the line
-    pdf_X = 0; // CR
+    pdf_X = 0;                // CR
     pdf_clear_modes();
     fprintf(_file, "0 0 Td [(");
     BOLflag = false;
@@ -310,31 +310,31 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         {
             okimate_cmd.ctr = 0;
             okimate_cmd.cmd = c; // assign command char
-            #ifdef DEBUG
+#ifdef DEBUG
             Debug_printf("Command: %02x\n", c);
-            #endif
+#endif
         }
         else
         {
             okimate_cmd.ctr++; // increment counter to keep track of the byte in the command
-            #ifdef DEBUG
+#ifdef DEBUG
             Debug_printf("Command counter: %d\n", okimate_cmd.ctr);
-            #endif
+#endif
         }
 
         if (okimate_cmd.ctr == 1)
         {
             okimate_cmd.n = c;
-            #ifdef DEBUG
+#ifdef DEBUG
             Debug_printf("n: %d\n", c);
-            #endif
+#endif
         }
         else if (okimate_cmd.ctr == 2)
         {
             okimate_cmd.data = c;
-            #ifdef DEBUG
+#ifdef DEBUG
             Debug_printf("data: %d\n", c);
-            #endif
+#endif
         }
 
         // state machine actions
@@ -377,15 +377,15 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 else
                     okimate_current_fnt_mask = okimate_new_fnt_mask;
                 textMode = false;
-                #ifdef DEBUG
+#ifdef DEBUG
                 Debug_printf("Entering GFX mode\n");
-                #endif
+#endif
             }
             else
                 switch (c)
                 {
                 case 0x8A: // line advance by n
-                    // logic needed: 
+                    // logic needed:
                     // set cmdMode and clear escMode
                     // pass control to 0x8A mode
                     // let it execute a line advance
@@ -394,9 +394,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     cmdMode = true;
                     okimate_cmd.cmd = 0x8A;
                     okimate_cmd.ctr = 0;
-                    #ifdef DEBUG
+#ifdef DEBUG
                     Debug_printf("Go to line advance from gfx\n");
-                    #endif
+#endif
                     break;
                 case 0x91: // end gfx mode
                     // reset font
@@ -408,9 +408,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                         okimate_current_fnt_mask = okimate_new_fnt_mask;
                     textMode = true;
                     reset_cmd();
-                    #ifdef DEBUG
+#ifdef DEBUG
                     Debug_printf("Finished GFX mode\n");
-                    #endif
+#endif
                     break;
                 case 0x9A: // repeat gfx char n times
                     // toss control over to the Direct Command switch statement
@@ -418,9 +418,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     cmdMode = true;
                     okimate_cmd.cmd = 0x9A;
                     okimate_cmd.ctr = 0;
-                    #ifdef DEBUG
+#ifdef DEBUG
                     Debug_printf("Go to repeated gfx char\n");
-                    #endif
+#endif
                     break;
                 default:
                     if (colorMode == colorMode_t::off)
@@ -428,7 +428,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     else
                     {
                         color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
-                        color_buffer[color_counter++][static_cast<int>(colorMode)] = c;
+                        color_buffer[color_counter][static_cast<int>(colorMode)] = c;
+                        if (color_counter < 479)
+                            color_counter++;
                     }
 
                     break;
@@ -476,29 +478,29 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         // command state machine switching
         if (okimate_cmd.ctr == 0)
         {
-            #ifdef DEBUG
+#ifdef DEBUG
             Debug_printf("Command: %02x\n", okimate_cmd.cmd);
-            #endif
+#endif
         }
 
         okimate_cmd.ctr++; // increment counter to keep track of the byte in the command
-        #ifdef DEBUG
+#ifdef DEBUG
         Debug_printf("Command counter: %d\n", okimate_cmd.ctr);
-        #endif
+#endif
 
         if (okimate_cmd.ctr == 1)
         {
             okimate_cmd.n = c;
-            #ifdef DEBUG
+#ifdef DEBUG
             Debug_printf("n: %d\n", c);
-            #endif
+#endif
         }
         else if (okimate_cmd.ctr == 2)
         {
             okimate_cmd.data = c;
-            #ifdef DEBUG
+#ifdef DEBUG
             Debug_printf("data: %d\n", c);
-            #endif
+#endif
         }
 
         switch (okimate_cmd.cmd)
@@ -527,21 +529,33 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 0x90: //0x90 n - dot column horizontal tab
             textMode = false;
-            if ((c > 9)  || (okimate_cmd.ctr == 3))
+            if ((c > 9) || (okimate_cmd.ctr == 3)) // i think should always be ctr==3
             {
                 uint16_t N = okimate_cmd_ascii_to_int(c);
-                if (N>480)
+                if (N > 480)
                 {
-                    N=0;
+                    N = 0;
                     Debug_printf("!!!!Tab Value out of Range: %d", N);
                 }
+                /**
+                 * new logic - go to position N and start printing from there
+                 * recipe
+                 *      pdf_X stores current position
+                 *      assume can only tab to right - N(in pts)>pdf_X
+                 *      N converts to pts by 60 dots per inch = 72 pts per inch : 72/60 = 1.2
+                 *      need to insert N-pdf_X/1.2 dots from current position
+                */
+                uint8_t old_font_mask = okimate_current_fnt_mask;
                 set_mode(fnt_gfx);
                 clear_mode(fnt_compressed | fnt_inverse | fnt_expanded); // may not be necessary
                 if (colorMode == colorMode_t::off)
                     okimate_handle_font();
                 else
                     okimate_current_fnt_mask = okimate_new_fnt_mask;
-                for (int i = 1; i < N; i++)
+
+                // compute gap needed in dots
+                uint8_t M = N - uint8_t(pdf_X/1.2);
+                for (int i = 1; i < M; i++)
                 {
                     // if in color mode, store a ' ' in the buffer
                     if (colorMode == colorMode_t::off)
@@ -549,10 +563,12 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     else
                     {
                         color_buffer[color_counter][0] = okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
-                        color_buffer[color_counter++][static_cast<int>(colorMode)] = 0;   // space no dots
+                        color_buffer[color_counter][static_cast<int>(colorMode)] = 0;     // space no dots
+                        if (color_counter < 479)
+                            color_counter++;
                     }
                 }
-                okimate_new_fnt_mask = 0x80; // set to normal
+                okimate_new_fnt_mask = old_font_mask; // set back to old state
                 // old statement: okimate_new_fnt_mask = okimate_current_fnt_mask; // this doesn't do anything because of next line
                 okimate_current_fnt_mask = 0xFF; // invalidate font mask
                 if (colorMode == colorMode_t::off)
@@ -572,12 +588,14 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     if (colorMode == colorMode_t::off)
                     {
                         print_7bit_gfx(okimate_cmd.data);
-                        pdf_X+=charWidth;
+                        pdf_X += charWidth;
                     }
                     else
                     {
                         color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
-                        color_buffer[color_counter++][static_cast<int>(colorMode)] = okimate_cmd.data;
+                        color_buffer[color_counter][static_cast<int>(colorMode)] = okimate_cmd.data;
+                        if (color_counter < 479)
+                            color_counter++;
                     }
                 }
                 // toss control back over to ESC-37 graphics mode
@@ -682,7 +700,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             {
                 okimate_current_fnt_mask = okimate_new_fnt_mask;
                 color_buffer[color_counter][0] = okimate_current_fnt_mask & 0x07; // just need font state - not color
-                color_buffer[color_counter++][static_cast<int>(colorMode)] = c;
+                color_buffer[color_counter][static_cast<int>(colorMode)] = c;
+                if (color_counter < 479)
+                    color_counter++;
             }
             break;
         }
