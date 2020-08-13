@@ -401,7 +401,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     break;
                 case 0x91: // end gfx mode
                     // reset font
-                    okimate_current_fnt_mask = 0xFF; // invalidate font mask
+                    okimate_current_fnt_mask = 0xFF;             // invalidate font mask
                     okimate_new_fnt_mask = okimate_old_fnt_mask; // restore old font
                     if (colorMode == colorMode_t::off)
                         okimate_handle_font();
@@ -555,12 +555,15 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     okimate_current_fnt_mask = okimate_new_fnt_mask;
 
                 // compute gap needed in dots
-                uint8_t M = N - uint8_t(pdf_X/1.2);
+                uint8_t M = N - uint8_t(pdf_X / 1.2);
                 for (int i = 1; i < M; i++)
                 {
                     // if in color mode, store a ' ' in the buffer
                     if (colorMode == colorMode_t::off)
+                    {
                         fprintf(_file, " ");
+                        pdf_X += charWidth;
+                    }
                     else
                     {
                         color_buffer[color_counter][0] = okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
