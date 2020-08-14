@@ -43,7 +43,8 @@ protected:
     void fprint_color_array(uint8_t font_mask);
     void okimate_handle_font(); // change typeface and/or color
     void okimate_output_color_line(); 
-
+    void okimate_init_colormode();
+    
     virtual void pdf_clear_modes() override;
     virtual void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;
