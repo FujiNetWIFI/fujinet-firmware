@@ -31,6 +31,7 @@ protected:
 
     uint8_t okimate_current_fnt_mask = 0x80; // black normal typeface
     uint8_t okimate_new_fnt_mask = 0x80;     // black normal typeface
+    uint8_t okimate_old_fnt_mask = 0x80; 
 
     void esc_not_implemented();
     void cmd_not_implemented(uint8_t c);
@@ -52,3 +53,23 @@ public:
 };
 
 #endif
+
+/** exposition on color mode
+ * 
+ * the three color ribbon passes Y-M-C are buffered in an array
+ * i did not support mixed spaces and horizontal positioning between passes 
+ * i assumed one would always follow the same pattern of text and graphics between passes
+ * the color demo on D:LEARN does not do this
+ * 
+ * so ...
+ * 
+ * the color arrays will always be 480 dot indicies
+ * letters will be allowed to start at any dot index
+ * there will be some sort of padding between letters
+ * padding method options
+ * option 1: make padding GFX spaces, back up after a letter is printed by charWidth-1.2 pts (need to figure out math for font coordinate system)
+ * option 2: make padding some special code (not FF, maybe FE?) that the loop just skips over. Need to pad out to charWidth in dot spaces.
+ * 
+ * option 2 makes more sense
+ * if receive a char, insert it into current dot position. Determine dot width=charWidth/1.2
+ **/
