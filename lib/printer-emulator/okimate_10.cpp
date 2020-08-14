@@ -140,6 +140,22 @@ void okimate10::pdf_clear_modes()
     clear_mode(fnt_inverse); // implied by Atari manual page 28. Explicit in Commod'e manual page 26.
 }
 
+void okimate10::okimate_init_colormode()
+{
+    colorMode = colorMode_t::yellow; // first color in YMC ribbon
+    Debug_printf("Align Ribbon. colorMode = %d\n", static_cast<int>(colorMode));
+    color_counter = 0;
+    // initialize the color content buffer
+    for (int i = 0; i < 480; i++) // max 480 dots per line
+    {
+        color_buffer[i][0] = invalid_font; // clear font
+        for (int j = 1; j < 4; j++)
+        {
+            color_buffer[i][j] = 0; // fill
+        }
+    }
+}
+
 void okimate10::okimate_output_color_line()
 {
     uint16_t i = 0;
@@ -373,6 +389,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 // charWidth = 1.2;
                 // fprintf(_file, ")]TJ /F2 12 Tf 100 Tz [("); // set font to GFX mode
                 // fontUsed[1] = true;
+                // do I need to write out new font now? How to handle switchting to color mode after gfx?
+                // need to catch 0x99 while in 0x25 esc mode!
                 if (colorMode == colorMode_t::off)
                     okimate_handle_font();
                 else
@@ -412,6 +430,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 #ifdef DEBUG
                     Debug_printf("Finished GFX mode\n");
 #endif
+                    break;
+                case 0x99: // 0x99     Align Ribbon (for color mode)
+                    okimate_init_colormode();
                     break;
                 case 0x9A: // repeat gfx char n times
                     // toss control over to the Direct Command switch statement
@@ -658,19 +679,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x93: // stop REVERSE mode
             clear_mode(fnt_inverse);
             break;
-        case 0x99:                           // 0x99     Align Ribbon (for color mode)
-            colorMode = colorMode_t::yellow; // first color in YMC ribbon
-            Debug_printf("Align Ribbon. colorMode = %d\n", static_cast<int>(colorMode));
-            color_counter = 0;
-            // initialize the color content buffer
-            for (int i = 0; i < 480; i++) // max 480 dots per line
-            {
-                color_buffer[i][0] = invalid_font; // clear font
-                for (int j = 1; j < 4; j++)
-                {
-                    color_buffer[i][j] = 0; // fill
-                }
-            }
+        case 0x99: // 0x99     Align Ribbon (for color mode)
+            okimate_init_colormode();
             break;
         case 0x9A: // 0x9A n data - repeat graphics data n times
             cmdMode = true;
