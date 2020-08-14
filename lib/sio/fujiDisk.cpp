@@ -20,5 +20,5 @@ void fujiDisk::reset(const char *fname, uint8_t hostslot, uint8_t mode)
 
     host_slot = hostslot;
     access_mode = mode;
-    strlcpy(filename, fname, sizeof(filename));
+//    strlcpy(filename, fname, sizeof(filename));
 }
