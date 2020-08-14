@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <string>
 
+#include <driver/gpio.h>
+
 #include "../FileSystem/fnFS.h"
 
 #define FILE_COPY_BUFFERSIZE 2048
@@ -63,15 +65,19 @@ public:
         CHIP_ESP32
     };
 
-#define PINMODE_INPUT 0x01
-#define PINMODE_OUTPUT 0x02
-#define PINMODE_PULLDOWN 0x10
-#define PINMODE_PULLUP 0x20
+    enum pull_updown_t
+    {
+        PULL_NONE = 0,
+        PULL_UP,
+        PULL_DOWN,
+        PULL_BOTH
+    };
 
 #define DIGI_LOW 0x00
 #define DIGI_HIGH 0x01
 
-    void set_pin_mode(uint8_t pin, uint8_t mode);
+    void set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode = PULL_NONE);
+
     int digital_read(uint8_t pin);
     void digital_write(uint8_t pin, uint8_t val);
 

@@ -10,6 +10,7 @@
 enum disktype_t {
     DISKTYPE_UNKNOWN = 0,
     DISKTYPE_ATR,
+    DISKTYPE_ATX,
     DISKTYPE_XEX,
     DISKTYPE_COUNT
 };
@@ -18,11 +19,13 @@ class DiskType
 {
 protected:
     FILE *_file = nullptr;
-    uint32_t _disksize = 0;
+    uint32_t _imageSize = 0;
+    
+    uint32_t _numSectors = 0;
 
     uint16_t _sectorSize = 128;
 
-    int32_t _lastSectorNum = INVALID_SECTOR_VALUE;
+    int32_t _lastSectorUsed = INVALID_SECTOR_VALUE;
 
 
 public:
@@ -30,11 +33,11 @@ public:
     {
         uint8_t num_tracks;
         uint8_t step_rate;
-        uint8_t sectors_per_trackM;
+        uint8_t sectors_per_trackH;
         uint8_t sectors_per_trackL;
         uint8_t num_sides;
         uint8_t density;
-        uint8_t sector_sizeM;
+        uint8_t sector_sizeH;
         uint8_t sector_sizeL;
         uint8_t drive_present;
         uint8_t reserved1;
@@ -65,6 +68,8 @@ public:
     virtual uint16_t sector_size(uint16_t sectornum) = 0;
     
     virtual void status(uint8_t statusbuff[4]) = 0;
+
+    static disktype_t discover_disktype(const char *filename);
 };
 
 #endif // _DISKTYPE_
