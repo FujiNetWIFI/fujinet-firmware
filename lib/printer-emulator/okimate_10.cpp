@@ -156,6 +156,25 @@ void okimate10::okimate_init_colormode()
     }
 }
 
+void okimate10::okimate_next_color()
+{
+    if (colorMode != colorMode_t::off) // are we in color mode?
+    {
+        // expect 3 EOL's in color mode, one after each color.
+        color_counter = 0;
+        colorMode = static_cast<colorMode_t>(static_cast<int>(colorMode) + 1); // increment colorMode
+        Debug_printf("EOL received. colorMode = %d\n", static_cast<int>(colorMode));
+        if (colorMode == colorMode_t::process) // if done all three colors, then output
+        {
+            // output the color buffer and reset the colorMode state var
+            Debug_println("Will now output color line.");
+            okimate_output_color_line();
+            Debug_println("Resetting colorMode to OFF");
+            colorMode = colorMode_t::off;
+        }
+    }
+}
+
 void okimate10::okimate_output_color_line()
 {
     uint16_t i = 0;
@@ -444,6 +463,9 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     Debug_printf("Go to repeated gfx char\n");
 #endif
                     break;
+                case 0x9B:
+                    okimate_next_color();
+                    break;
                 default:
                     if (colorMode == colorMode_t::off)
                         print_7bit_gfx(c);
@@ -687,22 +709,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.cmd = c;
             okimate_cmd.ctr = 0;
             break;
-        case 0x9B:                             // 0x9B     EOL for color mode
-            if (colorMode != colorMode_t::off) // are we in color mode?
-            {
-                // expect 3 EOL's in color mode, one after each color.
-                color_counter = 0;
-                colorMode = static_cast<colorMode_t>(static_cast<int>(colorMode) + 1); // increment colorMode
-                Debug_printf("EOL received. colorMode = %d\n", static_cast<int>(colorMode));
-                if (colorMode == colorMode_t::process) // if done all three colors, then output
-                {
-                    // output the color buffer and reset the colorMode state var
-                    Debug_println("Will now output color line.");
-                    okimate_output_color_line();
-                    Debug_println("Resetting colorMode to OFF");
-                    colorMode = colorMode_t::off;
-                }
-            }
+        case 0x9B: // 0x9B     EOL for color mode
+            okimate_next_color();
             break;
         default:
             if (colorMode == colorMode_t::off)
