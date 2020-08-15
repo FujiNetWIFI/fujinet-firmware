@@ -78,7 +78,8 @@ void okimate10::okimate_handle_font()
     {
         fprintf(_file, ")]TJ\n ");
         // check and change typeface
-        if (okimate_current_fnt_mask == 0xFF) // if invalidated fnt mask force font 1
+        // TODO: get rid of this invalid font reset behavior
+        if (okimate_current_fnt_mask == invalid_font) // if invalidated fnt mask force font 1
             fprintf(_file, "/F1 12 Tf ");
         if ((okimate_new_fnt_mask & fnt_gfx) && !(okimate_current_fnt_mask & fnt_gfx)) // if going to gfx
         {
@@ -86,7 +87,7 @@ void okimate10::okimate_handle_font()
             fprintf(_file, "/F2 12 Tf 100 Tz"); // set font to GFX mode
             fontUsed[1] = true;
         }
-        else if ((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03)) // if text mode changed
+        else if (((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03)) || (okimate_current_fnt_mask == invalid_font)) // if text mode changed
         {
             double w = font_widths[okimate_new_fnt_mask & 0x03];
             fprintf(_file, "%g Tz", w);
@@ -402,7 +403,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x25: // 37, '%': // GRAPHICS MODE ON
             if (okimate_cmd.ctr == 0)
             {
-                okimate_old_fnt_mask = okimate_current_fnt_mask;
+                okimate_old_fnt_mask = okimate_new_fnt_mask; //okimate_current_fnt_mask;
                 set_mode(fnt_gfx);
                 clear_mode(fnt_compressed | fnt_inverse | fnt_expanded); // may not be necessary
                 // charWidth = 1.2;
@@ -412,8 +413,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 // need to catch 0x99 while in 0x25 esc mode!
                 if (colorMode == colorMode_t::off)
                     okimate_handle_font();
-                else
-                    okimate_current_fnt_mask = okimate_new_fnt_mask;
+                //else
+                //    okimate_current_fnt_mask = okimate_new_fnt_mask;
                 textMode = false;
 #ifdef DEBUG
                 Debug_printf("Entering GFX mode\n");
@@ -438,12 +439,12 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     break;
                 case 0x91: // end gfx mode
                     // reset font
-                    okimate_current_fnt_mask = 0xFF;             // invalidate font mask
+                    okimate_current_fnt_mask = invalid_font;     // invalidate font mask
                     okimate_new_fnt_mask = okimate_old_fnt_mask; // restore old font
                     if (colorMode == colorMode_t::off)
                         okimate_handle_font();
-                    else
-                        okimate_current_fnt_mask = okimate_new_fnt_mask;
+                    //else
+                    //    okimate_current_fnt_mask = okimate_new_fnt_mask;
                     textMode = true;
                     reset_cmd();
 #ifdef DEBUG
@@ -589,13 +590,13 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                  *      N converts to pts by 60 dots per inch = 72 pts per inch : 72/60 = 1.2
                  *      need to insert N-pdf_X/1.2 dots from current position
                 */
-                okimate_old_fnt_mask = okimate_current_fnt_mask;
+                okimate_old_fnt_mask = okimate_new_fnt_mask;
                 set_mode(fnt_gfx);
                 clear_mode(fnt_compressed | fnt_inverse | fnt_expanded); // may not be necessary
                 if (colorMode == colorMode_t::off)
                     okimate_handle_font();
-                else
-                    okimate_current_fnt_mask = okimate_new_fnt_mask;
+                //else
+                //    okimate_current_fnt_mask = okimate_new_fnt_mask;
 
                 // compute gap needed in dots
                 uint8_t M = N - uint8_t(pdf_X / 1.2);
@@ -609,19 +610,19 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     }
                     else
                     {
-                        color_buffer[color_counter][0] = okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
+                        color_buffer[color_counter][0] = fnt_gfx;// okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
                         color_buffer[color_counter][static_cast<int>(colorMode)] = 0;     // space no dots
                         if (color_counter < 479)
                             color_counter++;
                     }
                 }
                 okimate_new_fnt_mask = okimate_old_fnt_mask; // set back to old state
-                // old statement: okimate_new_fnt_mask = okimate_current_fnt_mask; // this doesn't do anything because of next line
-                okimate_current_fnt_mask = 0xFF; // invalidate font mask
+                // old statement: okimate_new_fnt_mask = okimate_current_fnt_mask!; // this doesn't do anything because of next line
+                okimate_current_fnt_mask = invalid_font; // invalidate font mask
                 if (colorMode == colorMode_t::off)
                     okimate_handle_font();
-                else
-                    okimate_current_fnt_mask = okimate_new_fnt_mask;
+                //else
+                //    okimate_current_fnt_mask = okimate_new_fnt_mask;
                 textMode = true;
                 reset_cmd();
             }
@@ -720,8 +721,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             }
             else
             {
-                okimate_current_fnt_mask = okimate_new_fnt_mask;
-                color_buffer[color_counter][0] = okimate_current_fnt_mask & 0x07; // just need font state - not color
+                //okimate_current_fnt_mask = okimate_new_fnt_mask!;
+                color_buffer[color_counter][0] = okimate_new_fnt_mask & 0x07; // just need font state - not color
                 color_buffer[color_counter][static_cast<int>(colorMode)] = c;
                 if (color_counter < 479)
                     color_counter++;
@@ -735,7 +736,7 @@ void okimate10::post_new_file()
 {
     atari1025::post_new_file();
     shortname = "oki10";
-    topMargin = 72.0;    // perf skip is default
-    pdf_dY = 72.0;       // but start at top of first page
-    bottomMargin = 72.0; // perf skip is default
+    topMargin = 72.0 / 2.0;   // perf skip is default with 1/2 inch margins
+    pdf_dY = topMargin;       // but start at top of first page
+    bottomMargin = topMargin; // perf skip is default
 }
