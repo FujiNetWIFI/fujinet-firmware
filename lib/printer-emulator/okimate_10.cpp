@@ -550,10 +550,11 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 
         switch (okimate_cmd.cmd)
         {
-        case 0x8A:                                                    // n/144" line advance (n * 1/2 pt vertial line feed)
-                                                                      // D:LEARN demo sends 0x8A in middle of color mode - seems to cancel it
-                                                                      // if (colorMode == colorMode_t::off)
-                                                                      // {
+        case 0x8A:
+            // n/144" line advance (n * 1/2 pt vertial line feed)
+            // D:LEARN demo sends 0x8A in middle of color mode - seems to cancel it
+            // if (colorMode == colorMode_t::off)
+            // {
             pdf_dY -= float(okimate_cmd.n) * 72. / 144. - lineHeight; // set pdf_dY and rise to fraction of line
             pdf_set_rise();
             pdf_end_line(); // execute a CR and custom line feed
