@@ -550,14 +550,14 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 
         switch (okimate_cmd.cmd)
         {
-        case 0x8A: // n/144" line advance (n * 1/2 pt vertial line feed)
-                   // D:LEARN demo sends 0x8A in middle of color mode - seems to cancel it
-            // if (colorMode == colorMode_t::off)
-            // {
-                pdf_dY -= float(okimate_cmd.n) * 72. / 144. - lineHeight; // set pdf_dY and rise to fraction of line
-                pdf_set_rise();
-                pdf_end_line(); // execute a CR and custom line feed
-                pdf_new_line();
+        case 0x8A:                                                    // n/144" line advance (n * 1/2 pt vertial line feed)
+                                                                      // D:LEARN demo sends 0x8A in middle of color mode - seems to cancel it
+                                                                      // if (colorMode == colorMode_t::off)
+                                                                      // {
+            pdf_dY -= float(okimate_cmd.n) * 72. / 144. - lineHeight; // set pdf_dY and rise to fraction of line
+            pdf_set_rise();
+            pdf_end_line(); // execute a CR and custom line feed
+            pdf_new_line();
             // }
             // else
             //     cmd_not_implemented(0x8A);
@@ -599,19 +599,23 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 //    okimate_current_fnt_mask = okimate_new_fnt_mask;
 
                 // compute gap needed in dots
-                uint8_t M = N - uint8_t(pdf_X / 1.2);
-                for (int i = 1; i < M; i++)
+                if (colorMode == colorMode_t::off)
                 {
-                    // if in color mode, store a ' ' in the buffer
-                    if (colorMode == colorMode_t::off)
+                    uint8_t M = N - uint8_t(pdf_X / 1.2);
+                    for (int i = 1; i < M; i++)
                     {
                         fprintf(_file, " ");
                         pdf_X += charWidth;
                     }
-                    else
+                }
+                else
+                {
+                    uint8_t M = N - color_counter;
+                    for (int i = 1; i < M; i++)
+                    // if in color mode, store a ' ' in the buffer
                     {
-                        color_buffer[color_counter][0] = fnt_gfx;// okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
-                        color_buffer[color_counter][static_cast<int>(colorMode)] = 0;     // space no dots
+                        color_buffer[color_counter][0] = fnt_gfx;                     // okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
+                        color_buffer[color_counter][static_cast<int>(colorMode)] = 0; // space no dots
                         if (color_counter < 479)
                             color_counter++;
                     }
