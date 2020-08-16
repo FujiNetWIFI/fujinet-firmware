@@ -465,8 +465,13 @@ void sioFuji::sio_read_directory_entry()
             bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
             filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
         }
-
-        int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        else 
+        {
+            bufsize = maxlen;
+        }
+    
+        //int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
 
         // Add a slash at the end of directory entries
         if (f->isDir && filelen < (bufsize - 2))
