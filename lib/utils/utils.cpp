@@ -244,6 +244,42 @@ std::string util_long_entry(std::string filename, size_t fileSize)
     return returned_entry;
 }
 
+/* Shortens the source string by splitting it in to shorter halves connected by "..." if it won't fit in the destination buffer.
+   Returns number of bytes copied into buffer.
+*/
+int util_ellipsize(const char* src, char *dst, int dstsize)
+{
+    // Don't do much if there's no space to copy anything
+    if(dstsize <= 1)
+    {
+        if(dstsize == 1)
+            dst[0] = '\0';
+        return 0;
+    }
+
+    int srclen = strlen(src);
+
+    // Do a simple copy if we have the room for it (or if we don't have room to create a string with ellipsis in the middle)
+    if(srclen < dstsize || dstsize < 6)
+    {
+      return strlcpy(dst, src, dstsize);
+    }
+
+    // Account for both the 3-character ellipses and the null character that needs to fit in the destination
+    int rightlen = (dstsize - 4) / 2;
+    // The left side gets one more character if the destination is odd
+    int leftlen = rightlen + dstsize % 2;
+
+    strlcpy(dst, src, leftlen + 1); // Add one because strlcpy wants to add its own NULL
+
+    dst[leftlen] =  dst[leftlen+1] =  dst[leftlen+2] = '.';
+
+    strlcpy(dst + leftlen + 3, src + (srclen - rightlen), rightlen + 1); // Add one because strlcpy wants to add its own NULL
+
+    return dstsize;
+}
+
+/*
 std::string util_ellipsize(std::string longString, int maxLength)
 {
     size_t partSize = (maxLength - 3) >> 1; // size of left/right parts.
@@ -258,6 +294,7 @@ std::string util_ellipsize(std::string longString, int maxLength)
 
     return leftPart + "..." + rightPart;
 }
+*/
 
 // Function that matches input string against given wildcard pattern
 bool util_wildcard_match(const char *str, const char *pattern)
