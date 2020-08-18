@@ -6,6 +6,7 @@
 #include "../FileSystem/fnFS.h"
 
 #define MAX_HOSTNAME_LEN 32
+#define MAX_FILENAME_LEN 256
 
 enum fujiHostType
 {
@@ -21,6 +22,7 @@ private:
     FileSystem *_fs = nullptr;
     fujiHostType _type;
     char _hostname[MAX_HOSTNAME_LEN] = { '\0' };
+    char _prefix[MAX_FILENAME_LEN] = { '\0' };
 
     void cleanup();
     void unmount();
@@ -37,7 +39,12 @@ public:
     const char* get_hostname(char *buffer, size_t buffersize);
     const char* get_hostname();
 
+    const char* get_prefix(char *buffer, size_t buffersize);
+    const char* get_prefix();
+
     void set_hostname(const char *hostname);
+
+    void set_prefix(const char *prefix);
 
     bool mount();
 
