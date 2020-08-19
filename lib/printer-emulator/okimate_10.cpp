@@ -65,15 +65,15 @@ void okimate10::fprint_color_array(uint8_t font_mask)
     fprintf(_file, " k ");
 }
 
+void okimate10::okimate_set_char_width()
+{
+    double w = font_widths[okimate_new_fnt_mask & 0x03];
+    charWidth = w * 7.2 / 100.;
+}
+
 void okimate10::okimate_handle_font()
 {
-    // 10 CPI, 17 CPI, 5 CPI, 8.5 CPI
-    const double font_widths[] = {
-        100.,                  // standard
-        100. * 80. / 136.,     // compressed
-        2. * 100.,             // wide
-        2. * 100. * 80. / 136. // bold
-    };
+
     if ((okimate_current_fnt_mask != okimate_new_fnt_mask) || (okimate_new_fnt_mask & fnt_inverse))
     {
         fprintf(_file, ")]TJ\n ");
@@ -89,9 +89,9 @@ void okimate10::okimate_handle_font()
         }
         else if (((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03)) || (okimate_current_fnt_mask == invalid_font)) // if text mode changed
         {
+            okimate_set_char_width();
             double w = font_widths[okimate_new_fnt_mask & 0x03];
             fprintf(_file, "%g Tz", w);
-            charWidth = w * 7.2 / 100.;
         } // check and change color or reset font color when leaving REVERSE mode
         if (((okimate_current_fnt_mask & 0xF0) != (okimate_new_fnt_mask & 0xF0)) || ((okimate_current_fnt_mask & fnt_inverse) && !(okimate_new_fnt_mask & fnt_inverse)))
         {
@@ -163,6 +163,7 @@ void okimate10::okimate_next_color()
     {
         // expect 3 EOL's in color mode, one after each color.
         color_counter = 0;
+        pdf_X = 0;
         colorMode = static_cast<colorMode_t>(static_cast<int>(colorMode) + 1); // increment colorMode
         Debug_printf("EOL received. colorMode = %d\n", static_cast<int>(colorMode));
         if (colorMode == colorMode_t::process) // if done all three colors, then output
@@ -180,120 +181,124 @@ void okimate10::okimate_output_color_line()
 {
     uint16_t i = 0;
     // Debug_printf("Color buffer element 0: %02x\n", color_buffer[0][0]);
-    while (color_buffer[i][0] != invalid_font && i < 480)
+    for (i = 0; i < 480; i++) //while (color_buffer[i][0] != invalid_font && i < 480)
     {
-        // Debug_printf("Color buffer position %d\n", i);
-        // in text or gfx mode?
-        if (color_buffer[i][0] & fnt_gfx)
-        {
-            uint8_t c = 0;
-            // color dot graphics
-            // Debug_printf("color gfx: ctr, char's: %03d %02x %02x %02x\n", i, color_buffer[i][1], color_buffer[i][2], color_buffer[i][3]);
-            okimate_new_fnt_mask = 0;
-            set_mode(fnt_gfx);
-            // brute force coding for colors: okimate prints in Y-M-C order
-            // 111 Y&M&C black
-            c = color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
-            if (c)
+        if (color_buffer[i][0] == invalid_font)
+            break;
+        if (color_buffer[i][0] != skip_me)
+        { // Debug_printf("Color buffer position %d\n", i);
+            // in text or gfx mode?
+            if (color_buffer[i][0] & fnt_gfx)
             {
-                set_mode(fnt_C | fnt_M | fnt_Y);
-                okimate_handle_font();
-                print_7bit_gfx(c);
-                fprintf(_file, ")99(");
+                uint8_t c = 0;
+                // color dot graphics
+                // Debug_printf("color gfx: ctr, char's: %03d %02x %02x %02x\n", i, color_buffer[i][1], color_buffer[i][2], color_buffer[i][3]);
+                okimate_new_fnt_mask = 0;
+                set_mode(fnt_gfx);
+                // brute force coding for colors: okimate prints in Y-M-C order
+                // 111 Y&M&C black
+                c = color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
+                if (c)
+                {
+                    set_mode(fnt_C | fnt_M | fnt_Y);
+                    okimate_handle_font();
+                    print_7bit_gfx(c);
+                    fprintf(_file, ")99(");
+                }
+                // 110 Y&M
+                c = color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
+                if (c)
+                {
+                    set_mode(fnt_Y | fnt_M);
+                    clear_mode(fnt_C);
+                    okimate_handle_font();
+                    print_7bit_gfx(c);
+                    fprintf(_file, ")99(");
+                }
+                // 101 C&Y
+                c = color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
+                if (c)
+                {
+                    set_mode(fnt_C | fnt_Y);
+                    clear_mode(fnt_M);
+                    okimate_handle_font();
+                    print_7bit_gfx(c);
+                    fprintf(_file, ")99(");
+                }
+                // 110 M&C
+                c = ~color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
+                if (c)
+                {
+                    set_mode(fnt_M | fnt_C);
+                    clear_mode(fnt_Y);
+                    okimate_handle_font();
+                    print_7bit_gfx(c);
+                    fprintf(_file, ")99(");
+                }
+                // 100 Y
+                c = color_buffer[i][1] & ~color_buffer[i][2] & ~color_buffer[i][3];
+                if (c)
+                {
+                    set_mode(fnt_Y);
+                    clear_mode(fnt_C | fnt_M);
+                    okimate_handle_font();
+                    print_7bit_gfx(c);
+                    fprintf(_file, ")99(");
+                }
+                // 010 M
+                c = ~color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
+                if (c)
+                {
+                    set_mode(fnt_M);
+                    clear_mode(fnt_C | fnt_Y);
+                    okimate_handle_font();
+                    print_7bit_gfx(c);
+                    fprintf(_file, ")99(");
+                }
+                // 001 C
+                c = ~color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
+                if (c)
+                {
+                    set_mode(fnt_C);
+                    clear_mode(fnt_M | fnt_Y);
+                    okimate_handle_font();
+                    print_7bit_gfx(c);
+                    fprintf(_file, ")99(");
+                }
+                fprintf(_file, " ");
+                pdf_X += charWidth;
             }
-            // 110 Y&M
-            c = color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
-            if (c)
+            else
             {
-                set_mode(fnt_Y | fnt_M);
-                clear_mode(fnt_C);
+                // color text
+                uint8_t c = ' ';
+                // first, set the font mode and clear color
+                okimate_new_fnt_mask = color_buffer[i][0] & 0x07;
+                // then figure out color
+                // clear_mode(fnt_C | fnt_M | fnt_Y | fnt_K);
+                if ((color_buffer[i][1] != 0) && (color_buffer[i][1] != ' '))
+                {
+                    set_mode(fnt_Y);
+                    c = color_buffer[i][1];
+                }
+                if ((color_buffer[i][2] != 0) && (color_buffer[i][2] != ' '))
+                {
+                    set_mode(fnt_M);
+                    c = color_buffer[i][2];
+                }
+                if ((color_buffer[i][3] != 0) && (color_buffer[i][3] != ' '))
+                {
+                    set_mode(fnt_C);
+                    c = color_buffer[i][3];
+                }
+                Debug_printf("color text: ctr, font, char: %03d %02x %02x\n", i, okimate_new_fnt_mask, c);
+                // handle fnt
                 okimate_handle_font();
-                print_7bit_gfx(c);
-                fprintf(_file, ")99(");
+                // output character
+                print_char(c);
             }
-            // 101 C&Y
-            c = color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
-            if (c)
-            {
-                set_mode(fnt_C | fnt_Y);
-                clear_mode(fnt_M);
-                okimate_handle_font();
-                print_7bit_gfx(c);
-                fprintf(_file, ")99(");
-            }
-            // 110 M&C
-            c = ~color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
-            if (c)
-            {
-                set_mode(fnt_M | fnt_C);
-                clear_mode(fnt_Y);
-                okimate_handle_font();
-                print_7bit_gfx(c);
-                fprintf(_file, ")99(");
-            }
-            // 100 Y
-            c = color_buffer[i][1] & ~color_buffer[i][2] & ~color_buffer[i][3];
-            if (c)
-            {
-                set_mode(fnt_Y);
-                clear_mode(fnt_C | fnt_M);
-                okimate_handle_font();
-                print_7bit_gfx(c);
-                fprintf(_file, ")99(");
-            }
-            // 010 M
-            c = ~color_buffer[i][1] & color_buffer[i][2] & ~color_buffer[i][3];
-            if (c)
-            {
-                set_mode(fnt_M);
-                clear_mode(fnt_C | fnt_Y);
-                okimate_handle_font();
-                print_7bit_gfx(c);
-                fprintf(_file, ")99(");
-            }
-            // 001 C
-            c = ~color_buffer[i][1] & ~color_buffer[i][2] & color_buffer[i][3];
-            if (c)
-            {
-                set_mode(fnt_C);
-                clear_mode(fnt_M | fnt_Y);
-                okimate_handle_font();
-                print_7bit_gfx(c);
-                fprintf(_file, ")99(");
-            }
-            fprintf(_file, " ");
-            pdf_X += charWidth;
+            //i++;
         }
-        else
-        {
-            // color text
-            uint8_t c = ' ';
-            // first, set the font mode and clear color
-            okimate_new_fnt_mask = color_buffer[i][0] & 0x07;
-            // then figure out color
-            // clear_mode(fnt_C | fnt_M | fnt_Y | fnt_K);
-            if ((color_buffer[i][1] != 0) && (color_buffer[i][1] != ' '))
-            {
-                set_mode(fnt_Y);
-                c = color_buffer[i][1];
-            }
-            if ((color_buffer[i][2] != 0) && (color_buffer[i][2] != ' '))
-            {
-                set_mode(fnt_M);
-                c = color_buffer[i][2];
-            }
-            if ((color_buffer[i][3] != 0) && (color_buffer[i][3] != ' '))
-            {
-                set_mode(fnt_C);
-                c = color_buffer[i][3];
-            }
-            Debug_printf("color text: ctr, font, char: %03d %02x %02x\n", i, okimate_new_fnt_mask, c);
-            // handle fnt
-            okimate_handle_font();
-            // output character
-            print_char(c);
-        }
-        i++;
     }
     //okimate_current_fnt_mask = 0xFF;
     okimate_new_fnt_mask = 0x80; // set color back to
@@ -413,7 +418,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 // need to catch 0x99 while in 0x25 esc mode!
                 if (colorMode == colorMode_t::off)
                     okimate_handle_font();
-                //else
+                else
+                    charWidth = 1.2;
                 //    okimate_current_fnt_mask = okimate_new_fnt_mask;
                 textMode = false;
 #ifdef DEBUG
@@ -443,7 +449,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     okimate_new_fnt_mask = okimate_old_fnt_mask; // restore old font
                     if (colorMode == colorMode_t::off)
                         okimate_handle_font();
-                    //else
+                    else
+                        okimate_set_char_width();
                     //    okimate_current_fnt_mask = okimate_new_fnt_mask;
                     textMode = true;
                     reset_cmd();
@@ -475,7 +482,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                         color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
                         color_buffer[color_counter][static_cast<int>(colorMode)] = c;
                         if (color_counter < 479)
+                        {
                             color_counter++;
+                            pdf_X += charWidth;
+                        }
                     }
 
                     break;
@@ -596,7 +606,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 clear_mode(fnt_compressed | fnt_inverse | fnt_expanded); // may not be necessary
                 if (colorMode == colorMode_t::off)
                     okimate_handle_font();
-                //else
+                else
+                    okimate_set_char_width();
                 //    okimate_current_fnt_mask = okimate_new_fnt_mask;
 
                 // compute gap needed in dots
@@ -618,7 +629,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                         color_buffer[color_counter][0] = fnt_gfx;                     // okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
                         color_buffer[color_counter][static_cast<int>(colorMode)] = 0; // space no dots
                         if (color_counter < 479)
+                        {
                             color_counter++;
+                            pdf_X += charWidth;
+                        }
                     }
                 }
                 okimate_new_fnt_mask = okimate_old_fnt_mask; // set back to old state
@@ -626,7 +640,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 okimate_current_fnt_mask = invalid_font; // invalidate font mask
                 if (colorMode == colorMode_t::off)
                     okimate_handle_font();
-                //else
+                else
+                    okimate_set_char_width();
                 //    okimate_current_fnt_mask = okimate_new_fnt_mask;
                 textMode = true;
                 reset_cmd();
@@ -648,7 +663,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                         color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
                         color_buffer[color_counter][static_cast<int>(colorMode)] = okimate_cmd.data;
                         if (color_counter < 479)
+                        {
                             color_counter++;
+                            pdf_X += charWidth;
+                        }
                     }
                 }
                 // toss control back over to ESC-37 graphics mode
@@ -727,10 +745,17 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             else
             {
                 //okimate_current_fnt_mask = okimate_new_fnt_mask!;
+                okimate_set_char_width();
                 color_buffer[color_counter][0] = okimate_new_fnt_mask & 0x07; // just need font state - not color
                 color_buffer[color_counter][static_cast<int>(colorMode)] = c;
-                if (color_counter < 479)
-                    color_counter++;
+                int ndots = charWidth / 1.2;
+                for (int i = 0; i < ndots; i++)
+                {
+                    if (color_counter < 479)
+                        color_counter++;
+                    color_buffer[color_counter][0] = skip_me;
+                }
+                pdf_X += charWidth;
             }
             break;
         }
