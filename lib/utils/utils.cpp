@@ -353,3 +353,62 @@ bool util_wildcard_match(const char *str, const char *pattern)
 
     return lookup[n][m];
 }
+
+
+/*
+ Concatenates two paths by taking the parent and adding the child at the end.
+ If parent is not empty, then a '/' is confirmed to separate the parent and child.
+ Results are copied into dest.
+ FALSE is returned if the buffer is not big enough to hold the two parts.
+*/
+bool util_concat_paths(char *dest, const char *parent, const char *child, int dest_size)
+{
+    if(dest == nullptr)
+        return false;
+
+    // If parent is null or empty, just copy the chlid into the destination as-is
+    if(parent == nullptr || parent[0] == '\0')
+    {
+        if(child == nullptr)
+            return false;
+
+        int l = strlen(child);
+        
+        return l == strlcpy(dest, child, dest_size);
+    }
+
+    // Copy the parent string in first
+    int plen = strlcpy(dest, parent, dest_size);
+
+    // Make sure we have room left after copying the parent
+    if(plen >= dest_size - 3) // Allow for a minimum of a slash, one char, and NULL
+    {
+        Debug_printf("_concat_paths parent takes up entire destination buffer: \"%s\"\n", parent);
+        return false;
+    }
+
+    if(child != nullptr)
+    {
+        // Add a slash if the parent didn't end with one
+        if(dest[plen - 1] != '/' && dest[plen -1] != '\\')
+        {
+            dest[plen++] = '/';
+            dest[plen] = '\0';
+        }
+
+        // Skip a slash in the child if it starts with one so we don't have two slashes
+        if(child[0] == '/' && child[0] == '\\')
+            child++;
+
+        int clen = strlcpy(dest + plen, child, dest_size - plen);
+
+        // Verify we were able to copy the whole thing
+        if(clen != strlen(child))
+        {
+            Debug_printf("_concat_paths parent + child larger than dest buffer: \"%s\", \"%s\"\n", parent, child);
+            return false;
+        }
+    }
+
+    return true;
+}
