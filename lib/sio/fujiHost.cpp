@@ -50,11 +50,11 @@ void fujiHost::set_type(fujiHostType type)
 /* Sets the hostname. If we're initialized and this is a different name
  from what we had, unmount the previous host
  */
-void fujiHost::set_hostname(const char * hostname)
+void fujiHost::set_hostname(const char *hostname)
 {
-    if(_type != HOSTTYPE_UNINITIALIZED)
+    if (_type != HOSTTYPE_UNINITIALIZED)
     {
-        if(0 == strncasecmp(_hostname, hostname, sizeof(_hostname)))
+        if (0 == strncasecmp(_hostname, hostname, sizeof(_hostname)))
         {
             Debug_print("fujiHost::set_hostname new name matches old - nothing changes\n");
             return;
@@ -63,6 +63,19 @@ void fujiHost::set_hostname(const char * hostname)
         set_type(HOSTTYPE_UNINITIALIZED);
     }
     strlcpy(_hostname, hostname, sizeof(_hostname));
+}
+
+/* Sets the host slot prefix.
+ */
+void fujiHost::set_prefix(const char *prefix)
+{
+    if (0 == strncasecmp(_prefix, prefix, sizeof(_prefix)))
+    {
+        Debug_print("fujiHost::set_prefix new prefix matches old - nothing changes\n");
+        return;
+    }
+    Debug_printf("fujiHost::set_hostname replacing old prefix \"%s\"\n", _prefix);
+    strlcpy(_prefix, prefix, sizeof(prefix));
 }
 
 uint16_t fujiHost::dir_tell()
@@ -198,6 +211,23 @@ const char *fujiHost::get_hostname()
     return get_hostname(NULL, 0);
 }
 
+/* Returns pointer to current hostname and, if provided, fills buffer with that string
+*/
+const char *fujiHost::get_prefix(char *buffer, size_t buffersize)
+{
+    if (buffer != NULL)
+        strlcpy(buffer, _prefix, buffersize);
+
+    return _prefix;
+}
+
+/* Returns pointer to current hostname
+*/
+const char *fujiHost::get_prefix()
+{
+    return get_prefix(NULL, 0);
+}
+
 /* Returns:
     0 on success
    -1 devicename isn't a local one
@@ -222,7 +252,7 @@ int fujiHost::mount_local()
         set_type(HOSTTYPE_LOCAL);
         _fs = &fnSDFAT;
     }
-    
+
     return 0;
 }
 
