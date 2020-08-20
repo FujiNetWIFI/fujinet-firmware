@@ -41,4 +41,6 @@ int util_ellipsize(const char* src, char *dst, int dstsize);
 //std::string util_ellipsize(std::string longString, int maxLength);
 bool util_wildcard_match(const char *str, const char *pattern);
 
+bool util_concat_paths(char *dest, const char *parent, const char *child, int dest_size);
+
 #endif // _FN_UTILS_H

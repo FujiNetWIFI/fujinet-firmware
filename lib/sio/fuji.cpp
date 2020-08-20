@@ -31,7 +31,9 @@
 #define SIO_FUJICMD_GET_DIRECTORY_POSITION 0xE5
 #define SIO_FUJICMD_SET_DIRECTORY_POSITION 0xE4
 #define SIO_FUJICMD_SET_HSIO_INDEX 0xE3
-#define SIO_FUJICMD_SET_FULL_FILE_PATH 0xE2
+#define SIO_FUJICMD_SET_DEVICE_FULLPATH 0xE2
+#define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
+#define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -235,6 +237,7 @@ void sioFuji::sio_mount_host()
         sio_complete();
 }
 
+
 // Disk Image Mount
 void sioFuji::sio_disk_image_mount()
 {
@@ -242,6 +245,7 @@ void sioFuji::sio_disk_image_mount()
 
     uint8_t deviceSlot = cmdFrame.aux1;
     uint8_t options = cmdFrame.aux2; // DISK_ACCESS_MODE
+
     // TODO: Implement FETCH?
     char flag[3] ={ 'r', 0, 0 };
     if (options == DISK_ACCESS_MODE_WRITE)
@@ -254,14 +258,16 @@ void sioFuji::sio_disk_image_mount()
         return;
     }
 
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[deviceSlot];
+    fujiHost &host = _fnHosts[disk.host_slot];
+
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-        _fnDisks[deviceSlot].filename,
-        _fnDisks[deviceSlot].host_slot, flag, deviceSlot + 1);
+        disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    _fnDisks[deviceSlot].file =
-        _fnHosts[_fnDisks[deviceSlot].host_slot].open_file(_fnDisks[deviceSlot].filename, flag);
+    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
-    if (_fnDisks[deviceSlot].file == nullptr)
+    if (disk.fileh == nullptr)
     {
         sio_error();
         return;
@@ -271,11 +277,10 @@ void sioFuji::sio_disk_image_mount()
     boot_config = false;
 
     // We need the file size for loading XEX files, so get that too
-    _fnDisks[deviceSlot].disk_size =
-        _fnHosts[_fnDisks[deviceSlot].host_slot].get_filesize(_fnDisks[deviceSlot].file);
+    disk.disk_size = host.file_size(disk.fileh);
+
     // And now mount it
-    _fnDisks[deviceSlot].disk_type =
-        _fnDisks[deviceSlot].disk_dev.mount(_fnDisks[deviceSlot].file, _fnDisks[deviceSlot].filename, _fnDisks[deviceSlot].disk_size);
+    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
 
     sio_complete();
 }
@@ -309,7 +314,7 @@ void sioFuji::image_rotate()
 
     int count = 0;
     // Find the first empty slot
-    while (_fnDisks[count].file != nullptr)
+    while (_fnDisks[count].fileh != nullptr)
         count++;
 
     if (count > 1)
@@ -342,11 +347,11 @@ void sioFuji::sio_open_directory()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    char current_entry[256];
+    char dirpath[256];
     uint8_t hostSlot = cmdFrame.aux1;
-    uint8_t ck = sio_to_peripheral((uint8_t *)&current_entry, sizeof(current_entry));
+    uint8_t ck = sio_to_peripheral((uint8_t *)&dirpath, sizeof(dirpath));
 
-    if (sio_checksum((uint8_t *)&current_entry, sizeof(current_entry)) != ck)
+    if (sio_checksum((uint8_t *)&dirpath, sizeof(dirpath)) != ck)
     {
         sio_error();
         return;
@@ -367,22 +372,23 @@ void sioFuji::sio_open_directory()
 
     // See if there's a search pattern after the directory path
     const char *pattern = nullptr;
-    int pathlen = strnlen(current_entry, sizeof(current_entry));
-    if(pathlen < sizeof(current_entry) - 3) // Allow for two NULLs and a 1-char pattern
+    int pathlen = strnlen(dirpath, sizeof(dirpath));
+    if(pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
     {
-        pattern = current_entry + pathlen + 1;
-        int patternlen = strnlen(pattern, sizeof(current_entry) - pathlen -1);
+        pattern = dirpath + pathlen + 1;
+        int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen -1);
         if(patternlen < 1)
             pattern = nullptr;
     }
 
-    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", current_entry, pattern ? pattern : "");
-
     // Remove trailing slash
-    if ((strlen(current_entry) > 1) && (current_entry[strlen(current_entry) - 1] == '/'))
-        current_entry[strlen(current_entry) - 1] = 0x00;
+    if (pathlen > 1 && dirpath[pathlen - 1] == '/')
+        dirpath[pathlen - 1] = '\0';
 
-    if (_fnHosts[hostSlot].dir_open(current_entry, pattern, 0))
+    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
+
+
+    if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
     {
         _current_open_directory_slot = hostSlot;
         sio_complete();
@@ -611,30 +617,31 @@ void sioFuji::sio_new_disk()
         sio_error();
         return;
     }
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
+    fujiHost &host = _fnHosts[newDisk.hostSlot];
 
-    _fnDisks[newDisk.deviceSlot].host_slot = newDisk.hostSlot;
-    _fnDisks[newDisk.deviceSlot].access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(_fnDisks[newDisk.deviceSlot].filename, newDisk.filename, sizeof(fujiDisk::filename));
+    disk.host_slot = newDisk.hostSlot;
+    disk.access_mode = DISK_ACCESS_MODE_WRITE;
+    strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
 
-    if (_fnHosts[newDisk.hostSlot].exists(_fnDisks[newDisk.deviceSlot].filename))
+    if (host.file_exists(disk.filename))
     {
-        Debug_printf("sio_new_disk File exists: \"%s\"\n", _fnDisks[newDisk.deviceSlot].filename);
+        Debug_printf("sio_new_disk File exists: \"%s\"\n", disk.filename);
         sio_error();
         return;
     }
 
-    FILE *f = _fnHosts[newDisk.hostSlot].open_file(_fnDisks[newDisk.deviceSlot].filename, "w");
-    if (f == nullptr)
+    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+    if (disk.fileh == nullptr)
     {
-        Debug_printf("sio_new_disk Couldn't open file for writing: \"%s\"\n", _fnDisks[newDisk.deviceSlot].filename);
+        Debug_printf("sio_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
         sio_error();
         return;
     }
 
-    _fnDisks[newDisk.deviceSlot].file = f;
-
-    bool ok = _fnDisks[newDisk.deviceSlot].disk_dev.write_blank(_fnDisks[newDisk.deviceSlot].file, newDisk.sectorSize, newDisk.numSectors);
-    fclose(_fnDisks[newDisk.deviceSlot].file);
+    bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.sectorSize, newDisk.numSectors);
+    fclose(disk.fileh);
 
     if(ok == false)
     {
@@ -681,6 +688,49 @@ void sioFuji::sio_write_host_slots()
     }
     else
         sio_error();
+}
+
+// Store host path prefix
+void sioFuji::sio_set_host_prefix()
+{
+    char prefix[MAX_HOST_PREFIX_LEN];
+    uint8_t hostSlot = cmdFrame.aux1;
+
+    uint8_t ck = sio_to_peripheral((uint8_t *)prefix, MAX_FILENAME_LEN);
+
+    Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
+
+    if (sio_checksum((uint8_t *)prefix, sizeof(prefix)) != ck)
+    {
+        sio_error();
+        return;
+    }
+
+    if (!_validate_host_slot(hostSlot))
+    {
+        sio_error();
+        return;
+    }
+
+    _fnHosts[hostSlot].set_prefix(prefix);
+    sio_complete();
+}
+
+// Retrieve host path prefix
+void sioFuji::sio_get_host_prefix()
+{
+    uint8_t hostSlot = cmdFrame.aux1;
+    Debug_printf("Fuji cmd: GET HOST PREFIX %uh\n",hostSlot);
+
+    if (!_validate_host_slot(hostSlot))
+    {
+        sio_error();
+        return;
+    }
+    char prefix[MAX_HOST_PREFIX_LEN];
+    _fnHosts[hostSlot].get_prefix(prefix, sizeof(prefix));
+
+    sio_to_computer((uint8_t *)prefix, sizeof(prefix), false);
 }
 
 // Send device slot data to computer
@@ -824,10 +874,8 @@ void sioFuji::sio_set_hsio_index()
     sio_complete();
 }
 
-/**
- * Write a 256 byte filename to the device slot
- */
-void sioFuji::sio_set_device_slot_filename()
+// Write a 256 byte filename to the device slot
+void sioFuji::sio_set_device_filename()
 {
     char tmp[MAX_FILENAME_LEN];
     uint8_t ck = sio_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
@@ -849,9 +897,7 @@ void sioFuji::sio_set_device_slot_filename()
     }
 }
 
-/*
-  Initializes base settings and adds our devices to the SIO bus
-*/
+// Initializes base settings and adds our devices to the SIO bus
 void sioFuji::setup(sioBus *siobus)
 {
     // set up Fuji device
@@ -982,9 +1028,17 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_ack();
         sio_new_disk();
         break;
-    case SIO_FUJICMD_SET_FULL_FILE_PATH:
+    case SIO_FUJICMD_SET_DEVICE_FULLPATH:
         sio_ack();
-        sio_set_device_slot_filename();
+        sio_set_device_filename();
+        break;
+    case SIO_FUJICMD_SET_HOST_PREFIX:
+        sio_ack();
+        sio_set_host_prefix();
+        break;
+    case SIO_FUJICMD_GET_HOST_PREFIX:
+        sio_ack();
+        sio_get_host_prefix();
         break;
     default:
         sio_nak();

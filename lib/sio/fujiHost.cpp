@@ -4,6 +4,8 @@
 #include "../FileSystem/fnFsSD.h"
 #include "../FileSystem/fnFsTNFS.h"
 
+#include "../utils/utils.h"
+
 #include "fujiHost.h"
 
 void fujiHost::unmount()
@@ -75,7 +77,7 @@ void fujiHost::set_prefix(const char *prefix)
         return;
     }
     Debug_printf("fujiHost::set_hostname replacing old prefix \"%s\"\n", _prefix);
-    strlcpy(_prefix, prefix, sizeof(prefix));
+    strlcpy(_prefix, prefix, sizeof(_prefix));
 }
 
 uint16_t fujiHost::dir_tell()
@@ -125,6 +127,13 @@ bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
         return false;
     }
 
+    // Add our prefix before opening
+    char realpath[MAX_PATHLEN];
+    if( false == util_concat_paths(realpath, _prefix, path, sizeof(realpath)) )
+        return false;
+    
+    Debug_printf("::dir_open actual path = \"%s\"\n", realpath);
+
     int result = false;
     switch (_type)
     {
@@ -160,20 +169,22 @@ void fujiHost::dir_close()
         _fs->dir_close();
 }
 
-bool fujiHost::exists(const char *path)
+bool fujiHost::file_exists(const char *path)
 {
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
         return false;
 
-    return _fs->exists(path);
+    // Add our prefix before opening
+    char realpath[MAX_PATHLEN];
+    if( false == util_concat_paths(realpath, _prefix, path, sizeof(realpath)) )
+        return false;
+    
+    Debug_printf("::file_exists actual path = \"%s\"\n", realpath);
+
+    return _fs->exists(realpath);
 }
 
-bool fujiHost::exists(const string path)
-{
-    return exists(path.c_str());
-}
-
-long fujiHost::get_filesize(FILE *filehandle)
+long fujiHost::file_size(FILE *filehandle)
 {
     Debug_print("::get_filesize\n");
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
@@ -181,17 +192,31 @@ long fujiHost::get_filesize(FILE *filehandle)
     return _fs->FileSystem::filesize(filehandle);
 }
 
-FILE *fujiHost::open_file(const char *path, const char *mode)
+/* If fullpath is given, then the function will fail and return nullptr
+   if the combined prefix + path is longer than fullpathlen.
+   Fullpath may be the same buffer as path.
+*/
+FILE * fujiHost::file_open(const char *path, char *fullpath, int fullpathlen, const char *mode)
 {
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
         return nullptr;
 
-    return _fs->file_open(path, mode);
-}
+    // Add our prefix before opening
+    // If given, use fullpathlen as our max buffer size
+    int realpathlen = fullpathlen > 0 ? fullpathlen : MAX_PATHLEN;
+    char realpath[realpathlen];
+    if( false == util_concat_paths(realpath, _prefix, path, realpathlen) )
+        return nullptr;
 
-FILE *fujiHost::open_file(const string path, const char *mode)
-{
-    return open_file(path.c_str(), mode);
+    // If we're given a destination buffer, copy th full path there
+    if( fullpath != nullptr )
+    {
+        if(strlcpy(fullpath, realpath, fullpathlen) != strlen(realpath))
+            return nullptr;
+    }
+    Debug_printf("fujiHost #%d opening file path \"%s\"\n", slotid, fullpath);
+
+    return _fs->file_open(fullpath, mode);
 }
 
 /* Returns pointer to current hostname and, if provided, fills buffer with that string
