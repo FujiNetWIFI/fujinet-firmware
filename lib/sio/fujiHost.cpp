@@ -67,17 +67,28 @@ void fujiHost::set_hostname(const char *hostname)
     strlcpy(_hostname, hostname, sizeof(_hostname));
 }
 
-/* Sets the host slot prefix.
- */
+// Sets the host slot prefix.
 void fujiHost::set_prefix(const char *prefix)
 {
-    if (0 == strncasecmp(_prefix, prefix, sizeof(_prefix)))
+    // Clear the prefix if the given one is empty
+    if(prefix == nullptr || prefix[0] == '\0')
     {
-        Debug_print("fujiHost::set_prefix new prefix matches old - nothing changes\n");
+        Debug_print("fujiHost::set_prefix given empty prefix - clearing current value");
+        _prefix[0] = '\0';
         return;
     }
-    Debug_printf("fujiHost::set_hostname replacing old prefix \"%s\"\n", _prefix);
-    strlcpy(_prefix, prefix, sizeof(_prefix));
+
+    // If we start with a slash, replace the current prefix, otherwise concatenate
+    if(prefix[0] == '\\' || prefix[0] == '/')
+    {
+        strlcpy(_prefix, prefix, sizeof(_prefix));
+    }
+    else
+    {
+        util_concat_paths(_prefix, _prefix, prefix, sizeof(_prefix));
+    }
+    
+    Debug_printf("fujiHost::set_prefix new prefix = \"%s\"\n", _prefix);
 }
 
 uint16_t fujiHost::dir_tell()
