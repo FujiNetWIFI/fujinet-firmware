@@ -1,7 +1,6 @@
 #include <sstream>
 #include <string>
 #include <cstdio>
-#include <iomanip>
 
 #include "../../include/debug.h"
 #include "fnConfig.h"
@@ -125,16 +124,16 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << fnWiFi.get_current_detail_str();
         break;
     case FN_SPIFFS_SIZE:
-        resultstream << setw(12) << fnSPIFFS.total_bytes();
+        resultstream << fnSPIFFS.total_bytes();
         break;
     case FN_SPIFFS_USED:
-        resultstream << setw(12) << fnSPIFFS.used_bytes();
+        resultstream << fnSPIFFS.used_bytes();
         break;
     case FN_SD_SIZE:
-        resultstream << setw(12) << fnSDFAT.total_bytes();
+        resultstream << fnSDFAT.total_bytes();
         break;
     case FN_SD_USED:
-        resultstream << setw(12) << fnSDFAT.used_bytes();
+        resultstream << fnSDFAT.used_bytes();
         break;
     case FN_UPTIME:
         resultstream << format_uptime();
@@ -146,7 +145,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << Config.get_general_timezone();
         break;
     case FN_HEAPSIZE:
-        resultstream << setw(12) << fnSystem.get_free_heap_size();
+        resultstream << fnSystem.get_free_heap_size();
         break;
     case FN_SYSSDK:
         resultstream << fnSystem.get_sdk_version();
