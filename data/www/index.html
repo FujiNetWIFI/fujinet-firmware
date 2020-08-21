@@ -12,9 +12,10 @@
 		.flexparent{ display:flex; flex-wrap:wrap; flex-direction:column; justify-content:space-around; align-items:flex-start; align-content:stretch; }
 		.flexchild{ border:0.2rem solid #000; width:99%; margin: 0.5rem; }
 		.flexchild header{ color:#fff; border:0.2rem solid #000; background-color: #000; padding:0.2rem; font-size:1.5rem; }
-		.detline{ display:flex; flex-wrap:wrap; flex-direction:row; justify-content:left align-items:stretch; align-content:stretch; } 
+		.detline{ display:flex; flex-wrap:wrap; flex-direction:row; justify-content:left; align-items:stretch; align-content:stretch; } 
 		.deth{ border-right:0.2rem solid #999; background-color:#cccccc; position:relative; min-width: 30%; max-width: 30%; padding:0.1rem; text-align: right; } 
 		.det{ font-family: Inconsolata, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; border:none; position:relative; padding:0.1rem; } 
+		.ra{width:6rem; text-align:right} 
 		.cicon { border-right:0.2rem solid #999; background-color:#cccccc; position:relative; width: 38%; padding:0.5rem; } 
 		.cform { position:relative; min-width: 55%; max-width: 55%; padding:0.2rem; } 
 		.svgicon { width:8rem; min-height:12rem; margin: auto; text-align:center; color: #999999; } 
@@ -22,8 +23,8 @@
 		html{ font-size:140% } 
 		body { font-family: Futura, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
 		@media only screen and (min-width: 720px) {html {font-size: 140%;}}
-		@media only screen and (min-width: 1024px) {html {font-size: 130%;}.flexparent{flex-direction:row;}.flexchild{width:47.5%;}}
-		@media only screen and (min-width: 1280px) {html {font-size: 120%;}}
+		@media only screen and (min-width: 1024px) {html {font-size: 130%;}}
+		@media only screen and (min-width: 1280px) {html {font-size: 120%;}.flexparent{flex-direction:row;}.flexchild{width:47.5%;}}
 	</style>
 	<meta charset="utf-8"/>
 </head>
@@ -80,13 +81,13 @@
 		</div>
 		<div class="flexchild">
 			<header>HARD<span id="logowob"></span>WARE</header>
-			<div class="detline"><div class="deth">SPIFFS size</div><div class="det"><%FN_SPIFFS_SIZE%></div></div>
-			<div class="detline"><div class="deth">SPIFFS used</div><div class="det"><%FN_SPIFFS_USED%></div></div>
-			<div class="detline"><div class="deth">SD size</div><div class="det"><%FN_SD_SIZE%></div></div>
-			<div class="detline"><div class="deth">SD used</div><div class="det"><%FN_SD_USED%></div></div>
+			<div class="detline"><div class="deth">SPIFFS size</div><div class="det ra"><%FN_SPIFFS_SIZE%></div></div>
+			<div class="detline"><div class="deth">SPIFFS used</div><div class="det ra"><%FN_SPIFFS_USED%></div></div>
+			<div class="detline"><div class="deth">SD size</div><div class="det ra"><%FN_SD_SIZE%></div></div>
+			<div class="detline"><div class="deth">SD used</div><div class="det ra"><%FN_SD_USED%></div></div>
 			<div class="detline"><div class="deth">Uptime</div><div class="det"><%FN_UPTIME%></div></div>
 			<div class="detline"><div class="deth">Current time</div><div class="det"><%FN_CURRENTTIME%></div></div>
-			<div class="detline"><div class="deth">Free heap</div><div class="det"><%FN_HEAPSIZE%></div></div>
+			<div class="detline"><div class="deth">Free heap</div><div class="det ra"><%FN_HEAPSIZE%></div></div>
 			<div class="detline"><div class="deth">SOC SDK</div><div class="det"><%FN_SYSSDK%></div></div>
 			<div class="detline"><div class="deth">CPU revision</div><div class="det "><%FN_SYSCPUREV%></div></div>
 			<div class="detline"><div class="deth">SIO Voltage</div><div class="det "><%FN_SIOVOLTS%></div></div>
