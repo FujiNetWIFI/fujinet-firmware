@@ -127,15 +127,15 @@ void okimate10::okimate_handle_font()
         double w = font_widths[okimate_new_fnt_mask & 0x03];
         fprintf(_file, "/F1 12 Tf %g Tz", w);
     }
-    
-     // check and change color or reset font color when leaving REVERSE mode
+
+    // check and change color or reset font color when leaving REVERSE mode
     if (change_color)
     {
         fprint_color_array(okimate_new_fnt_mask);
     }
-    
+
     okimate_current_fnt_mask = okimate_new_fnt_mask;
-    
+
     if (fnt_is_reverse)
     {
         // make a rectangle "x y l w re f"
@@ -603,7 +603,10 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // n/144" line advance (n * 1/2 pt vertial line feed)
             // D:LEARN demo sends 0x8A in middle of color mode - seems to cancel it
             if (colorMode != colorMode_t::off)
+            {
                 okimate_output_color_line();
+                colorMode = colorMode_t::off;
+            }
             // {
             pdf_dY -= float(okimate_cmd.n) * 72. / 144. - lineHeight; // set pdf_dY and rise to fraction of line
             pdf_set_rise();
@@ -806,7 +809,7 @@ void okimate10::post_new_file()
 {
     atari1025::post_new_file();
     shortname = "oki10";
-    topMargin = 72.0 / 2.0;   // perf skip is default with 1/2 inch margins
+    topMargin = 72.0 / 2.0; // perf skip is default with 1/2 inch margins
     //pdf_dY = topMargin;       // but start at top of first page
     bottomMargin = topMargin; // perf skip is default
 }
