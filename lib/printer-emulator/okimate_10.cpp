@@ -73,39 +73,77 @@ void okimate10::okimate_set_char_width()
 
 void okimate10::okimate_handle_font()
 {
+    /**
+ * need new logic. So "truth table"...
+ * 
+ * need to CHANGE if 
+ *      okimate_current_fnt_mask == invalid_font
+ *      or
+ *      okimate_current_fnt_mask != okimate_new_fnt_mask
+ * 
+ * If CHANGE==true figure out if its the FONT or COLOR thats different:
+ *      change_font and color if okimate_current_fnt_mask == invalid_font
+ *      change_font = okimate_current_fnt_mask & 0x0b != okimate_new_fnt_mask 0x0b
+ *              note: 0x04 is inverse text so check afterwards
+ *      change_color = okimate_current_fnt_mask & 0xf0 != okimate_new_fnt_mask 0xf0
+ *                 or when leaving inverse mode assuming current != invalid_font: 
+ *                      (okimate_current_fnt_mask & fnt_inverse) && !(okimate_new_fnt_mask & fnt_inverse)
+ * 
+ * if change_font check if text or graphics
+ *      it's gfx if fnt_gfx is set in new font - could also reinforce with new font & 0x07 == 0
+ *      otherwise it's text
+ * 
+ * if change_color just change the color
+ * 
+ * make the changes
+ * 
+ * finally check if inverse mode
+ * 
+ * */
+    bool fnt_is_invalid = (okimate_current_fnt_mask == invalid_font);
+    bool need_to_change = (okimate_current_fnt_mask != okimate_new_fnt_mask) || fnt_is_invalid;
+    bool change_font = fnt_is_invalid || ((okimate_current_fnt_mask & 0x0f) != (okimate_new_fnt_mask & 0x0f));
+    bool change_color = fnt_is_invalid || ((okimate_current_fnt_mask & 0xf0) != (okimate_new_fnt_mask & 0xf0));
+    change_color |= !fnt_is_invalid && ((okimate_current_fnt_mask & fnt_inverse) && !(okimate_new_fnt_mask & fnt_inverse));
+    bool fnt_is_reverse = (okimate_new_fnt_mask & fnt_inverse);
 
-    if ((okimate_current_fnt_mask != okimate_new_fnt_mask) || (okimate_new_fnt_mask & fnt_inverse))
+    if (!(need_to_change || fnt_is_reverse))
+        return;
+
+    fprintf(_file, ")]TJ\n ");
+
+    if (okimate_new_fnt_mask & fnt_gfx)
     {
-        fprintf(_file, ")]TJ\n ");
-        // check and change typeface
-        // TODO: get rid of this invalid font reset behavior
-        if (okimate_current_fnt_mask == invalid_font) // if invalidated fnt mask force font 1
-            fprintf(_file, "/F1 12 Tf ");
-        if ((okimate_new_fnt_mask & fnt_gfx) && !(okimate_current_fnt_mask & fnt_gfx)) // if going to gfx
+        if (fnt_is_invalid || !(okimate_current_fnt_mask & fnt_gfx))
         {
             charWidth = 1.2;
             fprintf(_file, "/F2 12 Tf 100 Tz"); // set font to GFX mode
             fontUsed[1] = true;
         }
-        else if (((okimate_current_fnt_mask & 0x03) != (okimate_new_fnt_mask & 0x03)) || (okimate_current_fnt_mask == invalid_font)) // if text mode changed
-        {
-            okimate_set_char_width();
-            double w = font_widths[okimate_new_fnt_mask & 0x03];
-            fprintf(_file, "%g Tz", w);
-        } // check and change color or reset font color when leaving REVERSE mode
-        if (((okimate_current_fnt_mask & 0xF0) != (okimate_new_fnt_mask & 0xF0)) || ((okimate_current_fnt_mask & fnt_inverse) && !(okimate_new_fnt_mask & fnt_inverse)))
-        {
-            fprint_color_array(okimate_new_fnt_mask);
-        }
-        okimate_current_fnt_mask = okimate_new_fnt_mask;
-        if (okimate_current_fnt_mask & fnt_inverse)
-        {
-            // make a rectangle "x y l w re f"
-            fprint_color_array(okimate_current_fnt_mask);
-            fprintf(_file, "%g %g %g 7 re f 0 0 0 0 k ", pdf_X + leftMargin, pdf_Y, charWidth);
-        }
-        fprintf(_file, " [(");
     }
+    else if (change_font) // if text mode changed
+    {
+        okimate_set_char_width();
+        double w = font_widths[okimate_new_fnt_mask & 0x03];
+        fprintf(_file, "/F1 12 Tf %g Tz", w);
+    }
+    
+     // check and change color or reset font color when leaving REVERSE mode
+    if (change_color)
+    {
+        fprint_color_array(okimate_new_fnt_mask);
+    }
+    
+    okimate_current_fnt_mask = okimate_new_fnt_mask;
+    
+    if (fnt_is_reverse)
+    {
+        // make a rectangle "x y l w re f"
+        fprint_color_array(okimate_current_fnt_mask);
+        fprintf(_file, "%g %g %g 7 re f 0 0 0 0 k ", pdf_X + leftMargin, pdf_Y, charWidth);
+    }
+
+    fprintf(_file, " [(");
 }
 
 uint16_t okimate10::okimate_cmd_ascii_to_int(uint8_t c)
@@ -180,6 +218,7 @@ void okimate10::okimate_next_color()
 void okimate10::okimate_output_color_line()
 {
     uint16_t i = 0;
+    okimate_current_fnt_mask = invalid_font; //invalidate font
     // Debug_printf("Color buffer element 0: %02x\n", color_buffer[0][0]);
     for (i = 0; i < 480; i++) //while (color_buffer[i][0] != invalid_font && i < 480)
     {
@@ -563,7 +602,8 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x8A:
             // n/144" line advance (n * 1/2 pt vertial line feed)
             // D:LEARN demo sends 0x8A in middle of color mode - seems to cancel it
-            // if (colorMode == colorMode_t::off)
+            if (colorMode != colorMode_t::off)
+                okimate_output_color_line();
             // {
             pdf_dY -= float(okimate_cmd.n) * 72. / 144. - lineHeight; // set pdf_dY and rise to fraction of line
             pdf_set_rise();
