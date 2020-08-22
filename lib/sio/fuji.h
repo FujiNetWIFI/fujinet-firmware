@@ -57,7 +57,9 @@ protected:
     void sio_get_directory_position(); // 0xE5
     void sio_set_directory_position(); // 0xE4
     void sio_set_hsio_index();         // 0xE3
-    void sio_set_device_slot_filename(); // 0xE2
+    void sio_set_device_filename();    // 0xE2
+    void sio_set_host_prefix();        // 0xE1
+    void sio_get_host_prefix();        // 0xE0
 
 
     void sio_status() override;

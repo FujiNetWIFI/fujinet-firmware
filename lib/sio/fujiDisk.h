@@ -18,7 +18,7 @@
 class fujiDisk
 {
 public:    
-    FILE* file = nullptr;
+    FILE* fileh = nullptr;
     uint8_t access_mode = DISK_ACCESS_MODE_READ;
     disktype_t disk_type = DISKTYPE_UNKNOWN;
     uint32_t disk_size = 0;
