@@ -234,6 +234,7 @@ void okimate10::okimate_output_color_line()
                 // Debug_printf("color gfx: ctr, char's: %03d %02x %02x %02x\n", i, color_buffer[i][1], color_buffer[i][2], color_buffer[i][3]);
                 okimate_new_fnt_mask = 0;
                 set_mode(fnt_gfx);
+                okimate_handle_font(); // switch to gfx mode in case c = 0
                 // brute force coding for colors: okimate prints in Y-M-C order
                 // 111 Y&M&C black
                 c = color_buffer[i][1] & color_buffer[i][2] & color_buffer[i][3];
@@ -601,11 +602,15 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         {
         case 0x8A:
             // n/144" line advance (n * 1/2 pt vertial line feed)
-            // D:LEARN demo sends 0x8A in middle of color mode - seems to cancel it
+            // D:LEARN demo sends 0x8A in middle of color mode
+            // behavior looks like it continues on the next line
+            // so in emulator, need to spit out current buffer, clear it, and continue in the state machine
             if (colorMode != colorMode_t::off)
             {
+                colorMode_t temp = colorMode;
                 okimate_output_color_line();
-                colorMode = colorMode_t::off;
+                okimate_init_colormode(); // this resets color mode to yellow
+                colorMode = temp;         // pick back up where we left off
             }
             // {
             pdf_dY -= float(okimate_cmd.n) * 72. / 144. - lineHeight; // set pdf_dY and rise to fraction of line
