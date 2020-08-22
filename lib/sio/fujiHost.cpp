@@ -150,7 +150,7 @@ bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
     {
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
-        result = _fs->dir_open(path, pattern, options);
+        result = _fs->dir_open(realpath, pattern, options);
         break;
     case HOSTTYPE_UNINITIALIZED:
         break;
