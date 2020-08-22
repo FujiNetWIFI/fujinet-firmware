@@ -519,8 +519,11 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                         print_7bit_gfx(c);
                     else
                     {
-                        color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
-                        color_buffer[color_counter][static_cast<int>(colorMode)] = c;
+                        if (color_buffer[color_counter][0] & fnt_gfx) // either gfx or invalid
+                        {
+                            color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
+                            color_buffer[color_counter][static_cast<int>(colorMode)] = c;
+                        }
                         if (color_counter < 479)
                         {
                             color_counter++;
@@ -674,8 +677,11 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     for (int i = 1; i < M; i++)
                     // if in color mode, store a ' ' in the buffer
                     {
-                        color_buffer[color_counter][0] = fnt_gfx;                     // okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
-                        color_buffer[color_counter][static_cast<int>(colorMode)] = 0; // space no dots
+                        if (color_buffer[color_counter][0] & fnt_gfx) // either gfx or invalid
+                        {
+                            color_buffer[color_counter][0] = fnt_gfx;                     // okimate_current_fnt_mask & 0x0f; // just need font/gfx state - not color
+                            color_buffer[color_counter][static_cast<int>(colorMode)] = 0; // space no dots
+                        }
                         if (color_counter < 479)
                         {
                             color_counter++;
@@ -708,8 +714,11 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     }
                     else
                     {
-                        color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
-                        color_buffer[color_counter][static_cast<int>(colorMode)] = okimate_cmd.data;
+                        if (color_buffer[color_counter][0] & fnt_gfx) // either gfx or invalid
+                        {
+                            color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
+                            color_buffer[color_counter][static_cast<int>(colorMode)] = okimate_cmd.data;
+                        }
                         if (color_counter < 479)
                         {
                             color_counter++;
