@@ -7,6 +7,7 @@
 
 #include "disk.h"
 #include "diskTypeAtr.h"
+#include "diskTypeAtx.h"
 #include "diskTypeXex.h"
 
 #define SIO_DISKCMD_FORMAT 0x21
@@ -199,6 +200,9 @@ disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disk
     {
     case DISKTYPE_XEX:
         _disk = new DiskTypeXEX();
+        return _disk->mount(f, disksize);
+    case DISKTYPE_ATX:
+        _disk = new DiskTypeATX();
         return _disk->mount(f, disksize);
     case DISKTYPE_ATR:
     case DISKTYPE_UNKNOWN:
