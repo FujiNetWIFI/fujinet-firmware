@@ -807,6 +807,6 @@ void okimate10::post_new_file()
     atari1025::post_new_file();
     shortname = "oki10";
     topMargin = 72.0 / 2.0;   // perf skip is default with 1/2 inch margins
-    pdf_dY = topMargin;       // but start at top of first page
+    //pdf_dY = topMargin;       // but start at top of first page
     bottomMargin = topMargin; // perf skip is default
 }
