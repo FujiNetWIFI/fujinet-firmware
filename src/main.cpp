@@ -1,10 +1,3 @@
-/*
-MAJOR REV 3 UPDATE - June 12, 2020
-After transitioning the Arduino-ESP components from the project to ESP-IDF equivalent
-code, the source files have been copied into a new ESP-IDF project. Code massaging and
-testing commences...
-*/
-
 #include "debug.h"
 
 #include "fnSystem.h"
