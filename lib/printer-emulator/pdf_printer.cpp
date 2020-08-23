@@ -205,7 +205,7 @@ void pdfPrinter::pdf_new_page()
     pdf_begin_text(pageHeight - topMargin);
 }
 
-void pdfPrinter::pdf_begin_text(float Y)
+void pdfPrinter::pdf_begin_text(double Y)
 {
 #ifdef DEBUG
     Debug_println("pdf begin text");
