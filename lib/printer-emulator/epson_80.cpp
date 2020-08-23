@@ -123,7 +123,7 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case '3': // Sets line spacing to N/216". Stays on until changed
             if (epson_cmd.ctr > 0)
             {
-                lineHeight = 72.0 * (float)epson_cmd.N1 / 216.0;
+                lineHeight = 72.0 * (double)epson_cmd.N1 / 216.0;
                 reset_cmd();
             }
             break;
@@ -205,7 +205,7 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                   // IMMEDIATE LINE FEED OF SIZE N/216
             if (epson_cmd.ctr > 0)
             {
-                pdf_dY -= 72. * ((float)epson_cmd.N1) / 216.; // set pdf_dY and rise to N1/216.
+                pdf_dY -= 72. * ((double)epson_cmd.N1) / 216.; // set pdf_dY and rise to N1/216.
                 pdf_set_rise();
                 reset_cmd();
             }
@@ -215,7 +215,7 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                   // IMMEDIATE REVERSE LINE FEED OF SIZE N/216
             if (epson_cmd.ctr > 0)
             {
-                pdf_dY += 72. * (float)epson_cmd.N1 / 216.; // set pdf_dY and rise to N1/216.
+                pdf_dY += 72. * (double)epson_cmd.N1 / 216.; // set pdf_dY and rise to N1/216.
                 pdf_set_rise();
                 reset_cmd();
             }
@@ -471,7 +471,7 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 uint8_t new_F = epson_font_lookup(epson_font_mask);
                 if (fontNumber != new_F)
                 {
-                    float new_w = epson_font_width(epson_font_mask);
+                    double new_w = epson_font_width(epson_font_mask);
                     epson_set_font(new_F, new_w);
                 }
                 if (c == '\\' || c == '(' || c == ')')
@@ -499,7 +499,7 @@ uint8_t epson80::epson_font_lookup(uint16_t code)
     return 1;
 }
 
-float epson80::epson_font_width(uint16_t code)
+double epson80::epson_font_width(uint16_t code)
 {
     /**
       * Table G-3 Mode Priorities (FX Manual Vol 2)
@@ -515,7 +515,7 @@ float epson80::epson_font_width(uint16_t code)
     return 7.2; // 10 cpi for now
 }
 
-void epson80::epson_set_font(uint8_t F, float w)
+void epson80::epson_set_font(uint8_t F, double w)
 {
     fprintf(_file, ")]TJ /F%u 9 Tf 120 Tz [(", F);
     charWidth = w;

@@ -6,6 +6,15 @@
 class okimate10 : public atari1025
 {
 protected:
+
+    // 10 CPI, 17 CPI, 5 CPI, 8.5 CPI
+    const double font_widths[4] = {
+        100.,                  // standard
+        100. * 80. / 136.,     // compressed
+        2. * 100.,             // wide
+        2. * 100. * 80. / 136. // bold
+    };
+
     struct okimate_cmd_t
     {
         uint8_t cmd = 0;
@@ -19,6 +28,7 @@ protected:
     uint8_t color_buffer[480][4];
     uint16_t color_counter;
     const uint8_t invalid_font = 0xff;
+    const uint8_t skip_me = 0xf7; // gfx pos is 0 for 0x90 h-tab command
     
     const uint8_t fnt_compressed = 0x01;
     const uint8_t fnt_expanded = 0x02;
@@ -41,9 +51,12 @@ protected:
     void set_mode(uint8_t m);
     void clear_mode(uint8_t m);
     void fprint_color_array(uint8_t font_mask);
+    void okimate_set_char_width();
     void okimate_handle_font(); // change typeface and/or color
     void okimate_output_color_line(); 
-
+    void okimate_init_colormode();
+    void okimate_next_color();
+    
     virtual void pdf_clear_modes() override;
     virtual void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;

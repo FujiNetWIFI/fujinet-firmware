@@ -183,7 +183,7 @@ void atari1029::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             uint8_t new_F = epson_font_lookup(epson_font_mask);
             if (fontNumber != new_F)
             {
-                float new_w = epson_font_width(epson_font_mask);
+                double new_w = epson_font_width(epson_font_mask);
                 epson_set_font(new_F, new_w);
             }
             //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII
@@ -251,7 +251,7 @@ uint8_t atari1029::epson_font_lookup(uint16_t code)
     return code + 1;
 }
 
-float atari1029::epson_font_width(uint16_t code)
+double atari1029::epson_font_width(uint16_t code)
 {
     if (code & fnt_expanded)
         return 14.4;
@@ -259,7 +259,7 @@ float atari1029::epson_font_width(uint16_t code)
         return 7.2; // 10 cpi
 }
 
-void atari1029::epson_set_font(uint8_t F, float w)
+void atari1029::epson_set_font(uint8_t F, double w)
 {
     fprintf(_file, ")]TJ /F%u 12 Tf [(", F);
     charWidth = w;
