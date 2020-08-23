@@ -668,7 +668,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 if (colorMode == colorMode_t::off)
                 {
                     uint8_t M = N - uint8_t(pdf_X / 1.2);
-                    for (int i = 1; i < M; i++)
+                    for (int i = 1; i < M; i++) // i=1 for BW on D:LEARN
                     {
                         fprintf(_file, " ");
                         pdf_X += charWidth;
@@ -677,7 +677,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 else
                 {
                     uint8_t M = N - color_counter;
-                    for (int i = 1; i < M; i++)
+                    for (int i = 0; i < M; i++) // i=0 for COLOR on D:LEARN
                     // if in color mode, store a ' ' in the buffer
                     {
                         if (color_buffer[color_counter][0] & fnt_gfx) // either gfx or invalid but not skip_me
