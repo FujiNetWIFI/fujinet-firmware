@@ -1,6 +1,5 @@
 #include "midimaze.h"
 
-
 void sioMIDIMaze::sio_enable_midimaze()
 {
     // Setup PWM channel for CLOCK IN
@@ -22,8 +21,8 @@ void sioMIDIMaze::sio_enable_midimaze()
     ledc_timer.freq_hz = MIDI_BAUD;
 
     // Enable PWM on CLOCK IN
-	ledc_channel_config(&ledc_channel_sio_ckin);
-	ledc_timer_config(&ledc_timer);
+    ledc_channel_config(&ledc_channel_sio_ckin);
+    ledc_timer_config(&ledc_timer);
 
     // Open the UDP connection
     udpMIDI.begin(MIDIMAZE_PORT);
@@ -47,54 +46,58 @@ void sioMIDIMaze::sio_disable_midimaze()
 
 void sioMIDIMaze::sio_handle_midimaze()
 {
-  // if there’s data available, read a packet
-  int packetSize = udpMIDI.parsePacket();
-  if (packetSize > 0)
-  {
-    udpMIDI.read(buf1, MIDIMAZE_BUFFER_SIZE);
-    // now send to UART:
-    fnUartSIO.write(buf1, packetSize);
-#ifdef DEBUG
-    Debug_print("MIDI-IN: ");
-    Debug_println((char*)buf1);
-#endif
-    fnUartSIO.flush();
-  }
-
-  if (fnUartSIO.available()) {
-    // read the data until pause:
-    if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW || fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+    // if there’s data available, read a packet
+    int packetSize = udpMIDI.parsePacket();
+    if (packetSize > 0)
     {
-      fnUartSIO.read(); // Toss the data if motor or command is asserted
+        udpMIDI.read(buf1, MIDIMAZE_BUFFER_SIZE);
+        // now send to UART:
+        fnUartSIO.write(buf1, packetSize);
+#ifdef DEBUG
+        Debug_print("MIDI-IN: ");
+        Debug_println((char *)buf1);
+#endif
+        //fnUartSIO.flush();
     }
-    else
+
+    if (fnUartSIO.available())
     {
-      while (1)
-      {
-        if (fnUartSIO.available())
+        // read the data until pause:
+        if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW || fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
         {
-          buf2[i2] = (char)fnUartSIO.read(); // read char from UART
-#ifdef DEBUG
-          Debug_print("MIDI-OUT: ");
-          Debug_println(buf2[i2]);
-#endif
-          if (i2 < MIDIMAZE_BUFFER_SIZE - 1) i2++;
+            fnUartSIO.read(); // Toss the data if motor or command is asserted
         }
         else
         {
-          fnSystem.delay_microseconds(MIDIMAZE_PACKET_TIMEOUT);
-          if (!fnUartSIO.available())
-            break;
-        }
-      }
+            while (1)
+            {
+                if (fnUartSIO.available())
+                {
+                    buf2[i2] = (char)fnUartSIO.read(); // read char from UART
+                    if (i2 < MIDIMAZE_BUFFER_SIZE - 1)
+                        i2++;
+                }
+                else
+                {
+                    fnSystem.delay_microseconds(MIDIMAZE_PACKET_TIMEOUT);
+                    if (!fnUartSIO.available())
+                        break;
+                }
+            }
 
-      // now send to WiFi:
-      udpMIDI.beginPacket(midimaze_host_ip, MIDIMAZE_PORT); // remote IP and port
-      udpMIDI.write(buf2, i2);
-      udpMIDI.endPacket();
-      i2 = 0;
+            // now send to WiFi:
+            udpMIDI.beginPacket(midimaze_host_ip, MIDIMAZE_PORT); // remote IP and port
+            udpMIDI.write(buf2, i2);
+            udpMIDI.endPacket();
+
+#ifdef DEBUG
+            Debug_print("MIDI-OUT: ");
+            Debug_println((const char *)buf2);
+#endif
+
+            i2 = 0;
+        }
     }
-  }
 }
 
 void sioMIDIMaze::sio_status()
