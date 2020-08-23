@@ -138,6 +138,22 @@ void fnHttpServiceConfigurator::config_timezone(std::string timezone)
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_midimaze(std::string host_ip)
+{
+    //char myHost [64];
+    //strcat(myHost, host_ip.c_str());
+
+    #ifdef DEBUG
+        Debug_printf("Set MIDIMaze host: %s\n", host_ip.c_str());
+    #endif
+
+    Config.store_midimaze_host(const_cast<char*>(host_ip.c_str()));
+    // Update the host ip variable
+    SIO.setMIDIHost(const_cast<char*>(host_ip.c_str()));
+    // Save change
+    Config.save();
+}
+
 void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::string printermodel, std::string printerport)
 {
 
@@ -225,6 +241,9 @@ int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t
         } else if(i->first.compare("timezone") == 0)
         {
             config_timezone(i->second);
+        } else if(i->first.compare("midimaze_host") == 0)
+        {
+            config_midimaze(i->second);
         }
     }
 

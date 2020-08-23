@@ -6,6 +6,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "utils.h"
+#include "midimaze.h"
 #include "../../include/debug.h"
 
 // Helper functions outside the class defintions
@@ -252,6 +253,25 @@ void sioBus::_sio_process_queue()
  */
 void sioBus::service()
 {
+    /* //Check if MOTOR is asserted
+    if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW)
+    {
+#ifdef DEBUG
+        Debug_println("SIO Motor Line Asserted");
+#endif
+    }
+    */
+
+    // Handle MIDIMaze if enabled and do not process SIO commands
+    if (_midiDev != nullptr && _midiDev->midimazeActive)
+    {
+        //if (_sioBaud != MIDI_BAUD)
+        //    fnUartSIO.setBaudrate(MIDI_BAUD);
+
+        _midiDev->sio_handle_midimaze();
+        return; // break!
+    }
+
     // Go process a command frame if the SIO CMD line is asserted
     if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
     {
@@ -317,6 +337,9 @@ void sioBus::setup()
         setHighSpeedIndex(_sioHighSpeedIndex);
 
     fnUartSIO.flush_input();
+    
+    // enable midimaze
+    //_midiDev->sio_enable_midimaze();
 }
 
 // Add device to SIO bus
@@ -333,6 +356,10 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
     else if (device_id >= SIO_DEVICEID_FN_NETWORK && device_id <= SIO_DEVICEID_FN_NETWORK_LAST)
     {
         _netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (sioNetwork *)pDevice;
+    }
+    else if (device_id == SIO_DEVICEID_MIDI)
+    {
+        _midiDev = (sioMIDIMaze *)pDevice;
     }
 
     pDevice->_devnum = device_id;
@@ -431,6 +458,19 @@ int sioBus::getHighSpeedIndex()
 int sioBus::getHighSpeedBaud()
 {
     return _sioBaudHigh;
+}
+
+void sioBus::setMIDIHost(char *newhost)
+{
+    // Set the new host
+    //strcat(_midiDev->midimaze_host_ip, newhost);
+    strcpy(_midiDev->midimaze_host_ip, newhost);
+
+    // Restart MIDIMaze mode if needed
+    if (_midiDev->midimazeActive)
+        _midiDev->sio_disable_midimaze();
+    if (_midiDev->midimaze_host_ip[0] != 0)
+        _midiDev->sio_enable_midimaze();
 }
 
 sioBus SIO;         // Global SIO object
