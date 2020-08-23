@@ -28,23 +28,23 @@ protected:
     uint8_t _eol = ATASCII_EOL; // default to atascii eol
 
     // PDF THINGS
-    float pageWidth;
-    float pageHeight;
-    float leftMargin;
-    float topMargin = 0.0;
-    float bottomMargin;
-    float printWidth;
-    float lineHeight;
-    float charWidth;
+    double pageWidth;
+    double pageHeight;
+    double leftMargin;
+    double topMargin = 0.0;
+    double bottomMargin;
+    double printWidth;
+    double lineHeight;
+    double charWidth;
     uint8_t fontNumber;
-    float fontSize;
+    double fontSize;
     uint8_t fontHorizScale = 100;
     std::string shortname;
     bool fontUsed[MAXFONTS] = {true}; // initialize first one to true, always use default font
-    float pdf_X = 0.;                 // across the page - columns in pts
+    double pdf_X = 0.;                 // across the page - columns in pts
     bool BOLflag = true;
-    float pdf_Y = 0.;  // down the page - lines in pts
-    float pdf_dY = 0.; // used for linefeeds with pdf rise parameter
+    double pdf_Y = 0.;  // down the page - lines in pts
+    double pdf_dY = 0.; // used for linefeeds with pdf rise parameter
     bool TOPflag = true;
     bool textMode = true;
     colorMode_t colorMode = colorMode_t::off;
@@ -57,7 +57,7 @@ protected:
     void pdf_header();
     void pdf_add_fonts(); // pdfFont_t *fonts[],
     void pdf_new_page();
-    void pdf_begin_text(float Y);
+    void pdf_begin_text(double Y);
     void pdf_new_line();
     void pdf_end_line();
     void pdf_set_rise();

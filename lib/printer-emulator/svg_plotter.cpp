@@ -9,7 +9,7 @@ void svgPlotter::svg_update_bounds()
         svg_Y_max = svg_Y;
 }
 
-int svgPlotter::svg_compute_weight(float fsize)
+int svgPlotter::svg_compute_weight(double fsize)
 {
     if (fsize < 20)
         return 700;
@@ -50,9 +50,9 @@ void svgPlotter::svg_end_line()
     BOLflag = true;
 }
 
-void svgPlotter::svg_plot_line(float x1, float x2, float y1, float y2)
+void svgPlotter::svg_plot_line(double x1, double x2, double y1, double y2)
 {
-    float dash = (float)svg_line_type;
+    double dash = (double)svg_line_type;
     fprintf(_file, "<line ");
     fprintf(_file, "stroke=\"%s\" ", svg_colors[svg_color_idx].c_str());
     fprintf(_file, "stroke-width=\"1.5\" stroke-linecap=\"round\" ");
@@ -64,14 +64,14 @@ void svgPlotter::svg_plot_line(float x1, float x2, float y1, float y2)
 void svgPlotter::svg_abs_plot_line()
 {
     //<line x1="0" x2="100" y1="0" y2="100" style="stroke:rgb(0,0,0);stroke-width:2 />
-    float x1 = svg_X;
-    float y1 = svg_Y;
-    float x2 = x1;
-    float y2 = y1;
-    if ((float)svg_arg[0] > -1000 && (float)svg_arg[0] < 1000)
-        x2 = svg_X_home + (float)svg_arg[0];
-    if ((float)svg_arg[1] > -1000 && (float)svg_arg[1] < 1000)
-        y2 = svg_Y_home + (float)svg_arg[1]; // the modulo is not right
+    double x1 = svg_X;
+    double y1 = svg_Y;
+    double x2 = x1;
+    double y2 = y1;
+    if ((double)svg_arg[0] > -1000 && (double)svg_arg[0] < 1000)
+        x2 = svg_X_home + (double)svg_arg[0];
+    if ((double)svg_arg[1] > -1000 && (double)svg_arg[1] < 1000)
+        y2 = svg_Y_home + (double)svg_arg[1]; // the modulo is not right
     svg_X = x2;
     svg_Y = y2;
 #ifdef DEBUG
@@ -84,10 +84,10 @@ void svgPlotter::svg_abs_plot_line()
 void svgPlotter::svg_rel_plot_line()
 {
     //<line x1="0" x2="100" y1="0" y2="100" style="stroke:rgb(0,0,0);stroke-width:2 />
-    float x1 = svg_X;
-    float y1 = svg_Y;
-    float x2 = x1 + (float)svg_arg[0];
-    float y2 = y1 + (float)svg_arg[1];
+    double x1 = svg_X;
+    double y1 = svg_Y;
+    double x2 = x1 + (double)svg_arg[0];
+    double y2 = y1 + (double)svg_arg[1];
     svg_X = x2;
     svg_Y = y2;
     svg_update_bounds();
@@ -115,7 +115,7 @@ scale of 63 would be charWidth = 12 * 30 = 360 which is 360/480 = 75% of the pri
 I want charWidth = 6 for s=0 and =360 for s=63
 */
 {
-    float scale = 6. * (float)(s & 63);
+    double scale = 6. * (double)(s & 63);
     charWidth = 6. + scale;
     fontSize = 10.4 * charWidth / 6.0;
     lineHeight = fontSize;
@@ -386,9 +386,9 @@ void svgPlotter::graphics_command(int n)
             // i bet it's don't change it
             svg_get_2_args(S.substr(cmd_pos + 1));
             if (svg_arg[0] > -1000 && svg_arg[0] < 1000) // probably >-1000 && <1000
-                svg_X = svg_X_home + (float)svg_arg[0];
+                svg_X = svg_X_home + (double)svg_arg[0];
             if (svg_arg[1] > -1000 && svg_arg[1] < 1000)
-                svg_Y = svg_Y_home + (float)svg_arg[1]; // probably >-1000 && <1000
+                svg_Y = svg_Y_home + (double)svg_arg[1]; // probably >-1000 && <1000
             svg_update_bounds();
             break;
         case 'P': // PUT TEXT HERE
@@ -400,8 +400,8 @@ void svgPlotter::graphics_command(int n)
             break;
         case 'R': // MOVE RELATIVE COORDS
             svg_get_2_args(S.substr(cmd_pos + 1));
-            svg_X = svg_X + (float)svg_arg[0];
-            svg_Y = svg_Y + (float)svg_arg[1];
+            svg_X = svg_X + (double)svg_arg[0];
+            svg_Y = svg_Y + (double)svg_arg[1];
             svg_update_bounds();
             break;
         case 'S': // SET TEXT SIZE

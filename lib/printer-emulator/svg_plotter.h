@@ -15,23 +15,23 @@ class svgPlotter : public printer_emu
 {
 protected:
     bool BOLflag = true;
-    float svg_X = 0.;
-    float svg_Y = 0.;
-    float svg_Y_min = -100;
-    float svg_Y_max = 100;
+    double svg_X = 0.;
+    double svg_Y = 0.;
+    double svg_Y_min = -100;
+    double svg_Y_max = 100;
     size_t svg_filepos[3];
-    float svg_X_home = 0.;
-    float svg_Y_home = 0.;
-    float svg_text_y_offset = 0.;
-    float pageWidth = 550.;
-    float printWidth = 480.;
+    double svg_X_home = 0.;
+    double svg_Y_home = 0.;
+    double svg_text_y_offset = 0.;
+    double pageWidth = 550.;
+    double printWidth = 480.;
     double leftMargin = 0.0;
-    float charWidth = 12.;
-    float lineHeight = 20.8;
-    float fontSize = 20.8;
+    double charWidth = 12.;
+    double lineHeight = 20.8;
+    double fontSize = 20.8;
     int svg_rotate = 0;
-    //float svg_gfx_fontsize;
-    //float svg_gfx_charWidth;
+    //double svg_gfx_fontsize;
+    //double svg_gfx_charWidth;
     int svg_color_idx = 0;
     std::string svg_colors[4] = {"Black", "Blue", "Green", "Red"};
     int svg_line_type = 0;
@@ -45,10 +45,10 @@ protected:
     std::string shortname;
 
     void svg_update_bounds();
-    int svg_compute_weight(float fsize);
+    int svg_compute_weight(double fsize);
     void svg_new_line();
     void svg_end_line();
-    void svg_plot_line(float x1, float x2, float y1, float y2);
+    void svg_plot_line(double x1, double x2, double y1, double y2);
     void svg_abs_plot_line();
     void svg_rel_plot_line();
     void svg_set_text_size(int s);
