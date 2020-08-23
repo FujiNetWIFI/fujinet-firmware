@@ -38,8 +38,8 @@ protected:
     void clear_mode(uint16_t m);
     void reset_cmd();
     uint8_t epson_font_lookup(uint16_t code);
-    float epson_font_width(uint16_t code);
-    void epson_set_font(uint8_t F, float w);
+    double epson_font_width(uint16_t code);
+    void epson_set_font(uint8_t F, double w);
     void at_reset();
 
    virtual void pdf_clear_modes() override {};

@@ -350,6 +350,8 @@ void okimate10::okimate_output_color_line()
     pdf_clear_modes();
     fprintf(_file, "0 0 Td [(");
     BOLflag = false;
+    //pdf_end_line();
+    //pdf_new_line();
 }
 
 void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
@@ -616,7 +618,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 colorMode = temp;         // pick back up where we left off
             }
             // {
-            pdf_dY -= float(okimate_cmd.n) * 72. / 144. - lineHeight; // set pdf_dY and rise to fraction of line
+            pdf_dY -= double(okimate_cmd.n) * 72. / 144. - lineHeight; // set pdf_dY and rise to fraction of line
             pdf_set_rise();
             pdf_end_line(); // execute a CR and custom line feed
             pdf_new_line();
