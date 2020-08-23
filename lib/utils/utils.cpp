@@ -387,7 +387,7 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
         return false;
     }
 
-    if(child != nullptr)
+    if(child != nullptr && child[0] != '\0')
     {
         // Add a slash if the parent didn't end with one
         if(dest[plen - 1] != '/' && dest[plen -1] != '\\')
