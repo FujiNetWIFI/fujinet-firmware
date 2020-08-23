@@ -110,7 +110,8 @@ void okimate10::okimate_handle_font()
     if (!(need_to_change || fnt_is_reverse))
         return;
 
-    fprintf(_file, ")]TJ\n ");
+    if (!BOLflag)
+        fprintf(_file, ")]TJ\n ");
 
     if (okimate_new_fnt_mask & fnt_gfx)
     {
@@ -772,6 +773,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 0x8C: // formfeed!
             pdf_end_page();
             pdf_new_page();
+            pdf_new_line();
             break;
         case 0x90: // 0x90 n - dot column horizontal tab
             cmdMode = true;
@@ -807,13 +809,15 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 okimate_set_char_width();
                 color_buffer[color_counter][0] = okimate_new_fnt_mask & 0x07; // just need font state - not color
                 color_buffer[color_counter][static_cast<int>(colorMode)] = c;
-                int ndots = charWidth / 1.2;
+                int ndots = (int)(charWidth * 10. + 1.) / 12 - 1; // number-1 of 1.2pt dots in charWidth
                 for (int i = 0; i < ndots; i++)
                 {
                     if (color_counter < 479)
                         color_counter++;
                     color_buffer[color_counter][0] = skip_me;
                 }
+                if (color_counter < 479)
+                    color_counter++;
                 pdf_X += charWidth;
             }
             break;
