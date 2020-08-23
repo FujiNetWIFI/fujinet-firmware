@@ -15,6 +15,7 @@
 #include "voice.h"
 #include "httpService.h"
 #include "printerlist.h"
+#include "midimaze.h"
 
 #include <esp_system.h>
 #include <nvs_flash.h>
@@ -38,7 +39,7 @@ sioModem sioR;
 sioFuji theFuji;
 sioApeTime apeTime;
 sioVoice sioV;
-
+sioMIDIMaze sioMIDI;
 
 void main_shutdown_handler()
 {
@@ -94,6 +95,8 @@ void main_setup()
     SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
     SIO.addDevice(&sioR, SIO_DEVICEID_RS232); // R:
+
+    SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;

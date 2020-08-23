@@ -36,6 +36,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_UPTIME,
         FN_CURRENTTIME,
         FN_TIMEZONE,
+        FN_MIDIMAZE_HOST,
         FN_HEAPSIZE,
         FN_SYSSDK,
         FN_SYSCPUREV,
@@ -66,6 +67,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_UPTIME",
         "FN_CURRENTTIME",
         "FN_TIMEZONE",
+        "FN_MIDIMAZE_HOST",
         "FN_HEAPSIZE",
         "FN_SYSSDK",
         "FN_SYSCPUREV",
@@ -143,6 +145,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_TIMEZONE:
         resultstream << Config.get_general_timezone();
+        break;
+    case FN_MIDIMAZE_HOST:
+        resultstream << Config.get_network_midimaze_host();
         break;
     case FN_HEAPSIZE:
         resultstream << fnSystem.get_free_heap_size();
