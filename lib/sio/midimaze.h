@@ -10,7 +10,7 @@
 
 #define MIDIMAZE_PORT 5004
 #define MIDIMAZE_BUFFER_SIZE 8192
-#define MIDIMAZE_PACKET_TIMEOUT 5
+#define MIDIMAZE_PACKET_TIMEOUT 5000
 #define MIDI_BAUD 31250
 
 class sioMIDIMaze : public sioDevice
