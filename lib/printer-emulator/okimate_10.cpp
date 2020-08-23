@@ -771,6 +771,13 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             okimate_cmd.ctr = 0;
             break;
         case 0x8C: // formfeed!
+            if (colorMode != colorMode_t::off)
+            {
+                colorMode_t temp = colorMode;
+                okimate_output_color_line();
+                okimate_init_colormode(); // this resets color mode to yellow
+                colorMode = temp;         // pick back up where we left off
+            }
             pdf_end_page();
             pdf_new_page();
             pdf_new_line();
@@ -805,16 +812,27 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             }
             else
             {
-                //okimate_current_fnt_mask = okimate_new_fnt_mask!;
+                // if space, need to check if gfx already there, otherwise print it
                 okimate_set_char_width();
-                color_buffer[color_counter][0] = okimate_new_fnt_mask & 0x07; // just need font state - not color
-                color_buffer[color_counter][static_cast<int>(colorMode)] = c;
+                if ((c == 0x20) && (color_buffer[color_counter][0] == fnt_gfx))
+                    color_buffer[color_counter][static_cast<int>(colorMode)] = 0;
+                else
+                {
+                    color_buffer[color_counter][0] = okimate_new_fnt_mask & 0x07; // just need font state - not color
+                    color_buffer[color_counter][static_cast<int>(colorMode)] = c;
+                }
                 int ndots = (int)(charWidth * 10. + 1.) / 12 - 1; // number-1 of 1.2pt dots in charWidth
                 for (int i = 0; i < ndots; i++)
                 {
                     if (color_counter < 479)
                         color_counter++;
-                    color_buffer[color_counter][0] = skip_me;
+                    if ((c == 0x20) && (color_buffer[color_counter][0] == fnt_gfx))
+                        color_buffer[color_counter][static_cast<int>(colorMode)] = 0;
+                    else
+                    {
+                        color_buffer[color_counter][0] = skip_me;
+                        color_buffer[color_counter][static_cast<int>(colorMode)] = c;
+                    }
                 }
                 if (color_counter < 479)
                     color_counter++;
@@ -829,7 +847,7 @@ void okimate10::post_new_file()
 {
     atari1025::post_new_file();
     shortname = "oki10";
-    topMargin = 72.0 / 2.0; // perf skip is default with 1/2 inch margins
+    topMargin = 72.0 / 2.0 - 6.0; // perf skip is default with 1/2 inch margins
     //pdf_dY = topMargin;       // but start at top of first page
     bottomMargin = topMargin; // perf skip is default
 }
