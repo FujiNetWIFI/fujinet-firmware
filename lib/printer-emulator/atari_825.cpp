@@ -97,17 +97,17 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             if (epson_font_mask & fnt_proportional)
             {
                 fprintf(_file, " )%d(", (int)(280 - epson_cmd.cmd * 40));
-                pdf_X += 0.48 * (float)epson_cmd.cmd;
+                pdf_X += 0.48 * (double)epson_cmd.cmd;
             }
             else if (epson_font_mask & fnt_compressed)
             {
                 fprintf(_file, " )%d(", (int)(360 - epson_cmd.cmd * 40)); // need correct value for 16.7 CPI
-                pdf_X += 0.48 * (float)epson_cmd.cmd;
+                pdf_X += 0.48 * (double)epson_cmd.cmd;
             }
             else
             {
                 fprintf(_file, " )%d(", (int)(600 - epson_cmd.cmd * 60)); // need correct value for 10 CPI
-                pdf_X += 0.72 * (float)epson_cmd.cmd;
+                pdf_X += 0.72 * (double)epson_cmd.cmd;
             }
 
             reset_cmd();
@@ -167,19 +167,19 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         {
             // fprintf(_file, " )%d(", (int)(280 - epson_cmd.cmd * 40));
             fprintf(_file, ")%d(", (int)(c * 40));
-            pdf_X -= 0.48 * (float)c;
+            pdf_X -= 0.48 * (double)c;
         }
         else if (epson_font_mask & fnt_compressed)
         {
             // fprintf(_file, " )%d(", (int)(360 - epson_cmd.cmd * 40)); // need correct value for 16.7 CPI
             fprintf(_file, ")%d(", (int)(c * 40));
-            pdf_X -= 0.48 * (float)c;
+            pdf_X -= 0.48 * (double)c;
         }
         else
         {
             // fprintf(_file, " )%d(", (int)(600 - epson_cmd.cmd * 60)); // need correct value for 10 CPI
             fprintf(_file, ")%d(", (int)(c * 60));
-            pdf_X -= 0.72 * (float)c;
+            pdf_X -= 0.72 * (double)c;
         }
     }
     else
@@ -216,8 +216,8 @@ void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 fputc(c, _file);
                 if (epson_font_mask & fnt_proportional)
                 {
-                    float dx;
-                    dx = (float)char_widths_825[c - 32];
+                    double dx;
+                    dx = (double)char_widths_825[c - 32];
                     if (epson_font_mask & fnt_expanded)
                         dx *= 2;
                     pdf_X += dx * 0.48;
@@ -235,7 +235,7 @@ void atari825::check_font()
     uint8_t new_F = epson_font_lookup(epson_font_mask);
     if (fontNumber != new_F)
     {
-        float new_w = epson_font_width(epson_font_mask);
+        double new_w = epson_font_width(epson_font_mask);
         epson_set_font(new_F, new_w);
         if (epson_font_mask & (fnt_compressed | fnt_proportional))
             pageWidth = 1185. * 0.48;
@@ -256,16 +256,16 @@ uint8_t atari825::epson_font_lookup(uint16_t code)
     // return 1;
 }
 
-float atari825::epson_font_width(uint16_t code)
+double atari825::epson_font_width(uint16_t code)
 {
     // substitude 1025 fonts for now
     // TODO: change to 825 fonts
     uint8_t F = code >> 1; // get rid of underline bit
-    const float w[] = {7.2, 14.4, 4.32, 8.64, 5.76, 11.52};
+    const double w[] = {7.2, 14.4, 4.32, 8.64, 5.76, 11.52};
     return w[F];
 }
 
-void atari825::epson_set_font(uint8_t F, float w)
+void atari825::epson_set_font(uint8_t F, double w)
 {
     fprintf(_file, ")]TJ /F%u 12 Tf [(", F);
     charWidth = w;
