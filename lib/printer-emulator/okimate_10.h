@@ -28,7 +28,7 @@ protected:
     uint8_t color_buffer[480][4];
     uint16_t color_counter;
     const uint8_t invalid_font = 0xff;
-    const uint8_t skip_me = 0xfe;
+    const uint8_t skip_me = 0xf7; // gfx pos is 0 for 0x90 h-tab command
     
     const uint8_t fnt_compressed = 0x01;
     const uint8_t fnt_expanded = 0x02;
