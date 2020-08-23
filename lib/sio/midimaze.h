@@ -32,7 +32,6 @@ public:
     void sio_enable_midimaze();  // setup midimaze
     void sio_disable_midimaze(); // stop midimaze
     void sio_handle_midimaze();  // Handle incoming & outgoing data for midimaze
-    //void setHost(char newhost);  // Set new host
 };
 
 #endif
