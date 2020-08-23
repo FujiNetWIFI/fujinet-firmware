@@ -253,21 +253,9 @@ void sioBus::_sio_process_queue()
  */
 void sioBus::service()
 {
-    /* //Check if MOTOR is asserted
-    if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW)
-    {
-#ifdef DEBUG
-        Debug_println("SIO Motor Line Asserted");
-#endif
-    }
-    */
-
     // Handle MIDIMaze if enabled and do not process SIO commands
     if (_midiDev != nullptr && _midiDev->midimazeActive)
     {
-        //if (_sioBaud != MIDI_BAUD)
-        //    fnUartSIO.setBaudrate(MIDI_BAUD);
-
         _midiDev->sio_handle_midimaze();
         return; // break!
     }
@@ -337,9 +325,6 @@ void sioBus::setup()
         setHighSpeedIndex(_sioHighSpeedIndex);
 
     fnUartSIO.flush_input();
-    
-    // enable midimaze
-    //_midiDev->sio_enable_midimaze();
 }
 
 // Add device to SIO bus
@@ -463,7 +448,6 @@ int sioBus::getHighSpeedBaud()
 void sioBus::setMIDIHost(char *newhost)
 {
     // Set the new host
-    //strcat(_midiDev->midimaze_host_ip, newhost);
     strcpy(_midiDev->midimaze_host_ip, newhost);
 
     // Restart MIDIMaze mode if needed

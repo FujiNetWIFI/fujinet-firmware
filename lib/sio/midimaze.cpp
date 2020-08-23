@@ -15,7 +15,6 @@ void sioMIDIMaze::sio_enable_midimaze()
     // Setup PWM timer for CLOCK IN
     ledc_timer_config_t ledc_timer;
     ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
-    //ledc_timer.clock_divider = ?;
     ledc_timer.duty_resolution = LEDC_TIMER_RESOLUTION;
     ledc_timer.timer_num = LEDC_TIMER_1;
     ledc_timer.freq_hz = MIDI_BAUD;
@@ -57,7 +56,6 @@ void sioMIDIMaze::sio_handle_midimaze()
         Debug_print("MIDI-IN: ");
         Debug_println((char *)buf1);
 #endif
-        //fnUartSIO.flush();
     }
 
     if (fnUartSIO.available())
@@ -92,7 +90,7 @@ void sioMIDIMaze::sio_handle_midimaze()
 
 #ifdef DEBUG
             Debug_print("MIDI-OUT: ");
-            Debug_println((const char *)buf2);
+            Debug_println((char *)buf2);
 #endif
 
             i2 = 0;
@@ -103,9 +101,11 @@ void sioMIDIMaze::sio_handle_midimaze()
 void sioMIDIMaze::sio_status()
 {
     // Nothing to do here
+    return;
 }
 
 void sioMIDIMaze::sio_process(uint32_t commanddata, uint8_t checksum)
 {
     // Nothing to do here
+    return;
 }
