@@ -51,4 +51,6 @@ bool util_wildcard_match(const char *str, const char *pattern);
 
 bool util_concat_paths(char *dest, const char *parent, const char *child, int dest_size);
 
+void util_dump_bytes(uint8_t *buff, uint32_t buff_size);
+
 #endif // _FN_UTILS_H

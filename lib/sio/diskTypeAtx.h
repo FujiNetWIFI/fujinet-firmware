@@ -129,6 +129,9 @@ public:
     // ATX_TRACK_FLAGS bit flags
     uint32_t flags;
 
+    // Keep count of bytes read into ATX track record
+    uint32_t record_bytes_read = 0;
+
     // Actual sector data
     uint8_t * data = nullptr;
 
@@ -144,6 +147,7 @@ class DiskTypeATX : public DiskType
 private:
     uint8_t _atx_num_tracks = 0;
     uint8_t _atx_num_records = 0;
+
 
     uint8_t _atx_controller_status = 0;
 
