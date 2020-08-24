@@ -522,7 +522,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                         print_7bit_gfx(c);
                     else
                     {
-                        if (color_buffer[color_counter][0] & fnt_gfx) // either gfx or invalid but not skip_me
+                        if ((color_buffer[color_counter][0] & fnt_gfx) || (color_buffer[color_counter][1] == 0x20) || (color_buffer[color_counter][2] == 0x20)) // either gfx or invalid but not skip_me) // either gfx or invalid but not skip_me
                         {
                             color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
                             color_buffer[color_counter][static_cast<int>(colorMode)] = c;
@@ -827,7 +827,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     if (color_counter < 479)
                         color_counter++;
                     if ((c == 0x20) && (color_buffer[color_counter][0] == fnt_gfx))
-                        color_buffer[color_counter][static_cast<int>(colorMode)] = c;
+                        color_buffer[color_counter][static_cast<int>(colorMode)] = 0;
                     else
                     {
                         color_buffer[color_counter][0] = skip_me;
