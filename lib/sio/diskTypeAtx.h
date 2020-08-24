@@ -29,9 +29,6 @@
 #define ATX_DENSITY_MEDIUM 0x01
 #define ATX_DENSITY_DOUBLE 0x02
 
-#define ATX_BYTES_PER_SECTOR_SINGLE 128
-#define ATX_BYTES_PER_SECTOR_DOUBLE 256
-
 #define ATX_SECTORS_PER_TRACK_NORMAL 18
 #define ATX_SECTORS_PER_TRACK_ENHANCED 26
 
@@ -105,13 +102,13 @@ class AtxSector
 {
 public:
     // 1-based and possible to have duplicates    
-    uint8_t number;
+    uint8_t number = 0;
     // ATX_SECTOR_STATUS bit flags     
-    uint8_t status;
+    uint8_t status = 0;
     // 0-based starting angular position of sector in 8us intervals (1/26042th of a rotation or ~0.0138238 degrees). Nominally 0-26042    
-    uint16_t position;
+    uint16_t position = 0;
     // Byte offset from start of track data record to first byte of sector data within the sector data chunk. No data is present when sector status bit 4 set
-    uint32_t start_data;
+    uint32_t start_data = 0;
 
     // Byte offset within sector at which weak (random) data should be returned    
     uint16_t weakoffset = ATX_WEAKOFFSET_NONE;
@@ -145,19 +142,20 @@ public:
 class DiskTypeATX : public DiskType
 {
 private:
+    uint8_t _atx_num_tracks = 0;
+    uint8_t _atx_num_records = 0;
+
+    uint8_t _atx_controller_status = 0;
+
+    uint8_t _atx_last_track = 0;
+    uint8_t _atx_sectors_per_track = ATX_SECTORS_PER_TRACK_NORMAL;
+
     std::vector<AtxTrack> _tracks;
 
-    uint32_t _num_records = 0;
-    uint32_t _num_bytes = 0;
-    uint32_t _num_image_bytes = 0;
-
-    uint8_t _num_tracks = 0;
-    uint16_t _bytes_per_sector = ATX_BYTES_PER_SECTOR_SINGLE;
-
     // ATX header.density
-    uint8_t _density = ATX_DENSITY_SINGLE;
+    uint8_t _atx_density = ATX_DENSITY_SINGLE;
     // ATX header.end - normally the size of the entire ATX file
-    uint32_t _size = 0;
+    uint32_t _atx_size = 0;
 
     bool _load_atx_data(atx_header_t &atx_hdr);
     bool _load_atx_record();
@@ -169,23 +167,14 @@ private:
     bool _load_atx_chunk_weak_sector(chunk_header_t &chunk_hdr, AtxTrack &track);
     bool _load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, AtxTrack &track);
 
-    uint32_t _sector_to_offset(uint16_t sectorNum);
-
-
+    bool _copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, uint16_t sectorsize);
 
 public:
     virtual bool read(uint16_t sectornum, uint16_t *readcount) override;
-    virtual bool write(uint16_t sectornum, bool verify) override;
-
-    virtual bool format(uint16_t *respopnsesize) override;
 
     virtual disktype_t mount(FILE *f, uint32_t disksize) override;
 
-    virtual uint16_t sector_size(uint16_t sectornum) override;
-
     virtual void status(uint8_t statusbuff[4]) override;
-
-    static bool create(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 
     DiskTypeATX();
 };

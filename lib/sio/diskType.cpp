@@ -11,6 +11,27 @@
 #define SIDES_SS 0
 #define SIDES_DS 1
 
+// Returns sector size taking into account that the first 3 sectors are always 128-byte
+// SectorNum is 1-based
+uint16_t DiskType::sector_size(uint16_t sectornum)
+{
+    return sectornum <= 3 ? 128 : _disk_sector_size;
+}
+
+// Default WRITE is not implemented
+bool DiskType::write(uint16_t sectornum, bool verify)
+{
+    Debug_print("DISK WRITE NOT IMPLEMENTED\n");
+    return true;
+}
+
+// Default FORMAT is not implemented
+bool DiskType::format(uint16_t *responsesize)
+{
+    Debug_print("DISK FORMAT NOT IMPLEMENTED\n");
+    return true;
+}
+
 // Update PERCOM block from the total # of sectors
 void DiskType::derive_percom_block(uint16_t numSectors)
 {
@@ -21,8 +42,8 @@ void DiskType::derive_percom_block(uint16_t numSectors)
     _percomBlock.sectors_per_trackL = 18;
     _percomBlock.num_sides = SIDES_SS;
     _percomBlock.density = DENSITY_FM;
-    _percomBlock.sector_sizeH = HIBYTE_FROM_UINT16(_sectorSize);
-    _percomBlock.sector_sizeL = LOBYTE_FROM_UINT16(_sectorSize);
+    _percomBlock.sector_sizeH = HIBYTE_FROM_UINT16(_disk_sector_size);
+    _percomBlock.sector_sizeL = LOBYTE_FROM_UINT16(_disk_sector_size);
     _percomBlock.drive_present = 255;
     _percomBlock.reserved1 = 0;
     _percomBlock.reserved2 = 0;
@@ -33,7 +54,7 @@ void DiskType::derive_percom_block(uint16_t numSectors)
         _percomBlock.sectors_per_trackL = 26;
         _percomBlock.density = DENSITY_MFM;
     }
-    else if (numSectors == 720 && _sectorSize == 256) // 5.25" SS/DD
+    else if (numSectors == 720 && _disk_sector_size == 256) // 5.25" SS/DD
     {
         _percomBlock.density = DENSITY_MFM;
     }
@@ -48,20 +69,20 @@ void DiskType::derive_percom_block(uint16_t numSectors)
         _percomBlock.num_tracks = 80;
         _percomBlock.density = DENSITY_MFM;
     }
-    else if (numSectors == 2002 && _sectorSize == 128) // SS/SD 8"
+    else if (numSectors == 2002 && _disk_sector_size == 128) // SS/SD 8"
     {
         _percomBlock.num_tracks = 77;
     }
-    else if (numSectors == 2002 && _sectorSize == 256) // SS/DD 8"
+    else if (numSectors == 2002 && _disk_sector_size == 256) // SS/DD 8"
     {
         _percomBlock.num_tracks = 77;
         _percomBlock.density = DENSITY_MFM;
     }
-    else if (numSectors == 4004 && _sectorSize == 128) // DS/SD 8"
+    else if (numSectors == 4004 && _disk_sector_size == 128) // DS/SD 8"
     {
         _percomBlock.num_tracks = 77;
     }
-    else if (numSectors == 4004 && _sectorSize == 256) // DS/DD 8"
+    else if (numSectors == 4004 && _disk_sector_size == 256) // DS/DD 8"
     {
         _percomBlock.num_sides = SIDES_DS;
         _percomBlock.num_tracks = 77;
@@ -108,10 +129,10 @@ void DiskType::dump_percom_block()
 
 void DiskType::unmount()
 {
-    if (_file != nullptr)
+    if (_disk_fileh != nullptr)
     {
-        fclose(_file);
-        _file = nullptr;
+        fclose(_disk_fileh);
+        _disk_fileh = nullptr;
     }
 }
 
