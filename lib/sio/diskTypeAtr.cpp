@@ -18,22 +18,15 @@ uint32_t DiskTypeATR::_sector_to_offset(uint16_t sectorNum)
 
     // This should always be true, but just so we don't end up with a negative...
     if (sectorNum > 0)
-        offset = _sectorSize * (sectorNum - 1);
+        offset = _disk_sector_size * (sectorNum - 1);
 
     offset += 16; // Adjust for ATR header
 
     // Adjust for the fact that the first 3 sectors are always 128-bytes even on 256-byte disks
-    if (_sectorSize == 256 && sectorNum > 3)
+    if (_disk_sector_size == 256 && sectorNum > 3)
         offset -= 384;
 
     return offset;
-}
-
-// Returns sector size taking into account that the first 3 sectors are always 128-byte
-// SectorNum is 1-based
-uint16_t DiskTypeATR::sector_size(uint16_t sectornum)
-{
-    return sectornum <= 3 ? 128 : _sectorSize;
 }
 
 // Returns TRUE if an error condition occurred
@@ -44,31 +37,31 @@ bool DiskTypeATR::read(uint16_t sectornum, uint16_t *readcount)
     *readcount = 0;
 
     // Return an error if we're trying to read beyond the end of the disk
-    if(sectornum > _numSectors)
+    if(sectornum > _disk_num_sectors)
     {
-        Debug_printf("::read sector %d > %d\n", sectornum, _numSectors);        
+        Debug_printf("::read sector %d > %d\n", sectornum, _disk_num_sectors);        
         return true;
     }
 
     uint16_t sectorSize = sector_size(sectornum);
 
-    memset(_sectorbuff, 0, sizeof(_sectorbuff));
+    memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
 
     bool err = false;
     // Perform a seek if we're not reading the sector after the last one we read
-    if (sectornum != _lastSectorUsed + 1)
+    if (sectornum != _disk_last_sector + 1)
     {
         uint32_t offset = _sector_to_offset(sectornum);
-        err = fseek(_file, offset, SEEK_SET) != 0;
+        err = fseek(_disk_fileh, offset, SEEK_SET) != 0;
     }
 
     if (err == false)
-        err = fread(_sectorbuff, 1, sectorSize, _file) != sectorSize;
+        err = fread(_disk_sectorbuff, 1, sectorSize, _disk_fileh) != sectorSize;
 
     if (err == false)
-        _lastSectorUsed = sectornum;
+        _disk_last_sector = sectornum;
     else
-        _lastSectorUsed = INVALID_SECTOR_VALUE;
+        _disk_last_sector = INVALID_SECTOR_VALUE;
 
     *readcount = sectorSize;
 
@@ -78,25 +71,25 @@ bool DiskTypeATR::read(uint16_t sectornum, uint16_t *readcount)
 // Returns TRUE if an error condition occurred
 bool DiskTypeATR::write(uint16_t sectornum, bool verify)
 {
-    Debug_printf("ATR WRITE\n", sectornum, _numSectors);
+    Debug_printf("ATR WRITE\n", sectornum, _disk_num_sectors);
 
     // Return an error if we're trying to write beyond the end of the disk
-    if(sectornum > _numSectors)
+    if(sectornum > _disk_num_sectors)
     {
-        Debug_printf("::write sector %d > %d\n", sectornum, _numSectors);
+        Debug_printf("::write sector %d > %d\n", sectornum, _disk_num_sectors);
         return true;
     }
 
     uint16_t sectorSize = sector_size(sectornum);
     uint32_t offset = _sector_to_offset(sectornum);
 
-    _lastSectorUsed = INVALID_SECTOR_VALUE;
+    _disk_last_sector = INVALID_SECTOR_VALUE;
 
     // Perform a seek if we're writing to the sector after the last one
     int e;
-    if (sectornum != _lastSectorUsed + 1)
+    if (sectornum != _disk_last_sector + 1)
     {
-        e = fseek(_file, offset, SEEK_SET);
+        e = fseek(_disk_fileh, offset, SEEK_SET);
         if (e != 0)
         {
             Debug_printf("::write seek error %d\n", e);
@@ -104,32 +97,36 @@ bool DiskTypeATR::write(uint16_t sectornum, bool verify)
         }
     }
     // Write the data
-    e = fwrite(_sectorbuff, 1, sectorSize, _file);
+    e = fwrite(_disk_sectorbuff, 1, sectorSize, _disk_fileh);
     if (e != sectorSize)
     {
         Debug_printf("::write error %d, %d\n", e, errno);
         return true;
     }
 
-    int ret = fflush(_file);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
-    ret = fsync(fileno(_file)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
+    int ret = fflush(_disk_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
+    ret = fsync(fileno(_disk_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("ATR::write fsync:%d\n", ret);
 
-    _lastSectorUsed = sectornum;
+    _disk_last_sector = sectornum;
 
     return false;
 }
 
 void DiskTypeATR::status(uint8_t statusbuff[4])
 {
-    if (_sectorSize == 256)
-        statusbuff[0] |= 0x20; // XF551 double-density bit
+    statusbuff[0] = DISK_DRIVE_STATUS_CLEAR;
+
+    if (_disk_sector_size == 256)
+        statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_DENSITY;
 
     if (_percomBlock.num_sides == 1)
-        statusbuff[0] |= 0x40; // XF551 double-sided bit
+        statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_SIDED;
 
     if (_percomBlock.sectors_per_trackL == 26)
-        statusbuff[0] |= 0x80; // 1050 enhanced-density bit
+        statusbuff[0] |= DISK_DRIVE_STATUS_ENHANCED_DENSITY;
+
+    statusbuff[1] = ~ _disk_controller_status; // Negate the controller status
 }
 
 /*
@@ -144,11 +141,11 @@ bool DiskTypeATR::format(uint16_t *responsesize)
     Debug_print("ATR FORMAT\n");
 
     // Populate an empty bad sector map
-    memset(_sectorbuff, 0, sizeof(_sectorbuff));
-    _sectorbuff[0] = 0xFF;
-    _sectorbuff[1] = 0xFF;
+    memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
+    _disk_sectorbuff[0] = 0xFF;
+    _disk_sectorbuff[1] = 0xFF;
 
-    *responsesize = _sectorSize;
+    *responsesize = _disk_sector_size;
 
     return false;
 }
@@ -200,21 +197,21 @@ disktype_t DiskTypeATR::mount(FILE *f, uint32_t disksize)
     num_paragraphs = UINT16_FROM_HILOBYTES(buf[3], buf[2]);
     num_paragraphs = num_paragraphs | (buf[6] << 16);
 
-    _sectorSize = num_bytes_sector;
+    _disk_sector_size = num_bytes_sector;
 
-    _numSectors = (num_paragraphs * 16) / num_bytes_sector;
+    _disk_num_sectors = (num_paragraphs * 16) / num_bytes_sector;
     // Adjust sector size for the fact that the first three sectors are *always* 128 bytes
     if (num_bytes_sector == 256)
-        _numSectors += 2;
+        _disk_num_sectors += 2;
 
-    derive_percom_block(_numSectors);
+    derive_percom_block(_disk_num_sectors);
 
-    _file = f;
-    _imageSize = disksize;
-    _lastSectorUsed = INVALID_SECTOR_VALUE;
+    _disk_fileh = f;
+    _disk_image_size = disksize;
+    _disk_last_sector = INVALID_SECTOR_VALUE;
 
     Debug_printf("mounted ATR: paragraphs=%d, sect_size=%d, sect_count=%d, disk_size=%d\n",
-                 num_paragraphs, num_bytes_sector, _numSectors, disksize);
+                 num_paragraphs, num_bytes_sector, _disk_num_sectors, disksize);
 
     _disktype = DISKTYPE_ATR;
 
