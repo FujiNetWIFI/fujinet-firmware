@@ -717,7 +717,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     }
                     else
                     {
-                        if (color_buffer[color_counter][0] & fnt_gfx) // either gfx or invalid but not skip_me
+                        if ((color_buffer[color_counter][0] & fnt_gfx) || (color_buffer[color_counter][static_cast<int>(colorMode)] == 0x20)) // either gfx or invalid but not skip_me
                         {
                             color_buffer[color_counter][0] = fnt_gfx; // just need font/gfx state - not color
                             color_buffer[color_counter][static_cast<int>(colorMode)] = okimate_cmd.data;
@@ -827,7 +827,7 @@ void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     if (color_counter < 479)
                         color_counter++;
                     if ((c == 0x20) && (color_buffer[color_counter][0] == fnt_gfx))
-                        color_buffer[color_counter][static_cast<int>(colorMode)] = 0;
+                        color_buffer[color_counter][static_cast<int>(colorMode)] = c;
                     else
                     {
                         color_buffer[color_counter][0] = skip_me;
@@ -847,7 +847,7 @@ void okimate10::post_new_file()
 {
     atari1025::post_new_file();
     shortname = "oki10";
-    topMargin = 72.0 / 2.0 - 6.0; // perf skip is default with 1/2 inch margins
+    topMargin = 72.0 / 2.0 - 1.0; // perf skip is default with 1/2 inch margins
     //pdf_dY = topMargin;       // but start at top of first page
     bottomMargin = topMargin; // perf skip is default
 }
