@@ -599,7 +599,7 @@ void sioFuji::sio_new_disk()
         unsigned short sectorSize;
         unsigned char hostSlot;
         unsigned char deviceSlot;
-        char filename[MAX_DISPLAY_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
+        char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
     } newDisk;
 
     // Ask for details on the new disk to create
