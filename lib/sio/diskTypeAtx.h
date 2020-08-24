@@ -43,6 +43,64 @@
 #define ATX_RECORDTYPE_TRACK 0x0000
 #define ATX_RECORDTYPE_HOST 0x0100
 
+struct atx_header
+{
+    uint32_t magic;
+    uint16_t version;
+    uint16_t min_version;
+    uint16_t creator;
+    uint16_t creator_version;
+    uint32_t flags;
+    uint16_t image_type;
+    uint8_t density;
+    uint8_t reserved1;
+    uint32_t image_id;
+    uint16_t image_version;
+    uint16_t reserved2;
+    uint32_t start;
+    uint32_t end;
+} __attribute__((packed));
+typedef struct atx_header atx_header_t; // We shouldn't need these, but VC's C++ linter gets confused
+
+struct record_header
+{
+    uint32_t length;
+    uint16_t type;
+    uint16_t reserved;
+} __attribute__((packed));
+typedef struct record_header record_header_t;
+
+struct track_header
+{
+    uint8_t track_number;
+    uint8_t reserved1;
+    uint16_t sector_count;
+    uint16_t rate;
+    uint16_t reserved2;
+    uint32_t flags;
+    uint32_t header_size;
+    uint64_t reserved3;
+} __attribute__((packed));
+typedef struct track_header track_header_t;
+
+struct chunk_header
+{
+    uint32_t length;
+    uint8_t type;
+    uint8_t sector_index;
+    uint16_t header_data;
+} __attribute__((packed));
+typedef struct chunk_header chunk_header_t;
+
+struct sector_header
+{
+    uint8_t number;
+    uint8_t status;
+    uint16_t position;
+    uint32_t start_data;
+} __attribute__((packed));
+typedef struct sector_header sector_header_t;
+
 class AtxSector
 {
 public:
@@ -60,6 +118,8 @@ public:
     // Physical size of long sector (one of ATX_EXTENDESIZE)
     uint16_t extendedsize = 0;
 
+    ~AtxSector();
+    AtxSector(sector_header_t & header);
 };
 
 class AtxTrack
@@ -78,71 +138,13 @@ public:
     // Actual sectors
     std::vector<AtxSector> sectors;
 
-    ~AtxTrack() { if (data != nullptr) delete[] data; };
-
+    ~AtxTrack();
+    AtxTrack();
 };
 
 class DiskTypeATX : public DiskType
 {
 private:
-    struct atx_header
-    {
-        uint32_t magic;
-        uint16_t version;
-        uint16_t min_version;
-        uint16_t creator;
-        uint16_t creator_version;
-        uint32_t flags;
-        uint16_t image_type;
-        uint8_t density;
-        uint8_t reserved1;
-        uint32_t image_id;
-        uint16_t image_version;
-        uint16_t reserved2;
-        uint32_t start;
-        uint32_t end;
-    } __attribute__((packed));
-    typedef struct atx_header atx_header_t; // We shouldn't need these, but VC's C++ linter gets confused
-
-    struct record_header
-    {
-        uint32_t length;
-        uint16_t type;
-        uint16_t reserved;
-    } __attribute__((packed));
-    typedef struct record_header record_header_t;
-
-    struct track_header
-    {
-        uint8_t track_number;
-        uint8_t reserved1;
-        uint16_t sector_count;
-        uint16_t rate;
-        uint16_t reserved2;
-        uint32_t flags;
-        uint32_t header_size;
-        uint64_t reserved3;
-    } __attribute__((packed));
-    typedef struct track_header track_header_t;
-
-    struct chunk_header
-    {
-        uint32_t length;
-        uint8_t type;
-        uint8_t sector_index;
-        uint16_t header_data;
-    } __attribute__((packed));
-    typedef struct chunk_header chunk_header_t;
-
-    struct sector_header
-    {
-        uint8_t number;
-        uint8_t status;
-        uint16_t position;
-        uint32_t start_data;
-    } __attribute__((packed));
-    typedef struct sector_header sector_header_t;
-
     std::vector<AtxTrack> _tracks;
 
     uint32_t _num_records = 0;
@@ -150,12 +152,11 @@ private:
     uint32_t _num_image_bytes = 0;
 
     uint8_t _num_tracks = 0;
-    uint16_t _sectors_per_track = 0;
     uint16_t _bytes_per_sector = ATX_BYTES_PER_SECTOR_SINGLE;
 
     // ATX header.density
     uint8_t _density = ATX_DENSITY_SINGLE;
-    // ATX header.end - header.start
+    // ATX header.end - normally the size of the entire ATX file
     uint32_t _size = 0;
 
     bool _load_atx_data(atx_header_t &atx_hdr);
