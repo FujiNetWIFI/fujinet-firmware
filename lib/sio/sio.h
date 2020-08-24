@@ -84,6 +84,8 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define SIO_DEVICEID_FN_NETWORK 0x71
 #define SIO_DEVICEID_FN_NETWORK_LAST 0x78
 
+#define SIO_DEVICEID_MIDI 0x99
+
 // Not used, but for reference:
 #define SIO_DEVICEID_SIO2BT_NET 0x4E
 #define SIO_DEVICEID_SIO2BT_SMART 0x45 // Doubles as APETime and "High Score Submission" to URL
@@ -115,6 +117,7 @@ class sioModem;   // declare here so can reference it, but define in modem.h
 class sioFuji;    // declare here so can reference it, but define in fuji.h
 class sioBus;     // declare early so can be friend
 class sioNetwork; // declare here so can reference it, but define in network.h
+class sioMIDIMaze;   // declare here so can reference it, but define in midimaze.h
 
 class sioDevice
 {
@@ -175,6 +178,7 @@ private:
     sioModem *_modemDev = nullptr;
     sioFuji *_fujiDev = nullptr;
     sioNetwork *_netDev[8] = { nullptr };
+    sioMIDIMaze *_midiDev = nullptr;
 
     int _sioBaud = SIO_STANDARD_BAUDRATE;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
@@ -202,6 +206,8 @@ public:
     int setHighSpeedIndex(int hsio_index); // Set HSIO index. Sets high speed SIO baud and also returns that value.
     int getHighSpeedIndex(); // Gets current HSIO index
     int getHighSpeedBaud(); // Gets current HSIO baud
+
+    void setMIDIHost(char *newhost); // Set new host/ip for MIDIMaze
 
     QueueHandle_t qSioMessages = nullptr;
 };

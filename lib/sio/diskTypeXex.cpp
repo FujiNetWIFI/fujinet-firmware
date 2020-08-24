@@ -19,13 +19,6 @@
 
 #define SECTOR_LINK_SIZE 3 
 
-// Returns sector size taking into account that the first 3 sectors are always 128-byte
-// SectorNum is 1-based
-uint16_t DiskTypeXEX::sector_size(uint16_t sectornum)
-{
-    return _sectorSize;
-}
-
 /*
     The bootloader expects to find a file named "AUTORUN", so fake a directory
     with only that file.
@@ -46,31 +39,31 @@ uint16_t DiskTypeXEX::sector_size(uint16_t sectornum)
 void DiskTypeXEX::_fake_directory_entry()
 {
     // Calculate the number of sectors required
-    uint16_t data_per_sector = _sectorSize - SECTOR_LINK_SIZE;
-    uint16_t numsectors = _imageSize / data_per_sector;
-    numsectors += _imageSize % data_per_sector > 0 ? 1 : 0;
+    uint16_t data_per_sector = _disk_sector_size - SECTOR_LINK_SIZE;
+    uint16_t numsectors = _disk_image_size / data_per_sector;
+    numsectors += _disk_image_size % data_per_sector > 0 ? 1 : 0;
 
     Debug_printf("num XEX sectors = %d\n", numsectors);
 
-    _sectorbuff[0] = 0x42; // Created by DOS 2 and in use
+    _disk_sectorbuff[0] = 0x42; // Created by DOS 2 and in use
 
-    _sectorbuff[1] = LOBYTE_FROM_UINT16(numsectors);
-    _sectorbuff[2] = HIBYTE_FROM_UINT16(numsectors);
+    _disk_sectorbuff[1] = LOBYTE_FROM_UINT16(numsectors);
+    _disk_sectorbuff[2] = HIBYTE_FROM_UINT16(numsectors);
 
-    _sectorbuff[3] = LOBYTE_FROM_UINT16(FIRST_XEX_SECTOR);
-    _sectorbuff[4] = HIBYTE_FROM_UINT16(FIRST_XEX_SECTOR);
+    _disk_sectorbuff[3] = LOBYTE_FROM_UINT16(FIRST_XEX_SECTOR);
+    _disk_sectorbuff[4] = HIBYTE_FROM_UINT16(FIRST_XEX_SECTOR);
 
-    _sectorbuff[5] = 'A';
-    _sectorbuff[6] = 'U';
-    _sectorbuff[7] = 'T';
-    _sectorbuff[8] = 'O';
-    _sectorbuff[9] = 'R';
-    _sectorbuff[10] = 'U';
-    _sectorbuff[11] = 'N';
-    _sectorbuff[12] = 0x20;
-    _sectorbuff[13] = 0x20;
-    _sectorbuff[14] = 0x20;
-    _sectorbuff[15] = 0x20;
+    _disk_sectorbuff[5] = 'A';
+    _disk_sectorbuff[6] = 'U';
+    _disk_sectorbuff[7] = 'T';
+    _disk_sectorbuff[8] = 'O';
+    _disk_sectorbuff[9] = 'R';
+    _disk_sectorbuff[10] = 'U';
+    _disk_sectorbuff[11] = 'N';
+    _disk_sectorbuff[12] = 0x20;
+    _disk_sectorbuff[13] = 0x20;
+    _disk_sectorbuff[14] = 0x20;
+    _disk_sectorbuff[15] = 0x20;
 }
 
 // Returns TRUE if an error condition occurred
@@ -78,25 +71,25 @@ bool DiskTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
 {
     Debug_print("XEX READ\n");
 
-    *readcount = _sectorSize;
+    *readcount = _disk_sector_size;
 
-    memset(_sectorbuff, 0, sizeof(_sectorbuff));
+    memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
 
     bool err = false;
 
     // Load from our bootloader first
     if (sectornum <= BOOTLOADER_END)
     {
-        int offset = _sectorSize * (sectornum - 1);
-        int remain = _bootloadersize - offset;
-        int bootcopy = _sectorSize > remain ? remain : _sectorSize;
+        int offset = _disk_sector_size * (sectornum - 1);
+        int remain = _xex_bootloadersize - offset;
+        int bootcopy = _disk_sector_size > remain ? remain : _disk_sector_size;
 
         Debug_printf("copying %d bytes from bootloader\n", bootcopy);
 
-        memcpy(_sectorbuff, _bootloader + offset, bootcopy);
+        memcpy(_disk_sectorbuff, _xex_bootloader + offset, bootcopy);
 
         // Note that we may not have read an entire sector's worth of bytes. That's okay.
-        _lastSectorUsed = INVALID_SECTOR_VALUE; // Reset this so we're forced to seek
+        _disk_last_sector = INVALID_SECTOR_VALUE; // Reset this so we're forced to seek
         return false;
     }
 
@@ -105,39 +98,39 @@ bool DiskTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
     {
         Debug_print("faking DOS 2 directory\n");
         _fake_directory_entry();
-        _lastSectorUsed = INVALID_SECTOR_VALUE; // Reset this so we're forced to seek        
+        _disk_last_sector = INVALID_SECTOR_VALUE; // Reset this so we're forced to seek        
         return false;
     }
 
-    int data_bytes = _sectorSize - SECTOR_LINK_SIZE;
+    int data_bytes = _disk_sector_size - SECTOR_LINK_SIZE;
     // This is the number of bytes into the XEX file we should be reading
     int xex_offset = data_bytes * (sectornum - FIRST_XEX_SECTOR);
 
     // Perform a seek if we're not reading the sector after the last one we read
-    if (sectornum != _lastSectorUsed + 1)
+    if (sectornum != _disk_last_sector + 1)
     {
         Debug_printf("seeking to offset %d in XEX\n", xex_offset);
-        err = fseek(_file, xex_offset, SEEK_SET) != 0;
+        err = fseek(_disk_fileh, xex_offset, SEEK_SET) != 0;
     }
 
     if (err == false)
     {
         Debug_printf("requesting %d bytes from XEX\n", data_bytes);
-        int read = fread(_sectorbuff, 1, data_bytes, _file);
+        int read = fread(_disk_sectorbuff, 1, data_bytes, _disk_fileh);
         Debug_printf("received %d bytes\n", read);
 
         // Fill in the sector link data pointing to the next sector
         if(read >= 0)
         {
             // Provide number of bytes read
-            _sectorbuff[_sectorSize - 1] = read;
+            _disk_sectorbuff[_disk_sector_size - 1] = read;
 
             // Only provide a next sector pointer if we read a full sector of data
             if(read == data_bytes)
             {
                 uint16_t next_sector = sectornum + 1;
-                _sectorbuff[_sectorSize - 2] = LOBYTE_FROM_UINT16(next_sector);
-                _sectorbuff[_sectorSize - 3] = HIBYTE_FROM_UINT16(next_sector);
+                _disk_sectorbuff[_disk_sector_size - 2] = LOBYTE_FROM_UINT16(next_sector);
+                _disk_sectorbuff[_disk_sector_size - 3] = HIBYTE_FROM_UINT16(next_sector);
             }
         }
         else
@@ -145,9 +138,9 @@ bool DiskTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
     }
 
     if (err == false)
-        _lastSectorUsed = sectornum;
+        _disk_last_sector = sectornum;
     else
-        _lastSectorUsed = INVALID_SECTOR_VALUE;
+        _disk_last_sector = INVALID_SECTOR_VALUE;
 
     return err;
 }
@@ -159,8 +152,8 @@ void DiskTypeXEX::status(uint8_t statusbuff[4])
 
 void DiskTypeXEX::unmount()
 {
-    if (_bootloader != nullptr)
-        free(_bootloader);
+    if (_xex_bootloader != nullptr)
+        free(_xex_bootloader);
 
     // Call the parent unmount
     this->DiskType::unmount();
@@ -178,20 +171,20 @@ disktype_t DiskTypeXEX::mount(FILE *f, uint32_t disksize)
     _disktype = DISKTYPE_UNKNOWN;
 
     // Load our bootloader
-    _bootloadersize = fnSystem.load_firmware(BOOTLOADER, &_bootloader);
-    if (_bootloadersize < 0)
+    _xex_bootloadersize = fnSystem.load_firmware(BOOTLOADER, &_xex_bootloader);
+    if (_xex_bootloadersize < 0)
     {
         Debug_printf("failed to load bootloader \"%s\"\n", BOOTLOADER);
         return _disktype;
     }
 
-    _sectorSize = 128;
-    _file = f;
-    _imageSize = disksize;
-    _lastSectorUsed = INVALID_SECTOR_VALUE;
+    _disk_sector_size = 128;
+    _disk_fileh = f;
+    _disk_image_size = disksize;
+    _disk_last_sector = INVALID_SECTOR_VALUE;
     _disktype = DISKTYPE_XEX;
 
-    Debug_printf("mounted XEX with %d-byte bootloader; XEX size=%d\n", _bootloadersize, _imageSize);
+    Debug_printf("mounted XEX with %d-byte bootloader; XEX size=%d\n", _xex_bootloadersize, _disk_image_size);
 
     return _disktype;
 }

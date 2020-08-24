@@ -42,9 +42,11 @@ public:
     std::string get_general_devicename() { return _general.devicename; };
     int get_general_hsioindex() { return _general.hsio_index; };
     std::string get_general_timezone() { return _general.timezone; };
+    std::string get_network_midimaze_host() { return _network.midimaze_host; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
     void store_general_timezone(const char *timezone);
+    void store_midimaze_host(char host_ip[64]);
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
 
@@ -146,6 +148,7 @@ private:
     struct network_info
     {
         char sntpserver [40];
+        char midimaze_host [64];
     };
 
     struct general_info

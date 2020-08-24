@@ -22,6 +22,11 @@ fnConfig::fnConfig()
     strlcpy(_network.sntpserver, CONFIG_DEFAULT_SNTPSERVER, sizeof(_network.sntpserver));
 }
 
+void fnConfig::store_midimaze_host(char host_ip[64])
+{
+    strlcpy(_network.midimaze_host, host_ip, sizeof(_network.midimaze_host));
+}
+
 void fnConfig::store_general_devicename(const char *devicename)
 {
     if(_general.devicename.compare(devicename) == 0)
@@ -30,6 +35,7 @@ void fnConfig::store_general_devicename(const char *devicename)
     _general.devicename = devicename;
     _dirty = true;
 }
+
 void fnConfig::store_general_timezone(const char *timezone)
 {
     if(_general.timezone.compare(timezone) == 0)
