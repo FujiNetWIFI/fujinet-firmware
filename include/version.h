@@ -15,4 +15,3 @@
 #define FN_VERSION_DATE "2020-08-24 00:05:04"
 
 #define FN_VERSION_FULL "0.1.22e4d063"
-
