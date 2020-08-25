@@ -16,8 +16,6 @@ public:
 
     virtual disktype_t mount(FILE *f, uint32_t disksize) override;
 
-    virtual uint16_t sector_size(uint16_t sectornum) override;
-
     virtual void status(uint8_t statusbuff[4]) override;
 
     static bool create(FILE *f, uint16_t sectorSize, uint16_t numSectors);
