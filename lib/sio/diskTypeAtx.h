@@ -131,6 +131,7 @@ public:
 
     // Keep count of bytes read into ATX track record
     uint32_t record_bytes_read = 0;
+    uint32_t offset_to_data_start = 0;
 
     // Actual sector data
     uint8_t * data = nullptr;
