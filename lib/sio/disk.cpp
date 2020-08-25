@@ -89,7 +89,7 @@ void sioDisk::sio_status()
             Bit 3 = 1: Failed due to write protected disk
             Bit 2 = 1: Unsuccessful PUT operation
             Bit 1 = 1: Receive error on last data frame (XF551)
-            Bit 0 = 1: REceive error on last command frame (XF551)
+            Bit 0 = 1: Receive error on last command frame (XF551)
 
         #1 - Floppy drive controller status (inverted from FDC)
             Bit 7 = 0: Not ready (1050 drive)
