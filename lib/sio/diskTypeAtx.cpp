@@ -64,7 +64,6 @@ bool DiskTypeATX::_copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, u
                     uint32_t data_offset = it.start_data - track.offset_to_data_start;
                     memcpy(_disk_sectorbuff, track.data + data_offset, sectorsize);
 
-                    //util_dump_bytes(_disk_sectorbuff, 64);
                 }
                 else
                 {
@@ -73,7 +72,17 @@ bool DiskTypeATX::_copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, u
                     // Act as if the ATX_SECTOR_STATUS_MISSING_DATA bit was set
                     _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
                 }
-                
+
+                // Replace bytes with random data if this sector has a WEAKOFFSET value
+                if(it.weakoffset != ATX_WEAKOFFSET_NONE)
+                {
+                    Debug_printf("## Weak sector data starting at offset %u\n", it.weakoffset);
+                    uint32_t rand = esp_random();
+                    // Fill the buffer from the offset position to the end with our random 32 bit value
+                    for(int x=it.weakoffset; x < sectorsize; x += sizeof(uint32_t) )
+                        *((uint32_t *)(_disk_sectorbuff + x)) = rand;
+                }
+                //util_dump_bytes(_disk_sectorbuff, 64);
             }
             else
             {
