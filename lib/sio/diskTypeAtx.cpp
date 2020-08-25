@@ -42,37 +42,70 @@ AtxSector::AtxSector(sector_header_t &header)
 bool DiskTypeATX::_copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, uint16_t sectorsize)
 {
     Debug_printf("copy data track %d, sector %d\n", tracknum, sectornum);
+
+    memset(_disk_sectorbuff, 0, sectorsize);
+
     AtxTrack &track = _tracks[tracknum];
 
     _disk_controller_status = DISK_CTRL_STATUS_CLEAR;
 
+    // Iterate through every sector stored for this track
     for (auto &it : track.sectors)
     {
         if (it.number == sectornum)
         {
             // Copy data from the sector into the buffer if any is available
-            if ((it.status & ATX_SECTOR_STATUS_MISSING_DATA) == 0 && track.data != nullptr)
+            if ((it.status & ATX_SECTOR_STATUS_MISSING_DATA) == 0)
             {
-                // Adjust the start_data value by the number of bytes into the Track Record the data chunk started
-                uint32_t data_offset = it.start_data - track.offset_to_data_start;
-                memcpy(_disk_sectorbuff, track.data + data_offset, sectorsize);
+                // Make sure we have a reasonable offset and data to copy
+                if( track.data != nullptr && it.start_data >= track.offset_to_data_start )
+                {
+                    // Adjust the start_data value by the number of bytes into the Track Record the data chunk started
+                    uint32_t data_offset = it.start_data - track.offset_to_data_start;
+                    memcpy(_disk_sectorbuff, track.data + data_offset, sectorsize);
 
-                util_dump_bytes(_disk_sectorbuff, 64);
+                    //util_dump_bytes(_disk_sectorbuff, 64);
+                }
+                else
+                {
+                    Debug_printf("## Invalid sector data offset (%u < %u) or track data buffer (%p)\n",
+                        it.start_data, track.offset_to_data_start, track.data);
+                    // Act as if the ATX_SECTOR_STATUS_MISSING_DATA bit was set
+                    _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
+                }
+                
+            }
+            else
+            {
+                _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
+                Debug_printf("## Skipped data copy, setting DISK_CTRL_STATUS_SECTOR_MISSING\n");
             }
 
             if (it.status & ATX_SECTOR_STATUS_DELETED)
+            {
                 _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_DELETED;
-            if (it.status & ATX_SECTOR_STATUS_MISSING_DATA)
-                _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
+                Debug_print("## Setting DISK_CTRL_STATUS_SECTOR_DELETED\n");
+            }
             if (it.status & ATX_SECTOR_STATUS_FDC_CRC_ERROR)
+            {
                 _disk_controller_status |= DISK_CTRL_STATUS_CRC_ERROR;
+                Debug_print("## Setting DISK_CTRL_STATUS_CRC_ERROR\n");
+            }
             if (it.status & ATX_SECTOR_STATUS_FDC_LOSTDATA_ERROR)
+            {
                 _disk_controller_status |= DISK_CTRL_STATUS_DATA_LOST;
+                Debug_print("## Setting DISK_CTRL_STATUS_DATA_LOST\n");
+            }
 
-            return false;
+            // Return an error if any disk controller status bit was set
+            return _disk_controller_status != DISK_CTRL_STATUS_CLEAR;
         }
     }
+
     // Return error: didn't find sector
+    Debug_print("## Did not find sector with matching number\n");
+
+    _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;    
     return true;
 }
 
@@ -96,8 +129,6 @@ bool DiskTypeATX::read(uint16_t sectornum, uint16_t *readcount)
 
     uint16_t sectorSize = sector_size(sectornum);
 
-    memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
-
     // Calculate the track/sector we're accessing
     int tracknumber = (sectornum - 1) / _atx_sectors_per_track;
     int tracksector = (sectornum - 1) % _atx_sectors_per_track + 1; // sector numbers are 1-based
@@ -108,17 +139,15 @@ bool DiskTypeATX::read(uint16_t sectornum, uint16_t *readcount)
         return true;
     }
 
-    _copy_track_sector_data((uint8_t)tracknumber, (uint8_t)tracksector, sectorSize);
-
-
     *readcount = sectorSize;
-
-    return false;
+    return _copy_track_sector_data((uint8_t)tracknumber, (uint8_t)tracksector, sectorSize);
 }
 
 void DiskTypeATX::status(uint8_t statusbuff[4])
 {
     statusbuff[0] = DISK_DRIVE_STATUS_CLEAR;
+
+    statusbuff[0] |= DISK_DRIVE_STATUS_MOTOR_RUNNING;
 
     if (_atx_density == ATX_DENSITY_DOUBLE)
         statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_DENSITY;
@@ -212,7 +241,7 @@ bool DiskTypeATX::_load_atx_chunk_sector_data(AtxTrack &track)
     // Keep a count of how many bytes we've read into the Track Record
     track.record_bytes_read += readz;
 
-    util_dump_bytes(track.data, 64);
+    //util_dump_bytes(track.data, 64);
 
     return true;
 }
