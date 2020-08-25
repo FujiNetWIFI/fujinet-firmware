@@ -7,6 +7,7 @@
 
 #include "disk.h"
 #include "diskTypeAtr.h"
+#include "diskTypeAtx.h"
 #include "diskTypeXex.h"
 
 #define SIO_DISKCMD_FORMAT 0x21
@@ -43,7 +44,7 @@ void sioDisk::sio_read()
     bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
 
     // Send result to Atari
-    sio_to_computer(_disk->_sectorbuff, readcount, err);
+    sio_to_computer(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
@@ -56,11 +57,11 @@ void sioDisk::sio_write(bool verify)
         uint16_t sectorNum = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
         uint16_t sectorSize = _disk->sector_size(sectorNum);
 
-        memset(_disk->_sectorbuff, 0, DISK_SECTORBUF_SIZE);
+        memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
-        uint8_t ck = sio_to_peripheral(_disk->_sectorbuff, sectorSize);
+        uint8_t ck = sio_to_peripheral(_disk->_disk_sectorbuff, sectorSize);
 
-        if (ck == sio_checksum(_disk->_sectorbuff, sectorSize))
+        if (ck == sio_checksum(_disk->_disk_sectorbuff, sectorSize))
         {
             if (_disk->write(sectorNum, verify) == false)
             {
@@ -109,12 +110,19 @@ void sioDisk::sio_status()
     */
     // TODO: Why $DF for second byte? 
     // TODO: Set bit 4 of drive status and bit 6 of FDC status on read-only disk
-    uint8_t _status[4] = {0x00, 0xFF, 0xFE, 0x00};
+#define DRIVE_DEFAULT_TIMEOUT_810 0xE0
+#define DRIVE_DEFAULT_TIMEOUT_XF551 0xFE
+
+    uint8_t _status[4];
+    _status[0] = 0x00;
+    _status[1] = ~DISK_CTRL_STATUS_CLEAR; // Negation of default clear status
+    _status[2] = DRIVE_DEFAULT_TIMEOUT_XF551;
+    _status[3] = 0x00;
 
     if (_disk != nullptr)
         _disk->status(_status);
 
-    Debug_printf("byte 0 = 0x%02X\n", _status[0]);
+    Debug_printf("response: 0x%02x, 0x%02x, 0x%02x\n", _status[0], _status[1], _status[2]);
     
     sio_to_computer(_status, sizeof(_status), false);
 }
@@ -134,7 +142,7 @@ void sioDisk::sio_format()
     bool err = _disk->format(&responsesize);
 
     // Send to computer
-    sio_to_computer(_disk->_sectorbuff, responsesize, err);
+    sio_to_computer(_disk->_disk_sectorbuff, responsesize, err);
 }
 
 // Read percom block
@@ -199,6 +207,9 @@ disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disk
     {
     case DISKTYPE_XEX:
         _disk = new DiskTypeXEX();
+        return _disk->mount(f, disksize);
+    case DISKTYPE_ATX:
+        _disk = new DiskTypeATX();
         return _disk->mount(f, disksize);
     case DISKTYPE_ATR:
     case DISKTYPE_UNKNOWN:

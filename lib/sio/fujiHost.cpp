@@ -49,7 +49,7 @@ void fujiHost::set_type(fujiHostType type)
     _type = type;
 }
 
-/* Sets the hostname. If we're initialized and this is a different name
+/* Sets the hostname. TODO: If we're initialized and this is a different name
  from what we had, unmount the previous host
  */
 void fujiHost::set_hostname(const char *hostname)
