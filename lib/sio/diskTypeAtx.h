@@ -9,10 +9,15 @@
     ATX file format data from:
     http://a8preservation.com/#/guides/atx
 */
+// Sector data exists but is incomplete
 #define ATX_SECTOR_STATUS_FDC_LOSTDATA_ERROR 0x04
+// Sector data exists but is incorrect
 #define ATX_SECTOR_STATUS_FDC_CRC_ERROR 0x08
+// No sector data available
 #define ATX_SECTOR_STATUS_MISSING_DATA 0x10
+// Sector data exists but is marked as deleted
 #define ATX_SECTOR_STATUS_DELETED 0x20
+// Sector has extended information chunk
 #define ATX_SECTOR_STATUS_EXTENDED 0x40
 
 #define ATX_WEAKOFFSET_NONE 0xFFFF
@@ -131,6 +136,7 @@ public:
 
     // Keep count of bytes read into ATX track record
     uint32_t record_bytes_read = 0;
+    uint32_t offset_to_data_start = 0;
 
     // Actual sector data
     uint8_t * data = nullptr;
