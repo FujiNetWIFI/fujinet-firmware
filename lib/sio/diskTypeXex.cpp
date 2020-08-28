@@ -12,12 +12,18 @@
 
 #define BOOTLOADER_END 0x03
 
+// Sector 0x168 (360) contains the sector table
+// Sector 0x169 (361) is the start of the file table of contents
+// Normally the table of contents continues to sector 0x182 (368)
 #define DIRECTORY_START 0x0169
 #define DIRECTORY_END 0x0170
 
-#define FIRST_XEX_SECTOR 0x04
+#define FIRST_XEX_SECTOR 0x0171
 
-#define SECTOR_LINK_SIZE 3 
+#define SECTOR_SIZE 256
+#define BOOT_SECTOR_SIZE 128
+
+#define SECTOR_LINK_SIZE 3
 
 /*
     The bootloader expects to find a file named "AUTORUN", so fake a directory
@@ -26,6 +32,7 @@
         $00 - Entry has never been used
         $01 - File opened for output
         $02 - File created by DOS 2
+        $04 - Use 16-bit sector links ** (PICOBOOT) **
         $20 - Entry locked
         $40 - Entry in use
         $80 - Entry has been deleted
@@ -45,7 +52,7 @@ void DiskTypeXEX::_fake_directory_entry()
 
     Debug_printf("num XEX sectors = %d\n", numsectors);
 
-    _disk_sectorbuff[0] = 0x42; // Created by DOS 2 and in use
+    _disk_sectorbuff[0] = 0x46;//0x42;
 
     _disk_sectorbuff[1] = LOBYTE_FROM_UINT16(numsectors);
     _disk_sectorbuff[2] = HIBYTE_FROM_UINT16(numsectors);
@@ -69,9 +76,8 @@ void DiskTypeXEX::_fake_directory_entry()
 // Returns TRUE if an error condition occurred
 bool DiskTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
 {
-    Debug_print("XEX READ\n");
+    Debug_printf("XEX READ (%d)\n", sectornum);
 
-    *readcount = _disk_sector_size;
 
     memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
 
@@ -80,18 +86,29 @@ bool DiskTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
     // Load from our bootloader first
     if (sectornum <= BOOTLOADER_END)
     {
-        int offset = _disk_sector_size * (sectornum - 1);
+        int offset = BOOT_SECTOR_SIZE * (sectornum - 1);
         int remain = _xex_bootloadersize - offset;
-        int bootcopy = _disk_sector_size > remain ? remain : _disk_sector_size;
+        int bootcopy = BOOT_SECTOR_SIZE > remain ? remain : BOOT_SECTOR_SIZE;
+
+        *readcount = BOOT_SECTOR_SIZE;
 
         Debug_printf("copying %d bytes from bootloader\n", bootcopy);
-
         memcpy(_disk_sectorbuff, _xex_bootloader + offset, bootcopy);
+
+        // PicoBoot uses the first byte as a flag for whether it should read double or single density sectors
+        // Single = 0x80, Double = 0x00
+        if(SECTOR_SIZE == 256 && sectornum == 1 && _disk_sectorbuff[0] == 0x80)
+        {
+            Debug_print("setting PicoBoot double density flag\n");
+            _disk_sectorbuff[0] = 0x00;
+        }
 
         // Note that we may not have read an entire sector's worth of bytes. That's okay.
         _disk_last_sector = INVALID_SECTOR_VALUE; // Reset this so we're forced to seek
         return false;
     }
+
+    *readcount = _disk_sector_size;
 
     // We're going to fake a DOS2.0 directory if we're seeking to the directory area
     if (sectornum >= DIRECTORY_START && sectornum <= DIRECTORY_END)
@@ -178,7 +195,7 @@ disktype_t DiskTypeXEX::mount(FILE *f, uint32_t disksize)
         return _disktype;
     }
 
-    _disk_sector_size = 128;
+    _disk_sector_size = SECTOR_SIZE;
     _disk_fileh = f;
     _disk_image_size = disksize;
     _disk_last_sector = INVALID_SECTOR_VALUE;
