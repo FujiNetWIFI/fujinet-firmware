@@ -11,6 +11,7 @@
 #include "atari_1027.h"
 #include "atari_1029.h"
 #include "epson_80.h"
+#include "epson_tps.h"
 #include "okimate_10.h"
 #include "png_printer.h"
 
@@ -171,6 +172,9 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
     case PRINTER_EPSON:
         _pptr = new epson80;
         break;
+    case PRINTER_EPSON_PRINTSHOP:
+        _pptr = new epsonTPS;
+        break;
     case PRINTER_OKIMATE10:
         _pptr = new okimate10;
         break;
@@ -221,6 +225,7 @@ sioPrinter::printer_type sioPrinter::match_modelname(std::string model_name)
             "Atari 1027",
             "Atari 1029",
             "Epson 80",
+            "Epson PrintShop",
             "Okimate 10",
             "GRANTIC",
             "HTML printer",
