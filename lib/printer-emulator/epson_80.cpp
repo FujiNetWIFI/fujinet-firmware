@@ -553,7 +553,7 @@ void epson80::post_new_file()
     // fontNumber = 1;
     // fontSize = 12;
     at_reset(); // moved all those parameters so could be excuted with ESC-@ command
-    pdf_dY = lineHeight;
+    // pdf_dY = lineHeight; // now in epson_tps.cpp
 
     pdf_header();
     escMode = false;
