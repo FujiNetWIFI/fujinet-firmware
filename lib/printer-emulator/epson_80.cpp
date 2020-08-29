@@ -545,6 +545,7 @@ void epson80::post_new_file()
 
     pageWidth = 612.0;
     pageHeight = 792.0;
+    topMargin = -1.5;
     // leftMargin = 18.0;
     // bottomMargin = 0;
     // printWidth = 576.0; // 8 inches
@@ -553,7 +554,7 @@ void epson80::post_new_file()
     // fontNumber = 1;
     // fontSize = 12;
     at_reset(); // moved all those parameters so could be excuted with ESC-@ command
-    pdf_dY = lineHeight;
+    // pdf_dY = lineHeight; // now in epson_tps.cpp
 
     pdf_header();
     escMode = false;
