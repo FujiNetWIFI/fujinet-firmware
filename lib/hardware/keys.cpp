@@ -12,22 +12,47 @@
 
 #define PIN_BUTTON_A 0
 #define PIN_BUTTON_B 34
+#define PIN_BUTTON_C 14
 
 // Global KeyManager object
 KeyManager fnKeyManager;
 
-static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B};
+static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON_C};
 
 void KeyManager::setup()
 {
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT);
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT);
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
 
     // Start a new task to check the status of the buttons
     #define KEYS_STACKSIZE 2048
     #define KEYS_PRIORITY 1
 
+    // Check for v1.1 board pull up and flag it if available/high
+    if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
+    {
+        buttonCavail = true;
+#ifdef DEBUG
+        Debug_println("FujiNet Hardware v1.1");
+#endif
+    }
+    else
+    {
+#ifdef DEBUG
+        Debug_println("FujiNet Hardware v1.0");
+#endif
+    }
+
+    // Disable pull down for BUTTON_C
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+
     xTaskCreate(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr);
+}
+
+bool KeyManager::getCAvail()
+{
+    return buttonCavail;
 }
 
 // Ignores the current key press
@@ -48,7 +73,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 
     // Ignore requests for BUTTON_B if this seems to be a WROOM board
 #ifndef BOARD_HAS_PSRAM
-    if (key == BUTTON_B)
+    if (key == BUTTON_B) || (key == BUTTON_C)
         return result;
 #endif
 
@@ -188,31 +213,83 @@ void KeyManager::_keystate_task(void *param)
             break;
         } // BUTTON_A
 
-        // Check on the status of the BUTTON_B and do something useful
-        switch (pKM->getKeyStatus(eKey::BUTTON_B))
+        if (pKM->getCAvail()){
+            // Check on the status of the BUTTON_B and do something useful
+            switch (pKM->getKeyStatus(eKey::BUTTON_B))
+            {
+            case eKeyStatus::LONG_PRESS:
+                Debug_println("BUTTON_B: LONG PRESS");
+                break;
+
+            case eKeyStatus::SHORT_PRESS:
+                Debug_println("BUTTON_B: SHORT PRESS");
+                break;
+
+            case eKeyStatus::SINGLE_TAP:
+                // Debug_println("BUTTON_B: SINGLE-TAP");
+                break;
+
+            case eKeyStatus::DOUBLE_TAP:
+                Debug_println("BUTTON_B: DOUBLE-TAP");
+                fnSystem.debug_print_tasks();
+                break;
+
+            default:
+                break;
+            } // BUTTON_B
+
+            // Check on the status of the BUTTON_C and do something useful
+            switch (pKM->getKeyStatus(eKey::BUTTON_C))
+            {
+            case eKeyStatus::LONG_PRESS:
+                Debug_println("BUTTON_C: LONG PRESS");
+                break;
+
+            case eKeyStatus::SHORT_PRESS:
+                Debug_println("BUTTON_C: SHORT PRESS");
+                Debug_println("ACTION: Reboot");
+                fnSystem.reboot();
+                break;
+
+            case eKeyStatus::SINGLE_TAP:
+                // Debug_println("BUTTON_C: SINGLE-TAP");
+                break;
+
+            case eKeyStatus::DOUBLE_TAP:
+                Debug_println("BUTTON_C: DOUBLE-TAP");
+                break;
+
+            default:
+                break;
+            } // BUTTON_C
+        }
+        else
         {
-        case eKeyStatus::LONG_PRESS:
-            Debug_println("BUTTON_B: LONG PRESS");
-            Debug_println("ACTION: Reboot");
-            fnSystem.reboot();
-            break;
+            // Check on the status of the BUTTON_B and do something useful
+            switch (pKM->getKeyStatus(eKey::BUTTON_B))
+            {
+            case eKeyStatus::LONG_PRESS:
+                Debug_println("BUTTON_B: LONG PRESS");
+                Debug_println("ACTION: Reboot");
+                fnSystem.reboot();
+                break;
 
-        case eKeyStatus::SHORT_PRESS:
-            Debug_println("BUTTON_B: SHORT PRESS");
-            break;
+            case eKeyStatus::SHORT_PRESS:
+                Debug_println("BUTTON_B: SHORT PRESS");
+                break;
 
-        case eKeyStatus::SINGLE_TAP:
-            // Debug_println("BUTTON_B: SINGLE-TAP");
-            break;
+            case eKeyStatus::SINGLE_TAP:
+                // Debug_println("BUTTON_B: SINGLE-TAP");
+                break;
 
-        case eKeyStatus::DOUBLE_TAP:
-            Debug_println("BUTTON_B: DOUBLE-TAP");
-            fnSystem.debug_print_tasks();
-            break;
+            case eKeyStatus::DOUBLE_TAP:
+                Debug_println("BUTTON_B: DOUBLE-TAP");
+                fnSystem.debug_print_tasks();
+                break;
 
-        default:
-            break;
-        } // BUTTON_B
-
+            default:
+                break;
+            } // BUTTON_B
+        }
     }
 }
