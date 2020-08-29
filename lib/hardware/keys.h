@@ -5,6 +5,7 @@ enum eKey
 {
     BUTTON_A = 0,
     BUTTON_B,
+    BUTTON_C,
     KEY_COUNT
 };
 
@@ -24,12 +25,13 @@ public:
     eKeyStatus getKeyStatus(eKey key);
     bool keyCurrentlyPressed(eKey key);
     void ignoreKeyPress(eKey key);
+    bool buttonCavail = false;
+    bool getCAvail();
 
 private:
     long _buttonLastTap[eKey::KEY_COUNT] = {0};
     long _buttonActionStarted[eKey::KEY_COUNT] = {0};
     bool _buttonActive[eKey::KEY_COUNT] = {0};
-
     static void _keystate_task(void *param);
 };
 
