@@ -803,3 +803,24 @@ disktype_t DiskTypeATX::mount(FILE *f, uint32_t disksize)
 
     return _disktype = DISKTYPE_ATX;
 }
+
+/*
+    From Altirra manual:
+    The format command formats a disk, writing 40 tracks and then verifying all sectors.
+    All sectors are filleded with the data byte $00. On completion, the drive returns
+    a sector-sized buffer containing a list of 16-bit bad sector numbers terminated by $FFFF.
+*/
+// Returns TRUE if an error condition occurred
+bool DiskTypeATX::format(uint16_t *responsesize)
+{
+    Debug_print("ATX FORMAT, SEND ERROR.\n");
+
+    // Populate an empty bad sector map
+    memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
+    _disk_sectorbuff[0] = 0xFF;
+    _disk_sectorbuff[1] = 0xFF;
+
+    *responsesize = _disk_sector_size;
+
+    return true; // send ERROR.
+}
