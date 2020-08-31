@@ -1,5 +1,6 @@
 #include <memory.h>
 #include <string.h>
+#include "esp_timer.h"
 
 #include "../../include/debug.h"
 #include "../utils/utils.h"
@@ -12,30 +13,271 @@
 #define ATX_MAGIC_HEADER 0x41543858 // "AT8X"
 #define ATX_DEFAULT_NUMTRACKS 40
 
+/*
+  Assuming 288RPM:
+  4.8 revolutions per second
+  0.208333... seconds per revolution
+
+  The ATX format stores an angular position of 1-26042
+  0.20833... / 26042 = 0.0000079998976013... = 8 microseconds per angular position
+
+*/
+/*
+ Frequency with which to update the angular position counter.
+ Counter is updated every 
+ US_ANGULAR_UNIT_TIME * ANGULAR_POSITION_UPDATE_FREQ microseconds.
+ ANGULAR_POSITION_UPDATE_FREQ must be at least '8' (updates every
+ 8*8 = 64 microseconds) because the ESP timer fucntion won't allow
+ frequencies lower than every 50 microseconds.
+ "29" evenly divides 26042
+*/
+#define ANGULAR_POSITION_UPDATE_FREQ 29
+#define ANGULAR_POSITION_INVALID 65535
+
+// Most of the following timing constants come from S-Drive Max sources atx.c
+// (converted from milliseconds to microseconds)
+
+// Number of angular units in a full disk rotation
+#define ANGULAR_UNIT_TOTAL 26042
+// Number of microseconds for each angular unit
+#define US_ANGULAR_UNIT_TIME 8
+// Number of microseconds drive takes to process a request
+#define US_DRIVE_REQUEST_DELAY_810 3220
+#define US_DRIVE_REQUEST_DELAY_1050 3220
+// Number of microseconds to calculate CRC
+#define US_CRC_CALCULATION_810 2000
+#define US_CRC_CALCULATION_1050 2000
+// Number of microseconds drive takes to step 1 track
+#define US_TRACK_STEP_810 5300
+#define US_TRACK_STEP_1050 12410
+// Number of microseconds drive head takes to settle after track stepping
+#define US_HEAD_SETTLE_810 0
+#define US_HEAD_SETTLE_1050 40000
+
+#define MAX_RETRIES_1050 1
+#define MAX_RETRIES_810 4
+
 AtxTrack::~AtxTrack()
 {
-    //Debug_print("~AtxTrack\n");
     if (data != nullptr)
         delete[] data;
 };
 
-AtxTrack::AtxTrack()
-{
-    //Debug_print("new AtxTrack\n");
-}
+AtxTrack::AtxTrack(){
+
+};
 
 AtxSector::~AtxSector(){
-    //Debug_printf("~AtxSector %d\n", number);
+
 };
 
 AtxSector::AtxSector(sector_header_t &header)
 {
-    // Debug_print("new AtxSector\n");
     number = header.number;
     position = header.position;
     status = header.status;
     start_data = header.start_data;
 };
+
+DiskTypeATX::~DiskTypeATX()
+{
+    // Destory any timer we may have
+    if (_atx_timer != nullptr)
+    {
+        esp_timer_stop(_atx_timer);
+        esp_timer_delete(_atx_timer);
+    }
+}
+
+// Constructor initializes the AtxTrack vector to assume we have 40 tracks
+DiskTypeATX::DiskTypeATX()
+{
+    _tracks.reserve(ATX_DEFAULT_NUMTRACKS);
+    int i = 0;
+    for (auto it = _tracks.begin(); i < ATX_DEFAULT_NUMTRACKS; i++)
+        _tracks.emplace(it++);
+
+    // Create a timer to track our fake disk rotating
+    esp_timer_create_args_t tcfg;
+    tcfg.arg = this;
+    tcfg.callback = on_timer;
+    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
+    tcfg.name = nullptr;
+    esp_timer_create(&tcfg, &_atx_timer);
+    ESP_ERROR_CHECK(esp_timer_start_periodic(_atx_timer,
+                                             US_ANGULAR_UNIT_TIME * ANGULAR_POSITION_UPDATE_FREQ));
+}
+
+/*
+    Some notes on esp_timer_get_time() from:
+    https://github.com/espressif/arduino-esp32/pull/1424
+    * returns monotonic time in microseconds
+    * can be called from tasks and interrupts
+    * does not use any critical sections/mutexes
+    * is thread safe
+    * takes less than 1 microsecond to execute
+*/
+void DiskTypeATX::on_timer(void *info)
+{
+    DiskTypeATX *pAtx = (DiskTypeATX *)info;
+
+    portENTER_CRITICAL(&pAtx->__atx_timerMux);
+
+    pAtx->__atx_position_time = esp_timer_get_time();
+    pAtx->__atx_current_angular_pos += ANGULAR_POSITION_UPDATE_FREQ;
+
+    if (pAtx->__atx_current_angular_pos >= ANGULAR_UNIT_TOTAL)
+    {
+        pAtx->__atx_current_angular_pos -= ANGULAR_UNIT_TOTAL;
+        pAtx->_atx_total_rotations++;
+    }
+
+    portEXIT_CRITICAL(&pAtx->__atx_timerMux);
+}
+
+uint16_t DiskTypeATX::_get_head_position()
+{
+    uint64_t us_now = esp_timer_get_time();
+
+    portENTER_CRITICAL(&__atx_timerMux);
+    uint64_t us_then = __atx_position_time;
+    uint16_t pos = __atx_current_angular_pos;
+    portEXIT_CRITICAL(&__atx_timerMux);
+
+    /*
+     Adjust the recorded angular position by the number of microseconds passed since
+     it was recorded.
+    */
+    uint64_t us_diff;
+
+    // Handle the rare case of a timer roll-over
+    if (us_now > us_then)
+    {
+        us_diff = us_now - us_then;
+    }
+    else
+    {
+        us_diff = UINT64_MAX - us_now + us_then;
+    }
+
+    pos += us_diff / US_ANGULAR_UNIT_TIME;
+    if (pos >= ANGULAR_UNIT_TOTAL)
+        pos -= ANGULAR_UNIT_TOTAL;
+
+    return pos;
+}
+
+void DiskTypeATX::_wait_full_rotation()
+{
+    uint32_t pos = _get_head_position();
+
+    // Wait for a roll-over to occur
+    do
+    {
+        NOP();
+    } while (pos <= _get_head_position());
+
+    // Wait for the head to be over the previous position
+    do
+    {
+        NOP();
+    } while (pos > _get_head_position());
+}
+
+void DiskTypeATX::_wait_head_position(uint16_t pos, uint16_t extra_delay)
+{
+    pos += extra_delay;
+    if (pos >= ANGULAR_UNIT_TOTAL)
+        pos -= ANGULAR_UNIT_TOTAL;
+
+    uint16_t current = _get_head_position();
+
+    // The head is ahead of the position we want - wait for a roll-over to occur
+    if (pos < current)
+    {
+        //Debug_print("$$$ DEBUG rollover wait\n");
+        do
+        {
+            NOP();
+        } while (pos < (current = _get_head_position()));
+    }
+
+    // The head is behind the position we want - wait for it to reach that position
+    if (pos > current)
+    {
+        do
+        {
+            NOP();
+        } while (pos > _get_head_position());
+    }
+}
+
+void DiskTypeATX::_process_sector(AtxTrack &track, AtxSector *psector, uint16_t sectorsize)
+{
+    // Pause for the read head to be in the position of the sector
+    _wait_head_position(psector->position, ANGULAR_UNIT_TOTAL / _atx_sectors_per_track);
+
+    // Copy data from the sector into the buffer if any is available
+    if ((psector->status & ATX_SECTOR_STATUS_MISSING_DATA) == 0)
+    {
+        // Make sure we have a reasonable offset and data to copy
+        if (track.data != nullptr && psector->start_data >= track.offset_to_data_start)
+        {
+            // Adjust the start_data value by the number of bytes into the Track Record the data chunk started
+            uint32_t data_offset = psector->start_data - track.offset_to_data_start;
+            memcpy(_disk_sectorbuff, track.data + data_offset, sectorsize);
+        }
+        else
+        {
+            Debug_printf("## Invalid sector data offset (%u < %u) or track data buffer (%p)\n",
+                         psector->start_data, track.offset_to_data_start, track.data);
+            // Act as if the ATX_SECTOR_STATUS_MISSING_DATA bit was set
+            _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
+        }
+
+        // Replace bytes with random data if this sector has a WEAKOFFSET value
+        if (psector->weakoffset != ATX_WEAKOFFSET_NONE)
+        {
+            Debug_printf("## Weak sector data starting at offset %u\n", psector->weakoffset);
+            uint32_t rand = esp_random();
+            // Fill the buffer from the offset position to the end with our random 32 bit value
+            for (int x = psector->weakoffset; x < sectorsize; x += sizeof(uint32_t))
+                *((uint32_t *)(_disk_sectorbuff + x)) = rand;
+        }
+        //util_dump_bytes(_disk_sectorbuff, 64);
+    }
+    else
+    {
+        _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
+        Debug_printf("## Skipped data copy, setting DISK_CTRL_STATUS_SECTOR_MISSING\n");
+    }
+
+    if (psector->status & ATX_SECTOR_STATUS_DELETED)
+    {
+        _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_DELETED;
+        Debug_print("## Setting DISK_CTRL_STATUS_SECTOR_DELETED\n");
+    }
+    if (psector->status & ATX_SECTOR_STATUS_FDC_CRC_ERROR)
+    {
+        _disk_controller_status |= DISK_CTRL_STATUS_CRC_ERROR;
+        Debug_print("## Setting DISK_CTRL_STATUS_CRC_ERROR\n");
+    }
+    if (psector->status & ATX_SECTOR_STATUS_FDC_LOSTDATA_ERROR)
+    {
+        _disk_controller_status |= DISK_CTRL_STATUS_DATA_LOST;
+        Debug_print("## Setting DISK_CTRL_STATUS_DATA_LOST\n");
+        /* Notes from S-Drive Max source atx.c:
+            On an Atari 810, we have to do some specific behavior when a long sector is encountered
+            (the lost data bit is set):
+            1. ATX images don't normally set the DRQ status bit because the behavior is different on
+                810 vs. 1050 drives. In the case of the 810, the DRQ bit should be set.
+            2. The 810 is "blind" to CRC errors on long sectors because it interrupts the FDC long
+                before performing the CRC check.
+        */
+        if (_atx_drive_model == ATX_DRIVE_MODEL_810)
+            _disk_controller_status |= DISK_CTRL_STATUS_DATA_PENDING;
+    }
+}
 
 // Copies data for given track sector into disk buffer and sets status bits as appropriate
 // Returns TRUE on error reading sector
@@ -49,90 +291,71 @@ bool DiskTypeATX::_copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, u
 
     _disk_controller_status = DISK_CTRL_STATUS_CLEAR;
 
-    // Iterate through every sector stored for this track
-    for (auto &it : track.sectors)
+    int retries = _atx_drive_model == ATX_DRIVE_MODEL_810 ? MAX_RETRIES_810 : MAX_RETRIES_1050;
+    while (retries > 0)
     {
-        if (it.number == sectornum)
-        {
-            // Copy data from the sector into the buffer if any is available
-            if ((it.status & ATX_SECTOR_STATUS_MISSING_DATA) == 0)
-            {
-                // Make sure we have a reasonable offset and data to copy
-                if( track.data != nullptr && it.start_data >= track.offset_to_data_start )
-                {
-                    // Adjust the start_data value by the number of bytes into the Track Record the data chunk started
-                    uint32_t data_offset = it.start_data - track.offset_to_data_start;
-                    memcpy(_disk_sectorbuff, track.data + data_offset, sectorsize);
+        retries--;
 
+        // Iterate through every sector stored for this track and find the one closest to the current drive head position
+        uint16_t current_pos = _get_head_position();
+        AtxSector *pSector = nullptr;
+        for (auto &it : track.sectors)
+        {
+            if (it.number == sectornum)
+            {
+                if (pSector == nullptr)
+                {
+                    pSector = &it;
                 }
                 else
+                // Compare the distance from the head to this sector and the head to the previous matching sector
                 {
-                    Debug_printf("## Invalid sector data offset (%u < %u) or track data buffer (%p)\n",
-                        it.start_data, track.offset_to_data_start, track.data);
-                    // Act as if the ATX_SECTOR_STATUS_MISSING_DATA bit was set
-                    _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
+                    int diff_this = it.position - current_pos;
+                    int diff_last = pSector->position - current_pos;
+
+                    // Conditions under which to replace the last matching sector:
+                    if (
+                        (diff_this == 0) ||                                          // We're currently over the right sector
+                        (diff_this > 0 && diff_last < 0) ||                          // This sector is ahead of the current pos and the last was behind
+                        (diff_this > 0 && diff_last > 0 && diff_this < diff_last) || // Both are ahead but this one is closer
+                        (diff_this < 0 && diff_last < 0 && diff_this < diff_last)    // Both are behind but this one is closer
+                    )
+                    {
+                        pSector = &it;
+                    }
                 }
-
-                // Replace bytes with random data if this sector has a WEAKOFFSET value
-                if(it.weakoffset != ATX_WEAKOFFSET_NONE)
-                {
-                    Debug_printf("## Weak sector data starting at offset %u\n", it.weakoffset);
-                    uint32_t rand = esp_random();
-                    // Fill the buffer from the offset position to the end with our random 32 bit value
-                    for(int x=it.weakoffset; x < sectorsize; x += sizeof(uint32_t) )
-                        *((uint32_t *)(_disk_sectorbuff + x)) = rand;
-                }
-                //util_dump_bytes(_disk_sectorbuff, 64);
             }
-            else
-            {
-                _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
-                Debug_printf("## Skipped data copy, setting DISK_CTRL_STATUS_SECTOR_MISSING\n");
-            }
-
-            if (it.status & ATX_SECTOR_STATUS_DELETED)
-            {
-                _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_DELETED;
-                Debug_print("## Setting DISK_CTRL_STATUS_SECTOR_DELETED\n");
-            }
-            if (it.status & ATX_SECTOR_STATUS_FDC_CRC_ERROR)
-            {
-                _disk_controller_status |= DISK_CTRL_STATUS_CRC_ERROR;
-                Debug_print("## Setting DISK_CTRL_STATUS_CRC_ERROR\n");
-            }
-            if (it.status & ATX_SECTOR_STATUS_FDC_LOSTDATA_ERROR)
-            {
-                _disk_controller_status |= DISK_CTRL_STATUS_DATA_LOST;
-                Debug_print("## Setting DISK_CTRL_STATUS_DATA_LOST\n");
-            }
-
-            // Return an error if any disk controller status bit was set
-            return _disk_controller_status != DISK_CTRL_STATUS_CLEAR;
         }
+
+        if (pSector != nullptr)
+        {
+            _process_sector(track, pSector, sectorsize);
+            // Skip any retires if our status is clear
+            if (_disk_controller_status == DISK_CTRL_STATUS_CLEAR)
+                retries = 0;
+        }
+        else
+        {
+            Debug_print("## Did not find sector with matching number\n");
+            _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;
+        }
+
+        // Wait a full disk rotation before trying again
+        if (retries != 0)
+            _wait_full_rotation();
     }
 
-    // Return error: didn't find sector
-    Debug_print("## Did not find sector with matching number\n");
+    // Delay for the CRC calculation
+    fnSystem.delay_microseconds(_atx_drive_model == ATX_DRIVE_MODEL_810 ? US_CRC_CALCULATION_810 : US_CRC_CALCULATION_1050);
 
-    _disk_controller_status |= DISK_CTRL_STATUS_SECTOR_MISSING;    
-    return true;
-}
-
-/*
- Constructor initializes the AtxTrack vector to assume we have 40 tracks
-*/
-DiskTypeATX::DiskTypeATX()
-{
-    _tracks.reserve(ATX_DEFAULT_NUMTRACKS);
-    int i = 0;
-    for (auto it = _tracks.begin(); i < ATX_DEFAULT_NUMTRACKS; i++)
-        _tracks.emplace(it++);
+    // Return error condition if our controller status isn't clear
+    return _disk_controller_status != DISK_CTRL_STATUS_CLEAR;
 }
 
 // Returns TRUE if an error condition occurred
 bool DiskTypeATX::read(uint16_t sectornum, uint16_t *readcount)
 {
-    Debug_printf("ATX READ (%d)\n", sectornum);
+    Debug_printf("ATX READ (%d) rots=%u\n", sectornum, _atx_total_rotations);
 
     *readcount = 0;
 
@@ -142,14 +365,30 @@ bool DiskTypeATX::read(uint16_t sectornum, uint16_t *readcount)
     int tracknumber = (sectornum - 1) / _atx_sectors_per_track;
     int tracksector = (sectornum - 1) % _atx_sectors_per_track + 1; // sector numbers are 1-based
 
-    if(tracknumber >= _tracks.size())
+    if (tracknumber >= _tracks.size())
     {
         Debug_printf("calculated track number %d > track count %d\n", tracknumber, _tracks.size());
         return true;
     }
+    int trackdiff = tracknumber < _atx_last_track ? _atx_last_track - tracknumber : tracknumber - _atx_last_track;
+    _atx_last_track = tracknumber;
+
+    // If needed, add a delay for moving to our fake track
+    if (trackdiff > 0)
+    {
+        uint32_t us_delay = _atx_drive_model == ATX_DRIVE_MODEL_810 ? US_TRACK_STEP_810 * trackdiff + US_HEAD_SETTLE_810 : US_TRACK_STEP_1050 * trackdiff + US_HEAD_SETTLE_1050;
+        fnSystem.delay_microseconds(us_delay);
+    }
+
+    // Add a fake drive CPU request handling delay
+    fnSystem.delay_microseconds(
+        _atx_drive_model == ATX_DRIVE_MODEL_810 ? US_DRIVE_REQUEST_DELAY_810 : US_DRIVE_REQUEST_DELAY_1050);
 
     *readcount = sectorSize;
-    return _copy_track_sector_data((uint8_t)tracknumber, (uint8_t)tracksector, sectorSize);
+
+    bool result = _copy_track_sector_data((uint8_t)tracknumber, (uint8_t)tracksector, sectorSize);
+
+    return result;
 }
 
 void DiskTypeATX::status(uint8_t statusbuff[4])
@@ -280,7 +519,15 @@ bool DiskTypeATX::_load_atx_chunk_sector_list(AtxTrack &track)
     // Stuff the data into our sector objects
     track.sectors.reserve(track.sector_count);
     for (i = 0; i < track.sector_count; i++)
+    {
+#ifdef DEBUG
+        if (sector_list[i].position < 2 || sector_list[i].position == ANGULAR_UNIT_TOTAL)
+        {
+            Debug_printf("$$$ DEBUG sector position = %hu\n", sector_list[i].position);
+        }
+#endif
         track.sectors.emplace_back(sector_list[i]);
+    }
 
     delete[] sector_list;
 
@@ -400,7 +647,7 @@ bool DiskTypeATX::_load_atx_track_record(uint32_t length)
             Debug_printf("failed seeking to first chunk in track record (%d, %d)\n", i, errno);
             return false;
         }
-        // Keep a count of how many bytes we've read into the Track Record        
+        // Keep a count of how many bytes we've read into the Track Record
         track.record_bytes_read += chunk_start_offset;
     }
 
@@ -408,7 +655,8 @@ bool DiskTypeATX::_load_atx_track_record(uint32_t length)
     track.sectors.reserve(track.sector_count);
 
     // Read the chunks in the track
-    while ((i = _load_atx_track_chunk(trk_hdr, track)) == 0);
+    while ((i = _load_atx_track_chunk(trk_hdr, track)) == 0)
+        ;
 
     return i == 1; // Return FALSE on error condition
 }
@@ -523,9 +771,13 @@ disktype_t DiskTypeATX::mount(FILE *f, uint32_t disksize)
     _atx_size = hdr.end;
     _atx_density = hdr.density;
     _atx_sectors_per_track = _atx_density ==
-        ATX_DENSITY_MEDIUM ? ATX_SECTORS_PER_TRACK_ENHANCED : ATX_SECTORS_PER_TRACK_NORMAL;
+                                     ATX_DENSITY_MEDIUM
+                                 ? ATX_SECTORS_PER_TRACK_ENHANCED
+                                 : ATX_SECTORS_PER_TRACK_NORMAL;
     _disk_sector_size = _atx_density ==
-        ATX_DENSITY_DOUBLE ? DISK_BYTES_PER_SECTOR_DOUBLE : DISK_BYTES_PER_SECTOR_SINGLE;
+                                ATX_DENSITY_DOUBLE
+                            ? DISK_BYTES_PER_SECTOR_DOUBLE
+                            : DISK_BYTES_PER_SECTOR_SINGLE;
 
     Debug_print("ATX image header values:\n");
     Debug_printf("version: %hd, version min: %hd\n", hdr.version, hdr.min_version);
