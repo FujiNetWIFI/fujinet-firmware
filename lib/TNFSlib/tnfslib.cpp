@@ -249,19 +249,25 @@ void _tnfs_cache_dump(const char *title, uint8_t *cache, uint32_t cache_size)
 */
 int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest_size, uint16_t *dest_used)
 {
+    #ifdef VERBOSE_TNFS
     Debug_printf("_tnfs_read_from_cache: buffpos=%d, cache_start=%d, cache_avail=%d, dest_size=%d, dest_used=%d\n",
                  pFHI->cached_pos, pFHI->cache_start, pFHI->cache_available, dest_size, *dest_used);
+    #endif
 
     // Report if we've reached the end of the file
     if (pFHI->cached_pos >= pFHI->file_size)
     {
+        #ifdef VERBOSE_TNFS        
         Debug_print("_tnfs_read_from_cache - attempting to read past EOF\n");
+        #endif
         return TNFS_RESULT_END_OF_FILE;
     }
     // Reject if we have nothing in the cache
     if (pFHI->cache_available == 0)
     {
+        #ifdef VERBOSE_TNFS        
         Debug_print("_tnfs_read_from_cache - nothing in cache\n");
+        #endif
         return -1;
     }
 
@@ -280,7 +286,9 @@ int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest
             uint16_t dest_free = dest_size - *dest_used; // This accounts for an earlier partially-fulfilled request
             uint16_t bytes_provided = dest_free > bytes_available ? bytes_available : dest_free;
 
+            #ifdef VERBOSE_TNFS
             Debug_printf("TNFS cache providing %u bytes\n", bytes_provided);
+            #endif
             memcpy(dest + (*dest_used), pFHI->cache + (pFHI->cached_pos - pFHI->cache_start), bytes_provided);
 
 #ifdef DEBUG
@@ -316,7 +324,9 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
 {
     // Note that when we're filling the cache, we're dealing with the "real" file position,
     // not the cached_position we also keep track of on behalf of the client
+    #ifdef VERBOSE_TNFS
     Debug_printf("_TNFS_FILL_CACHE fh=%d, file_position=%d\n", pFHI->handle_id, pFHI->file_position);
+    #endif
 
     int error = 0;
 
@@ -340,7 +350,9 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
         packet.payload[1] = TNFS_LOBYTE_FROM_UINT16(bytes_to_read);
         packet.payload[2] = TNFS_HIBYTE_FROM_UINT16(bytes_to_read);
 
+        #ifdef VERBOSE_TNFS
         Debug_printf("_tnfs_fill_cache requesting %u bytes\n", bytes_to_read);
+        #endif
 
         if (_tnfs_transaction(m_info, packet, 3))
         {
@@ -358,12 +370,16 @@ int _tnfs_fill_cache(tnfsMountInfo *m_info, tnfsFileHandleInfo *pFHI)
                 // Keep track of how many more bytes we have to go
                 bytes_remaining_to_load -= bytes_read;
 
+                #ifdef VERBOSE_TNFS
                 Debug_printf("_tnfs_fill_cache got %u bytes, %u more bytes needed\n", bytes_read, bytes_remaining_to_load);
+                #endif
             }
             else if(tnfs_result == TNFS_RESULT_END_OF_FILE)
             {
                 // Stop if we got an EOF result
+                #ifdef VERBOSE_TNFS
                 Debug_print("_tnfs_fill_cache got EOF\n");
+                #endif
                 break;
             }
             else
@@ -412,7 +428,9 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
     if (pFileInf == nullptr)
         return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
 
+    #ifdef VERBOSE_TNFS
     Debug_printf("tnfs_read fh=%d, len=%d\n", file_handle, bufflen);
+    #endif
 
     int result = 0;
     // Try to fulfill the request using our internal cache
