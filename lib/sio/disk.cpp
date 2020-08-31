@@ -261,14 +261,28 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     switch (cmdFrame.comnd)
     {
     case SIO_DISKCMD_READ:
-    case SIO_DISKCMD_HSIO_READ:
         sio_ack();
         sio_read();
+        return;
+    case SIO_DISKCMD_HSIO_READ:
+        if(_disk->_allow_hsio)
+        {
+            sio_ack();
+            sio_read();
+            return;
+        }
         break;
     case SIO_DISKCMD_PUT:
-    case SIO_DISKCMD_HSIO_PUT:
         sio_ack();
         sio_write(false);
+        return;
+    case SIO_DISKCMD_HSIO_PUT:
+        if(_disk->_allow_hsio)
+        {
+            sio_ack();
+            sio_write(false);
+            return;
+        }
         break;
     case SIO_DISKCMD_STATUS:
     case SIO_DISKCMD_HSIO_STATUS:
@@ -288,35 +302,55 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         }
         else
         {
+            if(cmdFrame.comnd == SIO_DISKCMD_HSIO_STATUS && _disk->_allow_hsio == false)
+                break;
             sio_ack();
             sio_status();
         }
-        break;
+        return;
     case SIO_DISKCMD_WRITE:
-    case SIO_DISKCMD_HSIO_WRITE:
         sio_ack();
         sio_write(true);
+        return;
+    case SIO_DISKCMD_HSIO_WRITE:
+        if(_disk->_allow_hsio)
+        {
+            sio_ack();
+            sio_write(true);
+            return;
+        }
         break;
     case SIO_DISKCMD_FORMAT:
     case SIO_DISKCMD_FORMAT_MEDIUM:
-    case SIO_DISKCMD_HSIO_FORMAT:
-    case SIO_DISKCMD_HSIO_FORMAT_MEDIUM:
         sio_ack();
         sio_format();
+        return;
+    case SIO_DISKCMD_HSIO_FORMAT:
+    case SIO_DISKCMD_HSIO_FORMAT_MEDIUM:
+        if(_disk->_allow_hsio)
+        {
+            sio_ack();
+            sio_format();
+            return;
+        }
         break;
     case SIO_DISKCMD_PERCOM_READ:
         sio_ack();
         sio_read_percom_block();
-        break;
+        return;
     case SIO_DISKCMD_PERCOM_WRITE:
         sio_ack();
         sio_write_percom_block();
-        break;
+        return;
     case SIO_DISKCMD_HSIO_INDEX:
-        sio_ack();
-        sio_high_speed();
+        if(_disk->_allow_hsio)
+        {
+            sio_ack();
+            sio_high_speed();
+            return;
+        }
         break;
-    default:
-        sio_nak();
     }
+
+    sio_nak();
 }

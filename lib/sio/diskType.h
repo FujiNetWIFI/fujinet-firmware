@@ -67,6 +67,7 @@ public:
     uint8_t _disk_sectorbuff[DISK_SECTORBUF_SIZE];
 
     disktype_t _disktype = DISKTYPE_UNKNOWN;
+    bool _allow_hsio = true;
 
     virtual disktype_t mount(FILE *f, uint32_t disksize) = 0;
     virtual void unmount();
