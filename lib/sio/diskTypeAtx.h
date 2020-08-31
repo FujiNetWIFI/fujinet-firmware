@@ -45,6 +45,9 @@
 #define ATX_RECORDTYPE_TRACK 0x0000
 #define ATX_RECORDTYPE_HOST 0x0100
 
+#define ATX_DRIVE_MODEL_810 0
+#define ATX_DRIVE_MODEL_1050 1
+
 struct atx_header
 {
     uint32_t magic;
@@ -160,6 +163,16 @@ private:
     uint8_t _atx_last_track = 0;
     uint8_t _atx_sectors_per_track = ATX_SECTORS_PER_TRACK_NORMAL;
 
+    uint8_t _atx_drive_model = ATX_DRIVE_MODEL_810;
+
+    portMUX_TYPE __atx_timerMux = portMUX_INITIALIZER_UNLOCKED;
+
+    uint64_t __atx_position_time;
+    uint16_t __atx_current_angular_pos = 0;
+    uint32_t _atx_total_rotations = 0;
+
+    esp_timer_handle_t _atx_timer = nullptr;
+
     std::vector<AtxTrack> _tracks;
 
     // ATX header.density
@@ -178,6 +191,11 @@ private:
     bool _load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, AtxTrack &track);
 
     bool _copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, uint16_t sectorsize);
+    void _process_sector(AtxTrack &track, AtxSector *sectorp, uint16_t sectorsize);
+
+    uint16_t _get_head_position();
+    void _wait_full_rotation();
+    void _wait_head_position(uint16_t pos, uint16_t extra_delay);
 
 public:
     virtual bool read(uint16_t sectornum, uint16_t *readcount) override;
@@ -186,7 +204,10 @@ public:
 
     virtual void status(uint8_t statusbuff[4]) override;
 
+    static void on_timer(void *info);
+
     DiskTypeATX();
+    ~DiskTypeATX();
 };
 
 

@@ -13,7 +13,6 @@
 #include "soc/rtc.h"
 #include "esp_adc_cal.h"
 
-
 #include "../../include/debug.h"
 #include "../../include/version.h"
 
@@ -21,11 +20,8 @@
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
 
-#define NOP() asm volatile ("nop")
-
 // Global object to manage System
 SystemManager fnSystem;
-
 
 // Returns current CPU frequency in MHz
 uint32_t SystemManager::get_cpu_frequency()
@@ -47,37 +43,46 @@ void SystemManager::set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pu
     io_conf.mode = mode;
 
     // set pull-up pull-down modes
-    if(pull_mode == PULL_BOTH || pull_mode == PULL_UP)
+    if (pull_mode == PULL_BOTH || pull_mode == PULL_UP)
         io_conf.pull_up_en = gpio_pullup_t::GPIO_PULLUP_ENABLE;
     else
-        io_conf.pull_up_en = gpio_pullup_t::GPIO_PULLUP_DISABLE;    
+        io_conf.pull_up_en = gpio_pullup_t::GPIO_PULLUP_DISABLE;
 
-    if(pull_mode == PULL_BOTH || pull_mode == PULL_DOWN)
+    if (pull_mode == PULL_BOTH || pull_mode == PULL_DOWN)
         io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_ENABLE;
     else
-        io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_DISABLE;    
+        io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_DISABLE;
 
     // bit mask of the pin to set
     io_conf.pin_bit_mask = 1ULL << pin;
 
     // configure GPIO with the given settings
-    gpio_config(&io_conf);    
+    gpio_config(&io_conf);
 }
 
 // from esp32-hal-misc.
 // Set DIGI_LOW or DIGI_HIGH
 void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
 {
-    if(val) {
-        if(pin < 32) {
+    if (val)
+    {
+        if (pin < 32)
+        {
             GPIO.out_w1ts = ((uint32_t)1 << pin);
-        } else if(pin < 34) {
+        }
+        else if (pin < 34)
+        {
             GPIO.out1_w1ts.val = ((uint32_t)1 << (pin - 32));
         }
-    } else {
-        if(pin < 32) {
+    }
+    else
+    {
+        if (pin < 32)
+        {
             GPIO.out_w1tc = ((uint32_t)1 << pin);
-        } else if(pin < 34) {
+        }
+        else if (pin < 34)
+        {
             GPIO.out1_w1tc.val = ((uint32_t)1 << (pin - 32));
         }
     }
@@ -87,9 +92,12 @@ void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
 // Returns DIGI_LOW or DIGI_HIGH
 int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
 {
-    if(pin < 32) {
+    if (pin < 32)
+    {
         return (GPIO.in >> pin) & 0x1;
-    } else if(pin < 40) {
+    }
+    else if (pin < 40)
+    {
         return (GPIO.in1.val >> (pin - 32)) & 0x1;
     }
     return 0;
@@ -98,13 +106,13 @@ int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
 // from esp32-hal-misc.c
 unsigned long IRAM_ATTR SystemManager::micros()
 {
-    return (unsigned long) (esp_timer_get_time());
+    return (unsigned long)(esp_timer_get_time());
 }
 
 // from esp32-hal-misc.c
 unsigned long IRAM_ATTR SystemManager::millis()
 {
-     return (unsigned long) (esp_timer_get_time() / 1000ULL);
+    return (unsigned long)(esp_timer_get_time() / 1000ULL);
 }
 
 // from esp32-hal-misc.
@@ -116,17 +124,20 @@ void SystemManager::delay(uint32_t ms)
 // from esp32-hal-misc.
 void IRAM_ATTR SystemManager::delay_microseconds(uint32_t us)
 {
-    uint32_t m = micros();
-    if(us){
-        uint32_t e = (m + us);
-        if(m > e){ //overflow
-            while(micros() > e){
+    uint32_t start = (uint32_t)esp_timer_get_time();
+
+    if (us)
+    {
+        uint32_t end = start + us;
+
+        // Handle overflow first
+        if (start > end)
+        { 
+            while ((uint32_t)esp_timer_get_time() > end)
                 NOP();
-            }
         }
-        while(micros() < e){
+        while ((uint32_t)esp_timer_get_time() < end)
             NOP();
-        }
     }
 }
 
@@ -158,7 +169,7 @@ int64_t SystemManager::get_uptime()
 
 void SystemManager::update_timezone(const char *timezone)
 {
-    if(timezone != nullptr && timezone[0] != '\0')
+    if (timezone != nullptr && timezone[0] != '\0')
         setenv("TZ", timezone, 1);
 
     tzset();
@@ -167,14 +178,14 @@ void SystemManager::update_timezone(const char *timezone)
 const char *SystemManager::get_current_time_str()
 {
     time_t tt = time(nullptr);
-    struct tm * tinfo = localtime(&tt);
+    struct tm *tinfo = localtime(&tt);
 
     strftime(_currenttime_string, sizeof(_currenttime_string), "%a %b %e, %H:%M:%S %Y %z", tinfo);
 
     return _currenttime_string;
 }
 
-const char * SystemManager::get_uptime_str()
+const char *SystemManager::get_uptime_str()
 {
     int64_t ms = esp_timer_get_time();
 
@@ -183,20 +194,20 @@ const char * SystemManager::get_uptime_str()
     int m = s / 60;
     int h = m / 60;
 
-    if(h > 0)
-        snprintf(_uptime_string, sizeof(_uptime_string), "%02d:%02d:%02ld.%03ld", h, m%60, s%60, ml%1000);
+    if (h > 0)
+        snprintf(_uptime_string, sizeof(_uptime_string), "%02d:%02d:%02ld.%03ld", h, m % 60, s % 60, ml % 1000);
     else
-        snprintf(_uptime_string, sizeof(_uptime_string), "%02d:%02ld.%03ld", m, s%60, ml%1000);
+        snprintf(_uptime_string, sizeof(_uptime_string), "%02d:%02ld.%03ld", m, s % 60, ml % 1000);
 
     return _uptime_string;
 }
 
-const char * SystemManager::get_sdk_version()
+const char *SystemManager::get_sdk_version()
 {
     return esp_get_idf_version();
 }
 
-const char * SystemManager::get_fujinet_version(bool shortVersionOnly)
+const char *SystemManager::get_fujinet_version(bool shortVersionOnly)
 {
     if (shortVersionOnly)
         return FN_VERSION_FULL;
@@ -216,7 +227,7 @@ SystemManager::chipmodels SystemManager::get_cpu_model()
     esp_chip_info_t chipinfo;
     esp_chip_info(&chipinfo);
 
-    switch(chipinfo.model)
+    switch (chipinfo.model)
     {
     case esp_chip_model_t::CHIP_ESP32:
         return chipmodels::CHIP_ESP32;
@@ -253,7 +264,7 @@ int SystemManager::get_sio_voltage()
     if (avgV < 501)
         return 0;
     else
-        return (avgV * 5900/3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
+        return (avgV * 5900 / 3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
 }
 
 /*
@@ -261,9 +272,9 @@ int SystemManager::get_sio_voltage()
  Filename will be 8 characters long. If provided, generated filename will be placed in result_filename
  File opened in "w+" mode.
 */
-FILE * SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
+FILE *SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
 {
-    if(fs == nullptr || !fs->running())
+    if (fs == nullptr || !fs->running())
         return nullptr;
 
     // Generate a 'random' filename by using timer ticks
@@ -271,7 +282,7 @@ FILE * SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
 
     char buff[9];
     char *fname;
-    if(result_filename != nullptr)
+    if (result_filename != nullptr)
         fname = result_filename;
     else
         fname = buff;
@@ -280,11 +291,11 @@ FILE * SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
     return fs->file_open(fname, "w+");
 }
 
-void SystemManager::delete_tempfile(FileSystem *fs, const char* filename)
+void SystemManager::delete_tempfile(FileSystem *fs, const char *filename)
 {
-    if (fs==nullptr || !fs->running())
+    if (fs == nullptr || !fs->running())
         return;
-    
+
     fs->remove(filename);
 }
 
@@ -292,7 +303,7 @@ void SystemManager::delete_tempfile(FileSystem *fs, const char* filename)
  Remove specified temporary file, if fnSDFAT available, then file is deleted there,
  otherwise deleted from SPIFFS
 */
-void SystemManager::delete_tempfile(const char* filename)
+void SystemManager::delete_tempfile(const char *filename)
 {
     if (fnSDFAT.running())
         delete_tempfile(&fnSDFAT, filename);
@@ -305,28 +316,27 @@ void SystemManager::delete_tempfile(const char* filename)
  Filename will be 8 characters long. If provided, generated filename will be placed in result_filename
  File opened in "w+" mode.
 */
-FILE * SystemManager::make_tempfile(char *result_filename)
+FILE *SystemManager::make_tempfile(char *result_filename)
 {
-    if(fnSDFAT.running())
+    if (fnSDFAT.running())
         return make_tempfile(&fnSDFAT, result_filename);
     else
         return make_tempfile(&fnSPIFFS, result_filename);
 }
-
 
 // Copy file from source filesystem/filename to destination filesystem/name using optional buffer_hint for buffer size
 size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filename, FileSystem *dest_fs, const char *dest_filename, size_t buffer_hint)
 {
     Debug_printf("copy_file \"%s\" -> \"%s\"\n", source_filename, dest_filename);
 
-    FILE * fin = source_fs->file_open(source_filename);
-    if(fin == nullptr)
+    FILE *fin = source_fs->file_open(source_filename);
+    if (fin == nullptr)
     {
         Debug_println("copy_file failed to open source");
         return 0;
     }
-    uint8_t *buffer = (uint8_t *) malloc(buffer_hint);
-    if(buffer == NULL)
+    uint8_t *buffer = (uint8_t *)malloc(buffer_hint);
+    if (buffer == NULL)
     {
         Debug_println("copy_file failed to allocate copy buffer");
         fclose(fin);
@@ -334,8 +344,8 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
     }
 
     size_t result = 0;
-    FILE * fout = dest_fs->file_open(dest_filename, "w");
-    if(fout == nullptr)
+    FILE *fout = dest_fs->file_open(dest_filename, "w");
+    if (fout == nullptr)
     {
         Debug_println("copy_file failed to open destination");
     }
@@ -358,7 +368,6 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
 
     return result;
 }
-
 
 // From esp32-hal-dac.c
 /*
@@ -416,7 +425,6 @@ uint32_t SystemManager::get_psram_size()
     return info.total_free_bytes + info.total_allocated_bytes;
 }
 
-
 /*
     If buffer is NULL, simply returns size of file. Otherwise
     allocates buffer for reading file contents. Buffer must be freed by caller.
@@ -424,7 +432,7 @@ uint32_t SystemManager::get_psram_size()
 int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
 {
     Debug_printf("load_firmware '%s'\n", filename);
-    
+
     if (fnSPIFFS.exists(filename) == false)
     {
         Debug_println("load_firmware FILE NOT FOUND");
@@ -468,13 +476,12 @@ int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
     return bytes_read;
 }
 
-
 // Dumps list of current tasks
 void SystemManager::debug_print_tasks()
 {
 #ifdef DEBUG
 
-    static const char * status[] ={ "Running", "Ready", "Blocked", "Suspened", "Deleted" };
+    static const char *status[] = {"Running", "Ready", "Blocked", "Suspened", "Deleted"};
 
     uint32_t n = uxTaskGetNumberOfTasks();
     TaskStatus_t *pTasks = (TaskStatus_t *)malloc(sizeof(TaskStatus_t) * n);
@@ -483,14 +490,14 @@ void SystemManager::debug_print_tasks()
     for (int i = 0; i < n; i++)
     {
         Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\n",
-            i+1,
-            pTasks[i].xHandle,
-            pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
-            pTasks[i].uxBasePriority, pTasks[i].uxCurrentPriority,
-            pTasks[i].usStackHighWaterMark,
-            pTasks[i].ulRunTimeCounter,
-            status[pTasks[i].eCurrentState],
-            pTasks[i].pcTaskName);
+                     i + 1,
+                     pTasks[i].xHandle,
+                     pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
+                     pTasks[i].uxBasePriority, pTasks[i].uxCurrentPriority,
+                     pTasks[i].usStackHighWaterMark,
+                     pTasks[i].ulRunTimeCounter,
+                     status[pTasks[i].eCurrentState],
+                     pTasks[i].pcTaskName);
     }
     Debug_printf("\nCPU MHz: %d\n", fnSystem.get_cpu_frequency());
 #endif

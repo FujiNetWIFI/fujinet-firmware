@@ -52,7 +52,7 @@ void DiskTypeXEX::_fake_directory_entry()
 
     Debug_printf("num XEX sectors = %d\n", numsectors);
 
-    _disk_sectorbuff[0] = 0x46;//0x42;
+    _disk_sectorbuff[0] = 0x46; // Entry in use; 16-bit sector links; created by DOS 2
 
     _disk_sectorbuff[1] = LOBYTE_FROM_UINT16(numsectors);
     _disk_sectorbuff[2] = HIBYTE_FROM_UINT16(numsectors);
