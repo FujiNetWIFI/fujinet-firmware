@@ -14,6 +14,8 @@
 
 #define FILE_COPY_BUFFERSIZE 2048
 
+#define NOP() asm volatile("nop")
+
 class SystemManager
 {
 private:
