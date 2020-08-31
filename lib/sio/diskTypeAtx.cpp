@@ -97,6 +97,9 @@ DiskTypeATX::DiskTypeATX()
     for (auto it = _tracks.begin(); i < ATX_DEFAULT_NUMTRACKS; i++)
         _tracks.emplace(it++);
 
+    // Disallow HSIO
+    _allow_hsio = false;
+
     // Create a timer to track our fake disk rotating
     esp_timer_create_args_t tcfg;
     tcfg.arg = this;
@@ -105,7 +108,7 @@ DiskTypeATX::DiskTypeATX()
     tcfg.name = nullptr;
     esp_timer_create(&tcfg, &_atx_timer);
     ESP_ERROR_CHECK(esp_timer_start_periodic(_atx_timer,
-                                             US_ANGULAR_UNIT_TIME * ANGULAR_POSITION_UPDATE_FREQ));
+        US_ANGULAR_UNIT_TIME * ANGULAR_POSITION_UPDATE_FREQ));
 }
 
 /*
