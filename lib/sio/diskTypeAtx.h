@@ -199,6 +199,7 @@ private:
 
 public:
     virtual bool read(uint16_t sectornum, uint16_t *readcount) override;
+    virtual bool format(uint16_t *respopnsesize) override;
 
     virtual disktype_t mount(FILE *f, uint32_t disksize) override;
 
