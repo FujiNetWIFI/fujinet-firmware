@@ -456,25 +456,28 @@ bool DiskTypeATX::_load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, Atx
     return true;
 }
 
-bool DiskTypeATX::_load_atx_chunk_sector_data(AtxTrack &track)
+bool DiskTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
     Debug_print("::_load_atx_chunk_sector_data\n");
 
-    // Skip all this if this track has no sectors
-    if (track.sector_count == 0)
-        return true;
-
-    // Attempt to read sector_count * sector_size bytes of data
+    // Just in case we already read data for this track
     if (track.data != nullptr)
         delete[] track.data;
 
-    int readz = _disk_sector_size * track.sector_count;
-    track.data = new uint8_t[_disk_sector_size * track.sector_count];
+    // We take the number of bytes to read from the chunk length header value
+    int data_size = chunk_hdr.length - sizeof(chunk_hdr);
+
+    // Skip if there's nothing to do
+    if (data_size == 0)
+        return true;
+    
+    // Attempt to the sector data
+    track.data = new uint8_t[data_size];
 
     int i;
-    if ((i = fread(track.data, 1, readz, _disk_fileh)) != readz)
+    if ((i = fread(track.data, 1, data_size, _disk_fileh)) != data_size)
     {
-        Debug_printf("failed reading sector %d data chunk bytes (%d, %d)\n", readz, i, errno);
+        Debug_printf("failed reading %d sector data chunk bytes (%d, %d)\n", data_size, i, errno);
         delete[] track.data;
         return false;
     }
@@ -490,14 +493,14 @@ bool DiskTypeATX::_load_atx_chunk_sector_data(AtxTrack &track)
     */
     track.offset_to_data_start = track.record_bytes_read;
     // Keep a count of how many bytes we've read into the Track Record
-    track.record_bytes_read += readz;
+    track.record_bytes_read += data_size;
 
     //util_dump_bytes(track.data, 64);
 
     return true;
 }
 
-bool DiskTypeATX::_load_atx_chunk_sector_list(AtxTrack &track)
+bool DiskTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
     Debug_print("::_load_atx_chunk_sector_list\n");
 
@@ -505,9 +508,14 @@ bool DiskTypeATX::_load_atx_chunk_sector_list(AtxTrack &track)
     if (track.sector_count == 0)
         return true;
 
+    int readz = sizeof(sector_header) * track.sector_count;
+    if(chunk_hdr.length != readz + sizeof(chunk_hdr))
+    {
+        Debug_printf("WARNING: Chunk length %U != expected\n", chunk_hdr.length);
+    }
+
     // Attempt to read sector_header * sector_count
     sector_header_t *sector_list = new sector_header_t[track.sector_count];
-    int readz = sizeof(sector_header) * track.sector_count;
     int i;
     if ((i = fread(sector_list, 1, readz, _disk_fileh)) != readz)
     {
@@ -534,6 +542,27 @@ bool DiskTypeATX::_load_atx_chunk_sector_list(AtxTrack &track)
 
     delete[] sector_list;
 
+    return true;
+}
+
+// Skip over unknown chunks if needed
+bool DiskTypeATX::_load_atx_chunk_unknown(chunk_header_t &chunk_hdr, AtxTrack &track)
+{
+    Debug_print("::_load_atx_chunk_UNKNOWN - skipping\n");
+
+    uint32_t chunk_size = chunk_hdr.length - sizeof(chunk_hdr);
+    if (chunk_size > 0)
+    {
+        Debug_printf("seeking +%u to skip this chunk\n", chunk_size);
+        int i;
+        if ((i = fseek(_disk_fileh, chunk_size, SEEK_CUR)) < 0)
+        {
+            Debug_printf("seek failed (%d, %d)\n", i, errno);
+            return false;
+        }
+        // Keep a count of how many bytes we've read into the Track Record
+        track.record_bytes_read += chunk_size;
+    }
     return true;
 }
 
@@ -572,11 +601,11 @@ int DiskTypeATX::_load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track)
     switch (chunk_hdr.type)
     {
     case ATX_CHUNKTYPE_SECTOR_LIST:
-        if (false == _load_atx_chunk_sector_list(track))
+        if (false == _load_atx_chunk_sector_list(chunk_hdr, track))
             return -1;
         break;
     case ATX_CHUNKTYPE_SECTOR_DATA:
-        if (false == _load_atx_chunk_sector_data(track))
+        if (false == _load_atx_chunk_sector_data(chunk_hdr, track))
             return -1;
         break;
     case ATX_CHUNKTYPE_WEAK_SECTOR:
@@ -588,8 +617,9 @@ int DiskTypeATX::_load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track)
             return -1;
         break;
     default:
-        Debug_print("UNKNOWN TRACK CHUNK TYPE\n");
-        return -1;
+        if (false == _load_atx_chunk_unknown(chunk_hdr, track))
+            return -1;
+        break;
     }
 
     return 0;
@@ -608,7 +638,7 @@ bool DiskTypeATX::_load_atx_track_record(uint32_t length)
         return false;
     }
 
-    Debug_printf("track #%hu, sectors=%hu, rate=%hu, flags=0x%04x, headrsize=%u\n",
+    Debug_printf("track #%hu, sectors=%hu, rate=%hu, flags=0x%04x, headersize=%u\n",
                  trk_hdr.track_number, trk_hdr.sector_count,
                  trk_hdr.rate, trk_hdr.flags, trk_hdr.header_size);
 
@@ -622,13 +652,14 @@ bool DiskTypeATX::_load_atx_track_record(uint32_t length)
     AtxTrack &track = _tracks[trk_hdr.track_number];
 
     // Check if we've alrady read this track
-    if (track.sector_count != 0)
+    if (track.track_number != -1)
     {
         Debug_print("ERROR: duplicate track number - aborting!\n");
         return false;
     }
 
     // Store basic track info
+    track.track_number = trk_hdr.track_number;
     track.rate = trk_hdr.rate;
     track.flags = trk_hdr.flags;
     track.sector_count = trk_hdr.sector_count;
@@ -654,7 +685,7 @@ bool DiskTypeATX::_load_atx_track_record(uint32_t length)
         track.record_bytes_read += chunk_start_offset;
     }
 
-    // Reserve space for the sectors we're going to read for this track
+    // Reserve space for the sectors we're eventually going to read for this track
     track.sectors.reserve(track.sector_count);
 
     // Read the chunks in the track
@@ -666,6 +697,7 @@ bool DiskTypeATX::_load_atx_track_record(uint32_t length)
 
 /*
   Each record consists of an 8 byte header followed by the actual data
+  Since there's only one type of record we care about (RECORD), all we need is the length
   Returns FALSE on error, otherwise TRUE
 */
 bool DiskTypeATX::_load_atx_record()
@@ -739,8 +771,7 @@ bool DiskTypeATX::_load_atx_data(atx_header_t &atx_hdr)
  http://a8preservation.com/#/guides/atx
 
  Since timing is important, we will load the entire image into memory.
- 
-*/
+ */
 disktype_t DiskTypeATX::mount(FILE *f, uint32_t disksize)
 {
     Debug_print("ATX MOUNT\n");
