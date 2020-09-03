@@ -130,6 +130,8 @@ public:
 class AtxTrack
 {
 public:
+    // We assume there are 40 tracks and no duplicates, but this serves as a safety check
+    int8_t track_number = -1;
     // Number of physical sectors in track
     uint16_t sector_count = 0;
     // ? unknown use ?
@@ -185,10 +187,11 @@ private:
     bool _load_atx_track_record(uint32_t length);
     int _load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track);
 
-    bool _load_atx_chunk_sector_list(AtxTrack &track);
-    bool _load_atx_chunk_sector_data(AtxTrack &track);
+    bool _load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrack &track);
+    bool _load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTrack &track);
     bool _load_atx_chunk_weak_sector(chunk_header_t &chunk_hdr, AtxTrack &track);
     bool _load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, AtxTrack &track);
+    bool _load_atx_chunk_unknown(chunk_header_t &chunk_hdr, AtxTrack &track);
 
     bool _copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, uint16_t sectorsize);
     void _process_sector(AtxTrack &track, AtxSector *sectorp, uint16_t sectorsize);
