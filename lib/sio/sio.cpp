@@ -7,6 +7,7 @@
 #include "fnConfig.h"
 #include "utils.h"
 #include "midimaze.h"
+#include "cassette.h"
 #include "../../include/debug.h"
 
 // Helper functions outside the class defintions
@@ -345,6 +346,10 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
     else if (device_id == SIO_DEVICEID_MIDI)
     {
         _midiDev = (sioMIDIMaze *)pDevice;
+    }
+    else if (device_id == SIO_DEVICEID_CASSETTE)
+    {
+        _cassetteDev = (sioCassette *)pDevice;
     }
 
     pDevice->_devnum = device_id;
