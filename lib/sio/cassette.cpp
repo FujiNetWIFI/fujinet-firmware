@@ -43,8 +43,8 @@ void sioCassette::sio_disable_cassette()
 
 void sioCassette::sio_handle_cassette()
 {
-    if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW)
-        return;
+ //   if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW)
+ //       return;
 
     // if there’s data available, read bytes from file
 
@@ -55,38 +55,38 @@ void sioCassette::sio_handle_cassette()
     //Debug_println((char *)buf1);
 #endif
 
-    if (fnUartSIO.available())
-    {
-        // read the data until pause:
-        fnUartSIO.read(); // Toss the data if motor or command is asserted
-    }
-    else
-    {
-        while (1)
-        {
-            if (fnUartSIO.available())
-            {
-      //          buf2[i2] = (char)fnUartSIO.read(); // read char from UART
-       //         if (i2 < Cassette_BUFFER_SIZE - 1)
-                 //   i2++;
-            }
-            else
-            {
-        //        fnSystem.delay_microseconds(Cassette_PACKET_TIMEOUT);
-                if (!fnUartSIO.available())
-                    break;
-            }
-        }
+//     if (fnUartSIO.available())
+//     {
+//         // read the data until pause:
+//         fnUartSIO.read(); // Toss the data if motor or command is asserted
+//     }
+//     else
+//     {
+//         while (1)
+//         {
+//             if (fnUartSIO.available())
+//             {
+//       //          buf2[i2] = (char)fnUartSIO.read(); // read char from UART
+//        //         if (i2 < Cassette_BUFFER_SIZE - 1)
+//                  //   i2++;
+//             }
+//             else
+//             {
+//         //        fnSystem.delay_microseconds(Cassette_PACKET_TIMEOUT);
+//                 if (!fnUartSIO.available())
+//                     break;
+//             }
+//         }
 
-        // write to file
+//         // write to file
 
-#ifdef DEBUG
-        Debug_print("CAS-OUT: ");
-    //    Debug_println((char *)buf2);
-#endif
+// #ifdef DEBUG
+//         Debug_print("CAS-OUT: ");
+//     //    Debug_println((char *)buf2);
+// #endif
 
-    //    i2 = 0;
-    }
+//     //    i2 = 0;
+//     }
 }
 
 void sioCassette::sio_status()

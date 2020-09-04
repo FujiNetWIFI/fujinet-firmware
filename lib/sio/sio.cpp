@@ -261,6 +261,14 @@ void sioBus::service()
         return; // break!
     }
 
+    // Handle Cassette if enabled and motor line high, do not process SIO commands
+    if (_cassetteDev != nullptr && fnSystem.digital_read(PIN_MTR) == DIGI_HIGH)
+    {
+        if (!_cassetteDev->cassetteActive)
+            _cassetteDev->sio_enable_cassette();
+        _cassetteDev->sio_handle_cassette();
+    }
+
     // Go process a command frame if the SIO CMD line is asserted
     if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
     {
