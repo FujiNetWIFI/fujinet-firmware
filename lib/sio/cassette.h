@@ -13,6 +13,7 @@ class sioCassette : public sioDevice
 protected:
     FileSystem *_FS = nullptr;
     FILE *_file = nullptr;
+    size_t filesize = 0;
 
     void sio_status() override; // $53, 'S', Status
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
@@ -26,6 +27,7 @@ public:
     void sio_handle_cassette();                      // Handle incoming & outgoing data for cassette
 
 private:
+    size_t tape_offset = 0;
     struct tape_FUJI_hdr
     {
         char chunk_type[4];
@@ -40,6 +42,13 @@ private:
         unsigned char FUJI : 1;
         unsigned char turbo : 1;
     } tape_flags;
+
+    unsigned char atari_sector_buffer[BLOCK_LEN + 3];
+    //struct FileInfoStruct FileInfo;
+    void Clear_atari_sector_buffer(uint16_t len);
+
+    unsigned short block;
+    unsigned short baud;
 
     unsigned int send_tape_block(unsigned int offset);
     void check_for_FUJI_file();
