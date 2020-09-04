@@ -67,11 +67,14 @@ void sioCassette::sio_disable_cassette()
 
     fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
     cassetteActive = false;
+#ifdef DEBUG
+    Debug_println("Cassette Mode disabled");
+#endif
 }
 
 void sioCassette::sio_handle_cassette()
 {
-    //   if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW)
+    //if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW)
     //       return;
 
     // if there’s data available, read bytes from file
@@ -320,7 +323,7 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
                 len = 0;
             }
             // r = faccess_offset(FILE_ACCESS_READ, offset, buflen);
-            fseek(_file, 0, SEEK_SET);
+            fseek(_file, offset, SEEK_SET);
             r = fread(atari_sector_buffer, 1, buflen, _file);
             offset += r;
             // USART_Send_Buffer(atari_sector_buffer, buflen);
