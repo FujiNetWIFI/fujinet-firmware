@@ -155,8 +155,8 @@ bool networkProtocolTNFS::status(uint8_t *status_buf)
         status_buf[1] = fileStat.filesize >> 8;
     }
 
-    status_buf[2] = 1;
-    status_buf[3] = 1;
+    status_buf[2] = 0;
+    status_buf[3] = (fileStat.filesize == 0 ? 136 : 1);
 
     return false;
 }
