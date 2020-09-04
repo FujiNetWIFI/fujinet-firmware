@@ -16,18 +16,27 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
     else
         Debug_println("Could not open CAS file :(");
 #endif
-    tape_offset = 0;
 
+    tape_offset = 0;
     check_for_FUJI_file();
+
+#ifdef DEBUG
+    if (tape_flags.FUJI)
+        Debug_println("FUJI File Found");
+    else
+        Debug_println("Not a FUJI File");
+
+#endif
+
     tape_flags.run = 1;
-    cassetteActive = true;
+    // cassetteActive = true;
 
 //    flags->selected = 1;
 #ifdef DEBUG
     // print_str_P(35, 132, 2, Yellow, window_bg, PSTR("Sync Wait...   "));
     Debug_println("Sync Wait...");
 #endif
-//    draw_Buttons();
+    //    draw_Buttons();
 
     if (!tape_flags.FUJI)
     {
@@ -88,10 +97,10 @@ void sioCassette::sio_handle_cassette()
 
     // now send to UART:
     //fnUartSIO.write(buf1, packetSize);
-#ifdef DEBUG
-    Debug_print("CASSETTE-OUT: ");
+    //#ifdef DEBUG
+    //Debug_print("CASSETTE-OUT: ");
     //Debug_println((char *)buf1);
-#endif
+    //#endif
 
     //     if (fnUartSIO.available())
     //     {
@@ -115,7 +124,6 @@ void sioCassette::sio_handle_cassette()
     //                     break;
     //             }
     //         }
-
     //         // write to file
 
     // #ifdef DEBUG
@@ -157,7 +165,7 @@ unsigned sioCassette::send_tape_block(unsigned int offset)
 #ifdef DEBUG
         //print_str(35,132,2,Yellow,window_bg, (char*) atari_sector_buffer);
         //sprintf_P((char*)atari_sector_buffer,PSTR("Block %u / %u "),offset/BLOCK_LEN+1,(FileInfo.vDisk->size-1)/BLOCK_LEN+1);
-        Debug_printf("Block %u / %u \r\n", offset / BLOCK_LEN + 1, filesize / BLOCK_LEN + 1);
+        Debug_printf("Block %u of %u \r\n", offset / BLOCK_LEN + 1, filesize / BLOCK_LEN + 1);
 #endif
         //read block
         //r = faccess_offset(FILE_ACCESS_READ, offset, BLOCK_LEN);
@@ -276,12 +284,19 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     // sprintf_P((char *)atari_sector_buffer,
     //           PSTR("Baud: %u Length: %u Gap: %u    "), baud, len, gap);
     // print_str(15, 153, 1, Green, window_bg, (char *)atari_sector_buffer);
-    Debug_printf("Baud: %u Length: %u Gap: %u \r\n", baud, len, gap);
+    Debug_printf("Baud: %u Length: %u Gap: %u ", baud, len, gap);
 #endif
-    while (gap--)
-    { //       _delay_ms(1); //wait GAP
-        fnSystem.delay(1);
-    }
+    // while (gap--)
+    // { //       _delay_ms(1); //wait GAP
+    //     fnSystem.delay(1);
+    // }
+    fnSystem.delay(gap);
+    gap = 0;
+
+#ifdef DEBUG
+    // wait until after delay for new line so can see it in timestamp
+    Debug_printf("\r\n");
+#endif
 
     //if (offset < FileInfo.vDisk->size)
     if (offset < filesize)
