@@ -961,7 +961,7 @@ void sioNetwork::sio_assert_interrupts()
         protocol->status(status_buf.rawData); // Prime the status buffer
         if(interruptProceed == true)
         {
-            if ((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status))
+            if ((status_buf.rx_buf_len > 0) || (status_buf.error > 1))
             {
                 //Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
                 fnSystem.digital_write(PIN_PROC, DIGI_LOW);
