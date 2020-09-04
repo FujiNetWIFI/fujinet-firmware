@@ -3,7 +3,6 @@
 
 networkProtocolHTTP::networkProtocolHTTP()
 {
-    //c = nullptr;
     httpState = DATA;
     requestStarted = false;
 }
@@ -30,26 +29,20 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
     switch (openMode)
     {
     case DIR:
-        //client.addHeader("Depth", "1");
-        //resultCode = client.sendRequest("PROPFIND", "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n</D:prop>\r\n</D:propfind>\r\n");
         resultCode = client.PROPFIND(fnHttpClient::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n</D:prop>\r\n</D:propfind>\r\n");
         ret = true;
         break;
     case GET:
-        //client.collectHeaders((const char **)headerCollection, (const size_t)headerCollectionIndex);
         client.collect_headers((const char **)headerCollection, headerCollectionIndex);
 
         resultCode = client.GET();
 
         headerIndex = 0;
-        //numHeaders = client.headers();
         numHeaders = client.get_header_count();
         ret = true;
         break;
     case POST:
-        //resultCode = client.POST(buf, len);
         resultCode = client.POST((const char *)buf, len);
-        //numHeaders = client.headers();
         numHeaders = client.get_header_count();
         headerIndex = 0;
         ret = true;
@@ -64,11 +57,6 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
     }
 
     requestStarted = ret;
-
-    /*
-    if (requestStarted)
-        c = client.getStreamPtr();
-    */
 
 #ifdef DEBUG
     Debug_printf("Result code: %d\n", resultCode);
@@ -162,13 +150,6 @@ bool networkProtocolHTTP::read(uint8_t *rx_buf, unsigned short len)
     case DATA:
         if (openMode == DIR)
         {
-            /*
-            if (c == nullptr)
-                return true;
-
-            if (c->readBytes(rx_buf, len) != len)
-                return true;
-            */
             if (client.read(rx_buf, len) != len)
                 return true;
             // massage data slightly.
@@ -182,13 +163,6 @@ bool networkProtocolHTTP::read(uint8_t *rx_buf, unsigned short len)
         }
         else
         {
-            /*
-            if (c == nullptr)
-                return true;
-
-            if (c->readBytes(rx_buf, len) != len)
-                return true;
-            */
             if (client.read(rx_buf, len) != len)
                 return true;
             break;
@@ -256,12 +230,9 @@ bool networkProtocolHTTP::write(uint8_t *tx_buf, unsigned short len)
         strcpy(tmpKey, p);
         p = strtok(NULL, "");
         strcpy(tmpValue, p);
-        /*
-        headerKey = String(tmpKey);
-        headerValue = String(tmpValue);
-        client.addHeader(headerKey, headerValue);
-        */
+
         client.set_header(tmpKey, tmpValue);
+
 #ifdef DEBUG
         Debug_printf("headerKey: %s\n", headerKey.c_str());
         Debug_printf("headerValue: %s\n", headerValue.c_str());
@@ -327,13 +298,6 @@ bool networkProtocolHTTP::status(uint8_t *status_buf)
                     return true;
             }
 
-            /*
-            if (c == nullptr)
-                return true;
-
-            // Limit to reporting max of 65535 bytes available.
-            a = (c->available() > 65535 ? 65535 : c->available());
-            */
             a = client.available();
             a = a > 0xFFFF ? 0xFFFF : a;
 
@@ -347,8 +311,6 @@ bool networkProtocolHTTP::status(uint8_t *status_buf)
     case HEADERS:
         if (headerIndex < numHeaders)
         {
-            //status_buf[0] = client.header(headerIndex).length() & 0xFF;
-            //status_buf[1] = client.header(headerIndex).length() >> 8;
             uint16_t ha = client.get_header(headerIndex).length();
             status_buf[0] = ha & 0xFF;
             status_buf[1] = ha >> 8;
@@ -402,9 +364,7 @@ void networkProtocolHTTP::special_ca_toggle(unsigned char a)
     case 0:
         if (strlen(cert) > 0)
         {
-            //client.end();
             client.close();
-            //client.begin(openedUrl.c_str(), cert);
             client.begin(openedUrl);
         }
         break;
@@ -420,12 +380,6 @@ void networkProtocolHTTP::special_ca_toggle(unsigned char a)
 
 bool networkProtocolHTTP::isConnected()
 {
-    //
-    //if (c != nullptr)
-    //    return c->connected();
-    //else
-    //    return false;
-    //
     return client.available() > 0;
 }
 
@@ -471,7 +425,6 @@ bool networkProtocolHTTP::mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":" + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
     client.begin(openedUrl.c_str());
 
-    //return client.sendRequest("MKCOL");
     return client.MKCOL();
 }
 
@@ -494,7 +447,6 @@ bool networkProtocolHTTP::rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":" + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
     client.begin(openedUrl.c_str());
 
-    //return client.sendRequest("DELETE");
     return client.DELETE();
 }
 
@@ -531,12 +483,6 @@ bool networkProtocolHTTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":" + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
     client.begin(openedUrl.c_str());
 
-    /*
-    client.addHeader("Destination", rnTo.c_str());
-    client.addHeader("Overwrite", "F");
-    client.addHeader("translate", "f");
-    return client.sendRequest("MOVE");
-    */
     return client.MOVE(rnTo.c_str(), false);
 }
 
