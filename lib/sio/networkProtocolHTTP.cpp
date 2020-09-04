@@ -280,7 +280,7 @@ bool networkProtocolHTTP::status(uint8_t *status_buf)
         status_buf[0] = 0;
         status_buf[1] = 0;
         status_buf[2] = 1;
-        status_buf[3] = 0;
+        status_buf[3] = 1;
         break;
     case DATA:
         if (openMode == PUT)
@@ -288,7 +288,7 @@ bool networkProtocolHTTP::status(uint8_t *status_buf)
             status_buf[0] = 0;
             status_buf[1] = 0;
             status_buf[2] = 1;
-            status_buf[3] = 0;
+            status_buf[3] = 1;
         }
         else
         {
@@ -303,9 +303,7 @@ bool networkProtocolHTTP::status(uint8_t *status_buf)
 
             status_buf[0] = a & 0xFF;
             status_buf[1] = a >> 8;
-            status_buf[2] = resultCode & 0xFF;
-            status_buf[3] = resultCode >> 8;
-            assertInterrupt = a > 0;
+            status_buf[3] = (a == 0 ? 136 : 1);
         }
         break;
     case HEADERS:
@@ -314,8 +312,6 @@ bool networkProtocolHTTP::status(uint8_t *status_buf)
             uint16_t ha = client.get_header(headerIndex).length();
             status_buf[0] = ha & 0xFF;
             status_buf[1] = ha >> 8;
-            status_buf[2] = resultCode & 0xFF;
-            status_buf[3] = resultCode >> 8;
         }
         break;
     case COLLECT_HEADERS:
