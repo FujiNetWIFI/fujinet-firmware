@@ -267,8 +267,8 @@ bool networkProtocolFTP::status(uint8_t *status_buf)
     __IGNORE_UNUSED_VAR(a);
     status_buf[0] = a & 0xFF;
     status_buf[1] = a >> 8;
-    status_buf[2] = 1;
-    status_buf[3] = 1;
+    status_buf[2] = 0;
+    status_buf[3] = (a==0 ? 136 : 1);
     return false;
 }
 
