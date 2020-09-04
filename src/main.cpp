@@ -101,6 +101,7 @@ void main_setup()
     SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
 
     SIO.addDevice(&sioC, SIO_DEVICEID_CASSETTE); // C: program recorder
+    sioC.open_cassette_file((FileSystem *)&fnSPIFFS); // hard code test file
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
