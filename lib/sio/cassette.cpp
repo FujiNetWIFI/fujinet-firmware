@@ -1,7 +1,7 @@
 #include "cassette.h"
 #include "../../include/debug.h"
 
-#define CASSETTE_FILE "test.cas"
+#define CASSETTE_FILE "/test.cas"
 
 void sioCassette::open_cassette_file(FileSystem *filesystem)
 {
