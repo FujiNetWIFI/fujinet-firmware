@@ -28,6 +28,7 @@ private:
     fnTcpServer * server;
     uint8_t client_error_code;
 
+    bool _isConnected;
     bool special_accept_connection();
 };
 
