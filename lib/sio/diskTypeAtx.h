@@ -48,6 +48,9 @@
 #define ATX_DRIVE_MODEL_810 0
 #define ATX_DRIVE_MODEL_1050 1
 
+#define ATX_FORMAT_TIMEOUT_810_1050 0xE0
+#define ATX_FORMAT_TIMEOUT_XF551 0xFE
+
 struct atx_header
 {
     uint32_t magic;
