@@ -247,7 +247,6 @@ void DiskTypeATX::_process_sector(AtxTrack &track, AtxSector *psector, uint16_t 
             for (int x = psector->weakoffset; x < sectorsize; x += sizeof(uint32_t))
                 *((uint32_t *)(_disk_sectorbuff + x)) = rand;
         }
-        //util_dump_bytes(_disk_sectorbuff, 64);
     }
     else
     {
@@ -288,7 +287,9 @@ bool DiskTypeATX::_copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, u
 {
     Debug_printf("copy data track %d, sector %d\n", tracknum, sectornum);
 
-    memset(_disk_sectorbuff, 0, sectorsize);
+    // Real drives don't clear out their buffer and some loaders care about this
+    // because they check the checksum value, so we won't do it either...
+    // memset(_disk_sectorbuff, 0, sectorsize);
 
     AtxTrack &track = _tracks[tracknum];
 
@@ -391,6 +392,8 @@ bool DiskTypeATX::read(uint16_t sectornum, uint16_t *readcount)
 
     bool result = _copy_track_sector_data((uint8_t)tracknumber, (uint8_t)tracksector, sectorSize);
 
+    //util_dump_bytes(_disk_sectorbuff, sectorSize);
+
     return result;
 }
 
@@ -398,7 +401,9 @@ void DiskTypeATX::status(uint8_t statusbuff[4])
 {
     statusbuff[0] = DISK_DRIVE_STATUS_CLEAR;
 
-    statusbuff[0] |= DISK_DRIVE_STATUS_MOTOR_RUNNING;
+    // Set the "drive running" bit only if we're emulating an 810
+    if(_atx_drive_model == ATX_DRIVE_MODEL_810)
+        statusbuff[0] |= DISK_DRIVE_STATUS_MOTOR_RUNNING;
 
     if (_atx_density == ATX_DENSITY_DOUBLE)
         statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_DENSITY;
@@ -407,16 +412,21 @@ void DiskTypeATX::status(uint8_t statusbuff[4])
         statusbuff[0] |= DISK_DRIVE_STATUS_ENHANCED_DENSITY;
 
     statusbuff[1] = ~_disk_controller_status; // Negate the controller status
+
+    // Set format timeout to the expected for XF551 only if this is a double-density disk
+    statusbuff[2] = _atx_density == ATX_DENSITY_DOUBLE ? ATX_FORMAT_TIMEOUT_XF551 : ATX_FORMAT_TIMEOUT_810_1050;
 }
 
 bool DiskTypeATX::_load_atx_chunk_weak_sector(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
+    #ifdef VERBOSE_ATX
     Debug_printf("::_load_atx_chunk_weak_sector (%hu = 0x%04x)\n",
                  chunk_hdr.sector_index, chunk_hdr.header_data);
+    #endif
 
     if (chunk_hdr.sector_index >= track.sector_count)
     {
-        Debug_println("sector index > sector_count");
+        Debug_println("ERROR: _load_atx_chunk_weak_sector sector index > sector_count");
         return false;
     }
     track.sectors[chunk_hdr.sector_index].weakoffset = chunk_hdr.header_data;
@@ -425,14 +435,17 @@ bool DiskTypeATX::_load_atx_chunk_weak_sector(chunk_header_t &chunk_hdr, AtxTrac
 
 bool DiskTypeATX::_load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
+    #ifdef VERBOSE_ATX
     Debug_printf("::_load_atx_chunk_extended_sector (%hu = 0x%04x)\n",
                  chunk_hdr.sector_index, chunk_hdr.header_data);
+    #endif
 
     if (chunk_hdr.sector_index >= track.sector_count)
     {
-        Debug_println("sector index > sector_count");
+        Debug_println("ERROR: _load_atx_chunk_extended_sector sector index > sector_count");
         return false;
     }
+
     uint16_t xsize;
     switch (chunk_hdr.header_data)
     {
@@ -449,7 +462,7 @@ bool DiskTypeATX::_load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, Atx
         xsize = 1024;
         break;
     default:
-        Debug_println("invalid extended sector value");
+        Debug_println("WARNING: Invalid extended sector value");
         return false;
     }
     track.sectors[chunk_hdr.sector_index].extendedsize = xsize;
@@ -458,7 +471,9 @@ bool DiskTypeATX::_load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, Atx
 
 bool DiskTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
+    #ifdef VERBOSE_ATX
     Debug_print("::_load_atx_chunk_sector_data\n");
+    #endif
 
     // Just in case we already read data for this track
     if (track.data != nullptr)
@@ -502,7 +517,9 @@ bool DiskTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTrac
 
 bool DiskTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
+    #ifdef VERBOSE_ATX
     Debug_print("::_load_atx_chunk_sector_list\n");
+    #endif
 
     // Skip all this if this track has no sectors
     if (track.sector_count == 0)
@@ -531,12 +548,10 @@ bool DiskTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrac
     track.sectors.reserve(track.sector_count);
     for (i = 0; i < track.sector_count; i++)
     {
-#ifdef DEBUG
-        if (sector_list[i].position < 2 || sector_list[i].position == ANGULAR_UNIT_TOTAL)
+        if (sector_list[i].position >= ANGULAR_UNIT_TOTAL)
         {
-            Debug_printf("$$$ DEBUG sector position = %hu\n", sector_list[i].position);
+            Debug_printf("WARNING: sector position = %hu\n", sector_list[i].position);
         }
-#endif
         track.sectors.emplace_back(sector_list[i]);
     }
 
@@ -549,6 +564,7 @@ bool DiskTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrac
 bool DiskTypeATX::_load_atx_chunk_unknown(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
     Debug_print("::_load_atx_chunk_UNKNOWN - skipping\n");
+
 
     uint32_t chunk_size = chunk_hdr.length - sizeof(chunk_hdr);
     if (chunk_size > 0)
@@ -574,7 +590,9 @@ bool DiskTypeATX::_load_atx_chunk_unknown(chunk_header_t &chunk_hdr, AtxTrack &t
 */
 int DiskTypeATX::_load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track)
 {
+    #ifdef VERBOSE_ATX
     Debug_print("::_load_atx_track_chunk\n");
+    #endif
 
     chunk_header_t chunk_hdr;
 
@@ -591,12 +609,16 @@ int DiskTypeATX::_load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track)
     // Check for a terminating marker
     if (chunk_hdr.length == 0)
     {
+        #ifdef VERBOSE_ATX
         Debug_print("track chunk terminator\n");
+        #endif
         return 1; // 1 = done
     }
 
+    #ifdef VERBOSE_ATX
     Debug_printf("chunk size=%u, type=0x%02hx, secindex=%d, hdata=0x%04hx\n",
                  chunk_hdr.length, chunk_hdr.type, chunk_hdr.sector_index, chunk_hdr.header_data);
+    #endif
 
     switch (chunk_hdr.type)
     {
@@ -627,7 +649,9 @@ int DiskTypeATX::_load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track)
 
 bool DiskTypeATX::_load_atx_track_record(uint32_t length)
 {
+    #ifdef VERBOSE_ATX
     Debug_printf("::_load_atx_track_record len %u\n", length);
+    #endif
 
     track_header_t trk_hdr;
 
@@ -638,9 +662,11 @@ bool DiskTypeATX::_load_atx_track_record(uint32_t length)
         return false;
     }
 
+    #ifdef VERBOSE_ATX
     Debug_printf("track #%hu, sectors=%hu, rate=%hu, flags=0x%04x, headersize=%u\n",
                  trk_hdr.track_number, trk_hdr.sector_count,
                  trk_hdr.rate, trk_hdr.flags, trk_hdr.header_size);
+    #endif
 
     // Make sure we don't have a bogus track number
     if (trk_hdr.track_number >= ATX_DEFAULT_NUMTRACKS)
@@ -675,7 +701,9 @@ bool DiskTypeATX::_load_atx_track_record(uint32_t length)
     uint32_t chunk_start_offset = trk_hdr.header_size - sizeof(trk_hdr) - sizeof(record_header);
     if (chunk_start_offset > 0)
     {
+        #ifdef VERBOSE_ATX
         Debug_printf("seeking +%u to first chunk start pos\n", chunk_start_offset);
+        #endif
         if ((i = fseek(_disk_fileh, chunk_start_offset, SEEK_CUR)) < 0)
         {
             Debug_printf("failed seeking to first chunk in track record (%d, %d)\n", i, errno);
@@ -702,7 +730,9 @@ bool DiskTypeATX::_load_atx_track_record(uint32_t length)
 */
 bool DiskTypeATX::_load_atx_record()
 {
+    #ifdef VERBOSE_ATX
     Debug_printf("::_load_atx_record #%u\n", ++_atx_num_records);
+    #endif
 
     record_header rec_hdr;
 
@@ -715,7 +745,9 @@ bool DiskTypeATX::_load_atx_record()
         }
         else
         {
+            #ifdef VERBOSE_ATX
             Debug_print("reached EOF\n");
+            #endif
         }
         return false;
     }
@@ -812,6 +844,9 @@ disktype_t DiskTypeATX::mount(FILE *f, uint32_t disksize)
                                 ATX_DENSITY_DOUBLE
                             ? DISK_BYTES_PER_SECTOR_DOUBLE
                             : DISK_BYTES_PER_SECTOR_SINGLE;
+
+    // Set the drive type to 810 if it's a single density disk, otherwise set it to 1050
+    _atx_drive_model = _atx_density == ATX_DENSITY_SINGLE ? ATX_DRIVE_MODEL_810 : ATX_DRIVE_MODEL_1050;
 
     Debug_print("ATX image header values:\n");
     Debug_printf("version: %hd, version min: %hd\n", hdr.version, hdr.min_version);

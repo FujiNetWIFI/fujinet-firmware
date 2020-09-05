@@ -31,7 +31,7 @@
 // Read disk data and send to computer
 void sioDisk::sio_read()
 {
-    Debug_print("disk READ\n");
+    //Debug_print("disk READ\n");
 
     if (_disk == nullptr)
     {
@@ -50,7 +50,7 @@ void sioDisk::sio_read()
 // Write disk data from computer
 void sioDisk::sio_write(bool verify)
 {
-    Debug_print("disk WRITE\n");
+    //Debug_print("disk WRITE\n");
 
     if (_disk != nullptr)
     {
@@ -92,19 +92,19 @@ void sioDisk::sio_status()
             Bit 0 = 1: Receive error on last command frame (XF551)
 
         #1 - Floppy drive controller status (inverted from FDC)
-            Bit 7 = 0: Not ready (1050 drive)
+            Bit 7 = 0: Drive not ready (1050 drive)
             Bit 6 = 0: Write protect error
             Bit 5 = 0: Deleted sector (sector marked as deleted in sector header)
             Bit 4 = 0: Record not found (missing sector)
 
             Bit 3 = 0: CRC error
             Bit 2 = 0: Lost data
-            Bit 1 = 0: Data pending
+            Bit 1 = 0: Data request pending
             Bit 0 = 0: Busy
 
-        #2 - Default timeout
-              810 drive: $E0 = 224 vertical blanks
-            XF551 drive: $FE
+        #2 - Format timeout
+              810 drive: $E0 = 224 vertical blanks (4 mins NTSC)
+            XF551 drive: $FE = 254 veritcal blanks (4.5 mins NTSC)
 
         #3 - Unused ($00)    
     */
