@@ -207,6 +207,7 @@ unsigned sioCassette::send_tape_block(unsigned int offset)
     fnUartSIO.write(atari_sector_buffer, BLOCK_LEN + 3);
     //USART_Transmit_Byte(get_checksum(atari_sector_buffer, BLOCK_LEN + 3));
     fnUartSIO.write(sio_checksum(atari_sector_buffer, BLOCK_LEN + 3));
+    fnUartSIO.flush();
     // _delay_ms(300); //PRG(0-N) + PRWT(0.25s) delay
     fnSystem.delay(300);
     return (offset);
@@ -336,9 +337,11 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
                 Debug_printf("%02x ",atari_sector_buffer[i]);
 #endif
             fnUartSIO.write(atari_sector_buffer, buflen);
+            fnUartSIO.flush();
 #ifdef DEBUG
             Debug_printf("\r\n");
 #endif
+            //fnSystem.delay(250); // logic analyzer shows only ~10 ms between blocks - need more time
 
             if (first && atari_sector_buffer[2] == 0xfe)
             {
