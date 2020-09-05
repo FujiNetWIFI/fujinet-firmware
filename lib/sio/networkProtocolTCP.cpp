@@ -5,6 +5,7 @@ networkProtocolTCP::networkProtocolTCP()
 {
     Debug_printf("networkProtocolTCP::ctor\n");
     server = nullptr;
+    _isConnected=false;
 }
 
 networkProtocolTCP::~networkProtocolTCP()
@@ -99,7 +100,6 @@ bool networkProtocolTCP::read(uint8_t *rx_buf, unsigned short len)
         client_error_code = 128;
         return false;
     }
-    assertProceed = true;
     return (client.read(rx_buf, len) != len);
 }
 
@@ -112,7 +112,6 @@ bool networkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
         client_error_code = 128;
         return false;
     }
-    assertProceed = true;
     return client.write(tx_buf, len) != len;
 }
 
@@ -126,16 +125,20 @@ bool networkProtocolTCP::status(uint8_t *status_buf)
         available_bytes = client.available();
         status_buf[0] = available_bytes & 0xFF;
         status_buf[1] = available_bytes >> 8;
-        status_buf[2] = client.connected();
-        status_buf[3] = client_error_code;
-        assertProceed = (available_bytes > 0);
+        status_buf[2] = (client.connected() == false ? 0 : 1);
+        status_buf[3] = (client.connected() == false ? 136 : 1);
     }
     else if (server != NULL)
     {
         if (!client.connected())
+        {
             status_buf[2] = server->hasClient();
+            status_buf[3] = (_isConnected==true ? 136 : 1);
+        }    
         else
+        {
             status_buf[2] = client.connected();
+        }
     }
     return false;
 }
@@ -175,6 +178,7 @@ bool networkProtocolTCP::special_accept_connection()
         if (server->hasClient())
         {
             client = server->available();
+            _isConnected=true;
         }
         else
         {
