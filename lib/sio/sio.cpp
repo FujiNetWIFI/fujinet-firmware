@@ -177,7 +177,7 @@ void sioBus::_sio_process_cmd()
         if (tempFrame.device == SIO_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = _fujiDev->bootdisk();
-            Debug_println("FujiNet intercepts D1:");
+            Debug_println("FujiNet CONFIG boot");
             // handle command
             _activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
         }
