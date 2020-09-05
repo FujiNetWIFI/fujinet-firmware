@@ -8,7 +8,7 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
     _FS = filesystem;
     if (_file != nullptr)
         fclose(_file);
-    _file = _FS->file_open(CASSETTE_FILE, "r"); // This should create/truncate the file
+    _file = _FS->file_open(CASSETTE_FILE, "r"); 
     filesize = _FS->filesize(_file);
 #ifdef DEBUG
     if (_file != nullptr)
@@ -37,7 +37,9 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
     Debug_println("Sync Wait...");
 #endif
     //    draw_Buttons();
-
+ 
+ // TO DO decouple opening a file with the initial delay
+ // TO DO understand non-FUJI file format and why
     if (!tape_flags.FUJI)
     {
         //sync wait
@@ -50,6 +52,8 @@ void sioCassette::sio_enable_cassette()
 {
     // open a file
     // TBD
+
+    // TO DO figure out / draw state machine for cassette (boot, multi-stage loader, CLOAD, CSAVE, "C:" device calls)
 
     // Change baud rate
     fnUartSIO.set_baudrate(CASSETTE_BAUD);
@@ -237,6 +241,7 @@ void sioCassette::check_for_FUJI_file()
         baud = 1000;      //1000 baud
     else
         baud = 600;
+    // TO DO support kbps turbo mode
     // set_tape_baud();
 
     block = 0;
@@ -280,6 +285,7 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
             if (tape_flags.turbo) //ignore baud hdr
                 continue;
             baud = hdr->irg_length;
+            // TO DO support baud changes
             // set_tape_baud();
         }
         offset += sizeof(struct tape_FUJI_hdr) + len;
