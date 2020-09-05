@@ -256,7 +256,7 @@ void sioNetwork::sio_open()
 
 void sioNetwork::sio_enable_interrupts(bool enable)
 {
-    Debug_printf("sio_enable_interrupts: %s\n", enable ? "true":"false");
+    Debug_printf("sio_enable_interrupts: %s\n", enable ? "true" : "false");
     portENTER_CRITICAL(&timerMux);
     interruptEnabled = enable;
     portEXIT_CRITICAL(&timerMux);
@@ -959,11 +959,13 @@ void sioNetwork::sio_assert_interrupts()
     if (interruptEnabled == true && protocol != nullptr)
     {
         protocol->status(status_buf.rawData); // Prime the status buffer
-        if(interruptProceed == true)
+        if (interruptProceed == true)
         {
-            if ((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status))
+            if ((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status) || (status_buf.error > 1))
             {
-                //Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
+                if (status_buf.connection_status!=previous_connection_status)
+                    Debug_printf("CS: %d\tPCS: %d\n",status_buf.connection_status,previous_connection_status);
+                Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
                 fnSystem.digital_write(PIN_PROC, DIGI_LOW);
                 fnSystem.delay_microseconds(50);
                 fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
