@@ -91,7 +91,7 @@ void sioCassette::sio_handle_cassette()
         //	USART_Init(ATARI_SPEED_STANDARD);
         sio_disable_cassette();
         // tape_flags.run = 0;
-        cassetteActive = false;
+        // cassetteActive = false;
         //				flags->selected = 0;
         //				draw_Buttons();
     }
@@ -215,7 +215,7 @@ unsigned sioCassette::send_tape_block(unsigned int offset)
 void sioCassette::check_for_FUJI_file()
 {
     struct tape_FUJI_hdr *hdr = (struct tape_FUJI_hdr *)atari_sector_buffer;
-    char *p = hdr->chunk_type;
+    uint8_t *p = hdr->chunk_type;
 
     // faccess_offset(FILE_ACCESS_READ, 0, sizeof(struct tape_FUJI_hdr));
     fseek(_file, 0, SEEK_SET);
@@ -244,18 +244,21 @@ void sioCassette::check_for_FUJI_file()
 
 unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
 {
-    unsigned short r;
-    unsigned short gap, len;
-    unsigned short buflen = 256;
+    size_t r;
+    uint16_t gap, len;
+    uint16_t buflen = 256;
     unsigned char first = 1;
     struct tape_FUJI_hdr *hdr = (struct tape_FUJI_hdr *)atari_sector_buffer;
-    char *p = hdr->chunk_type;
+    uint8_t *p = hdr->chunk_type;
 
     while (offset < filesize) // FileInfo.vDisk->size)
     {
         //read header
         // faccess_offset(FILE_ACCESS_READ, offset,
         //                sizeof(struct tape_FUJI_hdr));
+#ifdef DEBUG
+        Debug_printf("Offset: %u\r\n", offset);
+#endif
         fseek(_file, offset, SEEK_SET);
         fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
         len = hdr->chunk_length;
@@ -289,12 +292,12 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     // print_str(15, 153, 1, Green, window_bg, (char *)atari_sector_buffer);
     Debug_printf("Baud: %u Length: %u Gap: %u ", baud, len, gap);
 #endif
-    // while (gap--)
-    // { //       _delay_ms(1); //wait GAP
-    //     fnSystem.delay(1);
-    // }
-    fnSystem.delay(gap);
-    gap = 0;
+    while (gap--)
+    { //       _delay_ms(1); //wait GAP
+        fnSystem.delay_microseconds(1000);
+    }
+    // fnSystem.delay(gap);
+    // gap = 0;
 
 #ifdef DEBUG
     // wait until after delay for new line so can see it in timestamp
@@ -327,13 +330,23 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
             r = fread(atari_sector_buffer, 1, buflen, _file);
             offset += r;
             // USART_Send_Buffer(atari_sector_buffer, buflen);
+#ifdef DEBUG
+            Debug_printf("Sending %u bytes\r\n", buflen);
+            for (int i=0; i<buflen; i++)
+                Debug_printf("%02x ",atari_sector_buffer[i]);
+#endif
             fnUartSIO.write(atari_sector_buffer, buflen);
+#ifdef DEBUG
+            Debug_printf("\r\n");
+#endif
 
             if (first && atari_sector_buffer[2] == 0xfe)
             {
                 //most multi stage loaders starting over by self
                 // so do not stop here!
                 //tape_flags.run = 0;
+                // Piepmeier TO DO TODO - change this behavior to STOP because can sense MOTOR line?
+
                 block = 0;
             }
             first = 0;

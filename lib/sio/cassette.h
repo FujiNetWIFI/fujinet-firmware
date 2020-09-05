@@ -30,10 +30,10 @@ private:
     size_t tape_offset = 0;
     struct tape_FUJI_hdr
     {
-        char chunk_type[4];
-        unsigned short chunk_length;
-        unsigned short irg_length;
-        char data[];
+        uint8_t chunk_type[4];
+        uint16_t chunk_length;
+        uint16_t irg_length;
+        uint8_t data[];
     };
 
     struct t_flags
@@ -43,7 +43,7 @@ private:
         unsigned char turbo : 1;
     } tape_flags;
 
-    unsigned char atari_sector_buffer[BLOCK_LEN + 3];
+    uint8_t atari_sector_buffer[256];
     //struct FileInfoStruct FileInfo;
     void Clear_atari_sector_buffer(uint16_t len);
 
