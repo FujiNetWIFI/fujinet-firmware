@@ -7,6 +7,7 @@
 #include "fnConfig.h"
 #include "utils.h"
 #include "midimaze.h"
+#include "cassette.h"
 #include "../../include/debug.h"
 
 // Helper functions outside the class defintions
@@ -42,7 +43,7 @@ void sioDevice::sio_to_computer(uint8_t *buf, uint16_t len, bool err)
     Debug_printf("SEND <%u> BYTES\n\t", len);
     for (int i = 0; i < len; i++)
         Debug_printf("%02x ", buf[i]);
-    Debug_print("\n");        
+    Debug_print("\n");
 #endif
 
     // Write ERROR or COMPLETE status
@@ -54,7 +55,7 @@ void sioDevice::sio_to_computer(uint8_t *buf, uint16_t len, bool err)
     // Write data frame
     fnUartSIO.write(buf, len);
     // Write checksum
-    fnUartSIO.write( sio_checksum(buf, len) );
+    fnUartSIO.write(sio_checksum(buf, len));
 
     fnUartSIO.flush();
 }
@@ -70,9 +71,9 @@ uint8_t sioDevice::sio_to_peripheral(uint8_t *buf, unsigned short len)
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
 
-__BEGIN_IGNORE_UNUSEDVARS
+    __BEGIN_IGNORE_UNUSEDVARS
     size_t l = fnUartSIO.readBytes(buf, len);
-__END_IGNORE_UNUSEDVARS
+    __END_IGNORE_UNUSEDVARS
 
     // Wait for checksum
     while (0 == fnUartSIO.available())
@@ -232,14 +233,14 @@ void sioBus::_sio_process_cmd()
 void sioBus::_sio_process_queue()
 {
     sio_message_t msg;
-    if(xQueueReceive(qSioMessages, &msg, 0) == pdTRUE)
+    if (xQueueReceive(qSioMessages, &msg, 0) == pdTRUE)
     {
-        switch(msg.message_id)
+        switch (msg.message_id)
         {
-        case(SIOMSG_DISKSWAP):
-        if(_fujiDev != nullptr)
-            _fujiDev->image_rotate();
-        break;
+        case (SIOMSG_DISKSWAP):
+            if (_fujiDev != nullptr)
+                _fujiDev->image_rotate();
+            break;
         }
     }
 }
@@ -260,6 +261,22 @@ void sioBus::service()
         return; // break!
     }
 
+    // Handle Cassette if enabled and motor line high, do not process SIO commands
+    if (_cassetteDev != nullptr)
+    {
+        if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH)
+        {
+            if (!_cassetteDev->cassetteActive)
+                _cassetteDev->sio_enable_cassette();
+            _cassetteDev->sio_handle_cassette();
+        }
+        else
+        {
+            if (_cassetteDev->cassetteActive)
+                _cassetteDev->sio_disable_cassette();
+        }
+    }
+
     // Go process a command frame if the SIO CMD line is asserted
     if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
     {
@@ -269,7 +286,8 @@ void sioBus::service()
     else if (_modemDev != nullptr && _modemDev->modemActive)
     {
         _modemDev->sio_handle_modem();
-    } else
+    }
+    else
     // Neither CMD nor active modem, so throw out any stray input data
     {
         fnUartSIO.flush_input();
@@ -319,7 +337,7 @@ void sioBus::setup()
     // Set the initial HSIO index
     // First see if Config has read a value
     int i = Config.get_general_hsioindex();
-    if(i != HSIO_INVALID_INDEX)
+    if (i != HSIO_INVALID_INDEX)
         setHighSpeedIndex(i);
     else
         setHighSpeedIndex(_sioHighSpeedIndex);
@@ -345,6 +363,10 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
     else if (device_id == SIO_DEVICEID_MIDI)
     {
         _midiDev = (sioMIDIMaze *)pDevice;
+    }
+    else if (device_id == SIO_DEVICEID_CASSETTE)
+    {
+        _cassetteDev = (sioCassette *)pDevice;
     }
 
     pDevice->_devnum = device_id;
@@ -411,12 +433,12 @@ int sioBus::getBaudrate()
 
 void sioBus::setBaudrate(int baud)
 {
-    if(_sioBaud == baud)
+    if (_sioBaud == baud)
     {
         Debug_printf("Baudrate already at %d - nothing to do\n", baud);
         return;
     }
-    
+
     Debug_printf("Changing baudrate from %d to %d\n", _sioBaud, baud);
     _sioBaud = baud;
     fnUartSIO.set_baudrate(baud);
@@ -457,4 +479,4 @@ void sioBus::setMIDIHost(char *newhost)
         _midiDev->sio_enable_midimaze();
 }
 
-sioBus SIO;         // Global SIO object
+sioBus SIO; // Global SIO object
