@@ -8,7 +8,7 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
     _FS = filesystem;
     if (_file != nullptr)
         fclose(_file);
-    _file = _FS->file_open(CASSETTE_FILE, "r"); 
+    _file = _FS->file_open(CASSETTE_FILE, "r");
     filesize = _FS->filesize(_file);
 #ifdef DEBUG
     if (_file != nullptr)
@@ -37,9 +37,9 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
     Debug_println("Sync Wait...");
 #endif
     //    draw_Buttons();
- 
- // TO DO decouple opening a file with the initial delay
- // TO DO understand non-FUJI file format and why
+
+    // TO DO decouple opening a file with the initial delay
+    // TO DO understand non-FUJI file format and why
     if (!tape_flags.FUJI)
     {
         //sync wait
@@ -211,7 +211,7 @@ unsigned sioCassette::send_tape_block(unsigned int offset)
     fnUartSIO.write(atari_sector_buffer, BLOCK_LEN + 3);
     //USART_Transmit_Byte(get_checksum(atari_sector_buffer, BLOCK_LEN + 3));
     fnUartSIO.write(sio_checksum(atari_sector_buffer, BLOCK_LEN + 3));
-    fnUartSIO.flush();
+    fnUartSIO.flush(); // wait for all data to be sent just like a tape
     // _delay_ms(300); //PRG(0-N) + PRWT(0.25s) delay
     fnSystem.delay(300);
     return (offset);
@@ -256,6 +256,8 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     unsigned char first = 1;
     struct tape_FUJI_hdr *hdr = (struct tape_FUJI_hdr *)atari_sector_buffer;
     uint8_t *p = hdr->chunk_type;
+
+    unsigned int starting_offset = offset;
 
     while (offset < filesize) // FileInfo.vDisk->size)
     {
@@ -302,6 +304,8 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     while (gap--)
     { //       _delay_ms(1); //wait GAP
         fnSystem.delay_microseconds(1000);
+        if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW)
+            return starting_offset;
     }
     // fnSystem.delay(gap);
     // gap = 0;
@@ -339,15 +343,14 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
             // USART_Send_Buffer(atari_sector_buffer, buflen);
 #ifdef DEBUG
             Debug_printf("Sending %u bytes\r\n", buflen);
-            for (int i=0; i<buflen; i++)
-                Debug_printf("%02x ",atari_sector_buffer[i]);
+            for (int i = 0; i < buflen; i++)
+                Debug_printf("%02x ", atari_sector_buffer[i]);
 #endif
             fnUartSIO.write(atari_sector_buffer, buflen);
-            fnUartSIO.flush();
+            fnUartSIO.flush(); // wait for all data to be sent just like a tape
 #ifdef DEBUG
             Debug_printf("\r\n");
 #endif
-            //fnSystem.delay(250); // logic analyzer shows only ~10 ms between blocks - need more time
 
             if (first && atari_sector_buffer[2] == 0xfe)
             {
