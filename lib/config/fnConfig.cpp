@@ -132,50 +132,33 @@ void fnConfig::clear_host(uint8_t num)
     }
 }
 
-
-std::string fnConfig::get_mount_path(uint8_t num, mount_type_t mounttype)
+std::string fnConfig::get_mount_path(uint8_t num)
 {
-    // Handle disk slots
-    if(mounttype == MOUNTTYPE_DISK && num < MAX_MOUNT_SLOTS)
+    if(num < MAX_MOUNT_SLOTS)
         return _mount_slots[num].path;
-
-    // Handle tape slots
-    if(mounttype == MOUNTTYPE_TAPE && num < MAX_TAPE_SLOTS)
-        return _tape_slots[num].path;
-
-    return "";
+    else
+        return "";
 }
 
-fnConfig::mount_mode_t fnConfig::get_mount_mode(uint8_t num, mount_type_t mounttype)
+fnConfig::mount_mode_t fnConfig::get_mount_mode(uint8_t num)
 {
-    // Handle disk slots
-    if(mounttype == MOUNTTYPE_DISK && num < MAX_MOUNT_SLOTS)
+    if(num < MAX_MOUNT_SLOTS)
         return _mount_slots[num].mode;
-
-    // Handle tape slots
-    if(mounttype == MOUNTTYPE_TAPE && num < MAX_TAPE_SLOTS)
-        return _tape_slots[num].mode;
-
-    return mount_mode_t::MOUNTMODE_INVALID;
+    else
+        return mount_mode_t::MOUNTMODE_INVALID;
 }
 
-int fnConfig::get_mount_host_slot(uint8_t num, mount_type_t mounttype)
+int fnConfig::get_mount_host_slot(uint8_t num)
 {
-    // Handle disk slots
-    if(mounttype == MOUNTTYPE_DISK && num < MAX_MOUNT_SLOTS)
+    if(num < MAX_MOUNT_SLOTS)
         return _mount_slots[num].host_slot;
-
-    // Handle tape slots
-    if(mounttype == MOUNTTYPE_TAPE && num < MAX_TAPE_SLOTS)
-        return _tape_slots[num].host_slot;
-
-    return HOST_SLOT_INVALID;
+    else
+        return HOST_SLOT_INVALID;
 }
 
-void fnConfig::store_mount(uint8_t num, int hostslot, const char *path, mount_mode_t mode, mount_type_t mounttype)
+void fnConfig::store_mount(uint8_t num, int hostslot, const char *path, mount_mode_t mode)
 {
-    // Handle disk slots
-    if(mounttype == MOUNTTYPE_DISK && num < MAX_MOUNT_SLOTS)
+    if(num < MAX_MOUNT_SLOTS)
     {
         if(_mount_slots[num].host_slot == hostslot && _mount_slots[num].mode == mode && _mount_slots[num].path.compare(path) ==0)
             return;
@@ -183,28 +166,12 @@ void fnConfig::store_mount(uint8_t num, int hostslot, const char *path, mount_mo
         _mount_slots[num].host_slot = hostslot;
         _mount_slots[num].mode = mode;
         _mount_slots[num].path = path;
-
-        return;
-    }
-
-    // Handle tape slots
-    if(mounttype == MOUNTTYPE_TAPE && num < MAX_TAPE_SLOTS)
-    {
-        if(_tape_slots[num].host_slot == hostslot && _tape_slots[num].mode == mode && _tape_slots[num].path.compare(path) ==0)
-            return;
-        _dirty = true;
-        _tape_slots[num].host_slot = hostslot;
-        _tape_slots[num].mode = mode;
-        _tape_slots[num].path = path;
-
-        return;
     }
 }
 
-void fnConfig::clear_mount(uint8_t num, mount_type_t mounttype)
+void fnConfig::clear_mount(uint8_t num)
 {
-    // Handle disk slots
-    if (mounttype == MOUNTTYPE_DISK && num < MAX_MOUNT_SLOTS)
+    if (num < MAX_MOUNT_SLOTS)
     {
         if(_mount_slots[num].host_slot == HOST_SLOT_INVALID && _mount_slots[num].mode == MOUNTMODE_INVALID
             && _mount_slots[num].path.length() == 0)
@@ -213,20 +180,6 @@ void fnConfig::clear_mount(uint8_t num, mount_type_t mounttype)
         _mount_slots[num].path.clear();
         _mount_slots[num].host_slot = HOST_SLOT_INVALID;
         _mount_slots[num].mode = MOUNTMODE_INVALID;
-        return;
-    }
-
-    // Handle tape slots
-    if(mounttype == MOUNTTYPE_TAPE && num < MAX_TAPE_SLOTS)
-    {
-        if(_tape_slots[num].host_slot == HOST_SLOT_INVALID && _tape_slots[num].mode == MOUNTMODE_INVALID
-            && _tape_slots[num].path.length() == 0)
-            return;
-        _dirty = true;            
-        _tape_slots[num].path.clear();
-        _tape_slots[num].host_slot = HOST_SLOT_INVALID;
-        _tape_slots[num].mode = MOUNTMODE_INVALID;
-        return;
     }
 }
 
@@ -346,18 +299,6 @@ void fnConfig::save()
             ss << LINETERM << "[Printer" << (i+1) << "]" LINETERM;
             ss << "type=" << _printer_slots[i].type << LINETERM;
             ss << "port=" << (_printer_slots[i].port + 1) << LINETERM; // Write port # as 1-based
-        }
-    }
-
-    // TAPES
-    for(i=0; i < MAX_TAPE_SLOTS; i++)
-    {
-        if(_tape_slots[i].host_slot >= 0)
-        {
-            ss << LINETERM << "[Cassette" << (i+1) << "]" LINETERM;
-            ss << "hostslot=" << (_tape_slots[i].host_slot + 1) << LINETERM; // Write host slot as 1-based
-            ss << "path=" << _tape_slots[i].path << LINETERM;
-            ss << "mode=" << _mount_mode_names[_tape_slots[i].mode] << LINETERM;
         }
     }
 
@@ -499,9 +440,6 @@ New behavior: copy from SD first if available, then read SPIFFS.
             break;
         case SECTION_PRINTER:
             _read_section_printer(ss, index);
-            break;
-        case SECTION_TAPE:
-            _read_section_tape(ss, index);
             break;
         case SECTION_UNKNOWN:
             break;
@@ -646,43 +584,6 @@ void fnConfig::_read_section_mount(std::stringstream &ss, int index)
     }
 }
 
-void fnConfig::_read_section_tape(std::stringstream &ss, int index)
-{
-    // Throw out any existing data for this index
-    _tape_slots[index].host_slot = HOST_SLOT_INVALID;
-    _tape_slots[index].mode = MOUNTMODE_INVALID;
-    _tape_slots[index].path.clear();
-
-    std::string line;
-    // Read lines until one starts with '[' which indicates a new section
-    while(_read_line(ss, line, '[') >= 0)
-    {
-        std::string name;
-        std::string value;
-        if(_split_name_value(line, name, value))
-        {
-            if(strcasecmp(name.c_str(), "hostslot") == 0)
-            {
-                int slot = atoi(value.c_str()) -1;
-                if(slot < 0 || slot >= MAX_HOST_SLOTS)
-                    slot = HOST_SLOT_INVALID;
-                _mount_slots[index].host_slot = slot;
-                //Debug_printf("config mount %d hostslot=%d\n", index, slot);
-            }
-            else if (strcasecmp(name.c_str(), "mode") == 0)
-            {
-                _mount_slots[index].mode = mount_mode_from_string(value.c_str());
-                //Debug_printf("config mount %d mode=%d (\"%s\")\n", index, _mount_slots[index].mode, value.c_str());
-            }
-            else if (strcasecmp(name.c_str(), "path") == 0)
-            {
-                _mount_slots[index].path = value;
-                //Debug_printf("config mount %d path=\"%s\"\n", index, value.c_str());
-            }
-        }
-    }
-}
-
 void fnConfig::_read_section_printer(std::stringstream &ss, int index)
 {
     // Throw out any existing data for this index
@@ -777,16 +678,6 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             {
                 // Debug_printf("Found Network\n");
                 return SECTION_NETWORK;
-            } else if (strncasecmp("Cassette", s1.c_str(), 8) == 0)
-            {
-                index = atoi((const char *)(s1.c_str()+8)) -1;
-                if(index < 0 || index >= MAX_TAPE_SLOTS)
-                {
-                    Debug_println("Invalid index value - discarding");
-                    return SECTION_UNKNOWN;
-                }
-                // Debug_printf("Found Cassette\n");
-                return SECTION_TAPE;
             }
 
         }
