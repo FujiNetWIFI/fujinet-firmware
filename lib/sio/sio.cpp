@@ -237,9 +237,13 @@ void sioBus::_sio_process_queue()
     {
         switch (msg.message_id)
         {
-        case (SIOMSG_DISKSWAP):
+        case SIOMSG_DISKSWAP:
             if (_fujiDev != nullptr)
                 _fujiDev->image_rotate();
+            break;
+        case SIOMSG_DEBUG_TAPE:
+            if (_fujiDev != nullptr)
+                _fujiDev->debug_tape();
             break;
         }
     }
@@ -247,10 +251,11 @@ void sioBus::_sio_process_queue()
 
 /*
  Primary SIO serivce loop:
- 1. If CMD line asserted, try reading CMD frame and sending it to appropriate device
- 2. If CMD line not asserted but MODEM is active, give it a chance to read incoming data
- 3. Throw out stray input on SIO if neither of the above two are true
- 4. Give NETWORK devices an opportunity to signal available data
+ * If MOTOR line asserted, hand SIO processing over to the TAPE device
+ * If CMD line asserted, try reading CMD frame and sending it to appropriate device
+ * If CMD line not asserted but MODEM is active, give it a chance to read incoming data
+ * Throw out stray input on SIO if neither of the above two are true
+ * Give NETWORK devices an opportunity to signal available data
  */
 void sioBus::service()
 {
@@ -261,19 +266,26 @@ void sioBus::service()
         return; // break!
     }
 
-    // Handle Cassette if enabled and motor line high, do not process SIO commands
-    if (_cassetteDev != nullptr)
+    // If motor line high, handle cassette if tape mounted
+    if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH)
     {
-        if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH)
+        if (_fujiDev->cassette()->cassette_mounted())
         {
-            if (!_cassetteDev->cassetteActive)
-                _cassetteDev->sio_enable_cassette();
-            _cassetteDev->sio_handle_cassette();
+            if (!_fujiDev->cassette()->cassetteActive)
+            {
+                Debug_println("MOTOR ON: activating cassette");
+                _fujiDev->cassette()->sio_enable_cassette();
+            }
+            _fujiDev->cassette()->sio_handle_cassette();
+            return; // break!
         }
-        else
+    }
+    else
+    {
+        if (_fujiDev->cassette()->cassetteActive)
         {
-            if (_cassetteDev->cassetteActive)
-                _cassetteDev->sio_disable_cassette();
+            Debug_println("MOTOR OFF: de-activating cassette");            
+            _fujiDev->cassette()->sio_disable_cassette();
         }
     }
 
@@ -363,10 +375,6 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
     else if (device_id == SIO_DEVICEID_MIDI)
     {
         _midiDev = (sioMIDIMaze *)pDevice;
-    }
-    else if (device_id == SIO_DEVICEID_CASSETTE)
-    {
-        _cassetteDev = (sioCassette *)pDevice;
     }
 
     pDevice->_devnum = device_id;

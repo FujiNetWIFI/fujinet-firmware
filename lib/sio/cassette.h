@@ -25,6 +25,7 @@ public:
     void sio_enable_cassette();                      // setup cassette
     void sio_disable_cassette();                     // stop cassette
     void sio_handle_cassette();                      // Handle incoming & outgoing data for cassette
+    bool cassette_mounted();
 
 private:
     size_t tape_offset = 0;
