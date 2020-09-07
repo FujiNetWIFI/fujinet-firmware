@@ -8,6 +8,7 @@
 #include "keys.h"
 #include "led.h"
 #include "sio.h"
+#include "disk.h"
 #include "fuji.h"
 #include "modem.h"
 #include "apetime.h"
@@ -39,7 +40,6 @@ sioFuji theFuji;
 sioApeTime apeTime;
 sioVoice sioV;
 sioMIDIMaze sioMIDI;
-sioCassette sioC;
 
 void main_shutdown_handler()
 {
