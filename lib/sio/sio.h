@@ -156,7 +156,8 @@ public:
 
 enum sio_message : uint16_t
 {
-    SIOMSG_DISKSWAP
+    SIOMSG_DISKSWAP,
+    SIOMSG_DEBUG_TAPE
 };
 
 struct sio_message_t
