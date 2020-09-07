@@ -23,9 +23,7 @@ bool networkProtocolTNFS::open_dir(string directory, string filename)
         return false; // There was an error.
 
     while (tnfs_readdirx(&mountInfo, &fs, e, 255) == 0)
-    {
-        memset(e,0,sizeof(e));
-        
+    {        
         es = e;
         if (aux2 & 0x80)
         {
