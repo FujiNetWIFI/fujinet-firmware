@@ -38,7 +38,7 @@ bool networkProtocolTNFS::open_dir(string directory, string filename)
     }
 
     // Finally drop a FREE SECTORS trailer.
-    dirBuffer += "999+ FREE SECTORS\x9b";
+    dirBuffer += "999+FREE SECTORS\x9b";
 
     return true; // No error.
 }
