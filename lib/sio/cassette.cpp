@@ -76,6 +76,11 @@ void sioCassette::sio_disable_cassette()
 #endif
 }
 
+bool sioCassette::cassette_mounted()
+{
+    return false;
+}
+
 void sioCassette::sio_handle_cassette()
 {
     //if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW)

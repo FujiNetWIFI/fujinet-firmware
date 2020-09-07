@@ -118,7 +118,6 @@ class sioFuji;    // declare here so can reference it, but define in fuji.h
 class sioBus;     // declare early so can be friend
 class sioNetwork; // declare here so can reference it, but define in network.h
 class sioMIDIMaze;   // declare here so can reference it, but define in midimaze.h
-class sioCassette; // declare here so can reference it, but define in cassette.h
 
 class sioDevice
 {
@@ -157,7 +156,8 @@ public:
 
 enum sio_message : uint16_t
 {
-    SIOMSG_DISKSWAP
+    SIOMSG_DISKSWAP,
+    SIOMSG_DEBUG_TAPE
 };
 
 struct sio_message_t
@@ -180,7 +180,6 @@ private:
     sioFuji *_fujiDev = nullptr;
     sioNetwork *_netDev[8] = { nullptr };
     sioMIDIMaze *_midiDev = nullptr;
-    sioCassette *_cassetteDev = nullptr;
 
     int _sioBaud = SIO_STANDARD_BAUDRATE;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
