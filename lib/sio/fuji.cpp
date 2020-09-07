@@ -904,7 +904,7 @@ void sioFuji::sio_set_device_filename()
 
     uint8_t ck = sio_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
 
-    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/$02X FILENAME: %s\n", slot, host, mode, tmp);
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
     if (sio_checksum((uint8_t *)tmp, MAX_FILENAME_LEN) != ck)
     {
