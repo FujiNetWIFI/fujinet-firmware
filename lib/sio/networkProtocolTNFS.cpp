@@ -23,7 +23,9 @@ bool networkProtocolTNFS::open_dir(string directory, string filename)
         return false; // There was an error.
 
     while (tnfs_readdirx(&mountInfo, &fs, e, 255) == 0)
-    {        
+    {
+        memset(e,0,sizeof(e));
+        
         es = e;
         if (aux2 & 0x80)
         {
@@ -38,7 +40,7 @@ bool networkProtocolTNFS::open_dir(string directory, string filename)
     }
 
     // Finally drop a FREE SECTORS trailer.
-    dirBuffer += "999+FREE SECTORS\x9b";
+    dirBuffer += "999+ FREE SECTORS\x9b";
 
     return true; // No error.
 }
@@ -49,8 +51,10 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, ena
     strcpy(mountInfo.mountpath, "/");
 
     path = urlParser->path;
-    directory = urlParser->path.substr(0, urlParser->path.find_last_of("/") - 1);
+    directory = urlParser->path.substr(0, urlParser->path.find_last_of("/"));
     filename = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
+
+    Debug_printf("PATH: %s | DIRECTORY: %s | FILENAME: %s\n",path.c_str(),directory.c_str(),filename.c_str());
 
     if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
         filename = "*";
@@ -70,16 +74,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, ena
     // This is a directory open request
     if (cmdFrame->aux1 == 6)
     {
-        // Disable interrupts
-        enable_interrupt(false);
-
-        string dirPath = urlParser->path.substr(0, urlParser->path.find_last_of("/"));
-
-        if (tnfs_opendirx(&mountInfo, dirPath.c_str()))
-        {
-            enable_interrupt(true);
-            return false; // error
-        }
+        return open_dir(directory, filename);
     }
     // This is a file open request
     else
@@ -127,7 +122,6 @@ bool networkProtocolTNFS::close(enable_interrupt_t enable_interrupt)
         enable_interrupt(true);
     }
 
-
     if (fileHandle != 0)
         tnfs_close(&mountInfo, fileHandle);
 
@@ -142,11 +136,8 @@ bool networkProtocolTNFS::read(uint8_t *rx_buf, unsigned short len)
 
     if (aux1 == 6) // are we reading directory?
     {
-        if (len == 0)
-            return true;
-
-        strcpy((char *)rx_buf, entryBuf);
-        memset(entryBuf, 0, sizeof(entryBuf));
+        memcpy(rx_buf, dirBuffer.data(), len);
+        dirBuffer.erase(0, len);
     }
     else
     {
@@ -177,89 +168,30 @@ bool networkProtocolTNFS::status(uint8_t *status_buf)
 
     if (aux1 == 0x06)
     {
-        status_buf[0] = status_dir();
-        status_buf[1] = 0;
+        status_buf[0] = dirBuffer.size() & 0xFF;
+        status_buf[1] = dirBuffer.size() >> 8;
+
+        if (dirBuffer.empty())
+        {
+            status_buf[2] = 0;
+            status_buf[3] = 136;
+        }
+        else
+        {
+            status_buf[2] = 1;
+            status_buf[3] = 1;
+        }
     }
     else
     {
         // File
         status_buf[0] = fileStat.filesize & 0xFF;
         status_buf[1] = fileStat.filesize >> 8;
+        status_buf[2] = 0;
+        status_buf[3] = (fileStat.filesize == 0 ? 136 : 1);
     }
-
-    status_buf[2] = 0;
-    status_buf[3] = (fileStat.filesize == 0 ? 136 : 1);
 
     return false;
-}
-
-unsigned char networkProtocolTNFS::status_dir()
-{
-    char tmp[256];
-    string path_fixed;
-    string entry;
-    size_t fix_pos;
-
-    path_fixed = path;
-    fix_pos = path_fixed.find("*");
-
-    if (fix_pos != string::npos)
-    {
-        path_fixed = path_fixed.substr(0, fix_pos);
-    }
-
-    memset(tmp, 0, sizeof(tmp));
-
-    if (entryBuf[0] == 0x00)
-    {
-        while (tnfs_readdirx(&mountInfo, &fileStat, tmp, 255) == 0)
-        {
-            Debug_printf("tnfs::status_dir got \"%s\"\n", tmp);
-            if (util_wildcard_match(tmp, filename.c_str()))
-            {
-                Debug_printf("tnfs::status_dir path: %s - tmp: %s\n", path.c_str(), tmp);
-
-                entry = "/" + path_fixed + tmp;
-
-                if (aux2 & 0x80) // extended dir
-                {
-                    if (fileStat.isDir)
-                    {
-                        tmp[strlen(tmp)] = '/';
-                        tmp[strlen(tmp)] = 0x00;
-                    }
-
-                    entry = tmp;
-                    entry = util_long_entry(entry, fileStat.filesize);
-                }
-                else // 8.3 with sectors
-                {
-                    entry = util_entry(util_crunch(tmp), fileStat.filesize);
-
-                    if (strcmp(tmp, ".") == 0)
-                        entry.replace(2, 1, ".");
-                    else if (strcmp(tmp, "..") == 0)
-                        entry.replace(2, 2, "..");
-
-                    if (fileStat.isDir)
-                        entry.replace(10, 3, "DIR");
-                }
-
-                entry += "\x9b";
-                Debug_printf("tnfs::status_dir entry: \"%s\"\n", entry.c_str());
-                strcpy(entryBuf, entry.c_str());
-                return (unsigned char)strlen(entryBuf);
-            }
-        }
-
-        if (dirEOF == false)
-        {
-            dirEOF = true;
-            strcpy(entryBuf, "999+FREE SECTORS\x9b");
-        }
-    }
-
-    return (unsigned char)strlen(entryBuf);
 }
 
 bool networkProtocolTNFS::special(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
