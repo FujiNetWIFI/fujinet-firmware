@@ -796,7 +796,7 @@ void sioFuji::sio_read_device_slots()
         // TODO: Populate this with real values
         diskSlots[0].mode = 0; // Always READ
         diskSlots[0].hostSlot = 0;
-        diskSlots[0].filename = "TAPETEST.CAS";
+        strlcpy(diskSlots[0].filename, "TAPETEST.CAS", MAX_DISPLAY_FILENAME_LEN);
 
         returnsize = sizeof(disk_slot);
     }
