@@ -31,7 +31,7 @@ public:
 private:
     bool block_read(uint8_t *rx_buf, unsigned short len);
     bool block_write(uint8_t *tx_buf, unsigned short len);
-    bool networkProtocolTNFS::open_dir(string directory, string filename);
+    bool open_dir(string directory, string filename);
 
     tnfsMountInfo mountInfo;
     int16_t fileHandle;
