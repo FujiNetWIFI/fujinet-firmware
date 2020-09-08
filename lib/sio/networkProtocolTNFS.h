@@ -31,9 +31,7 @@ public:
 private:
     bool block_read(uint8_t *rx_buf, unsigned short len);
     bool block_write(uint8_t *tx_buf, unsigned short len);
-
-    bool open_dir(string directory, string filename);
-
+    unsigned char status_dir();
 
     tnfsMountInfo mountInfo;
     int16_t fileHandle;
@@ -46,7 +44,6 @@ private:
     char aux2;
     size_t comma_pos;
     string rnTo;
-    string dirBuffer;
     bool dirEOF = false;
 };
 
