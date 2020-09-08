@@ -3,6 +3,13 @@
 
 #define CASSETTE_FILE "/test.cas"
 
+void sioCassette::close_cassette_file()
+{
+    if (_file != nullptr)
+        fclose(_file);
+    _mounted = false;        
+}
+
 void sioCassette::open_cassette_file(FileSystem *filesystem)
 {
     _FS = filesystem;
@@ -46,6 +53,7 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
         // _delay_ms(10000);
         fnSystem.delay(10000);
     }
+    _mounted = true;
 }
 
 void sioCassette::sio_enable_cassette()
@@ -74,11 +82,6 @@ void sioCassette::sio_disable_cassette()
 #ifdef DEBUG
     Debug_println("Cassette Mode disabled");
 #endif
-}
-
-bool sioCassette::cassette_mounted()
-{
-    return false;
 }
 
 void sioCassette::sio_handle_cassette()
