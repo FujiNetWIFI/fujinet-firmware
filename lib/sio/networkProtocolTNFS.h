@@ -32,6 +32,7 @@ private:
     bool block_read(uint8_t *rx_buf, unsigned short len);
     bool block_write(uint8_t *tx_buf, unsigned short len);
     bool open_dir(string directory, string filename);
+    bool open_file(string path, int mode, int create_parms, short &fileHandle);
 
     tnfsMountInfo mountInfo;
     int16_t fileHandle;
