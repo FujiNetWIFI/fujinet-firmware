@@ -8,9 +8,6 @@
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8
 #define MAX_PRINTER_SLOTS 4
-#define MAX_TAPE_SLOTS 1
-
-#define BASE_TAPE_SLOT 0x1A
 
 #define HOST_SLOT_INVALID -1
 
@@ -35,17 +32,13 @@ public:
         MOUNTMODE_INVALID
     };
     typedef mount_modes mount_mode_t;
-
-    enum mount_types
-    {
-        MOUNTTYPE_DISK = 0,
-        MOUNTTYPE_TAPE
-    };
-    typedef mount_types mount_type_t;
-
     mount_mode_t mount_mode_from_string(const char *str);
 
-    // GENERAL
+    sioPrinter::printer_type get_printer_type(uint8_t num);
+    int get_printer_port(uint8_t num);
+    void store_printer_type(uint8_t num, sioPrinter::printer_type ptype);
+    void store_printer_port(uint8_t num, int port);
+
     std::string get_general_devicename() { return _general.devicename; };
     int get_general_hsioindex() { return _general.hsio_index; };
     std::string get_general_timezone() { return _general.timezone; };
@@ -57,7 +50,6 @@ public:
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
 
-    // WIFI
     bool have_wifi_info() { return _wifi.ssid.empty() == false; };
     std::string get_wifi_ssid() { return _wifi.ssid; };
     std::string get_wifi_passphrase() { return _wifi.passphrase; };
@@ -65,25 +57,16 @@ public:
     void store_wifi_passphrase(const char *passphrase_octets, int num_octets);
     void reset_wifi() { _wifi.ssid.clear(); _wifi.passphrase.clear(); };
 
-    // HOSTS
     std::string get_host_name(uint8_t num);
     host_type_t get_host_type(uint8_t num);
     void store_host(uint8_t num, const char *hostname, host_type_t type);
     void clear_host(uint8_t num);
 
-    // MOUNTS
-    std::string get_mount_path(uint8_t num, mount_type_t mounttype = mount_type_t::MOUNTTYPE_DISK);
-    mount_mode_t get_mount_mode(uint8_t num, mount_type_t mounttype = mount_type_t::MOUNTTYPE_DISK);
-    int get_mount_host_slot(uint8_t num, mount_type_t mounttype = mount_type_t::MOUNTTYPE_DISK);
-    void store_mount(uint8_t num, int hostslot, const char *path, mount_mode_t mode, mount_type_t mounttype = mount_type_t::MOUNTTYPE_DISK);
-    void clear_mount(uint8_t num, mount_type_t mounttype = mount_type_t::MOUNTTYPE_DISK);
-
-    // PRINTERS
-    sioPrinter::printer_type get_printer_type(uint8_t num);
-    int get_printer_port(uint8_t num);
-    void store_printer_type(uint8_t num, sioPrinter::printer_type ptype);
-    void store_printer_port(uint8_t num, int port);
-
+    std::string get_mount_path(uint8_t num);
+    mount_mode_t get_mount_mode(uint8_t num);
+    int get_mount_host_slot(uint8_t num);
+    void store_mount(uint8_t num, int hostslot, const char *path, mount_mode_t mode);
+    void clear_mount(uint8_t num);
 
     void load();
     void save();
@@ -101,7 +84,6 @@ private:
     void _read_section_host(std::stringstream &ss, int index);
     void _read_section_mount(std::stringstream &ss, int index);
     void _read_section_printer(std::stringstream &ss, int index);
-    void _read_section_tape(std::stringstream &ss, int index);    
 
     enum section_match {
         SECTION_GENERAL,
@@ -110,7 +92,6 @@ private:
         SECTION_MOUNT,
         SECTION_PRINTER,
         SECTION_NETWORK,
-        SECTION_TAPE,
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -180,8 +161,6 @@ private:
     host_info _host_slots[MAX_HOST_SLOTS];
     mount_info _mount_slots[MAX_MOUNT_SLOTS];
     printer_info _printer_slots[MAX_PRINTER_SLOTS];
-    mount_info _tape_slots[MAX_TAPE_SLOTS];
-
     wifi_info _wifi;
     network_info _network;
     general_info _general;
