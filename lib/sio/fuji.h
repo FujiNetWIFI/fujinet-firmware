@@ -17,6 +17,9 @@
 #define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
 
+#define READ_DEVICE_SLOTS_DISKS1 0x00
+#define READ_DEVICE_SLOTS_TAPE 0x10
+
 class sioFuji : public sioDevice
 {
 private:

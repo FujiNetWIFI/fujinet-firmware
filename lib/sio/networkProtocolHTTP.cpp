@@ -29,7 +29,7 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
     switch (openMode)
     {
     case DIR:
-        resultCode = client.PROPFIND(fnHttpClient::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n</D:prop>\r\n</D:propfind>\r\n");
+        resultCode = client.PROPFIND(fnHttpClient::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /></D:prop>\r\n</D:propfind>\r\n");
         ret = true;
         break;
     case GET:
@@ -70,6 +70,7 @@ bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, ena
     switch (cmdFrame->aux1)
     {
     case 6:
+        urlParser->path=urlParser->path.substr(0,urlParser->path.find_first_of("*"));
         openMode = DIR;
         break;
     case 4:
