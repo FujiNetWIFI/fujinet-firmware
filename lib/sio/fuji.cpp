@@ -285,21 +285,49 @@ void sioFuji::sio_disk_image_mount()
     sio_complete();
 }
 
+// DEBUG TAPE
+void sioFuji::debug_tape()
+{
+    if(_cassetteDev.cassetteActive == false)
+    {
+        Debug_println("::debug_tape ENABLE");
+        _cassetteDev.open_cassette_file(&fnSPIFFS);
+        _cassetteDev.sio_enable_cassette();
+    }
+    else
+    {
+        Debug_println("::debug_tape DISABLE");        
+        _cassetteDev.sio_disable_cassette();
+        _cassetteDev.close_cassette_file();
+    }
+}
+
 // Disk Image Unmount
 void sioFuji::sio_disk_image_umount()
 {
-    Debug_println("Fuji cmd: UNMOUNT IMAGE");
+    uint8_t deviceSlot = cmdFrame.aux1;
 
-    unsigned char deviceSlot = cmdFrame.aux1;
-    // Make sure we weren't given a bad deviceSlot
-    if (!_validate_device_slot(deviceSlot))
+    Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
+
+    // Handle disk slots
+    if(deviceSlot < MAX_DISK_DEVICES)
+    {
+        _fnDisks[deviceSlot].disk_dev.unmount();
+        _fnDisks[deviceSlot].reset();
+
+    } 
+    // Handle tape
+    else if(deviceSlot == BASE_TAPE_SLOT)
+    {
+
+
+    }
+    // Invalid slot
     {
         sio_error();
         return;
     }
 
-    _fnDisks[deviceSlot].disk_dev.unmount();
-    _fnDisks[deviceSlot].reset();
     sio_complete();
 }
 
@@ -878,23 +906,46 @@ void sioFuji::sio_set_hsio_index()
 void sioFuji::sio_set_device_filename()
 {
     char tmp[MAX_FILENAME_LEN];
+
+    // AUX1 is the desired device slot
+    uint8_t slot = cmdFrame.aux1;
+    // AUX2 contains the host slot and the mount mode (READ/WRITE)
+    uint8_t host = cmdFrame.aux2 >> 4;
+    uint8_t mode = cmdFrame.aux2 & 0x0F;
+
     uint8_t ck = sio_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
 
-    Debug_printf("Fuji cmd: SET DEVICE SLOT FILENAME: %s\n", tmp);
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
     if (sio_checksum((uint8_t *)tmp, MAX_FILENAME_LEN) != ck)
     {
         sio_error();
         return;
     }
-    else
+
+    // Handle DISK slots
+    if(slot < MAX_DISK_DEVICES)
     {
+        // TODO: Set HOST and MODE
         memcpy(_fnDisks[cmdFrame.aux1].filename, tmp, MAX_FILENAME_LEN);
         _populate_config_from_slots();
-        Config.save();
-        sio_complete();
+    }
+    // Handle TAPE slots
+    else if (slot == BASE_TAPE_SLOT)
+    {
+        // Just save the filename until we need it mount the tape
+        Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ, fnConfig::MOUNTTYPE_TAPE);
+    }
+    // Bad slot
+    else
+    {
+        Debug_println("BAD DEVICE SLOT");
+        sio_error();
         return;
     }
+
+    Config.save();
+    sio_complete();
 }
 
 // Initializes base settings and adds our devices to the SIO bus
@@ -920,6 +971,8 @@ void sioFuji::setup(sioBus *siobus)
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
         _sio_bus->addDevice(&sioNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
+
+    _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
 }
 
 sioDisk *sioFuji::bootdisk()
