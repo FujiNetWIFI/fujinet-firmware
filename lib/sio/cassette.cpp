@@ -311,7 +311,7 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
 #endif
     while (gap--)
     { //       _delay_ms(1); //wait GAP
-        fnSystem.delay_microseconds(1000);
+        fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
         if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW)
             return starting_offset;
     }
