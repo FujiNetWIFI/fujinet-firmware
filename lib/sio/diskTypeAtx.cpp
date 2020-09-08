@@ -551,7 +551,6 @@ bool DiskTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrac
         if (sector_list[i].position >= ANGULAR_UNIT_TOTAL)
         {
             Debug_printf("WARNING: sector position = %hu\n", sector_list[i].position);
-            sector_list[i].position = 0;
         }
         track.sectors.emplace_back(sector_list[i]);
     }

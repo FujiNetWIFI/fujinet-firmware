@@ -226,7 +226,7 @@ std::string util_long_entry(std::string filename, size_t fileSize)
 
     // Double size of returned entry if > 30 chars.
     if (filename.length() > 30)
-        returned_entry += returned_entry;
+        returned_entry += returned_entry + " ";
 
     returned_entry.replace(0, filename.length(), filename);
 
