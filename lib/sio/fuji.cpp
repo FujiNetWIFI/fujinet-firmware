@@ -766,22 +766,48 @@ void sioFuji::sio_read_device_slots()
 {
     Debug_println("Fuji cmd: READ DEVICE SLOTS");
 
-    struct
+    struct disk_slot
     {
         uint8_t hostSlot;
         uint8_t mode;
         char filename[MAX_DISPLAY_FILENAME_LEN];
-    } diskSlots[MAX_DISK_DEVICES];
+    };
+    disk_slot diskSlots[MAX_DISK_DEVICES];
 
-    // Load the data from our current device array
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    int returnsize;
+
+    // AUX1 specifies which slots to return
+    // Handle disk slots
+    if(cmdFrame.aux1 == READ_DEVICE_SLOTS_DISKS1)
     {
-        diskSlots[i].mode = _fnDisks[i].access_mode;
-        diskSlots[i].hostSlot = _fnDisks[i].host_slot;
-        strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
+        // Load the data from our current device array
+        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        {
+            diskSlots[i].mode = _fnDisks[i].access_mode;
+            diskSlots[i].hostSlot = _fnDisks[i].host_slot;
+            strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
+        }
+
+        returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
+    }
+    // Hanlde tape slot
+    else if(cmdFrame.aux1 == READ_DEVICE_SLOTS_TAPE)
+    {
+        // TODO: Populate this with real values
+        diskSlots[0].mode = 0; // Always READ
+        diskSlots[0].hostSlot = 0;
+        diskSlots[0].filename = "TAPETEST.CAS";
+
+        returnsize = sizeof(disk_slot);
+    }
+    // Bad AUX1 value
+    else
+    {
+        sio_error();
+        return;
     }
 
-    sio_to_computer((uint8_t *)&diskSlots, sizeof(diskSlots), false);
+    sio_to_computer((uint8_t *)&diskSlots, returnsize, false);
 }
 
 // Read and save disk slot data from computer
