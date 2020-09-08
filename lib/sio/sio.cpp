@@ -259,6 +259,9 @@ void sioBus::_sio_process_queue()
  */
 void sioBus::service()
 {
+    // Check for any messages in our queue
+    _sio_process_queue();
+
     // Handle MIDIMaze if enabled and do not process SIO commands
     if (_midiDev != nullptr && _midiDev->midimazeActive)
     {
@@ -269,7 +272,7 @@ void sioBus::service()
     // If motor line high, handle cassette if tape mounted
     if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH)
     {
-        if (_fujiDev->cassette()->cassette_mounted())
+        if (_fujiDev->cassette()->is_mounted())
         {
             if (!_fujiDev->cassette()->cassetteActive)
             {
@@ -311,9 +314,6 @@ void sioBus::service()
         if (_netDev[i] != nullptr)
             _netDev[i]->sio_assert_interrupts();
     }
-
-    // Check for any messages in our queue
-    _sio_process_queue();
 }
 
 // Setup SIO bus

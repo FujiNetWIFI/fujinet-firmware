@@ -288,7 +288,18 @@ void sioFuji::sio_disk_image_mount()
 // DEBUG TAPE
 void sioFuji::debug_tape()
 {
-
+    if(_cassetteDev.cassetteActive == false)
+    {
+        Debug_println("::debug_tape ENABLE");
+        _cassetteDev.open_cassette_file(&fnSPIFFS);
+        _cassetteDev.sio_enable_cassette();
+    }
+    else
+    {
+        Debug_println("::debug_tape DISABLE");        
+        _cassetteDev.sio_disable_cassette();
+        _cassetteDev.close_cassette_file();
+    }
 }
 
 // Disk Image Unmount

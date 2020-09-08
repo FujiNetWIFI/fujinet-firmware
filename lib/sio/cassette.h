@@ -15,6 +15,8 @@ protected:
     FILE *_file = nullptr;
     size_t filesize = 0;
 
+    bool _mounted = false;
+
     void sio_status() override; // $53, 'S', Status
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
 
@@ -22,10 +24,13 @@ public:
     bool cassetteActive = false; // If we are in cassette mode or not
 
     void open_cassette_file(FileSystem *filesystem); // open a file
+    void close_cassette_file();
+
     void sio_enable_cassette();                      // setup cassette
     void sio_disable_cassette();                     // stop cassette
     void sio_handle_cassette();                      // Handle incoming & outgoing data for cassette
-    bool cassette_mounted();
+
+    bool is_mounted() { return _mounted; };
 
 private:
     size_t tape_offset = 0;
