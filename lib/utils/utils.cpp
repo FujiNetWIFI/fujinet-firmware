@@ -197,7 +197,7 @@ std::string util_entry(std::string crunched, size_t fileSize)
 
     if (ext_pos != std::string::npos)
     {
-        returned_entry.replace(10, 3, ext);
+        returned_entry.replace(10, 3, ext.substr(0,3));
     }
 
     returned_entry.replace(2, (basename.size() < 8 ? basename.size() : 8), basename);
