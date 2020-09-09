@@ -1,5 +1,107 @@
+#include <expat.h>
+#include <sstream>
 #include "networkProtocolHTTP.h"
+#include "utils.h"
 #include "../../include/debug.h"
+
+class DAVEntry
+{
+public:
+    string filename;
+    size_t filesize;
+};
+
+class DAVHandler
+{
+public:
+    vector<DAVEntry> entries;
+    DAVEntry currentEntry;
+    bool insideResponse;
+    bool insideDisplayName;
+    bool insideGetContentLength;
+
+    void Start(const XML_Char *el, const XML_Char **attr)
+    {
+        if (strcmp(el, "D:response") == 0)
+            insideResponse = true;
+        else if (strcmp(el, "D:displayname") == 0)
+            insideDisplayName = true;
+        else if (strcmp(el, "D:getcontentlength") == 0)
+            insideGetContentLength = true;
+    }
+    void End(const XML_Char *el)
+    {
+        if (strcmp(el, "D:response") == 0)
+        {
+            insideResponse = false;
+            Debug_printf("Adding Entry: %s %lu\n", currentEntry.filename.c_str(), currentEntry.filesize);
+            entries.push_back(currentEntry);
+        }
+        else if (strcmp(el, "D:displayname") == 0)
+            insideDisplayName = false;
+        else if (strcmp(el, "D:getcontentlength"))
+            insideGetContentLength = false;
+    }
+
+    void Char(const XML_Char *s, int len)
+    {
+        if (insideResponse == true)
+        {
+            if (insideDisplayName == true)
+            {
+                currentEntry.filename = string(s, len);
+            }
+            else if (insideGetContentLength == true)
+            {
+                stringstream ss(string(s,len));
+                ss >> currentEntry.filesize;
+            }
+        }
+    }
+
+    string ToString()
+    {
+        string output;
+        for (vector<DAVEntry>::iterator it = entries.begin(); it != entries.end(); ++it)
+        {
+            output += util_entry(util_crunch(it->filename), it->filesize) + "\x9b";
+        }
+        output += "999+FREE SECTORS\x9b";
+        return output;
+    }
+
+    string ToLongString()
+    {
+        string output;
+        for (vector<DAVEntry>::iterator it = entries.begin(); it != entries.end(); ++it)
+        {
+            output += util_long_entry(it->filename, it->filesize);
+        }
+        output += "999+FREE SECTORS\x9b";
+        return output;
+    }
+};
+
+template <class T>
+void Start(void *data, const XML_Char *El, const XML_Char **attr)
+{
+    T *handler = static_cast<T *>(data);
+    handler->Start(El, attr);
+}
+
+template <class T>
+void End(void *data, const XML_Char *El)
+{
+    T *handler = static_cast<T *>(data);
+    handler->End(El);
+}
+
+template <class T>
+void Char(void *data, const XML_Char *s, int len)
+{
+    T *handler = static_cast<T *>(data);
+    handler->Char(s, len);
+}
 
 networkProtocolHTTP::networkProtocolHTTP()
 {
@@ -16,6 +118,44 @@ networkProtocolHTTP::~networkProtocolHTTP()
     client.close();
 }
 
+void networkProtocolHTTP::parseDir()
+{
+    DAVHandler handler;
+    XML_Parser parser = XML_ParserCreate(NULL);
+    uint8_t* buf;
+
+#ifdef BOARD_HAS_PSRAM
+    buf = (uint8_t *)heap_caps_malloc(16384, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
+    buf = calloc(1,16384);
+#endif
+
+    XML_SetUserData(parser, &handler);
+    XML_SetElementHandler(parser, Start<DAVHandler>, End<DAVHandler>);
+    XML_SetCharacterDataHandler(parser, Char<DAVHandler>);
+
+    while (int len = client.read(buf,client.available()))
+    {
+        int done = len < 16384;
+        XML_Status status = XML_Parse(parser, (const char *)buf, len, done);
+        if (status == XML_STATUS_ERROR)
+        {
+            Debug_printf("DAV response XML Parse Error! msg: %s line: %lu\n",XML_ErrorString(XML_GetErrorCode(parser)),XML_GetCurrentLineNumber(parser));
+            XML_ParserFree(parser);
+            free(buf);
+            return;
+        }
+    }
+    Debug_printf("DAV Response Parsed.\n");
+    if (aux2 == 128)
+        dirString = handler.ToLongString();
+    else
+        dirString = handler.ToString();
+    Debug_printf("DAV Response serialized.\n");
+    XML_ParserFree(parser);
+    free(buf);
+}
+
 bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
 {
     bool ret = false;
@@ -30,6 +170,8 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
     {
     case DIR:
         resultCode = client.PROPFIND(fnHttpClient::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /></D:prop>\r\n</D:propfind>\r\n");
+        if (resultCode == 207)
+            parseDir();
         ret = true;
         break;
     case GET:
@@ -67,10 +209,13 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
 
 bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt)
 {
+    aux1 = cmdFrame->aux1;
+    aux2 = cmdFrame->aux2;
+
     switch (cmdFrame->aux1)
     {
     case 6:
-        urlParser->path=urlParser->path.substr(0,urlParser->path.find_first_of("*"));
+        urlParser->path = urlParser->path.substr(0, urlParser->path.find_first_of("*"));
         openMode = DIR;
         break;
     case 4:
@@ -151,16 +296,10 @@ bool networkProtocolHTTP::read(uint8_t *rx_buf, unsigned short len)
     case DATA:
         if (openMode == DIR)
         {
-            if (client.read(rx_buf, len) != len)
-                return true;
-            // massage data slightly.
-            for (int z = 0; z < len; z++)
-            {
-                if (rx_buf[z] == 0x0D)
-                    rx_buf[z] = 0x20;
-                else if (rx_buf[z] == 0x0A)
-                    rx_buf[z] = 0x9B;
-            }
+            string fragment = dirString.substr(0, len);
+            memcpy(rx_buf, fragment.data(), fragment.size());
+            dirString.erase(0, len);
+            return false;
         }
         else
         {
@@ -290,6 +429,17 @@ bool networkProtocolHTTP::status(uint8_t *status_buf)
             status_buf[1] = 0;
             status_buf[2] = 1;
             status_buf[3] = 1;
+        }
+        else if (openMode == DIR)
+        {
+            if (requestStarted == false)
+                if (!startConnection(status_buf, 4))
+                    return true;
+
+            status_buf[0] = dirString.size() & 0xFF;
+            status_buf[1] = dirString.size() >> 8;
+            status_buf[2] = (dirString.size() > 0 ? 1 : 0);
+            status_buf[3] = (dirString.size() > 0 ? 1 : 136);
         }
         else
         {
