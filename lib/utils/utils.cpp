@@ -225,8 +225,9 @@ std::string util_long_entry(std::string filename, size_t fileSize)
     char tmp[8];
 
     // Double size of returned entry if > 30 chars.
+    // Add EOL so SpartaDOS doesn't truncate record. grrr.
     if (filename.length() > 30)
-        returned_entry += returned_entry;
+        returned_entry += "\x9b" + returned_entry;
 
     returned_entry.replace(0, filename.length(), filename);
 
