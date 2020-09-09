@@ -8,6 +8,13 @@
 #include "EdUrlParser.h"
 #include "sio.h"
 
+class DAVEntry
+{
+public:
+    string filename;
+    size_t filesize;
+};
+
 class networkProtocolHTTP : public networkProtocol
 {
 public:
@@ -77,6 +84,8 @@ private:
     unsigned char aux1;
     unsigned char aux2;
     string dirString;
+    vector<DAVEntry> dirEntries;
+
 };
 
 #endif /* NETWORKPROTOCOLHTTP */

@@ -4,13 +4,6 @@
 #include "utils.h"
 #include "../../include/debug.h"
 
-class DAVEntry
-{
-public:
-    string filename;
-    size_t filesize;
-};
-
 class DAVHandler
 {
 public:
@@ -53,7 +46,7 @@ public:
             }
             else if (insideGetContentLength == true)
             {
-                stringstream ss(string(s,len));
+                stringstream ss(string(s, len));
                 ss >> currentEntry.filesize;
             }
         }
@@ -79,6 +72,11 @@ public:
         }
         output += "999+FREE SECTORS\x9b";
         return output;
+    }
+
+    vector<DAVEntry> ToEntries()
+    {
+        return entries;
     }
 };
 
@@ -122,31 +120,34 @@ void networkProtocolHTTP::parseDir()
 {
     DAVHandler handler;
     XML_Parser parser = XML_ParserCreate(NULL);
-    uint8_t* buf;
+    uint8_t *buf;
 
 #ifdef BOARD_HAS_PSRAM
     buf = (uint8_t *)heap_caps_malloc(16384, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 #else
-    buf = calloc(1,16384);
+    buf = calloc(1, 16384);
 #endif
 
     XML_SetUserData(parser, &handler);
     XML_SetElementHandler(parser, Start<DAVHandler>, End<DAVHandler>);
     XML_SetCharacterDataHandler(parser, Char<DAVHandler>);
 
-    while (int len = client.read(buf,client.available()))
+    while (int len = client.read(buf, client.available()))
     {
         int done = len < 16384;
         XML_Status status = XML_Parse(parser, (const char *)buf, len, done);
         if (status == XML_STATUS_ERROR)
         {
-            Debug_printf("DAV response XML Parse Error! msg: %s line: %lu\n",XML_ErrorString(XML_GetErrorCode(parser)),XML_GetCurrentLineNumber(parser));
+            Debug_printf("DAV response XML Parse Error! msg: %s line: %lu\n", XML_ErrorString(XML_GetErrorCode(parser)), XML_GetCurrentLineNumber(parser));
             XML_ParserFree(parser);
             free(buf);
             return;
         }
     }
     Debug_printf("DAV Response Parsed.\n");
+
+    dirEntries = handler.ToEntries();
+
     if (aux2 == 128)
         dirString = handler.ToLongString();
     else
@@ -178,6 +179,30 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
         client.collect_headers((const char **)headerCollection, headerCollectionIndex);
 
         resultCode = client.GET();
+        if (resultCode == 404)
+        {
+            string baseurl = openedUrl.substr(0, openedUrl.find_last_of("/"));
+            string filename = openedUrl.substr(openedUrl.find_last_of("/") + 1);
+
+            if (client.begin(baseurl + "/") == false)
+                return false; // error
+
+            resultCode = client.PROPFIND(fnHttpClient::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /></D:prop>\r\n</D:propfind>\r\n");
+            if (resultCode == 207)
+            {
+                parseDir();
+                for (vector<DAVEntry>::iterator it = dirEntries.begin(); it != dirEntries.end(); ++it)
+                {
+                    if (util_crunch(it->filename) == util_crunch(filename))
+                    {
+                        if (client.begin(baseurl + "/" + it->filename) == false)
+                            return false; // Error
+
+                        resultCode = client.GET();
+                    }
+                }
+            }
+        }
 
         headerIndex = 0;
         numHeaders = client.get_header_count();
@@ -269,6 +294,51 @@ bool networkProtocolHTTP::close(enable_interrupt_t enable_interrupt)
         fseek(fpPUT, 0, SEEK_SET);
         fread(putBuf, 1, putPos, fpPUT);
         Debug_printf("\n");
+
+        resultCode = client.PROPFIND(fnHttpClient::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /></D:prop>\r\n</D:propfind>\r\n");
+        if (resultCode == 404) // not found, try to crunch resolve
+        {
+            string baseurl = openedUrl.substr(0, openedUrl.find_last_of("/"));
+            string filename = openedUrl.substr(openedUrl.find_last_of("/") + 1);
+
+            client.close();
+
+            if (client.begin(baseurl) == false)
+                return false; // error
+
+            resultCode = client.PROPFIND(fnHttpClient::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /></D:prop>\r\n</D:propfind>\r\n");
+            if (resultCode == 207)
+            {
+                bool resolved = false;
+                
+                parseDir();
+                
+                for (vector<DAVEntry>::iterator it = dirEntries.begin(); it != dirEntries.end(); ++it)
+                {
+                    if (util_crunch(it->filename) == util_crunch(filename))
+                    {
+                        client.close();
+
+                        if (client.begin(baseurl + it->filename) == false)
+                            return false; // Error
+                        resolved = true;
+                    }
+                }
+
+                if (resolved==false)
+                {
+                    client.close();
+                    client.begin(openedUrl); // nothing resolved, open with original URL.
+                }
+            }
+            else
+            {
+                // WEBDAV not supported, re-open with original URL.
+                client.close();
+                resultCode = client.begin(openedUrl);
+            }
+        }
+
         client.PUT((const char *)putBuf, putPos);
         fclose(fpPUT);
         fnSystem.delete_tempfile(nPUT);
