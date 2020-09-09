@@ -31,9 +31,10 @@ public:
     virtual bool rmdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
 
     virtual bool isConnected();
-    
+
 private:
     virtual bool startConnection(uint8_t *buf, unsigned short len);
+    void parseDir();
 
     //HTTPClient client;
     fnHttpClient client;
@@ -73,6 +74,9 @@ private:
     string rnTo;
     string destURL;
     size_t comma_pos;
+    unsigned char aux1;
+    unsigned char aux2;
+    string dirString;
 };
 
 #endif /* NETWORKPROTOCOLHTTP */
