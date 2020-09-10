@@ -183,7 +183,8 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
         {
             string baseurl = openedUrl.substr(0, openedUrl.find_last_of("/"));
             string filename = openedUrl.substr(openedUrl.find_last_of("/") + 1);
-
+            
+            client.close();
             if (client.begin(baseurl + "/") == false)
                 return false; // error
 
@@ -195,6 +196,7 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
                 {
                     if (util_crunch(it->filename) == util_crunch(filename))
                     {
+                        client.close();
                         if (client.begin(baseurl + "/" + it->filename) == false)
                             return false; // Error
 
