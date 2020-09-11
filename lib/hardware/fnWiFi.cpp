@@ -13,7 +13,7 @@
 #include "../utils/utils.h"
 #include "fnWiFi.h"
 #include "fnSystem.h"
-#include "fnConfig.h"
+#include "../config/fnConfig.h"
 
 #include "httpService.h"
 #include "led.h"
@@ -36,10 +36,13 @@ int WiFiManager::start()
         _wifi_event_group = xEventGroupCreate();
 
     // Make sure our network interface is initialized
-    tcpip_adapter_init();
+    ESP_ERROR_CHECK(esp_netif_init());
 
     // Create the default event loop, which is where the WiFi driver sends events
     ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    // Create a default WIFI station interface
+    _wifi_if = esp_netif_create_default_wifi_sta();
 
     // Configure basic WiFi settings
     wifi_init_config_t wifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
@@ -58,7 +61,7 @@ int WiFiManager::start()
     ESP_ERROR_CHECK(esp_wifi_start());
 
     // Set a hostname from our configuration
-    tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, Config.get_general_devicename().c_str());
+    esp_netif_set_hostname(_wifi_if, Config.get_general_devicename().c_str());
 
     _started = true;
     return 0;
