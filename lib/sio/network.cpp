@@ -336,6 +336,11 @@ void sioNetwork::sio_read()
                         rx_buf[i] = 0x9b;
                     break;
                 }
+
+                // Translate ASCII TAB to ATASCII TAB.
+                if (aux2 > 0)
+                    if (rx_buf[i]==0x09)
+                        rx_buf[i]=0x7f;
             }
         }
     }
@@ -388,6 +393,11 @@ void sioNetwork::sio_write()
                     }
                     break;
                 }
+
+                // Translate ATASCII TAB to ASCII TAB.
+                if (aux2 > 0)
+                    if (tx_buf[i]==0x7F)
+                        tx_buf[i]=0x09;
             }
         }
 

@@ -18,14 +18,12 @@ bool networkProtocolTNFS::open_dir(string directory, string filename)
     string es;
 
     dirBuffer.clear();
-    
+
     if (tnfs_opendirx(&mountInfo, directory.c_str(), 0, 0, filename.c_str(), 0) != 0)
         return false; // There was an error.
 
     while (tnfs_readdirx(&mountInfo, &fs, e, 255) == 0)
     {
-        memset(e,0,sizeof(e));
-        
         es = e;
         if (aux2 & 0x80)
         {
@@ -45,8 +43,49 @@ bool networkProtocolTNFS::open_dir(string directory, string filename)
     return true; // No error.
 }
 
+bool networkProtocolTNFS::open_file(string path, int mode, int create_parms, short &fileHandle)
+{
+    Debug_printf("networkProtocolTNFS::open_file - path: %s\n", path.c_str());
+
+    if (aux1 == 4)
+    {
+        if (tnfs_stat(&mountInfo, &fileStat, path.c_str()))
+        {
+            // Stat failed on full filename, try looking against crunched filename.
+            string crunched_filename = util_crunch(filename);
+            string crunched_current_filename;
+            char e[256];
+
+            if (tnfs_opendirx(&mountInfo, directory.c_str(), 0, 0, "", 0) != 0)
+                return false; // There was an error.
+
+            while (tnfs_readdirx(&mountInfo, &fileStat, e, 255) == 0)
+            {
+                crunched_current_filename = util_crunch(string(e));
+                if (crunched_filename == crunched_current_filename)
+                {
+                    path = directory + "/" + string(e);
+                    Debug_printf("NEW PATH: %s\n",path.c_str());
+                    break;
+                }
+            }
+
+            if (tnfs_stat(&mountInfo, &fileStat, path.c_str()))
+                return false;
+        }
+    }
+
+    if (tnfs_open(&mountInfo, path.c_str(), mode, create_parms, &fileHandle))
+        return false; // error
+
+    return true;
+}
+
 bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt)
 {
+    int mode = 1;
+    int create_perms = 0;
+
     strcpy(mountInfo.hostname, urlParser->hostName.c_str());
     strcpy(mountInfo.mountpath, "/");
 
@@ -54,7 +93,7 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, ena
     directory = urlParser->path.substr(0, urlParser->path.find_last_of("/"));
     filename = urlParser->path.substr(urlParser->path.find_last_of("/") + 1);
 
-    Debug_printf("PATH: %s | DIRECTORY: %s | FILENAME: %s\n",path.c_str(),directory.c_str(),filename.c_str());
+    Debug_printf("PATH: %s | DIRECTORY: %s | FILENAME: %s\n", path.c_str(), directory.c_str(), filename.c_str());
 
     if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
         filename = "*";
@@ -79,9 +118,6 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, ena
     // This is a file open request
     else
     {
-        int mode = 1;
-        int create_perms = 0;
-
         switch (cmdFrame->aux1)
         {
         case 4:
@@ -100,18 +136,9 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, ena
             create_perms = 0x1FF;
             break;
         }
-
-        if (aux1 == 4)
-        {
-            if (tnfs_stat(&mountInfo, &fileStat, urlParser->path.c_str()))
-                return false; // error
-        }
-
-        if (tnfs_open(&mountInfo, urlParser->path.c_str(), mode, create_perms, &fileHandle))
-            return false; // error
     }
 
-    return true;
+    return open_file(urlParser->path, mode, create_perms, fileHandle);
 }
 
 bool networkProtocolTNFS::close(enable_interrupt_t enable_interrupt)
