@@ -197,7 +197,7 @@ std::string util_entry(std::string crunched, size_t fileSize)
 
     if (ext_pos != std::string::npos)
     {
-        returned_entry.replace(10, 3, ext);
+        returned_entry.replace(10, 3, ext.substr(0,3));
     }
 
     returned_entry.replace(2, (basename.size() < 8 ? basename.size() : 8), basename);
@@ -225,8 +225,9 @@ std::string util_long_entry(std::string filename, size_t fileSize)
     char tmp[8];
 
     // Double size of returned entry if > 30 chars.
+    // Add EOL so SpartaDOS doesn't truncate record. grrr.
     if (filename.length() > 30)
-        returned_entry += returned_entry;
+        returned_entry += "\x9b" + returned_entry;
 
     returned_entry.replace(0, filename.length(), filename);
 
