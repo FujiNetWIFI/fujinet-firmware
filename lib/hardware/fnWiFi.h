@@ -5,6 +5,7 @@
 
 #include "freertos/event_groups.h"
 #include "esp_event.h"
+#include "esp_netif.h"
 
 #define FNWIFI_RECONNECT_RETRIES 8
 #define FNWIFI_SCAN_RESULTS_MAX 20
@@ -17,6 +18,8 @@ private:
     bool _connected = false;
     std::string _ssid;
     std::string _password;
+
+    esp_netif_t *_wifi_if;
 
     wifi_ap_record_t * _scan_records = nullptr;
     uint16_t _scan_record_count = 0;
@@ -42,6 +45,8 @@ public:
     int connect();
 
     bool connected();
+    esp_netif_t * get_adapter_handle() { return _wifi_if; };
+
     std::string get_current_ssid();
     const char * get_current_detail_str();
     int get_current_bssid(uint8_t bssid[6]);
