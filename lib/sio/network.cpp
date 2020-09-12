@@ -754,41 +754,24 @@ void sioNetwork::sio_special()
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
         uint8_t ret = 0xFF;
-        Debug_printf("INQ\n");
         sio_ack();
-        if (protocol == nullptr)
+        if (sio_special_supported_80_command(cmdFrame.aux1))
+            ret=0x80;
+        else if (sio_special_supported_40_command(cmdFrame.aux1))
+            ret=0x40;
+        else if (sio_special_supported_00_command(cmdFrame.aux1))
+            ret=0x00;
+        else if (protocol != nullptr)
         {
-            if (sio_special_supported_00_command(cmdFrame.aux1))
-            {
-                ret = 0x00;
-            }
-            else if (sio_special_supported_40_command(cmdFrame.aux1))
-            {
-                ret = 0x40;
-            }
-            else if (sio_special_supported_80_command(cmdFrame.aux1))
-            {
-                ret = 0x80;
-            }
-            Debug_printf("Local Ret %d\n", ret);
-        }
-        else
-        {
-            if (protocol->special_supported_00_command(cmdFrame.aux1))
-            {
-                ret = 0x00;
-            }
+            if (protocol->special_supported_80_command(cmdFrame.aux1))
+                ret=0x80;
             else if (protocol->special_supported_40_command(cmdFrame.aux1))
-            {
-                ret = 0x40;
-            }
-            else if (protocol->special_supported_80_command(cmdFrame.aux1))
-            {
-                ret = 0x80;
-            }
-            Debug_printf("Protocol Ret %d\n", ret);
+                ret=0x40;
+            else if (protocol->special_supported_00_command(cmdFrame.aux1))
+                ret=0x00;
         }
-        sio_to_computer(&ret, 1, false);
+        Debug_printf("INQ Return %d\n",ret);
+        sio_to_computer(&ret,1,false);
     }
     else if (sio_special_supported_00_command(cmdFrame.comnd))
     {
@@ -835,6 +818,8 @@ bool sioNetwork::sio_special_supported_00_command(unsigned char c)
     switch (c)
     {
     case 'T': // Set translation
+        return true;
+    case 0x80: // JSON parse
         return true;
     }
     return false;
@@ -982,7 +967,7 @@ void sioNetwork::sio_assert_interrupts()
             {
                 if (status_buf.connection_status!=previous_connection_status)
                     Debug_printf("CS: %d\tPCS: %d\n",status_buf.connection_status,previous_connection_status);
-                Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
+                // Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
                 fnSystem.digital_write(PIN_PROC, DIGI_LOW);
                 fnSystem.delay_microseconds(50);
                 fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
