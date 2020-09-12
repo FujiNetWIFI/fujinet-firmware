@@ -424,3 +424,8 @@ bool networkProtocolTNFS::point(uint8_t *tx_buf)
 
     return tnfs_lseek(&mountInfo, fileHandle, pos, SEEK_SET, NULL);
 }
+
+int networkProtocolTNFS::available()
+{
+    return fileStat.filesize; // will see if this holds up.
+}

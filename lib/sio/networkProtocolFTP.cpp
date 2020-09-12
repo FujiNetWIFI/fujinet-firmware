@@ -379,3 +379,8 @@ bool networkProtocolFTP::special_supported_00_command(unsigned char comnd)
 {
     return false;
 }
+
+int networkProtocolFTP::available()
+{
+    return data.available();
+}

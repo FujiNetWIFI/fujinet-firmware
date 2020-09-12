@@ -5,6 +5,7 @@
 #include "sio.h"
 #include "networkProtocol.h"
 #include "EdUrlParser.h"
+#include "json.h"
 
 #define NUM_DEVICES 8
 
@@ -75,6 +76,7 @@ public:
     void sio_special_protocol_80();
 
     void sio_special_set_translation();
+    void sio_special_parse_json();
 
     bool sio_special_supported_00_command(unsigned char c);
     bool sio_special_supported_40_command(unsigned char c);
@@ -101,6 +103,7 @@ private:
     string prefix;
     string initial_prefix;
     char filespecBuf[256];
+    JSON _json;    
 
     union
     {
