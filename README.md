@@ -6,6 +6,18 @@ A multi-function peripheral built on ESP32 hardware being developed for the Atar
 
 ### A dedicated web site is also available at https://fujinet.online/
 
+MAJOR ANNOUNCEMENT FOR ANYONE WORKING ON FIRMWARE CODE:
+
+Fujinet-platformio has been ported forward to the new PlatformIO Esp32 2.0. The changes made mean that it no longer builds under 1.12.x, so you must upgrade in order to hack on this firmware.
+
+To upgrade:
+
+* Select Platforms from PIO Home in Quick Access
+
+* You should see an upgrade notice for Espressif 32. Upgrade it. After the upgrade, you will move from 1.12.x to 2.0.
+
+* Once this is done, delete your .vscode and .pio folders, and re-start vs.code.
+
 -------------------------------------------------
 
 FujiNet currently provides the following devices:

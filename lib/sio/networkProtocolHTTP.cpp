@@ -723,3 +723,8 @@ bool networkProtocolHTTP::special(uint8_t *sp_buf, unsigned short len, cmdFrame_
     }
     return true;
 }
+
+int networkProtocolHTTP::available()
+{
+    return client.available();
+}
