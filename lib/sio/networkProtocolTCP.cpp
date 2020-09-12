@@ -192,3 +192,8 @@ bool networkProtocolTCP::isConnected()
 {
     return client.connected();
 }
+
+int networkProtocolTCP::available()
+{
+    return client.available();
+}
