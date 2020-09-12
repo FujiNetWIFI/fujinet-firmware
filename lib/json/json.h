@@ -18,6 +18,7 @@ public:
     virtual ~JSON();
 
     void setProtocol(networkProtocol *newProtocol);
+    bool parse();
 
 private:
     cJSON _json;
