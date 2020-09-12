@@ -831,8 +831,6 @@ bool sioNetwork::sio_special_supported_00_command(unsigned char c)
 {
     switch (c)
     {
-    case 0x10: // Acknowledge interrupt
-        return true;
     case 'T': // Set translation
         return true;
     }
@@ -869,8 +867,6 @@ bool sioNetwork::sio_special_supported_80_command(unsigned char c)
         return true;
     case 0x2B: // RMDIR
         return true;
-    case 0xFE: // Set prefix
-        return true;
     }
     return false;
 }
@@ -882,10 +878,6 @@ void sioNetwork::sio_special_00()
     {
     case 'T': // Set translation
         sio_special_set_translation();
-        break;
-    case 0x10: // Ack interrupt
-        sio_complete();
-        interruptProceed = true;
         break;
     }
 }
