@@ -879,6 +879,9 @@ void sioNetwork::sio_special_00()
     case 'T': // Set translation
         sio_special_set_translation();
         break;
+    case 0x80: // Parse JSON
+        sio_special_parse_json();
+        break;
     }
 }
 
@@ -954,6 +957,11 @@ void sioNetwork::sio_special_set_translation()
 {
     trans_aux2 = cmdFrame.aux2;
     sio_complete();
+}
+
+void sioNetwork::sio_special_parse_json()
+{
+    
 }
 
 void sioNetwork::sio_assert_interrupts()
