@@ -146,3 +146,8 @@ bool networkProtocolUDP::special(uint8_t *sp_buf, unsigned short len, cmdFrame_t
     }
     return err;
 }
+
+int networkProtocolUDP::available()
+{
+    return saved_rx_buffer_len;
+}
