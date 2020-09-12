@@ -964,7 +964,11 @@ void sioNetwork::sio_special_set_translation()
 
 void sioNetwork::sio_special_parse_json()
 {
-
+    Debug_printf("SPECIAL PARSE JSON\n");
+    if (_json.parse()==false)
+        sio_error();
+    else
+        sio_complete();
 }
 
 void sioNetwork::sio_assert_interrupts()
