@@ -6,12 +6,14 @@
  */
 
 #include "json.h"
+#include "debug.h"
 
 /**
  * ctor
  */
 JSON::JSON()
 {
+    Debug_printf("JSON::ctor()\n");
     _protocol = nullptr;
 }
 
@@ -20,6 +22,7 @@ JSON::JSON()
  */
 JSON::~JSON()
 {
+    Debug_printf("JSON::dtor()\n");
     _protocol = nullptr;
 }
 
@@ -28,5 +31,15 @@ JSON::~JSON()
  */
 void JSON::setProtocol(networkProtocol *newProtocol)
 {
+    Debug_printf("JSON::setProtocol()\n");
     _protocol=newProtocol;
+}
+
+/**
+ * Parse data from protocol
+ */
+bool JSON::parse()
+{
+    if (_protocol==nullptr)
+        return false; 
 }
