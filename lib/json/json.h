@@ -21,7 +21,7 @@ public:
     bool parse();
 
 private:
-    cJSON _json;
+    cJSON *_json;
     networkProtocol *_protocol;
 
 };
