@@ -6,7 +6,7 @@
  */
 
 #include "json.h"
-#include "debug.h"
+#include "../../include/debug.h"
 
 /**
  * ctor
