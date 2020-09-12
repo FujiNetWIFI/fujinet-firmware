@@ -22,7 +22,7 @@ fnConfig::fnConfig()
     strlcpy(_network.sntpserver, CONFIG_DEFAULT_SNTPSERVER, sizeof(_network.sntpserver));
 }
 
-void fnConfig::store_midimaze_host(char host_ip[64])
+void fnConfig::store_midimaze_host(const char host_ip[64])
 {
     strlcpy(_network.midimaze_host, host_ip, sizeof(_network.midimaze_host));
 }
