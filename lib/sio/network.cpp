@@ -251,6 +251,9 @@ void sioNetwork::sio_open()
     esp_timer_create(&tcfg, &rateTimerHandle);
     esp_timer_start_periodic(rateTimerHandle, 100000); // 100ms
 
+    // Finally, go ahead and inform the parsers of the active protocol.
+    _json.setProtocol(protocol);
+
     sio_complete();
 }
 
@@ -961,7 +964,7 @@ void sioNetwork::sio_special_set_translation()
 
 void sioNetwork::sio_special_parse_json()
 {
-    
+
 }
 
 void sioNetwork::sio_assert_interrupts()
