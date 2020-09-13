@@ -53,6 +53,9 @@ void JSON::setReadQuery(string queryString)
 cJSON *JSON::resolveQuery()
 {
     // This needs a full blown query parser!, for now, I just find object on same depth.
+    if (_queryString.empty())
+        return _json;
+
     return cJSON_GetObjectItem(_json, _queryString.c_str());
 }
 
@@ -78,7 +81,32 @@ string JSON::getValue(cJSON *item)
         ss << item->valuedouble;
         return ss.str() + "\x9b";
     }
-    
+    else if (cJSON_IsObject(item))
+    {
+        string ret="";
+
+        item=item->child;
+
+        do
+        {
+            ret += string(item->string) + "\x9b" + getValue(item);
+        } while ((item=item->next) != NULL);
+        
+        return ret;
+    }
+    else if (cJSON_IsArray(item))
+    {
+        cJSON *child=item->child;
+        string ret;
+
+        do
+        {
+            ret += getValue(child);
+        } while ((child=child->next) != NULL);
+        
+        return ret;
+    }
+
     return "UNKNOWN\x9b";
 }
 
@@ -88,12 +116,12 @@ string JSON::getValue(cJSON *item)
 bool JSON::readValue(uint8_t *rx_buf, unsigned short len)
 {
     cJSON *item = resolveQuery();
-    string ret=getValue(item);
+    string ret = getValue(item);
 
     if (item == nullptr)
         return true; // error
 
-    memcpy(rx_buf,ret.data(),ret.size());
+    memcpy(rx_buf, ret.data(), ret.size());
 
     return false; // no error.
 }
