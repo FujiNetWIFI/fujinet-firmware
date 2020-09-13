@@ -11,8 +11,8 @@
  * */
 
 
-#define CASSETTE_FILE "/test.cas" // zaxxon
-//#define CASSETTE_FILE "/hello.cas" // basic program
+//#define CASSETTE_FILE "/test.cas" // zaxxon
+#define CASSETTE_FILE "/hello.cas" // basic program
 
 void sioCassette::close_cassette_file()
 {
