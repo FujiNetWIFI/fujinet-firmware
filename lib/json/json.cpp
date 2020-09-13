@@ -6,6 +6,7 @@
  */
 
 #include <string.h>
+#include <sstream>
 #include "json.h"
 #include "../../include/debug.h"
 
@@ -56,25 +57,44 @@ cJSON *JSON::resolveQuery()
 }
 
 /**
+ * Return normalized string of JSON item
+ */
+string JSON::getValue(cJSON *item)
+{
+    if (cJSON_IsString(item))
+        return string(cJSON_GetStringValue(item)) + "\x9b";
+    else if (cJSON_IsBool(item))
+    {
+        if (cJSON_IsTrue(item))
+            return "TRUE\x9b";
+        else if (cJSON_IsFalse(item))
+            return "FALSE\x9b";
+    }
+    else if (cJSON_IsNull(item))
+        return "NULL\x9b";
+    else if (cJSON_IsNumber(item))
+    {
+        stringstream ss;
+        ss << item->valuedouble;
+        return ss.str() + "\x9b";
+    }
+    
+    return "UNKNOWN\x9b";
+}
+
+/**
  * Return requested value
  */
 bool JSON::readValue(uint8_t *rx_buf, unsigned short len)
 {
     cJSON *item = resolveQuery();
-    string ret;
+    string ret=getValue(item);
 
     if (item == nullptr)
         return true; // error
 
-    if (cJSON_IsString(item))
-    {
-        Debug_printf("RET String Found: %s[END]\n",_queryString.c_str());
-        ret = string(cJSON_GetStringValue(item)) + "\x9b";
-        Debug_printf("Returning string %s size %d\n",ret.c_str(),ret.size());
-        memcpy(rx_buf,ret.data(),ret.size());
-    }
+    memcpy(rx_buf,ret.data(),ret.size());
 
-    //cJSON_free(item);
     return false; // no error.
 }
 
@@ -84,21 +104,11 @@ bool JSON::readValue(uint8_t *rx_buf, unsigned short len)
 int JSON::readValueLen()
 {
     cJSON *item = resolveQuery();
-    int len=0;
-    string ret;
+    int len = getValue(item).size();
 
     if (item == nullptr)
         return len;
 
-    if (cJSON_IsString(item))
-    {
-        Debug_printf("LEN String Found: %s[END]\n",_queryString.c_str());
-        ret = string(cJSON_GetStringValue(item)) + "\x9b";
-        Debug_printf("Returning string %s size %d\n",ret.c_str(),ret.size());
-        len = ret.size();
-    }
-
-    //cJSON_free(item);
     return len;
 }
 
