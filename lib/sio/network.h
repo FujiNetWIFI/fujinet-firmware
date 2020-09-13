@@ -77,6 +77,7 @@ public:
 
     void sio_special_set_translation();
     void sio_special_parse_json();
+    void sio_special_json_read_query();
 
     bool sio_special_supported_00_command(unsigned char c);
     bool sio_special_supported_40_command(unsigned char c);
@@ -103,7 +104,12 @@ private:
     string prefix;
     string initial_prefix;
     char filespecBuf[256];
-    JSON _json;    
+    JSON _json;
+    enum _read_mode 
+    {
+        NORMAL,
+        QUERY_JSON
+    } read_mode;
 
     union
     {
