@@ -1,3 +1,4 @@
+#include "utils.h"
 #include "midimaze.h"
 
 void sioMIDIMaze::sio_enable_midimaze()
@@ -30,9 +31,7 @@ void sioMIDIMaze::sio_enable_midimaze()
     fnUartSIO.set_baudrate(MIDI_BAUD);
     midimazeActive = true;
 
-#ifdef DEBUG
-    Debug_println("MIDIMAZE Mode enabled");
-#endif
+    Debug_println("MIDIMAZE mode enabled");
 }
 
 void sioMIDIMaze::sio_disable_midimaze()
@@ -49,31 +48,33 @@ void sioMIDIMaze::sio_handle_midimaze()
     int packetSize = udpMIDI.parsePacket();
     if (packetSize > 0)
     {
-        udpMIDI.read(buf1, MIDIMAZE_BUFFER_SIZE);
-        // now send to UART:
-        fnUartSIO.write(buf1, packetSize);
+        udpMIDI.read(buf_net, MIDIMAZE_BUFFER_SIZE);
+        // Send to Atari UART
+        fnUartSIO.write(buf_net, packetSize);
 #ifdef DEBUG
         Debug_print("MIDI-IN: ");
-        Debug_println((char *)buf1);
+        util_dump_bytes(buf_net, packetSize);
 #endif
     }
 
+    // Read the data until there's a pause in the incoming stream
     if (fnUartSIO.available())
     {
-        // read the data until pause:
+        // Toss the data if motor or command is asserted        
         if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW || fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
         {
-            fnUartSIO.read(); // Toss the data if motor or command is asserted
+            fnUartSIO.read();
         }
         else
         {
-            while (1)
+            while (true)
             {
                 if (fnUartSIO.available())
                 {
-                    buf2[i2] = (char)fnUartSIO.read(); // read char from UART
-                    if (i2 < MIDIMAZE_BUFFER_SIZE - 1)
-                        i2++;
+                    // Collect bytes read in our buffer
+                    buf_midi[buf_midi_index] = (char)fnUartSIO.read();
+                    if (buf_midi_index < MIDIMAZE_BUFFER_SIZE - 1)
+                        buf_midi_index++;
                 }
                 else
                 {
@@ -83,17 +84,16 @@ void sioMIDIMaze::sio_handle_midimaze()
                 }
             }
 
-            // now send to WiFi:
+            // Send what we've collected over WiFi
             udpMIDI.beginPacket(midimaze_host_ip, MIDIMAZE_PORT); // remote IP and port
-            udpMIDI.write(buf2, i2);
+            udpMIDI.write(buf_midi, buf_midi_index);
             udpMIDI.endPacket();
 
 #ifdef DEBUG
             Debug_print("MIDI-OUT: ");
-            Debug_println((char *)buf2);
+            util_dump_bytes(buf_midi, buf_midi_index);
 #endif
-
-            i2 = 0;
+            buf_midi_index = 0;
         }
     }
 }
