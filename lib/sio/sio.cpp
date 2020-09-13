@@ -5,6 +5,7 @@
 #include "network.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "fnDNS.h"
 #include "utils.h"
 #include "midimaze.h"
 #include "cassette.h"
@@ -259,7 +260,8 @@ void sioBus::_sio_process_queue()
  */
 void sioBus::service()
 {
-    // Check for any messages in our queue
+    // Check for any messages in our queue (this should always happen, even if any other special
+    // modes disrupt normal SIO handling - should probably make a separate task for this)
     _sio_process_queue();
 
     // Handle MIDIMaze if enabled and do not process SIO commands
@@ -475,15 +477,28 @@ int sioBus::getHighSpeedBaud()
     return _sioBaudHigh;
 }
 
-void sioBus::setMIDIHost(char *newhost)
+void sioBus::setMIDIHost(const char *hostname)
 {
-    // Set the new host
-    strcpy(_midiDev->midimaze_host_ip, newhost);
 
+    if(hostname != nullptr && hostname[0] != '\0')
+    {
+        // Try to resolve the hostname and store that so we don't have to keep looking it up
+        _midiDev->midimaze_host_ip = get_ip4_addr_by_name(hostname);
+
+        if(_midiDev->midimaze_host_ip == IPADDR_NONE)
+        {
+            Debug_printf("Failed to resolve hostname \"%s\"\n", hostname);
+        }
+    } else
+    {
+        _midiDev->midimaze_host_ip = IPADDR_NONE;
+    }
+    
+    
     // Restart MIDIMaze mode if needed
     if (_midiDev->midimazeActive)
         _midiDev->sio_disable_midimaze();
-    if (_midiDev->midimaze_host_ip[0] != 0)
+    if (_midiDev->midimaze_host_ip != IPADDR_NONE)
         _midiDev->sio_enable_midimaze();
 }
 

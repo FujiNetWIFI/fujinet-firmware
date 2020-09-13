@@ -11,6 +11,7 @@ enum eKey
 
 enum eKeyStatus
 {
+    DISABLED,
     INACTIVE,
     SINGLE_TAP,
     DOUBLE_TAP,
@@ -31,7 +32,10 @@ public:
 private:
     long _buttonLastTap[eKey::KEY_COUNT] = {0};
     long _buttonActionStarted[eKey::KEY_COUNT] = {0};
-    bool _buttonActive[eKey::KEY_COUNT] = {0};
+    bool _buttonActive[eKey::KEY_COUNT] = { false };
+    bool _buttonDisabled[eKey::KEY_COUNT] = { false };
+
+
     static void _keystate_task(void *param);
 };
 

@@ -208,7 +208,7 @@ public:
     int getHighSpeedIndex(); // Gets current HSIO index
     int getHighSpeedBaud(); // Gets current HSIO baud
 
-    void setMIDIHost(char *newhost); // Set new host/ip for MIDIMaze
+    void setMIDIHost(const char *newhost); // Set new host/ip for MIDIMaze
 
     QueueHandle_t qSioMessages = nullptr;
 };

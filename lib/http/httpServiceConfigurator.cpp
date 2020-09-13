@@ -138,16 +138,14 @@ void fnHttpServiceConfigurator::config_timezone(std::string timezone)
     Config.save();
 }
 
-void fnHttpServiceConfigurator::config_midimaze(std::string host_ip)
+void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
 {
-#ifdef DEBUG
-    Debug_printf("Set MIDIMaze host: %s\n", host_ip.c_str());
-#endif
+    Debug_printf("Set MIDIMaze host: %s\n", hostname.c_str());
 
-    Config.store_midimaze_host(const_cast<char*>(host_ip.c_str()));
     // Update the host ip variable
-    SIO.setMIDIHost(const_cast<char*>(host_ip.c_str()));
+    SIO.setMIDIHost(hostname.c_str());
     // Save change
+    Config.store_midimaze_host(hostname.c_str());
     Config.save();
 }
 
