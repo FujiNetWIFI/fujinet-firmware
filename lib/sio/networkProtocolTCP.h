@@ -22,6 +22,7 @@ public:
     virtual bool special(uint8_t* sp_buf, unsigned short len, cmdFrame_t* cmdFrame);
     virtual bool special_supported_00_command(unsigned char comnd);
     virtual bool isConnected();
+    virtual int available();
     
 private:
     fnTcpClient client;

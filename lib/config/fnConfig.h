@@ -53,7 +53,7 @@ public:
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
     void store_general_timezone(const char *timezone);
-    void store_midimaze_host(char host_ip[64]);
+    void store_midimaze_host(const char host_ip[64]);
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
 

@@ -33,15 +33,11 @@ void KeyManager::setup()
     if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
     {
         buttonCavail = true;
-#ifdef DEBUG
         Debug_println("FujiNet Hardware v1.1");
-#endif
     }
     else
     {
-#ifdef DEBUG
         Debug_println("FujiNet Hardware v1.0");
-#endif
     }
 
     // Disable pull down for BUTTON_C
@@ -76,6 +72,10 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
     if (key == BUTTON_B) || (key == BUTTON_C)
         return result;
 #endif
+
+    // Ignore disabled buttons
+    if(_buttonDisabled[key])
+        return eKeyStatus::DISABLED;
 
     unsigned long ms;
 
@@ -269,6 +269,15 @@ void KeyManager::_keystate_task(void *param)
             switch (pKM->getKeyStatus(eKey::BUTTON_B))
             {
             case eKeyStatus::LONG_PRESS:
+                // Check if we're with a few seconds of booting and disable this button if so -
+                // assume the button is stuck/disabled/non-existant
+                if(fnSystem.millis() < 3000)
+                {
+                    Debug_println("BUTTON_B: SEEMS STUCK - DISABLING");
+                    pKM->_buttonDisabled[eKey::BUTTON_B] = true;
+                    break;
+                }
+
                 Debug_println("BUTTON_B: LONG PRESS");
                 Debug_println("ACTION: Reboot");
                 fnSystem.reboot();

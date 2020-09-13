@@ -97,7 +97,6 @@ bool sioNetwork::open_protocol()
     }
     else if (urlParser->scheme == "HTTPS")
     {
-        sio_enable_interrupts(false);
         protocol = new networkProtocolHTTP();
         return true;
     }
@@ -175,6 +174,8 @@ void sioNetwork::sio_open()
 {
     Debug_println("sioNetwork::sio_open()");
 
+    read_mode = NORMAL;
+
     // Delete existing timer
     if (rateTimerHandle != nullptr)
     {
@@ -251,6 +252,9 @@ void sioNetwork::sio_open()
     esp_timer_create(&tcfg, &rateTimerHandle);
     esp_timer_start_periodic(rateTimerHandle, 100000); // 100ms
 
+    // Finally, go ahead and inform the parsers of the active protocol.
+    _json.setProtocol(protocol);
+
     sio_complete();
 }
 
@@ -310,8 +314,16 @@ void sioNetwork::sio_read()
     else
     {
         rx_buf_len = cmdFrame.aux2 * 256 + cmdFrame.aux1;
-        err = protocol->read(rx_buf, cmdFrame.aux2 * 256 + cmdFrame.aux1);
 
+        switch (read_mode)
+        {
+        case NORMAL:
+            err = protocol->read(rx_buf, cmdFrame.aux2 * 256 + cmdFrame.aux1);
+            break;
+        case QUERY_JSON:
+            err = _json.readValue(rx_buf, cmdFrame.aux2 * 256 + cmdFrame.aux1);
+            break;
+        }
         // Convert CR and/or LF to ATASCII EOL
         // 1 = CR, 2 = LF, 3 = CR/LF
         if (aux2 > 0)
@@ -339,8 +351,8 @@ void sioNetwork::sio_read()
 
                 // Translate ASCII TAB to ATASCII TAB.
                 if (aux2 > 0)
-                    if (rx_buf[i]==0x09)
-                        rx_buf[i]=0x7f;
+                    if (rx_buf[i] == 0x09)
+                        rx_buf[i] = 0x7f;
             }
         }
     }
@@ -396,8 +408,8 @@ void sioNetwork::sio_write()
 
                 // Translate ATASCII TAB to ASCII TAB.
                 if (aux2 > 0)
-                    if (tx_buf[i]==0x7F)
-                        tx_buf[i]=0x09;
+                    if (tx_buf[i] == 0x7F)
+                        tx_buf[i] = 0x09;
             }
         }
 
@@ -460,7 +472,20 @@ void sioNetwork::sio_status()
     }
     else
     {
-        err = protocol->status(status_buf.rawData);
+        unsigned short read_len;
+
+        switch (read_mode)
+        {
+        case NORMAL:
+            err = protocol->status(status_buf.rawData);
+            break;
+        case QUERY_JSON:
+            status_buf.rx_buf_len = (_json.readValueLen() > 65535 ? 65535 : _json.readValueLen());
+            status_buf.connection_status = (_json.readValueLen() > 0 ? 1 : 0);
+            status_buf.error = (_json.readValueLen() > 0 ? 1 : 136);
+            err=false;
+            break;
+        }
     }
     Debug_printf("Status bytes: %02x %02x %02x %02x\n", status_buf.rawData[0], status_buf.rawData[1], status_buf.rawData[2], status_buf.rawData[3]);
     sio_to_computer(status_buf.rawData, 4, err);
@@ -751,40 +776,23 @@ void sioNetwork::sio_special()
     else if (cmdFrame.comnd == 0xFF) // Get DSTATS for protocol command.
     {
         uint8_t ret = 0xFF;
-        Debug_printf("INQ\n");
         sio_ack();
-        if (protocol == nullptr)
+        if (sio_special_supported_80_command(cmdFrame.aux1))
+            ret = 0x80;
+        else if (sio_special_supported_40_command(cmdFrame.aux1))
+            ret = 0x40;
+        else if (sio_special_supported_00_command(cmdFrame.aux1))
+            ret = 0x00;
+        else if (protocol != nullptr)
         {
-            if (sio_special_supported_00_command(cmdFrame.aux1))
-            {
-                ret = 0x00;
-            }
-            else if (sio_special_supported_40_command(cmdFrame.aux1))
-            {
-                ret = 0x40;
-            }
-            else if (sio_special_supported_80_command(cmdFrame.aux1))
-            {
+            if (protocol->special_supported_80_command(cmdFrame.aux1))
                 ret = 0x80;
-            }
-            Debug_printf("Local Ret %d\n", ret);
-        }
-        else
-        {
-            if (protocol->special_supported_00_command(cmdFrame.aux1))
-            {
-                ret = 0x00;
-            }
             else if (protocol->special_supported_40_command(cmdFrame.aux1))
-            {
                 ret = 0x40;
-            }
-            else if (protocol->special_supported_80_command(cmdFrame.aux1))
-            {
-                ret = 0x80;
-            }
-            Debug_printf("Protocol Ret %d\n", ret);
+            else if (protocol->special_supported_00_command(cmdFrame.aux1))
+                ret = 0x00;
         }
+        Debug_printf("INQ Return %d\n", ret);
         sio_to_computer(&ret, 1, false);
     }
     else if (sio_special_supported_00_command(cmdFrame.comnd))
@@ -831,9 +839,9 @@ bool sioNetwork::sio_special_supported_00_command(unsigned char c)
 {
     switch (c)
     {
-    case 0x10: // Acknowledge interrupt
-        return true;
     case 'T': // Set translation
+        return true;
+    case 0x80: // JSON parse
         return true;
     }
     return false;
@@ -869,7 +877,7 @@ bool sioNetwork::sio_special_supported_80_command(unsigned char c)
         return true;
     case 0x2B: // RMDIR
         return true;
-    case 0xFE: // Set prefix
+    case 0x81: // JSON Read Query
         return true;
     }
     return false;
@@ -883,9 +891,8 @@ void sioNetwork::sio_special_00()
     case 'T': // Set translation
         sio_special_set_translation();
         break;
-    case 0x10: // Ack interrupt
-        sio_complete();
-        interruptProceed = true;
+    case 0x80: // Parse JSON
+        sio_special_parse_json();
         break;
     }
 }
@@ -914,11 +921,18 @@ void sioNetwork::sio_special_40()
 // For global commands with Computer->Peripheral payload
 void sioNetwork::sio_special_80()
 {
-    err = sio_to_peripheral(sp_buf, 256);
+    err = sio_to_peripheral((uint8_t *)filespecBuf, 256);
 
     for (int i = 0; i < 256; i++)
-        if (sp_buf[i] == 0x9b)
-            sp_buf[i] = 0x00;
+        if (filespecBuf[i] == 0x9b)
+            filespecBuf[i] = 0x00;
+
+    switch (cmdFrame.comnd)
+    {
+    case 0x81: // Read query
+        sio_special_json_read_query();
+        break;
+    }
 
     if (err == true)
         sio_error();
@@ -964,6 +978,29 @@ void sioNetwork::sio_special_set_translation()
     sio_complete();
 }
 
+void sioNetwork::sio_special_parse_json()
+{
+    Debug_printf("SPECIAL PARSE JSON\n");
+    if (_json.parse() == false)
+        sio_error();
+    else
+        sio_complete();
+}
+
+void sioNetwork::sio_special_json_read_query()
+{
+    string param = string((char *)filespecBuf);
+
+    param = param.substr(param.find(":") + 1);
+    read_mode = QUERY_JSON;
+    _json.setReadQuery(param);
+
+    Debug_printf("SPECIAL SET JSON READ QUERY\n");
+    Debug_printf("Query string now: %s\n", param.c_str());
+
+    // sio_complete handled by sio_pecial_protocol_80()
+}
+
 void sioNetwork::sio_assert_interrupts()
 {
     if (interruptEnabled == true && protocol != nullptr)
@@ -973,9 +1010,9 @@ void sioNetwork::sio_assert_interrupts()
         {
             if ((status_buf.rx_buf_len > 0) || (status_buf.connection_status != previous_connection_status) || (status_buf.error > 1))
             {
-                if (status_buf.connection_status!=previous_connection_status)
-                    Debug_printf("CS: %d\tPCS: %d\n",status_buf.connection_status,previous_connection_status);
-                Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
+                if (status_buf.connection_status != previous_connection_status)
+                    Debug_printf("CS: %d\tPCS: %d\n", status_buf.connection_status, previous_connection_status);
+                // Debug_println("sioNetwork::sio_assert_interrupts toggling PROC pin");
                 fnSystem.digital_write(PIN_PROC, DIGI_LOW);
                 fnSystem.delay_microseconds(50);
                 fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
