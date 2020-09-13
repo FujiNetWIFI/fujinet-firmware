@@ -18,11 +18,17 @@ public:
     virtual ~JSON();
 
     void setProtocol(networkProtocol *newProtocol);
+    void setReadQuery(string queryString);
+    cJSON *resolveQuery();
+    
     bool parse();
+    int readValueLen();
+    bool readValue(uint8_t *buf, unsigned short len);
 
 private:
     cJSON *_json;
     networkProtocol *_protocol;
+    string _queryString;
 
 };
 
