@@ -101,6 +101,11 @@ private:
     bool baudLock = false; // lock modem baud rate from further changes.
 
     int count_PollType1 = 0; // Keep track of how many times we've seen command 0x3F
+    int count_PollType3 = 0;
+    
+    int count_ReqRelocator = 0;
+    int count_ReqHandler = 0;
+    bool firmware_sent = false;
 
     /* Modem Active Variables */
     std::string cmd = "";          // Gather a new AT command to this string from serial
