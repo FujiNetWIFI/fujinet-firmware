@@ -17,8 +17,8 @@ protected:
 
     bool _mounted = false;
 
-    void sio_status() override; // $53, 'S', Status
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
+    void sio_status() override {}; // $53, 'S', Status
+    void sio_process(uint32_t commanddata, uint8_t checksum) override {};
 
 public:
     bool cassetteActive = false; // If we are in cassette mode or not

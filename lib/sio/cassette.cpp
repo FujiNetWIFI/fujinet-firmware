@@ -1,7 +1,18 @@
 #include "cassette.h"
 #include "../../include/debug.h"
 
-#define CASSETTE_FILE "/test.cas"
+/** thinking about state machine
+ * boolean states:
+ *      file mounted or not
+ *      motor activated or not (play/record button?)
+ * state variables:
+ *      baud rate
+ *      file position (offset)
+ * */
+
+
+#define CASSETTE_FILE "/test.cas" // zaxxon
+//#define CASSETTE_FILE "/hello.cas" // basic program
 
 void sioCassette::close_cassette_file()
 {
@@ -295,8 +306,8 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
             if (tape_flags.turbo) //ignore baud hdr
                 continue;
             baud = hdr->irg_length;
-            // TO DO support baud changes
             // set_tape_baud();
+            fnUartSIO.set_baudrate(baud);
         }
         offset += sizeof(struct tape_FUJI_hdr) + len;
     }
@@ -384,14 +395,14 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     return (offset);
 }
 
-void sioCassette::sio_status()
-{
-    // Nothing to do here
-    return;
-}
+// void sioCassette::sio_status()
+// {
+//     // Nothing to do here
+//     return;
+// }
 
-void sioCassette::sio_process(uint32_t commanddata, uint8_t checksum)
-{
-    // Nothing to do here
-    return;
-}
+// void sioCassette::sio_process(uint32_t commanddata, uint8_t checksum)
+// {
+//     // Nothing to do here
+//     return;
+// }
