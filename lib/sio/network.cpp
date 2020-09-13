@@ -97,7 +97,6 @@ bool sioNetwork::open_protocol()
     }
     else if (urlParser->scheme == "HTTPS")
     {
-        sio_enable_interrupts(false);
         protocol = new networkProtocolHTTP();
         return true;
     }
