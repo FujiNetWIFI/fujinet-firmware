@@ -176,7 +176,7 @@ void sioBus::_sio_process_cmd()
     uint8_t ck = sio_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
     if (ck == tempFrame.checksum)
     {
-        if (tempFrame.device == SIO_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
+        if (tempFrame.device == SIO_DEVICEID_DISK && _fujiDev != nullptr && false)//&& _fujiDev->boot_config)
         {
             _activeDev = _fujiDev->bootdisk();
             Debug_println("FujiNet CONFIG boot");

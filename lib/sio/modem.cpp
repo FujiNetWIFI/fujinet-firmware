@@ -1370,39 +1370,55 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-#ifdef DEBUG
     Debug_println("sioModem::sio_process() called");
-    static int i3F = 0;
-    static int i21 = 0;
-    static int i26 = 0;
-    static int i40 = 0;
-    if (cmdFrame.comnd != SIO_MODEMCMD_LOAD_RELOCATOR)
-        i21 = 0;
-    if (cmdFrame.comnd != SIO_MODEMCMD_LOAD_HANDLER)
-        i26 = 0;
-    if (cmdFrame.comnd != SIO_MODEMCMD_TYPE1_POLL)
-        i3F = 0;
-    if (cmdFrame.comnd != SIO_MODEMCMD_TYPE3_POLL)
-        i40 = 0;
-#endif
+
     switch (cmdFrame.comnd)
     {
     case SIO_MODEMCMD_LOAD_RELOCATOR:
-        Debug_printf("$21 RELOCATOR #%d\n", ++i21);
+        Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
         sio_send_firmware(cmdFrame.comnd);
         break;
+
     case SIO_MODEMCMD_LOAD_HANDLER:
-        Debug_printf("$26 HANDLER DL #%d\n", ++i26);
+        Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
         sio_send_firmware(cmdFrame.comnd);
         break;
+
     case SIO_MODEMCMD_TYPE1_POLL:
-        Debug_printf("$3F TYPE 1 POLL #%d\n", ++i3F);
+        Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
         sio_poll_1();
         break;
+
     case SIO_MODEMCMD_TYPE3_POLL:
-        Debug_printf("$40 TYPE 3 POLL #%d\n", ++i40);
-        // ignore for now
+        // When AUX1 and AUX == 0x4F, it's a request to reset the whole polling process
+        if(cmdFrame.aux1 == 0x4F && cmdFrame.aux2 == 0x4F)
+        {
+            Debug_print("MODEM TYPE 3 POLL <<RESET POLL>>\n");
+            count_PollType3 = 0;
+            firmware_sent = false;
+            break;
+        }
+        // When AUX1 and AUX == 0x4E, it's a request to reset poll counters
+        if(cmdFrame.aux1 == 0x4E && cmdFrame.aux2 == 0x4E)
+        {
+            Debug_print("MODEM TYPE 3 POLL <<NULL POLL>>\n");
+            count_PollType3 = 0;
+            break;
+        }
+        // When AUX1 = 0x52 'R' and AUX == 1, it's a directed poll to "R1:"
+        if(cmdFrame.aux1 == 0x4E && cmdFrame.aux2 == 0x4E)
+        {
+            Debug_print("MODEM TYPE 3 \"R1:\" DIRECTED POLL\n");
+            break;
+        }
+        // When AUX1 and AUX == 0x4E, it's a normal/general poll
+        if(cmdFrame.aux1 == 0 && cmdFrame.aux2 == 0)
+        {
+            Debug_printf("MODEM TYPE 3 POLL #%d\n", ++count_PollType3);
+            break;
+        }
         break;
+
     case SIO_MODEMCMD_CONTROL:
         sio_ack();
         sio_control();
