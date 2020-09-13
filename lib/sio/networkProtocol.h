@@ -25,6 +25,8 @@ public:
     virtual bool status(uint8_t *status_buf) = 0;
     virtual bool special(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) = 0;
 
+    virtual int available() = 0;
+
     virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
     virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
     virtual bool mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }

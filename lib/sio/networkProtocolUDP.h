@@ -18,6 +18,7 @@ public:
     virtual bool write(uint8_t* tx_buf, unsigned short len);
     virtual bool status(uint8_t* status_buf);
     virtual bool special(uint8_t* sp_buf, unsigned short len, cmdFrame_t* cmdFrame);
+    virtual int available();
 
     virtual bool special_supported_80_command(unsigned char comnd);
 

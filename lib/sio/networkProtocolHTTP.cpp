@@ -272,7 +272,7 @@ bool networkProtocolHTTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, ena
     }
 
     openedUrlParser = urlParser;
-    openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":" + urlParser->port + "/" + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
+    openedUrl = urlParser->scheme + "://" + urlParser->hostName + ":" + urlParser->port + urlParser->path + (urlParser->query.empty() ? "" : ("?") + urlParser->query).c_str();
 
     if (openMode == PUT)
     {
@@ -722,4 +722,9 @@ bool networkProtocolHTTP::special(uint8_t *sp_buf, unsigned short len, cmdFrame_
         return true;
     }
     return true;
+}
+
+int networkProtocolHTTP::available()
+{
+    return client.available();
 }

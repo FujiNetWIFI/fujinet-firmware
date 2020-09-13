@@ -17,17 +17,18 @@ class sioMIDIMaze : public sioDevice
 {
 private:
     fnUDP udpMIDI;
-    uint8_t buf1[MIDIMAZE_BUFFER_SIZE];
-    uint8_t i1=0;
-    uint8_t buf2[MIDIMAZE_BUFFER_SIZE];
-    uint8_t i2=0;
 
-    void sio_status() override;                  // $53, 'S', Status
+    uint8_t buf_net[MIDIMAZE_BUFFER_SIZE];
+    uint8_t buf_midi[MIDIMAZE_BUFFER_SIZE];
+
+    uint8_t buf_midi_index=0;
+
+    void sio_status() override;
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
 
 public:
     bool midimazeActive = false; // If we are in midimaze mode or not
-    char midimaze_host_ip[64] = "0";
+    in_addr_t midimaze_host_ip = IPADDR_NONE;
 
     void sio_enable_midimaze();  // setup midimaze
     void sio_disable_midimaze(); // stop midimaze
