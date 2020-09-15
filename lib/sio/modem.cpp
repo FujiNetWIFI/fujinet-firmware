@@ -35,6 +35,76 @@
 */
 #define DELAY_FIRMWARE_DELIVERY 5000
 
+// 0x40 / '@' - TYPE 3 POLL
+void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
+{
+    bool respond = false;
+
+    // When AUX1 and AUX == 0x4E, it's a normal/general poll
+    // Since XL/XE OS always does this during boot, we're going to ignore these, otherwise
+    // we'd load our handler every time, and that's probably not desireable
+    if(aux1 == 0 && aux2 == 0)
+    {
+        Debug_printf("MODEM TYPE 3 POLL #%d\n", ++count_PollType3);
+        if(count_PollType3 == 26)
+        {
+            //Debug_print("RESPONDING to poll #26\n");
+            //respond = true;
+        }
+        else
+            return;
+    }
+    // When AUX1 and AUX == 0x4F, it's a request to reset the whole polling process
+    if(aux1 == 0x4F && aux2 == 0x4F)
+    {
+        Debug_print("MODEM TYPE 3 POLL <<RESET POLL>>\n");
+        count_PollType3 = 0;
+        firmware_sent = false;
+        return;
+    }
+    // When AUX1 and AUX == 0x4E, it's a request to reset poll counters
+    if(aux1 == 0x4E && aux2 == 0x4E)
+    {
+        Debug_print("MODEM TYPE 3 POLL <<NULL POLL>>\n");
+        count_PollType3 = 0;
+        return;
+    }
+    // When AUX1 = 0x52 'R' and AUX == 1 or DEVICE == x050, it's a directed poll to "R1:"
+    if((aux1 == 0x52 && aux2 == 0x01) || device == SIO_DEVICEID_RS232)
+    {
+        Debug_print("MODEM TYPE 4 \"R1:\" DIRECTED POLL\n");
+        respond = true;
+    }
+
+    // Get out if nothing above indicated we should respond to this poll
+    if(respond == false)
+        return;
+
+    // Get size of handler
+    int filesize = fnSystem.load_firmware(FIRMWARE_850HANDLER, NULL);
+
+    // Simply return (without ACK) if we failed to get this
+    if (filesize < 0)
+        return;
+
+    Debug_println("Modem acknowledging Type 4 Poll");
+    sio_ack();
+
+    // Acknowledge and return expected 
+    uint16_t fsize = filesize;
+    uint8_t type4response[4];
+    type4response[0] = LOBYTE_FROM_UINT16(fsize);
+    type4response[1] = HIBYTE_FROM_UINT16(fsize);
+    type4response[2] = SIO_DEVICEID_RS232;
+    type4response[3] = 0;
+
+    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
+
+    sio_to_computer(type4response, sizeof(type4response), false);
+
+    // TODO: Handle the subsequent request to load the handler properly by providing the relocation blocks
+}
+
 // 0x3F / '?' - TYPE 1 POLL
 void sioModem::sio_poll_1()
 {
@@ -1370,39 +1440,31 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-#ifdef DEBUG
     Debug_println("sioModem::sio_process() called");
-    static int i3F = 0;
-    static int i21 = 0;
-    static int i26 = 0;
-    static int i40 = 0;
-    if (cmdFrame.comnd != SIO_MODEMCMD_LOAD_RELOCATOR)
-        i21 = 0;
-    if (cmdFrame.comnd != SIO_MODEMCMD_LOAD_HANDLER)
-        i26 = 0;
-    if (cmdFrame.comnd != SIO_MODEMCMD_TYPE1_POLL)
-        i3F = 0;
-    if (cmdFrame.comnd != SIO_MODEMCMD_TYPE3_POLL)
-        i40 = 0;
-#endif
+
     switch (cmdFrame.comnd)
     {
     case SIO_MODEMCMD_LOAD_RELOCATOR:
-        Debug_printf("$21 RELOCATOR #%d\n", ++i21);
+        Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
         sio_send_firmware(cmdFrame.comnd);
         break;
+
     case SIO_MODEMCMD_LOAD_HANDLER:
-        Debug_printf("$26 HANDLER DL #%d\n", ++i26);
+        Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
         sio_send_firmware(cmdFrame.comnd);
         break;
+
     case SIO_MODEMCMD_TYPE1_POLL:
-        Debug_printf("$3F TYPE 1 POLL #%d\n", ++i3F);
-        sio_poll_1();
+        Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
+        // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
+        if(cmdFrame.aux1 == 1 || count_PollType1 == 26)
+            sio_poll_1();
         break;
+
     case SIO_MODEMCMD_TYPE3_POLL:
-        Debug_printf("$40 TYPE 3 POLL #%d\n", ++i40);
-        // ignore for now
+        sio_poll_3(cmdFrame.device, cmdFrame.aux1, cmdFrame.aux2);
         break;
+
     case SIO_MODEMCMD_CONTROL:
         sio_ack();
         sio_control();

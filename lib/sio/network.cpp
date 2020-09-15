@@ -472,8 +472,6 @@ void sioNetwork::sio_status()
     }
     else
     {
-        unsigned short read_len;
-
         switch (read_mode)
         {
         case NORMAL:

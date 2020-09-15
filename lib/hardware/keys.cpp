@@ -2,6 +2,7 @@
 
 #include "fnSystem.h"
 #include "fnBluetooth.h"
+#include "fnWiFi.h"
 #include "led.h"
 #include "keys.h"
 #include "sio.h"
@@ -170,9 +171,17 @@ void KeyManager::_keystate_task(void *param)
             {
                 fnBtManager.stop();
                 fnLedManager.set(BLUETOOTH_LED, false);
+
+                // Start WiFi
+                fnWiFi.start();
+                fnWiFi.connect();
+
             }
             else
             {
+                // Stop WiFi
+                fnWiFi.stop();
+
                 fnLedManager.set(BLUETOOTH_LED, true); // SIO LED always ON in Bluetooth mode
                 fnBtManager.start();
             }
