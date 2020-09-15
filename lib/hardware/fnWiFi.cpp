@@ -28,6 +28,34 @@ WiFiManager::~WiFiManager()
     stop();
 }
 
+// Remove resources and shut down WiFi driver
+void WiFiManager::stop()
+{
+    // Stop services
+    if(_connected)
+        handle_station_stop();
+
+    // Un-register event handler
+    ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, _wifi_event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, _wifi_event_handler));
+
+    // Remove event group
+    if (_wifi_event_group != nullptr)
+        vEventGroupDelete(_wifi_event_group);
+
+    ESP_ERROR_CHECK(esp_wifi_disconnect());
+    ESP_ERROR_CHECK(esp_wifi_stop());
+    //ESP_ERROR_CHECK(esp_wifi_deinit());
+
+    if (_scan_records != nullptr)
+        free(_scan_records);
+    _scan_records = nullptr;
+    _scan_record_count = 0;
+
+    _started = false;
+    _connected = false;
+}
+
 // Set up requried resources and start WiFi driver
 int WiFiManager::start()
 {
@@ -38,15 +66,19 @@ int WiFiManager::start()
     // Make sure our network interface is initialized
     ESP_ERROR_CHECK(esp_netif_init());
 
-    // Create the default event loop, which is where the WiFi driver sends events
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    // Assume we've already done these steps if _wifi_if has a value
+    if(_wifi_if == nullptr)
+    {
+        // Create the default event loop, which is where the WiFi driver sends events
+        ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-    // Create a default WIFI station interface
-    _wifi_if = esp_netif_create_default_wifi_sta();
+        // Create a default WIFI station interface
+        _wifi_if = esp_netif_create_default_wifi_sta();
 
-    // Configure basic WiFi settings
-    wifi_init_config_t wifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&wifi_init_cfg));
+        // Configure basic WiFi settings
+        wifi_init_config_t wifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
+        ESP_ERROR_CHECK(esp_wifi_init(&wifi_init_cfg));
+    }
 
     // TODO: Provide way to change WiFi region/country?
     // Default is to automatically set the value based on the AP the device is talking to
@@ -54,6 +86,7 @@ int WiFiManager::start()
     // Register for events we care about
     ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, _wifi_event_handler, this));
     ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, _wifi_event_handler, this));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_LOST_IP, _wifi_event_handler, this));
 
     // Set WiFi mode to Station
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
@@ -116,30 +149,6 @@ int WiFiManager::connect(const char *ssid, const char *password)
     return e;
 }
 
-// Remove resources and shut down WiFi driver
-void WiFiManager::stop()
-{
-
-    // Un-register event handler
-    ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, _wifi_event_handler));
-    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, _wifi_event_handler));
-
-    // Remove event group
-    if (_wifi_event_group != nullptr)
-        vEventGroupDelete(_wifi_event_group);
-
-    ESP_ERROR_CHECK(esp_wifi_disconnect());
-    ESP_ERROR_CHECK(esp_wifi_stop());
-    ESP_ERROR_CHECK(esp_wifi_deinit());
-
-    if (_scan_records != nullptr)
-        free(_scan_records);
-    _scan_records = nullptr;
-    _scan_record_count = 0;
-
-    _started = false;
-    _connected = false;
-}
 
 bool WiFiManager::connected()
 {
@@ -396,6 +405,14 @@ std::string WiFiManager::get_current_bssid_str()
     return std::string();
 }
 
+void WiFiManager::handle_station_stop()
+{
+    _connected = false;
+    fnLedManager.set(eLed::LED_WIFI, false);
+    fnHTTPD.stop();
+    fnSystem.Net.stop_sntp_client();
+}
+
 void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                                       int32_t event_id, void *event_data)
 {
@@ -430,7 +447,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
         switch (event_id)
         {
         case WIFI_EVENT_WIFI_READY:
-            Debug_println("WIFI_EVENT_WIFI_READ");
+            Debug_println("WIFI_EVENT_WIFI_READY");
             break;
         case WIFI_EVENT_SCAN_DONE:
             pFnWiFi->_scan_in_progress = false;
@@ -451,10 +468,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             if(pFnWiFi->_connected == true)
             {
                 Debug_println("WIFI_EVENT_STA_DISCONNECTED");
-                pFnWiFi->_connected = false;
-                fnLedManager.set(eLed::LED_WIFI, false);
-                fnHTTPD.stop();
-                fnSystem.Net.stop_sntp_client();
+                pFnWiFi->handle_station_stop();
             }
             // Try to reconnect
             if(pFnWiFi->_scan_in_progress == false &&
