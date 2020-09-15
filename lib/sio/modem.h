@@ -101,6 +101,11 @@ private:
     bool baudLock = false; // lock modem baud rate from further changes.
 
     int count_PollType1 = 0; // Keep track of how many times we've seen command 0x3F
+    int count_PollType3 = 0;
+    
+    int count_ReqRelocator = 0;
+    int count_ReqHandler = 0;
+    bool firmware_sent = false;
 
     /* Modem Active Variables */
     std::string cmd = "";          // Gather a new AT command to this string from serial
@@ -125,6 +130,7 @@ private:
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
+    void sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2); // $40, '@', Type 3 Poll
     void sio_control();                          // $41, 'A', Control
     void sio_config();                           // $42, 'B', Configure
     void sio_listen();                           // $4C, 'L', Listen
