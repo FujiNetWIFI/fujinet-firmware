@@ -19,7 +19,7 @@ private:
     std::string _ssid;
     std::string _password;
 
-    esp_netif_t *_wifi_if;
+    esp_netif_t *_wifi_if = nullptr;
 
     wifi_ap_record_t * _scan_records = nullptr;
     uint16_t _scan_record_count = 0;
@@ -46,6 +46,8 @@ public:
 
     bool connected();
     esp_netif_t * get_adapter_handle() { return _wifi_if; };
+
+    void handle_station_stop();
 
     std::string get_current_ssid();
     const char * get_current_detail_str();
