@@ -20,8 +20,9 @@ protected:
     void sio_status() override {}; // $53, 'S', Status
     void sio_process(uint32_t commanddata, uint8_t checksum) override {};
 
-public:
     bool cassetteActive = false; // If we are in cassette mode or not
+
+public:
 
     void open_cassette_file(FileSystem *filesystem); // open a file
     void close_cassette_file();
@@ -31,6 +32,7 @@ public:
     void sio_handle_cassette();                      // Handle incoming & outgoing data for cassette
 
     bool is_mounted() { return _mounted; };
+    bool is_active() { return cassetteActive; };
 
 private:
     size_t tape_offset = 0;
@@ -44,13 +46,12 @@ private:
 
     struct t_flags
     {
-        unsigned char run : 1;
         unsigned char FUJI : 1;
         unsigned char turbo : 1;
     } tape_flags;
 
     uint8_t atari_sector_buffer[256];
-    //struct FileInfoStruct FileInfo;
+
     void Clear_atari_sector_buffer(uint16_t len);
 
     unsigned short block;
