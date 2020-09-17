@@ -288,7 +288,7 @@ void sioFuji::sio_disk_image_mount()
 // DEBUG TAPE
 void sioFuji::debug_tape()
 {
-    if(_cassetteDev.cassetteActive == false)
+    if(_cassetteDev.is_active() == false)
     {
         Debug_println("::debug_tape ENABLE");
         _cassetteDev.open_cassette_file(&fnSPIFFS);
