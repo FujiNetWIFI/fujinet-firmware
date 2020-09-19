@@ -125,7 +125,7 @@ void networkProtocolHTTP::parseDir()
 #ifdef BOARD_HAS_PSRAM
     buf = (uint8_t *)heap_caps_malloc(16384, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 #else
-    buf = calloc(1, 16384);
+    buf = (uint8_t *)calloc(1, 16384);
 #endif
 
     XML_SetUserData(parser, &handler);
