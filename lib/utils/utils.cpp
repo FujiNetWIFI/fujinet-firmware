@@ -1,9 +1,12 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <sstream>
 
 #include "utils.h"
 #include "../../include/debug.h"
+
+using namespace std;
 
 // convert to lowercase (in place)
 void util_string_tolower(std::string &s)
@@ -424,4 +427,18 @@ void util_dump_bytes(uint8_t *buff, uint32_t buff_size)
         Debug_println();
     }
     Debug_println();
+}
+
+vector<string> util_tokenize(string s, char c)
+{
+    vector<string> tokens;
+    stringstream ss(s);
+    string token;
+
+    while (getline(ss, token, ' '))
+    {
+        tokens.push_back(token);
+    }
+
+    return tokens;
 }
