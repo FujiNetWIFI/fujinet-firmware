@@ -1,4 +1,5 @@
 #include "cassette.h"
+#include "fnSystem.h"
 #include "led.h"
 #include "../../include/debug.h"
 
@@ -27,7 +28,7 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
     _FS = filesystem;
     if (_file != nullptr)
         fclose(_file);
-    _file = _FS->file_open(CASSETTE_FILE, "r");
+    _file = _FS->file_open(CASSETTE_FILE, "w+"); // use "w+" for CSAVE test
     filesize = _FS->filesize(_file);
 #ifdef DEBUG
     if (_file != nullptr)
@@ -37,23 +38,27 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
 #endif
 
     tape_offset = 0;
-    check_for_FUJI_file();
+    if (cassetteMode == cassette_mode_t::playback)
+        check_for_FUJI_file();
 
 #ifdef DEBUG
     if (tape_flags.FUJI)
         Debug_println("FUJI File Found");
-    else
+    else if (cassetteMode == cassette_mode_t::playback)
         Debug_println("Not a FUJI File");
+    else
+        Debug_println("A File for Recording");
 #endif
 
-#ifdef DEBUG
-    Debug_println("Sync Wait...");
-#endif
+    // #ifdef DEBUG
+    //     Debug_println("Sync Wait...");
+    // #endif
 
-    // TO DO decouple opening a file with the initial delay
-    // TO DO understand non-FUJI file format and why
-    if (!tape_flags.FUJI)
-        fnSystem.delay(10000);
+    //     // TO DO decouple opening a file with the initial delay
+    //     // TO DO understand non-FUJI file format and why
+    //     if (!tape_flags.FUJI)
+    //         fnSystem.delay(10000);
+
     _mounted = true;
 }
 
@@ -61,6 +66,29 @@ void sioCassette::sio_enable_cassette()
 {
     fnUartSIO.set_baudrate(CASSETTE_BAUD);
     cassetteActive = true;
+
+    if (cassetteMode == cassette_mode_t::record && tape_offset == 0)
+    {
+#ifdef DEBUG
+        Debug_println("Writing FUJI File HEADERS");
+#endif
+        fprintf(_file, "FUJI");
+        fputc(16, _file);
+        fputc(0, _file);
+        fputc(0, _file);
+        fputc(0, _file);
+        fprintf(_file, "FujiNet CAS File");
+
+        fprintf(_file, "baud");
+        fputc(0, _file);
+        fputc(0, _file);
+        fputc(0x58, _file);
+        fputc(0x02, _file);
+
+        fflush(_file);
+        tape_offset = ftell(_file);
+        block++;
+    }
 
 #ifdef DEBUG
     Debug_println("Cassette Mode enabled");
@@ -79,50 +107,24 @@ void sioCassette::sio_disable_cassette()
 
 void sioCassette::sio_handle_cassette()
 {
-    if (tape_flags.FUJI)
-        tape_offset = send_FUJI_tape_block(tape_offset);
-    else
-        tape_offset = send_tape_block(tape_offset);
-
-    // if after trying to send data, still at the start, then turn off tape
-    if (tape_offset == 0 || !cassetteActive)
+    if (cassetteMode == cassette_mode_t::playback)
     {
-        sio_disable_cassette();
+        if (tape_flags.FUJI)
+            tape_offset = send_FUJI_tape_block(tape_offset);
+        else
+            tape_offset = send_tape_block(tape_offset);
+
+        // if after trying to send data, still at the start, then turn off tape
+        if (tape_offset == 0 || !cassetteActive)
+        {
+            sio_disable_cassette();
+        }
     }
-
-    //  MIDIMAZE CODE hacked up
-    //     if (fnUartSIO.available())
-    //     {
-    //         // read the data until pause:
-    //         fnUartSIO.read(); // Toss the data if motor or command is asserted
-    //     }
-    //     else
-    //     {
-    //         while (1)
-    //         {
-    //             if (fnUartSIO.available())
-    //             {
-    //       //          buf2[i2] = (char)fnUartSIO.read(); // read char from UART
-    //        //         if (i2 < Cassette_BUFFER_SIZE - 1)
-    //                  //   i2++;
-    //             }
-    //             else
-    //             {
-    //         //        fnSystem.delay_microseconds(Cassette_PACKET_TIMEOUT);
-    //                 if (!fnUartSIO.available())
-    //                     break;
-    //             }
-    //         }
-    //         // write to file
-
-    // #ifdef DEBUG
-    //         Debug_print("CAS-OUT: ");
-    //     //    Debug_println((char *)buf2);
-    // #endif
-
+    else if (cassetteMode == cassette_mode_t::record)
+    {
+        tape_offset = receive_FUJI_tape_block(tape_offset);
+    }
 }
-
-
 
 void sioCassette::Clear_atari_sector_buffer(uint16_t len)
 {
@@ -347,4 +349,17 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
         offset = 0;
     }
     return (offset);
+}
+
+unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
+{
+    // to do - fsk file
+
+    // start counting
+    unsigned long long tic = fnSystem.millis();
+    // while hi or lo count
+    uint16_t toc = (uint16_t)(tic - fnSystem.millis());
+    offset += fwrite(&toc, 2, 1, _file); // IRG
+
+    return offset;
 }

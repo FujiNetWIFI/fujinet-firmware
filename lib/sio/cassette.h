@@ -8,6 +8,12 @@
 #define CASSETTE_BAUD 600
 #define BLOCK_LEN 128
 
+enum class cassette_mode_t
+{
+    playback=0,
+    record
+};
+
 class sioCassette : public sioDevice
 {
 protected:
@@ -17,19 +23,19 @@ protected:
 
     bool _mounted = false;
 
-    void sio_status() override {}; // $53, 'S', Status
-    void sio_process(uint32_t commanddata, uint8_t checksum) override {};
+    void sio_status() override{}; // $53, 'S', Status
+    void sio_process(uint32_t commanddata, uint8_t checksum) override{};
 
-    bool cassetteActive = false; // If we are in cassette mode or not
+    cassette_mode_t cassetteMode = cassette_mode_t::record; // If we are in cassette mode or not
+    bool cassetteActive = false;
 
 public:
-
     void open_cassette_file(FileSystem *filesystem); // open a file
     void close_cassette_file();
 
-    void sio_enable_cassette();                      // setup cassette
-    void sio_disable_cassette();                     // stop cassette
-    void sio_handle_cassette();                      // Handle incoming & outgoing data for cassette
+    void sio_enable_cassette();  // setup cassette
+    void sio_disable_cassette(); // stop cassette
+    void sio_handle_cassette();  // Handle incoming & outgoing data for cassette
 
     bool is_mounted() { return _mounted; };
     bool is_active() { return cassetteActive; };
@@ -60,6 +66,7 @@ private:
     unsigned int send_tape_block(unsigned int offset);
     void check_for_FUJI_file();
     unsigned int send_FUJI_tape_block(unsigned int offset);
+    unsigned int receive_FUJI_tape_block(unsigned int offset);
 };
 
 #endif
