@@ -211,9 +211,7 @@ bool networkProtocolHTTP::startConnection(uint8_t *buf, unsigned short len)
         ret = true;
         break;
     case POST:
-        resultCode = client.POST((const char *)buf, len);
-        numHeaders = client.get_header_count();
-        headerIndex = 0;
+        // Don't start connection here.
         ret = true;
         break;
     case PUT:
@@ -349,6 +347,7 @@ bool networkProtocolHTTP::close(enable_interrupt_t enable_interrupt)
 
     //client.end();
     client.close();
+    
     return true;
 }
 
@@ -418,6 +417,11 @@ bool networkProtocolHTTP::write(uint8_t *tx_buf, unsigned short len)
 
             fwrite(tx_buf, 1, len, fpPUT);
         }
+        else if (openMode == POST)
+        {
+            postData += string((char *)tx_buf, len);
+            Debug_printf("%s added to post data.\n",tx_buf);
+        }
         else
         {
             if (!requestStarted)
@@ -446,8 +450,8 @@ bool networkProtocolHTTP::write(uint8_t *tx_buf, unsigned short len)
         client.set_header(tmpKey, tmpValue);
 
 #ifdef DEBUG
-        Debug_printf("headerKey: %s\n", headerKey.c_str());
-        Debug_printf("headerValue: %s\n", headerValue.c_str());
+        Debug_printf("headerKey: %s\n", tmpKey);
+        Debug_printf("headerValue: %s\n", tmpValue);
 #endif
         break;
     case COLLECT_HEADERS:
@@ -495,7 +499,7 @@ bool networkProtocolHTTP::status(uint8_t *status_buf)
         status_buf[3] = 1;
         break;
     case DATA:
-        if (openMode == PUT)
+        if (openMode == PUT || openMode == POST)
         {
             status_buf[0] = 0;
             status_buf[1] = 0;
@@ -557,6 +561,8 @@ bool networkProtocolHTTP::special_supported_00_command(unsigned char comnd)
     case 'H': // toggle headers
         return true;
     case 'I': // Get Certificate
+        return true;
+    case 'P': // Send POST Data
         return true;
     default:
         return false;
@@ -705,18 +711,32 @@ bool networkProtocolHTTP::rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return client.MOVE(rnTo.c_str(), false);
 }
 
+void networkProtocolHTTP::special_send_post_data()
+{
+    Debug_printf("SPECIAL: SEND POST DATA\n");
+    requestStarted=true;
+    httpState=DATA;
+    openMode=GET;
+    resultCode=client.POST(postData.data(),postData.size());
+    numHeaders=client.get_header_count();
+    headerIndex=0;
+}
+
 bool networkProtocolHTTP::special(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
     {
     case 'G': // toggle collect headers
-        special_collect_headers_toggle(cmdFrame->aux1);
+        special_collect_headers_toggle(cmdFrame->aux2);
         return false;
     case 'H': // toggle headers
-        special_header_toggle(cmdFrame->aux1);
+        special_header_toggle(cmdFrame->aux2);
         return false;
     case 'I': // toggle CA
-        special_ca_toggle(cmdFrame->aux1);
+        special_ca_toggle(cmdFrame->aux2);
+        return false;
+    case 'P': // Send POST data
+        special_send_post_data();
         return false;
     default:
         return true;
