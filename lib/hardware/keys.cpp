@@ -70,7 +70,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 
     // Ignore requests for BUTTON_B if this seems to be a WROOM board
 #ifndef BOARD_HAS_PSRAM
-    if (key == BUTTON_B) || (key == BUTTON_C)
+    if (key == BUTTON_B || key == BUTTON_C)
         return result;
 #endif
 
