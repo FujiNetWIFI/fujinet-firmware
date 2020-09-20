@@ -7,13 +7,14 @@
 #include "keys.h"
 #include "sio.h"
 
-#define LONGPRESS_TIME 1750 // 1.75 seconds to detect long press
-#define SHORTPRESS_TIME 300 // 0.3 seconds to detect short press
-#define TAP_MAXTIME 500 // 0.5 seconds max time between single/double tap detection
+#define LONGPRESS_TIME 1500 // 1.5 seconds to detect long press
+#define DOUBLETAP_DETECT_TIME 400 // ms to wait to see if it's a single/double tap
 
 #define PIN_BUTTON_A 0
 #define PIN_BUTTON_B 34
 #define PIN_BUTTON_C 14
+
+#define IGNORE_KEY_EVENT -1
 
 // Global KeyManager object
 KeyManager fnKeyManager;
@@ -24,39 +25,32 @@ void KeyManager::setup()
 {
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT);
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT);
+
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-
-    // Start a new task to check the status of the buttons
-    #define KEYS_STACKSIZE 2048
-    #define KEYS_PRIORITY 1
-
     // Check for v1.1 board pull up and flag it if available/high
     if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
     {
-        buttonCavail = true;
+        has_button_c = true;
         Debug_println("FujiNet Hardware v1.1");
     }
     else
     {
         Debug_println("FujiNet Hardware v1.0");
     }
-
     // Disable pull down for BUTTON_C
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 
+    // Start a new task to check the status of the buttons
+    #define KEYS_STACKSIZE 2048
+    #define KEYS_PRIORITY 1
     xTaskCreate(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr);
 }
 
-bool KeyManager::getCAvail()
-{
-    return buttonCavail;
-}
 
 // Ignores the current key press
 void KeyManager::ignoreKeyPress(eKey key)
 {
-    // A value of -1 here is our indication to ignore this key press
-    _buttonActionStarted[key] = -1;
+    _keys[key].action_started_ms = IGNORE_KEY_EVENT;
 }
 
 bool KeyManager::keyCurrentlyPressed(eKey key)
@@ -64,6 +58,14 @@ bool KeyManager::keyCurrentlyPressed(eKey key)
     return fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW;
 }
 
+/* 
+There are 3 types of actions we're looking for:
+   * LONG_PRESS: User holds button for at least LONGPRESS_TIME
+   * SHORT_PRESS: User presses button and releases in less than LONGPRESS_TIME,
+   *              and there isn't another event for DOUBLETAP_DETECT_TIME
+   * DOUBLE_TAP: User presses button and releases in less than LONGPRESS_TIME,
+   *             and the last SHORT_PRESS was within DOUBLETAP_DETECT_TIME
+*/
 eKeyStatus KeyManager::getKeyStatus(eKey key)
 {
     eKeyStatus result = eKeyStatus::INACTIVE;
@@ -75,30 +77,29 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 #endif
 
     // Ignore disabled buttons
-    if(_buttonDisabled[key])
+    if(_keys[key].disabled)
         return eKeyStatus::DISABLED;
 
-    unsigned long ms;
+    unsigned long ms = fnSystem.millis();
 
     // Button is PRESSED when DIGI_LOW
     if (fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW)
     {
-        ms = fnSystem.millis();
-
-        // Mark this button as ACTIVE and note the time
-        if (_buttonActive[key] == false)
+        // If not already active, mark as ACTIVE and note the time
+        if (_keys[key].active == false)
         {
-            _buttonActive[key] = true;
-            _buttonActionStarted[key] = ms;
+            _keys[key].active = true;
+            _keys[key].action_started_ms = ms;
         }
         // Detect long-press when time runs out instead of waiting for release
         else
         {
-            if (ms - _buttonActionStarted[key] > LONGPRESS_TIME && _buttonActionStarted[key] > 0)
+            // Check time elapsed and confirm that we didn't set the start time IGNORE
+            if (ms - _keys[key].action_started_ms > LONGPRESS_TIME && _keys[key].action_started_ms != IGNORE_KEY_EVENT)
             {
                 result = eKeyStatus::LONG_PRESS;
                 // Indicate we ignore further activity until the button is released
-                _buttonActionStarted[key] = -1;
+                _keys[key].action_started_ms = IGNORE_KEY_EVENT;
             }
 
         }
@@ -108,37 +109,37 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
     else
     {
         // If we'd previously marked the key as active
-        if (_buttonActive[key] == true)
+        if (_keys[key].active == true)
         {
-            /* Only register an action if we logged a _buttonActionStarted value > 0
-             otherwise we ignore this key press
-            */
-            if(_buttonActionStarted[key] > 0)
+            // Since the button has been released, mark it as inactive
+            _keys[key].active = false;
+
+            // If we're not supposed to ignore this, it must be a press-and-release event
+            if(_keys[key].action_started_ms != IGNORE_KEY_EVENT)
             {
-                ms = fnSystem.millis();
-
-                if (ms - _buttonActionStarted[key] > SHORTPRESS_TIME)
-                    result = eKeyStatus::SHORT_PRESS;
-                else
-                // Anything shorter than SHORTPRESS_TIME counts as a TAP
+                // If the last SHORT_PRESS was within DOUBLETAP_DETECT_TIME, immediately return a DOUBLETAP event
+                if(ms - _keys[key].last_tap_ms < DOUBLETAP_DETECT_TIME)
                 {
-                    // Detect double-tap
-                    if(_buttonLastTap[key] > 0 && (ms - _buttonLastTap[key] < TAP_MAXTIME))
-                    {
-                        result = eKeyStatus::DOUBLE_TAP;
-                        _buttonLastTap[key] = 0;
-                    }
-                    else
-                    {
-                        result = eKeyStatus::SINGLE_TAP;
-                        _buttonLastTap[key] = ms;
-                    }
-
+                    _keys[key].last_tap_ms = 0; // Reset this so we don't keep counting it                    
+                    result = eKeyStatus::DOUBLE_TAP;
+                }
+                // Otherwise just store when this event happened so we can check for it later
+                else
+                {
+                    _keys[key].last_tap_ms = ms;
                 }
             }
-            // Since the button has been released, mark it as inactive
-            _buttonActive[key] = false;
         }
+        // If there's a last SHORT_PRESS time recorded, see if DOUBLETAP_DETECT_TIME has elapsed
+        else
+        {
+            if(_keys[key].last_tap_ms != 0 && ms - _keys[key].last_tap_ms > DOUBLETAP_DETECT_TIME)
+            {
+                _keys[key].last_tap_ms = 0; // Reset this so we don't keep counting it
+                result = eKeyStatus::SHORT_PRESS;
+            }
+        }
+        
     }
 
     return result;
@@ -210,10 +211,6 @@ void KeyManager::_keystate_task(void *param)
             }
             break;
 
-        case eKeyStatus::SINGLE_TAP:
-            // Debug_println("BUTTON_A: SINGLE-TAP");
-            break;
-
         case eKeyStatus::DOUBLE_TAP:
             Debug_println("BUTTON_A: DOUBLE-TAP");
             break;
@@ -222,7 +219,9 @@ void KeyManager::_keystate_task(void *param)
             break;
         } // BUTTON_A
 
-        if (pKM->getCAvail()){
+        // FUJINET 1.1 (EXTRA BUTTON)
+        if (pKM->has_button_c)
+        {
             // Check on the status of the BUTTON_B and do something useful
             switch (pKM->getKeyStatus(eKey::BUTTON_B))
             {
@@ -232,10 +231,6 @@ void KeyManager::_keystate_task(void *param)
 
             case eKeyStatus::SHORT_PRESS:
                 Debug_println("BUTTON_B: SHORT PRESS");
-                break;
-
-            case eKeyStatus::SINGLE_TAP:
-                // Debug_println("BUTTON_B: SINGLE-TAP");
                 break;
 
             case eKeyStatus::DOUBLE_TAP:
@@ -260,10 +255,6 @@ void KeyManager::_keystate_task(void *param)
                 fnSystem.reboot();
                 break;
 
-            case eKeyStatus::SINGLE_TAP:
-                // Debug_println("BUTTON_C: SINGLE-TAP");
-                break;
-
             case eKeyStatus::DOUBLE_TAP:
                 Debug_println("BUTTON_C: DOUBLE-TAP");
                 break;
@@ -272,6 +263,7 @@ void KeyManager::_keystate_task(void *param)
                 break;
             } // BUTTON_C
         }
+        // FUJINET 1.0
         else
         {
             // Check on the status of the BUTTON_B and do something useful
@@ -283,7 +275,7 @@ void KeyManager::_keystate_task(void *param)
                 if(fnSystem.millis() < 3000)
                 {
                     Debug_println("BUTTON_B: SEEMS STUCK - DISABLING");
-                    pKM->_buttonDisabled[eKey::BUTTON_B] = true;
+                    pKM->_keys[eKey::BUTTON_B].disabled = true;
                     break;
                 }
 
@@ -298,10 +290,6 @@ void KeyManager::_keystate_task(void *param)
                 sio_message_t msg;
                 msg.message_id = SIOMSG_DEBUG_TAPE;
                 xQueueSend(SIO.qSioMessages, &msg, 0);
-                break;
-
-            case eKeyStatus::SINGLE_TAP:
-                // Debug_println("BUTTON_B: SINGLE-TAP");
                 break;
 
             case eKeyStatus::DOUBLE_TAP:
