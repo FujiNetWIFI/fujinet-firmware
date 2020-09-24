@@ -40,8 +40,11 @@ void WiFiManager::stop()
     ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, _wifi_event_handler));
 
     // Remove event group
+    // This is causing a reboot/crash randomly, so we're not going to delete it
+    /*
     if (_wifi_event_group != nullptr)
         vEventGroupDelete(_wifi_event_group);
+    */
 
     ESP_ERROR_CHECK(esp_wifi_disconnect());
     ESP_ERROR_CHECK(esp_wifi_stop());
