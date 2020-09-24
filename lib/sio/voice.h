@@ -10,9 +10,10 @@ class sioVoice : public sioDevice
 protected:
     // act like a printer for POC
     uint8_t lastAux1 = 0;
-
+    uint8_t buffer_idx = 0;
     uint8_t sioBuffer[41];
-    uint8_t samBuffer[41];
+    uint8_t lineBuffer[121];
+    uint8_t samBuffer[121];
     void sio_write();
 
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
