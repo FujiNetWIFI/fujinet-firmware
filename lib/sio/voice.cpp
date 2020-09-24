@@ -8,7 +8,7 @@ using namespace std;
 
 void sioVoice::sio_sam_parameters()
 {
-    string s = string((char *)sioBuffer);
+    string s = string((char *)lineBuffer); // change to lineBuffer
     vector<string> tokens = util_tokenize(s, ' ');
 
     for (vector<string>::iterator it = tokens.begin(); it != tokens.end(); ++it)
@@ -56,17 +56,10 @@ void sioVoice::sio_sam()
 {
     int n = 0;
     char *a[16];
-    int i = 0;
+    // int i = 0;
 
-    memset(samBuffer,0,sizeof(samBuffer));
-    memset(a,0,sizeof(a));
-
-    while (sioBuffer[i] != EOL && i < 39)
-    {
-        i++;
-    }
-
-    sioBuffer[i] = '\0';
+    memset(samBuffer, 0, sizeof(samBuffer));
+    memset(a, 0, sizeof(a));
 
     // Construct parameter buffer.
     a[n++] = (char *)("sam");
@@ -126,7 +119,27 @@ void sioVoice::sio_write()
 
     if (ck == sio_checksum(sioBuffer, n))
     {
-        sio_sam();
+        // append sioBuffer onto lineBuffer until EOL is reached
+        // move this logic to append \0 into sio_write
+        uint8_t i = 0;
+        while (i < 40)
+        {
+            if (sioBuffer[i] != EOL && buffer_idx < 121)
+            {
+                lineBuffer[buffer_idx] = sioBuffer[i];
+                buffer_idx++;
+            }
+            else
+            {
+                lineBuffer[buffer_idx] = '\0';
+                buffer_idx = 0;
+                sio_sam();
+                // clear lineBuffer
+                memset(lineBuffer, 0, sizeof(lineBuffer));
+                break;
+            }
+            i++;
+        }
         sio_complete();
     }
     else
@@ -143,7 +156,7 @@ void sioVoice::sio_status()
 
     status[0] = 0;
     status[1] = lastAux1;
-    status[2] = 5;
+    status[2] = 15; // set timeout > 10 seconds (SAM audio buffer)
     status[3] = 0;
 
     sio_to_computer(status, sizeof(status), false);
