@@ -98,7 +98,7 @@ void Init()
 #ifdef BOARD_HAS_PSRAM
     //buffer = (char*)ps_malloc(22050 * 5);
     // switch to ESP-IDF equivalent
-    buffer = (char *)heap_caps_malloc(22050 * 5, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    buffer = (char *)heap_caps_malloc(22050 * 10, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 #else
     buffer = malloc(22050 * 5); // careful not to malloc too much!
 #endif
