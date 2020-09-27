@@ -3,6 +3,7 @@
 */
 #include <string.h>
 #include <algorithm>
+#include "utils.h"
 #include "network.h"
 #include "networkProtocolTCP.h"
 #include "networkProtocolUDP.h"
@@ -11,6 +12,18 @@
 #include "networkProtocolFTP.h"
 
 using namespace std;
+
+/**
+ * Static callback function for the interrupt rate limiting timer. It sets the interruptProceed
+ * flag to true. This is set to false when the interrupt is serviced.
+ */
+void onTimer(void *info)
+{
+    sioNetwork *parent = (sioNetwork *)info;
+    portENTER_CRITICAL_ISR(&parent->timerMux);
+    parent->interruptProceed = true;
+    portEXIT_CRITICAL_ISR(&parent->timerMux);
+}
 
 /** SIO COMMANDS ***************************************************************/
 
@@ -198,4 +211,135 @@ bool sioNetwork::open_protocol()
 
     Debug_printf("sioNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());
     return true;
+}
+
+/**
+ * Start the Interrupt rate limiting timer
+ */
+void sioNetwork::timer_start()
+{
+    esp_timer_create_args_t tcfg;
+    tcfg.arg = this;
+    tcfg.callback = onTimer;
+    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
+    tcfg.name = nullptr;
+    esp_timer_create(&tcfg, &rateTimerHandle);
+    esp_timer_start_periodic(rateTimerHandle, 100000); // 100ms
+}
+
+/**
+ * Stop the Interrupt rate limiting timer
+ */
+void sioNetwork::timer_stop()
+{
+    // Delete existing timer
+    if (rateTimerHandle != nullptr)
+    {
+        Debug_println("Deleting existing rateTimer\n");
+        esp_timer_stop(rateTimerHandle);
+        esp_timer_delete(rateTimerHandle);
+        rateTimerHandle = nullptr;
+    }
+}
+
+/**
+ * Is this a valid URL? (Used to generate ERROR 165)
+ */
+bool sioNetwork::isValidURL(EdUrlParser *url)
+{
+    if (url->scheme == "")
+        return false;
+    else if ((url->path == "") && (url->port == ""))
+        return false;
+    else
+        return true;
+}
+
+/**
+ * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
+ * disk utility packages do when opening a device, such as adding wildcards for directory opens. 
+ * 
+ * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+ * of sioNetwork.
+ * 
+ * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom
+ */
+bool sioNetwork::parseURL()
+{
+    string url;
+
+    if (urlParser != nullptr)
+        delete urlParser;
+
+    Debug_printf("sioNetwork::parseURL(%s)\n", deviceSpec.c_str());
+
+    // Strip non-ascii characters.
+    util_strip_nonascii(deviceSpec);
+
+    // Process comma from devicespec (DOS 2 COPY command)
+    processCommaFromDevicespec();
+
+    if (cmdFrame.aux1 != 6) // Anything but a directory read...
+    {
+        replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
+    }
+
+    // Some FMSes add a dot at the end, remove it.
+    if (deviceSpec.substr(-1) == ".")
+        deviceSpec[deviceSpec.length() - 1] = 0x00;
+
+    // Prepend prefix, if set.
+    if (prefix.length() > 0)
+        deviceSpec = prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
+
+    // Remove any spurious spaces
+    deviceSpec = util_remove_spaces(deviceSpec);
+
+    // chop off front of device name for URL, and parse it.
+    url = deviceSpec.substr(deviceSpec.find(":") + 1);
+    urlParser = EdUrlParser::parseUrl(url);
+
+    Debug_printf("sioNetwork::parseURL transformed to (%s, %s)", deviceSpec.c_str(), url);
+
+    return isValidURL(urlParser);
+}
+
+/**
+ * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,
+ * and figure out one of three states:
+ * 
+ * (1) we were passed D1:FOO.TXT,N:FOO.TXT, the second arg is ours.
+ * (2) we were passed N:FOO.TXT,D1:FOO.TXT, the first arg is ours.
+ * (3) we were passed N1:FOO.TXT,N2:FOO.TXT, get whichever one corresponds to our device ID.
+ * 
+ * DeviceSpec will be transformed to only contain the relevant part of the deviceSpec, sans comma.
+ */
+void sioNetwork::processCommaFromDevicespec()
+{
+    size_t comma_pos = deviceSpec.find(",");
+    vector<string> tokens;
+
+    if (comma_pos == string::npos)
+        return; // no comma
+
+    tokens = util_tokenize(deviceSpec, ',');
+
+    for (vector<string>::iterator it = tokens.begin(); it != tokens.end(); ++it)
+    {
+        string item = *it;
+
+        Debug_printf("processCommaFromDeviceSpec() found one.\n");
+
+        if (item[0] != 'N')
+            continue;                                       // not us.
+        else if (item[1] == ':' && cmdFrame.device != 0x71) // N: but we aren't N1:
+            continue;                                       // also not us.
+        else
+        {
+            deviceSpec = item;
+            break;
+        }
+    }
+
+    Debug_printf("Passed back deviceSpec %s\n", deviceSpec);
 }

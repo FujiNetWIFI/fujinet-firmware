@@ -55,6 +55,8 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
 void util_dump_bytes(uint8_t *buff, uint32_t buff_size);
 
 std::vector<std::string> util_tokenize(std::string s, char c = ' ');
-std::string remove_spaces(const std::string &s);
+std::string util_remove_spaces(const std::string &s);
+
+void util_strip_nonascii(std::string &s);
 
 #endif // _FN_UTILS_H
