@@ -391,7 +391,6 @@ void fnConfig::load()
     Debug_println("fnConfig::load");
 
     // Clear the config file if key is currently pressed
-#ifdef BOARD_HAS_PSRAM
     if(fnKeyManager.keyCurrentlyPressed(BUTTON_B))
     {
         Debug_println("fnConfig deleting configuration file and skipping SD check");
@@ -405,7 +404,6 @@ void fnConfig::load()
         _dirty = true; // We have a new config, so we treat it as needing to be saved
         return;
     }
-#endif
 
 /*
 Original behavior: read from SPIFFS first and only read from SD if nothing found on SPIFFS.

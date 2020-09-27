@@ -207,13 +207,8 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
  */
 bool sioNetwork::allocate_buffers()
 {
-#ifdef BOARD_HAS_PSRAM
     rx_buf = (uint8_t *)heap_caps_malloc(INPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     tx_buf = (uint8_t *)heap_caps_malloc(OUTPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-#else
-    rx_buf = (uint8_t *)calloc(1, INPUT_BUFFER_SIZE);
-    tx_buf = (uint8_t *)calloc(1, OUTPUT_BUFFER_SIZE);
-#endif
 
     if ((rx_buf == nullptr) || (tx_buf == nullptr))
         return false; // Allocation failed.

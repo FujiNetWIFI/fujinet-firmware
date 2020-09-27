@@ -122,11 +122,7 @@ void networkProtocolHTTP::parseDir()
     XML_Parser parser = XML_ParserCreate(NULL);
     uint8_t *buf;
 
-#ifdef BOARD_HAS_PSRAM
     buf = (uint8_t *)heap_caps_malloc(16384, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-#else
-    buf = (uint8_t *)calloc(1, 16384);
-#endif
 
     XML_SetUserData(parser, &handler);
     XML_SetElementHandler(parser, Start<DAVHandler>, End<DAVHandler>);
