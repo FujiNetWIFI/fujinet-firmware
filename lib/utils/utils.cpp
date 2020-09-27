@@ -443,10 +443,19 @@ vector<string> util_tokenize(string s, char c)
     return tokens;
 }
 
-string remove_spaces(const string &s)
+string util_remove_spaces(const string &s)
 {
     int last = s.size() - 1;
     while (last >= 0 && s[last] == ' ')
         --last;
     return s.substr(0, last + 1);
+}
+
+void util_strip_nonascii(string &s)
+{
+    for (int i=0;i<s.size();i++)
+    {
+        if (s[i]>0x7F)
+            s[i]=0x00;
+    }
 }
