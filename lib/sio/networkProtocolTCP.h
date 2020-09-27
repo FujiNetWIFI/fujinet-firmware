@@ -14,8 +14,8 @@ public:
     networkProtocolTCP();
     virtual ~networkProtocolTCP();
 
-    virtual bool open(EdUrlParser* urlParser, cmdFrame_t* cmdFrame, enable_interrupt_t enable_interrupt);
-    virtual bool close(enable_interrupt_t enable_interrupt);
+    virtual bool open(EdUrlParser* urlParser, cmdFrame_t* cmdFrame);
+    virtual bool close();
     virtual bool read(uint8_t* rx_buf, unsigned short len);
     virtual bool write(uint8_t* tx_buf, unsigned short len);
     virtual bool status(uint8_t* status_buf);

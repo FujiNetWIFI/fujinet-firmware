@@ -18,7 +18,7 @@ networkProtocolUDP::~networkProtocolUDP()
     saved_rx_buffer_len = 0;
 }
 
-bool networkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt)
+bool networkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
 #ifdef DEBUG
     Debug_printf("networkProtocolUDP::OPEN %s:%s \n", urlParser->hostName.c_str(), urlParser->port.c_str());
@@ -35,7 +35,7 @@ bool networkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enab
     return udp.begin(atoi(urlParser->port.c_str()));
 }
 
-bool networkProtocolUDP::close(enable_interrupt_t enable_interrupt)
+bool networkProtocolUDP::close()
 {
     udp.stop();
     return true;
