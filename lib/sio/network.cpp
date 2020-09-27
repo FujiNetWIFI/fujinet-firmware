@@ -15,6 +15,60 @@ using namespace std;
 /** SIO COMMANDS ***************************************************************/
 
 /**
+ * SIO Open command
+ * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
+ * method. Also set up RX interrupt.
+ */
+void sioNetwork::sio_open()
+{
+}
+
+/**
+ * SIO Close command
+ * Tear down everything set up by sio_open(), as well as RX interrupt.
+ */
+void sioNetwork::sio_close()
+{
+}
+
+/**
+ * SIO Read command
+ * Read # of bytes from the protocol adapter specified by the aux1/aux2 bytes, into the RX buffer. If we are short
+ * fill the rest with nulls and return ERROR.
+ */
+void sioNetwork::sio_read()
+{
+}
+
+/**
+ * SIO Write command
+ * Write # of bytes specified by aux1/aux2 from tx_buffer out to SIO. If protocol is unable to return requested
+ * number of bytes, return ERROR.
+ */
+void sioNetwork::sio_write()
+{
+}
+
+/**
+ * SIO Status Command. First try to populate NetworkStatus object from protocol. If protocol not instantiated,
+ * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
+ * with them locally. Then serialize resulting NetworkStatus object to SIO.
+ */
+void sioNetwork::sio_status()
+{
+}
+
+/**
+ * SIO Special, called as a default for any other SIO command not processed by the other sio_ functions.
+ * First, the protocol is asked whether it wants to process the command, and if so, the protocol will
+ * process the special command. Otherwise, the command is handled locally. In either case, either sio_complete()
+ * or sio_error() is called.
+ */
+void sioNetwork::sio_special()
+{
+}
+
+/**
  * Process incoming SIO command for device 0x7X
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
