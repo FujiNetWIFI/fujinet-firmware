@@ -129,7 +129,7 @@ bool networkProtocolFTP::ftpLogin(EdUrlParser *urlParser)
     return true;
 }
 
-bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt)
+bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     string tmpPath;
     Debug_println("networkProtocolFTP::open()");
@@ -209,7 +209,7 @@ bool networkProtocolFTP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enab
     return true;
 }
 
-bool networkProtocolFTP::close(enable_interrupt_t enable_interrupt)
+bool networkProtocolFTP::close()
 {
     Debug_println("networkProtocolFTP::close()");
     if (data.connected())
