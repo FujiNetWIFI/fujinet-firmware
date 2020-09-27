@@ -159,11 +159,7 @@ bool JSON::parse()
 
     Debug_printf("JSON::parse() - %d bytes now available\n", available);
 
-#ifdef BOARD_HAS_PSRAM
     buf = (char *)heap_caps_malloc(available, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-#else
-    buf = (char *)calloc(1, available);
-#endif
     if (buf == nullptr)
     {
         Debug_printf("JSON::parse() - could not allocate JSON buffer of %d bytes", available);

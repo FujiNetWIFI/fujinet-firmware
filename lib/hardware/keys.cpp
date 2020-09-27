@@ -70,12 +70,6 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 {
     eKeyStatus result = eKeyStatus::INACTIVE;
 
-    // Ignore requests for BUTTON_B if this seems to be a WROOM board
-#ifndef BOARD_HAS_PSRAM
-    if (key == BUTTON_B || key == BUTTON_C)
-        return result;
-#endif
-
     // Ignore disabled buttons
     if(_keys[key].disabled)
         return eKeyStatus::DISABLED;
@@ -147,11 +141,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 
 void KeyManager::_keystate_task(void *param)
 {
-#ifdef BOARD_HAS_PSRAM
     #define BLUETOOTH_LED eLed::LED_BT
-#else
-    #define BLUETOOTH_LED eLed::LED_SIO
-#endif
 
     KeyManager *pKM = (KeyManager *)param;
 
