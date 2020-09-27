@@ -4,8 +4,6 @@
 #include "sio.h"
 #include "EdUrlParser.h"
 
-typedef void (*enable_interrupt_t)(bool);
-
 class networkProtocol
 {
 public:
@@ -18,8 +16,8 @@ public:
     uint8_t *saved_rx_buffer;
     unsigned short *saved_rx_buffer_len;
 
-    virtual bool open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt) = 0;
-    virtual bool close(enable_interrupt_t enable_interrupt) = 0;
+    virtual bool open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) = 0;
+    virtual bool close() = 0;
     virtual bool read(uint8_t *rx_buf, unsigned short len) = 0;
     virtual bool write(uint8_t *tx_buf, unsigned short len) = 0;
     virtual bool status(uint8_t *status_buf) = 0;
