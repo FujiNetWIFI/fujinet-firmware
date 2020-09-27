@@ -442,3 +442,11 @@ vector<string> util_tokenize(string s, char c)
 
     return tokens;
 }
+
+string remove_spaces(const string &s)
+{
+    int last = s.size() - 1;
+    while (last >= 0 && s[last] == ' ')
+        --last;
+    return s.substr(0, last + 1);
+}
