@@ -16,13 +16,8 @@
 /**
  * The size of rx and tx buffers
  */
-#ifdef BOARD_HAS_PSRAM
 #define INPUT_BUFFER_SIZE 65535
 #define OUTPUT_BUFFER_SIZE 65535
-#else
-#define INPUT_BUFFER_SIZE 8192
-#define OUTPUT_BUFFER_SIZE 2048
-#endif
 
 /**
  * Attempted to use connection while not open
