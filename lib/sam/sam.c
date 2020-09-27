@@ -95,13 +95,9 @@ void Init()
 
     bufferpos = 0;
     // TODO, check for free the memory, 10 seconds of output should be more than enough
-#ifdef BOARD_HAS_PSRAM
     //buffer = (char*)ps_malloc(22050 * 5);
     // switch to ESP-IDF equivalent
     buffer = (char *)heap_caps_malloc(22050 * 10, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-#else
-    buffer = malloc(22050 * 5); // careful not to malloc too much!
-#endif
     /*
     Due to a technical limitation, the maximum statically allocated DRAM usage is 160KB. 
     The remaining 160KB (for a total of 320KB of DRAM) can only be allocated at runtime as heap.
