@@ -19,13 +19,8 @@
 #define UART0_TX 1
 #define UART1_RX 9
 #define UART1_TX 10
-#ifdef BOARD_HAS_PSRAM
 #define UART2_RX 33
 #define UART2_TX 21
-#else
-#define UART2_RX 16
-#define UART2_TX 17
-#endif
 
 UARTManager fnUartDebug(UART_DEBUG);
 UARTManager fnUartSIO(UART_SIO);
