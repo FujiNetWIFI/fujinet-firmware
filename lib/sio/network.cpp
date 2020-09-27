@@ -93,7 +93,25 @@ void sioNetwork::sio_open()
         return;
     }
 
+    // Attempt protocol open
+    if (protocol->open(urlParser, &cmdFrame) == false)
+    {
+        Debug_printf("Protocol unable to make connection.\n");
+        protocol->close();
+        delete protocol;
+        protocol = nullptr;
+        status.error = NETWORK_ERROR_CONNECTION_REFUSED;
+        sio_error();
+        return;
+    }
 
+    // Everything good, start the interrupt timer!
+    timer_start();
+
+    // TODO: Finally, go ahead and let the parsers know
+
+    // And signal complete!
+    sio_complete();
 }
 
 /**
