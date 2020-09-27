@@ -44,6 +44,11 @@
  */
 #define NETWORK_ERROR_CONNECTION_REFUSED 170
 
+/**
+ * Could not allocate buffers
+ */
+#define NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS 255
+
 class sioNetwork : public sioDevice
 {
 
@@ -150,6 +155,36 @@ private:
     string prefix;
 
     /**
+     * The AUX1 value used for OPEN.
+     */
+    uint8_t open_aux1;
+
+    /**
+     * The AUX2 value used for OPEN.
+     */
+    uint8_t open_aux2;
+
+    /**
+     * The Translation mode ORed into AUX2 for READ/WRITE/STATUS operations.
+     * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
+     */
+    uint8_t trans_aux2;
+
+    /**
+     * The channel mode for the currently open SIO device. By default, it is PROTOCOL, which passes
+     * read/write/status commands to the protocol. Otherwise, it's a special mode, e.g. to pass to
+     * the JSON or XML parsers.
+     * 
+     * @enum PROTOCOL Send to protocol
+     * @enum JSON Send to JSON parser.
+     */
+    enum _channel_mode
+    {
+        PROTOCOL,
+        JSON
+    } channelMode;
+
+    /**
      * Allocate rx and tx buffers
      * @return bool TRUE if ok, FALSE if in error.
      */
@@ -164,7 +199,7 @@ private:
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */
-    bool open_protocol();
+    bool instantiate_protocol();
 
     /**
      * Start the Interrupt rate limiting timer

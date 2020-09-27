@@ -34,6 +34,66 @@ void onTimer(void *info)
  */
 void sioNetwork::sio_open()
 {
+    uint8_t devicespecBuf[256];
+
+    Debug_println("sioNetwork::sio_open()\n");
+    
+    sio_ack();
+
+    channelMode=PROTOCOL;
+
+    // Delete timer if already extant.
+    timer_stop();
+
+    // persist aux1/aux2 values
+    open_aux1 = cmdFrame.aux1;
+    open_aux2 = cmdFrame.aux2;
+    open_aux2 |= trans_aux2;
+
+    // Shut down protocol if we are sending another open before we close.
+    if (protocol != nullptr)
+    {
+        delete protocol;
+        free_buffers();
+    }
+
+    // Reset status buffer
+    status.reset();
+
+    // Get Devicespec from buffer, and put into primary devicespec string
+    sio_to_peripheral(devicespecBuf,sizeof(devicespecBuf));
+    deviceSpec=string((char *)devicespecBuf);
+
+    // Invalid URL returns error 165 in status.
+    if (parseURL()==false)
+    {
+        Debug_printf("Invalid devicespec: %s",deviceSpec.c_str());
+        status.error=NETWORK_ERROR_INVALID_DEVICESPEC;
+        sio_error();
+        return;
+    }
+
+    Debug_printf("Open: %s\n",deviceSpec.c_str());
+
+    // Attempt to allocate buffers
+    if (allocate_buffers()==false)
+    {
+        Debug_printf("Could not allocate memory for buffers\n");
+        status.error=NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        sio_error();
+        return;
+    }
+
+    // Instantiate protocol object.
+    if (instantiate_protocol() == false)
+    {
+        Debug_printf("Could not open protocol.\n");
+        status.error = NETWORK_ERROR_GENERAL;
+        sio_error();
+        return;
+    }
+
+
 }
 
 /**
@@ -166,7 +226,7 @@ void sioNetwork::free_buffers()
  * Instantiate protocol object
  * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
  */
-bool sioNetwork::open_protocol()
+bool sioNetwork::instantiate_protocol()
 {
     if (urlParser == nullptr)
     {
