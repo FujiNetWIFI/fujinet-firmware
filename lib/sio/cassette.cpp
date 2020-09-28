@@ -16,6 +16,84 @@
 //#define CASSETTE_FILE "/test.cas" // zaxxon
 #define CASSETTE_FILE "/hello.cas" // basic program
 
+// copied from fuUART.cpp - figure out better way
+#ifdef BOARD_HAS_PSRAM
+#define UART2_RX 33
+#define UART2_TX 21
+#else
+#define UART2_RX 16
+#define UART2_TX 17
+#endif
+
+cassetteUART cas_encoder;
+
+uint8_t cassetteUART::available()
+{
+    return index_in - index_out;
+}
+
+void cassetteUART::set_baud(uint16_t b)
+{
+    baud = b;
+    period = 1000000 / baud;
+};
+
+uint8_t cassetteUART::get_next_byte()
+{
+    return buffer[index_out++];
+}
+
+int8_t cassetteUART::service(uint8_t b)
+{
+    unsigned long t = fnSystem.micros();
+    if (state_counter == STARTBIT)
+    {
+        if (b == 1)
+        { // found start bit - sync up clock
+            state_counter++;
+            received_byte = 0; // clear data
+            baud_clock = t;    // approx beginning of start bit
+#ifdef DEBUG
+            Debug_println("Start bit received!");
+#endif
+        }
+    }
+    else if (t > baud_clock + period * state_counter + period / 10)
+    {
+        if (t < baud_clock + period * state_counter + 9 * period / 10)
+        {
+            if (state_counter == STOPBIT)
+            {
+                buffer[index_in++] = received_byte;
+                state_counter = STARTBIT;
+#ifdef DEBUG
+                Debug_printf("received %02X\n", received_byte);
+#endif
+                if (b != 0)
+                {
+#ifdef DEBUG
+                    Debug_println("Stop bit invalid!");
+#endif
+                    return -1; // frame sync error
+                }
+            }
+            else
+            {
+                received_byte *= 2; // shift to left
+                received_byte += b;
+            }
+        }
+        else
+        {
+#ifdef DEBUG
+            Debug_println("Bit slip error!");
+#endif
+            return -1; // frame sync error
+        }
+    }
+    return 0;
+}
+
 void sioCassette::close_cassette_file()
 {
     if (_file != nullptr)
@@ -64,11 +142,15 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
 
 void sioCassette::sio_enable_cassette()
 {
-    fnUartSIO.set_baudrate(CASSETTE_BAUD);
     cassetteActive = true;
+
+    if (cassetteMode == cassette_mode_t::playback)
+        fnUartSIO.set_baudrate(CASSETTE_BAUD);
 
     if (cassetteMode == cassette_mode_t::record && tape_offset == 0)
     {
+        fnUartSIO.end();
+        fnSystem.set_pin_mode(UART2_RX, gpio_mode_t::GPIO_MODE_INPUT);
 #ifdef DEBUG
         Debug_println("Writing FUJI File HEADERS");
 #endif
@@ -97,8 +179,11 @@ void sioCassette::sio_enable_cassette()
 
 void sioCassette::sio_disable_cassette()
 {
-    fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
     cassetteActive = false;
+    if (cassetteMode == cassette_mode_t::playback)
+        fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
+    else
+        fnUartSIO.begin(SIO_STANDARD_BAUDRATE);
 
 #ifdef DEBUG
     Debug_println("Cassette Mode disabled");
@@ -353,13 +438,56 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
 
 unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
 {
-    // to do - fsk file
+    // start counting the IRG
+    uint64_t tic = fnSystem.millis();
 
-    // start counting
-    unsigned long long tic = fnSystem.millis();
+    decode_fsk();
+ 
+    // LEFT OFF HERE =================================================================================
+    // need to figure out polling/looping logic with receive_FUJI_tape_block()
+    // and cassetteUART::service(uint8_t b)
+    // start counting IRG, waiting for first startbit,  
+
+
     // while hi or lo count
     uint16_t toc = (uint16_t)(tic - fnSystem.millis());
     offset += fwrite(&toc, 2, 1, _file); // IRG
 
     return offset;
+}
+
+void sioCassette::detect_falling_edge()
+{
+    unsigned long t = fnSystem.micros();
+    do
+    {
+        if (fnSystem.micros() - t > 1000)
+            break;
+    } while (fnSystem.digital_read(UART2_RX) == DIGI_LOW);
+    do
+    {
+        if (fnSystem.micros() - t > 1000)
+            break;
+    } while (fnSystem.digital_read(UART2_RX) == DIGI_HIGH);
+}
+
+uint8_t sioCassette::decode_fsk()
+{
+    // wait for falling edge and set fsk_clock
+    // find next falling edge and compute period
+    // check if period different than last (reset denoise counter)
+    // if not different, increment denoise counter if < denoise threshold
+    // when denoise counter == denoise threshold, set demod output
+
+    // LEFT OFF HERE =================================================================================
+    // need to figure out polling/looping logic with receive_FUJI_tape_block()
+    // and cassetteUART::service(uint8_t b)
+    // 
+
+    detect_falling_edge();
+    fsk_clock = fnSystem.micros();
+    detect_falling_edge();
+    fsk_clock = fnSystem.micros();
+
+    return 0; // or 1 
 }
