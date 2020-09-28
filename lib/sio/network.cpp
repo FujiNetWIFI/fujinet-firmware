@@ -120,6 +120,31 @@ void sioNetwork::sio_open()
  */
 void sioNetwork::sio_close()
 {
+    Debug_printf("sioNetwork::sio_close()\n");
+    
+    sio_ack();
+
+    status.reset();
+
+    // If no protocol enabled, we just signal complete, and return.
+    if (protocol==nullptr)
+    {
+        sio_complete();
+        return;
+    }
+
+    // Ask the protocol to close
+    if (protocol->close())
+        sio_complete();
+    else
+        sio_error();
+
+    // Delete the protocol object
+    delete protocol;
+    protocol = nullptr;
+
+    // And deallocate buffers
+    free_buffers();
 }
 
 /**
