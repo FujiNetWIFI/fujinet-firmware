@@ -70,12 +70,6 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 {
     eKeyStatus result = eKeyStatus::INACTIVE;
 
-    // Ignore requests for BUTTON_B if this seems to be a WROOM board
-#ifndef BOARD_HAS_PSRAM
-    if (key == BUTTON_B || key == BUTTON_C)
-        return result;
-#endif
-
     // Ignore disabled buttons
     if(_keys[key].disabled)
         return eKeyStatus::DISABLED;
@@ -147,11 +141,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 
 void KeyManager::_keystate_task(void *param)
 {
-#ifdef BOARD_HAS_PSRAM
     #define BLUETOOTH_LED eLed::LED_BT
-#else
-    #define BLUETOOTH_LED eLed::LED_SIO
-#endif
 
     KeyManager *pKM = (KeyManager *)param;
 
@@ -219,29 +209,43 @@ void KeyManager::_keystate_task(void *param)
             break;
         } // BUTTON_A
 
-        // FUJINET 1.1 (EXTRA BUTTON)
+        // Check on the status of the BUTTON_B and do something useful
+        switch (pKM->getKeyStatus(eKey::BUTTON_B))
+        {
+        case eKeyStatus::LONG_PRESS:
+            // Check if we're with a few seconds of booting and disable this button if so -
+            // assume the button is stuck/disabled/non-existant
+            if(fnSystem.millis() < 3000)
+            {
+                Debug_println("BUTTON_B: SEEMS STUCK - DISABLING");
+                pKM->_keys[eKey::BUTTON_B].disabled = true;
+                break;
+            }
+
+            Debug_println("BUTTON_B: LONG PRESS");
+            Debug_println("ACTION: Reboot");
+            fnSystem.reboot();
+            break;
+
+        case eKeyStatus::SHORT_PRESS:
+            Debug_println("BUTTON_B: SHORT PRESS");
+            Debug_println("ACTION: Send debug_tape message to SIO queue");
+            sio_message_t msg;
+            msg.message_id = SIOMSG_DEBUG_TAPE;
+            xQueueSend(SIO.qSioMessages, &msg, 0);
+            break;
+
+        case eKeyStatus::DOUBLE_TAP:
+            Debug_println("BUTTON_B: DOUBLE-TAP");
+            fnSystem.debug_print_tasks();
+            break;
+
+        default:
+            break;
+        } // BUTTON_B
+
         if (pKM->has_button_c)
         {
-            // Check on the status of the BUTTON_B and do something useful
-            switch (pKM->getKeyStatus(eKey::BUTTON_B))
-            {
-            case eKeyStatus::LONG_PRESS:
-                Debug_println("BUTTON_B: LONG PRESS");
-                break;
-
-            case eKeyStatus::SHORT_PRESS:
-                Debug_println("BUTTON_B: SHORT PRESS");
-                break;
-
-            case eKeyStatus::DOUBLE_TAP:
-                Debug_println("BUTTON_B: DOUBLE-TAP");
-                fnSystem.debug_print_tasks();
-                break;
-
-            default:
-                break;
-            } // BUTTON_B
-
             // Check on the status of the BUTTON_C and do something useful
             switch (pKM->getKeyStatus(eKey::BUTTON_C))
             {
@@ -262,44 +266,6 @@ void KeyManager::_keystate_task(void *param)
             default:
                 break;
             } // BUTTON_C
-        }
-        // FUJINET 1.0
-        else
-        {
-            // Check on the status of the BUTTON_B and do something useful
-            switch (pKM->getKeyStatus(eKey::BUTTON_B))
-            {
-            case eKeyStatus::LONG_PRESS:
-                // Check if we're with a few seconds of booting and disable this button if so -
-                // assume the button is stuck/disabled/non-existant
-                if(fnSystem.millis() < 3000)
-                {
-                    Debug_println("BUTTON_B: SEEMS STUCK - DISABLING");
-                    pKM->_keys[eKey::BUTTON_B].disabled = true;
-                    break;
-                }
-
-                Debug_println("BUTTON_B: LONG PRESS");
-                Debug_println("ACTION: Reboot");
-                fnSystem.reboot();
-                break;
-
-            case eKeyStatus::SHORT_PRESS:
-                Debug_println("BUTTON_B: SHORT PRESS");
-                Debug_println("ACTION: Send debug_tape message to SIO queue");
-                sio_message_t msg;
-                msg.message_id = SIOMSG_DEBUG_TAPE;
-                xQueueSend(SIO.qSioMessages, &msg, 0);
-                break;
-
-            case eKeyStatus::DOUBLE_TAP:
-                Debug_println("BUTTON_B: DOUBLE-TAP");
-                fnSystem.debug_print_tasks();
-                break;
-
-            default:
-                break;
-            } // BUTTON_B
         }
     }
 }

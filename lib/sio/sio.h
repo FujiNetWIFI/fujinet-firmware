@@ -9,14 +9,8 @@
 #define PIN_PROC 22
 #define PIN_CKO 32
 #define PIN_CKI 27
-
-#ifdef BOARD_HAS_PSRAM
 #define PIN_MTR 36
 #define PIN_CMD 39
-#else
-#define PIN_MTR 33
-#define PIN_CMD 21
-#endif
 
 #define DELAY_T4 850
 #define DELAY_T5 250
