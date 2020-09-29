@@ -163,7 +163,7 @@ void sioNetwork::sio_read()
     sio_ack();
 
     // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
-    if (rx_buf == nullptr)
+    if (receiveBuffer == nullptr)
     {
         status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
         sio_error();
@@ -179,13 +179,13 @@ void sioNetwork::sio_read()
     }
 
     // Clean out RX buffer
-    memset(rx_buf, 0, INPUT_BUFFER_SIZE);
+    memset(receiveBuffer, 0, INPUT_BUFFER_SIZE);
 
     // Do the channel read
     err = sio_read_channel(num_bytes);
 
     // Do the translation (fixme: move this entirely into the protocol!)
-    sio_translate_buffer(rx_buf, num_bytes, false);
+    sio_translate_buffer(receiveBuffer, num_bytes, false);
 }
 
 /**
@@ -198,7 +198,7 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
     switch (channelMode)
     {
     case PROTOCOL:
-        return protocol->read(rx_buf, num_bytes);
+        return protocol->read(receiveBuffer, num_bytes);
     }
 }
 
@@ -278,16 +278,16 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
  */
 bool sioNetwork::allocate_buffers()
 {
-    rx_buf = (uint8_t *)heap_caps_malloc(INPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    tx_buf = (uint8_t *)heap_caps_malloc(OUTPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    receiveBuffer = (uint8_t *)heap_caps_malloc(INPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    transmitBuffer = (uint8_t *)heap_caps_malloc(OUTPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-    if ((rx_buf == nullptr) || (tx_buf == nullptr))
+    if ((receiveBuffer == nullptr) || (transmitBuffer == nullptr))
         return false; // Allocation failed.
 
     /* Clear buffer and status */
     status.reset();
-    memset(rx_buf, 0, INPUT_BUFFER_SIZE);
-    memset(tx_buf, 0, OUTPUT_BUFFER_SIZE);
+    memset(receiveBuffer, 0, INPUT_BUFFER_SIZE);
+    memset(transmitBuffer, 0, OUTPUT_BUFFER_SIZE);
 
     HEAP_CHECK("sioNetwork::allocate_buffers");
     return true; // All good.
@@ -298,10 +298,10 @@ bool sioNetwork::allocate_buffers()
  */
 void sioNetwork::free_buffers()
 {
-    if (rx_buf != nullptr)
-        free(rx_buf);
-    if (tx_buf != nullptr)
-        free(tx_buf);
+    if (receiveBuffer != nullptr)
+        free(receiveBuffer);
+    if (transmitBuffer != nullptr)
+        free(transmitBuffer);
 
     Debug_printf("sioNetworks::free_buffers()\n");
 }
