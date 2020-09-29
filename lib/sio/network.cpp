@@ -166,7 +166,7 @@ void sioNetwork::sio_close()
  */
 void sioNetwork::sio_read()
 {
-    unsigned short num_bytes = cmdFrame.aux2 * 256 + cmdFrame.aux1;
+    unsigned short num_bytes = sio_get_aux();
     bool err;
 
     Debug_printf("sioNetwork::sio_read( %d bytes)\n", num_bytes);
