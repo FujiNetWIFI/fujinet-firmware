@@ -5,7 +5,7 @@
 #include <vector>
 #include "sio.h"
 #include "EdUrlParser.h"
-#include "networkProtocol.h"
+#include "../network-protocol/networkProtocol.h"
 #include "networkStatus.h"
 #include "driver/timer.h"
 
