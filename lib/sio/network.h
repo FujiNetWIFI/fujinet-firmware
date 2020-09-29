@@ -2,6 +2,7 @@
 #define NETWORK_H
 
 #include <string>
+#include <vector>
 #include "sio.h"
 #include "EdUrlParser.h"
 #include "networkProtocol.h"
@@ -48,6 +49,16 @@ class sioNetwork : public sioDevice
 {
 
 public:
+
+    /**
+     * Constructor
+     */
+    sioNetwork();
+
+    /**
+     * Destructor
+     */
+    virtual ~sioNetwork();
 
     /**
      * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
@@ -101,6 +112,11 @@ public:
      */
     virtual void sio_status();
 
+    /**
+     * Check to see if PROCEED needs to be asserted.
+     */
+    void sio_assert_interrupts();
+    
     /**
      * Process incoming SIO command for device 0x7X
      * @param comanddata incoming 4 bytes containing command and aux bytes

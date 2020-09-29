@@ -3,8 +3,8 @@
 */
 #include <string.h>
 #include <algorithm>
+#include <vector>
 #include "utils.h"
-#include "atascii.h"
 #include "network.h"
 #include "networkProtocolTCP.h"
 #include "networkProtocolUDP.h"
@@ -24,6 +24,20 @@ void onTimer(void *info)
     portENTER_CRITICAL_ISR(&parent->timerMux);
     parent->interruptProceed = true;
     portEXIT_CRITICAL_ISR(&parent->timerMux);
+}
+
+/**
+ * Constructor
+ */
+sioNetwork::sioNetwork()
+{
+}
+
+/**
+ * Destructor
+ */
+sioNetwork::~sioNetwork()
+{
 }
 
 /** SIO COMMANDS ***************************************************************/
@@ -195,11 +209,18 @@ void sioNetwork::sio_read()
  */
 bool sioNetwork::sio_read_channel(unsigned short num_bytes)
 {
+    bool err = false;
+
     switch (channelMode)
     {
     case PROTOCOL:
-        return protocol->read(receiveBuffer, num_bytes);
+        err = protocol->read(receiveBuffer, num_bytes);
+        break;
+    case JSON:
+        Debug_printf("JSON Not Handled.\n");
+        err = true;
     }
+    return err;
 }
 
 /**
@@ -268,6 +289,13 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_special();
         break;
     }
+}
+
+/**
+     * Check to see if PROCEED needs to be asserted.
+     */
+void sioNetwork::sio_assert_interrupts()
+{
 }
 
 /** PRIVATE METHODS ************************************************************/
@@ -496,5 +524,6 @@ void sioNetwork::processCommaFromDevicespec()
  */
 void sioNetwork::sio_translate_buffer(uint8_t *buf, unsigned short len, bool rw)
 {
+
 
 }
