@@ -4,6 +4,7 @@
 #include <string.h>
 #include <algorithm>
 #include "utils.h"
+#include "atascii.h"
 #include "network.h"
 #include "networkProtocolTCP.h"
 #include "networkProtocolUDP.h"
@@ -37,10 +38,10 @@ void sioNetwork::sio_open()
     uint8_t devicespecBuf[256];
 
     Debug_println("sioNetwork::sio_open()\n");
-    
+
     sio_ack();
 
-    channelMode=PROTOCOL;
+    channelMode = PROTOCOL;
 
     // Delete timer if already extant.
     timer_stop();
@@ -61,25 +62,25 @@ void sioNetwork::sio_open()
     status.reset();
 
     // Get Devicespec from buffer, and put into primary devicespec string
-    sio_to_peripheral(devicespecBuf,sizeof(devicespecBuf));
-    deviceSpec=string((char *)devicespecBuf);
+    sio_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
+    deviceSpec = string((char *)devicespecBuf);
 
     // Invalid URL returns error 165 in status.
-    if (parseURL()==false)
+    if (parseURL() == false)
     {
-        Debug_printf("Invalid devicespec: %s",deviceSpec.c_str());
-        status.error=NETWORK_ERROR_INVALID_DEVICESPEC;
+        Debug_printf("Invalid devicespec: %s", deviceSpec.c_str());
+        status.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         sio_error();
         return;
     }
 
-    Debug_printf("Open: %s\n",deviceSpec.c_str());
+    Debug_printf("Open: %s\n", deviceSpec.c_str());
 
     // Attempt to allocate buffers
-    if (allocate_buffers()==false)
+    if (allocate_buffers() == false)
     {
         Debug_printf("Could not allocate memory for buffers\n");
-        status.error=NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
         sio_error();
         return;
     }
@@ -121,13 +122,13 @@ void sioNetwork::sio_open()
 void sioNetwork::sio_close()
 {
     Debug_printf("sioNetwork::sio_close()\n");
-    
+
     sio_ack();
 
     status.reset();
 
     // If no protocol enabled, we just signal complete, and return.
-    if (protocol==nullptr)
+    if (protocol == nullptr)
     {
         sio_complete();
         return;
@@ -154,6 +155,51 @@ void sioNetwork::sio_close()
  */
 void sioNetwork::sio_read()
 {
+    unsigned short num_bytes = cmdFrame.aux2 * 256 + cmdFrame.aux1;
+    bool err;
+
+    Debug_printf("sioNetwork::sio_read( %d bytes)\n", num_bytes);
+
+    sio_ack();
+
+    // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
+    if (rx_buf == nullptr)
+    {
+        status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        sio_error();
+        return;
+    }
+
+    // If protocol isn't connected, then return not connected.
+    if (protocol == nullptr)
+    {
+        status.error = NETWORK_ERROR_NOT_CONNECTED;
+        sio_error();
+        return;
+    }
+
+    // Clean out RX buffer
+    memset(rx_buf, 0, INPUT_BUFFER_SIZE);
+
+    // Do the channel read
+    err = sio_read_channel(num_bytes);
+
+    // Do the translation (fixme: move this entirely into the protocol!)
+    sio_translate_buffer(rx_buf, num_bytes, false);
+}
+
+/**
+ * Perform the channel read based on the channelMode
+ * @param num_bytes - number of bytes to read from channel.
+ * @return TRUE on error, FALSE on success. Passed directly to sio_to_computer().
+ */
+bool sioNetwork::sio_read_channel(unsigned short num_bytes)
+{
+    switch (channelMode)
+    {
+    case PROTOCOL:
+        return protocol->read(rx_buf, num_bytes);
+    }
 }
 
 /**
@@ -440,4 +486,15 @@ void sioNetwork::processCommaFromDevicespec()
     }
 
     Debug_printf("Passed back deviceSpec %s\n", deviceSpec);
+}
+
+/**
+ * Perform EOL translation of buffer based on aux2 value
+ * @param buf The buffer to transform. Data transformed in place
+ * @param len Length of buffer (0-65535)
+ * @param rw false = READ, true = WRITE
+ */
+void sioNetwork::sio_translate_buffer(uint8_t *buf, unsigned short len, bool rw)
+{
+
 }

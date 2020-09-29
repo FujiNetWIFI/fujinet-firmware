@@ -233,6 +233,22 @@ private:
      * DeviceSpec will be transformed to only contain the relevant part of the deviceSpec, sans comma.
      */
     void processCommaFromDevicespec();
+
+    /**
+     * Perform the correct read based on value of channelMode
+     * @param num_bytes Number of bytes to read.
+     * @return TRUE on error, FALSE on success. Passed directly to sio_to_computer().
+     */
+    bool sio_read_channel(unsigned short num_bytes);
+
+    /**
+     * Perform EOL translation of buffer
+     * @param buf The buffer to transform. Data transformed in place
+     * @param len Length of buffer (0-65535)
+     * @param rw false = READ, true = WRITE
+     */
+    void sio_translate_buffer(uint8_t* buf, unsigned short len, bool rw);
+
 };
 
 #endif /* NETWORK_H */
