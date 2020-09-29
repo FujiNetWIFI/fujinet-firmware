@@ -6,6 +6,8 @@
 #include <vector>
 #include "utils.h"
 #include "network.h"
+#include "../hardware/fnSystem.h"
+#include "../hardware/fnWiFi.h"
 
 using namespace std;
 
@@ -196,7 +198,7 @@ void sioNetwork::sio_read()
     err = sio_read_channel(num_bytes);
 
     // And send off to the computer
-    sio_to_computer(receiveBuffer,num_bytes,err);
+    sio_to_computer(receiveBuffer, num_bytes, err);
 }
 
 /**
@@ -256,7 +258,7 @@ void sioNetwork::sio_write()
     memset(transmitBuffer, 0, OUTPUT_BUFFER_SIZE);
 
     // Get the data from the Atari
-    ck = sio_to_peripheral(transmitBuffer,num_bytes);
+    ck = sio_to_peripheral(transmitBuffer, num_bytes);
 
     if (ck != cmdFrame.checksum)
     {
@@ -278,14 +280,14 @@ bool sioNetwork::sio_write_channel(unsigned short num_bytes)
 {
     bool err = false;
 
-    switch(channelMode)
+    switch (channelMode)
     {
-        case PROTOCOL:
-        err=protocol->write(transmitBuffer,num_bytes);
+    case PROTOCOL:
+        err = protocol->write(transmitBuffer, num_bytes);
         break;
-        case JSON:
+    case JSON:
         Debug_printf("JSON Not Handled.\n");
-        err=true;
+        err = true;
         break;
     }
     return err;
@@ -298,6 +300,62 @@ bool sioNetwork::sio_write_channel(unsigned short num_bytes)
  */
 void sioNetwork::sio_status()
 {
+    // Acknowledge
+    sio_ack();
+
+    if (protocol == nullptr)
+        sio_status_local();
+    else
+        sio_status_channel();
+}
+
+/**
+ * @brief perform local status commands, if protocol is not bound, based on cmdFrame
+ * value.
+ */
+void sioNetwork::sio_status_local()
+{
+    uint8_t ipAddress[4];
+    uint8_t ipNetmask[4];
+    uint8_t ipGateway[4];
+    uint8_t ipDNS[4];
+    uint8_t default_status[4] = {0, 0, 0, 0};
+
+    fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
+    fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
+
+    switch (cmdFrame.aux2)
+    {
+    case 1: // IP Address
+        sio_to_computer(ipAddress, 4, false);
+        break;
+    case 2: // Netmask
+        sio_to_computer(ipNetmask, 4, false);
+        break;
+    case 3: // Gatway
+        sio_to_computer(ipGateway, 4, false);
+        break;
+    case 4: // DNS
+        sio_to_computer(ipDNS, 4, false);
+        break;
+    default:
+        default_status[3] = fnWiFi.connected();
+        sio_to_computer(default_status, 4, false);
+    }
+}
+
+/**
+ * @brief perform channel status commands, if there is a protocol bound.
+ */
+void sioNetwork::sio_status_channel()
+{
+    switch (channelMode)
+    {
+    case PROTOCOL:
+        break;
+    case JSON:
+        break;
+    }
 }
 
 /**
@@ -574,4 +632,3 @@ void sioNetwork::processCommaFromDevicespec()
 
     Debug_printf("Passed back deviceSpec %s\n", deviceSpec);
 }
-

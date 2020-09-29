@@ -264,6 +264,18 @@ private:
      * @return TRUE on error, FALSE on success. Used to emit sio_error or sio_complete().
      */
     bool sio_write_channel(unsigned short num_bytes);
+
+    /**
+     * @brief perform local status commands, if protocol is not bound, based on cmdFrame
+     * value.
+     */
+    void sio_status_local();
+
+    /**
+     * @brief perform channel status commands, if there is a protocol bound.
+     */
+    void sio_status_channel();
+    
 };
 
 #endif /* NETWORK_H */
