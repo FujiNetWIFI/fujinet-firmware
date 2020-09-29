@@ -49,7 +49,6 @@ class sioNetwork : public sioDevice
 {
 
 public:
-
     /**
      * Constructor
      */
@@ -87,6 +86,8 @@ public:
      * SIO Read command
      * Read # of bytes from the protocol adapter specified by the aux1/aux2 bytes, into the RX buffer. If we are short
      * fill the rest with nulls and return ERROR.
+     *  
+     * @note It is the channel's responsibility to pad to required length.
      */
     virtual void sio_read();
 
@@ -116,7 +117,7 @@ public:
      * Check to see if PROCEED needs to be asserted.
      */
     void sio_assert_interrupts();
-    
+
     /**
      * Process incoming SIO command for device 0x7X
      * @param comanddata incoming 4 bytes containing command and aux bytes
@@ -256,15 +257,6 @@ private:
      * @return TRUE on error, FALSE on success. Passed directly to sio_to_computer().
      */
     bool sio_read_channel(unsigned short num_bytes);
-
-    /**
-     * Perform EOL translation of buffer
-     * @param buf The buffer to transform. Data transformed in place
-     * @param len Length of buffer (0-65535)
-     * @param rw false = READ, true = WRITE
-     */
-    void sio_translate_buffer(uint8_t* buf, unsigned short len, bool rw);
-
 };
 
 #endif /* NETWORK_H */
