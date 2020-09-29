@@ -6,11 +6,6 @@
 #include <vector>
 #include "utils.h"
 #include "network.h"
-#include "networkProtocolTCP.h"
-#include "networkProtocolUDP.h"
-#include "networkProtocolHTTP.h"
-#include "networkProtocolTNFS.h"
-#include "networkProtocolFTP.h"
 
 using namespace std;
 
@@ -351,24 +346,24 @@ bool sioNetwork::instantiate_protocol()
 
     if (urlParser->scheme == "TCP")
     {
-        protocol = new networkProtocolTCP();
+        //protocol = new networkProtocolTCP();
     }
     else if (urlParser->scheme == "UDP")
     {
-        protocol = new networkProtocolUDP();
+        //protocol = new networkProtocolUDP();
         // TODO: Change NetworkProtocolUDP to pass saved RX buffer into ctor!
     }
     else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
     {
-        protocol = new networkProtocolHTTP();
+        //protocol = new networkProtocolHTTP();
     }
     else if (urlParser->scheme == "TNFS")
     {
-        protocol = new networkProtocolTNFS();
+        //protocol = new networkProtocolTNFS();
     }
     else if (urlParser->scheme == "FTP")
     {
-        protocol = new networkProtocolFTP();
+        //protocol = new networkProtocolFTP();
     }
     else
     {
