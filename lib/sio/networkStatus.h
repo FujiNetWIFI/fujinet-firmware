@@ -9,18 +9,12 @@
 
 class NetworkStatus
 {
+public:
     NetworkStatus()
     {
         reset();
     }
 
-private:
-    /**
-     * Output buffer to return to SIO/CIO
-     */
-    uint8_t out[4];
-
-public:
     /**
      * Number of bytes waiting in RX buffer (0-65535)
      */
@@ -45,6 +39,7 @@ public:
         reserved=0;
         error=0;
     }
+
 };
 
 #endif /* NETWORKSTATUS_H */
