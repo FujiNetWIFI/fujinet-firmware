@@ -88,6 +88,7 @@ int8_t cassetteUART::service(uint8_t b)
 #ifdef DEBUG
             Debug_println("Bit slip error!");
 #endif
+            state_counter = STARTBIT;
             return -1; // frame sync error
         }
     }
@@ -126,6 +127,11 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
         Debug_println("Not a FUJI File");
     else
         Debug_println("A File for Recording");
+    unsigned long a = fnSystem.micros();
+    unsigned long b = fnSystem.micros();
+    Debug_printf("%u\n", a);
+    Debug_printf("%u\n", b);
+    Debug_println("A File for Recording");
 #endif
 
     // #ifdef DEBUG
@@ -152,6 +158,9 @@ void sioCassette::sio_enable_cassette()
         fnUartSIO.end();
         fnSystem.set_pin_mode(UART2_RX, gpio_mode_t::GPIO_MODE_INPUT);
 #ifdef DEBUG
+        Debug_println("stopped hardware UART");
+        int a = fnSystem.digital_read(UART2_RX);
+        Debug_printf("set pin to input. Value is %d\n", a);
         Debug_println("Writing FUJI File HEADERS");
 #endif
         fprintf(_file, "FUJI");
@@ -440,19 +449,18 @@ unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
 {
     // start counting the IRG
     uint64_t tic = fnSystem.millis();
-
-    decode_fsk();
- 
+    // TODO just print out fsk periods and don't bother with the UART for testing
+    while (!cas_encoder.available())
+        cas_encoder.service(decode_fsk());
+    uint16_t irg = fnSystem.millis() - tic;
+#ifdef DEBUG
+    Debug_printf("irg %u\n", irg);
+#endif
     // LEFT OFF HERE =================================================================================
     // need to figure out polling/looping logic with receive_FUJI_tape_block()
     // and cassetteUART::service(uint8_t b)
-    // start counting IRG, waiting for first startbit,  
-
-
-    // while hi or lo count
-    uint16_t toc = (uint16_t)(tic - fnSystem.millis());
-    offset += fwrite(&toc, 2, 1, _file); // IRG
-
+    // start counting IRG, waiting for first startbit,
+    offset += fwrite(&irg, 2, 1, _file); // IRG
     return offset;
 }
 
@@ -462,12 +470,22 @@ void sioCassette::detect_falling_edge()
     do
     {
         if (fnSystem.micros() - t > 1000)
+        {
+#ifdef DEBUG
+            Debug_println("time out waiting for fsk LOW");
+#endif
             break;
+        }
     } while (fnSystem.digital_read(UART2_RX) == DIGI_LOW);
     do
     {
         if (fnSystem.micros() - t > 1000)
+        {
+#ifdef DEBUG
+            Debug_println("time out waiting for fsk HIGH");
+#endif
             break;
+        }
     } while (fnSystem.digital_read(UART2_RX) == DIGI_HIGH);
 }
 
@@ -480,14 +498,27 @@ uint8_t sioCassette::decode_fsk()
     // when denoise counter == denoise threshold, set demod output
 
     // LEFT OFF HERE =================================================================================
-    // need to figure out polling/looping logic with receive_FUJI_tape_block()
-    // and cassetteUART::service(uint8_t b)
-    // 
+    // TODO: just print out fsk periods
 
+    unsigned long old = fsk_clock;
+    unsigned long now = fnSystem.micros();
+
+    if (old + period_space < now)
+    { // either first tic or missed tic
+#ifdef DEBUG
+        Debug_println("missed fsk cycle");
+#endif
+        detect_falling_edge();
+        old = fnSystem.micros();
+    }
     detect_falling_edge();
     fsk_clock = fnSystem.micros();
-    detect_falling_edge();
-    fsk_clock = fnSystem.micros();
-
-    return 0; // or 1 
+#ifdef DEBUG
+    Debug_printf("%u\n", fsk_clock - old);
+#endif
+    // if time difference is short, then mark
+    if (fsk_clock - old < (period_mark + period_space) / 2 && fsk_clock - old > period_mark + period_mark / 2)
+        return 0; // mark - bus is voltage high which is logic 0
+    else
+        return 1; // space - logic 1, start bit
 }
