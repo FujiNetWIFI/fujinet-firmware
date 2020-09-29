@@ -161,6 +161,8 @@ void sioNetwork::sio_close()
  * SIO Read command
  * Read # of bytes from the protocol adapter specified by the aux1/aux2 bytes, into the RX buffer. If we are short
  * fill the rest with nulls and return ERROR.
+ *  
+ * @note It is the channel's responsibility to pad to required length.
  */
 void sioNetwork::sio_read()
 {
@@ -193,8 +195,8 @@ void sioNetwork::sio_read()
     // Do the channel read
     err = sio_read_channel(num_bytes);
 
-    // Do the translation (fixme: move this entirely into the protocol!)
-    sio_translate_buffer(receiveBuffer, num_bytes, false);
+    // And send off to the computer
+    sio_to_computer(receiveBuffer,num_bytes,err);
 }
 
 /**
@@ -511,14 +513,3 @@ void sioNetwork::processCommaFromDevicespec()
     Debug_printf("Passed back deviceSpec %s\n", deviceSpec);
 }
 
-/**
- * Perform EOL translation of buffer based on aux2 value
- * @param buf The buffer to transform. Data transformed in place
- * @param len Length of buffer (0-65535)
- * @param rw false = READ, true = WRITE
- */
-void sioNetwork::sio_translate_buffer(uint8_t *buf, unsigned short len, bool rw)
-{
-
-
-}
