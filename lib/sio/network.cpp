@@ -167,7 +167,7 @@ void sioNetwork::sio_close()
 void sioNetwork::sio_read()
 {
     unsigned short num_bytes = sio_get_aux();
-    bool err;
+    bool err = false;
 
     Debug_printf("sioNetwork::sio_read( %d bytes)\n", num_bytes);
 
@@ -216,6 +216,7 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
     case JSON:
         Debug_printf("JSON Not Handled.\n");
         err = true;
+        break;
     }
     return err;
 }
@@ -227,6 +228,67 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
  */
 void sioNetwork::sio_write()
 {
+    unsigned short num_bytes = sio_get_aux();
+    bool err = false;
+    uint8_t ck;
+
+    Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
+
+    sio_ack();
+
+    // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
+    if (transmitBuffer == nullptr)
+    {
+        status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        sio_error();
+        return;
+    }
+
+    // If protocol isn't connected, then return not connected.
+    if (protocol == nullptr)
+    {
+        status.error = NETWORK_ERROR_NOT_CONNECTED;
+        sio_error();
+        return;
+    }
+
+    // Clean out RX buffer
+    memset(transmitBuffer, 0, OUTPUT_BUFFER_SIZE);
+
+    // Get the data from the Atari
+    ck = sio_to_peripheral(transmitBuffer,num_bytes);
+
+    if (ck != cmdFrame.checksum)
+    {
+        Debug_printf("Checksum Mismatch!, sending ERROR.\n");
+        sio_error();
+        return;
+    }
+
+    // Do the channel write
+    err = sio_write_channel(num_bytes);
+}
+
+/**
+ * Perform the correct write based on value of channelMode
+ * @param num_bytes Number of bytes to write.
+ * @return TRUE on error, FALSE on success. Used to emit sio_error or sio_complete().
+ */
+bool sioNetwork::sio_write_channel(unsigned short num_bytes)
+{
+    bool err = false;
+
+    switch(channelMode)
+    {
+        case PROTOCOL:
+        err=protocol->write(transmitBuffer,num_bytes);
+        break;
+        case JSON:
+        Debug_printf("JSON Not Handled.\n");
+        err=true;
+        break;
+    }
+    return err;
 }
 
 /**

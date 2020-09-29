@@ -257,6 +257,13 @@ private:
      * @return TRUE on error, FALSE on success. Passed directly to sio_to_computer().
      */
     bool sio_read_channel(unsigned short num_bytes);
+
+    /**
+     * Perform the correct write based on value of channelMode
+     * @param num_bytes Number of bytes to write.
+     * @return TRUE on error, FALSE on success. Used to emit sio_error or sio_complete().
+     */
+    bool sio_write_channel(unsigned short num_bytes);
 };
 
 #endif /* NETWORK_H */
