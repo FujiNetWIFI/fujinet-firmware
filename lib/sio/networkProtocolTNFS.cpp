@@ -81,7 +81,7 @@ bool networkProtocolTNFS::open_file(string path, int mode, int create_parms, sho
     return true;
 }
 
-bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, enable_interrupt_t enable_interrupt)
+bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     int mode = 1;
     int create_perms = 0;
@@ -141,12 +141,11 @@ bool networkProtocolTNFS::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame, ena
     return open_file(urlParser->path, mode, create_perms, fileHandle);
 }
 
-bool networkProtocolTNFS::close(enable_interrupt_t enable_interrupt)
+bool networkProtocolTNFS::close()
 {
     if (aux1 == 6)
     {
         tnfs_closedir(&mountInfo);
-        enable_interrupt(true);
     }
 
     if (fileHandle != 0)
