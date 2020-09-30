@@ -276,6 +276,14 @@ private:
      */
     void sio_status_channel();
 
+    /**
+     * @brief Do an inquiry to determine whether a protoocol supports a particular command.
+     * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
+     * or $FF - Command not supported, which should then be used as a DSTATS value by the
+     * Atari when making the N: SIO call.
+     */
+    void sio_special_inquiry(); 
+
 };
 
 #endif /* NETWORK_H */
