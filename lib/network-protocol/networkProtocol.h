@@ -5,14 +5,12 @@
 #include "EdUrlParser.h"
 #include "networkStatus.h"
 
-class networkProtocol
+class NetworkProtocol
 {
 public:
-    virtual ~networkProtocol() {}
+    virtual ~NetworkProtocol() {}
 
     bool connectionIsServer = false;
-    bool assertInterrupt = false;
-    bool assertProceed = false;
 
     uint8_t *saved_rx_buffer;
     unsigned short *saved_rx_buffer_len;
