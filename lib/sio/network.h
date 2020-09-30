@@ -198,6 +198,11 @@ private:
     } channelMode;
 
     /**
+     * saved NetworkStatus checksum
+     */
+    int lastNetworkStatusChecksum;
+
+    /**
      * Allocate rx and tx buffers
      * @return bool TRUE if ok, FALSE if in error.
      */
@@ -307,6 +312,11 @@ private:
      * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
      */
     void sio_special_protocol_80();
+
+    /**
+     * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
+     */
+    void sio_assert_interrupt();
 
 };
 

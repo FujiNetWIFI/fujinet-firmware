@@ -40,6 +40,10 @@ public:
         error=0;
     }
 
+    int checksum()
+    {
+        return rxBytesWaiting+reserved+error;
+    }
 };
 
 #endif /* NETWORKSTATUS_H */
