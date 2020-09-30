@@ -19,6 +19,7 @@
  */
 #define INPUT_BUFFER_SIZE 65535
 #define OUTPUT_BUFFER_SIZE 65535
+#define SPECIAL_BUFFER_SIZE 256
 
 /**
  * Attempted to use connection while not open
@@ -283,6 +284,29 @@ private:
      * Atari when making the N: SIO call.
      */
     void sio_special_inquiry(); 
+
+    /**
+     * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
+     * Essentially, call the protocol action 
+     * and based on the return, signal sio_complete() or error().
+     */
+    void sio_special_protocol_00();
+
+    /**
+     * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
+     * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
+     * buffer (containing the devicespec) and based on the return, use sio_to_computer() to transfer the
+     * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
+     */
+    void sio_special_protocol_40();
+
+    /**
+     * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
+     * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
+     * buffer (containing the devicespec) and based on the return, use sio_to_peripheral() to transfer the
+     * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
+     */
+    void sio_special_protocol_80();
 
 };
 

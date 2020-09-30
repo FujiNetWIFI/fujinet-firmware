@@ -269,6 +269,12 @@ void sioNetwork::sio_write()
 
     // Do the channel write
     err = sio_write_channel(num_bytes);
+
+    // Acknowledge to Atari of channel outcome.
+    if (err==false)
+        sio_complete();
+    else
+        sio_error();
 }
 
 /**
@@ -380,6 +386,39 @@ void sioNetwork::sio_status_channel()
  */
 void sioNetwork::sio_special()
 {
+    uint8_t inq_cmd = sio_get_aux();
+    uint8_t inq_dstats = 0xFF;
+
+    // If there's no protocol, and we got here, then we nak the command, because it's not valid.
+    if (protocol == nullptr)
+    {
+        Debug_printf("Attempted to do undefined special command with no protocol.\n");
+        sio_nak();
+        return;
+    }
+
+    // Ask protocol for DSTATS value.
+    inq_dstats = protocol->special_inquiry(inq_cmd);
+
+    if (inq_dstats == 0xFF)
+    {
+        Debug_printf("Attempted to do undefined special command to protocol.\n");
+        sio_nak();
+        return;
+    }
+
+    switch (inq_dstats)
+    {
+    case 0x00: // No payload
+        sio_special_protocol_00();
+        break;
+    case 0x40: // Payload to Atari
+        sio_special_protocol_40();
+        break;
+    case 0x80: // Payload to Peripheral
+        sio_special_protocol_80();
+        break;
+    }
 }
 
 /**
@@ -400,54 +439,86 @@ void sioNetwork::sio_special_inquiry()
 
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
-        inq_dstats = protocol->inquiry(inq_cmd);
+        inq_dstats = protocol->special_inquiry(inq_cmd);
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
-    if (inq_dstats==0xFF)
+    if (inq_dstats == 0xFF)
     {
-        switch(inq_cmd)
+        switch (inq_cmd)
         {
-            case 0x20: // RENAME
-                inq_dstats=0x80;
-                break;
-            case 0x21: // DELETE
-                inq_dstats=0x80;
-                break;
-            case 0x25: // POINT
-                inq_dstats=0x80;
-                break;
-            case 0x26: // NOTE
-                inq_dstats=0x40;
-                break;
-            case 0x2A: // MKDIR
-                inq_dstats=0x80;
-                break;
-            case 0x2B: // RMDIR
-                inq_dstats=0x80;
-                break;
-            case 0x2C: // CHDIR
-                inq_dstats=0x80;
-                break;
-            case 0x30: // ?DIR
-                inq_dstats=0x40;
-                break;
-            case 'T': // Set Translation
-                inq_dstats=0x00;
-                break;
-            case 0x80: // JSON Parse
-                inq_dstats=0x00;
-                break;
-            case 0x81: // JSON Query
-                inq_dstats=0x80;
-                break;
-            default:
-                inq_dstats=0xFF; // not supported
-                break;
+        case 'T': // Set Translation
+            inq_dstats = 0x00;
+            break;
+        case 0x80: // JSON Parse
+            inq_dstats = 0x00;
+            break;
+        case 0x81: // JSON Query
+            inq_dstats = 0x80;
+            break;
+        default:
+            inq_dstats = 0xFF; // not supported
+            break;
         }
     }
 
     // Finally, return the completed inq_dstats value back to Atari
-    sio_to_computer(&inq_dstats,sizeof(inq_dstats),false); // never errors.
+    sio_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
+}
+
+/**
+ * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
+ * Essentially, call the protocol action 
+ * and based on the return, signal sio_complete() or error().
+ */
+void sioNetwork::sio_special_protocol_00()
+{
+    if (protocol->special_00(&cmdFrame) == false)
+        sio_complete();
+    else
+        sio_error();
+}
+
+/**
+ * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
+ * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
+ * buffer (containing the devicespec) and based on the return, use sio_to_computer() to transfer the
+ * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
+ */
+void sioNetwork::sio_special_protocol_40()
+{
+    memset(receiveBuffer, 0, INPUT_BUFFER_SIZE);
+    sio_to_computer(receiveBuffer,
+                    SPECIAL_BUFFER_SIZE,
+                    protocol->special_40(receiveBuffer, SPECIAL_BUFFER_SIZE, &cmdFrame));
+}
+
+/**
+ * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
+ * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
+ * buffer (containing the devicespec) and based on the return, use sio_to_peripheral() to transfer the
+ * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
+ */
+void sioNetwork::sio_special_protocol_80()
+{
+    uint8_t ck;
+    memset(transmitBuffer, 0, OUTPUT_BUFFER_SIZE);
+
+    // Get special (devicespec) from computer
+    ck = sio_to_peripheral(transmitBuffer, 256);
+
+    // Bomb if checksum mismatch.
+    if (ck != cmdFrame.checksum)
+    {
+        Debug_printf("sioNetwork::sio_special_protocol_80() - mismatched checksum\n");
+        sio_error();
+        return;
+    }
+
+    // Do protocol action and return
+    if (protocol->special_80(transmitBuffer,SPECIAL_BUFFER_SIZE,&cmdFrame)==false)
+        sio_complete();
+    else
+        sio_error();
 }
 
 /**
@@ -710,6 +781,7 @@ void sioNetwork::processCommaFromDevicespec()
             continue;                                       // also not us.
         else
         {
+            // This is our deviceSpec.
             deviceSpec = item;
             break;
         }
