@@ -275,7 +275,7 @@ private:
      * @brief perform channel status commands, if there is a protocol bound.
      */
     void sio_status_channel();
-    
+
 };
 
 #endif /* NETWORK_H */
