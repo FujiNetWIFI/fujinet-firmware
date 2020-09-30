@@ -3,6 +3,7 @@
 
 #include "sio.h"
 #include "EdUrlParser.h"
+#include "networkStatus.h"
 
 class networkProtocol
 {
@@ -20,7 +21,7 @@ public:
     virtual bool close() = 0;
     virtual bool read(uint8_t *rx_buf, unsigned short len) = 0;
     virtual bool write(uint8_t *tx_buf, unsigned short len) = 0;
-    virtual bool status(uint8_t *status_buf) = 0;
+    virtual bool status(NetworkStatus *status) = 0;
     virtual uint8_t special_inquiry(uint8_t cmd);
     virtual bool special_00(cmdFrame_t *cmdFrame) { return false; }
     virtual bool special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return false; }
