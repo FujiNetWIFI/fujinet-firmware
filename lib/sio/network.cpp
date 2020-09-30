@@ -567,7 +567,7 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 /**
      * Check to see if PROCEED needs to be asserted.
      */
-void sioNetwork::sio_assert_interrupts()
+void sioNetwork::sio_poll_interrupt()
 {
 }
 

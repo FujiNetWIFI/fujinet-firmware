@@ -117,7 +117,7 @@ public:
     /**
      * Check to see if PROCEED needs to be asserted.
      */
-    void sio_assert_interrupts();
+    void sio_poll_interrupt();
 
     /**
      * Process incoming SIO command for device 0x7X
