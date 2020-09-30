@@ -349,13 +349,27 @@ void sioNetwork::sio_status_local()
  */
 void sioNetwork::sio_status_channel()
 {
+    uint8_t serialized_status[4] = {0, 0, 0, 0};
+    bool err = false;
+
     switch (channelMode)
     {
     case PROTOCOL:
+        // err=protocol->status(&status);
         break;
     case JSON:
+        // err=_json->status(&status)
         break;
     }
+
+    // Serialize status into status bytes
+    serialized_status[0] = status.rxBytesWaiting & 0xFF;
+    serialized_status[1] = status.rxBytesWaiting >> 8;
+    serialized_status[2] = status.reserved;
+    serialized_status[3] = status.error;
+
+    // and send to computer
+    sio_to_computer(serialized_status, sizeof(serialized_status), err);
 }
 
 /**
