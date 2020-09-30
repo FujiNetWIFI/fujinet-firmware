@@ -314,7 +314,7 @@ void sioBus::service()
     for (int i = 0; i < 8; i++)
     {
         if (_netDev[i] != nullptr)
-            _netDev[i]->sio_assert_interrupts();
+            _netDev[i]->sio_poll_interrupt();
     }
 }
 
