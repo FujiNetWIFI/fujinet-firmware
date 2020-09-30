@@ -40,9 +40,8 @@ public:
         saved_rx_buffer_len = len;
     }
 
-    virtual bool special_supported_40_command(unsigned char comnd) { return false; }
-    virtual bool special_supported_80_command(unsigned char comnd) { return false; }
-    virtual bool special_supported_00_command(unsigned char comnd) { return false; }
+    virtual uint8_t inquiry(uint8_t cmd);
+    
 };
 
 #endif /* NETWORKPROTOCOL_H */
