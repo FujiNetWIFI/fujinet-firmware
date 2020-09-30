@@ -21,10 +21,14 @@ public:
     virtual bool read(uint8_t *rx_buf, unsigned short len) = 0;
     virtual bool write(uint8_t *tx_buf, unsigned short len) = 0;
     virtual bool status(uint8_t *status_buf) = 0;
-    virtual bool special(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) = 0;
+    virtual uint8_t special_inquiry(uint8_t cmd);
+    virtual bool special_00(cmdFrame_t *cmdFrame) { return false; }
+    virtual bool special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return false; }
+    virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return false; }
 
     virtual int available() = 0;
 
+    // Todo: move these out to network-protocol/FS.h
     virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
     virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
     virtual bool mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) { return false; }
@@ -40,8 +44,6 @@ public:
         saved_rx_buffer_len = len;
     }
 
-    virtual uint8_t inquiry(uint8_t cmd);
-    
 };
 
 #endif /* NETWORKPROTOCOL_H */
