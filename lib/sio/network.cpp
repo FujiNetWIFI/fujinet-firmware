@@ -383,6 +383,74 @@ void sioNetwork::sio_special()
 }
 
 /**
+ * @brief Do an inquiry to determine whether a protoocol supports a particular command.
+ * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
+ * or $FF - Command not supported, which should then be used as a DSTATS value by the
+ * Atari when making the N: SIO call.
+ */
+void sioNetwork::sio_special_inquiry()
+{
+    uint8_t inq_cmd = cmdFrame.aux1;
+    uint8_t inq_dstats = 0xFF;
+
+    // Acknowledge
+    sio_ack();
+
+    Debug_printf("sioNetwork::sio_special_inquiry(%02x)\n", inq_cmd);
+
+    // Ask protocol for dstats, otherwise get it locally.
+    if (protocol != nullptr)
+        inq_dstats = protocol->inquiry(inq_cmd);
+
+    // If we didn't get one from protocol, or unsupported, see if supported globally.
+    if (inq_dstats==0xFF)
+    {
+        switch(inq_cmd)
+        {
+            case 0x20: // RENAME
+                inq_dstats=0x80;
+                break;
+            case 0x21: // DELETE
+                inq_dstats=0x80;
+                break;
+            case 0x25: // POINT
+                inq_dstats=0x80;
+                break;
+            case 0x26: // NOTE
+                inq_dstats=0x40;
+                break;
+            case 0x2A: // MKDIR
+                inq_dstats=0x80;
+                break;
+            case 0x2B: // RMDIR
+                inq_dstats=0x80;
+                break;
+            case 0x2C: // CHDIR
+                inq_dstats=0x80;
+                break;
+            case 0x30: // ?DIR
+                inq_dstats=0x40;
+                break;
+            case 'T': // Set Translation
+                inq_dstats=0x00;
+                break;
+            case 0x80: // JSON Parse
+                inq_dstats=0x00;
+                break;
+            case 0x81: // JSON Query
+                inq_dstats=0x80;
+                break;
+            default:
+                inq_dstats=0xFF; // not supported
+                break;
+        }
+    }
+
+    // Finally, return the completed inq_dstats value back to Atari
+    sio_to_computer(&inq_dstats,sizeof(inq_dstats),false); // never errors.
+}
+
+/**
  * Process incoming SIO command for device 0x7X
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
@@ -415,6 +483,9 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case 'S':
         sio_status();
+        break;
+    case 0xFF:
+        sio_special_inquiry();
         break;
     default:
         sio_special();
