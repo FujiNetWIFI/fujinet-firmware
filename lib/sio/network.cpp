@@ -19,7 +19,7 @@ void onTimer(void *info)
 {
     sioNetwork *parent = (sioNetwork *)info;
     portENTER_CRITICAL_ISR(&parent->timerMux);
-    parent->interruptProceed = true;
+    parent->interruptProceed = !parent->interruptProceed;
     portEXIT_CRITICAL_ISR(&parent->timerMux);
 }
 
@@ -271,7 +271,7 @@ void sioNetwork::sio_write()
     err = sio_write_channel(num_bytes);
 
     // Acknowledge to Atari of channel outcome.
-    if (err==false)
+    if (err == false)
         sio_complete();
     else
         sio_error();
@@ -515,7 +515,7 @@ void sioNetwork::sio_special_protocol_80()
     }
 
     // Do protocol action and return
-    if (protocol->special_80(transmitBuffer,SPECIAL_BUFFER_SIZE,&cmdFrame)==false)
+    if (protocol->special_80(transmitBuffer, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
         sio_complete();
     else
         sio_error();
@@ -565,10 +565,19 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 }
 
 /**
-     * Check to see if PROCEED needs to be asserted.
-     */
+ * Check to see if PROCEED needs to be asserted, and assert if needed.
+ */
 void sioNetwork::sio_poll_interrupt()
 {
+    if ((protocol != nullptr) && (interruptProceed == true))
+    {
+        protocol->status(&status);
+
+        if (lastNetworkStatusChecksum != status.checksum())
+            sio_assert_interrupt();
+
+        lastNetworkStatusChecksum = status.checksum();
+    }
 }
 
 /** PRIVATE METHODS ************************************************************/
@@ -788,4 +797,15 @@ void sioNetwork::processCommaFromDevicespec()
     }
 
     Debug_printf("Passed back deviceSpec %s\n", deviceSpec);
+}
+
+/**
+ * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
+ */
+void sioNetwork::sio_assert_interrupt()
+{
+    // Pulse Interrupt for 50μs
+    fnSystem.digital_write(PIN_PROC, DIGI_LOW);
+    fnSystem.delay_microseconds(50);
+    fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
 }
