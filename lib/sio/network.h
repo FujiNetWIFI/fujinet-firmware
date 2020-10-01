@@ -5,7 +5,7 @@
 #include <vector>
 #include "sio.h"
 #include "EdUrlParser.h"
-#include "../network-protocol/networkProtocol.h"
+#include "../network-protocol/Protocol.h"
 #include "networkStatus.h"
 #include "driver/timer.h"
 
@@ -145,7 +145,7 @@ private:
     /**
      * Instance of currently open network protocol
      */
-    networkProtocol *protocol = nullptr;
+    NetworkProtocol *protocol = nullptr;
 
     /**
      * Network Status object
