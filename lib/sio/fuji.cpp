@@ -291,7 +291,7 @@ void sioFuji::debug_tape()
     if(_cassetteDev.is_active() == false)
     {
         Debug_println("::debug_tape ENABLE");
-        _cassetteDev.open_cassette_file(&fnSPIFFS);
+        _cassetteDev.open_cassette_file(&fnSDFAT);
         _cassetteDev.sio_enable_cassette();
     }
     else

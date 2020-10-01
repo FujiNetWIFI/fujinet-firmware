@@ -447,20 +447,31 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
 
 unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
 {
-    // start counting the IRG
-    uint64_t tic = fnSystem.millis();
-    // TODO just print out fsk periods and don't bother with the UART for testing
-    while (!cas_encoder.available())
-        cas_encoder.service(decode_fsk());
-    uint16_t irg = fnSystem.millis() - tic;
-#ifdef DEBUG
-    Debug_printf("irg %u\n", irg);
-#endif
-    // LEFT OFF HERE =================================================================================
-    // need to figure out polling/looping logic with receive_FUJI_tape_block()
-    // and cassetteUART::service(uint8_t b)
-    // start counting IRG, waiting for first startbit,
-    offset += fwrite(&irg, 2, 1, _file); // IRG
+    unsigned long tt = fnSystem.millis();
+    while (fnSystem.millis() - tt < 30000)
+    { // start counting the IRG
+        uint64_t tic = fnSystem.millis();
+        // TODO just print out fsk periods and don't bother with the UART for testing
+
+        // first try logic to wait for first IRG       
+//        while (!cas_encoder.available())
+//            cas_encoder.service(decode_fsk());
+//        uint16_t irg = fnSystem.millis() - tic;
+//#ifdef DEBUG
+//        Debug_printf("irg %u\n", irg);
+//#endif
+
+        // second try just to look at fsk periods in debug
+        decode_fsk();
+
+        // LEFT OFF HERE =================================================================================
+        // need to figure out polling/looping logic with receive_FUJI_tape_block()
+        // and cassetteUART::service(uint8_t b)
+        // start counting IRG, waiting for first startbit,
+        // offset += fwrite(&irg, 2, 1, _file); // IRG
+    }
+    // to do: watch motor line to disable cassette
+    sio_disable_cassette();
     return offset;
 }
 
@@ -517,8 +528,14 @@ uint8_t sioCassette::decode_fsk()
     Debug_printf("%u\n", fsk_clock - old);
 #endif
     // if time difference is short, then mark
-    if (fsk_clock - old < (period_mark + period_space) / 2 && fsk_clock - old > period_mark + period_mark / 2)
-        return 0; // mark - bus is voltage high which is logic 0
-    else
-        return 1; // space - logic 1, start bit
+    // MARK period is 187 usec          range from 156 to 218
+    // SPACE period is 250 usec         range from 218 to 281
+    // middle is 218 usec
+    // MARK is default for no signal as well so only check for SPACE
+
+    unsigned long dt = fsk_clock - old;
+    if (dt > 218 && dt < 281)
+        return 1; // SPACE - logic 1, start bit
+    // otherwise return MARK
+    return 0;
 }
