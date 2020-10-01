@@ -4,6 +4,7 @@
 #include "sio.h"
 #include "EdUrlParser.h"
 #include "networkStatus.h"
+#include "../include/status_error_codes.h"
 
 class NetworkProtocol
 {
@@ -17,6 +18,16 @@ public:
      * @brief Protocol connection is a server (listening connection)
      */
     bool connectionIsServer = false;
+
+    /**
+     * @brief number of bytes waiting
+     */
+    unsigned short bytesWaiting;
+
+    /**
+     * @brief Error code to return in status
+     */
+    unsigned char error;
 
     /**
      * @brief Open connection to the protocol using URL

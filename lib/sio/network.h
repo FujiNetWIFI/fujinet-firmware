@@ -8,6 +8,7 @@
 #include "../network-protocol/Protocol.h"
 #include "networkStatus.h"
 #include "driver/timer.h"
+#include "../include/status_error_codes.h"
 
 /**
  * Number of devices to expose via SIO, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -20,31 +21,6 @@
 #define INPUT_BUFFER_SIZE 65535
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
-
-/**
- * Attempted to use connection while not open
- */
-#define NETWORK_ERROR_NOT_CONNECTED 133
-
-/**
- * A fatal error
- */
-#define NETWORK_ERROR_GENERAL 144
-
-/**
- * An invalid devicespec was given
- */
-#define NETWORK_ERROR_INVALID_DEVICESPEC 165
-
-/**
- * A connection was either refused or not possible
- */
-#define NETWORK_ERROR_CONNECTION_REFUSED 170
-
-/**
- * Could not allocate buffers
- */
-#define NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS 255
 
 class sioNetwork : public sioDevice
 {
