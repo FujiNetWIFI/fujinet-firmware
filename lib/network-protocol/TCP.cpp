@@ -6,6 +6,7 @@
 
 #include <errno.h>
 #include "TCP.h"
+#include "status_error_codes.h"
 
 /**
  * ctor
@@ -69,7 +70,19 @@ bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
  */
 bool NetworkProtocolTCP::close()
 {
-    return false;
+    if (client.connected())
+    {
+        Debug_printf("Closing client socket.\n");
+        client.stop();
+    }
+
+    if (server != nullptr)
+    {
+        Debug_printf("Closing server socket.\n");
+        server->stop();
+    }
+
+    return false; // Always successful./
 }
 
 /**

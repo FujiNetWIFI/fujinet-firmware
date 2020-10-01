@@ -11,6 +11,17 @@
 
 class NetworkProtocolTCP : public NetworkProtocol
 {
+
+    /**
+     * ctor
+     */
+    NetworkProtocolTCP();
+
+    /**
+     * dtor
+     */
+    virtual ~NetworkProtocolTCP();
+
     /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.

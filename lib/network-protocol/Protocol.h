@@ -4,7 +4,6 @@
 #include "sio.h"
 #include "EdUrlParser.h"
 #include "networkStatus.h"
-#include "../include/status_error_codes.h"
 
 class NetworkProtocol
 {
