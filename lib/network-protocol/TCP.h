@@ -6,6 +6,8 @@
 #define NETWORKPROTOCOL_TCP
 
 #include "Protocol.h"
+#include "../tcpip/fnTcpClient.h"
+#include "../tcpip/fnTcpServer.h"
 
 class NetworkProtocolTCP : public NetworkProtocol
 {
@@ -63,7 +65,7 @@ class NetworkProtocolTCP : public NetworkProtocol
      * @param sp_buf a pointer to the special buffer
      * @param len Length of data to request from protocol. Should not be larger than buffer.
      * @return error flag. TRUE on error, FALSE on success.
-     */ 
+     */
     virtual bool special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
 
     /**
@@ -72,6 +74,39 @@ class NetworkProtocolTCP : public NetworkProtocol
      * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
+
+private:
+
+    /**
+     * a fnTcpClient object representing a client TCP socket.
+     */
+    fnTcpClient client;
+
+    /**
+     * a fnTcpServer object representing a listening TCP server socket.
+     */
+    fnTcpServer *server;
+
+    /**
+     * Open a server (listening) connection.
+     * @param port bind to port #
+     * @return error flag. TRUE on error. FALSE on success.
+     */
+    bool open_server(unsigned short port);
+
+    /**
+     * Open a client connection to host and port.
+     * @param hostname The hostname to connect to.
+     * @param port the port number to connect to.
+     * @return error flag. TRUE on erorr. FALSE on success.
+     */
+    bool open_client(string hostname, unsigned short port);
+
+    /**
+     * Special: Accept a server connection, transfer to client socket.
+     */
+    bool accept_connection();
+
 };
 
 #endif /* NETWORKPROTOCOL_TCP */

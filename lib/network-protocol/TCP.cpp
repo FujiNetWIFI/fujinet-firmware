@@ -4,7 +4,37 @@
  * TCP Protocol Adapter Implementation
  */
 
+#include <errno.h>
 #include "TCP.h"
+
+/**
+ * ctor
+ */
+NetworkProtocolTCP::NetworkProtocolTCP()
+{
+    Debug_printf("NetworkProtocolTCP::ctor\n");
+    server = nullptr;
+}
+
+/**
+ * dtor
+ */
+NetworkProtocolTCP::~NetworkProtocolTCP()
+{
+    Debug_printf("NetworkProtocolTCP::dtor\n");
+
+    if (server != nullptr)
+    {
+        if (client.connected())
+            client.stop();
+
+        server->stop();
+
+        delete server;
+
+        server = nullptr;
+    }
+}
 
 /**
  * @brief Open connection to the protocol using URL
@@ -13,7 +43,25 @@
  */
 bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
-    return false;
+    bool ret = true; // assume error until proven ok
+
+    if (urlParser->port.empty())
+        urlParser->port = "23";
+
+    Debug_printf("NetworkProtocolTCP::open(%s:%s)", urlParser->hostName.c_str(), urlParser->port.c_str());
+
+    if (urlParser->hostName.empty())
+    {
+        // open server on port
+        ret = open_server(atoi(urlParser->port.c_str()));
+    }
+    else
+    {
+        // open client connection
+        ret = open_client(urlParser->hostName, atoi(urlParser->port.c_str()));
+    }
+
+    return ret;
 }
 
 /**
@@ -95,4 +143,61 @@ bool NetworkProtocolTCP::special_40(uint8_t *sp_buf, unsigned short len, cmdFram
 bool NetworkProtocolTCP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     return false;
+}
+
+/**
+ * Open a server (listening) connection.
+ * @param port bind to port #
+ * @return error flag. TRUE on error. FALSE on success.
+ */
+bool NetworkProtocolTCP::open_server(unsigned short port)
+{
+    Debug_printf("Binding to port %d\n", port);
+
+    server = new fnTcpServer(port);
+    server->begin(port);
+    connectionIsServer = true;
+
+    return errno < 0;
+}
+
+/**
+ * Open a client connection to host and port.
+ * @param hostname The hostname to connect to.
+ * @param port the port number to connect to.
+ * @return error flag. TRUE on erorr. FALSE on success.
+ */
+bool NetworkProtocolTCP::open_client(string hostname, unsigned short port)
+{
+    int res = 0;
+
+    connectionIsServer = false;
+
+    Debug_printf("Connecting to host %s port %d\n", hostname.c_str(), port);
+
+    res = client.connect(hostname.c_str(), port);
+
+    if (res == 0)
+    {
+        // Did not connect.
+        switch (errno)
+        {
+        case ECONNREFUSED:
+            error = NETWORK_ERROR_CONNECTION_REFUSED;
+            break;
+        case ENETUNREACH:
+            error = NETWORK_ERROR_NETWORK_UNREACHABLE;
+            break;
+        case ETIMEDOUT:
+            error = NETWORK_ERROR_SOCKET_TIMEOUT;
+            break;
+        case ENETDOWN:
+            error = NETWORK_ERROR_NETWORK_DOWN;
+            break;
+        }
+
+        return true; // Error.
+    }
+
+    return false; // We're connected.
 }
