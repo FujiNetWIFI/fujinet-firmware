@@ -450,7 +450,7 @@ unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
     unsigned long tt = fnSystem.millis();
     while (fnSystem.millis() - tt < 30000)
     { // start counting the IRG
-        uint64_t tic = fnSystem.millis();
+        // uint64_t tic = fnSystem.millis();
         // TODO just print out fsk periods and don't bother with the UART for testing
 
         // first try logic to wait for first IRG       
@@ -525,7 +525,7 @@ uint8_t sioCassette::decode_fsk()
     detect_falling_edge();
     fsk_clock = fnSystem.micros();
 #ifdef DEBUG
-    Debug_printf("%u\n", fsk_clock - old);
+    Debug_printf("%u %u\n", fsk_clock, fsk_clock - old);
 #endif
     // if time difference is short, then mark
     // MARK period is 187 usec          range from 156 to 218
