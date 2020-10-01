@@ -79,6 +79,7 @@ int8_t cassetteUART::service(uint8_t b)
             }
             else
             {
+                state_counter++;
                 received_byte *= 2; // shift to left
                 received_byte += b;
             }
@@ -450,19 +451,19 @@ unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
     unsigned long tt = fnSystem.millis();
     while (fnSystem.millis() - tt < 30000)
     { // start counting the IRG
-        // uint64_t tic = fnSystem.millis();
+        uint64_t tic = fnSystem.millis();
         // TODO just print out fsk periods and don't bother with the UART for testing
 
         // first try logic to wait for first IRG       
-//        while (!cas_encoder.available())
-//            cas_encoder.service(decode_fsk());
-//        uint16_t irg = fnSystem.millis() - tic;
-//#ifdef DEBUG
-//        Debug_printf("irg %u\n", irg);
-//#endif
+        while (!cas_encoder.available())
+            cas_encoder.service(decode_fsk());
+        uint16_t irg = fnSystem.millis() - tic;
+#ifdef DEBUG
+        Debug_printf("irg %u\n", irg);
+#endif
 
         // second try just to look at fsk periods in debug
-        decode_fsk();
+        //decode_fsk();
 
         // LEFT OFF HERE =================================================================================
         // need to figure out polling/looping logic with receive_FUJI_tape_block()
@@ -511,8 +512,8 @@ uint8_t sioCassette::decode_fsk()
     // LEFT OFF HERE =================================================================================
     // TODO: just print out fsk periods
 
-    unsigned long old = fsk_clock;
-    unsigned long now = fnSystem.micros();
+    uint64_t old = fsk_clock;
+    uint64_t now = fnSystem.micros();
 
     if (old + period_space < now)
     { // either first tic or missed tic
@@ -525,7 +526,8 @@ uint8_t sioCassette::decode_fsk()
     detect_falling_edge();
     fsk_clock = fnSystem.micros();
 #ifdef DEBUG
-    Debug_printf("%u %u\n", fsk_clock, fsk_clock - old);
+    Debug_printf("%u, ", old);
+    Debug_printf("%u\n", fsk_clock - old);
 #endif
     // if time difference is short, then mark
     // MARK period is 187 usec          range from 156 to 218
