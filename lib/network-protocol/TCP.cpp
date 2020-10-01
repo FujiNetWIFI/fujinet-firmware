@@ -5,6 +5,7 @@
  */
 
 #include <errno.h>
+#include <string.h>
 #include "TCP.h"
 #include "status_error_codes.h"
 
@@ -93,6 +94,37 @@ bool NetworkProtocolTCP::close()
  */
 bool NetworkProtocolTCP::read(uint8_t *rx_buf, unsigned short len)
 {
+    int actual_len = 0;
+
+    Debug_printf("NetworkProtocolTCP::read(%d)\n", len);
+
+    // Clear buffer
+    memset(rx_buf, 0, len);
+
+    // Check for client connection
+    if (client.connected())
+    {
+        error = NETWORK_ERROR_NOT_CONNECTED;
+        return true; // error
+    }
+
+    // Do the read from client socket.
+    actual_len = client.read(rx_buf, len);
+
+    // bail if the connection is reset.
+    if (errno==ECONNRESET)
+    {
+        error = NETWORK_ERROR_CONNECTION_RESET;
+        return true;
+    }
+    else if (actual_len != len) // Read was short and timed out.
+    {
+        Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\n",actual_len,len);
+        error=NETWORK_ERROR_SOCKET_TIMEOUT;
+        return true;
+    }
+
+    // Return success
     return false;
 }
 

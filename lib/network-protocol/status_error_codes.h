@@ -40,6 +40,10 @@
  */
 #define NETWORK_ERROR_NETWORK_DOWN 203
 
+/**
+ * Connection was reset
+ */
+#define NETWORK_ERROR_CONNECTION_RESET 204
 
 /**
  * Could not allocate buffers
