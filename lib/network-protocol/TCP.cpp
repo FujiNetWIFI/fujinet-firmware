@@ -71,6 +71,8 @@ bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
  */
 bool NetworkProtocolTCP::close()
 {
+    Debug_printf("NetworkProtocolTCP::close()\n");
+
     if (client.connected())
     {
         Debug_printf("Closing client socket.\n");
@@ -96,7 +98,7 @@ bool NetworkProtocolTCP::read(uint8_t *rx_buf, unsigned short len)
 {
     int actual_len = 0;
 
-    Debug_printf("NetworkProtocolTCP::read(%d)\n", len);
+    Debug_printf("NetworkProtocolTCP::read(%u)\n", len);
 
     // Clear buffer
     memset(rx_buf, 0, len);
@@ -136,6 +138,34 @@ bool NetworkProtocolTCP::read(uint8_t *rx_buf, unsigned short len)
  */
 bool NetworkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
 {
+    int actual_len = 0;
+    
+    Debug_printf("NetworkProtocolTCP::write(%u)\n",len);
+
+    // Check for client connection
+    if (client.connected())
+    {
+        error = NETWORK_ERROR_NOT_CONNECTED;
+        return true; // error
+    }
+
+    // Do the read from client socket.
+    actual_len = client.write(tx_buf, len);
+
+    // bail if the connection is reset.
+    if (errno==ECONNRESET)
+    {
+        error = NETWORK_ERROR_CONNECTION_RESET;
+        return true;
+    }
+    else if (actual_len != len) // write was short.
+    {
+        Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\n",actual_len,len);
+        error=NETWORK_ERROR_SOCKET_TIMEOUT;
+        return true;
+    }
+
+    // Return success
     return false;
 }
 
