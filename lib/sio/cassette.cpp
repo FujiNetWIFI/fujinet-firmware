@@ -573,8 +573,24 @@ uint8_t sioCassette::decode_fsk()
     // MARK is default for no signal as well so only check for SPACE
 
     unsigned long dt = fsk_clock - old;
-    if (dt > 218 && dt < 281)
-        return 1; // SPACE - logic 1, start bit
-    // otherwise return MARK
-    return 0;
+
+    uint8_t b = 0;
+    if (dt > 218)
+        b = 1; // SPACE - logic 1, start bit
+
+    if (b == last_value)
+        denoise_counter++;
+    else
+        denoise_counter = 0;
+
+    last_value = b;
+
+    if (denoise_counter > 3)
+    {
+        last_output = b;
+        denoise_counter = 0;
+        return b;
+    }
+
+    return last_output;
 }

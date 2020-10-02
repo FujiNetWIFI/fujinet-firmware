@@ -75,7 +75,9 @@ protected:
 
     // FSK demod (from Atari and maybe from WAV)
     uint64_t fsk_clock; // can count period width from atari because
-    uint8_t last_value;
+    uint8_t last_value = 0;
+    uint8_t last_output = 0;
+    uint8_t denoise_counter = 0;
     const uint16_t period_space = 1000000 / 3995;
     const uint16_t period_mark = 1000000 / 5327;
     void detect_falling_edge();
