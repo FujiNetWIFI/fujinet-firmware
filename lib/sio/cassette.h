@@ -33,7 +33,7 @@ enum class cassette_mode_t
 // if not stop bit, throw a frame sync error
 // if stop bit, store byte in buffer, reset some stuff,
 
-class cassetteUART
+class softUART
 {
 protected:
     uint64_t baud_clock;
@@ -54,7 +54,7 @@ protected:
 public:
     uint8_t available();
     void set_baud(uint16_t b);
-    uint8_t get_next_byte();
+    uint8_t read();
     int8_t service(uint8_t b);
 };
 

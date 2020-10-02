@@ -25,25 +25,25 @@
 #define UART2_TX 17
 #endif
 
-cassetteUART cas_encoder;
+softUART casUART;
 
-uint8_t cassetteUART::available()
+uint8_t softUART::available()
 {
     return index_in - index_out;
 }
 
-void cassetteUART::set_baud(uint16_t b)
+void softUART::set_baud(uint16_t b)
 {
     baud = b;
     period = 1000000 / baud;
 };
 
-uint8_t cassetteUART::get_next_byte()
+uint8_t softUART::read()
 {
     return buffer[index_out++];
 }
 
-int8_t cassetteUART::service(uint8_t b)
+int8_t softUART::service(uint8_t b)
 {
     unsigned long t = fnSystem.micros();
     if (state_counter == STARTBIT)
@@ -449,27 +449,64 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
 unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
 {
     unsigned long tt = fnSystem.millis();
-    while (fnSystem.millis() - tt < 30000)
-    { // start counting the IRG
-        uint64_t tic = fnSystem.millis();
-        // TODO just print out fsk periods and don't bother with the UART for testing
-
-        // first try logic to wait for first IRG       
-        while (!cas_encoder.available())
-            cas_encoder.service(decode_fsk());
-        uint16_t irg = fnSystem.millis() - tic;
+    while (fnSystem.millis() - tt < 30000) // just 30 seconds for now - use motor line later
+    {                                      // start counting the IRG
+        int j = 0;
+        while (j < 2)
+        {
+            uint64_t tic = fnSystem.millis();
+            while (!casUART.available())
+                casUART.service(decode_fsk());
+            uint16_t irg = fnSystem.millis() - tic;
 #ifdef DEBUG
-        Debug_printf("irg %u\n", irg);
+            Debug_printf("irg %u\n", irg);
+#endif
+            uint8_t b = casUART.read(); // should be 0x55
+#ifdef DEBUG
+            Debug_printf("marker 1: %02x\n", b);
+#endif
+            while (!casUART.available())
+                casUART.service(decode_fsk());
+            b = casUART.read(); // should be 0x55
+#ifdef DEBUG
+            Debug_printf("marker 2: %02x\n", b);
+#endif
+            while (!casUART.available())
+                casUART.service(decode_fsk());
+            b = casUART.read(); // control byte
+#ifdef DEBUG
+            Debug_printf("control byte: %02x\n", b);
+            Debug_printf("data: ");
 #endif
 
-        // second try just to look at fsk periods in debug
-        //decode_fsk();
+            int i = 0;
+            while (i < 128)
+            {
+                while (!casUART.available())
+                    casUART.service(decode_fsk());
+                b = casUART.read(); // data
+#ifdef DEBUG
+                Debug_printf(" %02x", b);
+#endif
+            }
+#ifdef DEBUG
+            Debug_printf("\n");
+#endif
 
-        // LEFT OFF HERE =================================================================================
-        // need to figure out polling/looping logic with receive_FUJI_tape_block()
-        // and cassetteUART::service(uint8_t b)
-        // start counting IRG, waiting for first startbit,
-        // offset += fwrite(&irg, 2, 1, _file); // IRG
+            while (!casUART.available())
+                casUART.service(decode_fsk());
+            b = casUART.read(); // checksum
+#ifdef DEBUG
+            Debug_printf("checksum: %02x\n", b);
+#endif
+
+            // LEFT OFF HERE =================================================================================
+            // need to figure out polling/looping logic with receive_FUJI_tape_block()
+            // and softUART::service(uint8_t b)
+            // start counting IRG, waiting for first startbit,
+            // offset += fwrite(&irg, 2, 1, _file); // IRG
+            j++;
+        }
     }
     // to do: watch motor line to disable cassette
     sio_disable_cassette();
