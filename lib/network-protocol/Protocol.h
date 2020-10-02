@@ -1,6 +1,7 @@
 #ifndef NETWORKPROTOCOL_H
 #define NETWORKPROTOCOL_H
 
+#include <vector>
 #include "sio.h"
 #include "EdUrlParser.h"
 #include "networkStatus.h"
@@ -29,16 +30,21 @@ public:
     unsigned char error;
 
     /**
+     * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF
+     */
+    unsigned char translation_mode;
+
+    /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
      */
-    virtual bool open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame) = 0;
+    virtual bool open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Close connection to the protocol.
      */
-    virtual bool close() = 0;
+    virtual bool close();
 
     /**
      * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
@@ -91,6 +97,42 @@ public:
      * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) = 0;
+
+private:
+
+    /**
+     * Temporary end of line transform buffer
+     */
+    vector<char> transformBuffer;
+
+    /**
+     * Perform end of line translation on receive buffer.
+     * @param rx_buf ptr to The receive buffer to transform
+     * @param len The length of the receive buffer
+     * @return length after transformation.
+     */
+    unsigned short translate_receive_buffer(uint8_t *rx_buf, unsigned short len);
+
+    /**
+     * Perform end of line translation on transmit buffer.
+     * @param tx_buf ptr to The transmit buffer to transform
+     * @param len The length of the transmit buffer
+     * @return length after transformation.
+     */
+    unsigned short translate_transmit_buffer(uint8_t *tx_buf, unsigned short len);
+
+    /**
+     * Copy char buffer into transform buffer
+     * @param buf pointer to the buffer to copy into transform buffer.
+     * @param len The length of the source buffer
+     */
+    void populate_transform_buffer(uint8_t *buf, unsigned short len);
+
+    /**
+     * Copy transform buffer back into destination buffer
+     * @param buf pointer to destination buffer for the transform buffer
+     */
+    void copy_transform_buffer(uint8_t *buf);
 
 };
 

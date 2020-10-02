@@ -63,6 +63,9 @@ bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         ret = open_client(urlParser->hostName, atoi(urlParser->port.c_str()));
     }
 
+    // call base class
+    NetworkProtocol::open(urlParser,cmdFrame);
+
     return ret;
 }
 
@@ -112,7 +115,7 @@ bool NetworkProtocolTCP::read(uint8_t *rx_buf, unsigned short len)
 
     // Do the read from client socket.
     actual_len = client.read(rx_buf, len);
-
+    
     // bail if the connection is reset.
     if (errno==ECONNRESET)
     {
@@ -127,7 +130,7 @@ bool NetworkProtocolTCP::read(uint8_t *rx_buf, unsigned short len)
     }
 
     // Return success
-    return false;
+    return NetworkProtocol::read(rx_buf,len);
 }
 
 /**
@@ -165,8 +168,10 @@ bool NetworkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
         return true;
     }
 
+    client.available();
+
     // Return success
-    return false;
+    return NetworkProtocol::write(tx_buf,len);
 }
 
 /**
