@@ -195,4 +195,5 @@ void NetworkProtocol::copy_transform_buffer(uint8_t *buf)
  */
 bool NetworkProtocol::status(NetworkStatus *status, uint8_t *rx_buf)
 {
+    return false;
 }
