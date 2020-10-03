@@ -5,6 +5,7 @@
 
 #include "utils.h"
 #include "../../include/debug.h"
+#include "../sam/samlib.h"
 
 using namespace std;
 
@@ -458,4 +459,18 @@ void util_strip_nonascii(string &s)
         if (s[i]>0x7F)
             s[i]=0x00;
     }
+}
+
+/**
+ * Ask SAM to say something.
+ */
+void util_sam_say(const char *p)
+{
+    int n=0;
+    char *a[3];
+
+    memset(a,0,sizeof(a));
+    a[n++]=(char *)("sam");
+    a[n++]=(char *)p;
+    sam(n,a);
 }

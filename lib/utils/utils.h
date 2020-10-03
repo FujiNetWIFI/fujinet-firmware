@@ -59,4 +59,6 @@ std::string util_remove_spaces(const std::string &s);
 
 void util_strip_nonascii(std::string &s);
 
+void util_sam_say(const char *p);
+
 #endif // _FN_UTILS_H
