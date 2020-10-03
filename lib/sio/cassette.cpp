@@ -79,9 +79,13 @@ int8_t softUART::service(uint8_t b)
             }
             else
             {
+                uint8_t bb = (b == 1) ? 0 : 1;
+                received_byte |= (bb << (state_counter - 1));
                 state_counter++;
-                received_byte *= 2; // shift to left
-                received_byte += b;
+#ifdef DEBUG
+                Debug_printf("bit %u ", state_counter - 1);
+                Debug_printf("%u\n ", b);
+#endif
             }
         }
         else
@@ -548,7 +552,7 @@ uint8_t sioCassette::decode_fsk()
 
     // LEFT OFF HERE =================================================================================
     // TODO: just print out fsk periods
-
+    uint8_t out = 0;
     uint64_t old = fsk_clock;
     uint64_t now = fnSystem.micros();
 
@@ -585,12 +589,13 @@ uint8_t sioCassette::decode_fsk()
 
     last_value = b;
 
-    if (denoise_counter > 3)
+    if (denoise_counter > 2)
     {
         last_output = b;
         denoise_counter = 0;
-        return b;
+        out = b;
     }
 
-    return last_output;
+    out = last_output;
+    return out;
 }
