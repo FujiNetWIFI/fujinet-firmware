@@ -338,6 +338,7 @@ void sioFuji::sio_disk_image_umount()
 */
 void sioFuji::image_rotate()
 {
+    char sayid[64];
     Debug_println("Fuji cmd: IMAGE ROTATE");
 
     int count = 0;
@@ -361,6 +362,16 @@ void sioFuji::image_rotate()
 
         // The first slot gets the device ID of the last slot
         _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+
+        // Say whatever disk is in D1:
+        for (int i=0;i<=count;i++)
+        {
+            if (_fnDisks[i].disk_dev.id()==0x31)
+            {
+                sprintf(sayid,"%d",i+1);
+                util_sam_say(sayid);
+            }
+        }
     }
 }
 
