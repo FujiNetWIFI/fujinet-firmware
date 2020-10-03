@@ -380,7 +380,6 @@ void sioFuji::sio_disk_image_umount()
 */
 void sioFuji::image_rotate()
 {
-    char sayid[64];
     Debug_println("Fuji cmd: IMAGE ROTATE");
 
     int count = 0;
