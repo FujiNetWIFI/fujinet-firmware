@@ -214,7 +214,7 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->read(receiveBuffer, num_bytes);
+        err = protocol->read(num_bytes);
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
