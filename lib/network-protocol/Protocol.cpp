@@ -64,6 +64,38 @@ bool NetworkProtocol::close()
 }
 
 /**
+ * @brief Read len bytes into receiveBuffer, If protocol times out, the buffer should be null padded to length.
+ * @param len Number of bytes to read.
+ * @return error flag. FALSE if successful, TRUE if error.
+ */
+bool NetworkProtocol::read(unsigned short len)
+{
+    return false;
+}
+
+/**
+ * @brief Write len bytes from tx_buf to protocol.
+ * @param tx_buf The buffer containing data to transmit.
+ * @param len The # of bytes to transmit, len should not be larger than buffer.
+ * @return error flag. FALSE if successful, TRUE if error.
+ */
+bool NetworkProtocol::write(uint8_t *tx_buf, unsigned short len)
+{
+    return false;
+}
+
+/**
+ * @brief Return protocol status information in provided NetworkStatus object.
+ * @param status a pointer to a NetworkStatus object to receive status information
+ * @param rx_buf a pointer to the receive buffer (to call read())
+ * @return error flag. FALSE if successful, TRUE if error.
+ */
+bool NetworkProtocol::status(NetworkStatus *status, uint8_t *rx_buf)
+{
+    return false;
+}
+
+/**
  * Perform end of line translation on receive buffer. based on translation_mode.
  * @param rx_buf The receive buffer to transform
  * @param len The length of the receive buffer
@@ -183,17 +215,4 @@ void NetworkProtocol::copy_transform_buffer(uint8_t *buf)
 {
     memset(buf, 0, transformBuffer.size());
     memcpy(buf, transformBuffer.data(), transformBuffer.size());
-}
-
-/**
- * @brief Return protocol status information in provided NetworkStatus object.
- * As part of gathering this information, a read is performed on the protocol object.
- * Into the rx buf.
- * @param status a pointer to a NetworkStatus object to receive status information
- * @param rx_buf a pointer to the receive buffer
- * @return error flag. FALSE if successful, TRUE if error.
- */
-bool NetworkProtocol::status(NetworkStatus *status, uint8_t *rx_buf)
-{
-    return false;
 }
