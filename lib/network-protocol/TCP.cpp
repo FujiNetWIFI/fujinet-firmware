@@ -12,7 +12,10 @@
 /**
  * ctor
  */
-NetworkProtocolTCP::NetworkProtocolTCP()
+NetworkProtocolTCP::NetworkProtocolTCP(uint8_t *rx_buf, uint16_t rx_len,
+                                       uint8_t *tx_buf, uint16_t tx_len,
+                                       uint8_t *sp_buf, uint16_t sp_len)
+    : NetworkProtocol(rx_buf, rx_len, tx_buf, tx_len, sp_buf, sp_len)
 {
     Debug_printf("NetworkProtocolTCP::ctor\n");
     server = nullptr;
@@ -64,7 +67,7 @@ bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     }
 
     // call base class
-    NetworkProtocol::open(urlParser,cmdFrame);
+    NetworkProtocol::open(urlParser, cmdFrame);
 
     return ret;
 }
@@ -93,18 +96,17 @@ bool NetworkProtocolTCP::close()
 
 /**
  * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
- * @param rx_buf The destination buffer to accept received bytes from protocol.
- * @param len The # of bytes expected from protocol adapter. Buffer should be large enough.
+ * @param len number of bytes to read.
  * @return error flag. FALSE if successful, TRUE if error.
  */
-bool NetworkProtocolTCP::read(uint8_t *rx_buf, unsigned short len)
+bool NetworkProtocolTCP::read(unsigned short len)
 {
     int actual_len = 0;
 
     Debug_printf("NetworkProtocolTCP::read(%u)\n", len);
 
     // Clear buffer
-    memset(rx_buf, 0, len);
+    memset(receiveBuffer, 0, len);
 
     // Check for client connection
     if (client.connected())
@@ -114,23 +116,23 @@ bool NetworkProtocolTCP::read(uint8_t *rx_buf, unsigned short len)
     }
 
     // Do the read from client socket.
-    actual_len = client.read(rx_buf, len);
-    
+    actual_len = client.read(receiveBuffer, len);
+
     // bail if the connection is reset.
-    if (errno==ECONNRESET)
+    if (errno == ECONNRESET)
     {
         error = NETWORK_ERROR_CONNECTION_RESET;
         return true;
     }
     else if (actual_len != len) // Read was short and timed out.
     {
-        Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\n",actual_len,len);
-        error=NETWORK_ERROR_SOCKET_TIMEOUT;
+        Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\n", actual_len, len);
+        error = NETWORK_ERROR_SOCKET_TIMEOUT;
         return true;
     }
 
     // Return success
-    return NetworkProtocol::read(rx_buf,len);
+    return NetworkProtocol::read(len);
 }
 
 /**
@@ -142,8 +144,8 @@ bool NetworkProtocolTCP::read(uint8_t *rx_buf, unsigned short len)
 bool NetworkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
 {
     int actual_len = 0;
-    
-    Debug_printf("NetworkProtocolTCP::write(%u)\n",len);
+
+    Debug_printf("NetworkProtocolTCP::write(%u)\n", len);
 
     // Check for client connection
     if (client.connected())
@@ -156,22 +158,22 @@ bool NetworkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
     actual_len = client.write(tx_buf, len);
 
     // bail if the connection is reset.
-    if (errno==ECONNRESET)
+    if (errno == ECONNRESET)
     {
         error = NETWORK_ERROR_CONNECTION_RESET;
         return true;
     }
     else if (actual_len != len) // write was short.
     {
-        Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\n",actual_len,len);
-        error=NETWORK_ERROR_SOCKET_TIMEOUT;
+        Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\n", actual_len, len);
+        error = NETWORK_ERROR_SOCKET_TIMEOUT;
         return true;
     }
 
     client.available();
 
     // Return success
-    return NetworkProtocol::write(tx_buf,len);
+    return NetworkProtocol::write(tx_buf, len);
 }
 
 /**
@@ -278,6 +280,5 @@ bool NetworkProtocolTCP::open_client(string hostname, unsigned short port)
 
         return true; // Error.
     }
-
     return false; // We're connected.
 }

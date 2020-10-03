@@ -11,11 +11,13 @@
 
 class NetworkProtocolTCP : public NetworkProtocol
 {
-
+public:
     /**
      * ctor
      */
-    NetworkProtocolTCP();
+    NetworkProtocolTCP(uint8_t *rx_buf, uint16_t rx_len,
+                       uint8_t *tx_buf, uint16_t tx_len,
+                       uint8_t *sp_buf, uint16_t sp_len);
 
     /**
      * dtor
@@ -36,11 +38,10 @@ class NetworkProtocolTCP : public NetworkProtocol
 
     /**
      * @brief Read len bytes into rx_buf, If protocol times out, the buffer should be null padded to length.
-     * @param rx_buf The destination buffer to accept received bytes from protocol.
-     * @param len The # of bytes expected from protocol adapter. Buffer should be large enough.
+     * @param len Number of bytes to read.
      * @return error flag. FALSE if successful, TRUE if error.
      */
-    virtual bool read(uint8_t *rx_buf, unsigned short len);
+    virtual bool read(unsigned short len);
 
     /**
      * @brief Write len bytes from tx_buf to protocol.
@@ -87,7 +88,6 @@ class NetworkProtocolTCP : public NetworkProtocol
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
 
 private:
-
     /**
      * a fnTcpClient object representing a client TCP socket.
      */
@@ -117,7 +117,6 @@ private:
      * Special: Accept a server connection, transfer to client socket.
      */
     bool accept_connection();
-
 };
 
 #endif /* NETWORKPROTOCOL_TCP */

@@ -8,6 +8,7 @@
 #include "network.h"
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
+#include "../network-protocol/TCP.h"
 
 using namespace std;
 
@@ -571,7 +572,7 @@ void sioNetwork::sio_poll_interrupt()
 {
     if ((protocol != nullptr) && (interruptProceed == true))
     {
-        protocol->status(&status);
+        //protocol->status(&status);
 
         if (lastNetworkStatusChecksum != status.checksum())
             sio_assert_interrupt();
@@ -633,7 +634,9 @@ bool sioNetwork::instantiate_protocol()
 
     if (urlParser->scheme == "TCP")
     {
-        //protocol = new networkProtocolTCP();
+        protocol = new NetworkProtocolTCP(receiveBuffer, INPUT_BUFFER_SIZE,
+                                          transmitBuffer, OUTPUT_BUFFER_SIZE,
+                                          specialBuffer, SPECIAL_BUFFER_SIZE);
     }
     else if (urlParser->scheme == "UDP")
     {
