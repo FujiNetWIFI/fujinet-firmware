@@ -86,28 +86,28 @@ void say_number(unsigned char n)
     switch (n)
     {
     case 1:
-        util_sam_say("WAH7N",true);
+        util_sam_say("WAH7NQ",true);
         break;
     case 2:
         util_sam_say("TUW7",true);
         break;
     case 3:
-        util_sam_say("THRIY7",true);
+        util_sam_say("THRIYY7Q",true);
         break;
     case 4:
         util_sam_say("FOH7R",true);
         break;
     case 5:
-        util_sam_say("FAY7V",true);
+        util_sam_say("F7AYVQ",true);
         break;
     case 6:
-        util_sam_say("SIH7KS",true);
+        util_sam_say("SIH7IHKSQ",true);
         break;
     case 7:
-        util_sam_say("SEH7VIXN",true);
+        util_sam_say("SEHV7EHNQ",true);
         break;
     case 8:
-        util_sam_say("EY7T",true);
+        util_sam_say("AEY74Q",true);
         break;
     default:
         Debug_printf("say_number() - Uncaught number %d",n);
@@ -120,7 +120,7 @@ void say_number(unsigned char n)
 void say_swap_label()
 {
     // DISK
-    util_sam_say("DIH3SK ",true);
+    util_sam_say("DIHSK7Q ",true);
 }
 
 // Constructor
