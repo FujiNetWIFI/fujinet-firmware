@@ -21,6 +21,27 @@
 #define TRANSLATION_MODE_CRLF 3
 
 /**
+ * ctor - Initialize network protocol object.
+ * @param rx_buf pointer to receive buffer
+ * @param rx_len length of receive buffer
+ * @param tx_buf pointer to transmit buffer
+ * @param tx_len length of receive buffer
+ * @param sp_buf pointer to special buffer
+ * @param sp_len length of special buffer
+ */
+NetworkProtocol::NetworkProtocol(uint8_t *rx_buf, uint16_t rx_len,
+                                 uint8_t *tx_buf, uint16_t tx_len,
+                                 uint8_t *sp_buf, uint16_t sp_len)
+{
+    receiveBuffer = rx_buf;
+    receiveBufferCapacity = rx_len;
+    transmitBuffer = tx_buf;
+    transmitBufferCapacity = tx_len;
+    specialBuffer = sp_buf;
+    specialBufferCapacity = sp_len;
+}
+
+/**
  * @brief Open connection to the protocol using URL
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
@@ -83,7 +104,7 @@ unsigned short NetworkProtocol::translate_receive_buffer(uint8_t *rx_buf, unsign
 
         // If CR/LF, then remove the now spurious linefeed.
         if (translation_mode == TRANSLATION_MODE_CRLF && c == ASCII_LF)
-            it=transformBuffer.erase(it);
+            it = transformBuffer.erase(it);
     }
 
     // Copy transform buffer back into rx buffer.
@@ -114,25 +135,25 @@ unsigned short NetworkProtocol::translate_transmit_buffer(uint8_t *tx_buf, unsig
         // Convert these ATASCII characters to ASCII in all cases
         switch (c)
         {
-            case ATASCII_BUZZER:
-                *it = ASCII_BELL;
-                break;
-            case ATASCII_DEL:
-                *it = ASCII_BACKSPACE;
-                break;
-            case ATASCII_TAB:
-                *it = ASCII_TAB;
-                break;
-            case ATASCII_EOL:
-                if (translation_mode==1)
-                    *it = ASCII_CR;
-                else if (translation_mode==2)
-                    *it = ASCII_LF;
-                else if (translation_mode==3)
-                {
-                    *it = ASCII_CR;
-                    it=transformBuffer.insert(it,ASCII_LF);
-                }
+        case ATASCII_BUZZER:
+            *it = ASCII_BELL;
+            break;
+        case ATASCII_DEL:
+            *it = ASCII_BACKSPACE;
+            break;
+        case ATASCII_TAB:
+            *it = ASCII_TAB;
+            break;
+        case ATASCII_EOL:
+            if (translation_mode == 1)
+                *it = ASCII_CR;
+            else if (translation_mode == 2)
+                *it = ASCII_LF;
+            else if (translation_mode == 3)
+            {
+                *it = ASCII_CR;
+                it = transformBuffer.insert(it, ASCII_LF);
+            }
         }
     }
 
@@ -162,4 +183,16 @@ void NetworkProtocol::copy_transform_buffer(uint8_t *buf)
 {
     memset(buf, 0, transformBuffer.size());
     memcpy(buf, transformBuffer.data(), transformBuffer.size());
+}
+
+/**
+ * @brief Return protocol status information in provided NetworkStatus object.
+ * As part of gathering this information, a read is performed on the protocol object.
+ * Into the rx buf.
+ * @param status a pointer to a NetworkStatus object to receive status information
+ * @param rx_buf a pointer to the receive buffer
+ * @return error flag. FALSE if successful, TRUE if error.
+ */
+bool NetworkProtocol::status(NetworkStatus *status, uint8_t *rx_buf)
+{
 }
