@@ -59,6 +59,12 @@ std::string util_remove_spaces(const std::string &s);
 
 void util_strip_nonascii(std::string &s);
 
-void util_sam_say(const char *p);
+void util_sam_say(const char *p,
+                  bool phonetic=false,
+                  bool sing=false,
+                  unsigned char pitch=64,
+                  unsigned char speed=96,
+                  unsigned char mouth=128,
+                  unsigned char throat=128);
 
 #endif // _FN_UTILS_H
