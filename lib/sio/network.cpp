@@ -362,7 +362,7 @@ void sioNetwork::sio_status_channel()
     switch (channelMode)
     {
     case PROTOCOL:
-        // err=protocol->status(&status);
+        err=protocol->status(&status);
         break;
     case JSON:
         // err=_json->status(&status)
@@ -572,7 +572,7 @@ void sioNetwork::sio_poll_interrupt()
 {
     if ((protocol != nullptr) && (interruptProceed == true))
     {
-        //protocol->status(&status);
+        protocol->status(&status);
 
         if (lastNetworkStatusChecksum != status.checksum())
             sio_assert_interrupt();

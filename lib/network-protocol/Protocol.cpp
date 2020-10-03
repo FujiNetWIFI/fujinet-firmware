@@ -81,6 +81,7 @@ bool NetworkProtocol::read(unsigned short len)
  */
 bool NetworkProtocol::write(uint8_t *tx_buf, unsigned short len)
 {
+    translate_transmit_buffer(transmitBuffer,len);
     return false;
 }
 
@@ -90,8 +91,9 @@ bool NetworkProtocol::write(uint8_t *tx_buf, unsigned short len)
  * @param rx_buf a pointer to the receive buffer (to call read())
  * @return error flag. FALSE if successful, TRUE if error.
  */
-bool NetworkProtocol::status(NetworkStatus *status, uint8_t *rx_buf)
+bool NetworkProtocol::status(NetworkStatus *status)
 {
+    translate_receive_buffer(receiveBuffer,receiveBufferCapacity);
     return false;
 }
 
