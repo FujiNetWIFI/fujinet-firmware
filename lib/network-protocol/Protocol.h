@@ -115,10 +115,9 @@ public:
     /**
      * @brief Return protocol status information in provided NetworkStatus object.
      * @param status a pointer to a NetworkStatus object to receive status information
-     * @param rx_buf a pointer to the receive buffer (to call read())
      * @return error flag. FALSE if successful, TRUE if error.
      */
-    virtual bool status(NetworkStatus *status, uint8_t *rx_buf);
+    virtual bool status(NetworkStatus *status);
 
     /**
      * @brief Return a DSTATS byte for a requested COMMAND byte.
