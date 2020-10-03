@@ -454,12 +454,12 @@ vector<string> util_tokenize(string s, char c)
  * @param throat The size of throat, changes resonance of formant sounds (1-255), higher values imply a deeper throat. Default is 128.
  */
 void util_sam_say(const char *p,
-                  bool phonetic=false,
-                  bool sing=false,
-                  unsigned char pitch=64,
-                  unsigned char speed=72,
-                  unsigned char mouth=128,
-                  unsigned char throat=128)
+                  bool phonetic,
+                  bool sing,
+                  unsigned char pitch,
+                  unsigned char speed,
+                  unsigned char mouth,
+                  unsigned char throat)
 {
     int n = 0;
     char *a[20];
