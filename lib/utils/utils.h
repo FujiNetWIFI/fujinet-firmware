@@ -56,4 +56,6 @@ void util_dump_bytes(uint8_t *buff, uint32_t buff_size);
 
 std::vector<std::string> util_tokenize(std::string s, char c = ' ');
 
+void util_sam_say(const char *p);
+
 #endif // _FN_UTILS_H
