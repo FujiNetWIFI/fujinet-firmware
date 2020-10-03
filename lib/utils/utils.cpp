@@ -201,7 +201,7 @@ std::string util_entry(std::string crunched, size_t fileSize)
 
     if (ext_pos != std::string::npos)
     {
-        returned_entry.replace(10, 3, ext.substr(0,3));
+        returned_entry.replace(10, 3, ext.substr(0, 3));
     }
 
     returned_entry.replace(2, (basename.size() < 8 ? basename.size() : 8), basename);
@@ -244,7 +244,7 @@ std::string util_long_entry(std::string filename, size_t fileSize)
 
     stylized_filesize = tmp;
 
-    returned_entry.replace(returned_entry.length()-stylized_filesize.length()-1,stylized_filesize.length(),stylized_filesize);
+    returned_entry.replace(returned_entry.length() - stylized_filesize.length() - 1, stylized_filesize.length(), stylized_filesize);
 
     return returned_entry;
 }
@@ -252,12 +252,12 @@ std::string util_long_entry(std::string filename, size_t fileSize)
 /* Shortens the source string by splitting it in to shorter halves connected by "..." if it won't fit in the destination buffer.
    Returns number of bytes copied into buffer.
 */
-int util_ellipsize(const char* src, char *dst, int dstsize)
+int util_ellipsize(const char *src, char *dst, int dstsize)
 {
     // Don't do much if there's no space to copy anything
-    if(dstsize <= 1)
+    if (dstsize <= 1)
     {
-        if(dstsize == 1)
+        if (dstsize == 1)
             dst[0] = '\0';
         return 0;
     }
@@ -265,9 +265,9 @@ int util_ellipsize(const char* src, char *dst, int dstsize)
     int srclen = strlen(src);
 
     // Do a simple copy if we have the room for it (or if we don't have room to create a string with ellipsis in the middle)
-    if(srclen < dstsize || dstsize < 6)
+    if (srclen < dstsize || dstsize < 6)
     {
-      return strlcpy(dst, src, dstsize);
+        return strlcpy(dst, src, dstsize);
     }
 
     // Account for both the 3-character ellipses and the null character that needs to fit in the destination
@@ -277,7 +277,7 @@ int util_ellipsize(const char* src, char *dst, int dstsize)
 
     strlcpy(dst, src, leftlen + 1); // Add one because strlcpy wants to add its own NULL
 
-    dst[leftlen] =  dst[leftlen+1] =  dst[leftlen+2] = '.';
+    dst[leftlen] = dst[leftlen + 1] = dst[leftlen + 2] = '.';
 
     strlcpy(dst + leftlen + 3, src + (srclen - rightlen), rightlen + 1); // Add one because strlcpy wants to add its own NULL
 
@@ -304,9 +304,9 @@ std::string util_ellipsize(std::string longString, int maxLength)
 // Function that matches input string against given wildcard pattern
 bool util_wildcard_match(const char *str, const char *pattern)
 {
-    if(str == nullptr || pattern == nullptr)
+    if (str == nullptr || pattern == nullptr)
         return false;
-    
+
     int m = strlen(pattern);
     int n = strlen(str);
 
@@ -359,7 +359,6 @@ bool util_wildcard_match(const char *str, const char *pattern)
     return lookup[n][m];
 }
 
-
 /*
  Concatenates two paths by taking the parent and adding the child at the end.
  If parent is not empty, then a '/' is confirmed to separate the parent and child.
@@ -368,17 +367,17 @@ bool util_wildcard_match(const char *str, const char *pattern)
 */
 bool util_concat_paths(char *dest, const char *parent, const char *child, int dest_size)
 {
-    if(dest == nullptr)
+    if (dest == nullptr)
         return false;
 
     // If parent is null or empty, just copy the chlid into the destination as-is
-    if(parent == nullptr || parent[0] == '\0')
+    if (parent == nullptr || parent[0] == '\0')
     {
-        if(child == nullptr)
+        if (child == nullptr)
             return false;
 
         int l = strlen(child);
-        
+
         return l == strlcpy(dest, child, dest_size);
     }
 
@@ -386,29 +385,29 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
     int plen = strlcpy(dest, parent, dest_size);
 
     // Make sure we have room left after copying the parent
-    if(plen >= dest_size - 3) // Allow for a minimum of a slash, one char, and NULL
+    if (plen >= dest_size - 3) // Allow for a minimum of a slash, one char, and NULL
     {
         Debug_printf("_concat_paths parent takes up entire destination buffer: \"%s\"\n", parent);
         return false;
     }
 
-    if(child != nullptr && child[0] != '\0')
+    if (child != nullptr && child[0] != '\0')
     {
         // Add a slash if the parent didn't end with one
-        if(dest[plen - 1] != '/' && dest[plen -1] != '\\')
+        if (dest[plen - 1] != '/' && dest[plen - 1] != '\\')
         {
             dest[plen++] = '/';
             dest[plen] = '\0';
         }
 
         // Skip a slash in the child if it starts with one so we don't have two slashes
-        if(child[0] == '/' && child[0] == '\\')
+        if (child[0] == '/' && child[0] == '\\')
             child++;
 
         int clen = strlcpy(dest + plen, child, dest_size - plen);
 
         // Verify we were able to copy the whole thing
-        if(clen != strlen(child))
+        if (clen != strlen(child))
         {
             Debug_printf("_concat_paths parent + child larger than dest buffer: \"%s\", \"%s\"\n", parent, child);
             return false;
@@ -445,15 +444,55 @@ vector<string> util_tokenize(string s, char c)
 }
 
 /**
- * Ask SAM to say something.
+ * Ask SAM to say something. see https://github.com/FujiNetWIFI/fujinet-platformio/wiki/Using-SAM-%28Voice-Synthesizer%29 
+ * @param p The phrase to say.
+ * @param phonetic true = enable phonetic mode.
+ * @param sing true = enable singing mode.
+ * @param pitch Sam's pitch. (1-255) Lower values = Higher pitch. Default is 64. Values below 20 are unusable.
+ * @param speed Sam's speed. (1-255) Lower values = higher speed. Default is 72. Values below 20 are usuable.
+ * @param mouth The emphasis of transient sounds (1-255), Higher values imply more pronounced mouth movement. Default is 128.
+ * @param throat The size of throat, changes resonance of formant sounds (1-255), higher values imply a deeper throat. Default is 128.
  */
-void util_sam_say(const char *p)
+void util_sam_say(const char *p,
+                  bool phonetic=false,
+                  bool sing=false,
+                  unsigned char pitch=64,
+                  unsigned char speed=72,
+                  unsigned char mouth=128,
+                  unsigned char throat=128)
 {
-    int n=0;
-    char *a[3];
+    int n = 0;
+    char *a[20];
+    char pitchs[4], speeds[4], mouths[4],throats[4]; // itoa temp vars
 
-    memset(a,0,sizeof(a));
-    a[n++]=(char *)("sam");
-    a[n++]=(char *)p;
-    sam(n,a);
+    // Convert to strings.
+    itoa(pitch,pitchs,10);
+    itoa(speed,speeds,10);
+    itoa(mouth,mouths,10);
+    itoa(throat,throats,10);
+
+    memset(a, 0, sizeof(a));
+    a[n++] = (char *)("sam"); // argv[0] for compatibility
+
+    if (phonetic==true)
+        a[n++] = (char *)("-phonetic");
+    
+    if (sing==true)
+        a[n++] = (char *)("-sing");
+
+    a[n++]=(char *)("-pitch");
+    a[n++]=(char *)pitchs;
+
+    a[n++]=(char *)("-speed");
+    a[n++]=(char *)speeds;
+
+    a[n++]=(char *)("-mouth");
+    a[n++]=(char *)mouths;
+
+    a[n++]=(char *)("-throat");
+    a[n++]=(char *)throats;
+
+    // Append the phrase to say.
+    a[n++] = (char *)p;
+    sam(n, a);
 }
