@@ -114,6 +114,11 @@ private:
     uint8_t *transmitBuffer = nullptr;
 
     /**
+     * The special buffer for this N: device
+     */
+    uint8_t *specialBuffer = nullptr;
+
+    /**
      * The EdUrlParser object used to hold/process a URL
      */
     EdUrlParser *urlParser = nullptr;
