@@ -173,7 +173,7 @@ bool NetworkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
     client.available();
 
     // Return success
-    return NetworkProtocol::write(tx_buf, len);
+    return NetworkProtocol::write(len);
 }
 
 /**

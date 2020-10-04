@@ -290,7 +290,7 @@ bool sioNetwork::sio_write_channel(unsigned short num_bytes)
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->write(transmitBuffer, num_bytes);
+        err = protocol->write(num_bytes);
         break;
     case JSON:
         Debug_printf("JSON Not Handled.\n");
