@@ -17,12 +17,12 @@ void app_main()
                                    sp_buf, RX_TX_CAPACITY);
 
     UNITY_BEGIN();
-    RUN_TEST(TestRXCRtoEOL);
-    RUN_TEST(TestRXLFtoEOL);
-    RUN_TEST(TestRXCRLFtoEOL);
-    RUN_TEST(TestTXEOLtoCR);
-    RUN_TEST(TestTXEOLtoLF);
-    RUN_TEST(TestTXEOLtoCRLF);
+    RUN_TEST(test_rx_cr_to_eol);
+    RUN_TEST(test_rx_lf_to_eol);
+    RUN_TEST(test_rx_cr_lf_to_eol);
+    RUN_TEST(test_tx_eol_to_cr);
+    RUN_TEST(test_tx_eol_to_lf);
+    RUN_TEST(test_tx_eol_to_crlf);
 
     delete protocol;
     free(rx_buf);
@@ -34,7 +34,7 @@ void app_main()
 /**
  * Test RX translation: CR to EOL
  */
-void TestRXCRtoEOL()
+void test_rx_cr_to_eol()
 {
     cmdFrame_t cmdFrame = {0x71, 'R', 0x0C, 0x01,0x00}; // aux2 0x01 is CR
     EdUrlParser *url = EdUrlParser::parseUrl("HTTP://DUMMYHOST.COM/");
@@ -52,7 +52,7 @@ void TestRXCRtoEOL()
 /**
  * Test RX translation: LF to EOL
  */
-void TestRXLFtoEOL()
+void test_rx_lf_to_eol()
 {
     cmdFrame_t cmdFrame = {0x71, 'R', 0x0C, 0x02,0x00}; // aux2 0x02 is LF
     EdUrlParser *url = EdUrlParser::parseUrl("HTTP://DUMMYHOST.COM/");
@@ -71,7 +71,7 @@ void TestRXLFtoEOL()
  * Test RX translation: CR/LF to EOL
  * The resulting input buffer should contract to compensate for the removal of LF characters.
  */
-void TestRXCRLFtoEOL()
+void test_rx_cr_lf_to_eol()
 {
     cmdFrame_t cmdFrame = {0x71, 'R', 0x0C, 0x03,0x00}; // aux2 0x03 is CR/LF
     EdUrlParser *url = EdUrlParser::parseUrl("HTTP://DUMMYHOST.COM/");
@@ -89,7 +89,7 @@ void TestRXCRLFtoEOL()
 /**
  * Test TX translation: EOL to CR
  */
-void TestTXEOLtoCR()
+void test_tx_eol_to_cr()
 {
     cmdFrame_t cmdFrame = {0x71, 'R', 0x0C, 0x01,0x00}; // aux2 0x01 is CR
     EdUrlParser *url = EdUrlParser::parseUrl("HTTP://DUMMYHOST.COM/");
@@ -107,7 +107,7 @@ void TestTXEOLtoCR()
 /**
  * Test TX translation: EOL to LF
  */
-void TestTXEOLtoLF()
+void test_tx_eol_to_lf()
 {
     cmdFrame_t cmdFrame = {0x71, 'R', 0x0C, 0x02,0x00}; // aux2 0x02 is LF
     EdUrlParser *url = EdUrlParser::parseUrl("HTTP://DUMMYHOST.COM/");
@@ -126,7 +126,7 @@ void TestTXEOLtoLF()
  * Test TX translation: EOL to CR/LF
  * The resulting output should expand to compensate for the addition of LF characters.
  */
-void TestTXEOLtoCRLF()
+void test_tx_eol_to_crlf()
 {
     cmdFrame_t cmdFrame = {0x71, 'R', 0x0C, 0x03,0x00}; // aux2 0x03 is CR/LF
     EdUrlParser *url = EdUrlParser::parseUrl("HTTP://DUMMYHOST.COM/");
