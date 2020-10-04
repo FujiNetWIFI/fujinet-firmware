@@ -56,4 +56,12 @@ void util_dump_bytes(uint8_t *buff, uint32_t buff_size);
 
 std::vector<std::string> util_tokenize(std::string s, char c = ' ');
 
+void util_sam_say(const char *p,
+                  bool phonetic=false,
+                  bool sing=false,
+                  unsigned char pitch=64,
+                  unsigned char speed=96,
+                  unsigned char mouth=128,
+                  unsigned char throat=128);
+
 #endif // _FN_UTILS_H
