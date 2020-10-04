@@ -183,7 +183,13 @@ bool NetworkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
  */
 bool NetworkProtocolTCP::status(NetworkStatus *status)
 {
-    return false;
+    if (receiveBufferSize==0)
+    {
+        receiveBufferSize=(client.available() > 65535 ? 65535 : client.available());
+        read(receiveBufferSize); // We have to do read so we can translate and return correct size.
+    }
+    
+    return NetworkProtocol::status(status);
 }
 
 /**
