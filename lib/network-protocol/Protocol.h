@@ -111,11 +111,10 @@ public:
 
     /**
      * @brief Write len bytes from tx_buf to protocol.
-     * @param tx_buf The buffer containing data to transmit.
      * @param len The # of bytes to transmit, len should not be larger than buffer.
      * @return error flag. FALSE if successful, TRUE if error.
      */
-    virtual bool write(uint8_t *tx_buf, unsigned short len);
+    virtual bool write(unsigned short len);
 
     /**
      * @brief Return protocol status information in provided NetworkStatus object.

@@ -76,11 +76,10 @@ bool NetworkProtocol::read(unsigned short len)
 
 /**
  * @brief Write len bytes from tx_buf to protocol.
- * @param tx_buf The buffer containing data to transmit.
  * @param len The # of bytes to transmit, len should not be larger than buffer.
  * @return error flag. FALSE if successful, TRUE if error.
  */
-bool NetworkProtocol::write(uint8_t *tx_buf, unsigned short len)
+bool NetworkProtocol::write(unsigned short len)
 {
     translate_transmit_buffer();
     return false;
@@ -181,8 +180,8 @@ void NetworkProtocol::translate_transmit_buffer()
                 *it = ASCII_LF;
             else if (translation_mode == 3)
             {
-                *it = ASCII_CR;
-                it = transformBuffer.insert(it, ASCII_LF);
+                *it = ASCII_LF;
+                it = transformBuffer.insert(it, ASCII_CR);
             }
         }
     }

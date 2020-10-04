@@ -24,10 +24,10 @@ void app_main()
     RUN_TEST(test_tx_eol_to_lf);
     RUN_TEST(test_tx_eol_to_crlf);
 
-    delete protocol;
-    free(rx_buf);
-    free(tx_buf);
-    free(sp_buf);
+    // Why did this cause a puke?
+    // free(rx_buf);
+    // free(tx_buf);
+    // free(sp_buf);
     UNITY_END();
 }
 
@@ -96,7 +96,7 @@ void test_tx_eol_to_cr()
 
     buffer_setup(test_eol);
     protocol->open(url, &cmdFrame);
-    protocol->read(strlen(test_eol));
+    protocol->write(strlen(test_eol));
     protocol->close();
 
     delete url;
@@ -114,7 +114,7 @@ void test_tx_eol_to_lf()
 
     buffer_setup(test_eol);
     protocol->open(url, &cmdFrame);
-    protocol->read(strlen(test_eol));
+    protocol->write(strlen(test_eol));
     protocol->close();
 
     delete url;
@@ -133,7 +133,7 @@ void test_tx_eol_to_crlf()
 
     buffer_setup(test_eol);
     protocol->open(url, &cmdFrame);
-    protocol->read(strlen(test_eol));
+    protocol->write(strlen(test_eol));
     protocol->close();
 
     delete url;
