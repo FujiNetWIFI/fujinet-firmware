@@ -20,6 +20,11 @@ public:
     uint16_t receiveBufferCapacity;
 
     /**
+     * Current size of data in receiveBuffer.
+     */
+    uint16_t receiveBufferSize;
+
+    /**
      * Pointer to the transmit buffer
      */
     uint8_t *transmitBuffer;
@@ -58,11 +63,11 @@ public:
     virtual ~NetworkProtocol()
     {
         receiveBuffer = nullptr;
-        receiveBufferCapacity = 0;
+        receiveBufferCapacity = receiveBufferSize = 0;
         transmitBuffer = nullptr;
-        transmitBufferCapacity = 0;
+        transmitBufferCapacity = receiveBufferSize = 0;
         specialBuffer = nullptr;
-        specialBufferCapacity = 0;
+        specialBufferCapacity = receiveBufferSize = 0;
     }
 
     /**
@@ -156,19 +161,13 @@ private:
 
     /**
      * Perform end of line translation on receive buffer.
-     * @param rx_buf ptr to The receive buffer to transform
-     * @param len The length of the receive buffer
-     * @return length after transformation.
      */
-    unsigned short translate_receive_buffer(uint8_t *rx_buf, unsigned short len);
+    void translate_receive_buffer();
 
     /**
      * Perform end of line translation on transmit buffer.
-     * @param tx_buf ptr to The transmit buffer to transform
-     * @param len The length of the transmit buffer
-     * @return length after transformation.
      */
-    unsigned short translate_transmit_buffer(uint8_t *tx_buf, unsigned short len);
+    void translate_transmit_buffer();
 
     /**
      * Copy char buffer into transform buffer

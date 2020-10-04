@@ -70,6 +70,7 @@ bool NetworkProtocol::close()
  */
 bool NetworkProtocol::read(unsigned short len)
 {
+    translate_receive_buffer();
     return false;
 }
 
@@ -81,7 +82,7 @@ bool NetworkProtocol::read(unsigned short len)
  */
 bool NetworkProtocol::write(uint8_t *tx_buf, unsigned short len)
 {
-    translate_transmit_buffer(transmitBuffer,len);
+    translate_transmit_buffer();
     return false;
 }
 
@@ -93,7 +94,7 @@ bool NetworkProtocol::write(uint8_t *tx_buf, unsigned short len)
  */
 bool NetworkProtocol::status(NetworkStatus *status)
 {
-    translate_receive_buffer(receiveBuffer,receiveBufferCapacity);
+    translate_receive_buffer();
     return false;
 }
 
@@ -103,14 +104,14 @@ bool NetworkProtocol::status(NetworkStatus *status)
  * @param len The length of the receive buffer
  * @return length after transformation.
   */
-unsigned short NetworkProtocol::translate_receive_buffer(uint8_t *rx_buf, unsigned short len)
+void NetworkProtocol::translate_receive_buffer()
 {
     // Do not alter buffer if no translation is required
     if (translation_mode == 0)
-        return len;
+        return;
 
     // Copy contents of receive buffer into transform buffer
-    populate_transform_buffer(rx_buf, len);
+    populate_transform_buffer(receiveBuffer,receiveBufferSize);
 
     for (vector<char>::iterator it = transformBuffer.begin(); it != transformBuffer.end(); ++it)
     {
@@ -142,25 +143,20 @@ unsigned short NetworkProtocol::translate_receive_buffer(uint8_t *rx_buf, unsign
     }
 
     // Copy transform buffer back into rx buffer.
-    copy_transform_buffer(rx_buf);
-
-    return transformBuffer.size();
+    copy_transform_buffer(receiveBuffer);
 }
 
 /**
  * Perform end of line translation on transmit buffer. based on translation_mode
- * @param tx_buf The transmit buffer to transform
- * @param len The length of the transmit buffer
- * @return length after transformation.
  */
-unsigned short NetworkProtocol::translate_transmit_buffer(uint8_t *tx_buf, unsigned short len)
+void NetworkProtocol::translate_transmit_buffer()
 {
     // Do not alter buffer if no translation is required.
     if (translation_mode == 0)
-        return len;
+        return;
 
     // Copy contents of transmit buffer into transform buffer
-    populate_transform_buffer(tx_buf, len);
+    populate_transform_buffer(transmitBuffer,transmitBufferCapacity);
 
     for (vector<char>::iterator it = transformBuffer.begin(); it != transformBuffer.end(); ++it)
     {
@@ -190,8 +186,7 @@ unsigned short NetworkProtocol::translate_transmit_buffer(uint8_t *tx_buf, unsig
             }
         }
     }
-
-    return transformBuffer.size();
+    copy_transform_buffer(transmitBuffer);
 }
 
 /**
