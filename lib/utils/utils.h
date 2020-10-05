@@ -56,6 +56,10 @@ void util_dump_bytes(uint8_t *buff, uint32_t buff_size);
 
 std::vector<std::string> util_tokenize(std::string s, char c = ' ');
 
+bool util_string_value_is_true(std::string value);
+bool util_string_value_is_true(const char *value);
+
+
 void util_sam_say(const char *p,
                   bool phonetic=false,
                   bool sing=false,
