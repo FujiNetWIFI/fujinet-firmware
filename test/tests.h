@@ -35,34 +35,34 @@ extern "C"
     /**
      * Test RX translation: CR to EOL
      */
-    void test_rx_cr_to_eol();
+    void test_networkprotocol_base_rx_cr_to_eol();
 
     /**
      * Test RX translation: LF to EOL
      */
-    void test_rx_lf_to_eol();
+    void test_networkprotocol_base_rx_lf_to_eol();
 
     /**
      * Test RX translation: CR/LF to EOL
      * The resulting input buffer should contract to compensate for the removal of LF characters.
      */
-    void test_rx_cr_lf_to_eol();
+    void test_networkprotocol_base_rx_cr_lf_to_eol();
 
     /**
      * Test TX translation: EOL to CR
      */
-    void test_tx_eol_to_cr();
+    void test_networkprotocol_base_tx_eol_to_cr();
 
     /**
      * Test TX translation: EOL to LF
      */
-    void test_tx_eol_to_lf();
+    void test_networkprotocol_base_tx_eol_to_lf();
 
     /**
  * Test TX translation: EOL to CR/LF
  * The resulting output should expand to compensate for the addition of LF characters.
  */
-    void test_tx_eol_to_crlf();
+    void test_networkprotocol_base_tx_eol_to_crlf();
 
     /**
  * Instantiated protocol object
@@ -73,7 +73,7 @@ extern "C"
  * Set up buffers given a source fixture
  * @param c the buffer to put into the protocol buffers.
  */
-    void buffer_setup(const char *c);
+    void test_buffer_setup(const char *c);
 
     /**
  * Test Fixture: EOL test string
