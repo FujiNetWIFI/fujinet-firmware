@@ -49,10 +49,12 @@ public:
     std::string get_general_devicename() { return _general.devicename; };
     int get_general_hsioindex() { return _general.hsio_index; };
     std::string get_general_timezone() { return _general.timezone; };
+    bool get_general_rotation_sounds() { return _general.rotation_sounds; };
     std::string get_network_midimaze_host() { return _network.midimaze_host; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
     void store_general_timezone(const char *timezone);
+    void store_general_rotation_sounds(bool rotation_sounds);
     void store_midimaze_host(const char host_ip[64]);
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
@@ -175,6 +177,7 @@ private:
         std::string devicename = "fujinet";
         int hsio_index = HSIO_INVALID_INDEX;
         std::string timezone;
+        bool rotation_sounds = true;
     };
 
     host_info _host_slots[MAX_HOST_SLOTS];
