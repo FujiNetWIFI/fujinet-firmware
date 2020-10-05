@@ -1,6 +1,6 @@
 #include <unity.h>
 #include <string.h>
-#include "test_network_translation.h"
+#include "tests.h"
 
 /**
  * Test main
