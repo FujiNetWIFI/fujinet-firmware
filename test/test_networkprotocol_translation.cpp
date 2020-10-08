@@ -9,15 +9,17 @@
 #include "test_networkprotocol_translation.h"
 
 /**
- * The buffers
- */
-static uint8_t *rx_buf, *tx_buf, *sp_buf;
-
-/**
  * Buffer sizes
  */
 #define RX_TX_SIZE 65535
 #define SP_SIZE 256
+
+/**
+ * The Buffers
+ */
+uint8_t *rx_buf;
+uint8_t *tx_buf;
+uint8_t *sp_buf;
 
 /**
  * Protocol object
@@ -28,9 +30,9 @@ static NetworkProtocol *protocol;
  * Test fixtures
  */
 static const char *test_eol = "This is a test string.\x9BThis is a second line.\x9BThis is a third line.\x9B";
-static const char *test_cr = "This is a test string.\rThis is a second line.\rThis is a third line.\r";
-static const char *test_lf = "This is a test string.\nThis is a second line.\nThis is a third line.\n";
-static const char *test_crlf = "This is a test string.\r\nThis is a second line.\r\nThis is a third line.\r\n";
+static const char *test_cr = "This is a test string.\x0DThis is a second line.\x0DThis is a third line.\x0D";
+static const char *test_lf = "This is a test string.\x0AThis is a second line.\x0AThis is a third line.\x0A";
+static const char *test_crlf = "This is a test string.\x0D\x0AThis is a second line.\x0D\x0AThis is a third line.\x0D\x0A";
 
 /**
  * Tests entrypoint
@@ -60,7 +62,6 @@ void tests_networkprotocol_translation_rx_cr_to_eol()
     protocol->close();
 
     TEST_ASSERT_EQUAL_STRING(test_eol, rx_buf);
-
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -80,7 +81,6 @@ void tests_networkprotocol_translation_rx_lf_to_eol()
     protocol->close();
 
     TEST_ASSERT_EQUAL_STRING(test_eol, rx_buf);
-
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -100,7 +100,6 @@ void tests_networkprotocol_translation_rx_crlf_to_eol()
     protocol->close();
 
     TEST_ASSERT_EQUAL_STRING(test_eol, rx_buf);
-
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -120,7 +119,6 @@ void tests_networkprotocol_translation_tx_eol_to_cr()
     protocol->close();
 
     TEST_ASSERT_EQUAL_STRING(test_cr, tx_buf);
-
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -140,7 +138,6 @@ void tests_networkprotocol_translation_tx_eol_to_lf()
     protocol->close();
 
     TEST_ASSERT_EQUAL_STRING(test_lf, tx_buf);
-
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -160,7 +157,6 @@ void tests_networkprotocol_translation_tx_eol_to_crlf()
     protocol->close();
 
     TEST_ASSERT_EQUAL_STRING(test_crlf, tx_buf);
-
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -172,20 +168,24 @@ void tests_networkprotocol_translation_tx_eol_to_crlf()
  */
 bool tests_networkprotocol_translation_setup(const char *c)
 {
-    rx_buf = (uint8_t *)calloc(RX_TX_SIZE, sizeof(uint8_t));
-    tx_buf = (uint8_t *)calloc(RX_TX_SIZE, sizeof(uint8_t));
-    sp_buf = (uint8_t *)calloc(SP_SIZE, sizeof(uint8_t));
+    rx_buf = (uint8_t *)heap_caps_malloc(RX_TX_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    tx_buf = (uint8_t *)heap_caps_malloc(RX_TX_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    sp_buf = (uint8_t *)heap_caps_malloc(RX_TX_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
     protocol = new NetworkProtocol(rx_buf, RX_TX_SIZE,
                                    tx_buf, RX_TX_SIZE,
                                    sp_buf, SP_SIZE);
 
-    if (rx_buf == nullptr || tx_buf == nullptr || sp_buf == nullptr || protocol == nullptr)
+    if (protocol == nullptr || rx_buf == nullptr || tx_buf == nullptr || sp_buf == nullptr)
         return false;
 
+    // Clear buffers
+    memset(rx_buf, 0, RX_TX_SIZE);
+    memset(tx_buf, 0, RX_TX_SIZE);
+
     // Put test fixture into buffers.
-    memcpy(rx_buf, c, strlen(c));
-    memcpy(tx_buf, c, strlen(c));
+    strcpy((char *)rx_buf, c);
+    strcpy((char *)tx_buf, c);
 
     return true;
 }
