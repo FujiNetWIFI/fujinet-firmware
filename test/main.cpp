@@ -6,6 +6,7 @@
 #include <esp32/rom/ets_sys.h>
 #include "test_pass.h"
 #include "test_networkprotocol_translation.h"
+#include "../lib/hardware/fnSystem.h"
 
 extern "C"
 {
@@ -22,7 +23,7 @@ void app_main()
     UNITY_BEGIN();
 
     test_pass_run();
-    tests_networkprotocol_translation();    
+    tests_networkprotocol_translation();
 
     UNITY_END();
 }

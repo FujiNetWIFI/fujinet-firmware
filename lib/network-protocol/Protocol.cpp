@@ -200,7 +200,7 @@ void NetworkProtocol::populate_transform_buffer(uint8_t *buf, unsigned short len
     for (int i = 0; i < len; i++)
         transformBuffer.push_back(buf[i]);
 
-    Debug_printf("NetworkProtocol::populate_transform_buffer(%p,%u)\n", buf, len);
+    //Debug_printf("NetworkProtocol::populate_transform_buffer(%p,%u)\n", buf, len);
 }
 
 /**
