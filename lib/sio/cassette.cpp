@@ -17,13 +17,33 @@
 #define CASSETTE_FILE "/hello.cas" // basic program
 
 // copied from fuUART.cpp - figure out better way
-#ifdef BOARD_HAS_PSRAM
 #define UART2_RX 33
-#define UART2_TX 21
-#else
-#define UART2_RX 16
-#define UART2_TX 17
-#endif
+#define ESP_INTR_FLAG_DEFAULT 0
+#define BOXLEN 5
+
+unsigned long last = 0;
+unsigned long delta = 0;
+unsigned long boxcar[BOXLEN];
+uint8_t boxidx = 0;
+
+static void IRAM_ATTR gpio_isr_handler(void *arg)
+{
+    uint32_t gpio_num = (uint32_t)arg;
+    if (gpio_num == UART2_RX)
+    {
+        unsigned long now = fnSystem.micros();
+        boxcar[boxidx++] = now - last;
+        if (boxidx > BOXLEN)
+            boxidx = 0;
+        delta = 0;
+        for (uint8_t i = 0; i < BOXLEN; i++)
+        {
+            delta += boxcar[i];
+        }
+        delta /= 5;
+        last = now;
+    }
+}
 
 softUART casUART;
 
@@ -58,9 +78,9 @@ int8_t softUART::service(uint8_t b)
 #endif
         }
     }
-    else if (t > baud_clock + period * state_counter + period / 10)
+    else if (t > baud_clock + period * state_counter + period / 4)
     {
-        if (t < baud_clock + period * state_counter + 9 * period / 10)
+        if (t < baud_clock + period * state_counter + 9 * period / 4)
         {
             if (state_counter == STOPBIT)
             {
@@ -162,6 +182,14 @@ void sioCassette::sio_enable_cassette()
     {
         fnUartSIO.end();
         fnSystem.set_pin_mode(UART2_RX, gpio_mode_t::GPIO_MODE_INPUT);
+
+        //change gpio intrrupt type for one pin
+        gpio_set_intr_type((gpio_num_t)UART2_RX, GPIO_INTR_ANYEDGE);
+        //install gpio isr service
+        gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
+        //hook isr handler for specific gpio pin
+        gpio_isr_handler_add((gpio_num_t)UART2_RX, gpio_isr_handler, (void *)UART2_RX);
+
 #ifdef DEBUG
         Debug_println("stopped hardware UART");
         int a = fnSystem.digital_read(UART2_RX);
@@ -379,7 +407,7 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     while (gap--)
     {
         fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
-        if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW)
+        if (!motor_line())
         {
             fnLedManager.set(eLed::LED_SIO, false);
             return starting_offset;
@@ -452,150 +480,106 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
 
 unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
 {
-    unsigned long tt = fnSystem.millis();
-    while (fnSystem.millis() - tt < 30000) // just 30 seconds for now - use motor line later
-    {                                      // start counting the IRG
-        int j = 0;
-        while (j < 2)
-        {
-            uint64_t tic = fnSystem.millis();
-            while (!casUART.available())
-                casUART.service(decode_fsk());
-            uint16_t irg = fnSystem.millis() - tic;
+    Clear_atari_sector_buffer(132);
+    uint8_t idx = 0;
+
+    // start counting the IRG
+    uint64_t tic = fnSystem.millis();
+    while (!casUART.available() && motor_line())
+        casUART.service(decode_fsk());
+    uint16_t irg = fnSystem.millis() - tic - 10000 / casUART.get_baud(); // adjust for first byte
 #ifdef DEBUG
-            Debug_printf("irg %u\n", irg);
+    Debug_printf("irg %u\n", irg);
 #endif
-            uint8_t b = casUART.read(); // should be 0x55
+    if (!motor_line())
+        return offset;
+    uint8_t b = casUART.read(); // should be 0x55
+    atari_sector_buffer[idx++] = b;
 #ifdef DEBUG
-            Debug_printf("marker 1: %02x\n", b);
+    Debug_printf("marker 1: %02x\n", b);
 #endif
-            while (!casUART.available())
-                casUART.service(decode_fsk());
-            b = casUART.read(); // should be 0x55
+    while (!casUART.available() && motor_line())
+        casUART.service(decode_fsk());
+    if (!motor_line())
+        return offset;
+    b = casUART.read(); // should be 0x55
+    atari_sector_buffer[idx++] = b;
 #ifdef DEBUG
-            Debug_printf("marker 2: %02x\n", b);
+    Debug_printf("marker 2: %02x\n", b);
 #endif
-            while (!casUART.available())
-                casUART.service(decode_fsk());
-            b = casUART.read(); // control byte
+    while (!casUART.available() && motor_line())
+        casUART.service(decode_fsk());
+    if (!motor_line())
+        return offset;
+    b = casUART.read(); // control byte
+    atari_sector_buffer[idx++] = b;
 #ifdef DEBUG
-            Debug_printf("control byte: %02x\n", b);
-            Debug_printf("data: ");
+    Debug_printf("control byte: %02x\n", b);
 #endif
 
-            int i = 0;
-            while (i < 128)
-            {
-                while (!casUART.available())
-                    casUART.service(decode_fsk());
-                b = casUART.read(); // data
 #ifdef DEBUG
-                Debug_printf(" %02x", b);
-#endif
-            }
-#ifdef DEBUG
-            Debug_printf("\n");
+    Debug_printf("data: ");
 #endif
 
-            while (!casUART.available())
-                casUART.service(decode_fsk());
-            b = casUART.read(); // checksum
+    int i = 0;
+    while (i < 128)
+    {
+        while (!casUART.available() && motor_line())
+            casUART.service(decode_fsk());
+        if (!motor_line())
+            return offset;
+        b = casUART.read(); // data
+        atari_sector_buffer[idx++] = b;
 #ifdef DEBUG
-            Debug_printf("checksum: %02x\n", b);
+        Debug_printf(" %02x", b);
 #endif
-
-            // LEFT OFF HERE =================================================================================
-            // need to figure out polling/looping logic with receive_FUJI_tape_block()
-            // and softUART::service(uint8_t b)
-            // start counting IRG, waiting for first startbit,
-            // offset += fwrite(&irg, 2, 1, _file); // IRG
-            j++;
-        }
     }
-    // to do: watch motor line to disable cassette
-    sio_disable_cassette();
-    return offset;
-}
+#ifdef DEBUG
+    Debug_printf("\n");
+#endif
 
-void sioCassette::detect_falling_edge()
-{
-    unsigned long t = fnSystem.micros();
-    do
-    {
-        if (fnSystem.micros() - t > 1000)
-        {
+    while (!casUART.available() && motor_line())
+        casUART.service(decode_fsk());
+    if (!motor_line())
+        return offset;
+    b = casUART.read(); // checksum
+    atari_sector_buffer[idx++] = b;
 #ifdef DEBUG
-            Debug_println("time out waiting for fsk LOW");
+    Debug_printf("checksum: %02x\n", b);
 #endif
-            break;
-        }
-    } while (fnSystem.digital_read(UART2_RX) == DIGI_LOW);
-    do
-    {
-        if (fnSystem.micros() - t > 1000)
-        {
+
+    // write out data here to file
+    offset += fprintf(_file, "data");
+    offset += fputc(0x84, _file); // 132 bytes
+    offset += fputc(0, _file);
+    offset += fwrite(&irg, 2, 1, _file);
+    offset += fwrite(atari_sector_buffer, 1, 132, _file);
 #ifdef DEBUG
-            Debug_println("time out waiting for fsk HIGH");
+    Debug_printf("file offset: %d\n", offset);
 #endif
-            break;
-        }
-    } while (fnSystem.digital_read(UART2_RX) == DIGI_HIGH);
+    return offset;
 }
 
 uint8_t sioCassette::decode_fsk()
 {
-    // wait for falling edge and set fsk_clock
-    // find next falling edge and compute period
-    // check if period different than last (reset denoise counter)
-    // if not different, increment denoise counter if < denoise threshold
-    // when denoise counter == denoise threshold, set demod output
+    // take "delta" set in the IRQ and set the demodulator output
 
-    // LEFT OFF HERE =================================================================================
-    // TODO: just print out fsk periods
-    uint8_t out = 0;
-    uint64_t old = fsk_clock;
-    uint64_t now = fnSystem.micros();
+    uint8_t out = last_output;
 
-    if (old + period_space < now)
-    { // either first tic or missed tic
-#ifdef DEBUG
-        Debug_println("missed fsk cycle");
-#endif
-        detect_falling_edge();
-        old = fnSystem.micros();
-    }
-    detect_falling_edge();
-    fsk_clock = fnSystem.micros();
-#ifdef DEBUG
-    Debug_printf("%u, ", old);
-    Debug_printf("%u\n", fsk_clock - old);
-#endif
-    // if time difference is short, then mark
-    // MARK period is 187 usec          range from 156 to 218
-    // SPACE period is 250 usec         range from 218 to 281
-    // middle is 218 usec
-    // MARK is default for no signal as well so only check for SPACE
-
-    unsigned long dt = fsk_clock - old;
-
-    uint8_t b = 0;
-    if (dt > 218)
-        b = 1; // SPACE - logic 1, start bit
-
-    if (b == last_value)
-        denoise_counter++;
-    else
-        denoise_counter = 0;
-
-    last_value = b;
-
-    if (denoise_counter > 2)
+    if (delta > 0)
     {
-        last_output = b;
-        denoise_counter = 0;
-        out = b;
+        // #ifdef DEBUG
+        //         Debug_printf("delta: %u\n", delta);
+        // #endif
+        if (delta > 90 && delta < 97)
+            out = 0;
+        if (delta > 119 && delta < 130)
+            out = 1;
+        last_output = out;
     }
-
-    out = last_output;
+    // #ifdef DEBUG
+    //     Debug_printf("%lu, ", fnSystem.micros());
+    //     Debug_printf("%u\n", out);
+    // #endif
     return out;
 }
