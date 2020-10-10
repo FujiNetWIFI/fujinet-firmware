@@ -37,7 +37,7 @@ class softUART
 {
 protected:
     uint64_t baud_clock;
-    uint32_t baud = CASSETTE_BAUD;             // bps
+    uint16_t baud = CASSETTE_BAUD;             // bps
     uint32_t period = 1000000 / CASSETTE_BAUD; // microseconds
 
     uint8_t demod_output;
@@ -54,6 +54,7 @@ protected:
 public:
     uint8_t available();
     void set_baud(uint16_t b);
+    uint16_t get_baud() { return baud; };
     uint8_t read();
     int8_t service(uint8_t b);
 };
@@ -73,6 +74,8 @@ protected:
     cassette_mode_t cassetteMode = cassette_mode_t::record; // If we are in cassette mode or not
     bool cassetteActive = false;
 
+    bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
+
     // FSK demod (from Atari and maybe from WAV)
     uint64_t fsk_clock; // can count period width from atari because
     uint8_t last_value = 0;
@@ -80,7 +83,7 @@ protected:
     uint8_t denoise_counter = 0;
     const uint16_t period_space = 1000000 / 3995;
     const uint16_t period_mark = 1000000 / 5327;
-    void detect_falling_edge();
+    // void detect_falling_edge();
     uint8_t decode_fsk();
 
 public:
