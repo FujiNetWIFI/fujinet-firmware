@@ -45,6 +45,15 @@ void fnConfig::store_general_timezone(const char *timezone)
     _dirty = true;
 }
 
+void fnConfig::store_general_rotation_sounds(bool rotation_sounds)
+{
+    if(_general.rotation_sounds == rotation_sounds)
+        return;
+
+    _general.rotation_sounds = rotation_sounds;
+    _dirty = true;
+}
+
 void fnConfig::store_general_hsioindex(int hsio_index)
 {
     if(_general.hsio_index == hsio_index)
@@ -299,6 +308,7 @@ void fnConfig::save()
     ss << "[General]" LINETERM;
     ss << "devicename=" << _general.devicename << LINETERM;
     ss << "hsioindex=" << _general.hsio_index << LINETERM;
+    ss << "rotationsounds=" << _general.rotation_sounds << LINETERM;
     if(_general.timezone.empty() == false)
         ss << "timezone=" << _general.timezone << LINETERM;
 
@@ -391,7 +401,6 @@ void fnConfig::load()
     Debug_println("fnConfig::load");
 
     // Clear the config file if key is currently pressed
-#ifdef BOARD_HAS_PSRAM
     if(fnKeyManager.keyCurrentlyPressed(BUTTON_B))
     {
         Debug_println("fnConfig deleting configuration file and skipping SD check");
@@ -405,7 +414,6 @@ void fnConfig::load()
         _dirty = true; // We have a new config, so we treat it as needing to be saved
         return;
     }
-#endif
 
 /*
 Original behavior: read from SPIFFS first and only read from SD if nothing found on SPIFFS.
@@ -533,6 +541,9 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             } else if (strcasecmp(name.c_str(), "timezone") == 0)
             {
                 _general.timezone = value;
+            } else if (strcasecmp(name.c_str(), "rotationsounds") == 0)
+            {
+                _general.rotation_sounds = util_string_value_is_true(value);
             }
         }
     }

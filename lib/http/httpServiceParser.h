@@ -24,6 +24,7 @@ currently supported tags.
 class fnHttpServiceParser
 {
     static std::string format_uptime();
+    static long uptime_seconds();
     static const std::string substitute_tag(const std::string &tag);
 public:
     static std::string parse_contents(const std::string &contents);

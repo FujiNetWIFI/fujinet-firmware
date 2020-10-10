@@ -40,18 +40,10 @@ string remove_spaces(const string &s)
  */
 bool sioNetwork::allocate_buffers()
 {
-    // NOTE: ps_calloc() results in heap corruption, at least in Arduino-ESP.
-    // TODO: try using heap_caps_calloc()
-#ifdef BOARD_HAS_PSRAM
     rx_buf = (uint8_t *)heap_caps_malloc(INPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     tx_buf = (uint8_t *)heap_caps_malloc(OUTPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     sp_buf = (uint8_t *)heap_caps_malloc(SPECIAL_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-#else
-    rx_buf = (uint8_t *)calloc(1, INPUT_BUFFER_SIZE);
-    tx_buf = (uint8_t *)calloc(1, OUTPUT_BUFFER_SIZE);
-    sp_buf = (uint8_t *)calloc(1, SPECIAL_BUFFER_SIZE);
-#endif
     if ((rx_buf == nullptr) || (tx_buf == nullptr) || (sp_buf == nullptr))
         return false;
 
@@ -472,8 +464,6 @@ void sioNetwork::sio_status()
     }
     else
     {
-        unsigned short read_len;
-
         switch (read_mode)
         {
         case NORMAL:

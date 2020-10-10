@@ -19,10 +19,8 @@
 #include <esp_system.h>
 #include <nvs_flash.h>
 
-#ifdef BOARD_HAS_PSRAM
 #include <esp32/spiram.h>
 #include <esp32/himem.h>
-#endif
 
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
@@ -56,12 +54,10 @@ void main_setup()
     unsigned long startms = fnSystem.millis();
     Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
-#ifdef BOARD_HAS_PSRAM
     Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
     Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
     Debug_printf("himem free %u\n", esp_himem_get_free_size());
     Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
-#endif
 #endif
     // Install a reboot handler
     esp_register_shutdown_handler(main_shutdown_handler);
