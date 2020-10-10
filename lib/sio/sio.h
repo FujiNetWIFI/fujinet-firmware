@@ -9,14 +9,8 @@
 #define PIN_PROC 22
 #define PIN_CKO 32
 #define PIN_CKI 27
-
-#ifdef BOARD_HAS_PSRAM
 #define PIN_MTR 36
 #define PIN_CMD 39
-#else
-#define PIN_MTR 33
-#define PIN_CMD 21
-#endif
 
 #define DELAY_T4 850
 #define DELAY_T5 250
@@ -130,34 +124,108 @@ protected:
     bool listen_to_type3_polls = false;
     uint8_t status_wait_count = 5;
 
+    /**
+     * @brief Send the desired buffer to the Atari.
+     * @param buff The byte buffer to send to the Atari
+     * @param len The length of the buffer to send to the Atari.
+     * @return TRUE if the Atari processed the data in error, FALSE if the Atari successfully processed
+     * the data.
+     */
     void sio_to_computer(uint8_t *buff, uint16_t len, bool err);
+
+    /**
+     * @brief Receive data from the Atari.
+     * @param buff The byte buffer provided for data from the Atari.
+     * @param len The length of the amount of data to receive from the Atari.
+     * @return An 8-bit wrap-around checksum calculated by the Atari, which should be checked with sio_checksum()
+     */
     uint8_t sio_to_peripheral(uint8_t *buff, uint16_t len);
 
+    /**
+     * @brief Send an acknowledgement byte to the Atari 'A'
+     * This should be used if the command received by the SIO device is valid, and is used to signal to the
+     * Atari that we are now processing the command.
+     */
     void sio_ack();
+
+    /**
+     * @brief Send a non-acknowledgement (NAK) to the Atari 'N'
+     * This should be used if the command received by the SIO device is invalid, in the first place. It is not
+     * the same as sio_error().
+     */
     void sio_nak();
 
+    /**
+     * @brief Send a COMPLETE to the Atari 'C'
+     * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
+     * either a COMPLETE or ERROR will result in a SIO TIMEOUT (138) to be reported in DSTATS.
+     */
     void sio_complete();
+
+    /**
+     * @brief Send an ERROR to the Atari 'E'
+     * This should be used during or after processing of the command to indicate that an error resulted
+     * from processing the command, and that the Atari should probably re-try the command. Failure to
+     * send an ERROR or COMPLTE will result in a SIO TIMEOUT (138) to be reported in DSTATS.
+     */
     void sio_error();
+
+    /**
+     * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
+     * a sector number, for disk, or a number of bytes waiting for the sioNetwork device.
+     * 
+     * @return 16-bit value of DAUX1/DAUX2 in cmdFrame.
+     */
     unsigned short sio_get_aux();
 
+    /**
+     * @brief All SIO commands by convention should return a status command, using sio_to_computer() to return
+     * four bytes of status information to be put into DVSTAT ($02EA)
+     */
     virtual void sio_status() = 0;
+
+    /**
+     * @brief All SIO devices repeatedly call this routine to fan out to other methods for each command. 
+     * This is typcially implemented as a switch() statement.
+     */
     virtual void sio_process(uint32_t commanddata, uint8_t checksum) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown() {};
 
 public:
+    /**
+     * @brief get the SIO device Number (1-255)
+     * @return The device number registered for this device
+     */
     int id() { return _devnum; };
+
+    /**
+     * @brief Command 0x3F '?' intended to return a single byte to the atari via sio_to_computer(), which
+     * signifies the high speed SIO divisor chosen by the user in their #FujiNet configuration.
+     */
     virtual void sio_high_speed();
+
+    /**
+     * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
+     */
     bool is_config_device = false;
+
+    /**
+     * @brief is device active (turned on?)
+     */
     bool device_active = true;
+
+    /**
+     * @brief Get the sioBus object that this sioDevice is attached to.
+     */
     sioBus sio_get_bus();
 };
 
 enum sio_message : uint16_t
 {
-    SIOMSG_DISKSWAP,
-    SIOMSG_DEBUG_TAPE
+    SIOMSG_DISKSWAP,            // Rotate disk
+    SIOMSG_DEBUG_TAPE           // Tape debug msg
 };
 
 struct sio_message_t

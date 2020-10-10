@@ -11,6 +11,7 @@
 #include "httpServiceConfigurator.h"
 #include "fnConfig.h"
 #include "printerlist.h"
+#include "utils.h"
 
 // TODO: This was copied from another source and needs some bounds-checking!
 char* fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
@@ -138,6 +139,16 @@ void fnHttpServiceConfigurator::config_timezone(std::string timezone)
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_rotation_sounds(std::string rotation_sounds)
+{
+    Debug_printf("New rotation sounds value: %s\n", rotation_sounds.c_str());
+
+    // Store our change in Config
+    Config.store_general_rotation_sounds(util_string_value_is_true(rotation_sounds));
+    // Save change
+    Config.save();
+}
+
 void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
 {
     Debug_printf("Set MIDIMaze host: %s\n", hostname.c_str());
@@ -239,6 +250,9 @@ int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t
         } else if(i->first.compare("midimaze_host") == 0)
         {
             config_midimaze(i->second);
+        } else if(i->first.compare("rotation_sounds") == 0)
+        {
+            config_rotation_sounds(i->second);
         }
     }
 

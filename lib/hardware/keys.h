@@ -1,6 +1,7 @@
 #ifndef KEYS_H
 #define KEYS_H
 
+
 enum eKey
 {
     BUTTON_A = 0,
@@ -13,10 +14,19 @@ enum eKeyStatus
 {
     DISABLED,
     INACTIVE,
-    SINGLE_TAP,
     DOUBLE_TAP,
     SHORT_PRESS,
     LONG_PRESS
+};
+
+struct _key_t
+{
+    long last_tap_ms = 0;
+    long previous_tap_ms = 0;
+    long action_started_ms = 0;
+
+    bool active = false;
+    bool disabled = false;
 };
 
 class KeyManager
@@ -26,15 +36,11 @@ public:
     eKeyStatus getKeyStatus(eKey key);
     bool keyCurrentlyPressed(eKey key);
     void ignoreKeyPress(eKey key);
-    bool buttonCavail = false;
-    bool getCAvail();
+
+    bool has_button_c = false;
 
 private:
-    long _buttonLastTap[eKey::KEY_COUNT] = {0};
-    long _buttonActionStarted[eKey::KEY_COUNT] = {0};
-    bool _buttonActive[eKey::KEY_COUNT] = { false };
-    bool _buttonDisabled[eKey::KEY_COUNT] = { false };
-
+    _key_t _keys[eKey::KEY_COUNT];
 
     static void _keystate_task(void *param);
 };

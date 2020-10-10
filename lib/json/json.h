@@ -30,6 +30,8 @@ private:
     networkProtocol *_protocol;
     string _queryString;
 
+    string getValue(cJSON *item);
+    
 };
 
 #endif /* JSON_H */

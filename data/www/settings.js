@@ -28,7 +28,21 @@ for (var opt, j = 0; opt = opts[j]; j++) {
 	}
 }
 
+var mySelect = document.getElementById("select_rotation_sounds");
+
+var opts = mySelect.options;
+for (var opt, j = 0; opt = opts[j]; j++) {
+	if (opt.value == current_rotation_sounds) {
+		mySelect.selectedIndex = j;
+		break;
+	}
+}
+
 function changeTz() {
 	var sel = document.getElementById("select_tz").value;
 	document.getElementById("txt_timezone").value = sel;
+}
+
+function writeLocaleNumber(num) {
+	document.write(num.toLocaleString());
 }

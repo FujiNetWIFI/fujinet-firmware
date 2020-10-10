@@ -32,6 +32,7 @@ public:
     virtual void special_header_toggle(unsigned char a);
     virtual void special_collect_headers_toggle(unsigned char a);
     virtual void special_ca_toggle(unsigned char a);
+    virtual void special_send_post_data();
     virtual bool del(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool rename(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
     virtual bool mkdir(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
@@ -86,7 +87,7 @@ private:
     unsigned char aux2;
     string dirString;
     vector<DAVEntry> dirEntries;
-
+    string postData;
 };
 
 #endif /* NETWORKPROTOCOLHTTP */
