@@ -405,12 +405,15 @@ void sioFuji::image_rotate()
         _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
-        for (int i = 0; i <= count; i++)
+        if(Config.get_general_rotation_sounds())
         {
-            if (_fnDisks[i].disk_dev.id() == 0x31)
+            for (int i = 0; i <= count; i++)
             {
-                say_swap_label();
-                say_number(i+1); // because i starts from 0
+                if (_fnDisks[i].disk_dev.id() == 0x31)
+                {
+                    say_swap_label();
+                    say_number(i+1); // because i starts from 0
+                }
             }
         }
     }

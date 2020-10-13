@@ -59,6 +59,10 @@ std::string util_remove_spaces(const std::string &s);
 
 void util_strip_nonascii(std::string &s);
 
+bool util_string_value_is_true(std::string value);
+bool util_string_value_is_true(const char *value);
+
+
 void util_sam_say(const char *p,
                   bool phonetic=false,
                   bool sing=false,
