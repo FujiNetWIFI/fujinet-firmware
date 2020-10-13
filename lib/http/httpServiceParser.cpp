@@ -1,6 +1,7 @@
 #include <sstream>
 #include <string>
 #include <cstdio>
+#include <locale>
 
 #include "../../include/debug.h"
 #include "fnConfig.h"
@@ -33,9 +34,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_SPIFFS_USED,
         FN_SD_SIZE,
         FN_SD_USED,
+        FN_UPTIME_STRING,
         FN_UPTIME,
         FN_CURRENTTIME,
         FN_TIMEZONE,
+        FN_ROTATION_SOUNDS,
         FN_MIDIMAZE_HOST,
         FN_HEAPSIZE,
         FN_SYSSDK,
@@ -64,9 +67,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_SPIFFS_USED",
         "FN_SD_SIZE",
         "FN_SD_USED",
+        "FN_UPTIME_STRING",
         "FN_UPTIME",
         "FN_CURRENTTIME",
         "FN_TIMEZONE",
+        "FN_ROTATION_SOUNDS",
         "FN_MIDIMAZE_HOST",
         "FN_HEAPSIZE",
         "FN_SYSSDK",
@@ -137,14 +142,20 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_SD_USED:
         resultstream << fnSDFAT.used_bytes();
         break;
-    case FN_UPTIME:
+    case FN_UPTIME_STRING:
         resultstream << format_uptime();
+        break;
+    case FN_UPTIME:
+        resultstream << uptime_seconds();
         break;
     case FN_CURRENTTIME:
         resultstream << fnSystem.get_current_time_str();
         break;
     case FN_TIMEZONE:
         resultstream << Config.get_general_timezone();
+        break;
+    case FN_ROTATION_SOUNDS:
+        resultstream << Config.get_general_rotation_sounds();
         break;
     case FN_MIDIMAZE_HOST:
         resultstream << Config.get_network_midimaze_host();
@@ -221,6 +232,11 @@ string fnHttpServiceParser::parse_contents(const string &contents)
     } while(true);
 
     return ss.str();
+}
+
+long fnHttpServiceParser::uptime_seconds()
+{
+    return fnSystem.get_uptime() / 1000000;
 }
 
 string fnHttpServiceParser::format_uptime()

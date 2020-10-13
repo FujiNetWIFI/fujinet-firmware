@@ -460,6 +460,22 @@ void util_strip_nonascii(string &s)
     }
 }
 
+bool util_string_value_is_true(const char *value)
+{
+    if(value != nullptr)
+    {
+      if(value[0] == '1' || value[0] == 'T' || value[0] == 't' || value[0] == 'Y' || value[0] == 'y')
+        return true;
+    }
+    return false;
+}
+
+bool util_string_value_is_true(std::string value)
+{
+    return  util_string_value_is_true(value.c_str());
+}
+
+
 /**
  * Ask SAM to say something. see https://github.com/FujiNetWIFI/fujinet-platformio/wiki/Using-SAM-%28Voice-Synthesizer%29 
  * @param p The phrase to say.
