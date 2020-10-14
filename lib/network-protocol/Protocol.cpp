@@ -33,12 +33,31 @@ NetworkProtocol::NetworkProtocol(uint8_t *rx_buf, uint16_t rx_len,
                                  uint8_t *tx_buf, uint16_t tx_len,
                                  uint8_t *sp_buf, uint16_t sp_len)
 {
+    Debug_printf("NetworkProtocol::ctor()\n");
+
+    if (rx_buf == nullptr)
+    {
+        Debug_printf("rx_buf is NULL\n");
+    }
+
+    if (tx_buf == nullptr)
+    {
+        Debug_printf("tx_buf is NULL\n");
+    }
+
+    if (sp_buf == nullptr)
+    {
+        Debug_printf("sp_buf is NULL\n");
+    }
+
     receiveBuffer = rx_buf;
     receiveBufferCapacity = rx_len;
     transmitBuffer = tx_buf;
     transmitBufferCapacity = tx_len;
     specialBuffer = sp_buf;
     specialBufferCapacity = sp_len;
+
+    Debug_printf("Buffers: %p (%u) %p (%u) %p (%u)\n",receiveBuffer,rx_len,transmitBuffer,tx_len,specialBuffer,sp_len);
 }
 
 /**
@@ -110,7 +129,7 @@ void NetworkProtocol::translate_receive_buffer()
         return;
 
     // Copy contents of receive buffer into transform buffer
-    populate_transform_buffer(receiveBuffer,receiveBufferSize);
+    populate_transform_buffer(receiveBuffer, receiveBufferSize);
 
     for (vector<char>::iterator it = transformBuffer.begin(); it != transformBuffer.end(); ++it)
     {
@@ -155,7 +174,7 @@ void NetworkProtocol::translate_transmit_buffer()
         return;
 
     // Copy contents of transmit buffer into transform buffer
-    populate_transform_buffer(transmitBuffer,transmitBufferCapacity);
+    populate_transform_buffer(transmitBuffer, transmitBufferCapacity);
 
     for (vector<char>::iterator it = transformBuffer.begin(); it != transformBuffer.end(); ++it)
     {

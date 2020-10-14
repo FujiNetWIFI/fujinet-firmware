@@ -108,9 +108,6 @@ bool NetworkProtocolTCP::read(unsigned short len)
 
     Debug_printf("NetworkProtocolTCP::read(%u)\n", len);
 
-    // Clear buffer
-    memset(receiveBuffer, 0, len);
-
     // Check for client connection
     if (client.connected())
     {
@@ -120,6 +117,13 @@ bool NetworkProtocolTCP::read(unsigned short len)
 
     // Do the read from client socket.
     actual_len = client.read(receiveBuffer, len);
+
+    Debug_printf("TCP client received: ");
+    for (int i=0;i<actual_len;i++)
+    {
+        Debug_printf("%02x ",receiveBuffer[i]);
+    }
+    Debug_printf("\n");
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
@@ -135,7 +139,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
     }
 
     // Return success
-    return NetworkProtocol::read(len);
+    return false;
 }
 
 /**
@@ -189,11 +193,11 @@ bool NetworkProtocolTCP::write(unsigned short len)
  */
 bool NetworkProtocolTCP::status(NetworkStatus *status)
 {
-    if (receiveBufferSize == 0)
-    {
-        receiveBufferSize = (client.available() > 65535 ? 65535 : client.available());
-        read(receiveBufferSize); // We have to do read so we can translate and return correct size.
-    }
+    receiveBufferSize = (client.available() > 65535 ? 65535 : client.available());
+    status->rxBytesWaiting = receiveBufferSize;
+    status->reserved = client.connected();
+    status->error=1;
+    // read(receiveBufferSize); // We have to do read so we can translate and return correct size.
 
     return NetworkProtocol::status(status);
 }
@@ -320,21 +324,21 @@ bool NetworkProtocolTCP::special_accept_connection()
 
     if (server->hasClient())
     {
-        in_addr_t remoteIP=client.remoteIP();
-        unsigned char remotePort=client.remotePort();
-        char* remoteIPString = inet_ntoa(remoteIP);
+        in_addr_t remoteIP = client.remoteIP();
+        unsigned char remotePort = client.remotePort();
+        char *remoteIPString = inet_ntoa(remoteIP);
 
         client = server->available();
 
         if (client.connected())
         {
-            Debug_printf("Accepted connection from %s:%u",remoteIP,remotePort);
+            Debug_printf("Accepted connection from %s:%u", remoteIPString, remotePort);
             return false;
         }
         else
         {
             Debug_printf("Client immediately disconnected.\n");
-        }       
+        }
     }
 
     return true;
