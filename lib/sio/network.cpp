@@ -20,7 +20,7 @@ void onTimer(void *info)
 {
     sioNetwork *parent = (sioNetwork *)info;
     portENTER_CRITICAL_ISR(&parent->timerMux);
-    parent->interruptProceed = !parent->interruptProceed;
+    parent->sio_poll_interrupt();
     portEXIT_CRITICAL_ISR(&parent->timerMux);
 }
 
@@ -107,7 +107,7 @@ void sioNetwork::sio_open()
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser, &cmdFrame) == false)
+    if (protocol->open(urlParser, &cmdFrame) == true)
     {
         Debug_printf("Protocol unable to make connection.\n");
         protocol->close();
@@ -120,6 +120,9 @@ void sioNetwork::sio_open()
 
     // Everything good, start the interrupt timer!
     timer_start();
+
+    // Go ahead and send an interrupt, so Atari knows to get status.
+    sio_assert_interrupt();
 
     // TODO: Finally, go ahead and let the parsers know
 
@@ -192,14 +195,18 @@ void sioNetwork::sio_read()
         return;
     }
 
-    // Clean out RX buffer
-    memset(receiveBuffer, 0, INPUT_BUFFER_SIZE);
-
     // Do the channel read
     err = sio_read_channel(num_bytes);
 
+    Debug_printf("returned from protocol: ");
+    for (int i=0;i<num_bytes;i++)
+    {
+        Debug_printf("%02x ",receiveBuffer[i]);
+    }
+    Debug_printf("\n");
+
     // And send off to the computer
-    sio_to_computer(receiveBuffer, num_bytes, err);
+    sio_to_computer(receiveBuffer, num_bytes, false);
 }
 
 /**
@@ -233,7 +240,6 @@ void sioNetwork::sio_write()
 {
     unsigned short num_bytes = sio_get_aux();
     bool err = false;
-    uint8_t ck;
 
     Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
 
@@ -255,18 +261,8 @@ void sioNetwork::sio_write()
         return;
     }
 
-    // Clean out RX buffer
-    memset(transmitBuffer, 0, OUTPUT_BUFFER_SIZE);
-
     // Get the data from the Atari
-    ck = sio_to_peripheral(transmitBuffer, num_bytes);
-
-    if (ck != cmdFrame.checksum)
-    {
-        Debug_printf("Checksum Mismatch!, sending ERROR.\n");
-        sio_error();
-        return;
-    }
+    sio_to_peripheral(transmitBuffer, num_bytes);
 
     // Do the channel write
     err = sio_write_channel(num_bytes);
@@ -374,6 +370,8 @@ void sioNetwork::sio_status_channel()
     serialized_status[1] = status.rxBytesWaiting >> 8;
     serialized_status[2] = status.reserved;
     serialized_status[3] = status.error;
+
+    Debug_printf("sio_status_channel() - BW: %u E: %u\n",status.rxBytesWaiting,status.error);
 
     // and send to computer
     sio_to_computer(serialized_status, sizeof(serialized_status), err);
@@ -570,7 +568,7 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
  */
 void sioNetwork::sio_poll_interrupt()
 {
-    if ((protocol != nullptr) && (interruptProceed == true))
+    if (protocol != nullptr)
     {
         protocol->status(&status);
 
@@ -591,14 +589,16 @@ bool sioNetwork::allocate_buffers()
 {
     receiveBuffer = (uint8_t *)heap_caps_malloc(INPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     transmitBuffer = (uint8_t *)heap_caps_malloc(OUTPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    specialBuffer = (uint8_t *)heap_caps_malloc(SPECIAL_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 
-    if ((receiveBuffer == nullptr) || (transmitBuffer == nullptr))
+    if ((receiveBuffer == nullptr) || (transmitBuffer == nullptr) || (specialBuffer == nullptr))
         return false; // Allocation failed.
 
     /* Clear buffer and status */
     status.reset();
     memset(receiveBuffer, 0, INPUT_BUFFER_SIZE);
     memset(transmitBuffer, 0, OUTPUT_BUFFER_SIZE);
+    memset(specialBuffer,0,SPECIAL_BUFFER_SIZE);
 
     HEAP_CHECK("sioNetwork::allocate_buffers");
     return true; // All good.
@@ -613,6 +613,8 @@ void sioNetwork::free_buffers()
         free(receiveBuffer);
     if (transmitBuffer != nullptr)
         free(transmitBuffer);
+    if (specialBuffer != nullptr)
+        free(specialBuffer);
 
     Debug_printf("sioNetworks::free_buffers()\n");
 }
@@ -742,8 +744,8 @@ bool sioNetwork::parseURL()
     }
 
     // Some FMSes add a dot at the end, remove it.
-    if (deviceSpec.substr(-1) == ".")
-        deviceSpec[deviceSpec.length() - 1] = 0x00;
+    if (deviceSpec.substr(deviceSpec.length()-1) == ".")
+        deviceSpec.erase(deviceSpec.length()-1,string::npos);
 
     // Prepend prefix, if set.
     if (prefix.length() > 0)
@@ -756,7 +758,7 @@ bool sioNetwork::parseURL()
     url = deviceSpec.substr(deviceSpec.find(":") + 1);
     urlParser = EdUrlParser::parseUrl(url);
 
-    Debug_printf("sioNetwork::parseURL transformed to (%s, %s)", deviceSpec.c_str(), url);
+    Debug_printf("sioNetwork::parseURL transformed to (%s, %s)", deviceSpec.c_str(), url.c_str());
 
     return isValidURL(urlParser);
 }
@@ -808,6 +810,7 @@ void sioNetwork::processCommaFromDevicespec()
 void sioNetwork::sio_assert_interrupt()
 {
     // Pulse Interrupt for 50μs
+    Debug_printf("sio_assert_interrupt()\n");
     fnSystem.digital_write(PIN_PROC, DIGI_LOW);
     fnSystem.delay_microseconds(50);
     fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
