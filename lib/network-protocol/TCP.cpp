@@ -6,6 +6,9 @@
 
 #include <errno.h>
 #include <string.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "TCP.h"
 #include "status_error_codes.h"
 
@@ -137,11 +140,10 @@ bool NetworkProtocolTCP::read(unsigned short len)
 
 /**
  * @brief Write len bytes from tx_buf to protocol.
- * @param tx_buf The buffer containing data to transmit.
  * @param len The # of bytes to transmit, len should not be larger than buffer.
  * @return error flag. FALSE if successful, TRUE if error.
  */
-bool NetworkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
+bool NetworkProtocolTCP::write(unsigned short len)
 {
     int actual_len = 0;
 
@@ -154,8 +156,12 @@ bool NetworkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
         return true; // error
     }
 
+    // Call base class
+    if (NetworkProtocol::write(len))
+        return true;
+
     // Do the read from client socket.
-    actual_len = client.write(tx_buf, len);
+    actual_len = client.write(transmitBuffer, len);
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
@@ -173,7 +179,7 @@ bool NetworkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
     client.available();
 
     // Return success
-    return NetworkProtocol::write(len);
+    return false;
 }
 
 /**
@@ -183,12 +189,12 @@ bool NetworkProtocolTCP::write(uint8_t *tx_buf, unsigned short len)
  */
 bool NetworkProtocolTCP::status(NetworkStatus *status)
 {
-    if (receiveBufferSize==0)
+    if (receiveBufferSize == 0)
     {
-        receiveBufferSize=(client.available() > 65535 ? 65535 : client.available());
+        receiveBufferSize = (client.available() > 65535 ? 65535 : client.available());
         read(receiveBufferSize); // We have to do read so we can translate and return correct size.
     }
-    
+
     return NetworkProtocol::status(status);
 }
 
@@ -199,7 +205,13 @@ bool NetworkProtocolTCP::status(NetworkStatus *status)
  */
 uint8_t NetworkProtocolTCP::special_inquiry(uint8_t cmd)
 {
-    return 0xFF; // not implemented.
+    switch (cmd)
+    {
+    case 'A':
+        return 0x00;
+    }
+
+    return 0xFF;
 }
 
 /**
@@ -209,7 +221,13 @@ uint8_t NetworkProtocolTCP::special_inquiry(uint8_t cmd)
  */
 bool NetworkProtocolTCP::special_00(cmdFrame_t *cmdFrame)
 {
-    return false;
+    switch (cmdFrame->comnd)
+    {
+    case 'A':
+        return special_accept_connection();
+        break;
+    }
+    return true; // error
 }
 
 /**
@@ -246,7 +264,7 @@ bool NetworkProtocolTCP::open_server(unsigned short port)
     server->begin(port);
     connectionIsServer = true;
 
-    return errno < 0;
+    return errno != 0;
 }
 
 /**
@@ -287,4 +305,37 @@ bool NetworkProtocolTCP::open_client(string hostname, unsigned short port)
         return true; // Error.
     }
     return false; // We're connected.
+}
+
+/**
+ * Special: Accept a server connection, transfer to client socket.
+ */
+bool NetworkProtocolTCP::special_accept_connection()
+{
+    if (server == nullptr)
+    {
+        Debug_printf("Attempted accept connection on NULL server socket. Aborting.\n");
+        return true; // Error
+    }
+
+    if (server->hasClient())
+    {
+        in_addr_t remoteIP=client.remoteIP();
+        unsigned char remotePort=client.remotePort();
+        char* remoteIPString = inet_ntoa(remoteIP);
+
+        client = server->available();
+
+        if (client.connected())
+        {
+            Debug_printf("Accepted connection from %s:%u",remoteIP,remotePort);
+            return false;
+        }
+        else
+        {
+            Debug_printf("Client immediately disconnected.\n");
+        }       
+    }
+
+    return true;
 }
