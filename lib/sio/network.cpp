@@ -198,13 +198,6 @@ void sioNetwork::sio_read()
     // Do the channel read
     err = sio_read_channel(num_bytes);
 
-    Debug_printf("returned from protocol: ");
-    for (int i=0;i<num_bytes;i++)
-    {
-        Debug_printf("%02x ",receiveBuffer[i]);
-    }
-    Debug_printf("\n");
-
     // And send off to the computer
     sio_to_computer(receiveBuffer, num_bytes, false);
 }
@@ -809,9 +802,7 @@ void sioNetwork::processCommaFromDevicespec()
  */
 void sioNetwork::sio_assert_interrupt()
 {
-    // Pulse Interrupt for 50μs
     Debug_printf("sio_assert_interrupt()\n");
-    fnSystem.digital_write(PIN_PROC, DIGI_LOW);
-    fnSystem.delay_microseconds(50);
-    fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
+    fnSystem.digital_write(PIN_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+    interruptProceed=!interruptProceed;
 }

@@ -109,7 +109,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
     Debug_printf("NetworkProtocolTCP::read(%u)\n", len);
 
     // Check for client connection
-    if (client.connected())
+    if (!client.connected())
     {
         error = NETWORK_ERROR_NOT_CONNECTED;
         return true; // error
@@ -117,13 +117,6 @@ bool NetworkProtocolTCP::read(unsigned short len)
 
     // Do the read from client socket.
     actual_len = client.read(receiveBuffer, len);
-
-    Debug_printf("TCP client received: ");
-    for (int i=0;i<actual_len;i++)
-    {
-        Debug_printf("%02x ",receiveBuffer[i]);
-    }
-    Debug_printf("\n");
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
@@ -154,7 +147,7 @@ bool NetworkProtocolTCP::write(unsigned short len)
     Debug_printf("NetworkProtocolTCP::write(%u)\n", len);
 
     // Check for client connection
-    if (client.connected())
+    if (!client.connected())
     {
         error = NETWORK_ERROR_NOT_CONNECTED;
         return true; // error
