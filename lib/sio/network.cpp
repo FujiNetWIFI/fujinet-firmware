@@ -20,7 +20,7 @@ void onTimer(void *info)
 {
     sioNetwork *parent = (sioNetwork *)info;
     portENTER_CRITICAL_ISR(&parent->timerMux);
-    parent->sio_poll_interrupt();
+    parent->interruptProceed=!parent->interruptProceed;
     portEXIT_CRITICAL_ISR(&parent->timerMux);
 }
 
@@ -151,9 +151,9 @@ void sioNetwork::sio_close()
 
     // Ask the protocol to close
     if (protocol->close())
-        sio_complete();
-    else
         sio_error();
+    else
+        sio_complete();
 
     // Delete the protocol object
     delete protocol;
@@ -199,7 +199,7 @@ void sioNetwork::sio_read()
     err = sio_read_channel(num_bytes);
 
     // And send off to the computer
-    sio_to_computer(receiveBuffer, num_bytes, false);
+    sio_to_computer(receiveBuffer, num_bytes, err);
 }
 
 /**
@@ -565,10 +565,8 @@ void sioNetwork::sio_poll_interrupt()
     {
         protocol->status(&status);
 
-        if (lastNetworkStatusChecksum != status.checksum())
+        if (status.rxBytesWaiting>0 || status.reserved == 0 || status.error != 1)
             sio_assert_interrupt();
-
-        lastNetworkStatusChecksum = status.checksum();
     }
 }
 
@@ -802,7 +800,5 @@ void sioNetwork::processCommaFromDevicespec()
  */
 void sioNetwork::sio_assert_interrupt()
 {
-    Debug_printf("sio_assert_interrupt()\n");
     fnSystem.digital_write(PIN_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
-    interruptProceed=!interruptProceed;
 }

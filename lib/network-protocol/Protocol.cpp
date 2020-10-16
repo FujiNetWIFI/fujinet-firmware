@@ -69,7 +69,7 @@ bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     // Set translation mode, Bits 0-2 of aux2
     translation_mode = cmdFrame->aux2 & 0x03;
-    return true;
+    return false;
 }
 
 /**
@@ -79,7 +79,7 @@ bool NetworkProtocol::close()
 {
     // Clear transform buffer
     transformBuffer.clear();
-    return true;
+    return false;
 }
 
 /**
