@@ -94,7 +94,7 @@ bool NetworkProtocolTCP::close()
         server->stop();
     }
 
-    return false; // Always successful./
+    return NetworkProtocol::close(); // Always successful./
 }
 
 /**
@@ -132,7 +132,8 @@ bool NetworkProtocolTCP::read(unsigned short len)
     }
 
     // Return success
-    return false;
+    error = 1;
+    return NetworkProtocol::read(len);
 }
 
 /**
@@ -176,6 +177,7 @@ bool NetworkProtocolTCP::write(unsigned short len)
     client.available();
 
     // Return success
+    error = 1;
     return false;
 }
 
@@ -189,7 +191,7 @@ bool NetworkProtocolTCP::status(NetworkStatus *status)
     receiveBufferSize = (client.available() > 65535 ? 65535 : client.available());
     status->rxBytesWaiting = receiveBufferSize;
     status->reserved = client.connected();
-    status->error=1;
+    status->error = error;
     // read(receiveBufferSize); // We have to do read so we can translate and return correct size.
 
     return NetworkProtocol::status(status);
