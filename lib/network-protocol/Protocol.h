@@ -156,7 +156,7 @@ private:
     /**
      * Temporary end of line transform buffer
      */
-    vector<char> transformBuffer;
+    string transformBuffer;
 
     /**
      * Perform end of line translation on receive buffer.
