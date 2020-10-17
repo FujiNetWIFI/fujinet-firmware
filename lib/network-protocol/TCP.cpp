@@ -188,13 +188,14 @@ bool NetworkProtocolTCP::write(unsigned short len)
  */
 bool NetworkProtocolTCP::status(NetworkStatus *status)
 {
-    receiveBufferSize = (client.available() > 65535 ? 65535 : client.available());
+    receiveBufferSize = (client.available() > (receiveBufferCapacity/2) ? (receiveBufferCapacity/2) : client.available());
     status->rxBytesWaiting = receiveBufferSize;
     status->reserved = client.connected();
     status->error = error;
-    // read(receiveBufferSize); // We have to do read so we can translate and return correct size.
 
-    return NetworkProtocol::status(status);
+    NetworkProtocol::status(status);
+
+    return false;
 }
 
 /**
