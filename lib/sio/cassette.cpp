@@ -3,6 +3,8 @@
 #include "led.h"
 #include "../../include/debug.h"
 
+#include "cstring"
+
 /** thinking about state machine
  * boolean states:
  *      file mounted or not
@@ -14,7 +16,7 @@
  * */
 
 //#define CASSETTE_FILE "/test.cas" // zaxxon
-#define CASSETTE_FILE "/hello.cas" // basic program
+#define CASSETTE_FILE "/hello" // basic program
 
 // copied from fuUART.cpp - figure out better way
 #define UART2_RX 33
@@ -74,7 +76,7 @@ int8_t softUART::service(uint8_t b)
             received_byte = 0; // clear data
             baud_clock = t;    // approx beginning of start bit
 #ifdef DEBUG
-            Debug_println("Start bit received!");
+//            Debug_println("Start bit received!");
 #endif
         }
     }
@@ -87,7 +89,7 @@ int8_t softUART::service(uint8_t b)
                 buffer[index_in++] = received_byte;
                 state_counter = STARTBIT;
 #ifdef DEBUG
-                Debug_printf("received %02X\n", received_byte);
+//                Debug_printf("received %02X\n", received_byte);
 #endif
                 if (b != 0)
                 {
@@ -103,8 +105,8 @@ int8_t softUART::service(uint8_t b)
                 received_byte |= (bb << (state_counter - 1));
                 state_counter++;
 #ifdef DEBUG
-                Debug_printf("bit %u ", state_counter - 1);
-                Debug_printf("%u\n ", b);
+//                Debug_printf("bit %u ", state_counter - 1);
+//                Debug_printf("%u\n ", b);
 #endif
             }
         }
@@ -123,20 +125,35 @@ int8_t softUART::service(uint8_t b)
 void sioCassette::close_cassette_file()
 {
     if (_file != nullptr)
+    {
         fclose(_file);
+#ifdef DEBUG
+        Debug_println("CAS file closed.");
+#endif
+    }
     _mounted = false;
 }
 
 void sioCassette::open_cassette_file(FileSystem *filesystem)
 {
+    char fn[32];
+    char mm[21];
+    strcpy(fn, CASSETTE_FILE);
+    sprintf(mm, "%020lu", fnSystem.millis());
+    strcat(fn, mm);
+    strcat(fn, ".cas");
+
     _FS = filesystem;
     if (_file != nullptr)
         fclose(_file);
-    _file = _FS->file_open(CASSETTE_FILE, "w+"); // use "w+" for CSAVE test
+    _file = _FS->file_open(fn, "w+"); // use "w+" for CSAVE test
     filesize = _FS->filesize(_file);
 #ifdef DEBUG
     if (_file != nullptr)
+    {
+        Debug_printf("%s - ", fn);
         Debug_println("CAS file opened succesfully!");
+    }
     else
         Debug_println("Could not open CAS file :(");
 #endif
@@ -152,21 +169,7 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
         Debug_println("Not a FUJI File");
     else
         Debug_println("A File for Recording");
-    unsigned long a = fnSystem.micros();
-    unsigned long b = fnSystem.micros();
-    Debug_printf("%u\n", a);
-    Debug_printf("%u\n", b);
-    Debug_println("A File for Recording");
 #endif
-
-    // #ifdef DEBUG
-    //     Debug_println("Sync Wait...");
-    // #endif
-
-    //     // TO DO decouple opening a file with the initial delay
-    //     // TO DO understand non-FUJI file format and why
-    //     if (!tape_flags.FUJI)
-    //         fnSystem.delay(10000);
 
     _mounted = true;
 }
@@ -480,80 +483,79 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
 
 unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
 {
-    Clear_atari_sector_buffer(132);
+    Clear_atari_sector_buffer(BLOCK_LEN + 4);
     uint8_t idx = 0;
 
     // start counting the IRG
     uint64_t tic = fnSystem.millis();
-    while (!casUART.available() && motor_line())
+
+    // write out data here to file
+    offset += fprintf(_file, "data");
+    offset += fputc(BLOCK_LEN + 4, _file); // 132 bytes
+    offset += fputc(0, _file);
+
+    while (!casUART.available() ) // && motor_line()
         casUART.service(decode_fsk());
     uint16_t irg = fnSystem.millis() - tic - 10000 / casUART.get_baud(); // adjust for first byte
 #ifdef DEBUG
     Debug_printf("irg %u\n", irg);
 #endif
-    if (!motor_line())
-        return offset;
+    offset += fwrite(&irg, 2, 1, _file);
     uint8_t b = casUART.read(); // should be 0x55
     atari_sector_buffer[idx++] = b;
 #ifdef DEBUG
     Debug_printf("marker 1: %02x\n", b);
 #endif
-    while (!casUART.available() && motor_line())
+
+    while (!casUART.available() ) // && motor_line()
         casUART.service(decode_fsk());
-    if (!motor_line())
-        return offset;
     b = casUART.read(); // should be 0x55
     atari_sector_buffer[idx++] = b;
 #ifdef DEBUG
     Debug_printf("marker 2: %02x\n", b);
 #endif
-    while (!casUART.available() && motor_line())
+
+    while (!casUART.available() ) // && motor_line()
         casUART.service(decode_fsk());
-    if (!motor_line())
-        return offset;
     b = casUART.read(); // control byte
     atari_sector_buffer[idx++] = b;
 #ifdef DEBUG
     Debug_printf("control byte: %02x\n", b);
 #endif
 
-#ifdef DEBUG
-    Debug_printf("data: ");
-#endif
-
     int i = 0;
-    while (i < 128)
+    while (i < BLOCK_LEN)
     {
-        while (!casUART.available() && motor_line())
+        while (!casUART.available() ) // && motor_line()
             casUART.service(decode_fsk());
-        if (!motor_line())
-            return offset;
         b = casUART.read(); // data
         atari_sector_buffer[idx++] = b;
 #ifdef DEBUG
-        Debug_printf(" %02x", b);
+//        Debug_printf(" %02x", b);
 #endif
+        i++;
     }
 #ifdef DEBUG
-    Debug_printf("\n");
+//    Debug_printf("\n");
 #endif
 
-    while (!casUART.available() && motor_line())
+    while (!casUART.available() ) // && motor_line()
         casUART.service(decode_fsk());
-    if (!motor_line())
-        return offset;
     b = casUART.read(); // checksum
     atari_sector_buffer[idx++] = b;
 #ifdef DEBUG
     Debug_printf("checksum: %02x\n", b);
 #endif
 
-    // write out data here to file
-    offset += fprintf(_file, "data");
-    offset += fputc(0x84, _file); // 132 bytes
-    offset += fputc(0, _file);
-    offset += fwrite(&irg, 2, 1, _file);
-    offset += fwrite(atari_sector_buffer, 1, 132, _file);
+#ifdef DEBUG
+    Debug_print("data: ");
+    for (int i = 0; i < BLOCK_LEN + 4; i++)
+        Debug_printf("%02x ", atari_sector_buffer[i]);
+    Debug_printf("\n");
+#endif
+
+    offset += fwrite(atari_sector_buffer, 1, BLOCK_LEN + 4, _file);
+
 #ifdef DEBUG
     Debug_printf("file offset: %d\n", offset);
 #endif
