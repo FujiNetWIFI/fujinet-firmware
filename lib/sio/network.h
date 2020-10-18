@@ -106,17 +106,17 @@ private:
     /**
      * The Receive buffer for this N: device
      */
-    uint8_t *receiveBuffer = nullptr;
+    string *receiveBuffer = nullptr;
 
     /**
      * The transmit buffer for this N: device
      */
-    uint8_t *transmitBuffer = nullptr;
+    string *transmitBuffer = nullptr;
 
     /**
      * The special buffer for this N: device
      */
-    uint8_t *specialBuffer = nullptr;
+    string *specialBuffer = nullptr;
 
     /**
      * The EdUrlParser object used to hold/process a URL
