@@ -83,8 +83,6 @@ bool NetworkProtocol::read(unsigned short len)
  */
 bool NetworkProtocol::write(unsigned short len)
 {
-    translate_transmit_buffer();
-    error = 1;
     return false;
 }
 
@@ -138,11 +136,12 @@ void NetworkProtocol::translate_receive_buffer()
 
 /**
  * Perform end of line translation on transmit buffer. based on translation_mode
+ * @return new length after translation
  */
-void NetworkProtocol::translate_transmit_buffer()
+unsigned short NetworkProtocol::translate_transmit_buffer()
 {
     if (translation_mode == 0)
-        return;
+        return transmitBuffer->length();
 
     replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_BUZZER, ASCII_BELL);
     replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_DEL, ASCII_BACKSPACE);
@@ -169,7 +168,9 @@ void NetworkProtocol::translate_transmit_buffer()
         {
             pos++;
             transmitBuffer->insert(pos, "\n");
-            pos = transmitBuffer->find(ASCII_CR);
+            pos = transmitBuffer->find(ASCII_CR,pos);
         }
     }
+
+    return transmitBuffer->length();
 }

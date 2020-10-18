@@ -32,6 +32,10 @@ sioNetwork::sioNetwork()
     receiveBuffer = new string();
     transmitBuffer = new string();
     specialBuffer = new string();
+
+    receiveBuffer->clear();
+    transmitBuffer->clear();
+    specialBuffer->clear();
 }
 
 /**
@@ -39,6 +43,10 @@ sioNetwork::sioNetwork()
  */
 sioNetwork::~sioNetwork()
 {
+    receiveBuffer->clear();
+    transmitBuffer->clear();
+    specialBuffer->clear();
+
     if (receiveBuffer != nullptr)
         delete receiveBuffer;
     if (transmitBuffer != nullptr)
@@ -227,19 +235,18 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
 void sioNetwork::sio_write()
 {
     unsigned short num_bytes = sio_get_aux();
+    uint8_t *newData;
     bool err = false;
 
+    newData = (uint8_t *)malloc(num_bytes);
     Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
 
-    sio_ack();
-
-    // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
-    if (transmitBuffer == nullptr)
+    if (newData == nullptr)
     {
-        status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
-        sio_error();
-        return;
+        Debug_printf("Could not allocate %u bytes.\n", num_bytes);
     }
+
+    sio_ack();
 
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
@@ -250,7 +257,9 @@ void sioNetwork::sio_write()
     }
 
     // Get the data from the Atari
-    sio_to_peripheral((uint8_t *)transmitBuffer->data(), num_bytes);
+    sio_to_peripheral(newData, num_bytes);
+    *transmitBuffer += string((char *)newData, num_bytes);
+    free(newData);
 
     // Do the channel write
     err = sio_write_channel(num_bytes);
@@ -259,7 +268,6 @@ void sioNetwork::sio_write()
     if (err == false)
     {
         sio_complete();
-        transmitBuffer->erase(0, num_bytes);
     }
     else
         sio_error();
