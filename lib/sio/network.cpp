@@ -194,6 +194,7 @@ void sioNetwork::sio_read()
 
     // And send off to the computer
     sio_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
+    receiveBuffer->erase(0,num_bytes);
 }
 
 /**
@@ -256,7 +257,10 @@ void sioNetwork::sio_write()
 
     // Acknowledge to Atari of channel outcome.
     if (err == false)
+    {
         sio_complete();
+        transmitBuffer->erase(0,num_bytes);
+    }
     else
         sio_error();
 }
