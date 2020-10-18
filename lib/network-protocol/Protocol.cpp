@@ -38,7 +38,7 @@ NetworkProtocol::NetworkProtocol(string *rx_buf,
     receiveBuffer = rx_buf;
     transmitBuffer = tx_buf;
     specialBuffer = sp_buf;
-
+    error = 1;
 }
 
 /**
@@ -50,6 +50,7 @@ bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     // Set translation mode, Bits 0-2 of aux2
     translation_mode = cmdFrame->aux2 & 0x03;
+    error = 1;
     return false;
 }
 
@@ -58,6 +59,7 @@ bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
  */
 bool NetworkProtocol::close()
 {
+    error = 1;
     return false;
 }
 
@@ -68,8 +70,9 @@ bool NetworkProtocol::close()
  */
 bool NetworkProtocol::read(unsigned short len)
 {
-    Debug_printf("NetworkProtocol::read(%u)\n",len);
+    Debug_printf("NetworkProtocol::read(%u)\n", len);
     translate_receive_buffer();
+    error = 1;
     return false;
 }
 
@@ -81,6 +84,7 @@ bool NetworkProtocol::read(unsigned short len)
 bool NetworkProtocol::write(unsigned short len)
 {
     translate_transmit_buffer();
+    error = 1;
     return false;
 }
 

@@ -102,7 +102,7 @@ bool NetworkProtocolTCP::close()
  */
 bool NetworkProtocolTCP::read(unsigned short len)
 {
-    int actual_len = 0;
+    unsigned short actual_len = 0;
     uint8_t *newData = (uint8_t *)malloc(len);
     string newString;
 
@@ -114,35 +114,37 @@ bool NetworkProtocolTCP::read(unsigned short len)
         return true; // error.
     }
 
-    // Check for client connection
-    if (!client.connected())
+    if (receiveBuffer->length() == 0)
     {
-        error = NETWORK_ERROR_NOT_CONNECTED;
-        return true; // error
+        // Check for client connection
+        if (!client.connected())
+        {
+            error = NETWORK_ERROR_NOT_CONNECTED;
+            return true; // error
+        }
+
+        // Do the read from client socket.
+        actual_len = client.read(newData, len);
+
+        // bail if the connection is reset.
+        if (errno == ECONNRESET)
+        {
+            error = NETWORK_ERROR_CONNECTION_RESET;
+            return true;
+        }
+        else if (actual_len != len) // Read was short and timed out.
+        {
+            Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\n", actual_len, len);
+            error = NETWORK_ERROR_SOCKET_TIMEOUT;
+            return true;
+        }
+
+        // Add new data to buffer.
+        newString = string((char *)newData, len);
+        *receiveBuffer += newString;
+
+        free(newData);
     }
-
-    // Do the read from client socket.
-    actual_len = client.read(newData, len);
-
-    // bail if the connection is reset.
-    if (errno == ECONNRESET)
-    {
-        error = NETWORK_ERROR_CONNECTION_RESET;
-        return true;
-    }
-    else if (actual_len != len) // Read was short and timed out.
-    {
-        Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\n", actual_len, len);
-        error = NETWORK_ERROR_SOCKET_TIMEOUT;
-        return true;
-    }
-
-    // Add new data to buffer.
-    newString=string((char *)newData,len);
-    *receiveBuffer += newString;
-
-    free(newData);
-
     // Return success
     error = 1;
     return NetworkProtocol::read(len);
