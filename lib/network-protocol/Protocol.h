@@ -77,14 +77,14 @@ public:
     /**
      * @brief Read len bytes into receiveBuffer, If protocol times out, the buffer should be null padded to length.
      * @param len Number of bytes to read.
-     * @return error flag. FALSE if successful, TRUE if error.
+     * @return translation successful.
      */
     virtual bool read(unsigned short len);
 
     /**
      * @brief Write len bytes from tx_buf to protocol.
      * @param len The # of bytes to transmit, len should not be larger than buffer.
-     * @return error flag. FALSE if successful, TRUE if error.
+     * @return new length.
      */
     virtual bool write(unsigned short len);
 
@@ -130,10 +130,12 @@ private:
      */
     void translate_receive_buffer();
 
+protected:
     /**
      * Perform end of line translation on transmit buffer.
+     * @return new buffer length.
      */
-    void translate_transmit_buffer();
+    unsigned short translate_transmit_buffer();
 };
 
 #endif /* NETWORKPROTOCOL_H */

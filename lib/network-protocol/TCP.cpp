@@ -153,7 +153,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
 /**
  * @brief Write len bytes from tx_buf to protocol.
  * @param len The # of bytes to transmit, len should not be larger than buffer.
- * @return error flag. FALSE if successful, TRUE if error.
+ * @return Number of bytes written.
  */
 bool NetworkProtocolTCP::write(unsigned short len)
 {
@@ -165,21 +165,20 @@ bool NetworkProtocolTCP::write(unsigned short len)
     if (!client.connected())
     {
         error = NETWORK_ERROR_NOT_CONNECTED;
-        return true; // error
+        return len; // error
     }
 
-    // Call base class
-    if (NetworkProtocol::write(len))
-        return true;
+    // Call base class to do translation.
+    len = translate_transmit_buffer();
 
     // Do the write to client socket.
-    actual_len = client.write(*transmitBuffer);
+    actual_len = client.write((uint8_t *)transmitBuffer->data(),len);
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
     {
         error = NETWORK_ERROR_CONNECTION_RESET;
-        return true;
+        return len;
     }
     else if (actual_len != len) // write was short.
     {
@@ -190,6 +189,8 @@ bool NetworkProtocolTCP::write(unsigned short len)
 
     // Return success
     error = 1;
+    transmitBuffer->erase(0,len);
+    
     return false;
 }
 
