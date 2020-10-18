@@ -20,7 +20,7 @@ void onTimer(void *info)
 {
     sioNetwork *parent = (sioNetwork *)info;
     portENTER_CRITICAL_ISR(&parent->timerMux);
-    parent->interruptProceed=!parent->interruptProceed;
+    parent->interruptProceed = !parent->interruptProceed;
     portEXIT_CRITICAL_ISR(&parent->timerMux);
 }
 
@@ -29,9 +29,9 @@ void onTimer(void *info)
  */
 sioNetwork::sioNetwork()
 {
-    receiveBuffer=new string();
-    transmitBuffer=new string();
-    specialBuffer=new string();
+    receiveBuffer = new string();
+    transmitBuffer = new string();
+    specialBuffer = new string();
 }
 
 /**
@@ -39,11 +39,11 @@ sioNetwork::sioNetwork()
  */
 sioNetwork::~sioNetwork()
 {
-    if (receiveBuffer!=nullptr)
+    if (receiveBuffer != nullptr)
         delete receiveBuffer;
-    if (transmitBuffer!=nullptr)
+    if (transmitBuffer != nullptr)
         delete transmitBuffer;
-    if (specialBuffer!=nullptr)
+    if (specialBuffer != nullptr)
         delete specialBuffer;
 }
 
@@ -194,7 +194,7 @@ void sioNetwork::sio_read()
 
     // And send off to the computer
     sio_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
-    receiveBuffer->erase(0,num_bytes);
+    receiveBuffer->erase(0, num_bytes);
 }
 
 /**
@@ -259,7 +259,7 @@ void sioNetwork::sio_write()
     if (err == false)
     {
         sio_complete();
-        transmitBuffer->erase(0,num_bytes);
+        transmitBuffer->erase(0, num_bytes);
     }
     else
         sio_error();
@@ -349,7 +349,7 @@ void sioNetwork::sio_status_channel()
     switch (channelMode)
     {
     case PROTOCOL:
-        err=protocol->status(&status);
+        err = protocol->status(&status);
         break;
     case JSON:
         // err=_json->status(&status)
@@ -362,7 +362,7 @@ void sioNetwork::sio_status_channel()
     serialized_status[2] = status.reserved;
     serialized_status[3] = status.error;
 
-    Debug_printf("sio_status_channel() - BW: %u E: %u\n",status.rxBytesWaiting,status.error);
+    Debug_printf("sio_status_channel() - BW: %u E: %u\n", status.rxBytesWaiting, status.error);
 
     // and send to computer
     sio_to_computer(serialized_status, sizeof(serialized_status), err);
@@ -563,7 +563,7 @@ void sioNetwork::sio_poll_interrupt()
     {
         protocol->status(&status);
 
-        if (status.rxBytesWaiting>0 || status.reserved == 0 || status.error != 1)
+        if (status.rxBytesWaiting > 0 || status.reserved == 0 || status.error != 1)
             sio_assert_interrupt();
     }
 }
@@ -587,9 +587,7 @@ bool sioNetwork::instantiate_protocol()
 
     if (urlParser->scheme == "TCP")
     {
-        // protocol = new NetworkProtocolTCP(receiveBuffer, INPUT_BUFFER_SIZE,
-        //                                   transmitBuffer, OUTPUT_BUFFER_SIZE,
-        //                                   specialBuffer, SPECIAL_BUFFER_SIZE);
+        protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
     }
     else if (urlParser->scheme == "UDP")
     {
@@ -695,8 +693,8 @@ bool sioNetwork::parseURL()
     }
 
     // Some FMSes add a dot at the end, remove it.
-    if (deviceSpec.substr(deviceSpec.length()-1) == ".")
-        deviceSpec.erase(deviceSpec.length()-1,string::npos);
+    if (deviceSpec.substr(deviceSpec.length() - 1) == ".")
+        deviceSpec.erase(deviceSpec.length() - 1, string::npos);
 
     // Prepend prefix, if set.
     if (prefix.length() > 0)
