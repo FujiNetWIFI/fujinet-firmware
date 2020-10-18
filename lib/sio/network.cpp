@@ -29,6 +29,9 @@ void onTimer(void *info)
  */
 sioNetwork::sioNetwork()
 {
+    receiveBuffer=new string();
+    transmitBuffer=new string();
+    specialBuffer=new string();
 }
 
 /**
@@ -36,6 +39,12 @@ sioNetwork::sioNetwork()
  */
 sioNetwork::~sioNetwork()
 {
+    if (receiveBuffer!=nullptr)
+        delete receiveBuffer;
+    if (transmitBuffer!=nullptr)
+        delete transmitBuffer;
+    if (specialBuffer!=nullptr)
+        delete specialBuffer;
 }
 
 /** SIO COMMANDS ***************************************************************/
@@ -184,7 +193,7 @@ void sioNetwork::sio_read()
     err = sio_read_channel(num_bytes);
 
     // And send off to the computer
-    sio_to_computer(receiveBuffer, num_bytes, err);
+    sio_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
 }
 
 /**
@@ -240,7 +249,7 @@ void sioNetwork::sio_write()
     }
 
     // Get the data from the Atari
-    sio_to_peripheral(transmitBuffer, num_bytes);
+    sio_to_peripheral((uint8_t *)transmitBuffer->data(), num_bytes);
 
     // Do the channel write
     err = sio_write_channel(num_bytes);
@@ -464,9 +473,9 @@ void sioNetwork::sio_special_protocol_00()
 void sioNetwork::sio_special_protocol_40()
 {
     memset(receiveBuffer, 0, INPUT_BUFFER_SIZE);
-    sio_to_computer(receiveBuffer,
+    sio_to_computer((uint8_t *)receiveBuffer->data(),
                     SPECIAL_BUFFER_SIZE,
-                    protocol->special_40(receiveBuffer, SPECIAL_BUFFER_SIZE, &cmdFrame));
+                    protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame));
 }
 
 /**
@@ -481,7 +490,7 @@ void sioNetwork::sio_special_protocol_80()
     memset(transmitBuffer, 0, OUTPUT_BUFFER_SIZE);
 
     // Get special (devicespec) from computer
-    ck = sio_to_peripheral(transmitBuffer, 256);
+    ck = sio_to_peripheral((uint8_t *)transmitBuffer->data(), 256);
 
     // Bomb if checksum mismatch.
     if (ck != cmdFrame.checksum)
@@ -492,7 +501,7 @@ void sioNetwork::sio_special_protocol_80()
     }
 
     // Do protocol action and return
-    if (protocol->special_80(transmitBuffer, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80((uint8_t *)transmitBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
         sio_complete();
     else
         sio_error();
@@ -574,9 +583,9 @@ bool sioNetwork::instantiate_protocol()
 
     if (urlParser->scheme == "TCP")
     {
-        protocol = new NetworkProtocolTCP(receiveBuffer, INPUT_BUFFER_SIZE,
-                                          transmitBuffer, OUTPUT_BUFFER_SIZE,
-                                          specialBuffer, SPECIAL_BUFFER_SIZE);
+        // protocol = new NetworkProtocolTCP(receiveBuffer, INPUT_BUFFER_SIZE,
+        //                                   transmitBuffer, OUTPUT_BUFFER_SIZE,
+        //                                   specialBuffer, SPECIAL_BUFFER_SIZE);
     }
     else if (urlParser->scheme == "UDP")
     {
