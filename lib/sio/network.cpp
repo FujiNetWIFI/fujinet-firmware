@@ -65,10 +65,7 @@ void sioNetwork::sio_open()
 
     // Shut down protocol if we are sending another open before we close.
     if (protocol != nullptr)
-    {
         delete protocol;
-        free_buffers();
-    }
 
     // Reset status buffer
     status.reset();
@@ -87,15 +84,6 @@ void sioNetwork::sio_open()
     }
 
     Debug_printf("Open: %s\n", deviceSpec.c_str());
-
-    // Attempt to allocate buffers
-    if (allocate_buffers() == false)
-    {
-        Debug_printf("Could not allocate memory for buffers\n");
-        status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
-        sio_error();
-        return;
-    }
 
     // Instantiate protocol object.
     if (instantiate_protocol() == false)
@@ -158,9 +146,6 @@ void sioNetwork::sio_close()
     // Delete the protocol object
     delete protocol;
     protocol = nullptr;
-
-    // And deallocate buffers
-    free_buffers();
 }
 
 /**
@@ -571,44 +556,6 @@ void sioNetwork::sio_poll_interrupt()
 }
 
 /** PRIVATE METHODS ************************************************************/
-
-/**
- * Allocate rx and tx buffers
- * @return bool TRUE if ok, FALSE if in error.
- */
-bool sioNetwork::allocate_buffers()
-{
-    receiveBuffer = (uint8_t *)heap_caps_malloc(INPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    transmitBuffer = (uint8_t *)heap_caps_malloc(OUTPUT_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    specialBuffer = (uint8_t *)heap_caps_malloc(SPECIAL_BUFFER_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-
-    if ((receiveBuffer == nullptr) || (transmitBuffer == nullptr) || (specialBuffer == nullptr))
-        return false; // Allocation failed.
-
-    /* Clear buffer and status */
-    status.reset();
-    memset(receiveBuffer, 0, INPUT_BUFFER_SIZE);
-    memset(transmitBuffer, 0, OUTPUT_BUFFER_SIZE);
-    memset(specialBuffer,0,SPECIAL_BUFFER_SIZE);
-
-    HEAP_CHECK("sioNetwork::allocate_buffers");
-    return true; // All good.
-}
-
-/**
- * Free the rx and tx buffers
- */
-void sioNetwork::free_buffers()
-{
-    if (receiveBuffer != nullptr)
-        free(receiveBuffer);
-    if (transmitBuffer != nullptr)
-        free(transmitBuffer);
-    if (specialBuffer != nullptr)
-        free(specialBuffer);
-
-    Debug_printf("sioNetworks::free_buffers()\n");
-}
 
 /**
  * Instantiate protocol object

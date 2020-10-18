@@ -184,17 +184,6 @@ private:
     int lastNetworkStatusChecksum;
 
     /**
-     * Allocate rx and tx buffers
-     * @return bool TRUE if ok, FALSE if in error.
-     */
-    bool allocate_buffers();
-
-    /**
-     * Free the rx and tx buffers
-     */
-    void free_buffers();
-
-    /**
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */
