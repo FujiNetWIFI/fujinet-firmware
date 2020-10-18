@@ -476,7 +476,6 @@ void sioNetwork::sio_special_protocol_00()
  */
 void sioNetwork::sio_special_protocol_40()
 {
-    memset(receiveBuffer, 0, INPUT_BUFFER_SIZE);
     sio_to_computer((uint8_t *)receiveBuffer->data(),
                     SPECIAL_BUFFER_SIZE,
                     protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame));
@@ -491,7 +490,6 @@ void sioNetwork::sio_special_protocol_40()
 void sioNetwork::sio_special_protocol_80()
 {
     uint8_t ck;
-    memset(transmitBuffer, 0, OUTPUT_BUFFER_SIZE);
 
     // Get special (devicespec) from computer
     ck = sio_to_peripheral((uint8_t *)transmitBuffer->data(), 256);
@@ -563,7 +561,7 @@ void sioNetwork::sio_poll_interrupt()
     {
         protocol->status(&status);
 
-        if (status.rxBytesWaiting > 0 || status.reserved == 0 || status.error != 1)
+        if (status.rxBytesWaiting > 0)
             sio_assert_interrupt();
     }
 }
