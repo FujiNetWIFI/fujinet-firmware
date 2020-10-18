@@ -15,10 +15,8 @@
 /**
  * ctor
  */
-NetworkProtocolTCP::NetworkProtocolTCP(uint8_t *rx_buf, uint16_t rx_len,
-                                       uint8_t *tx_buf, uint16_t tx_len,
-                                       uint8_t *sp_buf, uint16_t sp_len)
-    : NetworkProtocol(rx_buf, rx_len, tx_buf, tx_len, sp_buf, sp_len)
+NetworkProtocolTCP::NetworkProtocolTCP(string *rx_buf, string *tx_buf, string *sp_buf)
+    : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
     Debug_printf("NetworkProtocolTCP::ctor\n");
     server = nullptr;
@@ -105,8 +103,16 @@ bool NetworkProtocolTCP::close()
 bool NetworkProtocolTCP::read(unsigned short len)
 {
     int actual_len = 0;
+    uint8_t *newData = (uint8_t *)malloc(len);
+    string newString;
 
     Debug_printf("NetworkProtocolTCP::read(%u)\n", len);
+
+    if (newData == nullptr)
+    {
+        Debug_printf("Could not allocate %u bytes! Aborting!\n");
+        return true; // error.
+    }
 
     // Check for client connection
     if (!client.connected())
@@ -116,7 +122,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
     }
 
     // Do the read from client socket.
-    actual_len = client.read(receiveBuffer, len);
+    actual_len = client.read(newData, len);
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
@@ -130,6 +136,12 @@ bool NetworkProtocolTCP::read(unsigned short len)
         error = NETWORK_ERROR_SOCKET_TIMEOUT;
         return true;
     }
+
+    // Add new data to buffer.
+    newString=string((char *)newData,len);
+    *receiveBuffer += newString;
+
+    free(newData);
 
     // Return success
     error = 1;
@@ -158,8 +170,8 @@ bool NetworkProtocolTCP::write(unsigned short len)
     if (NetworkProtocol::write(len))
         return true;
 
-    // Do the read from client socket.
-    actual_len = client.write(transmitBuffer, len);
+    // Do the write to client socket.
+    actual_len = client.write(*transmitBuffer);
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
@@ -174,8 +186,6 @@ bool NetworkProtocolTCP::write(unsigned short len)
         return true;
     }
 
-    client.available();
-
     // Return success
     error = 1;
     return false;
@@ -188,8 +198,7 @@ bool NetworkProtocolTCP::write(unsigned short len)
  */
 bool NetworkProtocolTCP::status(NetworkStatus *status)
 {
-    receiveBufferSize = (client.available() > (receiveBufferCapacity/2) ? (receiveBufferCapacity/2) : client.available());
-    status->rxBytesWaiting = receiveBufferSize;
+    status->rxBytesWaiting = (client.available() > 65535) ? 65535 : client.available();
     status->reserved = client.connected();
     status->error = error;
 

@@ -15,9 +15,7 @@ public:
     /**
      * ctor
      */
-    NetworkProtocolTCP(uint8_t *rx_buf, uint16_t rx_len,
-                       uint8_t *tx_buf, uint16_t tx_len,
-                       uint8_t *sp_buf, uint16_t sp_len);
+    NetworkProtocolTCP(string *rx_buf, string *tx_buf, string *sp_buf);
 
     /**
      * dtor
