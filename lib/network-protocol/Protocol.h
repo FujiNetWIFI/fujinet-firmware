@@ -12,50 +12,25 @@ public:
     /**
      * Pointer to the receive buffer
      */
-    uint8_t *receiveBuffer = nullptr;
-
-    /**
-     * Maximum capacity of receive buffer.
-     */
-    uint16_t receiveBufferCapacity;
-
-    /**
-     * Current size of data in receiveBuffer.
-     */
-    uint16_t receiveBufferSize;
+    string *receiveBuffer = nullptr;
 
     /**
      * Pointer to the transmit buffer
      */
-    uint8_t *transmitBuffer;
-
-    /**
-     * Capacity of the transmit buffer
-     */
-    uint16_t transmitBufferCapacity;
+    string *transmitBuffer = nullptr;
 
     /**
      * Pointer to the transmit buffer
      */
-    uint8_t *specialBuffer;
-
-    /**
-     * Capacity of the transmit buffer
-     */
-    uint16_t specialBufferCapacity;
+    string *specialBuffer = nullptr;
 
     /**
      * ctor - Initialize network protocol object.
      * @param rx_buf pointer to receive buffer
-     * @param rx_len length of receive buffer
      * @param tx_buf pointer to transmit buffer
-     * @param tx_len length of receive buffer
      * @param sp_buf pointer to special buffer
-     * @param sp_len length of special buffer
      */
-    NetworkProtocol(uint8_t *rx_buf, uint16_t rx_len,
-                    uint8_t *tx_buf, uint16_t tx_len,
-                    uint8_t *sp_buf, uint16_t sp_len);
+    NetworkProtocol(string *rx_buf, string *tx_buf, string *sp_buf);
 
     /**
      * dtor
@@ -63,11 +38,8 @@ public:
     virtual ~NetworkProtocol()
     {
         receiveBuffer = nullptr;
-        receiveBufferCapacity = receiveBufferSize = 0;
         transmitBuffer = nullptr;
-        transmitBufferCapacity = receiveBufferSize = 0;
         specialBuffer = nullptr;
-        specialBufferCapacity = receiveBufferSize = 0;
     }
 
     /**
@@ -154,11 +126,6 @@ public:
 
 private:
     /**
-     * Temporary end of line transform buffer
-     */
-    string transformBuffer;
-
-    /**
      * Perform end of line translation on receive buffer.
      */
     void translate_receive_buffer();
@@ -167,19 +134,6 @@ private:
      * Perform end of line translation on transmit buffer.
      */
     void translate_transmit_buffer();
-
-    /**
-     * Copy char buffer into transform buffer
-     * @param buf pointer to the buffer to copy into transform buffer.
-     * @param len The length of the source buffer
-     */
-    void populate_transform_buffer(uint8_t *buf, unsigned short len);
-
-    /**
-     * Copy transform buffer back into destination buffer
-     * @param buf pointer to destination buffer for the transform buffer
-     */
-    void copy_transform_buffer(uint8_t *buf);
 };
 
 #endif /* NETWORKPROTOCOL_H */

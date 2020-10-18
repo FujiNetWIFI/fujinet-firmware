@@ -26,41 +26,19 @@ using namespace std;
 /**
  * ctor - Initialize network protocol object.
  * @param rx_buf pointer to receive buffer
- * @param rx_len length of receive buffer
  * @param tx_buf pointer to transmit buffer
- * @param tx_len length of receive buffer
  * @param sp_buf pointer to special buffer
- * @param sp_len length of special buffer
  */
-NetworkProtocol::NetworkProtocol(uint8_t *rx_buf, uint16_t rx_len,
-                                 uint8_t *tx_buf, uint16_t tx_len,
-                                 uint8_t *sp_buf, uint16_t sp_len)
+NetworkProtocol::NetworkProtocol(string *rx_buf,
+                                 string *tx_buf,
+                                 string *sp_buf)
 {
     Debug_printf("NetworkProtocol::ctor()\n");
 
-    if (rx_buf == nullptr)
-    {
-        Debug_printf("rx_buf is NULL\n");
-    }
-
-    if (tx_buf == nullptr)
-    {
-        Debug_printf("tx_buf is NULL\n");
-    }
-
-    if (sp_buf == nullptr)
-    {
-        Debug_printf("sp_buf is NULL\n");
-    }
-
     receiveBuffer = rx_buf;
-    receiveBufferCapacity = rx_len;
     transmitBuffer = tx_buf;
-    transmitBufferCapacity = tx_len;
     specialBuffer = sp_buf;
-    specialBufferCapacity = sp_len;
 
-    Debug_printf("Buffers: %p (%u) %p (%u) %p (%u)\n", receiveBuffer, rx_len, transmitBuffer, tx_len, specialBuffer, sp_len);
 }
 
 /**
@@ -80,8 +58,6 @@ bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
  */
 bool NetworkProtocol::close()
 {
-    // Clear transform buffer
-    transformBuffer.clear();
     return false;
 }
 
@@ -94,7 +70,6 @@ bool NetworkProtocol::read(unsigned short len)
 {
     Debug_printf("NetworkProtocol::read(%u)\n",len);
     translate_receive_buffer();
-    receiveBufferSize -= len;
     return false;
 }
 
@@ -117,10 +92,10 @@ bool NetworkProtocol::write(unsigned short len)
  */
 bool NetworkProtocol::status(NetworkStatus *status)
 {
-    if (receiveBufferSize == 0 && status->rxBytesWaiting > 0)
+    if (receiveBuffer->length() == 0 && status->rxBytesWaiting > 0)
         read(status->rxBytesWaiting);
 
-    status->rxBytesWaiting = receiveBufferSize;
+    status->rxBytesWaiting = receiveBuffer->length();
 
     return false;
 }
@@ -136,35 +111,25 @@ void NetworkProtocol::translate_receive_buffer()
     if (translation_mode == 0)
         return;
 
-    populate_transform_buffer(receiveBuffer, receiveBufferSize);
-    memset(receiveBuffer,0,receiveBufferCapacity);
-
-    Debug_printf("Transform buffer size before: %u",transformBuffer.size());
-
-    replace(transformBuffer.begin(), transformBuffer.end(), ASCII_BELL, ATASCII_BUZZER);
-    replace(transformBuffer.begin(), transformBuffer.end(), ASCII_BACKSPACE, ATASCII_DEL);
-    replace(transformBuffer.begin(), transformBuffer.end(), ASCII_TAB, ATASCII_TAB);
+    replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BELL, ATASCII_BUZZER);
+    replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BACKSPACE, ATASCII_DEL);
+    replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_TAB, ATASCII_TAB);
 
     switch (translation_mode)
     {
     case TRANSLATION_MODE_CR:
-        replace(transformBuffer.begin(), transformBuffer.end(), ASCII_CR, ATASCII_EOL);
+        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, ATASCII_EOL);
         break;
     case TRANSLATION_MODE_LF:
-        replace(transformBuffer.begin(), transformBuffer.end(), ASCII_LF, ATASCII_EOL);
+        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_LF, ATASCII_EOL);
         break;
     case TRANSLATION_MODE_CRLF:
-        replace(transformBuffer.begin(), transformBuffer.end(), ASCII_CR, ATASCII_EOL);
+        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, ATASCII_EOL);
         break;
     }
 
     if (translation_mode == TRANSLATION_MODE_CRLF)
-        transformBuffer.erase(remove(transformBuffer.begin(), transformBuffer.end(), '\n'), transformBuffer.end());
-
-    receiveBufferSize = transformBuffer.size();
-    Debug_printf("Transform buffer size after: %u",transformBuffer.size());
-
-    copy_transform_buffer(receiveBuffer);
+        receiveBuffer->erase(remove(receiveBuffer->begin(), receiveBuffer->end(), '\n'), receiveBuffer->end());
 }
 
 /**
@@ -175,58 +140,32 @@ void NetworkProtocol::translate_transmit_buffer()
     if (translation_mode == 0)
         return;
 
-    replace(transformBuffer.begin(), transformBuffer.end(), ATASCII_BUZZER, ASCII_BELL);
-    replace(transformBuffer.begin(), transformBuffer.end(), ATASCII_DEL, ASCII_BACKSPACE);
-    replace(transformBuffer.begin(), transformBuffer.end(), ATASCII_TAB, ASCII_TAB);
+    replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_BUZZER, ASCII_BELL);
+    replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_DEL, ASCII_BACKSPACE);
+    replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_TAB, ASCII_TAB);
 
     switch (translation_mode)
     {
     case TRANSLATION_MODE_CR:
-        replace(transformBuffer.begin(), transformBuffer.end(), ATASCII_EOL, ASCII_CR);
+        replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_EOL, ASCII_CR);
         break;
     case TRANSLATION_MODE_LF:
-        replace(transformBuffer.begin(), transformBuffer.end(), ATASCII_EOL, ASCII_LF);
+        replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_EOL, ASCII_LF);
         break;
     case TRANSLATION_MODE_CRLF:
-        replace(transformBuffer.begin(), transformBuffer.end(), ATASCII_EOL, ASCII_CR);
+        replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_EOL, ASCII_CR);
         break;
     }
 
     // If CR/LF, insert linefeed wherever there is a CR.
     if (translation_mode == TRANSLATION_MODE_CRLF)
     {
-        auto pos = transformBuffer.find(ASCII_CR);
+        auto pos = transmitBuffer->find(ASCII_CR);
         while (pos != string::npos)
         {
             pos++;
-            transformBuffer.insert(pos, "\n");
-            pos = transformBuffer.find(ASCII_CR);
+            transmitBuffer->insert(pos, "\n");
+            pos = transmitBuffer->find(ASCII_CR);
         }
     }
-
-    copy_transform_buffer(transmitBuffer);
-}
-
-/**
- * Copy char buffer into transform buffer
- * @param buf pointer to the buffer to copy into transform buffer.
- * @param len The length of the source buffer
- */
-void NetworkProtocol::populate_transform_buffer(uint8_t *buf, unsigned short len)
-{
-    transformBuffer = string((char *)buf, len);
-}
-
-/**
- * Copy transform buffer back into destination buffer
- * @param buf pointer to destination buffer for the transform buffer
- */
-void NetworkProtocol::copy_transform_buffer(uint8_t *buf)
-{
-    memcpy(buf, transformBuffer.data(), transformBuffer.size());
-
-    Debug_printf("copy_transform_buffer() - ");
-    for (int i = 0; i < transformBuffer.size(); i++)
-        Debug_printf("%02x ", buf[i]);
-    Debug_printf("\n");
 }
