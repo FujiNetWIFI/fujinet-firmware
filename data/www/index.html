@@ -296,15 +296,38 @@
 						</svg>
 					</div>
 				</div>
-					<div class="cform">
-						<div class="formwrapper">
-							<br>MIDIMaze Hostname or IP
-							<form action="/config" method="post">
-								<input type="text" name="midimaze_host" id="midimaze_host" value="<%FN_MIDIMAZE_HOST%>">
-								<input type="submit" value="Save">
-							</form>
-							<br><hr>Save empty field to turn off
-						</div>
+				<div class="cform">
+					<div class="formwrapper">
+						<br>MIDIMaze Hostname or IP
+						<form action="/config" method="post">
+							<input type="text" name="midimaze_host" id="midimaze_host" value="<%FN_MIDIMAZE_HOST%>">
+							<input type="submit" value="Save">
+						</form>
+						<br><hr>Save empty field to turn off
+					</div>
+				</div>
+			</div>
+		</div>
+		<div class="flexchild">
+			<header>PROGRAM<span id="logowob"></span>RECORDER</header>
+			<div class="detline">
+				<div class="cicon">
+					<div class="svgicon">
+					</div>
+				</div>
+				<div class="cform">
+					<div class="formwrapper">
+						<br>Play or Record
+						<form action="/config" method="post">
+							<select name="play_record" id="play_record_buttons">
+								<option value="1">Play</option>
+								<option value="0">Record</option>
+							</select>
+							<input type="submit" value="Save">
+						</form>
+						<script>
+							var current_play_record = "<%FN_PLAY_RECORD%>";
+						</script>
 					</div>
 				</div>
 			</div>
@@ -316,7 +339,7 @@
 					<div class="svgicon">
 					</div>
 				</div>
-					<div class="cform">
+				<div class="cform">
 						<div class="formwrapper">
 							<br>Enable Rotation Sounds
 							<form action="/config" method="post">
@@ -331,7 +354,6 @@
 							</script>
 
 						</div>
-					</div>
 				</div>
 			</div>
 		</div>
