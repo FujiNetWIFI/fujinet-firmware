@@ -384,7 +384,7 @@ void sioNetwork::sio_status_channel()
  */
 void sioNetwork::sio_special()
 {
-    uint8_t inq_cmd = sio_get_aux();
+    uint8_t inq_cmd = cmdFrame.comnd;
     uint8_t inq_dstats = 0xFF;
 
     // If there's no protocol, and we got here, then we nak the command, because it's not valid.
@@ -569,7 +569,7 @@ void sioNetwork::sio_poll_interrupt()
     {
         protocol->status(&status);
 
-        if (status.rxBytesWaiting > 0 || status.reserved != reservedSave || status.error != errorSave)
+        if (status.rxBytesWaiting > 0 || status.reserved == 0)
             sio_assert_interrupt();
 
         reservedSave = status.reserved;
