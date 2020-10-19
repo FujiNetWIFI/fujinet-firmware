@@ -236,6 +236,8 @@ void NetworkProtocolTCP::status_server(NetworkStatus *status)
  */
 uint8_t NetworkProtocolTCP::special_inquiry(uint8_t cmd)
 {
+    Debug_printf("NetworkProtocolTCP::special_inquiry(%02x)\n",cmd);
+
     switch (cmd)
     {
     case 'A':
