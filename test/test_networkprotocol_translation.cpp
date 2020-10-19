@@ -5,6 +5,7 @@
  */
 
 #include <string.h>
+#include <string>
 #include "../lib/network-protocol/Protocol.h"
 #include "test_networkprotocol_translation.h"
 
@@ -14,12 +15,14 @@
 #define RX_TX_SIZE 65535
 #define SP_SIZE 256
 
+using namespace std;
+
 /**
  * The Buffers
  */
-uint8_t *rx_buf;
-uint8_t *tx_buf;
-uint8_t *sp_buf;
+string *rx_buf;
+string *tx_buf;
+string *sp_buf;
 
 /**
  * Protocol object
@@ -44,7 +47,7 @@ void tests_networkprotocol_translation()
     RUN_TEST(tests_networkprotocol_translation_rx_crlf_to_eol);
     RUN_TEST(tests_networkprotocol_translation_tx_eol_to_cr);
     RUN_TEST(tests_networkprotocol_translation_tx_eol_to_lf);
-    //RUN_TEST(tests_networkprotocol_translation_tx_eol_to_crlf);
+    RUN_TEST(tests_networkprotocol_translation_tx_eol_to_crlf);
 }
 
 /**
@@ -61,7 +64,7 @@ void tests_networkprotocol_translation_rx_cr_to_eol()
     protocol->read(strlen(test_cr));
     protocol->close();
 
-    TEST_ASSERT_EQUAL_STRING(test_eol, rx_buf);
+    TEST_ASSERT_EQUAL_STRING(test_eol, rx_buf->c_str());
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -80,7 +83,7 @@ void tests_networkprotocol_translation_rx_lf_to_eol()
     protocol->read(strlen(test_lf));
     protocol->close();
 
-    TEST_ASSERT_EQUAL_STRING(test_eol, rx_buf);
+    TEST_ASSERT_EQUAL_STRING(test_eol, rx_buf->c_str());
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -99,7 +102,7 @@ void tests_networkprotocol_translation_rx_crlf_to_eol()
     protocol->read(strlen(test_crlf));
     protocol->close();
 
-    TEST_ASSERT_EQUAL_STRING(test_eol, rx_buf);
+    TEST_ASSERT_EQUAL_STRING(test_eol, rx_buf->c_str());
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -118,7 +121,7 @@ void tests_networkprotocol_translation_tx_eol_to_cr()
     protocol->write(strlen(test_eol));
     protocol->close();
 
-    TEST_ASSERT_EQUAL_STRING(test_cr, tx_buf);
+    TEST_ASSERT_EQUAL_STRING(test_cr, tx_buf->c_str());
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -137,7 +140,7 @@ void tests_networkprotocol_translation_tx_eol_to_lf()
     protocol->write(strlen(test_eol));
     protocol->close();
 
-    TEST_ASSERT_EQUAL_STRING(test_lf, tx_buf);
+    TEST_ASSERT_EQUAL_STRING(test_lf, tx_buf->c_str());
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -156,7 +159,7 @@ void tests_networkprotocol_translation_tx_eol_to_crlf()
     protocol->write(strlen(test_eol));
     protocol->close();
 
-    TEST_ASSERT_EQUAL_STRING(test_crlf, tx_buf);
+    TEST_ASSERT_EQUAL_STRING(test_crlf, tx_buf->c_str());
     tests_networkprotocol_translation_done();
     delete url;
 }
@@ -168,24 +171,23 @@ void tests_networkprotocol_translation_tx_eol_to_crlf()
  */
 bool tests_networkprotocol_translation_setup(const char *c)
 {
-    rx_buf = (uint8_t *)heap_caps_malloc(RX_TX_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    tx_buf = (uint8_t *)heap_caps_malloc(RX_TX_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    sp_buf = (uint8_t *)heap_caps_malloc(RX_TX_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    rx_buf = nullptr;
+    tx_buf = nullptr;
+    sp_buf = nullptr;
 
-    protocol = new NetworkProtocol(rx_buf, RX_TX_SIZE,
-                                   tx_buf, RX_TX_SIZE,
-                                   sp_buf, SP_SIZE);
+    protocol = new NetworkProtocol(rx_buf, tx_buf, sp_buf);
 
     if (protocol == nullptr || rx_buf == nullptr || tx_buf == nullptr || sp_buf == nullptr)
         return false;
 
     // Clear buffers
-    memset(rx_buf, 0, RX_TX_SIZE);
-    memset(tx_buf, 0, RX_TX_SIZE);
+    rx_buf->clear();
+    tx_buf->clear();
+    sp_buf->clear();
 
-    // Put test fixture into buffers.
-    strcpy((char *)rx_buf, c);
-    strcpy((char *)tx_buf, c);
+    // Copy fixture into buffers
+    *rx_buf=string(c);
+    *tx_buf=string(c);
 
     return true;
 }
@@ -199,11 +201,11 @@ void tests_networkprotocol_translation_done()
         delete protocol;
 
     if (rx_buf != nullptr)
-        free(rx_buf);
+        delete rx_buf;
 
     if (tx_buf != nullptr)
-        free(tx_buf);
+        delete tx_buf;
 
     if (sp_buf != nullptr)
-        free(sp_buf);
+        delete sp_buf;
 }

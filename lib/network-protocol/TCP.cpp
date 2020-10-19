@@ -172,7 +172,7 @@ bool NetworkProtocolTCP::write(unsigned short len)
     len = translate_transmit_buffer();
 
     // Do the write to client socket.
-    actual_len = client.write((uint8_t *)transmitBuffer->data(),len);
+    actual_len = client.write((uint8_t *)transmitBuffer->data(), len);
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
@@ -189,8 +189,8 @@ bool NetworkProtocolTCP::write(unsigned short len)
 
     // Return success
     error = 1;
-    transmitBuffer->erase(0,len);
-    
+    transmitBuffer->erase(0, len);
+
     return false;
 }
 
@@ -201,13 +201,32 @@ bool NetworkProtocolTCP::write(unsigned short len)
  */
 bool NetworkProtocolTCP::status(NetworkStatus *status)
 {
-    status->rxBytesWaiting = (client.available() > 65535) ? 65535 : client.available();
-    status->reserved = client.connected();
-    status->error = error;
+    if (connectionIsServer == true)
+        status_server(status);
+    else
+        status_client(status);
 
     NetworkProtocol::status(status);
 
     return false;
+}
+
+void NetworkProtocolTCP::status_client(NetworkStatus *status)
+{
+    status->rxBytesWaiting = (client.available() > 65535) ? 65535 : client.available();
+    status->reserved = client.connected();
+    status->error = error;
+}
+
+void NetworkProtocolTCP::status_server(NetworkStatus *status)
+{
+    if (client.connected())
+        status_client(status);
+    else
+    {
+        status->reserved = server->hasClient();
+        status->error = error;
+    }
 }
 
 /**

@@ -114,6 +114,19 @@ private:
      * Special: Accept a server connection, transfer to client socket.
      */
     bool special_accept_connection();
+
+    /**
+     * Return status of client connection
+     * @param status pointer to destination NetworkStatus object
+     */
+    void status_server(NetworkStatus* status);
+
+    /**
+     * Return status of server connection
+     * @param status pointer to destination NetworkStatus object
+     */
+    void status_client(NetworkStatus* status);
+    
 };
 
 #endif /* NETWORKPROTOCOL_TCP */
