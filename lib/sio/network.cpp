@@ -569,8 +569,11 @@ void sioNetwork::sio_poll_interrupt()
     {
         protocol->status(&status);
 
-        if (status.rxBytesWaiting > 0)
+        if (status.rxBytesWaiting > 0 || status.reserved != reservedSave || status.error != errorSave)
             sio_assert_interrupt();
+
+        reservedSave = status.reserved;
+        errorSave = status.error;
     }
 }
 

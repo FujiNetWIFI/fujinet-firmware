@@ -179,9 +179,10 @@ private:
     } channelMode;
 
     /**
-     * saved NetworkStatus checksum
+     * saved NetworkStatus items
      */
-    int lastNetworkStatusChecksum;
+    unsigned char reservedSave=0;
+    unsigned char errorSave=1;
 
     /**
      * Instantiate protocol object
