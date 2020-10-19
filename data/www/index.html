@@ -25,11 +25,11 @@
 		.cform { position:relative; min-width: 55%; max-width: 55%; padding:0.2rem; } 
 		.svgicon { width:8rem; min-height:12rem; margin: auto; text-align:center; color: #999999; } 
 		.small { font-size:smaller; line-height: 1.5; } 
-		html{ font-size:140% } 
+		html, input, optgroup { font-size:140% } 
 		body { font-family: Futura, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"; }
-		@media only screen and (min-width: 720px) {html {font-size: 140%;}}
-		@media only screen and (min-width: 1024px) {html {font-size: 130%;}}
-		@media only screen and (min-width: 1280px) {html {font-size: 120%;}.flexparent{flex-direction:row;}.flexchild{width:47.5%;}}
+		@media only screen and (min-width: 720px) {html, input, optgroup {font-size: 140%;}}
+		@media only screen and (min-width: 1024px) {html, input, optgroup {font-size: 130%;}}
+		@media only screen and (min-width: 1280px) {html, input, optgroup {font-size: 120%;}.flexparent{flex-direction:row;}.flexchild{width:47.5%;}}
 	</style>
 </head>
 <body>
@@ -143,31 +143,35 @@
 						<form action="/config" method="post">
 							<br>Select Emulated Printer
 							<select name="printermodel1" id="select_printermodel1">
-								<option value="file printer (RAW)">file printer (RAW)</option>
-								<option value="file printer (TRIM)">file printer (TRIM)</option>
-								<option value="file printer (ASCII)">file printer (ASCII)</option>
-								<option value="Atari 820">Atari 820</option>
-								<option value="Atari 822">Atari 822</option>
-								<option value="Atari 825">Atari 825</option>
-								<option value="Atari 1020">Atari 1020</option>
-								<option value="Atari 1025">Atari 1025</option>
-								<option value="Atari 1027">Atari 1027</option>
-								<option value="Atari 1029">Atari 1029</option>
-								<option value="Epson 80">Epson 80</option>
-								<option value="Epson PrintShop">Epson PrintShop</option>
-								<option value="Okimate 10">Okimate 10</option>
-								<option value="GRANTIC">GRANTIC</option>
-								<option value="HTML printer">HTML printer</option>
-								<option value="HTML ATASCII printer">HTML ATASCII printer</option>
+								<optgroup>
+									<option value="file printer (RAW)">file printer (RAW)</option>
+									<option value="file printer (TRIM)">file printer (TRIM)</option>
+									<option value="file printer (ASCII)">file printer (ASCII)</option>
+									<option value="Atari 820">Atari 820</option>
+									<option value="Atari 822">Atari 822</option>
+									<option value="Atari 825">Atari 825</option>
+									<option value="Atari 1020">Atari 1020</option>
+									<option value="Atari 1025">Atari 1025</option>
+									<option value="Atari 1027">Atari 1027</option>
+									<option value="Atari 1029">Atari 1029</option>
+									<option value="Epson 80">Epson 80</option>
+									<option value="Epson PrintShop">Epson PrintShop</option>
+									<option value="Okimate 10">Okimate 10</option>
+									<option value="GRANTIC">GRANTIC</option>
+									<option value="HTML printer">HTML printer</option>
+									<option value="HTML ATASCII printer">HTML ATASCII printer</option>
+								</optgroup>
 							</select>
 							<input type="submit" value="Save">
 						</form>
 						<br>Change printer port
 						<form action="/config" method="post">
 							<select name="printerport1" id="select_printerport1">
-								<option value="1">P1:</option>
-								<option value="2">P2:</option>
-								<option value="3">P3:</option>
+								<optgroup>
+									<option value="1">P1:</option>
+									<option value="2">P2:</option>
+									<option value="3">P3:</option>
+								</optgroup>
 							</select>
 							<input type="submit" value="Save">
 						</form>
@@ -211,16 +215,18 @@
 							<br>Change HSIO index
 							<form action="/config" method="post">
 								<select name="hsioindex" id="select_hsioindex">
-									<option value="0">0: 124Kb</option>
-									<option value="1">1: 109Kb</option>
-									<option value="2">2: 97Kb</option>
-									<option value="3">3: 87Kb</option>
-									<option value="4">4: 79Kb</option>
-									<option value="5">5: 73Kb</option>
-									<option value="6">6: 67Kb</option>
-									<option value="7">7: 63Kb</option>
-									<option value="8">8: 58Kb</option>
-									<option value="9">9: 55Kb</option>
+									<optgroup>
+										<option value="0">0: 124Kb</option>
+										<option value="1">1: 109Kb</option>
+										<option value="2">2: 97Kb</option>
+										<option value="3">3: 87Kb</option>
+										<option value="4">4: 79Kb</option>
+										<option value="5">5: 73Kb</option>
+										<option value="6">6: 67Kb</option>
+										<option value="7">7: 63Kb</option>
+										<option value="8">8: 58Kb</option>
+										<option value="9">9: 55Kb</option>
+									</optgroup>
 								</select>
 								<input type="submit" value="Save">
 							</form>
@@ -254,26 +260,28 @@
 						<br>Change Time Zone
 						<form action="/config" method="post">
 							<select name="tzindex" id="select_tz" onchange="changeTz()">
-								<option value="" selected>Choose</option>
-								<option value="PST+8PDT">America Pacific UTC-8/UTC-7</option>
-								<option value="MST+7MDT">America Mountain UTC-7/UTC-6</option>
-								<option value="MST+7">America Arizona UTC-7</option>
-								<option value="CST+6CDT">America Central UTC-6/UTC-5</option>
-								<option value="EST+5EDT">America Eastern UTC-5/UTC-4</option>
-								<option value="UTC+0">UTC</option>
-								<option value="GMT+0BST,M3.5.0/1,M10.5.0">UK UTC/UTC+1</option>
-								<option value="CET-1CEST,M3.5.0,M10.5.0/3">Europe Central UTC+1/UTC+2</option>
-								<option value="EET-2EEST,M3.5.0/3,M10.5.0/4">Europe Eastern UTC+2/UTC+3</option>
-								<option value="FNTZ-3">UTC +3</option>
-								<option value="FNTZ-4">UTC +4</option>
-								<option value="FNTZ-5">UTC +5</option>
-								<option value="FNTZ-6">UTC +6</option>
-								<option value="FNTZ-7">UTC +7</option>
-								<option value="FNTZ-8">UTC +8</option>
-								<option value="FNTZ-9">UTC +9</option>
-								<option value="FNTZ-10">UTC +10</option>
-								<option value="FNTZ-11">UTC +11</option>
-								<option value="FNTZ-12">UTC +12</option>
+								<optgroup>
+									<option value="" selected>Choose</option>
+									<option value="PST+8PDT">America Pacific UTC-8/UTC-7</option>
+									<option value="MST+7MDT">America Mountain UTC-7/UTC-6</option>
+									<option value="MST+7">America Arizona UTC-7</option>
+									<option value="CST+6CDT">America Central UTC-6/UTC-5</option>
+									<option value="EST+5EDT">America Eastern UTC-5/UTC-4</option>
+									<option value="UTC+0">UTC</option>
+									<option value="GMT+0BST,M3.5.0/1,M10.5.0">UK UTC/UTC+1</option>
+									<option value="CET-1CEST,M3.5.0,M10.5.0/3">Europe Central UTC+1/UTC+2</option>
+									<option value="EET-2EEST,M3.5.0/3,M10.5.0/4">Europe Eastern UTC+2/UTC+3</option>
+									<option value="FNTZ-3">UTC +3</option>
+									<option value="FNTZ-4">UTC +4</option>
+									<option value="FNTZ-5">UTC +5</option>
+									<option value="FNTZ-6">UTC +6</option>
+									<option value="FNTZ-7">UTC +7</option>
+									<option value="FNTZ-8">UTC +8</option>
+									<option value="FNTZ-9">UTC +9</option>
+									<option value="FNTZ-10">UTC +10</option>
+									<option value="FNTZ-11">UTC +11</option>
+									<option value="FNTZ-12">UTC +12</option>
+								</optgroup>
 							</select>
 							<input type="text" name="timezone" id="txt_timezone" value="<%FN_TIMEZONE%>">
 							<input type="submit" value="Save">
@@ -297,7 +305,7 @@
 								<path d="M83.356,108.031c11.48,37.433 72.794,35.565 82.765,0.259" style="fill:none;stroke:#000;stroke-width:6.5px;"/>
 							</g>
 						</svg>
-											</div>
+					</div>
 				</div>
 				<div class="cform">
 					<div class="formwrapper">
@@ -334,7 +342,6 @@
 					</div>
 				</div>
 			</div>
-		</div>
 		<div class="flexchild">
 			<header><span id="logowob"></span>Disk Swap Settings</header>
 			<div class="detline">
@@ -377,26 +384,29 @@
 							<br>Enable SAM Rotation Speech
 							<form action="/config" method="post">
 								<select name="rotation_sounds" id="select_rotation_sounds">
-									<option value="1">Yes</option>
-									<option value="0">No</option>
+									<optgroup>
+										<option value="1">Yes</option>
+										<option value="0">No</option>
+									</optgroup>
 								</select>
 								<input type="submit" value="Save">
 							</form>
 							<script>
 								var current_rotation_sounds="<%FN_ROTATION_SOUNDS%>";
 							</script>
-
 						</div>
 				</div>
 			</div>
-		</div>
 		<div class="flexchild">
 			<header><span id="logowob"></span>Program Recorder Settings</header>
 			<div class="detline">
 				<div class="cicon">
 					<div class="svgicon">
-						<svg width="100%" height="100%" viewBox="0 0 210 131" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
-							<path d="M33.984,130.29l-22.585,-0c-4.321,-0 -7.829,-3.508 -7.829,-7.829l0,-3.793l-1.403,0l-2.167,-2.166l-0,-32.046l2.167,-2.167l1.403,-0l0,-74.46c0,-4.321 3.508,-7.829 7.829,-7.829l186.702,0c4.321,0 7.829,3.508 7.829,7.829l-0,74.46l0.941,-0l2.167,2.167l-0,32.046l-2.167,2.166l-0.941,0l-0,3.793c-0,4.321 -3.508,7.829 -7.829,7.829l-17.643,-0l-8.693,-30.951l-128.851,0.261l-8.93,30.69Zm2.678,-0l8.183,-28.123l124.973,-0.253l7.944,28.288l-64.244,0.088l-76.856,-0Zm159.687,-6.968l6.464,2.302c-0.84,1.399 -2.578,2.061 -4.174,1.493c-1.595,-0.569 -2.523,-2.18 -2.29,-3.795Zm-183.306,-2.489c1.34,0.93 1.886,2.708 1.213,4.262c-0.673,1.555 -2.342,2.374 -3.938,2.034l2.725,-6.296Zm-3.996,5.746c-1.341,-0.931 -1.886,-2.708 -1.214,-4.263c0.673,-1.555 2.342,-2.374 3.938,-2.034l-2.724,6.297Zm187.767,-4.562c0.84,-1.399 2.578,-2.061 4.174,-1.493c1.595,0.568 2.523,2.18 2.29,3.795l-6.464,-2.302Zm-138.706,-7.2c2.509,0 4.546,2.037 4.546,4.547c0,2.509 -2.037,4.546 -4.546,4.546c-2.51,0 -4.547,-2.037 -4.547,-4.546c-0,-2.51 2.037,-4.547 4.547,-4.547Zm97,0c2.509,0 4.546,2.037 4.546,4.547c0,2.509 -2.037,4.546 -4.546,4.546c-2.51,0 -4.547,-2.037 -4.547,-4.546c-0,-2.51 2.037,-4.547 4.547,-4.547Zm-72.863,1.021c-0,-0.792 -0.644,-1.436 -1.436,-1.436l-4.746,0c-0.792,0 -1.435,0.644 -1.435,1.436l0,4.746c0,0.792 0.643,1.435 1.435,1.435l4.746,-0c0.792,-0 1.436,-0.643 1.436,-1.435l-0,-4.746Zm57,-0c-0,-0.792 -0.644,-1.436 -1.436,-1.436l-4.746,0c-0.792,0 -1.435,0.644 -1.435,1.436l0,4.746c0,0.792 0.643,1.435 1.435,1.435l4.746,-0c0.792,-0 1.436,-0.643 1.436,-1.435l-0,-4.746Zm-30.152,-10.422c1.268,1.028 1.68,2.841 0.894,4.341c-0.786,1.501 -2.512,2.194 -4.078,1.736l3.184,-6.077Zm-4.411,5.434c-1.268,-1.028 -1.68,-2.841 -0.894,-4.341c0.786,-1.501 2.512,-2.194 4.078,-1.736l-3.184,6.077Zm90.306,-88.387l-9.733,-9.733l-158.564,0l-10.726,10.727l-0,74.805l179.023,0l0,-75.799Zm-167.261,-7.233l-9.262,9.263l-0,71.269l174.023,0l0,-72.263l-8.268,-8.269l-156.493,0Zm137.012,47.028c-0,-9.576 -7.774,-17.35 -17.35,-17.35l-83.706,-0c-9.576,-0 -17.35,7.774 -17.35,17.35c-0,9.575 7.774,17.349 17.35,17.349l83.706,0c9.576,0 17.35,-7.774 17.35,-17.349Zm-2.5,-0c-0,8.195 -6.654,14.849 -14.85,14.849c0,0 -83.706,0 -83.706,0c-8.196,0 -14.85,-6.654 -14.85,-14.849c-0,-8.196 6.654,-14.85 14.85,-14.85c-0,-0 83.706,-0 83.706,-0c8.196,-0 14.85,6.654 14.85,14.85Zm-98.314,-13.928c7.615,0 13.798,6.183 13.798,13.798c0,7.615 -6.183,13.798 -13.798,13.798c-7.615,-0 -13.798,-6.183 -13.798,-13.798c0,-7.615 6.183,-13.798 13.798,-13.798Zm83.56,-0.248c7.616,0 13.798,6.183 13.798,13.798c0,7.615 -6.182,13.798 -13.798,13.798c-7.615,-0 -13.797,-6.183 -13.797,-13.798c-0,-7.615 6.182,-13.798 13.797,-13.798Zm-62.74,7.973l-0,11.65l41.463,0l0,-11.65l-41.463,-0Zm112.872,-51.402l3.363,5.979c-1.552,0.504 -3.297,-0.137 -4.127,-1.614c-0.831,-1.476 -0.473,-3.3 0.764,-4.365Zm-188.368,-0.448l1.995,6.565c-1.625,0.157 -3.19,-0.846 -3.683,-2.466c-0.492,-1.621 0.251,-3.325 1.688,-4.099Zm1.326,-0.402c1.624,-0.158 3.19,0.845 3.682,2.466c0.493,1.621 -0.25,3.325 -1.687,4.098l-1.995,-6.564Zm188.25,0.17c1.552,-0.503 3.297,0.138 4.127,1.614c0.831,1.477 0.473,3.301 -0.764,4.366l-3.363,-5.98Z"/>
+						<svg width="100%" height="100%" viewBox="0 0 214 135" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+							<g>
+								<path d="M3.57,82.289l0,-72.46c0,-5.425 4.404,-9.829 9.829,-9.829l186.702,0c5.425,0 9.829,4.404 9.829,9.829l-0,72.69l3.108,3.108l-0,33.703l-3.108,3.108l-0,2.023c-0,5.425 -4.404,9.829 -9.829,9.829c-0,-0 -186.702,-0 -186.702,-0c-5.425,-0 -9.829,-4.404 -9.829,-9.829l0,-1.793l-0.232,0l-3.338,-3.338l0,-33.703l3.338,-3.338l0.232,-0Zm56.538,34.528c2.509,0 4.546,2.037 4.546,4.547c0,2.509 -2.037,4.546 -4.546,4.546c-2.51,0 -4.547,-2.037 -4.547,-4.546c-0,-2.51 2.037,-4.547 4.547,-4.547Zm97,0c2.509,0 4.546,2.037 4.546,4.547c0,2.509 -2.037,4.546 -4.546,4.546c-2.51,0 -4.547,-2.037 -4.547,-4.546c-0,-2.51 2.037,-4.547 4.547,-4.547Zm-72.863,1.021c-0,-0.792 -0.644,-1.436 -1.436,-1.436l-4.746,0c-0.792,0 -1.435,0.644 -1.435,1.436l0,4.746c0,0.792 0.643,1.435 1.435,1.435l4.746,-0c0.792,-0 1.436,-0.643 1.436,-1.435l-0,-4.746Zm57,-0c-0,-0.792 -0.644,-1.436 -1.436,-1.436l-4.746,0c-0.792,0 -1.435,0.644 -1.435,1.436l0,4.746c0,0.792 0.643,1.435 1.435,1.435l4.746,-0c0.792,-0 1.436,-0.643 1.436,-1.435l-0,-4.746Zm-75.32,-67.508c7.615,0 13.798,6.183 13.798,13.798c0,7.615 -6.183,13.798 -13.798,13.798c-7.615,-0 -13.798,-6.183 -13.798,-13.798c0,-7.615 6.183,-13.798 13.798,-13.798Zm83.56,-0.248c7.616,0 13.798,6.183 13.798,13.798c0,7.615 -6.182,13.798 -13.798,13.798c-7.615,-0 -13.797,-6.183 -13.797,-13.798c-0,-7.615 6.182,-13.798 13.797,-13.798Zm-62.74,7.973l-0,11.65l41.463,0l0,-11.65l-41.463,-0Z" style="fill:#fff;"/>
+								<path d="M35.984,132.29l-22.585,-0c-4.321,-0 -7.829,-3.508 -7.829,-7.829l0,-3.793l-1.403,0l-2.167,-2.166l-0,-32.046l2.167,-2.167l1.403,-0l0,-74.46c0,-4.321 3.508,-7.829 7.829,-7.829l186.702,0c4.321,0 7.829,3.508 7.829,7.829l-0,74.46l0.941,-0l2.167,2.167l-0,32.046l-2.167,2.166l-0.941,0l-0,3.793c-0,4.321 -3.508,7.829 -7.829,7.829l-17.643,-0l-8.693,-30.951l-128.851,0.261l-8.93,30.69Zm2.678,-0l8.183,-28.123l124.973,-0.253l7.944,28.288l-64.244,0.088l-76.856,-0Zm159.687,-6.968l6.464,2.302c-0.84,1.399 -2.578,2.061 -4.174,1.493c-1.595,-0.569 -2.523,-2.18 -2.29,-3.795Zm-183.306,-2.489c1.34,0.93 1.886,2.708 1.213,4.262c-0.673,1.555 -2.342,2.374 -3.938,2.034l2.725,-6.296Zm-3.996,5.746c-1.341,-0.931 -1.886,-2.708 -1.214,-4.263c0.673,-1.555 2.342,-2.374 3.938,-2.034l-2.724,6.297Zm187.767,-4.562c0.84,-1.399 2.578,-2.061 4.174,-1.493c1.595,0.568 2.523,2.18 2.29,3.795l-6.464,-2.302Zm-138.706,-7.2c2.509,0 4.546,2.037 4.546,4.547c0,2.509 -2.037,4.546 -4.546,4.546c-2.51,0 -4.547,-2.037 -4.547,-4.546c-0,-2.51 2.037,-4.547 4.547,-4.547Zm97,0c2.509,0 4.546,2.037 4.546,4.547c0,2.509 -2.037,4.546 -4.546,4.546c-2.51,0 -4.547,-2.037 -4.547,-4.546c-0,-2.51 2.037,-4.547 4.547,-4.547Zm-72.863,1.021c-0,-0.792 -0.644,-1.436 -1.436,-1.436l-4.746,0c-0.792,0 -1.435,0.644 -1.435,1.436l0,4.746c0,0.792 0.643,1.435 1.435,1.435l4.746,-0c0.792,-0 1.436,-0.643 1.436,-1.435l-0,-4.746Zm57,-0c-0,-0.792 -0.644,-1.436 -1.436,-1.436l-4.746,0c-0.792,0 -1.435,0.644 -1.435,1.436l0,4.746c0,0.792 0.643,1.435 1.435,1.435l4.746,-0c0.792,-0 1.436,-0.643 1.436,-1.435l-0,-4.746Zm-30.152,-10.422c1.268,1.028 1.68,2.841 0.894,4.341c-0.786,1.501 -2.512,2.194 -4.078,1.736l3.184,-6.077Zm-4.411,5.434c-1.268,-1.028 -1.68,-2.841 -0.894,-4.341c0.786,-1.501 2.512,-2.194 4.078,-1.736l-3.184,6.077Zm90.306,-88.387l-9.733,-9.733l-158.564,0l-10.726,10.727l-0,74.805l179.023,0l0,-75.799Zm-167.261,-7.233l-9.262,9.263l-0,71.269l174.023,0l0,-72.263l-8.268,-8.269l-156.493,0Zm137.012,47.028c-0,-9.576 -7.774,-17.35 -17.35,-17.35l-83.706,-0c-9.576,-0 -17.35,7.774 -17.35,17.35c-0,9.575 7.774,17.349 17.35,17.349l83.706,0c9.576,0 17.35,-7.774 17.35,-17.349Zm-2.5,-0c-0,8.195 -6.654,14.849 -14.85,14.849c0,0 -83.706,0 -83.706,0c-8.196,0 -14.85,-6.654 -14.85,-14.849c-0,-8.196 6.654,-14.85 14.85,-14.85c-0,-0 83.706,-0 83.706,-0c8.196,-0 14.85,6.654 14.85,14.85Zm-98.314,-13.928c7.615,0 13.798,6.183 13.798,13.798c0,7.615 -6.183,13.798 -13.798,13.798c-7.615,-0 -13.798,-6.183 -13.798,-13.798c0,-7.615 6.183,-13.798 13.798,-13.798Zm83.56,-0.248c7.616,0 13.798,6.183 13.798,13.798c0,7.615 -6.182,13.798 -13.798,13.798c-7.615,-0 -13.797,-6.183 -13.797,-13.798c-0,-7.615 6.182,-13.798 13.797,-13.798Zm-62.74,7.973l-0,11.65l41.463,0l0,-11.65l-41.463,-0Zm112.872,-51.402l3.363,5.979c-1.552,0.504 -3.297,-0.137 -4.127,-1.614c-0.831,-1.476 -0.473,-3.3 0.764,-4.365Zm-188.368,-0.448l1.995,6.565c-1.625,0.157 -3.19,-0.846 -3.683,-2.466c-0.492,-1.621 0.251,-3.325 1.688,-4.099Zm1.326,-0.402c1.624,-0.158 3.19,0.845 3.682,2.466c0.493,1.621 -0.25,3.325 -1.687,4.098l-1.995,-6.564Zm188.25,0.17c1.552,-0.503 3.297,0.138 4.127,1.614c0.831,1.477 0.473,3.301 -0.764,4.366l-3.363,-5.98Z"/>
+							</g>
 						</svg>
 					</div>
 				</div>
@@ -409,6 +419,7 @@
 			</div>
 		</div>
 	</div>
-	<script type="text/javascript" src="/file?settings.js"></script>
+</div>
+<script type="text/javascript" src="/file?settings.js"></script>
 </body>
 </html>
