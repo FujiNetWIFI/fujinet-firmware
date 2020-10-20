@@ -4,7 +4,10 @@
 #include <string>
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
+#include "fnFsSD.h"
+#include "fnFsSPIF.h"
 #include "sio.h"
+#include "../modem-sniffer/modem-sniffer.h"
 
 #define HELPL01 "       FujiNet Virtual Modem 850"
 #define HELPL02 "======================================="
@@ -126,7 +129,8 @@ private:
     bool CRX=false;                 // CRX flag.
     unsigned char crxval=0;         // CRX value.
     bool answerHack=false;          // ATA answer hack on SIO write.
-    
+    FileSystem *activeFS;           // Active Filesystem for ModemSniffer.
+    ModemSniffer* modemSniffer;     // ptr to modem sniffer.
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
@@ -166,9 +170,19 @@ public:
     bool modemActive = false; // If we are in modem mode or not
     void sio_handle_modem();  // Handle incoming & outgoing data for modem
 
-    sioModem()
+    sioModem(FileSystem *_fs, bool snifferEnable)
     {
         listen_to_type3_polls = true;
+        activeFS = _fs;
+        modemSniffer = new ModemSniffer(activeFS,snifferEnable);
+    }
+
+    ~sioModem()
+    {
+        if (modemSniffer != nullptr)
+        {
+            delete modemSniffer;
+        }
     }
 };
 
