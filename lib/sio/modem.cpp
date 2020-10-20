@@ -1366,6 +1366,9 @@ void sioModem::sio_handle_modem()
 
             // Write the buffer to TCP finally
             tcpClient.write(&txBuf[0], sioBytesRead);
+
+            // And send it off to the sniffer, if enabled.
+            modemSniffer->dumpOutput(&txBuf[0],sioBytesRead);
         }
 
         // read from Fujinet to Atari
@@ -1379,10 +1382,11 @@ void sioModem::sio_handle_modem()
             unsigned int bytesRead =
                 tcpClient.read(buf, (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
 
-            //SIO_UART.write(buf, bytesRead);
             fnUartSIO.write(buf, bytesRead);
-            //SIO_UART.flush();
             fnUartSIO.flush();
+
+            // And dump to sniffer, if enabled.
+            modemSniffer->dumpInput(buf, bytesRead);
         }
     }
 
