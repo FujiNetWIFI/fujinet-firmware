@@ -309,9 +309,8 @@ int fujiHost::mount_tnfs()
             return 0;
         }
     }
-
-    // In any other case, unmount whatever we have and start fresh
-    set_type(HOSTTYPE_TNFS);
+    else
+        set_type(HOSTTYPE_TNFS); // Only start fresh if not HOSTTYPE_TNFS
 
     _fs = new FileSystemTNFS;
 
