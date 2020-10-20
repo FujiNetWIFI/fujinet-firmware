@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <driver/ledc.h>
 
 #include "fuji.h"
 #include "led.h"
@@ -34,6 +35,7 @@
 #define SIO_FUJICMD_SET_DEVICE_FULLPATH 0xE2
 #define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
 #define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
+#define SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -86,31 +88,31 @@ void say_number(unsigned char n)
     switch (n)
     {
     case 1:
-        util_sam_say("WAH7NQ",true);
+        util_sam_say("WAH7NQ", true);
         break;
     case 2:
-        util_sam_say("TUW7",true);
+        util_sam_say("TUW7", true);
         break;
     case 3:
-        util_sam_say("THRIYY7Q",true);
+        util_sam_say("THRIYY7Q", true);
         break;
     case 4:
-        util_sam_say("FOH7R",true);
+        util_sam_say("FOH7R", true);
         break;
     case 5:
-        util_sam_say("F7AYVQ",true);
+        util_sam_say("F7AYVQ", true);
         break;
     case 6:
-        util_sam_say("SIH7IHKSQ",true);
+        util_sam_say("SIH7IHKSQ", true);
         break;
     case 7:
-        util_sam_say("SEHV7EHNQ",true);
+        util_sam_say("SEHV7EHNQ", true);
         break;
     case 8:
-        util_sam_say("AEY74Q",true);
+        util_sam_say("AEY74Q", true);
         break;
     default:
-        Debug_printf("say_number() - Uncaught number %d",n);
+        Debug_printf("say_number() - Uncaught number %d", n);
     }
 }
 
@@ -120,7 +122,7 @@ void say_number(unsigned char n)
 void say_swap_label()
 {
     // DISK
-    util_sam_say("DIHSK7Q ",true);
+    util_sam_say("DIHSK7Q ", true);
 }
 
 // Constructor
@@ -405,14 +407,14 @@ void sioFuji::image_rotate()
         _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
-        if(Config.get_general_rotation_sounds())
+        if (Config.get_general_rotation_sounds())
         {
             for (int i = 0; i <= count; i++)
             {
                 if (_fnDisks[i].disk_dev.id() == 0x31)
                 {
                     say_swap_label();
-                    say_number(i+1); // because i starts from 0
+                    say_number(i + 1); // because i starts from 0
                 }
             }
         }
@@ -1027,6 +1029,46 @@ void sioFuji::sio_set_device_filename()
     sio_complete();
 }
 
+// Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
+void sioFuji::sio_set_sio_external_clock()
+{
+    unsigned short speed = sio_get_aux();
+
+    Debug_printf("sioFuji::sio_set_external_clock()\n");
+
+    if (speed == 0)
+    {
+        Debug_printf("Disabling SIO clock.\n");
+    }
+    else
+    {
+        // Setup PWM channel for CLOCK IN
+        ledc_channel_config_t ledc_channel_sio_ckin;
+        ledc_channel_sio_ckin.gpio_num = PIN_CKI;
+        ledc_channel_sio_ckin.speed_mode = LEDC_HIGH_SPEED_MODE;
+        ledc_channel_sio_ckin.channel = LEDC_CHANNEL_1;
+        ledc_channel_sio_ckin.intr_type = LEDC_INTR_DISABLE;
+        ledc_channel_sio_ckin.timer_sel = LEDC_TIMER_1;
+        ledc_channel_sio_ckin.duty = 1;
+        ledc_channel_sio_ckin.hpoint = 0;
+
+        // Setup PWM timer for CLOCK IN
+        ledc_timer_config_t ledc_timer;
+        ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
+        ledc_timer.duty_resolution = LEDC_TIMER_1_BIT;
+        ledc_timer.timer_num = LEDC_TIMER_1;
+        ledc_timer.freq_hz = speed * 2000;
+
+        Debug_printf("Enabling SIO clock, rate: %lu\n",ledc_timer.freq_hz);
+
+        // Enable PWM on CLOCK IN
+        ledc_channel_config(&ledc_channel_sio_ckin);
+        ledc_timer_config(&ledc_timer);
+    }
+
+    sio_complete();
+}
+
 // Initializes base settings and adds our devices to the SIO bus
 void sioFuji::setup(sioBus *siobus)
 {
@@ -1171,6 +1213,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_GET_HOST_PREFIX:
         sio_ack();
         sio_get_host_prefix();
+        break;
+    case SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK:
+        sio_ack();
+        sio_set_sio_external_clock();
         break;
     default:
         sio_nak();
