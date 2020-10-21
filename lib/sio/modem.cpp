@@ -1436,6 +1436,15 @@ void sioModem::sio_handle_modem()
     }
 }
 
+void sioModem::shutdown()
+{
+    if (modemSniffer != nullptr)
+    {
+        modemSniffer->closeOutput();
+        delete modemSniffer;
+    }
+}
+
 /*
   Process command
 */
