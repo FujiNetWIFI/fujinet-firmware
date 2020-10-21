@@ -4,7 +4,7 @@
  */
 
 #include "modem-sniffer.h"
-#include "../../debug/debug.h"
+#include "../../include/debug.h"
 
 ModemSniffer::ModemSniffer(FileSystem *_fs, bool _enable)
 {
@@ -58,6 +58,8 @@ void ModemSniffer::closeOutput()
     fclose(_file);
     _file = nullptr;
     _output_started = false;
+
+    Debug_printf("ModemSniffer::closeOutput()\n");
 }
 
 FILE *ModemSniffer::closeOutputAndProvideReadHandle()
@@ -87,7 +89,7 @@ void ModemSniffer::dumpInput(uint8_t *buf, unsigned short len)
 
     if (direction != INPUT)
     {
-        fprintf(_file, "\n\nINPUT: ");
+        fprintf(_file, "\n\nINCOMING: ");
     }
 
     direction = INPUT;
@@ -97,7 +99,7 @@ void ModemSniffer::dumpInput(uint8_t *buf, unsigned short len)
         if (buf[i] > 0x20 && buf[i] < 0x7F)
         {
             // Printable ASCII character.
-            fprintf(_file, "%c ", buf[i]);
+            fprintf(_file, "'%c' ", buf[i]);
         }
         else
         {
@@ -119,7 +121,7 @@ void ModemSniffer::dumpOutput(uint8_t *buf, unsigned short len)
 
     if (direction != OUTPUT)
     {
-        fprintf(_file, "\n\nOUTPUT: ");
+        fprintf(_file, "\n\nOUTGOING: ");
     }
 
     direction = OUTPUT;
@@ -129,12 +131,12 @@ void ModemSniffer::dumpOutput(uint8_t *buf, unsigned short len)
         if (buf[i] > 0x20 && buf[i] < 0x7F)
         {
             // Printable ASCII character.
-            fprintf(_file, "%c ", buf[i]);
+            fprintf(_file, "'%c' ", buf[i]);
         }
         else
         {
             // non-printable ASCII character.
-            fprintf(_file, "%02x ", buf[i]);
+            fprintf(_file, "%02X ", buf[i]);
         }
     }
 }

@@ -166,7 +166,11 @@ private:
     void at_handle_get();
     void at_handle_port();
 
+protected:
+    void shutdown() override;
+
 public:
+
     bool modemActive = false; // If we are in modem mode or not
     void sio_handle_modem();  // Handle incoming & outgoing data for modem
 
