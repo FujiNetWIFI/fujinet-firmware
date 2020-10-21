@@ -360,6 +360,13 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
+{
+    Debug_printf("Modem Sniffer output request handler\n");
+
+    
+}
+
 esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
 {
 
@@ -438,6 +445,10 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/print",
          .method = HTTP_GET,
          .handler = get_handler_print,
+         .user_ctx = NULL},
+        {.uri = "/modem-sniffer.txt",
+         .method = HTTP_GET,
+         .handler = get_handler_modem_sniffer,
          .user_ctx = NULL},
         {.uri = "/favicon.ico",
          .method = HTTP_GET,

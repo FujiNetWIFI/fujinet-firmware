@@ -43,10 +43,10 @@ void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
     // When AUX1 and AUX == 0x4E, it's a normal/general poll
     // Since XL/XE OS always does this during boot, we're going to ignore these, otherwise
     // we'd load our handler every time, and that's probably not desireable
-    if(aux1 == 0 && aux2 == 0)
+    if (aux1 == 0 && aux2 == 0)
     {
         Debug_printf("MODEM TYPE 3 POLL #%d\n", ++count_PollType3);
-        if(count_PollType3 == 26)
+        if (count_PollType3 == 26)
         {
             //Debug_print("RESPONDING to poll #26\n");
             //respond = true;
@@ -55,7 +55,7 @@ void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
             return;
     }
     // When AUX1 and AUX == 0x4F, it's a request to reset the whole polling process
-    if(aux1 == 0x4F && aux2 == 0x4F)
+    if (aux1 == 0x4F && aux2 == 0x4F)
     {
         Debug_print("MODEM TYPE 3 POLL <<RESET POLL>>\n");
         count_PollType3 = 0;
@@ -63,21 +63,21 @@ void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
         return;
     }
     // When AUX1 and AUX == 0x4E, it's a request to reset poll counters
-    if(aux1 == 0x4E && aux2 == 0x4E)
+    if (aux1 == 0x4E && aux2 == 0x4E)
     {
         Debug_print("MODEM TYPE 3 POLL <<NULL POLL>>\n");
         count_PollType3 = 0;
         return;
     }
     // When AUX1 = 0x52 'R' and AUX == 1 or DEVICE == x050, it's a directed poll to "R1:"
-    if((aux1 == 0x52 && aux2 == 0x01) || device == SIO_DEVICEID_RS232)
+    if ((aux1 == 0x52 && aux2 == 0x01) || device == SIO_DEVICEID_RS232)
     {
         Debug_print("MODEM TYPE 4 \"R1:\" DIRECTED POLL\n");
         respond = true;
     }
 
     // Get out if nothing above indicated we should respond to this poll
-    if(respond == false)
+    if (respond == false)
         return;
 
     // Get size of handler
@@ -90,7 +90,7 @@ void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
     Debug_println("Modem acknowledging Type 4 Poll");
     sio_ack();
 
-    // Acknowledge and return expected 
+    // Acknowledge and return expected
     uint16_t fsize = filesize;
     uint8_t type4response[4];
     type4response[0] = LOBYTE_FROM_UINT16(fsize);
@@ -149,7 +149,6 @@ void sioModem::sio_poll_1()
     uint32_t relsize = (uint32_t)filesize;
     bootBlock[8] = (uint8_t)relsize;
     bootBlock[9] = (uint8_t)(relsize >> 8);
-
 
     Debug_println("Modem acknowledging Type 1 Poll");
 
@@ -315,7 +314,6 @@ void sioModem::sio_control()
     */
 
     Debug_println("Modem cmd: CONTROL");
-
 
     if (cmdFrame.aux1 & 0x02)
     {
@@ -1368,7 +1366,8 @@ void sioModem::sio_handle_modem()
             tcpClient.write(&txBuf[0], sioBytesRead);
 
             // And send it off to the sniffer, if enabled.
-            modemSniffer->dumpOutput(&txBuf[0],sioBytesRead);
+            modemSniffer->dumpOutput(&txBuf[0], sioBytesRead);
+            _lasttime = fnSystem.millis();
         }
 
         // read from Fujinet to Atari
@@ -1387,6 +1386,7 @@ void sioModem::sio_handle_modem()
 
             // And dump to sniffer, if enabled.
             modemSniffer->dumpInput(buf, bytesRead);
+            _lasttime = fnSystem.millis();
         }
     }
 
@@ -1470,7 +1470,7 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_MODEMCMD_TYPE1_POLL:
         Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
         // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
-        if(cmdFrame.aux1 == 1 || count_PollType1 == 26)
+        if (cmdFrame.aux1 == 1 || count_PollType1 == 26)
             sio_poll_1();
         break;
 
