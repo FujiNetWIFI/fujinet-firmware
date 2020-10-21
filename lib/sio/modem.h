@@ -131,6 +131,7 @@ private:
     bool answerHack=false;          // ATA answer hack on SIO write.
     FileSystem *activeFS;           // Active Filesystem for ModemSniffer.
     ModemSniffer* modemSniffer;     // ptr to modem sniffer.
+    time_t _lasttime;               // most recent timestamp of data activity.
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
@@ -173,6 +174,7 @@ public:
 
     bool modemActive = false; // If we are in modem mode or not
     void sio_handle_modem();  // Handle incoming & outgoing data for modem
+    time_t get_last_activity_time(); // timestamp of last input or output.
 
     sioModem(FileSystem *_fs, bool snifferEnable)
     {
