@@ -107,6 +107,7 @@ void ModemSniffer::dumpInput(uint8_t *buf, unsigned short len)
             fprintf(_file, "%02x ", buf[i]);
         }
     }
+    fflush(_file);
 }
 
 void ModemSniffer::dumpOutput(uint8_t *buf, unsigned short len)
@@ -139,4 +140,5 @@ void ModemSniffer::dumpOutput(uint8_t *buf, unsigned short len)
             fprintf(_file, "%02X ", buf[i]);
         }
     }
+    fflush(_file);
 }

@@ -51,6 +51,11 @@ public:
      */
     void dumpInput(uint8_t *buf, unsigned short len);
 
+    /**
+     * Close output, and return a R/O file handle for web interface.
+     */
+    FILE *closeOutputAndProvideReadHandle();
+
 private:
     /**
      * Is sniffer enabled?
@@ -92,11 +97,6 @@ protected:
      * Recreate SNIFFER_OUTPUT_FILE
      */
     void restartOutput();
-
-    /**
-     * Close output, and return a R/O file handle for web interface.
-     */
-    FILE *closeOutputAndProvideReadHandle();
 
 };
 

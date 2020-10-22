@@ -37,6 +37,7 @@ sioApeTime apeTime;
 sioVoice sioV;
 sioMIDIMaze sioMIDI;
 sioCassette sioC;
+sioModem *sioR;
 
 void main_shutdown_handler()
 {
@@ -104,7 +105,7 @@ void main_setup()
 
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
-    sioModem *sioR = new sioModem(ptrfs, Config.get_modem_sniffer_enabled());
+    sioR = new sioModem(ptrfs, true);
     
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
