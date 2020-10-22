@@ -16,12 +16,17 @@
 #include "fnWiFi.h"
 #include "keys.h"
 
+#include "../../lib/modem-sniffer/modem-sniffer.h"
+#include "../../lib/sio/modem.h"
+
 #include "../../include/debug.h"
 
 using namespace std;
 
 // Global HTTPD
 fnHttpService fnHTTPD;
+
+extern sioModem *sioR;
 
 /* Send some meaningful(?) error message to client
 */
@@ -363,8 +368,42 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
 {
     Debug_printf("Modem Sniffer output request handler\n");
+    ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
+    Debug_printf("Got modem Sniffer.\n");
+    time_t now = fnSystem.millis();
 
+    if (now - sioR->get_last_activity_time() < PRINTER_BUSY_TIME) // re-using printer timeout constant.
+    {
+        _fnwserr err = fnwserr_post_fail;
+        return_http_error(req, err);
+        return ESP_FAIL;
+    }
+
+    set_file_content_type(req,"modem-sniffer.txt");
+
+    FILE *sOutput = modemSniffer->closeOutputAndProvideReadHandle();
+    Debug_printf("Got file handler %p\n",sOutput);
     
+    // Finally, write the data
+    // Send the file content out in chunks
+    char *buf = (char *)malloc(FNWS_SEND_BUFF_SIZE);
+    size_t count = 0, total = 0;
+    do
+    {
+        count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, sOutput);
+        total += count;
+
+        httpd_resp_send_chunk(req, buf, count);
+    } while (count > 0);
+
+    Debug_printf("Sent %u bytes total from sniffer file\n", total);
+
+    free(buf);
+    fclose(sOutput);
+
+    Debug_printf("Sniffer dump completed.\n");
+
+    return ESP_OK;
 }
 
 esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)

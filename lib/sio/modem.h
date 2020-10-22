@@ -174,7 +174,8 @@ public:
 
     bool modemActive = false; // If we are in modem mode or not
     void sio_handle_modem();  // Handle incoming & outgoing data for modem
-    time_t get_last_activity_time(); // timestamp of last input or output.
+    time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.
+    ModemSniffer *get_modem_sniffer() { return modemSniffer; }
 
     sioModem(FileSystem *_fs, bool snifferEnable)
     {
