@@ -16,7 +16,7 @@
  * */
 
 //#define CASSETTE_FILE "/test.cas" // zaxxon
-#define CASSETTE_FILE "/hello" // basic program
+#define CASSETTE_FILE "/test" // basic program
 
 // copied from fuUART.cpp - figure out better way
 #define UART2_RX 33
@@ -153,15 +153,18 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
         _file = _FS->file_open(fn, "r"); // use "w+" for CSAVE test
     else if (cassetteMode == cassette_mode_t::record)
         _file = _FS->file_open(fn, "w+"); // use "w+" for CSAVE test
+    if (!_file)
+    {
+        _mounted = false;
+        Debug_print("Could not open CAS file :( ");
+        Debug_println(fn);
+        return;
+    }
+
     filesize = _FS->filesize(_file);
 #ifdef DEBUG
-    if (_file != nullptr)
-    {
-        Debug_printf("%s - ", fn);
-        Debug_println("CAS file opened succesfully!");
-    }
-    else
-        Debug_println("Could not open CAS file :(");
+    Debug_printf("%s - ", fn);
+    Debug_println("CAS file opened succesfully!");
 #endif
 
     tape_offset = 0;
