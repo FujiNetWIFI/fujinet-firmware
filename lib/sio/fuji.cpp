@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <driver/ledc.h>
 
 #include "fuji.h"
 #include "led.h"
@@ -34,6 +35,7 @@
 #define SIO_FUJICMD_SET_DEVICE_FULLPATH 0xE2
 #define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
 #define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
+#define SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -1032,6 +1034,46 @@ void sioFuji::sio_set_device_filename()
     sio_complete();
 }
 
+// Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
+void sioFuji::sio_set_sio_external_clock()
+{
+    unsigned short speed = sio_get_aux();
+
+    Debug_printf("sioFuji::sio_set_external_clock()\n");
+
+    if (speed == 0)
+    {
+        Debug_printf("Disabling SIO clock.\n");
+    }
+    else
+    {
+        // Setup PWM channel for CLOCK IN
+        ledc_channel_config_t ledc_channel_sio_ckin;
+        ledc_channel_sio_ckin.gpio_num = PIN_CKI;
+        ledc_channel_sio_ckin.speed_mode = LEDC_HIGH_SPEED_MODE;
+        ledc_channel_sio_ckin.channel = LEDC_CHANNEL_1;
+        ledc_channel_sio_ckin.intr_type = LEDC_INTR_DISABLE;
+        ledc_channel_sio_ckin.timer_sel = LEDC_TIMER_1;
+        ledc_channel_sio_ckin.duty = 1;
+        ledc_channel_sio_ckin.hpoint = 0;
+
+        // Setup PWM timer for CLOCK IN
+        ledc_timer_config_t ledc_timer;
+        ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
+        ledc_timer.duty_resolution = LEDC_TIMER_1_BIT;
+        ledc_timer.timer_num = LEDC_TIMER_1;
+        ledc_timer.freq_hz = speed * 2000;
+
+        Debug_printf("Enabling SIO clock, rate: %lu\n",ledc_timer.freq_hz);
+
+        // Enable PWM on CLOCK IN
+        ledc_channel_config(&ledc_channel_sio_ckin);
+        ledc_timer_config(&ledc_timer);
+    }
+
+    sio_complete();
+}
+
 // Initializes base settings and adds our devices to the SIO bus
 void sioFuji::setup(sioBus *siobus)
 {
@@ -1176,6 +1218,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_GET_HOST_PREFIX:
         sio_ack();
         sio_get_host_prefix();
+        break;
+    case SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK:
+        sio_ack();
+        sio_set_sio_external_clock();
         break;
     default:
         sio_nak();
