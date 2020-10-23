@@ -13,6 +13,9 @@
 #include "printerlist.h"
 #include "utils.h"
 
+#include "fuji.h"
+extern sioFuji theFuji;
+
 // TODO: This was copied from another source and needs some bounds-checking!
 char* fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
 {
@@ -149,6 +152,14 @@ void fnHttpServiceConfigurator::config_rotation_sounds(std::string rotation_soun
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_cassette(std::string play_record)
+{
+    Debug_printf("New play/record button value: %s\n", play_record.c_str());
+    theFuji.cassette()->set_buttons(play_record.c_str());
+    // call the cassette buttons function passing play_record.c_str()
+    // find cassette via thefuji object?
+}
+
 void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
 {
     Debug_printf("Set MIDIMaze host: %s\n", hostname.c_str());
@@ -250,7 +261,12 @@ int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t
         } else if(i->first.compare("midimaze_host") == 0)
         {
             config_midimaze(i->second);
-        } else if(i->first.compare("rotation_sounds") == 0)
+        }
+        else if (i->first.compare("play_record") == 0)
+        {
+            config_cassette(i->second);
+        }
+        else if (i->first.compare("rotation_sounds") == 0)
         {
             config_rotation_sounds(i->second);
         }
