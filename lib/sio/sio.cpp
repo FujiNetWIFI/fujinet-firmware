@@ -276,7 +276,7 @@ void sioBus::service()
     {
         if (_fujiDev->cassette()->is_mounted())
         {
-            if (!_fujiDev->cassette()->cassetteActive)
+            if (!_fujiDev->cassette()->is_active())
             {
                 Debug_println("MOTOR ON: activating cassette");
                 _fujiDev->cassette()->sio_enable_cassette();
@@ -287,7 +287,7 @@ void sioBus::service()
     }
     else
     {
-        if (_fujiDev->cassette()->cassetteActive)
+        if (_fujiDev->cassette()->is_active())
         {
             Debug_println("MOTOR OFF: de-activating cassette");            
             _fujiDev->cassette()->sio_disable_cassette();
