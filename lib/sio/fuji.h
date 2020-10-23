@@ -66,6 +66,8 @@ protected:
     void sio_set_device_filename();    // 0xE2
     void sio_set_host_prefix();        // 0xE1
     void sio_get_host_prefix();        // 0xE0
+    void sio_set_sio_external_clock(); // 0xDF
+    
 
 
     void sio_status() override;
