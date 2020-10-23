@@ -34,6 +34,7 @@ cache:
         - "~/.platformio"
 
 install:
+    - cp platformio-sample.ini platformio.ini
     - pip install -U platformio
     - platformio update
 
