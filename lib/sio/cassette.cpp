@@ -139,14 +139,20 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
     char fn[32];
     char mm[21];
     strcpy(fn, CASSETTE_FILE);
-    sprintf(mm, "%020lu", fnSystem.millis());
-    strcat(fn, mm);
+    if (cassetteMode == cassette_mode_t::record)
+    {
+        sprintf(mm, "%020lu", fnSystem.millis());
+        strcat(fn, mm);
+    }
     strcat(fn, ".cas");
 
     _FS = filesystem;
     if (_file != nullptr)
         fclose(_file);
-    _file = _FS->file_open(fn, "w+"); // use "w+" for CSAVE test
+    if (cassetteMode == cassette_mode_t::playback)
+        _file = _FS->file_open(fn, "r"); // use "w+" for CSAVE test
+    else if (cassetteMode == cassette_mode_t::record)
+        _file = _FS->file_open(fn, "w+"); // use "w+" for CSAVE test
     filesize = _FS->filesize(_file);
 #ifdef DEBUG
     if (_file != nullptr)
@@ -254,6 +260,14 @@ void sioCassette::sio_handle_cassette()
     {
         tape_offset = receive_FUJI_tape_block(tape_offset);
     }
+}
+
+void sioCassette::set_buttons(const char *play_record)
+{
+    if (play_record[0] == '0')
+        cassetteMode = cassette_mode_t::playback;
+    else if (play_record[0] == '1')
+        cassetteMode = cassette_mode_t::record;
 }
 
 void sioCassette::Clear_atari_sector_buffer(uint16_t len)
@@ -494,7 +508,7 @@ unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
     offset += fputc(BLOCK_LEN + 4, _file); // 132 bytes
     offset += fputc(0, _file);
 
-    while (!casUART.available() ) // && motor_line()
+    while (!casUART.available()) // && motor_line()
         casUART.service(decode_fsk());
     uint16_t irg = fnSystem.millis() - tic - 10000 / casUART.get_baud(); // adjust for first byte
 #ifdef DEBUG
@@ -507,7 +521,7 @@ unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
     Debug_printf("marker 1: %02x\n", b);
 #endif
 
-    while (!casUART.available() ) // && motor_line()
+    while (!casUART.available()) // && motor_line()
         casUART.service(decode_fsk());
     b = casUART.read(); // should be 0x55
     atari_sector_buffer[idx++] = b;
@@ -515,7 +529,7 @@ unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
     Debug_printf("marker 2: %02x\n", b);
 #endif
 
-    while (!casUART.available() ) // && motor_line()
+    while (!casUART.available()) // && motor_line()
         casUART.service(decode_fsk());
     b = casUART.read(); // control byte
     atari_sector_buffer[idx++] = b;
@@ -526,7 +540,7 @@ unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
     int i = 0;
     while (i < BLOCK_LEN)
     {
-        while (!casUART.available() ) // && motor_line()
+        while (!casUART.available()) // && motor_line()
             casUART.service(decode_fsk());
         b = casUART.read(); // data
         atari_sector_buffer[idx++] = b;
@@ -539,7 +553,7 @@ unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
 //    Debug_printf("\n");
 #endif
 
-    while (!casUART.available() ) // && motor_line()
+    while (!casUART.available()) // && motor_line()
         casUART.service(decode_fsk());
     b = casUART.read(); // checksum
     atari_sector_buffer[idx++] = b;

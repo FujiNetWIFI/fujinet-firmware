@@ -37,7 +37,7 @@ sioFuji theFuji;
 sioApeTime apeTime;
 sioVoice sioV;
 sioMIDIMaze sioMIDI;
-sioCassette sioC;
+// sioCassette sioC;
 
 void main_shutdown_handler()
 {

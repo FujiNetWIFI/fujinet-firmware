@@ -71,7 +71,7 @@ protected:
     void sio_status() override{}; // $53, 'S', Status
     void sio_process(uint32_t commanddata, uint8_t checksum) override{};
 
-    cassette_mode_t cassetteMode = cassette_mode_t::record; // If we are in cassette mode or not
+    cassette_mode_t cassetteMode = cassette_mode_t::playback; // If we are in cassette mode or not
     bool cassetteActive = false;
 
     bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
@@ -96,6 +96,8 @@ public:
 
     bool is_mounted() { return _mounted; };
     bool is_active() { return cassetteActive; };
+
+    void set_buttons(const char *play_record);
 
 private:
     size_t tape_offset = 0;
