@@ -252,6 +252,9 @@ private:
     int _sioBaud = SIO_STANDARD_BAUDRATE;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
     int _sioBaudHigh;
+    int _sioBaudUltraHigh;
+
+    bool useUltraHigh=false; // Use fujinet derived clock.
 
     void _sio_process_cmd();
     void _sio_process_queue();
@@ -277,6 +280,9 @@ public:
     int getHighSpeedBaud(); // Gets current HSIO baud
 
     void setMIDIHost(const char *newhost); // Set new host/ip for MIDIMaze
+    void setUltraHigh(bool _enable, int _ultraHighBaud = 0); // enable ultrahigh/set baud rate
+    bool getUltraHighEnabled() { return useUltraHigh; }
+    int getUltraHighBaudRate() { return _sioBaudUltraHigh; } 
 
     QueueHandle_t qSioMessages = nullptr;
 };
