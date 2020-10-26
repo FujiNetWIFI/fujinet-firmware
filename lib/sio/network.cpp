@@ -9,6 +9,7 @@
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
 #include "../network-protocol/TCP.h"
+#include "../network-protocol/Test.h"
 
 using namespace std;
 
@@ -615,8 +616,13 @@ bool sioNetwork::instantiate_protocol()
     {
         //protocol = new networkProtocolFTP();
     }
+    else if (urlParser->scheme == "TEST")
+    {
+        protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);        
+    }
     else
     {
+        Debug_printf("Invalid protocol: %s\n",urlParser->scheme.c_str());
         return false; // invalid protocol.
     }
 
