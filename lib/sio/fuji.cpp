@@ -288,6 +288,7 @@ void sioFuji::sio_mount_host()
 // Disk Image Mount
 void sioFuji::sio_disk_image_mount()
 {
+    // TODO: Do I need a special TAPE handling?
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
     uint8_t deviceSlot = cmdFrame.aux1;
@@ -429,6 +430,7 @@ void sioFuji::image_rotate()
 // This gets called when we're about to shutdown/reboot
 void sioFuji::shutdown()
 {
+    // TODO: add umount for TAPE
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
 }
@@ -850,10 +852,12 @@ void sioFuji::sio_read_device_slots()
 
         returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
     }
-    // Hanlde tape slot
+    // Handle tape slot
     else if (cmdFrame.aux1 == READ_DEVICE_SLOTS_TAPE)
     {
         // TODO: Populate this with real values
+        // TODO: allow read and write
+        // TODO: why [0] and not [8] (device 9)?
         diskSlots[0].mode = 0; // Always READ
         diskSlots[0].hostSlot = 0;
         strlcpy(diskSlots[0].filename, "TAPETEST.CAS", MAX_DISPLAY_FILENAME_LEN);
@@ -889,6 +893,8 @@ void sioFuji::sio_write_device_slots()
         // Load the data into our current device array
         for (int i = 0; i < MAX_DISK_DEVICES; i++)
             _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
+
+        // TODO: how to add TAPE?
 
         // Save the data to disk
         _populate_config_from_slots();
@@ -1020,6 +1026,7 @@ void sioFuji::sio_set_device_filename()
     else if (slot == BASE_TAPE_SLOT)
     {
         // Just save the filename until we need it mount the tape
+        // TODO: allow read and write options
         Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ, fnConfig::MOUNTTYPE_TAPE);
     }
     // Bad slot
