@@ -10,8 +10,8 @@
 #define FN_VERSION_MAJOR 0
 #define FN_VERSION_MINOR 5
 
-#define FN_VERSION_BUILD "cff42293"
+#define FN_VERSION_BUILD "cabab741"
 
-#define FN_VERSION_DATE "2020-10-26 03:56:31"
+#define FN_VERSION_DATE "2020-10-27 20:50:59"
 
-#define FN_VERSION_FULL "0.5.cff42293"
+#define FN_VERSION_FULL "0.5.cabab741"

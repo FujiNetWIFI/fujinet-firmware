@@ -17,7 +17,8 @@ NetworkProtocolTest::~NetworkProtocolTest()
 
 bool NetworkProtocolTest::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
-    return false;
+    error=200;
+    return true;
 }
 
 bool NetworkProtocolTest::close()
@@ -37,6 +38,7 @@ bool NetworkProtocolTest::write(unsigned short len)
 
 bool NetworkProtocolTest::status(NetworkStatus* status)
 {
+    status->error=error;
     return false;
 }
 

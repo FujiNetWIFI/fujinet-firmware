@@ -116,6 +116,7 @@ void sioNetwork::sio_open()
     if (protocol->open(urlParser, &cmdFrame) == true)
     {
         Debug_printf("Protocol unable to make connection.\n");
+        protocol->status(&status);
         protocol->close();
         delete protocol;
         protocol = nullptr;
@@ -324,6 +325,8 @@ void sioNetwork::sio_status_local()
     uint8_t ipDNS[4];
     uint8_t default_status[4] = {0, 0, 0, 0};
 
+    Debug_printf("sioNetwork::sio_status_local(%u)\n",cmdFrame.aux2);
+
     fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
     fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
 
@@ -342,7 +345,7 @@ void sioNetwork::sio_status_local()
         sio_to_computer(ipDNS, 4, false);
         break;
     default:
-        default_status[3] = fnWiFi.connected();
+        default_status[3] = status.error;
         sio_to_computer(default_status, 4, false);
     }
 }
@@ -355,9 +358,12 @@ void sioNetwork::sio_status_channel()
     uint8_t serialized_status[4] = {0, 0, 0, 0};
     bool err = false;
 
+    Debug_printf("sioNetwork::sio_status_channel(%u)\n",channelMode);
+
     switch (channelMode)
     {
     case PROTOCOL:
+        Debug_printf("PROTOCOL\n");
         err = protocol->status(&status);
         break;
     case JSON:
