@@ -666,7 +666,7 @@
 						<div class="formwrapper">
 							<br>Play or Record
 							<form action="/config" method="post">
-								<select name="play_record" id="play_record_buttons">
+								<select name="play_record" id="select_play_record">
 									<option value="0">Play</option>
 									<option value="1">Record</option>
 								</select>
@@ -675,6 +675,19 @@
 							<script>
 								var current_play_record = "<%FN_PLAY_RECORD%>";
 							</script>
+							<br>Activate by Pulldown Resistor or Button B?
+							<form action="/config" method="post">
+								<select name="pulldown" id="select_pulldown">
+									<option value="0">Button B Press</option>
+									<option value="1">Pulldown Resistor</option>
+								</select>
+								<input type="submit" value="Save">
+							</form>
+							<script>
+								var current_pulldown = "<%FN_PULLDOWN%>";
+							</script>
+							<hr>Current Setting: <%FN_PLAY_RECORD%>
+							<br>Using: <%FN_PULLDOWN%>
 						</div>
 					</div>
 				</div>
