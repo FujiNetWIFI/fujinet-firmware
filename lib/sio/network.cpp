@@ -325,26 +325,31 @@ void sioNetwork::sio_status_local()
     uint8_t ipDNS[4];
     uint8_t default_status[4] = {0, 0, 0, 0};
 
-    Debug_printf("sioNetwork::sio_status_local(%u)\n",cmdFrame.aux2);
+    Debug_printf("sioNetwork::sio_status_local(%u)\n", cmdFrame.aux2);
 
     fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
     fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
-
+    
     switch (cmdFrame.aux2)
     {
     case 1: // IP Address
+        Debug_printf("IP Address: %u.%u.%u.%u\n", ipAddress[0], ipAddress[1], ipAddress[2], ipAddress[3]);
         sio_to_computer(ipAddress, 4, false);
         break;
     case 2: // Netmask
+        Debug_printf("Netmask: %u.%u.%u.%u\n", ipNetmask[0], ipNetmask[1], ipNetmask[2], ipNetmask[3]);
         sio_to_computer(ipNetmask, 4, false);
         break;
     case 3: // Gatway
+        Debug_printf("Gateway: %u.%u.%u.%u\n", ipGateway[0], ipGateway[1], ipGateway[2], ipGateway[3]);
         sio_to_computer(ipGateway, 4, false);
         break;
     case 4: // DNS
+        Debug_printf("DNS: %u.%u.%u.%u\n", ipDNS[0], ipDNS[1], ipDNS[2], ipDNS[3]);
         sio_to_computer(ipDNS, 4, false);
         break;
     default:
+        default_status[2] = status.reserved;
         default_status[3] = status.error;
         sio_to_computer(default_status, 4, false);
     }
@@ -358,7 +363,7 @@ void sioNetwork::sio_status_channel()
     uint8_t serialized_status[4] = {0, 0, 0, 0};
     bool err = false;
 
-    Debug_printf("sioNetwork::sio_status_channel(%u)\n",channelMode);
+    Debug_printf("sioNetwork::sio_status_channel(%u)\n", channelMode);
 
     switch (channelMode)
     {
@@ -624,11 +629,11 @@ bool sioNetwork::instantiate_protocol()
     }
     else if (urlParser->scheme == "TEST")
     {
-        protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);        
+        protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
     }
     else
     {
-        Debug_printf("Invalid protocol: %s\n",urlParser->scheme.c_str());
+        Debug_printf("Invalid protocol: %s\n", urlParser->scheme.c_str());
         return false; // invalid protocol.
     }
 
