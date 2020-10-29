@@ -276,7 +276,7 @@ void sioBus::service()
     {
         if (_fujiDev->cassette()->is_mounted())
         {
-            if (!_fujiDev->cassette()->cassetteActive)
+            if (!_fujiDev->cassette()->is_active())
             {
                 Debug_println("MOTOR ON: activating cassette");
                 _fujiDev->cassette()->sio_enable_cassette();
@@ -287,9 +287,9 @@ void sioBus::service()
     }
     else
     {
-        if (_fujiDev->cassette()->cassetteActive)
+        if (_fujiDev->cassette()->is_active())
         {
-            Debug_println("MOTOR OFF: de-activating cassette");            
+            Debug_println("MOTOR OFF: de-activating cassette");
             _fujiDev->cassette()->sio_disable_cassette();
         }
     }
@@ -431,6 +431,10 @@ void sioBus::shutdown()
 void sioBus::toggleBaudrate()
 {
     int baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? _sioBaudHigh : SIO_STANDARD_BAUDRATE;
+
+    if (useUltraHigh == true)
+        baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? _sioBaudUltraHigh : SIO_STANDARD_BAUDRATE;
+
     Debug_printf("Toggling baudrate from %d to %d\n", _sioBaud, baudrate);
     _sioBaud = baudrate;
     fnUartSIO.set_baudrate(_sioBaud);
@@ -480,26 +484,69 @@ int sioBus::getHighSpeedBaud()
 void sioBus::setMIDIHost(const char *hostname)
 {
 
-    if(hostname != nullptr && hostname[0] != '\0')
+    if (hostname != nullptr && hostname[0] != '\0')
     {
         // Try to resolve the hostname and store that so we don't have to keep looking it up
         _midiDev->midimaze_host_ip = get_ip4_addr_by_name(hostname);
 
-        if(_midiDev->midimaze_host_ip == IPADDR_NONE)
+        if (_midiDev->midimaze_host_ip == IPADDR_NONE)
         {
             Debug_printf("Failed to resolve hostname \"%s\"\n", hostname);
         }
-    } else
+    }
+    else
     {
         _midiDev->midimaze_host_ip = IPADDR_NONE;
     }
-    
-    
+
     // Restart MIDIMaze mode if needed
     if (_midiDev->midimazeActive)
         _midiDev->sio_disable_midimaze();
     if (_midiDev->midimaze_host_ip != IPADDR_NONE)
         _midiDev->sio_enable_midimaze();
+}
+
+void sioBus::setUltraHigh(bool _enable, int _ultraHighBaud)
+{
+    useUltraHigh = _enable;
+
+    if (_enable == true)
+    {
+        // Setup PWM channel for CLOCK IN
+        ledc_channel_config_t ledc_channel_sio_ckin;
+        ledc_channel_sio_ckin.gpio_num = PIN_CKI;
+        ledc_channel_sio_ckin.speed_mode = LEDC_HIGH_SPEED_MODE;
+        ledc_channel_sio_ckin.channel = LEDC_CHANNEL_1;
+        ledc_channel_sio_ckin.intr_type = LEDC_INTR_DISABLE;
+        ledc_channel_sio_ckin.timer_sel = LEDC_TIMER_1;
+        ledc_channel_sio_ckin.duty = 1;
+        ledc_channel_sio_ckin.hpoint = 0;
+
+        // Setup PWM timer for CLOCK IN
+        ledc_timer_config_t ledc_timer;
+        ledc_timer.clk_cfg = LEDC_AUTO_CLK;
+        ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
+        ledc_timer.duty_resolution = LEDC_TIMER_1_BIT;
+        ledc_timer.timer_num = LEDC_TIMER_1;
+        ledc_timer.freq_hz = _ultraHighBaud;
+
+        _sioBaudUltraHigh = _ultraHighBaud;
+
+        Debug_printf("Enabling SIO clock, rate: %lu\n", ledc_timer.freq_hz);
+
+        // Enable PWM on CLOCK IN
+        ledc_channel_config(&ledc_channel_sio_ckin);
+        ledc_timer_config(&ledc_timer);
+        fnUartSIO.set_baudrate(_sioBaudUltraHigh);
+    }
+    else
+    {
+        Debug_printf("Disabling SIO clock.\n");
+        ledc_stop(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 0);
+
+        _sioBaudUltraHigh = 0;
+        fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
+    }
 }
 
 sioBus SIO; // Global SIO object
