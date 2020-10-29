@@ -42,6 +42,20 @@ NetworkProtocol::NetworkProtocol(string *rx_buf,
 }
 
 /**
+ * dtor - clean up after network protocol object
+ */
+NetworkProtocol::~NetworkProtocol()
+{
+    Debug_printf("NetworkProtocol::dtor()\n");
+    receiveBuffer->clear();
+    transmitBuffer->clear();
+    specialBuffer->clear();
+    receiveBuffer = nullptr;
+    transmitBuffer = nullptr;
+    specialBuffer = nullptr;
+}
+
+/**
  * @brief Open connection to the protocol using URL
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
@@ -172,7 +186,7 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
         {
             pos++;
             transmitBuffer->insert(pos, "\n");
-            pos = transmitBuffer->find(ASCII_CR,pos);
+            pos = transmitBuffer->find(ASCII_CR, pos);
         }
     }
 

@@ -33,14 +33,9 @@ public:
     NetworkProtocol(string *rx_buf, string *tx_buf, string *sp_buf);
 
     /**
-     * dtor
+     * dtor - Tear down network protocol object
      */
-    virtual ~NetworkProtocol()
-    {
-        receiveBuffer = nullptr;
-        transmitBuffer = nullptr;
-        specialBuffer = nullptr;
-    }
+    virtual ~NetworkProtocol();
 
     /**
      * @brief Protocol connection is a server (listening connection)

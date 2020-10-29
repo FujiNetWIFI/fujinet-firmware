@@ -83,7 +83,10 @@ void sioNetwork::sio_open()
 
     // Shut down protocol if we are sending another open before we close.
     if (protocol != nullptr)
+    {
+        protocol->close();
         delete protocol;
+    }
 
     // Reset status buffer
     status.reset();
