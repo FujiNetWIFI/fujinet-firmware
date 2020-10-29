@@ -15,6 +15,7 @@ void sioMIDIMaze::sio_enable_midimaze()
 
     // Setup PWM timer for CLOCK IN
     ledc_timer_config_t ledc_timer;
+    ledc_timer.clk_cfg = LEDC_AUTO_CLK;
     ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
     ledc_timer.duty_resolution = LEDC_TIMER_RESOLUTION;
     ledc_timer.timer_num = LEDC_TIMER_1;

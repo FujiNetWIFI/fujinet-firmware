@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <driver/ledc.h>
 
 #include "fuji.h"
 #include "led.h"
@@ -34,6 +35,7 @@
 #define SIO_FUJICMD_SET_DEVICE_FULLPATH 0xE2
 #define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
 #define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
+#define SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -86,31 +88,31 @@ void say_number(unsigned char n)
     switch (n)
     {
     case 1:
-        util_sam_say("WAH7NQ",true);
+        util_sam_say("WAH7NQ", true);
         break;
     case 2:
-        util_sam_say("TUW7",true);
+        util_sam_say("TUW7", true);
         break;
     case 3:
-        util_sam_say("THRIYY7Q",true);
+        util_sam_say("THRIYY7Q", true);
         break;
     case 4:
-        util_sam_say("FOH7R",true);
+        util_sam_say("FOH7R", true);
         break;
     case 5:
-        util_sam_say("F7AYVQ",true);
+        util_sam_say("F7AYVQ", true);
         break;
     case 6:
-        util_sam_say("SIH7IHKSQ",true);
+        util_sam_say("SIH7IHKSQ", true);
         break;
     case 7:
-        util_sam_say("SEHV7EHNQ",true);
+        util_sam_say("SEHV7EHNQ", true);
         break;
     case 8:
-        util_sam_say("AEY74Q",true);
+        util_sam_say("AEY74Q", true);
         break;
     default:
-        Debug_printf("say_number() - Uncaught number %d",n);
+        Debug_printf("say_number() - Uncaught number %d", n);
     }
 }
 
@@ -120,7 +122,7 @@ void say_number(unsigned char n)
 void say_swap_label()
 {
     // DISK
-    util_sam_say("DIHSK7Q ",true);
+    util_sam_say("DIHSK7Q ", true);
 }
 
 // Constructor
@@ -286,6 +288,7 @@ void sioFuji::sio_mount_host()
 // Disk Image Mount
 void sioFuji::sio_disk_image_mount()
 {
+    // TODO: Do I need a special TAPE handling?
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
     uint8_t deviceSlot = cmdFrame.aux1;
@@ -333,11 +336,16 @@ void sioFuji::sio_disk_image_mount()
 // DEBUG TAPE
 void sioFuji::debug_tape()
 {
-    if (_cassetteDev.cassetteActive == false)
+    if (_cassetteDev.is_mounted() == false)
     {
         Debug_println("::debug_tape ENABLE");
-        _cassetteDev.open_cassette_file(&fnSPIFFS);
-        _cassetteDev.sio_enable_cassette();
+
+        if (fnSDFAT.running())
+            _cassetteDev.open_cassette_file(&fnSDFAT);
+        else
+            _cassetteDev.open_cassette_file(&fnSPIFFS);
+
+        // _cassetteDev.sio_enable_cassette();
     }
     else
     {
@@ -405,14 +413,14 @@ void sioFuji::image_rotate()
         _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
-        if(Config.get_general_rotation_sounds())
+        if (Config.get_general_rotation_sounds())
         {
             for (int i = 0; i <= count; i++)
             {
                 if (_fnDisks[i].disk_dev.id() == 0x31)
                 {
                     say_swap_label();
-                    say_number(i+1); // because i starts from 0
+                    say_number(i + 1); // because i starts from 0
                 }
             }
         }
@@ -422,6 +430,7 @@ void sioFuji::image_rotate()
 // This gets called when we're about to shutdown/reboot
 void sioFuji::shutdown()
 {
+    // TODO: add umount for TAPE
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
 }
@@ -843,10 +852,12 @@ void sioFuji::sio_read_device_slots()
 
         returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
     }
-    // Hanlde tape slot
+    // Handle tape slot
     else if (cmdFrame.aux1 == READ_DEVICE_SLOTS_TAPE)
     {
         // TODO: Populate this with real values
+        // TODO: allow read and write
+        // TODO: why [0] and not [8] (device 9)?
         diskSlots[0].mode = 0; // Always READ
         diskSlots[0].hostSlot = 0;
         strlcpy(diskSlots[0].filename, "TAPETEST.CAS", MAX_DISPLAY_FILENAME_LEN);
@@ -882,6 +893,8 @@ void sioFuji::sio_write_device_slots()
         // Load the data into our current device array
         for (int i = 0; i < MAX_DISK_DEVICES; i++)
             _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
+
+        // TODO: how to add TAPE?
 
         // Save the data to disk
         _populate_config_from_slots();
@@ -1013,6 +1026,7 @@ void sioFuji::sio_set_device_filename()
     else if (slot == BASE_TAPE_SLOT)
     {
         // Just save the filename until we need it mount the tape
+        // TODO: allow read and write options
         Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ, fnConfig::MOUNTTYPE_TAPE);
     }
     // Bad slot
@@ -1024,6 +1038,26 @@ void sioFuji::sio_set_device_filename()
     }
 
     Config.save();
+    sio_complete();
+}
+
+// Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
+void sioFuji::sio_set_sio_external_clock()
+{
+    unsigned short speed = sio_get_aux();
+    int baudRate = speed * 1000;
+
+    Debug_printf("sioFuji::sio_set_external_clock(%u)\n",baudRate);
+
+    if (speed==0)
+    {
+        SIO.setUltraHigh(false,0);
+    }
+    else
+    {
+        SIO.setUltraHigh(true,baudRate);
+    }
+
     sio_complete();
 }
 
@@ -1171,6 +1205,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_GET_HOST_PREFIX:
         sio_ack();
         sio_get_host_prefix();
+        break;
+    case SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK:
+        sio_ack();
+        sio_set_sio_external_clock();
         break;
     default:
         sio_nak();
