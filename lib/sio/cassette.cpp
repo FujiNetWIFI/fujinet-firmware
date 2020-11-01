@@ -285,7 +285,7 @@ void sioCassette::Clear_atari_sector_buffer(uint16_t len)
     } while (len);
 }
 
-unsigned sioCassette::send_tape_block(unsigned int offset)
+size_t sioCassette::send_tape_block(size_t offset)
 {
     unsigned char *p = atari_sector_buffer + BLOCK_LEN - 1;
     unsigned char i, r;
@@ -372,7 +372,7 @@ void sioCassette::check_for_FUJI_file()
     return;
 }
 
-unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
+size_t sioCassette::send_FUJI_tape_block(size_t offset)
 {
     size_t r;
     uint16_t gap, len;
@@ -381,7 +381,7 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     struct tape_FUJI_hdr *hdr = (struct tape_FUJI_hdr *)atari_sector_buffer;
     uint8_t *p = hdr->chunk_type;
 
-    unsigned int starting_offset = offset;
+    size_t starting_offset = offset;
 
     while (offset < filesize) // FileInfo.vDisk->size)
     {
@@ -427,7 +427,7 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     while (gap--)
     {
         fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
-        if (!motor_line())
+        if (!motor_line() && gap > 1000)
         {
             fnLedManager.set(eLed::LED_SIO, false);
             return starting_offset;
@@ -498,7 +498,7 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     return (offset);
 }
 
-unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
+size_t sioCassette::receive_FUJI_tape_block(size_t offset)
 {
     Clear_atari_sector_buffer(BLOCK_LEN + 4);
     uint8_t idx = 0;

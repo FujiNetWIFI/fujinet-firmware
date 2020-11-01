@@ -122,10 +122,10 @@ private:
     unsigned short block;
     unsigned short baud;
 
-    unsigned int send_tape_block(unsigned int offset);
+    size_t send_tape_block(size_t offset);
     void check_for_FUJI_file();
-    unsigned int send_FUJI_tape_block(unsigned int offset);
-    unsigned int receive_FUJI_tape_block(unsigned int offset);
+    size_t send_FUJI_tape_block(size_t offset);
+    size_t receive_FUJI_tape_block(size_t offset);
 };
 
 #endif
