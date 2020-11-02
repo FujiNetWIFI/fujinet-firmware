@@ -142,6 +142,18 @@ void fnHttpServiceConfigurator::config_timezone(std::string timezone)
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_hostname(std::string hostname)
+{
+    Debug_printf("New hostname value: %s\n", hostname.c_str());
+
+    // Store our change in Config
+    Config.store_general_devicename(hostname.c_str());
+    // Update the hostname variable
+    fnSystem.update_hostname(hostname.c_str());
+    // Save change
+    Config.save();
+}
+
 void fnHttpServiceConfigurator::config_rotation_sounds(std::string rotation_sounds)
 {
     Debug_printf("New rotation sounds value: %s\n", rotation_sounds.c_str());
@@ -258,6 +270,9 @@ int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t
         } else if(i->first.compare("timezone") == 0)
         {
             config_timezone(i->second);
+        } else if (i->first.compare("hostname") == 0)
+        {
+            config_hostname(i->second);
         } else if(i->first.compare("midimaze_host") == 0)
         {
             config_midimaze(i->second);

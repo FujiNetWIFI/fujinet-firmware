@@ -21,8 +21,6 @@
 // Global object to manage WiFi
 WiFiManager fnWiFi;
 
-
-
 WiFiManager::~WiFiManager()
 {
     stop();
@@ -32,7 +30,7 @@ WiFiManager::~WiFiManager()
 void WiFiManager::stop()
 {
     // Stop services
-    if(_connected)
+    if (_connected)
         handle_station_stop();
 
     // Un-register event handler
@@ -70,7 +68,7 @@ int WiFiManager::start()
     ESP_ERROR_CHECK(esp_netif_init());
 
     // Assume we've already done these steps if _wifi_if has a value
-    if(_wifi_if == nullptr)
+    if (_wifi_if == nullptr)
     {
         // Create the default event loop, which is where the WiFi driver sends events
         ESP_ERROR_CHECK(esp_event_loop_create_default());
@@ -106,11 +104,10 @@ int WiFiManager::start()
 // Attempts to connect using information in Config (if any)
 int WiFiManager::connect()
 {
-    if(Config.have_wifi_info())
+    if (Config.have_wifi_info())
         return connect(Config.get_wifi_ssid().c_str(), Config.get_wifi_passphrase().c_str());
     else
         return -1;
-    
 }
 
 int WiFiManager::connect(const char *ssid, const char *password)
@@ -152,7 +149,6 @@ int WiFiManager::connect(const char *ssid, const char *password)
     return e;
 }
 
-
 bool WiFiManager::connected()
 {
     return _connected;
@@ -181,9 +177,8 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     uint16_t result = 0;
     uint8_t final_count = 0;
 
-
     // If we're currently connected, disconnect to allow the scan to happen
-    if(_connected == true)
+    if (_connected == true)
     {
         temporary_disconnect = true;
         esp_wifi_disconnect();
@@ -202,7 +197,7 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
         Debug_printf("esp_wifi_scan_start returned error %d\n", e);
     }
 
-    if(e == ESP_OK)
+    if (e == ESP_OK)
     {
         Debug_printf("esp_wifi_scan returned %d results\n", result);
 
@@ -232,12 +227,11 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
                 _scan_record_count = numloaded;
                 final_count = _scan_record_count;
             }
-            
         }
     }
 
     // Reconnect to WiFi if we disconnected ourselves
-    if(temporary_disconnect == true)
+    if (temporary_disconnect == true)
         esp_wifi_connect();
 
     return final_count;
@@ -369,8 +363,8 @@ const char *WiFiManager::get_current_detail_str()
         snprintf(buff, sizeof(buff),
                  "chan=%hu, chan2=%s, rssi=%hd, auth=%s, paircipher=%s, groupcipher=%s, ant=%u "
                  "11b=%c, 11g=%c, 11n=%c, lowr=%c, wps=%c, (%s)",
-                 apinfo.primary, second, 
-                 apinfo.rssi, 
+                 apinfo.primary, second,
+                 apinfo.rssi,
                  _wifi_auth_string(apinfo.authmode),
                  _wifi_cipher_string(apinfo.pairwise_cipher), _wifi_cipher_string(apinfo.group_cipher),
                  apinfo.ant,
@@ -406,6 +400,12 @@ std::string WiFiManager::get_current_bssid_str()
     }
 
     return std::string();
+}
+
+void WiFiManager::set_hostname(const char *hostname)
+{
+    Debug_printf("WiFiManager::set_hostname(%s)\n",hostname);
+    esp_netif_set_hostname(_wifi_if,hostname);
 }
 
 void WiFiManager::handle_station_stop()
@@ -468,13 +468,13 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             break;
         // Set WiFi to disconnected
         case WIFI_EVENT_STA_DISCONNECTED:
-            if(pFnWiFi->_connected == true)
+            if (pFnWiFi->_connected == true)
             {
                 Debug_println("WIFI_EVENT_STA_DISCONNECTED");
                 pFnWiFi->handle_station_stop();
             }
             // Try to reconnect
-            if(pFnWiFi->_scan_in_progress == false &&
+            if (pFnWiFi->_scan_in_progress == false &&
                 pFnWiFi->_reconnect_attempts < FNWIFI_RECONNECT_RETRIES && Config.have_wifi_info())
             {
                 pFnWiFi->_reconnect_attempts++;
