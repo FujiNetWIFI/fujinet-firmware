@@ -17,8 +17,27 @@
 #define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
 
+#define MAX_APPKEY_LEN 64
+
 #define READ_DEVICE_SLOTS_DISKS1 0x00
 #define READ_DEVICE_SLOTS_TAPE 0x10
+
+
+enum appkey_mode : uint8_t
+{
+    APPKEYMODE_READ = 0,
+    APPKEYMODE_WRITE,
+    APPKEYMODE_INVALID
+};
+
+struct appkey 
+{
+    uint16_t creator = 0;
+    uint8_t app = 0;
+    uint8_t key = 0;
+    appkey_mode mode = APPKEYMODE_INVALID;
+    uint8_t reserved = 0;
+} __attribute__((packed));
 
 class sioFuji : public sioDevice
 {
@@ -39,6 +58,8 @@ private:
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();
+
+    appkey _current_appkey;
 
 protected:
     void sio_reset_fujinet();          // 0xFF
@@ -67,8 +88,10 @@ protected:
     void sio_set_host_prefix();        // 0xE1
     void sio_get_host_prefix();        // 0xE0
     void sio_set_sio_external_clock(); // 0xDF
-    
-
+    void sio_write_app_key();          // 0xDE
+    void sio_read_app_key();           // 0xDD
+    void sio_open_app_key();           // 0xDC
+    void sio_close_app_key();          // 0xDB
 
     void sio_status() override;
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
