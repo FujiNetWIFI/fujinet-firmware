@@ -138,6 +138,7 @@ private:
     void sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2); // $40, '@', Type 3 Poll
     void sio_control();                          // $41, 'A', Control
     void sio_config();                           // $42, 'B', Configure
+    void sio_set_dump();                         // $$4, 'D', Dump
     void sio_listen();                           // $4C, 'L', Listen
     void sio_unlisten();                         // $4D, 'M', Unlisten
     void sio_baudlock();                         // $4E, 'N', Baud lock
