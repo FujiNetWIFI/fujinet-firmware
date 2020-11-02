@@ -56,6 +56,16 @@ public:
      */
     FILE *closeOutputAndProvideReadHandle();
 
+    /**
+     * Set enable flag
+     */
+    void setEnable(bool _enable) { enable = enable; }
+
+    /**
+     * Get enable flag
+     */
+    bool getEnable() { return enable; }
+
 private:
     /**
      * Is sniffer enabled?
