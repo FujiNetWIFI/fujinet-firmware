@@ -90,6 +90,7 @@ void ModemSniffer::dumpInput(uint8_t *buf, unsigned short len)
     if (direction != INPUT)
     {
         fprintf(_file, "\n\nINCOMING: ");
+        Debug_printf("\n\nINCOMING: ");
     }
 
     direction = INPUT;
@@ -100,11 +101,13 @@ void ModemSniffer::dumpInput(uint8_t *buf, unsigned short len)
         {
             // Printable ASCII character.
             fprintf(_file, "'%c' ", buf[i]);
+            Debug_printf("'%c' ", buf[i]);
         }
         else
         {
             // non-printable ASCII character.
             fprintf(_file, "%02x ", buf[i]);
+            Debug_printf("%02x ", buf[i]);
         }
     }
     fflush(_file);
@@ -123,6 +126,7 @@ void ModemSniffer::dumpOutput(uint8_t *buf, unsigned short len)
     if (direction != OUTPUT)
     {
         fprintf(_file, "\n\nOUTGOING: ");
+        Debug_printf("\n\nOUTGOING: ");
     }
 
     direction = OUTPUT;
@@ -133,11 +137,13 @@ void ModemSniffer::dumpOutput(uint8_t *buf, unsigned short len)
         {
             // Printable ASCII character.
             fprintf(_file, "'%c' ", buf[i]);
+            Debug_printf("'%c' ", buf[i]);
         }
         else
         {
             // non-printable ASCII character.
             fprintf(_file, "%02X ", buf[i]);
+            Debug_printf("%02X ", buf[i]);
         }
     }
     fflush(_file);
