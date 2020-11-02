@@ -59,7 +59,7 @@ public:
     /**
      * Set enable flag
      */
-    void setEnable(bool _enable) { enable = enable; }
+    void setEnable(bool _enable) { enable = _enable; }
 
     /**
      * Get enable flag
