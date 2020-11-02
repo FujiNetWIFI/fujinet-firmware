@@ -36,8 +36,7 @@ sioFuji theFuji;
 sioApeTime apeTime;
 sioVoice sioV;
 sioMIDIMaze sioMIDI;
-sioCassette sioC;
-sioModem *sioR;
+// sioCassette sioC; // now part of sioFuji theFuji object
 
 void main_shutdown_handler()
 {

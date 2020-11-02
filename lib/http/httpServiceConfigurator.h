@@ -13,7 +13,9 @@ class fnHttpServiceConfigurator
     static void config_printer(std::string printernumber, std::string printermodel, std::string printerport);
     static void config_hsio(std::string hsio_index);
     static void config_timezone(std::string timezone);
+    static void config_hostname(std::string hostname);
     static void config_midimaze(std::string host_ip);
+    static void config_cassette(std::string play_record);
     static void config_rotation_sounds(std::string rotation_sounds);
 
 public:
