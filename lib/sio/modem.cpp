@@ -1025,7 +1025,9 @@ void sioModem::modemCommand()
             "AT&W",
             "ATH2",
             "+++ATZ",
-            "ATS2=128 X1 M0"};
+            "ATS2=128 X1 M0",
+            "AT+SNIFF",
+            "AT-SNIFF"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -1201,6 +1203,20 @@ void sioModem::modemCommand()
     case AT_AW:
     case AT_ZPPP:
     case AT_BBSX:
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_SNIFF:
+        get_modem_sniffer()->setEnable(true);
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_UNSNIFF:
+        get_modem_sniffer()->setEnable(false);
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else

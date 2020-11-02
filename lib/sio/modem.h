@@ -95,6 +95,8 @@ private:
         AT_OFFHOOK,
         AT_ZPPP,
         AT_BBSX,
+        AT_SNIFF,
+        AT_UNSNIFF,
         AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
