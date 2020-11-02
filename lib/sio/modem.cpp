@@ -18,6 +18,7 @@
 #define SIO_MODEMCMD_TYPE3_POLL 0x40
 #define SIO_MODEMCMD_CONTROL 0x41
 #define SIO_MODEMCMD_CONFIGURE 0x42
+#define SIO_MODEMCMD_SET_DUMP 0x44
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
 #define SIO_MODEMCMD_BAUDLOCK 0x4E
@@ -417,6 +418,14 @@ void sioModem::sio_config()
         modemBaud = 300;
         break;
     }
+}
+
+
+// 0x44 / 'D' - Dump
+void sioModem::sio_set_dump()
+{
+    modemSniffer->setEnable(cmdFrame.aux1);
+    sio_complete();
 }
 
 // 0x58 / 'X' - STREAM
@@ -1485,6 +1494,10 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_MODEMCMD_CONFIGURE:
         sio_ack();
         sio_config();
+        break;
+    case SIO_MODEMCMD_SET_DUMP:
+        sio_ack();
+        sio_set_dump();
         break;
     case SIO_MODEMCMD_LISTEN:
         sio_listen();
