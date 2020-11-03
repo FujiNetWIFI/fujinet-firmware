@@ -8,7 +8,7 @@
 
 ModemSniffer::ModemSniffer(FileSystem *_fs, bool _enable)
 {
-    Debug_printf("ModemSniffer::ModemSniffer(%p)\n", _fs);
+    Debug_printf("ModemSniffer::ModemSniffer(%s)\n", _fs->typestring());
 
     if (_fs == nullptr)
         Debug_printf("_fs is NULL!\n");
