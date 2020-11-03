@@ -183,6 +183,10 @@
 				width: 47.5%;
 			}
 		}
+		#txt_hostname
+		{
+		    text-align: right;
+		}
 	</style>
 </head>
 
@@ -264,7 +268,12 @@
 				</div>
 				<div class="detline alt">
 					<div class="deth">Host name</div>
-					<div class="det"><%FN_HOSTNAME%></div>
+					<div class="det">
+					  <form action="/config" method="post">
+					    <input type="text" name="hostname" id="txt_hostname" value="<%FN_HOSTNAME%>" />
+					    <input type="submit" value="Save">
+					  </form>
+					</div>
 				</div>
 				<div class="detline">
 					<div class="deth">IP address</div>
@@ -585,6 +594,7 @@
 										<option value="MST+7">America Arizona UTC-7</option>
 										<option value="CST+6CDT">America Central UTC-6/UTC-5</option>
 										<option value="EST+5EDT">America Eastern UTC-5/UTC-4</option>
+										<option value="AST+4ADT">America Atlantic UTC-4/UTC-3</option>
 										<option value="UTC+0">UTC</option>
 										<option value="GMT+0BST,M3.5.0/1,M10.5.0">UK UTC/UTC+1</option>
 										<option value="CET-1CEST,M3.5.0,M10.5.0/3">Europe Central UTC+1/UTC+2</option>
