@@ -1,5 +1,3 @@
-//#include <Arduino.h> // Lets us get the Arduino framework version
-
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_system.h>
@@ -12,6 +10,8 @@
 #include "soc/sens_reg.h"
 #include "soc/rtc.h"
 #include "esp_adc_cal.h"
+
+#include <cstring>
 
 #include "../../include/debug.h"
 #include "../../include/version.h"
@@ -322,6 +322,16 @@ FILE *SystemManager::make_tempfile(char *result_filename)
         return make_tempfile(&fnSDFAT, result_filename);
     else
         return make_tempfile(&fnSPIFFS, result_filename);
+}
+
+// Checks that path exists and creates if it doesn't
+bool create_path(char *fullpath)
+{
+    char * segment = strtok(fullpath, "/");
+    while(segment != nullptr)
+    {
+        segment = strtok(nullptr, "/");
+    }
 }
 
 // Copy file from source filesystem/filename to destination filesystem/name using optional buffer_hint for buffer size
