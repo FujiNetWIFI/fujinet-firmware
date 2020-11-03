@@ -64,6 +64,7 @@ void ModemSniffer::closeOutput()
 
 FILE *ModemSniffer::closeOutputAndProvideReadHandle()
 {
+    Debug_printf("ModemSniffer::closeOutputAndProvideReadHandle()\n");
     closeOutput();
     return activeFS->file_open(SNIFFER_OUTPUT_FILE); // read-only.
 }
