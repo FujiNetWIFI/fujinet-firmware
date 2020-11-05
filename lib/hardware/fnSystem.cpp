@@ -1,5 +1,3 @@
-//#include <Arduino.h> // Lets us get the Arduino framework version
-
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_system.h>
@@ -13,12 +11,15 @@
 #include "soc/rtc.h"
 #include "esp_adc_cal.h"
 
+#include <cstring>
+
 #include "../../include/debug.h"
 #include "../../include/version.h"
 
 #include "fnSystem.h"
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
+#include "fnWiFi.h"
 
 // Global object to manage System
 SystemManager fnSystem;
@@ -132,7 +133,7 @@ void IRAM_ATTR SystemManager::delay_microseconds(uint32_t us)
 
         // Handle overflow first
         if (start > end)
-        { 
+        {
             while ((uint32_t)esp_timer_get_time() > end)
                 NOP();
         }
@@ -173,6 +174,15 @@ void SystemManager::update_timezone(const char *timezone)
         setenv("TZ", timezone, 1);
 
     tzset();
+}
+
+void SystemManager::update_hostname(const char *hostname)
+{
+    if (hostname != nullptr && hostname[0] != '\0')
+    {
+        Debug_printf("SystemManager::update_hostname(%s)\n", hostname);
+        fnWiFi.set_hostname(hostname);
+    }
 }
 
 const char *SystemManager::get_current_time_str()

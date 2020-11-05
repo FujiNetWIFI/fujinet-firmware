@@ -29,6 +29,7 @@ char * FileSystem::_make_fullpath(const char *path)
     return nullptr;
 }
 
+
 // Returns size of open file
 long FileSystem::filesize(FILE *f)
 {

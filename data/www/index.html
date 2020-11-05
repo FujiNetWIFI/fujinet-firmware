@@ -183,6 +183,10 @@
 				width: 47.5%;
 			}
 		}
+		#txt_hostname
+		{
+		    text-align: right;
+		}
 	</style>
 </head>
 
@@ -264,7 +268,12 @@
 				</div>
 				<div class="detline alt">
 					<div class="deth">Host name</div>
-					<div class="det"><%FN_HOSTNAME%></div>
+					<div class="det">
+					  <form action="/config" method="post">
+					    <input type="text" name="hostname" id="txt_hostname" value="<%FN_HOSTNAME%>" />
+					    <input type="submit" value="Save">
+					  </form>
+					</div>
 				</div>
 				<div class="detline">
 					<div class="deth">IP address</div>

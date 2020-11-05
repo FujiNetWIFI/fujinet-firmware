@@ -36,6 +36,10 @@
 #define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
 #define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
 #define SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
+#define SIO_FUJICMD_WRITE_APPKEY 0xDE
+#define SIO_FUJICMD_READ_APPKEY 0xDD
+#define SIO_FUJICMD_OPEN_APPKEY 0xDC
+#define SIO_FUJICMD_CLOSE_APPKEY 0xDB
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -333,6 +337,191 @@ void sioFuji::sio_disk_image_mount()
     sio_complete();
 }
 
+char * _generate_appkey_filename(appkey * info)
+{
+    static char filenamebuf[30];
+
+    snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
+    return filenamebuf;
+}
+
+/*
+ Opens an "app key".  This just sets the needed app key parameters (creator, app, key, mode)
+ for the subsequent expected read/write command. We could've added this information as part
+ of the payload in a WRITE_APPKEY command, but there was no way to do this for READ_APPKEY.
+ Requiring a separate OPEN command makes both the read and write commands behave similarly
+ and leaves the possibity for a more robust/general file read/write function later.
+*/
+void sioFuji::sio_open_app_key()
+{
+    Debug_print("Fuji cmd: OPEN APPKEY\n");
+
+    // The data expected for this command
+    uint8_t ck = sio_to_peripheral((uint8_t *)&_current_appkey, sizeof(_current_appkey));
+
+    if (sio_checksum((uint8_t *)&_current_appkey, sizeof(_current_appkey)) != ck)
+    {
+        sio_error();
+        return;
+    }
+
+    // We're only supporting writing to SD, so return an error if there's no SD mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - returning error");
+        sio_error();
+        return;
+    }
+
+    // Basic check for valid data
+    if(_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
+    {
+        Debug_println("Invalid app key data");
+        sio_error();
+        return;
+    }
+
+    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
+        _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
+        _generate_appkey_filename(&_current_appkey));
+
+    sio_complete();
+
+}
+
+/*
+  The app key close operation is a placeholder in case we want to provide more robust file
+  read/write operations. Currently, the file is closed immediately after the read or write operation.
+*/
+void sioFuji::sio_close_app_key()
+{
+    Debug_print("Fuji cmd: CLOSE APPKEY\n");
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
+    sio_complete();    
+}
+
+/*
+ Write an "app key" to SD (ONLY!) storage.
+*/
+void sioFuji::sio_write_app_key()
+{
+    uint16_t keylen = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+
+    Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
+
+    // Data for SIO_FUJICMD_WRITE_APPKEY
+    uint8_t value[MAX_APPKEY_LEN];
+
+    uint8_t ck = sio_to_peripheral((uint8_t *)value, sizeof(value));
+
+    if (sio_checksum((uint8_t *)value, sizeof(value)) != ck)
+    {
+        sio_error();
+        return;
+    }
+
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        sio_error();
+        return;
+    }
+
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't write app key");
+        sio_error();
+        return;
+    }
+
+    char *filename = _generate_appkey_filename(&_current_appkey);
+
+    // Reset the app key data so we require calling APPKEY OPEN before another attempt
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
+
+    Debug_printf("Writing appkey to \"%s\"\n", filename);
+
+    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
+    fnSDFAT.create_path("/FujiNet");
+
+    FILE * fOut = fnSDFAT.file_open(filename, "w");
+    if(fOut == nullptr)
+    {
+        Debug_printf("Filed to open/create output file: errno=%d\n", errno);
+        sio_error();
+        return;
+    }
+    size_t count = fwrite(value, 1, keylen, fOut);
+    int e = errno;
+
+    fclose(fOut);
+
+    if(count != keylen)
+    {
+        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
+        sio_error();
+    }
+
+    sio_complete();
+}
+
+/*
+ Read an "app key" from SD (ONLY!) storage
+*/
+void sioFuji::sio_read_app_key()
+{
+
+    Debug_println("Fuji cmd: READ APPKEY");
+
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't read app key");
+        sio_error();
+        return;
+    }
+
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        sio_error();
+        return;
+    }
+
+    char *filename = _generate_appkey_filename(&_current_appkey);
+
+    Debug_printf("Reading appkey from \"%s\"\n", filename);
+
+    FILE * fIn = fnSDFAT.file_open(filename, "r");
+    if(fIn == nullptr)
+    {
+        Debug_printf("Filed to open input file: errno=%d\n", errno);
+        sio_error();
+        return;
+    }
+
+    struct
+    {
+        uint16_t size;
+        uint8_t value[MAX_APPKEY_LEN];
+    }  __attribute__((packed)) response;
+    memset(&response, 0, sizeof(response));
+
+    size_t count = fread(response.value, 1, sizeof(response.value), fIn);
+
+    fclose(fIn);
+    Debug_printf("Read %d bytes from input file\n", count);
+
+    response.size = count;
+
+    sio_to_computer((uint8_t *)&response, sizeof(response), false);
+}
+
 // DEBUG TAPE
 void sioFuji::debug_tape()
 {
@@ -608,7 +797,8 @@ void sioFuji::sio_set_directory_position()
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    uint16_t pos = ((uint16_t)cmdFrame.aux2 << 8 | cmdFrame.aux1);
+    uint16_t pos =UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+    
     // Make sure we have a current open directory
     if (_current_open_directory_slot == -1)
     {
@@ -1209,6 +1399,22 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK:
         sio_ack();
         sio_set_sio_external_clock();
+        break;
+    case SIO_FUJICMD_WRITE_APPKEY:
+        sio_ack();
+        sio_write_app_key();
+        break;
+    case SIO_FUJICMD_READ_APPKEY:
+        sio_ack();
+        sio_read_app_key();
+        break;
+    case SIO_FUJICMD_OPEN_APPKEY:
+        sio_ack();
+        sio_open_app_key();
+        break;
+    case SIO_FUJICMD_CLOSE_APPKEY:
+        sio_ack();
+        sio_close_app_key();
         break;
     default:
         sio_nak();
