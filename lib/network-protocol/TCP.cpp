@@ -297,6 +297,8 @@ bool NetworkProtocolTCP::open_server(unsigned short port)
     server->begin(port);
     connectionIsServer = true;
 
+    Debug_printf("errno = %u\n",errno);
+
     return errno != 0;
 }
 
