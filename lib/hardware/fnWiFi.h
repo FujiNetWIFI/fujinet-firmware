@@ -49,6 +49,8 @@ public:
 
     void handle_station_stop();
 
+    void set_hostname(const char* hostname);
+
     std::string get_current_ssid();
     const char * get_current_detail_str();
     int get_current_bssid(uint8_t bssid[6]);
