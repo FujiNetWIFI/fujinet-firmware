@@ -137,6 +137,7 @@ void fnTcpServer::stop()
     {
         Debug_printf("fnTcpServer::stop(%d)\n", _sockfd);
         close(_sockfd);
+        Debug_printf("close errno %d\n",errno);
         _sockfd = -1;
         _listening = false;
     }
