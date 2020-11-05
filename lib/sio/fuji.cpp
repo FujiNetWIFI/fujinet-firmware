@@ -339,9 +339,9 @@ void sioFuji::sio_disk_image_mount()
 
 char * _generate_appkey_filename(appkey * info)
 {
-    static char filenamebuf[14];
+    static char filenamebuf[30];
 
-    snprintf(filenamebuf, sizeof(filenamebuf), "/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
+    snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
     return filenamebuf;
 }
 
@@ -445,6 +445,9 @@ void sioFuji::sio_write_app_key()
 
     Debug_printf("Writing appkey to \"%s\"\n", filename);
 
+    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
+    fnSDFAT.create_path("/FujiNet");
+
     FILE * fOut = fnSDFAT.file_open(filename, "w");
     if(fOut == nullptr)
     {
@@ -502,11 +505,12 @@ void sioFuji::sio_read_app_key()
         return;
     }
 
-    struct resp
+    struct
     {
         uint16_t size;
         uint8_t value[MAX_APPKEY_LEN];
     }  __attribute__((packed)) response;
+    memset(&response, 0, sizeof(response));
 
     size_t count = fread(response.value, 1, sizeof(response.value), fIn);
 

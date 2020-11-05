@@ -1,5 +1,3 @@
-//#include <Arduino.h> // Lets us get the Arduino framework version
-
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_system.h>
@@ -12,6 +10,8 @@
 #include "soc/sens_reg.h"
 #include "soc/rtc.h"
 #include "esp_adc_cal.h"
+
+#include <cstring>
 
 #include "../../include/debug.h"
 #include "../../include/version.h"
