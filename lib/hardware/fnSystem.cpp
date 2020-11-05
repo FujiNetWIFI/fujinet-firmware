@@ -334,16 +334,6 @@ FILE *SystemManager::make_tempfile(char *result_filename)
         return make_tempfile(&fnSPIFFS, result_filename);
 }
 
-// Checks that path exists and creates if it doesn't
-bool create_path(char *fullpath)
-{
-    char * segment = strtok(fullpath, "/");
-    while(segment != nullptr)
-    {
-        segment = strtok(nullptr, "/");
-    }
-}
-
 // Copy file from source filesystem/filename to destination filesystem/name using optional buffer_hint for buffer size
 size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filename, FileSystem *dest_fs, const char *dest_filename, size_t buffer_hint)
 {

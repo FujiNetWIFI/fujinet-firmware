@@ -445,6 +445,9 @@ void sioFuji::sio_write_app_key()
 
     Debug_printf("Writing appkey to \"%s\"\n", filename);
 
+    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
+    fnSDFAT.create_path("/FujiNet");
+
     FILE * fOut = fnSDFAT.file_open(filename, "w");
     if(fOut == nullptr)
     {
