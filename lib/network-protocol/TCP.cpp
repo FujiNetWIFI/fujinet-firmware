@@ -75,6 +75,8 @@ bool NetworkProtocolTCP::close()
 {
     Debug_printf("NetworkProtocolTCP::close()\n");
 
+    NetworkProtocol::close();
+
     if (client.connected())
     {
         Debug_printf("Closing client socket.\n");
@@ -87,7 +89,7 @@ bool NetworkProtocolTCP::close()
         server->stop();
     }
 
-    return NetworkProtocol::close(); // Always successful./
+    return false;
 }
 
 /**
