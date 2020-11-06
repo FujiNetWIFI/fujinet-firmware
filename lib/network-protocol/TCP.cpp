@@ -31,11 +31,6 @@ NetworkProtocolTCP::~NetworkProtocolTCP()
 
     if (server != nullptr)
     {
-        if (client.connected())
-            client.stop();
-
-        server->stop();
-
         delete server;
 
         server = nullptr;
