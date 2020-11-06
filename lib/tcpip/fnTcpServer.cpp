@@ -25,10 +25,6 @@ void fnTcpServer::begin(uint16_t port)
         return;
     }
 
-    // Set reusesock
-    int flag=1;
-    setsockopt(_sockfd,SOL_SOCKET,SO_REUSEADDR,&flag,sizeof(flag));
-
     // Bind socket to our interface
     struct sockaddr_in server;
     server.sin_family = AF_INET;
@@ -136,7 +132,7 @@ void fnTcpServer::stop()
     if (_sockfd > 0)
     {
         Debug_printf("fnTcpServer::stop(%d)\n", _sockfd);
-        close(_sockfd);
+        lwip_close(_sockfd);
         Debug_printf("close errno %d\n",errno);
         _sockfd = -1;
         _listening = false;
