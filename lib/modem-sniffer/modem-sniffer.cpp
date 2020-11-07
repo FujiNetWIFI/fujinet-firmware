@@ -42,14 +42,14 @@ size_t ModemSniffer::getOutputSize()
 
 void ModemSniffer::closeOutput()
 {
-    // Assume there's nothing to do if output hasn't been started
-    if (_output_started == false)
-        return;
+    Debug_print("ModemSniffer::closeOutput\n");
 
-    // Give printer emulator chance to finish output
     if (_file == nullptr)
     {
         _file = activeFS->file_open(SNIFFER_OUTPUT_FILE, "r+"); // Seeks don't work right if we use "append" mode - use "r+"
+        if(_file == nullptr)
+            Debug_printf("Error opening sniffer output: %d\n", errno);
+
         fseek(_file, 0, SEEK_END);
     }
 
@@ -57,24 +57,27 @@ void ModemSniffer::closeOutput()
     fflush(_file);
     fclose(_file);
     _file = nullptr;
-    _output_started = false;
-
-    Debug_printf("ModemSniffer::closeOutput()\n");
 }
 
 FILE *ModemSniffer::closeOutputAndProvideReadHandle()
 {
-    Debug_printf("ModemSniffer::closeOutputAndProvideReadHandle()\n");
+    Debug_print("ModemSniffer::closeOutputAndProvideReadHandle()\n");
+
     closeOutput();
-    return activeFS->file_open(SNIFFER_OUTPUT_FILE); // read-only.
+    FILE * result = activeFS->file_open(SNIFFER_OUTPUT_FILE); // read-only.
+    if(result == nullptr)
+        Debug_printf("Error opening sniffer output: %d\n", errno);
+
+    return result;
 }
 
 void ModemSniffer::restartOutput()
 {
-    _output_started = false;
     if (_file != nullptr)
         fclose(_file);
+
     _file = activeFS->file_open(SNIFFER_OUTPUT_FILE, "w"); // This should create/truncate the file
+    
     Debug_printf("ModemSniffer::restartOutput(%p)\n", _file);
 }
 
