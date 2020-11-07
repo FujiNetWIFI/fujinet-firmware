@@ -105,7 +105,7 @@ void main_setup()
 
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
-    sioR = new sioModem(ptrfs, true);
+    sioR = new sioModem(ptrfs, false); // turned off by default.
     
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
