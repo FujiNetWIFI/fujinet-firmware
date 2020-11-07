@@ -72,10 +72,6 @@ private:
      */
     bool enable = false;
 
-    /**
-     * Indicate that output has started
-     */
-    bool _output_started = false;
 
     /**
      * indicate I/O direction for logging label.

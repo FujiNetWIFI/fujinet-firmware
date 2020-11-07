@@ -374,15 +374,19 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
 
     if (now - sioR->get_last_activity_time() < PRINTER_BUSY_TIME) // re-using printer timeout constant.
     {
-        _fnwserr err = fnwserr_post_fail;
-        return_http_error(req, err);
+        return_http_error(req, fnwserr_post_fail);
         return ESP_FAIL;
     }
 
     set_file_content_type(req,"modem-sniffer.txt");
 
     FILE *sOutput = modemSniffer->closeOutputAndProvideReadHandle();
-    Debug_printf("Got file handler %p\n",sOutput);
+    Debug_printf("Got file handle %p\n",sOutput);
+    if(sOutput == nullptr)
+    {
+        return_http_error(req, fnwserr_post_fail);
+        return ESP_FAIL;
+    }
     
     // Finally, write the data
     // Send the file content out in chunks
@@ -391,6 +395,7 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
     do
     {
         count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, sOutput);
+        // Debug_printf("fread %d, %d\n", count, errno);
         total += count;
 
         httpd_resp_send_chunk(req, buf, count);
