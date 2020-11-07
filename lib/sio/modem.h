@@ -4,7 +4,10 @@
 #include <string>
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
+#include "fnFsSD.h"
+#include "fnFsSPIF.h"
 #include "sio.h"
+#include "../modem-sniffer/modem-sniffer.h"
 
 #define HELPL01 "       FujiNet Virtual Modem 850"
 #define HELPL02 "======================================="
@@ -92,6 +95,8 @@ private:
         AT_OFFHOOK,
         AT_ZPPP,
         AT_BBSX,
+        AT_SNIFF,
+        AT_UNSNIFF,
         AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
@@ -126,13 +131,16 @@ private:
     bool CRX=false;                 // CRX flag.
     unsigned char crxval=0;         // CRX value.
     bool answerHack=false;          // ATA answer hack on SIO write.
-    
+    FileSystem *activeFS;           // Active Filesystem for ModemSniffer.
+    ModemSniffer* modemSniffer;     // ptr to modem sniffer.
+    time_t _lasttime;               // most recent timestamp of data activity.
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
     void sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2); // $40, '@', Type 3 Poll
     void sio_control();                          // $41, 'A', Control
     void sio_config();                           // $42, 'B', Configure
+    void sio_set_dump();                         // $$4, 'D', Dump
     void sio_listen();                           // $4C, 'L', Listen
     void sio_unlisten();                         // $4D, 'M', Unlisten
     void sio_baudlock();                         // $4E, 'N', Baud lock
@@ -162,13 +170,29 @@ private:
     void at_handle_get();
     void at_handle_port();
 
+protected:
+    void shutdown() override;
+
 public:
+
     bool modemActive = false; // If we are in modem mode or not
     void sio_handle_modem();  // Handle incoming & outgoing data for modem
+    time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.
+    ModemSniffer *get_modem_sniffer() { return modemSniffer; }
 
-    sioModem()
+    sioModem(FileSystem *_fs, bool snifferEnable)
     {
         listen_to_type3_polls = true;
+        activeFS = _fs;
+        modemSniffer = new ModemSniffer(activeFS,snifferEnable);
+    }
+
+    ~sioModem()
+    {
+        if (modemSniffer != nullptr)
+        {
+            delete modemSniffer;
+        }
     }
 };
 
