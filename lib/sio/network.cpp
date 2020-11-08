@@ -420,6 +420,8 @@ void sioNetwork::sio_special()
         return;
     }
 
+    sio_ack();  // Now we ack.
+
     switch (inq_dstats)
     {
     case 0x00: // No payload
