@@ -40,6 +40,7 @@
 #define SIO_FUJICMD_READ_APPKEY 0xDD
 #define SIO_FUJICMD_OPEN_APPKEY 0xDC
 #define SIO_FUJICMD_CLOSE_APPKEY 0xDB
+#define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -337,7 +338,7 @@ void sioFuji::sio_disk_image_mount()
     sio_complete();
 }
 
-char * _generate_appkey_filename(appkey * info)
+char *_generate_appkey_filename(appkey *info)
 {
     static char filenamebuf[30];
 
@@ -374,7 +375,7 @@ void sioFuji::sio_open_app_key()
     }
 
     // Basic check for valid data
-    if(_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
+    if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
     {
         Debug_println("Invalid app key data");
         sio_error();
@@ -382,11 +383,10 @@ void sioFuji::sio_open_app_key()
     }
 
     Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
-        _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
-        _generate_appkey_filename(&_current_appkey));
+                 _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
+                 _generate_appkey_filename(&_current_appkey));
 
     sio_complete();
-
 }
 
 /*
@@ -398,7 +398,7 @@ void sioFuji::sio_close_app_key()
     Debug_print("Fuji cmd: CLOSE APPKEY\n");
     _current_appkey.creator = 0;
     _current_appkey.mode = APPKEYMODE_INVALID;
-    sio_complete();    
+    sio_complete();
 }
 
 /*
@@ -448,8 +448,8 @@ void sioFuji::sio_write_app_key()
     // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
     fnSDFAT.create_path("/FujiNet");
 
-    FILE * fOut = fnSDFAT.file_open(filename, "w");
-    if(fOut == nullptr)
+    FILE *fOut = fnSDFAT.file_open(filename, "w");
+    if (fOut == nullptr)
     {
         Debug_printf("Filed to open/create output file: errno=%d\n", errno);
         sio_error();
@@ -460,7 +460,7 @@ void sioFuji::sio_write_app_key()
 
     fclose(fOut);
 
-    if(count != keylen)
+    if (count != keylen)
     {
         Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
         sio_error();
@@ -497,8 +497,8 @@ void sioFuji::sio_read_app_key()
 
     Debug_printf("Reading appkey from \"%s\"\n", filename);
 
-    FILE * fIn = fnSDFAT.file_open(filename, "r");
-    if(fIn == nullptr)
+    FILE *fIn = fnSDFAT.file_open(filename, "r");
+    if (fIn == nullptr)
     {
         Debug_printf("Filed to open input file: errno=%d\n", errno);
         sio_error();
@@ -509,7 +509,7 @@ void sioFuji::sio_read_app_key()
     {
         uint16_t size;
         uint8_t value[MAX_APPKEY_LEN];
-    }  __attribute__((packed)) response;
+    } __attribute__((packed)) response;
     memset(&response, 0, sizeof(response));
 
     size_t count = fread(response.value, 1, sizeof(response.value), fIn);
@@ -797,8 +797,8 @@ void sioFuji::sio_set_directory_position()
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    uint16_t pos =UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
-    
+    uint16_t pos = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+
     // Make sure we have a current open directory
     if (_current_open_directory_slot == -1)
     {
@@ -1231,21 +1231,39 @@ void sioFuji::sio_set_device_filename()
     sio_complete();
 }
 
+// Get a 256 byte filename from device slot
+void sioFuji::sio_get_device_filename()
+{
+    char tmp[MAX_FILENAME_LEN];
+    unsigned char err=false;
+
+    // AUX1 is the desired device slot
+    uint8_t slot = cmdFrame.aux1;
+
+    if (slot > 7)
+    {
+        err=true;
+    }
+
+    memcpy(tmp, _fnDisks[cmdFrame.aux1].filename, MAX_FILENAME_LEN);
+    sio_to_computer((uint8_t *)tmp, MAX_FILENAME_LEN, err);
+}
+
 // Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
 void sioFuji::sio_set_sio_external_clock()
 {
     unsigned short speed = sio_get_aux();
     int baudRate = speed * 1000;
 
-    Debug_printf("sioFuji::sio_set_external_clock(%u)\n",baudRate);
+    Debug_printf("sioFuji::sio_set_external_clock(%u)\n", baudRate);
 
-    if (speed==0)
+    if (speed == 0)
     {
-        SIO.setUltraHigh(false,0);
+        SIO.setUltraHigh(false, 0);
     }
     else
     {
-        SIO.setUltraHigh(true,baudRate);
+        SIO.setUltraHigh(true, baudRate);
     }
 
     sio_complete();
@@ -1415,6 +1433,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_CLOSE_APPKEY:
         sio_ack();
         sio_close_app_key();
+        break;
+    case SIO_FUJICMD_GET_DEVICE_FULLPATH:
+        sio_ack();
+        sio_get_device_filename();
         break;
     default:
         sio_nak();
