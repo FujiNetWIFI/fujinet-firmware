@@ -10,6 +10,7 @@
 #include "../hardware/fnWiFi.h"
 #include "../network-protocol/TCP.h"
 #include "../network-protocol/Test.h"
+#include "../network-protocol/Telnet.h"
 
 using namespace std;
 
@@ -635,6 +636,10 @@ bool sioNetwork::instantiate_protocol()
     else if (urlParser->scheme == "TEST")
     {
         protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "TELNET")
+    {
+        protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
     }
     else
     {
