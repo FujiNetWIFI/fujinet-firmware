@@ -26,11 +26,21 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
 {
     NetworkProtocolTELNET *protocol = (NetworkProtocolTELNET *)user_data;
 
+    if (protocol == nullptr)
+    {
+        Debug_printf("_event_handler() - NULL TELNET Protocol handler!\n");
+        return;
+    }
+
     switch (ev->type)
     {
-    case TELNET_EV_DATA:
+    case TELNET_EV_DATA: // Received Data
+        protocol->getReceiveBuffer() += string(ev->data.buffer, ev->data.size);
+        protocol->newRxLen = protocol->getReceiveBuffer().size();
         break;
     case TELNET_EV_SEND:
+        protocol->getTransmitBuffer() += string(ev->data.buffer, ev->data.size);
+        protocol->flush();
         break;
     case TELNET_EV_WILL:
         break;
@@ -41,6 +51,8 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
     case TELNET_EV_DONT:
         break;
     case TELNET_EV_TTYPE:
+        if (ev->ttype.cmd == TELNET_TTYPE_SEND)
+            telnet_ttype_is(telnet, "dumb");
         break;
     case TELNET_EV_SUBNEGOTIATION:
         break;
@@ -60,6 +72,7 @@ NetworkProtocolTELNET::NetworkProtocolTELNET(string *rx_buf, string *tx_buf, str
     Debug_printf("NetworkProtocolTELNET::ctor\n");
     server = nullptr;
     telnet = telnet_init(telopts, _event_handler, 0, this);
+    newRxLen = 0;
 }
 
 /**
@@ -80,6 +93,7 @@ NetworkProtocolTELNET::~NetworkProtocolTELNET()
     {
         telnet_free(telnet);
     }
+    newRxLen = 0;
 }
 
 /**
@@ -168,6 +182,8 @@ bool NetworkProtocolTELNET::read(unsigned short len)
         // Do the read from client socket.
         actual_len = client.read(newData, len);
 
+        telnet_recv(telnet, (const char *)newData, len);
+
         // bail if the connection is reset.
         if (errno == ECONNRESET)
         {
@@ -180,10 +196,6 @@ bool NetworkProtocolTELNET::read(unsigned short len)
             error = NETWORK_ERROR_SOCKET_TIMEOUT;
             return true;
         }
-
-        // Add new data to buffer.
-        newString = string((char *)newData, len);
-        *receiveBuffer += newString;
 
         free(newData);
     }
@@ -214,7 +226,7 @@ bool NetworkProtocolTELNET::write(unsigned short len)
     len = translate_transmit_buffer();
 
     // Do the write to client socket.
-    actual_len = client.write((uint8_t *)transmitBuffer->data(), len);
+    telnet_send(telnet,transmitBuffer->data(),len);
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
@@ -222,18 +234,17 @@ bool NetworkProtocolTELNET::write(unsigned short len)
         error = NETWORK_ERROR_CONNECTION_RESET;
         return len;
     }
-    else if (actual_len != len) // write was short.
-    {
-        Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\n", actual_len, len);
-        error = NETWORK_ERROR_SOCKET_TIMEOUT;
-        return true;
-    }
 
     // Return success
     error = 1;
-    transmitBuffer->erase(0, len);
 
     return false;
+}
+
+void NetworkProtocolTELNET::flush()
+{
+    client.write((uint8_t *)transmitBuffer->data(), transmitBuffer->size());
+    transmitBuffer->clear();
 }
 
 /**
