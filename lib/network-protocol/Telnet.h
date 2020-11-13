@@ -84,6 +84,26 @@ public:
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
 
+    /**
+     * Get Receive Buffer
+     */
+    string getReceiveBuffer() { return *receiveBuffer; }
+
+    /**
+     * Get Transmit buffer
+     */
+    string getTransmitBuffer() { return *transmitBuffer; }
+
+    /**
+     * Flush output transmitBuffer
+     */
+    void flush();
+
+    /**
+     * Length after RX processing
+     */
+    int newRxLen;
+
 private:
     /**
      * a fnTcpClient object representing a client TCP socket.
