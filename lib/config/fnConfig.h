@@ -86,6 +86,9 @@ public:
     void store_printer_type(uint8_t num, sioPrinter::printer_type ptype);
     void store_printer_port(uint8_t num, int port);
 
+    // MODEM
+    void store_modem_sniffer_enabled(bool enabled);
+    bool get_modem_sniffer_enabled() { return _modem.sniffer_enabled; }
 
     void load();
     void save();
@@ -104,6 +107,7 @@ private:
     void _read_section_mount(std::stringstream &ss, int index);
     void _read_section_printer(std::stringstream &ss, int index);
     void _read_section_tape(std::stringstream &ss, int index);    
+    void _read_section_modem(std::stringstream &ss);
 
     enum section_match {
         SECTION_GENERAL,
@@ -113,6 +117,7 @@ private:
         SECTION_PRINTER,
         SECTION_NETWORK,
         SECTION_TAPE,
+        SECTION_MODEM,
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -180,6 +185,11 @@ private:
         bool rotation_sounds = true;
     };
 
+    struct modem_info
+    {
+        bool sniffer_enabled = false;
+    };
+
     host_info _host_slots[MAX_HOST_SLOTS];
     mount_info _mount_slots[MAX_MOUNT_SLOTS];
     printer_info _printer_slots[MAX_PRINTER_SLOTS];
@@ -188,6 +198,7 @@ private:
     wifi_info _wifi;
     network_info _network;
     general_info _general;
+    modem_info _modem;
 };
 
 extern fnConfig Config;

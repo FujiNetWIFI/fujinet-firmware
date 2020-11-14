@@ -99,6 +99,7 @@ public:
     const char *get_uptime_str();
     const char *get_current_time_str();
     void update_timezone(const char *timezone);
+    void update_hostname(const char *hostname);
 
     const char *get_fujinet_version(bool shortVersionOnly = false);
 
