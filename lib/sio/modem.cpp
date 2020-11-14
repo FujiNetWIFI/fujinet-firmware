@@ -46,11 +46,42 @@ static const telnet_telopt_t telopts[] = {
     {TELNET_TELOPT_MSSP, TELNET_WONT, TELNET_DO},
     {-1, 0, 0}};
 
+/**
+ * Event handler for libtelnet
+ */
+static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data)
+{
+    sioModem *modem = (sioModem *)user_data;
+
+    switch (ev->type)
+    {
+    case TELNET_EV_DATA:
+        break;
+    case TELNET_EV_WILL:
+        break;
+    case TELNET_EV_WONT:
+        break;
+    case TELNET_EV_DO:
+        break;
+    case TELNET_EV_DONT:
+        break;
+    case TELNET_EV_TTYPE:
+        break;
+    case TELNET_EV_SUBNEGOTIATION:
+        break;
+    case TELNET_EV_ERROR:
+        break;
+    default:
+        break;
+    }
+}
+
 sioModem::sioModem(FileSystem *_fs, bool snifferEnable)
 {
     listen_to_type3_polls = true;
     activeFS = _fs;
     modemSniffer = new ModemSniffer(activeFS, snifferEnable);
+    telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
 }
 
 sioModem::~sioModem()
@@ -58,6 +89,11 @@ sioModem::~sioModem()
     if (modemSniffer != nullptr)
     {
         delete modemSniffer;
+    }
+
+    if (telnet != nullptr)
+    {
+        telnet_free(telnet);
     }
 }
 
