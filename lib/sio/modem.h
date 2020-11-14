@@ -135,7 +135,7 @@ private:
     ModemSniffer* modemSniffer;     // ptr to modem sniffer.
     time_t _lasttime;               // most recent timestamp of data activity.
     telnet_t *telnet;               // telnet FSM state.
-    bool use_telnet;                // Use telnet mode?
+    bool use_telnet=false;          // Use telnet mode?
     bool do_echo;                   // telnet echo toggle.
     string term_type;               // telnet terminal type.
 
