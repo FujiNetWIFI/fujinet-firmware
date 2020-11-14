@@ -8,6 +8,7 @@
 #include "fnFsSPIF.h"
 #include "sio.h"
 #include "../modem-sniffer/modem-sniffer.h"
+#include "telnet.h"
 
 #define HELPL01 "       FujiNet Virtual Modem 850"
 #define HELPL02 "======================================="
@@ -133,6 +134,7 @@ private:
     FileSystem *activeFS;           // Active Filesystem for ModemSniffer.
     ModemSniffer* modemSniffer;     // ptr to modem sniffer.
     time_t _lasttime;               // most recent timestamp of data activity.
+    telnet_t *telnet;               // telnet FSM state.
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
