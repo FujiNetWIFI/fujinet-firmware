@@ -41,6 +41,7 @@
 #define SIO_FUJICMD_OPEN_APPKEY 0xDC
 #define SIO_FUJICMD_CLOSE_APPKEY 0xDB
 #define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
+#define SIO_FUJICMD_CONFIG_BOOT 0xD9
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -335,6 +336,13 @@ void sioFuji::sio_disk_image_mount()
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
 
+    sio_complete();
+}
+
+// Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
+void sioFuji::sio_set_boot_config()
+{
+    boot_config = cmdFrame.aux1;
     sio_complete();
 }
 
@@ -1235,14 +1243,14 @@ void sioFuji::sio_set_device_filename()
 void sioFuji::sio_get_device_filename()
 {
     char tmp[MAX_FILENAME_LEN];
-    unsigned char err=false;
+    unsigned char err = false;
 
     // AUX1 is the desired device slot
     uint8_t slot = cmdFrame.aux1;
 
     if (slot > 7)
     {
-        err=true;
+        err = true;
     }
 
     memcpy(tmp, _fnDisks[cmdFrame.aux1].filename, MAX_FILENAME_LEN);
@@ -1437,6 +1445,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_GET_DEVICE_FULLPATH:
         sio_ack();
         sio_get_device_filename();
+        break;
+    case SIO_FUJICMD_CONFIG_BOOT:
+        sio_ack();
+        sio_set_boot_config();
         break;
     default:
         sio_nak();
