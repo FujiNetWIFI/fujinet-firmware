@@ -40,13 +40,26 @@
  * List of Telnet options to process
  */
 static const telnet_telopt_t telopts[] = {
-	{ TELNET_TELOPT_ECHO,		TELNET_WONT, TELNET_DO   },
-	{ TELNET_TELOPT_TTYPE,		TELNET_WILL, TELNET_DONT },
-	{ TELNET_TELOPT_COMPRESS2,	TELNET_WONT, TELNET_DO   },
-	{ TELNET_TELOPT_MSSP,		TELNET_WONT, TELNET_DO   },
-	{ -1, 0, 0 }
-};
+    {TELNET_TELOPT_ECHO, TELNET_WONT, TELNET_DO},
+    {TELNET_TELOPT_TTYPE, TELNET_WILL, TELNET_DONT},
+    {TELNET_TELOPT_COMPRESS2, TELNET_WONT, TELNET_DO},
+    {TELNET_TELOPT_MSSP, TELNET_WONT, TELNET_DO},
+    {-1, 0, 0}};
 
+sioModem::sioModem(FileSystem *_fs, bool snifferEnable)
+{
+    listen_to_type3_polls = true;
+    activeFS = _fs;
+    modemSniffer = new ModemSniffer(activeFS, snifferEnable);
+}
+
+sioModem::~sioModem()
+{
+    if (modemSniffer != nullptr)
+    {
+        delete modemSniffer;
+    }
+}
 
 // 0x40 / '@' - TYPE 3 POLL
 void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
