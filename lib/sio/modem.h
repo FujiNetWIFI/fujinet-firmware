@@ -8,6 +8,7 @@
 #include "fnFsSPIF.h"
 #include "sio.h"
 #include "../modem-sniffer/modem-sniffer.h"
+#include "telnet.h"
 
 #define HELPL01 "       FujiNet Virtual Modem 850"
 #define HELPL02 "======================================="
@@ -97,6 +98,9 @@ private:
         AT_BBSX,
         AT_SNIFF,
         AT_UNSNIFF,
+        AT_TERMVT52,
+        AT_TERMVT100,
+        AT_TERMDUMB,
         AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
@@ -116,7 +120,6 @@ private:
     std::string cmd = "";          // Gather a new AT command to this string from serial
     bool cmdMode = true;           // Are we in AT command mode or connected mode
     bool cmdAtascii = false;       // last CMD contained an ATASCII EOL?
-    bool telnet = false;           // Is telnet control code handling enabled
     unsigned short listenPort = 0; // Listen to this if not connected. Set to zero to disable.
     fnTcpClient tcpClient;         // Modem client
     fnTcpServer tcpServer;         // Modem server
@@ -134,6 +137,10 @@ private:
     FileSystem *activeFS;           // Active Filesystem for ModemSniffer.
     ModemSniffer* modemSniffer;     // ptr to modem sniffer.
     time_t _lasttime;               // most recent timestamp of data activity.
+    telnet_t *telnet;               // telnet FSM state.
+    bool use_telnet=false;          // Use telnet mode?
+    bool do_echo;                   // telnet echo toggle.
+    string term_type;               // telnet terminal type.
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
@@ -177,23 +184,18 @@ public:
 
     bool modemActive = false; // If we are in modem mode or not
     void sio_handle_modem();  // Handle incoming & outgoing data for modem
+
+    sioModem(FileSystem *_fs, bool snifferEnable);
+    virtual ~sioModem();
+
     time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.
     ModemSniffer *get_modem_sniffer() { return modemSniffer; }
+    fnTcpClient get_tcp_client() { return tcpClient; } // Return TCP client.
+    bool get_do_echo() { return do_echo; }
+    void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
+    string get_term_type() {return term_type; }
+    void set_term_type(string _term_type) { term_type = _term_type; }
 
-    sioModem(FileSystem *_fs, bool snifferEnable)
-    {
-        listen_to_type3_polls = true;
-        activeFS = _fs;
-        modemSniffer = new ModemSniffer(activeFS,snifferEnable);
-    }
-
-    ~sioModem()
-    {
-        if (modemSniffer != nullptr)
-        {
-            delete modemSniffer;
-        }
-    }
 };
 
 #endif
