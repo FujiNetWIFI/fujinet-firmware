@@ -1116,14 +1116,12 @@ void sioModem::modemCommand()
         break;
     // Change telnet mode
     case AT_NET0:
-        telnet = false;
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
             at_cmd_println("OK");
         break;
     case AT_NET1:
-        telnet = true;
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1368,23 +1366,7 @@ void sioModem::sio_handle_modem()
                 }
             }
 
-            // Double (escape) every 0xff for telnet, shifting the following bytes
-            // towards the end of the buffer from that point
-            int len = sioBytesRead;
-            if (telnet == true)
-            {
-                for (int i = len - 1; i >= 0; i--)
-                {
-                    if (txBuf[i] == 0xff)
-                    {
-                        for (int j = TX_BUF_SIZE - 1; j > i; j--)
-                        {
-                            txBuf[j] = txBuf[j - 1];
-                        }
-                        len++;
-                    }
-                }
-            }
+            // TODO: Add Telnet processing here.
 
             // Write the buffer to TCP finally
             tcpClient.write(&txBuf[0], sioBytesRead);

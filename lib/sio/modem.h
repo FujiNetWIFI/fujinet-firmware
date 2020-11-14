@@ -116,7 +116,6 @@ private:
     std::string cmd = "";          // Gather a new AT command to this string from serial
     bool cmdMode = true;           // Are we in AT command mode or connected mode
     bool cmdAtascii = false;       // last CMD contained an ATASCII EOL?
-    bool telnet = false;           // Is telnet control code handling enabled
     unsigned short listenPort = 0; // Listen to this if not connected. Set to zero to disable.
     fnTcpClient tcpClient;         // Modem client
     fnTcpServer tcpServer;         // Modem server
