@@ -93,6 +93,7 @@ protected:
     void sio_open_app_key();           // 0xDC
     void sio_close_app_key();          // 0xDB
     void sio_get_device_filename();    // 0xDA
+    void sio_set_boot_config();        // 0xD9
 
     void sio_status() override;
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
