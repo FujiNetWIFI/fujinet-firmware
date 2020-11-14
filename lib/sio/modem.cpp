@@ -851,6 +851,8 @@ void sioModem::at_handle_get()
             at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
         else
             at_cmd_println("NO CARRIER");
+        telnet_free(telnet);
+        telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
         CRX = false;
     }
     else
@@ -1054,6 +1056,8 @@ void sioModem::at_handle_dial()
             else
                 at_cmd_println("NO CARRIER");
             CRX = false;
+            telnet_free(telnet);
+            telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
         }
     }
 }
@@ -1163,6 +1167,8 @@ void sioModem::modemCommand()
                 at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
             else
                 at_cmd_println("NO CARRIER");
+            telnet_free(telnet);
+            telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
 
             CRX = false;
 
@@ -1532,6 +1538,8 @@ void sioModem::sio_handle_modem()
             at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
         else
             at_cmd_println("NO CARRIER");
+        telnet_free(telnet);
+        telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
         CRX = false;
         if (listenPort > 0)
         {
@@ -1542,10 +1550,14 @@ void sioModem::sio_handle_modem()
     else if ((!tcpClient.connected()) && (cmdMode == false))
     {
         cmdMode = true;
+        telnet_free(telnet);
+        telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
         else
             at_cmd_println("NO CARRIER");
+        telnet_free(telnet);
+        telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
         CRX = false;
         if (listenPort > 0)
         {
