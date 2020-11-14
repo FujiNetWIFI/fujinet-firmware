@@ -135,6 +135,7 @@ private:
     ModemSniffer* modemSniffer;     // ptr to modem sniffer.
     time_t _lasttime;               // most recent timestamp of data activity.
     telnet_t *telnet;               // telnet FSM state.
+    bool use_telnet;                // Use telnet mode?
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
