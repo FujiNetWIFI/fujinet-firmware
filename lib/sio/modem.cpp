@@ -420,7 +420,6 @@ void sioModem::sio_config()
     }
 }
 
-
 // 0x44 / 'D' - Dump
 void sioModem::sio_set_dump()
 {
@@ -1464,9 +1463,7 @@ void sioModem::sio_handle_modem()
 void sioModem::shutdown()
 {
     if (modemSniffer != nullptr)
-    {
         modemSniffer->closeOutput();
-    }
 }
 
 /*
