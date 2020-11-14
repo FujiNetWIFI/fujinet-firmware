@@ -56,22 +56,35 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     switch (ev->type)
     {
     case TELNET_EV_DATA:
+        if (ev->data.size && fnUartSIO.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
+            Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
+        break;
+    case TELNET_EV_SEND:
+        modem->get_tcp_client().write((uint8_t *)ev->data.buffer,ev->data.size);
         break;
     case TELNET_EV_WILL:
+        if (ev->neg.telopt==TELNET_TELOPT_ECHO)
+            modem->set_do_echo(false);
         break;
     case TELNET_EV_WONT:
+        if (ev->neg.telopt==TELNET_TELOPT_ECHO)
+            modem->set_do_echo(true);
         break;
     case TELNET_EV_DO:
         break;
     case TELNET_EV_DONT:
         break;
     case TELNET_EV_TTYPE:
+        if (ev->ttype.cmd == TELNET_TTYPE_SEND)
+            telnet_ttype_is(telnet,modem->get_term_type().c_str());
         break;
     case TELNET_EV_SUBNEGOTIATION:
         break;
     case TELNET_EV_ERROR:
+        Debug_printf("_telnet_event_handler ERROR: %s\n",ev->error.msg);
         break;
     default:
+        Debug_printf("_telnet_event_handler: Uncaught event type: %d",ev->type);
         break;
     }
 }
@@ -81,6 +94,7 @@ sioModem::sioModem(FileSystem *_fs, bool snifferEnable)
     listen_to_type3_polls = true;
     activeFS = _fs;
     modemSniffer = new ModemSniffer(activeFS, snifferEnable);
+    set_term_type("dumb");
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
 }
 
