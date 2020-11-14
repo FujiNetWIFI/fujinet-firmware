@@ -1466,7 +1466,6 @@ void sioModem::shutdown()
     if (modemSniffer != nullptr)
     {
         modemSniffer->closeOutput();
-        delete modemSniffer;
     }
 }
 
