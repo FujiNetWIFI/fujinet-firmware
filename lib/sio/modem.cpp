@@ -51,7 +51,7 @@ static const telnet_telopt_t telopts[] = {
  */
 static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data)
 {
-    sioModem *modem = (sioModem *)user_data;
+    sioModem *modem = (sioModem *)user_data; // somehow it thinks this is unused?
 
     switch (ev->type)
     {
@@ -1101,7 +1101,10 @@ void sioModem::modemCommand()
             "+++ATZ",
             "ATS2=128 X1 M0",
             "AT+SNIFF",
-            "AT-SNIFF"};
+            "AT-SNIFF",
+            "AT+TERM=VT52",
+            "AT+TERM=VT100",
+            "AT+TERM=DUMB"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -1296,6 +1299,27 @@ void sioModem::modemCommand()
         else
             at_cmd_println("OK");
         break;
+    case AT_TERMVT52:
+        term_type = "VT52";
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_TERMVT100:
+        term_type = "VT100";
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_TERMDUMB:
+        term_type = "DUMB";
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
     default:
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_ERROR);
@@ -1447,7 +1471,9 @@ void sioModem::sio_handle_modem()
 
             // Write the buffer to TCP finally
             if (use_telnet == true)
+            {
                 telnet_send(telnet, (const char *)txBuf, sioBytesRead);
+            }
             else
                 tcpClient.write(&txBuf[0], sioBytesRead);
 
@@ -1468,7 +1494,9 @@ void sioModem::sio_handle_modem()
                 tcpClient.read(buf, (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
 
             if (use_telnet == true)
+            {
                 telnet_recv(telnet, (const char *)buf, bytesRead);
+            }
             else
             {
                 fnUartSIO.write(buf, bytesRead);
