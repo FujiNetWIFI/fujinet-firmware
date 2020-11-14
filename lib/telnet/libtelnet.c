@@ -38,7 +38,7 @@
 # include <zlib.h>
 #endif
 
-#include "telnet.h"
+#include "libtelnet.h"
 
 /* inlinable functions */
 #if defined(__GNUC__) || __STDC_VERSION__ >= 199901L

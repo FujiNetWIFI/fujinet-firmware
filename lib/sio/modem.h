@@ -8,7 +8,7 @@
 #include "fnFsSPIF.h"
 #include "sio.h"
 #include "../modem-sniffer/modem-sniffer.h"
-#include "telnet.h"
+#include "libtelnet.h"
 
 #define HELPL01 "       FujiNet Virtual Modem 850"
 #define HELPL02 "======================================="
