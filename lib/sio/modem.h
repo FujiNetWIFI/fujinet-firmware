@@ -136,6 +136,8 @@ private:
     time_t _lasttime;               // most recent timestamp of data activity.
     telnet_t *telnet;               // telnet FSM state.
     bool use_telnet;                // Use telnet mode?
+    bool do_echo;                   // telnet echo toggle.
+    string term_type;               // telnet terminal type.
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
@@ -185,6 +187,11 @@ public:
 
     time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.
     ModemSniffer *get_modem_sniffer() { return modemSniffer; }
+    fnTcpClient get_tcp_client() { return tcpClient; } // Return TCP client.
+    bool get_do_echo() { return do_echo; }
+    void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
+    string get_term_type() {return term_type; }
+    void set_term_type(string _term_type) { term_type = _term_type; }
 
 };
 
