@@ -32,11 +32,14 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
         return;
     }
 
+    Debug_printf("_event_handler(%d)\n",ev->type);
+
     switch (ev->type)
     {
     case TELNET_EV_DATA: // Received Data
         protocol->getReceiveBuffer() += string(ev->data.buffer, ev->data.size);
         protocol->newRxLen = protocol->getReceiveBuffer().size();
+        Debug_printf("Received TELNET DATA: %s\n",protocol->getReceiveBuffer());
         break;
     case TELNET_EV_SEND:
         protocol->getTransmitBuffer() += string(ev->data.buffer, ev->data.size);
@@ -158,9 +161,7 @@ bool NetworkProtocolTELNET::close()
  */
 bool NetworkProtocolTELNET::read(unsigned short len)
 {
-    unsigned short actual_len = 0;
     uint8_t *newData = (uint8_t *)malloc(len);
-    string newString;
 
     Debug_printf("NetworkProtocolTELNET::read(%u)\n", len);
 
@@ -180,7 +181,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
         }
 
         // Do the read from client socket.
-        actual_len = client.read(newData, len);
+        client.read(newData, len);
 
         telnet_recv(telnet, (const char *)newData, len);
 
@@ -190,18 +191,12 @@ bool NetworkProtocolTELNET::read(unsigned short len)
             error = NETWORK_ERROR_CONNECTION_RESET;
             return true;
         }
-        else if (actual_len != len) // Read was short and timed out.
-        {
-            Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\n", actual_len, len);
-            error = NETWORK_ERROR_SOCKET_TIMEOUT;
-            return true;
-        }
 
         free(newData);
     }
     // Return success
     error = 1;
-    return NetworkProtocol::read(len);
+    return NetworkProtocol::read(newRxLen); // Set by calls into telnet_recv()
 }
 
 /**
@@ -211,8 +206,6 @@ bool NetworkProtocolTELNET::read(unsigned short len)
  */
 bool NetworkProtocolTELNET::write(unsigned short len)
 {
-    int actual_len = 0;
-
     Debug_printf("NetworkProtocolTELNET::write(%u)\n", len);
 
     // Check for client connection
