@@ -18,6 +18,7 @@
 #define SIO_MODEMCMD_TYPE3_POLL 0x40
 #define SIO_MODEMCMD_CONTROL 0x41
 #define SIO_MODEMCMD_CONFIGURE 0x42
+#define SIO_MODEMCMD_SET_DUMP 0x44
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
 #define SIO_MODEMCMD_BAUDLOCK 0x4E
@@ -35,6 +36,81 @@
 */
 #define DELAY_FIRMWARE_DELIVERY 5000
 
+/**
+ * List of Telnet options to process
+ */
+static const telnet_telopt_t telopts[] = {
+    {TELNET_TELOPT_ECHO, TELNET_WONT, TELNET_DO},
+    {TELNET_TELOPT_TTYPE, TELNET_WILL, TELNET_DONT},
+    {TELNET_TELOPT_COMPRESS2, TELNET_WONT, TELNET_DO},
+    {TELNET_TELOPT_MSSP, TELNET_WONT, TELNET_DO},
+    {-1, 0, 0}};
+
+/**
+ * Event handler for libtelnet
+ */
+static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data)
+{
+    sioModem *modem = (sioModem *)user_data; // somehow it thinks this is unused?
+
+    switch (ev->type)
+    {
+    case TELNET_EV_DATA:
+        if (ev->data.size && fnUartSIO.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
+            Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
+        break;
+    case TELNET_EV_SEND:
+        modem->get_tcp_client().write((uint8_t *)ev->data.buffer, ev->data.size);
+        break;
+    case TELNET_EV_WILL:
+        if (ev->neg.telopt == TELNET_TELOPT_ECHO)
+            modem->set_do_echo(false);
+        break;
+    case TELNET_EV_WONT:
+        if (ev->neg.telopt == TELNET_TELOPT_ECHO)
+            modem->set_do_echo(true);
+        break;
+    case TELNET_EV_DO:
+        break;
+    case TELNET_EV_DONT:
+        break;
+    case TELNET_EV_TTYPE:
+        if (ev->ttype.cmd == TELNET_TTYPE_SEND)
+            telnet_ttype_is(telnet, modem->get_term_type().c_str());
+        break;
+    case TELNET_EV_SUBNEGOTIATION:
+        break;
+    case TELNET_EV_ERROR:
+        Debug_printf("_telnet_event_handler ERROR: %s\n", ev->error.msg);
+        break;
+    default:
+        Debug_printf("_telnet_event_handler: Uncaught event type: %d", ev->type);
+        break;
+    }
+}
+
+sioModem::sioModem(FileSystem *_fs, bool snifferEnable)
+{
+    listen_to_type3_polls = true;
+    activeFS = _fs;
+    modemSniffer = new ModemSniffer(activeFS, snifferEnable);
+    set_term_type("dumb");
+    telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
+}
+
+sioModem::~sioModem()
+{
+    if (modemSniffer != nullptr)
+    {
+        delete modemSniffer;
+    }
+
+    if (telnet != nullptr)
+    {
+        telnet_free(telnet);
+    }
+}
+
 // 0x40 / '@' - TYPE 3 POLL
 void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
 {
@@ -43,10 +119,10 @@ void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
     // When AUX1 and AUX == 0x4E, it's a normal/general poll
     // Since XL/XE OS always does this during boot, we're going to ignore these, otherwise
     // we'd load our handler every time, and that's probably not desireable
-    if(aux1 == 0 && aux2 == 0)
+    if (aux1 == 0 && aux2 == 0)
     {
         Debug_printf("MODEM TYPE 3 POLL #%d\n", ++count_PollType3);
-        if(count_PollType3 == 26)
+        if (count_PollType3 == 26)
         {
             //Debug_print("RESPONDING to poll #26\n");
             //respond = true;
@@ -55,7 +131,7 @@ void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
             return;
     }
     // When AUX1 and AUX == 0x4F, it's a request to reset the whole polling process
-    if(aux1 == 0x4F && aux2 == 0x4F)
+    if (aux1 == 0x4F && aux2 == 0x4F)
     {
         Debug_print("MODEM TYPE 3 POLL <<RESET POLL>>\n");
         count_PollType3 = 0;
@@ -63,21 +139,21 @@ void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
         return;
     }
     // When AUX1 and AUX == 0x4E, it's a request to reset poll counters
-    if(aux1 == 0x4E && aux2 == 0x4E)
+    if (aux1 == 0x4E && aux2 == 0x4E)
     {
         Debug_print("MODEM TYPE 3 POLL <<NULL POLL>>\n");
         count_PollType3 = 0;
         return;
     }
     // When AUX1 = 0x52 'R' and AUX == 1 or DEVICE == x050, it's a directed poll to "R1:"
-    if((aux1 == 0x52 && aux2 == 0x01) || device == SIO_DEVICEID_RS232)
+    if ((aux1 == 0x52 && aux2 == 0x01) || device == SIO_DEVICEID_RS232)
     {
         Debug_print("MODEM TYPE 4 \"R1:\" DIRECTED POLL\n");
         respond = true;
     }
 
     // Get out if nothing above indicated we should respond to this poll
-    if(respond == false)
+    if (respond == false)
         return;
 
     // Get size of handler
@@ -90,7 +166,7 @@ void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
     Debug_println("Modem acknowledging Type 4 Poll");
     sio_ack();
 
-    // Acknowledge and return expected 
+    // Acknowledge and return expected
     uint16_t fsize = filesize;
     uint8_t type4response[4];
     type4response[0] = LOBYTE_FROM_UINT16(fsize);
@@ -149,7 +225,6 @@ void sioModem::sio_poll_1()
     uint32_t relsize = (uint32_t)filesize;
     bootBlock[8] = (uint8_t)relsize;
     bootBlock[9] = (uint8_t)(relsize >> 8);
-
 
     Debug_println("Modem acknowledging Type 1 Poll");
 
@@ -316,7 +391,6 @@ void sioModem::sio_control()
 
     Debug_println("Modem cmd: CONTROL");
 
-
     if (cmdFrame.aux1 & 0x02)
     {
         XMT = (cmdFrame.aux1 & 0x01 ? true : false);
@@ -419,6 +493,13 @@ void sioModem::sio_config()
         modemBaud = 300;
         break;
     }
+}
+
+// 0x44 / 'D' - Dump
+void sioModem::sio_set_dump()
+{
+    modemSniffer->setEnable(cmdFrame.aux1);
+    sio_complete();
 }
 
 // 0x58 / 'X' - STREAM
@@ -1018,7 +1099,12 @@ void sioModem::modemCommand()
             "AT&W",
             "ATH2",
             "+++ATZ",
-            "ATS2=128 X1 M0"};
+            "ATS2=128 X1 M0",
+            "AT+SNIFF",
+            "AT-SNIFF",
+            "AT+TERM=VT52",
+            "AT+TERM=VT100",
+            "AT+TERM=DUMB"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -1108,14 +1194,14 @@ void sioModem::modemCommand()
         break;
     // Change telnet mode
     case AT_NET0:
-        telnet = false;
+        use_telnet = false;
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
             at_cmd_println("OK");
         break;
     case AT_NET1:
-        telnet = true;
+        use_telnet = true;
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1194,6 +1280,41 @@ void sioModem::modemCommand()
     case AT_AW:
     case AT_ZPPP:
     case AT_BBSX:
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_SNIFF:
+        get_modem_sniffer()->setEnable(true);
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_UNSNIFF:
+        get_modem_sniffer()->setEnable(false);
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_TERMVT52:
+        term_type = "VT52";
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_TERMVT100:
+        term_type = "VT100";
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_TERMDUMB:
+        term_type = "DUMB";
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1346,26 +1467,19 @@ void sioModem::sio_handle_modem()
                 }
             }
 
-            // Double (escape) every 0xff for telnet, shifting the following bytes
-            // towards the end of the buffer from that point
-            int len = sioBytesRead;
-            if (telnet == true)
-            {
-                for (int i = len - 1; i >= 0; i--)
-                {
-                    if (txBuf[i] == 0xff)
-                    {
-                        for (int j = TX_BUF_SIZE - 1; j > i; j--)
-                        {
-                            txBuf[j] = txBuf[j - 1];
-                        }
-                        len++;
-                    }
-                }
-            }
+            // TODO: Add Telnet processing here.
 
             // Write the buffer to TCP finally
-            tcpClient.write(&txBuf[0], sioBytesRead);
+            if (use_telnet == true)
+            {
+                telnet_send(telnet, (const char *)txBuf, sioBytesRead);
+            }
+            else
+                tcpClient.write(&txBuf[0], sioBytesRead);
+
+            // And send it off to the sniffer, if enabled.
+            modemSniffer->dumpOutput(&txBuf[0], sioBytesRead);
+            _lasttime = fnSystem.millis();
         }
 
         // read from Fujinet to Atari
@@ -1373,16 +1487,25 @@ void sioModem::sio_handle_modem()
         int bytesAvail = 0;
 
         // check to see how many bytes are avail to read
-        if ((bytesAvail = tcpClient.available()) > 0)
+        while ((bytesAvail = tcpClient.available()) > 0)
         {
             // read as many as our buffer size will take (RECVBUFSIZE)
             unsigned int bytesRead =
                 tcpClient.read(buf, (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
 
-            //SIO_UART.write(buf, bytesRead);
-            fnUartSIO.write(buf, bytesRead);
-            //SIO_UART.flush();
-            fnUartSIO.flush();
+            if (use_telnet == true)
+            {
+                telnet_recv(telnet, (const char *)buf, bytesRead);
+            }
+            else
+            {
+                fnUartSIO.write(buf, bytesRead);
+                fnUartSIO.flush();
+            }
+
+            // And dump to sniffer, if enabled.
+            modemSniffer->dumpInput(buf, bytesRead);
+            _lasttime = fnSystem.millis();
         }
     }
 
@@ -1432,6 +1555,12 @@ void sioModem::sio_handle_modem()
     }
 }
 
+void sioModem::shutdown()
+{
+    if (modemSniffer != nullptr)
+        modemSniffer->closeOutput();
+}
+
 /*
   Process command
 */
@@ -1457,7 +1586,7 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_MODEMCMD_TYPE1_POLL:
         Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
         // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
-        if(cmdFrame.aux1 == 1 || count_PollType1 == 26)
+        if (cmdFrame.aux1 == 1 || count_PollType1 == 26)
             sio_poll_1();
         break;
 
@@ -1472,6 +1601,10 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_MODEMCMD_CONFIGURE:
         sio_ack();
         sio_config();
+        break;
+    case SIO_MODEMCMD_SET_DUMP:
+        sio_ack();
+        sio_set_dump();
         break;
     case SIO_MODEMCMD_LISTEN:
         sio_listen();
