@@ -36,6 +36,81 @@
 */
 #define DELAY_FIRMWARE_DELIVERY 5000
 
+/**
+ * List of Telnet options to process
+ */
+static const telnet_telopt_t telopts[] = {
+    {TELNET_TELOPT_ECHO, TELNET_WONT, TELNET_DO},
+    {TELNET_TELOPT_TTYPE, TELNET_WILL, TELNET_DONT},
+    {TELNET_TELOPT_COMPRESS2, TELNET_WONT, TELNET_DO},
+    {TELNET_TELOPT_MSSP, TELNET_WONT, TELNET_DO},
+    {-1, 0, 0}};
+
+/**
+ * Event handler for libtelnet
+ */
+static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data)
+{
+    sioModem *modem = (sioModem *)user_data; // somehow it thinks this is unused?
+
+    switch (ev->type)
+    {
+    case TELNET_EV_DATA:
+        if (ev->data.size && fnUartSIO.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
+            Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
+        break;
+    case TELNET_EV_SEND:
+        modem->get_tcp_client().write((uint8_t *)ev->data.buffer, ev->data.size);
+        break;
+    case TELNET_EV_WILL:
+        if (ev->neg.telopt == TELNET_TELOPT_ECHO)
+            modem->set_do_echo(false);
+        break;
+    case TELNET_EV_WONT:
+        if (ev->neg.telopt == TELNET_TELOPT_ECHO)
+            modem->set_do_echo(true);
+        break;
+    case TELNET_EV_DO:
+        break;
+    case TELNET_EV_DONT:
+        break;
+    case TELNET_EV_TTYPE:
+        if (ev->ttype.cmd == TELNET_TTYPE_SEND)
+            telnet_ttype_is(telnet, modem->get_term_type().c_str());
+        break;
+    case TELNET_EV_SUBNEGOTIATION:
+        break;
+    case TELNET_EV_ERROR:
+        Debug_printf("_telnet_event_handler ERROR: %s\n", ev->error.msg);
+        break;
+    default:
+        Debug_printf("_telnet_event_handler: Uncaught event type: %d", ev->type);
+        break;
+    }
+}
+
+sioModem::sioModem(FileSystem *_fs, bool snifferEnable)
+{
+    listen_to_type3_polls = true;
+    activeFS = _fs;
+    modemSniffer = new ModemSniffer(activeFS, snifferEnable);
+    set_term_type("dumb");
+    telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
+}
+
+sioModem::~sioModem()
+{
+    if (modemSniffer != nullptr)
+    {
+        delete modemSniffer;
+    }
+
+    if (telnet != nullptr)
+    {
+        telnet_free(telnet);
+    }
+}
+
 // 0x40 / '@' - TYPE 3 POLL
 void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
 {
@@ -419,7 +494,6 @@ void sioModem::sio_config()
         break;
     }
 }
-
 
 // 0x44 / 'D' - Dump
 void sioModem::sio_set_dump()
@@ -1027,7 +1101,10 @@ void sioModem::modemCommand()
             "+++ATZ",
             "ATS2=128 X1 M0",
             "AT+SNIFF",
-            "AT-SNIFF"};
+            "AT-SNIFF",
+            "AT+TERM=VT52",
+            "AT+TERM=VT100",
+            "AT+TERM=DUMB"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -1117,14 +1194,14 @@ void sioModem::modemCommand()
         break;
     // Change telnet mode
     case AT_NET0:
-        telnet = false;
+        use_telnet = false;
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
             at_cmd_println("OK");
         break;
     case AT_NET1:
-        telnet = true;
+        use_telnet = true;
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1217,6 +1294,27 @@ void sioModem::modemCommand()
         break;
     case AT_UNSNIFF:
         get_modem_sniffer()->setEnable(false);
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_TERMVT52:
+        term_type = "VT52";
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_TERMVT100:
+        term_type = "VT100";
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_TERMDUMB:
+        term_type = "DUMB";
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1369,26 +1467,15 @@ void sioModem::sio_handle_modem()
                 }
             }
 
-            // Double (escape) every 0xff for telnet, shifting the following bytes
-            // towards the end of the buffer from that point
-            int len = sioBytesRead;
-            if (telnet == true)
-            {
-                for (int i = len - 1; i >= 0; i--)
-                {
-                    if (txBuf[i] == 0xff)
-                    {
-                        for (int j = TX_BUF_SIZE - 1; j > i; j--)
-                        {
-                            txBuf[j] = txBuf[j - 1];
-                        }
-                        len++;
-                    }
-                }
-            }
+            // TODO: Add Telnet processing here.
 
             // Write the buffer to TCP finally
-            tcpClient.write(&txBuf[0], sioBytesRead);
+            if (use_telnet == true)
+            {
+                telnet_send(telnet, (const char *)txBuf, sioBytesRead);
+            }
+            else
+                tcpClient.write(&txBuf[0], sioBytesRead);
 
             // And send it off to the sniffer, if enabled.
             modemSniffer->dumpOutput(&txBuf[0], sioBytesRead);
@@ -1406,8 +1493,15 @@ void sioModem::sio_handle_modem()
             unsigned int bytesRead =
                 tcpClient.read(buf, (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
 
-            fnUartSIO.write(buf, bytesRead);
-            fnUartSIO.flush();
+            if (use_telnet == true)
+            {
+                telnet_recv(telnet, (const char *)buf, bytesRead);
+            }
+            else
+            {
+                fnUartSIO.write(buf, bytesRead);
+                fnUartSIO.flush();
+            }
 
             // And dump to sniffer, if enabled.
             modemSniffer->dumpInput(buf, bytesRead);
@@ -1464,9 +1558,7 @@ void sioModem::sio_handle_modem()
 void sioModem::shutdown()
 {
     if (modemSniffer != nullptr)
-    {
         modemSniffer->closeOutput();
-    }
 }
 
 /*
