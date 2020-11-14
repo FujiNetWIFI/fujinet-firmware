@@ -1400,7 +1400,7 @@ void sioModem::sio_handle_modem()
         int bytesAvail = 0;
 
         // check to see how many bytes are avail to read
-        if ((bytesAvail = tcpClient.available()) > 0)
+        while ((bytesAvail = tcpClient.available()) > 0)
         {
             // read as many as our buffer size will take (RECVBUFSIZE)
             unsigned int bytesRead =
@@ -1466,7 +1466,6 @@ void sioModem::shutdown()
     if (modemSniffer != nullptr)
     {
         modemSniffer->closeOutput();
-        delete modemSniffer;
     }
 }
 
