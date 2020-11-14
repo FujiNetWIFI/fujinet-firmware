@@ -60,14 +60,14 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
             Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
         break;
     case TELNET_EV_SEND:
-        modem->get_tcp_client().write((uint8_t *)ev->data.buffer,ev->data.size);
+        modem->get_tcp_client().write((uint8_t *)ev->data.buffer, ev->data.size);
         break;
     case TELNET_EV_WILL:
-        if (ev->neg.telopt==TELNET_TELOPT_ECHO)
+        if (ev->neg.telopt == TELNET_TELOPT_ECHO)
             modem->set_do_echo(false);
         break;
     case TELNET_EV_WONT:
-        if (ev->neg.telopt==TELNET_TELOPT_ECHO)
+        if (ev->neg.telopt == TELNET_TELOPT_ECHO)
             modem->set_do_echo(true);
         break;
     case TELNET_EV_DO:
@@ -76,15 +76,15 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
         break;
     case TELNET_EV_TTYPE:
         if (ev->ttype.cmd == TELNET_TTYPE_SEND)
-            telnet_ttype_is(telnet,modem->get_term_type().c_str());
+            telnet_ttype_is(telnet, modem->get_term_type().c_str());
         break;
     case TELNET_EV_SUBNEGOTIATION:
         break;
     case TELNET_EV_ERROR:
-        Debug_printf("_telnet_event_handler ERROR: %s\n",ev->error.msg);
+        Debug_printf("_telnet_event_handler ERROR: %s\n", ev->error.msg);
         break;
     default:
-        Debug_printf("_telnet_event_handler: Uncaught event type: %d",ev->type);
+        Debug_printf("_telnet_event_handler: Uncaught event type: %d", ev->type);
         break;
     }
 }
@@ -1191,12 +1191,14 @@ void sioModem::modemCommand()
         break;
     // Change telnet mode
     case AT_NET0:
+        use_telnet = false;
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
             at_cmd_println("OK");
         break;
     case AT_NET1:
+        use_telnet = true;
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1444,7 +1446,10 @@ void sioModem::sio_handle_modem()
             // TODO: Add Telnet processing here.
 
             // Write the buffer to TCP finally
-            tcpClient.write(&txBuf[0], sioBytesRead);
+            if (use_telnet == true)
+                telnet_send(telnet, (const char *)txBuf, sioBytesRead);
+            else
+                tcpClient.write(&txBuf[0], sioBytesRead);
 
             // And send it off to the sniffer, if enabled.
             modemSniffer->dumpOutput(&txBuf[0], sioBytesRead);
@@ -1462,8 +1467,13 @@ void sioModem::sio_handle_modem()
             unsigned int bytesRead =
                 tcpClient.read(buf, (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
 
-            fnUartSIO.write(buf, bytesRead);
-            fnUartSIO.flush();
+            if (use_telnet == true)
+                telnet_recv(telnet, (const char *)buf, bytesRead);
+            else
+            {
+                fnUartSIO.write(buf, bytesRead);
+                fnUartSIO.flush();
+            }
 
             // And dump to sniffer, if enabled.
             modemSniffer->dumpInput(buf, bytesRead);
