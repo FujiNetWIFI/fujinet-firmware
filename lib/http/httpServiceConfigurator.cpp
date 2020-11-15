@@ -164,6 +164,16 @@ void fnHttpServiceConfigurator::config_rotation_sounds(std::string rotation_soun
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_enable_config(std::string enable_config)
+{
+    Debug_printf("New CONFIG enable value: %s\n", enable_config.c_str());
+
+    // Store our change in Config
+    Config.store_general_config_enabled(util_string_value_is_true(enable_config));
+    // Save change
+    Config.save();
+}
+
 void fnHttpServiceConfigurator::config_cassette(std::string play_record)
 {
     Debug_printf("New play/record button value: %s\n", play_record.c_str());
@@ -284,6 +294,10 @@ int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t
         else if (i->first.compare("rotation_sounds") == 0)
         {
             config_rotation_sounds(i->second);
+        }
+        else if (i->first.compare("config_enable") == 0)
+        {
+            config_enable_config(i->second);
         }
     }
 
