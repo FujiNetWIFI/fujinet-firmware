@@ -10,6 +10,7 @@
 #include "../modem-sniffer/modem-sniffer.h"
 #include "libtelnet.h"
 
+/* Keep strings under 40 characters, for the benefit of 40-column users! */
 #define HELPL01 "       FujiNet Virtual Modem 850"
 #define HELPL02 "======================================="
 #define HELPL03 ""
@@ -18,10 +19,25 @@
 #define HELPL06 "                  | Connect to WiFi net"
 #define HELPL07 "ATDT<host>:<port> | Connect by TCP"
 #define HELPL08 "ATIP              | See my IP address"
-#define HELPL09 "ATNET0            | Disable TELNET"
+#define HELPL09 "ATNET<0|1>        | Dis/enable TELNET"
 #define HELPL10 "                  | command handling"
 #define HELPL11 "ATPORT<port>      | Set listening port"
-#define HELPL12 "ATGET<URL>        | HTTP GET"
+#define HELPL12 "ATS0=<0|1>        | Auto-answer in-"
+#define HELPL13 "                  | coming connections"
+#define HELPL14 "ATGET<URL>        | HTTP GET"
+#define HELPL15 "ATTERM<termtype>  | Set telnet term"
+#define HELPL16 "                  | type ('DUMB',"
+#define HELPL17 "                  | 'VT52', or 'VT100')"
+#define HELPL18 "AT[UN]SNIFF       | Dis/enable sniffing"
+/* Not explicitly mentioned at this time, since they are commonly known:
+ * (these are sioModem class's _at_cmds enums)
+ * - AT
+ * - ATA (mentioned below)
+ * - AT? (the help command itself)
+ * - AT_H / AT_H1 / AT_OFFHOOK (hangup)
+ * - AT_E0 / AT_E1 (echo off/on)
+ * - AT_V0 / AT_V1 (verbose off/on)
+*/
 
 #define HELPPORT1 "Listening to connections on port "
 #define HELPPORT2 "which result in RING that you can"
@@ -58,6 +74,8 @@ private:
 #define RESULT_CODE_CONNECT_4800    18
 #define RESULT_CODE_CONNECT_19200   85
 
+    /* The actual strings expected for these can be
+     * found in `modem.cpp`'s at_cmds[] array. */
     enum _at_cmds
     {
         AT_AT = 0,
@@ -112,7 +130,7 @@ private:
 
     int count_PollType1 = 0; // Keep track of how many times we've seen command 0x3F
     int count_PollType3 = 0;
-    
+
     int count_ReqRelocator = 0;
     int count_ReqHandler = 0;
     bool firmware_sent = false;
