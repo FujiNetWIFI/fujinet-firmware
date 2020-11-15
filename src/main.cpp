@@ -32,12 +32,12 @@
 // fnKeyManager is declared and defined in keys.h/cpp
 // fnHTTPD is declared and defineid in HttpService.h/cpp
 
-sioModem sioR;
 sioFuji theFuji;
 sioApeTime apeTime;
 sioVoice sioV;
 sioMIDIMaze sioMIDI;
 // sioCassette sioC; // now part of sioFuji theFuji object
+sioModem *sioR;
 
 void main_shutdown_handler()
 {
@@ -90,8 +90,6 @@ void main_setup()
 
     SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
-    SIO.addDevice(&sioR, SIO_DEVICEID_RS232); // R:
-
     SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
 
     // Create a new printer object, setting its output depending on whether we have SD or not
@@ -106,6 +104,10 @@ void main_setup()
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+
+    sioR = new sioModem(ptrfs, false); // turned off by default.
+    
+    SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
 
