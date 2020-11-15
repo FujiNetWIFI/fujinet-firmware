@@ -87,17 +87,17 @@ public:
     /**
      * Get Receive Buffer
      */
-    string getReceiveBuffer() { return *receiveBuffer; }
+    string *getReceiveBuffer() { return receiveBuffer; }
 
     /**
      * Get Transmit buffer
      */
-    string getTransmitBuffer() { return *transmitBuffer; }
+    string *getTransmitBuffer() { return transmitBuffer; }
 
     /**
      * Flush output transmitBuffer
      */
-    void flush();
+    void flush(const char* buf, unsigned short size);
 
     /**
      * Length after RX processing
