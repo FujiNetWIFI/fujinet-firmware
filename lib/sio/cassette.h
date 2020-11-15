@@ -75,6 +75,7 @@ protected:
     bool cassetteActive = false;
 
     bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
+    bool pulldown = true;
 
     // FSK demod (from Atari and maybe from WAV)
     uint64_t fsk_clock; // can count period width from atari because
@@ -96,7 +97,7 @@ public:
 
     bool is_mounted() { return _mounted; };
     bool is_active() { return cassetteActive; };
-
+    bool has_pulldown() { return pulldown; };
     void set_buttons(const char *play_record);
 
 private:
