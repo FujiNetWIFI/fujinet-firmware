@@ -483,12 +483,12 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
             }
             first = 0;
         }
-        if (block == 0)
+/*         if (block == 0)
         {
             // TO DO : why does Sdrive do this?
             //_delay_ms(200); //add an end gap to be sure
             fnSystem.delay(200);
-        }
+        } */
     }
     else
     {
