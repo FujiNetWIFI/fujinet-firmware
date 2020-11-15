@@ -139,14 +139,14 @@
 			line-height: 1.5;
 		}
 
+		body {
+			font-family: Futura, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+		}
+
 		html,
 		input,
 		optgroup {
-			font-size: 140%
-		}
-
-		body {
-			font-family: Futura, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+			/* font-size: 140% */
 		}
 
 		@media only screen and (min-width: 720px) {
@@ -154,7 +154,7 @@
 			html,
 			input,
 			optgroup {
-				font-size: 140%;
+				/* font-size: 140%; */
 			}
 		}
 
@@ -163,8 +163,16 @@
 			html,
 			input,
 			optgroup {
-				font-size: 130%;
+				/* font-size: 130%; */
 			}
+			.flexparent {
+				flex-direction: row;
+			}
+
+			.flexchild {
+				width: 47.5%;
+			}
+
 		}
 
 		@media only screen and (min-width: 1280px) {
@@ -172,7 +180,7 @@
 			html,
 			input,
 			optgroup {
-				font-size: 120%;
+				/* font-size: 120%; */
 			}
 
 			.flexparent {
@@ -182,6 +190,7 @@
 			.flexchild {
 				width: 47.5%;
 			}
+
 		}
 		#txt_hostname
 		{
