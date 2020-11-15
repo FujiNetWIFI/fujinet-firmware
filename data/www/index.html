@@ -569,7 +569,7 @@
 				</div>
 			</div>
 			<div class="flexchild">
-				<header><span id="logowob"></span>TIMEZONE</header>
+				<header>TIME<span id="logowob"></span>ZONE</header>
 				<div class="detline">
 					<div class="cicon">
 						<div class="svgicon">
@@ -629,7 +629,7 @@
 				</div>
 			</div>
 			<div class="flexchild">
-				<header><span id="logowob"></span>MIDIMaze</header>
+				<header>MIDI<span id="logowob"></span>MAZE</header>
 				<div class="detline">
 					<div class="cicon">
 						<div class="svgicon">
@@ -663,7 +663,7 @@
 				</div>
 			</div>
 			<div class="flexchild">
-				<header><span id="logowob"></span>Program Recorder Settings</header>
+				<header><span id="logowob"></span>PROGRAM RECORDER</header>
 				<div class="detline">
 					<div class="cicon">
 						<div class="svgicon">
@@ -705,14 +705,15 @@
 							<script>
 								var current_pulldown = "<%FN_PULLDOWN%>";
 							</script>
-							<hr>Current Setting: <%FN_PLAY_RECORD%>
+							<hr>
+							Current Setting: <%FN_PLAY_RECORD%>
 							<br>Using: <%FN_PULLDOWN%>
 						</div>
 					</div>
 				</div>
 			</div>
 			<div class="flexchild">
-				<header><span id="logowob"></span>Disk Swap Settings</header>
+				<header><span id="logowob"></span>DISK SWAP</header>
 				<div class="detline">
 					<div class="cicon">
 						<div class="svgicon">
@@ -800,6 +801,38 @@
 					</div>
 				</div>
 			</div>
+			<div class="flexchild">
+				<header><span id="logowob"></span>MISC</header>
+				<div class="detline">
+					<div class="cicon">
+						<div class="svgicon">
+						</div>
+					</div>
+					<div class="cform">
+						<div class="formwrapper">
+							<br>Enable CONFIG Boot Disk
+							<form action="/config" method="post">
+								<select name="config_enable" id="select_config_enable">
+									<optgroup>
+										<option value="1">Yes</option>
+										<option value="0">No</option>
+									</optgroup>
+								</select>
+								<input type="submit" value="Save">
+							</form>
+							<script>
+								var current_config_enabled = "<%FN_CONFIG_ENABLED%>";
+							</script>
+							<hr>
+							<span class="small">
+							Reboot FujiNet after changing this value.<br/>
+							Disabling the built-in CONFIG boot disk will require changing
+							disk mounts using the individual FujiNet config tools</span>
+						</div>
+					</div>
+				</div>
+			</div>
+
 		</div>
 	</div>
 	<script type="text/javascript" src="/file?settings.js"></script>
