@@ -26,6 +26,9 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
 {
     NetworkProtocolTELNET *protocol = (NetworkProtocolTELNET *)user_data;
 
+    string receiveBuffer = protocol->getReceiveBuffer();
+    string transmitBuffer = protocol->getTransmitBuffer();
+
     if (protocol == nullptr)
     {
         Debug_printf("_event_handler() - NULL TELNET Protocol handler!\n");
@@ -37,12 +40,13 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
     switch (ev->type)
     {
     case TELNET_EV_DATA: // Received Data
-        protocol->getReceiveBuffer() += string(ev->data.buffer, ev->data.size);
-        protocol->newRxLen = protocol->getReceiveBuffer().size();
-        Debug_printf("Received TELNET DATA: %s\n",protocol->getReceiveBuffer());
+        receiveBuffer += string(ev->data.buffer, ev->data.size);
+        protocol->newRxLen = receiveBuffer.size();
+        Debug_printf("Received TELNET DATA: %s\n",receiveBuffer.c_str());
         break;
     case TELNET_EV_SEND:
-        protocol->getTransmitBuffer() += string(ev->data.buffer, ev->data.size);
+        transmitBuffer += string(ev->data.buffer, ev->data.size);
+        Debug_printf("sending: %s\n",transmitBuffer.c_str());
         protocol->flush();
         break;
     case TELNET_EV_WILL:
@@ -161,7 +165,7 @@ bool NetworkProtocolTELNET::close()
  */
 bool NetworkProtocolTELNET::read(unsigned short len)
 {
-    uint8_t *newData = (uint8_t *)malloc(len);
+    char *newData = (char *)malloc(len);
 
     Debug_printf("NetworkProtocolTELNET::read(%u)\n", len);
 
@@ -181,9 +185,9 @@ bool NetworkProtocolTELNET::read(unsigned short len)
         }
 
         // Do the read from client socket.
-        client.read(newData, len);
+        client.read((uint8_t *)newData, len);
 
-        telnet_recv(telnet, (const char *)newData, len);
+        telnet_recv(telnet, newData, len);
 
         // bail if the connection is reset.
         if (errno == ECONNRESET)
