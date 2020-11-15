@@ -892,6 +892,12 @@ void sioModem::at_handle_help()
     at_cmd_println(HELPL10);
     at_cmd_println(HELPL11);
     at_cmd_println(HELPL12);
+    at_cmd_println(HELPL13);
+    at_cmd_println(HELPL14);
+    at_cmd_println(HELPL15);
+    at_cmd_println(HELPL16);
+    at_cmd_println(HELPL17);
+    at_cmd_println(HELPL18);
 
     at_cmd_println();
 
@@ -1066,6 +1072,8 @@ void sioModem::at_handle_dial()
 */
 void sioModem::modemCommand()
 {
+    /* Some of these are ignored; to see their meanings,
+     * review `modem.h`'s sioModem class's _at_cmds enums. */
     static const char *at_cmds[_at_cmds::AT_ENUMCOUNT] =
         {
             "AT",
@@ -1273,20 +1281,20 @@ void sioModem::modemCommand()
         else
             at_cmd_println("OK");
         break;
-    case AT_ANDF: // These are all ignored.
-    case AT_S2E43:
-    case AT_S5E8:
-    case AT_S6E2:
-    case AT_S7E30:
-    case AT_S12E20:
-    case AT_M0:
-    case AT_M1:
-    case AT_X1:
-    case AT_AC1:
-    case AT_AD2:
-    case AT_AW:
-    case AT_ZPPP:
-    case AT_BBSX:
+    case AT_ANDF_ignored: // These are all ignored.
+    case AT_S2E43_ignored:
+    case AT_S5E8_ignored:
+    case AT_S6E2_ignored:
+    case AT_S7E30_ignored:
+    case AT_S12E20_ignored:
+    case AT_M0_ignored:
+    case AT_M1_ignored:
+    case AT_X1_ignored:
+    case AT_AC1_ignored:
+    case AT_AD2_ignored:
+    case AT_AW_ignored:
+    case AT_ZPPP_ignored:
+    case AT_BBSX_ignored:
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
