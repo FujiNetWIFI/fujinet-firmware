@@ -48,6 +48,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_SIO_HSBAUD,
         FN_PRINTER1_MODEL,
         FN_PRINTER1_PORT,
+        FN_CONFIG_ENABLED,
         FN_LASTTAG
     };
 
@@ -80,7 +81,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_SIO_HSINDEX",
         "FN_SIO_HSBAUD",
         "FN_PRINTER1_MODEL",
-        "FN_PRINTER1_PORT"
+        "FN_PRINTER1_PORT",
+        "FN_CONFIG_ENABLED"
     };
 
     stringstream resultstream;
@@ -183,6 +185,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_PRINTER1_PORT:
         resultstream << (fnPrinters.get_port(0) + 1);
+        break;
+    case FN_CONFIG_ENABLED:
+        resultstream << Config.get_general_config_enabled();
         break;
     default:
         resultstream << tag;
