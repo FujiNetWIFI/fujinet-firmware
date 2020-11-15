@@ -10,6 +10,7 @@
 #include "../modem-sniffer/modem-sniffer.h"
 #include "libtelnet.h"
 
+/* Keep strings under 40 characters, for the benefit of 40-column users! */
 #define HELPL01 "       FujiNet Virtual Modem 850"
 #define HELPL02 "======================================="
 #define HELPL03 ""
@@ -18,10 +19,25 @@
 #define HELPL06 "                  | Connect to WiFi net"
 #define HELPL07 "ATDT<host>:<port> | Connect by TCP"
 #define HELPL08 "ATIP              | See my IP address"
-#define HELPL09 "ATNET0            | Disable TELNET"
+#define HELPL09 "ATNET<0|1>        | Dis/enable TELNET"
 #define HELPL10 "                  | command handling"
 #define HELPL11 "ATPORT<port>      | Set listening port"
-#define HELPL12 "ATGET<URL>        | HTTP GET"
+#define HELPL12 "ATS0=<0|1>        | Auto-answer in-"
+#define HELPL13 "                  | coming connections"
+#define HELPL14 "ATGET<URL>        | HTTP GET"
+#define HELPL15 "ATTERM<termtype>  | Set telnet term"
+#define HELPL16 "                  | type ('DUMB',"
+#define HELPL17 "                  | 'VT52', or 'VT100')"
+#define HELPL18 "AT[UN]SNIFF       | Dis/enable sniffing"
+/* Not explicitly mentioned at this time, since they are commonly known:
+ * (these are sioModem class's _at_cmds enums)
+ * - AT
+ * - ATA (mentioned below)
+ * - AT? (the help command itself)
+ * - AT_H / AT_H1 / AT_OFFHOOK (hangup)
+ * - AT_E0 / AT_E1 (echo off/on)
+ * - AT_V0 / AT_V1 (verbose off/on)
+*/
 
 #define HELPPORT1 "Listening to connections on port "
 #define HELPPORT2 "which result in RING that you can"
@@ -58,49 +74,51 @@ private:
 #define RESULT_CODE_CONNECT_4800    18
 #define RESULT_CODE_CONNECT_19200   85
 
+    /* The actual strings expected for these can be
+     * found in `modem.cpp`'s at_cmds[] array. */
     enum _at_cmds
     {
-        AT_AT = 0,
-        AT_NET0,
-        AT_NET1,
-        AT_A,
-        AT_IP,
-        AT_HELP,
-        AT_H,
-        AT_H1,
-        AT_DT,
-        AT_DP,
-        AT_DI,
-        AT_WIFILIST,
-        AT_WIFICONNECT,
-        AT_GET,
-        AT_PORT,
-        AT_V0,
-        AT_V1,
-        AT_ANDF,
-        AT_S0E0,
-        AT_S0E1,
-        AT_S2E43,
-        AT_S5E8,
-        AT_S6E2,
-        AT_S7E30,
-        AT_S12E20,
-        AT_E0,
-        AT_E1,
-        AT_M0,
-        AT_M1,
-        AT_X1,
-        AT_AC1,
-        AT_AD2,
-        AT_AW,
-        AT_OFFHOOK,
-        AT_ZPPP,
-        AT_BBSX,
-        AT_SNIFF,
-        AT_UNSNIFF,
-        AT_TERMVT52,
-        AT_TERMVT100,
-        AT_TERMDUMB,
+        AT_AT = 0,         // no-op
+        AT_NET0,           // disable telnet command handling
+        AT_NET1,           // enable telnet command handling
+        AT_A,              // answer incoming connection (RINGing)
+        AT_IP,             // see my IP address
+        AT_HELP,           // show brief AT command help
+        AT_H,              // hang-up
+        AT_H1,             // hang-up
+        AT_DT,             // dial (<host>:<port>)
+        AT_DP,             // dial (<host>:<port>)
+        AT_DI,             // dial (<host>:<port>)
+        AT_WIFILIST,       // list available WiFi networks
+        AT_WIFICONNECT,    // connect to a WiFi network (<ssid>,<key>)
+        AT_GET,            // HTTP GET (<url>)
+        AT_PORT,           // set listening port (<port>)
+        AT_V0,             // disable verbose (i.e., numeric result codes)
+        AT_V1,             // enable verbose (i.e., English result codes; "CONNECT", "NO CARRIER", etc.)
+        AT_ANDF_ignored,   // (ignored; return all settings to factory settings)
+        AT_S0E0,           // disable auto-answer
+        AT_S0E1,           // enable auto-answer
+        AT_S2E43_ignored,  // (ignored; set escape character to ASCII 43 ('+'))
+        AT_S5E8_ignored,   // (ignored; set backspace character to ASCII 8)
+        AT_S6E2_ignored,   // (ignored; set wait time before blind dialing)
+        AT_S7E30_ignored,  // (ignored; set wait for carrier after dial)
+        AT_S12E20_ignored, // (ignored; set escape code guard time)
+        AT_E0,             // disable echo
+        AT_E1,             // enable echo
+        AT_M0_ignored,     // (ignored; speaker off)
+        AT_M1_ignored,     // (ignored; speaker on)
+        AT_X1_ignored,     // (ignored; show connection speed on CONNECT)
+        AT_AC1_ignored,    // (ignored; DCD active on carrier detect, inactive on hangup)
+        AT_AD2_ignored,    // (ignored; modem resets when DTR dropped)
+        AT_AW_ignored,     // (ignored; save settings)
+        AT_OFFHOOK,        // hang-up (should be ignored?)
+        AT_ZPPP_ignored,   // (ignored; +++ATZ reset modem to config profile 0)
+        AT_BBSX_ignored,   // (ignored; combo command (common with BBSes?))
+        AT_SNIFF,          // enable MODEM sniffer
+        AT_UNSNIFF,        // disable MODEM sniffer
+        AT_TERMVT52,       // set TELNET term mode to VT52
+        AT_TERMVT100,      // set TELNET term mode to VT100
+        AT_TERMDUMB,       // set TELNET term mode to dumb
         AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
@@ -111,7 +129,7 @@ private:
 
     int count_PollType1 = 0; // Keep track of how many times we've seen command 0x3F
     int count_PollType3 = 0;
-    
+
     int count_ReqRelocator = 0;
     int count_ReqHandler = 0;
     bool firmware_sent = false;
