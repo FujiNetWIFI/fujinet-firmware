@@ -26,8 +26,8 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
 {
     NetworkProtocolTELNET *protocol = (NetworkProtocolTELNET *)user_data;
 
-    string receiveBuffer = protocol->getReceiveBuffer();
-    string transmitBuffer = protocol->getTransmitBuffer();
+    string *receiveBuffer = protocol->getReceiveBuffer();
+    string *transmitBuffer = protocol->getTransmitBuffer();
 
     if (protocol == nullptr)
     {
@@ -40,14 +40,18 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
     switch (ev->type)
     {
     case TELNET_EV_DATA: // Received Data
-        receiveBuffer += string(ev->data.buffer, ev->data.size);
-        protocol->newRxLen = receiveBuffer.size();
-        Debug_printf("Received TELNET DATA: %s\n",receiveBuffer.c_str());
+        *receiveBuffer += string(ev->data.buffer, ev->data.size);
+        protocol->newRxLen = receiveBuffer->size();
+        Debug_printf("Received TELNET DATA: %s\n",receiveBuffer->c_str());
         break;
     case TELNET_EV_SEND:
-        transmitBuffer += string(ev->data.buffer, ev->data.size);
-        Debug_printf("sending: %s\n",transmitBuffer.c_str());
-        protocol->flush();
+        Debug_printf("Sending: ");
+        for (int i=0;i<ev->data.size;i++)
+        {
+            Debug_printf("%02x ",ev->data.buffer[i]);
+        }
+        Debug_printf("\n");
+        protocol->flush(ev->data.buffer,ev->data.size);
         break;
     case TELNET_EV_WILL:
         break;
@@ -200,6 +204,9 @@ bool NetworkProtocolTELNET::read(unsigned short len)
     }
     // Return success
     error = 1;
+
+    Debug_printf("NetworkProtocolTelnet::read(%d) - %s\n",newRxLen,receiveBuffer->c_str());
+
     return NetworkProtocol::read(newRxLen); // Set by calls into telnet_recv()
 }
 
@@ -238,9 +245,9 @@ bool NetworkProtocolTELNET::write(unsigned short len)
     return false;
 }
 
-void NetworkProtocolTELNET::flush()
+void NetworkProtocolTELNET::flush(const char* buf, unsigned short size)
 {
-    client.write((uint8_t *)transmitBuffer->data(), transmitBuffer->size());
+    client.write((uint8_t *)buf, size);
     transmitBuffer->clear();
 }
 
