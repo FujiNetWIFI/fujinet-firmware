@@ -273,6 +273,19 @@ void sioCassette::set_buttons(const char *play_record)
         cassetteMode = cassette_mode_t::record;
 }
 
+bool sioCassette::get_buttons()
+{
+    return (cassetteMode == cassette_mode_t::playback);
+}
+
+void sioCassette::set_pulldown(const char *resistor)
+{
+    if (resistor[0] == '0')
+        pulldown = false;
+    else if (resistor[0] == '1')
+        pulldown = true;
+}
+
 void sioCassette::Clear_atari_sector_buffer(uint16_t len)
 {
     //Maze atari_sector_buffer
@@ -483,7 +496,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
             }
             first = 0;
         }
-/*         if (block == 0)
+        /*         if (block == 0)
         {
             // TO DO : why does Sdrive do this?
             //_delay_ms(200); //add an end gap to be sure

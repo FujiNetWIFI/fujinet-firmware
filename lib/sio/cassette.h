@@ -98,7 +98,10 @@ public:
     bool is_mounted() { return _mounted; };
     bool is_active() { return cassetteActive; };
     bool has_pulldown() { return pulldown; };
+    bool get_buttons();
     void set_buttons(const char *play_record);
+    void set_pulldown(const char *resistor);
+
 
 private:
     size_t tape_offset = 0;
