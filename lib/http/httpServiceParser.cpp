@@ -8,6 +8,7 @@
 
 #include "httpServiceParser.h"
 
+#include "fuji.h"
 #include "printerlist.h"
 
 #include "../hardware/fnSystem.h"
@@ -48,40 +49,44 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_SIO_HSBAUD,
         FN_PRINTER1_MODEL,
         FN_PRINTER1_PORT,
+        FN_PLAY_RECORD,
+        FN_PULLDOWN,
         FN_LASTTAG
     };
 
     const char *tagids[FN_LASTTAG] =
-    {
-        "FN_HOSTNAME",
-        "FN_VERSION",
-        "FN_IPADDRESS",
-        "FN_IPMASK",
-        "FN_IPGATEWAY",
-        "FN_IPDNS",
-        "FN_WIFISSID",
-        "FN_WIFIBSSID",
-        "FN_WIFIMAC",
-        "FN_WIFIDETAIL",
-        "FN_SPIFFS_SIZE",
-        "FN_SPIFFS_USED",
-        "FN_SD_SIZE",
-        "FN_SD_USED",
-        "FN_UPTIME_STRING",
-        "FN_UPTIME",
-        "FN_CURRENTTIME",
-        "FN_TIMEZONE",
-        "FN_ROTATION_SOUNDS",
-        "FN_MIDIMAZE_HOST",
-        "FN_HEAPSIZE",
-        "FN_SYSSDK",
-        "FN_SYSCPUREV",
-        "FN_SIOVOLTS",
-        "FN_SIO_HSINDEX",
-        "FN_SIO_HSBAUD",
-        "FN_PRINTER1_MODEL",
-        "FN_PRINTER1_PORT"
-    };
+        {
+            "FN_HOSTNAME",
+            "FN_VERSION",
+            "FN_IPADDRESS",
+            "FN_IPMASK",
+            "FN_IPGATEWAY",
+            "FN_IPDNS",
+            "FN_WIFISSID",
+            "FN_WIFIBSSID",
+            "FN_WIFIMAC",
+            "FN_WIFIDETAIL",
+            "FN_SPIFFS_SIZE",
+            "FN_SPIFFS_USED",
+            "FN_SD_SIZE",
+            "FN_SD_USED",
+            "FN_UPTIME_STRING",
+            "FN_UPTIME",
+            "FN_CURRENTTIME",
+            "FN_TIMEZONE",
+            "FN_ROTATION_SOUNDS",
+            "FN_MIDIMAZE_HOST",
+            "FN_HEAPSIZE",
+            "FN_SYSSDK",
+            "FN_SYSCPUREV",
+            "FN_SIOVOLTS",
+            "FN_SIO_HSINDEX",
+            "FN_SIO_HSBAUD",
+            "FN_PRINTER1_MODEL",
+            "FN_PRINTER1_PORT",
+            "FN_PLAY_RECORD",
+            "FN_PULLDOWN"
+        };
 
     stringstream resultstream;
     #ifdef DEBUG
@@ -183,6 +188,18 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_PRINTER1_PORT:
         resultstream << (fnPrinters.get_port(0) + 1);
+        break;
+    case FN_PLAY_RECORD:
+        if (theFuji.cassette()->get_buttons())
+            resultstream << "PLAY";
+        else
+            resultstream << "RECORD";
+        break;
+    case FN_PULLDOWN:
+        if (theFuji.cassette()->has_pulldown())
+            resultstream << "Pulldown Resistor";
+        else
+            resultstream << "B Button Press";
         break;
     default:
         resultstream << tag;
