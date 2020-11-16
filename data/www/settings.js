@@ -1,43 +1,3 @@
-var mySelect = document.getElementById("select_printermodel1");
-
-var opts = mySelect.options;
-for (var opt, j = 0; opt = opts[j]; j++) {
-	if (opt.value == current_printer) {
-		mySelect.selectedIndex = j;
-		break;
-	}
-}
-
-var mySelect = document.getElementById("select_printerport1");
-
-var opts = mySelect.options;
-for (var opt, j = 0; opt = opts[j]; j++) {
-	if (opt.value == current_printerport) {
-		mySelect.selectedIndex = j;
-		break;
-	}
-}
-
-var mySelect = document.getElementById("select_hsioindex");
-
-var opts = mySelect.options;
-for (var opt, j = 0; opt = opts[j]; j++) {
-	if (opt.value == current_hsioindex) {
-		mySelect.selectedIndex = j;
-		break;
-	}
-}
-
-var mySelect = document.getElementById("select_rotation_sounds");
-
-var opts = mySelect.options;
-for (var opt, j = 0; opt = opts[j]; j++) {
-	if (opt.value == current_rotation_sounds) {
-		mySelect.selectedIndex = j;
-		break;
-	}
-}
-
 function changeTz() {
 	var sel = document.getElementById("select_tz").value;
 	document.getElementById("txt_timezone").value = sel;
@@ -46,3 +6,21 @@ function changeTz() {
 function writeLocaleNumber(num) {
 	document.write(num.toLocaleString());
 }
+
+function selectListValue(selectName, currentValue) {
+	var mySelect = document.getElementById(selectName);
+	var opts = mySelect.options;
+	
+	for (var opt, j = 0; opt = opts[j]; j++) {
+		if (opt.value == currentValue) {
+			mySelect.selectedIndex = j;
+			break;
+		}
+	}
+}
+
+selectListValue("select_printermodel1", current_printer);
+selectListValue("select_printerport1", current_printerport);
+selectListValue("select_hsioindex", current_hsioindex);
+selectListValue("select_rotation_sounds", current_rotation_sounds);
+selectListValue("select_config_enable", current_config_enabled);

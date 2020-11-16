@@ -9,6 +9,7 @@
 #include "sio.h"
 #include "../modem-sniffer/modem-sniffer.h"
 #include "libtelnet.h"
+#include "esp32sshclient.h"
 
 /* Keep strings under 40 characters, for the benefit of 40-column users! */
 #define HELPL01 "       FujiNet Virtual Modem 850"
@@ -25,9 +26,9 @@
 #define HELPL12 "ATS0=<0|1>        | Auto-answer in-"
 #define HELPL13 "                  | coming connections"
 #define HELPL14 "ATGET<URL>        | HTTP GET"
-#define HELPL15 "ATTERM<termtype>  | Set telnet term"
-#define HELPL16 "                  | type ('DUMB',"
-#define HELPL17 "                  | 'VT52', or 'VT100')"
+#define HELPL15 "AT+TERM=<termtype>| Set telnet term"
+#define HELPL16 "                  | type (DUMB, VT52,"
+#define HELPL17 "                  | VT100, ANSI)"
 #define HELPL18 "AT[UN]SNIFF       | Dis/enable sniffing"
 /* Not explicitly mentioned at this time, since they are commonly known:
  * (these are sioModem class's _at_cmds enums)
@@ -78,47 +79,48 @@ private:
      * found in `modem.cpp`'s at_cmds[] array. */
     enum _at_cmds
     {
-        AT_AT = 0,         // no-op
-        AT_NET0,           // disable telnet command handling
-        AT_NET1,           // enable telnet command handling
-        AT_A,              // answer incoming connection (RINGing)
-        AT_IP,             // see my IP address
-        AT_HELP,           // show brief AT command help
-        AT_H,              // hang-up
-        AT_H1,             // hang-up
-        AT_DT,             // dial (<host>:<port>)
-        AT_DP,             // dial (<host>:<port>)
-        AT_DI,             // dial (<host>:<port>)
-        AT_WIFILIST,       // list available WiFi networks
-        AT_WIFICONNECT,    // connect to a WiFi network (<ssid>,<key>)
-        AT_GET,            // HTTP GET (<url>)
-        AT_PORT,           // set listening port (<port>)
-        AT_V0,             // disable verbose (i.e., numeric result codes)
-        AT_V1,             // enable verbose (i.e., English result codes; "CONNECT", "NO CARRIER", etc.)
-        AT_ANDF_ignored,   // (ignored; return all settings to factory settings)
-        AT_S0E0,           // disable auto-answer
-        AT_S0E1,           // enable auto-answer
-        AT_S2E43_ignored,  // (ignored; set escape character to ASCII 43 ('+'))
-        AT_S5E8_ignored,   // (ignored; set backspace character to ASCII 8)
-        AT_S6E2_ignored,   // (ignored; set wait time before blind dialing)
-        AT_S7E30_ignored,  // (ignored; set wait for carrier after dial)
-        AT_S12E20_ignored, // (ignored; set escape code guard time)
-        AT_E0,             // disable echo
-        AT_E1,             // enable echo
-        AT_M0_ignored,     // (ignored; speaker off)
-        AT_M1_ignored,     // (ignored; speaker on)
-        AT_X1_ignored,     // (ignored; show connection speed on CONNECT)
-        AT_AC1_ignored,    // (ignored; DCD active on carrier detect, inactive on hangup)
-        AT_AD2_ignored,    // (ignored; modem resets when DTR dropped)
-        AT_AW_ignored,     // (ignored; save settings)
-        AT_OFFHOOK,        // hang-up (should be ignored?)
-        AT_ZPPP_ignored,   // (ignored; +++ATZ reset modem to config profile 0)
-        AT_BBSX_ignored,   // (ignored; combo command (common with BBSes?))
-        AT_SNIFF,          // enable MODEM sniffer
-        AT_UNSNIFF,        // disable MODEM sniffer
-        AT_TERMVT52,       // set TELNET term mode to VT52
-        AT_TERMVT100,      // set TELNET term mode to VT100
-        AT_TERMDUMB,       // set TELNET term mode to dumb
+        AT_AT = 0,
+        AT_NET0,
+        AT_NET1,
+        AT_A,
+        AT_IP,
+        AT_HELP,
+        AT_H,
+        AT_H1,
+        AT_DT,
+        AT_DP,
+        AT_DI,
+        AT_WIFILIST,
+        AT_WIFICONNECT,
+        AT_GET,
+        AT_PORT,
+        AT_V0,
+        AT_V1,
+        AT_ANDF_ignored,
+        AT_S0E0,
+        AT_S0E1,
+        AT_S2E43_ignored,
+        AT_S5E8_ignored,
+        AT_S6E2_ignored,
+        AT_S7E30_ignored,
+        AT_S12E20_ignored,
+        AT_E0,
+        AT_E1,
+        AT_M0_ignored,
+        AT_M1_ignored,
+        AT_X1_ignored,
+        AT_AC1_ignored,
+        AT_AD2_ignored,
+        AT_AW_ignored,
+        AT_OFFHOOK,
+        AT_ZPPP_ignored,
+        AT_BBSX_ignored,
+        AT_SNIFF,
+        AT_UNSNIFF,
+        AT_TERMVT52,
+        AT_TERMVT100,
+        AT_TERMDUMB,
+        AT_TERMANSI,
         AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
@@ -159,6 +161,7 @@ private:
     bool use_telnet=false;          // Use telnet mode?
     bool do_echo;                   // telnet echo toggle.
     string term_type;               // telnet terminal type.
+    ESP32SSHCLIENT ssh;             // ssh instance.
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
