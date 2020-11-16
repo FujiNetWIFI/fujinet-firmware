@@ -51,10 +51,12 @@ public:
     std::string get_general_timezone() { return _general.timezone; };
     bool get_general_rotation_sounds() { return _general.rotation_sounds; };
     std::string get_network_midimaze_host() { return _network.midimaze_host; };
+    bool get_general_config_enabled() { return _general.config_enabled; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
     void store_general_timezone(const char *timezone);
     void store_general_rotation_sounds(bool rotation_sounds);
+    void store_general_config_enabled(bool config_enabled);
     void store_midimaze_host(const char host_ip[64]);
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
@@ -183,6 +185,7 @@ private:
         int hsio_index = HSIO_INVALID_INDEX;
         std::string timezone;
         bool rotation_sounds = true;
+        bool config_enabled = true;
     };
 
     struct modem_info

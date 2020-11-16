@@ -75,6 +75,7 @@ protected:
     bool cassetteActive = false;
 
     bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
+    bool pulldown = true;
 
     // FSK demod (from Atari and maybe from WAV)
     uint64_t fsk_clock; // can count period width from atari because
@@ -96,8 +97,11 @@ public:
 
     bool is_mounted() { return _mounted; };
     bool is_active() { return cassetteActive; };
-
+    bool has_pulldown() { return pulldown; };
+    bool get_buttons();
     void set_buttons(const char *play_record);
+    void set_pulldown(const char *resistor);
+
 
 private:
     size_t tape_offset = 0;
@@ -122,10 +126,10 @@ private:
     unsigned short block;
     unsigned short baud;
 
-    unsigned int send_tape_block(unsigned int offset);
+    size_t send_tape_block(size_t offset);
     void check_for_FUJI_file();
-    unsigned int send_FUJI_tape_block(unsigned int offset);
-    unsigned int receive_FUJI_tape_block(unsigned int offset);
+    size_t send_FUJI_tape_block(size_t offset);
+    size_t receive_FUJI_tape_block(size_t offset);
 };
 
 #endif
