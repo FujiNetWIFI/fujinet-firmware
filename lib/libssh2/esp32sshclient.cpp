@@ -3,12 +3,13 @@
 // File: esp32sshclient.h
 // Description: Simple abstraction layer for create and use a SSH client from libssh2.
 // Created on: 16 jun. 2019
-// Last modified date: 29 jun. 2019
-// Version: 0.0.1
+// Last modified date: 15 Nov 2020
+// Version: 0.0.2
 /**************************************************************************************************/
 
 /* Libraries */
 
+#include "../../../../include/debug.h"
 #include "esp32sshclient.h"
 
 /**************************************************************************************************/
@@ -70,13 +71,13 @@ int8_t ESP32SSHCLIENT::connect(const char* host, const uint16_t port, const char
 {
     if(!connected)
     {
-        fprintf(stdout, "Connecting to Server \"%s:%d\"...\n", host, port);
+        Debug_printf("Connecting to Server \"%s:%d\"...\n", host, port);
         if(socket_connect(host, port) == -1)
             return -1;
         session_create();
         lets_handshake();
         auth_pass(user, pass);
-        fprintf(stdout, "Connected to SSH Server.\n");
+        Debug_printf("Connected to SSH Server.\n");
         connected = 1;
     }
     return connected;
@@ -89,7 +90,7 @@ int8_t ESP32SSHCLIENT::connect(const char* host, const uint16_t port, const char
 {
     if(!connected)
     {
-        fprintf(stdout, "Connecting to Server \"%s:%d\"...\n", host, port);
+        Debug_printf("Connecting to Server \"%s:%d\"...\n", host, port);
         if(socket_connect(host, port) == -1)
             return -1;
         session_create();
@@ -97,7 +98,7 @@ int8_t ESP32SSHCLIENT::connect(const char* host, const uint16_t port, const char
         auth_publickey(user, key_passphrase, (const char*)pubkey, pubkeylen, (const char*)privkey, 
                 privkeylen);
         connected = 1;
-        fprintf(stdout, "Connected to SSH Server.\n");
+        Debug_printf("Connected to SSH Server.\n");
     }
     return connected;
 }
@@ -109,14 +110,14 @@ int8_t ESP32SSHCLIENT::connect(const char* host, const uint16_t port, const char
 {
     if(!connected)
     {
-        fprintf(stdout, "Connecting to Server \"%s:%d\"...\n", host, port);
+        Debug_printf("Connecting to Server \"%s:%d\"...\n", host, port);
         if(socket_connect(host, port) == -1)
             return -1;
         session_create();
         lets_handshake();
         auth_publickey(user, key_passphrase, pubkey, pubkeylen, privkey, privkeylen);
         connected = 1;
-        fprintf(stdout, "Connected to SSH Server.\n");
+        Debug_printf("Connected to SSH Server.\n");
     }
     return connected;
 }
@@ -134,7 +135,7 @@ int8_t ESP32SSHCLIENT::disconnect(void)
         session = NULL;
         close(sock);
         connected = 0;
-        fprintf(stdout, "Disconnected from SSH Server.\n");
+        Debug_printf("Disconnected from SSH Server.\n");
     }
     return !connected;
 }
@@ -147,7 +148,7 @@ int8_t ESP32SSHCLIENT::send_cmd(const char* cmd)
     if(!connected)
         return -1;
 
-    fprintf(stdout, "Executing command in SSH Server:\n%s\n", cmd);
+    Debug_printf("Executing command in SSH Server:\n%s\n", cmd);
     session_open();
     rc = libssh2_channel_exec(channel, cmd);
     t0 = _millis();
@@ -168,7 +169,7 @@ int8_t ESP32SSHCLIENT::send_cmd(const char* cmd)
         _delay(100);
     }
     if(rc != 0) {
-        fprintf(stderr, "Error: Command send fail (%d).\n", rc);
+        Debug_printf("Error: Command send fail (%d).\n", rc);
         disconnect();
         return -1;
     }
@@ -189,13 +190,13 @@ int8_t ESP32SSHCLIENT::send_cmd(const char* cmd)
             // Show in real time each received byte
             /*for(int i = 0; i < rc; ++i)
                 fputc(response[i], stderr);
-            fprintf(stderr, "\n");*/
+            Debug_printf("\n");*/
         }
         else
         {
             if((rc != 0) && (rc != LIBSSH2_ERROR_EAGAIN))
             {
-                fprintf(stderr, "Error: Read command response fail (%d).\n", rc);
+                Debug_printf("Error: Read command response fail (%d).\n", rc);
                 disconnect();
                 return -1;
             }
@@ -215,7 +216,7 @@ int8_t ESP32SSHCLIENT::send_cmd(const char* cmd)
     response[MAX_SSH_CMD_RESPONSE_LENGTH-1] = '\0';
     if(bytecount < MAX_SSH_CMD_RESPONSE_LENGTH)
         response[bytecount] = '\0';
-    fprintf(stdout, "Response:\n%s\n", response);
+    Debug_printf("Response:\n%s\n", response);
 
     channel_close();
     libssh2_channel_free(channel);
@@ -234,10 +235,10 @@ int8_t ESP32SSHCLIENT::init_libssh2(void)
     int rc = libssh2_init(0);
     if(rc != 0)
     {
-        fprintf(stderr, "Error: libssh2 initialization failed (%d)\n", rc);
+        Debug_printf("Error: libssh2 initialization failed (%d)\n", rc);
         system_reboot();
     }
-    fprintf(stdout, "SSH client initialized.\n");
+    Debug_printf("SSH client initialized.\n");
 
     return rc;
 }
@@ -253,10 +254,10 @@ int8_t ESP32SSHCLIENT::socket_connect(const char* host, const uint16_t port)
     rc = ::connect(sock, (struct sockaddr*)(&sin), sizeof(struct sockaddr_in));
     if(rc != 0)
     {
-        fprintf(stderr, "Error: Connection fail (%d).\n", rc);
+        Debug_printf("Error: Connection fail (%d).\n", rc);
         return -1;
     }
-    fprintf(stdout, "SSH host connection established.\n");
+    Debug_printf("SSH host connection established.\n");
     return rc;
 }
 
@@ -268,10 +269,10 @@ int8_t ESP32SSHCLIENT::session_create(void)
     session = libssh2_session_init();
     if(!session)
     {
-        fprintf(stderr, "failed to create session!\n");
+        Debug_printf("failed to create session!\n");
         system_reboot();
     }
-    fprintf(stdout, "SSH session created.\n");
+    Debug_printf("SSH session created.\n");
 
     // Set non-blocking communication
     libssh2_session_set_blocking(session, 0);
@@ -304,10 +305,10 @@ int8_t ESP32SSHCLIENT::lets_handshake(void)
     }
     if(rc != 0)
     {
-        fprintf(stderr, "Failure establishing SSH session: %d\n", rc);
+        Debug_printf("Failure establishing SSH session: %d\n", rc);
         system_reboot();
     }
-    fprintf(stdout, "SSH host session handshake success.\n");
+    Debug_printf("SSH host session handshake success.\n");
     
     return rc;
 }
@@ -337,10 +338,10 @@ int8_t ESP32SSHCLIENT::auth_pass(const char* user, const char* pass)
     }
     if(rc != 0)
     {
-        fprintf(stderr, "  Authentication by password failed (%d)!\n", rc);
+        Debug_printf("  Authentication by password failed (%d)!\n", rc);
         system_reboot();
     }
-    fprintf(stderr, "  Authentication by password succeeded.\n");
+    Debug_printf("  Authentication by password succeeded.\n");
 
     return rc;
 }
@@ -373,10 +374,10 @@ int8_t ESP32SSHCLIENT::auth_publickey(const char* user, const char* passphrase,
     }
     if(rc != 0)
     {
-        fprintf(stderr, "  Authentication by public key failed (%d)!\n", rc);
+        Debug_printf("  Authentication by public key failed (%d)!\n", rc);
         system_reboot();
     }
-    fprintf(stderr, "  Authentication by public key succeeded.\n");
+    Debug_printf("  Authentication by public key succeeded.\n");
 
     return rc;
 }
@@ -405,7 +406,7 @@ int8_t ESP32SSHCLIENT::session_open(void)
     }
     if(channel == NULL)
     {
-        fprintf(stderr, "Error: SSH client session open fail.\n");
+        Debug_printf("Error: SSH client session open fail.\n");
         system_reboot();
         return -1;
     }
@@ -446,12 +447,12 @@ int8_t ESP32SSHCLIENT::channel_close(void)
     }
     if(exitsignal)
     {
-        fprintf(stderr, "Exit signal: %s\n", exitsignal);
+        Debug_printf("Exit signal: %s\n", exitsignal);
         return -1;
     }
     else
     {
-        fprintf(stdout, "Exit code: %d\n", exitcode);
+        Debug_printf("Exit code: %d\n", exitcode);
         return 0;
     }
 }
@@ -491,16 +492,16 @@ static int socket_wait(int socket_fd, LIBSSH2_SESSION *session)
 void ESP32SSHCLIENT::show_server_fingerprint(void)
 {
     const char* fingerprint = libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA1);
-    fprintf(stdout, "Server Fingerprint: ");
+    Debug_printf("Server Fingerprint: ");
     for(int i = 0; i < 20; i++)
-        fprintf(stdout, "%02X ", (unsigned char)fingerprint[i]);
-    fprintf(stdout, "\n");
+        Debug_printf("%02X ", (unsigned char)fingerprint[i]);
+    Debug_printf("\n");
 }
 
 // Softreboot device
 void ESP32SSHCLIENT::system_reboot(void)
 {
-    fprintf(stdout, "Rebooting system now.\n\n");
+    Debug_printf("Rebooting system now.\n\n");
     fflush(stdout);
     esp_restart();
 }
