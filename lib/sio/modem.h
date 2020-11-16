@@ -26,9 +26,9 @@
 #define HELPL12 "ATS0=<0|1>        | Auto-answer in-"
 #define HELPL13 "                  | coming connections"
 #define HELPL14 "ATGET<URL>        | HTTP GET"
-#define HELPL15 "ATTERM<termtype>  | Set telnet term"
-#define HELPL16 "                  | type ('DUMB',"
-#define HELPL17 "                  | 'VT52', or 'VT100')"
+#define HELPL15 "AT+TERM=<termtype>| Set telnet term"
+#define HELPL16 "                  | type (DUMB, VT52,"
+#define HELPL17 "                  | VT100, ANSI)"
 #define HELPL18 "AT[UN]SNIFF       | Dis/enable sniffing"
 /* Not explicitly mentioned at this time, since they are commonly known:
  * (these are sioModem class's _at_cmds enums)
