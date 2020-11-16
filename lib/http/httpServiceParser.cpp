@@ -20,7 +20,8 @@ using namespace std;
 
 const string fnHttpServiceParser::substitute_tag(const string &tag)
 {
-    enum tagids {
+    enum tagids
+    {
         FN_HOSTNAME = 0,
         FN_VERSION,
         FN_IPADDRESS,
@@ -51,6 +52,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PRINTER1_PORT,
         FN_PLAY_RECORD,
         FN_PULLDOWN,
+        FN_CONFIG_ENABLED,
         FN_LASTTAG
     };
 
@@ -85,25 +87,25 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
             "FN_PRINTER1_MODEL",
             "FN_PRINTER1_PORT",
             "FN_PLAY_RECORD",
-            "FN_PULLDOWN"
-        };
+            "FN_PULLDOWN",
+            "FN_CONFIG_ENABLED"};
 
     stringstream resultstream;
-    #ifdef DEBUG
-        //Debug_printf("Substituting tag '%s'\n", tag.c_str());
-    #endif
+#ifdef DEBUG
+    //Debug_printf("Substituting tag '%s'\n", tag.c_str());
+#endif
 
     int tagid;
-    for(tagid = 0; tagid < FN_LASTTAG; tagid++)
+    for (tagid = 0; tagid < FN_LASTTAG; tagid++)
     {
-        if(0 == tag.compare(tagids[tagid]))
+        if (0 == tag.compare(tagids[tagid]))
         {
             break;
         }
     }
 
     // Provide a replacement value
-    switch(tagid)
+    switch (tagid)
     {
     case FN_HOSTNAME:
         resultstream << fnSystem.Net.get_hostname();
@@ -121,7 +123,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << fnSystem.Net.get_ip4_gateway_str();
         break;
     case FN_IPDNS:
-        resultstream << fnSystem.Net.get_ip4_dns_str(); 
+        resultstream << fnSystem.Net.get_ip4_dns_str();
         break;
     case FN_WIFISSID:
         resultstream << fnWiFi.get_current_ssid();
@@ -175,7 +177,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << fnSystem.get_cpu_rev();
         break;
     case FN_SIOVOLTS:
-        resultstream << ((float) fnSystem.get_sio_voltage()) /1000.00 << "V";
+        resultstream << ((float)fnSystem.get_sio_voltage()) / 1000.00 << "V";
         break;
     case FN_SIO_HSINDEX:
         resultstream << SIO.getHighSpeedIndex();
@@ -201,21 +203,24 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         else
             resultstream << "B Button Press";
         break;
+    case FN_CONFIG_ENABLED:
+        resultstream << Config.get_general_config_enabled();
+        break;
     default:
         resultstream << tag;
         break;
     }
-    #ifdef DEBUG
-        // Debug_printf("Substitution result: \"%s\"\n", resultstream.str().c_str());
-    #endif
+#ifdef DEBUG
+    // Debug_printf("Substitution result: \"%s\"\n", resultstream.str().c_str());
+#endif
     return resultstream.str();
 }
 
 bool fnHttpServiceParser::is_parsable(const char *extension)
 {
-    if(extension != NULL)
+    if (extension != NULL)
     {
-        if(strncmp(extension, "html", 4) == 0)
+        if (strncmp(extension, "html", 4) == 0)
             return true;
     }
     return false;
@@ -229,24 +234,27 @@ string fnHttpServiceParser::parse_contents(const string &contents)
 {
     std::stringstream ss;
     uint pos = 0, x, y;
-    do {
+    do
+    {
         x = contents.find("<%", pos);
-        if( x == string::npos) {
+        if (x == string::npos)
+        {
             ss << contents.substr(pos);
             break;
         }
         // Found opening tag, now find ending
-        y = contents.find("%>", x+2);
-        if( y == string::npos) {
+        y = contents.find("%>", x + 2);
+        if (y == string::npos)
+        {
             ss << contents.substr(pos);
             break;
         }
         // Now we have starting and ending tags
-        if( x > 0)
-            ss << contents.substr(pos, x-pos);
-        ss << substitute_tag(contents.substr(x+2, y-x-2));
-        pos = y+2;
-    } while(true);
+        if (x > 0)
+            ss << contents.substr(pos, x - pos);
+        ss << substitute_tag(contents.substr(x + 2, y - x - 2));
+        pos = y + 2;
+    } while (true);
 
     return ss.str();
 }

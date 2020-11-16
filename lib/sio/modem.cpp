@@ -1116,6 +1116,7 @@ void sioModem::modemCommand()
             "AT-SNIFF",
             "AT+TERM=VT52",
             "AT+TERM=VT100",
+            "AT+TERM=ANSI",
             "AT+TERM=DUMB"};
 
     //cmd.trim();
@@ -1329,6 +1330,13 @@ void sioModem::modemCommand()
         break;
     case AT_TERMDUMB:
         term_type = "DUMB";
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_TERMANSI:
+        term_type = "ANSI";
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
