@@ -22,6 +22,7 @@
 #define READ_DEVICE_SLOTS_DISKS1 0x00
 #define READ_DEVICE_SLOTS_TAPE 0x10
 
+
 enum appkey_mode : uint8_t
 {
     APPKEYMODE_READ = 0,
@@ -113,7 +114,5 @@ public:
 
     sioFuji();
 };
-
-extern sioFuji theFuji;
 
 #endif // FUJI_H

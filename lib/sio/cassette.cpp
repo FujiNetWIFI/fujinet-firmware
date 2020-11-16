@@ -3,7 +3,6 @@
 #include "led.h"
 #include "../../include/debug.h"
 
-#include "string"
 #include "cstring"
 
 /** thinking about state machine
@@ -266,28 +265,12 @@ void sioCassette::sio_handle_cassette()
     }
 }
 
-std::string sioCassette::get_buttons()
-{
-    if (cassetteMode == cassette_mode_t::playback)
-        return "PLAY";
-    else
-        return "RECORD";
-}
-
 void sioCassette::set_buttons(const char *play_record)
 {
     if (play_record[0] == '0')
         cassetteMode = cassette_mode_t::playback;
     else if (play_record[0] == '1')
         cassetteMode = cassette_mode_t::record;
-}
-
-void sioCassette::set_pulldown(const char *pullstring)
-{
-    if (pullstring[0] == '0')
-        pulldown = false;
-    else if (pullstring[0] == '1')
-        pulldown = true;
 }
 
 void sioCassette::Clear_atari_sector_buffer(uint16_t len)
@@ -500,7 +483,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
             }
             first = 0;
         }
-        /*         if (block == 0)
+/*         if (block == 0)
         {
             // TO DO : why does Sdrive do this?
             //_delay_ms(200); //add an end gap to be sure

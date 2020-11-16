@@ -14,10 +14,10 @@
 #include "utils.h"
 
 #include "fuji.h"
-// extern sioFuji theFuji;
+extern sioFuji theFuji;
 
 // TODO: This was copied from another source and needs some bounds-checking!
-char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
+char* fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
 {
     char a, b;
     size_t i = 0;
@@ -26,31 +26,26 @@ char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t d
     {
         if ((*src == '%') &&
             ((a = src[1]) && (b = src[2])) &&
-            (isxdigit(a) && isxdigit(b)))
-        {
-            if (a >= 'a')
-                a -= 'a' - 'A';
-            if (a >= 'A')
-                a -= ('A' - 10);
-            else
-                a -= '0';
-            if (b >= 'a')
-                b -= 'a' - 'A';
-            if (b >= 'A')
-                b -= ('A' - 10);
-            else
-                b -= '0';
-            *dst++ = 16 * a + b;
-            src += 3;
-        }
-        else if (*src == '+')
-        {
-            *dst++ = ' ';
-            src++;
-        }
-        else
-        {
-            *dst++ = *src++;
+            (isxdigit(a) && isxdigit(b))) {
+                if (a >= 'a')
+                        a -= 'a'-'A';
+                if (a >= 'A')
+                        a -= ('A' - 10);
+                else
+                        a -= '0';
+                if (b >= 'a')
+                        b -= 'a'-'A';
+                if (b >= 'A')
+                        b -= ('A' - 10);
+                else
+                        b -= '0';
+                *dst++ = 16*a+b;
+                src+=3;
+        } else if (*src == '+') {
+                *dst++ = ' ';
+                src++;
+        } else {
+                *dst++ = *src++;
         }
     }
     *dst++ = '\0';
@@ -58,7 +53,7 @@ char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t d
     return dst;
 }
 
-std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(const char *postdata, size_t postlen)
+std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(const char * postdata, size_t postlen)
 {
     size_t i;
     enum _state
@@ -75,51 +70,53 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
     std::string sKey;
     std::string sVal;
 
-    std::map<std::string, std::string> results;
+    std::map<std::string, std::string>results;
 
-    for (i = 0; i < postlen; i++)
+    for(i = 0; i < postlen; i++)
     {
         char c = postdata[i];
         switch (s)
         {
         case STATE_SEARCH_ENDKEY:
-            if (c == '=')
+            if(c == '=')
             {
                 sKey.clear();
                 sKey.append(postdata + iKey, i - iKey);
-#ifdef DEBUG
+                #ifdef DEBUG
                 Debug_printf("key=\"%s\"\n", sKey.c_str());
-#endif
-
-                iVal = i + 1;
+                #endif
+            
+                iVal = i+1;
                 s = STATE_SEARCH_ENDVALUE;
             }
             break;
         case STATE_SEARCH_ENDVALUE:
-            if (c == '&' || c == '\0' || i == postlen - 1)
+            if(c == '&' || c == '\0' || i == postlen-1)
             {
                 sVal.clear();
-                sVal.append(postdata + iVal, (i == postlen - 1) ? postlen - iVal : i - iVal);
-#ifdef DEBUG
+                sVal.append(postdata + iVal, (i == postlen-1) ? postlen - iVal : i - iVal);
+                #ifdef DEBUG
                 Debug_printf("value=\"%s\"\n", sVal.c_str());
-#endif
-
+                #endif
+            
                 results[sKey] = sVal;
                 iKey = ++i;
                 s = STATE_SEARCH_ENDKEY;
             }
             break;
         }
+
     }
 
     return results;
 }
 
+
 void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
 {
     int index = -1;
     char pc = hsioindex[0];
-    if (pc >= '0' && pc <= '9')
+    if(pc >= '0' && pc <= '9')
         index = pc - '0';
     else
     {
@@ -128,7 +125,7 @@ void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
     }
 
     SIO.setHighSpeedIndex(index);
-    // Store our change in Config
+    // Store our change in Config        
     Config.store_general_hsioindex(index);
     Config.save();
 }
@@ -167,15 +164,12 @@ void fnHttpServiceConfigurator::config_rotation_sounds(std::string rotation_soun
     Config.save();
 }
 
-void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::string pulldown)
+void fnHttpServiceConfigurator::config_cassette(std::string play_record)
 {
     Debug_printf("New play/record button value: %s\n", play_record.c_str());
+    theFuji.cassette()->set_buttons(play_record.c_str());
     // call the cassette buttons function passing play_record.c_str()
     // find cassette via thefuji object?
-    if (!play_record.empty())
-        theFuji.cassette()->set_buttons(play_record.c_str());
-    if (!pulldown.empty())
-        theFuji.cassette()->set_pulldown(pulldown.c_str());
 }
 
 void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
@@ -194,22 +188,22 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
 
     // Take the last char in the 'printernumber' string and turn it into a digit
     int pn = 1;
-    char pc = printernumber[printernumber.length() - 1];
+    char pc = printernumber[printernumber.length()-1];
 
-    if (pc >= '0' && pc <= '9')
+    if(pc >= '0' && pc <= '9')
         pn = pc - '0';
 
     // Only handle 1 printer for now
-    if (pn != 1)
+    if(pn != 1)
     {
         Debug_printf("config_printer invalid printer %d\n", pn);
         return;
     }
 
-    if (printerport.empty())
+    if(printerport.empty())
     {
         sioPrinter::printer_type t = sioPrinter::match_modelname(printermodel);
-        if (t == sioPrinter::printer_type::PRINTER_INVALID)
+        if(t == sioPrinter::printer_type::PRINTER_INVALID)
         {
             Debug_printf("Unknown printer type: \"%s\"\n", printermodel.c_str());
             return;
@@ -226,21 +220,21 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
     {
         int port = -1;
         pc = printerport[0];
-        if (pc >= '0' && pc <= '9')
+        if(pc >= '0' && pc <= '9')
             port = pc - '1';
 
-        if (port < 0 || port > 3)
+        if(port < 0 || port > 3) 
         {
-#ifdef DEBUG
+            #ifdef DEBUG
             Debug_printf("Bad printer port number: %d\n", port);
-#endif
+            #endif
             return;
         }
-#ifdef DEBUG
+        #ifdef DEBUG
         Debug_printf("config_printer changing printer %d port to %d\n", pn, port);
-#endif
-        // Store our change in Config
-        Config.store_printer_port(pn - 1, port);
+        #endif
+        // Store our change in Config        
+        Config.store_printer_port(pn - 1 , port);
         // Store our change in the printer list
         fnPrinters.set_port(0, port);
         // Tell the SIO daisy chain to change the device ID for this printer
@@ -249,52 +243,43 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
     Config.save();
 }
 
-int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t postlen)
+int fnHttpServiceConfigurator::process_config_post(const char * postdata, size_t postlen)
 {
 #ifdef DEBUG
     Debug_printf("process_config_post: %s\n", postdata);
 #endif
     // Create a new buffer for the url-decoded version of the data
-    char *decoded_buf = (char *)malloc(postlen + 1);
+    char * decoded_buf = (char *)malloc(postlen+1);
     url_decode(decoded_buf, postdata, postlen);
 
     std::map<std::string, std::string> postvals = parse_postdata(decoded_buf, postlen);
 
     free(decoded_buf);
 
-    for (std::map<std::string, std::string>::iterator i = postvals.begin(); i != postvals.end(); i++)
+    for(std::map<std::string, std::string>::iterator i = postvals.begin(); i != postvals.end(); i++)
     {
-        if (i->first.compare("printermodel1") == 0)
+        if(i->first.compare("printermodel1") == 0)
         {
             config_printer(i->first, i->second, std::string());
-        }
-        else if (i->first.compare("printerport1") == 0)
+        } else if(i->first.compare("printerport1") == 0)
         {
             config_printer(i->first, std::string(), i->second);
-        }
-        else if (i->first.compare("hsioindex") == 0)
+        } else if(i->first.compare("hsioindex") == 0)
         {
             config_hsio(i->second);
-        }
-        else if (i->first.compare("timezone") == 0)
+        } else if(i->first.compare("timezone") == 0)
         {
             config_timezone(i->second);
-        }
-        else if (i->first.compare("hostname") == 0)
+        } else if (i->first.compare("hostname") == 0)
         {
             config_hostname(i->second);
-        }
-        else if (i->first.compare("midimaze_host") == 0)
+        } else if(i->first.compare("midimaze_host") == 0)
         {
             config_midimaze(i->second);
         }
         else if (i->first.compare("play_record") == 0)
         {
-            config_cassette(i->second, std::string());
-        }
-        else if (i->first.compare("pulldown") == 0)
-        {
-            config_cassette(std::string(), i->second);
+            config_cassette(i->second);
         }
         else if (i->first.compare("rotation_sounds") == 0)
         {

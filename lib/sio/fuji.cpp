@@ -45,8 +45,6 @@
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
-sioFuji theFuji; // global variable - moved from main.cpp 20201115 by JRP
-
 //sioDisk sioDiskDevs[MAX_HOSTS];
 sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 

@@ -32,7 +32,7 @@
 // fnKeyManager is declared and defined in keys.h/cpp
 // fnHTTPD is declared and defineid in HttpService.h/cpp
 
-// sioFuji theFuji; // now defined in fuji.cpp
+sioFuji theFuji;
 sioApeTime apeTime;
 sioVoice sioV;
 sioMIDIMaze sioMIDI;
