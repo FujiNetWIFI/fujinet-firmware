@@ -115,4 +115,6 @@ public:
     sioFuji();
 };
 
+extern sioFuji theFuji;
+
 #endif // FUJI_H

@@ -9,6 +9,7 @@
 #include "sio.h"
 #include "../modem-sniffer/modem-sniffer.h"
 #include "libtelnet.h"
+#include "esp32sshclient.h"
 
 /* Keep strings under 40 characters, for the benefit of 40-column users! */
 #define HELPL01 "       FujiNet Virtual Modem 850"
@@ -25,9 +26,9 @@
 #define HELPL12 "ATS0=<0|1>        | Auto-answer in-"
 #define HELPL13 "                  | coming connections"
 #define HELPL14 "ATGET<URL>        | HTTP GET"
-#define HELPL15 "ATTERM<termtype>  | Set telnet term"
-#define HELPL16 "                  | type ('DUMB',"
-#define HELPL17 "                  | 'VT52', or 'VT100')"
+#define HELPL15 "AT+TERM=<termtype>| Set telnet term"
+#define HELPL16 "                  | type (DUMB, VT52,"
+#define HELPL17 "                  | VT100, ANSI)"
 #define HELPL18 "AT[UN]SNIFF       | Dis/enable sniffing"
 /* Not explicitly mentioned at this time, since they are commonly known:
  * (these are sioModem class's _at_cmds enums)
@@ -160,6 +161,7 @@ private:
     bool use_telnet=false;          // Use telnet mode?
     bool do_echo;                   // telnet echo toggle.
     string term_type;               // telnet terminal type.
+    ESP32SSHCLIENT ssh;             // ssh instance.
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
