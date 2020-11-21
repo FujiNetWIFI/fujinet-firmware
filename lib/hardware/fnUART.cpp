@@ -84,12 +84,15 @@ void UARTManager::begin(int baud)
     // Install UART driver using an event queue here
     //uart_driver_install(_uart_num, uart_buffer_size, uart_buffer_size, uart_queue_size, &_uart_q, intr_alloc_flags);
     uart_driver_install(_uart_num, uart_buffer_size, 0, uart_queue_size, NULL, intr_alloc_flags);
+
+    // Set initialized.
+    _initialized=true;
 }
 
 /* Discards anything in the input buffer
 */
 void UARTManager::flush_input()
-{
+{        
     uart_flush_input(_uart_num);
 }
 
@@ -197,6 +200,10 @@ size_t UARTManager::printf(const char * fmt...)
 {
     char * result = nullptr;
     va_list vargs;
+
+    if (!_initialized)
+        return -1;
+
     va_start(vargs, fmt);
 
     int z = vasprintf(&result, fmt, vargs);
@@ -219,6 +226,9 @@ size_t UARTManager::_print_number(unsigned long n, uint8_t base)
     char buf[8 * sizeof(long) + 1]; // Assumes 8-bit chars plus zero byte.
     char *str = &buf[sizeof(buf) - 1];
 
+    if (!_initialized)
+        return -1;
+
     *str = '\0';
 
     // prevent crash if called with base == 1
@@ -238,26 +248,42 @@ size_t UARTManager::_print_number(unsigned long n, uint8_t base)
 size_t UARTManager::print(const char *str)
 {
     int z = strlen(str);
+
+    if (!_initialized)
+        return -1;
+
     return uart_write_bytes(_uart_num, str, z);;
 }
 
 size_t UARTManager::print(std::string str)
 {
+    if (!_initialized)
+        return -1;
+
     return print(str.c_str());
 }
 
 size_t UARTManager::print(int n, int base)
 {
+    if (!_initialized)
+        return -1;
+
     return print((long) n, base);
 }
 
 size_t UARTManager::print(unsigned int n, int base)
 {
+    if (!_initialized)
+        return -1;
+
     return print((unsigned long) n, base);
 }
 
 size_t UARTManager::print(long n, int base)
 {
+    if (!_initialized)
+        return -1;
+
     if(base == 0) {
         return write(n);
     } else if(base == 10) {
@@ -274,6 +300,9 @@ size_t UARTManager::print(long n, int base)
 
 size_t UARTManager::print(unsigned long n, int base)
 {
+    if (!_initialized)
+        return -1;
+
     if(base == 0) {
         return write(n);
     } else {
@@ -284,6 +313,9 @@ size_t UARTManager::print(unsigned long n, int base)
 
 size_t UARTManager::println(const char *str)
 {
+    if (!_initialized)
+        return -1;
+
     size_t n = print(str);
     n += println();
     return n;
@@ -291,6 +323,9 @@ size_t UARTManager::println(const char *str)
 
 size_t UARTManager::println(std::string str)
 {
+    if (!_initialized)
+        return -1;
+
     size_t n = print(str);
     n += println();
     return n;
@@ -298,6 +333,9 @@ size_t UARTManager::println(std::string str)
 
 size_t UARTManager::println(int num, int base)
 {
+    if (!_initialized)
+        return -1;
+
     size_t n = print(num, base);
     n += println();
     return n;

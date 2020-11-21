@@ -11,6 +11,7 @@ class UARTManager
 private:
     uart_port_t _uart_num;
     QueueHandle_t _uart_q;
+    bool _initialized; // is UART ready?
 
     size_t _print_number(unsigned long n, uint8_t base);
 
@@ -20,6 +21,7 @@ public:
     void begin(int baud);
     void end();
     void set_baudrate(uint32_t baud);
+    bool initialized() { return _initialized; }
 
     int available();
     int peek();
