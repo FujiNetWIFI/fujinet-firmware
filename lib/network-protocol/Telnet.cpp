@@ -34,23 +34,23 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
         return;
     }
 
-    Debug_printf("_event_handler(%d)\n",ev->type);
+    Debug_printf("_event_handler(%d)\n", ev->type);
 
     switch (ev->type)
     {
     case TELNET_EV_DATA: // Received Data
         *receiveBuffer += string(ev->data.buffer, ev->data.size);
         protocol->newRxLen = receiveBuffer->size();
-        Debug_printf("Received TELNET DATA: %s\n",receiveBuffer->c_str());
+        Debug_printf("Received TELNET DATA: %s\n", receiveBuffer->c_str());
         break;
     case TELNET_EV_SEND:
         Debug_printf("Sending: ");
-        for (int i=0;i<ev->data.size;i++)
+        for (int i = 0; i < ev->data.size; i++)
         {
-            Debug_printf("%02x ",ev->data.buffer[i]);
+            Debug_printf("%02x ", ev->data.buffer[i]);
         }
         Debug_printf("\n");
-        protocol->flush(ev->data.buffer,ev->data.size);
+        protocol->flush(ev->data.buffer, ev->data.size);
         break;
     case TELNET_EV_WILL:
         break;
@@ -204,7 +204,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
     // Return success
     error = 1;
 
-    Debug_printf("NetworkProtocolTelnet::read(%d) - %s\n",newRxLen,receiveBuffer->c_str());
+    Debug_printf("NetworkProtocolTelnet::read(%d) - %s\n", newRxLen, receiveBuffer->c_str());
 
     return NetworkProtocol::read(newRxLen); // Set by calls into telnet_recv()
 }
@@ -229,7 +229,7 @@ bool NetworkProtocolTELNET::write(unsigned short len)
     len = translate_transmit_buffer();
 
     // Do the write to client socket.
-    telnet_send(telnet,transmitBuffer->data(),len);
+    telnet_send(telnet, transmitBuffer->data(), len);
 
     // bail if the connection is reset.
     if (errno == ECONNRESET)
@@ -244,7 +244,7 @@ bool NetworkProtocolTELNET::write(unsigned short len)
     return false;
 }
 
-void NetworkProtocolTELNET::flush(const char* buf, unsigned short size)
+void NetworkProtocolTELNET::flush(const char *buf, unsigned short size)
 {
     client.write((uint8_t *)buf, size);
     transmitBuffer->clear();
@@ -379,6 +379,9 @@ bool NetworkProtocolTELNET::open_client(string hostname, unsigned short port)
         // Did not connect.
         switch (errno)
         {
+        case ECONNRESET:
+            error = NETWORK_ERROR_CONNECTION_RESET;
+            break;
         case ECONNREFUSED:
             error = NETWORK_ERROR_CONNECTION_REFUSED;
             break;
