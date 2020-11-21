@@ -64,7 +64,6 @@ bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     // Set translation mode, Bits 0-2 of aux2
     translation_mode = cmdFrame->aux2 & 0x03;
-    error = 1;
     return false;
 }
 

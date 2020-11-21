@@ -119,12 +119,10 @@ void sioNetwork::sio_open()
     // Attempt protocol open
     if (protocol->open(urlParser, &cmdFrame) == true)
     {
-        Debug_printf("Protocol unable to make connection.\n");
-        protocol->status(&status);
-        protocol->close();
+        status.error = protocol->error;
+        Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
         delete protocol;
         protocol = nullptr;
-        status.error = NETWORK_ERROR_CONNECTION_REFUSED;
         sio_error();
         return;
     }
@@ -333,7 +331,7 @@ void sioNetwork::sio_status_local()
 
     fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
     fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
-    
+
     switch (cmdFrame.aux2)
     {
     case 1: // IP Address
@@ -421,7 +419,7 @@ void sioNetwork::sio_special()
         return;
     }
 
-    sio_ack();  // Now we ack.
+    sio_ack(); // Now we ack.
 
     switch (inq_dstats)
     {
