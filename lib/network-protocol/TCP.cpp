@@ -233,7 +233,7 @@ void NetworkProtocolTCP::status_server(NetworkStatus *status)
  */
 uint8_t NetworkProtocolTCP::special_inquiry(uint8_t cmd)
 {
-    Debug_printf("NetworkProtocolTCP::special_inquiry(%02x)\n",cmd);
+    Debug_printf("NetworkProtocolTCP::special_inquiry(%02x)\n", cmd);
 
     switch (cmd)
     {
@@ -294,7 +294,7 @@ bool NetworkProtocolTCP::open_server(unsigned short port)
     server->begin(port);
     connectionIsServer = true;
 
-    Debug_printf("errno = %u\n",errno);
+    Debug_printf("errno = %u\n", errno);
 
     return errno != 0;
 }
@@ -320,6 +320,9 @@ bool NetworkProtocolTCP::open_client(string hostname, unsigned short port)
         // Did not connect.
         switch (errno)
         {
+        case ECONNRESET:
+            error = NETWORK_ERROR_CONNECTION_RESET;
+            break;
         case ECONNREFUSED:
             error = NETWORK_ERROR_CONNECTION_REFUSED;
             break;
