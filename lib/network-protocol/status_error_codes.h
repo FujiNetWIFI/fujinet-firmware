@@ -46,6 +46,11 @@
 #define NETWORK_ERROR_CONNECTION_RESET 204
 
 /**
+ * Connection already in progress
+ */
+#define NETWORK_ERROR_CONNECTION_ALREADY_IN_PROGRESS 205
+
+/**
  * Could not allocate buffers
  */
 #define NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS 255

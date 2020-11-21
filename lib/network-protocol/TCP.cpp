@@ -320,6 +320,9 @@ bool NetworkProtocolTCP::open_client(string hostname, unsigned short port)
         // Did not connect.
         switch (errno)
         {
+        case EINPROGRESS:
+            error = NETWORK_ERROR_CONNECTION_ALREADY_IN_PROGRESS;
+            break;
         case ECONNRESET:
             error = NETWORK_ERROR_CONNECTION_RESET;
             break;
@@ -334,6 +337,9 @@ bool NetworkProtocolTCP::open_client(string hostname, unsigned short port)
             break;
         case ENETDOWN:
             error = NETWORK_ERROR_NETWORK_DOWN;
+            break;
+        default:
+            error = NETWORK_ERROR_GENERAL;
             break;
         }
 
