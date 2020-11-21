@@ -27,7 +27,6 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
     NetworkProtocolTELNET *protocol = (NetworkProtocolTELNET *)user_data;
 
     string *receiveBuffer = protocol->getReceiveBuffer();
-    string *transmitBuffer = protocol->getTransmitBuffer();
 
     if (protocol == nullptr)
     {
