@@ -245,6 +245,8 @@ uint8_t NetworkProtocolTCP::special_inquiry(uint8_t cmd)
     {
     case 'A':
         return 0x00;
+    case 'c':
+        return 0x00;
     }
 
     return 0xFF;
@@ -261,6 +263,9 @@ bool NetworkProtocolTCP::special_00(cmdFrame_t *cmdFrame)
     {
     case 'A':
         return special_accept_connection();
+        break;
+    case 'c':
+        return special_close_client_connection();
         break;
     }
     return true; // error
@@ -308,6 +313,10 @@ bool NetworkProtocolTCP::open_server(unsigned short port)
     {
         switch (errno)
         {
+        case EAGAIN:
+            error = 1; // This is okay.
+            errno = 0; // Short circuit and say it's okay.
+            break;
         case EADDRINUSE:
             error = NETWORK_ERROR_ADDRESS_IN_USE;
             break;
@@ -384,7 +393,7 @@ bool NetworkProtocolTCP::special_accept_connection()
     {
         in_addr_t remoteIP;
         unsigned char remotePort;
-        char *remoteIPString = inet_ntoa(remoteIP);
+        char *remoteIPString;
 
         client = server->available();
 
@@ -392,6 +401,7 @@ bool NetworkProtocolTCP::special_accept_connection()
         {
             remoteIP = client.remoteIP();
             remotePort = client.remotePort();
+            remoteIPString = inet_ntoa(remoteIP);
             Debug_printf("Accepted connection from %s:%u", remoteIPString, remotePort);
             return false;
         }
@@ -402,4 +412,38 @@ bool NetworkProtocolTCP::special_accept_connection()
     }
 
     return true;
+}
+
+/**
+ * Special: Accept a server connection, transfer to client socket.
+ */
+bool NetworkProtocolTCP::special_close_client_connection()
+{
+    in_addr_t remoteIP;
+    unsigned char remotePort;
+    char *remoteIPString;
+
+    if (server == nullptr)
+    {
+        Debug_printf("Attempted close client connection on NULL server socket. Aborting.\n");
+        error = NETWORK_ERROR_SERVER_NOT_RUNNING;
+        return true; // Error
+    }
+
+    if (!client.connected())
+    {
+        Debug_printf("Attempted close client with no client connected.\n");
+        error = NETWORK_ERROR_NOT_CONNECTED;
+        return true;
+    }
+
+    remoteIP = client.remoteIP();
+    remotePort = client.remotePort();
+    remoteIPString = inet_ntoa(remoteIP);
+
+    Debug_printf("Disconnecting client %s:%u\n", remoteIPString, remotePort);
+
+    client.stop();
+
+    return false;
 }
