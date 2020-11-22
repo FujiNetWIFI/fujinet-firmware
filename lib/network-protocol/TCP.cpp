@@ -296,6 +296,21 @@ bool NetworkProtocolTCP::open_server(unsigned short port)
 
     Debug_printf("errno = %u\n", errno);
 
+    if (errno == 0)
+        error = 1;
+    else
+    {
+        switch (errno)
+        {
+        case EADDRINUSE:
+            error = NETWORK_ERROR_ADDRESS_IN_USE;
+            break;
+        default:
+            error = NETWORK_ERROR_GENERAL;
+            break;
+        }
+    }
+
     return errno != 0;
 }
 

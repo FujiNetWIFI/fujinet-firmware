@@ -51,6 +51,12 @@
 #define NETWORK_ERROR_CONNECTION_ALREADY_IN_PROGRESS 205
 
 /**
+ * Address in use
+ */
+#define NETWORK_ERROR_ADDRESS_IN_USE 206
+
+
+/**
  * Could not allocate buffers
  */
 #define NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS 255
