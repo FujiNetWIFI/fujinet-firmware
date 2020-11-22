@@ -61,6 +61,11 @@
 #define NETWORK_ERROR_SERVER_NOT_RUNNING 208
 
 /**
+ * No connection waiting
+ */
+#define NETWORK_ERROR_NO_CONNECTION_WAITING 209
+
+/**
  * Could not allocate buffers
  */
 #define NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS 255
