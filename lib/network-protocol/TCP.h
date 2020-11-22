@@ -116,6 +116,11 @@ private:
     bool special_accept_connection();
 
     /**
+     * Special: Close client connection.
+     */
+    bool special_close_client_connection();
+
+    /**
      * Return status of client connection
      * @param status pointer to destination NetworkStatus object
      */
