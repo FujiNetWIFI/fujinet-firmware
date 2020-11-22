@@ -46,18 +46,24 @@ bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     bool ret = true; // assume error until proven ok
 
-    if (urlParser->port.empty())
-        urlParser->port = "23";
-
     Debug_printf("NetworkProtocolTCP::open(%s:%s)", urlParser->hostName.c_str(), urlParser->port.c_str());
 
     if (urlParser->hostName.empty())
     {
-        // open server on port
-        ret = open_server(atoi(urlParser->port.c_str()));
+        // Open server on port, otherwise, treat as empty socket.
+        if (!urlParser->port.empty())
+            ret = open_server(atoi(urlParser->port.c_str()));
+        else
+        {
+            Debug_printf("Empty socket enabled.\n");
+            ret = false; // No error.
+        }
     }
     else
     {
+        if (urlParser->port.empty())
+            urlParser->port = "23";
+
         // open client connection
         ret = open_client(urlParser->hostName, atoi(urlParser->port.c_str()));
     }
@@ -376,14 +382,16 @@ bool NetworkProtocolTCP::special_accept_connection()
 
     if (server->hasClient())
     {
-        in_addr_t remoteIP = client.remoteIP();
-        unsigned char remotePort = client.remotePort();
+        in_addr_t remoteIP;
+        unsigned char remotePort;
         char *remoteIPString = inet_ntoa(remoteIP);
 
         client = server->available();
 
         if (client.connected())
         {
+            remoteIP = client.remoteIP();
+            remotePort = client.remotePort();
             Debug_printf("Accepted connection from %s:%u", remoteIPString, remotePort);
             return false;
         }
