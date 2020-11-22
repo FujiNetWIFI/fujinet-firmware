@@ -6,11 +6,6 @@
 #define STATUS_ERROR_CODES_H
 
 /**
- * Attempted to use connection while not open
- */
-#define NETWORK_ERROR_NOT_CONNECTED 133
-
-/**
  * A fatal error
  */
 #define NETWORK_ERROR_GENERAL 144
@@ -55,6 +50,15 @@
  */
 #define NETWORK_ERROR_ADDRESS_IN_USE 206
 
+/**
+ * Not connected.
+ */
+#define NETWORK_ERROR_NOT_CONNECTED 207
+
+/**
+ * Server not running (server returned NULL)
+ */
+#define NETWORK_ERROR_SERVER_NOT_RUNNING 208
 
 /**
  * Could not allocate buffers
