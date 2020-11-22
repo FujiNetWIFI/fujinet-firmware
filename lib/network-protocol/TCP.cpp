@@ -386,6 +386,7 @@ bool NetworkProtocolTCP::special_accept_connection()
     if (server == nullptr)
     {
         Debug_printf("Attempted accept connection on NULL server socket. Aborting.\n");
+        error = NETWORK_ERROR_SERVER_NOT_RUNNING;
         return true; // Error
     }
 
@@ -407,10 +408,12 @@ bool NetworkProtocolTCP::special_accept_connection()
         }
         else
         {
+            error = NETWORK_ERROR_CONNECTION_RESET;
             Debug_printf("Client immediately disconnected.\n");
+            return true;
         }
     }
-
+    
     return true;
 }
 
