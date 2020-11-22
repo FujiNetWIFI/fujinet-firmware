@@ -413,7 +413,9 @@ bool NetworkProtocolTCP::special_accept_connection()
             return true;
         }
     }
-    
+
+    // Otherwise, we are calling accept on a connection that isn't available.
+    error = NETWORK_ERROR_NO_CONNECTION_WAITING;
     return true;
 }
 
