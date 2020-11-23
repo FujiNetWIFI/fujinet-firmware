@@ -84,7 +84,7 @@ public:
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
 
-private:
+protected:
     /**
      * a fnTcpClient object representing a client TCP socket.
      */
