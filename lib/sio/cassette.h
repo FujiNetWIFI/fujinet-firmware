@@ -99,8 +99,8 @@ public:
     bool is_active() { return cassetteActive; };
     bool has_pulldown() { return pulldown; };
     bool get_buttons();
-    void set_buttons(const char *play_record);
-    void set_pulldown(const char *resistor);
+    void set_buttons(bool play_record);
+    void set_pulldown(bool resistor);
 
 
 private:
