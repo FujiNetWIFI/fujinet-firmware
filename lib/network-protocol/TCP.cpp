@@ -13,7 +13,11 @@
 #include "status_error_codes.h"
 
 /**
- * ctor
+ * @brief ctor
+ * @param rx_buf pointer to receive buffer
+ * @param tx_buf pointer to transmit buffer
+ * @param sp_buf pointer to special buffer
+ * @return a NetworkProtocolTCP object
  */
 NetworkProtocolTCP::NetworkProtocolTCP(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
