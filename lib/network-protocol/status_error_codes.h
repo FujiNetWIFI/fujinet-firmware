@@ -11,6 +11,11 @@
 #define NETWORK_ERROR_GENERAL 144
 
 /**
+ * Command not implemented
+ */
+#define NETWORK_ERROR_NOT_IMPLEMENTED 146
+
+/**
  * An invalid devicespec was given
  */
 #define NETWORK_ERROR_INVALID_DEVICESPEC 165

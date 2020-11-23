@@ -9,6 +9,21 @@
 
 class NetworkProtocolFS : public NetworkProtocol
 {
+public:
+    /**
+     * @brief ctor
+     * @param rx_buf pointer to receive buffer
+     * @param tx_buf pointer to transmit buffer
+     * @param sp_buf pointer to special buffer
+     * @return a NetworkProtocolFS object
+     */
+    NetworkProtocolFS(string *rx_buf, string *tx_buf, string *sp_buf);
+
+    /**
+     * dTOR
+     */
+    virtual ~NetworkProtocolFS();
+
     /**
      * @brief Open a URL
      * @param url pointer to EdUrlParser pointing to file to open.
@@ -73,38 +88,23 @@ class NetworkProtocolFS : public NetworkProtocol
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
 
-    /**
-     * @brief Delete a file specified by URL.
-     * @param url pointer to EdUrlParser pointing to file to delete
-     * @param cmdFrame pointer to command frame for aux1/aux2/etc values
-     * @return error flag TRUE on error, FALSE on success
-     */
-    virtual bool del(EdUrlParser *url, cmdFrame_t *cmdFrame);
+protected:
 
     /**
-     * @brief Rename a file specified by URL.
-     * @param url pointer to EdUrlParser pointing to file to rename, path contains a comma seperated form of oldname,newname
-     * @param cmdFrame pointer to command frame for aux1/aux2/etc values
-     * @return error flag TRUE on error, FALSE on success
+     * @brief Open a file via URL.
+     * @param url pointer to EdUrlParser pointing to file to open.
+     * @param cmdFrame pointer to command frame to grab aux1/aux2 values.
+     * @return FALSE if successful, TRUE on error.
      */
-    virtual bool rename(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool open_file(EdUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
-     * @brief Make a directory at specified URL.
-     * @param url pointer to EdUrlParser pointing to a directory to create.
-     * @param cmdFrame pointer to command frame for aux1/aux2/etc values.
-     * @return error flag. TRUE on error, FALSE on success.
+     * @brief Open a Directory via URL.
+     * @param url pointer to EdUrlParser pointing to file to open.
+     * @param cmdFrame pointer to command frame to grab aux1/aux2 values.
+     * @return FALSE if successful, TRUE on error.
      */
-    virtual bool mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
-
-    /**
-     * @brief Remove directory at specified URL.
-     * @param url pointer to EdUrlParser pointing to a directory to remove.
-     * @param cmdFrame pointer to command frame for aux1/aux2/etc values.
-     * @return error flag. TRUE on error, FALSE on success.
-     */
-    virtual bool rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
-    
+    virtual bool open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame);
 };
 
 #endif /* NETWORKPROTOCOL_FS */
