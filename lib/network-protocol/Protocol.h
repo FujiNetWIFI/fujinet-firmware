@@ -119,18 +119,29 @@ public:
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return false; };
 
-private:
+protected:
+    
+    /**
+     * AUX1 value from open
+     */
+    unsigned char aux1_open;
+
+    /**
+     * AUX2 value from open
+     */
+    unsigned char aux2_open;
+
     /**
      * Perform end of line translation on receive buffer.
      */
     void translate_receive_buffer();
 
-protected:
     /**
      * Perform end of line translation on transmit buffer.
      * @return new buffer length.
      */
     unsigned short translate_transmit_buffer();
+
 };
 
 #endif /* NETWORKPROTOCOL_H */
