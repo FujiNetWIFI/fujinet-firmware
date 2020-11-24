@@ -231,6 +231,7 @@ void NetworkProtocol::errno_to_error()
             error = NETWORK_ERROR_NETWORK_DOWN;
             break;
         default:
+        Debug_printf("errno_to_error() - Uncaught errno = %u, returning 144.\n",errno);
         error = NETWORK_ERROR_GENERAL;
         break;
     }
