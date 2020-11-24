@@ -30,8 +30,7 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolFS::close()
 {
-    error = NETWORK_ERROR_NOT_IMPLEMENTED;
-    return true; // error until proven guilty.
+    return NetworkProtocol::close();
 }
 
 bool NetworkProtocolFS::read(unsigned short len)
@@ -93,4 +92,16 @@ bool NetworkProtocolFS::special_80(uint8_t* sp_buf, unsigned short len, cmdFrame
             error = NETWORK_ERROR_NOT_IMPLEMENTED;
             return true;
     }
+}
+
+bool NetworkProtocolFS::open_file(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    error = NETWORK_ERROR_NOT_IMPLEMENTED;
+    return true;
+}
+
+bool NetworkProtocolFS::open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    error = NETWORK_ERROR_NOT_IMPLEMENTED;
+    return true;
 }
