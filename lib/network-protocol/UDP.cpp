@@ -48,3 +48,13 @@ bool NetworkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     return false; // all good.
 }
 
+bool NetworkProtocolUDP::close()
+{
+    // Call base class.
+    NetworkProtocol::close();
+
+    // unbind.
+    udp.stop();
+
+    return false; // all good.
+}
