@@ -314,21 +314,7 @@ bool NetworkProtocolTCP::open_server(unsigned short port)
     if (errno == 0)
         error = 1;
     else
-    {
-        switch (errno)
-        {
-        case EAGAIN:
-            error = 1; // This is okay.
-            errno = 0; // Short circuit and say it's okay.
-            break;
-        case EADDRINUSE:
-            error = NETWORK_ERROR_ADDRESS_IN_USE;
-            break;
-        default:
-            error = NETWORK_ERROR_GENERAL;
-            break;
-        }
-    }
+        errno_to_error();
 
     return errno != 0;
 }
@@ -351,35 +337,11 @@ bool NetworkProtocolTCP::open_client(string hostname, unsigned short port)
 
     if (res == 0)
     {
-        // Did not connect.
-        switch (errno)
-        {
-        case EINPROGRESS:
-            error = NETWORK_ERROR_CONNECTION_ALREADY_IN_PROGRESS;
-            break;
-        case ECONNRESET:
-            error = NETWORK_ERROR_CONNECTION_RESET;
-            break;
-        case ECONNREFUSED:
-            error = NETWORK_ERROR_CONNECTION_REFUSED;
-            break;
-        case ENETUNREACH:
-            error = NETWORK_ERROR_NETWORK_UNREACHABLE;
-            break;
-        case ETIMEDOUT:
-            error = NETWORK_ERROR_SOCKET_TIMEOUT;
-            break;
-        case ENETDOWN:
-            error = NETWORK_ERROR_NETWORK_DOWN;
-            break;
-        default:
-            error = NETWORK_ERROR_GENERAL;
-            break;
-        }
-
+        errno_to_error();
         return true; // Error.
     }
-    return false; // We're connected.
+    else
+        return false; // We're connected.
 }
 
 /**
