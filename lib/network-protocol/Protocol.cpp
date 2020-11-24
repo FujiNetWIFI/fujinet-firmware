@@ -5,6 +5,7 @@
 #include <string.h>
 #include <algorithm>
 #include "Protocol.h"
+#include "status_error_codes.h"
 
 using namespace std;
 
@@ -195,4 +196,42 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
     }
 
     return transmitBuffer->length();
+}
+
+/**
+ * Map errno to error
+ */
+void NetworkProtocol::errno_to_error()
+{
+    switch(errno)
+    {
+        case EAGAIN:
+            error = 1; // This is okay.
+            errno = 0; // Short circuit and say it's okay.
+            break;
+        case EADDRINUSE:
+            error = NETWORK_ERROR_ADDRESS_IN_USE;
+            break;
+        case EINPROGRESS:
+            error = NETWORK_ERROR_CONNECTION_ALREADY_IN_PROGRESS;
+            break;
+        case ECONNRESET:
+            error = NETWORK_ERROR_CONNECTION_RESET;
+            break;
+        case ECONNREFUSED:
+            error = NETWORK_ERROR_CONNECTION_REFUSED;
+            break;
+        case ENETUNREACH:
+            error = NETWORK_ERROR_NETWORK_UNREACHABLE;
+            break;
+        case ETIMEDOUT:
+            error = NETWORK_ERROR_SOCKET_TIMEOUT;
+            break;
+        case ENETDOWN:
+            error = NETWORK_ERROR_NETWORK_DOWN;
+            break;
+        default:
+        error = NETWORK_ERROR_GENERAL;
+        break;
+    }
 }
