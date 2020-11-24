@@ -119,6 +119,11 @@ public:
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return false; };
 
+    /**
+     * @brief return an _atari_ error (>199) based on errno. into error for status reporting.
+     */
+    virtual void errno_to_error();
+
 protected:
     
     /**
