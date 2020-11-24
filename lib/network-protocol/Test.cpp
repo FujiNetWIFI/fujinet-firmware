@@ -17,8 +17,11 @@ NetworkProtocolTest::~NetworkProtocolTest()
 
 bool NetworkProtocolTest::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
-    error=200;
-    return true;
+    Debug_printf("scheme: %s\n",urlParser->scheme.c_str());
+    Debug_printf("path: %s\n",urlParser->path.c_str());
+    Debug_printf("port: %s\n",urlParser->port.c_str());
+    Debug_printf("query: %s\n",urlParser->query.c_str());
+    return false;
 }
 
 bool NetworkProtocolTest::close()
