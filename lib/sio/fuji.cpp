@@ -1307,6 +1307,9 @@ void sioFuji::setup(sioBus *siobus)
         _sio_bus->addDevice(&sioNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
 
     _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
+    cassette()->set_buttons(Config.get_cassette_buttons());
+    cassette()->set_pulldown(Config.get_cassette_pulldown());
+
 }
 
 sioDisk *sioFuji::bootdisk()

@@ -265,11 +265,11 @@ void sioCassette::sio_handle_cassette()
     }
 }
 
-void sioCassette::set_buttons(const char *play_record)
+void sioCassette::set_buttons(bool play_record)
 {
-    if (play_record[0] == '0')
+    if (!play_record)
         cassetteMode = cassette_mode_t::playback;
-    else if (play_record[0] == '1')
+    else
         cassetteMode = cassette_mode_t::record;
 }
 
@@ -278,12 +278,9 @@ bool sioCassette::get_buttons()
     return (cassetteMode == cassette_mode_t::playback);
 }
 
-void sioCassette::set_pulldown(const char *resistor)
+void sioCassette::set_pulldown(bool resistor)
 {
-    if (resistor[0] == '0')
-        pulldown = false;
-    else if (resistor[0] == '1')
-        pulldown = true;
+            pulldown = resistor;
 }
 
 void sioCassette::Clear_atari_sector_buffer(uint16_t len)
@@ -440,7 +437,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
     while (gap--)
     {
         fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
-        if (!motor_line() && gap > 1000)
+        if (has_pulldown() && !motor_line() && gap > 1000)
         {
             fnLedManager.set(eLed::LED_SIO, false);
             return starting_offset;
