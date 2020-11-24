@@ -92,6 +92,12 @@ public:
     void store_modem_sniffer_enabled(bool enabled);
     bool get_modem_sniffer_enabled() { return _modem.sniffer_enabled; }
 
+    // CASSETTE
+    bool get_cassette_buttons();
+    bool get_cassette_pulldown();
+    void store_cassette_buttons(bool button);
+    void store_cassette_pulldown(bool pulldown);
+
     void load();
     void save();
 
@@ -110,8 +116,10 @@ private:
     void _read_section_printer(std::stringstream &ss, int index);
     void _read_section_tape(std::stringstream &ss, int index);    
     void _read_section_modem(std::stringstream &ss);
+    void _read_section_cassette(std::stringstream &ss);
 
-    enum section_match {
+    enum section_match
+    {
         SECTION_GENERAL,
         SECTION_WIFI,
         SECTION_HOST,
@@ -120,6 +128,7 @@ private:
         SECTION_NETWORK,
         SECTION_TAPE,
         SECTION_MODEM,
+        SECTION_CASSETTE,
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -193,6 +202,12 @@ private:
         bool sniffer_enabled = false;
     };
 
+    struct cassette_info
+    {
+        bool pulldown = false;
+        bool button = false;
+    };
+
     host_info _host_slots[MAX_HOST_SLOTS];
     mount_info _mount_slots[MAX_MOUNT_SLOTS];
     printer_info _printer_slots[MAX_PRINTER_SLOTS];
@@ -202,6 +217,7 @@ private:
     network_info _network;
     general_info _general;
     modem_info _modem;
+    cassette_info _cassette;
 };
 
 extern fnConfig Config;

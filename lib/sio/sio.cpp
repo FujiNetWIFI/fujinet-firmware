@@ -271,8 +271,44 @@ void sioBus::service()
         return; // break!
     }
 
-    // If motor line high, handle cassette if tape mounted
-    if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH)
+    // new logic for tape handling
+    // can be either B_button or MOTOR line - find out with _fujiDev->cassette()->has_pulldown()
+    // the B button right now mounts a cassette file - need a way to mount without B - maybe try to mount if not mounted in motor line mode?
+    // if B button mode then handle cassette if tape is mounted
+    // otherwise if motoline mode, then If motor line high, handle cassette if tape mounted
+
+    // first test which tape activation mode
+    if (_fujiDev->cassette()->has_pulldown())
+    {
+        // motor line mode
+        // mount the test CAS if needed
+        if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH)
+        {
+            if (_fujiDev->cassette()->is_mounted())
+            {
+                if (!_fujiDev->cassette()->is_active())
+                {
+                    Debug_println("MOTOR ON: activating cassette");
+                    _fujiDev->cassette()->sio_enable_cassette();
+                }
+                _fujiDev->cassette()->sio_handle_cassette();
+                return; // break!
+            }
+            else
+            {
+                _fujiDev->debug_tape();
+            }
+        }
+        else
+        {
+            if (_fujiDev->cassette()->is_active())
+            {
+                Debug_println("MOTOR OFF: de-activating cassette");
+                _fujiDev->cassette()->sio_disable_cassette();
+            }
+        }
+    }
+    else
     {
         if (_fujiDev->cassette()->is_mounted())
         {
@@ -283,14 +319,6 @@ void sioBus::service()
             }
             _fujiDev->cassette()->sio_handle_cassette();
             return; // break!
-        }
-    }
-    else
-    {
-        if (_fujiDev->cassette()->is_active())
-        {
-            Debug_println("MOTOR OFF: de-activating cassette");
-            _fujiDev->cassette()->sio_disable_cassette();
         }
     }
 
