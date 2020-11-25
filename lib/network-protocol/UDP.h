@@ -96,6 +96,11 @@ protected:
     string dest;
 
     /**
+     * UDP destination port
+     */
+    unsigned short port;
+
+    /**
      * @brief Set destination address
      * @param sp_buf pointer to received special buffer.
      * @param len of special received buffer

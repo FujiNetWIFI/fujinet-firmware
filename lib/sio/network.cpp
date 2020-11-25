@@ -617,8 +617,7 @@ bool sioNetwork::instantiate_protocol()
     }
     else if (urlParser->scheme == "UDP")
     {
-        //protocol = new networkProtocolUDP();
-        // TODO: Change NetworkProtocolUDP to pass saved RX buffer into ctor!
+        protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
     }
     else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
     {
@@ -639,10 +638,6 @@ bool sioNetwork::instantiate_protocol()
     else if (urlParser->scheme == "TELNET")
     {
         protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "UDP")
-    {
-        protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
     }
     else
     {
