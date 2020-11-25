@@ -9,6 +9,7 @@
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
 #include "../network-protocol/TCP.h"
+#include "../network-protocol/UDP.h"
 #include "../network-protocol/Test.h"
 #include "../network-protocol/Telnet.h"
 
@@ -638,6 +639,10 @@ bool sioNetwork::instantiate_protocol()
     else if (urlParser->scheme == "TELNET")
     {
         protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "UDP")
+    {
+        protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
     }
     else
     {
