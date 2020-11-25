@@ -101,12 +101,24 @@ protected:
     unsigned short port;
 
     /**
+     * Do multicast write?
+     */
+    bool multicast_write;
+
+    /**
      * @brief Set destination address
      * @param sp_buf pointer to received special buffer.
      * @param len of special received buffer
      */
     bool set_destination(uint8_t *sp_buf, unsigned short len);
 
+private:
+    /**
+     * Is current destination multicast?
+     */
+    bool is_multicast(); // current UDP remote IP
+    bool is_multicast(string h); // resolve hostname to IP first.
+    bool is_multicast(in_addr_t addr);
 };
 
 #endif /* NETWORKPROTOCOL_UDP */
