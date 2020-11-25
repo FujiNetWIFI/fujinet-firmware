@@ -65,7 +65,7 @@ bool NetworkProtocolUDP::read(unsigned short len)
     uint8_t *newData = (uint8_t *)malloc(len);
     string newString;
 
-    Debug_printf("NetworkProtocolTCP::read(%u)\n", len);
+    Debug_printf("NetworkProtocolUDP::read(%u)\n", len);
 
     if (newData == nullptr)
     {
@@ -81,19 +81,8 @@ bool NetworkProtocolUDP::read(unsigned short len)
             return true;
         }
 
-        // Do the socket read.
-        // bail if the connection is reset.
-        if (errno == ECONNRESET)
-        {
-            error = NETWORK_ERROR_CONNECTION_RESET;
-            return true;
-        }
-        else if (actual_len != len) // Read was short and timed out.
-        {
-            Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\n", actual_len, len);
-            error = NETWORK_ERROR_SOCKET_TIMEOUT;
-            return true;
-        }
+        // Do the read.
+        udp.read(newData,len);
 
         // Add new data to buffer.
         newString = string((char *)newData, len);
@@ -101,7 +90,43 @@ bool NetworkProtocolUDP::read(unsigned short len)
 
         free(newData);
     }
+
     // Return success
+    Debug_printf("errno = %u\n",errno);
     error = 1;
     return NetworkProtocol::read(len);
 }
+
+bool NetworkProtocolUDP::write(unsigned short len)
+{
+    int actual_len = 0;
+
+    Debug_printf("NetworkProtocolUDP::write(%u)\n", len);
+
+    // Check for client connection
+    if (dest.empty())
+    {
+        error = NETWORK_ERROR_NOT_CONNECTED;
+        return len; // error
+    }
+
+    // Call base class to do translation.
+    len = translate_transmit_buffer();
+
+    // Do the write to client socket.
+    actual_len = udp.write((uint8_t *)transmitBuffer->data(), len);
+
+    if (actual_len != len) // write was short.
+    {
+        Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\n", actual_len, len);
+        error = NETWORK_ERROR_SOCKET_TIMEOUT;
+        return true;
+    }
+
+    // Return success
+    error = 1;
+    transmitBuffer->erase(0, len);
+
+    return false;
+}
+
