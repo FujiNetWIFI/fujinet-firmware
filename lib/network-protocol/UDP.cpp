@@ -130,3 +130,14 @@ bool NetworkProtocolUDP::write(unsigned short len)
     return false;
 }
 
+bool NetworkProtocolUDP::status(NetworkStatus *status)
+{
+
+    status->rxBytesWaiting = udp.available();
+    status->reserved = 1; // Always 'connected'
+    status->error = error;
+    
+    NetworkProtocol::status(status);
+
+    return false;
+}
