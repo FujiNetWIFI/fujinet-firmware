@@ -4,6 +4,7 @@
 
 #include "UDP.h"
 #include "status_error_codes.h"
+#include "../tcpip/fnDNS.h"
 
 NetworkProtocolUDP::NetworkProtocolUDP(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
@@ -25,7 +26,7 @@ bool NetworkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     {
         Debug_printf("Setting destination hostname to: %s\n", urlParser->hostName.c_str());
         dest = urlParser->hostName;
-        Debug_printf("Setting destination port to: %s\n",urlParser->port.c_str());
+        Debug_printf("Setting destination port to: %s\n", urlParser->port.c_str());
         port = atoi(urlParser->port.c_str());
     }
 
@@ -38,12 +39,26 @@ bool NetworkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     // Attempt to bind port.
     Debug_printf("Binding port %u\n", atoi(urlParser->port.c_str()));
-    if (udp.begin(atoi(urlParser->port.c_str())) == false)
+    if (is_multicast(urlParser->hostName))
     {
-        errno_to_error();
-        return true;
+        Debug_printf("Multicast address detected.\n");
+        if (udp.beginMulticast(get_ip4_addr_by_name(urlParser->hostName.c_str()), atoi(urlParser->port.c_str())) == false)
+        {
+            Debug_printf("Could not register multicast group: errno %u\n", errno);
+            errno_to_error();
+            return true;
+        }
+        else
+            multicast_write = true;
     }
-
+    else // Unicast
+    {
+        if (udp.begin(atoi(urlParser->port.c_str())) == false)
+        {
+            errno_to_error();
+            return true;
+        }
+    }
     // call base class
     NetworkProtocol::open(urlParser, cmdFrame);
 
@@ -76,14 +91,14 @@ bool NetworkProtocolUDP::read(unsigned short len)
 
     if (receiveBuffer->length() == 0)
     {
-        if (udp.available()==0)
+        if (udp.available() == 0)
         {
             errno_to_error();
             return true;
         }
 
         // Do the read.
-        udp.read(newData,len);
+        udp.read(newData, len);
 
         // Add new data to buffer.
         newString = string((char *)newData, len);
@@ -93,35 +108,48 @@ bool NetworkProtocolUDP::read(unsigned short len)
     }
 
     // Return success
-    Debug_printf("errno = %u\n",errno);
+    Debug_printf("errno = %u\n", errno);
     error = 1;
     return NetworkProtocol::read(len);
 }
 
 bool NetworkProtocolUDP::write(unsigned short len)
 {
-    Debug_printf("NetworkProtocolUDP::write(%u,%s,%u)\n", len,dest.c_str(),port);
-
-    // Check for client connection
-    if (dest.empty())
-    {
-        error = NETWORK_ERROR_NOT_CONNECTED;
-        return len; // error
-    }
-
     // Call base class to do translation.
     len = translate_transmit_buffer();
 
-    // Do the write to client socket.
-    if (udp.beginPacket(dest.c_str(),port)==false)
+    if (is_multicast())
     {
-        errno_to_error();
-        return true;
+        Debug_printf("NetworkProtocolUDP::MULTICAST write(%u)\n", len);
+
+        if (udp.beginMulticastPacket() == false)
+        {
+            errno_to_error();
+            return true;
+        }
+    }
+    else
+    {
+        Debug_printf("NetworkProtocolUDP::write(%u,%s,%u)\n", len, dest.c_str(), port);
+
+        // Check for client connection
+        if (dest.empty())
+        {
+            error = NETWORK_ERROR_NOT_CONNECTED;
+            return len; // error
+        }
+
+        // Do the write to client socket.
+        if (udp.beginPacket(dest.c_str(), port) == false)
+        {
+            errno_to_error();
+            return true;
+        }
     }
 
     udp.write((uint8_t *)transmitBuffer->data(), len);
 
-    if (udp.endPacket()==false)
+    if (udp.endPacket() == false)
     {
         errno_to_error();
         return true;
@@ -138,15 +166,15 @@ bool NetworkProtocolUDP::status(NetworkStatus *status)
 {
 
     if (receiveBuffer->length() > 0)
-        status->rxBytesWaiting=receiveBuffer->length();
+        status->rxBytesWaiting = receiveBuffer->length();
     else
     {
         in_addr_t addr = udp.remoteIP();
-        status->rxBytesWaiting=udp.parsePacket();
-        dest=string(inet_ntoa(addr));
-        port=udp.remotePort();
+        status->rxBytesWaiting = udp.parsePacket();
+        dest = string(inet_ntoa(addr));
+        port = udp.remotePort();
     }
-    
+
     status->reserved = 1; // Always 'connected'
     status->error = error;
 
@@ -161,8 +189,8 @@ uint8_t NetworkProtocolUDP::special_inquiry(uint8_t cmd)
 
     switch (cmd)
     {
-        case 'D':
-            return 0x80;
+    case 'D':
+        return 0x80;
     }
 
     return 0xFF;
@@ -182,10 +210,10 @@ bool NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
 {
     switch (cmdFrame->comnd)
     {
-        case 'D':
-            return set_destination(sp_buf, len);
-        default:
-            return true;
+    case 'D':
+        return set_destination(sp_buf, len);
+    default:
+        return true;
     }
     return true;
 }
@@ -202,15 +230,31 @@ bool NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
     if (port_colon == device_colon)
         return true;
 
-    string new_dest_str = path.substr(device_colon+1, port_colon-2);
+    string new_dest_str = path.substr(device_colon + 1, port_colon - 2);
     string new_port_str = path.substr(port_colon + 1);
 
 #ifdef DEBUG
-    Debug_printf("New Destination %s port %s\n",new_dest_str.c_str(),new_port_str.c_str());
+    Debug_printf("New Destination %s port %s\n", new_dest_str.c_str(), new_port_str.c_str());
 #endif
 
-    port=atoi(new_port_str.c_str());
-    dest=new_dest_str;
+    port = atoi(new_port_str.c_str());
+    dest = new_dest_str;
 
     return false; // no error.
+}
+
+bool NetworkProtocolUDP::is_multicast()
+{
+    return multicast_write;
+}
+
+bool NetworkProtocolUDP::is_multicast(string h)
+{
+    return is_multicast(get_ip4_addr_by_name(h.c_str()));
+}
+
+bool NetworkProtocolUDP::is_multicast(in_addr_t a)
+{
+    uint32_t address = ntohl(a);
+    return (address & 0xF0000000) == 0xE0000000;
 }
