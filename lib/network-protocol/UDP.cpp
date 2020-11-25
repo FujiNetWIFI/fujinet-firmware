@@ -161,11 +161,15 @@ bool NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
     {
         case 'D':
             return set_destination(sp_buf, len);
+        default:
+            return true;
     }
+    return true;
 }
 
 bool NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
 {
     dest = string((char *)sp_buf, len);
     Debug_printf("NetworkProtocolUDP::set_destination(%s)\n",dest.c_str());
+    return false; // No error.
 }
