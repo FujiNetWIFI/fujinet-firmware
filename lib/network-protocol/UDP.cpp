@@ -192,7 +192,25 @@ bool NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
 
 bool NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
 {
-    dest = string((char *)sp_buf, len);
-    Debug_printf("NetworkProtocolUDP::set_destination(%s)\n",dest.c_str());
-    return false; // No error.
+    string path((const char *)sp_buf, len);
+    int device_colon = path.find_first_of(":");
+    int port_colon = path.find_last_of(":");
+
+    if (device_colon == string::npos)
+        return true;
+
+    if (port_colon == device_colon)
+        return true;
+
+    string new_dest_str = path.substr(device_colon+1, port_colon-2);
+    string new_port_str = path.substr(port_colon + 1);
+
+#ifdef DEBUG
+    Debug_printf("New Destination %s port %s\n",new_dest_str.c_str(),new_port_str.c_str());
+#endif
+
+    port=atoi(new_port_str.c_str());
+    dest=new_dest_str;
+
+    return false; // no error.
 }
