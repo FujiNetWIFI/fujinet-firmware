@@ -136,8 +136,36 @@ bool NetworkProtocolUDP::status(NetworkStatus *status)
     status->rxBytesWaiting = udp.available();
     status->reserved = 1; // Always 'connected'
     status->error = error;
-    
+
     NetworkProtocol::status(status);
 
     return false;
+}
+
+uint8_t NetworkProtocolUDP::special_inquiry(uint8_t cmd)
+{
+    Debug_printf("NetworkProtocolUDP::special_inquiry(%02x)\n", cmd);
+
+    switch (cmd)
+    {
+        case 'D':
+            return 0x80;
+    }
+
+    return 0xFF;
+}
+
+bool NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+{
+    switch (cmdFrame->comnd)
+    {
+        case 'D':
+            return set_destination(sp_buf, len);
+    }
+}
+
+bool NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
+{
+    dest = string((char *)sp_buf, len);
+    Debug_printf("NetworkProtocolUDP::set_destination(%s)\n",dest.c_str());
 }
