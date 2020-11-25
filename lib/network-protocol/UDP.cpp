@@ -25,6 +25,8 @@ bool NetworkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     {
         Debug_printf("Setting destination hostname to: %s\n", urlParser->hostName.c_str());
         dest = urlParser->hostName;
+        Debug_printf("Setting destination port to: %s\n",urlParser->port.c_str());
+        port = atoi(urlParser->port.c_str());
     }
 
     // Port must be set, or we bail.
@@ -61,7 +63,6 @@ bool NetworkProtocolUDP::close()
 
 bool NetworkProtocolUDP::read(unsigned short len)
 {
-    unsigned short actual_len = 0;
     uint8_t *newData = (uint8_t *)malloc(len);
     string newString;
 
@@ -99,9 +100,7 @@ bool NetworkProtocolUDP::read(unsigned short len)
 
 bool NetworkProtocolUDP::write(unsigned short len)
 {
-    int actual_len = 0;
-
-    Debug_printf("NetworkProtocolUDP::write(%u)\n", len);
+    Debug_printf("NetworkProtocolUDP::write(%u,%s,%u)\n", len,dest.c_str(),port);
 
     // Check for client connection
     if (dest.empty())
@@ -114,12 +113,17 @@ bool NetworkProtocolUDP::write(unsigned short len)
     len = translate_transmit_buffer();
 
     // Do the write to client socket.
-    actual_len = udp.write((uint8_t *)transmitBuffer->data(), len);
-
-    if (actual_len != len) // write was short.
+    if (udp.beginPacket(dest.c_str(),port)==false)
     {
-        Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\n", actual_len, len);
-        error = NETWORK_ERROR_SOCKET_TIMEOUT;
+        errno_to_error();
+        return true;
+    }
+
+    udp.write((uint8_t *)transmitBuffer->data(), len);
+
+    if (udp.endPacket()==false)
+    {
+        errno_to_error();
         return true;
     }
 
@@ -133,7 +137,16 @@ bool NetworkProtocolUDP::write(unsigned short len)
 bool NetworkProtocolUDP::status(NetworkStatus *status)
 {
 
-    status->rxBytesWaiting = udp.available();
+    if (receiveBuffer->length() > 0)
+        status->rxBytesWaiting=receiveBuffer->length();
+    else
+    {
+        in_addr_t addr = udp.remoteIP();
+        status->rxBytesWaiting=udp.parsePacket();
+        dest=string(inet_ntoa(addr));
+        port=udp.remotePort();
+    }
+    
     status->reserved = 1; // Always 'connected'
     status->error = error;
 
@@ -153,6 +166,16 @@ uint8_t NetworkProtocolUDP::special_inquiry(uint8_t cmd)
     }
 
     return 0xFF;
+}
+
+bool NetworkProtocolUDP::special_00(cmdFrame_t *cmdFrame)
+{
+    return true; // none implemented.
+}
+
+bool NetworkProtocolUDP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+{
+    return true; // none implemented.
 }
 
 bool NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
