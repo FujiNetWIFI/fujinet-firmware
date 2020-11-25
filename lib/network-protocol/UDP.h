@@ -95,6 +95,13 @@ protected:
      */
     string dest;
 
+    /**
+     * @brief Set destination address
+     * @param sp_buf pointer to received special buffer.
+     * @param len of special received buffer
+     */
+    bool set_destination(uint8_t *sp_buf, unsigned short len);
+
 };
 
 #endif /* NETWORKPROTOCOL_UDP */
