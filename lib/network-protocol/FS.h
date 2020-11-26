@@ -105,6 +105,21 @@ protected:
      * @return FALSE if successful, TRUE on error.
      */
     virtual bool open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+        /**
+     * @brief Do TNFS mount
+     * @param hostName - host name of TNFS server
+     * @param path - path to mount, usually "/"
+     * @return false on no error, true on error.
+     */
+    virtual bool mount(string hostName, string path);
+
+    /**
+     * @brief Unmount TNFS server specified in mountInfo.
+     * @return  false on no error, true on error.
+     */
+    virtual bool umount();
+
 };
 
 #endif /* NETWORKPROTOCOL_FS */
