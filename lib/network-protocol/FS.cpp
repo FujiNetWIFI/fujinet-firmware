@@ -102,12 +102,12 @@ bool NetworkProtocolFS::special_80(uint8_t* sp_buf, unsigned short len, cmdFrame
 
 bool NetworkProtocolFS::open_file(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    error = NETWORK_ERROR_NOT_IMPLEMENTED;
-    return true;
+    openMode = FILE;
+    return error != NETWORK_ERROR_SUCCESS;
 }
 
 bool NetworkProtocolFS::open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    error = NETWORK_ERROR_NOT_IMPLEMENTED;
-    return true;
+    openMode = DIR;
+    return error != NETWORK_ERROR_SUCCESS;
 }
