@@ -105,6 +105,16 @@ protected:
     OpenMode openMode;
 
     /**
+     * Directory of currently open file
+     */
+    string dir;
+
+    /**
+     * Filename of currently open file
+     */
+    string filename;
+
+    /**
      * @brief Open a file via URL.
      * @param url pointer to EdUrlParser pointing to file to open.
      * @param cmdFrame pointer to command frame to grab aux1/aux2 values.
@@ -120,7 +130,7 @@ protected:
      */
     virtual bool open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame);
 
-        /**
+    /**
      * @brief Do TNFS mount
      * @param hostName - host name of TNFS server
      * @param path - path to mount, usually "/"
@@ -133,6 +143,11 @@ protected:
      * @return  false on no error, true on error.
      */
     virtual bool umount();
+
+    /**
+     * @brief Translate filesystem error codes to Atari error codes. Sets error in Protocol.
+     */
+    virtual void fserror_to_error() = 0;
 
 };
 
