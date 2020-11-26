@@ -91,6 +91,20 @@ public:
 protected:
 
     /**
+     * Open mode typedef
+     */
+    typedef enum _openMode
+    {
+        FILE,
+        DIR
+    } OpenMode;
+
+    /**
+     * Open mode
+     */
+    OpenMode openMode;
+
+    /**
      * @brief Open a file via URL.
      * @param url pointer to EdUrlParser pointing to file to open.
      * @param cmdFrame pointer to command frame to grab aux1/aux2 values.
