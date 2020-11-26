@@ -19,7 +19,7 @@ NetworkProtocolTNFS::~NetworkProtocolTNFS()
 bool NetworkProtocolTNFS::open_file(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
     error = NETWORK_ERROR_NOT_IMPLEMENTED;
-    return true;
+    return NetworkProtocolFS::open_file(url, cmdFrame);
 }
 
 bool NetworkProtocolTNFS::open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame)
