@@ -18,6 +18,9 @@ NetworkProtocolFS::~NetworkProtocolFS()
 
 bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
+    if (mount(url->hostName, url->path)==true)
+        return true;
+
     if (cmdFrame->aux2 == 6)
     {
         return open_dir(url, cmdFrame);
@@ -30,6 +33,9 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolFS::close()
 {
+    if (umount()==true)
+        return true;
+        
     return NetworkProtocol::close();
 }
 
