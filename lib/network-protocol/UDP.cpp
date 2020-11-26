@@ -26,8 +26,6 @@ bool NetworkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     {
         Debug_printf("Setting destination hostname to: %s\n", urlParser->hostName.c_str());
         dest = urlParser->hostName;
-        Debug_printf("Setting destination port to: %s\n", urlParser->port.c_str());
-        port = atoi(urlParser->port.c_str());
     }
 
     // Port must be set, or we bail.
@@ -36,30 +34,26 @@ bool NetworkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         Debug_printf("Port is empty, aborting.\n");
         return true;
     }
+    else
+    {
+        Debug_printf("Setting destination port to: %s\n", urlParser->port.c_str());
+        port = atoi(urlParser->port.c_str());
+    }
 
     // Attempt to bind port.
     Debug_printf("Binding port %u\n", atoi(urlParser->port.c_str()));
-    if (is_multicast(urlParser->hostName))
+    if (udp.begin(atoi(urlParser->port.c_str())) == false)
     {
-        Debug_printf("Multicast address detected.\n");
-        if (udp.beginMulticast(get_ip4_addr_by_name(urlParser->hostName.c_str()), atoi(urlParser->port.c_str())) == false)
-        {
-            Debug_printf("Could not register multicast group: errno %u\n", errno);
-            errno_to_error();
-            return true;
-        }
-        else
-            multicast_write = true;
+        errno_to_error();
+        return true;
     }
-    else // Unicast
+    else
     {
-        if (udp.begin(atoi(urlParser->port.c_str())) == false)
-        {
-            errno_to_error();
-            return true;
-        }
-        multicast_write = false;
+        dest = urlParser->hostName;
+        port = atoi(urlParser->port.c_str());
+        Debug_printf("After begin: %s:%u\n", dest.c_str(), port);
     }
+
     // call base class
     NetworkProtocol::open(urlParser, cmdFrame);
 
@@ -119,33 +113,20 @@ bool NetworkProtocolUDP::write(unsigned short len)
     // Call base class to do translation.
     len = translate_transmit_buffer();
 
-    if (is_multicast())
-    {
-        Debug_printf("NetworkProtocolUDP::MULTICAST write(%u)\n", len);
+    Debug_printf("NetworkProtocolUDP::write(%u,%s,%u)\n", len, dest.c_str(), port);
 
-        if (udp.beginMulticastPacket() == false)
-        {
-            errno_to_error();
-            return true;
-        }
+    // Check for client connection
+    if (dest.empty())
+    {
+        error = NETWORK_ERROR_NOT_CONNECTED;
+        return len; // error
     }
-    else
+
+    // Do the write to client socket.
+    if (udp.beginPacket(dest.c_str(), port) == false)
     {
-        Debug_printf("NetworkProtocolUDP::write(%u,%s,%u)\n", len, dest.c_str(), port);
-
-        // Check for client connection
-        if (dest.empty())
-        {
-            error = NETWORK_ERROR_NOT_CONNECTED;
-            return len; // error
-        }
-
-        // Do the write to client socket.
-        if (udp.beginPacket(dest.c_str(), port) == false)
-        {
-            errno_to_error();
-            return true;
-        }
+        errno_to_error();
+        return true;
     }
 
     udp.write((uint8_t *)transmitBuffer->data(), len);
@@ -171,9 +152,15 @@ bool NetworkProtocolUDP::status(NetworkStatus *status)
     else
     {
         in_addr_t addr = udp.remoteIP();
+
         status->rxBytesWaiting = udp.parsePacket();
-        dest = string(inet_ntoa(addr));
-        port = udp.remotePort();
+        
+        // Only change dest if we need to.
+        if (udp.remoteIP() != IPADDR_NONE)
+        {
+            dest = string(inet_ntoa(addr));
+            port = udp.remotePort();
+        }
     }
 
     status->reserved = 1; // Always 'connected'
@@ -234,9 +221,7 @@ bool NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
     string new_dest_str = path.substr(device_colon + 1, port_colon - 2);
     string new_port_str = path.substr(port_colon + 1);
 
-#ifdef DEBUG
     Debug_printf("New Destination %s port %s\n", new_dest_str.c_str(), new_port_str.c_str());
-#endif
 
     port = atoi(new_port_str.c_str());
     dest = new_dest_str;
