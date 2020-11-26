@@ -53,6 +53,11 @@ protected:
      */
     virtual bool umount();
 
+    /**
+     * @brief Translate filesystem error codes to Atari error codes. Sets error in Protocol.
+     */
+    virtual void fserror_to_error();
+
 private:
 
     /**
