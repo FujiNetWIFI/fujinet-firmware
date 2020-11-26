@@ -58,6 +58,7 @@ bool NetworkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
             errno_to_error();
             return true;
         }
+        multicast_write = false;
     }
     // call base class
     NetworkProtocol::open(urlParser, cmdFrame);
