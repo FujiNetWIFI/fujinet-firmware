@@ -11,6 +11,11 @@
 #define NETWORK_ERROR_SUCCESS 1
 
 /**
+ * End of file
+ */
+#define NETWORK_ERROR_END_OF_FILE 136
+
+/**
  * A fatal error
  */
 #define NETWORK_ERROR_GENERAL 144
@@ -21,9 +26,24 @@
 #define NETWORK_ERROR_NOT_IMPLEMENTED 146
 
 /**
+ * No space left on device
+ */
+#define NETWORK_ERROR_NO_SPACE_ON_DEVICE 162
+
+/**
  * An invalid devicespec was given
  */
 #define NETWORK_ERROR_INVALID_DEVICESPEC 165
+
+/**
+ * Access denied
+ */
+#define NETWORK_ERROR_ACCESS_DENIED 167
+
+/**
+ * Network error, file not found
+ */
+#define NETWORK_ERROR_FILE_NOT_FOUND 170
 
 /**
  * A connection was either refused or not possible
