@@ -18,7 +18,8 @@ NetworkProtocolTNFS::~NetworkProtocolTNFS()
 
 bool NetworkProtocolTNFS::open_file(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-
+    error = NETWORK_ERROR_NOT_IMPLEMENTED;
+    return true;
 }
 
 bool NetworkProtocolTNFS::open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame)
@@ -29,7 +30,6 @@ bool NetworkProtocolTNFS::open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolTNFS::mount(string hostName, string path)
 {
-    memset(&mountInfo,0,sizeof(mountInfo));
     strcpy(mountInfo.hostname,hostName.c_str());
     strcpy(mountInfo.mountpath,path.c_str());
 
