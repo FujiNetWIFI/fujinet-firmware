@@ -6,6 +6,11 @@
 #define STATUS_ERROR_CODES_H
 
 /**
+ * Success
+ */
+#define NETWORK_ERROR_SUCCESS 1
+
+/**
  * A fatal error
  */
 #define NETWORK_ERROR_GENERAL 144
