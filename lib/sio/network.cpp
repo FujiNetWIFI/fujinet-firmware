@@ -410,6 +410,8 @@ void sioNetwork::sio_special()
         return;
     }
 
+    sio_ack(); // Now we ack.
+
     // Ask protocol for DSTATS value.
     inq_dstats = protocol->special_inquiry(inq_cmd);
 
@@ -420,7 +422,7 @@ void sioNetwork::sio_special()
         return;
     }
 
-    sio_ack(); // Now we ack.
+    Debug_printf("inq_dstats = %u\n", inq_dstats);
 
     switch (inq_dstats)
     {
@@ -515,20 +517,17 @@ void sioNetwork::sio_special_protocol_40()
 void sioNetwork::sio_special_protocol_80()
 {
     uint8_t ck;
+    uint8_t spData[SPECIAL_BUFFER_SIZE];
+
+    memset(spData,0,SPECIAL_BUFFER_SIZE);
 
     // Get special (devicespec) from computer
-    ck = sio_to_peripheral((uint8_t *)transmitBuffer->data(), 256);
+    ck = sio_to_peripheral(spData, SPECIAL_BUFFER_SIZE);
 
-    // Bomb if checksum mismatch.
-    if (ck != cmdFrame.checksum)
-    {
-        Debug_printf("sioNetwork::sio_special_protocol_80() - mismatched checksum\n");
-        sio_error();
-        return;
-    }
+    Debug_printf("sioNetwork::sio_special_protocol_80() - %s\n",spData);
 
     // Do protocol action and return
-    if (protocol->special_80((uint8_t *)transmitBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
         sio_complete();
     else
         sio_error();
