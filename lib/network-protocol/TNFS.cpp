@@ -18,8 +18,9 @@ NetworkProtocolTNFS::~NetworkProtocolTNFS()
 
 bool NetworkProtocolTNFS::open_file(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-
-    NetworkProtocolFS::open_file(url, cmdFrame);
+    // Ask base class to resolve file.
+    if (NetworkProtocolFS::open_file(url, cmdFrame)==true)
+        return true;
 
     return true;
 }
