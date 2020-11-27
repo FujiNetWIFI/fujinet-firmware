@@ -42,6 +42,8 @@ void fnTcpServer::begin(uint16_t port)
         Debug_printf("fnTcpServer::begin failed to set SO_REUSEADDR, err %d", errno);
     }
 
+    Debug_printf("Max clients is currently %u\n",_max_clients);
+
     // Now listen in on this socket
     if (listen(_sockfd, _max_clients) < 0)
     {

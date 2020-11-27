@@ -578,6 +578,7 @@ void sioModem::sio_listen()
     else
         sio_ack();
 
+    tcpServer.setMaxClients(1);
     tcpServer.begin(listenPort);
 
     sio_complete();
@@ -807,6 +808,7 @@ void sioModem::at_handle_port()
         }
 
         listenPort = port;
+        tcpServer.setMaxClients(1);
         tcpServer.begin(listenPort);
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
@@ -1453,6 +1455,14 @@ void sioModem::sio_handle_modem()
     // Connected mode
     else
     {
+        // If another client is waiting, accept and turn away.
+        if (tcpServer.hasClient())
+        {
+            fnTcpClient c = tcpServer.accept();
+            c.write("The MODEM is currently serving another caller. Please try again later.\x0d\x0a\x9b");
+            c.stop();
+        }
+
         //int sioBytesAvail = SIO_UART.available();
         int sioBytesAvail = fnUartSIO.available();
 
