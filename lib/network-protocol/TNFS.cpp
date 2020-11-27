@@ -135,3 +135,26 @@ string NetworkProtocolTNFS::resolve(string path)
 
     return path;
 }
+
+bool NetworkProtocolTNFS::read_file(unsigned short len)
+{
+    uint8_t* buf = (uint8_t *)malloc(len);
+    uint16_t actual_len;
+
+    tnfs_error = tnfs_read(&mountInfo, fd, buf, len, &actual_len);
+    fserror_to_error();
+
+    // Append to receive buffer.
+    *receiveBuffer += string((char *)buf,len);
+
+    // Done with the temporary buffer.
+    free(buf);
+    
+    // Pass back to base class for translation.
+    return NetworkProtocol::read(len);
+}
+
+bool NetworkProtocolTNFS::read_dir(unsigned short len)
+{
+    return tnfs_error != TNFS_RESULT_SUCCESS;
+}

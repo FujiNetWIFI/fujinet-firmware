@@ -46,7 +46,15 @@ bool NetworkProtocolFS::close()
 
 bool NetworkProtocolFS::read(unsigned short len)
 {
-    error = NETWORK_ERROR_NOT_IMPLEMENTED;
+    switch (openMode)
+    {
+    case FILE:
+        return read_file(len);
+        break;
+    case DIR:
+        return read_dir(len);
+        break;
+    }
     return true;
 }
 
