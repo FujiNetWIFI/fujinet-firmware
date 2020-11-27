@@ -18,24 +18,28 @@ NetworkProtocolFS::~NetworkProtocolFS()
 
 bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    if (mount(url->hostName, url->path)==true)
+    // split out directory/filename.
+    dir = url->path.substr(0, url->path.find_last_of("/") + 1);
+    filename = url->path.substr(url->path.find_last_of("/") + 1);
+
+    if (mount(url->hostName, url->path) == true)
         return true;
 
     if (cmdFrame->aux2 == 6)
     {
-        return open_dir(url, cmdFrame);
+        return open_dir(url->path);
     }
     else
     {
-        return open_file(url, cmdFrame);
+        return open_file(url->path);
     }
 }
 
 bool NetworkProtocolFS::close()
 {
-    if (umount()==true)
+    if (umount() == true)
         return true;
-        
+
     return NetworkProtocol::close();
 }
 
@@ -63,8 +67,8 @@ uint8_t NetworkProtocolFS::special_inquiry(uint8_t cmd)
 
     switch (cmd)
     {
-        default:
-            ret = 0xFF; // Not implemented.
+    default:
+        ret = 0xFF; // Not implemented.
     }
 
     return ret;
@@ -72,41 +76,41 @@ uint8_t NetworkProtocolFS::special_inquiry(uint8_t cmd)
 
 bool NetworkProtocolFS::special_00(cmdFrame_t *cmdFrame)
 {
-    switch(cmdFrame->comnd)
+    switch (cmdFrame->comnd)
     {
-        default:
-            error = NETWORK_ERROR_NOT_IMPLEMENTED;
-            return true;
+    default:
+        error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        return true;
     }
 }
 
-bool NetworkProtocolFS::special_40(uint8_t* sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    switch(cmdFrame->comnd)
+    switch (cmdFrame->comnd)
     {
-        default:
-            error = NETWORK_ERROR_NOT_IMPLEMENTED;
-            return true;
+    default:
+        error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        return true;
     }
 }
 
-bool NetworkProtocolFS::special_80(uint8_t* sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    switch(cmdFrame->comnd)
+    switch (cmdFrame->comnd)
     {
-        default:
-            error = NETWORK_ERROR_NOT_IMPLEMENTED;
-            return true;
+    default:
+        error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        return true;
     }
 }
 
-bool NetworkProtocolFS::open_file(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::open_file(string path)
 {
     openMode = FILE;
     return error != NETWORK_ERROR_SUCCESS;
 }
 
-bool NetworkProtocolFS::open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::open_dir(string path)
 {
     openMode = DIR;
     return error != NETWORK_ERROR_SUCCESS;
