@@ -24,7 +24,29 @@ bool NetworkProtocolTNFS::open_file(string path)
     if (path.empty())
         return true;
 
-    return false;
+    // Map aux1 to mode and perms for tnfs_open()
+    switch (aux1_open)
+    {
+    case 4:
+        mode = 1;
+        perms = 0;
+        break;
+    case 8:
+    case 9:
+        mode = 0x010B;
+        perms = 0x1FF;
+        break;
+    case 12:
+        mode = 0x103;
+        perms = 0x1FF;
+        break;
+    }
+
+    // Do the open.
+    tnfs_error = tnfs_open(&mountInfo, filename.c_str(), mode, perms, &fd);
+    fserror_to_error();
+
+    return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
 bool NetworkProtocolTNFS::open_dir(string path)
