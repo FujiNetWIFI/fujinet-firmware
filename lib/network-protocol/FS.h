@@ -161,6 +161,20 @@ protected:
      */
     void update_dir_filename(string path);
 
+    /**
+     * @brief Read from file
+     * @param len the number of bytes requested
+     * @return FALSE if success, TRUE if error
+     */
+    virtual bool read_file(unsigned short len) = 0;
+
+    /**
+     * @brief Read from directory
+     * @param len the number of bytes requested
+     * @return FALSE if success, TRUE if error
+     */
+    virtual bool read_dir(unsigned short len) = 0;
+
 };
 
 #endif /* NETWORKPROTOCOL_FS */

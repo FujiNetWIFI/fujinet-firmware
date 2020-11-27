@@ -65,6 +65,20 @@ protected:
      */
     virtual string resolve(string path);
 
+    /**
+     * @brief Read from file
+     * @param len the number of bytes requested
+     * @return FALSE if success, TRUE if error.
+     */
+    virtual bool read_file(unsigned short len);
+
+    /**
+     * @brief Read from directory
+     * @param len the number of bytes requested
+     * @return FALSE if success, TRUE if error
+     */
+    virtual bool read_dir(unsigned short len);
+
 private:
 
     /**
