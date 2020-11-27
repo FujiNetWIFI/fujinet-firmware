@@ -77,6 +77,21 @@ private:
      */
     int tnfs_error;
 
+    /**
+     * The mode of the open file
+     */
+    uint16_t mode;
+
+    /**
+     * The create permissions of the open file
+     */
+    uint16_t perms;
+
+    /**
+     * The resulting file handle of open file.
+     */
+    int16_t fd;
+
 };
 
 #endif /* NETWORKPROTOCOLTNFS_H */
