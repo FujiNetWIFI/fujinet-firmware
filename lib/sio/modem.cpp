@@ -1455,6 +1455,14 @@ void sioModem::sio_handle_modem()
     // Connected mode
     else
     {
+        // If another client is waiting, accept and turn away.
+        if (tcpServer.hasClient())
+        {
+            fnTcpClient c = tcpServer.accept();
+            c.write("The MODEM is currently serving another caller. Please try again later.\x0d\x0a\x9b");
+            c.stop();
+        }
+
         //int sioBytesAvail = SIO_UART.available();
         int sioBytesAvail = fnUartSIO.available();
 
