@@ -80,7 +80,6 @@ protected:
     virtual bool read_dir(unsigned short len);
 
 private:
-
     /**
      * TNFS MountInfo structure
      */
@@ -106,6 +105,10 @@ private:
      */
     int16_t fd;
 
+    /**
+     * The TNFS filestat of the currently open file.
+     */
+    tnfsStat fileStat;
 };
 
 #endif /* NETWORKPROTOCOLTNFS_H */
