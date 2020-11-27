@@ -156,6 +156,11 @@ protected:
      */
     virtual string resolve(string path);
 
+    /**
+     * Update dir and filename
+     */
+    void update_dir_filename(string path);
+
 };
 
 #endif /* NETWORKPROTOCOL_FS */

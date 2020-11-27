@@ -18,11 +18,9 @@ NetworkProtocolFS::~NetworkProtocolFS()
 
 bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    // split out directory/filename.
-    dir = url->path.substr(0, url->path.find_last_of("/") + 1);
-    filename = url->path.substr(url->path.find_last_of("/") + 1);
+    update_dir_filename(url->path);
 
-    if (mount(url->hostName, url->path) == true)
+    if (mount(url->hostName, dir) == true)
         return true;
 
     if (cmdFrame->aux2 == 6)
@@ -106,6 +104,8 @@ bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
 
 bool NetworkProtocolFS::open_file(string path)
 {
+    path = resolve(path);
+    update_dir_filename(path);
     openMode = FILE;
     return error != NETWORK_ERROR_SUCCESS;
 }
@@ -114,4 +114,10 @@ bool NetworkProtocolFS::open_dir(string path)
 {
     openMode = DIR;
     return error != NETWORK_ERROR_SUCCESS;
+}
+
+void NetworkProtocolFS::update_dir_filename(string path)
+{
+    dir = path.substr(0, path.find_last_of("/") + 1);
+    filename = path.substr(path.find_last_of("/") + 1);
 }

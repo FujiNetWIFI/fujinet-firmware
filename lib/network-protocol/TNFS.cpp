@@ -17,16 +17,19 @@ NetworkProtocolTNFS::~NetworkProtocolTNFS()
 {
 }
 
-bool NetworkProtocolTNFS::open_file(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTNFS::open_file(string path)
 {
-    url->path = resolve(url->path);
-    
+    NetworkProtocolFS::open_file(path);
+
+    if (path.empty())
+        return true;
+
     return false;
 }
 
-bool NetworkProtocolTNFS::open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTNFS::open_dir(string path)
 {
-    NetworkProtocolFS::open_dir(url->path);
+    NetworkProtocolFS::open_dir(path);
     error = NETWORK_ERROR_NOT_IMPLEMENTED;
     return true;
 }
@@ -78,10 +81,6 @@ string NetworkProtocolTNFS::resolve(string path)
 {
     tnfsStat fs;
 
-    // Only resolve if we are opening for read only.
-    if (aux1_open != 4)
-        return path;
-
     if (tnfs_stat(&mountInfo, &fs, path.c_str()))
     {
         // File wasn't found, let's try resolving against the crunched filename
@@ -103,8 +102,8 @@ string NetworkProtocolTNFS::resolve(string path)
             }
         }
 
-        // We failed to resolve. clear.
+        // We failed to resolve. clear, if we're reading, otherwise pass back original path.
         tnfs_closedir(&mountInfo);
-        return "";
+        return (aux1_open == 4 ? "" : path);
     }
 }
