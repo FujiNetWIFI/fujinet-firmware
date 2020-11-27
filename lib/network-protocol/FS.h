@@ -115,23 +115,21 @@ protected:
     string filename;
 
     /**
-     * @brief Open a file via URL.
-     * @param url pointer to EdUrlParser pointing to file to open.
-     * @param cmdFrame pointer to command frame to grab aux1/aux2 values.
+     * @brief Open a file via path.
+     * @param path the path to open.
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool open_file(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool open_file(string path);
 
     /**
      * @brief Open a Directory via URL.
-     * @param url pointer to EdUrlParser pointing to file to open.
-     * @param cmdFrame pointer to command frame to grab aux1/aux2 values.
+     * @param path the path to open.
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool open_dir(string path);
 
     /**
-     * @brief Do TNFS mount
+     * @brief Do mount
      * @param hostName - host name of TNFS server
      * @param path - path to mount, usually "/"
      * @return false on no error, true on error.
@@ -148,6 +146,15 @@ protected:
      * @brief Translate filesystem error codes to Atari error codes. Sets error in Protocol.
      */
     virtual void fserror_to_error() = 0;
+
+    /**
+     * @brief Resolve filename at path. Gets directory, searches for file,
+     *        if path not found, the file is passed through util_crunch,
+     *        and a second attempt is done.
+     * @param path The full path to file to resolve.
+     * @return string of resolved path.
+     */
+    virtual string resolve(string path);
 
 };
 
