@@ -89,7 +89,7 @@ string NetworkProtocolTNFS::resolve(string path)
 
         if (tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, "*", 0) != 0)
             return "";
-        
+
         while (tnfs_readdirx(&mountInfo, &fs, e, 255) == 0)
         {
             string current_entry = string(e);
@@ -101,9 +101,10 @@ string NetworkProtocolTNFS::resolve(string path)
                 return dir + "/" + current_entry;
             }
         }
-
         // We failed to resolve. clear, if we're reading, otherwise pass back original path.
         tnfs_closedir(&mountInfo);
         return (aux1_open == 4 ? "" : path);
     }
+
+    return path;
 }
