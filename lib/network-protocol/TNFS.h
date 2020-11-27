@@ -58,6 +58,15 @@ protected:
      */
     virtual void fserror_to_error();
 
+    /**
+     * @brief Resolve filename at path. Gets directory, searches for file,
+     *        if path not found, the file is passed through util_crunch,
+     *        and a second attempt is done.
+     * @param path The full path to file to resolve.
+     * @return resolved path.
+     */
+    virtual string resolve(string path);
+
 private:
 
     /**

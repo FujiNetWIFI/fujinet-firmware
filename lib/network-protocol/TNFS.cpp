@@ -6,6 +6,7 @@
 
 #include "TNFS.h"
 #include "status_error_codes.h"
+#include "utils.h"
 
 NetworkProtocolTNFS::NetworkProtocolTNFS(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
@@ -18,16 +19,14 @@ NetworkProtocolTNFS::~NetworkProtocolTNFS()
 
 bool NetworkProtocolTNFS::open_file(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    // Ask base class to resolve file.
-    if (NetworkProtocolFS::open_file(url, cmdFrame)==true)
-        return true;
-
-    return true;
+    url->path = resolve(url->path);
+    
+    return false;
 }
 
 bool NetworkProtocolTNFS::open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    NetworkProtocolFS::open_dir(url, cmdFrame);
+    NetworkProtocolFS::open_dir(url->path);
     error = NETWORK_ERROR_NOT_IMPLEMENTED;
     return true;
 }
@@ -70,7 +69,42 @@ void NetworkProtocolTNFS::fserror_to_error()
         error = NETWORK_ERROR_END_OF_FILE;
         break;
     default:
-        Debug_printf("TNFS uncaught error: %u\n",tnfs_error);
+        Debug_printf("TNFS uncaught error: %u\n", tnfs_error);
         error = NETWORK_ERROR_GENERAL;
+    }
+}
+
+string NetworkProtocolTNFS::resolve(string path)
+{
+    tnfsStat fs;
+
+    // Only resolve if we are opening for read only.
+    if (aux1_open != 4)
+        return path;
+
+    if (tnfs_stat(&mountInfo, &fs, path.c_str()))
+    {
+        // File wasn't found, let's try resolving against the crunched filename
+        string crunched_filename = util_crunch(filename);
+        char e[256]; // current entry.
+
+        if (tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, "*", 0) != 0)
+            return "";
+        
+        while (tnfs_readdirx(&mountInfo, &fs, e, 255) == 0)
+        {
+            string current_entry = string(e);
+            string crunched_entry = util_crunch(current_entry);
+
+            if (crunched_filename == crunched_entry)
+            {
+                tnfs_closedir(&mountInfo);
+                return dir + "/" + current_entry;
+            }
+        }
+
+        // We failed to resolve. clear.
+        tnfs_closedir(&mountInfo);
+        return "";
     }
 }
