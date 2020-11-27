@@ -24,20 +24,18 @@ public:
 
 protected:
     /**
-     * @brief Open a file via URL.
-     * @param url pointer to EdUrlParser pointing to file to open.
-     * @param cmdFrame pointer to command frame to grab aux1/aux2 values.
+     * @brief Open a file at path.
+     * @param path the path to open.
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool open_file(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool open_file(string path);
 
     /**
      * @brief Open a Directory via URL.
-     * @param url pointer to EdUrlParser pointing to file to open.
-     * @param cmdFrame pointer to command frame to grab aux1/aux2 values.
+     * @param path the path to open
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool open_dir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool open_dir(string path);
 
     /**
      * @brief Do TNFS mount
