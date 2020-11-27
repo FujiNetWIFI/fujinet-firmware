@@ -52,8 +52,13 @@ bool NetworkProtocolTNFS::open_file(string path)
 bool NetworkProtocolTNFS::open_dir(string path)
 {
     NetworkProtocolFS::open_dir(path);
-    error = NETWORK_ERROR_NOT_IMPLEMENTED;
-    return true;
+
+    if (path.empty())
+        return true;
+
+    tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
+
+    return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
 bool NetworkProtocolTNFS::mount(string hostName, string path)
