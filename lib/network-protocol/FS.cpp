@@ -18,6 +18,9 @@ NetworkProtocolFS::~NetworkProtocolFS()
 
 bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
+    // Call base class.
+    NetworkProtocol::open(url, cmdFrame);
+
     update_dir_filename(url->path);
 
     if (mount(url->hostName, dir) == true)
