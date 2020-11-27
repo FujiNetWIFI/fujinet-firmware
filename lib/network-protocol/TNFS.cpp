@@ -106,9 +106,7 @@ void NetworkProtocolTNFS::fserror_to_error()
 
 string NetworkProtocolTNFS::resolve(string path)
 {
-    tnfsStat fs;
-
-    if (tnfs_stat(&mountInfo, &fs, path.c_str()))
+    if (tnfs_stat(&mountInfo, &fileStat, path.c_str()))
     {
         // File wasn't found, let's try resolving against the crunched filename
         string crunched_filename = util_crunch(filename);
@@ -117,20 +115,20 @@ string NetworkProtocolTNFS::resolve(string path)
         if (tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, "*", 0) != 0)
             return "";
 
-        while (tnfs_readdirx(&mountInfo, &fs, e, 255) == 0)
+        while (tnfs_readdirx(&mountInfo, &fileStat, e, 255) == 0)
         {
             string current_entry = string(e);
             string crunched_entry = util_crunch(current_entry);
 
             if (crunched_filename == crunched_entry)
             {
-                tnfs_closedir(&mountInfo);
-                return dir + "/" + current_entry;
+                path = dir + "/" + current_entry;
+                tnfs_stat(&mountInfo, &fileStat, path.c_str()); // get stat of resolved file.
+                break;
             }
         }
         // We failed to resolve. clear, if we're reading, otherwise pass back original path.
         tnfs_closedir(&mountInfo);
-        return (aux1_open == 4 ? "" : path);
     }
 
     return path;
