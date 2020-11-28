@@ -188,7 +188,9 @@ bool NetworkProtocolTNFS::read_file(unsigned short len)
 
 bool NetworkProtocolTNFS::read_dir(unsigned short len)
 {
-    return tnfs_error != TNFS_RESULT_SUCCESS;
+    *receiveBuffer+=dirBuffer.substr(0,len);
+    dirBuffer.erase(0,len);
+    return len <= dirBuffer.length();
 }
 
 bool NetworkProtocolTNFS::status_file(NetworkStatus *status)
@@ -201,5 +203,8 @@ bool NetworkProtocolTNFS::status_file(NetworkStatus *status)
 
 bool NetworkProtocolTNFS::status_dir(NetworkStatus *status)
 {
+    status->rxBytesWaiting = dirBuffer.length();
+    status->reserved=1;
+    status->error = error;
     return false;
 }
