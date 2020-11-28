@@ -89,7 +89,6 @@ public:
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
 
 protected:
-
     /**
      * Open mode typedef
      */
@@ -113,6 +112,11 @@ protected:
      * Filename of currently open file
      */
     string filename;
+
+    /**
+     * Filename for destination (e.g. rename)
+     */
+    string destFilename;
 
     /**
      * File size
@@ -190,14 +194,14 @@ protected:
      * @param Pointer to NetworkStatus object to inject new data.
      * @return FALSE if success, TRUE if error.
      */
-    virtual bool status_file(NetworkStatus* status) = 0;
+    virtual bool status_file(NetworkStatus *status) = 0;
 
     /**
      * @brief return status from directory (e.g. # of bytes remaining.)
      * @param Pointer to NetworkStatus object to inject new data.
      * @return FALSE if success, TRUE if error.
      */
-    virtual bool status_dir(NetworkStatus* status) = 0;
+    virtual bool status_dir(NetworkStatus *status) = 0;
 
     /**
      * @brief close file.
@@ -224,7 +228,15 @@ protected:
      * @param len of special buffer
      * @return TRUE on error, FALSE on success
      */
-    bool chdir(uint8_t* sp_buf, unsigned short len);
+    bool chdir(uint8_t *sp_buf, unsigned short len);
+
+    /**
+     * @brief Rename file specified by incoming devicespec.
+     * @param sp_buf Pointer to special buffer
+     * @param len of special buffer.
+     * @return TRUE on error, FALSE on success
+     */
+    bool rename(uint8_t *sp_buf, unsigned short len);
 };
 
 #endif /* NETWORKPROTOCOL_FS */
