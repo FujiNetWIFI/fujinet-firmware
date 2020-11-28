@@ -120,6 +120,11 @@ protected:
     int fileSize;
 
     /**
+     * Directory buffer
+     */
+    string dirBuffer;
+
+    /**
      * @brief Open a file via path.
      * @param path the path to open.
      * @return FALSE if successful, TRUE on error.
