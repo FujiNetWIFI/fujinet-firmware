@@ -165,3 +165,39 @@ void NetworkProtocolFS::update_dir_filename(string path)
     if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
         filename = "*";
 }
+
+bool NetworkProtocolFS::chdir(uint8_t *sp_buf, unsigned short len)
+{
+    string pathSpec = string((char *)sp_buf, len);
+
+    if (pathSpec == "..") // Devance path
+    {
+        vector<int> pathLocations;
+        for (int i = 0; i < dir.size(); i++)
+        {
+            if (dir[i] == '/')
+            {
+                pathLocations.push_back(i);
+            }
+        }
+
+        if (dir[dir.size() - 1] == '/')
+        {
+            // Get rid of last path segment.
+            pathLocations.pop_back();
+        }
+
+        // truncate to that location.
+        dir = dir.substr(0, pathLocations.back() + 1);
+    }
+    else if (pathSpec[0] == '/') // Overwrite path.
+    {
+        dir = pathSpec;
+    }
+    else // append to path.
+    {
+        dir += pathSpec;
+    }
+
+    return false;
+}

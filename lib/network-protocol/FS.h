@@ -217,6 +217,14 @@ protected:
      * @return FALSE if successful, TRUE if error.
      */
     virtual bool write_file(unsigned short len) = 0;
+
+    /**
+     * @brief Change to directory specified by incoming devicespec.
+     * @param sp_buf pointer to special buffer
+     * @param len of special buffer
+     * @return TRUE on error, FALSE on success
+     */
+    bool chdir(uint8_t* sp_buf, unsigned short len);
 };
 
 #endif /* NETWORKPROTOCOL_FS */
