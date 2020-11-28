@@ -136,18 +136,33 @@ string NetworkProtocolTNFS::resolve(string path)
 
 bool NetworkProtocolTNFS::read_file(unsigned short len)
 {
-    uint8_t* buf = (uint8_t *)malloc(len);
+    uint8_t *buf = (uint8_t *)malloc(len);
     uint16_t actual_len;
 
-    tnfs_error = tnfs_read(&mountInfo, fd, buf, len, &actual_len);
-    fserror_to_error();
+    if (buf == nullptr)
+    {
+        Debug_printf("NetworkProtocolTNFS:read_file(%u) could not allocate.\n", len);
+        return true; // error
+    }
 
-    // Append to receive buffer.
-    *receiveBuffer += string((char *)buf,len);
+    if (receiveBuffer->length() == 0)
+    {
 
+        tnfs_error = tnfs_read(&mountInfo, fd, buf, len, &actual_len);
+        fserror_to_error();
+
+        // Append to receive buffer.
+        *receiveBuffer += string((char *)buf, len);
+    }
+    else
+    {
+        tnfs_error = TNFS_RESULT_SUCCESS;
+        fserror_to_error();
+    }
+    
     // Done with the temporary buffer.
     free(buf);
-    
+
     // Pass back to base class for translation.
     return NetworkProtocol::read(len);
 }
@@ -155,4 +170,17 @@ bool NetworkProtocolTNFS::read_file(unsigned short len)
 bool NetworkProtocolTNFS::read_dir(unsigned short len)
 {
     return tnfs_error != TNFS_RESULT_SUCCESS;
+}
+
+bool NetworkProtocolTNFS::status_file(NetworkStatus *status)
+{
+    status->rxBytesWaiting = fileStat.filesize > 65535 ? 65535 : fileStat.filesize;
+    status->reserved = 1;
+    status->error = error;
+    return false;
+}
+
+bool NetworkProtocolTNFS::status_dir(NetworkStatus *status)
+{
+    return false;
 }

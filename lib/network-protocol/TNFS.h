@@ -79,6 +79,20 @@ protected:
      */
     virtual bool read_dir(unsigned short len);
 
+    /**
+     * @brief return status from file (e.g. # of bytes remaining.)
+     * @param Pointer to NetworkStatus object to inject new data.
+     * @return FALSE if success, TRUE if error.
+     */
+    virtual bool status_file(NetworkStatus *status);
+
+    /**
+     * @brief return status from directory (e.g. # of bytes remaining.)
+     * @param Pointer to NetworkStatus object to inject new data.
+     * @return FALSE if success, TRUE if error.
+     */
+    virtual bool status_dir(NetworkStatus *status);
+
 private:
     /**
      * TNFS MountInfo structure
