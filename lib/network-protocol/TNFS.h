@@ -135,6 +135,23 @@ private:
      * The TNFS filestat of the currently open file.
      */
     tnfsStat fileStat;
+
+    /**
+     * @brief for len requested, break up into number of required
+     *        tnfs_read() blocks.
+     * @param buf buffer to transfer into.
+     * @param len Requested # of bytes.
+     * @return TRUE on error, FALSE on success.
+     */
+    bool block_read(uint8_t *buf, unsigned short len);
+
+    /**
+     * @brief for len requested, break up into number of required
+     *        tnfs_write() blocks.
+     * @param len Requested # of bytes.
+     * @return TRUE on error, FALSE on success.
+     */
+    bool block_write(uint8_t *buf, unsigned short len);
 };
 
 #endif /* NETWORKPROTOCOLTNFS_H */
