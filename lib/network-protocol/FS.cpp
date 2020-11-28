@@ -75,6 +75,7 @@ bool NetworkProtocolFS::status(NetworkStatus *status)
         return status_dir(status);
         break;
     }
+    return true;
 }
 
 uint8_t NetworkProtocolFS::special_inquiry(uint8_t cmd)
