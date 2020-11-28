@@ -149,6 +149,11 @@ bool NetworkProtocolFS::open_dir(string path)
     openMode = DIR;
     dirBuffer.clear();
     update_dir_filename(path);
+
+    // assume everything if no filename.
+    if (filename.empty())
+        filename = "*";
+
     return error != NETWORK_ERROR_SUCCESS;
 }
 
@@ -156,4 +161,8 @@ void NetworkProtocolFS::update_dir_filename(string path)
 {
     dir = path.substr(0, path.find_last_of("/") + 1);
     filename = path.substr(path.find_last_of("/") + 1);
+
+    // transform the possible everything wildcards
+    if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
+        filename = "*";
 }
