@@ -60,12 +60,12 @@ bool NetworkProtocolTNFS::open_dir(string path)
 
     tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
 
-    while (tnfs_readdirx(&mountInfo,&fileStat,e,255) == 0)
+    while (tnfs_readdirx(&mountInfo, &fileStat, e, 255) == 0)
     {
         if (aux2_open & 0x80)
         {
             // Long entry
-            dirBuffer += util_long_entry(string(e),fileStat.filesize) + "\x9b";
+            dirBuffer += util_long_entry(string(e), fileStat.filesize) + "\x9b";
         }
         else
         {
@@ -187,8 +187,8 @@ bool NetworkProtocolTNFS::read_file(unsigned short len)
 
 bool NetworkProtocolTNFS::read_dir(unsigned short len)
 {
-    *receiveBuffer+=dirBuffer.substr(0,len);
-    dirBuffer.erase(0,len);
+    *receiveBuffer += dirBuffer.substr(0, len);
+    dirBuffer.erase(0, len);
     return len <= dirBuffer.length();
 }
 
@@ -203,14 +203,14 @@ bool NetworkProtocolTNFS::status_file(NetworkStatus *status)
 bool NetworkProtocolTNFS::status_dir(NetworkStatus *status)
 {
     status->rxBytesWaiting = dirBuffer.length();
-    status->reserved=1;
+    status->reserved = 1;
     status->error = error;
     return false;
 }
 
 bool NetworkProtocolTNFS::close_file()
 {
-    tnfs_error = tnfs_close(&mountInfo,fd);
+    tnfs_error = tnfs_close(&mountInfo, fd);
     fserror_to_error();
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
@@ -279,7 +279,87 @@ bool NetworkProtocolTNFS::write_file(unsigned short len)
 {
     if (block_write((uint8_t *)transmitBuffer->data(), len) == true)
         return true;
-    
-    transmitBuffer->erase(0,len);
+
+    transmitBuffer->erase(0, len);
     return false;
+}
+
+uint8_t NetworkProtocolTNFS::special_inquiry(uint8_t cmd)
+{
+    uint8_t ret;
+
+    switch (cmd)
+    {
+    case 0x20:      // RENAME
+    case 0x21:      // DELETE
+    case 0x2A:      // MKDIR
+    case 0x2B:      // RMDIR
+        ret = 0x80; // Atari to peripheral.
+        break;
+    default:
+        return NetworkProtocolFS::special_inquiry(cmd);
+    }
+
+    return ret;
+}
+
+bool NetworkProtocolTNFS::special_00(cmdFrame_t *cmdFrame)
+{
+    switch (cmdFrame->comnd)
+    {
+    default:
+        return NetworkProtocolFS::special_00(cmdFrame);
+    }
+}
+
+bool NetworkProtocolTNFS::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+{
+    switch (cmdFrame->comnd)
+    {
+    default:
+        return NetworkProtocolFS::special_40(sp_buf, len, cmdFrame);
+    }
+}
+
+bool NetworkProtocolTNFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+{
+    switch (cmdFrame->comnd)
+    {
+    case 0x20: // RENAME
+        return rename(sp_buf, len);
+    case 0x21: // DELETE
+        return del(sp_buf, len);
+    case 0x2A: // MKDIR
+        return mkdir(sp_buf, len);
+    case 0x2B: // RMDIR
+        return rmdir(sp_buf, len);
+    default:
+        return NetworkProtocolFS::special_80(sp_buf, len, cmdFrame);
+    }
+}
+
+bool NetworkProtocolTNFS::rename(uint8_t *sp_buf, unsigned short len)
+{
+    if (NetworkProtocolFS::rename(sp_buf, len) == true)
+        return true;
+
+    tnfs_error = tnfs_rename(&mountInfo, filename.c_str(), destFilename.c_str());
+    fserror_to_error();
+
+    return true;
+}
+
+bool NetworkProtocolTNFS::del(uint8_t *sp_buf, unsigned short len)
+{
+    return true;
+}
+
+bool NetworkProtocolTNFS::mkdir(uint8_t *sp_buf, unsigned short len)
+{
+    return true;
+}
+
+bool NetworkProtocolTNFS::rmdir(uint8_t *sp_buf, unsigned short len)
+{
+    return true;
 }
