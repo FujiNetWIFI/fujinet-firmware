@@ -93,6 +93,18 @@ protected:
      */
     virtual bool status_dir(NetworkStatus *status);
 
+    /**
+     * @brief close file.
+     * @return FALSE if success, true if error.
+     */
+    virtual bool close_file();
+
+    /**
+     * @brief close directory.
+     * @return FALSE if success, true if error.
+     */
+    virtual bool close_dir();
+
 private:
     /**
      * TNFS MountInfo structure

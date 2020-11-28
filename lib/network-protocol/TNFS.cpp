@@ -208,3 +208,17 @@ bool NetworkProtocolTNFS::status_dir(NetworkStatus *status)
     status->error = error;
     return false;
 }
+
+bool NetworkProtocolTNFS::close_file()
+{
+    tnfs_error = tnfs_close(&mountInfo,fd);
+    fserror_to_error();
+    return tnfs_error != TNFS_RESULT_SUCCESS;
+}
+
+bool NetworkProtocolTNFS::close_dir()
+{
+    tnfs_error = tnfs_closedir(&mountInfo);
+    fserror_to_error();
+    return tnfs_error != TNFS_RESULT_SUCCESS;
+}
