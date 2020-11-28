@@ -156,8 +156,7 @@ string NetworkProtocolTNFS::resolve(string path)
 bool NetworkProtocolTNFS::read_file(unsigned short len)
 {
     uint8_t *buf = (uint8_t *)malloc(len);
-    uint16_t actual_len;
-
+    
     if (buf == nullptr)
     {
         Debug_printf("NetworkProtocolTNFS:read_file(%u) could not allocate.\n", len);
@@ -166,9 +165,9 @@ bool NetworkProtocolTNFS::read_file(unsigned short len)
 
     if (receiveBuffer->length() == 0)
     {
-
-        tnfs_error = tnfs_read(&mountInfo, fd, buf, len, &actual_len);
-        fserror_to_error();
+        // Do block read.
+        if (block_read(buf, len) == true)
+            return true;
 
         // Append to receive buffer.
         *receiveBuffer += string((char *)buf, len);
@@ -221,4 +220,57 @@ bool NetworkProtocolTNFS::close_dir()
     tnfs_error = tnfs_closedir(&mountInfo);
     fserror_to_error();
     return tnfs_error != TNFS_RESULT_SUCCESS;
+}
+
+bool NetworkProtocolTNFS::block_read(uint8_t *buf, unsigned short len)
+{
+    unsigned short total_len = len;
+    unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;
+    uint16_t actual_len;
+
+    while (total_len > 0)
+    {
+        if (total_len > TNFS_MAX_READWRITE_PAYLOAD)
+            block_len = TNFS_MAX_READWRITE_PAYLOAD;
+        else
+            block_len = total_len;
+
+        int result = tnfs_read(&mountInfo, fd, buf, block_len, &actual_len);
+        if (result != 0 && result != TNFS_RESULT_END_OF_FILE)
+        {
+            return true; // error.
+        }
+        else
+        {
+            buf += block_len;
+            total_len -= block_len;
+        }
+    }
+    return false; // no error
+}
+
+bool NetworkProtocolTNFS::block_write(uint8_t *buf, unsigned short len)
+{
+    unsigned short total_len = len;
+    unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;
+    uint16_t actual_len;
+
+    while (total_len > 0)
+    {
+        if (total_len > TNFS_MAX_READWRITE_PAYLOAD)
+            block_len = TNFS_MAX_READWRITE_PAYLOAD;
+        else
+            block_len = total_len;
+
+        if (tnfs_write(&mountInfo, fd, buf, block_len, &actual_len) != 0)
+        {
+            return true; // error.
+        }
+        else
+        {
+            buf += block_len;
+            total_len -= block_len;
+        }
+    }
+    return false; // no error
 }
