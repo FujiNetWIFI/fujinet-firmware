@@ -211,6 +211,12 @@ protected:
      */
     virtual bool close_dir() = 0;
 
+    /**
+     * @brief Write to file
+     * @param len the number of bytes requested
+     * @return FALSE if successful, TRUE if error.
+     */
+    virtual bool write_file(unsigned short len) = 0;
 };
 
 #endif /* NETWORKPROTOCOL_FS */
