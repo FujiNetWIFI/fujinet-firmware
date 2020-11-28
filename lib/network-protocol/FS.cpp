@@ -38,23 +38,27 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolFS::close()
 {
+    bool file_closed = false;
     // call base class.
     NetworkProtocol::close();
-
-    if (umount() == true)
-        return true;
 
     switch (openMode)
     {
     case FILE:
-        return close_file();
+        file_closed = close_file();
         break;
     case DIR:
-        return close_dir();
+        file_closed = close_dir();
         break;
     default:
-        return true;
+        file_closed = false;
     }
+
+    if (file_closed == false)
+        fserror_to_error();
+
+    if (umount() == true)
+        return true;
 }
 
 bool NetworkProtocolFS::read(unsigned short len)
