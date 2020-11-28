@@ -9,7 +9,7 @@
 #include "printer_emulator.h"
 #include "../../include/atascii.h"
 
-#define MAXFONTS 12 // maximum number of fonts can use
+#define MAXFONTS 153 // maximum number of fonts can use
 
 enum class colorMode_t
 {
