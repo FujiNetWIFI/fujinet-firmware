@@ -185,14 +185,14 @@ protected:
      * @param Pointer to NetworkStatus object to inject new data.
      * @return FALSE if success, TRUE if error.
      */
-    virtual bool status_file(NetworkStatus* status);
+    virtual bool status_file(NetworkStatus* status) = 0;
 
     /**
      * @brief return status from directory (e.g. # of bytes remaining.)
      * @param Pointer to NetworkStatus object to inject new data.
      * @return FALSE if success, TRUE if error.
      */
-    virtual bool status_dir(NetworkStatus* status);
+    virtual bool status_dir(NetworkStatus* status) = 0;
 
 };
 

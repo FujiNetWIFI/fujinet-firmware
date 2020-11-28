@@ -66,8 +66,15 @@ bool NetworkProtocolFS::write(unsigned short len)
 
 bool NetworkProtocolFS::status(NetworkStatus *status)
 {
-    error = NETWORK_ERROR_NOT_IMPLEMENTED;
-    return true;
+    switch (openMode)
+    {
+    case FILE:
+        return status_file(status);
+        break;
+    case DIR:
+        return status_dir(status);
+        break;
+    }
 }
 
 uint8_t NetworkProtocolFS::special_inquiry(uint8_t cmd)
