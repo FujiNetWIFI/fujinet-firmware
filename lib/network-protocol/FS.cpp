@@ -131,6 +131,7 @@ bool NetworkProtocolFS::open_file(string path)
 bool NetworkProtocolFS::open_dir(string path)
 {
     openMode = DIR;
+    dirBuffer.clear();
     return error != NETWORK_ERROR_SUCCESS;
 }
 
