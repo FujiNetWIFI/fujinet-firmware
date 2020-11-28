@@ -179,6 +179,8 @@ bool NetworkProtocolTNFS::read_file(unsigned short len)
 
         // Append to receive buffer.
         *receiveBuffer += string((char *)buf, len);
+        fileStat.filesize -= len;
+        fserror_to_error();
     }
     else
     {
@@ -203,16 +205,14 @@ bool NetworkProtocolTNFS::read_dir(unsigned short len)
 
 bool NetworkProtocolTNFS::status_file(NetworkStatus *status)
 {
-    Debug_printf("NetworkProtocolTNFS::status_file(%u %u %u)\n", status->rxBytesWaiting, status->reserved, status->error);
     status->rxBytesWaiting = fileStat.filesize > 65535 ? 65535 : fileStat.filesize;
-    status->reserved = 1;
+    status->reserved = fileStat.filesize > 0 ? 1 : 0;
     status->error = error;
     return false;
 }
 
 bool NetworkProtocolTNFS::status_dir(NetworkStatus *status)
 {
-    Debug_printf("NetworkProtocolTNFS::status_dir(%u %u %u)\n", status->rxBytesWaiting, status->reserved, status->error);
     status->rxBytesWaiting = dirBuffer.length();
     status->reserved = 1;
     status->error = error;
@@ -249,9 +249,10 @@ bool NetworkProtocolTNFS::block_read(uint8_t *buf, unsigned short len)
         else
             block_len = total_len;
 
-        int result = tnfs_read(&mountInfo, fd, buf, block_len, &actual_len);
-        if (result != 0 && result != TNFS_RESULT_END_OF_FILE)
+        tnfs_error = tnfs_read(&mountInfo, fd, buf, block_len, &actual_len);
+        if (tnfs_error != 0)
         {
+            fserror_to_error();
             return true; // error.
         }
         else
@@ -260,6 +261,8 @@ bool NetworkProtocolTNFS::block_read(uint8_t *buf, unsigned short len)
             total_len -= block_len;
         }
     }
+
+    fserror_to_error();
     return false; // no error
 }
 
