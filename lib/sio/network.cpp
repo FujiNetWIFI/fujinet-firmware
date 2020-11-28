@@ -517,13 +517,12 @@ void sioNetwork::sio_special_protocol_40()
  */
 void sioNetwork::sio_special_protocol_80()
 {
-    uint8_t ck;
     uint8_t spData[SPECIAL_BUFFER_SIZE];
 
     memset(spData,0,SPECIAL_BUFFER_SIZE);
 
     // Get special (devicespec) from computer
-    ck = sio_to_peripheral(spData, SPECIAL_BUFFER_SIZE);
+    sio_to_peripheral(spData, SPECIAL_BUFFER_SIZE);
 
     Debug_printf("sioNetwork::sio_special_protocol_80() - %s\n",spData);
 
@@ -618,18 +617,6 @@ bool sioNetwork::instantiate_protocol()
     else if (urlParser->scheme == "UDP")
     {
         protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
-    {
-        //protocol = new networkProtocolHTTP();
-    }
-    else if (urlParser->scheme == "TNFS")
-    {
-        //protocol = new networkProtocolTNFS();
-    }
-    else if (urlParser->scheme == "FTP")
-    {
-        //protocol = new networkProtocolFTP();
     }
     else if (urlParser->scheme == "TEST")
     {
