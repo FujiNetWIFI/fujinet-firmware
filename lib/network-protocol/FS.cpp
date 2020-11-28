@@ -38,10 +38,23 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolFS::close()
 {
+    // call base class.
+    NetworkProtocol::close();
+
     if (umount() == true)
         return true;
 
-    return NetworkProtocol::close();
+    switch (openMode)
+    {
+    case FILE:
+        return close_file();
+        break;
+    case DIR:
+        return close_dir();
+        break;
+    default:
+        return true;
+    }
 }
 
 bool NetworkProtocolFS::read(unsigned short len)
@@ -54,8 +67,9 @@ bool NetworkProtocolFS::read(unsigned short len)
     case DIR:
         return read_dir(len);
         break;
+    default:
+        return true;
     }
-    return true;
 }
 
 bool NetworkProtocolFS::write(unsigned short len)
@@ -74,8 +88,9 @@ bool NetworkProtocolFS::status(NetworkStatus *status)
     case DIR:
         return status_dir(status);
         break;
+    default:
+        return true;
     }
-    return true;
 }
 
 uint8_t NetworkProtocolFS::special_inquiry(uint8_t cmd)

@@ -199,6 +199,18 @@ protected:
      */
     virtual bool status_dir(NetworkStatus* status) = 0;
 
+    /**
+     * @brief close file.
+     * @return FALSE if success, true if error.
+     */
+    virtual bool close_file() = 0;
+
+    /**
+     * @brief close directory.
+     * @return FALSE if success, true if error.
+     */
+    virtual bool close_dir() = 0;
+
 };
 
 #endif /* NETWORKPROTOCOL_FS */
