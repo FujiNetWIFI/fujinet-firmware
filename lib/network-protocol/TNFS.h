@@ -22,6 +22,35 @@ public:
      */
     virtual ~NetworkProtocolTNFS();
 
+    /**
+     * @brief Return a DSTATS byte for a requested COMMAND byte.
+     * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
+     * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
+     */
+    virtual uint8_t special_inquiry(uint8_t cmd);
+
+    /**
+     * @brief execute a command that returns no payload
+     * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
+     * @return error flag. TRUE on error, FALSE on success.
+     */
+    virtual bool special_00(cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief execute a command that returns a payload to the atari.
+     * @param sp_buf a pointer to the special buffer
+     * @param len Length of data to request from protocol. Should not be larger than buffer.
+     * @return error flag. TRUE on error, FALSE on success.
+     */
+    virtual bool special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief execute a command that sends a payload to fujinet (most common, XIO)
+     * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
+     * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
+     */
+    virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
+
 protected:
     /**
      * @brief Open a file at path.
@@ -112,6 +141,14 @@ protected:
      */
     virtual bool write_file(unsigned short len);
 
+    /**
+     * @brief Rename file specified by incoming devicespec.
+     * @param sp_buf Pointer to special buffer
+     * @param len of special buffer.
+     * @return TRUE on error, FALSE on success
+     */
+    bool rename(uint8_t* sp_buf, unsigned short len);
+
 private:
     /**
      * TNFS MountInfo structure
@@ -159,6 +196,30 @@ private:
      * @return TRUE on error, FALSE on success.
      */
     bool block_write(uint8_t *buf, unsigned short len);
+
+    /**
+     * @brief Delete file specified by incoming devicespec.
+     * @param sp_buf pointer to special buffer
+     * @param len of special buffer
+     * @return TRUE on error, FALSE on success
+     */
+    bool del(uint8_t* sp_buf, unsigned short len);
+
+    /**
+     * @brief Make directory specified by incoming devicespec.
+     * @param sp_buf pointer to special buffer
+     * @param len of special buffer
+     * @return TRUE on error, FALSE on success
+     */
+    bool mkdir(uint8_t* sp_buf, unsigned short len);
+
+    /**
+     * @brief Remove directory specified by incoming devicespec.
+     * @param sp_buf pointer to special buffer
+     * @param len of special buffer
+     * @return TRUE on error, FALSE on success
+     */
+    bool rmdir(uint8_t* sp_buf, unsigned short len);
 };
 
 #endif /* NETWORKPROTOCOLTNFS_H */
