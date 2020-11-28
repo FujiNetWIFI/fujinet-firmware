@@ -12,6 +12,7 @@
 #include "../network-protocol/UDP.h"
 #include "../network-protocol/Test.h"
 #include "../network-protocol/Telnet.h"
+#include "../network-protocol/TNFS.h"
 
 using namespace std;
 
@@ -637,6 +638,10 @@ bool sioNetwork::instantiate_protocol()
     else if (urlParser->scheme == "TELNET")
     {
         protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "TNFS")
+    {
+        protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
     }
     else
     {
