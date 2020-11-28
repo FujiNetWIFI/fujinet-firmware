@@ -148,13 +148,13 @@ protected:
      * @param path - path to mount, usually "/"
      * @return false on no error, true on error.
      */
-    virtual bool mount(string hostName, string path);
+    virtual bool mount(string hostName, string path) = 0;
 
     /**
      * @brief Unmount TNFS server specified in mountInfo.
      * @return  false on no error, true on error.
      */
-    virtual bool umount();
+    virtual bool umount() = 0;
 
     /**
      * @brief Translate filesystem error codes to Atari error codes. Sets error in Protocol.
@@ -168,7 +168,7 @@ protected:
      * @param path The full path to file to resolve.
      * @return string of resolved path.
      */
-    virtual string resolve(string path);
+    virtual string resolve(string path) = 0;
 
     /**
      * Update dir and filename
