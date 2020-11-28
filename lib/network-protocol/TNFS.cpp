@@ -19,6 +19,7 @@ NetworkProtocolTNFS::~NetworkProtocolTNFS()
 
 bool NetworkProtocolTNFS::open_file(string path)
 {
+    Debug_printf("NetworkProtocolTNFS::open_file(%s)\n",path.c_str());
     NetworkProtocolFS::open_file(path);
 
     if (path.empty())
@@ -53,6 +54,7 @@ bool NetworkProtocolTNFS::open_dir(string path)
 {
     char e[256];
 
+    Debug_printf("NetworkProtocolTNFS::open_dir(%s)\n",path.c_str());
     NetworkProtocolFS::open_dir(path); // also clears directory buffer
 
     if (path.empty())
@@ -82,6 +84,7 @@ bool NetworkProtocolTNFS::open_dir(string path)
 
 bool NetworkProtocolTNFS::mount(string hostName, string path)
 {
+    Debug_printf("NetworkProtocolTNFS::mount(%s,%s)\n",hostName.c_str(),path.c_str());
     strcpy(mountInfo.hostname, hostName.c_str());
     strcpy(mountInfo.mountpath, path.c_str());
 
@@ -92,6 +95,7 @@ bool NetworkProtocolTNFS::mount(string hostName, string path)
 
 bool NetworkProtocolTNFS::umount()
 {
+    Debug_printf("NetworkProtocolTNFS::umount()\n");
     tnfs_error = tnfs_umount(&mountInfo);
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
@@ -125,6 +129,7 @@ void NetworkProtocolTNFS::fserror_to_error()
 
 string NetworkProtocolTNFS::resolve(string path)
 {
+    Debug_printf("NetworkProtocolTNFS::resolve(%s)\n",path.c_str());
     if (tnfs_stat(&mountInfo, &fileStat, path.c_str()))
     {
         // File wasn't found, let's try resolving against the crunched filename
@@ -150,12 +155,15 @@ string NetworkProtocolTNFS::resolve(string path)
         tnfs_closedir(&mountInfo);
     }
 
+    Debug_printf("Resolved to %s\n",path.c_str());
     return path;
 }
 
 bool NetworkProtocolTNFS::read_file(unsigned short len)
 {
     uint8_t *buf = (uint8_t *)malloc(len);
+
+    Debug_printf("NetworkProtocolTNFS::read_file(%u)\n",len);
 
     if (buf == nullptr)
     {
@@ -187,6 +195,7 @@ bool NetworkProtocolTNFS::read_file(unsigned short len)
 
 bool NetworkProtocolTNFS::read_dir(unsigned short len)
 {
+    Debug_printf("NetworkProtocolTNFS::read_dir(%u)\n",len);
     *receiveBuffer += dirBuffer.substr(0, len);
     dirBuffer.erase(0, len);
     return len <= dirBuffer.length();
@@ -194,6 +203,7 @@ bool NetworkProtocolTNFS::read_dir(unsigned short len)
 
 bool NetworkProtocolTNFS::status_file(NetworkStatus *status)
 {
+    Debug_printf("NetworkProtocolTNFS::status_file(%u %u %u)\n",status->rxBytesWaiting, status->reserved, status->error);
     status->rxBytesWaiting = fileStat.filesize > 65535 ? 65535 : fileStat.filesize;
     status->reserved = 1;
     status->error = error;
@@ -202,6 +212,7 @@ bool NetworkProtocolTNFS::status_file(NetworkStatus *status)
 
 bool NetworkProtocolTNFS::status_dir(NetworkStatus *status)
 {
+    Debug_printf("NetworkProtocolTNFS::status_dir(%u %u %u)\n",status->rxBytesWaiting, status->reserved, status->error);
     status->rxBytesWaiting = dirBuffer.length();
     status->reserved = 1;
     status->error = error;
@@ -210,6 +221,7 @@ bool NetworkProtocolTNFS::status_dir(NetworkStatus *status)
 
 bool NetworkProtocolTNFS::close_file()
 {
+    Debug_printf("NetworkProtocolTNFS::close_file(%u)\n",fd);
     tnfs_error = tnfs_close(&mountInfo, fd);
     fserror_to_error();
     return tnfs_error != TNFS_RESULT_SUCCESS;
@@ -217,6 +229,7 @@ bool NetworkProtocolTNFS::close_file()
 
 bool NetworkProtocolTNFS::close_dir()
 {
+    Debug_printf("NetworkProtocolTNFS::close_dir()\n");
     tnfs_error = tnfs_closedir(&mountInfo);
     fserror_to_error();
     return tnfs_error != TNFS_RESULT_SUCCESS;
