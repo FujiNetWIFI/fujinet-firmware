@@ -74,8 +74,7 @@ bool NetworkProtocolFS::read(unsigned short len)
 
 bool NetworkProtocolFS::write(unsigned short len)
 {
-    error = NETWORK_ERROR_NOT_IMPLEMENTED;
-    return true;
+    return write_file(len); // Do more here? not sure.
 }
 
 bool NetworkProtocolFS::status(NetworkStatus *status)
