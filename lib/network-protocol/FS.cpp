@@ -201,3 +201,20 @@ bool NetworkProtocolFS::chdir(uint8_t *sp_buf, unsigned short len)
 
     return false;
 }
+
+bool NetworkProtocolFS::rename(uint8_t* sp_buf, unsigned short len)
+{
+    int ret = 0;
+
+    // Preprocessing routine to parse out comma position.
+
+    size_t comma_pos = filename.find_first_of(",");
+
+    if (comma_pos == string::npos)
+        return false;
+
+    destFilename = dir + filename.substr(comma_pos + 1);
+    filename = dir + filename.substr(0, comma_pos);
+
+    return comma_pos != string::npos;
+}
