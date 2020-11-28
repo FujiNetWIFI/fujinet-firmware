@@ -59,6 +59,8 @@ bool NetworkProtocolFS::close()
 
     if (umount() == true)
         return true;
+    
+    return false;
 }
 
 bool NetworkProtocolFS::read(unsigned short len)
