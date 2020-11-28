@@ -156,7 +156,7 @@ string NetworkProtocolTNFS::resolve(string path)
 bool NetworkProtocolTNFS::read_file(unsigned short len)
 {
     uint8_t *buf = (uint8_t *)malloc(len);
-    
+
     if (buf == nullptr)
     {
         Debug_printf("NetworkProtocolTNFS:read_file(%u) could not allocate.\n", len);
@@ -273,4 +273,13 @@ bool NetworkProtocolTNFS::block_write(uint8_t *buf, unsigned short len)
         }
     }
     return false; // no error
+}
+
+bool NetworkProtocolTNFS::write_file(unsigned short len)
+{
+    if (block_write((uint8_t *)transmitBuffer->data(), len) == true)
+        return true;
+    
+    transmitBuffer->erase(0,len);
+    return false;
 }

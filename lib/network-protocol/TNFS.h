@@ -105,6 +105,13 @@ protected:
      */
     virtual bool close_dir();
 
+    /**
+     * @brief Write to file
+     * @param len the number of bytes requested
+     * @return FALSE if successful, TRUE if error.
+     */
+    virtual bool write_file(unsigned short len);
+
 private:
     /**
      * TNFS MountInfo structure
