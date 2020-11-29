@@ -257,8 +257,8 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     charWidth = 0.3;
                     break;
                 }
-                fprintf(_file, ")]TJ /F153 9 Tf 100 Tz [("); // set font to GFX mode
-                fontUsed[152] = true;
+                fprintf(_file, ")]TJ /F33 9 Tf 100 Tz [("); // set font to GFX mode
+                fontUsed[32] = true;
             }
 
             if (epson_cmd.ctr > 2)
@@ -486,7 +486,8 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 
 uint8_t epson80::epson_font_lookup(uint16_t code)
 {
-    uint16_t mask = 0x0FFF;
+    // uint16_t mask = 0x0FFF;
+    
     /**
       * Table G-3 Mode Priorities (FX Manual Vol 2)
       * elite
@@ -499,26 +500,32 @@ uint8_t epson80::epson_font_lookup(uint16_t code)
       * script are always doublestrike
       * 
       * */
-     if (code & fnt_elite)
-     {
-         mask &= ~(fnt_proportional | fnt_emphasized | fnt_compressed);
-     }
-     else if (code & fnt_proportional)
-     {
-         mask &= ~(fnt_emphasized | fnt_compressed);
-     } 
-     else if (code & fnt_emphasized)
-     {
-         mask &= ~fnt_compressed;
-     }
      
-    if (code & (fnt_subscript | fnt_superscript))
-    {
-        mask &= ~(fnt_doublestrike);
-    }
+    //  if (code & fnt_elite)
+    //  {
+    //      mask &= ~(fnt_proportional | fnt_emphasized | fnt_compressed);
+    //  }
+    //  else if (code & fnt_proportional)
+    //  {
+    //      mask &= ~(fnt_emphasized | fnt_compressed);
+    //  } 
+    //  else if (code & fnt_emphasized)
+    //  {
+    //      mask &= ~fnt_compressed;
+    //  }
+     
+    // if (code & (fnt_subscript | fnt_superscript))
+    // {
+    //     mask &= ~(fnt_doublestrike);
+    // }
+
+    uint16_t mask = fnt_emphasized | fnt_italic | fnt_expanded | fnt_doublestrike | fnt_underline;
+
+    if (code & fnt_SOwide)
+        code |= fnt_expanded;
 
     uint8_t index = 0;
-    while (index < 152)
+    while (index < 32)
     {
         if ((code & mask) == (font_tab[index] & mask))
             return index + 1;
@@ -532,7 +539,6 @@ double epson80::epson_font_width(uint16_t code)
 {
     // compute font width from code
     double width = 7.2; // default pica
-    uint16_t mask = 0x0FFF;
     /**
       * Table G-3 Mode Priorities (FX Manual Vol 2)
       * elite
@@ -540,11 +546,8 @@ double epson80::epson_font_width(uint16_t code)
       * emphasized (bold)
       * compressed
       * pica
-      * 
-      * proportional are always emphasized
-      * script are always doublestrike
-      * 
       * */
+
      if (code & fnt_elite)
      {
          width = 6.0; // 12 CPI
