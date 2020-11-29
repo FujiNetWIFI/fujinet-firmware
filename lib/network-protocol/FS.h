@@ -104,6 +104,11 @@ protected:
     OpenMode openMode;
 
     /**
+     * Full path of open file
+     */
+    string path;
+
+    /**
      * Directory of currently open file
      */
     string dir;
