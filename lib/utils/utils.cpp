@@ -460,6 +460,13 @@ void util_strip_nonascii(string &s)
     }
 }
 
+void util_clean_devicespec(uint8_t* buf, unsigned short len)
+{
+    for (int i=0;i<len;i++)
+        if (buf[i]==0x9b)
+            buf[i]=0x00;
+}
+
 bool util_string_value_is_true(const char *value)
 {
     if(value != nullptr)

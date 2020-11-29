@@ -58,6 +58,7 @@ std::vector<std::string> util_tokenize(std::string s, char c = ' ');
 std::string util_remove_spaces(const std::string &s);
 
 void util_strip_nonascii(std::string &s);
+void util_clean_devicespec(uint8_t* buf, unsigned short len);
 
 bool util_string_value_is_true(std::string value);
 bool util_string_value_is_true(const char *value);
