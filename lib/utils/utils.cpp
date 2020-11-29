@@ -211,6 +211,8 @@ std::string util_entry(std::string crunched, size_t fileSize)
     else
     {
         sectors = fileSize >> 8;
+        if (sectors==0)
+            sectors=1; // at least 1 sector.
     }
 
     sprintf(tmp, "%03d", sectors);
