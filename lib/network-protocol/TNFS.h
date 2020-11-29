@@ -234,7 +234,7 @@ private:
      * @param path the full path of file to resolve.
      * @return resolved path.
      */
-    virtual bool stat(string path) = 0;
+    virtual bool stat(string path);
 };
 
 #endif /* NETWORKPROTOCOLTNFS_H */
