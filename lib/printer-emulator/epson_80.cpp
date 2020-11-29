@@ -531,7 +531,7 @@ uint8_t epson80::epson_font_lookup(uint16_t code)
             return index + 1;
         index++;
     }
-    Debug_println("Epson 80 cannot find font.");
+    Debug_printf("Epson 80 cannot find font %\n", mask & code);
     return 1; // return the default if can't make sense
 }
 
@@ -575,6 +575,12 @@ void epson80::epson_set_font(uint8_t F, double w)
     fontUsed[F-1] = true;
 }
 
+void epson80::pdf_clear_modes()
+{
+    clear_mode(fnt_SOwide);
+//    clear_mode(fnt_expanded | fnt_underline);
+}
+
 void epson80::at_reset()
 {
     leftMargin = 18.0;
@@ -586,6 +592,7 @@ void epson80::at_reset()
     fontSize = 9;
     fontHorizScale = 120;
     textMode = true;
+    epson_font_mask = 0;
 }
 
 void epson80::post_new_file()

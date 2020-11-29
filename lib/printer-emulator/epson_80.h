@@ -28,9 +28,8 @@ protected:
     uint8_t epson_font_lookup(uint16_t code);
     double epson_font_width(uint16_t code);
     void epson_set_font(uint8_t F, double w);
+    virtual void pdf_clear_modes() override;
     void at_reset();
-
-   virtual void pdf_clear_modes() override {};
     void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;
 public:
@@ -53,38 +52,38 @@ private:
 
     const int font_tab[32] =
         {
-            fnt_regular,                                                      // MonoPicaRegular
-            fnt_doublestrike | fnt_regular,                                   // MonoPicaDblRegular
-            fnt_italic,                                                       // MonoPicaItalic
-            fnt_doublestrike | fnt_italic,                                    // MonoPicaDblItalic
-            fnt_emphasized,                                                   // MonoPicaBold
-            fnt_underline | fnt_regular,                                      // MonoPicaULRegular
-            fnt_doublestrike | fnt_underline | fnt_regular,                   // MonoPicaDblULRegular
-            fnt_underline | fnt_italic,                                       // MonoPicaULItalic
-            fnt_doublestrike | fnt_underline | fnt_italic,                    // MonoPicaDblULItalic
-            fnt_expanded | fnt_regular,                                       // MonoPicaExpRegular
-            fnt_expanded | fnt_doublestrike | fnt_regular,                    // MonoPicaExpDblRegular
-            fnt_expanded | fnt_italic,                                        // MonoPicaExpItalic
-            fnt_expanded | fnt_doublestrike | fnt_italic,                     // MonoPicaExpDblItalic
-            fnt_expanded | fnt_underline | fnt_regular,                       // MonoPicaExpULRegular
-            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_regular,    // MonoPicaExpDblULRegular
-            fnt_expanded | fnt_underline | fnt_italic,                        // MonoPicaExpULItalic
-            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_italic,     // MonoPicaExpDblULItalic
-            fnt_expanded | fnt_underline | fnt_emphasized,                    // MonoPicaExpULBold
-            fnt_expanded | fnt_doublestrike | fnt_emphasized,                 // MonoPicaExpDblBold
-            fnt_doublestrike | fnt_emphasized,                                // MonoPicaDblBold
-            fnt_emphasized | fnt_italic,                                      // MonoPicaBoldItalic
-            fnt_doublestrike | fnt_italic,                                    // MonoPicaDblBoldItalic
-            fnt_underline | fnt_emphasized,                                   // MonoPicaULBold
-            fnt_doublestrike | fnt_underline | fnt_emphasized,                // MonoPicaDblULBold
-            fnt_underline | fnt_italic,                                       // MonoPicaULBoldItalic
-            fnt_doublestrike | fnt_underline | fnt_italic,                    // MonoPicaDblULBoldItalic
-            fnt_expanded | fnt_emphasized,                                    // MonoPicaExpBold
-            fnt_expanded | fnt_italic,                                        // MonoPicaExpBoldItalic
-            fnt_expanded | fnt_doublestrike | fnt_italic,                     // MonoPicaExpDblBoldItalic
-            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_emphasized, // MonoPicaExpDblULBold
-            fnt_expanded | fnt_underline | fnt_italic,                        // MonoPicaExpULBoldItalic
-            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_italic      // MonoPicaExpDblULBoldItalic
+            fnt_regular,                                                                  // MonoPicaRegular
+            fnt_doublestrike | fnt_regular,                                               // MonoPicaDblRegular
+            fnt_italic,                                                                   // MonoPicaItalic
+            fnt_doublestrike | fnt_italic,                                                // MonoPicaDblItalic
+            fnt_emphasized,                                                               // MonoPicaBold
+            fnt_underline | fnt_regular,                                                  // MonoPicaULRegular
+            fnt_doublestrike | fnt_underline | fnt_regular,                               // MonoPicaDblULRegular
+            fnt_underline | fnt_italic,                                                   // MonoPicaULItalic
+            fnt_doublestrike | fnt_underline | fnt_italic,                                // MonoPicaDblULItalic
+            fnt_expanded | fnt_regular,                                                   // MonoPicaExpRegular
+            fnt_expanded | fnt_doublestrike | fnt_regular,                                // MonoPicaExpDblRegular
+            fnt_expanded | fnt_italic,                                                    // MonoPicaExpItalic
+            fnt_expanded | fnt_doublestrike | fnt_italic,                                 // MonoPicaExpDblItalic
+            fnt_expanded | fnt_underline | fnt_regular,                                   // MonoPicaExpULRegular
+            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_regular,                // MonoPicaExpDblULRegular
+            fnt_expanded | fnt_underline | fnt_italic,                                    // MonoPicaExpULItalic
+            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_italic,                 // MonoPicaExpDblULItalic
+            fnt_expanded | fnt_underline | fnt_emphasized,                                // MonoPicaExpULBold
+            fnt_expanded | fnt_doublestrike | fnt_emphasized,                             // MonoPicaExpDblBold
+            fnt_doublestrike | fnt_emphasized,                                            // MonoPicaDblBold
+            fnt_emphasized | fnt_italic,                                                  // MonoPicaBoldItalic
+            fnt_doublestrike | fnt_emphasized | fnt_italic,                               // MonoPicaDblBoldItalic
+            fnt_underline | fnt_emphasized,                                               // MonoPicaULBold
+            fnt_doublestrike | fnt_underline | fnt_emphasized,                            // MonoPicaDblULBold
+            fnt_underline | fnt_emphasized | fnt_italic,                                  // MonoPicaULBoldItalic
+            fnt_doublestrike | fnt_underline | fnt_emphasized | fnt_italic,               // MonoPicaDblULBoldItalic
+            fnt_expanded | fnt_emphasized,                                                // MonoPicaExpBold
+            fnt_expanded | fnt_emphasized | fnt_italic,                                   // MonoPicaExpBoldItalic
+            fnt_expanded | fnt_doublestrike | fnt_emphasized | fnt_italic,                // MonoPicaExpDblBoldItalic
+            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_emphasized,             // MonoPicaExpDblULBold
+            fnt_expanded | fnt_underline | fnt_emphasized | fnt_italic,                   // MonoPicaExpULBoldItalic
+            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_emphasized | fnt_italic // MonoPicaExpDblULBoldItalic
         };
 };
 
