@@ -530,6 +530,9 @@ uint8_t epson80::epson_font_lookup(uint16_t code)
 
 double epson80::epson_font_width(uint16_t code)
 {
+    // compute font width from code
+    double width = 7.2; // default pica
+    uint16_t mask = 0x0FFF;
     /**
       * Table G-3 Mode Priorities (FX Manual Vol 2)
       * elite
@@ -538,10 +541,27 @@ double epson80::epson_font_width(uint16_t code)
       * compressed
       * pica
       * 
+      * proportional are always emphasized
+      * script are always doublestrike
       * 
       * */
-    // compute font width from code
-    return 7.2; // 10 cpi for now
+     if (code & fnt_elite)
+     {
+         width = 6.0; // 12 CPI
+     }
+     else if (code & fnt_proportional)
+     {
+         width = 5.0; // average prop width for now?
+     } 
+     else if (code & fnt_compressed)
+     {
+         width = 576. / 132.; // double check
+     }
+
+    if (code & fnt_expanded)
+        width *= 2.0;
+
+    return width;
 }
 
 void epson80::epson_set_font(uint8_t F, double w)
