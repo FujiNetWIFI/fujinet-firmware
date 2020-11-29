@@ -143,6 +143,7 @@ bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
 
 bool NetworkProtocolFS::open_file(string path)
 {
+    update_dir_filename(path);
     path = resolve(path);
     update_dir_filename(path);
     openMode = FILE;
@@ -164,8 +165,10 @@ bool NetworkProtocolFS::open_dir(string path)
 
 void NetworkProtocolFS::update_dir_filename(string path)
 {
-    dir = path.substr(0, path.find_last_of("/") + 1);
-    filename = path.substr(path.find_last_of("/") + 1);
+    size_t found = path.find_last_of("/");
+
+    dir = path.substr(0, found + 1);
+    filename = path.substr(found + 1);
 
     // transform the possible everything wildcards
     if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
