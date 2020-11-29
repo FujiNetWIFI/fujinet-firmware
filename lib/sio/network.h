@@ -91,6 +91,11 @@ public:
     virtual void sio_status();
 
     /**
+     * @brief Called to set prefix
+     */
+    virtual void sio_set_prefix();
+
+    /**
      * Check to see if PROCEED needs to be asserted.
      */
     void sio_poll_interrupt();

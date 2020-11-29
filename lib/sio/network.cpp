@@ -393,6 +393,64 @@ void sioNetwork::sio_status_channel()
 }
 
 /**
+ * Set Prefix
+ */
+void sioNetwork::sio_set_prefix()
+{
+    uint8_t prefixSpec[256];
+    string prefixSpec_str;
+    uint8_t ck;
+
+    memset(prefixSpec, 0, sizeof(prefixSpec));
+
+    ck = sio_to_peripheral(prefixSpec, sizeof(prefixSpec));
+    Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec);
+
+    if (ck != sio_checksum(prefixSpec, sizeof(prefixSpec)))
+    {
+        Debug_printf("Checksum mismatch!");
+        sio_error();
+        return;
+    }
+    else
+    {
+        prefixSpec_str = string((const char *)prefixSpec);
+    }
+
+    if (prefixSpec_str == "..") // Devance path
+    {
+        vector<int> pathLocations;
+        for (int i = 0; i < prefix.size(); i++)
+        {
+            if (prefix[i] == '/')
+            {
+                pathLocations.push_back(i);
+            }
+        }
+
+        if (prefix[prefix.size() - 1] == '/')
+        {
+            // Get rid of last path segment.
+            pathLocations.pop_back();
+        }
+
+        // truncate to that location.
+        prefix = prefix.substr(0, pathLocations.back() + 1);
+    }
+    else if (prefixSpec_str[0] == '/') // Overwrite path.
+    {
+        prefix = prefixSpec_str;
+    }
+    else // append to path.
+    {
+        prefix += prefixSpec_str;
+    }
+
+    // We are okay, signal complete.
+    sio_complete();
+}
+
+/**
  * SIO Special, called as a default for any other SIO command not processed by the other sio_ functions.
  * First, the protocol is asked whether it wants to process the command, and if so, the protocol will
  * process the special command. Otherwise, the command is handled locally. In either case, either sio_complete()
@@ -464,6 +522,9 @@ void sioNetwork::sio_special_inquiry()
     {
         switch (inq_cmd)
         {
+        case 0x2C: // CHDIR
+            inq_dstats = 0x80;
+            break;
         case 'T': // Set Translation
             inq_dstats = 0x00;
             break;
@@ -519,12 +580,12 @@ void sioNetwork::sio_special_protocol_80()
 {
     uint8_t spData[SPECIAL_BUFFER_SIZE];
 
-    memset(spData,0,SPECIAL_BUFFER_SIZE);
+    memset(spData, 0, SPECIAL_BUFFER_SIZE);
 
     // Get special (devicespec) from computer
     sio_to_peripheral(spData, SPECIAL_BUFFER_SIZE);
 
-    Debug_printf("sioNetwork::sio_special_protocol_80() - %s\n",spData);
+    Debug_printf("sioNetwork::sio_special_protocol_80() - %s\n", spData);
 
     // Do protocol action and return
     if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
@@ -548,6 +609,10 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
+    case 0x2C: // CHDIR
+        sio_ack();
+        sio_set_prefix();
+        break;
     case 0x3F:
         sio_ack();
         sio_high_speed();
