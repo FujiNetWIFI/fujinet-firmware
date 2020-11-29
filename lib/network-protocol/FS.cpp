@@ -64,6 +64,11 @@ bool NetworkProtocolFS::close()
     return false;
 }
 
+bool NetworkProtocolFS::close_dir()
+{
+    return close_dir_handle();
+}
+
 bool NetworkProtocolFS::read(unsigned short len)
 {
     switch (openMode)

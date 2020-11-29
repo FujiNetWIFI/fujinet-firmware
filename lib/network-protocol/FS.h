@@ -229,7 +229,7 @@ protected:
      * @brief close directory.
      * @return FALSE if success, true if error.
      */
-    virtual bool close_dir() = 0;
+    virtual bool close_dir();
 
     /**
      * @brief Close directory handle
