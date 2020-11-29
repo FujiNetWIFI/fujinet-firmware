@@ -572,7 +572,7 @@ void epson80::epson_set_font(uint8_t F, double w)
     fprintf(_file, ")]TJ /F%u 9 Tf 120 Tz [(", F);
     charWidth = w;
     fontNumber = F;
-    fontUsed[F] = true;
+    fontUsed[F-1] = true;
 }
 
 void epson80::at_reset()

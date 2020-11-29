@@ -39,7 +39,6 @@ public:
 private:
     // had to use "int" here because "uint16_t" gave a compile error
     const int fnt_regular = 0;
-    const int fnt_pica = 0x000;
     const int fnt_underline = 0x001;
     const int fnt_italic = 0x002;
     const int fnt_expanded = 0x004;
