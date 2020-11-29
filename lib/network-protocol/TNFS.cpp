@@ -17,10 +17,10 @@ NetworkProtocolTNFS::~NetworkProtocolTNFS()
 {
 }
 
-bool NetworkProtocolTNFS::open_file(string path)
+bool NetworkProtocolTNFS::open_file()
 {
     Debug_printf("NetworkProtocolTNFS::open_file(%s)\n", path.c_str());
-    NetworkProtocolFS::open_file(path);
+    NetworkProtocolFS::open_file();
 
     if (path.empty())
         return true;
@@ -51,12 +51,12 @@ bool NetworkProtocolTNFS::open_file(string path)
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::open_dir(string path)
+bool NetworkProtocolTNFS::open_dir()
 {
     char e[256];
 
     Debug_printf("NetworkProtocolTNFS::open_dir(%s)\n", path.c_str());
-    NetworkProtocolFS::open_dir(path); // also clears directory buffer
+    NetworkProtocolFS::open_dir(); // also clears directory buffer
 
     if (path.empty())
         return true;

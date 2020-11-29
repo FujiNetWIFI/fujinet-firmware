@@ -54,17 +54,15 @@ public:
 protected:
     /**
      * @brief Open a file at path.
-     * @param path the path to open.
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool open_file(string path);
+    virtual bool open_file();
 
     /**
      * @brief Open a Directory via URL.
-     * @param path the path to open
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool open_dir(string path);
+    virtual bool open_dir();
 
     /**
      * @brief Do TNFS mount
