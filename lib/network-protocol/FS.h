@@ -177,7 +177,7 @@ protected:
      * @param path The full path to file to resolve.
      * @return string of resolved path.
      */
-    virtual string resolve(string path) = 0;
+    virtual string resolve(string path);
 
     /**
      * Update dir and filename
@@ -203,7 +203,7 @@ protected:
      * @param buf the target buffer
      * @param len length of target buffer
      */
-    virtual bool read_dir_entry(char *buf, unsigned short len);
+    virtual bool read_dir_entry(char *buf, unsigned short len) = 0;
 
     /**
      * @brief return status from file (e.g. # of bytes remaining.)
@@ -251,15 +251,6 @@ protected:
      * @return TRUE on error, FALSE on success
      */
     bool rename(uint8_t *sp_buf, unsigned short len);
-
-    /**
-     * @brief Resolve filename at path. Gets directory, searches for file,
-     *        if path not found, the file is passed through util_crunch,
-     *        and a second attempt is done.
-     * @param path The full path to file to resolve.
-     * @return resolved path.
-     */
-    virtual string resolve(string path);
 
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
