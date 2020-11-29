@@ -28,11 +28,11 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
     if (cmdFrame->aux1 == 6)
     {
-        return open_dir(url->path);
+        return open_dir();
     }
     else
     {
-        return open_file(url->path);
+        return open_file();
     }
 }
 
@@ -141,7 +141,7 @@ bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
     }
 }
 
-bool NetworkProtocolFS::open_file(string path)
+bool NetworkProtocolFS::open_file()
 {
     update_dir_filename(path);
     path = resolve(path);
@@ -150,7 +150,7 @@ bool NetworkProtocolFS::open_file(string path)
     return error != NETWORK_ERROR_SUCCESS;
 }
 
-bool NetworkProtocolFS::open_dir(string path)
+bool NetworkProtocolFS::open_dir()
 {
     openMode = DIR;
     dirBuffer.clear();
@@ -163,12 +163,13 @@ bool NetworkProtocolFS::open_dir(string path)
     return error != NETWORK_ERROR_SUCCESS;
 }
 
-void NetworkProtocolFS::update_dir_filename(string path)
+void NetworkProtocolFS::update_dir_filename(string newPath)
 {
-    size_t found = path.find_last_of("/");
+    size_t found = newPath.find_last_of("/");
 
-    dir = path.substr(0, found + 1);
-    filename = path.substr(found + 1);
+    path = newPath;
+    dir = newPath.substr(0, found + 1);
+    filename = newPath.substr(found + 1);
 
     // transform the possible everything wildcards
     if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
