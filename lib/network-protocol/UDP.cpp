@@ -163,7 +163,7 @@ bool NetworkProtocolUDP::status(NetworkStatus *status)
         }
     }
 
-    status->reserved = 1; // Always 'connected'
+    status->connected = 1; // Always 'connected'
     status->error = error;
 
     NetworkProtocol::status(status);
