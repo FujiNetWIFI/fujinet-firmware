@@ -197,10 +197,13 @@ bool NetworkProtocolTNFS::read_file(unsigned short len)
 
 bool NetworkProtocolTNFS::read_dir(unsigned short len)
 {
-    Debug_printf("NetworkProtocolTNFS::read_dir(%u)\n", len);
-    *receiveBuffer += dirBuffer.substr(0, len);
-    dirBuffer.erase(0, len);
-    return len <= dirBuffer.length();
+    if (receiveBuffer->length()==0)
+    {
+        *receiveBuffer = dirBuffer.substr(0,len);
+        dirBuffer.erase(0,len);
+    }
+
+    return NetworkProtocol::read(len);
 }
 
 bool NetworkProtocolTNFS::status_file(NetworkStatus *status)
