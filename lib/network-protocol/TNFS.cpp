@@ -45,6 +45,7 @@ bool NetworkProtocolTNFS::open_file(string path)
 
     // Do the open.
     tnfs_error = tnfs_open(&mountInfo, path.c_str(), mode, perms, &fd);
+    Debug_printf("tnfs_error: %u\n",tnfs_error);
     fserror_to_error();
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
@@ -61,7 +62,7 @@ bool NetworkProtocolTNFS::open_dir(string path)
         return true;
 
     tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
-
+    Debug_printf("tnfs_error: %u\n",tnfs_error);
     while (tnfs_readdirx(&mountInfo, &fileStat, e, 255) == 0)
     {
         if (aux2_open & 0x80)
@@ -89,6 +90,8 @@ bool NetworkProtocolTNFS::mount(string hostName, string path)
     strcpy(mountInfo.mountpath, "/");
 
     tnfs_error = tnfs_mount(&mountInfo);
+
+    Debug_printf("mount tnfs_error = %u\n",tnfs_error);
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
@@ -140,6 +143,8 @@ string NetworkProtocolTNFS::resolve(string path)
 
         Debug_printf("XXX Crunched filename: '%s'\n",crunched_filename.c_str());
         char e[256]; // current entry.
+
+        Debug_printf("XXX Path: %s",path.substr(0,path.find_last_of("/")+1).c_str());
 
         tnfs_opendirx(&mountInfo, path.substr(0,path.find_last_of("/")+1).c_str(), 0, 0, "*", 0);
 
