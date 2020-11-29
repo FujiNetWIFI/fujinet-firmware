@@ -61,8 +61,7 @@ bool NetworkProtocolTNFS::open_dir(string path)
     if (path.empty())
         return true;
 
-    tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
-    Debug_printf("tnfs_error: %u\n",tnfs_error);
+res    tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
     while (tnfs_readdirx(&mountInfo, &fileStat, e, 255) == 0)
     {
         if (aux2_open & 0x80)
@@ -134,30 +133,28 @@ void NetworkProtocolTNFS::fserror_to_error()
 
 string NetworkProtocolTNFS::resolve(string path)
 {
-    Debug_printf("NetworkProtocolTNFS::resolve(%s)\n", path.c_str());
+    Debug_printf("NetworkProtocolTNFS::resolve(%s,%s,%s)\n", path.c_str(),dir.c_str(),filename.c_str());
+
     if (tnfs_stat(&mountInfo, &fileStat, path.c_str()))
     {
         // File wasn't found, let's try resolving against the crunched filename
-        string crunched_filename = filename.substr(0,8);
-        
-        if (filename.find(".") != string::npos)
-            crunched_filename += filename.substr(9,12);
+        string crunched_filename = util_crunch(filename);
 
         Debug_printf("XXX Crunched filename: '%s'\n",crunched_filename.c_str());
         char e[256]; // current entry.
 
-        Debug_printf("XXX Path: %s",path.substr(0,path.find_last_of("/")+1).c_str());
-
-        tnfs_opendirx(&mountInfo, path.substr(0,path.find_last_of("/")+1).c_str(), 0, 0, "*", 0);
+        tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, "*", 0);
 
         while (tnfs_readdirx(&mountInfo, &fileStat, e, 255) == 0)
         {
             string current_entry = string(e);
             string crunched_entry = util_crunch(current_entry);
 
+            Debug_printf("current entry: %s, crunched entry: %s, crunched filename: %s",current_entry.c_str(),crunched_entry.c_str(),crunched_filename.c_str());
+
             if (crunched_filename == crunched_entry)
             {
-                path = dir + "/" + current_entry;
+                path = dir + current_entry;
                 tnfs_stat(&mountInfo, &fileStat, path.c_str()); // get stat of resolved file.
                 break;
             }
