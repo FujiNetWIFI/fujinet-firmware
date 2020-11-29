@@ -161,6 +161,38 @@ bool NetworkProtocolFS::open_dir()
     if (filename.empty())
         filename = "*";
 
+    char e[256];
+
+    Debug_printf("NetworkProtocolFS::open_dir(%s)\n", path.c_str());
+    NetworkProtocolFS::open_dir(); // also clears directory buffer
+
+    if (path.empty())
+        return true;
+
+    if (open_dir_handle() == true)
+    {
+        fserror_to_error();
+        return true;
+    }
+
+    while (read_dir_entry(e, 255) == true)
+    {
+        if (aux2_open & 0x80)
+        {
+            // Long entry
+            dirBuffer += util_long_entry(string(e), fileSize) + "\x9b";
+        }
+        else
+        {
+            // 8.3 entry
+            dirBuffer += util_entry(util_crunch(string(e)), fileSize) + "\x9b";
+        }
+        fserror_to_error();
+    }
+
+    // Finally, drop a FREE SECTORS trailer.
+    dirBuffer += "999+FREE SECTORS\x9b";
+
     return error != NETWORK_ERROR_SUCCESS;
 }
 

@@ -51,37 +51,6 @@ bool NetworkProtocolTNFS::open_file()
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::open_dir()
-{
-    char e[256];
-
-    Debug_printf("NetworkProtocolTNFS::open_dir(%s)\n", path.c_str());
-    NetworkProtocolFS::open_dir(); // also clears directory buffer
-
-    if (path.empty())
-        return true;
-
-    tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
-    while (tnfs_readdirx(&mountInfo, &fileStat, e, 255) == 0)
-    {
-        if (aux2_open & 0x80)
-        {
-            // Long entry
-            dirBuffer += util_long_entry(string(e), fileStat.filesize) + "\x9b";
-        }
-        else
-        {
-            // 8.3 entry
-            dirBuffer += util_entry(util_crunch(string(e)), fileStat.filesize) + "\x9b";
-        }
-    }
-
-    // Finally, drop a FREE SECTORS trailer.
-    dirBuffer += "999+FREE SECTORS\x9b";
-
-    return tnfs_error != TNFS_RESULT_SUCCESS;
-}
-
 bool NetworkProtocolTNFS::open_dir_handle()
 {
     tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
@@ -188,6 +157,7 @@ bool NetworkProtocolTNFS::read_dir(unsigned short len)
 bool NetworkProtocolTNFS::read_dir_entry(char *buf, unsigned short len)
 {
     tnfs_error = tnfs_readdirx(&mountInfo, &fileStat, buf, len);
+    fileSize=fileStat.filesize;
     fserror_to_error();
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
