@@ -23,7 +23,7 @@ public:
     /**
      * Not used
      */
-    uint8_t reserved;
+    uint8_t connected;
 
     /**
      * Error code to return to CIO or SIO caller. (1-255)
@@ -36,13 +36,13 @@ public:
     void reset()
     {
         rxBytesWaiting=0;
-        reserved=0;
+        connected=0;
         error=0;
     }
 
     int checksum()
     {
-        return rxBytesWaiting+reserved+error;
+        return rxBytesWaiting+connected+error;
     }
 };
 

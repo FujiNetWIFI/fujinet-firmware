@@ -353,7 +353,7 @@ void sioNetwork::sio_status_local()
         sio_to_computer(ipDNS, 4, false);
         break;
     default:
-        default_status[2] = status.reserved;
+        default_status[2] = status.connected;
         default_status[3] = status.error;
         sio_to_computer(default_status, 4, false);
     }
@@ -383,7 +383,7 @@ void sioNetwork::sio_status_channel()
     // Serialize status into status bytes
     serialized_status[0] = status.rxBytesWaiting & 0xFF;
     serialized_status[1] = status.rxBytesWaiting >> 8;
-    serialized_status[2] = status.reserved;
+    serialized_status[2] = status.connected;
     serialized_status[3] = status.error;
 
     Debug_printf("sio_status_channel() - BW: %u E: %u\n", status.rxBytesWaiting, status.error);
@@ -585,10 +585,10 @@ void sioNetwork::sio_poll_interrupt()
     {
         protocol->status(&status);
 
-        if (status.rxBytesWaiting > 0 || status.reserved == 0)
+        if (status.rxBytesWaiting > 0 || status.connected == 0)
             sio_assert_interrupt();
 
-        reservedSave = status.reserved;
+        reservedSave = status.connected;
         errorSave = status.error;
     }
 }

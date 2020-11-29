@@ -221,7 +221,7 @@ bool NetworkProtocolTCP::status(NetworkStatus *status)
 void NetworkProtocolTCP::status_client(NetworkStatus *status)
 {
     status->rxBytesWaiting = (client.available() > 65535) ? 65535 : client.available();
-    status->reserved = client.connected();
+    status->connected = client.connected();
     status->error = client.connected() ? error : 136;
 }
 
@@ -231,7 +231,7 @@ void NetworkProtocolTCP::status_server(NetworkStatus *status)
         status_client(status);
     else
     {
-        status->reserved = server->hasClient();
+        status->connected = server->hasClient();
         status->error = error;
     }
 }

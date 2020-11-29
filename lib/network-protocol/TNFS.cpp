@@ -206,16 +206,16 @@ bool NetworkProtocolTNFS::read_dir(unsigned short len)
 bool NetworkProtocolTNFS::status_file(NetworkStatus *status)
 {
     status->rxBytesWaiting = fileStat.filesize > 65535 ? 65535 : fileStat.filesize;
-    status->reserved = fileStat.filesize > 0 ? 1 : 0;
-    status->error = error;
+    status->connected = fileStat.filesize > 0 ? 1 : 0;
+    status->error = fileStat.filesize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
     return false;
 }
 
 bool NetworkProtocolTNFS::status_dir(NetworkStatus *status)
 {
     status->rxBytesWaiting = dirBuffer.length();
-    status->reserved = 1;
-    status->error = error;
+    status->connected = dirBuffer.length() > 0 ? 1 : 0;
+    status->error = dirBuffer.length() > 0 ? error : NETWORK_ERROR_END_OF_FILE;
     return false;
 }
 
