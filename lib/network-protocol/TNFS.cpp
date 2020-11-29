@@ -90,8 +90,7 @@ bool NetworkProtocolTNFS::mount(string hostName, string path)
     strcpy(mountInfo.mountpath, "/");
 
     tnfs_error = tnfs_mount(&mountInfo);
-
-    Debug_printf("mount tnfs_error = %u\n",tnfs_error);
+    fserror_to_error();
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
@@ -108,6 +107,9 @@ void NetworkProtocolTNFS::fserror_to_error()
 {
     switch (tnfs_error)
     {
+    case -1: // special case for mount
+        error = NETWORK_ERROR_GENERAL_TIMEOUT;
+        break;
     case TNFS_RESULT_SUCCESS:
         error = NETWORK_ERROR_SUCCESS;
         break;

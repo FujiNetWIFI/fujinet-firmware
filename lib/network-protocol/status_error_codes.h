@@ -16,6 +16,11 @@
 #define NETWORK_ERROR_END_OF_FILE 136
 
 /**
+ * General timeout
+ */
+#define NETWORK_ERROR_GENERAL_TIMEOUT 138
+
+/**
  * A fatal error
  */
 #define NETWORK_ERROR_GENERAL 144
