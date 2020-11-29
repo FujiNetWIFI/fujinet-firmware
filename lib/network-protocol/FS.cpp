@@ -6,6 +6,7 @@
 
 #include "FS.h"
 #include "status_error_codes.h"
+#include "utils.h"
 
 NetworkProtocolFS::NetworkProtocolFS(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
@@ -189,4 +190,41 @@ bool NetworkProtocolFS::rename(uint8_t* sp_buf, unsigned short len)
     filename = dir + filename.substr(0, comma_pos);
 
     return comma_pos != string::npos;
+}
+
+string NetworkProtocolFS::resolve(string path)
+{
+    Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\n", path.c_str(),dir.c_str(),filename.c_str());
+
+    if (stat(path.c_str()) == true) // true = error.
+    {
+        // File wasn't found, let's try resolving against the crunched filename
+        string crunched_filename = util_crunch(filename);
+
+        char e[256]; // current entry.
+
+        if (open_dir_handle() == true) // couldn't open dir, return path as is.
+        {
+            fserror_to_error();
+            return path;
+        }
+
+        while (read_dir_entry(e, 255) == false)
+        {
+            string current_entry = string(e);
+            string crunched_entry = util_crunch(current_entry);
+
+            if (crunched_filename == crunched_entry)
+            {
+                path = dir + current_entry;
+                stat(path.c_str()); // TODO: see if this assumption of success holds true in all cases?
+                break;
+            }
+        }
+        // We failed to resolve. clear, if we're reading, otherwise pass back original path.
+        close_dir_handle();
+    }
+
+    Debug_printf("Resolved to %s\n", path.c_str());
+    return path;
 }

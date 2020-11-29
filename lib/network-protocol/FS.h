@@ -140,10 +140,16 @@ protected:
     virtual bool open_file();
 
     /**
-     * @brief Open a Directory via URL.
+     * @brief Open a Directory via path
      * @return FALSE if successful, TRUE on error.
      */
     virtual bool open_dir();
+
+    /**
+     * @brief Open directory handle
+     * @return FALSE if successful, TRUE on error.
+     */
+    virtual bool open_dir_handle() = 0;
 
     /**
      * @brief Do mount
@@ -193,6 +199,13 @@ protected:
     virtual bool read_dir(unsigned short len) = 0;
 
     /**
+     * @brief read next directory entry.
+     * @param buf the target buffer
+     * @param len length of target buffer
+     */
+    virtual bool read_dir_entry(char *buf, unsigned short len);
+
+    /**
      * @brief return status from file (e.g. # of bytes remaining.)
      * @param Pointer to NetworkStatus object to inject new data.
      * @return FALSE if success, TRUE if error.
@@ -219,6 +232,12 @@ protected:
     virtual bool close_dir() = 0;
 
     /**
+     * @brief Close directory handle
+     * @return FALSE if successful, TRUE on error.
+     */
+    virtual bool close_dir_handle() = 0;
+
+    /**
      * @brief Write to file
      * @param len the number of bytes requested
      * @return FALSE if successful, TRUE if error.
@@ -232,6 +251,22 @@ protected:
      * @return TRUE on error, FALSE on success
      */
     bool rename(uint8_t *sp_buf, unsigned short len);
+
+    /**
+     * @brief Resolve filename at path. Gets directory, searches for file,
+     *        if path not found, the file is passed through util_crunch,
+     *        and a second attempt is done.
+     * @param path The full path to file to resolve.
+     * @return resolved path.
+     */
+    virtual string resolve(string path);
+
+    /**
+     * @brief get status of file, filling in filesize. mount() must have already been called.
+     * @param path the full path of file to resolve.
+     * @return resolved path.
+     */
+    virtual bool stat(string path) = 0;    
 };
 
 #endif /* NETWORKPROTOCOL_FS */
