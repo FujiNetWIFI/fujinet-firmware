@@ -61,7 +61,7 @@ bool NetworkProtocolTNFS::open_dir(string path)
     if (path.empty())
         return true;
 
-res    tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
+    tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
     while (tnfs_readdirx(&mountInfo, &fileStat, e, 255) == 0)
     {
         if (aux2_open & 0x80)
