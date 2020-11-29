@@ -65,6 +65,12 @@ protected:
     virtual bool open_dir();
 
     /**
+     * @brief Open directory handle
+     * @return FALSE if successful, TRUE on error.
+     */
+    virtual bool open_dir_handle();
+
+    /**
      * @brief Do TNFS mount
      * @param hostName - host name of TNFS server
      * @param path - path to mount, usually "/"
@@ -84,15 +90,6 @@ protected:
     virtual void fserror_to_error();
 
     /**
-     * @brief Resolve filename at path. Gets directory, searches for file,
-     *        if path not found, the file is passed through util_crunch,
-     *        and a second attempt is done.
-     * @param path The full path to file to resolve.
-     * @return resolved path.
-     */
-    virtual string resolve(string path);
-
-    /**
      * @brief Read from file
      * @param len the number of bytes requested
      * @return FALSE if success, TRUE if error.
@@ -105,6 +102,13 @@ protected:
      * @return FALSE if success, TRUE if error
      */
     virtual bool read_dir(unsigned short len);
+
+    /**
+     * @brief read next directory entry.
+     * @param buf the target buffer
+     * @param len length of target buffer
+     */
+    virtual bool read_dir_entry(char *buf, unsigned short len);
 
     /**
      * @brief return status from file (e.g. # of bytes remaining.)
@@ -133,6 +137,12 @@ protected:
     virtual bool close_dir();
 
     /**
+     * @brief Close directory handle
+     * @return FALSE if successful, TRUE on error.
+     */
+    virtual bool close_dir_handle();
+
+    /**
      * @brief Write to file
      * @param len the number of bytes requested
      * @return FALSE if successful, TRUE if error.
@@ -145,7 +155,7 @@ protected:
      * @param len of special buffer.
      * @return TRUE on error, FALSE on success
      */
-    bool rename(uint8_t* sp_buf, unsigned short len);
+    bool rename(uint8_t *sp_buf, unsigned short len);
 
 private:
     /**
@@ -201,7 +211,7 @@ private:
      * @param len of special buffer
      * @return TRUE on error, FALSE on success
      */
-    bool del(uint8_t* sp_buf, unsigned short len);
+    bool del(uint8_t *sp_buf, unsigned short len);
 
     /**
      * @brief Make directory specified by incoming devicespec.
@@ -209,7 +219,7 @@ private:
      * @param len of special buffer
      * @return TRUE on error, FALSE on success
      */
-    bool mkdir(uint8_t* sp_buf, unsigned short len);
+    bool mkdir(uint8_t *sp_buf, unsigned short len);
 
     /**
      * @brief Remove directory specified by incoming devicespec.
@@ -217,7 +227,14 @@ private:
      * @param len of special buffer
      * @return TRUE on error, FALSE on success
      */
-    bool rmdir(uint8_t* sp_buf, unsigned short len);
+    bool rmdir(uint8_t *sp_buf, unsigned short len);
+
+    /**
+     * @brief get status of file, filling in filesize. mount() must have already been called.
+     * @param path the full path of file to resolve.
+     * @return resolved path.
+     */
+    virtual bool stat(string path) = 0;
 };
 
 #endif /* NETWORKPROTOCOLTNFS_H */
