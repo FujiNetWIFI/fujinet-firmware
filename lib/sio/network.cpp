@@ -404,7 +404,6 @@ void sioNetwork::sio_set_prefix()
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
     ck = sio_to_peripheral(prefixSpec, sizeof(prefixSpec));
-    Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec);
 
     if (ck != sio_checksum(prefixSpec, sizeof(prefixSpec)))
     {
@@ -415,6 +414,8 @@ void sioNetwork::sio_set_prefix()
     else
     {
         prefixSpec_str = string((const char *)prefixSpec);
+        util_clean_devicespec(prefixSpec, sizeof(prefixSpec));
+        Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec);
     }
 
     if (prefixSpec_str == "..") // Devance path
@@ -769,6 +770,10 @@ bool sioNetwork::parseURL()
     if (urlParser != nullptr)
         delete urlParser;
 
+    // Prepend prefix, if set.
+    if (prefix.length() > 0)
+        deviceSpec = prefix + deviceSpec;
+
     Debug_printf("sioNetwork::parseURL(%s)\n", deviceSpec.c_str());
 
     // Strip non-ascii characters.
@@ -785,10 +790,6 @@ bool sioNetwork::parseURL()
     // Some FMSes add a dot at the end, remove it.
     if (deviceSpec.substr(deviceSpec.length() - 1) == ".")
         deviceSpec.erase(deviceSpec.length() - 1, string::npos);
-
-    // Prepend prefix, if set.
-    if (prefix.length() > 0)
-        deviceSpec = prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
 
     // Remove any spurious spaces
     deviceSpec = util_remove_spaces(deviceSpec);
