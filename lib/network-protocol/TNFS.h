@@ -59,12 +59,6 @@ protected:
     virtual bool open_file();
 
     /**
-     * @brief Open a Directory via URL.
-     * @return FALSE if successful, TRUE on error.
-     */
-    virtual bool open_dir();
-
-    /**
      * @brief Open directory handle
      * @return FALSE if successful, TRUE on error.
      */
