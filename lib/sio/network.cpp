@@ -94,8 +94,12 @@ void sioNetwork::sio_open()
     // Reset status buffer
     status.reset();
 
+    // Clean up devicespec buffer.
+    memset(devicespecBuf,0,sizeof(devicespecBuf));
+
     // Get Devicespec from buffer, and put into primary devicespec string
     sio_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
+    util_clean_devicespec(devicespecBuf,sizeof(devicespecBuf));
     deviceSpec = string((char *)devicespecBuf);
 
     // Invalid URL returns error 165 in status.
