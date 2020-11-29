@@ -123,13 +123,7 @@ protected:
      * @return FALSE if success, true if error.
      */
     virtual bool close_file();
-
-    /**
-     * @brief close directory.
-     * @return FALSE if success, true if error.
-     */
-    virtual bool close_dir();
-
+    
     /**
      * @brief Close directory handle
      * @return FALSE if successful, TRUE on error.

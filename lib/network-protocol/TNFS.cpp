@@ -187,14 +187,6 @@ bool NetworkProtocolTNFS::close_file()
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::close_dir()
-{
-    Debug_printf("NetworkProtocolTNFS::close_dir()\n");
-    tnfs_error = tnfs_closedir(&mountInfo);
-    fserror_to_error();
-    return tnfs_error != TNFS_RESULT_SUCCESS;
-}
-
 bool NetworkProtocolTNFS::close_dir_handle()
 {
     tnfs_error = tnfs_closedir(&mountInfo);
