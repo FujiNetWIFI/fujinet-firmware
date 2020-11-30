@@ -11,6 +11,26 @@ class NetworkProtocolFS : public NetworkProtocol
 {
 public:
     /**
+     * Is rename implemented?
+     */
+    bool rename_implemented = false;
+
+    /**
+     * Is delete implemented?
+     */
+    bool delete_implemented = false;
+
+    /**
+     * Is mkdir implemented?
+     */
+    bool mkdir_implemented = false;
+
+    /**
+     * Is rmdir implemented?
+     */
+    bool rmdir_implemented = false;
+    
+    /**
      * @brief ctor
      * @param rx_buf pointer to receive buffer
      * @param tx_buf pointer to transmit buffer
@@ -139,26 +159,6 @@ protected:
      * Directory buffer
      */
     string dirBuffer;
-
-    /**
-     * Is rename implemented?
-     */
-    bool rename_implemented = false;
-
-    /**
-     * Is delete implemented?
-     */
-    bool delete_implemented = false;
-
-    /**
-     * Is mkdir implemented?
-     */
-    bool mkdir_implemented = false;
-
-    /**
-     * Is rmdir implemented?
-     */
-    bool rmdir_implemented = false;
 
     /**
      * @brief Open a file via path.
