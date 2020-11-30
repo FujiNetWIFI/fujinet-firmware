@@ -31,7 +31,7 @@ bool NetworkProtocolTNFS::open_file_handle()
         perms = 0x1FF;
         break;
     case 9:
-        mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE_APPEND; // 0x10B
+        mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE | TNFS_OPENMODE_WRITE_APPEND; // 0x10B
         perms = 0x1FF;
         break;
     case 12:
