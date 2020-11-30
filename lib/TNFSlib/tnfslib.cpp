@@ -954,8 +954,8 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
         if (packet.payload[0] == TNFS_RESULT_SUCCESS)
         {
 
-            uint16_t filemode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_FILEMODE);
-            filestat->isDir = (filemode & S_IFDIR) ? true : false;
+            filestat->mode = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_FILEMODE);
+            filestat->isDir = (filestat->mode & S_IFDIR) ? true : false;
 
             uint16_t uid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_UID);
             uint16_t gid = TNFS_UINT16_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_GID);
