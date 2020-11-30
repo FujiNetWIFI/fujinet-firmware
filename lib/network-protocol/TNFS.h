@@ -53,10 +53,10 @@ public:
 
 protected:
     /**
-     * @brief Open a file at path.
+     * @brief Open file handle, set fd
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool open_file();
+    virtual bool open_file_handle();
 
     /**
      * @brief Open directory handle
@@ -123,7 +123,7 @@ protected:
      * @return FALSE if success, true if error.
      */
     virtual bool close_file();
-    
+
     /**
      * @brief Close directory handle
      * @return FALSE if successful, TRUE on error.

@@ -140,6 +140,12 @@ protected:
     virtual bool open_file();
 
     /**
+     * @brief open a file handle to fd
+     * @return FALSE if successful, TRUE on error.
+     */
+    virtual bool open_file_handle() = 0;
+
+    /**
      * @brief Open a Directory via path
      * @return FALSE if successful, TRUE on error.
      */

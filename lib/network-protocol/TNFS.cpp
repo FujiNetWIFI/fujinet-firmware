@@ -17,35 +17,31 @@ NetworkProtocolTNFS::~NetworkProtocolTNFS()
 {
 }
 
-bool NetworkProtocolTNFS::open_file()
+bool NetworkProtocolTNFS::open_file_handle()
 {
-    Debug_printf("NetworkProtocolTNFS::open_file(%s)\n", path.c_str());
-    NetworkProtocolFS::open_file();
-
-    if (path.empty())
-        return true;
-
     // Map aux1 to mode and perms for tnfs_open()
     switch (aux1_open)
     {
     case 4:
-        mode = 1;
+        mode = TNFS_OPENMODE_READ;
         perms = 0;
         break;
     case 8:
+        mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE_TRUNCATE | TNFS_OPENMODE_WRITE;
+        perms = 0x1FF;
+        break;
     case 9:
-        mode = 0x010B;
+        mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE_APPEND; // 0x10B
         perms = 0x1FF;
         break;
     case 12:
-        mode = 0x103;
+        mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_READWRITE;
         perms = 0x1FF;
         break;
     }
 
     // Do the open.
     tnfs_error = tnfs_open(&mountInfo, path.c_str(), mode, perms, &fd);
-    Debug_printf("tnfs_error: %u\n", tnfs_error);
     fserror_to_error();
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
@@ -157,7 +153,7 @@ bool NetworkProtocolTNFS::read_dir(unsigned short len)
 bool NetworkProtocolTNFS::read_dir_entry(char *buf, unsigned short len)
 {
     tnfs_error = tnfs_readdirx(&mountInfo, &fileStat, buf, len);
-    fileSize=fileStat.filesize;
+    fileSize = fileStat.filesize;
     fserror_to_error();
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }

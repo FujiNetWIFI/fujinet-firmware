@@ -37,6 +37,77 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
     }
 }
 
+bool NetworkProtocolFS::open_file()
+{
+    update_dir_filename(path);
+    path = resolve(path);
+    update_dir_filename(path);
+    
+    openMode = FILE;
+
+    if (path.empty())
+        return true;
+
+    return open_file_handle();
+}
+
+bool NetworkProtocolFS::open_dir()
+{
+    openMode = DIR;
+    dirBuffer.clear();
+    update_dir_filename(path);
+
+    // assume everything if no filename.
+    if (filename.empty())
+        filename = "*";
+
+    char e[256];
+
+    Debug_printf("NetworkProtocolFS::open_dir(%s)\n", path.c_str());
+
+    if (path.empty())
+        return true;
+
+    if (open_dir_handle() == true)
+    {
+        fserror_to_error();
+        return true;
+    }
+
+    while (read_dir_entry(e, 255) == true)
+    {
+        if (aux2_open & 0x80)
+        {
+            // Long entry
+            dirBuffer += util_long_entry(string(e), fileSize) + "\x9b";
+        }
+        else
+        {
+            // 8.3 entry
+            dirBuffer += util_entry(util_crunch(string(e)), fileSize) + "\x9b";
+        }
+        fserror_to_error();
+    }
+
+    // Finally, drop a FREE SECTORS trailer.
+    dirBuffer += "999+FREE SECTORS\x9b";
+
+    return error != NETWORK_ERROR_SUCCESS;
+}
+
+void NetworkProtocolFS::update_dir_filename(string newPath)
+{
+    size_t found = newPath.find_last_of("/");
+
+    path = newPath;
+    dir = newPath.substr(0, found + 1);
+    filename = newPath.substr(found + 1);
+
+    // transform the possible everything wildcards
+    if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
+        filename = "*";
+}
+
 bool NetworkProtocolFS::close()
 {
     bool file_closed = false;
@@ -145,73 +216,6 @@ bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
         error = NETWORK_ERROR_NOT_IMPLEMENTED;
         return true;
     }
-}
-
-bool NetworkProtocolFS::open_file()
-{
-    update_dir_filename(path);
-    path = resolve(path);
-    update_dir_filename(path);
-    openMode = FILE;
-    return error != NETWORK_ERROR_SUCCESS;
-}
-
-bool NetworkProtocolFS::open_dir()
-{
-    openMode = DIR;
-    dirBuffer.clear();
-    update_dir_filename(path);
-
-    // assume everything if no filename.
-    if (filename.empty())
-        filename = "*";
-
-    char e[256];
-
-    Debug_printf("NetworkProtocolFS::open_dir(%s)\n", path.c_str());
-    NetworkProtocolFS::open_dir(); // also clears directory buffer
-
-    if (path.empty())
-        return true;
-
-    if (open_dir_handle() == true)
-    {
-        fserror_to_error();
-        return true;
-    }
-
-    while (read_dir_entry(e, 255) == true)
-    {
-        if (aux2_open & 0x80)
-        {
-            // Long entry
-            dirBuffer += util_long_entry(string(e), fileSize) + "\x9b";
-        }
-        else
-        {
-            // 8.3 entry
-            dirBuffer += util_entry(util_crunch(string(e)), fileSize) + "\x9b";
-        }
-        fserror_to_error();
-    }
-
-    // Finally, drop a FREE SECTORS trailer.
-    dirBuffer += "999+FREE SECTORS\x9b";
-
-    return error != NETWORK_ERROR_SUCCESS;
-}
-
-void NetworkProtocolFS::update_dir_filename(string newPath)
-{
-    size_t found = newPath.find_last_of("/");
-
-    path = newPath;
-    dir = newPath.substr(0, found + 1);
-    filename = newPath.substr(found + 1);
-
-    // transform the possible everything wildcards
-    if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
-        filename = "*";
 }
 
 bool NetworkProtocolFS::rename(uint8_t* sp_buf, unsigned short len)
