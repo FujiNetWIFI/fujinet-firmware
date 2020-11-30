@@ -174,9 +174,9 @@ bool NetworkProtocolTNFS::status_dir(NetworkStatus *status)
     return false;
 }
 
-bool NetworkProtocolTNFS::close_file()
+bool NetworkProtocolTNFS::close_file_handle()
 {
-    Debug_printf("NetworkProtocolTNFS::close_file(%u)\n", fd);
+    Debug_printf("NetworkProtocolTNFS::close_file_handle(%u)\n", fd);
     if (fd != 0)
         tnfs_error = tnfs_close(&mountInfo, fd);
     fserror_to_error();

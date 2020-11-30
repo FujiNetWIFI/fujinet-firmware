@@ -224,12 +224,18 @@ protected:
      * @return FALSE if success, TRUE if error.
      */
     virtual bool status_dir(NetworkStatus *status) = 0;
-
+    
     /**
      * @brief close file.
      * @return FALSE if success, true if error.
      */
-    virtual bool close_file() = 0;
+    virtual bool close_file();
+
+    /**
+     * @brief close file handle
+     * @return FALSE if success, true if error
+     */
+    virtual bool close_file_handle() = 0;
 
     /**
      * @brief close directory.

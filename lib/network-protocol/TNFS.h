@@ -119,10 +119,10 @@ protected:
     virtual bool status_dir(NetworkStatus *status);
 
     /**
-     * @brief close file.
-     * @return FALSE if success, true if error.
+     * @brief close file handle
+     * @return FALSE if successful, TRUE on error.
      */
-    virtual bool close_file();
+    virtual bool close_file_handle();
 
     /**
      * @brief Close directory handle
