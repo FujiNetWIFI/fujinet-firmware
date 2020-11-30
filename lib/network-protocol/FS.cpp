@@ -342,12 +342,6 @@ bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdF
 
 bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    if (rename_implemented == false)
-    {
-        error = NETWORK_ERROR_NOT_IMPLEMENTED;
-        return true;
-    }
-
     update_dir_filename(url->path);
 
     // Preprocessing routine to parse out comma position.
@@ -369,33 +363,15 @@ bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolFS::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    if (delete_implemented == false)
-    {
-        error = NETWORK_ERROR_NOT_IMPLEMENTED;
-        return true;
-    }
-
     return false;
 }
 
 bool NetworkProtocolFS::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    if (mkdir_implemented == false)
-    {
-        error = NETWORK_ERROR_NOT_IMPLEMENTED;
-        return true;
-    }
-    
     return false;
 }
 
 bool NetworkProtocolFS::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    if (rmdir_implemented == false)
-    {
-        error = NETWORK_ERROR_NOT_IMPLEMENTED;
-        return true;
-    }
-    
     return false;
 }
