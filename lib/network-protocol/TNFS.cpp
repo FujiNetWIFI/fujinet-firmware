@@ -168,7 +168,7 @@ bool NetworkProtocolTNFS::close_dir_handle()
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::block_write(uint8_t *buf, unsigned short len)
+bool NetworkProtocolTNFS::write_file_handle(uint8_t *buf, unsigned short len)
 {
     unsigned short total_len = len;
     unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;
@@ -192,15 +192,6 @@ bool NetworkProtocolTNFS::block_write(uint8_t *buf, unsigned short len)
         }
     }
     return false; // no error
-}
-
-bool NetworkProtocolTNFS::write_file(unsigned short len)
-{
-    if (block_write((uint8_t *)transmitBuffer->data(), len) == true)
-        return true;
-
-    transmitBuffer->erase(0, len);
-    return false;
 }
 
 uint8_t NetworkProtocolTNFS::special_inquiry(uint8_t cmd)
