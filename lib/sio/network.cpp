@@ -568,6 +568,7 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
  */
 void sioNetwork::sio_special_00()
 {
+    // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
     case 'T':
@@ -589,6 +590,7 @@ void sioNetwork::sio_special_00()
  */
 void sioNetwork::sio_special_40()
 {
+    // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
     case 0x30:
@@ -611,6 +613,7 @@ void sioNetwork::sio_special_80()
 {
     uint8_t spData[SPECIAL_BUFFER_SIZE];
 
+    // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
     case 0x2C: // CHDIR
