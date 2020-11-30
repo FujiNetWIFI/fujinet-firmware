@@ -74,7 +74,7 @@ bool NetworkProtocolFS::open_dir()
         return true;
     }
 
-    while (read_dir_entry(e, 255) == true)
+    while (read_dir_entry(e, 255) == false)
     {
         if (aux2_open & 0x80)
         {
@@ -91,6 +91,9 @@ bool NetworkProtocolFS::open_dir()
 
     // Finally, drop a FREE SECTORS trailer.
     dirBuffer += "999+FREE SECTORS\x9b";
+
+    if (error == NETWORK_ERROR_END_OF_FILE)
+        error = NETWORK_ERROR_SUCCESS;
 
     return error != NETWORK_ERROR_SUCCESS;
 }
