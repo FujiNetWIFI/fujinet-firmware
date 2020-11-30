@@ -135,6 +135,11 @@ bool NetworkProtocolFS::close()
     return false;
 }
 
+bool NetworkProtocolFS::close_file()
+{
+    return close_file_handle();
+}
+
 bool NetworkProtocolFS::close_dir()
 {
     return close_dir_handle();
