@@ -114,6 +114,11 @@ public:
 
 private:
     /**
+     * Buffer for holding devicespec
+     */
+    uint8_t devicespecBuf[256];
+
+    /**
      * The Receive buffer for this N: device
      */
     string *receiveBuffer = nullptr;
@@ -314,6 +319,17 @@ private:
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
     void sio_set_translation();
+
+    /**
+     * @brief perform ->FujiNet commands on protocols that do not use an explicit OPEN channel.
+     */
+    void sio_do_idempotent_command_80();
+
+    /**
+     * @brief parse URL and instantiate protocol
+     */
+    void parse_and_instantiate_protocol();
+
 };
 
 #endif /* NETWORK_H */

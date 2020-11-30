@@ -120,6 +120,13 @@ public:
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return false; };
 
     /**
+     * @brief perform an idempotent command with DSTATS 0x80, that does not require open channel.
+     * @param url The URL object.
+     * @param cmdFrame command frame.
+     */
+    virtual bool perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame) { return false; };
+
+    /**
      * @brief return an _atari_ error (>199) based on errno. into error for status reporting.
      */
     virtual void errno_to_error();
