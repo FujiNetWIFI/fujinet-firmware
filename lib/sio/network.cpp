@@ -83,6 +83,7 @@ void sioNetwork::sio_open()
     open_aux1 = cmdFrame.aux1;
     open_aux2 = cmdFrame.aux2;
     open_aux2 |= trans_aux2;
+    cmdFrame.aux2 |= trans_aux2;
 
     // Shut down protocol if we are sending another open before we close.
     if (protocol != nullptr)
@@ -850,6 +851,6 @@ void sioNetwork::sio_assert_interrupt()
 
 void sioNetwork::sio_set_translation()
 {
-    trans_aux2 = cmdFrame.aux1;
+    trans_aux2 = cmdFrame.aux2;
     sio_complete();
 }
