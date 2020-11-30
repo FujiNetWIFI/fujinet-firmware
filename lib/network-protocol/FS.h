@@ -262,7 +262,15 @@ protected:
      * @param len the number of bytes requested
      * @return FALSE if successful, TRUE if error.
      */
-    virtual bool write_file(unsigned short len) = 0;
+    virtual bool write_file(unsigned short len);
+
+    /**
+     * @brief for len requested, break up into number of required
+     *        tnfs_write() blocks.
+     * @param len Requested # of bytes.
+     * @return TRUE on error, FALSE on success.
+     */
+    virtual bool write_file_handle(uint8_t *buf, unsigned short len) = 0;
 
     /**
      * @brief Rename file specified by incoming devicespec.

@@ -197,6 +197,15 @@ bool NetworkProtocolFS::write(unsigned short len)
     return write_file(len); // Do more here? not sure.
 }
 
+bool NetworkProtocolFS::write_file(unsigned short len)
+{
+    if (write_file_handle((uint8_t *)transmitBuffer->data(), len) == true)
+        return true;
+
+    transmitBuffer->erase(0, len);
+    return false;
+}
+
 bool NetworkProtocolFS::status(NetworkStatus *status)
 {
     switch (openMode)

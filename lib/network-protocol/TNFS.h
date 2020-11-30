@@ -106,6 +106,14 @@ protected:
     virtual bool read_dir_entry(char *buf, unsigned short len);
 
     /**
+     * @brief for len requested, break up into number of required
+     *        tnfs_write() blocks.
+     * @param len Requested # of bytes.
+     * @return TRUE on error, FALSE on success.
+     */
+    virtual bool write_file_handle(uint8_t *buf, unsigned short len);
+
+    /**
      * @brief close file handle
      * @return FALSE if successful, TRUE on error.
      */
@@ -116,13 +124,6 @@ protected:
      * @return FALSE if successful, TRUE on error.
      */
     virtual bool close_dir_handle();
-
-    /**
-     * @brief Write to file
-     * @param len the number of bytes requested
-     * @return FALSE if successful, TRUE if error.
-     */
-    virtual bool write_file(unsigned short len);
 
     /**
      * @brief Rename file specified by incoming devicespec.
@@ -162,14 +163,6 @@ private:
      * The TNFS filestat of the currently open file.
      */
     tnfsStat fileStat;
-
-    /**
-     * @brief for len requested, break up into number of required
-     *        tnfs_write() blocks.
-     * @param len Requested # of bytes.
-     * @return TRUE on error, FALSE on success.
-     */
-    bool block_write(uint8_t *buf, unsigned short len);
 
     /**
      * @brief Delete file specified by incoming devicespec.
