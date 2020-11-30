@@ -309,6 +309,8 @@ string NetworkProtocolFS::resolve(string path)
 
         char e[256]; // current entry.
 
+        filename = "*"; // Temporarily reset filename to search for all files.
+        
         if (open_dir_handle() == true) // couldn't open dir, return path as is.
         {
             fserror_to_error();
