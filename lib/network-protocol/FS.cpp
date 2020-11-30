@@ -212,6 +212,22 @@ bool NetworkProtocolFS::status(NetworkStatus *status)
     }
 }
 
+bool NetworkProtocolFS::status_file(NetworkStatus *status)
+{
+    status->rxBytesWaiting = fileSize > 65535 ? 65535 : fileSize;
+    status->connected = fileSize > 0 ? 1 : 0;
+    status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+    return false;
+}
+
+bool NetworkProtocolFS::status_dir(NetworkStatus *status)
+{
+    status->rxBytesWaiting = dirBuffer.length();
+    status->connected = dirBuffer.length() > 0 ? 1 : 0;
+    status->error = dirBuffer.length() > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+    return false;
+}
+
 uint8_t NetworkProtocolFS::special_inquiry(uint8_t cmd)
 {
     uint8_t ret;
