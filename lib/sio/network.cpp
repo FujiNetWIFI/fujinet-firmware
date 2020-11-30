@@ -95,11 +95,11 @@ void sioNetwork::sio_open()
     status.reset();
 
     // Clean up devicespec buffer.
-    memset(devicespecBuf,0,sizeof(devicespecBuf));
+    memset(devicespecBuf, 0, sizeof(devicespecBuf));
 
     // Get Devicespec from buffer, and put into primary devicespec string
     sio_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
-    util_clean_devicespec(devicespecBuf,sizeof(devicespecBuf));
+    util_clean_devicespec(devicespecBuf, sizeof(devicespecBuf));
     deviceSpec = string((char *)devicespecBuf);
 
     // Invalid URL returns error 165 in status.
@@ -463,41 +463,24 @@ void sioNetwork::sio_set_prefix()
  */
 void sioNetwork::sio_special()
 {
-    uint8_t inq_cmd = cmdFrame.comnd;
-    uint8_t inq_dstats = 0xFF;
-
-    // If there's no protocol, and we got here, then we nak the command, because it's not valid.
-    if (protocol == nullptr)
-    {
-        Debug_printf("Attempted to do undefined special command with no protocol.\n");
-        sio_nak();
-        return;
-    }
-
-    sio_ack(); // Now we ack.
-
-    // Ask protocol for DSTATS value.
-    inq_dstats = protocol->special_inquiry(inq_cmd);
-
-    if (inq_dstats == 0xFF)
-    {
-        Debug_printf("Attempted to do undefined special command to protocol.\n");
-        sio_nak();
-        return;
-    }
-
-    Debug_printf("inq_dstats = %u\n", inq_dstats);
+    do_inquiry(cmdFrame.comnd);
 
     switch (inq_dstats)
     {
     case 0x00: // No payload
-        sio_special_protocol_00();
+        sio_ack();
+        sio_special_00();
         break;
     case 0x40: // Payload to Atari
-        sio_special_protocol_40();
+        sio_ack();
+        sio_special_40();
         break;
     case 0x80: // Payload to Peripheral
-        sio_special_protocol_80();
+        sio_ack();
+        sio_special_80();
+        break;
+    default:
+        sio_nak();
         break;
     }
 }
@@ -510,14 +493,19 @@ void sioNetwork::sio_special()
  */
 void sioNetwork::sio_special_inquiry()
 {
-    uint8_t inq_cmd = cmdFrame.aux1;
-    uint8_t inq_dstats = 0xFF;
-
     // Acknowledge
     sio_ack();
 
-    Debug_printf("sioNetwork::sio_special_inquiry(%02x)\n", inq_cmd);
+    Debug_printf("sioNetwork::sio_special_inquiry(%02x)\n", cmdFrame.aux1);
 
+    do_inquiry(cmdFrame.aux1);
+
+    // Finally, return the completed inq_dstats value back to Atari
+    sio_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
+}
+
+void sioNetwork::do_inquiry(unsigned char inq_cmd)
+{
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
         inq_dstats = protocol->special_inquiry(inq_cmd);
@@ -544,9 +532,6 @@ void sioNetwork::sio_special_inquiry()
             break;
         }
     }
-
-    // Finally, return the completed inq_dstats value back to Atari
-    sio_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
 }
 
 /**
@@ -554,12 +539,19 @@ void sioNetwork::sio_special_inquiry()
  * Essentially, call the protocol action 
  * and based on the return, signal sio_complete() or error().
  */
-void sioNetwork::sio_special_protocol_00()
+void sioNetwork::sio_special_00()
 {
-    if (protocol->special_00(&cmdFrame) == false)
-        sio_complete();
-    else
-        sio_error();
+    switch (cmdFrame.comnd)
+    {
+    case 'T':
+        sio_set_translation();
+        break;
+    default:
+        if (protocol->special_00(&cmdFrame) == false)
+            sio_complete();
+        else
+            sio_error();
+    }
 }
 
 /**
@@ -568,7 +560,7 @@ void sioNetwork::sio_special_protocol_00()
  * buffer (containing the devicespec) and based on the return, use sio_to_computer() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
-void sioNetwork::sio_special_protocol_40()
+void sioNetwork::sio_special_40()
 {
     sio_to_computer((uint8_t *)receiveBuffer->data(),
                     SPECIAL_BUFFER_SIZE,
@@ -581,7 +573,7 @@ void sioNetwork::sio_special_protocol_40()
  * buffer (containing the devicespec) and based on the return, use sio_to_peripheral() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
-void sioNetwork::sio_special_protocol_80()
+void sioNetwork::sio_special_80()
 {
     uint8_t spData[SPECIAL_BUFFER_SIZE];
 
@@ -854,4 +846,10 @@ void sioNetwork::processCommaFromDevicespec()
 void sioNetwork::sio_assert_interrupt()
 {
     fnSystem.digital_write(PIN_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+}
+
+void sioNetwork::sio_set_translation()
+{
+    trans_aux2 = cmdFrame.aux1;
+    sio_complete();
 }
