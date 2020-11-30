@@ -398,6 +398,22 @@ void sioNetwork::sio_status_channel()
 }
 
 /**
+ * Get Prefix
+ */
+void sioNetwork::sio_get_prefix()
+{
+    uint8_t prefixSpec[256];
+    string prefixSpec_str;
+
+    memset(prefixSpec,0,sizeof(prefixSpec));
+    memcpy(prefixSpec,prefix.data(),prefix.size());
+
+    prefixSpec[prefix.size()]=0x9B; // add EOL.
+
+    sio_to_computer(prefixSpec,sizeof(prefixSpec),false);
+}
+
+/**
  * Set Prefix
  */
 void sioNetwork::sio_set_prefix()
@@ -409,21 +425,13 @@ void sioNetwork::sio_set_prefix()
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
     ck = sio_to_peripheral(prefixSpec, sizeof(prefixSpec));
+    util_clean_devicespec(prefixSpec, sizeof(prefixSpec));
 
-    if (ck != sio_checksum(prefixSpec, sizeof(prefixSpec)))
-    {
-        Debug_printf("Checksum mismatch!");
-        sio_error();
-        return;
-    }
-    else
-    {
-        prefixSpec_str = string((const char *)prefixSpec);
-        util_clean_devicespec(prefixSpec, sizeof(prefixSpec));
-        Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec);
-    }
+    prefixSpec_str = string((const char *)prefixSpec);
+    prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
+    Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
 
-    if (prefixSpec_str == "..") // Devance path
+    if (prefixSpec_str == "..") // Devance path N:..
     {
         vector<int> pathLocations;
         for (int i = 0; i < prefix.size(); i++)
@@ -443,7 +451,15 @@ void sioNetwork::sio_set_prefix()
         // truncate to that location.
         prefix = prefix.substr(0, pathLocations.back() + 1);
     }
-    else if (prefixSpec_str[0] == '/') // Overwrite path.
+    else if (prefixSpec_str[0] == '/') // N:/DIR
+    {
+        prefix = prefixSpec_str;
+    }
+    else if (prefixSpec_str.empty())
+    {
+        prefix.clear();
+    }
+    else if (prefixSpec_str.find_first_of(":") != string::npos)
     {
         prefix = prefixSpec_str;
     }
@@ -451,6 +467,8 @@ void sioNetwork::sio_set_prefix()
     {
         prefix += prefixSpec_str;
     }
+
+    Debug_printf("Prefix now: %s\n", prefix.c_str());
 
     // We are okay, signal complete.
     sio_complete();
@@ -518,6 +536,9 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
         {
         case 0x2C: // CHDIR
             inq_dstats = 0x80;
+            break;
+        case 0x30: // ?DIR
+            inq_dstats = 0x40;
             break;
         case 'T': // Set Translation
             inq_dstats = 0x00;
@@ -610,6 +631,10 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
     case 0x2C: // CHDIR
         sio_ack();
         sio_set_prefix();
+        break;
+    case 0x30:
+        sio_ack();
+        sio_get_prefix();
         break;
     case 0x3F:
         sio_ack();
@@ -763,13 +788,16 @@ bool sioNetwork::isValidURL(EdUrlParser *url)
 bool sioNetwork::parseURL()
 {
     string url;
+    string unit = deviceSpec.substr(0,deviceSpec.find_first_of(":")+1);
 
     if (urlParser != nullptr)
         delete urlParser;
 
     // Prepend prefix, if set.
     if (prefix.length() > 0)
-        deviceSpec = prefix + deviceSpec;
+        deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
+    else
+        deviceSpec = unit + deviceSpec.substr(string(deviceSpec).find(":") + 1);
 
     Debug_printf("sioNetwork::parseURL(%s)\n", deviceSpec.c_str());
 
