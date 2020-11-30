@@ -189,7 +189,7 @@ std::string util_crunch(std::string filename)
     return basename + ext;
 }
 
-std::string util_entry(std::string crunched, size_t fileSize)
+std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool is_locked)
 {
     std::string returned_entry = "                 ";
     size_t ext_pos = crunched.find(".");
@@ -211,14 +211,19 @@ std::string util_entry(std::string crunched, size_t fileSize)
     else
     {
         sectors = fileSize >> 8;
-        if (sectors==0)
-            sectors=1; // at least 1 sector.
+        if (sectors == 0)
+            sectors = 1; // at least 1 sector.
     }
 
     sprintf(tmp, "%03d", sectors);
     sectorStr = tmp;
 
     returned_entry.replace(14, 3, sectorStr);
+
+    if (is_locked == true)
+    {
+        returned_entry.replace(0,1,"*");
+    }
 
     return returned_entry;
 }
@@ -455,35 +460,34 @@ string util_remove_spaces(const string &s)
 
 void util_strip_nonascii(string &s)
 {
-    for (int i=0;i<s.size();i++)
+    for (int i = 0; i < s.size(); i++)
     {
-        if (s[i]>0x7F)
-            s[i]=0x00;
+        if (s[i] > 0x7F)
+            s[i] = 0x00;
     }
 }
 
-void util_clean_devicespec(uint8_t* buf, unsigned short len)
+void util_clean_devicespec(uint8_t *buf, unsigned short len)
 {
-    for (int i=0;i<len;i++)
-        if (buf[i]==0x9b)
-            buf[i]=0x00;
+    for (int i = 0; i < len; i++)
+        if (buf[i] == 0x9b)
+            buf[i] = 0x00;
 }
 
 bool util_string_value_is_true(const char *value)
 {
-    if(value != nullptr)
+    if (value != nullptr)
     {
-      if(value[0] == '1' || value[0] == 'T' || value[0] == 't' || value[0] == 'Y' || value[0] == 'y')
-        return true;
+        if (value[0] == '1' || value[0] == 'T' || value[0] == 't' || value[0] == 'Y' || value[0] == 'y')
+            return true;
     }
     return false;
 }
 
 bool util_string_value_is_true(std::string value)
 {
-    return  util_string_value_is_true(value.c_str());
+    return util_string_value_is_true(value.c_str());
 }
-
 
 /**
  * Ask SAM to say something. see https://github.com/FujiNetWIFI/fujinet-platformio/wiki/Using-SAM-%28Voice-Synthesizer%29 
@@ -505,34 +509,34 @@ void util_sam_say(const char *p,
 {
     int n = 0;
     char *a[20];
-    char pitchs[4], speeds[4], mouths[4],throats[4]; // itoa temp vars
+    char pitchs[4], speeds[4], mouths[4], throats[4]; // itoa temp vars
 
     // Convert to strings.
-    itoa(pitch,pitchs,10);
-    itoa(speed,speeds,10);
-    itoa(mouth,mouths,10);
-    itoa(throat,throats,10);
+    itoa(pitch, pitchs, 10);
+    itoa(speed, speeds, 10);
+    itoa(mouth, mouths, 10);
+    itoa(throat, throats, 10);
 
     memset(a, 0, sizeof(a));
     a[n++] = (char *)("sam"); // argv[0] for compatibility
 
-    if (phonetic==true)
+    if (phonetic == true)
         a[n++] = (char *)("-phonetic");
-    
-    if (sing==true)
+
+    if (sing == true)
         a[n++] = (char *)("-sing");
 
-    a[n++]=(char *)("-pitch");
-    a[n++]=(char *)pitchs;
+    a[n++] = (char *)("-pitch");
+    a[n++] = (char *)pitchs;
 
-    a[n++]=(char *)("-speed");
-    a[n++]=(char *)speeds;
+    a[n++] = (char *)("-speed");
+    a[n++] = (char *)speeds;
 
-    a[n++]=(char *)("-mouth");
-    a[n++]=(char *)mouths;
+    a[n++] = (char *)("-mouth");
+    a[n++] = (char *)mouths;
 
-    a[n++]=(char *)("-throat");
-    a[n++]=(char *)throats;
+    a[n++] = (char *)("-throat");
+    a[n++] = (char *)throats;
 
     // Append the phrase to say.
     a[n++] = (char *)p;

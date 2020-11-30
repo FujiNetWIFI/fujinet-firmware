@@ -29,7 +29,7 @@ public:
      * Is rmdir implemented?
      */
     bool rmdir_implemented = false;
-    
+
     /**
      * @brief ctor
      * @param rx_buf pointer to receive buffer
@@ -159,6 +159,21 @@ protected:
      * Directory buffer
      */
     string dirBuffer;
+
+    /**
+     * Is open file a directory?
+     */
+    bool is_directory;
+
+    /**
+     * The mode of the open file
+     */
+    uint16_t mode;
+
+    /**
+     * Is open file locked?
+     */
+    bool is_locked;
 
     /**
      * @brief Open a file via path.
@@ -337,6 +352,23 @@ protected:
      * @return TRUE on error, FALSE on success
      */
     virtual bool rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief lock file specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool lock(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief unlock file specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool unlock(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
 };
 
 #endif /* NETWORKPROTOCOL_FS */
