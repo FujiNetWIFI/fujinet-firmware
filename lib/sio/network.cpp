@@ -509,7 +509,11 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
     {
         switch (inq_cmd)
         {
-        case 0x2c:
+        case 0x20:
+        case 0x21:
+        case 0x2A:
+        case 0x2B:
+        case 0x2C:
             inq_dstats = 0x80;
             break;
         case 0x30:
@@ -914,18 +918,17 @@ void sioNetwork::sio_do_idempotent_command_80()
 
     if (protocol == nullptr)
     {
+        Debug_printf("Protocol = NULL\n");
         sio_error();
         return;
     }
 
     if (protocol->perform_idempotent_80(urlParser, &cmdFrame) == true)
     {
+        Debug_printf("perform_idempotent_80 failed\n");
         sio_error();
-        protocol->close();
     }
     else
         sio_complete();
 
-    protocol->close();
-    delete protocol;
 }
