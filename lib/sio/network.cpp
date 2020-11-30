@@ -405,12 +405,12 @@ void sioNetwork::sio_get_prefix()
     uint8_t prefixSpec[256];
     string prefixSpec_str;
 
-    memset(prefixSpec,0,sizeof(prefixSpec));
-    memcpy(prefixSpec,prefix.data(),prefix.size());
+    memset(prefixSpec, 0, sizeof(prefixSpec));
+    memcpy(prefixSpec, prefix.data(), prefix.size());
 
-    prefixSpec[prefix.size()]=0x9B; // add EOL.
+    prefixSpec[prefix.size()] = 0x9B; // add EOL.
 
-    sio_to_computer(prefixSpec,sizeof(prefixSpec),false);
+    sio_to_computer(prefixSpec, sizeof(prefixSpec), false);
 }
 
 /**
@@ -525,6 +525,9 @@ void sioNetwork::sio_special_inquiry()
 
 void sioNetwork::do_inquiry(unsigned char inq_cmd)
 {
+    // Reset inq_dstats
+    inq_dstats = 0xff;
+
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
         inq_dstats = protocol->special_inquiry(inq_cmd);
@@ -534,10 +537,10 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
     {
         switch (inq_cmd)
         {
-        case 0x2C: // CHDIR
+        case 0x2c:
             inq_dstats = 0x80;
             break;
-        case 0x30: // ?DIR
+        case 0x30:
             inq_dstats = 0x40;
             break;
         case 'T': // Set Translation
@@ -554,6 +557,8 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
             break;
         }
     }
+
+    Debug_printf("inq_dstats = %u\n",inq_dstats);
 }
 
 /**
@@ -584,6 +589,13 @@ void sioNetwork::sio_special_00()
  */
 void sioNetwork::sio_special_40()
 {
+    switch (cmdFrame.comnd)
+    {
+    case 0x30:
+        sio_get_prefix();
+        return;
+    }
+
     sio_to_computer((uint8_t *)receiveBuffer->data(),
                     SPECIAL_BUFFER_SIZE,
                     protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame));
@@ -599,12 +611,19 @@ void sioNetwork::sio_special_80()
 {
     uint8_t spData[SPECIAL_BUFFER_SIZE];
 
+    switch (cmdFrame.comnd)
+    {
+    case 0x2C: // CHDIR
+        sio_set_prefix();
+        return;
+    } 
+
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
 
     // Get special (devicespec) from computer
     sio_to_peripheral(spData, SPECIAL_BUFFER_SIZE);
 
-    Debug_printf("sioNetwork::sio_special_protocol_80() - %s\n", spData);
+    Debug_printf("sioNetwork::sio_special_80() - %s\n", spData);
 
     // Do protocol action and return
     if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
@@ -628,14 +647,6 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case 0x2C: // CHDIR
-        sio_ack();
-        sio_set_prefix();
-        break;
-    case 0x30:
-        sio_ack();
-        sio_get_prefix();
-        break;
     case 0x3F:
         sio_ack();
         sio_high_speed();
@@ -788,7 +799,7 @@ bool sioNetwork::isValidURL(EdUrlParser *url)
 bool sioNetwork::parseURL()
 {
     string url;
-    string unit = deviceSpec.substr(0,deviceSpec.find_first_of(":")+1);
+    string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
 
     if (urlParser != nullptr)
         delete urlParser;
