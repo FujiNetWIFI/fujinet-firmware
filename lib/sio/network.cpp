@@ -616,6 +616,14 @@ void sioNetwork::sio_special_80()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
+    case 0x20: // RENAME
+        return;
+    case 0x21: // DELETE
+        return;
+    case 0x2A: // MKDIR
+        return;
+    case 0x2B: // RMDIR
+        return;
     case 0x2C: // CHDIR
         sio_set_prefix();
         return;
