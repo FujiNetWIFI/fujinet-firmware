@@ -195,7 +195,15 @@ protected:
      * @param len the number of bytes requested
      * @return FALSE if success, TRUE if error
      */
-    virtual bool read_file(unsigned short len) = 0;
+    virtual bool read_file(unsigned short len);
+
+    /**
+     * @brief Read from file handle
+     * @param buf destination buffer
+     * @param len the number of bytes requested
+     * @return FALSE if success, TRUE if error
+     */
+    virtual bool read_file_handle(uint8_t *buf, unsigned short len) = 0;
 
     /**
      * @brief Read from directory

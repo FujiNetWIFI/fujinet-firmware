@@ -84,11 +84,12 @@ protected:
     virtual void fserror_to_error();
 
     /**
-     * @brief Read from file
+     * @brief Read from file handle
+     * @param buf target buffer
      * @param len the number of bytes requested
-     * @return FALSE if success, TRUE if error.
+     * @return FALSE if success, TRUE if error
      */
-    virtual bool read_file(unsigned short len);
+    virtual bool read_file_handle(uint8_t *buf, unsigned short len);
 
     /**
      * @brief Read from directory
@@ -175,15 +176,6 @@ private:
      * The TNFS filestat of the currently open file.
      */
     tnfsStat fileStat;
-
-    /**
-     * @brief for len requested, break up into number of required
-     *        tnfs_read() blocks.
-     * @param buf buffer to transfer into.
-     * @param len Requested # of bytes.
-     * @return TRUE on error, FALSE on success.
-     */
-    bool block_read(uint8_t *buf, unsigned short len);
 
     /**
      * @brief for len requested, break up into number of required

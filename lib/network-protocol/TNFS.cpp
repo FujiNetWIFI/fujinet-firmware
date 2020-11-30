@@ -103,40 +103,34 @@ void NetworkProtocolTNFS::fserror_to_error()
     }
 }
 
-bool NetworkProtocolTNFS::read_file(unsigned short len)
+bool NetworkProtocolTNFS::read_file_handle(uint8_t* buf, unsigned short len)
 {
-    uint8_t *buf = (uint8_t *)malloc(len);
+    unsigned short total_len = len;
+    unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;
+    uint16_t actual_len;
 
-    Debug_printf("NetworkProtocolTNFS::read_file(%u)\n", len);
-
-    if (buf == nullptr)
+    while (total_len > 0)
     {
-        Debug_printf("NetworkProtocolTNFS:read_file(%u) could not allocate.\n", len);
-        return true; // error
+        if (total_len > TNFS_MAX_READWRITE_PAYLOAD)
+            block_len = TNFS_MAX_READWRITE_PAYLOAD;
+        else
+            block_len = total_len;
+
+        tnfs_error = tnfs_read(&mountInfo, fd, buf, block_len, &actual_len);
+        if (tnfs_error != 0)
+        {
+            fserror_to_error();
+            return true; // error.
+        }
+        else
+        {
+            buf += block_len;
+            total_len -= block_len;
+        }
     }
 
-    if (receiveBuffer->length() == 0)
-    {
-        // Do block read.
-        if (block_read(buf, len) == true)
-            return true;
-
-        // Append to receive buffer.
-        *receiveBuffer += string((char *)buf, len);
-        fileStat.filesize -= len;
-        fserror_to_error();
-    }
-    else
-    {
-        tnfs_error = TNFS_RESULT_SUCCESS;
-        fserror_to_error();
-    }
-
-    // Done with the temporary buffer.
-    free(buf);
-
-    // Pass back to base class for translation.
-    return NetworkProtocol::read(len);
+    fserror_to_error();
+    return false; // no error
 }
 
 bool NetworkProtocolTNFS::read_dir(unsigned short len)
@@ -188,36 +182,6 @@ bool NetworkProtocolTNFS::close_dir_handle()
     tnfs_error = tnfs_closedir(&mountInfo);
     fserror_to_error();
     return tnfs_error != TNFS_RESULT_SUCCESS;
-}
-
-bool NetworkProtocolTNFS::block_read(uint8_t *buf, unsigned short len)
-{
-    unsigned short total_len = len;
-    unsigned short block_len = TNFS_MAX_READWRITE_PAYLOAD;
-    uint16_t actual_len;
-
-    while (total_len > 0)
-    {
-        if (total_len > TNFS_MAX_READWRITE_PAYLOAD)
-            block_len = TNFS_MAX_READWRITE_PAYLOAD;
-        else
-            block_len = total_len;
-
-        tnfs_error = tnfs_read(&mountInfo, fd, buf, block_len, &actual_len);
-        if (tnfs_error != 0)
-        {
-            fserror_to_error();
-            return true; // error.
-        }
-        else
-        {
-            buf += block_len;
-            total_len -= block_len;
-        }
-    }
-
-    fserror_to_error();
-    return false; // no error
 }
 
 bool NetworkProtocolTNFS::block_write(uint8_t *buf, unsigned short len)
