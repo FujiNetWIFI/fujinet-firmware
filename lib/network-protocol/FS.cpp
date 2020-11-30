@@ -42,7 +42,7 @@ bool NetworkProtocolFS::open_file()
     update_dir_filename(path);
     path = resolve(path);
     update_dir_filename(path);
-    
+
     openMode = FILE;
 
     if (path.empty())
@@ -131,7 +131,7 @@ bool NetworkProtocolFS::close()
 
     if (umount() == true)
         return true;
-    
+
     return false;
 }
 
@@ -158,6 +158,38 @@ bool NetworkProtocolFS::read(unsigned short len)
     default:
         return true;
     }
+}
+
+bool NetworkProtocolFS::read_file(unsigned short len)
+{
+    uint8_t *buf = (uint8_t *)malloc(len);
+
+    Debug_printf("NetworkProtocolFS::read_file(%u)\n", len);
+
+    if (buf == nullptr)
+    {
+        Debug_printf("NetworkProtocolTNFS:read_file(%u) could not allocate.\n", len);
+        return true; // error
+    }
+
+    if (receiveBuffer->length() == 0)
+    {
+        // Do block read.
+        if (read_file_handle(buf, len) == true)
+            return true;
+
+        // Append to receive buffer.
+        *receiveBuffer += string((char *)buf, len);
+        fileSize -= len;
+    }
+    else
+        error = NETWORK_ERROR_SUCCESS;
+
+    // Done with the temporary buffer.
+    free(buf);
+
+    // Pass back to base class for translation.
+    return NetworkProtocol::read(len);
 }
 
 bool NetworkProtocolFS::write(unsigned short len)
@@ -223,7 +255,7 @@ bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
     }
 }
 
-bool NetworkProtocolFS::rename(uint8_t* sp_buf, unsigned short len)
+bool NetworkProtocolFS::rename(uint8_t *sp_buf, unsigned short len)
 {
     // Preprocessing routine to parse out comma position.
 
@@ -240,7 +272,7 @@ bool NetworkProtocolFS::rename(uint8_t* sp_buf, unsigned short len)
 
 string NetworkProtocolFS::resolve(string path)
 {
-    Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\n", path.c_str(),dir.c_str(),filename.c_str());
+    Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\n", path.c_str(), dir.c_str(), filename.c_str());
 
     if (stat(path.c_str()) == true) // true = error.
     {
