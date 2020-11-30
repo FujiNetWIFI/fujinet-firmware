@@ -31,6 +31,11 @@
 #define NETWORK_ERROR_NOT_IMPLEMENTED 146
 
 /**
+ * File exists (directory)
+ */
+#define NETWORK_ERROR_FILE_EXISTS 151
+
+/**
  * No space left on device
  */
 #define NETWORK_ERROR_NO_SPACE_ON_DEVICE 162
