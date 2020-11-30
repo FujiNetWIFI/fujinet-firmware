@@ -283,21 +283,6 @@ bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
     }
 }
 
-bool NetworkProtocolFS::rename(uint8_t *sp_buf, unsigned short len)
-{
-    // Preprocessing routine to parse out comma position.
-
-    size_t comma_pos = filename.find_first_of(",");
-
-    if (comma_pos == string::npos)
-        return false;
-
-    destFilename = dir + filename.substr(comma_pos + 1);
-    filename = dir + filename.substr(0, comma_pos);
-
-    return comma_pos != string::npos;
-}
-
 string NetworkProtocolFS::resolve(string path)
 {
     Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\n", path.c_str(), dir.c_str(), filename.c_str());
@@ -310,7 +295,7 @@ string NetworkProtocolFS::resolve(string path)
         char e[256]; // current entry.
 
         filename = "*"; // Temporarily reset filename to search for all files.
-        
+
         if (open_dir_handle() == true) // couldn't open dir, return path as is.
         {
             fserror_to_error();
@@ -335,4 +320,82 @@ string NetworkProtocolFS::resolve(string path)
 
     Debug_printf("Resolved to %s\n", path.c_str());
     return path;
+}
+
+bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    switch (cmdFrame->comnd)
+    {
+        case 0x20:
+            return rename(url,cmdFrame);
+        case 0x21:
+            return del(url, cmdFrame);
+        case 0x2A:
+            return mkdir(url, cmdFrame);
+        case 0x2B:
+            return rmdir(url, cmdFrame);
+        default:
+            Debug_printf("Uncaught idempotent command: %u\n",cmdFrame->comnd);
+            return true;
+    }
+}
+
+bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    if (rename_implemented == false)
+    {
+        error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        return true;
+    }
+
+    update_dir_filename(url->path);
+
+    // Preprocessing routine to parse out comma position.
+
+    size_t comma_pos = filename.find_first_of(",");
+
+    // No comma found, return invalid devicespec error.
+    if (comma_pos == string::npos)
+    {
+        error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        return true;
+    }
+
+    destFilename = dir + filename.substr(comma_pos + 1);
+    filename = dir + filename.substr(0, comma_pos);
+
+    return false;
+}
+
+bool NetworkProtocolFS::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    if (delete_implemented == false)
+    {
+        error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        return true;
+    }
+
+    return false;
+}
+
+bool NetworkProtocolFS::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    if (mkdir_implemented == false)
+    {
+        error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        return true;
+    }
+    
+    return false;
+}
+
+bool NetworkProtocolFS::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    if (rmdir_implemented == false)
+    {
+        error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        return true;
+    }
+    
+    return false;
 }

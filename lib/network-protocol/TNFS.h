@@ -51,7 +51,60 @@ public:
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
 
+    /**
+     * @brief Rename file specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file/dest to rename
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool rename(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief Delete file specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool del(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief Make directory specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief Remove directory specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
 protected:
+
+    /**
+     * Is rename implemented?
+     */
+    bool rename_implemented = true;
+
+    /**
+     * Is delete implemented?
+     */
+    bool delete_implemented = true;
+
+    /**
+     * Is mkdir implemented?
+     */
+    bool mkdir_implemented = true;
+
+    /**
+     * Is rmdir implemented?
+     */
+    bool rmdir_implemented = true;
+
     /**
      * @brief Open file handle, set fd
      * @return FALSE if successful, TRUE on error.
@@ -125,14 +178,6 @@ protected:
      */
     virtual bool close_dir_handle();
 
-    /**
-     * @brief Rename file specified by incoming devicespec.
-     * @param sp_buf Pointer to special buffer
-     * @param len of special buffer.
-     * @return TRUE on error, FALSE on success
-     */
-    bool rename(uint8_t *sp_buf, unsigned short len);
-
 private:
     /**
      * TNFS MountInfo structure
@@ -163,30 +208,6 @@ private:
      * The TNFS filestat of the currently open file.
      */
     tnfsStat fileStat;
-
-    /**
-     * @brief Delete file specified by incoming devicespec.
-     * @param sp_buf pointer to special buffer
-     * @param len of special buffer
-     * @return TRUE on error, FALSE on success
-     */
-    bool del(uint8_t *sp_buf, unsigned short len);
-
-    /**
-     * @brief Make directory specified by incoming devicespec.
-     * @param sp_buf pointer to special buffer
-     * @param len of special buffer
-     * @return TRUE on error, FALSE on success
-     */
-    bool mkdir(uint8_t *sp_buf, unsigned short len);
-
-    /**
-     * @brief Remove directory specified by incoming devicespec.
-     * @param sp_buf pointer to special buffer
-     * @param len of special buffer
-     * @return TRUE on error, FALSE on success
-     */
-    bool rmdir(uint8_t *sp_buf, unsigned short len);
 
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.

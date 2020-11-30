@@ -88,6 +88,13 @@ public:
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
 
+    /**
+     * @brief perform an idempotent command with DSTATS 0x80, that does not require open channel.
+     * @param url The URL object.
+     * @param cmdFrame command frame.
+     */
+    virtual bool perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
 protected:
     /**
      * Open mode typedef
@@ -132,6 +139,26 @@ protected:
      * Directory buffer
      */
     string dirBuffer;
+
+    /**
+     * Is rename implemented?
+     */
+    bool rename_implemented = false;
+
+    /**
+     * Is delete implemented?
+     */
+    bool delete_implemented = false;
+
+    /**
+     * Is mkdir implemented?
+     */
+    bool mkdir_implemented = false;
+
+    /**
+     * Is rmdir implemented?
+     */
+    bool rmdir_implemented = false;
 
     /**
      * @brief Open a file via path.
@@ -232,7 +259,7 @@ protected:
      * @return FALSE if success, TRUE if error.
      */
     virtual bool status_dir(NetworkStatus *status);
-    
+
     /**
      * @brief close file.
      * @return FALSE if success, true if error.
@@ -273,19 +300,43 @@ protected:
     virtual bool write_file_handle(uint8_t *buf, unsigned short len) = 0;
 
     /**
-     * @brief Rename file specified by incoming devicespec.
-     * @param sp_buf Pointer to special buffer
-     * @param len of special buffer.
-     * @return TRUE on error, FALSE on success
-     */
-    bool rename(uint8_t *sp_buf, unsigned short len);
-
-    /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
      * @param path the full path of file to resolve.
      * @return resolved path.
      */
-    virtual bool stat(string path) = 0;    
+    virtual bool stat(string path) = 0;
+
+    /**
+     * @brief Rename file specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file/dest to rename
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool rename(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief Delete file specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool del(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief Make directory specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief Remove directory specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
 };
 
 #endif /* NETWORKPROTOCOL_FS */

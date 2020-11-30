@@ -68,8 +68,6 @@ sioNetwork::~sioNetwork()
  */
 void sioNetwork::sio_open()
 {
-    uint8_t devicespecBuf[256];
-
     Debug_println("sioNetwork::sio_open()\n");
 
     sio_ack();
@@ -95,33 +93,8 @@ void sioNetwork::sio_open()
     // Reset status buffer
     status.reset();
 
-    // Clean up devicespec buffer.
-    memset(devicespecBuf, 0, sizeof(devicespecBuf));
-
-    // Get Devicespec from buffer, and put into primary devicespec string
-    sio_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
-    util_clean_devicespec(devicespecBuf, sizeof(devicespecBuf));
-    deviceSpec = string((char *)devicespecBuf);
-
-    // Invalid URL returns error 165 in status.
-    if (parseURL() == false)
-    {
-        Debug_printf("Invalid devicespec: %s", deviceSpec.c_str());
-        status.error = NETWORK_ERROR_INVALID_DEVICESPEC;
-        sio_error();
-        return;
-    }
-
-    Debug_printf("Open: %s\n", deviceSpec.c_str());
-
-    // Instantiate protocol object.
-    if (instantiate_protocol() == false)
-    {
-        Debug_printf("Could not open protocol.\n");
-        status.error = NETWORK_ERROR_GENERAL;
-        sio_error();
-        return;
-    }
+    // Parse and instantiate protocol
+    parse_and_instantiate_protocol();
 
     // Attempt protocol open
     if (protocol->open(urlParser, &cmdFrame) == true)
@@ -420,11 +393,10 @@ void sioNetwork::sio_set_prefix()
 {
     uint8_t prefixSpec[256];
     string prefixSpec_str;
-    uint8_t ck;
 
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
-    ck = sio_to_peripheral(prefixSpec, sizeof(prefixSpec));
+    sio_to_peripheral(prefixSpec, sizeof(prefixSpec));
     util_clean_devicespec(prefixSpec, sizeof(prefixSpec));
 
     prefixSpec_str = string((const char *)prefixSpec);
@@ -558,7 +530,7 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
         }
     }
 
-    Debug_printf("inq_dstats = %u\n",inq_dstats);
+    Debug_printf("inq_dstats = %u\n", inq_dstats);
 }
 
 /**
@@ -617,17 +589,15 @@ void sioNetwork::sio_special_80()
     switch (cmdFrame.comnd)
     {
     case 0x20: // RENAME
-        return;
     case 0x21: // DELETE
-        return;
     case 0x2A: // MKDIR
-        return;
     case 0x2B: // RMDIR
+        sio_do_idempotent_command_80();
         return;
     case 0x2C: // CHDIR
         sio_set_prefix();
         return;
-    } 
+    }
 
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
 
@@ -754,6 +724,37 @@ bool sioNetwork::instantiate_protocol()
 
     Debug_printf("sioNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());
     return true;
+}
+
+void sioNetwork::parse_and_instantiate_protocol()
+{
+    // Clean up devicespec buffer.
+    memset(devicespecBuf, 0, sizeof(devicespecBuf));
+
+    // Get Devicespec from buffer, and put into primary devicespec string
+    sio_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
+    util_clean_devicespec(devicespecBuf, sizeof(devicespecBuf));
+    deviceSpec = string((char *)devicespecBuf);
+
+    // Invalid URL returns error 165 in status.
+    if (parseURL() == false)
+    {
+        Debug_printf("Invalid devicespec: %s", deviceSpec.c_str());
+        status.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        sio_error();
+        return;
+    }
+
+    Debug_printf("Parse and instantiate protocol: %s\n", deviceSpec.c_str());
+
+    // Instantiate protocol object.
+    if (instantiate_protocol() == false)
+    {
+        Debug_printf("Could not open protocol.\n");
+        status.error = NETWORK_ERROR_GENERAL;
+        sio_error();
+        return;
+    }
 }
 
 /**
@@ -903,4 +904,28 @@ void sioNetwork::sio_set_translation()
 {
     trans_aux2 = cmdFrame.aux2;
     sio_complete();
+}
+
+void sioNetwork::sio_do_idempotent_command_80()
+{
+    sio_ack();
+
+    parse_and_instantiate_protocol();
+
+    if (protocol == nullptr)
+    {
+        sio_error();
+        return;
+    }
+
+    if (protocol->perform_idempotent_80(urlParser, &cmdFrame) == true)
+    {
+        sio_error();
+        protocol->close();
+    }
+    else
+        sio_complete();
+
+    protocol->close();
+    delete protocol;
 }
