@@ -11,6 +11,10 @@
 NetworkProtocolTNFS::NetworkProtocolTNFS(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {
+    rename_implemented=true;
+    delete_implemented=true;
+    mkdir_implemented=true;
+    rmdir_implemented=true;
 }
 
 NetworkProtocolTNFS::~NetworkProtocolTNFS()
@@ -96,6 +100,9 @@ void NetworkProtocolTNFS::fserror_to_error()
         break;
     case TNFS_RESULT_END_OF_FILE:
         error = NETWORK_ERROR_END_OF_FILE;
+        break;
+    case TNFS_RESULT_FILE_EXISTS:
+        error = NETWORK_ERROR_FILE_EXISTS;
         break;
     default:
         Debug_printf("TNFS uncaught error: %u\n", tnfs_error);
@@ -255,9 +262,6 @@ bool NetworkProtocolTNFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolTNFS::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    if (NetworkProtocolFS::del(url, cmdFrame) == true)
-        return true;
-
     mount(url->hostName, url->path);
 
     tnfs_error = tnfs_unlink(&mountInfo, url->path.c_str());
@@ -272,8 +276,7 @@ bool NetworkProtocolTNFS::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolTNFS::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    if (NetworkProtocolFS::mkdir(url, cmdFrame) == true)
-        return true;
+    Debug_printf("NetworkProtocolTNFS::mkdir(%s,%s)",url->hostName,url->path);
 
     mount(url->hostName, url->path);
 
@@ -287,9 +290,6 @@ bool NetworkProtocolTNFS::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolTNFS::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    if (NetworkProtocolFS::rmdir(url, cmdFrame) == true)
-        return true;
-
     mount(url->hostName, url->path);
 
     tnfs_error = tnfs_rmdir(&mountInfo, url->path.c_str());
