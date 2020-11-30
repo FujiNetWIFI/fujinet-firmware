@@ -84,7 +84,7 @@ bool NetworkProtocolFS::open_dir()
         else
         {
             // 8.3 entry
-            dirBuffer += util_entry(util_crunch(string(e)), fileSize) + "\x9b";
+            dirBuffer += util_entry(util_crunch(string(e)), fileSize, is_directory, is_locked) + "\x9b";
         }
         fserror_to_error();
     }
@@ -326,17 +326,21 @@ bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdF
 {
     switch (cmdFrame->comnd)
     {
-        case 0x20:
-            return rename(url,cmdFrame);
-        case 0x21:
-            return del(url, cmdFrame);
-        case 0x2A:
-            return mkdir(url, cmdFrame);
-        case 0x2B:
-            return rmdir(url, cmdFrame);
-        default:
-            Debug_printf("Uncaught idempotent command: %u\n",cmdFrame->comnd);
-            return true;
+    case 0x20:
+        return rename(url, cmdFrame);
+    case 0x21:
+        return del(url, cmdFrame);
+    case 0x23:
+        return lock(url, cmdFrame);
+    case 0x24:
+        return unlock(url, cmdFrame);
+    case 0x2A:
+        return mkdir(url, cmdFrame);
+    case 0x2B:
+        return rmdir(url, cmdFrame);
+    default:
+        Debug_printf("Uncaught idempotent command: %u\n", cmdFrame->comnd);
+        return true;
     }
 }
 
@@ -372,6 +376,16 @@ bool NetworkProtocolFS::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 }
 
 bool NetworkProtocolFS::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    return false;
+}
+
+bool NetworkProtocolFS::lock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    return false;
+}
+
+bool NetworkProtocolFS::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }

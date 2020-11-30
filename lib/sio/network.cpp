@@ -511,6 +511,8 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
         {
         case 0x20:
         case 0x21:
+        case 0x23:
+        case 0x24:
         case 0x2A:
         case 0x2B:
         case 0x2C:
@@ -594,6 +596,8 @@ void sioNetwork::sio_special_80()
     {
     case 0x20: // RENAME
     case 0x21: // DELETE
+    case 0x23: // LOCK
+    case 0x24: // UNLOCK
     case 0x2A: // MKDIR
     case 0x2B: // RMDIR
         sio_do_idempotent_command_80();

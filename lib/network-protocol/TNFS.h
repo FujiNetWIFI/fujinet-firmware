@@ -83,6 +83,22 @@ public:
      */
     virtual bool rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
 
+    /**
+     * @brief lock file specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool lock(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief unlock file specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool unlock(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
 protected:
 
     /**
@@ -188,11 +204,6 @@ private:
      * Last TNFS error
      */
     int tnfs_error;
-
-    /**
-     * The mode of the open file
-     */
-    uint16_t mode;
 
     /**
      * The create permissions of the open file

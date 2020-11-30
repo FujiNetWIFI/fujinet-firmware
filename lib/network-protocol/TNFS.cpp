@@ -11,10 +11,10 @@
 NetworkProtocolTNFS::NetworkProtocolTNFS(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {
-    rename_implemented=true;
-    delete_implemented=true;
-    mkdir_implemented=true;
-    rmdir_implemented=true;
+    rename_implemented = true;
+    delete_implemented = true;
+    mkdir_implemented = true;
+    rmdir_implemented = true;
 }
 
 NetworkProtocolTNFS::~NetworkProtocolTNFS()
@@ -155,6 +155,9 @@ bool NetworkProtocolTNFS::read_dir_entry(char *buf, unsigned short len)
 {
     tnfs_error = tnfs_readdirx(&mountInfo, &fileStat, buf, len);
     fileSize = fileStat.filesize;
+    mode = fileStat.mode;
+    is_directory = fileStat.isDir;
+    is_locked = (fileStat.mode & 0200);
     fserror_to_error();
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
@@ -249,12 +252,12 @@ bool NetworkProtocolTNFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
         return true;
 
     mount(url->hostName, url->path);
-    
+
     tnfs_error = tnfs_rename(&mountInfo, filename.c_str(), destFilename.c_str());
-    
+
     if (tnfs_error != TNFS_RESULT_SUCCESS)
         fserror_to_error();
-    
+
     umount();
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
@@ -276,7 +279,7 @@ bool NetworkProtocolTNFS::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolTNFS::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    Debug_printf("NetworkProtocolTNFS::mkdir(%s,%s)",url->hostName,url->path);
+    Debug_printf("NetworkProtocolTNFS::mkdir(%s,%s)", url->hostName, url->path);
 
     mount(url->hostName, url->path);
 
@@ -304,5 +307,28 @@ bool NetworkProtocolTNFS::stat(string path)
 {
     tnfs_error = tnfs_stat(&mountInfo, &fileStat, path.c_str());
     fileSize = fileStat.filesize;
+    mode = fileStat.mode;
+    is_locked = (mode & 0200);
+    return tnfs_error != TNFS_RESULT_SUCCESS;
+}
+
+bool NetworkProtocolTNFS::lock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    Debug_printf("lock: %s\n",url->path.c_str());
+    tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0444);
+
+    if (tnfs_error != TNFS_RESULT_SUCCESS)
+        fserror_to_error();
+
+    return tnfs_error != TNFS_RESULT_SUCCESS;
+}
+
+bool NetworkProtocolTNFS::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0644);
+
+    if (tnfs_error != TNFS_RESULT_SUCCESS)
+        fserror_to_error();
+
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
