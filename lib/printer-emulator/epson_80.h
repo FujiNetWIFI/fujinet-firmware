@@ -3,7 +3,6 @@
 
 #include "pdf_printer.h"
 
-
 class epson80 : public pdfPrinter
 {
 protected:
@@ -12,7 +11,7 @@ protected:
         uint8_t cmd = 0;
         uint8_t N1 = 0;
         uint8_t N2 = 0;
-        uint16_t N= 0;
+        uint16_t N = 0;
         uint16_t ctr = 0;
     } epson_cmd;
     bool escMode = false;
@@ -32,10 +31,7 @@ protected:
     void at_reset();
     virtual void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;
-public:
-    const char *modelname() { return "Epson 80"; };
 
-private:
     // had to use "int" here because "uint16_t" gave a compile error
     const int fnt_regular = 0;
     const int fnt_underline = 0x001;
@@ -85,6 +81,9 @@ private:
             fnt_expanded | fnt_underline | fnt_emphasized | fnt_italic,                   // MonoPicaExpULBoldItalic
             fnt_expanded | fnt_doublestrike | fnt_underline | fnt_emphasized | fnt_italic // MonoPicaExpDblULBoldItalic
         };
+
+public:
+    const char *modelname() { return "Epson 80"; };
 };
 
 #endif
