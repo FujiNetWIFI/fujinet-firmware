@@ -40,6 +40,18 @@ private:
      * The fnTCP client used for data connection
      */
     fnTcpClient data;
+
+    /**
+     * last response from control connection.
+     */
+    string controlResponse;
+
+    /**
+     * read and parse control response
+     * @return the numeric response
+     */
+    int get_response();
+
 };
 
 #endif /* FNFTP_H */
