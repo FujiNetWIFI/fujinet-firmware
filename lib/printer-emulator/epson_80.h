@@ -3,6 +3,8 @@
 
 #include "pdf_printer.h"
 
+#define NUMFONTS 15
+
 class epson80 : public pdfPrinter
 {
 protected:
@@ -46,40 +48,22 @@ protected:
     const int fnt_elite = 0x200;
     const int fnt_proportional = 0x400;
 
-    const int font_tab[32] =
+    const int font_tab[NUMFONTS - 1] =
         {
-            fnt_regular,                                                                  // MonoPicaRegular
-            fnt_doublestrike | fnt_regular,                                               // MonoPicaDblRegular
-            fnt_italic,                                                                   // MonoPicaItalic
-            fnt_doublestrike | fnt_italic,                                                // MonoPicaDblItalic
-            fnt_emphasized,                                                               // MonoPicaBold
-            fnt_underline | fnt_regular,                                                  // MonoPicaULRegular
-            fnt_doublestrike | fnt_underline | fnt_regular,                               // MonoPicaDblULRegular
-            fnt_underline | fnt_italic,                                                   // MonoPicaULItalic
-            fnt_doublestrike | fnt_underline | fnt_italic,                                // MonoPicaDblULItalic
-            fnt_expanded | fnt_regular,                                                   // MonoPicaExpRegular
-            fnt_expanded | fnt_doublestrike | fnt_regular,                                // MonoPicaExpDblRegular
-            fnt_expanded | fnt_italic,                                                    // MonoPicaExpItalic
-            fnt_expanded | fnt_doublestrike | fnt_italic,                                 // MonoPicaExpDblItalic
-            fnt_expanded | fnt_underline | fnt_regular,                                   // MonoPicaExpULRegular
-            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_regular,                // MonoPicaExpDblULRegular
-            fnt_expanded | fnt_underline | fnt_italic,                                    // MonoPicaExpULItalic
-            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_italic,                 // MonoPicaExpDblULItalic
-            fnt_expanded | fnt_underline | fnt_emphasized,                                // MonoPicaExpULBold
-            fnt_expanded | fnt_doublestrike | fnt_emphasized,                             // MonoPicaExpDblBold
-            fnt_doublestrike | fnt_emphasized,                                            // MonoPicaDblBold
-            fnt_emphasized | fnt_italic,                                                  // MonoPicaBoldItalic
-            fnt_doublestrike | fnt_emphasized | fnt_italic,                               // MonoPicaDblBoldItalic
-            fnt_underline | fnt_emphasized,                                               // MonoPicaULBold
-            fnt_doublestrike | fnt_underline | fnt_emphasized,                            // MonoPicaDblULBold
-            fnt_underline | fnt_emphasized | fnt_italic,                                  // MonoPicaULBoldItalic
-            fnt_doublestrike | fnt_underline | fnt_emphasized | fnt_italic,               // MonoPicaDblULBoldItalic
-            fnt_expanded | fnt_emphasized,                                                // MonoPicaExpBold
-            fnt_expanded | fnt_emphasized | fnt_italic,                                   // MonoPicaExpBoldItalic
-            fnt_expanded | fnt_doublestrike | fnt_emphasized | fnt_italic,                // MonoPicaExpDblBoldItalic
-            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_emphasized,             // MonoPicaExpDblULBold
-            fnt_expanded | fnt_underline | fnt_emphasized | fnt_italic,                   // MonoPicaExpULBoldItalic
-            fnt_expanded | fnt_doublestrike | fnt_underline | fnt_emphasized | fnt_italic // MonoPicaExpDblULBoldItalic
+            fnt_regular,                                   // '/FXMatrix105MonoPicaRegular'
+            fnt_doublestrike,                              // '/FXMatrix105MonoPicaDblRegular'
+            fnt_italic,                                    // '/FXMatrix105MonoPicaItalic'
+            fnt_doublestrike | fnt_italic,                 // '/FXMatrix105MonoPicaDblItalic'
+            fnt_underline,                                 // '/FXMatrix105MonoPicaULRegular'
+            fnt_doublestrike | fnt_underline,              // '/FXMatrix105MonoPicaDblULRegular'
+            fnt_underline | fnt_italic,                    // '/FXMatrix105MonoPicaULItalic'
+            fnt_doublestrike | fnt_underline | fnt_italic, // '/FXMatrix105MonoPicaDblULItalic'
+            fnt_expanded,                                  // '/FXMatrix105MonoPicaExpRegular'
+            fnt_expanded | fnt_underline,                  // '/FXMatrix105MonoPicaExpULRegular'
+            fnt_compressed,                                // '/FXMatrix105MonoComprRegular'
+            fnt_compressed | fnt_expanded,                 // '/FXMatrix105MonoComprExpRegular'
+            fnt_elite,                                     // '/FXMatrix105MonoEliteRegular'
+            fnt_elite | fnt_expanded                       // '/FXMatrix105MonoEliteExpRegular'
         };
 
 public:
