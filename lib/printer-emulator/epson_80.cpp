@@ -289,6 +289,10 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 }
             }
             break;
+        case 'M': // elite on
+            set_mode(fnt_elite);
+            reset_cmd();
+            break;
         case 'N': // Sets skip over perforation to N lines
             esc_not_implemented();
             if (epson_cmd.ctr > 0)
@@ -298,6 +302,10 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 'O': // Resets skip over perforation to 0 lines
             esc_not_implemented();
+            break;
+        case 'P': // elite off
+            clear_mode(fnt_elite);
+            reset_cmd();
             break;
         case 'Q': // Sets column width to N
             // 1 < = N < = maximum number of characters/line.
