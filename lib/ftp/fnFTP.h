@@ -76,7 +76,7 @@ public:
      * Is response a syntax error?
      * @return true or false.
      */
-    bool is_syntax_error() { return controlResponse[1] == '0'; }
+    bool is_syntax() { return controlResponse[1] == '0'; }
 
     /**
      * Is response informational?
@@ -148,6 +148,11 @@ private:
      * Perform PASS command on open control connection
      */
     void PASS();
+
+    /**
+     * Perform TYPE I command on open control connection
+     */
+    void TYPE();
 
 };
 
