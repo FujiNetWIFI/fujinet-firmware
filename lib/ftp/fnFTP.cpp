@@ -154,9 +154,21 @@ bool fnFTP::get_data_port()
     // At this point, we have a port mapping trapped in (|||1234|), peel it out of there.
     port_pos_beg = controlResponse.find_first_of("|") + 3;
     port_pos_end = controlResponse.find_last_of("|");
-    data_port = atoi(controlResponse.substr(port_pos_beg,port_pos_end));
+    data_port = atoi(controlResponse.substr(port_pos_beg,port_pos_end).c_str());
 
     Debug_printf("Server gave us data port: %u\n",data_port);
+
+    // Go ahead and connect to data port, so that control port is unblocked, if it's blocked.
+    if (data.connect(hostname.c_str(),data_port))
+    {
+        Debug_printf("Could not open data port %u, errno = %u\n",data_port,errno);
+        return true;
+    }
+    else
+    {
+        Debug_printf("Data port %u opened.\n",data_port);
+    }
+    
     return false;
 }
 
