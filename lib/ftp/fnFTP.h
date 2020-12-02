@@ -154,6 +154,11 @@ private:
      */
     void TYPE();
 
+    /**
+     * Log out.
+     */
+    void QUIT();
+
 };
 
 #endif /* FNFTP_H */
