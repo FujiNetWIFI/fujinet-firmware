@@ -37,6 +37,13 @@ public:
     bool get_response();
 
     /**
+     * Ask server to prepare a data port for us in extended passive mode.
+     * Port is set and returned in data_port variable.
+     * @return TRUE if error, FALSE if successful.
+     */
+    bool get_data_port();
+
+    /**
      * Is response a positive preliminary reply?
      * @return true or false.
      */
@@ -112,7 +119,7 @@ private:
     /**
      * The port number. (21 by default)
      */
-    unsigned short port = 21;
+    unsigned short control_port = 21;
 
     /**
      * The fnTCP client used for control connection
@@ -140,6 +147,11 @@ private:
     string password;
 
     /**
+     * The data port returned by EPSV
+     */
+    unsigned short data_port;
+
+    /**
      * Perform USER command on open control connection
      */
     void USER();
@@ -158,6 +170,11 @@ private:
      * Log out.
      */
     void QUIT();
+
+    /**
+     * Enter extended passive mode (RFC 2428)
+     */
+    void EPSV();
 
 };
 

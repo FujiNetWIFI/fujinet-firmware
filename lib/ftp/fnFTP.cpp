@@ -11,12 +11,12 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
     username = _username;
     password = _password;
     hostname = _hostname;
-    port = _port;
+    control_port = _port;
 
-    Debug_printf("fnFTP::login(%s,%u)\n", hostname.c_str(), port);
+    Debug_printf("fnFTP::login(%s,%u)\n", hostname.c_str(), control_port);
 
     // Attempt to open control socket.
-    if (control.connect(hostname.c_str(), port))
+    if (control.connect(hostname.c_str(), control_port))
     {
         Debug_printf("Could not log in, errno = %u", errno);
         return true;
@@ -131,6 +131,35 @@ bool fnFTP::get_response()
     return controlResponse.substr(0, controlResponse.find_first_of(" ")).empty();
 }
 
+bool fnFTP::get_data_port()
+{
+    size_t port_pos_beg, port_pos_end;
+
+    Debug_printf("fnFTP::get_data_port()\n");
+
+    EPSV();
+
+    if (get_response())
+    {
+        Debug_printf("Timed out waiting for response.\n");
+        return;
+    }
+
+    if (is_negative_permanent_reply())
+    {
+        Debug_printf("Server unable to reserve port. Response was: %s\n",controlResponse.c_str());
+        return true;
+    }
+
+    // At this point, we have a port mapping trapped in (|||1234|), peel it out of there.
+    port_pos_beg = controlResponse.find_first_of("|") + 3;
+    port_pos_end = controlResponse.find_last_of("|");
+    data_port = atoi(controlResponse.substr(port_pos_beg,port_pos_end));
+
+    Debug_printf("Server gave us data port: %u\n",data_port);
+    return false;
+}
+
 /** FTP VERBS **********************************************************************************/
 
 void fnFTP::USER()
@@ -154,5 +183,11 @@ void fnFTP::TYPE()
 void fnFTP::QUIT()
 {
     control.write("QUIT\r\n");
+    control.flush();
+}
+
+void fnFTP::EPSV()
+{
+    control.write("EPSV\r\n");
     control.flush();
 }
