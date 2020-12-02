@@ -64,14 +64,31 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
 
     if (is_positive_completion_reply() && is_authentication())
     {
-        Debug_printf("Logged in successfully.\n");
-        return false;
+        Debug_printf("Logged in successfully. Setting type.\n");
+        TYPE();
     }
     else
     {
         Debug_printf("Could not finish log in. Response was: %s\n",controlResponse.c_str());
         return true;
     }
+
+    if (get_response())
+    {
+        Debug_printf("Timed out waiting for 200.\n");
+        return true;
+    }
+
+    if (is_positive_completion_reply() && is_syntax())
+    {
+        Debug_printf("Logged in\n");
+    }
+    else
+    {
+        Debug_printf("Could not set image type. Ignoring.\n");       
+    }
+    
+    return false;
 }
 
 bool fnFTP::logout()
@@ -101,6 +118,8 @@ bool fnFTP::get_response()
     return controlResponse.substr(0, controlResponse.find_first_of(" ")).empty();
 }
 
+/** FTP VERBS **********************************************************************************/
+
 void fnFTP::USER()
 {
     control.write("USER " + username + "\r\n");
@@ -110,5 +129,11 @@ void fnFTP::USER()
 void fnFTP::PASS()
 {
     control.write("PASS " + password + "\r\n");
+    control.flush();
+}
+
+void fnFTP::TYPE()
+{
+    control.write("TYPE I\r\n");
     control.flush();
 }
