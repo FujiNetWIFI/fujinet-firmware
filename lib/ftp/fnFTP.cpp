@@ -93,6 +93,19 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
 
 bool fnFTP::logout()
 {
+    if (!control.connected())
+    {
+        Debug_printf("fnFTP::logout() - called when not connected.");
+        return true;
+    }
+
+    QUIT();
+
+    if (get_response())
+    {
+        Debug_printf("Timed out waiting for 221.");
+    }
+
     return true;
 }
 
@@ -135,5 +148,11 @@ void fnFTP::PASS()
 void fnFTP::TYPE()
 {
     control.write("TYPE I\r\n");
+    control.flush();
+}
+
+void fnFTP::QUIT()
+{
+    control.write("QUIT\r\n");
     control.flush();
 }
