@@ -28,6 +28,48 @@ public:
      */
     bool logout();
 
+    /**
+     * read and parse control response
+     * @return the numeric response
+     */
+    string get_response();
+
+    /**
+     * Is response a positive preliminary reply?
+     * @return true or false.
+     */
+    bool is_positive_preliminary_reply() { return controlResponse[0] == '1'; } 
+
+    /**
+     * Is response a positive completion reply?
+     * @return true or false.
+     */
+    bool is_positive_completion_reply() { return controlResponse[0] == '2'; } 
+
+    /**
+     * Is response a positive intermediate reply?
+     * @return true or false.
+     */
+    bool is_positive_preliminary_reply() { return controlResponse[0] == '3'; } 
+
+    /**
+     * Is response a negative transient reply?
+     * @return true or false.
+     */
+    bool is_negative_transient_reply() { return controlResponse[0] == '4'; } 
+
+    /**
+     * Is response a positive intermediate reply?
+     * @return true or false.
+     */
+    bool is_negative_permanent_reply() { return controlResponse[0] == '5'; } 
+
+    /**
+     * Is response a protected reply?
+     * @return true or false.
+     */
+    bool is_protected_reply() { return controlResponse[0] == '6'; } 
+
 protected:
 private:
 
@@ -45,12 +87,6 @@ private:
      * last response from control connection.
      */
     string controlResponse;
-
-    /**
-     * read and parse control response
-     * @return the numeric response
-     */
-    string get_response();
 
 };
 
