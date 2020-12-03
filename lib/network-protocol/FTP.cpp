@@ -34,7 +34,6 @@ bool NetworkProtocolFTP::open_dir_handle()
 bool NetworkProtocolFTP::mount(string hostName, string path)
 {
     // Path isn't used
-#pragma unused path
     return ftp.login("anonymous", "fujinet@fujinet.online", hostName);
 }
 

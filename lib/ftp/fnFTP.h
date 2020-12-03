@@ -51,6 +51,14 @@ public:
     bool open_file(string path);
 
     /**
+     * Open directory on FTP server, grab it, and return back.
+     * @param path directory to retrieve.
+     * @param pattern pattern to retrieve.
+     * @return TRUE if error, FALSE if successful.
+     */
+    bool open_directory(string path, string pattern);
+
+    /**
      * Is response a positive preliminary reply?
      * @return true or false.
      */
@@ -66,7 +74,7 @@ public:
      * Is response a positive intermediate reply?
      * @return true or false.
      */
-    bool is_positive_preliminary_reply() { return controlResponse[0] == '3'; }
+    bool is_positive_intermediate_reply() { return controlResponse[0] == '3'; }
 
     /**
      * Is response a negative transient reply?
