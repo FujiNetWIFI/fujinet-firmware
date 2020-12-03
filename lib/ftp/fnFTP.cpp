@@ -5,6 +5,7 @@
 #include <string.h>
 #include "../../include/debug.h"
 #include "fnFTP.h"
+#include "list-parse.h"
 
 bool fnFTP::login(string _username, string _password, string _hostname, unsigned short _port)
 {
@@ -142,7 +143,7 @@ bool fnFTP::get_data_port()
     if (get_response())
     {
         Debug_printf("Timed out waiting for response.\n");
-        return;
+        return true;
     }
 
     if (is_negative_permanent_reply())
