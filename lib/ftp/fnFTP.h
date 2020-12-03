@@ -162,6 +162,11 @@ private:
     string password;
 
     /**
+     * Directory buffer
+     */
+    string dirBuffer;
+
+    /**
      * The data port returned by EPSV
      */
     unsigned short data_port;
