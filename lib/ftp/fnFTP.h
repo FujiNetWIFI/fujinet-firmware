@@ -197,6 +197,19 @@ private:
      */
     void RETR(string path);
 
+    /**
+     * @brief change current directory to path.
+     * @param path path to change directory to.
+     */
+    void CWD(string path);
+
+    /**
+     * @brief ask server for directory listing.
+     * @param path path of directory listing
+     * @param pattern requested pattern
+     */
+    void LIST(string path, string pattern);
+
 };
 
 #endif /* FNFTP_H */

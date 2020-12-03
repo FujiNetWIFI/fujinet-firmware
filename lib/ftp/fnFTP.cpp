@@ -208,6 +208,30 @@ bool fnFTP::open_file(string path)
     }
 }
 
+bool fnFTP::open_directory(string path, string pattern)
+{
+    if (!control.connected())
+    {
+        Debug_printf("fnFTP::open_directory(%s%s) attempted while not logged in. Aborting.\n",path,pattern);
+        return true;
+    }
+
+    // perform LIST
+    LIST(path, pattern);
+
+    if (get_response())
+    {
+        Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 150 response.\n",path,pattern);
+        return true;
+    }
+
+    if (is_positive_preliminary_reply() && is_filesystem_related())
+    {
+
+    }
+    return true; // temp
+}
+
 /** FTP VERBS **********************************************************************************/
 
 void fnFTP::USER()
@@ -243,5 +267,17 @@ void fnFTP::EPSV()
 void fnFTP::RETR(string path)
 {
     control.write("RETR " + path + "\r\n");
+    control.flush();
+}
+
+void fnFTP::CWD(string path)
+{
+    control.write("CWD " + path + "\r\n");
+    control.flush();
+}
+
+void fnFTP::LIST(string path, string pattern)
+{
+    control.write("LIST " + path + pattern + "\r\n");
     control.flush();
 }
