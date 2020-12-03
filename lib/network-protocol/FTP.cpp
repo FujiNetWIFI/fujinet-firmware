@@ -33,17 +33,18 @@ bool NetworkProtocolFTP::open_dir_handle()
 
 bool NetworkProtocolFTP::mount(string hostName, string path)
 {
-    return true;
+    // Path isn't used
+#pragma unused path
+    return ftp.login("anonymous", "fujinet@fujinet.online", hostName);
 }
 
 bool NetworkProtocolFTP::umount()
 {
-    return false; // always success.
+    return ftp.logout();
 }
 
 void NetworkProtocolFTP::fserror_to_error()
 {
-
 }
 
 bool NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)

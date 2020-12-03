@@ -2,6 +2,7 @@
 #define NETWORKPROTOCOLFTP_H
 
 #include "FS.h"
+#include "../ftp/fnFTP.h"
 
 class NetworkProtocolFTP : public NetworkProtocolFS
 {
@@ -193,6 +194,11 @@ protected:
     virtual bool close_dir_handle();
 
 private:
+
+    /**
+     * fnFTP instance
+     */
+    fnFTP ftp;
 
 };
 
