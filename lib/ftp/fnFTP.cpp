@@ -172,6 +172,41 @@ bool fnFTP::get_data_port()
     return false;
 }
 
+bool fnFTP::open_file(string path)
+{
+    if (!control.connected())
+    {
+        Debug_printf("fnFTP::open_file(%s) attempted while not logged in. Aborting.\n",path);
+        return true;
+    }
+
+    if (get_data_port())
+    {
+        Debug_printf("fnFTP::get_data_port() - could not get data port. Aborting.\n");
+        return true;
+    }
+
+    // Ask server for file.
+    RETR(path);
+
+    if (get_response())
+    {
+        Debug_printf("Timed out waiting for 150 response.\n");
+        return true;
+    }
+
+    if (is_positive_preliminary_reply() && is_filesystem_related())
+    {
+        Debug_print("Server began transfer.");
+        return false;
+    }
+    else
+    {
+        Debug_printf("Server could not begin transfer. Response was: %s\n",controlResponse.c_str());
+        return true;
+    }
+}
+
 /** FTP VERBS **********************************************************************************/
 
 void fnFTP::USER()
@@ -201,5 +236,11 @@ void fnFTP::QUIT()
 void fnFTP::EPSV()
 {
     control.write("EPSV\r\n");
+    control.flush();
+}
+
+void fnFTP::RETR(string path)
+{
+    control.write("RETR " + path + "\r\n");
     control.flush();
 }

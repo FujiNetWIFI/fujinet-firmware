@@ -44,6 +44,13 @@ public:
     bool get_data_port();
 
     /**
+     * Open file on FTP server
+     * @param path to file to open.
+     * @return TRUE if error, FALSE if successful.
+     */
+    bool open_file(string path);
+
+    /**
      * Is response a positive preliminary reply?
      * @return true or false.
      */
@@ -175,6 +182,13 @@ private:
      * Enter extended passive mode (RFC 2428)
      */
     void EPSV();
+
+    /**
+     * @brief Ask server to retrieve path
+     * @param path path to retrieve.
+     */
+    void RETR(string path);
+
 
 };
 
