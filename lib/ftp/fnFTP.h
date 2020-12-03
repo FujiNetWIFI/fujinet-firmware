@@ -59,67 +59,67 @@ public:
     bool open_directory(string path, string pattern);
 
     /**
-     * Is response a positive preliminary reply?
+     * @brief Is response a positive preliminary reply?
      * @return true or false.
      */
     bool is_positive_preliminary_reply() { return controlResponse[0] == '1'; }
 
     /**
-     * Is response a positive completion reply?
+     * @brief Is response a positive completion reply?
      * @return true or false.
      */
     bool is_positive_completion_reply() { return controlResponse[0] == '2'; }
 
     /**
-     * Is response a positive intermediate reply?
+     * @brief Is response a positive intermediate reply?
      * @return true or false.
      */
     bool is_positive_intermediate_reply() { return controlResponse[0] == '3'; }
 
     /**
-     * Is response a negative transient reply?
+     * @brief Is response a negative transient reply?
      * @return true or false.
      */
     bool is_negative_transient_reply() { return controlResponse[0] == '4'; }
 
     /**
-     * Is response a positive intermediate reply?
+     * @brief Is response a positive intermediate reply?
      * @return true or false.
      */
     bool is_negative_permanent_reply() { return controlResponse[0] == '5'; }
 
     /**
-     * Is response a protected reply?
+     * @brief Is response a protected reply?
      * @return true or false.
      */
     bool is_protected_reply() { return controlResponse[0] == '6'; }
 
     /**
-     * Is response a syntax error?
+     * @brief Is response a syntax error?
      * @return true or false.
      */
     bool is_syntax() { return controlResponse[1] == '0'; }
 
     /**
-     * Is response informational?
+     * @brief Is response informational?
      * @return true or false.
      */
     bool is_informational() { return controlResponse[1] == '1'; }
 
     /**
-     * Is response referring to a change in connection state?
+     * @brief Is response referring to a change in connection state?
      * @return true or false.
      */
     bool is_connection() { return controlResponse[1] == '2'; }
 
     /**
-     * Is response referring to an authoeization/authentication issue?
+     * @brief Is response referring to an authoeization/authentication issue?
      * @return true or false.
      */
     bool is_authentication() { return controlResponse[1] == '3'; }
 
     /**
-     * IS response filesystem related?
+     * @brief IS response filesystem related?
      * @return true or false.
      */
     bool is_filesystem_related() { return controlResponse[1] == '5'; }
@@ -167,27 +167,27 @@ private:
     unsigned short data_port;
 
     /**
-     * Perform USER command on open control connection
+     * @brief Perform USER command on open control connection
      */
     void USER();
 
     /**
-     * Perform PASS command on open control connection
+     * @brief Perform PASS command on open control connection
      */
     void PASS();
 
     /**
-     * Perform TYPE I command on open control connection
+     * @brief Perform TYPE I command on open control connection
      */
     void TYPE();
 
     /**
-     * Log out.
+     * @brief Log out.
      */
     void QUIT();
 
     /**
-     * Enter extended passive mode (RFC 2428)
+     * @brief Enter extended passive mode (RFC 2428)
      */
     void EPSV();
 
@@ -196,7 +196,6 @@ private:
      * @param path path to retrieve.
      */
     void RETR(string path);
-
 
 };
 
