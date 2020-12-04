@@ -55,6 +55,11 @@ public:
      */
     bool read_directory(string& name, long& filesize);
 
+    /**
+     * @brief close data and/or control sockets.
+     */
+    void close();
+
 protected:
 private:
     /**
