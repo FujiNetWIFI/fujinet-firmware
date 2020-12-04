@@ -216,6 +216,17 @@ bool fnFTP::read_directory(string& name, long& filesize)
     return dirBuffer.eof();
 }
 
+bool fnFTP::read_file(uint8_t* buf, unsigned short len)
+{
+    if (!data.connected())
+    {
+        Debug_printf("fnFTP::read_file(%p,%u) - data socket not connected, aborting.\n",buf,len);
+        return true;
+    }
+
+    return data.read(buf,len) != len;
+}
+
 void fnFTP::close()
 {
     logout();
