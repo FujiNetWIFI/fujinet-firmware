@@ -225,6 +225,11 @@ private:
      */
     void LIST(string path, string pattern);
 
+    /**
+     * @brief ask server to abort current transfer
+     */
+    void ABOR();
+
 };
 
 #endif /* FNFTP_H */
