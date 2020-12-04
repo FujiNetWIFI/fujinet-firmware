@@ -65,6 +65,14 @@ public:
     bool read_file(uint8_t* buf, unsigned short len);
 
     /**
+     * Write file from buffer into data socket.
+     * @param buf source buffer
+     * @param len length of source buffer
+     * @return TRUE if error, FALSE if successful.
+     */
+    bool write_file(uint8_t* buf, unsigned short len);
+
+    /**
      * @brief close data and/or control sockets.
      */
     void close();
