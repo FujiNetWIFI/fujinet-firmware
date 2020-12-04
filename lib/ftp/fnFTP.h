@@ -33,19 +33,6 @@ public:
     bool logout();
 
     /**
-     * read and parse control response
-     * @return true on error, false on success.
-     */
-    bool get_response();
-
-    /**
-     * Ask server to prepare a data port for us in extended passive mode.
-     * Port is set and returned in data_port variable.
-     * @return TRUE if error, FALSE if successful.
-     */
-    bool get_data_port();
-
-    /**
      * Open file on FTP server
      * @param path to file to open.
      * @return TRUE if error, FALSE if successful.
@@ -67,6 +54,66 @@ public:
      * @return TRUE if error, FALSE if unsuccessful
      */
     bool read_directory(string& name, long& filesize);
+
+protected:
+private:
+    /**
+     * The hostname
+     */
+    string hostname;
+
+    /**
+     * The port number. (21 by default)
+     */
+    unsigned short control_port = 21;
+
+    /**
+     * The fnTCP client used for control connection
+     */
+    fnTcpClient control;
+
+    /**
+     * The fnTCP client used for data connection
+     */
+    fnTcpClient data;
+
+    /**
+     * last response from control connection.
+     */
+    string controlResponse;
+
+    /**
+     * Username
+     */
+    string username;
+
+    /**
+     * Password
+     */
+    string password;
+
+    /**
+     * Directory buffer stream
+     */
+    stringstream dirBuffer;
+
+    /**
+     * The data port returned by EPSV
+     */
+    unsigned short data_port;
+
+    /**
+     * read and parse control response
+     * @return true on error, false on success.
+     */
+    bool get_response();
+
+    /**
+     * Ask server to prepare a data port for us in extended passive mode.
+     * Port is set and returned in data_port variable.
+     * @return TRUE if error, FALSE if successful.
+     */
+    bool get_data_port();
 
     /**
      * @brief Is response a positive preliminary reply?
@@ -133,53 +180,6 @@ public:
      * @return true or false.
      */
     bool is_filesystem_related() { return controlResponse[1] == '5'; }
-
-protected:
-private:
-    /**
-     * The hostname
-     */
-    string hostname;
-
-    /**
-     * The port number. (21 by default)
-     */
-    unsigned short control_port = 21;
-
-    /**
-     * The fnTCP client used for control connection
-     */
-    fnTcpClient control;
-
-    /**
-     * The fnTCP client used for data connection
-     */
-    fnTcpClient data;
-
-    /**
-     * last response from control connection.
-     */
-    string controlResponse;
-
-    /**
-     * Username
-     */
-    string username;
-
-    /**
-     * Password
-     */
-    string password;
-
-    /**
-     * Directory buffer stream
-     */
-    stringstream dirBuffer;
-
-    /**
-     * The data port returned by EPSV
-     */
-    unsigned short data_port;
 
     /**
      * @brief Perform USER command on open control connection
