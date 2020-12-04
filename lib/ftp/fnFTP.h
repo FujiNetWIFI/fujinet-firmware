@@ -6,7 +6,9 @@
 #define FNFTP_H
 
 #include <string>
+#include <sstream>
 #include "../tcpip/fnTcpClient.h"
+#include "list-parse.h"
 
 using namespace std;
 
@@ -57,6 +59,14 @@ public:
      * @return TRUE if error, FALSE if successful.
      */
     bool open_directory(string path, string pattern);
+
+    /**
+     * Read and return one parsed line of directory
+     * @param name pointer to output name
+     * @param filesize pointer to output filesize
+     * @return TRUE if error, FALSE if unsuccessful
+     */
+    bool read_directory(string& name, long& filesize);
 
     /**
      * @brief Is response a positive preliminary reply?
@@ -162,9 +172,9 @@ private:
     string password;
 
     /**
-     * Directory buffer
+     * Directory buffer stream
      */
-    string dirBuffer;
+    stringstream dirBuffer;
 
     /**
      * The data port returned by EPSV
