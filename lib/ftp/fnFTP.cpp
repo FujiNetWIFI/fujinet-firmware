@@ -234,6 +234,17 @@ bool fnFTP::read_file(uint8_t *buf, unsigned short len)
     return data.read(buf, len) != len;
 }
 
+bool fnFTP::write_file(uint8_t *buf, unsigned short len)
+{
+    if (!data.connected())
+    {
+        Debug_printf("fnFTP::write_file(%p,%u) - data socket not connected, aborting.\n", buf, len);
+        return true;
+    }
+
+    return data.write(buf, len) != len;
+}
+
 void fnFTP::close()
 {
     logout();
