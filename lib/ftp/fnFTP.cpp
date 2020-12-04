@@ -216,6 +216,11 @@ bool fnFTP::read_directory(string& name, long& filesize)
     return dirBuffer.eof();
 }
 
+void fnFTP::close()
+{
+    logout();
+}
+
 /** FTP UTILITY FUNCTIONS **********************************************************************/
 
 bool fnFTP::get_response()
