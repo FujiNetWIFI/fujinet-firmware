@@ -35,9 +35,10 @@ public:
     /**
      * Open file on FTP server
      * @param path to file to open.
+     * @param stor TRUE means STOR, otherwise RETR
      * @return TRUE if error, FALSE if successful.
      */
-    bool open_file(string path);
+    bool open_file(string path, bool stor);
 
     /**
      * Open directory on FTP server, grab it, and return back.
@@ -242,6 +243,12 @@ private:
      * @brief ask server to abort current transfer
      */
     void ABOR();
+
+    /**
+     * @brief ask server to store path
+     * @param path path to store
+     */
+    void STOR(string path);
 
 };
 

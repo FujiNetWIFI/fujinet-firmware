@@ -117,7 +117,7 @@ bool fnFTP::logout()
     return true;
 }
 
-bool fnFTP::open_file(string path)
+bool fnFTP::open_file(string path, bool stor)
 {
     if (!control.connected())
     {
@@ -131,8 +131,15 @@ bool fnFTP::open_file(string path)
         return true;
     }
 
-    // Ask server for file.
-    RETR(path);
+    // Do command
+    if (stor == true)
+    {
+        STOR(path);
+    }
+    else
+    {
+        RETR(path);
+    }
 
     if (get_response())
     {
@@ -191,9 +198,9 @@ bool fnFTP::open_directory(string path, string pattern)
     {
         while (int len = data.available())
         {
-            uint8_t* buf = (uint8_t *)malloc(len); 
-            data.read(buf,len);
-            dirBuffer << string((const char *)buf,len);
+            uint8_t *buf = (uint8_t *)malloc(len);
+            data.read(buf, len);
+            dirBuffer << string((const char *)buf, len);
         }
     }
 
@@ -203,28 +210,28 @@ bool fnFTP::open_directory(string path, string pattern)
     return false; // all good.
 }
 
-bool fnFTP::read_directory(string& name, long& filesize)
+bool fnFTP::read_directory(string &name, long &filesize)
 {
     string line;
     struct ftpparse parse;
 
-    getline(dirBuffer,line);
-    line = line.substr(0,line.size()-1);
-    ftpparse(&parse,(char *)line.c_str(),line.length());
+    getline(dirBuffer, line);
+    line = line.substr(0, line.size() - 1);
+    ftpparse(&parse, (char *)line.c_str(), line.length());
     name = string(parse.name);
     filesize = parse.size;
     return dirBuffer.eof();
 }
 
-bool fnFTP::read_file(uint8_t* buf, unsigned short len)
+bool fnFTP::read_file(uint8_t *buf, unsigned short len)
 {
     if (!data.connected())
     {
-        Debug_printf("fnFTP::read_file(%p,%u) - data socket not connected, aborting.\n",buf,len);
+        Debug_printf("fnFTP::read_file(%p,%u) - data socket not connected, aborting.\n", buf, len);
         return true;
     }
 
-    return data.read(buf,len) != len;
+    return data.read(buf, len) != len;
 }
 
 void fnFTP::close()
@@ -350,5 +357,11 @@ void fnFTP::LIST(string path, string pattern)
 void fnFTP::ABOR()
 {
     control.write("ABOR\r\n");
+    control.flush();
+}
+
+void fnFTP::STOR(string path)
+{
+    control.write("STOR " + path + "\r\n");
     control.flush();
 }
