@@ -200,6 +200,10 @@ private:
      */
     fnFTP ftp;
 
+    /**
+     * TRUE = STOR, FALSE = RETR
+     */
+    bool stor=false;
 };
 
 #endif /* NETWORKPROTOCOLFTP_H */

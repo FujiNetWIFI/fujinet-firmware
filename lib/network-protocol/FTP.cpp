@@ -23,7 +23,21 @@ NetworkProtocolFTP::~NetworkProtocolFTP()
 
 bool NetworkProtocolFTP::open_file_handle()
 {
-    return true;
+    switch(aux1_open)
+    {
+        case 4:
+            stor = false;
+            break;
+        case 8:
+            stor = true;
+            break;
+        case 9:
+        case 12:
+            error = NETWORK_ERROR_NOT_IMPLEMENTED;
+            break;
+    }
+
+    return ftp.open_file(path, stor);
 }
 
 bool NetworkProtocolFTP::open_dir_handle()
