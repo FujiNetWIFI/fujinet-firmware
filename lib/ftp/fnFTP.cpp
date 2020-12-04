@@ -24,7 +24,7 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
     }
 
     // Wait for banner.
-    if (get_response())
+    if (parse_response())
     {
         Debug_printf("Timed out waiting for 220 banner.");
         return true;
@@ -41,7 +41,7 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
         return true;
     }
 
-    if (get_response())
+    if (parse_response())
     {
         Debug_printf("Timed out waiting for 331.\n");
         return true;
@@ -57,7 +57,7 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
         Debug_printf("Could not send password. Response was: %s\n", controlResponse.c_str());
     }
 
-    if (get_response())
+    if (parse_response())
     {
         Debug_printf("Timed out waiting for 230.\n");
         return true;
@@ -74,7 +74,7 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
         return true;
     }
 
-    if (get_response())
+    if (parse_response())
     {
         Debug_printf("Timed out waiting for 200.\n");
         return true;
@@ -103,13 +103,13 @@ bool fnFTP::logout()
     if (data.connected())
     {
         ABOR();
-        get_response(); // Ignored.
+        parse_response(); // Ignored.
         data.stop();
     }
 
     QUIT();
 
-    if (get_response())
+    if (parse_response())
     {
         Debug_printf("Timed out waiting for 221.");
     }
@@ -141,7 +141,7 @@ bool fnFTP::open_file(string path, bool stor)
         RETR(path);
     }
 
-    if (get_response())
+    if (parse_response())
     {
         Debug_printf("Timed out waiting for 150 response.\n");
         return true;
@@ -176,7 +176,7 @@ bool fnFTP::open_directory(string path, string pattern)
     // perform LIST
     LIST(path, pattern);
 
-    if (get_response())
+    if (parse_response())
     {
         Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 150 response.\n", path, pattern);
         return true;
@@ -250,9 +250,14 @@ void fnFTP::close()
     logout();
 }
 
+int fnFTP::response()
+{
+    return atoi(controlResponse.substr(0,3).c_str());
+}
+
 /** FTP UTILITY FUNCTIONS **********************************************************************/
 
-bool fnFTP::get_response()
+bool fnFTP::parse_response()
 {
     char buf[512];
     int num_read;
@@ -282,7 +287,7 @@ bool fnFTP::get_data_port()
 
     EPSV();
 
-    if (get_response())
+    if (parse_response())
     {
         Debug_printf("Timed out waiting for response.\n");
         return true;

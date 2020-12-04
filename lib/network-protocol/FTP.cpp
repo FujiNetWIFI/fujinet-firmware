@@ -66,7 +66,7 @@ bool NetworkProtocolFTP::umount()
 
 void NetworkProtocolFTP::fserror_to_error()
 {
-    
+    int response = atoi(ftp.parse_response().c_str())
 }
 
 bool NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)

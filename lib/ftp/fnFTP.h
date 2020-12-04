@@ -77,6 +77,12 @@ public:
      */
     void close();
 
+    /**
+     * @brief parse out response code from controlResponse
+     * @return int containing parsed out response code.
+     */
+    int response();
+
 protected:
 private:
     /**
@@ -128,7 +134,7 @@ private:
      * read and parse control response
      * @return true on error, false on success.
      */
-    bool get_response();
+    bool parse_response();
 
     /**
      * Ask server to prepare a data port for us in extended passive mode.
