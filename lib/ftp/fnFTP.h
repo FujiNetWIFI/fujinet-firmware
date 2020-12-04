@@ -51,9 +51,17 @@ public:
      * Read and return one parsed line of directory
      * @param name pointer to output name
      * @param filesize pointer to output filesize
-     * @return TRUE if error, FALSE if unsuccessful
+     * @return TRUE if error, FALSE if successful
      */
     bool read_directory(string& name, long& filesize);
+
+    /**
+     * Read file from data socket into buffer.
+     * @param buf target buffer
+     * @param len length of target buffer
+     * @return TRUE if error, FALSE if successful.
+     */
+    bool read_file(uint8_t* buf, unsigned short len);
 
     /**
      * @brief close data and/or control sockets.
