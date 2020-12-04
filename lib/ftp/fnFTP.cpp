@@ -249,7 +249,7 @@ bool fnFTP::open_directory(string path, string pattern)
         {
             uint8_t* buf = (uint8_t *)malloc(len); 
             data.read(buf,len);
-            dirBuffer += string((const char *)buf,len);
+            dirBuffer << string((const char *)buf,len);
         }
     }
 
@@ -257,6 +257,19 @@ bool fnFTP::open_directory(string path, string pattern)
     data.stop();
 
     return false; // all good.
+}
+
+bool fnFTP::read_directory(string& name, long& filesize)
+{
+    string line;
+    struct ftpparse parse;
+
+    getline(dirBuffer,line);
+    line = line.substr(0,line.size()-1);
+    ftpparse(&parse,(char *)line.c_str(),line.length());
+    name = string(parse.name);
+    filesize = parse.size;
+    return dirBuffer.eof();
 }
 
 /** FTP VERBS **********************************************************************************/
