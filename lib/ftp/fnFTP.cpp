@@ -117,69 +117,6 @@ bool fnFTP::logout()
     return true;
 }
 
-bool fnFTP::get_response()
-{
-    char buf[512];
-    int num_read;
-
-    memset(buf, 0, sizeof(buf));
-
-    num_read = control.read_until('\n', buf, sizeof(buf));
-
-    if (num_read < 0)
-    {
-        Debug_printf("fnFTP::get_response() - Could not read from control socket.\n");
-        return true;
-    }
-
-    controlResponse = string(buf, num_read);
-
-    Debug_printf("fnFTP::get_response() - %s\n", controlResponse.c_str());
-
-    return controlResponse.substr(0, controlResponse.find_first_of(" ")).empty();
-}
-
-bool fnFTP::get_data_port()
-{
-    size_t port_pos_beg, port_pos_end;
-
-    Debug_printf("fnFTP::get_data_port()\n");
-
-    EPSV();
-
-    if (get_response())
-    {
-        Debug_printf("Timed out waiting for response.\n");
-        return true;
-    }
-
-    if (is_negative_permanent_reply())
-    {
-        Debug_printf("Server unable to reserve port. Response was: %s\n", controlResponse.c_str());
-        return true;
-    }
-
-    // At this point, we have a port mapping trapped in (|||1234|), peel it out of there.
-    port_pos_beg = controlResponse.find_first_of("|") + 3;
-    port_pos_end = controlResponse.find_last_of("|");
-    data_port = atoi(controlResponse.substr(port_pos_beg, port_pos_end).c_str());
-
-    Debug_printf("Server gave us data port: %u\n", data_port);
-
-    // Go ahead and connect to data port, so that control port is unblocked, if it's blocked.
-    if (data.connect(hostname.c_str(), data_port))
-    {
-        Debug_printf("Could not open data port %u, errno = %u\n", data_port, errno);
-        return true;
-    }
-    else
-    {
-        Debug_printf("Data port %u opened.\n", data_port);
-    }
-
-    return false;
-}
-
 bool fnFTP::open_file(string path)
 {
     if (!control.connected())
@@ -277,6 +214,71 @@ bool fnFTP::read_directory(string& name, long& filesize)
     name = string(parse.name);
     filesize = parse.size;
     return dirBuffer.eof();
+}
+
+/** FTP UTILITY FUNCTIONS **********************************************************************/
+
+bool fnFTP::get_response()
+{
+    char buf[512];
+    int num_read;
+
+    memset(buf, 0, sizeof(buf));
+
+    num_read = control.read_until('\n', buf, sizeof(buf));
+
+    if (num_read < 0)
+    {
+        Debug_printf("fnFTP::get_response() - Could not read from control socket.\n");
+        return true;
+    }
+
+    controlResponse = string(buf, num_read);
+
+    Debug_printf("fnFTP::get_response() - %s\n", controlResponse.c_str());
+
+    return controlResponse.substr(0, controlResponse.find_first_of(" ")).empty();
+}
+
+bool fnFTP::get_data_port()
+{
+    size_t port_pos_beg, port_pos_end;
+
+    Debug_printf("fnFTP::get_data_port()\n");
+
+    EPSV();
+
+    if (get_response())
+    {
+        Debug_printf("Timed out waiting for response.\n");
+        return true;
+    }
+
+    if (is_negative_permanent_reply())
+    {
+        Debug_printf("Server unable to reserve port. Response was: %s\n", controlResponse.c_str());
+        return true;
+    }
+
+    // At this point, we have a port mapping trapped in (|||1234|), peel it out of there.
+    port_pos_beg = controlResponse.find_first_of("|") + 3;
+    port_pos_end = controlResponse.find_last_of("|");
+    data_port = atoi(controlResponse.substr(port_pos_beg, port_pos_end).c_str());
+
+    Debug_printf("Server gave us data port: %u\n", data_port);
+
+    // Go ahead and connect to data port, so that control port is unblocked, if it's blocked.
+    if (data.connect(hostname.c_str(), data_port))
+    {
+        Debug_printf("Could not open data port %u, errno = %u\n", data_port, errno);
+        return true;
+    }
+    else
+    {
+        Debug_printf("Data port %u opened.\n", data_port);
+    }
+
+    return false;
 }
 
 /** FTP VERBS **********************************************************************************/
