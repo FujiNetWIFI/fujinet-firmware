@@ -100,6 +100,13 @@ bool fnFTP::logout()
         return true;
     }
 
+    if (data.connected())
+    {
+        ABOR();
+        get_response(); // Ignored.
+        data.stop();
+    }
+
     QUIT();
 
     if (get_response())
@@ -319,5 +326,11 @@ void fnFTP::CWD(string path)
 void fnFTP::LIST(string path, string pattern)
 {
     control.write("LIST " + path + pattern + "\r\n");
+    control.flush();
+}
+
+void fnFTP::ABOR()
+{
+    control.write("ABOR\r\n");
     control.flush();
 }
