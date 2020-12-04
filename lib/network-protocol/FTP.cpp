@@ -37,7 +37,15 @@ bool NetworkProtocolFTP::open_file_handle()
             break;
     }
 
-    return ftp.open_file(path, stor);
+    if (ftp.open_file(path, stor))
+    {
+        // Error
+        fserror_to_error();
+        return true;
+    }
+
+    error = NETWORK_ERROR_SUCCESS;
+    return false;
 }
 
 bool NetworkProtocolFTP::open_dir_handle()
@@ -58,6 +66,7 @@ bool NetworkProtocolFTP::umount()
 
 void NetworkProtocolFTP::fserror_to_error()
 {
+    
 }
 
 bool NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
