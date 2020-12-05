@@ -81,12 +81,13 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             pdf_set_rise();
             reset_cmd();
             break;
-        case 14: // XMM // Double width printing. Stays ON until turned OFF
-            set_mode(fnt_expanded);
+        case 14: // XMM // Double width printing.  SO wide behavior per page 27 of XMM801 manual
+            set_mode(fnt_SOwide);
             reset_cmd();
             break;
         case 15: // XMM // double width OFF
-            clear_mode(fnt_expanded);
+            clear_mode(fnt_SOwide);
+            clear_mode(fnt_expanded); // does both per page 28 of XMM801 manual 
             reset_cmd();
             break;
         // case 17: // Proportional character set ON
@@ -384,7 +385,7 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // Looks like modulo 48 from FX Printer Manual
             if (epson_cmd.ctr > 0)
             {
-                Debug_printf("Double Width command, arg = %d\n", epson_cmd.N1);
+                // Debug_printf("Double Width command, arg = %d\n", epson_cmd.N1);
                 if ((epson_cmd.N1 % '0')  != 0)
                     set_mode(fnt_expanded);
                 else
