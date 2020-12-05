@@ -193,15 +193,15 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_PLAY_RECORD:
         if (theFuji.cassette()->get_buttons())
-            resultstream << "PLAY";
+            resultstream << "0 PLAY";
         else
-            resultstream << "RECORD";
+            resultstream << "1 RECORD";
         break;
     case FN_PULLDOWN:
         if (theFuji.cassette()->has_pulldown())
-            resultstream << "Pulldown Resistor";
+            resultstream << "1 Pulldown Resistor";
         else
-            resultstream << "B Button Press";
+            resultstream << "0 B Button Press";
         break;
     case FN_CONFIG_ENABLED:
         resultstream << Config.get_general_config_enabled();
