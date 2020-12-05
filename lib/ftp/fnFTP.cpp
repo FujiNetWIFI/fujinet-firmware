@@ -255,6 +255,16 @@ int fnFTP::response()
     return atoi(controlResponse.substr(0,3).c_str());
 }
 
+int fnFTP::data_available()
+{
+    return data.available();
+}
+
+bool fnFTP::data_connected()
+{
+    return data.connected();
+}
+
 /** FTP UTILITY FUNCTIONS **********************************************************************/
 
 bool fnFTP::parse_response()

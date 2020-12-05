@@ -83,6 +83,18 @@ public:
      */
     int response();
 
+    /**
+     * @brief return # of bytes waiting in data socket
+     * @return # of bytes waiting in data socket
+     */
+    int data_available();
+
+    /**
+     * @brief return if data connected
+     * @return TRUE if connected, FALSE if disconnected
+     */
+    bool data_connected();
+
 protected:
 private:
     /**
