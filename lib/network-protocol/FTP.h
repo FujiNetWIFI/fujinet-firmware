@@ -99,7 +99,6 @@ public:
     virtual bool unlock(EdUrlParser *url, cmdFrame_t *cmdFrame);
 
 protected:
-
     /**
      * Is rename implemented?
      */
@@ -186,8 +185,14 @@ protected:
      */
     virtual bool close_dir_handle();
 
-private:
+    /**
+     * @brief return status from file (e.g. # of bytes remaining.)
+     * @param Pointer to NetworkStatus object to inject new data.
+     * @return FALSE if success, TRUE if error.
+     */
+    virtual bool status_file(NetworkStatus *status);
 
+private:
     /**
      * fnFTP instance
      */
@@ -196,7 +201,7 @@ private:
     /**
      * TRUE = STOR, FALSE = RETR
      */
-    bool stor=false;
+    bool stor = false;
 };
 
 #endif /* NETWORKPROTOCOLFTP_H */
