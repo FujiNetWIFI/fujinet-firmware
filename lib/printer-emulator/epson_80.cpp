@@ -6,14 +6,14 @@ void epson80::not_implemented()
 {
     uint8_t c = epson_cmd.cmd;
     __IGNORE_UNUSED_VAR(c);
-    Debug_printf("Command not implemented: %u %x %c\n", c, c, c);
+    Debug_printf("Command not implemented: %u 0x%x %c\n", c, c, c);
 }
 
 void epson80::esc_not_implemented()
 {
     uint8_t c = epson_cmd.cmd;
     __IGNORE_UNUSED_VAR(c);
-    Debug_printf("Command not implemented: ESC %u %x %c\n", c, c, c);
+    Debug_printf("Command not implemented: ESC %u 0x%x %c\n", c, c, c);
 }
 
 void epson80::reset_cmd()
