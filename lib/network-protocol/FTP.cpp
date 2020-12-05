@@ -160,11 +160,13 @@ bool NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
 
 bool NetworkProtocolFTP::close_file_handle()
 {
+    ftp.close();
     return false;
 }
 
 bool NetworkProtocolFTP::close_dir_handle()
 {
+    ftp.close();
     return false;
 }
 
