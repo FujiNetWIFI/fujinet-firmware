@@ -643,7 +643,7 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
     Debug_printf("fnFTP::login(%s,%u)\n", hostname.c_str(), control_port);
 
     // Attempt to open control socket.
-    if (control.connect(hostname.c_str(), control_port))
+    if (!control.connect(hostname.c_str(), control_port))
     {
         Debug_printf("Could not log in, errno = %u", errno);
         return true;
