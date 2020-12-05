@@ -13,6 +13,7 @@
 #include "../network-protocol/Test.h"
 #include "../network-protocol/Telnet.h"
 #include "../network-protocol/TNFS.h"
+#include "../network-protocol/FTP.h"
 
 using namespace std;
 
@@ -717,6 +718,10 @@ bool sioNetwork::instantiate_protocol()
     else if (urlParser->scheme == "TNFS")
     {
         protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "FTP")
+    {
+        protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
     }
     else
     {

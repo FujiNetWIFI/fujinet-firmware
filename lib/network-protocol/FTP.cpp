@@ -246,3 +246,8 @@ bool NetworkProtocolFTP::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
+
+bool NetworkProtocolFTP::stat(string path)
+{
+    return false;
+}
