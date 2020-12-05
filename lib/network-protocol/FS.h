@@ -252,7 +252,7 @@ protected:
      * @param len the number of bytes requested
      * @return FALSE if success, TRUE if error
      */
-    virtual bool read_dir(unsigned short len) = 0;
+    virtual bool read_dir(unsigned short len);
 
     /**
      * @brief read next directory entry.

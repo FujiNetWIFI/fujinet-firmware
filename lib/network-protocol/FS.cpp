@@ -195,6 +195,17 @@ bool NetworkProtocolFS::read_file(unsigned short len)
     return NetworkProtocol::read(len);
 }
 
+bool NetworkProtocolFS::read_dir(unsigned short len)
+{
+    if (receiveBuffer->length() == 0)
+    {
+        *receiveBuffer = dirBuffer.substr(0, len);
+        dirBuffer.erase(0, len);
+    }
+
+    return NetworkProtocol::read(len);
+}
+
 bool NetworkProtocolFS::write(unsigned short len)
 {
     return write_file(len); // Do more here? not sure.

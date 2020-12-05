@@ -140,17 +140,6 @@ bool NetworkProtocolTNFS::read_file_handle(uint8_t *buf, unsigned short len)
     return false; // no error
 }
 
-bool NetworkProtocolTNFS::read_dir(unsigned short len)
-{
-    if (receiveBuffer->length() == 0)
-    {
-        *receiveBuffer = dirBuffer.substr(0, len);
-        dirBuffer.erase(0, len);
-    }
-
-    return NetworkProtocol::read(len);
-}
-
 bool NetworkProtocolTNFS::read_dir_entry(char *buf, unsigned short len)
 {
     tnfs_error = tnfs_readdirx(&mountInfo, &fileStat, buf, len);
