@@ -137,7 +137,11 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case '6': // XMM //Returns line spacing to default of 1/6
-            lineHeight = 72 / 6;
+            lineHeight = 72.0 / 6.0;
+            reset_cmd();
+            break;
+        case '8': // XMM //Returns line spacing to default of 1/6
+            lineHeight = 72.0 / 8.0;
             reset_cmd();
             break;
         case '3': // XMM // Sets line spacing to N/216". Stays on until changed
@@ -380,7 +384,8 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // Looks like modulo 48 from FX Printer Manual
             if (epson_cmd.ctr > 0)
             {
-                if (epson_cmd.N1 != 0)
+                Debug_printf("Double Width command, arg = %d\n", epson_cmd.N1);
+                if ((epson_cmd.N1 % '0')  != 0)
                     set_mode(fnt_expanded);
                 else
                 {
