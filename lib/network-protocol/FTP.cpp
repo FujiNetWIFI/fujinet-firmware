@@ -23,29 +23,26 @@ NetworkProtocolFTP::~NetworkProtocolFTP()
 
 bool NetworkProtocolFTP::open_file_handle()
 {
-    switch(aux1_open)
-    {
-        case 4:
-            stor = false;
-            break;
-        case 8:
-            stor = true;
-            break;
-        case 9:
-        case 12:
-            error = NETWORK_ERROR_NOT_IMPLEMENTED;
-            break;
-    }
+    bool res;
 
-    if (ftp.open_file(path, stor))
+    switch (aux1_open)
     {
-        // Error
-        fserror_to_error();
+    case 4:
+        stor = false;
+        break;
+    case 8:
+        stor = true;
+        break;
+    case 9:
+    case 12:
+        error = NETWORK_ERROR_NOT_IMPLEMENTED;
         return true;
+        break;
     }
 
-    error = NETWORK_ERROR_SUCCESS;
-    return false;
+    res = ftp.open_file(path, stor);
+    fserror_to_error();
+    return res;
 }
 
 bool NetworkProtocolFTP::open_dir_handle()
@@ -66,7 +63,73 @@ bool NetworkProtocolFTP::umount()
 
 void NetworkProtocolFTP::fserror_to_error()
 {
-    int response = atoi(ftp.parse_response().c_str())
+    switch (ftp.response())
+    {
+    case 110:
+    case 120:
+    case 125:
+    case 150:
+    case 200:
+    case 202:
+    case 211:
+    case 212:
+    case 213:
+    case 214:
+    case 215:
+    case 220:
+    case 221:
+    case 225:
+    case 226:
+    case 227:
+    case 228:
+    case 229:
+    case 230:
+    case 231:
+    case 232:
+    case 234:
+    case 250:
+    case 257:
+    case 300:
+    case 331:
+    case 332:
+    case 350:
+        error = NETWORK_ERROR_SUCCESS;
+        break;
+    case 421:
+        error = NETWORK_ERROR_SERVICE_NOT_AVAILABLE;
+        break;
+    case 400:
+    case 425:
+        error = NETWORK_ERROR_GENERAL;
+        break;
+    case 430:
+        error = NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD;
+        break;
+    case 434:
+        error = NETWORK_ERROR_GENERAL;
+        break;
+    case 450:
+    case 451:
+    case 452:
+        error = NETWORK_ERROR_ACCESS_DENIED;
+        break;
+    case 500:
+    case 501:
+    case 502:
+    case 503:
+    case 504:
+    case 530:
+    case 532:
+    case 534:
+    case 551:
+    case 552:
+    case 553:
+        error = NETWORK_ERROR_GENERAL;
+        break;
+    case 550:
+        error = NETWORK_ERROR_FILE_NOT_FOUND;
+        break;
+    }
 }
 
 bool NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
