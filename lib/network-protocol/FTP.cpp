@@ -4,6 +4,7 @@
  * Implementation
  */
 
+#include <cstring>
 #include "FTP.h"
 #include "status_error_codes.h"
 #include "utils.h"
@@ -138,16 +139,22 @@ void NetworkProtocolFTP::fserror_to_error()
 
 bool NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
-    return false;
-}
+    bool res;
 
-bool NetworkProtocolFTP::read_dir(unsigned short len)
-{
-    return false;
+    res = ftp.read_file(buf,len);
+    fserror_to_error();
+    return res;
 }
 
 bool NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
 {
+    bool res;
+    string filename;
+    long filesz;
+
+    res = ftp.read_directory(filename, filesz);
+    strcpy(buf,filename.c_str());
+    fserror_to_error();
     return false;
 }
 
