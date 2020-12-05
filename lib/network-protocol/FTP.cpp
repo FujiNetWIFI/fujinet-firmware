@@ -47,7 +47,11 @@ bool NetworkProtocolFTP::open_file_handle()
 
 bool NetworkProtocolFTP::open_dir_handle()
 {
-    return true;
+    bool res;
+
+    res = ftp.open_directory(path, filename);
+    fserror_to_error();
+    return res;
 }
 
 bool NetworkProtocolFTP::mount(string hostName, string path)
