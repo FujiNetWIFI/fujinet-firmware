@@ -87,7 +87,7 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 15: // XMM // double width OFF
             clear_mode(fnt_SOwide);
-            clear_mode(fnt_expanded); // does both per page 28 of XMM801 manual 
+            clear_mode(fnt_expanded); // does both per page 28 of XMM801 manual
             reset_cmd();
             break;
         // case 17: // Proportional character set ON
@@ -105,8 +105,11 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case 23: // XMM // international ON
+            intlFlag = true;
+            reset_cmd();
+            break;
         case 24: // XMM // international OFF
-            esc_not_implemented();
+            intlFlag = false;
             reset_cmd();
             break;
         case 25: // XMM // underline on
@@ -283,7 +286,7 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     break;
                 // case 'L': // Sets dot graphics mode to 960 dots per 8" line
                 case 'V': // XMM
-                // case 'Y': // on FX-80 this is double speed but with gotcha
+                          // case 'Y': // on FX-80 this is double speed but with gotcha
                     charWidth = 0.6;
                     break;
                 //case 'Z': // on FX-80 this is double speed but with gotcha
@@ -308,9 +311,9 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 case 'V': // XMM
                     fprintf(_file, ")66.5(");
                     break;
-                //case 'Z': // on FX-80 this is double speed but with gotcha
-                //    fprintf(_file, ")99.75(");
-                //    break;
+                    //case 'Z': // on FX-80 this is double speed but with gotcha
+                    //    fprintf(_file, ")99.75(");
+                    //    break;
                 }
                 //fprintf(_file, "]TJ [(");
                 if (epson_cmd.ctr == (epson_cmd.N + 2))
@@ -386,7 +389,7 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             if (epson_cmd.ctr > 0)
             {
                 // Debug_printf("Double Width command, arg = %d\n", epson_cmd.N1);
-                if ((epson_cmd.N1 % '0')  != 0)
+                if ((epson_cmd.N1 % '0') != 0)
                     set_mode(fnt_expanded);
                 else
                 {
@@ -417,8 +420,12 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 7: // Sounds buzzer for 3 seconds. Paper out rings for 3 seconds
             // would be fun to make a buzzer
             // XMM
+            if (intlFlag)
+                break;
             break;
         case 8: // Backspace. Empties printer buffer, then backspaces print head one space
+            if (intlFlag)
+                break;
             /*MX Printer with GRAFTRAXplus Manual page 6-3:
             One quirk in using the backspace. In expanded mode, CHR$(8) causes a full double
             width backspace as we would expect. The fun begins when several backspaces
@@ -428,16 +435,22 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // XMM
             break;
         case 9: // Horizontal Tabulation. Print head moves to next tab stop
+            if (intlFlag)
+                break;
             not_implemented();
             // XMM
             break;
-        case 10:                  // Line Feed. Printer empties its buffer and does line feed at
-                                  // current line spacing and Resets buffer pointer to zero
+        case 10: // Line Feed. Printer empties its buffer and does line feed at
+            if (intlFlag)
+                break;
+            // current line spacing and Resets buffer pointer to zero
             pdf_dY -= lineHeight; // set pdf_dY and rise to one line
             pdf_set_rise();
             // XMM
             break;
         case 11: //Vertical Tab - does single line feed (same as LF on MX80)
+            if (intlFlag)
+                break;
             not_implemented();
             // set pdf_dY -= lineHeight;
             // use rise feature in pdf: ")]TJ pdf_dY Ts [("
@@ -446,19 +459,27 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // XMM
             break;
         case 12: // Advances paper to next logical TOF (top of form)
+            if (intlFlag)
+                break;
             pdf_end_page();
             // XMM
             break;
         case 13: // Carriage Return.
+            if (intlFlag)
+                break;
             // Prints buffer contents and resets buffer character count to zero
             // Implemented outside in pdf_printer()
             // XMM
             break;
         case 14: // Turns off underline
+            if (intlFlag)
+                break;
             clear_mode(fnt_underline);
             // XMM
             break;
         case 15: // Turns on underline
+            if (intlFlag)
+                break;
             set_mode(fnt_underline);
             // XMM
             break;
@@ -472,20 +493,82 @@ void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             escMode = true;
             break;
         default: // maybe printable character
-            // TODO: need INTERNATIONAL CHARACTERS
-            if (c > 31) // && c < 127)
+                 // TODO: need INTERNATIONAL CHARACTERS
+
+            // adjust typeface font
+            uint8_t new_F = epson_font_lookup(epson_font_mask);
+            if (fontNumber != new_F)
             {
-                uint8_t new_F = epson_font_lookup(epson_font_mask);
-                if (fontNumber != new_F)
+                double new_w = epson_font_width(epson_font_mask);
+                epson_set_font(new_F, new_w);
+            }
+
+            //printable characters for 1025 Standard Set
+            if (intlFlag && (c < 32 || c == 96 || c == 123 || c == 126 || c == 127))
+            {
+                bool valid = false;
+                uint8_t d = 0;
+
+                if (c < 27)
                 {
-                    double new_w = epson_font_width(epson_font_mask);
-                    epson_set_font(new_F, new_w);
+                    d = intlchar[c];
+                    valid = true;
                 }
+                else if (c > 27 && c < 32)
+                {
+                    // Codes 28-31 are arrows located at 28-31 + 160
+                    d = c + 0xA0;
+                    valid = true;
+                }
+                else
+                    switch (c)
+                    {
+                    case 96:
+                        d = uint8_t(161);
+                        valid = true;
+                        break;
+                    case 123:
+                        d = uint8_t(196);
+                        valid = true;
+                        break;
+                    case 126:
+                        d = uint8_t(182); // owner manual shows EOL ATASCII symbol
+                        valid = true;
+                        break;
+                    case 127:
+                        d = uint8_t(171); // owner manual show <| block arrow symbol
+                        valid = true;
+                        break;
+                    default:
+                        valid = false;
+                        break;
+                    }
+                if (valid)
+                {
+                    fputc(d, _file);
+                    pdf_X += charWidth; // update x position
+                }
+            }
+            else if (c > 31 && c < 127)
+            {
                 if (c == '\\' || c == '(' || c == ')')
                     fputc('\\', _file);
                 fputc(c, _file);
                 pdf_X += charWidth; // update x position
             }
+            // if (c > 31) // && c < 127)
+            // {
+            //     uint8_t new_F = epson_font_lookup(epson_font_mask);
+            //     if (fontNumber != new_F)
+            //     {
+            //         double new_w = epson_font_width(epson_font_mask);
+            //         epson_set_font(new_F, new_w);
+            //     }
+            //     if (c == '\\' || c == '(' || c == ')')
+            //         fputc('\\', _file);
+            //     fputc(c, _file);
+            //     pdf_X += charWidth; // update x position
+            // }
             break;
         }
     }
