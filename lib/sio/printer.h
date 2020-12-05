@@ -38,6 +38,7 @@ public:
         PRINTER_ATARI_1025,
         PRINTER_ATARI_1027,
         PRINTER_ATARI_1029,
+        PRINTER_ATARI_XMM801,
         PRINTER_EPSON,
         PRINTER_EPSON_PRINTSHOP,
         PRINTER_OKIMATE10,
@@ -46,7 +47,7 @@ public:
         PRINTER_HTML_ATASCII,
         PRINTER_INVALID
     };
-    
+
     sioPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~sioPrinter();
 
