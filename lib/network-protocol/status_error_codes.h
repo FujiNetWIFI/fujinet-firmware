@@ -106,6 +106,21 @@
 #define NETWORK_ERROR_NO_CONNECTION_WAITING 209
 
 /**
+ * Service not available
+ */
+#define NETWORK_ERROR_SERVICE_NOT_AVAILABLE 210
+
+/**
+ * Connection aborted
+ */
+#define NETWORK_ERROR_CONNECTION_ABORTED 211
+
+/**
+ * Invalid username or password.
+ */
+#define NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD 212
+
+/**
  * Could not allocate buffers
  */
 #define NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS 255
