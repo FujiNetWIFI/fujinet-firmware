@@ -8,7 +8,6 @@
 #include <string>
 #include <sstream>
 #include "../tcpip/fnTcpClient.h"
-#include "list-parse.h"
 
 using namespace std;
 
