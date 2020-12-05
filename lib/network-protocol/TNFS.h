@@ -161,13 +161,6 @@ protected:
     virtual bool read_file_handle(uint8_t *buf, unsigned short len);
 
     /**
-     * @brief Read from directory
-     * @param len the number of bytes requested
-     * @return FALSE if success, TRUE if error
-     */
-    virtual bool read_dir(unsigned short len);
-
-    /**
      * @brief read next directory entry.
      * @param buf the target buffer
      * @param len length of target buffer
