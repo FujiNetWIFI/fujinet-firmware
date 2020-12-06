@@ -419,8 +419,8 @@ void fnConfig::save()
 
     // CASSETTE
     ss << LINETERM << "[Cassette]" << LINETERM;
-    ss << "play_record=" << ((_cassette.button) ? "1" : "0") << LINETERM;
-    ss << "pulldown=" << ((_cassette.pulldown) ? "1" : "0") << LINETERM;
+    ss << "play_record=" << ((_cassette.button) ? "1 Record" : "0 Play") << LINETERM;
+    ss << "pulldown=" << ((_cassette.pulldown) ? "1 Pulldown Resistor" : "0 B Button Press") << LINETERM;
 
     // Write the results out
     FILE *fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w");
@@ -559,13 +559,13 @@ New behavior: copy from SD first if available, then read SPIFFS.
         case SECTION_PRINTER:
             _read_section_printer(ss, index);
             break;
-        case SECTION_TAPE: // Oscar put here to handle server/path to CAS files
+        case SECTION_TAPE: // Oscar put this here to handle server/path to CAS files
             _read_section_tape(ss, index);
             break;
         case SECTION_MODEM:
             _read_section_modem(ss);
             break;
-        case SECTION_CASSETTE: //Jeff put here to handle tape drive configuration (pulldown and play/record)
+        case SECTION_CASSETTE: //Jeff put this here to handle tape drive configuration (pulldown and play/record)
             _read_section_cassette(ss);
             break;
         case SECTION_UNKNOWN:
