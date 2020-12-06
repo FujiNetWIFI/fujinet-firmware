@@ -6,14 +6,14 @@ void epson80::not_implemented()
 {
     uint8_t c = epson_cmd.cmd;
     __IGNORE_UNUSED_VAR(c);
-    Debug_printf("Command not implemented: %u %x %c\n", c, c, c);
+    Debug_printf("Command not implemented: %u 0x%x %c\n", c, c, c);
 }
 
 void epson80::esc_not_implemented()
 {
     uint8_t c = epson_cmd.cmd;
     __IGNORE_UNUSED_VAR(c);
-    Debug_printf("Command not implemented: ESC %u %x %c\n", c, c, c);
+    Debug_printf("Command not implemented: ESC %u 0x%x %c\n", c, c, c);
 }
 
 void epson80::reset_cmd()
@@ -257,8 +257,8 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     charWidth = 0.3;
                     break;
                 }
-                fprintf(_file, ")]TJ /F2 9 Tf 100 Tz [("); // set font to GFX mode
-                fontUsed[1] = true;
+                fprintf(_file, ")]TJ /F%d 9 Tf 100 Tz [(", NUMFONTS); // set font to GFX mode
+                fontUsed[NUMFONTS - 1] = true;
             }
 
             if (epson_cmd.ctr > 2)
@@ -289,6 +289,10 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 }
             }
             break;
+        case 'M': // elite on
+            set_mode(fnt_elite);
+            reset_cmd();
+            break;
         case 'N': // Sets skip over perforation to N lines
             esc_not_implemented();
             if (epson_cmd.ctr > 0)
@@ -298,6 +302,10 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 'O': // Resets skip over perforation to 0 lines
             esc_not_implemented();
+            break;
+        case 'P': // elite off
+            clear_mode(fnt_elite);
+            reset_cmd();
             break;
         case 'Q': // Sets column width to N
             // 1 < = N < = maximum number of characters/line.
@@ -486,6 +494,8 @@ void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 
 uint8_t epson80::epson_font_lookup(uint16_t code)
 {
+    // uint16_t mask = 0x0FFF;
+    
     /**
       * Table G-3 Mode Priorities (FX Manual Vol 2)
       * elite
@@ -494,13 +504,50 @@ uint8_t epson80::epson_font_lookup(uint16_t code)
       * compressed
       * pica
       * 
+      * proportional are always emphasized
+      * script are always doublestrike
       * 
       * */
-    return 1;
+
+    // only support some basic font features 
+    uint16_t mask = fnt_elite | fnt_compressed | fnt_italic | fnt_expanded | fnt_doublestrike | fnt_underline;
+
+     if (code & fnt_elite)
+     {
+         mask &= ~(fnt_proportional | fnt_emphasized | fnt_compressed);
+     }
+     else if (code & fnt_proportional)
+     {
+         mask &= ~(fnt_emphasized | fnt_compressed);
+     } 
+     else if (code & fnt_emphasized)
+     {
+         mask &= ~fnt_compressed;
+     }
+     
+    if (code & (fnt_subscript | fnt_superscript))
+    {
+        mask &= ~(fnt_doublestrike);
+    }
+
+    if (code & fnt_SOwide)
+        code |= fnt_expanded;
+
+    uint8_t index = 0;
+    while (index < NUMFONTS - 1)
+    {
+        if ((code & mask) == (font_tab[index] & mask))
+            return index + 1;
+        index++;
+    }
+    Debug_printf("Epson 80 cannot find font %\n", mask & code);
+    return 1; // return the default if can't make sense
 }
 
 double epson80::epson_font_width(uint16_t code)
 {
+    // compute font width from code
+    double width = 7.2; // default pica
     /**
       * Table G-3 Mode Priorities (FX Manual Vol 2)
       * elite
@@ -508,11 +555,25 @@ double epson80::epson_font_width(uint16_t code)
       * emphasized (bold)
       * compressed
       * pica
-      * 
-      * 
       * */
-    // compute font width from code
-    return 7.2; // 10 cpi for now
+
+     if (code & fnt_elite)
+     {
+         width = 6.0; // 12 CPI
+     }
+    //  else if (code & fnt_proportional)
+    //  {
+    //      width = 5.0; // average prop width for now?
+    //  } 
+     else if (code & fnt_compressed)
+     {
+         width = 576. / 132.; // double check
+     }
+
+    if (code & fnt_expanded)
+        width *= 2.0;
+
+    return width;
 }
 
 void epson80::epson_set_font(uint8_t F, double w)
@@ -520,7 +581,13 @@ void epson80::epson_set_font(uint8_t F, double w)
     fprintf(_file, ")]TJ /F%u 9 Tf 120 Tz [(", F);
     charWidth = w;
     fontNumber = F;
-    fontUsed[F] = true;
+    fontUsed[F - 1] = true;
+}
+
+void epson80::pdf_clear_modes()
+{
+    clear_mode(fnt_SOwide);
+//    clear_mode(fnt_expanded | fnt_underline);
 }
 
 void epson80::at_reset()
@@ -534,6 +601,7 @@ void epson80::at_reset()
     fontSize = 9;
     fontHorizScale = 120;
     textMode = true;
+    epson_font_mask = 0;
 }
 
 void epson80::post_new_file()
