@@ -821,15 +821,17 @@ bool fnFTP::open_directory(string path, string pattern)
         return true;
     }
 
+    uint8_t buf[2048];
+    
     // Retrieve listing into buffer.
     while (data.connected())
     {
-        while (int len = data.available())
-        {
-            uint8_t *buf = (uint8_t *)malloc(len);
-            data.read(buf, len);
-            dirBuffer << string((const char *)buf, len);
-        }
+        int len = data.available();
+
+        memset(buf, 0, sizeof(buf));
+        data.read(buf, len);
+        Debug_printf("DIR: %s\n", buf);
+        dirBuffer << string((const char *)buf, len);
     }
 
     // Close data connection.
