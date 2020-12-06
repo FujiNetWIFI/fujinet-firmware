@@ -13,10 +13,11 @@ protected:
     virtual void post_new_file() override;
 
     double charPitch;
+    double wheelSize;
 
     uint8_t xdm_font_lookup(uint16_t code);
-    double xdm_font_width(uint16_t code);
-    void xdm_set_font(uint8_t F, double w);
+    // double xdm_font_width(uint16_t code);
+    void xdm_set_font(uint8_t F);
 
 public:
     const char *modelname() { return "Atari XDM121"; };

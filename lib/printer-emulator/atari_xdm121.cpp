@@ -9,18 +9,16 @@ uint8_t xdm121::xdm_font_lookup(uint16_t code)
     return 1;
 }
 
-double xdm121::xdm_font_width(uint16_t code)
-{
-    if (code & fnt_elite)
-        return 6.;
-    return 7.2;
-}
+// double xdm121::xdm_font_width(uint16_t code)
+// {
+//     return charPitch;
+// }
 
-void xdm121::xdm_set_font(uint8_t F, double w)
+void xdm121::xdm_set_font(uint8_t F)
 {
-    double p = (charPitch - w) / w;
-    fprintf(_file, ")]TJ /F%u 12 Tf %g Tc [(", F, p);
-    charWidth = w;
+    double p = (charWidth - charPitch) / charWidth;
+    fprintf(_file, ")]TJ /F%u %d Tf %g Tc [(", F, (int)wheelSize, p);
+    // charWidth = w;
     fontNumber = F;
     fontUsed[F - 1] = true;
 }
@@ -127,8 +125,7 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             // TODO set print pitch and adjust spacing (wonder if can use PDF command to do this or need to adjust each char)
             if (epson_cmd.ctr > 0)
             {
-                // TODO: set width flag that can be used in find width function?
-                charPitch = ((double)epson_cmd.N1 - 1.) * 72. / 120.;
+                charWidth = ((double)epson_cmd.N1 - 1.) * 72. / 120.;
                 reset_cmd();
             }
             break;
@@ -156,7 +153,7 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             Debug_printf("@ reset!\n");
 #endif
             at_reset();
-            xdm_set_font(xdm_font_lookup(0), 7.2);
+            xdm_set_font(epson_font_mask);
             reset_cmd();
             break;
         case 'C': // XDM
@@ -245,8 +242,8 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             uint8_t new_F = xdm_font_lookup(epson_font_mask);
             if (fontNumber != new_F)
             {
-                double new_w = xdm_font_width(epson_font_mask);
-                xdm_set_font(new_F, new_w);
+                // double new_w = xdm_font_width(epson_font_mask);
+                xdm_set_font(new_F);
             }
 
             if (intlFlag && (c < 32 || c == 96 || c == 123))
@@ -334,9 +331,11 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 void xdm121::post_new_file()
 {
     epson80::post_new_file();
-    // TODO: shortname = "xdm121";
-    // TODO: can also have 10 pt courier so set a flag to make 10pt?
-    // ahah! make our own xdm_set_font() me thinks - this will help with char spacing too
+    shortname = "xdm121";
     translate850 = false;
     _eol = ATASCII_EOL;
+
+    wheelSize = 12.0; // default 12pt courier
+    charPitch = 7.2;  // default 10 CPI - set here for either 10 or 12 CPI
+    charWidth = 7.2;  // reinforce 10 CPI - amount to increment pdf_X
 }
