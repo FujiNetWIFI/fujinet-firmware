@@ -2,6 +2,29 @@
 #include "../utils/utils.h"
 #include "../../include/debug.h"
 
+uint8_t xdm121::xdm_font_lookup(uint16_t code)
+{
+    if (code & fnt_doublestrike)
+        return 2;
+    return 1;
+}
+
+double xdm121::xdm_font_width(uint16_t code)
+{
+    if (code & fnt_elite)
+        return 6.;
+    return 7.2;
+}
+
+void xdm121::xdm_set_font(uint8_t F, double w)
+{
+    double p = (charPitch - w) / w;
+    fprintf(_file, ")]TJ /F%u 12 Tf %g Tc [(", F, p);
+    charWidth = w;
+    fontNumber = F;
+    fontUsed[F - 1] = true;
+}
+
 void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
     if (escMode)
@@ -83,7 +106,7 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             reset_cmd();
             break;
         case 28: // XDM  half forward line feed (sub script)
-            pdf_dY -= lineHeight / 2.;
+            pdf_dY -= (lineHeight / 2.);
             pdf_set_rise();
             reset_cmd();
             break;
@@ -95,16 +118,17 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             }
             break;
         case 30: // XDM  half reverse line feed (super script)
-            pdf_dY += lineHeight / 2.;
+            pdf_dY += (lineHeight / 2.);
             pdf_set_rise();
             reset_cmd();
             break;
         case 31: // XDM
-            esc_not_implemented();
+            // esc_not_implemented();
             // TODO set print pitch and adjust spacing (wonder if can use PDF command to do this or need to adjust each char)
             if (epson_cmd.ctr > 0)
             {
                 // TODO: set width flag that can be used in find width function?
+                charPitch = ((double)epson_cmd.N1 - 1.) * 72. / 120.;
                 reset_cmd();
             }
             break;
@@ -132,7 +156,7 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             Debug_printf("@ reset!\n");
 #endif
             at_reset();
-            epson_set_font(epson_font_lookup(0), 7.2);
+            xdm_set_font(xdm_font_lookup(0), 7.2);
             reset_cmd();
             break;
         case 'C': // XDM
@@ -168,8 +192,7 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             One quirk in using the backspace. In expanded mode, CHR$(8) causes a full double
             width backspace as we would expect. The fun begins when several backspaces
             are done in succession. All except for the first one are normal-width backspaces */
-            // TODO: get width factor correct
-            fprintf(_file, ")%d(", (int)(charWidth / lineHeight * 900.));
+            fprintf(_file, ")%d(", (int)(charWidth / lineHeight * 1000.));
             pdf_X -= charWidth; // update x position
             // XMM
             break;
@@ -219,15 +242,14 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                  // TODO: need INTERNATIONAL CHARACTERS
 
             // adjust typeface font
-            uint8_t new_F = epson_font_lookup(epson_font_mask);
+            uint8_t new_F = xdm_font_lookup(epson_font_mask);
             if (fontNumber != new_F)
             {
-                double new_w = epson_font_width(epson_font_mask);
-                epson_set_font(new_F, new_w);
+                double new_w = xdm_font_width(epson_font_mask);
+                xdm_set_font(new_F, new_w);
             }
 
-            //printable characters for 1025 Standard Set
-            if (intlFlag && (c < 32 || c == 96 || c == 123 || c == 126 || c == 127))
+            if (intlFlag && (c < 32 || c == 96 || c == 123))
             {
                 bool valid = false;
                 uint8_t d = 0;
@@ -239,63 +261,75 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 }
                 else if (c > 27 && c < 32)
                 {
-                    // Codes 28-31 are arrows located at 28-31 + 160
-                    d = c + 0xA0;
+                    // Codes 28-31 are arrows made from compound chars
+                    uint8_t d1 = (uint8_t)'|';
+                    switch (c)
+                    {
+                    case 28:
+                        d = (uint8_t)'^';
+                        break;
+                    case 29:
+                        d = (uint8_t)'v';
+                        d1 = (uint8_t)'!';
+                        break;
+                    case 30:
+                        d = (uint8_t)'<';
+                        d1 = (uint8_t)'-';
+                        break;
+                    case 31:
+                        d = (uint8_t)'>';
+                        d1 = (uint8_t)'-';
+                        break;
+                    default:
+                        break;
+                    }
+                    fputc(d1, _file);
+                    fprintf(_file, ")600("); // |^ -< -> !v
                     valid = true;
                 }
                 else
+                {
                     switch (c)
                     {
                     case 96:
-                        d = uint8_t(161);
+                        d = uint8_t(206); // use I with carot but really I with circle
                         valid = true;
                         break;
                     case 123:
                         d = uint8_t(196);
                         valid = true;
                         break;
-                    case 126:
-                        d = uint8_t(182); // owner manual shows EOL ATASCII symbol
-                        valid = true;
-                        break;
-                    case 127:
-                        d = uint8_t(171); // owner manual show <| block arrow symbol
-                        valid = true;
-                        break;
                     default:
                         valid = false;
                         break;
                     }
+                }
                 if (valid)
                 {
                     fputc(d, _file);
+                    if (epson_font_mask & fnt_underline)
+                        fprintf(_file, ")600(_"); // close text string, backspace, start new text string, write _
+
                     pdf_X += charWidth; // update x position
                 }
             }
-            else if (c > 31 && c < 127)
+            else if (c > 31 && c < 128)
             {
+                if (c == 123 || c == 125 || c == 127)
+                    c = ' ';
                 if (c == '\\' || c == '(' || c == ')')
                     fputc('\\', _file);
                 fputc(c, _file);
+
+                if (epson_font_mask & fnt_underline)
+                    fprintf(_file, ")600(_"); // close text string, backspace, start new text string, write _
+
                 pdf_X += charWidth; // update x position
             }
-            // if (c > 31) // && c < 127)
-            // {
-            //     uint8_t new_F = epson_font_lookup(epson_font_mask);
-            //     if (fontNumber != new_F)
-            //     {
-            //         double new_w = epson_font_width(epson_font_mask);
-            //         epson_set_font(new_F, new_w);
-            //     }
-            //     if (c == '\\' || c == '(' || c == ')')
-            //         fputc('\\', _file);
-            //     fputc(c, _file);
-            //     pdf_X += charWidth; // update x position
-            // }
-            break;
         }
     }
 }
+
 
 void xdm121::post_new_file()
 {

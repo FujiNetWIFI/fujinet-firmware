@@ -12,6 +12,12 @@ protected:
     virtual void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;
 
+    double charPitch;
+
+    uint8_t xdm_font_lookup(uint16_t code);
+    double xdm_font_width(uint16_t code);
+    void xdm_set_font(uint8_t F, double w);
+
 public:
     const char *modelname() { return "Atari XDM121"; };
 };
