@@ -2,17 +2,46 @@
 #include "../utils/utils.h"
 #include "../../include/debug.h"
 
+void xdm121::not_implemented()
+{
+    uint8_t c = epson_cmd.cmd;
+    __IGNORE_UNUSED_VAR(c);
+    Debug_printf("Command not implemented: %u 0x%x %c\n", c, c, c);
+}
+
+void xdm121::esc_not_implemented()
+{
+    uint8_t c = epson_cmd.cmd;
+    __IGNORE_UNUSED_VAR(c);
+    Debug_printf("Command not implemented: ESC %u 0x%x %c\n", c, c, c);
+}
+
+void xdm121::reset_cmd()
+{
+    escMode = false;
+    epson_cmd.cmd = 0;
+    epson_cmd.ctr = 0;
+    epson_cmd.N1 = 0;
+    epson_cmd.N2 = 0;
+}
+
+void xdm121::set_mode(uint16_t m)
+{
+    epson_font_mask |= m;
+}
+
+void xdm121::clear_mode(uint16_t m)
+{
+    epson_font_mask &= ~m;
+}
+
+
 uint8_t xdm121::xdm_font_lookup(uint16_t code)
 {
     if (code & fnt_doublestrike)
         return 2;
     return 1;
 }
-
-// double xdm121::xdm_font_width(uint16_t code)
-// {
-//     return charPitch;
-// }
 
 void xdm121::xdm_set_font(uint8_t F)
 {
@@ -22,6 +51,8 @@ void xdm121::xdm_set_font(uint8_t F)
     fontNumber = F;
     fontUsed[F - 1] = true;
 }
+
+
 
 void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
@@ -126,6 +157,7 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             if (epson_cmd.ctr > 0)
             {
                 charWidth = ((double)epson_cmd.N1 - 1.) * 72. / 120.;
+                xdm_set_font(fontNumber);
                 reset_cmd();
             }
             break;
@@ -185,13 +217,8 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
         case 8: // XDM Backspace. Empties printer buffer, then backspaces print head one space
             if (intlFlag)
                 break;
-            /*MX Printer with GRAFTRAXplus Manual page 6-3:
-            One quirk in using the backspace. In expanded mode, CHR$(8) causes a full double
-            width backspace as we would expect. The fun begins when several backspaces
-            are done in succession. All except for the first one are normal-width backspaces */
-            fprintf(_file, ")%d(", (int)(charWidth / lineHeight * 1000.));
-            pdf_X -= charWidth; // update x position
-            // XMM
+            fprintf(_file, ")600(");
+            pdf_X -= charPitch; // update x position
             break;
         case 9: // XDM Horizontal Tabulation. Print head moves to next tab stop
             if (intlFlag)
@@ -328,14 +355,34 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 }
 
 
+void xdm121::at_reset()
+{
+    leftMargin = 18.0;
+    bottomMargin = 0;
+    printWidth = 576.0; // 8 inches
+    lineHeight = 12.0;
+    charWidth = charPitch;
+    fontNumber = 1;
+    fontSize = wheelSize;
+    textMode = true;
+    epson_font_mask = 0;
+}
+
 void xdm121::post_new_file()
 {
-    epson80::post_new_file();
     shortname = "xdm121";
     translate850 = false;
     _eol = ATASCII_EOL;
 
+    pageWidth = 612.0;
+    pageHeight = 792.0;
+    topMargin = -1.5;
+
     wheelSize = 12.0; // default 12pt courier
     charPitch = 7.2;  // default 10 CPI - set here for either 10 or 12 CPI
-    charWidth = 7.2;  // reinforce 10 CPI - amount to increment pdf_X
+
+    at_reset(); // moved all those parameters so could be excuted with ESC-@ command
+
+    pdf_header();
+    escMode = false;
 }
