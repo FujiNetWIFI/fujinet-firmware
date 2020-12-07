@@ -45,9 +45,8 @@ uint8_t xdm121::xdm_font_lookup(uint16_t code)
 
 void xdm121::xdm_set_font(uint8_t F)
 {
-    double p = (charWidth - charPitch) / charWidth;
+    double p = (charWidth - charPitch);
     fprintf(_file, ")]TJ /F%u %d Tf %g Tc [(", F, (int)wheelSize, p);
-    // charWidth = w;
     fontNumber = F;
     fontUsed[F - 1] = true;
 }
