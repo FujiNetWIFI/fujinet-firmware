@@ -35,7 +35,6 @@ void xdm121::clear_mode(uint16_t m)
     epson_font_mask &= ~m;
 }
 
-
 uint8_t xdm121::xdm_font_lookup(uint16_t code)
 {
     if (code & fnt_doublestrike)
@@ -50,8 +49,6 @@ void xdm121::xdm_set_font(uint8_t F)
     fontNumber = F;
     fontUsed[F - 1] = true;
 }
-
-
 
 void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
@@ -211,148 +208,135 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     else
     { // check for other commands or printable character
         // marked with XMM means verified per manaul
-        switch (c)
+        if (!intlFlag)
+{            switch (c)
+            {
+            case 8: // XDM Backspace. Empties printer buffer, then backspaces print head one space
+                fprintf(_file, ")600(");
+                pdf_X -= charPitch; // update x position
+                break;
+            case 9: // XDM Horizontal Tabulation. Print head moves to next tab stop
+                not_implemented();
+                // XMM
+                break;
+            case 10: // XDM Line Feed. Printer empties its buffer and does line feed at
+                // current line spacing and Resets buffer pointer to zero
+                pdf_dY -= lineHeight; // set pdf_dY and rise to one line
+                pdf_set_rise();
+                // XMM
+                break;
+            case 12: // XDM Advances paper to next logical TOF (top of form)
+                pdf_end_page();
+                // XMM
+                break;
+            case 13: // XDM Carriage Return.
+                // does a real CR w/out LF
+                // XDM
+                not_implemented();
+                break;
+            case 14: // XDM Turns off underline
+                clear_mode(fnt_underline);
+                // XMM
+                break;
+            case 15: // XDM Turns on underline
+                set_mode(fnt_underline);
+                // XMM
+                break;
+            // case 27: // ESC mode
+            //     escMode = true;
+            //     break;
+            } //default: // maybe printable character
+}
+            if (c==27)
+                escMode = true;
+
+        // adjust typeface font
+        uint8_t new_F = xdm_font_lookup(epson_font_mask);
+        if (fontNumber != new_F)
         {
-        case 8: // XDM Backspace. Empties printer buffer, then backspaces print head one space
-            if (intlFlag)
-                break;
-            fprintf(_file, ")600(");
-            pdf_X -= charPitch; // update x position
-            break;
-        case 9: // XDM Horizontal Tabulation. Print head moves to next tab stop
-            if (intlFlag)
-                break;
-            not_implemented();
-            // XMM
-            break;
-        case 10: // XDM Line Feed. Printer empties its buffer and does line feed at
-            if (intlFlag)
-                break;
-            // current line spacing and Resets buffer pointer to zero
-            pdf_dY -= lineHeight; // set pdf_dY and rise to one line
-            pdf_set_rise();
-            // XMM
-            break;
-        case 12: // XDM Advances paper to next logical TOF (top of form)
-            if (intlFlag)
-                break;
-            pdf_end_page();
-            // XMM
-            break;
-        case 13: // XDM Carriage Return.
-            if (intlFlag)
-                break;
-            // does a real CR w/out LF
-            // XDM
-            not_implemented();
-            break;
-        case 14: // XDM Turns off underline
-            if (intlFlag)
-                break;
-            clear_mode(fnt_underline);
-            // XMM
-            break;
-        case 15: // XDM Turns on underline
-            if (intlFlag)
-                break;
-            set_mode(fnt_underline);
-            // XMM
-            break;
-        case 27: // ESC mode
-            escMode = true;
-            break;
-        default: // maybe printable character
-                 // TODO: need INTERNATIONAL CHARACTERS
+            // double new_w = xdm_font_width(epson_font_mask);
+            xdm_set_font(new_F);
+        }
 
-            // adjust typeface font
-            uint8_t new_F = xdm_font_lookup(epson_font_mask);
-            if (fontNumber != new_F)
+        if (intlFlag && (c < 32 || c == 96 || c == 123))
+        {
+            bool valid = false;
+            uint8_t d = 0;
+
+            if (c < 27)
             {
-                // double new_w = xdm_font_width(epson_font_mask);
-                xdm_set_font(new_F);
+                d = intlchar[c];
+                valid = true;
             }
-
-            if (intlFlag && (c < 32 || c == 96 || c == 123))
+            else if (c > 27 && c < 32)
             {
-                bool valid = false;
-                uint8_t d = 0;
-
-                if (c < 27)
+                // Codes 28-31 are arrows made from compound chars
+                uint8_t d1 = (uint8_t)'|';
+                switch (c)
                 {
-                    d = intlchar[c];
+                case 28:
+                    d = (uint8_t)'^';
+                    break;
+                case 29:
+                    d = (uint8_t)'v';
+                    d1 = (uint8_t)'!';
+                    break;
+                case 30:
+                    d = (uint8_t)'<';
+                    d1 = (uint8_t)'-';
+                    break;
+                case 31:
+                    d = (uint8_t)'>';
+                    d1 = (uint8_t)'-';
+                    break;
+                default:
+                    break;
+                }
+                fputc(d1, _file);
+                fprintf(_file, ")600("); // |^ -< -> !v
+                valid = true;
+            }
+            else
+            {
+                switch (c)
+                {
+                case 96:
+                    d = uint8_t(206); // use I with carot but really I with circle
                     valid = true;
-                }
-                else if (c > 27 && c < 32)
-                {
-                    // Codes 28-31 are arrows made from compound chars
-                    uint8_t d1 = (uint8_t)'|';
-                    switch (c)
-                    {
-                    case 28:
-                        d = (uint8_t)'^';
-                        break;
-                    case 29:
-                        d = (uint8_t)'v';
-                        d1 = (uint8_t)'!';
-                        break;
-                    case 30:
-                        d = (uint8_t)'<';
-                        d1 = (uint8_t)'-';
-                        break;
-                    case 31:
-                        d = (uint8_t)'>';
-                        d1 = (uint8_t)'-';
-                        break;
-                    default:
-                        break;
-                    }
-                    fputc(d1, _file);
-                    fprintf(_file, ")600("); // |^ -< -> !v
+                    break;
+                case 123:
+                    d = uint8_t(196);
                     valid = true;
-                }
-                else
-                {
-                    switch (c)
-                    {
-                    case 96:
-                        d = uint8_t(206); // use I with carot but really I with circle
-                        valid = true;
-                        break;
-                    case 123:
-                        d = uint8_t(196);
-                        valid = true;
-                        break;
-                    default:
-                        valid = false;
-                        break;
-                    }
-                }
-                if (valid)
-                {
-                    fputc(d, _file);
-                    if (epson_font_mask & fnt_underline)
-                        fprintf(_file, ")600(_"); // close text string, backspace, start new text string, write _
-
-                    pdf_X += charWidth; // update x position
+                    break;
+                default:
+                    valid = false;
+                    break;
                 }
             }
-            else if (c > 31 && c < 128)
+            if (valid)
             {
-                if (c == 123 || c == 125 || c == 127)
-                    c = ' ';
-                if (c == '\\' || c == '(' || c == ')')
-                    fputc('\\', _file);
-                fputc(c, _file);
-
+                fputc(d, _file);
                 if (epson_font_mask & fnt_underline)
                     fprintf(_file, ")600(_"); // close text string, backspace, start new text string, write _
 
                 pdf_X += charWidth; // update x position
             }
         }
+        else if (c > 31 && c < 128)
+        {
+            if (c == 123 || c == 125 || c == 127)
+                c = ' ';
+            if (c == '\\' || c == '(' || c == ')')
+                fputc('\\', _file);
+            fputc(c, _file);
+
+            if (epson_font_mask & fnt_underline)
+                fprintf(_file, ")600(_"); // close text string, backspace, start new text string, write _
+
+            pdf_X += charWidth; // update x position
+        }
     }
 }
-
 
 void xdm121::at_reset()
 {
