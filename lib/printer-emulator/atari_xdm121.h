@@ -29,8 +29,9 @@ protected:
     void at_reset();
     virtual void post_new_file() override;
 
-    double charPitch;
-    double wheelSize;
+    double charPitch = 7.2;
+    double wheelSize = 12;
+    int back_spacing = 600;
 
     const int fnt_regular = 0;
     const int fnt_underline = 0x001;
