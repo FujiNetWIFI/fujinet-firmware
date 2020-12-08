@@ -45,6 +45,7 @@ uint8_t xdm121::xdm_font_lookup(uint16_t code)
 void xdm121::xdm_set_font(uint8_t F)
 {
     double p = (charWidth - charPitch);
+    back_spacing = (int)(600. * (1 + p / charPitch));
     fprintf(_file, ")]TJ /F%u %d Tf %g Tc [(", F, (int)wheelSize, p);
     fontNumber = F;
     fontUsed[F - 1] = true;
@@ -209,10 +210,11 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     { // check for other commands or printable character
         // marked with XMM means verified per manaul
         if (!intlFlag)
-{            switch (c)
+        {
+            switch (c)
             {
             case 8: // XDM Backspace. Empties printer buffer, then backspaces print head one space
-                fprintf(_file, ")600(");
+                fprintf(_file, ")%d(", back_spacing);
                 pdf_X -= charPitch; // update x position
                 break;
             case 9: // XDM Horizontal Tabulation. Print head moves to next tab stop
@@ -242,13 +244,13 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                 set_mode(fnt_underline);
                 // XMM
                 break;
-            // case 27: // ESC mode
-            //     escMode = true;
-            //     break;
+                // case 27: // ESC mode
+                //     escMode = true;
+                //     break;
             } //default: // maybe printable character
-}
-            if (c==27)
-                escMode = true;
+        }
+        if (c == 27)
+            escMode = true;
 
         // adjust typeface font
         uint8_t new_F = xdm_font_lookup(epson_font_mask);
@@ -293,7 +295,7 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
                     break;
                 }
                 fputc(d1, _file);
-                fprintf(_file, ")600("); // |^ -< -> !v
+                fprintf(_file, ")%d(", back_spacing); // |^ -< -> !v
                 valid = true;
             }
             else
@@ -317,7 +319,7 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             {
                 fputc(d, _file);
                 if (epson_font_mask & fnt_underline)
-                    fprintf(_file, ")600(_"); // close text string, backspace, start new text string, write _
+                    fprintf(_file, ")%d(_", back_spacing); // close text string, backspace, start new text string, write _
 
                 pdf_X += charWidth; // update x position
             }
@@ -331,7 +333,7 @@ void xdm121::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             fputc(c, _file);
 
             if (epson_font_mask & fnt_underline)
-                fprintf(_file, ")600(_"); // close text string, backspace, start new text string, write _
+                fprintf(_file, ")%d(_", back_spacing); // close text string, backspace, start new text string, write _
 
             pdf_X += charWidth; // update x position
         }
@@ -361,8 +363,9 @@ void xdm121::post_new_file()
     pageHeight = 792.0;
     topMargin = -1.5;
 
-    wheelSize = 12.0; // default 12pt courier
-    charPitch = 7.2;  // default 10 CPI - set here for either 10 or 12 CPI
+    wheelSize = 12.0;   // default 12pt courier
+    charPitch = 7.2;    // default 10 CPI - set here for either 10 or 12 CPI
+    back_spacing = 600; // default back space in char units
 
     at_reset(); // moved all those parameters so could be excuted with ESC-@ command
 
