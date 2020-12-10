@@ -125,3 +125,12 @@ bool NetworkProtocolHTTP::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return true;
 }
+
+bool NetworkProtocolHTTP::parse_dir(string s)
+{
+    XML_Parser parser = XML_ParserCreate(NULL);
+    XML_SetUserData(parser,&dav);
+    XML_SetElementHandler(parser,Start<WebDAV>,End<WebDAV>);
+    XML_SetCharacterDataHandler(parser,Char<WebDAV>);
+    return XML_Parse(parser,s.c_str(),s.size(),true) == XML_STATUS_ERROR;
+}

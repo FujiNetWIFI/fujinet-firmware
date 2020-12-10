@@ -2,6 +2,7 @@
 #define NETWORKPROTOCOLHTTP_H
 
 #include "FS.h"
+#include "WebDAV.h"
 
 class NetworkProtocolHTTP : public NetworkProtocolFS
 {
@@ -192,6 +193,18 @@ protected:
     virtual bool stat(string path);
 
 private:
+    /**
+     * DAV Handler used by protocol
+     */
+    WebDAV dav;
+
+    /**
+     * @brief parse the string of XML data from PROPFIND.
+     * @param s the input string
+     * @return FALSE if error, TRUE if successful
+     */
+    bool parse_dir(string s);
+
 };
 
 #endif /* NETWORKPROTOCOLHTTP_H */
