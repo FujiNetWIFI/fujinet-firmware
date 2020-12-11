@@ -3,6 +3,7 @@
 
 #include "FS.h"
 #include "WebDAV.h"
+#include "../http/fnHttpClient.h"
 
 class NetworkProtocolHTTP : public NetworkProtocolFS
 {
@@ -213,6 +214,26 @@ private:
      * The HTTP mode specified at open
      */
     HTTPMode httpMode;
+
+    /**
+     * FILE pointer for PUT file
+     */
+    ::FILE* fpPUT;
+
+    /**
+     * Name of temp file
+     */
+    char cPUT[32];
+
+    /**
+     * The fnHTTPClient
+     */
+    fnHttpClient client;
+
+    /**
+     * The HTTP result code from the last verb
+     */
+    int resultCode;
 
     /**
      * @brief parse the string of XML data from PROPFIND.
