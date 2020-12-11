@@ -79,9 +79,9 @@ void NetworkProtocolHTTP::fserror_to_error()
     case 226:
         error = NETWORK_ERROR_SUCCESS;
         break;
-    case 401:   // Unauthorized
+    case 401: // Unauthorized
     case 402:
-    case 403:   // Forbidden
+    case 403: // Forbidden
     case 407:
         error = NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD;
         break;
@@ -99,8 +99,8 @@ void NetworkProtocolHTTP::fserror_to_error()
     case 451:
         error = NETWORK_ERROR_ACCESS_DENIED;
         break;
-    case 400:   // Bad request
-    case 406:   // not acceptible
+    case 400: // Bad request
+    case 406: // not acceptible
     case 409:
     case 411:
     case 412:
@@ -137,6 +137,14 @@ void NetworkProtocolHTTP::fserror_to_error()
 
 bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
+    switch (httpMode)
+    {
+    case GET:
+    
+        break;
+    case POST:
+        break;
+    }
     return true;
 }
 
