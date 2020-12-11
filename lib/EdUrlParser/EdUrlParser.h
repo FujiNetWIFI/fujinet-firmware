@@ -40,8 +40,8 @@ public:
 private:
 	void parse();
 
-	string mRawUrl;
 public:
+	string mRawUrl;
 	string scheme;
 	string hostName;
 	string port;
