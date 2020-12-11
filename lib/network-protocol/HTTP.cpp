@@ -7,6 +7,7 @@
 #include "HTTP.h"
 #include "status_error_codes.h"
 #include "utils.h"
+#include "../http/fnHttpClient.h"
 
 NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
@@ -23,6 +24,24 @@ NetworkProtocolHTTP::~NetworkProtocolHTTP()
 
 bool NetworkProtocolHTTP::open_file_handle()
 {
+    switch (aux1_open)
+    {
+        case 4:
+            httpMode = GET;
+            break;
+        case 6:
+            httpMode = PROPFIND;
+            break;
+        case 8:
+            httpMode = PUT;
+            break;
+        case 9:
+            error = NETWORK_ERROR_NOT_IMPLEMENTED;
+            return true;
+        case 12:
+            httpMode = POST;
+            break;
+    }
     return true;
 }
 
