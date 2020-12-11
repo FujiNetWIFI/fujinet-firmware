@@ -199,6 +199,22 @@ private:
     WebDAV dav;
 
     /**
+     * The HTTP verb to use when we need to do the HTTP transaction
+     */
+    typedef enum _HTTPMode
+    {
+        GET,
+        POST,
+        PUT,
+        PROPFIND
+    } HTTPMode;
+
+    /**
+     * The HTTP mode specified at open
+     */
+    HTTPMode httpMode;
+
+    /**
      * @brief parse the string of XML data from PROPFIND.
      * @param s the input string
      * @return FALSE if error, TRUE if successful
