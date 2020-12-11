@@ -8,7 +8,6 @@
 #include "HTTP.h"
 #include "status_error_codes.h"
 #include "utils.h"
-#include "../http/fnHttpClient.h"
 
 NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
@@ -30,11 +29,9 @@ bool NetworkProtocolHTTP::open_file_handle()
     case 4:
         httpMode = GET;
         break;
-    case 6:
-        httpMode = PROPFIND;
-        break;
     case 8:
         httpMode = PUT;
+        fpPUT = fnSystem.make_tempfile(cPUT);
         break;
     case 9:
         error = NETWORK_ERROR_NOT_IMPLEMENTED;
@@ -46,7 +43,7 @@ bool NetworkProtocolHTTP::open_file_handle()
 
     fix_scheme();
 
-    return true;
+    return !client.begin(opened_url->scheme + "://" + opened_url->hostName + ":" + opened_url->port + opened_url->path + (opened_url->query.empty() ? "" : ("?") + opened_url->query));
 }
 
 bool NetworkProtocolHTTP::open_dir_handle()
@@ -56,16 +53,86 @@ bool NetworkProtocolHTTP::open_dir_handle()
 
 bool NetworkProtocolHTTP::mount(string hostName, string path)
 {
-    return true;
+    // not used
+    return false;
 }
 
 bool NetworkProtocolHTTP::umount()
 {
-    return true;
+    // not used
+    return false;
 }
 
 void NetworkProtocolHTTP::fserror_to_error()
 {
+    switch (resultCode)
+    {
+    case 200:
+    case 201:
+    case 202:
+    case 203:
+    case 204:
+    case 205:
+    case 206:
+    case 207:
+    case 208:
+    case 226:
+        error = NETWORK_ERROR_SUCCESS;
+        break;
+    case 401:   // Unauthorized
+    case 402:
+    case 403:   // Forbidden
+    case 407:
+        error = NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD;
+        break;
+    case 404:
+    case 410:
+        error = NETWORK_ERROR_FILE_NOT_FOUND;
+        break;
+    case 405:
+        error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        break;
+    case 408:
+        error = NETWORK_ERROR_GENERAL_TIMEOUT;
+        break;
+    case 423:
+    case 451:
+        error = NETWORK_ERROR_ACCESS_DENIED;
+        break;
+    case 400:   // Bad request
+    case 406:   // not acceptible
+    case 409:
+    case 411:
+    case 412:
+    case 413:
+    case 414:
+    case 415:
+    case 416:
+    case 417:
+    case 418:
+    case 421:
+    case 422:
+    case 424:
+    case 425:
+    case 426:
+    case 428:
+    case 429:
+    case 431:
+    case 500:
+    case 501:
+    case 502:
+    case 503:
+    case 504:
+    case 505:
+    case 506:
+    case 507:
+    case 508:
+    case 510:
+    case 511:
+    default:
+        error = NETWORK_ERROR_GENERAL;
+        break;
+    }
 }
 
 bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
