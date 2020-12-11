@@ -70,6 +70,8 @@ bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     aux1_open = cmdFrame->aux1;
     aux2_open = cmdFrame->aux2;
 
+    opened_url = urlParser;
+
     return false;
 }
 

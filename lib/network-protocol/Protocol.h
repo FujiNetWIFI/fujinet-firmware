@@ -25,6 +25,11 @@ public:
     string *specialBuffer = nullptr;
 
     /**
+     * Pointer to passed in URL
+     */
+    EdUrlParser *opened_url;
+
+    /**
      * ctor - Initialize network protocol object.
      * @param rx_buf pointer to receive buffer
      * @param tx_buf pointer to transmit buffer
