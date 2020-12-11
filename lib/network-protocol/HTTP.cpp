@@ -163,7 +163,7 @@ void NetworkProtocolHTTP::fix_scheme()
                    [](unsigned char c) { return std::tolower(c); });
 
     if (opened_url->port.empty() && opened_url->scheme == "http")
-        opened_url->port = 80;
+        opened_url->port = "80";
     else if (opened_url->port.empty() && opened_url->scheme == "https")
-        opened_url->port = 443;
+        opened_url->port = "443";
 }
