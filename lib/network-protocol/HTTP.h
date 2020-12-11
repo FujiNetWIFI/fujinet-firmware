@@ -221,6 +221,11 @@ private:
      */
     bool parse_dir(string s);
 
+    /**
+     * @brief fix the scheme from uppercase to lowercase
+     */
+    void fix_scheme();
+
 };
 
 #endif /* NETWORKPROTOCOLHTTP_H */
