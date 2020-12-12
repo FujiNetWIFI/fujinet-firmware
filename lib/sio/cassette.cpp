@@ -34,16 +34,16 @@ static void IRAM_ATTR gpio_isr_handler(void *arg)
     if (gpio_num == UART2_RX)
     {
         unsigned long now = fnSystem.micros();
-        boxcar[boxidx++] = now - last;
+        boxcar[boxidx++] = now - last; // interval between current and last ISR call
         if (boxidx > BOXLEN)
-            boxidx = 0;
-        delta = 0;
+            boxidx = 0; // circular buffer action
+        delta = 0; // accumulator for boxcar filter
         for (uint8_t i = 0; i < BOXLEN; i++)
         {
-            delta += boxcar[i];
+            delta += boxcar[i]; // accumulate internvals for averaging
         }
-        delta /= 5;
-        last = now;
+        delta /= BOXLEN; // normalize accumulator to make mean
+        last = now; // remember when this was (maybe move up to right before if statement?)
     }
 }
 
