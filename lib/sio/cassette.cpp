@@ -124,6 +124,7 @@ int8_t softUART::service(uint8_t b)
 
 void sioCassette::close_cassette_file()
 {
+    // TODO: do not need
     if (_file != nullptr)
     {
         fclose(_file);
@@ -131,11 +132,14 @@ void sioCassette::close_cassette_file()
         Debug_println("CAS file closed.");
 #endif
     }
+
+    // TODO: where to move this?????? disk image unmount needs to do this function
     _mounted = false;
 }
 
 void sioCassette::open_cassette_file(FileSystem *filesystem)
 {
+    // TODO: do not need
     char fn[32];
     char mm[21];
     strcpy(fn, CASSETTE_FILE);
@@ -146,6 +150,7 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
     }
     strcat(fn, ".cas");
 
+    // TODO: do not need
     _FS = filesystem;
     if (_file != nullptr)
         fclose(_file);
@@ -160,17 +165,19 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
         Debug_println(fn);
         return;
     }
-
+    // TODO: do not need
     filesize = _FS->filesize(_file);
 #ifdef DEBUG
     Debug_printf("%s - ", fn);
     Debug_println("CAS file opened succesfully!");
 #endif
 
+    // TODO: move to mount file
     tape_offset = 0;
     if (cassetteMode == cassette_mode_t::playback)
         check_for_FUJI_file();
 
+        // TODO: move to mount file
 #ifdef DEBUG
     if (tape_flags.FUJI)
         Debug_println("FUJI File Found");
@@ -180,6 +187,7 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
         Debug_println("A File for Recording");
 #endif
 
+    // TODO: move to mount file
     _mounted = true;
 }
 
