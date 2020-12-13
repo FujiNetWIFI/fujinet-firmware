@@ -90,6 +90,7 @@ protected:
 public:
     void open_cassette_file(FileSystem *filesystem); // open a file
     void close_cassette_file();
+    void mount_cassette_file(FILE *f, size_t fz);
 
     void sio_enable_cassette();  // setup cassette
     void sio_disable_cassette(); // stop cassette
