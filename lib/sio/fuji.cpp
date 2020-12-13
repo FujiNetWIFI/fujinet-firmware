@@ -296,7 +296,7 @@ void sioFuji::sio_mount_host()
 // Disk Image Mount
 void sioFuji::sio_disk_image_mount()
 {
-    // TODO: Do I need a special TAPE handling?
+    // TODO: finish special TAPE handling?
     // TAPE or CASSETTE handling: this functin can also mount CAS and WAV files
     // to the C: device. Everything stays the same here and the mounting
     // where all the magic happens is done in the sioDisk::mount() function.
@@ -575,10 +575,11 @@ void sioFuji::sio_disk_image_umount()
         _fnDisks[deviceSlot].reset();
     }
     // Handle tape
-    else if (deviceSlot == BASE_TAPE_SLOT)
-    {
-    }
+    // else if (deviceSlot == BASE_TAPE_SLOT)
+    // {
+    // }
     // Invalid slot
+    else 
     {
         sio_error();
         return;
