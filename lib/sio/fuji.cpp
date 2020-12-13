@@ -542,6 +542,11 @@ void sioFuji::sio_read_app_key()
 // DEBUG TAPE
 void sioFuji::debug_tape()
 {
+    // TODO: new logic flow
+    // if not mounted then disable cassette and do nothing
+    // if mounted then activate cassette
+    // if mounted and active, then deactivate
+    // no longer need to handle file open/close
     if (_cassetteDev.is_mounted() == false)
     {
         Debug_println("::debug_tape ENABLE");

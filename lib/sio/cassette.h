@@ -62,30 +62,30 @@ public:
 class sioCassette : public sioDevice
 {
 protected:
-    FileSystem *_FS = nullptr;
+    // FileSystem *_FS = nullptr;
     FILE *_file = nullptr;
     size_t filesize = 0;
 
-    bool _mounted = false;
-
-    void sio_status() override{}; // $53, 'S', Status
-    void sio_process(uint32_t commanddata, uint8_t checksum) override{};
-
+    bool _mounted = false;                                    // indicates if a CAS or WAV file is open
+    bool cassetteActive = false;                              // indicates if something....
+    bool pulldown = true;                                     // indicates if we should use the motorline for control
     cassette_mode_t cassetteMode = cassette_mode_t::playback; // If we are in cassette mode or not
-    bool cassetteActive = false;
 
-    bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
-    bool pulldown = true;
-
-    // FSK demod (from Atari and maybe from WAV)
+    // FSK demod (from Atari for writing CAS, e.g, from a CSAVE)
     uint64_t fsk_clock; // can count period width from atari because
     uint8_t last_value = 0;
     uint8_t last_output = 0;
     uint8_t denoise_counter = 0;
     const uint16_t period_space = 1000000 / 3995;
     const uint16_t period_mark = 1000000 / 5327;
-    // void detect_falling_edge();
     uint8_t decode_fsk();
+
+    // helper function to read motor pin
+    bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
+
+    // have to populate virtual functions to complete class
+    void sio_status() override{}; // $53, 'S', Status
+    void sio_process(uint32_t commanddata, uint8_t checksum) override{};
 
 public:
     void open_cassette_file(FileSystem *filesystem); // open a file
@@ -103,8 +103,8 @@ public:
     void set_buttons(bool play_record);
     void set_pulldown(bool resistor);
 
-
 private:
+    // stuff from SDrive Arduino sketch
     size_t tape_offset = 0;
     struct tape_FUJI_hdr
     {
