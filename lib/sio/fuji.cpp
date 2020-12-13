@@ -297,6 +297,13 @@ void sioFuji::sio_mount_host()
 void sioFuji::sio_disk_image_mount()
 {
     // TODO: Do I need a special TAPE handling?
+    // TAPE or CASSETTE handling: this functin can also mount CAS and WAV files
+    // to the C: device. Everything stays the same here and the mounting
+    // where all the magic happens is done in the sioDisk::mount() function.
+    // This function opens the file, so cassette does not need to open the file.
+    // Cassette needs the file pointer and file size. 
+    // TODO: test for unintended consequences having a device slot without a valid disk image
+
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
     uint8_t deviceSlot = cmdFrame.aux1;

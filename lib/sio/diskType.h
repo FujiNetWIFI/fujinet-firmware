@@ -36,6 +36,7 @@ enum disktype_t
     DISKTYPE_ATX,
     DISKTYPE_XEX,
     DISKTYPE_CAS,
+    DISKTYPE_WAV,
     DISKTYPE_COUNT
 };
 

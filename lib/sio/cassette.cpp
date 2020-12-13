@@ -183,6 +183,32 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
     _mounted = true;
 }
 
+void sioCassette::mount_cassette_file(FILE *f, size_t fz)
+{
+    _file = f;
+    filesize = fz;
+    
+#ifdef DEBUG
+    Debug_printf("Cassette image filesize = %u", fz);
+#endif
+
+    tape_offset = 0;
+    if (cassetteMode == cassette_mode_t::playback)
+        check_for_FUJI_file();
+
+#ifdef DEBUG
+    if (tape_flags.FUJI)
+        Debug_println("FUJI File Found");
+    else if (cassetteMode == cassette_mode_t::playback)
+        Debug_println("Not a FUJI File");
+    else
+        Debug_println("A File for Recording");
+#endif
+
+    _mounted = true;
+}
+
+
 void sioCassette::sio_enable_cassette()
 {
     cassetteActive = true;
