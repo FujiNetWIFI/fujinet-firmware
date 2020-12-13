@@ -278,29 +278,30 @@ void sioBus::service()
     // otherwise if motoline mode, then If motor line high, handle cassette if tape mounted
 
     // first test which tape activation mode
+    // TODO: check if cassette is mounted first
     if (_fujiDev->cassette()->has_pulldown())
     {
         // motor line mode
-        // mount the test CAS if needed
-        if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH)
+        if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH) // TODO: use cassette helper function for consistency?
         {
-            if (_fujiDev->cassette()->is_mounted())
+            if (_fujiDev->cassette()->is_mounted()) // TODO: check this first so not needed here
             {
-                if (!_fujiDev->cassette()->is_active())
+                if (!_fujiDev->cassette()->is_active()) // TODO: keep this logic because motor line mode
                 {
                     Debug_println("MOTOR ON: activating cassette");
                     _fujiDev->cassette()->sio_enable_cassette();
                 }
-                _fujiDev->cassette()->sio_handle_cassette();
-                return; // break!
+                _fujiDev->cassette()->sio_handle_cassette(); // TODO: refactor to have only one call line?
+                return;                                      // break! TODO: refactor conditionals maybe?
             }
             else
             {
-                _fujiDev->debug_tape();
+                // TODO: new logic - if not mounted then error because there's no tape
+                _fujiDev->debug_tape(); // TODO: shouldn't need this here
             }
         }
-        else
-        {
+        else // check if need to stop tape
+        {    // TODO: keep this section
             if (_fujiDev->cassette()->is_active())
             {
                 Debug_println("MOTOR OFF: de-activating cassette");
@@ -308,16 +309,16 @@ void sioBus::service()
             }
         }
     }
-    else
+    else // button mode instead
     {
-        if (_fujiDev->cassette()->is_mounted())
+        if (_fujiDev->cassette()->is_mounted()) // TODO: should not need because check first
         {
-            if (!_fujiDev->cassette()->is_active())
+            if (!_fujiDev->cassette()->is_active()) // TODO: new logic - active is set by B button, not mounted file
             {
                 Debug_println("MOTOR ON: activating cassette");
-                _fujiDev->cassette()->sio_enable_cassette();
+                _fujiDev->cassette()->sio_enable_cassette(); // TODO: should not need - move to debug_tape()
             }
-            _fujiDev->cassette()->sio_handle_cassette();
+            _fujiDev->cassette()->sio_handle_cassette(); // TODO: check is_active() and then call
             return; // break!
         }
     }
