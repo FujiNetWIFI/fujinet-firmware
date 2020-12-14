@@ -296,7 +296,12 @@ void sioFuji::sio_mount_host()
 // Disk Image Mount
 void sioFuji::sio_disk_image_mount()
 {
-    // TODO: Do I need a special TAPE handling?
+    // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
+    // to the C: device. Everything stays the same here and the mounting
+    // where all the magic happens is done in the sioDisk::mount() function.
+    // This function opens the file, so cassette does not need to open the file.
+    // Cassette needs the file pointer and file size. 
+
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
     uint8_t deviceSlot = cmdFrame.aux1;
@@ -332,7 +337,7 @@ void sioFuji::sio_disk_image_mount()
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
 
-    // We need the file size for loading XEX files, so get that too
+    // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
 
     // And now mount it
@@ -535,22 +540,28 @@ void sioFuji::sio_read_app_key()
 // DEBUG TAPE
 void sioFuji::debug_tape()
 {
-    if (_cassetteDev.is_mounted() == false)
+    // if not mounted then disable cassette and do nothing
+    // if mounted then activate cassette
+    // if mounted and active, then deactivate
+    // no longer need to handle file open/close
+    if (_cassetteDev.is_mounted() == true)
     {
-        Debug_println("::debug_tape ENABLE");
-
-        if (fnSDFAT.running())
-            _cassetteDev.open_cassette_file(&fnSDFAT);
+        if (_cassetteDev.is_active() == false)
+        {
+            Debug_println("::debug_tape ENABLE");
+            _cassetteDev.sio_enable_cassette();
+        }
         else
-            _cassetteDev.open_cassette_file(&fnSPIFFS);
-
-        // _cassetteDev.sio_enable_cassette();
+        {
+            Debug_println("::debug_tape DISABLE");
+            _cassetteDev.sio_disable_cassette();
+        }
     }
     else
     {
+        Debug_println("::debug_tape NO CAS FILE MOUNTED");
         Debug_println("::debug_tape DISABLE");
         _cassetteDev.sio_disable_cassette();
-        _cassetteDev.close_cassette_file();
     }
 }
 
@@ -565,13 +576,20 @@ void sioFuji::sio_disk_image_umount()
     if (deviceSlot < MAX_DISK_DEVICES)
     {
         _fnDisks[deviceSlot].disk_dev.unmount();
+        if (_fnDisks[deviceSlot].disk_type == DISKTYPE_CAS || _fnDisks[deviceSlot].disk_type == DISKTYPE_WAV)
+        {
+            // tell cassette it unmount
+            _cassetteDev.umount_cassette_file();
+            _cassetteDev.sio_disable_cassette();
+        }
         _fnDisks[deviceSlot].reset();
     }
     // Handle tape
-    else if (deviceSlot == BASE_TAPE_SLOT)
-    {
-    }
+    // else if (deviceSlot == BASE_TAPE_SLOT)
+    // {
+    // }
     // Invalid slot
+    else 
     {
         sio_error();
         return;
@@ -629,7 +647,6 @@ void sioFuji::image_rotate()
 // This gets called when we're about to shutdown/reboot
 void sioFuji::shutdown()
 {
-    // TODO: add umount for TAPE
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
 }
@@ -1053,17 +1070,17 @@ void sioFuji::sio_read_device_slots()
         returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
     }
     // Handle tape slot
-    else if (cmdFrame.aux1 == READ_DEVICE_SLOTS_TAPE)
-    {
-        // TODO: Populate this with real values
-        // TODO: allow read and write
-        // TODO: why [0] and not [8] (device 9)?
-        diskSlots[0].mode = 0; // Always READ
-        diskSlots[0].hostSlot = 0;
-        strlcpy(diskSlots[0].filename, "TAPETEST.CAS", MAX_DISPLAY_FILENAME_LEN);
+    // else if (cmdFrame.aux1 == READ_DEVICE_SLOTS_TAPE)
+    // {
+    //     // TODO: Populate this with real values
+    //     // TODO: allow read and write
+    //     // TODO: why [0] and not [8] (device 9)?
+    //     diskSlots[0].mode = 0; // Always READ
+    //     diskSlots[0].hostSlot = 0;
+    //     strlcpy(diskSlots[0].filename, "TAPETEST.CAS", MAX_DISPLAY_FILENAME_LEN);
 
-        returnsize = sizeof(disk_slot);
-    }
+    //     returnsize = sizeof(disk_slot);
+    // }
     // Bad AUX1 value
     else
     {
@@ -1093,8 +1110,6 @@ void sioFuji::sio_write_device_slots()
         // Load the data into our current device array
         for (int i = 0; i < MAX_DISK_DEVICES; i++)
             _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
-
-        // TODO: how to add TAPE?
 
         // Save the data to disk
         _populate_config_from_slots();
@@ -1223,12 +1238,12 @@ void sioFuji::sio_set_device_filename()
         _populate_config_from_slots();
     }
     // Handle TAPE slots
-    else if (slot == BASE_TAPE_SLOT)
-    {
-        // Just save the filename until we need it mount the tape
-        // TODO: allow read and write options
-        Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ, fnConfig::MOUNTTYPE_TAPE);
-    }
+    // else if (slot == BASE_TAPE_SLOT) // TODO? currently do not use this option for CAS image filenames
+    // {
+    //     // Just save the filename until we need it mount the tape
+    //     // TODO: allow read and write options
+    //     Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ, fnConfig::MOUNTTYPE_TAPE);
+    // }
     // Bad slot
     else
     {
