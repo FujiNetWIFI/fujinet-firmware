@@ -542,27 +542,28 @@ void sioFuji::sio_read_app_key()
 // DEBUG TAPE
 void sioFuji::debug_tape()
 {
-    // TODO: new logic flow
     // if not mounted then disable cassette and do nothing
     // if mounted then activate cassette
     // if mounted and active, then deactivate
     // no longer need to handle file open/close
-    if (_cassetteDev.is_mounted() == false)
+    if (_cassetteDev.is_mounted() == true)
     {
-        Debug_println("::debug_tape ENABLE");
-
-        if (fnSDFAT.running())
-            _cassetteDev.open_cassette_file(&fnSDFAT);
+        if (_cassetteDev.is_active() == false)
+        {
+            Debug_println("::debug_tape ENABLE");
+            _cassetteDev.sio_enable_cassette();
+        }
         else
-            _cassetteDev.open_cassette_file(&fnSPIFFS);
-
-        // _cassetteDev.sio_enable_cassette();
+        {
+            Debug_println("::debug_tape DISABLE");
+            _cassetteDev.sio_disable_cassette();
+        }
     }
     else
     {
+        Debug_println("::debug_tape NO CAS FILE MOUNTED");
         Debug_println("::debug_tape DISABLE");
         _cassetteDev.sio_disable_cassette();
-        _cassetteDev.close_cassette_file();
     }
 }
 
@@ -581,6 +582,7 @@ void sioFuji::sio_disk_image_umount()
         {
             // tell cassette it unmount
             _cassetteDev.umount_cassette_file();
+            _cassetteDev.sio_disable_cassette();
         }
         _fnDisks[deviceSlot].reset();
     }
