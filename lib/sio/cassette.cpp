@@ -137,67 +137,13 @@ void sioCassette::close_cassette_file()
     _mounted = false;
 }
 
-void sioCassette::open_cassette_file(FileSystem *filesystem)
-{
-    // TODO: do not need
-    char fn[32];
-    char mm[21];
-    strcpy(fn, CASSETTE_FILE);
-    if (cassetteMode == cassette_mode_t::record)
-    {
-        sprintf(mm, "%020lu", fnSystem.millis());
-        strcat(fn, mm);
-    }
-    strcat(fn, ".cas");
-
-    // TODO: do not need
-    _FS = filesystem;
-    if (_file != nullptr)
-        fclose(_file);
-    if (cassetteMode == cassette_mode_t::playback)
-        _file = _FS->file_open(fn, "r"); // use "w+" for CSAVE test
-    else if (cassetteMode == cassette_mode_t::record)
-        _file = _FS->file_open(fn, "w+"); // use "w+" for CSAVE test
-    if (!_file)
-    {
-        _mounted = false;
-        Debug_print("Could not open CAS file :( ");
-        Debug_println(fn);
-        return;
-    }
-    // TODO: do not need
-    filesize = _FS->filesize(_file);
-#ifdef DEBUG
-    Debug_printf("%s - ", fn);
-    Debug_println("CAS file opened succesfully!");
-#endif
-
-    // TODO: move to mount file
-    tape_offset = 0;
-    if (cassetteMode == cassette_mode_t::playback)
-        check_for_FUJI_file();
-
-        // TODO: move to mount file
-#ifdef DEBUG
-    if (tape_flags.FUJI)
-        Debug_println("FUJI File Found");
-    else if (cassetteMode == cassette_mode_t::playback)
-        Debug_println("Not a FUJI File");
-    else
-        Debug_println("A File for Recording");
-#endif
-
-    // TODO: move to mount file
-    _mounted = true;
-}
-
 void sioCassette::mount_cassette_file(FILE *f, size_t fz)
 {
     _file = f;
     filesize = fz;
     
 #ifdef DEBUG
-    Debug_printf("Cassette image filesize = %u", fz);
+    Debug_printf("Cassette image filesize = %u\n", fz);
 #endif
 
     tape_offset = 0;

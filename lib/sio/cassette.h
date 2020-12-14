@@ -88,7 +88,6 @@ protected:
     void sio_process(uint32_t commanddata, uint8_t checksum) override{};
 
 public:
-    void open_cassette_file(FileSystem *filesystem); // open a file
     void close_cassette_file();
     void mount_cassette_file(FILE *f, size_t fz);
 
