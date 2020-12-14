@@ -206,15 +206,18 @@ void sioCassette::sio_enable_cassette()
 
 void sioCassette::sio_disable_cassette()
 {
-    cassetteActive = false;
-    if (cassetteMode == cassette_mode_t::playback)
-        fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
-    else
-        fnUartSIO.begin(SIO_STANDARD_BAUDRATE);
+    if (cassetteActive)
+    {
+        cassetteActive = false;
+        if (cassetteMode == cassette_mode_t::playback)
+            fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
+        else
+            fnUartSIO.begin(SIO_STANDARD_BAUDRATE);
 
 #ifdef DEBUG
-    Debug_println("Cassette Mode disabled");
+        Debug_println("Cassette Mode disabled");
 #endif
+    }
 }
 
 void sioCassette::sio_handle_cassette()
