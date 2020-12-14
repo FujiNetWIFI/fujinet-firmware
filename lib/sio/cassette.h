@@ -88,7 +88,7 @@ protected:
     void sio_process(uint32_t commanddata, uint8_t checksum) override{};
 
 public:
-    void close_cassette_file();
+    void umount_cassette_file();
     void mount_cassette_file(FILE *f, size_t fz);
 
     void sio_enable_cassette();  // setup cassette
