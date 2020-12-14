@@ -122,19 +122,12 @@ int8_t softUART::service(uint8_t b)
     return 0;
 }
 
-void sioCassette::close_cassette_file()
+void sioCassette::umount_cassette_file()
 {
-    // TODO: do not need
-    if (_file != nullptr)
-    {
-        fclose(_file);
 #ifdef DEBUG
         Debug_println("CAS file closed.");
 #endif
-    }
-
-    // TODO: where to move this?????? disk image unmount needs to do this function
-    _mounted = false;
+        _mounted = false;
 }
 
 void sioCassette::mount_cassette_file(FILE *f, size_t fz)
