@@ -137,15 +137,43 @@ void NetworkProtocolHTTP::fserror_to_error()
 
 bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
-    switch (httpMode)
+    bool ret = true;
+
+    switch (protocolMode)
     {
-    case GET:
-    
+    case DATA:
+        ret = read_file_handle_data(buf, len);
         break;
-    case POST:
+    case HEADERS:
         break;
     }
-    return true;
+    return ret;
+}
+
+bool NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len)
+{
+    bool ret = true;
+
+    // Start HTTP transfer, if not started.
+    if (verbCompleted == false)
+    {
+        switch (httpMode)
+        {
+        case GET:
+            resultCode = client.GET();
+            break;
+        case POST:
+        case PUT:
+        case PROPFIND:
+            error = NETWORK_ERROR_NOT_IMPLEMENTED;
+            break;
+        }
+    }
+
+    ret = (client.read(buf,len) != len);
+
+    fserror_to_error();
+    return ret;
 }
 
 bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
@@ -155,11 +183,13 @@ bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
 
 bool NetworkProtocolHTTP::close_file_handle()
 {
-    return true;
+    client.close();
+    return false;
 }
 
 bool NetworkProtocolHTTP::close_dir_handle()
 {
+    client.close();
     return true;
 }
 
@@ -170,7 +200,8 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
 
 bool NetworkProtocolHTTP::stat(string path)
 {
-    return true;
+    fileSize = client.available();
+    return false;
 }
 
 uint8_t NetworkProtocolHTTP::special_inquiry(uint8_t cmd)

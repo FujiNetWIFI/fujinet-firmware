@@ -216,6 +216,20 @@ private:
     HTTPMode httpMode;
 
     /**
+     * The Protocol mode.
+     */
+    typedef enum _protocolMode
+    {
+        DATA,
+        HEADERS
+    } ProtocolMode;
+
+    /**
+     * The Protocol mode changed via XIO
+     */
+    ProtocolMode protocolMode;
+
+    /**
      * FILE pointer for PUT file
      */
     ::FILE* fpPUT;
@@ -236,6 +250,11 @@ private:
     int resultCode;
 
     /**
+     * Did we attempt HTTP verb?
+     */
+    bool verbCompleted=false;
+
+    /**
      * @brief parse the string of XML data from PROPFIND.
      * @param s the input string
      * @return FALSE if error, TRUE if successful
@@ -246,6 +265,22 @@ private:
      * @brief fix the scheme from uppercase to lowercase
      */
     void fix_scheme();
+
+    /**
+     * @brief read file handle while in DATA ProtocolMode
+     * @param buf pointer to target buffer
+     * @param len requested length of target buffer.
+     * @return FALSE if len == num of bytes read, TRUE if len != num of bytes read
+     */
+    bool read_file_handle_data(uint8_t* buf, unsigned short len);
+
+    /**
+     * @brief read from active http client socket. HTTP verb must have already started.
+     * @param buf pointer to target buffer
+     * @param len number of requested bytes
+     * @return FALSE if len == num of bytes read, TRUE of len != num of bytes read
+     */
+    bool read_response(uint8_t* buf, unsigned short len);
 
 };
 
