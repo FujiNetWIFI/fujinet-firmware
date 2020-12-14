@@ -43,7 +43,7 @@ bool NetworkProtocolHTTP::open_file_handle()
 
     fix_scheme();
 
-    return !client.begin(opened_url->scheme + "://" + opened_url->hostName + ":" + opened_url->port + opened_url->path + (opened_url->query.empty() ? "" : ("?") + opened_url->query));
+    return !client.begin(url_to_string());
 }
 
 bool NetworkProtocolHTTP::open_dir_handle()
@@ -135,6 +135,26 @@ void NetworkProtocolHTTP::fserror_to_error()
     }
 }
 
+void NetworkProtocolHTTP::start_connection()
+{
+    // Start HTTP transfer, if not started.
+    if (verbCompleted == false)
+    {
+        switch (httpMode)
+        {
+        case GET:
+            resultCode = client.GET();
+            verbCompleted=true;
+            break;
+        case POST:
+        case PUT:
+        case PROPFIND:
+            error = NETWORK_ERROR_NOT_IMPLEMENTED;
+            break;
+        }
+    }
+}
+
 bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
     bool ret = true;
@@ -154,23 +174,8 @@ bool NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len
 {
     bool ret = true;
 
-    // Start HTTP transfer, if not started.
-    if (verbCompleted == false)
-    {
-        switch (httpMode)
-        {
-        case GET:
-            resultCode = client.GET();
-            break;
-        case POST:
-        case PUT:
-        case PROPFIND:
-            error = NETWORK_ERROR_NOT_IMPLEMENTED;
-            break;
-        }
-    }
-
-    ret = (client.read(buf,len) != len);
+    start_connection();
+    ret = (client.read(buf, len) != len);
 
     fserror_to_error();
     return ret;
@@ -198,9 +203,21 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
     return true;
 }
 
+void NetworkProtocolHTTP::get_file_size(string url)
+{
+    const char *content_length_header[] = {"Content-Length"};
+    client.begin(url);
+    client.collect_headers(content_length_header, 1);
+    resultCode = client.HEAD();
+    fserror_to_error();
+    fileSize = atoi(client.get_header(0).c_str());
+    client.close();
+    Debug_printf("NetworkProtocolHTTP::get_file_size(%s): %d",url.c_str(),fileSize);
+}
+
 bool NetworkProtocolHTTP::stat(string path)
 {
-    fileSize = client.available();
+
     return false;
 }
 
@@ -272,4 +289,14 @@ void NetworkProtocolHTTP::fix_scheme()
         opened_url->port = "80";
     else if (opened_url->port.empty() && opened_url->scheme == "https")
         opened_url->port = "443";
+}
+
+string NetworkProtocolHTTP::url_to_string(string path)
+{
+    return opened_url->scheme + "://" + opened_url->hostName + ":" + opened_url->port + path + (opened_url->query.empty() ? "" : ("?") + opened_url->query);
+}
+
+string NetworkProtocolHTTP::url_to_string()
+{
+    return url_to_string(opened_url->path);
 }
