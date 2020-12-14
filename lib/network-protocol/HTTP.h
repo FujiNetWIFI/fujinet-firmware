@@ -282,6 +282,30 @@ private:
      */
     bool read_response(uint8_t* buf, unsigned short len);
 
+    /**
+     * @brief start verb, if not already started
+     */
+    void start_connection();
+
+    /**
+     * @brief get file size of target URL via HEAD call
+     * @param string url
+     */
+    void get_file_size(string url);
+
+    /**
+     * @brief convert opened_url to string
+     * @return full URL string
+     */
+    string url_to_string();
+
+    /**
+     * @brief convert opened_url to string, but with passed in path (e.g. for resolve())
+     * @param path the path to inject into returned string
+     * @return full URL string with injected path
+     */
+    string url_to_string(string path);
+
 };
 
 #endif /* NETWORKPROTOCOLHTTP_H */
