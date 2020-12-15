@@ -144,6 +144,7 @@ void NetworkProtocolHTTP::start_connection()
         {
         case GET:
             resultCode = client.GET();
+            fileSize=client.available();
             verbCompleted=true;
             break;
         case POST:
@@ -153,6 +154,12 @@ void NetworkProtocolHTTP::start_connection()
             break;
         }
     }
+}
+
+bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
+{
+    start_connection();
+    return status_file(status);
 }
 
 bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)

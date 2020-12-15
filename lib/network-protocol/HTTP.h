@@ -23,6 +23,11 @@ public:
     virtual ~NetworkProtocolHTTP();
 
     /**
+     * Start connection before we call status subclass
+     */
+    virtual bool status_file(NetworkStatus *status);
+
+    /**
      * @brief Return a DSTATS byte for a requested COMMAND byte.
      * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
      * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
