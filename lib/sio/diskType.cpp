@@ -155,6 +155,8 @@ disktype_t DiskType::discover_disktype(const char *filename)
             return DISKTYPE_ATX;
         } else if(strcasecmp(ext, "CAS") == 0) {
             return DISKTYPE_CAS;
+        } else if(strcasecmp(ext, "WAV") == 0) {
+            return DISKTYPE_WAV;
         }
     }
     return DISKTYPE_UNKNOWN;
