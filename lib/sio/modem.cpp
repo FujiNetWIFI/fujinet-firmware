@@ -350,28 +350,16 @@ void sioModem::sio_status()
           1: 0
           0: RCV state (0=space, 1=mark)
     */
-    uint8_t status[2] = {0x00, crxval};
 
-    if ((CRX == false) && (crxval == 0))
-        crxval = 0;
-    else if ((CRX == false) && (crxval == 4))
-        crxval = 0;
-    else if ((CRX == false) && (crxval == 8))
-        crxval = 4;
-    else if ((CRX == false) && (crxval == 12))
-        crxval = 4;
-    else if ((CRX == true) && (crxval == 0))
-        crxval = 8;
-    else if ((CRX == true) && (crxval == 4))
-        crxval = 8;
-    else if ((CRX == true) && (crxval == 8))
-        crxval = 12;
-    else if ((CRX == false) && (crxval == 12))
-        crxval = 12;
+   mdmStatus[1] &= 0b11110011;
+   mdmStatus[1] |= (tcpClient.connected()==true ? 12 : 0);
 
-    status[1] = crxval;
+    mdmStatus[1] &= 0b11111110;
+    mdmStatus[1] |= (tcpClient.available()>0 ? 1 : 0);
 
-    sio_to_computer(status, sizeof(status), false);
+    Debug_printf("sioModem::sio_status(%02x,%02x)\n",mdmStatus[0],mdmStatus[1]);
+
+    sio_to_computer(mdmStatus, sizeof(mdmStatus), false);
 }
 
 // 0x41 / 'A' - CONTROL
@@ -860,7 +848,10 @@ void sioModem::at_handle_get()
     else
     {
         if (numericResultCode == true)
+        {
             at_connect_resultCode(modemBaud);
+            CRX = true;
+        }
         else
         {
             at_cmd_println("CONNECT ", false);
@@ -981,7 +972,10 @@ void sioModem::at_handle_answer()
         tcpClient.setNoDelay(true); // try to disable naggle
                                     //        tcpServer.stop();
         if (numericResultCode == true)
+        {
             at_connect_resultCode(modemBaud);
+            CRX = true;
+        }
         else
         {
             at_cmd_println("CONNECT ", false);
@@ -1018,7 +1012,10 @@ void sioModem::at_handle_dial()
         fnSystem.delay(1300); // Wait a moment so bobterm catches it
 
         if (numericResultCode == true)
+        {
             at_connect_resultCode(modemBaud);
+            CRX = true;
+        }
         else
         {
             at_cmd_println("CONNECT ", false);
@@ -1042,7 +1039,10 @@ void sioModem::at_handle_dial()
             tcpClient.setNoDelay(true); // Try to disable naggle
 
             if (numericResultCode == true)
+            {
                 at_connect_resultCode(modemBaud);
+                CRX = true;
+            }
             else
             {
                 at_cmd_println("CONNECT ", false);
