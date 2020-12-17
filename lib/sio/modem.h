@@ -152,7 +152,7 @@ private:
     bool autoAnswer=false;          // Auto answer? (ATS0?)
     bool commandEcho=true;          // Echo MODEM input. (ATEx)
     bool CRX=false;                 // CRX flag.
-    unsigned char crxval=0;         // CRX value.
+    uint8_t mdmStatus[2] = {0x00, 0x00}; // modem status value
     bool answerHack=false;          // ATA answer hack on SIO write.
     FileSystem *activeFS;           // Active Filesystem for ModemSniffer.
     ModemSniffer* modemSniffer;     // ptr to modem sniffer.
