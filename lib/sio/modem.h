@@ -172,6 +172,7 @@ private:
     void sio_listen();                           // $4C, 'L', Listen
     void sio_unlisten();                         // $4D, 'M', Unlisten
     void sio_baudlock();                         // $4E, 'N', Baud lock
+    void sio_autoanswer();                       // $4F, 'O', auto answer
     void sio_status() override;                  // $53, 'S', Status
     void sio_write();                            // $57, 'W', Write
     void sio_stream();                           // $58, 'X', Concurrent/Stream
