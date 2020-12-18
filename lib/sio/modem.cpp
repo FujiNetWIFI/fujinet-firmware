@@ -1415,23 +1415,32 @@ void sioModem::sio_handle_modem()
             // Backspace or delete deletes previous character
             else if ((chr == ASCII_BACKSPACE) || (chr == ASCII_DELETE))
             {
-                //cmd.remove(cmd.length() - 1);
-                cmd.erase(cmd.length() - 1);
-                // We don't assume that backspace is destructive
-                // Clear with a space
-                if (commandEcho == true)
+                size_t len = cmd.length();
+
+                if (len > 0)
                 {
+                  cmd.erase(len - 1);
+                  // We don't assume that backspace is destructive
+                  // Clear with a space
+                  if (commandEcho == true)
+                  {
                     fnUartSIO.write(ASCII_BACKSPACE);
                     fnUartSIO.write(' ');
                     fnUartSIO.write(ASCII_BACKSPACE);
+                  }
                 }
             }
             else if (chr == ATASCII_BACKSPACE)
             {
+                size_t len = cmd.length();
+                
                 // ATASCII backspace
-                cmd.erase(cmd.length() - 1);
-                if (commandEcho == true)
+                if (len > 0)
+                {
+                  cmd.erase(len - 1);
+                  if (commandEcho == true)
                     fnUartSIO.write(ATASCII_BACKSPACE);
+                }
             }
             // Take into account arrow key movement and clear screen
             else if (chr == ATASCII_CLEAR_SCREEN ||
