@@ -16,15 +16,25 @@ uint32_t DiskTypeATR::_sector_to_offset(uint16_t sectorNum)
 {
     uint32_t offset = 0;
 
-    // This should always be true, but just so we don't end up with a negative...
-    if (sectorNum > 0)
-        offset = _disk_sector_size * (sectorNum - 1);
-
-    offset += 16; // Adjust for ATR header
-
-    // Adjust for the fact that the first 3 sectors are always 128-bytes even on 256-byte disks
-    if (_disk_sector_size == 256 && sectorNum > 3)
-        offset -= 384;
+    switch (sectorNum)
+    {
+        case 1:
+            offset=16;
+            break;
+        case 2:
+            offset=144;
+            break;
+        case 3:
+            offset=272;
+            break;
+        default:
+            if (_disk_sector_size == 256)
+                offset=((sectorNum-3)*256)+16+128;
+            else
+                offset=((sectorNum-1)*128)+16;
+            
+            break;
+    }
 
     return offset;
 }
