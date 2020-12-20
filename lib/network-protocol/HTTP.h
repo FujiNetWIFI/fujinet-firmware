@@ -257,7 +257,7 @@ private:
     /**
      * Did we attempt HTTP verb?
      */
-    bool verbCompleted=false;
+    bool connectionStarted;
 
     /**
      * @brief parse the string of XML data from PROPFIND.

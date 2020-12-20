@@ -16,6 +16,8 @@ NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string 
     delete_implemented = true;
     mkdir_implemented = true;
     rmdir_implemented = true;
+    connectionStarted = false;
+    protocolMode = DATA;
 }
 
 NetworkProtocolHTTP::~NetworkProtocolHTTP()
@@ -138,14 +140,14 @@ void NetworkProtocolHTTP::fserror_to_error()
 void NetworkProtocolHTTP::start_connection()
 {
     // Start HTTP transfer, if not started.
-    if (verbCompleted == false)
+    if (connectionStarted == false)
     {
         switch (httpMode)
         {
         case GET:
             resultCode = client.GET();
             fileSize=client.available();
-            verbCompleted=true;
+            connectionStarted=true;
             break;
         case POST:
         case PUT:
@@ -159,7 +161,7 @@ void NetworkProtocolHTTP::start_connection()
 bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
 {
     start_connection();
-    return status_file(status);
+    return NetworkProtocolFS::status_file(status);
 }
 
 bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
@@ -179,13 +181,17 @@ bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
 
 bool NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len)
 {
-    bool ret = true;
+    unsigned short actual_len;
 
     start_connection();
-    ret = (client.read(buf, len) != len);
+
+    actual_len = client.read(buf, len);
+    fileSize -= actual_len;
+    
+    Debug_printf("NetworkProtocolHTTP::read_file_handle_data(%p,%u) - actual len: %u\n",buf,len,actual_len);
 
     fserror_to_error();
-    return ret;
+    return (actual_len != len);
 }
 
 bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
