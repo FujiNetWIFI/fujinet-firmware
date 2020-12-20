@@ -201,11 +201,10 @@ protected:
 
     /**
      * @brief Do mount
-     * @param hostName - host name of TNFS server
-     * @param path - path to mount, usually "/"
+     * @param url the url to mount
      * @return false on no error, true on error.
      */
-    virtual bool mount(string hostName, string path) = 0;
+    virtual bool mount(EdUrlParser *url) = 0;
 
     /**
      * @brief Unmount TNFS server specified in mountInfo.

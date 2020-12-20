@@ -24,7 +24,7 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
     update_dir_filename(url->path);
 
-    if (mount(url->hostName, dir) == true)
+    if (mount(url) == true)
         return true;
 
     if (cmdFrame->aux1 == 6)

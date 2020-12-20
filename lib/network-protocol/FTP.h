@@ -133,11 +133,10 @@ protected:
 
     /**
      * @brief Do FTP mount
-     * @param hostName - host name of FTP server
-     * @param path - path to mount, usually "/"
+     * @param url the URL to mount
      * @return false on no error, true on error.
      */
-    virtual bool mount(string hostName, string path);
+    virtual bool mount(EdUrlParser *url);
 
     /**
      * @brief Unmount FTP server specified in mountInfo.
