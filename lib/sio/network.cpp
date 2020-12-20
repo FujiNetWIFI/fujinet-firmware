@@ -14,7 +14,6 @@
 #include "../network-protocol/Telnet.h"
 #include "../network-protocol/TNFS.h"
 #include "../network-protocol/FTP.h"
-#include "../network-protocol/HTTP.h"
 
 using namespace std;
 
@@ -724,10 +723,10 @@ bool sioNetwork::instantiate_protocol()
     {
         protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
     }
-    else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
-    {
-        protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);        
-    }
+    // else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
+    // {
+    //     protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);        
+    // }
     else
     {
         Debug_printf("Invalid protocol: %s\n", urlParser->scheme.c_str());
