@@ -55,10 +55,10 @@ bool NetworkProtocolFTP::open_dir_handle()
     return res;
 }
 
-bool NetworkProtocolFTP::mount(string hostName, string path)
+bool NetworkProtocolFTP::mount(EdUrlParser *url)
 {
     // Path isn't used
-    return ftp.login("anonymous", "fujinet@fujinet.online", hostName);
+    return ftp.login("anonymous", "fujinet@fujinet.online", url->hostName);
 }
 
 bool NetworkProtocolFTP::umount()
