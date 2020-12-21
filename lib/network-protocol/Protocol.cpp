@@ -80,7 +80,9 @@ bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
  */
 bool NetworkProtocol::close()
 {
-    write(transmitBuffer->length());
+    if (!transmitBuffer->empty())
+        write(transmitBuffer->length());
+        
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
