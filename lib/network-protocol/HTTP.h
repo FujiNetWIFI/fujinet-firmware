@@ -22,6 +22,20 @@ public:
      */
     virtual ~NetworkProtocolHTTP();
 
+    /**
+     * @brief Return a DSTATS byte for a requested COMMAND byte.
+     * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
+     * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
+     */
+    virtual uint8_t special_inquiry(uint8_t cmd);
+
+    /**
+     * @brief execute a command that returns no payload
+     * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
+     * @return error flag. TRUE on error, FALSE on success.
+     */
+    virtual bool special_00(cmdFrame_t *cmdFrame);
+
 protected:
 
     /**
@@ -99,12 +113,21 @@ private:
     /**
      * The HTTP Open Mode, ultimately used in http_transaction()
      */
-    enum _openMode
+    enum _httpOpenMode
     {
         GET,
         POST,
         PUT
-    } openMode;
+    } httpOpenMode;
+
+    /**
+     * The HTTP channel mode, used to distinguish between headers and data
+     */
+    enum _httpChannelMode
+    {
+        DATA,
+        HEADERS
+    } httpChannelMode;
 
     /**
      * The fnHTTPClient object used by the adaptor for HTTP calls
@@ -120,6 +143,12 @@ private:
      * Do HTTP transaction
      */
     void http_transaction();
+
+    /**
+     * @brief Set Channel mode (DATA, HEADERS, etc.)
+     * @param cmdFrame the passed in command frame.
+     */
+    bool special_set_channel_mode(cmdFrame_t *cmdFrame);
 
 };
 
