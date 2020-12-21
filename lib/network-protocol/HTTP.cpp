@@ -5,6 +5,21 @@
 #include "HTTP.h"
 #include "status_error_codes.h"
 
+/**
+ Modes and the N: HTTP Adapter:
+
+Aux1 values
+===========
+
+4 = GET, no headers, just grab data.
+6 = PROPFIND, WebDAV directory
+8 = PUT, write data to server, XIO used to toggle headers to get versus data write
+12 = GET, write sets headers to fetch, read grabs data
+13 = POST, write sends post data to server, read grabs response, XIO used to change write behavior, toggle headers to get or headers to set.
+
+DELETE, MKCOL, RMCOL, COPY, MOVE, are all handled via idempotent XIO commands.
+*/
+
 NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {
@@ -12,6 +27,8 @@ NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string 
     delete_implemented = true;
     mkdir_implemented = true;
     rmdir_implemented = true;
+    fileSize = 0;
+    resultCode = 0;
 }
 
 NetworkProtocolHTTP::~NetworkProtocolHTTP()
@@ -51,8 +68,6 @@ bool NetworkProtocolHTTP::open_dir_handle()
 
 bool NetworkProtocolHTTP::mount(EdUrlParser *url)
 {
-    const char *content_length_header[] = {"Content-Length"};
-
     Debug_printf("NetworkProtocolHTTP::mount(%s)\n", url->toString().c_str());
 
     // fix scheme because esp-idf hates uppercase for some #()$@ reason.
@@ -60,20 +75,6 @@ bool NetworkProtocolHTTP::mount(EdUrlParser *url)
         url->scheme = "http";
     else if (url->scheme == "HTTPS")
         url->scheme = "https";
-
-    // First try to do a HEAD request, to get some information about the URL
-    client = new fnHttpClient();
-    client->begin(url->toString());
-    client->collect_headers(content_length_header, 1);
-    resultCode = client->HEAD();
-    fserror_to_error();
-    fileSize = atoi(client->get_header(0).c_str());
-    Debug_printf("File size: %u\n",fileSize);
-    client->close();
-    delete client;
-
-    if (resultCode > 399)
-        return true; // error
 
     client = new fnHttpClient();
 
@@ -167,11 +168,19 @@ void NetworkProtocolHTTP::fserror_to_error()
 bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
     Debug_printf("NetworkProtocolHTTP::read_file_handle(%p,%u)\n", buf, len);
+
+    if (resultCode == 0)
+        http_transaction();
+
+    client->read(buf,len);
+
+    fileSize = client->available();
+
     return false;
 }
 
 bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
-{
+{    
     Debug_printf("NetworkProtocolHTTP::read_dir_entry(%p,%u)\n", buf, len);
     return false;
 }
@@ -200,4 +209,22 @@ bool NetworkProtocolHTTP::stat(string path)
 {
     Debug_printf("NetworkProtocolHTTP::stat(%s)\n", path.c_str());
     return false;
+}
+
+void NetworkProtocolHTTP::http_transaction()
+{
+    switch (openMode)
+    {
+        case GET:
+            resultCode = client->GET();
+            break;
+        case POST:
+            // resultCode = client->POST();
+            break;
+        case PUT:
+            // resultCode = client->PUT();
+            break;
+    }
+
+    fileSize = client->available();
 }
