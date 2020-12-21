@@ -214,10 +214,8 @@ private:
 
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
-     * @param path the full path of file to resolve.
-     * @return resolved path.
      */
-    virtual bool stat(string path);
+    virtual bool stat();
 };
 
 #endif /* NETWORKPROTOCOLTNFS_H */

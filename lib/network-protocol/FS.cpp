@@ -22,7 +22,7 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
     // Call base class.
     NetworkProtocol::open(url, cmdFrame);
 
-    update_dir_filename(url->path);
+    update_dir_filename(opened_url);
 
     if (mount(url) == true)
         return true;
@@ -39,13 +39,13 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolFS::open_file()
 {
-    update_dir_filename(path);
-    path = resolve(path);
-    update_dir_filename(path);
+    update_dir_filename(opened_url);
+    resolve();
+    update_dir_filename(opened_url);
 
     openMode = FILE;
 
-    if (path.empty())
+    if (opened_url->path.empty())
         return true;
 
     return open_file_handle();
@@ -55,7 +55,7 @@ bool NetworkProtocolFS::open_dir()
 {
     openMode = DIR;
     dirBuffer.clear();
-    update_dir_filename(path);
+    update_dir_filename(opened_url);
 
     // assume everything if no filename.
     if (filename.empty())
@@ -63,9 +63,9 @@ bool NetworkProtocolFS::open_dir()
 
     char e[256];
 
-    Debug_printf("NetworkProtocolFS::open_dir(%s)\n", path.c_str());
+    Debug_printf("NetworkProtocolFS::open_dir(%s)\n", opened_url->toString());
 
-    if (path.empty())
+    if (opened_url->path.empty())
         return true;
 
     if (open_dir_handle() == true)
@@ -98,13 +98,12 @@ bool NetworkProtocolFS::open_dir()
     return error != NETWORK_ERROR_SUCCESS;
 }
 
-void NetworkProtocolFS::update_dir_filename(string newPath)
+void NetworkProtocolFS::update_dir_filename(EdUrlParser *url)
 {
-    size_t found = newPath.find_last_of("/");
+    size_t found = url->path.find_last_of("/");
 
-    path = newPath;
-    dir = newPath.substr(0, found + 1);
-    filename = newPath.substr(found + 1);
+    dir = url->path.substr(0, found + 1);
+    filename = url->path.substr(found + 1);
 
     // transform the possible everything wildcards
     if (filename == "*.*" || filename == "-" || filename == "**" || filename == "*")
@@ -294,11 +293,11 @@ bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
     }
 }
 
-string NetworkProtocolFS::resolve(string path)
+void NetworkProtocolFS::resolve()
 {
-    Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\n", path.c_str(), dir.c_str(), filename.c_str());
+    Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\n", opened_url->path.c_str(), dir.c_str(), filename.c_str());
 
-    if (stat(path.c_str()) == true) // true = error.
+    if (stat() == true) // true = error.
     {
         // File wasn't found, let's try resolving against the crunched filename
         string crunched_filename = util_crunch(filename);
@@ -310,7 +309,7 @@ string NetworkProtocolFS::resolve(string path)
         if (open_dir_handle() == true) // couldn't open dir, return path as is.
         {
             fserror_to_error();
-            return path;
+            return;
         }
 
         while (read_dir_entry(e, 255) == false)
@@ -320,8 +319,8 @@ string NetworkProtocolFS::resolve(string path)
 
             if (crunched_filename == crunched_entry)
             {
-                path = dir + current_entry;
-                stat(path.c_str()); // TODO: see if this assumption of success holds true in all cases?
+                opened_url->path = dir + current_entry;
+                stat(); // TODO: see if this assumption of success holds true in all cases?
                 break;
             }
         }
@@ -329,8 +328,7 @@ string NetworkProtocolFS::resolve(string path)
         close_dir_handle();
     }
 
-    Debug_printf("Resolved to %s\n", path.c_str());
-    return path;
+    Debug_printf("Resolved to %s\n", opened_url->toString());
 }
 
 bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame)
@@ -357,7 +355,7 @@ bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdF
 
 bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    update_dir_filename(url->path);
+    update_dir_filename(opened_url);
 
     // Preprocessing routine to parse out comma position.
 
