@@ -29,10 +29,44 @@ NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string 
     rmdir_implemented = true;
     fileSize = 0;
     resultCode = 0;
+    httpChannelMode = DATA;
 }
 
 NetworkProtocolHTTP::~NetworkProtocolHTTP()
 {
+}
+
+uint8_t NetworkProtocolHTTP::special_inquiry(uint8_t cmd)
+{
+    switch (cmd)
+    {
+        case 'M':
+            return (aux1_open > 8 ? 0x00 : 0xFF);
+        default:
+            return 0xFF;
+    }
+}
+
+bool NetworkProtocolHTTP::special_00(cmdFrame_t *cmdFrame)
+{
+    switch (cmdFrame->comnd)
+    {
+        case 'M':
+            return special_set_channel_mode(cmdFrame);
+        default:
+            return true;        
+    }
+}
+
+bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
+{
+    if (cmdFrame->aux2==0)
+        httpChannelMode = DATA;
+    else if (cmdFrame->aux2==1)
+        httpChannelMode = HEADERS;
+
+    Debug_printf("NetworkProtocolHTTP::special_set_channel_mode(%u)\n",httpChannelMode);
+    return false;
 }
 
 bool NetworkProtocolHTTP::open_file_handle()
