@@ -174,13 +174,13 @@ bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
     if (resultCode == 0)
         http_transaction();
 
-    client->read(buf,len);
+    client->read(buf, len);
 
     return false;
 }
 
 bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
-{    
+{
     Debug_printf("NetworkProtocolHTTP::read_dir_entry(%p,%u)\n", buf, len);
     return false;
 }
@@ -207,23 +207,51 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
 
 bool NetworkProtocolHTTP::stat()
 {
+    bool ret = false;
+
     Debug_printf("NetworkProtocolHTTP::stat(%s)\n", opened_url->toString().c_str());
-    return false;
+
+    if (aux1_open != 4) // only for READ FILE
+        return false;   // We don't care.
+
+    delete client;
+
+    client = new fnHttpClient();
+    client->begin(opened_url->toString());
+    resultCode = client->HEAD();
+    fserror_to_error();
+
+    if ((resultCode == 0) || (resultCode > 399))
+        ret = true;
+    else
+    {
+        fileSize = client->available();
+
+        client->close();
+
+        delete client;
+
+        client = new fnHttpClient();
+        ret = !client->begin(opened_url->toString());
+        resultCode = 0; // so GET will actually happen.
+    }
+
+    return ret;
 }
 
 void NetworkProtocolHTTP::http_transaction()
 {
     switch (openMode)
     {
-        case GET:
-            resultCode = client->GET();
-            break;
-        case POST:
-            // resultCode = client->POST();
-            break;
-        case PUT:
-            // resultCode = client->PUT();
-            break;
+    case GET:
+        resultCode = client->GET();
+        break;
+    case POST:
+        // resultCode = client->POST();
+        break;
+    case PUT:
+        // resultCode = client->PUT();
+        break;
     }
 
     fileSize = client->available();
