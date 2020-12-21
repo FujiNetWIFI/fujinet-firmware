@@ -45,13 +45,13 @@ bool NetworkProtocolHTTP::open_file_handle()
     {
     case 4:     // GET with no headers, filename resolve
     case 12:    // GET with ability to set headers, no filename resolve.
-        openMode = GET;
+        httpOpenMode = GET;
         break;
     case 8:     // WRITE, filename resolve, ignored if not found.
-        openMode = PUT;
+        httpOpenMode = PUT;
         break;
     case 13:    // POST can set headers, also no filename resolve
-        openMode = POST;
+        httpOpenMode = POST;
         break;
     default:
         error = NETWORK_ERROR_NOT_IMPLEMENTED;
@@ -252,7 +252,7 @@ bool NetworkProtocolHTTP::stat()
 
 void NetworkProtocolHTTP::http_transaction()
 {
-    switch (openMode)
+    switch (httpOpenMode)
     {
     case GET:
         resultCode = client->GET();
