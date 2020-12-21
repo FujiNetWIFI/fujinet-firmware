@@ -43,17 +43,25 @@ bool NetworkProtocolHTTP::open_file_handle()
 
     switch (aux1_open)
     {
-    case 4:
+    case 4:     // GET with no headers, filename resolve
+    case 12:    // GET with ability to set headers, no filename resolve.
         openMode = GET;
         break;
-    case 8:
+    case 8:     // WRITE, filename resolve, ignored if not found.
         openMode = PUT;
         break;
-    case 12:
+    case 13:    // POST can set headers, also no filename resolve
         openMode = POST;
         break;
     default:
         error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        return true;
+    }
+
+    // This is set IF we came back through here via resolve().
+    if (resultCode > 399)
+    {
+        fserror_to_error();
         return true;
     }
 
@@ -63,7 +71,7 @@ bool NetworkProtocolHTTP::open_file_handle()
 bool NetworkProtocolHTTP::open_dir_handle()
 {
     Debug_printf("NetworkProtocolHTTP::open_dir_handle()\n");
-    return false;
+    return true; // until we actually implement webdav dir.
 }
 
 bool NetworkProtocolHTTP::mount(EdUrlParser *url)
@@ -214,8 +222,10 @@ bool NetworkProtocolHTTP::stat()
     if (aux1_open != 4) // only for READ FILE
         return false;   // We don't care.
 
+    // Since we know client is active, we need to destroy it.
     delete client;
 
+    // Temporarily use client to do the HEAD request
     client = new fnHttpClient();
     client->begin(opened_url->toString());
     resultCode = client->HEAD();
@@ -225,12 +235,13 @@ bool NetworkProtocolHTTP::stat()
         ret = true;
     else
     {
+        // We got valid data, set filesize, then close and dispose of client.
         fileSize = client->available();
 
         client->close();
-
         delete client;
 
+        // Recreate it for the rest of resolve()
         client = new fnHttpClient();
         ret = !client->begin(opened_url->toString());
         resultCode = 0; // so GET will actually happen.
