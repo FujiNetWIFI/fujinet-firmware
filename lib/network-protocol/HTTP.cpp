@@ -78,6 +78,8 @@ bool NetworkProtocolHTTP::mount(EdUrlParser *url)
 
     client = new fnHttpClient();
 
+    fileSize = 65535;
+
     return !client->begin(url->toString());
 }
 
@@ -173,8 +175,6 @@ bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
         http_transaction();
 
     client->read(buf,len);
-
-    fileSize = client->available();
 
     return false;
 }
