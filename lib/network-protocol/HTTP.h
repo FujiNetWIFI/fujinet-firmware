@@ -54,6 +54,13 @@ protected:
      */
     virtual void fserror_to_error();
 
+        /**
+     * @brief return status from file (e.g. # of bytes remaining.)
+     * @param Pointer to NetworkStatus object to inject new data.
+     * @return FALSE if success, TRUE if error.
+     */
+    virtual bool status_file(NetworkStatus *status);
+
     /**
      * @brief Read from file handle
      * @param buf destination buffer
@@ -117,6 +124,11 @@ private:
      * result code returned by an HTTP verb
      */
     int resultCode;
+
+    /**
+     * Do HTTP transaction
+     */
+    void http_transaction();
 
 };
 
