@@ -131,11 +131,6 @@ protected:
     OpenMode openMode;
 
     /**
-     * The opened URL
-     */
-    EdUrlParser *opened_url;
-
-    /**
      * Directory of currently open file
      */
     string dir;
