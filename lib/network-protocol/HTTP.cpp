@@ -205,9 +205,9 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
     return false;
 }
 
-bool NetworkProtocolHTTP::stat(string path)
+bool NetworkProtocolHTTP::stat()
 {
-    Debug_printf("NetworkProtocolHTTP::stat(%s)\n", path.c_str());
+    Debug_printf("NetworkProtocolHTTP::stat(%s)\n", opened_url->toString().c_str());
     return false;
 }
 

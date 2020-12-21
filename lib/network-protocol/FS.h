@@ -131,9 +131,9 @@ protected:
     OpenMode openMode;
 
     /**
-     * Full path of open file
+     * The opened URL
      */
-    string path;
+    EdUrlParser *opened_url;
 
     /**
      * Directory of currently open file
@@ -218,18 +218,17 @@ protected:
     virtual void fserror_to_error() = 0;
 
     /**
-     * @brief Resolve filename at path. Gets directory, searches for file,
+     * @brief Resolve filename at url. Gets directory, searches for file,
      *        if path not found, the file is passed through util_crunch,
      *        and a second attempt is done.
-     * @param path The full path to file to resolve.
-     * @return string of resolved path.
      */
-    virtual string resolve(string path);
+    virtual void resolve();
 
     /**
      * Update dir and filename
+     * @param url the URL to update dir and filename with.
      */
-    void update_dir_filename(string path);
+    void update_dir_filename(EdUrlParser *url);
 
     /**
      * @brief Read from file
@@ -315,10 +314,8 @@ protected:
 
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
-     * @param path the full path of file to resolve.
-     * @return resolved path.
      */
-    virtual bool stat(string path) = 0;
+    virtual bool stat() = 0;
 
     /**
      * @brief Rename file specified by incoming devicespec.

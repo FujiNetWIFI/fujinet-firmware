@@ -41,7 +41,7 @@ bool NetworkProtocolFTP::open_file_handle()
         break;
     }
 
-    res = ftp.open_file(path, stor);
+    res = ftp.open_file(opened_url->path, stor);
     fserror_to_error();
     return res;
 }
@@ -50,7 +50,7 @@ bool NetworkProtocolFTP::open_dir_handle()
 {
     bool res;
 
-    res = ftp.open_directory(path, filename);
+    res = ftp.open_directory(opened_url->path, filename);
     fserror_to_error();
     return res;
 }
@@ -247,7 +247,7 @@ bool NetworkProtocolFTP::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return false;
 }
 
-bool NetworkProtocolFTP::stat(string path)
+bool NetworkProtocolFTP::stat()
 {
     return false;
 }

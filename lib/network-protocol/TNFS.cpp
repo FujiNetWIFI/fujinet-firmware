@@ -45,7 +45,7 @@ bool NetworkProtocolTNFS::open_file_handle()
     }
 
     // Do the open.
-    tnfs_error = tnfs_open(&mountInfo, path.c_str(), mode, perms, &fd);
+    tnfs_error = tnfs_open(&mountInfo, opened_url->path.c_str(), mode, perms, &fd);
     fserror_to_error();
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
@@ -292,9 +292,9 @@ bool NetworkProtocolTNFS::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::stat(string path)
+bool NetworkProtocolTNFS::stat()
 {
-    tnfs_error = tnfs_stat(&mountInfo, &fileStat, path.c_str());
+    tnfs_error = tnfs_stat(&mountInfo, &fileStat, opened_url->path.c_str());
     fileSize = fileStat.filesize;
     mode = fileStat.mode;
     is_locked = (mode & 0200);
