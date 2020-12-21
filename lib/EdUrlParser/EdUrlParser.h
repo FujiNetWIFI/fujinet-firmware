@@ -48,6 +48,7 @@ public:
 	string path;
 	string query;
 	string fragment;
+	string toString() { return scheme + "://" + hostName + (port.empty() ? "" : (":" + port)) + path + (query.empty() ? "" : "?" + query) + (fragment.empty() ? "" : "#" + fragment); }
 };
 
 #endif /* EDURLPARSER_H_ */
