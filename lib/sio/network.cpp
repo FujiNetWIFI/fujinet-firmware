@@ -757,7 +757,7 @@ void sioNetwork::parse_and_instantiate_protocol()
     // Invalid URL returns error 165 in status.
     if (parseURL() == false)
     {
-        Debug_printf("Invalid devicespec: %s", deviceSpec.c_str());
+        Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
         status.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         sio_error();
         return;
@@ -864,7 +864,7 @@ bool sioNetwork::parseURL()
     url = deviceSpec.substr(deviceSpec.find(":") + 1);
     urlParser = EdUrlParser::parseUrl(url);
 
-    Debug_printf("sioNetwork::parseURL transformed to (%s, %s)", deviceSpec.c_str(), url.c_str());
+    Debug_printf("sioNetwork::parseURL transformed to (%s, %s)\n", deviceSpec.c_str(), url.c_str());
 
     return isValidURL(urlParser);
 }
