@@ -29,21 +29,27 @@ NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string 
     rmdir_implemented = true;
     fileSize = 0;
     resultCode = 0;
-    httpChannelMode = DATA;
+    collect_headers_count = 0;
+    returned_header_cursor = 0;
+    httpChannelMode = HEADERS;
 }
 
 NetworkProtocolHTTP::~NetworkProtocolHTTP()
 {
+    for (int i = 0; i < collect_headers_count; i++)
+        if (collect_headers[i] != nullptr)
+            free(collect_headers[i]);
 }
 
 uint8_t NetworkProtocolHTTP::special_inquiry(uint8_t cmd)
 {
+
     switch (cmd)
     {
-        case 'M':
-            return (aux1_open > 8 ? 0x00 : 0xFF);
-        default:
-            return 0xFF;
+    case 'M':
+        return (aux1_open > 8 ? 0x00 : 0xFF);
+    default:
+        return 0xFF;
     }
 }
 
@@ -51,21 +57,21 @@ bool NetworkProtocolHTTP::special_00(cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
     {
-        case 'M':
-            return special_set_channel_mode(cmdFrame);
-        default:
-            return true;        
+    case 'M':
+        return special_set_channel_mode(cmdFrame);
+    default:
+        return true;
     }
 }
 
 bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
 {
-    if (cmdFrame->aux2==0)
+    if (cmdFrame->aux2 == 0)
         httpChannelMode = DATA;
-    else if (cmdFrame->aux2==1)
+    else if (cmdFrame->aux2 == 1)
         httpChannelMode = HEADERS;
 
-    Debug_printf("NetworkProtocolHTTP::special_set_channel_mode(%u)\n",httpChannelMode);
+    Debug_printf("NetworkProtocolHTTP::special_set_channel_mode(%u)\n", httpChannelMode);
     return false;
 }
 
@@ -77,14 +83,14 @@ bool NetworkProtocolHTTP::open_file_handle()
 
     switch (aux1_open)
     {
-    case 4:     // GET with no headers, filename resolve
-    case 12:    // GET with ability to set headers, no filename resolve.
+    case 4:  // GET with no headers, filename resolve
+    case 12: // GET with ability to set headers, no filename resolve.
         httpOpenMode = GET;
         break;
-    case 8:     // WRITE, filename resolve, ignored if not found.
+    case 8: // WRITE, filename resolve, ignored if not found.
         httpOpenMode = PUT;
         break;
-    case 13:    // POST can set headers, also no filename resolve
+    case 13: // POST can set headers, also no filename resolve
         httpOpenMode = POST;
         break;
     default:
@@ -209,16 +215,53 @@ void NetworkProtocolHTTP::fserror_to_error()
     }
 }
 
+bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
+{
+    switch (httpChannelMode)
+    {
+    case DATA:
+        status->rxBytesWaiting = fileSize > 65535 ? 65535 : fileSize;
+        status->connected = fileSize > 0 ? 1 : 0;
+        status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+        return false;
+    case HEADERS:
+        status->rxBytesWaiting = (returned_headers.empty() ? 0 : returned_headers[returned_header_cursor].size());
+        status->connected = 1;
+        status->error = error;
+        return false;
+    default:
+        return true;
+    }
+}
+
 bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
     Debug_printf("NetworkProtocolHTTP::read_file_handle(%p,%u)\n", buf, len);
+    switch (httpChannelMode)
+    {
+    case DATA:
+        return read_file_handle_data(buf, len);
+    case HEADERS:
+        return read_file_handle_header(buf, len);
+    default:
+        return true;
+    }
+}
 
+bool NetworkProtocolHTTP::read_file_handle_header(uint8_t *buf, unsigned short len)
+{
+    memcpy(buf, returned_headers[returned_header_cursor++].data(), len);
+    return returned_header_cursor > returned_headers.size();
+}
+
+bool NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len)
+{
     if (resultCode == 0)
         http_transaction();
 
     client->read(buf, len);
 
-    return false;
+    return true;
 }
 
 bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
@@ -244,7 +287,56 @@ bool NetworkProtocolHTTP::close_dir_handle()
 bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
 {
     Debug_printf("NetworkProtocolHTTP::write_file_handle(%p,%u)\n", buf, len);
-    return false;
+
+    switch (httpChannelMode)
+    {
+    case DATA:
+        return write_file_handle_data(buf, len);
+    case HEADERS:
+        return write_file_handle_header(buf, len);
+    default:
+        return true;
+    }
+}
+
+bool NetworkProtocolHTTP::write_file_handle_header(uint8_t *buf, unsigned short len)
+{
+    if (httpOpenMode == GET)
+    {
+        char *requestedHeader = (char *)malloc(len);
+
+        memset(requestedHeader, 0, len);
+
+        if (requestedHeader == nullptr)
+        {
+            Debug_printf("Could not allocate %u bytes for header\n", len);
+            return true;
+        }
+
+        // move source buffer into requested header.
+        memcpy(requestedHeader, buf, len);
+
+        // Remove EOL, make NUL delimited.
+        for (int i=0;i<len;i++)
+            if (requestedHeader[i]==0x9B)
+                requestedHeader[i]=0x00;
+
+        Debug_printf("collect_headers[%u,%u] = \"%s\"\n", collect_headers_count, len, requestedHeader);
+
+        // Add result to header array.
+        collect_headers[collect_headers_count++] = requestedHeader;
+        return false;
+    }
+    else
+    {
+        error = NETWORK_ERROR_NOT_IMPLEMENTED;
+        return true;
+    }
+}
+
+bool NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)
+{
+    return true; // come back here later.
 }
 
 bool NetworkProtocolHTTP::stat()
@@ -286,6 +378,11 @@ bool NetworkProtocolHTTP::stat()
 
 void NetworkProtocolHTTP::http_transaction()
 {
+    if ((aux1_open != 4) && (aux1_open != 8) && (collect_headers_count > 0))
+    {
+        client->collect_headers((const char **)collect_headers, collect_headers_count);
+    }
+
     switch (httpOpenMode)
     {
     case GET:
@@ -297,6 +394,17 @@ void NetworkProtocolHTTP::http_transaction()
     case PUT:
         // resultCode = client->PUT();
         break;
+    }
+
+    if ((aux1_open != 4) && (aux1_open != 8) && (collect_headers_count > 0))
+    {
+        Debug_printf("Header count %u\n", client->get_header_count());
+
+        for (int i = 0; i < client->get_header_count(); i++)
+        {
+            returned_headers.push_back(string(client->get_header(i) + "\x9b"));
+            Debug_printf("returned_headers[%u]=\"%s\"\n", i, returned_headers[i].c_str());
+        }
     }
 
     fileSize = client->available();
