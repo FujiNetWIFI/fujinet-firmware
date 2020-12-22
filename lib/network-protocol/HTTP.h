@@ -104,6 +104,13 @@ protected:
     virtual bool write_file_handle(uint8_t *buf, unsigned short len);
 
     /**
+     * @brief return status from channel
+     * @param Pointer to NetworkStatus object to inject new data.
+     * @return FALSE if success, TRUE if error.
+     */
+    virtual bool status_file(NetworkStatus *status);
+
+    /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
      */
     virtual bool stat();
@@ -113,21 +120,25 @@ private:
     /**
      * The HTTP Open Mode, ultimately used in http_transaction()
      */
-    enum _httpOpenMode
+    typedef enum _httpOpenMode
     {
         GET,
         POST,
         PUT
-    } httpOpenMode;
+    } HTTPOpenMode;
+
+    HTTPOpenMode httpOpenMode;
 
     /**
      * The HTTP channel mode, used to distinguish between headers and data
      */
-    enum _httpChannelMode
+    typedef enum _httpChannelMode
     {
         DATA,
         HEADERS
-    } httpChannelMode;
+    } HTTPChannelMode;
+
+    HTTPChannelMode httpChannelMode;
 
     /**
      * The fnHTTPClient object used by the adaptor for HTTP calls
@@ -140,6 +151,26 @@ private:
     int resultCode;
 
     /**
+     * Array of up to 32 headers
+     */
+    char* collect_headers[32];
+
+    /**
+     * Collected headers count
+     */
+    size_t collect_headers_count;
+
+    /**
+     * Returned headers
+     */
+    vector<string> returned_headers;
+
+    /**
+     * Returned header cursor
+     */
+    size_t returned_header_cursor;
+
+    /**
      * Do HTTP transaction
      */
     void http_transaction();
@@ -149,6 +180,38 @@ private:
      * @param cmdFrame the passed in command frame.
      */
     bool special_set_channel_mode(cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief header mode - retrieve requested headers previously collected.
+     * @param buf The target buffer
+     * @param len The target buffer length
+     * @return true on ERROR FALSE on success
+     */
+    bool read_file_handle_header(uint8_t *buf, unsigned short len);
+
+    /**
+     * @brief data mode - read 
+     * @param buf The target buffer
+     * @param len The target buffer length
+     * @return true on ERROR FALSE on success
+     */
+    bool read_file_handle_data(uint8_t *buf, unsigned short len);
+
+    /**
+     * @brief header mode - write requested headers to pass into collect_headers.
+     * @param buf The source buffer
+     * @param len The source buffer length
+     * @return true on ERROR FALSE on success
+     */
+    bool write_file_handle_header(uint8_t *buf, unsigned short len);
+
+    /**
+     * @brief data mode - write requested headers to pass into PUT
+     * @param buf The source buffer
+     * @param len The source buffer length
+     * @return true on ERROR FALSE on success
+     */
+    bool write_file_handle_data(uint8_t *buf, unsigned short len);
 
 };
 
