@@ -328,7 +328,7 @@ void NetworkProtocolFS::resolve()
         close_dir_handle();
     }
 
-    Debug_printf("Resolved to %s\n", opened_url->toString());
+    Debug_printf("Resolved to %s\n", opened_url->toString().c_str());
 }
 
 bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame)
