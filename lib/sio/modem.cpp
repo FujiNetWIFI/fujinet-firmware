@@ -22,6 +22,7 @@
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
 #define SIO_MODEMCMD_BAUDLOCK 0x4E
+#define SIO_MODEMCMD_AUTOANSWER 0x4F
 #define SIO_MODEMCMD_STATUS 0x53
 #define SIO_MODEMCMD_WRITE 0x57
 #define SIO_MODEMCMD_STREAM 0x58
@@ -355,7 +356,25 @@ void sioModem::sio_status()
    mdmStatus[1] |= (tcpClient.connected()==true ? 12 : 0);
 
     mdmStatus[1] &= 0b11111110;
-    mdmStatus[1] |= (tcpClient.available()>0 ? 1 : 0);
+    mdmStatus[1] |= ((tcpClient.available()>0) || (tcpServer.hasClient() == true) ? 1 : 0);
+
+    if (autoAnswer == true && tcpServer.hasClient() == true)
+    {
+        modemActive=true;
+        fnSystem.delay(2000);
+
+        if (numericResultCode == true)
+        {
+            at_connect_resultCode(modemBaud);
+            CRX = true;
+        }
+        else
+        {
+            at_cmd_println("CONNECT ", false);
+            at_cmd_println(modemBaud);
+            CRX = true;
+        }
+    }
 
     Debug_printf("sioModem::sio_status(%02x,%02x)\n",mdmStatus[0],mdmStatus[1]);
 
@@ -592,6 +611,19 @@ void sioModem::sio_baudlock()
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
 
     Debug_printf("baudLock: %d\n", baudLock);
+
+    sio_complete();
+}
+
+/**
+ * enable/disable auto-answer
+ */
+void sioModem::sio_autoanswer()
+{
+    sio_ack();
+    autoAnswer = (cmdFrame.aux1 > 0 ? true : false);
+
+    Debug_printf("autoanswer: %d\n", baudLock);
 
     sio_complete();
 }
@@ -1004,6 +1036,8 @@ void sioModem::at_handle_dial()
         host = cmd.substr(4);
         port = "23"; // Telnet default
     }
+
+    util_string_trim(host); // allow spaces or no spaces after AT command
 
     Debug_printf("DIALING: %s\n", host.c_str());
 
@@ -1633,7 +1667,7 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_MODEMCMD_TYPE1_POLL:
         Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
         // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
-        if (cmdFrame.aux1 == 1 || count_PollType1 == 26)
+        if (cmdFrame.aux1 == 1 || count_PollType1 == 16)
             sio_poll_1();
         break;
 
@@ -1661,6 +1695,9 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case SIO_MODEMCMD_BAUDLOCK:
         sio_baudlock();
+        break;
+    case SIO_MODEMCMD_AUTOANSWER:
+        sio_autoanswer();
         break;
     case SIO_MODEMCMD_STATUS:
         sio_ack();
