@@ -4,6 +4,7 @@
 
 #include "HTTP.h"
 #include "status_error_codes.h"
+#include "../webdav/WebDAV.h"
 
 /**
  Modes and the N: HTTP Adapter:
@@ -309,7 +310,7 @@ bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
 bool NetworkProtocolHTTP::close_file_handle()
 {
     Debug_printf("NetworkProtocolHTTP::close_file_Handle()\n");
-    
+
     if (client != nullptr)
     {
         if (httpOpenMode == PUT)
@@ -340,7 +341,7 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
     case SET_HEADERS:
         return write_file_handle_set_header(buf, len);
     case SEND_POST_DATA:
-        return write_file_handle_send_post_data(buf,len);
+        return write_file_handle_send_post_data(buf, len);
     case GET_HEADERS:
         error = NETWORK_ERROR_READ_ONLY;
         return true;
@@ -395,13 +396,13 @@ bool NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned sh
 
     // Find delimiter
     pos = incomingHeader.find(":");
-    
+
     if (pos == string::npos)
         return true;
-    
-    Debug_printf("NetworkProtocolHTTP::write_file_set_header(%s,%s)",incomingHeader.substr(0,pos).c_str(),incomingHeader.substr(pos+2).c_str());
 
-    client->set_header(incomingHeader.substr(0,pos).c_str(), incomingHeader.substr(pos+2).c_str());
+    Debug_printf("NetworkProtocolHTTP::write_file_set_header(%s,%s)", incomingHeader.substr(0, pos).c_str(), incomingHeader.substr(pos + 2).c_str());
+
+    client->set_header(incomingHeader.substr(0, pos).c_str(), incomingHeader.substr(pos + 2).c_str());
     return false;
 }
 
@@ -480,10 +481,10 @@ void NetworkProtocolHTTP::http_transaction()
         resultCode = client->GET();
         break;
     case POST:
-        resultCode = client->POST(postData.c_str(),postData.size());
+        resultCode = client->POST(postData.c_str(), postData.size());
         break;
     case PUT:
-        resultCode = client->PUT(postData.c_str(),postData.size());
+        resultCode = client->PUT(postData.c_str(), postData.size());
         break;
     }
 
@@ -499,4 +500,36 @@ void NetworkProtocolHTTP::http_transaction()
     }
 
     fileSize = bodySize = client->available();
+}
+
+bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
+{
+    XML_Parser p = XML_ParserCreate(NULL);
+    WebDAV w;
+    XML_Status xs;
+    bool err = false;
+
+    if (p == nullptr)
+    {
+        Debug_printf("NetworkProtocolHTTP::parseDir(%p,%u) - could not create expat parser. Aborting.\n");
+        return true;
+    }
+
+    // Set everything up
+    XML_SetUserData(p, &w);
+    XML_SetElementHandler(p, Start<WebDAV>, End<WebDAV>);
+    XML_SetCharacterDataHandler(p, Char<WebDAV>);
+
+    // And parse the damned buffer
+    xs = XML_Parse(p, buf, len, true);
+
+    if (xs == XML_STATUS_ERROR)
+    {
+        Debug_printf("DAV response XML Parse Error! msg: %s line: %lu\n", XML_ErrorString(XML_GetErrorCode(p)), XML_GetCurrentLineNumber(p));
+    }
+
+    if (p != nullptr)
+        XML_ParserFree(p);
+
+    return err;
 }
