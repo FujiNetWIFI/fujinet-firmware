@@ -63,7 +63,7 @@ bool NetworkProtocolFS::open_dir()
 
     char e[256];
 
-    Debug_printf("NetworkProtocolFS::open_dir(%s)\n", opened_url->toString());
+    Debug_printf("NetworkProtocolFS::open_dir(%s)\n", opened_url->toString().c_str());
 
     if (opened_url->path.empty())
         return true;
