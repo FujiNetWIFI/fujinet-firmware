@@ -30,7 +30,7 @@ public:
         /**
          * Entry filesize
          */
-        size_t filesize;
+        string fileSize;
     };
 
     /**

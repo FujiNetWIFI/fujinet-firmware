@@ -25,7 +25,7 @@ void WebDAV::End(const XML_Char *el)
     }
     else if (strcmp(el, "D:displayname") == 0)
         insideDisplayName = false;
-    else if (strcmp(el, "D:getcontentlength"))
+    else if (strcmp(el, "D:getcontentlength") == 0)
         insideGetContentLength = false;
 }
 
@@ -36,6 +36,6 @@ void WebDAV::Char(const XML_Char *s, int len)
         if (insideDisplayName == true)
             currentEntry.filename = string(s, len);
         else if (insideGetContentLength == true)
-            currentEntry.filesize = atoi(s);
+            currentEntry.fileSize = string(s, len);
     }
 }
