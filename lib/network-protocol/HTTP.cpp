@@ -357,7 +357,7 @@ bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
 
     if (dirEntryCursor != webDAV.entries.end())
     {
-        fileSize = dirEntryCursor->filesize;
+        fileSize = atoi(dirEntryCursor->fileSize.c_str());
         strcpy(buf, dirEntryCursor->filename.c_str());
         dirEntryCursor++;
     }
@@ -579,6 +579,9 @@ bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
         Debug_printf("NetworkProtocolHTTP::parseDir(%p,%u) - could not create expat parser. Aborting.\n");
         return true;
     }
+
+    // Put PROPFIND data to debug console
+    Debug_printf("PROPFIND DATA:\n\n%s\n",buf);
 
     // Set everything up
     XML_SetUserData(p, &webDAV);
