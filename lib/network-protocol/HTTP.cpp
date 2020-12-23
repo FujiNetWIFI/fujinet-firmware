@@ -85,6 +85,9 @@ bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
     case 3:
         httpChannelMode = SET_HEADERS;
         break;
+    case 4:
+        httpChannelMode = SEND_POST_DATA;
+        break;
     default:
         error = NETWORK_ERROR_INVALID_COMMAND;
         err = true;
@@ -244,6 +247,7 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
         return false;
     case SET_HEADERS:
     case COLLECT_HEADERS:
+    case SEND_POST_DATA:
         status->rxBytesWaiting = status->connected = 0;
         status->error = NETWORK_ERROR_SUCCESS;
         return false;
@@ -268,6 +272,7 @@ bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
         return read_file_handle_data(buf, len);
     case COLLECT_HEADERS:
     case SET_HEADERS:
+    case SEND_POST_DATA:
         error = NETWORK_ERROR_WRITE_ONLY;
         return true;
     case GET_HEADERS:
@@ -327,6 +332,8 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
         return write_file_handle_get_header(buf, len);
     case SET_HEADERS:
         return write_file_handle_set_header(buf, len);
+    case SEND_POST_DATA:
+        return write_file_handle_send_post_data(buf,len);
     case GET_HEADERS:
         error = NETWORK_ERROR_READ_ONLY;
         return true;
@@ -391,6 +398,18 @@ bool NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned sh
     return false;
 }
 
+bool NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigned short len)
+{
+    if (httpOpenMode != POST)
+    {
+        error = NETWORK_ERROR_INVALID_COMMAND;
+        return true;
+    }
+
+    postData += string((char *)buf, len);
+    return false;
+}
+
 bool NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)
 {
     return true; // come back here later.
@@ -447,7 +466,7 @@ void NetworkProtocolHTTP::http_transaction()
         resultCode = client->GET();
         break;
     case POST:
-        // resultCode = client->POST();
+        resultCode = client->POST(postData.c_str(),postData.size());
         break;
     case PUT:
         // resultCode = client->PUT();
