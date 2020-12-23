@@ -3,11 +3,11 @@
 
 #include "FS.h"
 #include "../http/fnHttpClient.h"
+#include <expat.h>
 
 class NetworkProtocolHTTP : public NetworkProtocolFS
 {
 public:
-
     /**
      * @brief ctor
      * @param rx_buf pointer to receive buffer
@@ -37,7 +37,6 @@ public:
     virtual bool special_00(cmdFrame_t *cmdFrame);
 
 protected:
-
     /**
      * @brief open a file handle to fd
      * @return FALSE if successful, TRUE on error.
@@ -116,7 +115,6 @@ protected:
     virtual bool stat();
 
 private:
-
     /**
      * The HTTP Open Mode, ultimately used in http_transaction()
      */
@@ -156,7 +154,7 @@ private:
     /**
      * Array of up to 32 headers
      */
-    char* collect_headers[32];
+    char *collect_headers[32];
 
     /**
      * Collected headers count
@@ -242,6 +240,51 @@ private:
      */
     bool write_file_handle_data(uint8_t *buf, unsigned short len);
 
+    /**
+     * @brief Parse directory retrieved from PROPFIND
+     * @param buf the source buffer
+     * @param len the buffer length
+     * @return TRUE on error, FALSE on success.
+     */
+    bool parseDir(char *buf, unsigned short len);
 };
+
+/**
+     * @brief Template to wrap Start call.
+     * @param data pointer to parent class
+     * @param El the current element being parsed
+     * @param attr the array of attributes attached to element
+     */
+template <class T>
+void Start(void *data, const XML_Char *El, const XML_Char **attr)
+{
+    T *handler = static_cast<T *>(data);
+    handler->Start(El, attr);
+}
+
+/**
+ * @brief Template to wrap End call
+ * @param data pointer to parent class.
+ * @param El the current element being parsed.
+ **/
+template <class T>
+void End(void *data, const XML_Char *El)
+{
+    T *handler = static_cast<T *>(data);
+    handler->End(El);
+}
+
+/**
+ * @brief template to wrap character data.
+ * @param data pointer to parent class
+ * @param s pointer to the character data
+ * @param len length of character data at pointer
+ **/
+template <class T>
+void Char(void *data, const XML_Char *s, int len)
+{
+    T *handler = static_cast<T *>(data);
+    handler->Char(s, len);
+}
 
 #endif /* NETWORKPROTOCOLHTTP_H */
