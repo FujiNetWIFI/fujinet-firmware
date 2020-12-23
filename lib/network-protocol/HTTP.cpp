@@ -132,8 +132,54 @@ bool NetworkProtocolHTTP::open_file_handle()
 
 bool NetworkProtocolHTTP::open_dir_handle()
 {
+    char *buf;
+    unsigned short len, actual_len;
+
     Debug_printf("NetworkProtocolHTTP::open_dir_handle()\n");
-    return true; // until we actually implement webdav dir.
+
+    // client->begin already called in mount()
+    resultCode = client->PROPFIND(fnHttpClient::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /></D:prop>\r\n</D:propfind>\r\n");
+
+    if (resultCode > 399)
+    {
+        Debug_printf("Could not do PROPFIND. Result code %u\n", resultCode);
+        fserror_to_error();
+        return true;
+    }
+
+    len = client->available();
+    buf = (char *)malloc(len);
+
+    if (buf == nullptr)
+    {
+        Debug_printf("Could not allocate %u bytes for PROPFIND data. Aborting\n", len);
+        error = NETWORK_ERROR_GENERAL;
+        return true;
+    }
+
+    // Grab the buffer.
+    actual_len = client->read((uint8_t *)buf, len);
+
+    if (actual_len != len)
+    {
+        Debug_printf("Expected %u bytes, actually got %u bytes.\n", len, actual_len);
+        error = NETWORK_ERROR_GENERAL;
+        return true;
+    }
+
+    // Parse the buffer
+    if (parseDir(buf,len))
+    {
+        Debug_printf("Could not parse buffer, returning 144\n");
+        error = NETWORK_ERROR_GENERAL;
+        return true;
+    }
+
+    // Scoot to beginning of entries.
+    dirEntryCursor = webDAV.entries.begin();
+
+    // Directory parsed, ready to be returned by read_dir_entry()
+    return false;
 }
 
 bool NetworkProtocolHTTP::mount(EdUrlParser *url)
@@ -303,8 +349,23 @@ bool NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len
 
 bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
 {
+    bool err = false;
+
     Debug_printf("NetworkProtocolHTTP::read_dir_entry(%p,%u)\n", buf, len);
-    return false;
+
+    // TODO: Get directory attribute.
+    fileSize = dirEntryCursor->filesize;
+    strcpy(buf,dirEntryCursor->filename.c_str());
+
+    if (dirEntryCursor != webDAV.entries.end())
+        dirEntryCursor++;
+    else
+    {
+        // EOF
+        err = true;
+    }
+
+    return err;
 }
 
 bool NetworkProtocolHTTP::close_file_handle()
@@ -505,7 +566,6 @@ void NetworkProtocolHTTP::http_transaction()
 bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
 {
     XML_Parser p = XML_ParserCreate(NULL);
-    WebDAV w;
     XML_Status xs;
     bool err = false;
 
@@ -516,7 +576,7 @@ bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
     }
 
     // Set everything up
-    XML_SetUserData(p, &w);
+    XML_SetUserData(p, &webDAV);
     XML_SetElementHandler(p, Start<WebDAV>, End<WebDAV>);
     XML_SetCharacterDataHandler(p, Char<WebDAV>);
 
