@@ -11,6 +11,21 @@
 #define NETWORK_ERROR_SUCCESS 1
 
 /**
+ * IOCB Write Only
+ */
+#define NETWORK_ERROR_WRITE_ONLY 131
+
+/**
+ * IOCB Invalid Command
+ */
+#define NETWORK_ERROR_INVALID_COMMAND 132
+
+/**
+ * IOCB Read Only
+ */
+#define NETWORK_ERROR_READ_ONLY 135
+
+/**
  * End of file
  */
 #define NETWORK_ERROR_END_OF_FILE 136

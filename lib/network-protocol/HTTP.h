@@ -135,7 +135,8 @@ private:
     typedef enum _httpChannelMode
     {
         DATA,
-        HEADERS
+        COLLECT_HEADERS,
+        GET_HEADERS
     } HTTPChannelMode;
 
     HTTPChannelMode httpChannelMode;
@@ -169,6 +170,11 @@ private:
      * Returned header cursor
      */
     size_t returned_header_cursor;
+
+    /**
+     * Body size (fileSize is reset with this when DATA is engaged)
+     */
+    int bodySize;
 
     /**
      * Do HTTP transaction

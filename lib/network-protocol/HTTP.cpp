@@ -31,7 +31,7 @@ NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string 
     resultCode = 0;
     collect_headers_count = 0;
     returned_header_cursor = 0;
-    httpChannelMode = HEADERS;
+    httpChannelMode = DATA;
 }
 
 NetworkProtocolHTTP::~NetworkProtocolHTTP()
@@ -66,13 +66,28 @@ bool NetworkProtocolHTTP::special_00(cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
 {
-    if (cmdFrame->aux2 == 0)
-        httpChannelMode = DATA;
-    else if (cmdFrame->aux2 == 1)
-        httpChannelMode = HEADERS;
+    bool err = false;
 
     Debug_printf("NetworkProtocolHTTP::special_set_channel_mode(%u)\n", httpChannelMode);
-    return false;
+
+    switch (cmdFrame->aux2)
+    {
+    case 0:
+        httpChannelMode = DATA;
+        fileSize = bodySize;
+        break;
+    case 1:
+        httpChannelMode = COLLECT_HEADERS;
+        break;
+    case 2:
+        httpChannelMode = GET_HEADERS;
+        break;
+    default:
+        error = NETWORK_ERROR_INVALID_COMMAND;
+        err = true;
+    }
+
+    return err;
 }
 
 bool NetworkProtocolHTTP::open_file_handle()
@@ -224,9 +239,15 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
         status->connected = fileSize > 0 ? 1 : 0;
         status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
         return false;
-    case HEADERS:
+    case COLLECT_HEADERS:
+        status->rxBytesWaiting = status->connected = 0;
+        status->error = NETWORK_ERROR_SUCCESS;
+        return false;
+    case GET_HEADERS:
+        if (resultCode == 0)
+            http_transaction();
         status->rxBytesWaiting = (returned_headers.empty() ? 0 : returned_headers[returned_header_cursor].size());
-        status->connected = 1;
+        status->connected = resultCode > 0; // returns 1 if transaction has happened.
         status->error = error;
         return false;
     default:
@@ -241,7 +262,10 @@ bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
     {
     case DATA:
         return read_file_handle_data(buf, len);
-    case HEADERS:
+    case COLLECT_HEADERS:
+        error = NETWORK_ERROR_WRITE_ONLY;
+        return true;
+    case GET_HEADERS:
         return read_file_handle_header(buf, len);
     default:
         return true;
@@ -256,12 +280,14 @@ bool NetworkProtocolHTTP::read_file_handle_header(uint8_t *buf, unsigned short l
 
 bool NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len)
 {
+    int actual_len;
+
     if (resultCode == 0)
         http_transaction();
 
-    client->read(buf, len);
+    actual_len = client->read(buf, len);
 
-    return true;
+    return len != actual_len;
 }
 
 bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
@@ -292,8 +318,11 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
     {
     case DATA:
         return write_file_handle_data(buf, len);
-    case HEADERS:
+    case COLLECT_HEADERS:
         return write_file_handle_header(buf, len);
+    case GET_HEADERS:
+        error = NETWORK_ERROR_READ_ONLY;
+        return true;
     default:
         return true;
     }
@@ -317,9 +346,9 @@ bool NetworkProtocolHTTP::write_file_handle_header(uint8_t *buf, unsigned short 
         memcpy(requestedHeader, buf, len);
 
         // Remove EOL, make NUL delimited.
-        for (int i=0;i<len;i++)
-            if (requestedHeader[i]==0x9B)
-                requestedHeader[i]=0x00;
+        for (int i = 0; i < len; i++)
+            if (requestedHeader[i] == 0x9B)
+                requestedHeader[i] = 0x00;
 
         Debug_printf("collect_headers[%u,%u] = \"%s\"\n", collect_headers_count, len, requestedHeader);
 
@@ -380,6 +409,7 @@ void NetworkProtocolHTTP::http_transaction()
 {
     if ((aux1_open != 4) && (aux1_open != 8) && (collect_headers_count > 0))
     {
+        Debug_printf("CALLING COLLECT HEADERS!\n");
         client->collect_headers((const char **)collect_headers, collect_headers_count);
     }
 
@@ -407,5 +437,5 @@ void NetworkProtocolHTTP::http_transaction()
         }
     }
 
-    fileSize = client->available();
+    fileSize = bodySize = client->available();
 }
