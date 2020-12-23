@@ -82,6 +82,9 @@ bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
     case 2:
         httpChannelMode = GET_HEADERS;
         break;
+    case 3:
+        httpChannelMode = SET_HEADERS;
+        break;
     default:
         error = NETWORK_ERROR_INVALID_COMMAND;
         err = true;
@@ -239,6 +242,7 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
         status->connected = fileSize > 0 ? 1 : 0;
         status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
         return false;
+    case SET_HEADERS:
     case COLLECT_HEADERS:
         status->rxBytesWaiting = status->connected = 0;
         status->error = NETWORK_ERROR_SUCCESS;
@@ -263,6 +267,7 @@ bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
     case DATA:
         return read_file_handle_data(buf, len);
     case COLLECT_HEADERS:
+    case SET_HEADERS:
         error = NETWORK_ERROR_WRITE_ONLY;
         return true;
     case GET_HEADERS:
@@ -319,7 +324,9 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
     case DATA:
         return write_file_handle_data(buf, len);
     case COLLECT_HEADERS:
-        return write_file_handle_header(buf, len);
+        return write_file_handle_get_header(buf, len);
+    case SET_HEADERS:
+        return write_file_handle_set_header(buf, len);
     case GET_HEADERS:
         error = NETWORK_ERROR_READ_ONLY;
         return true;
@@ -328,7 +335,7 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
     }
 }
 
-bool NetworkProtocolHTTP::write_file_handle_header(uint8_t *buf, unsigned short len)
+bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned short len)
 {
     if (httpOpenMode == GET)
     {
@@ -361,6 +368,27 @@ bool NetworkProtocolHTTP::write_file_handle_header(uint8_t *buf, unsigned short 
         error = NETWORK_ERROR_NOT_IMPLEMENTED;
         return true;
     }
+}
+
+bool NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned short len)
+{
+    string incomingHeader = string((char *)buf, len);
+    size_t pos = incomingHeader.find('\x9b');
+
+    // Erase ATASCII EOL if present
+    if (pos != string::npos)
+        incomingHeader.erase(pos);
+
+    // Find delimiter
+    pos = incomingHeader.find(":");
+    
+    if (pos == string::npos)
+        return true;
+    
+    Debug_printf("NetworkProtocolHTTP::write_file_set_header(%s,%s)",incomingHeader.substr(0,pos).c_str(),incomingHeader.substr(pos+2).c_str());
+
+    client->set_header(incomingHeader.substr(0,pos).c_str(), incomingHeader.substr(pos+2).c_str());
+    return false;
 }
 
 bool NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)

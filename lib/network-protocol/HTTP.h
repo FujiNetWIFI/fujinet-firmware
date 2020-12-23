@@ -136,7 +136,8 @@ private:
     {
         DATA,
         COLLECT_HEADERS,
-        GET_HEADERS
+        GET_HEADERS,
+        SET_HEADERS,
     } HTTPChannelMode;
 
     HTTPChannelMode httpChannelMode;
@@ -209,7 +210,15 @@ private:
      * @param len The source buffer length
      * @return true on ERROR FALSE on success
      */
-    bool write_file_handle_header(uint8_t *buf, unsigned short len);
+    bool write_file_handle_get_header(uint8_t *buf, unsigned short len);
+
+    /**
+     * @brief header mode - write specified header to server
+     * @param buf The source buffer
+     * @param len The source buffer length
+     * @return true on ERROR FALSE on success
+     */
+    bool write_file_handle_set_header(uint8_t *buf, unsigned short len);
 
     /**
      * @brief data mode - write requested headers to pass into PUT
