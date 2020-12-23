@@ -309,9 +309,16 @@ bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
 bool NetworkProtocolHTTP::close_file_handle()
 {
     Debug_printf("NetworkProtocolHTTP::close_file_Handle()\n");
+    
     if (client != nullptr)
+    {
+        if (httpOpenMode == PUT)
+            http_transaction();
         client->close();
-    return false;
+        fserror_to_error();
+    }
+
+    return (error == 1 ? false : true);
 }
 
 bool NetworkProtocolHTTP::close_dir_handle()
@@ -412,7 +419,14 @@ bool NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigne
 
 bool NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)
 {
-    return true; // come back here later.
+    if (httpOpenMode != PUT)
+    {
+        error = NETWORK_ERROR_INVALID_COMMAND;
+        return true;
+    }
+
+    postData += string((char *)buf, len);
+    return false; // come back here later.
 }
 
 bool NetworkProtocolHTTP::stat()
@@ -469,7 +483,7 @@ void NetworkProtocolHTTP::http_transaction()
         resultCode = client->POST(postData.c_str(),postData.size());
         break;
     case PUT:
-        // resultCode = client->PUT();
+        resultCode = client->PUT(postData.c_str(),postData.size());
         break;
     }
 

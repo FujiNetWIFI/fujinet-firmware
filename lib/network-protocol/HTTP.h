@@ -179,7 +179,7 @@ private:
     int bodySize;
 
     /**
-     * POST Data to send.
+     * POST or PUT Data to send.
      */
     string postData;
 
