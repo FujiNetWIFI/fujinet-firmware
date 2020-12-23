@@ -138,6 +138,7 @@ private:
         COLLECT_HEADERS,
         GET_HEADERS,
         SET_HEADERS,
+        SEND_POST_DATA
     } HTTPChannelMode;
 
     HTTPChannelMode httpChannelMode;
@@ -176,6 +177,11 @@ private:
      * Body size (fileSize is reset with this when DATA is engaged)
      */
     int bodySize;
+
+    /**
+     * POST Data to send.
+     */
+    string postData;
 
     /**
      * Do HTTP transaction
@@ -219,6 +225,14 @@ private:
      * @return true on ERROR FALSE on success
      */
     bool write_file_handle_set_header(uint8_t *buf, unsigned short len);
+
+    /**
+     * @brief post mode - write specified post data to server
+     * @param buf The source buffer
+     * @param len The source buffer length
+     * @return true on ERROR FALSE on success
+     */
+    bool write_file_handle_send_post_data(uint8_t *buf, unsigned short len);
 
     /**
      * @brief data mode - write requested headers to pass into PUT
