@@ -3,6 +3,7 @@
 
 #include "FS.h"
 #include "../http/fnHttpClient.h"
+#include "../webdav/WebDAV.h"
 #include <expat.h>
 
 class NetworkProtocolHTTP : public NetworkProtocolFS
@@ -180,6 +181,16 @@ private:
      * POST or PUT Data to send.
      */
     string postData;
+
+    /**
+     * WebDAV handler
+     */
+    WebDAV webDAV;
+
+    /**
+     * Current Directory entry cursor
+     */
+    vector<WebDAV::DAVEntry>::iterator dirEntryCursor;
 
     /**
      * Do HTTP transaction
