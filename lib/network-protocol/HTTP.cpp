@@ -168,7 +168,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
     }
 
     // Parse the buffer
-    if (parseDir(buf,len))
+    if (parseDir(buf, len))
     {
         Debug_printf("Could not parse buffer, returning 144\n");
         error = NETWORK_ERROR_GENERAL;
@@ -354,16 +354,21 @@ bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
     Debug_printf("NetworkProtocolHTTP::read_dir_entry(%p,%u)\n", buf, len);
 
     // TODO: Get directory attribute.
-    fileSize = dirEntryCursor->filesize;
-    strcpy(buf,dirEntryCursor->filename.c_str());
 
     if (dirEntryCursor != webDAV.entries.end())
+    {
+        fileSize = dirEntryCursor->filesize;
+        strcpy(buf, dirEntryCursor->filename.c_str());
         dirEntryCursor++;
+    }
     else
     {
         // EOF
+        error = 136;
         err = true;
     }
+
+    Debug_printf("Returning: %s, %u\n", buf, fileSize);
 
     return err;
 }
