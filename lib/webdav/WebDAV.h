@@ -16,8 +16,7 @@ using namespace std;
  */
 class WebDAV
 {
-    public:
-    
+public:
     /**
      * @brief container class for one WebDAV directory entry
      */
@@ -79,43 +78,5 @@ class WebDAV
      */
     bool insideGetContentLength;
 };
-
-/**
- * @brief Template to wrap Start call.
- * @param data pointer to parent class
- * @param El the current element being parsed
- * @param attr the array of attributes attached to element
- */
-template <class T>
-void Start(void *data, const XML_Char *El, const XML_Char **attr)
-{
-    T *handler = static_cast<T *>(data);
-    handler->Start(El, attr);
-}
-
-/**
- * @brief Template to wrap End call
- * @param data pointer to parent class.
- * @param El the current element being parsed.
- **/
-template <class T>
-void End(void *data, const XML_Char *El)
-{
-    T *handler = static_cast<T *>(data);
-    handler->End(El);
-}
-
-/**
- * @brief template to wrap character data.
- * @param data pointer to parent class
- * @param s pointer to the character data
- * @param len length of character data at pointer
- **/
-template <class T>
-void Char(void *data, const XML_Char *s, int len)
-{
-    T *handler = static_cast<T *>(data);
-    handler->Char(s, len);
-}
 
 #endif /* WebDAV_H */
