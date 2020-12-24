@@ -72,4 +72,6 @@ void util_sam_say(const char *p,
                   unsigned char mouth=128,
                   unsigned char throat=128);
 
+void util_replaceAll(std::string& str, const std::string& from, const std::string& to);
+
 #endif // _FN_UTILS_H
