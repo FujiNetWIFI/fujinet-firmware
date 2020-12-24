@@ -318,6 +318,8 @@ void NetworkProtocolFS::resolve()
             string current_entry = string(e);
             string crunched_entry = util_crunch(current_entry);
 
+            Debug_printf("current entry \"%s\" crunched entry \"%s\"\n",current_entry.c_str(),crunched_entry.c_str());
+
             if (crunched_filename == crunched_entry)
             {
                 opened_url->path = dir + current_entry;
