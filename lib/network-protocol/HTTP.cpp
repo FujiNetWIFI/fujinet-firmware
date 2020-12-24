@@ -619,3 +619,48 @@ bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
 
     return err;
 }
+
+bool NetworkProtocolHTTP::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    if (NetworkProtocolFS::rename(url, cmdFrame) == true)
+        return true;
+
+    mount(url);
+
+    resultCode = client->MOVE(destFilename.c_str(),true);
+    fserror_to_error();
+
+    umount();
+
+    return resultCode > 399;
+}
+
+bool NetworkProtocolHTTP::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    mount(url);
+
+    resultCode = client->DELETE();
+    fserror_to_error();
+
+    umount();
+
+    return resultCode > 399;
+}
+
+bool NetworkProtocolHTTP::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    Debug_printf("NetworkProtocolHTTP::mkdir(%s,%s)", url->hostName, url->path);
+
+    mount(url);
+
+    resultCode = client->MKCOL();
+
+    umount();
+
+    return resultCode > 399;
+}
+
+bool NetworkProtocolHTTP::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+{
+    return del(url, cmdFrame);
+}
