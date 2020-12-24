@@ -98,6 +98,13 @@ void sioNetwork::sio_open()
     // Parse and instantiate protocol
     parse_and_instantiate_protocol();
 
+    if (protocol == nullptr)
+    {
+        // invalid devicespec error already passed in.
+        sio_error();
+        return;
+    }
+
     // Attempt protocol open
     if (protocol->open(urlParser, &cmdFrame) == true)
     {
