@@ -271,26 +271,33 @@ void sioBus::service()
         return; // break!
     }
 
-    // If motor line high, handle cassette if tape mounted
-    if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH)
-    {
-        if (_fujiDev->cassette()->is_mounted())
-        {
-            if (!_fujiDev->cassette()->is_active())
+    // check if cassette is mounted first
+    if (_fujiDev->cassette()->is_mounted())
+    { // the test which tape activation mode
+        if (_fujiDev->cassette()->has_pulldown())
+        {                                                    // motor line mode
+            if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH) // TODO: use cassette helper function for consistency?
             {
-                Debug_println("MOTOR ON: activating cassette");
-                _fujiDev->cassette()->sio_enable_cassette();
+                if (_fujiDev->cassette()->is_active() == false) // keep this logic because motor line mode
+                {
+                    Debug_println("MOTOR ON: activating cassette");
+                    _fujiDev->cassette()->sio_enable_cassette();
+                }
             }
-            _fujiDev->cassette()->sio_handle_cassette();
-            return; // break!
+            else // check if need to stop tape
+            {
+                if (_fujiDev->cassette()->is_active() == true)
+                {
+                    Debug_println("MOTOR OFF: de-activating cassette");
+                    _fujiDev->cassette()->sio_disable_cassette();
+                }
+            }
         }
-    }
-    else
-    {
-        if (_fujiDev->cassette()->is_active())
+
+        if (_fujiDev->cassette()->is_active() == true) // handle cassette data traffic
         {
-            Debug_println("MOTOR OFF: de-activating cassette");
-            _fujiDev->cassette()->sio_disable_cassette();
+            _fujiDev->cassette()->sio_handle_cassette(); // 
+            return;                                      // break! 
         }
     }
 
@@ -327,10 +334,10 @@ void sioBus::setup()
     fnUartSIO.begin(_sioBaud);
 
     // INT PIN
-    fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
+    fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.digital_write(PIN_INT, DIGI_HIGH);
     // PROC PIN
-    fnSystem.set_pin_mode(PIN_PROC, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
+    fnSystem.set_pin_mode(PIN_PROC, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
     // MTR PIN
     //fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39

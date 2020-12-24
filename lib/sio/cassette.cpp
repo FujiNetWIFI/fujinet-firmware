@@ -34,16 +34,16 @@ static void IRAM_ATTR gpio_isr_handler(void *arg)
     if (gpio_num == UART2_RX)
     {
         unsigned long now = fnSystem.micros();
-        boxcar[boxidx++] = now - last;
+        boxcar[boxidx++] = now - last; // interval between current and last ISR call
         if (boxidx > BOXLEN)
-            boxidx = 0;
-        delta = 0;
+            boxidx = 0; // circular buffer action
+        delta = 0; // accumulator for boxcar filter
         for (uint8_t i = 0; i < BOXLEN; i++)
         {
-            delta += boxcar[i];
+            delta += boxcar[i]; // accumulate internvals for averaging
         }
-        delta /= 5;
-        last = now;
+        delta /= BOXLEN; // normalize accumulator to make mean
+        last = now; // remember when this was (maybe move up to right before if statement?)
     }
 }
 
@@ -122,49 +122,21 @@ int8_t softUART::service(uint8_t b)
     return 0;
 }
 
-void sioCassette::close_cassette_file()
+void sioCassette::umount_cassette_file()
 {
-    if (_file != nullptr)
-    {
-        fclose(_file);
 #ifdef DEBUG
         Debug_println("CAS file closed.");
 #endif
-    }
-    _mounted = false;
+        _mounted = false;
 }
 
-void sioCassette::open_cassette_file(FileSystem *filesystem)
+void sioCassette::mount_cassette_file(FILE *f, size_t fz)
 {
-    char fn[32];
-    char mm[21];
-    strcpy(fn, CASSETTE_FILE);
-    if (cassetteMode == cassette_mode_t::record)
-    {
-        sprintf(mm, "%020lu", fnSystem.millis());
-        strcat(fn, mm);
-    }
-    strcat(fn, ".cas");
-
-    _FS = filesystem;
-    if (_file != nullptr)
-        fclose(_file);
-    if (cassetteMode == cassette_mode_t::playback)
-        _file = _FS->file_open(fn, "r"); // use "w+" for CSAVE test
-    else if (cassetteMode == cassette_mode_t::record)
-        _file = _FS->file_open(fn, "w+"); // use "w+" for CSAVE test
-    if (!_file)
-    {
-        _mounted = false;
-        Debug_print("Could not open CAS file :( ");
-        Debug_println(fn);
-        return;
-    }
-
-    filesize = _FS->filesize(_file);
+    _file = f;
+    filesize = fz;
+    
 #ifdef DEBUG
-    Debug_printf("%s - ", fn);
-    Debug_println("CAS file opened succesfully!");
+    Debug_printf("Cassette image filesize = %u\n", fz);
 #endif
 
     tape_offset = 0;
@@ -182,6 +154,7 @@ void sioCassette::open_cassette_file(FileSystem *filesystem)
 
     _mounted = true;
 }
+
 
 void sioCassette::sio_enable_cassette()
 {
@@ -233,15 +206,18 @@ void sioCassette::sio_enable_cassette()
 
 void sioCassette::sio_disable_cassette()
 {
-    cassetteActive = false;
-    if (cassetteMode == cassette_mode_t::playback)
-        fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
-    else
-        fnUartSIO.begin(SIO_STANDARD_BAUDRATE);
+    if (cassetteActive)
+    {
+        cassetteActive = false;
+        if (cassetteMode == cassette_mode_t::playback)
+            fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
+        else
+            fnUartSIO.begin(SIO_STANDARD_BAUDRATE);
 
 #ifdef DEBUG
-    Debug_println("Cassette Mode disabled");
+        Debug_println("Cassette Mode disabled");
 #endif
+    }
 }
 
 void sioCassette::sio_handle_cassette()
@@ -265,12 +241,22 @@ void sioCassette::sio_handle_cassette()
     }
 }
 
-void sioCassette::set_buttons(const char *play_record)
+void sioCassette::set_buttons(bool play_record)
 {
-    if (play_record[0] == '0')
+    if (!play_record)
         cassetteMode = cassette_mode_t::playback;
-    else if (play_record[0] == '1')
+    else
         cassetteMode = cassette_mode_t::record;
+}
+
+bool sioCassette::get_buttons()
+{
+    return (cassetteMode == cassette_mode_t::playback);
+}
+
+void sioCassette::set_pulldown(bool resistor)
+{
+            pulldown = resistor;
 }
 
 void sioCassette::Clear_atari_sector_buffer(uint16_t len)
@@ -285,7 +271,7 @@ void sioCassette::Clear_atari_sector_buffer(uint16_t len)
     } while (len);
 }
 
-unsigned sioCassette::send_tape_block(unsigned int offset)
+size_t sioCassette::send_tape_block(size_t offset)
 {
     unsigned char *p = atari_sector_buffer + BLOCK_LEN - 1;
     unsigned char i, r;
@@ -372,7 +358,7 @@ void sioCassette::check_for_FUJI_file()
     return;
 }
 
-unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
+size_t sioCassette::send_FUJI_tape_block(size_t offset)
 {
     size_t r;
     uint16_t gap, len;
@@ -381,7 +367,7 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     struct tape_FUJI_hdr *hdr = (struct tape_FUJI_hdr *)atari_sector_buffer;
     uint8_t *p = hdr->chunk_type;
 
-    unsigned int starting_offset = offset;
+    size_t starting_offset = offset;
 
     while (offset < filesize) // FileInfo.vDisk->size)
     {
@@ -427,7 +413,7 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     while (gap--)
     {
         fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
-        if (!motor_line())
+        if (has_pulldown() && !motor_line() && gap > 1000)
         {
             fnLedManager.set(eLed::LED_SIO, false);
             return starting_offset;
@@ -483,12 +469,12 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
             }
             first = 0;
         }
-        if (block == 0)
+        /*         if (block == 0)
         {
             // TO DO : why does Sdrive do this?
             //_delay_ms(200); //add an end gap to be sure
             fnSystem.delay(200);
-        }
+        } */
     }
     else
     {
@@ -498,7 +484,7 @@ unsigned int sioCassette::send_FUJI_tape_block(unsigned int offset)
     return (offset);
 }
 
-unsigned int sioCassette::receive_FUJI_tape_block(unsigned int offset)
+size_t sioCassette::receive_FUJI_tape_block(size_t offset)
 {
     Clear_atari_sector_buffer(BLOCK_LEN + 4);
     uint8_t idx = 0;
