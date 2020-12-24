@@ -853,7 +853,7 @@ bool sioNetwork::parseURL()
     util_strip_nonascii(deviceSpec);
 
     // Process comma from devicespec (DOS 2 COPY command)
-    processCommaFromDevicespec();
+    // processCommaFromDevicespec();
 
     if (cmdFrame.aux1 != 6) // Anything but a directory read...
     {
@@ -914,7 +914,7 @@ void sioNetwork::processCommaFromDevicespec()
         }
     }
 
-    Debug_printf("Passed back deviceSpec %s\n", deviceSpec);
+    Debug_printf("Passed back deviceSpec %s\n", deviceSpec.c_str());
 }
 
 /**
