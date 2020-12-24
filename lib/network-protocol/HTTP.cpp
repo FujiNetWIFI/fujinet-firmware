@@ -137,6 +137,13 @@ bool NetworkProtocolHTTP::open_dir_handle()
 
     Debug_printf("NetworkProtocolHTTP::open_dir_handle()\n");
 
+    if (client != nullptr)
+    {
+        delete client;
+        client = new fnHttpClient();
+        client->begin(opened_url->toString());
+    }
+
     // client->begin already called in mount()
     resultCode = client->PROPFIND(fnHttpClient::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /></D:prop>\r\n</D:propfind>\r\n");
 
@@ -177,6 +184,13 @@ bool NetworkProtocolHTTP::open_dir_handle()
 
     // Scoot to beginning of entries.
     dirEntryCursor = webDAV.entries.begin();
+
+    if (client != nullptr)
+    {
+        delete client;
+        client = new fnHttpClient();
+        client->begin(opened_url->toString());
+    }
 
     // Directory parsed, ready to be returned by read_dir_entry()
     return false;
