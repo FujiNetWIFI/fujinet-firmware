@@ -6,6 +6,7 @@
 #include <algorithm>
 #include "Protocol.h"
 #include "status_error_codes.h"
+#include "../utils/utils.h"
 
 using namespace std;
 
@@ -65,7 +66,7 @@ bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     // Set translation mode, Bits 0-2 of aux2
     translation_mode = cmdFrame->aux2 & 0x03;
-    
+
     // Persist aux1/aux2 values for later.
     aux1_open = cmdFrame->aux1;
     aux2_open = cmdFrame->aux2;
@@ -82,7 +83,7 @@ bool NetworkProtocol::close()
 {
     if (!transmitBuffer->empty())
         write(transmitBuffer->length());
-        
+
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
@@ -183,20 +184,8 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
         replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_EOL, ASCII_LF);
         break;
     case TRANSLATION_MODE_CRLF:
-        replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_EOL, ASCII_CR);
+        util_replaceAll(*transmitBuffer, "\x9b", "\x0d\x0a");
         break;
-    }
-
-    // If CR/LF, insert linefeed wherever there is a CR.
-    if (translation_mode == TRANSLATION_MODE_CRLF)
-    {
-        auto pos = transmitBuffer->find(ASCII_CR);
-        while (pos != string::npos)
-        {
-            pos++;
-            transmitBuffer->insert(pos, "\n");
-            pos = transmitBuffer->find(ASCII_CR, pos);
-        }
     }
 
     return transmitBuffer->length();
@@ -207,35 +196,35 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
  */
 void NetworkProtocol::errno_to_error()
 {
-    switch(errno)
+    switch (errno)
     {
-        case EAGAIN:
-            error = 1; // This is okay.
-            errno = 0; // Short circuit and say it's okay.
-            break;
-        case EADDRINUSE:
-            error = NETWORK_ERROR_ADDRESS_IN_USE;
-            break;
-        case EINPROGRESS:
-            error = NETWORK_ERROR_CONNECTION_ALREADY_IN_PROGRESS;
-            break;
-        case ECONNRESET:
-            error = NETWORK_ERROR_CONNECTION_RESET;
-            break;
-        case ECONNREFUSED:
-            error = NETWORK_ERROR_CONNECTION_REFUSED;
-            break;
-        case ENETUNREACH:
-            error = NETWORK_ERROR_NETWORK_UNREACHABLE;
-            break;
-        case ETIMEDOUT:
-            error = NETWORK_ERROR_SOCKET_TIMEOUT;
-            break;
-        case ENETDOWN:
-            error = NETWORK_ERROR_NETWORK_DOWN;
-            break;
-        default:
-        Debug_printf("errno_to_error() - Uncaught errno = %u, returning 144.\n",errno);
+    case EAGAIN:
+        error = 1; // This is okay.
+        errno = 0; // Short circuit and say it's okay.
+        break;
+    case EADDRINUSE:
+        error = NETWORK_ERROR_ADDRESS_IN_USE;
+        break;
+    case EINPROGRESS:
+        error = NETWORK_ERROR_CONNECTION_ALREADY_IN_PROGRESS;
+        break;
+    case ECONNRESET:
+        error = NETWORK_ERROR_CONNECTION_RESET;
+        break;
+    case ECONNREFUSED:
+        error = NETWORK_ERROR_CONNECTION_REFUSED;
+        break;
+    case ENETUNREACH:
+        error = NETWORK_ERROR_NETWORK_UNREACHABLE;
+        break;
+    case ETIMEDOUT:
+        error = NETWORK_ERROR_SOCKET_TIMEOUT;
+        break;
+    case ENETDOWN:
+        error = NETWORK_ERROR_NETWORK_DOWN;
+        break;
+    default:
+        Debug_printf("errno_to_error() - Uncaught errno = %u, returning 144.\n", errno);
         error = NETWORK_ERROR_GENERAL;
         break;
     }
