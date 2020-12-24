@@ -53,42 +53,91 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PLAY_RECORD,
         FN_PULLDOWN,
         FN_CONFIG_ENABLED,
+        FN_DRIVE1HOST,
+        FN_DRIVE2HOST,
+        FN_DRIVE3HOST,
+        FN_DRIVE4HOST,
+        FN_DRIVE5HOST,
+        FN_DRIVE6HOST,
+        FN_DRIVE7HOST,
+        FN_DRIVE8HOST,
+        FN_DRIVE1MOUNT,
+        FN_DRIVE2MOUNT,
+        FN_DRIVE3MOUNT,
+        FN_DRIVE4MOUNT,
+        FN_DRIVE5MOUNT,
+        FN_DRIVE6MOUNT,
+        FN_DRIVE7MOUNT,
+        FN_DRIVE8MOUNT,
+        FN_HOST1,
+        FN_HOST2,
+        FN_HOST3,
+        FN_HOST4,
+        FN_HOST5,
+        FN_HOST6,
+        FN_HOST7,
+        FN_HOST8,
         FN_LASTTAG
     };
 
     const char *tagids[FN_LASTTAG] =
-        {
-            "FN_HOSTNAME",
-            "FN_VERSION",
-            "FN_IPADDRESS",
-            "FN_IPMASK",
-            "FN_IPGATEWAY",
-            "FN_IPDNS",
-            "FN_WIFISSID",
-            "FN_WIFIBSSID",
-            "FN_WIFIMAC",
-            "FN_WIFIDETAIL",
-            "FN_SPIFFS_SIZE",
-            "FN_SPIFFS_USED",
-            "FN_SD_SIZE",
-            "FN_SD_USED",
-            "FN_UPTIME_STRING",
-            "FN_UPTIME",
-            "FN_CURRENTTIME",
-            "FN_TIMEZONE",
-            "FN_ROTATION_SOUNDS",
-            "FN_MIDIMAZE_HOST",
-            "FN_HEAPSIZE",
-            "FN_SYSSDK",
-            "FN_SYSCPUREV",
-            "FN_SIOVOLTS",
-            "FN_SIO_HSINDEX",
-            "FN_SIO_HSBAUD",
-            "FN_PRINTER1_MODEL",
-            "FN_PRINTER1_PORT",
-            "FN_PLAY_RECORD",
-            "FN_PULLDOWN",
-            "FN_CONFIG_ENABLED"};
+    {
+        "FN_HOSTNAME",
+        "FN_VERSION",
+        "FN_IPADDRESS",
+        "FN_IPMASK",
+        "FN_IPGATEWAY",
+        "FN_IPDNS",
+        "FN_WIFISSID",
+        "FN_WIFIBSSID",
+        "FN_WIFIMAC",
+        "FN_WIFIDETAIL",
+        "FN_SPIFFS_SIZE",
+        "FN_SPIFFS_USED",
+        "FN_SD_SIZE",
+        "FN_SD_USED",
+        "FN_UPTIME_STRING",
+        "FN_UPTIME",
+        "FN_CURRENTTIME",
+        "FN_TIMEZONE",
+        "FN_ROTATION_SOUNDS",
+        "FN_MIDIMAZE_HOST",
+        "FN_HEAPSIZE",
+        "FN_SYSSDK",
+        "FN_SYSCPUREV",
+        "FN_SIOVOLTS",
+        "FN_SIO_HSINDEX",
+        "FN_SIO_HSBAUD",
+        "FN_PRINTER1_MODEL",
+        "FN_PRINTER1_PORT",
+        "FN_PLAY_RECORD",
+        "FN_PULLDOWN",
+        "FN_CONFIG_ENABLED",
+        "FN_DRIVE1HOST",
+        "FN_DRIVE2HOST",
+        "FN_DRIVE3HOST",
+        "FN_DRIVE4HOST",
+        "FN_DRIVE5HOST",
+        "FN_DRIVE6HOST",
+        "FN_DRIVE7HOST",
+        "FN_DRIVE8HOST",
+        "FN_DRIVE1MOUNT",
+        "FN_DRIVE2MOUNT",
+        "FN_DRIVE3MOUNT",
+        "FN_DRIVE4MOUNT",
+        "FN_DRIVE5MOUNT",
+        "FN_DRIVE6MOUNT",
+        "FN_DRIVE7MOUNT",
+        "FN_DRIVE8MOUNT",
+        "FN_HOST1",
+        "FN_HOST2",
+        "FN_HOST3",
+        "FN_HOST4",
+        "FN_HOST5",
+        "FN_HOST6",
+        "FN_HOST7",
+        "FN_HOST8"
+    };
 
     stringstream resultstream;
 #ifdef DEBUG
@@ -103,6 +152,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
             break;
         }
     }
+
+    int drive_slot, host_slot;
 
     // Provide a replacement value
     switch (tagid)
@@ -205,6 +256,54 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_CONFIG_ENABLED:
         resultstream << Config.get_general_config_enabled();
+        break;
+    case FN_DRIVE1HOST:
+    case FN_DRIVE2HOST:
+    case FN_DRIVE3HOST:
+    case FN_DRIVE4HOST:
+    case FN_DRIVE5HOST:
+    case FN_DRIVE6HOST:
+    case FN_DRIVE7HOST:
+    case FN_DRIVE8HOST:
+	drive_slot = tagid - FN_DRIVE1HOST;
+	host_slot = Config.get_mount_host_slot(drive_slot);
+        if (host_slot != HOST_SLOT_INVALID) {
+	    resultstream << Config.get_host_name(host_slot);
+        } else {
+            resultstream << "";
+        }
+        break;
+    case FN_DRIVE1MOUNT:
+    case FN_DRIVE2MOUNT:
+    case FN_DRIVE3MOUNT:
+    case FN_DRIVE4MOUNT:
+    case FN_DRIVE5MOUNT:
+    case FN_DRIVE6MOUNT:
+    case FN_DRIVE7MOUNT:
+    case FN_DRIVE8MOUNT:
+	drive_slot = tagid - FN_DRIVE1MOUNT;
+	host_slot = Config.get_mount_host_slot(drive_slot);
+        if (host_slot != HOST_SLOT_INVALID) {
+	    resultstream << Config.get_mount_path(drive_slot);
+	    resultstream << " (" << (Config.get_mount_mode(drive_slot) == fnConfig::mount_modes::MOUNTMODE_READ ? "R" : "W") << ")";
+        } else {
+            resultstream << "(Empty)";
+        }
+        break;
+    case FN_HOST1:
+    case FN_HOST2:
+    case FN_HOST3:
+    case FN_HOST4:
+    case FN_HOST5:
+    case FN_HOST6:
+    case FN_HOST7:
+    case FN_HOST8:
+	host_slot = tagid - FN_HOST1;
+        if (Config.get_host_type(host_slot) != fnConfig::host_types::HOSTTYPE_INVALID) {
+	    resultstream << Config.get_host_name(host_slot);
+        } else {
+            resultstream << "(Empty)";
+        }
         break;
     default:
         resultstream << tag;
