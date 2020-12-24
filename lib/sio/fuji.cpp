@@ -1477,3 +1477,8 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_nak();
     }
 }
+
+int sioFuji::get_disk_id(int drive_slot) {
+    return _fnDisks[drive_slot].disk_dev.id();
+}
+

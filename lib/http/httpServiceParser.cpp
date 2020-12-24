@@ -16,6 +16,8 @@
 #include "fnFsSPIF.h"
 #include "fnFsSD.h"
 
+extern sioFuji theFuji;
+
 using namespace std;
 
 const string fnHttpServiceParser::substitute_tag(const string &tag)
@@ -77,6 +79,14 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HOST6,
         FN_HOST7,
         FN_HOST8,
+        FN_DRIVE1DEVICE,
+        FN_DRIVE2DEVICE,
+        FN_DRIVE3DEVICE,
+        FN_DRIVE4DEVICE,
+        FN_DRIVE5DEVICE,
+        FN_DRIVE6DEVICE,
+        FN_DRIVE7DEVICE,
+        FN_DRIVE8DEVICE,
         FN_LASTTAG
     };
 
@@ -136,7 +146,15 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST5",
         "FN_HOST6",
         "FN_HOST7",
-        "FN_HOST8"
+        "FN_HOST8",
+        "FN_DRIVE1DEVICE",
+        "FN_DRIVE2DEVICE",
+        "FN_DRIVE3DEVICE",
+        "FN_DRIVE4DEVICE",
+        "FN_DRIVE5DEVICE",
+        "FN_DRIVE6DEVICE",
+        "FN_DRIVE7DEVICE",
+        "FN_DRIVE8DEVICE"
     };
 
     stringstream resultstream;
@@ -154,6 +172,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     }
 
     int drive_slot, host_slot;
+    char disk_id;
 
     // Provide a replacement value
     switch (tagid)
@@ -265,6 +284,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6HOST:
     case FN_DRIVE7HOST:
     case FN_DRIVE8HOST:
+	/* From what host is each disk is mounted on each Drive Slot? */
 	drive_slot = tagid - FN_DRIVE1HOST;
 	host_slot = Config.get_mount_host_slot(drive_slot);
         if (host_slot != HOST_SLOT_INVALID) {
@@ -281,6 +301,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6MOUNT:
     case FN_DRIVE7MOUNT:
     case FN_DRIVE8MOUNT:
+	/* What disk is mounted on each Drive Slot (and is it read-only or read-write)? */
 	drive_slot = tagid - FN_DRIVE1MOUNT;
 	host_slot = Config.get_mount_host_slot(drive_slot);
         if (host_slot != HOST_SLOT_INVALID) {
@@ -298,11 +319,27 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_HOST6:
     case FN_HOST7:
     case FN_HOST8:
+	/* What TNFS host is mounted on each Host Slot? */
 	host_slot = tagid - FN_HOST1;
         if (Config.get_host_type(host_slot) != fnConfig::host_types::HOSTTYPE_INVALID) {
 	    resultstream << Config.get_host_name(host_slot);
         } else {
             resultstream << "(Empty)";
+        }
+        break;
+    case FN_DRIVE1DEVICE:
+    case FN_DRIVE2DEVICE:
+    case FN_DRIVE3DEVICE:
+    case FN_DRIVE4DEVICE:
+    case FN_DRIVE5DEVICE:
+    case FN_DRIVE6DEVICE:
+    case FN_DRIVE7DEVICE:
+    case FN_DRIVE8DEVICE:
+        /* What Dx: drive (if any rotation has occurred) does each Drive Slot currently map to? */
+        drive_slot = tagid - FN_DRIVE1DEVICE;
+        disk_id = (char) theFuji.get_disk_id(drive_slot);
+        if (disk_id != (char) (0x31 + drive_slot)) {
+            resultstream << " (D" << disk_id << ":)";
         }
         break;
     default:
