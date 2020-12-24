@@ -115,6 +115,38 @@ protected:
      */
     virtual bool stat();
 
+    /**
+     * @brief Rename file specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file/dest to rename
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool rename(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief Delete file specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool del(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief Make directory specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
+    /**
+     * @brief Remove directory specified by incoming devicespec.
+     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param cmdFrame the command frame
+     * @return TRUE on error, FALSE on success
+     */
+    virtual bool rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+
 private:
     /**
      * The HTTP Open Mode, ultimately used in http_transaction()
