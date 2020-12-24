@@ -110,7 +110,9 @@ public:
     void debug_tape();
 
     void setup(sioBus *siobus);
+
     void image_rotate();
+    int get_disk_id(int drive_slot);
 
     sioFuji();
 };

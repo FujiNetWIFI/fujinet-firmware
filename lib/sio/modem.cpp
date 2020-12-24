@@ -1037,6 +1037,8 @@ void sioModem::at_handle_dial()
         port = "23"; // Telnet default
     }
 
+    util_string_trim(host); // allow spaces or no spaces after AT command
+
     Debug_printf("DIALING: %s\n", host.c_str());
 
     if (host == "5551234") // Fake it for BobTerm
