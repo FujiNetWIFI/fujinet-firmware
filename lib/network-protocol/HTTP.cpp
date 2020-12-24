@@ -625,6 +625,8 @@ bool NetworkProtocolHTTP::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
     if (NetworkProtocolFS::rename(url, cmdFrame) == true)
         return true;
 
+    url->path = url->path.substr(0,url->path.find(","));
+
     mount(url);
 
     resultCode = client->MOVE(destFilename.c_str(),true);

@@ -358,7 +358,7 @@ bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdF
 
 bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    update_dir_filename(opened_url);
+    update_dir_filename(url);
 
     // Preprocessing routine to parse out comma position.
 
@@ -373,6 +373,8 @@ bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
     destFilename = dir + filename.substr(comma_pos + 1);
     filename = dir + filename.substr(0, comma_pos);
+
+    Debug_printf("RENAME destfilename, %s, filename, %s\n",destFilename.c_str(),filename.c_str());
 
     return false;
 }
