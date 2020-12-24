@@ -51,10 +51,12 @@ public:
     std::string get_general_timezone() { return _general.timezone; };
     bool get_general_rotation_sounds() { return _general.rotation_sounds; };
     std::string get_network_midimaze_host() { return _network.midimaze_host; };
+    bool get_general_config_enabled() { return _general.config_enabled; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
     void store_general_timezone(const char *timezone);
     void store_general_rotation_sounds(bool rotation_sounds);
+    void store_general_config_enabled(bool config_enabled);
     void store_midimaze_host(const char host_ip[64]);
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
@@ -90,6 +92,12 @@ public:
     void store_modem_sniffer_enabled(bool enabled);
     bool get_modem_sniffer_enabled() { return _modem.sniffer_enabled; }
 
+    // CASSETTE
+    bool get_cassette_buttons();
+    bool get_cassette_pulldown();
+    void store_cassette_buttons(bool button);
+    void store_cassette_pulldown(bool pulldown);
+
     void load();
     void save();
 
@@ -108,8 +116,10 @@ private:
     void _read_section_printer(std::stringstream &ss, int index);
     void _read_section_tape(std::stringstream &ss, int index);    
     void _read_section_modem(std::stringstream &ss);
+    void _read_section_cassette(std::stringstream &ss);
 
-    enum section_match {
+    enum section_match
+    {
         SECTION_GENERAL,
         SECTION_WIFI,
         SECTION_HOST,
@@ -118,6 +128,7 @@ private:
         SECTION_NETWORK,
         SECTION_TAPE,
         SECTION_MODEM,
+        SECTION_CASSETTE,
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -183,11 +194,18 @@ private:
         int hsio_index = HSIO_INVALID_INDEX;
         std::string timezone;
         bool rotation_sounds = true;
+        bool config_enabled = true;
     };
 
     struct modem_info
     {
         bool sniffer_enabled = false;
+    };
+
+    struct cassette_info
+    {
+        bool pulldown = false;
+        bool button = false;
     };
 
     host_info _host_slots[MAX_HOST_SLOTS];
@@ -199,6 +217,7 @@ private:
     network_info _network;
     general_info _general;
     modem_info _modem;
+    cassette_info _cassette;
 };
 
 extern fnConfig Config;

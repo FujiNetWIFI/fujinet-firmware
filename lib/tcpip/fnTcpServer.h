@@ -30,6 +30,7 @@ class fnTcpServer
     void setNoDelay(bool nodelay) { _noDelay = nodelay; };
     bool getNoDelay() {return _noDelay; };
     int setTimeout(uint32_t seconds);
+    void setMaxClients(int maxClients) { _max_clients = maxClients; }
 
     bool hasClient();
     fnTcpClient available();

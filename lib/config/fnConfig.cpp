@@ -54,6 +54,15 @@ void fnConfig::store_general_rotation_sounds(bool rotation_sounds)
     _dirty = true;
 }
 
+void fnConfig::store_general_config_enabled(bool config_enabled)
+{
+    if (_general.config_enabled == config_enabled)
+        return;
+
+    _general.config_enabled = config_enabled;
+    _dirty = true;
+}
+
 void fnConfig::store_general_hsioindex(int hsio_index)
 {
     if (_general.hsio_index == hsio_index)
@@ -290,6 +299,34 @@ void fnConfig::store_modem_sniffer_enabled(bool _enabled)
     _dirty = true;
 }
 
+bool fnConfig::get_cassette_buttons()
+{
+    return _cassette.button;
+}
+
+bool fnConfig::get_cassette_pulldown()
+{
+    return _cassette.pulldown;
+}
+
+void fnConfig::store_cassette_buttons(bool button)
+{
+    if (_cassette.button != button)
+    {
+        _cassette.button = button;
+        _dirty = true;
+    }
+}
+
+void fnConfig::store_cassette_pulldown(bool pulldown)
+{
+    if (_cassette.pulldown != pulldown)
+    {
+        _cassette.pulldown = pulldown;
+        _dirty = true;
+    }
+}
+
 /* Save configuration data to SPIFFS. If SD is mounted, save a backup copy there.
 */
 void fnConfig::save()
@@ -313,6 +350,7 @@ void fnConfig::save()
     ss << "devicename=" << _general.devicename << LINETERM;
     ss << "hsioindex=" << _general.hsio_index << LINETERM;
     ss << "rotationsounds=" << _general.rotation_sounds << LINETERM;
+    ss << "configenabled=" << _general.config_enabled << LINETERM;
     if (_general.timezone.empty() == false)
         ss << "timezone=" << _general.timezone << LINETERM;
 
@@ -368,7 +406,7 @@ void fnConfig::save()
     {
         if (_tape_slots[i].host_slot >= 0)
         {
-            ss << LINETERM << "[Cassette" << (i + 1) << "]" LINETERM;
+            ss << LINETERM << "[Tape" << (i + 1) << "]" LINETERM;
             ss << "hostslot=" << (_tape_slots[i].host_slot + 1) << LINETERM; // Write host slot as 1-based
             ss << "path=" << _tape_slots[i].path << LINETERM;
             ss << "mode=" << _mount_mode_names[_tape_slots[i].mode] << LINETERM;
@@ -378,6 +416,11 @@ void fnConfig::save()
     // MODEM
     ss << LINETERM << "[Modem]" << LINETERM;
     ss << "sniffer_enabled=" << _modem.sniffer_enabled << LINETERM;
+
+    // CASSETTE
+    ss << LINETERM << "[Cassette]" << LINETERM;
+    ss << "play_record=" << ((_cassette.button) ? "1 Record" : "0 Play") << LINETERM;
+    ss << "pulldown=" << ((_cassette.pulldown) ? "1 Pulldown Resistor" : "0 B Button Press") << LINETERM;
 
     // Write the results out
     FILE *fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w");
@@ -516,11 +559,14 @@ New behavior: copy from SD first if available, then read SPIFFS.
         case SECTION_PRINTER:
             _read_section_printer(ss, index);
             break;
-        case SECTION_TAPE:
+        case SECTION_TAPE: // Oscar put this here to handle server/path to CAS files
             _read_section_tape(ss, index);
             break;
         case SECTION_MODEM:
             _read_section_modem(ss);
+            break;
+        case SECTION_CASSETTE: //Jeff put this here to handle tape drive configuration (pulldown and play/record)
+            _read_section_cassette(ss);
             break;
         case SECTION_UNKNOWN:
             break;
@@ -557,6 +603,10 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "rotationsounds") == 0)
             {
                 _general.rotation_sounds = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "configenabled") == 0)
+            {
+                _general.config_enabled = util_string_value_is_true(value);
             }
         }
     }
@@ -759,6 +809,28 @@ void fnConfig::_read_section_modem(std::stringstream &ss)
     }
 }
 
+void fnConfig::_read_section_cassette(std::stringstream &ss)
+{
+    std::string line;
+    // Read lines until one starts with '[' which indicates a new section
+    while (_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line, name, value))
+        {
+            if (strcasecmp(name.c_str(), "play_record") == 0)
+            {
+                _cassette.button = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "pulldown") == 0)
+            {
+                _cassette.pulldown = util_string_value_is_true(value);
+            }
+        }
+    }
+}
+
 /*
 Looks for [SectionNameX] where X is an integer
 Returns which SectionName was found and sets index to X if X is an integer
@@ -823,9 +895,9 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                 // Debug_printf("Found Network\n");
                 return SECTION_NETWORK;
             }
-            else if (strncasecmp("Cassette", s1.c_str(), 8) == 0)
+            else if (strncasecmp("Tape", s1.c_str(), 4) == 0)
             {
-                index = atoi((const char *)(s1.c_str() + 8)) - 1;
+                index = atoi((const char *)(s1.c_str() + 4)) - 1;
                 if (index < 0 || index >= MAX_TAPE_SLOTS)
                 {
                     Debug_println("Invalid index value - discarding");
@@ -833,6 +905,10 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                 }
                 // Debug_printf("Found Cassette\n");
                 return SECTION_TAPE;
+            }
+            else if (strncasecmp("Cassette", s1.c_str(), 8) == 0)
+            {
+                return SECTION_CASSETTE;
             }
         }
     }

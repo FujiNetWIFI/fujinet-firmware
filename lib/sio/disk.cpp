@@ -9,6 +9,7 @@
 #include "diskTypeAtr.h"
 #include "diskTypeAtx.h"
 #include "diskTypeXex.h"
+#include "fuji.h"
 
 #define SIO_DISKCMD_FORMAT 0x21
 #define SIO_DISKCMD_FORMAT_MEDIUM 0x22
@@ -27,6 +28,9 @@
 
 #define SIO_DISKCMD_PERCOM_READ 0x4E
 #define SIO_DISKCMD_PERCOM_WRITE 0x4F
+
+// External ref to fuji object.
+extern sioFuji theFuji;
 
 // Read disk data and send to computer
 void sioDisk::sio_read()
@@ -108,7 +112,7 @@ void sioDisk::sio_status()
 
         #3 - Unused ($00)    
     */
-    // TODO: Why $DF for second byte? 
+    // TODO: Why $DF for second byte?
     // TODO: Set bit 4 of drive status and bit 6 of FDC status on read-only disk
 #define DRIVE_DEFAULT_TIMEOUT_810 0xE0
 #define DRIVE_DEFAULT_TIMEOUT_XF551 0xFE
@@ -123,7 +127,7 @@ void sioDisk::sio_status()
         _disk->status(_status);
 
     Debug_printf("response: 0x%02x, 0x%02x, 0x%02x\n", _status[0], _status[1], _status[2]);
-    
+
     sio_to_computer(_status, sizeof(_status), false);
 }
 
@@ -189,6 +193,8 @@ void sioDisk::sio_write_percom_block()
 */
 disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disktype_t disk_type)
 {
+    // TAPE or CASSETTE: use this function to send file info to cassette device
+    //  DiskType::discover_disktype(filename) can detect CAS and WAV files
     Debug_print("disk MOUNT\n");
 
     // Destroy any existing DiskType
@@ -205,6 +211,13 @@ disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disk
     // Now mount based on DiskType
     switch (disk_type)
     {
+    case DISKTYPE_CAS:
+    case DISKTYPE_WAV:
+        // open the cassette file
+        theFuji.cassette()->mount_cassette_file(f, disksize);
+        return disk_type;
+        // TODO left off here for tape cassette
+        break;
     case DISKTYPE_XEX:
         _disk = new DiskTypeXEX();
         return _disk->mount(f, disksize);
@@ -265,7 +278,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_read();
         return;
     case SIO_DISKCMD_HSIO_READ:
-        if(_disk->_allow_hsio)
+        if (_disk->_allow_hsio)
         {
             sio_ack();
             sio_read();
@@ -277,7 +290,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_write(false);
         return;
     case SIO_DISKCMD_HSIO_PUT:
-        if(_disk->_allow_hsio)
+        if (_disk->_allow_hsio)
         {
             sio_ack();
             sio_write(false);
@@ -288,21 +301,24 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_DISKCMD_HSIO_STATUS:
         if (is_config_device == true)
         {
-            if (status_wait_count == 0)
+            if (theFuji.boot_config == true)
             {
-                device_active = true;
-                sio_ack();
-                sio_status();
-            }
-            else
-            {
-                Debug_print("ignoring status command\n");
-                status_wait_count--;
+                if (status_wait_count == 0)
+                {
+                    device_active = true;
+                    sio_ack();
+                    sio_status();
+                }
+                else
+                {
+                    Debug_print("ignoring status command\n");
+                    status_wait_count--;
+                }
             }
         }
         else
         {
-            if(cmdFrame.comnd == SIO_DISKCMD_HSIO_STATUS && _disk->_allow_hsio == false)
+            if (cmdFrame.comnd == SIO_DISKCMD_HSIO_STATUS && _disk->_allow_hsio == false)
                 break;
             sio_ack();
             sio_status();
@@ -313,7 +329,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_write(true);
         return;
     case SIO_DISKCMD_HSIO_WRITE:
-        if(_disk->_allow_hsio)
+        if (_disk->_allow_hsio)
         {
             sio_ack();
             sio_write(true);
@@ -327,7 +343,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         return;
     case SIO_DISKCMD_HSIO_FORMAT:
     case SIO_DISKCMD_HSIO_FORMAT_MEDIUM:
-        if(_disk->_allow_hsio)
+        if (_disk->_allow_hsio)
         {
             sio_ack();
             sio_format();
@@ -343,7 +359,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_write_percom_block();
         return;
     case SIO_DISKCMD_HSIO_INDEX:
-        if(_disk->_allow_hsio)
+        if (_disk->_allow_hsio)
         {
             sio_ack();
             sio_high_speed();

@@ -22,6 +22,7 @@
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
 #define SIO_MODEMCMD_BAUDLOCK 0x4E
+#define SIO_MODEMCMD_AUTOANSWER 0x4F
 #define SIO_MODEMCMD_STATUS 0x53
 #define SIO_MODEMCMD_WRITE 0x57
 #define SIO_MODEMCMD_STREAM 0x58
@@ -350,28 +351,34 @@ void sioModem::sio_status()
           1: 0
           0: RCV state (0=space, 1=mark)
     */
-    uint8_t status[2] = {0x00, crxval};
 
-    if ((CRX == false) && (crxval == 0))
-        crxval = 0;
-    else if ((CRX == false) && (crxval == 4))
-        crxval = 0;
-    else if ((CRX == false) && (crxval == 8))
-        crxval = 4;
-    else if ((CRX == false) && (crxval == 12))
-        crxval = 4;
-    else if ((CRX == true) && (crxval == 0))
-        crxval = 8;
-    else if ((CRX == true) && (crxval == 4))
-        crxval = 8;
-    else if ((CRX == true) && (crxval == 8))
-        crxval = 12;
-    else if ((CRX == false) && (crxval == 12))
-        crxval = 12;
+   mdmStatus[1] &= 0b11110011;
+   mdmStatus[1] |= (tcpClient.connected()==true ? 12 : 0);
 
-    status[1] = crxval;
+    mdmStatus[1] &= 0b11111110;
+    mdmStatus[1] |= ((tcpClient.available()>0) || (tcpServer.hasClient() == true) ? 1 : 0);
 
-    sio_to_computer(status, sizeof(status), false);
+    if (autoAnswer == true && tcpServer.hasClient() == true)
+    {
+        modemActive=true;
+        fnSystem.delay(2000);
+
+        if (numericResultCode == true)
+        {
+            at_connect_resultCode(modemBaud);
+            CRX = true;
+        }
+        else
+        {
+            at_cmd_println("CONNECT ", false);
+            at_cmd_println(modemBaud);
+            CRX = true;
+        }
+    }
+
+    Debug_printf("sioModem::sio_status(%02x,%02x)\n",mdmStatus[0],mdmStatus[1]);
+
+    sio_to_computer(mdmStatus, sizeof(mdmStatus), false);
 }
 
 // 0x41 / 'A' - CONTROL
@@ -578,6 +585,7 @@ void sioModem::sio_listen()
     else
         sio_ack();
 
+    tcpServer.setMaxClients(1);
     tcpServer.begin(listenPort);
 
     sio_complete();
@@ -603,6 +611,19 @@ void sioModem::sio_baudlock()
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
 
     Debug_printf("baudLock: %d\n", baudLock);
+
+    sio_complete();
+}
+
+/**
+ * enable/disable auto-answer
+ */
+void sioModem::sio_autoanswer()
+{
+    sio_ack();
+    autoAnswer = (cmdFrame.aux1 > 0 ? true : false);
+
+    Debug_printf("autoanswer: %d\n", baudLock);
 
     sio_complete();
 }
@@ -807,6 +828,7 @@ void sioModem::at_handle_port()
         }
 
         listenPort = port;
+        tcpServer.setMaxClients(1);
         tcpServer.begin(listenPort);
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
@@ -858,7 +880,10 @@ void sioModem::at_handle_get()
     else
     {
         if (numericResultCode == true)
+        {
             at_connect_resultCode(modemBaud);
+            CRX = true;
+        }
         else
         {
             at_cmd_println("CONNECT ", false);
@@ -892,6 +917,12 @@ void sioModem::at_handle_help()
     at_cmd_println(HELPL10);
     at_cmd_println(HELPL11);
     at_cmd_println(HELPL12);
+    at_cmd_println(HELPL13);
+    at_cmd_println(HELPL14);
+    at_cmd_println(HELPL15);
+    at_cmd_println(HELPL16);
+    at_cmd_println(HELPL17);
+    at_cmd_println(HELPL18);
 
     at_cmd_println();
 
@@ -973,7 +1004,10 @@ void sioModem::at_handle_answer()
         tcpClient.setNoDelay(true); // try to disable naggle
                                     //        tcpServer.stop();
         if (numericResultCode == true)
+        {
             at_connect_resultCode(modemBaud);
+            CRX = true;
+        }
         else
         {
             at_cmd_println("CONNECT ", false);
@@ -1003,6 +1037,8 @@ void sioModem::at_handle_dial()
         port = "23"; // Telnet default
     }
 
+    util_string_trim(host); // allow spaces or no spaces after AT command
+
     Debug_printf("DIALING: %s\n", host.c_str());
 
     if (host == "5551234") // Fake it for BobTerm
@@ -1010,7 +1046,10 @@ void sioModem::at_handle_dial()
         fnSystem.delay(1300); // Wait a moment so bobterm catches it
 
         if (numericResultCode == true)
+        {
             at_connect_resultCode(modemBaud);
+            CRX = true;
+        }
         else
         {
             at_cmd_println("CONNECT ", false);
@@ -1034,7 +1073,10 @@ void sioModem::at_handle_dial()
             tcpClient.setNoDelay(true); // Try to disable naggle
 
             if (numericResultCode == true)
+            {
                 at_connect_resultCode(modemBaud);
+                CRX = true;
+            }
             else
             {
                 at_cmd_println("CONNECT ", false);
@@ -1066,6 +1108,8 @@ void sioModem::at_handle_dial()
 */
 void sioModem::modemCommand()
 {
+    /* Some of these are ignored; to see their meanings,
+     * review `modem.h`'s sioModem class's _at_cmds enums. */
     static const char *at_cmds[_at_cmds::AT_ENUMCOUNT] =
         {
             "AT",
@@ -1108,6 +1152,7 @@ void sioModem::modemCommand()
             "AT-SNIFF",
             "AT+TERM=VT52",
             "AT+TERM=VT100",
+            "AT+TERM=ANSI",
             "AT+TERM=DUMB"};
 
     //cmd.trim();
@@ -1272,20 +1317,20 @@ void sioModem::modemCommand()
         else
             at_cmd_println("OK");
         break;
-    case AT_ANDF: // These are all ignored.
-    case AT_S2E43:
-    case AT_S5E8:
-    case AT_S6E2:
-    case AT_S7E30:
-    case AT_S12E20:
-    case AT_M0:
-    case AT_M1:
-    case AT_X1:
-    case AT_AC1:
-    case AT_AD2:
-    case AT_AW:
-    case AT_ZPPP:
-    case AT_BBSX:
+    case AT_ANDF_ignored: // These are all ignored.
+    case AT_S2E43_ignored:
+    case AT_S5E8_ignored:
+    case AT_S6E2_ignored:
+    case AT_S7E30_ignored:
+    case AT_S12E20_ignored:
+    case AT_M0_ignored:
+    case AT_M1_ignored:
+    case AT_X1_ignored:
+    case AT_AC1_ignored:
+    case AT_AD2_ignored:
+    case AT_AW_ignored:
+    case AT_ZPPP_ignored:
+    case AT_BBSX_ignored:
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1321,6 +1366,13 @@ void sioModem::modemCommand()
         break;
     case AT_TERMDUMB:
         term_type = "DUMB";
+        if (numericResultCode == true)
+            at_cmd_resultCode(RESULT_CODE_OK);
+        else
+            at_cmd_println("OK");
+        break;
+    case AT_TERMANSI:
+        term_type = "ANSI";
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
@@ -1397,23 +1449,32 @@ void sioModem::sio_handle_modem()
             // Backspace or delete deletes previous character
             else if ((chr == ASCII_BACKSPACE) || (chr == ASCII_DELETE))
             {
-                //cmd.remove(cmd.length() - 1);
-                cmd.erase(cmd.length() - 1);
-                // We don't assume that backspace is destructive
-                // Clear with a space
-                if (commandEcho == true)
+                size_t len = cmd.length();
+
+                if (len > 0)
                 {
+                  cmd.erase(len - 1);
+                  // We don't assume that backspace is destructive
+                  // Clear with a space
+                  if (commandEcho == true)
+                  {
                     fnUartSIO.write(ASCII_BACKSPACE);
                     fnUartSIO.write(' ');
                     fnUartSIO.write(ASCII_BACKSPACE);
+                  }
                 }
             }
             else if (chr == ATASCII_BACKSPACE)
             {
+                size_t len = cmd.length();
+                
                 // ATASCII backspace
-                cmd.erase(cmd.length() - 1);
-                if (commandEcho == true)
+                if (len > 0)
+                {
+                  cmd.erase(len - 1);
+                  if (commandEcho == true)
                     fnUartSIO.write(ATASCII_BACKSPACE);
+                }
             }
             // Take into account arrow key movement and clear screen
             else if (chr == ATASCII_CLEAR_SCREEN ||
@@ -1437,6 +1498,14 @@ void sioModem::sio_handle_modem()
     // Connected mode
     else
     {
+        // If another client is waiting, accept and turn away.
+        if (tcpServer.hasClient())
+        {
+            fnTcpClient c = tcpServer.accept();
+            c.write("The MODEM is currently serving another caller. Please try again later.\x0d\x0a\x9b");
+            c.stop();
+        }
+
         //int sioBytesAvail = SIO_UART.available();
         int sioBytesAvail = fnUartSIO.available();
 
@@ -1598,7 +1667,7 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_MODEMCMD_TYPE1_POLL:
         Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
         // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
-        if (cmdFrame.aux1 == 1 || count_PollType1 == 26)
+        if (cmdFrame.aux1 == 1 || count_PollType1 == 16)
             sio_poll_1();
         break;
 
@@ -1626,6 +1695,9 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case SIO_MODEMCMD_BAUDLOCK:
         sio_baudlock();
+        break;
+    case SIO_MODEMCMD_AUTOANSWER:
+        sio_autoanswer();
         break;
     case SIO_MODEMCMD_STATUS:
         sio_ack();
