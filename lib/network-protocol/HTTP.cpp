@@ -5,6 +5,7 @@
 #include "HTTP.h"
 #include "status_error_codes.h"
 #include "../webdav/WebDAV.h"
+#include "../utils/utils.h"
 
 /**
  Modes and the N: HTTP Adapter:
@@ -209,6 +210,9 @@ bool NetworkProtocolHTTP::mount(EdUrlParser *url)
     client = new fnHttpClient();
 
     fileSize = 65535;
+
+    if (aux1_open == 6)
+        util_replaceAll(url->path,"*.*","");
 
     return !client->begin(url->toString());
 }
