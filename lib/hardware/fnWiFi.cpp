@@ -94,6 +94,9 @@ int WiFiManager::start()
 
     ESP_ERROR_CHECK(esp_wifi_start());
 
+    // Disable powersave for lower latency
+    ESP_ERROR_CHECK(esp_wifi_set_ps (WIFI_PS_NONE));
+
     // Set a hostname from our configuration
     esp_netif_set_hostname(_wifi_if, Config.get_general_devicename().c_str());
 
