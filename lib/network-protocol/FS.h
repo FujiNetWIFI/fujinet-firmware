@@ -154,7 +154,7 @@ protected:
      * Directory buffer
      */
     string dirBuffer;
-
+    
     /**
      * Is open file a directory?
      */
