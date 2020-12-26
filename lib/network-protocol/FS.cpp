@@ -53,6 +53,7 @@ bool NetworkProtocolFS::open_file()
 
 bool NetworkProtocolFS::open_dir()
 {
+    char *entryBuffer = (char *)malloc(256);
     openMode = DIR;
     dirBuffer.clear();
     update_dir_filename(opened_url);
@@ -60,8 +61,6 @@ bool NetworkProtocolFS::open_dir()
     // assume everything if no filename.
     if (filename.empty())
         filename = "*";
-
-    char e[256];
 
     Debug_printf("NetworkProtocolFS::open_dir(%s)\n", opened_url->toString().c_str());
 
@@ -74,17 +73,17 @@ bool NetworkProtocolFS::open_dir()
         return true;
     }
 
-    while (read_dir_entry(e, 255) == false)
+    while (read_dir_entry(entryBuffer, 255) == false)
     {
         if (aux2_open & 0x80)
         {
             // Long entry
-            dirBuffer += util_long_entry(string(e), fileSize) + "\x9b";
+            dirBuffer += util_long_entry(string(entryBuffer), fileSize) + "\x9b";
         }
         else
         {
             // 8.3 entry
-            dirBuffer += util_entry(util_crunch(string(e)), fileSize, is_directory, is_locked) + "\x9b";
+            dirBuffer += util_entry(util_crunch(string(entryBuffer)), fileSize, is_directory, is_locked) + "\x9b";
         }
         fserror_to_error();
     }
@@ -94,6 +93,8 @@ bool NetworkProtocolFS::open_dir()
 
     if (error == NETWORK_ERROR_END_OF_FILE)
         error = NETWORK_ERROR_SUCCESS;
+
+    free(entryBuffer);
 
     return error != NETWORK_ERROR_SUCCESS;
 }
