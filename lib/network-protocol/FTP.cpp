@@ -16,10 +16,12 @@ NetworkProtocolFTP::NetworkProtocolFTP(string *rx_buf, string *tx_buf, string *s
     delete_implemented = true;
     mkdir_implemented = true;
     rmdir_implemented = true;
+    ftp = new fnFTP();
 }
 
 NetworkProtocolFTP::~NetworkProtocolFTP()
 {
+    delete ftp;
 }
 
 bool NetworkProtocolFTP::open_file_handle()
@@ -41,7 +43,7 @@ bool NetworkProtocolFTP::open_file_handle()
         break;
     }
 
-    res = ftp.open_file(opened_url->path, stor);
+    res = ftp->open_file(opened_url->path, stor);
     fserror_to_error();
     return res;
 }
@@ -50,7 +52,7 @@ bool NetworkProtocolFTP::open_dir_handle()
 {
     bool res;
 
-    res = ftp.open_directory(opened_url->path, filename);
+    res = ftp->open_directory(opened_url->path, filename);
     fserror_to_error();
     return res;
 }
@@ -58,17 +60,17 @@ bool NetworkProtocolFTP::open_dir_handle()
 bool NetworkProtocolFTP::mount(EdUrlParser *url)
 {
     // Path isn't used
-    return ftp.login("anonymous", "fujinet@fujinet.online", url->hostName);
+    return ftp->login("anonymous", "fujinet@fujinet.online", url->hostName);
 }
 
 bool NetworkProtocolFTP::umount()
 {
-    return ftp.logout();
+    return ftp->logout();
 }
 
 void NetworkProtocolFTP::fserror_to_error()
 {
-    switch (ftp.response())
+    switch (ftp->response())
     {
     case 110:
     case 120:
@@ -141,7 +143,7 @@ bool NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
     bool res;
 
-    res = ftp.read_file(buf,len);
+    res = ftp->read_file(buf,len);
     fserror_to_error();
     return res;
 }
@@ -152,7 +154,7 @@ bool NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
     string filename;
     long filesz;
 
-    res = ftp.read_directory(filename, filesz);
+    res = ftp->read_directory(filename, filesz);
     strcpy(buf,filename.c_str());
     fserror_to_error();
     return res;
@@ -160,13 +162,13 @@ bool NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
 
 bool NetworkProtocolFTP::close_file_handle()
 {
-    ftp.close();
+    ftp->close();
     return false;
 }
 
 bool NetworkProtocolFTP::close_dir_handle()
 {
-    ftp.close();
+    ftp->close();
     return false;
 }
 
@@ -177,9 +179,9 @@ bool NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short len)
 
 bool NetworkProtocolFTP::status_file(NetworkStatus *status)
 {
-    status->rxBytesWaiting = ftp.data_available() > 65535 ? 65535 : ftp.data_available();
-    status->connected = ftp.data_connected();
-    status->error = ftp.data_connected() > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+    status->rxBytesWaiting = ftp->data_available() > 65535 ? 65535 : ftp->data_available();
+    status->connected = ftp->data_connected();
+    status->error = ftp->data_connected() > 0 ? error : NETWORK_ERROR_END_OF_FILE;
     return false;
 }
 

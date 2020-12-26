@@ -195,7 +195,7 @@ private:
     /**
      * fnFTP instance
      */
-    fnFTP ftp;
+    fnFTP *ftp;
 
     /**
      * TRUE = STOR, FALSE = RETR

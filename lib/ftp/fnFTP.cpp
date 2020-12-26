@@ -635,6 +635,18 @@ int ftpparse(struct ftpparse *fp, char *buf, int len)
     return 0;
 }
 
+fnFTP::fnFTP()
+{
+    control = new fnTcpClient();
+    data = new fnTcpClient();
+}
+
+fnFTP::~fnFTP()
+{
+    delete control;
+    delete data;
+}
+
 bool fnFTP::login(string _username, string _password, string _hostname, unsigned short _port)
 {
     username = _username;
@@ -645,7 +657,7 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
     Debug_printf("fnFTP::login(%s,%u)\n", hostname.c_str(), control_port);
 
     // Attempt to open control socket.
-    if (!control.connect(hostname.c_str(), control_port, 5000))
+    if (!control->connect(hostname.c_str(), control_port, 5000))
     {
         Debug_printf("Could not log in, errno = %u", errno);
         return true;
@@ -722,17 +734,17 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
 
 bool fnFTP::logout()
 {
-    if (!control.connected())
+    if (!control->connected())
     {
         Debug_printf("fnFTP::logout() - called when not connected.");
         return false;
     }
 
-    if (data.connected())
+    if (data->connected())
     {
         ABOR();
         parse_response(); // Ignored.
-        data.stop();
+        data->stop();
     }
 
     QUIT();
@@ -742,14 +754,14 @@ bool fnFTP::logout()
         Debug_printf("Timed out waiting for 221.");
     }
 
-    control.stop();
+    control->stop();
 
     return false;
 }
 
 bool fnFTP::open_file(string path, bool stor)
 {
-    if (!control.connected())
+    if (!control->connected())
     {
         Debug_printf("fnFTP::open_file(%s) attempted while not logged in. Aborting.\n", path);
         return true;
@@ -791,7 +803,7 @@ bool fnFTP::open_file(string path, bool stor)
 
 bool fnFTP::open_directory(string path, string pattern)
 {
-    if (!control.connected())
+    if (!control->connected())
     {
         Debug_printf("fnFTP::open_directory(%s%s) attempted while not logged in. Aborting.\n", path, pattern);
         return true;
@@ -802,6 +814,8 @@ bool fnFTP::open_directory(string path, string pattern)
         Debug_printf("fnFTP::open_directory(%s%s) could not get data port, aborting.\n", path, pattern);
         return true;
     }
+
+    Debug_printf("Do we get here?\n");
 
     // perform LIST
     LIST(path, pattern);
@@ -826,18 +840,18 @@ bool fnFTP::open_directory(string path, string pattern)
     uint8_t buf[2048];
     
     // Retrieve listing into buffer.
-    while (data.connected())
+    while (data->connected())
     {
-        int len = data.available();
+        int len = data->available();
 
         memset(buf, 0, sizeof(buf));
-        data.read(buf, len);
+        data->read(buf, len);
         Debug_printf("DIR: %s\n", buf);
         dirBuffer << string((const char *)buf, len);
     }
 
     // Close data connection.
-    data.stop();
+    data->stop();
 
     return false; // all good.
 }
@@ -857,24 +871,24 @@ bool fnFTP::read_directory(string &name, long &filesize)
 
 bool fnFTP::read_file(uint8_t *buf, unsigned short len)
 {
-    if (!data.connected())
+    if (!data->connected())
     {
         Debug_printf("fnFTP::read_file(%p,%u) - data socket not connected, aborting.\n", buf, len);
         return true;
     }
 
-    return data.read(buf, len) != len;
+    return data->read(buf, len) != len;
 }
 
 bool fnFTP::write_file(uint8_t *buf, unsigned short len)
 {
-    if (!data.connected())
+    if (!data->connected())
     {
         Debug_printf("fnFTP::write_file(%p,%u) - data socket not connected, aborting.\n", buf, len);
         return true;
     }
 
-    return data.write(buf, len) != len;
+    return data->write(buf, len) != len;
 }
 
 void fnFTP::close()
@@ -889,12 +903,12 @@ int fnFTP::response()
 
 int fnFTP::data_available()
 {
-    return data.available();
+    return data->available();
 }
 
 bool fnFTP::data_connected()
 {
-    return data.connected();
+    return data->connected();
 }
 
 /** FTP UTILITY FUNCTIONS **********************************************************************/
@@ -906,12 +920,12 @@ bool fnFTP::parse_response()
 
     memset(buf, 0, sizeof(buf));
 
-    while (control.available() < 3)
+    while (control->available() < 3)
     {
         fnSystem.yield();
     }
 
-    num_read = control.read((uint8_t *)buf, sizeof(buf));
+    num_read = control->read((uint8_t *)buf, sizeof(buf));
 
     if (num_read < 0)
     {
@@ -954,7 +968,7 @@ bool fnFTP::get_data_port()
     Debug_printf("Server gave us data port: %u\n", data_port);
 
     // Go ahead and connect to data port, so that control port is unblocked, if it's blocked.
-    if (!data.connect(hostname.c_str(), data_port))
+    if (!data->connect(hostname.c_str(), data_port))
     {
         Debug_printf("Could not open data port %u, errno = %u\n", data_port, errno);
         return true;
@@ -971,60 +985,60 @@ bool fnFTP::get_data_port()
 
 void fnFTP::USER()
 {
-    control.write("USER " + username + "\r\n");
-    control.flush();
+    control->write("USER " + username + "\r\n");
+    control->flush();
 }
 
 void fnFTP::PASS()
 {
-    control.write("PASS " + password + "\r\n");
-    control.flush();
+    control->write("PASS " + password + "\r\n");
+    control->flush();
 }
 
 void fnFTP::TYPE()
 {
-    control.write("TYPE I\r\n");
-    control.flush();
+    control->write("TYPE I\r\n");
+    control->flush();
 }
 
 void fnFTP::QUIT()
 {
-    control.write("QUIT\r\n");
-    control.flush();
+    control->write("QUIT\r\n");
+    control->flush();
 }
 
 void fnFTP::EPSV()
 {
-    control.write("EPSV\r\n");
-    control.flush();
+    control->write("EPSV\r\n");
+    control->flush();
 }
 
 void fnFTP::RETR(string path)
 {
-    control.write("RETR " + path + "\r\n");
-    control.flush();
+    control->write("RETR " + path + "\r\n");
+    control->flush();
 }
 
 void fnFTP::CWD(string path)
 {
-    control.write("CWD " + path + "\r\n");
-    control.flush();
+    control->write("CWD " + path + "\r\n");
+    control->flush();
 }
 
 void fnFTP::LIST(string path, string pattern)
 {
-    control.write("LIST " + path + pattern + "\r\n");
-    control.flush();
+    control->write("LIST " + path + pattern + "\r\n");
+    control->flush();
 }
 
 void fnFTP::ABOR()
 {
-    control.write("ABOR\r\n");
-    control.flush();
+    control->write("ABOR\r\n");
+    control->flush();
 }
 
 void fnFTP::STOR(string path)
 {
-    control.write("STOR " + path + "\r\n");
-    control.flush();
+    control->write("STOR " + path + "\r\n");
+    control->flush();
 }
