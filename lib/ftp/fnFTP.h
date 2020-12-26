@@ -16,6 +16,16 @@ class fnFTP
 public:
 
     /**
+     * ctor
+     */
+    fnFTP();
+
+    /**
+     * dtor
+     */
+    virtual ~fnFTP();
+
+    /**
      * Log into FTP server.
      * @param username username for login
      * @param password password for login
@@ -109,12 +119,12 @@ private:
     /**
      * The fnTCP client used for control connection
      */
-    fnTcpClient control;
+    fnTcpClient *control;
 
     /**
      * The fnTCP client used for data connection
      */
-    fnTcpClient data;
+    fnTcpClient *data;
 
     /**
      * last response from control connection.
