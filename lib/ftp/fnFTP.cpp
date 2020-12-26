@@ -815,8 +815,6 @@ bool fnFTP::open_directory(string path, string pattern)
         return true;
     }
 
-    Debug_printf("Do we get here?\n");
-
     // perform LIST
     LIST(path, pattern);
 
@@ -947,6 +945,8 @@ bool fnFTP::get_data_port()
     Debug_printf("fnFTP::get_data_port()\n");
 
     EPSV();
+
+    Debug_printf("Did EPSV, getting response.\n");
 
     if (parse_response())
     {
