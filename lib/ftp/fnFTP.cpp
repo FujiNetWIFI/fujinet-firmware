@@ -725,7 +725,7 @@ bool fnFTP::logout()
     if (!control.connected())
     {
         Debug_printf("fnFTP::logout() - called when not connected.");
-        return true;
+        return false;
     }
 
     if (data.connected())
@@ -742,7 +742,9 @@ bool fnFTP::logout()
         Debug_printf("Timed out waiting for 221.");
     }
 
-    return true;
+    control.stop();
+
+    return false;
 }
 
 bool fnFTP::open_file(string path, bool stor)
