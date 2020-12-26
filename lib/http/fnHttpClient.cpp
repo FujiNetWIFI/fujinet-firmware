@@ -224,6 +224,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
         break;
     case HTTP_EVENT_ON_CONNECTED: // Once the HTTP has been connected to the server, no data exchange has been performed
         //Debug_printf("HTTP_EVENT_ON_CONNECTED %u\n", uxTaskGetStackHighWaterMark(nullptr));
+        client->connected = true;
         break;
     case HTTP_EVENT_HEADER_SENT: // After sending all the headers to the server
         //Debug_printf("HTTP_EVENT_HEADER_SENT %u\n", uxTaskGetStackHighWaterMark(nullptr));
@@ -304,6 +305,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
     }
 
     case HTTP_EVENT_DISCONNECTED: // The connection has been disconnected
+        client->connected = false;
         //Debug_printf("HTTP_EVENT_DISCONNECTED %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
         break;
     }
