@@ -31,7 +31,7 @@ void KeyManager::setup()
     if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
     {
         has_button_c = true;
-        Debug_println("FujiNet Hardware v1.1");
+        Debug_println("FujiNet Hardware v1.1 and up");
     }
     else
     {
