@@ -274,15 +274,33 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     switch (cmdFrame.comnd)
     {
     case SIO_DISKCMD_READ:
-        sio_ack();
-        sio_read();
+        if (status_wait_count > 0) // We got a read cmd before status up, disconnect rom disk.
+        {
+            device_active = false;
+            theFuji.boot_config = false;
+            return;
+        }
+        else
+        {
+            sio_ack();
+            sio_read();
+        }        
         return;
     case SIO_DISKCMD_HSIO_READ:
         if (_disk->_allow_hsio)
         {
-            sio_ack();
-            sio_read();
-            return;
+            if (status_wait_count > 0) // we got a read before status up, disconnect rom disk.
+            {
+                device_active = false;
+                theFuji.boot_config = false;
+                return;
+            }
+            else
+            {
+                sio_ack();
+                sio_read();
+                return;
+            }
         }
         break;
     case SIO_DISKCMD_PUT:
