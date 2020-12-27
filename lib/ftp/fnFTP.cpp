@@ -637,14 +637,19 @@ int ftpparse(struct ftpparse *fp, char *buf, int len)
 
 fnFTP::fnFTP()
 {
-    control = new fnTcpClient();
-    data = new fnTcpClient();
+    if (control == nullptr)
+        control = new fnTcpClient();
+
+    if (data == nullptr)
+        data = new fnTcpClient();
 }
 
 fnFTP::~fnFTP()
 {
-    delete control;
-    delete data;
+    if (control != nullptr)
+        delete control;
+    if (data != nullptr)
+        delete data;
 }
 
 bool fnFTP::login(string _username, string _password, string _hostname, unsigned short _port)
@@ -836,7 +841,7 @@ bool fnFTP::open_directory(string path, string pattern)
     }
 
     uint8_t buf[2048];
-    
+
     // Retrieve listing into buffer.
     while (data->connected())
     {
@@ -913,17 +918,18 @@ bool fnFTP::data_connected()
 
 bool fnFTP::parse_response()
 {
-    char buf[512];
+    char *responseBuf;
     int num_read;
 
-    memset(buf, 0, sizeof(buf));
+    responseBuf = (char *)malloc(512);
+    memset(responseBuf, 0, 512);
 
     while (control->available() < 3)
     {
         fnSystem.yield();
     }
 
-    num_read = control->read((uint8_t *)buf, sizeof(buf));
+    num_read = control->read((uint8_t *)responseBuf, sizeof(responseBuf));
 
     if (num_read < 0)
     {
@@ -931,9 +937,11 @@ bool fnFTP::parse_response()
         return true;
     }
 
-    controlResponse = string(buf, num_read);
+    controlResponse = string(responseBuf, num_read);
 
     Debug_printf("fnFTP::get_response() - %s\n", controlResponse.c_str());
+
+    free(responseBuf);
 
     return controlResponse.substr(0, controlResponse.find_first_of(" ")).empty();
 }
@@ -986,59 +994,49 @@ bool fnFTP::get_data_port()
 void fnFTP::USER()
 {
     control->write("USER " + username + "\r\n");
-    control->flush();
 }
 
 void fnFTP::PASS()
 {
     control->write("PASS " + password + "\r\n");
-    control->flush();
 }
 
 void fnFTP::TYPE()
 {
     control->write("TYPE I\r\n");
-    control->flush();
 }
 
 void fnFTP::QUIT()
 {
     control->write("QUIT\r\n");
-    control->flush();
 }
 
 void fnFTP::EPSV()
 {
     control->write("EPSV\r\n");
-    control->flush();
 }
 
 void fnFTP::RETR(string path)
 {
     control->write("RETR " + path + "\r\n");
-    control->flush();
 }
 
 void fnFTP::CWD(string path)
 {
     control->write("CWD " + path + "\r\n");
-    control->flush();
 }
 
 void fnFTP::LIST(string path, string pattern)
 {
     control->write("LIST " + path + pattern + "\r\n");
-    control->flush();
 }
 
 void fnFTP::ABOR()
 {
     control->write("ABOR\r\n");
-    control->flush();
 }
 
 void fnFTP::STOR(string path)
 {
     control->write("STOR " + path + "\r\n");
-    control->flush();
 }
