@@ -336,6 +336,7 @@ void sioFuji::sio_disk_image_mount()
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
+    status_wait_count = 0;
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
