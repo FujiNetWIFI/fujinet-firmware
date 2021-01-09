@@ -113,6 +113,7 @@ public:
 
     void image_rotate();
     int get_disk_id(int drive_slot);
+    std::string get_host_prefix(int host_slot);
 
     sioFuji();
 };

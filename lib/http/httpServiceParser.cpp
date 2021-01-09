@@ -87,6 +87,14 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE6DEVICE,
         FN_DRIVE7DEVICE,
         FN_DRIVE8DEVICE,
+        FN_HOST1PREFIX,
+        FN_HOST2PREFIX,
+        FN_HOST3PREFIX,
+        FN_HOST4PREFIX,
+        FN_HOST5PREFIX,
+        FN_HOST6PREFIX,
+        FN_HOST7PREFIX,
+        FN_HOST8PREFIX,
         FN_LASTTAG
     };
 
@@ -154,7 +162,15 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_DRIVE5DEVICE",
         "FN_DRIVE6DEVICE",
         "FN_DRIVE7DEVICE",
-        "FN_DRIVE8DEVICE"
+        "FN_DRIVE8DEVICE",
+        "FN_HOST1PREFIX",
+        "FN_HOST2PREFIX",
+        "FN_HOST3PREFIX",
+        "FN_HOST4PREFIX",
+        "FN_HOST5PREFIX",
+        "FN_HOST6PREFIX",
+        "FN_HOST7PREFIX",
+        "FN_HOST8PREFIX"
     };
 
     stringstream resultstream;
@@ -340,6 +356,23 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         disk_id = (char) theFuji.get_disk_id(drive_slot);
         if (disk_id != (char) (0x31 + drive_slot)) {
             resultstream << " (D" << disk_id << ":)";
+        }
+        break;
+    case FN_HOST1PREFIX:
+    case FN_HOST2PREFIX:
+    case FN_HOST3PREFIX:
+    case FN_HOST4PREFIX:
+    case FN_HOST5PREFIX:
+    case FN_HOST6PREFIX:
+    case FN_HOST7PREFIX:
+    case FN_HOST8PREFIX:
+	/* What directory prefix is set right now
+           for the TNFS host mounted on each Host Slot? */
+	host_slot = tagid - FN_HOST1PREFIX;
+        if (Config.get_host_type(host_slot) != fnConfig::host_types::HOSTTYPE_INVALID) {
+	    resultstream << theFuji.get_host_prefix(host_slot);
+        } else {
+            resultstream << "";
         }
         break;
     default:

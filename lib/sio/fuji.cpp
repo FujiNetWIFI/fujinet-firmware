@@ -1483,3 +1483,7 @@ int sioFuji::get_disk_id(int drive_slot) {
     return _fnDisks[drive_slot].disk_dev.id();
 }
 
+std::string sioFuji::get_host_prefix(int host_slot) {
+    return _fnHosts[host_slot].get_prefix();
+}
+
