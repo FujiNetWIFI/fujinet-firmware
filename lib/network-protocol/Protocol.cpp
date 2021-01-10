@@ -41,6 +41,7 @@ NetworkProtocol::NetworkProtocol(string *rx_buf,
     transmitBuffer = tx_buf;
     specialBuffer = sp_buf;
     error = 1;
+    login = password = nullptr;
 }
 
 /**
