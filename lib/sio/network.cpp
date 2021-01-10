@@ -456,6 +456,36 @@ void sioNetwork::sio_set_prefix()
 }
 
 /**
+ * Set login
+ */
+void sioNetwork::sio_set_login()
+{
+    uint8_t loginSpec[256];
+
+    memset(loginSpec,0,sizeof(loginSpec));
+    sio_to_peripheral(loginSpec,sizeof(loginSpec));
+    util_clean_devicespec(loginSpec,sizeof(loginSpec));
+
+    login = string((char *)loginSpec);
+    sio_complete();
+}
+
+/**
+ * Set password
+ */
+void sioNetwork::sio_set_password()
+{
+    uint8_t passwordSpec[256];
+
+    memset(passwordSpec,0,sizeof(passwordSpec));
+    sio_to_peripheral(passwordSpec,sizeof(passwordSpec));
+    util_clean_devicespec(passwordSpec,sizeof(passwordSpec));
+
+    password = string((char *)passwordSpec);
+    sio_complete();
+}
+
+/**
  * SIO Special, called as a default for any other SIO command not processed by the other sio_ functions.
  * First, the protocol is asked whether it wants to process the command, and if so, the protocol will
  * process the special command. Otherwise, the command is handled locally. In either case, either sio_complete()
@@ -525,6 +555,8 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
         case 0x2A:
         case 0x2B:
         case 0x2C:
+        case 0xFD:
+        case 0xFE:
             inq_dstats = 0x80;
             break;
         case 0x30:
@@ -613,6 +645,12 @@ void sioNetwork::sio_special_80()
         return;
     case 0x2C: // CHDIR
         sio_set_prefix();
+        return;
+    case 0xFD: // LOGIN
+        sio_set_login();
+        return;
+    case 0xFE: // PASSWORD
+        sio_set_password();
         return;
     }
 
@@ -745,6 +783,12 @@ bool sioNetwork::instantiate_protocol()
     {
         Debug_printf("sioNetwork::open_protocol() - Could not open protocol.\n");
         return false;
+    }
+
+    if (!login.empty())
+    {
+        protocol->login = &login;
+        protocol->password = &password;
     }
 
     Debug_printf("sioNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());

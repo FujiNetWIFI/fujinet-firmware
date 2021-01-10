@@ -136,6 +136,16 @@ public:
      */
     virtual void errno_to_error();
 
+    /**
+     * Pointer to current login;
+     */
+    string *login;
+
+    /**
+     * Pointer to current password;
+     */
+    string *password;
+
 protected:
     
     /**

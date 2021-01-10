@@ -101,6 +101,16 @@ public:
     virtual void sio_get_prefix();
 
     /**
+     * @brief called to set login
+     */
+    virtual void sio_set_login();
+
+    /**
+     * @brief called to set password
+     */
+    virtual void sio_set_password();
+
+    /**
      * Check to see if PROCEED needs to be asserted.
      */
     void sio_poll_interrupt();
@@ -183,6 +193,16 @@ private:
      * Return value for DSTATS inquiry
      */
     uint8_t inq_dstats=0xFF;
+
+    /**
+     * The login to use for a protocol action
+     */
+    string login;
+
+    /**
+     * The password to use for a protocol action
+     */
+    string password;
 
     /**
      * The channel mode for the currently open SIO device. By default, it is PROTOCOL, which passes
