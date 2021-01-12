@@ -136,6 +136,9 @@ void NetworkProtocolFTP::fserror_to_error()
     case 550:
         error = NETWORK_ERROR_FILE_NOT_FOUND;
         break;
+    default:
+        error = NETWORK_ERROR_GENERAL;
+        break;
     }
 }
 
