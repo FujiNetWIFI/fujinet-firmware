@@ -854,15 +854,16 @@ bool fnFTP::open_directory(string path, string pattern)
     }
 
     // Retrieve listing into buffer.
-    while (data->connected())
+    while (data->available())
     {
         int len = data->available();
-
         memset(buf, 0, sizeof(buf));
-        data->read(buf, len > sizeof(buf) ? sizeof(buf) : len);
-        Debug_printf("DIR: %s\n", buf);
-        dirBuffer << string((const char *)buf, len);
+        int num_read = data->read(buf, len > sizeof(buf) ? sizeof(buf) : len);
+        dirBuffer << string((const char *)buf, num_read);
     }
+
+    if (data->connected())
+        data->stop();
 
     return false; // all good.
 }
@@ -932,29 +933,23 @@ bool fnFTP::data_connected()
 
 bool fnFTP::parse_response()
 {
-    uint8_t* respBuf = (uint8_t *)malloc(512);
+    uint8_t respBuf[128];
     int num_read = 0;
 
-    controlResponse.clear();
+    memset(respBuf,0,sizeof(respBuf));
 
-    if (respBuf == NULL)
-    {
-        Debug_printf("fnFTP::parse_response() could not allocate response buffer\n");
-        return true; // error
-    }
+    controlResponse.clear();
 
     while (control->available() == 0)
         fnSystem.delay(50);
 
     while (control->available())
     {
-        num_read = control->read(respBuf,control->available());
+        num_read = control->read(respBuf,(control->available() > sizeof(respBuf) ? sizeof(respBuf) : control->available()));
         controlResponse += string((char *)respBuf, num_read);
     }
 
     Debug_printf("fnFTP::parse_response() - %s\n",controlResponse.c_str());
-
-    free(respBuf);
 
     return controlResponse.substr(0,controlResponse.find_first_of(" ")).empty();
 }
