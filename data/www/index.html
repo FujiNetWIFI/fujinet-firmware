@@ -764,6 +764,14 @@
 					</div>
 					<div class="cform">
 						<div class="formwrapper">
+							<br>Rewind
+							<form action="/config" method="post">
+								<input type="hidden" value="rew" />
+								<input type="submit" value="Rewind">
+							</form>
+							<script>
+								var current_play_record = "<%FN_PLAY_RECORD%>";
+							</script>
 							<br>Play or Record
 							<form action="/config" method="post">
 								<select name="play_record" id="select_play_record">
