@@ -445,7 +445,11 @@ sioDevice *sioBus::deviceById(int device_id)
 void sioBus::shutdown()
 {
     for (auto devicep : _daisyChain)
+    {
+        Debug_printf("Shutting down device %02x\n",devicep->id());
         devicep->shutdown();
+    }
+    Debug_printf("All devices shut down.\n");
 }
 
 void sioBus::toggleBaudrate()

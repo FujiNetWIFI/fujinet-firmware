@@ -20,6 +20,7 @@
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
 #include "fnWiFi.h"
+#include "../sio/sio.h"
 
 // Global object to manage System
 SystemManager fnSystem;
@@ -151,6 +152,7 @@ void SystemManager::yield()
 // TODO: Close open files first
 void SystemManager::reboot()
 {
+    SIO.shutdown();
     esp_restart();
 }
 
