@@ -394,6 +394,10 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
     {
         _midiDev = (sioMIDIMaze *)pDevice;
     }
+    else if (device_id == SIO_DEVICEID_CASSETTE)
+    {
+        _cassetteDev = (sioCassette *)pDevice;
+    }
 
     pDevice->_devnum = device_id;
 
