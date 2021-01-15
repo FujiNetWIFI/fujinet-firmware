@@ -650,6 +650,7 @@ void sioFuji::shutdown()
 {
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
+
 }
 
 void sioFuji::sio_open_directory()
