@@ -241,6 +241,12 @@ void sioCassette::sio_handle_cassette()
     }
 }
 
+void sioCassette::rewind()
+{
+    // Is this all that's needed? -tschak
+    tape_offset = 0;
+}
+
 void sioCassette::set_buttons(bool play_record)
 {
     if (!play_record)
