@@ -95,6 +95,8 @@ public:
     void sio_disable_cassette(); // stop cassette
     void sio_handle_cassette();  // Handle incoming & outgoing data for cassette
 
+    void rewind(); // rewind cassette
+
     bool is_mounted() { return _mounted; };
     bool is_active() { return cassetteActive; };
     bool has_pulldown() { return pulldown; };
