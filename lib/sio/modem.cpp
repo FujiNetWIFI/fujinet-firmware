@@ -229,7 +229,7 @@ void sioModem::sio_poll_1()
 
     Debug_println("Modem acknowledging Type 1 Poll");
 
-    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
+    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY*2);
 
     sio_to_computer(bootBlock, sizeof(bootBlock), false);
 }
