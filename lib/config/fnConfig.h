@@ -69,6 +69,10 @@ public:
     void store_wifi_passphrase(const char *passphrase_octets, int num_octets);
     void reset_wifi() { _wifi.ssid.clear(); _wifi.passphrase.clear(); };
 
+    // BLUETOOTH
+    void store_bt_status(bool status);
+    bool get_bt_status() { return _bt.bt_status; };
+
     // HOSTS
     std::string get_host_name(uint8_t num);
     host_type_t get_host_type(uint8_t num);
@@ -110,6 +114,7 @@ private:
 
     void _read_section_general(std::stringstream &ss);
     void _read_section_wifi(std::stringstream &ss);
+    void _read_section_bt(std::stringstream &ss);
     void _read_section_network(std::stringstream &ss);
     void _read_section_host(std::stringstream &ss, int index);
     void _read_section_mount(std::stringstream &ss, int index);
@@ -122,6 +127,7 @@ private:
     {
         SECTION_GENERAL,
         SECTION_WIFI,
+        SECTION_BT,
         SECTION_HOST,
         SECTION_MOUNT,
         SECTION_PRINTER,
@@ -182,6 +188,11 @@ private:
         std::string passphrase;
     };
 
+    struct bt_info
+    {
+        bool bt_status = false;
+    };
+
     struct network_info
     {
         char sntpserver [40];
@@ -214,6 +225,7 @@ private:
     mount_info _tape_slots[MAX_TAPE_SLOTS];
 
     wifi_info _wifi;
+    bt_info _bt;
     network_info _network;
     general_info _general;
     modem_info _modem;
