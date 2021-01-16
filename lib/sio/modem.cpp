@@ -229,7 +229,7 @@ void sioModem::sio_poll_1()
 
     Debug_println("Modem acknowledging Type 1 Poll");
 
-    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
+    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY*2);
 
     sio_to_computer(bootBlock, sizeof(bootBlock), false);
 }
@@ -352,15 +352,15 @@ void sioModem::sio_status()
           0: RCV state (0=space, 1=mark)
     */
 
-   mdmStatus[1] &= 0b11110011;
-   mdmStatus[1] |= (tcpClient.connected()==true ? 12 : 0);
+    mdmStatus[1] &= 0b11110011;
+    mdmStatus[1] |= (tcpClient.connected() == true ? 12 : 0);
 
     mdmStatus[1] &= 0b11111110;
-    mdmStatus[1] |= ((tcpClient.available()>0) || (tcpServer.hasClient() == true) ? 1 : 0);
+    mdmStatus[1] |= ((tcpClient.available() > 0) || (tcpServer.hasClient() == true) ? 1 : 0);
 
     if (autoAnswer == true && tcpServer.hasClient() == true)
     {
-        modemActive=true;
+        modemActive = true;
         fnSystem.delay(2000);
 
         if (numericResultCode == true)
@@ -376,7 +376,7 @@ void sioModem::sio_status()
         }
     }
 
-    Debug_printf("sioModem::sio_status(%02x,%02x)\n",mdmStatus[0],mdmStatus[1]);
+    Debug_printf("sioModem::sio_status(%02x,%02x)\n", mdmStatus[0], mdmStatus[1]);
 
     sio_to_computer(mdmStatus, sizeof(mdmStatus), false);
 }
@@ -1453,27 +1453,27 @@ void sioModem::sio_handle_modem()
 
                 if (len > 0)
                 {
-                  cmd.erase(len - 1);
-                  // We don't assume that backspace is destructive
-                  // Clear with a space
-                  if (commandEcho == true)
-                  {
-                    fnUartSIO.write(ASCII_BACKSPACE);
-                    fnUartSIO.write(' ');
-                    fnUartSIO.write(ASCII_BACKSPACE);
-                  }
+                    cmd.erase(len - 1);
+                    // We don't assume that backspace is destructive
+                    // Clear with a space
+                    if (commandEcho == true)
+                    {
+                        fnUartSIO.write(ASCII_BACKSPACE);
+                        fnUartSIO.write(' ');
+                        fnUartSIO.write(ASCII_BACKSPACE);
+                    }
                 }
             }
             else if (chr == ATASCII_BACKSPACE)
             {
                 size_t len = cmd.length();
-                
+
                 // ATASCII backspace
                 if (len > 0)
                 {
-                  cmd.erase(len - 1);
-                  if (commandEcho == true)
-                    fnUartSIO.write(ATASCII_BACKSPACE);
+                    cmd.erase(len - 1);
+                    if (commandEcho == true)
+                        fnUartSIO.write(ATASCII_BACKSPACE);
                 }
             }
             // Take into account arrow key movement and clear screen
@@ -1639,7 +1639,8 @@ void sioModem::sio_handle_modem()
 void sioModem::shutdown()
 {
     if (modemSniffer != nullptr)
-        modemSniffer->closeOutput();
+        if (modemSniffer->getEnable())
+            modemSniffer->closeOutput();
 }
 
 /*

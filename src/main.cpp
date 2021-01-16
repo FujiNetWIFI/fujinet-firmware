@@ -43,7 +43,7 @@ void main_shutdown_handler()
 {
     Debug_println("Shutdown handler called");
     // Give devices an opportunity to clean up before rebooting
-    SIO.shutdown();
+    // SIO.shutdown();
 }
 
 // Initial setup
