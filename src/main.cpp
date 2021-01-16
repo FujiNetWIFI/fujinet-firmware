@@ -80,10 +80,19 @@ void main_setup()
     // Load our stored configuration
     Config.load();
 
-    // Set up the WiFi adapter
-    fnWiFi.start();
-    // Go ahead and try reconnecting to WiFi
-    fnWiFi.connect();
+    if ( Config.get_bt_status() )
+    {
+        // Start SIO2BT mode if we were in it last shutdown
+        fnLedManager.set(eLed::LED_BT, true); // BT LED ON
+        fnBtManager.start();
+    }
+    else
+    {
+        // Set up the WiFi adapter
+        fnWiFi.start();
+        // Go ahead and try reconnecting to WiFi
+        fnWiFi.connect();
+    }
 
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
