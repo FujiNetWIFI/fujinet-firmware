@@ -177,7 +177,7 @@ void fnHttpServiceConfigurator::config_enable_config(std::string enable_config)
     Config.save();
 }
 
-void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::string resistor)
+void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::string resistor, bool rew)
 {
     // call the cassette buttons function passing play_record.c_str()
     // find cassette via thefuji object?
@@ -191,6 +191,11 @@ void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::st
     {
         theFuji.cassette()->set_pulldown(util_string_value_is_true(resistor));
         Config.store_cassette_pulldown(util_string_value_is_true(resistor));
+    }
+    else if (rew == true)
+    {
+        Debug_printf("Rewinding cassette.\n");
+        SIO.getCassette()->rewind();
     }
     Config.save();
 }
@@ -307,11 +312,15 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         }
         else if (i->first.compare("play_record") == 0)
         {
-            config_cassette(i->second, std::string());
+            config_cassette(i->second, std::string(), false);
         }
         else if (i->first.compare("pulldown") == 0)
         {
-            config_cassette(std::string(), i->second);
+            config_cassette(std::string(), i->second, false);
+        }
+        else if (i->first.compare("rew") == 0)
+        {
+            config_cassette(std::string(), std::string(), true);
         }
         else if (i->first.compare("rotation_sounds") == 0)
         {

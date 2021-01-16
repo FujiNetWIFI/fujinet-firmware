@@ -112,6 +112,7 @@ class sioFuji;    // declare here so can reference it, but define in fuji.h
 class sioBus;     // declare early so can be friend
 class sioNetwork; // declare here so can reference it, but define in network.h
 class sioMIDIMaze;   // declare here so can reference it, but define in midimaze.h
+class sioCassette;  // Cassette forward-declaration.
 
 class sioDevice
 {
@@ -248,6 +249,7 @@ private:
     sioFuji *_fujiDev = nullptr;
     sioNetwork *_netDev[8] = { nullptr };
     sioMIDIMaze *_midiDev = nullptr;
+    sioCassette *_cassetteDev = nullptr;
 
     int _sioBaud = SIO_STANDARD_BAUDRATE;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
@@ -283,6 +285,8 @@ public:
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0); // enable ultrahigh/set baud rate
     bool getUltraHighEnabled() { return useUltraHigh; }
     int getUltraHighBaudRate() { return _sioBaudUltraHigh; } 
+
+    sioCassette* getCassette() { return _cassetteDev; }
 
     QueueHandle_t qSioMessages = nullptr;
 };
