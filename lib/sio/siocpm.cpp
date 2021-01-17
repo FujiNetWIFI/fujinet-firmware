@@ -1,14 +1,19 @@
+#define CCP_INTERNAL
+
 #include "siocpm.h"
+#include "../runcpm/globals.h"
+#include "../runcpm/abstraction_fujinet.h"
 #include "../hardware/fnUART.h"
 #include "../hardware/fnSystem.h"
-#include "../runcpm/abstraction_fujinet.h"
-#include "../runcpm/ccp.h"
-#include "../runcpm/console.h"
-#include "../runcpm/cpu.h"
-#include "../runcpm/cpm.h"
-#include "../runcpm/globals.h"
-#include "../runcpm/disk.h"
-#include "../runcpm/host.h"
+#include "../runcpm/ram.h"                // ram.h - Implements the RAM
+#include "../runcpm/console.h"            // console.h - implements console.
+#include "../runcpm/cpu.h"                // cpu.h - Implements the emulated CPU
+#include "../runcpm/disk.h"               // disk.h - Defines all the disk access abstraction functions
+#include "../runcpm/host.h"               // host.h - Custom host-specific BDOS call
+#include "../runcpm/cpm.h"                // cpm.h - Defines the CPM structures and calls
+#ifdef CCP_INTERNAL
+#include "../runcpm/ccp.h"                // ccp.h - Defines a simple internal CCP
+#endif
 #include <string.h>
 
 void sioCPM::sio_status()
@@ -39,7 +44,7 @@ void sioCPM::sio_handle_cpm()
     if (Status == 1) // This is set by a call to BIOS 0 - ends CP/M
     {
         cpmActive = false;
-        //free(RAM);
+        free(RAM);
     }
 }
 
@@ -57,7 +62,7 @@ void sioCPM::sio_process(uint32_t commanddata, uint8_t checksum)
         fnUartSIO.set_baudrate(9600);
         Status = Debug = 0;
         Break = Step = -1;
-        //RAM = (uint8_t *)malloc(MEMSIZE);
+        RAM = (uint8_t *)malloc(MEMSIZE);
         memset(RAM,0,MEMSIZE);
         memset(filename,0,sizeof(filename));
         memset(newname,0,sizeof(newname));

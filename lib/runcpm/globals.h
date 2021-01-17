@@ -7,8 +7,8 @@
 #endif
 
 /* Definitions for enabling PUN: and LST: devices */
-#define USE_PUN	// The pun.txt and lst.txt files will appear on drive A: user 0
-#define USE_LST
+//#define USE_PUN	// The pun.txt and lst.txt files will appear on drive A: user 0
+//#define USE_LST
 
 /* Definitions for file/console based debugging */
 //#define DEBUG			// Enables the internal debugger (enabled by default on vstudio debug builds)
@@ -144,7 +144,7 @@ typedef unsigned int    uint32;
 #define MEMSIZE 64 * 1024	// RAM(plus ROM) needs to be 64K to avoid compatibility issues
 
 #ifdef RAM_FAST		// Makes all function calls to memory access into direct RAM access (less calls / less code)
-	static uint8 RAM[MEMSIZE];
+	static uint8 *RAM;
 	#define _RamSysAddr(a)		&RAM[a]
 	#define _RamRead(a)			RAM[a]
 	#define _RamRead16(a)		((RAM[(a & 0xffff) + 1] << 8) | RAM[a & 0xffff])

@@ -5,7 +5,6 @@
 #ifndef ABSTRACTION_FUJINET_H
 #define ABSTRACTION_FUJINET_H
 
-#include "abstraction_fujinet.h"
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnUART.h"
 #include "globals.h"
@@ -13,6 +12,27 @@
 #include "fnFS.h"
 #include "fnFsSD.h"
 #include <string.h>
+
+#define HostOS 0x07 // FUJINET
+
+typedef struct
+{
+	uint8_t dr;
+	uint8_t fn[8];
+	uint8_t tp[3];
+	uint8_t ex, s1, s2, rc;
+	uint8_t al[16];
+	uint8_t cr, r0, r1, r2;
+} CPM_FCB;
+
+typedef struct
+{
+	uint8_t dr;
+	uint8_t fn[8];
+	uint8_t tp[3];
+	uint8_t ex, s1, s2, rc;
+	uint8_t al[16];
+} CPM_DIRENTRY;
 
 glob_t pglob;
 int dirPos;
@@ -375,7 +395,7 @@ uint8_t _findnext(uint8_t isdir)
 					fileExtentsUsed = 0;
 					firstFreeAllocBlock = firstBlockAfterDir;
 				}
-				_RamWrite(tmpFCB, globalFilename[0] - '@');
+				_RamWrite(tmpFCB, filename[0] - '@');
 				_HostnameToFCB(tmpFCB, findNextDirName);
 				result = 0x00;
 				break;
@@ -388,15 +408,15 @@ uint8_t _findnext(uint8_t isdir)
 uint8_t _findfirst(uint8_t isdir)
 {
 	uint8 path[4] = { '?', FOLDERCHAR, '?', 0 };
-	path[0] = globalFilename[0];
-	path[2] = globalFilename[2];
+	path[0] = filename[0];
+	path[2] = filename[2];
 	fnSDFAT.dir_close();
 	fnSDFAT.dir_open(full_path((char *)path),"*",0);
-	_HostnameToFCBname(globalFilename, pattern);
+	_HostnameToFCBname(filename, pattern);
 	fileRecords = 0;
 	fileExtents = 0;
 	fileExtentsUsed = 0;
-	Debug_printf("_findfirst(%d,%s)\n",isdir,globalFilename);
+	Debug_printf("_findfirst(%d,%s)\n",isdir,filename);
 	return(_findnext(isdir));
 }
 
