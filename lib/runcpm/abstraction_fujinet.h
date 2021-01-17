@@ -81,13 +81,13 @@ FILE *userdir;
 
 FILE *_sys_fopen_w(uint8_t *fn)
 {
-	Debug_printf("_sys_fopen_w(%s)\n",fn);
+	Debug_printf("_sys_fopen_w(%s)\n", fn);
 	return fnSDFAT.file_open(full_path((char *)fn), "w");
 }
 
 int _sys_fputc(uint8_t ch, FILE *f)
 {
-	Debug_printf("_sys_fopen_w(%c)\n",ch);
+	Debug_printf("_sys_fopen_w(%c)\n", ch);
 	return fputc(ch, f);
 }
 
@@ -111,14 +111,23 @@ int _sys_select(uint8_t *disk)
 
 long _sys_filesize(uint8_t *fn)
 {
-	unsigned long fs = fnSDFAT.filesize(full_path((char *)fn));
-	Debug_printf("_sys_filesize(%lu)",fs);
+	unsigned long fs = -1;
+	FILE *fp = fnSDFAT.file_open(full_path((char *)fn), "r");
+
+	if (fp)
+	{
+		fseek(fp, 0L, SEEK_END);
+		fs = ftell(fp);
+	}
+
+	fclose(fp);
+	Debug_printf("_sys_filesize(%s,%lu)\n", full_path((char *)fn), fs);
 	return fs;
 }
 
 int _sys_openfile(uint8_t *fn)
 {
-	Debug_printf("_sys_openfile(%s,%s)\n",fn,full_path((char *)fn));
+	Debug_printf("_sys_openfile(%s,%s)\n", fn, full_path((char *)fn));
 	FILE *fp = fnSDFAT.file_open(full_path((char *)fn), "r");
 	if (fp)
 	{
@@ -131,7 +140,7 @@ int _sys_openfile(uint8_t *fn)
 
 int _sys_makefile(uint8_t *fn)
 {
-	Debug_printf("_sys_makefile(%s)\n",full_path((char *)fn));
+	Debug_printf("_sys_makefile(%s)\n", full_path((char *)fn));
 	FILE *fp = fnSDFAT.file_open(full_path((char *)fn), "w");
 	if (fp)
 	{
@@ -144,13 +153,13 @@ int _sys_makefile(uint8_t *fn)
 
 int _sys_deletefile(uint8_t *fn)
 {
-	Debug_printf("_sys_deletefile(%s)\n",full_path((char *)fn));
+	Debug_printf("_sys_deletefile(%s)\n", full_path((char *)fn));
 	return fnSDFAT.remove(full_path((char *)fn));
 }
 
 int _sys_renamefile(uint8_t *fn, uint8_t *newname)
 {
-	Debug_printf("_sys_renamefile(%s)\n",full_path((char *)fn));
+	Debug_printf("_sys_renamefile(%s)\n", full_path((char *)fn));
 	return fnSDFAT.rename(full_path((char *)fn), full_path((char *)newname));
 }
 
@@ -161,7 +170,7 @@ void _sys_logbuffer(uint8_t *buffer)
 
 bool _sys_extendfile(char *fn, unsigned long fpos)
 {
-	Debug_printf("_sys_extendfile(%s,%lu)\n",full_path((char *)fn),fpos);
+	Debug_printf("_sys_extendfile(%s,%lu)\n", full_path((char *)fn), fpos);
 	FILE *fp = fnSDFAT.file_open(full_path((char *)fn), "w+");
 
 	if (!fp)
@@ -193,13 +202,21 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
 	uint8_t bytesread;
 	uint8_t dmabuf[BlkSZ];
 	uint8_t i;
+	int seekErr;
 
-	Debug_printf("_sys_readseq(%s,%lu)\n",full_path((char *)fn),fpos);
+	Debug_printf("_sys_readseq(%s,%lu)\n", full_path((char *)fn), fpos);
 
 	f = fnSDFAT.file_open(full_path((char *)fn), "r");
+	seekErr = fseek(f,fpos,SEEK_SET);
+	Debug_printf("seekErr = %d\n",seekErr);
 	if (f)
 	{
-		if (fseek(f, fpos, SEEK_SET))
+		if (fpos > 0 && seekErr != 0)
+		{
+			// EOF
+			result = 0x01;
+		}
+		else
 		{
 			for (i = 0; i < BlkSZ; ++i)
 				dmabuf[i] = 0x1a;
@@ -207,13 +224,12 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
 			if (bytesread)
 			{
 				for (i = 0; i < BlkSZ; ++i)
+				{
 					_RamWrite(dmaAddr + i, dmabuf[i]);
+				}
+				Debug_printf("\n");
 			}
 			result = bytesread ? 0x00 : 0x01;
-		}
-		else
-		{
-			result = 0x01;
 		}
 		fclose(f);
 	}
@@ -229,7 +245,7 @@ uint8_t _sys_writeseq(uint8_t *fn, long fpos)
 	uint8_t result = 0xff;
 	FILE *f;
 
-	Debug_printf("_sys_writeseq(%s,%lu)\n",full_path((char *)fn),fpos);
+	Debug_printf("_sys_writeseq(%s,%lu)\n", full_path((char *)fn), fpos);
 
 	if (_sys_extendfile((char *)fn, fpos))
 		f = fnSDFAT.file_open(full_path((char *)fn), "r+");
@@ -238,7 +254,7 @@ uint8_t _sys_writeseq(uint8_t *fn, long fpos)
 
 	if (f)
 	{
-		if (fseek(f, fpos, SEEK_SET))
+		if (fseek(f, fpos, SEEK_SET) == 0)
 		{
 			if (fwrite(_RamSysAddr(dmaAddr), BlkSZ, sizeof(uint8_t), f))
 				result = 0x00;
@@ -265,12 +281,12 @@ uint8_t _sys_readrand(uint8_t *fn, long fpos)
 	uint8 i;
 	long extSize;
 
-	Debug_printf("_sys_readrand(%s,%lu)\n",full_path((char *)fn),fpos);
+	Debug_printf("_sys_readrand(%s,%lu)\n", full_path((char *)fn), fpos);
 
 	f = fnSDFAT.file_open(full_path((char *)fn), "r");
 	if (f)
 	{
-		if (fseek(f, fpos, SEEK_SET))
+		if (fseek(f, fpos, SEEK_SET) == 0)
 		{
 			for (i = 0; i < BlkSZ; ++i)
 				dmabuf[i] = 0x1a;
@@ -314,7 +330,7 @@ uint8_t _sys_writerand(uint8_t *fn, long fpos)
 	uint8 result = 0xff;
 	FILE *f;
 
-	Debug_printf("_sys_writerand(%s,%lu)\n",full_path((char *)fn),fpos);
+	Debug_printf("_sys_writerand(%s,%lu)\n", full_path((char *)fn), fpos);
 
 	if (_sys_extendfile((char *)fn, fpos))
 	{
@@ -325,7 +341,7 @@ uint8_t _sys_writerand(uint8_t *fn, long fpos)
 
 	if (f)
 	{
-		if (fseek(f, fpos, SEEK_SET))
+		if (fseek(f, fpos, SEEK_SET) == 0)
 		{
 			if (fwrite(_RamSysAddr(dmaAddr), BlkSZ, sizeof(uint8_t), f))
 				result = 0x00;
@@ -371,7 +387,7 @@ uint8_t _findnext(uint8_t isdir)
 			if (!isfile)
 				continue;
 			_HostnameToFCBname(findNextDirName, fcbname);
-			Debug_printf("_findnext(%s)\n",findNextDirName);
+			Debug_printf("_findnext(%s)\n", findNextDirName);
 			if (match(fcbname, pattern))
 			{
 				if (isdir)
@@ -407,17 +423,17 @@ uint8_t _findnext(uint8_t isdir)
 
 uint8_t _findfirst(uint8_t isdir)
 {
-	uint8 path[4] = { '?', FOLDERCHAR, '?', 0 };
+	uint8 path[4] = {'?', FOLDERCHAR, '?', 0};
 	path[0] = filename[0];
 	path[2] = filename[2];
 	fnSDFAT.dir_close();
-	fnSDFAT.dir_open(full_path((char *)path),"*",0);
+	fnSDFAT.dir_open(full_path((char *)path), "*", 0);
 	_HostnameToFCBname(filename, pattern);
 	fileRecords = 0;
 	fileExtents = 0;
 	fileExtentsUsed = 0;
-	Debug_printf("_findfirst(%d,%s)\n",isdir,filename);
-	return(_findnext(isdir));
+	Debug_printf("_findfirst(%d,%s)\n", isdir, filename);
+	return (_findnext(isdir));
 }
 
 uint8_t _findnextallusers(uint8_t isdir)

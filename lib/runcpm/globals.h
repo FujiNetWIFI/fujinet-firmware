@@ -81,7 +81,7 @@
 #error No CCP defined
 #endif
 //
-#define CCPHEAD		"\r\nRunCPM Version " VERSION " (CP/M 2.2 " STR(TPASIZE) "K)\r\n"
+#define CCPHEAD		"\r\n#FUJINET RunCPM Version " VERSION " (CP/M 2.2 " STR(TPASIZE) "K)\r\n"
 
 //#define HASLUA		// Will enable Lua scripting (BDOS call 254)
 						// Should be passed externally per-platform with -DHASLUA
