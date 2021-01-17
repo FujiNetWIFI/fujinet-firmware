@@ -87,6 +87,8 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define SIO_DEVICEID_ASPEQT 0x46
 #define SIO_DEVICEID_PCLINK 0x6F
 
+#define SIO_DEVICEID_CPM 0x5A
+
 union cmdFrame_t {
     struct
     {

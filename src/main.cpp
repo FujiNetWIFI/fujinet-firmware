@@ -15,6 +15,7 @@
 #include "httpService.h"
 #include "printerlist.h"
 #include "midimaze.h"
+#include "siocpm.h"
 
 #include <esp_system.h>
 #include <nvs_flash.h>
@@ -38,6 +39,7 @@ sioVoice sioV;
 sioMIDIMaze sioMIDI;
 // sioCassette sioC; // now part of sioFuji theFuji object
 sioModem *sioR;
+sioCPM sioZ;
 
 void main_shutdown_handler()
 {
@@ -119,6 +121,8 @@ void main_setup()
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
+
+    SIO.addDevice(&sioZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
 
     // Go setup SIO
     SIO.setup();
