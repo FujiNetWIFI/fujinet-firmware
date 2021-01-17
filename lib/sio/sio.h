@@ -115,6 +115,7 @@ class sioBus;     // declare early so can be friend
 class sioNetwork; // declare here so can reference it, but define in network.h
 class sioMIDIMaze;   // declare here so can reference it, but define in midimaze.h
 class sioCassette;  // Cassette forward-declaration.
+class sioCPM;    // CPM device.
 
 class sioDevice
 {
@@ -252,6 +253,7 @@ private:
     sioNetwork *_netDev[8] = { nullptr };
     sioMIDIMaze *_midiDev = nullptr;
     sioCassette *_cassetteDev = nullptr;
+    sioCPM *_cpmDev = nullptr;
 
     int _sioBaud = SIO_STANDARD_BAUDRATE;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;

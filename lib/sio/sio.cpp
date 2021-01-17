@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "midimaze.h"
 #include "cassette.h"
+#include "siocpm.h"
 #include "../../include/debug.h"
 
 // Helper functions outside the class defintions
@@ -279,6 +280,11 @@ void sioBus::service()
         _midiDev->sio_handle_midimaze();
         return; // break!
     }
+    else if (_cpmDev != nullptr && _cpmDev->cpmActive)
+    {
+        _cpmDev->sio_handle_cpm();
+        return; // break!
+    }
 
     // check if cassette is mounted first
     if (_fujiDev->cassette()->is_mounted())
@@ -397,6 +403,10 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
     else if (device_id == SIO_DEVICEID_CASSETTE)
     {
         _cassetteDev = (sioCassette *)pDevice;
+    }
+    else if (device_id == SIO_DEVICEID_CPM)
+    {
+        _cpmDev = (sioCPM *)pDevice;
     }
 
     pDevice->_devnum = device_id;
