@@ -116,6 +116,7 @@ class sioNetwork; // declare here so can reference it, but define in network.h
 class sioMIDIMaze;   // declare here so can reference it, but define in midimaze.h
 class sioCassette;  // Cassette forward-declaration.
 class sioCPM;    // CPM device.
+class sioPrinter; // Printer device
 
 class sioDevice
 {
@@ -254,6 +255,7 @@ private:
     sioMIDIMaze *_midiDev = nullptr;
     sioCassette *_cassetteDev = nullptr;
     sioCPM *_cpmDev = nullptr;
+    sioPrinter *_printerdev = nullptr;
 
     int _sioBaud = SIO_STANDARD_BAUDRATE;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
@@ -291,6 +293,7 @@ public:
     int getUltraHighBaudRate() { return _sioBaudUltraHigh; } 
 
     sioCassette* getCassette() { return _cassetteDev; }
+    sioPrinter* getPrinter() { return _printerdev; }
 
     QueueHandle_t qSioMessages = nullptr;
 };

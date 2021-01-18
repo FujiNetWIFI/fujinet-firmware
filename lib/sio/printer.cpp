@@ -94,6 +94,16 @@ void sioPrinter::sio_write(uint8_t aux1, uint8_t aux2)
     }
 }
 
+/**
+ * Print from CP/M, which is one character...at...a...time...
+ */
+void sioPrinter::print_from_cpm(uint8_t c)
+{
+    Debug_printf("%c",c);
+    _pptr->provideBuffer()[0]=c;
+    _pptr->process(1,0,0);
+}
+
 // Status
 void sioPrinter::sio_status()
 {

@@ -1,6 +1,9 @@
 #ifndef CPM_H
 #define CPM_H
 
+#include "sio.h"
+#include "printer.h"
+
 /* see main.c for definition */
 
 #define JP		0xc3
@@ -416,6 +419,7 @@ void _Bdos(void) {
 		C = 5 : Printer output
 		*/
 	case 5:
+	SIO.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
 #ifdef USE_LST
 		if (!lst_open) {
 			lst_dev = _sys_fopen_w((uint8*)lst_file);
