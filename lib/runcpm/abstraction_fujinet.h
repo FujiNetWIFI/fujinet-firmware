@@ -159,8 +159,12 @@ int _sys_deletefile(uint8_t *fn)
 
 int _sys_renamefile(uint8_t *fn, uint8_t *newname)
 {
-	Debug_printf("_sys_renamefile(%s)\n", full_path((char *)fn));
-	return fnSDFAT.rename(full_path((char *)fn), full_path((char *)newname));
+	std::string from, to;
+
+	from = std::string(full_path((char *)fn));
+	to = std::string(full_path((char *)newname));
+
+	return fnSDFAT.rename(from.c_str(),to.c_str());
 }
 
 void _sys_logbuffer(uint8_t *buffer)
@@ -171,7 +175,7 @@ void _sys_logbuffer(uint8_t *buffer)
 bool _sys_extendfile(char *fn, unsigned long fpos)
 {
 	Debug_printf("_sys_extendfile(%s,%lu)\n", full_path((char *)fn), fpos);
-	FILE *fp = fnSDFAT.file_open(full_path((char *)fn), "w+");
+	FILE *fp = fnSDFAT.file_open(full_path((char *)fn), "a");
 
 	if (!fp)
 		return false;
@@ -190,8 +194,8 @@ bool _sys_extendfile(char *fn, unsigned long fpos)
 				return false;
 			}
 		}
-		fclose(fp);
 	}
+	fclose(fp);
 	return true;
 }
 
@@ -207,8 +211,8 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
 	Debug_printf("_sys_readseq(%s,%lu)\n", full_path((char *)fn), fpos);
 
 	f = fnSDFAT.file_open(full_path((char *)fn), "r");
-	seekErr = fseek(f,fpos,SEEK_SET);
-	Debug_printf("seekErr = %d\n",seekErr);
+	seekErr = fseek(f, fpos, SEEK_SET);
+	Debug_printf("seekErr = %d\n", seekErr);
 	if (f)
 	{
 		if (fpos > 0 && seekErr != 0)
@@ -227,16 +231,15 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
 				{
 					_RamWrite(dmaAddr + i, dmabuf[i]);
 				}
-				Debug_printf("\n");
 			}
 			result = bytesread ? 0x00 : 0x01;
 		}
-		fclose(f);
 	}
 	else
 	{
 		result = 0x10;
 	}
+	fclose(f);
 	return (result);
 }
 
@@ -263,12 +266,12 @@ uint8_t _sys_writeseq(uint8_t *fn, long fpos)
 		{
 			result = 0x01;
 		}
-		fclose(f);
 	}
 	else
 	{
 		result = 0x10;
 	}
+	fclose(f);
 	return (result);
 }
 
@@ -283,7 +286,7 @@ uint8_t _sys_readrand(uint8_t *fn, long fpos)
 
 	Debug_printf("_sys_readrand(%s,%lu)\n", full_path((char *)fn), fpos);
 
-	f = fnSDFAT.file_open(full_path((char *)fn), "r");
+	f = fnSDFAT.file_open(full_path((char *)fn), "r+");
 	if (f)
 	{
 		if (fseek(f, fpos, SEEK_SET) == 0)
@@ -316,12 +319,12 @@ uint8_t _sys_readrand(uint8_t *fn, long fpos)
 					result = 0x04; // seek to unwritten extent
 			}
 		}
-		fclose(f);
 	}
 	else
 	{
 		result = 0x10;
 	}
+	fclose(f);
 	return (result);
 }
 
@@ -350,12 +353,12 @@ uint8_t _sys_writerand(uint8_t *fn, long fpos)
 		{
 			result = 0x06;
 		}
-		fclose(f);
 	}
 	else
 	{
 		result = 0x10;
 	}
+	fclose(f);
 	return (result);
 }
 
@@ -466,7 +469,7 @@ void _MakeUserDir()
 
 	uint8 path[4] = {dFolder, FOLDERCHAR, uFolder, 0};
 
-	fnSDFAT.create_path((char *)path);
+	fnSDFAT.create_path(full_path((char *)path));
 }
 
 uint8_t _sys_makedisk(uint8_t drive)
@@ -507,7 +510,6 @@ uint8_t _getch(void)
 	while (!fnUartSIO.available())
 	{
 	}
-	Debug_printf("_getch(%02x)\n", fnUartSIO.peek());
 	return fnUartSIO.read() & 0x7f;
 }
 
