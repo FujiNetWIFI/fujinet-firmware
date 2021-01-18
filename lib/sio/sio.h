@@ -294,6 +294,7 @@ public:
 
     sioCassette* getCassette() { return _cassetteDev; }
     sioPrinter* getPrinter() { return _printerdev; }
+    sioCPM* getCPM() { return _cpmDev; }
 
     QueueHandle_t qSioMessages = nullptr;
 };
