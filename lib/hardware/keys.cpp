@@ -42,7 +42,7 @@ void KeyManager::setup()
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 
     // Start a new task to check the status of the buttons
-    #define KEYS_STACKSIZE 2048
+    #define KEYS_STACKSIZE 4096
     #define KEYS_PRIORITY 1
     xTaskCreate(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr);
 }
