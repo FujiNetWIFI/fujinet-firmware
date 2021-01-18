@@ -10,6 +10,7 @@
 #include "midimaze.h"
 #include "cassette.h"
 #include "siocpm.h"
+#include "printer.h"
 #include "../../include/debug.h"
 
 // Helper functions outside the class defintions
@@ -407,6 +408,10 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
     else if (device_id == SIO_DEVICEID_CPM)
     {
         _cpmDev = (sioCPM *)pDevice;
+    }
+    else if (device_id == SIO_DEVICEID_PRINTER)
+    {
+        _printerdev = (sioPrinter *)pDevice;
     }
 
     pDevice->_devnum = device_id;

@@ -56,6 +56,7 @@ public:
     void set_printer_type(printer_type printer_type);
     void reset_printer() { set_printer_type(_ptype); };
     time_t lastPrintTime() { return _last_ms; };
+    void print_from_cpm(uint8_t c);
 
     printer_emu *getPrinterPtr() { return _pptr; };
 
