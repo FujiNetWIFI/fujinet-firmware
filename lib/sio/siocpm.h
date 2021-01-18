@@ -21,7 +21,7 @@ private:
 
 public:
     bool cpmActive = false; 
-
+    void init_cpm();
     void sio_handle_cpm();
     
 };
