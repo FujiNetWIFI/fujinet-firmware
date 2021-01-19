@@ -163,7 +163,7 @@ extern "C"
 
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1; the WiFi task ends up on CPU0
-        #define MAIN_STACKSIZE 4096
+        #define MAIN_STACKSIZE 8192
         #define MAIN_PRIORITY 10
         #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",

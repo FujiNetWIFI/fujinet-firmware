@@ -131,7 +131,12 @@ int fnTcpServer::setTimeout(uint32_t seconds)
 // Closes listening socket
 void fnTcpServer::stop()
 {
-    lwip_close(_sockfd);
-    _sockfd = -1;
-    _listening = false;
+    if (_sockfd > 0)
+    {
+        Debug_printf("fnTcpServer::stop(%d)\n", _sockfd);
+        lwip_close(_sockfd);
+        Debug_printf("close errno %d\n",errno);
+        _sockfd = -1;
+        _listening = false;
+    }
 }
