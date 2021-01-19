@@ -6,6 +6,7 @@
 #include "led.h"
 #include "keys.h"
 #include "sio.h"
+#include "fnConfig.h"
 
 #define LONGPRESS_TIME 1500 // 1.5 seconds to detect long press
 #define DOUBLETAP_DETECT_TIME 400 // ms to wait to see if it's a single/double tap
@@ -41,7 +42,7 @@ void KeyManager::setup()
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 
     // Start a new task to check the status of the buttons
-    #define KEYS_STACKSIZE 2048
+    #define KEYS_STACKSIZE 4096
     #define KEYS_PRIORITY 1
     xTaskCreate(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr);
 }
@@ -167,14 +168,21 @@ void KeyManager::_keystate_task(void *param)
                 fnWiFi.start();
                 fnWiFi.connect();
 
+                // Save Bluetooth status in fnConfig
+                Config.store_bt_status(false); // Disabled
+                Config.save();
             }
             else
             {
                 // Stop WiFi
                 fnWiFi.stop();
 
-                fnLedManager.set(BLUETOOTH_LED, true); // SIO LED always ON in Bluetooth mode
+                fnLedManager.set(BLUETOOTH_LED, true); // BT LED ON
                 fnBtManager.start();
+
+                // Save Bluetooth status in fnConfig
+                Config.store_bt_status(true); // Enabled
+                Config.save();
             }
 #endif //BLUETOOTH_SUPPORT
             break;

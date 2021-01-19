@@ -9,6 +9,7 @@
 #include "fnFsSPIF.h"
 #include "fnSystem.h"
 #include "../utils/utils.h"
+#include "siocpm.h"
 
 #define RECVBUFSIZE 1024
 
@@ -1153,7 +1154,8 @@ void sioModem::modemCommand()
             "AT+TERM=VT52",
             "AT+TERM=VT100",
             "AT+TERM=ANSI",
-            "AT+TERM=DUMB"};
+            "AT+TERM=DUMB",
+            "ATCPM"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -1377,6 +1379,11 @@ void sioModem::modemCommand()
             at_cmd_resultCode(RESULT_CODE_OK);
         else
             at_cmd_println("OK");
+        break;
+    case AT_CPM:
+        modemActive=false;
+        SIO.getCPM()->init_cpm();
+        SIO.getCPM()->cpmActive=true;
         break;
     default:
         if (numericResultCode == true)

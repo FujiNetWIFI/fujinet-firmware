@@ -87,6 +87,8 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define SIO_DEVICEID_ASPEQT 0x46
 #define SIO_DEVICEID_PCLINK 0x6F
 
+#define SIO_DEVICEID_CPM 0x5A
+
 union cmdFrame_t {
     struct
     {
@@ -113,6 +115,8 @@ class sioBus;     // declare early so can be friend
 class sioNetwork; // declare here so can reference it, but define in network.h
 class sioMIDIMaze;   // declare here so can reference it, but define in midimaze.h
 class sioCassette;  // Cassette forward-declaration.
+class sioCPM;    // CPM device.
+class sioPrinter; // Printer device
 
 class sioDevice
 {
@@ -250,6 +254,8 @@ private:
     sioNetwork *_netDev[8] = { nullptr };
     sioMIDIMaze *_midiDev = nullptr;
     sioCassette *_cassetteDev = nullptr;
+    sioCPM *_cpmDev = nullptr;
+    sioPrinter *_printerdev = nullptr;
 
     int _sioBaud = SIO_STANDARD_BAUDRATE;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
@@ -287,6 +293,8 @@ public:
     int getUltraHighBaudRate() { return _sioBaudUltraHigh; } 
 
     sioCassette* getCassette() { return _cassetteDev; }
+    sioPrinter* getPrinter() { return _printerdev; }
+    sioCPM* getCPM() { return _cpmDev; }
 
     QueueHandle_t qSioMessages = nullptr;
 };
