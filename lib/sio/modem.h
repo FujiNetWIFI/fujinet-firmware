@@ -122,6 +122,9 @@ private:
         AT_TERMDUMB,
         AT_TERMANSI,
         AT_CPM,
+        AT_PHONEBOOKLIST,
+        AT_PHONEBOOKCLR,
+        AT_PHONEBOOK,
         AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
@@ -199,6 +202,10 @@ private:
     void at_handle_help();
     void at_handle_get();
     void at_handle_port();
+    void at_handle_pblist();
+    void at_handle_pb();
+    void at_handle_pbclear();
+
 
 protected:
     void shutdown() override;
