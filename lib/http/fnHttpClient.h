@@ -26,6 +26,7 @@ private:
     bool _transaction_done;
     int _redirect_count;
     int _max_redirects;
+    bool connected = false;
     esp_http_client_auth_type_t _auth_type;
 
     uint16_t _port = 80;

@@ -17,7 +17,7 @@ public:
     JSON();
     virtual ~JSON();
 
-    void setProtocol(networkProtocol *newProtocol);
+    void setProtocol(NetworkProtocol *newProtocol);
     void setReadQuery(string queryString);
     cJSON *resolveQuery();
     
@@ -27,7 +27,7 @@ public:
 
 private:
     cJSON *_json;
-    networkProtocol *_protocol;
+    NetworkProtocol *_protocol;
     string _queryString;
 
     string getValue(cJSON *item);

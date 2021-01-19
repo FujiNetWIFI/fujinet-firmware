@@ -146,6 +146,7 @@ struct tnfsStat
     uint32_t a_time;
     uint32_t m_time;
     uint32_t c_time;
+    uint16_t mode;
 };
 
 // Retruns a uint16 value given two bytes in high-low order

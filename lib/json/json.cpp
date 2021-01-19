@@ -33,7 +33,7 @@ JSON::~JSON()
 /**
  * Attach protocol handler
  */
-void JSON::setProtocol(networkProtocol *newProtocol)
+void JSON::setProtocol(NetworkProtocol *newProtocol)
 {
     Debug_printf("JSON::setProtocol()\n");
     _protocol = newProtocol;
