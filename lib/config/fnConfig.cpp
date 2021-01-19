@@ -109,6 +109,12 @@ void fnConfig::store_wifi_passphrase(const char *passphrase_octets, int num_octe
     }
 }
 
+void fnConfig::store_bt_status(bool status)
+{
+    _bt.bt_status = status;
+    _dirty = true;
+}
+
 std::string fnConfig::get_host_name(uint8_t num)
 {
     if (num < MAX_HOST_SLOTS)
@@ -362,6 +368,10 @@ void fnConfig::save()
     // TODO: Encrypt passphrase!
     ss << "passphrase=" << _wifi.passphrase << LINETERM;
 
+    // BLUETOOTH
+    ss << LINETERM << "[Bluetooth]" LINETERM;
+    ss << "enabled=" << _bt.bt_status << LINETERM;
+
     // NETWORK
     ss << LINETERM << "[Network]" LINETERM;
     ss << "sntpserver=" << _network.sntpserver << LINETERM;
@@ -547,6 +557,9 @@ New behavior: copy from SD first if available, then read SPIFFS.
         case SECTION_WIFI:
             _read_section_wifi(ss);
             break;
+        case SECTION_BT:
+            _read_section_bt(ss);
+            break;
         case SECTION_NETWORK:
             _read_section_network(ss);
             break;
@@ -655,6 +668,26 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
         }
     }
 }
+
+void fnConfig::_read_section_bt(std::stringstream &ss)
+{
+    std::string line;
+    // Read lines until one starts with '[' which indicates a new section
+    while (_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line, name, value))
+        {
+            if (strcasecmp(name.c_str(), "enabled") == 0)
+            {
+                if (strcasecmp(value.c_str(), "1") == 0)
+                    _bt.bt_status = true;
+                else
+                    _bt.bt_status = false; 
+            }
+        }
+    }}
 
 void fnConfig::_read_section_host(std::stringstream &ss, int index)
 {
@@ -884,6 +917,11 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             {
                 //Debug_printf("Found WIFI\n");
                 return SECTION_WIFI;
+            }
+            else if (strncasecmp("Bluetooth", s1.c_str(), 9) == 0)
+            {
+                //Debug_printf("Found Bluetooth\n");
+                return SECTION_BT;
             }
             else if (strncasecmp("General", s1.c_str(), 7) == 0)
             {

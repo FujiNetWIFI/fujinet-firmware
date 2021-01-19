@@ -121,6 +121,7 @@ private:
         AT_TERMVT100,
         AT_TERMDUMB,
         AT_TERMANSI,
+        AT_CPM,
         AT_ENUMCOUNT};
 
     uint modemBaud = 2400; // Holds modem baud rate, Default 2400
