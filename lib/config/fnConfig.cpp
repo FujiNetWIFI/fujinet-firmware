@@ -14,6 +14,8 @@
 
 #define CONFIG_DEFAULT_SNTPSERVER "pool.ntp.org"
 
+#define PHONEBOOK_CHAR_WIDTH 12 
+
 fnConfig Config;
 
 // Initialize some defaults
@@ -250,6 +252,97 @@ void fnConfig::clear_mount(uint8_t num, mount_type_t mounttype)
     }
 }
 
+//The next section its to handle the phonebook entries
+std::string fnConfig::get_pb_host_name(const char *pbnum)
+{
+    int i=0;
+    while ( i<MAX_PB_SLOTS && ( _phonebook_slots[i].phnumber.compare(pbnum)!=0 ) ) 
+        i++;
+    
+    //Number found
+    if (i<MAX_PB_SLOTS)
+        return _phonebook_slots[i].hostname;
+
+    //Return empty (not found)
+    return std::string();
+}
+std::string fnConfig::get_pb_host_port(const char *pbnum)
+{
+    int i=0;
+    while ( i<MAX_PB_SLOTS && ( _phonebook_slots[i].phnumber.compare(pbnum)!=0 ) ) 
+        i++;
+
+    //Number found
+    if (i<MAX_PB_SLOTS)
+        return _phonebook_slots[i].port;
+
+    //Return empty (not found)
+    return std::string();
+}
+bool fnConfig::add_pb_number(const char *pbnum, const char *pbhost, const char *pbport)
+{
+    //Check maximum lenght of phone number
+    if ( strlen(pbnum)>PHONEBOOK_CHAR_WIDTH )
+        return false;
+
+    int i=0;
+    while (i<MAX_PB_SLOTS && !(_phonebook_slots[i].phnumber.empty()) )
+        i++;
+    
+    //Empty found
+    if (i<MAX_PB_SLOTS)
+    {
+        _phonebook_slots[i].phnumber = pbnum;
+        _phonebook_slots[i].hostname = pbhost;
+        _phonebook_slots[i].port = pbport;
+        _dirty = true;
+        save();
+        return true;
+    }
+    return false;
+    
+}
+bool fnConfig::del_pb_number(const char *pbnum)
+{
+    int i=0;
+    while ( i<MAX_PB_SLOTS && ( _phonebook_slots[i].phnumber.compare(pbnum)!=0 ) ) 
+        i++;
+
+    //Number found
+    if (i<MAX_PB_SLOTS)
+    {
+        _phonebook_slots[i].phnumber.clear();
+        _phonebook_slots[i].hostname.clear();
+        _phonebook_slots[i].port.clear();
+        _dirty = true;
+        save();
+        return true;
+    }
+    //Not found
+    return false;
+}
+void fnConfig::clear_pb(void)
+{
+    for (int i=0; i<MAX_PB_SLOTS; i++) 
+    {
+        _phonebook_slots[i].phnumber.clear();
+        _phonebook_slots[i].hostname.clear();
+        _phonebook_slots[i].port.clear();
+    }
+    save();
+    _dirty = true;
+}
+std::string fnConfig::get_pb_entry(uint8_t n)
+{
+    if (_phonebook_slots[n].phnumber.empty())
+        return std::string();
+    std::string numberPadded =  _phonebook_slots[n].phnumber;
+    numberPadded.append(PHONEBOOK_CHAR_WIDTH + 1 - numberPadded.length(), ' ');
+    std::string pbentry =  numberPadded + _phonebook_slots[n].hostname + ":" + _phonebook_slots[n].port;
+    return pbentry;
+}
+////End of phonebook handling
+
 // Returns printer type stored in configuration for printer slot
 sioPrinter::printer_type fnConfig::get_printer_type(uint8_t num)
 {
@@ -427,6 +520,18 @@ void fnConfig::save()
     ss << LINETERM << "[Modem]" << LINETERM;
     ss << "sniffer_enabled=" << _modem.sniffer_enabled << LINETERM;
 
+    //PHONEBOOK
+    for (i = 0; i < MAX_PB_SLOTS; i++)
+    {
+        if (!_phonebook_slots[i].phnumber.empty())
+        {
+            ss << LINETERM << "[Phonebook" << (i+1) << "]" LINETERM;
+            ss << "number=" << _phonebook_slots[i].phnumber << LINETERM;
+            ss << "host=" << _phonebook_slots[i].hostname << LINETERM;
+            ss << "port=" << _phonebook_slots[i].port << LINETERM;
+        }
+    }
+
     // CASSETTE
     ss << LINETERM << "[Cassette]" << LINETERM;
     ss << "play_record=" << ((_cassette.button) ? "1 Record" : "0 Play") << LINETERM;
@@ -580,6 +685,9 @@ New behavior: copy from SD first if available, then read SPIFFS.
             break;
         case SECTION_CASSETTE: //Jeff put this here to handle tape drive configuration (pulldown and play/record)
             _read_section_cassette(ss);
+            break;
+        case SECTION_PHONEBOOK: //Mauricio put this here to handle the phonebook
+            _read_section_phonebook(ss, index);
             break;
         case SECTION_UNKNOWN:
             break;
@@ -864,6 +972,37 @@ void fnConfig::_read_section_cassette(std::stringstream &ss)
     }
 }
 
+void fnConfig::_read_section_phonebook(std::stringstream &ss, int index)
+{
+    // Throw out any existing data for this index
+    _phonebook_slots[index].phnumber.clear();
+    _phonebook_slots[index].hostname.clear();
+    _phonebook_slots[index].port.clear();
+
+    std::string line;
+    // Read lines until one starts with '[' which indicates a new section
+    while (_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line, name, value))
+        {
+            if (strcasecmp(name.c_str(), "number") == 0)
+            {
+                _phonebook_slots[index].phnumber = value;
+            }
+            else if (strcasecmp(name.c_str(), "host") == 0)
+            {
+                _phonebook_slots[index].hostname = value;
+            }
+            else if (strcasecmp(name.c_str(), "port") == 0)
+            {
+                _phonebook_slots[index].port = value;
+            }
+        }
+    }
+}
+
 /*
 Looks for [SectionNameX] where X is an integer
 Returns which SectionName was found and sets index to X if X is an integer
@@ -947,6 +1086,17 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             else if (strncasecmp("Cassette", s1.c_str(), 8) == 0)
             {
                 return SECTION_CASSETTE;
+            }
+            else if (strncasecmp("Phonebook", s1.c_str(), 9) == 0)
+            {
+                index = atoi((const char *)(s1.c_str() + 9)) - 1;
+                if (index < 0 || index >= MAX_PB_SLOTS)
+                {
+                    Debug_println("Invalid index value - discarding");
+                    return SECTION_UNKNOWN;
+                }
+                //Debug_printf("Found Phonebook Entry %d\n", index);
+                return SECTION_PHONEBOOK;
             }
         }
     }
