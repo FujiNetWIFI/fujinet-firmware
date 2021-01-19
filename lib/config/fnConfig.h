@@ -9,6 +9,7 @@
 #define MAX_MOUNT_SLOTS 8
 #define MAX_PRINTER_SLOTS 4
 #define MAX_TAPE_SLOTS 1
+#define MAX_PB_SLOTS 16
 
 #define BASE_TAPE_SLOT 0x1A
 
@@ -79,6 +80,14 @@ public:
     void store_host(uint8_t num, const char *hostname, host_type_t type);
     void clear_host(uint8_t num);
 
+    // PHONEBOOK SLOTS
+    std::string get_pb_host_name(const char *pbnum);
+    std::string get_pb_host_port(const char *pbnum);
+    std::string get_pb_entry(uint8_t n);
+    bool add_pb_number(const char *pbnum, const char *pbhost, const char *pbport);
+    bool del_pb_number(const char *pbnum);
+    void clear_pb(void);
+
     // MOUNTS
     std::string get_mount_path(uint8_t num, mount_type_t mounttype = mount_type_t::MOUNTTYPE_DISK);
     mount_mode_t get_mount_mode(uint8_t num, mount_type_t mounttype = mount_type_t::MOUNTTYPE_DISK);
@@ -122,6 +131,7 @@ private:
     void _read_section_tape(std::stringstream &ss, int index);    
     void _read_section_modem(std::stringstream &ss);
     void _read_section_cassette(std::stringstream &ss);
+    void _read_section_phonebook(std::stringstream &ss, int index);
 
     enum section_match
     {
@@ -135,6 +145,7 @@ private:
         SECTION_TAPE,
         SECTION_MODEM,
         SECTION_CASSETTE,
+        SECTION_PHONEBOOK,
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -219,6 +230,13 @@ private:
         bool button = false;
     };
 
+    struct phbook_info
+    {
+        std::string phnumber;
+        std::string hostname;
+        std::string port;
+    };
+
     host_info _host_slots[MAX_HOST_SLOTS];
     mount_info _mount_slots[MAX_MOUNT_SLOTS];
     printer_info _printer_slots[MAX_PRINTER_SLOTS];
@@ -230,6 +248,8 @@ private:
     general_info _general;
     modem_info _modem;
     cassette_info _cassette;
+
+    phbook_info _phonebook_slots[MAX_PB_SLOTS];
 };
 
 extern fnConfig Config;
