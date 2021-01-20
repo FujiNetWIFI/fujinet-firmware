@@ -387,7 +387,7 @@ void _Bios(void)
 		break;
 	case 0x33: // 17 - RETTOCCP - This allows programs ending in RET return to internal CCP
 		Status = 3;
-		break;
+		break;	
 	default:
 #ifdef DEBUG // Show unimplemented BIOS calls only when debugging
 		_puts("\r\nUnimplemented BIOS call.\r\n");
@@ -805,6 +805,9 @@ void _Bdos(void)
 		*/
 	case 40:
 		HL = _WriteRand(DE);
+		break;
+	case 176:
+		HL = FujiNet_NetworkConfig(DE);
 		break;
 #if defined board_digital_io
 		/*

@@ -862,18 +862,7 @@ void sioFuji::sio_get_adapter_config()
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
     // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
-    struct
-    {
-        char ssid[32];
-        char hostname[64];
-        unsigned char localIP[4];
-        unsigned char gateway[4];
-        unsigned char netmask[4];
-        unsigned char dnsIP[4];
-        unsigned char macAddress[6];
-        unsigned char bssid[6];
-        char fn_version[15];
-    } cfg;
+    AdapterConfig cfg;
 
     memset(&cfg, 0, sizeof(cfg));
 
