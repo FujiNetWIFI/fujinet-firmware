@@ -22,6 +22,18 @@
 #define READ_DEVICE_SLOTS_DISKS1 0x00
 #define READ_DEVICE_SLOTS_TAPE 0x10
 
+typedef struct
+{
+    char ssid[32];
+    char hostname[64];
+    unsigned char localIP[4];
+    unsigned char gateway[4];
+    unsigned char netmask[4];
+    unsigned char dnsIP[4];
+    unsigned char macAddress[6];
+    unsigned char bssid[6];
+    char fn_version[15];
+} AdapterConfig;
 
 enum appkey_mode : uint8_t
 {
@@ -30,7 +42,7 @@ enum appkey_mode : uint8_t
     APPKEYMODE_INVALID
 };
 
-struct appkey 
+struct appkey
 {
     uint16_t creator = 0;
     uint8_t app = 0;

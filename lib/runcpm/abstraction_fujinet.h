@@ -12,6 +12,7 @@
 #include "fnFS.h"
 #include "fnFsSD.h"
 #include <string.h>
+#include "fnWiFi.h"
 
 #define HostOS 0x07 // FUJINET
 
@@ -208,10 +209,10 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
 		else
 		{
 			// set DMA buffer to EOF
-			memset(dmabuf,0x1a,BlkSZ);
+			memset(dmabuf, 0x1a, BlkSZ);
 			bytesread = fread(&dmabuf[0], BlkSZ, sizeof(uint8_t), f);
 			if (bytesread)
-				memcpy((uint8_t *)&RAM[dmaAddr],dmabuf,BlkSZ);
+				memcpy((uint8_t *)&RAM[dmaAddr], dmabuf, BlkSZ);
 			result = bytesread ? 0x00 : 0x01;
 		}
 	}
@@ -267,10 +268,10 @@ uint8_t _sys_readrand(uint8_t *fn, long fpos)
 	{
 		if (fseek(f, fpos, SEEK_SET) == 0)
 		{
-			memset(dmabuf,0x1A,BlkSZ);
+			memset(dmabuf, 0x1A, BlkSZ);
 			bytesread = fread(&dmabuf[0], BlkSZ, sizeof(uint8_t), f);
 			if (bytesread)
-				memcpy((uint8_t *)&RAM[dmaAddr],dmabuf,BlkSZ);
+				memcpy((uint8_t *)&RAM[dmaAddr], dmabuf, BlkSZ);
 			result = bytesread ? 0x00 : 0x01;
 		}
 		else
@@ -501,6 +502,48 @@ void _putch(uint8_t ch)
 
 void _clrscr(void)
 {
+}
+
+uint8_t FujiNet_NetworkConfig(uint16_t addr)
+{
+	// Response to SIO_FUJICMD_GET_ADAPTERCONFIG
+	struct
+	{
+		char ssid[32];
+		char hostname[64];
+		unsigned char localIP[4];
+		unsigned char gateway[4];
+		unsigned char netmask[4];
+		unsigned char dnsIP[4];
+		unsigned char macAddress[6];
+		unsigned char bssid[6];
+		char fn_version[15];
+	} cfg;
+
+	memset(&cfg, 0, sizeof(cfg));
+
+	strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
+
+	if (!fnWiFi.connected())
+	{
+		strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
+	}
+	else
+	{
+		strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
+		strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
+		fnWiFi.get_current_bssid(cfg.bssid);
+		fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+		fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
+	}
+
+	fnWiFi.get_mac(cfg.macAddress);
+
+	// Transfer to Z80 RAM.
+	memset(&RAM[addr],0,sizeof(cfg));
+	memcpy(&RAM[addr],&cfg,sizeof(cfg));
+
+	return 0;
 }
 
 #endif /* ABSTRACTION_FUJINET_H */
