@@ -1,5 +1,5 @@
-#ifndef DISK_H
-#define DISK_H
+#ifndef CPMDISK_H
+#define CPMDISK_H
 
 /* see main.c for definition */
 

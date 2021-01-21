@@ -5,14 +5,8 @@
 #ifndef ABSTRACTION_FUJINET_H
 #define ABSTRACTION_FUJINET_H
 
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnUART.h"
 #include "globals.h"
-#include <glob.h>
-#include "fnFS.h"
-#include "fnFsSD.h"
 #include <string.h>
-#include "fnWiFi.h"
 
 #define HostOS 0x07 // FUJINET
 
@@ -35,7 +29,6 @@ typedef struct
 	uint8_t al[16];
 } CPM_DIRENTRY;
 
-glob_t pglob;
 int dirPos;
 
 char full_filename[128];
@@ -194,7 +187,6 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
 	FILE *f;
 	uint8_t bytesread;
 	uint8_t dmabuf[BlkSZ];
-	uint8_t i;
 	int seekErr;
 
 	f = fnSDFAT.file_open(full_path((char *)fn), "r");
@@ -260,7 +252,6 @@ uint8_t _sys_readrand(uint8_t *fn, long fpos)
 	FILE *f;
 	uint8 bytesread;
 	uint8 dmabuf[BlkSZ];
-	uint8 i;
 	long extSize;
 
 	f = fnSDFAT.file_open(full_path((char *)fn), "r+");
@@ -504,7 +495,7 @@ void _clrscr(void)
 {
 }
 
-uint8_t FujiNet_NetworkConfig(uint16_t addr)
+uint8_t bdos_networkConfig(uint16_t addr)
 {
 	// Response to SIO_FUJICMD_GET_ADAPTERCONFIG
 	struct
@@ -540,10 +531,47 @@ uint8_t FujiNet_NetworkConfig(uint16_t addr)
 	fnWiFi.get_mac(cfg.macAddress);
 
 	// Transfer to Z80 RAM.
-	memset(&RAM[addr],0,sizeof(cfg));
-	memcpy(&RAM[addr],&cfg,sizeof(cfg));
+	memset(&RAM[addr], 0, sizeof(cfg));
+	memcpy(&RAM[addr], &cfg, sizeof(cfg));
 
 	return 0;
 }
 
+uint8_t bdos_readHostSlots(uint16_t addr)
+{
+	char hostSlots[8][32];
+	memset(hostSlots, 0, sizeof(hostSlots));
+
+	for (int i = 0; i < 8; i++)
+		strlcpy(hostSlots[i], theFuji.get_hosts(i)->get_hostname(), 32);
+
+	memset(&RAM[addr], 0, sizeof(hostSlots));
+	memcpy(&RAM[addr], &hostSlots, sizeof(hostSlots));
+	return 0;
+}
+
+uint8_t bdos_readDeviceSlots(uint16_t addr)
+{
+	struct disk_slot
+	{
+		uint8_t hostSlot;
+		uint8_t mode;
+		char filename[MAX_DISPLAY_FILENAME_LEN];
+	};
+	disk_slot diskSlots[MAX_DISK_DEVICES];
+
+	// Load the data from our current device array
+	for (int i = 0; i < MAX_DISK_DEVICES; i++)
+	{
+		diskSlots[i].mode = theFuji.get_disks(i)->access_mode;
+		diskSlots[i].hostSlot = theFuji.get_disks(i)->host_slot;
+		strlcpy(diskSlots[i].filename, theFuji.get_disks(i)->filename, MAX_DISPLAY_FILENAME_LEN);
+	}
+
+	// Transfer to Z80 RAM.
+	memset(&RAM[addr], 0, sizeof(diskSlots));
+	memcpy(&RAM[addr], &diskSlots, sizeof(diskSlots));
+
+	return 0;
+}
 #endif /* ABSTRACTION_FUJINET_H */

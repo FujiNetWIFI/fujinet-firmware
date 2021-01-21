@@ -1,6 +1,12 @@
 #define CCP_INTERNAL
 
 #include "siocpm.h"
+#include "../hardware/fnSystem.h"
+#include "../hardware/fnUART.h"
+#include "fnWiFi.h"
+#include "fuji.h"
+#include "fnFS.h"
+#include "fnFsSD.h"
 #include "../runcpm/globals.h"
 #include "../runcpm/abstraction_fujinet.h"
 #include "../hardware/fnUART.h"

@@ -807,7 +807,13 @@ void _Bdos(void)
 		HL = _WriteRand(DE);
 		break;
 	case 176:
-		HL = FujiNet_NetworkConfig(DE);
+		HL = bdos_networkConfig(DE);
+		break;
+	case 177:
+		HL = bdos_readHostSlots(DE);
+		break;
+	case 178:
+		HL = bdos_readDeviceSlots(DE);
 		break;
 #if defined board_digital_io
 		/*
