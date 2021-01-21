@@ -205,6 +205,11 @@ private:
     string password;
 
     /**
+     * Timer Rate for interrupt timer
+     */
+    int timerRate = 100;
+
+    /**
      * The channel mode for the currently open SIO device. By default, it is PROTOCOL, which passes
      * read/write/status commands to the protocol. Otherwise, it's a special mode, e.g. to pass to
      * the JSON or XML parsers.
@@ -339,6 +344,11 @@ private:
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
     void sio_set_translation();
+
+    /**
+     * @brief Set timer rate for PROCEED timer in ms
+     */
+    void sio_set_timer_rate();
 
     /**
      * @brief perform ->FujiNet commands on protocols that do not use an explicit OPEN channel.
