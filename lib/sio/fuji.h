@@ -127,6 +127,9 @@ public:
     int get_disk_id(int drive_slot);
     std::string get_host_prefix(int host_slot);
 
+    fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
+    fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+
     sioFuji();
 };
 
