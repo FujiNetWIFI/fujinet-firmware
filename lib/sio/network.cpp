@@ -562,6 +562,9 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
         case 0x30:
             inq_dstats = 0x40;
             break;
+        case 'Z': // Set interrupt rate
+            inq_dstats = 0x00;
+            break;
         case 'T': // Set Translation
             inq_dstats = 0x00;
             break;
@@ -592,6 +595,9 @@ void sioNetwork::sio_special_00()
     {
     case 'T':
         sio_set_translation();
+        break;
+    case 'Z':
+        sio_set_timer_rate();
         break;
     default:
         if (protocol->special_00(&cmdFrame) == false)
@@ -837,7 +843,7 @@ void sioNetwork::timer_start()
     tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
     tcfg.name = nullptr;
     esp_timer_create(&tcfg, &rateTimerHandle);
-    esp_timer_start_periodic(rateTimerHandle, 100000); // 100ms
+    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
 }
 
 /**
@@ -972,6 +978,20 @@ void sioNetwork::sio_assert_interrupt()
 void sioNetwork::sio_set_translation()
 {
     trans_aux2 = cmdFrame.aux2;
+    sio_complete();
+}
+
+void sioNetwork::sio_set_timer_rate()
+{
+    timerRate = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
+    
+    // Stop extant timer
+    timer_stop();
+    
+    // Restart timer if we're running a protocol.
+    if (protocol != nullptr)
+        timer_start();
+
     sio_complete();
 }
 
