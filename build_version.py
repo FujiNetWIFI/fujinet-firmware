@@ -12,7 +12,11 @@ elif len(subprocess.check_output(["git", "diff", "--name-only"], universal_newli
     print("Nothing has changed")
 
 else:
-    ver_build = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], universal_newlines=True).strip()
+    try:
+        ver_build = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], universal_newlines=True).strip()
+    except subprocess.CalledProcessError as e:
+        ver_build = "NOGIT"
+    
     header_file = "include/version.h"
 
     ver_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
