@@ -71,11 +71,6 @@ bool _RamLoad(char *fn, uint16_t address)
 FILE *rootdir;
 FILE *userdir;
 
-FILE *_sys_fopen_w(uint8_t *fn)
-{
-	return fnSDFAT.file_open(full_path((char *)fn), "w");
-}
-
 int _sys_fputc(uint8_t ch, FILE *f)
 {
 	return fputc(ch, f);
