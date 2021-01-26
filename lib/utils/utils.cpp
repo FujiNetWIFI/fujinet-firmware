@@ -204,6 +204,11 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
         returned_entry.replace(10, 3, ext.substr(0, 3));
     }
 
+    if (is_dir == true)
+    {
+        returned_entry.replace(10, 3, "DIR");
+    }
+
     returned_entry.replace(2, (basename.size() < 8 ? basename.size() : 8), basename);
 
     if (fileSize > 255744)
@@ -222,7 +227,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
 
     if (is_locked == true)
     {
-        returned_entry.replace(0,1,"*");
+        returned_entry.replace(0, 1, "*");
     }
 
     return returned_entry;
@@ -546,11 +551,13 @@ void util_sam_say(const char *p,
     sam(n, a);
 }
 
-void util_replaceAll(std::string& str, const std::string& from, const std::string& to) {
-    if(from.empty())
+void util_replaceAll(std::string &str, const std::string &from, const std::string &to)
+{
+    if (from.empty())
         return;
     size_t start_pos = 0;
-    while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos)
+    {
         str.replace(start_pos, from.length(), to);
         start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
     }
