@@ -228,12 +228,15 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
     return returned_entry;
 }
 
-std::string util_long_entry(std::string filename, size_t fileSize)
+std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 {
     std::string returned_entry = "                                     ";
     std::string stylized_filesize;
 
     char tmp[8];
+
+    if (is_dir == true)
+        filename += "/";
 
     // Double size of returned entry if > 30 chars.
     // Add EOL so SpartaDOS doesn't truncate record. grrr.
