@@ -27,7 +27,7 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
     if (mount(url) == true)
         return true;
 
-    if (cmdFrame->aux1 == 6)
+    if (cmdFrame->aux1 == 6 || cmdFrame->aux1 == 7)
     {
         return open_dir();
     }
