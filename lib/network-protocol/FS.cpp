@@ -78,7 +78,7 @@ bool NetworkProtocolFS::open_dir()
         if (aux2_open & 0x80)
         {
             // Long entry
-            dirBuffer += util_long_entry(string(entryBuffer), fileSize) + "\x9b";
+            dirBuffer += util_long_entry(string(entryBuffer), fileSize, is_directory) + "\x9b";
         }
         else
         {
