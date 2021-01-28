@@ -207,6 +207,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
     if (is_dir == true)
     {
         returned_entry.replace(10, 3, "DIR");
+        returned_entry.replace (0,1,"/");
     }
 
     returned_entry.replace(2, (basename.size() < 8 ? basename.size() : 8), basename);
