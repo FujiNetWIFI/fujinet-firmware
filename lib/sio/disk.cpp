@@ -120,7 +120,7 @@ void sioDisk::sio_status()
     uint8_t _status[4];
     _status[0] = 0x00;
     _status[1] = ~DISK_CTRL_STATUS_CLEAR; // Negation of default clear status
-    _status[2] = DRIVE_DEFAULT_TIMEOUT_XF551;
+    _status[2] = DRIVE_DEFAULT_TIMEOUT_810;
     _status[3] = 0x00;
 
     if (_disk != nullptr)
