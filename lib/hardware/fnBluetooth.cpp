@@ -12,8 +12,6 @@ fnBluetoothSPP btSpp;
 
 BluetoothManager fnBtManager;
 
-#define BT_NAME "SIO2BT #FujiNet"
-
 void BluetoothManager::start()
 {
     int savedBaud = Config.get_bt_baud();
@@ -34,7 +32,7 @@ void BluetoothManager::start()
             break;
         }
     }
-    btSpp.begin(BT_NAME);
+    btSpp.begin(Config.get_bt_devname());
     _mActive = true;
     SIO.setBaudrate(_mBTBaudrate);
 }
