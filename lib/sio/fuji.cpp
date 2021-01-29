@@ -42,6 +42,7 @@
 #define SIO_FUJICMD_CLOSE_APPKEY 0xDB
 #define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
 #define SIO_FUJICMD_CONFIG_BOOT 0xD9
+#define SIO_FUJICMD_COPY_FILE 0xD8
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -352,6 +353,104 @@ void sioFuji::sio_set_boot_config()
 {
     boot_config = cmdFrame.aux1;
     sio_complete();
+}
+
+// Do SIO copy
+void sioFuji::sio_copy_file()
+{
+    uint8_t csBuf[256];
+    string copySpec;
+    string sourcePath;
+    string destPath;
+    uint8_t ck;
+    FILE *sourceFile;
+    FILE *destFile;
+    char *dataBuf;
+    unsigned short dataLen;
+    unsigned short writeLen;
+
+    dataBuf = (char *)malloc(8192);
+
+    if (dataBuf == nullptr)
+    {
+        sio_error();
+        return;
+    }
+
+    memset(&csBuf,0,sizeof(csBuf));
+
+    ck = sio_to_peripheral(csBuf, sizeof(csBuf));
+
+    if (ck != sio_checksum(csBuf, sizeof(csBuf)))
+    {
+        sio_error();
+        return;
+    }
+
+    copySpec = string((char *)csBuf, sizeof(csBuf));
+
+    // Check for malformed copyspec.
+    if (copySpec.empty() || copySpec.find_first_of("|") == string::npos)
+    {
+        sio_error();
+        return;
+    }
+
+    if (cmdFrame.aux1 < 1 || cmdFrame.aux1 > 8)
+    {
+        sio_error();
+        return;
+    }
+
+    if (cmdFrame.aux2 < 1 || cmdFrame.aux2 > 8)
+    {
+        sio_error();
+        return;
+    }
+
+    // All good, after this point...
+
+    // Chop up copyspec.
+    sourcePath = copySpec.substr(0,copySpec.find_first_of("|")-1);
+    destPath = copySpec.substr(copySpec.find_first_of("|")+1);
+
+    // Mount hosts, if needed.
+    _fnHosts[cmdFrame.aux1].mount();
+    _fnHosts[cmdFrame.aux2].mount();
+
+    // Open files...
+    sourceFile = _fnHosts[cmdFrame.aux1].file_open(sourcePath.c_str(),(char *)sourcePath.c_str(),sourcePath.size(),"r");
+
+    if (sourceFile == nullptr)
+    {
+        sio_error();
+        return;
+    }
+
+    destFile = _fnHosts[cmdFrame.aux2].file_open(destPath.c_str(),(char *)destPath.c_str(),destPath.size(),"w");
+
+    if (destFile == nullptr)
+    {
+        sio_error();
+        return;
+    }
+
+    while ((dataLen = fread(&dataBuf,1,8192,sourceFile)))
+    {
+        writeLen = fwrite(dataBuf,1,dataLen,destFile);
+        if (writeLen != dataLen)
+        {
+            sio_error();
+            goto copyEnd;
+        }
+    }
+
+    sio_complete();
+
+copyEnd:
+    fclose(sourceFile);
+    fclose(destFile);
+    free(dataBuf);
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -1463,6 +1562,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_CONFIG_BOOT:
         sio_ack();
         sio_set_boot_config();
+        break;
+    case SIO_FUJICMD_COPY_FILE:
+        sio_ack();
+        sio_copy_file();
         break;
     default:
         sio_nak();
