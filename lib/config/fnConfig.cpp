@@ -117,6 +117,12 @@ void fnConfig::store_bt_status(bool status)
     _dirty = true;
 }
 
+void fnConfig::store_bt_baud(int baud)
+{
+    _bt.bt_baud = baud;
+    _dirty = true;
+}
+
 std::string fnConfig::get_host_name(uint8_t num)
 {
     if (num < MAX_HOST_SLOTS)
@@ -464,6 +470,7 @@ void fnConfig::save()
     // BLUETOOTH
     ss << LINETERM << "[Bluetooth]" LINETERM;
     ss << "enabled=" << _bt.bt_status << LINETERM;
+    ss << "baud=" << _bt.bt_baud << LINETERM;
 
     // NETWORK
     ss << LINETERM << "[Network]" LINETERM;
@@ -793,6 +800,10 @@ void fnConfig::_read_section_bt(std::stringstream &ss)
                     _bt.bt_status = true;
                 else
                     _bt.bt_status = false; 
+            }
+            else if (strcasecmp(name.c_str(), "baud") == 0)
+            {
+                _bt.bt_baud = stoi(value);
             }
         }
     }}
