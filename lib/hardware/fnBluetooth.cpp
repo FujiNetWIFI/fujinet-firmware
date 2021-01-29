@@ -2,6 +2,7 @@
 #include "../../include/debug.h"
 #include "../sio/sio.h"
 #include "../sio/disk.h"
+#include "fnConfig.h"
 #include "fnBluetooth.h"
 #include "fnBluetoothSPP.h"
 
@@ -11,12 +12,27 @@ fnBluetoothSPP btSpp;
 
 BluetoothManager fnBtManager;
 
-#define BT_NAME "SIO2BT #FujiNet"
-
 void BluetoothManager::start()
 {
+    int savedBaud = Config.get_bt_baud();
+    int currBaud = _mBTBaudrate;
+
     Debug_println("Starting SIO2BT");
-    btSpp.begin(BT_NAME);
+    if (savedBaud != currBaud)
+    {
+        switch (savedBaud)
+        {
+        case 57600:
+            _mBTBaudrate = BT_HISPEED_BAUDRATE;
+            break;
+        case 19200:
+            _mBTBaudrate = BT_STANDARD_BAUDRATE;
+            break;
+        default:
+            break;
+        }
+    }
+    btSpp.begin(Config.get_bt_devname());
     _mActive = true;
     SIO.setBaudrate(_mBTBaudrate);
 }
@@ -34,6 +50,8 @@ eBTBaudrate BluetoothManager::toggleBaudrate()
     _mBTBaudrate =
         _mBTBaudrate == BT_STANDARD_BAUDRATE ? BT_HISPEED_BAUDRATE : BT_STANDARD_BAUDRATE;
 
+    Config.store_bt_baud(_mBTBaudrate);
+    Config.save();
     SIO.setBaudrate(_mBTBaudrate);
     return _mBTBaudrate;
 }

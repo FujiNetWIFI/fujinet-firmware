@@ -73,6 +73,10 @@ public:
     // BLUETOOTH
     void store_bt_status(bool status);
     bool get_bt_status() { return _bt.bt_status; };
+    void store_bt_baud(int baud);
+    int get_bt_baud() { return _bt.bt_baud; };
+    void store_bt_devname(std::string devname);
+    std::string get_bt_devname() { return _bt.bt_devname; };
 
     // HOSTS
     std::string get_host_name(uint8_t num);
@@ -202,6 +206,8 @@ private:
     struct bt_info
     {
         bool bt_status = false;
+        int bt_baud = 19200;
+        std::string bt_devname = "FujiNetSIO2BT";
     };
 
     struct network_info
