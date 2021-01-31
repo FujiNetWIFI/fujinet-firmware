@@ -384,8 +384,7 @@ bool FileSystemSDFAT::start()
     strlcpy(_basepath, "/sd", sizeof(_basepath));
 
     // Set up a configuration to the SD host interface
-    sdmmc_host_t host_config = SDSPI_HOST_DEFAULT();
-    host_config.max_freq_khz = 4000000; // from Arduino SD.h
+    sdmmc_host_t host_config = SDSPI_HOST_DEFAULT(); 
 
     // Set up SPI bus
     spi_bus_config_t bus_cfg = 
