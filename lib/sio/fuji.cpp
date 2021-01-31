@@ -414,6 +414,13 @@ void sioFuji::sio_copy_file()
     sourcePath = copySpec.substr(0,copySpec.find_first_of("|")-1);
     destPath = copySpec.substr(copySpec.find_first_of("|")+1);
 
+    // At this point, if last part of dest path is / then copy filename from source.
+    if (destPath[destPath.size()-1]=='/')
+    {
+        string sourceFilename = sourcePath.substr(0,sourcePath.find_last_of("/")+1);
+        destPath += sourceFilename;
+    }
+
     // Mount hosts, if needed.
     _fnHosts[cmdFrame.aux1].mount();
     _fnHosts[cmdFrame.aux2].mount();
