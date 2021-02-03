@@ -371,7 +371,7 @@ void sioFuji::sio_copy_file()
     unsigned char sourceSlot;
     unsigned char destSlot;
 
-    dataBuf = (char *)malloc(512);
+    dataBuf = (char *)malloc(532);
 
     if (dataBuf == nullptr)
     {
@@ -453,7 +453,7 @@ void sioFuji::sio_copy_file()
     size_t count = 0;
     do
     {
-        count = fread(dataBuf, 1, 512, sourceFile);
+        count = fread(dataBuf, 1, 532, sourceFile);
         fwrite(dataBuf, 1, count, destFile);
     } while (count > 0);
 
