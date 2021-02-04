@@ -1,3 +1,5 @@
+#include "../../include/debug.h"
+#include "fnSystem.h"
 #include "utils.h"
 #include "midimaze.h"
 
@@ -31,8 +33,9 @@ void sioMIDIMaze::sio_enable_midimaze()
     // Change baud rate
     fnUartSIO.set_baudrate(MIDI_BAUD);
     midimazeActive = true;
-
+#ifdef DEBUG
     Debug_println("MIDIMAZE mode enabled");
+#endif
 }
 
 void sioMIDIMaze::sio_disable_midimaze()
@@ -61,41 +64,42 @@ void sioMIDIMaze::sio_handle_midimaze()
     // Read the data until there's a pause in the incoming stream
     if (fnUartSIO.available())
     {
-        // Toss the data if motor or command is asserted        
-        if (fnSystem.digital_read(PIN_MTR) == DIGI_LOW || fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+        while (true)
         {
-            fnUartSIO.read();
-        }
-        else
-        {
-            while (true)
+            // Break out of MIDIMaze mode if COMMAND is asserted
+            if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
             {
-                if (fnUartSIO.available())
-                {
-                    // Collect bytes read in our buffer
-                    buf_midi[buf_midi_index] = (char)fnUartSIO.read();
-                    if (buf_midi_index < MIDIMAZE_BUFFER_SIZE - 1)
-                        buf_midi_index++;
-                }
-                else
-                {
-                    fnSystem.delay_microseconds(MIDIMAZE_PACKET_TIMEOUT);
-                    if (!fnUartSIO.available())
-                        break;
-                }
+#ifdef DEBUG
+                Debug_println("CMD Asserted in LOOP, stopping MIDIMaze");
+#endif
+                sio_disable_midimaze();
+                return;
             }
+            if (fnUartSIO.available())
+            {
+                // Collect bytes read in our buffer
+                buf_midi[buf_midi_index] = (char)fnUartSIO.read();
+                if (buf_midi_index < MIDIMAZE_BUFFER_SIZE - 1)
+                    buf_midi_index++;
+            }
+            else
+            {
+                fnSystem.delay_microseconds(MIDIMAZE_PACKET_TIMEOUT);
+                if (!fnUartSIO.available())
+                    break;
+            }
+        }
 
-            // Send what we've collected over WiFi
-            udpMIDI.beginPacket(midimaze_host_ip, MIDIMAZE_PORT); // remote IP and port
-            udpMIDI.write(buf_midi, buf_midi_index);
-            udpMIDI.endPacket();
+        // Send what we've collected over WiFi
+        udpMIDI.beginPacket(midimaze_host_ip, MIDIMAZE_PORT); // remote IP and port
+        udpMIDI.write(buf_midi, buf_midi_index);
+        udpMIDI.endPacket();
 
 #ifdef DEBUG
-            Debug_print("MIDI-OUT: ");
-            util_dump_bytes(buf_midi, buf_midi_index);
+        Debug_print("MIDI-OUT: ");
+        util_dump_bytes(buf_midi, buf_midi_index);
 #endif
-            buf_midi_index = 0;
-        }
+        buf_midi_index = 0;
     }
 }
 
