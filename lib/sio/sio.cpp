@@ -275,11 +275,20 @@ void sioBus::service()
     // modes disrupt normal SIO handling - should probably make a separate task for this)
     _sio_process_queue();
 
-    // Handle MIDIMaze if enabled and do not process SIO commands
     if (_midiDev != nullptr && _midiDev->midimazeActive)
     {
-        _midiDev->sio_handle_midimaze();
-        return; // break!
+        if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+        {
+#ifdef DEBUG
+            Debug_println("CMD Asserted, stopping MIDIMaze");
+#endif
+            _midiDev->sio_disable_midimaze();
+        }
+        else
+        {
+            _midiDev->sio_handle_midimaze();
+            return; // break!
+        }
     }
     else if (_cpmDev != nullptr && _cpmDev->cpmActive)
     {
