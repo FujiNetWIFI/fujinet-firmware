@@ -32,7 +32,7 @@ void UARTManager::end()
 {
     uart_driver_delete(_uart_num);
     if(_uart_q)
-        free(_uart_q);
+        vQueueDelete(_uart_q);
     _uart_q = NULL;
 }
 
