@@ -53,7 +53,18 @@ void UARTManager::begin(int baud)
         .rx_flow_ctrl_thresh = 122, // No idea what this is for, but shouldn't matter if flow ctrl is disabled?
         .use_ref_tick = false // ?
     };
-    uart_param_config(_uart_num, &uart_config);
+
+    // This works around an obscure hardware bug where resetting UART2 causes the TX to become corrupted
+    // when the FIFO is reset by this function. Blame me for it -Thom
+    if (_uart_num == UART_SIO)
+    {
+        if (esp_reset_reason() != ESP_RST_SW)
+            uart_param_config(_uart_num, &uart_config);
+    }
+    else if (_uart_num == UART_DEBUG)
+    {
+        uart_param_config(_uart_num, &uart_config);
+    }
 
     int tx, rx;
     if(_uart_num == 0)
