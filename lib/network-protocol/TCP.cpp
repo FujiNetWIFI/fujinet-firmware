@@ -127,6 +127,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
         if (!client.connected())
         {
             error = NETWORK_ERROR_NOT_CONNECTED;
+            free(newData);
             return true; // error
         }
 
@@ -137,22 +138,24 @@ bool NetworkProtocolTCP::read(unsigned short len)
         if (errno == ECONNRESET)
         {
             error = NETWORK_ERROR_CONNECTION_RESET;
+            free(newData);
             return true;
         }
         else if (actual_len != len) // Read was short and timed out.
         {
             Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\n", actual_len, len);
             error = NETWORK_ERROR_SOCKET_TIMEOUT;
+            free(newData);
             return true;
         }
 
         // Add new data to buffer.
         newString = string((char *)newData, len);
         *receiveBuffer += newString;
-
-        free(newData);
     }
     // Return success
+    free(newData);
+    
     error = 1;
     return NetworkProtocol::read(len);
 }
