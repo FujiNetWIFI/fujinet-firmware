@@ -7,6 +7,8 @@
 
 #include "globals.h"
 #include <string.h>
+#include "fnTcpServer.h"
+#include "fnTcpClient.h"
 
 #define HostOS 0x07 // FUJINET
 
@@ -568,5 +570,10 @@ uint8_t bdos_readDeviceSlots(uint16_t addr)
 	memcpy(&RAM[addr], &diskSlots, sizeof(diskSlots));
 
 	return 0;
+}
+
+uint8_t bios_listenAndTee(uint16_t port)
+{
+
 }
 #endif /* ABSTRACTION_FUJINET_H */
