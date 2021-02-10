@@ -63,6 +63,11 @@ public:
     unsigned char translation_mode;
 
     /**
+     * Is this being called from inside an interrupt?
+     */
+    bool fromInterrupt = false;
+
+    /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
