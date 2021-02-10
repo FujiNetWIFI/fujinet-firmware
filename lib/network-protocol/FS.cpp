@@ -40,7 +40,10 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 bool NetworkProtocolFS::open_file()
 {
     update_dir_filename(opened_url);
-    resolve();
+
+    if (aux1_open == 4 || aux1_open == 8)
+        resolve();
+
     update_dir_filename(opened_url);
 
     openMode = FILE;
