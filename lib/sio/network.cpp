@@ -724,7 +724,9 @@ void sioNetwork::sio_poll_interrupt()
 {
     if (protocol != nullptr)
     {
+        protocol->fromInterrupt = true;
         protocol->status(&status);
+        protocol->fromInterrupt = false;
 
         if (status.rxBytesWaiting > 0 || status.connected == 0)
             sio_assert_interrupt();
