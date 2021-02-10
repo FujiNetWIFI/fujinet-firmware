@@ -306,7 +306,7 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
     switch (httpChannelMode)
     {
     case DATA:
-        if (aux1_open == 4 && resultCode == 0)
+        if (fromInterrupt==false && resultCode == 0)
             http_transaction();
         status->rxBytesWaiting = client->available() > 65535 ? 65535 : client->available();
         status->connected = client->available() > 0;
