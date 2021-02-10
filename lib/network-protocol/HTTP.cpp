@@ -209,7 +209,7 @@ bool NetworkProtocolHTTP::mount(EdUrlParser *url)
 
     client = new fnHttpClient();
 
-    fileSize = 65535;
+    // fileSize = 65535;
 
     if (aux1_open == 6)
         util_replaceAll(url->path,"*.*","");
@@ -306,9 +306,11 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
     switch (httpChannelMode)
     {
     case DATA:
-        status->rxBytesWaiting = fileSize > 65535 ? 65535 : fileSize;
-        status->connected = fileSize > 0 ? 1 : 0;
-        status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+        if (aux1_open == 4 && resultCode == 0)
+            http_transaction();
+        status->rxBytesWaiting = client->available() > 65535 ? 65535 : client->available();
+        status->connected = client->available() > 0;
+        status->error = client->available() > 0 ? error : NETWORK_ERROR_END_OF_FILE;
         return false;
     case SET_HEADERS:
     case COLLECT_HEADERS:
@@ -356,6 +358,8 @@ bool NetworkProtocolHTTP::read_file_handle_header(uint8_t *buf, unsigned short l
 bool NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len)
 {
     int actual_len;
+
+    Debug_printf("NetworkProtocolHTTP::read_file_handle_data()\n");
 
     if (resultCode == 0)
         http_transaction();
@@ -517,6 +521,7 @@ bool NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short le
 bool NetworkProtocolHTTP::stat()
 {
     bool ret = false;
+    return ret; // short circuit it for now.
 
     Debug_printf("NetworkProtocolHTTP::stat(%s)\n", opened_url->toString().c_str());
 
