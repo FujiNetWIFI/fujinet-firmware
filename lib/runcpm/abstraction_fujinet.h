@@ -35,6 +35,11 @@ int dirPos;
 
 char full_filename[128];
 
+fnTcpClient client;
+fnTcpServer *server;
+bool teeMode = false;
+unsigned short portActive = 0;
+
 char *full_path(char *fn)
 {
 	memset(full_filename, 0, sizeof(full_filename));
@@ -465,27 +470,50 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-	return fnUartSIO.available();
+	if (teeMode == true)
+		return client.available() | fnUartSIO.available();
+	else
+		return fnUartSIO.available();
 }
 
 uint8_t _getch(void)
 {
-	while (!fnUartSIO.available())
+	if (teeMode == true)
 	{
+		while (!fnUartSIO.available())
+		{
+			if (client.available())
+			{
+				uint8_t ch;
+				client.read(&ch, 1);
+				return ch & 0x7F;
+			}
+		}
+		return fnUartSIO.read() & 0x7F;
 	}
-	return fnUartSIO.read() & 0x7f;
+	else
+	{
+		while (!fnUartSIO.available())
+		{
+		}
+		return fnUartSIO.read() & 0x7f;
+	}
 }
 
 uint8_t _getche(void)
 {
 	uint8_t ch = _getch() & 0x7f;
 	fnUartSIO.write(ch);
+	if (teeMode == true)
+		client.write(ch);
 	return ch;
 }
 
 void _putch(uint8_t ch)
 {
 	fnUartSIO.write(ch & 0x7f);
+	if (teeMode == true)
+		client.write(ch);
 }
 
 void _clrscr(void)
@@ -572,8 +600,55 @@ uint8_t bdos_readDeviceSlots(uint16_t addr)
 	return 0;
 }
 
-uint8_t bios_listenAndTee(uint16_t port)
+uint8_t bios_tcpListen(uint16_t port)
 {
+	Debug_printf("Do we get here?\n");
 
+	if (client.connected())
+		client.stop();
+
+	if (server != nullptr && port != portActive)
+	{
+		server->stop();
+		delete server;
+	}
+
+	server = new fnTcpServer(port,1);
+	server->begin(port);
+
+	Debug_printf("bios_tcpListen - Now listening on port %u\n", port);
+	return server != nullptr;
 }
+
+uint8_t bios_tcpAvailable(void)
+{
+	if (server == nullptr)
+		return 0;
+
+	return server->hasClient();
+}
+
+uint8_t bios_tcpTeeAccept(void)
+{
+	if (server == nullptr)
+		return false;
+
+	if (server->hasClient())
+		client = server->accept();
+
+	teeMode = true;
+
+	return client.connected();
+}
+
+uint8_t bios_tcpDrop(void)
+{
+	if (server == nullptr)
+		return false;
+
+	client.stop();
+
+	return true;
+}
+
 #endif /* ABSTRACTION_FUJINET_H */
