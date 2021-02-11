@@ -6,6 +6,8 @@
 
 /* see main.c for definition */
 
+unsigned char netch;
+
 #define JP 0xc3
 #define CALL 0xcd
 #define RET 0xc9
@@ -341,16 +343,25 @@ void _Bios(void)
 		Status = 2; // 1 - WBOOT - Back to CCP
 		break;
 	case 0x06: // 2 - CONST - Console status
-		SET_HIGH_REGISTER(AF, _chready());
+		if (teeMode && client.connected())
+			SET_HIGH_REGISTER(AF, _chready() | client.available());
+		else
+			SET_HIGH_REGISTER(AF, _chready());
 		break;
 	case 0x09: // 3 - CONIN - Console input
-		SET_HIGH_REGISTER(AF, _getch());
-#ifdef DEBUG
-		if (HIGH_REGISTER(AF) == 4)
-			Debug = 1;
-#endif
+		if (teeMode && client.connected())
+		{
+			if (client.available() > 0)
+				SET_HIGH_REGISTER(AF, client.read(&netch, 1));
+			else
+				SET_HIGH_REGISTER(AF, _getch());			
+		}
+		else
+			SET_HIGH_REGISTER(AF, _getch());
 		break;
 	case 0x0C: // 4 - CONOUT - Console output
+		if (teeMode && client.connected())
+			client.write(LOW_REGISTER(BC));
 		_putcon(LOW_REGISTER(BC));
 		break;
 	case 0x0F: // 5 - LIST - List output
@@ -387,14 +398,12 @@ void _Bios(void)
 		break;
 	case 0x33: // 17 - RETTOCCP - This allows programs ending in RET return to internal CCP
 		Status = 3;
-		break;	
+		break;
 	default:
-#ifdef DEBUG // Show unimplemented BIOS calls only when debugging
 		_puts("\r\nUnimplemented BIOS call.\r\n");
 		_puts("C = 0x");
 		_puthex8(ch);
 		_puts("\r\n");
-#endif
 		break;
 	}
 #ifdef DEBUGLOG
@@ -815,40 +824,18 @@ void _Bdos(void)
 	case 178:
 		HL = bdos_readDeviceSlots(DE);
 		break;
-#if defined board_digital_io
-		/*
-		C = 220 (DCh) : PinMode
-		*/
-	case 220:
-		pinMode(HIGH_REGISTER(DE), LOW_REGISTER(DE));
+	case 179:
+		HL = bios_tcpListen(DE);
 		break;
-		/*
-		C = 221 (DDh) : DigitalRead
-		*/
-	case 221:
-		HL = digitalRead(HIGH_REGISTER(DE));
+	case 180:
+		HL = bios_tcpAvailable();
 		break;
-		/*
-		C = 222 (DEh) : DigitalWrite
-		*/
-	case 222:
-		digitalWrite(HIGH_REGISTER(DE), LOW_REGISTER(DE));
+	case 181:
+		HL = bios_tcpTeeAccept();
 		break;
-		/*
-		C = 223 (DFh) : AnalogRead
-		*/
-	case 223:
-		HL = analogRead(HIGH_REGISTER(DE));
+	case 182:
+		HL = bios_tcpDrop();
 		break;
-#endif
-#if defined board_analog_io
-		/*
-		C = 224 (E0h) : AnalogWrite
-		*/
-	case 224:
-		analogWrite(HIGH_REGISTER(DE), LOW_REGISTER(DE));
-		break;
-#endif
 		/*
 		C = 230 (E6h) : Set 8 bit masking
 		*/
