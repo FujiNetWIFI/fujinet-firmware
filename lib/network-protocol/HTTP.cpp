@@ -72,6 +72,9 @@ bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
 
     Debug_printf("NetworkProtocolHTTP::special_set_channel_mode(%u)\n", httpChannelMode);
 
+    receiveBuffer->clear();
+    transmitBuffer->clear();
+
     switch (cmdFrame->aux2)
     {
     case 0:
@@ -466,6 +469,16 @@ bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned sh
                 requestedHeader[i] = 0x00;
             else if (requestedHeader[i] == 0x0a)
                 requestedHeader[i] = 0x00;
+        
+        Debug_printf("buf: ");
+        for (int i=0; i<len; i++)
+            Debug_printf("%02x ",buf[i]);
+        Debug_printf("\n");
+
+        Debug_printf("requestedHeader: ");
+        for (int i=0; i<len; i++)
+            Debug_printf("%02x ",requestedHeader[i]);
+        Debug_printf("\n");
 
         Debug_printf("collect_headers[%u,%u] = \"%s\"\n", collect_headers_count, len, requestedHeader);
 
