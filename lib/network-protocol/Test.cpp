@@ -31,16 +31,52 @@ bool NetworkProtocolTest::close()
 
 bool NetworkProtocolTest::read(unsigned short len)
 {
-    return false;
+    bool err=false;
+
+    for (int i=0; i<len; i++)
+        *receiveBuffer += i&0xFF;
+
+    Debug_printf("NetworkProtocolTest::read(%u) - Before NetworkProtocol::read(%u)\n",len,len);
+    for (int i=0; i<len; i++)
+        Debug_printf("%02x ",receiveBuffer[i]);
+    Debug_printf("\n");
+
+    err = NetworkProtocol::read(len); // This translates the RX buffer
+
+    Debug_printf("NetworkProtocolTest::read(%u) - After NetworkProtocol::read(%u)\n",len,len);
+    for (int i=0; i<len; i++)
+        Debug_printf("%02x ",receiveBuffer[i]);
+    Debug_printf("\n");
+
+    receiveBuffer->erase(0,len);
+
+    return err;
 }
 
 bool NetworkProtocolTest::write(unsigned short len)
 {
-    return false;
+    bool err=false;
+
+    Debug_printf("NetworkProtocolTest::write(%u) - Before translate_transmit_buffer()",len);
+    for (int i=0; i<len; i++)
+        Debug_printf("%02x ",transmitBuffer[i]);
+    Debug_printf("\n");
+
+    len = translate_transmit_buffer();
+
+    Debug_printf("NetworkProtocolTest::write(%u) - After translate_transmit_buffer()",len);
+    for (int i=0; i<len; i++)
+        Debug_printf("%02x ",transmitBuffer[i]);
+    Debug_printf("\n");
+
+    transmitBuffer->erase(0,len);
+
+    return err;
 }
 
 bool NetworkProtocolTest::status(NetworkStatus* status)
 {
+    status->rxBytesWaiting = receiveBuffer->length();
     status->error=error;
     return false;
 }
