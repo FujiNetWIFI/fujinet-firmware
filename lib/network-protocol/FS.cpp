@@ -211,7 +211,7 @@ bool NetworkProtocolFS::read_dir(unsigned short len)
 
 bool NetworkProtocolFS::write(unsigned short len)
 {
-    translate_transmit_buffer();
+    len = translate_transmit_buffer();
     return write_file(len); // Do more here? not sure.
 }
 
