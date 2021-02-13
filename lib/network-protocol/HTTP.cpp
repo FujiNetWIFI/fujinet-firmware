@@ -469,16 +469,6 @@ bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned sh
                 requestedHeader[i] = 0x00;
             else if (requestedHeader[i] == 0x0a)
                 requestedHeader[i] = 0x00;
-        
-        Debug_printf("buf: ");
-        for (int i=0; i<len; i++)
-            Debug_printf("%02x ",buf[i]);
-        Debug_printf("\n");
-
-        Debug_printf("requestedHeader: ");
-        for (int i=0; i<len; i++)
-            Debug_printf("%02x ",requestedHeader[i]);
-        Debug_printf("\n");
 
         Debug_printf("collect_headers[%u,%u] = \"%s\"\n", collect_headers_count, len, requestedHeader);
 
