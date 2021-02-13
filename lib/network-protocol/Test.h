@@ -85,6 +85,12 @@ public:
      * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame);
+
+private:
+    /**
+     * String to hold test data
+     */
+    string test_data;
 };
 
 #endif /* NETWORKPROTOCOL_TEST */
