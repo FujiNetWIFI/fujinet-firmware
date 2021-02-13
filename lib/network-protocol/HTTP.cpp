@@ -212,7 +212,7 @@ bool NetworkProtocolHTTP::mount(EdUrlParser *url)
     // fileSize = 65535;
 
     if (aux1_open == 6)
-        util_replaceAll(url->path,"*.*","");
+        util_replaceAll(url->path, "*.*", "");
 
     return !client->begin(url->toString());
 }
@@ -303,10 +303,13 @@ void NetworkProtocolHTTP::fserror_to_error()
 
 bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
 {
+    if (fromInterrupt == false)
+        Debug_printf("Channel mode is %u\n", httpChannelMode);
+
     switch (httpChannelMode)
     {
     case DATA:
-        if (fromInterrupt==false && resultCode == 0)
+        if (fromInterrupt == false && resultCode == 0)
             http_transaction();
         status->rxBytesWaiting = client->available() > 65535 ? 65535 : client->available();
         status->connected = client->available() > 0;
@@ -321,9 +324,9 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
     case GET_HEADERS:
         if (resultCode == 0)
             http_transaction();
-        status->rxBytesWaiting = (returned_headers.empty() ? 0 : returned_headers[returned_header_cursor].size());
-        status->connected = resultCode > 0; // returns 1 if transaction has happened.
-        status->error = error;
+        status->rxBytesWaiting = (returned_header_cursor < collect_headers_count ? returned_headers[returned_header_cursor].size() : 0);
+        status->connected = 0; // so that we always ask in this mode.
+        status->error = returned_header_cursor < collect_headers_count ? error : NETWORK_ERROR_END_OF_FILE;
         return false;
     default:
         return true;
@@ -458,6 +461,10 @@ bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned sh
         // Remove EOL, make NUL delimited.
         for (int i = 0; i < len; i++)
             if (requestedHeader[i] == 0x9B)
+                requestedHeader[i] = 0x00;
+            else if (requestedHeader[i] == 0x0D)
+                requestedHeader[i] = 0x00;
+            else if (requestedHeader[i] == 0x0a)
                 requestedHeader[i] = 0x00;
 
         Debug_printf("collect_headers[%u,%u] = \"%s\"\n", collect_headers_count, len, requestedHeader);
@@ -604,7 +611,7 @@ bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
     }
 
     // Put PROPFIND data to debug console
-    Debug_printf("PROPFIND DATA:\n\n%s\n",buf);
+    Debug_printf("PROPFIND DATA:\n\n%s\n", buf);
 
     // Set everything up
     XML_SetUserData(p, &webDAV);
@@ -630,11 +637,11 @@ bool NetworkProtocolHTTP::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
     if (NetworkProtocolFS::rename(url, cmdFrame) == true)
         return true;
 
-    url->path = url->path.substr(0,url->path.find(","));
+    url->path = url->path.substr(0, url->path.find(","));
 
     mount(url);
 
-    resultCode = client->MOVE(destFilename.c_str(),true);
+    resultCode = client->MOVE(destFilename.c_str(), true);
     fserror_to_error();
 
     umount();
