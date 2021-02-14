@@ -85,6 +85,7 @@ bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
         httpChannelMode = COLLECT_HEADERS;
         break;
     case 2:
+        returned_header_cursor = 0;
         httpChannelMode = GET_HEADERS;
         break;
     case 3:
@@ -593,8 +594,7 @@ void NetworkProtocolHTTP::http_transaction()
 
         for (int i = 0; i < client->get_header_count(); i++)
         {
-            returned_headers.push_back(string(client->get_header(i) + "\x9b"));
-            Debug_printf("returned_headers[%u]=\"%s\"\n", i, returned_headers[i].c_str());
+            returned_headers.push_back(string(client->get_header(collect_headers[i]) + "\x9b"));
         }
     }
 
