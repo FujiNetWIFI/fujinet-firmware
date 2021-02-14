@@ -21,6 +21,7 @@ private:
     void dump_percom_block();
 
 public:
+    sioDisk();
     disktype_t mount(FILE *f, const char *filename, uint32_t disksize, disktype_t disk_type = DISKTYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
