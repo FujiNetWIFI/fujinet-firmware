@@ -366,8 +366,6 @@ void sioFuji::sio_copy_file()
     FILE *sourceFile;
     FILE *destFile;
     char *dataBuf;
-    unsigned short dataLen;
-    unsigned short writeLen;
     unsigned char sourceSlot;
     unsigned char destSlot;
 
