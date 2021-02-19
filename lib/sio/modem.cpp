@@ -1051,6 +1051,7 @@ void sioModem::at_handle_dial()
         CRX = true;
         answered = false;
         answerTimer = fnSystem.millis();
+        // This is so macros in Bobterm can do the actual connect.
     }
     else
     {
@@ -1066,6 +1067,7 @@ void sioModem::at_handle_dial()
             tcpClient.setNoDelay(true); // Try to disable naggle
             answered = false;
             answerTimer = fnSystem.millis();
+            cmdMode = false;
         }
         else
         {
