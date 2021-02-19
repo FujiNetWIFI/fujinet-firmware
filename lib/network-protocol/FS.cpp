@@ -244,6 +244,9 @@ bool NetworkProtocolFS::status_file(NetworkStatus *status)
     status->rxBytesWaiting = fileSize > 65535 ? 65535 : fileSize;
     status->connected = fileSize > 0 ? 1 : 0;
     status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+
+    NetworkProtocol::status(status);
+
     return false;
 }
 
@@ -252,6 +255,9 @@ bool NetworkProtocolFS::status_dir(NetworkStatus *status)
     status->rxBytesWaiting = dirBuffer.length();
     status->connected = dirBuffer.length() > 0 ? 1 : 0;
     status->error = dirBuffer.length() > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+
+    NetworkProtocol::status(status);
+
     return false;
 }
 
