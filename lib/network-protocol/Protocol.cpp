@@ -160,7 +160,7 @@ void NetworkProtocol::translate_receive_buffer()
     }
 
     if (translation_mode == TRANSLATION_MODE_CRLF)
-        receiveBuffer->erase(remove(receiveBuffer->begin(), receiveBuffer->end(), '\n'), receiveBuffer->end());
+        receiveBuffer->erase(std::remove(receiveBuffer->begin(), receiveBuffer->end(), '\n'), receiveBuffer->end());
 }
 
 /**
