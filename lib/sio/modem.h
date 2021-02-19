@@ -58,6 +58,8 @@
 #define MAX_CMD_LENGTH 256 // Maximum length for AT command
 #define TX_BUF_SIZE 256    // Buffer where to read from serial before writing to TCP (that direction is very blocking by the ESP TCP stack, so we can't do one byte a time.)
 
+#define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
+
 class sioModem : public sioDevice
 {
 private:
@@ -166,6 +168,8 @@ private:
     bool do_echo;                   // telnet echo toggle.
     string term_type;               // telnet terminal type.
     ESP32SSHCLIENT ssh;             // ssh instance.
+    long answerTimer;
+    bool answered=false;
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll

@@ -231,7 +231,7 @@ void sioModem::sio_poll_1()
 
     Debug_println("Modem acknowledging Type 1 Poll");
 
-    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY*2);
+    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY * 2);
 
     sio_to_computer(bootBlock, sizeof(bootBlock), false);
 }
@@ -363,19 +363,8 @@ void sioModem::sio_status()
     if (autoAnswer == true && tcpServer.hasClient() == true)
     {
         modemActive = true;
-        fnSystem.delay(2000);
-
-        if (numericResultCode == true)
-        {
-            at_connect_resultCode(modemBaud);
-            CRX = true;
-        }
-        else
-        {
-            at_cmd_println("CONNECT ", false);
-            at_cmd_println(modemBaud);
-            CRX = true;
-        }
+        answered = false;
+        answerTimer = fnSystem.millis();
     }
 
     Debug_printf("sioModem::sio_status(%02x,%02x)\n", mdmStatus[0], mdmStatus[1]);
@@ -1005,18 +994,9 @@ void sioModem::at_handle_answer()
         tcpClient = tcpServer.available();
         tcpClient.setNoDelay(true); // try to disable naggle
                                     //        tcpServer.stop();
-        if (numericResultCode == true)
-        {
-            at_connect_resultCode(modemBaud);
-            CRX = true;
-        }
-        else
-        {
-            at_cmd_println("CONNECT ", false);
-            at_cmd_println(modemBaud);
-            CRX = true;
-            /* code */
-        }
+        answerTimer = fnSystem.millis();
+        answered = false;
+        CRX = true;
 
         cmdMode = false;
         fnUartSIO.flush();
@@ -1044,8 +1024,6 @@ void sioModem::at_handle_dial()
 
     Debug_printf("DIALING: %s\n", host.c_str());
 
-
-
     /*Phonebook Entry?, check first if the only numeric host*/
     if (host.find_first_not_of("0123456789") == std::string::npos)
     {
@@ -1054,7 +1032,7 @@ void sioModem::at_handle_dial()
         if (!hostpb.empty())
         {
 
-	    /*replace host:port with phonebook information*/
+            /*replace host:port with phonebook information*/
             port = Config.get_pb_host_port(host.c_str());
             host = hostpb;
         }
@@ -1062,21 +1040,9 @@ void sioModem::at_handle_dial()
 
     if (host == "5551234") // Fake it for BobTerm
     {
-        fnSystem.delay(1300); // Wait a moment so bobterm catches it
-
-        if (numericResultCode == true)
-        {
-            at_connect_resultCode(modemBaud);
-            CRX = true;
-        }
-        else
-        {
-            at_cmd_println("CONNECT ", false);
-            at_cmd_println(modemBaud);
-            CRX = true;
-            /* code */
-        }
-        Debug_println("CONNECT FAKE!");
+        CRX = true;
+        answered = false;
+        answerTimer = fnSystem.millis();
     }
     else
     {
@@ -1090,25 +1056,8 @@ void sioModem::at_handle_dial()
         if (tcpClient.connect(host.c_str(), portInt))
         {
             tcpClient.setNoDelay(true); // Try to disable naggle
-
-            if (numericResultCode == true)
-            {
-                at_connect_resultCode(modemBaud);
-                CRX = true;
-            }
-            else
-            {
-                at_cmd_println("CONNECT ", false);
-                at_cmd_println(modemBaud);
-                CRX = true;
-                /* code */
-            }
-
-            cmdMode = false;
-            if (listenPort > 0)
-            {
-                //                tcpServer.stop();
-            }
+            answered = false;
+            answerTimer = fnSystem.millis();
         }
         else
         {
@@ -1146,29 +1095,29 @@ void sioModem::at_handle_pblist()
 /*Add and del entry in the phonebook*/
 void sioModem::at_handle_pb()
 {
-    // From the AT command get the info to add. Ex: atpb4321=irata.online:8002 
+    // From the AT command get the info to add. Ex: atpb4321=irata.online:8002
     //or delete ex: atpb4321
     // ("ATPB" length 4)
     std::string phnumber, host, port;
     int hostIndex = cmd.find('=');
     int portIndex = cmd.find(':');
-    
+
     //Equal symbol found, so assume adding entry
     if (hostIndex != std::string::npos)
     {
-        phnumber = cmd.substr(4, hostIndex-4);
+        phnumber = cmd.substr(4, hostIndex - 4);
         //Check pure numbers entry
         if (phnumber.find_first_not_of("0123456789") == std::string::npos)
         {
             if (portIndex != std::string::npos)
             {
-                host = cmd.substr(hostIndex+1,portIndex-hostIndex-1);
-                port = cmd.substr(portIndex+1);
+                host = cmd.substr(hostIndex + 1, portIndex - hostIndex - 1);
+                port = cmd.substr(portIndex + 1);
             }
             else
             {
-                host = cmd.substr(hostIndex+1);
-		        port = "23";
+                host = cmd.substr(hostIndex + 1);
+                port = "23";
             }
             if (Config.add_pb_number(phnumber.c_str(), host.c_str(), port.c_str()))
             {
@@ -1182,7 +1131,7 @@ void sioModem::at_handle_pb()
                 if (numericResultCode == true)
                     at_cmd_resultCode(RESULT_CODE_ERROR);
                 else
-                    at_cmd_println("ERROR");     
+                    at_cmd_println("ERROR");
             }
         }
         else
@@ -1193,7 +1142,7 @@ void sioModem::at_handle_pb()
                 at_cmd_println("ERROR");
         }
     }
-    //No Equal symbol present, so Delete an entry    
+    //No Equal symbol present, so Delete an entry
     else
     {
         std::string phnumber = cmd.substr(4);
@@ -1209,8 +1158,8 @@ void sioModem::at_handle_pb()
             if (numericResultCode == true)
                 at_cmd_resultCode(RESULT_CODE_ERROR);
             else
-                at_cmd_println("ERROR");     
-        } 
+                at_cmd_println("ERROR");
+        }
     }
 }
 
@@ -1494,9 +1443,9 @@ void sioModem::modemCommand()
             at_cmd_println("OK");
         break;
     case AT_CPM:
-        modemActive=false;
+        modemActive = false;
         SIO.getCPM()->init_cpm();
-        SIO.getCPM()->cpmActive=true;
+        SIO.getCPM()->cpmActive = true;
         break;
     case AT_PHONEBOOKLIST:
         at_handle_pblist();
@@ -1509,7 +1458,7 @@ void sioModem::modemCommand()
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
-            at_cmd_println("OK");       
+            at_cmd_println("OK");
         break;
     default:
         if (numericResultCode == true)
@@ -1637,6 +1586,22 @@ void sioModem::sio_handle_modem()
             fnTcpClient c = tcpServer.accept();
             c.write("The MODEM is currently serving another caller. Please try again later.\x0d\x0a\x9b");
             c.stop();
+        }
+
+        // Emit a CONNECT if we're connected, and a few seconds have passed.
+        if ((answered == false) && (answerTimer > 0) && ((fnSystem.millis() - answerTimer) > ANSWER_TIMER_MS))
+        {
+            answered = true;
+            answerTimer = 0;
+            if (numericResultCode == true)
+            {
+                at_cmd_resultCode(modemBaud);
+            }
+            else
+            {
+                at_cmd_println("CONNECT ", false);
+                at_cmd_println(modemBaud);
+            }
         }
 
         //int sioBytesAvail = SIO_UART.available();
