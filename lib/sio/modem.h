@@ -30,6 +30,15 @@
 #define HELPL16 "                  | type (DUMB, VT52,"
 #define HELPL17 "                  | VT100, ANSI)"
 #define HELPL18 "AT[UN]SNIFF       | Dis/enable sniffing"
+#define HELPL19 "ATTERMVT52        | Set TERM to VT52"
+#define HELPL20 "ATTERMVT100       | Set TERM to VT100"
+#define HELPL21 "ATTERMDUMB        | Set TERM to DUMB"
+#define HELPL22 "ATTERMANSI        | Set TERM to ANSI"
+#define HELPL23 "ATCPM             | Go into CP/M"
+#define HELPL24 "ATPHONEBOOKLIST   | List Phonebook"
+#define HELPL25 "ATPHONEBOOKCLR    | Clear Phonebook"
+#define HELPL26 "ATPB<num>=<host>  | Add to Phonebook"
+
 /* Not explicitly mentioned at this time, since they are commonly known:
  * (these are sioModem class's _at_cmds enums)
  * - AT
