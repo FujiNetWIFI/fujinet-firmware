@@ -914,6 +914,14 @@ void sioModem::at_handle_help()
     at_cmd_println(HELPL16);
     at_cmd_println(HELPL17);
     at_cmd_println(HELPL18);
+    at_cmd_println(HELPL19);
+    at_cmd_println(HELPL20);
+    at_cmd_println(HELPL21);
+    at_cmd_println(HELPL22);
+    at_cmd_println(HELPL23);
+    at_cmd_println(HELPL24);
+    at_cmd_println(HELPL25);
+    at_cmd_println(HELPL26);    
 
     at_cmd_println();
 
