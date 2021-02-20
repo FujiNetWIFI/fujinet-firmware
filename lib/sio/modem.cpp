@@ -354,13 +354,18 @@ void sioModem::sio_status()
           0: RCV state (0=space, 1=mark)
     */
 
+    memset(mdmStatus, 0, sizeof(mdmStatus));
+
+    mdmStatus[1] &= 0b00111111;
+    mdmStatus[1] |= (tcpClient.connected() == true || tcpServer.hasClient() == true ? 192 : 0);
+
     mdmStatus[1] &= 0b11110011;
-    mdmStatus[1] |= (tcpClient.connected() == true ? 12 : 0);
+    mdmStatus[1] |= (tcpClient.connected() == true || tcpServer.hasClient() ? 12 : 0);
 
     mdmStatus[1] &= 0b11111110;
     mdmStatus[1] |= ((tcpClient.available() > 0) || (tcpServer.hasClient() == true) ? 1 : 0);
 
-    if (autoAnswer == true && tcpServer.hasClient() == true)
+    if (autoAnswer == true && tcpServer.hasClient())
     {
         modemActive = true;
         answered = false;
@@ -921,7 +926,7 @@ void sioModem::at_handle_help()
     at_cmd_println(HELPL23);
     at_cmd_println(HELPL24);
     at_cmd_println(HELPL25);
-    at_cmd_println(HELPL26);    
+    at_cmd_println(HELPL26);
 
     at_cmd_println();
 
