@@ -605,7 +605,8 @@ void sioModem::sio_baudlock()
 {
     sio_ack();
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
-
+    modemBaud = sio_get_aux();
+    
     Debug_printf("baudLock: %d\n", baudLock);
 
     sio_complete();
@@ -619,7 +620,7 @@ void sioModem::sio_autoanswer()
     sio_ack();
     autoAnswer = (cmdFrame.aux1 > 0 ? true : false);
 
-    Debug_printf("autoanswer: %d\n", baudLock);
+    Debug_printf("autoanswer: %d\n", autoAnswer);
 
     sio_complete();
 }
