@@ -415,7 +415,9 @@ void sioModem::sio_control()
         if (DTR == 0 && tcpClient.connected())
         {
             tcpClient.stop(); // Hang up if DTR drops.
-
+            CRX = false;
+            cmdMode = true;
+            
             if (listenPort > 0)
             {
                 // tcpServer.stop();
@@ -606,7 +608,7 @@ void sioModem::sio_baudlock()
     sio_ack();
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
     modemBaud = sio_get_aux();
-    
+
     Debug_printf("baudLock: %d\n", baudLock);
 
     sio_complete();
