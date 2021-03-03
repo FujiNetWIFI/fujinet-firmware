@@ -116,7 +116,7 @@ void htmlPrinter::pre_close_file()
 void htmlPrinter::post_new_file()
 {
     const char *htm1 = "<html><head><meta charset=\"utf-8\"/>\r\n<style>";
-    const char *css = "body{font-family:\"Courier New\",Courier,monospace;white-space:pre;} .iv{color:white;background-color:black;}\r\n";
+    const char *css = "body{font-family:\"Courier New\",Courier,monospace;white-space:pre-wrap;} .iv{color:white;background-color:black;}\r\n";
     const char *htm2 = "</style></head>\r\n";
 
     fputs(htm1, _file);
