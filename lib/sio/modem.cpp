@@ -1658,8 +1658,6 @@ void sioModem::sio_handle_modem()
                 }
             }
 
-            // TODO: Add Telnet processing here.
-
             // Write the buffer to TCP finally
             if (use_telnet == true)
             {
