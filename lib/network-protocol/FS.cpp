@@ -21,6 +21,7 @@ bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
     // Call base class.
     NetworkProtocol::open(url, cmdFrame);
+    fileSize = 0;
 
     update_dir_filename(opened_url);
 
@@ -241,7 +242,10 @@ bool NetworkProtocolFS::status(NetworkStatus *status)
 
 bool NetworkProtocolFS::status_file(NetworkStatus *status)
 {
-    status->rxBytesWaiting = fileSize > 65535 ? 65535 : fileSize;
+    if (aux1_open == 8)
+        status->rxBytesWaiting = 0;
+    else
+        status->rxBytesWaiting = fileSize > 65535 ? 65535 : fileSize;
     status->connected = fileSize > 0 ? 1 : 0;
     status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
 
@@ -328,7 +332,7 @@ void NetworkProtocolFS::resolve()
             string current_entry = string(e);
             string crunched_entry = util_crunch(current_entry);
 
-            Debug_printf("current entry \"%s\" crunched entry \"%s\"\n",current_entry.c_str(),crunched_entry.c_str());
+            Debug_printf("current entry \"%s\" crunched entry \"%s\"\n", current_entry.c_str(), crunched_entry.c_str());
 
             if (crunched_filename == crunched_entry)
             {
@@ -384,7 +388,7 @@ bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
     destFilename = dir + filename.substr(comma_pos + 1);
     filename = dir + filename.substr(0, comma_pos);
 
-    Debug_printf("RENAME destfilename, %s, filename, %s\n",destFilename.c_str(),filename.c_str());
+    Debug_printf("RENAME destfilename, %s, filename, %s\n", destFilename.c_str(), filename.c_str());
 
     return false;
 }
