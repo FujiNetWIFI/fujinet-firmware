@@ -1,0 +1,11 @@
+# Name,   Type, SubType, Offset,  Size, Flags
+#
+#nvs        36,864 to    57,344   : size 20,480
+#otdata     57,344 to    65,536   : size 8,192
+#app0       65,536 to 6,291,456   : size 6,225,920
+#spiffs  6,291,456 to 8,388,608   : size 2,097,152
+#
+nvs,      data, nvs,     0x9000,  0x5000,      
+otadata,  data, ota,     0xe000,  0x2000,
+app0,     app,  ota_0,   0x10000, 0x5F0000,
+spiffs,   data, spiffs,  0x600000,0x200000,
