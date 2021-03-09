@@ -43,6 +43,7 @@
 #define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
 #define SIO_FUJICMD_CONFIG_BOOT 0xD9
 #define SIO_FUJICMD_COPY_FILE 0xD8
+#define SIO_FUJICMD_MOUNT_ALL 0xD7
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -461,6 +462,52 @@ void sioFuji::sio_copy_file()
     fclose(sourceFile);
     fclose(destFile);
     free(dataBuf);
+}
+
+// Mount all
+void sioFuji::sio_mount_all()
+{
+    for (int i = 0; i < 8; i++)
+    {
+        fujiDisk &disk = _fnDisks[i];
+        fujiHost &host = _fnHosts[disk.host_slot];
+        char flag[3] = {'r', 0, 0};
+
+        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            flag[1] = '+';
+
+        if (disk.host_slot != 0xFF)
+        {
+            if (host.mount() == false)
+            {
+                sio_error();
+                return;
+            }
+
+            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                         disk.filename, disk.host_slot, flag, i + 1);
+
+            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+            if (disk.fileh == nullptr)
+            {
+                sio_error();
+                return;
+            }
+
+            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+            boot_config = false;
+            status_wait_count = 0;
+
+            // We need the file size for loading XEX files and for CASSETTE, so get that too
+            disk.disk_size = host.file_size(disk.fileh);
+
+            // And now mount it
+            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+        }
+    }
+    
+    sio_complete();
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -1574,6 +1621,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_COPY_FILE:
         sio_ack();
         sio_copy_file();
+        break;
+    case SIO_FUJICMD_MOUNT_ALL:
+        sio_ack();
+        sio_mount_all();
         break;
     default:
         sio_nak();
