@@ -44,6 +44,7 @@
 #define SIO_FUJICMD_CONFIG_BOOT 0xD9
 #define SIO_FUJICMD_COPY_FILE 0xD8
 #define SIO_FUJICMD_MOUNT_ALL 0xD7
+#define SIO_FUJICMD_SET_BOOT_MODE 0xD6
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -1438,6 +1439,19 @@ void sioFuji::sio_set_sio_external_clock()
     }
 
     sio_complete();
+}
+
+// Mounts the desired boot disk number
+void sioFuji::insert_boot_device(uint8_t d)
+{
+    char *boot_atr = "/autorun .atr";
+    boot_atr[7]=d+0x30;
+    
+    _bootDisk.unmount();
+    FILE *fBoot = fnSPIFFS.file_open(boot_atr);
+    _bootDisk.mount(fBoot, boot_atr, 0);
+    _bootDisk.is_config_device = true;
+    _bootDisk.device_active = false;
 }
 
 // Initializes base settings and adds our devices to the SIO bus
