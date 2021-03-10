@@ -58,6 +58,8 @@ public:
     void store_general_timezone(const char *timezone);
     void store_general_rotation_sounds(bool rotation_sounds);
     void store_general_config_enabled(bool config_enabled);
+    bool get_general_boot_mode() { return _general.boot_mode; }
+    void store_general_boot_mode(uint8_t boot_mode);
     void store_midimaze_host(const char host_ip[64]);
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
@@ -223,6 +225,7 @@ private:
         std::string timezone;
         bool rotation_sounds = true;
         bool config_enabled = true;
+        uint8_t boot_mode = 0;
     };
 
     struct modem_info
