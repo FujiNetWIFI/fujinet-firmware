@@ -507,7 +507,15 @@ void sioFuji::sio_mount_all()
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
         }
     }
-    
+
+    sio_complete();
+}
+
+// Set boot mode
+void sioFuji::sio_set_boot_mode()
+{
+    insert_boot_device(cmdFrame.aux1);
+    boot_config = true;
     sio_complete();
 }
 
@@ -1444,12 +1452,24 @@ void sioFuji::sio_set_sio_external_clock()
 // Mounts the desired boot disk number
 void sioFuji::insert_boot_device(uint8_t d)
 {
-    char *boot_atr = "/autorun .atr";
-    boot_atr[7]=d+0x30;
-    
+    const char *config_atr = "/autorun.atr";
+    const char *mount_all_atr = "/mount-and-boot.atr";
+    FILE *fBoot;
+
     _bootDisk.unmount();
-    FILE *fBoot = fnSPIFFS.file_open(boot_atr);
-    _bootDisk.mount(fBoot, boot_atr, 0);
+
+    switch (d)
+    {
+    case 0:
+        fBoot = fnSPIFFS.file_open(config_atr);
+        _bootDisk.mount(fBoot, config_atr, 0);
+        break;
+    case 1:
+        fBoot = fnSPIFFS.file_open(mount_all_atr);
+        _bootDisk.mount(fBoot, mount_all_atr, 0);
+        break;
+    }
+
     _bootDisk.is_config_device = true;
     _bootDisk.device_active = false;
 }
@@ -1460,16 +1480,9 @@ void sioFuji::setup(sioBus *siobus)
     // set up Fuji device
     _sio_bus = siobus;
 
-    const char *boot_atr = "/autorun.atr";
-
-    FILE *fBoot = fnSPIFFS.file_open(boot_atr);
-
     _populate_slots_from_config();
 
-    _bootDisk.mount(fBoot, boot_atr, 0); // set up a special disk drive not on the bus
-
-    _bootDisk.is_config_device = true;
-    _bootDisk.device_active = false;
+    insert_boot_device(Config.get_general_boot_mode());
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -1639,6 +1652,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_MOUNT_ALL:
         sio_ack();
         sio_mount_all();
+        break;
+    case SIO_FUJICMD_SET_BOOT_MODE:
+        sio_ack();
+        sio_set_boot_mode();
         break;
     default:
         sio_nak();
