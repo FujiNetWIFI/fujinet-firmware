@@ -1,6 +1,34 @@
 #ifndef IEC_H
 #define IEC_H
 
+/**
+ * notes by jeffpiep 3/9/2021
+ * 
+ * i think we can make an iecBus class that listens for ATN
+ * gets the command and then passes off control to the iecDevice
+ * IIRC, we do this in SIO land: the sioDevice is a friend to the sioBus. 
+ * The sioBus has a list of devices. The bus object (SIO) listens for commands.
+ * When it sees a command, it finds out what device the command is directed
+ * towards and then hands over control to that device object. Most of the SIO
+ * commands and operation belong to the sioDevice class (e.g., ack, nak, 
+ * _to_computer, _to_device). 
+ * 
+ * This file, iec.h, is partly a low-level driver for the IEC physical layer. 
+ * We need this because we aren't using a UART. i think we might want to
+ * break out the low level i/o into a differnt class - something to think about.
+ * then there's the standard IEC protocol layer with commands and data state. 
+ * 
+ * The devices currently exist in the interface.h file. it is a disk device
+ * and a realtime clock. it would great if we could port the IEC2SD devices
+ * because they support JiffyDOS, TFC3 turbo, etc. There should be a minimum
+ * set of capability that we can define in the base class iecDevice using
+ * virual functions. I think that is the handlers for the ATN commands
+ * and probably data input and output. maybe error reporting on channel 15?
+ * maybe we want a process command to deal with incoming data, e.g., on the 
+ * printer? 
+
+*/
+
 #include "fnSystem.h"
 
 #include "cbmdefines.h"
@@ -161,8 +189,10 @@ private:
 	}
 
 	// true == PULL == HIGH, false == RELEASE == LOW
+	// TO DO: is above right? I thought PULL == LOW and RELEASE == HIGH
 	inline void writePIN(int pinNumber, bool state)
 	{
+		// TOD O: why set input/output mode same as state?
 		fnSystem.set_pin_mode(pinNumber, state ? gpio_mode_t::GPIO_MODE_OUTPUT : gpio_mode_t::GPIO_MODE_INPUT);
 		fnSystem.digital_write(pinNumber, state ? LOW : HIGH);
 	}
