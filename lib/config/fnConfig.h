@@ -225,7 +225,7 @@ private:
         std::string timezone;
         bool rotation_sounds = true;
         bool config_enabled = true;
-        uint8_t boot_mode = 0;
+        int boot_mode = 0;
     };
 
     struct modem_info
