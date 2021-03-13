@@ -2,8 +2,12 @@
 #define INTERFACE_H
 
 #include "iec.h"
+
+#include <string>
+
 #include "cbmdefines.h"
 #include "Petscii.h"
+#include "../FileSystem/fnFS.h"
 
 enum OpenState {
 	O_NOTHING,			// Nothing to send / File not found error
@@ -22,7 +26,7 @@ enum OpenState {
 class Interface
 {
 public:
-	Interface(IEC& iec, FS* fileSystem);
+	Interface(IEC &iec, FileSystem *fileSystem);
 	virtual ~Interface() {}
 
 	bool begin();
@@ -79,14 +83,14 @@ private:
 	// atn command buffer struct
 	IEC::ATNCmd& m_atn_cmd;
 
-	FS *m_fileSystem;
-	StaticJsonDocument<256> m_jsonHTTP;
-	String m_lineBuffer;
+	FileSystem *m_fileSystem;
+	// StaticJsonDocument<256> m_jsonHTTP;
+	std::string m_lineBuffer;
 	//DynamicJsonDocument m_jsonHTTPBuffer;
 
-	DeviceDB m_device;
-	String m_filename;
-	String m_filetype;
+	// DeviceDB m_device;
+	std::string m_filename;
+	std::string m_filetype;
 };
 
 #endif
