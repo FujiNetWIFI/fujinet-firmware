@@ -32,6 +32,8 @@
 //#include "debug.h"
 #include "interface.h"
 
+#include "../hardware/fnSystem.h"
+
 using namespace CBM;
 
 namespace {
@@ -41,15 +43,15 @@ char serCmdIOBuf[MAX_BYTES_PER_REQUEST];
 
 } // unnamed namespace
 
-
-Interface::Interface(IEC& iec, FS* fileSystem)
+Interface::Interface(IEC &iec, FileSystem *fileSystem)
 	: m_iec(iec)
-	// NOTE: Householding with RAM bytes: We use the middle of serial buffer for the ATNCmd buffer info.
-	// This is ok and won't be overwritten by actual serial data from the host, this is because when this ATNCmd data is in use
-	// only a few bytes of the actual serial data will be used in the buffer.
-	,  m_atn_cmd(*reinterpret_cast<IEC::ATNCmd*>(&serCmdIOBuf[sizeof(serCmdIOBuf) / 2]))
-	,  m_device(fileSystem)
-	//,  m_jsonHTTPBuffer(1024)
+	  // NOTE: Householding with RAM bytes: We use the middle of serial buffer for the ATNCmd buffer info.
+	  // This is ok and won't be overwritten by actual serial data from the host, this is because when this ATNCmd data is in use
+	  // only a few bytes of the actual serial data will be used in the buffer.
+	  ,
+	  m_atn_cmd(*reinterpret_cast<IEC::ATNCmd *>(&serCmdIOBuf[sizeof(serCmdIOBuf) / 2]))
+//	,  m_device(&fileSystem)
+//,  m_jsonHTTPBuffer(1024)
 {
 	m_fileSystem = fileSystem;
 	reset();
@@ -58,7 +60,7 @@ Interface::Interface(IEC& iec, FS* fileSystem)
 
 bool Interface::begin()
 {
-	m_device.init(String(DEVICE_DB));
+	//	m_device.init(String(DEVICE_DB));
 	//m_device.check();
 }
 
@@ -73,7 +75,7 @@ void Interface::sendStatus(void)
 {
 	int i, readResult;
 
-	String status = String("00, OK, 00, 08");
+	std::string status("00, OK, 00, 08");
 
 	Debug_printf("\r\nsendStatus: ");
 	// Length does not include the CR, write all but the last one should be with EOI.
@@ -109,7 +111,7 @@ void Interface::sendDeviceInfo()
 
 	// CPU
 	sendLine(basicPtr, 0, "SYSTEM ---");
-	String sdk = String(ESP.getSdkVersion());
+	std::string sdk(ESP.getSdkVersion());
 	sdk.toUpperCase();
 	sendLine(basicPtr, 0, "SDK VER    : %s", sdk.c_str());
 	sendLine(basicPtr, 0, "BOOT VER   : %08X", ESP.getBootVersion());
