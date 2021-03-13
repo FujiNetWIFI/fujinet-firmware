@@ -2,6 +2,7 @@
 #define INTERFACE_H
 
 #include "iec.h"
+#include "device_db.h"
 
 #include <string>
 
