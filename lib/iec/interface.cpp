@@ -33,6 +33,9 @@
 #include "interface.h"
 
 #include "../hardware/fnSystem.h"
+#include "../hardware/led.h"
+#include "../include/version.h"
+#include "../utils/utils.h"
 
 using namespace CBM;
 
@@ -95,11 +98,11 @@ void Interface::sendDeviceInfo()
 	// Reset basic memory pointer:
 	uint16_t basicPtr = C64_BASIC_START;
 
-    FSInfo64 fs_info;
-    m_fileSystem->info64 ( fs_info );
+	// FSInfo64 fs_info;
+	// m_fileSystem->info64 ( fs_info );
 
-	char floatBuffer[10]; // buffer
-	dtostrf(getFragmentation(), 3, 2, floatBuffer);
+	// char floatBuffer[10]; // buffer
+	// dtostrf(getFragmentation(), 3, 2, floatBuffer);
 
 	// Send load address
 	m_iec.send(C64_BASIC_START bitand 0xff);
@@ -107,62 +110,63 @@ void Interface::sendDeviceInfo()
 	Debug_println("");
 
 	// Send List HEADER
-	sendLine(basicPtr, 0, "\x12 %s V%s ", PRODUCT_ID, FW_VERSION);
+	sendLine(basicPtr, 0, "\x12 %s V%s ", FN_VERSION_DATE, FN_VERSION_FULL);
 
 	// CPU
 	sendLine(basicPtr, 0, "SYSTEM ---");
-	std::string sdk(ESP.getSdkVersion());
-	sdk.toUpperCase();
-	sendLine(basicPtr, 0, "SDK VER    : %s", sdk.c_str());
-	sendLine(basicPtr, 0, "BOOT VER   : %08X", ESP.getBootVersion());
-	sendLine(basicPtr, 0, "BOOT MODE  : %08X", ESP.getBootMode());
-	sendLine(basicPtr, 0, "CHIP ID    : %08X", ESP.getChipId());
-	sendLine(basicPtr, 0, "CPU MHZ    : %d MHZ", ESP.getCpuFreqMHz());
-	sendLine(basicPtr, 0, "CYCLES     : %u", ESP.getCycleCount());
+	// std::string sdk(esp_get_idf_version());
+	// util_string_toupper(sdk);
+	sendLine(basicPtr, 0, "SDK VER    : %s", fnSystem.get_sdk_version());
+	// TODO: sendLine(basicPtr, 0, "BOOT VER   : %08X", ESP.getBootVersion());
+	// TODO: sendLine(basicPtr, 0, "BOOT MODE  : %08X", ESP.getBootMode());
+	// TODO: sendLine(basicPtr, 0, "CHIP ID    : %08X", ESP.getChipId());
+	sendLine(basicPtr, 0, "CPU MHZ    : %d MHZ", fnSystem.get_cpu_frequency());
+	// TODO: sendLine(basicPtr, 0, "CYCLES     : %u", ESP.getCycleCount());
 
 	// POWER
 	sendLine(basicPtr, 0, "POWER ---");
-	sendLine(basicPtr, 0, "VOLTAGE    : %d.%d V", ( ESP.getVcc() / 1000 ), ( ESP.getVcc() % 1000 ));
+	sendLine(basicPtr, 0, "VOLTAGE    : %d.%d V", fnSystem.get_sio_voltage() / 1000, fnSystem.get_sio_voltage() % 1000);
 
 	// RAM
 	sendLine(basicPtr, 0, "MEMORY ---");
-	sendLine(basicPtr, 0, "RAM SIZE   : %5d B", getTotalMemory());
-	sendLine(basicPtr, 0, "RAM FREE   : %5d B", getTotalAvailableMemory());
-	sendLine(basicPtr, 0, "RAM >BLK   : %5d B", getLargestAvailableBlock());
-	sendLine(basicPtr, 0, "RAM FRAG   : %s %%", floatBuffer);
+	sendLine(basicPtr, 0, "PSRAM SIZE  : %5d B", fnSystem.get_psram_size());
+	sendLine(basicPtr, 0, "HEAP FREE   : %5d B", fnSystem.get_free_heap_size());
+	// sendLine(basicPtr, 0, "RAM >BLK   : %5d B", getLargestAvailableBlock());
+	// sendLine(basicPtr, 0, "RAM FRAG   : %s %%", floatBuffer);
 
 	// ROM
-	sendLine(basicPtr, 0, "ROM SIZE   : %5d B", ESP.getSketchSize() + ESP.getFreeSketchSpace());
-	sendLine(basicPtr, 0, "ROM USED   : %5d B", ESP.getSketchSize());
-	sendLine(basicPtr, 0, "ROM FREE   : %5d B", ESP.getFreeSketchSpace());
+	// sendLine(basicPtr, 0, "ROM SIZE   : %5d B", ESP.getSketchSize() + ESP.getFreeSketchSpace());
+	// sendLine(basicPtr, 0, "ROM USED   : %5d B", ESP.getSketchSize());
+	// sendLine(basicPtr, 0, "ROM FREE   : %5d B", ESP.getFreeSketchSpace());
 
 	// FLASH
-	sendLine(basicPtr, 0, "STORAGE ---");
-	sendLine(basicPtr, 0, "FLASH SIZE : %5d B", ESP.getFlashChipRealSize());
-	sendLine(basicPtr, 0, "FLASH SPEED: %d MHZ", ( ESP.getFlashChipSpeed() / 1000000 ));
+	// sendLine(basicPtr, 0, "STORAGE ---");
+	// sendLine(basicPtr, 0, "FLASH SIZE : %5d B", ESP.getFlashChipRealSize());
+	// sendLine(basicPtr, 0, "FLASH SPEED: %d MHZ", ( ESP.getFlashChipSpeed() / 1000000 ));
 
 	// FILE SYSTEM
-	sendLine(basicPtr, 0, "FILE SYSTEM ---");
-	sendLine(basicPtr, 0, "TYPE       : %s", FS_TYPE);
-	sendLine(basicPtr, 0, "SIZE       : %5d B", fs_info.totalBytes);
-	sendLine(basicPtr, 0, "USED       : %5d B", fs_info.usedBytes);
-	sendLine(basicPtr, 0, "FREE       : %5d B", fs_info.totalBytes - fs_info.usedBytes);
+	// sendLine(basicPtr, 0, "FILE SYSTEM ---");
+	// sendLine(basicPtr, 0, "TYPE       : %s", FS_TYPE);
+	// sendLine(basicPtr, 0, "SIZE       : %5d B", fs_info.totalBytes);
+	// sendLine(basicPtr, 0, "USED       : %5d B", fs_info.usedBytes);
+	// sendLine(basicPtr, 0, "FREE       : %5d B", fs_info.totalBytes - fs_info.usedBytes);
 
 	// NETWORK
 	sendLine(basicPtr, 0, "NETWORK ---");
-    char ip[16];
-    sprintf ( ip, "%s", ipToString ( WiFi.softAPIP() ).c_str() );
-	sendLine(basicPtr, 0, "AP MAC     : %s", WiFi.softAPmacAddress().c_str());
-	sendLine(basicPtr, 0, "AP IP      : %s", ip);
-    sprintf ( ip, "%s", ipToString ( WiFi.localIP() ).c_str() );
-	sendLine(basicPtr, 0, "STA MAC    : %s", WiFi.macAddress().c_str());
-	sendLine(basicPtr, 0, "STA IP     : %s", ip);
+	// char ip[16];
+	// sprintf ( ip, "%s", ipToString ( WiFi.softAPIP() ).c_str() );
+	std::string hn(fnSystem.Net.get_hostname());
+	util_string_toupper(hn);
+	sendLine(basicPtr, 0, "HOSTNAME : %s", hn.c_str());
+	sendLine(basicPtr, 0, "IP       : %s", fnSystem.Net.get_ip4_address_str().c_str());
+	sendLine(basicPtr, 0, "GATEWAY  : %s", fnSystem.Net.get_ip4_gateway_str().c_str());
+	sendLine(basicPtr, 0, "DNS      : %s", fnSystem.Net.get_ip4_dns_str().c_str());
 
 	// End program with two zeros after last line. Last zero goes out as EOI.
 	m_iec.send(0);
 	m_iec.sendEOI(0);
 
-	ledON();
+	fnLedManager.set(LED_SIO);
 } // sendDeviceInfo
 
 void Interface::sendDeviceStatus()
@@ -178,22 +182,23 @@ void Interface::sendDeviceStatus()
 	Debug_println("");
 
 	// Send List HEADER
-	sendLine(basicPtr, 0, "\x12 %s V%s ", PRODUCT_ID, FW_VERSION);
+	// sendLine(basicPtr, 0, "\x12 %s V%s ", PRODUCT_ID, FW_VERSION);
+	sendLine(basicPtr, 0, "\x12 %s V%s ", FN_VERSION_DATE, FN_VERSION_FULL);
 
 	// Current Config
-	sendLine(basicPtr, 0, "DEVICE    : %d", m_device.device());
-	sendLine(basicPtr, 0, "DRIVE     : %d", m_device.drive());
-	sendLine(basicPtr, 0, "PARTITION : %d", m_device.partition());
-	sendLine(basicPtr, 0, "URL       : %s", m_device.url().c_str());
-	sendLine(basicPtr, 0, "PATH      : %s", m_device.path().c_str());
-	sendLine(basicPtr, 0, "IMAGE     : %s", m_device.image().c_str());
-	sendLine(basicPtr, 0, "FILENAME  : %s", m_filename.c_str());
+	// TODO: sendLine(basicPtr, 0, "DEVICE    : %d", m_device.device());
+	// TODO: sendLine(basicPtr, 0, "DRIVE     : %d", m_device.drive());
+	// TODO: sendLine(basicPtr, 0, "PARTITION : %d", m_device.partition());
+	// TODO: sendLine(basicPtr, 0, "URL       : %s", m_device.url().c_str());
+	// TODO: sendLine(basicPtr, 0, "PATH      : %s", m_device.path().c_str());
+	// TODO: sendLine(basicPtr, 0, "IMAGE     : %s", m_device.image().c_str());
+	// TODO: sendLine(basicPtr, 0, "FILENAME  : %s", m_filename.c_str());
 
 	// End program with two zeros after last line. Last zero goes out as EOI.
 	m_iec.send(0);
 	m_iec.sendEOI(0);
 
-	ledON();
+	fnLedManager.set(LED_SIO);
 } // sendDeviceStatus
 
 
