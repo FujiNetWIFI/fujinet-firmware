@@ -88,7 +88,7 @@ private:
 	std::string m_lineBuffer;
 	//DynamicJsonDocument m_jsonHTTPBuffer;
 
-	// DeviceDB m_device;
+	DeviceDB m_device;
 	std::string m_filename;
 	std::string m_filetype;
 };
