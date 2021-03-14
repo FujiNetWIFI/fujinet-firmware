@@ -1,4 +1,5 @@
 #include "device_db.h"
+#include "../utils/utils.h"
 
 DeviceDB::DeviceDB(FileSystem *fs)
 {
@@ -40,7 +41,7 @@ bool DeviceDB::init(std::string db_file)
 #endif
 
         Debug_printf("Creating Device Database [%s]\r\n", database.c_str());
-        File f_database = m_fileSystem->open(database, "w+");
+        FILE *f_database = m_fileSystem->file_open(database.c_str(), FILE_WRITE);
         if(!f_database)
         {
             Debug_printf("Error creating database.\r\n");
@@ -48,20 +49,17 @@ bool DeviceDB::init(std::string db_file)
         }
         else
         {
-#if defined(ESP32)
-            uint8_t buffer[RECORD_SIZE] = { 0 };
-#elif defined(ESP8266)
-            const char buffer[RECORD_SIZE] = { 0 };
-#endif
+            const char buffer[RECORD_SIZE] = {0};
             for (uint8_t i = 0; i < 31; i++) // 22 devices x 2 drives = 44 records x 256 bytes = 11264 total bytes
             {
                 sprintf( (char *)buffer, "{\"device\":%d,\"drive\":0,\"partition\":0,\"url\":\"\",\"path\":\"/\",\"image\":\"\"}", i );
-                f_database.write(buffer, RECORD_SIZE);
+                fwrite(buffer, RECORD_SIZE, 1, f_database);
+                //f_database->write(, RECORD_SIZE);
                 Debug_printf("Writing Record %d: %s\r\n", i, buffer);
             }
             Debug_printf("Database created!\r\n");
         }
-        f_database.close();
+        fclose(f_database);
     }
     return true;
 }
@@ -69,7 +67,7 @@ bool DeviceDB::init(std::string db_file)
 bool DeviceDB::check()
 {
     Debug_printf("Checking Device Database [%s]", database.c_str());
-    File f_database = m_fileSystem->open(database, "r+");
+    FILE *f_database = m_fileSystem->file_open(database.c_str(), "r+");
     if(!f_database)
     {
         Debug_printf("\r\nDeviceDB::init unsable to open DB: %s", database.c_str());
@@ -82,7 +80,7 @@ bool DeviceDB::check()
         {
             // Select new record
             offset = i * RECORD_SIZE;
-            if (f_database.seek( offset, SeekSet ))
+            if (fseek(f_database, offset, SEEK_SET))
             {
                 Debug_printf("\r\nDeviceDB::init seek: %d, %.4X\r\n", i, offset);
 
@@ -94,11 +92,11 @@ bool DeviceDB::check()
                 }
                 else
                 {
-                    Debug_println(m_device.as<std::string>().c_str());
+                    Debug_println(m_device.as);
                 }
             }
         }
-        f_database.close();
+        fclose(f_database);
     }
     return true;
 }
@@ -116,11 +114,11 @@ bool DeviceDB::select(uint8_t new_device)
     // Flush record to database
     save();
 
-    File f_database = m_fileSystem->open(database, "r+");
+    FILE *f_database = m_fileSystem->file_open(database.c_str(), "r+");
 
     // Select new record
     offset = new_device * RECORD_SIZE;
-    f_database.seek( offset, SeekSet );
+    fseek(f_database, offset, SEEK_SET);
     Debug_printf("\r\nDeviceDB::select seek: %d, %.4X", new_device, offset);
 
     // Parse JSON object
@@ -132,7 +130,7 @@ bool DeviceDB::select(uint8_t new_device)
     }
     //m_device["device"] = new_device;
 
-    f_database.close();
+    fclose(f_database);
     return true;
 }
 
@@ -144,18 +142,14 @@ bool DeviceDB::save()
         uint32_t offset;
         uint8_t device = m_device["device"];
 
-        File f_database = m_fileSystem->open(database, "r+");
+        FILE *f_database = m_fileSystem->file_open(database.c_str(), "r+");
 
         offset = device * RECORD_SIZE;
         Debug_printf("\r\nDeviceDB::select m_dirty: %d, %.4X", device, offset);
-        f_database.seek( offset, SeekSet );
-    #if defined(ESP32)
-        f_database.write((const uint8_t *)m_device.as<std::string>().c_str(), strlen(m_device.as<std::string>().c_str()));
-#elif defined(ESP8266)
-        f_database.write(m_device.as<std::string>().c_str());
-#endif
+        fseek(f_database, offset, SEEK_SET);
+        fprintf(f_database, "%10ud", m_device);
         m_dirty = false;
-        f_database.close();
+        fclose(f_database);
     }
 
     return true;
@@ -205,8 +199,9 @@ std::string DeviceDB::path()
 }
 void DeviceDB::path(std::string path)
 {
-    path.replace("//", "/");
-    if ( path == NULL)
+    //path.replace("//", "/");
+    util_replaceAll(path, "//", "/");
+    if (path == NULL)
         path = "/";
     m_device["path"] = path;
     m_dirty = true;
@@ -217,7 +212,7 @@ std::string DeviceDB::image()
 }
 void DeviceDB::image(std::string image)
 {
-    if ( image == NULL)
+    if (image.empty())
         image = "";
     m_device["image"] = image;
     m_dirty = true;
