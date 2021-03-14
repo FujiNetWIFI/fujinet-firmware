@@ -32,6 +32,9 @@
 //#include "debug.h"
 #include "interface.h"
 
+#include <stdarg.h>
+#include <string.h>
+
 #include "../hardware/fnSystem.h"
 #include "../hardware/led.h"
 #include "../include/version.h"
@@ -63,7 +66,7 @@ Interface::Interface(IEC &iec, FileSystem *fileSystem)
 
 bool Interface::begin()
 {
-	//	m_device.init(String(DEVICE_DB));
+	//	m_device.init(std::string(DEVICE_DB));
 	//m_device.check();
 }
 
@@ -288,17 +291,17 @@ int Interface::loop(void)
 void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 {
 	m_device.select( atn_cmd.device );
-	m_filename = String((char *)atn_cmd.str);
+	m_filename = std::string((char *)atn_cmd.str);
 	m_filename.trim();
 	m_filetype = m_filename.substring(m_filename.lastIndexOf(".") + 1);
 	m_filetype.toUpperCase();
 	if ( m_filetype.length() > 4 || m_filetype.length() == m_filename.length() )
 		m_filetype = "";
 
-	Dir local_file = m_fileSystem->openDir( String(m_device.path() + m_filename) );
+	Dir local_file = m_fileSystem->openDir( std::string(m_device.path() + m_filename) );
 
 	//Serial.printf("\r\n$IEC: DEVICE[%d] DRIVE[%d] PARTITION[%d] URL[%s] PATH[%s] IMAGE[%s] FILENAME[%s] FILETYPE[%s] COMMAND[%s]\r\n", m_device.device(), m_device.drive(), m_device.partition(), m_device.url().c_str(), m_device.path().c_str(), m_device.image().c_str(), m_filename.c_str(), m_filetype.c_str(), atn_cmd.str);
-	if (m_filename.startsWith(F("$")))
+	if (m_filename.startsWith("$"))
 	{
 		m_openState = O_DIR;
 	}
@@ -306,10 +309,10 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 	{
 		// Enter directory
 		Debug_printf("\r\nchangeDir: [%s] >", m_filename.c_str());
-		m_device.path( m_device.path() + m_filename.substring(3) + F("/") );
+		m_device.path( m_device.path() + m_filename.substring(3) + "/" );
 		m_openState = O_DIR;	
 	}
-	else if (String( F(IMAGE_TYPES) ).indexOf(m_filetype) >= 0 && m_filetype.length() > 0 )
+	else if (std::string( IMAGE_TYPES ).indexOf(m_filetype) >= 0 && m_filetype.length() > 0 )
 	{
 		// Mount image file
 		Debug_printf("\r\nmount: [%s] >", m_filename.c_str());
@@ -317,7 +320,7 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 
 		m_openState = O_DIR;
 	}	
-	else if (m_filename.startsWith(F("HTTP://")))
+	else if (m_filename.startsWith("HTTP://"))
 	{
 		// Mount url
 		Debug_printf("\r\nmount: [%s] >", m_filename.c_str());
@@ -328,9 +331,9 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 
 		m_openState = O_DIR;
 	}
-	else if (m_filename.startsWith(F("CD")) )
+	else if (m_filename.startsWith("CD") )
 	{
-		if(m_filename.endsWith(F("_")))
+		if(m_filename.endsWith("_"))
 		{
 			if (m_device.image().length())
 			{
@@ -359,13 +362,13 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 		else if (m_filename.length() > 3)
 		{
 			// Switch to root
-			if(m_filename.startsWith(F("CD//")))
+			if(m_filename.startsWith("CD//"))
 			{
 				m_device.path("");
 				m_device.image("");
 			}
 
-			if (String( F(IMAGE_TYPES) ).indexOf(m_filetype) >= 0 && m_filetype.length() > 0 )
+			if (std::string( IMAGE_TYPES ).indexOf(m_filetype) >= 0 && m_filetype.length() > 0 )
 			{
 				// Mount image file
 				//Debug_printf("\r\nmount: [%s] >", m_filename.c_str());
@@ -375,7 +378,7 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 			{
 				// Enter directory
 				//Debug_printf("\r\nchangeDir: [%s] >", m_filename.c_str());
-				m_device.path( m_device.path() + m_filename.substring(3) + F("/") );				
+				m_device.path( m_device.path() + m_filename.substring(3) + "/" );				
 			}
 		}
 		
@@ -384,12 +387,12 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 			m_openState = O_DIR;
 		}
 	}
-	else if (m_filename.startsWith(F("@INFO")))
+	else if (m_filename.startsWith("@INFO"))
 	{
 		m_filename = "";
 		m_openState = O_DEVICE_INFO;
 	}
-	else if (m_filename.startsWith(F("@STAT")))
+	else if (m_filename.startsWith("@STAT"))
 	{
 		m_filename = "";
 		m_openState = O_DEVICE_STATUS;
@@ -408,7 +411,7 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 	}
 
 	//Debug_printf("\r\nhandleATNCmdCodeOpen: %d (M_OPENSTATE) [%s]", m_openState, m_atn_cmd.str);
-	Serial.printf("\r\n$IEC: DEVICE[%d] DRIVE[%d] PARTITION[%d] URL[%s] PATH[%s] IMAGE[%s] FILENAME[%s] FILETYPE[%s] COMMAND[%s]\r\n", m_device.device(), m_device.drive(), m_device.partition(), m_device.url().c_str(), m_device.path().c_str(), m_device.image().c_str(), m_filename.c_str(), m_filetype.c_str(), atn_cmd.str);
+	Debug_printf("\r\n$IEC: DEVICE[%d] DRIVE[%d] PARTITION[%d] URL[%s] PATH[%s] IMAGE[%s] FILENAME[%s] FILETYPE[%s] COMMAND[%s]\r\n", m_device.device(), m_device.drive(), m_device.partition(), m_device.url().c_str(), m_device.path().c_str(), m_device.image().c_str(), m_filename.c_str(), m_filetype.c_str(), atn_cmd.str);
 
 } // handleATNCmdCodeOpen
 
@@ -502,7 +505,7 @@ void Interface::handleATNCmdCodeDataListen()
 	if(not lengthOrResult or '>' not_eq serCmdIOBuf[0]) {
 		// FIXME: Check what the drive does here when things go wrong. FNF is probably not right.
 		m_iec.sendFNF();
-		strcpy_P(serCmdIOBuf, "response not sync.");
+		strcpy(serCmdIOBuf, "response not sync.");
 	}
 	else {
 		if(lengthOrResult = Serial.readBytes(serCmdIOBuf, 2)) {
@@ -618,7 +621,7 @@ void Interface::sendListing()
 	Debug_printf("\r\nsendListing:\r\n");
 
 	uint16_t byte_count = 0;
-	String extension = "DIR";
+	std::string extension = "DIR";
 
 	// Reset basic memory pointer:
 	uint16_t basicPtr = C64_BASIC_START;
@@ -653,7 +656,8 @@ void Interface::sendListing()
 			if (ext_pos && ext_pos != dir.fileName().length())
 			{
 				extension = dir.fileName().substring(ext_pos);
-				extension.toUpperCase();				
+				util_string_toupper(extension);
+				//extension.toUpperCase();
 			}
 			else
 			{
@@ -672,7 +676,8 @@ void Interface::sendListing()
 		}
 		
 		//Debug_printf(" (%d, %d)\r\n", space_cnt, byte_count);
-		toggleLED(true);
+		fnLedManager.toggle(LED_SIO);
+		//toggleLED(true);
 	}	
 
     byte_count += sendFooter( basicPtr );
@@ -683,7 +688,8 @@ void Interface::sendListing()
 
 	Debug_printf("\r\nBytes Sent: %d\r\n", byte_count);
 
-	ledON();
+	//ledON();
+	fnLedManager.set(LED_SIO);
 } // sendListing
 
 uint16_t Interface::sendFooter(uint16_t &basicPtr)
@@ -727,12 +733,12 @@ void Interface::sendFile()
 				m_filename = dir.fileName();			
 		}
 	}
-	String inFile = String(m_device.path()+m_filename);
+	std::string inFile = std::string(m_device.path()+m_filename);
 	
 
-	File file = m_fileSystem->open(inFile, "r");
+	FILE* file = m_fileSystem->file_open(inFile.c_str(), "rb");
 	
-	if (!file.available())
+	if (!file)
 	{
 		Debug_printf("\r\nsendFile: %s (File Not Found)\r\n", inFile.c_str());
 		m_iec.sendFNF();
@@ -769,14 +775,15 @@ void Interface::sendFile()
 
 			// Toggle LED
 			if(i % 50 == 0)
-				toggleLED(true);
+				fnLedManager.toggle(LED_SIO);
 
 			printProgress(len, i);
 		}
-		file.close();
+		fclose(file);
 		Debug_println("");
 		Debug_printf("%d bytes sent\r\n", i);
-		ledON();
+		fnLedManager.set(LED_SIO);
+		//ledON();
 
 		if( !success )
 		{
@@ -791,14 +798,14 @@ void Interface::sendFile()
 
 void Interface::saveFile()
 {
-	String outFile = String(m_device.path()+m_filename);
+	std::string outFile = std::string(m_device.path()+m_filename);
 	int b;
 	
 	Debug_printf("\r\nsaveFile: %s", outFile.c_str());
 
-	File file = m_fileSystem->open(outFile, "w");
+	FILE* file = m_fileSystem->file_open(outFile.c_str(), "w");
 //	noInterrupts();
-	if (!file.available())
+	if (!file)
 	{
 		Debug_printf("\r\nsaveFile: %s (Error)\r\n", outFile.c_str());
 	}
@@ -810,24 +817,25 @@ void Interface::saveFile()
 			b = m_iec.receive();
 			done = (m_iec.state() bitand IEC::eoiFlag) or (m_iec.state() bitand IEC::errorFlag);
 
-			file.write(b);
+			//file.write(b);
+			fwrite(&b, 2, 1, file);
 		} while(not done);
-		file.close();
+		fclose(file);
 	}
 //	interrupts();
 } // saveFile
 
 
-
+/* 
 void Interface::sendListingHTTP()
 {
 	Debug_printf("\r\nsendListingHTTP: ");
 
 	uint16_t byte_count = 0;
 
-	String user_agent( String(PRODUCT_ID) + " [" + String(FW_VERSION) + "]" );
-	String url("http://"+m_device.url()+"/api/");
-	String post_data("p="+urlencode(m_device.path())+"&i="+urlencode(m_device.image())+"&f="+urlencode(m_filename));
+	std::string user_agent( std::string(PRODUCT_ID) + " [" + std::string(FW_VERSION) + "]" );
+	std::string url("http://"+m_device.url()+"/api/");
+	std::string post_data("p="+urlencode(m_device.path())+"&i="+urlencode(m_device.image())+"&f="+urlencode(m_filename));
 
 	// Connect to HTTP server
 	HTTPClient client;
@@ -835,7 +843,7 @@ void Interface::sendListingHTTP()
 	client.setFollowRedirects(true);
 	client.setTimeout(10000);
 	if (!client.begin(url)) {
-		Debug_println(F("\r\nConnection failed"));
+		Debug_println("\r\nConnection failed");
 		m_iec.sendFNF();
 		return;
 	}
@@ -845,12 +853,12 @@ void Interface::sendListingHTTP()
 
 	int httpCode = client.POST(post_data);            //Send the request
 	WiFiClient payload = client.getStream();    //Get the response payload as Stream
-	//String payload = client.getString();    //Get the response payload as String
+	//std::string payload = client.getString();    //Get the response payload as std::string
 
 	Debug_printf("HTTP Status: %d\r\n", httpCode);   //Print HTTP return code
 	if(httpCode != 200)
 	{
-		Debug_println(F("Error"));
+		Debug_println("Error");
 		m_iec.sendFNF();
 		return;
 	}
@@ -872,12 +880,12 @@ void Interface::sendListingHTTP()
 		// Parse JSON object
 		DeserializationError error = deserializeJson(m_jsonHTTP, m_lineBuffer);
 		if (error) {
-			Serial.print(F("\r\ndeserializeJson() failed: "));
+			Serial.print("\r\ndeserializeJson() failed: ");
 			Serial.println(error.c_str());
 			break;
 		}
 
-		byte_count += sendLine(basicPtr, m_jsonHTTP["blocks"], "%s", urldecode(m_jsonHTTP["line"].as<String>()).c_str());
+		byte_count += sendLine(basicPtr, m_jsonHTTP["blocks"], "%s", urldecode(m_jsonHTTP["line"].as<std::string>()).c_str());
 		toggleLED(true);
 		m_lineBuffer = payload.readStringUntil('\n');
 		//Serial.printf("\r\nlinebuffer: %d %s", m_lineBuffer.length(), m_lineBuffer.c_str());
@@ -893,8 +901,8 @@ void Interface::sendListingHTTP()
 
 	ledON();
 } // sendListingHTTP
-
-
+ */
+/* 
 void Interface::sendFileHTTP()
 {
 	uint16_t i = 0;
@@ -908,9 +916,9 @@ void Interface::sendFileHTTP()
 
 	Debug_printf("\r\nsendFileHTTP: ");
 
-	String user_agent( String(PRODUCT_ID) + " [" + String(FW_VERSION) + "]" );
-	String url("http://"+m_device.url()+"/api/");
-	String post_data("p="+urlencode(m_device.path())+"&i="+urlencode(m_device.image())+"&f="+urlencode(m_filename));
+	std::string user_agent( std::string(PRODUCT_ID) + " [" + std::string(FW_VERSION) + "]" );
+	std::string url("http://"+m_device.url()+"/api/");
+	std::string post_data("p="+urlencode(m_device.path())+"&i="+urlencode(m_device.image())+"&f="+urlencode(m_filename));
 
 	// Connect to HTTP server
 	HTTPClient client;
@@ -918,7 +926,7 @@ void Interface::sendFileHTTP()
 	client.setFollowRedirects(true);
 	client.setTimeout(10000);
 	if (!client.begin(url)) {
-		Debug_println(F("\r\nConnection failed"));
+		Debug_println("\r\nConnection failed");
 		m_iec.sendFNF();
 		return;
 	}
@@ -986,3 +994,4 @@ void Interface::sendFileHTTP()
 		}
 	}
 }
+ */

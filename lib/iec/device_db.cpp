@@ -26,7 +26,6 @@ bool DeviceDB::init(std::string db_file)
         int index2;
         std::string path;
 
-#if defined(USE_LITTLEFS)
         do
         {
             index = database.indexOf('/', index + 1);
@@ -38,7 +37,6 @@ bool DeviceDB::init(std::string db_file)
                 m_fileSystem->mkdir(path);
             }
         } while (index2 > -1);
-#endif
 
         Debug_printf("Creating Device Database [%s]\r\n", database.c_str());
         FILE *f_database = m_fileSystem->file_open(database.c_str(), FILE_WRITE);
