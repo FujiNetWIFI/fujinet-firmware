@@ -11,6 +11,7 @@
 NetworkProtocolFS::NetworkProtocolFS(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
+    fileSize = 0;
 }
 
 NetworkProtocolFS::~NetworkProtocolFS()
@@ -249,7 +250,7 @@ bool NetworkProtocolFS::status_file(NetworkStatus *status)
     status->connected = fileSize > 0 ? 1 : 0;
     status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
 
-    NetworkProtocol::status(status);
+    // NetworkProtocol::status(status);
 
     return false;
 }
@@ -346,6 +347,11 @@ void NetworkProtocolFS::resolve()
     }
 
     Debug_printf("Resolved to %s\n", opened_url->toString().c_str());
+
+    // Clear file size, if resolved to write and not append.
+    if (aux1_open == 8)
+        fileSize = 0;
+    
 }
 
 bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame)
