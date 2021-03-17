@@ -375,6 +375,15 @@ bool util_wildcard_match(const char *str, const char *pattern)
     return lookup[n][m];
 }
 
+bool util_starts_with(std::string s, const char *pattern)
+{
+    if (s.empty() || pattern == nullptr)
+        return false;
+
+    std::string ss = s.substr(0, strlen(pattern));
+    return ss.compare(pattern) == 0;
+}
+
 /*
  Concatenates two paths by taking the parent and adding the child at the end.
  If parent is not empty, then a '/' is confirmed to separate the parent and child.

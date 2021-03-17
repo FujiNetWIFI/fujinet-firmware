@@ -24,6 +24,9 @@ enum OpenState {
 // The base pointer of basic.
 #define C64_BASIC_START 0x0801
 
+#define IMAGE_TYPES "D64|D71|D80|D81|D82|D8B|G64|X64|Z64|TAP|T64|TCRT|CRT|D1M|D2M|D4M|DHD|HDD|DNP|DFI|M2I|NIB"
+#define FILE_TYPES "C64|PRG|P00|SEQ|S00|USR|U00|REL|R00"
+
 class Interface
 {
 public:
