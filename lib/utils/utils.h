@@ -49,6 +49,7 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir);
 int util_ellipsize(const char* src, char *dst, int dstsize);
 //std::string util_ellipsize(std::string longString, int maxLength);
 bool util_wildcard_match(const char *str, const char *pattern);
+bool util_starts_with(std::string s, const char *pattern);
 
 bool util_concat_paths(char *dest, const char *parent, const char *child, int dest_size);
 

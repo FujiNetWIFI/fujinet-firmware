@@ -292,16 +292,17 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 {
 	m_device.select( atn_cmd.device );
 	m_filename = std::string((char *)atn_cmd.str);
-	m_filename.trim();
-	m_filetype = m_filename.substring(m_filename.lastIndexOf(".") + 1);
-	m_filetype.toUpperCase();
+	util_string_trim(m_filename);
+	// m_filetype = m_filename.substring(m_filename.lastIndexOf(".") + 1);
+	m_filetype = m_filename.substr(m_filename.find_last_of("."));
+	util_string_toupper(m_filetype); // .toUpperCase();
 	if ( m_filetype.length() > 4 || m_filetype.length() == m_filename.length() )
 		m_filetype = "";
 
 	Dir local_file = m_fileSystem->openDir( std::string(m_device.path() + m_filename) );
 
 	//Serial.printf("\r\n$IEC: DEVICE[%d] DRIVE[%d] PARTITION[%d] URL[%s] PATH[%s] IMAGE[%s] FILENAME[%s] FILETYPE[%s] COMMAND[%s]\r\n", m_device.device(), m_device.drive(), m_device.partition(), m_device.url().c_str(), m_device.path().c_str(), m_device.image().c_str(), m_filename.c_str(), m_filetype.c_str(), atn_cmd.str);
-	if (m_filename.startsWith("$"))
+	if (m_filename[0] == '$')
 	{
 		m_openState = O_DIR;
 	}
@@ -309,31 +310,32 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 	{
 		// Enter directory
 		Debug_printf("\r\nchangeDir: [%s] >", m_filename.c_str());
-		m_device.path( m_device.path() + m_filename.substring(3) + "/" );
+		m_device.path(m_device.path() + m_filename.substr(3) + "/");
 		m_openState = O_DIR;	
 	}
-	else if (std::string( IMAGE_TYPES ).indexOf(m_filetype) >= 0 && m_filetype.length() > 0 )
+	// else if (std::string( IMAGE_TYPES ).find(m_filetype) >= 0 && m_filetype.length() > 0 )
+	else if (std::string(IMAGE_TYPES).find(m_filetype) < std::string::npos && m_filetype.length() > 0)
 	{
 		// Mount image file
 		Debug_printf("\r\nmount: [%s] >", m_filename.c_str());
 		m_device.image( m_filename );
 
 		m_openState = O_DIR;
-	}	
-	else if (m_filename.startsWith("HTTP://"))
+	}
+	else if (util_starts_with(m_filename, "HTTP://"))
 	{
 		// Mount url
 		Debug_printf("\r\nmount: [%s] >", m_filename.c_str());
 		m_device.partition(0);
-		m_device.url(m_filename.substring(7).c_str());
+		m_device.url(m_filename.substr(7).c_str());
 		m_device.path("/");
 		m_device.image("");
 
 		m_openState = O_DIR;
 	}
-	else if (m_filename.startsWith("CD") )
+	else if (util_starts_with(m_filename, "CD"))
 	{
-		if(m_filename.endsWith("_"))
+		if (m_filename.back() == '_')
 		{
 			if (m_device.image().length())
 			{
@@ -351,7 +353,7 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 			{
 				// Go back a directory
 				//Debug_printf("\r\nchangeDir: [%s] <", m_filename.c_str());
-				m_device.path( m_device.path().substring(0, m_device.path().lastIndexOf("/", m_device.path().length() - 2) + 1) );
+				m_device.path(m_device.path().substr(0, m_device.path().find_last_of("/", m_device.path().length() - 2) + 1));
 
 				if (!m_device.path().length())
 				{
@@ -362,23 +364,23 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 		else if (m_filename.length() > 3)
 		{
 			// Switch to root
-			if(m_filename.startsWith("CD//"))
+			if (util_starts_with(m_filename, "CD//"))
 			{
 				m_device.path("");
 				m_device.image("");
 			}
 
-			if (std::string( IMAGE_TYPES ).indexOf(m_filetype) >= 0 && m_filetype.length() > 0 )
+			if (std::string(IMAGE_TYPES).find(m_filetype) < std::string::npos && !m_filetype.empty())
 			{
 				// Mount image file
 				//Debug_printf("\r\nmount: [%s] >", m_filename.c_str());
-				m_device.image( m_filename.substring(3) );
+				m_device.image(m_filename.substr(3));
 			}
 			else
 			{
 				// Enter directory
 				//Debug_printf("\r\nchangeDir: [%s] >", m_filename.c_str());
-				m_device.path( m_device.path() + m_filename.substring(3) + "/" );				
+				m_device.path(m_device.path() + m_filename.substr(3) + "/");
 			}
 		}
 		
@@ -387,12 +389,12 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 			m_openState = O_DIR;
 		}
 	}
-	else if (m_filename.startsWith("@INFO"))
+	else if (util_starts_with(m_filename, "@INFO"))
 	{
 		m_filename = "";
 		m_openState = O_DEVICE_INFO;
 	}
-	else if (m_filename.startsWith("@STAT"))
+	else if (util_starts_with(m_filename, "@STAT"))
 	{
 		m_filename = "";
 		m_openState = O_DEVICE_STATUS;
@@ -508,7 +510,8 @@ void Interface::handleATNCmdCodeDataListen()
 		strcpy(serCmdIOBuf, "response not sync.");
 	}
 	else {
-		if(lengthOrResult = Serial.readBytes(serCmdIOBuf, 2)) {
+		if (lengthOrResult = fnUartDebug.readBytes(serCmdIOBuf, 2))
+		{
 			if(2 == lengthOrResult) {
 				lengthOrResult = serCmdIOBuf[0];
 				wasSuccess = true;
@@ -594,8 +597,9 @@ uint16_t Interface::sendHeader(uint16_t &basicPtr)
 
 	// Send List HEADER
 	// "      MEAT LOAF 64      "
-	int space_cnt = (16 - strlen(PRODUCT_ID)) / 2;
-	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", PRODUCT_ID, space_cnt, "", m_device.device());
+	//	int space_cnt = (16 - strlen(PRODUCT_ID)) / 2;
+	int space_cnt = (16 - strlen(FN_VERSION_FULL)) / 2;
+	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", FN_VERSION_FULL, space_cnt, "", m_device.device());
 
 	// Send Extra INFO
 	if (m_device.url().length())
@@ -695,9 +699,12 @@ void Interface::sendListing()
 uint16_t Interface::sendFooter(uint16_t &basicPtr)
 {
 	// Send List FOOTER
-	FSInfo64 fs_info;
-    m_fileSystem->info64(fs_info);
-	return sendLine(basicPtr, (fs_info.totalBytes-fs_info.usedBytes)/256, "BLOCKS FREE.");
+	// todo TODO figure out fnFS equivalents
+	// vfs stat?
+	//FSInfo64 fs_info;
+	//m_fileSystem->info64(fs_info);
+	return sendLine(basicPtr, 0, "END.");
+	// return sendLine(basicPtr, (fs_info.totalBytes-fs_info.usedBytes)/256, "BLOCKS FREE.");
 	//Debug_println("");
 }
 
@@ -714,7 +721,8 @@ void Interface::sendFile()
 	ba[8] = '\0';
 
 	// Find first program
-	if(m_filename.endsWith("*"))
+	//if(m_filename.endsWith("*"))
+	if (m_filename.back() == '*')
 	{
 		m_filename = "";
 
@@ -745,11 +753,13 @@ void Interface::sendFile()
 	}
 	else
 	{
-		size_t len = file.size();
+		size_t len = m_fileSystem->filesize(file);
+		//.size();
 
 		Debug_printf("\r\nsendFile: [%s] (%d bytes)\r\n=================================\r\n", inFile.c_str(), len);
 		for(i = 0; success and i < len; ++i) { // End if sending to CBM fails.
-			success = file.readBytes(b, 1);
+			//success = file.readBytes(b, 1);
+			success = fread(&b, 1, 1, file);
 			if(i == len - 1)
 			{
 				success = m_iec.sendEOI(b[0]); // indicate end of file.				
@@ -777,7 +787,8 @@ void Interface::sendFile()
 			if(i % 50 == 0)
 				fnLedManager.toggle(LED_SIO);
 
-			printProgress(len, i);
+			//printProgress(len, i);
+			Debug_printf("progress: %d %d", len, i);
 		}
 		fclose(file);
 		Debug_println("");
