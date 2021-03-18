@@ -299,20 +299,25 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 	if ( m_filetype.length() > 4 || m_filetype.length() == m_filename.length() )
 		m_filetype = "";
 
-	Dir local_file = m_fileSystem->openDir( std::string(m_device.path() + m_filename) );
+	// TODO this whole directory handling needs to be
+	// rewritten using the fnFs** classes. in fact it
+	// might be handled by the fuji device class
+	// that is called by the sio config routines
 
+	FILE* local_file = m_fileSystem->file_open( std::string(m_device.path() + m_filename).c_str() );
+	
 	//Serial.printf("\r\n$IEC: DEVICE[%d] DRIVE[%d] PARTITION[%d] URL[%s] PATH[%s] IMAGE[%s] FILENAME[%s] FILETYPE[%s] COMMAND[%s]\r\n", m_device.device(), m_device.drive(), m_device.partition(), m_device.url().c_str(), m_device.path().c_str(), m_device.image().c_str(), m_filename.c_str(), m_filetype.c_str(), atn_cmd.str);
 	if (m_filename[0] == '$')
 	{
 		m_openState = O_DIR;
 	}
-	else if ( local_file.isDirectory() )
-	{
-		// Enter directory
-		Debug_printf("\r\nchangeDir: [%s] >", m_filename.c_str());
-		m_device.path(m_device.path() + m_filename.substr(3) + "/");
-		m_openState = O_DIR;	
-	}
+	// else if ( local_file.isDirectory() )
+	// {
+	// 	// Enter directory
+	// 	Debug_printf("\r\nchangeDir: [%s] >", m_filename.c_str());
+	// 	m_device.path(m_device.path() + m_filename.substr(3) + "/");
+	// 	m_openState = O_DIR;	
+	// }
 	// else if (std::string( IMAGE_TYPES ).find(m_filetype) >= 0 && m_filetype.length() > 0 )
 	else if (std::string(IMAGE_TYPES).find(m_filetype) < std::string::npos && m_filetype.length() > 0)
 	{
@@ -638,10 +643,12 @@ void Interface::sendListing()
 
     byte_count += sendHeader( basicPtr );
 
+	// TODO directory handling!!!!!
+
 	// Send List ITEMS
 	//sendLine(1, "\"THIS IS A FILE\"     PRG", basicPtr);
 	//sendLine(5, "\"THIS IS A FILE 2\"   PRG", basicPtr);
-	Dir dir = m_fileSystem->openDir(m_device.path());
+/* 	Dir dir = m_fileSystem->openDir(m_device.path());
 	while (dir.next()) {
 		uint16_t block_cnt = dir.fileSize() / 256;
 		int block_spc = 3;
@@ -683,7 +690,7 @@ void Interface::sendListing()
 		fnLedManager.toggle(LED_SIO);
 		//toggleLED(true);
 	}	
-
+ */
     byte_count += sendFooter( basicPtr );
 
 	// End program with two zeros after last line. Last zero goes out as EOI.
@@ -730,16 +737,17 @@ void Interface::sendFile()
 		{
 			m_filename = "FB64";
 		}
-		else
-		{
-			Dir dir = m_fileSystem->openDir(m_device.path());
-			while (dir.next() && dir.isDirectory())
-			{
-				Debug_printf("\r\nsendFile: %s", dir.fileName().c_str());
-			}
-			if(dir.isFile())
-				m_filename = dir.fileName();			
-		}
+		// TODO directory handling
+		// else
+		// {
+		// 	Dir dir = m_fileSystem->openDir(m_device.path());
+		// 	while (dir.next() && dir.isDirectory())
+		// 	{
+		// 		Debug_printf("\r\nsendFile: %s", dir.fileName().c_str());
+		// 	}
+		// 	if(dir.isFile())
+		// 		m_filename = dir.fileName();			
+		// }
 	}
 	std::string inFile = std::string(m_device.path()+m_filename);
 	
