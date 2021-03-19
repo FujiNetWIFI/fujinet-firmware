@@ -109,7 +109,6 @@ protected:
     void sio_get_device_filename();    // 0xDA
     void sio_set_boot_config();        // 0xD9
     void sio_copy_file();              // 0xD8
-    void sio_mount_all();              // 0xD7
     void sio_set_boot_mode();          // 0xD6
 
     void sio_status() override;
@@ -136,6 +135,8 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+
+    void sio_mount_all();              // 0xD7
 
     sioFuji();
 };

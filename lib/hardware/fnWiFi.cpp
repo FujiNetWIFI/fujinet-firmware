@@ -18,6 +18,8 @@
 #include "httpService.h"
 #include "led.h"
 
+#include "fuji.h"
+
 // Global object to manage WiFi
 WiFiManager fnWiFi;
 
@@ -438,6 +440,8 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             fnLedManager.set(eLed::LED_WIFI, true);
             fnSystem.Net.start_sntp_client();
             fnHTTPD.start();
+            if (Config.get_general_config_enabled()==false)
+                theFuji.sio_mount_all();
             break;
         case IP_EVENT_STA_LOST_IP:
             Debug_println("IP_EVENT_STA_LOST_IP");
