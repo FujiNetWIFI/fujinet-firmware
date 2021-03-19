@@ -488,6 +488,67 @@ int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
     return bytes_read;
 }
 
+// Return a string with the detected hardware version
+const char *SystemManager::get_hardware_ver_str()
+{
+    if (_hardware_version == 0)
+        check_hardware_ver(); // check it
+
+    switch (_hardware_version)
+    {
+    case 1 :
+        return "1.0";
+        break;
+    case 2:
+        return "1.1-1.5";
+        break;
+    case 3:
+        return "1.6 & up";
+        break;
+    case 0:
+    default:
+        return "Unknown";
+        break;
+    }
+}
+
+/*  Find the FujiNet hardware version by checking the
+    Pull-Up resistors.
+    Check for pullup on IO12 (v1.6 and up), Check for
+    pullup on IO14 (v1.1 and up), else v1.0
+*/
+void SystemManager::check_hardware_ver()
+{
+    int upcheck, downcheck;
+
+    fnSystem.set_pin_mode(12, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    downcheck = fnSystem.digital_read(12);
+
+    fnSystem.set_pin_mode(12, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    upcheck = fnSystem.digital_read(12);
+
+    fnSystem.set_pin_mode(14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+
+    if (upcheck == downcheck)
+    {
+        // v1.6 and up
+        _hardware_version = 3;
+    }
+    else if (fnSystem.digital_read(14) == DIGI_HIGH)
+    {
+        // v1.1 thru v1.5
+        _hardware_version = 2;
+    }
+    else
+    {
+        // v1.0
+        _hardware_version = 1;
+    }
+
+    fnSystem.set_pin_mode(12, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+    fnSystem.set_pin_mode(14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+}
+
 // Dumps list of current tasks
 void SystemManager::debug_print_tasks()
 {
