@@ -1,9 +1,9 @@
 #include "device_db.h"
 #include "../utils/utils.h"
 
-DeviceDB::DeviceDB(FileSystem *fs)
+DeviceDB::DeviceDB()//(FileSystem *fs)
 {
-    m_fileSystem = fs;
+    //m_fileSystem = fs;
     m_dirty = false;
 
 } // constructor
@@ -13,10 +13,11 @@ DeviceDB::~DeviceDB()
 
 } // destructor
 
-bool DeviceDB::init(std::string db_file)
+bool DeviceDB::init(std::string db_file, FileSystem *fs)
 {
     database = db_file;
-
+    m_fileSystem = fs;
+    
     // initialize DB file
     Debug_println("Initialize device database");
     if (!m_fileSystem->exists(database.c_str()))
@@ -34,7 +35,7 @@ bool DeviceDB::init(std::string db_file)
             if( !m_fileSystem->exists(path.c_str()) && index2 > 0)
             {
                 //Debug_printf("%d %d: %s\r\n", index, index2, path.c_str());
-                m_fileSystem->mkdir(path);
+                // TODO m_fileSystem->mkdir(path);
             }
         } while (index2 > -1);
 
@@ -83,7 +84,7 @@ bool DeviceDB::check()
                 Debug_printf("\r\nDeviceDB::init seek: %d, %.4X\r\n", i, offset);
 
                 // Parse JSON object
-                DeserializationError error = deserializeJson(m_device, f_database);
+/*                 DeserializationError error = deserializeJson(m_device, f_database);
                 if (error) {
                     Debug_print("\r\ndeserializeJson() failed: ");
                     Debug_println(error.c_str());
@@ -92,7 +93,7 @@ bool DeviceDB::check()
                 {
                     Debug_println(m_device.as);
                 }
-            }
+ */            }
         }
         fclose(f_database);
     }
@@ -102,7 +103,7 @@ bool DeviceDB::check()
 bool DeviceDB::select(uint8_t new_device)
 {
     uint32_t offset;
-    uint8_t device = m_device["device"];
+    uint8_t device = 8; //m_device["device"];
 
     if (new_device == device)
     {
@@ -119,6 +120,7 @@ bool DeviceDB::select(uint8_t new_device)
     fseek(f_database, offset, SEEK_SET);
     Debug_printf("\r\nDeviceDB::select seek: %d, %.4X", new_device, offset);
 
+/* 
     // Parse JSON object
     DeserializationError error = deserializeJson(m_device, f_database);
     if (error) {
@@ -127,6 +129,7 @@ bool DeviceDB::select(uint8_t new_device)
         return false;
     }
     //m_device["device"] = new_device;
+ */
 
     fclose(f_database);
     return true;
@@ -138,14 +141,15 @@ bool DeviceDB::save()
     if ( m_dirty )
     {
         uint32_t offset;
-        uint8_t device = m_device["device"];
+        uint8_t device = 8;
+       // m_device["device"];
 
         FILE *f_database = m_fileSystem->file_open(database.c_str(), "r+");
 
         offset = device * RECORD_SIZE;
         Debug_printf("\r\nDeviceDB::select m_dirty: %d, %.4X", device, offset);
         fseek(f_database, offset, SEEK_SET);
-        fprintf(f_database, "%10ud", m_device);
+        // fprintf(f_database, "%10ud", m_device);
         m_dirty = false;
         fclose(f_database);
     }
@@ -155,45 +159,51 @@ bool DeviceDB::save()
 
 uint8_t DeviceDB::device()
 {
-    return m_device["device"];
+    return 8;
+    //m_device["device"];
 }
 void DeviceDB::device(uint8_t device)
 {
-    if(device != m_device["device"])
+    /* if(device != m_device["device"])
     {
         select(device);
         m_device["device"] = device;
     }
+ */
 }
 
 uint8_t DeviceDB::drive()
 {
-    return m_device["drive"];
+    return 0;
+   // m_device["drive"];
 }
 void DeviceDB::drive(uint8_t drive)
 {
-    m_device["drive"] = drive;
+    // m_device["drive"] = drive;
 }
 uint8_t DeviceDB::partition()
 {
-    return m_device["partition"];
+    return 0;
+    // m_device["partition"];
 }
 void DeviceDB::partition(uint8_t partition)
 {
-    m_device["partition"] = partition;
+    // m_device["partition"] = partition;
 }
 std::string DeviceDB::url()
 {
-    return m_device["url"];
+    return "/";
+    // m_device["url"];
 }
 void DeviceDB::url(std::string url)
 {
-    m_device["url"] = url;
-    m_dirty = true;
+    // m_device["url"] = url;
+    // m_dirty = true;
 }
 std::string DeviceDB::path()
 {
-    return m_device["path"];
+    return "/";
+    // m_device["path"];
 }
 void DeviceDB::path(std::string path)
 {
@@ -201,18 +211,19 @@ void DeviceDB::path(std::string path)
     util_replaceAll(path, "//", "/");
     if (path.empty())
         path = "/";
-    m_device["path"] = path;
-    m_dirty = true;
+    // m_device["path"] = path;
+    // m_dirty = true;
 }
 std::string DeviceDB::image()
 {
-    return m_device["image"];
+    return "FB64";
+    // m_device["image"];
 }
 void DeviceDB::image(std::string image)
 {
     if (image.empty())
         image = "";
-    m_device["image"] = image;
-    m_dirty = true;
+    //m_device["image"] = image;
+    //m_dirty = true;
 }
 

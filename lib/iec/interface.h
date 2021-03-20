@@ -1,8 +1,8 @@
 #ifndef INTERFACE_H
 #define INTERFACE_H
 
-#include "iec.h"
 #include "device_db.h"
+#include "iec.h"
 
 #include <string>
 
@@ -30,10 +30,10 @@ enum OpenState {
 class Interface
 {
 public:
-	Interface(IEC &iec, FileSystem *fileSystem);
+	Interface();// IEC &iec, FileSystem *fileSystem);
 	virtual ~Interface() {}
 
-	bool begin();
+	bool begin(IEC &iec, FileSystem *fileSystem);
 
 	// The handler returns the current IEC state, see the iec.hpp for possible states.
 	int loop(void);
@@ -55,13 +55,13 @@ private:
 	void sendDeviceStatus(void);
 
 	void sendListing(void);
-	void sendListingHTTP(void);
+	// void sendListingHTTP(void);
 	uint16_t sendHeader(uint16_t &basicPtr);
 	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, char* text);
 	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...);
 	uint16_t sendFooter(uint16_t &basicPtr);
 	void sendFile(void);
-	void sendFileHTTP(void);
+	// void sendFileHTTP(void);
 
 	void saveFile(void);
 
@@ -81,8 +81,6 @@ private:
 	// This var is set after an open command and determines what to send next
 	int m_openState;			// see OpenState
 	int m_queuedError;
-
-
 
 	// atn command buffer struct
 	IEC::ATNCmd& m_atn_cmd;

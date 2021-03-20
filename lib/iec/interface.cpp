@@ -31,13 +31,14 @@
 //#include "global_defines.h"
 //#include "debug.h"
 #include "interface.h"
+#include "iec.h"
 
 #include <stdarg.h>
 #include <string.h>
 
 #include "../hardware/fnSystem.h"
 #include "../hardware/led.h"
-#include "../include/version.h"
+#include "../../include/version.h"
 #include "../utils/utils.h"
 
 using namespace CBM;
@@ -49,7 +50,7 @@ char serCmdIOBuf[MAX_BYTES_PER_REQUEST];
 
 } // unnamed namespace
 
-Interface::Interface(IEC &iec, FileSystem *fileSystem)
+Interface::Interface() // (IEC &iec, FileSystem *fileSystem)
 	: m_iec(iec)
 	  // NOTE: Householding with RAM bytes: We use the middle of serial buffer for the ATNCmd buffer info.
 	  // This is ok and won't be overwritten by actual serial data from the host, this is because when this ATNCmd data is in use
@@ -59,15 +60,18 @@ Interface::Interface(IEC &iec, FileSystem *fileSystem)
 //	,  m_device(&fileSystem)
 //,  m_jsonHTTPBuffer(1024)
 {
-	m_fileSystem = fileSystem;
+	// m_fileSystem = fileSystem;
 	reset();
 } // ctor
 
 
-bool Interface::begin()
+bool Interface::begin(IEC &iec, FileSystem *fileSystem)
 {
 	//	m_device.init(std::string(DEVICE_DB));
 	//m_device.check();
+	m_iec = iec;
+	m_fileSystem = fileSystem;
+	return true;
 }
 
 void Interface::reset(void)
@@ -80,8 +84,9 @@ void Interface::reset(void)
 void Interface::sendStatus(void)
 {
 	int i, readResult;
-
+	
 	std::string status("00, OK, 00, 08");
+	readResult = status.length();
 
 	Debug_printf("\r\nsendStatus: ");
 	// Length does not include the CR, write all but the last one should be with EOI.
@@ -217,23 +222,24 @@ int Interface::loop(void)
 //	}
 //#endif
 	// Wait for it to get out of reset.
-	while (m_iec.checkRESET())
-	{
-		Debug_println("ATN_RESET");
-	}
+	// while (m_iec.checkRESET())
+	// {
+	// 	Debug_println("ATN_RESET");
+	// }
 
 //	noInterrupts();
 	IEC::ATNCheck retATN = m_iec.checkATN( m_atn_cmd);
 //	interrupts();
 
-	if(retATN == IEC::ATN_ERROR) {
+	if(retATN == IEC::ATN_ERROR)
+	{
 		//Debug_printf("\r\n[ERROR]");
 		reset();
-		retATN == IEC::ATN_IDLE;
+		retATN = IEC::ATN_IDLE;
 	}
 	// Did anything happen from the host side?
-	else if(retATN not_eq IEC::ATN_IDLE) {
-
+	else if(retATN not_eq IEC::ATN_IDLE)
+	 {
 		switch( m_atn_cmd.command) {
 			case IEC::ATN_CODE_OPEN:
 				if ( m_atn_cmd.channel == 0 )
@@ -304,7 +310,7 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 	// might be handled by the fuji device class
 	// that is called by the sio config routines
 
-	FILE* local_file = m_fileSystem->file_open( std::string(m_device.path() + m_filename).c_str() );
+	// FILE* local_file = m_fileSystem->file_open( std::string(m_device.path() + m_filename).c_str() );
 	
 	//Serial.printf("\r\n$IEC: DEVICE[%d] DRIVE[%d] PARTITION[%d] URL[%s] PATH[%s] IMAGE[%s] FILENAME[%s] FILETYPE[%s] COMMAND[%s]\r\n", m_device.device(), m_device.drive(), m_device.partition(), m_device.url().c_str(), m_device.path().c_str(), m_device.image().c_str(), m_filename.c_str(), m_filetype.c_str(), atn_cmd.str);
 	if (m_filename[0] == '$')
@@ -456,7 +462,7 @@ void Interface::handleATNCmdCodeDataTalk(int chan)
 				// Send program file
 				if(m_device.url().length())
 				{
-					sendFileHTTP();
+					// sendFileHTTP();
 				}
 				else
 				{
@@ -468,7 +474,7 @@ void Interface::handleATNCmdCodeDataTalk(int chan)
 				// Send listing
 				if(m_device.url().length())
 				{
-					sendListingHTTP();
+					// sendListingHTTP();
 				}
 				else
 				{
@@ -499,7 +505,7 @@ void Interface::handleATNCmdCodeDataTalk(int chan)
 
 void Interface::handleATNCmdCodeDataListen()
 {
-	int lengthOrResult;
+	int lengthOrResult = 0;
 	bool wasSuccess = false;
 
 	// process response into m_queuedError.
@@ -509,13 +515,14 @@ void Interface::handleATNCmdCodeDataListen()
 
 	Debug_printf("\r\nhandleATNCmdCodeDataListen: %s", serCmdIOBuf);
 
-	if(not lengthOrResult or '>' not_eq serCmdIOBuf[0]) {
+	if(not lengthOrResult or '>' not_eq serCmdIOBuf[0])
+	 {
 		// FIXME: Check what the drive does here when things go wrong. FNF is probably not right.
 		m_iec.sendFNF();
 		strcpy(serCmdIOBuf, "response not sync.");
 	}
 	else {
-		if (lengthOrResult = fnUartDebug.readBytes(serCmdIOBuf, 2))
+		if (lengthOrResult == fnUartDebug.readBytes(serCmdIOBuf, 2))
 		{
 			if(2 == lengthOrResult) {
 				lengthOrResult = serCmdIOBuf[0];
@@ -598,7 +605,7 @@ uint16_t Interface::sendLine(uint16_t &basicPtr, uint16_t blocks, char* text)
 
 uint16_t Interface::sendHeader(uint16_t &basicPtr)
 {
-    uint16_t byte_count;
+	uint16_t byte_count = 0;
 
 	// Send List HEADER
 	// "      MEAT LOAF 64      "
@@ -721,11 +728,11 @@ void Interface::sendFile()
 	uint16_t i = 0;
 	bool success = true;
 
-	uint16_t bi = 0;
+	//uint16_t bi = 0;
 	char b[1];
-	int ba[9];
+	//int ba[9];
 
-	ba[8] = '\0';
+	//ba[8] = '\0';
 
 	// Find first program
 	//if(m_filename.endsWith("*"))

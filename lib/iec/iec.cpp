@@ -550,3 +550,5 @@ IEC::IECState IEC::state() const
 {
 	return static_cast<IECState>(m_state);
 } // state
+
+IEC iec;
