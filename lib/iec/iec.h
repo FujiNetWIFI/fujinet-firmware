@@ -221,4 +221,6 @@ private:
 	int m_state;
 };
 
+extern IEC iec;
+
 #endif

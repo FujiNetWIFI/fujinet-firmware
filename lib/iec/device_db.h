@@ -11,10 +11,10 @@
 class DeviceDB
 {
 public:
-    DeviceDB(FileSystem *fs);
+    DeviceDB();
     ~DeviceDB();
 
-    bool init(std::string database);
+    bool init(std::string database, FileSystem *fs);
     bool check();
     bool save();
 
@@ -38,7 +38,7 @@ public:
 private:
     bool m_dirty;
     FileSystem *m_fileSystem;
-    StaticJsonDocument<256> m_device;
+    // StaticJsonDocument<256> m_device;
 };
 
 #endif
