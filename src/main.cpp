@@ -8,6 +8,7 @@
 #include "keys.h"
 #include "led.h"
 #include "sio.h"
+#include "interface.h" // c64
 #include "fuji.h"
 #include "modem.h"
 #include "apetime.h"
@@ -40,6 +41,9 @@ sioMIDIMaze sioMIDI;
 // sioCassette sioC; // now part of sioFuji theFuji object
 sioModem *sioR;
 sioCPM sioZ;
+
+#define DEVICE_MASK 0b00000000000000000000111100000000 //  Devices 8-11
+Interface drive;
 
 void main_shutdown_handler()
 {
@@ -133,6 +137,68 @@ void main_setup()
 #endif
 }
 
+void cbm_setup()
+{
+
+#ifdef DEBUG
+    fnUartDebug.begin(DEBUG_SPEED);
+    unsigned long startms = fnSystem.millis();
+    Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
+    Debug_printf("\nIEC Version!\n\n");
+    Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
+    Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
+    Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
+    Debug_printf("himem free %u\n", esp_himem_get_free_size());
+    Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
+#endif
+    // Install a reboot handler
+    esp_register_shutdown_handler(main_shutdown_handler);
+
+    esp_err_t e = nvs_flash_init();
+    if (e == ESP_ERR_NVS_NO_FREE_PAGES || e == ESP_ERR_NVS_NEW_VERSION_FOUND)
+    {
+        Debug_println("Erasing flash");
+        ESP_ERROR_CHECK(nvs_flash_erase());
+        e = nvs_flash_init();
+    }
+    ESP_ERROR_CHECK(e);
+
+    fnKeyManager.setup();
+    fnLedManager.setup();
+
+    fnSPIFFS.start();
+    fnSDFAT.start();
+
+    // Load our stored configuration
+    Config.load();
+
+    {
+        // Set up the WiFi adapter
+        fnWiFi.start();
+        // Go ahead and try reconnecting to WiFi
+        fnWiFi.connect();
+    }
+
+    // Go setup IEC
+    iec.enabledDevices = DEVICE_MASK;
+    iec.init();
+    Debug_println("IEC Bus Initialized");
+
+    drive.begin(iec, &fnSDFAT);
+    Debug_print("Virtual Device(s) Started: [ ");
+    for (int i = 0; i < 31; i++)
+    {
+        if (iec.isDeviceEnabled(i))
+        {
+            Debug_printf("%.02d ", i);
+        }
+    }
+    Debug_println("]");
+
+#ifdef DEBUG
+    unsigned long endms = fnSystem.millis();
+    Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
+#endif}
 
 // Main high-priority service loop
 void fn_service_loop(void *param)
@@ -147,7 +213,10 @@ void fn_service_loop(void *param)
             fnBtManager.service();
         else
     #endif
-            SIO.service();
+
+            // THIS IS WHERE WE CAN SELECT THE HOST MACHINE
+            //    SIO.service();
+            drive.loop();
     }
 }
 
