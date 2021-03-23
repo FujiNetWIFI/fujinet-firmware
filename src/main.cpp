@@ -198,7 +198,8 @@ void cbm_setup()
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
-#endif}
+#endif
+}
 
 // Main high-priority service loop
 void fn_service_loop(void *param)
@@ -228,7 +229,9 @@ extern "C"
     void app_main()
     {
         // Call our setup routine
-        main_setup();
+        cbm_setup();
+        
+        //main_setup();
 
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1; the WiFi task ends up on CPU0

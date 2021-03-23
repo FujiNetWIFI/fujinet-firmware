@@ -34,7 +34,7 @@
 #include "cbmdefines.h"
 #include "Petscii.h"
 
-// ESP8266 GPIO to C64 IEC Serial Port
+// ESP32 GPIO to C64 IEC Serial Port
 #define IEC_PIN_ATN     39      // CMD
 #define IEC_PIN_CLOCK   27      // CKI
 #define IEC_PIN_DATA    32      // CKO
