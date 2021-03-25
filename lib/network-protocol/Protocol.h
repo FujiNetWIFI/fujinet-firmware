@@ -68,6 +68,11 @@ public:
     bool fromInterrupt = false;
 
     /**
+     * Enable interrupts?
+     */
+    bool interruptEnable = true;
+
+    /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
