@@ -35,7 +35,7 @@
 #include "Petscii.h"
 
 // ESP32 GPIO to C64 IEC Serial Port
-#define IEC_PIN_ATN     39      // CMD
+#define IEC_PIN_ATN     22      // PROC
 #define IEC_PIN_CLOCK   27      // CKI
 #define IEC_PIN_DATA    32      // CKO
 #define IEC_PIN_SRQ     26      // INT
@@ -198,15 +198,15 @@ private:
 	{
 		// releasing line can set to input mode, which won't drive the bus - simple way to mimic open collector
 		fnSystem.set_pin_mode(pinNumber, state==pull ? gpio_mode_t::GPIO_MODE_OUTPUT : gpio_mode_t::GPIO_MODE_INPUT);
-		fnSystem.digital_write(pinNumber, state==pull ? DIGI_LOW : DIGI_HIGH);
+		if (state == pull)
+			fnSystem.digital_write(pinNumber, DIGI_LOW);
 	}
 	
-	/* ATN not written by peripherals 
+	// ATN not written by peripherals 
 	inline void writeATN(IECline state)
 	{
 		writePIN(IEC_PIN_ATN, state);
 	}
-    */
 
 	inline void writeCLOCK(IECline state)
 	{
