@@ -54,12 +54,17 @@
 // See timeoutWait
 #define TIMEOUT 65500
 
-#define HIGH 0x1
-#define LOW  0x0
+// #define HIGH 0x1
+// #define LOW  0x0
 
 class IEC
 {
 public:
+	enum IECline
+	{
+		pull = true,
+		release = false
+	};
 
 	enum IECState {
 		noFlags   = 0,
@@ -139,22 +144,22 @@ public:
 
 	IECState state() const;
 
-	inline bool readATN()
+	inline IECline readATN()
 	{
 		return readPIN(IEC_PIN_ATN);
 	}
 
-	inline bool readCLOCK()
+	inline IECline readCLOCK()
 	{
 		return readPIN(IEC_PIN_CLOCK);
 	}
 
-	inline bool readDATA()
+	inline IECline readDATA()
 	{
 		return readPIN(IEC_PIN_DATA);
 	}
 
-	inline bool readSRQ()
+	inline IECline readSRQ()
 	{
 		return readPIN(IEC_PIN_SRQ);
 	}
@@ -174,45 +179,46 @@ private:
 	ATNCheck deviceClose(ATNCmd& atn_cmd);		// 0xE0 + channel		Close, channel
 	ATNCheck deviceOpen(ATNCmd& atn_cmd);		// 0xF0 + channel		Open, channel
 
-	int timeoutWait(int waitBit, bool whileHigh);
+	bool timeoutWait(int waitBit, IECline whileHigh);
 	int receiveByte(void);
 	bool sendByte(int data, bool signalEOI);
 	bool turnAround(void);
 	bool undoTurnAround(void);
 
-	// false = LOW, true == HIGH
-	inline bool readPIN(int pinNumber)
+	// true => PULL => DIGI_LOW, false => RELEASE => DIGI_HIGH
+	inline IECline readPIN(int pinNumber)
 	{
 		// To be able to read line we must be set to input, not driving.
 		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
-		return fnSystem.digital_read(pinNumber) ? true : false;
+		return fnSystem.digital_read(pinNumber) ? release : pull;
 	}
 
-	// true == PULL == HIGH, false == RELEASE == LOW
-	// TO DO: is above right? I thought PULL == LOW and RELEASE == HIGH
-	inline void writePIN(int pinNumber, bool state)
+	// true => PULL => DIGI_LOW, false => RELEASE => DIGI_HIGH
+	inline void writePIN(int pinNumber, IECline state)
 	{
-		// TOD O: why set input/output mode same as state?
-		fnSystem.set_pin_mode(pinNumber, state ? gpio_mode_t::GPIO_MODE_OUTPUT : gpio_mode_t::GPIO_MODE_INPUT);
-		fnSystem.digital_write(pinNumber, state ? LOW : HIGH);
+		// releasing line can set to input mode, which won't drive the bus - simple way to mimic open collector
+		fnSystem.set_pin_mode(pinNumber, state==pull ? gpio_mode_t::GPIO_MODE_OUTPUT : gpio_mode_t::GPIO_MODE_INPUT);
+		fnSystem.digital_write(pinNumber, state==pull ? DIGI_LOW : DIGI_HIGH);
 	}
-
-	inline void writeATN(bool state)
+	
+	/* ATN not written by peripherals 
+	inline void writeATN(IECline state)
 	{
 		writePIN(IEC_PIN_ATN, state);
 	}
+    */
 
-	inline void writeCLOCK(bool state)
+	inline void writeCLOCK(IECline state)
 	{
 		writePIN(IEC_PIN_CLOCK, state);
 	}
 
-	inline void writeDATA(bool state)
+	inline void writeDATA(IECline state)
 	{
 		writePIN(IEC_PIN_DATA, state);
 	}
 
-	inline void writeSRQ(bool state)
+	inline void writeSRQ(IECline state)
 	{
 		writePIN(IEC_PIN_SRQ, state);
 	}

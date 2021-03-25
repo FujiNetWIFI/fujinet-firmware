@@ -10,59 +10,49 @@ IEC::IEC() :
 {
 } // ctor
 
-// Set all IEC_signal lines in the correct mode
-//
+// Set all IEC_signal lines in the correct mode for power up state
 bool IEC::init()
 {
-	// make sure the output states are initially LOW.
-	fnSystem.set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_OUTPUT);
-	fnSystem.set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_OUTPUT);
-	fnSystem.set_pin_mode(IEC_PIN_CLOCK, gpio_mode_t::GPIO_MODE_OUTPUT);
-//	fnSystem.set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_OUTPUT);
-	fnSystem.digital_write(IEC_PIN_ATN, false);
-	fnSystem.digital_write(IEC_PIN_DATA, false);
-	fnSystem.digital_write(IEC_PIN_CLOCK, false);
-//	fnSystem.digital_write(IEC_PIN_SRQ, true);
+	// the I/O signaling method used by this low level driver uses two states:
+	// PULL state is pin set to GPIO_MODE_OUTPUT with the output driving DIGI_LOW (0V)
+	// RELEASE state is pin set to GPIO_MODE_INPUT so it doesn't drive the bus
+	// and it allows the C64 pullup to do its job
 
-//#ifdef RESET_C64
-//	fnSystem.set_pin_mode(m_resetPin, gpio_mode_t::GPIO_MODE_OUTPUT);
-//	fnSystem.digital_write(m_resetPin, false);	// only early C64's could be reset by a slave going high.
-//#endif
+	// The CLOCK and DATA lines are bidirectional
+	// The ATN line is input only for peripherals
+	// The SQR line is output only for peripherals
 
-	// initial pin modes in GPIO.
-	fnSystem.set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_INPUT);
-	fnSystem.set_pin_mode(IEC_PIN_CLOCK, gpio_mode_t::GPIO_MODE_INPUT);
-	fnSystem.set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);
-//	fnSystem.set_pin_mode(IEC_PIN_RESET, gpio_mode_t::GPIO_MODE_INPUT);
+	// set up IO states
+	readATN();
+	writeCLOCK(release);
+	writeDATA(release);
+	writeSRQ(release);
 
-
-	// Set port low, we don't need internal pullup
-	// and DDR input such that we release all signals
-	// IEC_PORT and_eq compl(IEC_BIT_ATN bitor IEC_BIT_CLOCK bitor IEC_BIT_DATA);
-	// IEC_DDR and_eq compl(IEC_BIT_ATN bitor IEC_BIT_CLOCK bitor IEC_BIT_DATA);
+	// TODO:
+	//#ifdef RESET_C64
+	//	fnSystem.set_pin_mode(m_resetPin, gpio_mode_t::GPIO_MODE_OUTPUT);
+	//	fnSystem.digital_write(m_resetPin, false);	// only early C64's could be reset by a slave going high.
+	//#endif
+	//	fnSystem.set_pin_mode(IEC_PIN_RESET, gpio_mode_t::GPIO_MODE_INPUT);
 
 	m_state = noFlags;
 
 	return true;
 } // init
 
-int IEC::timeoutWait(int waitBit, bool whileHigh)
+// timeoutWait returns true if timed out
+bool IEC::timeoutWait(int waitBit, IECline waitFor)
 {
 	uint16_t t = 0;
-	bool c;
-	
-//	ESP.wdtFeed();
-	while(t < TIMEOUT) {
+	IECline c;
 
+	//	ESP.wdtFeed();
+	while (t < TIMEOUT)
+	{
 		// Check the waiting condition:
 		c = readPIN(waitBit);
 
-		if(whileHigh)
-		{
-			c = not c;	
-		}
-
-		if(c)
+		if (c == waitFor)
 		{
 			//Debug_println("timeoutWait: false");
 			return false;
@@ -73,8 +63,8 @@ int IEC::timeoutWait(int waitBit, bool whileHigh)
 	}
 	// If down here, we have had a timeout.
 	// Release lines and go to inactive state with error flag
-	writeCLOCK(false);
-	writeDATA(false);
+	writeCLOCK(release);
+	writeDATA(release);
 
 	m_state = errorFlag;
 
@@ -84,7 +74,7 @@ int IEC::timeoutWait(int waitBit, bool whileHigh)
 	// Note: The while above is without timeout. If ATN is held low forever,
 	//       the CBM is out in the woods and needs a reset anyways.
 
-	Debug_printf("\r\ntimeoutWait: true [%d] [%d] [%d] [%d]", waitBit, whileHigh, t, m_state);
+	Debug_printf("\r\ntimeoutWait: true [%d] [%d] [%d] [%d]", waitBit, waitFor, t, m_state);
 	return true;
 } // timeoutWait
 
@@ -94,58 +84,92 @@ int IEC::timeoutWait(int waitBit, bool whileHigh)
 // Returns data recieved
 // Might set flags in iec_state
 //
+/*	 from Derogee's "IEC Disected"
+STEP 1: READY TO SEND
+Sooner or later, the talker will want to talk, and send a character. When it's ready to go, it releases
+the Clock line to false. This signal change might be translated as "I'm ready to send a character."
+The listener must detect this and respond, but it doesn't have to do so immediately. The listener will
+respond to the talker's "ready to send" signal whenever it likes; it can wait a long time. If it's a
+printer chugging out a line of print, or a disk drive with a formatting job in progress, it might hold
+back for quite a while; there's no time limit.
+ */
+
 // FIXME: m_iec might be better returning bool and returning read byte as reference in order to indicate any error.
+// or make the error negative int and valid data positive byte < 256
 int IEC::receiveByte(void)
 {
 	m_state = noFlags;
 
 	// Wait for talker ready
-	if(timeoutWait(IEC_PIN_CLOCK, false))
-		return 0;
+	if (timeoutWait(IEC_PIN_CLOCK, release))
+		return -1; // return error because timeout
 
 	// Say we're ready
-	writeDATA(false);
+	writeDATA(release);
 
+	/* from Derogee's "IEC Disected"
+	INTERMISSION: EOI
+	If the Ready for Data signal isn't acknowledged by the talker within 200 microseconds, the listener
+	knows that the talker is trying to signal EOI. EOI, which formally stands for "End of Indicator,"
+	means "this character will be the last one."
+	*/
 	// Record how long CLOCK is high, more than 200 us means EOI
 	int n = 0;
-	while(readCLOCK() and (n < 20)) {
+	while ((readCLOCK() == release) and (n < 20))
+	{
 		fnSystem.delay_microseconds(10);  // this loop should cycle in about 10 us...
 		n++;
 	}
-
-	if(n >= TIMING_EOI_THRESH) {
+	/*  from Derogee's "IEC Disected"
+	So if the listener sees the 200
+	microsecond time-out, it must signal "OK, I noticed the EOI" back to the talker, it does this by
+	pulling the Data line true for at least 60 microseconds, and then releasing it. The talker will then
+	revert to transmitting the character in the usual way; within 60 microseconds it will pull the Clock
+	line true, and transmission will continue. At this point, the Clock line is true whether or not we
+	have gone through the EOI sequence; we're back to a common transmission sequence.
+	*/
+	if (n >= TIMING_EOI_THRESH)
+	{
 		// EOI intermission
-		m_state or_eq eoiFlag;
+		m_state or_eq eoiFlag; // or_eq, |=
 
 		// Acknowledge by pull down data more than 60 us
-		writeDATA(true);
+		writeDATA(pull);
 		fnSystem.delay_microseconds(TIMING_BIT);
-		writeDATA(false);
-
-		// but still wait for clk
-		if(timeoutWait(IEC_PIN_CLOCK, true))
-			return 0;
+		writeDATA(release);
 	}
 
+	// for clk
+	if (timeoutWait(IEC_PIN_CLOCK, pull))
+		return 0;
+
+	// TODO: why?
 	// Sample ATN
 	if(false == readATN())
 		m_state or_eq atnFlag;
 
 	int data = 0;
-	// Get the bits, sampling on clock rising edge:
-//	ESP.wdtFeed();
+	// Get the bits, sampling on clock rising edge, logic 0,0V to logic 1,5V:
 	for(n = 0; n < 8; n++) {
 		data >>= 1;
-		if(timeoutWait(IEC_PIN_CLOCK, false))
-			return 0;
-		data or_eq (readDATA() ? (1 << 7) : 0);
-		if(timeoutWait(IEC_PIN_CLOCK, true))
-			return 0;
+		if (timeoutWait(IEC_PIN_CLOCK, release)) // look for rising edge
+			return -1;
+		data or_eq (readDATA() == pull ? (1 << 7) : 0); // read bit and shift in LSB first
+		if (timeoutWait(IEC_PIN_CLOCK, pull))			// wait for falling edge
+			return -1;
 	}
 	//Debug_printf("%.2X ", data);
 
+	/*
+	STEP 4: FRAME HANDSHAKE
+	After the eighth bit has been sent, it's the listener's turn to acknowledge. At this moment, the Clock
+	line is true and the Data line is false. The listener must acknowledge receiving the byte OK by
+	pulling the Data line to true. The talker is now watching the Data line. If the listener doesn't pull
+	the Data line true within one millisecond - one thousand microseconds - it will know that
+	something's wrong and may alarm appropriately.
+	*/
 	// Signal we accepted data:
-	writeDATA(true);
+	writeDATA(pull);
 
 	return data;
 } // receiveByte
@@ -162,7 +186,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	// 	return false;
 
 	// Say we're ready
-	writeCLOCK(false);
+	writeCLOCK(release);
 
 	// Wait for listener to be ready
 	if(timeoutWait(IEC_PIN_DATA, false))
@@ -186,23 +210,23 @@ bool IEC::sendByte(int data, bool signalEOI)
 	fnSystem.delay_microseconds(TIMING_NO_EOI);
 
 	// Send bits
-//	ESP.wdtFeed();
+	//	ESP.wdtFeed();
 	for(int n = 0; n < 8; n++) {
 		// FIXME: Here check whether data pin goes low, if so end (enter cleanup)!
 
-		writeCLOCK(true);
+		writeCLOCK(pull);
 		// set data
-		writeDATA((data bitand 1) ? false : true);
+		writeDATA((data bitand 1) ? pull : release);
 
 		fnSystem.delay_microseconds(TIMING_BIT);
-		writeCLOCK(false);
+		writeCLOCK(release);
 		fnSystem.delay_microseconds(TIMING_BIT);
 
 		data >>= 1;
 	}
 
-	writeCLOCK(true);
-	writeDATA(false);
+	writeCLOCK(pull);
+	writeDATA(release);
 
 	// FIXME: Maybe make the following ending more like sd2iec instead.
 
@@ -274,17 +298,35 @@ bool IEC::undoTurnAround(void)
 // If a command is recieved, the atn_cmd.string is saved in atn_cmd. Only commands
 // for *this* device are dealt with.
 //
+/** from Derogee's "IEC Disected"
+ * ATN SEQUENCES
+ * When ATN is pulled true, everybody stops what they are doing. The processor will quickly pull the
+ * Clock line true (it's going to send soon), so it may be hard to notice that all other devices release the
+ * Clock line. At the same time, the processor releases the Data line to false, but all other devices are
+ * getting ready to listen and will each pull Data to true. They had better do this within one
+ * millisecond (1000 microseconds), since the processor is watching and may sound an alarm ("device
+ * not available") if it doesn't see this take place. Under normal circumstances, transmission now
+ * takes place as previously described. The computer is sending commands rather than data, but the
+ * characters are exchanged with exactly the same timing and handshakes as before. All devices
+ * receive the commands, but only the specified device acts upon it. This results in a curious
+ * situation: you can send a command to a nonexistent device (try "OPEN 6,6") - and the computer
+ * will not know that there is a problem, since it receives valid handshakes from the other devices.
+ * The computer will notice a problem when you try to send or receive data from the nonexistent
+ * device, since the unselected devices will have dropped off when ATN ceased, leaving you with
+ * nobody to talk to.
+ */
 // Return value, see IEC::ATNCheck definition.
 IEC::ATNCheck IEC::checkATN(ATNCmd& atn_cmd)
 {
 	ATNCheck ret = ATN_IDLE;
 	int i = 0;
 
-	if(not readATN()) {
-
-		// Attention line is active, go to listener mode and get message. Being fast with the next two lines here is CRITICAL!
-		writeDATA(true);
-		writeCLOCK(false);
+	if (readATN() == pull)
+	{
+		// Attention line is pulled, go to listener mode and get message.
+		// Being fast with the next two lines here is CRITICAL!
+		writeDATA(pull);
+		writeCLOCK(release);
 		fnSystem.delay_microseconds(TIMING_ATN_PREDELAY);
 
 		// Get first ATN byte, it is either LISTEN or TALK
@@ -356,7 +398,7 @@ IEC::ATNCheck IEC::checkATN(ATNCmd& atn_cmd)
 		// some delay is required before more ATN business can take place.
 		fnSystem.delay_microseconds(TIMING_ATN_DELAY);
 
-		atn_cmd.strLen = i;			
+		atn_cmd.strLen = i;
 	}
 	else 
 	{
@@ -368,6 +410,15 @@ IEC::ATNCheck IEC::checkATN(ATNCmd& atn_cmd)
 	return ret;
 } // checkATN
 
+/**
+ * from Derogee's "IEC Disected"
+ * TRANSMISSION: STEP ZERO
+ * Let's look at the sequence when a character is about to be transmitted. At this time, both the Clock
+ * line and the Data line are being held down to the true state. With a test instrument, you can't tell
+ * who's doing it, but I'll tell you: the talker is holding the Clock line true, and the listener is holding
+ * the Data line true. There could be more than one listener, in which case all of the listeners are
+ * holding the Data line true. Each of the signals might be viewed as saying, "I'm here!".
+*/
 IEC::ATNCheck IEC::deviceListen(ATNCmd& atn_cmd)
 {
 	int i=0;
