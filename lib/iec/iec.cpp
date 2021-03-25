@@ -23,9 +23,13 @@ bool IEC::init()
 	// The SQR line is output only for peripherals
 
 	// set up IO states
+	writeATN(pull);
 	readATN();
+	writeCLOCK(pull);
 	writeCLOCK(release);
+	writeDATA(pull);
 	writeDATA(release);
+	writeSRQ(pull);
 	writeSRQ(release);
 
 	// TODO:
@@ -120,6 +124,7 @@ int IEC::receiveByte(void)
 		fnSystem.delay_microseconds(10);  // this loop should cycle in about 10 us...
 		n++;
 	}
+
 	/*  from Derogee's "IEC Disected"
 	So if the listener sees the 200
 	microsecond time-out, it must signal "OK, I noticed the EOI" back to the talker, it does this by
@@ -137,11 +142,11 @@ int IEC::receiveByte(void)
 		writeDATA(pull);
 		fnSystem.delay_microseconds(TIMING_BIT);
 		writeDATA(release);
-	}
 
-	// for clk
-	if (timeoutWait(IEC_PIN_CLOCK, pull))
-		return 0;
+		// C64 should pull clock in response
+		if (timeoutWait(IEC_PIN_CLOCK, pull))
+			return -1;
+	}
 
 	// TODO: why?
 	// Sample ATN
@@ -181,6 +186,18 @@ int IEC::receiveByte(void)
 //
 bool IEC::sendByte(int data, bool signalEOI)
 {
+	/* STEP 1: READY TO SEND
+	Sooner or later, the talker will want to talk, and send a character. When it's ready to go, it releases
+	the Clock line to false. This signal change might be translated as "I'm ready to send a character."
+	The listener must detect this and respond, but it doesn't have to do so immediately. The listener will
+	respond to the talker's "ready to send" signal whenever it likes; it can wait a long time. If it's a
+	printer chugging out a line of print, or a disk drive with a formatting job in progress, it might hold
+	back for quite a while; there's no time limit
+
+	STEP 2: READY FOR DATA
+	When the listener is ready to listen, it releases the Data line to false.
+	*/
+
 	// //Listener must have accepted previous data
 	// if(timeoutWait(IEC_PIN_DATA, true))
 	// 	return false;
@@ -188,11 +205,23 @@ bool IEC::sendByte(int data, bool signalEOI)
 	// Say we're ready
 	writeCLOCK(release);
 
-	// Wait for listener to be ready
-	if(timeoutWait(IEC_PIN_DATA, false))
+	// Wait for listener to release DATA to signal it is ready
+	if(timeoutWait(IEC_PIN_DATA, release))
 		return false;
 
-	if(signalEOI) {
+	if(signalEOI) 
+	{
+		/*
+		INTERMISSION: EOI
+		If the Ready for Data signal isn't acknowledged by the talker within 200 microseconds, the listener
+		knows that the talker is trying to signal EOI. EOI, which formally stands for "End of Indicator,"
+		means "this character will be the last one." ... So if the listener sees the 200
+		microsecond time-out, it must signal "OK, I noticed the EOI" back to the talker, I does this by
+		pulling the Data line true for at least 60 microseconds, and then releasing it. The talker will then
+		revert to transmitting the character in the usual way; within 60 microseconds it will pull the Clock
+		line true, and transmission will continue. At this point, the Clock line is true whether or not we
+		have gone through the EOI sequence; we're back to a common transmission sequence.
+		*/
 		// FIXME: Make this like sd2iec and may not need a fixed delay here.
 		//Debug_print("{EOI}");
 
@@ -200,41 +229,62 @@ bool IEC::sendByte(int data, bool signalEOI)
 		fnSystem.delay_microseconds(TIMING_EOI_WAIT);
 
 		// get eoi acknowledge:
-		if(timeoutWait(IEC_PIN_DATA, true))
+		if(timeoutWait(IEC_PIN_DATA, pull))
 			return false;
 
-		if(timeoutWait(IEC_PIN_DATA, false))
+		if(timeoutWait(IEC_PIN_DATA, release))
 			return false;
 	}
 
 	fnSystem.delay_microseconds(TIMING_NO_EOI);
 
+	/*
+	STEP 3: SENDING THE BITS
+	The talker has eight bits to send. They will go out without handshake; in other words, the listener
+	had better be there to catch them, since the talker won't wait to hear from the listener. At this point,
+	the talker controls both lines, Clock and Data. At the beginning of the sequence, it is holding the
+	Clock true, while the Data line is released to false.
+	...
+	Now, for each bit, we set the Data line true or false according to whether the bit is one or zero. 
+	As soon as that's 	set, the Clock line is released to false, signalling "data ready." The talker will typically have a bit
+	in place and be signalling ready in 70 microseconds or less. Once the talker has signalled "data
+	ready," it will hold the two lines steady for at least 20 microseconds timing needs to be increased to
+	60 microseconds if the Commodore 64 is listening, since the 64's video chip may interrupt the
+	processor for 42 microseconds at a time, and without the extra wait the 64 might completely miss a
+	bit. 
+	*/
 	// Send bits
-	//	ESP.wdtFeed();
 	for(int n = 0; n < 8; n++) {
 		// FIXME: Here check whether data pin goes low, if so end (enter cleanup)!
 
-		writeCLOCK(pull);
-		// set data
-		writeDATA((data bitand 1) ? pull : release);
+		writeCLOCK(pull); 							 // pull clock low
+		writeDATA((data bitand 1) ? pull : release); // set data		
+		fnSystem.delay_microseconds(TIMING_BIT); 	 // hold data
+		writeCLOCK(release); 						 // rising edge
+		fnSystem.delay_microseconds(TIMING_BIT); 	 // hold data
 
-		fnSystem.delay_microseconds(TIMING_BIT);
-		writeCLOCK(release);
-		fnSystem.delay_microseconds(TIMING_BIT);
+		data >>= 1; // get next bit
 
-		data >>= 1;
-	}
+ 	}
 
-	writeCLOCK(pull);
-	writeDATA(release);
+	writeCLOCK(pull);	// pull clock cause we're done 
+	writeDATA(release); // release data because we're done
 
 	// FIXME: Maybe make the following ending more like sd2iec instead.
 
 	// Line stabilization delay
 //	fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
 
+	/*
+	STEP 4: FRAME HANDSHAKE
+	After the eighth bit has been sent, it's the listener's turn to acknowledge. At this moment, the Clock
+	line is true and the Data line is false. The listener must acknowledge receiving the byte OK by
+	pulling the Data line to true. The talker is now watching the Data line. If the listener doesn't pull
+	the Data line true within one millisecond - one thousand microseconds - it will know that
+	something's wrong and may alarm appropriately.
+	*/
 	// Wait for listener to accept data
-	if(timeoutWait(IEC_PIN_DATA, true))
+	if(timeoutWait(IEC_PIN_DATA, pull))
 		return false;
 
 	return true;
@@ -244,22 +294,38 @@ bool IEC::sendByte(int data, bool signalEOI)
 // IEC turnaround
 bool IEC::turnAround(void)
 {
+	/*
+	TURNAROUND
+	An unusual sequence takes place following ATN if the computer wishes the remote device to
+	become a talker. This will usually take place only after a Talk command has been sent.
+	Immediately after ATN is released, the selected device will be behaving like a listener. After all, it's
+	been listening during the ATN cycle, and the computer
+	has been a talker. At this instant, we have "wrong way" logic; the device is holding down the Data
+	line, and the computer is holding the Clock line. We must turn this around. Here's the sequence:
+	the computer quickly realizes what's going on, and pulls the Data line to true (it's already there), as
+	well as releasing the Clock line to false. The device waits for this: when it sees the Clock line go
+	true [sic], it releases the Data line (which stays true anyway since the computer is now holding it down)
+	and then pulls down the Clock line. We're now in our starting position, with the talker (that's the
+	device) holding the Clock true, and the listener (the computer) holding the Data line true. The
+	computer watches for this state; only when it has gone through the cycle correctly will it be ready
+	to receive data. And data will be signalled, of course, with the usual sequence: the talker releases
+	the Clock line to signal that it's ready to send.
+	*/
 	Debug_printf("\r\nturnAround: ");
 
 	// Wait until clock is released
-	if(timeoutWait(IEC_PIN_CLOCK, false))
+	if(timeoutWait(IEC_PIN_CLOCK, release))
 	{
-		Debug_print("false");
+		Debug_println("timeout");
 		return false;
 	}
-		
-
-	writeDATA(false);
+	
+	writeDATA(release);
 	fnSystem.delay_microseconds(TIMING_BIT);
-	writeCLOCK(true);
+	writeCLOCK(pull);
 	fnSystem.delay_microseconds(TIMING_BIT);
 
-	Debug_print("true");
+	Debug_println("complete");
 	return true;
 } // turnAround
 
@@ -268,21 +334,21 @@ bool IEC::turnAround(void)
 // (the way it was when the computer was switched on)
 bool IEC::undoTurnAround(void)
 {
-	writeDATA(true);
+	writeDATA(pull);
 	fnSystem.delay_microseconds(TIMING_BIT);
-	writeCLOCK(false);
+	writeCLOCK(release);
 	fnSystem.delay_microseconds(TIMING_BIT);
 
 	Debug_printf("\r\nundoTurnAround:");
 
-	// wait until the computer releases the clock line
-	if(timeoutWait(IEC_PIN_CLOCK, true))
+	// wait until the computer pulls the clock line
+	if(timeoutWait(IEC_PIN_CLOCK, pull))
 	{
-		Debug_print("false");
+		Debug_print("timeout");
 		return false;
 	}
 
-	Debug_print("true");
+	Debug_print("complete");
 	return true;
 } // undoTurnAround
 
@@ -347,7 +413,7 @@ IEC::ATNCheck IEC::checkATN(ATNCmd& atn_cmd)
 			cc = (ATNCommand)(c bitand ATN_CODE_LISTEN);
 			if(cc == ATN_CODE_LISTEN)
 			{
-				atn_cmd.device = c ^ ATN_CODE_LISTEN; // device specified
+				atn_cmd.device = c ^ ATN_CODE_LISTEN; // device specified, '^' = XOR
 			} 
 			else
 			{
@@ -380,8 +446,8 @@ IEC::ATNCheck IEC::checkATN(ATNCmd& atn_cmd)
 		{
 			// Either the message is not for us or insignificant, like unlisten.
 			fnSystem.delay_microseconds(TIMING_ATN_DELAY);
-			writeDATA(false);
-			writeCLOCK(false);
+			writeDATA(release);
+			writeCLOCK(release);
 
 			if ( cc == ATN_CODE_UNTALK )
 				Debug_print("UNTALK");
@@ -391,7 +457,8 @@ IEC::ATNCheck IEC::checkATN(ATNCmd& atn_cmd)
 			Debug_printf(" (%.2d DEVICE)", atn_cmd.device);			
 
 			// Wait for ATN to release and quit
-			while(not readATN());
+			//while(not readATN());
+			timeoutWait(IEC_PIN_ATN, release);
 			Debug_printf("\r\ncheckATN: ATN Released\r\n");
 		}
 
@@ -403,22 +470,13 @@ IEC::ATNCheck IEC::checkATN(ATNCmd& atn_cmd)
 	else 
 	{
 		// No ATN, keep lines in a released state.
-		writeDATA(false);
-		writeCLOCK(false);
+		writeDATA(release);
+		writeCLOCK(release);
 	}
 
 	return ret;
 } // checkATN
 
-/**
- * from Derogee's "IEC Disected"
- * TRANSMISSION: STEP ZERO
- * Let's look at the sequence when a character is about to be transmitted. At this time, both the Clock
- * line and the Data line are being held down to the true state. With a test instrument, you can't tell
- * who's doing it, but I'll tell you: the talker is holding the Clock line true, and the listener is holding
- * the Data line true. There could be more than one listener, in which case all of the listeners are
- * holding the Data line true. Each of the signals might be viewed as saying, "I'm here!".
-*/
 IEC::ATNCheck IEC::deviceListen(ATNCmd& atn_cmd)
 {
 	int i=0;
