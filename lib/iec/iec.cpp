@@ -189,7 +189,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	writeCLOCK(release);
 
 	// Wait for listener to be ready
-	if(timeoutWait(IEC_PIN_DATA, false))
+	if(timeoutWait(IEC_PIN_DATA, release))
 		return false;
 
 	if(signalEOI) {
@@ -200,10 +200,10 @@ bool IEC::sendByte(int data, bool signalEOI)
 		fnSystem.delay_microseconds(TIMING_EOI_WAIT);
 
 		// get eoi acknowledge:
-		if(timeoutWait(IEC_PIN_DATA, true))
+		if(timeoutWait(IEC_PIN_DATA, pull))
 			return false;
 
-		if(timeoutWait(IEC_PIN_DATA, false))
+		if(timeoutWait(IEC_PIN_DATA, release))
 			return false;
 	}
 
@@ -234,7 +234,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 //	fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
 
 	// Wait for listener to accept data
-	if(timeoutWait(IEC_PIN_DATA, true))
+	if(timeoutWait(IEC_PIN_DATA, pull))
 		return false;
 
 	return true;
@@ -247,16 +247,16 @@ bool IEC::turnAround(void)
 	Debug_printf("\r\nturnAround: ");
 
 	// Wait until clock is released
-	if(timeoutWait(IEC_PIN_CLOCK, false))
+	if(timeoutWait(IEC_PIN_CLOCK, release))
 	{
 		Debug_print("false");
 		return false;
 	}
 		
 
-	writeDATA(false);
+	writeDATA(release);
 	fnSystem.delay_microseconds(TIMING_BIT);
-	writeCLOCK(true);
+	writeCLOCK(pull);
 	fnSystem.delay_microseconds(TIMING_BIT);
 
 	Debug_print("true");
@@ -268,15 +268,15 @@ bool IEC::turnAround(void)
 // (the way it was when the computer was switched on)
 bool IEC::undoTurnAround(void)
 {
-	writeDATA(true);
+	writeDATA(pull);
 	fnSystem.delay_microseconds(TIMING_BIT);
-	writeCLOCK(false);
+	writeCLOCK(release);
 	fnSystem.delay_microseconds(TIMING_BIT);
 
 	Debug_printf("\r\nundoTurnAround:");
 
 	// wait until the computer releases the clock line
-	if(timeoutWait(IEC_PIN_CLOCK, true))
+	if(timeoutWait(IEC_PIN_CLOCK, pull))
 	{
 		Debug_print("false");
 		return false;
@@ -380,8 +380,8 @@ IEC::ATNCheck IEC::checkATN(ATNCmd& atn_cmd)
 		{
 			// Either the message is not for us or insignificant, like unlisten.
 			fnSystem.delay_microseconds(TIMING_ATN_DELAY);
-			writeDATA(false);
-			writeCLOCK(false);
+			writeDATA(release);
+			writeCLOCK(release);
 
 			if ( cc == ATN_CODE_UNTALK )
 				Debug_print("UNTALK");
@@ -403,8 +403,8 @@ IEC::ATNCheck IEC::checkATN(ATNCmd& atn_cmd)
 	else 
 	{
 		// No ATN, keep lines in a released state.
-		writeDATA(false);
-		writeCLOCK(false);
+		writeDATA(release);
+		writeCLOCK(release);
 	}
 
 	return ret;
@@ -578,8 +578,8 @@ bool IEC::sendEOI(int data)
 bool IEC::sendFNF()
 {
 	// Message file not found by just releasing lines
-	writeDATA(false);
-	writeCLOCK(false);
+	writeDATA(release);
+	writeCLOCK(release);
 
 	// Hold back a little...
 	fnSystem.delay_microseconds(TIMING_FNF_DELAY);
