@@ -813,11 +813,12 @@ void Interface::sendFile()
 
 		if( !success )
 		{
-			bool s1 = m_iec.readATN();
-			bool s2 = m_iec.readCLOCK();
-			bool s3 = m_iec.readDATA();
+			//bool s1 = m_iec.status(IEC_PIN_ATN);
+			//bool s2 = m_iec.status(IEC_PIN_CLOCK);
+			//bool s3 = m_iec.status(IEC_PIN_DATA);
 
-			Debug_printf("Transfer failed! %d, %d, %d\r\n", s1, s2, s3);
+			//Debug_printf("Transfer failed! %d, %d, %d\r\n", s1, s2, s3);
+			Debug_println("Transfer failed!");
 		}
 	}
 } // sendFile
@@ -1012,9 +1013,9 @@ void Interface::sendFileHTTP()
 
 		if( !success )
 		{
-			bool s1 = m_iec.readATN();
-			bool s2 = m_iec.readCLOCK();
-			bool s3 = m_iec.readDATA();
+			bool s1 = m_iec.status(IEC_PIN_ATN);
+			bool s2 = m_iec.status(IEC_PIN_CLOCK);
+			bool s3 = m_iec.status(IEC_PIN_DATA);
 
 			Debug_printf("Transfer failed! %d, %d, %d\r\n", s1, s2, s3);
 		}

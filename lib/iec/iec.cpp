@@ -21,14 +21,10 @@ bool IEC::init()
 	// The SQR line is output only for peripherals
 
 	// set up IO states
-	writeATN(pull);
-	readATN();
-	writeCLOCK(pull);
-	writeCLOCK(release);
-	writeDATA(pull);
-	writeDATA(release);
-	writeSRQ(pull);
-	writeSRQ(release);
+	release(IEC_PIN_ATN);
+	release(IEC_PIN_CLOCK);
+	release(IEC_PIN_DATA);
+	release(IEC_PIN_SRQ);
 
 	// TODO:
 	//#ifdef RESET_C64
@@ -65,13 +61,13 @@ bool IEC::timeoutWait(int waitBit, IECline waitFor)
 	}
 	// If down here, we have had a timeout.
 	// Release lines and go to inactive state with error flag
-	writeCLOCK(release);
-	writeDATA(release);
+	release(IEC_PIN_CLOCK);
+	release(IEC_PIN_DATA);
 
 	m_state = errorFlag;
 
 	// Wait for ATN release, problem might have occured during attention
-	//while(not readATN());
+	//while(not status(IEC_PIN_ATN));
 
 	// Note: The while above is without timeout. If ATN is held low forever,
 	//       the CBM is out in the woods and needs a reset anyways.
@@ -102,11 +98,11 @@ int IEC::receiveByte(void)
 	m_state = noFlags;
 
 	// Wait for talker ready
-	if (timeoutWait(IEC_PIN_CLOCK, release))
+	if (timeoutWait(IEC_PIN_CLOCK, released))
 		return -1; // return error because timeout
 
 	// Say we're ready
-	writeDATA(release);
+	release(IEC_PIN_DATA);
 
 	/* from Derogee's "IEC Disected"
 	INTERMISSION: EOI
@@ -114,11 +110,11 @@ int IEC::receiveByte(void)
 	knows that the talker is trying to signal EOI. EOI, which formally stands for "End of Indicator,"
 	means "this character will be the last one."
 	*/
-	// Record how long CLOCK is high, more than 200 us means EOI
+	// Record how long CLOCK is pulled, more than 200 us means EOI
 	int n = 0;
-	while ((readCLOCK() == release) and (n < 20))
+	while ((status(IEC_PIN_CLOCK) == pulled) and (n < 20))
 	{
-		fnSystem.delay_microseconds(10); // this loop should cycle in about 10 us...
+		fnSystem.delay_microseconds(1); // this loop should cycle in about 10 us...
 		n++;
 	}
 
@@ -136,29 +132,29 @@ int IEC::receiveByte(void)
 		m_state or_eq eoiFlag; // or_eq, |=
 
 		// Acknowledge by pull down data more than 60 us
-		writeDATA(pull);
+		pull(IEC_PIN_DATA);
 		fnSystem.delay_microseconds(TIMING_BIT);
-		writeDATA(release);
+		release(IEC_PIN_DATA);
 
 		// C64 should pull clock in response
-		if (timeoutWait(IEC_PIN_CLOCK, pull))
+		if (timeoutWait(IEC_PIN_CLOCK, pulled))
 			return -1;
 	}
 
-	// TODO: why?
-	// Sample ATN
-	if (false == readATN())
-		m_state or_eq atnFlag;
+	// // TODO: why?
+	// // Sample ATN
+	// if (false == status(IEC_PIN_ATN))
+	// 	m_state or_eq atnFlag;
 
 	int data = 0;
 	// Get the bits, sampling on clock rising edge, logic 0,0V to logic 1,5V:
 	for (n = 0; n < 8; n++)
 	{
 		data >>= 1;
-		if (timeoutWait(IEC_PIN_CLOCK, release)) // look for rising edge
+		if (timeoutWait(IEC_PIN_CLOCK, released)) // look for rising edge
 			return -1;
-		data or_eq (readDATA() == pull ? (1 << 7) : 0); // read bit and shift in LSB first
-		if (timeoutWait(IEC_PIN_CLOCK, pull))			// wait for falling edge
+		data or_eq (status(IEC_PIN_DATA) == pulled ? (1 << 7) : 0); // read bit and shift in LSB first
+		if (timeoutWait(IEC_PIN_CLOCK, pulled))			// wait for falling edge
 			return -1;
 	}
 	//Debug_printf("%.2X ", data);
@@ -172,7 +168,7 @@ int IEC::receiveByte(void)
 	something's wrong and may alarm appropriately.
 	*/
 	// Signal we accepted data:
-	writeDATA(pull);
+	pull(IEC_PIN_DATA);
 
 	return data;
 } // receiveByte
@@ -195,15 +191,11 @@ bool IEC::sendByte(int data, bool signalEOI)
 	When the listener is ready to listen, it releases the Data line to false.
 	*/
 
-	// //Listener must have accepted previous data
-	// if(timeoutWait(IEC_PIN_DATA, true))
-	// 	return false;
-
 	// Say we're ready
-	writeCLOCK(release);
+	release(IEC_PIN_CLOCK);
 
 	// Wait for listener to release DATA to signal it is ready
-	if (timeoutWait(IEC_PIN_DATA, release))
+	if (timeoutWait(IEC_PIN_DATA, released))
 		return false;
 
 	if (signalEOI)
@@ -219,21 +211,22 @@ bool IEC::sendByte(int data, bool signalEOI)
 		line true, and transmission will continue. At this point, the Clock line is true whether or not we
 		have gone through the EOI sequence; we're back to a common transmission sequence.
 		*/
-		// FIXME: Make this like sd2iec and may not need a fixed delay here.
-		//Debug_print("{EOI}");
 
 		// Signal eoi by waiting 200 us
 		fnSystem.delay_microseconds(TIMING_EOI_WAIT);
 
-		// get eoi acknowledge:
-		if (timeoutWait(IEC_PIN_DATA, pull))
+		// get eoi acknowledge: pull
+		if (timeoutWait(IEC_PIN_DATA, pulled))
 			return false;
 
-		if (timeoutWait(IEC_PIN_DATA, release))
+		// get eoi acknowledge: release
+		if (timeoutWait(IEC_PIN_DATA, released))
 			return false;
 	}
-
-	fnSystem.delay_microseconds(TIMING_NO_EOI);
+	//else
+	//{
+	//	fnSystem.delay_microseconds(TIMING_NO_EOI);		
+	//}
 
 	/*
 	STEP 3: SENDING THE BITS
@@ -255,17 +248,17 @@ bool IEC::sendByte(int data, bool signalEOI)
 	{
 		// FIXME: Here check whether data pin goes low, if so end (enter cleanup)!
 
-		writeCLOCK(pull);							 // pull clock low
-		writeDATA((data bitand 1) ? pull : release); // set data
+		pull(IEC_PIN_CLOCK);							 // pull clock low
+		(data bitand 1) ? pull(IEC_PIN_DATA) : release(IEC_PIN_DATA); // set data
 		fnSystem.delay_microseconds(TIMING_BIT);	 // hold data
-		writeCLOCK(release);						 // rising edge
+		release(IEC_PIN_CLOCK);						 // rising edge
 		fnSystem.delay_microseconds(TIMING_BIT);	 // hold data
 
 		data >>= 1; // get next bit
 	}
 
-	writeCLOCK(pull);	// pull clock cause we're done
-	writeDATA(release); // release data because we're done
+	pull(IEC_PIN_CLOCK);	// pull clock cause we're done
+	release(IEC_PIN_DATA); // release data because we're done
 
 	// FIXME: Maybe make the following ending more like sd2iec instead.
 
@@ -281,7 +274,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	something's wrong and may alarm appropriately.
 	*/
 	// Wait for listener to accept data
-	if (timeoutWait(IEC_PIN_DATA, pull))
+	if (timeoutWait(IEC_PIN_DATA, pulled))
 		return false;
 
 	return true;
@@ -310,15 +303,15 @@ bool IEC::turnAround(void)
 	Debug_printf("\r\nturnAround: ");
 
 	// Wait until clock is released
-	if (timeoutWait(IEC_PIN_CLOCK, release))
+	if (timeoutWait(IEC_PIN_CLOCK, released))
 	{
 		Debug_println("timeout");
 		return false;
 	}
 
-	writeDATA(release);
+	release(IEC_PIN_DATA);
 	fnSystem.delay_microseconds(TIMING_BIT);
-	writeCLOCK(pull);
+	pull(IEC_PIN_CLOCK);
 	fnSystem.delay_microseconds(TIMING_BIT);
 
 	Debug_println("complete");
@@ -329,15 +322,15 @@ bool IEC::turnAround(void)
 // (the way it was when the computer was switched on)
 bool IEC::undoTurnAround(void)
 {
-	writeDATA(pull);
+	pull(IEC_PIN_DATA);
 	fnSystem.delay_microseconds(TIMING_BIT);
-	writeCLOCK(release);
+	release(IEC_PIN_CLOCK);
 	fnSystem.delay_microseconds(TIMING_BIT);
 
 	Debug_printf("\r\nundoTurnAround:");
 
 	// wait until the computer pulls the clock line
-	if (timeoutWait(IEC_PIN_CLOCK, pull))
+	if (timeoutWait(IEC_PIN_CLOCK, pulled))
 	{
 		Debug_print("timeout");
 		return false;
@@ -381,12 +374,50 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 	ATNCheck ret = ATN_IDLE;
 	int i = 0;
 
-	if (readATN() == pull)
+#ifdef DEBUG_TIMING
+	int pin = IEC_PIN_ATN;
+	pull(pin);
+	fnSystem.delay_microseconds(987); // 1000
+	release(pin);
+	fnSystem.delay_microseconds(1);
+
+	pin = IEC_PIN_CLOCK;
+	pull(pin);
+	fnSystem.delay_microseconds(2); // 20
+	release(pin);
+	fnSystem.delay_microseconds(1);
+
+	pin = IEC_PIN_DATA;
+	pull(pin);
+	fnSystem.delay_microseconds(33); // 50
+	release(pin);
+	fnSystem.delay_microseconds(1);
+
+	pin = IEC_PIN_SRQ;
+	pull(pin);
+	fnSystem.delay_microseconds(43); // 60
+	release(pin);
+	fnSystem.delay_microseconds(1);
+
+	pin = IEC_PIN_ATN;
+	pull(pin);
+	fnSystem.delay_microseconds(87); // 100
+	release(pin);
+	fnSystem.delay_microseconds(1);	
+
+	pin = IEC_PIN_CLOCK;
+	pull(pin);
+	fnSystem.delay_microseconds(183); // 200
+	release(pin);
+	fnSystem.delay_microseconds(1);
+#endif
+
+	if (status(IEC_PIN_ATN) == pulled)
 	{
 		// Attention line is pulled, go to listener mode and get message.
 		// Being fast with the next two lines here is CRITICAL!
-		writeDATA(pull);
-		writeCLOCK(release);
+		pull(IEC_PIN_DATA);
+		release(IEC_PIN_CLOCK);
 		fnSystem.delay_microseconds(TIMING_ATN_PREDELAY);
 
 		// Get first ATN byte, it is either LISTEN or TALK
@@ -440,8 +471,8 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 		{
 			// Either the message is not for us or insignificant, like unlisten.
 			fnSystem.delay_microseconds(TIMING_ATN_DELAY);
-			writeDATA(release);
-			writeCLOCK(release);
+			release(IEC_PIN_DATA);
+			release(IEC_PIN_CLOCK);
 
 			if (cc == ATN_CODE_UNTALK)
 				Debug_print("UNTALK");
@@ -451,8 +482,8 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 			Debug_printf(" (%.2d DEVICE)", atn_cmd.device);
 
 			// Wait for ATN to release and quit
-			//while(not readATN());
-			timeoutWait(IEC_PIN_ATN, release);
+			//while(not status(IEC_PIN_ATN));
+			timeoutWait(IEC_PIN_ATN, released);
 			Debug_printf("\r\ncheckATN: ATN Released\r\n");
 		}
 
@@ -464,8 +495,8 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 	else
 	{
 		// No ATN, keep lines in a released state.
-		writeDATA(release);
-		writeCLOCK(release);
+		release(IEC_PIN_DATA);
+		release(IEC_PIN_CLOCK);
 	}
 
 	return ret;
@@ -546,9 +577,9 @@ IEC::ATNCheck IEC::deviceTalk(ATNCmd &atn_cmd)
 	Debug_printf("(40 TALK) (%.2d DEVICE)", atn_cmd.device);
 	Debug_printf("\r\ncheckATN: %.2X (%.2X SECOND) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
 
-	while (not readATN())
+	while (status(IEC_PIN_ATN) == released)
 	{
-		if (readCLOCK())
+		if (status(IEC_PIN_CLOCK) == pulled)
 		{
 			c = (ATNCommand)receive();
 			if (m_state bitand errorFlag)
@@ -629,8 +660,8 @@ bool IEC::sendEOI(int data)
 bool IEC::sendFNF()
 {
 	// Message file not found by just releasing lines
-	writeDATA(release);
-	writeCLOCK(release);
+	release(IEC_PIN_DATA);
+	release(IEC_PIN_CLOCK);
 
 	// Hold back a little...
 	fnSystem.delay_microseconds(TIMING_FNF_DELAY);

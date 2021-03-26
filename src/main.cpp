@@ -86,6 +86,7 @@ void main_setup()
     // Load our stored configuration
     Config.load();
 
+#ifdef BLUETOOTH_SUPPORT
     if ( Config.get_bt_status() )
     {
         // Start SIO2BT mode if we were in it last shutdown
@@ -93,6 +94,7 @@ void main_setup()
         fnBtManager.start();
     }
     else
+#endif
     {
         // Set up the WiFi adapter
         fnWiFi.start();
