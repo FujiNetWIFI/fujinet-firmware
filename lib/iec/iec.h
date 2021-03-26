@@ -42,14 +42,14 @@
 //#define IEC_PIN_RESET   D8      // IO15
 
 // IEC protocol timing consts:
-#define TIMING_BIT          60  // bit clock hi/lo time     (us)
-#define TIMING_NO_EOI       20  // delay before bits        (us)
-#define TIMING_EOI_WAIT     200 // delay to signal EOI      (us)
-#define TIMING_EOI_THRESH   20  // threshold for EOI detect (*10 us approx)
-#define TIMING_STABLE_WAIT  20  // line stabilization       (us)
-#define TIMING_ATN_PREDELAY 50  // delay required in atn    (us)
-#define TIMING_ATN_DELAY    100 // delay required after atn (us)
-#define TIMING_FNF_DELAY    100 // delay after fnf?         (us)
+#define TIMING_BIT          43  //60  // bit clock hi/lo time     (us)
+#define TIMING_NO_EOI       2   //20  // delay before bits        (us)
+#define TIMING_EOI_WAIT     183 //200 // delay to signal EOI      (us)
+#define TIMING_EOI_THRESH   2   //20  // threshold for EOI detect (*10 us approx)
+#define TIMING_STABLE_WAIT  2   //20  // line stabilization       (us)
+#define TIMING_ATN_PREDELAY 33  //50  // delay required in atn    (us)
+#define TIMING_ATN_DELAY    87  //100 // delay required after atn (us)
+#define TIMING_FNF_DELAY    87  //100 // delay after fnf?         (us)
 
 // See timeoutWait
 #define TIMEOUT 65500
@@ -62,8 +62,8 @@ class IEC
 public:
 	enum IECline
 	{
-		pull = true,
-		release = false
+		pulled = true,
+		released = false
 	};
 
 	enum IECState {
@@ -144,30 +144,6 @@ public:
 
 	IECState state() const;
 
-	inline IECline readATN()
-	{
-		return readPIN(IEC_PIN_ATN);
-	}
-
-	inline IECline readCLOCK()
-	{
-		return readPIN(IEC_PIN_CLOCK);
-	}
-
-	inline IECline readDATA()
-	{
-		return readPIN(IEC_PIN_DATA);
-	}
-
-	inline IECline readSRQ()
-	{
-		return readPIN(IEC_PIN_SRQ);
-	}
-
-//	inline bool readRESET()
-//	{
-//		return readPIN(IEC_PIN_RESET);
-//	}
 
 private:
 	// IEC Bus Commands
@@ -186,41 +162,29 @@ private:
 	bool undoTurnAround(void);
 
 	// true => PULL => DIGI_LOW, false => RELEASE => DIGI_HIGH
+	inline void pull(int pinNumber)
+	{
+		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_OUTPUT);
+		fnSystem.digital_write(pinNumber, DIGI_LOW);
+	}
+
+	// true => PULL => DIGI_LOW, false => RELEASE => DIGI_HIGH
+	inline void release(int pinNumber)
+	{
+		// releasing line can set to input mode, which won't drive the bus - simple way to mimic open collector
+		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
+	}
+
+	inline IECline status(int pinNumber)
+	{
+		return readPIN(pinNumber);
+	}
+
 	inline IECline readPIN(int pinNumber)
 	{
 		// To be able to read line we must be set to input, not driving.
 		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
-		return fnSystem.digital_read(pinNumber) ? release : pull;
-	}
-
-	// true => PULL => DIGI_LOW, false => RELEASE => DIGI_HIGH
-	inline void writePIN(int pinNumber, IECline state)
-	{
-		// releasing line can set to input mode, which won't drive the bus - simple way to mimic open collector
-		fnSystem.set_pin_mode(pinNumber, state==pull ? gpio_mode_t::GPIO_MODE_OUTPUT : gpio_mode_t::GPIO_MODE_INPUT);
-		if (state == pull)
-			fnSystem.digital_write(pinNumber, DIGI_LOW);
-	}
-	
-	// ATN not written by peripherals 
-	inline void writeATN(IECline state)
-	{
-		writePIN(IEC_PIN_ATN, state);
-	}
-
-	inline void writeCLOCK(IECline state)
-	{
-		writePIN(IEC_PIN_CLOCK, state);
-	}
-
-	inline void writeDATA(IECline state)
-	{
-		writePIN(IEC_PIN_DATA, state);
-	}
-
-	inline void writeSRQ(IECline state)
-	{
-		writePIN(IEC_PIN_SRQ, state);
+		return fnSystem.digital_read(pinNumber) ? released : pulled;
 	}
 
 	// communication must be reset
