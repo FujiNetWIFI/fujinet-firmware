@@ -16,6 +16,7 @@
 #include "printerlist.h"
 #include "midimaze.h"
 #include "siocpm.h"
+#include "samlib.h"
 
 #include <esp_system.h>
 #include <nvs_flash.h>
@@ -72,6 +73,9 @@ void main_setup()
         e = nvs_flash_init();
     }
     ESP_ERROR_CHECK(e);
+
+    fnSystem.check_hardware_ver();
+    Debug_printf("Detected Hardware Version: %s\n", fnSystem.get_hardware_ver_str());
 
     fnKeyManager.setup();
     fnLedManager.setup();
