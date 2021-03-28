@@ -35,7 +35,7 @@ bool IEC::init()
 	set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_INPUT);
 	set_pin_mode(IEC_PIN_CLK, gpio_mode_t::GPIO_MODE_INPUT);
 	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);
-	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
+	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_OUTPUT);
 
 	m_state = noFlags;
 
@@ -90,6 +90,10 @@ int IEC::receiveByte(void)
 {
 	m_state = noFlags;
 
+	// Sample ATN and set flag to indicate SELECT or DATA mode
+	if(status(IEC_PIN_ATN) == pulled)
+		m_state or_eq atnFlag;
+
 	// Wait for talker ready
 	if (timeoutWait(IEC_PIN_CLK, released))
 		return -1; // return error because timeout
@@ -141,11 +145,6 @@ int IEC::receiveByte(void)
 			return -1;
 	}
 
-	// Sample ATN and set flag to indicate SELECT or DATA mode
-	if(status(IEC_PIN_ATN) == pulled)
-		m_state or_eq atnFlag;
-
-
 	// STEP 3: SENDING THE BITS
 	// The talker has eight bits to send.  They will go out without handshake; in other words, 
 	// the listener had better be there to catch them, since the talker won't wait to hear from the listener.  At this 
@@ -166,6 +165,7 @@ int IEC::receiveByte(void)
 
 	// Get the bits, sampling on clock rising edge, logic 0,0V to logic 1,5V:
 	int data = 0;
+	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);
 	for (n = 0; n < 8; n++)
 	{
 		data >>= 1;
@@ -175,7 +175,8 @@ int IEC::receiveByte(void)
 			return -1;
 		
 		// get bit
-		data or_eq (status(IEC_PIN_DATA) == released ? (1 << 7) : 0); // read bit and shift in LSB first
+		//data or_eq (status(IEC_PIN_DATA) == released ? (1 << 7) : 0); // read bit and shift in LSB 
+		data or_eq (get_bit(IEC_PIN_DATA) ? (1 << 7) : 0); // read bit and shift in LSB first
 
 		// wait for talker to finish sending bit
 		if (timeoutWait(IEC_PIN_CLK, pulled))			// wait for falling edge
@@ -292,6 +293,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	// pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
 
 	// Send bits
+	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_OUTPUT);
 	for (int n = 0; n < 8; n++)
 	{
 		// FIXME: Here check whether data pin goes low, if so end (enter cleanup)!
@@ -300,7 +302,8 @@ bool IEC::sendByte(int data, bool signalEOI)
 		pull(IEC_PIN_CLK);							 // pull clock low
 
 		// set data bit
-		(data bitand 1) ? pull(IEC_PIN_DATA) : release(IEC_PIN_DATA); // set data
+		//(data bitand 1) ? pull(IEC_PIN_DATA) : release(IEC_PIN_DATA); // set data
+		set_bit(IEC_PIN_DATA, (data bitand 1) ? 0 : 1);
 		fnSystem.delay_microseconds(TIMING_BIT);	 // hold data
 
 		// tell listener bit is ready to read
@@ -311,7 +314,8 @@ bool IEC::sendByte(int data, bool signalEOI)
 	}
 
 	pull(IEC_PIN_CLK);	// pull clock cause we're done
-	release(IEC_PIN_DATA); // release data because we're done
+	release(IEC_PIN_DATA); // release data because we're 
+	fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
 
 	// STEP 4: FRAME HANDSHAKE
 	// After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true  

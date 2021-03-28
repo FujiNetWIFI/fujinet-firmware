@@ -300,7 +300,7 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 	m_filename = std::string((char *)atn_cmd.str);
 	util_string_trim(m_filename);
 	// m_filetype = m_filename.substring(m_filename.lastIndexOf(".") + 1);
-	m_filetype = m_filename.substr(m_filename.find_last_of("."));
+	//m_filetype = m_filename.substr(m_filename.find_last_of("."));
 	util_string_toupper(m_filetype); // .toUpperCase();
 	if ( m_filetype.length() > 4 || m_filetype.length() == m_filename.length() )
 		m_filetype = "";
@@ -311,7 +311,7 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 	// that is called by the sio config routines
 
 	// FILE* local_file = m_fileSystem->file_open( std::string(m_device.path() + m_filename).c_str() );
-	
+
 	//Serial.printf("\r\n$IEC: DEVICE[%d] DRIVE[%d] PARTITION[%d] URL[%s] PATH[%s] IMAGE[%s] FILENAME[%s] FILETYPE[%s] COMMAND[%s]\r\n", m_device.device(), m_device.drive(), m_device.partition(), m_device.url().c_str(), m_device.path().c_str(), m_device.image().c_str(), m_filename.c_str(), m_filetype.c_str(), atn_cmd.str);
 	if (m_filename[0] == '$')
 	{
@@ -329,7 +329,7 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 	{
 		// Mount image file
 		Debug_printf("\r\nmount: [%s] >", m_filename.c_str());
-		m_device.image( m_filename );
+		//m_device.image( m_filename );
 
 		m_openState = O_DIR;
 	}

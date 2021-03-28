@@ -43,7 +43,7 @@
 
 // IEC protocol timing consts:
 #define TIMING_BIT          60  // bit clock hi/lo time     (us)
-#define TIMING_NO_EOI       20  // delay before bits        (us)
+#define TIMING_NO_EOI       5   // delay before bits        (us)
 #define TIMING_EOI_WAIT     200 // delay to signal EOI      (us)
 #define TIMING_EOI_THRESH   20  // threshold for EOI detect (*10 us approx)
 #define TIMING_STABLE_WAIT  20  // line stabilization       (us)
@@ -162,27 +162,39 @@ private:
 	bool undoTurnAround(void);
 
 	// true => PULL => DIGI_LOW
-	inline void pull(int pinNumber)
+	inline void pull(int pin)
 	{
-		set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_OUTPUT);
-		fnSystem.digital_write(pinNumber, DIGI_LOW);
+		set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
+		fnSystem.digital_write(pin, DIGI_LOW);
 	}
 
 	// false => RELEASE => DIGI_HIGH
-	inline void release(int pinNumber)
+	inline void release(int pin)
 	{
 		// releasing line can set to input mode, which won't drive the bus - simple way to mimic open collector
 		// *** didn't seem to work in my testing ***
-		//fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
-		set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_OUTPUT);
-		fnSystem.digital_write(pinNumber, DIGI_HIGH);
+		//fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
+		set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
+		fnSystem.digital_write(pin, DIGI_HIGH);
 	}
 
-	inline IECline status(int pinNumber)
+	inline IECline status(int pin)
 	{
 		// To be able to read line we must be set to input, not driving.
-		set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
-		return fnSystem.digital_read(pinNumber) ? released : pulled;
+		set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
+		return fnSystem.digital_read(pin) ? released : pulled;
+	}
+
+	inline int get_bit(int pin)
+	{
+		// To be able to read line we must be set to input, not driving.
+		return fnSystem.digital_read(pin) ? true : false;
+	}
+
+	inline void set_bit(int pin, int bit)
+	{
+		// To be able to read line we must be set to input, not driving.
+		return fnSystem.digital_write(pin, bit);
 	}
 
 	inline void set_pin_mode(int pin, gpio_mode_t mode)
@@ -193,6 +205,9 @@ private:
 		// is this pin mode already set the way we want?
 		if ( ((gpio_pin_modes >> pin) & 1ULL) != b_mode )
 		{
+			//pull(IEC_PIN_SRQ);
+			fnSystem.digital_write(IEC_PIN_SRQ, DIGI_LOW);
+
 			// toggle bit so we don't change mode unnecessarily 
 			gpio_pin_modes ^= (-b_mode ^ gpio_pin_modes) & (1ULL << pin);
 
@@ -212,6 +227,9 @@ private:
 
 			// configure GPIO with the given settings
 			gpio_config(&io_conf);
+
+			//release(IEC_PIN_SRQ);
+			fnSystem.digital_write(IEC_PIN_SRQ, DIGI_HIGH);
 		}
 	}
 
