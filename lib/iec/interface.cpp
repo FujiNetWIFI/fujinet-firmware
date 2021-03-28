@@ -814,7 +814,7 @@ void Interface::sendFile()
 		if( !success )
 		{
 			//bool s1 = m_iec.status(IEC_PIN_ATN);
-			//bool s2 = m_iec.status(IEC_PIN_CLOCK);
+			//bool s2 = m_iec.status(IEC_PIN_CLK);
 			//bool s3 = m_iec.status(IEC_PIN_DATA);
 
 			//Debug_printf("Transfer failed! %d, %d, %d\r\n", s1, s2, s3);
@@ -1014,7 +1014,7 @@ void Interface::sendFileHTTP()
 		if( !success )
 		{
 			bool s1 = m_iec.status(IEC_PIN_ATN);
-			bool s2 = m_iec.status(IEC_PIN_CLOCK);
+			bool s2 = m_iec.status(IEC_PIN_CLK);
 			bool s3 = m_iec.status(IEC_PIN_DATA);
 
 			Debug_printf("Transfer failed! %d, %d, %d\r\n", s1, s2, s3);
