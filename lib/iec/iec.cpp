@@ -22,20 +22,20 @@ bool IEC::init()
 
 	// set up IO states
 	pull(IEC_PIN_ATN);
-	pull(IEC_PIN_DATA);
 	pull(IEC_PIN_CLK);
+	pull(IEC_PIN_DATA);
 	pull(IEC_PIN_SRQ);
 
 	// TODO:
 	//#ifdef RESET_C64
-	//	release(m_resetPin, false);	// only early C64's could be reset by a slave going high.
+	//	release(IEC_PIN_RESET);	// only early C64's could be reset by a slave going high.
 	//#endif
 
 	// initial pin modes in GPIO
-	fnSystem.set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_INPUT);
-	fnSystem.set_pin_mode(IEC_PIN_CLK, gpio_mode_t::GPIO_MODE_INPUT);
-	fnSystem.set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);
-	fnSystem.set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
+	set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_INPUT);
+	set_pin_mode(IEC_PIN_CLK, gpio_mode_t::GPIO_MODE_INPUT);
+	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);
+	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
 
 	m_state = noFlags;
 
@@ -442,35 +442,35 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 	release(pin);
 	fnSystem.delay_microseconds(1000);
 
-	pin = IEC_PIN_CLK;
+	//pin = IEC_PIN_CLK;
 	pull(pin);
 	fnSystem.delay_microseconds(20); // 20
 	release(pin);
-	fnSystem.delay_microseconds(10);
+	fnSystem.delay_microseconds(1);
 
-	pin = IEC_PIN_DATA;
+	//pin = IEC_PIN_DATA;
 	pull(pin);
-	fnSystem.delay_microseconds(33); // 50
+	fnSystem.delay_microseconds(50); // 50
 	release(pin);
-	fnSystem.delay_microseconds(10);
+	fnSystem.delay_microseconds(1);
 
-	pin = IEC_PIN_SRQ;
+	//pin = IEC_PIN_SRQ;
 	pull(pin);
-	fnSystem.delay_microseconds(43); // 60
+	fnSystem.delay_microseconds(60); // 60
 	release(pin);
-	fnSystem.delay_microseconds(10);
+	fnSystem.delay_microseconds(1);
 
-	pin = IEC_PIN_ATN;
+	//pin = IEC_PIN_ATN;
 	pull(pin);
-	fnSystem.delay_microseconds(87); // 100
+	fnSystem.delay_microseconds(100); // 100
 	release(pin);
-	fnSystem.delay_microseconds(10);
+	fnSystem.delay_microseconds(1);
 
-	pin = IEC_PIN_CLK;
+	//pin = IEC_PIN_CLK;
 	pull(pin);
-	fnSystem.delay_microseconds(183); // 200
+	fnSystem.delay_microseconds(200); // 200
 	release(pin);
-	fnSystem.delay_microseconds(10);
+	fnSystem.delay_microseconds(1);
 #endif
 
 	if (status(IEC_PIN_ATN) == pulled)
