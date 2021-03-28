@@ -42,14 +42,14 @@
 //#define IEC_PIN_RESET   D8      // IO15
 
 // IEC protocol timing consts:
-#define TIMING_BIT          43  //60  // bit clock hi/lo time     (us)
-#define TIMING_NO_EOI       2   //20  // delay before bits        (us)
-#define TIMING_EOI_WAIT     183 //200 // delay to signal EOI      (us)
-#define TIMING_EOI_THRESH   2   //20  // threshold for EOI detect (*10 us approx)
-#define TIMING_STABLE_WAIT  2   //20  // line stabilization       (us)
-#define TIMING_ATN_PREDELAY 33  //50  // delay required in atn    (us)
-#define TIMING_ATN_DELAY    87  //100 // delay required after atn (us)
-#define TIMING_FNF_DELAY    87  //100 // delay after fnf?         (us)
+#define TIMING_BIT          60  // bit clock hi/lo time     (us)
+#define TIMING_NO_EOI       20  // delay before bits        (us)
+#define TIMING_EOI_WAIT     200 // delay to signal EOI      (us)
+#define TIMING_EOI_THRESH   20  // threshold for EOI detect (*10 us approx)
+#define TIMING_STABLE_WAIT  20  // line stabilization       (us)
+#define TIMING_ATN_PREDELAY 50  // delay required in atn    (us)
+#define TIMING_ATN_DELAY    100 // delay required after atn (us)
+#define TIMING_FNF_DELAY    100 // delay after fnf?         (us)
 
 // See timeoutWait
 #define TIMEOUT 65500
@@ -164,7 +164,7 @@ private:
 	// true => PULL => DIGI_LOW
 	inline void pull(int pinNumber)
 	{
-		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_OUTPUT);
+		set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_OUTPUT);
 		fnSystem.digital_write(pinNumber, DIGI_LOW);
 	}
 
@@ -174,15 +174,45 @@ private:
 		// releasing line can set to input mode, which won't drive the bus - simple way to mimic open collector
 		// *** didn't seem to work in my testing ***
 		//fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
-		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_OUTPUT);
+		set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_OUTPUT);
 		fnSystem.digital_write(pinNumber, DIGI_HIGH);
 	}
 
 	inline IECline status(int pinNumber)
 	{
 		// To be able to read line we must be set to input, not driving.
-		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
+		set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
 		return fnSystem.digital_read(pinNumber) ? released : pulled;
+	}
+
+	inline void set_pin_mode(int pin, gpio_mode_t mode)
+	{
+		static uint64_t gpio_pin_modes;
+		int b_mode = (mode == 1) ? 1 : 0;
+
+		// is this pin mode already set the way we want?
+		if ( ((gpio_pin_modes >> pin) & 1ULL) != b_mode )
+		{
+			// toggle bit so we don't change mode unnecessarily 
+			gpio_pin_modes ^= (-b_mode ^ gpio_pin_modes) & (1ULL << pin);
+
+			gpio_config_t io_conf;
+
+			// disable interrupt
+			io_conf.intr_type = GPIO_INTR_DISABLE;
+
+			// set mode
+			io_conf.mode = mode;
+
+			io_conf.pull_up_en = gpio_pullup_t::GPIO_PULLUP_DISABLE;
+			io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_DISABLE;
+
+			// bit mask of the pin to set
+			io_conf.pin_bit_mask = 1ULL << pin;
+
+			// configure GPIO with the given settings
+			gpio_config(&io_conf);
+		}
 	}
 
 	// communication must be reset
