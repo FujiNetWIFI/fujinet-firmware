@@ -46,7 +46,6 @@ bool IEC::init()
 bool IEC::timeoutWait(int iecPIN, IECline lineStatus)
 {
 	uint16_t t = 0;
-	IECline c;
 
 	while(t < TIMEOUT) {
 
@@ -78,7 +77,7 @@ bool IEC::timeoutWait(int iecPIN, IECline lineStatus)
 	return true;
 } // timeoutWait
 
-
+// (Jim Butterfield - Compute! July 1983 - "HOW THE VIC/64 SERIAL BUS WORKS")
 // STEP 1: READY TO SEND
 // Sooner or later, the talker will want to talk, and send a character. 
 // When it's ready to go, it releases the Clock line to false.  This signal change might be 
@@ -95,7 +94,6 @@ int IEC::receiveByte(void)
 	if (timeoutWait(IEC_PIN_CLK, released))
 		return -1; // return error because timeout
 
-	// Say we're ready
 	// STEP 2: READY FOR DATA
 	// When  the  listener  is  ready  to  listen,  it  releases  the  Data  
 	// line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false 
@@ -212,6 +210,7 @@ int IEC::receiveByte(void)
 } // receiveByte
 
 
+// (Jim Butterfield - Compute! July 1983 - "HOW THE VIC/64 SERIAL BUS WORKS")
 // STEP 1: READY TO SEND
 // Sooner or later, the talker will want to talk, and send a character. 
 // When it's ready to go, it releases the Clock line to false.  This signal change might be 
@@ -297,7 +296,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	{
 		// FIXME: Here check whether data pin goes low, if so end (enter cleanup)!
 
-		// tell listner to wait
+		// tell listener to wait
 		pull(IEC_PIN_CLK);							 // pull clock low
 
 		// set data bit
@@ -344,23 +343,23 @@ bool IEC::sendByte(int data, bool signalEOI)
 // IEC turnaround
 bool IEC::turnAround(void)
 {
-	/*
-	TURNAROUND
-	An unusual sequence takes place following ATN if the computer wishes the remote device to
-	become a talker. This will usually take place only after a Talk command has been sent.
-	Immediately after ATN is released, the selected device will be behaving like a listener. After all, it's
-	been listening during the ATN cycle, and the computer
-	has been a talker. At this instant, we have "wrong way" logic; the device is holding down the Data
-	line, and the computer is holding the Clock line. We must turn this around. Here's the sequence:
-	the computer quickly realizes what's going on, and pulls the Data line to true (it's already there), as
-	well as releasing the Clock line to false. The device waits for this: when it sees the Clock line go
-	true [sic], it releases the Data line (which stays true anyway since the computer is now holding it down)
-	and then pulls down the Clock line. We're now in our starting position, with the talker (that's the
-	device) holding the Clock true, and the listener (the computer) holding the Data line true. The
-	computer watches for this state; only when it has gone through the cycle correctly will it be ready
-	to receive data. And data will be signalled, of course, with the usual sequence: the talker releases
-	the Clock line to signal that it's ready to send.
-	*/
+	// (Jim Butterfield - Compute! July 1983 - "HOW THE VIC/64 SERIAL BUS WORKS")
+	// TURNAROUND
+	// An unusual sequence takes place following ATN if the computer wishes the remote device to
+	// become a talker. This will usually take place only after a Talk command has been sent.
+	// Immediately after ATN is released, the selected device will be behaving like a listener. After all, it's
+	// been listening during the ATN cycle, and the computer
+	// has been a talker. At this instant, we have "wrong way" logic; the device is holding down the Data
+	// line, and the computer is holding the Clock line. We must turn this around. Here's the sequence:
+	// the computer quickly realizes what's going on, and pulls the Data line to true (it's already there), as
+	// well as releasing the Clock line to false. The device waits for this: when it sees the Clock line go
+	// true [sic], it releases the Data line (which stays true anyway since the computer is now holding it down)
+	// and then pulls down the Clock line. We're now in our starting position, with the talker (that's the
+	// device) holding the Clock true, and the listener (the computer) holding the Data line true. The
+	// computer watches for this state; only when it has gone through the cycle correctly will it be ready
+	// to receive data. And data will be signalled, of course, with the usual sequence: the talker releases
+	// the Clock line to signal that it's ready to send.
+
 	Debug_printf("\r\nturnAround: ");
 
 	// Wait until clock is released
@@ -412,23 +411,23 @@ bool IEC::undoTurnAround(void)
 // If a command is recieved, the atn_cmd.string is saved in atn_cmd. Only commands
 // for *this* device are dealt with.
 //
-/** from Derogee's "IEC Disected"
- * ATN SEQUENCES
- * When ATN is pulled true, everybody stops what they are doing. The processor will quickly pull the
- * Clock line true (it's going to send soon), so it may be hard to notice that all other devices release the
- * Clock line. At the same time, the processor releases the Data line to false, but all other devices are
- * getting ready to listen and will each pull Data to true. They had better do this within one
- * millisecond (1000 microseconds), since the processor is watching and may sound an alarm ("device
- * not available") if it doesn't see this take place. Under normal circumstances, transmission now
- * takes place as previously described. The computer is sending commands rather than data, but the
- * characters are exchanged with exactly the same timing and handshakes as before. All devices
- * receive the commands, but only the specified device acts upon it. This results in a curious
- * situation: you can send a command to a nonexistent device (try "OPEN 6,6") - and the computer
- * will not know that there is a problem, since it receives valid handshakes from the other devices.
- * The computer will notice a problem when you try to send or receive data from the nonexistent
- * device, since the unselected devices will have dropped off when ATN ceased, leaving you with
- * nobody to talk to.
- */
+// (Jim Butterfield - Compute! July 1983 - "HOW THE VIC/64 SERIAL BUS WORKS")
+// ATN SEQUENCES
+// When ATN is pulled true, everybody stops what they are doing. The processor will quickly pull the
+// Clock line true (it's going to send soon), so it may be hard to notice that all other devices release the
+// Clock line. At the same time, the processor releases the Data line to false, but all other devices are
+// getting ready to listen and will each pull Data to true. They had better do this within one
+// millisecond (1000 microseconds), since the processor is watching and may sound an alarm ("device
+// not available") if it doesn't see this take place. Under normal circumstances, transmission now
+// takes place as previously described. The computer is sending commands rather than data, but the
+// characters are exchanged with exactly the same timing and handshakes as before. All devices
+// receive the commands, but only the specified device acts upon it. This results in a curious
+// situation: you can send a command to a nonexistent device (try "OPEN 6,6") - and the computer
+// will not know that there is a problem, since it receives valid handshakes from the other devices.
+// The computer will notice a problem when you try to send or receive data from the nonexistent
+// device, since the unselected devices will have dropped off when ATN ceased, leaving you with
+// nobody to talk to.
+
 // Return value, see IEC::ATNCheck definition.
 IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 {

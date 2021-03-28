@@ -19,7 +19,7 @@
  * then there's the standard IEC protocol layer with commands and data state. 
  * 
  * The devices currently exist in the interface.h file. it is a disk device
- * and a realtime clock. it would great if we could port the IEC2SD devices
+ * and a realtime clock. it would great if we could port the SD2IEC devices
  * because they support JiffyDOS, TFC3 turbo, etc. There should be a minimum
  * set of capability that we can define in the base class iecDevice using
  * virual functions. I think that is the handlers for the ATN commands
