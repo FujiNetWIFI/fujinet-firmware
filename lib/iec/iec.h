@@ -36,7 +36,7 @@
 
 // ESP32 GPIO to C64 IEC Serial Port
 #define IEC_PIN_ATN     22      // PROC
-#define IEC_PIN_CLOCK   27      // CKI
+#define IEC_PIN_CLK     27      // CKI
 #define IEC_PIN_DATA    32      // CKO
 #define IEC_PIN_SRQ     26      // INT
 //#define IEC_PIN_RESET   D8      // IO15
@@ -110,7 +110,7 @@ public:
 	} ATNCmd;
 
 	IEC();
-//	~IEC(){}
+	~IEC(){}
 
 	// Initialise iec driver
 	bool init();
@@ -121,7 +121,7 @@ public:
 
 	// Checks if CBM is sending a reset (setting the RESET line high). This is typicall
 	// when the CBM is reset itself. In this case, we are supposed to reset all states to initial.
-	bool checkRESET();
+//	bool checkRESET();
 
 	// Sends a int. The communication must be in the correct state: a load command
 	// must just have been recieved. If something is not OK, FALSE is returned.
@@ -155,32 +155,30 @@ private:
 	ATNCheck deviceClose(ATNCmd& atn_cmd);		// 0xE0 + channel		Close, channel
 	ATNCheck deviceOpen(ATNCmd& atn_cmd);		// 0xF0 + channel		Open, channel
 
-	bool timeoutWait(int waitBit, IECline whileHigh);
+	bool timeoutWait(int iecPIN, IECline lineStatus);
 	int receiveByte(void);
 	bool sendByte(int data, bool signalEOI);
 	bool turnAround(void);
 	bool undoTurnAround(void);
 
-	// true => PULL => DIGI_LOW, false => RELEASE => DIGI_HIGH
+	// true => PULL => DIGI_LOW
 	inline void pull(int pinNumber)
 	{
 		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_OUTPUT);
 		fnSystem.digital_write(pinNumber, DIGI_LOW);
 	}
 
-	// true => PULL => DIGI_LOW, false => RELEASE => DIGI_HIGH
+	// false => RELEASE => DIGI_HIGH
 	inline void release(int pinNumber)
 	{
 		// releasing line can set to input mode, which won't drive the bus - simple way to mimic open collector
-		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
+		// *** didn't seem to work in my testing ***
+		//fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
+		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_OUTPUT);
+		fnSystem.digital_write(pinNumber, DIGI_HIGH);
 	}
 
 	inline IECline status(int pinNumber)
-	{
-		return readPIN(pinNumber);
-	}
-
-	inline IECline readPIN(int pinNumber)
 	{
 		// To be able to read line we must be set to input, not driving.
 		fnSystem.set_pin_mode(pinNumber, gpio_mode_t::GPIO_MODE_INPUT);
