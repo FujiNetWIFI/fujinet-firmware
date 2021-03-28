@@ -122,7 +122,7 @@
 // 7/18/2020 - Updated to 532, since that's the actual size packet TNFSD can send with its current build settings
 // 532 gives us (68 + 4 + 532) 604-byte packets - bigger than recommended, but allows for the
 // 532-byte IO payloads TNFSD is built with by default; allows for 4 128-byte sectors to be transmitted
-#define TNFS_PAYLOAD_SIZE 508
+#define TNFS_PAYLOAD_SIZE 528
 
 // Maximum size of buffer during tnfs_read() and tnfs_write()
 #define TNFS_MAX_READWRITE_PAYLOAD (TNFS_PAYLOAD_SIZE - 3) // 1 byte is needed for FD and 2 for size
