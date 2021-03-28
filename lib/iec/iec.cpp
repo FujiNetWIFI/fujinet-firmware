@@ -57,7 +57,7 @@ bool IEC::timeoutWait(int iecPIN, IECline lineStatus)
 			return false;
 		}
 
-		fnSystem.delay_microseconds(1); // The aim is to make the loop at least 3 us
+		fnSystem.delay_microseconds(3); // The aim is to make the loop at least 3 us
 		t++;
 	}
 
@@ -110,7 +110,7 @@ int IEC::receiveByte(void)
 	int n = 0;
 	while ((status(IEC_PIN_CLK) == released) and (n < 20))
 	{
-		fnSystem.delay_microseconds(1); // this loop should cycle in about 10 us...
+		fnSystem.delay_microseconds(10); // this loop should cycle in about 10 us...
 		n++;
 	}
 
