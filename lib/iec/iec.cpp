@@ -110,7 +110,7 @@ int IEC::receiveByte(void)
 	// will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass  
 	// without  the Clock line going to true, it has a special task to perform: note EOI.
 	int n = 0;
-	while ((status(IEC_PIN_CLK) == released) and (n < 20))
+	while ((status(IEC_PIN_CLK) == released) && (n < 20))
 	{
 		fnSystem.delay_microseconds(10); // this loop should cycle in about 10 us...
 		n++;
@@ -173,7 +173,7 @@ int IEC::receiveByte(void)
 		// wait for bit to be ready to read
 		if (timeoutWait(IEC_PIN_CLK, released)) // look for rising edge
 			return -1;
-		
+
 		// get bit
 		//data or_eq (status(IEC_PIN_DATA) == released ? (1 << 7) : 0); // read bit and shift in LSB 
 		data or_eq (get_bit(IEC_PIN_DATA) ? (1 << 7) : 0); // read bit and shift in LSB first
@@ -182,7 +182,6 @@ int IEC::receiveByte(void)
 		if (timeoutWait(IEC_PIN_CLK, pulled))			// wait for falling edge
 			return -1;
 	}
-	//Debug_printf("%.2X ", data);
 
 	// STEP 4: FRAME HANDSHAKE
 	// After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true  
@@ -299,7 +298,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 		// FIXME: Here check whether data pin goes low, if so end (enter cleanup)!
 
 		// tell listener to wait
-		pull(IEC_PIN_CLK);							 // pull clock low
+		pull(IEC_PIN_CLK);
 
 		// set data bit
 		//(data bitand 1) ? pull(IEC_PIN_DATA) : release(IEC_PIN_DATA); // set data
@@ -344,6 +343,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	return true;
 } // sendByte
 
+
 // IEC turnaround
 bool IEC::turnAround(void)
 {
@@ -382,6 +382,7 @@ bool IEC::turnAround(void)
 	return true;
 } // turnAround
 
+
 // this routine will set the direction on the bus back to normal
 // (the way it was when the computer was switched on)
 bool IEC::undoTurnAround(void)
@@ -403,6 +404,7 @@ bool IEC::undoTurnAround(void)
 	Debug_print("complete");
 	return true;
 } // undoTurnAround
+
 
 /******************************************************************************
  *                                                                             *
@@ -546,7 +548,6 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 			Debug_printf(" (%.2d DEVICE)", atn_cmd.device);
 
 			// Wait for ATN to release and quit
-			//while(not status(IEC_PIN_ATN));
 			while(status(IEC_PIN_ATN) == pulled);
 			Debug_printf("\r\ncheckATN: ATN Released\r\n");
 		}
@@ -583,7 +584,6 @@ IEC::ATNCheck IEC::deviceListen(ATNCmd &atn_cmd)
 		return ATN_CMD_LISTEN;
 	}
 	else if (atn_cmd.command not_eq ATN_CODE_UNLISTEN)
-	//if(c not_eq ATN_CODE_UNLISTEN)
 	{
 
 		if (atn_cmd.command == ATN_CODE_OPEN)
@@ -641,9 +641,9 @@ IEC::ATNCheck IEC::deviceTalk(ATNCmd &atn_cmd)
 	Debug_printf("(40 TALK) (%.2d DEVICE)", atn_cmd.device);
 	Debug_printf("\r\ncheckATN: %.2X (%.2X SECOND) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
 
-	while (status(IEC_PIN_ATN) == released)
+	while(status(IEC_PIN_ATN) == pulled) 
 	{
-		if (status(IEC_PIN_CLK) == pulled)
+		if(status(IEC_PIN_CLK) == released) 
 		{
 			c = (ATNCommand)receive();
 			if (m_state bitand errorFlag)
@@ -675,10 +675,9 @@ IEC::ATNCheck IEC::deviceTalk(ATNCmd &atn_cmd)
 
 // bool IEC::checkRESET()
 // {
-// 	//	return false;
-// 	//	// hmmm. Is this all todo?
 // 	return readRESET();
 // } // checkRESET
+
 
 // IEC_receive receives a byte
 //
@@ -688,6 +687,7 @@ int IEC::receive()
 	data = receiveByte();
 	return data;
 } // receive
+
 
 // IEC_send sends a byte
 //
@@ -719,6 +719,7 @@ bool IEC::sendEOI(int data)
 	return false;
 } // sendEOI
 
+
 // A special send command that informs file not found condition
 //
 bool IEC::sendFNF()
@@ -734,10 +735,12 @@ bool IEC::sendFNF()
 	return true;
 } // sendFNF
 
+
 bool IEC::isDeviceEnabled(const int deviceNumber)
 {
 	return (enabledDevices & (1 << deviceNumber));
 } // isDeviceEnabled
+
 
 IEC::IECState IEC::state() const
 {
