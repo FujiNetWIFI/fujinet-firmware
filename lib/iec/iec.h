@@ -43,6 +43,7 @@
 
 // IEC protocol timing consts:
 #define TIMING_BIT          60  // bit clock hi/lo time     (us)
+#define TIMING_SLOW_DOWN    50  // slow down a little       (us)
 #define TIMING_NO_EOI       5   // delay before bits        (us)
 #define TIMING_EOI_WAIT     200 // delay to signal EOI      (us)
 #define TIMING_EOI_THRESH   20  // threshold for EOI detect (*10 us approx)
@@ -84,13 +85,14 @@ public:
 	};
 
 	// IEC ATN commands:
-	enum ATNCommand {
-		ATN_CODE_GLOBAL = 0x00,		// 0x00 + cmd (global command)
-		ATN_CODE_LISTEN = 0x20,		// 0x20 + device_id (LISTEN)
-		ATN_CODE_UNLISTEN = 0x3F,	// 0x3F (UNLISTEN)
-		ATN_CODE_TALK = 0x40,		// 0x40 + device_id (TALK)
-		ATN_CODE_UNTALK = 0x5F,		// 0x5F (UNTALK)
-		ATN_CODE_DATA = 0x60,		// 0x60 + channel (SECOND)
+	enum ATNCommand 
+       {
+		ATN_CODE_GLOBAL = 0x00,	    // 0x00 + cmd (global command)
+		ATN_CODE_LISTEN = 0x20,	    // 0x20 + device_id (LISTEN)
+		ATN_CODE_UNLISTEN = 0x3F,   // 0x3F (UNLISTEN)
+		ATN_CODE_TALK = 0x40,	    // 0x40 + device_id (TALK)
+		ATN_CODE_UNTALK = 0x5F,     // 0x5F (UNTALK)
+		ATN_CODE_DATA = 0x60,	    // 0x60 + channel (SECOND)
 		ATN_CODE_CLOSE = 0xE0,  	// 0xE0 + channel (CLOSE)
 		ATN_CODE_OPEN = 0xF0		// 0xF0 + channel (OPEN)
 	};
@@ -173,8 +175,8 @@ private:
 	{
 		// releasing line can set to input mode, which won't drive the bus - simple way to mimic open collector
 		// *** didn't seem to work in my testing ***
-		//fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
-		set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
+        //fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
+        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
 		fnSystem.digital_write(pin, DIGI_HIGH);
 	}
 
@@ -186,14 +188,12 @@ private:
 	}
 
 	inline int get_bit(int pin)
-	{
-		// To be able to read line we must be set to input, not driving.
-		return fnSystem.digital_read(pin) ? true : false;
+       {
+		return fnSystem.digital_read(pin);
 	}
 
 	inline void set_bit(int pin, int bit)
 	{
-		// To be able to read line we must be set to input, not driving.
 		return fnSystem.digital_write(pin, bit);
 	}
 

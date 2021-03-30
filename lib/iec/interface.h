@@ -74,7 +74,6 @@ private:
 	void handleDeviceCommand(IEC::ATNCmd &cmd);
 	void handleMeatLoafCommand(IEC::ATNCmd &cmd);
 
-
 	// our iec low level driver:
 	IEC& m_iec;
 

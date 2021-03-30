@@ -35,7 +35,7 @@ bool IEC::init()
 	set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_INPUT);
 	set_pin_mode(IEC_PIN_CLK, gpio_mode_t::GPIO_MODE_INPUT);
 	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);
-	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_OUTPUT);
+	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
 
 	m_state = noFlags;
 
@@ -43,22 +43,25 @@ bool IEC::init()
 } // init
 
 // timeoutWait returns true if timed out
-bool IEC::timeoutWait(int iecPIN, IECline lineStatus)
+bool IEC::timeoutWait(int pin, IECline state)
 {
 	uint16_t t = 0;
 
+	pull(IEC_PIN_SRQ);
 	while(t < TIMEOUT) {
 
 		// Check the waiting condition:
-		if(status(iecPIN) == lineStatus)
+		if(status(pin) == state)
 		{
 			// Got it!  Continue!
+			release(IEC_PIN_SRQ);
 			return false;
 		}
 
 		fnSystem.delay_microseconds(3); // The aim is to make the loop at least 3 us
 		t++;
 	}
+	release(IEC_PIN_SRQ);
 
 	// If down here, we have had a timeout.
 	// Release lines and go to inactive state with error flag
@@ -73,7 +76,7 @@ bool IEC::timeoutWait(int iecPIN, IECline lineStatus)
 	// Note: The while above is without timeout. If ATN is held low forever,
 	//       the CBM is out in the woods and needs a reset anyways.
 
-	Debug_printf("\r\ntimeoutWait: true [%d] [%d] [%d] [%d]", iecPIN, lineStatus, t, m_state);
+	Debug_printf("\r\ntimeoutWait: true [%d] [%d] [%d] [%d]", pin, state, t, m_state);
 	return true;
 } // timeoutWait
 
@@ -94,9 +97,12 @@ int IEC::receiveByte(void)
 	if(status(IEC_PIN_ATN) == pulled)
 		m_state or_eq atnFlag;
 
-	// Wait for talker ready
+	// Talker ready to send
 	if (timeoutWait(IEC_PIN_CLK, released))
-		return -1; // return error because timeout
+	{
+		Debug_println("receiveByte: talker ready to send");
+		return -1;
+	}
 
 	// STEP 2: READY FOR DATA
 	// When  the  listener  is  ready  to  listen,  it  releases  the  Data  
@@ -104,6 +110,13 @@ int IEC::receiveByte(void)
 	// only when all listeners have released it - in other words, when  all  listeners  are  ready  
 	// to  accept  data.  What  happens  next  is  variable.     
 	release(IEC_PIN_DATA);
+
+	// Wait for other listeners to be ready
+	if (timeoutWait(IEC_PIN_DATA, released))
+	{
+		Debug_println("receiveByte: wait for all listeners to be ready");
+		return -1;
+	}
 
 	// Either  the  talker  will pull the 
 	// Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it  
@@ -142,18 +155,22 @@ int IEC::receiveByte(void)
 
 		// C64 should pull clock in response
 		if (timeoutWait(IEC_PIN_CLK, pulled))
+		{
+			Debug_println("receiveByte: talker should pull clk to continue EOI");
 			return -1;
+		}
+			
 	}
 
 	// STEP 3: SENDING THE BITS
 	// The talker has eight bits to send.  They will go out without handshake; in other words, 
 	// the listener had better be there to catch them, since the talker won't wait to hear from the listener.  At this 
 	// point, the talker controls both lines, Clock and Data.  At the beginning of the sequence, it is holding the 
-	// Clock true, while the Data line is released to false.  the Data line will change soon, since we'll sendthe data 
+	// Clock true, while the Data line is released to false.  the Data line will change soon, since we'll send the data 
 	// over it. The eights bits will go out from the character one at a time, with the least significant bit going first.  
 	// For example, if the character is the ASCII question mark, which is  written  in  binary  as  00011111,  the  ones  
 	// will  go out  first,  followed  by  the  zeros.  Now,  for  each bit, we set the Data line true or false according 
-	// to whether the bit is one or zero.  As soon as that'sset, the Clock line is released to false, signalling "data ready."  
+	// to whether the bit is one or zero.  As soon as that's set, the Clock line is released to false, signalling "data ready."  
 	// The talker will typically have a bit in  place  and  be  signalling  ready  in  70  microseconds  or  less.  Once  
 	// the  talker  has  signalled  "data ready," it will hold the two lines steady for at least 20 microseconds timing needs 
 	// to be increased to 60  microseconds  if  the  Commodore  64  is  listening,  since  the  64's  video  chip  may  
@@ -172,7 +189,10 @@ int IEC::receiveByte(void)
 
 		// wait for bit to be ready to read
 		if (timeoutWait(IEC_PIN_CLK, released)) // look for rising edge
+		{
+			Debug_println("receiveByte: wait for ready to read");
 			return -1;
+		}
 
 		// get bit
 		//data or_eq (status(IEC_PIN_DATA) == released ? (1 << 7) : 0); // read bit and shift in LSB 
@@ -180,7 +200,10 @@ int IEC::receiveByte(void)
 
 		// wait for talker to finish sending bit
 		if (timeoutWait(IEC_PIN_CLK, pulled))			// wait for falling edge
+		{
+			Debug_printf("receiveByte: wait for talker to finish sending (%d) bit [%d] (CLOCK)\r\n", n, data);
 			return -1;
+		}
 	}
 
 	// STEP 4: FRAME HANDSHAKE
@@ -191,6 +214,7 @@ int IEC::receiveByte(void)
 
 	// Acknowledge byte received
 	pull(IEC_PIN_DATA);
+	fnSystem.delay_microseconds(TIMING_SLOW_DOWN);
 
 	// STEP 5: START OVER
 	// We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,  
@@ -281,7 +305,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	// over it. The eights bits will go out from the character one at a time, with the least significant bit going first.  
 	// For example, if the character is the ASCII question mark, which is  written  in  binary  as  00011111,  the  ones  
 	// will  go out  first,  followed  by  the  zeros.  Now,  for  each bit, we set the Data line true or false according 
-	// to whether the bit is one or zero.  As soon as that'sset, the Clock line is released to false, signalling "data ready."  
+	// to whether the bit is one or zero.  As soon as that's set, the Clock line is released to false, signalling "data ready."  
 	// The talker will typically have a bit in  place  and  be  signalling  ready  in  70  microseconds  or  less.  Once  
 	// the  talker  has  signalled  "data ready," it will hold the two lines steady for at least 20 microseconds timing needs 
 	// to be increased to 60  microseconds  if  the  Commodore  64  is  listening,  since  the  64's  video  chip  may  
@@ -291,7 +315,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	// to prepare for the next bit. When the talker figures the data has been held for a sufficient  length  of  time,  it  
 	// pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
 
-	// Send bits
+	// Send the bits, sampling on clock rising edge, logic 0,0V to logic 1,5V:
 	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_OUTPUT);
 	for (int n = 0; n < 8; n++)
 	{
@@ -302,7 +326,8 @@ bool IEC::sendByte(int data, bool signalEOI)
 
 		// set data bit
 		//(data bitand 1) ? pull(IEC_PIN_DATA) : release(IEC_PIN_DATA); // set data
-		set_bit(IEC_PIN_DATA, (data bitand 1) ? 0 : 1);
+		//set_bit(IEC_PIN_DATA, (data bitand 1) ? 1 : 0);
+		set_bit(IEC_PIN_DATA, (data & 1));
 		fnSystem.delay_microseconds(TIMING_BIT);	 // hold data
 
 		// tell listener bit is ready to read
@@ -313,7 +338,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	}
 
 	pull(IEC_PIN_CLK);	// pull clock cause we're done
-	release(IEC_PIN_DATA); // release data because we're 
+	release(IEC_PIN_DATA); // release data because we're done
 	fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
 
 	// STEP 4: FRAME HANDSHAKE
@@ -441,7 +466,7 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 	int i = 0;
 
 #ifdef DEBUG_TIMING
-	int pin = IEC_PIN_ATN;
+	int pin = IEC_PIN_SRQ;
 	pull(pin);
 	fnSystem.delay_microseconds(1000); // 1000
 	release(pin);
@@ -698,6 +723,7 @@ bool IEC::send(int data)
 #endif
 	return sendByte(data, false);
 } // send
+
 
 // Same as IEC_send, but indicating that this is the last byte.
 //
