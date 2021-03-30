@@ -621,7 +621,7 @@ IEC::ATNCheck IEC::deviceListen(ATNCmd &atn_cmd)
 		{
 			c = (ATNCommand)receive();
 			pull(IEC_PIN_SRQ);
-			fnSystem.delay_microseconds(120);
+			fnSystem.delay_microseconds(160);
 			//Debug_printf("\r\ncheckATN: %x", c);
 			release(IEC_PIN_SRQ);
 			if (m_state bitand errorFlag)
