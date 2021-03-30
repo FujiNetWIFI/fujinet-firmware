@@ -50,6 +50,8 @@ bool IEC::timeoutWait(int pin, IECline state)
 	//pull(IEC_PIN_SRQ);
 	while(t < TIMEOUT) {
 
+		fnSystem.delay_microseconds(3); // The aim is to make the loop at least 3 us
+
 		// Check the waiting condition:
 		if(status(pin) == state)
 		{
@@ -58,7 +60,6 @@ bool IEC::timeoutWait(int pin, IECline state)
 			return false;
 		}
 
-		fnSystem.delay_microseconds(3); // The aim is to make the loop at least 3 us
 		t++;
 	}
 	//release(IEC_PIN_SRQ);
@@ -183,7 +184,6 @@ int IEC::receiveByte(void)
 	// Get the bits, sampling on clock rising edge, logic 0,0V to logic 1,5V:
 	int data = 0;
 	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);
-	pull(IEC_PIN_SRQ);
 	for (n = 0; n < 8; n++)
 	{
 		data >>= 1;
@@ -196,17 +196,15 @@ int IEC::receiveByte(void)
 		}
 
 		// get bit
-		//data or_eq (status(IEC_PIN_DATA) == released ? (1 << 7) : 0); // read bit and shift in LSB 
 		data or_eq (get_bit(IEC_PIN_DATA) ? (1 << 7) : 0); // read bit and shift in LSB first
 
 		// wait for talker to finish sending bit
-		if (timeoutWait(IEC_PIN_CLK, pulled))			// wait for falling edge
+		if (timeoutWait(IEC_PIN_CLK, pulled)) // wait for falling edge
 		{
 			Debug_printf("receiveByte: wait for talker to finish sending (%d) bit [%d] (CLOCK)\r\n", n, data);
 			return -1;
 		}
 	}
-	release(IEC_PIN_SRQ);
 
 	// STEP 4: FRAME HANDSHAKE
 	// After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true  
@@ -216,7 +214,6 @@ int IEC::receiveByte(void)
 
 	// Acknowledge byte received
 	pull(IEC_PIN_DATA);
-	fnSystem.delay_microseconds(TIMING_SLOW_DOWN);
 
 	// STEP 5: START OVER
 	// We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,  
@@ -227,8 +224,8 @@ int IEC::receiveByte(void)
 	// if(m_state bitand eoiFlag)
 	// {
 	// 	// EOI Received
-	// 	delayMicroseconds(TIMING_STABLE_WAIT);
-	// 	//release(IEC_PIN_CLK);
+	// 	fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
+	// 	release(IEC_PIN_CLK);
 	// 	release(IEC_PIN_DATA);
 	// }
 
@@ -321,20 +318,16 @@ bool IEC::sendByte(int data, bool signalEOI)
 	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_OUTPUT);
 	for (int n = 0; n < 8; n++)
 	{
-		// FIXME: Here check whether data pin goes low, if so end (enter cleanup)!
-
 		// tell listener to wait
 		pull(IEC_PIN_CLK);
 
 		// set data bit
-		//(data bitand 1) ? pull(IEC_PIN_DATA) : release(IEC_PIN_DATA); // set data
-		//set_bit(IEC_PIN_DATA, (data bitand 1) ? 1 : 0);
 		set_bit(IEC_PIN_DATA, (data & 1));
 		fnSystem.delay_microseconds(TIMING_BIT);	 // hold data
 
 		// tell listener bit is ready to read
 		release(IEC_PIN_CLK);						 // rising edge
-		fnSystem.delay_microseconds(TIMING_BIT);	 // hold data
+		fnSystem.delay_microseconds(TIMING_BIT);
 
 		data >>= 1; // get next bit
 	}
@@ -359,13 +352,13 @@ bool IEC::sendByte(int data, bool signalEOI)
 	// happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause, 
 	// the Clock and Data lines are released to false and transmission stops. 
 
-//	if(m_state bitand eoiFlag)
-//	{
-//		// EOI Received
-//		delayMicroseconds(TIMING_STABLE_WAIT);
-//		release(IEC_PIN_CLK);
-//		release(IEC_PIN_DATA);
-//	}
+	if(m_state bitand eoiFlag)
+	{
+		// EOI Received
+		fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
+		release(IEC_PIN_CLK);
+		release(IEC_PIN_DATA);
+	}
 
 	return true;
 } // sendByte
@@ -627,6 +620,10 @@ IEC::ATNCheck IEC::deviceListen(ATNCmd &atn_cmd)
 		for (;;)
 		{
 			c = (ATNCommand)receive();
+			pull(IEC_PIN_SRQ);
+			fnSystem.delay_microseconds(100);
+			//Debug_printf("\r\ncheckATN: %x", c);
+			release(IEC_PIN_SRQ);
 			if (m_state bitand errorFlag)
 			{
 				Debug_printf("\r\nm_state bitand errorFlag 2");

@@ -43,7 +43,6 @@
 
 // IEC protocol timing consts:
 #define TIMING_BIT          60  // bit clock hi/lo time     (us)
-#define TIMING_SLOW_DOWN    50  // slow down a little       (us)
 #define TIMING_NO_EOI       5   // delay before bits        (us)
 #define TIMING_EOI_WAIT     200 // delay to signal EOI      (us)
 #define TIMING_EOI_THRESH   20  // threshold for EOI detect (*10 us approx)
@@ -51,6 +50,8 @@
 #define TIMING_ATN_PREDELAY 50  // delay required in atn    (us)
 #define TIMING_ATN_DELAY    100 // delay required after atn (us)
 #define TIMING_FNF_DELAY    100 // delay after fnf?         (us)
+#define TIMING_SLOW_DOWN    50  // slow down a little       (us)
+#define TIMING_EXTRA		5	
 
 // See timeoutWait
 #define TIMEOUT 65500
