@@ -205,9 +205,6 @@ private:
 		// is this pin mode already set the way we want?
 		if ( ((gpio_pin_modes >> pin) & 1ULL) != b_mode )
 		{
-			//pull(IEC_PIN_SRQ);
-			fnSystem.digital_write(IEC_PIN_SRQ, DIGI_LOW);
-
 			// toggle bit so we don't change mode unnecessarily 
 			gpio_pin_modes ^= (-b_mode ^ gpio_pin_modes) & (1ULL << pin);
 
@@ -227,9 +224,6 @@ private:
 
 			// configure GPIO with the given settings
 			gpio_config(&io_conf);
-
-			//release(IEC_PIN_SRQ);
-			fnSystem.digital_write(IEC_PIN_SRQ, DIGI_HIGH);
 		}
 	}
 
