@@ -47,21 +47,21 @@ bool IEC::timeoutWait(int pin, IECline state)
 {
 	uint16_t t = 0;
 
-	pull(IEC_PIN_SRQ);
+	//pull(IEC_PIN_SRQ);
 	while(t < TIMEOUT) {
 
 		// Check the waiting condition:
 		if(status(pin) == state)
 		{
 			// Got it!  Continue!
-			release(IEC_PIN_SRQ);
+			//release(IEC_PIN_SRQ);
 			return false;
 		}
 
 		fnSystem.delay_microseconds(3); // The aim is to make the loop at least 3 us
 		t++;
 	}
-	release(IEC_PIN_SRQ);
+	//release(IEC_PIN_SRQ);
 
 	// If down here, we have had a timeout.
 	// Release lines and go to inactive state with error flag
@@ -183,6 +183,7 @@ int IEC::receiveByte(void)
 	// Get the bits, sampling on clock rising edge, logic 0,0V to logic 1,5V:
 	int data = 0;
 	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);
+	pull(IEC_PIN_SRQ);
 	for (n = 0; n < 8; n++)
 	{
 		data >>= 1;
@@ -205,6 +206,7 @@ int IEC::receiveByte(void)
 			return -1;
 		}
 	}
+	release(IEC_PIN_SRQ);
 
 	// STEP 4: FRAME HANDSHAKE
 	// After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true  
@@ -620,6 +622,7 @@ IEC::ATNCheck IEC::deviceListen(ATNCmd &atn_cmd)
 			Debug_printf("\r\ncheckATN: %.2X (%.2X CLOSE) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
 		}
 
+		Debug_println("\r\ncheckATN: receive command");
 		// Some other command. Record the cmd string until UNLISTEN is sent
 		for (;;)
 		{
