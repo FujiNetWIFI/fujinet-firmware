@@ -610,8 +610,8 @@ uint16_t Interface::sendHeader(uint16_t &basicPtr)
 	// Send List HEADER
 	// "      MEAT LOAF 64      "
 	//	int space_cnt = (16 - strlen(PRODUCT_ID)) / 2;
-	int space_cnt = (16 - strlen(FN_VERSION_FULL)) / 2;
-	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", FN_VERSION_FULL, space_cnt, "", m_device.device());
+	int space_cnt = 0; //(16 - strlen(FN_VERSION_FULL)) / 2;
+	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", "FUJINET/MEATLOAF", space_cnt, "", m_device.device());
 
 	// Send Extra INFO
 	if (m_device.url().length())
@@ -653,8 +653,8 @@ void Interface::sendListing()
 	// TODO directory handling!!!!!
 
 	// Send List ITEMS
-	//sendLine(1, "\"THIS IS A FILE\"     PRG", basicPtr);
-	//sendLine(5, "\"THIS IS A FILE 2\"   PRG", basicPtr);
+	sendLine(basicPtr, 200, "\"THIS IS A FILE\"     PRG");
+	sendLine(basicPtr, 57, " \"THIS IS A FILE 2\"   PRG");
 /* 	Dir dir = m_fileSystem->openDir(m_device.path());
 	while (dir.next()) {
 		uint16_t block_cnt = dir.fileSize() / 256;
@@ -717,8 +717,8 @@ uint16_t Interface::sendFooter(uint16_t &basicPtr)
 	// vfs stat?
 	//FSInfo64 fs_info;
 	//m_fileSystem->info64(fs_info);
-	return sendLine(basicPtr, 0, "END.");
 	// return sendLine(basicPtr, (fs_info.totalBytes-fs_info.usedBytes)/256, "BLOCKS FREE.");
+	return sendLine(basicPtr, 65535, "BLOCKS FREE.");
 	//Debug_println("");
 }
 
