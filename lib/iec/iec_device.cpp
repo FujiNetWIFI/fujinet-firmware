@@ -1,5 +1,5 @@
 //
-// Title        : UNO2IEC - interface implementation, arduino side.
+// Title        : UNO2IEC - iecDevice implementation, arduino side.
 // Author       : Lars Wadefalk
 // Version      : 0.1
 // Target MCU   : Arduino Uno AtMega328(H, 5V) at 16 MHz, 2KB SRAM, 32KB flash, 1KB EEPROM.
@@ -30,7 +30,7 @@
 
 //#include "global_defines.h"
 //#include "debug.h"
-#include "interface.h"
+#include "iec_device.h"
 #include "iec.h"
 
 #include <stdarg.h>
@@ -50,13 +50,13 @@ char serCmdIOBuf[MAX_BYTES_PER_REQUEST];
 
 } // unnamed namespace
 
-Interface::Interface() // (IEC &iec, FileSystem *fileSystem)
-	: m_iec(iec)
+iecDevice::iecDevice() // (IEC &iec, FileSystem *fileSystem)
+	: m_iec(IEC)
 	  // NOTE: Householding with RAM bytes: We use the middle of serial buffer for the ATNCmd buffer info.
 	  // This is ok and won't be overwritten by actual serial data from the host, this is because when this ATNCmd data is in use
 	  // only a few bytes of the actual serial data will be used in the buffer.
 	  ,
-	  m_atn_cmd(*reinterpret_cast<IEC::ATNCmd *>(&serCmdIOBuf[sizeof(serCmdIOBuf) / 2]))
+	  m_atn_cmd(*reinterpret_cast<iecBus::ATNCmd *>(&serCmdIOBuf[sizeof(serCmdIOBuf) / 2]))
 //	,  m_device(&fileSystem)
 //,  m_jsonHTTPBuffer(1024)
 {
@@ -65,7 +65,7 @@ Interface::Interface() // (IEC &iec, FileSystem *fileSystem)
 } // ctor
 
 
-bool Interface::begin(IEC &iec, FileSystem *fileSystem)
+bool iecDevice::begin(iecBus &iec, FileSystem *fileSystem)
 {
 	//	m_device.init(std::string(DEVICE_DB));
 	//m_device.check();
@@ -74,14 +74,14 @@ bool Interface::begin(IEC &iec, FileSystem *fileSystem)
 	return true;
 }
 
-void Interface::reset(void)
+void iecDevice::reset(void)
 {
 	m_openState = O_NOTHING;
 	m_queuedError = ErrIntro;
 } // reset
 
 
-void Interface::sendStatus(void)
+void iecDevice::sendStatus(void)
 {
 	int i, readResult;
 	
@@ -99,7 +99,7 @@ void Interface::sendStatus(void)
 
 
 
-void Interface::sendDeviceInfo()
+void iecDevice::sendDeviceInfo()
 {
 	Debug_printf("\r\nsendDeviceInfo:\r\n");
 
@@ -177,7 +177,7 @@ void Interface::sendDeviceInfo()
 	fnLedManager.set(LED_SIO);
 } // sendDeviceInfo
 
-void Interface::sendDeviceStatus()
+void iecDevice::sendDeviceStatus()
 {
 	Debug_printf("\r\nsendDeviceStatus:\r\n");
 
@@ -210,7 +210,7 @@ void Interface::sendDeviceStatus()
 } // sendDeviceStatus
 
 
-int Interface::loop(void)
+int iecDevice::loop(void)
 {
 //#ifdef HAS_RESET_LINE
 //	if(m_iec.checkRESET()) {
@@ -227,21 +227,19 @@ int Interface::loop(void)
 	// 	Debug_println("ATN_RESET");
 	// }
 
-//	noInterrupts();
-	IEC::ATNCheck retATN = m_iec.checkATN( m_atn_cmd);
-//	interrupts();
+	iecBus::ATNCheck retATN = m_iec.checkATN( m_atn_cmd);
 
-	if(retATN == IEC::ATN_ERROR)
+	if(retATN == iecBus::ATN_ERROR)
 	{
 		//Debug_printf("\r\n[ERROR]");
 		reset();
-		retATN = IEC::ATN_IDLE;
+		retATN = iecBus::ATN_IDLE;
 	}
 	// Did anything happen from the host side?
-	else if(retATN not_eq IEC::ATN_IDLE)
+	else if(retATN not_eq iecBus::ATN_IDLE)
 	 {
 		switch( m_atn_cmd.command) {
-			case IEC::ATN_CODE_OPEN:
+			case iecBus::ATN_CODE_OPEN:
 				if ( m_atn_cmd.channel == 0 )
 					Debug_printf("\r\n[OPEN] LOAD \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);
 				if ( m_atn_cmd.channel == 1 )
@@ -255,36 +253,36 @@ int Interface::loop(void)
 				handleATNCmdCodeOpen( m_atn_cmd );
 			break;
 
-			case IEC::ATN_CODE_DATA:  // data channel opened
+			case iecBus::ATN_CODE_DATA:  // data channel opened
 				Debug_printf("\r\n[DATA] ");
-				if(retATN == IEC::ATN_CMD_TALK) {
+				if(retATN == iecBus::ATN_CMD_TALK) {
 					 // when the CMD channel is read (status), we first need to issue the host request. The data channel is opened directly.
 					if( m_atn_cmd.channel == CMD_CHANNEL)
 						handleATNCmdCodeOpen( m_atn_cmd); // This is typically an empty command,
 					handleATNCmdCodeDataTalk( m_atn_cmd.channel); // ...but we do expect a response from PC that we can send back to CBM.
 				}
-				else if(retATN == IEC::ATN_CMD_LISTEN)
+				else if(retATN == iecBus::ATN_CMD_LISTEN)
 					handleATNCmdCodeDataListen();
-				else if(retATN == IEC::ATN_CMD) // Here we are sending a command to PC and executing it, but not sending response
+				else if(retATN == iecBus::ATN_CMD) // Here we are sending a command to PC and executing it, but not sending response
 					handleATNCmdCodeOpen( m_atn_cmd);	// back to CBM, the result code of the command is however buffered on the PC side.
 				break;
 
-			case IEC::ATN_CODE_CLOSE:
+			case iecBus::ATN_CODE_CLOSE:
 				Debug_printf("\r\n[CLOSE] ");
 				// handle close with host.
 				handleATNCmdClose();
 				break;
 
-			case IEC::ATN_CODE_LISTEN:
+			case iecBus::ATN_CODE_LISTEN:
 				Debug_printf("\r\n[LISTEN] ");
 				break;
-			case IEC::ATN_CODE_TALK:
+			case iecBus::ATN_CODE_TALK:
 				Debug_printf("\r\n[TALK] ");
 				break;
-			case IEC::ATN_CODE_UNLISTEN:
+			case iecBus::ATN_CODE_UNLISTEN:
 				Debug_printf("\r\n[UNLISTEN] ");
 				break;
-			case IEC::ATN_CODE_UNTALK:
+			case iecBus::ATN_CODE_UNTALK:
 				Debug_printf("\r\n[UNTALK] ");
 				break;
 		} // switch
@@ -294,7 +292,7 @@ int Interface::loop(void)
 } // handler
 
 
-void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
+void iecDevice::handleATNCmdCodeOpen(iecBus::ATNCmd& atn_cmd)
 {
 	m_device.select( atn_cmd.device );
 	m_filename = std::string((char *)atn_cmd.str);
@@ -429,7 +427,7 @@ void Interface::handleATNCmdCodeOpen(IEC::ATNCmd& atn_cmd)
 } // handleATNCmdCodeOpen
 
 
-void Interface::handleATNCmdCodeDataTalk(int chan)
+void iecDevice::handleATNCmdCodeDataTalk(int chan)
 {
 	// process response into m_queuedError.
 	// Response: ><code in binary><CR>
@@ -503,7 +501,7 @@ void Interface::handleATNCmdCodeDataTalk(int chan)
 } // handleATNCmdCodeDataTalk
 
 
-void Interface::handleATNCmdCodeDataListen()
+void iecDevice::handleATNCmdCodeDataListen()
 {
 	int lengthOrResult = 0;
 	bool wasSuccess = false;
@@ -543,7 +541,7 @@ void Interface::handleATNCmdCodeDataListen()
 } // handleATNCmdCodeDataListen
 
 
-void Interface::handleATNCmdClose()
+void iecDevice::handleATNCmdClose()
 {
 	Debug_printf("\r\nhandleATNCmdClose: Success!");
 
@@ -555,7 +553,7 @@ void Interface::handleATNCmdClose()
 
 
 // send single basic line, including heading basic pointer and terminating zero.
-uint16_t Interface::sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...)
+uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...)
 {
 	// Format our string
 	va_list args;
@@ -567,7 +565,7 @@ uint16_t Interface::sendLine(uint16_t &basicPtr, uint16_t blocks, const char* fo
 	return sendLine(basicPtr, blocks, text);
 }
 
-uint16_t Interface::sendLine(uint16_t &basicPtr, uint16_t blocks, char* text)
+uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, char* text)
 {
 	int i;
 	uint16_t b_cnt = 0;
@@ -603,7 +601,7 @@ uint16_t Interface::sendLine(uint16_t &basicPtr, uint16_t blocks, char* text)
 } // sendLine
 
 
-uint16_t Interface::sendHeader(uint16_t &basicPtr)
+uint16_t iecDevice::sendHeader(uint16_t &basicPtr)
 {
 	uint16_t byte_count = 0;
 
@@ -632,7 +630,7 @@ uint16_t Interface::sendHeader(uint16_t &basicPtr)
     return byte_count;
 }
 
-void Interface::sendListing()
+void iecDevice::sendListing()
 {
 	Debug_printf("\r\nsendListing:\r\n");
 
@@ -710,7 +708,7 @@ void Interface::sendListing()
 	fnLedManager.set(LED_SIO);
 } // sendListing
 
-uint16_t Interface::sendFooter(uint16_t &basicPtr)
+uint16_t iecDevice::sendFooter(uint16_t &basicPtr)
 {
 	// Send List FOOTER
 	// todo TODO figure out fnFS equivalents
@@ -723,7 +721,7 @@ uint16_t Interface::sendFooter(uint16_t &basicPtr)
 }
 
 
-void Interface::sendFile()
+void iecDevice::sendFile()
 {
 	uint16_t i = 0;
 	bool success = true;
@@ -823,7 +821,7 @@ void Interface::sendFile()
 	}
 } // sendFile
 
-void Interface::saveFile()
+void iecDevice::saveFile()
 {
 	std::string outFile = std::string(m_device.path()+m_filename);
 	int b;
@@ -842,7 +840,7 @@ void Interface::saveFile()
 		// Recieve bytes until a EOI is detected
 		do {
 			b = m_iec.receive();
-			done = (m_iec.state() bitand IEC::eoiFlag) or (m_iec.state() bitand IEC::errorFlag);
+			done = (m_iec.state() bitand iecBus::eoiFlag) or (m_iec.state() bitand iecBus::errorFlag);
 
 			//file.write(b);
 			fwrite(&b, 2, 1, file);
@@ -854,7 +852,7 @@ void Interface::saveFile()
 
 
 /* 
-void Interface::sendListingHTTP()
+void iecDevice::sendListingHTTP()
 {
 	Debug_printf("\r\nsendListingHTTP: ");
 
@@ -930,7 +928,7 @@ void Interface::sendListingHTTP()
 } // sendListingHTTP
  */
 /* 
-void Interface::sendFileHTTP()
+void iecDevice::sendFileHTTP()
 {
 	uint16_t i = 0;
 	bool success = true;
