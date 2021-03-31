@@ -552,13 +552,11 @@ iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 			if (cc == ATN_CODE_UNTALK)
 			{	
 				Debug_printf("\r\ncheckATN: %.2X (UNTALK)", c);
-				ret = ATN_CODE_UNTALK;
 			}
 				
 			if (cc == ATN_CODE_UNLISTEN)
 			{
 				Debug_printf("\r\ncheckATN: %.2X (UNLISTEN)", c);
-				ret = ATN_CODE_UNLISTEN;
 			}
 
 			Debug_printf(" (%.2d DEVICE)", atn_cmd.device);
