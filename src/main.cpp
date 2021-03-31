@@ -8,7 +8,7 @@
 #include "keys.h"
 #include "led.h"
 #include "sio.h"
-#include "interface.h" // c64
+#include "iec_device.h" // c64
 #include "fuji.h"
 #include "modem.h"
 #include "apetime.h"
@@ -43,7 +43,7 @@ sioModem *sioR;
 sioCPM sioZ;
 
 #define DEVICE_MASK 0b00000000000000000000111100000000 //  Devices 8-11
-Interface drive;
+iecDevice drive;
 
 void main_shutdown_handler()
 {
@@ -182,15 +182,15 @@ void cbm_setup()
     }
 
     // Go setup IEC
-    iec.enabledDevices = DEVICE_MASK;
-    iec.init();
+    IEC.enabledDevices = DEVICE_MASK;
+    IEC.init();
     Debug_println("IEC Bus Initialized");
 
-    drive.begin(iec, &fnSDFAT);
+    drive.begin(IEC, &fnSDFAT);
     Debug_print("Virtual Device(s) Started: [ ");
     for (int i = 0; i < 31; i++)
     {
-        if (iec.isDeviceEnabled(i))
+        if (IEC.isDeviceEnabled(i))
         {
             Debug_printf("%.02d ", i);
         }

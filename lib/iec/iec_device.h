@@ -1,5 +1,5 @@
-#ifndef INTERFACE_H
-#define INTERFACE_H
+#ifndef IECDEVICE_H
+#define IECDEVICE_H
 
 #include "device_db.h"
 #include "iec.h"
@@ -27,25 +27,16 @@ enum OpenState {
 #define IMAGE_TYPES "D64|D71|D80|D81|D82|D8B|G64|X64|Z64|TAP|T64|TCRT|CRT|D1M|D2M|D4M|DHD|HDD|DNP|DFI|M2I|NIB"
 #define FILE_TYPES "C64|PRG|P00|SEQ|S00|USR|U00|REL|R00"
 
-class Interface
+class iecDevice
 {
 public:
-	Interface();// IEC &iec, FileSystem *fileSystem);
-	virtual ~Interface() {}
+	iecDevice();// iecBus &iec, FileSystem *fileSystem);
+	virtual ~iecDevice() {}
 
-	bool begin(IEC &iec, FileSystem *fileSystem);
+	bool begin(iecBus &iec, FileSystem *fileSystem);
 
 	// The handler returns the current IEC state, see the iec.hpp for possible states.
 	int loop(void);
-
-	// Keeping the system date and time as set on a specific moment. The millis() will then keep the elapsed time since
-	// moment the time was set.
-	void setDateTime(uint16_t year, int month, int day, int hour, int minute, int second);
-
-	// retrieve the date and time as strings. Current time will be updated according to the elapsed millis before formatting.
-	// String will be of format "yyyymmdd hhmmss", if timeOnly is true only the time part will be returned as
-	// "hhmmss", this fits the TIME$ variable of cbm basic 2.0 and later.
-	char* dateTimeString(char* dest, bool timeOnly);
 
 private:
 	void reset(void);
@@ -66,23 +57,23 @@ private:
 	void saveFile(void);
 
 	// handler helpers.
-	void handleATNCmdCodeOpen(IEC::ATNCmd &cmd);
+	void handleATNCmdCodeOpen(iecBus::ATNCmd &cmd);
 	void handleATNCmdCodeDataListen(void);
 	void handleATNCmdCodeDataTalk(int chan);
 	void handleATNCmdClose(void);
 
-	void handleDeviceCommand(IEC::ATNCmd &cmd);
-	void handleMeatLoafCommand(IEC::ATNCmd &cmd);
+	void handleDeviceCommand(iecBus::ATNCmd &cmd);
+	void handleMeatLoafCommand(iecBus::ATNCmd &cmd);
 
 	// our iec low level driver:
-	IEC& m_iec;
+	iecBus& m_iec;
 
 	// This var is set after an open command and determines what to send next
 	int m_openState;			// see OpenState
 	int m_queuedError;
 
 	// atn command buffer struct
-	IEC::ATNCmd& m_atn_cmd;
+	iecBus::ATNCmd& m_atn_cmd;
 
 	FileSystem *m_fileSystem;
 	// StaticJsonDocument<256> m_jsonHTTP;

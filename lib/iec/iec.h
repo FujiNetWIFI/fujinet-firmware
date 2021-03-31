@@ -1,5 +1,5 @@
-#ifndef IEC_H
-#define IEC_H
+#ifndef IECBUS_H
+#define IECBUS_H
 
 /**
  * notes by jeffpiep 3/9/2021
@@ -59,7 +59,7 @@
 // #define HIGH 0x1
 // #define LOW  0x0
 
-class IEC
+class iecBus
 {
 public:
 	enum IECline
@@ -112,8 +112,8 @@ public:
 		int strLen;
 	} ATNCmd;
 
-	IEC();
-	~IEC(){}
+	iecBus();
+	~iecBus(){}
 
 	// Initialise iec driver
 	bool init();
@@ -232,6 +232,6 @@ private:
 	int m_state;
 };
 
-extern IEC iec;
+extern iecBus IEC;
 
 #endif

@@ -4,12 +4,12 @@
 
 using namespace CBM;
 
-IEC::IEC() : m_state(noFlags)
+iecBus::iecBus() : m_state(noFlags)
 {
 } // ctor
 
 // Set all IEC_signal lines in the correct mode for power up state
-bool IEC::init()
+bool iecBus::init()
 {
 	// the I/O signaling method used by this low level driver uses two states:
 	// PULL state is pin set to GPIO_MODE_OUTPUT with the output driving DIGI_LOW (0V)
@@ -43,7 +43,7 @@ bool IEC::init()
 } // init
 
 // timeoutWait returns true if timed out
-bool IEC::timeoutWait(int pin, IECline state)
+bool iecBus::timeoutWait(int pin, IECline state)
 {
 	uint16_t t = 0;
 
@@ -82,7 +82,7 @@ bool IEC::timeoutWait(int pin, IECline state)
 } // timeoutWait
 
 // (Jim Butterfield - Compute! July 1983 - "HOW THE VIC/64 SERIAL BUS WORKS")
-// STEP 1: READY TO SEND
+// STEP 1: READY TO SEND (We are listener now)
 // Sooner or later, the talker will want to talk, and send a character. 
 // When it's ready to go, it releases the Clock line to false.  This signal change might be 
 // translated as "I'm ready to send a character." The listener must detect this and respond, 
@@ -90,7 +90,7 @@ bool IEC::timeoutWait(int pin, IECline state)
 // "ready  to  send"  signal  whenever  it  likes;  it  can  wait  a  long  time.    If  it's  
 // a printer chugging out a line of print, or a disk drive with a formatting job in progress, 
 // it might holdback for quite a while; there's no time limit. 
-int IEC::receiveByte(void)
+int iecBus::receiveByte(void)
 {
 	m_state = noFlags;
 
@@ -105,7 +105,7 @@ int IEC::receiveByte(void)
 		return -1;
 	}
 
-	// STEP 2: READY FOR DATA
+	// STEP 2: READY FOR DATA (We are listener now)
 	// When  the  listener  is  ready  to  listen,  it  releases  the  Data  
 	// line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false 
 	// only when all listeners have released it - in other words, when  all  listeners  are  ready  
@@ -133,7 +133,7 @@ int IEC::receiveByte(void)
 	if (n >= TIMING_EOI_THRESH)
 	{
 
-		// INTERMISSION: EOI
+		// INTERMISSION: EOI (We are listener now)
 		// If the Ready for Data signal isn't acknowledged by the talker within 200 microseconds, the 
 		// listener knows  that  the  talker  is  trying  to  signal  EOI.    EOI,  which  formally  
 		// stands  for  "End  of  Indicator," means  "this  character  will  be  the  last  one."    
@@ -163,7 +163,7 @@ int IEC::receiveByte(void)
 			
 	}
 
-	// STEP 3: SENDING THE BITS
+	// STEP 3: SENDING THE BITS (We are listener now)
 	// The talker has eight bits to send.  They will go out without handshake; in other words, 
 	// the listener had better be there to catch them, since the talker won't wait to hear from the listener.  At this 
 	// point, the talker controls both lines, Clock and Data.  At the beginning of the sequence, it is holding the 
@@ -206,7 +206,7 @@ int IEC::receiveByte(void)
 		}
 	}
 
-	// STEP 4: FRAME HANDSHAKE
+	// STEP 4: FRAME HANDSHAKE (We are listener now)
 	// After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true  
 	// and  the  Data  line  is  false.    The  listener  must  acknowledge  receiving  the  byte  OK  by pulling the Data 
 	// line to true. The talker is now watching the Data line.  If the listener doesn't pull the  Data  line  true  within  
@@ -215,26 +215,26 @@ int IEC::receiveByte(void)
 	// Acknowledge byte received
 	pull(IEC_PIN_DATA);
 
-	// STEP 5: START OVER
+	// STEP 5: START OVER (We are listener now)
 	// We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,  
 	// and  the listener is holding the Data line true. We're ready for step 1; we may send another character - unless EOI has 
 	// happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause, 
 	// the Clock and Data lines are released to false and transmission stops. 
 
-	// if(m_state bitand eoiFlag)
-	// {
-	// 	// EOI Received
-	// 	fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
-	// 	release(IEC_PIN_CLK);
-	// 	release(IEC_PIN_DATA);
-	// }
+	if(m_state bitand eoiFlag)
+	{
+		// EOI Received
+		fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
+		release(IEC_PIN_CLK);
+		release(IEC_PIN_DATA);
+	}
 
 	return data;
 } // receiveByte
 
 
 // (Jim Butterfield - Compute! July 1983 - "HOW THE VIC/64 SERIAL BUS WORKS")
-// STEP 1: READY TO SEND
+// STEP 1: READY TO SEND (We are talker now)
 // Sooner or later, the talker will want to talk, and send a character. 
 // When it's ready to go, it releases the Clock line to false.  This signal change might be 
 // translated as "I'm ready to send a character." The listener must detect this and respond, 
@@ -242,15 +242,13 @@ int IEC::receiveByte(void)
 // "ready  to  send"  signal  whenever  it  likes;  it  can  wait  a  long  time.    If  it's  
 // a printer chugging out a line of print, or a disk drive with a formatting job in progress, 
 // it might holdback for quite a while; there's no time limit. 
-bool IEC::sendByte(int data, bool signalEOI)
+bool iecBus::sendByte(int data, bool signalEOI)
 {
-	//m_state = noFlags;
-
 	// Say we're ready
 	release(IEC_PIN_CLK);
 
 	// Wait for listener to be ready
-	// STEP 2: READY FOR DATA
+	// STEP 2: READY FOR DATA (We are talker now)
 	// When  the  listener  is  ready  to  listen,  it  releases  the  Data  
 	// line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false 
 	// only when all listeners have released it - in other words, when  all  listeners  are  ready  
@@ -264,7 +262,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	// without  the Clock line going to true, it has a special task to perform: note EOI.
 	if (signalEOI)
 	{
-		// INTERMISSION: EOI
+		// INTERMISSION: EOI (We are talker now)
 		// If the Ready for Data signal isn't acknowledged by the talker within 200 microseconds, the 
 		// listener knows  that  the  talker  is  trying  to  signal  EOI.    EOI,  which  formally  
 		// stands  for  "End  of  Indicator," means  "this  character  will  be  the  last  one."    
@@ -277,8 +275,6 @@ bool IEC::sendByte(int data, bool signalEOI)
 		// it will pull the Clock line  true,  and  transmission  will  continue.  At  this point,  the  Clock  
 		// line  is  true  whether  or  not  we have gone through the EOI sequence; we're back to a common 
 		// transmission sequence.
-
-		//m_state or_eq eoiFlag;
 
 		// Signal eoi by waiting 200 us
 		fnSystem.delay_microseconds(TIMING_EOI_WAIT);
@@ -296,7 +292,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 		fnSystem.delay_microseconds(TIMING_NO_EOI);		
 	}
 
-	// STEP 3: SENDING THE BITS
+	// STEP 3: SENDING THE BITS (We are talker now)
 	// The talker has eight bits to send.  They will go out without handshake; in other words, 
 	// the listener had better be there to catch them, since the talker won't wait to hear from the listener.  At this 
 	// point, the talker controls both lines, Clock and Data.  At the beginning of the sequence, it is holding the 
@@ -336,7 +332,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	release(IEC_PIN_DATA); // release data because we're done
 	fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
 
-	// STEP 4: FRAME HANDSHAKE
+	// STEP 4: FRAME HANDSHAKE (We are talker now)
 	// After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true  
 	// and  the  Data  line  is  false.    The  listener  must  acknowledge  receiving  the  byte  OK  by pulling the Data 
 	// line to true. The talker is now watching the Data line.  If the listener doesn't pull the  Data  line  true  within  
@@ -346,7 +342,7 @@ bool IEC::sendByte(int data, bool signalEOI)
 	if (timeoutWait(IEC_PIN_DATA, pulled))
 		return false;
 
-	// STEP 5: START OVER
+	// STEP 5: START OVER (We are talker now)
 	// We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,  
 	// and  the listener is holding the Data line true. We're ready for step 1; we may send another character - unless EOI has 
 	// happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause, 
@@ -364,32 +360,28 @@ bool IEC::sendByte(int data, bool signalEOI)
 } // sendByte
 
 
-// IEC turnaround
-bool IEC::turnAround(void)
+// (Jim Butterfield - Compute! July 1983 - "HOW THE VIC/64 SERIAL BUS WORKS")
+// TURNAROUND
+// An unusual sequence takes place following ATN if the computer wishes the remote device to
+// become a talker. This will usually take place only after a Talk command has been sent.
+// Immediately after ATN is released, the selected device will be behaving like a listener. After all, it's
+// been listening during the ATN cycle, and the computer
+// has been a talker. At this instant, we have "wrong way" logic; the device is holding down the Data
+// line, and the computer is holding the Clock line. We must turn this around. Here's the sequence:
+// the computer quickly realizes what's going on, and pulls the Data line to true (it's already there), as
+// well as releasing the Clock line to false. The device waits for this: when it sees the Clock line go
+// true [sic], it releases the Data line (which stays true anyway since the computer is now holding it down)
+// and then pulls down the Clock line. We're now in our starting position, with the talker (that's the
+// device) holding the Clock true, and the listener (the computer) holding the Data line true. The
+// computer watches for this state; only when it has gone through the cycle correctly will it be ready
+// to receive data. And data will be signalled, of course, with the usual sequence: the talker releases
+// the Clock line to signal that it's ready to send.
+bool iecBus::turnAround(void)
 {
-	// (Jim Butterfield - Compute! July 1983 - "HOW THE VIC/64 SERIAL BUS WORKS")
-	// TURNAROUND
-	// An unusual sequence takes place following ATN if the computer wishes the remote device to
-	// become a talker. This will usually take place only after a Talk command has been sent.
-	// Immediately after ATN is released, the selected device will be behaving like a listener. After all, it's
-	// been listening during the ATN cycle, and the computer
-	// has been a talker. At this instant, we have "wrong way" logic; the device is holding down the Data
-	// line, and the computer is holding the Clock line. We must turn this around. Here's the sequence:
-	// the computer quickly realizes what's going on, and pulls the Data line to true (it's already there), as
-	// well as releasing the Clock line to false. The device waits for this: when it sees the Clock line go
-	// true [sic], it releases the Data line (which stays true anyway since the computer is now holding it down)
-	// and then pulls down the Clock line. We're now in our starting position, with the talker (that's the
-	// device) holding the Clock true, and the listener (the computer) holding the Data line true. The
-	// computer watches for this state; only when it has gone through the cycle correctly will it be ready
-	// to receive data. And data will be signalled, of course, with the usual sequence: the talker releases
-	// the Clock line to signal that it's ready to send.
-
-	Debug_printf("\r\nturnAround: ");
-
 	// Wait until clock is released
 	if (timeoutWait(IEC_PIN_CLK, released))
 	{
-		Debug_println("timeout");
+		Debug_println("turnAround: timeout");
 		return false;
 	}
 
@@ -398,30 +390,28 @@ bool IEC::turnAround(void)
 	pull(IEC_PIN_CLK);
 	fnSystem.delay_microseconds(TIMING_BIT);
 
-	Debug_println("complete");
+	Debug_println("turnAround: complete");
 	return true;
 } // turnAround
 
 
 // this routine will set the direction on the bus back to normal
 // (the way it was when the computer was switched on)
-bool IEC::undoTurnAround(void)
+bool iecBus::undoTurnAround(void)
 {
 	pull(IEC_PIN_DATA);
 	fnSystem.delay_microseconds(TIMING_BIT);
 	release(IEC_PIN_CLK);
 	fnSystem.delay_microseconds(TIMING_BIT);
 
-	Debug_printf("\r\nundoTurnAround:");
-
 	// wait until the computer pulls the clock line
 	if (timeoutWait(IEC_PIN_CLK, pulled))
 	{
-		Debug_print("timeout");
+		Debug_print("undoTurnAround: timeout");
 		return false;
 	}
 
-	Debug_print("complete");
+	Debug_print("undoTurnAround: complete");
 	return true;
 } // undoTurnAround
 
@@ -454,11 +444,10 @@ bool IEC::undoTurnAround(void)
 // device, since the unselected devices will have dropped off when ATN ceased, leaving you with
 // nobody to talk to.
 
-// Return value, see IEC::ATNCheck definition.
-IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
+// Return value, see iecBus::ATNCheck definition.
+iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 {
 	ATNCheck ret = ATN_IDLE;
-	int i = 0;
 
 #ifdef DEBUG_TIMING
 	int pin = IEC_PIN_SRQ;
@@ -511,7 +500,7 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 		Debug_printf("\r\ncheckATN: %.2X ", c);
 		if (m_state bitand errorFlag)
 		{
-			Debug_printf("\r\nm_state bitand errorFlag 0");
+			Debug_printf("\r\ncheckATN: get first ATN byte");
 			return ATN_ERROR;
 		}
 
@@ -536,7 +525,7 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 			c = (ATNCommand)receive();
 			if (m_state bitand errorFlag)
 			{
-				Debug_printf("\r\nm_state bitand errorFlag 1");
+				Debug_printf("\r\ncheckATN: get first cmd byte");
 				return ATN_ERROR;
 			}
 
@@ -561,9 +550,16 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 			release(IEC_PIN_CLK);
 
 			if (cc == ATN_CODE_UNTALK)
-				Debug_print("UNTALK");
+			{	
+				Debug_printf("\r\ncheckATN: %.2X (UNTALK)", c);
+				ret = ATN_CODE_UNTALK;
+			}
+				
 			if (cc == ATN_CODE_UNLISTEN)
-				Debug_print("UNLISTEN");
+			{
+				Debug_printf("\r\ncheckATN: %.2X (UNLISTEN)", c);
+				ret = ATN_CODE_UNLISTEN;
+			}
 
 			Debug_printf(" (%.2d DEVICE)", atn_cmd.device);
 
@@ -574,20 +570,18 @@ IEC::ATNCheck IEC::checkATN(ATNCmd &atn_cmd)
 
 		// some delay is required before more ATN business can take place.
 		fnSystem.delay_microseconds(TIMING_ATN_DELAY);
-
-		atn_cmd.strLen = i;
 	}
-	else
-	{
-		// No ATN, keep lines in a released state.
-		release(IEC_PIN_DATA);
-		release(IEC_PIN_CLK);
-	}
+	// else
+	// {
+	// 	// No ATN, keep lines in a released state.
+	// 	release(IEC_PIN_DATA);
+	// 	release(IEC_PIN_CLK);
+	// }
 
 	return ret;
 } // checkATN
 
-IEC::ATNCheck IEC::deviceListen(ATNCmd &atn_cmd)
+iecBus::ATNCheck iecBus::deviceListen(ATNCmd &atn_cmd)
 {
 	int i = 0;
 	ATNCommand c;
@@ -603,9 +597,8 @@ IEC::ATNCheck IEC::deviceListen(ATNCmd &atn_cmd)
 		Debug_printf("\r\ncheckATN: %.2X (DATA)      (%.2X COMMAND) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
 		return ATN_CMD_LISTEN;
 	}
-	else if (atn_cmd.command not_eq ATN_CODE_UNLISTEN)
+	else
 	{
-
 		if (atn_cmd.command == ATN_CODE_OPEN)
 		{
 			Debug_printf("\r\ncheckATN: %.2X (%.2X OPEN) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
@@ -615,26 +608,17 @@ IEC::ATNCheck IEC::deviceListen(ATNCmd &atn_cmd)
 			Debug_printf("\r\ncheckATN: %.2X (%.2X CLOSE) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
 		}
 
-		Debug_println("\r\ncheckATN: receive command");
 		// Some other command. Record the cmd string until UNLISTEN is sent
+		pull(IEC_PIN_SRQ);
 		for (;;)
 		{
+			// Let's get the command!
 			c = (ATNCommand)receive();
-			pull(IEC_PIN_SRQ);
-			fnSystem.delay_microseconds(160);
-			//Debug_printf("\r\ncheckATN: %x", c);
-			release(IEC_PIN_SRQ);
+
 			if (m_state bitand errorFlag)
 			{
-				Debug_printf("\r\nm_state bitand errorFlag 2");
+				Debug_printf("\r\ndeviceListen: m_state bitand errorFlag");
 				return ATN_ERROR;
-			}
-
-			if ((m_state bitand atnFlag) and (ATN_CODE_UNLISTEN == c))
-			{
-				Debug_printf(" [%s]", atn_cmd.str);
-				Debug_printf("\r\ncheckATN: %.2X (UNLISTEN)", c);
-				break;
 			}
 
 			if (i >= ATN_CMD_MAX_LENGTH)
@@ -644,20 +628,30 @@ IEC::ATNCheck IEC::deviceListen(ATNCmd &atn_cmd)
 				Debug_printf("\r\nATN_CMD_MAX_LENGTH");
 				return ATN_ERROR;
 			}
+
 			atn_cmd.str[i++] = c;
 			atn_cmd.str[i] = '\0';
+			atn_cmd.strLen = i;
+
+			// Is this the end of the command? Was EOI sent?
+			if (m_state bitand eoiFlag)
+			{
+				Debug_printf("\r\ndeviceListen: m_state bitand eoiFlag");
+				break;
+			}
 		}
+		release(IEC_PIN_SRQ);
 		return ATN_CMD;
 	}
 	return ATN_IDLE;
 }
 
-// IEC::ATNCheck IEC::deviceUnListen(ATNCmd& atn_cmd)
+// iecBus::ATNCheck iecBus::deviceUnListen(ATNCmd& atn_cmd)
 // {
 
 // }
 
-IEC::ATNCheck IEC::deviceTalk(ATNCmd &atn_cmd)
+iecBus::ATNCheck iecBus::deviceTalk(ATNCmd &atn_cmd)
 {
 	int i = 0;
 	ATNCommand c;
@@ -693,12 +687,12 @@ IEC::ATNCheck IEC::deviceTalk(ATNCmd &atn_cmd)
 	return ATN_CMD_TALK;
 }
 
-// IEC::ATNCheck IEC::deviceUnTalk(ATNCmd& atn_cmd)
+// iecBus::ATNCheck iecBus::deviceUnTalk(ATNCmd& atn_cmd)
 // {
 
 // }
 
-// bool IEC::checkRESET()
+// bool iecBus::checkRESET()
 // {
 // 	return readRESET();
 // } // checkRESET
@@ -706,7 +700,7 @@ IEC::ATNCheck IEC::deviceTalk(ATNCmd &atn_cmd)
 
 // IEC_receive receives a byte
 //
-int IEC::receive()
+int iecBus::receive()
 {
 	int data;
 	data = receiveByte();
@@ -716,7 +710,7 @@ int IEC::receive()
 
 // IEC_send sends a byte
 //
-bool IEC::send(int data)
+bool iecBus::send(int data)
 {
 #ifdef DATA_STREAM
 	Debug_printf("%.2X ", data);
@@ -727,7 +721,7 @@ bool IEC::send(int data)
 
 // Same as IEC_send, but indicating that this is the last byte.
 //
-bool IEC::sendEOI(int data)
+bool iecBus::sendEOI(int data)
 {
 	Debug_printf("\r\nEOI Sent!");
 	if (sendByte(data, true))
@@ -748,7 +742,7 @@ bool IEC::sendEOI(int data)
 
 // A special send command that informs file not found condition
 //
-bool IEC::sendFNF()
+bool iecBus::sendFNF()
 {
 	// Message file not found by just releasing lines
 	release(IEC_PIN_DATA);
@@ -762,15 +756,15 @@ bool IEC::sendFNF()
 } // sendFNF
 
 
-bool IEC::isDeviceEnabled(const int deviceNumber)
+bool iecBus::isDeviceEnabled(const int deviceNumber)
 {
 	return (enabledDevices & (1 << deviceNumber));
 } // isDeviceEnabled
 
 
-IEC::IECState IEC::state() const
+iecBus::IECState iecBus::state() const
 {
 	return static_cast<IECState>(m_state);
 } // state
 
-IEC iec;
+iecBus IEC; // Global SIO object
