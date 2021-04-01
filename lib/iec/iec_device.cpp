@@ -227,7 +227,7 @@ int iecDevice::loop(void)
 	// 	Debug_println("ATN_RESET");
 	// }
 
-	iecBus::ATNCheck retATN = m_iec.checkATN( m_atn_cmd);
+	iecBus::ATNCheck retATN = m_iec.checkATN(m_atn_cmd);
 
 	if(retATN == iecBus::ATN_ERROR)
 	{
@@ -237,13 +237,18 @@ int iecDevice::loop(void)
 	}
 	// Did anything happen from the host side?
 	else if(retATN not_eq iecBus::ATN_IDLE)
-	 {
-		switch( m_atn_cmd.command) {
+	{
+		switch( m_atn_cmd.command ) 
+		{
 			case iecBus::ATN_CODE_OPEN:
 				if ( m_atn_cmd.channel == 0 )
-					Debug_printf("\r\n[OPEN] LOAD \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);
+				{
+					Debug_printf("\r\niecDevice::loop: [OPEN] LOAD \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);
+				}
 				if ( m_atn_cmd.channel == 1 )
-					Debug_printf("\r\n[OPEN] SAVE \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);
+				{
+					Debug_printf("\r\niecDevice::loop: [OPEN] SAVE \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);	
+				}
 
 				// Open either file or prg for reading, writing or single line command on the command channel.
 				// In any case we just issue an 'OPEN' to the host and let it process.
@@ -251,40 +256,36 @@ int iecDevice::loop(void)
 				// Also, simply issuing the request to the host and not waiting for any response here makes us more
 				// responsive to the CBM here, when the DATA with TALK or LISTEN comes in the next sequence.
 				handleATNCmdCodeOpen( m_atn_cmd );
-			break;
+				break;
 
 			case iecBus::ATN_CODE_DATA:  // data channel opened
-				Debug_printf("\r\n[DATA] ");
-				if(retATN == iecBus::ATN_CMD_TALK) {
+				Debug_printf("\r\niecDevice::loop: [DATA] ");
+				if(retATN == iecBus::ATN_CMD_TALK) 
+				{
 					 // when the CMD channel is read (status), we first need to issue the host request. The data channel is opened directly.
 					if( m_atn_cmd.channel == CMD_CHANNEL)
-						handleATNCmdCodeOpen( m_atn_cmd); // This is typically an empty command,
-					handleATNCmdCodeDataTalk( m_atn_cmd.channel); // ...but we do expect a response from PC that we can send back to CBM.
+					{
+						handleATNCmdCodeOpen( m_atn_cmd); // This is typically an empty command,	
+					}
+					
+					handleATNCmdCodeDataTalk( m_atn_cmd.channel); // Process TALK command
 				}
 				else if(retATN == iecBus::ATN_CMD_LISTEN)
-					handleATNCmdCodeDataListen();
+				{
+					handleATNCmdCodeDataListen(); // Process LISTEN command
+				}
 				else if(retATN == iecBus::ATN_CMD) // Here we are sending a command to PC and executing it, but not sending response
+				{
 					handleATNCmdCodeOpen( m_atn_cmd);	// back to CBM, the result code of the command is however buffered on the PC side.
+				}
 				break;
 
 			case iecBus::ATN_CODE_CLOSE:
-				Debug_printf("\r\n[CLOSE] ");
+				Debug_printf("\r\niecDevice::loop: [CLOSE] ");
 				// handle close with host.
 				handleATNCmdClose();
 				break;
 
-			case iecBus::ATN_CODE_LISTEN:
-				Debug_printf("\r\n[LISTEN] ");
-				break;
-			case iecBus::ATN_CODE_TALK:
-				Debug_printf("\r\n[TALK] ");
-				break;
-			case iecBus::ATN_CODE_UNLISTEN:
-				Debug_printf("\r\n[UNLISTEN] ");
-				break;
-			case iecBus::ATN_CODE_UNTALK:
-				Debug_printf("\r\n[UNTALK] ");
-				break;
 		} // switch
 	} // IEC not idle
 
@@ -702,7 +703,7 @@ void iecDevice::sendListing()
 	m_iec.send(0);
 	m_iec.sendEOI(0);
 
-	Debug_printf("\r\nBytes Sent: %d\r\n", byte_count);
+	Debug_printf("\r\nsendListing: %d Bytes Sent\r\n", byte_count);
 
 	//ledON();
 	fnLedManager.set(LED_SIO);
@@ -740,7 +741,7 @@ void iecDevice::sendFile()
 
 		if (m_device.path() == "/" && m_device.image().length() == 0)
 		{
-			m_filename = "FB64";
+			m_filename = "HERO.PRG";
 		}
 		// TODO directory handling
 		// else
@@ -756,6 +757,7 @@ void iecDevice::sendFile()
 	}
 	std::string inFile = std::string(m_device.path()+m_filename);
 	
+	Debug_printf("\r\nsendFile: %s\r\n", inFile.c_str());
 
 	FILE* file = m_fileSystem->file_open(inFile.c_str(), "rb");
 	
@@ -816,7 +818,7 @@ void iecDevice::sendFile()
 			//bool s3 = m_iec.status(IEC_PIN_DATA);
 
 			//Debug_printf("Transfer failed! %d, %d, %d\r\n", s1, s2, s3);
-			Debug_println("Transfer failed!");
+			Debug_println("sendFile: Transfer failed!");
 		}
 	}
 } // sendFile
@@ -920,7 +922,7 @@ void iecDevice::sendListingHTTP()
 	m_iec.send(0);
 	m_iec.sendEOI(0);
 
-	Debug_printf("\r\nBytes Sent: %d\r\n", byte_count);
+	Debug_printf("\r\nsendListingHTTP: %d Bytes Sent\r\n", byte_count);
 
 	client.end();  //Close connection		
 
