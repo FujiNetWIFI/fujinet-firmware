@@ -16,6 +16,7 @@
 #include "printerlist.h"
 #include "midimaze.h"
 #include "siocpm.h"
+#include "samlib.h"
 
 #include <esp_system.h>
 #include <nvs_flash.h>
@@ -72,6 +73,9 @@ void main_setup()
         e = nvs_flash_init();
     }
     ESP_ERROR_CHECK(e);
+
+    fnSystem.check_hardware_ver();
+    Debug_printf("Detected Hardware Version: %s\n", fnSystem.get_hardware_ver_str());
 
     fnKeyManager.setup();
     fnLedManager.setup();
@@ -163,7 +167,7 @@ extern "C"
 
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1; the WiFi task ends up on CPU0
-        #define MAIN_STACKSIZE 8192
+        #define MAIN_STACKSIZE 7168
         #define MAIN_PRIORITY 10
         #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",

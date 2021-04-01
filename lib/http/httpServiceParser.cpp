@@ -55,6 +55,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PLAY_RECORD,
         FN_PULLDOWN,
         FN_CONFIG_ENABLED,
+        FN_BOOT_MODE,
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
         FN_DRIVE3HOST,
@@ -131,6 +132,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PLAY_RECORD",
         "FN_PULLDOWN",
         "FN_CONFIG_ENABLED",
+        "FN_BOOT_MODE",
         "FN_DRIVE1HOST",
         "FN_DRIVE2HOST",
         "FN_DRIVE3HOST",
@@ -291,6 +293,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_CONFIG_ENABLED:
         resultstream << Config.get_general_config_enabled();
+        break;
+    case FN_BOOT_MODE:
+        resultstream << Config.get_general_boot_mode();
         break;
     case FN_DRIVE1HOST:
     case FN_DRIVE2HOST:

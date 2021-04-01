@@ -43,6 +43,8 @@
 #define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
 #define SIO_FUJICMD_CONFIG_BOOT 0xD9
 #define SIO_FUJICMD_COPY_FILE 0xD8
+#define SIO_FUJICMD_MOUNT_ALL 0xD7
+#define SIO_FUJICMD_SET_BOOT_MODE 0xD6
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -319,7 +321,13 @@ void sioFuji::sio_disk_image_mount()
         sio_error();
         return;
     }
-
+    
+    if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
+    {
+        sio_error();
+        return;
+    }
+    
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
@@ -461,6 +469,69 @@ void sioFuji::sio_copy_file()
     fclose(sourceFile);
     fclose(destFile);
     free(dataBuf);
+}
+
+// Mount all
+void sioFuji::sio_mount_all()
+{
+    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
+
+    for (int i = 0; i < 8; i++)
+    {
+        fujiDisk &disk = _fnDisks[i];
+        fujiHost &host = _fnHosts[disk.host_slot];
+        char flag[3] = {'r', 0, 0};
+
+        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            flag[1] = '+';
+
+        if (disk.host_slot != 0xFF)
+        {
+            nodisks = false; // We have a disk in a slot
+
+            if (host.mount() == false)
+            {
+                sio_error();
+                return;
+            }
+
+            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                         disk.filename, disk.host_slot, flag, i + 1);
+
+            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+            if (disk.fileh == nullptr)
+            {
+                sio_error();
+                return;
+            }
+
+            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+            boot_config = false;
+            status_wait_count = 0;
+
+            // We need the file size for loading XEX files and for CASSETTE, so get that too
+            disk.disk_size = host.file_size(disk.fileh);
+
+            // And now mount it
+            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+        }
+    }
+
+    if (nodisks){
+        // No disks in a slot, disable config
+        boot_config = false;
+    }
+
+    sio_complete();
+}
+
+// Set boot mode
+void sioFuji::sio_set_boot_mode()
+{
+    insert_boot_device(cmdFrame.aux1);
+    boot_config = true;
+    sio_complete();
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -1393,22 +1464,40 @@ void sioFuji::sio_set_sio_external_clock()
     sio_complete();
 }
 
+// Mounts the desired boot disk number
+void sioFuji::insert_boot_device(uint8_t d)
+{
+    const char *config_atr = "/autorun.atr";
+    const char *mount_all_atr = "/mount-and-boot.atr";
+    FILE *fBoot;
+
+    _bootDisk.unmount();
+
+    switch (d)
+    {
+    case 0:
+        fBoot = fnSPIFFS.file_open(config_atr);
+        _bootDisk.mount(fBoot, config_atr, 0);
+        break;
+    case 1:
+        fBoot = fnSPIFFS.file_open(mount_all_atr);
+        _bootDisk.mount(fBoot, mount_all_atr, 0);
+        break;
+    }
+
+    _bootDisk.is_config_device = true;
+    _bootDisk.device_active = false;
+}
+
 // Initializes base settings and adds our devices to the SIO bus
 void sioFuji::setup(sioBus *siobus)
 {
     // set up Fuji device
     _sio_bus = siobus;
 
-    const char *boot_atr = "/autorun.atr";
-
-    FILE *fBoot = fnSPIFFS.file_open(boot_atr);
-
     _populate_slots_from_config();
 
-    _bootDisk.mount(fBoot, boot_atr, 0); // set up a special disk drive not on the bus
-
-    _bootDisk.is_config_device = true;
-    _bootDisk.device_active = false;
+    insert_boot_device(Config.get_general_boot_mode());
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -1574,6 +1663,14 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_COPY_FILE:
         sio_ack();
         sio_copy_file();
+        break;
+    case SIO_FUJICMD_MOUNT_ALL:
+        sio_ack();
+        sio_mount_all();
+        break;
+    case SIO_FUJICMD_SET_BOOT_MODE:
+        sio_ack();
+        sio_set_boot_mode();
         break;
     default:
         sio_nak();
