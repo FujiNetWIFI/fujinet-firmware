@@ -27,19 +27,13 @@ void KeyManager::setup()
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT);
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT);
 
-    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-    // Check for v1.1 board pull up and flag it if available/high
-    if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
+    // Enable safe reset on Button C if available
+    if (fnSystem.get_hardware_ver() >= 2)
     {
         has_button_c = true;
-        Debug_println("FujiNet Hardware v1.1 and up");
+        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+        Debug_println("Enabled Safe Reset Button C");
     }
-    else
-    {
-        Debug_println("FujiNet Hardware v1.0");
-    }
-    // Disable pull down for BUTTON_C
-    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 
     // Start a new task to check the status of the buttons
     #define KEYS_STACKSIZE 4096

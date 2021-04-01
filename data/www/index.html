@@ -918,6 +918,24 @@
 							Disabling the built-in CONFIG boot disk will require changing
 							disk mounts using the individual FujiNet config tools</span>
 						</div>
+						<div class="formwrapper">
+							<br>Set CONFIG boot mode.
+							<form action="/config" method="post">
+								<select name="boot_mode" id="select_boot_mode">
+									<optgroup>
+										<option value="0">CONFIG</option>
+										<option value="1">Mount Everything</option>
+									</optgroup>
+								</select>
+								<input type="submit" value="Save">
+							</form>
+							<script>
+								var current_boot_mode = "<%FN_BOOT_MODE%>";
+							</script>
+							<hr>
+							<span class="small">
+							Reboot FujiNet after changing this value.</span>
+						</div>
 					</div>
 				</div>
 			</div>

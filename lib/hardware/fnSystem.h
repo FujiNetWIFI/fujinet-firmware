@@ -21,6 +21,7 @@ class SystemManager
 private:
     char _uptime_string[18];
     char _currenttime_string[40];
+    int _hardware_version = 0; // unknown
 
 public:
     class _net
@@ -114,6 +115,10 @@ public:
 
     int load_firmware(const char *filename, uint8_t **buffer);
     void debug_print_tasks();
+
+    void check_hardware_ver();
+    int get_hardware_ver() { return _hardware_version; };
+    const char *get_hardware_ver_str();
 };
 
 extern SystemManager fnSystem;
