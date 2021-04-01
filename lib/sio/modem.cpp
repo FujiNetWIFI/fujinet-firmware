@@ -1699,14 +1699,17 @@ void sioModem::sio_handle_modem()
     }
 
     // If we have received "+++" as last bytes from serial port and there
-    // has been over a second without any more bytes, disconnect
+    // has been over a second without any more bytes, go back to command mode.
     if (plusCount >= 3)
     {
         if (fnSystem.millis() - plusTime > 1000)
         {
-            Debug_println("Hanging up...");
+            Debug_println("Going back to command mode");
 
-            tcpClient.stop();
+            at_cmd_println("OK");
+    
+            cmdMode = true;
+
             plusCount = 0;
         }
     }
