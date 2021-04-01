@@ -34,7 +34,8 @@
 #include "cbmdefines.h"
 #include "Petscii.h"
 
-#define TWO_IO_PINS
+// #define TWO_IO_PINS
+#undef TWO_IO_PINS
 
 // ESP32 GPIO to C64 IEC Serial Port
 #define IEC_PIN_ATN     22      // PROC
