@@ -1235,7 +1235,8 @@ void sioModem::modemCommand()
             "ATCPM",
             "ATPBLIST",
             "ATPBCLEAR",
-            "ATPB"};
+            "ATPB",
+            "ATO"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -1477,6 +1478,32 @@ void sioModem::modemCommand()
             at_cmd_resultCode(RESULT_CODE_OK);
         else
             at_cmd_println("OK");
+        break;
+    case AT_O:
+        if (tcpClient.connected())
+        {
+            if (numericResultCode == true)
+            {
+                at_cmd_resultCode(modemBaud);
+            }
+            else
+            {
+                at_cmd_println("CONNECT ", false);
+                at_cmd_println(modemBaud);
+            }
+            cmdMode = false;
+        }
+        else
+        {
+            if (numericResultCode == true)
+            {
+                at_cmd_resultCode(RESULT_CODE_OK);
+            }
+            else
+            {
+                at_cmd_println("OK");
+            }
+        }
         break;
     default:
         if (numericResultCode == true)
