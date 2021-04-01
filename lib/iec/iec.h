@@ -56,9 +56,6 @@
 // See timeoutWait
 #define TIMEOUT 65500
 
-// #define HIGH 0x1
-// #define LOW  0x0
-
 class iecBus
 {
 public:
@@ -68,7 +65,8 @@ public:
 		released = false
 	};
 
-	enum IECState {
+	enum IECState 
+	{
 		noFlags   = 0,
 		eoiFlag   = (1 << 0),   // might be set by iec_receive
 		atnFlag   = (1 << 1),   // might be set by iec_receive
@@ -76,7 +74,8 @@ public:
 	};
 
 	// Return values for checkATN:
-	enum ATNCheck {
+	enum ATNCheck 
+	{
 		ATN_IDLE = 0,           // Nothing recieved of our concern
 		ATN_CMD = 1,            // A command is recieved
 		ATN_CMD_LISTEN = 2,     // A command is recieved and data is coming to us
@@ -87,7 +86,7 @@ public:
 
 	// IEC ATN commands:
 	enum ATNCommand 
-       {
+    {
 		ATN_CODE_GLOBAL = 0x00,	    // 0x00 + cmd (global command)
 		ATN_CODE_LISTEN = 0x20,	    // 0x20 + device_id (LISTEN)
 		ATN_CODE_UNLISTEN = 0x3F,   // 0x3F (UNLISTEN)
@@ -99,11 +98,13 @@ public:
 	};
 
 	// ATN command struct maximum command length:
-	enum {
+	enum 
+	{
 		ATN_CMD_MAX_LENGTH = 40
 	};
 	
-	typedef struct _tagATNCMD {
+	typedef struct _tagATNCMD 
+	{
 		int code;
 		int command;
 		int channel;
@@ -158,9 +159,11 @@ private:
 	ATNCheck deviceClose(ATNCmd& atn_cmd);		// 0xE0 + channel		Close, channel
 	ATNCheck deviceOpen(ATNCmd& atn_cmd);		// 0xF0 + channel		Open, channel
 
-	bool timeoutWait(int iecPIN, IECline lineStatus);
+	ATNCheck receiveCommand(ATNCmd& atn_cmd);
+	
 	int receiveByte(void);
 	bool sendByte(int data, bool signalEOI);
+	bool timeoutWait(int iecPIN, IECline lineStatus);
 	bool turnAround(void);
 	bool undoTurnAround(void);
 
