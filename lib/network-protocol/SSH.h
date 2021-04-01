@@ -9,7 +9,7 @@
 #include "Protocol.h"
 #include "../libssh2/utility/libssh2/libssh2.h"
 #include "../tcpip/fnTcpClient.h"
-
+#include "lwip/sockets.h"
 
 using namespace std;
 
@@ -104,6 +104,21 @@ private:
      * The underlying TCP client
      */
     fnTcpClient client;
+
+    /**
+     * Host Key Fingerprint
+     */
+    const char* fingerprint;
+
+    /**
+     * User Auth list
+     */
+    const char* userauthlist;
+
+    /**
+     * Poll FD structure
+     */
+    struct pollfd *pfds;
 
 };
 
