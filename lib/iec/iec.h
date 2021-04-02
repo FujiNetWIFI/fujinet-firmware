@@ -162,13 +162,13 @@ public:
 
 private:
 	// IEC Bus Commands
-	ATNCheck deviceListen(ATNCmd& atn_cmd);		// 0x20 + device_id 	Listen, device (0–30)
-	ATNCheck deviceUnListen(ATNCmd& atn_cmd);	// 0x3F 				Unlisten, all devices
-	ATNCheck deviceTalk(ATNCmd& atn_cmd);		// 0x40 + device_id 	Talk, device 
-	ATNCheck deviceUnTalk(ATNCmd& atn_cmd);		// 0x5F 				Untalk, all devices 
-	ATNCheck deviceReopen(ATNCmd& atn_cmd);		// 0x60 + channel		Reopen, channel (0–15)
-	ATNCheck deviceClose(ATNCmd& atn_cmd);		// 0xE0 + channel		Close, channel
-	ATNCheck deviceOpen(ATNCmd& atn_cmd);		// 0xF0 + channel		Open, channel
+	ATNCheck listen(ATNCmd& atn_cmd);		// 0x20 + device_id 	Listen, device (0–30)
+//	ATNCheck unlisten(ATNCmd& atn_cmd);	    // 0x3F 				Unlisten, all devices
+	ATNCheck talk(ATNCmd& atn_cmd);		    // 0x40 + device_id 	Talk, device 
+//	ATNCheck untalk(ATNCmd& atn_cmd);		// 0x5F 				Untalk, all devices 
+//	ATNCheck reopen(ATNCmd& atn_cmd);		// 0x60 + channel		Reopen, channel (0–15)
+//	ATNCheck close(ATNCmd& atn_cmd);		// 0xE0 + channel		Close, channel
+//	ATNCheck open(ATNCmd& atn_cmd);		    // 0xF0 + channel		Open, channel
 
 	ATNCheck receiveCommand(ATNCmd& atn_cmd);
 	
@@ -189,10 +189,7 @@ private:
 	inline void release(int pin)
 	{
 		// releasing line can set to input mode, which won't drive the bus - simple way to mimic open collector
-		// *** didn't seem to work in my testing ***
-        //fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
-        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
-		fnSystem.digital_write(pin, DIGI_HIGH);
+		set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
 	}
 
 	inline IECline status(int pin)

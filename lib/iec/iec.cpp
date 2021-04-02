@@ -221,11 +221,13 @@ int iecBus::receiveByte(void)
 	// Acknowledge byte received
 	pull(IEC_PIN_DATA);
 
+    
 	// STEP 5: START OVER (We are listener now)
 	// We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,  
 	// and  the listener is holding the Data line true. We're ready for step 1; we may send another character - unless EOI has 
 	// happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause, 
-	// the Clock and Data lines are released to false and transmission stops. 
+	// the Clock and Data lines are released to false and transmission stops.
+	// NOTE: This does not seem to hold true for the listener. Listener remains pulling data after EOI
 
 	// if(m_state bitand eoiFlag)
 	// {
@@ -544,11 +546,11 @@ iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 		{
 			if (cc == ATN_CODE_LISTEN) // 0x20 LISTEN + device number (0-30)
 			{
-				ret = deviceListen(atn_cmd);
+				ret = listen(atn_cmd);
 			}
 			else if (cc == ATN_CODE_TALK) // 0x40 TALK + device number (0-30)
 			{
-				ret = deviceTalk(atn_cmd);
+				ret = talk(atn_cmd);
 			}
 			else
 			{
@@ -573,22 +575,22 @@ iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 		}
 
 		// some delay is required before more ATN business can take place.
-		fnSystem.delay_microseconds(150);
+		fnSystem.delay_microseconds(TIMING_ATN_DELAY);
 	}
-	else
-	{
-	// 	Debug_printf("\r\ncheckATN: Not Selected\r\n");
+	// else
+	// {
+	// // 	Debug_printf("\r\ncheckATN: Not Selected\r\n");
 
-		// No ATN, keep lines in a released state.
-		release(IEC_PIN_DATA);
-		release(IEC_PIN_CLK);
-	}
+	// 	// No ATN, keep lines in a released state.
+	// 	release(IEC_PIN_DATA);
+	// 	release(IEC_PIN_CLK);
+	// }
 
 	return ret;
 } // checkATN
 
 
-iecBus::ATNCheck iecBus::deviceListen(ATNCmd &atn_cmd)
+iecBus::ATNCheck iecBus::listen(ATNCmd &atn_cmd)
 {
 	// Okay, we will listen.
 	Debug_printf("(20 LISTEN) (%.2d DEVICE)", atn_cmd.device);
@@ -604,20 +606,20 @@ iecBus::ATNCheck iecBus::deviceListen(ATNCmd &atn_cmd)
 		else
 		{
 			// A heapload of data might come now, too big for this context to handle so the caller handles this, we're done here.
-			Debug_printf("\r\ndeviceListen: %.2X (DATA) (%.2X COMMAND) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
+			Debug_printf("\r\nlisten: %.2X (DATA) (%.2X COMMAND) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
 			return ATN_CMD_LISTEN;			
 		}
 	}
 	else if (atn_cmd.command == ATN_CODE_OPEN) // 0xF0 OPEN CHANNEL / DATA + Secondary Address / channel (0-15)
 	{
-		Debug_printf("\r\ndeviceListen: %.2X (%.2X OPEN) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
+		Debug_printf("\r\nlisten: %.2X (%.2X OPEN) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
 		return receiveCommand(atn_cmd);
 	}	
 	else
 	{
 		if (atn_cmd.command == ATN_CODE_CLOSE) // 0xE0 CLOSE CHANNEL / DATA + Secondary Address / channel (0-15)
 		{
-			Debug_printf("\r\ndeviceListen: %.2X (%.2X CLOSE) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
+			Debug_printf("\r\nlisten: %.2X (%.2X CLOSE) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
 		}		
 	}
 
@@ -625,14 +627,14 @@ iecBus::ATNCheck iecBus::deviceListen(ATNCmd &atn_cmd)
 }
 
 
-iecBus::ATNCheck iecBus::deviceTalk(ATNCmd &atn_cmd)
+iecBus::ATNCheck iecBus::talk(ATNCmd &atn_cmd)
 {
 	int i = 0;
 	ATNCommand c;
 
 	// Okay, we will talk soon
 	Debug_printf("(40 TALK) (%.2d DEVICE)", atn_cmd.device);
-	Debug_printf("\r\ndeviceTalk: %.2X (%.2X SECOND) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
+	Debug_printf("\r\ntalk: %.2X (%.2X SECOND) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
 
 	while(status(IEC_PIN_ATN) == pulled) 
 	{
@@ -669,7 +671,6 @@ iecBus::ATNCheck iecBus::receiveCommand(ATNCmd &atn_cmd)
 	ATNCommand c;
 
 	// Some other command. Record the cmd string until UNLISTEN is sent
-	pull(IEC_PIN_SRQ);
 	while(status(IEC_PIN_ATN) == released) 
 	{
 		// Let's get the command!
@@ -677,14 +678,12 @@ iecBus::ATNCheck iecBus::receiveCommand(ATNCmd &atn_cmd)
 
 		if (m_state bitand errorFlag)
 		{
-			release(IEC_PIN_SRQ);
 			Debug_printf("\r\nreceiveCommand: receiving LISTEN command");
 			return ATN_ERROR;
 		}
 
 		if (i >= ATN_CMD_MAX_LENGTH)
 		{
-			release(IEC_PIN_SRQ);
 			// Buffer is going to overflow, this is an error condition
 			// FIXME: here we should propagate the error type being overflow so that reading error channel can give right code out.
 			Debug_printf("\r\nreceiveCommand: ATN_CMD_MAX_LENGTH");
@@ -698,12 +697,10 @@ iecBus::ATNCheck iecBus::receiveCommand(ATNCmd &atn_cmd)
 		// Is this the end of the command? Was EOI sent?
 		if (m_state bitand eoiFlag)
 		{
-			release(IEC_PIN_SRQ);
 			Debug_printf("\r\nreceiveCommand: [%s] + EOI", atn_cmd.str);
 			return ATN_CMD;
 		}		
 	}
-	release(IEC_PIN_SRQ);
 
 	return ATN_IDLE;
 }
