@@ -16,6 +16,9 @@
 
 #define NOP() asm volatile("nop")
 
+#define PIN_CARD_DETECT 12
+#define ESP_INTR_FLAG_DEFAULT 0
+
 class SystemManager
 {
 private:
@@ -79,7 +82,7 @@ public:
 #define DIGI_LOW 0x00
 #define DIGI_HIGH 0x01
 
-    void set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode = PULL_NONE);
+    void set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode = PULL_NONE, gpio_int_type_t intr_type = GPIO_INTR_DISABLE);
 
     int digital_read(uint8_t pin);
     void digital_write(uint8_t pin, uint8_t val);
