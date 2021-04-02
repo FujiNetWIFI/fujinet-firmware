@@ -741,7 +741,7 @@ void iecDevice::sendFile()
 
 		if (m_device.path() == "/" && m_device.image().length() == 0)
 		{
-			m_filename = "HERO.PRG";
+			m_filename = "FB64";
 		}
 		// TODO directory handling
 		// else
