@@ -1,35 +1,23 @@
+// Meatloaf - A Commodore 1541 disk drive emulator
+// https://github.com/idolpx/meatloaf
+// Copyright(C) 2020 James Johnston
 //
-// Title        : UNO2IEC - iecDevice implementation, arduino side.
-// Author       : Lars Wadefalk
-// Version      : 0.1
-// Target MCU   : Arduino Uno AtMega328(H, 5V) at 16 MHz, 2KB SRAM, 32KB flash, 1KB EEPROM.
-//
-// CREDITS:
-// --------
-// The UNO2IEC application is inspired by Lars Pontoppidan's MMC2IEC project.
-// It has been ported to C++.
-// The MMC2IEC application is inspired from Jan Derogee's 1541-III project for
-// PIC: http://jderogee.tripod.com/
-// This code is a complete reimplementation though, which includes some new
-// features and excludes others.
-//
-// DESCRIPTION:
-// This "interface" class is the main driving logic for the IEC command handling.
-//
-// Commands from the IEC communication are interpreted, and the appropriate data
-// from either Native, D64, T64, M2I, x00 image formats is sent back.
-//
-// DISCLAIMER:
-// The author is in no way responsible for any problems or damage caused by
-// using this code. Use at your own risk.
-//
-// LICENSE:
-// This code is distributed under the GNU Public License
-// which can be found at http://www.gnu.org/licenses/gpl.txt
-//
+// This file is part of Meatloaf but adapted for use in the FujiNet project
+// https://github.com/FujiNetWIFI/fujinet-platformio
+// 
+// Meatloaf is free software : you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// Meatloaf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
-//#include "global_defines.h"
-//#include "debug.h"
 #include "iec_device.h"
 #include "iec.h"
 
@@ -210,7 +198,7 @@ void iecDevice::sendDeviceStatus()
 } // sendDeviceStatus
 
 
-int iecDevice::loop(void)
+void iecDevice::loop(void)
 {
 //#ifdef HAS_RESET_LINE
 //	if(m_iec.checkRESET()) {
@@ -227,25 +215,25 @@ int iecDevice::loop(void)
 	// 	Debug_println("ATN_RESET");
 	// }
 
-	iecBus::ATNCheck retATN = m_iec.checkATN(m_atn_cmd);
+	iecBus::ATNCheck ATN = m_iec.checkATN(m_atn_cmd);
 
-	if(retATN == iecBus::ATN_ERROR)
+	if(ATN == iecBus::ATN_ERROR)
 	{
 		//Debug_printf("\r\n[ERROR]");
 		reset();
-		retATN = iecBus::ATN_IDLE;
+		ATN = iecBus::ATN_IDLE;
 	}
 	// Did anything happen from the host side?
-	else if(retATN not_eq iecBus::ATN_IDLE)
+	else if(ATN not_eq iecBus::ATN_IDLE)
 	{
 		switch( m_atn_cmd.command ) 
 		{
 			case iecBus::ATN_CODE_OPEN:
-				if ( m_atn_cmd.channel == 0 )
+				if ( m_atn_cmd.channel == READ_CHANNEL )
 				{
 					Debug_printf("\r\niecDevice::loop: [OPEN] LOAD \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);
 				}
-				if ( m_atn_cmd.channel == 1 )
+				if ( m_atn_cmd.channel == WRITE_CHANNEL )
 				{
 					Debug_printf("\r\niecDevice::loop: [OPEN] SAVE \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);	
 				}
@@ -255,28 +243,28 @@ int iecDevice::loop(void)
 				// Note: Some of the host response handling is done LATER, since we will get a TALK or LISTEN after this.
 				// Also, simply issuing the request to the host and not waiting for any response here makes us more
 				// responsive to the CBM here, when the DATA with TALK or LISTEN comes in the next sequence.
-				handleATNCmdCodeOpen( m_atn_cmd );
+				handleATNCmdCodeOpen(m_atn_cmd);
 				break;
 
 			case iecBus::ATN_CODE_DATA:  // data channel opened
 				Debug_printf("\r\niecDevice::loop: [DATA] ");
-				if(retATN == iecBus::ATN_CMD_TALK) 
+				if(ATN == iecBus::ATN_CMD_TALK) 
 				{
 					 // when the CMD channel is read (status), we first need to issue the host request. The data channel is opened directly.
-					if( m_atn_cmd.channel == CMD_CHANNEL)
+					if(m_atn_cmd.channel == CMD_CHANNEL)
 					{
-						handleATNCmdCodeOpen( m_atn_cmd); // This is typically an empty command,	
+						handleATNCmdCodeOpen(m_atn_cmd); // This is typically an empty command,	
 					}
 					
-					handleATNCmdCodeDataTalk( m_atn_cmd.channel); // Process TALK command
+					handleATNCmdCodeDataTalk(m_atn_cmd.channel); // Process TALK command
 				}
-				else if(retATN == iecBus::ATN_CMD_LISTEN)
+				else if(ATN == iecBus::ATN_CMD_LISTEN)
 				{
 					handleATNCmdCodeDataListen(); // Process LISTEN command
 				}
-				else if(retATN == iecBus::ATN_CMD) // Here we are sending a command to PC and executing it, but not sending response
+				else if(ATN == iecBus::ATN_CMD) // Here we are sending a command to PC and executing it, but not sending response
 				{
-					handleATNCmdCodeOpen( m_atn_cmd);	// back to CBM, the result code of the command is however buffered on the PC side.
+					handleATNCmdCodeOpen(m_atn_cmd);	// back to CBM, the result code of the command is however buffered on the PC side.
 				}
 				break;
 
@@ -289,7 +277,6 @@ int iecDevice::loop(void)
 		} // switch
 	} // IEC not idle
 
-	return retATN;
 } // handler
 
 
