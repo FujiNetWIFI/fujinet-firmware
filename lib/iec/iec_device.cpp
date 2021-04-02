@@ -31,7 +31,8 @@
 
 using namespace CBM;
 
-namespace {
+namespace
+{
 
 // Buffer for incoming and outgoing serial bytes and other stuff.
 char serCmdIOBuf[MAX_BYTES_PER_REQUEST];
@@ -84,7 +85,6 @@ void iecDevice::sendStatus(void)
 	// ...and last int in string as with EOI marker.
 	m_iec.sendEOI(status[i]);
 } // sendStatus
-
 
 
 void iecDevice::sendDeviceInfo()
@@ -274,6 +274,22 @@ void iecDevice::loop(void)
 				handleATNCmdClose();
 				break;
 
+			case iecBus::ATN_CODE_LISTEN:
+				Debug_printf("\r\niecDevice::loop:[LISTEN] ");
+				break;
+
+			case iecBus::ATN_CODE_TALK:
+				Debug_printf("\r\niecDevice::loop:[TALK] ");
+				break;
+
+			case iecBus::ATN_CODE_UNLISTEN:
+				Debug_printf("\r\niecDevice::loop:[UNLISTEN] ");
+				break;
+
+			case iecBus::ATN_CODE_UNTALK:
+				Debug_printf("\r\niecDevice::loop:[UNTALK] ");
+				break;
+
 		} // switch
 	} // IEC not idle
 
@@ -432,7 +448,8 @@ void iecDevice::handleATNCmdCodeDataTalk(int chan)
 
 		//Debug_printf("\r\nm_openState: %d", m_openState);
 
-		switch(m_openState) {
+		switch (m_openState)
+		{
 			case O_NOTHING:
 				// Say file not found
 				m_iec.sendFNF();
@@ -446,26 +463,12 @@ void iecDevice::handleATNCmdCodeDataTalk(int chan)
 
 			case O_FILE:
 				// Send program file
-				if(m_device.url().length())
-				{
-					// sendFileHTTP();
-				}
-				else
-				{
-					sendFile();
-				}
-				break;				
+				sendFile();
+				break;
 
 			case O_DIR:
 				// Send listing
-				if(m_device.url().length())
-				{
-					// sendListingHTTP();
-				}
-				else
-				{
-					sendListing();
-				}
+				sendListing();
 				break;
 
 			case O_FILE_ERR:
@@ -501,8 +504,8 @@ void iecDevice::handleATNCmdCodeDataListen()
 
 	Debug_printf("\r\nhandleATNCmdCodeDataListen: %s", serCmdIOBuf);
 
-	if(not lengthOrResult or '>' not_eq serCmdIOBuf[0])
-	 {
+	if (not lengthOrResult or '>' not_eq serCmdIOBuf[0])
+	{
 		// FIXME: Check what the drive does here when things go wrong. FNF is probably not right.
 		m_iec.sendFNF();
 		strcpy(serCmdIOBuf, "response not sync.");
@@ -510,7 +513,8 @@ void iecDevice::handleATNCmdCodeDataListen()
 	else {
 		if (lengthOrResult == fnUartDebug.readBytes(serCmdIOBuf, 2))
 		{
-			if(2 == lengthOrResult) {
+			if (2 == lengthOrResult)
+			{
 				lengthOrResult = serCmdIOBuf[0];
 				wasSuccess = true;
 			}
@@ -575,7 +579,7 @@ uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, char* text)
 	m_iec.send(blocks >> 8);
 
 	// Send line contents
-	for(i = 0; i < len; i++)
+	for (i = 0; i < len; i++)
 		m_iec.send(text[i]);
 
 	// Finish line
@@ -608,14 +612,14 @@ uint16_t iecDevice::sendHeader(uint16_t &basicPtr)
 	if (m_device.path().length() > 1)
 	{
 		byte_count += sendLine(basicPtr, 0, "%*s\"%-*s\" NFO", 3, "", 16, "[PATH]");
-		byte_count += sendLine(basicPtr, 0, "%*s\"%-*s\" NFO", 3, "", 16, m_device.path().c_str());		
+		byte_count += sendLine(basicPtr, 0, "%*s\"%-*s\" NFO", 3, "", 16, m_device.path().c_str());
 	}
 	if (m_device.url().length() + m_device.path().length() > 1)
 	{
 		byte_count += sendLine(basicPtr, 0, "%*s\"----------------\" NFO", 3, "");
 	}
 
-    return byte_count;
+	return byte_count;
 }
 
 void iecDevice::sendListing()
@@ -695,6 +699,7 @@ void iecDevice::sendListing()
 	//ledON();
 	fnLedManager.set(LED_SIO);
 } // sendListing
+
 
 uint16_t iecDevice::sendFooter(uint16_t &basicPtr)
 {
@@ -798,7 +803,7 @@ void iecDevice::sendFile()
 		fnLedManager.set(LED_SIO);
 		//ledON();
 
-		if( !success )
+		if (!success || i != len)
 		{
 			//bool s1 = m_iec.status(IEC_PIN_ATN);
 			//bool s2 = m_iec.status(IEC_PIN_CLK);
@@ -893,8 +898,9 @@ void iecDevice::sendListingHTTP()
 	{
 		// Parse JSON object
 		DeserializationError error = deserializeJson(m_jsonHTTP, m_lineBuffer);
-		if (error) {
-			Serial.print("\r\ndeserializeJson() failed: ");
+		if (error)
+		{
+			Serial.print(F("\r\ndeserializeJson() failed: "));
 			Serial.println(error.c_str());
 			break;
 		}
@@ -911,7 +917,7 @@ void iecDevice::sendListingHTTP()
 
 	Debug_printf("\r\nsendListingHTTP: %d Bytes Sent\r\n", byte_count);
 
-	client.end();  //Close connection		
+	client.end(); //Close connection
 
 	ledON();
 } // sendListingHTTP
@@ -948,10 +954,9 @@ void iecDevice::sendFileHTTP()
 
 	Debug_printf("\r\nConnected!\r\n--------------------\r\n%s\r\n%s\r\n%s\r\n", user_agent.c_str(), url.c_str(), post_data.c_str());
 
+	int httpCode = client.POST(post_data); //Send the request
+	WiFiClient file = client.getStream();  //Get the response payload as Stream
 
-	int httpCode = client.POST(post_data);            //Send the request
-	WiFiClient file = client.getStream();    //Get the response payload as Stream
-	
 	if (!file.available())
 	{
 		Debug_printf("\r\nsendFileHTTP: %s (File Not Found)\r\n", url.c_str());

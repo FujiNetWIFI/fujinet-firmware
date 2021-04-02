@@ -1,3 +1,23 @@
+// Meatloaf - A Commodore 1541 disk drive emulator
+// https://github.com/idolpx/meatloaf
+// Copyright(C) 2020 James Johnston
+//
+// This file is part of Meatloaf but adapted for use in the FujiNet project
+// https://github.com/FujiNetWIFI/fujinet-platformio
+// 
+// Meatloaf is free software : you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// Meatloaf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
+
 #ifndef IECBUS_H
 #define IECBUS_H
 
@@ -61,8 +81,6 @@
 #define TIMING_ATN_PREDELAY 50  // delay required in atn    (us)
 #define TIMING_ATN_DELAY    100 // delay required after atn (us)
 #define TIMING_FNF_DELAY    100 // delay after fnf?         (us)
-#define TIMING_SLOW_DOWN    50  // slow down a little       (us)
-#define TIMING_EXTRA		5	
 
 // See timeoutWait
 #define TIMEOUT 65500
@@ -97,9 +115,9 @@ public:
 
 	// IEC ATN commands:
 	enum ATNCommand 
-    {
-		ATN_CODE_GLOBAL = 0x00,	    // 0x00 + cmd (global command)
-		ATN_CODE_LISTEN = 0x20,	    // 0x20 + device_id (LISTEN)
+       {
+		ATN_CODE_GLOBAL = 0x00,     // 0x00 + cmd (global command)
+		ATN_CODE_LISTEN = 0x20,     // 0x20 + device_id (LISTEN)
 		ATN_CODE_UNLISTEN = 0x3F,   // 0x3F (UNLISTEN)
 		ATN_CODE_TALK = 0x40,	    // 0x40 + device_id (TALK)
 		ATN_CODE_UNTALK = 0x5F,     // 0x5F (UNTALK)
@@ -162,13 +180,13 @@ public:
 
 private:
 	// IEC Bus Commands
-	ATNCheck listen(ATNCmd& atn_cmd);		// 0x20 + device_id 	Listen, device (0–30)
-//	ATNCheck unlisten(ATNCmd& atn_cmd);	    // 0x3F 				Unlisten, all devices
-	ATNCheck talk(ATNCmd& atn_cmd);		    // 0x40 + device_id 	Talk, device 
-//	ATNCheck untalk(ATNCmd& atn_cmd);		// 0x5F 				Untalk, all devices 
-//	ATNCheck reopen(ATNCmd& atn_cmd);		// 0x60 + channel		Reopen, channel (0–15)
-//	ATNCheck close(ATNCmd& atn_cmd);		// 0xE0 + channel		Close, channel
-//	ATNCheck open(ATNCmd& atn_cmd);		    // 0xF0 + channel		Open, channel
+	ATNCheck listen(ATNCmd& atn_cmd);            // 0x20 + device_id 	Listen, device (0–30)
+//	ATNCheck unlisten(ATNCmd& atn_cmd);          // 0x3F				Unlisten, all devices
+	ATNCheck talk(ATNCmd& atn_cmd);              // 0x40 + device_id 	Talk, device 
+//	ATNCheck untalk(ATNCmd& atn_cmd);            // 0x5F				Untalk, all devices 
+//	ATNCheck reopen(ATNCmd& atn_cmd);            // 0x60 + channel		Reopen, channel (0–15)
+//	ATNCheck close(ATNCmd& atn_cmd);             // 0xE0 + channel		Close, channel
+//	ATNCheck open(ATNCmd& atn_cmd);              // 0xF0 + channel		Open, channel
 
 	ATNCheck receiveCommand(ATNCmd& atn_cmd);
 	

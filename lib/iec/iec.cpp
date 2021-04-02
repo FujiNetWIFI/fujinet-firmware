@@ -72,7 +72,6 @@ bool iecBus::timeoutWait(int pin, IECline state)
 {
 	uint16_t t = 0;
 
-	//pull(IEC_PIN_SRQ);
 	while(t < TIMEOUT) {
 
 		fnSystem.delay_microseconds(3); // The aim is to make the loop at least 3 us
@@ -81,13 +80,11 @@ bool iecBus::timeoutWait(int pin, IECline state)
 		if(status(pin) == state)
 		{
 			// Got it!  Continue!
-			//release(IEC_PIN_SRQ);
 			return false;
 		}
 
 		t++;
 	}
-	//release(IEC_PIN_SRQ);
 
 	// If down here, we have had a timeout.
 	// Release lines and go to inactive state with error flag
@@ -478,7 +475,7 @@ iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 	ATNCheck ret = ATN_IDLE;
 
 #ifdef DEBUG_TIMING
-	int pin = IEC_PIN_SRQ;
+	int pin = IEC_PIN_ATN;
 	pull(pin);
 	fnSystem.delay_microseconds(1000); // 1000
 	release(pin);
