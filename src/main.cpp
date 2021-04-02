@@ -74,6 +74,9 @@ void main_setup()
     }
     ESP_ERROR_CHECK(e);
 
+    // Enable GPIO Interrupt Service Routine
+    gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
+
     fnSystem.check_hardware_ver();
     Debug_printf("Detected Hardware Version: %s\n", fnSystem.get_hardware_ver_str());
 

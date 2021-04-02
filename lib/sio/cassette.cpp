@@ -28,7 +28,7 @@ unsigned long delta = 0;
 unsigned long boxcar[BOXLEN];
 uint8_t boxidx = 0;
 
-static void IRAM_ATTR gpio_isr_handler(void *arg)
+static void IRAM_ATTR cas_isr_handler(void *arg)
 {
     uint32_t gpio_num = (uint32_t)arg;
     if (gpio_num == UART2_RX)
@@ -166,14 +166,10 @@ void sioCassette::sio_enable_cassette()
     if (cassetteMode == cassette_mode_t::record && tape_offset == 0)
     {
         fnUartSIO.end();
-        fnSystem.set_pin_mode(UART2_RX, gpio_mode_t::GPIO_MODE_INPUT);
+        fnSystem.set_pin_mode(UART2_RX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
 
-        //change gpio intrrupt type for one pin
-        gpio_set_intr_type((gpio_num_t)UART2_RX, GPIO_INTR_ANYEDGE);
-        //install gpio isr service
-        gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
-        //hook isr handler for specific gpio pin
-        gpio_isr_handler_add((gpio_num_t)UART2_RX, gpio_isr_handler, (void *)UART2_RX);
+        // hook isr handler for specific gpio pin
+        gpio_isr_handler_add((gpio_num_t)UART2_RX, cas_isr_handler, (void *)UART2_RX);
 
 #ifdef DEBUG
         Debug_println("stopped hardware UART");
