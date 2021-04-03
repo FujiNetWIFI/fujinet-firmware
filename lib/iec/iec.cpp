@@ -54,7 +54,7 @@ bool iecBus::init()
 	// initial pin modes in GPIO
 	set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_INPUT);
 	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
-#ifndef TWO_IO_PINS
+#ifndef SPLIT_LINES
 	set_pin_mode(IEC_PIN_CLK, gpio_mode_t::GPIO_MODE_INPUT);
 	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);
 #else
