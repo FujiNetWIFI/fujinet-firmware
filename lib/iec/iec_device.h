@@ -56,7 +56,7 @@ public:
 	bool begin(iecBus &iec, FileSystem *fileSystem);
 
 	// The handler services the IEC bus
-	void loop(void);
+	void service(void);
 
 private:
 	void reset(void);
