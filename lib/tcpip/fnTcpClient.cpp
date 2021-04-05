@@ -49,7 +49,7 @@ private:
             _buffer = (uint8_t *)malloc(_size);
             if (!_buffer)
             {
-                Debug_printf("Not enough memory to allocate buffer");
+                Debug_printf("Not enough memory to allocate buffer\n");
                 _failed = true;
                 return 0;
             }
@@ -193,7 +193,7 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
     {
-        Debug_printf("socket: %d", errno);
+        Debug_printf("socket: %d\n", errno);
         return 0;
     }
     // Add O_NONBLOCK to our socket file descriptor
@@ -210,7 +210,7 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     int res = lwip_connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
     if (res < 0 && errno != EINPROGRESS)
     {
-        Debug_printf("connect on fd %d, errno: %d, \"%s\"", sockfd, errno, strerror(errno));
+        Debug_printf("connect on fd %d, errno: %d, \"%s\"\n", sockfd, errno, strerror(errno));
         ::close(sockfd);
         return 0;
     }
@@ -229,14 +229,14 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     // Error result
     if (res < 0)
     {
-        Debug_printf("select on fd %d, errno: %d, \"%s\"", sockfd, errno, strerror(errno));
+        Debug_printf("select on fd %d, errno: %d, \"%s\"\n", sockfd, errno, strerror(errno));
         ::close(sockfd);
         return 0;
     }
     // Timeout reached
     else if (res == 0)
     {
-        Debug_printf("select returned due to timeout %d ms for fd %d", timeout, sockfd);
+        Debug_printf("select returned due to timeout %d ms for fd %d\n", timeout, sockfd);
         ::close(sockfd);
         return 0;
     }
@@ -250,14 +250,14 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
         if (res < 0)
         {
             // Failed to retrieve SO_ERROR
-            Debug_printf("getsockopt on fd %d, errno: %d, \"%s\"", sockfd, errno, strerror(errno));
+            Debug_printf("getsockopt on fd %d, errno: %d, \"%s\"\n", sockfd, errno, strerror(errno));
             ::close(sockfd);
             return 0;
         }
         // Retrieved SO_ERROR and found that we have an error condition
         if (sockerr != 0)
         {
-            Debug_printf("socket error on fd %d, errno: %d, \"%s\"", sockfd, sockerr, strerror(sockerr));
+            Debug_printf("socket error on fd %d, errno: %d, \"%s\"\n", sockfd, sockerr, strerror(sockerr));
             ::close(sockfd);
             return 0;
         }
@@ -296,7 +296,7 @@ int fnTcpClient::setSocketOption(int option, char *value, size_t len)
     int res = setsockopt(fd(), SOL_SOCKET, option, value, len);
     if (res < 0)
     {
-        Debug_printf("%X : %d", option, errno);
+        Debug_printf("%X : %d\n", option, errno);
     }
 
     return res;
@@ -308,7 +308,7 @@ int fnTcpClient::setOption(int option, int *value)
     int res = setsockopt(fd(), IPPROTO_TCP, option, (char *)value, sizeof(int));
     if (res < 0)
     {
-        Debug_printf("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
+        Debug_printf("fail on fd %d, errno: %d, \"%s\"\n", fd(), errno, strerror(errno));
     }
 
     return res;
@@ -321,7 +321,7 @@ int fnTcpClient::getOption(int option, int *value)
     int res = getsockopt(fd(), IPPROTO_TCP, option, (char *)value, &size);
     if (res < 0)
     {
-        Debug_printf("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
+        Debug_printf("fail on fd %d, errno: %d, \"%s\"\n", fd(), errno, strerror(errno));
     }
 
     return res;
@@ -360,8 +360,8 @@ size_t fnTcpClient::write(const uint8_t *buf, size_t size)
         FD_SET(socketFileDescriptor, &fdset);
 
         struct timeval tv;
-        tv.tv_sec = 0;
-        tv.tv_usec = FNTCP_SELECT_TIMEOUT_US;
+        tv.tv_sec = (long)(FNTCP_SELECT_TIMEOUT_US / 1000000UL);
+        tv.tv_usec = (long)(FNTCP_SELECT_TIMEOUT_US % 1000000UL);
 
         retry--;
 
@@ -394,7 +394,7 @@ size_t fnTcpClient::write(const uint8_t *buf, size_t size)
             // We got an error
             else if (res < 0)
             {
-                Debug_printf("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
+                Debug_printf("fail on fd %d, errno: %d, \"%s\"\n", fd(), errno, strerror(errno));
                 // Give up if this wasn't just a try again error
                 if (errno != EAGAIN)
                 {
@@ -437,7 +437,7 @@ int fnTcpClient::read(uint8_t *buf, size_t size)
     res = _rxBuffer->read(buf, size);
     if (_rxBuffer->failed())
     {
-        Debug_printf("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
+        Debug_printf("fail on fd %d, errno: %d, \"%s\"\n", fd(), errno, strerror(errno));
         stop();
     }
     return res;
@@ -478,7 +478,7 @@ int fnTcpClient::peek()
     int res = _rxBuffer->peek();
     if (_rxBuffer->failed())
     {
-        Debug_printf("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
+        Debug_printf("fail on fd %d, errno: %d, \"%s\"\n", fd(), errno, strerror(errno));
         stop();
     }
     return res;
@@ -493,7 +493,7 @@ int fnTcpClient::available()
     int res = _rxBuffer->available();
     if (_rxBuffer->failed())
     {
-        Debug_printf("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
+        Debug_printf("fail on fd %d, errno: %d, \"%s\"\n", fd(), errno, strerror(errno));
         stop();
     }
     return res;
@@ -517,7 +517,7 @@ void fnTcpClient::flush()
         res = recv(fd(), buf, toRead, MSG_DONTWAIT);
         if (res < 0)
         {
-            Debug_printf("fail on fd %d, errno: %d, \"%s\"", fd(), errno, strerror(errno));
+            Debug_printf("fail on fd %d, errno: %d, \"%s\"\n", fd(), errno, strerror(errno));
             stop();
             break;
         }
@@ -532,12 +532,18 @@ uint8_t fnTcpClient::connected()
     if (_connected)
     {
         uint8_t dummy;
-        int res = recv(fd(), &dummy, 0, MSG_DONTWAIT);
+        int res = recv(fd(), &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
 
-        // Since the move to ESP-IDF, recv() has started returning 0 with errno 0
-        // Seems to work otherwise, so changed the if() below:
-        //if (res <= 0)
-        if (res < 0)
+        if (res > 0)
+        {
+            _connected = true;
+        }
+        else if (res == 0)
+        {
+            Debug_printf("fnTcpClient disconnected\n");
+            _connected = false;
+        }
+        else
         {
             switch (errno)
             {
@@ -551,17 +557,13 @@ uint8_t fnTcpClient::connected()
             case ECONNREFUSED:
             case ECONNABORTED:
                 _connected = false;
-                Debug_printf("Disconnected: res %d, errno %d\n", res, errno);
+                Debug_printf("fnTcpClient disconnected: res %d, errno %d\n", res, errno);
                 break;
             default:
-                Debug_printf("Unexpected: res %d, errno %d\n", res, errno);
+                Debug_printf("fnTcpClient unexpected: res %d, errno %d\n", res, errno);
                 _connected = true;
                 break;
             }
-        }
-        else
-        {
-            _connected = true;
         }
     }
     return _connected;
