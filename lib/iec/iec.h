@@ -55,10 +55,10 @@
 #include "Petscii.h"
 
 // CLK & DATA lines in/out are split between two pins
-#define SPLIT_LINES
+//#define SPLIT_LINES
 
 // CLK_OUT & DATA_OUT are inverted
-#define INVERTED_LINES
+#define INVERTED_LINES	false
 
 // ESP32 GPIO to C64 IEC Serial Port
 #define IEC_PIN_ATN     22      // PROC

@@ -396,8 +396,8 @@ void iecDevice::handleATNCmdCodeOpen(iecBus::ATNCmd& atn_cmd)
 				m_device.path(m_device.path() + m_filename.substr(3) + "/");
 			}
 		}
-		
-		if ( atn_cmd.channel == 0x00 )
+
+		if (atn_cmd.channel == 0x00)
 		{
 			m_openState = O_DIR;
 		}
