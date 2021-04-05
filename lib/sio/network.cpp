@@ -374,7 +374,8 @@ void sioNetwork::sio_status_channel()
     serialized_status[2] = status.connected;
     serialized_status[3] = status.error;
 
-    Debug_printf("sio_status_channel() - BW: %u E: %u\n", status.rxBytesWaiting, status.error);
+    Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n",
+        status.rxBytesWaiting, status.connected ,status.error);
 
     // and send to computer
     sio_to_computer(serialized_status, sizeof(serialized_status), err);

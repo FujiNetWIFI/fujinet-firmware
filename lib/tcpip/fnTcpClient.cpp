@@ -157,9 +157,15 @@ private:
 
 public:
     fnTcpClientSocketHandle(int fd) : _sockfd(fd) {}
-    ~fnTcpClientSocketHandle() { close(_sockfd); }
+    ~fnTcpClientSocketHandle() { close(); }
 
     int fd() { return _sockfd; }
+    int close()
+    {
+        int res = (_sockfd >= 0) ? ::close(_sockfd) : -1;
+        _sockfd = -1;
+        return res;
+    }
 };
 
 fnTcpClient::fnTcpClient(int fd)
@@ -205,7 +211,7 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     if (res < 0 && errno != EINPROGRESS)
     {
         Debug_printf("connect on fd %d, errno: %d, \"%s\"", sockfd, errno, strerror(errno));
-        close(sockfd);
+        ::close(sockfd);
         return 0;
     }
 
@@ -224,14 +230,14 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     if (res < 0)
     {
         Debug_printf("select on fd %d, errno: %d, \"%s\"", sockfd, errno, strerror(errno));
-        close(sockfd);
+        ::close(sockfd);
         return 0;
     }
     // Timeout reached
     else if (res == 0)
     {
         Debug_printf("select returned due to timeout %d ms for fd %d", timeout, sockfd);
-        close(sockfd);
+        ::close(sockfd);
         return 0;
     }
     // Success
@@ -245,14 +251,14 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
         {
             // Failed to retrieve SO_ERROR
             Debug_printf("getsockopt on fd %d, errno: %d, \"%s\"", sockfd, errno, strerror(errno));
-            close(sockfd);
+            ::close(sockfd);
             return 0;
         }
         // Retrieved SO_ERROR and found that we have an error condition
         if (sockerr != 0)
         {
             Debug_printf("socket error on fd %d, errno: %d, \"%s\"", sockfd, sockerr, strerror(sockerr));
-            close(sockfd);
+            ::close(sockfd);
             return 0;
         }
     }
@@ -624,4 +630,11 @@ int fnTcpClient::fd() const
         return -1;
     else
         return _clientSocketHandle->fd();
+}
+
+int fnTcpClient::close()
+{
+    int res = (_clientSocketHandle != nullptr) ? _clientSocketHandle->close() : -1;
+    stop();
+    return res;
 }
