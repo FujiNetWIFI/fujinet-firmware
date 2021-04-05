@@ -46,18 +46,17 @@ bool iecBus::init()
 	pull(IEC_PIN_DATA);
 	pull(IEC_PIN_SRQ);
 
-	// TODO:
-	//#ifdef RESET_C64
-	//	release(IEC_PIN_RESET);	// only early C64's could be reset by a slave going high.
-	//#endif
+//#ifdef RESET_C64
+//	release(IEC_PIN_RESET);	// only early C64's could be reset by a slave going high.
+//#endif
 
 	// initial pin modes in GPIO
 	set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_INPUT);
-	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
-#ifndef SPLIT_LINES
 	set_pin_mode(IEC_PIN_CLK, gpio_mode_t::GPIO_MODE_INPUT);
-	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);
-#else
+	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);	
+	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
+
+#ifdef SPLIT_LINES
 	set_pin_mode(IEC_PIN_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT);
 	set_pin_mode(IEC_PIN_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT);
 #endif
@@ -99,7 +98,7 @@ bool iecBus::timeoutWait(int pin, IECline state)
 	// Note: The while above is without timeout. If ATN is held low forever,
 	//       the CBM is out in the woods and needs a reset anyways.
 
-	Debug_printf("\r\ntimeoutWait: true [%d] [%d] [%d] [%d]", pin, state, t, m_state);
+	Debug_printf("\r\ntimeoutWait: true [%d] [%d] [%d] [%d] ", pin, state, t, m_state);
 	return true;
 } // timeoutWait
 
@@ -176,7 +175,7 @@ int iecBus::receiveByte(void)
 		fnSystem.delay_microseconds(TIMING_BIT);
 		release(IEC_PIN_DATA);
 
-		// C64 should pull clock in response
+		// talker should pull clock in response
 		if (timeoutWait(IEC_PIN_CLK, pulled))
 		{
 			Debug_println("receiveByte: talker should pull clk to continue EOI");
@@ -238,7 +237,6 @@ int iecBus::receiveByte(void)
 	// Acknowledge byte received
 	pull(IEC_PIN_DATA);
 
-    
 	// STEP 5: START OVER (We are listener now)
 	// We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,  
 	// and  the listener is holding the Data line true. We're ready for step 1; we may send another character - unless EOI has 
@@ -279,7 +277,10 @@ bool iecBus::sendByte(int data, bool signalEOI)
 	// only when all listeners have released it - in other words, when  all  listeners  are  ready  
 	// to  accept  data.  What  happens  next  is  variable. 
 	if (timeoutWait(IEC_PIN_DATA, released))
-		return false;
+	{
+		Debug_printf("sendByte: wait for listener to be ready\r\n");
+		return -1;
+	}
 
 	// Either  the  talker  will pull the 
 	// Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it  
@@ -306,11 +307,17 @@ bool iecBus::sendByte(int data, bool signalEOI)
 
 		// get eoi acknowledge: pull
 		if (timeoutWait(IEC_PIN_DATA, pulled))
-			return false;
+		{
+			Debug_printf("sendByte: wait for listener acknowledge EOI (data pull)\r\n");
+			return -1;
+		}
 
 		// get eoi acknowledge: release
 		if (timeoutWait(IEC_PIN_DATA, released))
-			return false;
+		{
+			Debug_printf("sendByte: wait for listener acknowledge EOI (data release)\r\n");
+			return -1;
+		}
 	}
 	else
 	{
@@ -355,7 +362,6 @@ bool iecBus::sendByte(int data, bool signalEOI)
 
 	pull(IEC_PIN_CLK);	// pull clock cause we're done
 	release(IEC_PIN_DATA); // release data because we're done
-	fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
 
 	// STEP 4: FRAME HANDSHAKE (We are talker now)
 	// After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true  
@@ -365,7 +371,10 @@ bool iecBus::sendByte(int data, bool signalEOI)
 
 	// Wait for listener to accept data
 	if (timeoutWait(IEC_PIN_DATA, pulled))
-		return false;
+	{
+		Debug_printf("sendByte: wait for listener to accept data\r\n");
+		return -1;
+	}
 
 	// STEP 5: START OVER (We are talker now)
 	// We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,  
@@ -373,9 +382,9 @@ bool iecBus::sendByte(int data, bool signalEOI)
 	// happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause, 
 	// the Clock and Data lines are released to false and transmission stops. 
 
-	if(m_state bitand eoiFlag)
+	if (signalEOI)
 	{
-		// EOI Received
+		// EOI Sent
 		fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
 		release(IEC_PIN_CLK);
 		release(IEC_PIN_DATA);
