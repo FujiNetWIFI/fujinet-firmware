@@ -198,7 +198,7 @@ void iecDevice::sendDeviceStatus()
 } // sendDeviceStatus
 
 
-void iecDevice::loop(void)
+void iecDevice::service(void)
 {
 //#ifdef HAS_RESET_LINE
 //	if(m_iec.checkRESET()) {
@@ -643,51 +643,50 @@ void iecDevice::sendListing()
 	// TODO directory handling!!!!!
 
 	// Send List ITEMS
-	sendLine(basicPtr, 200, "\"THIS IS A FILE\"     PRG");
-	sendLine(basicPtr, 57, " \"THIS IS A FILE 2\"   PRG");
-/* 	Dir dir = m_fileSystem->openDir(m_device.path());
-	while (dir.next()) {
-		uint16_t block_cnt = dir.fileSize() / 256;
-		int block_spc = 3;
-		if (block_cnt > 9) block_spc--;
-		if (block_cnt > 99) block_spc--;
-		if (block_cnt > 999) block_spc--;
+	// byte_count += sendLine(basicPtr, 200, "\"THIS IS A FILE\"     PRG");
+	// byte_count += sendLine(basicPtr, 57, " \"THIS IS A FILE 2\"   PRG");
+ 	// Dir dir = m_fileSystem->dir_open(m_device.path());
+	// while (dir()) {
+	// 	uint16_t block_cnt = dir.fileSize() / 256;
+	// 	int block_spc = 3;
+	// 	if (block_cnt > 9) block_spc--;
+	// 	if (block_cnt > 99) block_spc--;
+	// 	if (block_cnt > 999) block_spc--;
 
-		int space_cnt = 21 - (dir.fileName().length() + 5);
-		if (space_cnt > 21)
-			space_cnt = 0;
+	// 	int space_cnt = 21 - (dir.fileName().length() + 5);
+	// 	if (space_cnt > 21)
+	// 		space_cnt = 0;
 		
-		if(dir.fileSize()) {
-			block_cnt = dir.fileSize()/256;
+	// 	if(dir.fileSize()) {
+	// 		block_cnt = dir.fileSize()/256;
 
-			uint8_t ext_pos = dir.fileName().lastIndexOf(".") + 1;
-			if (ext_pos && ext_pos != dir.fileName().length())
-			{
-				extension = dir.fileName().substring(ext_pos);
-				util_string_toupper(extension);
-				//extension.toUpperCase();
-			}
-			else
-			{
-				extension = "PRG";
-			}
-		}
-		else
-		{
-			extension = "DIR";
-		}
+	// 		uint8_t ext_pos = dir.fileName().lastIndexOf(".") + 1;
+	// 		if (ext_pos && ext_pos != dir.fileName().length())
+	// 		{
+	// 			extension = dir.fileName().substring(ext_pos);
+	// 			util_string_toupper(extension);
+	// 			//extension.toUpperCase();
+	// 		}
+	// 		else
+	// 		{
+	// 			extension = "PRG";
+	// 		}
+	// 	}
+	// 	else
+	// 	{
+	// 		extension = "DIR";
+	// 	}
 
-		// Don't show hidden folders or files
-		if(!dir.fileName().startsWith("."))
-		{
-			byte_count += sendLine(basicPtr, block_cnt, "%*s\"%s\"%*s %3s", block_spc, "", dir.fileName().c_str(), space_cnt, "", extension.c_str());
-		}
+	// 	// Don't show hidden folders or files
+	// 	if(!dir.fileName().startsWith("."))
+	// 	{
+	// 		byte_count += sendLine(basicPtr, block_cnt, "%*s\"%s\"%*s %3s", block_spc, "", dir.fileName().c_str(), space_cnt, "", extension.c_str());
+	// 	}
 		
-		//Debug_printf(" (%d, %d)\r\n", space_cnt, byte_count);
-		fnLedManager.toggle(LED_SIO);
-		//toggleLED(true);
-	}	
- */
+	// 	//Debug_printf(" (%d, %d)\r\n", space_cnt, byte_count);
+	// 	fnLedManager.toggle(LED_SIO);
+	// 	//toggleLED(true);
+	// }	
     byte_count += sendFooter( basicPtr );
 
 	// End program with two zeros after last line. Last zero goes out as EOI.
@@ -801,15 +800,9 @@ void iecDevice::sendFile()
 		Debug_println("");
 		Debug_printf("%d bytes sent\r\n", i);
 		fnLedManager.set(LED_SIO);
-		//ledON();
 
 		if (!success || i != len)
 		{
-			//bool s1 = m_iec.status(IEC_PIN_ATN);
-			//bool s2 = m_iec.status(IEC_PIN_CLK);
-			//bool s3 = m_iec.status(IEC_PIN_DATA);
-
-			//Debug_printf("Transfer failed! %d, %d, %d\r\n", s1, s2, s3);
 			Debug_println("sendFile: Transfer failed!");
 		}
 	}
