@@ -378,16 +378,16 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    set_file_content_type(req,"modem-sniffer.txt");
+    set_file_content_type(req, "modem-sniffer.txt");
 
     FILE *sOutput = modemSniffer->closeOutputAndProvideReadHandle();
-    Debug_printf("Got file handle %p\n",sOutput);
-    if(sOutput == nullptr)
+    Debug_printf("Got file handle %p\n", sOutput);
+    if (sOutput == nullptr)
     {
         return_http_error(req, fnwserr_post_fail);
         return ESP_FAIL;
     }
-    
+
     // Finally, write the data
     // Send the file content out in chunks
     char *buf = (char *)malloc(FNWS_SEND_BUFF_SIZE);
@@ -407,6 +407,24 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
     fclose(sOutput);
 
     Debug_printf("Sniffer dump completed.\n");
+
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
+{
+    queryparts qp;
+    parse_query(req, &qp);
+
+    
+
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
+{
+    queryparts qp;
+    parse_query(req, &qp);
 
     return ESP_OK;
 }
@@ -497,6 +515,14 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/favicon.ico",
          .method = HTTP_GET,
          .handler = get_handler_file_in_path,
+         .user_ctx = NULL},
+        {.uri = "/mount",
+         .method = HTTP_GET,
+         .handler = get_handler_mount,
+         .user_ctx = NULL},
+        {.uri = "/eject",
+         .method = HTTP_GET,
+         .handler = get_handler_eject,
          .user_ctx = NULL},
         {.uri = "/config",
          .method = HTTP_POST,
