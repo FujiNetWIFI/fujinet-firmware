@@ -527,30 +527,31 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 {
     queryparts qp;
-    string errMsg;
     unsigned char hs, ds, mode;
     char flag[3] = {'r', 0, 0};
-
+    
+    fnHTTPD.clearErrMsg();
+    
     parse_query(req, &qp);
 
     if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
     {
-        errMsg += "<li>hostslot is empty</li>";
+        fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
     }
 
     if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
     {
-        errMsg += "<li>deviceslot is empty</li>";
+        fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
     }
 
     if (qp.query_parsed.find("mode") == qp.query_parsed.end())
     {
-        errMsg += "<li>mode is empty</li>";
+        fnHTTPD.addToErrMsg("<li>mode is empty</li>");
     }
 
     if (qp.query_parsed.find("filename") == qp.query_parsed.end())
     {
-        errMsg += "<li>filename is empty</li>";
+        fnHTTPD.addToErrMsg("<li>filename is empty</li>");
     }
 
     hs = atoi(qp.query_parsed["hostslot"].c_str());
@@ -558,17 +559,17 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 
     if (hs > MAX_HOSTS)
     {
-        errMsg += "<li>hostslot must be between 0 and 8</li>";
+        fnHTTPD.addToErrMsg("<li>hostslot must be between 0 and 8</li>");
     }
 
     if (ds > MAX_HOSTS)
     {
-        errMsg += "<li>deviceslot must be between 0 and 8</li>";
+        fnHTTPD.addToErrMsg("<li>deviceslot must be between 0 and 8</li>");
     }
 
     if ((qp.query_parsed["mode"] != "1") || (qp.query_parsed["mode"] != "2"))
     {
-        errMsg += "<li>mode should be either 1 for read, or 2 for write.</li>";
+        fnHTTPD.addToErrMsg("<li>mode should be either 1 for read, or 2 for write.</li>");
     }
 
     if (qp.query_parsed["mode"] == "2")
@@ -583,7 +584,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 
         if (disk->fileh == nullptr)
         {
-            errMsg += "<li>Could not open file: " + qp.query_parsed["filename"] + "</li>";
+            fnHTTPD.addToErrMsg("<li>Could not open file: " + qp.query_parsed["filename"] + "</li>");
         }
         else
         {
@@ -597,10 +598,10 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
     }
     else
     {
-        errMsg += "<li>Could not mount host slot " + qp.query_parsed["hostslot"] + "</li>";
+        fnHTTPD.addToErrMsg("<li>Could not mount host slot " + qp.query_parsed["hostslot"] + "</li>");
     }
 
-    if (!errMsg.empty())
+    if (!fnHTTPD.errMsgEmpty())
     {
         send_file(req, "error_page.html");
     }
