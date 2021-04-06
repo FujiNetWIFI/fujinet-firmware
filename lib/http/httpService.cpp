@@ -15,6 +15,7 @@
 #include "printerlist.h"
 #include "fnWiFi.h"
 #include "keys.h"
+#include "fnConfig.h"
 
 #include "../../lib/modem-sniffer/modem-sniffer.h"
 #include "../../lib/sio/modem.h"
@@ -527,8 +528,9 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 {
     queryparts qp;
-    unsigned char hs, ds, mode;
+    unsigned char hs, ds;
     char flag[3] = {'r', 0, 0};
+    fnConfig::mount_mode_t mode = fnConfig::mount_modes::MOUNTMODE_READ;
     
     fnHTTPD.clearErrMsg();
     
@@ -567,20 +569,23 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
         fnHTTPD.addToErrMsg("<li>deviceslot must be between 0 and 8</li>");
     }
 
-    if ((qp.query_parsed["mode"] != "1") || (qp.query_parsed["mode"] != "2"))
+    if ((qp.query_parsed["mode"] != "1") && (qp.query_parsed["mode"] != "2"))
     {
         fnHTTPD.addToErrMsg("<li>mode should be either 1 for read, or 2 for write.</li>");
     }
 
     if (qp.query_parsed["mode"] == "2")
+    {
         flag[1] = '+';
+        mode = fnConfig::mount_modes::MOUNTMODE_WRITE;
+    }
 
     if (theFuji.get_hosts(hs)->mount() == true)
     {
         fujiDisk *disk = theFuji.get_disks(ds);
         fujiHost *host = theFuji.get_hosts(hs);
 
-        disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length(), flag);
+        disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length()+1, flag);
 
         if (disk->fileh == nullptr)
         {
@@ -594,6 +599,9 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 
             disk->disk_size = host->file_size(disk->fileh);
             disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
+            Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(),mode);
+            Config.save();
+            theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
         }
     }
     else

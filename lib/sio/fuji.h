@@ -70,9 +70,6 @@ private:
 
     uint8_t _countScannedSSIDs = 0;
 
-    void _populate_slots_from_config();
-    void _populate_config_from_slots();
-
     appkey _current_appkey;
 
 protected:
@@ -135,6 +132,9 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+
+    void _populate_slots_from_config();
+    void _populate_config_from_slots();
 
     void sio_mount_all();              // 0xD7
 
