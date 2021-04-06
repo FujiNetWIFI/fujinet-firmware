@@ -6,6 +6,7 @@
 #include "../../include/debug.h"
 #include "fnConfig.h"
 
+#include "httpService.h"
 #include "httpServiceParser.h"
 
 #include "fuji.h"
@@ -96,6 +97,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HOST6PREFIX,
         FN_HOST7PREFIX,
         FN_HOST8PREFIX,
+        FN_ERRMSG,
         FN_LASTTAG
     };
 
@@ -172,7 +174,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST5PREFIX",
         "FN_HOST6PREFIX",
         "FN_HOST7PREFIX",
-        "FN_HOST8PREFIX"
+        "FN_HOST8PREFIX",
+        "FN_ERRMSG"
     };
 
     stringstream resultstream;
@@ -379,6 +382,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         } else {
             resultstream << "";
         }
+        break;
+    case FN_ERRMSG:
+        resultstream << fnHTTPD.getErrMsg();
         break;
     default:
         resultstream << tag;
