@@ -83,6 +83,8 @@ public:
     static esp_err_t get_handler_file_in_path(httpd_req_t *req);
     static esp_err_t get_handler_print(httpd_req_t *req);
     static esp_err_t get_handler_modem_sniffer(httpd_req_t *req);
+    static esp_err_t get_handler_mount(httpd_req_t *req);
+    static esp_err_t get_handler_eject(httpd_req_t *req); 
 
     static esp_err_t post_handler_config(httpd_req_t *req);
 
