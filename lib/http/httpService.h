@@ -82,10 +82,10 @@ public:
 
     std::string errMsg; 
 
-    string errMsg() { return errMsg; }
+    std::string getErrMsg() { return errMsg; }
     void clearErrMsg() { errMsg.clear(); }
-    void addToErrMsg(string _e) { errMsg += _e; }
-    bool errMsgEmpty() { errMsg.empty(); }
+    void addToErrMsg(std::string _e) { errMsg += _e; }
+    bool errMsgEmpty() { return errMsg.empty(); }
 
     static esp_err_t get_handler_test(httpd_req_t *req);
     static esp_err_t get_handler_index(httpd_req_t *req);
