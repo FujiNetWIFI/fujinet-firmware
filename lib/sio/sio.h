@@ -15,7 +15,6 @@
 #define DELAY_T4 850
 #define DELAY_T5 250
 
-
 /*
 Examples of values that can be defined in PLATFORMIO.INI
 First number is calculated based on the index, second is what the ESP32 actually reports
@@ -89,7 +88,8 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 
 #define SIO_DEVICEID_CPM 0x5A
 
-union cmdFrame_t {
+union cmdFrame_t
+{
     struct
     {
         uint8_t device;
@@ -109,14 +109,14 @@ union cmdFrame_t {
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);
 
 // class def'ns
-class sioModem;   // declare here so can reference it, but define in modem.h
-class sioFuji;    // declare here so can reference it, but define in fuji.h
-class sioBus;     // declare early so can be friend
-class sioNetwork; // declare here so can reference it, but define in network.h
-class sioMIDIMaze;   // declare here so can reference it, but define in midimaze.h
-class sioCassette;  // Cassette forward-declaration.
-class sioCPM;    // CPM device.
-class sioPrinter; // Printer device
+class sioModem;    // declare here so can reference it, but define in modem.h
+class sioFuji;     // declare here so can reference it, but define in fuji.h
+class sioBus;      // declare early so can be friend
+class sioNetwork;  // declare here so can reference it, but define in network.h
+class sioMIDIMaze; // declare here so can reference it, but define in midimaze.h
+class sioCassette; // Cassette forward-declaration.
+class sioCPM;      // CPM device.
+class sioPrinter;  // Printer device
 
 class sioDevice
 {
@@ -127,7 +127,6 @@ protected:
 
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
-    uint8_t status_wait_count = 5;
 
     /**
      * @brief Send the desired buffer to the Atari.
@@ -196,7 +195,7 @@ protected:
     virtual void sio_process(uint32_t commanddata, uint8_t checksum) = 0;
 
     // Optional shutdown/reboot cleanup routine
-    virtual void shutdown() {};
+    virtual void shutdown(){};
 
 public:
     /**
@@ -222,6 +221,11 @@ public:
     bool device_active = true;
 
     /**
+     * @brief status wait counter
+     */
+    uint8_t status_wait_count = 5;
+
+    /**
      * @brief Get the sioBus object that this sioDevice is attached to.
      */
     sioBus sio_get_bus();
@@ -229,8 +233,8 @@ public:
 
 enum sio_message : uint16_t
 {
-    SIOMSG_DISKSWAP,            // Rotate disk
-    SIOMSG_DEBUG_TAPE           // Tape debug msg
+    SIOMSG_DISKSWAP,  // Rotate disk
+    SIOMSG_DEBUG_TAPE // Tape debug msg
 };
 
 struct sio_message_t
@@ -251,7 +255,7 @@ private:
     sioDevice *_activeDev = nullptr;
     sioModem *_modemDev = nullptr;
     sioFuji *_fujiDev = nullptr;
-    sioNetwork *_netDev[8] = { nullptr };
+    sioNetwork *_netDev[8] = {nullptr};
     sioMIDIMaze *_midiDev = nullptr;
     sioCassette *_cassetteDev = nullptr;
     sioCPM *_cpmDev = nullptr;
@@ -262,13 +266,12 @@ private:
     int _sioBaudHigh;
     int _sioBaudUltraHigh;
 
-    bool useUltraHigh=false; // Use fujinet derived clock.
+    bool useUltraHigh = false; // Use fujinet derived clock.
 
     void _sio_process_cmd();
     void _sio_process_queue();
 
 public:
-
     void setup();
     void service();
     void shutdown();
@@ -279,22 +282,22 @@ public:
     sioDevice *deviceById(int device_id);
     void changeDeviceId(sioDevice *pDevice, int device_id);
 
-    int getBaudrate(); // Gets current SIO baud rate setting
+    int getBaudrate();          // Gets current SIO baud rate setting
     void setBaudrate(int baud); // Sets SIO to specific baud rate
-    void toggleBaudrate(); // Toggle between standard and high speed SIO baud rate
+    void toggleBaudrate();      // Toggle between standard and high speed SIO baud rate
 
     int setHighSpeedIndex(int hsio_index); // Set HSIO index. Sets high speed SIO baud and also returns that value.
-    int getHighSpeedIndex(); // Gets current HSIO index
-    int getHighSpeedBaud(); // Gets current HSIO baud
+    int getHighSpeedIndex();               // Gets current HSIO index
+    int getHighSpeedBaud();                // Gets current HSIO baud
 
-    void setMIDIHost(const char *newhost); // Set new host/ip for MIDIMaze
+    void setMIDIHost(const char *newhost);                   // Set new host/ip for MIDIMaze
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0); // enable ultrahigh/set baud rate
     bool getUltraHighEnabled() { return useUltraHigh; }
-    int getUltraHighBaudRate() { return _sioBaudUltraHigh; } 
+    int getUltraHighBaudRate() { return _sioBaudUltraHigh; }
 
-    sioCassette* getCassette() { return _cassetteDev; }
-    sioPrinter* getPrinter() { return _printerdev; }
-    sioCPM* getCPM() { return _cpmDev; }
+    sioCassette *getCassette() { return _cassetteDev; }
+    sioPrinter *getPrinter() { return _printerdev; }
+    sioCPM *getCPM() { return _cpmDev; }
 
     QueueHandle_t qSioMessages = nullptr;
 };
