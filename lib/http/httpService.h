@@ -30,6 +30,7 @@ If a file has an extention pre-determined to support parsing (see/update
 #define HTTPSERVICE_H
 
 #include <esp_http_server.h>
+#include <map>
 #include "fnFS.h"
 
 // FNWS_FILE_ROOT should end in a slash '/'
@@ -63,6 +64,7 @@ class fnHttpService
         std::string full_uri;
         std::string path;
         std::string query;
+        std::map<std::string, std::string> query_parsed; 
     };
 
     static void custom_global_ctx_free(void * ctx);

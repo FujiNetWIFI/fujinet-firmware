@@ -18,6 +18,7 @@
 
 #include "../../lib/modem-sniffer/modem-sniffer.h"
 #include "../../lib/sio/modem.h"
+#include "../../lib/sio/fuji.h"
 
 #include "../../include/debug.h"
 
@@ -34,52 +35,64 @@ extern sioModem *sioR;
  */
 
 /* Converts a hex character to its integer value */
-char from_hex(char ch) {
-  return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
+char from_hex(char ch)
+{
+    return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
 }
 
 /* Converts an integer value to its hex character*/
-char to_hex(char code) {
-  static char hex[] = "0123456789abcdef";
-  return hex[code & 15];
+char to_hex(char code)
+{
+    static char hex[] = "0123456789abcdef";
+    return hex[code & 15];
 }
 
 /* Returns a url-encoded version of str */
 /* IMPORTANT: be sure to free() the returned string after use */
-char *url_encode(char *str) {
-  char *pstr = str, *buf = (char *)malloc(strlen(str) * 3 + 1), *pbuf = buf;
-  while (*pstr) {
-    if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~') 
-      *pbuf++ = *pstr;
-    else if (*pstr == ' ') 
-      *pbuf++ = '+';
-    else 
-      *pbuf++ = '%', *pbuf++ = to_hex(*pstr >> 4), *pbuf++ = to_hex(*pstr & 15);
-    pstr++;
-  }
-  *pbuf = '\0';
-  return buf;
+char *url_encode(char *str)
+{
+    char *pstr = str, *buf = (char *)malloc(strlen(str) * 3 + 1), *pbuf = buf;
+    while (*pstr)
+    {
+        if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')
+            *pbuf++ = *pstr;
+        else if (*pstr == ' ')
+            *pbuf++ = '+';
+        else
+            *pbuf++ = '%', *pbuf++ = to_hex(*pstr >> 4), *pbuf++ = to_hex(*pstr & 15);
+        pstr++;
+    }
+    *pbuf = '\0';
+    return buf;
 }
 
 /* Returns a url-decoded version of str */
 /* IMPORTANT: be sure to free() the returned string after use */
-char *url_decode(char *str) {
-  char *pstr = str, *buf = (char *)malloc(strlen(str) + 1), *pbuf = buf;
-  while (*pstr) {
-    if (*pstr == '%') {
-      if (pstr[1] && pstr[2]) {
-        *pbuf++ = from_hex(pstr[1]) << 4 | from_hex(pstr[2]);
-        pstr += 2;
-      }
-    } else if (*pstr == '+') { 
-      *pbuf++ = ' ';
-    } else {
-      *pbuf++ = *pstr;
+char *url_decode(char *str)
+{
+    char *pstr = str, *buf = (char *)malloc(strlen(str) + 1), *pbuf = buf;
+    while (*pstr)
+    {
+        if (*pstr == '%')
+        {
+            if (pstr[1] && pstr[2])
+            {
+                *pbuf++ = from_hex(pstr[1]) << 4 | from_hex(pstr[2]);
+                pstr += 2;
+            }
+        }
+        else if (*pstr == '+')
+        {
+            *pbuf++ = ' ';
+        }
+        else
+        {
+            *pbuf++ = *pstr;
+        }
+        pstr++;
     }
-    pstr++;
-  }
-  *pbuf = '\0';
-  return buf;
+    *pbuf = '\0';
+    return buf;
 }
 
 /* Send some meaningful(?) error message to client
@@ -249,6 +262,9 @@ void fnHttpService::send_file(httpd_req_t *req, const char *filename)
 
 void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
 {
+    char *decoded_query;
+    vector<string> vItems;
+
     results->full_uri += req->uri;
     // See if we have any arguments
     int path_end = results->full_uri.find_first_of('?');
@@ -257,9 +273,52 @@ void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
         results->path += results->full_uri;
         return;
     }
+
     results->path += results->full_uri.substr(0, path_end - 1);
     results->query += results->full_uri.substr(path_end + 1);
-    // TO DO: parse arguments, but we've no need for them yet
+
+    // URL Decode query
+    decoded_query = url_decode((char *)results->query.c_str());
+    results->query = string(decoded_query);
+
+    if (results->query.empty())
+    {
+        free(decoded_query);
+        return;
+    }
+
+    char *token = strtok(decoded_query, "&");
+
+    while (token != NULL)
+    {
+        Debug_printf("Item: %s\n", token);
+        vItems.push_back(string(token));
+        token = strtok(NULL, "&");
+    }
+
+    if (vItems.empty())
+    {
+        free(decoded_query);
+        return;
+    }
+
+    for (vector<string>::iterator it = vItems.begin(); it != vItems.end(); ++it)
+    {
+        string key;
+        string value;
+
+        if (it->find_first_of("=") == string::npos)
+            continue;
+
+        key = it->substr(0, it->find_first_of("="));
+        value = it->substr(it->find_first_of("=") + 1);
+
+        Debug_printf("Key %s : Value %s\n", key.c_str(), value.c_str());
+
+        results->query_parsed.insert(make_pair(key, value));
+    }
+
+    free(decoded_query);
 }
 
 esp_err_t fnHttpService::get_handler_index(httpd_req_t *req)
@@ -468,9 +527,87 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 {
     queryparts qp;
+    string errMsg;
+    unsigned char hs, ds, mode;
+    char flag[3] = {'r', 0, 0};
+
     parse_query(req, &qp);
 
-    
+    if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
+    {
+        errMsg += "<li>hostslot is empty</li>";
+    }
+
+    if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
+    {
+        errMsg += "<li>deviceslot is empty</li>";
+    }
+
+    if (qp.query_parsed.find("mode") == qp.query_parsed.end())
+    {
+        errMsg += "<li>mode is empty</li>";
+    }
+
+    if (qp.query_parsed.find("filename") == qp.query_parsed.end())
+    {
+        errMsg += "<li>filename is empty</li>";
+    }
+
+    hs = atoi(qp.query_parsed["hostslot"].c_str());
+    ds = atoi(qp.query_parsed["deviceslot"].c_str());
+
+    if (hs > MAX_HOSTS)
+    {
+        errMsg += "<li>hostslot must be between 0 and 8</li>";
+    }
+
+    if (ds > MAX_HOSTS)
+    {
+        errMsg += "<li>deviceslot must be between 0 and 8</li>";
+    }
+
+    if ((qp.query_parsed["mode"] != "1") || (qp.query_parsed["mode"] != "2"))
+    {
+        errMsg += "<li>mode should be either 1 for read, or 2 for write.</li>";
+    }
+
+    if (qp.query_parsed["mode"] == "2")
+        flag[1] = '+';
+
+    if (theFuji.get_hosts(hs)->mount() == true)
+    {
+        fujiDisk *disk = theFuji.get_disks(ds);
+        fujiHost *host = theFuji.get_hosts(hs);
+
+        disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length(), flag);
+
+        if (disk->fileh == nullptr)
+        {
+            errMsg += "<li>Could not open file: " + qp.query_parsed["filename"] + "</li>";
+        }
+        else
+        {
+            // Make sure CONFIG boot is disabled.
+            theFuji.boot_config = false;
+            theFuji.status_wait_count = 0;
+
+            disk->disk_size = host->file_size(disk->fileh);
+            disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
+        }
+    }
+    else
+    {
+        errMsg += "<li>Could not mount host slot " + qp.query_parsed["hostslot"] + "</li>";
+    }
+
+    if (!errMsg.empty())
+    {
+        send_file(req, "error_page.html");
+    }
+    else
+    {
+        send_file(req, "redirect_to_index.html");
+    }
 
     return ESP_OK;
 }
