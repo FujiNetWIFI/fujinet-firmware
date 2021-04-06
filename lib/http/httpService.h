@@ -78,7 +78,15 @@ class fnHttpService
     static void send_file(httpd_req_t *req, const char *filename);
     static void parse_query(httpd_req_t *req, queryparts *results);
 
-public:    
+public:
+
+    std::string errMsg; 
+
+    string errMsg() { return errMsg; }
+    void clearErrMsg() { errMsg.clear(); }
+    void addToErrMsg(string _e) { errMsg += _e; }
+    bool errMsgEmpty() { errMsg.empty(); }
+
     static esp_err_t get_handler_test(httpd_req_t *req);
     static esp_err_t get_handler_index(httpd_req_t *req);
     static esp_err_t get_handler_file_in_query(httpd_req_t *req);
