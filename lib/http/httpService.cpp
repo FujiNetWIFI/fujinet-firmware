@@ -531,9 +531,9 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
     unsigned char hs, ds;
     char flag[3] = {'r', 0, 0};
     fnConfig::mount_mode_t mode = fnConfig::mount_modes::MOUNTMODE_READ;
-    
+
     fnHTTPD.clearErrMsg();
-    
+
     parse_query(req, &qp);
 
     if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
@@ -564,7 +564,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
         fnHTTPD.addToErrMsg("<li>hostslot must be between 0 and 8</li>");
     }
 
-    if (ds > MAX_HOSTS)
+    if (ds > MAX_DISK_DEVICES)
     {
         fnHTTPD.addToErrMsg("<li>deviceslot must be between 0 and 8</li>");
     }
@@ -585,7 +585,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
         fujiDisk *disk = theFuji.get_disks(ds);
         fujiHost *host = theFuji.get_hosts(hs);
 
-        disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length()+1, flag);
+        disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
 
         if (disk->fileh == nullptr)
         {
@@ -599,7 +599,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 
             disk->disk_size = host->file_size(disk->fileh);
             disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
-            Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(),mode);
+            Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
             Config.save();
             theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
         }
@@ -625,6 +625,39 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
 {
     queryparts qp;
     parse_query(req, &qp);
+    unsigned char ds;
+
+    if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
+    {
+        fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
+    }
+
+    ds = atoi(qp.query_parsed["deviceslot"].c_str());
+
+    if (ds > MAX_DISK_DEVICES)
+    {
+        fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
+    }
+
+    theFuji.get_disks(ds)->disk_dev.unmount();
+    if (theFuji.get_disks(ds)->disk_type == DISKTYPE_CAS || theFuji.get_disks(ds)->disk_type == DISKTYPE_WAV)
+    {
+        theFuji.cassette()->umount_cassette_file();
+        theFuji.cassette()->sio_disable_cassette();
+    }
+    theFuji.get_disks(ds)->reset();
+    Config.clear_mount(ds);
+    Config.save();
+    theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
+
+    if (!fnHTTPD.errMsgEmpty())
+    {
+        send_file(req, "error_page.html");
+    }
+    else
+    {
+        send_file(req, "redirect_to_index.html");
+    }
 
     return ESP_OK;
 }
@@ -720,7 +753,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .method = HTTP_GET,
          .handler = get_handler_mount,
          .user_ctx = NULL},
-        {.uri = "/eject",
+        {.uri = "/unmount",
          .method = HTTP_GET,
          .handler = get_handler_eject,
          .user_ctx = NULL},
