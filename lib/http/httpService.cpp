@@ -662,6 +662,82 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
+{
+    queryparts qp;
+    unsigned char hs;
+    string pattern;
+
+    fnHTTPD.clearErrMsg();
+
+    parse_query(req, &qp);
+
+    if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
+    {
+        fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
+    }
+
+    if (qp.query_parsed.find("path") == qp.query_parsed.end())
+    {
+        fnHTTPD.addToErrMsg("<li>dir is empty</li>");
+    }
+
+    hs = atoi(qp.query_parsed["hostslot"].c_str());
+
+    if (qp.query_parsed.find("pattern") == qp.query_parsed.end())
+    {
+        pattern = "*";
+    }
+    else
+    {
+        pattern = qp.query_parsed["pattern"];
+    }
+
+    theFuji._populate_slots_from_config();
+
+    if ((theFuji.get_hosts(hs)->mount() == true) && (theFuji.get_hosts(hs)->dir_open(qp.query_parsed["path"].c_str(), pattern.c_str())))
+    {
+        fsdir_entry_t *f;
+
+        fnHTTPD.addToErrMsg("<ul>");
+
+        while ((f = theFuji.get_hosts(hs)->dir_nextfile()) != nullptr)
+        {
+            fnHTTPD.addToErrMsg("<li>");
+
+            if (f->isDir == true)
+            {
+                fnHTTPD.addToErrMsg("<a href=\"/hsdir?hostslot="+qp.query_parsed["hostslot"]+"&path="+string(url_encode((char *)qp.query_parsed["path"].c_str()))+"%2F"+string(url_encode(f->filename))+"\">");
+                fnHTTPD.addToErrMsg("&#128448; ");
+            }
+            else
+            {
+                fnHTTPD.addToErrMsg("<a href=\"\">");
+                fnHTTPD.addToErrMsg("&#128462; ");
+            }
+
+            fnHTTPD.addToErrMsg(string(f->filename));
+
+            fnHTTPD.addToErrMsg("</li>");
+
+            fnHTTPD.addToErrMsg("</a>");
+        }
+
+        theFuji.get_hosts(hs)->dir_close();
+
+        fnHTTPD.addToErrMsg("</ul>");
+
+        send_file(req, "dir_page.html");
+    }
+    else
+    {
+        fnHTTPD.addToErrMsg("<li>Could not open directory</li>");
+        send_file(req, "error_page.html");
+    }
+
+    return ESP_OK;
+}
+
 esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
 {
 
@@ -725,9 +801,9 @@ void fnHttpService::custom_global_ctx_free(void *ctx)
 httpd_handle_t fnHttpService::start_server(serverstate &state)
 {
     std::vector<httpd_uri_t> uris{
-        {.uri = "/test",
+        {.uri = "/hsdir",
          .method = HTTP_GET,
-         .handler = get_handler_test,
+         .handler = get_handler_dir,
          .user_ctx = NULL},
         {.uri = "/",
          .method = HTTP_GET,
