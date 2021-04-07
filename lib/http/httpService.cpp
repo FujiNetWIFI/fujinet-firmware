@@ -667,8 +667,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
     queryparts qp;
     unsigned char hs;
     string pattern;
-
-    fnHTTPD.clearErrMsg();
+    string chunk;
 
     parse_query(req, &qp);
 
@@ -679,7 +678,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 
     if (qp.query_parsed.find("path") == qp.query_parsed.end())
     {
-        fnHTTPD.addToErrMsg("<li>dir is empty</li>");
+        qp.query_parsed["path"] = "";
     }
 
     hs = atoi(qp.query_parsed["hostslot"].c_str());
@@ -693,41 +692,92 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
         pattern = qp.query_parsed["pattern"];
     }
 
+    chunk.clear();
+
+    httpd_resp_set_type(req, "text/html");
+
+    chunk += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
+    chunk += "<!doctype html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"DTD/xhtml1-strict.dtd\">\r\n";
+    chunk += "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\r\n";
+    chunk += " <head>\r\n";
+    chunk += "  <title>Directory of " + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "</title>";
+    chunk += " </head>\r\n";
+    chunk += " <body>\r\n";
+
+    chunk += "  <h1>" + string(theFuji.get_hosts(hs)->get_hostname()) + "</h1>\r\n";
+    chunk += "  <h2>" + qp.query_parsed["path"] + "</h2>\r\n";
+
+    chunk += "  <h3><a href=\"/\">ABORT</h3></a>";
+
+    chunk += "  <ul>\r\n";
+
+    httpd_resp_sendstr_chunk(req, chunk.c_str());
+    chunk.clear();
+
     theFuji._populate_slots_from_config();
 
     if ((theFuji.get_hosts(hs)->mount() == true) && (theFuji.get_hosts(hs)->dir_open(qp.query_parsed["path"].c_str(), pattern.c_str())))
     {
         fsdir_entry_t *f;
+        string parent;
 
-        fnHTTPD.addToErrMsg("<ul>");
+        // Create link to parent
+        if (!qp.query_parsed["path"].empty())
+        {
+            parent = qp.query_parsed["path"].substr(0, qp.query_parsed["path"].find_last_of("/"));
+            chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)parent.c_str())) + "\"><li>&#8617; Parent</li></a>";
+        }
 
         while ((f = theFuji.get_hosts(hs)->dir_nextfile()) != nullptr)
         {
-            fnHTTPD.addToErrMsg("<li>");
+            chunk += "   <li>";
 
             if (f->isDir == true)
             {
-                fnHTTPD.addToErrMsg("<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "\">");
-                fnHTTPD.addToErrMsg("&#128448; ");
+                chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "&parent_path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "\">";
+                chunk += "&#128448; ";
             }
             else
             {
-                fnHTTPD.addToErrMsg("<a href=\"/dslot?hostslot="+qp.query_parsed["hostslot"]+"&filename="+string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename))+"\">");
-                fnHTTPD.addToErrMsg("&#128462; ");
+                chunk += "<a href=\"/dslot?hostslot=" + qp.query_parsed["hostslot"] + "&filename=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "\">";
+
+                if ((string(f->filename).find(".atr") != string::npos) ||
+                    (string(f->filename).find(".ATR") != string::npos) ||
+                    (string(f->filename).find(".atx") != string::npos) ||
+                    (string(f->filename).find(".ATX") != string::npos))
+                {
+                    chunk += "&#128190; "; // floppy disk
+                }
+                else if ((string(f->filename).find(".cas") != string::npos) ||
+                         (string(f->filename).find(".CAS") != string::npos))
+                {
+                    chunk += "&#128429; "; // cassette tape
+                }
+                else
+                {
+                    chunk += "&#128462; "; // std document
+                }
             }
 
-            fnHTTPD.addToErrMsg(string(f->filename));
+            chunk += string(f->filename);
 
-            fnHTTPD.addToErrMsg("</li>");
+            chunk += "</a>";
 
-            fnHTTPD.addToErrMsg("</a>");
+            chunk += "</li>\r\n";
+
+            httpd_resp_sendstr_chunk(req, chunk.c_str());
+            chunk.clear();
         }
 
         theFuji.get_hosts(hs)->dir_close();
 
-        fnHTTPD.addToErrMsg("</ul>");
+        chunk += "  </ul>\r\n";
+        chunk += " </body>\r\n";
+        chunk += "</html>\r\n";
+        httpd_resp_sendstr_chunk(req, chunk.c_str());
+        chunk.clear();
 
-        send_file(req, "dir_page.html");
+        httpd_resp_send_chunk(req, NULL, 0); // end of response.
     }
     else
     {
@@ -741,46 +791,77 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
 {
     queryparts qp;
+    string chunk;
+    unsigned char hs;
 
+    chunk.clear();
     parse_query(req, &qp);
 
-    fnHTTPD.clearErrMsg();
+    if ((qp.query_parsed.find("hostslot") == qp.query_parsed.end()) ||
+        (qp.query_parsed.find("filename") == qp.query_parsed.end()))
+    {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+
+    hs = atoi(qp.query_parsed["hostslot"].c_str());
+
+    httpd_resp_set_type(req, "text/html");
+
+    chunk += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
+    chunk += "<!doctype html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"DTD/xhtml1-strict.dtd\">\r\n";
+    chunk += "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\r\n";
+    chunk += " <head>\r\n";
+    chunk += "  <title>Slot assignment for " + string(url_encode((char *)qp.query_parsed["filename"].c_str())) + "</title>";
+    chunk += " </head>\r\n";
+    chunk += " <body>\r\n";
+
+    chunk += "  <h1>MOUNT TO DRIVE SLOT</h1>\r\n";
+    chunk += "  <h2>" + string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + "</h2>\r\n";
+
+    chunk += "  <h3><a href=\"/\">ABORT</h3></a>";
+
+    chunk += "  <ul>\r\n";
+
+    httpd_resp_sendstr_chunk(req, chunk.c_str());
+    chunk.clear();
 
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
         stringstream ss;
         ss << i;
 
-        fnHTTPD.addToErrMsg("<li><a href=\"/mount?hostslot="+qp.query_parsed["hostslot"]+"&deviceslot="+ss.str()+"&mode=1&filename="+qp.query_parsed["filename"]+"\">");
+        chunk += "<li><a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=1&filename=" + qp.query_parsed["filename"] + "\">&#128190; ";
 
-        fnHTTPD.addToErrMsg(ss.str() + ": ");
+        chunk += ss.str() + ": ";
 
         if (theFuji.get_disks(i)->host_slot == 0xFF)
         {
-            fnHTTPD.addToErrMsg(" :: (Empty)");
+            chunk += " :: (Empty)";
         }
         else
         {
-            fnHTTPD.addToErrMsg(string(theFuji.get_hosts(theFuji.get_disks(i)->host_slot)->get_hostname()));
-            fnHTTPD.addToErrMsg(" :: ");
-            fnHTTPD.addToErrMsg(string(theFuji.get_disks(i)->filename));
-            fnHTTPD.addToErrMsg(" (");
+            chunk += string(theFuji.get_hosts(theFuji.get_disks(i)->host_slot)->get_hostname());
+            chunk += " :: ";
+            chunk += string(theFuji.get_disks(i)->filename);
+            chunk += " (";
             if (theFuji.get_disks(i)->access_mode == 2)
             {
-                fnHTTPD.addToErrMsg("W");
+                chunk += "W";
             }
             else
             {
-                fnHTTPD.addToErrMsg("R");
+                chunk += "R";
             }
-            fnHTTPD.addToErrMsg(") ");
+            chunk += ") ";
         }
-        
 
-        fnHTTPD.addToErrMsg("</a></li>");
+        chunk += "</a></li>";
+        httpd_resp_sendstr_chunk(req, chunk.c_str());
+        chunk.clear();
     }
 
-    send_file(req, "dir_page.html");
+    httpd_resp_send_chunk(req, NULL, 0); // end response.
 
     return ESP_OK;
 }
