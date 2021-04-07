@@ -296,7 +296,15 @@ int SystemManager::get_sio_voltage()
 
     // Calculate ADC characteristics
     esp_adc_cal_characteristics_t adc_chars;
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
+
+    if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
+        Debug_println("SIO VREF: eFuse Vref");
+    } else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
+        Debug_println("SIO VREF: Two Point");
+    } else {
+        Debug_println("SIO VREF: Default");
+    }
 
     int samples = 10;
     uint32_t avgV = 0;
@@ -311,10 +319,13 @@ int SystemManager::get_sio_voltage()
 
     avgV /= samples;
 
+    // SIOvoltage = Vadc*(R1+R2)/R2
     if (avgV < 501)
         return 0;
+    else if ( get_hardware_ver() >= 3 )
+        return (avgV * 3200 / 2000); // v1.6 and up (R1=1200, R2=2000)
     else
-        return (avgV * 5900 / 3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
+        return (avgV * 5900 / 3900); // (R1=2000, R2=3900)
 }
 
 /*
