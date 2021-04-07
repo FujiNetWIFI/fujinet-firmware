@@ -739,11 +739,11 @@ void iecDevice::sendFile()
 	uint16_t i = 0;
 	bool success = true;
 
-	//uint16_t bi = 0;
+	uint16_t bi = 0;
 	char b[1];
-	//int ba[9];
+	int ba[9];
 
-	//ba[8] = '\0';
+	ba[8] = '\0';
 
 	// Find first program
 	//if(m_filename.endsWith("*"))
@@ -771,7 +771,7 @@ void iecDevice::sendFile()
 	
 	Debug_printf("\r\nsendFile: %s\r\n", inFile.c_str());
 
-	FILE* file = m_fileSystem->file_open(inFile.c_str(), "rb");
+	FILE* file =fopen(inFile.c_str(), "rb");
 	
 	if (!file)
 	{
@@ -784,8 +784,8 @@ void iecDevice::sendFile()
 		//.size();
 
 		Debug_printf("\r\nsendFile: [%s] (%d bytes)\r\n=================================\r\n", inFile.c_str(), len);
-		for(i = 0; success and i < len; ++i) { // End if sending to CBM fails.
-			//success = file.readBytes(b, 1);
+		for(i = 0; success and i < len; ++i) 
+		{
 			success = fread(&b, 1, 1, file);
 			if(i == len - 1)
 			{
@@ -801,8 +801,8 @@ void iecDevice::sendFile()
 			if (b[0] < 32 || b[0] == 127) 
 				b[0] = 46;
 
-			ba[bi] = b[0];
-			bi++;
+			ba[bi++] = b[0];
+
 			if(bi == 8)
 			{
 				Debug_printf(" %s\r\n", ba);
@@ -812,10 +812,10 @@ void iecDevice::sendFile()
 
 			// Toggle LED
 			if(i % 50 == 0)
+			{
 				fnLedManager.toggle(LED_SIO);
-
-			//printProgress(len, i);
-			Debug_printf("progress: %d %d", len, i);
+				//Debug_printf("progress: %d %d\r", len, i);
+			}
 		}
 		fclose(file);
 		Debug_println("");
