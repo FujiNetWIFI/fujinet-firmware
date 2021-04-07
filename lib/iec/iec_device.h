@@ -25,6 +25,7 @@
 #include "iec.h"
 
 #include <string>
+#include "esp_vfs.h"
 
 #include "cbmdefines.h"
 #include "Petscii.h"
@@ -40,6 +41,8 @@ enum OpenState {
 	O_DEVICE_INFO,
 	O_DEVICE_STATUS
 };
+
+#define PRODUCT_ID "FUJINET/MEATLOAF"
 
 // The base pointer of basic.
 #define C64_BASIC_START 0x0801

@@ -142,7 +142,7 @@ public:
 		int command;
 		int channel;
 		int device;
-		int str[ATN_CMD_MAX_LENGTH];
+		char str[ATN_CMD_MAX_LENGTH];
 		int strLen;
 	} ATNCmd;
 
@@ -156,21 +156,21 @@ public:
 	// the message is recieved and stored in atn_cmd.
 	ATNCheck checkATN(ATNCmd& atn_cmd);
 
-	// Checks if CBM is sending a reset (setting the RESET line high). This is typicall
+	// Checks if CBM is sending a reset (setting the RESET line high). This is typically
 	// when the CBM is reset itself. In this case, we are supposed to reset all states to initial.
 //	bool checkRESET();
 
-	// Sends a int. The communication must be in the correct state: a load command
+	// Sends a byte. The communication must be in the correct state: a load command
 	// must just have been recieved. If something is not OK, FALSE is returned.
 	bool send(int data);
 
-	// Same as IEC_send, but indicating that this is the last int.
+	// Same as IEC_send, but indicating that this is the last byte.
 	bool sendEOI(int data);
 
 	// A special send command that informs file not found condition
 	bool sendFNF();
 
-	// Recieves a int
+	// Recieves a byte
 	int receive();
 
 	// Enabled Device Bit Mask
@@ -217,16 +217,15 @@ private:
 	inline IECline status(int pin)
 	{
 		#ifdef SPLIT_LINES
-		if (pin == IEC_PIN_CLK)
-			pin = IEC_PIN_CLK_IN;
-		else if (pin == IEC_PIN_DATA)
-			pin = IEC_PIN_DATA_IN;
+			if (pin == IEC_PIN_CLK)
+				pin = IEC_PIN_CLK_IN;
+			else if (pin == IEC_PIN_DATA)
+				pin = IEC_PIN_DATA_IN;
+		#else
+			// To be able to read line we must be set to input, not driving.
+			set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
 		#endif
 		
-		// To be able to read line we must be set to input, not driving.
-		#ifndef SPLIT_LINES
-		set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
-		#endif
 		return fnSystem.digital_read(pin) ? released : pulled;
 	}
 

@@ -59,6 +59,10 @@ private:
     bool m_dirty;
     FileSystem *m_fileSystem;
     // StaticJsonDocument<256> m_device;
+
+    std::string _url;
+    std::string _path;
+    std::string _image;
 };
 
 #endif

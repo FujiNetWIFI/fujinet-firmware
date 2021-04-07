@@ -106,7 +106,7 @@ void iecDevice::sendDeviceInfo()
 	Debug_println("");
 
 	// Send List HEADER
-	sendLine(basicPtr, 0, "\x12 %s V%s ", FN_VERSION_DATE, FN_VERSION_FULL);
+	sendLine(basicPtr, 0, "\x12 %s V%s ", PRODUCT_ID, FN_VERSION_FULL);
 
 	// CPU
 	sendLine(basicPtr, 0, "SYSTEM ---");
@@ -179,16 +179,16 @@ void iecDevice::sendDeviceStatus()
 
 	// Send List HEADER
 	// sendLine(basicPtr, 0, "\x12 %s V%s ", PRODUCT_ID, FW_VERSION);
-	sendLine(basicPtr, 0, "\x12 %s V%s ", FN_VERSION_DATE, FN_VERSION_FULL);
+	sendLine(basicPtr, 0, "\x12 %s V%s ", PRODUCT_ID, FN_VERSION_FULL);
 
 	// Current Config
-	// TODO: sendLine(basicPtr, 0, "DEVICE    : %d", m_device.device());
-	// TODO: sendLine(basicPtr, 0, "DRIVE     : %d", m_device.drive());
-	// TODO: sendLine(basicPtr, 0, "PARTITION : %d", m_device.partition());
-	// TODO: sendLine(basicPtr, 0, "URL       : %s", m_device.url().c_str());
-	// TODO: sendLine(basicPtr, 0, "PATH      : %s", m_device.path().c_str());
-	// TODO: sendLine(basicPtr, 0, "IMAGE     : %s", m_device.image().c_str());
-	// TODO: sendLine(basicPtr, 0, "FILENAME  : %s", m_filename.c_str());
+	sendLine(basicPtr, 0, "DEVICE    : %d", m_device.device());
+	sendLine(basicPtr, 0, "DRIVE     : %d", m_device.drive());
+	sendLine(basicPtr, 0, "PARTITION : %d", m_device.partition());
+	sendLine(basicPtr, 0, "URL       : %s", m_device.url().c_str());
+	sendLine(basicPtr, 0, "PATH      : %s", m_device.path().c_str());
+	sendLine(basicPtr, 0, "IMAGE     : %s", m_device.image().c_str());
+	sendLine(basicPtr, 0, "FILENAME  : %s", m_filename.c_str());
 
 	// End program with two zeros after last line. Last zero goes out as EOI.
 	m_iec.send(0);
@@ -231,11 +231,11 @@ void iecDevice::service(void)
 			case iecBus::ATN_CODE_OPEN:
 				if ( m_atn_cmd.channel == READ_CHANNEL )
 				{
-					Debug_printf("\r\niecDevice::loop: [OPEN] LOAD \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);
+					Debug_printf("\r\niecDevice::service: [OPEN] LOAD \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);
 				}
 				if ( m_atn_cmd.channel == WRITE_CHANNEL )
 				{
-					Debug_printf("\r\niecDevice::loop: [OPEN] SAVE \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);	
+					Debug_printf("\r\niecDevice::service: [OPEN] SAVE \"%s\",%d ", m_atn_cmd.str, m_atn_cmd.device);	
 				}
 
 				// Open either file or prg for reading, writing or single line command on the command channel.
@@ -247,7 +247,7 @@ void iecDevice::service(void)
 				break;
 
 			case iecBus::ATN_CODE_DATA:  // data channel opened
-				Debug_printf("\r\niecDevice::loop: [DATA] ");
+				Debug_printf("\r\niecDevice::service: [DATA] ");
 				if(ATN == iecBus::ATN_CMD_TALK) 
 				{
 					 // when the CMD channel is read (status), we first need to issue the host request. The data channel is opened directly.
@@ -269,25 +269,25 @@ void iecDevice::service(void)
 				break;
 
 			case iecBus::ATN_CODE_CLOSE:
-				Debug_printf("\r\niecDevice::loop: [CLOSE] ");
+				Debug_printf("\r\niecDevice::service: [CLOSE] ");
 				// handle close with host.
 				handleATNCmdClose();
 				break;
 
 			case iecBus::ATN_CODE_LISTEN:
-				Debug_printf("\r\niecDevice::loop:[LISTEN] ");
+				Debug_printf("\r\niecDevice::service:[LISTEN] ");
 				break;
 
 			case iecBus::ATN_CODE_TALK:
-				Debug_printf("\r\niecDevice::loop:[TALK] ");
+				Debug_printf("\r\niecDevice::service:[TALK] ");
 				break;
 
 			case iecBus::ATN_CODE_UNLISTEN:
-				Debug_printf("\r\niecDevice::loop:[UNLISTEN] ");
+				Debug_printf("\r\niecDevice::service:[UNLISTEN] ");
 				break;
 
 			case iecBus::ATN_CODE_UNTALK:
-				Debug_printf("\r\niecDevice::loop:[UNTALK] ");
+				Debug_printf("\r\niecDevice::service:[UNTALK] ");
 				break;
 
 		} // switch
@@ -302,7 +302,7 @@ void iecDevice::handleATNCmdCodeOpen(iecBus::ATNCmd& atn_cmd)
 	m_filename = std::string((char *)atn_cmd.str);
 	util_string_trim(m_filename);
 	// m_filetype = m_filename.substring(m_filename.lastIndexOf(".") + 1);
-	//m_filetype = m_filename.substr(m_filename.find_last_of("."));
+	m_filetype = m_filename.substr(m_filename.find_last_of(".") + 1);
 	util_string_toupper(m_filetype); // .toUpperCase();
 	if ( m_filetype.length() > 4 || m_filetype.length() == m_filename.length() )
 		m_filetype = "";
@@ -335,10 +335,10 @@ void iecDevice::handleATNCmdCodeOpen(iecBus::ATNCmd& atn_cmd)
 
 		m_openState = O_DIR;
 	}
-	else if (util_starts_with(m_filename, "HTTP://"))
+	else if (util_starts_with(m_filename, "HTTP://") || util_starts_with(m_filename, "TNFS://"))
 	{
 		// Mount url
-		Debug_printf("\r\nmount: [%s] >", m_filename.c_str());
+		Debug_printf("\r\nnet mount: [%s] >", m_filename.c_str());
 		m_device.partition(0);
 		m_device.url(m_filename.substr(7).c_str());
 		m_device.path("/");
@@ -601,7 +601,7 @@ uint16_t iecDevice::sendHeader(uint16_t &basicPtr)
 	// "      MEAT LOAF 64      "
 	//	int space_cnt = (16 - strlen(PRODUCT_ID)) / 2;
 	int space_cnt = 0; //(16 - strlen(FN_VERSION_FULL)) / 2;
-	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", "FUJINET/MEATLOAF", space_cnt, "", m_device.device());
+	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", PRODUCT_ID, space_cnt, "", m_device.device());
 
 	// Send Extra INFO
 	if (m_device.url().length())
@@ -643,50 +643,71 @@ void iecDevice::sendListing()
 	// TODO directory handling!!!!!
 
 	// Send List ITEMS
-	byte_count += sendLine(basicPtr, 200, "\"THIS IS A FILE\"     PRG");
-	byte_count += sendLine(basicPtr, 57, " \"THIS IS A FILE 2\"   PRG");
- 	// Dir dir = m_fileSystem->dir_open(m_device.path());
-	// while (dir()) {
-	// 	uint16_t block_cnt = dir.fileSize() / 256;
-	// 	int block_spc = 3;
-	// 	if (block_cnt > 9) block_spc--;
-	// 	if (block_cnt > 99) block_spc--;
-	// 	if (block_cnt > 999) block_spc--;
+	// byte_count += sendLine(basicPtr, 200, "\"THIS IS A FILE\"     PRG");
+	// byte_count += sendLine(basicPtr, 57, " \"THIS IS A FILE 2\"   PRG");
+	DIR *dir = NULL;
+    struct dirent *ent;
+    char tpath[255];
+    struct stat sb;
 
-	// 	int space_cnt = 21 - (dir.fileName().length() + 5);
-	// 	if (space_cnt > 21)
-	// 		space_cnt = 0;
+	m_device.path("/spiffs/");
+ 	dir = opendir(m_device.path().c_str());
+	if (!dir) 
+	{
+        Debug_printf("sendListing: Error opening directory\n");
+        return;
+    }
+
+	while ((ent = readdir(dir)) != NULL) 
+	{
+		std::string file(ent->d_name);
+		// Get file stat
+		sprintf(tpath, m_device.path().c_str());
+		strcat(tpath,ent->d_name);
+        int statok = stat(tpath, &sb);
+
+
+		uint16_t block_cnt = sb.st_size / 256;
+		int block_spc = 3;
+		if (block_cnt > 9) block_spc--;
+		if (block_cnt > 99) block_spc--;
+		if (block_cnt > 999) block_spc--;
+
+		int space_cnt = 21 - (file.length() + 5);
+		if (space_cnt > 21)
+			space_cnt = 0;
 		
-	// 	if(dir.fileSize()) {
-	// 		block_cnt = dir.fileSize()/256;
+		if(sb.st_size) 
+		{
+			block_cnt = sb.st_size/256;
 
-	// 		uint8_t ext_pos = dir.fileName().lastIndexOf(".") + 1;
-	// 		if (ext_pos && ext_pos != dir.fileName().length())
-	// 		{
-	// 			extension = dir.fileName().substring(ext_pos);
-	// 			util_string_toupper(extension);
-	// 			//extension.toUpperCase();
-	// 		}
-	// 		else
-	// 		{
-	// 			extension = "PRG";
-	// 		}
-	// 	}
-	// 	else
-	// 	{
-	// 		extension = "DIR";
-	// 	}
+			uint8_t ext_pos = file.find_last_of(".") + 1;
+			if (ext_pos && ext_pos != strlen(ent->d_name))
+			{
+				extension = file.substr(ext_pos);
+				util_string_toupper(extension);
+				//extension.toUpperCase();
+			}
+			else
+			{
+				extension = "PRG";
+			}
+		}
+		else
+		{
+			extension = "DIR";
+		}
 
-	// 	// Don't show hidden folders or files
-	// 	if(!dir.fileName().startsWith("."))
-	// 	{
-	// 		byte_count += sendLine(basicPtr, block_cnt, "%*s\"%s\"%*s %3s", block_spc, "", dir.fileName().c_str(), space_cnt, "", extension.c_str());
-	// 	}
+		// Don't show hidden folders or files
+		//if(!file.rfind(".", 0))
+		//{
+			byte_count += sendLine(basicPtr, block_cnt, "%*s\"%s\"%*s %3s", block_spc, "", file.c_str(), space_cnt, "", extension.c_str());
+		//}
 		
-	// 	//Debug_printf(" (%d, %d)\r\n", space_cnt, byte_count);
-	// 	fnLedManager.toggle(LED_SIO);
-	// 	//toggleLED(true);
-	// }	
+		//Debug_printf(" (%d, %d)\r\n", space_cnt, byte_count);
+		fnLedManager.toggle(LED_SIO);
+		//toggleLED(true);
+	}	
     byte_count += sendFooter( basicPtr );
 
 	// End program with two zeros after last line. Last zero goes out as EOI.
