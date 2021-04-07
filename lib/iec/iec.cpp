@@ -240,7 +240,7 @@ int iecBus::receiveByte(void)
 	// and  the listener is holding the Data line true. We're ready for step 1; we may send another character - unless EOI has 
 	// happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause, 
 	// the Clock and Data lines are released to false and transmission stops.
-	// NOTE: This does not seem to hold true for the listener. Listener remains pulling data after EOI
+	// NOTE: This does not seem to hold true for the listener. Listener remains pulling data after EOI (James Johnston)
 
 	// if(m_state bitand eoiFlag)
 	// {
@@ -339,6 +339,7 @@ bool iecBus::sendByte(int data, bool signalEOI)
 	// false, it grabs the bit from the Data line and puts it away.  It then waits for the clock line to go true, in order 
 	// to prepare for the next bit. When the talker figures the data has been held for a sufficient  length  of  time,  it  
 	// pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
+	// NOTE: delay between bits needs to be 75us minimum from my observations (James Johnston)
 
 	// Send the bits, sampling on clock rising edge, logic 0,0V to logic 1,5V:
 	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_OUTPUT);
