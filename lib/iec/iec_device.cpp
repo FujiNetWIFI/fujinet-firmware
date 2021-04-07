@@ -643,8 +643,8 @@ void iecDevice::sendListing()
 	// TODO directory handling!!!!!
 
 	// Send List ITEMS
-	// byte_count += sendLine(basicPtr, 200, "\"THIS IS A FILE\"     PRG");
-	// byte_count += sendLine(basicPtr, 57, " \"THIS IS A FILE 2\"   PRG");
+	byte_count += sendLine(basicPtr, 200, "\"THIS IS A FILE\"     PRG");
+	byte_count += sendLine(basicPtr, 57, " \"THIS IS A FILE 2\"   PRG");
  	// Dir dir = m_fileSystem->dir_open(m_device.path());
 	// while (dir()) {
 	// 	uint16_t block_cnt = dir.fileSize() / 256;

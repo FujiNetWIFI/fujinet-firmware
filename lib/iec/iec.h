@@ -210,8 +210,8 @@ private:
 	// false => RELEASE => DIGI_HIGH
 	inline void release(int pin)
 	{
-		// releasing line can set to input mode, which won't drive the bus - simple way to mimic open collector
-		set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
+		set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
+		fnSystem.digital_write(pin, DIGI_HIGH);
 	}
 
 	inline IECline status(int pin)
