@@ -741,7 +741,7 @@ void iecDevice::sendFile()
 
 	uint16_t bi = 0;
 	char b[1];
-	int ba[9];
+	char ba[9];
 
 	ba[8] = '\0';
 
