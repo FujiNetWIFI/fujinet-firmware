@@ -602,6 +602,18 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
             Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
             Config.save();
             theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
+            disk->disk_dev.device_active = true;
+
+            // // If cassette, activate the cassette device.
+            // if (ds == 7)
+            // {
+            //     if ((qp.query_parsed["filename"].find(".cas") != string::npos) ||
+            //         (qp.query_parsed["filename"].find(".CAS") != string::npos))
+            //     {
+            //         theFuji.cassette()->mount_cassette_file(disk->fileh, disk->disk_size);
+            //         theFuji.cassette()->sio_enable_cassette();
+            //     }
+            // }
         }
     }
     else
@@ -649,6 +661,25 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     Config.clear_mount(ds);
     Config.save();
     theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
+    theFuji.get_disks(ds)->disk_dev.device_active = false;
+
+    // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
+    if (Config.get_general_config_enabled())
+    {
+        if ((theFuji.get_disks(0)->host_slot == 0xFF) &&
+            (theFuji.get_disks(1)->host_slot == 0xFF) &&
+            (theFuji.get_disks(2)->host_slot == 0xFF) &&
+            (theFuji.get_disks(3)->host_slot == 0xFF) &&
+            (theFuji.get_disks(4)->host_slot == 0xFF) &&
+            (theFuji.get_disks(5)->host_slot == 0xFF) &&
+            (theFuji.get_disks(6)->host_slot == 0xFF) &&
+            (theFuji.get_disks(7)->host_slot == 0xFF))
+        {
+            theFuji.boot_config = true;
+            theFuji.status_wait_count = 5;
+            theFuji.device_active = true;
+        }
+    }
 
     if (!fnHTTPD.errMsgEmpty())
     {
@@ -808,6 +839,27 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
 
     httpd_resp_set_type(req, "text/html");
 
+    if ((qp.query_parsed["filename"].find(".cas") != string::npos) ||
+        qp.query_parsed["filename"].find(".CAS") != string::npos)
+    {
+        // .CAS file passed in, put in slot 8, and redirect
+        chunk += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
+        chunk += "<!doctype html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"DTD/xhtml1-strict.dtd\">\r\n";
+        chunk += "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\r\n";
+        chunk += " <head>\r\n";
+        chunk += "  <title>Redirecting to cassette mount</title>";
+        chunk += "  <meta http-equiv=\"refresh\" content=\"0; url=/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=7&mode=1&filename=" + string(url_encode((char *)qp.query_parsed["filename"].c_str())) + "\" />";
+        chunk += " </head>\r\n";
+        chunk += " <body>\r\n";
+        chunk += "  <h1>Cassette detected. Mounting in slot 8.</h1>\r\n";
+        chunk += " </body>\r\n";
+        chunk += "</html>\r\n";
+
+        httpd_resp_sendstr(req, chunk.c_str());
+
+        return ESP_OK;
+    }
+
     chunk += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
     chunk += "<!doctype html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"DTD/xhtml1-strict.dtd\">\r\n";
     chunk += "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\r\n";
@@ -829,11 +881,13 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
         stringstream ss;
+        stringstream ss2;
         ss << i;
+        ss2 << i + 1;
 
         chunk += "<li><a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=1&filename=" + qp.query_parsed["filename"] + "\">&#128190; ";
 
-        chunk += ss.str() + ": ";
+        chunk += ss2.str() + ": ";
 
         if (theFuji.get_disks(i)->host_slot == 0xFF)
         {
