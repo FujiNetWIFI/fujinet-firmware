@@ -31,6 +31,8 @@ public:
 
     uint64_t total_bytes();
     uint64_t used_bytes();
+
+    void list(char *path, char *match);
 };
 
 extern FileSystemSPIFFS fnSPIFFS;

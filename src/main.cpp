@@ -81,7 +81,7 @@ void main_setup()
     fnLedManager.setup();
 
     fnSPIFFS.start();
-    fnSDFAT.start();
+    fnSDFAT.start(); 
 
     // Load our stored configuration
     Config.load();
@@ -170,6 +170,8 @@ void cbm_setup()
 
     fnSPIFFS.start();
     fnSDFAT.start();
+
+    fnSPIFFS.list("/spiffs", NULL); 
 
     // Load our stored configuration
     Config.load();

@@ -212,17 +212,18 @@ void DeviceDB::partition(uint8_t partition)
 }
 std::string DeviceDB::url()
 {
-    return "";
+    return _url;
     // m_device["url"];
 }
 void DeviceDB::url(std::string url)
 {
     // m_device["url"] = url;
     // m_dirty = true;
+    _url = url;
 }
 std::string DeviceDB::path()
 {
-    return "/";
+    return _path;
     // m_device["path"];
 }
 void DeviceDB::path(std::string path)
@@ -233,10 +234,11 @@ void DeviceDB::path(std::string path)
         path = "/";
     // m_device["path"] = path;
     // m_dirty = true;
+    _path = path;
 }
 std::string DeviceDB::image()
 {
-    return "";
+    return _image;
     // m_device["image"];
 }
 void DeviceDB::image(std::string image)
@@ -245,5 +247,6 @@ void DeviceDB::image(std::string image)
         image = "";
     //m_device["image"] = image;
     //m_dirty = true;
+    _image = image;
 }
 
