@@ -77,7 +77,7 @@
 //#define IEC_PIN_RESET   D8      // IO15
 
 // IEC protocol timing consts:
-#define TIMING_BIT          60  // bit clock hi/lo time     (us)
+#define TIMING_BIT          75  // bit clock hi/lo time     (us)
 #define TIMING_NO_EOI       5   // delay before bits        (us)
 #define TIMING_EOI_WAIT     200 // delay to signal EOI      (us)
 #define TIMING_EOI_THRESH   20  // threshold for EOI detect (*10 us approx)
