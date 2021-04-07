@@ -96,6 +96,7 @@ public:
     static esp_err_t get_handler_mount(httpd_req_t *req);
     static esp_err_t get_handler_eject(httpd_req_t *req);
     static esp_err_t get_handler_dir(httpd_req_t *req);
+    static esp_err_t get_handler_slot(httpd_req_t *req);
 
     static esp_err_t post_handler_config(httpd_req_t *req);
 

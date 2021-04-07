@@ -707,12 +707,12 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 
             if (f->isDir == true)
             {
-                fnHTTPD.addToErrMsg("<a href=\"/hsdir?hostslot="+qp.query_parsed["hostslot"]+"&path="+string(url_encode((char *)qp.query_parsed["path"].c_str()))+"%2F"+string(url_encode(f->filename))+"\">");
+                fnHTTPD.addToErrMsg("<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "\">");
                 fnHTTPD.addToErrMsg("&#128448; ");
             }
             else
             {
-                fnHTTPD.addToErrMsg("<a href=\"\">");
+                fnHTTPD.addToErrMsg("<a href=\"/dslot?hostslot="+qp.query_parsed["hostslot"]+"&filename="+string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename))+"\">");
                 fnHTTPD.addToErrMsg("&#128462; ");
             }
 
@@ -734,6 +734,53 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
         fnHTTPD.addToErrMsg("<li>Could not open directory</li>");
         send_file(req, "error_page.html");
     }
+
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
+{
+    queryparts qp;
+
+    parse_query(req, &qp);
+
+    fnHTTPD.clearErrMsg();
+
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        stringstream ss;
+        ss << i;
+
+        fnHTTPD.addToErrMsg("<li><a href=\"/mount?hostslot="+qp.query_parsed["hostslot"]+"&deviceslot="+ss.str()+"&mode=1&filename="+qp.query_parsed["filename"]+"\">");
+
+        fnHTTPD.addToErrMsg(ss.str() + ": ");
+
+        if (theFuji.get_disks(i)->host_slot == 0xFF)
+        {
+            fnHTTPD.addToErrMsg(" :: (Empty)");
+        }
+        else
+        {
+            fnHTTPD.addToErrMsg(string(theFuji.get_hosts(theFuji.get_disks(i)->host_slot)->get_hostname()));
+            fnHTTPD.addToErrMsg(" :: ");
+            fnHTTPD.addToErrMsg(string(theFuji.get_disks(i)->filename));
+            fnHTTPD.addToErrMsg(" (");
+            if (theFuji.get_disks(i)->access_mode == 2)
+            {
+                fnHTTPD.addToErrMsg("W");
+            }
+            else
+            {
+                fnHTTPD.addToErrMsg("R");
+            }
+            fnHTTPD.addToErrMsg(") ");
+        }
+        
+
+        fnHTTPD.addToErrMsg("</a></li>");
+    }
+
+    send_file(req, "dir_page.html");
 
     return ESP_OK;
 }
@@ -805,6 +852,10 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .method = HTTP_GET,
          .handler = get_handler_dir,
          .user_ctx = NULL},
+        {.uri = "/dslot",
+         .method = HTTP_GET,
+         .handler = get_handler_slot,
+         .user_ctx = NULL},
         {.uri = "/",
          .method = HTTP_GET,
          .handler = get_handler_index,
@@ -850,6 +901,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192;
     config.max_resp_headers = 12;
+    config.max_uri_handlers = 16;
     // Keep a reference to our object
     config.global_user_ctx = (void *)&state;
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed
