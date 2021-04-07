@@ -740,6 +740,7 @@ void iecDevice::sendFile()
 	bool success = true;
 
 	uint16_t bi = 0;
+	uint16_t load_address = 0;
 	char b[1];
 	char ba[9];
 
@@ -781,40 +782,58 @@ void iecDevice::sendFile()
 	else
 	{
 		size_t len = m_fileSystem->filesize(file);
-		//.size();
 
-		Debug_printf("\r\nsendFile: [%s] (%d bytes)\r\n=================================\r\n", inFile.c_str(), len);
-		for(i = 0; success and i < len; ++i) 
+		// Get file load address
+		fread(&b, 1, 1, file);
+		success = m_iec.send(b[0]);
+		load_address = *b & 0x00FF; // low byte
+		fread(&b, 1, 1, file);
+		success = m_iec.send(b[0]);
+		load_address = load_address | *b << 8;  // high byte
+		// fseek(file, 0, SEEK_SET);
+
+		Debug_printf("\r\nsendFile: [%s] [$%.4X] (%d bytes)\r\n=================================\r\n", inFile.c_str(), load_address, len);
+		for(i = 2; success and i < len; ++i) 
 		{
 			success = fread(&b, 1, 1, file);
-			if(i == len - 1)
+			if (success)
 			{
-				success = m_iec.sendEOI(b[0]); // indicate end of file.				
-			}
-			else
-			{
-				success = m_iec.send(b[0]);				
-			}
+#ifdef DATA_STREAM
+				if (bi == 0)
+				{
+					Debug_printf(":%.4X ", load_address);
+					load_address += 8;
+				}
+#endif
+				if(i == len - 1)
+				{
+					success = m_iec.sendEOI(b[0]); // indicate end of file.				
+				}
+				else
+				{
+					success = m_iec.send(b[0]);				
+				}
 
 #ifdef DATA_STREAM
-			// Show ASCII Data
-			if (b[0] < 32 || b[0] == 127) 
-				b[0] = 46;
+				// Show ASCII Data
+				if (b[0] < 32 || b[0] == 127) 
+					b[0] = 46;
 
-			ba[bi++] = b[0];
+				ba[bi++] = b[0];
 
-			if(bi == 8)
-			{
-				Debug_printf(" %s\r\n", ba);
-				bi = 0;
-			}
+				if(bi == 8)
+				{
+					Debug_printf(" %s\r\n", ba);
+					bi = 0;
+				}
 #endif
 
-			// Toggle LED
-			if(i % 50 == 0)
-			{
-				fnLedManager.toggle(LED_SIO);
-				//Debug_printf("progress: %d %d\r", len, i);
+				// Toggle LED
+				if(i % 50 == 0)
+				{
+					fnLedManager.toggle(LED_SIO);
+					//Debug_printf("progress: %d %d\r", len, i);
+				}				
 			}
 		}
 		fclose(file);
