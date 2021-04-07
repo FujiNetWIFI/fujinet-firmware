@@ -71,17 +71,15 @@ bool iecBus::timeoutWait(int pin, IECline state)
 {
 	uint16_t t = 0;
 
-	while(t < TIMEOUT) {
-
-		fnSystem.delay_microseconds(3); // The aim is to make the loop at least 3 us
-
+	while(t < TIMEOUT) 
+	{
 		// Check the waiting condition:
 		if(status(pin) == state)
 		{
 			// Got it!  Continue!
 			return false;
 		}
-
+		fnSystem.delay_microseconds(1); // The aim is to make the loop at least 3 us
 		t++;
 	}
 
@@ -286,7 +284,7 @@ bool iecBus::sendByte(int data, bool signalEOI)
 	// Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it  
 	// will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass  
 	// without  the Clock line going to true, it has a special task to perform: note EOI.
-	if (signalEOI)
+	if (signalEOI == true)
 	{
 		// INTERMISSION: EOI (We are talker now)
 		// If the Ready for Data signal isn't acknowledged by the talker within 200 microseconds, the 
@@ -382,7 +380,7 @@ bool iecBus::sendByte(int data, bool signalEOI)
 	// happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause, 
 	// the Clock and Data lines are released to false and transmission stops. 
 
-	if (signalEOI)
+	if (signalEOI == true)
 	{
 		// EOI Sent
 		fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
@@ -605,8 +603,6 @@ iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 	}
 	// else
 	// {
-	// // 	Debug_printf("\r\ncheckATN: Not Selected\r\n");
-
 	// 	// No ATN, keep lines in a released state.
 	// 	release(IEC_PIN_DATA);
 	// 	release(IEC_PIN_CLK);
@@ -656,7 +652,7 @@ iecBus::ATNCheck iecBus::listen(ATNCmd &atn_cmd)
 iecBus::ATNCheck iecBus::talk(ATNCmd &atn_cmd)
 {
 	int i = 0;
-	ATNCommand c;
+	int c;
 
 	// Okay, we will talk soon
 	Debug_printf("(40 TALK) (%.2d DEVICE)", atn_cmd.device);
@@ -666,7 +662,7 @@ iecBus::ATNCheck iecBus::talk(ATNCmd &atn_cmd)
 	{
 		if(status(IEC_PIN_CLK) == released) 
 		{
-			c = (ATNCommand)receive();
+			c = receive();
 			if (m_state bitand errorFlag)
 				return ATN_ERROR;
 
@@ -694,13 +690,13 @@ iecBus::ATNCheck iecBus::talk(ATNCmd &atn_cmd)
 iecBus::ATNCheck iecBus::receiveCommand(ATNCmd &atn_cmd)
 {
 	int i = 0;
-	ATNCommand c;
+	int c;
 
 	// Some other command. Record the cmd string until UNLISTEN is sent
-	while(status(IEC_PIN_ATN) == released) 
+	while(status(IEC_PIN_ATN) == released)
 	{
 		// Let's get the command!
-		c = (ATNCommand)receive();
+		c = receive();
 
 		if (m_state bitand errorFlag)
 		{
