@@ -603,17 +603,6 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
             Config.save();
             theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
             disk->disk_dev.device_active = true;
-
-            // // If cassette, activate the cassette device.
-            // if (ds == 7)
-            // {
-            //     if ((qp.query_parsed["filename"].find(".cas") != string::npos) ||
-            //         (qp.query_parsed["filename"].find(".CAS") != string::npos))
-            //     {
-            //         theFuji.cassette()->mount_cassette_file(disk->fileh, disk->disk_size);
-            //         theFuji.cassette()->sio_enable_cassette();
-            //     }
-            // }
         }
     }
     else
