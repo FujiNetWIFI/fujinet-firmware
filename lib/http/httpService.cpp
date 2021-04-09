@@ -167,6 +167,57 @@ void fnHttpService::set_file_content_type(httpd_req_t *req, const char *filepath
     }
 }
 
+/* Sends header.html or footer.html from SPIFFS. 0 for header, 1 for footer */
+void fnHttpService::send_header_footer(httpd_req_t *req, int headfoot)
+{
+    // Build the full file path
+    string fpath = FNWS_FILE_ROOT;
+    switch (headfoot)
+    {
+    case 0:
+        fpath += "header.html";
+        break;
+    case 1:
+        fpath += "footer.html";
+        break;
+    default:
+        Debug_println("Header / Footer choice invalid");
+        return;
+        break;
+    }
+
+    // Retrieve server state
+    serverstate *pState = (serverstate *)httpd_get_global_user_ctx(req->handle);
+    FILE *fInput = pState->_FS->file_open(fpath.c_str());
+
+    if (fInput == nullptr)
+    {
+        Debug_println("Failed to open header file for parsing");
+    }
+    else
+    {
+        size_t sz = FileSystem::filesize(fInput) + 1;
+        char *buf = (char *)calloc(sz, 1);
+        if (buf == NULL)
+        {
+            Debug_printf("Couldn't allocate %u bytes to load file contents!\n", sz);
+        }
+        else
+        {
+            fread(buf, 1, sz, fInput);
+            string contents(buf);
+            free(buf);
+            contents = fnHttpServiceParser::parse_contents(contents);
+
+            httpd_resp_sendstr_chunk(req, contents.c_str());
+        }
+    }
+
+    if (fInput != nullptr)
+        fclose(fInput);
+
+}
+
 /* Send file content after parsing for replaceable strings
 */
 void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
@@ -716,20 +767,16 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 
     httpd_resp_set_type(req, "text/html");
 
-    chunk += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
-    chunk += "<!doctype html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"DTD/xhtml1-strict.dtd\">\r\n";
-    chunk += "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\r\n";
-    chunk += " <head>\r\n";
-    chunk += "  <title>Directory of " + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "</title>";
-    chunk += " </head>\r\n";
-    chunk += " <body>\r\n";
+    send_header_footer(req, 0); // header
 
-    chunk += "  <h1>" + string(theFuji.get_hosts(hs)->get_hostname()) + "</h1>\r\n";
-    chunk += "  <h2>" + qp.query_parsed["path"] + "</h2>\r\n";
+    chunk +=
+        "        <div class=\"fileflex\">\n"
+        "            <div class=\"filechild\">\n"
+        "               <header>HOST<span id=\"logowob\"></span>" + string(theFuji.get_hosts(hs)->get_hostname()) + qp.query_parsed["path"] + "</header>\n"
+        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+        "               <div class=\"fileline\">\n"
+        "                      <ul>\n";
 
-    chunk += "  <h3><a href=\"/\">ABORT</h3></a>";
-
-    chunk += "  <ul>\r\n";
 
     httpd_resp_sendstr_chunk(req, chunk.c_str());
     chunk.clear();
@@ -750,7 +797,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 
         while ((f = theFuji.get_hosts(hs)->dir_nextfile()) != nullptr)
         {
-            chunk += "   <li>";
+            chunk += "                          <li>";
 
             if (f->isDir == true)
             {
@@ -783,7 +830,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 
             chunk += "</a>";
 
-            chunk += "</li>\r\n";
+            chunk += "                          </li>\r\n";
 
             httpd_resp_sendstr_chunk(req, chunk.c_str());
             chunk.clear();
@@ -791,11 +838,17 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 
         theFuji.get_hosts(hs)->dir_close();
 
-        chunk += "  </ul>\r\n";
-        chunk += " </body>\r\n";
-        chunk += "</html>\r\n";
+        chunk +=
+            "                      </ul>\r\n"
+            "               </div>\n"
+            "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+            "           </div>\n"
+            "        </div>\n";
         httpd_resp_sendstr_chunk(req, chunk.c_str());
         chunk.clear();
+
+        // Send HTML footer
+        send_header_footer(req, 1);
 
         httpd_resp_send_chunk(req, NULL, 0); // end of response.
     }
@@ -849,20 +902,16 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         return ESP_OK;
     }
 
-    chunk += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
-    chunk += "<!doctype html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"DTD/xhtml1-strict.dtd\">\r\n";
-    chunk += "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\r\n";
-    chunk += " <head>\r\n";
-    chunk += "  <title>Slot assignment for " + string(url_encode((char *)qp.query_parsed["filename"].c_str())) + "</title>";
-    chunk += " </head>\r\n";
-    chunk += " <body>\r\n";
+    send_header_footer(req, 0); // header
 
     chunk += "  <h1>MOUNT TO DRIVE SLOT</h1>\r\n";
-    chunk += "  <h2>" + string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + "</h2>\r\n";
-
-    chunk += "  <h3><a href=\"/\">ABORT</h3></a>";
-
-    chunk += "  <ul>\r\n";
+    chunk +=
+    "        <div class=\"fileflex\">\n"
+    "            <div class=\"filechild\">\n"
+    "               <header>HOST<span id=\"logowob\"></span>" + string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + "</header>\n"
+    "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+    "               <div class=\"fileline\">\n"
+    "                      <ul>\n";
 
     httpd_resp_sendstr_chunk(req, chunk.c_str());
     chunk.clear();
@@ -904,6 +953,14 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         chunk.clear();
     }
 
+    chunk +=
+        "                      </ul>\r\n"
+        "               </div>\n"
+        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+        "           </div>\n"
+        "        </div>\n";
+
+    send_header_footer(req, 1); // footer
     httpd_resp_send_chunk(req, NULL, 0); // end response.
 
     return ESP_OK;
