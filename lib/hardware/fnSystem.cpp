@@ -576,7 +576,7 @@ void SystemManager::check_hardware_ver()
     fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     upcheck = fnSystem.digital_read(12);
 
-    fnSystem.set_pin_mode(14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
 
     if (upcheck == downcheck)
     {
@@ -591,7 +591,7 @@ void SystemManager::check_hardware_ver()
         // Add the card detect handler
         gpio_isr_handler_add((gpio_num_t)PIN_CARD_DETECT, card_detect_isr_handler, (void *)PIN_CARD_DETECT);
     }
-    else if (fnSystem.digital_read(14) == DIGI_HIGH)
+    else if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
     {
         // v1.1 thru v1.5
         _hardware_version = 2;
@@ -602,7 +602,7 @@ void SystemManager::check_hardware_ver()
         _hardware_version = 1;
     }
 
-    fnSystem.set_pin_mode(14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 }
 
 // Dumps list of current tasks
