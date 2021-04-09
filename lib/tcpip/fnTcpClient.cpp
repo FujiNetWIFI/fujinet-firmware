@@ -222,8 +222,8 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     FD_SET(sockfd, &fdset);
 
     struct timeval tv;
-    tv.tv_sec = 0;
-    tv.tv_usec = timeout * 1000;
+    tv.tv_sec = timeout / 1000;
+    tv.tv_usec = (timeout - tv.tv_sec*1000) * 1000;
 
     res = select(sockfd + 1, nullptr, &fdset, nullptr, timeout < 0 ? nullptr : &tv);
     // Error result

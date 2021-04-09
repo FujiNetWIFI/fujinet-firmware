@@ -661,9 +661,10 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
     Debug_printf("fnFTP::login(%s,%u)\n", hostname.c_str(), control_port);
 
     // Attempt to open control socket.
-    if (!control->connect(hostname.c_str(), control_port, 5000))
+    if (!control->connect(hostname.c_str(), control_port, FTP_TIMEOUT))
     {
         Debug_printf("Could not log in, errno = %u\n", errno);
+        _statusCode = 421; // service not available
         return true;
     }
 
@@ -967,9 +968,9 @@ bool fnFTP::close()
     return res;
 }
 
-int fnFTP::response()
+int fnFTP::status()
 {
-    return atoi(controlResponse.substr(0, 3).c_str());
+    return _statusCode;
 }
 
 int fnFTP::data_available()
@@ -988,23 +989,64 @@ bool fnFTP::data_connected()
 
 bool fnFTP::parse_response()
 {
-    uint8_t respBuf[384];  // room for control message incl. file path and file size
+    char respBuf[384];  // room for control message incl. file path and file size
     int num_read = 0;
-    int c;
-
-    memset(respBuf,0,sizeof(respBuf));
+    bool multi_line = false;
 
     controlResponse.clear();
 
+    while(true)
+    {
+        num_read = read_response_line(respBuf, sizeof(respBuf));
+        if (num_read < 0)
+        {
+            // Timeout
+            _statusCode = 421;  // service not available
+            return true;        // error
+        }
+        if (num_read >= 4)
+        {
+            if (isdigit(respBuf[0]) && isdigit(respBuf[1]) && isdigit(respBuf[2]))
+            {
+                if (respBuf[3] == ' ')  // done, got NNN<space>
+                    break;
+                if (respBuf[3] == '-')
+                {
+                    // head of multi-line response
+                    multi_line = true;
+                    continue;
+                }
+            }
+        }
+        if (multi_line) // ignore body of multi-line response
+            continue;
+        // error - nothing above
+        _statusCode = 501;  //syntax error
+        return true;        // error
+    }
+
+    // update control response and status code
+    controlResponse = string((char *)respBuf, num_read);
+    _statusCode = atoi(controlResponse.substr(0, 3).c_str());
+    Debug_printf("fnFTP::parse_response() - %d, \"%s\"\n", _statusCode, controlResponse.c_str());
+
+    return false; // ok
+}
+
+int fnFTP::read_response_line(char *buf, int buflen)
+{
+    int num_read = 0;
+    int c;
     int tmout_counter = 1 + FTP_TIMEOUT / 50;
+
     while(true)
     {
         if (control->available() == 0)
         {
             if (--tmout_counter == 0)
             {
-                Debug_printf("fnFTP::parse_response() - Timeout waiting response\n");
-                return true;
+                Debug_printf("fnFTP::read_response_line() - Timeout waiting response\n");
+                return -1;
             }
             fnSystem.delay(50);
             continue;
@@ -1027,16 +1069,11 @@ bool fnFTP::parse_response()
             break; // done
         }
         // store char, ignore rest of too long response
-        if (num_read < sizeof(respBuf))
-            respBuf[num_read++] = (char) c;
+        if (num_read < buflen)
+            buf[num_read++] = (char) c;
         tmout_counter = 1 + FTP_TIMEOUT / 50; // reset timeout counter
     }
-
-    controlResponse = string((char *)respBuf, num_read);
-
-    Debug_printf("fnFTP::parse_response() - %s\n",controlResponse.c_str());
-
-    return controlResponse.substr(0,controlResponse.find_first_of(" ")).empty();
+    return num_read;
 }
 
 bool fnFTP::get_data_port()
@@ -1069,7 +1106,7 @@ bool fnFTP::get_data_port()
     Debug_printf("Server gave us data port: %u\n", data_port);
 
     // Go ahead and connect to data port, so that control port is unblocked, if it's blocked.
-    if (!data->connect(hostname.c_str(), data_port))
+    if (!data->connect(hostname.c_str(), data_port, FTP_TIMEOUT))
     {
         Debug_printf("Could not open data port %u, errno = %u\n", data_port, errno);
         return true;
