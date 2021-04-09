@@ -13,11 +13,7 @@
 #include "fnFsSD.h"
 #include "../utils/utils.h"
 #include "../../include/debug.h"
-
-#define SD_HOST_CS GPIO_NUM_5
-#define SD_HOST_MISO GPIO_NUM_19
-#define SD_HOST_MOSI GPIO_NUM_23
-#define SD_HOST_SCK GPIO_NUM_18
+#include "../../include/pinmap.h"
 
 // Our global SD interface
 FileSystemSDFAT fnSDFAT;
@@ -389,9 +385,9 @@ bool FileSystemSDFAT::start()
     // Set up SPI bus
     spi_bus_config_t bus_cfg = 
     {
-        .mosi_io_num = SD_HOST_MOSI,
-        .miso_io_num = SD_HOST_MISO,
-        .sclk_io_num = SD_HOST_SCK,
+        .mosi_io_num = PIN_SD_HOST_MOSI,
+        .miso_io_num = PIN_SD_HOST_MISO,
+        .sclk_io_num = PIN_SD_HOST_SCK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
         .max_transfer_sz = 4000
@@ -406,7 +402,7 @@ bool FileSystemSDFAT::start()
     // slot_config.gpio_sck = SD_HOST_SCK;
 
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-    slot_config.gpio_cs = SD_HOST_CS;
+    slot_config.gpio_cs = PIN_SD_HOST_CS;
     slot_config.host_id = SPI2_HOST;
 
     // Fat FS configuration options
