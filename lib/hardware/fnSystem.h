@@ -12,11 +12,12 @@
 
 #include "../FileSystem/fnFS.h"
 
+#include "../../include/pinmap.h"
+
 #define FILE_COPY_BUFFERSIZE 2048
 
 #define NOP() asm volatile("nop")
 
-#define PIN_CARD_DETECT 12
 #define ESP_INTR_FLAG_DEFAULT 0
 
 class SystemManager

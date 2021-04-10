@@ -8,12 +8,11 @@
 #include "sio.h"
 #include "fnConfig.h"
 
+#include "../../include/pinmap.h"
+
 #define LONGPRESS_TIME 1500 // 1.5 seconds to detect long press
 #define DOUBLETAP_DETECT_TIME 400 // ms to wait to see if it's a single/double tap
 
-#define PIN_BUTTON_A 0
-#define PIN_BUTTON_B 34
-#define PIN_BUTTON_C 14
 
 #define IGNORE_KEY_EVENT -1
 

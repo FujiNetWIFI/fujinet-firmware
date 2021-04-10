@@ -4,6 +4,7 @@
 #include <driver/uart.h>
 
 #include "../../include/debug.h"
+#include "../../include/pinmap.h"
 #include "fnUART.h"
 
 #define UART_DEBUG UART_NUM_0
@@ -14,13 +15,6 @@
 #define MAX_READ_WAIT_TICKS 200
 #define MAX_WRITE_BYTE_TICKS 100
 #define MAX_WRITE_BUFFER_TICKS 1000
-
-#define UART0_RX 3
-#define UART0_TX 1
-#define UART1_RX 9
-#define UART1_TX 10
-#define UART2_RX 33
-#define UART2_TX 21
 
 UARTManager fnUartDebug(UART_DEBUG);
 UARTManager fnUartSIO(UART_SIO);
@@ -69,18 +63,18 @@ void UARTManager::begin(int baud)
     int tx, rx;
     if(_uart_num == 0)
     {
-        rx = UART0_RX;
-        tx = UART0_TX;
+        rx = PIN_UART0_RX;
+        tx = PIN_UART0_TX;
     }
     else if(_uart_num == 1)
     {
-        rx = UART1_RX;
-        tx = UART1_TX;
+        rx = PIN_UART1_RX;
+        tx = PIN_UART1_TX;
     }
     else if (_uart_num == 2)
     {
-        rx = UART2_RX;
-        tx = UART2_TX;
+        rx = PIN_UART2_RX;
+        tx = PIN_UART2_TX;
     } else {
         return;
     }
