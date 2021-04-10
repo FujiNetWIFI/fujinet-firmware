@@ -5,20 +5,18 @@
 #include "SSH.h"
 #include "status_error_codes.h"
 
-const char* username="thomc";
-const char* pass="e1xb64XC46";
+const char *username = "thomc";
+const char *pass = "e1xb64XC46";
 
 NetworkProtocolSSH::NetworkProtocolSSH(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
     Debug_printf("NetworkProtocolSSH::NetworkProtocolSSH(%p,%p,%p)\n", rx_buf, tx_buf, sp_buf);
-    pfds = (struct pollfd *)calloc(1, sizeof(struct pollfd));
 }
 
 NetworkProtocolSSH::~NetworkProtocolSSH()
 {
     Debug_printf("NetworkProtocolSSH::~NetworkProtocolSSH()\n");
-    free(pfds);
 }
 
 bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
@@ -28,12 +26,12 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     if ((ret = libssh2_init(0)) != 0)
     {
-        Debug_printf("NetworkProtocolSSH::open() - libssh2_init not successful. Value returned: %d\n",ret);
+        Debug_printf("NetworkProtocolSSH::open() - libssh2_init not successful. Value returned: %d\n", ret);
         error = NETWORK_ERROR_GENERAL;
         return true;
     }
 
-    if (client.connect(urlParser->hostName.c_str(),atoi(urlParser->port.c_str())) == 0)
+    if (client.connect(urlParser->hostName.c_str(), atoi(urlParser->port.c_str())) == 0)
     {
         Debug_printf("NetworkProtocolSSH::open() - Could not connect to host. Aborting.\n");
         return true;
@@ -47,7 +45,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         return true;
     }
 
-    Debug_printf("NetworkProtocolSSH::open() - Attempting session handshake with fd %u\n",client.fd());
+    Debug_printf("NetworkProtocolSSH::open() - Attempting session handshake with fd %u\n", client.fd());
     if (libssh2_session_handshake(session, client.fd()))
     {
         error = NETWORK_ERROR_GENERAL;
@@ -59,19 +57,19 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     Debug_printf("SSH Host Key Fingerprint is: ");
 
-    for (int i=0; i<20; i++)
+    for (int i = 0; i < 20; i++)
     {
-        Debug_printf("%02X",(unsigned char)fingerprint[i]);
-        if (i<19)
+        Debug_printf("%02X", (unsigned char)fingerprint[i]);
+        if (i < 19)
             Debug_printf(":");
     }
 
     Debug_printf("\n");
 
     userauthlist = libssh2_userauth_list(session, username, strlen(username));
-    Debug_printf("Authentication methods: %s\n",userauthlist);
+    Debug_printf("Authentication methods: %s\n", userauthlist);
 
-    if (libssh2_userauth_password(session, username,pass))
+    if (libssh2_userauth_password(session, username, pass))
     {
         error = NETWORK_ERROR_GENERAL;
         Debug_printf("Could not perform userauth.\n");
@@ -101,11 +99,10 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         return true;
     }
 
+    // libssh2_channel_set_blocking(channel, 0);
+
     // At this point, we should be able to talk to the shell.
     Debug_printf("Shell opened.\n");
-
-    pfds[0].fd = client.fd();
-    pfds[0].events = POLLIN;
 
     return false;
 }
@@ -127,15 +124,18 @@ bool NetworkProtocolSSH::write(unsigned short len)
 {
     bool err = false;
 
+    translate_transmit_buffer();
+    libssh2_channel_write(channel, transmitBuffer->data(), len);
+
     return err;
 }
 
 bool NetworkProtocolSSH::status(NetworkStatus *status)
 {
+    status->rxBytesWaiting = available();    
+    status->connected = libssh2_channel_eof(channel) == 0 ? 1 : 0;
+    status->error = libssh2_channel_eof(channel) == 0 ? 1 : NETWORK_ERROR_END_OF_FILE;
     NetworkProtocol::status(status);
-
-    
-
     return false;
 }
 
@@ -157,4 +157,22 @@ bool NetworkProtocolSSH::special_40(uint8_t *sp_buf, unsigned short len, cmdFram
 bool NetworkProtocolSSH::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
     return false;
+}
+
+unsigned short NetworkProtocolSSH::available()
+{
+    if (receiveBuffer->length() == 0)
+    {
+        if (libssh2_channel_eof(channel) == 0)
+        {
+            len = libssh2_channel_read(channel, buf, 256);
+            if (len > 0)
+            {
+                Debug_printf("appending %u characters to string\n", len);
+                receiveBuffer->append(buf, len);
+            }
+        }
+    }
+
+    return receiveBuffer->length();
 }
