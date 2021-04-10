@@ -923,7 +923,8 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         ss << i;
         ss2 << i + 1;
 
-        chunk += "<li><a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=1&filename=" + qp.query_parsed["filename"] + "\">&#128190; ";
+        chunk += "<li>&#128190; <a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=1&filename=" + qp.query_parsed["filename"] + "\">READ</a> or ";
+        chunk += "<a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=2&filename=" + qp.query_parsed["filename"] + "\">R/W</a> ";
 
         chunk += ss2.str() + ": ";
 
@@ -948,7 +949,7 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
             chunk += ") ";
         }
 
-        chunk += "</a></li>";
+        chunk += "</li>";
         httpd_resp_sendstr_chunk(req, chunk.c_str());
         chunk.clear();
     }
