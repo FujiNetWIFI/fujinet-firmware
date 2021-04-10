@@ -100,7 +100,7 @@
                 padding: 0.1rem;
                 text-align: right;
             }
-    
+
             .detline.alt .det {
                 background-color: #eeeeee;
             }
@@ -141,6 +141,38 @@
             .important {
                 color: #000;
                 font-weight: bolder;
+            }
+    
+            .fileflex {
+                display: flex;
+                flex-direction: row;
+                flex-wrap: wrap;
+                align-items: center;
+                align-content: center;
+                justify-content: space-around;
+            }
+            .filechild {
+                border: 0.2rem solid #000;
+                width: 99%;
+                margin: 0.5rem;
+            }
+    
+            .filechild header {
+                color: #fff;
+                border: 0.2rem solid #000;
+                background-color: #000;
+                padding: 0.2rem;
+                font-size: 1.5rem;
+            }
+
+            .fileline {
+                border: none;
+                position: relative;
+                padding: 0.1rem;
+            }
+
+            .abortline {
+                background-color: #aaaaaa;
             }
     
             body {
@@ -203,6 +235,70 @@
         </style>    
     </head>
     <body>
-        <%FN_ERRMSG%>
-    </body>
-</html>
+		<div class="headerlogo">
+			<a href="https://fujinet.online/">
+				<svg width="100%" height="100%" viewBox="0 0 594 189" version="1.1" xmlns="http://www.w3.org/2000/svg"
+					xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/"
+					style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+					<g>
+						<g>
+							<circle cx="341.992" cy="126.268" r="21.511" style="stroke:#000;stroke-width:2.58px;" />
+							<circle cx="341.992" cy="83.245" r="21.511" style="stroke:#000;stroke-width:2.58px;" />
+							<circle cx="298.969" cy="83.245" r="21.511"
+								style="fill:#fff;stroke:#000;stroke-width:2.58px;" />
+							<circle cx="255.946" cy="83.245" r="21.511" style="stroke:#000;stroke-width:2.58px;" />
+							<circle cx="298.969" cy="40.223" r="21.511" style="stroke:#000;stroke-width:2.58px;" />
+							<path d="M255.946,104.757l0,43.022"
+								style="fill:none;stroke:#000;stroke-width:2.19px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M255.946,61.734l0,-31.365"
+								style="fill:none;stroke:#000;stroke-width:2.03px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M298.969,1.768l0,16.943"
+								style="fill:none;stroke:#000;stroke-width:1.96px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M320.48,40.223l36.73,-0"
+								style="fill:none;stroke:#000;stroke-width:2.1px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M277.458,40.223l-36.73,-0"
+								style="fill:none;stroke:#000;stroke-width:2.4px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M234.435,83.245l-21.511,0.665"
+								style="fill:none;stroke:#000;stroke-width:2.58px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M363.503,83.245l6.996,0"
+								style="fill:none;stroke:#000;stroke-width:1.92px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M244.675,126.268l75.805,0"
+								style="fill:none;stroke:#000;stroke-width:2.43px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M216.711,73.127l0,25.747"
+								style="fill:none;stroke:#000;stroke-width:2.49px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M298.969,104.757l0,72.305"
+								style="fill:none;stroke:#000;stroke-width:2.38px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M341.992,147.779l-0,39.268"
+								style="fill:none;stroke:#000;stroke-width:2.14px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M363.503,126.268l14.158,0"
+								style="fill:none;stroke:#000;stroke-width:2.19px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M289.984,169.291l110.767,-0"
+								style="fill:none;stroke:#000;stroke-width:2.62px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M385.014,142.081l0,39.268"
+								style="fill:none;stroke:#000;stroke-width:2.26px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M341.992,30.369l-0,31.365"
+								style="fill:none;stroke:#000;stroke-width:2.26px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+						</g>
+						<path
+							d="M389.123,138.965l-0,-88.907l62.562,68.345l-0,-64.957l9.696,0l0,88.848l-62.561,-67.585l-0,64.256l-9.697,-0Z"
+							style="fill-rule:nonzero;" />
+						<path
+							d="M481.826,138.965l0,-85.519l45.096,0l0,9.288l-34.931,0l-0,24.534l34.931,0l0,9.463l-34.931,0l-0,32.771l34.931,-0l0,9.463l-45.096,-0Z"
+							style="fill-rule:nonzero;" />
+						<path
+							d="M559.109,138.965l-0,-75.822l-24.184,-0l0,-9.697l58.531,0l0,9.697l-24.066,-0l-0,75.822l-10.281,-0Z"
+							style="fill-rule:nonzero;" />
+						<path
+							d="M0,139.199l0,-85.519l45.096,-0l-0,9.288l-34.932,-0l0,24.534l34.932,-0l-0,9.463l-34.932,-0l0,42.234l-10.164,-0Z"
+							style="fill-rule:nonzero;" />
+						<path
+							d="M60.284,53.68l10.281,-0l-0,53.215c-0,8.646 1.84,14.993 5.52,19.043c3.68,4.051 9.453,6.076 17.32,6.076c7.866,-0 13.639,-2.025 17.319,-6.076c3.681,-4.05 5.521,-10.397 5.521,-19.043l-0,-53.215l10.339,-0l-0,53.215c-0,11.566 -2.755,20.221 -8.266,25.966c-5.51,5.744 -13.815,8.616 -24.913,8.616c-11.06,-0 -19.345,-2.872 -24.856,-8.616c-5.51,-5.745 -8.265,-14.4 -8.265,-25.966l-0,-53.215Z"
+							style="fill-rule:nonzero;" />
+						<path
+							d="M163.093,53.68l10.281,-0l-0,66.709c-0,7.166 -1.587,12.472 -4.761,15.918c-3.174,3.446 -8.051,5.17 -14.633,5.17c-3.505,-0 -6.669,-0.692 -9.492,-2.074c-2.823,-1.383 -5.481,-3.515 -7.974,-6.396l6.718,-6.718c2.103,2.181 4.05,3.738 5.841,4.673c1.792,0.935 3.661,1.402 5.608,1.402c3.077,0 5.248,-1.149 6.513,-3.446c1.266,-2.298 1.899,-6.815 1.899,-13.553l-0,-61.685Z"
+							style="fill-rule:nonzero;" />
+						<rect x="193.235" y="53.68" width="10.164" height="85.519" style="fill-rule:nonzero;" />
+					</g>
+				</svg>
+			</a>
+		</div>

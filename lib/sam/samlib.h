@@ -13,7 +13,7 @@
 #endif
 
 #ifdef ESP_PLATFORM
-#define PIN_DAC1 25
+#include "../../include/pinmap.h"
 #endif
 
 #ifdef __cplusplus

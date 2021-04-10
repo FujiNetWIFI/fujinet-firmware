@@ -4,13 +4,7 @@
 #include <forward_list>
 #include "fnSystem.h"
 
-// Pin configurations
-#define PIN_INT 26
-#define PIN_PROC 22
-#define PIN_CKO 32
-#define PIN_CKI 27
-#define PIN_MTR 36
-#define PIN_CMD 39
+#include "../../include/pinmap.h"
 
 #define DELAY_T4 850
 #define DELAY_T5 250

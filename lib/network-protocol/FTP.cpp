@@ -54,15 +54,19 @@ bool NetworkProtocolFTP::open_dir_handle()
 {
     bool res;
 
-    res = ftp->open_directory(opened_url->path, filename);
+    res = ftp->open_directory(dir, filename);
     fserror_to_error();
     return res;
 }
 
 bool NetworkProtocolFTP::mount(EdUrlParser *url)
 {
+    bool res;
+
     // Path isn't used
-    return ftp->login("anonymous", "fujinet@fujinet.online", url->hostName);
+    res = ftp->login("anonymous", "fujinet@fujinet.online", url->hostName);
+    fserror_to_error();
+    return res;
 }
 
 bool NetworkProtocolFTP::umount()
@@ -72,7 +76,7 @@ bool NetworkProtocolFTP::umount()
 
 void NetworkProtocolFTP::fserror_to_error()
 {
-    switch (ftp->response())
+    switch (ftp->status())
     {
     case 110:
     case 120:
@@ -176,8 +180,11 @@ bool NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
 
 bool NetworkProtocolFTP::close_file_handle()
 {
-    ftp->close();
-    return false;
+    bool res;
+
+    res = ftp->close();
+    fserror_to_error();
+    return res;
 }
 
 bool NetworkProtocolFTP::close_dir_handle()

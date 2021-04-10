@@ -77,6 +77,7 @@ class fnHttpService
     static void send_file_parsed(httpd_req_t *req, const char *filename);
     static void send_file(httpd_req_t *req, const char *filename);
     static void parse_query(httpd_req_t *req, queryparts *results);
+    static void send_header_footer(httpd_req_t *req, int headfoot);
 
 public:
 
