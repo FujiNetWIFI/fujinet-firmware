@@ -108,18 +108,28 @@ private:
     /**
      * Host Key Fingerprint
      */
-    const char* fingerprint;
+    const char *fingerprint;
 
     /**
      * User Auth list
      */
-    const char* userauthlist;
+    const char *userauthlist;
 
     /**
-     * Poll FD structure
+     * Intermediate RX buffer
      */
-    struct pollfd *pfds;
+    char buf[256];
 
+    /**
+     * Intermediate RX buffer length
+     */
+    unsigned short len;
+
+    /**
+     * Return if bytes available by injecting into RX buffer.
+     * @return number of bytes available
+     */
+    unsigned short available();
 };
 
 #endif /* NETWORKPROTOCOL_SSH */
