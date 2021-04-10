@@ -772,7 +772,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
     chunk +=
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
-        "               <header>HOST<span id=\"logowob\"></span>" + string(theFuji.get_hosts(hs)->get_hostname()) + qp.query_parsed["path"] + "</header>\n"
+        "               <header>SELECT DISK TO MOUNT<span id=\"logowob\"></span>" + string(theFuji.get_hosts(hs)->get_hostname()) + qp.query_parsed["path"] + "</header>\n"
         "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
         "               <div class=\"fileline\">\n"
         "                      <ul>\n";
@@ -904,11 +904,11 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
 
     send_header_footer(req, 0); // header
 
-    chunk += "  <h1>MOUNT TO DRIVE SLOT</h1>\r\n";
+    //chunk += "  <h1></h1>\r\n";
     chunk +=
     "        <div class=\"fileflex\">\n"
     "            <div class=\"filechild\">\n"
-    "               <header>HOST<span id=\"logowob\"></span>" + string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + "</header>\n"
+    "               <header>SELECT DRIVE SLOT<span id=\"logowob\"></span>" + string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + "</header>\n"
     "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
     "               <div class=\"fileline\">\n"
     "                      <ul>\n";
@@ -926,7 +926,7 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         chunk += "<li>&#128190; <a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=1&filename=" + qp.query_parsed["filename"] + "\">READ</a> or ";
         chunk += "<a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=2&filename=" + qp.query_parsed["filename"] + "\">R/W</a> ";
 
-        chunk += ss2.str() + ": ";
+        chunk += "<strong>" + ss2.str() + "</strong>: ";
 
         if (theFuji.get_disks(i)->host_slot == 0xFF)
         {
