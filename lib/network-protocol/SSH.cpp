@@ -5,9 +5,6 @@
 #include "SSH.h"
 #include "status_error_codes.h"
 
-const char *username = "thomc";
-const char *pass = "e1xb64XC46";
-
 NetworkProtocolSSH::NetworkProtocolSSH(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
@@ -72,10 +69,10 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     Debug_printf("\n");
 
-    userauthlist = libssh2_userauth_list(session, username, strlen(username));
+    userauthlist = libssh2_userauth_list(session, login->c_str(), login->length());
     Debug_printf("Authentication methods: %s\n", userauthlist);
 
-    if (libssh2_userauth_password(session, username, pass))
+    if (libssh2_userauth_password(session, login->c_str(), password->c_str()))
     {
         error = NETWORK_ERROR_GENERAL;
         Debug_printf("Could not perform userauth.\n");
