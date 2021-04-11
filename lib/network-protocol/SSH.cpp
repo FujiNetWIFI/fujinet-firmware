@@ -37,6 +37,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (client.connect(urlParser->hostName.c_str(), atoi(urlParser->port.c_str())) == 0)
     {
         Debug_printf("NetworkProtocolSSH::open() - Could not connect to host. Aborting.\n");
+        error = NETWORK_ERROR_NOT_CONNECTED;
         return true;
     }
 
@@ -45,13 +46,14 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (session == nullptr)
     {
         Debug_printf("Could not create session. aborting.\n");
+        error = NETWORK_ERROR_NOT_CONNECTED;
         return true;
     }
 
     Debug_printf("NetworkProtocolSSH::open() - Attempting session handshake with fd %u\n", client.fd());
     if (libssh2_session_handshake(session, client.fd()))
     {
-        error = NETWORK_ERROR_GENERAL;
+        error = NETWORK_ERROR_NOT_CONNECTED;
         Debug_printf("NetworkProtocolSSH::open() - Could not perform SSH handshake.\n");
         return true;
     }
