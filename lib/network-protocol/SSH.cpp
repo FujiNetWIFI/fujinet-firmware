@@ -24,6 +24,12 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     NetworkProtocol::open(urlParser, cmdFrame);
     int ret;
 
+    if (login->empty() || password->empty())
+    {
+        error = NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD;
+        return true;
+    }
+
     if ((ret = libssh2_init(0)) != 0)
     {
         Debug_printf("NetworkProtocolSSH::open() - libssh2_init not successful. Value returned: %d\n", ret);
