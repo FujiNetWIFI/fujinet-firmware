@@ -99,7 +99,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         return true;
     }
 
-    // libssh2_channel_set_blocking(channel, 0);
+    libssh2_channel_set_blocking(channel, 0);
 
     // At this point, we should be able to talk to the shell.
     Debug_printf("Shell opened.\n");
@@ -124,8 +124,12 @@ bool NetworkProtocolSSH::write(unsigned short len)
 {
     bool err = false;
 
-    translate_transmit_buffer();
+    len = translate_transmit_buffer();
     libssh2_channel_write(channel, transmitBuffer->data(), len);
+
+    // Return success
+    error = 1;
+    transmitBuffer->erase(0, len);
 
     return err;
 }
@@ -165,8 +169,8 @@ unsigned short NetworkProtocolSSH::available()
     {
         if (libssh2_channel_eof(channel) == 0)
         {
-            len = libssh2_channel_read(channel, buf, 256);
-            if (len > 0)
+            int len = libssh2_channel_read(channel, buf, 256);
+            if (len != LIBSSH2_ERROR_EAGAIN)
             {
                 Debug_printf("appending %u characters to string\n", len);
                 receiveBuffer->append(buf, len);

@@ -121,11 +121,6 @@ private:
     char buf[256];
 
     /**
-     * Intermediate RX buffer length
-     */
-    unsigned short len;
-
-    /**
      * Return if bytes available by injecting into RX buffer.
      * @return number of bytes available
      */
