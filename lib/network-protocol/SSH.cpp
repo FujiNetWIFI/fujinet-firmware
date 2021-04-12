@@ -5,15 +5,19 @@
 #include "SSH.h"
 #include "status_error_codes.h"
 
+#define RXBUF_SIZE 65535
+
 NetworkProtocolSSH::NetworkProtocolSSH(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
     Debug_printf("NetworkProtocolSSH::NetworkProtocolSSH(%p,%p,%p)\n", rx_buf, tx_buf, sp_buf);
+    rxbuf = (char *)heap_caps_malloc(RXBUF_SIZE, MALLOC_CAP_SPIRAM);
 }
 
 NetworkProtocolSSH::~NetworkProtocolSSH()
 {
     Debug_printf("NetworkProtocolSSH::~NetworkProtocolSSH()\n");
+    heap_caps_free(rxbuf);
 }
 
 bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
@@ -122,7 +126,8 @@ bool NetworkProtocolSSH::close()
 
 bool NetworkProtocolSSH::read(unsigned short len)
 {
-    return NetworkProtocol::read(len);
+    // Ironically, All of the read is handled in available().
+    return false;
 }
 
 bool NetworkProtocolSSH::write(unsigned short len)
@@ -174,11 +179,11 @@ unsigned short NetworkProtocolSSH::available()
     {
         if (libssh2_channel_eof(channel) == 0)
         {
-            int len = libssh2_channel_read(channel, buf, 256);
+            int len = libssh2_channel_read(channel, rxbuf, RXBUF_SIZE);
             if (len != LIBSSH2_ERROR_EAGAIN)
             {
-                Debug_printf("appending %u characters to string\n", len);
-                receiveBuffer->append(buf, len);
+                receiveBuffer->append(rxbuf, len);
+                translate_receive_buffer();
             }
         }
     }

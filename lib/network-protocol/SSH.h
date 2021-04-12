@@ -118,7 +118,7 @@ private:
     /**
      * Intermediate RX buffer
      */
-    char buf[256];
+    char *rxbuf;
 
     /**
      * Return if bytes available by injecting into RX buffer.
