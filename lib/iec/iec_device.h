@@ -29,9 +29,11 @@
 
 #include "cbmdefines.h"
 #include "Petscii.h"
+#include "../sio/fuji.h"
 #include "../FileSystem/fnFS.h"
 
-enum OpenState {
+enum OpenState 
+{
 	O_NOTHING,			// Nothing to send / File not found error
 	O_INFO,				// User issued a reload sd card
 	O_FILE,				// A program file is opened
@@ -92,7 +94,7 @@ private:
 	iecBus& m_iec;
 
 	// This var is set after an open command and determines what to send next
-	int m_openState;			// see OpenState
+	int m_openState; // see OpenState
 	int m_queuedError;
 
 	// atn command buffer struct
