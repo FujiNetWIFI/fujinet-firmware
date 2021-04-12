@@ -1425,6 +1425,38 @@ void sioFuji::setup(sioBus *siobus)
     cassette()->set_pulldown(Config.get_cassette_pulldown());
 }
 
+// Initializes base settings and adds our devices to the IEC bus
+void sioFuji::setup(iecBus *iecbus)
+{
+    // set up Fuji device
+    _iec_bus = iecbus;
+
+    // const char *boot_image = "/fb64.d64";
+
+    // FILE *fBoot = fnSPIFFS.file_open(boot_image);
+
+    // _populate_slots_from_config();
+
+    // _bootDisk.mount(fBoot, boot_image, 0); // set up a special disk drive not on the bus
+
+    // _bootDisk.is_config_device = true;
+    // _bootDisk.device_active = false;
+
+    // // Disable booting from CONFIG if our settings say to turn it off
+    // boot_config = Config.get_general_config_enabled();
+
+    // // Add our devices to the SIO bus
+    // for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    //     _sio_bus->addDevice(&_fnDisks[i].disk_dev, SIO_DEVICEID_DISK + i);
+
+    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+    //     _sio_bus->addDevice(&sioNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
+
+    // _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
+    // cassette()->set_buttons(Config.get_cassette_buttons());
+    // cassette()->set_pulldown(Config.get_cassette_pulldown());
+}
+
 sioDisk *sioFuji::bootdisk()
 {
     return &_bootDisk;

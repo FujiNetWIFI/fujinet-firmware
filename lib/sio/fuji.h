@@ -4,6 +4,7 @@
 
 #include "../../include/debug.h"
 #include "sio.h"
+#include "iec.h"
 #include "network.h"
 #include "cassette.h"
 
@@ -55,6 +56,7 @@ class sioFuji : public sioDevice
 {
 private:
     sioBus *_sio_bus;
+    iecBus *_iec_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -123,6 +125,7 @@ public:
     void debug_tape();
 
     void setup(sioBus *siobus);
+    void setup(iecBus *iecbus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);
