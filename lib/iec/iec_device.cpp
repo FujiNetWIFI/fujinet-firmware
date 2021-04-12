@@ -79,10 +79,10 @@ void iecDevice::sendStatus(void)
 
 	Debug_printf("\r\nsendStatus: ");
 	// Length does not include the CR, write all but the last one should be with EOI.
-	for(i = 0; i < readResult - 2; ++i)
+	for (i = 0; i < readResult - 2; ++i)
 		m_iec.send(status[i]);
 
-	// ...and last int in string as with EOI marker.
+	// ...and last byte in string as with EOI marker.
 	m_iec.sendEOI(status[i]);
 } // sendStatus
 
@@ -200,15 +200,15 @@ void iecDevice::sendDeviceStatus()
 
 void iecDevice::service(void)
 {
-//#ifdef HAS_RESET_LINE
-//	if(m_iec.checkRESET()) {
-//		// IEC reset line is in reset state, so we should set all states in reset.
-//		reset();
-//		
-//
-//		return IEC::ATN_RESET;
-//	}
-//#endif
+	//#ifdef HAS_RESET_LINE
+	//	if(m_iec.checkRESET()) {
+	//		// IEC reset line is in reset state, so we should set all states in reset.
+	//		reset();
+	//
+	//
+	//		return iecBus::ATN_RESET;
+	//	}
+	//#endif
 	// Wait for it to get out of reset.
 	// while (m_iec.checkRESET())
 	// {
@@ -217,16 +217,17 @@ void iecDevice::service(void)
 
 	iecBus::ATNCheck ATN = m_iec.checkATN(m_atn_cmd);
 
-	if(ATN == iecBus::ATN_ERROR)
+	if (ATN == iecBus::ATN_ERROR)
 	{
 		//Debug_printf("\r\n[ERROR]");
 		reset();
 		ATN = iecBus::ATN_IDLE;
 	}
 	// Did anything happen from the host side?
-	else if(ATN not_eq iecBus::ATN_IDLE)
+	else if (ATN not_eq iecBus::ATN_IDLE)
 	{
-		switch( m_atn_cmd.command ) 
+
+		switch (m_atn_cmd.command)
 		{
 			case iecBus::ATN_CODE_OPEN:
 				if ( m_atn_cmd.channel == READ_CHANNEL )
@@ -291,12 +292,11 @@ void iecDevice::service(void)
 				break;
 
 		} // switch
-	} // IEC not idle
+	}	  // iecBus not idle
 
 } // handler
 
-
-void iecDevice::handleATNCmdCodeOpen(iecBus::ATNCmd& atn_cmd)
+void iecDevice::handleATNCmdCodeOpen(iecBus::ATNCmd &atn_cmd)
 {
 	m_device.select( atn_cmd.device );
 	m_filename = std::string((char *)atn_cmd.str);
@@ -438,13 +438,15 @@ void iecDevice::handleATNCmdCodeDataTalk(int chan)
 
 	Debug_printf("\r\nhandleATNCmdCodeDataTalk: %d (CHANNEL) %d (M_OPENSTATE)", chan, m_openState);
 
-	if(chan == CMD_CHANNEL) {
+	if (chan == CMD_CHANNEL)
+	{
 		// Send status message
 		sendStatus();
 		// go back to OK state, we have dispatched the error to IEC host now.
 		m_queuedError = ErrOK;
 	}
-	else {
+	else
+	{
 
 		//Debug_printf("\r\nm_openState: %d", m_openState);
 
@@ -510,7 +512,8 @@ void iecDevice::handleATNCmdCodeDataListen()
 		m_iec.sendFNF();
 		strcpy(serCmdIOBuf, "response not sync.");
 	}
-	else {
+	else
+	{
 		if (lengthOrResult == fnUartDebug.readBytes(serCmdIOBuf, 2))
 		{
 			if (2 == lengthOrResult)
@@ -520,12 +523,12 @@ void iecDevice::handleATNCmdCodeDataListen()
 			}
 			else
 			{
-				//Log(Error, FAC_IFACE, serCmdIOBuf);	
+				//Log(Error, FAC_IFACE, serCmdIOBuf);
 			}
 		}
 		m_queuedError = wasSuccess ? lengthOrResult : ErrSerialComm;
 
-		if(ErrOK == m_queuedError)
+		if (ErrOK == m_queuedError)
 			saveFile();
 //		else // FIXME: Check what the drive does here when saving goes wrong. FNF is probably not right. Dummyread entire buffer from CBM?
 //			m_iec.sendFNF();
@@ -549,7 +552,7 @@ uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, const char* fo
 {
 	// Format our string
 	va_list args;
-  	va_start(args, format);
+	va_start(args, format);
 	char text[vsnprintf(NULL, 0, format, args) + 1];
 	vsnprintf(text, sizeof text, format, args);
 	va_end(args);
@@ -586,7 +589,7 @@ uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, char* text)
 	m_iec.send(0);
 
 	Debug_println("");
-	
+
 	b_cnt += (len + 5);
 
 	return b_cnt;
@@ -664,7 +667,7 @@ void iecDevice::sendListing()
 		// Get file stat
 		sprintf(tpath, m_device.path().c_str());
 		strcat(tpath,ent->d_name);
-        int statok = stat(tpath, &sb);
+        stat(tpath, &sb);
 
 
 		uint16_t block_cnt = sb.st_size / 256;
@@ -768,6 +771,7 @@ void iecDevice::sendFile()
 		// 		m_filename = dir.fileName();			
 		// }
 	}
+	m_device.path("/spiffs/");
 	std::string inFile = std::string(m_device.path()+m_filename);
 	
 	Debug_printf("\r\nsendFile: %s\r\n", inFile.c_str());
@@ -793,7 +797,7 @@ void iecDevice::sendFile()
 		// fseek(file, 0, SEEK_SET);
 
 		Debug_printf("\r\nsendFile: [%s] [$%.4X] (%d bytes)\r\n=================================\r\n", inFile.c_str(), load_address, len);
-		for(i = 2; success and i < len; ++i) 
+		for (i = 2; success and i < len; ++i) 
 		{
 			success = fread(&b, 1, 1, file);
 			if (success)
@@ -805,13 +809,13 @@ void iecDevice::sendFile()
 					load_address += 8;
 				}
 #endif
-				if(i == len - 1)
+				if (i == len - 1)
 				{
-					success = m_iec.sendEOI(b[0]); // indicate end of file.				
+					success = m_iec.sendEOI(b[0]); // indicate end of file.
 				}
 				else
 				{
-					success = m_iec.send(b[0]);				
+					success = m_iec.send(b[0]);
 				}
 
 #ifdef DATA_STREAM
@@ -829,11 +833,11 @@ void iecDevice::sendFile()
 #endif
 
 				// Toggle LED
-				if(i % 50 == 0)
+				if (i % 50 == 0)
 				{
 					fnLedManager.toggle(LED_SIO);
 					//Debug_printf("progress: %d %d\r", len, i);
-				}				
+				}
 			}
 		}
 		fclose(file);
