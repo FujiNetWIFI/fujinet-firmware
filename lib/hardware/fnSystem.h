@@ -12,15 +12,20 @@
 
 #include "../FileSystem/fnFS.h"
 
+#include "../../include/pinmap.h"
+
 #define FILE_COPY_BUFFERSIZE 2048
 
 #define NOP() asm volatile("nop")
+
+#define ESP_INTR_FLAG_DEFAULT 0
 
 class SystemManager
 {
 private:
     char _uptime_string[18];
     char _currenttime_string[40];
+    int _hardware_version = 0; // unknown
 
 public:
     class _net
@@ -78,7 +83,7 @@ public:
 #define DIGI_LOW 0x00
 #define DIGI_HIGH 0x01
 
-    void set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode = PULL_NONE);
+    void set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode = PULL_NONE, gpio_int_type_t intr_type = GPIO_INTR_DISABLE);
 
     int digital_read(uint8_t pin);
     void digital_write(uint8_t pin, uint8_t val);
@@ -114,6 +119,10 @@ public:
 
     int load_firmware(const char *filename, uint8_t **buffer);
     void debug_print_tasks();
+
+    void check_hardware_ver();
+    int get_hardware_ver() { return _hardware_version; };
+    const char *get_hardware_ver_str();
 };
 
 extern SystemManager fnSystem;

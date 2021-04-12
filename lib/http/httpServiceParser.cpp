@@ -6,6 +6,7 @@
 #include "../../include/debug.h"
 #include "fnConfig.h"
 
+#include "httpService.h"
 #include "httpServiceParser.h"
 
 #include "fuji.h"
@@ -55,6 +56,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PLAY_RECORD,
         FN_PULLDOWN,
         FN_CONFIG_ENABLED,
+        FN_BOOT_MODE,
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
         FN_DRIVE3HOST,
@@ -95,6 +97,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HOST6PREFIX,
         FN_HOST7PREFIX,
         FN_HOST8PREFIX,
+        FN_ERRMSG,
         FN_LASTTAG
     };
 
@@ -131,6 +134,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PLAY_RECORD",
         "FN_PULLDOWN",
         "FN_CONFIG_ENABLED",
+        "FN_BOOT_MODE",
         "FN_DRIVE1HOST",
         "FN_DRIVE2HOST",
         "FN_DRIVE3HOST",
@@ -170,7 +174,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST5PREFIX",
         "FN_HOST6PREFIX",
         "FN_HOST7PREFIX",
-        "FN_HOST8PREFIX"
+        "FN_HOST8PREFIX",
+        "FN_ERRMSG"
     };
 
     stringstream resultstream;
@@ -292,6 +297,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_CONFIG_ENABLED:
         resultstream << Config.get_general_config_enabled();
         break;
+    case FN_BOOT_MODE:
+        resultstream << Config.get_general_boot_mode();
+        break;
     case FN_DRIVE1HOST:
     case FN_DRIVE2HOST:
     case FN_DRIVE3HOST:
@@ -374,6 +382,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         } else {
             resultstream << "";
         }
+        break;
+    case FN_ERRMSG:
+        resultstream << fnHTTPD.getErrMsg();
         break;
     default:
         resultstream << tag;

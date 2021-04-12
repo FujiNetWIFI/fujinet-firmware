@@ -15,9 +15,11 @@
 #include "printerlist.h"
 #include "fnWiFi.h"
 #include "keys.h"
+#include "fnConfig.h"
 
 #include "../../lib/modem-sniffer/modem-sniffer.h"
 #include "../../lib/sio/modem.h"
+#include "../../lib/sio/fuji.h"
 
 #include "../../include/debug.h"
 
@@ -27,6 +29,72 @@ using namespace std;
 fnHttpService fnHTTPD;
 
 extern sioModem *sioR;
+
+/**
+ * URL encoding/decoding helper functions
+ * These may be re-written to go into utils at some point.
+ */
+
+/* Converts a hex character to its integer value */
+char from_hex(char ch)
+{
+    return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
+}
+
+/* Converts an integer value to its hex character*/
+char to_hex(char code)
+{
+    static char hex[] = "0123456789abcdef";
+    return hex[code & 15];
+}
+
+/* Returns a url-encoded version of str */
+/* IMPORTANT: be sure to free() the returned string after use */
+char *url_encode(char *str)
+{
+    char *pstr = str, *buf = (char *)malloc(strlen(str) * 3 + 1), *pbuf = buf;
+    while (*pstr)
+    {
+        if (isalnum(*pstr) || *pstr == '-' || *pstr == '_' || *pstr == '.' || *pstr == '~')
+            *pbuf++ = *pstr;
+        else if (*pstr == ' ')
+            *pbuf++ = '+';
+        else
+            *pbuf++ = '%', *pbuf++ = to_hex(*pstr >> 4), *pbuf++ = to_hex(*pstr & 15);
+        pstr++;
+    }
+    *pbuf = '\0';
+    return buf;
+}
+
+/* Returns a url-decoded version of str */
+/* IMPORTANT: be sure to free() the returned string after use */
+char *url_decode(char *str)
+{
+    char *pstr = str, *buf = (char *)malloc(strlen(str) + 1), *pbuf = buf;
+    while (*pstr)
+    {
+        if (*pstr == '%')
+        {
+            if (pstr[1] && pstr[2])
+            {
+                *pbuf++ = from_hex(pstr[1]) << 4 | from_hex(pstr[2]);
+                pstr += 2;
+            }
+        }
+        else if (*pstr == '+')
+        {
+            *pbuf++ = ' ';
+        }
+        else
+        {
+            *pbuf++ = *pstr;
+        }
+        pstr++;
+    }
+    *pbuf = '\0';
+    return buf;
+}
 
 /* Send some meaningful(?) error message to client
 */
@@ -97,6 +165,57 @@ void fnHttpService::set_file_content_type(httpd_req_t *req, const char *filepath
         if (mimetype)
             httpd_resp_set_type(req, mimetype);
     }
+}
+
+/* Sends header.html or footer.html from SPIFFS. 0 for header, 1 for footer */
+void fnHttpService::send_header_footer(httpd_req_t *req, int headfoot)
+{
+    // Build the full file path
+    string fpath = FNWS_FILE_ROOT;
+    switch (headfoot)
+    {
+    case 0:
+        fpath += "header.html";
+        break;
+    case 1:
+        fpath += "footer.html";
+        break;
+    default:
+        Debug_println("Header / Footer choice invalid");
+        return;
+        break;
+    }
+
+    // Retrieve server state
+    serverstate *pState = (serverstate *)httpd_get_global_user_ctx(req->handle);
+    FILE *fInput = pState->_FS->file_open(fpath.c_str());
+
+    if (fInput == nullptr)
+    {
+        Debug_println("Failed to open header file for parsing");
+    }
+    else
+    {
+        size_t sz = FileSystem::filesize(fInput) + 1;
+        char *buf = (char *)calloc(sz, 1);
+        if (buf == NULL)
+        {
+            Debug_printf("Couldn't allocate %u bytes to load file contents!\n", sz);
+        }
+        else
+        {
+            fread(buf, 1, sz, fInput);
+            string contents(buf);
+            free(buf);
+            contents = fnHttpServiceParser::parse_contents(contents);
+
+            httpd_resp_sendstr_chunk(req, contents.c_str());
+        }
+    }
+
+    if (fInput != nullptr)
+        fclose(fInput);
+
 }
 
 /* Send file content after parsing for replaceable strings
@@ -195,6 +314,9 @@ void fnHttpService::send_file(httpd_req_t *req, const char *filename)
 
 void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
 {
+    char *decoded_query;
+    vector<string> vItems;
+
     results->full_uri += req->uri;
     // See if we have any arguments
     int path_end = results->full_uri.find_first_of('?');
@@ -203,9 +325,52 @@ void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
         results->path += results->full_uri;
         return;
     }
+
     results->path += results->full_uri.substr(0, path_end - 1);
     results->query += results->full_uri.substr(path_end + 1);
-    // TO DO: parse arguments, but we've no need for them yet
+
+    // URL Decode query
+    decoded_query = url_decode((char *)results->query.c_str());
+    results->query = string(decoded_query);
+
+    if (results->query.empty())
+    {
+        free(decoded_query);
+        return;
+    }
+
+    char *token = strtok(decoded_query, "&");
+
+    while (token != NULL)
+    {
+        Debug_printf("Item: %s\n", token);
+        vItems.push_back(string(token));
+        token = strtok(NULL, "&");
+    }
+
+    if (vItems.empty())
+    {
+        free(decoded_query);
+        return;
+    }
+
+    for (vector<string>::iterator it = vItems.begin(); it != vItems.end(); ++it)
+    {
+        string key;
+        string value;
+
+        if (it->find_first_of("=") == string::npos)
+            continue;
+
+        key = it->substr(0, it->find_first_of("="));
+        value = it->substr(it->find_first_of("=") + 1);
+
+        Debug_printf("Key %s : Value %s\n", key.c_str(), value.c_str());
+
+        results->query_parsed.insert(make_pair(key, value));
+    }
+
+    free(decoded_query);
 }
 
 esp_err_t fnHttpService::get_handler_index(httpd_req_t *req)
@@ -378,16 +543,16 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
         return ESP_FAIL;
     }
 
-    set_file_content_type(req,"modem-sniffer.txt");
+    set_file_content_type(req, "modem-sniffer.txt");
 
     FILE *sOutput = modemSniffer->closeOutputAndProvideReadHandle();
-    Debug_printf("Got file handle %p\n",sOutput);
-    if(sOutput == nullptr)
+    Debug_printf("Got file handle %p\n", sOutput);
+    if (sOutput == nullptr)
     {
         return_http_error(req, fnwserr_post_fail);
         return ESP_FAIL;
     }
-    
+
     // Finally, write the data
     // Send the file content out in chunks
     char *buf = (char *)malloc(FNWS_SEND_BUFF_SIZE);
@@ -407,6 +572,397 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
     fclose(sOutput);
 
     Debug_printf("Sniffer dump completed.\n");
+
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
+{
+    queryparts qp;
+    unsigned char hs, ds;
+    char flag[3] = {'r', 0, 0};
+    fnConfig::mount_mode_t mode = fnConfig::mount_modes::MOUNTMODE_READ;
+
+    fnHTTPD.clearErrMsg();
+
+    parse_query(req, &qp);
+
+    if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
+    {
+        fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
+    }
+
+    if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
+    {
+        fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
+    }
+
+    if (qp.query_parsed.find("mode") == qp.query_parsed.end())
+    {
+        fnHTTPD.addToErrMsg("<li>mode is empty</li>");
+    }
+
+    if (qp.query_parsed.find("filename") == qp.query_parsed.end())
+    {
+        fnHTTPD.addToErrMsg("<li>filename is empty</li>");
+    }
+
+    hs = atoi(qp.query_parsed["hostslot"].c_str());
+    ds = atoi(qp.query_parsed["deviceslot"].c_str());
+
+    if (hs > MAX_HOSTS)
+    {
+        fnHTTPD.addToErrMsg("<li>hostslot must be between 0 and 8</li>");
+    }
+
+    if (ds > MAX_DISK_DEVICES)
+    {
+        fnHTTPD.addToErrMsg("<li>deviceslot must be between 0 and 8</li>");
+    }
+
+    if ((qp.query_parsed["mode"] != "1") && (qp.query_parsed["mode"] != "2"))
+    {
+        fnHTTPD.addToErrMsg("<li>mode should be either 1 for read, or 2 for write.</li>");
+    }
+
+    if (qp.query_parsed["mode"] == "2")
+    {
+        flag[1] = '+';
+        mode = fnConfig::mount_modes::MOUNTMODE_WRITE;
+    }
+
+    if (theFuji.get_hosts(hs)->mount() == true)
+    {
+        fujiDisk *disk = theFuji.get_disks(ds);
+        fujiHost *host = theFuji.get_hosts(hs);
+
+        disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
+
+        if (disk->fileh == nullptr)
+        {
+            fnHTTPD.addToErrMsg("<li>Could not open file: " + qp.query_parsed["filename"] + "</li>");
+        }
+        else
+        {
+            // Make sure CONFIG boot is disabled.
+            theFuji.boot_config = false;
+            theFuji.status_wait_count = 0;
+
+            disk->disk_size = host->file_size(disk->fileh);
+            disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
+            Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
+            Config.save();
+            theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
+            disk->disk_dev.device_active = true;
+        }
+    }
+    else
+    {
+        fnHTTPD.addToErrMsg("<li>Could not mount host slot " + qp.query_parsed["hostslot"] + "</li>");
+    }
+
+    if (!fnHTTPD.errMsgEmpty())
+    {
+        send_file(req, "error_page.html");
+    }
+    else
+    {
+        send_file(req, "redirect_to_index.html");
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
+{
+    queryparts qp;
+    parse_query(req, &qp);
+    unsigned char ds;
+
+    if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
+    {
+        fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
+    }
+
+    ds = atoi(qp.query_parsed["deviceslot"].c_str());
+
+    if (ds > MAX_DISK_DEVICES)
+    {
+        fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
+    }
+
+    theFuji.get_disks(ds)->disk_dev.unmount();
+    if (theFuji.get_disks(ds)->disk_type == DISKTYPE_CAS || theFuji.get_disks(ds)->disk_type == DISKTYPE_WAV)
+    {
+        theFuji.cassette()->umount_cassette_file();
+        theFuji.cassette()->sio_disable_cassette();
+    }
+    theFuji.get_disks(ds)->reset();
+    Config.clear_mount(ds);
+    Config.save();
+    theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
+    theFuji.get_disks(ds)->disk_dev.device_active = false;
+
+    // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
+    if (Config.get_general_config_enabled())
+    {
+        if ((theFuji.get_disks(0)->host_slot == 0xFF) &&
+            (theFuji.get_disks(1)->host_slot == 0xFF) &&
+            (theFuji.get_disks(2)->host_slot == 0xFF) &&
+            (theFuji.get_disks(3)->host_slot == 0xFF) &&
+            (theFuji.get_disks(4)->host_slot == 0xFF) &&
+            (theFuji.get_disks(5)->host_slot == 0xFF) &&
+            (theFuji.get_disks(6)->host_slot == 0xFF) &&
+            (theFuji.get_disks(7)->host_slot == 0xFF))
+        {
+            theFuji.boot_config = true;
+            theFuji.status_wait_count = 5;
+            theFuji.device_active = true;
+        }
+    }
+
+    if (!fnHTTPD.errMsgEmpty())
+    {
+        send_file(req, "error_page.html");
+    }
+    else
+    {
+        send_file(req, "redirect_to_index.html");
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
+{
+    queryparts qp;
+    unsigned char hs;
+    string pattern;
+    string chunk;
+
+    parse_query(req, &qp);
+
+    if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
+    {
+        fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
+    }
+
+    if (qp.query_parsed.find("path") == qp.query_parsed.end())
+    {
+        qp.query_parsed["path"] = "";
+    }
+
+    hs = atoi(qp.query_parsed["hostslot"].c_str());
+
+    if (qp.query_parsed.find("pattern") == qp.query_parsed.end())
+    {
+        pattern = "*";
+    }
+    else
+    {
+        pattern = qp.query_parsed["pattern"];
+    }
+
+    chunk.clear();
+
+    httpd_resp_set_type(req, "text/html");
+
+    send_header_footer(req, 0); // header
+
+    chunk +=
+        "        <div class=\"fileflex\">\n"
+        "            <div class=\"filechild\">\n"
+        "               <header>SELECT DISK TO MOUNT<span id=\"logowob\"></span>" + string(theFuji.get_hosts(hs)->get_hostname()) + qp.query_parsed["path"] + "</header>\n"
+        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+        "               <div class=\"fileline\">\n"
+        "                      <ul>\n";
+
+
+    httpd_resp_sendstr_chunk(req, chunk.c_str());
+    chunk.clear();
+
+    theFuji._populate_slots_from_config();
+
+    if ((theFuji.get_hosts(hs)->mount() == true) && (theFuji.get_hosts(hs)->dir_open(qp.query_parsed["path"].c_str(), pattern.c_str())))
+    {
+        fsdir_entry_t *f;
+        string parent;
+
+        // Create link to parent
+        if (!qp.query_parsed["path"].empty())
+        {
+            parent = qp.query_parsed["path"].substr(0, qp.query_parsed["path"].find_last_of("/"));
+            chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)parent.c_str())) + "\"><li>&#8617; Parent</li></a>";
+        }
+
+        while ((f = theFuji.get_hosts(hs)->dir_nextfile()) != nullptr)
+        {
+            chunk += "                          <li>";
+
+            if (f->isDir == true)
+            {
+                chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "&parent_path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "\">";
+                chunk += "&#128448; ";
+            }
+            else
+            {
+                chunk += "<a href=\"/dslot?hostslot=" + qp.query_parsed["hostslot"] + "&filename=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "\">";
+
+                if ((string(f->filename).find(".atr") != string::npos) ||
+                    (string(f->filename).find(".ATR") != string::npos) ||
+                    (string(f->filename).find(".atx") != string::npos) ||
+                    (string(f->filename).find(".ATX") != string::npos))
+                {
+                    chunk += "&#128190; "; // floppy disk
+                }
+                else if ((string(f->filename).find(".cas") != string::npos) ||
+                         (string(f->filename).find(".CAS") != string::npos))
+                {
+                    chunk += "&#128429; "; // cassette tape
+                }
+                else
+                {
+                    chunk += "&#128462; "; // std document
+                }
+            }
+
+            chunk += string(f->filename);
+
+            chunk += "</a>";
+
+            chunk += "                          </li>\r\n";
+
+            httpd_resp_sendstr_chunk(req, chunk.c_str());
+            chunk.clear();
+        }
+
+        theFuji.get_hosts(hs)->dir_close();
+
+        chunk +=
+            "                      </ul>\r\n"
+            "               </div>\n"
+            "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+            "           </div>\n"
+            "        </div>\n";
+        httpd_resp_sendstr_chunk(req, chunk.c_str());
+        chunk.clear();
+
+        // Send HTML footer
+        send_header_footer(req, 1);
+
+        httpd_resp_send_chunk(req, NULL, 0); // end of response.
+    }
+    else
+    {
+        fnHTTPD.addToErrMsg("<li>Could not open directory</li>");
+        send_file(req, "error_page.html");
+    }
+
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
+{
+    queryparts qp;
+    string chunk;
+    unsigned char hs;
+
+    chunk.clear();
+    parse_query(req, &qp);
+
+    if ((qp.query_parsed.find("hostslot") == qp.query_parsed.end()) ||
+        (qp.query_parsed.find("filename") == qp.query_parsed.end()))
+    {
+        httpd_resp_send_500(req);
+        return ESP_OK;
+    }
+
+    hs = atoi(qp.query_parsed["hostslot"].c_str());
+
+    httpd_resp_set_type(req, "text/html");
+
+    if ((qp.query_parsed["filename"].find(".cas") != string::npos) ||
+        qp.query_parsed["filename"].find(".CAS") != string::npos)
+    {
+        // .CAS file passed in, put in slot 8, and redirect
+        chunk += "<?xml version=\"1.0\" encoding=\"utf-8\"?>";
+        chunk += "<!doctype html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"DTD/xhtml1-strict.dtd\">\r\n";
+        chunk += "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\r\n";
+        chunk += " <head>\r\n";
+        chunk += "  <title>Redirecting to cassette mount</title>";
+        chunk += "  <meta http-equiv=\"refresh\" content=\"0; url=/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=7&mode=1&filename=" + string(url_encode((char *)qp.query_parsed["filename"].c_str())) + "\" />";
+        chunk += " </head>\r\n";
+        chunk += " <body>\r\n";
+        chunk += "  <h1>Cassette detected. Mounting in slot 8.</h1>\r\n";
+        chunk += " </body>\r\n";
+        chunk += "</html>\r\n";
+
+        httpd_resp_sendstr(req, chunk.c_str());
+
+        return ESP_OK;
+    }
+
+    send_header_footer(req, 0); // header
+
+    //chunk += "  <h1></h1>\r\n";
+    chunk +=
+    "        <div class=\"fileflex\">\n"
+    "            <div class=\"filechild\">\n"
+    "               <header>SELECT DRIVE SLOT<span id=\"logowob\"></span>" + string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + "</header>\n"
+    "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+    "               <div class=\"fileline\">\n"
+    "                      <ul>\n";
+
+    httpd_resp_sendstr_chunk(req, chunk.c_str());
+    chunk.clear();
+
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        stringstream ss;
+        stringstream ss2;
+        ss << i;
+        ss2 << i + 1;
+
+        chunk += "<li>&#128190; <a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=1&filename=" + qp.query_parsed["filename"] + "\">READ</a> or ";
+        chunk += "<a href=\"/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=" + ss.str() + "&mode=2&filename=" + qp.query_parsed["filename"] + "\">R/W</a> ";
+
+        chunk += "<strong>" + ss2.str() + "</strong>: ";
+
+        if (theFuji.get_disks(i)->host_slot == 0xFF)
+        {
+            chunk += " :: (Empty)";
+        }
+        else
+        {
+            chunk += string(theFuji.get_hosts(theFuji.get_disks(i)->host_slot)->get_hostname());
+            chunk += " :: ";
+            chunk += string(theFuji.get_disks(i)->filename);
+            chunk += " (";
+            if (theFuji.get_disks(i)->access_mode == 2)
+            {
+                chunk += "W";
+            }
+            else
+            {
+                chunk += "R";
+            }
+            chunk += ") ";
+        }
+
+        chunk += "</li>";
+        httpd_resp_sendstr_chunk(req, chunk.c_str());
+        chunk.clear();
+    }
+
+    chunk +=
+        "                      </ul>\r\n"
+        "               </div>\n"
+        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+        "           </div>\n"
+        "        </div>\n";
+
+    send_header_footer(req, 1); // footer
+    httpd_resp_send_chunk(req, NULL, 0); // end response.
 
     return ESP_OK;
 }
@@ -474,9 +1030,13 @@ void fnHttpService::custom_global_ctx_free(void *ctx)
 httpd_handle_t fnHttpService::start_server(serverstate &state)
 {
     std::vector<httpd_uri_t> uris{
-        {.uri = "/test",
+        {.uri = "/hsdir",
          .method = HTTP_GET,
-         .handler = get_handler_test,
+         .handler = get_handler_dir,
+         .user_ctx = NULL},
+        {.uri = "/dslot",
+         .method = HTTP_GET,
+         .handler = get_handler_slot,
          .user_ctx = NULL},
         {.uri = "/",
          .method = HTTP_GET,
@@ -498,6 +1058,14 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .method = HTTP_GET,
          .handler = get_handler_file_in_path,
          .user_ctx = NULL},
+        {.uri = "/mount",
+         .method = HTTP_GET,
+         .handler = get_handler_mount,
+         .user_ctx = NULL},
+        {.uri = "/unmount",
+         .method = HTTP_GET,
+         .handler = get_handler_eject,
+         .user_ctx = NULL},
         {.uri = "/config",
          .method = HTTP_POST,
          .handler = post_handler_config,
@@ -515,6 +1083,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192;
     config.max_resp_headers = 12;
+    config.max_uri_handlers = 16;
     // Keep a reference to our object
     config.global_user_ctx = (void *)&state;
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed

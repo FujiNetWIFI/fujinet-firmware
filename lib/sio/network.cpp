@@ -15,6 +15,7 @@
 #include "../network-protocol/TNFS.h"
 #include "../network-protocol/FTP.h"
 #include "../network-protocol/HTTP.h"
+#include "../network-protocol/SSH.h"
 
 using namespace std;
 
@@ -373,7 +374,8 @@ void sioNetwork::sio_status_channel()
     serialized_status[2] = status.connected;
     serialized_status[3] = status.error;
 
-    Debug_printf("sio_status_channel() - BW: %u E: %u\n", status.rxBytesWaiting, status.error);
+    Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n",
+        status.rxBytesWaiting, status.connected ,status.error);
 
     // and send to computer
     sio_to_computer(serialized_status, sizeof(serialized_status), err);
@@ -724,6 +726,9 @@ void sioNetwork::sio_poll_interrupt()
 {
     if (protocol != nullptr)
     {
+        if (protocol->interruptEnable == false)
+            return;
+            
         protocol->fromInterrupt = true;
         protocol->status(&status);
         protocol->fromInterrupt = false;
@@ -780,6 +785,10 @@ bool sioNetwork::instantiate_protocol()
     else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
     {
         protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);        
+    }
+    else if (urlParser->scheme == "SSH")
+    {
+        protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
     }
     else
     {

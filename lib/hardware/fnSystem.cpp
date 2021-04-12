@@ -22,6 +22,44 @@
 #include "fnWiFi.h"
 #include "../sio/sio.h"
 
+static xQueueHandle card_detect_evt_queue = NULL;
+static uint32_t card_detect_status = 1; // 1 is no sd card
+
+static void IRAM_ATTR card_detect_isr_handler(void *arg)
+{
+    // Generic default interrupt handler
+    uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(card_detect_evt_queue, &gpio_num, NULL);
+    //Debug_printf("INTERRUPT ON GPIO: %d", arg);
+}
+
+static void card_detect_intr_task(void* arg)
+{
+    uint32_t io_num, level;
+
+    // Set card status before we enter the infinite loop
+    card_detect_status = gpio_get_level((gpio_num_t)PIN_CARD_DETECT);
+
+    for(;;) {
+        if(xQueueReceive(card_detect_evt_queue, &io_num, portMAX_DELAY)) {
+            level = gpio_get_level((gpio_num_t)io_num);
+            if (card_detect_status == level)
+            {
+                printf("SD Card detect ignored (debounce)\n");
+            }
+            else if (level == 1){
+                printf("SD Card Ejected, REBOOT!\n");
+                fnSystem.reboot();
+            }
+            else{
+                printf("SD Card Inserted\n");
+                fnSDFAT.start();
+            }
+            card_detect_status = level;
+        }
+    }
+}
+
 // Global object to manage System
 SystemManager fnSystem;
 
@@ -33,13 +71,13 @@ uint32_t SystemManager::get_cpu_frequency()
     return cfg.freq_mhz;
 }
 
-// Set pin mode. No option to enable interrupts, although this is possible
-void SystemManager::set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode)
+// Set pin mode
+void SystemManager::set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode, gpio_int_type_t intr_type)
 {
     gpio_config_t io_conf;
 
-    // disable interrupt
-    io_conf.intr_type = GPIO_INTR_DISABLE;
+    // Set interrupt (disabled unless specified)
+    io_conf.intr_type = intr_type;
 
     // set mode
     io_conf.mode = mode;
@@ -258,7 +296,15 @@ int SystemManager::get_sio_voltage()
 
     // Calculate ADC characteristics
     esp_adc_cal_characteristics_t adc_chars;
-    esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(ADC_UNIT_1, ADC_ATTEN_DB_11, ADC_WIDTH_BIT_12, 1100, &adc_chars);
+
+    if (val_type == ESP_ADC_CAL_VAL_EFUSE_VREF) {
+        Debug_println("SIO VREF: eFuse Vref");
+    } else if (val_type == ESP_ADC_CAL_VAL_EFUSE_TP) {
+        Debug_println("SIO VREF: Two Point");
+    } else {
+        Debug_println("SIO VREF: Default");
+    }
 
     int samples = 10;
     uint32_t avgV = 0;
@@ -273,10 +319,13 @@ int SystemManager::get_sio_voltage()
 
     avgV /= samples;
 
+    // SIOvoltage = Vadc*(R1+R2)/R2
     if (avgV < 501)
         return 0;
+    else if ( get_hardware_ver() >= 3 )
+        return (avgV * 3200 / 2000); // v1.6 and up (R1=1200, R2=2000)
     else
-        return (avgV * 5900 / 3900); // SIOvoltage = Vadc*(R1+R2)/R2 (R1=2000, R2=3900)
+        return (avgV * 5900 / 3900); // (R1=2000, R2=3900)
 }
 
 /*
@@ -486,6 +535,74 @@ int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
 
     fclose(f);
     return bytes_read;
+}
+
+// Return a string with the detected hardware version
+const char *SystemManager::get_hardware_ver_str()
+{
+    if (_hardware_version == 0)
+        check_hardware_ver(); // check it
+
+    switch (_hardware_version)
+    {
+    case 1 :
+        return "1.0";
+        break;
+    case 2:
+        return "1.1-1.5";
+        break;
+    case 3:
+        return "1.6 & up";
+        break;
+    case 0:
+    default:
+        return "Unknown";
+        break;
+    }
+}
+
+/*  Find the FujiNet hardware version by checking the
+    Pull-Up resistors.
+    Check for pullup on IO12 (v1.6 and up), Check for
+    pullup on IO14 (v1.1 and up), else v1.0
+*/
+void SystemManager::check_hardware_ver()
+{
+    int upcheck, downcheck;
+
+    fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    downcheck = fnSystem.digital_read(12);
+
+    fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    upcheck = fnSystem.digital_read(12);
+
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+
+    if (upcheck == downcheck)
+    {
+        // v1.6 and up
+        _hardware_version = 3;
+        // Create a queue to handle card detect event from ISR
+        card_detect_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+        // Start card detect task
+        xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, NULL, 10, NULL);
+        // Enable interrupt for card detection
+        fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
+        // Add the card detect handler
+        gpio_isr_handler_add((gpio_num_t)PIN_CARD_DETECT, card_detect_isr_handler, (void *)PIN_CARD_DETECT);
+    }
+    else if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
+    {
+        // v1.1 thru v1.5
+        _hardware_version = 2;
+    }
+    else
+    {
+        // v1.0
+        _hardware_version = 1;
+    }
+
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 }
 
 // Dumps list of current tasks

@@ -1235,7 +1235,8 @@ void sioModem::modemCommand()
             "ATCPM",
             "ATPBLIST",
             "ATPBCLEAR",
-            "ATPB"};
+            "ATPB",
+            "ATO"};
 
     //cmd.trim();
     util_string_trim(cmd);
@@ -1478,6 +1479,32 @@ void sioModem::modemCommand()
         else
             at_cmd_println("OK");
         break;
+    case AT_O:
+        if (tcpClient.connected())
+        {
+            if (numericResultCode == true)
+            {
+                at_cmd_resultCode(modemBaud);
+            }
+            else
+            {
+                at_cmd_println("CONNECT ", false);
+                at_cmd_println(modemBaud);
+            }
+            cmdMode = false;
+        }
+        else
+        {
+            if (numericResultCode == true)
+            {
+                at_cmd_resultCode(RESULT_CODE_OK);
+            }
+            else
+            {
+                at_cmd_println("OK");
+            }
+        }
+        break;
     default:
         if (numericResultCode == true)
             at_cmd_resultCode(RESULT_CODE_ERROR);
@@ -1699,14 +1726,17 @@ void sioModem::sio_handle_modem()
     }
 
     // If we have received "+++" as last bytes from serial port and there
-    // has been over a second without any more bytes, disconnect
+    // has been over a second without any more bytes, go back to command mode.
     if (plusCount >= 3)
     {
         if (fnSystem.millis() - plusTime > 1000)
         {
-            Debug_println("Hanging up...");
+            Debug_println("Going back to command mode");
 
-            tcpClient.stop();
+            at_cmd_println("OK");
+    
+            cmdMode = true;
+
             plusCount = 0;
         }
     }

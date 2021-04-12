@@ -2,15 +2,7 @@
 #include "led.h"
 #include "fnSystem.h"
 
-#define PIN_LED_WIFI 2
-#define PIN_LED_SIO 4
-// pins 12-15 are used to interface with the JTAG debugger
-// so leave them alone if we're using JTAG
-#ifndef JTAG 
-#define PIN_LED_BT 13
-#else
-#define PIN_LED_BT 4
-#endif
+#include "../../include/pinmap.h"
 
 #define BLINKING_TIME 100 // 200 ms
 
