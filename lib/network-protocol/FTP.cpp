@@ -12,6 +12,7 @@
 NetworkProtocolFTP::NetworkProtocolFTP(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {
+    Debug_printf("NetworkProtocolFTP::ctor\n");
     rename_implemented = true;
     delete_implemented = true;
     mkdir_implemented = true;
@@ -21,6 +22,7 @@ NetworkProtocolFTP::NetworkProtocolFTP(string *rx_buf, string *tx_buf, string *s
 
 NetworkProtocolFTP::~NetworkProtocolFTP()
 {
+    Debug_printf("NetworkProtocolFTP::dtor\n");
     delete ftp;
 }
 
@@ -52,15 +54,19 @@ bool NetworkProtocolFTP::open_dir_handle()
 {
     bool res;
 
-    res = ftp->open_directory(opened_url->path, filename);
+    res = ftp->open_directory(dir, filename);
     fserror_to_error();
     return res;
 }
 
 bool NetworkProtocolFTP::mount(EdUrlParser *url)
 {
+    bool res;
+
     // Path isn't used
-    return ftp->login("anonymous", "fujinet@fujinet.online", url->hostName);
+    res = ftp->login("anonymous", "fujinet@fujinet.online", url->hostName);
+    fserror_to_error();
+    return res;
 }
 
 bool NetworkProtocolFTP::umount()
@@ -70,7 +76,7 @@ bool NetworkProtocolFTP::umount()
 
 void NetworkProtocolFTP::fserror_to_error()
 {
-    switch (ftp->response())
+    switch (ftp->status())
     {
     case 110:
     case 120:
@@ -86,7 +92,6 @@ void NetworkProtocolFTP::fserror_to_error()
     case 220:
     case 221:
     case 225:
-    case 226:
     case 227:
     case 228:
     case 229:
@@ -101,6 +106,9 @@ void NetworkProtocolFTP::fserror_to_error()
     case 332:
     case 350:
         error = NETWORK_ERROR_SUCCESS;
+        break;
+    case 226:
+        error = NETWORK_ERROR_END_OF_FILE;
         break;
     case 421:
         error = NETWORK_ERROR_SERVICE_NOT_AVAILABLE;
@@ -146,7 +154,7 @@ bool NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
     bool res;
 
-    res = ftp->read_file(buf,len);
+    res = ftp->read_file(buf, len);
     fserror_to_error();
     return res;
 }
@@ -156,35 +164,54 @@ bool NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
     bool res;
     string filename;
     long filesz;
+    bool is_dir;
 
-    res = ftp->read_directory(filename, filesz);
-    strcpy(buf,filename.c_str());
+    res = ftp->read_directory(filename, filesz, is_dir);
+    if (res == false)
+    {
+        strncpy(buf, filename.c_str(), len);
+        fileSize = filesz;
+        mode = 0775; // TODO
+        is_directory = is_dir;
+    }
     fserror_to_error();
     return res;
 }
 
 bool NetworkProtocolFTP::close_file_handle()
 {
-    ftp->close();
-    return false;
+    bool res;
+
+    res = ftp->close();
+    fserror_to_error();
+    return res;
 }
 
 bool NetworkProtocolFTP::close_dir_handle()
 {
-    ftp->close();
-    return false;
+    bool res;
+
+    res = ftp->close();
+    fserror_to_error();
+    return res;
 }
 
 bool NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short len)
 {
-    return false;
+    bool res;
+    
+    res = ftp->write_file(buf, len);
+    return res;
 }
 
 bool NetworkProtocolFTP::status_file(NetworkStatus *status)
 {
     status->rxBytesWaiting = ftp->data_available() > 65535 ? 65535 : ftp->data_available();
     status->connected = ftp->data_connected();
-    status->error = ftp->data_connected() > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+    fserror_to_error();
+    status->error = error;
+
+    NetworkProtocol::status(status);
     return false;
 }
 

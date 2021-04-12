@@ -11,6 +11,8 @@
 
 using namespace std;
 
+#define FTP_TIMEOUT 5000 // This is how long we wait for a reply packet from the server
+
 class fnFTP
 {
 public:
@@ -63,7 +65,7 @@ public:
      * @param filesize pointer to output filesize
      * @return TRUE if error, FALSE if successful
      */
-    bool read_directory(string& name, long& filesize);
+    bool read_directory(string& name, long& filesize, bool &is_dir);
 
     /**
      * Read file from data socket into buffer.
@@ -84,13 +86,13 @@ public:
     /**
      * @brief close data and/or control sockets.
      */
-    void close();
+    bool close();
 
     /**
-     * @brief parse out response code from controlResponse
+     * @brief parsed out response code from controlResponse
      * @return int containing parsed out response code.
      */
-    int response();
+    int status();
 
     /**
      * @brief return # of bytes waiting in data socket
@@ -110,6 +112,15 @@ private:
      * The hostname
      */
     string hostname;
+
+    /* do STOR - file opened for write */
+    bool _stor;
+    
+    /* if to check control channel too while dealing with data channel */
+    bool _expect_control_response;
+
+    /* FTP status code, taken from FTP server response */
+    int _statusCode;
 
     /**
      * The port number. (21 by default)
@@ -156,6 +167,12 @@ private:
      * @return true on error, false on success.
      */
     bool parse_response();
+
+    /**
+     * read single line of control response
+     * @return bytes read
+     */
+    int read_response_line(char *buf, int buflen);
 
     /**
      * Ask server to prepare a data port for us in extended passive mode.

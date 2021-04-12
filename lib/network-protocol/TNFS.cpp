@@ -15,10 +15,12 @@ NetworkProtocolTNFS::NetworkProtocolTNFS(string *rx_buf, string *tx_buf, string 
     delete_implemented = true;
     mkdir_implemented = true;
     rmdir_implemented = true;
+    Debug_printf("NetworkProtocolTNFS::ctor\n");
 }
 
 NetworkProtocolTNFS::~NetworkProtocolTNFS()
 {
+    Debug_printf("NetworkProtocolTNFS::dtor\n");
 }
 
 bool NetworkProtocolTNFS::open_file_handle()
@@ -48,6 +50,8 @@ bool NetworkProtocolTNFS::open_file_handle()
     tnfs_error = tnfs_open(&mountInfo, opened_url->path.c_str(), mode, perms, &fd);
     fserror_to_error();
 
+    Debug_printf("NetworkProtocolTNFS::open_file_handle(mode: %d perms %d) - %d\n", mode, perms, tnfs_error);
+
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
@@ -55,17 +59,21 @@ bool NetworkProtocolTNFS::open_dir_handle()
 {
     tnfs_error = tnfs_opendirx(&mountInfo, dir.c_str(), 0, 0, filename.c_str(), 0);
     fserror_to_error();
+
+    Debug_printf("NetworkProtocolTNFS::open_dir_handle(%s, %s) - %d\n", dir.c_str(), filename.c_str(), tnfs_error);
+
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
 bool NetworkProtocolTNFS::mount(EdUrlParser *url)
 {
-    Debug_printf("NetworkProtocolTNFS::mount(%s,%s)\n", url->hostName.c_str(), url->path.c_str());
     strcpy(mountInfo.hostname, url->hostName.c_str());
     strcpy(mountInfo.mountpath, "/");
 
     tnfs_error = tnfs_mount(&mountInfo);
     fserror_to_error();
+
+    Debug_printf("NetworkProtocolTNFS::mount(%s,%s) - %d\n", url->hostName.c_str(), url->path.c_str(), tnfs_error);
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
@@ -136,8 +144,10 @@ bool NetworkProtocolTNFS::read_file_handle(uint8_t *buf, unsigned short len)
         }
     }
 
+    Debug_printf("NetworkProtocolTNFS::read_file_handle(B: %d, A: %d, T: %d)\n", block_len, actual_len, total_len);
+
     fserror_to_error();
-    return false; // no error
+    return tnfs_error != TNFS_RESULT_SUCCESS; // no error
 }
 
 bool NetworkProtocolTNFS::read_dir_entry(char *buf, unsigned short len)
@@ -148,15 +158,16 @@ bool NetworkProtocolTNFS::read_dir_entry(char *buf, unsigned short len)
     is_directory = fileStat.isDir;
     is_locked = (fileStat.mode & 0200);
     fserror_to_error();
+    Debug_printf("NetworkProtocolTNFS::read_dir_entry(N: %s, F: %d, M: %d, D: %d, L: %d) - %d\n", buf, fileSize, mode, is_directory, is_locked, tnfs_error);
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
 bool NetworkProtocolTNFS::close_file_handle()
 {
-    Debug_printf("NetworkProtocolTNFS::close_file_handle(%u)\n", fd);
     if (fd != 0)
         tnfs_error = tnfs_close(&mountInfo, fd);
     fserror_to_error();
+    Debug_printf("NetworkProtocolTNFS::close_file_handle(%u) - %d\n", fd, tnfs_error);
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
@@ -164,6 +175,7 @@ bool NetworkProtocolTNFS::close_dir_handle()
 {
     tnfs_error = tnfs_closedir(&mountInfo);
     fserror_to_error();
+    Debug_printf("NetworkProtocolTNFS::close_dir_handle() - %d\n", tnfs_error);
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
@@ -180,17 +192,20 @@ bool NetworkProtocolTNFS::write_file_handle(uint8_t *buf, unsigned short len)
         else
             block_len = total_len;
 
-        if (tnfs_write(&mountInfo, fd, buf, block_len, &actual_len) != 0)
+        if ((tnfs_error = tnfs_write(&mountInfo, fd, buf, block_len, &actual_len)) != 0)
         {
-            return true; // error.
+            fserror_to_error();
         }
         else
         {
             buf += block_len;
             total_len -= block_len;
         }
+
+        Debug_printf("NetworkProtocolTNFS::write_file_handle(B: %d, A: %d, T: %d)\n", block_len, actual_len, total_len);
     }
-    return false; // no error
+
+    return tnfs_error != TNFS_RESULT_SUCCESS; // no error
 }
 
 uint8_t NetworkProtocolTNFS::special_inquiry(uint8_t cmd)
@@ -208,6 +223,8 @@ uint8_t NetworkProtocolTNFS::special_inquiry(uint8_t cmd)
     default:
         return NetworkProtocolFS::special_inquiry(cmd);
     }
+
+    Debug_printf("NetworkProtocolTNFS:::special_inquiry(%u) - 0x%02x\n",ret);
 
     return ret;
 }
@@ -298,12 +315,15 @@ bool NetworkProtocolTNFS::stat()
     fileSize = fileStat.filesize;
     mode = fileStat.mode;
     is_locked = (mode & 0200);
+
+    Debug_printf("NetworkProtocolTNFS::stat(F: %d, M: %d, D: %d, L: %d) - %d\n", fileSize, mode, is_directory, is_locked, tnfs_error);
+
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
 bool NetworkProtocolTNFS::lock(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    Debug_printf("lock: %s\n",url->path.c_str());
+    Debug_printf("lock: %s\n", url->path.c_str());
     tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0444);
 
     if (tnfs_error != TNFS_RESULT_SUCCESS)

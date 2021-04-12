@@ -136,6 +136,7 @@ private:
         AT_PHONEBOOKLIST,
         AT_PHONEBOOKCLR,
         AT_PHONEBOOK,
+        AT_O,
         AT_ENUMCOUNT};
 
     uint modemBaud = 300; // Holds modem baud rate, Default 300

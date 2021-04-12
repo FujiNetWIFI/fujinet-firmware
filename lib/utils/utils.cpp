@@ -137,11 +137,17 @@ std::string util_crunch(std::string filename)
     std::string ext;
     size_t base_pos = 8;
     size_t ext_pos;
+    std::string chars="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.";
     unsigned char cksum;
     char cksum_txt[3];
 
     // Remove spaces
     filename.erase(remove(filename.begin(), filename.end(), ' '), filename.end());
+
+    // remove unwanted characters
+    filename.erase(remove_if(filename.begin(),filename.end(),[&chars](const char& c) {
+        return chars.find(c) == string::npos;
+    }),filename.end());
 
     ext_pos = filename.find_last_of(".");
 
