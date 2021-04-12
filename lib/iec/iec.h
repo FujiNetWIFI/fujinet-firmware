@@ -61,17 +61,14 @@
 #define INVERTED_LINES	false
 
 // ESP32 GPIO to C64 IEC Serial Port
-#define IEC_PIN_ATN     22      // PROC
-#define IEC_PIN_SRQ     26      // INT
+#define IEC_PIN_ATN			22      // PROC
+#define IEC_PIN_CLK			27      // CKI
+#define IEC_PIN_DATA		21      // DI
+#define IEC_PIN_SRQ			26      // INT
 
-#ifndef SPLIT_LINES
-#define IEC_PIN_CLK     27      // CKI
-#define IEC_PIN_DATA    32      // CKO
-#else
-#define IEC_PIN_CLK_IN  27      // CKI
-#define IEC_PIN_CLK     32      // CKO
-#define IEC_PIN_DATA_IN 21      // DI
-#define IEC_PIN_DATA    33      // DO
+#ifdef SPLIT_LINES
+#define IEC_PIN_CLK_OUT		32      // CKO
+#define IEC_PIN_DATA_OUT	33      // DO
 #endif
 
 //#define IEC_PIN_RESET   D8      // IO15
@@ -216,16 +213,11 @@ private:
 
 	inline IECline status(int pin)
 	{
-		#ifdef SPLIT_LINES
-			if (pin == IEC_PIN_CLK)
-				pin = IEC_PIN_CLK_IN;
-			else if (pin == IEC_PIN_DATA)
-				pin = IEC_PIN_DATA_IN;
-		#else
+		#ifndef SPLIT_LINES
 			// To be able to read line we must be set to input, not driving.
 			set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
 		#endif
-		
+
 		return fnSystem.digital_read(pin) ? released : pulled;
 	}
 

@@ -57,8 +57,8 @@ bool iecBus::init()
 	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
 
 #ifdef SPLIT_LINES
-	set_pin_mode(IEC_PIN_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT);
-	set_pin_mode(IEC_PIN_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT);
+	set_pin_mode(IEC_PIN_CLK_OUT, gpio_mode_t::GPIO_MODE_OUTPUT);
+	set_pin_mode(IEC_PIN_DATA_OUT, gpio_mode_t::GPIO_MODE_OUTPUT);
 #endif
 
 	m_state = noFlags;
@@ -440,11 +440,11 @@ bool iecBus::undoTurnAround(void)
 	// wait until the computer pulls the clock line
 	if (timeoutWait(IEC_PIN_CLK, pulled))
 	{
-		Debug_print("\r\nundoTurnAround: timeout");
+		Debug_printf("\r\nundoTurnAround: timeout");
 		return false;
 	}
 
-	Debug_print("\r\nundoTurnAround: complete");
+	Debug_printf("\r\nundoTurnAround: complete");
 	return true;
 } // undoTurnAround
 
@@ -762,8 +762,6 @@ bool iecBus::sendEOI(int data)
 	Debug_printf("\r\nEOI Sent!");
 	if (sendByte(data, true))
 	{
-		//Debug_print("true");
-
 		// As we have just send last byte, turn bus back around
 		if (undoTurnAround())
 		{
@@ -771,7 +769,6 @@ bool iecBus::sendEOI(int data)
 		}
 	}
 
-	//Debug_print("false");
 	return false;
 } // sendEOI
 
