@@ -200,24 +200,9 @@ void iecDevice::sendDeviceStatus()
 
 void iecDevice::service(void)
 {
-	//#ifdef HAS_RESET_LINE
-	//	if(m_iec.checkRESET()) {
-	//		// IEC reset line is in reset state, so we should set all states in reset.
-	//		reset();
-	//
-	//
-	//		return iecBus::ATN_RESET;
-	//	}
-	//#endif
-	// Wait for it to get out of reset.
-	// while (m_iec.checkRESET())
-	// {
-	// 	Debug_println("ATN_RESET");
-	// }
-
 	iecBus::ATNCheck ATN = m_iec.checkATN(m_atn_cmd);
 
-	if (ATN == iecBus::ATN_ERROR)
+	if (ATN == iecBus::ATN_ERROR || ATN == iecBus::ATN_RESET)
 	{
 		//Debug_printf("\r\n[ERROR]");
 		reset();

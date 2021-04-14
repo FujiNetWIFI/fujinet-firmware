@@ -46,15 +46,12 @@ bool iecBus::init()
 	pull(IEC_PIN_DATA);
 	pull(IEC_PIN_SRQ);
 
-//#ifdef RESET_C64
-//	release(IEC_PIN_RESET);	// only early C64's could be reset by a slave going high.
-//#endif
-
 	// initial pin modes in GPIO
 	set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_INPUT);
 	set_pin_mode(IEC_PIN_CLK, gpio_mode_t::GPIO_MODE_INPUT);
 	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);	
 	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
+	set_pin_mode(IEC_PIN_RESET, gpio_mode_t::GPIO_MODE_INPUT);
 
 #ifdef SPLIT_LINES
 	set_pin_mode(IEC_PIN_CLK_OUT, gpio_mode_t::GPIO_MODE_OUTPUT);
@@ -520,6 +517,14 @@ iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 	fnSystem.delay_microseconds(1);
 #endif
 
+	if(status(IEC_PIN_RESET) == pulled) 
+	{
+		// Checks if CBM is sending a reset (setting the RESET line high). This is typically
+		// when the CBM is reset itself. In this case, we are supposed to reset all states to initial.
+		Debug_printf("\r\ncheckATN: RESET! ");
+		return ATN_RESET;
+	}
+
 	if (status(IEC_PIN_ATN) == pulled)
 	{
 		// Attention line is pulled, go to listener mode and get message.
@@ -727,11 +732,6 @@ iecBus::ATNCheck iecBus::receiveCommand(ATNCmd &atn_cmd)
 
 	return ATN_IDLE;
 }
-
-// bool iecBus::checkRESET()
-// {
-// 	return readRESET();
-// } // checkRESET
 
 
 // IEC_receive receives a byte
