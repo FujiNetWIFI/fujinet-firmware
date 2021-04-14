@@ -51,27 +51,10 @@
 
 #include "fnSystem.h"
 
+#include "../../include/pinmap.h"
+
 #include "cbmdefines.h"
 #include "Petscii.h"
-
-// CLK & DATA lines in/out are split between two pins
-//#define SPLIT_LINES
-
-// CLK_OUT & DATA_OUT are inverted
-#define INVERTED_LINES	false
-
-// ESP32 GPIO to C64 IEC Serial Port
-#define IEC_PIN_ATN			22      // PROC
-#define IEC_PIN_CLK			27      // CKI
-#define IEC_PIN_DATA		21      // DI
-#define IEC_PIN_SRQ			26      // INT
-
-#ifdef SPLIT_LINES
-#define IEC_PIN_CLK_OUT		32      // CKO
-#define IEC_PIN_DATA_OUT	33      // DO
-#endif
-
-//#define IEC_PIN_RESET   D8      // IO15
 
 // IEC protocol timing consts:
 #define TIMING_BIT          75  // bit clock hi/lo time     (us)

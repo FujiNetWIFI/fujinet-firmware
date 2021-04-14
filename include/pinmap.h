@@ -44,4 +44,25 @@
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h
 
+
+
+/* Commodore IEC Pins */
+// CLK & DATA lines in/out are split between two pins
+//#define SPLIT_LINES
+
+// CLK_OUT & DATA_OUT are inverted
+#define INVERTED_LINES	false
+
+// CBM IEC Serial Port
+#define IEC_PIN_ATN			22      // PROC
+#define IEC_PIN_CLK			27      // CKI
+#define IEC_PIN_DATA		21      // DI
+#define IEC_PIN_SRQ			26      // INT
+#define IEC_PIN_RESET       39      // CMD
+
+#ifdef SPLIT_LINES
+#define IEC_PIN_CLK_OUT		32      // CKO
+#define IEC_PIN_DATA_OUT	33      // DO
+#endif
+
 #endif
