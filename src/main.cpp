@@ -7,17 +7,13 @@
 #include "fnConfig.h"
 #include "keys.h"
 #include "led.h"
+#ifdef BUILD_ATARI
 #include "sio.h"
+#else
 #include "iec_device.h" // c64
+#endif
 #include "fuji.h"
-#include "modem.h"
-#include "apetime.h"
-#include "voice.h"
 #include "httpService.h"
-#include "printerlist.h"
-#include "midimaze.h"
-#include "siocpm.h"
-#include "samlib.h"
 
 #include <esp_system.h>
 #include <nvs_flash.h>
@@ -35,13 +31,6 @@
 // fnKeyManager is declared and defined in keys.h/cpp
 // fnHTTPD is declared and defineid in HttpService.h/cpp
 
-// sioFuji theFuji; // moved to fuji.h/.cpp
-sioApeTime apeTime;
-sioVoice sioV;
-sioMIDIMaze sioMIDI;
-// sioCassette sioC; // now part of sioFuji theFuji object
-sioModem *sioR;
-sioCPM sioZ;
 
 #define DEVICE_MASK 0b00000000000000000000111100000000 //  Devices 8-11
 iecDevice drive;
@@ -53,44 +42,9 @@ void main_shutdown_handler()
     // SIO.shutdown();
 }
 
-void sio_setup()
-{
-    theFuji.setup(&SIO);
-    SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
-
-    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
-
-    SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
-
-    // Create a new printer object, setting its output depending on whether we have SD or not
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-    sioPrinter::printer_type ptype = Config.get_printer_type(0);
-    if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
-        ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
-
-    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
-
-    sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
-    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
-
-    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
-
-    sioR = new sioModem(ptrfs, false); // turned off by default.
-    
-    SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
-
-    SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
-
-    SIO.addDevice(&sioZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
-
-    // Go setup SIO
-    SIO.setup();
-}
 
 void iec_setup()
 {
-    theFuji.setup(&IEC);
-
     // Go setup IEC
     IEC.enabledDevices = DEVICE_MASK;
     IEC.init();
@@ -148,6 +102,11 @@ void main_setup()
     // Load our stored configuration
     Config.load();
 
+    Config.store_wifi_ssid("EEP_OPP_ORK_AH_AH", 17);
+    Config.store_wifi_passphrase("angelmax", 8);
+    Config.store_host(0, "192.168.1.220", fnConfig::host_types::HOSTTYPE_TNFS);
+    Config.save();
+
 #ifdef BLUETOOTH_SUPPORT
     if ( Config.get_bt_status() )
     {
@@ -165,10 +124,10 @@ void main_setup()
     }
 
     // Setup SIO Bus
-    //sio_setup();
+    //theFuji.setup(&SIO);
 
     // Setup IEC Bus
-    iec_setup();
+    iec_setup(); //theFuji.setup(&IEC);
 
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
