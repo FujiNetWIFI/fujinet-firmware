@@ -1,12 +1,20 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef SIO_FUJI_H
+#define SIO_FUJI_H
 #include <cstdint>
 
 #include "../../include/debug.h"
 #include "sio.h"
-#include "iec.h"
+
 #include "network.h"
 #include "cassette.h"
+
+#include "modem.h"
+#include "apetime.h"
+#include "voice.h"
+#include "printerlist.h"
+#include "midimaze.h"
+#include "siocpm.h"
+#include "samlib.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -56,7 +64,6 @@ class sioFuji : public sioDevice
 {
 private:
     sioBus *_sio_bus;
-    iecBus *_iec_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -127,7 +134,6 @@ public:
     void insert_boot_device(uint8_t d);
 
     void setup(sioBus *siobus);
-    void setup(iecBus *iecbus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);

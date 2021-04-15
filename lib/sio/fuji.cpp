@@ -2,6 +2,7 @@
 #include <driver/ledc.h>
 
 #include "fuji.h"
+
 #include "led.h"
 #include "fnWiFi.h"
 #include "fnSystem.h"
@@ -53,6 +54,13 @@ sioFuji theFuji; // global fuji device object
 //sioDisk sioDiskDevs[MAX_HOSTS];
 sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
+sioApeTime apeTime;
+sioVoice sioV;
+sioMIDIMaze sioMIDI;
+// sioCassette sioC; // now part of sioFuji theFuji object
+sioModem *sioR;
+sioCPM sioZ;
+
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
 
@@ -90,51 +98,7 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
     return false;
 }
 
-/**
- * Say the numbers 1-8 using phonetic tweaks.
- * @param n The number to say.
- */
-void say_number(unsigned char n)
-{
-    switch (n)
-    {
-    case 1:
-        util_sam_say("WAH7NQ", true);
-        break;
-    case 2:
-        util_sam_say("TUW7", true);
-        break;
-    case 3:
-        util_sam_say("THRIYY7Q", true);
-        break;
-    case 4:
-        util_sam_say("FOH7R", true);
-        break;
-    case 5:
-        util_sam_say("F7AYVQ", true);
-        break;
-    case 6:
-        util_sam_say("SIH7IHKSQ", true);
-        break;
-    case 7:
-        util_sam_say("SEHV7EHNQ", true);
-        break;
-    case 8:
-        util_sam_say("AEY74Q", true);
-        break;
-    default:
-        Debug_printf("say_number() - Uncaught number %d", n);
-    }
-}
 
-/**
- * Say swap label
- */
-void say_swap_label()
-{
-    // DISK
-    util_sam_say("DIHSK7Q ", true);
-}
 
 // Constructor
 sioFuji::sioFuji()
@@ -817,8 +781,8 @@ void sioFuji::image_rotate()
             {
                 if (_fnDisks[i].disk_dev.id() == 0x31)
                 {
-                    say_swap_label();
-                    say_number(i + 1); // because i starts from 0
+                    util_sam_say_swap_label();
+                    util_sam_say_number(i + 1); // because i starts from 0
                 }
             }
         }
@@ -1512,38 +1476,36 @@ void sioFuji::setup(sioBus *siobus)
     _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
-}
 
-// Initializes base settings and adds our devices to the IEC bus
-void sioFuji::setup(iecBus *iecbus)
-{
-    // set up Fuji device
-    _iec_bus = iecbus;
+    SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
-    // const char *boot_image = "/fb64.d64";
+    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
-    // FILE *fBoot = fnSPIFFS.file_open(boot_image);
+    SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
 
-    // _populate_slots_from_config();
+    // Create a new printer object, setting its output depending on whether we have SD or not
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    sioPrinter::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
+        ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
 
-    // _bootDisk.mount(fBoot, boot_image, 0); // set up a special disk drive not on the bus
+    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
 
-    // _bootDisk.is_config_device = true;
-    // _bootDisk.device_active = false;
+    sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
-    // // Disable booting from CONFIG if our settings say to turn it off
-    // boot_config = Config.get_general_config_enabled();
+    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
-    // // Add our devices to the SIO bus
-    // for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    //     _sio_bus->addDevice(&_fnDisks[i].disk_dev, SIO_DEVICEID_DISK + i);
+    sioR = new sioModem(ptrfs, false); // turned off by default.
+    
+    SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
-    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    //     _sio_bus->addDevice(&sioNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
+    SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
 
-    // _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
-    // cassette()->set_buttons(Config.get_cassette_buttons());
-    // cassette()->set_pulldown(Config.get_cassette_pulldown());
+    SIO.addDevice(&sioZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
+
+    // Go setup SIO
+    SIO.setup();
 }
 
 sioDisk *sioFuji::bootdisk()
