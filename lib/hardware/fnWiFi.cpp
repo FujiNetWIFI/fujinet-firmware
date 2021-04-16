@@ -18,6 +18,8 @@
 #include "httpService.h"
 #include "led.h"
 
+#include "mdns.h"
+
 #include "fuji.h"
 
 // Global object to manage WiFi
@@ -97,7 +99,7 @@ int WiFiManager::start()
     ESP_ERROR_CHECK(esp_wifi_start());
 
     // Disable powersave for lower latency
-    ESP_ERROR_CHECK(esp_wifi_set_ps (WIFI_PS_NONE));
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
 
     // Set a hostname from our configuration
     esp_netif_set_hostname(_wifi_if, Config.get_general_devicename().c_str());
@@ -409,8 +411,8 @@ std::string WiFiManager::get_current_bssid_str()
 
 void WiFiManager::set_hostname(const char *hostname)
 {
-    Debug_printf("WiFiManager::set_hostname(%s)\n",hostname);
-    esp_netif_set_hostname(_wifi_if,hostname);
+    Debug_printf("WiFiManager::set_hostname(%s)\n", hostname);
+    esp_netif_set_hostname(_wifi_if, hostname);
 }
 
 void WiFiManager::handle_station_stop()
@@ -440,8 +442,11 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             fnLedManager.set(eLed::LED_WIFI, true);
             fnSystem.Net.start_sntp_client();
             fnHTTPD.start();
-            if (Config.get_general_config_enabled()==false)
+            if (Config.get_general_config_enabled() == false)
                 theFuji.sio_mount_all();
+            mdns_init();
+            mdns_hostname_set(Config.get_general_devicename().c_str());
+            mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
             break;
         case IP_EVENT_STA_LOST_IP:
             Debug_println("IP_EVENT_STA_LOST_IP");
@@ -467,6 +472,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             Debug_println("WIFI_EVENT_STA_START");
             break;
         case WIFI_EVENT_STA_STOP:
+            mdns_free();
             Debug_println("WIFI_EVENT_STA_STOP");
             break;
         case WIFI_EVENT_STA_CONNECTED:
