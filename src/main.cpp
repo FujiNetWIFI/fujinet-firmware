@@ -89,7 +89,7 @@ void main_setup()
     // Load our stored configuration
     Config.load();
 
-    if ( Config.get_bt_status() )
+    if (Config.get_bt_status())
     {
         // Start SIO2BT mode if we were in it last shutdown
         fnLedManager.set(eLed::LED_BT, true); // BT LED ON
@@ -121,12 +121,14 @@ void main_setup()
     sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
-    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+    if (Config.get_printer_enable() == true)
+        SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
-    sioR = new sioModem(ptrfs, false); // turned off by default.
-    
-    SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
-
+    if (Config.get_modem_enable() == true)
+    {
+        sioR = new sioModem(ptrfs, false);       // turned off by default.
+        SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
+    }
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
 
     SIO.addDevice(&sioZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
@@ -140,7 +142,6 @@ void main_setup()
 #endif
 }
 
-
 // Main high-priority service loop
 void fn_service_loop(void *param)
 {
@@ -149,11 +150,11 @@ void fn_service_loop(void *param)
         // We don't have any delays in this loop, so IDLE threads will be starved
         // Shouldn't be a problem, but something to keep in mind...
         // Go service BT if it's active
-    #ifdef BLUETOOTH_SUPPORT
+#ifdef BLUETOOTH_SUPPORT
         if (fnBtManager.isActive())
             fnBtManager.service();
         else
-    #endif
+#endif
             SIO.service();
     }
 }
@@ -168,14 +169,14 @@ extern "C"
         // Call our setup routine
         main_setup();
 
-        // Create a new high-priority task to handle the main loop
-        // This is assigned to CPU1; the WiFi task ends up on CPU0
-        #define MAIN_STACKSIZE 7168
-        #define MAIN_PRIORITY 10
-        #define MAIN_CPUAFFINITY 1
+// Create a new high-priority task to handle the main loop
+// This is assigned to CPU1; the WiFi task ends up on CPU0
+#define MAIN_STACKSIZE 7168
+#define MAIN_PRIORITY 10
+#define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
-            MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
-            
+                                MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
+
         // Sit here twiddling our thumbs
         while (true)
             vTaskDelay(9000 / portTICK_PERIOD_MS);

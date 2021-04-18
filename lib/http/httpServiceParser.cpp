@@ -57,6 +57,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PULLDOWN,
         FN_CONFIG_ENABLED,
         FN_BOOT_MODE,
+        FN_P_ENABLED,
+        FN_R_ENABLED,
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
         FN_DRIVE3HOST,
@@ -102,81 +104,82 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     };
 
     const char *tagids[FN_LASTTAG] =
-    {
-        "FN_HOSTNAME",
-        "FN_VERSION",
-        "FN_IPADDRESS",
-        "FN_IPMASK",
-        "FN_IPGATEWAY",
-        "FN_IPDNS",
-        "FN_WIFISSID",
-        "FN_WIFIBSSID",
-        "FN_WIFIMAC",
-        "FN_WIFIDETAIL",
-        "FN_SPIFFS_SIZE",
-        "FN_SPIFFS_USED",
-        "FN_SD_SIZE",
-        "FN_SD_USED",
-        "FN_UPTIME_STRING",
-        "FN_UPTIME",
-        "FN_CURRENTTIME",
-        "FN_TIMEZONE",
-        "FN_ROTATION_SOUNDS",
-        "FN_MIDIMAZE_HOST",
-        "FN_HEAPSIZE",
-        "FN_SYSSDK",
-        "FN_SYSCPUREV",
-        "FN_SIOVOLTS",
-        "FN_SIO_HSINDEX",
-        "FN_SIO_HSBAUD",
-        "FN_PRINTER1_MODEL",
-        "FN_PRINTER1_PORT",
-        "FN_PLAY_RECORD",
-        "FN_PULLDOWN",
-        "FN_CONFIG_ENABLED",
-        "FN_BOOT_MODE",
-        "FN_DRIVE1HOST",
-        "FN_DRIVE2HOST",
-        "FN_DRIVE3HOST",
-        "FN_DRIVE4HOST",
-        "FN_DRIVE5HOST",
-        "FN_DRIVE6HOST",
-        "FN_DRIVE7HOST",
-        "FN_DRIVE8HOST",
-        "FN_DRIVE1MOUNT",
-        "FN_DRIVE2MOUNT",
-        "FN_DRIVE3MOUNT",
-        "FN_DRIVE4MOUNT",
-        "FN_DRIVE5MOUNT",
-        "FN_DRIVE6MOUNT",
-        "FN_DRIVE7MOUNT",
-        "FN_DRIVE8MOUNT",
-        "FN_HOST1",
-        "FN_HOST2",
-        "FN_HOST3",
-        "FN_HOST4",
-        "FN_HOST5",
-        "FN_HOST6",
-        "FN_HOST7",
-        "FN_HOST8",
-        "FN_DRIVE1DEVICE",
-        "FN_DRIVE2DEVICE",
-        "FN_DRIVE3DEVICE",
-        "FN_DRIVE4DEVICE",
-        "FN_DRIVE5DEVICE",
-        "FN_DRIVE6DEVICE",
-        "FN_DRIVE7DEVICE",
-        "FN_DRIVE8DEVICE",
-        "FN_HOST1PREFIX",
-        "FN_HOST2PREFIX",
-        "FN_HOST3PREFIX",
-        "FN_HOST4PREFIX",
-        "FN_HOST5PREFIX",
-        "FN_HOST6PREFIX",
-        "FN_HOST7PREFIX",
-        "FN_HOST8PREFIX",
-        "FN_ERRMSG"
-    };
+        {
+            "FN_HOSTNAME",
+            "FN_VERSION",
+            "FN_IPADDRESS",
+            "FN_IPMASK",
+            "FN_IPGATEWAY",
+            "FN_IPDNS",
+            "FN_WIFISSID",
+            "FN_WIFIBSSID",
+            "FN_WIFIMAC",
+            "FN_WIFIDETAIL",
+            "FN_SPIFFS_SIZE",
+            "FN_SPIFFS_USED",
+            "FN_SD_SIZE",
+            "FN_SD_USED",
+            "FN_UPTIME_STRING",
+            "FN_UPTIME",
+            "FN_CURRENTTIME",
+            "FN_TIMEZONE",
+            "FN_ROTATION_SOUNDS",
+            "FN_MIDIMAZE_HOST",
+            "FN_HEAPSIZE",
+            "FN_SYSSDK",
+            "FN_SYSCPUREV",
+            "FN_SIOVOLTS",
+            "FN_SIO_HSINDEX",
+            "FN_SIO_HSBAUD",
+            "FN_PRINTER1_MODEL",
+            "FN_PRINTER1_PORT",
+            "FN_PLAY_RECORD",
+            "FN_PULLDOWN",
+            "FN_CONFIG_ENABLED",
+            "FN_BOOT_MODE",
+            "FN_P_ENABLED",
+            "FN_R_ENABLED",
+            "FN_DRIVE1HOST",
+            "FN_DRIVE2HOST",
+            "FN_DRIVE3HOST",
+            "FN_DRIVE4HOST",
+            "FN_DRIVE5HOST",
+            "FN_DRIVE6HOST",
+            "FN_DRIVE7HOST",
+            "FN_DRIVE8HOST",
+            "FN_DRIVE1MOUNT",
+            "FN_DRIVE2MOUNT",
+            "FN_DRIVE3MOUNT",
+            "FN_DRIVE4MOUNT",
+            "FN_DRIVE5MOUNT",
+            "FN_DRIVE6MOUNT",
+            "FN_DRIVE7MOUNT",
+            "FN_DRIVE8MOUNT",
+            "FN_HOST1",
+            "FN_HOST2",
+            "FN_HOST3",
+            "FN_HOST4",
+            "FN_HOST5",
+            "FN_HOST6",
+            "FN_HOST7",
+            "FN_HOST8",
+            "FN_DRIVE1DEVICE",
+            "FN_DRIVE2DEVICE",
+            "FN_DRIVE3DEVICE",
+            "FN_DRIVE4DEVICE",
+            "FN_DRIVE5DEVICE",
+            "FN_DRIVE6DEVICE",
+            "FN_DRIVE7DEVICE",
+            "FN_DRIVE8DEVICE",
+            "FN_HOST1PREFIX",
+            "FN_HOST2PREFIX",
+            "FN_HOST3PREFIX",
+            "FN_HOST4PREFIX",
+            "FN_HOST5PREFIX",
+            "FN_HOST6PREFIX",
+            "FN_HOST7PREFIX",
+            "FN_HOST8PREFIX",
+            "FN_ERRMSG"};
 
     stringstream resultstream;
 #ifdef DEBUG
@@ -300,6 +303,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_BOOT_MODE:
         resultstream << Config.get_general_boot_mode();
         break;
+    case FN_P_ENABLED:
+        resultstream << Config.get_printer_enable();
+        break;
+    case FN_R_ENABLED:
+        resultstream << Config.get_modem_enable();
+        break;
     case FN_DRIVE1HOST:
     case FN_DRIVE2HOST:
     case FN_DRIVE3HOST:
@@ -308,12 +317,15 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6HOST:
     case FN_DRIVE7HOST:
     case FN_DRIVE8HOST:
-	/* From what host is each disk is mounted on each Drive Slot? */
-	drive_slot = tagid - FN_DRIVE1HOST;
-	host_slot = Config.get_mount_host_slot(drive_slot);
-        if (host_slot != HOST_SLOT_INVALID) {
-	    resultstream << Config.get_host_name(host_slot);
-        } else {
+        /* From what host is each disk is mounted on each Drive Slot? */
+        drive_slot = tagid - FN_DRIVE1HOST;
+        host_slot = Config.get_mount_host_slot(drive_slot);
+        if (host_slot != HOST_SLOT_INVALID)
+        {
+            resultstream << Config.get_host_name(host_slot);
+        }
+        else
+        {
             resultstream << "";
         }
         break;
@@ -325,13 +337,16 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6MOUNT:
     case FN_DRIVE7MOUNT:
     case FN_DRIVE8MOUNT:
-	/* What disk is mounted on each Drive Slot (and is it read-only or read-write)? */
-	drive_slot = tagid - FN_DRIVE1MOUNT;
-	host_slot = Config.get_mount_host_slot(drive_slot);
-        if (host_slot != HOST_SLOT_INVALID) {
-	    resultstream << Config.get_mount_path(drive_slot);
-	    resultstream << " (" << (Config.get_mount_mode(drive_slot) == fnConfig::mount_modes::MOUNTMODE_READ ? "R" : "W") << ")";
-        } else {
+        /* What disk is mounted on each Drive Slot (and is it read-only or read-write)? */
+        drive_slot = tagid - FN_DRIVE1MOUNT;
+        host_slot = Config.get_mount_host_slot(drive_slot);
+        if (host_slot != HOST_SLOT_INVALID)
+        {
+            resultstream << Config.get_mount_path(drive_slot);
+            resultstream << " (" << (Config.get_mount_mode(drive_slot) == fnConfig::mount_modes::MOUNTMODE_READ ? "R" : "W") << ")";
+        }
+        else
+        {
             resultstream << "(Empty)";
         }
         break;
@@ -343,11 +358,14 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_HOST6:
     case FN_HOST7:
     case FN_HOST8:
-	/* What TNFS host is mounted on each Host Slot? */
-	host_slot = tagid - FN_HOST1;
-        if (Config.get_host_type(host_slot) != fnConfig::host_types::HOSTTYPE_INVALID) {
-	    resultstream << Config.get_host_name(host_slot);
-        } else {
+        /* What TNFS host is mounted on each Host Slot? */
+        host_slot = tagid - FN_HOST1;
+        if (Config.get_host_type(host_slot) != fnConfig::host_types::HOSTTYPE_INVALID)
+        {
+            resultstream << Config.get_host_name(host_slot);
+        }
+        else
+        {
             resultstream << "(Empty)";
         }
         break;
@@ -361,8 +379,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE8DEVICE:
         /* What Dx: drive (if any rotation has occurred) does each Drive Slot currently map to? */
         drive_slot = tagid - FN_DRIVE1DEVICE;
-        disk_id = (char) theFuji.get_disk_id(drive_slot);
-        if (disk_id != (char) (0x31 + drive_slot)) {
+        disk_id = (char)theFuji.get_disk_id(drive_slot);
+        if (disk_id != (char)(0x31 + drive_slot))
+        {
             resultstream << " (D" << disk_id << ":)";
         }
         break;
@@ -374,12 +393,15 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_HOST6PREFIX:
     case FN_HOST7PREFIX:
     case FN_HOST8PREFIX:
-	/* What directory prefix is set right now
+        /* What directory prefix is set right now
            for the TNFS host mounted on each Host Slot? */
-	host_slot = tagid - FN_HOST1PREFIX;
-        if (Config.get_host_type(host_slot) != fnConfig::host_types::HOSTTYPE_INVALID) {
-	    resultstream << theFuji.get_host_prefix(host_slot);
-        } else {
+        host_slot = tagid - FN_HOST1PREFIX;
+        if (Config.get_host_type(host_slot) != fnConfig::host_types::HOSTTYPE_INVALID)
+        {
+            resultstream << theFuji.get_host_prefix(host_slot);
+        }
+        else
+        {
             resultstream << "";
         }
         break;
