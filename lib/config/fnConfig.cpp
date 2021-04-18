@@ -492,6 +492,8 @@ void fnConfig::save()
     ss << "boot_mode=" << _general.boot_mode << LINETERM;
     if (_general.timezone.empty() == false)
         ss << "timezone=" << _general.timezone << LINETERM;
+    ss << "p_enable=" << _general.printer_enabled << LINETERM;
+    ss << "r_enable=" << _general.modem_enabled << LINETERM;
 
     ss << LINETERM;
 
