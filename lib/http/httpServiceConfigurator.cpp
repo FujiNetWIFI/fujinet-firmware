@@ -187,26 +187,6 @@ void fnHttpServiceConfigurator::config_boot_mode(std::string boot_mode)
     Config.save();
 }
 
-void fnHttpServiceConfigurator::config_printer_enable(std::string printer_enable)
-{
-    Debug_printf("New Printer Enable Value: %s\n",printer_enable.c_str());
-
-    // Store
-    Config.store_printer_enable(atoi(printer_enable.c_str()));
-    // Save
-    Config.save();
-}
-
-void fnHttpServiceConfigurator::config_modem_enable(std::string modem_enable)
-{
-    Debug_printf("New Printer Enable Value: %s\n",modem_enable.c_str());
-
-    // Store
-    Config.store_printer_enable(atoi(modem_enable.c_str()));
-    // Save*
-    Config.save();
-}
-
 void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::string resistor, bool rew)
 {
     // call the cassette buttons function passing play_record.c_str()
@@ -363,14 +343,6 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("boot_mode") == 0)
         {
             config_boot_mode(i->second);
-        }
-        else if (i->first.compare("p_enable") == 0)
-        {
-            config_printer_enable(i->second);
-        }
-        else if (i->first.compare("r_enable") == 0)
-        {
-            config_modem_enable(i->second);
         }
     }
 
