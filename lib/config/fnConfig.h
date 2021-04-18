@@ -106,14 +106,10 @@ public:
     int get_printer_port(uint8_t num);
     void store_printer_type(uint8_t num, sioPrinter::printer_type ptype);
     void store_printer_port(uint8_t num, int port);
-    void store_printer_enable(bool enable);
-    bool get_printer_enable() { return _general.printer_enabled; };
 
     // MODEM
     void store_modem_sniffer_enabled(bool enabled);
     bool get_modem_sniffer_enabled() { return _modem.sniffer_enabled; }
-    void store_modem_enable(bool enable);
-    bool get_modem_enable() { return _general.modem_enabled; }; 
 
     // CASSETTE
     bool get_cassette_buttons();
@@ -230,8 +226,6 @@ private:
         bool rotation_sounds = true;
         bool config_enabled = true;
         int boot_mode = 0;
-        bool printer_enabled = true;
-        bool modem_enabled = true;
     };
 
     struct modem_info
