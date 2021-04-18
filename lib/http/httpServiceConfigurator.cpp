@@ -199,10 +199,10 @@ void fnHttpServiceConfigurator::config_printer_enable(std::string printer_enable
 
 void fnHttpServiceConfigurator::config_modem_enable(std::string modem_enable)
 {
-    Debug_printf("New MODEM Enable Value: %s\n",modem_enable.c_str());
+    Debug_printf("New Printer Enable Value: %s\n",modem_enable.c_str());
 
     // Store
-    Config.store_modem_enable(atoi(modem_enable.c_str()));
+    Config.store_printer_enable(atoi(modem_enable.c_str()));
     // Save*
     Config.save();
 }
