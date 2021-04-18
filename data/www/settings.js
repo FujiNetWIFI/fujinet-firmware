@@ -27,3 +27,5 @@ selectListValue("select_config_enable", current_config_enabled);
 selectListValue("select_boot_mode", current_boot_mode);
 selectListValue("select_play_record", current_play_record);
 selectListValue("select_pulldown", current_pulldown);
+selectListValue("select_p_enable", current_p_enabled);
+selectListValue("select_r_enable", current_r_enabled);
