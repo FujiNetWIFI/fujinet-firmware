@@ -110,19 +110,22 @@ void main_setup()
 
     SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
 
-    // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-    sioPrinter::printer_type ptype = Config.get_printer_type(0);
-    if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
-        ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
-
-    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
-
-    sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
-    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
     if (Config.get_printer_enable() == true)
+    {
+        // Create a new printer object, setting its output depending on whether we have SD or not
+        sioPrinter::printer_type ptype = Config.get_printer_type(0);
+        if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
+            ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
+
+        Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+
+        sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
+        fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
         SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+    }
 
     if (Config.get_modem_enable() == true)
     {
