@@ -65,6 +65,24 @@ void fnConfig::store_general_config_enabled(bool config_enabled)
     _dirty = true;
 }
 
+void fnConfig::store_printer_enable(bool printer_enabled)
+{
+    if (_general.printer_enabled == printer_enabled)
+        return;
+
+    _general.printer_enabled = printer_enabled;
+    _dirty = true;
+}
+
+void fnConfig::store_modem_enable(bool modem_enabled)
+{
+    if (_general.modem_enabled == modem_enabled)
+        return;
+
+    _general.modem_enabled = modem_enabled;
+    _dirty = true;
+}
+
 void fnConfig::store_general_boot_mode(uint8_t boot_mode)
 {
     if (_general.boot_mode == boot_mode)
