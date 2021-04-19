@@ -193,21 +193,35 @@ private:
      */
     struct smb2_context *smb;
 
+    /**
+     * SMB2 URL
+     */
+    struct smb2_url *smb_url;
+
+    /**
+     * SMB2 directory handle
+     */
+    struct smb2dir *smb_dir;
+
+    /**
+     * SMB2 directory entry
+     */
+    struct smb2dirent *ent;
 
     /**
      * Last SMB error
      */
-    int SMB_error;
-
-    /**
-     * The create permissions of the open file
-     */
-    uint16_t perms;
+    int smb_error;
 
     /**
      * The resulting file handle of open file.
      */
-    int16_t fd;
+    struct smb2fh *fh;
+
+    /**
+     * Offset through file
+     */
+    uint64_t offset;
 
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
