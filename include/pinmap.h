@@ -24,7 +24,7 @@
 
 /* LEDs */
 #define PIN_LED_WIFI 2 // led.cpp
-#define PIN_LED_SIO 4
+#define PIN_LED_BUS 4
 // pins 12-15 are used to interface with the JTAG debugger
 // so leave them alone if we're using JTAG
 #ifndef JTAG 

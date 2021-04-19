@@ -18,19 +18,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef IECDEVICE_H
-#define IECDEVICE_H
-
-#include "device_db.h"
-#include "iec.h"
+#ifndef IEC_DEVICE_H
+#define IEC_DEVICE_H
 
 #include <string>
 #include "esp_vfs.h"
 
+#include "iecBus.h"
+#include "fuji.h"
+
 #include "cbmdefines.h"
-#include "Petscii.h"
-#include "../sio/fuji.h"
-#include "../FileSystem/fnFS.h"
+
+#define PRODUCT_ID "FUJINET/MEATLOAF"
+
+// The base pointer of basic.
+#define PET_BASIC_START 0x0401
 
 enum OpenState 
 {
@@ -40,74 +42,71 @@ enum OpenState
 	O_DIR,				// A listing is requested
 	O_FILE_ERR,			// Incorrect file format opened
 	O_SAVE_REPLACE,		// Save-with-replace is requested
-	O_DEVICE_INFO,
+	O_SYSTEM_INFO,
 	O_DEVICE_STATUS
 };
 
-#define PRODUCT_ID "FUJINET/MEATLOAF"
-
-// The base pointer of basic.
-#define C64_BASIC_START 0x0801
-
-#define IMAGE_TYPES "D64|D71|D80|D81|D82|D8B|G64|X64|Z64|TAP|T64|TCRT|CRT|D1M|D2M|D4M|DHD|HDD|DNP|DFI|M2I|NIB"
-#define FILE_TYPES "C64|PRG|P00|SEQ|S00|USR|U00|REL|R00"
+class iecBus;      // declare early so can be friend
 
 class iecDevice
 {
-public:
-	iecDevice();// iecBus &iec, FileSystem *fileSystem);
-	virtual ~iecDevice() {}
+protected:
+	friend iecBus;
 
-	bool begin(iecBus &iec, FileSystem *fileSystem);
-
-	// The handler services the IEC bus
-	void service(void);
-
-private:
-	void reset(void);
+    int _device_id;
 
 	void sendStatus(void);
-	void sendDeviceInfo(void);
+	void sendSystemInfo(void);
 	void sendDeviceStatus(void);
 
-	void sendListing(void);
-	// void sendListingHTTP(void);
 	uint16_t sendHeader(uint16_t &basicPtr);
 	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, char* text);
 	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...);
-	uint16_t sendFooter(uint16_t &basicPtr);
-	void sendFile(void);
-	// void sendFileHTTP(void);
-
-	void saveFile(void);
 
 	// handler helpers.
-	void handleATNCmdCodeOpen(iecBus::ATNCmd &cmd);
-	void handleATNCmdCodeDataListen(void);
-	void handleATNCmdCodeDataTalk(int chan);
-	void handleATNCmdClose(void);
-
-	void handleDeviceCommand(iecBus::ATNCmd &cmd);
-	void handleMeatLoafCommand(iecBus::ATNCmd &cmd);
+	void _open(void);
+	void _listen_data(void);
+	void _talk_data(int chan);
+	void _close(void);
 
 	// our iec low level driver:
-	iecBus& m_iec;
+	iecBus& _iec;
 
 	// This var is set after an open command and determines what to send next
-	int m_openState; // see OpenState
-	int m_queuedError;
+	int _openState; // see OpenState
+	int _queuedError;
 
-	// atn command buffer struct
-	iecBus::ATNCmd& m_atn_cmd;
+    /**
+     * @brief All SIO devices repeatedly call this routine to fan out to other methods for each command. 
+     * This is typcially implemented as a switch() statement.
+     */
+    virtual void iec_process(void);
 
-	FileSystem *m_fileSystem;
-	// StaticJsonDocument<256> m_jsonHTTP;
-	std::string m_lineBuffer;
-	//DynamicJsonDocument m_jsonHTTPBuffer;
+	// Reset device
+	virtual void reset();
 
-	DeviceDB m_device;
-	std::string m_filename;
-	std::string m_filetype;
+    // Optional shutdown/reboot cleanup routine
+    virtual void shutdown(){};
+
+public:
+    /**
+     * @brief get the SIO device Number (1-255)
+     * @return The device number registered for this device
+     */
+    int device_id() { return _device_id; };
+
+    /**
+     * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
+     */
+    bool is_config_device = false;
+
+    /**
+     * @brief is device active (turned on?)
+     */
+    bool device_active = true;
+
+	iecDevice();
+	virtual ~iecDevice() {}
 };
 
 #endif

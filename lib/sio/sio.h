@@ -117,7 +117,7 @@ class sioDevice
 protected:
     friend sioBus;
 
-    int _devnum;
+    int _device_id;
 
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
@@ -196,7 +196,7 @@ public:
      * @brief get the SIO device Number (1-255)
      * @return The device number registered for this device
      */
-    int id() { return _devnum; };
+    int device_id() { return _device_id; };
 
     /**
      * @brief Command 0x3F '?' intended to return a single byte to the atari via sio_to_computer(), which

@@ -49,12 +49,14 @@
 
 */
 
+#include <forward_list>
 #include "fnSystem.h"
 
 #include "../../include/pinmap.h"
 
-#include "cbmdefines.h"
-#include "Petscii.h"
+#include "iecDevice.h"
+
+#define	ATN_CMD_MAX_LENGTH 	40
 
 // IEC protocol timing consts:
 #define TIMING_BIT          75  // bit clock hi/lo time     (us)
@@ -69,112 +71,110 @@
 // See timeoutWait
 #define TIMEOUT 65500
 
+#define DEVICEID_PRINTER 			0x04 // 4
+#define DEVICEID_PRINTER_LAST 		0x07 // 7
+
+#define DEVICEID_DISK 				0x08 // 8
+#define DEVICEID_DISK_LAST 			0x13 // 19
+
+#define DEVICEID_RS232 				0x14 // 20
+#define DEVICEID_RS232 				0x18 // 24
+
+#define DEVICEID_FN_NETWORK 		0x19 // 25
+#define DEVICEID_FN_NETWORK_LAST 	0x1B // 29
+
+#define DEVICEID_FUJINET 			0x1E// 30
+
+enum IECline
+{
+	pulled = true,
+	released = false
+};
+
+enum IECState 
+{
+	noFlags   = 0,
+	eoiFlag   = (1 << 0),   // might be set by iec_receive
+	atnFlag   = (1 << 1),   // might be set by iec_receive
+	errorFlag = (1 << 2)    // If this flag is set, something went wrong and
+};
+
+// Return values for checkATN:
+enum ATNMode 
+{
+	ATN_IDLE = 0,           // Nothing recieved of our concern
+	ATN_CMD = 1,            // A command is recieved
+	ATN_LISTEN = 2,     // A command is recieved and data is coming to us
+	ATN_TALK = 3,       // A command is recieved and we must talk now
+	ATN_ERROR = 4,          // A problem occoured, reset communication
+	ATN_RESET = 5		    // The IEC bus is in a reset state (RESET line).
+};
+
+// IEC ATN commands:
+enum ATNCommand 
+{
+	ATN_COMMAND_GLOBAL = 0x00,     // 0x00 + cmd (global command)
+	ATN_COMMAND_LISTEN = 0x20,     // 0x20 + device_id (LISTEN)
+	ATN_COMMAND_UNLISTEN = 0x3F,   // 0x3F (UNLISTEN)
+	ATN_COMMAND_TALK = 0x40,	    // 0x40 + device_id (TALK)
+	ATN_COMMAND_UNTALK = 0x5F,     // 0x5F (UNTALK)
+	ATN_COMMAND_DATA = 0x60,	    // 0x60 + channel (SECOND)
+	ATN_COMMAND_CLOSE = 0xE0,  	// 0xE0 + channel (CLOSE)
+	ATN_COMMAND_OPEN = 0xF0		// 0xF0 + channel (OPEN)
+};
+
+struct ATNData
+{
+	ATNMode mode;
+	int code;
+	int command;
+	int channel;
+	int device_id;
+	char data[ATN_CMD_MAX_LENGTH];
+};
+
+// class def'ns
+class iecModem;    // declare here so can reference it, but define in modem.h
+class iecFuji;     // declare here so can reference it, but define in fuji.h
+class iecNetwork;  // declare here so can reference it, but define in network.h
+class iecMIDIMaze; // declare here so can reference it, but define in midimaze.h
+class iecCassette; // Cassette forward-declaration.
+class iecCPM;      // CPM device.
+class iecPrinter;  // Printer device
+
 class iecBus
 {
-public:
-	enum IECline
-	{
-		pulled = true,
-		released = false
-	};
-
-	enum IECState 
-	{
-		noFlags   = 0,
-		eoiFlag   = (1 << 0),   // might be set by iec_receive
-		atnFlag   = (1 << 1),   // might be set by iec_receive
-		errorFlag = (1 << 2)    // If this flag is set, something went wrong and
-	};
-
-	// Return values for checkATN:
-	enum ATNCheck 
-	{
-		ATN_IDLE = 0,           // Nothing recieved of our concern
-		ATN_CMD = 1,            // A command is recieved
-		ATN_CMD_LISTEN = 2,     // A command is recieved and data is coming to us
-		ATN_CMD_TALK = 3,       // A command is recieved and we must talk now
-		ATN_ERROR = 4,          // A problem occoured, reset communication
-		ATN_RESET = 5		    // The IEC bus is in a reset state (RESET line).
-	};
-
-	// IEC ATN commands:
-	enum ATNCommand 
-       {
-		ATN_CODE_GLOBAL = 0x00,     // 0x00 + cmd (global command)
-		ATN_CODE_LISTEN = 0x20,     // 0x20 + device_id (LISTEN)
-		ATN_CODE_UNLISTEN = 0x3F,   // 0x3F (UNLISTEN)
-		ATN_CODE_TALK = 0x40,	    // 0x40 + device_id (TALK)
-		ATN_CODE_UNTALK = 0x5F,     // 0x5F (UNTALK)
-		ATN_CODE_DATA = 0x60,	    // 0x60 + channel (SECOND)
-		ATN_CODE_CLOSE = 0xE0,  	// 0xE0 + channel (CLOSE)
-		ATN_CODE_OPEN = 0xF0		// 0xF0 + channel (OPEN)
-	};
-
-	// ATN command struct maximum command length:
-	enum 
-	{
-		ATN_CMD_MAX_LENGTH = 40
-	};
-	
-	typedef struct _tagATNCMD 
-	{
-		int code;
-		int command;
-		int channel;
-		int device;
-		char str[ATN_CMD_MAX_LENGTH];
-		int strLen;
-	} ATNCmd;
-
-	iecBus();
-	~iecBus(){}
-
-	// Initialise iec driver
-	bool init();
-
-	// Checks if CBM is sending an attention message. If this is the case,
-	// the message is recieved and stored in atn_cmd.
-	ATNCheck checkATN(ATNCmd& atn_cmd);
-
-	// Sends a byte. The communication must be in the correct state: a load command
-	// must just have been recieved. If something is not OK, FALSE is returned.
-	bool send(int data);
-
-	// Same as IEC_send, but indicating that this is the last byte.
-	bool sendEOI(int data);
-
-	// A special send command that informs file not found condition
-	bool sendFNF();
-
-	// Recieves a byte
-	int receive();
-
-	// Enabled Device Bit Mask
-	uint32_t enabledDevices;
-	bool isDeviceEnabled(const int deviceNumber);
-	void enableDevice(const int deviceNumber);
-	void disableDevice(const int deviceNumber);
-
-	IECState state() const;
-
-
 private:
-	// IEC Bus Commands
-	ATNCheck listen(ATNCmd& atn_cmd);            // 0x20 + device_id 	Listen, device (0–30)
-//	ATNCheck unlisten(ATNCmd& atn_cmd);          // 0x3F				Unlisten, all devices
-	ATNCheck talk(ATNCmd& atn_cmd);              // 0x40 + device_id 	Talk, device 
-//	ATNCheck untalk(ATNCmd& atn_cmd);            // 0x5F				Untalk, all devices 
-//	ATNCheck reopen(ATNCmd& atn_cmd);            // 0x60 + channel		Reopen, channel (0–15)
-//	ATNCheck close(ATNCmd& atn_cmd);             // 0xE0 + channel		Close, channel
-//	ATNCheck open(ATNCmd& atn_cmd);              // 0xF0 + channel		Open, channel
+	std::forward_list<iecDevice *> _daisyChain;
 
-	ATNCheck receiveCommand(ATNCmd& atn_cmd);
+    iecDevice *_activeDev = nullptr;
+    iecModem *_modemDev = nullptr;
+    iecFuji *_fujiDev = nullptr;
+    iecNetwork *_netDev[8] = {nullptr};
+    iecMIDIMaze *_midiDev = nullptr;
+    iecCassette *_cassetteDev = nullptr;
+    iecCPM *_cpmDev = nullptr;
+    iecPrinter *_printerdev = nullptr;
+
+	int _iec_state;
+    void _iec_process_cmd(void);
+
+	// IEC Bus Commands
+	void listen(void);            // 0x20 + device_id 	Listen, device (0–30)
+//	void unlisten(void);          // 0x3F				Unlisten, all devices
+	void talk(void);              // 0x40 + device_id 	Talk, device 
+//	void untalk(void);            // 0x5F				Untalk, all devices 
+//	void reopen(void);            // 0x60 + channel		Reopen, channel (0–15)
+//	void close(void);             // 0xE0 + channel		Close, channel
+//	void open(void);              // 0xF0 + channel		Open, channel
+
+	void receiveCommand(void);
 	
 	int receiveByte(void);
 	bool sendByte(int data, bool signalEOI);
-	bool timeoutWait(int iecPIN, IECline lineStatus);
 	bool turnAround(void);
 	bool undoTurnAround(void);
+	bool timeoutWait(int iecPIN, IECline lineStatus);	
 
 	// true => PULL => DIGI_LOW
 	inline void pull(int pin)
@@ -240,8 +240,45 @@ private:
 		}
 	}
 
-	// communication must be reset
-	int m_state;
+
+public:
+    void setup();
+    void service();
+	void reset();
+    void shutdown();
+
+    int numDevices();
+    void addDevice(iecDevice *pDevice, int device_id);
+    void remDevice(iecDevice *pDevice);
+    iecDevice *deviceById(int device_id);
+    void changeDeviceId(iecDevice *pDevice, int device_id);
+
+    iecCassette *getCassette() { return _cassetteDev; }
+    iecPrinter *getPrinter() { return _printerdev; }
+    iecCPM *getCPM() { return _cpmDev; }
+
+	ATNData ATN;
+
+	// Sends a byte. The communication must be in the correct state: a load command
+	// must just have been recieved. If something is not OK, FALSE is returned.
+	bool send(int data);
+
+	// Same as IEC_send, but indicating that this is the last byte.
+	bool sendEOI(int data);
+
+	// A special send command that informs file not found condition
+	bool sendFNF();
+
+	// Recieve a byte
+	int receive();
+
+	// Enabled Device Bit Mask
+	uint32_t enabledDevices;
+	bool isDeviceEnabled(const int deviceNumber);
+	void enableDevice(const int deviceNumber);
+	void disableDevice(const int deviceNumber);
+
+	IECState state() const;
 };
 
 extern iecBus IEC;
