@@ -18,84 +18,182 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
+#include "modem.h"
+#include "fuji.h"
+#include "led.h"
+#include "network.h"
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnDNS.h"
+#include "utils.h"
+#include "midimaze.h"
+#include "cassette.h"
+#include "siocpm.h"
+#include "printer.h"
 #include "../../include/debug.h"
 
-#include "iec.h"
+#include "iecDevice.h"
 
 using namespace CBM;
 
-iecBus::iecBus() : m_state(noFlags)
+
+// Read and process a command frame from SIO
+void iecBus::_iec_process_cmd(void)
 {
-} // ctor
+    // if (_modemDev != nullptr && _modemDev->modemActive)
+    // {
+    //     _modemDev->modemActive = false;
+    //     Debug_println("Modem was active - resetting SIO baud");
+    //     fnUartSIO.set_baudrate(_sioBaud);
+    // }
 
-// Set all IEC_signal lines in the correct mode for power up state
-bool iecBus::init()
-{
-	// the I/O signaling method used by this low level driver uses two states:
-	// PULL state is pin set to GPIO_MODE_OUTPUT with the output driving DIGI_LOW (0V)
-	// RELEASE state is pin set to GPIO_MODE_INPUT so it doesn't drive the bus
-	// and it allows the C64 pullup to do its job
 
-	// The CLOCK and DATA lines are bidirectional
-	// The ATN line is input only for peripherals
-	// The SQR line is output only for peripherals
+    // Turn on the BUS indicator LED
+    fnLedManager.set(eLed::LED_BUS, true);
 
-	// set up IO states
-	pull(IEC_PIN_ATN);
-	pull(IEC_PIN_CLK);
-	pull(IEC_PIN_DATA);
-	pull(IEC_PIN_SRQ);
-
-	// initial pin modes in GPIO
-	set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_INPUT);
-	set_pin_mode(IEC_PIN_CLK, gpio_mode_t::GPIO_MODE_INPUT);
-	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);	
-	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
-	set_pin_mode(IEC_PIN_RESET, gpio_mode_t::GPIO_MODE_INPUT);
-
-#ifdef SPLIT_LINES
-	set_pin_mode(IEC_PIN_CLK_OUT, gpio_mode_t::GPIO_MODE_OUTPUT);
-	set_pin_mode(IEC_PIN_DATA_OUT, gpio_mode_t::GPIO_MODE_OUTPUT);
-#endif
-
-	m_state = noFlags;
-
-	return true;
-} // init
-
-// timeoutWait returns true if timed out
-bool iecBus::timeoutWait(int pin, IECline state)
-{
-	uint16_t t = 0;
-
-	while(t < TIMEOUT) 
+	// find device and pass control
+	for (auto devicep : _daisyChain)
 	{
-		// Check the waiting condition:
-		if(status(pin) == state)
+		if (ATN.device_id == devicep->_device_id)
 		{
-			// Got it!  Continue!
-			return false;
+			_activeDev = devicep;
+			// handle command
+			_activeDev->iec_process();
 		}
-		fnSystem.delay_microseconds(1); // The aim is to make the loop at least 3 us
-		t++;
 	}
 
-	// If down here, we have had a timeout.
-	// Release lines and go to inactive state with error flag
-	release(IEC_PIN_CLK);
-	release(IEC_PIN_DATA);
+    fnLedManager.set(eLed::LED_BUS, false);
+}
 
-	m_state = errorFlag;
 
-	// Wait for ATN release, problem might have occured during attention
-	while(status(IEC_PIN_ATN) == pulled);
+// IEC Bus Commands
+void iecBus::listen(void)
+{
+	// Okay, we will listen.
+	Debug_printf("(20 LISTEN) (%.2d DEVICE)", ATN.device_id);
 
-	// Note: The while above is without timeout. If ATN is held low forever,
-	//       the CBM is out in the woods and needs a reset anyways.
 
-	Debug_printf("\r\ntimeoutWait: true [%d] [%d] [%d] [%d] ", pin, state, t, m_state);
-	return true;
-} // timeoutWait
+	if (ATN.command == ATN_COMMAND_DATA) // 0x60 OPEN CHANNEL / DATA + Secondary Address / channel (0-15)
+	{
+		// If this 
+		if (ATN.channel == CMD_CHANNEL)
+		{
+			receiveCommand();
+			return;
+		}
+		else
+		{
+			// A heapload of data might come now, too big for this context to handle so the caller handles this, we're done here.
+			Debug_printf("\r\nlisten: %.2X (DATA) (%.2X COMMAND) (%.2X CHANNEL)", ATN.code, ATN.command, ATN.channel);
+			ATN.mode = ATN_LISTEN;
+			return;
+		}
+	}
+	else if (ATN.command == ATN_COMMAND_OPEN) // 0xF0 OPEN CHANNEL / DATA + Secondary Address / channel (0-15)
+	{
+		Debug_printf("\r\nlisten: %.2X (%.2X OPEN) (%.2X CHANNEL)", ATN.code, ATN.command, ATN.channel);
+		receiveCommand();
+		return;
+	}	
+	else
+	{
+		if (ATN.command == ATN_COMMAND_CLOSE) // 0xE0 CLOSE CHANNEL / DATA + Secondary Address / channel (0-15)
+		{
+			Debug_printf("\r\nlisten: %.2X (%.2X CLOSE) (%.2X CHANNEL)", ATN.code, ATN.command, ATN.channel);
+		}		
+	}
+
+	ATN.mode = ATN_IDLE;
+	return;
+}
+
+void iecBus::talk(void)
+{
+	int i = 0;
+	int c;
+
+	// Okay, we will talk soon
+	Debug_printf("(40 TALK) (%.2d DEVICE)", ATN.device_id);
+	Debug_printf("\r\ntalk: %.2X (%.2X SECOND) (%.2X CHANNEL)", ATN.code, ATN.command, ATN.channel);
+
+	while(status(IEC_PIN_ATN) == pulled) 
+	{
+		if(status(IEC_PIN_CLK) == released) 
+		{
+			c = receive();
+			if (_iec_state bitand errorFlag)
+			{
+				ATN.mode = ATN_ERROR;
+				return;
+			}
+
+			if (i >= ATN_CMD_MAX_LENGTH)
+			{
+				// Buffer is going to overflow, this is an error condition
+				// FIXME: here we should propagate the error type being overflow so that reading error channel can give right code out.
+				ATN.mode = ATN_ERROR;
+				return;
+			}
+			ATN.data[i++] = c;
+			ATN.data[i] = '\0';
+		}
+	}
+
+	// Now ATN has just been released, do bus turnaround
+	if (not turnAround())
+	{
+		ATN.mode = ATN_ERROR;
+		return;
+	}
+
+	// We have recieved a CMD and we should talk now:
+	ATN.mode = ATN_TALK;
+	return;
+}
+
+void iecBus::receiveCommand(void)
+{
+	int i = 0;
+	int c;
+
+	// Some other command. Record the cmd string until UNLISTEN is sent
+	while(status(IEC_PIN_ATN) == released)
+	{
+		// Let's get the command!
+		c = receive();
+
+		if (_iec_state bitand errorFlag)
+		{
+			Debug_printf("\r\nreceiveCommand: receiving LISTEN command");
+			ATN.mode = ATN_ERROR;
+			return;
+		}
+
+		if (i >= ATN_CMD_MAX_LENGTH)
+		{
+			// Buffer is going to overflow, this is an error condition
+			// FIXME: here we should propagate the error type being overflow so that reading error channel can give right code out.
+			Debug_printf("\r\nreceiveCommand: ATN_CMD_MAX_LENGTH");
+			ATN.mode = ATN_ERROR;
+			return;
+		}
+
+		ATN.data[i++] = c;
+		ATN.data[i] = '\0';
+
+		// Is this the end of the command? Was EOI sent?
+		if (_iec_state bitand eoiFlag)
+		{
+			Debug_printf("\r\nreceiveCommand: [%s] + EOI", ATN.data);
+			ATN.mode = ATN_CMD;
+			return;
+		}		
+	}
+
+	ATN.mode = ATN_IDLE;
+	return;
+}
+
 
 // (Jim Butterfield - Compute! July 1983 - "HOW THE VIC/64 SERIAL BUS WORKS")
 // STEP 1: READY TO SEND (We are listener now)
@@ -108,11 +206,11 @@ bool iecBus::timeoutWait(int pin, IECline state)
 // it might holdback for quite a while; there's no time limit. 
 int iecBus::receiveByte(void)
 {
-	m_state = noFlags;
+	_iec_state = noFlags;
 
 	// Sample ATN and set flag to indicate SELECT or DATA mode
 	if(status(IEC_PIN_ATN) == pulled)
-		m_state or_eq atnFlag;
+		_iec_state or_eq atnFlag;
 
 	// Talker ready to send
 	if (timeoutWait(IEC_PIN_CLK, released))
@@ -163,7 +261,7 @@ int iecBus::receiveByte(void)
 		// line  is  true  whether  or  not  we have gone through the EOI sequence; we're back to a common 
 		// transmission sequence.
 
-		m_state or_eq eoiFlag; // or_eq, |=
+		_iec_state or_eq eoiFlag; // or_eq, |=
 
 		// Acknowledge by pull down data more than 60 us
 		pull(IEC_PIN_DATA);
@@ -239,7 +337,7 @@ int iecBus::receiveByte(void)
 	// the Clock and Data lines are released to false and transmission stops.
 	// NOTE: This does not seem to hold true for the listener. Listener remains pulling data after EOI (James Johnston)
 
-	// if(m_state bitand eoiFlag)
+	// if(_iec_state bitand eoiFlag)
 	// {
 	// 	// EOI Received
 	// 	fnSystem.delay_microseconds(TIMING_STABLE_WAIT);
@@ -445,6 +543,39 @@ bool iecBus::undoTurnAround(void)
 	return true;
 } // undoTurnAround
 
+// timeoutWait returns true if timed out
+bool iecBus::timeoutWait(int pin, IECline state)
+{
+	uint16_t t = 0;
+
+	while(t < TIMEOUT) 
+	{
+		// Check the waiting condition:
+		if(status(pin) == state)
+		{
+			// Got it!  Continue!
+			return false;
+		}
+		fnSystem.delay_microseconds(1); // The aim is to make the loop at least 3 us
+		t++;
+	}
+
+	// If down here, we have had a timeout.
+	// Release lines and go to inactive state with error flag
+	release(IEC_PIN_CLK);
+	release(IEC_PIN_DATA);
+
+	_iec_state = errorFlag;
+
+	// Wait for ATN release, problem might have occured during attention
+	while(status(IEC_PIN_ATN) == pulled);
+
+	// Note: The while above is without timeout. If ATN is held low forever,
+	//       the CBM is out in the woods and needs a reset anyways.
+
+	Debug_printf("\r\ntimeoutWait: true [%d] [%d] [%d] [%d] ", pin, state, t, _iec_state);
+	return true;
+} // timeoutWait
 
 /******************************************************************************
  *                                                                             *
@@ -454,7 +585,7 @@ bool iecBus::undoTurnAround(void)
 
 // This function checks and deals with atn signal commands
 //
-// If a command is recieved, the atn_cmd.string is saved in atn_cmd. Only commands
+// If a command is recieved, the ATN.dataing is saved in ATN. Only commands
 // for *this* device are dealt with.
 //
 // (Jim Butterfield - Compute! July 1983 - "HOW THE VIC/64 SERIAL BUS WORKS")
@@ -474,10 +605,48 @@ bool iecBus::undoTurnAround(void)
 // device, since the unselected devices will have dropped off when ATN ceased, leaving you with
 // nobody to talk to.
 
-// Return value, see iecBus::ATNCheck definition.
-iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
+
+// Set all IEC_signal lines in the correct mode for power up state
+void iecBus::setup()
 {
-	ATNCheck ret = ATN_IDLE;
+	// the I/O signaling method used by this low level driver uses two states:
+	// PULL state is pin set to GPIO_MODE_OUTPUT with the output driving DIGI_LOW (0V)
+	// RELEASE state is pin set to GPIO_MODE_INPUT so it doesn't drive the bus
+	// and it allows the C64 pullup to do its job
+
+	// The CLOCK and DATA lines are bidirectional
+	// The ATN line is input only for peripherals
+	// The SQR line is output only for peripherals
+
+    Debug_println("IEC SETUP");
+
+	// set up IO states
+	pull(IEC_PIN_ATN);
+	pull(IEC_PIN_CLK);
+	pull(IEC_PIN_DATA);
+	pull(IEC_PIN_SRQ);
+
+	// initial pin modes in GPIO
+	set_pin_mode(IEC_PIN_ATN, gpio_mode_t::GPIO_MODE_INPUT);
+	set_pin_mode(IEC_PIN_CLK, gpio_mode_t::GPIO_MODE_INPUT);
+	set_pin_mode(IEC_PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT);	
+	set_pin_mode(IEC_PIN_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
+	set_pin_mode(IEC_PIN_RESET, gpio_mode_t::GPIO_MODE_INPUT);
+
+#ifdef SPLIT_LINES
+	set_pin_mode(IEC_PIN_CLK_OUT, gpio_mode_t::GPIO_MODE_OUTPUT);
+	set_pin_mode(IEC_PIN_DATA_OUT, gpio_mode_t::GPIO_MODE_OUTPUT);
+#endif
+
+	_iec_state = noFlags;
+}
+
+// Primary IEC serivce loop:
+// Checks if CBM is sending an attention message. If this is the case,
+// the message is recieved and stored in ATN.
+void iecBus::service()
+{
+	ATNMode ret = ATN_IDLE;
 
 #ifdef DEBUG_TIMING
 	int pin = IEC_PIN_ATN;
@@ -517,12 +686,19 @@ iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 	fnSystem.delay_microseconds(1);
 #endif
 
+	// Checks if CBM is sending a reset (setting the RESET line high). This is typically
+	// when the CBM is reset itself. In this case, we are supposed to reset all states to initial.
 	if(status(IEC_PIN_RESET) == pulled) 
 	{
-		// Checks if CBM is sending a reset (setting the RESET line high). This is typically
-		// when the CBM is reset itself. In this case, we are supposed to reset all states to initial.
-		Debug_printf("\r\ncheckATN: RESET! ");
-		return ATN_RESET;
+		if (status(IEC_PIN_ATN) == pulled)
+		{
+			// If RESET & ATN are both pulled then CBM is off
+			ATN.mode = ATN_IDLE;
+		}
+		
+		ATN.mode = ATN_RESET;
+		reset();
+		fnSystem.delay(1000);
 	}
 
 	if (status(IEC_PIN_ATN) == pulled)
@@ -536,51 +712,51 @@ iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 		// Get first ATN byte, it is either LISTEN or TALK
 		ATNCommand c = (ATNCommand)receive();
 		Debug_printf("\r\ncheckATN: %.2X ", c);
-		if (m_state bitand errorFlag)
+		if (_iec_state bitand errorFlag)
 		{
 			Debug_printf("\r\ncheckATN: get first ATN byte");
-			return ATN_ERROR;
+			ATN.mode = ATN_ERROR;
 		}
 
-		atn_cmd.code = c;
+		ATN.code = c;
 
 		ATNCommand cc = c;
-		if (c != ATN_CODE_UNTALK && c != ATN_CODE_UNLISTEN)
+		if (c != ATN_COMMAND_UNTALK && c != ATN_COMMAND_UNLISTEN)
 		{
 			// Is this a Listen or Talk command
-			cc = (ATNCommand)(c bitand ATN_CODE_LISTEN);
-			if (cc == ATN_CODE_LISTEN)
+			cc = (ATNCommand)(c bitand ATN_COMMAND_LISTEN);
+			if (cc == ATN_COMMAND_LISTEN)
 			{
-				atn_cmd.device = c ^ ATN_CODE_LISTEN; // device specified, '^' = XOR
+				ATN.device_id = c ^ ATN_COMMAND_LISTEN; // device specified, '^' = XOR
 			}
 			else
 			{
-				cc = (ATNCommand)(c bitand ATN_CODE_TALK);
-				atn_cmd.device = c ^ ATN_CODE_TALK; // device specified
+				cc = (ATNCommand)(c bitand ATN_COMMAND_TALK);
+				ATN.device_id = c ^ ATN_COMMAND_TALK; // device specified
 			}
 
-			// Get the first cmd byte, the atn_cmd.code
+			// Get the first cmd byte, the ATN.code
 			c = (ATNCommand)receive();
-			if (m_state bitand errorFlag)
+			if (_iec_state bitand errorFlag)
 			{
 				Debug_printf("\r\ncheckATN: get first cmd byte");
-				return ATN_ERROR;
+				ATN.mode = ATN_ERROR;
 			}
 
-			atn_cmd.code = c;
-			atn_cmd.command = c bitand 0xF0; // upper nibble, the command itself
-			atn_cmd.channel = c bitand 0x0F; // lower nibble is the channel
+			ATN.code = c;
+			ATN.command = c bitand 0xF0; // upper nibble, the command itself
+			ATN.channel = c bitand 0x0F; // lower nibble is the channel
 		}
 
-		if (isDeviceEnabled(atn_cmd.device))
+		if (isDeviceEnabled(ATN.device_id))
 		{
-			if (cc == ATN_CODE_LISTEN) // 0x20 LISTEN + device number (0-30)
+			if (cc == ATN_COMMAND_LISTEN) // 0x20 LISTEN + device number (0-30)
 			{
-				ret = listen(atn_cmd);
+				listen();
 			}
-			else if (cc == ATN_CODE_TALK) // 0x40 TALK + device number (0-30)
+			else if (cc == ATN_COMMAND_TALK) // 0x40 TALK + device number (0-30)
 			{
-				ret = talk(atn_cmd);
+				talk();
 			}
 			else
 			{
@@ -589,11 +765,11 @@ iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 				release(IEC_PIN_DATA);
 				release(IEC_PIN_CLK);
 
-				if (cc == ATN_CODE_UNLISTEN) // 3F UNLISTEN
+				if (cc == ATN_COMMAND_UNLISTEN) // 3F UNLISTEN
 				{
 					Debug_printf("(UNLISTEN)", cc);
 				}
-				if (cc == ATN_CODE_UNTALK) // 5F UNTALK
+				if (cc == ATN_COMMAND_UNTALK) // 5F UNTALK
 				{	
 					Debug_printf("(UNTALK)", cc);
 				}
@@ -614,124 +790,122 @@ iecBus::ATNCheck iecBus::checkATN(ATNCmd &atn_cmd)
 	// 	release(IEC_PIN_CLK);
 	// }
 
-	return ret;
-} // checkATN
 
+    // Go process the command
+    _iec_process_cmd();
 
-iecBus::ATNCheck iecBus::listen(ATNCmd &atn_cmd)
+    // // Go check if the modem needs to read data if it's active
+    // if (_modemDev != nullptr && _modemDev->modemActive)
+    // {
+    //     _modemDev->sio_handle_modem();
+    // }
+
+    // // Handle interrupts from network protocols
+    // for (int i = 0; i < 8; i++)
+    // {
+    //     if (_netDev[i] != nullptr)
+    //         _netDev[i]->sio_poll_interrupt();
+    // }
+}
+
+// Reset all devices on the bus
+void iecBus::reset()
 {
-	// Okay, we will listen.
-	Debug_printf("(20 LISTEN) (%.2d DEVICE)", atn_cmd.device);
+    for (auto devicep : _daisyChain)
+    {
+        Debug_printf("Resetting device %02x\n",devicep->device_id());
+        devicep->reset();
+    }
+    Debug_printf("All devices reset.\n");
+}
 
+// Give devices an opportunity to clean up before a reboot
+void iecBus::shutdown()
+{
+    for (auto devicep : _daisyChain)
+    {
+        Debug_printf("Shutting down device %02x\n",devicep->device_id());
+        devicep->shutdown();
+    }
+    Debug_printf("All devices shut down.\n");
+}
 
-	if (atn_cmd.command == ATN_CODE_DATA) // 0x60 OPEN CHANNEL / DATA + Secondary Address / channel (0-15)
-	{
-		// If this 
-		if (atn_cmd.channel == CMD_CHANNEL)
-		{
-			return receiveCommand(atn_cmd);
-		}
-		else
-		{
-			// A heapload of data might come now, too big for this context to handle so the caller handles this, we're done here.
-			Debug_printf("\r\nlisten: %.2X (DATA) (%.2X COMMAND) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
-			return ATN_CMD_LISTEN;			
-		}
-	}
-	else if (atn_cmd.command == ATN_CODE_OPEN) // 0xF0 OPEN CHANNEL / DATA + Secondary Address / channel (0-15)
-	{
-		Debug_printf("\r\nlisten: %.2X (%.2X OPEN) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
-		return receiveCommand(atn_cmd);
-	}	
-	else
-	{
-		if (atn_cmd.command == ATN_CODE_CLOSE) // 0xE0 CLOSE CHANNEL / DATA + Secondary Address / channel (0-15)
-		{
-			Debug_printf("\r\nlisten: %.2X (%.2X CLOSE) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
-		}		
-	}
+// Should avoid using this as it requires counting through the list
+int iecBus::numDevices()
+{
+    int i = 0;
+    __BEGIN_IGNORE_UNUSEDVARS
+    for (auto devicep : _daisyChain)
+        i++;
+    return i;
+    __END_IGNORE_UNUSEDVARS
+}
 
-	return ATN_IDLE;
+// Add device to IEC bus
+void iecBus::addDevice(iecDevice *pDevice, int device_id)
+{
+    // if (device_id == DEVICEID_FUJINET)
+    // {
+    //     _fujiDev = (iecFuji *)pDevice;
+    // }
+    // else if (device_id == DEVICEID_RS232)
+    // {
+    //     _modemDev = (iecModem *)pDevice;
+    // }
+    // else if (device_id >= DEVICEID_FN_NETWORK && device_id <= DEVICEID_FN_NETWORK_LAST)
+    // {
+    //     _netDev[device_id - DEVICEID_FN_NETWORK] = (iecNetwork *)pDevice;
+    // }
+    // else if (device_id == DEVICEID_MIDI)
+    // {
+    //     _midiDev = (iecMIDIMaze *)pDevice;
+    // }
+    // else if (device_id == DEVICEID_CASSETTE)
+    // {
+    //     _cassetteDev = (iecCassette *)pDevice;
+    // }
+    // else if (device_id == DEVICEID_CPM)
+    // {
+    //     _cpmDev = (iecCPM *)pDevice;
+    // }
+    // else if (device_id == DEVICEID_PRINTER && device_id <= DEVICEID_PRINTER_LAST)
+    // {
+    //     _printerdev = (iecPrinter *)pDevice;
+    // }
+
+    pDevice->_device_id = device_id;
+
+    _daisyChain.push_front(pDevice);
+}
+
+// Removes device from the SIO bus.
+// Note that the destructor is called on the device!
+void iecBus::remDevice(iecDevice *p)
+{
+    _daisyChain.remove(p);
+}
+
+iecDevice *iecBus::deviceById(int device_id)
+{
+    for (auto devicep : _daisyChain)
+    {
+        if (devicep->_device_id == device_id)
+            return devicep;
+    }
+    return nullptr;
+}
+
+void iecBus::changeDeviceId(iecDevice *p, int device_id)
+{
+    for (auto devicep : _daisyChain)
+    {
+        if (devicep == p)
+            devicep->_device_id = device_id;
+    }
 }
 
 
-iecBus::ATNCheck iecBus::talk(ATNCmd &atn_cmd)
-{
-	int i = 0;
-	int c;
 
-	// Okay, we will talk soon
-	Debug_printf("(40 TALK) (%.2d DEVICE)", atn_cmd.device);
-	Debug_printf("\r\ntalk: %.2X (%.2X SECOND) (%.2X CHANNEL)", atn_cmd.code, atn_cmd.command, atn_cmd.channel);
-
-	while(status(IEC_PIN_ATN) == pulled) 
-	{
-		if(status(IEC_PIN_CLK) == released) 
-		{
-			c = receive();
-			if (m_state bitand errorFlag)
-				return ATN_ERROR;
-
-			if (i >= ATN_CMD_MAX_LENGTH)
-			{
-				// Buffer is going to overflow, this is an error condition
-				// FIXME: here we should propagate the error type being overflow so that reading error channel can give right code out.
-				return ATN_ERROR;
-			}
-			atn_cmd.str[i++] = c;
-			atn_cmd.str[i] = '\0';
-			atn_cmd.strLen = i;
-		}
-	}
-
-	// Now ATN has just been released, do bus turnaround
-	if (not turnAround())
-		return ATN_ERROR;
-
-	// We have recieved a CMD and we should talk now:
-	return ATN_CMD_TALK;
-}
-
-
-iecBus::ATNCheck iecBus::receiveCommand(ATNCmd &atn_cmd)
-{
-	int i = 0;
-	int c;
-
-	// Some other command. Record the cmd string until UNLISTEN is sent
-	while(status(IEC_PIN_ATN) == released)
-	{
-		// Let's get the command!
-		c = receive();
-
-		if (m_state bitand errorFlag)
-		{
-			Debug_printf("\r\nreceiveCommand: receiving LISTEN command");
-			return ATN_ERROR;
-		}
-
-		if (i >= ATN_CMD_MAX_LENGTH)
-		{
-			// Buffer is going to overflow, this is an error condition
-			// FIXME: here we should propagate the error type being overflow so that reading error channel can give right code out.
-			Debug_printf("\r\nreceiveCommand: ATN_CMD_MAX_LENGTH");
-			return ATN_ERROR;
-		}
-
-		atn_cmd.str[i++] = c;
-		atn_cmd.str[i] = '\0';
-		atn_cmd.strLen = i;
-
-		// Is this the end of the command? Was EOI sent?
-		if (m_state bitand eoiFlag)
-		{
-			Debug_printf("\r\nreceiveCommand: [%s] + EOI", atn_cmd.str);
-			return ATN_CMD;
-		}		
-	}
-
-	return ATN_IDLE;
-}
 
 
 // IEC_receive receives a byte
@@ -794,10 +968,21 @@ bool iecBus::isDeviceEnabled(const int deviceNumber)
 	return (enabledDevices & (1 << deviceNumber));
 } // isDeviceEnabled
 
-
-iecBus::IECState iecBus::state() const
+void iecBus::enableDevice(const int deviceNumber)
 {
-	return static_cast<IECState>(m_state);
+	enabledDevices ^= (-1 ^ enabledDevices) & (1UL << deviceNumber);
+	return;
+} // enableDevice
+
+void iecBus::disableDevice(const int deviceNumber)
+{
+	enabledDevices &= ~(1UL << deviceNumber);
+	return;
+} // disableDevice
+
+IECState iecBus::state() const
+{
+	return static_cast<IECState>(_iec_state);
 } // state
 
-iecBus IEC; // Global SIO object
+iecBus IEC; // Global IEC object

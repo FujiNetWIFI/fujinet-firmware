@@ -167,7 +167,7 @@ void sioBus::_sio_process_cmd()
         return;
     }
     // Turn on the SIO indicator LED
-    fnLedManager.set(eLed::LED_SIO, true);
+    fnLedManager.set(eLed::LED_BUS, true);
 
     Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                  tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
@@ -204,7 +204,7 @@ void sioBus::_sio_process_cmd()
                 {
                     if (devicep->listen_to_type3_polls)
                     {
-                        Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_devnum);
+                        Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_device_id);
                         _activeDev = devicep;
                         // handle command
                         _activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
@@ -217,7 +217,7 @@ void sioBus::_sio_process_cmd()
                 // or go back to WAIT
                 for (auto devicep : _daisyChain)
                 {
-                    if (tempFrame.device == devicep->_devnum)
+                    if (tempFrame.device == devicep->_device_id)
                     {
                         _activeDev = devicep;
                         // handle command
@@ -238,7 +238,7 @@ void sioBus::_sio_process_cmd()
             toggleBaudrate();
         }
     }
-    fnLedManager.set(eLed::LED_SIO, false);
+    fnLedManager.set(eLed::LED_BUS, false);
 }
 
 // Look to see if we have any waiting messages and process them accordingly
@@ -423,7 +423,7 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
         _printerdev = (sioPrinter *)pDevice;
     }
 
-    pDevice->_devnum = device_id;
+    pDevice->_device_id = device_id;
 
     _daisyChain.push_front(pDevice);
 }
@@ -451,7 +451,7 @@ void sioBus::changeDeviceId(sioDevice *p, int device_id)
     for (auto devicep : _daisyChain)
     {
         if (devicep == p)
-            devicep->_devnum = device_id;
+            devicep->_device_id = device_id;
     }
 }
 
@@ -459,7 +459,7 @@ sioDevice *sioBus::deviceById(int device_id)
 {
     for (auto devicep : _daisyChain)
     {
-        if (devicep->_devnum == device_id)
+        if (devicep->_device_id == device_id)
             return devicep;
     }
     return nullptr;

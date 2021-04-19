@@ -150,6 +150,8 @@ public:
     sioFuji();
 };
 
+#ifdef BUILD_ATARI
 extern sioFuji theFuji;
+#endif
 
 #endif // FUJI_H

@@ -7,12 +7,15 @@
 #include "fnConfig.h"
 #include "keys.h"
 #include "led.h"
+
 #ifdef BUILD_ATARI
 #include "sio.h"
-#else
-#include "iec_device.h" // c64
-#endif
 #include "fuji.h"
+#elif BUILD_CBM
+#include "iecBus.h"
+#include "iecFuji.h"
+#endif
+
 #include "httpService.h"
 
 #include <esp_system.h>
@@ -32,9 +35,6 @@
 // fnHTTPD is declared and defineid in HttpService.h/cpp
 
 
-#define DEVICE_MASK 0b00000000000000000000111100000000 //  Devices 8-11
-iecDevice drive;
-
 void main_shutdown_handler()
 {
     Debug_println("Shutdown handler called");
@@ -43,24 +43,7 @@ void main_shutdown_handler()
 }
 
 
-void iec_setup()
-{
-    // Go setup IEC
-    IEC.enabledDevices = DEVICE_MASK;
-    IEC.init();
-    Debug_println("IEC Bus Initialized");
 
-    drive.begin(IEC, &fnSDFAT);
-    Debug_print("Virtual Device(s) Started: [ ");
-    for (int i = 0; i < 31; i++)
-    {
-        if (IEC.isDeviceEnabled(i))
-        {
-            Debug_printf("%.02d ", i);
-        }
-    }
-    Debug_println("]");
-}
 
 // Initial setup
 void main_setup()
@@ -102,11 +85,6 @@ void main_setup()
     // Load our stored configuration
     Config.load();
 
-    Config.store_wifi_ssid("EEP_OPP_ORK_AH_AH", 17);
-    Config.store_wifi_passphrase("angelmax", 8);
-    Config.store_host(0, "192.168.1.220", fnConfig::host_types::HOSTTYPE_TNFS);
-    Config.save();
-
 #ifdef BLUETOOTH_SUPPORT
     if ( Config.get_bt_status() )
     {
@@ -123,11 +101,13 @@ void main_setup()
         fnWiFi.connect();
     }
 
+#ifdef BUILD_ATARI
     // Setup SIO Bus
-    //theFuji.setup(&SIO);
-
+    theFuji.setup(&SIO);
+#elif BUILD_CBM
     // Setup IEC Bus
-    iec_setup(); //theFuji.setup(&IEC);
+    theFuji.setup(&IEC);
+#endif
 
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
@@ -145,13 +125,19 @@ void fn_service_loop(void *param)
         // Go service BT if it's active
     #ifdef BLUETOOTH_SUPPORT
         if (fnBtManager.isActive())
+        {
             fnBtManager.service();
+        }
         else
     #endif
-
-            // THIS IS WHERE WE CAN SELECT THE HOST MACHINE
-            //SIO.service();
-            drive.service();
+        {
+        // THIS IS WHERE WE CAN SELECT THE HOST MACHINE
+        #ifdef BUILD_ATARI
+            SIO.service();
+        #elif BUILD_CBM
+            IEC.service();
+        #endif
+        }
     }
 }
 
