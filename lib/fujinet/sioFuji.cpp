@@ -1,7 +1,7 @@
 #include <cstdint>
 #include <driver/ledc.h>
 
-#include "fuji.h"
+#include "sioFuji.h"
 
 #include "led.h"
 #include "fnWiFi.h"

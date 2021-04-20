@@ -22,13 +22,11 @@
 #include <string.h>
 #include <FS.h>
 
-#include "version.h"
+#include "../../include/version.h"
 #include "fnSystem.h"
 #include "led.h"
 #include "utils.h"
 
-#include "iecBus.h"
-#include "iecDevice.h"
 #include "iecDisk.h"
 
 using namespace CBM;

@@ -18,21 +18,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
-#include "modem.h"
-#include "fuji.h"
 #include "led.h"
-#include "network.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnDNS.h"
 #include "utils.h"
-#include "midimaze.h"
-#include "cassette.h"
-#include "siocpm.h"
-#include "printer.h"
+
 #include "../../include/debug.h"
 
-#include "iecDevice.h"
+#include "iecBus.h"
 
 using namespace CBM;
 

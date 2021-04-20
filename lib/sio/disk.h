@@ -2,7 +2,7 @@
 #define DISK_H
 
 #include "sio.h"
-#include "diskType.h"
+#include "mediaAtari.h"
 
 class sioDisk : public sioDevice
 {

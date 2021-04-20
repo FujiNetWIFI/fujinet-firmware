@@ -19,7 +19,8 @@
 
 #include "../../lib/modem-sniffer/modem-sniffer.h"
 #include "../../lib/sio/modem.h"
-#include "../../lib/sio/fuji.h"
+
+#include "fuji.h"
 
 #include "../../include/debug.h"
 
@@ -692,11 +693,11 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     }
 
     theFuji.get_disks(ds)->disk_dev.unmount();
-    if (theFuji.get_disks(ds)->disk_type == DISKTYPE_CAS || theFuji.get_disks(ds)->disk_type == DISKTYPE_WAV)
-    {
-        theFuji.cassette()->umount_cassette_file();
-        theFuji.cassette()->sio_disable_cassette();
-    }
+    // if (theFuji.get_disks(ds)->disk_type == DISKTYPE_CAS || theFuji.get_disks(ds)->disk_type == DISKTYPE_WAV)
+    // {
+    //     theFuji.cassette()->umount_cassette_file();
+    //     theFuji.cassette()->sio_disable_cassette();
+    // }
     theFuji.get_disks(ds)->reset();
     Config.clear_mount(ds);
     Config.save();
