@@ -9,7 +9,6 @@
 #include "httpService.h"
 #include "httpServiceParser.h"
 
-#include "fuji.h"
 #include "printerlist.h"
 
 #include "../hardware/fnSystem.h"
@@ -17,7 +16,9 @@
 #include "fnFsSPIF.h"
 #include "fnFsSD.h"
 
-extern sioFuji theFuji;
+#include "fuji.h"
+
+//extern sioFuji theFuji;
 
 using namespace std;
 
@@ -277,22 +278,22 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << SIO.getHighSpeedBaud();
         break;
     case FN_PRINTER1_MODEL:
-        resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
+        //resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
         break;
     case FN_PRINTER1_PORT:
-        resultstream << (fnPrinters.get_port(0) + 1);
+        //resultstream << (fnPrinters.get_port(0) + 1);
         break;
     case FN_PLAY_RECORD:
-        if (theFuji.cassette()->get_buttons())
-            resultstream << "0 PLAY";
-        else
-            resultstream << "1 RECORD";
+        // if (theFuji.cassette()->get_buttons())
+        //     resultstream << "0 PLAY";
+        // else
+        //     resultstream << "1 RECORD";
         break;
     case FN_PULLDOWN:
-        if (theFuji.cassette()->has_pulldown())
-            resultstream << "1 Pulldown Resistor";
-        else
-            resultstream << "0 B Button Press";
+        // if (theFuji.cassette()->has_pulldown())
+        //     resultstream << "1 Pulldown Resistor";
+        // else
+        //     resultstream << "0 B Button Press";
         break;
     case FN_CONFIG_ENABLED:
         resultstream << Config.get_general_config_enabled();
@@ -432,6 +433,7 @@ string fnHttpServiceParser::parse_contents(const string &contents)
         // Now we have starting and ending tags
         if (x > 0)
             ss << contents.substr(pos, x - pos);
+        
         ss << substitute_tag(contents.substr(x + 2, y - x - 2));
         pos = y + 2;
     } while (true);

@@ -8,13 +8,12 @@
 #include "keys.h"
 #include "led.h"
 
-#ifdef BUILD_ATARI
+#if defined( BUILD_ATARI )
 #include "sio.h"
-#include "fuji.h"
-#elif BUILD_CBM
+#elif defined( BUILD_CBM )
 #include "iecBus.h"
-#include "iecFuji.h"
 #endif
+#include "fuji.h"
 
 #include "httpService.h"
 
@@ -39,7 +38,11 @@ void main_shutdown_handler()
 {
     Debug_println("Shutdown handler called");
     // Give devices an opportunity to clean up before rebooting
-    // SIO.shutdown();
+#if defined( BUILD_ATARI )
+    SIO.shutdown();
+#elif defined( BUILD_CBM )
+    IEC.shutdown();
+#endif
 }
 
 
@@ -99,10 +102,10 @@ void main_setup()
         fnWiFi.connect();
     }
 
-#ifdef BUILD_ATARI
+#if defined( BUILD_ATARI )
     // Setup SIO Bus
     theFuji.setup(&SIO);
-#elif BUILD_CBM
+#elif defined( BUILD_CBM )
     // Setup IEC Bus
     theFuji.setup(&IEC);
 #endif
@@ -130,9 +133,9 @@ void fn_service_loop(void *param)
     #endif
         {
         // THIS IS WHERE WE CAN SELECT THE HOST MACHINE
-        #ifdef BUILD_ATARI
+        #if defined( BUILD_ATARI )
             SIO.service();
-        #elif BUILD_CBM
+        #elif defined( BUILD_CBM )
             IEC.service();
         #endif
         }

@@ -24,10 +24,9 @@
 #include <string>
 #include "esp_vfs.h"
 
-#include "iecFuji.h"
-
 #include "iecBus.h"
-#include "iecDevice.h"
+
+#include "../media/mediaCBM.h"
 
 #include "cbmdefines.h"
 #include "Petscii.h"
@@ -45,10 +44,10 @@ private:
     void _write(bool verify);
     void _format();
 
-    void _status() override;
-    void _process() override;
+    void _status();
+    void _process();
 
-    void shutdown() override;
+    void shutdown() {};
 
 	// handler helpers.
 	void _open(void);
@@ -71,7 +70,6 @@ private:
 
 	void saveFile(void);
 
-	fujiHost *_fs = nullptr;
 
 	std::string _command;
 	int _drive;

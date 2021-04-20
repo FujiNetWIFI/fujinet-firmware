@@ -21,14 +21,13 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "version.h"
+#include "../../include/version.h"
 #include "fnSystem.h"
 #include "led.h"
 #include "utils.h"
 
 
 #include "iecBus.h"
-#include "iecDevice.h"
 
 
 using namespace CBM;
@@ -308,19 +307,19 @@ uint16_t iecDevice::sendHeader(uint16_t &basicPtr)
    len = length of buffer
    err = along with data, send ERROR status to CBM rather than COMPLETE
 */
-void iecDevice::iec_to_computer(uint8_t *buf, uint16_t len, bool err)
-{
-    // Write data frame to computer
-    Debug_printf("->IEC write %hu bytes\n", len);
-#ifdef VERBOSE_IEC
-    Debug_printf("SEND <%u> BYTES\n\t", len);
-    for (int i = 0; i < len; i++)
-        Debug_printf("%02x ", buf[i]);
-    Debug_print("\n");
-#endif
+// void iecDevice::iec_to_computer(uint8_t *buf, uint16_t len, bool err)
+// {
+//     // Write data frame to computer
+//     Debug_printf("->IEC write %hu bytes\n", len);
+// #ifdef VERBOSE_IEC
+//     Debug_printf("SEND <%u> BYTES\n\t", len);
+//     for (int i = 0; i < len; i++)
+//         Debug_printf("%02x ", buf[i]);
+//     Debug_print("\n");
+// #endif
 
-	err = IEC.send(buf, len);
-}
+// 	err = IEC.send(buf, len);
+// }
 
 /*
    IEC READ from CBM by DEVICE
@@ -328,46 +327,44 @@ void iecDevice::iec_to_computer(uint8_t *buf, uint16_t len, bool err)
    len = length
    Returns checksum
 */
-uint8_t iecDevice::iec_to_peripheral(uint8_t *buf, uint16_t len)
-{
-    // Retrieve data frame from computer
-    Debug_printf("<-IEC read %hu bytes\n", len);
+// uint8_t iecDevice::iec_to_peripheral(uint8_t *buf, uint16_t len)
+// {
+//     // Retrieve data frame from computer
+//     Debug_printf("<-IEC read %hu bytes\n", len);
 
-    __BEGIN_IGNORE_UNUSEDVARS
-    uint16_t l = IEC.receive(buf, len);
-    __END_IGNORE_UNUSEDVARS
+//     __BEGIN_IGNORE_UNUSEDVARS
+//     uint16_t l = IEC.receive(buf, len);
+//     __END_IGNORE_UNUSEDVARS
 
-#ifdef VERBOSE_IEC
-    Debug_printf("RECV <%u> BYTES\n\t", l);
-    for (int i = 0; i < len; i++)
-        Debug_printf("%02x ", buf[i]);
-    Debug_print("\n");
-#endif
+// #ifdef VERBOSE_IEC
+//     Debug_printf("RECV <%u> BYTES\n\t", l);
+//     for (int i = 0; i < len; i++)
+//         Debug_printf("%02x ", buf[i]);
+//     Debug_print("\n");
+// #endif
 
-    return;
-}
+//     return 0;
+// }
 
 // Calculate 8-bit checksum
-uint8_t iec_checksum(uint8_t *buf, unsigned short len)
-{
-    unsigned int chk = 0;
+// uint8_t iec_checksum(uint8_t *buf, unsigned short len)
+// {
+//     unsigned int chk = 0;
 
-    for (int i = 0; i < len; i++)
-        chk = ((chk + buf[i]) >> 8) + ((chk + buf[i]) & 0xff);
+//     for (int i = 0; i < len; i++)
+//         chk = ((chk + buf[i]) >> 8) + ((chk + buf[i]) & 0xff);
 
-    return chk;
-}
+//     return chk;
+// }
 
 // IEC COMPLETE
 void iecDevice::iec_complete()
 {
-    fnSystem.delay_microseconds(DELAY_T5);
     Debug_println("COMPLETE!");
 }
 
 // IEC ERROR
 void iecDevice::iec_error()
 {
-    fnSystem.delay_microseconds(DELAY_T5);
     Debug_println("ERROR!");
 }

@@ -3,8 +3,15 @@
 
 #include <string>
 
-#include "disk.h"
 #include "fujiHost.h"
+
+#if defined( BUILD_ATARI )
+#include "../sio/disk.h"
+#include "mediaAtari.h"
+#elif defined( BUILD_CBM )
+#include "../iec/iecDisk.h"
+#include "../media/mediaCBM.h"
+#endif
 
 #define MAX_DISPLAY_FILENAME_LEN 36
 #define MAX_FILENAME_LEN 256
@@ -25,7 +32,12 @@ public:
     fujiHost *host = nullptr;
     uint8_t host_slot = INVALID_HOST_SLOT;
     char filename[MAX_FILENAME_LEN] = { '\0' };
+
+#if defined( BUILD_ATARI )
     sioDisk disk_dev;
+#elif defined( BUILD_CBM )
+    iecDisk disk_dev;
+#endif
 
     void reset();
     void reset(const char *filename, uint8_t hostslot, uint8_t access_mode);

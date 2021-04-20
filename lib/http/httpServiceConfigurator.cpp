@@ -14,7 +14,8 @@
 #include "utils.h"
 
 #include "fuji.h"
-extern sioFuji theFuji;
+
+//extern sioFuji theFuji;
 
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
@@ -189,25 +190,25 @@ void fnHttpServiceConfigurator::config_boot_mode(std::string boot_mode)
 
 void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::string resistor, bool rew)
 {
-    // call the cassette buttons function passing play_record.c_str()
-    // find cassette via thefuji object?
-    Debug_printf("New play/record button value: %s\n", play_record.c_str());
-    if (!play_record.empty())
-    {
-        theFuji.cassette()->set_buttons(util_string_value_is_true(play_record));
-        Config.store_cassette_buttons(util_string_value_is_true(play_record));
-    }
-    if (!resistor.empty())
-    {
-        theFuji.cassette()->set_pulldown(util_string_value_is_true(resistor));
-        Config.store_cassette_pulldown(util_string_value_is_true(resistor));
-    }
-    else if (rew == true)
-    {
-        Debug_printf("Rewinding cassette.\n");
-        SIO.getCassette()->rewind();
-    }
-    Config.save();
+    // // call the cassette buttons function passing play_record.c_str()
+    // // find cassette via thefuji object?
+    // Debug_printf("New play/record button value: %s\n", play_record.c_str());
+    // if (!play_record.empty())
+    // {
+    //     theFuji.cassette()->set_buttons(util_string_value_is_true(play_record));
+    //     Config.store_cassette_buttons(util_string_value_is_true(play_record));
+    // }
+    // if (!resistor.empty())
+    // {
+    //     theFuji.cassette()->set_pulldown(util_string_value_is_true(resistor));
+    //     Config.store_cassette_pulldown(util_string_value_is_true(resistor));
+    // }
+    // else if (rew == true)
+    // {
+    //     Debug_printf("Rewinding cassette.\n");
+    //     SIO.getCassette()->rewind();
+    // }
+    // Config.save();
 }
 
 void fnHttpServiceConfigurator::config_midimaze(std::string hostname)

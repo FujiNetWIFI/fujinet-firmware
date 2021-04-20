@@ -54,7 +54,12 @@
 
 #include "../../include/pinmap.h"
 
-#include "iecDevice.h"
+#include "cbmdefines.h"
+
+#define PRODUCT_ID "FUJINET/MEATLOAF"
+
+// The base pointer of basic.
+#define PET_BASIC_START     0x0401
 
 #define	ATN_CMD_MAX_LENGTH 	40
 
@@ -78,7 +83,7 @@
 #define DEVICEID_DISK_LAST 			0x13 // 19
 
 #define DEVICEID_RS232 				0x14 // 20
-#define DEVICEID_RS232 				0x18 // 24
+#define DEVICEID_RS232_LAST			0x18 // 24
 
 #define DEVICEID_FN_NETWORK 		0x19 // 25
 #define DEVICEID_FN_NETWORK_LAST 	0x1B // 29
@@ -134,6 +139,7 @@ struct ATNData
 };
 
 // class def'ns
+class iecBus;      // declare early so can be friend
 class iecModem;    // declare here so can reference it, but define in modem.h
 class iecFuji;     // declare here so can reference it, but define in iecFuji.h
 class iecNetwork;  // declare here so can reference it, but define in network.h
@@ -141,6 +147,103 @@ class iecMIDIMaze; // declare here so can reference it, but define in midimaze.h
 class iecCassette; // Cassette forward-declaration.
 class iecCPM;      // CPM device.
 class iecPrinter;  // Printer device
+
+enum OpenState 
+{
+	O_NOTHING,			// Nothing to send / File not found error
+	O_INFO,				// User issued a reload sd card
+	O_FILE,				// A program file is opened
+	O_DIR,				// A listing is requested
+	O_FILE_ERR,			// Incorrect file format opened
+	O_SAVE_REPLACE,		// Save-with-replace is requested
+	O_SYSTEM_INFO,
+	O_DEVICE_STATUS
+};
+
+
+class iecDevice
+{
+protected:
+	friend iecBus;
+
+    int _device_id;
+
+//    cmdFrame_t cmdFrame;
+
+	void sendStatus(void);
+	void sendSystemInfo(void);
+	void sendDeviceStatus(void);
+
+	uint16_t sendHeader(uint16_t &basicPtr);
+	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, char* text);
+	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...);
+
+	// handler helpers.
+	void _open(void) {};
+	void _listen_data(void) {};
+	void _talk_data(int chan) {};
+	void _close(void) {};
+
+	// our iec low level driver:
+	iecBus& _iec;
+
+	// This var is set after an open command and determines what to send next
+	int _openState; // see OpenState
+	int _queuedError;
+
+//    void iec_to_computer(uint8_t *buff, uint16_t len, bool err);
+//    uint8_t iec_to_peripheral(uint8_t *buff, uint16_t len);
+
+    /**
+     * @brief Send a COMPLETE to the Atari 'C'
+     * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
+     * either a COMPLETE or ERROR will result in a SIO TIMEOUT (138) to be reported in DSTATS.
+     */
+    void iec_complete();
+
+    /**
+     * @brief Send an ERROR to the Atari 'E'
+     * This should be used during or after processing of the command to indicate that an error resulted
+     * from processing the command, and that the Atari should probably re-try the command. Failure to
+     * send an ERROR or COMPLTE will result in a SIO TIMEOUT (138) to be reported in DSTATS.
+     */
+    void iec_error();
+
+    virtual void _status() = 0;
+    virtual void _process(void);
+
+	// Reset device
+	virtual void reset();
+
+    // Optional shutdown/reboot cleanup routine
+    virtual void shutdown(){};
+
+public:
+    /**
+     * @brief get the SIO device Number (1-255)
+     * @return The device number registered for this device
+     */
+    int device_id() { return _device_id; };
+
+    /**
+     * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
+     */
+    bool is_config_device = false;
+
+    /**
+     * @brief is device active (turned on?)
+     */
+    bool device_active = true;
+
+    /**
+     * @brief status wait counter
+     */
+    uint8_t status_wait_count = 5;
+
+	iecDevice();
+	virtual ~iecDevice() {}
+};
+
 
 class iecBus
 {
