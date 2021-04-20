@@ -28,7 +28,7 @@ NetworkProtocolSMB::~NetworkProtocolSMB()
 }
 
 bool NetworkProtocolSMB::open_file_handle()
-{    
+{
     if (smb == nullptr)
     {
         Debug_printf("NetworkProtocolSMB::open_file_handle() - no smb context. aborting.\n");
@@ -60,7 +60,7 @@ bool NetworkProtocolSMB::open_file_handle()
 
     if (fh == nullptr)
     {
-        Debug_printf("NetworkProtocolSMB::open_file_handle() - SMB Error %s\n",smb2_get_error(smb));
+        Debug_printf("NetworkProtocolSMB::open_file_handle() - SMB Error %s\n", smb2_get_error(smb));
         fserror_to_error();
         return true;
     }
@@ -104,11 +104,26 @@ bool NetworkProtocolSMB::mount(EdUrlParser *url)
 
     smb2_set_security_mode(smb, SMB2_NEGOTIATE_SIGNING_ENABLED);
 
-    if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, smb_url->user)) != 0)
+    if (!login->empty())
     {
-        Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
-        fserror_to_error();
-        return true;
+        smb2_set_user(smb, login->c_str());
+        smb2_set_password(smb, password->c_str());
+
+        if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, login->c_str())) != 0)
+        {
+            Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
+            fserror_to_error();
+            return true;
+        }
+    }
+    else // no u/p
+    {
+        if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, smb_url->user)) != 0)
+        {
+            Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
+            fserror_to_error();
+            return true;
+        }
     }
 
     return false;
