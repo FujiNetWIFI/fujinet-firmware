@@ -11,44 +11,6 @@
 #include "../FileSystem/fnFsSPIF.h"
 #include "../config/fnConfig.h"
 
-#define SIO_FUJICMD_RESET 0xFF
-#define SIO_FUJICMD_GET_SSID 0xFE
-#define SIO_FUJICMD_SCAN_NETWORKS 0xFD
-#define SIO_FUJICMD_GET_SCAN_RESULT 0xFC
-#define SIO_FUJICMD_SET_SSID 0xFB
-#define SIO_FUJICMD_GET_WIFISTATUS 0xFA
-#define SIO_FUJICMD_MOUNT_HOST 0xF9
-#define SIO_FUJICMD_MOUNT_IMAGE 0xF8
-#define SIO_FUJICMD_OPEN_DIRECTORY 0xF7
-#define SIO_FUJICMD_READ_DIR_ENTRY 0xF6
-#define SIO_FUJICMD_CLOSE_DIRECTORY 0xF5
-#define SIO_FUJICMD_READ_HOST_SLOTS 0xF4
-#define SIO_FUJICMD_WRITE_HOST_SLOTS 0xF3
-#define SIO_FUJICMD_READ_DEVICE_SLOTS 0xF2
-#define SIO_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
-#define SIO_FUJICMD_UNMOUNT_IMAGE 0xE9
-#define SIO_FUJICMD_GET_ADAPTERCONFIG 0xE8
-#define SIO_FUJICMD_NEW_DISK 0xE7
-#define SIO_FUJICMD_UNMOUNT_HOST 0xE6
-#define SIO_FUJICMD_GET_DIRECTORY_POSITION 0xE5
-#define SIO_FUJICMD_SET_DIRECTORY_POSITION 0xE4
-#define SIO_FUJICMD_SET_HSIO_INDEX 0xE3
-#define SIO_FUJICMD_SET_DEVICE_FULLPATH 0xE2
-#define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
-#define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
-#define SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
-#define SIO_FUJICMD_WRITE_APPKEY 0xDE
-#define SIO_FUJICMD_READ_APPKEY 0xDD
-#define SIO_FUJICMD_OPEN_APPKEY 0xDC
-#define SIO_FUJICMD_CLOSE_APPKEY 0xDB
-#define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
-#define SIO_FUJICMD_CONFIG_BOOT 0xD9
-#define SIO_FUJICMD_COPY_FILE 0xD8
-#define SIO_FUJICMD_MOUNT_ALL 0xD7
-#define SIO_FUJICMD_SET_BOOT_MODE 0xD6
-#define SIO_FUJICMD_STATUS 0x53
-#define SIO_FUJICMD_HSIO_INDEX 0x3F
-
 iecFuji theFuji; // global fuji device object
 
 //iecDisk iecDiskDevs[MAX_HOSTS];
@@ -245,7 +207,7 @@ void iecFuji::_mount_host()
 {
     Debug_println("Fuji cmd: MOUNT HOST");
 
-    unsigned char hostSlot = cmdFrame.aux1;
+    unsigned char hostSlot = IEC.ATN.device_id - 8;
 
     // Make sure we weren't given a bad hostSlot
     if (!_validate_host_slot(hostSlot, "iec_tnfs_mount_hosts"))
@@ -271,6 +233,7 @@ void iecFuji::_disk_image_mount()
 
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
+//    uint8_t deviceSlot = IEC.ATN.device_id - 8;
     uint8_t deviceSlot = cmdFrame.aux1;
     uint8_t options = cmdFrame.aux2; // DISK_ACCESS_MODE
 
@@ -309,7 +272,6 @@ void iecFuji::_disk_image_mount()
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
-    status_wait_count = 0;
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
@@ -472,7 +434,6 @@ void iecFuji::_mount_all()
 
             // We've gotten this far, so make sure our bootable CONFIG disk is disabled
             boot_config = false;
-            status_wait_count = 0;
 
             // We need the file size for loading XEX files and for CASSETTE, so get that too
             disk.disk_size = host.file_size(disk.fileh);
@@ -689,31 +650,31 @@ void iecFuji::debug_tape()
     // if mounted then activate cassette
     // if mounted and active, then deactivate
     // no longer need to handle file open/close
-    if (_cassetteDev.is_mounted() == true)
-    {
-        if (_cassetteDev.is_active() == false)
-        {
-            Debug_println("::debug_tape ENABLE");
-            _cassetteDev.iec_enable_cassette();
-        }
-        else
-        {
-            Debug_println("::debug_tape DISABLE");
-            _cassetteDev.iec_disable_cassette();
-        }
-    }
-    else
-    {
-        Debug_println("::debug_tape NO CAS FILE MOUNTED");
-        Debug_println("::debug_tape DISABLE");
-        _cassetteDev.iec_disable_cassette();
-    }
+    // if (_cassetteDev.is_mounted() == true)
+    // {
+    //     if (_cassetteDev.is_active() == false)
+    //     {
+    //         Debug_println("::debug_tape ENABLE");
+    //         _cassetteDev.iec_enable_cassette();
+    //     }
+    //     else
+    //     {
+    //         Debug_println("::debug_tape DISABLE");
+    //         _cassetteDev.iec_disable_cassette();
+    //     }
+    // }
+    // else
+    // {
+    //     Debug_println("::debug_tape NO CAS FILE MOUNTED");
+    //     Debug_println("::debug_tape DISABLE");
+    //     _cassetteDev.iec_disable_cassette();
+    // }
 }
 
 // Disk Image Unmount
 void iecFuji::_disk_image_umount()
 {
-    uint8_t deviceSlot = cmdFrame.aux1;
+    uint8_t deviceSlot = 0; //cmdFrame.aux1;
 
     Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
 
@@ -721,12 +682,12 @@ void iecFuji::_disk_image_umount()
     if (deviceSlot < MAX_DISK_DEVICES)
     {
         _fnDisks[deviceSlot].disk_dev.unmount();
-        if (_fnDisks[deviceSlot].disk_type == DISKTYPE_CAS || _fnDisks[deviceSlot].disk_type == DISKTYPE_WAV)
-        {
-            // tell cassette it unmount
-            _cassetteDev.umount_cassette_file();
-            _cassetteDev.iec_disable_cassette();
-        }
+        // if (_fnDisks[deviceSlot].disk_type == DISKTYPE_CAS || _fnDisks[deviceSlot].disk_type == DISKTYPE_WAV)
+        // {
+        //     // tell cassette it unmount
+        //     _cassetteDev.umount_cassette_file();
+        //     _cassetteDev.iec_disable_cassette();
+        // }
         _fnDisks[deviceSlot].reset();
     }
     // Handle tape
@@ -768,11 +729,11 @@ void iecFuji::image_rotate()
         {
             int swap = _fnDisks[n - 1].disk_dev.device_id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            _iec_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
+//            _bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
         }
 
         // The first slot gets the device ID of the last slot
-        _iec_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+//        _bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
         if (Config.get_general_rotation_sounds())
@@ -1009,7 +970,7 @@ void iecFuji::_get_adapter_config()
 
     memset(&cfg, 0, sizeof(cfg));
 
-    strlcpy(cfg.fn_veriecn, fnSystem.get_fujinet_veriecn(true), sizeof(cfg.fn_veriecn));
+    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
 
     if (!fnWiFi.connected())
     {
@@ -1387,8 +1348,8 @@ void iecFuji::_get_device_filename()
 // Mounts the desired boot disk number
 void iecFuji::insert_boot_device(uint8_t d)
 {
-    const char *config_atr = "/fb.d64";
-    const char *mount_all_atr = "/mount-and-boot.atr";
+    const char *config_image = "/autorun.d64";
+    const char *mount_all_image = "/mount-and-boot.d64";
     FILE *fBoot;
 
     _bootDisk.unmount();
@@ -1396,12 +1357,12 @@ void iecFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fnSPIFFS.file_open(config_atr);
-        _bootDisk.mount(fBoot, config_atr, 0);
+        fBoot = fnSPIFFS.file_open(config_image);
+        _bootDisk.mount(fBoot, config_image, 0);
         break;
     case 1:
-        fBoot = fnSPIFFS.file_open(mount_all_atr);
-        _bootDisk.mount(fBoot, mount_all_atr, 0);
+        fBoot = fnSPIFFS.file_open(mount_all_image);
+        _bootDisk.mount(fBoot, mount_all_image, 0);
         break;
     }
 
@@ -1433,7 +1394,7 @@ void iecFuji::setup(iecBus *iecbus)
 // }
 
     // set up Fuji device
-    _iec_bus = iecbus;
+    _bus = iecbus;
 
     _populate_slots_from_config();
 
@@ -1442,43 +1403,43 @@ void iecFuji::setup(iecBus *iecbus)
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
 
-    // Add our devices to the SIO bus
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _iec_bus->addDevice(&_fnDisks[i].disk_dev, SIO_DEVICEID_DISK + i);
+    // // Add our devices to the SIO bus
+    // for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    //     _bus->addDevice(&_fnDisks[i].disk_dev, DEVICEID_DISK + i);
 
-    for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        _iec_bus->addDevice(&iecNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
+    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+    //     _bus->addDevice(&iecNetDevs[i], DEVICEID_FN_NETWORK + i);
 
-    _iec_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
-    cassette()->set_buttons(Config.get_cassette_buttons());
-    cassette()->set_pulldown(Config.get_cassette_pulldown());
+    // _bus->addDevice(&_cassetteDev, DEVICEID_CASSETTE);
+    // cassette()->set_buttons(Config.get_cassette_buttons());
+    // cassette()->set_pulldown(Config.get_cassette_pulldown());
 
-    SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
+    // SIO.addDevice(&theFuji, DEVICEID_FUJINET); // the FUJINET!
 
-    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
+    // SIO.addDevice(&apeTime, DEVICEID_APETIME); // APETime
 
-    SIO.addDevice(&iecMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
+    // SIO.addDevice(&iecMIDI, DEVICEID_MIDI); // MIDIMaze
 
-    // Create a new printer object, setting its output depending on whether we have SD or not
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-    iecPrinter::printer_type ptype = Config.get_printer_type(0);
-    if (ptype == iecPrinter::printer_type::PRINTER_INVALID)
-        ptype = iecPrinter::printer_type::PRINTER_FILE_TRIM;
+    // // Create a new printer object, setting its output depending on whether we have SD or not
+    // FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    // iecPrinter::printer_type ptype = Config.get_printer_type(0);
+    // if (ptype == iecPrinter::printer_type::PRINTER_INVALID)
+    //     ptype = iecPrinter::printer_type::PRINTER_FILE_TRIM;
 
-    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+    // Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
 
-    iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
-    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+    // iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
+    // fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
-    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+    // SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
-    iecR = new iecModem(ptrfs, false); // turned off by default.
+    // iecR = new iecModem(ptrfs, false); // turned off by default.
     
-    SIO.addDevice(iecR, SIO_DEVICEID_RS232); // R:
+    // SIO.addDevice(iecR, SIO_DEVICEID_RS232); // R:
 
-    SIO.addDevice(&iecV, SIO_DEVICEID_FN_VOICE); // P3:
+    // SIO.addDevice(&iecV, SIO_DEVICEID_FN_VOICE); // P3:
 
-    SIO.addDevice(&iecZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
+    // SIO.addDevice(&iecZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
 
     // Go setup SIO
     SIO.setup();
@@ -1489,162 +1450,162 @@ iecDisk *iecFuji::bootdisk()
     return &_bootDisk;
 }
 
-void iecFuji::iec_process(uint32_t commanddata, uint8_t checksum)
+void iecFuji::_process(void)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
+    // cmdFrame.commanddata = commanddata;
+    // cmdFrame.checksum = checksum;
 
     Debug_println("iecFuji::iec_process() called");
 
-    switch (cmdFrame.comnd)
-    {
-    case SIO_FUJICMD_HSIO_INDEX:
-        iec_ack();
-        iec_high_speed();
-        break;
-    case SIO_FUJICMD_SET_HSIO_INDEX:
-        iec_ack();
-        iec_set_hiec_index();
-        break;
-    case SIO_FUJICMD_STATUS:
-        iec_ack();
-        iec_status();
-        break;
-    case SIO_FUJICMD_RESET:
-        iec_ack();
-        iec_reset_fujinet();
-        break;
-    case SIO_FUJICMD_SCAN_NETWORKS:
-        iec_ack();
-        iec_net_scan_networks();
-        break;
-    case SIO_FUJICMD_GET_SCAN_RESULT:
-        iec_ack();
-        iec_net_scan_result();
-        break;
-    case SIO_FUJICMD_SET_SSID:
-        iec_ack();
-        iec_net_set_ssid();
-        break;
-    case SIO_FUJICMD_GET_SSID:
-        iec_ack();
-        iec_net_get_ssid();
-        break;
-    case SIO_FUJICMD_GET_WIFISTATUS:
-        iec_ack();
-        iec_net_get_wifi_status();
-        break;
-    case SIO_FUJICMD_MOUNT_HOST:
-        iec_ack();
-        iec_mount_host();
-        break;
-    case SIO_FUJICMD_MOUNT_IMAGE:
-        iec_ack();
-        iec_disk_image_mount();
-        break;
-    case SIO_FUJICMD_OPEN_DIRECTORY:
-        iec_ack();
-        iec_open_directory();
-        break;
-    case SIO_FUJICMD_READ_DIR_ENTRY:
-        iec_ack();
-        iec_read_directory_entry();
-        break;
-    case SIO_FUJICMD_CLOSE_DIRECTORY:
-        iec_ack();
-        iec_close_directory();
-        break;
-    case SIO_FUJICMD_GET_DIRECTORY_POSITION:
-        iec_ack();
-        iec_get_directory_position();
-        break;
-    case SIO_FUJICMD_SET_DIRECTORY_POSITION:
-        iec_ack();
-        iec_set_directory_position();
-        break;
-    case SIO_FUJICMD_READ_HOST_SLOTS:
-        iec_ack();
-        iec_read_host_slots();
-        break;
-    case SIO_FUJICMD_WRITE_HOST_SLOTS:
-        iec_ack();
-        iec_write_host_slots();
-        break;
-    case SIO_FUJICMD_READ_DEVICE_SLOTS:
-        iec_ack();
-        iec_read_device_slots();
-        break;
-    case SIO_FUJICMD_WRITE_DEVICE_SLOTS:
-        iec_ack();
-        iec_write_device_slots();
-        break;
-    case SIO_FUJICMD_UNMOUNT_IMAGE:
-        iec_ack();
-        iec_disk_image_umount();
-        break;
-    case SIO_FUJICMD_GET_ADAPTERCONFIG:
-        iec_ack();
-        iec_get_adapter_config();
-        break;
-    case SIO_FUJICMD_NEW_DISK:
-        iec_ack();
-        iec_new_disk();
-        break;
-    case SIO_FUJICMD_SET_DEVICE_FULLPATH:
-        iec_ack();
-        iec_set_device_filename();
-        break;
-    case SIO_FUJICMD_SET_HOST_PREFIX:
-        iec_ack();
-        iec_set_host_prefix();
-        break;
-    case SIO_FUJICMD_GET_HOST_PREFIX:
-        iec_ack();
-        iec_get_host_prefix();
-        break;
-    case SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK:
-        iec_ack();
-        iec_set_iec_external_clock();
-        break;
-    case SIO_FUJICMD_WRITE_APPKEY:
-        iec_ack();
-        iec_write_app_key();
-        break;
-    case SIO_FUJICMD_READ_APPKEY:
-        iec_ack();
-        iec_read_app_key();
-        break;
-    case SIO_FUJICMD_OPEN_APPKEY:
-        iec_ack();
-        iec_open_app_key();
-        break;
-    case SIO_FUJICMD_CLOSE_APPKEY:
-        iec_ack();
-        iec_close_app_key();
-        break;
-    case SIO_FUJICMD_GET_DEVICE_FULLPATH:
-        iec_ack();
-        iec_get_device_filename();
-        break;
-    case SIO_FUJICMD_CONFIG_BOOT:
-        iec_ack();
-        iec_set_boot_config();
-        break;
-    case SIO_FUJICMD_COPY_FILE:
-        iec_ack();
-        iec_copy_file();
-        break;
-    case SIO_FUJICMD_MOUNT_ALL:
-        iec_ack();
-        iec_mount_all();
-        break;
-    case SIO_FUJICMD_SET_BOOT_MODE:
-        iec_ack();
-        iec_set_boot_mode();
-        break;
-    default:
-        iec_nak();
-    }
+    // switch (cmdFrame.comnd)
+    // {
+    // case SIO_FUJICMD_HSIO_INDEX:
+    //     iec_ack();
+    //     iec_high_speed();
+    //     break;
+    // case SIO_FUJICMD_SET_HSIO_INDEX:
+    //     iec_ack();
+    //     iec_set_hiec_index();
+    //     break;
+    // case SIO_FUJICMD_STATUS:
+    //     iec_ack();
+    //     iec_status();
+    //     break;
+    // case SIO_FUJICMD_RESET:
+    //     iec_ack();
+    //     iec_reset_fujinet();
+    //     break;
+    // case SIO_FUJICMD_SCAN_NETWORKS:
+    //     iec_ack();
+    //     iec_net_scan_networks();
+    //     break;
+    // case SIO_FUJICMD_GET_SCAN_RESULT:
+    //     iec_ack();
+    //     iec_net_scan_result();
+    //     break;
+    // case SIO_FUJICMD_SET_SSID:
+    //     iec_ack();
+    //     iec_net_set_ssid();
+    //     break;
+    // case SIO_FUJICMD_GET_SSID:
+    //     iec_ack();
+    //     iec_net_get_ssid();
+    //     break;
+    // case SIO_FUJICMD_GET_WIFISTATUS:
+    //     iec_ack();
+    //     iec_net_get_wifi_status();
+    //     break;
+    // case SIO_FUJICMD_MOUNT_HOST:
+    //     iec_ack();
+    //     iec_mount_host();
+    //     break;
+    // case SIO_FUJICMD_MOUNT_IMAGE:
+    //     iec_ack();
+    //     iec_disk_image_mount();
+    //     break;
+    // case SIO_FUJICMD_OPEN_DIRECTORY:
+    //     iec_ack();
+    //     iec_open_directory();
+    //     break;
+    // case SIO_FUJICMD_READ_DIR_ENTRY:
+    //     iec_ack();
+    //     iec_read_directory_entry();
+    //     break;
+    // case SIO_FUJICMD_CLOSE_DIRECTORY:
+    //     iec_ack();
+    //     iec_close_directory();
+    //     break;
+    // case SIO_FUJICMD_GET_DIRECTORY_POSITION:
+    //     iec_ack();
+    //     iec_get_directory_position();
+    //     break;
+    // case SIO_FUJICMD_SET_DIRECTORY_POSITION:
+    //     iec_ack();
+    //     iec_set_directory_position();
+    //     break;
+    // case SIO_FUJICMD_READ_HOST_SLOTS:
+    //     iec_ack();
+    //     iec_read_host_slots();
+    //     break;
+    // case SIO_FUJICMD_WRITE_HOST_SLOTS:
+    //     iec_ack();
+    //     iec_write_host_slots();
+    //     break;
+    // case SIO_FUJICMD_READ_DEVICE_SLOTS:
+    //     iec_ack();
+    //     iec_read_device_slots();
+    //     break;
+    // case SIO_FUJICMD_WRITE_DEVICE_SLOTS:
+    //     iec_ack();
+    //     iec_write_device_slots();
+    //     break;
+    // case SIO_FUJICMD_UNMOUNT_IMAGE:
+    //     iec_ack();
+    //     iec_disk_image_umount();
+    //     break;
+    // case SIO_FUJICMD_GET_ADAPTERCONFIG:
+    //     iec_ack();
+    //     iec_get_adapter_config();
+    //     break;
+    // case SIO_FUJICMD_NEW_DISK:
+    //     iec_ack();
+    //     iec_new_disk();
+    //     break;
+    // case SIO_FUJICMD_SET_DEVICE_FULLPATH:
+    //     iec_ack();
+    //     iec_set_device_filename();
+    //     break;
+    // case SIO_FUJICMD_SET_HOST_PREFIX:
+    //     iec_ack();
+    //     iec_set_host_prefix();
+    //     break;
+    // case SIO_FUJICMD_GET_HOST_PREFIX:
+    //     iec_ack();
+    //     iec_get_host_prefix();
+    //     break;
+    // case SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK:
+    //     iec_ack();
+    //     iec_set_iec_external_clock();
+    //     break;
+    // case SIO_FUJICMD_WRITE_APPKEY:
+    //     iec_ack();
+    //     iec_write_app_key();
+    //     break;
+    // case SIO_FUJICMD_READ_APPKEY:
+    //     iec_ack();
+    //     iec_read_app_key();
+    //     break;
+    // case SIO_FUJICMD_OPEN_APPKEY:
+    //     iec_ack();
+    //     iec_open_app_key();
+    //     break;
+    // case SIO_FUJICMD_CLOSE_APPKEY:
+    //     iec_ack();
+    //     iec_close_app_key();
+    //     break;
+    // case SIO_FUJICMD_GET_DEVICE_FULLPATH:
+    //     iec_ack();
+    //     iec_get_device_filename();
+    //     break;
+    // case SIO_FUJICMD_CONFIG_BOOT:
+    //     iec_ack();
+    //     iec_set_boot_config();
+    //     break;
+    // case SIO_FUJICMD_COPY_FILE:
+    //     iec_ack();
+    //     iec_copy_file();
+    //     break;
+    // case SIO_FUJICMD_MOUNT_ALL:
+    //     iec_ack();
+    //     iec_mount_all();
+    //     break;
+    // case SIO_FUJICMD_SET_BOOT_MODE:
+    //     iec_ack();
+    //     iec_set_boot_mode();
+    //     break;
+    // default:
+    //     iec_nak();
+    // }
 }
 
 int iecFuji::get_disk_id(int drive_slot)

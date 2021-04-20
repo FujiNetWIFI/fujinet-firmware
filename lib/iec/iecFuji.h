@@ -5,13 +5,13 @@
 #include "../../include/debug.h"
 #include "iecBus.h"
 #include "iecDisk.h"
+#include "iecApeTime.h"
+#include "iecVoice.h"
 
 #include "network.h"
 #include "cassette.h"
 
 #include "modem.h"
-#include "apetime.h"
-#include "voice.h"
 #include "printerlist.h"
 #include "midimaze.h"
 #include "siocpm.h"
@@ -70,7 +70,7 @@ private:
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
-    iecCassette _cassetteDev;
+//    iecCassette _cassetteDev;
 
     int _current_open_directory_slot = -1;
 
@@ -108,7 +108,6 @@ protected:
     void _set_device_filename();    // 0xE2
     void _set_host_prefix();        // 0xE1
     void _get_host_prefix();        // 0xE0
-    void _set_sio_external_clock(); // 0xDF
     void _write_app_key();          // 0xDE
     void _read_app_key();           // 0xDD
     void _open_app_key();           // 0xDC
@@ -119,7 +118,7 @@ protected:
     void _set_boot_mode();          // 0xD6
 
     void _status() override;
-    void _process(uint32_t commanddata, uint8_t checksum) override;
+    void _process() override;
 
     void shutdown() override;
 
@@ -129,7 +128,7 @@ public:
 
     iecNetwork *network();
 
-    iecCassette *cassette() { return &_cassetteDev; };
+//    iecCassette *cassette() { return &_cassetteDev; };
     void debug_tape();
 
     void insert_boot_device(uint8_t d);
@@ -146,7 +145,7 @@ public:
     void _populate_slots_from_config();
     void _populate_config_from_slots();
 
-    void iec_mount_all();              // 0xD7
+    void _mount_all();              // 0xD7
 
     iecFuji();
 };
@@ -155,4 +154,4 @@ public:
 extern iecFuji theFuji;
 #endif
 
-#endif // FUJI_H
+#endif // IEC_FUJI_H

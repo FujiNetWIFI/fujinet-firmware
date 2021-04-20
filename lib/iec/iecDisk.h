@@ -24,7 +24,7 @@
 #include <string>
 #include "esp_vfs.h"
 
-#include "fujiHost.h"
+#include "iecFuji.h"
 
 #include "iecBus.h"
 #include "iecDevice.h"
@@ -41,11 +41,14 @@ class iecDisk : public iecDevice
 private:
     DiskType *_disk = nullptr;
 
-    void iec_read();
-    void iec_write(bool verify);
-    void iec_format();
+    void _read();
+    void _write(bool verify);
+    void _format();
 
-    void iec_process(void) override;
+    void _status() override;
+    void _process() override;
+
+    void shutdown() override;
 
 	// handler helpers.
 	void _open(void);
@@ -70,6 +73,7 @@ private:
 
 	fujiHost *_fs = nullptr;
 
+	std::string _command;
 	int _drive;
 	int _partition;
     std::string _url;
@@ -77,7 +81,9 @@ private:
 	std::string _archive; // Future streaming of images/files in archives .zip/.7z/.rar
     std::string _image;
 	std::string _filename;
-	std::string _filetype;
+	std::string _extension;
+	std::string _type;
+	std::string _mode;
 
 public:
     iecDisk();
