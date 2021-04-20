@@ -43,8 +43,6 @@ void main_shutdown_handler()
 }
 
 
-
-
 // Initial setup
 void main_setup()
 {

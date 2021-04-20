@@ -25,7 +25,7 @@
 #include "esp_vfs.h"
 
 #include "iecBus.h"
-#include "fuji.h"
+#include "iecFuji.h"
 
 #include "cbmdefines.h"
 
@@ -46,6 +46,26 @@ enum OpenState
 	O_DEVICE_STATUS
 };
 
+union cmdFrame_t
+{
+    struct
+    {
+        uint8_t device;
+        uint8_t comnd;
+        uint8_t aux1;
+        uint8_t aux2;
+        uint8_t cksum;
+    };
+    struct
+    {
+        uint32_t commanddata;
+        uint8_t checksum;
+    } __attribute__((packed));
+};
+
+//helper functions
+uint8_t iec_checksum(uint8_t *buf, unsigned short len);
+
 class iecBus;      // declare early so can be friend
 
 class iecDevice
@@ -54,6 +74,8 @@ protected:
 	friend iecBus;
 
     int _device_id;
+
+    cmdFrame_t cmdFrame;
 
 	void sendStatus(void);
 	void sendSystemInfo(void);
@@ -64,10 +86,10 @@ protected:
 	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...);
 
 	// handler helpers.
-	void _open(void);
-	void _listen_data(void);
-	void _talk_data(int chan);
-	void _close(void);
+	void _open(void) {};
+	void _listen_data(void) {};
+	void _talk_data(int chan) {};
+	void _close(void) {};
 
 	// our iec low level driver:
 	iecBus& _iec;
@@ -76,11 +98,26 @@ protected:
 	int _openState; // see OpenState
 	int _queuedError;
 
+    void iec_to_computer(uint8_t *buff, uint16_t len, bool err);
+    uint8_t iec_to_peripheral(uint8_t *buff, uint16_t len);
+
     /**
-     * @brief All SIO devices repeatedly call this routine to fan out to other methods for each command. 
-     * This is typcially implemented as a switch() statement.
+     * @brief Send a COMPLETE to the Atari 'C'
+     * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
+     * either a COMPLETE or ERROR will result in a SIO TIMEOUT (138) to be reported in DSTATS.
      */
-    virtual void iec_process(void);
+    void iec_complete();
+
+    /**
+     * @brief Send an ERROR to the Atari 'E'
+     * This should be used during or after processing of the command to indicate that an error resulted
+     * from processing the command, and that the Atari should probably re-try the command. Failure to
+     * send an ERROR or COMPLTE will result in a SIO TIMEOUT (138) to be reported in DSTATS.
+     */
+    void iec_error();
+
+    virtual void _status() = 0;
+    virtual void _process(void);
 
 	// Reset device
 	virtual void reset();

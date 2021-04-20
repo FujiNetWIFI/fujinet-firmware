@@ -58,7 +58,7 @@ void iecBus::_iec_process_cmd(void)
 		{
 			_activeDev = devicep;
 			// handle command
-			_activeDev->iec_process();
+			_activeDev->_process();
 		}
 	}
 
@@ -920,7 +920,7 @@ int iecBus::receive()
 
 // IEC_send sends a byte
 //
-bool iecBus::send(int data)
+bool iecBus::send(uint8_t data)
 {
 #ifdef DATA_STREAM
 	Debug_printf("%.2X ", data);
@@ -928,10 +928,20 @@ bool iecBus::send(int data)
 	return sendByte(data, false);
 } // send
 
+bool iecBus::send(uint8_t *data, uint16_t len)
+{
+    for (uint16_t i = 0; i < len; i++)
+	{
+		if (!send(data[i]))
+			return false;
+	}
+	return true;
+}
+
 
 // Same as IEC_send, but indicating that this is the last byte.
 //
-bool iecBus::sendEOI(int data)
+bool iecBus::sendEOI(uint8_t data)
 {
 	Debug_printf("\r\nEOI Sent!");
 	if (sendByte(data, true))

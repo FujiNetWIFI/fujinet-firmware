@@ -168,7 +168,7 @@ void iecDevice::sendDeviceStatus()
 } // sendDeviceStatus
 
 
-void iecDevice::iec_process(void)
+void iecDevice::_process(void)
 {
 
 	switch (IEC.ATN.command)
@@ -238,32 +238,6 @@ void iecDevice::iec_process(void)
 
 } // handler
 
-void iecDevice::_open()
-{
-
-} // _open
-
-
-void iecDevice::_talk_data(int chan)
-{
-
-} // _talk_data
-
-
-void iecDevice::_listen_data()
-{
-
-
-} // _listen_data
-
-
-void iecDevice::_close()
-{
-
-
-} // _close
-
-
 
 // send single basic line, including heading basic pointer and terminating zero.
 uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...)
@@ -325,4 +299,75 @@ uint16_t iecDevice::sendHeader(uint16_t &basicPtr)
 	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", PRODUCT_ID, space_cnt, "", _device_id);
 
 	return byte_count;
+}
+
+
+/*
+   IEC WRITE to CBM from DEVICE
+   buf = buffer to send from fujinet
+   len = length of buffer
+   err = along with data, send ERROR status to CBM rather than COMPLETE
+*/
+void iecDevice::iec_to_computer(uint8_t *buf, uint16_t len, bool err)
+{
+    // Write data frame to computer
+    Debug_printf("->IEC write %hu bytes\n", len);
+#ifdef VERBOSE_IEC
+    Debug_printf("SEND <%u> BYTES\n\t", len);
+    for (int i = 0; i < len; i++)
+        Debug_printf("%02x ", buf[i]);
+    Debug_print("\n");
+#endif
+
+	err = IEC.send(buf, len);
+}
+
+/*
+   IEC READ from CBM by DEVICE
+   buf = buffer from cbm to fujinet
+   len = length
+   Returns checksum
+*/
+uint8_t iecDevice::iec_to_peripheral(uint8_t *buf, uint16_t len)
+{
+    // Retrieve data frame from computer
+    Debug_printf("<-IEC read %hu bytes\n", len);
+
+    __BEGIN_IGNORE_UNUSEDVARS
+    uint16_t l = IEC.receive(buf, len);
+    __END_IGNORE_UNUSEDVARS
+
+#ifdef VERBOSE_IEC
+    Debug_printf("RECV <%u> BYTES\n\t", l);
+    for (int i = 0; i < len; i++)
+        Debug_printf("%02x ", buf[i]);
+    Debug_print("\n");
+#endif
+
+    return;
+}
+
+// Calculate 8-bit checksum
+uint8_t iec_checksum(uint8_t *buf, unsigned short len)
+{
+    unsigned int chk = 0;
+
+    for (int i = 0; i < len; i++)
+        chk = ((chk + buf[i]) >> 8) + ((chk + buf[i]) & 0xff);
+
+    return chk;
+}
+
+// IEC COMPLETE
+void iecDevice::iec_complete()
+{
+    fnSystem.delay_microseconds(DELAY_T5);
+    Debug_println("COMPLETE!");
+}
+
+// IEC ERROR
+void iecDevice::iec_error()
+{
+    fnSystem.delay_microseconds(DELAY_T5);
+    Debug_println("ERROR!");
 }

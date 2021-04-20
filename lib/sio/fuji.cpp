@@ -1431,8 +1431,8 @@ void sioFuji::sio_set_sio_external_clock()
 // Mounts the desired boot disk number
 void sioFuji::insert_boot_device(uint8_t d)
 {
-    const char *config_atr = "/autorun.atr";
-    const char *mount_all_atr = "/mount-and-boot.atr";
+    const char *config_image = "/autorun.atr";
+    const char *mount_all_image = "/mount-and-boot.atr";
     FILE *fBoot;
 
     _bootDisk.unmount();
@@ -1440,12 +1440,12 @@ void sioFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fnSPIFFS.file_open(config_atr);
-        _bootDisk.mount(fBoot, config_atr, 0);
+        fBoot = fnSPIFFS.file_open(config_image);
+        _bootDisk.mount(fBoot, config_image, 0);
         break;
     case 1:
-        fBoot = fnSPIFFS.file_open(mount_all_atr);
-        _bootDisk.mount(fBoot, mount_all_atr, 0);
+        fBoot = fnSPIFFS.file_open(mount_all_image);
+        _bootDisk.mount(fBoot, mount_all_image, 0);
         break;
     }
 

@@ -104,8 +104,8 @@ enum ATNMode
 {
 	ATN_IDLE = 0,           // Nothing recieved of our concern
 	ATN_CMD = 1,            // A command is recieved
-	ATN_LISTEN = 2,     // A command is recieved and data is coming to us
-	ATN_TALK = 3,       // A command is recieved and we must talk now
+	ATN_LISTEN = 2,         // A command is recieved and data is coming to us
+	ATN_TALK = 3,           // A command is recieved and we must talk now
 	ATN_ERROR = 4,          // A problem occoured, reset communication
 	ATN_RESET = 5		    // The IEC bus is in a reset state (RESET line).
 };
@@ -116,11 +116,11 @@ enum ATNCommand
 	ATN_COMMAND_GLOBAL = 0x00,     // 0x00 + cmd (global command)
 	ATN_COMMAND_LISTEN = 0x20,     // 0x20 + device_id (LISTEN)
 	ATN_COMMAND_UNLISTEN = 0x3F,   // 0x3F (UNLISTEN)
-	ATN_COMMAND_TALK = 0x40,	    // 0x40 + device_id (TALK)
+	ATN_COMMAND_TALK = 0x40,       // 0x40 + device_id (TALK)
 	ATN_COMMAND_UNTALK = 0x5F,     // 0x5F (UNTALK)
-	ATN_COMMAND_DATA = 0x60,	    // 0x60 + channel (SECOND)
-	ATN_COMMAND_CLOSE = 0xE0,  	// 0xE0 + channel (CLOSE)
-	ATN_COMMAND_OPEN = 0xF0		// 0xF0 + channel (OPEN)
+	ATN_COMMAND_DATA = 0x60,       // 0x60 + channel (SECOND)
+	ATN_COMMAND_CLOSE = 0xE0,  	   // 0xE0 + channel (CLOSE)
+	ATN_COMMAND_OPEN = 0xF0	       // 0xF0 + channel (OPEN)
 };
 
 struct ATNData
@@ -135,7 +135,7 @@ struct ATNData
 
 // class def'ns
 class iecModem;    // declare here so can reference it, but define in modem.h
-class iecFuji;     // declare here so can reference it, but define in fuji.h
+class iecFuji;     // declare here so can reference it, but define in iecFuji.h
 class iecNetwork;  // declare here so can reference it, but define in network.h
 class iecMIDIMaze; // declare here so can reference it, but define in midimaze.h
 class iecCassette; // Cassette forward-declaration.
@@ -160,13 +160,14 @@ private:
     void _iec_process_cmd(void);
 
 	// IEC Bus Commands
-	void listen(void);            // 0x20 + device_id 	Listen, device (0–30)
-//	void unlisten(void);          // 0x3F				Unlisten, all devices
-	void talk(void);              // 0x40 + device_id 	Talk, device 
-//	void untalk(void);            // 0x5F				Untalk, all devices 
-//	void reopen(void);            // 0x60 + channel		Reopen, channel (0–15)
-//	void close(void);             // 0xE0 + channel		Close, channel
-//	void open(void);              // 0xF0 + channel		Open, channel
+//	void global(void) {};            // 0x00 + cmd          Global command to all devices, Not supported on CBM
+	void listen(void);               // 0x20 + device_id 	Listen, device (0–30), Devices 0-3 are reserved
+	void unlisten(void) {};          // 0x3F				Unlisten, all devices
+	void talk(void);                 // 0x40 + device_id 	Talk, device (0-30)
+	void untalk(void) {};            // 0x5F				Untalk, all devices 
+	void data(void) {};              // 0x60 + channel		Open Channel/Data, Secondary Address / Channel (0–15)
+	void close(void) {};             // 0xE0 + channel		Close, Secondary Address / Channel (0–15)
+	void open(void) {};              // 0xF0 + channel		Open, Secondary Address / Channel (0–15)
 
 	void receiveCommand(void);
 	
@@ -261,16 +262,22 @@ public:
 
 	// Sends a byte. The communication must be in the correct state: a load command
 	// must just have been recieved. If something is not OK, FALSE is returned.
-	bool send(int data);
+	bool send(uint8_t data);
+
+	// Sends a string.
+	bool send(uint8_t *data, uint16_t len);
 
 	// Same as IEC_send, but indicating that this is the last byte.
-	bool sendEOI(int data);
+	bool sendEOI(uint8_t data);
 
 	// A special send command that informs file not found condition
 	bool sendFNF();
 
 	// Recieve a byte
 	int receive();
+
+	// Receive a string.
+	bool receive(uint8_t *data, uint16_t len);
 
 	// Enabled Device Bit Mask
 	uint32_t enabledDevices;

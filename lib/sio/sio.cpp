@@ -470,7 +470,7 @@ void sioBus::shutdown()
 {
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n",devicep->id());
+        Debug_printf("Shutting down device %02x\n",devicep->device_id());
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");

@@ -34,7 +34,7 @@
 using namespace CBM;
 
 // External ref to fuji object.
-extern sioFuji theFuji;
+extern iecFuji theFuji;
 
 iecDisk::iecDisk()
 {
@@ -92,15 +92,38 @@ void iecDisk::sendDeviceStatus()
 } // sendDeviceStatus
 
 
-
 void iecDisk::_open(void)
 {
-	_filename = IEC.ATN.data;
-	util_string_trim(_filename);
-	_filetype = _filename.substr(_filename.find_last_of(".") + 1);
-	util_string_toupper(_filetype);
-	if ( _filetype.length() > 4 || _filetype.length() == _filename.length() )
-		_filetype = "";
+	uint8_t pos = 0;
+	uint8_t lpos = 0;
+	std::string command(IEC.ATN.data);
+
+	// Parse Command
+	lpos = command.find_first_of(":", pos);
+	_command = command.substr(pos, lpos - 1);
+	pos = lpos + 1;
+	_drive = atoi(_command.c_str());
+
+	// Parse Filename
+	lpos = command.find_first_of(",", pos);
+	_filename = command.substr(pos, lpos - 1);
+	pos = lpos + 1;
+
+	// Parse Extension
+	_extension = _filename.substr(_filename.find_last_of(".") + 1);
+	util_string_toupper(_extension);
+	if ( _extension.length() > 4 || _extension.length() == _filename.length() )
+		_extension = "";	
+
+	// Parse File Type
+	lpos = command.find_first_of(",", pos);
+	_type = command.substr(pos, lpos - 1);
+	pos = lpos + 1;
+
+	// Parse File Mode
+	_mode = command.substr(pos);
+	
+
 
 	// TODO this whole directory handling needs to be
 	// rewritten using the fnFs** classes. in fact it
@@ -122,7 +145,7 @@ void iecDisk::_open(void)
 	// 	_openState = O_DIR;	
 	// }
 	// else if (std::string( IMAGE_TYPES ).find(m_filetype) >= 0 && m_filetype.length() > 0 )
-	else if (std::string(IMAGE_TYPES).find(_filetype) < std::string::npos && _filetype.length() > 0)
+	else if (std::string(IMAGE_TYPES).find(_extension) < std::string::npos && _extension.length() > 0)
 	{
 		// Mount image file
 		Debug_printf("\r\nmount: [%s] >", _filename.c_str());
@@ -178,7 +201,7 @@ void iecDisk::_open(void)
 				_image = "";
 			}
 
-			if (std::string(IMAGE_TYPES).find(_filetype) < std::string::npos && !_filetype.empty())
+			if (std::string(IMAGE_TYPES).find(_extension) < std::string::npos && !_extension.empty())
 			{
 				// Mount image file
 				//Debug_printf("\r\nmount: [%s] >", m_filename.c_str());
@@ -215,12 +238,12 @@ void iecDisk::_open(void)
 	if ( _openState == O_DIR )
 	{
 		_filename = "$";
-		_filetype = "";
+		_extension = "";
 		IEC.ATN.data[0] = '\0';
 	}
 
 	//Debug_printf("\r\n_open: %d (M_OPENSTATE) [%s]", _openState, m__iec_cmd.data);
-	Debug_printf("\r\n$IEC: DEVICE[%d] DRIVE[%d] PARTITION[%d] URL[%s] PATH[%s] IMAGE[%s] FILENAME[%s] FILETYPE[%s] COMMAND[%s]\r\n", _device_id, _drive, _partition, _url.c_str(), _path.c_str(), _image.c_str(), _filename.c_str(), _filetype.c_str(), IEC.ATN.data);
+	Debug_printf("\r\n$IEC: DEVICE[%d] DRIVE[%d] PARTITION[%d] URL[%s] PATH[%s] IMAGE[%s] FILENAME[%s] FILETYPE[%s] COMMAND[%s]\r\n", _device_id, _drive, _partition, _url.c_str(), _path.c_str(), _image.c_str(), _filename.c_str(), _extension.c_str(), IEC.ATN.data);
 
 } // _open
 
@@ -467,7 +490,7 @@ void iecDisk::sendFile()
 	
 	Debug_printf("\r\nsendFile: %s\r\n", inFile.c_str());
 
-	FILE* file = _fs.file_open(inFile.c_str(), "r");
+	FILE* file = fnSPIFFS.file_open(inFile.c_str(), "r");
 	
 	if (!file)
 	{
@@ -476,7 +499,7 @@ void iecDisk::sendFile()
 	}
 	else
 	{
-		size_t len = _fs.filesize(file);
+		size_t len = fnSPIFFS.filesize(file);
 
 		// Get file load address
 		fread(&b, 1, 1, file);
@@ -550,7 +573,7 @@ void iecDisk::saveFile()
 	
 	Debug_printf("\r\nsaveFile: %s", outFile.c_str());
 
-	FILE* file = _fileSystem.file_open(outFile.c_str(), "w");
+	FILE* file = fnSPIFFS.file_open(outFile.c_str(), "w");
 //	noInterrupts();
 	if (!file)
 	{
@@ -742,3 +765,4 @@ void iecDevice::sendFileHTTP()
 	}
 }
  */
+
