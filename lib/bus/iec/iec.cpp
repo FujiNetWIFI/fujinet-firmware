@@ -312,7 +312,7 @@ uint16_t iecDevice::sendHeader(uint16_t &basicPtr)
    len = length of buffer
    err = along with data, send ERROR status to CBM rather than COMPLETE
 */
-void iecDevice::iec_to_computer(uint8_t *buf, uint16_t len, bool err)
+void iecDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
     Debug_printf("->IEC write %hu bytes\n", len);
@@ -332,7 +332,7 @@ void iecDevice::iec_to_computer(uint8_t *buf, uint16_t len, bool err)
    len = length
    Returns checksum
 */
-uint8_t iecDevice::iec_to_peripheral(uint8_t *buf, uint16_t len)
+uint8_t iecDevice::bus_to_peripheral(uint8_t *buf, uint16_t len)
 {
     // Retrieve data frame from computer
     Debug_printf("<-IEC read %hu bytes\n", len);
@@ -363,13 +363,13 @@ uint8_t iec_checksum(uint8_t *buf, unsigned short len)
 }
 
 // IEC COMPLETE
-void iecDevice::iec_complete()
+void iecDevice::sio_complete()
 {
     Debug_println("COMPLETE!");
 }
 
 // IEC ERROR
-void iecDevice::iec_error()
+void iecDevice::sio_error()
 {
     Debug_println("ERROR!");
 }
@@ -377,7 +377,7 @@ void iecDevice::iec_error()
 
 
 // Read and process a command frame from SIO
-void iecBus::_iec_process_cmd(void)
+void iecBus::_bus_process_cmd(void)
 {
     // if (_modemDev != nullptr && _modemDev->modemActive)
     // {
@@ -1131,7 +1131,7 @@ void iecBus::service()
 
 
     // Go process the command
-    _iec_process_cmd();
+    _bus_process_cmd();
 
     // // Go check if the modem needs to read data if it's active
     // if (_modemDev != nullptr && _modemDev->modemActive)

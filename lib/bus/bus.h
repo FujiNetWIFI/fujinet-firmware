@@ -20,6 +20,20 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
+enum bus_message : uint16_t
+{
+    BUSMSG_DISKSWAP,  // Rotate disk
+    BUSMSG_DEBUG_TAPE // Tape debug msg
+};
+
+struct bus_message_t
+{
+    bus_message message_id;
+    uint16_t message_arg;
+};
+
+// typedef bus_message_t bus_message_t;
+
 #if defined( BUILD_ATARI )
 #   include "sio/sio.h"
 #elif defined( BUILD_CBM )

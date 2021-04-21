@@ -116,7 +116,7 @@ protected:
      * @return TRUE if the Atari processed the data in error, FALSE if the Atari successfully processed
      * the data.
      */
-    void sio_to_computer(uint8_t *buff, uint16_t len, bool err);
+    void bus_to_computer(uint8_t *buff, uint16_t len, bool err);
 
     /**
      * @brief Receive data from the Atari.
@@ -124,28 +124,28 @@ protected:
      * @param len The length of the amount of data to receive from the Atari.
      * @return An 8-bit wrap-around checksum calculated by the Atari, which should be checked with sio_checksum()
      */
-    uint8_t sio_to_peripheral(uint8_t *buff, uint16_t len);
+    uint8_t bus_to_peripheral(uint8_t *buff, uint16_t len);
 
     /**
      * @brief Send an acknowledgement byte to the Atari 'A'
      * This should be used if the command received by the SIO device is valid, and is used to signal to the
      * Atari that we are now processing the command.
      */
-    void sio_ack();
+    void sio_ack(void);
 
     /**
      * @brief Send a non-acknowledgement (NAK) to the Atari 'N'
      * This should be used if the command received by the SIO device is invalid, in the first place. It is not
      * the same as sio_error().
      */
-    void sio_nak();
+    void sio_nak(void);
 
     /**
      * @brief Send a COMPLETE to the Atari 'C'
      * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
      * either a COMPLETE or ERROR will result in a SIO TIMEOUT (138) to be reported in DSTATS.
      */
-    void sio_complete();
+    void sio_complete(void);
 
     /**
      * @brief Send an ERROR to the Atari 'E'
@@ -153,7 +153,7 @@ protected:
      * from processing the command, and that the Atari should probably re-try the command. Failure to
      * send an ERROR or COMPLTE will result in a SIO TIMEOUT (138) to be reported in DSTATS.
      */
-    void sio_error();
+    void sio_error(void);
 
     /**
      * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
@@ -161,13 +161,13 @@ protected:
      * 
      * @return 16-bit value of DAUX1/DAUX2 in cmdFrame.
      */
-    unsigned short sio_get_aux();
+    unsigned short sio_get_aux(void);
 
     /**
-     * @brief All SIO commands by convention should return a status command, using sio_to_computer() to return
+     * @brief All SIO commands by convention should return a status command, using bus_to_computer() to return
      * four bytes of status information to be put into DVSTAT ($02EA)
      */
-    virtual void sio_status() = 0;
+    virtual void sio_status(void) = 0;
 
     /**
      * @brief All SIO devices repeatedly call this routine to fan out to other methods for each command. 
@@ -175,21 +175,24 @@ protected:
      */
     virtual void sio_process(uint32_t commanddata, uint8_t checksum) = 0;
 
+	// Reset device
+	virtual void reset(void) {};
+
     // Optional shutdown/reboot cleanup routine
-    virtual void shutdown(){};
+    virtual void shutdown(void) {};
 
 public:
     /**
      * @brief get the SIO device Number (1-255)
      * @return The device number registered for this device
      */
-    int device_id() { return _device_id; };
+    int device_id(void) { return _device_id; };
 
     /**
-     * @brief Command 0x3F '?' intended to return a single byte to the atari via sio_to_computer(), which
+     * @brief Command 0x3F '?' intended to return a single byte to the atari via bus_to_computer(), which
      * signifies the high speed SIO divisor chosen by the user in their #FujiNet configuration.
      */
-    virtual void sio_high_speed();
+    virtual void sio_high_speed(void);
 
     /**
      * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
@@ -209,22 +212,9 @@ public:
     /**
      * @brief Get the sioBus object that this sioDevice is attached to.
      */
-    sioBus sio_get_bus();
+    //sioBus sio_get_bus(void);
 };
 
-enum sio_message : uint16_t
-{
-    SIOMSG_DISKSWAP,  // Rotate disk
-    SIOMSG_DEBUG_TAPE // Tape debug msg
-};
-
-struct sio_message_t
-{
-    sio_message message_id;
-    uint16_t message_arg;
-};
-
-// typedef sio_message_t sio_message_t;
 
 class sioBus
 {
@@ -249,38 +239,39 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
-    void _sio_process_cmd();
-    void _sio_process_queue();
+    void _bus_process_cmd(void);
+    void _bus_process_queue(void);
 
 public:
-    void setup();
-    void service();
-    void shutdown();
+    void setup(void);
+    void service(void);
+    void reset(void);
+    void shutdown(void);
 
-    int numDevices();
+    int numDevices(void);
     void addDevice(sioDevice *pDevice, int device_id);
     void remDevice(sioDevice *pDevice);
     sioDevice *deviceById(int device_id);
     void changeDeviceId(sioDevice *pDevice, int device_id);
 
-    int getBaudrate();          // Gets current SIO baud rate setting
+    int getBaudrate(void);          // Gets current SIO baud rate setting
     void setBaudrate(int baud); // Sets SIO to specific baud rate
-    void toggleBaudrate();      // Toggle between standard and high speed SIO baud rate
+    void toggleBaudrate(void);      // Toggle between standard and high speed SIO baud rate
 
     int setHighSpeedIndex(int hsio_index); // Set HSIO index. Sets high speed SIO baud and also returns that value.
-    int getHighSpeedIndex();               // Gets current HSIO index
-    int getHighSpeedBaud();                // Gets current HSIO baud
+    int getHighSpeedIndex(void);               // Gets current HSIO index
+    int getHighSpeedBaud(void);                // Gets current HSIO baud
 
     void setMIDIHost(const char *newhost);                   // Set new host/ip for MIDIMaze
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0); // enable ultrahigh/set baud rate
-    bool getUltraHighEnabled() { return useUltraHigh; }
-    int getUltraHighBaudRate() { return _sioBaudUltraHigh; }
+    bool getUltraHighEnabled(void) { return useUltraHigh; }
+    int getUltraHighBaudRate(void) { return _sioBaudUltraHigh; }
 
-    sioCassette *getCassette() { return _cassetteDev; }
-    sioPrinter *getPrinter() { return _printerdev; }
-    sioCPM *getCPM() { return _cpmDev; }
+    sioCassette *getCassette(void) { return _cassetteDev; }
+    sioPrinter *getPrinter(void) { return _printerdev; }
+    sioCPM *getCPM(void) { return _cpmDev; }
 
-    QueueHandle_t qSioMessages = nullptr;
+    QueueHandle_t qBusMessages = nullptr;
 };
 
 extern sioBus SIO;

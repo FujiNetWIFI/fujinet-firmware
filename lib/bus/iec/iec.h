@@ -140,15 +140,6 @@ struct ATNData
 	char data[ATN_CMD_MAX_LENGTH];
 };
 
-// class def'ns
-class iecBus;      // declare early so can be friend
-class iecModem;    // declare here so can reference it, but define in modem.h
-class iecFuji;     // declare here so can reference it, but define in iecFuji.h
-class iecNetwork;  // declare here so can reference it, but define in network.h
-class iecMIDIMaze; // declare here so can reference it, but define in midimaze.h
-class iecCassette; // Cassette forward-declaration.
-class iecCPM;      // CPM device.
-class iecPrinter;  // Printer device
 
 enum OpenState 
 {
@@ -162,6 +153,18 @@ enum OpenState
 	O_DEVICE_STATUS
 };
 
+//helper functions
+uint8_t iec_checksum(uint8_t *buf, unsigned short len);
+
+// class def'ns
+class iecBus;      // declare early so can be friend
+class iecModem;    // declare here so can reference it, but define in modem.h
+class iecFuji;     // declare here so can reference it, but define in iecFuji.h
+class iecNetwork;  // declare here so can reference it, but define in network.h
+class iecMIDIMaze; // declare here so can reference it, but define in midimaze.h
+class iecCassette; // Cassette forward-declaration.
+class iecCPM;      // CPM device.
+class iecPrinter;  // Printer device
 
 class iecDevice
 {
@@ -171,6 +174,45 @@ protected:
     int _device_id;
 
     cmdFrame_t cmdFrame;
+    bool listen_to_type3_polls = false;
+
+    void bus_to_computer(uint8_t *buff, uint16_t len, bool err);
+    uint8_t bus_to_peripheral(uint8_t *buff, uint16_t len);
+
+    void sio_ack(void) {};
+    void sio_nak(void) {};
+
+    /**
+     * @brief Send a COMPLETE to the Atari 'C'
+     * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
+     * either a COMPLETE or ERROR will result in a SIO TIMEOUT (138) to be reported in DSTATS.
+     */
+    void sio_complete(void) {};
+
+    /**
+     * @brief Send an ERROR to the Atari 'E'
+     * This should be used during or after processing of the command to indicate that an error resulted
+     * from processing the command, and that the Atari should probably re-try the command. Failure to
+     * send an ERROR or COMPLTE will result in a SIO TIMEOUT (138) to be reported in DSTATS.
+     */
+    void sio_error(void) {};
+
+	unsigned short _get_aux(void) { return 0; };
+    virtual void _status() = 0;
+    virtual void _process(uint32_t commanddata, uint8_t checksum) = 0;
+
+	// Reset device
+	virtual void reset(void);
+
+    // Optional shutdown/reboot cleanup routine
+    virtual void shutdown(void);
+
+	// our iec low level driver:
+//	iecBus& _iec;
+
+	// This var is set after an open command and determines what to send next
+	int _openState; // see OpenState
+	int _queuedError;
 
 	void sendStatus(void);
 	void sendSystemInfo(void);
@@ -186,46 +228,14 @@ protected:
 	void _talk_data(int chan) {};
 	void _close(void) {};
 
-	// our iec low level driver:
-	iecBus& _iec;
-
-	// This var is set after an open command and determines what to send next
-	int _openState; // see OpenState
-	int _queuedError;
-
-    void iec_to_computer(uint8_t *buff, uint16_t len, bool err);
-    uint8_t iec_to_peripheral(uint8_t *buff, uint16_t len);
-
-    /**
-     * @brief Send a COMPLETE to the Atari 'C'
-     * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
-     * either a COMPLETE or ERROR will result in a SIO TIMEOUT (138) to be reported in DSTATS.
-     */
-    void iec_complete();
-
-    /**
-     * @brief Send an ERROR to the Atari 'E'
-     * This should be used during or after processing of the command to indicate that an error resulted
-     * from processing the command, and that the Atari should probably re-try the command. Failure to
-     * send an ERROR or COMPLTE will result in a SIO TIMEOUT (138) to be reported in DSTATS.
-     */
-    void iec_error();
-
-    virtual void _status() = 0;
-    virtual void _process(void);
-
-	// Reset device
-	virtual void reset();
-
-    // Optional shutdown/reboot cleanup routine
-    virtual void shutdown(){};
-
 public:
     /**
      * @brief get the SIO device Number (1-255)
      * @return The device number registered for this device
      */
-    int device_id() { return _device_id; };
+    int device_id(void) { return _device_id; };
+
+    virtual void sio_high_speed(void) {};
 
     /**
      * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
@@ -242,8 +252,8 @@ public:
      */
     uint8_t status_wait_count = 5;
 
-	iecDevice();
-	virtual ~iecDevice() {}
+	iecDevice(void);
+	virtual ~iecDevice(void) {}
 };
 
 
@@ -251,6 +261,8 @@ class iecBus
 {
 private:
 	std::forward_list<iecDevice *> _daisyChain;
+
+    int _command_frame_counter = 0;
 
     iecDevice *_activeDev = nullptr;
     iecModem *_modemDev = nullptr;
@@ -261,8 +273,17 @@ private:
     iecCPM *_cpmDev = nullptr;
     iecPrinter *_printerdev = nullptr;
 
+    int _sioBaud = 0;
+    int _sioHighSpeedIndex = 0;
+    int _sioBaudHigh;
+    int _sioBaudUltraHigh;
+
+    bool useUltraHigh = false; // Use fujinet derived clock.
+
+    void _bus_process_cmd(void);
+    void _bus_process_queue(void);
+
 	int _iec_state;
-    void _iec_process_cmd(void);
 
 	// IEC Bus Commands
 //	void global(void) {};            // 0x00 + cmd          Global command to all devices, Not supported on CBM
@@ -348,20 +369,35 @@ private:
 
 
 public:
-    void setup();
-    void service();
-	void reset();
-    void shutdown();
+    void setup(void);
+    void service(void);
+	void reset(void);
+    void shutdown(void);
 
-    int numDevices();
+    int numDevices(void);
     void addDevice(iecDevice *pDevice, int device_id);
     void remDevice(iecDevice *pDevice);
     iecDevice *deviceById(int device_id);
     void changeDeviceId(iecDevice *pDevice, int device_id);
 
-    iecCassette *getCassette() { return _cassetteDev; }
-    iecPrinter *getPrinter() { return _printerdev; }
-    iecCPM *getCPM() { return _cpmDev; }
+    int getBaudrate(void) { return 0; };          // Gets current SIO baud rate setting
+    void setBaudrate(int baud) {}; // Sets SIO to specific baud rate
+    void toggleBaudrate(void) {};      // Toggle between standard and high speed SIO baud rate
+
+    int setHighSpeedIndex(int hsio_index) { return 0; }; // Set HSIO index. Sets high speed SIO baud and also returns that value.
+    int getHighSpeedIndex(void) { return 0; };               // Gets current HSIO index
+    int getHighSpeedBaud(void) { return 0; };                // Gets current HSIO baud
+
+    void setMIDIHost(const char *newhost) {};                   // Set new host/ip for MIDIMaze
+    void setUltraHigh(bool _enable, int _ultraHighBaud = 0) {}; // enable ultrahigh/set baud rate
+    bool getUltraHighEnabled(void) { return useUltraHigh; }
+    int getUltraHighBaudRate(void) { return _sioBaudUltraHigh; }
+
+    iecCassette *getCassette(void) { return _cassetteDev; }
+    iecPrinter *getPrinter(void) { return _printerdev; }
+    iecCPM *getCPM(void) { return _cpmDev; }
+
+	QueueHandle_t qBusMessages = nullptr;
 
 	ATNData ATN;
 
@@ -376,10 +412,10 @@ public:
 	bool sendEOI(uint8_t data);
 
 	// A special send command that informs file not found condition
-	bool sendFNF();
+	bool sendFNF(void);
 
 	// Recieve a byte
-	int receive();
+	int receive(void);
 
 	// Receive a string.
 	bool receive(uint8_t *data, uint16_t len);
@@ -390,7 +426,7 @@ public:
 	void enableDevice(const int deviceNumber);
 	void disableDevice(const int deviceNumber);
 
-	IECState state() const;
+	IECState state(void) const;
 };
 
 extern iecBus IEC;
