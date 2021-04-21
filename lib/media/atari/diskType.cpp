@@ -1,9 +1,11 @@
+#include "diskType.h"
+
 #include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
+#include "../../../include/debug.h"
 
-#include "diskType.h"
+#include "fnSystem.h"
+#include "utils.h"
 
 #define DENSITY_FM 0
 #define DENSITY_MFM 4

@@ -1,14 +1,16 @@
+#include "diskTypeAtx.h"
+
 #include <memory.h>
 #include <string.h>
-#include "esp_timer.h"
+#include <esp_timer.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
+#include "../../../include/debug.h"
 
 #include "fnSystem.h"
-#include "disk.h"
+#include "utils.h"
 
-#include "diskTypeAtx.h"
+#include "../../bus/sio/disk.h"
+
 
 #define ATX_MAGIC_HEADER 0x41543858 // "AT8X"
 #define ATX_DEFAULT_NUMTRACKS 40

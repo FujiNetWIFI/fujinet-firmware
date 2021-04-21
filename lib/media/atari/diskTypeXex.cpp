@@ -1,12 +1,15 @@
+#include "diskTypeXex.h"
+
 #include <memory.h>
 #include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
+#include "../../../include/debug.h"
 
-#include "disk.h"
+#include "fnSystem.h"
+#include "utils.h"
 
-#include "diskTypeXex.h"
+#include "../../bus/sio/disk.h"
+
 
 #define BOOTLOADER "/picoboot.bin"
 

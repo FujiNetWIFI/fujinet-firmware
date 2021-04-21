@@ -18,18 +18,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef IEC_DRIVE_H
-#define IEC_DRIVE_H
+#ifndef IECDISK_H
+#define IECDISK_H
+
+#include <esp_vfs.h>
 
 #include <string>
-#include "esp_vfs.h"
 
-#include "iecBus.h"
+#include "../../../include/cbmdefines.h"
+#include "../../../include/petscii.h"
 
-#include "../media/mediaCBM.h"
-
-#include "cbmdefines.h"
-#include "Petscii.h"
+#include "fnFsSPIF.h"
+#include "iec.h"
+#include "media.h"
 
 #define ARCHIVE_TYPES "ZIP|7Z|RAR"
 #define IMAGE_TYPES "D64|D71|D80|D81|D82|D8B|G64|X64|Z64|TAP|T64|TCRT|CRT|D1M|D2M|D4M|DHD|HDD|DNP|DFI|M2I|NIB"
@@ -94,4 +95,4 @@ public:
 	~iecDisk();
 };
 
-#endif
+#endif // IECDISK_H

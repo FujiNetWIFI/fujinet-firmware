@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 #include <cstdint>
 #include <driver/ledc.h>
 
@@ -1680,3 +1682,5 @@ std::string sioFuji::get_host_prefix(int host_slot)
 {
     return _fnHosts[host_slot].get_prefix();
 }
+
+#endif // BUILD_ATARI

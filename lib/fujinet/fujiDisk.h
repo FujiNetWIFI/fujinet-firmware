@@ -4,13 +4,12 @@
 #include <string>
 
 #include "fujiHost.h"
+#include "media.h"
 
 #if defined( BUILD_ATARI )
-#include "../sio/disk.h"
-#include "mediaAtari.h"
+#   include "../bus/sio/disk.h"
 #elif defined( BUILD_CBM )
-#include "../iec/iecDisk.h"
-#include "../media/mediaCBM.h"
+#   include "../bus/iec/iecDisk.h"
 #endif
 
 #define MAX_DISPLAY_FILENAME_LEN 36

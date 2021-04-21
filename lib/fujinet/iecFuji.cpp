@@ -1,3 +1,5 @@
+#ifdef BUILD_CBM
+
 #include <cstdint>
 #include <driver/ledc.h>
 
@@ -14,14 +16,14 @@
 iecFuji theFuji; // global fuji device object
 
 //iecDisk iecDiskDevs[MAX_HOSTS];
-iecNetwork iecNetDevs[MAX_NETWORK_DEVICES];
+//iecNetwork iecNetDevs[MAX_NETWORK_DEVICES];
 
-iecApeTime apeTime;
-iecVoice iecV;
-iecMIDIMaze iecMIDI;
+//iecApeTime apeTime;
+//iecVoice iecV;
+//iecMIDIMaze iecMIDI;
 // iecCassette iecC; // now part of iecFuji theFuji object
-iecModem *iecR;
-iecCPM iecZ;
+//iecModem *iecR;
+//iecCPM iecZ;
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -1617,3 +1619,6 @@ std::string iecFuji::get_host_prefix(int host_slot)
 {
     return _fnHosts[host_slot].get_prefix();
 }
+
+
+#endif // BUILD_CBM

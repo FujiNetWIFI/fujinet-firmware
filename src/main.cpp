@@ -1,5 +1,10 @@
-#include "debug.h"
+#include <esp_system.h>
+#include <nvs_flash.h>
 
+#include <esp32/spiram.h>
+#include <esp32/himem.h>
+
+#include "debug.h"
 #include "fnSystem.h"
 #include "fnWiFi.h"
 #include "fnFsSD.h"
@@ -7,21 +12,9 @@
 #include "fnConfig.h"
 #include "keys.h"
 #include "led.h"
-
-#if defined( BUILD_ATARI )
-#include "sio.h"
-#elif defined( BUILD_CBM )
-#include "iecBus.h"
-#endif
+#include "bus.h"
 #include "fuji.h"
-
 #include "httpService.h"
-
-#include <esp_system.h>
-#include <nvs_flash.h>
-
-#include <esp32/spiram.h>
-#include <esp32/himem.h>
 
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"

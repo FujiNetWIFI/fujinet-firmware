@@ -1,13 +1,14 @@
+#include "diskTypeAtr.h"
+
 #include <memory.h>
 #include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
+#include "../../../include/debug.h"
 
 #include "fnSystem.h"
-#include "disk.h"
+#include "utils.h"
+#include "../../bus/sio/disk.h"
 
-#include "diskTypeAtr.h"
 
 #define ATR_MAGIC_HEADER 0x0296 // Sum of 'NICKATARI'
 

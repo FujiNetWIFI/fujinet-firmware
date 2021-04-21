@@ -1,20 +1,23 @@
 #ifndef SIO_FUJI_H
 #define SIO_FUJI_H
+
+#ifdef BUILD_ATARI
+
 #include <cstdint>
 
 #include "../../include/debug.h"
 
 #include "fuji.h"
-#include "sio.h"
-#include "../sio/disk.h"
-#include "network.h"
-#include "cassette.h"
-#include "modem.h"
-#include "apetime.h"
-#include "voice.h"
-#include "printerlist.h"
-#include "midimaze.h"
-#include "siocpm.h"
+#include "../bus/sio/sio.h"
+#include "../bus/sio/disk.h"
+#include "../bus/sio/network.h"
+#include "../bus/sio/cassette.h"
+#include "../bus/sio/modem.h"
+#include "../bus/sio/apetime.h"
+#include "../bus/sio/voice.h"
+#include "../bus/sio/printerlist.h"
+#include "../bus/sio/midimaze.h"
+#include "../bus/sio/siocpm.h"
 
 class sioFuji : public sioDevice
 {
@@ -110,4 +113,5 @@ public:
 extern sioFuji theFuji;
 #endif
 
+#endif // BUILD_ATARI
 #endif // FUJI_H

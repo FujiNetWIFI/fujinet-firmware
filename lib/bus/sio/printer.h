@@ -1,6 +1,8 @@
 #ifndef PRINTER_H
 #define PRINTER_H
 
+#ifdef BUILD_ATARI
+
 #include <string.h>
 
 #include "sio.h"
@@ -65,4 +67,5 @@ private:
     printer_type _ptype;
 };
 
-#endif // guard
+#endif // BUILD_ATARI
+#endif // PRINTER_H

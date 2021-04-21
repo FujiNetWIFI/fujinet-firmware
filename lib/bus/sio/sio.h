@@ -1,6 +1,8 @@
 #ifndef SIO_H
 #define SIO_H
 
+#ifdef BUILD_ATARI
+
 #include <forward_list>
 #include "fnSystem.h"
 
@@ -298,4 +300,6 @@ public:
 
 extern sioBus SIO;
 
-#endif // guard
+
+#endif // BUILD_ATARI
+#endif // SIO_H
