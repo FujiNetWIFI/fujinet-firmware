@@ -1,12 +1,13 @@
 #ifndef SIO_H
 #define SIO_H
 
-#ifdef BUILD_ATARI
+#include "bus.h"
 
 #include <forward_list>
-#include "fnSystem.h"
 
 #include "../../include/pinmap.h"
+
+#include "fnSystem.h"
 
 #define DELAY_T4 850
 #define DELAY_T5 250
@@ -84,22 +85,6 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 
 #define SIO_DEVICEID_CPM 0x5A
 
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
 
 //helper functions
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);
@@ -300,6 +285,4 @@ public:
 
 extern sioBus SIO;
 
-
-#endif // BUILD_ATARI
 #endif // SIO_H

@@ -3,10 +3,10 @@
 
 #include "fuji.h"
 
-#include "../FileSystem/fnFS.h"
-#include "../FileSystem/fnFsSD.h"
-#include "../FileSystem/fnFsTNFS.h"
-#include "../utils/utils.h"
+#include "fnFS.h"
+#include "fnFsSD.h"
+#include "fnFsTNFS.h"
+#include "utils.h"
 
 
 void fujiHost::unmount()

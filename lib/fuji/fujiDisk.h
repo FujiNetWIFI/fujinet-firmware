@@ -9,7 +9,7 @@
 #if defined( BUILD_ATARI )
 #   include "../bus/sio/disk.h"
 #elif defined( BUILD_CBM )
-#   include "../bus/iec/iecDisk.h"
+#   include "../bus/iec/disk.h"
 #endif
 
 #define MAX_DISPLAY_FILENAME_LEN 36

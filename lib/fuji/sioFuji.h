@@ -7,7 +7,6 @@
 
 #include "../../include/debug.h"
 
-#include "fuji.h"
 #include "../bus/sio/sio.h"
 #include "../bus/sio/disk.h"
 #include "../bus/sio/network.h"
@@ -109,9 +108,7 @@ public:
     sioFuji();
 };
 
-#ifdef BUILD_ATARI
 extern sioFuji theFuji;
-#endif
 
 #endif // BUILD_ATARI
 #endif // FUJI_H

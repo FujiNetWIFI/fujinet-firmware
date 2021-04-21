@@ -1,5 +1,6 @@
 #ifndef FUJI_H
 #define FUJI_H
+
 #include <cstdint>
 
 #include "../../include/debug.h"
@@ -48,8 +49,11 @@ struct appkey
 #include "fujiHost.h"
 #include "fujiDisk.h"
 
-#include "sioFuji.h"
-#include "iecFuji.h"
+#if defined( BUILD_ATARI )
+#   include "sioFuji.h"
+#elif defined( BUILD_CBM )
+#   include "iecFuji.h"
+#endif
 
 #include "samlib.h"
 

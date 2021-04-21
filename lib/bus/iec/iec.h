@@ -21,7 +21,6 @@
 #ifndef IECBUS_H
 #define IECBUS_H
 
-#ifdef BUILD_CBM
 /**
  * notes by jeffpiep 3/9/2021
  * 
@@ -49,6 +48,8 @@
  * printer? 
 
 */
+
+#include "bus.h"
 
 #include <forward_list>
 
@@ -161,22 +162,6 @@ enum OpenState
 	O_DEVICE_STATUS
 };
 
-union cmdFrame_t
-{
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
 
 class iecDevice
 {
@@ -410,5 +395,4 @@ public:
 
 extern iecBus IEC;
 
-#endif // BUILD_CBM
 #endif // IECBUS_H
