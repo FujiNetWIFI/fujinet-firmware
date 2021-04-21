@@ -1,8 +1,6 @@
 #ifndef MEDIA_H
 #define MEDIA_H
 
-#include "fnSystem.h"
-
 #if defined( BUILD_ATARI )
 #   include "atari/diskType.h"
 #   include "atari/diskTypeAtr.h"

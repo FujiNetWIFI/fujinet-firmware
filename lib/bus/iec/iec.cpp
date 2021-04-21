@@ -18,13 +18,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
-#include "iec.h"
+#ifdef BUILD_CBM
+
+#include "bus.h"
 
 #include <stdarg.h>
 #include <string.h>
 
 #include "../../../include/version.h"
 #include "../../../include/debug.h"
+#include "../../../include/cbmdefines.h"
 
 #include "led.h"
 #include "fnSystem.h"
@@ -1332,3 +1335,5 @@ IECState iecBus::state() const
 } // state
 
 iecBus IEC; // Global IEC object
+
+#endif // BUILD_CBM

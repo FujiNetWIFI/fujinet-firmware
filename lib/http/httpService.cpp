@@ -1,28 +1,28 @@
-#include <vector>
-#include <map>
-#include <sstream>
+#include "httpService.h"
 
 #include <esp_wifi.h>
 #include <esp_event.h>
 #include <esp_log.h>
 #include <esp_system.h>
 #include <nvs_flash.h>
-#include "esp_wps.h"
+#include <esp_wps.h>
 
-#include "httpService.h"
-#include "httpServiceParser.h"
-#include "httpServiceConfigurator.h"
-#include "printerlist.h"
-#include "fnWiFi.h"
-#include "keys.h"
-#include "fnConfig.h"
-
-#include "../../lib/modem-sniffer/modem-sniffer.h"
-#include "../../lib/sio/modem.h"
-
-#include "fuji.h"
+#include <vector>
+#include <map>
+#include <sstream>
 
 #include "../../include/debug.h"
+
+#include "fnWiFi.h"
+#include "fnConfig.h"
+#include "keys.h"
+#include "httpServiceParser.h"
+#include "httpServiceConfigurator.h"
+#include "../bus/sio/printerlist.h"
+#include "modem-sniffer.h"
+#include "../bus/sio/modem.h"
+#include "fuji.h"
+
 
 using namespace std;
 

@@ -1,18 +1,17 @@
+#include "httpServiceConfigurator.h"
+
+#include <esp_task.h>
+#include <esp_heap_task_info.h>
+
 #include <sstream>
 #include <string>
 #include <cstdio>
-
 #include <string>
 #include <map>
 
-#include "esp_task.h"
-#include "esp_heap_task_info.h"
-
-#include "httpServiceConfigurator.h"
 #include "fnConfig.h"
-#include "printerlist.h"
+#include "../bus/sio/printerlist.h"
 #include "utils.h"
-
 #include "fuji.h"
 
 //extern sioFuji theFuji;

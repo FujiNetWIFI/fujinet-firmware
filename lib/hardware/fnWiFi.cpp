@@ -1,23 +1,23 @@
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <freertos/event_groups.h>
 
-#include "esp_system.h"
-#include "esp_wifi.h"
-#include "esp_event.h"
-#include "esp_log.h"
+#include <esp_system.h>
+#include <esp_wifi.h>
+#include <esp_event.h>
+#include <esp_log.h>
+
+#include "fnWiFi.h"
 
 #include <cstring>
 
 #include "../../include/debug.h"
-#include "../utils/utils.h"
-#include "fnWiFi.h"
+
 #include "fnSystem.h"
-#include "../config/fnConfig.h"
-
-#include "httpService.h"
+#include "fnConfig.h"
 #include "led.h"
-
+#include "utils.h"
+#include "httpService.h"
 #include "fuji.h"
 
 
@@ -442,7 +442,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             fnSystem.Net.start_sntp_client();
             fnHTTPD.start();
             if (Config.get_general_config_enabled()==false)
-                theFuji._mount_all();
+                theFuji.sio_mount_all();
             break;
         case IP_EVENT_STA_LOST_IP:
             Debug_println("IP_EVENT_STA_LOST_IP");

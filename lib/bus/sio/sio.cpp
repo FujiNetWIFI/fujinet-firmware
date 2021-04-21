@@ -1,17 +1,22 @@
-#include "sio.h"
-#include "modem.h"
-#include "fuji.h"
-#include "led.h"
-#include "network.h"
+#include "bus.h"
+
+#include "../../include/debug.h"
+
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnDNS.h"
+
+#include "fuji.h"
+#include "led.h"
 #include "utils.h"
+
+#include "modem.h"
+#include "network.h"
 #include "midimaze.h"
 #include "cassette.h"
 #include "siocpm.h"
 #include "printer.h"
-#include "../../include/debug.h"
+
 
 // Helper functions outside the class defintions
 

@@ -1,19 +1,20 @@
 #ifdef BUILD_CBM
 
-#include <cstdint>
+#include "fuji.h"
+
 #include <driver/ledc.h>
 
-#include "iecFuji.h"
+#include <cstdint>
 
-#include "led.h"
 #include "fnWiFi.h"
 #include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnFsSPIF.h"
+#include "led.h"
+#include "utils.h"
 
-#include "../utils/utils.h"
-#include "../FileSystem/fnFsSPIF.h"
-#include "../config/fnConfig.h"
 
-iecFuji theFuji; // global fuji device object
+//iecFuji theFuji; // global fuji device object
 
 //iecDisk iecDiskDevs[MAX_HOSTS];
 //iecNetwork iecNetDevs[MAX_NETWORK_DEVICES];

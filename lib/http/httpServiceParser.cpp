@@ -1,21 +1,19 @@
+#include "httpServiceParser.h"
+
 #include <sstream>
 #include <string>
 #include <cstdio>
 #include <locale>
 
 #include "../../include/debug.h"
+
 #include "fnConfig.h"
-
-#include "httpService.h"
-#include "httpServiceParser.h"
-
-#include "printerlist.h"
-
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnWiFi.h"
+#include "fnSystem.h"
+#include "fnWiFi.h"
 #include "fnFsSPIF.h"
 #include "fnFsSD.h"
-
+#include "httpService.h"
+#include "../bus/sio/printerlist.h"
 #include "fuji.h"
 
 //extern sioFuji theFuji;

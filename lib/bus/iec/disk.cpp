@@ -18,21 +18,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
+#include "disk.h"
+
 #include <stdarg.h>
 #include <string.h>
 #include <FS.h>
 
 #include "../../include/version.h"
+
 #include "fnSystem.h"
 #include "led.h"
 #include "utils.h"
 
-#include "iecDisk.h"
-
 using namespace CBM;
 
 // External ref to fuji object.
-extern iecFuji theFuji;
+//extern iecFuji theFuji;
 
 iecDisk::iecDisk()
 {
