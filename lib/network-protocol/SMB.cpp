@@ -104,7 +104,7 @@ bool NetworkProtocolSMB::mount(EdUrlParser *url)
 
     smb2_set_security_mode(smb, SMB2_NEGOTIATE_SIGNING_ENABLED);
 
-    if (!login->empty())
+    if (login != nullptr)
     {
         smb2_set_user(smb, login->c_str());
         smb2_set_password(smb, password->c_str());
@@ -247,11 +247,31 @@ bool NetworkProtocolSMB::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolSMB::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
+    mount(url);
+
+    if (smb2_mkdir(smb, smb_url->path) != 0)
+    {
+        fserror_to_error();
+        Debug_printf("NetworkProtocolSMB::mkdir(%s) SMB error: %s\n",url->mRawUrl.c_str(), smb2_get_error(smb));
+    }
+
+    umount();
+
     return false;
 }
 
 bool NetworkProtocolSMB::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
+    mount(url);
+
+    if (smb2_rmdir(smb, smb_url->path) != 0)
+    {
+        fserror_to_error();
+        Debug_printf("NetworkProtocolSMB::rmdir(%s) SMB error: %s\n",url->mRawUrl.c_str(), smb2_get_error(smb));
+    }
+
+    umount();
+
     return false;
 }
 
@@ -259,10 +279,10 @@ bool NetworkProtocolSMB::stat()
 {
     struct smb2_stat_64 st;
 
-    smb2_stat(smb, smb_url->path, &st);
+    int ret = smb2_stat(smb, smb_url->path, &st);
 
     fileSize = st.smb2_size;
-    return false;
+    return ret != 0;
 }
 
 bool NetworkProtocolSMB::lock(EdUrlParser *url, cmdFrame_t *cmdFrame)
