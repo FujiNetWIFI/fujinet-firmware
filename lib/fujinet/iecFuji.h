@@ -1,12 +1,15 @@
 #ifndef IEC_FUJI_H
 #define IEC_FUJI_H
+
+#ifdef BUILD_CBM
+
 #include <cstdint>
 
 #include "../../include/debug.h"
 
 #include "fuji.h"
-#include "../iec/iecBus.h"
-#include "../iec/iecDisk.h"
+#include "../bus/iec/iecBus.h"
+#include "../bus/iec/iecDisk.h"
 //#include "../iec/iecApeTime.h"
 //#include "../iec/iecVoice.h"
 
@@ -103,4 +106,5 @@ public:
 extern iecFuji theFuji;
 #endif
 
+#endif // BUILD_CBM
 #endif // IEC_FUJI_H

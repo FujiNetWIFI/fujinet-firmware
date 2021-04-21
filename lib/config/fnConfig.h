@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "../sio/printer.h"
+#include "../bus/sio/printer.h"
 
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8
@@ -263,4 +263,4 @@ private:
 
 extern fnConfig Config;
 
-#endif //_FN_CONFIG_H
+#endif // _FN_CONFIG_H

@@ -3,12 +3,14 @@
 
 #include <string>
 #include <vector>
+
 #include "sio.h"
 #include "EdUrlParser.h"
-#include "../network-protocol/Protocol.h"
+#include "Protocol.h"
 #include "networkStatus.h"
 #include "driver/timer.h"
-#include "../../lib/network-protocol/status_error_codes.h"
+#include "status_error_codes.h"
+
 
 /**
  * Number of devices to expose via SIO, becomes 0x71 to 0x70 + NUM_DEVICES - 1

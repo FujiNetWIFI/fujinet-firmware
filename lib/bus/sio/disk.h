@@ -1,8 +1,10 @@
 #ifndef DISK_H
 #define DISK_H
 
+#ifdef BUILD_ATARI
+
 #include "sio.h"
-#include "mediaAtari.h"
+#include "media.h"
 
 class sioDisk : public sioDevice
 {
@@ -31,4 +33,5 @@ public:
     ~sioDisk();
 };
 
-#endif
+#endif // BUILD_ATARI
+#endif // DISK_H

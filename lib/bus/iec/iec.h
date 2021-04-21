@@ -21,6 +21,7 @@
 #ifndef IECBUS_H
 #define IECBUS_H
 
+#ifdef BUILD_CBM
 /**
  * notes by jeffpiep 3/9/2021
  * 
@@ -50,11 +51,11 @@
 */
 
 #include <forward_list>
+
+#include "../../../include/pinmap.h"
+#include "../../../include/cbmdefines.h"
+
 #include "fnSystem.h"
-
-#include "../../include/pinmap.h"
-
-#include "cbmdefines.h"
 
 #define PRODUCT_ID "FUJINET/MEATLOAF"
 
@@ -160,6 +161,22 @@ enum OpenState
 	O_DEVICE_STATUS
 };
 
+union cmdFrame_t
+{
+    struct
+    {
+        uint8_t device;
+        uint8_t comnd;
+        uint8_t aux1;
+        uint8_t aux2;
+        uint8_t cksum;
+    };
+    struct
+    {
+        uint32_t commanddata;
+        uint8_t checksum;
+    } __attribute__((packed));
+};
 
 class iecDevice
 {
@@ -168,7 +185,7 @@ protected:
 
     int _device_id;
 
-//    cmdFrame_t cmdFrame;
+    cmdFrame_t cmdFrame;
 
 	void sendStatus(void);
 	void sendSystemInfo(void);
@@ -191,8 +208,8 @@ protected:
 	int _openState; // see OpenState
 	int _queuedError;
 
-//    void iec_to_computer(uint8_t *buff, uint16_t len, bool err);
-//    uint8_t iec_to_peripheral(uint8_t *buff, uint16_t len);
+    void iec_to_computer(uint8_t *buff, uint16_t len, bool err);
+    uint8_t iec_to_peripheral(uint8_t *buff, uint16_t len);
 
     /**
      * @brief Send a COMPLETE to the Atari 'C'
@@ -393,4 +410,5 @@ public:
 
 extern iecBus IEC;
 
-#endif
+#endif // BUILD_CBM
+#endif // IECBUS_H

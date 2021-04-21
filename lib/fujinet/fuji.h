@@ -4,11 +4,6 @@
 
 #include "../../include/debug.h"
 
-#include "samlib.h"
-
-#include "fujiHost.h"
-#include "fujiDisk.h"
-
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 8
@@ -50,10 +45,12 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-#if defined( BUILD_ATARI )
+#include "fujiHost.h"
+#include "fujiDisk.h"
+
 #include "sioFuji.h"
-#elif defined( BUILD_CBM )
 #include "iecFuji.h"
-#endif
+
+#include "samlib.h"
 
 #endif // FUJI_H

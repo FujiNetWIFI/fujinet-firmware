@@ -23,7 +23,6 @@
 
 namespace CBM 
 {
-
 	// 1541 RAM and ROM memory map definitions.
 	#define CBM1541_RAM_OFFSET 0
 	#define CBM1541_RAM_SIZE  (1024 * 2)
@@ -36,7 +35,6 @@ namespace CBM
 
 	// Largest Serial byte buffer request from / to arduino.
 	#define MAX_BYTES_PER_REQUEST 256
-
 
 	// Device OPEN channels.
 	// Special channels.
