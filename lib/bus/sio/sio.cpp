@@ -43,7 +43,7 @@ uint8_t sio_checksum(uint8_t *buf, unsigned short len)
    len = length of buffer
    err = along with data, send ERROR status to Atari rather than COMPLETE
 */
-void sioDevice::sio_to_computer(uint8_t *buf, uint16_t len, bool err)
+void sioDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
     Debug_printf("->SIO write %hu bytes\n", len);
@@ -74,7 +74,7 @@ void sioDevice::sio_to_computer(uint8_t *buf, uint16_t len, bool err)
    len = length
    Returns checksum
 */
-uint8_t sioDevice::sio_to_peripheral(uint8_t *buf, unsigned short len)
+uint8_t sioDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 {
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
@@ -148,11 +148,11 @@ void sioDevice::sio_high_speed()
 {
     Debug_print("sio HSIO INDEX\n");
     uint8_t hsd = SIO.getHighSpeedIndex();
-    sio_to_computer((uint8_t *)&hsd, 1, false);
+    bus_to_computer((uint8_t *)&hsd, 1, false);
 }
 
 // Read and process a command frame from SIO
-void sioBus::_sio_process_cmd()
+void sioBus::_bus_process_cmd()
 {
     if (_modemDev != nullptr && _modemDev->modemActive)
     {
@@ -247,18 +247,18 @@ void sioBus::_sio_process_cmd()
 }
 
 // Look to see if we have any waiting messages and process them accordingly
-void sioBus::_sio_process_queue()
+void sioBus::_bus_process_queue()
 {
-    sio_message_t msg;
-    if (xQueueReceive(qSioMessages, &msg, 0) == pdTRUE)
+    bus_message_t msg;
+    if (xQueueReceive(qBusMessages, &msg, 0) == pdTRUE)
     {
         switch (msg.message_id)
         {
-        case SIOMSG_DISKSWAP:
+        case BUSMSG_DISKSWAP:
             if (_fujiDev != nullptr)
                 _fujiDev->image_rotate();
             break;
-        case SIOMSG_DEBUG_TAPE:
+        case BUSMSG_DEBUG_TAPE:
             if (_fujiDev != nullptr)
                 _fujiDev->debug_tape();
             break;
@@ -278,7 +278,7 @@ void sioBus::service()
 {
     // Check for any messages in our queue (this should always happen, even if any other special
     // modes disrupt normal SIO handling - should probably make a separate task for this)
-    _sio_process_queue();
+    _bus_process_queue();
 
     if (_midiDev != nullptr && _midiDev->midimazeActive)
     {
@@ -334,7 +334,7 @@ void sioBus::service()
     // Go process a command frame if the SIO CMD line is asserted
     if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
     {
-        _sio_process_cmd();
+        _bus_process_cmd();
     }
     // Go check if the modem needs to read data if it's active
     else if (_modemDev != nullptr && _modemDev->modemActive)
@@ -383,7 +383,7 @@ void sioBus::setup()
     fnSystem.set_pin_mode(PIN_CKO, gpio_mode_t::GPIO_MODE_INPUT);
 
     // Create a message queue
-    qSioMessages = xQueueCreate(4, sizeof(sio_message_t));
+    qBusMessages = xQueueCreate(4, sizeof(bus_message_t));
 
     // Set the initial HSIO index
     // First see if Config has read a value
@@ -468,6 +468,17 @@ sioDevice *sioBus::deviceById(int device_id)
             return devicep;
     }
     return nullptr;
+}
+
+// Reset all devices on the bus
+void sioBus::reset()
+{
+    for (auto devicep : _daisyChain)
+    {
+        Debug_printf("Resetting device %02x\n",devicep->device_id());
+        devicep->reset();
+    }
+    Debug_printf("All devices reset.\n");
 }
 
 // Give devices an opportunity to clean up before a reboot

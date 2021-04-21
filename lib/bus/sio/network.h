@@ -278,7 +278,7 @@ private:
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
-     * @return TRUE on error, FALSE on success. Passed directly to sio_to_computer().
+     * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
     bool sio_read_channel(unsigned short num_bytes);
 
@@ -318,7 +318,7 @@ private:
     /**
      * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
      * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
-     * buffer (containing the devicespec) and based on the return, use sio_to_computer() to transfer the
+     * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
      * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
      */
     void sio_special_40();
@@ -326,7 +326,7 @@ private:
     /**
      * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
      * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
-     * buffer (containing the devicespec) and based on the return, use sio_to_peripheral() to transfer the
+     * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
      * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
      */
     void sio_special_80();

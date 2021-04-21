@@ -14,7 +14,7 @@
 #include "utils.h"
 
 
-//iecFuji theFuji; // global fuji device object
+iecFuji theFuji; // global fuji device object
 
 //iecDisk iecDiskDevs[MAX_HOSTS];
 //iecNetwork iecNetDevs[MAX_NETWORK_DEVICES];
@@ -80,7 +80,7 @@ void iecFuji::_status()
 
     char ret[4] = {0};
 
-    iec_to_computer((uint8_t *)ret, sizeof(ret), false);
+    bus_to_computer((uint8_t *)ret, sizeof(ret), false);
     return;
 }
 
@@ -88,7 +88,7 @@ void iecFuji::_status()
 void iecFuji::_reset_fujinet()
 {
     Debug_println("Fuji cmd: REBOOT");
-    iec_complete();
+    sio_complete();
     fnSystem.reboot();
 }
 
@@ -103,7 +103,7 @@ void iecFuji::_net_scan_networks()
 
     ret[0] = _countScannedSSIDs;
 
-    iec_to_computer((uint8_t *)ret, 4, false);
+    bus_to_computer((uint8_t *)ret, 4, false);
 }
 
 // Return scanned network entry
@@ -127,7 +127,7 @@ void iecFuji::_net_scan_result()
         err = true;
     }
 
-    iec_to_computer((uint8_t *)&detail, sizeof(detail), err);
+    bus_to_computer((uint8_t *)&detail, sizeof(detail), err);
 }
 
 //  Get SSID
@@ -157,7 +157,7 @@ void iecFuji::_net_get_ssid()
     memcpy(cfg.password, s.c_str(),
            s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
 
-    iec_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
+    bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
 }
 
 // Set SSID
@@ -172,10 +172,10 @@ void iecFuji::_net_set_ssid()
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
-    uint8_t ck = iec_to_peripheral((uint8_t *)&cfg, sizeof(cfg));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&cfg, sizeof(cfg));
 
     if (iec_checksum((uint8_t *)&cfg, sizeof(cfg)) != ck)
-        iec_error();
+        sio_error();
     else
     {
         bool save = cmdFrame.aux1 != 0;
@@ -192,7 +192,7 @@ void iecFuji::_net_set_ssid()
             Config.save();
         }
 
-        iec_complete();
+        sio_complete();
     }
 }
 
@@ -202,7 +202,7 @@ void iecFuji::_net_get_wifi_status()
     Debug_println("Fuji cmd: GET WIFI STATUS");
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
-    iec_to_computer(&wifiStatus, sizeof(wifiStatus), false);
+    bus_to_computer(&wifiStatus, sizeof(wifiStatus), false);
 }
 
 // Mount Server
@@ -215,14 +215,14 @@ void iecFuji::_mount_host()
     // Make sure we weren't given a bad hostSlot
     if (!_validate_host_slot(hostSlot, "iec_tnfs_mount_hosts"))
     {
-        iec_error();
+        sio_error();
         return;
     }
 
     if (!_fnHosts[hostSlot].mount())
-        iec_error();
+        sio_error();
     else
-        iec_complete();
+        sio_complete();
 }
 
 // Disk Image Mount
@@ -248,13 +248,13 @@ void iecFuji::_disk_image_mount()
     // Make sure we weren't given a bad hostSlot
     if (!_validate_device_slot(deviceSlot))
     {
-        iec_error();
+        sio_error();
         return;
     }
     
     if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
     {
-        iec_error();
+        sio_error();
         return;
     }
     
@@ -269,7 +269,7 @@ void iecFuji::_disk_image_mount()
 
     if (disk.fileh == nullptr)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -282,14 +282,14 @@ void iecFuji::_disk_image_mount()
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
 
-    iec_complete();
+    sio_complete();
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void iecFuji::_set_boot_config()
 {
     boot_config = cmdFrame.aux1;
-    iec_complete();
+    sio_complete();
 }
 
 // Do IEC copy
@@ -310,17 +310,17 @@ void iecFuji::_copy_file()
 
     if (dataBuf == nullptr)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
     memset(&csBuf, 0, sizeof(csBuf));
 
-    ck = iec_to_peripheral(csBuf, sizeof(csBuf));
+    ck = bus_to_peripheral(csBuf, sizeof(csBuf));
 
     if (ck != iec_checksum(csBuf, sizeof(csBuf)))
     {
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -331,19 +331,19 @@ void iecFuji::_copy_file()
     // Check for malformed copyspec.
     if (copySpec.empty() || copySpec.find_first_of("|") == string::npos)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
     if (cmdFrame.aux1 < 1 || cmdFrame.aux1 > 8)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
     if (cmdFrame.aux2 < 1 || cmdFrame.aux2 > 8)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -373,7 +373,7 @@ void iecFuji::_copy_file()
 
     if (sourceFile == nullptr)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -381,7 +381,7 @@ void iecFuji::_copy_file()
 
     if (destFile == nullptr)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -392,7 +392,7 @@ void iecFuji::_copy_file()
         fwrite(dataBuf, 1, count, destFile);
     } while (count > 0);
 
-    iec_complete();
+    sio_complete();
 
     // copyEnd:
     fclose(sourceFile);
@@ -420,7 +420,7 @@ void iecFuji::_mount_all()
 
             if (host.mount() == false)
             {
-                iec_error();
+                sio_error();
                 return;
             }
 
@@ -431,7 +431,7 @@ void iecFuji::_mount_all()
 
             if (disk.fileh == nullptr)
             {
-                iec_error();
+                sio_error();
                 return;
             }
 
@@ -451,7 +451,7 @@ void iecFuji::_mount_all()
         boot_config = false;
     }
 
-    iec_complete();
+    sio_complete();
 }
 
 // Set boot mode
@@ -459,7 +459,7 @@ void iecFuji::_set_boot_mode()
 {
     insert_boot_device(cmdFrame.aux1);
     boot_config = true;
-    iec_complete();
+    sio_complete();
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -482,11 +482,11 @@ void iecFuji::_open_app_key()
     Debug_print("Fuji cmd: OPEN APPKEY\n");
 
     // The data expected for this command
-    uint8_t ck = iec_to_peripheral((uint8_t *)&_current_appkey, sizeof(_current_appkey));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&_current_appkey, sizeof(_current_appkey));
 
     if (iec_checksum((uint8_t *)&_current_appkey, sizeof(_current_appkey)) != ck)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -494,7 +494,7 @@ void iecFuji::_open_app_key()
     if (fnSDFAT.running() == false)
     {
         Debug_println("No SD mounted - returning error");
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -502,7 +502,7 @@ void iecFuji::_open_app_key()
     if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
     {
         Debug_println("Invalid app key data");
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -510,7 +510,7 @@ void iecFuji::_open_app_key()
                  _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
                  _generate_appkey_filename(&_current_appkey));
 
-    iec_complete();
+    sio_complete();
 }
 
 /*
@@ -522,7 +522,7 @@ void iecFuji::_close_app_key()
     Debug_print("Fuji cmd: CLOSE APPKEY\n");
     _current_appkey.creator = 0;
     _current_appkey.mode = APPKEYMODE_INVALID;
-    iec_complete();
+    sio_complete();
 }
 
 /*
@@ -537,11 +537,11 @@ void iecFuji::_write_app_key()
     // Data for SIO_FUJICMD_WRITE_APPKEY
     uint8_t value[MAX_APPKEY_LEN];
 
-    uint8_t ck = iec_to_peripheral((uint8_t *)value, sizeof(value));
+    uint8_t ck = bus_to_peripheral((uint8_t *)value, sizeof(value));
 
     if (iec_checksum((uint8_t *)value, sizeof(value)) != ck)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -549,7 +549,7 @@ void iecFuji::_write_app_key()
     if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
     {
         Debug_println("Invalid app key metadata - aborting");
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -557,7 +557,7 @@ void iecFuji::_write_app_key()
     if (fnSDFAT.running() == false)
     {
         Debug_println("No SD mounted - can't write app key");
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -576,7 +576,7 @@ void iecFuji::_write_app_key()
     if (fOut == nullptr)
     {
         Debug_printf("Filed to open/create output file: errno=%d\n", errno);
-        iec_error();
+        sio_error();
         return;
     }
     size_t count = fwrite(value, 1, keylen, fOut);
@@ -587,10 +587,10 @@ void iecFuji::_write_app_key()
     if (count != keylen)
     {
         Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
-        iec_error();
+        sio_error();
     }
 
-    iec_complete();
+    sio_complete();
 }
 
 /*
@@ -605,7 +605,7 @@ void iecFuji::_read_app_key()
     if (fnSDFAT.running() == false)
     {
         Debug_println("No SD mounted - can't read app key");
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -613,7 +613,7 @@ void iecFuji::_read_app_key()
     if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
     {
         Debug_println("Invalid app key metadata - aborting");
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -625,7 +625,7 @@ void iecFuji::_read_app_key()
     if (fIn == nullptr)
     {
         Debug_printf("Filed to open input file: errno=%d\n", errno);
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -643,7 +643,7 @@ void iecFuji::_read_app_key()
 
     response.size = count;
 
-    iec_to_computer((uint8_t *)&response, sizeof(response), false);
+    bus_to_computer((uint8_t *)&response, sizeof(response), false);
 }
 
 // DEBUG TAPE
@@ -700,11 +700,11 @@ void iecFuji::_disk_image_umount()
     // Invalid slot
     else
     {
-        iec_error();
+        sio_error();
         return;
     }
 
-    iec_complete();
+    sio_complete();
 }
 
 // Disk Image Rotate
@@ -766,16 +766,16 @@ void iecFuji::_open_directory()
 
     char dirpath[256];
     uint8_t hostSlot = cmdFrame.aux1;
-    uint8_t ck = iec_to_peripheral((uint8_t *)&dirpath, sizeof(dirpath));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&dirpath, sizeof(dirpath));
 
     if (iec_checksum((uint8_t *)&dirpath, sizeof(dirpath)) != ck)
     {
-        iec_error();
+        sio_error();
         return;
     }
     if (!_validate_host_slot(hostSlot))
     {
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -807,10 +807,10 @@ void iecFuji::_open_directory()
     if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
     {
         _current_open_directory_slot = hostSlot;
-        iec_complete();
+        sio_complete();
     }
     else
-        iec_error();
+        sio_error();
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -857,7 +857,7 @@ void iecFuji::_read_directory_entry()
     if (_current_open_directory_slot == -1)
     {
         Debug_print("No currently open directory\n");
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -903,7 +903,7 @@ void iecFuji::_read_directory_entry()
         }
     }
 
-    iec_to_computer((uint8_t *)current_entry, maxlen, false);
+    bus_to_computer((uint8_t *)current_entry, maxlen, false);
 }
 
 void iecFuji::_get_directory_position()
@@ -914,18 +914,18 @@ void iecFuji::_get_directory_position()
     if (_current_open_directory_slot == -1)
     {
         Debug_print("No currently open directory\n");
-        iec_error();
+        sio_error();
         return;
     }
 
     uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
     if (pos == FNFS_INVALID_DIRPOS)
     {
-        iec_error();
+        sio_error();
         return;
     }
     // Return the value we read
-    iec_to_computer((uint8_t *)&pos, sizeof(pos), false);
+    bus_to_computer((uint8_t *)&pos, sizeof(pos), false);
 }
 
 void iecFuji::_set_directory_position()
@@ -939,17 +939,17 @@ void iecFuji::_set_directory_position()
     if (_current_open_directory_slot == -1)
     {
         Debug_print("No currently open directory\n");
-        iec_error();
+        sio_error();
         return;
     }
 
     bool result = _fnHosts[_current_open_directory_slot].dir_seek(pos);
     if (result == false)
     {
-        iec_error();
+        sio_error();
         return;
     }
-    iec_complete();
+    sio_complete();
 }
 
 void iecFuji::_close_directory()
@@ -960,7 +960,7 @@ void iecFuji::_close_directory()
         _fnHosts[_current_open_directory_slot].dir_close();
 
     _current_open_directory_slot = -1;
-    iec_complete();
+    sio_complete();
 }
 
 // Get network adapter configuration
@@ -990,7 +990,7 @@ void iecFuji::_get_adapter_config()
 
     fnWiFi.get_mac(cfg.macAddress);
 
-    iec_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
+    bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
 }
 
 //  Make new disk and shove into device slot
@@ -1008,18 +1008,18 @@ void iecFuji::_new_disk()
     } newDisk;
 
     // Ask for details on the new disk to create
-    uint8_t ck = iec_to_peripheral((uint8_t *)&newDisk, sizeof(newDisk));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&newDisk, sizeof(newDisk));
 
     if (ck != iec_checksum((uint8_t *)&newDisk, sizeof(newDisk)))
     {
         Debug_print("iec_new_disk Bad checksum\n");
-        iec_error();
+        sio_error();
         return;
     }
     if (newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
     {
         Debug_print("iec_new_disk Bad disk or host slot parameter\n");
-        iec_error();
+        sio_error();
         return;
     }
     // A couple of reference variables to make things much easier to read...
@@ -1033,7 +1033,7 @@ void iecFuji::_new_disk()
     if (host.file_exists(disk.filename))
     {
         Debug_printf("iec_new_disk File exists: \"%s\"\n", disk.filename);
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -1041,7 +1041,7 @@ void iecFuji::_new_disk()
     if (disk.fileh == nullptr)
     {
         Debug_printf("iec_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -1051,12 +1051,12 @@ void iecFuji::_new_disk()
     if (ok == false)
     {
         Debug_print("iec_new_disk Data write failed\n");
-        iec_error();
+        sio_error();
         return;
     }
 
     Debug_print("iec_new_disk succeeded\n");
-    iec_complete();
+    sio_complete();
 }
 
 // Send host slot data to computer
@@ -1070,7 +1070,7 @@ void iecFuji::_read_host_slots()
     for (int i = 0; i < MAX_HOSTS; i++)
         strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
 
-    iec_to_computer((uint8_t *)&hostSlots, sizeof(hostSlots), false);
+    bus_to_computer((uint8_t *)&hostSlots, sizeof(hostSlots), false);
 }
 
 // Read and save host slot data from computer
@@ -1079,7 +1079,7 @@ void iecFuji::_write_host_slots()
     Debug_println("Fuji cmd: WRITE HOST SLOTS");
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-    uint8_t ck = iec_to_peripheral((uint8_t *)&hostSlots, sizeof(hostSlots));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&hostSlots, sizeof(hostSlots));
 
     if (iec_checksum((uint8_t *)hostSlots, sizeof(hostSlots)) == ck)
     {
@@ -1089,10 +1089,10 @@ void iecFuji::_write_host_slots()
         _populate_config_from_slots();
         Config.save();
 
-        iec_complete();
+        sio_complete();
     }
     else
-        iec_error();
+        sio_error();
 }
 
 // Store host path prefix
@@ -1101,24 +1101,24 @@ void iecFuji::_set_host_prefix()
     char prefix[MAX_HOST_PREFIX_LEN];
     uint8_t hostSlot = cmdFrame.aux1;
 
-    uint8_t ck = iec_to_peripheral((uint8_t *)prefix, MAX_FILENAME_LEN);
+    uint8_t ck = bus_to_peripheral((uint8_t *)prefix, MAX_FILENAME_LEN);
 
     Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
 
     if (iec_checksum((uint8_t *)prefix, sizeof(prefix)) != ck)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
     if (!_validate_host_slot(hostSlot))
     {
-        iec_error();
+        sio_error();
         return;
     }
 
     _fnHosts[hostSlot].set_prefix(prefix);
-    iec_complete();
+    sio_complete();
 }
 
 // Retrieve host path prefix
@@ -1129,13 +1129,13 @@ void iecFuji::_get_host_prefix()
 
     if (!_validate_host_slot(hostSlot))
     {
-        iec_error();
+        sio_error();
         return;
     }
     char prefix[MAX_HOST_PREFIX_LEN];
     _fnHosts[hostSlot].get_prefix(prefix, sizeof(prefix));
 
-    iec_to_computer((uint8_t *)prefix, sizeof(prefix), false);
+    bus_to_computer((uint8_t *)prefix, sizeof(prefix), false);
 }
 
 // Send device slot data to computer
@@ -1182,11 +1182,11 @@ void iecFuji::_read_device_slots()
     // Bad AUX1 value
     else
     {
-        iec_error();
+        sio_error();
         return;
     }
 
-    iec_to_computer((uint8_t *)&diskSlots, returnsize, false);
+    bus_to_computer((uint8_t *)&diskSlots, returnsize, false);
 }
 
 // Read and save disk slot data from computer
@@ -1201,7 +1201,7 @@ void iecFuji::_write_device_slots()
         char filename[MAX_DISPLAY_FILENAME_LEN];
     } diskSlots[MAX_DISK_DEVICES];
 
-    uint8_t ck = iec_to_peripheral((uint8_t *)&diskSlots, sizeof(diskSlots));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&diskSlots, sizeof(diskSlots));
 
     if (ck == iec_checksum((uint8_t *)&diskSlots, sizeof(diskSlots)))
     {
@@ -1213,10 +1213,10 @@ void iecFuji::_write_device_slots()
         _populate_config_from_slots();
         Config.save();
 
-        iec_complete();
+        sio_complete();
     }
     else
-        iec_error();
+        sio_error();
 }
 
 // Temporary(?) function while we move from old config storage to new
@@ -1292,13 +1292,13 @@ void iecFuji::_set_device_filename()
     uint8_t host = cmdFrame.aux2 >> 4;
     uint8_t mode = cmdFrame.aux2 & 0x0F;
 
-    uint8_t ck = iec_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
+    uint8_t ck = bus_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
     if (iec_checksum((uint8_t *)tmp, MAX_FILENAME_LEN) != ck)
     {
-        iec_error();
+        sio_error();
         return;
     }
 
@@ -1320,12 +1320,12 @@ void iecFuji::_set_device_filename()
     else
     {
         Debug_println("BAD DEVICE SLOT");
-        iec_error();
+        sio_error();
         return;
     }
 
     Config.save();
-    iec_complete();
+    sio_complete();
 }
 
 // Get a 256 byte filename from device slot
@@ -1343,7 +1343,7 @@ void iecFuji::_get_device_filename()
     }
 
     memcpy(tmp, _fnDisks[cmdFrame.aux1].filename, MAX_FILENAME_LEN);
-    iec_to_computer((uint8_t *)tmp, MAX_FILENAME_LEN, err);
+    bus_to_computer((uint8_t *)tmp, MAX_FILENAME_LEN, err);
 }
 
 
@@ -1445,7 +1445,7 @@ void iecFuji::setup(iecBus *iecbus)
     // SIO.addDevice(&iecZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
 
     // Go setup SIO
-    SIO.setup();
+    IEC.setup();
 }
 
 iecDisk *iecFuji::bootdisk()

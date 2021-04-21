@@ -21,7 +21,7 @@ void sioApeTime::_sio_get_time()
     sio_reply[4] = now->tm_min;
     sio_reply[5] = now->tm_sec;
 
-    sio_to_computer(sio_reply, sizeof(sio_reply), false);
+    bus_to_computer(sio_reply, sizeof(sio_reply), false);
 }
 
 void sioApeTime::sio_process(uint32_t commanddata, uint8_t checksum)

@@ -62,7 +62,7 @@ void sioPrinter::sio_write(uint8_t aux1, uint8_t aux2)
     }
 
     memset(_buffer, 0, sizeof(_buffer)); // clear _buffer
-    uint8_t ck = sio_to_peripheral(_buffer, linelen);
+    uint8_t ck = bus_to_peripheral(_buffer, linelen);
 
     if (ck == sio_checksum(_buffer, linelen))
     {
@@ -140,7 +140,7 @@ void sioPrinter::sio_status()
     status[2] = 5;
     status[3] = 0;
 
-    sio_to_computer(status, sizeof(status), false);
+    bus_to_computer(status, sizeof(status), false);
 }
 
 void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
