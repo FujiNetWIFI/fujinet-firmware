@@ -30,6 +30,8 @@ uint32_t DiskTypeATR::_sector_to_offset(uint16_t sectorNum)
         default:
             if (_disk_sector_size == 256)
                 offset=((sectorNum-3)*256)+16+128;
+            else if (_disk_sector_size == 512)
+                offset=((sectorNum-3)*512)+16+128;
             else
                 offset=((sectorNum-1)*128)+16;
             
@@ -127,7 +129,7 @@ void DiskTypeATR::status(uint8_t statusbuff[4])
 {
     statusbuff[0] = DISK_DRIVE_STATUS_CLEAR;
 
-    if (_disk_sector_size == 256)
+    if (_disk_sector_size > 128)
         statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_DENSITY;
 
     if (_percomBlock.num_sides == 1)
@@ -211,7 +213,7 @@ disktype_t DiskTypeATR::mount(FILE *f, uint32_t disksize)
 
     _disk_num_sectors = (num_paragraphs * 16) / num_bytes_sector;
     // Adjust sector size for the fact that the first three sectors are *always* 128 bytes
-    if (num_bytes_sector == 256)
+    if (num_bytes_sector > 128)
         _disk_num_sectors += 2;
 
     derive_percom_block(_disk_num_sectors);
