@@ -19,37 +19,12 @@ NetworkProtocolSMB::NetworkProtocolSMB(string *rx_buf, string *tx_buf, string *s
     rmdir_implemented = true;
     Debug_printf("NetworkProtocolSMB::ctor\n");
     smb = smb2_init_context();
-    smb_url = nullptr;
 }
 
 NetworkProtocolSMB::~NetworkProtocolSMB()
 {
     Debug_printf("NetworkProtocolSMB::dtor\n");
     smb2_destroy_context(smb);
-    smb_url = nullptr;
-    smb = nullptr;
-}
-
-void NetworkProtocolSMB::parse_url()
-{
-    // use mRawURL to bypass our normal URL processing.
-    if (openedURL.find("SMB:") != string::npos)
-    {
-        openedURL[0] = 's';
-        openedURL[1] = 'm';
-        openedURL[2] = 'b';
-    }
-
-    if (aux1_open == 6) // directory mode, break up path and filter
-    {
-        filter = openedURL.substr(openedURL.find_last_of("/") + 1);
-        openedURL = openedURL.substr(0, openedURL.find_last_of("/"));
-    }
-
-    if (smb_url != nullptr)
-        smb2_destroy_url(smb_url);
-
-    smb_url = smb2_parse_url(smb, openedURL.c_str());
 }
 
 bool NetworkProtocolSMB::open_file_handle()
@@ -92,6 +67,8 @@ bool NetworkProtocolSMB::open_file_handle()
 
     offset = 0;
 
+    Debug_printf("DO WE FUCKING GET HERE?!\n");
+
     return false;
 }
 
@@ -99,15 +76,8 @@ bool NetworkProtocolSMB::open_dir_handle()
 {
     if ((smb_dir = smb2_opendir(smb, smb_url->path)) == nullptr)
     {
-        filter = openedURL.substr(openedURL.find_last_of("/") + 1);
-        openedURL = openedURL.substr(0, openedURL.find_last_of("/") + 1);
-        parse_url();
-        Debug_printf("Filter detected, - %s - pulling out.\n", filter.c_str());
-        if ((smb_dir = smb2_opendir(smb, smb_url->path)) == nullptr)
-        {
-            Debug_printf("NetworkProtocolSMB::open_dir_handle(%s) - ERROR: %s\n", smb_url->path, smb2_get_error(smb));
-            fserror_to_error();
-        }
+        Debug_printf("NetworkProtocolSMB::open_dir_handle() - ERROR: %s\n", smb2_get_error(smb));
+        fserror_to_error();
         return true;
     }
 
@@ -116,8 +86,21 @@ bool NetworkProtocolSMB::open_dir_handle()
 
 bool NetworkProtocolSMB::mount(EdUrlParser *url)
 {
-    openedURL = url->mRawUrl;
-    parse_url();
+    string openURL = url->mRawUrl;
+
+    // use mRawURL to bypass our normal URL processing.
+    if (openURL.find("SMB:") != string::npos)
+    {
+        openURL[0] = 's';
+        openURL[1] = 'm';
+        openURL[2] = 'b';
+    }
+
+    if (aux1_open == 6) // temporary
+        openURL = openURL.substr(0, openURL.find_last_of("/"));
+
+    Debug_printf("NetworkProtocolSMB::mount() - openURL: %s\n", openURL.c_str());
+    smb_url = smb2_parse_url(smb, openURL.c_str());
 
     smb2_set_security_mode(smb, SMB2_NEGOTIATE_SIGNING_ENABLED);
 
@@ -128,7 +111,7 @@ bool NetworkProtocolSMB::mount(EdUrlParser *url)
 
         if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, login->c_str())) != 0)
         {
-            Debug_printf("NetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\n", openedURL.c_str(), smb2_get_error(smb));
+            Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
             return true;
         }
@@ -137,7 +120,7 @@ bool NetworkProtocolSMB::mount(EdUrlParser *url)
     {
         if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, smb_url->user)) != 0)
         {
-            Debug_printf("NetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\n", openedURL.c_str(), smb2_get_error(smb));
+            Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
             return true;
         }
@@ -187,44 +170,22 @@ bool NetworkProtocolSMB::read_file_handle(uint8_t *buf, unsigned short len)
 
 bool NetworkProtocolSMB::read_dir_entry(char *buf, unsigned short len)
 {
-    if (filter.empty())
-        filter = "*";
+    ent = smb2_readdir(smb, smb_dir);
 
-    do
+    if (ent == nullptr)
     {
-        ent = smb2_readdir(smb, smb_dir);
+        error = NETWORK_ERROR_END_OF_FILE;
+        return true;
+    }
 
-        if (ent == nullptr)
-        {
-            error = NETWORK_ERROR_END_OF_FILE;
-            return true;
-        }
+    // Set filename to buffer
+    strcpy(buf, ent->name);
 
-        Debug_printf("NetworkProtocolSMB::read_dir_entry(%s) ", ent->name);
+    // Get file size/type
+    fileSize = ent->st.smb2_size;
+    is_directory = ent->st.smb2_type == SMB2_TYPE_DIRECTORY;
 
-        if (util_wildcard_match(ent->name, filter.c_str()) == true)
-        {
-            Debug_printf("MATCH!\n");
-            // Set filename to buffer
-            strcpy(buf, ent->name);
-
-            // Get file size/type
-            fileSize = ent->st.smb2_size;
-            is_directory = ent->st.smb2_type == SMB2_TYPE_DIRECTORY;
-
-            error = NETWORK_ERROR_SUCCESS;
-            return false;
-        }
-        else
-        {
-            Debug_printf("SKIP!\n");
-            continue;
-        }
-
-    } while (ent != nullptr);
-
-    error = NETWORK_ERROR_END_OF_FILE;
-    return true;
+    return false;
 }
 
 bool NetworkProtocolSMB::close_file_handle()
@@ -291,7 +252,7 @@ bool NetworkProtocolSMB::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
     if (smb2_mkdir(smb, smb_url->path) != 0)
     {
         fserror_to_error();
-        Debug_printf("NetworkProtocolSMB::mkdir(%s) SMB error: %s\n", url->mRawUrl.c_str(), smb2_get_error(smb));
+        Debug_printf("NetworkProtocolSMB::mkdir(%s) SMB error: %s\n",url->mRawUrl.c_str(), smb2_get_error(smb));
     }
 
     umount();
@@ -306,7 +267,7 @@ bool NetworkProtocolSMB::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
     if (smb2_rmdir(smb, smb_url->path) != 0)
     {
         fserror_to_error();
-        Debug_printf("NetworkProtocolSMB::rmdir(%s) SMB error: %s\n", url->mRawUrl.c_str(), smb2_get_error(smb));
+        Debug_printf("NetworkProtocolSMB::rmdir(%s) SMB error: %s\n",url->mRawUrl.c_str(), smb2_get_error(smb));
     }
 
     umount();
@@ -320,13 +281,8 @@ bool NetworkProtocolSMB::stat()
 
     int ret = smb2_stat(smb, smb_url->path, &st);
 
-    Debug_printf("NetworkProtocolSMB::stat(%d,%s)\n", ret, smb2_get_error(smb));
-
     fileSize = st.smb2_size;
-    if (ret == 0)
-        return false;
-    else
-        return true;
+    return ret != 0;
 }
 
 bool NetworkProtocolSMB::lock(EdUrlParser *url, cmdFrame_t *cmdFrame)
