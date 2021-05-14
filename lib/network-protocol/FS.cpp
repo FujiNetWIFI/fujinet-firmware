@@ -315,7 +315,6 @@ void NetworkProtocolFS::resolve()
 
     if (stat() == true) // true = error.
     {
-        Debug_printf("File not found, attempting to resolve.\n");
         // File wasn't found, let's try resolving against the crunched filename
         string crunched_filename = util_crunch(filename);
 

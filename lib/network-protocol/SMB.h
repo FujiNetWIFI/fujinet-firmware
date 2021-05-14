@@ -224,25 +224,9 @@ private:
     uint64_t offset;
 
     /**
-     * Opened URL
-     */
-    string openedURL;
-
-    /**
-     * String containing directory filter
-     */
-    string filter;
-
-    /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
      */
     virtual bool stat();
-
-    /**
-     * @brief setup URL
-     * @param the URL from mRawURL
-     */
-    void parse_url();
 };
 
 #endif /* NETWORKPROTOCOLSMB_H */
