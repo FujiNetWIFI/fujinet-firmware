@@ -647,7 +647,7 @@ void sioFuji::sio_write_app_key()
     FILE *fOut = fnSDFAT.file_open(filename, "w");
     if (fOut == nullptr)
     {
-        Debug_printf("Filed to open/create output file: errno=%d\n", errno);
+        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
         sio_error();
         return;
     }
@@ -696,7 +696,7 @@ void sioFuji::sio_read_app_key()
     FILE *fIn = fnSDFAT.file_open(filename, "r");
     if (fIn == nullptr)
     {
-        Debug_printf("Filed to open input file: errno=%d\n", errno);
+        Debug_printf("Failed to open input file: errno=%d\n", errno);
         sio_error();
         return;
     }
