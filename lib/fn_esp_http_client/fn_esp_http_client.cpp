@@ -77,6 +77,7 @@ typedef struct {
     esp_http_buffer_t   *buffer;        /*!< data buffer as linked list */
     int                 status_code;    /*!< status code (integer) */
     int                 content_length; /*!< data length */
+    int                 chunk_length;   /*!< chunk length */
     int                 data_offset;    /*!< offset to http data (Skip header) */
     int                 data_process;   /*!< data processed */
     int                 method;         /*!< http method */
@@ -298,6 +299,14 @@ static int http_on_message_complete(http_parser *parser)
 static int http_on_chunk_complete(http_parser *parser)
 {
     ESP_LOGD(TAG, "http_on_chunk_complete");
+    return 0;
+}
+
+static int http_on_chunk_header(http_parser *parser)
+{
+    esp_http_client_handle_t client = (esp_http_client_handle_t)parser->data;
+    client->response->chunk_length = parser->content_length;
+    ESP_LOGD(TAG, "http_on_chunk_header, chunk_length");
     return 0;
 }
 
@@ -635,6 +644,7 @@ esp_http_client_handle_t esp_http_client_init(const esp_http_client_config_t *co
     client->parser_settings->on_body = http_on_body;
     client->parser_settings->on_message_complete = http_on_message_complete;
     client->parser_settings->on_chunk_complete = http_on_chunk_complete;
+    client->parser_settings->on_chunk_header = http_on_chunk_header;
     client->parser->data = client;
     client->event.client = client;
 
@@ -880,6 +890,19 @@ int esp_http_client_read(esp_http_client_handle_t client, char *buffer, int len)
     }
 
     return ridx;
+}
+
+int esp_http_client_read_response(esp_http_client_handle_t client, char *buffer, int len)
+{
+    int read_len = 0;
+    while (read_len < len) {
+        int data_read = esp_http_client_read(client, buffer + read_len, len - read_len);
+        if (data_read <= 0) {
+            return read_len;
+        }
+        read_len += data_read;
+    }
+    return read_len;
 }
 
 esp_err_t esp_http_client_perform(esp_http_client_handle_t client)
@@ -1262,6 +1285,17 @@ int esp_http_client_get_content_length(esp_http_client_handle_t client)
 bool esp_http_client_is_chunked_response(esp_http_client_handle_t client)
 {
     return client->response->is_chunked;
+}
+
+int esp_http_client_get_chunk_length(esp_http_client_handle_t client)
+{
+    if (client == NULL)
+        return -1;
+
+    if (esp_http_client_is_chunked_response(client))
+        return client->response->chunk_length;
+
+    return -1;
 }
 
 esp_http_client_transport_t esp_http_client_get_transport_type(esp_http_client_handle_t client)
