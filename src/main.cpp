@@ -89,6 +89,7 @@ void main_setup()
     // Load our stored configuration
     Config.load();
 
+#ifdef BLUETOOTH_SUPPORT
     if ( Config.get_bt_status() )
     {
         // Start SIO2BT mode if we were in it last shutdown
@@ -102,6 +103,7 @@ void main_setup()
         // Go ahead and try reconnecting to WiFi
         fnWiFi.connect();
     }
+#endif
 
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
@@ -170,7 +172,7 @@ extern "C"
 
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1; the WiFi task ends up on CPU0
-        #define MAIN_STACKSIZE 8192
+        #define MAIN_STACKSIZE 4096
         #define MAIN_PRIORITY 10
         #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
