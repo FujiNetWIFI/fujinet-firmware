@@ -63,9 +63,9 @@ int8_t soft9UART::service(uint8_t b)
             state_counter++;
             received_byte = 0; // clear data
             baud_clock = t;    // approx beginning of start bit
-#ifdef DEBUG
-            Debug_println("Start bit received!");
-#endif
+// #ifdef DEBUG
+//             Debug_println("Start bit received!");
+// #endif
         }
     }
     else if (t > baud_clock + period * state_counter + period / DEADFACTOR)
@@ -76,9 +76,9 @@ int8_t soft9UART::service(uint8_t b)
             {
                 buffer[index_in++] = received_byte;
                 state_counter = STARTBIT;
-#ifdef DEBUG
-                Debug_printf("received %02X\n", received_byte);
-#endif
+// #ifdef DEBUG
+//                 Debug_printf("received %02X\n", received_byte);
+// #endif
                 if (b != 1)
                 {
 #ifdef DEBUG
@@ -92,10 +92,10 @@ int8_t soft9UART::service(uint8_t b)
                 uint8_t bb = (b == 0) ? 0 : 1;
                 received_byte |= (bb << (state_counter - 1));
                 state_counter++;
-#ifdef DEBUG
-                // Debug_printf("bit %u ", state_counter - 1);
-                Debug_printf("%u ", b);
-#endif
+// #ifdef DEBUG
+//                 // Debug_printf("bit %u ", state_counter - 1);
+//                 Debug_printf("%u ", b);
+// #endif
             }
         }
         else

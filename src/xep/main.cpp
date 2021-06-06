@@ -93,19 +93,19 @@ void main_setup()
     // Load our stored configuration
     Config.load();
 
-    if ( Config.get_bt_status() )
-    {
-        // Start SIO2BT mode if we were in it last shutdown
-        fnLedManager.set(eLed::LED_BT, true); // BT LED ON
-        fnBtManager.start();
-    }
-    else
-    {
+    // if ( Config.get_bt_status() )
+    // {
+    //     // Start SIO2BT mode if we were in it last shutdown
+    //     fnLedManager.set(eLed::LED_BT, true); // BT LED ON
+    //     fnBtManager.start();
+    // }
+    // else
+   // {
         // Set up the WiFi adapter
         fnWiFi.start();
         // Go ahead and try reconnecting to WiFi
         fnWiFi.connect();
-    }
+   // }
 /* 
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
@@ -179,6 +179,12 @@ extern "C"
         fnUartSIO.end();
         fnSystem.set_pin_mode(PIN_UART2_RX, gpio_mode_t::GPIO_MODE_INPUT);
 
+        // while (1)
+        // {
+        //     int a = fnSystem.digital_read(PIN_UART2_RX);
+        //     Debug_printf("%1d",a);
+        //     fnSystem.delay(100);
+        // }
         Debug_printf("XEP Emulator\r\n");
 
         // Create a new high-priority task to handle the main loop

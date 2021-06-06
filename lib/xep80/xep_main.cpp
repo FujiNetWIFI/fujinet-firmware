@@ -44,20 +44,20 @@ soft9UART xepUART;
 }
  */
 
-
 size_t xep_main::receive_word()
 {
     uint8_t input_level = 0;
-    input_level = fnSystem.digital_read(PIN_UART2_RX);
     // Debug_printf("%d", input_level);
 
-    while (!xepUART.available()) // 
-        xepUART.service((~input_level) & 0x01);
-    uint16_t b = xepUART.read(); // 
+    while (!xepUART.available()) //
+    {
+        input_level = fnSystem.digital_read(PIN_UART2_RX);
+        xepUART.service(input_level & 0x01);
+    }
+    uint16_t b = xepUART.read(); //
 #ifdef DEBUG
     Debug_printf("received: %03x\n", b);
 #endif
 
     return b;
 }
-
