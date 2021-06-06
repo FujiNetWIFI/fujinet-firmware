@@ -386,6 +386,15 @@ int esp_http_client_fetch_headers(esp_http_client_handle_t client);
 bool esp_http_client_is_chunked_response(esp_http_client_handle_t client);
 
 /**
+ * @brief      Get chunked content length
+ *
+ * @param[in]  client  The esp_http_client handle
+ *
+ * @return     -1 on error, chunk length
+ */
+int esp_http_client_get_chunk_length(esp_http_client_handle_t client);
+
+/**
  * @brief      Read data from http stream
  *
  * @param[in]  client  The esp_http_client handle
@@ -398,6 +407,20 @@ bool esp_http_client_is_chunked_response(esp_http_client_handle_t client);
  */
 int esp_http_client_read(esp_http_client_handle_t client, char *buffer, int len);
 
+/**
+ * @brief      Helper API to read larger data chunks This is a helper API which internally
+ *             calls esp_http_client_read multiple times till the end of data is reached or
+ *             till the buffer gets full.
+ *
+ * @param[in]  client  The esp_http_client handle
+ * @param      buffer  The buffer
+ * @param[in]  len     The length
+ *
+ * @return
+ *     - (-1) if any errors
+ *     - Length of data was read
+ */
+int esp_http_client_read_response(esp_http_client_handle_t client, char *buffer, int len);
 
 /**
  * @brief      Get http response status code, the valid value if this function invoke after `esp_http_client_perform`
