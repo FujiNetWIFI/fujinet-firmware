@@ -21,7 +21,7 @@ private:
 
 public:
     bool cpmActive = false; 
-    void init_cpm();
+    void init_cpm(int baud);
     void sio_handle_cpm();
     
 };
