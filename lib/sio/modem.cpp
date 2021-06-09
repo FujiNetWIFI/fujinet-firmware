@@ -1463,7 +1463,7 @@ void sioModem::modemCommand()
         break;
     case AT_CPM:
         modemActive = false;
-        SIO.getCPM()->init_cpm();
+        SIO.getCPM()->init_cpm(modemBaud);
         SIO.getCPM()->cpmActive = true;
         break;
     case AT_PHONEBOOKLIST:
