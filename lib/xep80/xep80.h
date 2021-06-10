@@ -6,8 +6,9 @@ extern "C"
 {
 #endif
 
-#include "config.h"
-#include "atari.h"
+#include "atari800_compat.h"
+  // #include "config.h"
+  // #include "atari.h"
 
 #define XEP80_WIDTH 256
 #define XEP80_HEIGHT 25
@@ -56,7 +57,7 @@ extern "C"
   void XEP80_StateSave(void);
   void XEP80_StateRead(void);
   int XEP80_ReadConfig(char *string, char *ptr);
-  void XEP80_WriteConfig(FILE *fp);
+  // void XEP80_WriteConfig(FILE *fp); // TODO use the FN config library
   int XEP80_Initialise(int *argc, char *argv[]);
 
 #ifdef __cplusplus

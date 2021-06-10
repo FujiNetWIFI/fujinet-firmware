@@ -1,4 +1,9 @@
 /*
+ * modified by Jeff Piepmeier, 2021 for FujiNet hardware based XEP 
+ * emulator to attach to real Atari 8 bit
+*/
+
+/*
  * xep80.c - XEP80 emulation
  *
  * Copyright (C) 2007 Mark Grebe
@@ -21,17 +26,18 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "config.h"
+// #include "config.h"
 #ifdef XEP80_EMULATION
 #include "xep80.h"
 #include "xep80_fonts.h"
-#include "statesav.h"
-#include "atari.h"
-#include "antic.h"
+//#include "statesav.h"
+//#include "atari.h"
+//#include "antic.h"
 #include <string.h>
-#include "platform.h"
-#include "util.h"
-#include "log.h"
+//#include "platform.h"
+//#include "util.h"
+//#include "log.h"
+
 #if SUPPORTS_CHANGE_VIDEOMODE
 #include <videomode.h>
 #endif /* SUPPORTS_CHANGE_VIDEOMODE */
@@ -184,7 +190,7 @@ UBYTE (*font)[XEP80_FONTS_CHAR_COUNT][XEP80_MAX_CHAR_HEIGHT][XEP80_CHAR_WIDTH];
 /* Path to the XEP80's charset ROM image, marked as U12 on Jerzy Sobola's
    schematic: http://www.dereatari.republika.pl/schematy.htm
    The ROM image is also available there. */
-static char charset_filename[FILENAME_MAX];
+static char charset_filename[50]; //[FILENAME_MAX];
 
 static void UpdateTVSystem(void)
 {
@@ -1642,10 +1648,10 @@ int XEP80_ReadConfig(char *string, char *ptr)
 	return TRUE; /* matched something */
 }
 
-void XEP80_WriteConfig(FILE *fp)
-{
-	fprintf(fp, "XEP80_CHARSET=%s\n", charset_filename);
-}
+// void XEP80_WriteConfig(FILE *fp)
+// {
+// 	fprintf(fp, "XEP80_CHARSET=%s\n", charset_filename);
+// }
 
 int XEP80_SetEnabled(int value)
 {
@@ -1828,127 +1834,127 @@ void XEP80_PutBit(UBYTE byte)
 	}
 }
 
-void XEP80_StateSave(void)
-{
-	StateSav_SaveINT(&XEP80_enabled, 1);
-	if (XEP80_enabled) {
-		int num_ticks = (int)(ANTIC_CPU_CLOCK - start_trans_cpu_clock);
-#if SUPPORTS_CHANGE_VIDEOMODE
-		int show_xep80 = VIDEOMODE_80_column;
-#else
-		int show_xep80 = 1;
-#endif /* SUPPORTS_CHANGE_VIDEOMODE */
-		StateSav_SaveINT(&XEP80_port, 1);
-		StateSav_SaveINT(&show_xep80, 1);
-		StateSav_SaveINT(&num_ticks, 1);
-		StateSav_SaveINT(&output_word, 1);
-		StateSav_SaveINT(&input_count, 1);
-		StateSav_SaveINT(&receiving, 1);
-		StateSav_SaveUWORD(input_queue, IN_QUEUE_SIZE);
-		StateSav_SaveINT(&receiving, 1);
-		StateSav_SaveUBYTE(&last_char, 1);
-
-		StateSav_SaveINT(&xpos, 1);
-		StateSav_SaveINT(&xscroll, 1);
-		StateSav_SaveINT(&ypos, 1);
-		StateSav_SaveINT(&cursor_x, 1);
-		StateSav_SaveINT(&cursor_y, 1);
-		StateSav_SaveINT(&curs, 1);
-		StateSav_SaveINT(&old_xpos, 1);
-		StateSav_SaveINT(&old_ypos, 1);
-		StateSav_SaveINT(&lmargin, 1);
-		StateSav_SaveINT(&rmargin, 1);
-		StateSav_SaveUBYTE(&attrib_a, 1);
-		StateSav_SaveUBYTE(&attrib_b, 1);
-		StateSav_SaveINT(&list_mode, 1);
-		StateSav_SaveINT(&escape_mode, 1);
-		StateSav_SaveINT(&char_set, 1);
-		StateSav_SaveINT(&cursor_on, 1);
-		StateSav_SaveINT(&cursor_blink, 1);
-		StateSav_SaveINT(&cursor_overwrite, 1);
-		StateSav_SaveINT(&blink_reverse, 1);
-		StateSav_SaveINT(&inverse_mode, 1);
-		StateSav_SaveINT(&screen_output, 1);
-		StateSav_SaveINT(&burst_mode, 1);
-		StateSav_SaveINT(&graphics_mode, 1);
-		StateSav_SaveINT(&pal_mode, 1);
-		{
-			int i;
-			for (i = 0; i < XEP80_HEIGHT; ++i) {
-				UBYTE ptr = ((int)(line_pointers[i] - video_ram)) / 0x100;
-				StateSav_SaveUBYTE(&ptr, 1);
-			}
-		}
-		StateSav_SaveUBYTE(video_ram, 8192);
-	}
-}
-
-void XEP80_StateRead(void)
-{
-	int local_xep80_enabled = FALSE;
-	int local_show_xep80 = FALSE;
-
-	/* test for end of file */
-	StateSav_ReadINT(&local_xep80_enabled, 1);
-	if (!XEP80_SetEnabled(local_xep80_enabled))
-		XEP80_enabled = FALSE;
-
-	if (local_xep80_enabled) {
-		int num_ticks;
-		StateSav_ReadINT(&XEP80_port, 1);
-		StateSav_ReadINT(&local_show_xep80, 1);
-		StateSav_ReadINT(&num_ticks, 1);
-		start_trans_cpu_clock = ANTIC_CPU_CLOCK - num_ticks;
-		StateSav_ReadINT(&output_word, 1);
-		StateSav_ReadINT(&input_count, 1);
-		StateSav_ReadINT(&receiving, 1);
-		StateSav_ReadUWORD(input_queue, IN_QUEUE_SIZE);
-		StateSav_ReadINT(&receiving, 1);
-		StateSav_ReadUBYTE(&last_char, 1);
-
-		StateSav_ReadINT(&xpos, 1);
-		StateSav_ReadINT(&xscroll, 1);
-		StateSav_ReadINT(&ypos, 1);
-		StateSav_ReadINT(&cursor_x, 1);
-		StateSav_ReadINT(&cursor_y, 1);
-		StateSav_ReadINT(&curs, 1);
-		StateSav_ReadINT(&old_xpos, 1);
-		StateSav_ReadINT(&old_ypos, 1);
-		StateSav_ReadINT(&lmargin, 1);
-		StateSav_ReadINT(&rmargin, 1);
-		StateSav_ReadUBYTE(&attrib_a, 1);
-		UpdateAttributeBits(attrib_a, &font_a_index, &font_a_double, &font_a_blank, &font_a_blink);
-		StateSav_ReadUBYTE(&attrib_b, 1);
-		UpdateAttributeBits(attrib_b, &font_b_index, &font_b_double, &font_b_blank, &font_b_blink);
-		StateSav_ReadINT(&list_mode, 1);
-		StateSav_ReadINT(&escape_mode, 1);
-		StateSav_ReadINT(&char_set, 1);
-		StateSav_ReadINT(&cursor_on, 1);
-		StateSav_ReadINT(&cursor_blink, 1);
-		StateSav_ReadINT(&cursor_overwrite, 1);
-		StateSav_ReadINT(&blink_reverse, 1);
-		StateSav_ReadINT(&inverse_mode, 1);
-		StateSav_ReadINT(&screen_output, 1);
-		StateSav_ReadINT(&burst_mode, 1);
-		StateSav_ReadINT(&graphics_mode, 1);
-		StateSav_ReadINT(&pal_mode, 1);
-		{
-			int i;
-			for (i = 0; i < XEP80_HEIGHT; ++i) {
-				UBYTE ptr;
-				StateSav_ReadUBYTE(&ptr, 1);
-				line_pointers[i] = video_ram + 0x100*ptr;
-			}
-		}
-
-		StateSav_ReadUBYTE(video_ram, 8192);
-		UpdateTVSystem();
-		BlitScreen(); /* Clear the old text screen */
-	}
-#if SUPPORTS_CHANGE_VIDEOMODE
-	VIDEOMODE_Set80Column(local_show_xep80);
-#endif
-}
+// void XEP80_StateSave(void)
+// {
+// 	StateSav_SaveINT(&XEP80_enabled, 1);
+// 	if (XEP80_enabled) {
+// 		int num_ticks = (int)(ANTIC_CPU_CLOCK - start_trans_cpu_clock);
+// #if SUPPORTS_CHANGE_VIDEOMODE
+// 		int show_xep80 = VIDEOMODE_80_column;
+// #else
+// 		int show_xep80 = 1;
+// #endif /* SUPPORTS_CHANGE_VIDEOMODE */
+// 		StateSav_SaveINT(&XEP80_port, 1);
+// 		StateSav_SaveINT(&show_xep80, 1);
+// 		StateSav_SaveINT(&num_ticks, 1);
+// 		StateSav_SaveINT(&output_word, 1);
+// 		StateSav_SaveINT(&input_count, 1);
+// 		StateSav_SaveINT(&receiving, 1);
+// 		StateSav_SaveUWORD(input_queue, IN_QUEUE_SIZE);
+// 		StateSav_SaveINT(&receiving, 1);
+// 		StateSav_SaveUBYTE(&last_char, 1);
+//
+// 		StateSav_SaveINT(&xpos, 1);
+// 		StateSav_SaveINT(&xscroll, 1);
+// 		StateSav_SaveINT(&ypos, 1);
+// 		StateSav_SaveINT(&cursor_x, 1);
+// 		StateSav_SaveINT(&cursor_y, 1);
+// 		StateSav_SaveINT(&curs, 1);
+// 		StateSav_SaveINT(&old_xpos, 1);
+// 		StateSav_SaveINT(&old_ypos, 1);
+// 		StateSav_SaveINT(&lmargin, 1);
+// 		StateSav_SaveINT(&rmargin, 1);
+// 		StateSav_SaveUBYTE(&attrib_a, 1);
+// 		StateSav_SaveUBYTE(&attrib_b, 1);
+// 		StateSav_SaveINT(&list_mode, 1);
+// 		StateSav_SaveINT(&escape_mode, 1);
+// 		StateSav_SaveINT(&char_set, 1);
+// 		StateSav_SaveINT(&cursor_on, 1);
+// 		StateSav_SaveINT(&cursor_blink, 1);
+// 		StateSav_SaveINT(&cursor_overwrite, 1);
+// 		StateSav_SaveINT(&blink_reverse, 1);
+// 		StateSav_SaveINT(&inverse_mode, 1);
+// 		StateSav_SaveINT(&screen_output, 1);
+// 		StateSav_SaveINT(&burst_mode, 1);
+// 		StateSav_SaveINT(&graphics_mode, 1);
+// 		StateSav_SaveINT(&pal_mode, 1);
+// 		{
+// 			int i;
+// 			for (i = 0; i < XEP80_HEIGHT; ++i) {
+// 				UBYTE ptr = ((int)(line_pointers[i] - video_ram)) / 0x100;
+// 				StateSav_SaveUBYTE(&ptr, 1);
+// 			}
+// 		}
+// 		StateSav_SaveUBYTE(video_ram, 8192);
+// 	}
+// }
+//
+// void XEP80_StateRead(void)
+// {
+// 	int local_xep80_enabled = FALSE;
+// 	int local_show_xep80 = FALSE;
+//
+// 	/* test for end of file */
+// 	StateSav_ReadINT(&local_xep80_enabled, 1);
+// 	if (!XEP80_SetEnabled(local_xep80_enabled))
+// 		XEP80_enabled = FALSE;
+//
+// 	if (local_xep80_enabled) {
+// 		int num_ticks;
+// 		StateSav_ReadINT(&XEP80_port, 1);
+// 		StateSav_ReadINT(&local_show_xep80, 1);
+// 		StateSav_ReadINT(&num_ticks, 1);
+// 		start_trans_cpu_clock = ANTIC_CPU_CLOCK - num_ticks;
+// 		StateSav_ReadINT(&output_word, 1);
+// 		StateSav_ReadINT(&input_count, 1);
+// 		StateSav_ReadINT(&receiving, 1);
+// 		StateSav_ReadUWORD(input_queue, IN_QUEUE_SIZE);
+// 		StateSav_ReadINT(&receiving, 1);
+// 		StateSav_ReadUBYTE(&last_char, 1);
+//
+// 		StateSav_ReadINT(&xpos, 1);
+// 		StateSav_ReadINT(&xscroll, 1);
+// 		StateSav_ReadINT(&ypos, 1);
+// 		StateSav_ReadINT(&cursor_x, 1);
+// 		StateSav_ReadINT(&cursor_y, 1);
+// 		StateSav_ReadINT(&curs, 1);
+// 		StateSav_ReadINT(&old_xpos, 1);
+// 		StateSav_ReadINT(&old_ypos, 1);
+// 		StateSav_ReadINT(&lmargin, 1);
+// 		StateSav_ReadINT(&rmargin, 1);
+// 		StateSav_ReadUBYTE(&attrib_a, 1);
+// 		UpdateAttributeBits(attrib_a, &font_a_index, &font_a_double, &font_a_blank, &font_a_blink);
+// 		StateSav_ReadUBYTE(&attrib_b, 1);
+// 		UpdateAttributeBits(attrib_b, &font_b_index, &font_b_double, &font_b_blank, &font_b_blink);
+// 		StateSav_ReadINT(&list_mode, 1);
+// 		StateSav_ReadINT(&escape_mode, 1);
+// 		StateSav_ReadINT(&char_set, 1);
+// 		StateSav_ReadINT(&cursor_on, 1);
+// 		StateSav_ReadINT(&cursor_blink, 1);
+// 		StateSav_ReadINT(&cursor_overwrite, 1);
+// 		StateSav_ReadINT(&blink_reverse, 1);
+// 		StateSav_ReadINT(&inverse_mode, 1);
+// 		StateSav_ReadINT(&screen_output, 1);
+// 		StateSav_ReadINT(&burst_mode, 1);
+// 		StateSav_ReadINT(&graphics_mode, 1);
+// 		StateSav_ReadINT(&pal_mode, 1);
+// 		{
+// 			int i;
+// 			for (i = 0; i < XEP80_HEIGHT; ++i) {
+// 				UBYTE ptr;
+// 				StateSav_ReadUBYTE(&ptr, 1);
+// 				line_pointers[i] = video_ram + 0x100*ptr;
+// 			}
+// 		}
+//
+// 		StateSav_ReadUBYTE(video_ram, 8192);
+// 		UpdateTVSystem();
+// 		BlitScreen(); /* Clear the old text screen */
+// 	}
+// #if SUPPORTS_CHANGE_VIDEOMODE
+// 	VIDEOMODE_Set80Column(local_show_xep80);
+// #endif
+// }
 
 #endif /* XEP80 */
 

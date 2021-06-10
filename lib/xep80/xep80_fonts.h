@@ -1,8 +1,10 @@
 #ifndef XEP80_FONTS_H_
 #define XEP80_FONTS_H_
 
-#include "config.h"
-#include "atari.h"
+#include "atari800_compat.h"
+
+// #include "config.h"
+// #include "atari.h"
 #include "xep80.h"
 
 #define XEP80_FONTS_NUM_FONT_SETS   3
