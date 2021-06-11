@@ -1,5 +1,6 @@
 #include "xep_main.h"
 #include "soft9bitUART.h"
+#include "xep80.h"
 
 //#include "led.h"
 //#include "debug.h"
@@ -20,6 +21,8 @@ soft9UART xepUART;
 
 // copied from fuUART.cpp - figure out better way
 //#define UART2_RX 33
+
+// TODO: reinstate ISR? the XEP ISR should look for the start bit, record the time it was received, and set a flag.
 
 //unsigned long last = 0;
 //unsigned long delta = 0;
@@ -44,7 +47,7 @@ soft9UART xepUART;
 }
  */
 
-size_t xep_main::receive_word()
+void xep_main::receive_word()
 {
     uint8_t input_level = 0;
     // Debug_printf("%d", input_level);
@@ -54,10 +57,28 @@ size_t xep_main::receive_word()
         input_level = fnSystem.digital_read(PIN_UART2_RX);
         xepUART.service(input_level & 0x01);
     }
-    uint16_t b = xepUART.read(); //
-#ifdef DEBUG
-    Debug_printf("received: %03x\n", b);
-#endif
+//     uint16_t b = xepUART.read(); //
+// #ifdef DEBUG
+//     Debug_printf("%03x ", b);
+// #endif
 
-    return b;
+//     return b;
+}
+
+void xep_main::process_word(uint16_t W)
+{
+    OutputWord(W); // call the parsing function in xep80.c
+}
+
+bool xep_main::service()
+{
+    uint16_t w;
+    if (!xepUART.available())
+        receive_word();
+
+    w = xepUART.read();
+    Debug_printf("processing command: %03x", w);
+    process_word(w);
+
+    return true;
 }

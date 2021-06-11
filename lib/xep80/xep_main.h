@@ -14,17 +14,14 @@ protected:
     const uint16_t period_space = 1000000 / 3995;
     const uint16_t period_mark = 1000000 / 5327;
 
-    
-
 private:
- 
- 
     unsigned short block;
     unsigned short baud;
 
 public:
-   size_t receive_word();
- 
- } ;
+    bool service();
+    void receive_word();
+    void process_word(uint16_t W);
+} ;
 
 #endif

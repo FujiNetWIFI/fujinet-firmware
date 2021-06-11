@@ -76,6 +76,7 @@ int8_t soft9UART::service(uint8_t b)
             {
                 buffer[index_in++] = received_byte;
                 state_counter = STARTBIT;
+                Debug_printf("%03x ", received_byte);
 // #ifdef DEBUG
 //                 Debug_printf("received %02X\n", received_byte);
 // #endif

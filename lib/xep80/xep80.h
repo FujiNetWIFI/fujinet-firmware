@@ -44,21 +44,23 @@ extern "C"
 #define XEP80_ATARI_EOL 0x9b
 
   /* Is XEP80 enabled? Don't change directly, use XEP80_SetEnabled(). */
-  extern int XEP80_enabled;
+  // int XEP80_enabled;
   int XEP80_SetEnabled(int value);
   extern int XEP80_port;
 
   extern UBYTE XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_MAX_SCRN_HEIGHT];
   extern UBYTE XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_MAX_SCRN_HEIGHT];
 
-  UBYTE XEP80_GetBit(void);
-  void XEP80_PutBit(UBYTE byte);
+  void OutputWord(int word);
+
+  // UBYTE XEP80_GetBit(void);
+  // void XEP80_PutBit(UBYTE byte);
   void XEP80_ChangeColors(void);
-  void XEP80_StateSave(void);
-  void XEP80_StateRead(void);
-  int XEP80_ReadConfig(char *string, char *ptr);
+  // void XEP80_StateSave(void);
+  // void XEP80_StateRead(void);
+  // int XEP80_ReadConfig(char *string, char *ptr);
   // void XEP80_WriteConfig(FILE *fp); // TODO use the FN config library
-  int XEP80_Initialise(int *argc, char *argv[]);
+  // int XEP80_Initialise(int *argc, char *argv[]);
 
 #ifdef __cplusplus
 }

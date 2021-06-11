@@ -1,4 +1,11 @@
 /*
+ * modifed by Jeff Piepmeier, 2021 for the FujiNet-hardware based
+ * XEP80 emulator
+ * 
+ */
+
+
+/*
  * xep80_fonts.c - XEP80 Font emulation
  *
  * Copyright (C) 2007 Mark Grebe
@@ -20,15 +27,13 @@
  * along with Atari800; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  * 
- * 
- * modifed by Jeff Piepmeier, 2021 for the FujiNet-hardware based
- * XEP80 emulator
- * 
  */
 
-#include "config.h"
+#define XEP80_EMULATION
+
+//#include "config.h"
 #ifdef XEP80_EMULATION
-#include "atari.h"
+// #include "atari.h"
 #include "xep80_fonts.h"
 #include <string.h>
 
@@ -1728,51 +1733,52 @@ UBYTE XEP80_FONTS_offcolor = 0;
 
 static int InitExternalFonts(char const *charset_filename)
 {
-	int font_set, char_no, char_row, char_col;
-	FILE *f;
-	f = fopen(charset_filename, "rb");
-	if (f == NULL)
-		return FALSE;
+	// 	int font_set, char_no, char_row, char_col;
+	// 	FILE *f;
+	// 	f = fopen(charset_filename, "rb");
+	// 	if (f == NULL)
+	// 		return FALSE;
 
-	for (font_set = 0; font_set < 2; ++font_set) {
-		for (char_no = 0; char_no < XEP80_FONTS_CHAR_COUNT; ++char_no) {
-			UBYTE char_data[16]; /* Each character in the ROM takes 16 bytes */
-			if (fread(char_data, sizeof(UBYTE), 16, f) != 16) {
-				fclose(f);
-				return FALSE;
-			}
-			for (char_row = 0; char_row < XEP80_MAX_CHAR_HEIGHT; ++char_row) {
-				UBYTE row_data = char_data[char_row];
-				UBYTE mask = 0x80;
-				for (char_col = 0; char_col < XEP80_CHAR_WIDTH; ++char_col) {
-					int pixel_lit = row_data & mask; /* If !=0, then pixel is lit */
-					/* Normal font */
-					XEP80_FONTS_atari_fonts[font_set][NORM_FONT][char_no][char_row][char_col] =
-						pixel_lit ? XEP80_FONTS_oncolor : XEP80_FONTS_offcolor;
-					/* Inverse font */
-					XEP80_FONTS_atari_fonts[font_set][REV_FONT][char_no][char_row][char_col] =
-						pixel_lit ? XEP80_FONTS_offcolor : XEP80_FONTS_oncolor;
+	// 	for (font_set = 0; font_set < 2; ++font_set) {
+	// 		for (char_no = 0; char_no < XEP80_FONTS_CHAR_COUNT; ++char_no) {
+	// 			UBYTE char_data[16]; /* Each character in the ROM takes 16 bytes */
+	// 			if (fread(char_data, sizeof(UBYTE), 16, f) != 16) {
+	// 				fclose(f);
+	// 				return FALSE;
+	// 			}
+	// 			for (char_row = 0; char_row < XEP80_MAX_CHAR_HEIGHT; ++char_row) {
+	// 				UBYTE row_data = char_data[char_row];
+	// 				UBYTE mask = 0x80;
+	// 				for (char_col = 0; char_col < XEP80_CHAR_WIDTH; ++char_col) {
+	// 					int pixel_lit = row_data & mask; /* If !=0, then pixel is lit */
+	// 					/* Normal font */
+	// 					XEP80_FONTS_atari_fonts[font_set][NORM_FONT][char_no][char_row][char_col] =
+	// 						pixel_lit ? XEP80_FONTS_oncolor : XEP80_FONTS_offcolor;
+	// 					/* Inverse font */
+	// 					XEP80_FONTS_atari_fonts[font_set][REV_FONT][char_no][char_row][char_col] =
+	// 						pixel_lit ? XEP80_FONTS_offcolor : XEP80_FONTS_oncolor;
 
-					/* Normal and inverse underline fonts */
-					if (char_row != XEP80_FONTS_UNDER_ROW) {
-						XEP80_FONTS_atari_fonts[font_set][UNDER_FONT][char_no][char_row][char_col] =
-							pixel_lit ? XEP80_FONTS_oncolor : XEP80_FONTS_offcolor;
-						XEP80_FONTS_atari_fonts[font_set][REV_UNDER_FONT][char_no][char_row][char_col] =
-							pixel_lit ? XEP80_FONTS_offcolor : XEP80_FONTS_oncolor;
-					}
-					else {
-						XEP80_FONTS_atari_fonts[font_set][UNDER_FONT][char_no][char_row][char_col] =
-							char_no < 128 ? XEP80_FONTS_oncolor : XEP80_FONTS_offcolor;
-						XEP80_FONTS_atari_fonts[font_set][REV_UNDER_FONT][char_no][char_row][char_col] =
-							char_no < 128 ? XEP80_FONTS_oncolor : XEP80_FONTS_offcolor;
-					}
-					mask >>= 1;
-				}
-			}
-		}
-	}
-	fclose(f);
-	return TRUE;
+	// 					/* Normal and inverse underline fonts */
+	// 					if (char_row != XEP80_FONTS_UNDER_ROW) {
+	// 						XEP80_FONTS_atari_fonts[font_set][UNDER_FONT][char_no][char_row][char_col] =
+	// 							pixel_lit ? XEP80_FONTS_oncolor : XEP80_FONTS_offcolor;
+	// 						XEP80_FONTS_atari_fonts[font_set][REV_UNDER_FONT][char_no][char_row][char_col] =
+	// 							pixel_lit ? XEP80_FONTS_offcolor : XEP80_FONTS_oncolor;
+	// 					}
+	// 					else {
+	// 						XEP80_FONTS_atari_fonts[font_set][UNDER_FONT][char_no][char_row][char_col] =
+	// 							char_no < 128 ? XEP80_FONTS_oncolor : XEP80_FONTS_offcolor;
+	// 						XEP80_FONTS_atari_fonts[font_set][REV_UNDER_FONT][char_no][char_row][char_col] =
+	// 							char_no < 128 ? XEP80_FONTS_oncolor : XEP80_FONTS_offcolor;
+	// 					}
+	// 					mask >>= 1;
+	// 				}
+	// 			}
+	// 		}
+	// 	}
+	// 	fclose(f);
+	// 	return TRUE;
+	return FALSE;
 }
 
 static void InitInternalFont(void)

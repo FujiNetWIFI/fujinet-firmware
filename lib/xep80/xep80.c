@@ -27,6 +27,7 @@
  */
 
 // #include "config.h"
+#define XEP80_EMULATION
 #ifdef XEP80_EMULATION
 #include "xep80.h"
 #include "xep80_fonts.h"
@@ -106,14 +107,14 @@
                         (((char_data(y, x) & 0x80) == 0) && font_a_double))
 
 /* Global variables */
-int XEP80_enabled = FALSE;
+int XEP80_enabled = true;
 int XEP80_port = 0;
 
 int XEP80_char_height = XEP80_CHAR_HEIGHT_NTSC;
 int XEP80_scrn_height = XEP80_HEIGHT * XEP80_CHAR_HEIGHT_NTSC;
 
 /* Local state variables */
-static int output_word = 0;
+// static int output_word = 0;
 
 static UWORD input_queue[IN_QUEUE_SIZE];
 static int input_count = 0;
@@ -122,9 +123,9 @@ static int input_count = 0;
    or a moment when transmitting of the first word in the output queue
    started. Used to compare with ANTIC_CPU_CLOCK when determining
    a bit currently transmitted. */
-static unsigned int start_trans_cpu_clock;
+// static unsigned int start_trans_cpu_clock;
 /* Indicates that a byte is currently being received. */
-static int receiving = FALSE;
+// static int receiving = FALSE;
 
 
 /* Values in internal RAM */
@@ -179,8 +180,8 @@ static UBYTE video_ram[0x2000]; /* 8 KB of RAM */
 #define graph_data(y, x) (video_ram[(y)*XEP80_GRAPH_WIDTH/8+(x)])
 #define tab_stops(x) (video_ram[0x1900+(x)])
 
-static UBYTE const input_mask[2] = {0x02,0x20};
-static UBYTE const output_mask[2] = {0x01,0x10};
+// static UBYTE const input_mask[2] = {0x02,0x20};
+// static UBYTE const output_mask[2] = {0x01,0x10};
 
 UBYTE XEP80_screen_1[XEP80_SCRN_WIDTH*XEP80_MAX_SCRN_HEIGHT];
 UBYTE XEP80_screen_2[XEP80_SCRN_WIDTH*XEP80_MAX_SCRN_HEIGHT];
@@ -1428,7 +1429,7 @@ static void SetReserved(UBYTE byte)
 	case CMD_ATTRIB_B & 0x1f:
 		SetAttributeB(last_char);
 		break;
-	default:
+	// default:
 		/* Other 1111xxxxx reserved commands are not currently emulated -
 		   implementation would require exact emulation of the whole NS405.
 		   111100001, 111100010: Set CURS
@@ -1452,13 +1453,14 @@ static void SetReserved(UBYTE byte)
 		   111111101: Set XMTR
 		   111111110: Ignore
 		   111111111: Strobe the parallel port */
-		Log_print("XEP80 received not emulated command %03h", 0x100 & byte);
+		// Log_print("XEP80 received not emulated command %03h", 0x100 & byte);
+
 	}
 	last_char = byte - 0x1f;
 }
 
 /* Process a word received from host. */
-static void OutputWord(int word)
+void OutputWord(int word)
 {
 	UBYTE byte = word & 0xFF;
 
@@ -1602,7 +1604,7 @@ static void OutputWord(int word)
 				case CMD_BLK_ON_WHT:
 					SetInverse(TRUE);
 					break;
-				default:
+				// default:
 					/* All command left are 111000111 and 111001xxx, marked as Reserved.
 					   Actually they return values of various internal NS405 registers.
 					   Not currently emulated - implementation would require exact
@@ -1616,7 +1618,8 @@ static void OutputWord(int word)
 					   111001101: Get VPEN
 					   111001110: Get STAT
 					   111001111: Get RCVR */
-					Log_print("XEP80 received not emulated command %03h", word);
+					// Log_print("XEP80 received not emulated command %03h", word);
+
 				}
 			}
 			break;
@@ -1640,13 +1643,13 @@ void XEP80_ChangeColors(void)
 	BlitScreen();
 }
 
-int XEP80_ReadConfig(char *string, char *ptr)
-{
-	if (strcmp(string, "XEP80_CHARSET") == 0)
-		Util_strlcpy(charset_filename, ptr, sizeof(charset_filename));
-	else return FALSE; /* no match */
-	return TRUE; /* matched something */
-}
+// int XEP80_ReadConfig(char *string, char *ptr)
+// {
+// 	if (strcmp(string, "XEP80_CHARSET") == 0)
+// 		Util_strlcpy(charset_filename, ptr, sizeof(charset_filename));
+// 	else return FALSE; /* no match */
+// 	return TRUE; /* matched something */
+// }
 
 // void XEP80_WriteConfig(FILE *fp)
 // {
@@ -1661,178 +1664,178 @@ int XEP80_SetEnabled(int value)
 	return TRUE;
 }
 
-int XEP80_Initialise(int *argc, char *argv[])
-{
-	int i, j;
-	int help_only = FALSE;
-	for (i = j = 1; i < *argc; i++) {
-		int i_a = (i + 1 < *argc);		/* is argument available? */
-		int a_m = FALSE;			/* error, argument missing! */
+// int XEP80_Initialise(int *argc, char *argv[])
+// {
+// 	int i, j;
+// 	int help_only = FALSE;
+// 	for (i = j = 1; i < *argc; i++) {
+// 		int i_a = (i + 1 < *argc);		/* is argument available? */
+// 		int a_m = FALSE;			/* error, argument missing! */
 
-		if (strcmp(argv[i], "-xep80") == 0) {
-			XEP80_enabled = TRUE;
-		}
-		else if (strcmp(argv[i], "-xep80port") == 0) {
-			if (i_a) {
-				XEP80_port = Util_sscandec(argv[++i]);
-				if (XEP80_port != 0 && XEP80_port != 1) {
-					Log_print("Invalid XEP80 port - should be 0 or 1");
-					return FALSE;
-				}
-			}
-			else a_m = TRUE;
-		}
-		else {
-			if (strcmp(argv[i], "-help") == 0) {
-				help_only = TRUE;
-				Log_print("\t-xep80           Emulate the XEP80");
-				Log_print("\t-xep80port <n>   Use XEP80 on joystick port <n>");
-			}
-			argv[j++] = argv[i];
-		}
+// 		if (strcmp(argv[i], "-xep80") == 0) {
+// 			XEP80_enabled = TRUE;
+// 		}
+// 		else if (strcmp(argv[i], "-xep80port") == 0) {
+// 			if (i_a) {
+// 				XEP80_port = Util_sscandec(argv[++i]);
+// 				if (XEP80_port != 0 && XEP80_port != 1) {
+// 					Log_print("Invalid XEP80 port - should be 0 or 1");
+// 					return FALSE;
+// 				}
+// 			}
+// 			else a_m = TRUE;
+// 		}
+// 		else {
+// 			if (strcmp(argv[i], "-help") == 0) {
+// 				help_only = TRUE;
+// 				Log_print("\t-xep80           Emulate the XEP80");
+// 				Log_print("\t-xep80port <n>   Use XEP80 on joystick port <n>");
+// 			}
+// 			argv[j++] = argv[i];
+// 		}
 
-		if (a_m) {
-			Log_print("Missing argument for '%s'", argv[i]);
-			return FALSE;
-		}
-	}
-	*argc = j;
+// 		if (a_m) {
+// 			Log_print("Missing argument for '%s'", argv[i]);
+// 			return FALSE;
+// 		}
+// 	}
+// 	*argc = j;
 
-	if (help_only)
-		return TRUE;
+// 	if (help_only)
+// 		return TRUE;
 
-	if (XEP80_enabled && !XEP80_SetEnabled(XEP80_enabled)) {
-		XEP80_enabled = FALSE;
-		Log_print("Couldn't load XEP80 charset image: %s", charset_filename);
-		return FALSE;
-	}
+// 	if (XEP80_enabled && !XEP80_SetEnabled(XEP80_enabled)) {
+// 		XEP80_enabled = FALSE;
+// 		Log_print("Couldn't load XEP80 charset image: %s", charset_filename);
+// 		return FALSE;
+// 	}
 
-	start_trans_cpu_clock = ANTIC_CPU_CLOCK;
-	ColdStart();
+// 	start_trans_cpu_clock = ANTIC_CPU_CLOCK;
+// 	ColdStart();
 
-	return TRUE;
-}
+// 	return TRUE;
+// }
 
-UBYTE XEP80_GetBit(void)
-{
-	UBYTE ret = 0xFF;
-	int word_bit_num;
-	int input_word;
-	int input_word_num;
-	/* Number of CPU ticks since start of word receiving.
-	   TODO: Avoid overflows in this value (minimal issue, since transmission
-	   rate is 15.7 kHz - way too low to allow for overflows). */
-	int num_ticks = (int)(ANTIC_CPU_CLOCK - start_trans_cpu_clock);
+// UBYTE XEP80_GetBit(void)
+// {
+// 	UBYTE ret = 0xFF;
+// 	int word_bit_num;
+// 	int input_word;
+// 	int input_word_num;
+// 	/* Number of CPU ticks since start of word receiving.
+// 	   TODO: Avoid overflows in this value (minimal issue, since transmission
+// 	   rate is 15.7 kHz - way too low to allow for overflows). */
+// 	int num_ticks = (int)(ANTIC_CPU_CLOCK - start_trans_cpu_clock);
 
-	int bit_no = num_ticks / ANTIC_LINE_C;
+// 	int bit_no = num_ticks / ANTIC_LINE_C;
 
-	/* If there is not input to be sent, just return */
-	if (input_count == 0 || num_ticks < 0)
-		return ret;
+// 	/* If there is not input to be sent, just return */
+// 	if (input_count == 0 || num_ticks < 0)
+// 		return ret;
 
-	/* Figure out which word of the queue it is in based on bit */
-	input_word_num = (bit_no / 11);
+// 	/* Figure out which word of the queue it is in based on bit */
+// 	input_word_num = (bit_no / 11);
 
-	/* If it is greater than we have, then clear queue and return */
-	if (input_word_num >= input_count) {
-		input_count = 0;
-		return ret;
-	}
+// 	/* If it is greater than we have, then clear queue and return */
+// 	if (input_word_num >= input_count) {
+// 		input_count = 0;
+// 		return ret;
+// 	}
 
-	/* Get the word from the queue, and calculate which bit of the
-	 * word we are sending */
-	input_word = input_queue[input_word_num];
-	word_bit_num = bit_no % 11;
+// 	/* Get the word from the queue, and calculate which bit of the
+// 	 * word we are sending */
+// 	input_word = input_queue[input_word_num];
+// 	word_bit_num = bit_no % 11;
 
-	/* Send the return value based on the bit */
-	switch(word_bit_num) {
-	case 0: /* Start Bit - 0 */
-		ret = 0xFF & ~input_mask[XEP80_port];
-		break;
-	case 1: /* 9 Data Bits */
-	case 2:
-	case 3:
-	case 4:
-	case 5:
-	case 6:
-	case 7:
-	case 8:
-	case 9:
-		if (input_word & (1 << (word_bit_num-1)))
-			ret = 0xFF;
-		else
-			ret = 0xFF & ~input_mask[XEP80_port];
-		break;
-	case 10: /* Stop Bit - 1 */
-		ret = 0xFF;
-		break;
-	}
+// 	/* Send the return value based on the bit */
+// 	switch(word_bit_num) {
+// 	case 0: /* Start Bit - 0 */
+// 		ret = 0xFF & ~input_mask[XEP80_port];
+// 		break;
+// 	case 1: /* 9 Data Bits */
+// 	case 2:
+// 	case 3:
+// 	case 4:
+// 	case 5:
+// 	case 6:
+// 	case 7:
+// 	case 8:
+// 	case 9:
+// 		if (input_word & (1 << (word_bit_num-1)))
+// 			ret = 0xFF;
+// 		else
+// 			ret = 0xFF & ~input_mask[XEP80_port];
+// 		break;
+// 	case 10: /* Stop Bit - 1 */
+// 		ret = 0xFF;
+// 		break;
+// 	}
 
-	return ret;
-}
+// 	return ret;
+// }
 
-void XEP80_PutBit(UBYTE byte)
-{
-	/* Number of CPU ticks since start of word receiving.
-	   TODO: Avoid overflows in this value (minimal issue, since transmission
-	   rate is 15.7 kHz - way too low to allow for overflows). */
-	int num_ticks = (int)(ANTIC_CPU_CLOCK - start_trans_cpu_clock);
+// void XEP80_PutBit(UBYTE byte)
+// {
+// 	/* Number of CPU ticks since start of word receiving.
+// 	   TODO: Avoid overflows in this value (minimal issue, since transmission
+// 	   rate is 15.7 kHz - way too low to allow for overflows). */
+// 	int num_ticks = (int)(ANTIC_CPU_CLOCK - start_trans_cpu_clock);
 
-	int bit_no = (num_ticks + ANTIC_LINE_C / 2) / ANTIC_LINE_C;
+// 	int bit_no = (num_ticks + ANTIC_LINE_C / 2) / ANTIC_LINE_C;
 
-	byte &= output_mask[XEP80_port];
+// 	byte &= output_mask[XEP80_port];
 
-	if (receiving) {
-		switch (bit_no) {
-		case 0:
-			return;
-		case 1:
-		case 2:
-		case 3:
-		case 4:
-		case 5:
-		case 6:
-		case 7:
-		case 8:
-		case 9:
-			if (byte)
-				output_word |= 1 << (bit_no - 1);
-			break;
-		case 10:
-			/* Stop bit */
-			/* Clear any unread input from last command */
-			input_count = 0;
-			receiving = FALSE;
-			if (byte) {
-				/* Set the start position of the next possible output byte, to
-				   0.5 scanline after end of the current stop bit. This is not
-				   based on actual hardware - the delay was chosen to work with
-				   the Atari and the SpartaDOS X XEP80 drivers. Starting
-				   transmission immediately after end of the stop bit
-				   (prev_cpu_clock += 11 * ANTIC_LINE_C) would break the SDX
-				   driver. */
-				start_trans_cpu_clock += 11 * ANTIC_LINE_C + ANTIC_LINE_C / 2;
-				/* Handle the new word */
-/*				Log_print("XEP80 <- %03x", output_word);*/
-				OutputWord(output_word);
-			}
-			return;
-		default:
-			/* Transmission timed out without receiving stop bit. */
-			receiving = FALSE;
-		}
-	}
+// 	if (receiving) {
+// 		switch (bit_no) {
+// 		case 0:
+// 			return;
+// 		case 1:
+// 		case 2:
+// 		case 3:
+// 		case 4:
+// 		case 5:
+// 		case 6:
+// 		case 7:
+// 		case 8:
+// 		case 9:
+// 			if (byte)
+// 				output_word |= 1 << (bit_no - 1);
+// 			break;
+// 		case 10:
+// 			/* Stop bit */
+// 			/* Clear any unread input from last command */
+// 			input_count = 0;
+// 			receiving = FALSE;
+// 			if (byte) {
+// 				/* Set the start position of the next possible output byte, to
+// 				   0.5 scanline after end of the current stop bit. This is not
+// 				   based on actual hardware - the delay was chosen to work with
+// 				   the Atari and the SpartaDOS X XEP80 drivers. Starting
+// 				   transmission immediately after end of the stop bit
+// 				   (prev_cpu_clock += 11 * ANTIC_LINE_C) would break the SDX
+// 				   driver. */
+// 				start_trans_cpu_clock += 11 * ANTIC_LINE_C + ANTIC_LINE_C / 2;
+// 				/* Handle the new word */
+// /*				Log_print("XEP80 <- %03x", output_word);*/
+// 				OutputWord(output_word);
+// 			}
+// 			return;
+// 		default:
+// 			/* Transmission timed out without receiving stop bit. */
+// 			receiving = FALSE;
+// 		}
+// 	}
 
-	if (!receiving) {
-		/* Either previous byte ended or no byte was received yet. */
-		if (!byte) {
-			/* Start bit encountered. */
-			receiving = TRUE;
-			start_trans_cpu_clock = ANTIC_CPU_CLOCK;
-			output_word = 0;
-		}
-	}
-}
+// 	if (!receiving) {
+// 		/* Either previous byte ended or no byte was received yet. */
+// 		if (!byte) {
+// 			/* Start bit encountered. */
+// 			receiving = TRUE;
+// 			start_trans_cpu_clock = ANTIC_CPU_CLOCK;
+// 			output_word = 0;
+// 		}
+// 	}
+// }
 
 // void XEP80_StateSave(void)
 // {

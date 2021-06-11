@@ -8,8 +8,6 @@
  * emulator package work with the FujiNet framework and firmware.
 */
 
-#define XEP80_EMULATION
-
 #include <stdbool.h>
 #define FALSE false
 #define TRUE true
