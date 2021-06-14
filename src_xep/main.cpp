@@ -163,7 +163,7 @@ void fn_service_loop(void *param)
     //#endif
     //        SIO.service();
 
-        XEP.receive_word();
+        XEP.service();
     }
 }
 

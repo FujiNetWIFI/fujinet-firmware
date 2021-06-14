@@ -48,8 +48,9 @@ extern "C"
   int XEP80_SetEnabled(int value);
   extern int XEP80_port;
 
-  extern UBYTE XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_MAX_SCRN_HEIGHT];
-  extern UBYTE XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_MAX_SCRN_HEIGHT];
+  // TODO: re-factor bitmaps - use 1-bit per pixel and possibly malloc()
+  // extern UBYTE XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_MAX_SCRN_HEIGHT];
+  // extern UBYTE XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_MAX_SCRN_HEIGHT];
 
   void OutputWord(int word);
 
