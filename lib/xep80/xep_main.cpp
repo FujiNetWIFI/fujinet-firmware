@@ -62,7 +62,15 @@ void xep_main::receive_word()
 //     Debug_printf("%03x ", b);
 // #endif
 
-//     return b;
+    InQueue(out);
+    Debug_printf("Emulator Response:");
+    for (int i = 0; i < 10; i++)
+    {
+        Debug_printf(" %03x", out[i]);
+    }
+    Debug_printf("\n");
+
+    //     return b;
 }
 
 void xep_main::process_word(uint16_t W)
