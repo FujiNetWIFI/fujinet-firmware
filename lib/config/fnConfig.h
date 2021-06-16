@@ -209,7 +209,7 @@ private:
     {
         bool bt_status = false;
         int bt_baud = 19200;
-        std::string bt_devname = "FujiNetSIO2BT";
+        std::string bt_devname = "SIO2BTFujiNet";
     };
 
     struct network_info
