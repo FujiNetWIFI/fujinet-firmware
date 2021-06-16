@@ -10,13 +10,7 @@
 class xep_main
 {
 protected:
-    uint8_t denoise_counter = 0;
-    const uint16_t period_space = 1000000 / 3995;
-    const uint16_t period_mark = 1000000 / 5327;
-
-private:
-    unsigned short block;
-    unsigned short baud;
+    uint16_t out[10];
 
 public:
     bool service();

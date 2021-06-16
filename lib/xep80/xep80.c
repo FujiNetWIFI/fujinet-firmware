@@ -116,8 +116,10 @@ int XEP80_scrn_height = XEP80_HEIGHT * XEP80_CHAR_HEIGHT_NTSC;
 /* Local state variables */
 // static int output_word = 0;
 
-static UWORD input_queue[IN_QUEUE_SIZE];
-static int input_count = 0;
+// static UWORD input_queue[IN_QUEUE_SIZE];
+UWORD input_queue[IN_QUEUE_SIZE];
+// static int input_count = 0;
+int input_count = 0;
 
 /* Indicates moment when receiving of a word started,
    or a moment when transmitting of the first word in the output queue
@@ -1632,6 +1634,11 @@ void OutputWord(int word)
 		if (!burst_mode)
 			SendCursorStatus();
 	}
+}
+
+void InQueue(uint16_t Q[])
+{
+	memcpy(Q, input_queue, IN_QUEUE_SIZE);
 }
 
 /* ----------------

@@ -53,6 +53,7 @@ extern "C"
   // extern UBYTE XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_MAX_SCRN_HEIGHT];
 
   void OutputWord(int word);
+  void InQueue(uint16_t Q[]);
 
   // UBYTE XEP80_GetBit(void);
   // void XEP80_PutBit(UBYTE byte);
