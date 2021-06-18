@@ -1638,7 +1638,11 @@ void OutputWord(int word)
 
 void InQueue(uint16_t Q[])
 {
+	// copy input_queue out and reset
 	memcpy(Q, input_queue, IN_QUEUE_SIZE);
+	for (int i = 0; i < input_count; i++)  
+		input_queue[i] = 0;
+	input_count = 0; // reset counter
 }
 
 /* ----------------

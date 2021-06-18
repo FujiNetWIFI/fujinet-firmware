@@ -77,14 +77,14 @@ bool xep_main::service()
         receive_word();
 
     w = xepUART.read();
-    Debug_printf("processing command: %03x\n", w);
+    Debug_printf("%03x", w);
     process_word(w);
 
     InQueue(out);
-    Debug_printf("Emulator Response:");
+    Debug_printf(" // ");
     for (int i = 0; i < 10; i++)
     {
-        Debug_printf(" %03x", out[i]);
+        Debug_printf("%03x", out[i]);
     }
     Debug_printf("\n");
 
