@@ -62,15 +62,7 @@ void xep_main::receive_word()
 //     Debug_printf("%03x ", b);
 // #endif
 
-    InQueue(out);
-    Debug_printf("Emulator Response:");
-    for (int i = 0; i < 10; i++)
-    {
-        Debug_printf(" %03x", out[i]);
-    }
-    Debug_printf("\n");
-
-    //     return b;
+   //     return b;
 }
 
 void xep_main::process_word(uint16_t W)
@@ -85,8 +77,17 @@ bool xep_main::service()
         receive_word();
 
     w = xepUART.read();
-    Debug_printf("processing command: %03x", w);
+    Debug_printf("processing command: %03x\n", w);
     process_word(w);
+
+    InQueue(out);
+    Debug_printf("Emulator Response:");
+    for (int i = 0; i < 10; i++)
+    {
+        Debug_printf(" %03x", out[i]);
+    }
+    Debug_printf("\n");
+
 
     return true;
 }
