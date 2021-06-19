@@ -81,10 +81,10 @@ bool xep_main::service()
     process_word(w);
 
     InQueue(out);
-    Debug_printf(" // ");
+    Debug_printf(" //");
     for (int i = 0; i < 10; i++)
     {
-        Debug_printf("%03x", out[i]);
+        Debug_printf(" %03x", out[i]);
     }
     Debug_printf("\n");
 
