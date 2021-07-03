@@ -61,6 +61,8 @@ public:
     bool get_general_boot_mode() { return _general.boot_mode; }
     void store_general_boot_mode(uint8_t boot_mode);
     void store_midimaze_host(const char host_ip[64]);
+    bool get_general_fnconfig_spifs() { return _general.fnconfig_spifs; };
+    void store_general_fnconfig_spifs(bool fnconfig_spifs);
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
 
@@ -226,6 +228,7 @@ private:
         bool rotation_sounds = true;
         bool config_enabled = true;
         int boot_mode = 0;
+        bool fnconfig_spifs = true;
     };
 
     struct modem_info
