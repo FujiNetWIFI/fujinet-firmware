@@ -32,11 +32,9 @@
 // wait 1/2 period and then read demod output (check it is start bit)
 // wait 1 period and get (next) first bit, (shift received byte to right) store it in received_byte;
 // increment state counter; go back and wait
-// when all (8-old) 9 (TODO!) bits received wait one more period and check for stop bit
+// when all 9 bits received wait one more period and check for stop bit
 // if not stop bit, throw a frame sync error
-// if stop bit, store byte in buffer, reset some stuff,
-
-// TODO: change to uint16_t for the 9-bit words
+// if stop bit, store byte in buffer, reset some stuff
 
 class soft9UART
 {
@@ -45,9 +43,9 @@ protected:
     uint16_t baud = XEP_BAUD;             // bps
     uint32_t period = 1000000 / XEP_BAUD; // microseconds
 
-    uint8_t demod_output;
-    uint8_t denoise_counter;
-    uint8_t denoise_threshold = 3;
+    // uint8_t demod_output;
+    // uint8_t denoise_counter;
+    // uint8_t denoise_threshold = 3;
 
     uint16_t received_byte;
     uint16_t state_counter;
@@ -61,6 +59,8 @@ public:
     void set_baud(uint16_t b);
     uint16_t get_baud() { return baud; };
     uint16_t read();
+    void write(uint16_t W);
+    void push(uint16_t w);
     int8_t service(uint8_t b);
 };
 

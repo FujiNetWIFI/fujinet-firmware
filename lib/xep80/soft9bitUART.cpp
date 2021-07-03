@@ -36,6 +36,10 @@
 
 #define DEADFACTOR 4
 
+void soft9UART::push(uint16_t w)
+{
+    buffer[index_in++] = w;
+}
 
 uint8_t soft9UART::available()
 {
@@ -47,6 +51,24 @@ void soft9UART::set_baud(uint16_t b)
     baud = b;
     period = 1000000 / baud;
 };
+
+void soft9UART::write(uint16_t W)
+{
+    uint32_t pulsewidth = period + 0;
+    state_counter = STARTBIT;
+    fnSystem.digital_write(PIN_UART2_TX, 0);
+    fnSystem.delay_microseconds(pulsewidth);
+    while (state_counter < STOPBIT)
+    {
+        uint8_t b;
+        b = (W >> state_counter) & 0x1;
+        fnSystem.digital_write(PIN_UART2_TX, b);
+        fnSystem.delay_microseconds(pulsewidth);
+        state_counter++;
+    }
+    fnSystem.digital_write(PIN_UART2_TX, 1);
+    fnSystem.delay_microseconds(pulsewidth);
+}
 
 uint16_t soft9UART::read()
 {
@@ -74,7 +96,7 @@ int8_t soft9UART::service(uint8_t b)
         {
             if (state_counter == STOPBIT)
             {
-                buffer[index_in++] = received_byte;
+                push(received_byte);
                 state_counter = STARTBIT;
                 //Debug_printf("%03x ", received_byte);
 // #ifdef DEBUG

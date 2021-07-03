@@ -47,6 +47,25 @@ soft9UART xepUART;
 }
  */
 
+void xep_main::init()
+{
+    xepUART.push(0x1C2); // master reset - sent by Atari on boot load of driver, but do here too in case ESP is reset
+    
+    // for debug purposes without atari interaction
+    xepUART.push(0x9B);
+    xepUART.push('R');
+    xepUART.push('E');
+    xepUART.push('A');
+    xepUART.push('D');
+    xepUART.push('Y');
+    xepUART.push(0x9B);
+}
+
+void xep_main::send_word(uint16_t W)
+{
+    xepUART.write(W);
+}
+
 void xep_main::receive_word()
 {
     uint8_t input_level = 0;
@@ -88,6 +107,14 @@ bool xep_main::service()
     }
     Debug_printf("\n");
 
-
+    CpyScrn(screen);
+    for (int i = 0; i < 25; i++)
+    {
+        for (int j = 0; j < 80; j++)
+        {
+            Debug_printf("%c", screen[j + i * 80]);
+        }
+        Debug_printf("/n");
+    }
     return true;
 }

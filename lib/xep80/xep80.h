@@ -52,8 +52,9 @@ extern "C"
   // extern UBYTE XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_MAX_SCRN_HEIGHT];
   // extern UBYTE XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_MAX_SCRN_HEIGHT];
 
-  void OutputWord(int word);
-  void InQueue(uint16_t Q[]);
+  void OutputWord(int word); // handle data coming from Atari
+  void InQueue(uint16_t Q[]); // handle data going back to Atari
+  void CpyScrn(uint8_t S[]); // copy text screen
 
   // UBYTE XEP80_GetBit(void);
   // void XEP80_PutBit(UBYTE byte);

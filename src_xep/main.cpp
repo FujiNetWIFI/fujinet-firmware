@@ -178,6 +178,7 @@ extern "C"
         main_setup();
         fnUartSIO.end();
         fnSystem.set_pin_mode(PIN_UART2_RX, gpio_mode_t::GPIO_MODE_INPUT);
+        fnSystem.set_pin_mode(PIN_UART2_TX, gpio_mode_t::GPIO_MODE_OUTPUT);
 
         // while (1)
         // {
@@ -186,7 +187,8 @@ extern "C"
         //     fnSystem.delay(100);
         // }
         Debug_printf("XEP Emulator\r\n");
-
+        XEP.init();
+        
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1; the WiFi task ends up on CPU0
         #define MAIN_STACKSIZE 8192

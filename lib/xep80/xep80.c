@@ -210,8 +210,8 @@ static void UpdateTVSystem(void)
 
 static void BlitChar(int x, int y, int cur)
 {
-	int screen_col;
-	int font_row, font_col;
+	int screen_col; // x coordinate on the screen
+	int font_row, font_col; // coordinates within a single character bitmap
 	UBYTE *from, *to;
 	UBYTE ch;
 	UBYTE on, off, blink;
@@ -231,13 +231,15 @@ static void BlitChar(int x, int y, int cur)
 	    && char_set != CHAR_SET_INTERNAL)
 		ch = 0x20;
 
-	if (ch & 0x80) {
+	if (ch & 0x80) 
+	{
 		font_index = font_b_index;
 		font_double = font_b_double;
 		font_blank = font_b_blank;
 		font_blink = font_b_blink;
 	}
-	else {
+	else 
+	{
 		font_index = font_a_index;
 		font_double = font_a_double;
 		font_blank = font_a_blank;
@@ -252,7 +254,8 @@ static void BlitChar(int x, int y, int cur)
 	if (inverse_mode)
 		font_index ^= XEP80_FONTS_REV_FONT_BIT;
 
-	if (ch==XEP80_ATARI_EOL) {
+	if (ch==XEP80_ATARI_EOL) 
+	{
 		if (inverse_mode)
 			font_index |= XEP80_FONTS_REV_FONT_BIT;
 		else
@@ -260,8 +263,10 @@ static void BlitChar(int x, int y, int cur)
 	}
 
 	/* Skip the charcter if the last one was a displayed double */
-	if (screen_col != 0 && !cur) {
-		if (IS_DOUBLE(x-1,y)) {
+	if (screen_col != 0 && !cur) 
+	{
+		if (IS_DOUBLE(x-1,y))
+		{
 			int firstd;
 
 			firstd = x-1;
@@ -285,11 +290,13 @@ static void BlitChar(int x, int y, int cur)
 		}
 	}
 
-	if (inverse_mode) {
+	if (inverse_mode) 
+	{
 		on = XEP80_FONTS_offcolor;
 		off = XEP80_FONTS_oncolor;
 	}
-	else {
+	else 
+	{
 		on = XEP80_FONTS_oncolor;
 		off = XEP80_FONTS_offcolor;
 	}
@@ -299,173 +306,200 @@ static void BlitChar(int x, int y, int cur)
 	else
 		blink = off;
 
-	// if (font_blank) {
-	// 	UBYTE color;
+	if (font_blank) 
+	{
+		UBYTE color;
 
-	// 	to = &XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_char_height * y +
-	// 	                     screen_col * XEP80_CHAR_WIDTH];
-	// 	for (font_row=0;font_row < XEP80_char_height; font_row++) {
-	// 		if (cur || (font_index & XEP80_FONTS_REV_FONT_BIT))
-	// 			color = on;
-	// 		else
-	// 			color = off;
-
-	// 		for (font_col=0; font_col < XEP80_CHAR_WIDTH; font_col++) {
-	// 			if (font_double)
-	// 				*to++ = color;
-	// 			*to++ = color;
-	// 		}
-	// 		if (font_double)
-	// 			to += XEP80_SCRN_WIDTH - 2*XEP80_CHAR_WIDTH;
-	// 		else
-	// 			to += XEP80_SCRN_WIDTH - 1*XEP80_CHAR_WIDTH;
-	// 	}
-
-	// 	to = &XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_char_height * y +
-	// 	                     screen_col * XEP80_CHAR_WIDTH];
-	// 	for (font_row=0;font_row < XEP80_char_height; font_row++) {
-	// 		if ((cur && !cursor_blink) || (font_index & XEP80_FONTS_REV_FONT_BIT))
-	// 			color = on;
-	// 		else
-	// 			color = off;
-
-	// 		for (font_col=0; font_col < XEP80_CHAR_WIDTH; font_col++) {
-	// 			if (font_double)
-	// 				*to++ = color;
-	// 			*to++ = color;
-	// 		}
-	// 		if (font_double)
-	// 			to += XEP80_SCRN_WIDTH - 2*XEP80_CHAR_WIDTH;
-	// 		else
-	// 			to += XEP80_SCRN_WIDTH - 1*XEP80_CHAR_WIDTH;
-	// 	}
-	// }
-	// else if (font_double && !cur) {
-	// 	int width;
-
-	// 	if (screen_col == 79)
-	// 		width = XEP80_CHAR_WIDTH/2;
-	// 	else
-	// 		width = XEP80_CHAR_WIDTH;
-
-	// 	to = &XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_char_height * y +
-	// 	                     screen_col * XEP80_CHAR_WIDTH];
-	// 	for (font_row=0;font_row < XEP80_char_height; font_row++) {
-	// 		from = XEP80_FONTS_atari_fonts[char_set][font_index][ch][font_row];
-
-	// 		for (font_col=0; font_col < width; font_col++) {
-	// 			*to++ = *from;
-	// 			*to++ = *from++;
-	// 		}
-	// 		to += XEP80_SCRN_WIDTH - 2*XEP80_CHAR_WIDTH;
-	// 	}
-
-	// 	to = &XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_char_height * y +
-	// 	                     screen_col * XEP80_CHAR_WIDTH];
-	// 	for (font_row=0;font_row < XEP80_char_height; font_row++) {
-	// 		if (blink_rev)
-	// 			from = XEP80_FONTS_atari_fonts[char_set][font_index ^ XEP80_FONTS_REV_FONT_BIT][ch][font_row];
-	// 		else
-	// 			from = XEP80_FONTS_atari_fonts[char_set][font_index][ch][font_row];
-
-	// 		for (font_col=0; font_col < width; font_col++) {
-	// 			if (font_blink && !cur && !blink_rev) {
-	// 				if ((font_index & XEP80_FONTS_UNDER_FONT_BIT) && font_row == XEP80_FONTS_UNDER_ROW) {
-	// 					*to++ = *from;
-	// 					*to++ = *from++;
-	// 				}
-	// 				else {
-	// 					*to++ = blink;
-	// 					*to++ = blink;
-	// 					from++;
-	// 				}
-	// 			}
-	// 			else {
-	// 				*to++ = *from;
-	// 				*to++ = *from++;
-	// 			}
-	// 		}
-	// 		to += XEP80_SCRN_WIDTH - 2*XEP80_CHAR_WIDTH;
-	// 	}
-	// }
-	// else if ((font_double || last_double_cur) && cur && !cursor_overwrite) {
-	// 	int first_half, start_col, end_col;
-
-	// 	/* Determine if this is a double first or second half */
-	// 	if (screen_col == 0)
-	// 		first_half = TRUE;
-	// 	else {
-	// 		if (IS_DOUBLE(x-1,y)) {
-	// 			int firstd;
-
-	// 			firstd = x-1;
-	// 			while (firstd > xscroll) {
-	// 				if (!IS_DOUBLE(firstd,y)) {
-	// 					firstd++;
-	// 					break;
-	// 				}
-	// 				firstd--;
-	// 			}
-	// 			first_half = (((x-firstd) % 2) == 0);
-	// 		}
-	// 		else
-	// 			first_half = TRUE;
-	// 	}
-
-	// 	if (first_half) {
-	// 		start_col = 0;
-	// 		end_col = 3;
-	// 	}
-	// 	else {
-	// 		start_col = 3;
-	// 		end_col = 6;
-	// 		ch = char_data(y, x-1);
-	// 	}
-
-	// 	to = &XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_char_height * y +
-	// 	                     screen_col * XEP80_CHAR_WIDTH];
-	// 	for (font_row=0;font_row < XEP80_char_height; font_row++) {
-	// 		from = XEP80_FONTS_atari_fonts[char_set][font_index ^ XEP80_FONTS_REV_FONT_BIT][ch][font_row] + start_col;
-	// 		if (first_half)
-	// 			*to++ = *from++;
-	// 		for (font_col=start_col; font_col < end_col; font_col++) {
-	// 			*to++ = *from;
-	// 			*to++ = *from++;
-	// 		}
-	// 		if (!first_half)
-	// 			*to++ = *from;
-	// 		to += XEP80_SCRN_WIDTH - XEP80_CHAR_WIDTH;
-	// 	}
-	// 	to = &XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_char_height * y +
-	// 	                     screen_col * XEP80_CHAR_WIDTH];
-	// 	for (font_row=0;font_row < XEP80_char_height; font_row++) {
-	// 		if (!cursor_blink)
-	// 			from = XEP80_FONTS_atari_fonts[char_set][font_index ^ XEP80_FONTS_REV_FONT_BIT][ch][font_row] + start_col;
-	// 		else
-	// 			from = XEP80_FONTS_atari_fonts[char_set][font_index][ch][font_row] + start_col;
-	// 		if (first_half)
-	// 			*to++ = *from++;
-	// 		for (font_col=start_col; font_col < end_col; font_col++) {
-	// 			*to++ = *from;
-	// 			*to++ = *from++;
-	// 		}
-	// 		if (!first_half)
-	// 			*to++ = *from;
-	// 		to += XEP80_SCRN_WIDTH - XEP80_CHAR_WIDTH;
-	// 	}
-	// }
-	// else {
 		// to = &XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_char_height * y +
 		//                      screen_col * XEP80_CHAR_WIDTH];
-		// if (cur & cursor_overwrite) {
-		// 	for (font_row=0;font_row < XEP80_char_height; font_row++) {
+		// for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// {
+		// 	if (cur || (font_index & XEP80_FONTS_REV_FONT_BIT))
+		// 		color = on;
+		// 	else
+		// 		color = off;
+
+		// 	for (font_col=0; font_col < XEP80_CHAR_WIDTH; font_col++) {
+		// 		if (font_double)
+		// 			*to++ = color;
+		// 		*to++ = color;
+		// 	}
+		// 	if (font_double)
+		// 		to += XEP80_SCRN_WIDTH - 2*XEP80_CHAR_WIDTH;
+		// 	else
+		// 		to += XEP80_SCRN_WIDTH - 1*XEP80_CHAR_WIDTH;
+		// }
+
+		// to = &XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_char_height * y +
+		//                      screen_col * XEP80_CHAR_WIDTH];
+		// for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// {
+		// 	if ((cur && !cursor_blink) || (font_index & XEP80_FONTS_REV_FONT_BIT))
+		// 		color = on;
+		// 	else
+		// 		color = off;
+
+		// 	for (font_col=0; font_col < XEP80_CHAR_WIDTH; font_col++) {
+		// 		if (font_double)
+		// 			*to++ = color;
+		// 		*to++ = color;
+		// 	}
+		// 	if (font_double)
+		// 		to += XEP80_SCRN_WIDTH - 2*XEP80_CHAR_WIDTH;
+		// 	else
+		// 		to += XEP80_SCRN_WIDTH - 1*XEP80_CHAR_WIDTH;
+		// }
+	}
+	else if (font_double && !cur) 
+	{
+		// int width;
+
+		// if (screen_col == 79)
+		// 	width = XEP80_CHAR_WIDTH/2;
+		// else
+		// 	width = XEP80_CHAR_WIDTH;
+
+		// to = &XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_char_height * y +
+		//                      screen_col * XEP80_CHAR_WIDTH];
+		// for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// {
+		// 	from = XEP80_FONTS_atari_fonts[char_set][font_index][ch][font_row];
+
+		// 	for (font_col=0; font_col < width; font_col++) 
+		// 	{
+		// 		*to++ = *from;
+		// 		*to++ = *from++;
+		// 	}
+		// 	to += XEP80_SCRN_WIDTH - 2*XEP80_CHAR_WIDTH;
+		// }
+
+		// to = &XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_char_height * y +
+		//                      screen_col * XEP80_CHAR_WIDTH];
+		// for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// {
+		// 	if (blink_rev)
+		// 		from = XEP80_FONTS_atari_fonts[char_set][font_index ^ XEP80_FONTS_REV_FONT_BIT][ch][font_row];
+		// 	else
+		// 		from = XEP80_FONTS_atari_fonts[char_set][font_index][ch][font_row];
+
+		// 	for (font_col=0; font_col < width; font_col++) 
+		// 	{
+		// 		if (font_blink && !cur && !blink_rev) {
+		// 			if ((font_index & XEP80_FONTS_UNDER_FONT_BIT) && font_row == XEP80_FONTS_UNDER_ROW) 
+		// 			{
+		// 				*to++ = *from;
+		// 				*to++ = *from++;
+		// 			}
+		// 			else 
+		// 			{
+		// 				*to++ = blink;
+		// 				*to++ = blink;
+		// 				from++;
+		// 			}
+		// 		}
+		// 		else 
+		// 		{
+		// 			*to++ = *from;
+		// 			*to++ = *from++;
+		// 		}
+		// 	}
+		// 	to += XEP80_SCRN_WIDTH - 2*XEP80_CHAR_WIDTH;
+		// }
+	}
+	else if ((font_double || last_double_cur) && cur && !cursor_overwrite) 
+	{
+		// int first_half, start_col, end_col;
+
+		// /* Determine if this is a double first or second half */
+		// if (screen_col == 0)
+		// 	first_half = TRUE;
+		// else 
+		// {
+		// 	if (IS_DOUBLE(x-1,y)) 
+		// 	{
+		// 		int firstd;
+
+		// 		firstd = x-1;
+		// 		while (firstd > xscroll) 
+		// 		{
+		// 			if (!IS_DOUBLE(firstd,y)) 
+		// 			{
+		// 				firstd++;
+		// 				break;
+		// 			}
+		// 			firstd--;
+		// 		}
+		// 		first_half = (((x-firstd) % 2) == 0);
+		// 	}
+		// 	else
+		// 		first_half = TRUE;
+		// }
+
+		// if (first_half) 
+		// {
+		// 	start_col = 0;
+		// 	end_col = 3;
+		// }
+		// else 
+		// {
+		// 	start_col = 3;
+		// 	end_col = 6;
+		// 	ch = char_data(y, x-1);
+		// }
+
+		// to = &XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_char_height * y +
+		//                      screen_col * XEP80_CHAR_WIDTH];
+		// for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// {
+		// 	from = XEP80_FONTS_atari_fonts[char_set][font_index ^ XEP80_FONTS_REV_FONT_BIT][ch][font_row] + start_col;
+		// 	if (first_half)
+		// 		*to++ = *from++;
+		// 	for (font_col=start_col; font_col < end_col; font_col++) 
+		// 	{
+		// 		*to++ = *from;
+		// 		*to++ = *from++;
+		// 	}
+		// 	if (!first_half)
+		// 		*to++ = *from;
+		// 	to += XEP80_SCRN_WIDTH - XEP80_CHAR_WIDTH;
+		// }
+		// to = &XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_char_height * y +
+		//                      screen_col * XEP80_CHAR_WIDTH];
+		// for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// {
+		// 	if (!cursor_blink)
+		// 		from = XEP80_FONTS_atari_fonts[char_set][font_index ^ XEP80_FONTS_REV_FONT_BIT][ch][font_row] + start_col;
+		// 	else
+		// 		from = XEP80_FONTS_atari_fonts[char_set][font_index][ch][font_row] + start_col;
+		// 	if (first_half)
+		// 		*to++ = *from++;
+		// 	for (font_col=start_col; font_col < end_col; font_col++) 
+		// 	{
+		// 		*to++ = *from;
+		// 		*to++ = *from++;
+		// 	}
+		// 	if (!first_half)
+		// 		*to++ = *from;
+		// 	to += XEP80_SCRN_WIDTH - XEP80_CHAR_WIDTH;
+		// }
+	}
+	else 
+	{
+		// to = &XEP80_screen_1[XEP80_SCRN_WIDTH * XEP80_char_height * y +
+		//                      screen_col * XEP80_CHAR_WIDTH];
+		// if (cur & cursor_overwrite) 
+		// {
+		// 	for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// 	{
 		// 		for (font_col=0; font_col < XEP80_CHAR_WIDTH; font_col++)
 		// 			*to++ = on;
 		// 		to += XEP80_SCRN_WIDTH - XEP80_CHAR_WIDTH;
 		// 	}
 		// }
-		// else {
-		// 	for (font_row=0;font_row < XEP80_char_height; font_row++) {
+		// else 
+		// {
+		// 	for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// 	{
 		// 		if (cur)
 		// 			from = XEP80_FONTS_atari_fonts[char_set][font_index ^ XEP80_FONTS_REV_FONT_BIT][ch][font_row];
 		// 		else
@@ -479,37 +513,47 @@ static void BlitChar(int x, int y, int cur)
 
 		// to = &XEP80_screen_2[XEP80_SCRN_WIDTH * XEP80_char_height * y +
 		//                      screen_col * XEP80_CHAR_WIDTH];
-		// if (cur & cursor_overwrite) {
+		// if (cur & cursor_overwrite) 
+		// {
 		// 	if (cursor_blink) {
-		// 		for (font_row=0;font_row < XEP80_char_height; font_row++) {
+		// 		for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// 		{
 		// 			for (font_col=0; font_col < XEP80_CHAR_WIDTH; font_col++)
 		// 				*to++ = off;
 		// 			to += XEP80_SCRN_WIDTH - XEP80_CHAR_WIDTH;
 		// 		}
 		// 	}
-		// 	else {
-		// 		for (font_row=0;font_row < XEP80_char_height; font_row++) {
+		// 	else 
+		// 	{
+		// 		for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// 		{
 		// 			for (font_col=0; font_col < XEP80_CHAR_WIDTH; font_col++)
 		// 				*to++ = on;
 		// 			to += XEP80_SCRN_WIDTH - XEP80_CHAR_WIDTH;
 		// 		}
 		// 	}
 		// }
-		// else {
-		// 	for (font_row=0;font_row < XEP80_char_height; font_row++) {
+		// else 
+		// {
+		// 	for (font_row=0;font_row < XEP80_char_height; font_row++) 
+		// 	{
 		// 		if (cur && !cursor_blink)
 		// 			from = XEP80_FONTS_atari_fonts[char_set][font_index ^ XEP80_FONTS_REV_FONT_BIT][ch][font_row];
-		// 		else {
+		// 		else 
+		// 		{
 		// 			if (blink_rev)
 		// 				from = XEP80_FONTS_atari_fonts[char_set][font_index ^ XEP80_FONTS_REV_FONT_BIT][ch][font_row];
 		// 			else
 		// 				from = XEP80_FONTS_atari_fonts[char_set][font_index][ch][font_row];
 		// 		}
-		// 		for (font_col=0; font_col < XEP80_CHAR_WIDTH; font_col++) {
-		// 			if (font_blink && !cur) {
+		// 		for (font_col=0; font_col < XEP80_CHAR_WIDTH; font_col++) 
+		// 		{
+		// 			if (font_blink && !cur) 
+		// 			{
 		// 				if ((font_index & XEP80_FONTS_UNDER_FONT_BIT) && font_row == XEP80_FONTS_UNDER_ROW)
 		// 					*to++ = *from++;
-		// 				else {
+		// 				else 
+		// 				{
 		// 					*to++ = blink;
 		// 					from++;
 		// 				}
@@ -519,8 +563,8 @@ static void BlitChar(int x, int y, int cur)
 		// 		}
 		// 		to += XEP80_SCRN_WIDTH - XEP80_CHAR_WIDTH;
 		// 	}
-	// 	}
-	// }
+		// }
+	}
 }
 
 static void UpdateCursor(void)
@@ -1642,7 +1686,21 @@ void InQueue(uint16_t Q[])
 	memcpy(Q, input_queue, IN_QUEUE_SIZE);
 	for (int i = 0; i < input_count; i++)  
 		input_queue[i] = 0;
+	input_queue[input_count] = -1;
 	input_count = 0; // reset counter
+}
+
+void CpyScrn(uint8_t S[])
+{
+	// copy the video ram to S
+	for (int i = 0; i < XEP80_HEIGHT; i++)
+	{
+		for (int j = 0; j < XEP80_LINE_LEN; j++)
+		{
+			int idx = j + i * XEP80_LINE_LEN; // h scroll = 0 for this logic
+			S[idx] = video_ram[idx];
+		}
+	}
 }
 
 /* ----------------
