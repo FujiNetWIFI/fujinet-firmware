@@ -738,39 +738,52 @@ New behavior: copy from SD first if available, then read SPIFFS.
         }
     }
     _dirty = false;
-    if (fnConfig::get_general_fnconfig_spifs() == true) //only if spiffs is enabled
+
+    if (fnConfig::get_general_fnconfig_spifs() == true) // Only if spiffs is enabled
     {
-        Debug_println("SPIFFS Config Storage: Enabled");
-        FILE *fin = fnSPIFFS.file_open(CONFIG_FILENAME);
-        char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
-        if (inibuffer == nullptr)
+        if (true == fnSPIFFS.exists(CONFIG_FILENAME))
         {
-            Debug_printf("Failed to allocate %d bytes to read config file from SPIFFS\n", CONFIG_FILEBUFFSIZE);
-            return;
-        }
-        int i = fread(inibuffer, 1, CONFIG_FILEBUFFSIZE - 1, fin);
-        fclose(fin);
-        Debug_printf("fnConfig::load read %d bytes from SPIFFS config file\n", i);
-        if (i < 0)
-        {
-            Debug_println("Failed to read data from SPIFFS configuration file");
+            Debug_println("SPIFFS Config Storage: Enabled");
+            FILE *fin = fnSPIFFS.file_open(CONFIG_FILENAME);
+            char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
+            if (inibuffer == nullptr)
+            {
+                Debug_printf("Failed to allocate %d bytes to read config file from SPIFFS\n", CONFIG_FILEBUFFSIZE);
+                return;
+            }
+            int i = fread(inibuffer, 1, CONFIG_FILEBUFFSIZE - 1, fin);
+            fclose(fin);
+            Debug_printf("fnConfig::load read %d bytes from SPIFFS config file\n", i);
+            if (i < 0)
+            {
+                Debug_println("Failed to read data from SPIFFS configuration file");
+                free(inibuffer);
+                return;
+            }
+            inibuffer[i] = '\0';
+            // Put the data in a stringstream
+            std::stringstream ss_ffs;
+            ss_ffs << inibuffer;
             free(inibuffer);
-            return;
+            if (ss.str() != ss_ffs.str()) {
+                Debug_println("Copying SD config file to SPIFFS");
+                if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
+                {
+                    Debug_println("Failed to copy config from SD");
+                }
+            }
+            ss_ffs.str("");
+            ss_ffs.clear(); // freeup some memory ;)
         }
-        inibuffer[i] = '\0';
-        // Put the data in a stringstream
-        std::stringstream ss_ffs;
-        ss_ffs << inibuffer;
-        free(inibuffer);
-        if (ss.str() != ss_ffs.str()) {
+        else
+        {
+            Debug_println("Config file dosn't exist on SPIFFS");
             Debug_println("Copying SD config file to SPIFFS");
             if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
             {
-                Debug_println("Failed to copy config from SD");
-            }
+                    Debug_println("Failed to copy config from SD");
+            } 
         }
-        ss_ffs.str("");
-        ss_ffs.clear(); // freeup some memory ;)
     }
 }
 
