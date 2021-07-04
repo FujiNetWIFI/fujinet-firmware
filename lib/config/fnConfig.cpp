@@ -575,12 +575,12 @@ void fnConfig::save()
     FILE *fout = NULL;
     if (fnConfig::get_general_fnconfig_spifs() == true) //only if spiffs is enabled
     {
-        Debug_println("SPIFFS Config Storage: Enabled Saving config to SPIFFS");
+        Debug_println("SPIFFS Config Storage: Enabled. Saving config to SPIFFS");
         fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w");
     }
     else
     {
-        Debug_println("SPIFFS Config Storage: Disabled Saving config to SD");
+        Debug_println("SPIFFS Config Storage: Disabled. Saving config to SD");
         fout = fnSDFAT.file_open(CONFIG_FILENAME, "w");
     }
         std::string result = ss.str();
