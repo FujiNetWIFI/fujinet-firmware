@@ -576,7 +576,11 @@ void fnConfig::save()
     if (fnConfig::get_general_fnconfig_spifs() == true) //only if spiffs is enabled
     {
         Debug_println("SPIFFS Config Storage: Enabled. Saving config to SPIFFS");
-        fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w");
+        if ( !(fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w")))
+        {
+            Debug_println("Failed to Open config on SPIFFS");
+            return;
+        }
     }
     else
     {
