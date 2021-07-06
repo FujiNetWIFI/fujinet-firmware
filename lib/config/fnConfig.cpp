@@ -581,7 +581,11 @@ void fnConfig::save()
     else
     {
         Debug_println("SPIFFS Config Storage: Disabled. Saving config to SD");
-        fout = fnSDFAT.file_open(CONFIG_FILENAME, "w");
+        if ( !(fout = fnSDFAT.file_open(CONFIG_FILENAME, "w")))
+        {
+            Debug_println("Failed to Open config on SD");
+            return;
+        }
     }
         std::string result = ss.str();
         size_t z = fwrite(result.c_str(), 1, result.length(), fout);
