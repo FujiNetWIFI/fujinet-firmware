@@ -64,7 +64,14 @@ void fnConfig::store_general_config_enabled(bool config_enabled)
     _general.config_enabled = config_enabled;
     _dirty = true;
 }
+void fnConfig::store_general_status_wait_enabled(bool status_wait_enabled)
+{
+    if (_general.status_wait_enabled == status_wait_enabled)
+        return;
 
+    _general.status_wait_enabled = status_wait_enabled;
+    _dirty = true;
+}
 void fnConfig::store_general_boot_mode(uint8_t boot_mode)
 {
     if (_general.boot_mode == boot_mode)
