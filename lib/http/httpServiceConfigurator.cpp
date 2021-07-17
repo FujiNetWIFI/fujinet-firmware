@@ -177,6 +177,14 @@ void fnHttpServiceConfigurator::config_enable_config(std::string enable_config)
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_status_wait_enable(std::string status_wait_enable)
+{
+    Debug_printf("New status_wait_enable value: %s\n", status_wait_enable.c_str());
+    // Store our change in Config
+    Config.store_general_status_wait_enabled(util_string_value_is_true(status_wait_enable));
+    // Save change
+    Config.save();
+}
 void fnHttpServiceConfigurator::config_boot_mode(std::string boot_mode)
 {
     Debug_printf("New CONFIG Boot Mode value: %s\n", boot_mode.c_str());
@@ -339,6 +347,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("config_enable") == 0)
         {
             config_enable_config(i->second);
+        }
+        else if (i->first.compare("status_wait_enable") == 0)
+        {
+            config_status_wait_enable(i->second);
         }
         else if (i->first.compare("boot_mode") == 0)
         {
