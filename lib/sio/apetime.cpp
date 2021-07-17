@@ -65,10 +65,16 @@ void sioApeTime::_sio_set_tz()
     if (bufsz > 0) {
       ape_timezone = (char *) malloc((bufsz + 1) * sizeof(char));
 
-      sio_to_peripheral((uint8_t *) ape_timezone, bufsz); /* FIXME: Confirm checksum! */
-      ape_timezone[bufsz] = '\0';
+      uint8_t ck = sio_to_peripheral((uint8_t *) ape_timezone, bufsz);
+      if (sio_checksum((uint8_t *) ape_timezone, bufsz) != ck) {
+        sio_error();
+      } else {
+        ape_timezone[bufsz] = '\0';
 
-      Debug_printf("TZ will be <%s>\n", ape_timezone); 
+        sio_complete();
+
+        Debug_printf("TZ set to <%s>\n", ape_timezone); 
+      }
     } else {
       Debug_printf("TZ unset\n");
     }
