@@ -917,6 +917,24 @@
 							<script>
 								var current_config_enabled = "<%FN_CONFIG_ENABLED%>";
 							</script>
+							<br>Enable SIO STATUS wait routine 
+							<form action="/config" method="post">
+								<select name="status_wait_enable" id="select_status_wait_enable">
+									<optgroup>
+										<option value="1">Yes</option>
+										<option value="0">No</option>
+									</optgroup>
+								</select>
+								<input type="submit" value="Save">
+							</form>
+							<script>
+								var current_status_wait_enabled = "<%FN_STATUS_WAIT_ENABLED%>";
+							</script>
+							<span class="small">
+							Reboot FujiNet after changing this value.<br/>
+							Disabling the SIO STATUS wait will cause FujiNET will not wait other
+							devices answer OS status call. (like other DF1: floppy)<br/>
+							However it will fix issue with SpartaDOS X ejecting config Disk on boot.</span>
 							<hr>
 							<span class="small">
 							Reboot FujiNet after changing this value.<br/>
