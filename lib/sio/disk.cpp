@@ -314,16 +314,16 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         {
             if (theFuji.boot_config == true)
             {
-                if (status_wait_count == 0)
+                if ( status_wait_count > 0 && theFuji.status_wait_enabled )
+                {
+                    Debug_print("ignoring status command\n");
+                    status_wait_count--;
+                }
+                else
                 {
                     device_active = true;
                     sio_ack();
                     sio_status();
-                }
-                else
-                {
-                    Debug_print("ignoring status command\n");
-                    status_wait_count--;
                 }
             }
         }
