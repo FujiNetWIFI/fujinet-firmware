@@ -108,13 +108,15 @@ bool xep_main::service()
     Debug_printf("\n");
 
     CpyScrn(screen);
+    Debug_println("screen dump:");
     for (int i = 0; i < 25; i++)
     {
         for (int j = 0; j < 80; j++)
         {
             Debug_printf("%c", screen[j + i * 80]);
         }
-        Debug_printf("/n");
+        Debug_printf("\n");
     }
+    Debug_println("end of screen dump");
     return true;
 }

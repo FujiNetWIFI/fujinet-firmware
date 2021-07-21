@@ -1698,7 +1698,9 @@ void CpyScrn(uint8_t S[])
 		for (int j = 0; j < XEP80_LINE_LEN; j++)
 		{
 			int idx = j + i * XEP80_LINE_LEN; // h scroll = 0 for this logic
-			S[idx] = video_ram[idx];
+			// int idx2 = j + i * 0x100; // video ram indexing
+			// S[idx] = video_ram[idx2];
+			S[idx] = char_data(i, j); //	(*(line_pointers[(y)]+(x))) 
 		}
 	}
 }
