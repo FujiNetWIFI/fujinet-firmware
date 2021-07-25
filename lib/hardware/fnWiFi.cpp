@@ -3,7 +3,7 @@
 #include "freertos/event_groups.h"
 
 #include "esp_system.h"
-#include "esp_wifi.h"
+#include <esp_wifi.h>
 #include "esp_event.h"
 #include "esp_log.h"
 
@@ -146,7 +146,7 @@ int WiFiManager::connect(const char *ssid, const char *password)
         // Debug_printf("WiFi config double-check: \"%s\", \"%s\"\n", (char *)wifi_config.sta.ssid, (char *)wifi_config.sta.password );
 
         wifi_config.sta.pmf_cfg.capable = true;
-        ESP_ERROR_CHECK(esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config));
+        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     }
 
     // Now connect
