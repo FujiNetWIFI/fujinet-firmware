@@ -99,6 +99,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HOST7PREFIX,
         FN_HOST8PREFIX,
         FN_ERRMSG,
+        FN_HARDWARE_VER,
         FN_LASTTAG
     };
 
@@ -177,7 +178,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST6PREFIX",
         "FN_HOST7PREFIX",
         "FN_HOST8PREFIX",
-        "FN_ERRMSG"
+        "FN_ERRMSG",
+        "FN_HARDWARE_VER"
     };
 
     stringstream resultstream;
@@ -390,6 +392,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_ERRMSG:
         resultstream << fnHTTPD.getErrMsg();
+        break;
+    case FN_HARDWARE_VER:
+        resultstream << fnSystem.get_hardware_ver_str();
         break;
     default:
         resultstream << tag;
