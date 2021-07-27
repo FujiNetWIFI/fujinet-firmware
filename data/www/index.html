@@ -326,58 +326,62 @@
 			<div class="flexchild">
 				<header>HARD<span id="logowob"></span>WARE</header>
 				<div class="detline">
+					<div class="deth">Detected Hardware Version</div>
+					<div class="det"><%FN_HARDWARE_VER%></div>
+				</div>
+				<div class="detline alt">
 					<div class="deth">SPIFFS size</div>
 					<div class="det ra">
 						<script>writeLocaleNumber(<%FN_SPIFFS_SIZE%>)</script>
 					</div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth">SPIFFS used</div>
 					<div class="det ra">
 						<script>writeLocaleNumber(<%FN_SPIFFS_USED%>)</script>
 					</div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth">SD size</div>
 					<div class="det ra">
 						<script>writeLocaleNumber(<%FN_SD_SIZE%>)</script>
 					</div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth">SD used</div>
 					<div class="det ra">
 						<script>writeLocaleNumber(<%FN_SD_USED%>)</script>
 					</div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth">Uptime</div>
 					<div class="det">
 						<script>writeUptimeString(<%FN_UPTIME%>)</script>
 					</div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth">Current time</div>
 					<div class="det"><%FN_CURRENTTIME%></div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth">Free heap</div>
 					<div class="det ra">
 						<script>writeLocaleNumber(<%FN_HEAPSIZE%>)</script>
 					</div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth">SOC SDK</div>
 					<div class="det"><%FN_SYSSDK%></div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth">CPU revision</div>
 					<div class="det"><%FN_SYSCPUREV%></div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth">SIO voltage</div>
 					<div class="det"><%FN_SIOVOLTS%></div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth">HSIO Index:Baud</div>
 					<div class="det"><%FN_SIO_HSINDEX%>:
 						<script>writeLocaleNumber(<%FN_SIO_HSBAUD%>)</script>
