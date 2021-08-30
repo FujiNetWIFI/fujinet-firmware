@@ -7,9 +7,6 @@
 #include "../../include/pinmap.h"
 #include "fnUART.h"
 
-#define UART_DEBUG UART_NUM_0
-#define UART_SIO   UART_NUM_2
-
 // Number of RTOS ticks to wait for data in TX buffer to complete sending
 #define MAX_FLUSH_WAIT_TICKS 200
 #define MAX_READ_WAIT_TICKS 200
@@ -17,7 +14,9 @@
 #define MAX_WRITE_BUFFER_TICKS 1000
 
 UARTManager fnUartDebug(UART_DEBUG);
-UARTManager fnUartSIO(UART_SIO);
+// UARTManager fnUartSIO(UART_SIO); // replaced by fnSioCom
+// ^^^ UARTManager(UART_SIO) instance is now part of SerialSioPort
+//     SerialSioPort is used by fnSioCom, see lib/siocom
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}
@@ -124,6 +123,15 @@ int UARTManager::available()
 int UARTManager::peek()
 {
     return 0;
+}
+
+/* Get current baud rate
+*/
+uint32_t UARTManager::get_baudrate()
+{
+    uint32_t baud;
+    uart_get_baudrate(_uart_num, &baud);
+    return baud;
 }
 
 /* Changes baud rate

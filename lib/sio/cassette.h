@@ -3,6 +3,7 @@
 
 //#include <driver/ledc.h>
 #include "sio.h"
+#include "fnSioCom.h"
 //#include "../tcpip/fnUDP.h"
 
 #define CASSETTE_BAUD 600
@@ -81,7 +82,7 @@ protected:
     uint8_t decode_fsk();
 
     // helper function to read motor pin
-    bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
+    bool motor_line() { return fnSioCom.motor_line(); }
 
     // have to populate virtual functions to complete class
     void sio_status() override{}; // $53, 'S', Status

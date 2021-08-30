@@ -2,15 +2,13 @@
 
 #include "siocpm.h"
 #include "../hardware/fnSystem.h"
-#include "../hardware/fnUART.h"
+#include "fnSioCom.h"
 #include "fnWiFi.h"
 #include "fuji.h"
 #include "fnFS.h"
 #include "fnFsSD.h"
 #include "../runcpm/globals.h"
 #include "../runcpm/abstraction_fujinet.h"
-#include "../hardware/fnUART.h"
-#include "../hardware/fnSystem.h"
 #include "../runcpm/ram.h"     // ram.h - Implements the RAM
 #include "../runcpm/console.h" // console.h - implements console.
 #include "../runcpm/cpu.h"     // cpu.h - Implements the emulated CPU
@@ -56,7 +54,7 @@ void sioCPM::sio_handle_cpm()
 
 void sioCPM::init_cpm(int baud)
 {
-    fnUartSIO.set_baudrate(baud);
+    fnSioCom.set_baudrate(baud);
     Status = Debug = 0;
     Break = Step = -1;
     RAM = (uint8_t *)malloc(MEMSIZE);

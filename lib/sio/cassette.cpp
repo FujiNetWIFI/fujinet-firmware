@@ -1,5 +1,6 @@
 #include "cassette.h"
 #include "fnSystem.h"
+#include "fnSioCom.h"
 #include "led.h"
 #include "../../include/debug.h"
 
@@ -161,11 +162,11 @@ void sioCassette::sio_enable_cassette()
     cassetteActive = true;
 
     if (cassetteMode == cassette_mode_t::playback)
-        fnUartSIO.set_baudrate(CASSETTE_BAUD);
+        fnSioCom.set_baudrate(CASSETTE_BAUD);
 
     if (cassetteMode == cassette_mode_t::record && tape_offset == 0)
     {
-        fnUartSIO.end();
+        fnSioCom.end();
         fnSystem.set_pin_mode(UART2_RX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
 
         // hook isr handler for specific gpio pin
@@ -206,9 +207,9 @@ void sioCassette::sio_disable_cassette()
     {
         cassetteActive = false;
         if (cassetteMode == cassette_mode_t::playback)
-            fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
+            fnSioCom.set_baudrate(SIO_STANDARD_BAUDRATE);
         else
-            fnUartSIO.begin(SIO_STANDARD_BAUDRATE);
+            fnSioCom.begin(SIO_STANDARD_BAUDRATE);
 
 #ifdef DEBUG
         Debug_println("Cassette Mode disabled");
@@ -320,10 +321,10 @@ size_t sioCassette::send_tape_block(size_t offset)
     atari_sector_buffer[0] = 0x55; //sync marker
     atari_sector_buffer[1] = 0x55;
     // USART_Send_Buffer(atari_sector_buffer, BLOCK_LEN + 3);
-    fnUartSIO.write(atari_sector_buffer, BLOCK_LEN + 3);
+    fnSioCom.write(atari_sector_buffer, BLOCK_LEN + 3);
     //USART_Transmit_Byte(get_checksum(atari_sector_buffer, BLOCK_LEN + 3));
-    fnUartSIO.write(sio_checksum(atari_sector_buffer, BLOCK_LEN + 3));
-    fnUartSIO.flush(); // wait for all data to be sent just like a tape
+    fnSioCom.write(sio_checksum(atari_sector_buffer, BLOCK_LEN + 3));
+    fnSioCom.flush(); // wait for all data to be sent just like a tape
     // _delay_ms(300); //PRG(0-N) + PRWT(0.25s) delay
     fnSystem.delay(300);
     return (offset);
@@ -397,7 +398,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
             if (tape_flags.turbo) //ignore baud hdr
                 continue;
             baud = hdr->irg_length;
-            fnUartSIO.set_baudrate(baud);
+            fnSioCom.set_baudrate(baud);
         }
         offset += sizeof(struct tape_FUJI_hdr) + len;
     }
@@ -458,8 +459,8 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
             for (int i = 0; i < buflen; i++)
                 Debug_printf("%02x ", atari_sector_buffer[i]);
 #endif
-            fnUartSIO.write(atari_sector_buffer, buflen);
-            fnUartSIO.flush(); // wait for all data to be sent just like a tape
+            fnSioCom.write(atari_sector_buffer, buflen);
+            fnSioCom.flush(); // wait for all data to be sent just like a tape
 #ifdef DEBUG
             Debug_printf("\r\n");
 #endif

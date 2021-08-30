@@ -6,6 +6,7 @@
 #include <vector>
 #include "utils.h"
 #include "network.h"
+#include "fnSioCom.h"
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
 #include "../network-protocol/TCP.h"
@@ -988,7 +989,7 @@ void sioNetwork::processCommaFromDevicespec()
  */
 void sioNetwork::sio_assert_interrupt()
 {
-    fnSystem.digital_write(PIN_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+    fnSioCom.set_proceed_line(interruptProceed);
 }
 
 void sioNetwork::sio_set_translation()

@@ -6,6 +6,9 @@
 #include <string>
 #include <driver/uart.h>
 
+#define UART_DEBUG UART_NUM_0
+#define UART_SIO   UART_NUM_2
+
 class UARTManager
 {
 private:
@@ -20,8 +23,10 @@ public:
 
     void begin(int baud);
     void end();
-    void set_baudrate(uint32_t baud);
     bool initialized() { return _initialized; }
+
+    uint32_t get_baudrate();
+    void set_baudrate(uint32_t baud);
 
     int available();
     int peek();
@@ -59,6 +64,6 @@ public:
 };
 
 extern UARTManager fnUartDebug;
-extern UARTManager fnUartSIO;
+// extern UARTManager fnUartSIO; // replaced by fnSioCom
 
 #endif //FNUART_H

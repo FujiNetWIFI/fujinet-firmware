@@ -4,7 +4,7 @@
 
 #include "../../include/atascii.h"
 #include "modem.h"
-#include "../hardware/fnUART.h"
+#include "fnSioCom.h"
 #include "fnWiFi.h"
 #include "fnFsSPIF.h"
 #include "fnSystem.h"
@@ -59,7 +59,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     switch (ev->type)
     {
     case TELNET_EV_DATA:
-        if (ev->data.size && fnUartSIO.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
+        if (ev->data.size && fnSioCom.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
             Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
         break;
     case TELNET_EV_SEND:
@@ -560,7 +560,7 @@ void sioModem::sio_stream()
 
     sio_to_computer((uint8_t *)response, sizeof(response), false);
 
-    fnUartSIO.set_baudrate(modemBaud);
+    fnSioCom.set_baudrate(modemBaud);
     modemActive = true;
     Debug_printf("Modem streaming at %u baud\n", modemBaud);
 }
@@ -654,8 +654,8 @@ void sioModem::at_connect_resultCode(int modemBaud)
         resultCode = 1;
         break;
     }
-    fnUartSIO.print(resultCode);
-    fnUartSIO.write(ASCII_CR);
+    fnSioCom.print(resultCode);
+    fnSioCom.write(ASCII_CR);
 }
 
 /**
@@ -664,9 +664,9 @@ void sioModem::at_connect_resultCode(int modemBaud)
  */
 void sioModem::at_cmd_resultCode(int resultCode)
 {
-    fnUartSIO.print(resultCode);
-    fnUartSIO.write(ASCII_CR);
-    fnUartSIO.write(ASCII_LF);
+    fnSioCom.print(resultCode);
+    fnSioCom.write(ASCII_CR);
+    fnSioCom.write(ASCII_LF);
 }
 
 /**
@@ -679,14 +679,14 @@ void sioModem::at_cmd_println()
 
     if (cmdAtascii == true)
     {
-        fnUartSIO.write(ATASCII_EOL);
+        fnSioCom.write(ATASCII_EOL);
     }
     else
     {
-        fnUartSIO.write(ASCII_CR);
-        fnUartSIO.write(ASCII_LF);
+        fnSioCom.write(ASCII_CR);
+        fnSioCom.write(ASCII_LF);
     }
-    fnUartSIO.flush();
+    fnSioCom.flush();
 }
 
 void sioModem::at_cmd_println(const char *s, bool addEol)
@@ -694,20 +694,20 @@ void sioModem::at_cmd_println(const char *s, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(s);
+    fnSioCom.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            fnSioCom.write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            fnSioCom.write(ASCII_CR);
+            fnSioCom.write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
+    fnSioCom.flush();
 }
 
 void sioModem::at_cmd_println(int i, bool addEol)
@@ -715,20 +715,20 @@ void sioModem::at_cmd_println(int i, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(i);
+    fnSioCom.print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            fnSioCom.write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            fnSioCom.write(ASCII_CR);
+            fnSioCom.write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
+    fnSioCom.flush();
 }
 
 void sioModem::at_cmd_println(std::string s, bool addEol)
@@ -736,20 +736,20 @@ void sioModem::at_cmd_println(std::string s, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(s);
+    fnSioCom.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            fnSioCom.write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            fnSioCom.write(ASCII_CR);
+            fnSioCom.write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
+    fnSioCom.flush();
 }
 
 void sioModem::at_handle_wificonnect()
@@ -1015,7 +1015,7 @@ void sioModem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnUartSIO.flush();
+        fnSioCom.flush();
         answerHack = false;
     }
 }
@@ -1556,11 +1556,11 @@ void sioModem::sio_handle_modem()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-        if (fnUartSIO.available())
+        if (fnSioCom.available())
         {
             // get char from Atari SIO
             //char chr = SIO_UART.read();
-            char chr = fnUartSIO.read();
+            char chr = fnSioCom.read();
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))
@@ -1585,9 +1585,9 @@ void sioModem::sio_handle_modem()
                     // Clear with a space
                     if (commandEcho == true)
                     {
-                        fnUartSIO.write(ASCII_BACKSPACE);
-                        fnUartSIO.write(' ');
-                        fnUartSIO.write(ASCII_BACKSPACE);
+                        fnSioCom.write(ASCII_BACKSPACE);
+                        fnSioCom.write(' ');
+                        fnSioCom.write(ASCII_BACKSPACE);
                     }
                 }
             }
@@ -1600,7 +1600,7 @@ void sioModem::sio_handle_modem()
                 {
                     cmd.erase(len - 1);
                     if (commandEcho == true)
-                        fnUartSIO.write(ATASCII_BACKSPACE);
+                        fnSioCom.write(ATASCII_BACKSPACE);
                 }
             }
             // Take into account arrow key movement and clear screen
@@ -1608,7 +1608,7 @@ void sioModem::sio_handle_modem()
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
                 if (commandEcho == true)
-                    fnUartSIO.write(chr);
+                    fnSioCom.write(chr);
             }
             else
             {
@@ -1618,7 +1618,7 @@ void sioModem::sio_handle_modem()
                     cmd += chr;
                 }
                 if (commandEcho == true)
-                    fnUartSIO.write(chr);
+                    fnSioCom.write(chr);
             }
         }
     }
@@ -1650,7 +1650,7 @@ void sioModem::sio_handle_modem()
         }
 
         //int sioBytesAvail = SIO_UART.available();
-        int sioBytesAvail = fnUartSIO.available();
+        int sioBytesAvail = fnSioCom.available();
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
@@ -1665,7 +1665,7 @@ void sioModem::sio_handle_modem()
 
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int sioBytesRead = fnUartSIO.readBytes(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
+            int sioBytesRead = fnSioCom.readBytes(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
                                                    (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
@@ -1715,8 +1715,8 @@ void sioModem::sio_handle_modem()
             }
             else
             {
-                fnUartSIO.write(buf, bytesRead);
-                fnUartSIO.flush();
+                fnSioCom.write(buf, bytesRead);
+                fnSioCom.flush();
             }
 
             // And dump to sniffer, if enabled.
