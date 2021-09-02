@@ -54,9 +54,9 @@ void sioCPM::sio_handle_cpm()
     }
 }
 
-void sioCPM::init_cpm()
+void sioCPM::init_cpm(int baud)
 {
-    fnUartSIO.set_baudrate(9600);
+    fnUartSIO.set_baudrate(baud);
     Status = Debug = 0;
     Break = Step = -1;
     RAM = (uint8_t *)malloc(MEMSIZE);
@@ -79,7 +79,7 @@ void sioCPM::sio_process(uint32_t commanddata, uint8_t checksum)
         fnSystem.delay(10);
         sio_complete();
         fnSystem.delay(5000);
-        init_cpm();
+        init_cpm(9600);
         cpmActive = true;
         break;
     default:

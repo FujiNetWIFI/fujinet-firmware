@@ -55,6 +55,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PLAY_RECORD,
         FN_PULLDOWN,
         FN_CONFIG_ENABLED,
+        FN_STATUS_WAIT_ENABLED,
         FN_BOOT_MODE,
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
@@ -97,6 +98,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HOST7PREFIX,
         FN_HOST8PREFIX,
         FN_ERRMSG,
+        FN_HARDWARE_VER,
         FN_LASTTAG
     };
 
@@ -133,6 +135,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PLAY_RECORD",
         "FN_PULLDOWN",
         "FN_CONFIG_ENABLED",
+        "FN_STATUS_WAIT_ENABLED",
         "FN_BOOT_MODE",
         "FN_DRIVE1HOST",
         "FN_DRIVE2HOST",
@@ -174,7 +177,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST6PREFIX",
         "FN_HOST7PREFIX",
         "FN_HOST8PREFIX",
-        "FN_ERRMSG"
+        "FN_ERRMSG",
+        "FN_HARDWARE_VER"
     };
 
     stringstream resultstream;
@@ -296,6 +300,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_CONFIG_ENABLED:
         resultstream << Config.get_general_config_enabled();
         break;
+    case FN_STATUS_WAIT_ENABLED:
+        resultstream << Config.get_general_status_wait_enabled();
+        break;
     case FN_BOOT_MODE:
         resultstream << Config.get_general_boot_mode();
         break;
@@ -384,6 +391,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_ERRMSG:
         resultstream << fnHTTPD.getErrMsg();
+        break;
+    case FN_HARDWARE_VER:
+        resultstream << fnSystem.get_hardware_ver_str();
         break;
     default:
         resultstream << tag;

@@ -26,6 +26,8 @@
 static xQueueHandle card_detect_evt_queue = NULL;
 static uint32_t card_detect_status = 1; // 1 is no sd card
 
+int _pin_card_detect = 0;
+
 static void IRAM_ATTR card_detect_isr_handler(void *arg)
 {
     // Generic default interrupt handler
@@ -39,7 +41,7 @@ static void card_detect_intr_task(void* arg)
     uint32_t io_num, level;
 
     // Set card status before we enter the infinite loop
-    card_detect_status = gpio_get_level((gpio_num_t)PIN_CARD_DETECT);
+    card_detect_status = gpio_get_level((gpio_num_t)_pin_card_detect);
 
     for(;;) {
         if(xQueueReceive(card_detect_evt_queue, &io_num, portMAX_DELAY)) {
@@ -553,7 +555,10 @@ const char *SystemManager::get_hardware_ver_str()
         return "1.1-1.5";
         break;
     case 3:
-        return "1.6 & up";
+        return "1.6";
+        break;
+    case 4:
+        return "1.6.1 and up";
         break;
     case 0:
     default:
@@ -569,7 +574,13 @@ const char *SystemManager::get_hardware_ver_str()
 */
 void SystemManager::check_hardware_ver()
 {
-    int upcheck, downcheck;
+    int upcheck, downcheck, fixupcheck, fixdowncheck;
+
+    fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    fixdowncheck = fnSystem.digital_read(PIN_CARD_DETECT_FIX);
+
+    fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    fixupcheck = fnSystem.digital_read(PIN_CARD_DETECT_FIX);
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
     downcheck = fnSystem.digital_read(12);
@@ -579,10 +590,25 @@ void SystemManager::check_hardware_ver()
 
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
 
-    if (upcheck == downcheck)
+    if(fixupcheck == fixdowncheck)
     {
-        // v1.6 and up
+        // v1.6.1 fixed/changed card detect pin
+        _hardware_version = 4;
+        _pin_card_detect = PIN_CARD_DETECT_FIX;
+        // Create a queue to handle card detect event from ISR
+        card_detect_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+        // Start card detect task
+        xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, NULL, 10, NULL);
+        // Enable interrupt for card detection
+        fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
+        // Add the card detect handler
+        gpio_isr_handler_add((gpio_num_t)PIN_CARD_DETECT_FIX, card_detect_isr_handler, (void *)PIN_CARD_DETECT_FIX);
+    }
+    else if (upcheck == downcheck)
+    {
+        // v1.6
         _hardware_version = 3;
+        _pin_card_detect = PIN_CARD_DETECT;
         // Create a queue to handle card detect event from ISR
         card_detect_evt_queue = xQueueCreate(10, sizeof(uint32_t));
         // Start card detect task

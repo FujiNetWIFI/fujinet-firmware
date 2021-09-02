@@ -18,22 +18,29 @@ uint32_t DiskTypeATR::_sector_to_offset(uint16_t sectorNum)
 
     switch (sectorNum)
     {
-        case 1:
-            offset=16;
-            break;
-        case 2:
-            offset=144;
-            break;
-        case 3:
-            offset=272;
-            break;
-        default:
-            if (_disk_sector_size == 256)
-                offset=((sectorNum-3)*256)+16+128;
-            else
-                offset=((sectorNum-1)*128)+16;
-            
-            break;
+    case 1:
+        offset = 16;
+        break;
+    case 2:
+        if (_disk_sector_size == 512)
+            offset = 528;
+        else
+            offset = 144;
+        break;
+    case 3:
+        if (_disk_sector_size == 512)
+            offset = 1040;
+        else
+            offset = 272;
+        break;
+    default:
+        if (_disk_sector_size == 256)
+            offset = ((sectorNum - 3) * 256) + 16 + 128;
+        else if (_disk_sector_size == 512)
+            offset = (sectorNum * 512) + 16;
+        else
+            offset = ((sectorNum - 1) * 128) + 16;
+        break;
     }
 
     return offset;
@@ -47,9 +54,9 @@ bool DiskTypeATR::read(uint16_t sectornum, uint16_t *readcount)
     *readcount = 0;
 
     // Return an error if we're trying to read beyond the end of the disk
-    if(sectornum > _disk_num_sectors)
+    if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::read sector %d > %d\n", sectornum, _disk_num_sectors);        
+        Debug_printf("::read sector %d > %d\n", sectornum, _disk_num_sectors);
         return true;
     }
 
@@ -84,7 +91,7 @@ bool DiskTypeATR::write(uint16_t sectornum, bool verify)
     Debug_printf("ATR WRITE\n", sectornum, _disk_num_sectors);
 
     // Return an error if we're trying to write beyond the end of the disk
-    if(sectornum > _disk_num_sectors)
+    if (sectornum > _disk_num_sectors)
     {
         Debug_printf("::write sector %d > %d\n", sectornum, _disk_num_sectors);
         return true;
@@ -127,7 +134,7 @@ void DiskTypeATR::status(uint8_t statusbuff[4])
 {
     statusbuff[0] = DISK_DRIVE_STATUS_CLEAR;
 
-    if (_disk_sector_size == 256)
+    if (_disk_sector_size > 128)
         statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_DENSITY;
 
     if (_percomBlock.num_sides == 1)
@@ -136,7 +143,7 @@ void DiskTypeATR::status(uint8_t statusbuff[4])
     if (_percomBlock.sectors_per_trackL == 26)
         statusbuff[0] |= DISK_DRIVE_STATUS_ENHANCED_DENSITY;
 
-    statusbuff[1] = ~ _disk_controller_status; // Negate the controller status
+    statusbuff[1] = ~_disk_controller_status; // Negate the controller status
 }
 
 /*
@@ -257,7 +264,8 @@ bool DiskTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 
     uint32_t total_size = numSectors * sectorSize;
     // Adjust for first 3 sectors always being single-density (we lose 384 bytes)
-    if (sectorSize > 128)
+    // we don't do this for 512 byte sectors
+    if (sectorSize == 256)
         total_size -= 384; // 3 * 128
 
     uint32_t num_paragraphs = total_size / 16;
@@ -274,23 +282,26 @@ bool DiskTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
     atrHeader.secsizeH = HIBYTE_FROM_UINT16(sectorSize);
 
     Debug_printf("Write header to ATR: sec_size=%d, sectors=%d, paragraphs=%d, bytes=%d\n",
-        sectorSize, numSectors, num_paragraphs, total_size);
+                 sectorSize, numSectors, num_paragraphs, total_size);
 
     uint32_t offset = fwrite(&atrHeader, 1, sizeof(atrHeader), f);
 
     // Write first three 128 uint8_t sectors
-    uint8_t blank[256] = {0};
+    uint8_t blank[512] = {0};
 
-    for (int i = 0; i < 3; i++)
+    if (sectorSize < 512)
     {
-        size_t out = fwrite(blank, 1, 128, f);
-        if (out != 128)
+        for (int i = 0; i < 3; i++)
         {
-            Debug_printf("Error writing sector %hhu\n", i);
-            return false;
+            size_t out = fwrite(blank, 1, 128, f);
+            if (out != 128)
+            {
+                Debug_printf("Error writing sector %hhu\n", i);
+                return false;
+            }
+            offset += 128;
+            numSectors--;
         }
-        offset += 128;
-        numSectors--;
     }
 
     // Write the rest of the sectors via sparse seek to the last sector

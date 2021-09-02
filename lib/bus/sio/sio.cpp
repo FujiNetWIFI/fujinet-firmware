@@ -186,7 +186,7 @@ void sioBus::_bus_process_cmd()
         if (tempFrame.device == SIO_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = _fujiDev->bootdisk();
-            if (_activeDev->status_wait_count > 0 && tempFrame.comnd == 'R')
+            if (_activeDev->status_wait_count > 0 && tempFrame.comnd == 'R' && _fujiDev->status_wait_enabled)
             {
                 Debug_printf("Disabling CONFIG boot.\n");
                 _fujiDev->boot_config = false;

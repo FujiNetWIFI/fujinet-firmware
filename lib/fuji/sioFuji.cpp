@@ -613,7 +613,7 @@ void sioFuji::sio_write_app_key()
     FILE *fOut = fnSDFAT.file_open(filename, "w");
     if (fOut == nullptr)
     {
-        Debug_printf("Filed to open/create output file: errno=%d\n", errno);
+        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
         sio_error();
         return;
     }
@@ -662,7 +662,7 @@ void sioFuji::sio_read_app_key()
     FILE *fIn = fnSDFAT.file_open(filename, "r");
     if (fIn == nullptr)
     {
-        Debug_printf("Filed to open input file: errno=%d\n", errno);
+        Debug_printf("Failed to open input file: errno=%d\n", errno);
         sio_error();
         return;
     }
@@ -1467,6 +1467,9 @@ void sioFuji::setup(sioBus *siobus)
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
+    
+    //Disable status_wait if our settings say to turn it off
+    status_wait_enabled = Config.get_general_status_wait_enabled();
 
     // Add our devices to the SIO bus
     for (int i = 0; i < MAX_DISK_DEVICES; i++)

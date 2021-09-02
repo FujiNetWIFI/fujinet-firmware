@@ -418,8 +418,10 @@ void _Bdos(void)
 {
 	uint16 i;
 	uint8 j, count, chr, c, ch = LOW_REGISTER(BC);
-	uint8 trans_ch;
+	uint8 trans_ch=0x9b;
 
+	(void)trans_ch;
+	
 #ifdef DEBUGLOG
 #ifdef LOGONLY
 	if (ch == LOGONLY)

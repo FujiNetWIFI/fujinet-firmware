@@ -61,6 +61,10 @@ public:
     bool get_general_boot_mode() { return _general.boot_mode; }
     void store_general_boot_mode(uint8_t boot_mode);
     void store_midimaze_host(const char host_ip[64]);
+    bool get_general_fnconfig_spifs() { return _general.fnconfig_spifs; };
+    void store_general_fnconfig_spifs(bool fnconfig_spifs);
+    bool get_general_status_wait_enabled() { return _general.status_wait_enabled; }
+    void store_general_status_wait_enabled(bool status_wait_enabled);
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
 
@@ -213,7 +217,7 @@ private:
     {
         bool bt_status = false;
         int bt_baud = 19200;
-        std::string bt_devname = "FujiNetSIO2BT";
+        std::string bt_devname = "SIO2BTFujiNet";
     };
 
     struct network_info
@@ -230,6 +234,8 @@ private:
         bool rotation_sounds = true;
         bool config_enabled = true;
         int boot_mode = 0;
+        bool fnconfig_spifs = true;
+        bool status_wait_enabled = true;
     };
 
     struct modem_info
