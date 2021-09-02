@@ -1,13 +1,13 @@
 #include <esp_vfs.h>
-#include "esp_spiffs.h"
-#include "errno.h"
+#include <esp_spiffs.h>
+#include <errno.h>
 
 #include "fnFsSPIF.h"
 #include "../../include/debug.h"
 
 #define SPIFFS_MAXPATH 512
 
-// Our global SD interface
+// Our global SPIFFS interface
 FileSystemSPIFFS fnSPIFFS;
 
 bool FileSystemSPIFFS::dir_open(const char * path, const char * pattern, uint16_t diropts)
