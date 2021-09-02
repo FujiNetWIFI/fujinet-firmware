@@ -37,8 +37,7 @@
 using namespace CBM;
 
 
-iecDevice::iecDevice() // (IEC &iec, FileSystem *fileSystem)
-	: _iec(IEC)
+iecDevice::iecDevice()
 {
 	reset();
 } // ctor
@@ -61,10 +60,10 @@ void iecDevice::sendStatus(void)
 	Debug_printf("\r\nsendStatus: ");
 	// Length does not include the CR, write all but the last one should be with EOI.
 	for (i = 0; i < readResult - 2; ++i)
-		_iec.send(status[i]);
+		IEC.send(status[i]);
 
 	// ...and last byte in string as with EOI marker.
-	_iec.sendEOI(status[i]);
+	IEC.sendEOI(status[i]);
 } // sendStatus
 
 
@@ -82,8 +81,8 @@ void iecDevice::sendSystemInfo()
 	// dtostrf(getFragmentation(), 3, 2, floatBuffer);
 
 	// Send load address
-	_iec.send(PET_BASIC_START bitand 0xff);
-	_iec.send((PET_BASIC_START >> 8) bitand 0xff);
+	IEC.send(PET_BASIC_START bitand 0xff);
+	IEC.send((PET_BASIC_START >> 8) bitand 0xff);
 	Debug_println("");
 
 	// Send List HEADER
@@ -140,8 +139,8 @@ void iecDevice::sendSystemInfo()
 	sendLine(basicPtr, 0, "DNS      : %s", fnSystem.Net.get_ip4_dns_str().c_str());
 
 	// End program with two zeros after last line. Last zero goes out as EOI.
-	_iec.send(0);
-	_iec.sendEOI(0);
+	IEC.send(0);
+	IEC.sendEOI(0);
 
 	fnLedManager.set(LED_BUS);
 } // sendSystemInfo
@@ -154,8 +153,8 @@ void iecDevice::sendDeviceStatus()
 	uint16_t basicPtr = PET_BASIC_START;
 
 	// Send load address
-	_iec.send(PET_BASIC_START bitand 0xff);
-	_iec.send((PET_BASIC_START >> 8) bitand 0xff);
+	IEC.send(PET_BASIC_START bitand 0xff);
+	IEC.send((PET_BASIC_START >> 8) bitand 0xff);
 	Debug_println("");
 
 	// Send List HEADER
@@ -165,8 +164,8 @@ void iecDevice::sendDeviceStatus()
 	sendLine(basicPtr, 0, "DEVICE    : %d", IEC.ATN.device_id);
 
 	// End program with two zeros after last line. Last zero goes out as EOI.
-	_iec.send(0);
-	_iec.sendEOI(0);
+	IEC.send(0);
+	IEC.sendEOI(0);
 
 	fnLedManager.set(LED_BUS);
 } // sendDeviceStatus
@@ -213,7 +212,7 @@ void iecDevice::_process(void)
 			}
 			else if(IEC.ATN.mode == ATN_CMD) // Here we are sending a command to PC and executing it, but not sending response
 			{
-				_open(); // back to CBM, the result code of the command is however buffered on the PC side.
+				_open();
 			}
 			break;
 
@@ -270,19 +269,19 @@ uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, char* text)
 	basicPtr += len + 5;
 
 	// Send that pointer
-	_iec.send(basicPtr bitand 0xFF);
-	_iec.send(basicPtr >> 8);
+	IEC.send(basicPtr bitand 0xFF);
+	IEC.send(basicPtr >> 8);
 
 	// Send blocks
-	_iec.send(blocks bitand 0xFF);
-	_iec.send(blocks >> 8);
+	IEC.send(blocks bitand 0xFF);
+	IEC.send(blocks >> 8);
 
 	// Send line contents
 	for (i = 0; i < len; i++)
-		_iec.send(text[i]);
+		IEC.send(text[i]);
 
 	// Finish line
-	_iec.send(0);
+	IEC.send(0);
 
 	Debug_println("");
 
@@ -402,6 +401,27 @@ void iecBus::_bus_process_cmd(void)
 	}
 
     fnLedManager.set(eLed::LED_BUS, false);
+}
+
+
+// Look to see if we have any waiting messages and process them accordingly
+void iecBus::_bus_process_queue()
+{
+    bus_message_t msg;
+    if (xQueueReceive(qBusMessages, &msg, 0) == pdTRUE)
+    {
+        switch (msg.message_id)
+        {
+        case BUSMSG_DISKSWAP:
+            if (_fujiDev != nullptr)
+                _fujiDev->image_rotate();
+            break;
+        case BUSMSG_DEBUG_TAPE:
+            if (_fujiDev != nullptr)
+                _fujiDev->debug_tape();
+            break;
+        }
+    }
 }
 
 
@@ -1033,11 +1053,12 @@ void iecBus::service()
 		{
 			// If RESET & ATN are both pulled then CBM is off
 			ATN.mode = ATN_IDLE;
+			return;
 		}
 		
-		ATN.mode = ATN_RESET;
 		reset();
-		fnSystem.delay(1000);
+		ATN.mode = ATN_RESET;
+		return;
 	}
 
 	if (status(IEC_PIN_ATN) == pulled)
@@ -1055,6 +1076,7 @@ void iecBus::service()
 		{
 			Debug_printf("\r\ncheckATN: get first ATN byte");
 			ATN.mode = ATN_ERROR;
+			return;
 		}
 
 		ATN.code = c;
@@ -1080,6 +1102,7 @@ void iecBus::service()
 			{
 				Debug_printf("\r\ncheckATN: get first cmd byte");
 				ATN.mode = ATN_ERROR;
+				return;
 			}
 
 			ATN.code = c;
@@ -1114,13 +1137,16 @@ void iecBus::service()
 				}
 
 				// Wait for ATN to release and quit
-				while(status(IEC_PIN_ATN) == released);
+				while(status(IEC_PIN_ATN) == pulled);
 				Debug_printf("\r\ncheckATN: ATN Released\r\n");
 			}
 		}
 
 		// some delay is required before more ATN business can take place.
 		fnSystem.delay_microseconds(TIMING_ATN_DELAY);
+
+		// Go process the command
+		_bus_process_cmd();		
 	}
 	// else
 	// {
@@ -1128,10 +1154,6 @@ void iecBus::service()
 	// 	release(IEC_PIN_DATA);
 	// 	release(IEC_PIN_CLK);
 	// }
-
-
-    // Go process the command
-    _bus_process_cmd();
 
     // // Go check if the modem needs to read data if it's active
     // if (_modemDev != nullptr && _modemDev->modemActive)
@@ -1145,7 +1167,7 @@ void iecBus::service()
     //     if (_netDev[i] != nullptr)
     //         _netDev[i]->sio_poll_interrupt();
     // }
-}
+} // service
 
 // Reset all devices on the bus
 void iecBus::reset()
@@ -1251,7 +1273,7 @@ void iecBus::changeDeviceId(iecDevice *p, int device_id)
 //
 int iecBus::receive()
 {
-	int data;
+	uint8_t data;
 	data = receiveByte();
 	return data;
 } // receive

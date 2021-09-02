@@ -49,11 +49,8 @@ struct appkey
 #include "fujiHost.h"
 #include "fujiDisk.h"
 
-#if defined( BUILD_ATARI )
-#   include "sioFuji.h"
-#elif defined( BUILD_CBM )
-#   include "iecFuji.h"
-#endif
+#include "sioFuji.h"
+#include "iecFuji.h"
 
 #include "samlib.h"
 

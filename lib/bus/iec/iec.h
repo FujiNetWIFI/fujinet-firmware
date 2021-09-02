@@ -45,8 +45,7 @@
  * virual functions. I think that is the handlers for the ATN commands
  * and probably data input and output. maybe error reporting on channel 15?
  * maybe we want a process command to deal with incoming data, e.g., on the 
- * printer? 
-
+ * printer?
 */
 
 #include "bus.h"
