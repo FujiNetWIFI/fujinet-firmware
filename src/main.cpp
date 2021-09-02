@@ -82,9 +82,11 @@ void main_setup()
 #ifdef BLUETOOTH_SUPPORT
     if ( Config.get_bt_status() )
     {
+#ifdef BLUETOOTH_SUPPORT
         // Start SIO2BT mode if we were in it last shutdown
         fnLedManager.set(eLed::LED_BT, true); // BT LED ON
         fnBtManager.start();
+#endif
     }
     else
 #endif
@@ -147,7 +149,7 @@ extern "C"
         
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1; the WiFi task ends up on CPU0
-        #define MAIN_STACKSIZE 7168
+        #define MAIN_STACKSIZE 4096
         #define MAIN_PRIORITY 10
         #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",

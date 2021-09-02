@@ -64,7 +64,14 @@ void fnConfig::store_general_config_enabled(bool config_enabled)
     _general.config_enabled = config_enabled;
     _dirty = true;
 }
+void fnConfig::store_general_status_wait_enabled(bool status_wait_enabled)
+{
+    if (_general.status_wait_enabled == status_wait_enabled)
+        return;
 
+    _general.status_wait_enabled = status_wait_enabled;
+    _dirty = true;
+}
 void fnConfig::store_general_boot_mode(uint8_t boot_mode)
 {
     if (_general.boot_mode == boot_mode)
@@ -80,6 +87,15 @@ void fnConfig::store_general_hsioindex(int hsio_index)
         return;
 
     _general.hsio_index = hsio_index;
+    _dirty = true;
+}
+
+void fnConfig::store_general_fnconfig_spifs(bool fnconfig_spifs)
+{
+    if (_general.fnconfig_spifs == fnconfig_spifs)
+        return;
+
+    _general.fnconfig_spifs = fnconfig_spifs;
     _dirty = true;
 }
 
@@ -474,6 +490,8 @@ void fnConfig::save()
     ss << "boot_mode=" << _general.boot_mode << LINETERM;
     if (_general.timezone.empty() == false)
         ss << "timezone=" << _general.timezone << LINETERM;
+    ss << "fnconfig_on_spifs=" << _general.fnconfig_spifs << LINETERM;
+    ss << "status_wait_enabled=" << _general.status_wait_enabled << LINETERM;
 
     ss << LINETERM;
 
@@ -562,17 +580,35 @@ void fnConfig::save()
     ss << "pulldown=" << ((_cassette.pulldown) ? "1 Pulldown Resistor" : "0 B Button Press") << LINETERM;
 
     // Write the results out
-    FILE *fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w");
-    std::string result = ss.str();
-    size_t z = fwrite(result.c_str(), 1, result.length(), fout);
-    (void)z; // Get around unused var
-    Debug_printf("fnConfig::save wrote %d bytes\n", z);
-    fclose(fout);
-
+    FILE *fout = NULL;
+    if (fnConfig::get_general_fnconfig_spifs() == true) //only if spiffs is enabled
+    {
+        Debug_println("SPIFFS Config Storage: Enabled. Saving config to SPIFFS");
+        if ( !(fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w")))
+        {
+            Debug_println("Failed to Open config on SPIFFS");
+            return;
+        }
+    }
+    else
+    {
+        Debug_println("SPIFFS Config Storage: Disabled. Saving config to SD");
+        if ( !(fout = fnSDFAT.file_open(CONFIG_FILENAME, "w")))
+        {
+            Debug_println("Failed to Open config on SD");
+            return;
+        }
+    }
+        std::string result = ss.str();
+        size_t z = fwrite(result.c_str(), 1, result.length(), fout);
+        (void)z; // Get around unused var
+        Debug_printf("fnConfig::save wrote %d bytes\n", z);
+        fclose(fout);
+    
     _dirty = false;
 
-    // Copy to SD if possible
-    if (fnSDFAT.running())
+    // Copy to SD if possible, only when wrote SPIFFS first 
+    if (fnSDFAT.running() && fnConfig::get_general_fnconfig_spifs() == true)
     {
         Debug_println("Attemptiong config copy to SD");
         if (0 == fnSystem.copy_file(&fnSPIFFS, CONFIG_FILENAME, &fnSDFAT, CONFIG_FILENAME))
@@ -631,26 +667,26 @@ Original behavior: read from SPIFFS first and only read from SD if nothing found
     /*
 New behavior: copy from SD first if available, then read SPIFFS.
 */
-    // See if we have a copy on SD (only copy from SD if we don't have a local copy)
+    // See if we have a copy on SD load it to check if we should write to spiffs (only copy from SD if we don't have a local copy)
+    FILE *fin = NULL; //declare fin
     if (fnSDFAT.running() && fnSDFAT.exists(CONFIG_FILENAME))
     {
-        Debug_println("Found copy of config file on SD - copying that to SPIFFS");
-        if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
-        {
-            Debug_println("Failed to copy config from SD");
-        }
+        Debug_println("Load fnconfig.ini from SD");
+        fin = fnSDFAT.file_open(CONFIG_FILENAME);
     }
-    // See if we have a file in SPIFFS (either originally or something copied from SD)
-    if (false == fnSPIFFS.exists(CONFIG_FILENAME))
+    else
     {
-        _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved
-        Debug_println("No config found - starting fresh!");
-        return; // No local copy - ABORT
+        if (false == fnSPIFFS.exists(CONFIG_FILENAME))
+        {
+            _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved
+            Debug_println("No config found - starting fresh!");
+            return; // No local copy - ABORT
+        }
+        Debug_println("Load fnconfig.ini from spiffs");
+        fin = fnSPIFFS.file_open(CONFIG_FILENAME);
     }
-
     // Read INI file into buffer (for speed)
     // Then look for sections and handle each
-    FILE *fin = fnSPIFFS.file_open(CONFIG_FILENAME);
     char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
     if (inibuffer == nullptr)
     {
@@ -717,8 +753,54 @@ New behavior: copy from SD first if available, then read SPIFFS.
             break;
         }
     }
-
     _dirty = false;
+
+    if (fnConfig::get_general_fnconfig_spifs() == true) // Only if spiffs is enabled
+    {
+        if (true == fnSPIFFS.exists(CONFIG_FILENAME))
+        {
+            Debug_println("SPIFFS Config Storage: Enabled");
+            FILE *fin = fnSPIFFS.file_open(CONFIG_FILENAME);
+            char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
+            if (inibuffer == nullptr)
+            {
+                Debug_printf("Failed to allocate %d bytes to read config file from SPIFFS\n", CONFIG_FILEBUFFSIZE);
+                return;
+            }
+            int i = fread(inibuffer, 1, CONFIG_FILEBUFFSIZE - 1, fin);
+            fclose(fin);
+            Debug_printf("fnConfig::load read %d bytes from SPIFFS config file\n", i);
+            if (i < 0)
+            {
+                Debug_println("Failed to read data from SPIFFS configuration file");
+                free(inibuffer);
+                return;
+            }
+            inibuffer[i] = '\0';
+            // Put the data in a stringstream
+            std::stringstream ss_ffs;
+            ss_ffs << inibuffer;
+            free(inibuffer);
+            if (ss.str() != ss_ffs.str()) {
+                Debug_println("Copying SD config file to SPIFFS");
+                if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
+                {
+                    Debug_println("Failed to copy config from SD");
+                }
+            }
+            ss_ffs.str("");
+            ss_ffs.clear(); // freeup some memory ;)
+        }
+        else
+        {
+            Debug_println("Config file dosn't exist on SPIFFS");
+            Debug_println("Copying SD config file to SPIFFS");
+            if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
+            {
+                    Debug_println("Failed to copy config from SD");
+            } 
+        }
+    }
 }
 
 void fnConfig::_read_section_general(std::stringstream &ss)
@@ -757,6 +839,14 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             {
                 int mode = atoi(value.c_str());
                 _general.boot_mode = mode;
+            }
+            else if (strcasecmp(name.c_str(), "fnconfig_on_spifs") == 0)
+            {
+                _general.fnconfig_spifs = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "status_wait_enabled") == 0)
+            {
+                _general.status_wait_enabled = util_string_value_is_true(value);
             }
         }
     }
