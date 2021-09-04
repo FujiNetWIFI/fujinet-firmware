@@ -20,7 +20,7 @@
 #define CASSETTE_FILE "/csave" // basic program
 
 // copied from fuUART.cpp - figure out better way
-#define UART2_RX 33
+// #define UART2_RX 33
 #define ESP_INTR_FLAG_DEFAULT 0
 #define BOXLEN 5
 
@@ -32,7 +32,7 @@ uint8_t boxidx = 0;
 static void IRAM_ATTR cas_isr_handler(void *arg)
 {
     uint32_t gpio_num = (uint32_t)arg;
-    if (gpio_num == UART2_RX)
+    if (gpio_num == PIN_UART2_RX)
     {
         unsigned long now = fnSystem.micros();
         boxcar[boxidx++] = now - last; // interval between current and last ISR call
@@ -139,6 +139,7 @@ void sioCassette::close_cassette_file()
     }
 }
 
+// TODO return error condition
 void sioCassette::open_cassette_file(FileSystem *_FS)
 {
     // to open files for writing
@@ -174,7 +175,7 @@ void sioCassette::open_cassette_file(FileSystem *_FS)
 void sioCassette::umount_cassette_file()
 {
 #ifdef DEBUG
-        Debug_println("CAS file closed.");
+        Debug_println("CAS file unmounted.");
 #endif
         _mounted = false;
 }
@@ -215,10 +216,10 @@ void sioCassette::sio_enable_cassette()
     {
         open_cassette_file(&fnSDFAT); // hardcode SD card?
         fnUartSIO.end();
-        fnSystem.set_pin_mode(UART2_RX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
+        fnSystem.set_pin_mode(PIN_UART2_RX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
 
         // hook isr handler for specific gpio pin
-        if (gpio_isr_handler_add((gpio_num_t)UART2_RX, cas_isr_handler, (void *)UART2_RX) != ESP_OK)
+        if (gpio_isr_handler_add((gpio_num_t)PIN_UART2_RX, cas_isr_handler, (void *)PIN_UART2_RX) != ESP_OK)
             {
                 Debug_println("error attaching cassette data reading interrupt");
                 return;
@@ -227,7 +228,7 @@ void sioCassette::sio_enable_cassette()
 
 #ifdef DEBUG
         Debug_println("stopped hardware UART");
-        int a = fnSystem.digital_read(UART2_RX);
+        int a = fnSystem.digital_read(PIN_UART2_RX);
         Debug_printf("set pin to input. Value is %d\n", a);
         Debug_println("Writing FUJI File HEADERS");
 #endif
@@ -261,10 +262,10 @@ void sioCassette::sio_disable_cassette()
         cassetteActive = false;
         if (cassetteMode == cassette_mode_t::playback)
             fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
-        else
+        else // record mode
         {
-            close_cassette_file();
-            //TODO: gpio_isr_handler_remove((gpio_num_t)UART2_RX);
+             gpio_isr_handler_remove(gpio_num_t(PIN_UART2_RX));
+             close_cassette_file();
             fnUartSIO.begin(SIO_STANDARD_BAUDRATE);
         }
 #ifdef DEBUG
@@ -547,6 +548,8 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
 
 size_t sioCassette::receive_FUJI_tape_block(size_t offset)
 {
+    bool lastBlock = false;
+
     Debug_println("Start listening for tape block from Atari");
     Clear_atari_sector_buffer(BLOCK_LEN + 4);
     uint8_t idx = 0;
@@ -559,6 +562,7 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
     offset += fputc(BLOCK_LEN + 4, _file); // 132 bytes
     offset += fputc(0, _file);
 
+    // TODO - add a timeout - 60 seconds? Can i also watch for B-button message to quit?
     while (!casUART.available()) // && motor_line()
         casUART.service(decode_fsk());
     uint16_t irg = fnSystem.millis() - tic - 10000 / casUART.get_baud(); // adjust for first byte
@@ -587,6 +591,12 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
 #ifdef DEBUG
     Debug_printf("control byte: %02x\n", b);
 #endif
+
+    // control byte of 0xFE means end of file (De Re Atari Appendix C)
+    // ref: https://www.atariarchives.org/dere/chaptC.php 
+    //
+    lastBlock = (b==0xFE); 
+    // need to disable cassette after this
 
     int i = 0;
     while (i < BLOCK_LEN)
@@ -624,6 +634,11 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
 #ifdef DEBUG
     Debug_printf("file offset: %d\n", offset);
 #endif
+
+    // disable cassette if last block
+    if (lastBlock)
+        sio_disable_cassette();
+
     return offset;
 }
 
@@ -635,9 +650,9 @@ uint8_t sioCassette::decode_fsk()
 
     if (delta > 0)
     {
-        #ifdef DEBUG
-           Debug_printf("%u ", delta);
-        #endif
+        // #ifdef DEBUG
+        //    Debug_printf("%u ", delta);
+        // #endif
         if (delta > 90 && delta < 97)
             out = 0;
         if (delta > 119 && delta < 130)
