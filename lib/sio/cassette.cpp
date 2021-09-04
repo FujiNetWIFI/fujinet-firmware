@@ -646,6 +646,8 @@ uint8_t sioCassette::decode_fsk()
 {
     // take "delta" set in the IRQ and set the demodulator output
 
+    // TODO blinkenlights?
+
     uint8_t out = last_output;
 
     if (delta > 0)
@@ -655,7 +657,7 @@ uint8_t sioCassette::decode_fsk()
         // #endif
         if (delta > 90 && delta < 97)
             out = 0;
-        if (delta > 119 && delta < 130)
+        if (delta > 119 && delta < 130) // maybe change threshold to 118 for faster bit flip?
             out = 1;
         last_output = out;
     }
