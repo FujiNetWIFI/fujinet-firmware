@@ -23,6 +23,7 @@
 // #define UART2_RX 33
 #define ESP_INTR_FLAG_DEFAULT 0
 #define BOXLEN 5
+#define GUARDDIV 3
 
 unsigned long last = 0;
 unsigned long delta = 0;
@@ -38,13 +39,13 @@ static void IRAM_ATTR cas_isr_handler(void *arg)
         boxcar[boxidx++] = now - last; // interval between current and last ISR call
         if (boxidx > BOXLEN)
             boxidx = 0; // circular buffer action
-        delta = 0; // accumulator for boxcar filter
+        delta = 0;      // accumulator for boxcar filter
         for (uint8_t i = 0; i < BOXLEN; i++)
         {
             delta += boxcar[i]; // accumulate internvals for averaging
         }
         delta /= BOXLEN; // normalize accumulator to make mean
-        last = now; // remember when this was (maybe move up to right before if statement?)
+        last = now;      // remember when this was (maybe move up to right before if statement?)
     }
 }
 
@@ -81,9 +82,9 @@ int8_t softUART::service(uint8_t b)
 #endif
         }
     }
-    else if (t > baud_clock + period * state_counter + period / 4)
+    else if (t > baud_clock + period * state_counter + period / GUARDDIV) // start of bit # state_counter
     {
-        if (t < baud_clock + period * state_counter + 9 * period / 4)
+        if (t < baud_clock + period * state_counter + period - period / GUARDDIV) // end of bit # state_counter
         {
             if (state_counter == STOPBIT)
             {
@@ -95,7 +96,7 @@ int8_t softUART::service(uint8_t b)
                 if (b != 0)
                 {
 #ifdef DEBUG
-                    Debug_println("Stop bit invalid!");
+                    Debug_println("!"); //Debug_println("Stop bit invalid!");
 #endif
                     return -1; // frame sync error
                 }
@@ -114,7 +115,7 @@ int8_t softUART::service(uint8_t b)
         else
         {
 #ifdef DEBUG
-            Debug_println("Bit slip error!");
+            Debug_println("_"); // Debug_println("Bit slip error!");
 #endif
             state_counter = STARTBIT;
             return -1; // frame sync error
@@ -122,7 +123,6 @@ int8_t softUART::service(uint8_t b)
     }
     return 0;
 }
-
 
 //************************************************************************************************************
 // ***** nerd at work! ******
@@ -168,16 +168,14 @@ void sioCassette::open_cassette_file(FileSystem *_FS)
 #endif
 }
 
-
 //************************************************************************************************************
-
 
 void sioCassette::umount_cassette_file()
 {
 #ifdef DEBUG
-        Debug_println("CAS file unmounted.");
+    Debug_println("CAS file unmounted.");
 #endif
-        _mounted = false;
+    _mounted = false;
 }
 
 void sioCassette::mount_cassette_file(FILE *f, size_t fz)
@@ -199,7 +197,6 @@ void sioCassette::mount_cassette_file(FILE *f, size_t fz)
         // There is no facility to specify an output file for writing to C: or CSAVE
         // so instead of using the file mounted in slot 8 by CONFIG, create an output file with some serial number
         // files are created with the cassette is enabled.
- 
     }
 
     _mounted = true;
@@ -220,10 +217,10 @@ void sioCassette::sio_enable_cassette()
 
         // hook isr handler for specific gpio pin
         if (gpio_isr_handler_add((gpio_num_t)PIN_UART2_RX, cas_isr_handler, (void *)PIN_UART2_RX) != ESP_OK)
-            {
-                Debug_println("error attaching cassette data reading interrupt");
-                return;
-            }
+        {
+            Debug_println("error attaching cassette data reading interrupt");
+            return;
+        }
         // TODO: do i need to unhook isr handler when cassette is disabled?
 
 #ifdef DEBUG
@@ -264,8 +261,9 @@ void sioCassette::sio_disable_cassette()
             fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
         else // record mode
         {
-             gpio_isr_handler_remove(gpio_num_t(PIN_UART2_RX));
-             close_cassette_file();
+            gpio_isr_handler_remove(gpio_num_t(PIN_UART2_RX));
+            tape_offset = 0;
+            close_cassette_file();
             fnUartSIO.begin(SIO_STANDARD_BAUDRATE);
         }
 #ifdef DEBUG
@@ -316,7 +314,7 @@ bool sioCassette::get_buttons()
 
 void sioCassette::set_pulldown(bool resistor)
 {
-            pulldown = resistor;
+    pulldown = resistor;
 }
 
 void sioCassette::Clear_atari_sector_buffer(uint16_t len)
@@ -401,12 +399,12 @@ void sioCassette::check_for_FUJI_file()
         p[3] == 'I')
     {
         tape_flags.FUJI = 1;
-            Debug_println("FUJI File Found");
+        Debug_println("FUJI File Found");
     }
     else
     {
         tape_flags.FUJI = 0;
-          Debug_println("Not a FUJI File");
+        Debug_println("Not a FUJI File");
     }
 
     if (tape_flags.turbo) //set fix to
@@ -593,9 +591,9 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
 #endif
 
     // control byte of 0xFE means end of file (De Re Atari Appendix C)
-    // ref: https://www.atariarchives.org/dere/chaptC.php 
+    // ref: https://www.atariarchives.org/dere/chaptC.php
     //
-    lastBlock = (b==0xFE); 
+    lastBlock = (b == 0xFE);
     // need to disable cassette after this
 
     int i = 0;
@@ -657,7 +655,7 @@ uint8_t sioCassette::decode_fsk()
         // #endif
         if (delta > 90 && delta < 97)
             out = 0;
-        if (delta > 119 && delta < 130) // maybe change threshold to 118 for faster bit flip?
+        if (delta > 118 && delta < 130) // maybe change threshold to 118 for faster bit flip?
             out = 1;
         last_output = out;
     }
