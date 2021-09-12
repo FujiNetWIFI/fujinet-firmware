@@ -130,6 +130,7 @@ int8_t softUART::service(uint8_t b)
 void sioCassette::close_cassette_file()
 {
     // for closing files used for writing
+    umount_cassette_file(); // is this needed?
     if (_file != nullptr)
     {
         fclose(_file);
@@ -176,6 +177,7 @@ void sioCassette::umount_cassette_file()
     Debug_println("CAS file unmounted.");
 #endif
     _mounted = false;
+     tape_offset = 0;
 }
 
 void sioCassette::mount_cassette_file(FILE *f, size_t fz)
@@ -221,7 +223,6 @@ void sioCassette::sio_enable_cassette()
             Debug_println("error attaching cassette data reading interrupt");
             return;
         }
-        // TODO: do i need to unhook isr handler when cassette is disabled?
 
 #ifdef DEBUG
         Debug_println("stopped hardware UART");
@@ -262,7 +263,6 @@ void sioCassette::sio_disable_cassette()
         else // record mode
         {
             gpio_isr_handler_remove(gpio_num_t(PIN_UART2_RX));
-            tape_offset = 0;
             close_cassette_file();
             fnUartSIO.begin(SIO_STANDARD_BAUDRATE);
         }
