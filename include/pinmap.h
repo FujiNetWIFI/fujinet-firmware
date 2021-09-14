@@ -17,6 +17,8 @@
 #define PIN_UART1_TX 10
 #define PIN_UART2_RX 33
 #define PIN_UART2_TX 21
+#define PIN_ADAMNET_RX 22
+#define PIN_ADAMNET_TX 21
 
 /* Buttons */
 #define PIN_BUTTON_A 0 // keys.cpp
@@ -44,5 +46,9 @@
 
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h
+
+/* Dummy pins for AdamNet */
+#define PIN_RX_DUMMY 27
+#define PIN_TX_DUMMY 36
 
 #endif
