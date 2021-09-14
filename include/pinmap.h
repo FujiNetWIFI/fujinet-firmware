@@ -48,7 +48,7 @@
 #define PIN_DAC1 25 // samlib.h
 
 /* Dummy pins for AdamNet */
-#define PIN_RX_DUMMY 27
-#define PIN_TX_DUMMY 36
+#define PIN_RX_DUMMY 0 
+#define PIN_TX_DUMMY 12
 
 #endif
