@@ -145,6 +145,7 @@ protected:
      * Atari that we are now processing the command.
      */
     void sio_ack();
+    void sio_late_ack(); // for NetSIO, ACK is delayed
 
     /**
      * @brief Send a non-acknowledgement (NAK) to the Atari 'N'

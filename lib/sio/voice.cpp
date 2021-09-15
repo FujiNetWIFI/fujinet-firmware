@@ -172,7 +172,7 @@ void sioVoice::sio_process(uint32_t commanddata, uint8_t checksum)
     {
     case 'P': // 0x50
     case 'W': // 0x57
-        sio_ack();
+        sio_late_ack();
         sio_write();
         lastAux1 = cmdFrame.aux1;
         break;

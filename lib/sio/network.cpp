@@ -75,7 +75,7 @@ void sioNetwork::sio_open()
 {
     Debug_println("sioNetwork::sio_open()\n");
 
-    sio_ack();
+    sio_late_ack();
 
     channelMode = PROTOCOL;
 
@@ -242,15 +242,15 @@ void sioNetwork::sio_write()
         Debug_printf("Could not allocate %u bytes.\n", num_bytes);
     }
 
-    sio_ack();
-
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
         status.error = NETWORK_ERROR_NOT_CONNECTED;
-        sio_error();
+        sio_nak();
         return;
     }
+
+    sio_late_ack();
 
     // Get the data from the Atari
     sio_to_peripheral(newData, num_bytes);
@@ -510,7 +510,7 @@ void sioNetwork::sio_special()
         sio_special_40();
         break;
     case 0x80: // Payload to Peripheral
-        sio_ack();
+        sio_late_ack();
         sio_special_80();
         break;
     default:
@@ -989,7 +989,7 @@ void sioNetwork::processCommaFromDevicespec()
  */
 void sioNetwork::sio_assert_interrupt()
 {
-    fnSioCom.set_proceed_line(interruptProceed);
+    fnSioCom.set_proceed(interruptProceed);
 }
 
 void sioNetwork::sio_set_translation()
@@ -1014,7 +1014,7 @@ void sioNetwork::sio_set_timer_rate()
 
 void sioNetwork::sio_do_idempotent_command_80()
 {
-    sio_ack();
+    // sio_ack(); // already ACK'ed
 
     parse_and_instantiate_protocol();
 

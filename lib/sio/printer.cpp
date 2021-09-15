@@ -271,7 +271,7 @@ void sioPrinter::sio_process(uint32_t commanddata, uint8_t checksum)
         _lastaux1 = cmdFrame.aux1;
         _lastaux2 = cmdFrame.aux2;
         _last_ms = fnSystem.millis();
-        sio_ack();
+        sio_late_ack();
         sio_write(_lastaux1, _lastaux2);
         break;
     case SIO_PRINTERCMD_STATUS:
