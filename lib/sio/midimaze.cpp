@@ -68,7 +68,7 @@ void sioMIDIMaze::sio_handle_midimaze()
         while (true)
         {
             // Break out of MIDIMaze mode if COMMAND is asserted
-            if (!fnSioCom.command_line())
+            if (fnSioCom.command_asserted())
             {
 #ifdef DEBUG
                 Debug_println("CMD Asserted in LOOP, stopping MIDIMaze");

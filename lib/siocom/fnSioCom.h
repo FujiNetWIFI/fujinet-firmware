@@ -5,7 +5,7 @@
 
 #include "sioport.h"
 #include "serialsio.h"
-// #include "netsio.h"
+#include "netsio.h"
 
 /*
  * SIO Communication class
@@ -21,7 +21,7 @@ private:
     bool _netsio_enabled;
     SioPort *_sioPort;
     SerialSioPort _serialSio;
-    // NetSioPort _netSio;
+    NetSioPort _netSio;
 
     size_t _print_number(unsigned long n, uint8_t base);
 
@@ -33,10 +33,10 @@ public:
     void set_baudrate(uint32_t baud);
     uint32_t get_baudrate();
 
-    bool command_line();
-    bool motor_line();
-    void set_proceed_line(bool level);
-    void set_interrupt_line(bool level);
+    bool command_asserted();
+    bool motor_asserted();
+    void set_proceed(bool level);
+    void set_interrupt(bool level);
 
     int available();
     void flush();
@@ -67,15 +67,17 @@ public:
     // specific to SerialSioPort
     void setup_serial_port();
 
-    // // specific to NetSioPort
-    // void set_netsio_host(const char *host, int port);
-    // const char* get_netsio_host(int &port);
+    // specific to NetSioPort
+    void set_netsio_host(const char *host, int port);
+    const char* get_netsio_host(int &port);
+    void netsio_late_sync(uint8_t c);
+    void netsio_write_size(int write_size);
 
-    // void set_sio_mode(bool enable_netsio);
-    // bool get_netsio_enabled() {return _netsio_enabled;}
+    void set_sio_mode(bool enable_netsio);
+    bool get_netsio_enabled() {return _netsio_enabled;}
 
-    // // toggle NetSIOPort and SerialPort
-    // void swicth_sio_mode(bool enable_netsio);
+    // toggle NetSIOPort and SerialPort
+    void swicth_sio_mode(bool enable_netsio);
 };
 
 extern SioCom fnSioCom;

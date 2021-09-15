@@ -35,24 +35,24 @@ uint32_t SioCom::get_baudrate()
     return _sioPort->get_baudrate(); 
 }
 
-bool SioCom::command_line() 
+bool SioCom::command_asserted() 
 {
-    return _sioPort->command_line();
+    return _sioPort->command_asserted();
 }
 
-bool SioCom::motor_line() 
+bool SioCom::motor_asserted() 
 {
-    return _sioPort->motor_line();
+    return _sioPort->motor_asserted();
 }
 
-void SioCom::set_proceed_line(bool level)
+void SioCom::set_proceed(bool level)
 {
-    _sioPort->set_proceed_line(level);
+    _sioPort->set_proceed(level);
 }
 
-void SioCom::set_interrupt_line(bool level)
+void SioCom::set_interrupt(bool level)
 {
-    _sioPort->set_interrupt_line(level);
+    _sioPort->set_interrupt(level);
 }
 
 int SioCom::available() 
@@ -181,34 +181,45 @@ void SioCom::setup_serial_port()
     _serialSio.setup();
 };
 
-// // specific to NetSioPort
-// void SioCom::set_netsio_host(const char *host, int port) 
-// {
-//     _netSio.set_host(host, port);
-// }
+// specific to NetSioPort
+void SioCom::set_netsio_host(const char *host, int port) 
+{
+    _netSio.set_host(host, port);
+}
 
-// const char* SioCom::get_netsio_host(int &port) 
-// {
-//     return _netSio.get_host(port);
-// }
+const char* SioCom::get_netsio_host(int &port) 
+{
+    return _netSio.get_host(port);
+}
 
-// void SioCom::set_sio_mode(bool enable_netsio)
-// {
-//     if (enable_netsio)
-//         _sioPort = &_netSio;
-//     else
-//         _sioPort = &_serialSio;
-//     _netsio_enabled = enable_netsio;
-// }
+void SioCom::netsio_late_sync(uint8_t c)
+{
+    _netSio.set_sync_ack_byte(c);
+}
 
-// // toggle NetSIOPort and SerialPort
-// void SioCom::swicth_sio_mode(bool enable_netsio)
-// {
-//     if (enable_netsio == _netsio_enabled)
-//         return;
+void SioCom::netsio_write_size(int write_size)
+{
+    if (_netsio_enabled)
+        _netSio.set_sync_write_size(write_size + 1); // data + checksum byte
+}
 
-//     uint32_t baud = get_baudrate();
-//     end();
-//     set_sio_mode(enable_netsio);
-//     begin(baud);
-// }
+void SioCom::set_sio_mode(bool enable_netsio)
+{
+    if (enable_netsio)
+        _sioPort = &_netSio;
+    else
+        _sioPort = &_serialSio;
+    _netsio_enabled = enable_netsio;
+}
+
+// toggle NetSIOPort and SerialPort
+void SioCom::swicth_sio_mode(bool enable_netsio)
+{
+    if (enable_netsio == _netsio_enabled)
+        return;
+
+    uint32_t baud = get_baudrate();
+    end();
+    set_sio_mode(enable_netsio);
+    begin(baud);
+}

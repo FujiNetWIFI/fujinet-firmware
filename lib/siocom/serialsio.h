@@ -23,10 +23,10 @@ public:
     virtual void set_baudrate(uint32_t baud) override { _uart.set_baudrate(baud); }
     virtual uint32_t get_baudrate() override { return _uart.get_baudrate(); }
 
-    virtual bool command_line() override;
-    virtual bool motor_line() override;
-    virtual void set_proceed_line(bool level) override;
-    virtual void set_interrupt_line(bool level) override;
+    virtual bool command_asserted() override;
+    virtual bool motor_asserted() override;
+    virtual void set_proceed(bool level) override;
+    virtual void set_interrupt(bool level) override;
 
     virtual int available() override { return _uart.available(); }
     virtual void flush() override { _uart.flush(); }

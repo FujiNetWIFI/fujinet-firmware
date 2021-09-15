@@ -20,10 +20,10 @@ public:
     virtual void set_baudrate(uint32_t baud) = 0;
     virtual uint32_t get_baudrate() = 0;
 
-    virtual bool command_line() = 0;
-    virtual bool motor_line() = 0;
-    virtual void set_proceed_line(bool level) = 0;
-    virtual void set_interrupt_line(bool level) = 0;
+    virtual bool command_asserted() = 0;
+    virtual bool motor_asserted() = 0;
+    virtual void set_proceed(bool level) = 0;
+    virtual void set_interrupt(bool level) = 0;
 
     virtual int available() = 0;
     virtual void flush() = 0;

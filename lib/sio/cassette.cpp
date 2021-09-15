@@ -416,7 +416,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
     while (gap--)
     {
         fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
-        if (has_pulldown() && !motor_line() && gap > 1000)
+        if (has_pulldown() && !motor_asserted() && gap > 1000)
         {
             fnLedManager.set(eLed::LED_SIO, false);
             return starting_offset;
@@ -500,7 +500,7 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
     offset += fputc(BLOCK_LEN + 4, _file); // 132 bytes
     offset += fputc(0, _file);
 
-    while (!casUART.available()) // && motor_line()
+    while (!casUART.available()) // && motor_asserted()
         casUART.service(decode_fsk());
     uint16_t irg = fnSystem.millis() - tic - 10000 / casUART.get_baud(); // adjust for first byte
 #ifdef DEBUG
@@ -513,7 +513,7 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
     Debug_printf("marker 1: %02x\n", b);
 #endif
 
-    while (!casUART.available()) // && motor_line()
+    while (!casUART.available()) // && motor_asserted()
         casUART.service(decode_fsk());
     b = casUART.read(); // should be 0x55
     atari_sector_buffer[idx++] = b;
@@ -521,7 +521,7 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
     Debug_printf("marker 2: %02x\n", b);
 #endif
 
-    while (!casUART.available()) // && motor_line()
+    while (!casUART.available()) // && motor_asserted()
         casUART.service(decode_fsk());
     b = casUART.read(); // control byte
     atari_sector_buffer[idx++] = b;
@@ -532,7 +532,7 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
     int i = 0;
     while (i < BLOCK_LEN)
     {
-        while (!casUART.available()) // && motor_line()
+        while (!casUART.available()) // && motor_asserted()
             casUART.service(decode_fsk());
         b = casUART.read(); // data
         atari_sector_buffer[idx++] = b;
@@ -545,7 +545,7 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
 //    Debug_printf("\n");
 #endif
 
-    while (!casUART.available()) // && motor_line()
+    while (!casUART.available()) // && motor_asserted()
         casUART.service(decode_fsk());
     b = casUART.read(); // checksum
     atari_sector_buffer[idx++] = b;

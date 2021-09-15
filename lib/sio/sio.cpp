@@ -75,6 +75,8 @@ uint8_t sioDevice::sio_to_peripheral(uint8_t *buf, unsigned short len)
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
 
+    fnSioCom.netsio_write_size(len); // set hint for NetSIO
+
     __BEGIN_IGNORE_UNUSEDVARS
     size_t l = fnSioCom.readBytes(buf, len);
     __END_IGNORE_UNUSEDVARS
@@ -121,6 +123,19 @@ void sioDevice::sio_ack()
     fnSystem.delay_microseconds(DELAY_T5); //?
     fnSioCom.flush();
     Debug_println("ACK!");
+}
+
+// SIO ACK, delayed for NetSIO sync
+void sioDevice::sio_late_ack()
+{
+    if (fnSioCom.get_netsio_enabled())
+    {
+        fnSioCom.netsio_late_sync('A');
+        Debug_println("ACK! +");
+    } else
+    {
+        sio_ack();
+    }
 }
 
 // SIO COMPLETE
@@ -173,7 +188,7 @@ void sioBus::_sio_process_cmd()
     Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                  tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
     // Wait for CMD line to raise again
-    while (!fnSioCom.command_line())
+    while (fnSioCom.command_asserted())
         fnSystem.yield();
 
     uint8_t ck = sio_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
@@ -278,7 +293,7 @@ void sioBus::service()
 
     if (_midiDev != nullptr && _midiDev->midimazeActive)
     {
-        if (!fnSioCom.command_line())
+        if (fnSioCom.command_asserted())
         {
 #ifdef DEBUG
             Debug_println("CMD Asserted, stopping MIDIMaze");
@@ -302,7 +317,7 @@ void sioBus::service()
     { // the test which tape activation mode
         if (_fujiDev->cassette()->has_pulldown())
         {                                                    // motor line mode
-            if (fnSioCom.motor_line())
+            if (fnSioCom.motor_asserted())
             {
                 if (_fujiDev->cassette()->is_active() == false) // keep this logic because motor line mode
                 {
@@ -328,7 +343,7 @@ void sioBus::service()
     }
 
     // Go process a command frame if the SIO CMD line is asserted
-    if (!fnSioCom.command_line())
+    if (fnSioCom.command_asserted())
     {
         _sio_process_cmd();
     }
@@ -358,11 +373,14 @@ void sioBus::setup()
 
     // Set up SIO Communication
     fnSioCom.setup_serial_port(); // UART
+    fnSioCom.set_netsio_host("192.168.1.2", 9997); // TODO get from Config
     // fnSioCom.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port()); // NetSIO
+    fnSioCom.set_sio_mode(true); // TODO get from Config
+    // fnSioCom.set_sio_mode(Config.get_netsio_enabled());
     fnSioCom.begin(_sioBaud);
 
-    fnSioCom.set_interrupt_line(true);
-    fnSioCom.set_proceed_line(true);
+    fnSioCom.set_interrupt(false);
+    fnSioCom.set_proceed(false);
 
     // Create a message queue
     qSioMessages = xQueueCreate(4, sizeof(sio_message_t));

@@ -82,7 +82,7 @@ protected:
     uint8_t decode_fsk();
 
     // helper function to read motor pin
-    bool motor_line() { return fnSioCom.motor_line(); }
+    bool motor_asserted() { return fnSioCom.motor_asserted(); }
 
     // have to populate virtual functions to complete class
     void sio_status() override{}; // $53, 'S', Status

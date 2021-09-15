@@ -7,24 +7,24 @@
  * see serialsio.h
  */
 
-bool SerialSioPort::command_line()
+bool SerialSioPort::command_asserted()
 {
-    return (bool)fnSystem.digital_read(PIN_CMD);
+    return ! (bool)fnSystem.digital_read(PIN_CMD); // command line is asserted with low voltage
 }
 
-bool SerialSioPort::motor_line()
+bool SerialSioPort::motor_asserted()
 {
     return (bool)fnSystem.digital_read(PIN_MTR);
 }
 
-void SerialSioPort::set_proceed_line(bool level)
+void SerialSioPort::set_proceed(bool level)
 {
-    fnSystem.digital_write(PIN_PROC, level);
+    fnSystem.digital_write(PIN_PROC, level ? DIGI_LOW : DIGI_HIGH); // proceed line is asserted with low voltage
 }
 
-void SerialSioPort::set_interrupt_line(bool level)
+void SerialSioPort::set_interrupt(bool level)
 {
-    fnSystem.digital_write(PIN_INT, level);
+    fnSystem.digital_write(PIN_INT, level ? DIGI_LOW : DIGI_HIGH); // interrupt line is asserted with low voltage
 }
 
 // specific to SerialSioPort/UART
@@ -32,10 +32,10 @@ void SerialSioPort::setup()
 {
     // INT PIN
     fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_INT, DIGI_HIGH);
+    set_interrupt(false);
     // PROC PIN
     fnSystem.set_pin_mode(PIN_PROC, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
+    set_proceed(false);
     // MTR PIN
     fnSystem.set_pin_mode(PIN_MTR, gpio_mode_t::GPIO_MODE_INPUT);
     // CMD PIN
