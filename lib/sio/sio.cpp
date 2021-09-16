@@ -273,6 +273,9 @@ void sioBus::_sio_process_queue()
             if (_fujiDev != nullptr)
                 _fujiDev->debug_tape();
             break;
+        case SIOMSG_SWAP_SIOMODE:
+            fnSioCom.swap_sio_mode(Config.get_netsio_enabled());
+            break;
         }
     }
 }

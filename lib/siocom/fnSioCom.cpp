@@ -213,11 +213,8 @@ void SioCom::set_sio_mode(bool enable_netsio)
 }
 
 // toggle NetSIOPort and SerialPort
-void SioCom::swicth_sio_mode(bool enable_netsio)
+void SioCom::swap_sio_mode(bool enable_netsio)
 {
-    if (enable_netsio == _netsio_enabled)
-        return;
-
     uint32_t baud = get_baudrate();
     end();
     set_sio_mode(enable_netsio);

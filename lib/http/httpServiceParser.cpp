@@ -58,6 +58,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_CONFIG_ENABLED,
         FN_STATUS_WAIT_ENABLED,
         FN_BOOT_MODE,
+        FN_NETSIO_ENABLED,
+        FN_NETSIO_HOST,
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
         FN_DRIVE3HOST,
@@ -138,6 +140,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_CONFIG_ENABLED",
         "FN_STATUS_WAIT_ENABLED",
         "FN_BOOT_MODE",
+        "FN_NETSIO_ENABLED",
+        "FN_NETSIO_HOST",
         "FN_DRIVE1HOST",
         "FN_DRIVE2HOST",
         "FN_DRIVE3HOST",
@@ -306,6 +310,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_BOOT_MODE:
         resultstream << Config.get_general_boot_mode();
+        break;
+    case FN_NETSIO_ENABLED:
+        resultstream << Config.get_netsio_enabled();
+        break;
+    case FN_NETSIO_HOST:
+        resultstream << Config.get_netsio_host();
         break;
     case FN_DRIVE1HOST:
     case FN_DRIVE2HOST:

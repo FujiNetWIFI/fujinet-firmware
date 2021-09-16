@@ -289,6 +289,33 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_netsio(std::string enable_netsio, std::string netsio_host_port)
+{
+    Debug_printf("Set NetSIO: %s, %s\n", enable_netsio.c_str(), netsio_host_port.c_str());
+
+    // Store our change in Config
+    if (!netsio_host_port.empty())
+    {
+        Config.store_netsio_host(netsio_host_port.c_str());
+        fnSioCom.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port());
+        // TODO parse netsio_host_port, detect if host part is followed by :port
+        // int port;
+        // ...
+        // Config.store_netsio_port()
+    }
+    if (!enable_netsio.empty())
+    {
+        Config.store_netsio_enabled(util_string_value_is_true(enable_netsio));
+    }
+    Debug_println("Activate SIO mode");
+    sio_message_t msg;
+    msg.message_id = SIOMSG_SWAP_SIOMODE;
+    xQueueSend(SIO.qSioMessages, &msg, 0);
+
+    // Save change
+    Config.save();
+}
+
 int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t postlen)
 {
 #ifdef DEBUG
@@ -355,6 +382,14 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("boot_mode") == 0)
         {
             config_boot_mode(i->second);
+        }
+        else if (i->first.compare("netsio_enable") == 0)
+        {
+            config_netsio(i->second, std::string());
+        }
+        else if (i->first.compare("netsio_host") == 0)
+        {
+            config_netsio(std::string(), i->second);
         }
     }
 

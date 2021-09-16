@@ -964,6 +964,40 @@
 					</div>
 				</div>
 			</div>
+			<div class="flexchild">
+				<header>EMULATOR<span id="logowob"></span>SETTINGS</header>
+				<div class="detline">
+					<div class="cicon">
+						<div class="svgicon">
+						</div>
+					</div>
+					<div class="cform">
+						<div class="formwrapper">
+							<form action="/config" method="post">
+								<br>Enable SIO over Network
+								<br>
+								<select name="netsio_enable" id="select_netsio_enable">
+									<optgroup>
+										<option value="1">Yes</option>
+										<option value="0">No</option>
+									</optgroup>
+								</select>
+								<br>Hostname or IP
+								<br><input type="text" name="netsio_host" id="txt_netsio" value="<%FN_NETSIO_HOST%>" />
+								<br><input type="submit" value="Save">
+								<script>
+									var current_netsio_enabled = "<%FN_NETSIO_ENABLED%>";
+								</script>
+								<hr>
+								<span class="small">
+								When enabled, FujiNet will not use the physical serial port to transmit
+								SIO data and signals. Instead, it will comunicate over the network with
+								an Atari emulator.
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
 
 		</div>
 	</div>

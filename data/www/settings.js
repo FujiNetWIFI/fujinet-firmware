@@ -28,3 +28,4 @@ selectListValue("select_boot_mode", current_boot_mode);
 selectListValue("select_play_record", current_play_record);
 selectListValue("select_pulldown", current_pulldown);
 selectListValue("select_status_wait_enable", current_status_wait_enabled);
+selectListValue("select_netsio_enable", current_netsio_enabled);

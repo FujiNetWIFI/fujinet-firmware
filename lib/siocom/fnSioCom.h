@@ -77,7 +77,7 @@ public:
     bool get_netsio_enabled() {return _netsio_enabled;}
 
     // toggle NetSIOPort and SerialPort
-    void swicth_sio_mode(bool enable_netsio);
+    void swap_sio_mode(bool enable_netsio);
 };
 
 extern SioCom fnSioCom;

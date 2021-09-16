@@ -228,8 +228,9 @@ public:
 
 enum sio_message : uint16_t
 {
-    SIOMSG_DISKSWAP,  // Rotate disk
-    SIOMSG_DEBUG_TAPE // Tape debug msg
+    SIOMSG_DISKSWAP,    // Rotate disk
+    SIOMSG_DEBUG_TAPE,  // Tape debug msg
+    SIOMSG_SWAP_SIOMODE // activate SerialSIO / NetSIO
 };
 
 struct sio_message_t
