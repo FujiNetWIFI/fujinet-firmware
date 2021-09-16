@@ -373,10 +373,8 @@ void sioBus::setup()
 
     // Set up SIO Communication
     fnSioCom.setup_serial_port(); // UART
-    fnSioCom.set_netsio_host("192.168.1.2", 9997); // TODO get from Config
-    // fnSioCom.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port()); // NetSIO
-    fnSioCom.set_sio_mode(true); // TODO get from Config
-    // fnSioCom.set_sio_mode(Config.get_netsio_enabled());
+    fnSioCom.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port()); // NetSIO
+    fnSioCom.set_sio_mode(Config.get_netsio_enabled());
     fnSioCom.begin(_sioBaud);
 
     fnSioCom.set_interrupt(false);

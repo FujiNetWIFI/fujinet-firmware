@@ -17,6 +17,8 @@
 
 #define HSIO_INVALID_INDEX -1
 
+#define CONFIG_DEFAULT_NETSIO_PORT 9997
+
 class fnConfig
 {
 public:
@@ -121,6 +123,14 @@ public:
     void store_cassette_buttons(bool button);
     void store_cassette_pulldown(bool pulldown);
 
+    // NETSIO (Connection to Atari emulator)
+    bool get_netsio_enabled() { return _netsio.netsio_enabled; }
+    std::string get_netsio_host() { return _netsio.host; };
+    int get_netsio_port() { return _netsio.port; };
+    void store_netsio_enabled(bool enabled);
+    void store_netsio_host(const char *host);
+    void store_netsio_port(int port);
+
     void load();
     void save();
 
@@ -142,6 +152,7 @@ private:
     void _read_section_modem(std::stringstream &ss);
     void _read_section_cassette(std::stringstream &ss);
     void _read_section_phonebook(std::stringstream &ss, int index);
+    void _read_section_netsio(std::stringstream &ss);
 
     enum section_match
     {
@@ -156,6 +167,7 @@ private:
         SECTION_MODEM,
         SECTION_CASSETTE,
         SECTION_PHONEBOOK,
+        SECTION_NETSIO,
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -234,6 +246,13 @@ private:
         bool status_wait_enabled = true;
     };
 
+    struct netsio_info
+    {
+        bool netsio_enabled = false;
+        std::string host = "";
+        int port = CONFIG_DEFAULT_NETSIO_PORT;
+    };
+
     struct modem_info
     {
         bool sniffer_enabled = false;
@@ -263,6 +282,7 @@ private:
     general_info _general;
     modem_info _modem;
     cassette_info _cassette;
+    netsio_info _netsio;
 
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
 };
