@@ -1060,6 +1060,9 @@ void sioModem::at_handle_dial()
         answered = false;
         answerTimer = fnSystem.millis();
         // This is so macros in Bobterm can do the actual connect.
+        fnSystem.delay(ANSWER_TIMER_MS);
+        at_cmd_println("CONNECT ", false);
+        at_cmd_println(modemBaud);
     }
     else
     {
