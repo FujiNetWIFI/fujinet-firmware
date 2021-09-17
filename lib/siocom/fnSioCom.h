@@ -17,8 +17,16 @@
 
 class SioCom
 {
+public:
+    // supported SIO port types
+    enum sio_mode
+    {
+        SERIAL = 0,
+        NETSIO
+    };
+
 private:
-    bool _netsio_enabled;
+    sio_mode _sio_mode;
     SioPort *_sioPort;
     SerialSioPort _serialSio;
     NetSioPort _netSio;
@@ -73,11 +81,11 @@ public:
     void netsio_late_sync(uint8_t c);
     void netsio_write_size(int write_size);
 
-    void set_sio_mode(bool enable_netsio);
-    bool get_netsio_enabled() {return _netsio_enabled;}
+    // get/set SIO mode
+    sio_mode get_sio_mode() {return _sio_mode;}
+    void set_sio_mode(sio_mode mode);
 
-    // toggle NetSIOPort and SerialPort
-    void swap_sio_mode(bool enable_netsio);
+    void reset_sio_port(sio_mode mode);
 };
 
 extern SioCom fnSioCom;

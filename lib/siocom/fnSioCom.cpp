@@ -10,7 +10,7 @@
 
 SioCom fnSioCom;
 
-SioCom::SioCom() : _netsio_enabled(false), _sioPort(&_serialSio) {}
+SioCom::SioCom() : _sio_mode(sio_mode::SERIAL), _sioPort(&_serialSio) {}
 
 void SioCom::begin(int baud)
 {
@@ -199,24 +199,28 @@ void SioCom::netsio_late_sync(uint8_t c)
 
 void SioCom::netsio_write_size(int write_size)
 {
-    if (_netsio_enabled)
+    if (_sio_mode == sio_mode::NETSIO)
         _netSio.set_sync_write_size(write_size + 1); // data + checksum byte
 }
 
-void SioCom::set_sio_mode(bool enable_netsio)
+void SioCom::set_sio_mode(sio_mode mode)
 {
-    if (enable_netsio)
+    _sio_mode = mode;
+    switch(mode)
+    {
+    case sio_mode::NETSIO:
         _sioPort = &_netSio;
-    else
+        break;
+    default:
         _sioPort = &_serialSio;
-    _netsio_enabled = enable_netsio;
+    }
 }
 
 // toggle NetSIOPort and SerialPort
-void SioCom::swap_sio_mode(bool enable_netsio)
+void SioCom::reset_sio_port(sio_mode mode)
 {
     uint32_t baud = get_baudrate();
     end();
-    set_sio_mode(enable_netsio);
+    set_sio_mode(mode);
     begin(baud);
 }

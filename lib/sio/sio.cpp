@@ -128,10 +128,10 @@ void sioDevice::sio_ack()
 // SIO ACK, delayed for NetSIO sync
 void sioDevice::sio_late_ack()
 {
-    if (fnSioCom.get_netsio_enabled())
+    if (fnSioCom.get_sio_mode() == SioCom::sio_mode::NETSIO)
     {
         fnSioCom.netsio_late_sync('A');
-        Debug_println("ACK! +");
+        Debug_println("ACK+!");
     } else
     {
         sio_ack();
@@ -274,7 +274,7 @@ void sioBus::_sio_process_queue()
                 _fujiDev->debug_tape();
             break;
         case SIOMSG_SWAP_SIOMODE:
-            fnSioCom.swap_sio_mode(Config.get_netsio_enabled());
+            fnSioCom.reset_sio_port(Config.get_netsio_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
             break;
         }
     }
@@ -374,10 +374,10 @@ void sioBus::setup()
 {
     Debug_println("SIO SETUP");
 
-    // Set up SIO Communication
+    // Setup SIO ports: serial UART and NetSIO
     fnSioCom.setup_serial_port(); // UART
     fnSioCom.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port()); // NetSIO
-    fnSioCom.set_sio_mode(Config.get_netsio_enabled());
+    fnSioCom.set_sio_mode(Config.get_netsio_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
     fnSioCom.begin(_sioBaud);
 
     fnSioCom.set_interrupt(false);

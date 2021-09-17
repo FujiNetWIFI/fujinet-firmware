@@ -10,6 +10,7 @@
 
 #include "httpServiceConfigurator.h"
 #include "fnConfig.h"
+#include "fnSioCom.h"
 #include "printerlist.h"
 #include "utils.h"
 
@@ -296,12 +297,12 @@ void fnHttpServiceConfigurator::config_netsio(std::string enable_netsio, std::st
     // Store our change in Config
     if (!netsio_host_port.empty())
     {
-        Config.store_netsio_host(netsio_host_port.c_str());
-        fnSioCom.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port());
         // TODO parse netsio_host_port, detect if host part is followed by :port
         // int port;
         // ...
-        // Config.store_netsio_port()
+        // Config.store_netsio_port(port)
+        Config.store_netsio_host(netsio_host_port.c_str());
+        fnSioCom.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port());
     }
     if (!enable_netsio.empty())
     {
@@ -328,6 +329,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
     std::map<std::string, std::string> postvals = parse_postdata(decoded_buf, postlen);
 
     free(decoded_buf);
+
+    bool update_netsio = false;
+    std::string str_netsio_enable;
+    std::string str_netsio_host;
 
     for (std::map<std::string, std::string>::iterator i = postvals.begin(); i != postvals.end(); i++)
     {
@@ -385,12 +390,19 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         }
         else if (i->first.compare("netsio_enable") == 0)
         {
-            config_netsio(i->second, std::string());
+            str_netsio_enable = i->second;
+            update_netsio = true;
         }
         else if (i->first.compare("netsio_host") == 0)
         {
-            config_netsio(std::string(), i->second);
+            str_netsio_host = i->second;
+            update_netsio = true;
         }
+    }
+
+    if (update_netsio)
+    {
+        config_netsio(str_netsio_enable, str_netsio_host);
     }
 
     return 0;
