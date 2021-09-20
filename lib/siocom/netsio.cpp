@@ -304,10 +304,10 @@ int NetSioPort::handle_netsio()
 
             case NETSIO_SPEED_CHANGE:
                 // speed change notification
-                if (received >= 3 && (rxbuf[1] || rxbuf[2]))
+                if (received >= 5)
                 {
-                    unsigned int cpb = rxbuf[1] | (rxbuf[2] << 8);
-                    _baud_peer = 1789773 / cpb;
+                    _baud_peer = rxbuf[1] | (rxbuf[2] << 8) | (rxbuf[3] << 16) | (rxbuf[4] << 24);
+                    // Debug_printf("_baud_peer = %d\n", _baud_peer)
                 }
                 break;
 
@@ -472,11 +472,12 @@ void NetSioPort::set_baudrate(uint32_t baud)
     if (!_initialized)
         return;
 
-    unsigned int cpb = 1789773 / baud;
-    uint8_t txbuf[3];
+    uint8_t txbuf[5];
     txbuf[0] = NETSIO_SPEED_CHANGE;
-    txbuf[1] = cpb & 0xff;
-    txbuf[2] = cpb >> 8;
+    txbuf[1] = baud & 0xff;
+    txbuf[2] = (baud >> 8) & 0xff;
+    txbuf[3] = (baud >> 16) & 0xff;
+    txbuf[4] = (baud >> 24) & 0xff;
     send(_fd, txbuf, sizeof(txbuf), 0);
     _baud = baud;
 }
