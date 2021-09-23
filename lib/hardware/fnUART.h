@@ -6,8 +6,10 @@
 #include <string>
 #include <driver/uart.h>
 
-#define UART_DEBUG UART_NUM_0
-#define UART_SIO   UART_NUM_2
+#define UART_DEBUG      UART_NUM_0
+#define UART_ADAMNET_TX UART_NUM_1
+#define UART_ADAMNET_RX UART_NUM_2
+#define UART_SIO        UART_NUM_2
 
 class UARTManager
 {
@@ -65,5 +67,7 @@ public:
 
 extern UARTManager fnUartDebug;
 // extern UARTManager fnUartSIO; // replaced by fnSioCom
+extern UARTManager fnUartAdamNetTX;
+extern UARTManager fnUartAdamNetRX;
 
 #endif //FNUART_H

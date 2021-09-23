@@ -17,6 +17,9 @@ UARTManager fnUartDebug(UART_DEBUG);
 // UARTManager fnUartSIO(UART_SIO); // replaced by fnSioCom
 // ^^^ UARTManager(UART_SIO) instance is now part of SerialSioPort
 //     SerialSioPort is used by fnSioCom, see lib/siocom
+// UARTManager fnUartSIO(UART_SIO);
+UARTManager fnUartAdamNetTX(UART_ADAMNET_TX);
+UARTManager fnUartAdamNetRX(UART_ADAMNET_RX);
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}
@@ -74,11 +77,23 @@ void UARTManager::begin(int baud)
     {
         rx = PIN_UART2_RX;
         tx = PIN_UART2_TX;
+    } 
+    else if (_uart_num == 3) // AdamNet RX
+    {
+        rx = PIN_ADAMNET_RX;
+        tx = PIN_TX_DUMMY;
+    }
+    else if (_uart_num == 4) // AdamNet TX (inverted polarity)
+    {
+        rx = PIN_RX_DUMMY;
+        tx = PIN_ADAMNET_TX;
     } else {
         return;
     }
 
     uart_set_pin(_uart_num, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
+    if (_uart_num == 4)
+        uart_set_line_inverse(_uart_num,UART_SIGNAL_TXD_INV);
 
     // Arduino default buffer size is 256
     int uart_buffer_size = 256;
