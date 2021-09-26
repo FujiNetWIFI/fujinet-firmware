@@ -31,16 +31,23 @@ private:
     int _errcount;
     unsigned long _resume_time;
     unsigned long _alive_time;
-    unsigned long _expire_time;
+    unsigned long _alive_response;
 
 protected:
     void suspend(int ms=5000);
+    bool resume_test();
+    bool keep_alive();
+
     int handle_netsio();
     static timeval timeval_from_ms(const uint32_t millis);
+
     bool wait_sock_readable(uint32_t timeout_ms);
-    bool wait_sock_writable(uint32_t timeout_ms);
     bool wait_for_data(uint32_t timeout_ms);
 
+    bool wait_sock_writable(uint32_t timeout_ms);
+    ssize_t write_sock(const uint8_t *buffer, size_t size, uint32_t timeout_ms=500);
+
+    bool rxbuffer_empty();
     bool rxbuffer_put(uint8_t b);
     int rxbuffer_get();
     int  rxbuffer_available();
