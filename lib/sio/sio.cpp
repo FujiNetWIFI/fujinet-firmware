@@ -480,6 +480,9 @@ void sioBus::shutdown()
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
+
+    if (fnSioCom.get_sio_mode() != SioCom::sio_mode::SERIAL) // don't touch SIO UART, it may not like it
+        fnSioCom.end();
 }
 
 void sioBus::toggleBaudrate()
