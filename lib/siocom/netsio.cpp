@@ -130,6 +130,7 @@ void NetSioPort::end()
         send(_fd, &disconnect, 1, 0);
         close(_fd);
         _fd  = -1;
+        fnSystem.delay(50); // wait a bit (wifi may go off)
         Debug_printf("### NetSIO stopped ###\n");
     }
     _initialized = false;
