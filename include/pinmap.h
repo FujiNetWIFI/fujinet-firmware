@@ -17,6 +17,8 @@
 #define PIN_UART1_TX 10
 #define PIN_UART2_RX 33
 #define PIN_UART2_TX 21
+#define PIN_ADAMNET_RX 22
+#define PIN_ADAMNET_TX 21
 
 /* Buttons */
 #define PIN_BUTTON_A 0 // keys.cpp
@@ -46,7 +48,6 @@
 #define PIN_DAC1 25 // samlib.h
 
 
-
 /* Commodore IEC Pins */
 // CLK & DATA lines in/out are split between two pins
 //#define SPLIT_LINES
@@ -65,5 +66,10 @@
 #define IEC_PIN_CLK_OUT		32      // CKO
 #define IEC_PIN_DATA_OUT	33      // DO
 #endif
+
+
+/* Dummy pins for AdamNet */
+#define PIN_RX_DUMMY 0 
+#define PIN_TX_DUMMY 12
 
 #endif
