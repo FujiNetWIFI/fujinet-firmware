@@ -2,7 +2,7 @@
 #define VOICE_H
 
 #include <string>
-#include "sio.h"
+#include "bus.h"
 #include "samlib.h"
 
 class sioVoice : public sioDevice

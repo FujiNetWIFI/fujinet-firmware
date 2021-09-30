@@ -1,7 +1,7 @@
 #ifndef CPM_H
 #define CPM_H
 
-#include "sio.h"
+#include "bus.h"
 #include "printer.h"
 
 /* see main.c for definition */

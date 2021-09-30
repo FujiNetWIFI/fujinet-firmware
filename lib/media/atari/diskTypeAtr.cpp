@@ -5,7 +5,7 @@
 #include "../utils/utils.h"
 
 #include "fnSystem.h"
-#include "disk.h"
+#include "../device/disk.h"
 
 #include "diskTypeAtr.h"
 

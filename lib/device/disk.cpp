@@ -5,10 +5,11 @@
 #include "../../include/debug.h"
 #include "../utils/utils.h"
 
-#include "disk.h"
-#include "diskTypeAtr.h"
-#include "diskTypeAtx.h"
-#include "diskTypeXex.h"
+#include "../device/disk.h"
+#include "media.h"
+// #include "diskTypeAtr.h"
+// #include "diskTypeAtx.h"
+// #include "diskTypeXex.h"
 #include "fuji.h"
 
 #define SIO_DISKCMD_FORMAT 0x21

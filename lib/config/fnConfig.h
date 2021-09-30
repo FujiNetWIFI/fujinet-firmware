@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "../sio/printer.h"
+#include "../device/printer.h"
 
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8

@@ -2,7 +2,7 @@
 #define NETWORKPROTOCOL_H
 
 #include <vector>
-#include "sio.h"
+#include "bus.h"
 #include "EdUrlParser.h"
 #include "networkStatus.h"
 
