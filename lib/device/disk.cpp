@@ -54,7 +54,7 @@ void sioDisk::sio_read()
     bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
 
     // Send result to Atari
-    sio_to_computer(_disk->_disk_sectorbuff, readcount, err);
+    bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
@@ -69,7 +69,7 @@ void sioDisk::sio_write(bool verify)
 
         memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
-        uint8_t ck = sio_to_peripheral(_disk->_disk_sectorbuff, sectorSize);
+        uint8_t ck = bus_to_peripheral(_disk->_disk_sectorbuff, sectorSize);
 
         if (ck == sio_checksum(_disk->_disk_sectorbuff, sectorSize))
         {
@@ -134,7 +134,7 @@ void sioDisk::sio_status()
 
     Debug_printf("response: 0x%02x, 0x%02x, 0x%02x\n", _status[0], _status[1], _status[2]);
 
-    sio_to_computer(_status, sizeof(_status), false);
+    bus_to_computer(_status, sizeof(_status), false);
 }
 
 // Disk format
@@ -152,7 +152,7 @@ void sioDisk::sio_format()
     bool err = _disk->format(&responsesize);
 
     // Send to computer
-    sio_to_computer(_disk->_disk_sectorbuff, responsesize, err);
+    bus_to_computer(_disk->_disk_sectorbuff, responsesize, err);
 }
 
 // Read percom block
@@ -169,7 +169,7 @@ void sioDisk::sio_read_percom_block()
 #ifdef VERBOSE_DISK
     _disk->dump_percom_block();
 #endif
-    sio_to_computer((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
+    bus_to_computer((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock), false);
 }
 
 // Write percom block
@@ -183,7 +183,7 @@ void sioDisk::sio_write_percom_block()
         return;
     }
 
-    sio_to_peripheral((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock));
+    bus_to_peripheral((uint8_t *)&_disk->_percomBlock, sizeof(_disk->_percomBlock));
 #ifdef VERBOSE_DISK
     _disk->dump_percom_block();
 #endif

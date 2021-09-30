@@ -179,7 +179,7 @@ void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
 
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
 
-    sio_to_computer(type4response, sizeof(type4response), false);
+    bus_to_computer(type4response, sizeof(type4response), false);
 
     // TODO: Handle the subsequent request to load the handler properly by providing the relocation blocks
 }
@@ -233,7 +233,7 @@ void sioModem::sio_poll_1()
 
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY * 2);
 
-    sio_to_computer(bootBlock, sizeof(bootBlock), false);
+    bus_to_computer(bootBlock, sizeof(bootBlock), false);
 }
 
 // 0x21 / '!' - RELOCATOR DOWNLOAD
@@ -276,7 +276,7 @@ void sioModem::sio_send_firmware(uint8_t loadcommand)
     Debug_printf("Modem sending %d bytes of %s code\n", codesize,
                  loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
 
-    sio_to_computer(code, codesize, false);
+    bus_to_computer(code, codesize, false);
 
     // Free the buffer!
     free(code);
@@ -302,7 +302,7 @@ void sioModem::sio_write()
     {
         memset(txBuf, 0, sizeof(txBuf));
 
-        ck = sio_to_peripheral(txBuf, 64);
+        ck = bus_to_peripheral(txBuf, 64);
 
         if (ck != sio_checksum(txBuf, 64))
         {
@@ -374,7 +374,7 @@ void sioModem::sio_status()
 
     Debug_printf("sioModem::sio_status(%02x,%02x)\n", mdmStatus[0], mdmStatus[1]);
 
-    sio_to_computer(mdmStatus, sizeof(mdmStatus), false);
+    bus_to_computer(mdmStatus, sizeof(mdmStatus), false);
 }
 
 // 0x41 / 'A' - CONTROL
@@ -558,7 +558,7 @@ void sioModem::sio_stream()
         break;
     }
 
-    sio_to_computer((uint8_t *)response, sizeof(response), false);
+    bus_to_computer((uint8_t *)response, sizeof(response), false);
 
     fnUartSIO.set_baudrate(modemBaud);
     modemActive = true;

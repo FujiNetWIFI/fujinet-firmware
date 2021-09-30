@@ -38,7 +38,7 @@ uint8_t sio_checksum(uint8_t *buf, unsigned short len)
    len = length of buffer
    err = along with data, send ERROR status to Atari rather than COMPLETE
 */
-void sioDevice::sio_to_computer(uint8_t *buf, uint16_t len, bool err)
+void sioDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
     Debug_printf("->SIO write %hu bytes\n", len);
@@ -69,7 +69,7 @@ void sioDevice::sio_to_computer(uint8_t *buf, uint16_t len, bool err)
    len = length
    Returns checksum
 */
-uint8_t sioDevice::sio_to_peripheral(uint8_t *buf, unsigned short len)
+uint8_t sioDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 {
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
@@ -143,7 +143,7 @@ void sioDevice::sio_high_speed()
 {
     Debug_print("sio HSIO INDEX\n");
     uint8_t hsd = SIO.getHighSpeedIndex();
-    sio_to_computer((uint8_t *)&hsd, 1, false);
+    bus_to_computer((uint8_t *)&hsd, 1, false);
 }
 
 // Read and process a command frame from SIO
@@ -167,7 +167,7 @@ void sioBus::_sio_process_cmd()
         return;
     }
     // Turn on the SIO indicator LED
-    fnLedManager.set(eLed::LED_SIO, true);
+    fnLedManager.set(eLed::LED_BUS, true);
 
     Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                  tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
@@ -238,7 +238,7 @@ void sioBus::_sio_process_cmd()
             toggleBaudrate();
         }
     }
-    fnLedManager.set(eLed::LED_SIO, false);
+    fnLedManager.set(eLed::LED_BUS, false);
 }
 
 // Look to see if we have any waiting messages and process them accordingly

@@ -12,7 +12,7 @@ LedManager fnLedManager;
 
 LedManager::LedManager()
 {
-    mLedPin[eLed::LED_SIO] = PIN_LED_SIO;
+    mLedPin[eLed::LED_BUS] = PIN_LED_BUS;
     mLedPin[eLed::LED_BT] = PIN_LED_BT;
     mLedPin[eLed::LED_WIFI] = PIN_LED_WIFI;
 }
@@ -20,8 +20,8 @@ LedManager::LedManager()
 // Sets required pins to OUTPUT mode and makes sure they're initially off
 void LedManager::setup()
 {
-    fnSystem.set_pin_mode(PIN_LED_SIO, gpio_mode_t::GPIO_MODE_OUTPUT);
-    fnSystem.digital_write(PIN_LED_SIO, DIGI_HIGH);
+    fnSystem.set_pin_mode(PIN_LED_BUS, gpio_mode_t::GPIO_MODE_OUTPUT);
+    fnSystem.digital_write(PIN_LED_BUS, DIGI_HIGH);
  
     fnSystem.set_pin_mode(PIN_LED_BT, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_BT, DIGI_HIGH);    

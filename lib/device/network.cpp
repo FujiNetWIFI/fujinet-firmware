@@ -196,14 +196,14 @@ void sioNetwork::sio_read()
     err = sio_read_channel(num_bytes);
 
     // And send off to the computer
-    sio_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
+    bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
     receiveBuffer->erase(0, num_bytes);
 }
 
 /**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
- * @return TRUE on error, FALSE on success. Passed directly to sio_to_computer().
+ * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
  */
 bool sioNetwork::sio_read_channel(unsigned short num_bytes)
 {
@@ -252,7 +252,7 @@ void sioNetwork::sio_write()
     }
 
     // Get the data from the Atari
-    sio_to_peripheral(newData, num_bytes);
+    bus_to_peripheral(newData, num_bytes);
     *transmitBuffer += string((char *)newData, num_bytes);
     free(newData);
 
@@ -327,24 +327,24 @@ void sioNetwork::sio_status_local()
     {
     case 1: // IP Address
         Debug_printf("IP Address: %u.%u.%u.%u\n", ipAddress[0], ipAddress[1], ipAddress[2], ipAddress[3]);
-        sio_to_computer(ipAddress, 4, false);
+        bus_to_computer(ipAddress, 4, false);
         break;
     case 2: // Netmask
         Debug_printf("Netmask: %u.%u.%u.%u\n", ipNetmask[0], ipNetmask[1], ipNetmask[2], ipNetmask[3]);
-        sio_to_computer(ipNetmask, 4, false);
+        bus_to_computer(ipNetmask, 4, false);
         break;
     case 3: // Gatway
         Debug_printf("Gateway: %u.%u.%u.%u\n", ipGateway[0], ipGateway[1], ipGateway[2], ipGateway[3]);
-        sio_to_computer(ipGateway, 4, false);
+        bus_to_computer(ipGateway, 4, false);
         break;
     case 4: // DNS
         Debug_printf("DNS: %u.%u.%u.%u\n", ipDNS[0], ipDNS[1], ipDNS[2], ipDNS[3]);
-        sio_to_computer(ipDNS, 4, false);
+        bus_to_computer(ipDNS, 4, false);
         break;
     default:
         default_status[2] = status.connected;
         default_status[3] = status.error;
-        sio_to_computer(default_status, 4, false);
+        bus_to_computer(default_status, 4, false);
     }
 }
 
@@ -379,7 +379,7 @@ void sioNetwork::sio_status_channel()
         status.rxBytesWaiting, status.connected ,status.error);
 
     // and send to computer
-    sio_to_computer(serialized_status, sizeof(serialized_status), err);
+    bus_to_computer(serialized_status, sizeof(serialized_status), err);
 }
 
 /**
@@ -395,7 +395,7 @@ void sioNetwork::sio_get_prefix()
 
     prefixSpec[prefix.size()] = 0x9B; // add EOL.
 
-    sio_to_computer(prefixSpec, sizeof(prefixSpec), false);
+    bus_to_computer(prefixSpec, sizeof(prefixSpec), false);
 }
 
 /**
@@ -408,7 +408,7 @@ void sioNetwork::sio_set_prefix()
 
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
-    sio_to_peripheral(prefixSpec, sizeof(prefixSpec));
+    bus_to_peripheral(prefixSpec, sizeof(prefixSpec));
     util_clean_devicespec(prefixSpec, sizeof(prefixSpec));
 
     prefixSpec_str = string((const char *)prefixSpec);
@@ -466,7 +466,7 @@ void sioNetwork::sio_set_login()
     uint8_t loginSpec[256];
 
     memset(loginSpec,0,sizeof(loginSpec));
-    sio_to_peripheral(loginSpec,sizeof(loginSpec));
+    bus_to_peripheral(loginSpec,sizeof(loginSpec));
     util_clean_devicespec(loginSpec,sizeof(loginSpec));
 
     login = string((char *)loginSpec);
@@ -481,7 +481,7 @@ void sioNetwork::sio_set_password()
     uint8_t passwordSpec[256];
 
     memset(passwordSpec,0,sizeof(passwordSpec));
-    sio_to_peripheral(passwordSpec,sizeof(passwordSpec));
+    bus_to_peripheral(passwordSpec,sizeof(passwordSpec));
     util_clean_devicespec(passwordSpec,sizeof(passwordSpec));
 
     password = string((char *)passwordSpec);
@@ -534,7 +534,7 @@ void sioNetwork::sio_special_inquiry()
     do_inquiry(cmdFrame.aux1);
 
     // Finally, return the completed inq_dstats value back to Atari
-    sio_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
+    bus_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
 }
 
 void sioNetwork::do_inquiry(unsigned char inq_cmd)
@@ -613,7 +613,7 @@ void sioNetwork::sio_special_00()
 /**
  * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
  * the peripheral back to the ATARI. Essentially, call the protocol action with the accrued special
- * buffer (containing the devicespec) and based on the return, use sio_to_computer() to transfer the
+ * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
 void sioNetwork::sio_special_40()
@@ -626,7 +626,7 @@ void sioNetwork::sio_special_40()
         return;
     }
 
-    sio_to_computer((uint8_t *)receiveBuffer->data(),
+    bus_to_computer((uint8_t *)receiveBuffer->data(),
                     SPECIAL_BUFFER_SIZE,
                     protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame));
 }
@@ -634,7 +634,7 @@ void sioNetwork::sio_special_40()
 /**
  * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
  * the ATARI to the pheripheral. Essentially, call the protocol action with the accrued special
- * buffer (containing the devicespec) and based on the return, use sio_to_peripheral() to transfer the
+ * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
 void sioNetwork::sio_special_80()
@@ -666,7 +666,7 @@ void sioNetwork::sio_special_80()
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
 
     // Get special (devicespec) from computer
-    sio_to_peripheral(spData, SPECIAL_BUFFER_SIZE);
+    bus_to_peripheral(spData, SPECIAL_BUFFER_SIZE);
 
     Debug_printf("sioNetwork::sio_special_80() - %s\n", spData);
 
@@ -823,7 +823,7 @@ void sioNetwork::parse_and_instantiate_protocol()
     memset(devicespecBuf, 0, sizeof(devicespecBuf));
 
     // Get Devicespec from buffer, and put into primary devicespec string
-    sio_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
+    bus_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
     util_clean_devicespec(devicespecBuf, sizeof(devicespecBuf));
     deviceSpec = string((char *)devicespecBuf);
 
