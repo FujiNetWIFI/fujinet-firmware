@@ -3,7 +3,7 @@
 
 #include <string>
 #include <vector>
-#include "sio.h"
+#include "bus.h"
 #include "EdUrlParser.h"
 #include "../network-protocol/Protocol.h"
 #include "networkStatus.h"

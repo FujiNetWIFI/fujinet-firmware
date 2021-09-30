@@ -1,8 +1,8 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include "sio.h"
-#include "diskType.h"
+#include "bus.h"
+#include "media.h"
 
 class sioDisk : public sioDevice
 {

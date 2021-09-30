@@ -7,7 +7,7 @@
 #include "fnConfig.h"
 #include "keys.h"
 #include "led.h"
-#include "sio.h"
+#include "bus.h"
 #include "fuji.h"
 #include "modem.h"
 #include "apetime.h"

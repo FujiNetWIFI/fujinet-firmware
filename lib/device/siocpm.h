@@ -2,7 +2,7 @@
 #ifndef SIOCPM_H
 #define SIOCPM_H
 
-#include "sio.h"
+#include "bus.h"
 #include <stdio.h>
 
 #define FOLDERCHAR '/'

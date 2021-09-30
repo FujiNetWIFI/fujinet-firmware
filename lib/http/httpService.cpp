@@ -17,9 +17,9 @@
 #include "keys.h"
 #include "fnConfig.h"
 
-#include "../../lib/modem-sniffer/modem-sniffer.h"
-#include "../../lib/sio/modem.h"
-#include "../../lib/sio/fuji.h"
+#include "modem-sniffer.h"
+#include "modem.h"
+#include "fuji.h"
 
 #include "../../include/debug.h"
 
