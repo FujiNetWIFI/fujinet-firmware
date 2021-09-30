@@ -115,7 +115,7 @@ void sioVoice::sio_write()
 
     memset(sioBuffer, 0, n); // clear buffer
 
-    ck = sio_to_peripheral(sioBuffer, n);
+    ck = bus_to_peripheral(sioBuffer, n);
 
     if (ck == sio_checksum(sioBuffer, n))
     {
@@ -159,7 +159,7 @@ void sioVoice::sio_status()
     status[2] = 15; // set timeout > 10 seconds (SAM audio buffer)
     status[3] = 0;
 
-    sio_to_computer(status, sizeof(status), false);
+    bus_to_computer(status, sizeof(status), false);
 }
 
 void sioVoice::sio_process(uint32_t commanddata, uint8_t checksum)

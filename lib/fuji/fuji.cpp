@@ -151,7 +151,7 @@ void sioFuji::sio_status()
 
     char ret[4] = {0};
 
-    sio_to_computer((uint8_t *)ret, sizeof(ret), false);
+    bus_to_computer((uint8_t *)ret, sizeof(ret), false);
     return;
 }
 
@@ -174,7 +174,7 @@ void sioFuji::sio_net_scan_networks()
 
     ret[0] = _countScannedSSIDs;
 
-    sio_to_computer((uint8_t *)ret, 4, false);
+    bus_to_computer((uint8_t *)ret, 4, false);
 }
 
 // Return scanned network entry
@@ -198,7 +198,7 @@ void sioFuji::sio_net_scan_result()
         err = true;
     }
 
-    sio_to_computer((uint8_t *)&detail, sizeof(detail), err);
+    bus_to_computer((uint8_t *)&detail, sizeof(detail), err);
 }
 
 //  Get SSID
@@ -228,7 +228,7 @@ void sioFuji::sio_net_get_ssid()
     memcpy(cfg.password, s.c_str(),
            s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
 
-    sio_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
+    bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
 }
 
 // Set SSID
@@ -243,7 +243,7 @@ void sioFuji::sio_net_set_ssid()
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
-    uint8_t ck = sio_to_peripheral((uint8_t *)&cfg, sizeof(cfg));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&cfg, sizeof(cfg));
 
     if (sio_checksum((uint8_t *)&cfg, sizeof(cfg)) != ck)
         sio_error();
@@ -273,7 +273,7 @@ void sioFuji::sio_net_get_wifi_status()
     Debug_println("Fuji cmd: GET WIFI STATUS");
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
-    sio_to_computer(&wifiStatus, sizeof(wifiStatus), false);
+    bus_to_computer(&wifiStatus, sizeof(wifiStatus), false);
 }
 
 // Mount Server
@@ -387,7 +387,7 @@ void sioFuji::sio_copy_file()
 
     memset(&csBuf, 0, sizeof(csBuf));
 
-    ck = sio_to_peripheral(csBuf, sizeof(csBuf));
+    ck = bus_to_peripheral(csBuf, sizeof(csBuf));
 
     if (ck != sio_checksum(csBuf, sizeof(csBuf)))
     {
@@ -554,7 +554,7 @@ void sioFuji::sio_open_app_key()
     Debug_print("Fuji cmd: OPEN APPKEY\n");
 
     // The data expected for this command
-    uint8_t ck = sio_to_peripheral((uint8_t *)&_current_appkey, sizeof(_current_appkey));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&_current_appkey, sizeof(_current_appkey));
 
     if (sio_checksum((uint8_t *)&_current_appkey, sizeof(_current_appkey)) != ck)
     {
@@ -609,7 +609,7 @@ void sioFuji::sio_write_app_key()
     // Data for SIO_FUJICMD_WRITE_APPKEY
     uint8_t value[MAX_APPKEY_LEN];
 
-    uint8_t ck = sio_to_peripheral((uint8_t *)value, sizeof(value));
+    uint8_t ck = bus_to_peripheral((uint8_t *)value, sizeof(value));
 
     if (sio_checksum((uint8_t *)value, sizeof(value)) != ck)
     {
@@ -715,7 +715,7 @@ void sioFuji::sio_read_app_key()
 
     response.size = count;
 
-    sio_to_computer((uint8_t *)&response, sizeof(response), false);
+    bus_to_computer((uint8_t *)&response, sizeof(response), false);
 }
 
 // DEBUG TAPE
@@ -838,7 +838,7 @@ void sioFuji::sio_open_directory()
 
     char dirpath[256];
     uint8_t hostSlot = cmdFrame.aux1;
-    uint8_t ck = sio_to_peripheral((uint8_t *)&dirpath, sizeof(dirpath));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&dirpath, sizeof(dirpath));
 
     if (sio_checksum((uint8_t *)&dirpath, sizeof(dirpath)) != ck)
     {
@@ -975,7 +975,7 @@ void sioFuji::sio_read_directory_entry()
         }
     }
 
-    sio_to_computer((uint8_t *)current_entry, maxlen, false);
+    bus_to_computer((uint8_t *)current_entry, maxlen, false);
 }
 
 void sioFuji::sio_get_directory_position()
@@ -997,7 +997,7 @@ void sioFuji::sio_get_directory_position()
         return;
     }
     // Return the value we read
-    sio_to_computer((uint8_t *)&pos, sizeof(pos), false);
+    bus_to_computer((uint8_t *)&pos, sizeof(pos), false);
 }
 
 void sioFuji::sio_set_directory_position()
@@ -1062,7 +1062,7 @@ void sioFuji::sio_get_adapter_config()
 
     fnWiFi.get_mac(cfg.macAddress);
 
-    sio_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
+    bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
 }
 
 //  Make new disk and shove into device slot
@@ -1080,7 +1080,7 @@ void sioFuji::sio_new_disk()
     } newDisk;
 
     // Ask for details on the new disk to create
-    uint8_t ck = sio_to_peripheral((uint8_t *)&newDisk, sizeof(newDisk));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&newDisk, sizeof(newDisk));
 
     if (ck != sio_checksum((uint8_t *)&newDisk, sizeof(newDisk)))
     {
@@ -1142,7 +1142,7 @@ void sioFuji::sio_read_host_slots()
     for (int i = 0; i < MAX_HOSTS; i++)
         strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
 
-    sio_to_computer((uint8_t *)&hostSlots, sizeof(hostSlots), false);
+    bus_to_computer((uint8_t *)&hostSlots, sizeof(hostSlots), false);
 }
 
 // Read and save host slot data from computer
@@ -1151,7 +1151,7 @@ void sioFuji::sio_write_host_slots()
     Debug_println("Fuji cmd: WRITE HOST SLOTS");
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-    uint8_t ck = sio_to_peripheral((uint8_t *)&hostSlots, sizeof(hostSlots));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&hostSlots, sizeof(hostSlots));
 
     if (sio_checksum((uint8_t *)hostSlots, sizeof(hostSlots)) == ck)
     {
@@ -1173,7 +1173,7 @@ void sioFuji::sio_set_host_prefix()
     char prefix[MAX_HOST_PREFIX_LEN];
     uint8_t hostSlot = cmdFrame.aux1;
 
-    uint8_t ck = sio_to_peripheral((uint8_t *)prefix, MAX_FILENAME_LEN);
+    uint8_t ck = bus_to_peripheral((uint8_t *)prefix, MAX_FILENAME_LEN);
 
     Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
 
@@ -1207,7 +1207,7 @@ void sioFuji::sio_get_host_prefix()
     char prefix[MAX_HOST_PREFIX_LEN];
     _fnHosts[hostSlot].get_prefix(prefix, sizeof(prefix));
 
-    sio_to_computer((uint8_t *)prefix, sizeof(prefix), false);
+    bus_to_computer((uint8_t *)prefix, sizeof(prefix), false);
 }
 
 // Send device slot data to computer
@@ -1258,7 +1258,7 @@ void sioFuji::sio_read_device_slots()
         return;
     }
 
-    sio_to_computer((uint8_t *)&diskSlots, returnsize, false);
+    bus_to_computer((uint8_t *)&diskSlots, returnsize, false);
 }
 
 // Read and save disk slot data from computer
@@ -1273,7 +1273,7 @@ void sioFuji::sio_write_device_slots()
         char filename[MAX_DISPLAY_FILENAME_LEN];
     } diskSlots[MAX_DISK_DEVICES];
 
-    uint8_t ck = sio_to_peripheral((uint8_t *)&diskSlots, sizeof(diskSlots));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&diskSlots, sizeof(diskSlots));
 
     if (ck == sio_checksum((uint8_t *)&diskSlots, sizeof(diskSlots)))
     {
@@ -1390,7 +1390,7 @@ void sioFuji::sio_set_device_filename()
     uint8_t host = cmdFrame.aux2 >> 4;
     uint8_t mode = cmdFrame.aux2 & 0x0F;
 
-    uint8_t ck = sio_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
+    uint8_t ck = bus_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
@@ -1441,7 +1441,7 @@ void sioFuji::sio_get_device_filename()
     }
 
     memcpy(tmp, _fnDisks[cmdFrame.aux1].filename, MAX_FILENAME_LEN);
-    sio_to_computer((uint8_t *)tmp, MAX_FILENAME_LEN, err);
+    bus_to_computer((uint8_t *)tmp, MAX_FILENAME_LEN, err);
 }
 
 // Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.

@@ -48,7 +48,7 @@ void sioApeTime::_sio_get_time(bool use_timezone)
 
     Debug_printf("Returning %02d/%02d/%02d %02d:%02d:%02d\n", now->tm_year, now->tm_mon, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
 
-    sio_to_computer(sio_reply, sizeof(sio_reply), false);
+    bus_to_computer(sio_reply, sizeof(sio_reply), false);
 }
 
 void sioApeTime::_sio_set_tz()
@@ -65,7 +65,7 @@ void sioApeTime::_sio_set_tz()
     if (bufsz > 0) {
       ape_timezone = (char *) malloc((bufsz + 1) * sizeof(char));
 
-      uint8_t ck = sio_to_peripheral((uint8_t *) ape_timezone, bufsz);
+      uint8_t ck = bus_to_peripheral((uint8_t *) ape_timezone, bufsz);
       if (sio_checksum((uint8_t *) ape_timezone, bufsz) != ck) {
         sio_error();
       } else {

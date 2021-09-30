@@ -129,7 +129,7 @@ protected:
      * @return TRUE if the Atari processed the data in error, FALSE if the Atari successfully processed
      * the data.
      */
-    void sio_to_computer(uint8_t *buff, uint16_t len, bool err);
+    void bus_to_computer(uint8_t *buff, uint16_t len, bool err);
 
     /**
      * @brief Receive data from the Atari.
@@ -137,7 +137,7 @@ protected:
      * @param len The length of the amount of data to receive from the Atari.
      * @return An 8-bit wrap-around checksum calculated by the Atari, which should be checked with sio_checksum()
      */
-    uint8_t sio_to_peripheral(uint8_t *buff, uint16_t len);
+    uint8_t bus_to_peripheral(uint8_t *buff, uint16_t len);
 
     /**
      * @brief Send an acknowledgement byte to the Atari 'A'
@@ -177,7 +177,7 @@ protected:
     unsigned short sio_get_aux();
 
     /**
-     * @brief All SIO commands by convention should return a status command, using sio_to_computer() to return
+     * @brief All SIO commands by convention should return a status command, using bus_to_computer() to return
      * four bytes of status information to be put into DVSTAT ($02EA)
      */
     virtual void sio_status() = 0;
@@ -199,7 +199,7 @@ public:
     int id() { return _devnum; };
 
     /**
-     * @brief Command 0x3F '?' intended to return a single byte to the atari via sio_to_computer(), which
+     * @brief Command 0x3F '?' intended to return a single byte to the atari via bus_to_computer(), which
      * signifies the high speed SIO divisor chosen by the user in their #FujiNet configuration.
      */
     virtual void sio_high_speed();

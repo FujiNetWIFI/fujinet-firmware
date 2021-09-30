@@ -411,17 +411,17 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
 #endif
 
     // TO DO : turn on LED
-    fnLedManager.set(eLed::LED_SIO, true);
+    fnLedManager.set(eLed::LED_BUS, true);
     while (gap--)
     {
         fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
         if (has_pulldown() && !motor_line() && gap > 1000)
         {
-            fnLedManager.set(eLed::LED_SIO, false);
+            fnLedManager.set(eLed::LED_BUS, false);
             return starting_offset;
         }
     }
-    fnLedManager.set(eLed::LED_SIO, false);
+    fnLedManager.set(eLed::LED_BUS, false);
 
 #ifdef DEBUG
     // wait until after delay for new line so can see it in timestamp
