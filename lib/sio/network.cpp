@@ -92,6 +92,7 @@ void sioNetwork::sio_open()
     {
         protocol->close();
         delete protocol;
+        protocol = nullptr;
     }
 
     // Reset status buffer
