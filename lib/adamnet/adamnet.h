@@ -25,14 +25,74 @@
 #define NM_NACK     0x0C    // response.control (nack)
 
 /**
- * Calculate checksum for AdamNet packets
- * @brief uses a simple 8-bit XOR of each successive byte.
+ * @brief Calculate checksum for AdamNet packets. Uses a simple 8-bit XOR of each successive byte.
  * @param buf pointer to buffer
  * @param len length of buffer
  * @return checksum value (0x00 - 0xFF)
  */
 uint8_t adamnet_checksum(uint8_t *buf, unsigned short len);
 
+/**
+ * @brief Send Byte to AdamNet
+ * @param b Byte to send via AdamNet
+ * @return was byte sent?
+ */
+void adamnet_send(uint8_t b);
 
+/**
+ * @brief Send buffer to AdamNet
+ * @param buf Buffer to send to AdamNet
+ * @param len Length of buffer
+ * @return number of bytes sent.
+ */
+void adamnet_send_buffer(uint8_t *buf, unsigned short len);
+
+/**
+ * @brief Receive byte from AdamNet
+ * @return byte received
+ */
+uint8_t adamnet_recv();
+
+/**
+ * @brief Receive desired # of bytes into buffer from AdamNet
+ * @param buf Buffer in which to receive
+ * @param len length of buffer
+ * @return # of bytes received.
+ */
+unsigned short adamnet_recv_buffer(uint8_t *buf, unsigned short len);
+
+/**
+ * @brief Wait for AdamNet bus to become idle.
+ */
+void adamnet_wait_for_idle();
+
+/**
+ * @brief An AdamNet Device
+ */
+class adamNetDevice
+{
+protected:
+    friend adamNetBus;      // We exist on the AdamNet Bus, and need its methods.
+
+    /**
+     * @brief Device Number: 0-15
+     */
+    uint8_t _devnum;
+
+public:
+    /**
+     * @brief return the device number (0-15) of this device
+     * @return the device # (0-15) of this device
+     */
+    uint8_t id() { return _devnum; }
+};
+
+/**
+ * @brief The AdamNet Bus
+ */
+class adamNetBus
+{
+
+};
 
 #endif /* ADAMNET_H */
