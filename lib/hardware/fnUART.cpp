@@ -8,8 +8,7 @@
 #include "fnUART.h"
 
 #define UART_DEBUG      UART_NUM_0
-#define UART_ADAMNET_TX UART_NUM_1
-#define UART_ADAMNET_RX UART_NUM_2
+#define UART_ADAMNET    UART_NUM_2
 #define UART_SIO        UART_NUM_2
 
 // Number of RTOS ticks to wait for data in TX buffer to complete sending
@@ -20,8 +19,7 @@
 
 UARTManager fnUartDebug(UART_DEBUG);
 UARTManager fnUartSIO(UART_SIO);
-UARTManager fnUartAdamNetTX(UART_ADAMNET_TX);
-UARTManager fnUartAdamNetRX(UART_ADAMNET_RX);
+UARTManager fnUartAdamNet(UART_ADAMNET);
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}
@@ -83,11 +81,6 @@ void UARTManager::begin(int baud)
     else if (_uart_num == 3) // AdamNet RX
     {
         rx = PIN_ADAMNET_RX;
-        tx = PIN_TX_DUMMY;
-    }
-    else if (_uart_num == 4) // AdamNet TX (inverted polarity)
-    {
-        rx = PIN_RX_DUMMY;
         tx = PIN_ADAMNET_TX;
     } else {
         return;
