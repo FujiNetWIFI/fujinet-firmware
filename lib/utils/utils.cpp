@@ -477,7 +477,7 @@ void util_strip_nonascii(string &s)
 {
     for (int i = 0; i < s.size(); i++)
     {
-        if (s[i] > 0x7F)
+        if ((unsigned char)s[i] > 0x7F)
             s[i] = 0x00;
     }
 }
