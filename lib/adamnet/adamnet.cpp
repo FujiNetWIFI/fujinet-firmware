@@ -78,8 +78,12 @@ void adamNetBus::service()
 
 void adamNetBus::setup()
 {
+    Debug_println("ADAMNET SETUP");
 
-}
+    // Set up UART
+    fnUartAdamNet.begin(ADAMNET_BAUD);
+    fnUartAdamNet.flush_input();
+} 
 
 void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
 {
@@ -99,4 +103,23 @@ int adamNetBus::numDevices()
         i++;
     return i;
     __END_IGNORE_UNUSEDVARS
+}
+
+void adamNetBus::changeDeviceId(adamNetDevice *p, int device_id)
+{
+    for (auto devicep : _daisyChain)
+    {
+        if (devicep == p)
+            devicep->_devnum = device_id;
+    }
+}
+
+adamNetDevice *adamNetBus::deviceById(int device_id)
+{
+    for (auto devicep : _daisyChain)
+    {
+        if (devicep->_devnum == device_id)
+            return devicep;
+    }
+    return nullptr;
 }

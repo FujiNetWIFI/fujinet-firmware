@@ -8,6 +8,8 @@
 #include <forward_list>
 #include "fnSystem.h"
 
+#define ADAMNET_BAUD 62500
+
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)
 #define MN_ACK 0x02     // command.control (ack)
@@ -107,6 +109,8 @@ public:
     int numDevices();
     void addDevice(adamNetDevice *pDevice, int device_id);
     void remDevice(adamNetDevice *pDevice);
+    adamNetDevice *deviceById(int device_id);
+    void changeDeviceId(adamNetDevice *pDevice, int device_id);
     adamNetDevice *deviceById(int device_id);
     QueueHandle_t qAdamNetMessages = nullptr;
 };
