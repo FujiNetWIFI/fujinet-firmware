@@ -26,6 +26,8 @@
 #define NM_SEND 0x0B   // response.data (send)
 #define NM_NACK 0x0C   // response.control (nack)
 
+class adamNetBus;
+
 /**
  * @brief Calculate checksum for AdamNet packets. Uses a simple 8-bit XOR of each successive byte.
  * @param buf pointer to buffer
@@ -119,7 +121,6 @@ public:
     void remDevice(adamNetDevice *pDevice);
     adamNetDevice *deviceById(int device_id);
     void changeDeviceId(adamNetDevice *pDevice, int device_id);
-    adamNetDevice *deviceById(int device_id);
     QueueHandle_t qAdamNetMessages = nullptr;
 };
 
