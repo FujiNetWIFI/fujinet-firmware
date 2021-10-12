@@ -14,20 +14,13 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
     return checksum;
 }
 
-void adamnet_send(uint8_t b)
+void adamNetDevice::adamnet_send(uint8_t b)
 {
     // Write the byte
     fnUartAdamNet.write(b);
-
-    // Wait for byte to come back around
-    while (!fnUartAdamNet.available())
-        fnSystem.yield();
-
-    // Read it, but throw it away.
-    fnUartAdamNet.read();
 }
 
-void adamnet_send_buffer(uint8_t *buf, unsigned short len)
+void adamNetDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 {
     for (unsigned short i = 0; i < len; i++)
         adamnet_send(buf[i]);
@@ -38,12 +31,12 @@ uint8_t adamnet_recv()
     return fnUartAdamNet.read();
 }
 
-unsigned short adamnet_recv_buffer(uint8_t *buf, unsigned short len)
+unsigned short adamNetDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short len)
 {
     return fnUartAdamNet.readBytes(buf, len);
 }
 
-void adamnet_wait_for_idle()
+void adamNetDevice::adamnet_wait_for_idle()
 {
     bool isIdle = false;
     int64_t start, current, dur;
