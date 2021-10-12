@@ -74,7 +74,7 @@ void adamNetBus::_adamnet_process_cmd()
     uint8_t d = b & 0x0F;
 
     // turn on AdamNet Indicator LED
-    fnLedManager.set(eLed::LED_SIO, true);
+    fnLedManager.set(eLed::LED_BUS, true);
 
     // Find device ID and pass control to it
     for (auto devicep : _daisyChain)
@@ -87,7 +87,7 @@ void adamNetBus::_adamnet_process_cmd()
     }
 
     // turn off AdamNet Indicator LED
-    fnLedManager.set(eLed::LED_SIO, false);
+    fnLedManager.set(eLed::LED_BUS, false);
 }
 
 void adamNetBus::_adamnet_process_queue()
