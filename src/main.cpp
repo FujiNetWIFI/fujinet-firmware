@@ -7,7 +7,7 @@
 #include "fnConfig.h"
 #include "keys.h"
 #include "led.h"
-#include "sio.h"
+#include "bus.h"
 #include "fuji.h"
 #include "modem.h"
 #include "apetime.h"
@@ -46,7 +46,11 @@ void main_shutdown_handler()
 {
     Debug_println("Shutdown handler called");
     // Give devices an opportunity to clean up before rebooting
+#if defined( BUILD_ATARI )
     // SIO.shutdown();
+#elif defined( BUILD_CBM )
+    // IEC.shutdown();
+#endif
 }
 
 // Initial setup
@@ -105,6 +109,7 @@ void main_setup()
         fnWiFi.connect();
     }
 
+#if defined( BUILD_ATARI )
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
@@ -136,6 +141,13 @@ void main_setup()
     // Go setup SIO
     SIO.setup();
 
+#elif defined( BUILD_CBM )
+
+    // Setup IEC Bus
+    theFuji.setup(&IEC);
+
+#endif
+
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
@@ -156,7 +168,13 @@ void fn_service_loop(void *param)
             fnBtManager.service();
         else
     #endif
-            SIO.service();
+
+    #if defined( BUILD_ATARI )
+        SIO.service();
+    #elif defined( BUILD_CBM )
+        IEC.service();
+    #endif
+
     }
 }
 
