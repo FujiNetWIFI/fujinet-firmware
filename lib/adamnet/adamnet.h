@@ -92,6 +92,25 @@ public:
  */
 class adamNetBus
 {
+private:
+    std::forward_list<adamNetDevice *> _daisyChain;
+    adamNetDevice *_activeDev = nullptr;
+
+    void _adamnet_process_cmd();
+    void _adamnet_process_queue();
+
+public:
+    void setup();
+    void service();
+    void shutdown();
+
+    int numDevices();
+    void addDevice(adamNetDevice *pDevice, int device_id);
+    void remDevice(adamNetDevice *pDevice);
+    adamNetDevice *deviceById(int device_id);
+    QueueHandle_t qAdamNetMessages = nullptr;
 };
+
+extern adamNetBus AdamNet;
 
 #endif /* ADAMNET_H */
