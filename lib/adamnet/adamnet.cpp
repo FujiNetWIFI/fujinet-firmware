@@ -58,3 +58,38 @@ void adamNetDevice::adamnet_wait_for_idle()
         }
     } while (isIdle == false);
 }
+
+void adamNetBus::_adamnet_process_cmd()
+{
+
+}
+
+void adamNetBus::_adamnet_process_queue()
+{
+
+}
+
+void adamNetBus::service()
+{
+
+}
+
+void adamNetBus::setup()
+{
+
+}
+
+void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
+{
+
+}
+
+void adamNetBus::remDevice(adamNetDevice *pDevice)
+{
+
+}
+
+int adamNetBus::numDevices()
+{
+
+}
