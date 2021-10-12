@@ -3,6 +3,8 @@
  */
 
 #include "adamnet.h"
+#include "../../include/debug.h"
+#include "utils.h"
 
 uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 {
@@ -86,10 +88,15 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)
 {
-
+    _daisyChain.remove(pDevice);
 }
 
 int adamNetBus::numDevices()
 {
-
+    int i = 0;
+    __BEGIN_IGNORE_UNUSEDVARS
+    for (auto devicep : _daisyChain)
+        i++;
+    return i;
+    __END_IGNORE_UNUSEDVARS
 }
