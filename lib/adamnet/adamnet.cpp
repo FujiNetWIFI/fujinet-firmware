@@ -5,6 +5,7 @@
 #include "adamnet.h"
 #include "../../include/debug.h"
 #include "utils.h"
+#include "led.h"
 
 uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 {
@@ -61,19 +62,46 @@ void adamNetDevice::adamnet_wait_for_idle()
     } while (isIdle == false);
 }
 
+void adamNetDevice::adamnet_process(uint8_t b)
+{
+    fnUartDebug.printf("adamnet_process() not implemented yet for this device. Cmd received: %02x",b);
+    adamnet_wait_for_idle();
+}
+
 void adamNetBus::_adamnet_process_cmd()
 {
+    uint8_t b = adamnet_recv();
+    uint8_t d = b & 0x0F;
 
+    // turn on AdamNet Indicator LED
+    fnLedManager.set(eLed::LED_SIO, true);
+
+    // Find device ID and pass control to it
+    for (auto devicep : _daisyChain)
+    {
+        if (d == devicep->_devnum)
+        {
+            _activeDev = devicep;
+            _activeDev->adamnet_process(b);
+        }
+    }
+
+    // turn off AdamNet Indicator LED
+    fnLedManager.set(eLed::LED_SIO, false);
 }
 
 void adamNetBus::_adamnet_process_queue()
 {
-
 }
 
 void adamNetBus::service()
 {
+    // Process out-of-band event queue
+    _adamnet_process_queue();
 
+    // Process anything waiting.
+    if (fnUartAdamNet.available())
+        _adamnet_process_cmd(); 
 }
 
 void adamNetBus::setup()
@@ -83,11 +111,20 @@ void adamNetBus::setup()
     // Set up UART
     fnUartAdamNet.begin(ADAMNET_BAUD);
     fnUartAdamNet.flush_input();
-} 
+}
+
+void adamNetBus::shutdown()
+{
+    for (auto devicep : _daisyChain)
+    {
+        Debug_printf("Shutting down device %02x\n", devicep->id());
+        devicep->shutdown();
+    }
+    Debug_printf("All devices shut down.\n");
+}
 
 void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
 {
-
 }
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)

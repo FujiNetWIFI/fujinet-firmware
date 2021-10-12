@@ -81,6 +81,14 @@ protected:
      */
     uint8_t _devnum;
 
+    virtual void shutdown() {}
+
+    /**
+     * @brief process the next packet with the active device.
+     * @param b first byte of packet.
+     */
+    virtual void adamnet_process(uint8_t b);
+
 public:
     /**
      * @brief return the device number (0-15) of this device
