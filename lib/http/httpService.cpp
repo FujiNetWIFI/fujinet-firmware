@@ -17,9 +17,11 @@
 #include "keys.h"
 #include "fnConfig.h"
 
+#ifdef BUILD_ATARI
 #include "modem-sniffer.h"
 #include "sio/modem.h"
-#include "fuji.h"
+#include "sio/fuji.h"
+#endif /* BUILD_ATARI */
 
 #include "../../include/debug.h"
 

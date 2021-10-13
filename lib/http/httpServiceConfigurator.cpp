@@ -13,8 +13,10 @@
 #include "sio/printerlist.h"
 #include "utils.h"
 
-#include "fuji.h"
+#ifdef BUILD_ATARI
+#include "sio/fuji.h"
 extern sioFuji theFuji;
+#endif /* BUILD_ATARI */
 
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)

@@ -9,15 +9,16 @@
 #include "httpService.h"
 #include "httpServiceParser.h"
 
-#include "fuji.h"
+#ifdef BUILD_ATARI
+#include "sio/fuji.h"
 #include "sio/printerlist.h"
+extern sioFuji theFuji;
+#endif
 
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
 #include "fnFsSPIF.h"
 #include "fnFsSD.h"
-
-extern sioFuji theFuji;
 
 using namespace std;
 

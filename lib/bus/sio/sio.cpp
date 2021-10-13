@@ -1,16 +1,18 @@
 #include "bus.h"
+#ifdef BUILD_ATARI
 #include "sio/modem.h"
-#include "fuji.h"
+#include "sio/fuji.h"
+#include "sio/midimaze.h"
+#include "sio/cassette.h"
+#include "sio/siocpm.h"
+#include "sio/printer.h"
+#endif
 #include "led.h"
 #include "sio/network.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnDNS.h"
 #include "utils.h"
-#include "sio/midimaze.h"
-#include "sio/cassette.h"
-#include "sio/siocpm.h"
-#include "sio/printer.h"
 #include "../../include/debug.h"
 
 // Helper functions outside the class defintions
