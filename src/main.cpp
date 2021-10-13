@@ -8,15 +8,19 @@
 #include "keys.h"
 #include "led.h"
 #include "bus.h"
+
+#ifdef BUILD_ATARI
 #include "fuji.h"
 #include "sio/modem.h"
 #include "sio/apetime.h"
 #include "sio/voice.h"
-#include "httpService.h"
 #include "sio/printerlist.h"
 #include "sio/midimaze.h"
 #include "sio/siocpm.h"
 #include "samlib.h"
+#endif /* BUILD_ATARI */
+
+#include "httpService.h"
 
 #include <esp_system.h>
 #include <nvs_flash.h>
@@ -35,12 +39,15 @@
 // fnHTTPD is declared and defineid in HttpService.h/cpp
 
 // sioFuji theFuji; // moved to fuji.h/.cpp
+
+#ifdef BUILD_ATARI
 sioApeTime apeTime;
 sioVoice sioV;
 sioMIDIMaze sioMIDI;
 // sioCassette sioC; // now part of sioFuji theFuji object
 sioModem *sioR;
 sioCPM sioZ;
+#endif /* BUILD_ATARI */
 
 void main_shutdown_handler()
 {
