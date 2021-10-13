@@ -5,6 +5,12 @@
 
 #ifdef BUILD_ATARI
 #include "../device/sio/printer.h"
+#define PRINTER_CLASS sioPrinter
+#endif
+
+#ifdef BUILD_ADAM
+#include "../device/adamnet/printer.h"
+#define PRINTER_CLASS adamPrinter
 #endif
 
 #define MAX_HOST_SLOTS 8
@@ -108,9 +114,9 @@ public:
     void clear_mount(uint8_t num, mount_type_t mounttype = mount_type_t::MOUNTTYPE_DISK);
 
     // PRINTERS
-    sioPrinter::printer_type get_printer_type(uint8_t num);
+    PRINTER_CLASS::printer_type get_printer_type(uint8_t num);
     int get_printer_port(uint8_t num);
-    void store_printer_type(uint8_t num, sioPrinter::printer_type ptype);
+    void store_printer_type(uint8_t num, PRINTER_CLASS::printer_type ptype);
     void store_printer_port(uint8_t num, int port);
 
     // MODEM
@@ -187,7 +193,7 @@ private:
 
     struct printer_info
     {
-        sioPrinter::printer_type type = sioPrinter::printer_type::PRINTER_INVALID;
+        PRINTER_CLASS::printer_type type = PRINTER_CLASS::printer_type::PRINTER_INVALID;
         int port = 0;
     };
 
