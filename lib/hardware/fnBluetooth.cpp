@@ -1,7 +1,7 @@
 
 #include "../../include/debug.h"
 #include "bus.h"
-#include "../device/disk.h"
+#include "../device/sio/disk.h"
 #include "fnConfig.h"
 #include "fnBluetooth.h"
 #include "fnBluetoothSPP.h"
