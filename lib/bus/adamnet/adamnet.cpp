@@ -64,8 +64,13 @@ void adamNetDevice::adamnet_wait_for_idle()
 
 void adamNetDevice::adamnet_process(uint8_t b)
 {
-    fnUartDebug.printf("adamnet_process() not implemented yet for this device. Cmd received: %02x",b);
+    fnUartDebug.printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n",b);
     adamnet_wait_for_idle();
+}
+
+void adamNetDevice::adamnet_status()
+{
+    fnUartDebug.printf("adamnet_status() not implemented yet for this device.\n");
 }
 
 void adamNetBus::_adamnet_process_cmd()

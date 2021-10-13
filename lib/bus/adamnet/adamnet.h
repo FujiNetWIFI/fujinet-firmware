@@ -91,6 +91,11 @@ protected:
      */
     virtual void adamnet_process(uint8_t b);
 
+    /**
+     * @brief send current status of device
+     */
+    virtual void adamnet_status();
+
 public:
     /**
      * @brief return the device number (0-15) of this device
