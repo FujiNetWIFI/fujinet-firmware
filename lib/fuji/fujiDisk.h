@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "../device/disk.h"
+#include "../device/sio/disk.h"
 #include "fujiHost.h"
 
 #define MAX_DISPLAY_FILENAME_LEN 36

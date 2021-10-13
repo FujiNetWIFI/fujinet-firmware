@@ -10,7 +10,7 @@
 
 #include "httpServiceConfigurator.h"
 #include "fnConfig.h"
-#include "printerlist.h"
+#include "sio/printerlist.h"
 #include "utils.h"
 
 #include "fuji.h"

@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #include <cstring>
 
 #include "apetime.h"
@@ -104,3 +105,4 @@ void sioApeTime::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     };
 }
+#endif /* BUILD_ATARI */
