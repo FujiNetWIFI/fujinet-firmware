@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 
 #include <string.h>
 #include <lwip/netdb.h>
@@ -1863,3 +1864,5 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_nak();
     }
 }
+
+#endif /* BUILD_ATARI */

@@ -10,7 +10,7 @@
 #include "httpServiceParser.h"
 
 #include "fuji.h"
-#include "printerlist.h"
+#include "sio/printerlist.h"
 
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"

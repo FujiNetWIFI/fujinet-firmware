@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 #include "printerlist.h"
 
 // Global object to hold our printers
@@ -48,3 +50,5 @@ int printerlist::get_port(int index)
         return -1;
     return _printers[index].port;
 }
+
+#endif /* BUILD_ATARI */

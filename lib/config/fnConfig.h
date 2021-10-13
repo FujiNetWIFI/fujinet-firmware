@@ -3,7 +3,9 @@
 
 #include <string>
 
-#include "../device/printer.h"
+#ifdef BUILD_ATARI
+#include "../device/sio/printer.h"
+#endif
 
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8

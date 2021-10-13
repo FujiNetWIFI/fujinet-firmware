@@ -12,13 +12,13 @@
 #include "httpService.h"
 #include "httpServiceParser.h"
 #include "httpServiceConfigurator.h"
-#include "printerlist.h"
+#include "sio/printerlist.h"
 #include "fnWiFi.h"
 #include "keys.h"
 #include "fnConfig.h"
 
 #include "modem-sniffer.h"
-#include "modem.h"
+#include "sio/modem.h"
 #include "fuji.h"
 
 #include "../../include/debug.h"
