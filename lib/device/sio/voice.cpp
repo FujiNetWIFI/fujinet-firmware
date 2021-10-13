@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 #include <string>
 #include "voice.h"
 #include "utils.h"
@@ -184,3 +186,5 @@ void sioVoice::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_nak();
     }
 }
+
+#endif /* BUILD_ATARI */

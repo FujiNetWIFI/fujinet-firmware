@@ -5,8 +5,8 @@
 #include <vector>
 #include "bus.h"
 #include "EdUrlParser.h"
-#include "../network-protocol/Protocol.h"
-#include "networkStatus.h"
+#include "../../network-protocol/Protocol.h"
+#include "sio/networkStatus.h"
 #include "driver/timer.h"
 #include "../../lib/network-protocol/status_error_codes.h"
 

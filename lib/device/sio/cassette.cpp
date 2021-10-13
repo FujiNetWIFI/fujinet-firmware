@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #include "cassette.h"
 #include "fnSystem.h"
 #include "led.h"
@@ -590,3 +591,4 @@ uint8_t sioCassette::decode_fsk()
     // #endif
     return out;
 }
+#endif /* BUILD_ATARI */

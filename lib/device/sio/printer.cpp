@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 #include "../../include/atascii.h"
 #include "printer.h"
 
@@ -283,3 +285,5 @@ void sioPrinter::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_nak();
     }
 }
+
+#endif /* BUILD_ATARI */

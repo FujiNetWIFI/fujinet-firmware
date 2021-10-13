@@ -4,7 +4,7 @@
 #include "../../include/debug.h"
 #include "../utils/utils.h"
 
-#include "../device/disk.h"
+#include "../device/sio/disk.h"
 
 #include "diskTypeXex.h"
 

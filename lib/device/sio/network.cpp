@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 /**
  * N: Firmware
 */
@@ -1034,3 +1036,5 @@ void sioNetwork::sio_do_idempotent_command_80()
         sio_complete();
 
 }
+
+#endif /* BUILD_ATARI */
