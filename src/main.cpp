@@ -10,7 +10,7 @@
 #include "bus.h"
 
 #ifdef BUILD_ATARI
-#include "fuji.h"
+#include "sio/fuji.h"
 #include "sio/modem.h"
 #include "sio/apetime.h"
 #include "sio/voice.h"

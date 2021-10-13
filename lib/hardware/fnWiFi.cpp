@@ -20,7 +20,9 @@
 
 #include "mdns.h"
 
-#include "fuji.h"
+#ifdef BUILD_ATARI
+#include "sio/fuji.h"
+#endif
 
 // Global object to manage WiFi
 WiFiManager fnWiFi;
