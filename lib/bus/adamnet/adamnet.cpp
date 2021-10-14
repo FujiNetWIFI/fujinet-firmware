@@ -165,3 +165,5 @@ adamNetDevice *adamNetBus::deviceById(int device_id)
     }
     return nullptr;
 }
+
+adamNetBus AdamNet;
