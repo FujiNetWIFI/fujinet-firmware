@@ -4,7 +4,7 @@
 #include <vector>
 #include "bus.h"
 #include "EdUrlParser.h"
-#include "../device/sio/networkStatus.h"
+#include "sio/networkStatus.h"
 
 class NetworkProtocol
 {

@@ -13,7 +13,18 @@
 #include "keys.h"
 #include "led.h"
 #include "bus.h"
-#include "fuji.h"
+
+#ifdef BUILD_ATARI
+#include "sio/fuji.h"
+#include "sio/modem.h"
+#include "sio/apetime.h"
+#include "sio/voice.h"
+#include "sio/printerlist.h"
+#include "sio/midimaze.h"
+#include "sio/siocpm.h"
+#include "samlib.h"
+#endif /* BUILD_ATARI */
+
 #include "httpService.h"
 
 #ifdef BLUETOOTH_SUPPORT
@@ -26,6 +37,16 @@
 // fnKeyManager is declared and defined in keys.h/cpp
 // fnHTTPD is declared and defineid in HttpService.h/cpp
 
+// sioFuji theFuji; // moved to fuji.h/.cpp
+
+#ifdef BUILD_ATARI
+sioApeTime apeTime;
+sioVoice sioV;
+sioMIDIMaze sioMIDI;
+// sioCassette sioC; // now part of sioFuji theFuji object
+sioModem *sioR;
+sioCPM sioZ;
+#endif /* BUILD_ATARI */
 
 void main_shutdown_handler()
 {
@@ -37,7 +58,6 @@ void main_shutdown_handler()
     // IEC.shutdown();
 #endif
 }
-
 
 // Initial setup
 void main_setup()
@@ -74,12 +94,11 @@ void main_setup()
     fnLedManager.setup();
 
     fnSPIFFS.start();
-    fnSDFAT.start(); 
+    fnSDFAT.start();
 
     // Load our stored configuration
     Config.load();
 
-#ifdef BLUETOOTH_SUPPORT
     if ( Config.get_bt_status() )
     {
 #ifdef BLUETOOTH_SUPPORT
@@ -89,7 +108,6 @@ void main_setup()
 #endif
     }
     else
-#endif
     {
         // Set up the WiFi adapter
         fnWiFi.start();
@@ -99,9 +117,41 @@ void main_setup()
 
 #if defined( BUILD_ATARI )
     theFuji.setup(&SIO);
+    SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
+
+    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
+
+    SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
+
+    // Create a new printer object, setting its output depending on whether we have SD or not
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    sioPrinter::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
+        ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+
+    sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+
+    sioR = new sioModem(ptrfs, false); // turned off by default.
+    
+    SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
+
+    SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
+
+    SIO.addDevice(&sioZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
+
+    // Go setup SIO
+    SIO.setup();
+
 #elif defined( BUILD_CBM )
+
     // Setup IEC Bus
     theFuji.setup(&IEC);
+
 #endif
 
 #ifdef DEBUG
@@ -109,6 +159,7 @@ void main_setup()
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
 #endif
 }
+
 
 // Main high-priority service loop
 void fn_service_loop(void *param)
@@ -120,9 +171,7 @@ void fn_service_loop(void *param)
         // Go service BT if it's active
     #ifdef BLUETOOTH_SUPPORT
         if (fnBtManager.isActive())
-        {
             fnBtManager.service();
-        }
         else
     #endif
 
@@ -144,7 +193,7 @@ extern "C"
     {
         // Call our setup routine
         main_setup();
-        
+
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1; the WiFi task ends up on CPU0
         #define MAIN_STACKSIZE 4096

@@ -1,10 +1,10 @@
+#ifdef BUILD_ATARI // temporary
 /**
  * Network Protocol Base class
  */
 
 #include <string.h>
 #include <algorithm>
-
 #include "Protocol.h"
 #include "status_error_codes.h"
 #include "../utils/utils.h"
@@ -231,3 +231,4 @@ void NetworkProtocol::errno_to_error()
         break;
     }
 }
+#endif /* BUILD_ATARI */

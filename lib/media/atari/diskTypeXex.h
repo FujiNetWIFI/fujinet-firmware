@@ -3,7 +3,6 @@
 
 #include "diskType.h"
 
-
 class DiskTypeXEX : public DiskType
 {
 private:

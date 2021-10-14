@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI // temporary
 /**
  * NetworkProtocolFTP
  * 
@@ -5,7 +6,6 @@
  */
 
 #include <cstring>
-
 #include "FTP.h"
 #include "status_error_codes.h"
 #include "utils.h"
@@ -284,3 +284,5 @@ bool NetworkProtocolFTP::stat()
 {
     return false;
 }
+
+#endif /* BUILD_ATARI */

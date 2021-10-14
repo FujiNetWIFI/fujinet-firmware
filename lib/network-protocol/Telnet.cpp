@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI // temporary
+
 /**
  * NetworkProtocolTELNET
  * 
@@ -9,7 +11,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-
 #include "Telnet.h"
 #include "status_error_codes.h"
 #include "libtelnet.h"
@@ -189,3 +190,5 @@ void NetworkProtocolTELNET::flush(const char *buf, unsigned short size)
     client.write((uint8_t *)buf, size);
     transmitBuffer->clear();
 }
+
+#endif /* BUILD_ATARI */

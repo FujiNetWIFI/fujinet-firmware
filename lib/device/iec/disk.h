@@ -29,7 +29,7 @@
 #include "../../../include/petscii.h"
 
 #include "fnFsSPIF.h"
-#include "iec.h"
+#include "../../bus/iec/iec.h"
 #include "media.h"
 
 #define ARCHIVE_TYPES "ZIP|7Z|RAR"

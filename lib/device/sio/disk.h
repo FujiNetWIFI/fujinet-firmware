@@ -31,5 +31,4 @@ public:
     ~sioDisk();
 };
 
-#endif // BUILD_ATARI
-#endif // DISK_H
+#endif

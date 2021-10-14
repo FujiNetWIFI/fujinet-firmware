@@ -381,12 +381,12 @@ std::string fnConfig::get_pb_entry(uint8_t n)
 ////End of phonebook handling
 
 // Returns printer type stored in configuration for printer slot
-sioPrinter::printer_type fnConfig::get_printer_type(uint8_t num)
+PRINTER_CLASS::printer_type fnConfig::get_printer_type(uint8_t num)
 {
     if (num < MAX_PRINTER_SLOTS)
         return _printer_slots[num].type;
     else
-        return sioPrinter::printer_type::PRINTER_INVALID;
+        return PRINTER_CLASS::printer_type::PRINTER_INVALID;
 }
 
 // Returns printer type stored in configuration for printer slot
@@ -399,7 +399,7 @@ int fnConfig::get_printer_port(uint8_t num)
 }
 
 // Saves printer type stored in configuration for printer slot
-void fnConfig::store_printer_type(uint8_t num, sioPrinter::printer_type ptype)
+void fnConfig::store_printer_type(uint8_t num, PRINTER_CLASS::printer_type ptype)
 {
     Debug_printf("store_printer_type %d, %d\n", num, ptype);
     if (num < MAX_PRINTER_SLOTS)
@@ -538,7 +538,7 @@ void fnConfig::save()
     // PRINTERS
     for (i = 0; i < MAX_PRINTER_SLOTS; i++)
     {
-        if (_printer_slots[i].type != sioPrinter::printer_type::PRINTER_INVALID)
+        if (_printer_slots[i].type != PRINTER_CLASS::printer_type::PRINTER_INVALID)
         {
             ss << LINETERM << "[Printer" << (i + 1) << "]" LINETERM;
             ss << "type=" << _printer_slots[i].type << LINETERM;
@@ -1027,7 +1027,7 @@ void fnConfig::_read_section_tape(std::stringstream &ss, int index)
 void fnConfig::_read_section_printer(std::stringstream &ss, int index)
 {
     // Throw out any existing data for this index
-    _printer_slots[index].type = sioPrinter::printer_type::PRINTER_INVALID;
+    _printer_slots[index].type = PRINTER_CLASS::printer_type::PRINTER_INVALID;
 
     std::string line;
     // Read lines until one starts with '[' which indicates a new section
@@ -1040,10 +1040,10 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
             if (strcasecmp(name.c_str(), "type") == 0)
             {
                 int type = atoi(value.c_str());
-                if (type < 0 || type >= sioPrinter::printer_type::PRINTER_INVALID)
-                    type = sioPrinter::printer_type::PRINTER_INVALID;
+                if (type < 0 || type >= PRINTER_CLASS::printer_type::PRINTER_INVALID)
+                    type = PRINTER_CLASS::printer_type::PRINTER_INVALID;
 
-                _printer_slots[index].type = (sioPrinter::printer_type)type;
+                _printer_slots[index].type = (PRINTER_CLASS::printer_type)type;
                 //Debug_printf("config printer %d type=%d\n", index, type);
             }
             else if (strcasecmp(name.c_str(), "port") == 0)

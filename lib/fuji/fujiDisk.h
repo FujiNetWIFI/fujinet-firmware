@@ -3,15 +3,21 @@
 
 #include <string>
 
+#ifdef BUILD_ATARI
 #include "../device/sio/disk.h"
-#include "fujiHost.h"
-#include "media.h"
-
-#if defined( BUILD_ATARI )
-#   include "../bus/sio/disk.h"
-#elif defined( BUILD_CBM )
-#   include "../bus/iec/disk.h"
+#define MEDIA_TYPE disktype_t
+#define MEDIA_TYPE_UNKNOWN DISKTYPE_UNKNOWN
+#define DEVICE_TYPE sioDisk
 #endif
+
+#ifdef BUILD_ADAM
+#include "../device/adamnet/disk.h"
+#define MEDIA_TYPE mediatype_t
+#define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
+#define DEVICE_TYPE adamDisk
+#endif 
+
+#include "fujiHost.h"
 
 #define MAX_DISPLAY_FILENAME_LEN 36
 #define MAX_FILENAME_LEN 256
@@ -27,17 +33,12 @@ class fujiDisk
 public:    
     FILE* fileh = nullptr;
     uint8_t access_mode = DISK_ACCESS_MODE_READ;
-    disktype_t disk_type = DISKTYPE_UNKNOWN;
+    MEDIA_TYPE disk_type = MEDIA_TYPE_UNKNOWN;
     uint32_t disk_size = 0;
     fujiHost *host = nullptr;
     uint8_t host_slot = INVALID_HOST_SLOT;
     char filename[MAX_FILENAME_LEN] = { '\0' };
-
-#if defined( BUILD_ATARI )
-    sioDisk disk_dev;
-#elif defined( BUILD_CBM )
-    iecDisk disk_dev;
-#endif
+    DEVICE_TYPE disk_dev;
 
     void reset();
     void reset(const char *filename, uint8_t hostslot, uint8_t access_mode);

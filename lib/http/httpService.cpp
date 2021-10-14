@@ -1,35 +1,35 @@
-#include "httpService.h"
+#include <vector>
+#include <map>
+#include <sstream>
 
 #include <esp_wifi.h>
 #include <esp_event.h>
 #include <esp_log.h>
 #include <esp_system.h>
 #include <nvs_flash.h>
-#include <esp_wps.h>
-
-#include <vector>
-#include <map>
-#include <sstream>
-
-#include "../../include/debug.h"
+#include "esp_wps.h"
 
 #include "httpService.h"
 #include "httpServiceParser.h"
 #include "httpServiceConfigurator.h"
 #include "sio/printerlist.h"
 #include "fnWiFi.h"
-#include "fnConfig.h"
 #include "keys.h"
-#include "httpServiceParser.h"
-#include "httpServiceConfigurator.h"
-#include "../device/sio/printerlist.h"
-#include "modem-sniffer.h"
-#include "../device/sio/modem.h"
-#include "fuji.h"
+#include "fnConfig.h"
 
+#ifdef BUILD_ATARI
 #include "modem-sniffer.h"
-#include "../device/modem.h"
-#include "fuji.h"
+#include "sio/modem.h"
+#include "sio/fuji.h"
+extern sioModem *sioR;
+#endif /* BUILD_ATARI */
+
+#ifdef BUILD_ADAM
+#include "modem-sniffer.h"
+#include "adamnet/modem.h"
+#include "adamnet/fuji.h"
+extern adamModem *sioR;
+#endif 
 
 #include "../../include/debug.h"
 
@@ -37,8 +37,6 @@ using namespace std;
 
 // Global HTTPD
 fnHttpService fnHTTPD;
-
-extern sioModem *sioR;
 
 /**
  * URL encoding/decoding helper functions
@@ -656,7 +654,9 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
         {
             // Make sure CONFIG boot is disabled.
             theFuji.boot_config = false;
+#ifdef BUILD_ATARI
             theFuji.status_wait_count = 0;
+#endif
 
             disk->disk_size = host->file_size(disk->fileh);
             disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
@@ -702,11 +702,13 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     }
 
     theFuji.get_disks(ds)->disk_dev.unmount();
-    // if (theFuji.get_disks(ds)->disk_type == DISKTYPE_CAS || theFuji.get_disks(ds)->disk_type == DISKTYPE_WAV)
-    // {
-    //     theFuji.cassette()->umount_cassette_file();
-    //     theFuji.cassette()->sio_disable_cassette();
-    // }
+#ifdef BUILD_ATARI
+    if (theFuji.get_disks(ds)->disk_type == DISKTYPE_CAS || theFuji.get_disks(ds)->disk_type == DISKTYPE_WAV)
+    {
+        theFuji.cassette()->umount_cassette_file();
+        theFuji.cassette()->sio_disable_cassette();
+    }
+#endif
     theFuji.get_disks(ds)->reset();
     Config.clear_mount(ds);
     Config.save();
@@ -726,7 +728,9 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
             (theFuji.get_disks(7)->host_slot == 0xFF))
         {
             theFuji.boot_config = true;
+#ifdef BUILD_ATARI
             theFuji.status_wait_count = 5;
+#endif
             theFuji.device_active = true;
         }
     }

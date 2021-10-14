@@ -1,13 +1,14 @@
+#ifdef BUILD_ATARI
+#include "sio/fuji.h"
+#endif /* BUILD_ATARI */
+
+#include "../FileSystem/fnFS.h"
+#include "../FileSystem/fnFsSD.h"
+#include "../FileSystem/fnFsTNFS.h"
+
+#include "../utils/utils.h"
 
 #include "fujiHost.h"
-
-#include "fuji.h"
-
-#include "fnFS.h"
-#include "fnFsSD.h"
-#include "fnFsTNFS.h"
-#include "utils.h"
-
 
 void fujiHost::unmount()
 {

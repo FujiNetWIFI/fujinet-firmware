@@ -1,19 +1,18 @@
 #include "bus.h"
+#ifdef BUILD_ATARI
 #include "sio/modem.h"
-#include "fuji.h"
+#include "sio/fuji.h"
+#include "sio/midimaze.h"
+#include "sio/cassette.h"
+#include "sio/siocpm.h"
+#include "sio/printer.h"
+#endif
 #include "led.h"
 #include "sio/network.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnDNS.h"
-
-#include "fuji.h"
-#include "led.h"
 #include "utils.h"
-#include "sio/midimaze.h"
-#include "sio/cassette.h"
-#include "sio/siocpm.h"
-#include "sio/printer.h"
 #include "../../include/debug.h"
 
 // Helper functions outside the class defintions
@@ -150,7 +149,7 @@ void sioDevice::sio_high_speed()
 }
 
 // Read and process a command frame from SIO
-void sioBus::_bus_process_cmd()
+void sioBus::_sio_process_cmd()
 {
     if (_modemDev != nullptr && _modemDev->modemActive)
     {
@@ -207,7 +206,7 @@ void sioBus::_bus_process_cmd()
                 {
                     if (devicep->listen_to_type3_polls)
                     {
-                        Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_device_id);
+                        Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_devnum);
                         _activeDev = devicep;
                         // handle command
                         _activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
@@ -220,7 +219,7 @@ void sioBus::_bus_process_cmd()
                 // or go back to WAIT
                 for (auto devicep : _daisyChain)
                 {
-                    if (tempFrame.device == devicep->_device_id)
+                    if (tempFrame.device == devicep->_devnum)
                     {
                         _activeDev = devicep;
                         // handle command
@@ -245,18 +244,18 @@ void sioBus::_bus_process_cmd()
 }
 
 // Look to see if we have any waiting messages and process them accordingly
-void sioBus::_bus_process_queue()
+void sioBus::_sio_process_queue()
 {
-    bus_message_t msg;
-    if (xQueueReceive(qBusMessages, &msg, 0) == pdTRUE)
+    sio_message_t msg;
+    if (xQueueReceive(qSioMessages, &msg, 0) == pdTRUE)
     {
         switch (msg.message_id)
         {
-        case BUSMSG_DISKSWAP:
+        case SIOMSG_DISKSWAP:
             if (_fujiDev != nullptr)
                 _fujiDev->image_rotate();
             break;
-        case BUSMSG_DEBUG_TAPE:
+        case SIOMSG_DEBUG_TAPE:
             if (_fujiDev != nullptr)
                 _fujiDev->debug_tape();
             break;
@@ -276,7 +275,7 @@ void sioBus::service()
 {
     // Check for any messages in our queue (this should always happen, even if any other special
     // modes disrupt normal SIO handling - should probably make a separate task for this)
-    _bus_process_queue();
+    _sio_process_queue();
 
     if (_midiDev != nullptr && _midiDev->midimazeActive)
     {
@@ -332,7 +331,7 @@ void sioBus::service()
     // Go process a command frame if the SIO CMD line is asserted
     if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
     {
-        _bus_process_cmd();
+        _sio_process_cmd();
     }
     // Go check if the modem needs to read data if it's active
     else if (_modemDev != nullptr && _modemDev->modemActive)
@@ -381,7 +380,7 @@ void sioBus::setup()
     fnSystem.set_pin_mode(PIN_CKO, gpio_mode_t::GPIO_MODE_INPUT);
 
     // Create a message queue
-    qBusMessages = xQueueCreate(4, sizeof(bus_message_t));
+    qSioMessages = xQueueCreate(4, sizeof(sio_message_t));
 
     // Set the initial HSIO index
     // First see if Config has read a value
@@ -426,7 +425,7 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
         _printerdev = (sioPrinter *)pDevice;
     }
 
-    pDevice->_device_id = device_id;
+    pDevice->_devnum = device_id;
 
     _daisyChain.push_front(pDevice);
 }
@@ -454,7 +453,7 @@ void sioBus::changeDeviceId(sioDevice *p, int device_id)
     for (auto devicep : _daisyChain)
     {
         if (devicep == p)
-            devicep->_device_id = device_id;
+            devicep->_devnum = device_id;
     }
 }
 
@@ -462,21 +461,10 @@ sioDevice *sioBus::deviceById(int device_id)
 {
     for (auto devicep : _daisyChain)
     {
-        if (devicep->_device_id == device_id)
+        if (devicep->_devnum == device_id)
             return devicep;
     }
     return nullptr;
-}
-
-// Reset all devices on the bus
-void sioBus::reset()
-{
-    for (auto devicep : _daisyChain)
-    {
-        Debug_printf("Resetting device %02x\n",devicep->device_id());
-        devicep->reset();
-    }
-    Debug_printf("All devices reset.\n");
 }
 
 // Give devices an opportunity to clean up before a reboot
@@ -484,7 +472,7 @@ void sioBus::shutdown()
 {
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n",devicep->device_id());
+        Debug_printf("Shutting down device %02x\n",devicep->id());
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");

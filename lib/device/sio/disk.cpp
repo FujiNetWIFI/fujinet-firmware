@@ -33,7 +33,7 @@
 #define SIO_DISKCMD_PERCOM_WRITE 0x4F
 
 // External ref to fuji object.
-//extern sioFuji theFuji;
+extern sioFuji theFuji;
 
 sioDisk::sioDisk()
 {
@@ -222,7 +222,7 @@ disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disk
     case DISKTYPE_CAS:
     case DISKTYPE_WAV:
         // open the cassette file
-//        theFuji.cassette()->mount_cassette_file(f, disksize);
+        theFuji.cassette()->mount_cassette_file(f, disksize);
         return disk_type;
         // TODO left off here for tape cassette
         break;
