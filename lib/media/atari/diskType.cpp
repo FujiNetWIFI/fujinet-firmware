@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI // temporary
 #include <string.h>
 
 #include "../../include/debug.h"
@@ -182,3 +183,5 @@ DiskType::~DiskType()
 {
     unmount();
 }
+
+#endif /* BUILD_ATARI */
