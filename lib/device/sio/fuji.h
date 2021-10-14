@@ -1,7 +1,3 @@
-<<<<<<< HEAD:lib/fuji/sioFuji.h
-#ifndef SIO_FUJI_H
-#define SIO_FUJI_H
-=======
 #ifndef FUJI_H
 #define FUJI_H
 #include <cstdint>
@@ -20,24 +16,40 @@
 
 #define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
->>>>>>> master:lib/fuji/fuji.h
 
-#ifdef BUILD_ATARI
+#define MAX_APPKEY_LEN 64
 
-#include <cstdint>
+#define READ_DEVICE_SLOTS_DISKS1 0x00
+#define READ_DEVICE_SLOTS_TAPE 0x10
 
-#include "../../include/debug.h"
+typedef struct
+{
+    char ssid[32];
+    char hostname[64];
+    unsigned char localIP[4];
+    unsigned char gateway[4];
+    unsigned char netmask[4];
+    unsigned char dnsIP[4];
+    unsigned char macAddress[6];
+    unsigned char bssid[6];
+    char fn_version[15];
+} AdapterConfig;
 
-#include "../bus/sio/sio.h"
-#include "../bus/sio/disk.h"
-#include "../bus/sio/network.h"
-#include "../bus/sio/cassette.h"
-#include "../bus/sio/modem.h"
-#include "../bus/sio/apetime.h"
-#include "../bus/sio/voice.h"
-#include "../bus/sio/printerlist.h"
-#include "../bus/sio/midimaze.h"
-#include "../bus/sio/siocpm.h"
+enum appkey_mode : uint8_t
+{
+    APPKEYMODE_READ = 0,
+    APPKEYMODE_WRITE,
+    APPKEYMODE_INVALID
+};
+
+struct appkey
+{
+    uint16_t creator = 0;
+    uint8_t app = 0;
+    uint8_t key = 0;
+    appkey_mode mode = APPKEYMODE_INVALID;
+    uint8_t reserved = 0;
+} __attribute__((packed));
 
 class sioFuji : public sioDevice
 {
@@ -134,5 +146,4 @@ public:
 
 extern sioFuji theFuji;
 
-#endif // BUILD_ATARI
 #endif // FUJI_H

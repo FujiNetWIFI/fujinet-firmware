@@ -1,17 +1,16 @@
 #ifdef BUILD_ATARI
 
-#include "fuji.h"
-
+#include <cstdint>
 #include <driver/ledc.h>
 
-#include <cstdint>
-
+#include "fuji.h"
+#include "led.h"
 #include "fnWiFi.h"
 #include "fnSystem.h"
-#include "fnConfig.h"
-#include "fnFsSPIF.h"
-#include "led.h"
-#include "utils.h"
+
+#include "../utils/utils.h"
+#include "../FileSystem/fnFsSPIF.h"
+#include "../config/fnConfig.h"
 
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE
@@ -56,13 +55,6 @@ sioFuji theFuji; // global fuji device object
 //sioDisk sioDiskDevs[MAX_HOSTS];
 sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
-sioApeTime apeTime;
-sioVoice sioV;
-sioMIDIMaze sioMIDI;
-// sioCassette sioC; // now part of sioFuji theFuji object
-sioModem *sioR;
-sioCPM sioZ;
-
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
 
@@ -100,7 +92,51 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
     return false;
 }
 
+/**
+ * Say the numbers 1-8 using phonetic tweaks.
+ * @param n The number to say.
+ */
+void say_number(unsigned char n)
+{
+    switch (n)
+    {
+    case 1:
+        util_sam_say("WAH7NQ", true);
+        break;
+    case 2:
+        util_sam_say("TUW7", true);
+        break;
+    case 3:
+        util_sam_say("THRIYY7Q", true);
+        break;
+    case 4:
+        util_sam_say("FOH7R", true);
+        break;
+    case 5:
+        util_sam_say("F7AYVQ", true);
+        break;
+    case 6:
+        util_sam_say("SIH7IHKSQ", true);
+        break;
+    case 7:
+        util_sam_say("SEHV7EHNQ", true);
+        break;
+    case 8:
+        util_sam_say("AEY74Q", true);
+        break;
+    default:
+        Debug_printf("say_number() - Uncaught number %d", n);
+    }
+}
 
+/**
+ * Say swap label
+ */
+void say_swap_label()
+{
+    // DISK
+    util_sam_say("DIHSK7Q ", true);
+}
 
 // Constructor
 sioFuji::sioFuji()
@@ -764,11 +800,11 @@ void sioFuji::image_rotate()
         count--;
 
         // Save the device ID of the disk in the last slot
-        int last_id = _fnDisks[count].disk_dev.device_id();
+        int last_id = _fnDisks[count].disk_dev.id();
 
         for (int n = count; n > 0; n--)
         {
-            int swap = _fnDisks[n - 1].disk_dev.device_id();
+            int swap = _fnDisks[n - 1].disk_dev.id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
             _sio_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
         }
@@ -781,10 +817,10 @@ void sioFuji::image_rotate()
         {
             for (int i = 0; i <= count; i++)
             {
-                if (_fnDisks[i].disk_dev.device_id() == 0x31)
+                if (_fnDisks[i].disk_dev.id() == 0x31)
                 {
-                    util_sam_say_swap_label();
-                    util_sam_say_number(i + 1); // because i starts from 0
+                    say_swap_label();
+                    say_number(i + 1); // because i starts from 0
                 }
             }
         }
@@ -1433,8 +1469,8 @@ void sioFuji::sio_set_sio_external_clock()
 // Mounts the desired boot disk number
 void sioFuji::insert_boot_device(uint8_t d)
 {
-    const char *config_image = "/autorun.atr";
-    const char *mount_all_image = "/mount-and-boot.atr";
+    const char *config_atr = "/autorun.atr";
+    const char *mount_all_atr = "/mount-and-boot.atr";
     FILE *fBoot;
 
     _bootDisk.unmount();
@@ -1442,12 +1478,12 @@ void sioFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fnSPIFFS.file_open(config_image);
-        _bootDisk.mount(fBoot, config_image, 0);
+        fBoot = fnSPIFFS.file_open(config_atr);
+        _bootDisk.mount(fBoot, config_atr, 0);
         break;
     case 1:
-        fBoot = fnSPIFFS.file_open(mount_all_image);
-        _bootDisk.mount(fBoot, mount_all_image, 0);
+        fBoot = fnSPIFFS.file_open(mount_all_atr);
+        _bootDisk.mount(fBoot, mount_all_atr, 0);
         break;
     }
 
@@ -1481,36 +1517,6 @@ void sioFuji::setup(sioBus *siobus)
     _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
-
-    SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
-
-    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
-
-    SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
-
-    // Create a new printer object, setting its output depending on whether we have SD or not
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-    sioPrinter::printer_type ptype = Config.get_printer_type(0);
-    if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
-        ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
-
-    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
-
-    sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
-    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
-
-    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
-
-    sioR = new sioModem(ptrfs, false); // turned off by default.
-    
-    SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
-
-    SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
-
-    SIO.addDevice(&sioZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
-
-    // Go setup SIO
-    SIO.setup();
 }
 
 sioDisk *sioFuji::bootdisk()
@@ -1678,7 +1684,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
 
 int sioFuji::get_disk_id(int drive_slot)
 {
-    return _fnDisks[drive_slot].disk_dev.device_id();
+    return _fnDisks[drive_slot].disk_dev.id();
 }
 
 std::string sioFuji::get_host_prefix(int host_slot)
@@ -1686,4 +1692,4 @@ std::string sioFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
-#endif // BUILD_ATARI
+#endif /* BUILD_ATARI */

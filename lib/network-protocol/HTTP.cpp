@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI // temporary
 /**
  * HTTP implementation
  */
@@ -681,3 +682,4 @@ bool NetworkProtocolHTTP::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return del(url, cmdFrame);
 }
+#endif /* BUILD_ATARI */

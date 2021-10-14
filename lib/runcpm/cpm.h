@@ -2,7 +2,7 @@
 #define CPM_H
 
 #include "bus.h"
-#include "../device/sio/printer.h"
+#include "sio/printer.h"
 
 /* see main.c for definition */
 

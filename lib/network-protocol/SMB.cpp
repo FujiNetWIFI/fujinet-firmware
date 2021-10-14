@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI // temporary
 /**
  * NetworkProtocolSMB
  * 
@@ -294,3 +295,4 @@ bool NetworkProtocolSMB::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
+#endif /* BUILD_ATARI */

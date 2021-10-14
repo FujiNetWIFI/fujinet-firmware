@@ -1,8 +1,6 @@
 #ifndef MODEM_H
 #define MODEM_H
 
-#ifdef BUILD_ATARI
-
 #include <string>
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
@@ -244,5 +242,4 @@ public:
 
 };
 
-#endif // BUILD_ATARI
-#endif // MODEM_H
+#endif

@@ -196,9 +196,9 @@ void KeyManager::_keystate_task(void *param)
 #endif
             {
                 Debug_println("ACTION: Send image_rotate message to SIO queue");
-                bus_message_t msg;
-                msg.message_id = BUSMSG_DISKSWAP;
-                xQueueSend(SIO.qBusMessages, &msg, 0);
+                sio_message_t msg;
+                msg.message_id = SIOMSG_DISKSWAP;
+                xQueueSend(SIO.qSioMessages, &msg, 0);
             }
             break;
 
@@ -231,9 +231,9 @@ void KeyManager::_keystate_task(void *param)
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_B: SHORT PRESS");
             Debug_println("ACTION: Send debug_tape message to SIO queue");
-            bus_message_t msg;
-            msg.message_id = BUSMSG_DEBUG_TAPE;
-            xQueueSend(SIO.qBusMessages, &msg, 0);
+            sio_message_t msg;
+            msg.message_id = SIOMSG_DEBUG_TAPE;
+            xQueueSend(SIO.qSioMessages, &msg, 0);
             break;
 
         case eKeyStatus::DOUBLE_TAP:

@@ -1,21 +1,20 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-
 #include <esp_system.h>
 #include <esp_err.h>
 #include <esp_timer.h>
-#include <esp_adc_cal.h>
+#include <time.h>
 #include <driver/gpio.h>
 #include <driver/dac.h>
 #include <driver/adc.h>
-#include <soc/sens_reg.h>
-#include <soc/rtc.h>
-#include <time.h>
+#include "soc/sens_reg.h"
+#include "soc/rtc.h"
+#include "esp_adc_cal.h"
 
 #include <cstring>
 
-#include "../../include/version.h"
 #include "../../include/debug.h"
+#include "../../include/version.h"
 
 #include "fnSystem.h"
 #include "fnFsSD.h"

@@ -1,20 +1,30 @@
-#include "httpServiceConfigurator.h"
-
-#include <esp_task.h>
-#include <esp_heap_task_info.h>
-
 #include <sstream>
 #include <string>
 #include <cstdio>
+
 #include <string>
 #include <map>
 
-#include "fnConfig.h"
-#include "../device/sio/printerlist.h"
-#include "utils.h"
-#include "fuji.h"
+#include "esp_task.h"
+#include "esp_heap_task_info.h"
 
-//extern sioFuji theFuji;
+#include "httpServiceConfigurator.h"
+#include "fnConfig.h"
+#include "utils.h"
+
+#ifdef BUILD_ATARI
+#include "sio/printerlist.h"
+#include "sio/fuji.h"
+#define PRINTER_CLASS sioPrinter
+extern sioFuji theFuji;
+#endif /* BUILD_ATARI */
+
+#ifdef BUILD_ADAM
+#include "adamnet/printerlist.h"
+#include "adamnet/fuji.h"
+#define PRINTER_CLASS adamPrinter
+extern adamFuji theFuji;
+#endif /* BUILD_ADAM */
 
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
@@ -115,6 +125,8 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
     return results;
 }
 
+#ifdef BUILD_ATARI
+
 void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
 {
     int index = -1;
@@ -132,6 +144,8 @@ void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
     Config.store_general_hsioindex(index);
     Config.save();
 }
+
+#endif /* BUILD_ATARI */
 
 void fnHttpServiceConfigurator::config_timezone(std::string timezone)
 {
@@ -195,27 +209,28 @@ void fnHttpServiceConfigurator::config_boot_mode(std::string boot_mode)
     Config.save();
 }
 
+#ifdef BUILD_ATARI
 void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::string resistor, bool rew)
 {
-    // // call the cassette buttons function passing play_record.c_str()
-    // // find cassette via thefuji object?
-    // Debug_printf("New play/record button value: %s\n", play_record.c_str());
-    // if (!play_record.empty())
-    // {
-    //     theFuji.cassette()->set_buttons(util_string_value_is_true(play_record));
-    //     Config.store_cassette_buttons(util_string_value_is_true(play_record));
-    // }
-    // if (!resistor.empty())
-    // {
-    //     theFuji.cassette()->set_pulldown(util_string_value_is_true(resistor));
-    //     Config.store_cassette_pulldown(util_string_value_is_true(resistor));
-    // }
-    // else if (rew == true)
-    // {
-    //     Debug_printf("Rewinding cassette.\n");
-    //     SIO.getCassette()->rewind();
-    // }
-    // Config.save();
+    // call the cassette buttons function passing play_record.c_str()
+    // find cassette via thefuji object?
+    Debug_printf("New play/record button value: %s\n", play_record.c_str());
+    if (!play_record.empty())
+    {
+        theFuji.cassette()->set_buttons(util_string_value_is_true(play_record));
+        Config.store_cassette_buttons(util_string_value_is_true(play_record));
+    }
+    if (!resistor.empty())
+    {
+        theFuji.cassette()->set_pulldown(util_string_value_is_true(resistor));
+        Config.store_cassette_pulldown(util_string_value_is_true(resistor));
+    }
+    else if (rew == true)
+    {
+        Debug_printf("Rewinding cassette.\n");
+        SIO.getCassette()->rewind();
+    }
+    Config.save();
 }
 
 void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
@@ -228,6 +243,8 @@ void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
     Config.store_midimaze_host(hostname.c_str());
     Config.save();
 }
+
+#endif /* ATARI */
 
 void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::string printermodel, std::string printerport)
 {
@@ -248,8 +265,8 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
 
     if (printerport.empty())
     {
-        sioPrinter::printer_type t = sioPrinter::match_modelname(printermodel);
-        if (t == sioPrinter::printer_type::PRINTER_INVALID)
+        PRINTER_CLASS::printer_type t = PRINTER_CLASS::match_modelname(printermodel);
+        if (t == PRINTER_CLASS::printer_type::PRINTER_INVALID)
         {
             Debug_printf("Unknown printer type: \"%s\"\n", printermodel.c_str());
             return;
@@ -283,8 +300,10 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
         Config.store_printer_port(pn - 1, port);
         // Store our change in the printer list
         fnPrinters.set_port(0, port);
+#ifdef BUILD_ATARI
         // Tell the SIO daisy chain to change the device ID for this printer
         SIO.changeDeviceId(fnPrinters.get_ptr(0), SIO_DEVICEID_PRINTER + port);
+#endif
     }
     Config.save();
 }

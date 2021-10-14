@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI // temporary
+
 /**
  * Test protocol implementation
  */
@@ -121,3 +123,4 @@ bool NetworkProtocolTest::special_80(uint8_t *sp_buf, unsigned short len, cmdFra
 {
     return false;
 }
+#endif /* BUILD_ATARI */
