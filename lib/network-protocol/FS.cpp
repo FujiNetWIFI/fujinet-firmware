@@ -4,6 +4,8 @@
  * Implementation
  */
 
+#ifdef BUILD_ATARI // Temporary
+
 #include "FS.h"
 #include "status_error_codes.h"
 #include "utils.h"
@@ -423,3 +425,5 @@ bool NetworkProtocolFS::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
+
+#endif /* BUILD_ATARI */

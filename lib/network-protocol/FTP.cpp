@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI // temporary
 /**
  * NetworkProtocolFTP
  * 
@@ -283,3 +284,5 @@ bool NetworkProtocolFTP::stat()
 {
     return false;
 }
+
+#endif /* BUILD_ATARI */
