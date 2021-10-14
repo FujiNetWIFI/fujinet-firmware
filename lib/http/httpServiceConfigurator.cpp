@@ -125,10 +125,10 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
     return results;
 }
 
-#ifdef BUILD_ATARI
 
 void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
 {
+#ifdef BUILD_ATARI
     int index = -1;
     char pc = hsioindex[0];
     if (pc >= '0' && pc <= '9')
@@ -143,9 +143,8 @@ void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
     // Store our change in Config
     Config.store_general_hsioindex(index);
     Config.save();
-}
-
 #endif /* BUILD_ATARI */
+}
 
 void fnHttpServiceConfigurator::config_timezone(std::string timezone)
 {
@@ -209,9 +208,9 @@ void fnHttpServiceConfigurator::config_boot_mode(std::string boot_mode)
     Config.save();
 }
 
-#ifdef BUILD_ATARI
 void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::string resistor, bool rew)
 {
+#ifdef BUILD_ATARI
     // call the cassette buttons function passing play_record.c_str()
     // find cassette via thefuji object?
     Debug_printf("New play/record button value: %s\n", play_record.c_str());
@@ -231,10 +230,12 @@ void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::st
         SIO.getCassette()->rewind();
     }
     Config.save();
+#endif /* ATARI */
 }
 
 void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
 {
+#ifdef BUILD_ATARI
     Debug_printf("Set MIDIMaze host: %s\n", hostname.c_str());
 
     // Update the host ip variable
@@ -242,9 +243,9 @@ void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
     // Save change
     Config.store_midimaze_host(hostname.c_str());
     Config.save();
+#endif /* ATARI */
 }
 
-#endif /* ATARI */
 
 void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::string printermodel, std::string printerport)
 {
