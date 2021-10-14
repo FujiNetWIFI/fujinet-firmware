@@ -97,11 +97,24 @@ protected:
     virtual void adamnet_status();
 
 public:
+
+    /**
+     * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
+     */
+    bool is_config_device = false;
+
+    /**
+     * @brief is device active (turned on?)
+     */
+    bool device_active = true;
+
     /**
      * @brief return the device number (0-15) of this device
      * @return the device # (0-15) of this device
      */
     uint8_t id() { return _devnum; }
+
+    
 };
 
 /**
