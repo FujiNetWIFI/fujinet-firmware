@@ -47,7 +47,6 @@
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h
 
-
 /* Commodore IEC Pins */
 // CLK & DATA lines in/out are split between two pins
 //#define SPLIT_LINES
@@ -66,7 +65,6 @@
 #define IEC_PIN_CLK_OUT		32      // CKO
 #define IEC_PIN_DATA_OUT	33      // DO
 #endif
-
 
 /* Dummy pins for AdamNet */
 #define PIN_RX_DUMMY 0 

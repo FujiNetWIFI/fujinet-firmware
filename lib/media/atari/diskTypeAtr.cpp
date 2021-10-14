@@ -5,8 +5,8 @@
 
 #include "../../../include/debug.h"
 
-#include "utils.h"
-#include "../../bus/sio/disk.h"
+#include "fnSystem.h"
+#include "../device/sio/disk.h"
 
 
 #define ATR_MAGIC_HEADER 0x0296 // Sum of 'NICKATARI'

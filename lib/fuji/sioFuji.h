@@ -1,5 +1,26 @@
+<<<<<<< HEAD:lib/fuji/sioFuji.h
 #ifndef SIO_FUJI_H
 #define SIO_FUJI_H
+=======
+#ifndef FUJI_H
+#define FUJI_H
+#include <cstdint>
+
+#include "../../include/debug.h"
+#include "bus.h"
+#include "sio/network.h"
+#include "sio/cassette.h"
+
+#include "fujiHost.h"
+#include "fujiDisk.h"
+
+#define MAX_HOSTS 8
+#define MAX_DISK_DEVICES 8
+#define MAX_NETWORK_DEVICES 8
+
+#define MAX_SSID_LEN 32
+#define MAX_WIFI_PASS_LEN 64
+>>>>>>> master:lib/fuji/fuji.h
 
 #ifdef BUILD_ATARI
 

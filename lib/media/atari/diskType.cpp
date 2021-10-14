@@ -3,9 +3,7 @@
 #include <string.h>
 
 #include "../../../include/debug.h"
-
-//#include "fnSystem.h"
-#include "utils.h"
+#include "../../utils/utils.h"
 
 #define DENSITY_FM 0
 #define DENSITY_MFM 4
@@ -17,7 +15,10 @@
 // SectorNum is 1-based
 uint16_t DiskType::sector_size(uint16_t sectornum)
 {
-    return sectornum <= 3 ? 128 : _disk_sector_size;
+    if (_disk_sector_size == 512)
+        return 512;
+    else
+        return sectornum <= 3 ? 128 : _disk_sector_size;
 }
 
 // Default WRITE is not implemented
@@ -141,23 +142,36 @@ void DiskType::unmount()
 disktype_t DiskType::discover_disktype(const char *filename)
 {
     int l = strlen(filename);
-    if(l > 4 && filename[l - 4] == '.')
+    if (l > 4 && filename[l - 4] == '.')
     {
         // Check the last 3 characters of the string
         const char *ext = filename + l - 3;
-        if(strcasecmp(ext, "XEX") == 0) {
+        if (strcasecmp(ext, "XEX") == 0)
+        {
             return DISKTYPE_XEX;
-        } else if(strcasecmp(ext, "COM") == 0) {
+        }
+        else if (strcasecmp(ext, "COM") == 0)
+        {
             return DISKTYPE_XEX;
-        } else if(strcasecmp(ext, "BIN") == 0) {
+        }
+        else if (strcasecmp(ext, "BIN") == 0)
+        {
             return DISKTYPE_XEX;
-        } else if(strcasecmp(ext, "ATR") == 0) {
+        }
+        else if (strcasecmp(ext, "ATR") == 0)
+        {
             return DISKTYPE_ATR;
-        } else if(strcasecmp(ext, "ATX") == 0) {
+        }
+        else if (strcasecmp(ext, "ATX") == 0)
+        {
             return DISKTYPE_ATX;
-        } else if(strcasecmp(ext, "CAS") == 0) {
+        }
+        else if (strcasecmp(ext, "CAS") == 0)
+        {
             return DISKTYPE_CAS;
-        } else if(strcasecmp(ext, "WAV") == 0) {
+        }
+        else if (strcasecmp(ext, "WAV") == 0)
+        {
             return DISKTYPE_WAV;
         }
     }

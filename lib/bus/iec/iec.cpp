@@ -142,7 +142,7 @@ void iecDevice::sendSystemInfo()
 	IEC.send(0);
 	IEC.sendEOI(0);
 
-	fnLedManager.set(LED_BUS);
+	fnLedManager.set(PIN_LED_BUS);
 } // sendSystemInfo
 
 void iecDevice::sendDeviceStatus()
@@ -167,7 +167,7 @@ void iecDevice::sendDeviceStatus()
 	IEC.send(0);
 	IEC.sendEOI(0);
 
-	fnLedManager.set(LED_BUS);
+	fnLedManager.set(PIN_LED_BUS);
 } // sendDeviceStatus
 
 

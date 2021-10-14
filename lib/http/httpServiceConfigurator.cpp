@@ -10,7 +10,7 @@
 #include <map>
 
 #include "fnConfig.h"
-#include "../bus/sio/printerlist.h"
+#include "../device/sio/printerlist.h"
 #include "utils.h"
 #include "fuji.h"
 

@@ -7,13 +7,12 @@
 
 #include "../../include/debug.h"
 
-#include "fnConfig.h"
-#include "fnSystem.h"
-#include "fnWiFi.h"
+#include "../hardware/fnSystem.h"
+#include "../hardware/fnWiFi.h"
 #include "fnFsSPIF.h"
 #include "fnFsSD.h"
 #include "httpService.h"
-#include "../bus/sio/printerlist.h"
+#include "../device/sio/printerlist.h"
 #include "fuji.h"
 
 //extern sioFuji theFuji;

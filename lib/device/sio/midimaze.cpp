@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 #include "../../include/debug.h"
 #include "fnSystem.h"
 #include "utils.h"
@@ -114,3 +116,5 @@ void sioMIDIMaze::sio_process(uint32_t commanddata, uint8_t checksum)
     // Nothing to do here
     return;
 }
+
+#endif /* BUILD_ATARI */

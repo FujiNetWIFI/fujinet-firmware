@@ -2,10 +2,9 @@
 #define NETWORKPROTOCOL_H
 
 #include <vector>
-
 #include "bus.h"
 #include "EdUrlParser.h"
-#include "../bus/sio/networkStatus.h"
+#include "../device/sio/networkStatus.h"
 
 class NetworkProtocol
 {
