@@ -26,6 +26,8 @@
 #define NM_SEND 0x0B   // response.data (send)
 #define NM_NACK 0x0C   // response.control (nack)
 
+#define ADAMNET_DEVICEID_DISK 0x04
+
 class adamNetBus;
 
 /**
