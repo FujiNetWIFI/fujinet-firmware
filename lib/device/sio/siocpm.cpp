@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 #define CCP_INTERNAL
 
 #include "siocpm.h"
@@ -87,3 +89,5 @@ void sioCPM::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     }
 }
+
+#endif /* BUILD_ATARI */

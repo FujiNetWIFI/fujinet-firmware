@@ -1,7 +1,8 @@
 #include "bus.h"
-
-#include "../../include/debug.h"
-
+#include "sio/modem.h"
+#include "fuji.h"
+#include "led.h"
+#include "sio/network.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnDNS.h"
@@ -9,14 +10,11 @@
 #include "fuji.h"
 #include "led.h"
 #include "utils.h"
-
-#include "modem.h"
-#include "network.h"
-#include "midimaze.h"
-#include "cassette.h"
-#include "siocpm.h"
-#include "printer.h"
-
+#include "sio/midimaze.h"
+#include "sio/cassette.h"
+#include "sio/siocpm.h"
+#include "sio/printer.h"
+#include "../../include/debug.h"
 
 // Helper functions outside the class defintions
 

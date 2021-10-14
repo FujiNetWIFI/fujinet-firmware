@@ -8,7 +8,7 @@
 #include "fnTcpClient.h"
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
-#include "sio.h"
+#include "bus.h"
 #include "../modem-sniffer/modem-sniffer.h"
 #include "libtelnet.h"
 #include "esp32sshclient.h"

@@ -2,7 +2,7 @@
 #define _ATARI822_H
 
 #include "pdf_printer.h"
-#include "../bus/sio/printer.h"
+#include "../device/sio/printer.h"
 
 class atari822 : public pdfPrinter
 {

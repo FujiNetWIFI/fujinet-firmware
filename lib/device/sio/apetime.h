@@ -1,7 +1,7 @@
 #ifndef APETIME_H
 #define APETIME_H
 
-#include "sio.h"
+#include "bus.h"
 
 class sioApeTime : public sioDevice
 {

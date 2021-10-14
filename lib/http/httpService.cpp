@@ -13,16 +13,25 @@
 
 #include "../../include/debug.h"
 
+#include "httpService.h"
+#include "httpServiceParser.h"
+#include "httpServiceConfigurator.h"
+#include "sio/printerlist.h"
 #include "fnWiFi.h"
 #include "fnConfig.h"
 #include "keys.h"
 #include "httpServiceParser.h"
 #include "httpServiceConfigurator.h"
-#include "../bus/sio/printerlist.h"
+#include "../device/sio/printerlist.h"
 #include "modem-sniffer.h"
-#include "../bus/sio/modem.h"
+#include "../device/sio/modem.h"
 #include "fuji.h"
 
+#include "modem-sniffer.h"
+#include "../device/modem.h"
+#include "fuji.h"
+
+#include "../../include/debug.h"
 
 using namespace std;
 

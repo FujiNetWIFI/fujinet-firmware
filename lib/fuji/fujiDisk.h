@@ -3,6 +3,7 @@
 
 #include <string>
 
+#include "../device/sio/disk.h"
 #include "fujiHost.h"
 #include "media.h"
 

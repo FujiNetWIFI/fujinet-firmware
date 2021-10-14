@@ -15,6 +15,7 @@ platformio-device-monitor-*.log
 
 # ESP-IDF SDK configuration file
 sdkconfig
+sdkconfig.fujinet-v1
 
 include/ssid.h
 /*.log

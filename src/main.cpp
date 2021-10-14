@@ -32,9 +32,9 @@ void main_shutdown_handler()
     Debug_println("Shutdown handler called");
     // Give devices an opportunity to clean up before rebooting
 #if defined( BUILD_ATARI )
-    SIO.shutdown();
+    // SIO.shutdown();
 #elif defined( BUILD_CBM )
-    IEC.shutdown();
+    // IEC.shutdown();
 #endif
 }
 
@@ -98,7 +98,6 @@ void main_setup()
     }
 
 #if defined( BUILD_ATARI )
-    // Setup SIO Bus
     theFuji.setup(&SIO);
 #elif defined( BUILD_CBM )
     // Setup IEC Bus
@@ -126,14 +125,13 @@ void fn_service_loop(void *param)
         }
         else
     #endif
-        {
-        // THIS IS WHERE WE CAN SELECT THE HOST MACHINE
-        #if defined( BUILD_ATARI )
-            SIO.service();
-        #elif defined( BUILD_CBM )
-            IEC.service();
-        #endif
-        }
+
+    #if defined( BUILD_ATARI )
+        SIO.service();
+    #elif defined( BUILD_CBM )
+        IEC.service();
+    #endif
+
     }
 }
 

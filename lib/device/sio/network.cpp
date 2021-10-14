@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 /**
  * N: Firmware
 */
@@ -92,6 +94,7 @@ void sioNetwork::sio_open()
     {
         protocol->close();
         delete protocol;
+        protocol = nullptr;
     }
 
     // Reset status buffer
@@ -1033,3 +1036,5 @@ void sioNetwork::sio_do_idempotent_command_80()
         sio_complete();
 
 }
+
+#endif /* BUILD_ATARI */

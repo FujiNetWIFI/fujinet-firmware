@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 #include <memory.h>
 #include <string.h>
 
@@ -5,7 +7,11 @@
 #include "../../include/debug.h"
 #include "../utils/utils.h"
 
-#include "disk.h"
+#include "../device/sio/disk.h"
+#include "media.h"
+// #include "diskTypeAtr.h"
+// #include "diskTypeAtx.h"
+// #include "diskTypeXex.h"
 #include "fuji.h"
 
 #define SIO_DISKCMD_FORMAT 0x21
@@ -378,3 +384,5 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
 
     sio_nak();
 }
+
+#endif /* BUILD_ATARI */

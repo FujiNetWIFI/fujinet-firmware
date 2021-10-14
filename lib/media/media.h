@@ -7,7 +7,9 @@
 #   include "atari/diskTypeAtx.h"
 #   include "atari/diskTypeXex.h"
 #elif defined( BUILD_CBM )
-#   include "cbm/diskType.h"
+#   include "cbm/mediaType.h"
+#elif defined( BUILD_ADAM )
+#   include "adam/mediaType.h"
 #endif
 
 #endif // MEDIA_H

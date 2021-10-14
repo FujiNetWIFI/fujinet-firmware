@@ -3,11 +3,10 @@
 
 #include <string>
 #include <vector>
-
-#include "sio.h"
+#include "bus.h"
 #include "EdUrlParser.h"
-#include "Protocol.h"
-#include "networkStatus.h"
+#include "../../network-protocol/Protocol.h"
+#include "sio/networkStatus.h"
 #include "driver/timer.h"
 #include "status_error_codes.h"
 

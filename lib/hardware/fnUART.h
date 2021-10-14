@@ -60,7 +60,6 @@ public:
 
 extern UARTManager fnUartDebug;
 extern UARTManager fnUartSIO;
-extern UARTManager fnUartAdamNetTX;
-extern UARTManager fnUartAdamNetRX;
+extern UARTManager fnUartAdamNet;
 
 #endif //FNUART_H
