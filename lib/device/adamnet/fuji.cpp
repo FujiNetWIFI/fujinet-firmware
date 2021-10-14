@@ -517,8 +517,8 @@ void adamFuji::adamnet_get_device_filename()
 // Mounts the desired boot disk number
 void adamFuji::insert_boot_device(uint8_t d)
 {
-    const char *config_atr = "/autorun.atr";
-    const char *mount_all_atr = "/mount-and-boot.atr";
+    const char *config_atr = "/autorun.ddp";
+    const char *mount_all_atr = "/mount-and-boot.ddp";
     FILE *fBoot;
 
     _bootDisk.unmount();
