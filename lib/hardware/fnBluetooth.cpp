@@ -2,10 +2,8 @@
 
 #include "../../include/debug.h"
 #include "bus.h"
-#include "../device/sio/disk.h"
 #include "fnConfig.h"
-#include "../bus/sio/sio.h"
-#include "../bus/sio/disk.h"
+#include "../device/sio/disk.h"
 
 #include "fnBluetoothSPP.h"
 

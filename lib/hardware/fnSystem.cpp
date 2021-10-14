@@ -21,11 +21,7 @@
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
 #include "fnWiFi.h"
-<<<<<<< HEAD
-#include "../bus/sio/sio.h"
-=======
 #include "bus.h"
->>>>>>> master
 
 static xQueueHandle card_detect_evt_queue = NULL;
 static uint32_t card_detect_status = 1; // 1 is no sd card
