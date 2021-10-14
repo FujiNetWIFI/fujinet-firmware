@@ -20,6 +20,12 @@
 #include "samlib.h"
 #endif /* BUILD_ATARI */
 
+#ifdef BUILD_ADAM
+#include "adamnet/fuji.h"
+#include "adamnet/modem.h"
+#include "adamnet/printerlist.h"
+#endif
+
 #include "httpService.h"
 
 #include <esp_system.h>
@@ -48,6 +54,10 @@ sioMIDIMaze sioMIDI;
 sioModem *sioR;
 sioCPM sioZ;
 #endif /* BUILD_ATARI */
+
+#ifdef BUILD_ADAM
+adamModem *sioR;
+#endif /* BUILD_ADAM */
 
 void main_shutdown_handler()
 {
