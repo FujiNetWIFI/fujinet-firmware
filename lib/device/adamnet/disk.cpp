@@ -14,6 +14,13 @@ adamDisk::adamDisk()
 
 }
 
+// Destructor
+adamDisk::~adamDisk()
+{
+    if (_disk != nullptr)
+        delete _disk;
+}
+
 mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     return MEDIATYPE_UNKNOWN;
