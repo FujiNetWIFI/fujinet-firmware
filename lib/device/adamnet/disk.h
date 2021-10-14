@@ -23,6 +23,8 @@ public:
 
     mediatype_t mediatype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
+    bool device_active = false;
+
     ~adamDisk();
 };
 
