@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI // temporary
 #include <memory.h>
 #include <string.h>
 
@@ -317,3 +318,4 @@ bool DiskTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 
     return true;
 }
+#endif /* BUILD_ATARI */

@@ -1,3 +1,4 @@
+#ifdef BLUETOOTH_SUPPORT
 
 #include "../../include/debug.h"
 #include "bus.h"
@@ -5,8 +6,6 @@
 #include "fnConfig.h"
 #include "fnBluetooth.h"
 #include "fnBluetoothSPP.h"
-
-#ifdef BLUETOOTH_SUPPORT
 
 fnBluetoothSPP btSpp;
 
