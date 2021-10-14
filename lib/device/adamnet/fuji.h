@@ -112,7 +112,7 @@ protected:
 
 public:
     bool boot_config = true;
-
+    
     bool status_wait_enabled = true;
     
     adamDisk *bootdisk();
