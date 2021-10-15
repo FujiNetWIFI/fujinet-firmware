@@ -152,6 +152,9 @@ void adamNetBus::shutdown()
 
 void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
 {
+    Debug_printf("Adding device: %02X\n",device_id);
+    pDevice->_devnum=device_id;
+    _daisyChain.push_front(pDevice);
 }
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)
