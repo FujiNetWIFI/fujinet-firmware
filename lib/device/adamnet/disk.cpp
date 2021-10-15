@@ -47,6 +47,9 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
     case MEDIATYPE_ROM:
         device_active = true;
         break;
+    default:
+        device_active = false;
+        break;
     }
 
     return MEDIATYPE_UNKNOWN;
