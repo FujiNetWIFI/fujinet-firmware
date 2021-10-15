@@ -3,6 +3,35 @@
 #include <cstring>
 #include "mediaType.h"
 
+MediaType::~MediaType()
+{
+    unmount();
+}
+
+bool MediaType::format(uint16_t *respopnsesize)
+{
+    return true;
+}
+
+bool MediaType::read(uint16_t blockNum, uint16_t *readcount)
+{
+    return true;
+}
+
+bool MediaType::write(uint16_t blockNum, bool verify)
+{
+    return true;
+}
+
+void MediaType::unmount()
+{
+    if (_media_fileh != nullptr)
+    {
+        fclose(_media_fileh);
+        _media_fileh = nullptr;
+    }
+}
+
 mediatype_t MediaType::discover_mediatype(const char *filename)
 {
     int l = strlen(filename);
