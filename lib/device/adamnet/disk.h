@@ -9,10 +9,19 @@ class adamDisk : public adamNetDevice
 private:
     MediaType *_disk = nullptr;
 
-    void adamnet_read();
-    void adamnet_write();
-    void adamnet_format();
-    void adamnet_status() override;
+    void adamnet_control_status() override;
+    void adamnet_control_ack();
+    void adamnet_control_clr();
+    void adamnet_control_receive();
+    void adamnet_control_send();
+    void adamnet_control_nack();
+    void adamnet_response_status();
+    void adamnet_response_ack();
+    void adamnet_response_cancel();
+    void adamnet_response_send();
+    void adamnet_response_nack();
+    void adamnet_control_ready();
+
     void adamnet_process(uint8_t b) override;
 
 public:
