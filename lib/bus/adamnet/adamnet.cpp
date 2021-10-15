@@ -93,8 +93,10 @@ void adamNetBus::_adamnet_process_cmd()
         fnSystem.yield();
     
     b = fnUartAdamNet.read();
-    
+
     uint8_t d = b & 0x0F;
+
+    Debug_printf("%02X ",b);
 
     // turn on AdamNet Indicator LED
     fnLedManager.set(eLed::LED_BUS, true);

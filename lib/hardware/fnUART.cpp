@@ -87,7 +87,7 @@ void UARTManager::begin(int baud)
     }
 
     uart_set_pin(_uart_num, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    if (_uart_num == 4)
+    if (_uart_num == 3)
         uart_set_line_inverse(_uart_num,UART_SIGNAL_TXD_INV);
 
     // Arduino default buffer size is 256
