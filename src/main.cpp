@@ -163,6 +163,7 @@ void main_setup()
 #elif defined( BUILD_ADAM )
 
     theFuji.setup(&AdamNet);
+    AdamNet.setup();
 
 #elif defined( BUILD_CBM )
 
