@@ -40,6 +40,8 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
     {
     case MEDIATYPE_DDP:
         device_active = true;
+        _disk = new MediaTypeDDP();
+        return _disk->mount(f, disksize);
         break;
     case MEDIATYPE_DSK:
         device_active = true;
@@ -57,6 +59,13 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
 
 void adamDisk::unmount()
 {
+    Debug_print("disk UNMOUNT\n");
+
+    if (_disk != nullptr)
+    {
+        _disk->unmount();
+        device_active = false;
+    }
 }
 
 void adamDisk::adamnet_control_status()
