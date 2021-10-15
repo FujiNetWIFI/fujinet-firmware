@@ -10,6 +10,7 @@
 #   include "cbm/mediaType.h"
 #elif defined( BUILD_ADAM )
 #   include "adam/mediaType.h"
+#   include "adam/mediaTypeDDP.h"
 #endif
 
 #endif // MEDIA_H
