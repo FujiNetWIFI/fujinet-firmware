@@ -6,7 +6,7 @@
 
 #define INVALID_SECTOR_VALUE 65536
 
-#define DISK_SECTORBUF_SIZE 512
+#define MEDIA_BLOCK_SIZE 1024
 
 #define DISK_BYTES_PER_SECTOR_SINGLE 128
 #define DISK_BYTES_PER_SECTOR_DOUBLE 256
@@ -28,9 +28,9 @@ class MediaType
 protected:
     FILE *_media_fileh = nullptr;
     uint32_t _media_image_size = 0;
-    uint32_t _media_num_sectors = 0;
+    uint32_t _media_num_blocks = 0;
     uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
-    int32_t _media_last_sector = INVALID_SECTOR_VALUE;
+    int32_t _media_last_block = INVALID_SECTOR_VALUE;
     uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 
 public:
@@ -50,7 +50,7 @@ public:
         uint8_t reserved3;
     } _percomBlock;
 
-    uint8_t _media_sectorbuff[DISK_SECTORBUF_SIZE];
+    uint8_t _media_blockbuff[MEDIA_BLOCK_SIZE];
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
