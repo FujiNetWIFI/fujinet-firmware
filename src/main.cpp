@@ -195,6 +195,8 @@ void fn_service_loop(void *param)
 
     #if defined( BUILD_ATARI )
         SIO.service();
+    #elif defined ( BUILD_ADAM )
+        AdamNet.service();
     #elif defined( BUILD_CBM )
         IEC.service();
     #endif
