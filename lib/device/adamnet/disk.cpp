@@ -12,6 +12,7 @@
 adamDisk::adamDisk()
 {
     device_active = false;
+    blockNum=0;
 }
 
 // Destructor
@@ -70,6 +71,14 @@ void adamDisk::unmount()
 
 void adamDisk::adamnet_control_status()
 {
+    // Temporary, respond 5x5 for now
+    ets_delay_us(150);
+    adamnet_send(0x84);
+    adamnet_send(0x00);
+    adamnet_send(0x04);
+    adamnet_send(0x01);
+    adamnet_send(0x40);
+    adamnet_send(0x45);
 }
 
 void adamDisk::adamnet_control_ack()
@@ -78,22 +87,43 @@ void adamDisk::adamnet_control_ack()
 
 void adamDisk::adamnet_control_clr()
 {
+    uint8_t c = adamnet_checksum(_media->_media_blockbuff,1024);
+
+    ets_delay_us(150); 
+    adamnet_send(0xB4); // response.data.receive
+    adamnet_send(0x04); // 1024 bytes hi byte
+    adamnet_send(0x00); //            lo byte
+    adamnet_send_buffer(_media->_media_blockbuff,1024);
+    adamnet_send(c);    // checksum
 }
 
 void adamDisk::adamnet_control_receive()
 {
+    uint16_t readCount = 0;
+    _media->read(blockNum,&readCount);
 }
 
 void adamDisk::adamnet_control_send()
 {
+    uint16_t s = adamnet_recv_length();
+    uint8_t x[8];
+
+    for (uint16_t i = 0; i < s; i++)
+        x[i] = adamnet_recv();
+
+    blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
+
+    ets_delay_us(150);
+    adamnet_send(0x94);
 }
 
 void adamDisk::adamnet_control_nack()
 {
+
 }
 
 void adamDisk::adamnet_response_status()
-{
+{  
 }
 
 void adamDisk::adamnet_response_ack()
@@ -114,6 +144,8 @@ void adamDisk::adamnet_response_nack()
 
 void adamDisk::adamnet_control_ready()
 {
+    ets_delay_us(200);
+    adamnet_send(0x94);
 }
 
 void adamDisk::adamnet_process(uint8_t b)
