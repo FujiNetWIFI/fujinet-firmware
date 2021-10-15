@@ -78,10 +78,12 @@ void main_setup()
     unsigned long startms = fnSystem.millis();
     Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
+#ifdef ATARI
     Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
     Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
     Debug_printf("himem free %u\n", esp_himem_get_free_size());
     Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
+#endif /* ATARI */
 #endif
     // Install a reboot handler
     esp_register_shutdown_handler(main_shutdown_handler);
