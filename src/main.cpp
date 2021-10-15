@@ -158,6 +158,10 @@ void main_setup()
     // Go setup SIO
     SIO.setup();
 
+#elif defined( BUILD_ADAM )
+
+    theFuji.setup(&AdamNet);
+
 #elif defined( BUILD_CBM )
 
     // Setup IEC Bus
