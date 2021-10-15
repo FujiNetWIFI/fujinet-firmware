@@ -23,6 +23,19 @@ adamDisk::~adamDisk()
 
 mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
+    Debug_print("disk MOUNT\n");
+
+    // Destroy any existing DiskType
+    if (_disk != nullptr)
+    {
+        delete _disk;
+        _disk = nullptr;
+    }
+
+    // Determine DiskType based on filename extension
+    if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
+        disk_type = MediaType::discover_mediatype(filename);
+
     return MEDIATYPE_UNKNOWN;
 }
 
