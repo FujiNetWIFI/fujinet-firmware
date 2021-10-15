@@ -28,7 +28,7 @@ class adamNetwork : public adamNetDevice
     /**
      * return adamnet status
      */
-    virtual void adamnet_status();
+    virtual void adamnet_control_status();
             
 };
 

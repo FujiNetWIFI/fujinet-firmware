@@ -105,7 +105,7 @@ protected:
     void adamnet_copy_file();              // 0xD8
     void adamnet_set_boot_mode();          // 0xD6
 
-    void adamnet_status() override;
+    void adamnet_control_status() override;
     void adamnet_process(uint8_t b) override;
 
     void shutdown() override;
