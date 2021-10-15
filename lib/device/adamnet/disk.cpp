@@ -36,6 +36,19 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(filename);
 
+    switch (disk_type)
+    {
+    case MEDIATYPE_DDP:
+        device_active = true;
+        break;
+    case MEDIATYPE_DSK:
+        device_active = true;
+        break;
+    case MEDIATYPE_ROM:
+        device_active = true;
+        break;
+    }
+
     return MEDIATYPE_UNKNOWN;
 }
 
