@@ -68,6 +68,12 @@ protected:
     uint8_t adamnet_recv();
 
     /**
+     * @brief convenience function to recieve length
+     * @return short containing length.
+     */
+    uint16_t adamnet_recv_length();
+
+    /**
      * @brief Receive desired # of bytes into buffer from AdamNet
      * @param buf Buffer in which to receive
      * @param len length of buffer
