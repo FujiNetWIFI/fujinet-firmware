@@ -11,7 +11,7 @@
 
 adamDisk::adamDisk()
 {
-
+    device_active = false;
 }
 
 // Destructor
@@ -28,38 +28,99 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
 
 void adamDisk::unmount()
 {
-
 }
 
-bool adamDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
+void adamDisk::adamnet_control_status()
 {
-    return false;
 }
 
-
-void adamDisk::adamnet_read()
+void adamDisk::adamnet_control_ack()
 {
-
 }
 
-void adamDisk::adamnet_write()
+void adamDisk::adamnet_control_clr()
 {
-
 }
 
-void adamDisk::adamnet_format()
+void adamDisk::adamnet_control_receive()
 {
-
 }
 
-void adamDisk::adamnet_status()
+void adamDisk::adamnet_control_send()
 {
+}
 
+void adamDisk::adamnet_control_nack()
+{
+}
+
+void adamDisk::adamnet_response_status()
+{
+}
+
+void adamDisk::adamnet_response_ack()
+{
+}
+
+void adamDisk::adamnet_response_cancel()
+{
+}
+
+void adamDisk::adamnet_response_send()
+{
+}
+
+void adamDisk::adamnet_response_nack()
+{
+}
+
+void adamDisk::adamnet_control_ready()
+{
 }
 
 void adamDisk::adamnet_process(uint8_t b)
 {
+    unsigned char c = b >> 4;
 
+    switch (c)
+    {
+    case MN_STATUS:
+        adamnet_control_status();
+        break;
+    case MN_ACK:
+        adamnet_control_ack();
+        break;
+    case MN_CLR:
+        adamnet_control_clr();
+        break;
+    case MN_RECEIVE:
+        adamnet_control_receive();
+        break;
+    case MN_SEND:
+        adamnet_control_send();
+        break;
+    case MN_NACK:
+        adamnet_control_nack();
+        break;
+    case NM_STATUS:
+        adamnet_response_status();
+        break;
+    case NM_ACK:
+        adamnet_response_ack();
+        break;
+    case NM_CANCEL:
+        adamnet_response_cancel();
+        break;
+    case NM_SEND:
+        adamnet_response_send();
+        break;
+    case NM_NACK:
+        adamnet_response_nack();
+        break;
+    case MN_READY:
+        adamnet_control_ready();
+        break;
+    }
 }
 
 #endif /* BUILD_ADAM */
