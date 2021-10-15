@@ -147,7 +147,7 @@ adamFuji::adamFuji()
 }
 
 // Status
-void adamFuji::adamnet_status()
+void adamFuji::adamnet_control_status()
 {
 
 }

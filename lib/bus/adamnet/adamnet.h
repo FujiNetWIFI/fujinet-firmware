@@ -96,7 +96,7 @@ protected:
     /**
      * @brief send current status of device
      */
-    virtual void adamnet_status();
+    virtual void adamnet_control_status();
 
 public:
 

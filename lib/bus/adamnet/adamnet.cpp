@@ -68,7 +68,7 @@ void adamNetDevice::adamnet_process(uint8_t b)
     adamnet_wait_for_idle();
 }
 
-void adamNetDevice::adamnet_status()
+void adamNetDevice::adamnet_control_status()
 {
     fnUartDebug.printf("adamnet_status() not implemented yet for this device.\n");
 }

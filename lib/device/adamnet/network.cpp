@@ -12,7 +12,7 @@ adamNetwork::~adamNetwork()
 
 }
 
-void adamNetwork::adamnet_status()
+void adamNetwork::adamnet_control_status()
 {
 
 }
