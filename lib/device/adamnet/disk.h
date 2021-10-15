@@ -8,6 +8,7 @@ class adamDisk : public adamNetDevice
 {
 private:
     MediaType *_media = nullptr;
+    unsigned long blockNum;
 
     void adamnet_control_status() override;
     void adamnet_control_ack();
