@@ -29,9 +29,21 @@ void adamNetDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
         adamnet_send(buf[i]);
 }
 
-uint8_t adamnet_recv()
+uint8_t adamNetDevice::adamnet_recv()
 {
+    while (!fnUartAdamNet.available())
+        fnSystem.yield();
+
     return fnUartAdamNet.read();
+}
+
+uint16_t adamNetDevice::adamnet_recv_length()
+{
+    unsigned short s = 0;
+    s = adamnet_recv() << 8;
+    s |=  adamnet_recv();
+
+    return s;
 }
 
 unsigned short adamNetDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short len)
@@ -75,7 +87,13 @@ void adamNetDevice::adamnet_control_status()
 
 void adamNetBus::_adamnet_process_cmd()
 {
-    uint8_t b = adamnet_recv();
+    uint8_t b;
+
+    while (!fnUartAdamNet.available())
+        fnSystem.yield();
+    
+    b = fnUartAdamNet.read();
+    
     uint8_t d = b & 0x0F;
 
     // turn on AdamNet Indicator LED
@@ -89,6 +107,8 @@ void adamNetBus::_adamnet_process_cmd()
             _activeDev = devicep;
             _activeDev->adamnet_process(b);
         }
+        else
+            _activeDev->adamnet_wait_for_idle();
     }
 
     // turn off AdamNet Indicator LED
