@@ -7,7 +7,7 @@
 class adamDisk : public adamNetDevice
 {
 private:
-    MediaType *_disk = nullptr;
+    MediaType *_media = nullptr;
 
     void adamnet_control_status() override;
     void adamnet_control_ack();
@@ -30,7 +30,7 @@ public:
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 
-    mediatype_t mediatype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
+    mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
 
     bool device_active = false;
 

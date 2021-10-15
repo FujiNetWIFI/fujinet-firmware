@@ -17,8 +17,8 @@ adamDisk::adamDisk()
 // Destructor
 adamDisk::~adamDisk()
 {
-    if (_disk != nullptr)
-        delete _disk;
+    if (_media != nullptr)
+        delete _media;
 }
 
 mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
@@ -26,10 +26,10 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
     Debug_print("disk MOUNT\n");
 
     // Destroy any existing DiskType
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        delete _disk;
-        _disk = nullptr;
+        delete _media;
+        _media = nullptr;
     }
 
     // Determine DiskType based on filename extension
@@ -40,8 +40,8 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
     {
     case MEDIATYPE_DDP:
         device_active = true;
-        _disk = new MediaTypeDDP();
-        return _disk->mount(f, disksize);
+        _media = new MediaTypeDDP();
+        return _media->mount(f, disksize);
         break;
     case MEDIATYPE_DSK:
         device_active = true;
@@ -61,9 +61,9 @@ void adamDisk::unmount()
 {
     Debug_print("disk UNMOUNT\n");
 
-    if (_disk != nullptr)
+    if (_media != nullptr)
     {
-        _disk->unmount();
+        _media->unmount();
         device_active = false;
     }
 }
