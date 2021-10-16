@@ -15,10 +15,12 @@
 #define PIN_UART0_TX 1
 #define PIN_UART1_RX 9
 #define PIN_UART1_TX 10
+#ifdef BUILD_ADAM
+#define PIN_UART2_RX 22
+#else
 #define PIN_UART2_RX 33
+#endif /* BUILD_ADAM */
 #define PIN_UART2_TX 21
-#define PIN_ADAMNET_RX 22
-#define PIN_ADAMNET_TX 21
 
 /* Buttons */
 #define PIN_BUTTON_A 0 // keys.cpp

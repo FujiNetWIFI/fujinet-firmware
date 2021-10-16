@@ -18,8 +18,11 @@
 #define MAX_WRITE_BUFFER_TICKS 1000
 
 UARTManager fnUartDebug(UART_DEBUG);
-UARTManager fnUartSIO(UART_SIO);
+#ifdef BUILD_ADAM
 UARTManager fnUartAdamNet(UART_ADAMNET);
+#else
+UARTManager fnUartSIO(UART_SIO);
+#endif
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}
@@ -77,19 +80,17 @@ void UARTManager::begin(int baud)
     {
         rx = PIN_UART2_RX;
         tx = PIN_UART2_TX;
-    } 
-    else if (_uart_num == 3) // AdamNet RX
-    {
-        rx = PIN_ADAMNET_RX;
-        tx = PIN_ADAMNET_TX;
     } else {
         return;
     }
 
     uart_set_pin(_uart_num, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    if (_uart_num == 3)
-        uart_set_line_inverse(_uart_num,UART_SIGNAL_TXD_INV);
 
+    #ifdef BUILD_ADAM
+    if (_uart_num == 2)
+        uart_set_line_inverse(_uart_num,UART_SIGNAL_TXD_INV|UART_SIGNAL_RXD_INV);
+    #endif /* BUILD_ADAM */
+    
     // Arduino default buffer size is 256
     int uart_buffer_size = 256;
     int uart_queue_size = 10;
