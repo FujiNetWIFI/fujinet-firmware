@@ -45,15 +45,15 @@ uint16_t adamNetDevice::adamnet_recv_length()
 {
     unsigned short s = 0;
     s = adamnet_recv() << 8;
-    s |=  adamnet_recv();
+    s |= adamnet_recv();
 
     return s;
 }
 
 unsigned short adamNetDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short len)
 {
-    for (int i=0;i<len;i++)
-        buf[i]=adamnet_recv();
+    for (int i = 0; i < len; i++)
+        buf[i] = adamnet_recv();
     return len;
 }
 
@@ -61,8 +61,6 @@ void adamNetDevice::adamnet_wait_for_idle()
 {
     bool isIdle = false;
     int64_t start, current, dur;
-
-    Debug_println("WFI");
 
     do
     {
@@ -84,7 +82,7 @@ void adamNetDevice::adamnet_wait_for_idle()
 
 void adamNetDevice::adamnet_process(uint8_t b)
 {
-    fnUartDebug.printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n",b);
+    fnUartDebug.printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n", b);
     adamnet_wait_for_idle();
 }
 
@@ -99,7 +97,7 @@ void adamNetBus::_adamnet_process_cmd()
 
     while (!fnUartAdamNet.available())
         fnSystem.yield();
-    
+
     b = fnUartAdamNet.read();
 
     uint8_t d = b & 0x0F;
@@ -134,7 +132,7 @@ void adamNetBus::service()
 
     // Process anything waiting.
     if (fnUartAdamNet.available())
-        _adamnet_process_cmd(); 
+        _adamnet_process_cmd();
 }
 
 void adamNetBus::setup()
@@ -158,8 +156,8 @@ void adamNetBus::shutdown()
 
 void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
 {
-    Debug_printf("Adding device: %02X\n",device_id);
-    pDevice->_devnum=device_id;
+    Debug_printf("Adding device: %02X\n", device_id);
+    pDevice->_devnum = device_id;
     _daisyChain.push_front(pDevice);
 }
 
