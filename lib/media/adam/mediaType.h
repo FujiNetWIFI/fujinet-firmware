@@ -62,7 +62,7 @@ public:
     virtual bool format(uint16_t *respopnsesize);
 
     // Returns TRUE if an error condition occurred
-    virtual bool read(uint16_t blockNum, uint16_t *readcount) = 0;
+    virtual bool read(uint32_t blockNum, uint16_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
     virtual bool write(uint16_t blockNum, bool verify);
     
