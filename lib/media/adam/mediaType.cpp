@@ -13,7 +13,7 @@ bool MediaType::format(uint16_t *respopnsesize)
     return true;
 }
 
-bool MediaType::read(uint16_t blockNum, uint16_t *readcount)
+bool MediaType::read(uint32_t blockNum, uint16_t *readcount)
 {
     return true;
 }

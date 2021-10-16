@@ -9,7 +9,7 @@ private:
     uint32_t _block_to_offset(uint32_t blockNum);
 
 public:
-    virtual bool read(uint16_t blockNum, uint16_t *readcount) override;
+    virtual bool read(uint32_t blockNum, uint16_t *readcount) override;
     virtual bool write(uint16_t blockNum, bool verify) override;
 
     virtual bool format(uint16_t *respopnsesize) override;

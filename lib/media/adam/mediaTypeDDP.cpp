@@ -17,7 +17,7 @@ uint32_t MediaTypeDDP::_block_to_offset(uint32_t blockNum)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeDDP::read(uint16_t blockNum, uint16_t *readcount)
+bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 {
     Debug_print("ATR READ\n");
 
@@ -47,8 +47,6 @@ bool MediaTypeDDP::read(uint16_t blockNum, uint16_t *readcount)
         _media_last_block = blockNum;
     else
         _media_last_block = INVALID_SECTOR_VALUE;
-
-    *readcount = 1024;
 
     return err;
 }
