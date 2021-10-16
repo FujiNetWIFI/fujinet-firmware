@@ -31,10 +31,14 @@ void adamNetDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 
 uint8_t adamNetDevice::adamnet_recv()
 {
+    uint8_t b;
+
     while (!fnUartAdamNet.available())
         fnSystem.yield();
 
-    return fnUartAdamNet.read();
+    b = fnUartAdamNet.read();
+
+    return b;
 }
 
 uint16_t adamNetDevice::adamnet_recv_length()
@@ -48,13 +52,17 @@ uint16_t adamNetDevice::adamnet_recv_length()
 
 unsigned short adamNetDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short len)
 {
-    return fnUartAdamNet.readBytes(buf, len);
+    for (int i=0;i<len;i++)
+        buf[i]=adamnet_recv();
+    return len;
 }
 
 void adamNetDevice::adamnet_wait_for_idle()
 {
     bool isIdle = false;
     int64_t start, current, dur;
+
+    Debug_println("WFI");
 
     do
     {
@@ -95,8 +103,6 @@ void adamNetBus::_adamnet_process_cmd()
     b = fnUartAdamNet.read();
 
     uint8_t d = b & 0x0F;
-
-    Debug_printf("%02X ",b);
 
     // turn on AdamNet Indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
