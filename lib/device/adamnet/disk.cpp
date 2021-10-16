@@ -80,6 +80,7 @@ void adamDisk::adamnet_control_status()
     adamnet_send(0x01);
     adamnet_send(0x40);
     adamnet_send(0x45);
+    fnUartAdamNet.flush();
 }
 
 void adamDisk::adamnet_control_ack()
@@ -99,12 +100,15 @@ void adamDisk::adamnet_control_clr()
     adamnet_send(0x00); //            lo byte
     adamnet_send_buffer(_media->_media_blockbuff, 1024);
     adamnet_send(c); // checksum
+    fnUartAdamNet.flush();
 }
 
 void adamDisk::adamnet_control_receive()
 {
     Debug_println("adamnet_control_receive()");
     _media->read(blockNum, nullptr);
+    adamnet_send(0x94);
+    fnUartAdamNet.flush();
 }
 
 void adamDisk::adamnet_control_send()
@@ -120,6 +124,7 @@ void adamDisk::adamnet_control_send()
 
     ets_delay_us(150);
     adamnet_send(0x94);
+    fnUartAdamNet.flush();
     Debug_printf("REQ BLOCK: %lu\n", blockNum);
 }
 
@@ -153,6 +158,7 @@ void adamDisk::adamnet_control_ready()
     Debug_println("adamnet_control_ready()");
     ets_delay_us(200);
     adamnet_send(0x94);
+    fnUartAdamNet.flush();
 }
 
 void adamDisk::adamnet_process(uint8_t b)
