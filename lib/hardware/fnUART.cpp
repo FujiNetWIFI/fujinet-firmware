@@ -18,11 +18,7 @@
 #define MAX_WRITE_BUFFER_TICKS 1000
 
 UARTManager fnUartDebug(UART_DEBUG);
-#ifdef BUILD_ADAM
-UARTManager fnUartAdamNet(UART_ADAMNET);
-#else
 UARTManager fnUartSIO(UART_SIO);
-#endif
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}
