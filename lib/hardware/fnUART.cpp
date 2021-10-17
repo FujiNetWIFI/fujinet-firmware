@@ -2,14 +2,15 @@
 #include <cstdarg>
 #include <esp_system.h>
 #include <driver/uart.h>
+#include <soc/uart_reg.h>
 
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 #include "fnUART.h"
 
-#define UART_DEBUG      UART_NUM_0
-#define UART_ADAMNET    UART_NUM_2
-#define UART_SIO        UART_NUM_2
+#define UART_DEBUG UART_NUM_0
+#define UART_ADAMNET UART_NUM_2
+#define UART_SIO UART_NUM_2
 
 // Number of RTOS ticks to wait for data in TX buffer to complete sending
 #define MAX_FLUSH_WAIT_TICKS 200
@@ -26,28 +27,28 @@ UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NU
 void UARTManager::end()
 {
     uart_driver_delete(_uart_num);
-    if(_uart_q)
+    if (_uart_q)
         vQueueDelete(_uart_q);
     _uart_q = NULL;
 }
 
 void UARTManager::begin(int baud)
 {
-    if(_uart_q)
+    if (_uart_q)
     {
         end();
     }
 
-    uart_config_t uart_config = 
-    {
-        .baud_rate = baud,
-        .data_bits = UART_DATA_8_BITS,
-        .parity = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .rx_flow_ctrl_thresh = 122, // No idea what this is for, but shouldn't matter if flow ctrl is disabled?
-        .use_ref_tick = false // ?
-    };
+    uart_config_t uart_config =
+        {
+            .baud_rate = baud,
+            .data_bits = UART_DATA_8_BITS,
+            .parity = UART_PARITY_DISABLE,
+            .stop_bits = UART_STOP_BITS_1,
+            .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+            .rx_flow_ctrl_thresh = 122, // No idea what this is for, but shouldn't matter if flow ctrl is disabled?
+            .use_ref_tick = false       // ?
+        };
 
     // This works around an obscure hardware bug where resetting UART2 causes the TX to become corrupted
     // when the FIFO is reset by this function. Blame me for it -Thom
@@ -62,12 +63,12 @@ void UARTManager::begin(int baud)
     }
 
     int tx, rx;
-    if(_uart_num == 0)
+    if (_uart_num == 0)
     {
         rx = PIN_UART0_RX;
         tx = PIN_UART0_TX;
     }
-    else if(_uart_num == 1)
+    else if (_uart_num == 1)
     {
         rx = PIN_UART1_RX;
         tx = PIN_UART1_TX;
@@ -76,34 +77,45 @@ void UARTManager::begin(int baud)
     {
         rx = PIN_UART2_RX;
         tx = PIN_UART2_TX;
-    } else {
+    }
+    else
+    {
         return;
     }
 
     uart_set_pin(_uart_num, tx, rx, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-    #ifdef BUILD_ADAM
+#ifdef BUILD_ADAM
     if (_uart_num == 2)
-        uart_set_line_inverse(_uart_num,UART_SIGNAL_TXD_INV|UART_SIGNAL_RXD_INV);
-    #endif /* BUILD_ADAM */
-    
+        uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
+#endif /* BUILD_ADAM */
+
     // Arduino default buffer size is 256
     int uart_buffer_size = 256;
     int uart_queue_size = 10;
     int intr_alloc_flags = 0;
 
     // Install UART driver using an event queue here
-    //uart_driver_install(_uart_num, uart_buffer_size, uart_buffer_size, uart_queue_size, &_uart_q, intr_alloc_flags);
+    // uart_driver_install(_uart_num, uart_buffer_size, uart_buffer_size, uart_queue_size, &_uart_q, intr_alloc_flags);
     uart_driver_install(_uart_num, uart_buffer_size, 0, uart_queue_size, NULL, intr_alloc_flags);
 
+#ifdef BUILD_ADAM
+    uart_intr_config_t uart_intr;
+    uart_intr.intr_enable_mask = UART_RXFIFO_FULL_INT_ENA_M | UART_RXFIFO_TOUT_INT_ENA_M | UART_FRM_ERR_INT_ENA_M | UART_RXFIFO_OVF_INT_ENA_M | UART_BRK_DET_INT_ENA_M | UART_PARITY_ERR_INT_ENA_M;
+    uart_intr.rxfifo_full_thresh = 1;        // UART_FULL_THRESH_DEFAULT,  //120 default!! aghh! need receive 120 chars before we see them
+    uart_intr.rx_timeout_thresh = 10;        // UART_TOUT_THRESH_DEFAULT,  //10 works well for my short messages I need send/receive
+    uart_intr.txfifo_empty_intr_thresh = 10; // UART_EMPTY_THRESH_DEFAULT
+    uart_intr_config(_uart_num, &uart_intr);
+#endif /* BUILD_ADAM */
+
     // Set initialized.
-    _initialized=true;
+    _initialized = true;
 }
 
 /* Discards anything in the input buffer
-*/
+ */
 void UARTManager::flush_input()
-{        
+{
     uart_flush_input(_uart_num);
 }
 
@@ -116,88 +128,89 @@ void UARTManager::flush()
 }
 
 /* Returns number of bytes available in receive buffer or -1 on error
-*/
+ */
 int UARTManager::available()
 {
     size_t result;
-    if(ESP_FAIL == uart_get_buffered_data_len(_uart_num, &result))
+    if (ESP_FAIL == uart_get_buffered_data_len(_uart_num, &result))
         return -1;
     return result;
 }
 
 /* NOT IMPLEMENTED
-*/
+ */
 int UARTManager::peek()
 {
     return 0;
 }
 
 /* Changes baud rate
-*/
+ */
 void UARTManager::set_baudrate(uint32_t baud)
 {
-#ifdef DEBUG    
+#ifdef DEBUG
     uint32_t before;
     uart_get_baudrate(_uart_num, &before);
-#endif    
+#endif
     uart_set_baudrate(_uart_num, baud);
 #ifdef DEBUG
     Debug_printf("set_baudrate change from %d to %d\n", before, baud);
-#endif    
+#endif
 }
 
 /* Returns a single byte from the incoming stream
-*/
+ */
 int UARTManager::read(void)
 {
     uint8_t byte;
     int result = uart_read_bytes(_uart_num, &byte, 1, MAX_READ_WAIT_TICKS);
-    if(result < 1)
+    if (result < 1)
     {
 #ifdef DEBUG
-        if(result == 0)
+        if (result == 0)
             Debug_println("### UART read() TIMEOUT ###");
         else
             Debug_printf("### UART read() ERROR %d ###\n", result);
-#endif        
+#endif
         return -1;
-    } else
+    }
+    else
         return byte;
 }
 
 /* Since the underlying Stream calls this Read() multiple times to get more than one
-*  character for ReadBytes(), we override with a single call to uart_read_bytes
-*/
+ *  character for ReadBytes(), we override with a single call to uart_read_bytes
+ */
 size_t UARTManager::readBytes(uint8_t *buffer, size_t length)
 {
     int result = uart_read_bytes(_uart_num, buffer, length, MAX_READ_WAIT_TICKS);
 #ifdef DEBUG
-    if(result < length)
+    if (result < length)
     {
-        if(result < 0)
+        if (result < 0)
         {
             Debug_printf("### UART readBytes() ERROR %d ###\n", result);
         }
         else
         {
-             // Debug_println("### UART readBytes() TIMEOUT ###");
+            // Debug_println("### UART readBytes() TIMEOUT ###");
         }
     }
-#endif        
-    return result;    
+#endif
+    return result;
 }
 
 size_t UARTManager::write(uint8_t c)
 {
     int z = uart_write_bytes(_uart_num, (const char *)&c, 1);
-    //uart_wait_tx_done(_uart_num, MAX_WRITE_BYTE_TICKS);
+    // uart_wait_tx_done(_uart_num, MAX_WRITE_BYTE_TICKS);
     return z;
 }
 
 size_t UARTManager::write(const uint8_t *buffer, size_t size)
 {
     int z = uart_write_bytes(_uart_num, (const char *)buffer, size);
-    //uart_wait_tx_done(_uart_num, MAX_WRITE_BUFFER_TICKS);
+    // uart_wait_tx_done(_uart_num, MAX_WRITE_BUFFER_TICKS);
     return z;
 }
 
@@ -207,9 +220,9 @@ size_t UARTManager::write(const char *str)
     return z;
 }
 
-size_t UARTManager::printf(const char * fmt...)
+size_t UARTManager::printf(const char *fmt...)
 {
-    char * result = nullptr;
+    char *result = nullptr;
     va_list vargs;
 
     if (!_initialized)
@@ -219,17 +232,17 @@ size_t UARTManager::printf(const char * fmt...)
 
     int z = vasprintf(&result, fmt, vargs);
 
-    if(z > 0)
+    if (z > 0)
         uart_write_bytes(_uart_num, result, z);
 
     va_end(vargs);
 
-    if(result != nullptr)
+    if (result != nullptr)
         free(result);
 
-    //uart_wait_tx_done(_uart_num, MAX_WRITE_BUFFER_TICKS);
+    // uart_wait_tx_done(_uart_num, MAX_WRITE_BUFFER_TICKS);
 
-    return z >=0 ? z : 0;
+    return z >= 0 ? z : 0;
 }
 
 size_t UARTManager::_print_number(unsigned long n, uint8_t base)
@@ -243,15 +256,16 @@ size_t UARTManager::_print_number(unsigned long n, uint8_t base)
     *str = '\0';
 
     // prevent crash if called with base == 1
-    if(base < 2)
+    if (base < 2)
         base = 10;
 
-    do {
+    do
+    {
         unsigned long m = n;
         n /= base;
         char c = m - base * n;
         *--str = c < 10 ? c + '0' : c + 'A' - 10;
-    } while(n);
+    } while (n);
 
     return write(str);
 }
@@ -263,7 +277,8 @@ size_t UARTManager::print(const char *str)
     if (!_initialized)
         return -1;
 
-    return uart_write_bytes(_uart_num, str, z);;
+    return uart_write_bytes(_uart_num, str, z);
+    ;
 }
 
 size_t UARTManager::print(std::string str)
@@ -279,7 +294,7 @@ size_t UARTManager::print(int n, int base)
     if (!_initialized)
         return -1;
 
-    return print((long) n, base);
+    return print((long)n, base);
 }
 
 size_t UARTManager::print(unsigned int n, int base)
@@ -287,7 +302,7 @@ size_t UARTManager::print(unsigned int n, int base)
     if (!_initialized)
         return -1;
 
-    return print((unsigned long) n, base);
+    return print((unsigned long)n, base);
 }
 
 size_t UARTManager::print(long n, int base)
@@ -295,16 +310,22 @@ size_t UARTManager::print(long n, int base)
     if (!_initialized)
         return -1;
 
-    if(base == 0) {
+    if (base == 0)
+    {
         return write(n);
-    } else if(base == 10) {
-        if(n < 0) {
+    }
+    else if (base == 10)
+    {
+        if (n < 0)
+        {
             int t = print('-');
             n = -n;
             return _print_number(n, 10) + t;
         }
         return _print_number(n, 10);
-    } else {
+    }
+    else
+    {
         return _print_number(n, base);
     }
 }
@@ -314,13 +335,15 @@ size_t UARTManager::print(unsigned long n, int base)
     if (!_initialized)
         return -1;
 
-    if(base == 0) {
+    if (base == 0)
+    {
         return write(n);
-    } else {
+    }
+    else
+    {
         return _print_number(n, base);
     }
 }
-
 
 size_t UARTManager::println(const char *str)
 {
