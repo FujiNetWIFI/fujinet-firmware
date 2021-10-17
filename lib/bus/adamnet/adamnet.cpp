@@ -25,8 +25,7 @@ void adamNetDevice::adamnet_send(uint8_t b)
 
 void adamNetDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 {
-    for (unsigned short i = 0; i < len; i++)
-        adamnet_send(buf[i]);
+    fnUartAdamNet.write(buf,len);
 }
 
 uint8_t adamNetDevice::adamnet_recv()
@@ -96,6 +95,7 @@ void adamNetBus::_adamnet_process_cmd()
     uint8_t b;
 
     b = fnUartAdamNet.read();
+    Debug_printf("%02x ",b);
 
     uint8_t d = b & 0x0F;
 
