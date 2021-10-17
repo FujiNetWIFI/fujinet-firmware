@@ -20,22 +20,22 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 void adamNetDevice::adamnet_send(uint8_t b)
 {
     // Write the byte
-    fnUartAdamNet.write(b);
+    fnUartSIO.write(b);
 }
 
 void adamNetDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 {
-    fnUartAdamNet.write(buf,len);
+    fnUartSIO.write(buf,len);
 }
 
 uint8_t adamNetDevice::adamnet_recv()
 {
     uint8_t b;
 
-    while (!fnUartAdamNet.available())
+    while (!fnUartSIO.available())
         fnSystem.yield();
 
-    b = fnUartAdamNet.read();
+    b = fnUartSIO.read();
 
     return b;
 }
@@ -64,12 +64,12 @@ void adamNetDevice::adamnet_wait_for_idle()
     do
     {
         // Wait for serial line to quiet down.
-        while (fnUartAdamNet.available())
-            fnUartAdamNet.read();
+        while (fnUartSIO.available())
+            fnUartSIO.read();
 
         start = current = esp_timer_get_time();
 
-        while ((!fnUartAdamNet.available()) && (isIdle == false))
+        while ((!fnUartSIO.available()) && (isIdle == false))
         {
             current = esp_timer_get_time();
             dur = current - start;
@@ -94,7 +94,7 @@ void adamNetBus::_adamnet_process_cmd()
 {
     uint8_t b;
 
-    b = fnUartAdamNet.read();
+    b = fnUartSIO.read();
     Debug_printf("%02x ",b);
 
     uint8_t d = b & 0x0F;
@@ -128,7 +128,7 @@ void adamNetBus::service()
     _adamnet_process_queue();
 
     // Process anything waiting.
-    if (fnUartAdamNet.available())
+    if (fnUartSIO.available())
         _adamnet_process_cmd();
 }
 
@@ -137,8 +137,8 @@ void adamNetBus::setup()
     Debug_println("ADAMNET SETUP");
 
     // Set up UART
-    fnUartAdamNet.begin(ADAMNET_BAUD);
-    fnUartAdamNet.flush_input();
+    fnUartSIO.begin(ADAMNET_BAUD);
+    fnUartSIO.flush_input();
 }
 
 void adamNetBus::shutdown()
