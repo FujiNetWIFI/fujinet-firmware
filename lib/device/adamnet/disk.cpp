@@ -71,7 +71,6 @@ void adamDisk::unmount()
 
 void adamDisk::adamnet_control_status()
 {
-    fnSystem.delay_microseconds(150);
     adamnet_response_status();
 }
 
@@ -81,7 +80,6 @@ void adamDisk::adamnet_control_ack()
 
 void adamDisk::adamnet_control_clr()
 {
-    fnSystem.delay_microseconds(150);
     adamnet_response_send();
 }
 
@@ -101,7 +99,6 @@ void adamDisk::adamnet_control_send()
 
     blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
 
-    fnSystem.delay_microseconds(150);
     adamnet_response_ack();
     Debug_printf("REQ BLOCK: %lu\n", blockNum);
 }
@@ -149,7 +146,6 @@ void adamDisk::adamnet_response_nack()
 
 void adamDisk::adamnet_control_ready()
 {
-    ets_delay_us(200);
     adamnet_response_ack();
 }
 
