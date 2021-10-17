@@ -71,14 +71,12 @@ void adamDisk::unmount()
 
 void adamDisk::adamnet_control_status()
 {
-    Debug_println("adamnet_control_status()");
     fnSystem.delay_microseconds(150);
     adamnet_response_status();
 }
 
 void adamDisk::adamnet_control_ack()
 {
-    Debug_println("adamnet_control_ack()");
 }
 
 void adamDisk::adamnet_control_clr()
@@ -89,14 +87,12 @@ void adamDisk::adamnet_control_clr()
 
 void adamDisk::adamnet_control_receive()
 {
-    Debug_println("adamnet_control_receive()");
     _media->read(blockNum, nullptr);
     adamnet_response_ack();
 }
 
 void adamDisk::adamnet_control_send()
 {
-    Debug_println("adamnet_control_send()");
     uint16_t s = adamnet_recv_length();
     uint8_t x[8];
 
@@ -112,21 +108,20 @@ void adamDisk::adamnet_control_send()
 
 void adamDisk::adamnet_control_nack()
 {
-    Debug_println("adamnet_control_nack()");
 }
 
 void adamDisk::adamnet_response_status()
 {
     uint8_t status[6] = {0x80,0x00,0x04,0x01,0x40,0x45};
     status[0] |= _devnum;
-    fnUartAdamNet.write(status,sizeof(status));
+    adamnet_send_buffer(status,sizeof(status));
 }
 
 void adamDisk::adamnet_response_ack()
 {
     uint8_t b[2]={0x90,0x00};
     b[0] |= _devnum;
-    fnUartAdamNet.write(b,sizeof(b));
+    adamnet_send_buffer(b,sizeof(b));
 }
 
 void adamDisk::adamnet_response_cancel()
@@ -144,17 +139,16 @@ void adamDisk::adamnet_response_send()
     b[2] = 0x00;
     memcpy(&b[3],_media->_media_blockbuff,1024);
     b[1027] = c;
-    fnUartAdamNet.write(b,sizeof(b));
+    adamnet_send_buffer(b,sizeof(b));
 }
 
 void adamDisk::adamnet_response_nack()
 {
-    fnUartAdamNet.write(0xC0 | _devnum);
+    adamnet_send(0xC0 | _devnum);
 }
 
 void adamDisk::adamnet_control_ready()
 {
-    Debug_println("adamnet_control_ready()");
     ets_delay_us(200);
     adamnet_response_ack();
 }
@@ -182,21 +176,6 @@ void adamDisk::adamnet_process(uint8_t b)
         break;
     case MN_NACK:
         adamnet_control_nack();
-        break;
-    case NM_STATUS:
-        adamnet_response_status();
-        break;
-    case NM_ACK:
-        adamnet_response_ack();
-        break;
-    case NM_CANCEL:
-        adamnet_response_cancel();
-        break;
-    case NM_SEND:
-        adamnet_response_send();
-        break;
-    case NM_NACK:
-        adamnet_response_nack();
         break;
     case MN_READY:
         adamnet_control_ready();
