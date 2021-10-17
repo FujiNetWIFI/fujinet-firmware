@@ -126,7 +126,7 @@ void adamDisk::adamnet_response_ack()
 
 void adamDisk::adamnet_response_cancel()
 {
-    fnUartAdamNet.write(0xA0 | _devnum);
+    adamnet_send(0xA0 | _devnum);
 }
 
 void adamDisk::adamnet_response_send()
