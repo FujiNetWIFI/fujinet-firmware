@@ -95,9 +95,6 @@ void adamNetBus::_adamnet_process_cmd()
 {
     uint8_t b;
 
-    while (!fnUartAdamNet.available())
-        fnSystem.yield();
-
     b = fnUartAdamNet.read();
 
     uint8_t d = b & 0x0F;
