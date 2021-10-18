@@ -12,7 +12,7 @@
 adamDisk::adamDisk()
 {
     device_active = false;
-    blockNum = 0;
+    blockNum = 0;    
 }
 
 // Destructor
@@ -24,7 +24,9 @@ adamDisk::~adamDisk()
 
 mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
-    Debug_print("disk MOUNT\n");
+    mediatype_t mt = MEDIATYPE_UNKNOWN;
+
+    Debug_printf("disk MOUNT %s\n",filename);
 
     // Destroy any existing DiskType
     if (_media != nullptr)
@@ -42,7 +44,7 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
     case MEDIATYPE_DDP:
         device_active = true;
         _media = new MediaTypeDDP();
-        return _media->mount(f, disksize);
+        mt=_media->mount(f, disksize);
         break;
     case MEDIATYPE_DSK:
         device_active = true;
@@ -55,7 +57,7 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
         break;
     }
 
-    return MEDIATYPE_UNKNOWN;
+    return mt;
 }
 
 void adamDisk::unmount()
@@ -86,7 +88,8 @@ void adamDisk::adamnet_control_clr()
 void adamDisk::adamnet_control_receive()
 {
     _media->read(blockNum, nullptr);
-    adamnet_response_ack();
+    fnSystem.delay_microseconds(90);
+    adamnet_send(0x90 | _devnum);
 }
 
 void adamDisk::adamnet_control_send()
@@ -99,6 +102,7 @@ void adamDisk::adamnet_control_send()
 
     blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
 
+    fnSystem.delay_microseconds(150);
     adamnet_response_ack();
     Debug_printf("REQ BLOCK: %lu\n", blockNum);
 }
@@ -116,9 +120,7 @@ void adamDisk::adamnet_response_status()
 
 void adamDisk::adamnet_response_ack()
 {
-    uint8_t b[2]={0x90,0x00};
-    b[0] |= _devnum;
-    adamnet_send_buffer(b,sizeof(b));
+    adamnet_send(0x90 | _devnum);
 }
 
 void adamDisk::adamnet_response_cancel()
@@ -146,6 +148,7 @@ void adamDisk::adamnet_response_nack()
 
 void adamDisk::adamnet_control_ready()
 {
+    fnSystem.delay_microseconds(150);
     adamnet_response_ack();
 }
 

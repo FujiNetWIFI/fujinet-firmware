@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 
-#define INVALID_SECTOR_VALUE 65536
+#define INVALID_SECTOR_VALUE 65535
 
 #define MEDIA_BLOCK_SIZE 1024
 
@@ -28,7 +28,7 @@ class MediaType
 protected:
     FILE *_media_fileh = nullptr;
     uint32_t _media_image_size = 0;
-    uint32_t _media_num_blocks = 0;
+    uint32_t _media_num_blocks = 256;
     uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
     int32_t _media_last_block = INVALID_SECTOR_VALUE;
     uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;

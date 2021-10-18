@@ -5,7 +5,7 @@
  * AdamNet Routines
  */
 
-#include <forward_list>
+#include <map>
 #include "fnSystem.h"
 
 #define ADAMNET_BAUD 62500
@@ -82,11 +82,6 @@ protected:
     unsigned short adamnet_recv_buffer(uint8_t *buf, unsigned short len);
 
     /**
-     * @brief Wait for AdamNet bus to become idle.
-     */
-    void adamnet_wait_for_idle();
-
-    /**
      * @brief Device Number: 0-15
      */
     uint8_t _devnum;
@@ -131,7 +126,7 @@ public:
 class adamNetBus
 {
 private:
-    std::forward_list<adamNetDevice *> _daisyChain;
+    std::map<uint8_t, adamNetDevice *> _daisyChain;
     adamNetDevice *_activeDev = nullptr;
 
     void _adamnet_process_cmd();
@@ -141,6 +136,11 @@ public:
     void setup();
     void service();
     void shutdown();
+
+    /**
+     * @brief Wait for AdamNet bus to become idle.
+     */
+    void wait_for_idle();
 
     int numDevices();
     void addDevice(adamNetDevice *pDevice, int device_id);

@@ -555,9 +555,11 @@ void adamFuji::setup(adamNetBus *siobus)
     //Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();
 
-    // Add our devices to the SIO bus
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
+    _adamnet_bus->addDevice(&_bootDisk,4);
+
+    // // Add our devices to the SIO bus
+    // for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    //     _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
 
     // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
     //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
