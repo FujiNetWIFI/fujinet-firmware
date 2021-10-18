@@ -21,8 +21,6 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 {
     Debug_print("ATR READ\n");
 
-    *readcount = 0;
-
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks)
     {
@@ -115,6 +113,7 @@ mediatype_t MediaTypeDDP::mount(FILE *f, uint32_t disksize)
 {
     Debug_print("DDP MOUNT\n");
 
+    _media_fileh = f;
     _mediatype = MEDIATYPE_DDP;
 
     return _mediatype;

@@ -56,7 +56,7 @@ unsigned short adamNetDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short l
     return len;
 }
 
-void adamNetDevice::adamnet_wait_for_idle()
+void adamNetBus::wait_for_idle()
 {
     bool isIdle = false;
     int64_t start, current, dur;
@@ -82,7 +82,6 @@ void adamNetDevice::adamnet_wait_for_idle()
 void adamNetDevice::adamnet_process(uint8_t b)
 {
     fnUartDebug.printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n", b);
-    adamnet_wait_for_idle();
 }
 
 void adamNetDevice::adamnet_control_status()
@@ -95,7 +94,6 @@ void adamNetBus::_adamnet_process_cmd()
     uint8_t b;
 
     b = fnUartSIO.read();
-    Debug_printf("%02x ",b);
 
     uint8_t d = b & 0x0F;
 
@@ -103,17 +101,11 @@ void adamNetBus::_adamnet_process_cmd()
     fnLedManager.set(eLed::LED_BUS, true);
 
     // Find device ID and pass control to it
-    for (auto devicep : _daisyChain)
-    {
-        if (d == devicep->_devnum)
-        {
-            _activeDev = devicep;
-            _activeDev->adamnet_process(b);
-        }
-        else
-            _activeDev->adamnet_wait_for_idle();
-    }
-
+    if (_daisyChain.find(d) == _daisyChain.end())
+        wait_for_idle();
+    else
+        _daisyChain[d]->adamnet_process(b);
+    
     // turn off AdamNet Indicator LED
     fnLedManager.set(eLed::LED_BUS, false);
 }
@@ -145,8 +137,8 @@ void adamNetBus::shutdown()
 {
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n", devicep->id());
-        devicep->shutdown();
+        Debug_printf("Shutting down device %02x\n", devicep.second->id());
+        devicep.second->shutdown();
     }
     Debug_printf("All devices shut down.\n");
 }
@@ -155,12 +147,11 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
     pDevice->_devnum = device_id;
-    _daisyChain.push_front(pDevice);
+    _daisyChain[device_id]=pDevice;
 }
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)
 {
-    _daisyChain.remove(pDevice);
 }
 
 int adamNetBus::numDevices()
@@ -177,8 +168,8 @@ void adamNetBus::changeDeviceId(adamNetDevice *p, int device_id)
 {
     for (auto devicep : _daisyChain)
     {
-        if (devicep == p)
-            devicep->_devnum = device_id;
+        if (devicep.second == p)
+            devicep.second->_devnum = device_id;
     }
 }
 
@@ -186,8 +177,8 @@ adamNetDevice *adamNetBus::deviceById(int device_id)
 {
     for (auto devicep : _daisyChain)
     {
-        if (devicep->_devnum == device_id)
-            return devicep;
+        if (devicep.second->_devnum == device_id)
+            return devicep.second;
     }
     return nullptr;
 }
