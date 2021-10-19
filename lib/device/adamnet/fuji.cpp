@@ -149,7 +149,7 @@ adamFuji::adamFuji()
 // Status
 void adamFuji::adamnet_control_status()
 {
-    uint8_t r[6] = {0x8F, 0x00, 0x04, 0x00, 0x00, 0x04};
+    uint8_t r[6] = {0x8F, 0x04, 0x00, 0x00, 0x00, 0x04};
     adamnet_send_buffer(r, 6);
 }
 
