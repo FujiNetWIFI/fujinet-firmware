@@ -92,52 +92,6 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
     return false;
 }
 
-/**
- * Say the numbers 1-8 using phonetic tweaks.
- * @param n The number to say.
- */
-void say_number(unsigned char n)
-{
-    switch (n)
-    {
-    case 1:
-        util_sam_say("WAH7NQ", true);
-        break;
-    case 2:
-        util_sam_say("TUW7", true);
-        break;
-    case 3:
-        util_sam_say("THRIYY7Q", true);
-        break;
-    case 4:
-        util_sam_say("FOH7R", true);
-        break;
-    case 5:
-        util_sam_say("F7AYVQ", true);
-        break;
-    case 6:
-        util_sam_say("SIH7IHKSQ", true);
-        break;
-    case 7:
-        util_sam_say("SEHV7EHNQ", true);
-        break;
-    case 8:
-        util_sam_say("AEY74Q", true);
-        break;
-    default:
-        Debug_printf("say_number() - Uncaught number %d", n);
-    }
-}
-
-/**
- * Say swap label
- */
-void say_swap_label()
-{
-    // DISK
-    util_sam_say("DIHSK7Q ", true);
-}
-
 // Constructor
 adamFuji::adamFuji()
 {
@@ -175,6 +129,35 @@ void adamFuji::adamnet_net_scan_result()
 //  Get SSID
 void adamFuji::adamnet_net_get_ssid()
 {
+    Debug_println("Fuji cmd: GET SSID");
+
+    // Response to SIO_FUJICMD_GET_SSID
+    struct
+    {
+        char ssid[MAX_SSID_LEN];
+        char password[MAX_WIFI_PASS_LEN];
+    } cfg;
+
+    memset(&cfg, 0, sizeof(cfg));
+
+    /*
+     We memcpy instead of strcpy because technically the SSID and phasephras aren't strings and aren't null terminated,
+     they're arrays of bytes officially and can contain any byte value - including a zero - at any point in the array.
+     However, we're not consistent about how we treat this in the different parts of the code.
+    */
+    std::string s = Config.get_wifi_ssid();
+    memcpy(cfg.ssid, s.c_str(),
+           s.length() > sizeof(cfg.ssid) ? sizeof(cfg.ssid) : s.length());
+
+    s = Config.get_wifi_passphrase();
+    memcpy(cfg.password, s.c_str(),
+           s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
+
+    // Move into response.
+    memcpy(response,&cfg,sizeof(cfg));
+    response_len = sizeof(cfg);
+
+    adamnet_send(0x9F); // ACK
 }
 
 // Set SSID
@@ -298,19 +281,6 @@ void adamFuji::image_rotate()
 
         // The first slot gets the device ID of the last slot
         _adamnet_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
-
-        // Say whatever disk is in D1:
-        if (Config.get_general_rotation_sounds())
-        {
-            for (int i = 0; i <= count; i++)
-            {
-                if (_fnDisks[i].disk_dev.id() == 0x31)
-                {
-                    say_swap_label();
-                    say_number(i + 1); // because i starts from 0
-                }
-            }
-        }
     }
 }
 
@@ -564,20 +534,35 @@ void adamFuji::adamnet_control_send()
         case SIO_FUJICMD_RESET:
             adamnet_reset_fujinet();
             break;
+        case SIO_FUJICMD_GET_SSID:
+            adamnet_net_get_ssid();
+            break;
     }
+}
+
+void adamFuji::adamnet_control_clr()
+{
+    adamnet_send(0xBF);
+    adamnet_send_length(response_len);
+    adamnet_send_buffer(response,response_len);
+    adamnet_send(adamnet_checksum(response,response_len));
 }
 
 void adamFuji::adamnet_process(uint8_t b)
 {
     unsigned char c = b >> 4;
-    uint8_t r[16];
-
-    memset(r, 0, 16);
 
     switch (c)
     {
     case MN_STATUS:
         adamnet_control_status();
+        break;
+    case MN_CLR:
+        adamnet_control_clr();
+        break;
+    case MN_RECEIVE:
+        fnSystem.delay_microseconds(80);
+        adamnet_send(0x9F); // ACK.
         break;
     case MN_SEND:
         adamnet_control_send();
