@@ -202,9 +202,11 @@ void adamFuji::adamnet_net_get_ssid()
 }
 
 // Set SSID
-void adamFuji::adamnet_net_set_ssid()
+void adamFuji::adamnet_net_set_ssid(uint16_t s)
 {
     Debug_println("Fuji cmd: SET SSID");
+
+    s--;
 
     // Data for SIO_FUJICMD_SET_SSID
     struct
@@ -213,37 +215,29 @@ void adamFuji::adamnet_net_set_ssid()
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
-    unsigned short s = adamnet_recv_length();
+    adamnet_recv_buffer((uint8_t *)&cfg, s);
 
-    adamnet_recv_buffer((uint8_t *)&cfg,sizeof(cfg));
+    Debug_printf("s is %u\n", s);
 
     uint8_t ck = adamnet_recv();
 
-    if (adamnet_checksum((uint8_t *)&cfg, sizeof(cfg)) != ck)
+    bool save = true;
+
+    Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
+
+    fnWiFi.connect(cfg.ssid, cfg.password);
+
+    // Only save these if we're asked to, otherwise assume it was a test for connectivity
+    if (save)
     {
-        fnSystem.delay_microseconds(100);
-        adamnet_send(0xCF); // NAK
-    }
-    else
-    {
-        bool save = true;
-
-        Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
-
-        fnWiFi.connect(cfg.ssid, cfg.password);
-
-        // Only save these if we're asked to, otherwise assume it was a test for connectivity
-        if (save)
-        {
-            Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-            Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
-            Config.save();
-        }
-
-        fnSystem.delay_microseconds(100);
-        adamnet_send(0x9F); // ACK
+        Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+        Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+        Config.save();
     }
 
+    fnSystem.delay_microseconds(100);
+    adamnet_send(0x9F); // ACK
+    Debug_println("DONE.");
 }
 // Get WiFi Status
 void adamFuji::adamnet_net_get_wifi_status()
@@ -624,7 +618,7 @@ void adamFuji::adamnet_control_send()
         adamnet_net_scan_result();
         break;
     case SIO_FUJICMD_SET_SSID:
-        adamnet_net_set_ssid();
+        adamnet_net_set_ssid(s);
         break;
     }
 }
