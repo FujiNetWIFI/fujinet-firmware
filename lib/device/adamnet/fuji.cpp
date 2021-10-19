@@ -103,7 +103,7 @@ adamFuji::adamFuji()
 // Status
 void adamFuji::adamnet_control_status()
 {
-    uint8_t r[6] = {0x8F, 0x04, 0x00, 0x00, 0x00, 0x04};
+    uint8_t r[6] = {0x8F, 0x00, 0x04, 0x00, 0x00, 0x04};
     adamnet_send_buffer(r, 6);
 }
 
@@ -119,11 +119,50 @@ void adamFuji::adamnet_reset_fujinet()
 // Scan for networks
 void adamFuji::adamnet_net_scan_networks()
 {
+    Debug_println("Fuji cmd: SCAN NETWORKS");
+
+    isReady = false;
+
+    if (_countScannedSSIDs == 0)
+        _countScannedSSIDs = fnWiFi.scan_networks();
+
+    isReady = true;
+
+    fnSystem.delay_microseconds(80);
+
+    response[0] = _countScannedSSIDs;
+    response_len = 1;
+
+    adamnet_send(0x9F); // ACK
 }
 
 // Return scanned network entry
 void adamFuji::adamnet_net_scan_result()
 {
+    Debug_println("Fuji cmd: GET SCAN RESULT");
+
+    uint8_t n = adamnet_recv();
+
+    // Response to SIO_FUJICMD_GET_SCAN_RESULT
+    struct
+    {
+        char ssid[MAX_SSID_LEN];
+        uint8_t rssi;
+    } detail;
+
+    bool err = false;
+    if (n < _countScannedSSIDs)
+        fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
+    else
+    {
+        memset(&detail, 0, sizeof(detail));
+        err = true;
+    }
+
+    memcpy(response, &detail, sizeof(detail));
+    response_len = sizeof(detail);
+    fnSystem.delay_microseconds(80);
+    adamnet_send(0x9F); // ACK.
 }
 
 //  Get SSID
@@ -154,8 +193,10 @@ void adamFuji::adamnet_net_get_ssid()
            s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
 
     // Move into response.
-    memcpy(response,&cfg,sizeof(cfg));
+    memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
+
+    fnSystem.delay_microseconds(250);
 
     adamnet_send(0x9F); // ACK
 }
@@ -163,8 +204,47 @@ void adamFuji::adamnet_net_get_ssid()
 // Set SSID
 void adamFuji::adamnet_net_set_ssid()
 {
-}
+    Debug_println("Fuji cmd: SET SSID");
 
+    // Data for SIO_FUJICMD_SET_SSID
+    struct
+    {
+        char ssid[MAX_SSID_LEN];
+        char password[MAX_WIFI_PASS_LEN];
+    } cfg;
+
+    unsigned short s = adamnet_recv_length();
+
+    adamnet_recv_buffer((uint8_t *)&cfg,sizeof(cfg));
+
+    uint8_t ck = adamnet_recv();
+
+    if (adamnet_checksum((uint8_t *)&cfg, sizeof(cfg)) != ck)
+    {
+        fnSystem.delay_microseconds(100);
+        adamnet_send(0xCF); // NAK
+    }
+    else
+    {
+        bool save = true;
+
+        Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
+
+        fnWiFi.connect(cfg.ssid, cfg.password);
+
+        // Only save these if we're asked to, otherwise assume it was a test for connectivity
+        if (save)
+        {
+            Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+            Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+            Config.save();
+        }
+
+        fnSystem.delay_microseconds(100);
+        adamnet_send(0x9F); // ACK
+    }
+
+}
 // Get WiFi Status
 void adamFuji::adamnet_net_get_wifi_status()
 {
@@ -519,7 +599,7 @@ void adamFuji::adamnet_control_ready()
 {
     if (isReady)
     {
-        fnSystem.delay_microseconds(80);
+        fnSystem.delay_microseconds(120);
         adamnet_send(0x9F); // ACK.
     }
 }
@@ -531,12 +611,21 @@ void adamFuji::adamnet_control_send()
 
     switch (c)
     {
-        case SIO_FUJICMD_RESET:
-            adamnet_reset_fujinet();
-            break;
-        case SIO_FUJICMD_GET_SSID:
-            adamnet_net_get_ssid();
-            break;
+    case SIO_FUJICMD_RESET:
+        adamnet_reset_fujinet();
+        break;
+    case SIO_FUJICMD_GET_SSID:
+        adamnet_net_get_ssid();
+        break;
+    case SIO_FUJICMD_SCAN_NETWORKS:
+        adamnet_net_scan_networks();
+        break;
+    case SIO_FUJICMD_GET_SCAN_RESULT:
+        adamnet_net_scan_result();
+        break;
+    case SIO_FUJICMD_SET_SSID:
+        adamnet_net_set_ssid();
+        break;
     }
 }
 
@@ -544,8 +633,8 @@ void adamFuji::adamnet_control_clr()
 {
     adamnet_send(0xBF);
     adamnet_send_length(response_len);
-    adamnet_send_buffer(response,response_len);
-    adamnet_send(adamnet_checksum(response,response_len));
+    adamnet_send_buffer(response, response_len);
+    adamnet_send(adamnet_checksum(response, response_len));
 }
 
 void adamFuji::adamnet_process(uint8_t b)
@@ -570,7 +659,6 @@ void adamFuji::adamnet_process(uint8_t b)
     case MN_READY:
         adamnet_control_ready();
         break;
-    
     }
 }
 
