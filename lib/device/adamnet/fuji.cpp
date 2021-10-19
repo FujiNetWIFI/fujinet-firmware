@@ -52,8 +52,8 @@
 
 adamFuji theFuji; // global fuji device object
 
-//sioDisk sioDiskDevs[MAX_HOSTS];
-//sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
+// sioDisk sioDiskDevs[MAX_HOSTS];
+// sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -149,79 +149,72 @@ adamFuji::adamFuji()
 // Status
 void adamFuji::adamnet_control_status()
 {
-
+    uint8_t r[6] = {0x8F, 0x00, 0x04, 0x00, 0x00, 0x04};
+    adamnet_send_buffer(r, 6);
 }
 
 // Reset FujiNet
 void adamFuji::adamnet_reset_fujinet()
 {
-
+    Debug_println("ADAMNET RESET FUJINET");
+    fnSystem.delay_microseconds(80);
+    adamnet_send(0x9F); // ACK
+    fnSystem.reboot();
 }
 
 // Scan for networks
 void adamFuji::adamnet_net_scan_networks()
 {
-
 }
 
 // Return scanned network entry
 void adamFuji::adamnet_net_scan_result()
 {
-
 }
 
 //  Get SSID
 void adamFuji::adamnet_net_get_ssid()
 {
-
 }
 
 // Set SSID
 void adamFuji::adamnet_net_set_ssid()
 {
-
 }
 
 // Get WiFi Status
 void adamFuji::adamnet_net_get_wifi_status()
 {
-
 }
 
 // Mount Server
 void adamFuji::adamnet_mount_host()
 {
-
 }
 
 // Disk Image Mount
 void adamFuji::adamnet_disk_image_mount()
 {
-
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void adamFuji::adamnet_set_boot_config()
 {
-
 }
 
 // Do SIO copy
 void adamFuji::adamnet_copy_file()
 {
-
 }
 
 // Mount all
 void adamFuji::adamnet_mount_all()
 {
-
 }
 
 // Set boot mode
 void adamFuji::adamnet_set_boot_mode()
 {
-
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -241,7 +234,6 @@ char *_generate_appkey_filename(appkey *info)
 */
 void adamFuji::adamnet_open_app_key()
 {
-
 }
 
 /*
@@ -250,7 +242,6 @@ void adamFuji::adamnet_open_app_key()
 */
 void adamFuji::adamnet_close_app_key()
 {
-
 }
 
 /*
@@ -258,7 +249,6 @@ void adamFuji::adamnet_close_app_key()
 */
 void adamFuji::adamnet_write_app_key()
 {
-
 }
 
 /*
@@ -266,19 +256,16 @@ void adamFuji::adamnet_write_app_key()
 */
 void adamFuji::adamnet_read_app_key()
 {
-
 }
 
 // DEBUG TAPE
 void adamFuji::debug_tape()
 {
-
 }
 
 // Disk Image Unmount
 void adamFuji::adamnet_disk_image_umount()
 {
-
 }
 
 // Disk Image Rotate
@@ -336,7 +323,6 @@ void adamFuji::shutdown()
 
 void adamFuji::adamnet_open_directory()
 {
-
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -376,70 +362,58 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
 void adamFuji::adamnet_read_directory_entry()
 {
-
 }
 
 void adamFuji::adamnet_get_directory_position()
 {
-
 }
 
 void adamFuji::adamnet_set_directory_position()
 {
-
 }
 
 void adamFuji::adamnet_close_directory()
 {
-
 }
 
 // Get network adapter configuration
 void adamFuji::adamnet_get_adapter_config()
 {
-
 }
 
 //  Make new disk and shove into device slot
 void adamFuji::adamnet_new_disk()
 {
-
 }
 
 // Send host slot data to computer
 void adamFuji::adamnet_read_host_slots()
 {
-
 }
 
 // Read and save host slot data from computer
 void adamFuji::adamnet_write_host_slots()
 {
-
 }
 
 // Store host path prefix
 void adamFuji::adamnet_set_host_prefix()
 {
-
 }
 
 // Retrieve host path prefix
 void adamFuji::adamnet_get_host_prefix()
 {
-
 }
 
 // Send device slot data to computer
 void adamFuji::adamnet_read_device_slots()
 {
-
 }
 
 // Read and save disk slot data from computer
 void adamFuji::adamnet_write_device_slots()
 {
-
 }
 
 // Temporary(?) function while we move from old config storage to new
@@ -505,13 +479,11 @@ void adamFuji::_populate_config_from_slots()
 // Write a 256 byte filename to the device slot
 void adamFuji::adamnet_set_device_filename()
 {
-    
 }
 
 // Get a 256 byte filename from device slot
 void adamFuji::adamnet_get_device_filename()
 {
-
 }
 
 // Mounts the desired boot disk number
@@ -551,11 +523,14 @@ void adamFuji::setup(adamNetBus *siobus)
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
-    
-    //Disable status_wait if our settings say to turn it off
+
+    // Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();
 
-    _adamnet_bus->addDevice(&_bootDisk,4);
+    // Temporary
+    _adamnet_bus->addDevice(&_bootDisk, 4);
+
+    _adamnet_bus->addDevice(&theFuji, 0x0F); // Fuji becomes the gateway device.
 
     // // Add our devices to the SIO bus
     // for (int i = 0; i < MAX_DISK_DEVICES; i++)
@@ -563,7 +538,6 @@ void adamFuji::setup(adamNetBus *siobus)
 
     // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
     //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
-
 }
 
 adamDisk *adamFuji::bootdisk()
@@ -571,9 +545,48 @@ adamDisk *adamFuji::bootdisk()
     return &_bootDisk;
 }
 
+void adamFuji::adamnet_control_ready()
+{
+    if (isReady)
+    {
+        fnSystem.delay_microseconds(80);
+        adamnet_send(0x9F); // ACK.
+    }
+}
+
+void adamFuji::adamnet_control_send()
+{
+    uint16_t s = adamnet_recv_length();
+    uint8_t c = adamnet_recv();
+
+    switch (c)
+    {
+        case SIO_FUJICMD_RESET:
+            adamnet_reset_fujinet();
+            break;
+    }
+}
+
 void adamFuji::adamnet_process(uint8_t b)
 {
+    unsigned char c = b >> 4;
+    uint8_t r[16];
 
+    memset(r, 0, 16);
+
+    switch (c)
+    {
+    case MN_STATUS:
+        adamnet_control_status();
+        break;
+    case MN_SEND:
+        adamnet_control_send();
+        break;
+    case MN_READY:
+        adamnet_control_ready();
+        break;
+    
+    }
 }
 
 int adamFuji::get_disk_id(int drive_slot)
