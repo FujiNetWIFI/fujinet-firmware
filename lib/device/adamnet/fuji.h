@@ -53,6 +53,8 @@ struct appkey
 class adamFuji : public adamNetDevice
 {
 private:
+    bool isReady = true;
+
     adamNetBus *_adamnet_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
@@ -106,6 +108,9 @@ protected:
     void adamnet_set_boot_mode();          // 0xD6
 
     void adamnet_control_status() override;
+    void adamnet_control_send();
+    void adamnet_control_ready();
+
     void adamnet_process(uint8_t b) override;
 
     void shutdown() override;
