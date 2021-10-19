@@ -55,6 +55,9 @@ class adamFuji : public adamNetDevice
 private:
     bool isReady = true;
 
+    uint8_t response[1024];
+    uint16_t response_len;
+
     adamNetBus *_adamnet_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
@@ -110,6 +113,7 @@ protected:
     void adamnet_control_status() override;
     void adamnet_control_send();
     void adamnet_control_ready();
+    void adamnet_control_clr();
 
     void adamnet_process(uint8_t b) override;
 
