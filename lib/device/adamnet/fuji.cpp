@@ -124,8 +124,11 @@ void adamFuji::adamnet_net_scan_networks()
 
     isReady = false;
 
-    if (_countScannedSSIDs == 0)
+    if (scanStarted == false)
+    {
         _countScannedSSIDs = fnWiFi.scan_networks();
+        scanStarted=true;
+    }
 
     isReady = true;
 
@@ -141,7 +144,8 @@ void adamFuji::adamnet_net_scan_networks()
 void adamFuji::adamnet_net_scan_result()
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
-
+    scanStarted = false;
+    
     uint8_t n = adamnet_recv();
 
     // Response to SIO_FUJICMD_GET_SCAN_RESULT
