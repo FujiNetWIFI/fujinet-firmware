@@ -54,6 +54,7 @@ class adamFuji : public adamNetDevice
 {
 private:
     bool isReady = true;
+    bool scanStarted = false;
 
     uint8_t response[1024];
     uint16_t response_len;
