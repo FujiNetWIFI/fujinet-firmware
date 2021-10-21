@@ -51,6 +51,7 @@
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
 adamFuji theFuji; // global fuji device object
+adamNetwork *theNetwork; // global network device object (temporary)
 
 // sioDisk sioDiskDevs[MAX_HOSTS];
 // sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
@@ -219,7 +220,7 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 
     Debug_printf("s is %u\n", s);
 
-    uint8_t ck = adamnet_recv();
+    // uint8_t ck = adamnet_recv();
 
     bool save = true;
 
@@ -242,6 +243,13 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 // Get WiFi Status
 void adamFuji::adamnet_net_get_wifi_status()
 {
+    Debug_println("Fuji cmd: GET WIFI STATUS");
+    // WL_CONNECTED = 3, WL_DISCONNECTED = 6
+    uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
+    response[0] = wifiStatus;
+    response_len = 1;
+    fnSystem.delay_microseconds(100);
+    adamnet_send(0x9F); // ACK
 }
 
 // Mount Server
@@ -574,8 +582,11 @@ void adamFuji::setup(adamNetBus *siobus)
     // Temporary
     _adamnet_bus->addDevice(&_bootDisk, 4);
 
-    _adamnet_bus->addDevice(&theFuji, 0x0F); // Fuji becomes the gateway device.
+    theNetwork = new adamNetwork();
 
+    _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
+    _adamnet_bus->addDevice(&theFuji, 0x0F); // Fuji becomes the gateway device.
+    
     // // Add our devices to the SIO bus
     // for (int i = 0; i < MAX_DISK_DEVICES; i++)
     //     _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
@@ -619,6 +630,9 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_SET_SSID:
         adamnet_net_set_ssid(s);
+        break;
+    case SIO_FUJICMD_GET_WIFISTATUS:
+        adamnet_net_get_wifi_status();
         break;
     }
 }
