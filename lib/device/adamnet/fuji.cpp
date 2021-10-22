@@ -272,7 +272,36 @@ void adamFuji::adamnet_mount_host()
 // Disk Image Mount
 void adamFuji::adamnet_disk_image_mount()
 {
-    
+    Debug_println("Fuji cmd: MOUNT IMAGE");
+
+    uint8_t deviceSlot = adamnet_recv();
+    uint8_t options = adamnet_recv(); // DISK_ACCESS_MODE
+
+    // TODO: Implement FETCH?
+    char flag[3] = {'r', 0, 0};
+    if (options == DISK_ACCESS_MODE_WRITE)
+        flag[1] = '+';
+
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[deviceSlot];
+    fujiHost &host = _fnHosts[disk.host_slot];
+
+    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                 disk.filename, disk.host_slot, flag, deviceSlot + 1);
+
+    fnSystem.delay_microseconds(100);
+    adamnet_send(0x9F); // ACK
+
+    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+    // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+    boot_config = false;
+
+    // We need the file size for loading XEX files and for CASSETTE, so get that too
+    disk.disk_size = host.file_size(disk.fileh);
+
+    // And now mount it
+    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
