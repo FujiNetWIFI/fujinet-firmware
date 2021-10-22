@@ -638,6 +638,39 @@ void adamFuji::adamnet_control_send()
     case SIO_FUJICMD_GET_WIFISTATUS:
         adamnet_net_get_wifi_status();
         break;
+    case SIO_FUJICMD_MOUNT_HOST:
+        adamnet_mount_host();
+        break;
+    case SIO_FUJICMD_MOUNT_IMAGE:
+        adamnet_disk_image_mount();
+        break;
+    case SIO_FUJICMD_OPEN_DIRECTORY:
+        adamnet_open_directory();
+        break;
+    case SIO_FUJICMD_READ_DIR_ENTRY:
+        adamnet_read_directory_entry();
+        break;
+    case SIO_FUJICMD_CLOSE_DIRECTORY:
+        adamnet_close_directory();
+        break;
+    case SIO_FUJICMD_READ_HOST_SLOTS:
+        adamnet_read_host_slots();
+        break;
+    case SIO_FUJICMD_WRITE_HOST_SLOTS:
+        adamnet_write_host_slots();        
+        break;
+    case SIO_FUJICMD_READ_DEVICE_SLOTS:
+        adamnet_read_device_slots();
+        break;
+    case SIO_FUJICMD_WRITE_DEVICE_SLOTS:
+        adamnet_write_device_slots();
+        break;
+    case SIO_FUJICMD_UNMOUNT_IMAGE:
+        adamnet_disk_image_umount();
+        break;
+    case SIO_FUJICMD_GET_ADAPTERCONFIG:
+        adamnet_get_adapter_config();
+        break;
     }
 }
 
