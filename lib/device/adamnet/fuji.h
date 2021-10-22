@@ -84,7 +84,7 @@ protected:
     void adamnet_net_get_wifi_status();    // 0xFA
     void adamnet_mount_host();             // 0xF9
     void adamnet_disk_image_mount();       // 0xF8
-    void adamnet_open_directory();         // 0xF7
+    void adamnet_open_directory(uint16_t s);         // 0xF7
     void adamnet_read_directory_entry();   // 0xF6
     void adamnet_close_directory();        // 0xF5
     void adamnet_read_host_slots();        // 0xF4
