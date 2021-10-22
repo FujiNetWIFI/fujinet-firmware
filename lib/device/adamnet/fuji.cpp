@@ -259,11 +259,20 @@ void adamFuji::adamnet_net_get_wifi_status()
 // Mount Server
 void adamFuji::adamnet_mount_host()
 {
+    Debug_println("Fuji cmd: MOUNT HOST");
+
+    unsigned char hostSlot = adamnet_recv();
+
+    fnSystem.delay_microseconds(100);
+    adamnet_send(0x9F);
+
+    _fnHosts[hostSlot].mount();
 }
 
 // Disk Image Mount
 void adamFuji::adamnet_disk_image_mount()
 {
+    
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
