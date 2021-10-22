@@ -415,8 +415,46 @@ void adamFuji::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
-void adamFuji::adamnet_open_directory()
+void adamFuji::adamnet_open_directory(uint16_t s)
 {
+    Debug_println("Fuji cmd: OPEN DIRECTORY");
+
+    char dirpath[256];
+    uint8_t hostSlot = adamnet_recv();
+    adamnet_recv_buffer((uint8_t *)&dirpath,s);
+
+    // If we already have a directory open, close it first
+    if (_current_open_directory_slot != -1)
+    {
+        Debug_print("Directory was already open - closign it first\n");
+        _fnHosts[_current_open_directory_slot].dir_close();
+        _current_open_directory_slot = -1;
+    }
+
+    // See if there's a search pattern after the directory path
+    const char *pattern = nullptr;
+    int pathlen = strnlen(dirpath, sizeof(dirpath));
+    if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
+    {
+        pattern = dirpath + pathlen + 1;
+        int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
+        if (patternlen < 1)
+            pattern = nullptr;
+    }
+
+    // Remove trailing slash
+    if (pathlen > 1 && dirpath[pathlen - 1] == '/')
+        dirpath[pathlen - 1] = '\0';
+
+    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
+
+    fnSystem.delay_microseconds(100);
+    adamnet_send(0x9F); // ACK
+
+    if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
+    {
+        _current_open_directory_slot = hostSlot;
+    }
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -683,7 +721,7 @@ void adamFuji::adamnet_control_send()
         adamnet_disk_image_mount();
         break;
     case SIO_FUJICMD_OPEN_DIRECTORY:
-        adamnet_open_directory();
+        adamnet_open_directory(s);
         break;
     case SIO_FUJICMD_READ_DIR_ENTRY:
         adamnet_read_directory_entry();
