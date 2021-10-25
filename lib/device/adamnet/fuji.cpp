@@ -252,7 +252,7 @@ void adamFuji::adamnet_net_get_wifi_status()
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     response[0] = wifiStatus;
     response_len = 1;
-    fnSystem.delay_microseconds(100);
+    fnSystem.delay_microseconds(150);
     adamnet_send(0x9F); // ACK
 }
 
@@ -685,6 +685,8 @@ void adamFuji::adamnet_read_device_slots()
         char filename[MAX_DISPLAY_FILENAME_LEN];
     };
     disk_slot diskSlots[MAX_DISK_DEVICES];
+
+    memset(&diskSlots,0,sizeof(diskSlots));
 
     int returnsize;
 
