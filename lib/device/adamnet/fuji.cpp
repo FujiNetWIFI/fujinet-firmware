@@ -565,7 +565,8 @@ void adamFuji::adamnet_set_directory_position()
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    uint16_t pos;
+    uint16_t pos=0;
+
     adamnet_recv_buffer((uint8_t *)pos, sizeof(pos));
 
     fnSystem.delay_microseconds(100);
@@ -614,11 +615,11 @@ void adamFuji::adamnet_get_adapter_config()
 
     fnWiFi.get_mac(cfg.macAddress);
 
-    fnSystem.delay_microseconds(100);
-    adamnet_send(0x9F); // ACK
-
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
+
+    fnSystem.delay_microseconds(100);
+    adamnet_send(0x9F); // ACK
 }
 
 //  Make new disk and shove into device slot
@@ -639,6 +640,9 @@ void adamFuji::adamnet_read_host_slots()
 
     memcpy(response, hostSlots, sizeof(hostSlots));
     response_len = sizeof(hostSlots);
+
+    fnSystem.delay_microseconds(100);
+    adamnet_send(0x9F);
 }
 
 // Read and save host slot data from computer
@@ -699,11 +703,11 @@ void adamFuji::adamnet_read_device_slots()
         returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
     }
 
-    fnSystem.delay_microseconds(100);
-    adamnet_send(0x9F); // ACK
-
     memcpy(response, &diskSlots, returnsize);
     response_len = returnsize;
+
+    fnSystem.delay_microseconds(100);
+    adamnet_send(0x9F); // ACK
 }
 
 // Read and save disk slot data from computer
