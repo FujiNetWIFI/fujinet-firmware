@@ -53,7 +53,7 @@ struct appkey
 class adamFuji : public adamNetDevice
 {
 private:
-    bool isReady = true;
+    bool isReady = false;
     bool scanStarted = false;
 
     uint8_t response[1024];
@@ -110,6 +110,8 @@ protected:
     void adamnet_set_boot_config();        // 0xD9
     void adamnet_copy_file();              // 0xD8
     void adamnet_set_boot_mode();          // 0xD6
+
+    void adamnet_test_command();
 
     void adamnet_control_status() override;
     void adamnet_control_send();

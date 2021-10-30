@@ -111,6 +111,7 @@ void adamFuji::adamnet_control_status()
 // Reset FujiNet
 void adamFuji::adamnet_reset_fujinet()
 {
+    adamnet_recv(); // get ck
     Debug_println("ADAMNET RESET FUJINET");
     fnSystem.delay_microseconds(80);
     adamnet_send(0x9F); // ACK
@@ -121,6 +122,8 @@ void adamFuji::adamnet_reset_fujinet()
 void adamFuji::adamnet_net_scan_networks()
 {
     Debug_println("Fuji cmd: SCAN NETWORKS");
+    
+    adamnet_recv(); // get ck
 
     isReady = false;
 
@@ -148,6 +151,8 @@ void adamFuji::adamnet_net_scan_result()
 
     uint8_t n = adamnet_recv();
 
+    adamnet_recv(); // get CK
+
     // Response to SIO_FUJICMD_GET_SCAN_RESULT
     struct
     {
@@ -174,6 +179,8 @@ void adamFuji::adamnet_net_scan_result()
 void adamFuji::adamnet_net_get_ssid()
 {
     Debug_println("Fuji cmd: GET SSID");
+
+    adamnet_recv(); // get CK
 
     // Response to SIO_FUJICMD_GET_SSID
     struct
@@ -209,44 +216,45 @@ void adamFuji::adamnet_net_get_ssid()
 // Set SSID
 void adamFuji::adamnet_net_set_ssid(uint16_t s)
 {
-    Debug_println("Fuji cmd: SET SSID");
-
-    s--;
-
-    // Data for SIO_FUJICMD_SET_SSID
-    struct
+    if (!fnWiFi.connected())
     {
-        char ssid[MAX_SSID_LEN];
-        char password[MAX_WIFI_PASS_LEN];
-    } cfg;
+        Debug_println("Fuji cmd: SET SSID");
 
-    adamnet_recv_buffer((uint8_t *)&cfg, s);
+        s--;
 
-    Debug_printf("s is %u\n", s);
+        // Data for SIO_FUJICMD_SET_SSID
+        struct
+        {
+            char ssid[MAX_SSID_LEN];
+            char password[MAX_WIFI_PASS_LEN];
+        } cfg;
 
-    // uint8_t ck = adamnet_recv();
+        adamnet_recv_buffer((uint8_t *)&cfg, s);
 
-    bool save = true;
+        uint8_t ck = adamnet_recv();
 
-    Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
+        bool save = true;
 
-    fnWiFi.connect(cfg.ssid, cfg.password);
+        Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
-    // Only save these if we're asked to, otherwise assume it was a test for connectivity
-    if (save)
-    {
-        Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-        Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
-        Config.save();
+        fnWiFi.connect(cfg.ssid, cfg.password);
+
+        // Only save these if we're asked to, otherwise assume it was a test for connectivity
+        if (save)
+        {
+            Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+            Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+            Config.save();
+        }
+
+        fnSystem.delay_microseconds(100);
+        adamnet_send(0x9F); // ACK
     }
-
-    fnSystem.delay_microseconds(100);
-    adamnet_send(0x9F); // ACK
-    Debug_println("DONE.");
 }
 // Get WiFi Status
 void adamFuji::adamnet_net_get_wifi_status()
 {
+    adamnet_recv(); // Get CK
     Debug_println("Fuji cmd: GET WIFI STATUS");
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
@@ -262,11 +270,14 @@ void adamFuji::adamnet_mount_host()
     Debug_println("Fuji cmd: MOUNT HOST");
 
     unsigned char hostSlot = adamnet_recv();
-
-    fnSystem.delay_microseconds(100);
-    adamnet_send(0x9F);
+    
+    adamnet_recv(); // Get CK
 
     _fnHosts[hostSlot].mount();
+    
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x9F);
+
 }
 
 // Disk Image Mount
@@ -276,6 +287,8 @@ void adamFuji::adamnet_disk_image_mount()
 
     uint8_t deviceSlot = adamnet_recv();
     uint8_t options = adamnet_recv(); // DISK_ACCESS_MODE
+
+    adamnet_recv(); // CK
 
     // TODO: Implement FETCH?
     char flag[3] = {'r', 0, 0};
@@ -415,13 +428,20 @@ void adamFuji::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
+char dirpath[256];
+
 void adamFuji::adamnet_open_directory(uint16_t s)
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    char dirpath[256];
     uint8_t hostSlot = adamnet_recv();
+
+    s--;
+    s--;
+
     adamnet_recv_buffer((uint8_t *)&dirpath, s);
+
+    adamnet_recv(); // Grab checksum
 
     // If we already have a directory open, close it first
     if (_current_open_directory_slot != -1)
@@ -448,13 +468,13 @@ void adamFuji::adamnet_open_directory(uint16_t s)
 
     Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
 
-    fnSystem.delay_microseconds(100);
-    adamnet_send(0x9F); // ACK
-
     if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
     {
         _current_open_directory_slot = hostSlot;
     }
+
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x9F); // ACK
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -496,36 +516,34 @@ void adamFuji::adamnet_read_directory_entry()
 {
     uint8_t maxlen = adamnet_recv();
     uint8_t addtl = adamnet_recv();
+
+    adamnet_recv(); // Checksum
+
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
-
-    char current_entry[256];
-
-    fnSystem.delay_microseconds(100);
-    adamnet_send(0x9F); // ACK
 
     fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
     if (f == nullptr)
     {
         Debug_println("Reached end of of directory");
-        current_entry[0] = 0x7F;
-        current_entry[1] = 0x7F;
+        dirpath[0] = 0x7F;
+        dirpath[1] = 0x7F;
     }
     else
     {
         Debug_printf("::read_direntry \"%s\"\n", f->filename);
 
-        int bufsize = sizeof(current_entry);
-        char *filenamedest = current_entry;
+        int bufsize = sizeof(dirpath);
+        char *filenamedest = dirpath;
 
 #define ADDITIONAL_DETAILS_BYTES 10
         // If 0x80 is set on AUX2, send back additional information
         if (addtl & 0x80)
         {
-            _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+            _set_additional_direntry_details(f, (uint8_t *)dirpath, maxlen);
             // Adjust remaining size of buffer and file path destination
-            bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
-            filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
+            bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
+            filenamedest = dirpath + ADDITIONAL_DETAILS_BYTES;
         }
         else
         {
@@ -538,13 +556,17 @@ void adamFuji::adamnet_read_directory_entry()
         // Add a slash at the end of directory entries
         if (f->isDir && filelen < (bufsize - 2))
         {
-            current_entry[filelen] = '/';
-            current_entry[filelen + 1] = '\0';
+            dirpath[filelen] = '/';
+            dirpath[filelen + 1] = '\0';
         }
     }
 
-    memcpy(response, current_entry, maxlen);
+    memset(response, 0, sizeof(response));
+    memcpy(response, dirpath, maxlen);
     response_len = maxlen;
+
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x9F); // ACK
 }
 
 void adamFuji::adamnet_get_directory_position()
@@ -552,6 +574,8 @@ void adamFuji::adamnet_get_directory_position()
     Debug_println("Fuji cmd: GET DIRECTORY POSITION");
 
     uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
+
+    adamnet_recv(); // ck
 
     response_len = sizeof(pos);
     memcpy(response, &pos, sizeof(pos));
@@ -565,11 +589,13 @@ void adamFuji::adamnet_set_directory_position()
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    uint16_t pos=0;
+    uint16_t pos = 0;
 
     adamnet_recv_buffer((uint8_t *)pos, sizeof(pos));
 
-    fnSystem.delay_microseconds(100);
+    adamnet_recv(); // ck
+
+    fnSystem.delay_microseconds(150);
     adamnet_send(0x9F); // ACK
 
     _fnHosts[_current_open_directory_slot].dir_seek(pos);
@@ -579,7 +605,9 @@ void adamFuji::adamnet_close_directory()
 {
     Debug_println("Fuji cmd: CLOSE DIRECTORY");
 
-    fnSystem.delay_microseconds(100);
+    adamnet_recv(); // ck
+
+    fnSystem.delay_microseconds(150);
     adamnet_send(0x9F); // ACK
 
     if (_current_open_directory_slot != -1)
@@ -592,6 +620,8 @@ void adamFuji::adamnet_close_directory()
 void adamFuji::adamnet_get_adapter_config()
 {
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
+
+    adamnet_recv(); // ck
 
     // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
@@ -632,6 +662,8 @@ void adamFuji::adamnet_read_host_slots()
 {
     Debug_println("Fuji cmd: READ HOST SLOTS");
 
+    adamnet_recv(); // ck
+
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     memset(hostSlots, 0, sizeof(hostSlots));
 
@@ -652,6 +684,8 @@ void adamFuji::adamnet_write_host_slots()
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     adamnet_recv_buffer((uint8_t *)hostSlots, sizeof(hostSlots));
+
+    adamnet_recv(); // ck
 
     fnSystem.delay_microseconds(100);
     adamnet_send(0x9F); // ACK
@@ -686,7 +720,7 @@ void adamFuji::adamnet_read_device_slots()
     };
     disk_slot diskSlots[MAX_DISK_DEVICES];
 
-    memset(&diskSlots,0,sizeof(diskSlots));
+    memset(&diskSlots, 0, sizeof(diskSlots));
 
     int returnsize;
 
@@ -704,6 +738,8 @@ void adamFuji::adamnet_read_device_slots()
 
         returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
     }
+
+    adamnet_recv(); // ck
 
     memcpy(response, &diskSlots, returnsize);
     response_len = returnsize;
@@ -725,6 +761,8 @@ void adamFuji::adamnet_write_device_slots()
     } diskSlots[MAX_DISK_DEVICES];
 
     adamnet_recv_buffer((uint8_t *)&diskSlots, sizeof(diskSlots));
+
+    adamnet_recv(); // ck
 
     fnSystem.delay_microseconds(100);
     adamnet_send(0x9F); // ACK
@@ -808,6 +846,23 @@ void adamFuji::adamnet_get_device_filename()
 {
 }
 
+void adamFuji::adamnet_test_command()
+{
+    if (isReady == false)
+    {
+        Debug_println("FUJI: Test CMD");
+        fnSystem.delay(20000);
+        isReady = true;
+    }
+    else
+    {
+        Debug_println("Sending ack after re-attempt.");
+        isReady = false;
+        fnSystem.delay_microseconds(150);
+        adamnet_send(0x9F);
+    }
+}
+
 // Mounts the desired boot disk number
 void adamFuji::insert_boot_device(uint8_t d)
 {
@@ -852,10 +907,10 @@ void adamFuji::setup(adamNetBus *siobus)
     // Temporary
     _adamnet_bus->addDevice(&_bootDisk, 4);
 
-    theNetwork = new adamNetwork();
+    // theNetwork = new adamNetwork();
 
-    _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
-    _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
+    // _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
+    _adamnet_bus->addDevice(&theFuji, 0x0F); // Fuji becomes the gateway device.
 
     // // Add our devices to the SIO bus
     // for (int i = 0; i < MAX_DISK_DEVICES; i++)
@@ -872,11 +927,9 @@ adamDisk *adamFuji::bootdisk()
 
 void adamFuji::adamnet_control_ready()
 {
-    if (isReady)
-    {
-        fnSystem.delay_microseconds(120);
-        adamnet_send(0x9F); // ACK.
-    }
+    Debug_println("READY - SEND ACK.");
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x9F); // ACK.
 }
 
 void adamFuji::adamnet_control_send()
@@ -937,6 +990,9 @@ void adamFuji::adamnet_control_send()
     case SIO_FUJICMD_GET_ADAPTERCONFIG:
         adamnet_get_adapter_config();
         break;
+    case 0xE7:
+        adamnet_test_command();
+        break;
     }
 }
 
@@ -961,7 +1017,7 @@ void adamFuji::adamnet_process(uint8_t b)
         adamnet_control_clr();
         break;
     case MN_RECEIVE:
-        fnSystem.delay_microseconds(80);
+        fnSystem.delay_microseconds(160);
         adamnet_send(0x9F); // ACK.
         break;
     case MN_SEND:
