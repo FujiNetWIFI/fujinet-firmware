@@ -233,6 +233,9 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 
         uint8_t ck = adamnet_recv();
 
+        fnSystem.delay_microseconds(100);
+        adamnet_send(0x9F); // ACK
+
         bool save = true;
 
         Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
@@ -247,8 +250,6 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
             Config.save();
         }
 
-        fnSystem.delay_microseconds(100);
-        adamnet_send(0x9F); // ACK
     }
 }
 // Get WiFi Status
@@ -993,10 +994,9 @@ void adamFuji::adamnet_control_send()
     case SIO_FUJICMD_GET_ADAPTERCONFIG:
         adamnet_get_adapter_config();
         break;
-    case 0xE7:
-        adamnet_test_command();
-        break;
     }
+
+    fnUartSIO.flush_input();
 }
 
 void adamFuji::adamnet_control_clr()
