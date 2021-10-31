@@ -122,7 +122,7 @@ void adamFuji::adamnet_reset_fujinet()
 void adamFuji::adamnet_net_scan_networks()
 {
     Debug_println("Fuji cmd: SCAN NETWORKS");
-    
+
     adamnet_recv(); // get ck
 
     isReady = false;
@@ -270,14 +270,19 @@ void adamFuji::adamnet_mount_host()
     Debug_println("Fuji cmd: MOUNT HOST");
 
     unsigned char hostSlot = adamnet_recv();
-    
+
     adamnet_recv(); // Get CK
 
-    _fnHosts[hostSlot].mount();
-    
+    if (alreadyRunning == false)
+    {
+        _fnHosts[hostSlot].mount();
+        alreadyRunning = true;
+    }
+
+    alreadyRunning = false;
+
     fnSystem.delay_microseconds(150);
     adamnet_send(0x9F);
-
 }
 
 // Disk Image Mount
@@ -443,34 +448,29 @@ void adamFuji::adamnet_open_directory(uint16_t s)
 
     adamnet_recv(); // Grab checksum
 
-    // If we already have a directory open, close it first
-    if (_current_open_directory_slot != -1)
+    if (_current_open_directory_slot == -1)
     {
-        Debug_print("Directory was already open - closign it first\n");
-        _fnHosts[_current_open_directory_slot].dir_close();
-        _current_open_directory_slot = -1;
-    }
+        // See if there's a search pattern after the directory path
+        const char *pattern = nullptr;
+        int pathlen = strnlen(dirpath, sizeof(dirpath));
+        if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
+        {
+            pattern = dirpath + pathlen + 1;
+            int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
+            if (patternlen < 1)
+                pattern = nullptr;
+        }
 
-    // See if there's a search pattern after the directory path
-    const char *pattern = nullptr;
-    int pathlen = strnlen(dirpath, sizeof(dirpath));
-    if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
-    {
-        pattern = dirpath + pathlen + 1;
-        int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
-        if (patternlen < 1)
-            pattern = nullptr;
-    }
+        // Remove trailing slash
+        if (pathlen > 1 && dirpath[pathlen - 1] == '/')
+            dirpath[pathlen - 1] = '\0';
 
-    // Remove trailing slash
-    if (pathlen > 1 && dirpath[pathlen - 1] == '/')
-        dirpath[pathlen - 1] = '\0';
+        Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
 
-    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
-
-    if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
-    {
-        _current_open_directory_slot = hostSlot;
+        if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
+        {
+            _current_open_directory_slot = hostSlot;
+        }
     }
 
     fnSystem.delay_microseconds(150);
@@ -519,51 +519,54 @@ void adamFuji::adamnet_read_directory_entry()
 
     adamnet_recv(); // Checksum
 
-    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
-
-    fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-
-    if (f == nullptr)
+    if ((_current_open_directory_slot != -1) || (response[0] == 0x00))
     {
-        Debug_println("Reached end of of directory");
-        dirpath[0] = 0x7F;
-        dirpath[1] = 0x7F;
-    }
-    else
-    {
-        Debug_printf("::read_direntry \"%s\"\n", f->filename);
+        Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
-        int bufsize = sizeof(dirpath);
-        char *filenamedest = dirpath;
+        fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
-#define ADDITIONAL_DETAILS_BYTES 10
-        // If 0x80 is set on AUX2, send back additional information
-        if (addtl & 0x80)
+        if (f == nullptr)
         {
-            _set_additional_direntry_details(f, (uint8_t *)dirpath, maxlen);
-            // Adjust remaining size of buffer and file path destination
-            bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
-            filenamedest = dirpath + ADDITIONAL_DETAILS_BYTES;
+            Debug_println("Reached end of of directory");
+            dirpath[0] = 0x7F;
+            dirpath[1] = 0x7F;
         }
         else
         {
-            bufsize = maxlen;
+            Debug_printf("::read_direntry \"%s\"\n", f->filename);
+
+            int bufsize = sizeof(dirpath);
+            char *filenamedest = dirpath;
+
+#define ADDITIONAL_DETAILS_BYTES 10
+            // If 0x80 is set on AUX2, send back additional information
+            if (addtl & 0x80)
+            {
+                _set_additional_direntry_details(f, (uint8_t *)dirpath, maxlen);
+                // Adjust remaining size of buffer and file path destination
+                bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
+                filenamedest = dirpath + ADDITIONAL_DETAILS_BYTES;
+            }
+            else
+            {
+                bufsize = maxlen;
+            }
+
+            // int filelen = strlcpy(filenamedest, f->filename, bufsize);
+            int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+
+            // Add a slash at the end of directory entries
+            if (f->isDir && filelen < (bufsize - 2))
+            {
+                dirpath[filelen] = '/';
+                dirpath[filelen + 1] = '\0';
+            }
         }
 
-        // int filelen = strlcpy(filenamedest, f->filename, bufsize);
-        int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
-
-        // Add a slash at the end of directory entries
-        if (f->isDir && filelen < (bufsize - 2))
-        {
-            dirpath[filelen] = '/';
-            dirpath[filelen + 1] = '\0';
-        }
+        memset(response, 0, sizeof(response));
+        memcpy(response, dirpath, maxlen);
+        response_len = maxlen;
     }
-
-    memset(response, 0, sizeof(response));
-    memcpy(response, dirpath, maxlen);
-    response_len = maxlen;
 
     fnSystem.delay_microseconds(150);
     adamnet_send(0x9F); // ACK
@@ -907,9 +910,9 @@ void adamFuji::setup(adamNetBus *siobus)
     // Temporary
     _adamnet_bus->addDevice(&_bootDisk, 4);
 
-    // theNetwork = new adamNetwork();
+    theNetwork = new adamNetwork();
 
-    // _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
+    _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
     _adamnet_bus->addDevice(&theFuji, 0x0F); // Fuji becomes the gateway device.
 
     // // Add our devices to the SIO bus
@@ -1002,6 +1005,8 @@ void adamFuji::adamnet_control_clr()
     adamnet_send_length(response_len);
     adamnet_send_buffer(response, response_len);
     adamnet_send(adamnet_checksum(response, response_len));
+    memset(response,0,sizeof(response));
+    response_len=0;
 }
 
 void adamFuji::adamnet_process(uint8_t b)
