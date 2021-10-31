@@ -15,6 +15,7 @@ class adamNetwork : public adamNetDevice
     uint8_t response[1024];
     uint16_t response_len=0;
     bool isReady=true;
+    bool alreadyDoingSomething=false;
 
     fnTcpClient client;
 
