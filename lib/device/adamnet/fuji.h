@@ -54,6 +54,7 @@ class adamFuji : public adamNetDevice
 {
 private:
     bool isReady = false;
+    bool alreadyRunning = false; // Replace isReady and scanStarted with THIS.
     bool scanStarted = false;
 
     uint8_t response[1024];
