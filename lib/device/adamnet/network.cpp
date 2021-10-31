@@ -153,6 +153,9 @@ void adamNetwork::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
+
+    fnUartSIO.flush_input();
+    
 }
 
 #endif /* BUILD_ADAM */
