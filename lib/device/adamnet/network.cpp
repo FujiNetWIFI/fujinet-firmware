@@ -59,14 +59,16 @@ void adamNetwork::command_connect(uint16_t s)
 void adamNetwork::command_recv()
 {
     if (client.available())
-    {
-        fnSystem.delay_microseconds(120);
-        adamnet_send(0x9E);
-        
+    {        
         if (response_len == 0)
         {
-            response_len = client.read(response, (client.available() > 1023 ? 1023 : client.available()));
-            Debug_printf("recv: %s\n",response);
+            response_len = client.read(response, 1023);
+            Debug_printf("len: %u\n recv: %s\n",response_len,response);
+        }
+        else
+        {
+            fnSystem.delay_microseconds(120);
+            adamnet_send(0x9E);
         }
     }
     else
