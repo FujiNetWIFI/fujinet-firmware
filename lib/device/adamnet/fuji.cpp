@@ -208,7 +208,7 @@ void adamFuji::adamnet_net_get_ssid()
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
 
-    fnSystem.delay_microseconds(250);
+    fnSystem.delay_microseconds(150);
 
     adamnet_send(0x9F); // ACK
 }
