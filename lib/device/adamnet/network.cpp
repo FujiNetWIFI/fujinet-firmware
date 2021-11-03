@@ -58,23 +58,25 @@ void adamNetwork::command_connect(uint16_t s)
 
 void adamNetwork::command_recv()
 {
-    if (client.available())
-    {        
+    if (client.available()>0)
+    {
         if (response_len == 0)
         {
-            response_len = client.read(response, 1023);
-            Debug_printf("len: %u\n recv: %s\n",response_len,response);
+        int l = (client.available() > 1023 ? 1023 : client.available());
+        fnSystem.delay_microseconds(150);
+        adamnet_send(0x9E);
+        response_len = client.read(response,l);
         }
         else
         {
-            fnSystem.delay_microseconds(120);
+            fnSystem.delay_microseconds(150);
             adamnet_send(0x9E);
         }
     }
-    else
+    else // No data available.
     {
-        fnSystem.delay_microseconds(120);
-        adamnet_send(0xCE);
+        fnSystem.delay_microseconds(150);
+        adamnet_send(0xCE); // NAK
     }
 }
 
@@ -98,21 +100,20 @@ void adamNetwork::adamnet_control_status()
 
 void adamNetwork::adamnet_control_clr()
 {
+    fnSystem.delay_microseconds(150);
     adamnet_send(0xBE);
     adamnet_send_length(response_len);
     adamnet_send_buffer(response, response_len);
     adamnet_send(adamnet_checksum(response, response_len));
+    Debug_printf("CLR: %s",response);
     memset(response,0,sizeof(response));
     response_len = 0;
 }
 
 void adamNetwork::adamnet_control_ready()
 {
-    if (isReady)
-    {
-        fnSystem.delay_microseconds(120);
-        adamnet_send(0x9E); // ACK.
-    }
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x9E); // ACK.
 }
 
 void adamNetwork::adamnet_control_send()
@@ -129,8 +130,6 @@ void adamNetwork::adamnet_control_send()
         command_send(s);
         break;
     }
-
-    adamnet_send(0x9E);
 }
 
 void adamNetwork::adamnet_process(uint8_t b)

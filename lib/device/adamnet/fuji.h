@@ -56,6 +56,7 @@ private:
     bool isReady = false;
     bool alreadyRunning = false; // Replace isReady and scanStarted with THIS.
     bool scanStarted = false;
+    bool hostMounted[MAX_HOSTS];
 
     uint8_t response[1024];
     uint16_t response_len;
