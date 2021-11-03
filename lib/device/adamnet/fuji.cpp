@@ -249,7 +249,6 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
             Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
             Config.save();
         }
-
     }
 }
 // Get WiFi Status
@@ -274,13 +273,11 @@ void adamFuji::adamnet_mount_host()
 
     adamnet_recv(); // Get CK
 
-    if (alreadyRunning == false)
+    if (hostMounted[hostSlot] == false)
     {
         _fnHosts[hostSlot].mount();
-        alreadyRunning = true;
+        hostMounted[hostSlot]=true;
     }
-
-    alreadyRunning = false;
 
     fnSystem.delay_microseconds(150);
     adamnet_send(0x9F);
@@ -520,7 +517,7 @@ void adamFuji::adamnet_read_directory_entry()
 
     adamnet_recv(); // Checksum
 
-    if ((_current_open_directory_slot != -1) || (response[0] == 0x00))
+    if (response[0] == 0x00)
     {
         Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
@@ -569,7 +566,7 @@ void adamFuji::adamnet_read_directory_entry()
         response_len = maxlen;
     }
 
-    fnSystem.delay_microseconds(150);
+    fnSystem.delay_microseconds(100);
     adamnet_send(0x9F); // ACK
 }
 
@@ -728,28 +725,23 @@ void adamFuji::adamnet_read_device_slots()
 
     int returnsize;
 
-    // AUX1 specifies which slots to return
-    // Handle disk slots
-    if (adamnet_recv() == READ_DEVICE_SLOTS_DISKS1)
+    // Load the data from our current device array
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
-        // Load the data from our current device array
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        {
-            diskSlots[i].mode = _fnDisks[i].access_mode;
-            diskSlots[i].hostSlot = _fnDisks[i].host_slot;
-            strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
-        }
-
-        returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
+        diskSlots[i].mode = _fnDisks[i].access_mode;
+        diskSlots[i].hostSlot = _fnDisks[i].host_slot;
+        strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
     }
+
+    returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
 
     adamnet_recv(); // ck
 
-    memcpy(response, &diskSlots, returnsize);
-    response_len = returnsize;
-
     fnSystem.delay_microseconds(100);
     adamnet_send(0x9F); // ACK
+
+    memcpy(response, &diskSlots, returnsize);
+    response_len = returnsize;
 }
 
 // Read and save disk slot data from computer
@@ -914,7 +906,7 @@ void adamFuji::setup(adamNetBus *siobus)
     theNetwork = new adamNetwork();
 
     _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
-    _adamnet_bus->addDevice(&theFuji, 0x0F); // Fuji becomes the gateway device.
+    _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 
     // // Add our devices to the SIO bus
     // for (int i = 0; i < MAX_DISK_DEVICES; i++)
@@ -1005,8 +997,9 @@ void adamFuji::adamnet_control_clr()
     adamnet_send_length(response_len);
     adamnet_send_buffer(response, response_len);
     adamnet_send(adamnet_checksum(response, response_len));
-    memset(response,0,sizeof(response));
-    response_len=0;
+    adamnet_recv(); // get the ack.
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 void adamFuji::adamnet_process(uint8_t b)
