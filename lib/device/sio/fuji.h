@@ -2,10 +2,10 @@
 #define FUJI_H
 #include <cstdint>
 
-#include "../../include/debug.h"
+#include "../../../include/debug.h"
 #include "bus.h"
-#include "sio/network.h"
-#include "sio/cassette.h"
+#include "network.h"
+#include "cassette.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"

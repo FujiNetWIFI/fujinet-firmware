@@ -28,8 +28,8 @@
 #include "../../../include/cbmdefines.h"
 #include "../../../include/petscii.h"
 
+#include "bus.h"
 #include "fnFsSPIF.h"
-#include "../../bus/iec/iec.h"
 #include "media.h"
 
 #define ARCHIVE_TYPES "ZIP|7Z|RAR"

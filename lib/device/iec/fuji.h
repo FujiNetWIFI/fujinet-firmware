@@ -7,8 +7,8 @@
 
 #include "../../include/debug.h"
 
-#include "../bus/iec/iec.h"
-#include "../bus/iec/disk.h"
+#include "bus.h"
+#include "disk.h"
 //#include "../iec/iecApeTime.h"
 //#include "../iec/iecVoice.h"
 

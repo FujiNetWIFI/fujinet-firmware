@@ -1,5 +1,5 @@
-#ifndef PRINTER_H
-#define PRINTER_H
+#ifndef SIO_PRINTER_H
+#define SIO_PRINTER_H
 
 #include <string.h>
 
@@ -65,4 +65,4 @@ private:
     printer_type _ptype;
 };
 
-#endif // guard
+#endif // SIO_PRINTER_H
