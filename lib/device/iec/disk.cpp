@@ -18,6 +18,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
+#ifdef BUILD_CBM
+
 #include "disk.h"
 
 #include <stdarg.h>
@@ -765,3 +767,4 @@ void iecDevice::sendFileHTTP()
 }
  */
 
+#endif  // BUILD_CBM

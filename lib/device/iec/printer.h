@@ -1,5 +1,5 @@
-#ifndef ADAM_PRINTER_H
-#define ADAM_PRINTER_H
+#ifndef IEC_PRINTER_H
+#define IEC_PRINTER_H
 
 #include <string.h>
 
@@ -7,13 +7,13 @@
 #include "../printer-emulator/printer_emulator.h"
 #include "fnFS.h"
 
-class adamPrinter : public adamNetDevice
+class iecPrinter : public iecDevice
 {
 protected:
     // SIO THINGS
     uint8_t _buffer[40];
     void sio_write(uint8_t aux1, uint8_t aux2);
-    void adamnet_status() override;
+    void bus_status() override;
     void adamnet_process(uint8_t b) override;
     void shutdown() override;
 
@@ -49,8 +49,8 @@ public:
         PRINTER_INVALID
     };
 
-    adamPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
-    ~adamPrinter();
+    iecPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
+    ~iecPrinter();
 
     static printer_type match_modelname(std::string model_name);
     void set_printer_type(printer_type printer_type);
@@ -64,4 +64,4 @@ private:
     printer_type _ptype;
 };
 
-#endif // ADAM_PRINTER_H
+#endif // IEC_PRINTER_H

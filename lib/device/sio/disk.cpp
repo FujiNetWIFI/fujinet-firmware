@@ -7,7 +7,7 @@
 #include "../../include/debug.h"
 #include "../utils/utils.h"
 
-#include "../device/sio/disk.h"
+#include "disk.h"
 #include "media.h"
 // #include "diskTypeAtr.h"
 // #include "diskTypeAtx.h"
