@@ -389,6 +389,14 @@ void adamFuji::debug_tape()
 // Disk Image Unmount
 void adamFuji::adamnet_disk_image_umount()
 {
+    unsigned char ds = adamnet_recv();
+    adamnet_recv();
+
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x9F);
+
+    _fnDisks[ds].disk_dev.unmount();
+    _fnDisks[ds].reset();    
 }
 
 // Disk Image Rotate
@@ -842,23 +850,6 @@ void adamFuji::adamnet_set_device_filename()
 // Get a 256 byte filename from device slot
 void adamFuji::adamnet_get_device_filename()
 {
-}
-
-void adamFuji::adamnet_test_command()
-{
-    if (isReady == false)
-    {
-        Debug_println("FUJI: Test CMD");
-        fnSystem.delay(20000);
-        isReady = true;
-    }
-    else
-    {
-        Debug_println("Sending ack after re-attempt.");
-        isReady = false;
-        fnSystem.delay_microseconds(150);
-        adamnet_send(0x9F);
-    }
 }
 
 // Mounts the desired boot disk number
