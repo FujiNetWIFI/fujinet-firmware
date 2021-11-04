@@ -276,7 +276,7 @@ void adamFuji::adamnet_mount_host()
     if (hostMounted[hostSlot] == false)
     {
         _fnHosts[hostSlot].mount();
-        hostMounted[hostSlot]=true;
+        hostMounted[hostSlot] = true;
     }
 
     fnSystem.delay_microseconds(150);
@@ -692,8 +692,10 @@ void adamFuji::adamnet_write_host_slots()
     adamnet_send(0x9F); // ACK
 
     for (int i = 0; i < MAX_HOSTS; i++)
+    {   
+        hostMounted[i] = false;
         _fnHosts[i].set_hostname(hostSlots[i]);
-
+    }
     _populate_config_from_slots();
     Config.save();
 }
