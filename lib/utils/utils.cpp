@@ -137,11 +137,17 @@ std::string util_crunch(std::string filename)
     std::string ext;
     size_t base_pos = 8;
     size_t ext_pos;
+    std::string chars="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.";
     unsigned char cksum;
     char cksum_txt[3];
 
     // Remove spaces
     filename.erase(remove(filename.begin(), filename.end(), ' '), filename.end());
+
+    // remove unwanted characters
+    filename.erase(remove_if(filename.begin(),filename.end(),[&chars](const char& c) {
+        return chars.find(c) == string::npos;
+    }),filename.end());
 
     ext_pos = filename.find_last_of(".");
 
@@ -189,7 +195,7 @@ std::string util_crunch(std::string filename)
     return basename + ext;
 }
 
-std::string util_entry(std::string crunched, size_t fileSize)
+std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool is_locked)
 {
     std::string returned_entry = "                 ";
     size_t ext_pos = crunched.find(".");
@@ -204,6 +210,12 @@ std::string util_entry(std::string crunched, size_t fileSize)
         returned_entry.replace(10, 3, ext.substr(0, 3));
     }
 
+    if (is_dir == true)
+    {
+        returned_entry.replace(10, 3, "DIR");
+        returned_entry.replace (0,1,"/");
+    }
+
     returned_entry.replace(2, (basename.size() < 8 ? basename.size() : 8), basename);
 
     if (fileSize > 255744)
@@ -211,6 +223,8 @@ std::string util_entry(std::string crunched, size_t fileSize)
     else
     {
         sectors = fileSize >> 8;
+        if (sectors == 0)
+            sectors = 1; // at least 1 sector.
     }
 
     sprintf(tmp, "%03d", sectors);
@@ -218,15 +232,23 @@ std::string util_entry(std::string crunched, size_t fileSize)
 
     returned_entry.replace(14, 3, sectorStr);
 
+    if (is_locked == true)
+    {
+        returned_entry.replace(0, 1, "*");
+    }
+
     return returned_entry;
 }
 
-std::string util_long_entry(std::string filename, size_t fileSize)
+std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 {
     std::string returned_entry = "                                     ";
     std::string stylized_filesize;
 
     char tmp[8];
+
+    if (is_dir == true)
+        filename += "/";
 
     // Double size of returned entry if > 30 chars.
     // Add EOL so SpartaDOS doesn't truncate record. grrr.
@@ -359,6 +381,15 @@ bool util_wildcard_match(const char *str, const char *pattern)
     return lookup[n][m];
 }
 
+bool util_starts_with(std::string s, const char *pattern)
+{
+    if (s.empty() || pattern == nullptr)
+        return false;
+
+    std::string ss = s.substr(0, strlen(pattern));
+    return ss.compare(pattern) == 0;
+}
+
 /*
  Concatenates two paths by taking the parent and adding the child at the end.
  If parent is not empty, then a '/' is confirmed to separate the parent and child.
@@ -443,21 +474,44 @@ vector<string> util_tokenize(string s, char c)
     return tokens;
 }
 
+string util_remove_spaces(const string &s)
+{
+    int last = s.size() - 1;
+    while (last >= 0 && s[last] == ' ')
+        --last;
+    return s.substr(0, last + 1);
+}
+
+void util_strip_nonascii(string &s)
+{
+    for (int i = 0; i < s.size(); i++)
+    {
+        if ((unsigned char)s[i] > 0x7F)
+            s[i] = 0x00;
+    }
+}
+
+void util_clean_devicespec(uint8_t *buf, unsigned short len)
+{
+    for (int i = 0; i < len; i++)
+        if (buf[i] == 0x9b)
+            buf[i] = 0x00;
+}
+
 bool util_string_value_is_true(const char *value)
 {
-    if(value != nullptr)
+    if (value != nullptr)
     {
-      if(value[0] == '1' || value[0] == 'T' || value[0] == 't' || value[0] == 'Y' || value[0] == 'y')
-        return true;
+        if (value[0] == '1' || value[0] == 'T' || value[0] == 't' || value[0] == 'Y' || value[0] == 'y')
+            return true;
     }
     return false;
 }
 
 bool util_string_value_is_true(std::string value)
 {
-    return  util_string_value_is_true(value.c_str());
+    return util_string_value_is_true(value.c_str());
 }
-
 
 /**
  * Ask SAM to say something. see https://github.com/FujiNetWIFI/fujinet-platformio/wiki/Using-SAM-%28Voice-Synthesizer%29 
@@ -479,36 +533,94 @@ void util_sam_say(const char *p,
 {
     int n = 0;
     char *a[20];
-    char pitchs[4], speeds[4], mouths[4],throats[4]; // itoa temp vars
+    char pitchs[4], speeds[4], mouths[4], throats[4]; // itoa temp vars
 
     // Convert to strings.
-    itoa(pitch,pitchs,10);
-    itoa(speed,speeds,10);
-    itoa(mouth,mouths,10);
-    itoa(throat,throats,10);
+    itoa(pitch, pitchs, 10);
+    itoa(speed, speeds, 10);
+    itoa(mouth, mouths, 10);
+    itoa(throat, throats, 10);
 
     memset(a, 0, sizeof(a));
     a[n++] = (char *)("sam"); // argv[0] for compatibility
 
-    if (phonetic==true)
+    if (phonetic == true)
         a[n++] = (char *)("-phonetic");
-    
-    if (sing==true)
+
+    if (sing == true)
         a[n++] = (char *)("-sing");
 
-    a[n++]=(char *)("-pitch");
-    a[n++]=(char *)pitchs;
+    a[n++] = (char *)("-pitch");
+    a[n++] = (char *)pitchs;
 
-    a[n++]=(char *)("-speed");
-    a[n++]=(char *)speeds;
+    a[n++] = (char *)("-speed");
+    a[n++] = (char *)speeds;
 
-    a[n++]=(char *)("-mouth");
-    a[n++]=(char *)mouths;
+    a[n++] = (char *)("-mouth");
+    a[n++] = (char *)mouths;
 
-    a[n++]=(char *)("-throat");
-    a[n++]=(char *)throats;
+    a[n++] = (char *)("-throat");
+    a[n++] = (char *)throats;
 
     // Append the phrase to say.
     a[n++] = (char *)p;
     sam(n, a);
+}
+
+/**
+ * Say the numbers 1-8 using phonetic tweaks.
+ * @param n The number to say.
+ */
+void util_sam_say_number(unsigned char n)
+{
+    switch (n)
+    {
+    case 1:
+        util_sam_say("WAH7NQ", true);
+        break;
+    case 2:
+        util_sam_say("TUW7", true);
+        break;
+    case 3:
+        util_sam_say("THRIYY7Q", true);
+        break;
+    case 4:
+        util_sam_say("FOH7R", true);
+        break;
+    case 5:
+        util_sam_say("F7AYVQ", true);
+        break;
+    case 6:
+        util_sam_say("SIH7IHKSQ", true);
+        break;
+    case 7:
+        util_sam_say("SEHV7EHNQ", true);
+        break;
+    case 8:
+        util_sam_say("AEY74Q", true);
+        break;
+    default:
+        Debug_printf("say_number() - Uncaught number %d", n);
+    }
+}
+
+/**
+ * Say swap label
+ */
+void util_sam_say_swap_label()
+{
+    // DISK
+    util_sam_say("DIHSK7Q ", true);
+}
+
+void util_replaceAll(std::string &str, const std::string &from, const std::string &to)
+{
+    if (from.empty())
+        return;
+    size_t start_pos = 0;
+    while ((start_pos = str.find(from, start_pos)) != std::string::npos)
+    {
+        str.replace(start_pos, from.length(), to);
+        start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
+    }
 }

@@ -30,6 +30,7 @@ If a file has an extention pre-determined to support parsing (see/update
 #define HTTPSERVICE_H
 
 #include <esp_http_server.h>
+#include <map>
 #include "fnFS.h"
 
 // FNWS_FILE_ROOT should end in a slash '/'
@@ -63,6 +64,7 @@ class fnHttpService
         std::string full_uri;
         std::string path;
         std::string query;
+        std::map<std::string, std::string> query_parsed; 
     };
 
     static void custom_global_ctx_free(void * ctx);
@@ -75,14 +77,27 @@ class fnHttpService
     static void send_file_parsed(httpd_req_t *req, const char *filename);
     static void send_file(httpd_req_t *req, const char *filename);
     static void parse_query(httpd_req_t *req, queryparts *results);
+    static void send_header_footer(httpd_req_t *req, int headfoot);
 
-public:    
+public:
+
+    std::string errMsg; 
+
+    std::string getErrMsg() { return errMsg; }
+    void clearErrMsg() { errMsg.clear(); }
+    void addToErrMsg(std::string _e) { errMsg += _e; }
+    bool errMsgEmpty() { return errMsg.empty(); }
+
     static esp_err_t get_handler_test(httpd_req_t *req);
     static esp_err_t get_handler_index(httpd_req_t *req);
     static esp_err_t get_handler_file_in_query(httpd_req_t *req);
     static esp_err_t get_handler_file_in_path(httpd_req_t *req);
     static esp_err_t get_handler_print(httpd_req_t *req);
     static esp_err_t get_handler_modem_sniffer(httpd_req_t *req);
+    static esp_err_t get_handler_mount(httpd_req_t *req);
+    static esp_err_t get_handler_eject(httpd_req_t *req);
+    static esp_err_t get_handler_dir(httpd_req_t *req);
+    static esp_err_t get_handler_slot(httpd_req_t *req);
 
     static esp_err_t post_handler_config(httpd_req_t *req);
 
