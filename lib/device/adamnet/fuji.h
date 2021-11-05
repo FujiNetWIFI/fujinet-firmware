@@ -100,7 +100,7 @@ protected:
     void adamnet_get_directory_position(); // 0xE5
     void adamnet_set_directory_position(); // 0xE4
     void adamnet_set_hadamnet_index();         // 0xE3
-    void adamnet_set_device_filename();    // 0xE2
+    void adamnet_set_device_filename(uint16_t s);    // 0xE2
     void adamnet_set_host_prefix();        // 0xE1
     void adamnet_get_host_prefix();        // 0xE0
     void adamnet_set_adamnet_external_clock(); // 0xDF

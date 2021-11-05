@@ -843,13 +843,37 @@ void adamFuji::_populate_config_from_slots()
 }
 
 // Write a 256 byte filename to the device slot
-void adamFuji::adamnet_set_device_filename()
+void adamFuji::adamnet_set_device_filename(uint16_t s)
 {
+    char f[MAX_FILENAME_LEN];
+
+    unsigned char ds = adamnet_recv();
+    s--;
+
+    for (int i=0;i<s;i++)
+        f[i]=adamnet_recv();
+
+    adamnet_recv(); // CK
+
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x9F); // ACK
+
+    memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
+    _populate_config_from_slots();
 }
 
 // Get a 256 byte filename from device slot
 void adamFuji::adamnet_get_device_filename()
 {
+    unsigned char ds = adamnet_recv();
+
+    adamnet_recv();
+
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x9F);
+
+    memcpy(response,_fnDisks[ds].filename,256);
+    response_len=256;
 }
 
 // Mounts the desired boot disk number
@@ -978,6 +1002,12 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_GET_ADAPTERCONFIG:
         adamnet_get_adapter_config();
+        break;
+    case SIO_FUJICMD_SET_DEVICE_FULLPATH:
+        adamnet_set_device_filename(s);
+        break;
+    case SIO_FUJICMD_GET_DEVICE_FULLPATH:
+        adamnet_get_device_filename();
         break;
     }
 
