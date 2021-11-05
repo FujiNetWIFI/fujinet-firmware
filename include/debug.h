@@ -6,6 +6,10 @@
 #define DEBUG
 #endif
 
+#ifdef UNIT_TESTS
+#undef DEBUG
+#endif
+
 #include "../lib/hardware/fnUART.h"
 
 /*

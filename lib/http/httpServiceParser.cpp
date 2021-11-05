@@ -6,17 +6,27 @@
 #include "../../include/debug.h"
 #include "fnConfig.h"
 
+#include "httpService.h"
 #include "httpServiceParser.h"
 
-#include "fuji.h"
-#include "printerlist.h"
+#ifdef BUILD_ATARI
+#include "sio/fuji.h"
+#include "sio/printerlist.h"
+#define BUS SIO
+extern sioFuji theFuji;
+#endif
+
+#ifdef BUILD_ADAM
+#include "adamnet/fuji.h"
+#include "adamnet/printerlist.h"
+#define BUS AdamNet
+extern adamFuji theFuji;
+#endif
 
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
 #include "fnFsSPIF.h"
 #include "fnFsSD.h"
-
-extern sioFuji theFuji;
 
 using namespace std;
 
@@ -55,6 +65,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PLAY_RECORD,
         FN_PULLDOWN,
         FN_CONFIG_ENABLED,
+        FN_STATUS_WAIT_ENABLED,
+        FN_BOOT_MODE,
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
         FN_DRIVE3HOST,
@@ -87,6 +99,16 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE6DEVICE,
         FN_DRIVE7DEVICE,
         FN_DRIVE8DEVICE,
+        FN_HOST1PREFIX,
+        FN_HOST2PREFIX,
+        FN_HOST3PREFIX,
+        FN_HOST4PREFIX,
+        FN_HOST5PREFIX,
+        FN_HOST6PREFIX,
+        FN_HOST7PREFIX,
+        FN_HOST8PREFIX,
+        FN_ERRMSG,
+        FN_HARDWARE_VER,
         FN_LASTTAG
     };
 
@@ -123,6 +145,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PLAY_RECORD",
         "FN_PULLDOWN",
         "FN_CONFIG_ENABLED",
+        "FN_STATUS_WAIT_ENABLED",
+        "FN_BOOT_MODE",
         "FN_DRIVE1HOST",
         "FN_DRIVE2HOST",
         "FN_DRIVE3HOST",
@@ -154,7 +178,17 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_DRIVE5DEVICE",
         "FN_DRIVE6DEVICE",
         "FN_DRIVE7DEVICE",
-        "FN_DRIVE8DEVICE"
+        "FN_DRIVE8DEVICE",
+        "FN_HOST1PREFIX",
+        "FN_HOST2PREFIX",
+        "FN_HOST3PREFIX",
+        "FN_HOST4PREFIX",
+        "FN_HOST5PREFIX",
+        "FN_HOST6PREFIX",
+        "FN_HOST7PREFIX",
+        "FN_HOST8PREFIX",
+        "FN_ERRMSG",
+        "FN_HARDWARE_VER"
     };
 
     stringstream resultstream;
@@ -249,18 +283,21 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_SIOVOLTS:
         resultstream << ((float)fnSystem.get_sio_voltage()) / 1000.00 << "V";
         break;
+#ifdef BUILD_ATARI
     case FN_SIO_HSINDEX:
-        resultstream << SIO.getHighSpeedIndex();
+        resultstream << BUS.getHighSpeedIndex();
         break;
     case FN_SIO_HSBAUD:
-        resultstream << SIO.getHighSpeedBaud();
+        resultstream << BUS.getHighSpeedBaud();
         break;
+#endif /* BUILD_ATARI */
     case FN_PRINTER1_MODEL:
         resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
         break;
     case FN_PRINTER1_PORT:
         resultstream << (fnPrinters.get_port(0) + 1);
         break;
+#ifdef BUILD_ATARI        
     case FN_PLAY_RECORD:
         if (theFuji.cassette()->get_buttons())
             resultstream << "0 PLAY";
@@ -273,8 +310,15 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         else
             resultstream << "0 B Button Press";
         break;
+#endif /* BUILD_ATARI */
     case FN_CONFIG_ENABLED:
         resultstream << Config.get_general_config_enabled();
+        break;
+    case FN_STATUS_WAIT_ENABLED:
+        resultstream << Config.get_general_status_wait_enabled();
+        break;
+    case FN_BOOT_MODE:
+        resultstream << Config.get_general_boot_mode();
         break;
     case FN_DRIVE1HOST:
     case FN_DRIVE2HOST:
@@ -341,6 +385,29 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         if (disk_id != (char) (0x31 + drive_slot)) {
             resultstream << " (D" << disk_id << ":)";
         }
+        break;
+    case FN_HOST1PREFIX:
+    case FN_HOST2PREFIX:
+    case FN_HOST3PREFIX:
+    case FN_HOST4PREFIX:
+    case FN_HOST5PREFIX:
+    case FN_HOST6PREFIX:
+    case FN_HOST7PREFIX:
+    case FN_HOST8PREFIX:
+	/* What directory prefix is set right now
+           for the TNFS host mounted on each Host Slot? */
+	host_slot = tagid - FN_HOST1PREFIX;
+        if (Config.get_host_type(host_slot) != fnConfig::host_types::HOSTTYPE_INVALID) {
+	    resultstream << theFuji.get_host_prefix(host_slot);
+        } else {
+            resultstream << "";
+        }
+        break;
+    case FN_ERRMSG:
+        resultstream << fnHTTPD.getErrMsg();
+        break;
+    case FN_HARDWARE_VER:
+        resultstream << fnSystem.get_hardware_ver_str();
         break;
     default:
         resultstream << tag;

@@ -2,15 +2,7 @@
 #include "led.h"
 #include "fnSystem.h"
 
-#define PIN_LED_WIFI 2
-#define PIN_LED_SIO 4
-// pins 12-15 are used to interface with the JTAG debugger
-// so leave them alone if we're using JTAG
-#ifndef JTAG 
-#define PIN_LED_BT 13
-#else
-#define PIN_LED_BT 4
-#endif
+#include "../../include/pinmap.h"
 
 #define BLINKING_TIME 100 // 200 ms
 
@@ -20,7 +12,7 @@ LedManager fnLedManager;
 
 LedManager::LedManager()
 {
-    mLedPin[eLed::LED_SIO] = PIN_LED_SIO;
+    mLedPin[eLed::LED_BUS] = PIN_LED_BUS;
     mLedPin[eLed::LED_BT] = PIN_LED_BT;
     mLedPin[eLed::LED_WIFI] = PIN_LED_WIFI;
 }
@@ -28,8 +20,8 @@ LedManager::LedManager()
 // Sets required pins to OUTPUT mode and makes sure they're initially off
 void LedManager::setup()
 {
-    fnSystem.set_pin_mode(PIN_LED_SIO, gpio_mode_t::GPIO_MODE_OUTPUT);
-    fnSystem.digital_write(PIN_LED_SIO, DIGI_HIGH);
+    fnSystem.set_pin_mode(PIN_LED_BUS, gpio_mode_t::GPIO_MODE_OUTPUT);
+    fnSystem.digital_write(PIN_LED_BUS, DIGI_HIGH);
  
     fnSystem.set_pin_mode(PIN_LED_BT, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_BT, DIGI_HIGH);    

@@ -14,6 +14,8 @@
 
 #define CONFIG_DEFAULT_SNTPSERVER "pool.ntp.org"
 
+#define PHONEBOOK_CHAR_WIDTH 12 
+
 fnConfig Config;
 
 // Initialize some defaults
@@ -62,6 +64,22 @@ void fnConfig::store_general_config_enabled(bool config_enabled)
     _general.config_enabled = config_enabled;
     _dirty = true;
 }
+void fnConfig::store_general_status_wait_enabled(bool status_wait_enabled)
+{
+    if (_general.status_wait_enabled == status_wait_enabled)
+        return;
+
+    _general.status_wait_enabled = status_wait_enabled;
+    _dirty = true;
+}
+void fnConfig::store_general_boot_mode(uint8_t boot_mode)
+{
+    if (_general.boot_mode == boot_mode)
+        return;
+    
+    _general.boot_mode = boot_mode;
+    _dirty = true;
+}
 
 void fnConfig::store_general_hsioindex(int hsio_index)
 {
@@ -69,6 +87,15 @@ void fnConfig::store_general_hsioindex(int hsio_index)
         return;
 
     _general.hsio_index = hsio_index;
+    _dirty = true;
+}
+
+void fnConfig::store_general_fnconfig_spifs(bool fnconfig_spifs)
+{
+    if (_general.fnconfig_spifs == fnconfig_spifs)
+        return;
+
+    _general.fnconfig_spifs = fnconfig_spifs;
     _dirty = true;
 }
 
@@ -107,6 +134,24 @@ void fnConfig::store_wifi_passphrase(const char *passphrase_octets, int num_octe
         else
             _wifi.passphrase += passphrase_octets[i];
     }
+}
+
+void fnConfig::store_bt_status(bool status)
+{
+    _bt.bt_status = status;
+    _dirty = true;
+}
+
+void fnConfig::store_bt_baud(int baud)
+{
+    _bt.bt_baud = baud;
+    _dirty = true;
+}
+
+void fnConfig::store_bt_devname(std::string devname)
+{
+    _bt.bt_devname = devname;
+    _dirty = true;
 }
 
 std::string fnConfig::get_host_name(uint8_t num)
@@ -244,13 +289,104 @@ void fnConfig::clear_mount(uint8_t num, mount_type_t mounttype)
     }
 }
 
+//The next section its to handle the phonebook entries
+std::string fnConfig::get_pb_host_name(const char *pbnum)
+{
+    int i=0;
+    while ( i<MAX_PB_SLOTS && ( _phonebook_slots[i].phnumber.compare(pbnum)!=0 ) ) 
+        i++;
+    
+    //Number found
+    if (i<MAX_PB_SLOTS)
+        return _phonebook_slots[i].hostname;
+
+    //Return empty (not found)
+    return std::string();
+}
+std::string fnConfig::get_pb_host_port(const char *pbnum)
+{
+    int i=0;
+    while ( i<MAX_PB_SLOTS && ( _phonebook_slots[i].phnumber.compare(pbnum)!=0 ) ) 
+        i++;
+
+    //Number found
+    if (i<MAX_PB_SLOTS)
+        return _phonebook_slots[i].port;
+
+    //Return empty (not found)
+    return std::string();
+}
+bool fnConfig::add_pb_number(const char *pbnum, const char *pbhost, const char *pbport)
+{
+    //Check maximum lenght of phone number
+    if ( strlen(pbnum)>PHONEBOOK_CHAR_WIDTH )
+        return false;
+
+    int i=0;
+    while (i<MAX_PB_SLOTS && !(_phonebook_slots[i].phnumber.empty()) )
+        i++;
+    
+    //Empty found
+    if (i<MAX_PB_SLOTS)
+    {
+        _phonebook_slots[i].phnumber = pbnum;
+        _phonebook_slots[i].hostname = pbhost;
+        _phonebook_slots[i].port = pbport;
+        _dirty = true;
+        save();
+        return true;
+    }
+    return false;
+    
+}
+bool fnConfig::del_pb_number(const char *pbnum)
+{
+    int i=0;
+    while ( i<MAX_PB_SLOTS && ( _phonebook_slots[i].phnumber.compare(pbnum)!=0 ) ) 
+        i++;
+
+    //Number found
+    if (i<MAX_PB_SLOTS)
+    {
+        _phonebook_slots[i].phnumber.clear();
+        _phonebook_slots[i].hostname.clear();
+        _phonebook_slots[i].port.clear();
+        _dirty = true;
+        save();
+        return true;
+    }
+    //Not found
+    return false;
+}
+void fnConfig::clear_pb(void)
+{
+    for (int i=0; i<MAX_PB_SLOTS; i++) 
+    {
+        _phonebook_slots[i].phnumber.clear();
+        _phonebook_slots[i].hostname.clear();
+        _phonebook_slots[i].port.clear();
+    }
+    save();
+    _dirty = true;
+}
+std::string fnConfig::get_pb_entry(uint8_t n)
+{
+    if (_phonebook_slots[n].phnumber.empty())
+        return std::string();
+    std::string numberPadded =  _phonebook_slots[n].phnumber;
+    numberPadded.append(PHONEBOOK_CHAR_WIDTH + 1 - numberPadded.length(), ' ');
+    std::string pbentry =  numberPadded + _phonebook_slots[n].hostname + ":" + _phonebook_slots[n].port;
+    return pbentry;
+}
+////End of phonebook handling
+
 // Returns printer type stored in configuration for printer slot
-sioPrinter::printer_type fnConfig::get_printer_type(uint8_t num)
+PRINTER_CLASS::printer_type fnConfig::get_printer_type(uint8_t num)
 {
     if (num < MAX_PRINTER_SLOTS)
         return _printer_slots[num].type;
     else
-        return sioPrinter::printer_type::PRINTER_INVALID;
+        return PRINTER_CLASS::printer_type::PRINTER_INVALID;
 }
 
 // Returns printer type stored in configuration for printer slot
@@ -263,7 +399,7 @@ int fnConfig::get_printer_port(uint8_t num)
 }
 
 // Saves printer type stored in configuration for printer slot
-void fnConfig::store_printer_type(uint8_t num, sioPrinter::printer_type ptype)
+void fnConfig::store_printer_type(uint8_t num, PRINTER_CLASS::printer_type ptype)
 {
     Debug_printf("store_printer_type %d, %d\n", num, ptype);
     if (num < MAX_PRINTER_SLOTS)
@@ -351,8 +487,11 @@ void fnConfig::save()
     ss << "hsioindex=" << _general.hsio_index << LINETERM;
     ss << "rotationsounds=" << _general.rotation_sounds << LINETERM;
     ss << "configenabled=" << _general.config_enabled << LINETERM;
+    ss << "boot_mode=" << _general.boot_mode << LINETERM;
     if (_general.timezone.empty() == false)
         ss << "timezone=" << _general.timezone << LINETERM;
+    ss << "fnconfig_on_spifs=" << _general.fnconfig_spifs << LINETERM;
+    ss << "status_wait_enabled=" << _general.status_wait_enabled << LINETERM;
 
     ss << LINETERM;
 
@@ -361,6 +500,12 @@ void fnConfig::save()
     ss << "SSID=" << _wifi.ssid << LINETERM;
     // TODO: Encrypt passphrase!
     ss << "passphrase=" << _wifi.passphrase << LINETERM;
+
+    // BLUETOOTH
+    ss << LINETERM << "[Bluetooth]" LINETERM;
+    ss << "devicename=" << _bt.bt_devname << LINETERM;
+    ss << "enabled=" << _bt.bt_status << LINETERM;
+    ss << "baud=" << _bt.bt_baud << LINETERM;
 
     // NETWORK
     ss << LINETERM << "[Network]" LINETERM;
@@ -393,7 +538,7 @@ void fnConfig::save()
     // PRINTERS
     for (i = 0; i < MAX_PRINTER_SLOTS; i++)
     {
-        if (_printer_slots[i].type != sioPrinter::printer_type::PRINTER_INVALID)
+        if (_printer_slots[i].type != PRINTER_CLASS::printer_type::PRINTER_INVALID)
         {
             ss << LINETERM << "[Printer" << (i + 1) << "]" LINETERM;
             ss << "type=" << _printer_slots[i].type << LINETERM;
@@ -417,23 +562,53 @@ void fnConfig::save()
     ss << LINETERM << "[Modem]" << LINETERM;
     ss << "sniffer_enabled=" << _modem.sniffer_enabled << LINETERM;
 
+    //PHONEBOOK
+    for (i = 0; i < MAX_PB_SLOTS; i++)
+    {
+        if (!_phonebook_slots[i].phnumber.empty())
+        {
+            ss << LINETERM << "[Phonebook" << (i+1) << "]" LINETERM;
+            ss << "number=" << _phonebook_slots[i].phnumber << LINETERM;
+            ss << "host=" << _phonebook_slots[i].hostname << LINETERM;
+            ss << "port=" << _phonebook_slots[i].port << LINETERM;
+        }
+    }
+
     // CASSETTE
     ss << LINETERM << "[Cassette]" << LINETERM;
     ss << "play_record=" << ((_cassette.button) ? "1 Record" : "0 Play") << LINETERM;
     ss << "pulldown=" << ((_cassette.pulldown) ? "1 Pulldown Resistor" : "0 B Button Press") << LINETERM;
 
     // Write the results out
-    FILE *fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w");
-    std::string result = ss.str();
-    size_t z = fwrite(result.c_str(), 1, result.length(), fout);
-    (void)z; // Get around unused var
-    Debug_printf("fnConfig::save wrote %d bytes\n", z);
-    fclose(fout);
-
+    FILE *fout = NULL;
+    if (fnConfig::get_general_fnconfig_spifs() == true) //only if spiffs is enabled
+    {
+        Debug_println("SPIFFS Config Storage: Enabled. Saving config to SPIFFS");
+        if ( !(fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w")))
+        {
+            Debug_println("Failed to Open config on SPIFFS");
+            return;
+        }
+    }
+    else
+    {
+        Debug_println("SPIFFS Config Storage: Disabled. Saving config to SD");
+        if ( !(fout = fnSDFAT.file_open(CONFIG_FILENAME, "w")))
+        {
+            Debug_println("Failed to Open config on SD");
+            return;
+        }
+    }
+        std::string result = ss.str();
+        size_t z = fwrite(result.c_str(), 1, result.length(), fout);
+        (void)z; // Get around unused var
+        Debug_printf("fnConfig::save wrote %d bytes\n", z);
+        fclose(fout);
+    
     _dirty = false;
 
-    // Copy to SD if possible
-    if (fnSDFAT.running())
+    // Copy to SD if possible, only when wrote SPIFFS first 
+    if (fnSDFAT.running() && fnConfig::get_general_fnconfig_spifs() == true)
     {
         Debug_println("Attemptiong config copy to SD");
         if (0 == fnSystem.copy_file(&fnSPIFFS, CONFIG_FILENAME, &fnSDFAT, CONFIG_FILENAME))
@@ -492,26 +667,26 @@ Original behavior: read from SPIFFS first and only read from SD if nothing found
     /*
 New behavior: copy from SD first if available, then read SPIFFS.
 */
-    // See if we have a copy on SD (only copy from SD if we don't have a local copy)
+    // See if we have a copy on SD load it to check if we should write to spiffs (only copy from SD if we don't have a local copy)
+    FILE *fin = NULL; //declare fin
     if (fnSDFAT.running() && fnSDFAT.exists(CONFIG_FILENAME))
     {
-        Debug_println("Found copy of config file on SD - copying that to SPIFFS");
-        if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
-        {
-            Debug_println("Failed to copy config from SD");
-        }
+        Debug_println("Load fnconfig.ini from SD");
+        fin = fnSDFAT.file_open(CONFIG_FILENAME);
     }
-    // See if we have a file in SPIFFS (either originally or something copied from SD)
-    if (false == fnSPIFFS.exists(CONFIG_FILENAME))
+    else
     {
-        _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved
-        Debug_println("No config found - starting fresh!");
-        return; // No local copy - ABORT
+        if (false == fnSPIFFS.exists(CONFIG_FILENAME))
+        {
+            _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved
+            Debug_println("No config found - starting fresh!");
+            return; // No local copy - ABORT
+        }
+        Debug_println("Load fnconfig.ini from spiffs");
+        fin = fnSPIFFS.file_open(CONFIG_FILENAME);
     }
-
     // Read INI file into buffer (for speed)
     // Then look for sections and handle each
-    FILE *fin = fnSPIFFS.file_open(CONFIG_FILENAME);
     char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
     if (inibuffer == nullptr)
     {
@@ -547,6 +722,9 @@ New behavior: copy from SD first if available, then read SPIFFS.
         case SECTION_WIFI:
             _read_section_wifi(ss);
             break;
+        case SECTION_BT:
+            _read_section_bt(ss);
+            break;
         case SECTION_NETWORK:
             _read_section_network(ss);
             break;
@@ -568,12 +746,61 @@ New behavior: copy from SD first if available, then read SPIFFS.
         case SECTION_CASSETTE: //Jeff put this here to handle tape drive configuration (pulldown and play/record)
             _read_section_cassette(ss);
             break;
+        case SECTION_PHONEBOOK: //Mauricio put this here to handle the phonebook
+            _read_section_phonebook(ss, index);
+            break;
         case SECTION_UNKNOWN:
             break;
         }
     }
-
     _dirty = false;
+
+    if (fnConfig::get_general_fnconfig_spifs() == true) // Only if spiffs is enabled
+    {
+        if (true == fnSPIFFS.exists(CONFIG_FILENAME))
+        {
+            Debug_println("SPIFFS Config Storage: Enabled");
+            FILE *fin = fnSPIFFS.file_open(CONFIG_FILENAME);
+            char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
+            if (inibuffer == nullptr)
+            {
+                Debug_printf("Failed to allocate %d bytes to read config file from SPIFFS\n", CONFIG_FILEBUFFSIZE);
+                return;
+            }
+            int i = fread(inibuffer, 1, CONFIG_FILEBUFFSIZE - 1, fin);
+            fclose(fin);
+            Debug_printf("fnConfig::load read %d bytes from SPIFFS config file\n", i);
+            if (i < 0)
+            {
+                Debug_println("Failed to read data from SPIFFS configuration file");
+                free(inibuffer);
+                return;
+            }
+            inibuffer[i] = '\0';
+            // Put the data in a stringstream
+            std::stringstream ss_ffs;
+            ss_ffs << inibuffer;
+            free(inibuffer);
+            if (ss.str() != ss_ffs.str()) {
+                Debug_println("Copying SD config file to SPIFFS");
+                if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
+                {
+                    Debug_println("Failed to copy config from SD");
+                }
+            }
+            ss_ffs.str("");
+            ss_ffs.clear(); // freeup some memory ;)
+        }
+        else
+        {
+            Debug_println("Config file dosn't exist on SPIFFS");
+            Debug_println("Copying SD config file to SPIFFS");
+            if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
+            {
+                    Debug_println("Failed to copy config from SD");
+            } 
+        }
+    }
 }
 
 void fnConfig::_read_section_general(std::stringstream &ss)
@@ -607,6 +834,19 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "configenabled") == 0)
             {
                 _general.config_enabled = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "boot_mode") == 0)
+            {
+                int mode = atoi(value.c_str());
+                _general.boot_mode = mode;
+            }
+            else if (strcasecmp(name.c_str(), "fnconfig_on_spifs") == 0)
+            {
+                _general.fnconfig_spifs = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "status_wait_enabled") == 0)
+            {
+                _general.status_wait_enabled = util_string_value_is_true(value);
             }
         }
     }
@@ -655,6 +895,34 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
         }
     }
 }
+
+void fnConfig::_read_section_bt(std::stringstream &ss)
+{
+    std::string line;
+    // Read lines until one starts with '[' which indicates a new section
+    while (_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line, name, value))
+        {
+            if (strcasecmp(name.c_str(), "enabled") == 0)
+            {
+                if (strcasecmp(value.c_str(), "1") == 0)
+                    _bt.bt_status = true;
+                else
+                    _bt.bt_status = false; 
+            }
+            else if (strcasecmp(name.c_str(), "baud") == 0)
+            {
+                _bt.bt_baud = stoi(value);
+            }
+            else if (strcasecmp(name.c_str(), "devicename") == 0)
+            {
+                _bt.bt_devname = value;
+            }
+        }
+    }}
 
 void fnConfig::_read_section_host(std::stringstream &ss, int index)
 {
@@ -759,7 +1027,7 @@ void fnConfig::_read_section_tape(std::stringstream &ss, int index)
 void fnConfig::_read_section_printer(std::stringstream &ss, int index)
 {
     // Throw out any existing data for this index
-    _printer_slots[index].type = sioPrinter::printer_type::PRINTER_INVALID;
+    _printer_slots[index].type = PRINTER_CLASS::printer_type::PRINTER_INVALID;
 
     std::string line;
     // Read lines until one starts with '[' which indicates a new section
@@ -772,10 +1040,10 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
             if (strcasecmp(name.c_str(), "type") == 0)
             {
                 int type = atoi(value.c_str());
-                if (type < 0 || type >= sioPrinter::printer_type::PRINTER_INVALID)
-                    type = sioPrinter::printer_type::PRINTER_INVALID;
+                if (type < 0 || type >= PRINTER_CLASS::printer_type::PRINTER_INVALID)
+                    type = PRINTER_CLASS::printer_type::PRINTER_INVALID;
 
-                _printer_slots[index].type = (sioPrinter::printer_type)type;
+                _printer_slots[index].type = (PRINTER_CLASS::printer_type)type;
                 //Debug_printf("config printer %d type=%d\n", index, type);
             }
             else if (strcasecmp(name.c_str(), "port") == 0)
@@ -826,6 +1094,37 @@ void fnConfig::_read_section_cassette(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "pulldown") == 0)
             {
                 _cassette.pulldown = util_string_value_is_true(value);
+            }
+        }
+    }
+}
+
+void fnConfig::_read_section_phonebook(std::stringstream &ss, int index)
+{
+    // Throw out any existing data for this index
+    _phonebook_slots[index].phnumber.clear();
+    _phonebook_slots[index].hostname.clear();
+    _phonebook_slots[index].port.clear();
+
+    std::string line;
+    // Read lines until one starts with '[' which indicates a new section
+    while (_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line, name, value))
+        {
+            if (strcasecmp(name.c_str(), "number") == 0)
+            {
+                _phonebook_slots[index].phnumber = value;
+            }
+            else if (strcasecmp(name.c_str(), "host") == 0)
+            {
+                _phonebook_slots[index].hostname = value;
+            }
+            else if (strcasecmp(name.c_str(), "port") == 0)
+            {
+                _phonebook_slots[index].port = value;
             }
         }
     }
@@ -885,6 +1184,11 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                 //Debug_printf("Found WIFI\n");
                 return SECTION_WIFI;
             }
+            else if (strncasecmp("Bluetooth", s1.c_str(), 9) == 0)
+            {
+                //Debug_printf("Found Bluetooth\n");
+                return SECTION_BT;
+            }
             else if (strncasecmp("General", s1.c_str(), 7) == 0)
             {
                 // Debug_printf("Found General\n");
@@ -909,6 +1213,17 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             else if (strncasecmp("Cassette", s1.c_str(), 8) == 0)
             {
                 return SECTION_CASSETTE;
+            }
+            else if (strncasecmp("Phonebook", s1.c_str(), 9) == 0)
+            {
+                index = atoi((const char *)(s1.c_str() + 9)) - 1;
+                if (index < 0 || index >= MAX_PB_SLOTS)
+                {
+                    Debug_println("Invalid index value - discarding");
+                    return SECTION_UNKNOWN;
+                }
+                //Debug_printf("Found Phonebook Entry %d\n", index);
+                return SECTION_PHONEBOOK;
             }
         }
     }

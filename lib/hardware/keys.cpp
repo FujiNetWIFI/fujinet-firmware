@@ -5,14 +5,14 @@
 #include "fnWiFi.h"
 #include "led.h"
 #include "keys.h"
-#include "sio.h"
+#include "bus.h"
+#include "fnConfig.h"
+
+#include "../../include/pinmap.h"
 
 #define LONGPRESS_TIME 1500 // 1.5 seconds to detect long press
 #define DOUBLETAP_DETECT_TIME 400 // ms to wait to see if it's a single/double tap
 
-#define PIN_BUTTON_A 0
-#define PIN_BUTTON_B 34
-#define PIN_BUTTON_C 14
 
 #define IGNORE_KEY_EVENT -1
 
@@ -23,25 +23,22 @@ static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_
 
 void KeyManager::setup()
 {
-    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT);
-    fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT);
-
-    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-    // Check for v1.1 board pull up and flag it if available/high
-    if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
+#ifdef NO_BUTTONS
+    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+#else
+    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+    fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+#endif    // Enable safe reset on Button C if available
+    if (fnSystem.get_hardware_ver() >= 2)
     {
         has_button_c = true;
-        Debug_println("FujiNet Hardware v1.1");
+        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+        Debug_println("Enabled Safe Reset Button C");
     }
-    else
-    {
-        Debug_println("FujiNet Hardware v1.0");
-    }
-    // Disable pull down for BUTTON_C
-    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 
     // Start a new task to check the status of the buttons
-    #define KEYS_STACKSIZE 2048
+    #define KEYS_STACKSIZE 4096
     #define KEYS_PRIORITY 1
     xTaskCreate(_keystate_task, "fnKeys", KEYS_STACKSIZE, this, KEYS_PRIORITY, nullptr);
 }
@@ -167,14 +164,21 @@ void KeyManager::_keystate_task(void *param)
                 fnWiFi.start();
                 fnWiFi.connect();
 
+                // Save Bluetooth status in fnConfig
+                Config.store_bt_status(false); // Disabled
+                Config.save();
             }
             else
             {
                 // Stop WiFi
                 fnWiFi.stop();
 
-                fnLedManager.set(BLUETOOTH_LED, true); // SIO LED always ON in Bluetooth mode
+                fnLedManager.set(BLUETOOTH_LED, true); // BT LED ON
                 fnBtManager.start();
+
+                // Save Bluetooth status in fnConfig
+                Config.store_bt_status(true); // Enabled
+                Config.save();
             }
 #endif //BLUETOOTH_SUPPORT
             break;
@@ -194,10 +198,12 @@ void KeyManager::_keystate_task(void *param)
             else
 #endif
             {
+#ifdef BUILD_ATARI
                 Debug_println("ACTION: Send image_rotate message to SIO queue");
                 sio_message_t msg;
                 msg.message_id = SIOMSG_DISKSWAP;
                 xQueueSend(SIO.qSioMessages, &msg, 0);
+#endif /* BUILD_ATARI */
             }
             break;
 
@@ -227,6 +233,7 @@ void KeyManager::_keystate_task(void *param)
             fnSystem.reboot();
             break;
 
+#ifdef BUILD_ATARI
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_B: SHORT PRESS");
             Debug_println("ACTION: Send debug_tape message to SIO queue");
@@ -234,6 +241,7 @@ void KeyManager::_keystate_task(void *param)
             msg.message_id = SIOMSG_DEBUG_TAPE;
             xQueueSend(SIO.qSioMessages, &msg, 0);
             break;
+#endif /* BUILD_ATARI */
 
         case eKeyStatus::DOUBLE_TAP:
             Debug_println("BUTTON_B: DOUBLE-TAP");

@@ -207,7 +207,7 @@
 <body>
 	<div class="header">
 		<div class="headerlogo">
-			<a href="https://github.com/FujiNetWIFI/fujinet-platformio">
+			<a href="https://fujinet.online/">
 				<svg width="100%" height="100%" viewBox="0 0 594 189" version="1.1" xmlns="http://www.w3.org/2000/svg"
 					xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/"
 					style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
@@ -275,6 +275,11 @@
 		</div>
 		<div class="flexparent">
 			<div class="flexchild">
+				<h2 style="text-align: center;">Need help? Go to the <a href="https://github.com/FujiNetWIFI/fujinet-platformio/wiki">FujiNet Wiki!</a></h2>
+			</div>
+		</div>
+		<div class="flexparent">
+			<div class="flexchild">
 				<header>NET<span id="logowob"></span>WORK</header>
 				<div class="detline">
 					<div class="deth">FujiNet version</div>
@@ -321,58 +326,62 @@
 			<div class="flexchild">
 				<header>HARD<span id="logowob"></span>WARE</header>
 				<div class="detline">
+					<div class="deth">Detected Hardware Version</div>
+					<div class="det"><%FN_HARDWARE_VER%></div>
+				</div>
+				<div class="detline alt">
 					<div class="deth">SPIFFS size</div>
 					<div class="det ra">
 						<script>writeLocaleNumber(<%FN_SPIFFS_SIZE%>)</script>
 					</div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth">SPIFFS used</div>
 					<div class="det ra">
 						<script>writeLocaleNumber(<%FN_SPIFFS_USED%>)</script>
 					</div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth">SD size</div>
 					<div class="det ra">
 						<script>writeLocaleNumber(<%FN_SD_SIZE%>)</script>
 					</div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth">SD used</div>
 					<div class="det ra">
 						<script>writeLocaleNumber(<%FN_SD_USED%>)</script>
 					</div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth">Uptime</div>
 					<div class="det">
 						<script>writeUptimeString(<%FN_UPTIME%>)</script>
 					</div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth">Current time</div>
 					<div class="det"><%FN_CURRENTTIME%></div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth">Free heap</div>
 					<div class="det ra">
 						<script>writeLocaleNumber(<%FN_HEAPSIZE%>)</script>
 					</div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth">SOC SDK</div>
 					<div class="det"><%FN_SYSSDK%></div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth">CPU revision</div>
 					<div class="det"><%FN_SYSCPUREV%></div>
 				</div>
-				<div class="detline alt">
+				<div class="detline">
 					<div class="deth">SIO voltage</div>
 					<div class="det"><%FN_SIOVOLTS%></div>
 				</div>
-				<div class="detline">
+				<div class="detline alt">
 					<div class="deth">HSIO Index:Baud</div>
 					<div class="det"><%FN_SIO_HSINDEX%>:
 						<script>writeLocaleNumber(<%FN_SIO_HSBAUD%>)</script>
@@ -380,9 +389,83 @@
 				</div>
 			</div>
 		</div>
+
 		<div class="flexparent">
 			<div class="flexchild">
-				<header><span id="logowob"></span>PRINTER</header>
+				<header>HOSTS<span id="logowob"></span>LIST</header>
+				<div class="detline">
+					<div class="deth">Host 1</div>
+					<div class="det"><a href="/hsdir?hostslot=0"><%FN_HOST1%> :: <%FN_HOST1PREFIX%></a></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Host 2</div>
+					<div class="det"><a href="/hsdir?hostslot=1"><%FN_HOST2%> :: <%FN_HOST2PREFIX%></a></div>
+				</div>
+				<div class="detline">
+					<div class="deth">Host 3</div>
+					<div class="det"><a href="/hsdir?hostslot=2"><%FN_HOST3%> :: <%FN_HOST3PREFIX%></a></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Host 4</div>
+					<div class="det"><a href="/hsdir?hostslot=3"><%FN_HOST4%> :: <%FN_HOST4PREFIX%></a></div>
+				</div>
+				<div class="detline">
+					<div class="deth">Host 5</div>
+					<div class="det"><a href="/hsdir?hostslot=4"><%FN_HOST5%> :: <%FN_HOST5PREFIX%></a></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Host 6</div>
+					<div class="det"><a href="/hsdir?hostslot=5"><%FN_HOST6%> :: <%FN_HOST6PREFIX%></a></div>
+				</div>
+				<div class="detline">
+					<div class="deth">Host 7</div>
+					<div class="det"><a href="/hsdir?hostslot=6"><%FN_HOST7%> :: <%FN_HOST7PREFIX%></a></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Host 8</div>
+					<div class="det"><a href="/hsdir?hostslot=7"><%FN_HOST8%> :: <%FN_HOST8PREFIX%></a></div>
+				</div>
+			</div>
+			<div class="flexchild">
+				<header>MOUNT<span id="logowob"></span>LIST</header>
+				<div class="detline">
+					<div class="deth">Drive Slot 1<%FN_DRIVE1DEVICE%> <a href="/unmount?deviceslot=0">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE1HOST%> :: <%FN_DRIVE1MOUNT%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Drive Slot 2<%FN_DRIVE2DEVICE%> <a href="/unmount?deviceslot=1">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE2HOST%> :: <%FN_DRIVE2MOUNT%></div>
+				</div>
+				<div class="detline">
+					<div class="deth">Drive Slot 3<%FN_DRIVE3DEVICE%> <a href="/unmount?deviceslot=2">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE3HOST%> :: <%FN_DRIVE3MOUNT%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Drive Slot 4<%FN_DRIVE4DEVICE%> <a href="/unmount?deviceslot=3">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE4HOST%> :: <%FN_DRIVE4MOUNT%></div>
+				</div>
+				<div class="detline">
+					<div class="deth">Drive Slot 5<%FN_DRIVE5DEVICE%> <a href="/unmount?deviceslot=4">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE5HOST%> :: <%FN_DRIVE5MOUNT%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Drive Slot 6<%FN_DRIVE6DEVICE%> <a href="/unmount?deviceslot=5">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE6HOST%> :: <%FN_DRIVE6MOUNT%></div>
+				</div>
+				<div class="detline">
+					<div class="deth">Drive Slot 7<%FN_DRIVE7DEVICE%> <a href="/unmount?deviceslot=6">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE7HOST%> :: <%FN_DRIVE7MOUNT%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Drive Slot 8<%FN_DRIVE8DEVICE%> <a href="/unmount?deviceslot=7">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE8HOST%> :: <%FN_DRIVE8MOUNT%></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="flexparent">
+			<div class="flexchild">
+				<header>PRINTER<span id="logowob"></span>SETTINGS</header>
 				<div class="detline">
 					<div class="cicon">
 						<div class="svgicon">
@@ -496,7 +579,7 @@
 				</div>
 			</div>
 			<div class="flexchild">
-				<header><span id="logowob"></span>HSIO</header>
+				<header>HSIO<span id="logowob"></span>SETTINGS</header>
 				<div class="detline">
 					<div class="cicon">
 						<div class="svgicon">
@@ -670,7 +753,7 @@
 				</div>
 			</div>
 			<div class="flexchild">
-				<header><span id="logowob"></span>PROGRAM RECORDER</header>
+				<header>PROGRAM<span id="logowob"></span>RECORDER</header>
 				<div class="detline">
 					<div class="cicon">
 						<div class="svgicon">
@@ -690,6 +773,14 @@
 					</div>
 					<div class="cform">
 						<div class="formwrapper">
+							<br>Rewind
+							<form action="/config" method="post">
+								<input type="hidden" id="rew" name="rew" value="rew" />
+								<input type="submit" value="Rewind">
+							</form>
+							<script>
+								var current_play_record = "<%FN_PLAY_RECORD%>";
+							</script>
 							<br>Play or Record
 							<form action="/config" method="post">
 								<select name="play_record" id="select_play_record">
@@ -720,7 +811,7 @@
 				</div>
 			</div>
 			<div class="flexchild">
-				<header><span id="logowob"></span>DISK SWAP</header>
+				<header>DISK<span id="logowob"></span>SWAP</header>
 				<div class="detline">
 					<div class="cicon">
 						<div class="svgicon">
@@ -808,80 +899,8 @@
 					</div>
 				</div>
 			</div>
-
 			<div class="flexchild">
-				<header><span id="logowob"></span>MOUNTS</header>
-				<div class="detline">
-					<div class="deth">Drive Slot 1<%FN_DRIVE1DEVICE%></div>
-					<div class="det"><%FN_DRIVE1HOST%> :: <%FN_DRIVE1MOUNT%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">Drive Slot 2<%FN_DRIVE2DEVICE%></div>
-					<div class="det"><%FN_DRIVE2HOST%> :: <%FN_DRIVE2MOUNT%></div>
-				</div>
-				<div class="detline">
-					<div class="deth">Drive Slot 3<%FN_DRIVE3DEVICE%></div>
-					<div class="det"><%FN_DRIVE3HOST%> :: <%FN_DRIVE3MOUNT%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">Drive Slot 4<%FN_DRIVE4DEVICE%></div>
-					<div class="det"><%FN_DRIVE4HOST%> :: <%FN_DRIVE4MOUNT%></div>
-				</div>
-				<div class="detline">
-					<div class="deth">Drive Slot 5<%FN_DRIVE5DEVICE%></div>
-					<div class="det"><%FN_DRIVE5HOST%> :: <%FN_DRIVE5MOUNT%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">Drive Slot 6<%FN_DRIVE6DEVICE%></div>
-					<div class="det"><%FN_DRIVE6HOST%> :: <%FN_DRIVE6MOUNT%></div>
-				</div>
-				<div class="detline">
-					<div class="deth">Drive Slot 7<%FN_DRIVE7DEVICE%></div>
-					<div class="det"><%FN_DRIVE7HOST%> :: <%FN_DRIVE7MOUNT%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">Drive Slot 8<%FN_DRIVE8DEVICE%></div>
-					<div class="det"><%FN_DRIVE8HOST%> :: <%FN_DRIVE8MOUNT%></div>
-				</div>
-
-                                <hr/>
-
-				<div class="detline">
-					<div class="deth">Host 1</div>
-					<div class="det"><%FN_HOST1%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">Host 2</div>
-					<div class="det"><%FN_HOST2%></div>
-				</div>
-				<div class="detline">
-					<div class="deth">Host 3</div>
-					<div class="det"><%FN_HOST3%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">Host 4</div>
-					<div class="det"><%FN_HOST4%></div>
-				</div>
-				<div class="detline">
-					<div class="deth">Host 5</div>
-					<div class="det"><%FN_HOST5%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">Host 6</div>
-					<div class="det"><%FN_HOST6%></div>
-				</div>
-				<div class="detline">
-					<div class="deth">Host 7</div>
-					<div class="det"><%FN_HOST7%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">Host 8</div>
-					<div class="det"><%FN_HOST8%></div>
-				</div>
-			</div>
-
-			<div class="flexchild">
-				<header><span id="logowob"></span>MISC</header>
+				<header>BOOT<span id="logowob"></span>SETTINGS</header>
 				<div class="detline">
 					<div class="cicon">
 						<div class="svgicon">
@@ -902,11 +921,45 @@
 							<script>
 								var current_config_enabled = "<%FN_CONFIG_ENABLED%>";
 							</script>
+							<br>Enable SIO STATUS wait routine 
+							<form action="/config" method="post">
+								<select name="status_wait_enable" id="select_status_wait_enable">
+									<optgroup>
+										<option value="1">Yes</option>
+										<option value="0">No</option>
+									</optgroup>
+								</select>
+								<input type="submit" value="Save">
+							</form>
+							<script>
+								var current_status_wait_enabled = "<%FN_STATUS_WAIT_ENABLED%>";
+							</script>
+							<span class="small">
+							Reboot FujiNet after changing this value.<br/>
+							Disabling SIO STATUS wait will cause FujiNET to not wait for other devices to answer OS status call (eg, real D1 floppy drive), however it will fix issue with SpartaDOS X ejecting config Disk on boot.</span>
 							<hr>
 							<span class="small">
 							Reboot FujiNet after changing this value.<br/>
 							Disabling the built-in CONFIG boot disk will require changing
 							disk mounts using the individual FujiNet config tools</span>
+						</div>
+						<div class="formwrapper">
+							<br>Set CONFIG boot mode.
+							<form action="/config" method="post">
+								<select name="boot_mode" id="select_boot_mode">
+									<optgroup>
+										<option value="0">CONFIG</option>
+										<option value="1">Mount Everything</option>
+									</optgroup>
+								</select>
+								<input type="submit" value="Save">
+							</form>
+							<script>
+								var current_boot_mode = "<%FN_BOOT_MODE%>";
+							</script>
+							<hr>
+							<span class="small">
+							Reboot FujiNet after changing this value.</span>
 						</div>
 					</div>
 				</div>

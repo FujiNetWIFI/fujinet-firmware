@@ -13,11 +13,7 @@
 #include "fnFsSD.h"
 #include "../utils/utils.h"
 #include "../../include/debug.h"
-
-#define SD_HOST_CS GPIO_NUM_5
-#define SD_HOST_MISO GPIO_NUM_19
-#define SD_HOST_MOSI GPIO_NUM_23
-#define SD_HOST_SCK GPIO_NUM_18
+#include "../../include/pinmap.h"
 
 // Our global SD interface
 FileSystemSDFAT fnSDFAT;
@@ -384,14 +380,30 @@ bool FileSystemSDFAT::start()
     strlcpy(_basepath, "/sd", sizeof(_basepath));
 
     // Set up a configuration to the SD host interface
-    sdmmc_host_t host_config = SDSPI_HOST_DEFAULT();
-    host_config.max_freq_khz = 4000000; // from Arduino SD.h
+    sdmmc_host_t host_config = SDSPI_HOST_DEFAULT(); 
 
-    sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
-    slot_config.gpio_cs = SD_HOST_CS;
-    slot_config.gpio_miso = SD_HOST_MISO;
-    slot_config.gpio_mosi = SD_HOST_MOSI;
-    slot_config.gpio_sck = SD_HOST_SCK;
+    // Set up SPI bus
+    spi_bus_config_t bus_cfg = 
+    {
+        .mosi_io_num = PIN_SD_HOST_MOSI,
+        .miso_io_num = PIN_SD_HOST_MISO,
+        .sclk_io_num = PIN_SD_HOST_SCK,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = 4000
+    };
+
+    spi_bus_initialize(HSPI_HOST,&bus_cfg,1);
+
+    // sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
+    // slot_config.gpio_cs = SD_HOST_CS;
+    // slot_config.gpio_miso = SD_HOST_MISO;
+    // slot_config.gpio_mosi = SD_HOST_MOSI;
+    // slot_config.gpio_sck = SD_HOST_SCK;
+
+    sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+    slot_config.gpio_cs = PIN_SD_HOST_CS;
+    slot_config.host_id = SPI2_HOST;
 
     // Fat FS configuration options
     esp_vfs_fat_mount_config_t mount_config;
@@ -401,13 +413,15 @@ bool FileSystemSDFAT::start()
     // This is the information we'll be given in return
     sdmmc_card_t *sdcard_info;
 
-    esp_err_t e = esp_vfs_fat_sdmmc_mount(
-        _basepath,
-        &host_config,
-        &slot_config,
-        &mount_config,
-        &sdcard_info
-    );
+    // esp_err_t e = esp_vfs_fat_sdmmc_mount(
+    //     _basepath,
+    //     &host_config,
+    //     &slot_config,
+    //     &mount_config,
+    //     &sdcard_info
+    // );
+
+    esp_err_t e = esp_vfs_fat_sdspi_mount(_basepath, &host_config, &slot_config, &mount_config, &sdcard_info);
 
     if(e == ESP_OK)
     {
