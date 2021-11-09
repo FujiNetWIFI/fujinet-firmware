@@ -50,6 +50,8 @@
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
+#define ADDITIONAL_DETAILS_BYTES 12
+
 adamFuji theFuji;        // global fuji device object
 adamNetwork *theNetwork; // global network device object (temporary)
 
@@ -131,6 +133,7 @@ void adamFuji::adamnet_net_scan_networks()
     {
         _countScannedSSIDs = fnWiFi.scan_networks();
         scanStarted = true;
+        setSSIDStarted = false;
     }
 
     isReady = true;
@@ -160,18 +163,22 @@ void adamFuji::adamnet_net_scan_result()
         uint8_t rssi;
     } detail;
 
+    memset(&detail, 0, sizeof(detail));
+
     bool err = false;
     if (n < _countScannedSSIDs)
         fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
     else
     {
-        memset(&detail, 0, sizeof(detail));
         err = true;
     }
 
+    Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
+
+    memset(response, 0, sizeof(response));
     memcpy(response, &detail, sizeof(detail));
-    response_len = sizeof(detail);
-    fnSystem.delay_microseconds(80);
+    response_len = 33;
+    fnSystem.delay_microseconds(150);
     adamnet_send(0x9F); // ACK.
 }
 
@@ -216,7 +223,7 @@ void adamFuji::adamnet_net_get_ssid()
 // Set SSID
 void adamFuji::adamnet_net_set_ssid(uint16_t s)
 {
-    if (!fnWiFi.connected())
+    if (!fnWiFi.connected() && setSSIDStarted == false)
     {
         Debug_println("Fuji cmd: SET SSID");
 
@@ -235,13 +242,12 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 
         fnSystem.delay_microseconds(100);
         adamnet_send(0x9F); // ACK
-
         bool save = true;
 
         Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
         fnWiFi.connect(cfg.ssid, cfg.password);
-
+        setSSIDStarted = true;
         // Only save these if we're asked to, otherwise assume it was a test for connectivity
         if (save)
         {
@@ -323,6 +329,11 @@ void adamFuji::adamnet_disk_image_mount()
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void adamFuji::adamnet_set_boot_config()
 {
+    boot_config = adamnet_recv();
+    adamnet_recv();
+
+    fnSystem.delay_microseconds(120);
+    adamnet_send(0x9F); // ACK
 }
 
 // Do SIO copy
@@ -396,7 +407,7 @@ void adamFuji::adamnet_disk_image_umount()
     adamnet_send(0x9F);
 
     _fnDisks[ds].disk_dev.unmount();
-    _fnDisks[ds].reset();    
+    _fnDisks[ds].reset();
 }
 
 // Disk Image Rotate
@@ -479,6 +490,7 @@ void adamFuji::adamnet_open_directory(uint16_t s)
         }
     }
 
+    response_len = 1;
     fnSystem.delay_microseconds(150);
     adamnet_send(0x9F); // ACK
 }
@@ -488,7 +500,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     // File modified date-time
     struct tm *modtime = localtime(&f->modified_time);
     modtime->tm_mon++;
-    modtime->tm_year -= 70;
+    modtime->tm_year -= 100;
 
     dest[0] = modtime->tm_year;
     dest[1] = modtime->tm_mon;
@@ -498,24 +510,31 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[5] = modtime->tm_sec;
 
     // File size
-    uint16_t fsize = f->size;
-    dest[6] = LOBYTE_FROM_UINT16(fsize);
-    dest[7] = HIBYTE_FROM_UINT16(fsize);
+    uint32_t fsize = f->size;
+    dest[6] = fsize & 0xFF;
+    dest[7] = (fsize >> 8) & 0xFF;
+    dest[8] = (fsize >> 16) & 0xFF;
+    dest[9] = (fsize >> 24) & 0xFF;
 
     // File flags
 #define FF_DIR 0x01
 #define FF_TRUNC 0x02
 
-    dest[8] = f->isDir ? FF_DIR : 0;
+    dest[10] = f->isDir ? FF_DIR : 0;
 
-    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
+    maxlen -= ADDITIONAL_DETAILS_BYTES; // Adjust the max return value with the number of additional bytes we're copying
     if (f->isDir) // Also subtract a byte for a terminating slash on directories
         maxlen--;
     if (strlen(f->filename) >= maxlen)
-        dest[8] |= FF_TRUNC;
+        dest[11] |= FF_TRUNC;
 
     // File type
-    dest[9] = MediaType::discover_mediatype(f->filename);
+    dest[12] = MediaType::discover_mediatype(f->filename);
+
+    Debug_printf("Addtl: ");
+    for (int i=0;i<ADDITIONAL_DETAILS_BYTES;i++)
+        Debug_printf("%02x ",dest[i]);
+    Debug_printf("\n");
 }
 
 void adamFuji::adamnet_read_directory_entry()
@@ -544,7 +563,6 @@ void adamFuji::adamnet_read_directory_entry()
             int bufsize = sizeof(dirpath);
             char *filenamedest = dirpath;
 
-#define ADDITIONAL_DETAILS_BYTES 10
             // If 0x80 is set on AUX2, send back additional information
             if (addtl & 0x80)
             {
@@ -567,6 +585,22 @@ void adamFuji::adamnet_read_directory_entry()
                 dirpath[filelen] = '/';
                 dirpath[filelen + 1] = '\0';
             }
+        }
+
+        // Hack-o-rama to add file type character to beginning of path.
+        if (maxlen < 255)
+        {
+            memmove(&dirpath[1], dirpath, 254);
+            if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
+                dirpath[0] = 0x85;
+            else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
+                dirpath[0] = 0x86;
+            else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
+                dirpath[0] = 0x87;
+            else if (strstr(dirpath, "/"))
+                dirpath[0] = 0x83;
+            else
+                dirpath[0] = 0x20;
         }
 
         memset(response, 0, sizeof(response));
@@ -600,7 +634,9 @@ void adamFuji::adamnet_set_directory_position()
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
     uint16_t pos = 0;
 
-    adamnet_recv_buffer((uint8_t *)pos, sizeof(pos));
+    adamnet_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
+
+    Debug_printf("pos is now %u",pos);
 
     adamnet_recv(); // ck
 
@@ -623,6 +659,7 @@ void adamFuji::adamnet_close_directory()
         _fnHosts[_current_open_directory_slot].dir_close();
 
     _current_open_directory_slot = -1;
+    response_len = 1;
 }
 
 // Get network adapter configuration
@@ -700,7 +737,7 @@ void adamFuji::adamnet_write_host_slots()
     adamnet_send(0x9F); // ACK
 
     for (int i = 0; i < MAX_HOSTS; i++)
-    {   
+    {
         hostMounted[i] = false;
         _fnHosts[i].set_hostname(hostSlots[i]);
     }
@@ -842,20 +879,22 @@ void adamFuji::_populate_config_from_slots()
     }
 }
 
+char f[MAX_FILENAME_LEN];
+
 // Write a 256 byte filename to the device slot
 void adamFuji::adamnet_set_device_filename(uint16_t s)
 {
-    char f[MAX_FILENAME_LEN];
 
     unsigned char ds = adamnet_recv();
-    s--;
+    s--; s--;
 
-    for (int i=0;i<s;i++)
-        f[i]=adamnet_recv();
+    Debug_printf("SET DEVICE SLOT %d filename\n",ds);
+
+    adamnet_recv_buffer((uint8_t *)&f, s);
+
+    Debug_printf("filename: %s\n",f);
 
     adamnet_recv(); // CK
-
-    fnSystem.delay_microseconds(150);
     adamnet_send(0x9F); // ACK
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
@@ -872,8 +911,8 @@ void adamFuji::adamnet_get_device_filename()
     fnSystem.delay_microseconds(150);
     adamnet_send(0x9F);
 
-    memcpy(response,_fnDisks[ds].filename,256);
-    response_len=256;
+    memcpy(response, _fnDisks[ds].filename, 256);
+    response_len = 256;
 }
 
 // Mounts the desired boot disk number
@@ -1003,15 +1042,23 @@ void adamFuji::adamnet_control_send()
     case SIO_FUJICMD_GET_ADAPTERCONFIG:
         adamnet_get_adapter_config();
         break;
+    case SIO_FUJICMD_GET_DIRECTORY_POSITION:
+        adamnet_get_directory_position();
+        break;
+    case SIO_FUJICMD_SET_DIRECTORY_POSITION:
+        adamnet_set_directory_position();
+        break;
     case SIO_FUJICMD_SET_DEVICE_FULLPATH:
         adamnet_set_device_filename(s);
         break;
     case SIO_FUJICMD_GET_DEVICE_FULLPATH:
         adamnet_get_device_filename();
         break;
+    case SIO_FUJICMD_CONFIG_BOOT:
+        adamnet_set_boot_config();
+        break;
     }
-
-    fnUartSIO.flush_input();
+        fnUartSIO.flush_input();
 }
 
 void adamFuji::adamnet_control_clr()
@@ -1038,7 +1085,7 @@ void adamFuji::adamnet_process(uint8_t b)
         adamnet_control_clr();
         break;
     case MN_RECEIVE:
-        fnSystem.delay_microseconds(160);
+        fnSystem.delay_microseconds(80);
         adamnet_send(0x9F); // ACK.
         break;
     case MN_SEND:
