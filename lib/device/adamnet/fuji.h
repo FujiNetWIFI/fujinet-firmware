@@ -66,11 +66,11 @@ private:
 
     fujiHost _fnHosts[MAX_HOSTS];
 
-    fujiDisk _fnDisks[MAX_DISK_DEVICES];
+    fujiDisk _fnDisks[1];
 
     int _current_open_directory_slot = -1;
 
-    adamDisk _bootDisk; // special disk drive just for configuration
+    adamDisk *_bootDisk; // special disk drive just for configuration
 
     uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
 

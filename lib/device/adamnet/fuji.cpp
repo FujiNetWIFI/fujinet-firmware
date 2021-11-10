@@ -448,6 +448,7 @@ void adamFuji::shutdown()
 {
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
+
 }
 
 char dirpath[256];
@@ -925,17 +926,17 @@ void adamFuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fnSPIFFS.file_open(config_atr);
-        _bootDisk.mount(fBoot, config_atr, 0);
+        _bootDisk->mount(fBoot, config_atr, 0);
         break;
     case 1:
         fBoot = fnSPIFFS.file_open(mount_all_atr);
-        _bootDisk.mount(fBoot, mount_all_atr, 0);
+        _bootDisk->mount(fBoot, mount_all_atr, 0);
         break;
     }
 
-    _bootDisk.is_config_device = true;
-    _bootDisk.device_active = true;
-    Debug_printf("Media type is %d",_bootDisk.mediatype());
+    _bootDisk->is_config_device = true;
+    _bootDisk->device_active = true;
+    Debug_printf("Media type is %d\n",_bootDisk->mediatype());
 }
 
 // Initializes base settings and adds our devices to the SIO bus
@@ -944,12 +945,14 @@ void adamFuji::setup(adamNetBus *siobus)
     // set up Fuji device
     _adamnet_bus = siobus;
 
+    _bootDisk = new adamDisk();
+
     _populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode());
+    // insert_boot_device(0);
 
     // Disable booting from CONFIG if our settings say to turn it off
-    boot_config = true;
+    boot_config = false;
 
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
@@ -960,8 +963,11 @@ void adamFuji::setup(adamNetBus *siobus)
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 
     // Add our devices to the SIO bus
-    for (int i = 0; i < 4; i++)
+    for (int i = 0; i < 1; i++)
         _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
+
+    FILE *f = fnSPIFFS.file_open("/autorun.ddp");
+    _fnDisks[0].disk_dev.mount(f,"/autorun.ddp",262144,MEDIATYPE_DDP);
 
     // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
     //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
@@ -969,7 +975,7 @@ void adamFuji::setup(adamNetBus *siobus)
 
 adamDisk *adamFuji::bootdisk()
 {
-    return &_bootDisk;
+    return _bootDisk;
 }
 
 void adamFuji::adamnet_control_ready()
