@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #ifndef FUJI_H
 #define FUJI_H
 #include <cstdint>
@@ -147,3 +148,4 @@ public:
 extern sioFuji theFuji;
 
 #endif // FUJI_H
+#endif // BUILD_ATARI

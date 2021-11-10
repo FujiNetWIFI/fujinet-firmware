@@ -12,6 +12,7 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 {
     uint8_t checksum = 0x00;
 
+    Debug_printf("ck len: %u\n",len);
     for (unsigned short i = 0; i < len; i++)
         checksum ^= buf[i];
 
@@ -108,16 +109,13 @@ void adamNetBus::_adamnet_process_cmd()
     fnLedManager.set(eLed::LED_BUS, true);
 
     // Find device ID and pass control to it
-    if ((d == 0x04) && (_fujiDev != nullptr) && _fujiDev->boot_config)
-    {
-        _activeDev=&_fujiDev->_bootDisk;
-        _activeDev->adamnet_process(b);
-    }
-    else if (_daisyChain.find(d) == _daisyChain.end())
+    if (_daisyChain.find(d) == _daisyChain.end())
         wait_for_idle();
     else
+    {
         _daisyChain[d]->adamnet_process(b);
-    
+    }
+
     // turn off AdamNet Indicator LED
     fnLedManager.set(eLed::LED_BUS, false);
 }

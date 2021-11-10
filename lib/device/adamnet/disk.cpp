@@ -11,8 +11,9 @@
 
 adamDisk::adamDisk()
 {
+    Debug_printf("Instantiated. %p\n",this);
     device_active = false;
-    blockNum = 0;    
+    blockNum = 0;
 }
 
 // Destructor
@@ -31,6 +32,7 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
     // Destroy any existing DiskType
     if (_media != nullptr)
     {
+        Debug_printf("KABLOW!\n");
         delete _media;
         _media = nullptr;
     }
@@ -87,9 +89,13 @@ void adamDisk::adamnet_control_clr()
 
 void adamDisk::adamnet_control_receive()
 {
-    Debug_printf("receive this: %p\n",this);
-    _media->read(blockNum, nullptr);
-    fnSystem.delay_microseconds(90);
+    if (blockNum != readBlockNum)
+    {
+        _media->read(blockNum, nullptr);
+        readBlockNum=blockNum;
+    }
+
+    fnSystem.delay_microseconds(80);
     adamnet_send(0x90 | _devnum);
 }
 
@@ -181,6 +187,8 @@ void adamDisk::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
+
+    fnUartSIO.flush_input();
 }
 
 #endif /* BUILD_ADAM */
