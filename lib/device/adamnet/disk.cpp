@@ -87,6 +87,7 @@ void adamDisk::adamnet_control_clr()
 
 void adamDisk::adamnet_control_receive()
 {
+    Debug_printf("receive this: %p\n",this);
     _media->read(blockNum, nullptr);
     fnSystem.delay_microseconds(90);
     adamnet_send(0x90 | _devnum);
