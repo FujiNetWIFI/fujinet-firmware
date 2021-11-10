@@ -884,7 +884,6 @@ char f[MAX_FILENAME_LEN];
 // Write a 256 byte filename to the device slot
 void adamFuji::adamnet_set_device_filename(uint16_t s)
 {
-
     unsigned char ds = adamnet_recv();
     s--; s--;
 
@@ -922,8 +921,6 @@ void adamFuji::insert_boot_device(uint8_t d)
     const char *mount_all_atr = "/mount-and-boot.ddp";
     FILE *fBoot;
 
-    _bootDisk.unmount();
-
     switch (d)
     {
     case 0:
@@ -937,7 +934,8 @@ void adamFuji::insert_boot_device(uint8_t d)
     }
 
     _bootDisk.is_config_device = true;
-    _bootDisk.device_active = false;
+    _bootDisk.device_active = true;
+    Debug_printf("Media type is %d",_bootDisk.mediatype());
 }
 
 // Initializes base settings and adds our devices to the SIO bus
@@ -951,22 +949,19 @@ void adamFuji::setup(adamNetBus *siobus)
     insert_boot_device(Config.get_general_boot_mode());
 
     // Disable booting from CONFIG if our settings say to turn it off
-    boot_config = Config.get_general_config_enabled();
+    boot_config = true;
 
     // Disable status_wait if our settings say to turn it off
-    status_wait_enabled = Config.get_general_status_wait_enabled();
-
-    // Temporary
-    _adamnet_bus->addDevice(&_bootDisk, 4);
+    status_wait_enabled = false;
 
     theNetwork = new adamNetwork();
 
     _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 
-    // // Add our devices to the SIO bus
-    // for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    //     _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
+    // Add our devices to the SIO bus
+    for (int i = 0; i < 4; i++)
+        _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
 
     // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
     //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
