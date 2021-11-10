@@ -277,5 +277,8 @@ void KeyManager::_keystate_task(void *param)
             } // BUTTON_C
         }
     }
+#else
+    while (1);
+
 #endif /* NO_BUTTON */
 }
