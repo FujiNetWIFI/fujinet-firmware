@@ -3,6 +3,7 @@
  */
 
 #include "adamnet.h"
+#include "adamnet/fuji.h"
 #include "../../include/debug.h"
 #include "utils.h"
 #include "led.h"
@@ -107,7 +108,12 @@ void adamNetBus::_adamnet_process_cmd()
     fnLedManager.set(eLed::LED_BUS, true);
 
     // Find device ID and pass control to it
-    if (_daisyChain.find(d) == _daisyChain.end())
+    if ((d == 0x04) && (_fujiDev != nullptr) && _fujiDev->boot_config)
+    {
+        _activeDev=&_fujiDev->_bootDisk;
+        _activeDev->adamnet_process(b);
+    }
+    else if (_daisyChain.find(d) == _daisyChain.end())
         wait_for_idle();
     else
         _daisyChain[d]->adamnet_process(b);
@@ -154,6 +160,11 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
     Debug_printf("Adding device: %02X\n", device_id);
     pDevice->_devnum = device_id;
     _daisyChain[device_id]=pDevice;
+
+    if (device_id == 0x0f)
+    {
+        _fujiDev = (adamFuji *)pDevice;
+    }
 }
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)
