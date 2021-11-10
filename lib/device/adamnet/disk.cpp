@@ -84,6 +84,7 @@ void adamDisk::adamnet_control_ack()
 
 void adamDisk::adamnet_control_clr()
 {
+    fnSystem.delay_microseconds(150);
     adamnet_response_send();
 }
 
@@ -95,7 +96,7 @@ void adamDisk::adamnet_control_receive()
         readBlockNum=blockNum;
     }
 
-    fnSystem.delay_microseconds(80);
+    fnSystem.delay_microseconds(150);
     adamnet_send(0x90 | _devnum);
 }
 
