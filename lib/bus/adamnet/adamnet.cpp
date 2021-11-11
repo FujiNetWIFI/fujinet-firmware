@@ -1,3 +1,4 @@
+#ifdef BUILD_ADAM
 /**
  * AdamNet Functions
  */
@@ -200,3 +201,4 @@ adamNetDevice *adamNetBus::deviceById(int device_id)
 }
 
 adamNetBus AdamNet;
+#endif /* BUILD_ADAM */
