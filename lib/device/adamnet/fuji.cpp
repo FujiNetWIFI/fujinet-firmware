@@ -466,6 +466,9 @@ void adamFuji::adamnet_open_directory(uint16_t s)
 
     adamnet_recv(); // Grab checksum
 
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x9F); // ACK
+
     if (_current_open_directory_slot == -1)
     {
         // See if there's a search pattern after the directory path
@@ -492,8 +495,6 @@ void adamFuji::adamnet_open_directory(uint16_t s)
     }
 
     response_len = 1;
-    fnSystem.delay_microseconds(150);
-    adamnet_send(0x9F); // ACK
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -945,8 +946,6 @@ void adamFuji::setup(adamNetBus *siobus)
     // set up Fuji device
     _adamnet_bus = siobus;
 
-    _bootDisk = new adamDisk();
-
     _populate_slots_from_config();
 
     // insert_boot_device(0);
@@ -957,20 +956,21 @@ void adamFuji::setup(adamNetBus *siobus)
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
 
-    theNetwork = new adamNetwork();
-
-    _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
-    _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
-
-    // Add our devices to the SIO bus
-    for (int i = 0; i < 1; i++)
-        _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
-
+    _adamnet_bus->addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
+   
     FILE *f = fnSPIFFS.file_open("/autorun.ddp");
     _fnDisks[0].disk_dev.mount(f,"/autorun.ddp",262144,MEDIATYPE_DDP);
 
-    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
+
+    // _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
+    _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
+
+    // Add our devices to the AdamNet bus
+    //for (int i = 0; i < 4; i++)
+    //    _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
+
+    //for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+    //    _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
 }
 
 adamDisk *adamFuji::bootdisk()
@@ -1059,7 +1059,6 @@ void adamFuji::adamnet_control_send()
         adamnet_set_boot_config();
         break;
     }
-        fnUartSIO.flush_input();
 }
 
 void adamFuji::adamnet_control_clr()

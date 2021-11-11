@@ -114,6 +114,7 @@ void adamNetBus::_adamnet_process_cmd()
     else
     {
         _daisyChain[d]->adamnet_process(b);
+        fnUartSIO.flush_input();
     }
 
     // turn off AdamNet Indicator LED
