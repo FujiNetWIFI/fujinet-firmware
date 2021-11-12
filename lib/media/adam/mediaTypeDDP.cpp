@@ -10,7 +10,7 @@
 
 #include "mediaTypeDDP.h"
 
-// Returns byte offset of given sector number (1-based)
+// Returns byte offset of given sector number
 uint32_t MediaTypeDDP::_block_to_offset(uint32_t blockNum)
 {
     return blockNum * 1024;
@@ -19,7 +19,7 @@ uint32_t MediaTypeDDP::_block_to_offset(uint32_t blockNum)
 // Returns TRUE if an error condition occurred
 bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 {
-    Debug_print("ATR READ\n");
+    Debug_print("DDP READ\n");
 
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks)
@@ -95,14 +95,9 @@ bool MediaTypeDDP::write(uint16_t blockNum, bool verify)
 
 void MediaTypeDDP::status(uint8_t statusbuff[4])
 {
+    // Currently not being used.
 }
 
-/*
-    From Altirra manual:
-    The format command formats a disk, writing 40 tracks and then verifying all sectors.
-    All sectors are filleded with the data byte $00. On completion, the drive returns
-    a sector-sized buffer containing a list of 16-bit bad sector numbers terminated by $FFFF.
-*/
 // Returns TRUE if an error condition occurred
 bool MediaTypeDDP::format(uint16_t *responsesize)
 {
@@ -126,4 +121,4 @@ bool MediaTypeDDP::create(FILE *f, uint32_t numBlocks)
 
     return true;
 }
-#endif /* BUILD_ATARI */
+#endif /* BUILD_ADAM */

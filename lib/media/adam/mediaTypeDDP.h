@@ -1,5 +1,5 @@
-#ifndef _MEDIATYPE_ATR_
-#define _MEDIATYPE_ATR_
+#ifndef _MEDIATYPE_DDP_
+#define _MEDIATYPE_DDP_
 
 #include "mediaType.h"
 
@@ -22,4 +22,4 @@ public:
 };
 
 
-#endif // _DISKTYPE_ATR_
+#endif // _DISKTYPE_DDP_
