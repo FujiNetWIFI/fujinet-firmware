@@ -29,6 +29,8 @@
 #define ADAMNET_DEVICEID_DISK 0x04
 
 class adamNetBus;
+class adamFuji;     // declare here so can reference it, but define in fuji.h
+
 
 /**
  * @brief Calculate checksum for AdamNet packets. Uses a simple 8-bit XOR of each successive byte.
@@ -134,6 +136,7 @@ class adamNetBus
 private:
     std::map<uint8_t, adamNetDevice *> _daisyChain;
     adamNetDevice *_activeDev = nullptr;
+    adamFuji *_fujiDev = nullptr;
 
     void _adamnet_process_cmd();
     void _adamnet_process_queue();

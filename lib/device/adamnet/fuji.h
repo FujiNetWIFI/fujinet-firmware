@@ -57,6 +57,7 @@ private:
     bool alreadyRunning = false; // Replace isReady and scanStarted with THIS.
     bool scanStarted = false;
     bool hostMounted[MAX_HOSTS];
+    bool setSSIDStarted = false;
 
     uint8_t response[1024];
     uint16_t response_len;
@@ -65,11 +66,11 @@ private:
 
     fujiHost _fnHosts[MAX_HOSTS];
 
-    fujiDisk _fnDisks[MAX_DISK_DEVICES];
+    fujiDisk _fnDisks[4];
 
     int _current_open_directory_slot = -1;
 
-    adamDisk _bootDisk; // special disk drive just for configuration
+    adamDisk *_bootDisk; // special disk drive just for configuration
 
     uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
 
