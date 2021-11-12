@@ -12,7 +12,8 @@
 adamDisk::adamDisk()
 {
     device_active = false;
-    blockNum = 0;    
+    blockNum = 0;
+    readBlockNum = 0xFFFFFFFF;
 }
 
 // Destructor
@@ -31,6 +32,7 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
     // Destroy any existing DiskType
     if (_media != nullptr)
     {
+        Debug_printf("KABLOW!\n");
         delete _media;
         _media = nullptr;
     }
@@ -82,13 +84,19 @@ void adamDisk::adamnet_control_ack()
 
 void adamDisk::adamnet_control_clr()
 {
+    fnSystem.delay_microseconds(150);
     adamnet_response_send();
 }
 
 void adamDisk::adamnet_control_receive()
 {
-    _media->read(blockNum, nullptr);
-    fnSystem.delay_microseconds(90);
+    if (blockNum != readBlockNum)
+    {
+        _media->read(blockNum, nullptr);
+        readBlockNum=blockNum;
+    }
+
+    fnSystem.delay_microseconds(150);
     adamnet_send(0x90 | _devnum);
 }
 
@@ -102,7 +110,6 @@ void adamDisk::adamnet_control_send()
 
     blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
 
-    fnSystem.delay_microseconds(150);
     adamnet_response_ack();
     Debug_printf("REQ BLOCK: %lu\n", blockNum);
 }
@@ -120,6 +127,7 @@ void adamDisk::adamnet_response_status()
 
 void adamDisk::adamnet_response_ack()
 {
+    fnSystem.delay_microseconds(150);
     adamnet_send(0x90 | _devnum);
 }
 
@@ -143,6 +151,7 @@ void adamDisk::adamnet_response_send()
 
 void adamDisk::adamnet_response_nack()
 {
+    fnSystem.delay_microseconds(150);
     adamnet_send(0xC0 | _devnum);
 }
 
@@ -180,6 +189,8 @@ void adamDisk::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
+
+    fnUartSIO.flush();
 }
 
 #endif /* BUILD_ADAM */

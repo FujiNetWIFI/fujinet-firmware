@@ -626,6 +626,7 @@ void fnConfig::load()
 {
     Debug_println("fnConfig::load");
 
+#ifndef NO_BUTTONS
     // Clear the config file if key is currently pressed
     if (fnKeyManager.keyCurrentlyPressed(BUTTON_B))
     {
@@ -640,6 +641,7 @@ void fnConfig::load()
         _dirty = true; // We have a new config, so we treat it as needing to be saved
         return;
     }
+#endif /* NO_BUTTONS */
 
     /*
 Original behavior: read from SPIFFS first and only read from SD if nothing found on SPIFFS.

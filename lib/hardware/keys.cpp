@@ -138,6 +138,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 
 void KeyManager::_keystate_task(void *param)
 {
+#ifndef NO_BUTTONS
     #define BLUETOOTH_LED eLed::LED_BT
 
     KeyManager *pKM = (KeyManager *)param;
@@ -276,4 +277,8 @@ void KeyManager::_keystate_task(void *param)
             } // BUTTON_C
         }
     }
+#else
+    while (1);
+
+#endif /* NO_BUTTON */
 }

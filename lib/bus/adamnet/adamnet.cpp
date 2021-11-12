@@ -1,8 +1,10 @@
+#ifdef BUILD_ADAM
 /**
  * AdamNet Functions
  */
 
 #include "adamnet.h"
+#include "adamnet/fuji.h"
 #include "../../include/debug.h"
 #include "utils.h"
 #include "led.h"
@@ -11,6 +13,7 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 {
     uint8_t checksum = 0x00;
 
+    Debug_printf("ck len: %u\n",len);
     for (unsigned short i = 0; i < len; i++)
         checksum ^= buf[i];
 
@@ -110,8 +113,11 @@ void adamNetBus::_adamnet_process_cmd()
     if (_daisyChain.find(d) == _daisyChain.end())
         wait_for_idle();
     else
+    {
         _daisyChain[d]->adamnet_process(b);
-    
+        fnUartSIO.flush_input();
+    }
+
     // turn off AdamNet Indicator LED
     fnLedManager.set(eLed::LED_BUS, false);
 }
@@ -154,6 +160,11 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
     Debug_printf("Adding device: %02X\n", device_id);
     pDevice->_devnum = device_id;
     _daisyChain[device_id]=pDevice;
+
+    if (device_id == 0x0f)
+    {
+        _fujiDev = (adamFuji *)pDevice;
+    }
 }
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)
@@ -190,3 +201,4 @@ adamNetDevice *adamNetBus::deviceById(int device_id)
 }
 
 adamNetBus AdamNet;
+#endif /* BUILD_ADAM */
