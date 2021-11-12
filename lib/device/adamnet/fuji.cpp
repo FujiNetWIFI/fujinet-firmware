@@ -578,8 +578,16 @@ void adamFuji::adamnet_read_directory_entry()
                 bufsize = maxlen;
             }
 
+            int filelen;
             // int filelen = strlcpy(filenamedest, f->filename, bufsize);
-            int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+            if (maxlen < 128)
+            {
+                filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+            }
+            else
+            {
+                filelen = strlcpy(filenamedest, f->filename, bufsize);
+            }
 
             // Add a slash at the end of directory entries
             if (f->isDir && filelen < (bufsize - 2))
@@ -590,9 +598,9 @@ void adamFuji::adamnet_read_directory_entry()
         }
 
         // Hack-o-rama to add file type character to beginning of path.
-        if (maxlen < 255)
+        if (maxlen == 32)
         {
-            memmove(&dirpath[1], dirpath, 254);
+            memmove(&dirpath[2], dirpath, 254);
             if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
                 dirpath[0] = 0x85;
             else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
@@ -603,6 +611,8 @@ void adamFuji::adamnet_read_directory_entry()
                 dirpath[0] = 0x83;
             else
                 dirpath[0] = 0x20;
+
+            dirpath[1] = 0x20;
         }
 
         memset(response, 0, sizeof(response));
@@ -961,8 +971,8 @@ void adamFuji::setup(adamNetBus *siobus)
     FILE *f = fnSPIFFS.file_open("/autorun.ddp");
     _fnDisks[0].disk_dev.mount(f,"/autorun.ddp",262144,MEDIATYPE_DDP);
 
-
-    // _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
+    theNetwork = new adamNetwork();
+    _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 
     // Add our devices to the AdamNet bus
