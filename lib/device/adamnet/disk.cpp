@@ -32,7 +32,6 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
     // Destroy any existing DiskType
     if (_media != nullptr)
     {
-        Debug_printf("KABLOW!\n");
         delete _media;
         _media = nullptr;
     }
@@ -49,6 +48,8 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
         mt=_media->mount(f, disksize);
         break;
     case MEDIATYPE_DSK:
+        _media = new MediaTypeDSK();
+        mt=_media->mount(f,disksize);
         device_active = true;
         break;
     case MEDIATYPE_ROM:
