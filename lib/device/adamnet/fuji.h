@@ -66,7 +66,7 @@ private:
 
     fujiHost _fnHosts[MAX_HOSTS];
 
-    fujiDisk _fnDisks[4];
+    fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
     int _current_open_directory_slot = -1;
 
