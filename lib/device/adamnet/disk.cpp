@@ -103,18 +103,35 @@ void adamDisk::adamnet_control_receive()
     adamnet_send(0x90 | _devnum);
 }
 
-void adamDisk::adamnet_control_send()
+void adamDisk::adamnet_control_send_block_num()
 {
-    uint16_t s = adamnet_recv_length();
     uint8_t x[8];
 
-    for (uint16_t i = 0; i < s; i++)
+    for (uint16_t i = 0; i < 5; i++)
         x[i] = adamnet_recv();
 
     blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
 
     adamnet_response_ack();
-    Debug_printf("REQ BLOCK: %lu\n", blockNum);
+
+    Debug_printf("BLOCK: %lu\n", blockNum);
+}
+
+void adamDisk::adamnet_control_send_block_data()
+{
+    adamnet_recv_buffer(_media->_media_blockbuff,1024);
+    _media->write(blockNum,false);
+}
+
+void adamDisk::adamnet_control_send()
+{
+    uint16_t s = adamnet_recv_length();
+
+    if (s == 5)
+        adamnet_control_send_block_num();
+    else if (s == 1024)
+        adamnet_control_send_block_data();
+
 }
 
 void adamDisk::adamnet_control_nack()
