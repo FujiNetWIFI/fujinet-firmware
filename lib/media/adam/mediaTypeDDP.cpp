@@ -77,7 +77,11 @@ bool MediaTypeDDP::write(uint16_t blockNum, bool verify)
         }
     }
     // Write the data
-    e = fwrite(_media_blockbuff, 1, 1024, _media_fileh);
+    e = fwrite(&_media_blockbuff[0], 1, 256, _media_fileh);
+    e += fwrite(&_media_blockbuff[256], 1, 256, _media_fileh);
+    e += fwrite(&_media_blockbuff[512], 1, 256, _media_fileh);
+    e += fwrite(&_media_blockbuff[768], 1, 256, _media_fileh);
+    
     if (e != 1024)
     {
         Debug_printf("::write error %d, %d\n", e, errno);
