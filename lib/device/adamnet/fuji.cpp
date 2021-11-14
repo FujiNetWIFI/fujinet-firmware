@@ -582,7 +582,7 @@ void adamFuji::adamnet_read_directory_entry()
             // int filelen = strlcpy(filenamedest, f->filename, bufsize);
             if (maxlen < 128)
             {
-                filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+                filelen = util_ellipsize(f->filename, filenamedest, bufsize-1);
             }
             else
             {
@@ -598,21 +598,32 @@ void adamFuji::adamnet_read_directory_entry()
         }
 
         // Hack-o-rama to add file type character to beginning of path.
-        if (maxlen == 32)
+        if (maxlen == 31)
         {
             memmove(&dirpath[2], dirpath, 254);
             if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
+            {
                 dirpath[0] = 0x85;
+                dirpath[1] = 0x86;
+            }
             else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
-                dirpath[0] = 0x86;
-            else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
+            {
                 dirpath[0] = 0x87;
+                dirpath[1] = 0x88;
+            }
+            else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
+            {
+                dirpath[0] = 0x89;
+                dirpath[1] = 0x8a;            
+            }
             else if (strstr(dirpath, "/"))
+            {
                 dirpath[0] = 0x83;
+                dirpath[1] = 0x84;
+            }
             else
-                dirpath[0] = 0x20;
+                dirpath[0] = dirpath[1] = 0x20;
 
-            dirpath[1] = 0x20;
         }
 
         memset(response, 0, sizeof(response));
