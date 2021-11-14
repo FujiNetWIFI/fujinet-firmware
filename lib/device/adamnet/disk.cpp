@@ -120,6 +120,7 @@ void adamDisk::adamnet_control_send_block_num()
 void adamDisk::adamnet_control_send_block_data()
 {
     adamnet_recv_buffer(_media->_media_blockbuff,1024);
+    adamnet_response_ack();
     _media->write(blockNum,false);
 }
 
