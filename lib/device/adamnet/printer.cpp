@@ -36,8 +36,53 @@ adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
     return (printer_type)i;
 }
 
+void adamPrinter::adamnet_control_status()
+{
+
+}
+
+void adamPrinter::adamnet_control_clr()
+{
+    
+}
+
+void adamPrinter::adamnet_control_receive()
+{
+    
+}
+
+void adamPrinter::adamnet_control_send()
+{
+    
+}
+
+void adamPrinter::adamnet_control_ready()
+{
+    
+}
+
 void adamPrinter::adamnet_process(uint8_t b)
 {
+    unsigned char c = b >> 4;
+
+    switch (c)
+    {
+    case MN_STATUS:
+        adamnet_control_status();
+        break;
+    case MN_CLR:
+        adamnet_control_clr();
+        break;
+    case MN_RECEIVE:
+        adamnet_control_receive();
+        break;
+    case MN_SEND:
+        adamnet_control_send();
+        break;
+    case MN_READY:
+        adamnet_control_ready();
+        break;
+    }
 }
 
 void adamPrinter::shutdown()
