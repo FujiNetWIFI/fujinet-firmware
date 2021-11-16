@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #ifndef PRINTER_H
 #define PRINTER_H
 
@@ -66,3 +67,4 @@ private:
 };
 
 #endif // guard
+#endif

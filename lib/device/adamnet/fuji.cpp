@@ -54,6 +54,7 @@
 
 adamFuji theFuji;        // global fuji device object
 adamNetwork *theNetwork; // global network device object (temporary)
+adamPrinter *thePrinter; // global printer
 
 // sioDisk sioDiskDevs[MAX_HOSTS];
 // sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
