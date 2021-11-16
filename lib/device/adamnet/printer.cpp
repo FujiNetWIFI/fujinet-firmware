@@ -12,15 +12,39 @@
 #include "png_printer.h"
 #include "coleco_printer.h"
 
+unsigned short bytesToPrint = 0;
+bool _pr = true;
+
+void vTaskColecoPrinter(void *pvParameters)
+{
+    adamPrinter *p=(adamPrinter *)pvParameters;
+
+    while (1)
+    {
+        if ((bytesToPrint > 0) && (_pr == true))
+        {
+            _pr=false;
+            p->getPrinterPtr()->process(bytesToPrint,0,0);
+            bytesToPrint=0;
+            _pr=true;
+        }
+        vTaskDelay(10);
+    }
+}
+
 // Constructor just sets a default printer type
 adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
 {
     _storage = filesystem;
     set_printer_type(print_type);
+    xTaskCreate(vTaskColecoPrinter,"colprint",4096,this,1,&ioTask);
 }
 
 adamPrinter::~adamPrinter()
 {
+    if (ioTask != NULL)
+        vTaskDelete(ioTask);
+
     delete _pptr;
 }
 
@@ -46,39 +70,40 @@ adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
 
 void adamPrinter::adamnet_control_status()
 {
-    uint8_t c[6] = {0x82,0x10,0x00,0x00,0x00,0x10};
+    uint8_t c[6] = {0x82, 0x10, 0x00, 0x00, 0x00, 0x10};
 
-    adamnet_send_buffer(c,sizeof(c));
-}
-
-void adamPrinter::adamnet_control_clr()
-{
-    
-}
-
-void adamPrinter::adamnet_control_receive()
-{
-    
+    adamnet_send_buffer(c, sizeof(c));
 }
 
 void adamPrinter::adamnet_control_send()
 {
+    uint8_t c[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
     unsigned short s = adamnet_recv_length();
-    
+    adamnet_recv_buffer(c, s);
+
     fnSystem.delay_microseconds(150);
     adamnet_send(0x92); // ACK
 
-    for (char i=0;i<s;i++)
-    {
-        _pptr->provideBuffer()[0] = adamnet_recv();
-        _pptr->process(1,0,0);
-    }
+    memcpy(&_pptr->provideBuffer()[bytesToPrint],c,s);
+    bytesToPrint += s;
 }
 
 void adamPrinter::adamnet_control_ready()
 {
-    fnSystem.delay_microseconds(150);
-    adamnet_send(0x92); // ACK
+    if (_pr == true)
+    {
+        Debug_printf("sending ACK\n");
+        fnSystem.delay_microseconds(150);
+        adamnet_send(0x92); // ACK
+    }
+    else
+    {
+        Debug_printf("Sending NAK\n");
+        fnSystem.delay_microseconds(150);
+        adamnet_send(0xC2); // NAK
+    }
+
 }
 
 void adamPrinter::adamnet_process(uint8_t b)
@@ -89,12 +114,6 @@ void adamPrinter::adamnet_process(uint8_t b)
     {
     case MN_STATUS:
         adamnet_control_status();
-        break;
-    case MN_CLR:
-        adamnet_control_clr();
-        break;
-    case MN_RECEIVE:
-        adamnet_control_receive();
         break;
     case MN_SEND:
         adamnet_control_send();

@@ -15,9 +15,7 @@ protected:
     void sio_write(uint8_t aux1, uint8_t aux2);
     
     virtual void adamnet_control_status();
-    virtual void adamnet_control_clr();
     virtual void adamnet_control_send();
-    virtual void adamnet_control_receive();
     virtual void adamnet_control_ready();
 
     void adamnet_process(uint8_t b) override;
@@ -69,6 +67,8 @@ public:
 
 private:
     printer_type _ptype;
+    TaskHandle_t ioTask = NULL;
+
 };
 
 #endif /* ADAM_PRINTER_H */

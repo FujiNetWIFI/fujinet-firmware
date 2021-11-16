@@ -3,7 +3,31 @@
 
 void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
-    if (c > 31 && c < 128)
+    if (c == 0x0a)
+    {
+    }
+    else if (c == 0x0b) // VT - Half line feed
+    {
+        pdf_dY -= lineHeight / 2.;
+        pdf_set_rise();
+    }
+    else if (c == 0x0c)
+    {
+        pdf_end_page();
+    }
+    else if (c == 0x0d)
+    {
+        pdf_end_line();
+    }
+    else if (c == 0x0e) // SO - Backwards
+    {
+        charWidth = -6.0;
+    }
+    else if (c == 0x0f) // SI - Forwards
+    {
+        charWidth = 6.0;
+    }
+    else if (c > 31 && c < 128)
     {
         if (c == 123 || c == 125 || c == 127)
             c = ' ';
