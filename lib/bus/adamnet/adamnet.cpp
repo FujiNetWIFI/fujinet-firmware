@@ -60,9 +60,7 @@ void adamNetDevice::adamnet_send_length(uint16_t l)
 
 unsigned short adamNetDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short len)
 {
-    for (int i = 0; i < len; i++)
-        buf[i] = adamnet_recv();
-    return len;
+    return fnUartSIO.readBytes(buf,len);
 }
 
 void adamNetBus::wait_for_idle()

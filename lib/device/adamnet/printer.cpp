@@ -11,6 +11,13 @@
 #include "okimate_10.h"
 #include "png_printer.h"
 
+// Constructor just sets a default printer type
+adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
+{
+    _storage = filesystem;
+    set_printer_type(print_type);
+}
+
 adamPrinter::~adamPrinter()
 {
     delete _pptr;
@@ -38,7 +45,9 @@ adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
 
 void adamPrinter::adamnet_control_status()
 {
+    uint8_t c[6] = {0x82,0x10,0x00,0x00,0x00,0x10};
 
+    adamnet_send_buffer(c,sizeof(c));
 }
 
 void adamPrinter::adamnet_control_clr()
@@ -53,12 +62,18 @@ void adamPrinter::adamnet_control_receive()
 
 void adamPrinter::adamnet_control_send()
 {
+    unsigned short s = adamnet_recv_length();
+    for (char i=0;i<s;i++)
+        Debug_printf("%c",adamnet_recv());
     
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x92); // ACK
 }
 
 void adamPrinter::adamnet_control_ready()
 {
-    
+    fnSystem.delay_microseconds(150);
+    adamnet_send(0x92); // ACK
 }
 
 void adamPrinter::adamnet_process(uint8_t b)

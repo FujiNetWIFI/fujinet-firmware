@@ -5,6 +5,7 @@
 #include "../../include/debug.h"
 #include "bus.h"
 #include "adamnet/network.h"
+#include "adamnet/printer.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"

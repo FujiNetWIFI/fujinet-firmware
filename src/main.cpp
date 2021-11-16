@@ -22,6 +22,7 @@
 
 #ifdef BUILD_ADAM
 #include "adamnet/fuji.h"
+#include "adamnet/printer.h"
 #include "adamnet/modem.h"
 #include "adamnet/printerlist.h"
 #endif
@@ -162,6 +163,9 @@ void main_setup()
 
 #elif defined( BUILD_ADAM )
 
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    adamPrinter *ptr = new adamPrinter(ptrfs, adamPrinter::PRINTER_FILE_RAW);
+    AdamNet.addDevice(ptr,0x02);
     theFuji.setup(&AdamNet);
     AdamNet.setup();
 
