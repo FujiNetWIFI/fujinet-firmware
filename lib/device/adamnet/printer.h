@@ -37,6 +37,7 @@ public:
         PRINTER_FILE_RAW = 0,
         PRINTER_FILE_TRIM,
         PRINTER_FILE_ASCII,
+        PRINTER_COLECO_ADAM,
         PRINTER_ATARI_820,
         PRINTER_ATARI_822,
         PRINTER_ATARI_825,

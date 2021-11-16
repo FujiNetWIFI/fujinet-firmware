@@ -164,7 +164,8 @@ void main_setup()
 #elif defined( BUILD_ADAM )
 
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-    adamPrinter *ptr = new adamPrinter(ptrfs, adamPrinter::PRINTER_FILE_RAW);
+    adamPrinter *ptr = new adamPrinter(ptrfs, adamPrinter::PRINTER_COLECO_ADAM);
+    fnPrinters.set_entry(0,ptr,adamPrinter::PRINTER_COLECO_ADAM,0);
     AdamNet.addDevice(ptr,0x02);
     theFuji.setup(&AdamNet);
     AdamNet.setup();
