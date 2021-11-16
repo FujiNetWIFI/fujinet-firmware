@@ -10,6 +10,7 @@
 #include "epson_tps.h"
 #include "okimate_10.h"
 #include "png_printer.h"
+#include "coleco_printer.h"
 
 // Constructor just sets a default printer type
 adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
@@ -63,11 +64,15 @@ void adamPrinter::adamnet_control_receive()
 void adamPrinter::adamnet_control_send()
 {
     unsigned short s = adamnet_recv_length();
-    for (char i=0;i<s;i++)
-        Debug_printf("%c",adamnet_recv());
     
     fnSystem.delay_microseconds(150);
     adamnet_send(0x92); // ACK
+
+    for (char i=0;i<s;i++)
+    {
+        _pptr->provideBuffer()[0] = adamnet_recv();
+        _pptr->process(1,0,0);
+    }
 }
 
 void adamPrinter::adamnet_control_ready()
@@ -120,6 +125,9 @@ void adamPrinter::set_printer_type(printer_type printer_type)
         break;
     case PRINTER_FILE_ASCII:
         _pptr = new filePrinter(ASCII);
+        break;
+    case PRINTER_COLECO_ADAM:
+        _pptr = new colecoprinter;
         break;
     case PRINTER_EPSON:
         _pptr = new epson80;
