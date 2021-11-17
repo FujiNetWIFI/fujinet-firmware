@@ -1,12 +1,13 @@
-#ifndef _MEDIATYPE_DDP_
-#define _MEDIATYPE_DDP_
+#ifndef _MEDIATYPE_DSK_
+#define _MEDIATYPE_DSK_
 
+#include <utility>
 #include "mediaType.h"
 
-class MediaTypeDDP : public MediaType
+class MediaTypeDSK : public MediaType
 {
 private:
-    uint32_t _block_to_offset(uint32_t blockNum);
+    std::pair<uint32_t, uint32_t> _block_to_offsets(uint32_t blockNum);
 
 public:
     virtual bool read(uint32_t blockNum, uint16_t *readcount) override;
@@ -22,4 +23,4 @@ public:
 };
 
 
-#endif // _DISKTYPE_DDP_
+#endif // _DISKTYPE_DSK_

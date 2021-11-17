@@ -17,6 +17,8 @@ private:
     void adamnet_control_clr();
     void adamnet_control_receive();
     void adamnet_control_send();
+    void adamnet_control_send_block_num();
+    void adamnet_control_send_block_data();
     void adamnet_control_nack();
     void adamnet_response_status();
     void adamnet_response_ack();

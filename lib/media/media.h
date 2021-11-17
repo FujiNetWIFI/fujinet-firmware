@@ -11,6 +11,8 @@
 #elif defined( BUILD_ADAM )
 #   include "adam/mediaType.h"
 #   include "adam/mediaTypeDDP.h"
+#   include "adam/mediaTypeDSK.h"
+#   include "adam/mediaTypeROM.h"
 #endif
 
 #endif // MEDIA_H
