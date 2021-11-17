@@ -2,6 +2,7 @@
 
 #include "../../include/atascii.h"
 #include "printer.h"
+#include <deque>
 
 #include "file_printer.h"
 #include "html_printer.h"
@@ -12,21 +13,33 @@
 #include "png_printer.h"
 #include "coleco_printer.h"
 
-unsigned short bytesToPrint = 0;
-bool _pr = true;
+static std::deque<uint8_t> dq;
+static unsigned long _t;
 
-void vTaskColecoPrinter(void *pvParameters)
+void vColecoPrinterTask(void *pvParameter)
 {
-    adamPrinter *p=(adamPrinter *)pvParameters;
+    char numBytes = 0;
+
+    adamPrinter *p = (adamPrinter *)pvParameter;
 
     while (1)
     {
-        if ((bytesToPrint > 0) && (_pr == true))
+        if (fnSystem.millis() - _t > 100)
         {
-            _pr=false;
-            p->getPrinterPtr()->process(bytesToPrint,0,0);
-            bytesToPrint=0;
-            _pr=true;
+            if (!dq.empty())
+            {
+                for (uint8_t i = 0; i < 40; i++)
+                {
+                    if (!dq.empty())
+                    {
+                        p->getPrinterPtr()->provideBuffer()[i] = dq.front();
+                        dq.pop_front();
+                    }
+                    numBytes = i;
+                }
+                p->getPrinterPtr()->process(numBytes, 0, 0);
+                numBytes = 0;
+            }
         }
         vTaskDelay(10);
     }
@@ -37,14 +50,12 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
 {
     _storage = filesystem;
     set_printer_type(print_type);
-    xTaskCreate(vTaskColecoPrinter,"colprint",4096,this,1,&ioTask);
+    xTaskCreatePinnedToCore(vColecoPrinterTask, "colprint", 4096, this, 1, &ioTask, 0);
 }
 
 adamPrinter::~adamPrinter()
 {
-    if (ioTask != NULL)
-        vTaskDelete(ioTask);
-
+    vTaskDelete(ioTask);
     delete _pptr;
 }
 
@@ -77,38 +88,30 @@ void adamPrinter::adamnet_control_status()
 
 void adamPrinter::adamnet_control_send()
 {
-    uint8_t c[16] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
     unsigned short s = adamnet_recv_length();
-    adamnet_recv_buffer(c, s);
+ 
+    for (unsigned short i = 0; i < s; i++)
+    {
+        uint8_t b = adamnet_recv();
 
-    fnSystem.delay_microseconds(150);
-    adamnet_send(0x92); // ACK
-
-    memcpy(&_pptr->provideBuffer()[bytesToPrint],c,s);
-    bytesToPrint += s;
+        dq.push_back(b);
+    }
+ 
+    fnSystem.delay_microseconds(220);
+    adamnet_send_buffer((uint8_t *)"\x92", 1); // ACK
 }
 
 void adamPrinter::adamnet_control_ready()
 {
-    if (_pr == true)
-    {
-        Debug_printf("sending ACK\n");
-        fnSystem.delay_microseconds(150);
-        adamnet_send(0x92); // ACK
-    }
-    else
-    {
-        Debug_printf("Sending NAK\n");
-        fnSystem.delay_microseconds(150);
-        adamnet_send(0xC2); // NAK
-    }
-
+    fnSystem.delay_microseconds(80);
+    adamnet_send_buffer((uint8_t *)"\x92", 1); // ACK
 }
 
 void adamPrinter::adamnet_process(uint8_t b)
 {
     unsigned char c = b >> 4;
+
+    _t = fnSystem.millis();
 
     switch (c)
     {

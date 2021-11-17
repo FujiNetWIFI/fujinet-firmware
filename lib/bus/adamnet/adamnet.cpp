@@ -24,6 +24,7 @@ void adamNetDevice::adamnet_send(uint8_t b)
 {
     // Write the byte
     fnUartSIO.write(b);
+    fnUartSIO.flush();
 }
 
 void adamNetDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
