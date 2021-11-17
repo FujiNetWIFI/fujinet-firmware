@@ -10,6 +10,7 @@ void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     {
         pdf_dY -= lineHeight / 2.;
         pdf_set_rise();
+        pdf_end_line();
     }
     else if (c == 0x0c)
     {
@@ -18,14 +19,6 @@ void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     else if (c == 0x0d)
     {
         pdf_end_line();
-    }
-    else if (c == 0x0e) // SO - Backwards
-    {
-        charWidth = -6.0;
-    }
-    else if (c == 0x0f) // SI - Forwards
-    {
-        charWidth = 6.0;
     }
     else if (c > 31 && c < 128)
     {

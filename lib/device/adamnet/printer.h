@@ -68,6 +68,7 @@ public:
 private:
     printer_type _ptype;
     TaskHandle_t ioTask = NULL;
+    bool _backwards = false;
 
 };
 
