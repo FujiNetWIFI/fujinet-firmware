@@ -8,8 +8,6 @@ void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     }
     else if (c == 0x0b) // VT - Half line feed
     {
-        pdf_dY -= lineHeight / 2.;
-        pdf_set_rise();
         pdf_end_line();
     }
     else if (c == 0x0c)
@@ -41,7 +39,7 @@ void colecoprinter::post_new_file()
     leftMargin = 66.0;
     bottomMargin = 0;
     printWidth = 480.0; // 6 2/3 inches
-    lineHeight = 12.0;
+    lineHeight = 6.0;
     charWidth = 6.0; // 12cpi
     fontNumber = 1;
     fontSize = 10;
