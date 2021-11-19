@@ -8,6 +8,7 @@ class adamDisk : public adamNetDevice
 {
 private:
     MediaType *_media = nullptr;
+    TaskHandle_t diskTask;
 
     unsigned long blockNum=0;
     unsigned long readBlockNum=0xffffffff;
