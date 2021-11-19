@@ -26,7 +26,7 @@ void vColecoPrinterTask(void *pvParameter)
 
     while (1)
     {
-        if (fnSystem.millis() - _t > 100)
+        if (fnSystem.millis() - _t > 2000)
         {
             if (!dq.empty())
             {
@@ -99,10 +99,12 @@ void adamPrinter::adamnet_control_send()
         if (b == 0x0e)
         {
             _backwards = true;
+            dq_b.push_front(0x0D);
         }
         else if (b == 0x0f)
         {
             _backwards = false;
+            dq.push_back(0x0D);
             if (!dq_b.empty())
             {
                 while (!dq_b.empty())
@@ -115,17 +117,19 @@ void adamPrinter::adamnet_control_send()
         else if (_backwards == true)
             dq_b.push_front(b);
         else
+        {
             dq.push_back(b);
+        }
     }
 
-    fnSystem.delay_microseconds(220);
-    adamnet_send_buffer((uint8_t *)"\x92", 1); // ACK
+    AdamNet.wait_for_idle();
+    adamnet_send(0x92);
 }
 
 void adamPrinter::adamnet_control_ready()
 {
-    fnSystem.delay_microseconds(80);
-    adamnet_send_buffer((uint8_t *)"\x92", 1); // ACK
+    AdamNet.wait_for_idle();
+    adamnet_send(0x92);
 }
 
 void adamPrinter::adamnet_process(uint8_t b)
