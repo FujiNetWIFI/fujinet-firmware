@@ -241,7 +241,6 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 
         uint8_t ck = adamnet_recv();
 
-        AdamNet.wait_for_idle();
         adamnet_send(0x9F); // ACK
         bool save = true;
 
