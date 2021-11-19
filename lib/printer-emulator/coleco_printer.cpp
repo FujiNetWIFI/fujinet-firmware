@@ -10,7 +10,6 @@ void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     {
         pdf_dY -= lineHeight / 2.;
         pdf_set_rise();
-        pdf_end_line();
     }
     else if (c == 0x0c)
     {
