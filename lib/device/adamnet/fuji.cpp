@@ -116,7 +116,7 @@ void adamFuji::adamnet_reset_fujinet()
 {
     adamnet_recv(); // get ck
     Debug_println("ADAMNET RESET FUJINET");
-    fnSystem.delay_microseconds(80);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
     fnSystem.reboot();
 }
@@ -139,7 +139,7 @@ void adamFuji::adamnet_net_scan_networks()
 
     isReady = true;
 
-    fnSystem.delay_microseconds(80);
+    AdamNet.wait_for_idle();
 
     response[0] = _countScannedSSIDs;
     response_len = 1;
@@ -179,7 +179,7 @@ void adamFuji::adamnet_net_scan_result()
     memset(response, 0, sizeof(response));
     memcpy(response, &detail, sizeof(detail));
     response_len = 33;
-    fnSystem.delay_microseconds(150);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK.
 }
 
@@ -216,7 +216,7 @@ void adamFuji::adamnet_net_get_ssid()
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
 
-    fnSystem.delay_microseconds(150);
+    AdamNet.wait_for_idle();
 
     adamnet_send(0x9F); // ACK
 }
@@ -241,7 +241,7 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 
         uint8_t ck = adamnet_recv();
 
-        fnSystem.delay_microseconds(100);
+        AdamNet.wait_for_idle();
         adamnet_send(0x9F); // ACK
         bool save = true;
 
@@ -267,7 +267,7 @@ void adamFuji::adamnet_net_get_wifi_status()
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     response[0] = wifiStatus;
     response_len = 1;
-    fnSystem.delay_microseconds(150);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 }
 
@@ -286,7 +286,7 @@ void adamFuji::adamnet_mount_host()
         hostMounted[hostSlot] = true;
     }
 
-    fnSystem.delay_microseconds(150);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F);
 }
 
@@ -312,7 +312,7 @@ void adamFuji::adamnet_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    fnSystem.delay_microseconds(100);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
@@ -333,7 +333,7 @@ void adamFuji::adamnet_set_boot_config()
     boot_config = adamnet_recv();
     adamnet_recv();
 
-    fnSystem.delay_microseconds(120);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 }
 
@@ -404,7 +404,7 @@ void adamFuji::adamnet_disk_image_umount()
     unsigned char ds = adamnet_recv();
     adamnet_recv();
 
-    fnSystem.delay_microseconds(150);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F);
 
     _fnDisks[ds].disk_dev.unmount();
@@ -467,7 +467,7 @@ void adamFuji::adamnet_open_directory(uint16_t s)
 
     adamnet_recv(); // Grab checksum
 
-    fnSystem.delay_microseconds(150);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 
     if (_current_open_directory_slot == -1)
@@ -632,7 +632,7 @@ void adamFuji::adamnet_read_directory_entry()
         response_len = maxlen;
     }
 
-    fnSystem.delay_microseconds(100);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 }
 
@@ -647,7 +647,7 @@ void adamFuji::adamnet_get_directory_position()
     response_len = sizeof(pos);
     memcpy(response, &pos, sizeof(pos));
 
-    fnSystem.delay_microseconds(100);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 }
 
@@ -664,7 +664,7 @@ void adamFuji::adamnet_set_directory_position()
 
     adamnet_recv(); // ck
 
-    fnSystem.delay_microseconds(150);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 
     _fnHosts[_current_open_directory_slot].dir_seek(pos);
@@ -676,7 +676,7 @@ void adamFuji::adamnet_close_directory()
 
     adamnet_recv(); // ck
 
-    fnSystem.delay_microseconds(150);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 
     if (_current_open_directory_slot != -1)
@@ -718,7 +718,7 @@ void adamFuji::adamnet_get_adapter_config()
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
 
-    fnSystem.delay_microseconds(100);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 }
 
@@ -743,7 +743,7 @@ void adamFuji::adamnet_read_host_slots()
     memcpy(response, hostSlots, sizeof(hostSlots));
     response_len = sizeof(hostSlots);
 
-    fnSystem.delay_microseconds(100);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F);
 }
 
@@ -757,7 +757,7 @@ void adamFuji::adamnet_write_host_slots()
 
     adamnet_recv(); // ck
 
-    fnSystem.delay_microseconds(100);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -808,7 +808,7 @@ void adamFuji::adamnet_read_device_slots()
 
     adamnet_recv(); // ck
 
-    fnSystem.delay_microseconds(100);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 
     memcpy(response, &diskSlots, returnsize);
@@ -831,7 +831,7 @@ void adamFuji::adamnet_write_device_slots()
 
     adamnet_recv(); // ck
 
-    fnSystem.delay_microseconds(100);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 
     // Load the data into our current device array
@@ -918,6 +918,8 @@ void adamFuji::adamnet_set_device_filename(uint16_t s)
     Debug_printf("filename: %s\n",f);
 
     adamnet_recv(); // CK
+
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
@@ -931,7 +933,7 @@ void adamFuji::adamnet_get_device_filename()
 
     adamnet_recv();
 
-    fnSystem.delay_microseconds(150);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F);
 
     memcpy(response, _fnDisks[ds].filename, 256);
@@ -979,9 +981,9 @@ void adamFuji::setup(adamNetBus *siobus)
     status_wait_enabled = false;
 
     _adamnet_bus->addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
-    _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK+1);
-    _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK+2);
-    _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK+3);
+    // _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK+1);
+    // _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK+2);
+    // _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK+3);
    
     FILE *f = fnSPIFFS.file_open("/autorun.ddp");
     _fnDisks[0].disk_dev.mount(f,"/autorun.ddp",262144,MEDIATYPE_DDP);
@@ -1006,7 +1008,7 @@ adamDisk *adamFuji::bootdisk()
 void adamFuji::adamnet_control_ready()
 {
     Debug_println("READY - SEND ACK.");
-    fnSystem.delay_microseconds(150);
+    AdamNet.wait_for_idle();
     adamnet_send(0x9F); // ACK.
 }
 
@@ -1110,7 +1112,7 @@ void adamFuji::adamnet_process(uint8_t b)
         adamnet_control_clr();
         break;
     case MN_RECEIVE:
-        fnSystem.delay_microseconds(80);
+        AdamNet.wait_for_idle();
         adamnet_send(0x9F); // ACK.
         break;
     case MN_SEND:
