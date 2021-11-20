@@ -9,15 +9,24 @@
 #include "httpService.h"
 #include "httpServiceParser.h"
 
-#include "fuji.h"
-#include "printerlist.h"
+#ifdef BUILD_ATARI
+#include "sio/fuji.h"
+#include "sio/printerlist.h"
+#define BUS SIO
+extern sioFuji theFuji;
+#endif
+
+#ifdef BUILD_ADAM
+#include "adamnet/fuji.h"
+#include "adamnet/printerlist.h"
+#define BUS AdamNet
+extern adamFuji theFuji;
+#endif
 
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
 #include "fnFsSPIF.h"
 #include "fnFsSD.h"
-
-extern sioFuji theFuji;
 
 using namespace std;
 
@@ -274,18 +283,21 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_SIOVOLTS:
         resultstream << ((float)fnSystem.get_sio_voltage()) / 1000.00 << "V";
         break;
+#ifdef BUILD_ATARI
     case FN_SIO_HSINDEX:
-        resultstream << SIO.getHighSpeedIndex();
+        resultstream << BUS.getHighSpeedIndex();
         break;
     case FN_SIO_HSBAUD:
-        resultstream << SIO.getHighSpeedBaud();
+        resultstream << BUS.getHighSpeedBaud();
         break;
+#endif /* BUILD_ATARI */
     case FN_PRINTER1_MODEL:
         resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
         break;
     case FN_PRINTER1_PORT:
         resultstream << (fnPrinters.get_port(0) + 1);
         break;
+#ifdef BUILD_ATARI        
     case FN_PLAY_RECORD:
         if (theFuji.cassette()->get_buttons())
             resultstream << "0 PLAY";
@@ -298,6 +310,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         else
             resultstream << "0 B Button Press";
         break;
+#endif /* BUILD_ATARI */
     case FN_CONFIG_ENABLED:
         resultstream << Config.get_general_config_enabled();
         break;

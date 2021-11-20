@@ -10,11 +10,21 @@
 
 #include "httpServiceConfigurator.h"
 #include "fnConfig.h"
-#include "printerlist.h"
 #include "utils.h"
 
-#include "fuji.h"
+#ifdef BUILD_ATARI
+#include "sio/printerlist.h"
+#include "sio/fuji.h"
+#define PRINTER_CLASS sioPrinter
 extern sioFuji theFuji;
+#endif /* BUILD_ATARI */
+
+#ifdef BUILD_ADAM
+#include "adamnet/printerlist.h"
+#include "adamnet/fuji.h"
+#define PRINTER_CLASS adamPrinter
+extern adamFuji theFuji;
+#endif /* BUILD_ADAM */
 
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
@@ -115,8 +125,10 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
     return results;
 }
 
+
 void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
 {
+#ifdef BUILD_ATARI
     int index = -1;
     char pc = hsioindex[0];
     if (pc >= '0' && pc <= '9')
@@ -131,6 +143,7 @@ void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
     // Store our change in Config
     Config.store_general_hsioindex(index);
     Config.save();
+#endif /* BUILD_ATARI */
 }
 
 void fnHttpServiceConfigurator::config_timezone(std::string timezone)
@@ -197,6 +210,7 @@ void fnHttpServiceConfigurator::config_boot_mode(std::string boot_mode)
 
 void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::string resistor, bool rew)
 {
+#ifdef BUILD_ATARI
     // call the cassette buttons function passing play_record.c_str()
     // find cassette via thefuji object?
     Debug_printf("New play/record button value: %s\n", play_record.c_str());
@@ -216,10 +230,12 @@ void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::st
         SIO.getCassette()->rewind();
     }
     Config.save();
+#endif /* ATARI */
 }
 
 void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
 {
+#ifdef BUILD_ATARI
     Debug_printf("Set MIDIMaze host: %s\n", hostname.c_str());
 
     // Update the host ip variable
@@ -227,7 +243,9 @@ void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
     // Save change
     Config.store_midimaze_host(hostname.c_str());
     Config.save();
+#endif /* ATARI */
 }
+
 
 void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::string printermodel, std::string printerport)
 {
@@ -248,8 +266,8 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
 
     if (printerport.empty())
     {
-        sioPrinter::printer_type t = sioPrinter::match_modelname(printermodel);
-        if (t == sioPrinter::printer_type::PRINTER_INVALID)
+        PRINTER_CLASS::printer_type t = PRINTER_CLASS::match_modelname(printermodel);
+        if (t == PRINTER_CLASS::printer_type::PRINTER_INVALID)
         {
             Debug_printf("Unknown printer type: \"%s\"\n", printermodel.c_str());
             return;
@@ -283,8 +301,10 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
         Config.store_printer_port(pn - 1, port);
         // Store our change in the printer list
         fnPrinters.set_port(0, port);
+#ifdef BUILD_ATARI
         // Tell the SIO daisy chain to change the device ID for this printer
         SIO.changeDeviceId(fnPrinters.get_ptr(0), SIO_DEVICEID_PRINTER + port);
+#endif
     }
     Config.save();
 }

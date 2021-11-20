@@ -5,7 +5,7 @@
 #include "fnWiFi.h"
 #include "led.h"
 #include "keys.h"
-#include "sio.h"
+#include "bus.h"
 #include "fnConfig.h"
 
 #include "../../include/pinmap.h"
@@ -23,10 +23,13 @@ static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_
 
 void KeyManager::setup()
 {
-    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT);
-    fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT);
-
-    // Enable safe reset on Button C if available
+#ifdef NO_BUTTONS
+    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+#else
+    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+    fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+#endif    // Enable safe reset on Button C if available
     if (fnSystem.get_hardware_ver() >= 2)
     {
         has_button_c = true;
@@ -135,6 +138,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 
 void KeyManager::_keystate_task(void *param)
 {
+#ifndef NO_BUTTONS
     #define BLUETOOTH_LED eLed::LED_BT
 
     KeyManager *pKM = (KeyManager *)param;
@@ -195,10 +199,12 @@ void KeyManager::_keystate_task(void *param)
             else
 #endif
             {
+#ifdef BUILD_ATARI
                 Debug_println("ACTION: Send image_rotate message to SIO queue");
                 sio_message_t msg;
                 msg.message_id = SIOMSG_DISKSWAP;
                 xQueueSend(SIO.qSioMessages, &msg, 0);
+#endif /* BUILD_ATARI */
             }
             break;
 
@@ -228,6 +234,7 @@ void KeyManager::_keystate_task(void *param)
             fnSystem.reboot();
             break;
 
+#ifdef BUILD_ATARI
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_B: SHORT PRESS");
             Debug_println("ACTION: Send debug_tape message to SIO queue");
@@ -235,6 +242,7 @@ void KeyManager::_keystate_task(void *param)
             msg.message_id = SIOMSG_DEBUG_TAPE;
             xQueueSend(SIO.qSioMessages, &msg, 0);
             break;
+#endif /* BUILD_ATARI */
 
         case eKeyStatus::DOUBLE_TAP:
             Debug_println("BUTTON_B: DOUBLE-TAP");
@@ -269,4 +277,8 @@ void KeyManager::_keystate_task(void *param)
             } // BUTTON_C
         }
     }
+#else
+    while (1);
+
+#endif /* NO_BUTTON */
 }

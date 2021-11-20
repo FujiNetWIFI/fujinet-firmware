@@ -20,7 +20,15 @@
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
 #include "fnWiFi.h"
-#include "../sio/sio.h"
+#include "bus.h"
+
+#ifdef BUILD_ATARI
+#define BUS_CLASS SIO
+#endif
+
+#ifdef BUILD_ADAM
+#define BUS_CLASS AdamNet
+#endif
 
 static xQueueHandle card_detect_evt_queue = NULL;
 static uint32_t card_detect_status = 1; // 1 is no sd card
@@ -192,7 +200,7 @@ void SystemManager::yield()
 // TODO: Close open files first
 void SystemManager::reboot()
 {
-    SIO.shutdown();
+    BUS_CLASS.shutdown();
     esp_restart();
 }
 

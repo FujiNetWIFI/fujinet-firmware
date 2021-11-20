@@ -7,16 +7,27 @@
 #include "fnConfig.h"
 #include "keys.h"
 #include "led.h"
-#include "sio.h"
-#include "fuji.h"
-#include "modem.h"
-#include "apetime.h"
-#include "voice.h"
-#include "httpService.h"
-#include "printerlist.h"
-#include "midimaze.h"
-#include "siocpm.h"
+#include "bus.h"
+
+#ifdef BUILD_ATARI
+#include "sio/fuji.h"
+#include "sio/modem.h"
+#include "sio/apetime.h"
+#include "sio/voice.h"
+#include "sio/printerlist.h"
+#include "sio/midimaze.h"
+#include "sio/siocpm.h"
 #include "samlib.h"
+#endif /* BUILD_ATARI */
+
+#ifdef BUILD_ADAM
+#include "adamnet/fuji.h"
+#include "adamnet/printer.h"
+#include "adamnet/modem.h"
+#include "adamnet/printerlist.h"
+#endif
+
+#include "httpService.h"
 
 #include <esp_system.h>
 #include <nvs_flash.h>
@@ -35,18 +46,29 @@
 // fnHTTPD is declared and defineid in HttpService.h/cpp
 
 // sioFuji theFuji; // moved to fuji.h/.cpp
+
+#ifdef BUILD_ATARI
 sioApeTime apeTime;
 sioVoice sioV;
 sioMIDIMaze sioMIDI;
 // sioCassette sioC; // now part of sioFuji theFuji object
 sioModem *sioR;
 sioCPM sioZ;
+#endif /* BUILD_ATARI */
+
+#ifdef BUILD_ADAM
+adamModem *sioR;
+#endif /* BUILD_ADAM */
 
 void main_shutdown_handler()
 {
     Debug_println("Shutdown handler called");
     // Give devices an opportunity to clean up before rebooting
+#if defined( BUILD_ATARI )
     // SIO.shutdown();
+#elif defined( BUILD_CBM )
+    // IEC.shutdown();
+#endif
 }
 
 // Initial setup
@@ -57,10 +79,12 @@ void main_setup()
     unsigned long startms = fnSystem.millis();
     Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
+#ifdef ATARI
     Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
     Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
     Debug_printf("himem free %u\n", esp_himem_get_free_size());
     Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
+#endif /* ATARI */
 #endif
     // Install a reboot handler
     esp_register_shutdown_handler(main_shutdown_handler);
@@ -105,6 +129,7 @@ void main_setup()
         fnWiFi.connect();
     }
 
+#if defined( BUILD_ATARI )
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
@@ -136,6 +161,22 @@ void main_setup()
     // Go setup SIO
     SIO.setup();
 
+#elif defined( BUILD_ADAM )
+
+    // FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    // adamPrinter *ptr = new adamPrinter(ptrfs, adamPrinter::PRINTER_COLECO_ADAM);
+    // fnPrinters.set_entry(0,ptr,adamPrinter::PRINTER_COLECO_ADAM,0);
+    // AdamNet.addDevice(ptr,0x02);
+    theFuji.setup(&AdamNet);
+    AdamNet.setup();
+
+#elif defined( BUILD_CBM )
+
+    // Setup IEC Bus
+    theFuji.setup(&IEC);
+
+#endif
+
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
@@ -156,7 +197,15 @@ void fn_service_loop(void *param)
             fnBtManager.service();
         else
     #endif
-            SIO.service();
+
+    #if defined( BUILD_ATARI )
+        SIO.service();
+    #elif defined ( BUILD_ADAM )
+        AdamNet.service();
+    #elif defined( BUILD_CBM )
+        IEC.service();
+    #endif
+
     }
 }
 

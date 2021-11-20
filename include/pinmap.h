@@ -15,7 +15,11 @@
 #define PIN_UART0_TX 1
 #define PIN_UART1_RX 9
 #define PIN_UART1_TX 10
+#ifdef BUILD_ADAM
+#define PIN_UART2_RX 22
+#else
 #define PIN_UART2_RX 33
+#endif /* BUILD_ADAM */
 #define PIN_UART2_TX 21
 
 /* Buttons */
@@ -25,7 +29,7 @@
 
 /* LEDs */
 #define PIN_LED_WIFI 2 // led.cpp
-#define PIN_LED_SIO 4
+#define PIN_LED_BUS 4
 // pins 12-15 are used to interface with the JTAG debugger
 // so leave them alone if we're using JTAG
 #ifndef JTAG 
@@ -44,5 +48,28 @@
 
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h
+
+/* Commodore IEC Pins */
+// CLK & DATA lines in/out are split between two pins
+//#define SPLIT_LINES
+
+// CLK_OUT & DATA_OUT are inverted
+#define INVERTED_LINES	false
+
+// CBM IEC Serial Port
+#define IEC_PIN_ATN			22      // PROC
+#define IEC_PIN_CLK			27      // CKI
+#define IEC_PIN_DATA		21      // DI
+#define IEC_PIN_SRQ			26      // INT
+#define IEC_PIN_RESET       39      // CMD
+
+#ifdef SPLIT_LINES
+#define IEC_PIN_CLK_OUT		32      // CKO
+#define IEC_PIN_DATA_OUT	33      // DO
+#endif
+
+/* Dummy pins for AdamNet */
+#define PIN_RX_DUMMY 0 
+#define PIN_TX_DUMMY 12
 
 #endif

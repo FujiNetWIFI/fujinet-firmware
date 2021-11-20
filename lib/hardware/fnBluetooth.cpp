@@ -1,12 +1,11 @@
+#ifdef BLUETOOTH_SUPPORT
 
 #include "../../include/debug.h"
-#include "../sio/sio.h"
-#include "../sio/disk.h"
+#include "bus.h"
+#include "../device/sio/disk.h"
 #include "fnConfig.h"
 #include "fnBluetooth.h"
 #include "fnBluetoothSPP.h"
-
-#ifdef BLUETOOTH_SUPPORT
 
 fnBluetoothSPP btSpp;
 
