@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI // temporary
+
 /**
  * NetworkProtocolTELNET
  * 
@@ -188,3 +190,5 @@ void NetworkProtocolTELNET::flush(const char *buf, unsigned short size)
     client.write((uint8_t *)buf, size);
     transmitBuffer->clear();
 }
+
+#endif /* BUILD_ATARI */

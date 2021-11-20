@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI // temporary
 /**
  * Network Protocol Base class
  */
@@ -230,3 +231,4 @@ void NetworkProtocol::errno_to_error()
         break;
     }
 }
+#endif /* BUILD_ATARI */

@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI // temporary
 /**
  * NetworkProtocolTNFS
  * 
@@ -341,3 +342,4 @@ bool NetworkProtocolTNFS::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
+#endif /* BUILD_ATARI */
