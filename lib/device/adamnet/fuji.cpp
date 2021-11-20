@@ -692,6 +692,9 @@ void adamFuji::adamnet_get_adapter_config()
 
     adamnet_recv(); // ck
 
+    AdamNet.wait_for_idle();
+    adamnet_send(0x9F); // ACK
+
     // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
 
@@ -717,8 +720,6 @@ void adamFuji::adamnet_get_adapter_config()
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
 
-    AdamNet.wait_for_idle();
-    adamnet_send(0x9F); // ACK
 }
 
 //  Make new disk and shove into device slot
