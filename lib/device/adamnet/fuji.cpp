@@ -241,7 +241,6 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 
         uint8_t ck = adamnet_recv();
 
-        AdamNet.wait_for_idle();
         adamnet_send(0x9F); // ACK
         bool save = true;
 
@@ -693,6 +692,9 @@ void adamFuji::adamnet_get_adapter_config()
 
     adamnet_recv(); // ck
 
+    AdamNet.wait_for_idle();
+    adamnet_send(0x9F); // ACK
+
     // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
 
@@ -718,8 +720,6 @@ void adamFuji::adamnet_get_adapter_config()
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
 
-    AdamNet.wait_for_idle();
-    adamnet_send(0x9F); // ACK
 }
 
 //  Make new disk and shove into device slot
@@ -981,7 +981,7 @@ void adamFuji::setup(adamNetBus *siobus)
     status_wait_enabled = false;
 
     _adamnet_bus->addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
-    // _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK+1);
+    _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK+1);
     // _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK+2);
     // _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK+3);
    

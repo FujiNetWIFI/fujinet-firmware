@@ -87,6 +87,9 @@ protected:
     void sio_status() override{}; // $53, 'S', Status
     void sio_process(uint32_t commanddata, uint8_t checksum) override{};
 
+    void open_cassette_file(FileSystem *filesystem);
+    void close_cassette_file();
+
 public:
     void umount_cassette_file();
     void mount_cassette_file(FILE *f, size_t fz);
