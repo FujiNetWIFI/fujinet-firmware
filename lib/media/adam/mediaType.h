@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 
-#define INVALID_SECTOR_VALUE 65535
+#define INVALID_SECTOR_VALUE 0xFFFFFFFF
 
 #define MEDIA_BLOCK_SIZE 1024
 
