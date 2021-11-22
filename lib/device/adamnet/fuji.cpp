@@ -981,7 +981,7 @@ void adamFuji::setup(adamNetBus *siobus)
     status_wait_enabled = false;
 
     _adamnet_bus->addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
-    // _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK+1);
+    _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK+1);
     // _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK+2);
     // _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK+3);
    
