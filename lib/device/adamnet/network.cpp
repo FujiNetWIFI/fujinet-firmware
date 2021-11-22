@@ -33,7 +33,7 @@ void adamNetwork::command_connect(uint16_t s)
     // Get Checksum
     adamnet_recv();
 
-    AdamNet.wait_for_idle();
+    fnSystem.delay_microseconds(150);
     adamnet_send(0x9E); // Ack
 
     Debug_printf("Connecting to: %s port %u\n", hn, p);
@@ -58,25 +58,22 @@ void adamNetwork::command_connect(uint16_t s)
 
 void adamNetwork::command_recv()
 {
-    if (client.available()>0)
-    {
-        if (response_len == 0)
-        {
-        int l = (client.available() > 1023 ? 1023 : client.available());
-        AdamNet.wait_for_idle();
-        adamnet_send(0x9E);
-        response_len = client.read(response,l);
-        }
-        else
-        {
-            AdamNet.wait_for_idle();
-            adamnet_send(0x9E);
-        }
-    }
-    else // No data available.
+    if (response_len==0 && client.available())
     {
         AdamNet.wait_for_idle();
         adamnet_send(0xCE); // NAK
+        response_len=client.available() > 1024 ? 1024 : client.available();
+        client.read(response,response_len);
+    }
+    else if (response_len > 0)
+    {
+        AdamNet.wait_for_idle();
+        adamnet_send(0x9E);
+    }
+    else
+    {
+        AdamNet.wait_for_idle();
+        adamnet_send(0xCE);
     }
 }
 
@@ -88,7 +85,8 @@ void adamNetwork::command_send(uint16_t s)
 
     AdamNet.wait_for_idle();
     adamnet_send(0x9E);
-    
+
+    Debug_printf("S: %c\n",response[0]);    
     client.write(response, s);
 }
 
@@ -100,7 +98,6 @@ void adamNetwork::adamnet_control_status()
 
 void adamNetwork::adamnet_control_clr()
 {
-    AdamNet.wait_for_idle();
     adamnet_send(0xBE);
     adamnet_send_length(response_len);
     adamnet_send_buffer(response, response_len);
@@ -111,7 +108,7 @@ void adamNetwork::adamnet_control_clr()
 
 void adamNetwork::adamnet_control_ready()
 {
-    AdamNet.wait_for_idle();
+    fnSystem.delay_microseconds(150);
     adamnet_send(0x9E); // ACK.
 }
 
