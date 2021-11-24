@@ -3,37 +3,43 @@
 
 void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
-    if (c == 0x0a)
+    switch (c)
     {
-    }
-    else if (c == 0x0b) // VT - Half line feed
-    {
-        pdf_dY -= lineHeight / 2.;
-        pdf_set_rise();
-    }
-    else if (c == 0x0c)
-    {
+    case 8:
+        break;
+    case 9:
+        break;
+    case 10:
+        //pdf_dY -= lineHeight; // set pdf_dY and rise to one line
+        //pdf_set_rise();
+        break;
+    case 11:
+        break;
+    case 12:
         pdf_end_page();
-    }
-    else if (c == 0x0d)
-    {
-        pdf_end_line();
-    }
-    else if (c > 31 && c < 128)
-    {
-        if (c == 123 || c == 125 || c == 127)
-            c = ' ';
-        if (c == '\\' || c == '(' || c == ')')
-            fputc('\\', _file);
-        fputc(c, _file);
+        break;
+    case 13:
+        break;
+    default:
+        if (c > 31 && c < 128)
+        {
+            if (c == 123 || c == 125 || c == 127)
+                c = ' ';
+            if (c == '\\' || c == '(' || c == ')')
+                fputc('\\', _file);
+            fputc(c, _file);
 
-        pdf_X += charWidth; // update x position
+            pdf_X += charWidth; // update x position
+        }
     }
 }
 
 void colecoprinter::post_new_file()
 {
     shortname = "a1027";
+
+    translate850 = true;
+    _eol = ASCII_CR;
 
     pageWidth = 612.0;
     pageHeight = 792.0;
