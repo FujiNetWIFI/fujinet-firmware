@@ -10,15 +10,20 @@ void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     case 9:
         break;
     case 10:
-        //pdf_dY -= lineHeight; // set pdf_dY and rise to one line
-        //pdf_set_rise();
+        pdf_dY -= lineHeight; // set pdf_dY and rise to one line
+        pdf_set_rise();
         break;
     case 11:
+        pdf_dY -= 6.0; // set pdf_dY and rise to one line
+        pdf_set_rise();
         break;
     case 12:
         pdf_end_page();
         break;
     case 13:
+        pdf_dY += lineHeight; // set pdf_dY and rise back one line
+        pdf_set_rise();
+        pdf_end_line();
         break;
     default:
         if (c > 31 && c < 128)
@@ -38,8 +43,8 @@ void colecoprinter::post_new_file()
 {
     shortname = "a1027";
 
-    translate850 = true;
-    _eol = ASCII_CR;
+    translate850 = false;
+    _eol = 0;
 
     pageWidth = 612.0;
     pageHeight = 792.0;

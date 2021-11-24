@@ -39,7 +39,7 @@ void vColecoPrinterTask(void *pvParameter)
                     }
                     numBytes = i;
                 }
-                p->getPrinterPtr()->process(numBytes+1, 0, 0);
+                p->getPrinterPtr()->process(numBytes + 1, 0, 0);
                 numBytes = 0;
             }
         }
@@ -93,16 +93,35 @@ void adamPrinter::adamnet_control_send()
     uint8_t b[16];
     unsigned short s = adamnet_recv_length();
 
-    adamnet_recv_buffer(b,s);
+    adamnet_recv_buffer(b, s);
     adamnet_recv(); // ck
 
     AdamNet.wait_for_idle();
     adamnet_send(0x92);
 
-    for (uint8_t i=0;i<s;i++)
+    for (uint8_t i = 0; i < s; i++)
     {
-        Debug_printf("%c",b[i]);
-        dq.push_back(b[i]);
+        if (b[i] == 0x0e)
+        {
+            dq.push_back(0x0D);
+            _backwards = true;
+        }
+        else if (b[i] == 0x0f)
+        {
+            _backwards = false;
+            if (!dq_b.empty())
+            {
+                while (!dq_b.empty())
+                {
+                    dq.push_back(dq_b.front());
+                    dq_b.pop_front();                    
+                }
+            }
+        }
+        else if (_backwards == true)
+            dq_b.push_front(b[i]);
+        else
+            dq.push_back(b[i]);
     }
 }
 
