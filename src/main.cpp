@@ -221,7 +221,6 @@ void fn_service_loop(void *param)
     #elif defined( BUILD_CBM )
         IEC.service();
     #endif
-
     }
 }
 
