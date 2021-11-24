@@ -27,6 +27,10 @@
 #include "adamnet/printerlist.h"
 #endif
 
+#ifdef BUILD_APPLE
+#include "spsd.h"
+#endif
+
 #include "httpService.h"
 
 #include <esp_system.h>
@@ -47,7 +51,12 @@
 
 // sioFuji theFuji; // moved to fuji.h/.cpp
 
-#ifdef BUILD_ATARI
+#ifdef BUILD_APPLE
+spDevice spsd;
+/* BUILD_APPLE */
+#endif
+
+#if defined( BUILD_ATARI )
 sioApeTime apeTime;
 sioVoice sioV;
 sioMIDIMaze sioMIDI;
@@ -68,6 +77,8 @@ void main_shutdown_handler()
     // SIO.shutdown();
 #elif defined( BUILD_CBM )
     // IEC.shutdown();
+#elif defined( BUILD_APPLE )
+    // shutdown
 #endif
 }
 
@@ -129,7 +140,10 @@ void main_setup()
         fnWiFi.connect();
     }
 
-#if defined( BUILD_ATARI )
+#if defined ( BUILD_APPLE )
+    spsd.spsd_setup();
+
+#elif defined( BUILD_ATARI )
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
@@ -198,7 +212,9 @@ void fn_service_loop(void *param)
         else
     #endif
 
-    #if defined( BUILD_ATARI )
+    #if defined( BUILD_APPLE )
+        spsd.spsd_loop();
+    #elif defined( BUILD_ATARI )
         SIO.service();
     #elif defined ( BUILD_ADAM )
         AdamNet.service();
