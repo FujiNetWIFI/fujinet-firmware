@@ -1418,6 +1418,16 @@ void spDevice::spsd_loop() {
               fnSystem.digital_read(SP_PHI1) << 1 | 
               fnSystem.digital_read(SP_PHI0); 
 
+    if (reset_state && (phases !=0x05))
+    { 
+      Debug_print(("Reset Cleared\r\n"));
+      number_partitions_initialised = 1; //reset number of partitions init'd
+      noid = 0;   // to check if needed
+      for (partition = 0; partition < NUM_PARTITIONS; partition++) //clear device_id table
+        devices[partition].device_id = 0;
+      reset_state = false;
+    }
+
     //Debug_print(phases);
     switch (phases) {
 
@@ -1426,26 +1436,18 @@ void spDevice::spsd_loop() {
 
       case 0x05:
         Debug_print(("\r\nReset\r\n"));
-
+        reset_state = true;
         //Debug_print(number_partitions_initialised);
         // monitor phase lines for reset to clear
         // old avr: while ((PIND & 0x3c) >> 2 == 0x05);
-        unsigned char phases_temp;
-        do
-        {
-          phases_temp = fnSystem.digital_read(SP_PHI3) << 3 |
-              fnSystem.digital_read(SP_PHI2) << 2 | 
-              fnSystem.digital_read(SP_PHI1) << 1 | 
-              fnSystem.digital_read(SP_PHI0); 
-        } while (phases_temp == 0x05);
-        Debug_print(("Reset Cleared\r\n"));
-
-        number_partitions_initialised = 1; //reset number of partitions init'd
-        noid = 0;   // to check if needed
-        for (partition = 0; partition < NUM_PARTITIONS; partition++) //clear device_id table
-          devices[partition].device_id = 0;
-        break;
-
+        // unsigned char phases_temp;
+        // do
+        // {
+        //   phases_temp = fnSystem.digital_read(SP_PHI3) << 3 |
+        //       fnSystem.digital_read(SP_PHI2) << 2 | 
+        //       fnSystem.digital_read(SP_PHI1) << 1 | 
+        //       fnSystem.digital_read(SP_PHI0); 
+        // } while (phases_temp == 0x05);
       // phase lines for smartport bus enable
       // ph3=1 ph2=x ph1=1 ph0=x
       case 0x0a:

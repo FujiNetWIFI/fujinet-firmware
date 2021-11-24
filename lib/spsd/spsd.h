@@ -20,6 +20,8 @@ private:
   bool sdstato;
   unsigned char source, status, phases, status_code;
 
+  bool reset_state = false;
+
 public:
   void print_hd_info(void);
   void encode_data_packet(unsigned char source); //encode smartport 512 byte data packet
