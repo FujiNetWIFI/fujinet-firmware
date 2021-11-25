@@ -1,3 +1,4 @@
+#ifdef BUILD_ADAM
 #include <memory.h>
 #include <string.h>
 
@@ -98,3 +99,4 @@ void adamKeyboard::shutdown()
 {
 
 }
+#endif /* BUILD_ADAM */
