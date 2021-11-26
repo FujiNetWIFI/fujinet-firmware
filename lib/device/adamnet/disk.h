@@ -11,7 +11,6 @@ private:
     TaskHandle_t diskTask;
 
     unsigned long blockNum=0;
-    unsigned long readBlockNum=0xffffffff;
 
     void adamnet_control_status() override;
     void adamnet_control_ack();
