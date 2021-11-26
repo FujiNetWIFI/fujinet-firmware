@@ -66,6 +66,22 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
 // Returns TRUE if an error condition occurred
 bool MediaTypeDSK::write(uint16_t blockNum, bool verify)
 {
+    bool err = false;
+    Debug_println("DSK WRITE");
+
+    std::pair <uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
+
+    // Write lower part of block
+    err = fseek(_media_fileh, offsets.first, SEEK_SET) != 0;
+    if (err == false)
+        err = fwrite(_media_blockbuff,1,512,_media_fileh) != 512;
+    
+    // Write upper part of block
+    if (err == false)
+        err = fseek(_media_fileh, offsets.second, SEEK_SET) != 0;
+    if (err == false)
+        err = fwrite(&_media_blockbuff[512],1,512,_media_fileh) != 512;
+            
     return false;
 }
 
