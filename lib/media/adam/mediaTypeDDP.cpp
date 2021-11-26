@@ -95,7 +95,7 @@ bool MediaTypeDDP::write(uint16_t blockNum, bool verify)
     ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("DDP::write fsync:%d\n", ret);
 
-    _media_last_block = blockNum;
+    _media_last_block = INVALID_SECTOR_VALUE;
 
     return false;
 }
