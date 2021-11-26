@@ -30,7 +30,6 @@ protected:
     uint32_t _media_image_size = 0;
     uint32_t _media_num_blocks = 256;
     uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
-    int32_t _media_last_block = INVALID_SECTOR_VALUE;
     uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 
 public:
@@ -51,6 +50,7 @@ public:
     } _percomBlock;
 
     uint8_t _media_blockbuff[MEDIA_BLOCK_SIZE];
+    uint32_t _media_last_block = INVALID_SECTOR_VALUE;
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;

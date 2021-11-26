@@ -13,7 +13,6 @@ adamDisk::adamDisk()
 {
     device_active = false;
     blockNum = 0;
-    readBlockNum = 0xFFFFFFFF;
 }
 
 // Destructor
@@ -95,16 +94,10 @@ void adamDisk::adamnet_control_clr()
 
 void adamDisk::adamnet_control_receive()
 {
-    if (blockNum != readBlockNum)
-    {
+    if (blockNum != _media->_media_last_block)
         _media->read(blockNum, nullptr);
-        readBlockNum = blockNum;
-    }
     else
-    {
-        AdamNet.wait_for_idle();
-        adamnet_send(0x90 | _devnum);
-    }
+        adamnet_response_ack();
 }
 
 void adamDisk::adamnet_control_send_block_num()
