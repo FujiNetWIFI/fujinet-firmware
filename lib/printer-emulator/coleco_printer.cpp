@@ -20,7 +20,7 @@ void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     case 12:
         pdf_end_page();
         break;
-    case 13:
+    case 0xff:
         pdf_dY += lineHeight; // set pdf_dY and rise back one line
         pdf_set_rise();
         pdf_end_line();
@@ -44,7 +44,7 @@ void colecoprinter::post_new_file()
     shortname = "a1027";
 
     translate850 = false;
-    _eol = 0;
+    _eol = 0x0d;
 
     pageWidth = 612.0;
     pageHeight = 792.0;
