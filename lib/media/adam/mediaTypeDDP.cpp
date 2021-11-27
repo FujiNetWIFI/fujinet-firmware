@@ -53,7 +53,7 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeDDP::write(uint16_t blockNum, bool verify)
+bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
 {
     Debug_printf("ATR WRITE\n", blockNum, _media_num_blocks);
 
