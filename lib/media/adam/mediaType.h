@@ -64,7 +64,7 @@ public:
     // Returns TRUE if an error condition occurred
     virtual bool read(uint32_t blockNum, uint16_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
-    virtual bool write(uint16_t blockNum, bool verify);
+    virtual bool write(uint32_t blockNum, bool verify);
     
     virtual void status(uint8_t statusbuff[4]) = 0;
 

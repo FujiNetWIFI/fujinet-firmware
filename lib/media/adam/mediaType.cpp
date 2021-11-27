@@ -18,7 +18,7 @@ bool MediaType::read(uint32_t blockNum, uint16_t *readcount)
     return true;
 }
 
-bool MediaType::write(uint16_t blockNum, bool verify)
+bool MediaType::write(uint32_t blockNum, bool verify)
 {
     return true;
 }

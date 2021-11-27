@@ -10,7 +10,7 @@ private:
 
 public:
     virtual bool read(uint32_t blockNum, uint16_t *readcount) override;
-    virtual bool write(uint16_t blockNum, bool verify) override;
+    virtual bool write(uint32_t blockNum, bool verify) override;
 
     virtual bool format(uint16_t *respopnsesize) override;
 

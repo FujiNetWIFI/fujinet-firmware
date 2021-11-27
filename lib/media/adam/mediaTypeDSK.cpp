@@ -64,7 +64,7 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeDSK::write(uint16_t blockNum, bool verify)
+bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
 {
     bool err = false;
     Debug_println("DSK WRITE");
@@ -93,6 +93,9 @@ void MediaTypeDSK::status(uint8_t statusbuff[4])
 // Returns TRUE if an error condition occurred
 bool MediaTypeDSK::format(uint16_t *responsesize)
 {
+    memset(_media_blockbuff,0xE5,1024);
+    for (uint32_t b=0;b<_media_num_blocks;b++)
+        write(b,0);
     return false;
 }
 
