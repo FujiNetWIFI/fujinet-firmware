@@ -75,6 +75,15 @@ void adamDisk::unmount()
     }
 }
 
+bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
+{
+    uint8_t blankblock[1024];
+    memset(blankblock,0xE5,sizeof(blankblock));
+    fseek(fileh,0,SEEK_SET);
+    fwrite(blankblock,1,1024,fileh);
+    return false;
+}
+
 void adamDisk::adamnet_control_status()
 {
     AdamNet.wait_for_idle();
@@ -94,6 +103,9 @@ void adamDisk::adamnet_control_clr()
 
 void adamDisk::adamnet_control_receive()
 {
+    if (_media == nullptr)
+        return;
+
     if (blockNum != _media->_media_last_block)
         _media->read(blockNum, nullptr);
     else
@@ -108,6 +120,12 @@ void adamDisk::adamnet_control_send_block_num()
         x[i] = adamnet_recv();
 
     blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
+
+    if (blockNum == 0xFACE)
+    {
+        _media->format(NULL);
+    }
+    
 
     adamnet_response_ack();
 
