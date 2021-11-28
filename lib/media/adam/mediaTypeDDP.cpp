@@ -117,6 +117,7 @@ mediatype_t MediaTypeDDP::mount(FILE *f, uint32_t disksize)
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_DDP;
+    _media_num_blocks = disksize / 1024;
 
     return _mediatype;
 }
