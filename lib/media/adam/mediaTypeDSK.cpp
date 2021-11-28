@@ -105,6 +105,7 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_DSK;
+    _media_num_blocks = disksize / 1024;
 
     return _mediatype;
 }
@@ -113,6 +114,11 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
 bool MediaTypeDSK::create(FILE *f, uint32_t numBlocks)
 {
     Debug_print("DSK CREATE\n");
+    uint8_t buf[1024];
+
+    memset(buf,0xE5,1024);
+    for (uint32_t b=0; b<numBlocks; b++)
+        fwrite(buf,1024,numBlocks,f);
 
     return true;
 }
