@@ -76,6 +76,12 @@ protected:
     uint16_t adamnet_recv_length();
 
     /**
+     * @brief convenience function to receive block number
+     * @return ulong containing block num.
+     */
+    uint32_t adamnet_recv_blockno();
+
+    /**
      * @brief covenience function to send length
      * @param l Length.
      */

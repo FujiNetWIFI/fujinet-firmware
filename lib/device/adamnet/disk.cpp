@@ -13,7 +13,6 @@ adamDisk::adamDisk()
 {
     device_active = false;
     blockNum = 0;
-    readBlockNum = 0xFFFFFFFF;
 }
 
 // Destructor
@@ -76,6 +75,23 @@ void adamDisk::unmount()
     }
 }
 
+bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
+{
+    uint8_t buf[256];
+
+    memset(buf,0xE5,256);
+
+    for (uint32_t b=0 ; b < numBlocks; b++)
+    {
+        fwrite(buf,1,256,fileh);
+        fwrite(buf,1,256,fileh);
+        fwrite(buf,1,256,fileh);
+        fwrite(buf,1,256,fileh);
+    }
+
+    return false;
+}
+
 void adamDisk::adamnet_control_status()
 {
     AdamNet.wait_for_idle();
@@ -95,16 +111,13 @@ void adamDisk::adamnet_control_clr()
 
 void adamDisk::adamnet_control_receive()
 {
-    if (blockNum != readBlockNum)
-    {
+    if (_media == nullptr)
+        return;
+
+    if (blockNum != _media->_media_last_block)
         _media->read(blockNum, nullptr);
-        readBlockNum = blockNum;
-    }
     else
-    {
-        AdamNet.wait_for_idle();
-        adamnet_send(0x90 | _devnum);
-    }
+        adamnet_response_ack();
 }
 
 void adamDisk::adamnet_control_send_block_num()
@@ -116,6 +129,11 @@ void adamDisk::adamnet_control_send_block_num()
 
     blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
 
+    if (blockNum == 0xFACE)
+    {
+        _media->format(NULL);
+    }
+    
     adamnet_response_ack();
 
     Debug_printf("BLOCK: %lu\n", blockNum);
@@ -217,6 +235,9 @@ void adamDisk::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
-}
+
+    fnUartSIO.flush_input();
+    
+    }
 
 #endif /* BUILD_ADAM */
