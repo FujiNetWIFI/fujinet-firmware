@@ -725,6 +725,42 @@ void adamFuji::adamnet_get_adapter_config()
 //  Make new disk and shove into device slot
 void adamFuji::adamnet_new_disk()
 {
+    uint8_t hs = adamnet_recv();
+    uint8_t ds = adamnet_recv(); 
+    uint32_t numBlocks;
+    uint32_t *l = &numBlocks;
+    uint8_t *c = (uint8_t *)&numBlocks;
+    uint8_t p[256];
+
+    adamnet_recv_buffer(c,sizeof(uint32_t));
+    adamnet_recv_buffer(p,256);
+
+    adamnet_recv(); // CK
+
+    fujiDisk &disk = _fnDisks[ds];
+    fujiHost &host = _fnHosts[hs];
+
+    if (host.file_exists((const char *)p))
+    {
+        AdamNet.wait_for_idle();
+        adamnet_send(0x9f);
+        return;
+    }
+    
+    disk.host_slot = hs;
+    disk.access_mode = DISK_ACCESS_MODE_WRITE;
+    strlcpy(disk.filename,(const char *)p,256);
+
+    disk.fileh = host.file_open(disk.filename,disk.filename,sizeof(disk.filename),"w");
+
+    Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n",disk.filename,hs,ds,numBlocks);
+
+    disk.disk_dev.write_blank(disk.fileh,numBlocks);
+
+    AdamNet.wait_for_idle();
+    adamnet_send(0x9F); // ACK
+
+    fclose(disk.fileh);
 }
 
 // Send host slot data to computer
@@ -972,8 +1008,6 @@ void adamFuji::setup(adamNetBus *siobus)
 
     _populate_slots_from_config();
 
-    // insert_boot_device(0);
-
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = false;
 
@@ -982,8 +1016,8 @@ void adamFuji::setup(adamNetBus *siobus)
 
     _adamnet_bus->addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
     _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK+1);
-    // _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK+2);
-    // _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK+3);
+    _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK+2);
+    _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK+3);
    
     FILE *f = fnSPIFFS.file_open("/autorun.ddp");
     _fnDisks[0].disk_dev.mount(f,"/autorun.ddp",262144,MEDIATYPE_DDP);
@@ -1070,6 +1104,9 @@ void adamFuji::adamnet_control_send()
     case SIO_FUJICMD_GET_ADAPTERCONFIG:
         adamnet_get_adapter_config();
         break;
+    case SIO_FUJICMD_NEW_DISK:
+        adamnet_new_disk();
+        break;
     case SIO_FUJICMD_GET_DIRECTORY_POSITION:
         adamnet_get_directory_position();
         break;
@@ -1122,6 +1159,9 @@ void adamFuji::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
+
+    fnUartSIO.flush_input();
+
 }
 
 int adamFuji::get_disk_id(int drive_slot)

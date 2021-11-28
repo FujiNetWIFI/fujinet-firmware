@@ -63,6 +63,15 @@ unsigned short adamNetDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short l
     return fnUartSIO.readBytes(buf,len);
 }
 
+uint32_t adamNetDevice::adamnet_recv_blockno()
+{
+    unsigned char x[4] = {0x00,0x00,0x00,0x00};
+
+    adamnet_recv_buffer(x,4);
+
+    return x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
+}
+
 void adamNetBus::wait_for_idle()
 {
     bool isIdle = false;

@@ -30,7 +30,6 @@ protected:
     uint32_t _media_image_size = 0;
     uint32_t _media_num_blocks = 256;
     uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
-    int32_t _media_last_block = INVALID_SECTOR_VALUE;
     uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 
 public:
@@ -51,6 +50,7 @@ public:
     } _percomBlock;
 
     uint8_t _media_blockbuff[MEDIA_BLOCK_SIZE];
+    uint32_t _media_last_block = INVALID_SECTOR_VALUE;
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
@@ -64,7 +64,7 @@ public:
     // Returns TRUE if an error condition occurred
     virtual bool read(uint32_t blockNum, uint16_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
-    virtual bool write(uint16_t blockNum, bool verify);
+    virtual bool write(uint32_t blockNum, bool verify);
     
     virtual void status(uint8_t statusbuff[4]) = 0;
 

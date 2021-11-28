@@ -11,7 +11,6 @@ private:
     TaskHandle_t diskTask;
 
     unsigned long blockNum=0;
-    unsigned long readBlockNum=0xffffffff;
 
     void adamnet_control_status() override;
     void adamnet_control_ack();
@@ -34,7 +33,7 @@ public:
     adamDisk();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
-    bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
+    bool write_blank(FILE *f, uint32_t numBlocks);
 
     mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
 

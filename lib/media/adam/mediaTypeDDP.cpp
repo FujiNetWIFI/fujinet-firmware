@@ -21,6 +21,9 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 {
     Debug_print("DDP READ\n");
 
+    if (blockNum == _media_last_block)
+        return false; // We already have block.
+
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks)
     {
@@ -50,7 +53,7 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeDDP::write(uint16_t blockNum, bool verify)
+bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
 {
     Debug_printf("ATR WRITE\n", blockNum, _media_num_blocks);
 
@@ -92,7 +95,7 @@ bool MediaTypeDDP::write(uint16_t blockNum, bool verify)
     ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("DDP::write fsync:%d\n", ret);
 
-    _media_last_block = blockNum;
+    _media_last_block = INVALID_SECTOR_VALUE;
 
     return false;
 }
@@ -114,6 +117,7 @@ mediatype_t MediaTypeDDP::mount(FILE *f, uint32_t disksize)
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_DDP;
+    _media_num_blocks = disksize / 1024;
 
     return _mediatype;
 }

@@ -64,8 +64,24 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeDSK::write(uint16_t blockNum, bool verify)
+bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
 {
+    bool err = false;
+    Debug_println("DSK WRITE");
+
+    std::pair <uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
+
+    // Write lower part of block
+    err = fseek(_media_fileh, offsets.first, SEEK_SET) != 0;
+    if (err == false)
+        err = fwrite(_media_blockbuff,1,512,_media_fileh) != 512;
+    
+    // Write upper part of block
+    if (err == false)
+        err = fseek(_media_fileh, offsets.second, SEEK_SET) != 0;
+    if (err == false)
+        err = fwrite(&_media_blockbuff[512],1,512,_media_fileh) != 512;
+            
     return false;
 }
 
@@ -77,6 +93,9 @@ void MediaTypeDSK::status(uint8_t statusbuff[4])
 // Returns TRUE if an error condition occurred
 bool MediaTypeDSK::format(uint16_t *responsesize)
 {
+    memset(_media_blockbuff,0xE5,1024);
+    for (uint32_t b=0;b<_media_num_blocks;b++)
+        write(b,0);
     return false;
 }
 
@@ -86,6 +105,7 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_DSK;
+    _media_num_blocks = disksize / 1024;
 
     return _mediatype;
 }
@@ -94,6 +114,11 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
 bool MediaTypeDSK::create(FILE *f, uint32_t numBlocks)
 {
     Debug_print("DSK CREATE\n");
+    uint8_t buf[1024];
+
+    memset(buf,0xE5,1024);
+    for (uint32_t b=0; b<numBlocks; b++)
+        fwrite(buf,1024,numBlocks,f);
 
     return true;
 }
