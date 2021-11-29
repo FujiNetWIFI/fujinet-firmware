@@ -79,7 +79,7 @@ bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 {
     uint8_t buf[256];
 
-    memset(buf,0xE5,256);
+    memset(buf,0x00,256);
 
     for (uint32_t b=0 ; b < numBlocks; b++)
     {
@@ -145,6 +145,7 @@ void adamDisk::adamnet_control_send_block_data()
     adamnet_response_ack();
     Debug_printf("Block Data Write\n");
     _media->write(blockNum, false);
+    blockNum=0xFFFFFFFF;
 }
 
 void adamDisk::adamnet_control_send()
