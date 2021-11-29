@@ -146,6 +146,7 @@ void adamDisk::adamnet_control_send_block_data()
     Debug_printf("Block Data Write\n");
     _media->write(blockNum, false);
     blockNum=0xFFFFFFFF;
+    _media->_media_last_block=0xFFFFFFFE;
 }
 
 void adamDisk::adamnet_control_send()
