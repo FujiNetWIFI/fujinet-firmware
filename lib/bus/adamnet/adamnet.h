@@ -157,6 +157,11 @@ public:
      */
     void wait_for_idle();
 
+    /**
+     * stopwatch
+     */
+    int64_t start_time;
+
     int numDevices();
     void addDevice(adamNetDevice *pDevice, int device_id);
     void remDevice(adamNetDevice *pDevice);
