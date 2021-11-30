@@ -50,7 +50,7 @@ public:
     } _percomBlock;
 
     uint8_t _media_blockbuff[MEDIA_BLOCK_SIZE];
-    uint32_t _media_last_block = INVALID_SECTOR_VALUE;
+    uint32_t _media_last_block = INVALID_SECTOR_VALUE-1;
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
