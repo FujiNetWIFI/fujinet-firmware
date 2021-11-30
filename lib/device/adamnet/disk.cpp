@@ -22,6 +22,14 @@ adamDisk::~adamDisk()
         delete _media;
 }
 
+void adamDisk::reset()
+{
+    blockNum = INVALID_SECTOR_VALUE;
+
+    if (_media != nullptr)
+        _media->_media_last_block = INVALID_SECTOR_VALUE - 1;
+}
+
 mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
@@ -242,9 +250,6 @@ void adamDisk::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
-
-    fnUartSIO.flush_input();
-    
-    }
+}
 
 #endif /* BUILD_ADAM */
