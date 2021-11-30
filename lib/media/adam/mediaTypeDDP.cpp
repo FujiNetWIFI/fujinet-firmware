@@ -70,15 +70,15 @@ bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
 
     // Perform a seek if we're writing to the sector after the last one
     int e;
-    if (blockNum != _media_last_block + 1)
-    {
+//    if (blockNum != _media_last_block + 1)
+//    {
         e = fseek(_media_fileh, offset, SEEK_SET);
         if (e != 0)
         {
             Debug_printf("::write seek error %d\n", e);
             return true;
         }
-    }
+//    }
     // Write the data
     e = fwrite(&_media_blockbuff[0], 1, 256, _media_fileh);
     e += fwrite(&_media_blockbuff[256], 1, 256, _media_fileh);
