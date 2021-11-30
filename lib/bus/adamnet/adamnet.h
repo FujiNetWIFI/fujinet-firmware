@@ -96,6 +96,11 @@ protected:
     unsigned short adamnet_recv_buffer(uint8_t *buf, unsigned short len);
 
     /**
+     * @brief Perform reset of device
+     */
+    virtual void reset();
+
+    /**
      * @brief Device Number: 0-15
      */
     uint8_t _devnum;
@@ -151,6 +156,7 @@ public:
     void setup();
     void service();
     void shutdown();
+    void reset();
 
     /**
      * @brief Wait for AdamNet bus to become idle.

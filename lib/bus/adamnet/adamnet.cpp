@@ -9,6 +9,22 @@
 #include "utils.h"
 #include "led.h"
 
+static xQueueHandle reset_evt_queue = NULL;
+static uint32_t reset_detect_status = 0;
+
+static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
+{
+    uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(reset_evt_queue, &gpio_num, NULL);
+}
+
+static void adamnet_reset_intr_task(void *arg)
+{
+    uint32_t io_num, level;
+
+    // come back here when we have a damned reset gpio pin.
+}
+
 uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 {
     uint8_t checksum = 0x00;
@@ -28,7 +44,7 @@ void adamNetDevice::adamnet_send(uint8_t b)
 
 void adamNetDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 {
-    fnUartSIO.write(buf,len);
+    fnUartSIO.write(buf, len);
 }
 
 uint8_t adamNetDevice::adamnet_recv()
@@ -60,16 +76,21 @@ void adamNetDevice::adamnet_send_length(uint16_t l)
 
 unsigned short adamNetDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short len)
 {
-    return fnUartSIO.readBytes(buf,len);
+    return fnUartSIO.readBytes(buf, len);
 }
 
 uint32_t adamNetDevice::adamnet_recv_blockno()
 {
-    unsigned char x[4] = {0x00,0x00,0x00,0x00};
+    unsigned char x[4] = {0x00, 0x00, 0x00, 0x00};
 
-    adamnet_recv_buffer(x,4);
+    adamnet_recv_buffer(x, 4);
 
     return x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
+}
+
+void adamNetDevice::reset()
+{
+    Debug_printf("No Reset implemented for device %u\n",_devnum);
 }
 
 void adamNetBus::wait_for_idle()
@@ -149,6 +170,8 @@ void adamNetBus::setup()
 {
     Debug_println("ADAMNET SETUP");
 
+    // Set up interrupt for RESET line
+
     // Set up UART
     fnUartSIO.begin(ADAMNET_BAUD);
     fnUartSIO.flush_input();
@@ -168,7 +191,7 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
     pDevice->_devnum = device_id;
-    _daisyChain[device_id]=pDevice;
+    _daisyChain[device_id] = pDevice;
 
     if (device_id == 0x0f)
     {
@@ -207,6 +230,12 @@ adamNetDevice *adamNetBus::deviceById(int device_id)
             return devicep.second;
     }
     return nullptr;
+}
+
+void adamNetBus::reset()
+{
+    for (auto devicep : _daisyChain)
+        devicep.second->reset();
 }
 
 adamNetBus AdamNet;
