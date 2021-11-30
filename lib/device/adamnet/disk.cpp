@@ -100,7 +100,6 @@ void adamDisk::adamnet_control_status()
 
 void adamDisk::adamnet_control_ack()
 {
-    Debug_printf("ACK.\n");
 }
 
 void adamDisk::adamnet_control_clr()
@@ -141,6 +140,9 @@ void adamDisk::adamnet_control_send_block_num()
 
 void adamDisk::adamnet_control_send_block_data()
 {
+    if (_media == nullptr)
+        return;
+
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
     adamnet_response_ack();
     Debug_printf("Block Data Write\n");
@@ -185,6 +187,9 @@ void adamDisk::adamnet_response_cancel()
 
 void adamDisk::adamnet_response_send()
 {
+    if (_media == nullptr)
+        return;
+
     uint8_t c = adamnet_checksum(_media->_media_blockbuff, 1024);
     uint8_t b[1028];
 
