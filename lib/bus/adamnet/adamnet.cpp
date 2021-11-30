@@ -121,6 +121,7 @@ void adamNetBus::_adamnet_process_cmd()
         wait_for_idle();
     else
     {
+        start_time = esp_timer_get_time();
         _daisyChain[d]->adamnet_process(b);
         fnUartSIO.flush();
         fnUartSIO.flush_input();
