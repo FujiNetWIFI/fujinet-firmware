@@ -780,7 +780,8 @@ void adamFuji::adamnet_write_host_slots()
     adamnet_recv_buffer((uint8_t *)hostSlots, sizeof(hostSlots));
 
     adamnet_recv(); // ck
-
+    
+    AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     for (int i = 0; i < MAX_HOSTS; i++)
