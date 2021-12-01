@@ -179,21 +179,6 @@ void adamDisk::adamnet_response_status()
     adamnet_send_buffer(status, sizeof(status));
 }
 
-void adamDisk::adamnet_response_ack()
-{
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
-
-    if (t < 1500)
-    {
-        AdamNet.wait_for_idle();
-        adamnet_send(0x90 | _devnum);
-    }
-    else
-    {
-        Debug_printf("Too long. %lu Do not send ack.\n", t);
-    }
-}
-
 void adamDisk::adamnet_response_cancel()
 {
     AdamNet.wait_for_idle();
@@ -215,27 +200,6 @@ void adamDisk::adamnet_response_send()
     memcpy(&b[3], _media->_media_blockbuff, 1024);
     b[1027] = c;
     adamnet_send_buffer(b, sizeof(b));
-}
-
-void adamDisk::adamnet_response_nack()
-{
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
-
-    if (t < 1500)
-    {
-        AdamNet.wait_for_idle();
-        adamnet_send(0xC0 | _devnum);
-    }
-    else
-    {
-        Debug_printf("Too long. %lu Do not send nack.\n", t);
-    }
-}
-
-void adamDisk::adamnet_control_ready()
-{
-    AdamNet.wait_for_idle();
-    adamnet_response_ack();
 }
 
 void adamDisk::adamnet_process(uint8_t b)

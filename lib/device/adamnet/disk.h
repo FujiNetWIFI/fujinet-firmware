@@ -21,11 +21,8 @@ private:
     void adamnet_control_send_block_data();
     void adamnet_control_nack();
     void adamnet_response_status();
-    void adamnet_response_ack();
     void adamnet_response_cancel();
     void adamnet_response_send();
-    void adamnet_response_nack();
-    void adamnet_control_ready();
 
     void adamnet_process(uint8_t b) override;
 
