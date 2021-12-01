@@ -32,7 +32,7 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
 
     if (blockNum == _media_last_block)
         return false; // Already have
-        
+
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks)
     {
@@ -84,7 +84,11 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
         err = fseek(_media_fileh, offsets.second, SEEK_SET) != 0;
     if (err == false)
         err = fwrite(&_media_blockbuff[512],1,512,_media_fileh) != 512;
-            
+
+    int ret = fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
+    ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
+    Debug_printf("DSK::write fsync:%d\n", ret);
+
     return false;
 }
 
@@ -121,7 +125,7 @@ bool MediaTypeDSK::create(FILE *f, uint32_t numBlocks)
 
     memset(buf,0xE5,1024);
     for (uint32_t b=0; b<numBlocks; b++)
-        fwrite(buf,1024,numBlocks,f);
+        fwrite(buf,1024,1,f);
 
     return true;
 }
