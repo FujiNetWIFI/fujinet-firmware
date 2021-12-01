@@ -87,14 +87,14 @@ bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 {
     uint8_t buf[256];
 
-    memset(buf,0x00,256);
+    memset(buf, 0x00, 256);
 
-    for (uint32_t b=0 ; b < numBlocks; b++)
+    for (uint32_t b = 0; b < numBlocks; b++)
     {
-        fwrite(buf,1,256,fileh);
-        fwrite(buf,1,256,fileh);
-        fwrite(buf,1,256,fileh);
-        fwrite(buf,1,256,fileh);
+        fwrite(buf, 1, 256, fileh);
+        fwrite(buf, 1, 256, fileh);
+        fwrite(buf, 1, 256, fileh);
+        fwrite(buf, 1, 256, fileh);
     }
 
     return false;
@@ -121,10 +121,8 @@ void adamDisk::adamnet_control_receive()
     if (_media == nullptr)
         return;
 
-    if (blockNum != _media->_media_last_block)
-        _media->read(blockNum, nullptr);
-    else
-        adamnet_response_ack();
+    _media->read(blockNum, nullptr);
+    adamnet_response_ack();
 }
 
 void adamDisk::adamnet_control_send_block_num()
@@ -140,7 +138,7 @@ void adamDisk::adamnet_control_send_block_num()
     {
         _media->format(NULL);
     }
-    
+
     adamnet_response_ack();
 
     Debug_printf("BLOCK: %lu\n", blockNum);
@@ -155,8 +153,8 @@ void adamDisk::adamnet_control_send_block_data()
     adamnet_response_ack();
     Debug_printf("Block Data Write\n");
     _media->write(blockNum, false);
-    blockNum=0xFFFFFFFF;
-    _media->_media_last_block=0xFFFFFFFE;
+    blockNum = 0xFFFFFFFF;
+    _media->_media_last_block = 0xFFFFFFFE;
 }
 
 void adamDisk::adamnet_control_send()
@@ -181,12 +179,6 @@ void adamDisk::adamnet_response_status()
     adamnet_send_buffer(status, sizeof(status));
 }
 
-void adamDisk::adamnet_response_ack()
-{
-    AdamNet.wait_for_idle();
-    adamnet_send(0x90 | _devnum);
-}
-
 void adamDisk::adamnet_response_cancel()
 {
     AdamNet.wait_for_idle();
@@ -208,18 +200,6 @@ void adamDisk::adamnet_response_send()
     memcpy(&b[3], _media->_media_blockbuff, 1024);
     b[1027] = c;
     adamnet_send_buffer(b, sizeof(b));
-}
-
-void adamDisk::adamnet_response_nack()
-{
-    AdamNet.wait_for_idle();
-    adamnet_send(0xC0 | _devnum);
-}
-
-void adamDisk::adamnet_control_ready()
-{
-    AdamNet.wait_for_idle();
-    adamnet_response_ack();
 }
 
 void adamDisk::adamnet_process(uint8_t b)

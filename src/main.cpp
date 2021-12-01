@@ -164,8 +164,8 @@ void main_setup()
     SIO.setup();
 
 #elif defined( BUILD_ADAM )
-    sioK = new adamKeyboard();
-    AdamNet.addDevice(sioK,0x01);
+    //sioK = new adamKeyboard();
+    //AdamNet.addDevice(sioK,0x01);
     // FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     // adamPrinter *ptr = new adamPrinter(ptrfs, adamPrinter::PRINTER_COLECO_ADAM);
     // fnPrinters.set_entry(0,ptr,adamPrinter::PRINTER_COLECO_ADAM,0);
