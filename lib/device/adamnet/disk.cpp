@@ -150,6 +150,7 @@ void adamDisk::adamnet_control_send_block_data()
         return;
 
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
+    AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
     Debug_printf("Block Data Write\n");
     _media->write(blockNum, false);

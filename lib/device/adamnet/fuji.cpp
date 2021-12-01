@@ -731,6 +731,7 @@ void adamFuji::adamnet_new_disk()
 
     if (host.file_exists((const char *)p))
     {
+        AdamNet.start_time = esp_timer_get_time();
         adamnet_response_ack();
         return;
     }
