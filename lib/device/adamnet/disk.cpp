@@ -22,6 +22,14 @@ adamDisk::~adamDisk()
         delete _media;
 }
 
+void adamDisk::reset()
+{
+    blockNum = INVALID_SECTOR_VALUE;
+
+    if (_media != nullptr)
+        _media->_media_last_block = INVALID_SECTOR_VALUE - 1;
+}
+
 mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
@@ -79,7 +87,7 @@ bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 {
     uint8_t buf[256];
 
-    memset(buf,0xE5,256);
+    memset(buf,0x00,256);
 
     for (uint32_t b=0 ; b < numBlocks; b++)
     {
@@ -100,7 +108,6 @@ void adamDisk::adamnet_control_status()
 
 void adamDisk::adamnet_control_ack()
 {
-    Debug_printf("ACK.\n");
 }
 
 void adamDisk::adamnet_control_clr()
@@ -141,10 +148,15 @@ void adamDisk::adamnet_control_send_block_num()
 
 void adamDisk::adamnet_control_send_block_data()
 {
+    if (_media == nullptr)
+        return;
+
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
     adamnet_response_ack();
     Debug_printf("Block Data Write\n");
     _media->write(blockNum, false);
+    blockNum=0xFFFFFFFF;
+    _media->_media_last_block=0xFFFFFFFE;
 }
 
 void adamDisk::adamnet_control_send()
@@ -183,6 +195,9 @@ void adamDisk::adamnet_response_cancel()
 
 void adamDisk::adamnet_response_send()
 {
+    if (_media == nullptr)
+        return;
+
     uint8_t c = adamnet_checksum(_media->_media_blockbuff, 1024);
     uint8_t b[1028];
 
@@ -235,9 +250,6 @@ void adamDisk::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
-
-    fnUartSIO.flush_input();
-    
-    }
+}
 
 #endif /* BUILD_ADAM */
