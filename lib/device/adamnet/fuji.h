@@ -119,7 +119,6 @@ protected:
 
     void adamnet_control_status() override;
     void adamnet_control_send();
-    void adamnet_control_ready();
     void adamnet_control_clr();
 
     void adamnet_process(uint8_t b) override;
