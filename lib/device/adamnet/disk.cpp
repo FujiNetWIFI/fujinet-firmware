@@ -181,8 +181,17 @@ void adamDisk::adamnet_response_status()
 
 void adamDisk::adamnet_response_ack()
 {
-    AdamNet.wait_for_idle();
-    adamnet_send(0x90 | _devnum);
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 1500)
+    {
+        AdamNet.wait_for_idle();
+        adamnet_send(0x90 | _devnum);
+    }
+    else
+    {
+        Debug_printf("Too long. %lu Do not send ack.\n", t);
+    }
 }
 
 void adamDisk::adamnet_response_cancel()
@@ -210,8 +219,17 @@ void adamDisk::adamnet_response_send()
 
 void adamDisk::adamnet_response_nack()
 {
-    AdamNet.wait_for_idle();
-    adamnet_send(0xC0 | _devnum);
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 1500)
+    {
+        AdamNet.wait_for_idle();
+        adamnet_send(0xC0 | _devnum);
+    }
+    else
+    {
+        Debug_printf("Too long. %lu Do not send nack.\n", t);
+    }
 }
 
 void adamDisk::adamnet_control_ready()
