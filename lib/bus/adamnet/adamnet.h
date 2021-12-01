@@ -101,6 +101,21 @@ protected:
     virtual void reset();
 
     /**
+     * @brief acknowledge, but not if cmd took too long.
+     */
+    virtual void adamnet_response_ack();
+
+    /**
+     * @brief non-acknowledge, but not if cmd took too long
+     */
+    virtual void adamnet_response_nack();
+
+    /**
+     * @brief acknowledge if device is ready, but not if cmd took too long.
+     */
+    virtual void adamnet_control_ready();
+
+    /**
      * @brief Device Number: 0-15
      */
     uint8_t _devnum;

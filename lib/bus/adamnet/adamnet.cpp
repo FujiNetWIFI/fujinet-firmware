@@ -93,6 +93,42 @@ void adamNetDevice::reset()
     Debug_printf("No Reset implemented for device %u\n",_devnum);
 }
 
+void adamNetDevice::adamnet_response_ack()
+{
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 1500)
+    {
+        AdamNet.wait_for_idle();
+        adamnet_send(0x90 | _devnum);
+    }
+    else
+    {
+        Debug_printf("Too long. %lu Do not send ack.\n", t);
+    }
+}
+
+void adamNetDevice::adamnet_response_nack()
+{
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 1500)
+    {
+        AdamNet.wait_for_idle();
+        adamnet_send(0x90 | _devnum);
+    }
+    else
+    {
+        Debug_printf("Too long. %lu Do not send ack.\n", t);
+    }
+}
+
+void adamNetDevice::adamnet_control_ready()
+{
+    AdamNet.wait_for_idle();
+    adamnet_response_ack();
+}
+
 void adamNetBus::wait_for_idle()
 {
     bool isIdle = false;
