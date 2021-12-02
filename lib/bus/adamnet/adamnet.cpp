@@ -102,10 +102,6 @@ void adamNetDevice::adamnet_response_ack()
         AdamNet.wait_for_idle();
         adamnet_send(0x90 | _devnum);
     }
-    else
-    {
-        Debug_printf("Too long. %lu Do not send ack.\n", t);
-    }
 }
 
 void adamNetDevice::adamnet_response_nack()
@@ -116,10 +112,6 @@ void adamNetDevice::adamnet_response_nack()
     {
         AdamNet.wait_for_idle();
         adamnet_send(0x90 | _devnum);
-    }
-    else
-    {
-        Debug_printf("Too long. %lu Do not send ack.\n", t);
     }
 }
 
