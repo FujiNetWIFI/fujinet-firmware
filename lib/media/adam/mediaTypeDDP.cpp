@@ -19,10 +19,10 @@ uint32_t MediaTypeDDP::_block_to_offset(uint32_t blockNum)
 // Returns TRUE if an error condition occurred
 bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 {
-    Debug_print("DDP READ\n");
-
     if (blockNum == _media_last_block)
         return false; // We already have block.
+
+    Debug_print("DDP READ\n");
 
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks)
