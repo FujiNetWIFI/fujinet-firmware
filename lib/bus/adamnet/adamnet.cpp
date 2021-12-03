@@ -117,7 +117,6 @@ void adamNetDevice::adamnet_response_nack()
 
 void adamNetDevice::adamnet_control_ready()
 {
-    AdamNet.wait_for_idle();
     adamnet_response_ack();
 }
 
