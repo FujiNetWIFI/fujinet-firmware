@@ -28,13 +28,10 @@ std::pair<uint32_t, uint32_t> MediaTypeDSK::_block_to_offsets(uint32_t blockNum)
 // Returns TRUE if an error condition occurred
 bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
 {
-    Debug_print("DSK READ\n");
-
     if (blockNum == _media_last_block)
-    {
-        Debug_printf("same-o block-o\n");
         return false; // Already have
-    }
+    
+    Debug_print("DSK READ\n");
 
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks)
