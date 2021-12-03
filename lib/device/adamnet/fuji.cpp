@@ -163,13 +163,8 @@ void adamFuji::adamnet_net_scan_result()
 
     memset(&detail, 0, sizeof(detail));
 
-    bool err = false;
     if (n < _countScannedSSIDs)
         fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
-    else
-    {
-        err = true;
-    }
 
     Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
 
@@ -780,7 +775,7 @@ void adamFuji::adamnet_write_host_slots()
     adamnet_recv_buffer((uint8_t *)hostSlots, sizeof(hostSlots));
 
     adamnet_recv(); // ck
-    
+
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
