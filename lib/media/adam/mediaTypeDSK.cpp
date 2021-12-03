@@ -31,7 +31,10 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
     Debug_print("DSK READ\n");
 
     if (blockNum == _media_last_block)
+    {
+        Debug_printf("same-o block-o\n");
         return false; // Already have
+    }
 
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks)
@@ -113,6 +116,7 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
     _media_fileh = f;
     _mediatype = MEDIATYPE_DSK;
     _media_num_blocks = disksize / 1024;
+    _media_last_block=0xFFFFFFFE;
 
     return _mediatype;
 }
