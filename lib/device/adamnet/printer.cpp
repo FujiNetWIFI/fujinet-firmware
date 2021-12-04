@@ -101,14 +101,9 @@ void adamPrinter::adamnet_control_send()
 
     for (uint8_t i = 0; i < s; i++)
     {
-        if (b[i] == 0x08 && _backwards == true)
+        if (b[i] == 0x0e)
         {
-            dq_b.push_front(0x20);
-            dq_b.pop_front();
-        }
-        else if (b[i] == 0x0e)
-        {
-            dq.push_back(0xFF);
+            dq.push_back(0x0D);
             _backwards = true;
         }
         else if (b[i] == 0x0f)
