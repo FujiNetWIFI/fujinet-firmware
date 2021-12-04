@@ -10,7 +10,7 @@
 #include "led.h"
 
 static xQueueHandle reset_evt_queue = NULL;
-static uint32_t reset_detect_status = 0;
+//static uint32_t reset_detect_status = 0;
 
 static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
 {
@@ -20,9 +20,15 @@ static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
 
 static void adamnet_reset_intr_task(void *arg)
 {
-    uint32_t io_num, level;
+    uint32_t io_num;
 
-    // come back here when we have a damned reset gpio pin.
+    //reset_detect_status = gpio_get_level((gpio_num_t)PIN_ADAMNET_RESET);
+
+    for(;;) {
+        if(xQueueReceive(reset_evt_queue, &io_num, portMAX_DELAY)) {
+            printf("ADAMNet RESET Asserted\n");
+        }
+    }
 }
 
 uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
@@ -198,6 +204,13 @@ void adamNetBus::setup()
     Debug_println("ADAMNET SETUP");
 
     // Set up interrupt for RESET line
+    reset_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    // Start card detect task
+    xTaskCreate(adamnet_reset_intr_task, "adamnet_reset_intr_task", 2048, NULL, 10, NULL);
+    // Enable interrupt for card detection
+    fnSystem.set_pin_mode(PIN_ADAMNET_RESET, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP, GPIO_INTR_NEGEDGE);
+    // Add the card detect handler
+    gpio_isr_handler_add((gpio_num_t)PIN_ADAMNET_RESET, adamnet_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
 
     // Set up UART
     fnUartSIO.begin(ADAMNET_BAUD);
