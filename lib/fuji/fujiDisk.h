@@ -17,6 +17,13 @@
 #define DEVICE_TYPE adamDisk
 #endif 
 
+#ifdef BUILD_APPLE
+#include "../device/smart/disk.h"
+#define MEDIA_TYPE mediatype_t
+#define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
+#define DEVICE_TYPE smartDisk
+#endif
+
 #include "fujiHost.h"
 
 #define MAX_DISPLAY_FILENAME_LEN 36
