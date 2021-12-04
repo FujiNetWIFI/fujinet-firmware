@@ -53,6 +53,7 @@ protected:
     int pdf_pageCounter = 0.;
     size_t objLocations[256]; // reference table storage
     int pdf_objCtr = 0;       // count the objects
+    bool _eol_bypass = false;
 
     void pdf_header();
     void pdf_add_fonts(); // pdfFont_t *fonts[],
