@@ -97,10 +97,14 @@ void adamNetDevice::adamnet_response_ack()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 1500)
+    if (t < 1300)
     {
         AdamNet.wait_for_idle();
         adamnet_send(0x90 | _devnum);
+    }
+    else
+    {
+        Debug_printf("TL: %lu\n",t);
     }
 }
 
