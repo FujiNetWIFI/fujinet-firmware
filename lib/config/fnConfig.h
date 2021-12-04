@@ -13,6 +13,12 @@
 #define PRINTER_CLASS adamPrinter
 #endif
 
+#ifdef BUILD_APPLE
+#include "../device/smart/printer.h"
+#define PRINTER_CLASS smartPrinter
+#endif
+
+
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8
 #define MAX_PRINTER_SLOTS 4

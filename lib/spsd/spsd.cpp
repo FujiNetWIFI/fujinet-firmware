@@ -136,7 +136,7 @@ GND   GND
 #define PIN_MTR 36
 #define PIN_CMD 39
 */
-//      SP BUS      GPIO      SIO
+//         SP BUS      GPIO      SIO
 // #define SP_WRPROT   27
 // #define SP_ACK      27        CLKIN
 // #define SP_REQ      39
@@ -1336,21 +1336,24 @@ void spDevice::spsd_setup() {
   fnSystem.set_pin_mode(ejectPin, gpio_mode_t::GPIO_MODE_INPUT);
   print_hd_info(); //bad! something that prints things shouldn't do essential setup
 
-  Debug_print(("\r\nFree memory before opening images: "));
+  Debug_printf(("\r\nFree memory before opening images: "));
   Debug_print(freeMemory());
 
   // std::string part = "PART";
-  
+
   for(unsigned char i=0; i<NUM_PARTITIONS; i++)
   {
     //TODO: get file names from EEPROM
     //
     //open_image(devices[i], (part+(i+1)+".PO") ); // todo string operations
-    std::string part = "PART";
-    part += i+1;
+    std::string part = "/PART";
+    part += std::to_string(1);
     part += ".PO";
+    Debug_printf("\r\nopening %s",part.c_str());
     open_image(devices[i], part ); // std::string operations
-    if(devices[i].sdf == nullptr){
+    if(devices[i].sdf != nullptr)
+      Debug_printf("\r\n%s open good",part.c_str());
+    else{
       Debug_print(("\r\nImage "));
       Debug_print(i, DEC);
       Debug_print((" open error! Filename = "));
