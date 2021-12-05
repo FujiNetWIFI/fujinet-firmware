@@ -108,7 +108,6 @@ void adamDisk::adamnet_control_status()
 
 void adamDisk::adamnet_control_clr()
 {
-    AdamNet.wait_for_idle();
     adamnet_response_send();
 }
 
@@ -117,7 +116,6 @@ void adamDisk::adamnet_control_receive()
     if (_media == nullptr)
         return;
 
-    AdamNet.wait_for_idle();
     _media->read(blockNum, nullptr);
     adamnet_response_ack();
 }

@@ -6,6 +6,8 @@ void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     switch (c)
     {
     case 8:
+        fprintf(_file, ")%d(", (int)(charWidth / lineHeight * 900.));
+        pdf_X -= charWidth; // update x position
         break;
     case 9:
         break;
@@ -20,10 +22,10 @@ void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     case 12:
         pdf_end_page();
         break;
-    case 0xff:
-        pdf_dY += lineHeight; // set pdf_dY and rise back one line
-        pdf_set_rise();
+    case 13:
         pdf_end_line();
+        pdf_dY += lineHeight;
+        pdf_new_line();
         break;
     default:
         if (c > 31 && c < 128)
@@ -45,11 +47,12 @@ void colecoprinter::post_new_file()
 
     translate850 = false;
     _eol = 0x0d;
-
+    _eol_bypass = true;
     pageWidth = 612.0;
     pageHeight = 792.0;
     leftMargin = 66.0;
-    bottomMargin = 0;
+    topMargin = 48.0;
+    bottomMargin = 48.0;
     printWidth = 480.0; // 6 2/3 inches
     lineHeight = 12.0;
     charWidth = 6.0; // 12cpi
