@@ -125,8 +125,9 @@ protected:
 
     void adamnet_process(uint8_t b) override;
 
-    void shutdown() override; 
     */
+    void shutdown() override; 
+    
 
 public:
     bool boot_config = true;
@@ -137,7 +138,7 @@ public:
 
     // smartNetwork *network();
 
-    void debug_tape();
+    // void debug_tape();
 
     void insert_boot_device(uint8_t d);
 

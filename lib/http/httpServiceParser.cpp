@@ -23,6 +23,13 @@ extern sioFuji theFuji;
 extern adamFuji theFuji;
 #endif
 
+#ifdef BUILD_APPLE
+#include "smart/fuji.h"
+#include "smart/printerlist.h"
+#define BUS SmartPort
+extern appleFuji theFuji;
+#endif
+
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
 #include "fnFsSPIF.h"

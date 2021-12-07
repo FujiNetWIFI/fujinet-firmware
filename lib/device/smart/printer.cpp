@@ -4,7 +4,7 @@
 #include "html_printer.h"
 #include "epson_80.h"
 
-void smartPrinter::set_printer_type(smartPrinter::printer_type printer_type)
+void applePrinter::set_printer_type(applePrinter::printer_type printer_type)
 {
     // Destroy any current printer emu object
     delete _pptr;
@@ -37,7 +37,7 @@ void smartPrinter::set_printer_type(smartPrinter::printer_type printer_type)
 }
 
 
-smartPrinter::printer_type smartPrinter::match_modelname(std::string model_name)
+applePrinter::printer_type applePrinter::match_modelname(std::string model_name)
 {
     const char *models[PRINTER_INVALID] =
         {

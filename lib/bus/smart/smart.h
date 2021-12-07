@@ -1,4 +1,3 @@
-#ifdef BUILD_APPLE
 #ifndef SMART_H
 #define SMART_H
 
@@ -7,7 +6,9 @@
 class smartDevice
 {
 
-
+public:
+bool device_active;
+virtual void shutdown() = 0;
 
 };
 
@@ -15,11 +16,11 @@ class smartBus
 {
 
 public:
-void shutdown(){};
+void shutdown() {};
 
 };
 
 extern smartBus SmartPort;
 
 #endif // guard
-#endif // BUILD_APPLE
+

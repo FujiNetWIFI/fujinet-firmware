@@ -20,6 +20,9 @@ private:
     // void smart_write_percom_block();
     // void dump_percom_block();
 
+protected:
+    void shutdown() override;
+
 public:
     smartDisk();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
