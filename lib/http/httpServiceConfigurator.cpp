@@ -27,6 +27,13 @@ extern sioFuji theFuji;
 extern adamFuji theFuji;
 #endif /* BUILD_ADAM */
 
+#ifdef BUILD_APPLE
+#include "smart/printerlist.h"
+#include "smart/fuji.h"
+#define PRINTER_CLASS applePrinter
+extern appleFuji theFuji;
+#endif /* BUILD_APPLE */
+
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
 {

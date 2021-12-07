@@ -8,7 +8,7 @@
 #include "../printer-emulator/printer_emulator.h"
 #include "fnFS.h"
 
-class smartPrinter : public smartDevice
+class applePrinter : public smartDevice
 {
 protected:
     // TODO following are copied over from sio/printer.h
@@ -38,8 +38,8 @@ public:
         PRINTER_INVALID
     };
 
-    smartPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
-    ~smartPrinter();
+    applePrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
+    ~applePrinter();
 
     static printer_type match_modelname(std::string model_name);
     void set_printer_type(printer_type printer_type);
