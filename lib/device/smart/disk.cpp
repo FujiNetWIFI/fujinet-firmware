@@ -1,5 +1,10 @@
 #include "disk.h"
 
+smartDisk::~smartDisk()
+{
+
+}
+
 void smartDisk::smart_read()
 {
 }

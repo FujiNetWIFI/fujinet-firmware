@@ -1,5 +1,7 @@
 #include "fuji.h"
 
+appleFuji theFuji; // Global fuji object.
+
 void appleFuji::shutdown()
 {
 }
