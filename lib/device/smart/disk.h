@@ -7,13 +7,13 @@
 class smartDisk : public smartDevice
 {
 private:
-    DiskType *_disk = nullptr;
+    MediaType *_disk = nullptr;
 
     void smart_read();
     void smart_write(bool verify);
     // void smart_format();
-    void smart_status() override;
-    void smart_process(uint32_t commanddata, uint8_t checksum) override;
+    void smart_status(); // override;
+    void smart_process(); // uint32_t commanddata, uint8_t checksum); // override;
 
     // void derive_percom_block(uint16_t numSectors);
     // void smart_read_percom_block();
@@ -22,11 +22,11 @@ private:
 
 public:
     smartDisk();
-    disktype_t mount(FILE *f, const char *filename, uint32_t disksize, disktype_t disk_type = DISKTYPE_UNKNOWN);
+    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 
-    disktype_t disktype() { return _disk == nullptr ? DISKTYPE_UNKNOWN : _disk->_disktype; };
+    mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
     ~smartDisk();
 };

@@ -9,6 +9,8 @@
 #include "../utils/utils.h"
 #include "../../include/debug.h"
 
+#include "fnSystem.h"
+
 #define CONFIG_FILENAME "/fnconfig.ini"
 #define CONFIG_FILEBUFFSIZE 2048
 

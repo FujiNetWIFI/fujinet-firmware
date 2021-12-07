@@ -10,6 +10,7 @@
 
 #include "httpServiceConfigurator.h"
 #include "fnConfig.h"
+#include "fnSystem.h"
 #include "utils.h"
 
 #ifdef BUILD_ATARI

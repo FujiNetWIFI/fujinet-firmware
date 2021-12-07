@@ -32,7 +32,12 @@ extern sioModem *sioR;
 #include "adamnet/printerlist.h"
 #define PRINTER_CLASS adamPrinter
 extern adamModem *sioR;
-#endif 
+#endif /* BUILD_ADAM */
+
+#ifdef BUILD_APPLE
+#include "fnSystem.h"
+#include "smart/fuji.h"
+#endif /* BUILD_APPLE */
 
 #include "../../include/debug.h"
 
