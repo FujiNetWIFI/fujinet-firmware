@@ -13,6 +13,8 @@
 #   include "adam/mediaTypeDDP.h"
 #   include "adam/mediaTypeDSK.h"
 #   include "adam/mediaTypeROM.h"
+#elif defined ( BUILD_APPLE )
+#   include "apple/mediaType.h"
 #endif
 
 #endif // MEDIA_H

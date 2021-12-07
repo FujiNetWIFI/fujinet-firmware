@@ -30,6 +30,11 @@
 #define BUS_CLASS AdamNet
 #endif
 
+#ifdef BUILD_APPLE
+#define BUS_CLASS SmartPort
+#endif
+
+
 static xQueueHandle card_detect_evt_queue = NULL;
 static uint32_t card_detect_status = 1; // 1 is no sd card
 

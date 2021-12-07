@@ -11,5 +11,15 @@ class smartDevice
 
 };
 
+class smartBus
+{
+
+public:
+void shutdown(){};
+
+};
+
+extern smartBus SmartPort;
+
 #endif // guard
 #endif // BUILD_APPLE

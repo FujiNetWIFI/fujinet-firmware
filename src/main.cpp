@@ -28,6 +28,7 @@
 #endif
 
 #ifdef BUILD_APPLE
+#include "smart/fuji.h"
 #include "spsd.h"
 #endif
 
@@ -53,8 +54,7 @@
 
 #ifdef BUILD_APPLE
 spDevice spsd;
-/* BUILD_APPLE */
-#endif
+#endif /* BUILD_APPLE */
 
 #if defined( BUILD_ATARI )
 sioApeTime apeTime;
