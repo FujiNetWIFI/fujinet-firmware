@@ -177,13 +177,15 @@ void adamNetBus::_adamnet_process_cmd()
     // Find device ID and pass control to it
     if (_daisyChain.find(d) == _daisyChain.end())
         wait_for_idle();
-    else
+    else if (_daisyChain[d]->device_active == true)
     {
         start_time = esp_timer_get_time();
         _daisyChain[d]->adamnet_process(b);
         fnUartSIO.flush();
         fnUartSIO.flush_input();
     }
+    else
+        wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
 
     // turn off AdamNet Indicator LED
     fnLedManager.set(eLed::LED_BUS, false);
@@ -280,6 +282,18 @@ void adamNetBus::reset()
 {
     for (auto devicep : _daisyChain)
         devicep.second->reset();
+}
+
+void adamNetBus::enableDevice(uint8_t device_id)
+{
+    if (_daisyChain.find(device_id) != _daisyChain.end())
+        _daisyChain[device_id]->device_active = true;
+}
+
+void adamNetBus::disableDevice(uint8_t device_id)
+{
+    if (_daisyChain.find(device_id) != _daisyChain.end())
+        _daisyChain[device_id]->device_active = false;
 }
 
 adamNetBus AdamNet;

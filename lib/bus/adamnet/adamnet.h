@@ -186,6 +186,8 @@ public:
     int numDevices();
     void addDevice(adamNetDevice *pDevice, int device_id);
     void remDevice(adamNetDevice *pDevice);
+    void enableDevice(uint8_t device_id);
+    void disableDevice(uint8_t device_id);
     adamNetDevice *deviceById(int device_id);
     void changeDeviceId(adamNetDevice *pDevice, int device_id);
     QueueHandle_t qAdamNetMessages = nullptr;
