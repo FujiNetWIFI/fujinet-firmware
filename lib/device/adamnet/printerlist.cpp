@@ -7,6 +7,9 @@ printerlist fnPrinters;
 
 void printerlist::set_entry(int index, adamPrinter *ptr, adamPrinter::printer_type ptype, int pport)
 {
+    if (ptr == NULL)
+        return;
+
     if(index < 0 || index >= PRINTERLIST_SIZE)
         return;
 
@@ -16,6 +19,9 @@ void printerlist::set_entry(int index, adamPrinter *ptr, adamPrinter::printer_ty
 }
 void printerlist::set_ptr(int index, adamPrinter *ptr)
 {
+    if (ptr == NULL)
+        return;
+        
     if(index < 0 || index >= PRINTERLIST_SIZE)
         return;
     _printers[index].pPrinter = ptr;
