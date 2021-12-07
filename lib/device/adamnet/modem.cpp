@@ -74,6 +74,11 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     }
 }
 
+adamModem::adamModem()
+{
+    // TODO
+}
+
 adamModem::adamModem(FileSystem *_fs, bool snifferEnable)
 {
     activeFS = _fs;

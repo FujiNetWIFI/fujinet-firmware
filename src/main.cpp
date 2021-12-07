@@ -28,6 +28,7 @@
 #endif
 
 #ifdef BUILD_APPLE
+#include "smart/modem.h"
 #include "smart/fuji.h"
 #include "spsd.h"
 #endif
@@ -54,6 +55,7 @@
 
 #ifdef BUILD_APPLE
 spDevice spsd;
+appleModem *sioR;
 #endif /* BUILD_APPLE */
 
 #if defined( BUILD_ATARI )
