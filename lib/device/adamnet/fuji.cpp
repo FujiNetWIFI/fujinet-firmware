@@ -47,6 +47,8 @@
 #define SIO_FUJICMD_COPY_FILE 0xD8
 #define SIO_FUJICMD_MOUNT_ALL 0xD7
 #define SIO_FUJICMD_SET_BOOT_MODE 0xD6
+#define SIO_FUJICMD_ENABLE_DEVICE 0xD5
+#define SIO_FUJICMD_DISABLE_DEVICE 0xD4
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -55,6 +57,7 @@
 adamFuji theFuji;        // global fuji device object
 adamNetwork *theNetwork; // global network device object (temporary)
 adamPrinter *thePrinter; // global printer
+adamSerial *theSerial; // global serial
 
 // sioDisk sioDiskDevs[MAX_HOSTS];
 // sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
@@ -981,6 +984,28 @@ void adamFuji::insert_boot_device(uint8_t d)
     Debug_printf("Media type is %d\n",_bootDisk->mediatype());
 }
 
+void adamFuji::adamnet_enable_device()
+{
+    unsigned char d = adamnet_recv();
+
+    adamnet_recv();
+
+    adamnet_response_ack();
+
+    AdamNet.enableDevice(d);
+}
+
+void adamFuji::adamnet_disable_device()
+{
+    unsigned char d = adamnet_recv();
+
+    adamnet_recv();
+
+    adamnet_response_ack();
+
+    AdamNet.disableDevice(d);
+}
+
 // Initializes base settings and adds our devices to the SIO bus
 void adamFuji::setup(adamNetBus *siobus)
 {
@@ -1004,7 +1029,9 @@ void adamFuji::setup(adamNetBus *siobus)
     _fnDisks[0].disk_dev.mount(f,"/autorun.ddp",262144,MEDIATYPE_DDP);
 
     theNetwork = new adamNetwork();
-    _adamnet_bus->addDevice(theNetwork, 0x0E); // temporary.
+    theSerial = new adamSerial();
+    _adamnet_bus->addDevice(theNetwork, 0x09); // temporary.
+    _adamnet_bus->addDevice(theSerial,0x0e); // Serial port
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 
     // Add our devices to the AdamNet bus
@@ -1095,6 +1122,12 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_CONFIG_BOOT:
         adamnet_set_boot_config();
+        break;
+    case SIO_FUJICMD_ENABLE_DEVICE:
+        adamnet_enable_device();
+        break;
+    case SIO_FUJICMD_DISABLE_DEVICE:
+        adamnet_disable_device();
         break;
     }
 }
