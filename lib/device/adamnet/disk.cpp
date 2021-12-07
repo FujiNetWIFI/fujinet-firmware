@@ -169,7 +169,6 @@ void adamDisk::adamnet_response_status()
     status[0] |= _devnum;
     adamnet_send_buffer(status, sizeof(status));
 }
-
 void adamDisk::adamnet_response_send()
 {
     if (_media == nullptr)
