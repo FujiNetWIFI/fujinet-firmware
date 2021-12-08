@@ -79,9 +79,9 @@ uiState state=startup;
 // Adafruit SD shields and modules: pin 10
 
 // Arduino UNO pin assignments for control pins
-const uint8_t chipSelect = 10;
+// const uint8_t chipSelect = 10;
 // const uint8_t ejectPin = 17;
-const uint8_t statusledPin = 18;
+// const uint8_t statusledPin = 18;
 
 // Don't actually use this, deprecated for simplicity
 // Set USE_SDIO to zero for SPI card access.
