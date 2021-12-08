@@ -296,23 +296,32 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #endif /* BUILD_ATARI */
     case FN_PRINTER1_MODEL:
         {
+#ifdef BUILD_ADAM
             adamPrinter *ap = fnPrinters.get_ptr(0);
             if (ap != nullptr)
             {
                 resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
             } else
                 resultstream << "No Virtual Printer";
-
+#endif /* BUILD_ADAM */
+#ifdef BUILD_ATARI
+            resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
+#endif /* BUILD_ATARI */
         }
         break;
     case FN_PRINTER1_PORT:
         {
+#ifdef BUILD_ADAM
             adamPrinter *ap = fnPrinters.get_ptr(0);
             if (ap != nullptr)
             {
                 resultstream << (fnPrinters.get_port(0) + 1);
             } else
                 resultstream << "";
+#endif/* BUILD_ADAM */
+#ifdef BUILD_ATARI
+            resultstream << (fnPrinters.get_port(0) + 1);
+#endif /* BUILD_ATARI */
         }
         break;
 #ifdef BUILD_ATARI        
