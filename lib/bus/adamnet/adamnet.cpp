@@ -121,7 +121,7 @@ void adamNetDevice::adamnet_response_nack()
     if (t < 1500)
     {
         AdamNet.wait_for_idle();
-        adamnet_send(0x90 | _devnum);
+        adamnet_send(0xC0 | _devnum);
     }
 }
 
