@@ -26,7 +26,6 @@ void adamSerial::command_recv()
         adamnet_response_nack();
         response_len=client.available() > SERIAL_BUF_SIZE ? SERIAL_BUF_SIZE : client.available();
         int c = client.read(response,response_len);
-        Debug_printf("RCV %d %d\n",response_len,c);
     }
     else
         adamnet_response_ack();
@@ -65,7 +64,6 @@ void adamSerial::adamnet_control_clr()
     }
     else
     {
-        Debug_printf("CLR %d\n",response_len);
         adamnet_send(0xB0 | _devnum);
         adamnet_send_length(response_len);
         adamnet_send_buffer(response, response_len);
