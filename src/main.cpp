@@ -28,8 +28,8 @@
 #endif
 
 #ifdef BUILD_APPLE
-#include "smart/modem.h"
 #include "smart/fuji.h"
+#include "smart/modem.h"
 #include "spsd.h"
 #endif
 
@@ -143,7 +143,8 @@ void main_setup()
     }
 
 #if defined ( BUILD_APPLE )
-    spsd.spsd_setup();
+    theFuji.setup(&SmartPort);
+    //spsd.spsd_setup();
 
 #elif defined( BUILD_ATARI )
     theFuji.setup(&SIO);
@@ -215,7 +216,8 @@ void fn_service_loop(void *param)
     #endif
 
     #if defined( BUILD_APPLE )
-        spsd.spsd_loop();
+        // fnSystem.delay(100);
+        // spsd.spsd_loop();
     #elif defined( BUILD_ATARI )
         SIO.service();
     #elif defined ( BUILD_ADAM )
