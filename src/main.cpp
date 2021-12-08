@@ -144,7 +144,7 @@ void main_setup()
 
 #if defined ( BUILD_APPLE )
     theFuji.setup(&SmartPort);
-    //spsd.spsd_setup();
+    spsd.spsd_setup();
 
 #elif defined( BUILD_ATARI )
     theFuji.setup(&SIO);
