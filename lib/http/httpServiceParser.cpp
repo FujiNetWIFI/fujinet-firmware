@@ -9,6 +9,8 @@
 #include "httpService.h"
 #include "httpServiceParser.h"
 
+#define ALL_THE_DEBUGS
+
 #ifdef BUILD_ATARI
 #include "sio/fuji.h"
 #include "sio/printerlist.h"
@@ -192,8 +194,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     };
 
     stringstream resultstream;
-#ifdef DEBUG
-    //Debug_printf("Substituting tag '%s'\n", tag.c_str());
+
+#ifdef ALL_THE_DEBUGS
+    Debug_printf("Substituting tag '%s'\n", tag.c_str());
 #endif
 
     int tagid;
@@ -292,10 +295,25 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #endif /* BUILD_ATARI */
     case FN_PRINTER1_MODEL:
-        resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
+        {
+            adamPrinter *ap = fnPrinters.get_ptr(0);
+            if (ap != nullptr)
+            {
+                resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
+            } else
+                resultstream << "No Virtual Printer";
+
+        }
         break;
     case FN_PRINTER1_PORT:
-        resultstream << (fnPrinters.get_port(0) + 1);
+        {
+            adamPrinter *ap = fnPrinters.get_ptr(0);
+            if (ap != nullptr)
+            {
+                resultstream << (fnPrinters.get_port(0) + 1);
+            } else
+                resultstream << "";
+        }
         break;
 #ifdef BUILD_ATARI        
     case FN_PLAY_RECORD:

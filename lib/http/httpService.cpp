@@ -447,7 +447,11 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     time_t now = fnSystem.millis();
     // Get a pointer to the current (only) printer
     PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
-
+    if (printer == nullptr)
+    {
+        Debug_println("No virtual printer");
+        return ESP_FAIL;
+    }
     if (now - printer->lastPrintTime() < PRINTER_BUSY_TIME)
     {
         _fnwserr err = fnwserr_post_fail;
@@ -456,6 +460,14 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     }
     // Get printer emulator pointer from sioP (which is now extern)
     printer_emu *currentPrinter = printer->getPrinterPtr();
+
+    if (currentPrinter == nullptr)
+    {
+        Debug_println("No current virtual printer");
+        _fnwserr err = fnwserr_post_fail;
+        return_http_error(req, err);
+        return ESP_FAIL;
+    }
 
     // Build a print output name
     const char *exts;
