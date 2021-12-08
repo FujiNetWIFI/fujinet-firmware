@@ -6,6 +6,7 @@
 #include "bus.h"
 #include "adamnet/network.h"
 #include "adamnet/printer.h"
+#include "adamnet/serial.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -114,6 +115,8 @@ protected:
     void adamnet_set_boot_config();        // 0xD9
     void adamnet_copy_file();              // 0xD8
     void adamnet_set_boot_mode();          // 0xD6
+    void adamnet_enable_device();          // 0xD5
+    void adamnet_disable_device();         // 0xD4
 
     void adamnet_test_command();
 
