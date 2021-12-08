@@ -80,7 +80,7 @@ uiState state=startup;
 
 // Arduino UNO pin assignments for control pins
 const uint8_t chipSelect = 10;
-const uint8_t ejectPin = 17;
+// const uint8_t ejectPin = 17;
 const uint8_t statusledPin = 18;
 
 // Don't actually use this, deprecated for simplicity

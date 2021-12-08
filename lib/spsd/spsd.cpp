@@ -1335,14 +1335,15 @@ void spDevice::spsd_setup() {
   Debug_print(("\r\nBoot partition: "));
   Debug_print(initPartition, DEC);
 
-  fnSystem.set_pin_mode(ejectPin, gpio_mode_t::GPIO_MODE_INPUT);
+  // following is hold over from smartportsd .... should remap to a FN pin TODO
+  // fnSystem.set_pin_mode(ejectPin, gpio_mode_t::GPIO_MODE_INPUT);
   // print_hd_info(); //obsolete
 
   Debug_printf(("\r\nFree memory before opening images: "));
   Debug_print(freeMemory());
 
   // std::string part = "PART";
-/* 
+
   for(unsigned char i=0; i<NUM_PARTITIONS; i++)
   {
     //TODO: get file names from EEPROM
@@ -1367,8 +1368,8 @@ void spDevice::spsd_setup() {
     Debug_print((": "));
     Debug_print(freeMemory(), DEC);
   }  
-   */
-  //Debug_println();
+  
+  Debug_println();
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
 }
 
