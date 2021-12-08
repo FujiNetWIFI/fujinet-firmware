@@ -13,7 +13,7 @@ class adamSerial : public adamNetDevice
 {
     public:
 
-    uint8_t response[16];
+    uint8_t response[1024];
     uint16_t response_len=0;
     bool isReady=true;
     bool alreadyDoingSomething=false;

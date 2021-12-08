@@ -3,11 +3,14 @@
 #include <cstring>
 #include "adamnet/serial.h"
 
+#define SERIAL_BUF_SIZE 16
+
 adamSerial::adamSerial()
 {
     Debug_printf("Serial Start\n");
     server = new fnTcpServer(1235, 1); // Run a TCP server on port 1235.
     server->begin(1235);
+    response_len=0;
 }
 
 adamSerial::~adamSerial()
@@ -18,24 +21,24 @@ adamSerial::~adamSerial()
 
 void adamSerial::command_recv()
 {
-    if (response_len == 0 && client.available())
+    if ((response_len == 0) && client.available())
     {
         adamnet_response_nack();
-        response_len = client.available() > 16 ? 16 : client.available();
-        client.read(response, response_len);
-    }
-    else if (response_len > 0)
-    {
-        adamnet_response_ack();
+        response_len=client.available() > SERIAL_BUF_SIZE ? SERIAL_BUF_SIZE : client.available();
+        int c = client.read(response,response_len);
+        Debug_printf("RCV %d %d\n",response_len,c);
     }
     else
-    {
-        adamnet_response_nack();
-    }
+        adamnet_response_ack();
 }
 
 void adamSerial::adamnet_control_status()
 {
+    unsigned short s = SERIAL_BUF_SIZE;
+    
+    status_msg[0]=s & 0xFF;
+    status_msg[1]=s >> 8;
+
     if (!client.connected() && server->hasClient())
     {
         // Accept waiting connection
@@ -44,9 +47,10 @@ void adamSerial::adamnet_control_status()
 
     if (client.available())
     {
-        status_msg[2] = 0x00;
-        status_msg[3] = client.available() > 0;
+        status_msg[3] = client.available() > SERIAL_BUF_SIZE ? SERIAL_BUF_SIZE : client.available();
     }
+    else
+        status_msg[3] = 0x00;
 
     adamnet_send(0x80 | _devnum);
     adamnet_send_buffer(status_msg, 4);
@@ -61,34 +65,32 @@ void adamSerial::adamnet_control_clr()
     }
     else
     {
+        Debug_printf("CLR %d\n",response_len);
         adamnet_send(0xB0 | _devnum);
         adamnet_send_length(response_len);
         adamnet_send_buffer(response, response_len);
         adamnet_send(adamnet_checksum(response, response_len));
         memset(response, 0, sizeof(response));
-        response_len = 0;
+        response_len = 0;   
     }
 }
 
 void adamSerial::adamnet_control_ready()
 {
-    AdamNet.wait_for_idle();
-    adamnet_send(0x9E); // ACK.
+    adamnet_response_ack();
 }
 
 void adamSerial::adamnet_control_send()
 {
     uint16_t s = adamnet_recv_length();
-    uint8_t c = adamnet_recv();
+    uint8_t b[SERIAL_BUF_SIZE];
 
-    if (client.connected())
-    {
-        for (uint16_t i = 0; i < s; i++)
-            client.write(adamnet_recv());
-    }
-
+    adamnet_recv_buffer(b, s);
     adamnet_recv();
     adamnet_response_ack();
+    
+    if (client.connected())
+        client.write(b, s);
 }
 
 void adamSerial::adamnet_process(uint8_t b)
