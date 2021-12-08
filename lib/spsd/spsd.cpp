@@ -1584,7 +1584,8 @@ void spDevice::spsd_loop() {
         switch (packet_buffer[14]) {
 
           case 0x80:  //is a status cmd
-            fnSystem.digital_write(statusledPin, DIGI_HIGH);
+            fnLedManager.set(eLed::LED_BUS, true);
+            //fnSystem.digital_write(statusledPin, DIGI_HIGH);
             source = packet_buffer[6];
             for (partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
             /* todo - restore status checking and response 
@@ -1646,7 +1647,8 @@ void spDevice::spsd_loop() {
             break;
 
           case 0xC0:  //Extended status cmd
-            fnSystem.digital_write(statusledPin, DIGI_HIGH);
+            fnLedManager.set(eLed::LED_BUS, true);
+            // fnSystem.digital_write(statusledPin, DIGI_HIGH);
             source = packet_buffer[6];
             //Debug_println(source, HEX);
             for (partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
@@ -1674,7 +1676,8 @@ void spDevice::spsd_loop() {
                 //printf_P(PSTR("\r\nSent Packet Data\r\n") );
                 //print_packet ((unsigned char*) packet_buffer,packet_length());
                 //Debug_print(("\r\nStatus CMD"));
-                fnSystem.digital_write(statusledPin, DIGI_LOW);
+                //fnSystem.digital_write(statusledPin, DIGI_LOW);
+                fnLedManager.set(eLed::LED_BUS,false);
               }
             }
             //Debug_print(("\r\nHere's our reply!"));
@@ -1764,7 +1767,8 @@ void spDevice::spsd_loop() {
                 // partition number indicates which 32mb block we access on the CF
                 // block_num = block_num + (((partition + initPartition) % 4) * 65536);
 
-                fnSystem.digital_write(statusledPin, DIGI_HIGH);
+                fnLedManager.set(eLed::LED_BUS, true);
+                //fnSystem.digital_write(statusledPin, DIGI_HIGH);
                 /*Debug_print(("\r\nID: "));
                 Debug_print(source);
                 Debug_print(("Read Block: "));
@@ -1799,7 +1803,8 @@ void spDevice::spsd_loop() {
                 // todo -DDRD = 0x00; //set rd back to input so back to tristate
                 // todo - interrupts();
                 //if (status == 1)Debug_print(("\r\nSent err."));
-                fnSystem.digital_write(statusledPin, DIGI_LOW);
+                //fnSystem.digital_write(statusledPin, DIGI_LOW);
+                fnLedManager.set(eLed::LED_BUS, false); 
 
                 //Debug_print(status);
                 //print_packet ((unsigned char*) packet_buffer,packet_length());
@@ -1863,7 +1868,8 @@ void spDevice::spsd_loop() {
 
                 //print_packet ((unsigned char*) packet_buffer,packet_length());
               }
-              fnSystem.digital_write(statusledPin, DIGI_LOW);
+              //fnSystem.digital_write(statusledPin, DIGI_LOW);
+              fnLedManager.set(eLed::LED_BUS, false);
 
             }
             break;
