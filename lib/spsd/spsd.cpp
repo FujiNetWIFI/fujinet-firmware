@@ -1,3 +1,5 @@
+#include "spsd.h"
+
 /** 
  * converting to ESP32 use by @jeffpiep 
  * as preparation for creating FujiNet for Apple II plus ][+
@@ -163,7 +165,6 @@ GND   GND
 // maintain two codepaths
 // #define USE_SDIO 0
 
-#include "spsd.h"
 #include "../../include/debug.h"
 #include "fnSystem.h"
 #include "led.h"
@@ -1282,6 +1283,7 @@ int spDevice::freeMemory() {
 // TODO: Respect read-only bit in header
 bool spDevice::open_image( device &d, std::string filename ){
   // d.sdf = sdcard.open(filename, O_RDWR);
+  Debug_println("right before file open call");
   d.sdf = fnSDFAT.file_open(filename.c_str());
   Debug_print(("\r\nTesting file "));
   // d.sdf.printName();
@@ -1334,13 +1336,13 @@ void spDevice::spsd_setup() {
   Debug_print(initPartition, DEC);
 
   fnSystem.set_pin_mode(ejectPin, gpio_mode_t::GPIO_MODE_INPUT);
-  print_hd_info(); //bad! something that prints things shouldn't do essential setup
+  // print_hd_info(); //obsolete
 
   Debug_printf(("\r\nFree memory before opening images: "));
   Debug_print(freeMemory());
 
   // std::string part = "PART";
-
+/* 
   for(unsigned char i=0; i<NUM_PARTITIONS; i++)
   {
     //TODO: get file names from EEPROM
@@ -1365,7 +1367,8 @@ void spDevice::spsd_setup() {
     Debug_print((": "));
     Debug_print(freeMemory(), DEC);
   }  
-  Debug_println();
+   */
+  //Debug_println();
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
 }
 
