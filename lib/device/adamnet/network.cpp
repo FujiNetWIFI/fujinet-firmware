@@ -33,8 +33,7 @@ void adamNetwork::command_connect(uint16_t s)
     // Get Checksum
     adamnet_recv();
 
-    fnSystem.delay_microseconds(150);
-    adamnet_send(0x9E); // Ack
+    adamnet_response_ack();
 
     Debug_printf("Connecting to: %s port %u\n", hn, p);
 
@@ -58,22 +57,19 @@ void adamNetwork::command_connect(uint16_t s)
 
 void adamNetwork::command_recv()
 {
-    if (response_len==0 && client.available())
+    if (client.available())
     {
         AdamNet.wait_for_idle();
         adamnet_send(0xCE); // NAK
-        response_len=client.available() > 1024 ? 1024 : client.available();
         client.read(response,response_len);
     }
     else if (response_len > 0)
     {
-        AdamNet.wait_for_idle();
-        adamnet_send(0x9E);
+        adamnet_response_ack();
     }
     else
     {
-        AdamNet.wait_for_idle();
-        adamnet_send(0xCE);
+        adamnet_response_nack();
     }
 }
 
@@ -83,8 +79,7 @@ void adamNetwork::command_send(uint16_t s)
     adamnet_recv_buffer(response, s);
     adamnet_recv();
 
-    AdamNet.wait_for_idle();
-    adamnet_send(0x9E);
+    adamnet_response_ack();
 
     Debug_printf("S: %c\n",response[0]);    
     client.write(response, s);
@@ -92,13 +87,13 @@ void adamNetwork::command_send(uint16_t s)
 
 void adamNetwork::adamnet_control_status()
 {
-    uint8_t r[6] = {0x8E, 0x00, 0x04, 0x00, 0x00, 0x04};
+    uint8_t r[6] = {0x89, 0x00, 0x04, 0x00, 0x00, 0x04};
     adamnet_send_buffer(r, 6);
 }
 
 void adamNetwork::adamnet_control_clr()
 {
-    adamnet_send(0xBE);
+    adamnet_send(0xB0 | _devnum);
     adamnet_send_length(response_len);
     adamnet_send_buffer(response, response_len);
     adamnet_send(adamnet_checksum(response, response_len));
@@ -108,8 +103,7 @@ void adamNetwork::adamnet_control_clr()
 
 void adamNetwork::adamnet_control_ready()
 {
-    fnSystem.delay_microseconds(150);
-    adamnet_send(0x9E); // ACK.
+    adamnet_response_ack();
 }
 
 void adamNetwork::adamnet_control_send()
@@ -150,8 +144,6 @@ void adamNetwork::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
-
-    fnUartSIO.flush_input();
 }
 
 #endif /* BUILD_ADAM */
