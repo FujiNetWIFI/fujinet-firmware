@@ -10,6 +10,9 @@
 class spDevice 
 {
 private:
+
+  uint8_t oldphase = 0;
+
   unsigned long int block_num;
   unsigned char LBH, LBL, LBN, LBT, LBX;
 
@@ -63,59 +66,7 @@ enum uiState{
 
 uiState state=startup;
 
-// Arduino UNO pin assignments for SD card
-//The circuit:
-//    SD card attached to SPI bus as follows:
-// ** MOSI - pin 11 on Arduino Uno/Duemilanove/Diecimila
-// ** MISO - pin 12 on Arduino Uno/Duemilanove/Diecimila
-// ** CLK - pin 13 on Arduino Uno/Duemilanove/Diecimila
-// ** CS - depends on your SD card shield or module.
-//     Pin 10 used here
 
-// Change the value of chipSelect if your hardware does
-// not use the default value, SS.  Common values are:
-// Arduino Ethernet shield: pin 4
-// Sparkfun SD shield: pin 8
-// Adafruit SD shields and modules: pin 10
-
-// Arduino UNO pin assignments for control pins
-// const uint8_t chipSelect = 10;
-// const uint8_t ejectPin = 17;
-// const uint8_t statusledPin = 18;
-
-// Don't actually use this, deprecated for simplicity
-// Set USE_SDIO to zero for SPI card access.
-//
-// Initialize at highest supported speed not over 50 MHz.
-// Reduce max speed if errors occur.
-
-/*
-   Set DISABLE_CHIP_SELECT to disable a second SPI device.
-   For example, with the Ethernet shield, set DISABLE_CHIP_SELECT
-   to 10 to disable the Ethernet controller.
-*/
-const int8_t DISABLE_CHIP_SELECT = 0;  // -1
-
-
-
-
-
-// todo SdFat sdcard;
-
-
-// Name the SD object different from the above "sd"
-// so that if we acciedntally use "sd" anywhere the
-// compiler will catch it
-//SdBaseFile sdf;
-//todo: dynamic(?) array of files selected by user
-//File partition1;
-
-//File sdf[4];
-
-
-// todo - make Receive and Send functions for ESP32
-// extern "C" unsigned char ReceivePacket(unsigned char*); //Receive smartport packet assembler function
-// extern "C" unsigned char SendPacket(unsigned char*);    //send smartport packet assembler function
 unsigned char ReceivePacket(unsigned char *a);
 unsigned char SendPacket(unsigned char *a);
 //void encode_data_packet (unsigned char source);

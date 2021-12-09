@@ -217,7 +217,7 @@ void fn_service_loop(void *param)
 
     #if defined( BUILD_APPLE )
         // fnSystem.delay(100);
-        // spsd.spsd_loop();
+        spsd.spsd_loop();
     #elif defined( BUILD_ATARI )
         SIO.service();
     #elif defined ( BUILD_ADAM )
