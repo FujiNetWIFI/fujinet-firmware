@@ -44,101 +44,17 @@ IDC20   IIc     DB 19     Arduino
 
 //*****************************************************************************
 //
+// Based on:
+//
 // Apple //c Smartport Compact Flash adapter
 // Written by Robert Justice  email: rjustice(at)internode.on.net
 // Ported to Arduino UNO with SD Card adapter by Andrea Ottaviani email: andrea.ottaviani.69(at)gmail.com
 // SD FAT support added by Katherine Stark at https://gitlab.com/nyankat/smartportsd/
 //
-// 1.00 - basic read and write working for one partition
-// 1.01 - add support for 4 partions, assume no other smartport devices on bus
-// 1.02 - add correct handling of device ids, should work with other smartport devices
-//        before this one in the drive chain.
-// 1.03 - fixup smartort bus enable and reset handling, will now start ok with llc reset
-// 1.04 - fixup rddata line handling so that it will work with internal 5.25 drive. Now if
-//        there is a disk in the floppy drive, it will boot first. Otherwise it will boot
-//        from the CF
-// 1.05 - fix problem with internal disk being always write protected. Code was stuck in
-//        receivepacket loop, so wrprot(ACK) was always 1. Added timeout support for
-//        receivepacket function, so this now times out and goes back to the main loop for
-//        another try.
-// 1.1  - added support for being connected after unidisk 3.5. Need some more io pins to
-//        support pass through, this is the next step.
-//
-// 1.12 - add eeprom storing of boot partition, cycling by eject button (PA3)
-//
-// 1.13 - Fixed an issue where the block number was calculated incorrectly, leading to
-//        failed operations. Now Total Replay v3 works!
-//
-// 1.15 - Now uses FAT filesystem on the SD card instead of raw layout.
-//
-// Apple disk interface is connected as follows:
-// wrprot = pa5 (ack) (output)
-// ph0    = pd2 (req) (input)
-// ph1    = pd3       (input)
-// ph2    = pd4       (input)
-// ph3    = pd5       (input)
-// rddata = pd6       (output from avr)
-// wrdata = pd7       (input to avr)
-//
-//led i/o = pa4  (for led on when i/o on boxed version)
-//eject button = pa3  (for boxed version, cycle between boot partitions)
-//
-//
-// Serial port was connected for debug purposes. Most of the prints have been commented out.
-// I left these in and these can be uncommented as required for debugging. Sometimes the
-// prints add to much delay, so you need to be carefull when adding these in.
-//
-// NOTE: This is uses the ata code from the fat/fat32/ata drivers written by
-//       Angelo Bannack and Giordano Bruno Wolaniuk and ported to mega32 by Murray Horn.
-//
 //*****************************************************************************
 
-//x #include <SPI.h>
-//#include "SdFat.h" 
-// todo https://randomnerdtutorials.com/esp32-pinout-reference-gpios/
-/* pins for SD card module - cannot use these for smartport bus
-MicroSD card module	ESP32
-3V3   3.3V
-CS    GPIO 5
-MOSI  GPIO 23
-CLK   GPIO 18
-MISO  GPIO 19
-GND   GND
-*/
-
-// pins for the ESP32
-// pins to use know from https://randomnerdtutorials.com/esp32-pinout-reference-gpios/
-//
-// Apple disk interface is connected as follows:
-// wrprot/ack (output)  GPIO 2
-// ph0/req    (input)   GPIO 4
-// ph1        (input)   GPIO 13
-// ph2        (input)   GPIO 16
-// ph3        (input)   GPIO 17
-// rddata     (output)  GPIO 21
-// wrdata     (input)   GPIO 22
-
-/* Jeff's original pins selected for Arudino port
-#define SP_WRPROT   2
-#define SP_ACK      2
-#define SP_REQ      4
-#define SP_PHI0     4
-#define SP_PHI1     13
-#define SP_PHI2     16
-#define SP_PHI3     17
-#define SP_RDDATA   21
-#define SP_WRDATA   22 */
-
-// changing pins to use GPIO's common to SIO - with SIO designators
-/*
-#define PIN_INT 26 // sio.h
-#define PIN_PROC 22
-#define PIN_CKO 32
-#define PIN_CKI 27
-#define PIN_MTR 36
-#define PIN_CMD 39
-*/
-//         SP BUS      GPIO      SIO
+//         SP BUS     GPIO       SIO
+//         ---------  ----       -------
 // #define SP_WRPROT   27
 // #define SP_ACK      27        CLKIN
 // #define SP_REQ      39
@@ -158,12 +74,6 @@ GND   GND
 #define SP_RDDATA   21
 #define SP_WRDATA   33
 
-// todo #include <avr/eeprom.h> 
-
-// Set USE_SDIO to zero for SPI card access.
-// Deprecated maintly because I don't want to
-// maintain two codepaths
-// #define USE_SDIO 0
 
 #include "../../include/debug.h"
 #include "fnSystem.h"
@@ -172,128 +82,290 @@ GND   GND
 #define HEX 16
 #define DEC 10
 
-// todo #include <avr/io.h>
 #include <string.h>
-// #include <stdio.h>
-// todo #include <avr/pgmspace.h>
 
-// Arduino UNO port and pin assignments for REQ and ACK
-// #define PORT_REQ    PORTD   // Define the PORT to REQ
-// #define PIN_REQ     2     // Define the PIN number to REQ
-// #define PORT_ACK    PORTC   // Define the PORT to ACK
-// #define PIN_ACK     5     // Define the PIN number to ACK
-
-// #define NUM_PARTITIONS  4          // Number of 32MB Prodos partions supported
-
-
-// // void print_hd_info(void);
-// // void encode_data_packet (unsigned char source);   //encode smartport 512 byte data packet
-// // int  decode_data_packet (void);                   //decode smartport 512 byte data packet
-// // void encode_write_status_packet(unsigned char source, unsigned char status);
-// // void encode_init_reply_packet (unsigned char source, unsigned char status);
-// // void encode_status_reply_packet (struct device d);
-// // int  packet_length (void);
-// int partition;
-// // todo bool is_valid_image(File imageFile);
-
-// // todo - make Receive and Send functions for ESP32
-// // extern "C" unsigned char ReceivePacket(unsigned char*); //Receive smartport packet assembler function
-// // extern "C" unsigned char SendPacket(unsigned char*);    //send smartport packet assembler function
-
-// //unsigned char packet_buffer[768];   //smartport packet buffer
-// unsigned char packet_buffer[605];   //smartport packet buffer
-// //unsigned char sector_buffer[512];   //ata sector data buffer
-// unsigned char status, packet_byte;
-// int count;
-// int initPartition;
-
-// // We need to remember several things about a device, not just its ID
-// struct device{
-//   // todo File sdf;
-//   unsigned char device_id;              //to hold assigned device id's for the partitions
-//   unsigned long blocks;                 //how many 512-byte blocks this image has
-//   unsigned int header_offset;           //Some image files have headers, skip this many bytes to avoid them
-//   //bool online;                          //Whether this image is currently available
-//                                           //No longer used, user devices[...].sdf.isOpen() instead
-//   bool writeable;
-// };
-
-// device devices[NUM_PARTITIONS];
-
-// enum uiState{
-//   smartport,
-//   gotch,
-//   startup
-// };
-
-// uiState state=startup;
-
-// Arduino UNO pin assignments for SD card
-//The circuit:
-//    SD card attached to SPI bus as follows:
-// ** MOSI - pin 11 on Arduino Uno/Duemilanove/Diecimila
-// ** MISO - pin 12 on Arduino Uno/Duemilanove/Diecimila
-// ** CLK - pin 13 on Arduino Uno/Duemilanove/Diecimila
-// ** CS - depends on your SD card shield or module.
-//     Pin 10 used here
-
-// Change the value of chipSelect if your hardware does
-// not use the default value, SS.  Common values are:
-// Arduino Ethernet shield: pin 4
-// Sparkfun SD shield: pin 8
-// Adafruit SD shields and modules: pin 10
-
-// Arduino UNO pin assignments for control pins
-// const uint8_t chipSelect = 10;
-// const uint8_t ejectPin = 17;
-// const uint8_t statusledPin = 18;
-
-// Don't actually use this, deprecated for simplicity
-// Set USE_SDIO to zero for SPI card access.
-//
-// Initialize at highest supported speed not over 50 MHz.
-// Reduce max speed if errors occur.
-
-/*
-   Set DISABLE_CHIP_SELECT to disable a second SPI device.
-   For example, with the Ethernet shield, set DISABLE_CHIP_SELECT
-   to 10 to disable the Ethernet controller.
-*/
-// const int8_t DISABLE_CHIP_SELECT = 0;  // -1
-//
-// Pin numbers in templates must be constants.
-
-
-/* Deprecated because I don't want to maintain two code paths
-#if USE_SDIO
-// Use faster SdioCardEX
-SdioCardEX sd;
-// SdioCard card;
-#else  // USE_SDIO
-Sd2Card sd;
-#endif  // USE_SDIO
-*/
-
-
-// SdFat sdcard;
-// Name the SD object different from the above "sd"
-// so that if we acciedntally use "sd" anywhere the
-// compiler will catch it
-//SdBaseFile sdf;
-//todo: dynamic(?) array of files selected by user
-//File partition1;
-
-//File sdf[4];
 
 
 //------------------------------------------------------------------------------
 
 
 // todo - make Receive and Send functions for ESP32
-// extern "C" unsigned char ReceivePacket(unsigned char*); //Receive smartport packet assembler function
-// extern "C" unsigned char SendPacket(unsigned char*);    //send smartport packet assembler function
-unsigned char spDevice::ReceivePacket(unsigned char *a) { return true; }
-unsigned char spDevice::SendPacket(unsigned char *a) { return true; }
+unsigned char spDevice::ReceivePacket(unsigned char *a) 
+{ 
+//*****************************************************************************
+// Function: ReceivePacket
+// Parameters: packet_buffer pointer
+// Returns: status (not used yet, always returns 0)
+//
+// Description: This handles the ACK and REQ lines and reads a packet into the 
+// packet_buffer
+// 
+//*****************************************************************************
+
+// ReceivePacket:
+//           mov  XL,r24                 ;mov buffer pointer into X 
+//           mov  XH,r25
+
+// a is the receive buffer
+
+//           sbi  _SFR_IO_ADDR(PORTC),5  ;set ACK high to signal we are ready to send
+//           ;ldi  r24,'A'                ;for debug, A indicates ACK is high
+//           ;call uart_putc              ;output to serial port
+  fnSystem.digital_write(SP_ACK, DIGI_HIGH);
+  Debug_print("A");
+
+//           clr  r21                    ;setup timeout counter
+//           ldi  r20,10                 ;two stage timer, around 1ms
+
+// 1:        sbic _SFR_IO_ADDR(PIND),2   ;1/2 wait for req line to go high
+//           rjmp start                  ;this indicates host is about to send packet   
+//           dec  r21                    ;1 
+//           brne 1b                     ;1/2
+//           dec  r20
+//           brne 1b
+//           rjmp timeout                ;yes, we have timed out
+
+while(!fnSystem.digital_read(SP_REQ));
+// todo add a time out
+
+// start:    ;ldi  r24,'R'                ;for debug, R indicates REQ is high
+//           ;call uart_putc              ;output to serial port
+Debug_print("R");
+//           ldi  r22,1                                                 ;1   remember tx line status when previously sampled
+//           sbis _SFR_IO_ADDR(PIND),7                                  ;1/2 wait for txd line to go low
+//           rjmp 2f                                                    ;2   txd cleared, start of packet data
+//           rjmp start                                                 ;2
+//                                                                  ;
+//                                                                      ;    wait for half a bit, 2us (28 cycles total) --> 32 cycles for 64Mhz
+//                                                                      ;    this is so we sample mid point  --> I think this is ok for 16Mhz                    
+// 2:        ldi  r24,10                                        ;1   |delay total of 30 cycles
+// 3:        dec  r24                                                   ;1   | each loop +3 final loop +2
+//           brne 3b                                                    ;1/2 | 1 + 9x3 + 1x2 = 30
+                                                                     
+// nxtbyte:                                                             ;    full cycle time for each byte is 32us
+//           ldi  r25,8                                                 ;1   8bits to read
+                                                               
+// nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
+//           rjmp bitset                                    ;3  ;3      ;2   bit is set
+//           rjmp bitclr                         ;4   ;4                ;2   bit is clr
+                                                                     
+// bitset:   sbrc r22,0                                     ;4  ;5      ;1/2 test previous bit recv'd
+//           rjmp carryclr                                  ;6          ;2   bit set, then we have a zero
+//           ldi  r22,1                                         ;6      ;1   remember prev tx bit is set
+//           sec                                                ;7      ;1   else we have a one
+//           nop                                                ;8      ;1
+//           nop                                                ;9      ;1
+//           rjmp loadbit                                       ;11     ;2
+                                                                     
+// bitclr:   sbrc r22,0                          ;5   ;6                ;1/2 test previous bit recv'd
+//           rjmp carryset                       ;7                     ;2   bit set, then we have a one
+//           ldi  r22,0                               ;7                ;1   remember prev tx bit is clr
+//           clc                                      ;8                ;1   else we have a zero
+//           nop                                      ;9                ;1
+//           rjmp loadbit                             ;11               ;2
+                                                                     
+// carryset: ldi  r22,0                          ;8                     ;1
+//           sec                                 ;9                     ;1   remember prev tx bit is clr
+//           rjmp loadbit                        ;11                    ;2
+                                                                     
+// carryclr: ldi  r22,1                                    ;7           ;1   remember prev tx bit is set
+//           clc                                           ;8           ;1
+//           nop                                           ;9           ;1
+//           nop                                           ;10          ;1
+//           nop                                           ;11          ;1
+                                                                     
+// loadbit:  rol  r23                            ;12  ;12  ;12  ;12     ;1   shift bit(carry) into r23
+//           dec  r25                            ;13  ;13  ;13  ;13     ;1   dec bit counter
+//           breq havebyte                       ;14  ;14  ;14  ;14     ;1/2 
+//                                                                      ;    delay to make up the rest of the 4us --> 64 cycles for 16Mhz (8 more)
+//                                      ;                                            2 more loops +2 nops      
+                                   
+//           ldi  r24,15                                                ;1   |delay total of 45 cycles
+// 3:        dec  r24                                                   ;1   | each loop +3 final loop +2
+//           brne 3b                                                    ;1/2 | 1 + 14x3 + 1x2 = 45
+//                                               ;59  ;59  ;59  ;59     
+//           nop                                 ;60  ;60  ;60  ;60     ;1
+//           nop                                 ;61  ;61  ;61  ;61     ;1
+//           nop                                 ;62  ;62  ;62  ;62     ;1
+//           rjmp nxtbit                         ;64  ;64  ;64  ;64     ;2   get next bit. --> 64 cycles = 4us for 16Mhz
+//                                              ;--------------------------------------
+// havebyte:                                                            
+//           st   x+,r23                         ;17                    ;2   save byte in buffer
+//           ldi  r25,100 ;era 100!!!!!!!!!                        ;18                    ;1   timeout counter if we are at the end
+//           cpi  r22,1                          ;19                    ;1   check for status of last bit    
+//           breq wasset                         ;20  ;21               ;1/2
+                                                                     
+// wasclr:   sbic _SFR_IO_ADDR(PIND),7           ;21                    ;1/2 now read a bit, wait for transition to 1         
+//           rjmp havesbit                       ;23                    ;2   now set, lets get the next byte
+//           dec  r25                                                   ;1
+//           breq endpkt                                                ;1/2 we have timed out, must be end of packet
+//           rjmp wasclr                                                ;2   lets test again
+                                                                     
+// wasset:   sbis _SFR_IO_ADDR(PIND),7                ;22               ;1/2 now read a bit, wait for transition to 0         
+//           rjmp havesbit                            ;24               ;2   now clr, lets get the next byte
+//           dec  r25                                                   ;1
+//           breq endpkt                                                ;1/2 we have timed out, must be end of packet
+//           rjmp wasset                                                ;2   lets test again
+                                                                     
+// havesbit:                                                            ;    wait for half a bit, 2us (28 cycles total) --> 32 cycles for 16MHz
+//                                                                      ;    this is so we sample mid point --> again, i think this was long before, so try as is
+//           ldi  r24,7                                                 ;1   |delay total of 21 cycles
+// 3:        dec  r24                                                   ;1   | each loop +3 final loop +2
+//           brne 3b                                                    ;1/2 | 1 + 6x3 + 1x2 = 21
+//                                               ;44  ;45             
+//           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
+
+// endpkt:   clr  r23     
+//           st   x+,r23               ;save zero byte in buffer to mark end
+          
+//           cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have recv'd the pkt
+//           ;ldi  r24,'a'                ;for debug, a indicates ACK is low
+//           ;call uart_putc              ;output to serial port
+
+// 1:        sbis _SFR_IO_ADDR(PIND),2   ;wait for REQ line to go low
+//           rjmp finish                 ;this indicates host has acknowledged ACK   
+//           rjmp 1b
+       
+// finish:   ;ldi  r24,'r'                ;for debug, r indicates REQ is low
+//           ;call uart_putc              ;output to serial port
+//           clr  r25                    ;return no error (for now)
+//           clr  r24
+//           ret
+          
+// timeout:  cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) back to low
+//           ldi  r24,1                  ;setup return value, 1=error
+//           clr  r25
+//           ret          
+
+  return true; 
+}
+unsigned char spDevice::SendPacket(unsigned char *a) 
+{
+
+//*****************************************************************************
+// Function: SendPacket
+// Parameters: packet_buffer pointer
+// Returns: status (not used yet, always returns 0)
+//
+// Description: This handles the ACK and REQ lines and sends the packet from the 
+// pointer passed to it. (packet_buffer)
+// 
+//*****************************************************************************
+/* 
+.global SendPacket
+ 
+SendPacket:
+          mov  XL,r24                 ;mov buffer pointer into X 
+          mov  XH,r25
+
+          sbi  _SFR_IO_ADDR(PORTC),5  ;set ACK high to signal we are ready to send
+          ;ldi  r24,'A'               ;for debug, A indicates ACK is high
+          ;call uart_putc             ;output to serial port
+
+1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
+          rjmp contin                 ;this indicates host is ready to receive packet   
+          ;ldi  r24,'r'               ;for debug, r indicates REQ is low
+          ;call uart_putc             ;output to serial port
+          rjmp 1b
+
+contin:   ;ldi  r24,'R'               ;for debug, R indicates REQ is high
+          ;call uart_putc             ;output to serial port
+;
+;                                     ;Totals for loops             ;
+;                           
+nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
+          cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
+          breq endspkt                ;61               ;45         ;1/2
+                                                                    
+          ldi  r25,8                  ;62               ;46         ;1   8bits to read
+                                                    ;Clr  ;Set
+nxtsbit:  sbrs r23,7                  ;64(Set) ;64      ;47   ;48   ;1/2 send bit 7 first  
+                                      ;63(Clr)                       
+          rjmp sbitclr                ;64+1             ;48+1       ;2   bit is clear
+          sbi  _SFR_IO_ADDR(PORTD),6                          ;2    ;2   set bit for 1us (14 cycles)-->16 cycles for 16Mhz(2 more)
+                                                                
+          ldi  r24,4                                                ;1   |delay total of 12 cycles
+3:        dec  r24                                                  ;1   | each loop +3 final loop +2
+          brne 3b                                                   ;1/2 | 1 + 3x3 + 1x2 = 11
+                                                              ;14                     
+          nop                                                 ;15   ;1
+          nop                                             ;16   ;1 
+                                                                    
+          cbi  _SFR_IO_ADDR(PORTD),6                          ;2    ;2   clr bit for 3us (42 cycles)-->48 cycles for 16Mhz(6 more)
+                                                                    ;                                            2 more loops
+          dec  r25                                            ;3    ;1   dec bit counter
+          breq nxtsbyt1                                       ;4    ;1/2
+          rol  r23                                            ;5    ;1
+                                                                    
+          ldi  r24,13                                               ;1   |delay total of 39 cycles
+3:        dec  r24                                                  ;1   |  each loop +3 final loop +2
+          brne 3b                                                   ;1/2 |  1 + 12x3 + 1x2 = 39
+                                                              ;44
+                                            
+          rjmp nxtsbit                                        ;46   ;2
+                                            
+nxtsbyt1:                                               ;5          ;    delay to makeup 3us (42 cycles total)-->48 cycles for 16Mhz(6 more)
+                                                                    ;                                            2 more loops
+          ldi  r24,11                                               ;1   |delay total of 33 cycles
+3:        dec  r24                                                  ;1   | each loop +3 final loop +2
+          brne 3b                                                   ;1/2 | 1 + 10x3 + 1x2 = 33
+                                                    ;38  
+          nop                                           ;39         ;1
+                                                             
+          rjmp nxtsbyte                                 ;41         ;2
+
+; bit is clr, we need to check if its the last one, otherwise delay for 4us before next bit
+sbitclr:  dec  r25                             ;2                   ;1   
+          breq nxtsbycl               ;4       ;3                   ;1/2 end of byte, delay then get nxt
+          rol  r23                             ;4                   ;1
+                                                                    ;    delay to makeup 4us (56 cycles total)-->64 cycles for 16Mhz(8 more)
+                                  ;                                            2 more loops +2 nops      
+          ldi  r24,18                                               ;1   |delay total of 54 cycles
+3:        dec  r24                                                  ;1   | each loop +3 final loop +2
+          brne 3b                                                   ;1/2 | 1 + 17x3 + 1x2 = 54
+                                               ;58
+          nop                                  ;59                  ;1
+          nop                                  ;60                ;1
+          rjmp nxtsbit                         ;62                  ;2
+                                                  
+nxtsbycl:                                                           ;    delay to makeup 4us (56 cycles total)-->64 cycles for 16Mhz(8 more)
+                                  ;                                            2 more loops +2 nops      
+                                                                    ;
+          ldi  r24,16                                               ;1   |delay total of 48 cycles
+3:        dec  r24                                                  ;1   | each loop +3 final loop +2
+          brne 3b                                                   ;1/2 | 1 + 15x3 + 1x2 = 48
+                                      ;52         
+          nop                         ;53                           ;1
+          nop                         ;54                           ;1
+          nop                         ;55                           ;1      
+                                                  
+          rjmp nxtsbyte               ;57                           ;2
+
+
+endspkt:  cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have sent the pkt
+          ;ldi  r24,'a'                ;for debug, a indicates ACK is low
+          ;call uart_putc              ;output to serial port
+          
+1:        ldi  r24,5
+          sbis _SFR_IO_ADDR(PIND),2   ;wait for REQ line to go low
+          rjmp finishs                ;this indicates host has acknowledged ACK   
+          dec  r24
+          brne 1b
+          rjmp error
+   
+finishs:  ;ldi  r24,'r'                ;for debug, r indicates REQ is low
+          ;call uart_putc              ;output to serial port
+          clr  r25
+          clr  r24                    ;return no error
+          ret
+
+error:    clr  r25
+          ldi  r24,1
+          ret
+ */
+
+   return true; 
+}
 
 //*****************************************************************************
 // Function: encode_data_packet
@@ -1144,9 +1216,10 @@ void spDevice::mcuInit(void)
   // #define SP_WRPROT   2
   // #define SP_ACK      2
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_ACK, DIGI_LOW);
   // #define SP_REQ      4
   // #define SP_PHI0     4
-  fnSystem.set_pin_mode(SP_REQ, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT);
   // #define SP_PHI1     13
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
   // #define SP_PHI2     16
@@ -1155,6 +1228,7 @@ void spDevice::mcuInit(void)
   fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT);
   // #define SP_RDDATA   21
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   // #define SP_WRDATA   22
   fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT);
 
@@ -1380,179 +1454,155 @@ void spDevice::spsd_setup() {
 //
 // Description: Main function for Apple //c Smartport Compact Flash adpater
 //*****************************************************************************
-
-
 void spDevice::spsd_loop() {
 
-  // ESP32 conversion note: the AVR version used direct port programming. 
-  // For now, ESP32 will use Arduino digital pin i/o commands.
-  // examples: https://randomnerdtutorials.com/esp32-digital-inputs-outputs-arduino/
-  // AVR port IO is commented out with "// old avr: "
+  state = smartport;
 
-  // put your main code here, to run repeatedly:
+  // todo if (digitalRead(ejectPin) == HIGH) rotate_boot();
+  // this should be handled with the button queue like the Atari version  
 
-  // unsigned long int block_num;
-  // unsigned char LBH, LBL, LBN, LBT, LBX;
+  noid = 0;  //reset noid flag
+  // todo DDRC = 0xDF; //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
 
-  // int number_partitions_initialised = 1;
-  // int noid = 0;
-  // int count;
-  // int ui_command;
-  // bool sdstato;
-  // unsigned char source, status, phases, status_code;
-  //Debug_print(("\r\nloop"));
+  // read phase lines to check for smartport reset or enable
+  phases = fnSystem.digital_read(SP_PHI3) << 3 |
+           fnSystem.digital_read(SP_PHI2) << 2 |
+           fnSystem.digital_read(SP_PHI1) << 1 |
+           fnSystem.digital_read(SP_PHI0);
 
-  // old avr: DDRD = 0x00;
+  if (reset_state && (phases != 0x05))
+  {
+    Debug_print(("Reset Cleared\r\n"));
+    number_partitions_initialised = 1;                           //reset number of partitions init'd
+    noid = 0;                                                    // to check if needed
+    for (partition = 0; partition < NUM_PARTITIONS; partition++) //clear device_id table
+      devices[partition].device_id = 0;
+    reset_state = false;
+  }
 
-  // old avr: PORTD &= ~(_BV(6));    // set RD low
-  // old esp arduino: digitalWrite(SP_RDDATA, LOW);
-  // fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
-  //todo - interrupts();
-  //while (1) {
-   
-    state = smartport;
+#ifdef DEBUG
+  if (phases != oldphase)
+  {
+    Debug_printf("\r\n%02x", phases);
+    oldphase = phases;
+  }
+#endif
 
-    // todo if (digitalRead(ejectPin) == HIGH) rotate_boot();
-    
-
-    noid = 0;  //reset noid flag
-    // todo DDRC = 0xDF; //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-
-    // read phase lines to check for smartport reset or enable
-    // old avr: phases = (PIND & 0x3c) >> 2;
-    phases =  fnSystem.digital_read(SP_PHI3) << 3 |
-              fnSystem.digital_read(SP_PHI2) << 2 | 
-              fnSystem.digital_read(SP_PHI1) << 1 | 
-              fnSystem.digital_read(SP_PHI0); 
-
-    if (reset_state && (phases !=0x05))
-    { 
-      Debug_print(("Reset Cleared\r\n"));
-      number_partitions_initialised = 1; //reset number of partitions init'd
-      noid = 0;   // to check if needed
-      for (partition = 0; partition < NUM_PARTITIONS; partition++) //clear device_id table
-        devices[partition].device_id = 0;
-      reset_state = false;
+  switch (phases)
+  {
+    // phase lines for smartport bus reset
+    // ph3=0 ph2=1 ph1=0 ph0=1
+  case 0x05:
+    if (!reset_state)
+      Debug_print(("\r\nReset\r\n"));
+    reset_state = true;
+    break;
+  // phase lines for smartport bus enable
+  // ph3=1 ph2=x ph1=1 ph0=x
+  case 0x0a:
+  case 0x0b:
+  case 0x0e:
+  case 0x0f:
+    Debug_print(("E ")); //this is timing sensitive, so can't print to much here as it takes to long
+    // todo - noInterrupts();
+    // todo DDRC = 0xFF;   //set ack to output, sp bus is enabled
+    if ((status = ReceivePacket((unsigned char *)packet_buffer)))
+    {
+      // todo - interrupts();
+      break; //error timeout, break and loop again
     }
+    // todo - interrupts();
 
-    //Debug_print(phases);
-    switch (phases) {
+    //Debug_print(("\r\nHere's our packet!"));
+    //print_packet ((unsigned char*) packet_buffer, packet_length());
 
-      // phase lines for smartport bus reset
-      // ph3=0 ph2=1 ph1=0 ph0=1
+    // lets check if the pkt is for us
+    if (packet_buffer[14] != 0x85) // if its an init pkt, then assume its for us and continue on
+    {
+      //Debug_print(("\r\nNot 0x85!"));
 
-      case 0x05:
-        Debug_print(("\r\nReset\r\n"));
-        reset_state = true;
-        //Debug_print(number_partitions_initialised);
-        // monitor phase lines for reset to clear
-        // old avr: while ((PIND & 0x3c) >> 2 == 0x05);
-        // unsigned char phases_temp;
-        // do
-        // {
-        //   phases_temp = fnSystem.digital_read(SP_PHI3) << 3 |
-        //       fnSystem.digital_read(SP_PHI2) << 2 | 
-        //       fnSystem.digital_read(SP_PHI1) << 1 | 
-        //       fnSystem.digital_read(SP_PHI0); 
-        // } while (phases_temp == 0x05);
-      // phase lines for smartport bus enable
-      // ph3=1 ph2=x ph1=1 ph0=x
-      case 0x0a:
-      case 0x0b:
-      case 0x0e:
-      case 0x0f:
-        Debug_print(("E ")); //this is timing sensitive, so can't print to much here as it takes to long
-        // todo - noInterrupts();
-        // todo DDRC = 0xFF;   //set ack to output, sp bus is enabled
-        if ((status = ReceivePacket( (unsigned char*) packet_buffer))) {
-          // todo - interrupts();
-          break;     //error timeout, break and loop again
-        }
-        // todo - interrupts();
+      // else check if its our one of our id's
+      for (partition = 0; partition < NUM_PARTITIONS; partition++)
+      {
+        if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id != packet_buffer[6]) //destination id
+          noid++;
+      }
+      if (noid == NUM_PARTITIONS) //not one of our id's
+      {
+        fnSystem.delay(100);
+        Debug_print(("\r\nNot our ID! "));
+        Debug_println(packet_buffer[6], HEX);
+        //printf_P(PSTR("\r\nnot ours\r\n") );
 
-        //Debug_print(("\r\nHere's our packet!"));
-        //print_packet ((unsigned char*) packet_buffer, packet_length());
-
-        // lets check if the pkt is for us
-        if (packet_buffer[14] != 0x85)  // if its an init pkt, then assume its for us and continue on
-        {
-          //Debug_print(("\r\nNot 0x85!"));
-          
-          // else check if its our one of our id's
-          for  (partition = 0; partition < NUM_PARTITIONS; partition++)
-          {
-            if ( devices[(partition + initPartition) % NUM_PARTITIONS].device_id != packet_buffer[6])  //destination id
-              noid++;
-          }
-          if (noid == NUM_PARTITIONS)  //not one of our id's
-          {
-            fnSystem.delay(100);
-            Debug_print(("\r\nNot our ID! "));
-            Debug_println(packet_buffer[6], HEX);
-            //printf_P(PSTR("\r\nnot ours\r\n") );
-
-            // todo - get ACK handshaking implemented. When not our ID, set ACK to high-Z, prepare it for LOW, then read it until it goes low
-/*             DDRC = 0xDF; //set ack to input, so lets not interfere
+        // todo - get ACK handshaking implemented. When not our ID, set ACK to high-Z, prepare it for LOW, then read it until it goes low
+        /*             DDRC = 0xDF; //set ack to input, so lets not interfere
             PORTC &= ~(_BV(5));   //set ack low, for next time its an output
             while (PINC & 0x20);  //wait till low other dev has finished receiving it */
-            //printf_P(PSTR("a ") );
-            //print_packet ((unsigned char*) packet_buffer, packet_length());
+        //printf_P(PSTR("a ") );
+        //print_packet ((unsigned char*) packet_buffer, packet_length());
 
-
-            //assume its a cmd packet, cmd code is in byte 14
-            //now we need to work out what type of packet and stay out of the way
-            Debug_println(packet_buffer[14],HEX);
-            switch (packet_buffer[14]) {
-              case 0x80:  //is a status cmd
-              case 0x83:  //is a format cmd
-              case 0x81:  //is a readblock cmd
-                // old avr: while (!(PINC & 0x20));   //wait till high
-                while (fnSystem.digital_read(SP_ACK) == DIGI_LOW);
-                Debug_print((("A ")) );
-                // old avr: while (PINC & 0x20);      //wait till low
-                while (fnSystem.digital_read(SP_ACK) == DIGI_HIGH);
-                Debug_print((("a ")) );
-                // old avr: while (!(PINC & 0x20));  //wait till high
-                while (fnSystem.digital_read(SP_ACK) == DIGI_LOW);
-                Debug_print((("A\r\n")) );
-                break;
-              case 0x82:  //is a writeblock cmd
-                // old avr: while (!(PINC & 0x20));   //wait till high
-                while (fnSystem.digital_read(SP_ACK) == DIGI_LOW);
-                Debug_print((("W ")) );
-                // old avr: while (PINC & 0x20);      //wait till low
-                while (fnSystem.digital_read(SP_ACK) == DIGI_HIGH);
-                Debug_print((("w ")) );
-                // old avr: while (!(PINC & 0x20));   //wait till high
-                while (fnSystem.digital_read(SP_ACK) == DIGI_LOW);
-                Debug_print((("W\r\n")) );
-                // old avr: while (PINC & 0x20);      //wait till low
-                while (fnSystem.digital_read(SP_ACK) == DIGI_HIGH);
-                Debug_print((("w ")) );
-                // old avr: while (!(PINC & 0x20));   //wait till high
-                while (fnSystem.digital_read(SP_ACK) == DIGI_LOW);
-                Debug_print(("W\r\n") );
-                break;
-            }
-            break;  //not one of ours
-          }
+        //assume its a cmd packet, cmd code is in byte 14
+        //now we need to work out what type of packet and stay out of the way
+        Debug_println(packet_buffer[14], HEX);
+        switch (packet_buffer[14])
+        {
+        case 0x80: //is a status cmd
+        case 0x83: //is a format cmd
+        case 0x81: //is a readblock cmd
+          // old avr: while (!(PINC & 0x20));   //wait till high
+          while (fnSystem.digital_read(SP_ACK) == DIGI_LOW)
+            ;
+          Debug_print((("A ")));
+          // old avr: while (PINC & 0x20);      //wait till low
+          while (fnSystem.digital_read(SP_ACK) == DIGI_HIGH)
+            ;
+          Debug_print((("a ")));
+          // old avr: while (!(PINC & 0x20));  //wait till high
+          while (fnSystem.digital_read(SP_ACK) == DIGI_LOW)
+            ;
+          Debug_print((("A\r\n")));
+          break;
+        case 0x82: //is a writeblock cmd
+          // old avr: while (!(PINC & 0x20));   //wait till high
+          while (fnSystem.digital_read(SP_ACK) == DIGI_LOW)
+            ;
+          Debug_print((("W ")));
+          // old avr: while (PINC & 0x20);      //wait till low
+          while (fnSystem.digital_read(SP_ACK) == DIGI_HIGH)
+            ;
+          Debug_print((("w ")));
+          // old avr: while (!(PINC & 0x20));   //wait till high
+          while (fnSystem.digital_read(SP_ACK) == DIGI_LOW)
+            ;
+          Debug_print((("W\r\n")));
+          // old avr: while (PINC & 0x20);      //wait till low
+          while (fnSystem.digital_read(SP_ACK) == DIGI_HIGH)
+            ;
+          Debug_print((("w ")));
+          // old avr: while (!(PINC & 0x20));   //wait till high
+          while (fnSystem.digital_read(SP_ACK) == DIGI_LOW)
+            ;
+          Debug_print(("W\r\n"));
+          break;
         }
-
-        //else it is ours, we need to handshake the packet
-        //Debug_print(("\r\nBW"));
-        // old avr: PORTC &= ~(_BV(5));   //set ack low
-        fnSystem.digital_write(SP_ACK, DIGI_LOW);
-         // old avr: while (PIND & 0x04);   //wait for req to go low
-        while (fnSystem.digital_read(SP_REQ) == DIGI_HIGH);
-        //Debug_println(F("\r\nAW"));
-        //Not safe to assume it's a normal command packet, GSOS may throw
-        //us several extended packets here and then crash 
-        //Refuse an extended packet
-        source = packet_buffer[6];
-        //Check if its one of ours and an extended packet
-        //Debug_println(packet_buffer[8], HEX);
-        //Debug_println(packet_buffer[14], HEX);
-        /*
+        break; //not one of ours
+      }
+    }
+      //else it is ours, we need to handshake the packet
+    //Debug_print(("\r\nBW"));
+    // old avr: PORTC &= ~(_BV(5));   //set ack low
+      fnSystem.digital_write(SP_ACK, DIGI_LOW);
+    // old avr: while (PIND & 0x04);   //wait for req to go low
+    while (fnSystem.digital_read(SP_REQ) == DIGI_HIGH);
+    //Debug_println(F("\r\nAW"));
+    //Not safe to assume it's a normal command packet, GSOS may throw
+    //us several extended packets here and then crash
+    //Refuse an extended packet
+    source = packet_buffer[6];
+    //Check if its one of ours and an extended packet
+    //Debug_println(packet_buffer[8], HEX);
+    //Debug_println(packet_buffer[14], HEX);
+    /*
         if(is_ours(source) && packet_buffer[8] >= 0xC0 && packet_buffer[14] >= 0xC0) { 
           Debug_print(("\r\nRefusing extended packet! "));
           Debug_print(source, HEX);
@@ -1568,27 +1618,29 @@ void spDevice::spsd_loop() {
           delay(100);
           break;
         }*/
-        
-          
-        //assume its a cmd packet, cmd code is in byte 14
-        //Debug_print(("\r\nCMD:"));
-        //Debug_print(packet_buffer[14],HEX);
-        //print_packet ((unsigned char*) packet_buffer,packet_length());
-        if(packet_buffer[14]>=0xC0){
-           // Debug_print(("\r\nExtended packet!"));
-           // Debug_print(("\r\nHere's our packet!"));
-           // print_packet ((unsigned char*) packet_buffer, packet_length());
-           // delay(50);
-        }
 
-        switch (packet_buffer[14]) {
+    //assume its a cmd packet, cmd code is in byte 14
+    //Debug_print(("\r\nCMD:"));
+    //Debug_print(packet_buffer[14],HEX);
+    //print_packet ((unsigned char*) packet_buffer,packet_length());
+    if (packet_buffer[14] >= 0xC0)
+    {
+      // Debug_print(("\r\nExtended packet!"));
+      // Debug_print(("\r\nHere's our packet!"));
+      // print_packet ((unsigned char*) packet_buffer, packet_length());
+      // delay(50);
+    }
 
-          case 0x80:  //is a status cmd
-            fnLedManager.set(eLed::LED_BUS, true);
-            //fnSystem.digital_write(statusledPin, DIGI_HIGH);
-            source = packet_buffer[6];
-            for (partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
-            /* todo - restore status checking and response 
+    switch (packet_buffer[14])
+    {
+
+    case 0x80: //is a status cmd
+      fnLedManager.set(eLed::LED_BUS, true);
+      //fnSystem.digital_write(statusledPin, DIGI_HIGH);
+      source = packet_buffer[6];
+      for (partition = 0; partition < NUM_PARTITIONS; partition++)
+      { //Check if its one of ours
+        /* todo - restore status checking and response 
               if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source
                 && devices[(partition + initPartition) % NUM_PARTITIONS].sdf.isOpen() ) {  //yes it is, and it's online, then reply
                 //Added (unsigned short) cast to ensure calculated block is not underflowing.
@@ -1628,65 +1680,69 @@ void spDevice::spsd_loop() {
                 //print_packet ((unsigned char*) packet_buffer,packet_length());
                 digitalWrite(statusledPin, LOW);
               }
-            */           
-             }
-            break;
+            */
+      }
+      break;
 
-
-          /*case 0xC1:
+    /*case 0xC1:
             Debug_print(("\r\nExtended read! Not implemented!"));
             break;*/
-          case 0xC2:
-            Debug_print(("\r\nExtended write! Not implemented!"));
-            break;
-          case 0xC3:
-            Debug_print(("\r\nExtended format! Not implemented!"));
-            break;
-          case 0xC5:
-            Debug_print(("\r\nExtended init! Not implemented!"));
-            break;
+    case 0xC2:
+      Debug_print(("\r\nExtended write! Not implemented!"));
+      break;
+    case 0xC3:
+      Debug_print(("\r\nExtended format! Not implemented!"));
+      break;
+    case 0xC5:
+      Debug_print(("\r\nExtended init! Not implemented!"));
+      break;
 
-          case 0xC0:  //Extended status cmd
-            fnLedManager.set(eLed::LED_BUS, true);
-            // fnSystem.digital_write(statusledPin, DIGI_HIGH);
-            source = packet_buffer[6];
-            //Debug_println(source, HEX);
-            for (partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
-              if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source) {  //yes it is, then reply
-                //Added (unsigned short) cast to ensure calculated block is not underflowing.
-                status_code = (packet_buffer[21] & 0x7f);
-                 Debug_print(("\r\nExtended Status CMD:"));
-                 Debug_print(status_code, HEX);
-                 print_packet ((unsigned char*) packet_buffer,packet_length());
-                 if (status_code == 0x03) { // if statcode=3, then status with device info block
-                  Debug_println(("Extended status DIB!"));
-                } else {  // else just return device status
-                  //Debug_print(("\r\nExtended status non-DIB! Part: "));
-                  //Debug_print(partition, HEX);
-                  //Debug_print((" code: "));
-                  //Debug_print(status_code, HEX);
-                  //delay(50);
-                  encode_extended_status_reply_packet(devices[(partition + initPartition) % NUM_PARTITIONS]);        
-                }
-                // todo - noInterrupts();
-                // todo - DDRD = 0x40; //set rd as output
-                status = SendPacket( (unsigned char*) packet_buffer);
-                // todo - DDRD = 0x00; //set rd back to input so back to tristate
-                // todo - interrupts();
-                //printf_P(PSTR("\r\nSent Packet Data\r\n") );
-                //print_packet ((unsigned char*) packet_buffer,packet_length());
-                //Debug_print(("\r\nStatus CMD"));
-                //fnSystem.digital_write(statusledPin, DIGI_LOW);
-                fnLedManager.set(eLed::LED_BUS,false);
-              }
-            }
-            //Debug_print(("\r\nHere's our reply!"));
-            //print_packet ((unsigned char*) packet_buffer, packet_length());
-            //*/
-            break;  
+    case 0xC0: //Extended status cmd
+      fnLedManager.set(eLed::LED_BUS, true);
+      // fnSystem.digital_write(statusledPin, DIGI_HIGH);
+      source = packet_buffer[6];
+      //Debug_println(source, HEX);
+      for (partition = 0; partition < NUM_PARTITIONS; partition++)
+      { //Check if its one of ours
+        if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source)
+        { //yes it is, then reply
+          //Added (unsigned short) cast to ensure calculated block is not underflowing.
+          status_code = (packet_buffer[21] & 0x7f);
+          Debug_print(("\r\nExtended Status CMD:"));
+          Debug_print(status_code, HEX);
+          print_packet((unsigned char *)packet_buffer, packet_length());
+          if (status_code == 0x03)
+          { // if statcode=3, then status with device info block
+            Debug_println(("Extended status DIB!"));
+          }
+          else
+          { // else just return device status
+            //Debug_print(("\r\nExtended status non-DIB! Part: "));
+            //Debug_print(partition, HEX);
+            //Debug_print((" code: "));
+            //Debug_print(status_code, HEX);
+            //delay(50);
+            encode_extended_status_reply_packet(devices[(partition + initPartition) % NUM_PARTITIONS]);
+          }
+          // todo - noInterrupts();
+          // todo - DDRD = 0x40; //set rd as output
+          status = SendPacket((unsigned char *)packet_buffer);
+          // todo - DDRD = 0x00; //set rd back to input so back to tristate
+          // todo - interrupts();
+          //printf_P(PSTR("\r\nSent Packet Data\r\n") );
+          //print_packet ((unsigned char*) packet_buffer,packet_length());
+          //Debug_print(("\r\nStatus CMD"));
+          //fnSystem.digital_write(statusledPin, DIGI_LOW);
+          fnLedManager.set(eLed::LED_BUS, false);
+        }
+      }
+      //Debug_print(("\r\nHere's our reply!"));
+      //print_packet ((unsigned char*) packet_buffer, packet_length());
+      //*/
+      break;
 
-          case 0xC1:  //extended readblock cmd
-            /*Debug_print(("\r\nExtended read!"));
+    case 0xC1: //extended readblock cmd
+      /*Debug_print(("\r\nExtended read!"));
             source = packet_buffer[6];
             //Debug_print("\r\nDrive ");
             //Debug_print(source,HEX);
@@ -1742,39 +1798,41 @@ void spDevice::spsd_loop() {
             }
             break;
             */
-        
-          case 0x81:  //is a readblock cmd
 
-            source = packet_buffer[6];
-            //Debug_print("\r\nDrive ");
-            //Debug_print(source,HEX);
-            LBH = packet_buffer[16]; //high order bits
-            LBT = packet_buffer[21]; //block number high
-            LBL = packet_buffer[20]; //block number middle
-            LBN = packet_buffer[19]; //block number low
-            for (partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
-              if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source) {  //yes it is, then do the read
-                // block num 1st byte
-                //Added (unsigned short) cast to ensure calculated block is not underflowing.
-                block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
-                // block num second byte
-                //print_packet ((unsigned char*) packet_buffer,packet_length());
-                //Added (unsigned short) cast to ensure calculated block is not underflowing.
-                block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
-                block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
-                //Debug_print(("\r\nRead block #0x"));
-                //Debug_print(block_num, HEX);
-                // partition number indicates which 32mb block we access on the CF
-                // block_num = block_num + (((partition + initPartition) % 4) * 65536);
+    case 0x81: //is a readblock cmd
 
-                fnLedManager.set(eLed::LED_BUS, true);
-                //fnSystem.digital_write(statusledPin, DIGI_HIGH);
-                /*Debug_print(("\r\nID: "));
+      source = packet_buffer[6];
+      //Debug_print("\r\nDrive ");
+      //Debug_print(source,HEX);
+      LBH = packet_buffer[16]; //high order bits
+      LBT = packet_buffer[21]; //block number high
+      LBL = packet_buffer[20]; //block number middle
+      LBN = packet_buffer[19]; //block number low
+      for (partition = 0; partition < NUM_PARTITIONS; partition++)
+      { //Check if its one of ours
+        if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source)
+        { //yes it is, then do the read
+          // block num 1st byte
+          //Added (unsigned short) cast to ensure calculated block is not underflowing.
+          block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
+          // block num second byte
+          //print_packet ((unsigned char*) packet_buffer,packet_length());
+          //Added (unsigned short) cast to ensure calculated block is not underflowing.
+          block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
+          block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
+          //Debug_print(("\r\nRead block #0x"));
+          //Debug_print(block_num, HEX);
+          // partition number indicates which 32mb block we access on the CF
+          // block_num = block_num + (((partition + initPartition) % 4) * 65536);
+
+          fnLedManager.set(eLed::LED_BUS, true);
+          //fnSystem.digital_write(statusledPin, DIGI_HIGH);
+          /*Debug_print(("\r\nID: "));
                 Debug_print(source);
                 Debug_print(("Read Block: "));
                 Debug_print(block_num);*/
 
-                /* todo - restore file i/o
+          /* todo - restore file i/o
                 if (!devices[(partition + initPartition) % NUM_PARTITIONS].sdf.seekSet(block_num*512)){
                   Debug_print(("\r\nRead seek err!"));
                   Debug_print(("\r\nPartition #"));
@@ -1788,56 +1846,60 @@ void spDevice::spsd_loop() {
                   }
                 } 
                 */
-                
-                /* todo - restore block reading
+
+          /* todo - restore block reading
                 sdstato = devices[(partition + initPartition) % NUM_PARTITIONS].sdf.read((unsigned char*) packet_buffer, 512);    //Reading block from SD Card
                 if (!sdstato) {
                   Debug_print(("\r\nRead err!"));
                 } 
                 */
-                encode_data_packet(source);
-                //Debug_print(("\r\nPrepared data packet before Sending\r\n") );
-                // todo - noInterrupts();
-                // todo -DDRD = 0x40; //set rd as output
-                status = SendPacket( (unsigned char*) packet_buffer);
-                // todo -DDRD = 0x00; //set rd back to input so back to tristate
-                // todo - interrupts();
-                //if (status == 1)Debug_print(("\r\nSent err."));
-                //fnSystem.digital_write(statusledPin, DIGI_LOW);
-                fnLedManager.set(eLed::LED_BUS, false); 
+          encode_data_packet(source);
+          //Debug_print(("\r\nPrepared data packet before Sending\r\n") );
+          // todo - noInterrupts();
+          // todo -DDRD = 0x40; //set rd as output
+          status = SendPacket((unsigned char *)packet_buffer);
+          // todo -DDRD = 0x00; //set rd back to input so back to tristate
+          // todo - interrupts();
+          //if (status == 1)Debug_print(("\r\nSent err."));
+          //fnSystem.digital_write(statusledPin, DIGI_LOW);
+          fnLedManager.set(eLed::LED_BUS, false);
 
-                //Debug_print(status);
-                //print_packet ((unsigned char*) packet_buffer,packet_length());
-                //print_packet ((unsigned char*) sector_buffer,15);
-              }
-            }
-            break;
+          //Debug_print(status);
+          //print_packet ((unsigned char*) packet_buffer,packet_length());
+          //print_packet ((unsigned char*) sector_buffer,15);
+        }
+      }
+      break;
 
-          case 0x82:  //is a writeblock cmd
-            source = packet_buffer[6];
-            for (partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
-              if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source) {  //yes it is, then do the write
-                // block num 1st byte
-                //Added (unsigned short) cast to ensure calculated block is not underflowing.
-                block_num = (packet_buffer[19] & 0x7f) | (((unsigned short)packet_buffer[16] << 3) & 0x80);
-                // block num second byte
-                //Added (unsigned short) cast to ensure calculated block is not underflowing.
-                block_num = block_num + (((packet_buffer[20] & 0x7f) | (((unsigned short)packet_buffer[16] << 4) & 0x80)) * 256);
-                //get write data packet, keep trying until no timeout
-                // todo - noInterrupts();
-                // todo -DDRC = 0xFF;   //set ack to output, sp bus is enabled
-                while ((status = ReceivePacket( (unsigned char*) packet_buffer)));
-                // todo - interrupts();
-                //we need to handshake the packet
-                // old avr: PORTC &= ~(_BV(5));   //set ack low
-                fnSystem.digital_write(SP_ACK, DIGI_LOW);
-                // old avr: while (PIND & 0x04);   //wait for req to go low
-                while (fnSystem.digital_read(SP_REQ) == DIGI_HIGH);
-                // partition number indicates which 32mb block we access on the CF
-                // TODO: replace this with a lookup to get file object from partition number
-                // block_num = block_num + (((partition + initPartition) % 4) * 65536);
-                status = decode_data_packet();
-                /* todo - restore block writing
+    case 0x82: //is a writeblock cmd
+      source = packet_buffer[6];
+      for (partition = 0; partition < NUM_PARTITIONS; partition++)
+      { //Check if its one of ours
+        if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source)
+        { //yes it is, then do the write
+          // block num 1st byte
+          //Added (unsigned short) cast to ensure calculated block is not underflowing.
+          block_num = (packet_buffer[19] & 0x7f) | (((unsigned short)packet_buffer[16] << 3) & 0x80);
+          // block num second byte
+          //Added (unsigned short) cast to ensure calculated block is not underflowing.
+          block_num = block_num + (((packet_buffer[20] & 0x7f) | (((unsigned short)packet_buffer[16] << 4) & 0x80)) * 256);
+          //get write data packet, keep trying until no timeout
+          // todo - noInterrupts();
+          // todo -DDRC = 0xFF;   //set ack to output, sp bus is enabled
+          while ((status = ReceivePacket((unsigned char *)packet_buffer)))
+            ;
+          // todo - interrupts();
+          //we need to handshake the packet
+          // old avr: PORTC &= ~(_BV(5));   //set ack low
+          fnSystem.digital_write(SP_ACK, DIGI_LOW);
+          // old avr: while (PIND & 0x04);   //wait for req to go low
+          while (fnSystem.digital_read(SP_REQ) == DIGI_HIGH)
+            ;
+          // partition number indicates which 32mb block we access on the CF
+          // TODO: replace this with a lookup to get file object from partition number
+          // block_num = block_num + (((partition + initPartition) % 4) * 65536);
+          status = decode_data_packet();
+          /* todo - restore block writing
                 if (status == 0) { //ok
                   //write block to CF card
                   //Debug_print(("\r\nWrite Bl. n.r: "));
@@ -1856,75 +1918,79 @@ void spDevice::spsd_loop() {
                   }
                 } 
                 */
-                //now return status code to host
-                encode_write_status_packet(source, status);
-                // todo - noInterrupts();
-                // todo DDRD = 0x40; //set rd as output
-                status = SendPacket( (unsigned char*) packet_buffer);
-                // todo DDRD = 0x00; //set rd back to input so back to tristate
-                // todo - interrupts();
-                //Debug_print(("\r\nSent status Packet Data\r\n") );
-                //print_packet ((unsigned char*) sector_buffer,512);
+          //now return status code to host
+          encode_write_status_packet(source, status);
+          // todo - noInterrupts();
+          // todo DDRD = 0x40; //set rd as output
+          status = SendPacket((unsigned char *)packet_buffer);
+          // todo DDRD = 0x00; //set rd back to input so back to tristate
+          // todo - interrupts();
+          //Debug_print(("\r\nSent status Packet Data\r\n") );
+          //print_packet ((unsigned char*) sector_buffer,512);
 
-                //print_packet ((unsigned char*) packet_buffer,packet_length());
-              }
-              //fnSystem.digital_write(statusledPin, DIGI_LOW);
-              fnLedManager.set(eLed::LED_BUS, false);
-
-            }
-            break;
-
-          case 0x83:  //is a format cmd
-            source = packet_buffer[6];
-            for (partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
-              if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source) {  //yes it is, then reply to the format cmd
-                encode_init_reply_packet(source, 0x80); //just send back a successful response
-                // todo - noInterrupts();
-                // todo DDRD = 0x40; //set rd as output
-                status = SendPacket( (unsigned char*) packet_buffer);
-                // todo - interrupts();
-                // todo DDRD = 0x00; //set rd back to input so back to tristate
-                //Debug_print(("\r\nFormattato!!!\r\n") );
-                //print_packet ((unsigned char*) packet_buffer,packet_length());
-              }
-            }
-            break;
-
-          case 0x85:  //is an init cmd
-
-            source = packet_buffer[6];
-
-            if (number_partitions_initialised < NUM_PARTITIONS) { //are all init'd yet
-              devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
-              number_partitions_initialised++;
-              status = 0x80;         //no, so status=0
-            }
-            else if (number_partitions_initialised == NUM_PARTITIONS) { // the last one
-              devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
-              number_partitions_initialised++;
-              status = 0xff;         //yes, so status=non zero
-            }
-
-            encode_init_reply_packet(source, status);
-            //print_packet ((unsigned char*) packet_buffer,packet_length());
-
-            // todo - noInterrupts();
-            // todo DDRD = 0x40; //set rd as output
-            status = SendPacket( (unsigned char*) packet_buffer);
-            // todo DDRD = 0x00; //set rd back to input so back to tristate
-            // todo - interrupts();
-
-            //print_packet ((unsigned char*) packet_buffer,packet_length());
-
-            if (number_partitions_initialised - 1 == NUM_PARTITIONS) {
-              for (partition = 0; partition < NUM_PARTITIONS; partition++) {
-                Debug_print(("\r\nDrive: "));
-                Debug_print(devices[(partition + initPartition) % NUM_PARTITIONS].device_id, HEX);
-              }
-            }
-            break;          
-            
+          //print_packet ((unsigned char*) packet_buffer,packet_length());
         }
+        //fnSystem.digital_write(statusledPin, DIGI_LOW);
+        fnLedManager.set(eLed::LED_BUS, false);
+      }
+      break;
+
+    case 0x83: //is a format cmd
+      source = packet_buffer[6];
+      for (partition = 0; partition < NUM_PARTITIONS; partition++)
+      { //Check if its one of ours
+        if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source)
+        {                                         //yes it is, then reply to the format cmd
+          encode_init_reply_packet(source, 0x80); //just send back a successful response
+          // todo - noInterrupts();
+          // todo DDRD = 0x40; //set rd as output
+          status = SendPacket((unsigned char *)packet_buffer);
+          // todo - interrupts();
+          // todo DDRD = 0x00; //set rd back to input so back to tristate
+          //Debug_print(("\r\nFormattato!!!\r\n") );
+          //print_packet ((unsigned char*) packet_buffer,packet_length());
+        }
+      }
+      break;
+
+    case 0x85: //is an init cmd
+
+      source = packet_buffer[6];
+
+      if (number_partitions_initialised < NUM_PARTITIONS)
+      {                                                                                                   //are all init'd yet
+        devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
+        number_partitions_initialised++;
+        status = 0x80; //no, so status=0
+      }
+      else if (number_partitions_initialised == NUM_PARTITIONS)
+      {                                                                                                   // the last one
+        devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
+        number_partitions_initialised++;
+        status = 0xff; //yes, so status=non zero
+      }
+
+      encode_init_reply_packet(source, status);
+      //print_packet ((unsigned char*) packet_buffer,packet_length());
+
+      // todo - noInterrupts();
+      // todo DDRD = 0x40; //set rd as output
+      status = SendPacket((unsigned char *)packet_buffer);
+      // todo DDRD = 0x00; //set rd back to input so back to tristate
+      // todo - interrupts();
+
+      //print_packet ((unsigned char*) packet_buffer,packet_length());
+
+      if (number_partitions_initialised - 1 == NUM_PARTITIONS)
+      {
+        for (partition = 0; partition < NUM_PARTITIONS; partition++)
+        {
+          Debug_print(("\r\nDrive: "));
+          Debug_print(devices[(partition + initPartition) % NUM_PARTITIONS].device_id, HEX);
+        }
+      }
+      break;
     }
+  }
   //}
 }
