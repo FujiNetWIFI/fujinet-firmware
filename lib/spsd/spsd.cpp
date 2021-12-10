@@ -84,7 +84,7 @@ IDC20   IIc     DB 19     Arduino
 
 #include <string.h>
 
-#undef VERBOSE_RX
+#define VERBOSE_RX
 
 //------------------------------------------------------------------------------
 
@@ -262,13 +262,15 @@ while (1)
   Debug_printf("%02x ", rxbyte);
 
   //           ldi  r25,100 ;era 100!!!!!!!!!                        ;18                    ;1   timeout counter if we are at the end
-  //           cpi  r22,1                          ;19                    ;1   check for status of last bit
+  int64_t start = esp_timer_get_time();
+  int64_t end = start + 32;
+  
+    //           cpi  r22,1                          ;19                    ;1   check for status of last bit
   if (!prevbit)
   //           breq wasset                         ;20  ;21               ;1/2
   {
     // wasclr:   sbic _SFR_IO_ADDR(PIND),7           ;21                    ;1/2 now read a bit, wait for transition to 1
-    while (!fnSystem.digital_read(SP_WRDATA))
-      ;
+    while ((!fnSystem.digital_read(SP_WRDATA)) && (esp_timer_get_time() < end));
     //           rjmp havesbit                       ;23                    ;2   now set, lets get the next byte
     //           dec  r25                                                   ;1
     //           breq endpkt                                                ;1/2 we have timed out, must be end of packet
@@ -278,8 +280,7 @@ while (1)
   else
   {
     // wasset:   sbis _SFR_IO_ADDR(PIND),7                ;22               ;1/2 now read a bit, wait for transition to 0
-    while (fnSystem.digital_read(SP_WRDATA))
-      ;
+    while (fnSystem.digital_read(SP_WRDATA) && (esp_timer_get_time() < end));
     //           rjmp havesbit                            ;24               ;2   now clr, lets get the next byte
     //           dec  r25                                                   ;1
     //           breq endpkt                                                ;1/2 we have timed out, must be end of packet
@@ -287,6 +288,8 @@ while (1)
     //           rjmp wasset                                                ;2   lets test again
   }
 
+  if (esp_timer_get_time() > end)
+    break;
   // havesbit:                                                            ;    wait for half a bit, 2us (28 cycles total) --> 32 cycles for 16MHz
   //                                                                      ;    this is so we sample mid point --> again, i think this was long before, so try as is
   //           ldi  r24,7                                                 ;1   |delay total of 21 cycles
