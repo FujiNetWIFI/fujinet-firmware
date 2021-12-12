@@ -74,6 +74,7 @@ IDC20   IIc     DB 19     Arduino
 #define SP_RDDATA   21
 #define SP_WRDATA   33
 
+#include "esp_timer.h"
 
 #include "../../include/debug.h"
 #include "fnSystem.h"
@@ -2095,4 +2096,29 @@ void spDevice::spsd_loop() {
     }
   }
   //}
+}
+
+void spDevice::timer_example()
+{
+  fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT);
+  // uint8_t o = DIGI_LOW;
+  int64_t t0 = esp_timer_get_time();
+  int64_t tn;
+  while(1)
+  {
+    //fnSystem.digital_write(PIN_INT,o);
+    GPIO.out_w1ts = ((uint32_t)1 << PIN_INT);
+    // o = (~o);
+    tn = t0 + 3;
+    do
+    {
+    t0 = esp_timer_get_time(); 
+    } while (t0<=tn);
+    GPIO.out_w1tc = ((uint32_t)1 << PIN_INT);
+    tn = t0 + 3;
+    do
+    {
+    t0 = esp_timer_get_time(); 
+    } while (t0<=tn);
+  }
 }
