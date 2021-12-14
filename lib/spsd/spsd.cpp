@@ -75,6 +75,8 @@ IDC20   IIc     DB 19     Arduino
 #define SP_WRDATA   33
 
 #include "esp_timer.h"
+#include "driver/timer.h"
+#include "soc/timer_group_reg.h"
 
 #include "../../include/debug.h"
 #include "fnSystem.h"
@@ -2098,7 +2100,7 @@ void spDevice::spsd_loop() {
   //}
 }
 
-void spDevice::timer_example()
+void spDevice::timer_1us_example()
 {
   fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT);
   // uint8_t o = DIGI_LOW;
@@ -2120,5 +2122,73 @@ void spDevice::timer_example()
     {
     t0 = esp_timer_get_time(); 
     } while (t0<=tn);
+  }
+}
+
+#define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
+#define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
+
+void spDevice::timer_config()
+{
+  timer_config_t config;
+  config.divider = TIMER_DIVIDER; // default clock source is APB
+  config.counter_dir = TIMER_COUNT_UP;
+  config.counter_en = TIMER_PAUSE;
+  config.alarm_en = TIMER_ALARM_DIS;
+
+  /* Timer's counter will initially start from value below.
+       Also, if auto_reload is set, this value will be automatically reload on alarm */
+  timer_init(TIMER_GROUP_1, TIMER_0, &config);
+  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+  
+  timer_start(TIMER_GROUP_1, TIMER_0);
+  while (1)
+  {
+    uint64_t task_counter_value;
+    timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &task_counter_value);
+
+    // hardware register reading .. 
+    //TIMG_T1UPDATE_REG(1) - register to write to latch counter value
+
+    Debug_printf("\r\n%019llu", task_counter_value);
+  }
+}
+
+
+#define DELAY 50
+
+void spDevice::hw_timer_pulses()
+{
+  fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT);
+  
+  timer_config_t config;
+  config.divider = TIMER_DIVIDER; // default clock source is APB
+  config.counter_dir = TIMER_COUNT_UP;
+  config.counter_en = TIMER_PAUSE;
+  config.alarm_en = TIMER_ALARM_DIS;
+
+  /* Timer's counter will initially start from value below.
+       Also, if auto_reload is set, this value will be automatically reload on alarm */
+  timer_init(TIMER_GROUP_1, TIMER_0, &config);
+  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+
+
+  uint64_t t0 = 0;
+  uint64_t tn = t0 + DELAY;
+  timer_start(TIMER_GROUP_1, TIMER_0);
+  while (1)
+  {
+    do
+    {
+      timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &t0);
+    } while (t0 < tn);
+    GPIO.out_w1tc = ((uint32_t)1 << PIN_INT);
+     tn = t0 + DELAY;
+    do
+    {
+      timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &t0);
+    } while (t0 < tn);
+    GPIO.out_w1ts = ((uint32_t)1 << PIN_INT);
+    tn = t0 + DELAY;
   }
 }

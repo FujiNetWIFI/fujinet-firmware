@@ -91,7 +91,9 @@ bool open_image( device &d, std::string filename );
 bool is_ours(unsigned char source);
 void spsd_setup();
 void spsd_loop();
-void timer_example();
+void timer_1us_example();
+void timer_config();
+void hw_timer_pulses();
 };
 
 #endif // guard
