@@ -30,7 +30,7 @@
 
 class adamNetBus;
 class adamFuji;     // declare here so can reference it, but define in fuji.h
-
+class adamPrinter;
 
 /**
  * @brief Calculate checksum for AdamNet packets. Uses a simple 8-bit XOR of each successive byte.
@@ -163,6 +163,7 @@ private:
     std::map<uint8_t, adamNetDevice *> _daisyChain;
     adamNetDevice *_activeDev = nullptr;
     adamFuji *_fujiDev = nullptr;
+    adamPrinter *_printerDev = nullptr;
 
     void _adamnet_process_cmd();
     void _adamnet_process_queue();
