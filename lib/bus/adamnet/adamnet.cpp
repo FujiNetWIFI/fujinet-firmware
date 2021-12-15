@@ -239,10 +239,16 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
     pDevice->_devnum = device_id;
     _daisyChain[device_id] = pDevice;
 
-    if (device_id == 0x0f)
+    switch (device_id)
     {
+        case 0x02:
+        _printerDev = (adamPrinter *)pDevice;
+        break;
+        case 0x0f:
         _fujiDev = (adamFuji *)pDevice;
+        break;
     }
+
 }
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)
@@ -251,12 +257,7 @@ void adamNetBus::remDevice(adamNetDevice *pDevice)
 
 int adamNetBus::numDevices()
 {
-    int i = 0;
-    __BEGIN_IGNORE_UNUSEDVARS
-    for (auto devicep : _daisyChain)
-        i++;
-    return i;
-    __END_IGNORE_UNUSEDVARS
+    return _daisyChain.size();
 }
 
 void adamNetBus::changeDeviceId(adamNetDevice *p, int device_id)
