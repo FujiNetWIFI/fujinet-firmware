@@ -94,6 +94,7 @@ void spsd_loop();
 void timer_1us_example();
 void timer_config();
 void hw_timer_pulses();
+void hw_timer_direct_reg();
 };
 
 #endif // guard

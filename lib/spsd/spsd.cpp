@@ -2155,7 +2155,7 @@ void spDevice::timer_config()
 }
 
 
-#define DELAY 50
+#define DELAY 159
 
 void spDevice::hw_timer_pulses()
 {
@@ -2172,23 +2172,63 @@ void spDevice::hw_timer_pulses()
   timer_init(TIMER_GROUP_1, TIMER_0, &config);
   timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
 
-
-  uint64_t t0 = 0;
-  uint64_t tn = t0 + DELAY;
+  uint32_t t0 = 0;
+  uint32_t tn = t0 + DELAY;
   timer_start(TIMER_GROUP_1, TIMER_0);
   while (1)
   {
     do
     {
-      timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &t0);
+      // timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &t0);
+      WRITE_PERI_REG(TIMG_T0UPDATE_REG(1), 0); // 0x3FF6000C
+      t0 = READ_PERI_REG(TIMG_T0LO_REG(1));    // 0x3FF60004
     } while (t0 < tn);
     GPIO.out_w1tc = ((uint32_t)1 << PIN_INT);
-     tn = t0 + DELAY;
+    tn = t0 + DELAY + 1;
     do
     {
-      timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &t0);
+      // timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &t0);
+      WRITE_PERI_REG(TIMG_T0UPDATE_REG(1), 0); // 0x3FF6000C
+      t0 = READ_PERI_REG(TIMG_T0LO_REG(1));    // 0x3FF60004
     } while (t0 < tn);
     GPIO.out_w1ts = ((uint32_t)1 << PIN_INT);
-    tn = t0 + DELAY;
+    tn = t0 + DELAY - 1;
   }
 }
+
+void spDevice::hw_timer_direct_reg()
+{
+  timer_config_t config;
+  config.divider = TIMER_DIVIDER; // default clock source is APB
+  config.counter_dir = TIMER_COUNT_UP;
+  config.counter_en = TIMER_PAUSE;
+  config.alarm_en = TIMER_ALARM_DIS;
+
+  /* Timer's counter will initially start from value below.
+       Also, if auto_reload is set, this value will be automatically reload on alarm */
+  timer_init(TIMER_GROUP_1, TIMER_0, &config);
+  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+
+
+  uint64_t t0 = 0;
+  uint32_t tlo;
+  timer_start(TIMER_GROUP_1, TIMER_0);
+  while (1)
+  {
+      timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &t0);
+      // WRITE_PERI_REG(TIMG_T0UPDATE_REG(0),0);
+      //tlo = READ_PERI_REG(TIMG_T0LO_REG(0)); 
+      //Debug_printf("%lu ", tlo);
+      // WRITE_PERI_REG(TIMG_T1UPDATE_REG(0),0);
+      // tlo = READ_PERI_REG(TIMG_T1LO_REG(0)); 
+      // Debug_printf("%lu ", tlo);
+      WRITE_PERI_REG(TIMG_T0UPDATE_REG(1),0); // 0x3FF6000C
+      tlo = READ_PERI_REG(TIMG_T0LO_REG(1)); // 0x3FF60004
+      Debug_printf("%lu %lu \r\n",tlo, uint32_t(t0));
+      // Debug_printf("%lu\r\n", tlo);
+      // WRITE_PERI_REG(TIMG_T1UPDATE_REG(1),0);
+      // tlo = READ_PERI_REG(TIMG_T1LO_REG(1)); 
+      // Debug_printf("%lu\r\n ", tlo);
+  }
+}
+
