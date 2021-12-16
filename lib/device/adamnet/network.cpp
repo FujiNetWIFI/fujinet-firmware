@@ -1,25 +1,149 @@
 #ifdef BUILD_ADAM
 
+#include <cstring>
 #include "adamnet/network.h"
 
 adamNetwork::adamNetwork()
 {
-
+    Debug_printf("Network Start\n");
 }
 
 adamNetwork::~adamNetwork()
 {
-
 }
 
-void adamNetwork::adamnet_status()
+void adamNetwork::command_connect(uint16_t s)
 {
+    char hn[256];
+    uint16_t p;
 
+    s--; // remove command byte length.
+
+    memset(&hn, 0, 256);
+
+    // Get Port
+    adamnet_recv_buffer((uint8_t *)&p, sizeof(uint16_t));
+
+    s--;
+    s--; // remove port length.
+
+    // Get hostname
+    adamnet_recv_buffer((uint8_t *)hn, s);
+
+    // Get Checksum
+    adamnet_recv();
+
+    adamnet_response_ack();
+
+    Debug_printf("Connecting to: %s port %u\n", hn, p);
+
+    if (client.connected())
+    {
+        return;
+    }
+
+    if (alreadyDoingSomething == false)
+    {
+        // connect
+        if (!client.connect(hn, p))
+        {
+        }
+        else
+        {
+        }
+    }
+    Debug_println("Connect done.");
+}
+
+void adamNetwork::command_recv()
+{
+    if (client.available())
+    {
+        AdamNet.wait_for_idle();
+        adamnet_send(0xCE); // NAK
+        client.read(response,response_len);
+    }
+    else if (response_len > 0)
+    {
+        adamnet_response_ack();
+    }
+    else
+    {
+        adamnet_response_nack();
+    }
+}
+
+void adamNetwork::command_send(uint16_t s)
+{
+    s--;
+    adamnet_recv_buffer(response, s);
+    adamnet_recv();
+
+    adamnet_response_ack();
+
+    Debug_printf("S: %c\n",response[0]);    
+    client.write(response, s);
+}
+
+void adamNetwork::adamnet_control_status()
+{
+    uint8_t r[6] = {0x89, 0x00, 0x04, 0x00, 0x00, 0x04};
+    adamnet_send_buffer(r, 6);
+}
+
+void adamNetwork::adamnet_control_clr()
+{
+    adamnet_send(0xB0 | _devnum);
+    adamnet_send_length(response_len);
+    adamnet_send_buffer(response, response_len);
+    adamnet_send(adamnet_checksum(response, response_len));
+    memset(response,0,sizeof(response));
+    response_len = 0;
+}
+
+void adamNetwork::adamnet_control_ready()
+{
+    adamnet_response_ack();
+}
+
+void adamNetwork::adamnet_control_send()
+{
+    uint16_t s = adamnet_recv_length();
+    uint8_t c = adamnet_recv();
+
+    switch (c)
+    {
+    case 0xFF: // CONNECT TO HOST
+        command_connect(s);
+        break;
+    case 0xFE: // SEND TO HOST
+        command_send(s);
+        break;
+    }
 }
 
 void adamNetwork::adamnet_process(uint8_t b)
 {
+    unsigned char c = b >> 4;
 
+    switch (c)
+    {
+    case MN_STATUS:
+        adamnet_control_status();
+        break;
+    case MN_CLR:
+        adamnet_control_clr();
+        break;
+    case MN_RECEIVE:
+        command_recv();
+        break;
+    case MN_SEND:
+        adamnet_control_send();
+        break;
+    case MN_READY:
+        adamnet_control_ready();
+        break;
+    }
 }
 
 #endif /* BUILD_ADAM */

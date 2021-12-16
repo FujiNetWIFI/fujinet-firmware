@@ -12,7 +12,6 @@
 #include "httpService.h"
 #include "httpServiceParser.h"
 #include "httpServiceConfigurator.h"
-#include "sio/printerlist.h"
 #include "fnWiFi.h"
 #include "keys.h"
 #include "fnConfig.h"
@@ -21,6 +20,8 @@
 #include "modem-sniffer.h"
 #include "sio/modem.h"
 #include "sio/fuji.h"
+#include "sio/printerlist.h"
+#define PRINTER_CLASS sioPrinter
 extern sioModem *sioR;
 #endif /* BUILD_ATARI */
 
@@ -28,6 +29,8 @@ extern sioModem *sioR;
 #include "modem-sniffer.h"
 #include "adamnet/modem.h"
 #include "adamnet/fuji.h"
+#include "adamnet/printerlist.h"
+#define PRINTER_CLASS adamPrinter
 extern adamModem *sioR;
 #endif 
 
@@ -443,8 +446,12 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 
     time_t now = fnSystem.millis();
     // Get a pointer to the current (only) printer
-    sioPrinter *printer = (sioPrinter *)fnPrinters.get_ptr(0);
-
+    PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
+    if (printer == nullptr)
+    {
+        Debug_println("No virtual printer");
+        return ESP_FAIL;
+    }
     if (now - printer->lastPrintTime() < PRINTER_BUSY_TIME)
     {
         _fnwserr err = fnwserr_post_fail;
@@ -453,6 +460,14 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     }
     // Get printer emulator pointer from sioP (which is now extern)
     printer_emu *currentPrinter = printer->getPrinterPtr();
+
+    if (currentPrinter == nullptr)
+    {
+        Debug_println("No current virtual printer");
+        _fnwserr err = fnwserr_post_fail;
+        return_http_error(req, err);
+        return ESP_FAIL;
+    }
 
     // Build a print output name
     const char *exts;

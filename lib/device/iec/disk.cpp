@@ -1,3 +1,4 @@
+#ifdef BUILD_CBM
 // Meatloaf - A Commodore 64/128 multi-device emulator
 // https://github.com/idolpx/meatloaf
 // Copyright(C) 2020 James Johnston

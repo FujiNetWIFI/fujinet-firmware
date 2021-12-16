@@ -95,7 +95,7 @@ adamModem::~adamModem()
     }
 }
 
-void adamModem::adamnet_status()
+void adamModem::adamnet_control_status()
 {
 
 }

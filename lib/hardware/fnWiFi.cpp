@@ -24,6 +24,10 @@
 #include "sio/fuji.h"
 #endif
 
+#ifdef BUILD_ADAM
+#include "adamnet/fuji.h"
+#endif
+
 // Global object to manage WiFi
 WiFiManager fnWiFi;
 
@@ -444,8 +448,10 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             fnLedManager.set(eLed::LED_WIFI, true);
             fnSystem.Net.start_sntp_client();
             fnHTTPD.start();
+#ifdef BUILD_ATARI // temporary
             if (Config.get_general_config_enabled() == false)
                 theFuji.sio_mount_all();
+#endif /* BUILD_ATARI */
             mdns_init();
             mdns_hostname_set(Config.get_general_devicename().c_str());
             mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);

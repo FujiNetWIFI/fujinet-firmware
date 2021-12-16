@@ -378,14 +378,8 @@
 					<div class="det"><%FN_SYSCPUREV%></div>
 				</div>
 				<div class="detline">
-					<div class="deth">SIO voltage</div>
+					<div class="deth">+5 voltage</div>
 					<div class="det"><%FN_SIOVOLTS%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">HSIO Index:Baud</div>
-					<div class="det"><%FN_SIO_HSINDEX%>:
-						<script>writeLocaleNumber(<%FN_SIO_HSBAUD%>)</script>
-					</div>
 				</div>
 			</div>
 		</div>
@@ -429,36 +423,20 @@
 			<div class="flexchild">
 				<header>MOUNT<span id="logowob"></span>LIST</header>
 				<div class="detline">
-					<div class="deth">Drive Slot 1<%FN_DRIVE1DEVICE%> <a href="/unmount?deviceslot=0">[EJECT]</a></div>
+					<div class="deth">Drive Slot 1: <a href="/unmount?deviceslot=0">[EJECT]</a></div>
 					<div class="det"><%FN_DRIVE1HOST%> :: <%FN_DRIVE1MOUNT%></div>
 				</div>
 				<div class="detline alt">
-					<div class="deth">Drive Slot 2<%FN_DRIVE2DEVICE%> <a href="/unmount?deviceslot=1">[EJECT]</a></div>
+					<div class="deth">Drive Slot 2: <a href="/unmount?deviceslot=1">[EJECT]</a></div>
 					<div class="det"><%FN_DRIVE2HOST%> :: <%FN_DRIVE2MOUNT%></div>
 				</div>
 				<div class="detline">
-					<div class="deth">Drive Slot 3<%FN_DRIVE3DEVICE%> <a href="/unmount?deviceslot=2">[EJECT]</a></div>
+					<div class="deth">Drive Slot 3: <a href="/unmount?deviceslot=2">[EJECT]</a></div>
 					<div class="det"><%FN_DRIVE3HOST%> :: <%FN_DRIVE3MOUNT%></div>
 				</div>
 				<div class="detline alt">
-					<div class="deth">Drive Slot 4<%FN_DRIVE4DEVICE%> <a href="/unmount?deviceslot=3">[EJECT]</a></div>
+					<div class="deth">Drive Slot 4: <a href="/unmount?deviceslot=3">[EJECT]</a></div>
 					<div class="det"><%FN_DRIVE4HOST%> :: <%FN_DRIVE4MOUNT%></div>
-				</div>
-				<div class="detline">
-					<div class="deth">Drive Slot 5<%FN_DRIVE5DEVICE%> <a href="/unmount?deviceslot=4">[EJECT]</a></div>
-					<div class="det"><%FN_DRIVE5HOST%> :: <%FN_DRIVE5MOUNT%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">Drive Slot 6<%FN_DRIVE6DEVICE%> <a href="/unmount?deviceslot=5">[EJECT]</a></div>
-					<div class="det"><%FN_DRIVE6HOST%> :: <%FN_DRIVE6MOUNT%></div>
-				</div>
-				<div class="detline">
-					<div class="deth">Drive Slot 7<%FN_DRIVE7DEVICE%> <a href="/unmount?deviceslot=6">[EJECT]</a></div>
-					<div class="det"><%FN_DRIVE7HOST%> :: <%FN_DRIVE7MOUNT%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth">Drive Slot 8<%FN_DRIVE8DEVICE%> <a href="/unmount?deviceslot=7">[EJECT]</a></div>
-					<div class="det"><%FN_DRIVE8HOST%> :: <%FN_DRIVE8MOUNT%></div>
 				</div>
 			</div>
 		</div>
@@ -547,6 +525,7 @@
 										<option value="Atari 1029">Atari 1029</option>
 										<option value="Atari XMM801">Atari XMM801</option>
 										<option value="Atari XDM121">Atari XDM121</option>
+										<option value="Coleco Adam Printer">Coleco Adam Printer</option>
 										<option value="Epson 80">Epson 80</option>
 										<option value="Epson PrintShop">Epson PrintShop</option>
 										<option value="Okimate 10">Okimate 10</option>
@@ -573,86 +552,6 @@
 							<script>
 								var current_printer = "<%FN_PRINTER1_MODEL%>";
 								var current_printerport = "<%FN_PRINTER1_PORT%>";
-							</script>
-						</div>
-					</div>
-				</div>
-			</div>
-			<div class="flexchild">
-				<header>HSIO<span id="logowob"></span>SETTINGS</header>
-				<div class="detline">
-					<div class="cicon">
-						<div class="svgicon">
-							<svg width="100%" height="100%" viewBox="0 0 153 145" version="1.1"
-								xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-								xml:space="preserve" xmlns:serif="http://www.serif.com/"
-								style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
-								<g id="g6854-4">
-									<path id="rect6750-5"
-										d="M0,55.92l55.92,-55.92l22.05,22.051l-55.92,55.921l-22.05,-22.052Zm17.239,26.86l10.021,10.02l76.37,43.9l33.07,-33.07l-43.9,-76.37l-10.02,-10.02l-65.541,65.54Z"
-										style="fill:#010101;fill-rule:nonzero;" />
-									<g id="g6818-7">
-										<path id="rect6762-5"
-											d="M22.833,64.134l3.508,-3.506l-14.027,-14.032l-3.508,3.507l14.027,14.031Z"
-											style="fill:#fff;" />
-										<path id="rect6802-2"
-											d="M30.474,56.501l3.508,-3.507l-14.029,-14.032l-3.507,3.506l14.028,14.033Z"
-											style="fill:#fff;" />
-										<path id="rect6804-6"
-											d="M38.078,48.851l3.508,-3.506l-14.025,-14.032l-3.508,3.505l14.025,14.033Z"
-											style="fill:#fff;" />
-										<path id="rect6806-1"
-											d="M45.743,41.216l3.506,-3.507l-14.028,-14.028l-3.506,3.507l14.028,14.028Z"
-											style="fill:#fff;" />
-										<path id="rect6808-9"
-											d="M53.384,33.58l3.507,-3.507l-14.032,-14.029l-3.507,3.508l14.032,14.028Z"
-											style="fill:#fff;" />
-										<path id="rect6810-6"
-											d="M61.021,25.928l3.507,-3.508l-14.031,-14.026l-3.507,3.507l14.031,14.027Z"
-											style="fill:#fff;" />
-									</g>
-								</g>
-								<g id="g53">
-									<path id="path45"
-										d="M141.41,67.231l-33.101,-7.44l41.55,-41.43l-38.659,-8.69l-52.541,64.34l28.511,6.41l-43.72,61.25l97.96,-74.44Z"
-										style="fill:#fedd03;fill-rule:nonzero;" />
-									<path id="path47"
-										d="M120.86,11.85l-9.67,-2.17l-52.54,64.341l9.67,2.17l52.54,-64.341Z"
-										style="fill:#fff;fill-rule:nonzero;" />
-									<path id="path49"
-										d="M129.33,64.52l-73.47,55.831l-14.82,20.779l97.96,-74.439l-9.67,-2.171Z"
-										style="fill:#f8991d;fill-rule:nonzero;" />
-									<path id="path51"
-										d="M42.909,144.081c-0.479,-0.109 -0.969,-0.221 -1.149,-0.51c-0.8,-0.941 -1.021,-2.26 -0.31,-3.121l41.56,-58.43l-24.89,-5.59c-0.721,-0.16 -1.58,-0.859 -1.9,-1.699c-0.32,-0.83 -0.1,-1.801 0.54,-2.42l52.54,-64.34c0.65,-0.61 1.48,-0.94 2.45,-0.721l38.66,8.69c0.97,0.22 1.58,0.86 1.899,1.7c0.32,0.83 0.101,1.8 -0.54,2.42l-38.319,38.341l28.51,6.41c0.96,0.22 1.58,0.859 1.85,1.939c0.271,1.07 -0.189,1.99 -0.84,2.601l-97.96,74.439c-0.601,0.381 -1.38,0.461 -2.101,0.291Zm20.161,-71.61l24.641,5.54c0.729,0.16 1.34,0.811 1.72,1.4c0.32,0.83 0.16,1.561 -0.25,2.23l-34.18,48.158l80.78,-61.29l-28.03,-6.299c-0.97,-0.221 -1.58,-0.861 -1.9,-1.701c-0.319,-0.83 -0.1,-1.799 0.54,-2.42l38.559,-38.288l-32.86,-7.391l-49.02,60.061Z"
-										style="fill:#010101;fill-rule:nonzero;" />
-								</g>
-							</svg>
-						</div>
-					</div>
-					<div class="cform">
-						<div class="formwrapper">
-							<br>Change HSIO index
-							<form action="/config" method="post">
-								<select name="hsioindex" id="select_hsioindex">
-									<optgroup>
-										<option value="0">0: 124Kb</option>
-										<option value="1">1: 109Kb</option>
-										<option value="2">2: 97Kb</option>
-										<option value="3">3: 87Kb</option>
-										<option value="4">4: 79Kb</option>
-										<option value="5">5: 73Kb</option>
-										<option value="6">6: 67Kb</option>
-										<option value="7">7: 63Kb</option>
-										<option value="8">8: 58Kb</option>
-										<option value="9">9: 55Kb</option>
-									</optgroup>
-								</select>
-								<input type="submit" value="Save">
-							</form>
-							<br>
-							<hr>Current Setting: <%FN_SIO_HSINDEX%>
-							<script>
-								var current_hsioindex = "<%FN_SIO_HSINDEX%>";
 							</script>
 						</div>
 					</div>
@@ -714,98 +613,6 @@
 								<input type="submit" value="Save">
 								<a href="https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html" target="_new">?</a>
 							</form>
-						</div>
-					</div>
-				</div>
-			</div>
-			<div class="flexchild">
-				<header>MIDI<span id="logowob"></span>MAZE</header>
-				<div class="detline">
-					<div class="cicon">
-						<div class="svgicon">
-							<svg width="100%" height="100%" viewBox="0 0 257 165" version="1.1"
-								xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-								xml:space="preserve" xmlns:serif="http://www.serif.com/"
-								style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:1.5;">
-								<g>
-									<path
-										d="M0,0l0,164.439l68.35,-42.518l0.876,-68.425l-69.226,-53.496Zm221.041,33.334l-0.073,-11.421l35.725,-21.913l-0,164.439l-34.918,-15.095l-0.027,-4.261l-19.927,-0l-0,-111.749l-0.262,111.749l-34.917,-13.696l-0.546,-78.171l35.725,-19.882l19.22,0Zm-16.307,2.914l0,105.921l15.321,0l-0,-105.921l-15.321,-0Z" />
-									<circle cx="124.739" cy="88.645" r="66.732" style="fill:#ff0;" />
-									<ellipse cx="103.297" cy="67.858" rx="7.662" ry="14.362" />
-									<ellipse cx="147.008" cy="67.858" rx="7.662" ry="14.362" />
-									<path d="M83.356,108.031c11.48,37.433 72.794,35.565 82.765,0.259"
-										style="fill:none;stroke:#000;stroke-width:6.5px;" />
-								</g>
-							</svg>
-						</div>
-					</div>
-					<div class="cform">
-						<div class="formwrapper">
-							<br>MIDIMaze Hostname or IP
-							<form action="/config" method="post">
-								<input type="text" name="midimaze_host" id="midimaze_host" value="<%FN_MIDIMAZE_HOST%>">
-								<input type="submit" value="Save">
-							</form>
-							<br>
-							<hr>Save empty field to turn off
-						</div>
-					</div>
-				</div>
-			</div>
-			<div class="flexchild">
-				<header>PROGRAM<span id="logowob"></span>RECORDER</header>
-				<div class="detline">
-					<div class="cicon">
-						<div class="svgicon">
-							<svg width="100%" height="100%" viewBox="0 0 214 135" version="1.1"
-								xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
-								xml:space="preserve" xmlns:serif="http://www.serif.com/"
-								style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
-								<g>
-									<path
-										d="M3.57,82.289l0,-72.46c0,-5.425 4.404,-9.829 9.829,-9.829l186.702,0c5.425,0 9.829,4.404 9.829,9.829l-0,72.69l3.108,3.108l-0,33.703l-3.108,3.108l-0,2.023c-0,5.425 -4.404,9.829 -9.829,9.829c-0,-0 -186.702,-0 -186.702,-0c-5.425,-0 -9.829,-4.404 -9.829,-9.829l0,-1.793l-0.232,0l-3.338,-3.338l0,-33.703l3.338,-3.338l0.232,-0Zm56.538,34.528c2.509,0 4.546,2.037 4.546,4.547c0,2.509 -2.037,4.546 -4.546,4.546c-2.51,0 -4.547,-2.037 -4.547,-4.546c-0,-2.51 2.037,-4.547 4.547,-4.547Zm97,0c2.509,0 4.546,2.037 4.546,4.547c0,2.509 -2.037,4.546 -4.546,4.546c-2.51,0 -4.547,-2.037 -4.547,-4.546c-0,-2.51 2.037,-4.547 4.547,-4.547Zm-72.863,1.021c-0,-0.792 -0.644,-1.436 -1.436,-1.436l-4.746,0c-0.792,0 -1.435,0.644 -1.435,1.436l0,4.746c0,0.792 0.643,1.435 1.435,1.435l4.746,-0c0.792,-0 1.436,-0.643 1.436,-1.435l-0,-4.746Zm57,-0c-0,-0.792 -0.644,-1.436 -1.436,-1.436l-4.746,0c-0.792,0 -1.435,0.644 -1.435,1.436l0,4.746c0,0.792 0.643,1.435 1.435,1.435l4.746,-0c0.792,-0 1.436,-0.643 1.436,-1.435l-0,-4.746Zm-75.32,-67.508c7.615,0 13.798,6.183 13.798,13.798c0,7.615 -6.183,13.798 -13.798,13.798c-7.615,-0 -13.798,-6.183 -13.798,-13.798c0,-7.615 6.183,-13.798 13.798,-13.798Zm83.56,-0.248c7.616,0 13.798,6.183 13.798,13.798c0,7.615 -6.182,13.798 -13.798,13.798c-7.615,-0 -13.797,-6.183 -13.797,-13.798c-0,-7.615 6.182,-13.798 13.797,-13.798Zm-62.74,7.973l-0,11.65l41.463,0l0,-11.65l-41.463,-0Z"
-										style="fill:#fff;" />
-									<path
-										d="M35.984,132.29l-22.585,-0c-4.321,-0 -7.829,-3.508 -7.829,-7.829l0,-3.793l-1.403,0l-2.167,-2.166l-0,-32.046l2.167,-2.167l1.403,-0l0,-74.46c0,-4.321 3.508,-7.829 7.829,-7.829l186.702,0c4.321,0 7.829,3.508 7.829,7.829l-0,74.46l0.941,-0l2.167,2.167l-0,32.046l-2.167,2.166l-0.941,0l-0,3.793c-0,4.321 -3.508,7.829 -7.829,7.829l-17.643,-0l-8.693,-30.951l-128.851,0.261l-8.93,30.69Zm2.678,-0l8.183,-28.123l124.973,-0.253l7.944,28.288l-64.244,0.088l-76.856,-0Zm159.687,-6.968l6.464,2.302c-0.84,1.399 -2.578,2.061 -4.174,1.493c-1.595,-0.569 -2.523,-2.18 -2.29,-3.795Zm-183.306,-2.489c1.34,0.93 1.886,2.708 1.213,4.262c-0.673,1.555 -2.342,2.374 -3.938,2.034l2.725,-6.296Zm-3.996,5.746c-1.341,-0.931 -1.886,-2.708 -1.214,-4.263c0.673,-1.555 2.342,-2.374 3.938,-2.034l-2.724,6.297Zm187.767,-4.562c0.84,-1.399 2.578,-2.061 4.174,-1.493c1.595,0.568 2.523,2.18 2.29,3.795l-6.464,-2.302Zm-138.706,-7.2c2.509,0 4.546,2.037 4.546,4.547c0,2.509 -2.037,4.546 -4.546,4.546c-2.51,0 -4.547,-2.037 -4.547,-4.546c-0,-2.51 2.037,-4.547 4.547,-4.547Zm97,0c2.509,0 4.546,2.037 4.546,4.547c0,2.509 -2.037,4.546 -4.546,4.546c-2.51,0 -4.547,-2.037 -4.547,-4.546c-0,-2.51 2.037,-4.547 4.547,-4.547Zm-72.863,1.021c-0,-0.792 -0.644,-1.436 -1.436,-1.436l-4.746,0c-0.792,0 -1.435,0.644 -1.435,1.436l0,4.746c0,0.792 0.643,1.435 1.435,1.435l4.746,-0c0.792,-0 1.436,-0.643 1.436,-1.435l-0,-4.746Zm57,-0c-0,-0.792 -0.644,-1.436 -1.436,-1.436l-4.746,0c-0.792,0 -1.435,0.644 -1.435,1.436l0,4.746c0,0.792 0.643,1.435 1.435,1.435l4.746,-0c0.792,-0 1.436,-0.643 1.436,-1.435l-0,-4.746Zm-30.152,-10.422c1.268,1.028 1.68,2.841 0.894,4.341c-0.786,1.501 -2.512,2.194 -4.078,1.736l3.184,-6.077Zm-4.411,5.434c-1.268,-1.028 -1.68,-2.841 -0.894,-4.341c0.786,-1.501 2.512,-2.194 4.078,-1.736l-3.184,6.077Zm90.306,-88.387l-9.733,-9.733l-158.564,0l-10.726,10.727l-0,74.805l179.023,0l0,-75.799Zm-167.261,-7.233l-9.262,9.263l-0,71.269l174.023,0l0,-72.263l-8.268,-8.269l-156.493,0Zm137.012,47.028c-0,-9.576 -7.774,-17.35 -17.35,-17.35l-83.706,-0c-9.576,-0 -17.35,7.774 -17.35,17.35c-0,9.575 7.774,17.349 17.35,17.349l83.706,0c9.576,0 17.35,-7.774 17.35,-17.349Zm-2.5,-0c-0,8.195 -6.654,14.849 -14.85,14.849c0,0 -83.706,0 -83.706,0c-8.196,0 -14.85,-6.654 -14.85,-14.849c-0,-8.196 6.654,-14.85 14.85,-14.85c-0,-0 83.706,-0 83.706,-0c8.196,-0 14.85,6.654 14.85,14.85Zm-98.314,-13.928c7.615,0 13.798,6.183 13.798,13.798c0,7.615 -6.183,13.798 -13.798,13.798c-7.615,-0 -13.798,-6.183 -13.798,-13.798c0,-7.615 6.183,-13.798 13.798,-13.798Zm83.56,-0.248c7.616,0 13.798,6.183 13.798,13.798c0,7.615 -6.182,13.798 -13.798,13.798c-7.615,-0 -13.797,-6.183 -13.797,-13.798c-0,-7.615 6.182,-13.798 13.797,-13.798Zm-62.74,7.973l-0,11.65l41.463,0l0,-11.65l-41.463,-0Zm112.872,-51.402l3.363,5.979c-1.552,0.504 -3.297,-0.137 -4.127,-1.614c-0.831,-1.476 -0.473,-3.3 0.764,-4.365Zm-188.368,-0.448l1.995,6.565c-1.625,0.157 -3.19,-0.846 -3.683,-2.466c-0.492,-1.621 0.251,-3.325 1.688,-4.099Zm1.326,-0.402c1.624,-0.158 3.19,0.845 3.682,2.466c0.493,1.621 -0.25,3.325 -1.687,4.098l-1.995,-6.564Zm188.25,0.17c1.552,-0.503 3.297,0.138 4.127,1.614c0.831,1.477 0.473,3.301 -0.764,4.366l-3.363,-5.98Z" />
-								</g>
-							</svg>
-						</div>
-					</div>
-					<div class="cform">
-						<div class="formwrapper">
-							<br>Rewind
-							<form action="/config" method="post">
-								<input type="hidden" id="rew" name="rew" value="rew" />
-								<input type="submit" value="Rewind">
-							</form>
-							<script>
-								var current_play_record = "<%FN_PLAY_RECORD%>";
-							</script>
-							<br>Play or Record
-							<form action="/config" method="post">
-								<select name="play_record" id="select_play_record">
-									<option value="0 PLAY">Play</option>
-									<option value="1 RECORD">Record</option>
-								</select>
-								<input type="submit" value="Save">
-							</form>
-							<script>
-								var current_play_record = "<%FN_PLAY_RECORD%>";
-							</script>
-							<br>Activate by Pulldown Resistor or Button B?
-							<form action="/config" method="post">
-								<select name="pulldown" id="select_pulldown">
-									<option value="0 B Button Press">B Button Press</option>
-									<option value="1 Pulldown Resistor">Pulldown Resistor</option>
-								</select>
-								<input type="submit" value="Save">
-							</form>
-							<script>
-								var current_pulldown = "<%FN_PULLDOWN%>";
-							</script>
-							<hr>
-							Current Setting: <%FN_PLAY_RECORD%>
-							<br>Using: <%FN_PULLDOWN%>
 						</div>
 					</div>
 				</div>
@@ -899,72 +706,7 @@
 					</div>
 				</div>
 			</div>
-			<div class="flexchild">
-				<header>BOOT<span id="logowob"></span>SETTINGS</header>
-				<div class="detline">
-					<div class="cicon">
-						<div class="svgicon">
-						</div>
-					</div>
-					<div class="cform">
-						<div class="formwrapper">
-							<br>Enable CONFIG Boot Disk
-							<form action="/config" method="post">
-								<select name="config_enable" id="select_config_enable">
-									<optgroup>
-										<option value="1">Yes</option>
-										<option value="0">No</option>
-									</optgroup>
-								</select>
-								<input type="submit" value="Save">
-							</form>
-							<script>
-								var current_config_enabled = "<%FN_CONFIG_ENABLED%>";
-							</script>
-							<br>Enable SIO STATUS wait routine 
-							<form action="/config" method="post">
-								<select name="status_wait_enable" id="select_status_wait_enable">
-									<optgroup>
-										<option value="1">Yes</option>
-										<option value="0">No</option>
-									</optgroup>
-								</select>
-								<input type="submit" value="Save">
-							</form>
-							<script>
-								var current_status_wait_enabled = "<%FN_STATUS_WAIT_ENABLED%>";
-							</script>
-							<span class="small">
-							Reboot FujiNet after changing this value.<br/>
-							Disabling SIO STATUS wait will cause FujiNET to not wait for other devices to answer OS status call (eg, real D1 floppy drive), however it will fix issue with SpartaDOS X ejecting config Disk on boot.</span>
-							<hr>
-							<span class="small">
-							Reboot FujiNet after changing this value.<br/>
-							Disabling the built-in CONFIG boot disk will require changing
-							disk mounts using the individual FujiNet config tools</span>
-						</div>
-						<div class="formwrapper">
-							<br>Set CONFIG boot mode.
-							<form action="/config" method="post">
-								<select name="boot_mode" id="select_boot_mode">
-									<optgroup>
-										<option value="0">CONFIG</option>
-										<option value="1">Mount Everything</option>
-									</optgroup>
-								</select>
-								<input type="submit" value="Save">
-							</form>
-							<script>
-								var current_boot_mode = "<%FN_BOOT_MODE%>";
-							</script>
-							<hr>
-							<span class="small">
-							Reboot FujiNet after changing this value.</span>
-						</div>
-					</div>
-				</div>
-			</div>
-
+			
 		</div>
 	</div>
 	<script type="text/javascript" src="/file?settings.js"></script>

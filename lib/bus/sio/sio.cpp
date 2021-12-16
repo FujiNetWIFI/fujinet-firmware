@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #include "bus.h"
 #ifdef BUILD_ATARI
 #include "sio/modem.h"
@@ -6,7 +7,6 @@
 #include "sio/cassette.h"
 #include "sio/siocpm.h"
 #include "sio/printer.h"
-#endif
 #include "led.h"
 #include "sio/network.h"
 #include "fnSystem.h"
@@ -600,3 +600,4 @@ void sioBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 }
 
 sioBus SIO; // Global SIO object
+#endif /* BUILD_ATARI */

@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI // temporary
 #include <memory.h>
 #include <string.h>
 #include "esp_timer.h"
@@ -891,3 +892,5 @@ bool DiskTypeATX::format(uint16_t *responsesize)
 
     return true; // send ERROR.
 }
+
+#endif /* BUILD_ATARI */
