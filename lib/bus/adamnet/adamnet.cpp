@@ -110,10 +110,6 @@ void adamNetDevice::adamnet_response_ack()
         AdamNet.wait_for_idle();
         adamnet_send(0x90 | _devnum);
     }
-    else
-    {
-        Debug_printf("TL: %lu\n", t);
-    }
 }
 
 void adamNetDevice::adamnet_response_nack()
