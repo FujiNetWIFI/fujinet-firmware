@@ -22,6 +22,14 @@
 #include "fnWiFi.h"
 #include "bus.h"
 
+#ifdef BUILD_ATARI
+#define BUS_CLASS SIO
+#endif
+
+#ifdef BUILD_ADAM
+#define BUS_CLASS AdamNet
+#endif
+
 static xQueueHandle card_detect_evt_queue = NULL;
 static uint32_t card_detect_status = 1; // 1 is no sd card
 
@@ -192,7 +200,7 @@ void SystemManager::yield()
 // TODO: Close open files first
 void SystemManager::reboot()
 {
-    SIO.shutdown();
+    BUS_CLASS.shutdown();
     esp_restart();
 }
 
@@ -640,14 +648,15 @@ void SystemManager::debug_print_tasks()
 
     uint32_t n = uxTaskGetNumberOfTasks();
     TaskStatus_t *pTasks = (TaskStatus_t *)malloc(sizeof(TaskStatus_t) * n);
-    n = uxTaskGetSystemState(pTasks, n, nullptr);
+    //n = uxTaskGetSystemState(pTasks, n, nullptr);
 
     for (int i = 0; i < n; i++)
     {
-        Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\n",
+        // Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\n",
+        Debug_printf("T%02d %p (%2d,%2d) %4dh %10dr %8s: %s\n",
                      i + 1,
                      pTasks[i].xHandle,
-                     pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
+                     //pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
                      pTasks[i].uxBasePriority, pTasks[i].uxCurrentPriority,
                      pTasks[i].usStackHighWaterMark,
                      pTasks[i].ulRunTimeCounter,

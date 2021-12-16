@@ -5,7 +5,7 @@
  * AdamNet Routines
  */
 
-#include <forward_list>
+#include <map>
 #include "fnSystem.h"
 
 #define ADAMNET_BAUD 62500
@@ -26,7 +26,11 @@
 #define NM_SEND 0x0B   // response.data (send)
 #define NM_NACK 0x0C   // response.control (nack)
 
+#define ADAMNET_DEVICEID_DISK 0x04
+
 class adamNetBus;
+class adamFuji;     // declare here so can reference it, but define in fuji.h
+class adamPrinter;
 
 /**
  * @brief Calculate checksum for AdamNet packets. Uses a simple 8-bit XOR of each successive byte.
@@ -66,6 +70,24 @@ protected:
     uint8_t adamnet_recv();
 
     /**
+     * @brief convenience function to recieve length
+     * @return short containing length.
+     */
+    uint16_t adamnet_recv_length();
+
+    /**
+     * @brief convenience function to receive block number
+     * @return ulong containing block num.
+     */
+    uint32_t adamnet_recv_blockno();
+
+    /**
+     * @brief covenience function to send length
+     * @param l Length.
+     */
+    void adamnet_send_length(uint16_t l);
+
+    /**
      * @brief Receive desired # of bytes into buffer from AdamNet
      * @param buf Buffer in which to receive
      * @param len length of buffer
@@ -74,9 +96,24 @@ protected:
     unsigned short adamnet_recv_buffer(uint8_t *buf, unsigned short len);
 
     /**
-     * @brief Wait for AdamNet bus to become idle.
+     * @brief Perform reset of device
      */
-    void adamnet_wait_for_idle();
+    virtual void reset();
+
+    /**
+     * @brief acknowledge, but not if cmd took too long.
+     */
+    virtual void adamnet_response_ack();
+
+    /**
+     * @brief non-acknowledge, but not if cmd took too long
+     */
+    virtual void adamnet_response_nack();
+
+    /**
+     * @brief acknowledge if device is ready, but not if cmd took too long.
+     */
+    virtual void adamnet_control_ready();
 
     /**
      * @brief Device Number: 0-15
@@ -94,14 +131,27 @@ protected:
     /**
      * @brief send current status of device
      */
-    virtual void adamnet_status();
+    virtual void adamnet_control_status();
 
 public:
+
+    /**
+     * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
+     */
+    bool is_config_device = false;
+
+    /**
+     * @brief is device active (turned on?)
+     */
+    bool device_active = true;
+
     /**
      * @brief return the device number (0-15) of this device
      * @return the device # (0-15) of this device
      */
     uint8_t id() { return _devnum; }
+
+    
 };
 
 /**
@@ -110,8 +160,10 @@ public:
 class adamNetBus
 {
 private:
-    std::forward_list<adamNetDevice *> _daisyChain;
+    std::map<uint8_t, adamNetDevice *> _daisyChain;
     adamNetDevice *_activeDev = nullptr;
+    adamFuji *_fujiDev = nullptr;
+    adamPrinter *_printerDev = nullptr;
 
     void _adamnet_process_cmd();
     void _adamnet_process_queue();
@@ -120,10 +172,23 @@ public:
     void setup();
     void service();
     void shutdown();
+    void reset();
+
+    /**
+     * @brief Wait for AdamNet bus to become idle.
+     */
+    void wait_for_idle();
+
+    /**
+     * stopwatch
+     */
+    int64_t start_time;
 
     int numDevices();
     void addDevice(adamNetDevice *pDevice, int device_id);
     void remDevice(adamNetDevice *pDevice);
+    void enableDevice(uint8_t device_id);
+    void disableDevice(uint8_t device_id);
     adamNetDevice *deviceById(int device_id);
     void changeDeviceId(adamNetDevice *pDevice, int device_id);
     QueueHandle_t qAdamNetMessages = nullptr;

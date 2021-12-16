@@ -13,7 +13,11 @@ protected:
     // SIO THINGS
     uint8_t _buffer[40];
     void sio_write(uint8_t aux1, uint8_t aux2);
-    void adamnet_status() override;
+    
+    virtual void adamnet_control_status();
+    virtual void adamnet_control_send();
+    virtual void adamnet_control_ready();
+
     void adamnet_process(uint8_t b) override;
     void shutdown() override;
 
@@ -31,6 +35,7 @@ public:
         PRINTER_FILE_RAW = 0,
         PRINTER_FILE_TRIM,
         PRINTER_FILE_ASCII,
+        PRINTER_COLECO_ADAM,
         PRINTER_ATARI_820,
         PRINTER_ATARI_822,
         PRINTER_ATARI_825,
@@ -62,6 +67,9 @@ public:
 
 private:
     printer_type _ptype;
+    TaskHandle_t ioTask = NULL;
+    bool _backwards = false;
+
 };
 
-#endif // ADAM_PRINTER_H
+#endif /* ADAM_PRINTER_H */

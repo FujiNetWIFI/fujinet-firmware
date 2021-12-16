@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI // temporary
 #include <memory.h>
 #include <string.h>
 
@@ -205,3 +206,5 @@ disktype_t DiskTypeXEX::mount(FILE *f, uint32_t disksize)
 
     return _disktype;
 }
+
+#endif /* BUILD_ATARI */
