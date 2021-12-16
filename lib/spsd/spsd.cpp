@@ -2179,20 +2179,22 @@ void spDevice::hw_timer_pulses()
   {
     do
     {
-      // timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &t0);
-      WRITE_PERI_REG(TIMG_T0UPDATE_REG(1), 0); // 0x3FF6000C
-      t0 = READ_PERI_REG(TIMG_T0LO_REG(1));    // 0x3FF60004
+      TIMERG1.hw_timer[0].update = 0;
+      t0 = TIMERG1.hw_timer[0].cnt_low;
+      // WRITE_PERI_REG(TIMG_T0UPDATE_REG(1), 0); // 0x3FF6000C
+      // t0 = READ_PERI_REG(TIMG_T0LO_REG(1));    // 0x3FF60004
     } while (t0 < tn);
     GPIO.out_w1tc = ((uint32_t)1 << PIN_INT);
     tn = t0 + DELAY;
     do
     {
-      // timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &t0);
-      WRITE_PERI_REG(TIMG_T0UPDATE_REG(1), 0); // 0x3FF6000C
-      t0 = READ_PERI_REG(TIMG_T0LO_REG(1));    // 0x3FF60004
+      TIMERG1.hw_timer[0].update = 0;
+      t0 = TIMERG1.hw_timer[0].cnt_low;
+      // WRITE_PERI_REG(TIMG_T0UPDATE_REG(1), 0); // 0x3FF6000C
+      // t0 = READ_PERI_REG(TIMG_T0LO_REG(1));    // 0x3FF60004
     } while (t0 < tn);
     GPIO.out_w1ts = ((uint32_t)1 << PIN_INT);
-    tn = t0 + DELAY - 1;
+    tn = t0 + DELAY;
   }
 }
 
