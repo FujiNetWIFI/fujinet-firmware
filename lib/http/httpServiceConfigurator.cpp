@@ -146,7 +146,6 @@ void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
 #endif /* BUILD_ATARI */
 }
 
-#endif /* BUILD_ATARI */
 
 void fnHttpServiceConfigurator::config_timezone(std::string timezone)
 {
@@ -210,7 +209,7 @@ void fnHttpServiceConfigurator::config_boot_mode(std::string boot_mode)
     Config.save();
 }
 
-#ifdef BUILD_ATARI
+
 void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::string resistor, bool rew)
 {
 #ifdef BUILD_ATARI

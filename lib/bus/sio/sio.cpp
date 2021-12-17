@@ -1,6 +1,5 @@
 #ifdef BUILD_ATARI
 #include "bus.h"
-#ifdef BUILD_ATARI
 #include "sio/modem.h"
 #include "sio/fuji.h"
 #include "sio/midimaze.h"
