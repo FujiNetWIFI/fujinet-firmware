@@ -13,51 +13,15 @@
 #include "png_printer.h"
 #include "coleco_printer.h"
 
-static std::deque<uint8_t> dq;
-static std::deque<uint8_t> dq_b;
-
-static unsigned long _t;
-
-void vColecoPrinterTask(void *pvParameter)
-{
-    char numBytes = 0;
-
-    adamPrinter *p = (adamPrinter *)pvParameter;
-
-    while (1)
-    {
-        if (fnSystem.millis() - _t > 2000)
-        {
-            if (!dq.empty())
-            {
-                for (uint8_t i = 0; i < 40; i++)
-                {
-                    if (!dq.empty())
-                    {
-                        p->getPrinterPtr()->provideBuffer()[i] = dq.front();
-                        dq.pop_front();
-                    }
-                    numBytes = i;
-                }
-                p->getPrinterPtr()->process(numBytes + 1, 0, 0);
-                numBytes = 0;
-            }
-        }
-        vTaskDelay(10);
-    }
-}
-
 // Constructor just sets a default printer type
 adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
 {
     _storage = filesystem;
     set_printer_type(print_type);
-    xTaskCreatePinnedToCore(vColecoPrinterTask, "colprint", 4096, this, 1, &ioTask, 0);
 }
 
 adamPrinter::~adamPrinter()
 {
-    vTaskDelete(ioTask);
     delete _pptr;
 }
 
@@ -91,38 +55,21 @@ void adamPrinter::adamnet_control_status()
 void adamPrinter::adamnet_control_send()
 {
     uint8_t b[16];
+    
+    memset(b,0,sizeof(b));
+
     unsigned short s = adamnet_recv_length();
 
     adamnet_recv_buffer(b, s);
-    adamnet_recv(); // ck
+    uint8_t ck = adamnet_recv(); // ck
 
-    AdamNet.wait_for_idle();
-    adamnet_send(0x92);
+    AdamNet.start_time = esp_timer_get_time();
 
-    for (uint8_t i = 0; i < s; i++)
-    {
-        if (b[i] == 0x0e)
-        {
-            dq.push_back(0x0D);
-            _backwards = true;
-        }
-        else if (b[i] == 0x0f)
-        {
-            _backwards = false;
-            if (!dq_b.empty())
-            {
-                while (!dq_b.empty())
-                {
-                    dq.push_back(dq_b.front());
-                    dq_b.pop_front();                    
-                }
-            }
-        }
-        else if (_backwards == true)
-            dq_b.push_front(b[i]);
-        else
-            dq.push_back(b[i]);
-    }
+    if (adamnet_checksum(b,s) == ck)
+        adamnet_response_ack();
+    else
+        adamnet_response_nack();
+
 }
 
 void adamPrinter::adamnet_control_ready()
@@ -134,8 +81,6 @@ void adamPrinter::adamnet_control_ready()
 void adamPrinter::adamnet_process(uint8_t b)
 {
     unsigned char c = b >> 4;
-
-    _t = fnSystem.millis();
 
     switch (c)
     {
@@ -183,12 +128,6 @@ void adamPrinter::set_printer_type(printer_type printer_type)
         break;
     case PRINTER_EPSON_PRINTSHOP:
         _pptr = new epsonTPS;
-        break;
-    case PRINTER_OKIMATE10:
-        _pptr = new okimate10;
-        break;
-    case PRINTER_PNG:
-        _pptr = new pngPrinter;
         break;
     case PRINTER_HTML:
         _pptr = new htmlPrinter;

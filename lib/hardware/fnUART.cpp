@@ -52,6 +52,8 @@ void UARTManager::begin(int baud)
 
     // This works around an obscure hardware bug where resetting UART2 causes the TX to become corrupted
     // when the FIFO is reset by this function. Blame me for it -Thom
+    // ... except on the Adam, which needs this to happen regardless. Go figure.
+#ifdef BUILD_ATARI
     if (_uart_num == UART_SIO)
     {
         if (esp_reset_reason() != ESP_RST_SW)
@@ -61,6 +63,9 @@ void UARTManager::begin(int baud)
     {
         uart_param_config(_uart_num, &uart_config);
     }
+#else
+    uart_param_config(_uart_num, &uart_config);
+#endif
 
     int tx, rx;
     if (_uart_num == 0)

@@ -10,11 +10,11 @@
 #include "led.h"
 
 static xQueueHandle reset_evt_queue = NULL;
-//static uint32_t reset_detect_status = 0;
+// static uint32_t reset_detect_status = 0;
 
 static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
 {
-    uint32_t gpio_num = (uint32_t) arg;
+    uint32_t gpio_num = (uint32_t)arg;
     xQueueSendFromISR(reset_evt_queue, &gpio_num, NULL);
 }
 
@@ -22,10 +22,12 @@ static void adamnet_reset_intr_task(void *arg)
 {
     uint32_t io_num;
 
-    //reset_detect_status = gpio_get_level((gpio_num_t)PIN_ADAMNET_RESET);
+    // reset_detect_status = gpio_get_level((gpio_num_t)PIN_ADAMNET_RESET);
 
-    for(;;) {
-        if(xQueueReceive(reset_evt_queue, &io_num, portMAX_DELAY)) {
+    for (;;)
+    {
+        if (xQueueReceive(reset_evt_queue, &io_num, portMAX_DELAY))
+        {
             printf("ADAMNet RESET Asserted\n");
         }
     }
@@ -96,7 +98,7 @@ uint32_t adamNetDevice::adamnet_recv_blockno()
 
 void adamNetDevice::reset()
 {
-    Debug_printf("No Reset implemented for device %u\n",_devnum);
+    Debug_printf("No Reset implemented for device %u\n", _devnum);
 }
 
 void adamNetDevice::adamnet_response_ack()
@@ -107,10 +109,6 @@ void adamNetDevice::adamnet_response_ack()
     {
         AdamNet.wait_for_idle();
         adamnet_send(0x90 | _devnum);
-    }
-    else
-    {
-        Debug_printf("TL: %lu\n",t);
     }
 }
 
@@ -171,24 +169,22 @@ void adamNetBus::_adamnet_process_cmd()
 
     uint8_t d = b & 0x0F;
 
-    // turn on AdamNet Indicator LED
-    fnLedManager.set(eLed::LED_BUS, true);
-
     // Find device ID and pass control to it
     if (_daisyChain.find(d) == _daisyChain.end())
         wait_for_idle();
     else if (_daisyChain[d]->device_active == true)
     {
+        // turn on AdamNet Indicator LED
+        fnLedManager.set(eLed::LED_BUS, true);
         start_time = esp_timer_get_time();
         _daisyChain[d]->adamnet_process(b);
         fnUartSIO.flush();
         fnUartSIO.flush_input();
+        // turn off AdamNet Indicator LED
+        fnLedManager.set(eLed::LED_BUS, false);
     }
     else
         wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
-
-    // turn off AdamNet Indicator LED
-    fnLedManager.set(eLed::LED_BUS, false);
 }
 
 void adamNetBus::_adamnet_process_queue()
@@ -239,10 +235,16 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
     pDevice->_devnum = device_id;
     _daisyChain[device_id] = pDevice;
 
-    if (device_id == 0x0f)
+    switch (device_id)
     {
+        case 0x02:
+        _printerDev = (adamPrinter *)pDevice;
+        break;
+        case 0x0f:
         _fujiDev = (adamFuji *)pDevice;
+        break;
     }
+
 }
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)
@@ -251,12 +253,7 @@ void adamNetBus::remDevice(adamNetDevice *pDevice)
 
 int adamNetBus::numDevices()
 {
-    int i = 0;
-    __BEGIN_IGNORE_UNUSEDVARS
-    for (auto devicep : _daisyChain)
-        i++;
-    return i;
-    __END_IGNORE_UNUSEDVARS
+    return _daisyChain.size();
 }
 
 void adamNetBus::changeDeviceId(adamNetDevice *p, int device_id)
