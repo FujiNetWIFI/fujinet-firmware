@@ -145,9 +145,8 @@ void main_setup()
 #if defined ( BUILD_APPLE )
     theFuji.setup(&SmartPort);
     spsd.spsd_setup();
-    spsd.hw_timer_pulses();
-    // spsd.hw_timer_direct_reg();
-
+    //spsd.hw_timer_pulses();
+    //spsd.hw_timer_direct_reg();
  #elif defined( BUILD_ATARI )
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
