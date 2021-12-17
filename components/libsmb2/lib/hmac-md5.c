@@ -3,6 +3,8 @@
 /*
 ** Function: hmac_md5
 */
+#include <esp_rom_md5.h>
+
 #if !defined(_MSC_VER) && !defined(PS2_EE_PLATFORM) && !defined(PS2_IOP_PLATFORM)
 #include <strings.h>
 #endif
@@ -22,7 +24,7 @@ void
 smb2_hmac_md5(unsigned char *text, int text_len, unsigned char *key, int key_len,
 	 unsigned char *digest)
 {
-        struct MD5Context context;
+        md5_context_t context;
         unsigned char k_ipad[65];    /* inner padding -
                                       * key XORd with ipad
                                       */
@@ -33,11 +35,11 @@ smb2_hmac_md5(unsigned char *text, int text_len, unsigned char *key, int key_len
         int i;
         /* if key is longer than 64 bytes reset it to key=MD5(key) */
         if (key_len > 64) {
-		struct MD5Context tctx;
+		md5_context_t tctx;
 
-                MD5Init(&tctx);
-                MD5Update(&tctx, key, key_len);
-                MD5Final(tk, &tctx);
+                esp_rom_md5_init(&tctx);
+                esp_rom_md5_update(&tctx, key, key_len);
+                esp_rom_md5_final(tk, &tctx);
 
                 key = tk;
                 key_len = 16;
@@ -67,18 +69,19 @@ smb2_hmac_md5(unsigned char *text, int text_len, unsigned char *key, int key_len
         /*
          * perform inner MD5
          */
-        MD5Init(&context);                   /* init context for 1st
+        esp_rom_md5_init(&context);                   /* init context for 1st
                                               * pass */
-        MD5Update(&context, k_ipad, 64);     /* start with inner pad */
-        MD5Update(&context, text, text_len); /* then text of datagram */
-        MD5Final(digest, &context);          /* finish up 1st pass */
+        esp_rom_md5_init(&context);
+        esp_rom_md5_update(&context, k_ipad, 64);     /* start with inner pad */
+        esp_rom_md5_update(&context, text, text_len); /* then text of datagram */
+        esp_rom_md5_final(digest, &context);          /* finish up 1st pass */
         /*
          * perform outer MD5
          */
-        MD5Init(&context);                   /* init context for 2nd
+        esp_rom_md5_init(&context);                   /* init context for 2nd
                                               * pass */
-        MD5Update(&context, k_opad, 64);     /* start with outer pad */
-        MD5Update(&context, digest, 16);     /* then results of 1st
+        esp_rom_md5_update(&context, k_opad, 64);     /* start with outer pad */
+        esp_rom_md5_update(&context, digest, 16);     /* then results of 1st
                                               * hash */
-        MD5Final(digest, &context);          /* finish up 2nd pass */
+        esp_rom_md5_final(digest, &context);          /* finish up 2nd pass */
 }
