@@ -66,6 +66,9 @@ enum uiState{
 
 uiState state=startup;
 
+uint32_t readTimer();
+void ACK_Deassert();
+void ACK_Assert();
 
 unsigned char ReceivePacket(unsigned char *a);
 unsigned char SendPacket(unsigned char *a);
