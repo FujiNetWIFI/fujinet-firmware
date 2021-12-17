@@ -51,7 +51,7 @@ void colecoprinter::post_new_file()
     pageWidth = 612.0;
     pageHeight = 792.0;
     leftMargin = 66.0;
-    topMargin = 48.0;
+    topMargin = 32.0;
     bottomMargin = 48.0;
     printWidth = 480.0; // 6 2/3 inches
     lineHeight = 12.0;
