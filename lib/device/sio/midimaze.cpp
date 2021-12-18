@@ -64,7 +64,7 @@ void sioMIDIMaze::sio_handle_midimaze()
     }
 
     // Read the data until there's a pause in the incoming stream
-    if (fnUartSIO.available())
+    if (fnUartSIO.available() > 0)
     {
         while (true)
         {
@@ -77,7 +77,7 @@ void sioMIDIMaze::sio_handle_midimaze()
                 sio_disable_midimaze();
                 return;
             }
-            if (fnUartSIO.available())
+            if (fnUartSIO.available() > 0)
             {
                 // Collect bytes read in our buffer
                 buf_midi[buf_midi_index] = (char)fnUartSIO.read();
@@ -87,7 +87,7 @@ void sioMIDIMaze::sio_handle_midimaze()
             else
             {
                 fnSystem.delay_microseconds(MIDIMAZE_PACKET_TIMEOUT);
-                if (!fnUartSIO.available())
+                if (fnUartSIO.available() <= 0)
                     break;
             }
         }
