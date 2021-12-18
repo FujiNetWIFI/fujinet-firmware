@@ -67,6 +67,33 @@ uint8_t adamNetDevice::adamnet_recv()
     return b;
 }
 
+bool adamNetDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
+{
+    uint64_t start, current, elapsed;
+    bool timeout = true;
+
+    start = current = esp_timer_get_time();
+    elapsed = 0;
+
+    while (fnUartSIO.available()<=0)
+    {
+        current = esp_timer_get_time();
+        elapsed = current - start;
+        if (elapsed > dur)
+            break;
+    }
+
+    if (fnUartSIO.available()>0)
+    {
+        *b = (uint8_t) fnUartSIO.read();
+        timeout = false;
+    } //else
+      //  Debug_printf("duration: %llu\n", elapsed);       
+            
+
+    return timeout;
+}
+
 uint16_t adamNetDevice::adamnet_recv_length()
 {
     unsigned short s = 0;

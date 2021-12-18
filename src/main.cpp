@@ -26,6 +26,7 @@
 #include "adamnet/printer.h"
 #include "adamnet/modem.h"
 #include "adamnet/printerlist.h"
+#include "adamnet/query_device.h"
 #endif
 
 #include "httpService.h"
@@ -58,8 +59,14 @@ sioCPM sioZ;
 #endif /* BUILD_ATARI */
 
 #ifdef BUILD_ADAM
+
+#define VIRTUAL_ADAM_DEVICES
+//#define NO_VIRTUAL_KEYBOARD
+
 adamModem *sioR;
 adamKeyboard *sioK;
+adamQueryDevice *sioQ;
+bool exists = false;
 #endif /* BUILD_ADAM */
 
 void main_shutdown_handler()
@@ -164,14 +171,39 @@ void main_setup()
     SIO.setup();
 
 #elif defined( BUILD_ADAM )
-    //sioK = new adamKeyboard();
-    //AdamNet.addDevice(sioK,0x01);
-    // FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-    // adamPrinter *ptr = new adamPrinter(ptrfs, adamPrinter::PRINTER_COLECO_ADAM);
-    // fnPrinters.set_entry(0,ptr,adamPrinter::PRINTER_COLECO_ADAM,0);
-    // AdamNet.addDevice(ptr,0x02);
+
     theFuji.setup(&AdamNet);
     AdamNet.setup();
+
+#ifdef VIRTUAL_ADAM_DEVICES
+    Debug_printf("Physical Device Scanning...\n");
+    sioQ = new adamQueryDevice();
+
+#ifndef NO_VIRTUAL_KEYBOARD
+    exists = sioQ->adamDeviceExists(ADAMNET_KEYBOARD);
+    if (! exists)
+    {
+        Debug_printf("Adding virtual keyboard\n");
+        sioK = new adamKeyboard();
+        AdamNet.addDevice(sioK,ADAMNET_KEYBOARD);
+    } else
+        Debug_printf("Physical keyboard found\n");
+#endif
+    
+    exists = sioQ->adamDeviceExists(ADAMNET_PRINTER);
+    if (! exists)
+    {
+        Debug_printf("Adding virtual printer\n");
+        FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+        adamPrinter::printer_type printer = adamPrinter::PRINTER_COLECO_ADAM;
+        adamPrinter *ptr = new adamPrinter(ptrfs, printer);
+        fnPrinters.set_entry(0,ptr,printer,0);
+        AdamNet.addDevice(ptr,0x02);
+    } else
+        Debug_printf("Physical printer found\n");
+
+#endif
+
 
 #elif defined( BUILD_CBM )
 
