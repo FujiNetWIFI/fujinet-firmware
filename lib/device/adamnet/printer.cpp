@@ -70,6 +70,10 @@ void adamPrinter::adamnet_control_send()
     else
         adamnet_response_nack();
 
+    memcpy(_pptr->provideBuffer(),b,s);
+    _last_ms=fnSystem.millis();
+    _pptr->provideBuffer(s,0,0);
+
 }
 
 void adamPrinter::adamnet_control_ready()
@@ -94,8 +98,6 @@ void adamPrinter::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
-
-    fnUartSIO.flush_input();
 
 }
 

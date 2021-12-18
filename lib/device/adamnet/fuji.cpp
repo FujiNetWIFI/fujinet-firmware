@@ -1166,8 +1166,6 @@ void adamFuji::adamnet_process(uint8_t b)
         break;
     }
 
-    fnUartSIO.flush_input();
-
 }
 
 int adamFuji::get_disk_id(int drive_slot)
