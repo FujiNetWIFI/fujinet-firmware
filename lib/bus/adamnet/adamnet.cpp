@@ -105,7 +105,7 @@ void adamNetDevice::adamnet_response_ack()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 1300)
+    if (t < 1500)
     {
         AdamNet.wait_for_idle();
         adamnet_send(0x90 | _devnum);
@@ -170,21 +170,18 @@ void adamNetBus::_adamnet_process_cmd()
     uint8_t d = b & 0x0F;
 
     // Find device ID and pass control to it
-    if (_daisyChain.find(d) == _daisyChain.end())
-        wait_for_idle();
+    if (_daisyChain.find(d) == _daisyChain.end()) {}
     else if (_daisyChain[d]->device_active == true)
     {
         // turn on AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
         start_time = esp_timer_get_time();
         _daisyChain[d]->adamnet_process(b);
-        fnUartSIO.flush();
-        fnUartSIO.flush_input();
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }
-    else
-        wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
+    
+    wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
 }
 
 void adamNetBus::_adamnet_process_queue()
@@ -193,9 +190,6 @@ void adamNetBus::_adamnet_process_queue()
 
 void adamNetBus::service()
 {
-    // Process out-of-band event queue
-    _adamnet_process_queue();
-
     // Process anything waiting.
     if (fnUartSIO.available())
         _adamnet_process_cmd();

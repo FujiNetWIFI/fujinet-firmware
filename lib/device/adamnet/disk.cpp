@@ -102,13 +102,23 @@ bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 
 void adamDisk::adamnet_control_status()
 {
-    AdamNet.wait_for_idle();
-    adamnet_response_status();
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 1500)
+    {
+        AdamNet.wait_for_idle();
+        adamnet_response_status();
+    }
 }
 
 void adamDisk::adamnet_control_clr()
 {
-    adamnet_response_send();
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 1500)
+    {
+        adamnet_response_send();
+    }
 }
 
 void adamDisk::adamnet_control_receive()
@@ -169,6 +179,7 @@ void adamDisk::adamnet_response_status()
     status[0] |= _devnum;
     adamnet_send_buffer(status, sizeof(status));
 }
+
 void adamDisk::adamnet_response_send()
 {
     if (_media == nullptr)
@@ -179,7 +190,6 @@ void adamDisk::adamnet_response_send()
 
     memcpy(&b[3], _media->_media_blockbuff, 1024);
 
-    Debug_printf("response_send()\n");
     b[0] = 0xB0 | _devnum;
     b[1] = 0x04;
     b[2] = 0x00;
