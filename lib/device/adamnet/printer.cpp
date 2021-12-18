@@ -72,8 +72,7 @@ void adamPrinter::adamnet_control_send()
 
     memcpy(_pptr->provideBuffer(),b,s);
     _last_ms=fnSystem.millis();
-    _pptr->provideBuffer(s,0,0);
-
+    _pptr->process(s,0,0);
 }
 
 void adamPrinter::adamnet_control_ready()
