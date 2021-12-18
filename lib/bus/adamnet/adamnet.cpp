@@ -59,7 +59,7 @@ uint8_t adamNetDevice::adamnet_recv()
 {
     uint8_t b;
 
-    while (!fnUartSIO.available())
+    while (fnUartSIO.available() <= 0)
         fnSystem.yield();
 
     b = fnUartSIO.read();
@@ -163,12 +163,12 @@ void adamNetBus::wait_for_idle()
     do
     {
         // Wait for serial line to quiet down.
-        while (fnUartSIO.available())
+        while (fnUartSIO.available() > 0)
             fnUartSIO.read();
 
         start = current = esp_timer_get_time();
 
-        while ((!fnUartSIO.available()) && (isIdle == false))
+        while ((fnUartSIO.available() <= 0) && (isIdle == false))
         {
             current = esp_timer_get_time();
             dur = current - start;
@@ -218,7 +218,7 @@ void adamNetBus::_adamnet_process_queue()
 void adamNetBus::service()
 {
     // Process anything waiting.
-    if (fnUartSIO.available())
+    if (fnUartSIO.available() > 0)
         _adamnet_process_cmd();
 }
 

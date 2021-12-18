@@ -471,16 +471,16 @@ uint8_t _sys_makedisk(uint8_t drive)
 int _kbhit(void)
 {
 	if (teeMode == true)
-		return client.available() | fnUartSIO.available();
+		return client.available() | (fnUartSIO.available()>0);
 	else
-		return fnUartSIO.available();
+		return min(0, fnUartSIO.available());
 }
 
 uint8_t _getch(void)
 {
 	if (teeMode == true)
 	{
-		while (!fnUartSIO.available())
+		while (fnUartSIO.available() > 0)
 		{
 			if (client.available())
 			{
@@ -493,7 +493,7 @@ uint8_t _getch(void)
 	}
 	else
 	{
-		while (!fnUartSIO.available())
+		while (fnUartSIO.available() <= 0)
 		{
 		}
 		return fnUartSIO.read() & 0x7f;
