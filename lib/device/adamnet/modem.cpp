@@ -1029,7 +1029,7 @@ void adamModem::sio_handle_modem()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-        if (fnUartSIO.available())
+        if (fnUartSIO.available() > 0)
         {
             // get char from Atari SIO
             //char chr = SIO_UART.read();
@@ -1123,7 +1123,7 @@ void adamModem::sio_handle_modem()
         }
 
         //int sioBytesAvail = SIO_UART.available();
-        int sioBytesAvail = fnUartSIO.available();
+        int sioBytesAvail = min(0, fnUartSIO.available());
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())

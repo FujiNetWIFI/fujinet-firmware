@@ -70,6 +70,13 @@ protected:
     uint8_t adamnet_recv();
 
     /**
+     * @brief Receive byte from AdamNet with a timeout period
+     * @param dur timeout period in milliseconds
+     * @return true = timeout, false = b contains byte received
+     */
+    bool adamnet_recv_timeout(uint8_t *b, uint64_t dur);
+
+    /**
      * @brief convenience function to recieve length
      * @return short containing length.
      */
