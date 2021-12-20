@@ -57,7 +57,7 @@ eBTBaudrate BluetoothManager::toggleBaudrate()
 
 void BluetoothManager::service()
 {
-    if (fnUartSIO.available())
+    if (fnUartSIO.available() > 0)
     {
         btSpp.write(fnUartSIO.read());
     }
