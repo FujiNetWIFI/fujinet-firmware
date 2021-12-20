@@ -144,6 +144,8 @@ void adamDisk::adamnet_control_send_block_num()
         _media->format(NULL);
     }
 
+    AdamNet.start_time=esp_timer_get_time();
+    
     adamnet_response_ack();
 
     Debug_printf("BLOCK: %lu\n", blockNum);

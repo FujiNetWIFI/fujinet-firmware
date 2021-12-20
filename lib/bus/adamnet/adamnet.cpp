@@ -75,7 +75,7 @@ bool adamNetDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
     start = current = esp_timer_get_time();
     elapsed = 0;
 
-    while (fnUartSIO.available()<=0)
+    while (fnUartSIO.available() <= 0)
     {
         current = esp_timer_get_time();
         elapsed = current - start;
@@ -83,13 +83,12 @@ bool adamNetDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
             break;
     }
 
-    if (fnUartSIO.available()>0)
+    if (fnUartSIO.available() > 0)
     {
-        *b = (uint8_t) fnUartSIO.read();
+        *b = (uint8_t)fnUartSIO.read();
         timeout = false;
-    } //else
-      //  Debug_printf("duration: %llu\n", elapsed);       
-            
+    } // else
+      //   Debug_printf("duration: %llu\n", elapsed);
 
     return timeout;
 }
@@ -132,7 +131,7 @@ void adamNetDevice::adamnet_response_ack()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 1500)
+    if (t < 300)
     {
         AdamNet.wait_for_idle();
         adamnet_send(0x90 | _devnum);
@@ -143,7 +142,7 @@ void adamNetDevice::adamnet_response_nack()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 1500)
+    if (t < 300)
     {
         AdamNet.wait_for_idle();
         adamnet_send(0xC0 | _devnum);
@@ -197,7 +196,9 @@ void adamNetBus::_adamnet_process_cmd()
     uint8_t d = b & 0x0F;
 
     // Find device ID and pass control to it
-    if (_daisyChain.find(d) == _daisyChain.end()) {}
+    if (_daisyChain.find(d) == _daisyChain.end())
+    {
+    }
     else if (_daisyChain[d]->device_active == true)
     {
         // turn on AdamNet Indicator LED
@@ -207,8 +208,14 @@ void adamNetBus::_adamnet_process_cmd()
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }
-    
+
     wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
+
+    if (_daisyChain.find(2) != _daisyChain.end())
+    {
+        adamPrinter *p = (adamPrinter *)_daisyChain[2];
+        p->print_next_char();
+    }
 }
 
 void adamNetBus::_adamnet_process_queue()
@@ -258,14 +265,13 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
 
     switch (device_id)
     {
-        case 0x02:
+    case 0x02:
         _printerDev = (adamPrinter *)pDevice;
         break;
-        case 0x0f:
+    case 0x0f:
         _fujiDev = (adamFuji *)pDevice;
         break;
     }
-
 }
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)
