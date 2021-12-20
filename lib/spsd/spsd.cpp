@@ -89,7 +89,7 @@ IDC20   IIc     DB 19     Arduino
 
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
-
+#define TIMER_USEC_FACTOR     (TIMER_SCALE / 1000000000)
 
 #define VERBOSE
 
@@ -108,27 +108,19 @@ void spDevice::ACK_Deassert()
   Debug_print("a");
 #endif
 }
-void spDevice::ACK_Assert()
-{
-  fnSystem.digital_write(SP_ACK, DIGI_HIGH);
-#ifdef VERBOSE
-  Debug_print("A");
-#endif
-}
-// todo - make Receive and Send functions for ESP32
+
+
 unsigned char spDevice::ReceivePacket(unsigned char *a)
 {
-  int idx = 0;        // reg x, index into *a
-  int bit = 0;        // carry flag
-  int prevbit;        // r22 in 328p assy
-  uint8_t rxbyte = 0; // r23 received byte being built bit by bit
-  int numbits;        // r25 counter
-  uint32_t t0;        // timer value stored here
-  uint32_t tn;        // next timer value store here
-
-  // todo - from logic analyzer capture this does not look like standard 8N1 serial
-  // todo - need to understand start bit (or state change)
-  // todo - need to understand stop bit (or state change)
+  bool have_data = true;
+  int idx = 0;             // index into *a
+  uint32_t bit = 0;        // logical bit value
+  uint32_t prev_level = (0x01 << (SP_WRDATA - 32)); // previous value of WRDATA line
+  uint32_t current_level;  // current value of WRDATA line
+  uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
+  int numbits;             // number of bits left to read into the rxbyte
+  uint32_t t0;             // timer value stored here
+  uint32_t tn;             // next timer value store here
 
   //*****************************************************************************
   // Function: ReceivePacket
@@ -139,275 +131,177 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
   // packet_buffer
   //
   //*****************************************************************************
-
-  // ReceivePacket:
-  //           mov  XL,r24                 ;mov buffer pointer into X
-  //           mov  XH,r25
+  /**
+ * @brief Handle ACK and REQ lines and read a packet into packet_buffer
+ * 
+ * @param packet_buffer pointer
+ * 
+ * @returns 
+ *    0 for timeout error
+ *    1 all else
+ * 
+ * @details This function reads a packet from the SmartPort (SP) bus. 
+ * The algorithm originated from the SmartPortSD Arduino project as
+ * Atmel AVR assembly. It went through a near literal conversion and then
+ * some changes for readibility. The algorithm is time critical as it
+ * reads 250kbit/sec serial data that includes sometimes irregular timing between 
+ * bytes. The SP serial data are encoded such that the logical meaning of the 
+ * current bit depends on the signal level of the previous bit. This can also
+ * be interpreted as over-lapping two-bit sequences. Byte framing is done by
+ * ensuring the first bit (really bit 7) of the next byte is always the 
+ * opposite signal level of the last bit (bit 0) of the current byte. The
+ * algorithm waits for the transition and then starts the new byte.
+ */
 
   // 'a' is the receive buffer pointer
 
-  //           sbi  _SFR_IO_ADDR(PORTC),5  ;set ACK high to signal we are ready to send
-  //           ;ldi  r24,'A'                ;for debug, A indicates ACK is high
-  //           ;call uart_putc              ;output to serial port
-  ACK_Assert();
+  //ACK_Assert(); // todo make sure the PHIx/ACK/REQ states are correct
+                // to do is ACK negative logic?
+ // fnSystem.digital_write(SP_ACK, DIGI_HIGH);
+  GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
+#ifdef VERBOSE
+  Debug_print("A");
+#endif
 
-  //           clr  r21                    ;setup timeout counter
-  TIMERG1.hw_timer[0].update = 0;
-  t0 = TIMERG1.hw_timer[0].cnt_low;
-  tn = t0 + TIMER_SCALE / 1000; // 1 millisecond
-  //           ldi  r20,10                 ;two stage timer, around 1ms
-  // 1:        sbic _SFR_IO_ADDR(PIND),2   ;1/2 wait for req line to go high
-  //           rjmp start                  ;this indicates host is about to send packet
-  //           dec  r21                    ;1
-  //           brne 1b                     ;1/2
-  //           dec  r20
-  //           brne 1b
-  //           rjmp timeout                ;yes, we have timed out
-  do
+  // reset time to 0 to avoid overflows
+  timer_pause(TIMER_GROUP_1, TIMER_0);
+  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+  timer_start(TIMER_GROUP_1, TIMER_0);
+
+  // setup a timeout counter to wait for REQ response
+  TIMERG1.hw_timer[0].update = 0;        // latch highspeed timer value
+  t0 = TIMERG1.hw_timer[0].cnt_low;      //  grab timer low word
+  tn = t0 + (TIMER_USEC_FACTOR * 1000U); // 1 millisecond
+
+  // while (!fnSystem.digital_read(SP_REQ))  //(GPIO.in1.val >> (pin - 32)) & 0x1
+  while ( (GPIO.in1.val & (0x01 << (SP_REQ-32))) == 0 )  //(GPIO.in1.val >> (pin - 32)) & 0x1
   {
-    TIMERG1.hw_timer[0].update = 0;
-    t0 = TIMERG1.hw_timer[0].cnt_low;
-    if (t0 > tn)
+    TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
+    t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
+    if (t0 > tn)                      // test for timeout
     {
       // timeout!
       ACK_Deassert();
       return 1;
     }
-  } while (!fnSystem.digital_read(SP_REQ));
+  };
 
-// start:    ;ldi  r24,'R'                ;for debug, R indicates REQ is high
-//           ;call uart_putc              ;output to serial port
 #ifdef VERBOSE
+  // REQ received!
   Debug_print("R");
 #endif
 
-  //           ldi  r22,1                                                 ;1   remember tx line status when previously sampled
-  prevbit = 1;
-  //           sbis _SFR_IO_ADDR(PIND),7                                  ;1/2 wait for txd line to go low
-  // analysis - if txd is high, go back to start, otherwise go do 2f if low
-  //           rjmp 2f                                                    ;2   txd cleared, start of packet data
-  //           rjmp start                                                 ;2
-  while (fnSystem.digital_read(SP_WRDATA))
-    ;
-  // possibly faster: GPIO.in1.val & (0x01 << (SP_WRDATA-32))
-
-  //                                                                 ;
-  //                                                                      ;    wait for half a bit, 2us (28 cycles total) --> 32 cycles for 64Mhz
-  //                                                                      ;    this is so we sample mid point  --> I think this is ok for 16Mhz
-  // 2:        ldi  r24,10                                        ;1   |delay total of 30 cycles
-  // 3:        dec  r24                                                   ;1   | each loop +3 final loop +2
-  //           brne 3b                                                    ;1/2 | 1 + 9x3 + 1x2 = 30
-
-// todo maybe reset counter to 0 to avoid eventual overflow case
-  TIMERG1.hw_timer[0].update = 0;
-
-
-  while (1)
+  // setup a timeout counter to wait for WRDATA to be ready response
+  TIMERG1.hw_timer[0].update = 0;      // latch highspeed timer value
+  t0 = TIMERG1.hw_timer[0].cnt_low;    //  grab timer low word
+  tn = t0 + (TIMER_USEC_FACTOR * 32U); // 32 usec - 1 byte
+  while (GPIO.in1.val & (0x01 << (SP_WRDATA - 32)))
   {
-    // delay 2 us until middle of 4-us bit
-  t0 = TIMERG1.hw_timer[0].cnt_low;
-  tn = t0 + TIMER_SCALE / 500000; // 2 usec
-      // nxtbyte:                                                             ;    full cycle time for each byte is 32us
-    //           ldi  r25,8                                                 ;1   8bits to read
-    numbits = 8;
-    do
+    TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
+    t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
+    if (t0 > tn)                      // test for timeout
     {
-      do
+      // timeout!
+      ACK_Deassert();
+      return 1;
+    }
+  };
+
+  while (have_data)
+  {
+    // beginning of the byte
+    // delay 2 us until middle of 4-us bit
+    TIMERG1.hw_timer[0].update = 0;
+    t0 = TIMERG1.hw_timer[0].cnt_low;
+    tn = t0 + TIMER_USEC_FACTOR * 2; //TIMER_SCALE / 500000; // 2 usec
+    while (t0 < tn)               //  wait for 2 microseconds
+    {
+      TIMERG1.hw_timer[0].update = 0;
+      t0 = TIMERG1.hw_timer[0].cnt_low;
+    };
+
+    numbits = 8; // ;1   8bits to read
+    while(1)
+    {
+      // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
+      current_level = (GPIO.in1.val & (0x01 << (SP_WRDATA - 32)));
+      //fnSystem.digital_read(SP_WRDATA);
+      // logic table:
+      //  prev_level  current_level   decoded bit
+      //  0           0               0
+      //  0           1               1
+      //  1           0               1
+      //  1           1               0
+      // this is an exclusive OR operation
+      bit = prev_level ^ current_level;
+      rxbyte <<= 1;
+      rxbyte += (bit > 0);
+      prev_level = current_level;
+      numbits--; //           dec  r25                            ;13  ;13  ;13  ;13     ;1   dec bit counter
+      if (numbits == 0)
+        break; // end of byte
+      tn += TIMER_USEC_FACTOR * 4U; // 4 usec
+      do //  wait for 4 microseconds
       {
         TIMERG1.hw_timer[0].update = 0;
         t0 = TIMERG1.hw_timer[0].cnt_low;
       } while (t0 < tn);
-      tn += TIMER_SCALE / 250000; // 4 usec
+    };
 
-      // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
-      if (fnSystem.digital_read(SP_WRDATA))
-      {
-        //           rjmp bitset                                    ;3  ;3      ;2   bit is set
-        // bitset:   sbrc r22,0                                     ;4  ;5      ;1/2 test previous bit recv'd
-        if (prevbit)
-        {
-          //           rjmp carryclr                                  ;6          ;2   bit set, then we have a zero
-          // carryclr: ldi  r22,1                                    ;7           ;1   remember prev tx bit is set
-          prevbit = 1;
-          //           clc                                           ;8           ;1
-          bit = 0;
-          //           nop                                           ;9           ;1
-          //           nop                                           ;10          ;1
-          //           nop                                           ;11          ;1
-        }
-        else
-        {
-          //           ldi  r22,1                                         ;6      ;1   remember prev tx bit is set
-          prevbit = 1;
-          //           sec                                                ;7      ;1   else we have a one
-          bit = 1;
-          //           nop                                                ;8      ;1
-          //           nop                                                ;9      ;1
-          //           rjmp loadbit                                       ;11     ;2}
-        }
-      }
-      else
-      {
-        //           rjmp bitclr                         ;4   ;4                ;2   bit is clr
-        // bitclr:   sbrc r22,0                          ;5   ;6                ;1/2 test previous bit recv'd
-        if (prevbit)
-        {
-          //           rjmp carryset                       ;7                     ;2   bit set, then we have a one
-          // carryset: ldi  r22,0                          ;8                     ;1
-          prevbit = 0;
-          //           sec                                 ;9                     ;1   remember prev tx bit is clr
-          bit = 1;
-          //           rjmp loadbit                        ;11                    ;2
-        }
-        else
-        {
-          //           ldi  r22,0                               ;7                ;1   remember prev tx bit is clr
-          prevbit = 0;
-          //           clc                                      ;8                ;1   else we have a zero
-          bit = 0;
-          //           nop                                      ;9                ;1
-          //           rjmp loadbit                             ;11               ;2
-        }
-      }
-
-      // JUMP DOWN TO loadbit:
-
-      // carryset: ldi  r22,0                          ;8                     ;1
-      //           sec                                 ;9                     ;1   remember prev tx bit is clr
-      //           rjmp loadbit                        ;11                    ;2
-
-      // carryclr: ldi  r22,1                                    ;7           ;1   remember prev tx bit is set
-      //           clc                                           ;8           ;1
-      //           nop                                           ;9           ;1
-      //           nop                                           ;10          ;1
-      //           nop                                           ;11          ;1
-
-      // loadbit:  rol  r23                            ;12  ;12  ;12  ;12     ;1   shift bit(carry) into r23
-      rxbyte <<= 1;
-      rxbyte += bit;
-      //           dec  r25                            ;13  ;13  ;13  ;13     ;1   dec bit counter
-      numbits--;
-      //           breq havebyte                       ;14  ;14  ;14  ;14     ;1/2
-
-      //                                                                      ;    delay to make up the rest of the 4us --> 64 cycles for 16Mhz (8 more)
-      //                                      ;                                            2 more loops +2 nops
-
-      //           ldi  r24,15                                                ;1   |delay total of 45 cycles
-      // 3:        dec  r24                                                   ;1   | each loop +3 final loop +2
-      //           brne 3b                                                    ;1/2 | 1 + 14x3 + 1x2 = 45
-      //                                               ;59  ;59  ;59  ;59
-      //           nop                                 ;60  ;60  ;60  ;60     ;1
-      //           nop                                 ;61  ;61  ;61  ;61     ;1
-      //           nop                                 ;62  ;62  ;62  ;62     ;1
-      //           rjmp nxtbit                         ;64  ;64  ;64  ;64     ;2   get next bit. --> 64 cycles = 4us for 16Mhz
-      //
-    } while (numbits);
-
-    //                                   ;--------------------------------------
-    // havebyte:
-    //           st   x+,r23                         ;17                    ;2   save byte in buffer
-    a[idx++] = rxbyte;
+    a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
 #ifdef VERBOSE
-    Debug_printf("%02x ", rxbyte);
+    Debug_printf(" %02x ", rxbyte);
 #endif
 
-    //           ldi  r25,100 ;era 100!!!!!!!!!                        ;18                    ;1   timeout counter if we are at the end
+    tn += TIMER_USEC_FACTOR * 16; // 16 usec? that's a 1/2 byte so maybe?
 
-    tn += TIMER_SCALE / 31250; // 32 usec? that's a byte so maybe?
-
-    //           cpi  r22,1                          ;19                    ;1   check for status of last bit
-    if (!prevbit)
-    //           breq wasset                         ;20  ;21               ;1/2
+    // now wait for leading edge of next byte
+     while ((GPIO.in1.val & (0x01 << (SP_WRDATA - 32))) != prev_level) // return (GPIO.in1.val >> (pin - 32)) & 0x1;
     {
-      // wasclr:   sbic _SFR_IO_ADDR(PIND),7           ;21                    ;1/2 now read a bit, wait for transition to 1
-      do
+      TIMERG1.hw_timer[0].update = 0;
+      t0 = TIMERG1.hw_timer[0].cnt_low;
+      if (t0 > tn)
       {
-         TIMERG1.hw_timer[0].update = 0;
-         t0 = TIMERG1.hw_timer[0].cnt_low;
-         if (t0>tn)
-         {
-           // end of packet
-           break;
-         }
-      } while (!fnSystem.digital_read(SP_WRDATA));
-        //           rjmp havesbit                       ;23                    ;2   now set, lets get the next byte
-      //           dec  r25                                                   ;1
-      //           breq endpkt                                                ;1/2 we have timed out, must be end of packet
-      //           rjmp wasclr                                                ;2   lets test again
-    }
-    else
-    {
-      // wasset:   sbis _SFR_IO_ADDR(PIND),7                ;22               ;1/2 now read a bit, wait for transition to 0
-      do
-      {
-          TIMERG1.hw_timer[0].update = 0;
-         t0 = TIMERG1.hw_timer[0].cnt_low;
-         if (t0>tn)
-         {
-           // end of packet
-           break;
-         }
-     } while (fnSystem.digital_read(SP_WRDATA));
-      
-      //           rjmp havesbit                            ;24               ;2   now clr, lets get the next byte
-      //           dec  r25                                                   ;1
-      //           breq endpkt                                                ;1/2 we have timed out, must be end of packet
-      // todo - timeout
-      //           rjmp wasset                                                ;2   lets test again
-    }
-
-    // havesbit:                                                            ;    wait for half a bit, 2us (28 cycles total) --> 32 cycles for 16MHz
-    //                                                                      ;    this is so we sample mid point --> again, i think this was long before, so try as is
-    //           ldi  r24,7                                                 ;1   |delay total of 21 cycles
-    // 3:        dec  r24                                                   ;1   | each loop +3 final loop +2
-    //           brne 3b                                                    ;1/2 | 1 + 6x3 + 1x2 = 21
-    
-    TIMERG1.hw_timer[0].update = 0;
-  
-    //                                               ;44  ;45
-    //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
-  }
+        // end of packet
+        have_data = false;
+        break;
+      }
+    };
+  } // while have_data
+  //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
 
   // endpkt:   clr  r23
-  //           st   x+,r23               ;save zero byte in buffer to mark end
-  a[idx++] = 0;
+  a[idx++] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
-  //           cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have recv'd the pkt
-  //           ;ldi  r24,'a'                ;for debug, a indicates ACK is low
-  //           ;call uart_putc              ;output to serial port
-  fnSystem.digital_write(SP_ACK, DIGI_LOW);
+  // fnSystem.digital_write(SP_ACK, DIGI_LOW); //           cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have recv'd the pkt
+  GPIO.out_w1tc = ((uint32_t)1 << SP_ACK);
 #ifdef VERBOSE
-  Debug_print("a");
+  Debug_print("a"); //           ;ldi  r24,'a'                ;for debug, a indicates ACK is low
+
 #endif
 
-  // 1:        sbis _SFR_IO_ADDR(PIND),2   ;wait for REQ line to go low
-  //           rjmp finish                 ;this indicates host has acknowledged ACK
-  //           rjmp 1b
-  while (fnSystem.digital_read(SP_REQ))
-    ;
-// todo time out
+    TIMERG1.hw_timer[0].update = 0;
+    t0 = TIMERG1.hw_timer[0].cnt_low;
+    tn = t0 + TIMER_USEC_FACTOR * 1000; //1 millisecond
 
-// finish:   ;ldi  r24,'r'                ;for debug, r indicates REQ is low
-//           ;call uart_putc              ;output to serial port
+    //while (fnSystem.digital_read(SP_REQ))
+    while (GPIO.in1.val & (0x01 << (SP_REQ - 32)))
+    {
+      // 1:        sbis _SFR_IO_ADDR(PIND),2   ;wait for REQ line to go low
+      //           rjmp finish                 ;this indicates host has acknowledged ACK
+      TIMERG1.hw_timer[0].update = 0;
+      t0 = TIMERG1.hw_timer[0].cnt_low;
+      if (t0 > tn)
+      {
+        // timeout
+        return 1;
+      }
+    };
 #ifdef VERBOSE
-  Debug_print("r");
+    Debug_print("r"); // for debug, 'r' indicates REQ is low
 #endif
 
-  //           clr  r25                    ;return no error (for now)
-  //           clr  r24
-  //           ret
-  return 0;
-
-//   // timeout:  cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) back to low
-//   fnSystem.digital_write(SP_ACK, DIGI_LOW);
-// #ifdef VERBOSE
-//   Debug_print("a");
-// #endif
-
-//   //           ldi  r24,1                  ;setup return value, 1=error
-//   //           clr  r25
-//   //           ret
-//   return 1;
+    return 0; // no error
 }
 
 unsigned char spDevice::SendPacket(unsigned char *a)
@@ -424,7 +318,7 @@ unsigned char spDevice::SendPacket(unsigned char *a)
 
   int idx = 0;        // reg x, index into *a
   //int bit = 0;        // carry flag
-  //int prevbit;        // r22 in 328p assy
+  //int prev_level;        // r22 in 328p assy
   uint8_t txbyte = 0; // r23 transmit byte being sent bit by bit
   int numbits;        // r25 counter
   uint32_t t0;        // timer value stored here
@@ -2295,6 +2189,7 @@ void spDevice::timer_config()
   /* Timer's counter will initially start from value below.
        Also, if auto_reload is set, this value will be automatically reload on alarm */
   timer_init(TIMER_GROUP_1, TIMER_0, &config);
+  
   timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
   
   timer_start(TIMER_GROUP_1, TIMER_0);
