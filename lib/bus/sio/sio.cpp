@@ -80,7 +80,7 @@ uint8_t sioDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     __END_IGNORE_UNUSEDVARS
 
     // Wait for checksum
-    while (0 == fnUartSIO.available())
+    while (fnUartSIO.available() <= 0)
         fnSystem.yield();
     uint8_t ck_rcv = fnUartSIO.read();
 

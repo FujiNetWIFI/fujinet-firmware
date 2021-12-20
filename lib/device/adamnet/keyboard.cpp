@@ -94,7 +94,6 @@ void adamKeyboard::adamnet_process(uint8_t b)
             break;
     }
 
-    fnUartSIO.flush_input();
 }
 
 void adamKeyboard::shutdown()
