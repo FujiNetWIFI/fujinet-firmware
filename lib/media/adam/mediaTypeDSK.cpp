@@ -37,6 +37,7 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
     if (blockNum > _media_num_blocks)
     {
         Debug_printf("::read block %d > %d\n", blockNum, _media_num_blocks);
+        _media_controller_status=2;
         return true;
     }
 
@@ -63,6 +64,8 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
     else
         _media_last_block = INVALID_SECTOR_VALUE;
 
+    _media_controller_status=0;
+
     return err;
 }
 
@@ -71,6 +74,14 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
 {
     bool err = false;
     Debug_println("DSK WRITE");
+
+    // Return an error if we're trying to write beyond the end of the disk
+    if (blockNum > _media_num_blocks)
+    {
+        Debug_printf("::write block %d > %d\n", blockNum, _media_num_blocks);
+        _media_controller_status=2;
+        return true;
+    }
 
     std::pair <uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
 
@@ -89,12 +100,14 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
     ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("DSK::write fsync:%d\n", ret);
 
+    _media_controller_status=0;
+
     return false;
 }
 
-void MediaTypeDSK::status(uint8_t statusbuff[4])
+uint8_t MediaTypeDSK::status()
 {
-    // Currently not being used.
+    return _media_controller_status;
 }
 
 // Returns TRUE if an error condition occurred
@@ -113,6 +126,7 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
     _media_fileh = f;
     _mediatype = MEDIATYPE_DSK;
     _media_num_blocks = disksize / 1024;
+    Debug_printf("_media_num_blocks %lu\n",_media_num_blocks);
     _media_last_block=0xFFFFFFFE;
 
     return _mediatype;

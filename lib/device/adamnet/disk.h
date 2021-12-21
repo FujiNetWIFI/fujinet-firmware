@@ -4,6 +4,12 @@
 #include "bus.h"
 #include "media.h"
 
+#define STATUS_OK        0
+#define STATUS_BAD_BLOCK 1
+#define STATUS_NO_BLOCK  2
+#define STATUS_NO_MEDIA  3
+#define STATUS_NO_DRIVE  4
+
 class adamDisk : public adamNetDevice
 {
 private:
@@ -13,6 +19,7 @@ private:
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
+    void set_status(uint8_t s);
     void adamnet_control_status() override;
     void adamnet_control_clr();
     void adamnet_control_receive();
