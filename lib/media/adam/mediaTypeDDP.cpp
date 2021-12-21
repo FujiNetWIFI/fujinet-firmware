@@ -28,6 +28,7 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     if (blockNum > _media_num_blocks)
     {
         Debug_printf("::read block %d > %d\n", blockNum, _media_num_blocks);
+        _media_controller_status=2;
         return true;
     }
 
@@ -49,6 +50,8 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     else
         _media_last_block = INVALID_SECTOR_VALUE;
 
+    _media_controller_status=0;
+
     return err;
 }
 
@@ -56,13 +59,6 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
 {
     Debug_printf("ATR WRITE\n", blockNum, _media_num_blocks);
-
-    // Return an error if we're trying to write beyond the end of the disk
-    if (blockNum > _media_num_blocks)
-    {
-        Debug_printf("::write block %d > %d\n", blockNum, _media_num_blocks);
-        return true;
-    }
 
     uint32_t offset = _block_to_offset(blockNum);
 
@@ -76,6 +72,7 @@ bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
         if (e != 0)
         {
             Debug_printf("::write seek error %d\n", e);
+            _media_controller_status=2;
             return true;
         }
 //    }
@@ -96,13 +93,13 @@ bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
     Debug_printf("DDP::write fsync:%d\n", ret);
 
     _media_last_block = INVALID_SECTOR_VALUE;
-
+    _media_controller_status=0;
     return false;
 }
 
-void MediaTypeDDP::status(uint8_t statusbuff[4])
+uint8_t MediaTypeDDP::status()
 {
-    // Currently not being used.
+    return _media_controller_status;
 }
 
 // Returns TRUE if an error condition occurred

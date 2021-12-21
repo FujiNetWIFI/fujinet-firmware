@@ -160,7 +160,9 @@ void adamDisk::adamnet_control_send_block_data()
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
     Debug_printf("Block Data Write\n");
+
     _media->write(blockNum, false);
+
     blockNum = 0xFFFFFFFF;
     _media->_media_last_block = 0xFFFFFFFE;
 }
@@ -175,9 +177,23 @@ void adamDisk::adamnet_control_send()
         adamnet_control_send_block_data();
 }
 
+void adamDisk::set_status(uint8_t s)
+{
+    if (s == true)
+        s = STATUS_NO_BLOCK;
+
+    status[4] = _devnum | s;
+}
+
 void adamDisk::adamnet_response_status()
 {
     status[0] |= _devnum;
+    
+    if (_media == nullptr)
+        status[4] = STATUS_NO_MEDIA;
+    else
+        status[4] = _media->_media_controller_status;
+    
     status[5] = adamnet_checksum(&status[1],4);
     adamnet_send_buffer(status, sizeof(status));
 }
