@@ -89,9 +89,10 @@ IDC20   IIc     DB 19     Arduino
 
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
-#define TIMER_USEC_FACTOR     (TIMER_SCALE / 1000000000)
+#define TIMER_USEC_FACTOR     (TIMER_SCALE / 1000000)
 
 #define VERBOSE
+#define TESTTX
 
 //------------------------------------------------------------------------------
 
@@ -322,19 +323,25 @@ unsigned char spDevice::SendPacket(unsigned char *a)
   uint32_t t0;        // timer value stored here
   uint32_t tn;        // next timer value store here
 
+  // reset time to 0 to avoid overflows
+  timer_pause(TIMER_GROUP_1, TIMER_0);
+  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+  timer_start(TIMER_GROUP_1, TIMER_0);
+
   GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
 #ifdef VERBOSE
   Debug_print("A");
 #endif
 
+#ifndef TESTTX
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
   // setup a timeout counter to wait for REQ response
   TIMERG1.hw_timer[0].update = 0;        // latch highspeed timer value
   t0 = TIMERG1.hw_timer[0].cnt_low;      //  grab timer low word
   tn = t0 + (TIMER_USEC_FACTOR * 1000U); // 1 millisecond
 
-  // while (!fnSystem.digital_read(SP_REQ)) 
-  while ( (GPIO.in1.val & (0x01 << (SP_REQ-32))) == 0 )  //(GPIO.in1.val >> (pin - 32)) & 0x1
+  // while (!fnSystem.digital_read(SP_REQ))
+  while ((GPIO.in1.val & (0x01 << (SP_REQ - 32))) == 0) //(GPIO.in1.val >> (pin - 32)) & 0x1
   {
     TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
     t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
@@ -342,6 +349,7 @@ unsigned char spDevice::SendPacket(unsigned char *a)
     {
       // timeout!
       ACK_Deassert();
+      Debug_println("SendPacket timeout error waiting for REQ");
       return 1;
     }
   };
@@ -351,18 +359,21 @@ unsigned char spDevice::SendPacket(unsigned char *a)
   Debug_print("R");
 #endif
 
- TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
-    t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
+#endif // TESTTX
+
+  TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
+  t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
+  tn = t0;
   while (1)
   {
-    txbyte = a[idx++];     // nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
+    txbyte = a[idx++]; // nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
 
-    if (txbyte == 0)     //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
-      break;     //           breq endspkt                ;61               ;45         ;1/2
+    if (txbyte == 0) //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
+      break;         //           breq endspkt                ;61               ;45         ;1/2
 
-    numbits = 8;     //           ldi  r25,8                  ;62               ;46         ;1   8bits to read 
+    numbits = 8; //           ldi  r25,8                  ;62               ;46         ;1   8bits to read
     do
-    { 
+    {
       // send MSB first, then ROL byte for next bit
       if (txbyte & 0x80)
         GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
@@ -371,7 +382,7 @@ unsigned char spDevice::SendPacket(unsigned char *a)
 
       //TIMERG1.hw_timer[0].update = 0;
       //t0 = TIMERG1.hw_timer[0].cnt_low;
-      tn += TIMER_USEC_FACTOR ; // 1 microsecond
+      tn += TIMER_USEC_FACTOR; // 1 microsecond
       do
       {
         TIMERG1.hw_timer[0].update = 0;
@@ -387,49 +398,46 @@ unsigned char spDevice::SendPacket(unsigned char *a)
         t0 = TIMERG1.hw_timer[0].cnt_low;
       } while (t0 < tn);
 
-      numbits--; //           dec  r25                                            ;3    ;1   dec bit counter
-      txbyte <<= 1;    //           rol  r23                                            ;5    ;1                                        ;46   ;2
+      numbits--;    //           dec  r25                                            ;3    ;1   dec bit counter
+      txbyte <<= 1; //           rol  r23                                            ;5    ;1                                        ;46   ;2
     } while (numbits);
-   
   }
 
   // endspkt:  cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have sent the pkt
-  fnSystem.digital_write(SP_ACK,DIGI_LOW);
+  fnSystem.digital_write(SP_ACK, DIGI_LOW);
 #ifdef VERBOSE
-Debug_print("a");
+  Debug_print("a");
 #endif
+
+#ifndef TESTTX
   // 1:        ldi  r24,5
   //           sbis _SFR_IO_ADDR(PIND),2   ;wait for REQ line to go low
   //           rjmp finishs                ;this indicates host has acknowledged ACK
   //           dec  r24
   //           brne 1b
   //           rjmp error
-    TIMERG1.hw_timer[0].update = 0;
-      t0 = TIMERG1.hw_timer[0].cnt_low;
-      tn = t0 + TIMER_USEC_FACTOR * 1000; // 1 millisecond
-do
+  TIMERG1.hw_timer[0].update = 0;
+  t0 = TIMERG1.hw_timer[0].cnt_low;
+  tn = t0 + TIMER_USEC_FACTOR * 1000; // 1 millisecond
+  do
   {
     TIMERG1.hw_timer[0].update = 0;
     t0 = TIMERG1.hw_timer[0].cnt_low;
     if (t0 > tn)
     {
       // timeout!
-     return false;
+      return false;
     }
-  } while (GPIO.in1.val & (0x01 << (SP_REQ-32))); // while (fnSystem.digital_read(SP_REQ));
+  } while (GPIO.in1.val & (0x01 << (SP_REQ - 32))); // while (fnSystem.digital_read(SP_REQ));
 
- #ifdef VERBOSE
-Debug_print("r");
+#ifdef VERBOSE
+  Debug_print("r");
 #endif
   //           clr  r25
   //           clr  r24                    ;return no error
   //           ret
+#endif // TESTTX
   return true;
-
-  // error:    clr  r25
-  //           ldi  r24,1
-  //           ret
- 
 }
 
 //*****************************************************************************
@@ -2196,3 +2204,27 @@ void spDevice::hw_timer_direct_reg()
   }
 }
 
+void spDevice::test_send()
+/*
+FF SYNC SELF SYNCHRONIZING BYTES 0
+3F : : 32 micro Sec.
+CF : : 32 micro Sec.
+F3 : : 32 micro Sec.
+FC : : 32 micro Sec.
+FF : : 32 micro Sec.
+C3 PBEGIN MARKS BEGINNING OF PACKET 32 micro Sec.
+81 DEST DESTINATION UNIT NUMBER 32 micro Sec.
+80 SRC SOURCE UNIT NUMBER 32 micro Sec.
+80 TYPE PACKET TYPE FIELD 32 micro Sec.
+80 AUX PACKET AUXILLIARY TYPE FIELD 32 micro Sec.
+80
+*/
+{
+  uint8_t a[] {0xff,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x00};
+  while(1)
+  {
+    Debug_println("sending packet now");
+    SendPacket(a);
+    fnSystem.delay(5000);
+  };
+}
