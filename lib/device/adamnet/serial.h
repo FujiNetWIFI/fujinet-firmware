@@ -13,13 +13,15 @@ class adamSerial : public adamNetDevice
 {
     public:
 
-    uint8_t response[1024];
+    uint8_t response[16];
     uint16_t response_len=0;
+    uint8_t sendbuf[16];
     bool isReady=true;
     bool alreadyDoingSomething=false;
     uint8_t status_msg[4]={0x10,0x00,0x00,0x00};
     fnTcpServer *server;
     fnTcpClient client;
+    std::string out;
 
     /**
      * Constructor
@@ -45,6 +47,7 @@ class adamSerial : public adamNetDevice
      * return adamnet status
      */
     virtual void adamnet_control_status();
+    virtual void adamnet_idle();
     
     void adamnet_control_send();
     void adamnet_control_ready();
