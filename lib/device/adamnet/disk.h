@@ -7,6 +7,7 @@
 class adamDisk : public adamNetDevice
 {
 private:
+    uint8_t status[6] = {0x80, 0x00, 0x04, 0x01, 0x40, 0x45};
     MediaType *_media = nullptr;
     TaskHandle_t diskTask;
 

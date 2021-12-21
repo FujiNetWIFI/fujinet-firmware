@@ -177,8 +177,8 @@ void adamDisk::adamnet_control_send()
 
 void adamDisk::adamnet_response_status()
 {
-    uint8_t status[6] = {0x80, 0x00, 0x04, 0x01, 0x40, 0x45};
     status[0] |= _devnum;
+    status[5] = adamnet_checksum(&status[1],4);
     adamnet_send_buffer(status, sizeof(status));
 }
 
