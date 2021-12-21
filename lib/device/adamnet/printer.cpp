@@ -33,14 +33,24 @@ adamPrinter::~adamPrinter()
 
 adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
 {
-    const char *models[PRINTER_INVALID] =
+        const char *models[PRINTER_INVALID] =
         {
             "file printer (RAW)",
             "file printer (TRIM)",
             "file printer (ASCII)",
-            "ADAM Printer",
+            "Atari 820",
+            "Atari 822",
+            "Atari 825",
+            "Atari 1020",
+            "Atari 1025",
+            "Atari 1027",
+            "Atari 1029",
+            "Atari XMM801",
+            "Atari XDM121",
             "Epson 80",
             "Epson PrintShop",
+            "Okimate 10",
+            "GRANTIC",
             "HTML printer",
             "HTML ATASCII printer"};
     int i;
@@ -58,7 +68,7 @@ void adamPrinter::adamnet_control_status()
     adamnet_send_buffer(c, sizeof(c));
 }
 
-void adamPrinter::print_next_char()
+void adamPrinter::idle()
 {
     if (buf.empty())
         return;
@@ -147,11 +157,23 @@ void adamPrinter::set_printer_type(printer_type printer_type)
     case PRINTER_COLECO_ADAM:
         _pptr = new colecoprinter;
         break;
+    case PRINTER_ATARI_1020:
+        _pptr = new svgPlotter;
+        break;
+    case PRINTER_ATARI_1025:
+        _pptr = new atari1025;
+        break;
     case PRINTER_EPSON:
         _pptr = new epson80;
         break;
     case PRINTER_EPSON_PRINTSHOP:
         _pptr = new epsonTPS;
+        break;
+    case PRINTER_OKIMATE10:
+        _pptr = new okimate10;
+        break;
+    case PRINTER_PNG:
+        _pptr = new pngPrinter;
         break;
     case PRINTER_HTML:
         _pptr = new htmlPrinter;
