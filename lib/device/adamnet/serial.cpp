@@ -2,6 +2,7 @@
 
 #include <cstring>
 #include "adamnet/serial.h"
+#include "led.h"
 
 #define SERIAL_BUF_SIZE 16
 
@@ -78,17 +79,35 @@ void adamSerial::adamnet_control_ready()
     adamnet_response_ack();
 }
 
+void adamSerial::adamnet_idle()
+{
+    if (out.empty())
+        return;
+    fnLedManager.set(LED_BT,true);
+
+    if (client.connected())
+        client.write(out);
+
+    out.erase(0,out.length());
+    fnLedManager.set(LED_BT,false);  
+}
+
 void adamSerial::adamnet_control_send()
 {
     uint16_t s = adamnet_recv_length();
-    uint8_t b[SERIAL_BUF_SIZE];
+    uint8_t ck;
 
-    adamnet_recv_buffer(b, s);
-    adamnet_recv();
-    adamnet_response_ack();
+    adamnet_recv_buffer(sendbuf, s);
+    ck = adamnet_recv();
+
+    AdamNet.start_time = esp_timer_get_time();
     
-    if (client.connected())
-        client.write(b, s);
+    if (adamnet_checksum(sendbuf,s) != ck)
+        adamnet_response_nack();
+    else
+        adamnet_response_ack();
+    
+    out += std::string((const char *)sendbuf,s);
 }
 
 void adamSerial::adamnet_process(uint8_t b)
