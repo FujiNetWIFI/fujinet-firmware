@@ -11,7 +11,7 @@ class adamPrinter : public adamNetDevice
 {
 protected:
     // SIO THINGS
-    uint8_t _buffer[40];
+    uint8_t _buffer[16];
     void sio_write(uint8_t aux1, uint8_t aux2);
     
     virtual void adamnet_control_status();
@@ -61,6 +61,7 @@ public:
     void set_printer_type(printer_type printer_type);
     void reset_printer() { set_printer_type(_ptype); };
     time_t lastPrintTime() { return _last_ms; };
+    void print_next_char();
 
     printer_emu *getPrinterPtr() { return _pptr; };
 

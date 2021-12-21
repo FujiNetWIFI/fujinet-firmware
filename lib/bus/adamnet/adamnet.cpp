@@ -175,6 +175,8 @@ void adamNetBus::wait_for_idle()
                 isIdle = true;
         }
     } while (isIdle == false);
+
+    fnSystem.yield();
 }
 
 void adamNetDevice::adamnet_process(uint8_t b)
@@ -213,8 +215,11 @@ void adamNetBus::_adamnet_process_cmd()
 
     if (_daisyChain.find(2) != _daisyChain.end())
     {
-        adamPrinter *p = (adamPrinter *)_daisyChain[2];
-        p->print_next_char();
+        if (esp_timer_get_time() > (start_time + 2000000))
+        {
+            adamPrinter *p = (adamPrinter *)_daisyChain[2];
+            p->print_next_char();
+        }
     }
 }
 

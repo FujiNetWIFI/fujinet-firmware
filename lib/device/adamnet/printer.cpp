@@ -3,6 +3,10 @@
 #include "../../include/atascii.h"
 #include "printer.h"
 #include <deque>
+#include <queue>
+#include <vector>
+#include <string>
+#include "led.h"
 
 #include "file_printer.h"
 #include "html_printer.h"
@@ -12,6 +16,8 @@
 #include "okimate_10.h"
 #include "png_printer.h"
 #include "coleco_printer.h"
+
+std::string buf;
 
 // Constructor just sets a default printer type
 adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
@@ -52,33 +58,50 @@ void adamPrinter::adamnet_control_status()
     adamnet_send_buffer(c, sizeof(c));
 }
 
+void adamPrinter::print_next_char()
+{
+    if (buf.empty())
+        return;
+    
+    uint8_t b[40];
+
+    uint8_t c = buf.length() > 40 ? 40 : buf.length();
+
+    fnLedManager.set(LED_BT,true);
+    _last_ms=fnSystem.millis();
+
+    memcpy(_pptr->provideBuffer(),buf.data(),c);
+    _pptr->process(c,0,0);
+
+    buf.erase(0,c);
+    fnLedManager.set(LED_BT,false);
+}
+
 void adamPrinter::adamnet_control_send()
 {
-    uint8_t b[16];
-    
-    memset(b,0,sizeof(b));
-
     unsigned short s = adamnet_recv_length();
 
-    adamnet_recv_buffer(b, s);
+    adamnet_recv_buffer(_buffer, s);
     uint8_t ck = adamnet_recv(); // ck
 
     AdamNet.start_time = esp_timer_get_time();
 
-    if (adamnet_checksum(b,s) == ck)
+    if (adamnet_checksum(_buffer,s) == ck)
         adamnet_response_ack();
     else
         adamnet_response_nack();
 
-    memcpy(_pptr->provideBuffer(),b,s);
-    _last_ms=fnSystem.millis();
-    _pptr->process(s,0,0);
+    _last_ms = fnSystem.millis();
+
+    buf += std::string((const char *)_buffer,s);
 }
 
 void adamPrinter::adamnet_control_ready()
 {
-    AdamNet.wait_for_idle();
-    adamnet_send(0x92);
+    AdamNet.start_time=esp_timer_get_time();
+
+        adamnet_response_ack();
+
 }
 
 void adamPrinter::adamnet_process(uint8_t b)
