@@ -317,170 +317,84 @@ unsigned char spDevice::SendPacket(unsigned char *a)
   //*****************************************************************************
 
   int idx = 0;        // reg x, index into *a
-  //int bit = 0;        // carry flag
-  //int prev_level;        // r22 in 328p assy
   uint8_t txbyte = 0; // r23 transmit byte being sent bit by bit
   int numbits;        // r25 counter
   uint32_t t0;        // timer value stored here
   uint32_t tn;        // next timer value store here
 
-  // .global SendPacket
-
-  // SendPacket:
-  //           mov  XL,r24                 ;mov buffer pointer into X
-  //           mov  XH,r25
-
-  // a points to buffer
-
-  //           sbi  _SFR_IO_ADDR(PORTC),5  ;set ACK high to signal we are ready to send
-  //           ;ldi  r24,'A'               ;for debug, A indicates ACK is high
-  //           ;call uart_putc             ;output to serial port
-  fnSystem.digital_write(SP_ACK, DIGI_HIGH);
+  GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
 #ifdef VERBOSE
   Debug_print("A");
 #endif
 
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
-  while (!fnSystem.digital_read(SP_REQ))
-  {
-#ifdef VERBOSE
-    Debug_print("r");
-#endif
-  };
-//           rjmp contin                 ;this indicates host is ready to receive packet
-//           ;ldi  r24,'r'               ;for debug, r indicates REQ is low
-//           ;call uart_putc             ;output to serial port
-//           rjmp 1b
+  // setup a timeout counter to wait for REQ response
+  TIMERG1.hw_timer[0].update = 0;        // latch highspeed timer value
+  t0 = TIMERG1.hw_timer[0].cnt_low;      //  grab timer low word
+  tn = t0 + (TIMER_USEC_FACTOR * 1000U); // 1 millisecond
 
-// contin:   ;ldi  r24,'R'               ;for debug, R indicates REQ is high
-//           ;call uart_putc             ;output to serial port
+  // while (!fnSystem.digital_read(SP_REQ)) 
+  while ( (GPIO.in1.val & (0x01 << (SP_REQ-32))) == 0 )  //(GPIO.in1.val >> (pin - 32)) & 0x1
+  {
+    TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
+    t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
+    if (t0 > tn)                      // test for timeout
+    {
+      // timeout!
+      ACK_Deassert();
+      return 1;
+    }
+  };
+
 #ifdef VERBOSE
+  // REQ received!
   Debug_print("R");
 #endif
 
-  // ;
-  // ;                                     ;Totals for loops             ;
-  // ;
-
+ TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
+    t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
   while (1)
   {
-    // nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
-    txbyte = a[idx++];
-    //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
-    //           breq endspkt                ;61               ;45         ;1/2
-    if (txbyte == 0)
-      break;
+    txbyte = a[idx++];     // nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
 
-    //           ldi  r25,8                  ;62               ;46         ;1   8bits to read
-    //
-    numbits = 8; 
+    if (txbyte == 0)     //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
+      break;     //           breq endspkt                ;61               ;45         ;1/2
+
+    numbits = 8;     //           ldi  r25,8                  ;62               ;46         ;1   8bits to read 
     do
-    { //                                            ;Clr  ;Set
-      // nxtsbit:  sbrs r23,7                  ;64(Set) ;64      ;47   ;48   ;1/2 send bit 7 first
-      //if (!(txbyte & 0x80))
-      //{
-      //  break; // arrrggggggh convoluted flow control
-      //}
-      // bit 7 set
+    { 
+      // send MSB first, then ROL byte for next bit
       if (txbyte & 0x80)
         GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
       else
         GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 
-      //                                       ;63(Clr)
-      //           rjmp sbitclr                ;64+1             ;48+1       ;2   bit is clear
-
-      //           sbi  _SFR_IO_ADDR(PORTD),6                          ;2    ;2   set bit for 1us (14 cycles)-->16 cycles for 16Mhz(2 more)
-      //GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
-      TIMERG1.hw_timer[0].update = 0;
-      t0 = TIMERG1.hw_timer[0].cnt_low;
-      tn = t0 + TIMER_SCALE / 10000000; // 1 microsecond
+      //TIMERG1.hw_timer[0].update = 0;
+      //t0 = TIMERG1.hw_timer[0].cnt_low;
+      tn += TIMER_USEC_FACTOR ; // 1 microsecond
       do
       {
         TIMERG1.hw_timer[0].update = 0;
         t0 = TIMERG1.hw_timer[0].cnt_low;
       } while (t0 < tn);
-      //           ldi  r24,4                                                ;1   |delay total of 12 cycles
-      // 3:        dec  r24                                                  ;1   | each loop +3 final loop +2
-      //           brne 3b                                                   ;1/2 | 1 + 3x3 + 1x2 = 11
-      //                                                               ;14
-      //           nop                                                 ;15   ;1
-      //           nop                                             ;16   ;1
 
-      //           cbi  _SFR_IO_ADDR(PORTD),6                          ;2    ;2   clr bit for 3us (42 cycles)-->48 cycles for 16Mhz(6 more)
       GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
-      TIMERG1.hw_timer[0].update = 0;
-      t0 = TIMERG1.hw_timer[0].cnt_low;
-      tn = t0 + TIMER_SCALE / 333333; // 3 microseconds
+
+      tn += TIMER_USEC_FACTOR * 3; // 3 microseconds
       do
       {
         TIMERG1.hw_timer[0].update = 0;
         t0 = TIMERG1.hw_timer[0].cnt_low;
       } while (t0 < tn);
 
-      //                                                                     ;                                            2 more loops
-      //           dec  r25                                            ;3    ;1   dec bit counter
-      numbits--;
-      //           breq nxtsbyt1                                       ;4    ;1/2
-      //           rol  r23                                            ;5    ;1
-      txbyte <<= 1;
-      //           ldi  r24,13                                               ;1   |delay total of 39 cycles
-      // 3:        dec  r24                                                  ;1   |  each loop +3 final loop +2
-      //           brne 3b                                                   ;1/2 |  1 + 12x3 + 1x2 = 39
-      //                                                               ;44
-      TIMERG1.hw_timer[0].update = 0;
-      t0 = TIMERG1.hw_timer[0].cnt_low;
-      tn = t0 + TIMER_SCALE / 333333; // 3 microseconds
-      do
-      {
-        TIMERG1.hw_timer[0].update = 0;
-        t0 = TIMERG1.hw_timer[0].cnt_low;
-      } while (t0 < tn);
-
-      //           rjmp nxtsbit                                        ;46   ;2
+      numbits--; //           dec  r25                                            ;3    ;1   dec bit counter
+      txbyte <<= 1;    //           rol  r23                                            ;5    ;1                                        ;46   ;2
     } while (numbits);
-    // nxtsbyt1:                                               ;5          ;    delay to makeup 3us (42 cycles total)-->48 cycles for 16Mhz(6 more)
-    //                                                                     ;                                            2 more loops
-    //           ldi  r24,11                                               ;1   |delay total of 33 cycles
-    // 3:        dec  r24                                                  ;1   | each loop +3 final loop +2
-    //           brne 3b                                                   ;1/2 | 1 + 10x3 + 1x2 = 33
-    //                                                     ;38
-    //           nop                                           ;39         ;1
-
-    //           rjmp nxtsbyte                                 ;41         ;2
+   
   }
-
-  // ; bit is clr, we need to check if its the last one, otherwise delay for 4us before next bit
-  // sbitclr:  dec  r25                             ;2                   ;1
-  //           breq nxtsbycl               ;4       ;3                   ;1/2 end of byte, delay then get nxt
-  //           rol  r23                             ;4                   ;1
-  //                                                                     ;    delay to makeup 4us (56 cycles total)-->64 cycles for 16Mhz(8 more)
-  //                                   ;                                            2 more loops +2 nops
-  //           ldi  r24,18                                               ;1   |delay total of 54 cycles
-  // 3:        dec  r24                                                  ;1   | each loop +3 final loop +2
-  //           brne 3b                                                   ;1/2 | 1 + 17x3 + 1x2 = 54
-  //                                                ;58
-  //           nop                                  ;59                  ;1
-  //           nop                                  ;60                ;1
-  //           rjmp nxtsbit                         ;62                  ;2
-
-  // nxtsbycl:                                                           ;    delay to makeup 4us (56 cycles total)-->64 cycles for 16Mhz(8 more)
-  //                                   ;                                            2 more loops +2 nops
-  //                                                                     ;
-  //           ldi  r24,16                                               ;1   |delay total of 48 cycles
-  // 3:        dec  r24                                                  ;1   | each loop +3 final loop +2
-  //           brne 3b                                                   ;1/2 | 1 + 15x3 + 1x2 = 48
-  //                                       ;52
-  //           nop                         ;53                           ;1
-  //           nop                         ;54                           ;1
-  //           nop                         ;55                           ;1
-
-  //           rjmp nxtsbyte               ;57                           ;2
 
   // endspkt:  cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have sent the pkt
   fnSystem.digital_write(SP_ACK,DIGI_LOW);
-  //           ;ldi  r24,'a'                ;for debug, a indicates ACK is low
-  //           ;call uart_putc              ;output to serial port
 #ifdef VERBOSE
 Debug_print("a");
 #endif
@@ -492,7 +406,7 @@ Debug_print("a");
   //           rjmp error
     TIMERG1.hw_timer[0].update = 0;
       t0 = TIMERG1.hw_timer[0].cnt_low;
-      tn = t0 + TIMER_SCALE / 1000000; // 1 microsecond
+      tn = t0 + TIMER_USEC_FACTOR * 1000; // 1 millisecond
 do
   {
     TIMERG1.hw_timer[0].update = 0;
@@ -502,11 +416,8 @@ do
       // timeout!
      return false;
     }
-  } while (fnSystem.digital_read(SP_REQ));
+  } while (GPIO.in1.val & (0x01 << (SP_REQ-32))); // while (fnSystem.digital_read(SP_REQ));
 
-
-  // finishs:  ;ldi  r24,'r'                ;for debug, r indicates REQ is low
-  //           ;call uart_putc              ;output to serial port
  #ifdef VERBOSE
 Debug_print("r");
 #endif
