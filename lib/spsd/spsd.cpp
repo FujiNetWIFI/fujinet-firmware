@@ -367,10 +367,8 @@ unsigned char spDevice::SendPacket(unsigned char *a)
   while (1)
   {
     txbyte = a[idx++]; // nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
-
     if (txbyte == 0) //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
       break;         //           breq endspkt                ;61               ;45         ;1/2
-
     numbits = 8; //           ldi  r25,8                  ;62               ;46         ;1   8bits to read
     do
     {
@@ -390,16 +388,17 @@ unsigned char spDevice::SendPacket(unsigned char *a)
       } while (t0 < tn);
 
       GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
-
       tn += TIMER_USEC_FACTOR * 3; // 3 microseconds
+
+      // do some updating while in 3-us low period
+      numbits--;    //           dec  r25                                            ;3    ;1   dec bit counter
+      txbyte <<= 1; //           rol  r23  
+
       do
       {
         TIMERG1.hw_timer[0].update = 0;
         t0 = TIMERG1.hw_timer[0].cnt_low;
       } while (t0 < tn);
-
-      numbits--;    //           dec  r25                                            ;3    ;1   dec bit counter
-      txbyte <<= 1; //           rol  r23                                            ;5    ;1                                        ;46   ;2
     } while (numbits);
   }
 
