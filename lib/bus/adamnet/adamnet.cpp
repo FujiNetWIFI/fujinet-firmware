@@ -189,6 +189,11 @@ void adamNetDevice::adamnet_control_status()
     fnUartDebug.printf("adamnet_status() not implemented yet for this device.\n");
 }
 
+void adamNetDevice::adamnet_idle()
+{
+    // Not implemented in base class
+}
+
 void adamNetBus::_adamnet_process_cmd()
 {
     uint8_t b;
@@ -216,10 +221,11 @@ void adamNetBus::_adamnet_process_cmd()
     if (_daisyChain.find(2) != _daisyChain.end())
     {
         if (esp_timer_get_time() > (start_time + 2000000))
-        {
-            adamPrinter *p = (adamPrinter *)_daisyChain[2];
-            p->print_next_char();
-        }
+            _daisyChain[2]->adamnet_idle();
+    }
+    if (_daisyChain.find(0x0e) != _daisyChain.end())
+    {
+        _daisyChain[0x0e]->adamnet_idle();
     }
 }
 

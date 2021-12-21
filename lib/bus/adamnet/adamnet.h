@@ -136,6 +136,11 @@ protected:
     virtual void adamnet_process(uint8_t b);
 
     /**
+     * @brief Do any tasks that can only be done when the bus is quiet
+     */
+    virtual void adamnet_idle();
+    
+    /**
      * @brief send current status of device
      */
     virtual void adamnet_control_status();
