@@ -145,6 +145,7 @@ void main_setup()
 #if defined ( BUILD_APPLE )
     theFuji.setup(&SmartPort);
     spsd.spsd_setup();
+    fnSystem.delay(5000);
     spsd.test_send();
     //spsd.hw_timer_pulses();
     //spsd.hw_timer_direct_reg();
