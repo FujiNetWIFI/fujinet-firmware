@@ -7,6 +7,7 @@
 
 #include <map>
 #include "fnSystem.h"
+#include "sio/sio.h" // cmdframe_t
 
 #define ADAMNET_BAUD 62500
 
@@ -144,6 +145,11 @@ protected:
      * @brief send current status of device
      */
     virtual void adamnet_control_status();
+
+    /**
+     * @brief command frame, used by network protocol, ultimately
+     */
+    cmdFrame_t cmdFrame;
 
 public:
 
