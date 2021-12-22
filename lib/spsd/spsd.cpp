@@ -91,7 +91,7 @@ IDC20   IIc     DB 19     Arduino
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
 #define TIMER_USEC_FACTOR     (TIMER_SCALE / 1000000)
 
-#define VERBOSE
+#undef VERBOSE
 #define TESTTX
 
 //------------------------------------------------------------------------------
@@ -318,15 +318,19 @@ unsigned char spDevice::SendPacket(unsigned char *a)
   //*****************************************************************************
 
   int idx = 0;        // reg x, index into *a
-  uint8_t txbyte = 0; // r23 transmit byte being sent bit by bit
-  int numbits;        // r25 counter
+  uint8_t txbyte; // r23 transmit byte being sent bit by bit
+  int numbits = 8;        // r25 counter
   uint32_t t0;        // timer value stored here
   uint32_t tn;        // next timer value store here
 
-  // reset time to 0 to avoid overflows
-  timer_pause(TIMER_GROUP_1, TIMER_0);
-  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
-  timer_start(TIMER_GROUP_1, TIMER_0);
+  // todo: reset time to 0 to avoid overflows
+  // except I try this and I end up with a weird 1.5 ms delay on the first
+  // bit that is transmitted. It's like the timer_start kicks off a process
+  // that doesn't finish starting the timer very quickly
+  // may need to do direct register writing again for speed
+  // timer_pause(TIMER_GROUP_1, TIMER_0);
+  // timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+  // timer_start(TIMER_GROUP_1, TIMER_0);
 
   GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
 #ifdef VERBOSE
@@ -361,26 +365,27 @@ unsigned char spDevice::SendPacket(unsigned char *a)
 
 #endif // TESTTX
 
-  TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
-  t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
-  tn = t0;
-  while (1)
+  txbyte = a[0];
+  //if (txbyte==0)
+    //return false; // check that array has data
+    // really i did this because i think txbyte needed to be cached before
+    // entering into the loops because this first bit was taking too long
+    // to send. 
+
+  do
   {
-    txbyte = a[idx++]; // nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
-    if (txbyte == 0) //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
-      break;         //           breq endspkt                ;61               ;45         ;1/2
-    numbits = 8; //           ldi  r25,8                  ;62               ;46         ;1   8bits to read
     do
     {
       // send MSB first, then ROL byte for next bit
-      if (txbyte & 0x80)
+       TIMERG1.hw_timer[0].update = 0;
+       if (txbyte & 0x80)
         GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
       else
         GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 
-      //TIMERG1.hw_timer[0].update = 0;
-      //t0 = TIMERG1.hw_timer[0].cnt_low;
-      tn += TIMER_USEC_FACTOR; // 1 microsecond
+     
+      t0 = TIMERG1.hw_timer[0].cnt_low;
+      tn = t0 + TIMER_USEC_FACTOR - 7; // 1 microsecond
       do
       {
         TIMERG1.hw_timer[0].update = 0;
@@ -388,10 +393,14 @@ unsigned char spDevice::SendPacket(unsigned char *a)
       } while (t0 < tn);
 
       GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
-      tn += TIMER_USEC_FACTOR * 3; // 3 microseconds
+      tn += TIMER_USEC_FACTOR * 3 - 5; // 3 microseconds
 
       // do some updating while in 3-us low period
       numbits--;    //           dec  r25                                            ;3    ;1   dec bit counter
+
+      if (numbits == 0)
+        break;
+
       txbyte <<= 1; //           rol  r23  
 
       do
@@ -399,8 +408,23 @@ unsigned char spDevice::SendPacket(unsigned char *a)
         TIMERG1.hw_timer[0].update = 0;
         t0 = TIMERG1.hw_timer[0].cnt_low;
       } while (t0 < tn);
-    } while (numbits);
-  }
+
+    }while(1);
+
+    txbyte = a[++idx]; // nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
+       //           breq endspkt                ;61               ;45         ;1/2
+    numbits = 8; //           ldi  r25,8                  ;62               ;46         ;1   8bits to read
+   // finish the 3 usec low period
+   do
+      {
+        TIMERG1.hw_timer[0].update = 0;
+        t0 = TIMERG1.hw_timer[0].cnt_low;
+      } while (t0 < tn);
+
+   
+
+  }while(txbyte);//           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
+    
 
   // endspkt:  cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have sent the pkt
   fnSystem.digital_write(SP_ACK, DIGI_LOW);
@@ -2219,11 +2243,11 @@ C3 PBEGIN MARKS BEGINNING OF PACKET 32 micro Sec.
 80
 */
 {
-  uint8_t a[] {0xff,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x00};
+  uint8_t a[] {0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x00};
   while(1)
   {
     Debug_println("sending packet now");
     SendPacket(a);
-    fnSystem.delay(5000);
+    fnSystem.delay(2500);
   };
 }
