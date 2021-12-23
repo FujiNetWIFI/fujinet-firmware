@@ -9,6 +9,7 @@
 #include "atari_822.h"
 #include "atari_825.h"
 #include "svg_plotter.h"
+#include "atari_1020.h"
 #include "atari_1025.h"
 #include "atari_1027.h"
 #include "atari_1029.h"
@@ -22,6 +23,8 @@
 #define SIO_PRINTERCMD_PUT 0x50
 #define SIO_PRINTERCMD_WRITE 0x57
 #define SIO_PRINTERCMD_STATUS 0x53
+
+constexpr const char * const sioPrinter::printer_model_str[PRINTER_INVALID];
 
 sioPrinter::~sioPrinter()
 {
@@ -172,7 +175,7 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
         _pptr = new atari825;
         break;
     case PRINTER_ATARI_1020:
-        _pptr = new svgPlotter;
+        _pptr = new atari1020;
         break;
     case PRINTER_ATARI_1025:
         _pptr = new atari1025;
