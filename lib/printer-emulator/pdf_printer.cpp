@@ -3,6 +3,8 @@
 #include "../../include/debug.h"
 #include "fnFsSPIF.h"
 
+#define DEBUG
+
 void pdfPrinter::pdf_header()
 {
 #ifdef DEBUG

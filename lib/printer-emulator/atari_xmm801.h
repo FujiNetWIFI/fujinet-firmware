@@ -1,6 +1,13 @@
 #ifndef XMM801_H
 #define XMM801_H
 
+#ifdef BUILD_ADAM
+#include "adamnet/printer.h"
+#endif
+#ifdef BUILD_ATARI
+#include "sio/printer.h"
+#endif
+
 #include "epson_80.h"
 
 class xmm801 : public epson80
@@ -13,7 +20,18 @@ protected:
     virtual void post_new_file() override; 
 
 public:
-    const char *modelname() { return "Atari XMM801"; };
+    const char *modelname()  override 
+    { 
+        #ifdef BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_XMM801];
+        #else
+            #ifdef BUILD_ATARI
+                return sioPrinter::printer_model_str[sioPrinter::PRINTER_ATARI_XMM801];
+            #else
+                return PRINTER_UNSUPPORTED;
+            #endif
+        #endif
+    };
 };
 
 #endif

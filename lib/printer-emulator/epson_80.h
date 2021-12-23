@@ -1,6 +1,13 @@
 #ifndef EPSON_80_H
 #define EPSON_80_H
 
+#ifdef BUILD_ADAM
+#include "adamnet/printer.h"
+#endif
+#ifdef BUILD_ATARI
+#include "sio/printer.h"
+#endif
+
 #include "pdf_printer.h"
 
 #define NUMFONTS 15
@@ -67,7 +74,19 @@ protected:
         };
 
 public:
-    const char *modelname() { return "Epson 80"; };
+    const char *modelname()  override 
+    { 
+        #ifdef BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_EPSON];
+        #else
+            #ifdef BUILD_ATARI
+                return sioPrinter::printer_model_str[sioPrinter::PRINTER_EPSON];
+            #else
+                return PRINTER_UNSUPPORTED;
+            #endif
+        #endif
+    };
+
 };
 
 #endif
