@@ -70,8 +70,11 @@ uint32_t tn;
 uint32_t t0;
 void hw_timer_latch();
 void hw_timer_read();
-void hw_timer_usec_set(int s); 
+void hw_timer_alarm_set(int s);
+void hw_timer_alarm_snooze(int s); 
 void hw_timer_wait();
+void smartport_rddata_set();
+void smartport_rddata_clr();
 
 void ACK_Deassert();
 void ACK_Assert();

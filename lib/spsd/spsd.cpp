@@ -107,9 +107,15 @@ void spDevice::hw_timer_read()
   t0 = TIMERG1.hw_timer[0].cnt_low;
 }
 
-void spDevice::hw_timer_usec_set(int s)
+void spDevice::hw_timer_alarm_set(int s)
 {
   tn = t0 + s * TIMER_USEC_FACTOR - TIMER_ADJUST;
+}
+
+void spDevice::hw_timer_alarm_snooze(int s)
+{
+  tn += s * TIMER_USEC_FACTOR - TIMER_ADJUST; // 3 microseconds
+
 }
 
 void spDevice::hw_timer_wait()
@@ -119,6 +125,16 @@ void spDevice::hw_timer_wait()
     hw_timer_latch();
     hw_timer_read();
   } while (t0 < tn);
+}
+
+void spDevice::smartport_rddata_set()
+{
+  GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
+}
+
+void spDevice::smartport_rddata_clr()
+{
+  GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 }
 
 void spDevice::ACK_Deassert()
@@ -339,8 +355,6 @@ unsigned char spDevice::SendPacket(unsigned char *a)
   int idx = 0;        // reg x, index into *a
   uint8_t txbyte; // r23 transmit byte being sent bit by bit
   int numbits = 8;        // r25 counter
-  //uint32_t t0;        // timer value stored here
-  //uint32_t tn;        // next timer value store here
 
   // todo: reset time to 0 to avoid overflows
   // except I try this and I end up with a weird 1.5 ms delay on the first
@@ -390,8 +404,8 @@ unsigned char spDevice::SendPacket(unsigned char *a)
 // and the interrupts on that core should stop firing, stopping task switches as well.
 // Call portENABLE_INTERRUPTS after you're done
 
+  txbyte = a[idx++];
   portDISABLE_INTERRUPTS();
-  txbyte = a[0];
   do
   {
     do
@@ -399,41 +413,30 @@ unsigned char spDevice::SendPacket(unsigned char *a)
       // send MSB first, then ROL byte for next bit
        hw_timer_latch();
        if (txbyte & 0x80)
-        GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
+        smartport_rddata_set();
       else
-        GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
-
+        smartport_rddata_clr();
      
       hw_timer_read();
-      tn = t0 + TIMER_USEC_FACTOR - TIMER_ADJUST; // 1 microsecond
+      hw_timer_alarm_set(1); // 1 microsecond
       hw_timer_wait();
 
-      GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
-      tn += 3 * TIMER_USEC_FACTOR - TIMER_ADJUST; // 3 microseconds
+      smartport_rddata_clr();
+      hw_timer_alarm_snooze(3); // 3 microseconds
 
       // do some updating while in 3-us low period
-      numbits--;    //           dec  r25                                            ;3    ;1   dec bit counter
-
-      if (numbits == 0)
+      if ((--numbits) == 0)
         break;
 
       txbyte <<= 1; //           rol  r23  
-
       hw_timer_wait();
+    } while (1);
 
-    }while(1);
-
-    txbyte = a[++idx]; // nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
-       //           breq endspkt                ;61               ;45         ;1/2
+    txbyte = a[idx++]; // nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
     numbits = 8; //           ldi  r25,8                  ;62               ;46         ;1   8bits to read
-   // finish the 3 usec low period
-   hw_timer_wait();
-
-   
-
-  }while(txbyte);//           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
-
-portENABLE_INTERRUPTS();
+    hw_timer_wait(); // finish the 3 usec low period
+  } while (txbyte); //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
+  portENABLE_INTERRUPTS();
 
   // endspkt:  cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have sent the pkt
   fnSystem.digital_write(SP_ACK, DIGI_LOW);
