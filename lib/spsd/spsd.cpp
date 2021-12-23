@@ -90,16 +90,35 @@ IDC20   IIc     DB 19     Arduino
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
 #define TIMER_USEC_FACTOR     (TIMER_SCALE / 1000000)
+#define TIMER_ADJUST          6 // substract this value to adjust for overhead
 
 #undef VERBOSE
 #define TESTTX
 
 //------------------------------------------------------------------------------
 
-uint32_t spDevice::readTimer()
+void spDevice::hw_timer_latch()
 {
-   TIMERG1.hw_timer[0].update = 0;
-   return TIMERG1.hw_timer[0].cnt_low;
+  TIMERG1.hw_timer[0].update = 0;
+}
+
+void spDevice::hw_timer_read()
+{
+  t0 = TIMERG1.hw_timer[0].cnt_low;
+}
+
+void spDevice::hw_timer_usec_set(int s)
+{
+  tn = t0 + s * TIMER_USEC_FACTOR - TIMER_ADJUST;
+}
+
+void spDevice::hw_timer_wait()
+{
+  do
+  {
+    hw_timer_latch();
+    hw_timer_read();
+  } while (t0 < tn);
 }
 
 void spDevice::ACK_Deassert()
@@ -320,8 +339,8 @@ unsigned char spDevice::SendPacket(unsigned char *a)
   int idx = 0;        // reg x, index into *a
   uint8_t txbyte; // r23 transmit byte being sent bit by bit
   int numbits = 8;        // r25 counter
-  uint32_t t0;        // timer value stored here
-  uint32_t tn;        // next timer value store here
+  //uint32_t t0;        // timer value stored here
+  //uint32_t tn;        // next timer value store here
 
   // todo: reset time to 0 to avoid overflows
   // except I try this and I end up with a weird 1.5 ms delay on the first
@@ -365,35 +384,32 @@ unsigned char spDevice::SendPacket(unsigned char *a)
 
 #endif // TESTTX
 
-  txbyte = a[0];
-  //if (txbyte==0)
-    //return false; // check that array has data
-    // really i did this because i think txbyte needed to be cached before
-    // entering into the loops because this first bit was taking too long
-    // to send. 
+// Disable interrupts
+// https://esp32developer.com/programming-in-c-c/interrupts/interrupts-general
+// You can suspend interrupts and context switches by calling  portDISABLE_INTERRUPTS
+// and the interrupts on that core should stop firing, stopping task switches as well.
+// Call portENABLE_INTERRUPTS after you're done
 
+  portDISABLE_INTERRUPTS();
+  txbyte = a[0];
   do
   {
     do
     {
       // send MSB first, then ROL byte for next bit
-       TIMERG1.hw_timer[0].update = 0;
+       hw_timer_latch();
        if (txbyte & 0x80)
         GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
       else
         GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 
      
-      t0 = TIMERG1.hw_timer[0].cnt_low;
-      tn = t0 + TIMER_USEC_FACTOR - 7; // 1 microsecond
-      do
-      {
-        TIMERG1.hw_timer[0].update = 0;
-        t0 = TIMERG1.hw_timer[0].cnt_low;
-      } while (t0 < tn);
+      hw_timer_read();
+      tn = t0 + TIMER_USEC_FACTOR - TIMER_ADJUST; // 1 microsecond
+      hw_timer_wait();
 
       GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
-      tn += TIMER_USEC_FACTOR * 3 - 5; // 3 microseconds
+      tn += 3 * TIMER_USEC_FACTOR - TIMER_ADJUST; // 3 microseconds
 
       // do some updating while in 3-us low period
       numbits--;    //           dec  r25                                            ;3    ;1   dec bit counter
@@ -403,11 +419,7 @@ unsigned char spDevice::SendPacket(unsigned char *a)
 
       txbyte <<= 1; //           rol  r23  
 
-      do
-      {
-        TIMERG1.hw_timer[0].update = 0;
-        t0 = TIMERG1.hw_timer[0].cnt_low;
-      } while (t0 < tn);
+      hw_timer_wait();
 
     }while(1);
 
@@ -415,16 +427,13 @@ unsigned char spDevice::SendPacket(unsigned char *a)
        //           breq endspkt                ;61               ;45         ;1/2
     numbits = 8; //           ldi  r25,8                  ;62               ;46         ;1   8bits to read
    // finish the 3 usec low period
-   do
-      {
-        TIMERG1.hw_timer[0].update = 0;
-        t0 = TIMERG1.hw_timer[0].cnt_low;
-      } while (t0 < tn);
+   hw_timer_wait();
 
    
 
   }while(txbyte);//           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
-    
+
+portENABLE_INTERRUPTS();
 
   // endspkt:  cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have sent the pkt
   fnSystem.digital_write(SP_ACK, DIGI_LOW);
