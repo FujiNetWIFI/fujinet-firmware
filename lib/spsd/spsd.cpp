@@ -137,6 +137,11 @@ void spDevice::smartport_rddata_clr()
   GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 }
 
+uint32_t spDevice::smartport_wrdata_val()
+{
+  return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
+}
+
 void spDevice::ACK_Deassert()
 {
   fnSystem.digital_write(SP_ACK, DIGI_LOW);
@@ -151,12 +156,10 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
   bool have_data = true;
   int idx = 0;             // index into *a
   uint32_t bit = 0;        // logical bit value
-  uint32_t prev_level = (0x01 << (SP_WRDATA - 32)); // previous value of WRDATA line
+  uint32_t prev_level = ((uint32_t)0x01 << (SP_WRDATA - 32)); // previous value of WRDATA line
   uint32_t current_level;  // current value of WRDATA line
   uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
   int numbits;             // number of bits left to read into the rxbyte
-  uint32_t t0;             // timer value stored here
-  uint32_t tn;             // next timer value store here
 
   //*****************************************************************************
   // Function: ReceivePacket
@@ -199,10 +202,10 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
   Debug_print("A");
 #endif
 
-  // reset time to 0 to avoid overflows
-  timer_pause(TIMER_GROUP_1, TIMER_0);
-  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
-  timer_start(TIMER_GROUP_1, TIMER_0);
+  // // reset time to 0 to avoid overflows
+  // timer_pause(TIMER_GROUP_1, TIMER_0);
+  // timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+  // timer_start(TIMER_GROUP_1, TIMER_0);
 
   // setup a timeout counter to wait for REQ response
   TIMERG1.hw_timer[0].update = 0;        // latch highspeed timer value
@@ -228,13 +231,13 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
 #endif
 
   // setup a timeout counter to wait for WRDATA to be ready response
-  TIMERG1.hw_timer[0].update = 0;      // latch highspeed timer value
-  t0 = TIMERG1.hw_timer[0].cnt_low;    //  grab timer low word
-  tn = t0 + (TIMER_USEC_FACTOR * 32U); // 32 usec - 1 byte
-  while (GPIO.in1.val & (0x01 << (SP_WRDATA - 32)))
+  hw_timer_latch();                    // latch highspeed timer value
+  hw_timer_read();    //  grab timer low word
+  hw_timer_alarm_set(32); // 32 usec - 1 byte
+  while (smartport_wrdata_val())
   {
-    TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
-    t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
+    hw_timer_latch();   // latch highspeed timer value
+    hw_timer_read(); // grab timer low word
     if (t0 > tn)                      // test for timeout
     {
       // timeout!
@@ -243,25 +246,18 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
     }
   };
 
-  while (have_data)
+  do
   {
     // beginning of the byte
     // delay 2 us until middle of 4-us bit
-    TIMERG1.hw_timer[0].update = 0;
-    t0 = TIMERG1.hw_timer[0].cnt_low;
-    tn = t0 + TIMER_USEC_FACTOR * 2; //TIMER_SCALE / 500000; // 2 usec
-    while (t0 < tn)               //  wait for 2 microseconds
-    {
-      TIMERG1.hw_timer[0].update = 0;
-      t0 = TIMERG1.hw_timer[0].cnt_low;
-    };
-
+    hw_timer_latch();
+    hw_timer_read();
+    hw_timer_alarm_set(2); //TIMER_SCALE / 500000; // 2 usec
     numbits = 8; // ;1   8bits to read
+    hw_timer_wait();
     while(1)
     {
-      // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
-      current_level = (GPIO.in1.val & (0x01 << (SP_WRDATA - 32)));
-      //fnSystem.digital_read(SP_WRDATA);
+      current_level = smartport_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
       // logic table:
       //  prev_level  current_level   decoded bit
       //  0           0               0
@@ -271,39 +267,29 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
       // this is an exclusive OR operation
       bit = prev_level ^ current_level;
       rxbyte <<= 1;
-      rxbyte += (bit > 0);
+      rxbyte |= (uint8_t)(bit > 0);
       prev_level = current_level;
-      numbits--; //           dec  r25                            ;13  ;13  ;13  ;13     ;1   dec bit counter
-      if (numbits == 0)
+      if ((--numbits) == 0)
         break; // end of byte
-      tn += TIMER_USEC_FACTOR * 4U; // 4 usec
-      do //  wait for 4 microseconds
-      {
-        TIMERG1.hw_timer[0].update = 0;
-        t0 = TIMERG1.hw_timer[0].cnt_low;
-      } while (t0 < tn);
+      hw_timer_alarm_snooze(4); // 4 usec
+      hw_timer_wait();
     };
-
     a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
-#ifdef VERBOSE
-    Debug_printf(" %02x ", rxbyte);
-#endif
 
-    tn += TIMER_USEC_FACTOR * 16; // 16 usec? that's a 1/2 byte so maybe?
-
+    hw_timer_alarm_snooze(16); // 16 usec? that's a 1/2 byte so maybe?
     // now wait for leading edge of next byte
-     while ((GPIO.in1.val & (0x01 << (SP_WRDATA - 32))) != prev_level) // return (GPIO.in1.val >> (pin - 32)) & 0x1;
+     while (smartport_wrdata_val() != prev_level) // return (GPIO.in1.val >> (pin - 32)) & 0x1;
     {
-      TIMERG1.hw_timer[0].update = 0;
-      t0 = TIMERG1.hw_timer[0].cnt_low;
+      hw_timer_latch();
+      hw_timer_read();
       if (t0 > tn)
       {
         // end of packet
         have_data = false;
         break;
       }
-    };
-  } // while have_data
+    }
+  } while (have_data); // while have_data
   //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
 
   // endpkt:   clr  r23
@@ -313,7 +299,6 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
   GPIO.out_w1tc = ((uint32_t)1 << SP_ACK);
 #ifdef VERBOSE
   Debug_print("a"); //           ;ldi  r24,'a'                ;for debug, a indicates ACK is low
-
 #endif
 
     TIMERG1.hw_timer[0].update = 0;
@@ -336,7 +321,11 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
 #ifdef VERBOSE
     Debug_print("r"); // for debug, 'r' indicates REQ is low
 #endif
-
+#ifdef DEBUG
+    Debug_printf("\r\n");
+    for (int i = 0; i < idx; i++)
+      Debug_printf("%02x", a[i]);
+#endif
     return 0; // no error
 }
 
