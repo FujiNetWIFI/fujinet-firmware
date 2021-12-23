@@ -66,7 +66,13 @@ enum uiState{
 
 uiState state=startup;
 
-uint32_t readTimer();
+uint32_t tn;
+uint32_t t0;
+void hw_timer_latch();
+void hw_timer_read();
+void hw_timer_usec_set(int s); 
+void hw_timer_wait();
+
 void ACK_Deassert();
 void ACK_Assert();
 
