@@ -33,7 +33,7 @@ bool adamQueryDevice::adamDeviceExists(uint8_t device)
     do
     {
         rxbuf[0] = 0xff;
-        timeout = adamnet_recv_timeout(&rxbuf[0], 150);
+        timeout = adamnet_recv_timeout(&rxbuf[0], 200);
         if (timeout)
         {
             break;
