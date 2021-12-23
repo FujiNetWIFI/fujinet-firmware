@@ -16,6 +16,7 @@
 #include "sio/printerlist.h"
 #define BUS SIO
 extern sioFuji theFuji;
+#define PRINTING_DEVICE sioPrinter
 #endif
 
 #ifdef BUILD_ADAM
@@ -23,6 +24,7 @@ extern sioFuji theFuji;
 #include "adamnet/printerlist.h"
 #define BUS AdamNet
 extern adamFuji theFuji;
+#define PRINTING_DEVICE adamPrinter
 #endif
 
 #include "../hardware/fnSystem.h"
@@ -31,6 +33,8 @@ extern adamFuji theFuji;
 #include "fnFsSD.h"
 
 using namespace std;
+
+#define MAX_PRINTER_LIST_BUFFER (2048)
 
 const string fnHttpServiceParser::substitute_tag(const string &tag)
 {
@@ -111,6 +115,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HOST8PREFIX,
         FN_ERRMSG,
         FN_HARDWARE_VER,
+        FN_PRINTER_LIST,
         FN_LASTTAG
     };
 
@@ -190,7 +195,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST7PREFIX",
         "FN_HOST8PREFIX",
         "FN_ERRMSG",
-        "FN_HARDWARE_VER"
+        "FN_HARDWARE_VER",
+        "FN_PRINTER_LIST"
     };
 
     stringstream resultstream;
@@ -435,6 +441,28 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_HARDWARE_VER:
         resultstream << fnSystem.get_hardware_ver_str();
+        break;
+    case FN_PRINTER_LIST:
+        {
+            char *result = (char *) malloc(MAX_PRINTER_LIST_BUFFER);
+            if (result != NULL)
+            {
+                strcpy(result, "");
+
+                for(int i=0; i<(int) PRINTING_DEVICE::PRINTER_INVALID; i++)
+                {
+                    strncat(result, "<option value=\"", MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, PRINTING_DEVICE::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, "\">", MAX_PRINTER_LIST_BUFFER);
+                    strncat(result, PRINTING_DEVICE::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, "</option>\n", MAX_PRINTER_LIST_BUFFER-1);
+
+                }
+                resultstream << result;
+                free(result);
+            } else
+                resultstream << "Insufficent memory";
+        }
         break;
     default:
         resultstream << tag;
