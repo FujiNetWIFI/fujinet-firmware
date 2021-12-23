@@ -8,6 +8,8 @@
 #include <string>
 #include "led.h"
 
+#include "atari_1020.h"
+#include "atari_1025.h"
 #include "file_printer.h"
 #include "html_printer.h"
 #include "svg_plotter.h"
@@ -17,7 +19,11 @@
 #include "png_printer.h"
 #include "coleco_printer.h"
 
+
+
 std::string buf;
+
+constexpr const char * const adamPrinter::printer_model_str[PRINTER_INVALID];
 
 // Constructor just sets a default printer type
 adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
@@ -33,29 +39,9 @@ adamPrinter::~adamPrinter()
 
 adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
 {
-        const char *models[PRINTER_INVALID] =
-        {
-            "file printer (RAW)",
-            "file printer (TRIM)",
-            "file printer (ASCII)",
-            "Atari 820",
-            "Atari 822",
-            "Atari 825",
-            "Atari 1020",
-            "Atari 1025",
-            "Atari 1027",
-            "Atari 1029",
-            "Atari XMM801",
-            "Atari XDM121",
-            "Epson 80",
-            "Epson PrintShop",
-            "Okimate 10",
-            "GRANTIC",
-            "HTML printer",
-            "HTML ATASCII printer"};
     int i;
     for (i = 0; i < PRINTER_INVALID; i++)
-        if (model_name.compare(models[i]) == 0)
+        if (model_name.compare(adamPrinter::printer_model_str[i]) == 0)
             break;
 
     return (printer_type)i;
@@ -72,8 +58,6 @@ void adamPrinter::idle()
 {
     if (buf.empty())
         return;
-    
-    uint8_t b[40];
 
     uint8_t c = buf.length() > 40 ? 40 : buf.length();
 
@@ -158,7 +142,7 @@ void adamPrinter::set_printer_type(printer_type printer_type)
         _pptr = new colecoprinter;
         break;
     case PRINTER_ATARI_1020:
-        _pptr = new svgPlotter;
+        _pptr = new atari1020;
         break;
     case PRINTER_ATARI_1025:
         _pptr = new atari1025;

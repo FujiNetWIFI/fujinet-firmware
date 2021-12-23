@@ -2,7 +2,7 @@
 <html>
 
 <head>
-	<title>FujiNet</title>
+	<title>FujiNet - <%FN_HOSTNAME%></title>
 	<meta charset="utf-8" />
 	<script type="text/javascript" src="/file?utils.js"></script>
 	<style>
@@ -535,25 +535,7 @@
 								<br>Select Emulated Printer
 								<select name="printermodel1" id="select_printermodel1">
 									<optgroup>
-										<option value="file printer (RAW)">file printer (RAW)</option>
-										<option value="file printer (TRIM)">file printer (TRIM)</option>
-										<option value="file printer (ASCII)">file printer (ASCII)</option>
-										<option value="Atari 820">Atari 820</option>
-										<option value="Atari 822">Atari 822</option>
-										<option value="Atari 825">Atari 825</option>
-										<option value="Atari 1020">Atari 1020</option>
-										<option value="Atari 1025">Atari 1025</option>
-										<option value="Atari 1027">Atari 1027</option>
-										<option value="Atari 1029">Atari 1029</option>
-										<option value="Atari XMM801">Atari XMM801</option>
-										<option value="Atari XDM121">Atari XDM121</option>
-										<option value="Coleco Adam Printer">Coleco Adam Printer</option>
-										<option value="Epson 80">Epson 80</option>
-										<option value="Epson PrintShop">Epson PrintShop</option>
-										<option value="Okimate 10">Okimate 10</option>
-										<option value="GRANTIC">GRANTIC</option>
-										<option value="HTML printer">HTML printer</option>
-										<option value="HTML ATASCII printer">HTML ATASCII printer</option>
+										<%FN_PRINTER_LIST%>
 									</optgroup>
 								</select>
 								<input type="submit" value="Save">

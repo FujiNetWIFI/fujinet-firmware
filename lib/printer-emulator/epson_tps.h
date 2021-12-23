@@ -1,6 +1,13 @@
 #ifndef EPSON_TPS_H
 #define EPSON_TPS_H
 
+#ifdef BUILD_ADAM
+#include "adamnet/printer.h"
+#endif
+#ifdef BUILD_ATARI
+#include "sio/printer.h"
+#endif
+
 #include "epson_80.h"
 
 class epsonTPS : public epson80
@@ -14,7 +21,18 @@ protected:
     }; // go up one line for The Print Shop
 
 public:
-    const char *modelname() { return "Epson PrintShop"; };
+    const char *modelname()  override 
+    { 
+        #ifdef BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_EPSON_PRINTSHOP];
+        #else
+            #ifdef BUILD_ATARI
+                return sioPrinter::printer_model_str[sioPrinter::PRINTER_EPSON_PRINTSHOP];
+            #else
+                return PRINTER_UNSUPPORTED;
+            #endif
+        #endif
+    }
 };
 
 #endif

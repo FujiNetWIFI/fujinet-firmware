@@ -65,7 +65,7 @@ public:
 
     void setPaper(paper_t ptype) { _paper_type = ptype; };
 
-    virtual const char *modelname() = 0;
+    virtual const char *modelname()=0;
     size_t getOutputSize();
 
 };

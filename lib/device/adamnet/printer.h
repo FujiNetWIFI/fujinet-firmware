@@ -1,3 +1,4 @@
+#ifdef BUILD_ADAM
 #ifndef ADAM_PRINTER_H
 #define ADAM_PRINTER_H
 
@@ -6,6 +7,8 @@
 #include "bus.h"
 #include "../printer-emulator/printer_emulator.h"
 #include "fnFS.h"
+
+#define PRINTER_UNSUPPORTED "Unsupported"
 
 class adamPrinter : public adamNetDevice
 {
@@ -35,7 +38,6 @@ public:
         PRINTER_FILE_RAW = 0,
         PRINTER_FILE_TRIM,
         PRINTER_FILE_ASCII,
-        PRINTER_COLECO_ADAM,
         PRINTER_ATARI_820,
         PRINTER_ATARI_822,
         PRINTER_ATARI_825,
@@ -45,6 +47,7 @@ public:
         PRINTER_ATARI_1029,
         PRINTER_ATARI_XMM801,
         PRINTER_ATARI_XDM121,
+        PRINTER_COLECO_ADAM,
         PRINTER_EPSON,
         PRINTER_EPSON_PRINTSHOP,
         PRINTER_OKIMATE10,
@@ -54,6 +57,30 @@ public:
         PRINTER_INVALID
     };
 
+public:
+    constexpr static const char * const printer_model_str[PRINTER_INVALID]
+    {
+        "file printer (RAW)",
+        "file printer (TRIM)",
+        "file printer (ASCII)",
+        "Atari 820",
+        "Atari 822",
+        "Atari 825",
+        "Atari 1020",
+        "Atari 1025",
+        "Atari 1027",
+        "Atari 1029",
+        "Atari XMM801",
+        "Atari XDM121",
+        "Coleco Adam Printer",
+        "Epson 80",
+        "Epson PrintShop",
+        "Okimate 10",
+        "GRANTIC",
+        "HTML printer",
+        "HTML ATASCII printer"
+    };
+    
     adamPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~adamPrinter();
 
@@ -73,4 +100,6 @@ private:
 
 };
 
+
 #endif /* ADAM_PRINTER_H */
+#endif
