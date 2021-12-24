@@ -127,6 +127,12 @@ void spDevice::hw_timer_wait()
   } while (t0 < tn);
 }
 
+void spDevice::hw_timer_reset()
+{
+  TIMERG1.hw_timer[0].load_low = 0;
+  TIMERG1.hw_timer[0].reload = 0;
+}
+
 void spDevice::smartport_rddata_set()
 {
   GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
@@ -140,6 +146,11 @@ void spDevice::smartport_rddata_clr()
 uint32_t spDevice::smartport_wrdata_val()
 {
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
+}
+
+uint32_t spDevice::smartport_req_val()
+{
+  return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
 }
 
 void spDevice::ACK_Deassert()
@@ -202,21 +213,18 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
   Debug_print("A");
 #endif
 
-  // // reset time to 0 to avoid overflows
-  // timer_pause(TIMER_GROUP_1, TIMER_0);
-  // timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
-  // timer_start(TIMER_GROUP_1, TIMER_0);
+  hw_timer_reset();
 
   // setup a timeout counter to wait for REQ response
-  TIMERG1.hw_timer[0].update = 0;        // latch highspeed timer value
-  t0 = TIMERG1.hw_timer[0].cnt_low;      //  grab timer low word
-  tn = t0 + (TIMER_USEC_FACTOR * 1000U); // 1 millisecond
+  hw_timer_latch();        // latch highspeed timer value
+  hw_timer_read();      //  grab timer low word
+  hw_timer_alarm_set(1000); // 1 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))  //(GPIO.in1.val >> (pin - 32)) & 0x1
-  while ( (GPIO.in1.val & (0x01 << (SP_REQ-32))) == 0 )  //(GPIO.in1.val >> (pin - 32)) & 0x1
+  while ( smartport_req_val() == 0 )  //(GPIO.in1.val >> (pin - 32)) & 0x1
   {
-    TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
-    t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
+    hw_timer_latch();   // latch highspeed timer value
+    hw_timer_read(); // grab timer low word
     if (t0 > tn)                      // test for timeout
     {
       // timeout!
@@ -306,12 +314,12 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
     tn = t0 + TIMER_USEC_FACTOR * 1000; //1 millisecond
 
     //while (fnSystem.digital_read(SP_REQ))
-    while (GPIO.in1.val & (0x01 << (SP_REQ - 32)))
+    while (smartport_req_val())
     {
       // 1:        sbis _SFR_IO_ADDR(PIND),2   ;wait for REQ line to go low
       //           rjmp finish                 ;this indicates host has acknowledged ACK
-      TIMERG1.hw_timer[0].update = 0;
-      t0 = TIMERG1.hw_timer[0].cnt_low;
+      hw_timer_latch();
+      hw_timer_read();
       if (t0 > tn)
       {
         // timeout
@@ -345,14 +353,7 @@ unsigned char spDevice::SendPacket(unsigned char *a)
   uint8_t txbyte; // r23 transmit byte being sent bit by bit
   int numbits = 8;        // r25 counter
 
-  // todo: reset time to 0 to avoid overflows
-  // except I try this and I end up with a weird 1.5 ms delay on the first
-  // bit that is transmitted. It's like the timer_start kicks off a process
-  // that doesn't finish starting the timer very quickly
-  // may need to do direct register writing again for speed
-  // timer_pause(TIMER_GROUP_1, TIMER_0);
-  // timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
-  // timer_start(TIMER_GROUP_1, TIMER_0);
+  hw_timer_reset();
 
   GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
 #ifdef VERBOSE

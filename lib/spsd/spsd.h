@@ -73,9 +73,11 @@ void hw_timer_read();
 void hw_timer_alarm_set(int s);
 void hw_timer_alarm_snooze(int s); 
 void hw_timer_wait();
+void hw_timer_reset();
 void smartport_rddata_set();
 void smartport_rddata_clr();
 uint32_t smartport_wrdata_val();
+uint32_t smartport_req_val();
 
 void ACK_Deassert();
 void ACK_Assert();
