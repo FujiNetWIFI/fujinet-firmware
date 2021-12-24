@@ -648,7 +648,7 @@ void SystemManager::debug_print_tasks()
 
     uint32_t n = uxTaskGetNumberOfTasks();
     TaskStatus_t *pTasks = (TaskStatus_t *)malloc(sizeof(TaskStatus_t) * n);
-    //n = uxTaskGetSystemState(pTasks, n, nullptr);
+    n = uxTaskGetSystemState(pTasks, n, nullptr);
 
     for (int i = 0; i < n; i++)
     {
