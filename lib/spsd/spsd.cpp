@@ -143,6 +143,16 @@ void spDevice::smartport_rddata_clr()
   GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 }
 
+void spDevice::smartport_rddata_enable()
+{
+  GPIO.enable_w1ts = ((uint32_t)0x01 << SP_RDDATA);  
+}
+
+void spDevice::smartport_rddata_disable()
+{
+  GPIO.enable_w1tc = ((uint32_t)0x01 << SP_RDDATA);
+}
+
 uint32_t spDevice::smartport_wrdata_val()
 {
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
@@ -153,16 +163,97 @@ uint32_t spDevice::smartport_req_val()
   return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
 }
 
-void spDevice::ACK_Deassert()
+//------------------------------------------------------
+/** ACK and REQ
+ * how ACK works, my interpretation of the iigs firmware reference.
+ * ACK is normally high when device is ready to receive commands.
+ * host will send REQ high to make a request and send a command.
+ * device responds after command is received by sending ACK low.
+ * host completes command handshake by sending REQ low.
+ * device signals its ready for the next step (receive/send/status)
+ * by sending ACK back high.
+ * 
+ * how ACK works with multiple devices on bus:
+ * ACK is normally high-Z (pulled up?)
+ * when a device receives a command addressed to it, and it is ready
+ * to respond, it'll send ACK low. (To me, this seems like a perfect
+ * scenario for open collector output but I think it's a 3-state line)
+ * 
+ * possible circuits:
+ * Disk II physical interface - ACK uses the WPROT line, which is a tri-state ls125 buffer on the
+ * Disk II analog card. There's no pull up/down/load resistor. This line drives the /SR input of the 
+ * ls323 on the bus interface card. I surmise that WPROT goes low or is hi-z, which doesn't 
+ * reset the ls125.  
+ */
+void spDevice::smartport_ack_clr()
 {
-  fnSystem.digital_write(SP_ACK, DIGI_LOW);
+  //GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);
+GPIO.out_w1tc = ((uint32_t)1 << SP_ACK);
 #ifdef VERBOSE
   Debug_print("a");
 #endif
 }
 
+void spDevice::smartport_ack_set()
+{
+  //GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK);
+GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
+#ifdef VERBOSE
+  Debug_print("A");
+#endif
+}
 
-unsigned char spDevice::ReceivePacket(unsigned char *a)
+void spDevice::smartport_ack_enable()
+{
+  GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);  
+}
+
+void spDevice::smartport_ack_disable()
+{
+  GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK);
+}
+
+int spDevice::smartport_handshake()
+{
+  smartport_ack_clr();
+  smartport_ack_enable();
+#ifdef VERBOSE
+  Debug_print("A");
+#endif
+
+  hw_timer_latch();
+  hw_timer_read();
+  hw_timer_alarm_set(1000); // 1 millisecond
+  do
+  {
+    hw_timer_latch();
+    hw_timer_read();
+    if (t0 > tn)
+    {
+      // timeout!
+      smartport_ack_set();
+      smartport_ack_disable();
+#ifdef VERBOSE
+  Debug_print("t");
+#endif
+      return 1;
+    }
+  } while (smartport_req_val()); // wait for REQ to go low
+
+#ifdef VERBOSE
+  Debug_print("r");
+#endif
+  smartport_ack_set();
+  smartport_ack_disable();
+#ifdef VERBOSE
+  Debug_print("a");
+#endif
+  return 0;
+}
+
+//------------------------------------------------------
+
+int spDevice::ReceivePacket(uint8_t *a)
 {
   bool have_data = true;
   int idx = 0;             // index into *a
@@ -187,8 +278,8 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
  * @param packet_buffer pointer
  * 
  * @returns 
- *    0 for timeout error
- *    1 all else
+ *    1 for timeout error
+ *    0 all else
  * 
  * @details This function reads a packet from the SmartPort (SP) bus. 
  * The algorithm originated from the SmartPortSD Arduino project as
@@ -205,14 +296,6 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
 
   // 'a' is the receive buffer pointer
 
-  //ACK_Assert(); // todo make sure the PHIx/ACK/REQ states are correct
-                // to do is ACK negative logic?
- // fnSystem.digital_write(SP_ACK, DIGI_HIGH);
-  GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
-#ifdef VERBOSE
-  Debug_print("A");
-#endif
-
   hw_timer_reset();
 
   // setup a timeout counter to wait for REQ response
@@ -220,15 +303,20 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
   hw_timer_read();      //  grab timer low word
   hw_timer_alarm_set(1000); // 1 millisecond
 
-  // while (!fnSystem.digital_read(SP_REQ))  //(GPIO.in1.val >> (pin - 32)) & 0x1
-  while ( smartport_req_val() == 0 )  //(GPIO.in1.val >> (pin - 32)) & 0x1
+  // todo: this waiting for REQ seems like it should be done
+  // in the main loop, if control can be passed quickly enough
+  // to the receive routine. Otherwise, we sit here blocking(?)
+  // until REQ goes high. As long as PHIx is in Enable mode.
+  while ( smartport_req_val() == 0 )  
   {
     hw_timer_latch();   // latch highspeed timer value
     hw_timer_read(); // grab timer low word
     if (t0 > tn)                      // test for timeout
-    {
-      // timeout!
-      ACK_Deassert();
+    { // timeout!
+#ifdef VERBOSE
+      // timeout
+      Debug_print("t");
+#endif
       return 1;
     }
   };
@@ -246,10 +334,12 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
   {
     hw_timer_latch();   // latch highspeed timer value
     hw_timer_read(); // grab timer low word
-    if (t0 > tn)                      // test for timeout
-    {
-      // timeout!
-      ACK_Deassert();
+    if (t0 > tn)     // test for timeout
+    {                // timeout!
+#ifdef VERBOSE
+      // timeout
+      Debug_print("t");
+#endif
       return 1;
     }
   };
@@ -279,6 +369,8 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
       prev_level = current_level;
       if ((--numbits) == 0)
         break; // end of byte
+      // todo: use best (whatever works) alarm setting because
+      // in sendpacket, the alarm is set every bit instead of snoozed
       hw_timer_alarm_snooze(4); // 4 usec
       hw_timer_wait();
     };
@@ -303,41 +395,21 @@ unsigned char spDevice::ReceivePacket(unsigned char *a)
   // endpkt:   clr  r23
   a[idx++] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
-  // fnSystem.digital_write(SP_ACK, DIGI_LOW); //           cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have recv'd the pkt
-  GPIO.out_w1tc = ((uint32_t)1 << SP_ACK);
-#ifdef VERBOSE
-  Debug_print("a"); //           ;ldi  r24,'a'                ;for debug, a indicates ACK is low
-#endif
-
-    TIMERG1.hw_timer[0].update = 0;
-    t0 = TIMERG1.hw_timer[0].cnt_low;
-    tn = t0 + TIMER_USEC_FACTOR * 1000; //1 millisecond
-
-    //while (fnSystem.digital_read(SP_REQ))
-    while (smartport_req_val())
-    {
-      // 1:        sbis _SFR_IO_ADDR(PIND),2   ;wait for REQ line to go low
-      //           rjmp finish                 ;this indicates host has acknowledged ACK
-      hw_timer_latch();
-      hw_timer_read();
-      if (t0 > tn)
-      {
-        // timeout
-        return 1;
-      }
-    };
-#ifdef VERBOSE
-    Debug_print("r"); // for debug, 'r' indicates REQ is low
-#endif
+  // if debug then handshake, print, return
+  // else return handshake
 #ifdef DEBUG
-    Debug_printf("\r\n");
-    for (int i = 0; i < idx; i++)
-      Debug_printf("%02x", a[i]);
+  int ret = smartport_handshake();
+  Debug_printf("\r\n");
+  for (int i = 0; i < idx; i++)
+    Debug_printf("%02x", a[i]);
+  return ret;
+#else
+  return smartport_handshake(); // no error
 #endif
-    return 0; // no error
+
 }
 
-unsigned char spDevice::SendPacket(unsigned char *a)
+int spDevice::SendPacket(uint8_t *a)
 {
   //*****************************************************************************
   // Function: SendPacket
@@ -355,27 +427,27 @@ unsigned char spDevice::SendPacket(unsigned char *a)
 
   hw_timer_reset();
 
-  GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
-#ifdef VERBOSE
-  Debug_print("A");
-#endif
+// i don't think setting ACK to high is needed
+//   GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
+// #ifdef VERBOSE
+//   Debug_print("A");
+// #endif
 
 #ifndef TESTTX
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
   // setup a timeout counter to wait for REQ response
-  TIMERG1.hw_timer[0].update = 0;        // latch highspeed timer value
-  t0 = TIMERG1.hw_timer[0].cnt_low;      //  grab timer low word
-  tn = t0 + (TIMER_USEC_FACTOR * 1000U); // 1 millisecond
+  hw_timer_latch();        // latch highspeed timer value
+  hw_timer_read();      //  grab timer low word
+  hw_timer_alarm_set(1000); // 1 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
-  while ((GPIO.in1.val & (0x01 << (SP_REQ - 32))) == 0) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  while (smartport_req_val() == 0) //(GPIO.in1.val >> (pin - 32)) & 0x1
   {
-    TIMERG1.hw_timer[0].update = 0;   // latch highspeed timer value
-    t0 = TIMERG1.hw_timer[0].cnt_low; // grab timer low word
+    hw_timer_latch();   // latch highspeed timer value
+    hw_timer_read(); // grab timer low word
     if (t0 > tn)                      // test for timeout
     {
       // timeout!
-      ACK_Deassert();
       Debug_println("SendPacket timeout error waiting for REQ");
       return 1;
     }
@@ -401,8 +473,8 @@ unsigned char spDevice::SendPacket(unsigned char *a)
     do
     {
       // send MSB first, then ROL byte for next bit
-       hw_timer_latch();
-       if (txbyte & 0x80)
+      hw_timer_latch();
+      if (txbyte & 0x80)
         smartport_rddata_set();
       else
         smartport_rddata_clr();
@@ -428,41 +500,11 @@ unsigned char spDevice::SendPacket(unsigned char *a)
   } while (txbyte); //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
   portENABLE_INTERRUPTS();
 
-  // endspkt:  cbi  _SFR_IO_ADDR(PORTC),5  ;set ACK(BSY) low to signal we have sent the pkt
-  fnSystem.digital_write(SP_ACK, DIGI_LOW);
-#ifdef VERBOSE
-  Debug_print("a");
-#endif
-
 #ifndef TESTTX
-  // 1:        ldi  r24,5
-  //           sbis _SFR_IO_ADDR(PIND),2   ;wait for REQ line to go low
-  //           rjmp finishs                ;this indicates host has acknowledged ACK
-  //           dec  r24
-  //           brne 1b
-  //           rjmp error
-  TIMERG1.hw_timer[0].update = 0;
-  t0 = TIMERG1.hw_timer[0].cnt_low;
-  tn = t0 + TIMER_USEC_FACTOR * 1000; // 1 millisecond
-  do
-  {
-    TIMERG1.hw_timer[0].update = 0;
-    t0 = TIMERG1.hw_timer[0].cnt_low;
-    if (t0 > tn)
-    {
-      // timeout!
-      return false;
-    }
-  } while (GPIO.in1.val & (0x01 << (SP_REQ - 32))); // while (fnSystem.digital_read(SP_REQ));
-
-#ifdef VERBOSE
-  Debug_print("r");
-#endif
-  //           clr  r25
-  //           clr  r24                    ;return no error
-  //           ret
+  return smartport_handshake();
+#else
+  return 0;
 #endif // TESTTX
-  return true;
 }
 
 //*****************************************************************************
@@ -474,11 +516,11 @@ unsigned char spDevice::SendPacket(unsigned char *a)
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void spDevice::encode_data_packet (unsigned char source)
+void spDevice::encode_data_packet (uint8_t source)
 {
   int grpbyte, grpcount;
-  unsigned char checksum = 0, grpmsb;
-  unsigned char group_buffer[7];
+  uint8_t checksum = 0, grpmsb;
+  uint8_t group_buffer[7];
 
   // Calculate checksum of sector bytes before we destroy them
     for (count = 0; count < 512; count++) // xor all the data bytes
@@ -548,11 +590,11 @@ void spDevice::encode_data_packet (unsigned char source)
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void spDevice::encode_extended_data_packet (unsigned char source)
+void spDevice::encode_extended_data_packet (uint8_t source)
 {
   int grpbyte, grpcount;
-  unsigned char checksum = 0, grpmsb;
-  unsigned char group_buffer[7];
+  uint8_t checksum = 0, grpmsb;
+  uint8_t group_buffer[7];
 
   // Calculate checksum of sector bytes before we destroy them
     for (count = 0; count < 512; count++) // xor all the data bytes
@@ -625,9 +667,9 @@ void spDevice::encode_extended_data_packet (unsigned char source)
 int spDevice::decode_data_packet (void)
 {
   int grpbyte, grpcount;
-  unsigned char numgrps, numodd;
-  unsigned char checksum = 0, bit0to6, bit7, oddbits, evenbits;
-  unsigned char group_buffer[8];
+  uint8_t numgrps, numodd;
+  uint8_t checksum = 0, bit0to6, bit7, oddbits, evenbits;
+  uint8_t group_buffer[8];
 
   //Handle arbitrary length packets :) 
   numodd = packet_buffer[11] & 0x7f;
@@ -675,9 +717,9 @@ int spDevice::decode_data_packet (void)
 // Description: this is the reply to the write block data packet. The reply
 // indicates the status of the write block cmd.
 //*****************************************************************************
-void spDevice::encode_write_status_packet(unsigned char source, unsigned char status)
+void spDevice::encode_write_status_packet(uint8_t source, uint8_t status)
 {
-  unsigned char checksum = 0;
+  uint8_t checksum = 0;
 
   packet_buffer[0] = 0xff;  //sync bytes
   packet_buffer[1] = 0x3f;
@@ -717,9 +759,9 @@ void spDevice::encode_write_status_packet(unsigned char source, unsigned char st
 // to 4 partions, i.e. devices, so we need to specify when we are doing the last
 // init reply.
 //*****************************************************************************
-void spDevice::encode_init_reply_packet (unsigned char source, unsigned char status)
+void spDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 {
-  unsigned char checksum = 0;
+  uint8_t checksum = 0;
 
   packet_buffer[0] = 0xff;  //sync bytes
   packet_buffer[1] = 0x3f;
@@ -762,8 +804,8 @@ void spDevice::encode_init_reply_packet (unsigned char source, unsigned char sta
 void spDevice::encode_status_reply_packet (device d)
 {
 
-  unsigned char checksum = 0;
-  unsigned char data[4];
+  uint8_t checksum = 0;
+  uint8_t data[4];
 
   //Build the contents of the packet
   //Info byte
@@ -831,9 +873,9 @@ void spDevice::encode_status_reply_packet (device d)
 //*****************************************************************************
 void spDevice::encode_extended_status_reply_packet (device d)
 {
-  unsigned char checksum = 0;
+  uint8_t checksum = 0;
 
-  unsigned char data[5];
+  uint8_t data[5];
 
   //Build the contents of the packet
   //Info byte
@@ -888,9 +930,9 @@ void spDevice::encode_extended_status_reply_packet (device d)
   packet_buffer[23] = 0x00; //end of packet in buffer
 
 }
-void spDevice::encode_error_reply_packet (unsigned char source)
+void spDevice::encode_error_reply_packet (uint8_t source)
 {
-  unsigned char checksum = 0;
+  uint8_t checksum = 0;
 
   packet_buffer[0] = 0xff;  //sync bytes
   packet_buffer[1] = 0x3f;
@@ -933,9 +975,9 @@ void spDevice::encode_status_dib_reply_packet (device d)
 {
   int grpbyte, grpcount, i;
   int grpnum, oddnum; 
-  unsigned char checksum = 0, grpmsb;
-  unsigned char group_buffer[7];
-  unsigned char data[25];
+  uint8_t checksum = 0, grpmsb;
+  uint8_t group_buffer[7];
+  uint8_t data[25];
   //data buffer=25: 3 x Grp7 + 4 odds
   grpnum=3;
   oddnum=4;
@@ -969,7 +1011,7 @@ void spDevice::encode_status_dib_reply_packet (device d)
   data[24] = 0x0f; //
     
 
- // print_packet ((unsigned char*) data,packet_length()); // debug
+ // print_packet ((uint8_t*) data,packet_length()); // debug
  // Debug_print(("\nData loaded"));
 // Calculate checksum of sector bytes before we destroy them
     for (count = 0; count < 25; count++) // xor all the data bytes
@@ -1042,7 +1084,7 @@ void spDevice::encode_status_dib_reply_packet (device d)
 //*****************************************************************************
 void spDevice::encode_extended_status_dib_reply_packet (device d)
 {
-  unsigned char checksum = 0;
+  uint8_t checksum = 0;
 
   packet_buffer[0] = 0xff;  //sync bytes
   packet_buffer[1] = 0x3f;
@@ -1101,9 +1143,9 @@ void spDevice::encode_extended_status_dib_reply_packet (device d)
 int spDevice::verify_cmdpkt_checksum(void)
 {
   int count = 0, length;
-  unsigned char evenbits, oddbits, bit7, bit0to6, grpbyte;
-  unsigned char calc_checksum = 0; //initial value is 0
-  unsigned char pkt_checksum;
+  uint8_t evenbits, oddbits, bit7, bit0to6, grpbyte;
+  uint8_t calc_checksum = 0; //initial value is 0
+  uint8_t pkt_checksum;
 
   length = packet_length();
 
@@ -1145,7 +1187,7 @@ int spDevice::verify_cmdpkt_checksum(void)
 //
 // Description: prints packet data for debug purposes to the serial port
 //*****************************************************************************
-void spDevice::print_packet (unsigned char* data, int bytes)
+void spDevice::print_packet (uint8_t* data, int bytes)
 {
   int count, row;
   char tbs[8];
@@ -1300,128 +1342,22 @@ int spDevice::rotate_boot (void)
 //*****************************************************************************
 void spDevice::mcuInit(void)
 {
-  // ESP32 pin setup
-  // copied from above so be careful to remove or keep consistent:
-  // Apple disk interface is connected as follows:
-  // wrprot/ack (output)  GPIO 2
-  // ph0/req    (input)   GPIO 4
-  // ph1        (input)   GPIO 13
-  // ph2        (input)   GPIO 16
-  // ph3        (input)   GPIO 17
-  // rddata     (output)  GPIO 21
-  // wrdata     (input)   GPIO 22
-  // reminder:
-  // #define SP_WRPROT   2
-  // #define SP_ACK      2
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
-  fnSystem.digital_write(SP_ACK, DIGI_LOW);
-  // #define SP_REQ      4
-  // #define SP_PHI0     4
+  fnSystem.digital_write(SP_ACK, DIGI_HIGH);
+  //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); 
+  
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT);
-  // #define SP_PHI1     13
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
-  // #define SP_PHI2     16
   fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT);
-  // #define SP_PHI3     17
   fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT);
-  // #define SP_RDDATA   21
-  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
-  fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
-  // #define SP_WRDATA   22
+
   fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT);
 
-  // old Arudino code, that already had tons commented:
-/* 
-  // Arduino UNO port/pin set up
-
-  // Input/Output Ports initialization
-  PORTC = 0xFF; // Port A initialization
-  DDRC = 0xFF;
-
-  PORTB = 0x00; // Port B initialization
-  //  DDRXB=0x00;
-
-  //  PORTXC=0x00;// Port C initialization
-  //  DDRXC=0xFF;
-
-  PORTD = 0xc0; // Port D initialization
-  DDRD = 0x00; // leave rd as input, pd6
-
-  // Timer/Counter 0 initialization
-  // Clock source: System Clock
-  // Clock value: Timer 0 Stopped
-  // Mode: Normal top=FFh
-  // OC0 output: Disconnected
-  //ASSR=0x00;
-  //TCCR0=0x00;
-  //TCNT0=0x00;
-  //OCR0=0x00;
-
-  // Timer/Counter 1 initialization
-  // Clock source: System Clock
-  // Clock value: Timer 1 Stopped
-  // Mode: Normal top=FFFFh
-  // OC1A output: Discon.
-  // OC1B output: Discon.
-  // Noise Canceler: Off
-  // Input Capture on Falling Edge
-  //TCCR1A=0x00;
-  //TCCR1B=0x00;
-  //TCNT1H=0x00;
-  //TCNT1L=0x00;
-  //OCR1AH=0x00;
-  //OCR1AL=0x00;
-  //OCR1BH=0x00;
-  //OCR1BL=0x00;
-
-  // Timer/Counter 2 initialization
-  // Clock source: System Clock
-  // Clock value: Timer 2 Stopped
-  // Mode: Normal top=FFh
-  // OC2 output: Disconnected
-  //TCCR2=0x00;
-  //TCNT2=0x00;
-  //OCR2=0x00;
-
-
-  // INT0: Off
-  // INT1: Off
-  // INT2: Off
-  // INT3: Off
-  // INT4: Off
-  // INT5: Off
-  // INT6: Off
-  // INT7: Off
-  // EICRA=0x00;
-  // EICRB=0x00;
-  // EIMSK=0x00;
-  // GICR = 0;
-
-  // Timer(s)/Counter(s) Interrupt(s) initialization
-  // TIMSK=0x00;
-  // ETIMSK=0x00;
-
-  // USART initialization
-  // Communication Parameters: 8 Data, 1 Stop, No Parity
-  // USART Receiver: Off
-  // USART Transmitter: On
-  // USART Mode: Asynchronous
-  // USART Baud rate: 57600 (double speed = 115200)
-  // UCSRA=0x02;
-  // UCSRB=0x08;
-  // UCSRC=0x06;
-  // UBRRH=0x00;
-  // UBRRL=0x0e;
-
-
-  // Analog Comparator initialization
-  // Analog Comparator: Off
-  // Analog Comparator Input Capture by Timer/Counter 1: Off
-  // Analog Comparator Output: Off
-  ACSR = 0x80;
-  //  SFIOR=0x00;
-  //noInterrupts();
- */
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
+  // leave rd as input, pd6
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT);  
 }
 
 /* todo memory reporting, although FujiNet firmware does this already
@@ -1481,9 +1417,9 @@ bool spDevice::open_image( device &d, std::string filename ){
 }
 
 
-bool spDevice::is_ours(unsigned char source)
+bool spDevice::is_ours(uint8_t source)
 {
-  for (unsigned char partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
+  for (uint8_t partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
     if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source) {  //yes it is
       return true;
     }
@@ -1516,7 +1452,7 @@ void spDevice::spsd_setup() {
 
   // std::string part = "PART";
 
-  for(unsigned char i=0; i<NUM_PARTITIONS; i++)
+  for(uint8_t i=0; i<NUM_PARTITIONS; i++)
   {
     //TODO: get file names from EEPROM
     //
@@ -1545,6 +1481,7 @@ void spDevice::spsd_setup() {
   Debug_printf("\r\ntimer started");
 
   Debug_println();
+  // to do: figure out how RDDATA is shared on the daisy chain
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
 }
 
@@ -1562,9 +1499,14 @@ void spDevice::spsd_loop() {
   // todo if (digitalRead(ejectPin) == HIGH) rotate_boot();
   // this should be handled with the button queue like the Atari version  
 
+  // todo: why are these in the loop and not in the setup?
   noid = 0;  //reset noid flag
   // todo DDRC = 0xDF; //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
 
+  // todo: tighten up with direct register reads for speed
+  // there are only 3 states for smartport: reset, enable, and all else,
+  // so can create enumerated type to set based on phases
+  //
   // read phase lines to check for smartport reset or enable
   phases = fnSystem.digital_read(SP_PHI3) << 3 |
            fnSystem.digital_read(SP_PHI2) << 2 |
@@ -1607,7 +1549,7 @@ void spDevice::spsd_loop() {
     Debug_print(("E ")); //this is timing sensitive, so can't print to much here as it takes to long
     // todo - noInterrupts();
     // todo DDRC = 0xFF;   //set ack to output, sp bus is enabled
-    if ((status = ReceivePacket((unsigned char *)packet_buffer)))
+    if ((status = ReceivePacket((uint8_t *)packet_buffer)))
     {
       // todo - interrupts();
       break; //error timeout, break and loop again
@@ -1615,7 +1557,7 @@ void spDevice::spsd_loop() {
     // todo - interrupts();
 
     //Debug_print(("\r\nHere's our packet!"));
-    //print_packet ((unsigned char*) packet_buffer, packet_length());
+    //print_packet ((uint8_t*) packet_buffer, packet_length());
 
     // lets check if the pkt is for us
     if (packet_buffer[14] != 0x85) // if its an init pkt, then assume its for us and continue on
@@ -1640,7 +1582,7 @@ void spDevice::spsd_loop() {
             PORTC &= ~(_BV(5));   //set ack low, for next time its an output
             while (PINC & 0x20);  //wait till low other dev has finished receiving it */
         //printf_P(PSTR("a ") );
-        //print_packet ((unsigned char*) packet_buffer, packet_length());
+        //print_packet ((uint8_t*) packet_buffer, packet_length());
 
         //assume its a cmd packet, cmd code is in byte 14
         //now we need to work out what type of packet and stay out of the way
@@ -1712,7 +1654,7 @@ void spDevice::spsd_loop() {
           encode_error_reply_packet(source);
           noInterrupts();
           DDRD = 0x40; //set rd as output
-          status = SendPacket( (unsigned char*) packet_buffer);
+          status = SendPacket( (uint8_t*) packet_buffer);
           DDRD = 0x00; //set rd back to input so back to tristate
           interrupts();
           Debug_print(("\r\nRefused packet!"));
@@ -1723,12 +1665,12 @@ void spDevice::spsd_loop() {
     //assume its a cmd packet, cmd code is in byte 14
     //Debug_print(("\r\nCMD:"));
     //Debug_print(packet_buffer[14],HEX);
-    //print_packet ((unsigned char*) packet_buffer,packet_length());
+    //print_packet ((uint8_t*) packet_buffer,packet_length());
     if (packet_buffer[14] >= 0xC0)
     {
       // Debug_print(("\r\nExtended packet!"));
       // Debug_print(("\r\nHere's our packet!"));
-      // print_packet ((unsigned char*) packet_buffer, packet_length());
+      // print_packet ((uint8_t*) packet_buffer, packet_length());
       // delay(50);
     }
 
@@ -1748,17 +1690,17 @@ void spDevice::spsd_loop() {
                 status_code = (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
                 //Debug_print(("\r\nStatus code: "));
                 //Debug_print(status_code);
-                //print_packet ((unsigned char*) packet_buffer, packet_length());
+                //print_packet ((uint8_t*) packet_buffer, packet_length());
                 //Debug_print(("\r\nHere's the decoded status packet because frig doing it by hand!"));
                 //decode_data_packet();
-                //print_packet((unsigned char*) packet_buffer, 9); //Standard SmartPort command is 9 bytes
+                //print_packet((uint8_t*) packet_buffer, 9); //Standard SmartPort command is 9 bytes
                 //if (status_code |= 0x00) { // TEST
                 //  Debug_print(("\r\nStatus not zero!! ********"));
-                //  print_packet ((unsigned char*) packet_buffer,packet_length());}
+                //  print_packet ((uint8_t*) packet_buffer,packet_length());}
                 if (status_code == 0x03) { // if statcode=3, then status with device info block
                   Debug_print(("\r\n******** Sending DIB! ********"));
                   encode_status_dib_reply_packet(devices[(partition + initPartition) % NUM_PARTITIONS]);
-                  //print_packet ((unsigned char*) packet_buffer,packet_length());
+                  //print_packet ((uint8_t*) packet_buffer,packet_length());
                   delay(50);
                 } else {  // else just return device status
                   
@@ -1774,11 +1716,11 @@ void spDevice::spsd_loop() {
                 }
                 noInterrupts();
                 DDRD = 0x40; //set rd as output
-                status = SendPacket( (unsigned char*) packet_buffer);
+                status = SendPacket( (uint8_t*) packet_buffer);
                 DDRD = 0x00; //set rd back to input so back to tristate
                 interrupts();
                 //printf_P(PSTR("\r\nSent Packet Data\r\n") );
-                //print_packet ((unsigned char*) packet_buffer,packet_length());
+                //print_packet ((uint8_t*) packet_buffer,packet_length());
                 digitalWrite(statusledPin, LOW);
               }
             */
@@ -1811,7 +1753,7 @@ void spDevice::spsd_loop() {
           status_code = (packet_buffer[21] & 0x7f);
           Debug_print(("\r\nExtended Status CMD:"));
           Debug_print(status_code, HEX);
-          print_packet((unsigned char *)packet_buffer, packet_length());
+          print_packet((uint8_t *)packet_buffer, packet_length());
           if (status_code == 0x03)
           { // if statcode=3, then status with device info block
             Debug_println(("Extended status DIB!"));
@@ -1827,18 +1769,18 @@ void spDevice::spsd_loop() {
           }
           // todo - noInterrupts();
           // todo - DDRD = 0x40; //set rd as output
-          status = SendPacket((unsigned char *)packet_buffer);
+          status = SendPacket((uint8_t *)packet_buffer);
           // todo - DDRD = 0x00; //set rd back to input so back to tristate
           // todo - interrupts();
           //printf_P(PSTR("\r\nSent Packet Data\r\n") );
-          //print_packet ((unsigned char*) packet_buffer,packet_length());
+          //print_packet ((uint8_t*) packet_buffer,packet_length());
           //Debug_print(("\r\nStatus CMD"));
           //fnSystem.digital_write(statusledPin, DIGI_LOW);
           fnLedManager.set(eLed::LED_BUS, false);
         }
       }
       //Debug_print(("\r\nHere's our reply!"));
-      //print_packet ((unsigned char*) packet_buffer, packet_length());
+      //print_packet ((uint8_t*) packet_buffer, packet_length());
       //*/
       break;
 
@@ -1858,7 +1800,7 @@ void spDevice::spsd_loop() {
                 //Added (unsigned short) cast to ensure calculated block is not underflowing.
                 block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
                 // block num second byte
-                //print_packet ((unsigned char*) packet_buffer,packet_length());
+                //print_packet ((uint8_t*) packet_buffer,packet_length());
                 //Added (unsigned short) cast to ensure calculated block is not underflowing.
                 block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
                 block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
@@ -1878,7 +1820,7 @@ void spDevice::spsd_loop() {
                   Debug_print(("\r\nRead err!"));
                 }
                 
-                sdstato = devices[(partition + initPartition) % NUM_PARTITIONS].sdf.read((unsigned char*) packet_buffer, 512);    //Reading block from SD Card
+                sdstato = devices[(partition + initPartition) % NUM_PARTITIONS].sdf.read((uint8_t*) packet_buffer, 512);    //Reading block from SD Card
                 if (!sdstato) {
                   Debug_print(("\r\nRead err!"));
                 }
@@ -1886,15 +1828,15 @@ void spDevice::spsd_loop() {
                 //Debug_print(("\r\nPrepared data packet before Sending\r\n") );
                 noInterrupts();
                 DDRD = 0x40; //set rd as output
-                status = SendPacket( (unsigned char*) packet_buffer);
+                status = SendPacket( (uint8_t*) packet_buffer);
                 DDRD = 0x00; //set rd back to input so back to tristate
                 interrupts();
                 //if (status == 1)Debug_print(("\r\nSent err."));
                 digitalWrite(statusledPin, LOW);
 
                 //Debug_print(status);
-                //print_packet ((unsigned char*) packet_buffer,packet_length());
-                //print_packet ((unsigned char*) sector_buffer,15);
+                //print_packet ((uint8_t*) packet_buffer,packet_length());
+                //print_packet ((uint8_t*) sector_buffer,15);
               }
             }
             break;
@@ -1917,7 +1859,7 @@ void spDevice::spsd_loop() {
           //Added (unsigned short) cast to ensure calculated block is not underflowing.
           block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
           // block num second byte
-          //print_packet ((unsigned char*) packet_buffer,packet_length());
+          //print_packet ((uint8_t*) packet_buffer,packet_length());
           //Added (unsigned short) cast to ensure calculated block is not underflowing.
           block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
           block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
@@ -1949,7 +1891,7 @@ void spDevice::spsd_loop() {
                 */
 
           /* todo - restore block reading
-                sdstato = devices[(partition + initPartition) % NUM_PARTITIONS].sdf.read((unsigned char*) packet_buffer, 512);    //Reading block from SD Card
+                sdstato = devices[(partition + initPartition) % NUM_PARTITIONS].sdf.read((uint8_t*) packet_buffer, 512);    //Reading block from SD Card
                 if (!sdstato) {
                   Debug_print(("\r\nRead err!"));
                 } 
@@ -1958,7 +1900,7 @@ void spDevice::spsd_loop() {
           //Debug_print(("\r\nPrepared data packet before Sending\r\n") );
           // todo - noInterrupts();
           // todo -DDRD = 0x40; //set rd as output
-          status = SendPacket((unsigned char *)packet_buffer);
+          status = SendPacket((uint8_t *)packet_buffer);
           // todo -DDRD = 0x00; //set rd back to input so back to tristate
           // todo - interrupts();
           //if (status == 1)Debug_print(("\r\nSent err."));
@@ -1966,8 +1908,8 @@ void spDevice::spsd_loop() {
           fnLedManager.set(eLed::LED_BUS, false);
 
           //Debug_print(status);
-          //print_packet ((unsigned char*) packet_buffer,packet_length());
-          //print_packet ((unsigned char*) sector_buffer,15);
+          //print_packet ((uint8_t*) packet_buffer,packet_length());
+          //print_packet ((uint8_t*) sector_buffer,15);
         }
       }
       break;
@@ -1987,7 +1929,7 @@ void spDevice::spsd_loop() {
           //get write data packet, keep trying until no timeout
           // todo - noInterrupts();
           // todo -DDRC = 0xFF;   //set ack to output, sp bus is enabled
-          while ((status = ReceivePacket((unsigned char *)packet_buffer)))
+          while ((status = ReceivePacket((uint8_t *)packet_buffer)))
             ;
           // todo - interrupts();
           //we need to handshake the packet
@@ -2010,7 +1952,7 @@ void spDevice::spsd_loop() {
                   if (!devices[(partition + initPartition) % NUM_PARTITIONS].sdf.seekSet(block_num*512)){
                     Debug_print(("\r\nWrite seek err!"));
                   }
-                  sdstato = devices[(partition + initPartition) % NUM_PARTITIONS].sdf.write((unsigned char*) packet_buffer, 512);   //Write block to SD Card
+                  sdstato = devices[(partition + initPartition) % NUM_PARTITIONS].sdf.write((uint8_t*) packet_buffer, 512);   //Write block to SD Card
                   if (!sdstato) {
                     Debug_print(("\r\nWrite err!"));
                     //Debug_print((" Block n.:"));
@@ -2023,13 +1965,13 @@ void spDevice::spsd_loop() {
           encode_write_status_packet(source, status);
           // todo - noInterrupts();
           // todo DDRD = 0x40; //set rd as output
-          status = SendPacket((unsigned char *)packet_buffer);
+          status = SendPacket((uint8_t *)packet_buffer);
           // todo DDRD = 0x00; //set rd back to input so back to tristate
           // todo - interrupts();
           //Debug_print(("\r\nSent status Packet Data\r\n") );
-          //print_packet ((unsigned char*) sector_buffer,512);
+          //print_packet ((uint8_t*) sector_buffer,512);
 
-          //print_packet ((unsigned char*) packet_buffer,packet_length());
+          //print_packet ((uint8_t*) packet_buffer,packet_length());
         }
         //fnSystem.digital_write(statusledPin, DIGI_LOW);
         fnLedManager.set(eLed::LED_BUS, false);
@@ -2045,11 +1987,11 @@ void spDevice::spsd_loop() {
           encode_init_reply_packet(source, 0x80); //just send back a successful response
           // todo - noInterrupts();
           // todo DDRD = 0x40; //set rd as output
-          status = SendPacket((unsigned char *)packet_buffer);
+          status = SendPacket((uint8_t *)packet_buffer);
           // todo - interrupts();
           // todo DDRD = 0x00; //set rd back to input so back to tristate
           //Debug_print(("\r\nFormattato!!!\r\n") );
-          //print_packet ((unsigned char*) packet_buffer,packet_length());
+          //print_packet ((uint8_t*) packet_buffer,packet_length());
         }
       }
       break;
@@ -2072,15 +2014,15 @@ void spDevice::spsd_loop() {
       }
 
       encode_init_reply_packet(source, status);
-      //print_packet ((unsigned char*) packet_buffer,packet_length());
+      //print_packet ((uint8_t*) packet_buffer,packet_length());
 
       // todo - noInterrupts();
       // todo DDRD = 0x40; //set rd as output
-      status = SendPacket((unsigned char *)packet_buffer);
+      status = SendPacket((uint8_t *)packet_buffer);
       // todo DDRD = 0x00; //set rd back to input so back to tristate
       // todo - interrupts();
 
-      //print_packet ((unsigned char*) packet_buffer,packet_length());
+      //print_packet ((uint8_t*) packet_buffer,packet_length());
 
       if (number_partitions_initialised - 1 == NUM_PARTITIONS)
       {
