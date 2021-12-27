@@ -39,7 +39,7 @@ void onTimer(void *info)
  */
 adamNetwork::adamNetwork()
 {
-    status_response[4]=0x00; // Character device
+    status_response[4] = 0x00; // Character device
 
     receiveBuffer = new string();
     transmitBuffer = new string();
@@ -693,17 +693,22 @@ void adamNetwork::adamnet_response_status()
 
 void adamNetwork::adamnet_control_send()
 {
+    uint8_t c = adamnet_recv(); // receive command
 
+    switch (c)
+    {
+    case 'O':
+        adamnet_open();
+        break;
+    }
 }
 
 void adamNetwork::adamnet_control_clr()
 {
-
 }
 
 void adamNetwork::adamnet_control_receive()
 {
-    
 }
 
 /**
@@ -765,72 +770,71 @@ void adamNetwork::adamnet_poll_interrupt()
  */
 bool adamNetwork::instantiate_protocol()
 {
-    // if (urlParser == nullptr)
-    // {
-    //     Debug_printf("adamNetwork::open_protocol() - urlParser is NULL. Aborting.\n");
-    //     return false; // error.
-    // }
+    if (urlParser == nullptr)
+    {
+        Debug_printf("adamNetwork::open_protocol() - urlParser is NULL. Aborting.\n");
+        return false; // error.
+    }
 
-    // // Convert to uppercase
-    // transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
+    // Convert to uppercase
+    transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
 
-    // if (urlParser->scheme == "TCP")
-    // {
-    //     protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
-    // }
-    // else if (urlParser->scheme == "UDP")
-    // {
-    //     protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
-    // }
-    // else if (urlParser->scheme == "TEST")
-    // {
-    //     protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
-    // }
-    // else if (urlParser->scheme == "TELNET")
-    // {
-    //     protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
-    // }
-    // else if (urlParser->scheme == "TNFS")
-    // {
-    //     protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
-    // }
-    // else if (urlParser->scheme == "FTP")
-    // {
-    //     protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
-    // }
-    // else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
-    // {
-    //     protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
-    // }
-    // else if (urlParser->scheme == "SSH")
-    // {
-    //     protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
-    // }
-    // else if (urlParser->scheme == "SMB")
-    // {
-    //     protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
-    // }
-    // else
-    // {
-    //     Debug_printf("Invalid protocol: %s\n", urlParser->scheme.c_str());
-    //     return false; // invalid protocol.
-    // }
+    if (urlParser->scheme == "TCP")
+    {
+        protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "UDP")
+    {
+        protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "TEST")
+    {
+        protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "TELNET")
+    {
+        protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "TNFS")
+    {
+        protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "FTP")
+    {
+        protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
+    {
+        protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "SSH")
+    {
+        protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else if (urlParser->scheme == "SMB")
+    {
+        protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
+    }
+    else
+    {
+        Debug_printf("Invalid protocol: %s\n", urlParser->scheme.c_str());
+        return false; // invalid protocol.
+    }
 
-    // if (protocol == nullptr)
-    // {
-    //     Debug_printf("adamNetwork::open_protocol() - Could not open protocol.\n");
-    //     return false;
-    // }
+    if (protocol == nullptr)
+    {
+        Debug_printf("adamNetwork::open_protocol() - Could not open protocol.\n");
+        return false;
+    }
 
-    // if (!login.empty())
-    // {
-    //     protocol->login = &login;
-    //     protocol->password = &password;
-    // }
+    if (!login.empty())
+    {
+        protocol->login = &login;
+        protocol->password = &password;
+    }
 
-    // Debug_printf("adamNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());
-    // return true;
-    return false;
+    Debug_printf("adamNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());
+    return true;
 }
 
 void adamNetwork::parse_and_instantiate_protocol()

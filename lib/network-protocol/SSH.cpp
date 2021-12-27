@@ -1,4 +1,3 @@
-#ifdef BUILD_ATARI // temporary
 /**
  * SSH protocol implementation
  */
@@ -197,4 +196,3 @@ unsigned short NetworkProtocolSSH::available()
 
     return receiveBuffer->length();
 }
-#endif /* BUILD_ATARI */
