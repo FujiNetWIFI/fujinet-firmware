@@ -2,7 +2,7 @@
 
 /**
  * N: Firmware
-*/
+ */
 #include <string.h>
 #include <algorithm>
 #include <vector>
@@ -39,6 +39,8 @@ void onTimer(void *info)
  */
 adamNetwork::adamNetwork()
 {
+    status_response[4]=0x00; // Character device
+
     receiveBuffer = new string();
     transmitBuffer = new string();
     specialBuffer = new string();
@@ -74,61 +76,64 @@ adamNetwork::~adamNetwork()
  */
 void adamNetwork::adamnet_open()
 {
-    // Debug_println("adamNetwork::adamnet_open()\n");
+    Debug_println("adamNetwork::adamnet_open()\n");
 
-    // channelMode = PROTOCOL;
+    channelMode = PROTOCOL;
 
-    // // Delete timer if already extant.
-    // timer_stop();
+    // Delete timer if already extant.
+    timer_stop();
 
-    // // persist aux1/aux2 values
-    // open_aux1 = cmdFrame.aux1;
-    // open_aux2 = cmdFrame.aux2;
-    // open_aux2 |= trans_aux2;
-    // cmdFrame.aux2 |= trans_aux2;
+    cmdFrame.aux1 = adamnet_recv();
+    cmdFrame.aux2 = adamnet_recv();
 
-    // // Shut down protocol if we are sending another open before we close.
-    // if (protocol != nullptr)
-    // {
-    //     protocol->close();
-    //     delete protocol;
-    //     protocol = nullptr;
-    // }
+    // persist aux1/aux2 values
+    open_aux1 = cmdFrame.aux1;
+    open_aux2 = cmdFrame.aux2;
+    open_aux2 |= trans_aux2;
+    cmdFrame.aux2 |= trans_aux2;
 
-    // // Reset status buffer
-    // status.reset();
+    // Shut down protocol if we are sending another open before we close.
+    if (protocol != nullptr)
+    {
+        protocol->close();
+        delete protocol;
+        protocol = nullptr;
+    }
 
-    // // Parse and instantiate protocol
-    // parse_and_instantiate_protocol();
+    // Reset status buffer
+    status.byte = 0x00;
 
-    // if (protocol == nullptr)
-    // {
-    //     // invalid devicespec error already passed in.
-    //     adamnet_error();
-    //     return;
-    // }
+    // Parse and instantiate protocol
+    parse_and_instantiate_protocol();
 
-    // // Attempt protocol open
-    // if (protocol->open(urlParser, &cmdFrame) == true)
-    // {
-    //     status.error = protocol->error;
-    //     Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
-    //     delete protocol;
-    //     protocol = nullptr;
-    //     adamnet_error();
-    //     return;
-    // }
+    if (protocol == nullptr)
+    {
+        // invalid devicespec error already passed in.
+        adamnet_response_nack();
+        return;
+    }
 
-    // // Everything good, start the interrupt timer!
-    // timer_start();
+    // Attempt protocol open
+    if (protocol->open(urlParser, &cmdFrame) == true)
+    {
+        status.bits.client_error = true;
+        Debug_printf("Protocol unable to make connection. Error: %d\n", err);
+        delete protocol;
+        protocol = nullptr;
+        adamnet_response_nack();
+        return;
+    }
 
-    // // Go ahead and send an interrupt, so Atari knows to get status.
-    // adamnet_assert_interrupt();
+    // Everything good, start the interrupt timer!
+    timer_start();
 
-    // // TODO: Finally, go ahead and let the parsers know
+    // Go ahead and send an interrupt, so Atari knows to get status.
+    adamnet_assert_interrupt();
 
-    // // And signal complete!
-    // adamnet_complete();
+    // TODO: Finally, go ahead and let the parsers know
+
+    // And signal complete!
+    adamnet_response_ack();
 }
 
 /**
@@ -137,35 +142,35 @@ void adamNetwork::adamnet_open()
  */
 void adamNetwork::adamnet_close()
 {
-    // Debug_printf("adamNetwork::adamnet_close()\n");
+    Debug_printf("adamNetwork::adamnet_close()\n");
 
-    // adamnet_ack();
+    adamnet_response_ack();
 
-    // status.reset();
+    status.byte = 0x00;
 
-    // // If no protocol enabled, we just signal complete, and return.
-    // if (protocol == nullptr)
-    // {
-    //     adamnet_complete();
-    //     return;
-    // }
+    // If no protocol enabled, we just signal complete, and return.
+    if (protocol == nullptr)
+    {
+        adamnet_response_ack();
+        return;
+    }
 
-    // // Ask the protocol to close
-    // if (protocol->close())
-    //     adamnet_error();
-    // else
-    //     adamnet_complete();
+    // Ask the protocol to close
+    if (protocol->close())
+        adamnet_response_nack();
+    else
+        adamnet_response_ack();
 
-    // // Delete the protocol object
-    // delete protocol;
-    // protocol = nullptr;
+    // Delete the protocol object
+    delete protocol;
+    protocol = nullptr;
 }
 
 /**
  * ADAM Read command
  * Read # of bytes from the protocol adapter specified by the aux1/aux2 bytes, into the RX buffer. If we are short
  * fill the rest with nulls and return ERROR.
- *  
+ *
  * @note It is the channel's responsibility to pad to required length.
  */
 void adamNetwork::adamnet_read()
@@ -591,7 +596,7 @@ void adamNetwork::do_inquiry(unsigned char inq_cmd)
 
 /**
  * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
- * Essentially, call the protocol action 
+ * Essentially, call the protocol action
  * and based on the return, signal adamnet_complete() or error().
  */
 void adamNetwork::adamnet_special_00()
@@ -680,47 +685,65 @@ void adamNetwork::adamnet_special_80()
     //     adamnet_error();
 }
 
+void adamNetwork::adamnet_control_status()
+{
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 1500)
+    {
+        AdamNet.wait_for_idle();
+        adamnet_response_status();
+    }
+}
+
+void adamNetwork::adamnet_response_status()
+{
+    status_response[5] = status.byte;
+    adamNetDevice::adamnet_response_status();
+}
+
+void adamNetwork::adamnet_control_send()
+{
+
+}
+
+void adamNetwork::adamnet_control_clr()
+{
+
+}
+
+void adamNetwork::adamnet_control_receive()
+{
+    
+}
+
 /**
- * Process incoming ADAM command for device 0x7X
+ * Process incoming ADAM command
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
  */
-void adamNetwork::adamnet_process(uint32_t commanddata, uint8_t checksum)
+void adamNetwork::adamnet_process(uint8_t b)
 {
-    // cmdFrame.commanddata = commanddata;
-    // cmdFrame.checksum = checksum;
+    unsigned char c = b >> 4; // Seperate out command from node ID
 
-    // Debug_printf("adamNetwork::adamnet_process 0x%02hx '%c': 0x%02hx, 0x%02hx\n",
-    //              cmdFrame.comnd, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
-
-    // switch (cmdFrame.comnd)
-    // {
-    // case 0x3F:
-    //     adamnet_ack();
-    //     adamnet_high_speed();
-    //     break;
-    // case 'O':
-    //     adamnet_open();
-    //     break;
-    // case 'C':
-    //     adamnet_close();
-    //     break;
-    // case 'R':
-    //     adamnet_read();
-    //     break;
-    // case 'W':
-    //     adamnet_write();
-    //     break;
-    // case 'S':
-    //     adamnet_status();
-    //     break;
-    // case 0xFF:
-    //     adamnet_special_inquiry();
-    //     break;
-    // default:
-    //     adamnet_special();
-    //     break;
-    // }
+    switch (c)
+    {
+    case MN_STATUS:
+        adamnet_control_status();
+        break;
+    case MN_CLR:
+        adamnet_control_clr();
+        break;
+    case MN_RECEIVE:
+        adamnet_control_receive();
+        break;
+    case MN_SEND:
+        adamnet_control_send();
+        break;
+    case MN_READY:
+        adamnet_control_ready();
+        break;
+    }
 }
 
 /**
@@ -732,7 +755,7 @@ void adamNetwork::adamnet_poll_interrupt()
     // {
     //     if (protocol->interruptEnable == false)
     //         return;
-            
+
     //     protocol->fromInterrupt = true;
     //     protocol->status(&status);
     //     protocol->fromInterrupt = false;
@@ -788,7 +811,7 @@ bool adamNetwork::instantiate_protocol()
     // }
     // else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
     // {
-    //     protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);        
+    //     protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
     // }
     // else if (urlParser->scheme == "SSH")
     // {
@@ -823,33 +846,37 @@ bool adamNetwork::instantiate_protocol()
 
 void adamNetwork::parse_and_instantiate_protocol()
 {
-    // // Clean up devicespec buffer.
-    // memset(devicespecBuf, 0, sizeof(devicespecBuf));
+    // Clean up devicespec buffer.
+    memset(devicespecBuf, 0, sizeof(devicespecBuf));
 
-    // // Get Devicespec from buffer, and put into primary devicespec string
-    // bus_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
-    // util_clean_devicespec(devicespecBuf, sizeof(devicespecBuf));
-    // deviceSpec = string((char *)devicespecBuf);
+    // Get Devicespec from buffer, and put into primary devicespec string
+    adamnet_recv_buffer(devicespecBuf, sizeof(devicespecBuf));
+    util_clean_devicespec(devicespecBuf, sizeof(devicespecBuf));
+    deviceSpec = string((char *)devicespecBuf);
 
-    // // Invalid URL returns error 165 in status.
-    // if (parseURL() == false)
-    // {
-    //     Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
-    //     status.error = NETWORK_ERROR_INVALID_DEVICESPEC;
-    //     adamnet_error();
-    //     return;
-    // }
+    // Invalid URL returns error 165 in status.
+    if (parseURL() == false)
+    {
+        Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
+        status.byte = 0x00;
+        status.bits.client_error = true;
+        err = NETWORK_ERROR_INVALID_DEVICESPEC;
+        adamnet_response_nack();
+        return;
+    }
 
-    // Debug_printf("Parse and instantiate protocol: %s\n", deviceSpec.c_str());
+    Debug_printf("Parse and instantiate protocol: %s\n", deviceSpec.c_str());
 
-    // // Instantiate protocol object.
-    // if (instantiate_protocol() == false)
-    // {
-    //     Debug_printf("Could not open protocol.\n");
-    //     status.error = NETWORK_ERROR_GENERAL;
-    //     adamnet_error();
-    //     return;
-    // }
+    // Instantiate protocol object.
+    if (instantiate_protocol() == false)
+    {
+        Debug_printf("Could not open protocol.\n");
+        status.byte = 0x00;
+        status.bits.client_error = true;
+        err = NETWORK_ERROR_GENERAL;
+        adamnet_response_nack();
+        return;
+    }
 }
 
 /**
@@ -886,107 +913,64 @@ void adamNetwork::timer_stop()
  */
 bool adamNetwork::isValidURL(EdUrlParser *url)
 {
-    // if (url->scheme == "")
-    //     return false;
-    // else if ((url->path == "") && (url->port == ""))
-    //     return false;
-    // else
-    //     return true;
-    return false;
+    if (url->scheme == "")
+        return false;
+    else if ((url->path == "") && (url->port == ""))
+        return false;
+    else
+        return true;
 }
 
 /**
  * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
- * disk utility packages do when opening a device, such as adding wildcards for directory opens. 
- * 
+ * disk utility packages do when opening a device, such as adding wildcards for directory opens.
+ *
  * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
  * of adamNetwork.
- * 
+ *
  * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom
  */
 bool adamNetwork::parseURL()
 {
-    // string url;
-    // string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
+    string url;
+    string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
 
-    // if (urlParser != nullptr)
-    //     delete urlParser;
+    if (urlParser != nullptr)
+        delete urlParser;
 
-    // // Prepend prefix, if set.
-    // if (prefix.length() > 0)
-    //     deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
-    // else
-    //     deviceSpec = unit + deviceSpec.substr(string(deviceSpec).find(":") + 1);
+    // Prepend prefix, if set.
+    if (prefix.length() > 0)
+        deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
+    else
+        deviceSpec = unit + deviceSpec.substr(string(deviceSpec).find(":") + 1);
 
-    // Debug_printf("adamNetwork::parseURL(%s)\n", deviceSpec.c_str());
+    Debug_printf("adamNetwork::parseURL(%s)\n", deviceSpec.c_str());
 
-    // // Strip non-ascii characters.
-    // util_strip_nonascii(deviceSpec);
+    // Strip non-ascii characters.
+    util_strip_nonascii(deviceSpec);
 
-    // // Process comma from devicespec (DOS 2 COPY command)
-    // // processCommaFromDevicespec();
+    // Process comma from devicespec (DOS 2 COPY command)
+    // processCommaFromDevicespec();
 
-    // if (cmdFrame.aux1 != 6) // Anything but a directory read...
-    // {
-    //     replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
-    // }
+    if (cmdFrame.aux1 != 6) // Anything but a directory read...
+    {
+        replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
+    }
 
-    // // Some FMSes add a dot at the end, remove it.
-    // if (deviceSpec.substr(deviceSpec.length() - 1) == ".")
-    //     deviceSpec.erase(deviceSpec.length() - 1, string::npos);
+    // Some FMSes add a dot at the end, remove it.
+    if (deviceSpec.substr(deviceSpec.length() - 1) == ".")
+        deviceSpec.erase(deviceSpec.length() - 1, string::npos);
 
-    // // Remove any spurious spaces
-    // deviceSpec = util_remove_spaces(deviceSpec);
+    // Remove any spurious spaces
+    deviceSpec = util_remove_spaces(deviceSpec);
 
-    // // chop off front of device name for URL, and parse it.
-    // url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    // urlParser = EdUrlParser::parseUrl(url);
+    // chop off front of device name for URL, and parse it.
+    url = deviceSpec.substr(deviceSpec.find(":") + 1);
+    urlParser = EdUrlParser::parseUrl(url);
 
-    // Debug_printf("adamNetwork::parseURL transformed to (%s, %s)\n", deviceSpec.c_str(), url.c_str());
+    Debug_printf("adamNetwork::parseURL transformed to (%s, %s)\n", deviceSpec.c_str(), url.c_str());
 
-    // return isValidURL(urlParser);
-    return false;
-}
-
-/**
- * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,
- * and figure out one of three states:
- * 
- * (1) we were passed D1:FOO.TXT,N:FOO.TXT, the second arg is ours.
- * (2) we were passed N:FOO.TXT,D1:FOO.TXT, the first arg is ours.
- * (3) we were passed N1:FOO.TXT,N2:FOO.TXT, get whichever one corresponds to our device ID.
- * 
- * DeviceSpec will be transformed to only contain the relevant part of the deviceSpec, sans comma.
- */
-void adamNetwork::processCommaFromDevicespec()
-{
-    // size_t comma_pos = deviceSpec.find(",");
-    // vector<string> tokens;
-
-    // if (comma_pos == string::npos)
-    //     return; // no comma
-
-    // tokens = util_tokenize(deviceSpec, ',');
-
-    // for (vector<string>::iterator it = tokens.begin(); it != tokens.end(); ++it)
-    // {
-    //     string item = *it;
-
-    //     Debug_printf("processCommaFromDeviceSpec() found one.\n");
-
-    //     if (item[0] != 'N')
-    //         continue;                                       // not us.
-    //     else if (item[1] == ':' && cmdFrame.device != 0x71) // N: but we aren't N1:
-    //         continue;                                       // also not us.
-    //     else
-    //     {
-    //         // This is our deviceSpec.
-    //         deviceSpec = item;
-    //         break;
-    //     }
-    // }
-
-    // Debug_printf("Passed back deviceSpec %s\n", deviceSpec.c_str());
+    return isValidURL(urlParser);
 }
 
 /**
@@ -1006,10 +990,10 @@ void adamNetwork::adamnet_set_translation()
 void adamNetwork::adamnet_set_timer_rate()
 {
     // timerRate = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
-    
+
     // // Stop extant timer
     // timer_stop();
-    
+
     // // Restart timer if we're running a protocol.
     // if (protocol != nullptr)
     //     timer_start();
