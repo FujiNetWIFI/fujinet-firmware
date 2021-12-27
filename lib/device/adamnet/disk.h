@@ -19,13 +19,12 @@ private:
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
     void set_status(uint8_t s);
-    void adamnet_control_status() override;
     void adamnet_control_clr();
     void adamnet_control_receive();
     void adamnet_control_send();
     void adamnet_control_send_block_num();
     void adamnet_control_send_block_data();
-    void adamnet_response_status();
+    virtual void adamnet_response_status();
     void adamnet_response_send();
 
     void adamnet_process(uint8_t b) override;

@@ -685,17 +685,6 @@ void adamNetwork::adamnet_special_80()
     //     adamnet_error();
 }
 
-void adamNetwork::adamnet_control_status()
-{
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
-
-    if (t < 1500)
-    {
-        AdamNet.wait_for_idle();
-        adamnet_response_status();
-    }
-}
-
 void adamNetwork::adamnet_response_status()
 {
     status_response[5] = status.byte;

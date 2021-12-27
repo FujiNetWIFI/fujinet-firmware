@@ -186,7 +186,13 @@ void adamNetDevice::adamnet_process(uint8_t b)
 
 void adamNetDevice::adamnet_control_status()
 {
-    fnUartDebug.printf("adamnet_status() not implemented yet for this device.\n");
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 1500)
+    {
+        AdamNet.wait_for_idle();
+        adamnet_response_status();
+    }
 }
 
 void adamNetDevice::adamnet_response_status()

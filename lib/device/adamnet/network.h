@@ -90,7 +90,6 @@ public:
      */
     virtual void adamnet_status();
 
-    virtual void adamnet_control_status();
     virtual void adamnet_control_clr();
     virtual void adamnet_control_receive();
     virtual void adamnet_control_send();
