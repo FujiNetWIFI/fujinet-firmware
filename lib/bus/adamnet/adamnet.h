@@ -147,9 +147,19 @@ protected:
     virtual void adamnet_control_status();
 
     /**
+     * @brief send status response
+     */
+    virtual void adamnet_response_status();
+    
+    /**
      * @brief command frame, used by network protocol, ultimately
      */
     cmdFrame_t cmdFrame;
+
+    /**
+     * The response sent in adamnet_response_status()
+     */
+    uint8_t status_response[6] = {0x80,0x00,0x00,0x01,0x00,0x00};
 
 public:
 

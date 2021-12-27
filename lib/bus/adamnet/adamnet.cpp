@@ -189,6 +189,14 @@ void adamNetDevice::adamnet_control_status()
     fnUartDebug.printf("adamnet_status() not implemented yet for this device.\n");
 }
 
+void adamNetDevice::adamnet_response_status()
+{
+    status_response[0] |= _devnum;
+    
+    status_response[5] = adamnet_checksum(&status_response[1],4);
+    adamnet_send_buffer(status_response, sizeof(status_response));
+}
+
 void adamNetDevice::adamnet_idle()
 {
     // Not implemented in base class
