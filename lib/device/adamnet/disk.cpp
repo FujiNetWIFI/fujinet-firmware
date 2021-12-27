@@ -13,6 +13,7 @@ adamDisk::adamDisk()
 {
     device_active = false;
     blockNum = 0;
+    status_response[4] = 0x01; // Block device
 }
 
 // Destructor
