@@ -101,17 +101,6 @@ bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
     return false;
 }
 
-void adamDisk::adamnet_control_status()
-{
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
-
-    if (t < 1500)
-    {
-        AdamNet.wait_for_idle();
-        adamnet_response_status();
-    }
-}
-
 void adamDisk::adamnet_control_clr()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
