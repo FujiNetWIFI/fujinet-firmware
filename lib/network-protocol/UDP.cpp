@@ -1,4 +1,3 @@
-#ifdef BUILD_ATARI // temporary
 /**
  * UDP socket implementation
  */
@@ -245,5 +244,3 @@ bool NetworkProtocolUDP::is_multicast(in_addr_t a)
     uint32_t address = ntohl(a);
     return (address & 0xF0000000) == 0xE0000000;
 }
-
-#endif /* BUILD_ATARI */
