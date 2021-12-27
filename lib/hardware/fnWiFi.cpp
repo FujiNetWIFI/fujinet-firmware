@@ -89,6 +89,7 @@ int WiFiManager::start()
         // Configure basic WiFi settings
         wifi_init_config_t wifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
         ESP_ERROR_CHECK(esp_wifi_init(&wifi_init_cfg));
+        Debug_printf("WiFiManager::start() complete\n");
     }
 
     // TODO: Provide way to change WiFi region/country?
