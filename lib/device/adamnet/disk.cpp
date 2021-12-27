@@ -182,20 +182,17 @@ void adamDisk::set_status(uint8_t s)
     if (s == true)
         s = STATUS_NO_BLOCK;
 
-    status[4] = _devnum | s;
+    status_response[4] = _devnum | s;
 }
 
 void adamDisk::adamnet_response_status()
 {
-    status[0] |= _devnum;
-    
     if (_media == nullptr)
-        status[4] = STATUS_NO_MEDIA;
+        status_response[4] = STATUS_NO_MEDIA;
     else
-        status[4] = _media->_media_controller_status;
+        status_response[4] = _media->_media_controller_status;
     
-    status[5] = adamnet_checksum(&status[1],4);
-    adamnet_send_buffer(status, sizeof(status));
+    adamNetDevice::adamnet_response_status();
 }
 
 void adamDisk::adamnet_response_send()
