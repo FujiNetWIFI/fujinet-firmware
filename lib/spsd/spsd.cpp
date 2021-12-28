@@ -253,6 +253,32 @@ int spDevice::smartport_handshake()
 
 //------------------------------------------------------
 
+bool spDevice::smartport_phase_val(int p)
+{ // move to smartport bus class when refactoring
+// #define SP_PHI0     39
+// #define SP_PHI1     22
+// #define SP_PHI2     32
+// #define SP_PHI3     26
+  switch (p)
+  {
+  case 0:
+    return (GPIO.in1.val & (0x01 << (SP_PHI0-32)));
+  case 1:
+    return (GPIO.in & (0x01 << SP_PHI1));
+  case 2:
+    return (GPIO.in1.val & (0x01 << (SP_PHI2-32)));
+  case 3:
+    return (GPIO.in & (0x01 << SP_PHI3));
+  default: 
+    break;
+  }
+  Debug_println("phase number out of range");
+  return false;
+}
+
+//------------------------------------------------------
+
+
 int spDevice::ReceivePacket(uint8_t *a)
 {
   bool have_data = true;
@@ -355,7 +381,6 @@ int spDevice::ReceivePacket(uint8_t *a)
     hw_timer_wait();
     while(1)
     {
-      current_level = smartport_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
       // logic table:
       //  prev_level  current_level   decoded bit
       //  0           0               0
@@ -363,6 +388,15 @@ int spDevice::ReceivePacket(uint8_t *a)
       //  1           0               1
       //  1           1               0
       // this is an exclusive OR operation
+      //todo: can curent_level and prev_level be bools and then uint32_t is implicitly
+      //typecast down to bool? then the code can be:
+      // current_level = smartport_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
+      // bit = prev_level ^ current_level;
+      // rxbyte <<= 1;
+      // rxbyte |= bit;
+      // prev_level = current_level;
+      //
+      current_level = smartport_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
       bit = prev_level ^ current_level;
       rxbyte <<= 1;
       rxbyte |= (uint8_t)(bit > 0);
@@ -395,6 +429,8 @@ int spDevice::ReceivePacket(uint8_t *a)
   // endpkt:   clr  r23
   a[idx++] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
+
+  // todo: verify checksum, then only handshake if it's our packet.
   // if debug then handshake, print, return
   // else return handshake
 #ifdef DEBUG
@@ -1345,7 +1381,7 @@ void spDevice::mcuInit(void)
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_HIGH);
   //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); 
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
@@ -1494,7 +1530,7 @@ void spDevice::spsd_setup() {
 //*****************************************************************************
 void spDevice::spsd_loop() {
 
-  state = smartport;
+  state = uiState::smartport;
 
   // todo if (digitalRead(ejectPin) == HIGH) rotate_boot();
   // this should be handled with the button queue like the Atari version  
@@ -1508,12 +1544,18 @@ void spDevice::spsd_loop() {
   // so can create enumerated type to set based on phases
   //
   // read phase lines to check for smartport reset or enable
-  phases = fnSystem.digital_read(SP_PHI3) << 3 |
-           fnSystem.digital_read(SP_PHI2) << 2 |
-           fnSystem.digital_read(SP_PHI1) << 1 |
-           fnSystem.digital_read(SP_PHI0);
+  // phase lines for smartport bus reset
+  // ph3=0 ph2=1 ph1=0 ph0=1
+  // phase lines for smartport bus enable
+  // ph3=1 ph2=x ph1=1 ph0=x
+  if (smartport_phase_val(1) && smartport_phase_val(3))
+    phases = phasestate::enable;
+  else if (smartport_phase_val(0) && smartport_phase_val(2) && !smartport_phase_val(1) && !smartport_phase_val(3))
+    phases = phasestate::reset;
+  else
+    phases = phasestate::idle;
 
-  if (reset_state && (phases != 0x05))
+  if (reset_state && (phases != phasestate::reset))
   {
     Debug_print(("Reset Cleared\r\n"));
     number_partitions_initialised = 1;                           //reset number of partitions init'd
@@ -1523,29 +1565,28 @@ void spDevice::spsd_loop() {
     reset_state = false;
   }
 
-#ifdef DEBUG
-  if (phases != oldphase)
-  {
-    Debug_printf("\r\n%02x", phases);
-    oldphase = phases;
-  }
-#endif
+// #ifdef DEBUG
+//   if (phases != oldphase)
+//   {
+//     Debug_printf("\r\n%02x", phases);
+//     oldphase = phases;
+//   }
+// #endif
 
   switch (phases)
   {
+  case phasestate::idle:
+    break;
     // phase lines for smartport bus reset
     // ph3=0 ph2=1 ph1=0 ph0=1
-  case 0x05:
+  case phasestate::reset:
     if (!reset_state)
       Debug_print(("\r\nReset\r\n"));
     reset_state = true;
     break;
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
-  case 0x0a:
-  case 0x0b:
-  case 0x0e:
-  case 0x0f:
+  case phasestate::enable:
     Debug_print(("E ")); //this is timing sensitive, so can't print to much here as it takes to long
     // todo - noInterrupts();
     // todo DDRC = 0xFF;   //set ack to output, sp bus is enabled
@@ -1635,6 +1676,8 @@ void spDevice::spsd_loop() {
     //Debug_print(("\r\nBW"));
     // old avr: PORTC &= ~(_BV(5));   //set ack low
       fnSystem.digital_write(SP_ACK, DIGI_LOW);
+    //todo: why 0x85? Also, handshaking was already done in receive data? OH! Only should handshake if
+    // its our packet. So shouldn't we be checking destination ID and then handshaking?
     // old avr: while (PIND & 0x04);   //wait for req to go low
     while (fnSystem.digital_read(SP_REQ) == DIGI_HIGH);
     //Debug_println(F("\r\nAW"));

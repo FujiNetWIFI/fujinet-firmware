@@ -11,7 +11,14 @@ class spDevice
 {
 private:
 
-  uint8_t oldphase = 0;
+  bool phi[4];
+  enum class phasestate {
+    idle = 0,
+    reset,
+    enable
+  };
+  // phasestate oldphase = idle; // can use for debug printing of phase changes
+  phasestate phases;
 
   unsigned long int block_num;
   uint8_t LBH, LBL, LBN, LBT, LBX;
@@ -21,7 +28,7 @@ private:
   int count;
   int ui_command;
   bool sdstato;
-  uint8_t source, status, phases, status_code;
+  uint8_t source, status, status_code;
 
   bool reset_state = false;
 
@@ -78,17 +85,19 @@ void smartport_rddata_set();
 void smartport_rddata_clr();
 void smartport_rddata_disable();
 void smartport_rddata_enable();
-uint32_t smartport_wrdata_val();
-uint32_t smartport_req_val();
+uint32_t smartport_wrdata_val(); // can these be bool with implicit typecast?
+uint32_t smartport_req_val(); // can these be bool with implicit typecast?
 void smartport_ack_set();
 void smartport_ack_clr();
 void smartport_ack_enable();
 void smartport_ack_disable();
 int smartport_handshake();
 
+bool smartport_phase_val(int p);
+
 int ReceivePacket(uint8_t *a);
 int SendPacket(uint8_t *a);
-void encode_data_packet (uint8_t source);
+//void encode_data_packet (uint8_t source);
 void encode_extended_data_packet (uint8_t source);
 //int decode_data_packet (void);
 //void encode_write_status_packet(unsigned char source, unsigned char status);
