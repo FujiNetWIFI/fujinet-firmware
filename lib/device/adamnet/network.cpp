@@ -39,7 +39,9 @@ void onTimer(void *info)
  */
 adamNetwork::adamNetwork()
 {
-    status_response[4] = 0x00; // Character device
+    status_response[1] = 0x00;
+    status_response[2] = 0x04; // 1024 bytes
+    status_response[3] = 0x00; // Character device
 
     receiveBuffer = new string();
     transmitBuffer = new string();
@@ -76,17 +78,21 @@ adamNetwork::~adamNetwork()
  */
 void adamNetwork::adamnet_open()
 {
-    Debug_println("adamNetwork::adamnet_open()\n");
+    uint8_t _aux1=adamnet_recv();
+    uint8_t _aux2=adamnet_recv();
+    
+    adamnet_recv_buffer(devicespecBuf, sizeof(devicespecBuf));
+    adamnet_recv(); // checksum
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
 
     channelMode = PROTOCOL;
 
-    // Delete timer if already extant.
-    timer_stop();
-
-    cmdFrame.aux1 = adamnet_recv();
-    cmdFrame.aux2 = adamnet_recv();
-
     // persist aux1/aux2 values
+    cmdFrame.aux1 = _aux1;
+    cmdFrame.aux2 = _aux2;
+
     open_aux1 = cmdFrame.aux1;
     open_aux2 = cmdFrame.aux2;
     open_aux2 |= trans_aux2;
@@ -103,13 +109,13 @@ void adamNetwork::adamnet_open()
     // Reset status buffer
     status.byte = 0x00;
 
+    Debug_printf("adamnet_open()\n");
+
     // Parse and instantiate protocol
     parse_and_instantiate_protocol();
 
     if (protocol == nullptr)
     {
-        // invalid devicespec error already passed in.
-        adamnet_response_nack();
         return;
     }
 
@@ -120,20 +126,8 @@ void adamNetwork::adamnet_open()
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
         delete protocol;
         protocol = nullptr;
-        adamnet_response_nack();
         return;
     }
-
-    // Everything good, start the interrupt timer!
-    timer_start();
-
-    // Go ahead and send an interrupt, so Atari knows to get status.
-    adamnet_assert_interrupt();
-
-    // TODO: Finally, go ahead and let the parsers know
-
-    // And signal complete!
-    adamnet_response_ack();
 }
 
 /**
@@ -144,6 +138,9 @@ void adamNetwork::adamnet_close()
 {
     Debug_printf("adamNetwork::adamnet_close()\n");
 
+    adamnet_recv(); // CK
+
+    AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     status.byte = 0x00;
@@ -151,15 +148,11 @@ void adamNetwork::adamnet_close()
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
-        adamnet_response_ack();
         return;
     }
 
     // Ask the protocol to close
-    if (protocol->close())
-        adamnet_response_nack();
-    else
-        adamnet_response_ack();
+    protocol->close();
 
     // Delete the protocol object
     delete protocol;
@@ -687,18 +680,22 @@ void adamNetwork::adamnet_special_80()
 
 void adamNetwork::adamnet_response_status()
 {
-    status_response[5] = status.byte;
+    status_response[4] = status.byte;
     adamNetDevice::adamnet_response_status();
 }
 
 void adamNetwork::adamnet_control_send()
 {
-    uint8_t c = adamnet_recv(); // receive command
+    uint8_t s = adamnet_recv_length(); // receive length
+    uint8_t c = adamnet_recv();        // receive command
 
     switch (c)
     {
     case 'O':
         adamnet_open();
+        break;
+    case 'C':
+        adamnet_close();
         break;
     }
 }
@@ -839,12 +836,6 @@ bool adamNetwork::instantiate_protocol()
 
 void adamNetwork::parse_and_instantiate_protocol()
 {
-    // Clean up devicespec buffer.
-    memset(devicespecBuf, 0, sizeof(devicespecBuf));
-
-    // Get Devicespec from buffer, and put into primary devicespec string
-    adamnet_recv_buffer(devicespecBuf, sizeof(devicespecBuf));
-    util_clean_devicespec(devicespecBuf, sizeof(devicespecBuf));
     deviceSpec = string((char *)devicespecBuf);
 
     // Invalid URL returns error 165 in status.
@@ -854,7 +845,6 @@ void adamNetwork::parse_and_instantiate_protocol()
         status.byte = 0x00;
         status.bits.client_error = true;
         err = NETWORK_ERROR_INVALID_DEVICESPEC;
-        adamnet_response_nack();
         return;
     }
 
@@ -867,7 +857,6 @@ void adamNetwork::parse_and_instantiate_protocol()
         status.byte = 0x00;
         status.bits.client_error = true;
         err = NETWORK_ERROR_GENERAL;
-        adamnet_response_nack();
         return;
     }
 }
@@ -950,9 +939,9 @@ bool adamNetwork::parseURL()
         replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
     }
 
-    // Some FMSes add a dot at the end, remove it.
-    if (deviceSpec.substr(deviceSpec.length() - 1) == ".")
-        deviceSpec.erase(deviceSpec.length() - 1, string::npos);
+    // // Some FMSes add a dot at the end, remove it.
+    // if (deviceSpec.substr(deviceSpec.length() - 1) == ".")
+    //     deviceSpec.erase(deviceSpec.length() - 1, string::npos);
 
     // Remove any spurious spaces
     deviceSpec = util_remove_spaces(deviceSpec);
