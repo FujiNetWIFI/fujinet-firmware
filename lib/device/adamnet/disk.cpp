@@ -13,7 +13,9 @@ adamDisk::adamDisk()
 {
     device_active = false;
     blockNum = 0;
-    status_response[4] = 0x01; // Block device
+    status_response[1] = 0x00;
+    status_response[2] = 0x04; // 1024 bytes
+    status_response[3] = 0x01; // Block device
 }
 
 // Destructor
@@ -171,6 +173,8 @@ void adamDisk::set_status(uint8_t s)
 {
     if (s == true)
         s = STATUS_NO_BLOCK;
+    else
+        s = STATUS_OK;
 
     status_response[4] = _devnum | s;
 }
@@ -178,9 +182,9 @@ void adamDisk::set_status(uint8_t s)
 void adamDisk::adamnet_response_status()
 {
     if (_media == nullptr)
-        status_response[4] = STATUS_NO_MEDIA;
+        status_response[4] = 0x40 | STATUS_NO_MEDIA;
     else
-        status_response[4] = _media->_media_controller_status;
+        status_response[4] = 0x40 | _media->_media_controller_status;
     
     adamNetDevice::adamnet_response_status();
 }
