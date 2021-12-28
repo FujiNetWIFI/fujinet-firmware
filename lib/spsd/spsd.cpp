@@ -1,3 +1,4 @@
+#ifdef BUILD_APPLE
 #include "spsd.h"
 
 /** 
@@ -2238,3 +2239,4 @@ C3 PBEGIN MARKS BEGINNING OF PACKET 32 micro Sec.
     fnSystem.delay(2500);
   };
 }
+#endif
