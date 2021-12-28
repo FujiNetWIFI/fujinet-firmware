@@ -51,13 +51,13 @@ public:
      * Called for ADAM Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    virtual void adamnet_open();
+    virtual void open();
 
     /**
      * Called for ADAM Command 'C' to close a connection to a network protocol, de-allocate all buffers,
      * and stop the receive PROCEED interrupt.
      */
-    virtual void adamnet_close();
+    virtual void close();
 
     /**
      * ADAM Read command
@@ -66,14 +66,14 @@ public:
      *
      * @note It is the channel's responsibility to pad to required length.
      */
-    virtual void adamnet_read();
+    virtual void read();
 
     /**
      * ADAM Write command
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to ADAM. If protocol is unable to return requested
      * number of bytes, return ERROR.
      */
-    virtual void adamnet_write();
+    virtual void write(uint16_t num_bytes);
 
     /**
      * ADAM Status Command. First try to populate NetworkStatus object from protocol. If protocol not instantiated,
@@ -88,13 +88,15 @@ public:
      * process the special command. Otherwise, the command is handled locally. In either case, either adamnet_complete()
      * or adamnet_error() is called.
      */
-    virtual void adamnet_status();
+    virtual void status();
 
+    virtual void adamnet_control_ack();
     virtual void adamnet_control_clr();
     virtual void adamnet_control_receive();
     virtual void adamnet_control_send();
 
     virtual void adamnet_response_status();
+    virtual void adamnet_response_send();
 
     /**
      * @brief Called to set prefix
@@ -132,6 +134,16 @@ private:
      * Buffer for holding devicespec
      */
     uint8_t devicespecBuf[256];
+
+    /**
+     * AdamNet Response Buffer
+     */
+    uint8_t response[1024];
+
+    /**
+     * AdamNet Response Length
+     */
+    uint16_t response_len=0;
 
     /**
      * The Receive buffer for this N: device
@@ -172,7 +184,7 @@ private:
             bool server_error : 1;
         } bits;
         unsigned char byte;
-    } status;
+    } statusByte;
 
     /**
      * Error number, if status.bits.client_error is set.
@@ -299,7 +311,7 @@ private:
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool adamnet_read_channel(unsigned short num_bytes);
+    bool read_channel(unsigned short num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode

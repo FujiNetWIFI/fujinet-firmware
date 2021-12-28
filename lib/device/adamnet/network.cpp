@@ -23,18 +23,6 @@
 using namespace std;
 
 /**
- * Static callback function for the interrupt rate limiting timer. It sets the interruptProceed
- * flag to true. This is set to false when the interrupt is serviced.
- */
-void onTimer(void *info)
-{
-    adamNetwork *parent = (adamNetwork *)info;
-    portENTER_CRITICAL_ISR(&parent->timerMux);
-    parent->interruptProceed = !parent->interruptProceed;
-    portEXIT_CRITICAL_ISR(&parent->timerMux);
-}
-
-/**
  * Constructor
  */
 adamNetwork::adamNetwork()
@@ -76,11 +64,11 @@ adamNetwork::~adamNetwork()
  * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
  * method. Also set up RX interrupt.
  */
-void adamNetwork::adamnet_open()
+void adamNetwork::open()
 {
-    uint8_t _aux1=adamnet_recv();
-    uint8_t _aux2=adamnet_recv();
-    
+    uint8_t _aux1 = adamnet_recv();
+    uint8_t _aux2 = adamnet_recv();
+
     adamnet_recv_buffer(devicespecBuf, sizeof(devicespecBuf));
     adamnet_recv(); // checksum
 
@@ -107,9 +95,9 @@ void adamNetwork::adamnet_open()
     }
 
     // Reset status buffer
-    status.byte = 0x00;
+    statusByte.byte = 0x00;
 
-    Debug_printf("adamnet_open()\n");
+    Debug_printf("open()\n");
 
     // Parse and instantiate protocol
     parse_and_instantiate_protocol();
@@ -122,7 +110,7 @@ void adamNetwork::adamnet_open()
     // Attempt protocol open
     if (protocol->open(urlParser, &cmdFrame) == true)
     {
-        status.bits.client_error = true;
+        statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
         delete protocol;
         protocol = nullptr;
@@ -132,18 +120,18 @@ void adamNetwork::adamnet_open()
 
 /**
  * ADAM Close command
- * Tear down everything set up by adamnet_open(), as well as RX interrupt.
+ * Tear down everything set up by open(), as well as RX interrupt.
  */
-void adamNetwork::adamnet_close()
+void adamNetwork::close()
 {
-    Debug_printf("adamNetwork::adamnet_close()\n");
+    Debug_printf("adamNetwork::close()\n");
 
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    status.byte = 0x00;
+    statusByte.byte = 0x00;
 
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
@@ -166,37 +154,41 @@ void adamNetwork::adamnet_close()
  *
  * @note It is the channel's responsibility to pad to required length.
  */
-void adamNetwork::adamnet_read()
+void adamNetwork::read()
 {
-    // unsigned short num_bytes = adamnet_get_aux();
-    // bool err = false;
+    uint16_t num_bytes = adamnet_recv_length();
 
-    // Debug_printf("adamNetwork::adamnet_read( %d bytes)\n", num_bytes);
+    if (receiveBuffer == nullptr)
+    {
+        err = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        AdamNet.start_time = esp_timer_get_time();
+        adamnet_response_nack();
+        return;
+    }
+    else if (protocol == nullptr)
+    {
+        err = NETWORK_ERROR_NOT_CONNECTED;
+        AdamNet.start_time = esp_timer_get_time();
+        adamnet_response_nack();
+        return;
+    }
+    else if (response_len == 0) // response buffer empty, do read, and nack (in case nothing is there).
+    {
+        read_channel(num_bytes);
+        memcpy(response, receiveBuffer->data(), num_bytes);
+        receiveBuffer->erase(0, num_bytes);
+        AdamNet.start_time = esp_timer_get_time();
+        adamnet_response_nack();
+    }
+    else
+    {
+        // We have data, ack.
+        AdamNet.start_time = esp_timer_get_time();
+        adamnet_response_ack();
+        // At this point, Adam should do a CLR to pick up the response.
+    }
 
-    // adamnet_ack();
-
-    // // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
-    // if (receiveBuffer == nullptr)
-    // {
-    //     status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
-    //     adamnet_error();
-    //     return;
-    // }
-
-    // // If protocol isn't connected, then return not connected.
-    // if (protocol == nullptr)
-    // {
-    //     status.error = NETWORK_ERROR_NOT_CONNECTED;
-    //     adamnet_error();
-    //     return;
-    // }
-
-    // // Do the channel read
-    // err = adamnet_read_channel(num_bytes);
-
-    // // And send off to the computer
-    // bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
-    // receiveBuffer->erase(0, num_bytes);
+    Debug_printf("adamNetwork::read( %d bytes)\n", num_bytes);
 }
 
 /**
@@ -204,22 +196,21 @@ void adamNetwork::adamnet_read()
  * @param num_bytes - number of bytes to read from channel.
  * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
  */
-bool adamNetwork::adamnet_read_channel(unsigned short num_bytes)
+bool adamNetwork::read_channel(unsigned short num_bytes)
 {
-    // bool err = false;
+    bool _err = false;
 
-    // switch (channelMode)
-    // {
-    // case PROTOCOL:
-    //     err = protocol->read(num_bytes);
-    //     break;
-    // case JSON:
-    //     Debug_printf("JSON Not Handled.\n");
-    //     err = true;
-    //     break;
-    // }
-    // return err;
-    return false;
+    switch (channelMode)
+    {
+    case PROTOCOL:
+        _err = protocol->read(num_bytes);
+        break;
+    case JSON:
+        Debug_printf("JSON Not Handled.\n");
+        _err = true;
+        break;
+    }
+    return _err;
 }
 
 /**
@@ -227,45 +218,24 @@ bool adamNetwork::adamnet_read_channel(unsigned short num_bytes)
  * Write # of bytes specified by aux1/aux2 from tx_buffer out to ADAM. If protocol is unable to return requested
  * number of bytes, return ERROR.
  */
-void adamNetwork::adamnet_write()
+void adamNetwork::write(uint16_t num_bytes)
 {
-    // unsigned short num_bytes = adamnet_get_aux();
-    // uint8_t *newData;
-    // bool err = false;
+    if (transmitBuffer == nullptr)
+    {
+        err = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        AdamNet.start_time = esp_timer_get_time();
+        adamnet_response_nack();
+        return;
+    }
 
-    // newData = (uint8_t *)malloc(num_bytes);
-    // Debug_printf("adamNetwork::adamnet_write( %d bytes)\n", num_bytes);
+    adamnet_recv_buffer(response, num_bytes);
+    adamnet_recv(); // CK
 
-    // if (newData == nullptr)
-    // {
-    //     Debug_printf("Could not allocate %u bytes.\n", num_bytes);
-    // }
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
 
-    // adamnet_ack();
-
-    // // If protocol isn't connected, then return not connected.
-    // if (protocol == nullptr)
-    // {
-    //     status.error = NETWORK_ERROR_NOT_CONNECTED;
-    //     adamnet_error();
-    //     return;
-    // }
-
-    // // Get the data from the Atari
-    // bus_to_peripheral(newData, num_bytes);
-    // *transmitBuffer += string((char *)newData, num_bytes);
-    // free(newData);
-
-    // // Do the channel write
-    // err = adamnet_write_channel(num_bytes);
-
-    // // Acknowledge to Atari of channel outcome.
-    // if (err == false)
-    // {
-    //     adamnet_complete();
-    // }
-    // else
-    //     adamnet_error();
+    *transmitBuffer += string((char *)response, num_bytes);
+    err = adamnet_write_channel(num_bytes);
 }
 
 /**
@@ -275,20 +245,19 @@ void adamNetwork::adamnet_write()
  */
 bool adamNetwork::adamnet_write_channel(unsigned short num_bytes)
 {
-    // bool err = false;
+    bool err = false;
 
-    // switch (channelMode)
-    // {
-    // case PROTOCOL:
-    //     err = protocol->write(num_bytes);
-    //     break;
-    // case JSON:
-    //     Debug_printf("JSON Not Handled.\n");
-    //     err = true;
-    //     break;
-    // }
-    // return err;
-    return false;
+    switch (channelMode)
+    {
+    case PROTOCOL:
+        err = protocol->write(num_bytes);
+        break;
+    case JSON:
+        Debug_printf("JSON Not Handled.\n");
+        err = true;
+        break;
+    }
+    return err;
 }
 
 /**
@@ -296,91 +265,28 @@ bool adamNetwork::adamnet_write_channel(unsigned short num_bytes)
  * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
  * with them locally. Then serialize resulting NetworkStatus object to ADAM.
  */
-void adamNetwork::adamnet_status()
+void adamNetwork::status()
 {
-    // // Acknowledge
-    // adamnet_ack();
+    NetworkStatus s;
+    adamnet_recv(); // CK
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
 
-    // if (protocol == nullptr)
-    //     adamnet_status_local();
-    // else
-    //     adamnet_status_channel();
-}
+    switch (channelMode)
+    {
+    case PROTOCOL:
+        err = protocol->status(&s);
+        break;
+    case JSON:
+        // err = _json->status(&status);
+        break;
+    }
 
-/**
- * @brief perform local status commands, if protocol is not bound, based on cmdFrame
- * value.
- */
-void adamNetwork::adamnet_status_local()
-{
-    // uint8_t ipAddress[4];
-    // uint8_t ipNetmask[4];
-    // uint8_t ipGateway[4];
-    // uint8_t ipDNS[4];
-    // uint8_t default_status[4] = {0, 0, 0, 0};
-
-    // Debug_printf("adamNetwork::adamnet_status_local(%u)\n", cmdFrame.aux2);
-
-    // fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
-    // fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
-
-    // switch (cmdFrame.aux2)
-    // {
-    // case 1: // IP Address
-    //     Debug_printf("IP Address: %u.%u.%u.%u\n", ipAddress[0], ipAddress[1], ipAddress[2], ipAddress[3]);
-    //     bus_to_computer(ipAddress, 4, false);
-    //     break;
-    // case 2: // Netmask
-    //     Debug_printf("Netmask: %u.%u.%u.%u\n", ipNetmask[0], ipNetmask[1], ipNetmask[2], ipNetmask[3]);
-    //     bus_to_computer(ipNetmask, 4, false);
-    //     break;
-    // case 3: // Gatway
-    //     Debug_printf("Gateway: %u.%u.%u.%u\n", ipGateway[0], ipGateway[1], ipGateway[2], ipGateway[3]);
-    //     bus_to_computer(ipGateway, 4, false);
-    //     break;
-    // case 4: // DNS
-    //     Debug_printf("DNS: %u.%u.%u.%u\n", ipDNS[0], ipDNS[1], ipDNS[2], ipDNS[3]);
-    //     bus_to_computer(ipDNS, 4, false);
-    //     break;
-    // default:
-    //     default_status[2] = status.connected;
-    //     default_status[3] = status.error;
-    //     bus_to_computer(default_status, 4, false);
-    // }
-}
-
-/**
- * @brief perform channel status commands, if there is a protocol bound.
- */
-void adamNetwork::adamnet_status_channel()
-{
-    // uint8_t serialized_status[4] = {0, 0, 0, 0};
-    // bool err = false;
-
-    // Debug_printf("adamNetwork::adamnet_status_channel(%u)\n", channelMode);
-
-    // switch (channelMode)
-    // {
-    // case PROTOCOL:
-    //     Debug_printf("PROTOCOL\n");
-    //     err = protocol->status(&status);
-    //     break;
-    // case JSON:
-    //     // err=_json->status(&status)
-    //     break;
-    // }
-
-    // // Serialize status into status bytes
-    // serialized_status[0] = status.rxBytesWaiting & 0xFF;
-    // serialized_status[1] = status.rxBytesWaiting >> 8;
-    // serialized_status[2] = status.connected;
-    // serialized_status[3] = status.error;
-
-    // Debug_printf("adamnet_status_channel() - BW: %u C: %u E: %u\n",
-    //     status.rxBytesWaiting, status.connected ,status.error);
-
-    // // and send to computer
-    // bus_to_computer(serialized_status, sizeof(serialized_status), err);
+    response[0] = s.rxBytesWaiting & 0xFF;
+    response[1] = s.rxBytesWaiting >> 8;
+    response[2] = s.connected;
+    response[3] = s.error;
+    response_len = 4;
 }
 
 /**
@@ -680,8 +586,15 @@ void adamNetwork::adamnet_special_80()
 
 void adamNetwork::adamnet_response_status()
 {
-    status_response[4] = status.byte;
+    status_response[4] = statusByte.byte;
     adamNetDevice::adamnet_response_status();
+}
+
+void adamNetwork::adamnet_control_ack()
+{
+    // assume ack is for the CLR, clear the response buffer
+    response_len = 0;
+    memset(response, 0x00, sizeof(response));
 }
 
 void adamNetwork::adamnet_control_send()
@@ -689,23 +602,50 @@ void adamNetwork::adamnet_control_send()
     uint8_t s = adamnet_recv_length(); // receive length
     uint8_t c = adamnet_recv();        // receive command
 
+    s--; // Because we've popped the command off the stack
+
     switch (c)
     {
     case 'O':
-        adamnet_open();
+        open();
         break;
     case 'C':
-        adamnet_close();
+        close();
+        break;
+    case 'R':
+        read();
+        break;
+    case 'S':
+        status();
         break;
     }
 }
 
 void adamNetwork::adamnet_control_clr()
 {
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 300)
+        adamnet_response_send();
 }
 
 void adamNetwork::adamnet_control_receive()
 {
+    AdamNet.start_time = esp_timer_get_time();
+
+    if (response_len == 0)
+        adamnet_response_nack();
+    else
+        adamnet_response_ack();
+}
+
+void adamNetwork::adamnet_response_send()
+{
+    uint8_t c = adamnet_checksum(response, response_len);
+
+    adamnet_send(0xB0 | _devnum);
+    adamnet_send_buffer(response, response_len);
+    adamnet_send(c);
 }
 
 /**
@@ -722,6 +662,9 @@ void adamNetwork::adamnet_process(uint8_t b)
     case MN_STATUS:
         adamnet_control_status();
         break;
+    case MN_ACK:
+        adamnet_control_ack();
+        break;
     case MN_CLR:
         adamnet_control_clr();
         break;
@@ -735,28 +678,6 @@ void adamNetwork::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
-}
-
-/**
- * Check to see if PROCEED needs to be asserted, and assert if needed.
- */
-void adamNetwork::adamnet_poll_interrupt()
-{
-    // if (protocol != nullptr)
-    // {
-    //     if (protocol->interruptEnable == false)
-    //         return;
-
-    //     protocol->fromInterrupt = true;
-    //     protocol->status(&status);
-    //     protocol->fromInterrupt = false;
-
-    //     if (status.rxBytesWaiting > 0 || status.connected == 0)
-    //         adamnet_assert_interrupt();
-
-    //     reservedSave = status.connected;
-    //     errorSave = status.error;
-    // }
 }
 
 /** PRIVATE METHODS ************************************************************/
@@ -842,8 +763,8 @@ void adamNetwork::parse_and_instantiate_protocol()
     if (parseURL() == false)
     {
         Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
-        status.byte = 0x00;
-        status.bits.client_error = true;
+        statusByte.byte = 0x00;
+        statusByte.bits.client_error = true;
         err = NETWORK_ERROR_INVALID_DEVICESPEC;
         return;
     }
@@ -854,40 +775,11 @@ void adamNetwork::parse_and_instantiate_protocol()
     if (instantiate_protocol() == false)
     {
         Debug_printf("Could not open protocol.\n");
-        status.byte = 0x00;
-        status.bits.client_error = true;
+        statusByte.byte = 0x00;
+        statusByte.bits.client_error = true;
         err = NETWORK_ERROR_GENERAL;
         return;
     }
-}
-
-/**
- * Start the Interrupt rate limiting timer
- */
-void adamNetwork::timer_start()
-{
-    // esp_timer_create_args_t tcfg;
-    // tcfg.arg = this;
-    // tcfg.callback = onTimer;
-    // tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
-    // tcfg.name = nullptr;
-    // esp_timer_create(&tcfg, &rateTimerHandle);
-    // esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
-}
-
-/**
- * Stop the Interrupt rate limiting timer
- */
-void adamNetwork::timer_stop()
-{
-    // // Delete existing timer
-    // if (rateTimerHandle != nullptr)
-    // {
-    //     Debug_println("Deleting existing rateTimer\n");
-    //     esp_timer_stop(rateTimerHandle);
-    //     esp_timer_delete(rateTimerHandle);
-    //     rateTimerHandle = nullptr;
-    // }
 }
 
 /**
@@ -953,14 +845,6 @@ bool adamNetwork::parseURL()
     Debug_printf("adamNetwork::parseURL transformed to (%s, %s)\n", deviceSpec.c_str(), url.c_str());
 
     return isValidURL(urlParser);
-}
-
-/**
- * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
- */
-void adamNetwork::adamnet_assert_interrupt()
-{
-    // fnSystem.digital_write(PIN_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
 }
 
 void adamNetwork::adamnet_set_translation()
