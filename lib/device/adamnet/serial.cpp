@@ -12,6 +12,7 @@ adamSerial::adamSerial()
     server = new fnTcpServer(1235, 1); // Run a TCP server on port 1235.
     server->begin(1235);
     response_len=0;
+    status_response[3] = 0x00; // character device
 }
 
 adamSerial::~adamSerial()
@@ -32,12 +33,12 @@ void adamSerial::command_recv()
         adamnet_response_ack();
 }
 
-void adamSerial::adamnet_control_status()
+void adamSerial::adamnet_response_status()
 {
     unsigned short s = SERIAL_BUF_SIZE;
     
-    status_msg[0]=s & 0xFF;
-    status_msg[1]=s >> 8;
+    status_response[1]=s & 0xFF;
+    status_response[2]=s >> 8;
 
     if (!client.connected() && server->hasClient())
     {
@@ -47,14 +48,12 @@ void adamSerial::adamnet_control_status()
 
     if (client.available())
     {
-        status_msg[3] = client.available() > SERIAL_BUF_SIZE ? SERIAL_BUF_SIZE : client.available();
+        status_response[4] = client.available() > SERIAL_BUF_SIZE ? SERIAL_BUF_SIZE : client.available();
     }
     else
-        status_msg[3] = 0x00;
+        status_response[4] = 0x00;
 
-    adamnet_send(0x80 | _devnum);
-    adamnet_send_buffer(status_msg, 4);
-    adamnet_send(adamnet_checksum(status_msg, 4));
+    adamNetDevice::adamnet_response_status();
 }
 
 void adamSerial::adamnet_control_clr()
