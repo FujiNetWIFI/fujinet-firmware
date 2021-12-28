@@ -46,8 +46,8 @@ class adamSerial : public adamNetDevice
     /**
      * return adamnet status
      */
-    virtual void adamnet_control_status();
     virtual void adamnet_idle();
+    virtual void adamnet_response_status();
     
     void adamnet_control_send();
     void adamnet_control_ready();
