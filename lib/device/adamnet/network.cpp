@@ -586,6 +586,15 @@ void adamNetwork::adamnet_special_80()
 
 void adamNetwork::adamnet_response_status()
 {
+    NetworkStatus s;
+
+    if (protocol != nullptr)
+        protocol->status(&s);
+
+    statusByte.bits.client_connected = s.connected == true;
+    statusByte.bits.client_data_available = s.rxBytesWaiting > 0;
+    statusByte.bits.client_error = s.error > 1;
+
     status_response[4] = statusByte.byte;
     adamNetDevice::adamnet_response_status();
 }
