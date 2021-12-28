@@ -1817,7 +1817,10 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
         Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
         // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
         if (cmdFrame.aux1 == 1 || count_PollType1 == 16)
+        {
             sio_poll_1();
+            count_PollType1 = 0; // Reset the counter so we can respond again if asked
+        }
         break;
 
     case SIO_MODEMCMD_TYPE3_POLL:
