@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "led.h"
 
+
 static xQueueHandle reset_evt_queue = NULL;
 // static uint32_t reset_detect_status = 0;
 
@@ -18,17 +19,43 @@ static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
     xQueueSendFromISR(reset_evt_queue, &gpio_num, NULL);
 }
 
+
+
 static void adamnet_reset_intr_task(void *arg)
 {
     uint32_t io_num;
+    bool was_reset = false;
+    bool reset_debounced = false;
+    uint64_t start, current, elapsed;
+    
 
     // reset_detect_status = gpio_get_level((gpio_num_t)PIN_ADAMNET_RESET);
-
+    start = current = esp_timer_get_time();
     for (;;)
     {
         if (xQueueReceive(reset_evt_queue, &io_num, portMAX_DELAY))
         {
+            start = esp_timer_get_time();
             printf("ADAMNet RESET Asserted\n");
+            was_reset = true;
+        } 
+        current = esp_timer_get_time();
+
+        elapsed = current - start;
+
+        if (was_reset)
+        {
+            if (elapsed >= ADAMNET_RESET_DEBOUNCE_PERIOD) 
+            {
+                reset_debounced = true;
+            }
+        }
+
+        if (was_reset && reset_debounced)
+        {
+            was_reset = false;
+            // debounce period for reset completed
+            reset_debounced = false;;
         }
     }
 }
@@ -232,14 +259,14 @@ void adamNetBus::_adamnet_process_cmd()
 
     wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
 
-    if (_daisyChain.find(2) != _daisyChain.end())
+    if (_daisyChain.find(ADAMNET_DEVICE_ID_PRINTER) != _daisyChain.end())
     {
-        if (esp_timer_get_time() > (start_time + 2000000))
-            _daisyChain[2]->adamnet_idle();
+        if (esp_timer_get_time() > (start_time + 2000000)) // time in microseconds
+            _daisyChain[ADAMNET_DEVICE_ID_PRINTER]->adamnet_idle();
     }
-    if (_daisyChain.find(0x0e) != _daisyChain.end())
+    if (_daisyChain.find(ADAMNET_DEVICE_NETWORK) != _daisyChain.end())
     {
-        _daisyChain[0x0e]->adamnet_idle();
+        _daisyChain[ADAMNET_DEVICE_NETWORK]->adamnet_idle();
     }
 }
 
@@ -282,7 +309,7 @@ void adamNetBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
+void adamNetBus::addDevice(adamNetDevice *pDevice, uint8_t device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
     pDevice->_devnum = device_id;
@@ -299,8 +326,22 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
     }
 }
 
+bool adamNetBus::deviceExists(uint8_t device_id)
+{
+    return _daisyChain.find(device_id) != _daisyChain.end();
+}
+
 void adamNetBus::remDevice(adamNetDevice *pDevice)
 {
+
+}
+
+void adamNetBus::remDevice(uint8_t device_id)
+{
+    if (deviceExists(device_id))
+    {
+        _daisyChain.erase(device_id);
+    }
 }
 
 int adamNetBus::numDevices()
@@ -308,7 +349,7 @@ int adamNetBus::numDevices()
     return _daisyChain.size();
 }
 
-void adamNetBus::changeDeviceId(adamNetDevice *p, int device_id)
+void adamNetBus::changeDeviceId(adamNetDevice *p, uint8_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -317,7 +358,7 @@ void adamNetBus::changeDeviceId(adamNetDevice *p, int device_id)
     }
 }
 
-adamNetDevice *adamNetBus::deviceById(int device_id)
+adamNetDevice *adamNetBus::deviceById(uint8_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
