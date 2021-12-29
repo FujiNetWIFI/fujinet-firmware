@@ -180,17 +180,17 @@ void main_setup()
     sioQ = new adamQueryDevice();
 
 #ifndef NO_VIRTUAL_KEYBOARD
-    exists = sioQ->adamDeviceExists(ADAMNET_KEYBOARD);
+    exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_KEYBOARD);
     if (! exists)
     {
         Debug_printf("Adding virtual keyboard\n");
         sioK = new adamKeyboard();
-        AdamNet.addDevice(sioK,ADAMNET_KEYBOARD);
+        AdamNet.addDevice(sioK,ADAMNET_DEVICE_ID_KEYBOARD);
     } else
         Debug_printf("Physical keyboard found\n");
 #endif
     
-    exists = sioQ->adamDeviceExists(ADAMNET_PRINTER);
+    exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_PRINTER);
     if (! exists)
     {
         Debug_printf("Adding virtual printer\n");
@@ -198,7 +198,7 @@ void main_setup()
         adamPrinter::printer_type printer = adamPrinter::PRINTER_COLECO_ADAM;
         adamPrinter *ptr = new adamPrinter(ptrfs, printer);
         fnPrinters.set_entry(0,ptr,printer,0);
-        AdamNet.addDevice(ptr,0x02);
+        AdamNet.addDevice(ptr,ADAMNET_DEVICE_ID_PRINTER);
     } else
         Debug_printf("Physical printer found\n");
 
