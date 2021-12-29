@@ -27,7 +27,14 @@
 #define NM_SEND 0x0B   // response.data (send)
 #define NM_NACK 0x0C   // response.control (nack)
 
-#define ADAMNET_DEVICEID_DISK 0x04
+#define ADAMNET_DEVICE_ID_KEYBOARD 0x01
+#define ADAMNET_DEVICE_ID_PRINTER  0x02
+#define ADAMNET_DEVICEID_DISK      0x04
+#define ADAMNET_DEVICE_TAPE        0x08
+#define ADAMNET_DEVICE_NETWORK     0x0E
+#define ADAMNET_DEVICE_FUJINET     0x0F
+
+#define ADAMNET_RESET_DEBOUNCE_PERIOD 100 // in ms
 
 class adamNetBus;
 class adamFuji;     // declare here so can reference it, but define in fuji.h
@@ -213,12 +220,14 @@ public:
     int64_t start_time;
 
     int numDevices();
-    void addDevice(adamNetDevice *pDevice, int device_id);
+    void addDevice(adamNetDevice *pDevice, uint8_t device_id);
     void remDevice(adamNetDevice *pDevice);
+    void remDevice(uint8_t device_id);
+    bool deviceExists(uint8_t device_id);
     void enableDevice(uint8_t device_id);
     void disableDevice(uint8_t device_id);
-    adamNetDevice *deviceById(int device_id);
-    void changeDeviceId(adamNetDevice *pDevice, int device_id);
+    adamNetDevice *deviceById(uint8_t device_id);
+    void changeDeviceId(adamNetDevice *pDevice, uint8_t device_id);
     QueueHandle_t qAdamNetMessages = nullptr;
 };
 
