@@ -95,7 +95,7 @@ IDC20   IIc     DB 19     Arduino
 #define TIMER_ADJUST          6 // substract this value to adjust for overhead
 
 #undef VERBOSE
-#define TESTTX
+#undef TESTTX
 
 //------------------------------------------------------------------------------
 
@@ -227,11 +227,10 @@ void spDevice::smartport_ack_disable()
 
 int spDevice::smartport_handshake()
 {
+  int ret = 0;
+
   smartport_ack_clr();
   smartport_ack_enable();
-#ifdef VERBOSE
-  Debug_print("A");
-#endif
 
   hw_timer_latch();
   hw_timer_read();
@@ -243,24 +242,21 @@ int spDevice::smartport_handshake()
     if (t0 > tn)
     {
       // timeout!
-      smartport_ack_set();
-      smartport_ack_disable();
 #ifdef VERBOSE
   Debug_print("t");
 #endif
-      return 1;
+      ret = 1;
+      break;
     }
   } while (smartport_req_val()); // wait for REQ to go low
-
 #ifdef VERBOSE
-  Debug_print("r");
+  if (ret == 0)
+    Debug_print("r");
 #endif
   smartport_ack_set();
   smartport_ack_disable();
-#ifdef VERBOSE
-  Debug_print("a");
-#endif
-  return 0;
+
+  return ret;
 }
 
 //------------------------------------------------------
@@ -490,7 +486,7 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
   // setup a timeout counter to wait for REQ response
   hw_timer_latch();        // latch highspeed timer value
   hw_timer_read();      //  grab timer low word
-  hw_timer_alarm_set(1000); // 1 millisecond
+  hw_timer_alarm_set(100); // 1 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
   while (smartport_req_val() == 0) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -500,7 +496,7 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
     if (t0 > tn)                      // test for timeout
     {
       // timeout!
-      Debug_println("SendPacket timeout error waiting for REQ");
+      Debug_println("SendPacket timeout waiting for REQ");
       return 1;
     }
   };
@@ -1161,11 +1157,24 @@ void spDevice::encode_extended_status_dib_reply_packet (device d)
   packet_buffer[18] = ((d.blocks >> 16 ) & 0xff) | 0x80 ; //block size 3 - why is the high bit set?
   packet_buffer[19] = ((d.blocks >> 24 ) & 0xff) | 0x80 ; //block size 3 - why is the high bit set?  
   packet_buffer[20] = 0x8d; //ID string length - 13 chars
-  packet_buffer[21] = 'Sm';  //ID string (16 chars total)
+  packet_buffer[21] = 'S';
+  packet_buffer[22] = 'm';  //ID string (16 chars total)
   packet_buffer[23] = 0x80; //grp2 msb
-  packet_buffer[24] = 'artport';
+  packet_buffer[24] = 'a';
+  packet_buffer[25] = 'r';
+  packet_buffer[26] = 't';
+  packet_buffer[27] = 'p';
+  packet_buffer[28] = 'o';
+  packet_buffer[29] = 'r';
+  packet_buffer[30] = 't';
   packet_buffer[31] = 0x80; //grp3 msb
-  packet_buffer[32] = ' SD    ';
+  packet_buffer[32] = ' ';
+  packet_buffer[33] = 'S';
+  packet_buffer[34] = 'D';
+  packet_buffer[35] = ' ';
+  packet_buffer[36] = ' ';
+  packet_buffer[37] = ' ';
+  packet_buffer[38] = ' ';
   packet_buffer[39] = 0x80; //odd msb
   packet_buffer[40] = 0x02; //Device type    - 0x02  harddisk
   packet_buffer[41] = 0x00; //Device Subtype - 0x20
@@ -1498,38 +1507,25 @@ void spDevice::spsd_setup() {
   Debug_print(("\r\nBoot partition: "));
   Debug_print(initPartition, DEC);
 
-  // following is hold over from smartportsd .... should remap to a FN pin TODO
-  // fnSystem.set_pin_mode(ejectPin, gpio_mode_t::GPIO_MODE_INPUT);
-  // print_hd_info(); //obsolete
-
   Debug_printf(("\r\nFree memory before opening images: "));
   Debug_print(freeMemory());
 
-  // std::string part = "PART";
-
   for(uint8_t i=0; i<NUM_PARTITIONS; i++)
   {
-    //TODO: get file names from EEPROM
-    //
-    //open_image(devices[i], (part+(i+1)+".PO") ); // todo string operations
     std::string part = "/PART";
-    part += std::to_string(1);
+    part += std::to_string(i+1);
     part += ".PO";
     Debug_printf("\r\nopening %s",part.c_str());
     open_image(devices[i], part ); // std::string operations
     if(devices[i].sdf != nullptr)
       Debug_printf("\r\n%s open good",part.c_str());
-    else{
-      Debug_print(("\r\nImage "));
+    else
+    {
+      Debug_printf(("\r\nImage "));
       Debug_print(i, DEC);
       Debug_print((" open error! Filename = "));
       Debug_print(part.c_str());
     } 
-    
-    Debug_print(("\r\nFree memory after opening image "));
-    Debug_print(i);
-    Debug_print((": "));
-    Debug_print(freeMemory(), DEC);
   }  
   
   timer_config();
@@ -2129,29 +2125,19 @@ void spDevice::timer_1us_example()
 
 void spDevice::timer_config()
 {
+  // configure the hardware timer for regulating bit-banging smartport i/o
+  // use the idf library to get it set up
+  // have own helper functions that do direct register read/write for speed
+
   timer_config_t config;
   config.divider = TIMER_DIVIDER; // default clock source is APB
   config.counter_dir = TIMER_COUNT_UP;
   config.counter_en = TIMER_PAUSE;
   config.alarm_en = TIMER_ALARM_DIS;
 
-  /* Timer's counter will initially start from value below.
-       Also, if auto_reload is set, this value will be automatically reload on alarm */
   timer_init(TIMER_GROUP_1, TIMER_1, &config);
-  
   timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
-  
   timer_start(TIMER_GROUP_1, TIMER_1);
-  // while (1)
-  // {
-  //   uint64_t task_counter_value;
-  //   timer_get_counter_value(TIMER_GROUP_1, TIMER_1, &task_counter_value);
-
-  //   // hardware register reading .. 
-  //   //TIMG_T1UPDATE_REG(1) - register to write to latch counter value
-
-  //   Debug_printf("\r\n%019llu", task_counter_value);
-  // }
 }
 
 
