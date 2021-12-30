@@ -61,7 +61,7 @@ IDC20   IIc     DB 19     Arduino
 // #define SP_REQ      39
 // #define SP_PHI0     39        CMD
 // #define SP_PHI1     22        PROC
-// #define SP_PHI2     32        CLKOUT
+// #define SP_PHI2     36        MOTOR
 // #define SP_PHI3     26        INT
 // #define SP_RDDATA   21        DATAIN
 // #define SP_WRDATA   33        DATAOUT
@@ -70,10 +70,11 @@ IDC20   IIc     DB 19     Arduino
 #define SP_REQ      39
 #define SP_PHI0     39
 #define SP_PHI1     22
-#define SP_PHI2     32
+#define SP_PHI2     36
 #define SP_PHI3     26
 #define SP_RDDATA   21
 #define SP_WRDATA   33
+#define SP_EXTRA    32 // CLOCKOUT
 
 #include "esp_timer.h"
 #include "driver/timer.h"
@@ -100,12 +101,12 @@ IDC20   IIc     DB 19     Arduino
 
 void spDevice::hw_timer_latch()
 {
-  TIMERG1.hw_timer[0].update = 0;
+  TIMERG1.hw_timer[1].update = 0;
 }
 
 void spDevice::hw_timer_read()
 {
-  t0 = TIMERG1.hw_timer[0].cnt_low;
+  t0 = TIMERG1.hw_timer[1].cnt_low;
 }
 
 void spDevice::hw_timer_alarm_set(int s)
@@ -130,8 +131,8 @@ void spDevice::hw_timer_wait()
 
 void spDevice::hw_timer_reset()
 {
-  TIMERG1.hw_timer[0].load_low = 0;
-  TIMERG1.hw_timer[0].reload = 0;
+  TIMERG1.hw_timer[1].load_low = 0;
+  TIMERG1.hw_timer[1].reload = 0;
 }
 
 void spDevice::smartport_rddata_set()
@@ -162,6 +163,16 @@ uint32_t spDevice::smartport_wrdata_val()
 uint32_t spDevice::smartport_req_val()
 {
   return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
+}
+
+void spDevice::smartport_extra_clr()
+{
+  GPIO.out1_w1tc.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
+}
+
+void spDevice::smartport_extra_set()
+{
+  GPIO.out1_w1ts.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
 }
 
 //------------------------------------------------------
@@ -280,7 +291,7 @@ bool spDevice::smartport_phase_val(int p)
 //------------------------------------------------------
 
 
-int spDevice::ReceivePacket(uint8_t *a)
+int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
 {
   bool have_data = true;
   int idx = 0;             // index into *a
@@ -328,7 +339,7 @@ int spDevice::ReceivePacket(uint8_t *a)
   // setup a timeout counter to wait for REQ response
   hw_timer_latch();        // latch highspeed timer value
   hw_timer_read();      //  grab timer low word
-  hw_timer_alarm_set(1000); // 1 millisecond
+  hw_timer_alarm_set(100); // logic analyzer says 40 usec
 
   // todo: this waiting for REQ seems like it should be done
   // in the main loop, if control can be passed quickly enough
@@ -371,7 +382,8 @@ int spDevice::ReceivePacket(uint8_t *a)
     }
   };
 
-  do
+  portDISABLE_INTERRUPTS();
+  do // have_data
   {
     // beginning of the byte
     // delay 2 us until middle of 4-us bit
@@ -379,9 +391,10 @@ int spDevice::ReceivePacket(uint8_t *a)
     hw_timer_read();
     hw_timer_alarm_set(2); //TIMER_SCALE / 500000; // 2 usec
     numbits = 8; // ;1   8bits to read
-    hw_timer_wait();
-    while(1)
+//    hw_timer_wait();
+    do
     {
+      hw_timer_wait();
       // logic table:
       //  prev_level  current_level   decoded bit
       //  0           0               0
@@ -398,6 +411,7 @@ int spDevice::ReceivePacket(uint8_t *a)
       // prev_level = current_level;
       //
       current_level = smartport_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
+      hw_timer_alarm_set(4); // 4 usec
       bit = prev_level ^ current_level;
       rxbyte <<= 1;
       rxbyte |= (uint8_t)(bit > 0);
@@ -406,14 +420,15 @@ int spDevice::ReceivePacket(uint8_t *a)
         break; // end of byte
       // todo: use best (whatever works) alarm setting because
       // in sendpacket, the alarm is set every bit instead of snoozed
-      hw_timer_alarm_snooze(4); // 4 usec
-      hw_timer_wait();
-    };
-    a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
 
-    hw_timer_alarm_snooze(16); // 16 usec? that's a 1/2 byte so maybe?
+    } while(1);
+    a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
+    hw_timer_alarm_snooze(32); // 16 usec? that's a 1/2 byte so maybe? - nope needs 19usec for last sync byte, so make 32usec
+#ifdef VERBOSE
+    Debug_printf("%02x", rxbyte);
+#endif
     // now wait for leading edge of next byte
-     while (smartport_wrdata_val() != prev_level) // return (GPIO.in1.val >> (pin - 32)) & 0x1;
+    do // return (GPIO.in1.val >> (pin - 32)) & 0x1;
     {
       hw_timer_latch();
       hw_timer_read();
@@ -423,13 +438,13 @@ int spDevice::ReceivePacket(uint8_t *a)
         have_data = false;
         break;
       }
-    }
-  } while (have_data); // while have_data
+    } while (smartport_wrdata_val() == prev_level);
+  } while (have_data);//(have_data); // while have_data
   //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
+  portENABLE_INTERRUPTS();
 
   // endpkt:   clr  r23
   a[idx++] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
-
 
   // todo: verify checksum, then only handshake if it's our packet.
   // if debug then handshake, print, return
@@ -438,15 +453,15 @@ int spDevice::ReceivePacket(uint8_t *a)
   int ret = smartport_handshake();
   Debug_printf("\r\n");
   for (int i = 0; i < idx; i++)
-    Debug_printf("%02x", a[i]);
+    Debug_printf("%02x ", a[i]);
+  Debug_printf("\r\n");
   return ret;
 #else
   return smartport_handshake(); // no error
 #endif
-
 }
 
-int spDevice::SendPacket(uint8_t *a)
+int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
 {
   //*****************************************************************************
   // Function: SendPacket
@@ -1395,6 +1410,8 @@ void spDevice::mcuInit(void)
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   // leave rd as input, pd6
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT);  
+
+  fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
 }
 
 /* todo memory reporting, although FujiNet firmware does this already
@@ -1469,6 +1486,7 @@ void spDevice::spsd_setup() {
   //sdf[1] = &sdf2;
   // put your setup code here, to run once:
   mcuInit();
+  
   // already done in main.cpp - Debug_begin(230400);
   Debug_print(("\r\nSmartportSD v1.15\r\n"));
   /* todo 
@@ -1588,16 +1606,15 @@ void spDevice::spsd_loop() {
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
   case phasestate::enable:
-    Debug_print(("E ")); //this is timing sensitive, so can't print to much here as it takes to long
-    // todo - noInterrupts();
+    // test_edge_capture();
+    // break;
+    // Debug_print(("E")); //this is timing sensitive, so can't print to much here as it takes to long
     // todo DDRC = 0xFF;   //set ack to output, sp bus is enabled
     if ((status = ReceivePacket((uint8_t *)packet_buffer)))
     {
-      // todo - interrupts();
       break; //error timeout, break and loop again
     }
-    // todo - interrupts();
-
+    
     //Debug_print(("\r\nHere's our packet!"));
     //print_packet ((uint8_t*) packet_buffer, packet_length());
 
@@ -1676,11 +1693,13 @@ void spDevice::spsd_loop() {
       //else it is ours, we need to handshake the packet
     //Debug_print(("\r\nBW"));
     // old avr: PORTC &= ~(_BV(5));   //set ack low
-      fnSystem.digital_write(SP_ACK, DIGI_LOW);
+      //fnSystem.digital_write(SP_ACK, DIGI_LOW);
+      smartport_ack_clr();
     //todo: why 0x85? Also, handshaking was already done in receive data? OH! Only should handshake if
     // its our packet. So shouldn't we be checking destination ID and then handshaking?
     // old avr: while (PIND & 0x04);   //wait for req to go low
-    while (fnSystem.digital_read(SP_REQ) == DIGI_HIGH);
+    //while (fnSystem.digital_read(SP_REQ) == DIGI_HIGH);
+    while (smartport_req_val());
     //Debug_println(F("\r\nAW"));
     //Not safe to assume it's a normal command packet, GSOS may throw
     //us several extended packets here and then crash
@@ -2118,15 +2137,15 @@ void spDevice::timer_config()
 
   /* Timer's counter will initially start from value below.
        Also, if auto_reload is set, this value will be automatically reload on alarm */
-  timer_init(TIMER_GROUP_1, TIMER_0, &config);
+  timer_init(TIMER_GROUP_1, TIMER_1, &config);
   
-  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+  timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
   
-  timer_start(TIMER_GROUP_1, TIMER_0);
+  timer_start(TIMER_GROUP_1, TIMER_1);
   // while (1)
   // {
   //   uint64_t task_counter_value;
-  //   timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &task_counter_value);
+  //   timer_get_counter_value(TIMER_GROUP_1, TIMER_1, &task_counter_value);
 
   //   // hardware register reading .. 
   //   //TIMG_T1UPDATE_REG(1) - register to write to latch counter value
@@ -2150,18 +2169,18 @@ void spDevice::hw_timer_pulses()
 
   /* Timer's counter will initially start from value below.
        Also, if auto_reload is set, this value will be automatically reload on alarm */
-  timer_init(TIMER_GROUP_1, TIMER_0, &config);
-  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+  timer_init(TIMER_GROUP_1, TIMER_1, &config);
+  timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
 
   uint32_t t0 = 0;
   uint32_t tn = t0 + DELAY;
-  timer_start(TIMER_GROUP_1, TIMER_0);
+  timer_start(TIMER_GROUP_1, TIMER_1);
   while (1)
   {
     do
     {
-      TIMERG1.hw_timer[0].update = 0;
-      t0 = TIMERG1.hw_timer[0].cnt_low;
+      TIMERG1.hw_timer[1].update = 0;
+      t0 = TIMERG1.hw_timer[1].cnt_low;
       // WRITE_PERI_REG(TIMG_T0UPDATE_REG(1), 0); // 0x3FF6000C
       // t0 = READ_PERI_REG(TIMG_T0LO_REG(1));    // 0x3FF60004
     } while (t0 < tn);
@@ -2169,8 +2188,8 @@ void spDevice::hw_timer_pulses()
     tn = t0 + DELAY;
     do
     {
-      TIMERG1.hw_timer[0].update = 0;
-      t0 = TIMERG1.hw_timer[0].cnt_low;
+      TIMERG1.hw_timer[1].update = 0;
+      t0 = TIMERG1.hw_timer[1].cnt_low;
       // WRITE_PERI_REG(TIMG_T0UPDATE_REG(1), 0); // 0x3FF6000C
       // t0 = READ_PERI_REG(TIMG_T0LO_REG(1));    // 0x3FF60004
     } while (t0 < tn);
@@ -2189,16 +2208,16 @@ void spDevice::hw_timer_direct_reg()
 
   /* Timer's counter will initially start from value below.
        Also, if auto_reload is set, this value will be automatically reload on alarm */
-  timer_init(TIMER_GROUP_1, TIMER_0, &config);
-  timer_set_counter_value(TIMER_GROUP_1, TIMER_0, 0);
+  timer_init(TIMER_GROUP_1, TIMER_1, &config);
+  timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
 
 
   uint64_t t0 = 0;
   uint32_t tlo;
-  timer_start(TIMER_GROUP_1, TIMER_0);
+  timer_start(TIMER_GROUP_1, TIMER_1);
   while (1)
   {
-      timer_get_counter_value(TIMER_GROUP_1, TIMER_0, &t0);
+      timer_get_counter_value(TIMER_GROUP_1, TIMER_1, &t0);
       // WRITE_PERI_REG(TIMG_T0UPDATE_REG(0),0);
       //tlo = READ_PERI_REG(TIMG_T0LO_REG(0)); 
       //Debug_printf("%lu ", tlo);
@@ -2231,12 +2250,47 @@ C3 PBEGIN MARKS BEGINNING OF PACKET 32 micro Sec.
 80
 */
 {
-  uint8_t a[] {0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x00};
+  uint8_t a[] {0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x00};
   while(1)
   {
     Debug_println("sending packet now");
+    smartport_rddata_enable();
     SendPacket(a);
+    smartport_rddata_disable();
     fnSystem.delay(2500);
-  };
+  }
 }
+
+void IRAM_ATTR spDevice::test_edge_capture()
+{
+  uint32_t stamp[100];
+  uint32_t prev_val = ((uint32_t)0x01 << (SP_WRDATA - 32));
+  uint32_t curr_val;
+  int i=0;
+
+  portDISABLE_INTERRUPTS();
+  hw_timer_reset();
+  do
+  {
+    if (prev_val)
+      smartport_extra_set();
+    else
+      smartport_extra_clr();   
+    do
+    {
+      curr_val = smartport_wrdata_val();
+    } while (curr_val == prev_val);
+    hw_timer_latch();
+    hw_timer_read();
+    stamp[i] = t0;
+    prev_val = curr_val;
+  } while (++i < 20);
+  portENABLE_INTERRUPTS();
+  for (int i = 0; i < 20; i++)
+  {
+    Debug_printf("\r\n%d",stamp[i]);
+  }
+}
+
+
 #endif

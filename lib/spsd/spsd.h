@@ -91,6 +91,8 @@ void smartport_ack_set();
 void smartport_ack_clr();
 void smartport_ack_enable();
 void smartport_ack_disable();
+void smartport_extra_set();
+void smartport_extra_clr();
 int smartport_handshake();
 
 bool smartport_phase_val(int p);
@@ -124,6 +126,7 @@ void timer_config();
 void hw_timer_pulses();
 void hw_timer_direct_reg();
 void test_send();
+void test_edge_capture();
 };
 
 #endif // guard
