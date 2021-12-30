@@ -145,8 +145,8 @@ void main_setup()
 #if defined ( BUILD_APPLE )
     theFuji.setup(&SmartPort);
     spsd.spsd_setup();
-    fnSystem.delay(5000);
-    spsd.test_send();
+    fnSystem.delay(5000); // don't remember why this is here - maybe trying to get the highspeed timer working
+    //spsd.test_send();
     //spsd.hw_timer_pulses();
     //spsd.hw_timer_direct_reg();
  #elif defined( BUILD_ATARI )
