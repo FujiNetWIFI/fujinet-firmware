@@ -85,8 +85,8 @@ void smartport_rddata_set();
 void smartport_rddata_clr();
 void smartport_rddata_disable();
 void smartport_rddata_enable();
-uint32_t smartport_wrdata_val(); // can these be bool with implicit typecast?
-uint32_t smartport_req_val(); // can these be bool with implicit typecast?
+bool smartport_wrdata_val(); // can these be bool with implicit typecast?
+bool smartport_req_val(); // can these be bool with implicit typecast?
 void smartport_ack_set();
 void smartport_ack_clr();
 void smartport_ack_enable();

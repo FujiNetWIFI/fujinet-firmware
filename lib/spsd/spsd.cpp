@@ -155,12 +155,12 @@ void spDevice::smartport_rddata_disable()
   GPIO.enable_w1tc = ((uint32_t)0x01 << SP_RDDATA);
 }
 
-uint32_t spDevice::smartport_wrdata_val()
+bool spDevice::smartport_wrdata_val()
 {
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
 }
 
-uint32_t spDevice::smartport_req_val()
+bool spDevice::smartport_req_val()
 {
   return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
 }
@@ -291,9 +291,9 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
 {
   bool have_data = true;
   int idx = 0;             // index into *a
-  uint32_t bit = 0;        // logical bit value
-  uint32_t prev_level = ((uint32_t)0x01 << (SP_WRDATA - 32)); // previous value of WRDATA line
-  uint32_t current_level;  // current value of WRDATA line
+  bool bit = 0;        // logical bit value
+  bool prev_level = true; // ((uint32_t)0x01 << (SP_WRDATA - 32)); // previous value of WRDATA line
+  bool current_level;  // current value of WRDATA line
   uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
   int numbits;             // number of bits left to read into the rxbyte
 
@@ -341,7 +341,7 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
   // in the main loop, if control can be passed quickly enough
   // to the receive routine. Otherwise, we sit here blocking(?)
   // until REQ goes high. As long as PHIx is in Enable mode.
-  while ( smartport_req_val() == 0 )  
+  while ( !smartport_req_val() )  
   {
     hw_timer_latch();   // latch highspeed timer value
     hw_timer_read(); // grab timer low word
@@ -400,18 +400,19 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
       // this is an exclusive OR operation
       //todo: can curent_level and prev_level be bools and then uint32_t is implicitly
       //typecast down to bool? then the code can be:
-      // current_level = smartport_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
-      // bit = prev_level ^ current_level;
-      // rxbyte <<= 1;
-      // rxbyte |= bit;
-      // prev_level = current_level;
-      //
       current_level = smartport_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
       hw_timer_alarm_set(4); // 4 usec
       bit = prev_level ^ current_level;
       rxbyte <<= 1;
-      rxbyte |= (uint8_t)(bit > 0);
+      rxbyte |= bit;
       prev_level = current_level;
+      //
+      // current_level = smartport_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
+      // hw_timer_alarm_set(4); // 4 usec
+      // bit = prev_level ^ current_level;
+      // rxbyte <<= 1;
+      // rxbyte |= (uint8_t)(bit > 0);
+      // prev_level = current_level;
       if ((--numbits) == 0)
         break; // end of byte
       // todo: use best (whatever works) alarm setting because
@@ -489,7 +490,7 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
   hw_timer_alarm_set(100); // 1 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
-  while (smartport_req_val() == 0) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  while ( !smartport_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
   {
     hw_timer_latch();   // latch highspeed timer value
     hw_timer_read(); // grab timer low word
