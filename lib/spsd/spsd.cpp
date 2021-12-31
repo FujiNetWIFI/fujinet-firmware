@@ -420,7 +420,7 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
 
     } while(1);
     a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
-    hw_timer_alarm_snooze(32); // 16 usec? that's a 1/2 byte so maybe? - nope needs 19usec for last sync byte, so make 32usec
+    hw_timer_alarm_snooze(16); // 16 usec? that's a 1/2 byte so maybe?
 #ifdef VERBOSE
     Debug_printf("%02x", rxbyte);
 #endif
@@ -441,21 +441,18 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
   portENABLE_INTERRUPTS();
 
   // endpkt:   clr  r23
-  a[idx++] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
+  a[idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
   // todo: verify checksum, then only handshake if it's our packet.
   // if debug then handshake, print, return
   // else return handshake
 #ifdef DEBUG
-  int ret = smartport_handshake();
   Debug_printf("\r\n");
   for (int i = 0; i < idx; i++)
     Debug_printf("%02x ", a[i]);
   Debug_printf("\r\n");
-  return ret;
-#else
-  return smartport_handshake(); // no error
 #endif
+  return 0;
 }
 
 int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
@@ -1484,7 +1481,7 @@ bool spDevice::open_image( device &d, std::string filename ){
 bool spDevice::is_ours(uint8_t source)
 {
   for (uint8_t partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
-    if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source) {  //yes it is
+    if (devices[0].device_id == source) {  //yes it is
       return true;
     }
   }
@@ -1553,12 +1550,8 @@ void spDevice::spsd_loop() {
 
   // todo: why are these in the loop and not in the setup?
   noid = 0;  //reset noid flag
-  // todo DDRC = 0xDF; //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
 
-  // todo: tighten up with direct register reads for speed
-  // there are only 3 states for smartport: reset, enable, and all else,
-  // so can create enumerated type to set based on phases
-  //
+ 
   // read phase lines to check for smartport reset or enable
   // phase lines for smartport bus reset
   // ph3=0 ph2=1 ph1=0 ph0=1
@@ -1575,9 +1568,9 @@ void spDevice::spsd_loop() {
   {
     Debug_print(("Reset Cleared\r\n"));
     number_partitions_initialised = 1;                           //reset number of partitions init'd
-    noid = 0;                                                    // to check if needed
-    for (partition = 0; partition < NUM_PARTITIONS; partition++) //clear device_id table
-      devices[partition].device_id = 0;
+    noid = 0;
+    // hard coding 1 partition - will use disk class instances  instead                                                    // to check if needed
+    devices[0].device_id = 0;
     reset_state = false;
   }
 
@@ -1593,56 +1586,28 @@ void spDevice::spsd_loop() {
   {
   case phasestate::idle:
     break;
-    // phase lines for smartport bus reset
-    // ph3=0 ph2=1 ph1=0 ph0=1
   case phasestate::reset:
     if (!reset_state)
       Debug_print(("\r\nReset\r\n"));
     reset_state = true;
     break;
-  // phase lines for smartport bus enable
-  // ph3=1 ph2=x ph1=1 ph0=x
   case phasestate::enable:
-    // test_edge_capture();
-    // break;
-    // Debug_print(("E")); //this is timing sensitive, so can't print to much here as it takes to long
-    // todo DDRC = 0xFF;   //set ack to output, sp bus is enabled
     if ((status = ReceivePacket((uint8_t *)packet_buffer)))
     {
       break; //error timeout, break and loop again
     }
-    
-    //Debug_print(("\r\nHere's our packet!"));
-    //print_packet ((uint8_t*) packet_buffer, packet_length());
-
     // lets check if the pkt is for us
+    Debug_printf("\r\nCMD: %02x", packet_buffer[14]);
     if (packet_buffer[14] != 0x85) // if its an init pkt, then assume its for us and continue on
     {
-      //Debug_print(("\r\nNot 0x85!"));
-
-      // else check if its our one of our id's
-      for (partition = 0; partition < NUM_PARTITIONS; partition++)
-      {
-        if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id != packet_buffer[6]) //destination id
-          noid++;
-      }
-      if (noid == NUM_PARTITIONS) //not one of our id's
-      {
-        fnSystem.delay(100);
-        Debug_print(("\r\nNot our ID! "));
-        Debug_println(packet_buffer[6], HEX);
-        //printf_P(PSTR("\r\nnot ours\r\n") );
+      // hard code device id to 0x81
+        Debug_printf("\r\nDev: %02x",packet_buffer[6]);
 
         // todo - get ACK handshaking implemented. When not our ID, set ACK to high-Z, prepare it for LOW, then read it until it goes low
-        /*             DDRC = 0xDF; //set ack to input, so lets not interfere
-            PORTC &= ~(_BV(5));   //set ack low, for next time its an output
-            while (PINC & 0x20);  //wait till low other dev has finished receiving it */
-        //printf_P(PSTR("a ") );
-        //print_packet ((uint8_t*) packet_buffer, packet_length());
-
         //assume its a cmd packet, cmd code is in byte 14
         //now we need to work out what type of packet and stay out of the way
-        Debug_println(packet_buffer[14], HEX);
+        // todo: IF IT's NOT OUR PACKET
+        // while (PINC & 0x20);  //wait till low other dev has finished receiving it
         switch (packet_buffer[14])
         {
         case 0x80: //is a status cmd
@@ -1728,7 +1693,7 @@ void spDevice::spsd_loop() {
     //print_packet ((uint8_t*) packet_buffer,packet_length());
     if (packet_buffer[14] >= 0xC0)
     {
-      // Debug_print(("\r\nExtended packet!"));
+      Debug_print(("\r\nExtended packet!"));
       // Debug_print(("\r\nHere's our packet!"));
       // print_packet ((uint8_t*) packet_buffer, packet_length());
       // delay(50);
@@ -1739,52 +1704,40 @@ void spDevice::spsd_loop() {
 
     case 0x80: //is a status cmd
       fnLedManager.set(eLed::LED_BUS, true);
-      //fnSystem.digital_write(statusledPin, DIGI_HIGH);
       source = packet_buffer[6];
-      for (partition = 0; partition < NUM_PARTITIONS; partition++)
-      { //Check if its one of ours
-        /* todo - restore status checking and response 
-              if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source
-                && devices[(partition + initPartition) % NUM_PARTITIONS].sdf.isOpen() ) {  //yes it is, and it's online, then reply
-                //Added (unsigned short) cast to ensure calculated block is not underflowing.
-                status_code = (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
-                //Debug_print(("\r\nStatus code: "));
-                //Debug_print(status_code);
-                //print_packet ((uint8_t*) packet_buffer, packet_length());
-                //Debug_print(("\r\nHere's the decoded status packet because frig doing it by hand!"));
-                //decode_data_packet();
-                //print_packet((uint8_t*) packet_buffer, 9); //Standard SmartPort command is 9 bytes
-                //if (status_code |= 0x00) { // TEST
-                //  Debug_print(("\r\nStatus not zero!! ********"));
-                //  print_packet ((uint8_t*) packet_buffer,packet_length());}
-                if (status_code == 0x03) { // if statcode=3, then status with device info block
-                  Debug_print(("\r\n******** Sending DIB! ********"));
-                  encode_status_dib_reply_packet(devices[(partition + initPartition) % NUM_PARTITIONS]);
-                  //print_packet ((uint8_t*) packet_buffer,packet_length());
-                  delay(50);
-                } else {  // else just return device status
-                  
-                  // Debug_print(("\r\n-------- Sending status! --------"));
-                  // Debug_print(("\r\nSource: "));
-                  // Debug_print(source,HEX);
-                  // Debug_print((" Partition ID: "));
-                  // Debug_print(devices[(partition + initPartition) % NUM_PARTITIONS].device_id, HEX);
-                  // Debug_print((" Status code: "));
-                  // Debug_print(status_code, HEX);
-                  
-                  encode_status_reply_packet(devices[(partition + initPartition) % NUM_PARTITIONS]);        
-                }
-                noInterrupts();
-                DDRD = 0x40; //set rd as output
-                status = SendPacket( (uint8_t*) packet_buffer);
-                DDRD = 0x00; //set rd back to input so back to tristate
-                interrupts();
-                //printf_P(PSTR("\r\nSent Packet Data\r\n") );
-                //print_packet ((uint8_t*) packet_buffer,packet_length());
-                digitalWrite(statusledPin, LOW);
-              }
-            */
+      status_code = (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
+      Debug_print(("\r\nStatus code: "));
+      Debug_print(status_code);
+      Debug_print(("\r\nHere's the decoded status packet because frig doing it by hand!"));
+      decode_data_packet();
+      //print_packet((uint8_t*) packet_buffer, 9); //Standard SmartPort command is 9 bytes
+      //if (status_code |= 0x00) { // TEST
+      //  Debug_print(("\r\nStatus not zero!! ********"));
+      //  print_packet ((uint8_t*) packet_buffer,packet_length());}
+      if (status_code == 0x03)
+      { // if statcode=3, then status with device info block
+        Debug_print(("\r\n******** Sending DIB! ********"));
+        encode_status_dib_reply_packet(devices[0]); // hardcoded
+        //print_packet ((uint8_t*) packet_buffer,packet_length());
+        fnSystem.delay(50);
       }
+      else
+      { // else just return device status
+
+        // Debug_print(("\r\n-------- Sending status! --------"));
+        // Debug_print(("\r\nSource: "));
+        // Debug_print(source,HEX);
+        // Debug_print((" Partition ID: "));
+        // Debug_print(devices[0].device_id, HEX);
+        // Debug_print((" Status code: "));
+        // Debug_print(status_code, HEX);
+
+        encode_status_reply_packet(devices[0]);
+      }
+      status = SendPacket((uint8_t *)packet_buffer);
+      //printf_P(PSTR("\r\nSent Packet Data\r\n") );
+      //print_packet ((uint8_t*) packet_buffer,packet_length());
+      fnLedManager.set(eLed::LED_BUS, false);
       break;
 
     /*case 0xC1:
@@ -1805,40 +1758,40 @@ void spDevice::spsd_loop() {
       // fnSystem.digital_write(statusledPin, DIGI_HIGH);
       source = packet_buffer[6];
       //Debug_println(source, HEX);
-      for (partition = 0; partition < NUM_PARTITIONS; partition++)
-      { //Check if its one of ours
-        if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source)
-        { //yes it is, then reply
-          //Added (unsigned short) cast to ensure calculated block is not underflowing.
-          status_code = (packet_buffer[21] & 0x7f);
-          Debug_print(("\r\nExtended Status CMD:"));
-          Debug_print(status_code, HEX);
-          print_packet((uint8_t *)packet_buffer, packet_length());
-          if (status_code == 0x03)
-          { // if statcode=3, then status with device info block
-            Debug_println(("Extended status DIB!"));
-          }
-          else
-          { // else just return device status
-            //Debug_print(("\r\nExtended status non-DIB! Part: "));
-            //Debug_print(partition, HEX);
-            //Debug_print((" code: "));
-            //Debug_print(status_code, HEX);
-            //delay(50);
-            encode_extended_status_reply_packet(devices[(partition + initPartition) % NUM_PARTITIONS]);
-          }
-          // todo - noInterrupts();
-          // todo - DDRD = 0x40; //set rd as output
-          status = SendPacket((uint8_t *)packet_buffer);
-          // todo - DDRD = 0x00; //set rd back to input so back to tristate
-          // todo - interrupts();
-          //printf_P(PSTR("\r\nSent Packet Data\r\n") );
-          //print_packet ((uint8_t*) packet_buffer,packet_length());
-          //Debug_print(("\r\nStatus CMD"));
-          //fnSystem.digital_write(statusledPin, DIGI_LOW);
-          fnLedManager.set(eLed::LED_BUS, false);
+      //for (partition = 0; partition < NUM_PARTITIONS; partition++)
+      //{ //Check if its one of ours
+      if (devices[0].device_id == source)
+      { //yes it is, then reply
+        //Added (unsigned short) cast to ensure calculated block is not underflowing.
+        status_code = (packet_buffer[21] & 0x7f);
+        Debug_print(("\r\nExtended Status CMD:"));
+        Debug_print(status_code, HEX);
+        print_packet((uint8_t *)packet_buffer, packet_length());
+        if (status_code == 0x03)
+        { // if statcode=3, then status with device info block
+          Debug_println(("Extended status DIB!"));
         }
-      }
+        else
+        { // else just return device status
+          //Debug_print(("\r\nExtended status non-DIB! Part: "));
+          //Debug_print(partition, HEX);
+          //Debug_print((" code: "));
+          //Debug_print(status_code, HEX);
+          //delay(50);
+          encode_extended_status_reply_packet(devices[0]);
+        }
+        // todo - noInterrupts();
+        // todo - DDRD = 0x40; //set rd as output
+        status = SendPacket((uint8_t *)packet_buffer);
+        // todo - DDRD = 0x00; //set rd back to input so back to tristate
+        // todo - interrupts();
+        //printf_P(PSTR("\r\nSent Packet Data\r\n") );
+        //print_packet ((uint8_t*) packet_buffer,packet_length());
+        //Debug_print(("\r\nStatus CMD"));
+        //fnSystem.digital_write(statusledPin, DIGI_LOW);
+        fnLedManager.set(eLed::LED_BUS, false);
+        }
+      //}
       //Debug_print(("\r\nHere's our reply!"));
       //print_packet ((uint8_t*) packet_buffer, packet_length());
       //*/
@@ -1855,7 +1808,7 @@ void spDevice::spsd_loop() {
             LBL = packet_buffer[19]; //block number middle
             LBN = packet_buffer[18]; //block number low
             for (partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
-              if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source) {  //yes it is, then do the read
+              if (devices[0].device_id == source) {  //yes it is, then do the read
                 // block num 1st byte
                 //Added (unsigned short) cast to ensure calculated block is not underflowing.
                 block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
@@ -1876,11 +1829,11 @@ void spDevice::spsd_loop() {
                 Debug_print(("Read Block: "));
                 Debug_print(block_num);
 
-                if (!devices[(partition + initPartition) % NUM_PARTITIONS].sdf.seekSet(block_num*512)){
+                if (!devices[0].sdf.seekSet(block_num*512)){
                   Debug_print(("\r\nRead err!"));
                 }
                 
-                sdstato = devices[(partition + initPartition) % NUM_PARTITIONS].sdf.read((uint8_t*) packet_buffer, 512);    //Reading block from SD Card
+                sdstato = devices[0].sdf.read((uint8_t*) packet_buffer, 512);    //Reading block from SD Card
                 if (!sdstato) {
                   Debug_print(("\r\nRead err!"));
                 }
@@ -1911,74 +1864,78 @@ void spDevice::spsd_loop() {
       LBT = packet_buffer[21]; //block number high
       LBL = packet_buffer[20]; //block number middle
       LBN = packet_buffer[19]; //block number low
-      for (partition = 0; partition < NUM_PARTITIONS; partition++)
-      { //Check if its one of ours
-        if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source)
-        { //yes it is, then do the read
-          // block num 1st byte
-          //Added (unsigned short) cast to ensure calculated block is not underflowing.
-          block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
-          // block num second byte
-          //print_packet ((uint8_t*) packet_buffer,packet_length());
-          //Added (unsigned short) cast to ensure calculated block is not underflowing.
-          block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
-          block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
-          //Debug_print(("\r\nRead block #0x"));
-          //Debug_print(block_num, HEX);
-          // partition number indicates which 32mb block we access on the CF
-          // block_num = block_num + (((partition + initPartition) % 4) * 65536);
+      //for (partition = 0; partition < NUM_PARTITIONS; partition++)
+      //{ //Check if its one of ours
+      if (devices[0].device_id == source)
+      { //yes it is, then do the read
+        // block num 1st byte
+        //Added (unsigned short) cast to ensure calculated block is not underflowing.
+        block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
+        // block num second byte
+        //print_packet ((uint8_t*) packet_buffer,packet_length());
+        //Added (unsigned short) cast to ensure calculated block is not underflowing.
+        block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
+        block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
+        //Debug_print(("\r\nRead block #0x"));
+        //Debug_print(block_num, HEX);
+        // partition number indicates which 32mb block we access on the CF
+        // block_num = block_num + (((partition + initPartition) % 4) * 65536);
 
-          fnLedManager.set(eLed::LED_BUS, true);
-          //fnSystem.digital_write(statusledPin, DIGI_HIGH);
-          /*Debug_print(("\r\nID: "));
-                Debug_print(source);
-                Debug_print(("Read Block: "));
-                Debug_print(block_num);*/
-
-          /* todo - restore file i/o
-                if (!devices[(partition + initPartition) % NUM_PARTITIONS].sdf.seekSet(block_num*512)){
-                  Debug_print(("\r\nRead seek err!"));
-                  Debug_print(("\r\nPartition #"));
-                  Debug_print((partition + initPartition) % NUM_PARTITIONS);
-                  Debug_print((" block #"));
-                  Debug_print(block_num);
-                  if(devices[(partition + initPartition) % NUM_PARTITIONS].sdf.isOpen()){
-                    Debug_print(("\r\nPartition file is open!"));
-                  }else{
-                    Debug_print(("\r\nPartition file is closed!"));
-                  }
-                } 
-                */
-
-          /* todo - restore block reading
-                sdstato = devices[(partition + initPartition) % NUM_PARTITIONS].sdf.read((uint8_t*) packet_buffer, 512);    //Reading block from SD Card
-                if (!sdstato) {
-                  Debug_print(("\r\nRead err!"));
-                } 
-                */
-          encode_data_packet(source);
-          //Debug_print(("\r\nPrepared data packet before Sending\r\n") );
-          // todo - noInterrupts();
-          // todo -DDRD = 0x40; //set rd as output
-          status = SendPacket((uint8_t *)packet_buffer);
-          // todo -DDRD = 0x00; //set rd back to input so back to tristate
-          // todo - interrupts();
-          //if (status == 1)Debug_print(("\r\nSent err."));
-          //fnSystem.digital_write(statusledPin, DIGI_LOW);
-          fnLedManager.set(eLed::LED_BUS, false);
-
-          //Debug_print(status);
-          //print_packet ((uint8_t*) packet_buffer,packet_length());
-          //print_packet ((uint8_t*) sector_buffer,15);
+        fnLedManager.set(eLed::LED_BUS, true);
+        //fnSystem.digital_write(statusledPin, DIGI_HIGH);
+        /*
+        Debug_print(("\r\nID: "));
+        Debug_print(source);
+        Debug_print(("Read Block: "));
+        Debug_print(block_num);
+        */
+       ;
+        if (!fseek(devices[0].sdf,block_num*512, SEEK_SET))
+        {
+          Debug_print(("\r\nRead seek err!"));
+          Debug_print(("\r\nPartition #"));
+          Debug_print((0);
+          Debug_print((" block #"));
+          Debug_print(block_num);
+          if(devices[0].sdf! = nullptr)
+          {
+            Debug_printf(("\r\nPartition file is open!"));
+          }
+          else
+          {
+            Debug_printf(("\r\nPartition file is closed!"));
+          }
         }
-      }
+
+        sdstato = fread((uint8_t*) packet_buffer, 1, 512, devices[0].sdf);    //Reading block from SD Card
+        if (sdstato != 512)
+        {
+          Debug_printf(("\r\nRead err!"));
+        } 
+        
+        encode_data_packet(source);
+        //Debug_print(("\r\nPrepared data packet before Sending\r\n") );
+        // todo - noInterrupts();
+        // todo -DDRD = 0x40; //set rd as output
+        status = SendPacket((uint8_t *)packet_buffer);
+        // todo -DDRD = 0x00; //set rd back to input so back to tristate
+        // todo - interrupts();
+        //if (status == 1)Debug_print(("\r\nSent err."));
+        //fnSystem.digital_write(statusledPin, DIGI_LOW);
+        fnLedManager.set(eLed::LED_BUS, false);
+
+        //Debug_print(status);
+        //print_packet ((uint8_t*) packet_buffer,packet_length());
+        //print_packet ((uint8_t*) sector_buffer,15);
+        }
+      //}
       break;
 
     case 0x82: //is a writeblock cmd
       source = packet_buffer[6];
       for (partition = 0; partition < NUM_PARTITIONS; partition++)
       { //Check if its one of ours
-        if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source)
+        if (devices[0].device_id == source)
         { //yes it is, then do the write
           // block num 1st byte
           //Added (unsigned short) cast to ensure calculated block is not underflowing.
@@ -1993,34 +1950,32 @@ void spDevice::spsd_loop() {
             ;
           // todo - interrupts();
           //we need to handshake the packet
-          // old avr: PORTC &= ~(_BV(5));   //set ack low
-          fnSystem.digital_write(SP_ACK, DIGI_LOW);
-          // old avr: while (PIND & 0x04);   //wait for req to go low
-          while (fnSystem.digital_read(SP_REQ) == DIGI_HIGH)
-            ;
+          smartport_handshake();
           // partition number indicates which 32mb block we access on the CF
           // TODO: replace this with a lookup to get file object from partition number
           // block_num = block_num + (((partition + initPartition) % 4) * 65536);
           status = decode_data_packet();
-          /* todo - restore block writing
-                if (status == 0) { //ok
-                  //write block to CF card
-                  //Debug_print(("\r\nWrite Bl. n.r: "));
-                  //Debug_print(block_num);
-                  digitalWrite(statusledPin, HIGH);
-                  // TODO: add file object lookup
-                  if (!devices[(partition + initPartition) % NUM_PARTITIONS].sdf.seekSet(block_num*512)){
-                    Debug_print(("\r\nWrite seek err!"));
-                  }
-                  sdstato = devices[(partition + initPartition) % NUM_PARTITIONS].sdf.write((uint8_t*) packet_buffer, 512);   //Write block to SD Card
-                  if (!sdstato) {
-                    Debug_print(("\r\nWrite err!"));
-                    //Debug_print((" Block n.:"));
-                    //Debug_print(block_num);
-                    status = 6;
-                  }
-                } 
-                */
+          if (status == 0)
+          { //ok
+            //write block to CF card
+            //Debug_print(("\r\nWrite Bl. n.r: "));
+            //Debug_print(block_num);
+            //digitalWrite(statusledPin, HIGH);
+            fnLedManager.set(eLed::LED_BUS, true);
+            // TODO: add file object lookup
+            if (!fseek(devices[0].sdf,block_num*512U,SEEK_SET))
+            {
+              Debug_print(("\r\nWrite seek err!"));
+            }
+            sdstato = fwrite((uint8_t*) packet_buffer, 1, 512, devices[0].sdf);   //Write block to SD Card
+            if (sdstato != 512)
+            {
+              Debug_print(("\r\nWrite err!"));
+              //Debug_print((" Block n.:"));
+              //Debug_print(block_num);
+              status = 6;
+            }
+          }
           //now return status code to host
           encode_write_status_packet(source, status);
           // todo - noInterrupts();
@@ -2040,20 +1995,17 @@ void spDevice::spsd_loop() {
 
     case 0x83: //is a format cmd
       source = packet_buffer[6];
-      for (partition = 0; partition < NUM_PARTITIONS; partition++)
-      { //Check if its one of ours
-        if (devices[(partition + initPartition) % NUM_PARTITIONS].device_id == source)
+        if (devices[0].device_id == source)
         {                                         //yes it is, then reply to the format cmd
-          encode_init_reply_packet(source, 0x80); //just send back a successful response
-          // todo - noInterrupts();
-          // todo DDRD = 0x40; //set rd as output
-          status = SendPacket((uint8_t *)packet_buffer);
-          // todo - interrupts();
-          // todo DDRD = 0x00; //set rd back to input so back to tristate
-          //Debug_print(("\r\nFormattato!!!\r\n") );
-          //print_packet ((uint8_t*) packet_buffer,packet_length());
+      encode_init_reply_packet(source, 0x80);     //just send back a successful response
+      // todo - noInterrupts();
+      // todo DDRD = 0x40; //set rd as output
+      status = SendPacket((uint8_t *)packet_buffer);
+      // todo - interrupts();
+      // todo DDRD = 0x00; //set rd back to input so back to tristate
+      //Debug_print(("\r\nFormattato!!!\r\n") );
+      //print_packet ((uint8_t*) packet_buffer,packet_length());
         }
-      }
       break;
 
     case 0x85: //is an init cmd
@@ -2084,14 +2036,14 @@ void spDevice::spsd_loop() {
 
       //print_packet ((uint8_t*) packet_buffer,packet_length());
 
-      if (number_partitions_initialised - 1 == NUM_PARTITIONS)
-      {
-        for (partition = 0; partition < NUM_PARTITIONS; partition++)
-        {
-          Debug_print(("\r\nDrive: "));
-          Debug_print(devices[(partition + initPartition) % NUM_PARTITIONS].device_id, HEX);
-        }
-      }
+      // if (number_partitions_initialised - 1 == NUM_PARTITIONS)
+      // {
+      //   for (partition = 0; partition < NUM_PARTITIONS; partition++)
+      //   {
+      Debug_print(("\r\nDrive: "));
+      Debug_print(devices[0].device_id, HEX);
+      //   }
+      // }
       break;
     }
   }

@@ -62,7 +62,7 @@ public:
     bool writeable;
 };
 
-#define NUM_PARTITIONS 4
+#define NUM_PARTITIONS 1
 device devices[NUM_PARTITIONS];
 
 enum uiState{
