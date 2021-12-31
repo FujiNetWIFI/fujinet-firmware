@@ -27,7 +27,7 @@ private:
   int noid = 0;
   int count;
   int ui_command;
-  bool sdstato;
+  size_t sdstato;
   uint8_t source, status, status_code;
 
   bool reset_state = false;
