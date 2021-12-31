@@ -83,8 +83,6 @@ void adamNetwork::open()
 
     open_aux1 = cmdFrame.aux1;
     open_aux2 = cmdFrame.aux2;
-    open_aux2 |= trans_aux2;
-    cmdFrame.aux2 |= trans_aux2;
 
     // Shut down protocol if we are sending another open before we close.
     if (protocol != nullptr)
