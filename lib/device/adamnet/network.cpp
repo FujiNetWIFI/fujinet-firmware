@@ -148,50 +148,6 @@ void adamNetwork::close()
 }
 
 /**
- * ADAM Read command
- * Read # of bytes from the protocol adapter specified by the aux1/aux2 bytes, into the RX buffer. If we are short
- * fill the rest with nulls and return ERROR.
- *
- * @note It is the channel's responsibility to pad to required length.
- */
-void adamNetwork::read()
-{
-    uint16_t num_bytes = adamnet_recv_length();
-
-    if (receiveBuffer == nullptr)
-    {
-        err = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
-        AdamNet.start_time = esp_timer_get_time();
-        adamnet_response_nack();
-        return;
-    }
-    else if (protocol == nullptr)
-    {
-        err = NETWORK_ERROR_NOT_CONNECTED;
-        AdamNet.start_time = esp_timer_get_time();
-        adamnet_response_nack();
-        return;
-    }
-    else if (response_len == 0) // response buffer empty, do read, and nack (in case nothing is there).
-    {
-        read_channel(num_bytes);
-        memcpy(response, receiveBuffer->data(), num_bytes);
-        receiveBuffer->erase(0, num_bytes);
-        AdamNet.start_time = esp_timer_get_time();
-        adamnet_response_nack();
-    }
-    else
-    {
-        // We have data, ack.
-        AdamNet.start_time = esp_timer_get_time();
-        adamnet_response_ack();
-        // At this point, Adam should do a CLR to pick up the response.
-    }
-
-    Debug_printf("adamNetwork::read( %d bytes)\n", num_bytes);
-}
-
-/**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
  * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
@@ -220,19 +176,13 @@ bool adamNetwork::read_channel(unsigned short num_bytes)
  */
 void adamNetwork::write(uint16_t num_bytes)
 {
-    if (transmitBuffer == nullptr)
-    {
-        err = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
-        AdamNet.start_time = esp_timer_get_time();
-        adamnet_response_nack();
-        return;
-    }
-
     adamnet_recv_buffer(response, num_bytes);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
+
+    Debug_printf("%c\n",response[0]);
 
     *transmitBuffer += string((char *)response, num_bytes);
     err = adamnet_write_channel(num_bytes);
@@ -287,6 +237,7 @@ void adamNetwork::status()
     response[2] = s.connected;
     response[3] = s.error;
     response_len = 4;
+    receiveMode=STATUS;
 }
 
 /**
@@ -601,9 +552,7 @@ void adamNetwork::adamnet_response_status()
 
 void adamNetwork::adamnet_control_ack()
 {
-    // assume ack is for the CLR, clear the response buffer
-    response_len = 0;
-    memset(response, 0x00, sizeof(response));
+
 }
 
 void adamNetwork::adamnet_control_send()
@@ -621,11 +570,11 @@ void adamNetwork::adamnet_control_send()
     case 'C':
         close();
         break;
-    case 'R':
-        read();
-        break;
     case 'S':
         status();
+        break;
+    case 'W':
+        write(s);
         break;
     }
 }
@@ -634,18 +583,65 @@ void adamNetwork::adamnet_control_clr()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 300)
-        adamnet_response_send();
+    adamnet_response_send();
+}
+
+void adamNetwork::adamnet_control_receive_channel()
+{
+    NetworkStatus ns;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+        return; // Punch out.
+
+    if (response_len > 0)
+    {
+        adamnet_response_ack();
+        return;
+    }
+    
+    // Get status
+    protocol->status(&ns);
+
+    if (ns.rxBytesWaiting>0)
+        adamnet_response_ack();
+    else
+    {
+        adamnet_response_nack();
+        return;
+    }
+
+    // Truncate bytes waiting to response size
+    ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
+    response_len = ns.rxBytesWaiting;
+
+    if (protocol->read(response_len)) // protocol adapter returned error
+    {
+        statusByte.bits.client_error = true;
+        err = protocol->error;
+        return;
+    }
+    else // everything ok
+    {
+        statusByte.bits.client_error = 0;
+        statusByte.bits.client_data_available = response_len > 0;
+        memcpy(response,receiveBuffer->data(),response_len);
+        receiveBuffer->erase(0,response_len);
+    }
 }
 
 void adamNetwork::adamnet_control_receive()
 {
     AdamNet.start_time = esp_timer_get_time();
 
-    if (response_len == 0)
-        adamnet_response_nack();
-    else
-        adamnet_response_ack();
+    switch (receiveMode)
+    {
+    case CHANNEL:
+        adamnet_control_receive_channel();
+        break;
+    case STATUS:
+        break;
+    }
+
 }
 
 void adamNetwork::adamnet_response_send()
@@ -653,8 +649,12 @@ void adamNetwork::adamnet_response_send()
     uint8_t c = adamnet_checksum(response, response_len);
 
     adamnet_send(0xB0 | _devnum);
+    adamnet_send_length(response_len);
     adamnet_send_buffer(response, response_len);
     adamnet_send(c);
+
+    memset(response,0,response_len);
+    response_len = 0;
 }
 
 /**

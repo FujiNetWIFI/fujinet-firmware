@@ -60,15 +60,6 @@ public:
     virtual void close();
 
     /**
-     * ADAM Read command
-     * Read # of bytes from the protocol adapter specified by the aux1/aux2 bytes, into the RX buffer. If we are short
-     * fill the rest with nulls and return ERROR.
-     *
-     * @note It is the channel's responsibility to pad to required length.
-     */
-    virtual void read();
-
-    /**
      * ADAM Write command
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to ADAM. If protocol is unable to return requested
      * number of bytes, return ERROR.
@@ -93,6 +84,7 @@ public:
     virtual void adamnet_control_ack();
     virtual void adamnet_control_clr();
     virtual void adamnet_control_receive();
+    virtual void adamnet_control_receive_channel();
     virtual void adamnet_control_send();
 
     virtual void adamnet_response_status();
@@ -255,6 +247,15 @@ private:
         PROTOCOL,
         JSON
     } channelMode;
+
+    /**
+     * The current receive state, are we sending channel or status data?
+     */
+    enum _receive_mode
+    {
+        CHANNEL,
+        STATUS
+    } receiveMode = CHANNEL;
 
     /**
      * saved NetworkStatus items
