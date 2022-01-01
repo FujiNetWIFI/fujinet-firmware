@@ -59,6 +59,7 @@ public:
      */
     virtual void close();
 
+
     /**
      * ADAM Write command
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to ADAM. If protocol is unable to return requested
@@ -103,12 +104,12 @@ public:
     /**
      * @brief called to set login
      */
-    virtual void adamnet_set_login();
+    virtual void adamnet_set_login(uint16_t s);
 
     /**
      * @brief called to set password
      */
-    virtual void adamnet_set_password();
+    virtual void adamnet_set_password(uint16_t s);
 
     /**
      * Check to see if PROCEED needs to be asserted.
