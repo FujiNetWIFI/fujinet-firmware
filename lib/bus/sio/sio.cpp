@@ -150,7 +150,7 @@ void sioDevice::sio_high_speed()
 // Read and process a command frame from SIO
 void sioBus::_sio_process_cmd()
 {
-    if (_modemDev != nullptr && _modemDev->modemActive)
+    if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting SIO baud");
@@ -333,7 +333,7 @@ void sioBus::service()
         _sio_process_cmd();
     }
     // Go check if the modem needs to read data if it's active
-    else if (_modemDev != nullptr && _modemDev->modemActive)
+    else if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
         _modemDev->sio_handle_modem();
     }

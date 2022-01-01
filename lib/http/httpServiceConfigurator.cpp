@@ -198,6 +198,37 @@ void fnHttpServiceConfigurator::config_status_wait_enable(std::string status_wai
     // Save change
     Config.save();
 }
+
+void fnHttpServiceConfigurator::config_printer_enabled(std::string printer_enabled)
+{
+    Debug_printf("New Printer Enable Value: %s\n",printer_enabled.c_str());
+
+    // Store
+    Config.store_printer_enabled(atoi(printer_enabled.c_str()));
+    // Save
+    Config.save();
+}
+
+void fnHttpServiceConfigurator::config_modem_enabled(std::string modem_enabled)
+{
+    Debug_printf("New Modem Enable Value: %s\n",modem_enabled.c_str());
+
+    // Store
+    Config.store_modem_enabled(atoi(modem_enabled.c_str()));
+    // Save*
+    Config.save();
+}
+
+void fnHttpServiceConfigurator::config_modem_sniffer_enabled(std::string modem_sniffer_enabled)
+{
+    Debug_printf("New Modem Sniffer Enable Value: %s\n",modem_sniffer_enabled.c_str());
+
+    // Store
+    Config.store_modem_sniffer_enabled(atoi(modem_sniffer_enabled.c_str()));
+    // Save*
+    Config.save();
+}
+
 void fnHttpServiceConfigurator::config_boot_mode(std::string boot_mode)
 {
     Debug_printf("New CONFIG Boot Mode value: %s\n", boot_mode.c_str());
@@ -375,6 +406,18 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("boot_mode") == 0)
         {
             config_boot_mode(i->second);
+        }
+        else if (i->first.compare("printer_enabled") == 0)
+        {
+            config_printer_enabled(i->second);
+        }
+        else if (i->first.compare("modem_enabled") == 0)
+        {
+            config_modem_enabled(i->second);
+        }
+        else if (i->first.compare("modem_sniffer_enabled") == 0)
+        {
+            config_modem_sniffer_enabled(i->second);
         }
     }
 

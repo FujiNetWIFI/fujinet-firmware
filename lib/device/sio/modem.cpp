@@ -1799,72 +1799,77 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    Debug_println("sioModem::sio_process() called");
-
-    switch (cmdFrame.comnd)
+    if (!Config.get_modem_enabled())
+        Debug_println("sioModem::disabled, ignoring");
+    else
     {
-    case SIO_MODEMCMD_LOAD_RELOCATOR:
-        Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
-        sio_send_firmware(cmdFrame.comnd);
-        break;
+        Debug_println("sioModem::sio_process() called");
 
-    case SIO_MODEMCMD_LOAD_HANDLER:
-        Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
-        sio_send_firmware(cmdFrame.comnd);
-        break;
-
-    case SIO_MODEMCMD_TYPE1_POLL:
-        Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
-        // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
-        if (cmdFrame.aux1 == 1 || count_PollType1 == 16)
+        switch (cmdFrame.comnd)
         {
-            sio_poll_1();
-            count_PollType1 = 0; // Reset the counter so we can respond again if asked
+        case SIO_MODEMCMD_LOAD_RELOCATOR:
+            Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
+            sio_send_firmware(cmdFrame.comnd);
+            break;
+
+        case SIO_MODEMCMD_LOAD_HANDLER:
+            Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
+            sio_send_firmware(cmdFrame.comnd);
+            break;
+
+        case SIO_MODEMCMD_TYPE1_POLL:
+            Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
+            // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
+            if (cmdFrame.aux1 == 1 || count_PollType1 == 16)
+            {
+                sio_poll_1();
+                count_PollType1 = 0; // Reset the counter so we can respond again if asked
+            }
+            break;
+
+        case SIO_MODEMCMD_TYPE3_POLL:
+            sio_poll_3(cmdFrame.device, cmdFrame.aux1, cmdFrame.aux2);
+            break;
+
+        case SIO_MODEMCMD_CONTROL:
+            sio_ack();
+            sio_control();
+            break;
+        case SIO_MODEMCMD_CONFIGURE:
+            sio_ack();
+            sio_config();
+            break;
+        case SIO_MODEMCMD_SET_DUMP:
+            sio_ack();
+            sio_set_dump();
+            break;
+        case SIO_MODEMCMD_LISTEN:
+            sio_listen();
+            break;
+        case SIO_MODEMCMD_UNLISTEN:
+            sio_unlisten();
+            break;
+        case SIO_MODEMCMD_BAUDLOCK:
+            sio_baudlock();
+            break;
+        case SIO_MODEMCMD_AUTOANSWER:
+            sio_autoanswer();
+            break;
+        case SIO_MODEMCMD_STATUS:
+            sio_ack();
+            sio_status();
+            break;
+        case SIO_MODEMCMD_WRITE:
+            sio_ack();
+            sio_write();
+            break;
+        case SIO_MODEMCMD_STREAM:
+            sio_ack();
+            sio_stream();
+            break;
+        default:
+            sio_nak();
         }
-        break;
-
-    case SIO_MODEMCMD_TYPE3_POLL:
-        sio_poll_3(cmdFrame.device, cmdFrame.aux1, cmdFrame.aux2);
-        break;
-
-    case SIO_MODEMCMD_CONTROL:
-        sio_ack();
-        sio_control();
-        break;
-    case SIO_MODEMCMD_CONFIGURE:
-        sio_ack();
-        sio_config();
-        break;
-    case SIO_MODEMCMD_SET_DUMP:
-        sio_ack();
-        sio_set_dump();
-        break;
-    case SIO_MODEMCMD_LISTEN:
-        sio_listen();
-        break;
-    case SIO_MODEMCMD_UNLISTEN:
-        sio_unlisten();
-        break;
-    case SIO_MODEMCMD_BAUDLOCK:
-        sio_baudlock();
-        break;
-    case SIO_MODEMCMD_AUTOANSWER:
-        sio_autoanswer();
-        break;
-    case SIO_MODEMCMD_STATUS:
-        sio_ack();
-        sio_status();
-        break;
-    case SIO_MODEMCMD_WRITE:
-        sio_ack();
-        sio_write();
-        break;
-    case SIO_MODEMCMD_STREAM:
-        sio_ack();
-        sio_stream();
-        break;
-    default:
-        sio_nak();
     }
 }
 
