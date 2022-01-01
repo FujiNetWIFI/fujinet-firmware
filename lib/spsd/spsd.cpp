@@ -284,11 +284,36 @@ bool spDevice::smartport_phase_val(int p)
   return false;
 }
 
+spDevice::phasestate_t spDevice::smartport_phases()
+{ 
+  phasestate_t phases = phasestate_t::idle;
+  // phase lines for smartport bus reset
+  // ph3=0 ph2=1 ph1=0 ph0=1
+  // phase lines for smartport bus enable
+  // ph3=1 ph2=x ph1=1 ph0=x
+  if (smartport_phase_val(1) && smartport_phase_val(3))
+    phases = phasestate_t::enable;
+  else if (smartport_phase_val(0) && smartport_phase_val(2) && !smartport_phase_val(1) && !smartport_phase_val(3))
+    phases = phasestate_t::reset;
+
+  return phases;
+}
+
 //------------------------------------------------------
 
 
 int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
 {
+  //*****************************************************************************
+  // Function: ReceivePacket
+  // Parameters: packet_buffer pointer
+  // Returns: status (1 = timeout, 0 = OK)
+  //
+  // Description: This handles the ACK and REQ lines and reads a packet into the
+  // packet_buffer
+  //
+  //*****************************************************************************
+  
   bool have_data = true;
   int idx = 0;             // index into *a
   bool bit = 0;        // logical bit value
@@ -297,15 +322,6 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
   uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
   int numbits;             // number of bits left to read into the rxbyte
 
-  //*****************************************************************************
-  // Function: ReceivePacket
-  // Parameters: packet_buffer pointer
-  // Returns: status (not used yet, always returns 0)
-  //
-  // Description: This handles the ACK and REQ lines and reads a packet into the
-  // packet_buffer
-  //
-  //*****************************************************************************
   /**
  * @brief Handle ACK and REQ lines and read a packet into packet_buffer
  * 
@@ -484,7 +500,7 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
   // setup a timeout counter to wait for REQ response
   hw_timer_latch();        // latch highspeed timer value
   hw_timer_read();      //  grab timer low word
-  hw_timer_alarm_set(100); // 1 millisecond
+  hw_timer_alarm_set(10000); // 1 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
   while ( !smartport_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -1543,29 +1559,28 @@ void spDevice::spsd_setup() {
 //*****************************************************************************
 void spDevice::spsd_loop() 
 {
-
-  state = uiState::smartport;
-
-  // todo if (digitalRead(ejectPin) == HIGH) rotate_boot();
-  // this should be handled with the button queue like the Atari version  
-
-  // todo: why are these in the loop and not in the setup?
-  noid = 0;  //reset noid flag
-
  
   // read phase lines to check for smartport reset or enable
-  // phase lines for smartport bus reset
-  // ph3=0 ph2=1 ph1=0 ph0=1
-  // phase lines for smartport bus enable
-  // ph3=1 ph2=x ph1=1 ph0=x
-  if (smartport_phase_val(1) && smartport_phase_val(3))
-    phases = phasestate::enable;
-  else if (smartport_phase_val(0) && smartport_phase_val(2) && !smartport_phase_val(1) && !smartport_phase_val(3))
-    phases = phasestate::reset;
-  else
-    phases = phasestate::idle;
+  phases = smartport_phases();
+#ifdef DEBUG
+  if (phases != oldphase)
+  {
+    switch (phases)
+    {
+    case phasestate_t::idle:
+      Debug_println("idle");
+      break;
+    case phasestate_t::reset:
+      Debug_println("reset");
+      break;
+    case phasestate_t::enable:
+      Debug_println("enable");
+    }
+    oldphase=phases;
+  }
+#endif
 
-  if (reset_state && (phases != phasestate::reset))
+  if (reset_state && (phases != phasestate_t::reset))
   {
     Debug_print(("Reset Cleared\r\n"));
     number_partitions_initialised = 1;                           //reset number of partitions init'd
@@ -1582,21 +1597,31 @@ void spDevice::spsd_loop()
 //     oldphase = phases;
 //   }
 // #endif
-
   switch (phases)
   {
-  case phasestate::idle:
+  case phasestate_t::idle:
+#ifdef VERBOSE
+    Debug_println("Idle Case");
+    fnSystem.delay(100);
+#endif
     break;
-  case phasestate::reset:
+  case phasestate_t::reset:
+#ifdef VERBOSE
+    Debug_println("Reset Case");
+    fnSystem.delay(100);
+#endif
     if (!reset_state)
       Debug_printf(("\r\nReset\r\n"));
     reset_state = true;
     break;
-  case phasestate::enable:
-    if ((status = ReceivePacket((uint8_t *)packet_buffer)))
-    {
+  case phasestate_t::enable:
+#ifdef VERBOSE
+    Debug_println("Enable Case");
+    fnSystem.delay(100);
+#endif
+    if (ReceivePacket((uint8_t *)packet_buffer))
       break; //error timeout, break and loop again
-    }
+
     // lets check if the pkt is for us
     Debug_printf("\r\nCMD: %02x", packet_buffer[14]);
     if (packet_buffer[14] != 0x85) // if its an init pkt, then assume its for us and continue on
@@ -1651,14 +1676,15 @@ void spDevice::spsd_loop()
           break;
         }
         break; //not one of ours
-      }
     }
-      //else it is ours, we need to handshake the packet
+  
+    //else it is ours, we need to handshake the packet
     smartport_handshake();
+    fnSystem.delay(100);
     //Not safe to assume it's a normal command packet, GSOS may throw
     //us several extended packets here and then crash
     //Refuse an extended packet
-    source = packet_buffer[6];
+    source = packet_buffer[6]; // why called "source" this is the destination packet
     //Check if its one of ours and an extended packet
     //Debug_println(packet_buffer[8], HEX);
     //Debug_println(packet_buffer[14], HEX);
@@ -1685,10 +1711,10 @@ void spDevice::spsd_loop()
     //print_packet ((uint8_t*) packet_buffer,packet_length());
     if (packet_buffer[14] >= 0xC0)
     {
-      Debug_printf(("\r\nExtended packet!"));
+      Debug_printf(("\r\nExtended packet! %02x"),packet_buffer[14]);
       // Debug_printf(("\r\nHere's our packet!"));
       // print_packet ((uint8_t*) packet_buffer, packet_length());
-      // delay(50);
+      fnSystem.delay(50);
     }
 
     switch (packet_buffer[14])
@@ -1932,7 +1958,7 @@ void spDevice::spsd_loop()
           //get write data packet, keep trying until no timeout
           // todo - noInterrupts();
           // todo -DDRC = 0xFF;   //set ack to output, sp bus is enabled
-          while ((status = ReceivePacket((uint8_t *)packet_buffer)))
+          while (ReceivePacket((uint8_t *)packet_buffer))
             ;
           // todo - interrupts();
           //we need to handshake the packet
@@ -2016,6 +2042,7 @@ void spDevice::spsd_loop()
 
       // todo - noInterrupts();
       // todo DDRD = 0x40; //set rd as output
+      Debug_printf("\r\nSending INIT Response Packet...");
       status = SendPacket((uint8_t *)packet_buffer);
       // todo DDRD = 0x00; //set rd back to input so back to tristate
       // todo - interrupts();
@@ -2032,8 +2059,8 @@ void spDevice::spsd_loop()
       // }
       break;
     }
+    }
   }
-  //}
 }
 
 void spDevice::timer_1us_example()

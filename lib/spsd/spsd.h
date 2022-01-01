@@ -12,13 +12,15 @@ class spDevice
 private:
 
   bool phi[4];
-  enum class phasestate {
+  enum class phasestate_t {
     idle = 0,
     reset,
     enable
   };
-  // phasestate oldphase = idle; // can use for debug printing of phase changes
-  phasestate phases;
+#ifdef DEBUG  
+  phasestate_t oldphase = phasestate_t::reset; // can use for debug printing of phase changes
+#endif 
+  phasestate_t phases;
 
   unsigned long int block_num;
   uint8_t LBH, LBL, LBN, LBT, LBX;
@@ -95,7 +97,10 @@ void smartport_extra_set();
 void smartport_extra_clr();
 int smartport_handshake();
 
+
 bool smartport_phase_val(int p);
+phasestate_t smartport_phases();
+
 
 int ReceivePacket(uint8_t *a);
 int SendPacket(uint8_t *a);
