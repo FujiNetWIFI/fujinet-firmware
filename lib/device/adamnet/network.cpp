@@ -180,7 +180,7 @@ void adamNetwork::write(uint16_t num_bytes)
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    Debug_printf("%c\n",response[0]);
+    Debug_printf("%c\n", response[0]);
 
     *transmitBuffer += string((char *)response, num_bytes);
     err = adamnet_write_channel(num_bytes);
@@ -235,7 +235,7 @@ void adamNetwork::status()
     response[2] = s.connected;
     response[3] = s.error;
     response_len = 4;
-    receiveMode=STATUS;
+    receiveMode = STATUS;
 }
 
 /**
@@ -317,31 +317,37 @@ void adamNetwork::adamnet_set_prefix()
 /**
  * Set login
  */
-void adamNetwork::adamnet_set_login()
+void adamNetwork::adamnet_set_login(uint16_t s)
 {
-    // uint8_t loginSpec[256];
+    uint8_t loginspec[256];
 
-    // memset(loginSpec,0,sizeof(loginSpec));
-    // bus_to_peripheral(loginSpec,sizeof(loginSpec));
-    // util_clean_devicespec(loginSpec,sizeof(loginSpec));
+    memset(loginspec,0,sizeof(loginspec));
 
-    // login = string((char *)loginSpec);
-    // adamnet_complete();
+    adamnet_recv_buffer(loginspec, s);
+    adamnet_recv(); // ck
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    login = string((char *)loginspec,s);
 }
 
 /**
  * Set password
  */
-void adamNetwork::adamnet_set_password()
+void adamNetwork::adamnet_set_password(uint16_t s)
 {
-    // uint8_t passwordSpec[256];
+    uint8_t passwordspec[256];
 
-    // memset(passwordSpec,0,sizeof(passwordSpec));
-    // bus_to_peripheral(passwordSpec,sizeof(passwordSpec));
-    // util_clean_devicespec(passwordSpec,sizeof(passwordSpec));
+    memset(passwordspec,0,sizeof(passwordspec));
 
-    // password = string((char *)passwordSpec);
-    // adamnet_complete();
+    adamnet_recv_buffer(passwordspec, s);
+    adamnet_recv(); // ck
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    password = string((char *)passwordspec,s);
 }
 
 /**
@@ -550,7 +556,6 @@ void adamNetwork::adamnet_response_status()
 
 void adamNetwork::adamnet_control_ack()
 {
-
 }
 
 void adamNetwork::adamnet_control_send()
@@ -574,6 +579,12 @@ void adamNetwork::adamnet_control_send()
     case 'W':
         write(s);
         break;
+    case 0xFD: // login
+        adamnet_set_login(s);
+        break;
+    case 0xFE: // password
+        adamnet_set_password(s);
+        break;
     }
 }
 
@@ -596,11 +607,11 @@ void adamNetwork::adamnet_control_receive_channel()
         adamnet_response_ack();
         return;
     }
-    
+
     // Get status
     protocol->status(&ns);
 
-    if (ns.rxBytesWaiting>0)
+    if (ns.rxBytesWaiting > 0)
         adamnet_response_ack();
     else
     {
@@ -622,8 +633,8 @@ void adamNetwork::adamnet_control_receive_channel()
     {
         statusByte.bits.client_error = 0;
         statusByte.bits.client_data_available = response_len > 0;
-        memcpy(response,receiveBuffer->data(),response_len);
-        receiveBuffer->erase(0,response_len);
+        memcpy(response, receiveBuffer->data(), response_len);
+        receiveBuffer->erase(0, response_len);
     }
 }
 
@@ -639,7 +650,6 @@ void adamNetwork::adamnet_control_receive()
     case STATUS:
         break;
     }
-
 }
 
 void adamNetwork::adamnet_response_send()
@@ -651,7 +661,7 @@ void adamNetwork::adamnet_response_send()
     adamnet_send_buffer(response, response_len);
     adamnet_send(c);
 
-    memset(response,0,response_len);
+    memset(response, 0, response_len);
     response_len = 0;
 }
 
