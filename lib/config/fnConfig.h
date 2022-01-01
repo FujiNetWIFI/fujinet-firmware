@@ -116,11 +116,15 @@ public:
     // PRINTERS
     PRINTER_CLASS::printer_type get_printer_type(uint8_t num);
     int get_printer_port(uint8_t num);
+    void store_printer_enabled(bool printer_enabled);
+    bool get_printer_enabled() { return _general.printer_enabled; };
     void store_printer_type(uint8_t num, PRINTER_CLASS::printer_type ptype);
     void store_printer_port(uint8_t num, int port);
 
     // MODEM
-    void store_modem_sniffer_enabled(bool enabled);
+    void store_modem_enabled(bool modem_enabled);
+    bool get_modem_enabled() { return _modem.modem_enabled; };
+    void store_modem_sniffer_enabled(bool modem_sniffer_enabled);
     bool get_modem_sniffer_enabled() { return _modem.sniffer_enabled; }
 
     // CASSETTE
@@ -240,10 +244,12 @@ private:
         int boot_mode = 0;
         bool fnconfig_spifs = true;
         bool status_wait_enabled = true;
+        bool printer_enabled = true;
     };
 
     struct modem_info
     {
+        bool modem_enabled = true;
         bool sniffer_enabled = false;
     };
 

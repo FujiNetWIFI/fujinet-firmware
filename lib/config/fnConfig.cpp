@@ -398,6 +398,16 @@ int fnConfig::get_printer_port(uint8_t num)
         return 0;
 }
 
+// Saves ENABLE or DISABLE printer
+void fnConfig::store_printer_enabled(bool printer_enabled)
+{
+    if (_general.printer_enabled == printer_enabled)
+        return;
+
+    _general.printer_enabled = printer_enabled;
+    _dirty = true;
+}
+
 // Saves printer type stored in configuration for printer slot
 void fnConfig::store_printer_type(uint8_t num, PRINTER_CLASS::printer_type ptype)
 {
@@ -426,12 +436,23 @@ void fnConfig::store_printer_port(uint8_t num, int port)
     }
 }
 
-void fnConfig::store_modem_sniffer_enabled(bool _enabled)
+// Saves ENABLE or DISABLE Modem
+void fnConfig::store_modem_enabled(bool modem_enabled)
 {
-    if (_modem.sniffer_enabled == _enabled)
+    if (_modem.modem_enabled == modem_enabled)
         return;
 
-    _modem.sniffer_enabled = _enabled;
+    _modem.modem_enabled = modem_enabled;
+    _dirty = true;
+}
+
+// Saves ENABLE or DISABLE Modem Sniffer
+void fnConfig::store_modem_sniffer_enabled(bool modem_sniffer_enabled)
+{
+    if (_modem.sniffer_enabled == modem_sniffer_enabled)
+        return;
+
+    _modem.sniffer_enabled = modem_sniffer_enabled;
     _dirty = true;
 }
 
@@ -492,6 +513,7 @@ void fnConfig::save()
         ss << "timezone=" << _general.timezone << LINETERM;
     ss << "fnconfig_on_spifs=" << _general.fnconfig_spifs << LINETERM;
     ss << "status_wait_enabled=" << _general.status_wait_enabled << LINETERM;
+    ss << "printer_enabled=" << _general.printer_enabled << LINETERM;
 
     ss << LINETERM;
 
@@ -560,6 +582,7 @@ void fnConfig::save()
 
     // MODEM
     ss << LINETERM << "[Modem]" << LINETERM;
+    ss << "modem_enabled=" << _modem.modem_enabled << LINETERM;
     ss << "sniffer_enabled=" << _modem.sniffer_enabled << LINETERM;
 
     //PHONEBOOK
@@ -850,6 +873,10 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             {
                 _general.status_wait_enabled = util_string_value_is_true(value);
             }
+            else if (strcasecmp(name.c_str(), "printer_enabled") == 0)
+            {
+                _general.printer_enabled = util_string_value_is_true(value);
+            }
         }
     }
 }
@@ -1071,7 +1098,11 @@ void fnConfig::_read_section_modem(std::stringstream &ss)
         std::string value;
         if (_split_name_value(line, name, value))
         {
-            if (strcasecmp(name.c_str(), "sniffer_enabled") == 0)
+            if (strcasecmp(name.c_str(), "modem_enabled") == 0)
+            {
+                _modem.modem_enabled = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "sniffer_enabled") == 0)
             {
                 _modem.sniffer_enabled = util_string_value_is_true(value);
             }
@@ -1226,6 +1257,10 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                 }
                 //Debug_printf("Found Phonebook Entry %d\n", index);
                 return SECTION_PHONEBOOK;
+            }
+            else if (strncasecmp("Modem", s1.c_str(), 8) == 0)
+            {
+                return SECTION_MODEM;
             }
         }
     }

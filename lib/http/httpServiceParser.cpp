@@ -73,6 +73,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_CONFIG_ENABLED,
         FN_STATUS_WAIT_ENABLED,
         FN_BOOT_MODE,
+        FN_PRINTER_ENABLED,
+        FN_MODEM_ENABLED,
+        FN_MODEM_SNIFFER_ENABLED,
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
         FN_DRIVE3HOST,
@@ -154,6 +157,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_CONFIG_ENABLED",
         "FN_STATUS_WAIT_ENABLED",
         "FN_BOOT_MODE",
+        "FN_PRINTER_ENABLED",
+        "FN_MODEM_ENABLED",
+        "FN_MODEM_SNIFFER_ENABLED",
         "FN_DRIVE1HOST",
         "FN_DRIVE2HOST",
         "FN_DRIVE3HOST",
@@ -352,6 +358,15 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_BOOT_MODE:
         resultstream << Config.get_general_boot_mode();
+        break;
+    case FN_PRINTER_ENABLED:
+        resultstream << Config.get_printer_enabled();
+        break;
+    case FN_MODEM_ENABLED:
+        resultstream << Config.get_modem_enabled();
+        break;
+    case FN_MODEM_SNIFFER_ENABLED:
+        resultstream << Config.get_modem_sniffer_enabled();
         break;
     case FN_DRIVE1HOST:
     case FN_DRIVE2HOST:

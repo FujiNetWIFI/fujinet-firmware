@@ -19,6 +19,9 @@ function selectListValue(selectName, currentValue) {
 	}
 }
 
+selectListValue("select_printer_enabled", current_printer_enabled);
+selectListValue("select_modem_enabled", current_modem_enabled);
+selectListValue("select_modem_sniffer_enabled", current_modem_sniffer_enabled);
 selectListValue("select_printermodel1", current_printer);
 selectListValue("select_printerport1", current_printerport);
 selectListValue("select_hsioindex", current_hsioindex);
