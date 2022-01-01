@@ -45,6 +45,9 @@ public:
   int partition;
   bool is_valid_image(FILE imageFile);
 
+  void handle_readblock();
+  void handle_init();
+
   //unsigned char packet_buffer[768];   //smartport packet buffer
   uint8_t packet_buffer[605]; //smartport packet buffer
   //unsigned char sector_buffer[512];   //ata sector data buffer
