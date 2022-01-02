@@ -9,6 +9,12 @@
 #include "../utils/utils.h"
 #include "../../include/debug.h"
 
+#ifdef BUILD_ATARI
+#include "modem-sniffer.h"
+#include "sio/modem.h"
+extern sioModem *sioR;
+#endif
+
 #define CONFIG_FILENAME "/fnconfig.ini"
 #define CONFIG_FILEBUFFSIZE 2048
 
@@ -449,6 +455,16 @@ void fnConfig::store_modem_enabled(bool modem_enabled)
 // Saves ENABLE or DISABLE Modem Sniffer
 void fnConfig::store_modem_sniffer_enabled(bool modem_sniffer_enabled)
 {
+    ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
+
+    if (modem_sniffer_enabled)
+    {
+        if (!modemSniffer->getEnable())
+            modemSniffer->setEnable(true);
+    }
+    else
+        modemSniffer->setEnable(false);
+
     if (_modem.sniffer_enabled == modem_sniffer_enabled)
         return;
 
@@ -1091,6 +1107,7 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
 void fnConfig::_read_section_modem(std::stringstream &ss)
 {
     std::string line;
+
     // Read lines until one starts with '[' which indicates a new section
     while (_read_line(ss, line, '[') >= 0)
     {
@@ -1099,13 +1116,9 @@ void fnConfig::_read_section_modem(std::stringstream &ss)
         if (_split_name_value(line, name, value))
         {
             if (strcasecmp(name.c_str(), "modem_enabled") == 0)
-            {
                 _modem.modem_enabled = util_string_value_is_true(value);
-            }
             else if (strcasecmp(name.c_str(), "sniffer_enabled") == 0)
-            {
                 _modem.sniffer_enabled = util_string_value_is_true(value);
-            }
         }
     }
 }
