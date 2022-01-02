@@ -226,6 +226,7 @@ void fn_service_loop(void *param)
     {
         // We don't have any delays in this loop, so IDLE threads will be starved
         // Shouldn't be a problem, but something to keep in mind...
+
         // Go service BT if it's active
     #ifdef BLUETOOTH_SUPPORT
         if (fnBtManager.isActive())
@@ -240,7 +241,7 @@ void fn_service_loop(void *param)
     #elif defined( BUILD_CBM )
         IEC.service();
     #endif
-
+        taskYIELD(); // Allow other tasks to run
     }
 }
 
