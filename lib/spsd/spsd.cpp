@@ -231,10 +231,11 @@ int spDevice::smartport_handshake()
 
   smartport_ack_clr();
   smartport_ack_enable();
+  smartport_rddata_disable();
 
   hw_timer_latch();
   hw_timer_read();
-  hw_timer_alarm_set(1000); // 1 millisecond
+  hw_timer_alarm_set(10000); // 1 millisecond
   do
   {
     hw_timer_latch();
@@ -280,7 +281,7 @@ bool spDevice::smartport_phase_val(int p)
   default: 
     break;
   }
-  Debug_println("phase number out of range");
+  Debug_printf("\r\nphase number out of range");
   return false;
 }
 
@@ -302,13 +303,13 @@ spDevice::phasestate_t spDevice::smartport_phases()
     switch (phases)
     {
     case phasestate_t::idle:
-      Debug_println("idle");
+      Debug_printf("\r\nidle");
       break;
     case phasestate_t::reset:
-      Debug_println("reset");
+      Debug_printf("\r\nreset");
       break;
     case phasestate_t::enable:
-      Debug_println("enable");
+      Debug_printf("\r\nenable");
     }
     oldphase=phases;
   }
@@ -366,6 +367,8 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
 
   hw_timer_reset();
 
+  smartport_ack_set();
+
   // setup a timeout counter to wait for REQ response
   hw_timer_latch();        // latch highspeed timer value
   hw_timer_read();      //  grab timer low word
@@ -394,6 +397,7 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
   Debug_print("R");
 #endif
 
+  portDISABLE_INTERRUPTS();
   // setup a timeout counter to wait for WRDATA to be ready response
   hw_timer_latch();                    // latch highspeed timer value
   hw_timer_read();    //  grab timer low word
@@ -412,7 +416,6 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
     }
   };
 
-  portDISABLE_INTERRUPTS();
   do // have_data
   {
     // beginning of the byte
@@ -454,7 +457,7 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
 
     } while(1);
     a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
-    hw_timer_alarm_snooze(16); // 16 usec? that's a 1/2 byte so maybe?
+    hw_timer_alarm_snooze(19); // 19 usec from smartportsd assy routine
 #ifdef VERBOSE
     Debug_printf("%02x", rxbyte);
 #endif
@@ -470,19 +473,16 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
         break;
       }
     } while (smartport_wrdata_val() == prev_level);
-  } while (have_data);//(have_data); // while have_data
+  } while (have_data); //(have_data); // while have_data
   //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
-  portENABLE_INTERRUPTS();
 
   // endpkt:   clr  r23
   a[idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
-  // todo: verify checksum, then only handshake if it's our packet.
-  // if debug then handshake, print, return
-  // else return handshake
-  //smartport_handshake();
   smartport_ack_clr();
-  smartport_ack_enable();
+  while (smartport_req_val())
+    ;
+  portENABLE_INTERRUPTS();
 #ifdef DEBUG
   Debug_printf("\r\n");
   for (int i = 0; i < idx; i++)
@@ -510,18 +510,14 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
 
   hw_timer_reset();
 
-// i don't think setting ACK to high is needed
-//   GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
-// #ifdef VERBOSE
-//   Debug_print("A");
-// #endif
+  smartport_ack_enable();
 
 #ifndef TESTTX
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
   // setup a timeout counter to wait for REQ response
   hw_timer_latch();        // latch highspeed timer value
   hw_timer_read();      //  grab timer low word
-  hw_timer_alarm_set(10000); // 1 millisecond
+  hw_timer_alarm_set(10000); // 10 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
   while ( !smartport_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -531,7 +527,7 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
     if (t0 > tn)                      // test for timeout
     {
       // timeout!
-      Debug_println("SendPacket timeout waiting for REQ");
+      Debug_printf("\r\nSendPacket timeout waiting for REQ");
       return 1;
     }
   };
@@ -583,11 +579,10 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
   } while (txbyte); //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
   portENABLE_INTERRUPTS();
 
-#ifndef TESTTX
-  return smartport_handshake();
-#else
-  return 0;
-#endif // TESTTX
+  smartport_ack_clr();
+  while (smartport_req_val());
+  
+return 0;
 }
 
 //*****************************************************************************
@@ -1441,7 +1436,7 @@ void spDevice::mcuInit(void)
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_HIGH);
   //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
@@ -1453,7 +1448,7 @@ void spDevice::mcuInit(void)
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   // leave rd as input, pd6
-  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::PULL_DOWN );  
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  
 
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
 }
@@ -1487,16 +1482,16 @@ int spDevice::freeMemory() {
 
 // TODO: Allow image files with headers, too
 // TODO: Respect read-only bit in header
-bool spDevice::open_image( device &d, std::string filename ){
+bool spDevice::open_image( device &d, std::string filename )
+{
   // d.sdf = sdcard.open(filename, O_RDWR);
-  Debug_println("right before file open call");
-  d.sdf = fnSDFAT.file_open(filename.c_str());
+  Debug_printf("\r\nright before file open call");
+  d.sdf = fnSDFAT.file_open(filename.c_str(), "rb");
   Debug_printf(("\r\nTesting file "));
   // d.sdf.printName();
   if(d.sdf == nullptr) // .isOpen()||!d.sdf.isFile())
   {
-    Debug_printf(("\r\nFile must exist, be open and be a regular "));
-    Debug_print(("file before checking for valid image type!"));
+    Debug_printf(("\r\nFile must exist, be open and be a regular file before checking for valid image type!"));
     return false;
   }
 
@@ -1580,64 +1575,69 @@ void spDevice::spsd_setup() {
 //*****************************************************************************
 void spDevice::spsd_loop() 
 {
- 
-  // read phase lines to check for smartport reset or enable
-  phases = smartport_phases();
-
-  if (reset_state && (phases != phasestate_t::reset))
+  smartport_rddata_disable();
+  smartport_rddata_clr();
+  while (true)
   {
-    Debug_print(("Reset Cleared\r\n"));
-    number_partitions_initialised = 1;                           //reset number of partitions init'd
-    noid = 0;
-    // hard coding 1 partition - will use disk class instances  instead                                                    // to check if needed
-    devices[0].device_id = 0;
-    reset_state = false;
-  }
+    smartport_ack_disable();
+    // read phase lines to check for smartport reset or enable
+    phases = smartport_phases();
 
-  switch (phases)
-  {
-  case phasestate_t::idle:
-#ifdef VERBOSE
-    Debug_println("Idle Case");
-    fnSystem.delay(100);
-#endif
-    break;
-  case phasestate_t::reset:
-#ifdef VERBOSE
-    Debug_println("Reset Case");
-    fnSystem.delay(100);
-#endif
-    if (!reset_state)
-      Debug_printf(("\r\nReset\r\n"));
-    reset_state = true;
-    break;
-  case phasestate_t::enable:
-#ifdef VERBOSE
-    Debug_println("Enable Case");
-    fnSystem.delay(100);
-#endif
-    if (ReceivePacket((uint8_t *)packet_buffer))
-      break; //error timeout, break and loop again
-    // todo: for now we know the first packet is INIT after RESET so go ahead and handshake it
-    // todo: for now ack going low is in ReceivePacket
-    switch (packet_buffer[14])
+    switch (phases)
     {
-    case 0x81: // read block
-      Debug_println("handling read block command");
-      handle_readblock();
+    case phasestate_t::idle:
+#ifdef VERBOSE
+      Debug_printf("\r\nIdle Case");
+      fnSystem.delay(100);
+#endif
       break;
-    case 0x85: //is an init cmd
-      Debug_println("handling init command");
-      handle_init();
+    case phasestate_t::reset:
+#ifdef VERBOSE
+      Debug_printf("\r\nReset Case");
+      fnSystem.delay(100);
+#endif
+      Debug_printf(("\r\nReset"));
+      while (smartport_phases() == phasestate_t::reset)
+        ;
+        number_partitions_initialised = 1; //reset number of partitions init'd
+        noid = 0;
+        // hard coding 1 partition - will use disk class instances  instead                                                    // to check if needed
+        devices[0].device_id = 0;
+        Debug_printf(("\r\nReset Cleared"));
       break;
-    }
-  }
+    case phasestate_t::enable:
+#ifdef VERBOSE
+      Debug_printf("\r\nEnable Case");
+      fnSystem.delay(100);
+#endif
+      smartport_ack_enable();
+      if (ReceivePacket((uint8_t *)packet_buffer))
+        break; //error timeout, break and loop again
+      // todo: for now we know the first packet is INIT after RESET so go ahead and handshake it
+      // todo: for now ack going low is in ReceivePacket
+      smartport_ack_clr();
+      while(smartport_req_val())
+        ;
+
+      switch (packet_buffer[14])
+      {
+      case 0x81: // read block
+        Debug_printf("\r\nhandling read block command");
+        handle_readblock();
+        break;
+      case 0x85: //is an init cmd
+        Debug_printf("\r\nhandling init command");
+        handle_init();
+        break;
+      } // switch (cmd)
+    } // switch (phases)
+  } // while(true)
 }
 
 void spDevice::handle_readblock()
 {
-  smartport_rddata_enable();
-  smartport_rddata_clr();
+ 
+  //smartport_rddata_clr();
 
   source = packet_buffer[6];
   Debug_printf("\r\nDrive %02x", source);
@@ -1654,7 +1654,7 @@ void spDevice::handle_readblock()
   block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
   Debug_printf("\r\nRead block %02x",block_num);
 
-  if (!fseek(devices[0].sdf, (block_num * 512), SEEK_SET))
+  if (fseek(devices[0].sdf, (block_num * 512), SEEK_SET))
   {
     Debug_printf("\r\nRead seek err! block #%02x", block_num);
     if (devices[0].sdf != nullptr)
@@ -1665,16 +1665,21 @@ void spDevice::handle_readblock()
     {
       Debug_printf("\r\nPartition file is closed!");
     }
+    return;
   }
 
   sdstato = fread((unsigned char *)packet_buffer, 1, 512, devices[0].sdf); //Reading block from SD Card
   if (sdstato != 512)
   {
-    Debug_printf("\r\nRead err!");
+    Debug_printf("\r\nFile Read err: %d bytes", sdstato);
+    return;
   }
   encode_data_packet(source);
-  status = SendPacket((unsigned char *)packet_buffer);
-  smartport_rddata_disable();
+  Debug_printf("\r\nsending block packet ...");
+  //smartport_ack_set(); // todo: probably put ack req handshake inside of send and receive packet()
+   smartport_rddata_enable();
+   status = SendPacket((unsigned char *)packet_buffer);
+   smartport_rddata_disable();
 
   //Debug_printf(status);
   //print_packet ((unsigned char*) packet_buffer,packet_length());
@@ -1683,7 +1688,7 @@ void spDevice::handle_readblock()
 
 void spDevice::handle_init()
 {
-  smartport_rddata_enable();
+  smartport_rddata_enable(); // todo: instead, do we enable rddata and ack when phases==enable?
   smartport_rddata_clr();
 
   source = packet_buffer[6];
@@ -1703,15 +1708,14 @@ void spDevice::handle_init()
   encode_init_reply_packet(source, status);
   //print_packet ((uint8_t*) packet_buffer,packet_length());
   Debug_printf("\r\nSending INIT Response Packet...");
-  smartport_ack_set();
+  smartport_rddata_enable();
   status = SendPacket((uint8_t *)packet_buffer);
   // ack-req handshake is inside of sendpacket
   smartport_rddata_disable();
 
   //print_packet ((uint8_t*) packet_buffer,packet_length());
 
-  Debug_printf(("\r\nDrive: "));
-  Debug_print(devices[0].device_id, HEX);
+  Debug_printf(("\r\nDrive: %02x"),devices[0].device_id);
 }
 
 void spDevice::timer_1us_example()
@@ -1856,7 +1860,7 @@ C3 PBEGIN MARKS BEGINNING OF PACKET 32 micro Sec.
   uint8_t a[] {0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x00};
   while(1)
   {
-    Debug_println("sending packet now");
+    Debug_printf("\r\nsending packet now");
     smartport_rddata_enable();
     SendPacket(a);
     smartport_rddata_disable();
