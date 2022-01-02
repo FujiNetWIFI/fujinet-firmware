@@ -159,7 +159,7 @@ void main_setup()
 
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
-    sioR = new sioModem(ptrfs, false); // turned off by default.
+    sioR = new sioModem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
     
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
