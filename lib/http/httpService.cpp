@@ -610,80 +610,90 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 
     parse_query(req, &qp);
 
-    if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
+    // if request contains 'mountall=1' skip to mounting all disks
+    if ((qp.query_parsed.find("mountall") == qp.query_parsed.end()) && (qp.query_parsed["mode"] != "1"))
     {
-        fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
-    }
-
-    if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
-    {
-        fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
-    }
-
-    if (qp.query_parsed.find("mode") == qp.query_parsed.end())
-    {
-        fnHTTPD.addToErrMsg("<li>mode is empty</li>");
-    }
-
-    if (qp.query_parsed.find("filename") == qp.query_parsed.end())
-    {
-        fnHTTPD.addToErrMsg("<li>filename is empty</li>");
-    }
-
-    hs = atoi(qp.query_parsed["hostslot"].c_str());
-    ds = atoi(qp.query_parsed["deviceslot"].c_str());
-
-    if (hs > MAX_HOSTS)
-    {
-        fnHTTPD.addToErrMsg("<li>hostslot must be between 0 and 8</li>");
-    }
-
-    if (ds > MAX_DISK_DEVICES)
-    {
-        fnHTTPD.addToErrMsg("<li>deviceslot must be between 0 and 8</li>");
-    }
-
-    if ((qp.query_parsed["mode"] != "1") && (qp.query_parsed["mode"] != "2"))
-    {
-        fnHTTPD.addToErrMsg("<li>mode should be either 1 for read, or 2 for write.</li>");
-    }
-
-    if (qp.query_parsed["mode"] == "2")
-    {
-        flag[1] = '+';
-        mode = fnConfig::mount_modes::MOUNTMODE_WRITE;
-    }
-
-    if (theFuji.get_hosts(hs)->mount() == true)
-    {
-        fujiDisk *disk = theFuji.get_disks(ds);
-        fujiHost *host = theFuji.get_hosts(hs);
-
-        disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
-
-        if (disk->fileh == nullptr)
+        if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
         {
-            fnHTTPD.addToErrMsg("<li>Could not open file: " + qp.query_parsed["filename"] + "</li>");
+            fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
+        }
+
+        if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
+        {
+            fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
+        }
+
+        if (qp.query_parsed.find("mode") == qp.query_parsed.end())
+        {
+            fnHTTPD.addToErrMsg("<li>mode is empty</li>");
+        }
+
+        if (qp.query_parsed.find("filename") == qp.query_parsed.end())
+        {
+            fnHTTPD.addToErrMsg("<li>filename is empty</li>");
+        }
+
+        hs = atoi(qp.query_parsed["hostslot"].c_str());
+        ds = atoi(qp.query_parsed["deviceslot"].c_str());
+
+        if (hs > MAX_HOSTS)
+        {
+            fnHTTPD.addToErrMsg("<li>hostslot must be between 0 and 8</li>");
+        }
+
+        if (ds > MAX_DISK_DEVICES)
+        {
+            fnHTTPD.addToErrMsg("<li>deviceslot must be between 0 and 8</li>");
+        }
+
+        if ((qp.query_parsed["mode"] != "1") && (qp.query_parsed["mode"] != "2"))
+        {
+            fnHTTPD.addToErrMsg("<li>mode should be either 1 for read, or 2 for write.</li>");
+        }
+
+        if (qp.query_parsed["mode"] == "2")
+        {
+            flag[1] = '+';
+            mode = fnConfig::mount_modes::MOUNTMODE_WRITE;
+        }
+
+        if (theFuji.get_hosts(hs)->mount() == true)
+        {
+            fujiDisk *disk = theFuji.get_disks(ds);
+            fujiHost *host = theFuji.get_hosts(hs);
+
+            disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
+
+            if (disk->fileh == nullptr)
+            {
+                fnHTTPD.addToErrMsg("<li>Could not open file: " + qp.query_parsed["filename"] + "</li>");
+            }
+            else
+            {
+                // Make sure CONFIG boot is disabled.
+                theFuji.boot_config = false;
+#ifdef BUILD_ATARI
+                theFuji.status_wait_count = 0;
+#endif
+
+                disk->disk_size = host->file_size(disk->fileh);
+                disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
+                Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
+                Config.save();
+                theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
+                disk->disk_dev.device_active = true;
+            }
         }
         else
         {
-            // Make sure CONFIG boot is disabled.
-            theFuji.boot_config = false;
-#ifdef BUILD_ATARI
-            theFuji.status_wait_count = 0;
-#endif
-
-            disk->disk_size = host->file_size(disk->fileh);
-            disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
-            Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
-            Config.save();
-            theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
-            disk->disk_dev.device_active = true;
+            fnHTTPD.addToErrMsg("<li>Could not mount host slot " + qp.query_parsed["hostslot"] + "</li>");
         }
     }
     else
     {
-        fnHTTPD.addToErrMsg("<li>Could not mount host slot " + qp.query_parsed["hostslot"] + "</li>");
+        // Mount all the things
+        Debug_printf("Mount all slots from webui\n");
+        theFuji.sio_mount_all();
     }
 
     if (!fnHTTPD.errMsgEmpty())
