@@ -483,6 +483,7 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
   while (smartport_req_val())
     ;
   portENABLE_INTERRUPTS();
+
 #ifdef DEBUG
   Debug_printf("\r\n");
   for (int i = 0; i < idx; i++)
@@ -510,27 +511,28 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
 
   hw_timer_reset();
 
-  smartport_ack_enable();
+  smartport_ack_set();
 
 #ifndef TESTTX
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
   // setup a timeout counter to wait for REQ response
-  hw_timer_latch();        // latch highspeed timer value
-  hw_timer_read();      //  grab timer low word
-  hw_timer_alarm_set(10000); // 10 millisecond
+  // hw_timer_latch();        // latch highspeed timer value
+  // hw_timer_read();      //  grab timer low word
+  // hw_timer_alarm_set(10000); // 10 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
   while ( !smartport_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
-  {
-    hw_timer_latch();   // latch highspeed timer value
-    hw_timer_read(); // grab timer low word
-    if (t0 > tn)                      // test for timeout
-    {
-      // timeout!
-      Debug_printf("\r\nSendPacket timeout waiting for REQ");
-      return 1;
-    }
-  };
+  // {
+  //   hw_timer_latch();   // latch highspeed timer value
+  //   hw_timer_read(); // grab timer low word
+  //   if (t0 > tn)                      // test for timeout
+  //   {
+  //     // timeout!
+  //     Debug_printf("\r\nSendPacket timeout waiting for REQ");
+  //     return 1;
+  //   }
+  // };
+;
 
 #ifdef VERBOSE
   // REQ received!
@@ -1579,7 +1581,7 @@ void spDevice::spsd_loop()
   smartport_rddata_clr();
   while (true)
   {
-    smartport_ack_disable();
+    smartport_ack_set();
     // read phase lines to check for smartport reset or enable
     phases = smartport_phases();
 
