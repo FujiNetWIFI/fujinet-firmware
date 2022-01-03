@@ -243,7 +243,7 @@ void adamNetwork::status()
 /**
  * Get Prefix
  */
-void adamNetwork::adamnet_get_prefix()
+void adamNetwork::get_prefix()
 {
     adamnet_recv(); // CK
     
@@ -258,7 +258,7 @@ void adamNetwork::adamnet_get_prefix()
 /**
  * Set Prefix
  */
-void adamNetwork::adamnet_set_prefix(unsigned short s)
+void adamNetwork::set_prefix(unsigned short s)
 {
     uint8_t prefixSpec[256];
     string prefixSpec_str;
@@ -318,7 +318,7 @@ void adamNetwork::adamnet_set_prefix(unsigned short s)
 /**
  * Set login
  */
-void adamNetwork::adamnet_set_login(uint16_t s)
+void adamNetwork::set_login(uint16_t s)
 {
     uint8_t loginspec[256];
 
@@ -336,7 +336,7 @@ void adamNetwork::adamnet_set_login(uint16_t s)
 /**
  * Set password
  */
-void adamNetwork::adamnet_set_password(uint16_t s)
+void adamNetwork::set_password(uint16_t s)
 {
     uint8_t passwordspec[256];
 
@@ -568,12 +568,11 @@ void adamNetwork::adamnet_control_send()
 
     switch (c)
     {
-    case '!':
     case ',':
-        adamnet_set_prefix(s);
+        set_prefix(s);
         break;
     case '0':
-        adamnet_get_prefix();
+        get_prefix();
         break;
     case 'O':
         open();
@@ -588,10 +587,10 @@ void adamNetwork::adamnet_control_send()
         write(s);
         break;
     case 0xFD: // login
-        adamnet_set_login(s);
+        set_login(s);
         break;
     case 0xFE: // password
-        adamnet_set_password(s);
+        set_password(s);
         break;
     default:
         Debug_printf("adamnet_control_send() - Unknown Command: %02x\n",c);
@@ -600,8 +599,6 @@ void adamNetwork::adamnet_control_send()
 
 void adamNetwork::adamnet_control_clr()
 {
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
-
     adamnet_response_send();
 }
 

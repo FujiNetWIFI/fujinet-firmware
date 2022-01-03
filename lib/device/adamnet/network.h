@@ -94,22 +94,22 @@ public:
     /**
      * @brief Called to set prefix
      */
-    virtual void adamnet_set_prefix(unsigned short s);
+    virtual void set_prefix(unsigned short s);
 
     /**
      * @brief Called to get prefix
      */
-    virtual void adamnet_get_prefix();
+    virtual void get_prefix();
 
     /**
      * @brief called to set login
      */
-    virtual void adamnet_set_login(uint16_t s);
+    virtual void set_login(uint16_t s);
 
     /**
      * @brief called to set password
      */
-    virtual void adamnet_set_password(uint16_t s);
+    virtual void set_password(uint16_t s);
 
     /**
      * Check to see if PROCEED needs to be asserted.
