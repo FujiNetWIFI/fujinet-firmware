@@ -57,7 +57,7 @@
 adamFuji theFuji;        // global fuji device object
 adamNetwork *theNetwork; // global network device object (temporary)
 adamPrinter *thePrinter; // global printer
-adamSerial *theSerial; // global serial
+adamSerial *theSerial;   // global serial
 
 // sioDisk sioDiskDevs[MAX_HOSTS];
 // sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
@@ -447,7 +447,6 @@ void adamFuji::shutdown()
 {
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
-
 }
 
 char dirpath[256];
@@ -528,7 +527,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[10] = f->isDir ? FF_DIR : 0;
 
     maxlen -= ADDITIONAL_DETAILS_BYTES; // Adjust the max return value with the number of additional bytes we're copying
-    if (f->isDir) // Also subtract a byte for a terminating slash on directories
+    if (f->isDir)                       // Also subtract a byte for a terminating slash on directories
         maxlen--;
     if (strlen(f->filename) >= maxlen)
         dest[11] |= FF_TRUNC;
@@ -537,8 +536,8 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[12] = MediaType::discover_mediatype(f->filename);
 
     Debug_printf("Addtl: ");
-    for (int i=0;i<ADDITIONAL_DETAILS_BYTES;i++)
-        Debug_printf("%02x ",dest[i]);
+    for (int i = 0; i < ADDITIONAL_DETAILS_BYTES; i++)
+        Debug_printf("%02x ", dest[i]);
     Debug_printf("\n");
 }
 
@@ -585,7 +584,7 @@ void adamFuji::adamnet_read_directory_entry()
             // int filelen = strlcpy(filenamedest, f->filename, bufsize);
             if (maxlen < 128)
             {
-                filelen = util_ellipsize(f->filename, filenamedest, bufsize-1);
+                filelen = util_ellipsize(f->filename, filenamedest, bufsize - 1);
             }
             else
             {
@@ -617,7 +616,7 @@ void adamFuji::adamnet_read_directory_entry()
             else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
             {
                 dirpath[0] = 0x89;
-                dirpath[1] = 0x8a;            
+                dirpath[1] = 0x8a;
             }
             else if (strstr(dirpath, "/"))
             {
@@ -626,7 +625,6 @@ void adamFuji::adamnet_read_directory_entry()
             }
             else
                 dirpath[0] = dirpath[1] = 0x20;
-
         }
 
         memset(response, 0, sizeof(response));
@@ -638,7 +636,6 @@ void adamFuji::adamnet_read_directory_entry()
         AdamNet.start_time = esp_timer_get_time();
         adamnet_response_ack();
     }
-
 }
 
 void adamFuji::adamnet_get_directory_position()
@@ -665,7 +662,7 @@ void adamFuji::adamnet_set_directory_position()
 
     adamnet_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
 
-    Debug_printf("pos is now %u",pos);
+    Debug_printf("pos is now %u", pos);
 
     adamnet_recv(); // ck
 
@@ -725,21 +722,20 @@ void adamFuji::adamnet_get_adapter_config()
 
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
-
 }
 
 //  Make new disk and shove into device slot
 void adamFuji::adamnet_new_disk()
 {
     uint8_t hs = adamnet_recv();
-    uint8_t ds = adamnet_recv(); 
+    uint8_t ds = adamnet_recv();
     uint32_t numBlocks;
     uint32_t *l = &numBlocks;
     uint8_t *c = (uint8_t *)&numBlocks;
     uint8_t p[256];
 
-    adamnet_recv_buffer(c,sizeof(uint32_t));
-    adamnet_recv_buffer(p,256);
+    adamnet_recv_buffer(c, sizeof(uint32_t));
+    adamnet_recv_buffer(p, 256);
 
     adamnet_recv(); // CK
 
@@ -752,16 +748,16 @@ void adamFuji::adamnet_new_disk()
         adamnet_response_ack();
         return;
     }
-    
+
     disk.host_slot = hs;
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename,(const char *)p,256);
+    strlcpy(disk.filename, (const char *)p, 256);
 
-    disk.fileh = host.file_open(disk.filename,disk.filename,sizeof(disk.filename),"w");
+    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
 
-    Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n",disk.filename,hs,ds,numBlocks);
+    Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
-    disk.disk_dev.write_blank(disk.fileh,numBlocks);
+    disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
@@ -951,13 +947,14 @@ char f[MAX_FILENAME_LEN];
 void adamFuji::adamnet_set_device_filename(uint16_t s)
 {
     unsigned char ds = adamnet_recv();
-    s--; s--;
+    s--;
+    s--;
 
-    Debug_printf("SET DEVICE SLOT %d filename\n",ds);
+    Debug_printf("SET DEVICE SLOT %d filename\n", ds);
 
     adamnet_recv_buffer((uint8_t *)&f, s);
 
-    Debug_printf("filename: %s\n",f);
+    Debug_printf("filename: %s\n", f);
 
     adamnet_recv(); // CK
 
@@ -1003,7 +1000,7 @@ void adamFuji::insert_boot_device(uint8_t d)
 
     _bootDisk->is_config_device = true;
     _bootDisk->device_active = true;
-    Debug_printf("Media type is %d\n",_bootDisk->mediatype());
+    Debug_printf("Media type is %d\n", _bootDisk->mediatype());
 }
 
 void adamFuji::adamnet_enable_device()
@@ -1045,25 +1042,76 @@ void adamFuji::setup(adamNetBus *siobus)
     status_wait_enabled = false;
 
     _adamnet_bus->addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
-    _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK+1);
-    _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK+2);
-    _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK+3);
-   
+    _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
+    _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
+    _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
+
     FILE *f = fnSPIFFS.file_open("/autorun.ddp");
-    _fnDisks[0].disk_dev.mount(f,"/autorun.ddp",262144,MEDIATYPE_DDP);
+    _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
 
     theNetwork = new adamNetwork();
     theSerial = new adamSerial();
     _adamnet_bus->addDevice(theNetwork, 0x09); // temporary.
-    _adamnet_bus->addDevice(theSerial,0x0e); // Serial port
+    _adamnet_bus->addDevice(theSerial, 0x0e);  // Serial port
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 
     // Add our devices to the AdamNet bus
-    //for (int i = 0; i < 4; i++)
+    // for (int i = 0; i < 4; i++)
     //    _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
 
-    //for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    //    _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
+    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+    //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
+}
+
+// Mount all
+void adamFuji::sio_mount_all()
+{
+    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
+
+    for (int i = 0; i < 8; i++)
+    {
+        fujiDisk &disk = _fnDisks[i];
+        fujiHost &host = _fnHosts[disk.host_slot];
+        char flag[3] = {'r', 0, 0};
+
+        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            flag[1] = '+';
+
+        if (disk.host_slot != 0xFF)
+        {
+            nodisks = false; // We have a disk in a slot
+
+            if (host.mount() == false)
+            {
+                return;
+            }
+
+            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                         disk.filename, disk.host_slot, flag, i + 1);
+
+            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+            if (disk.fileh == nullptr)
+            {
+                return;
+            }
+
+            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+            boot_config = false;
+
+            // We need the file size for loading XEX files and for CASSETTE, so get that too
+            disk.disk_size = host.file_size(disk.fileh);
+
+            // And now mount it
+            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+        }
+    }
+
+    if (nodisks)
+    {
+        // No disks in a slot, disable config
+        boot_config = false;
+    }
 }
 
 adamDisk *adamFuji::bootdisk()
@@ -1189,7 +1237,6 @@ void adamFuji::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
-
 }
 
 int adamFuji::get_disk_id(int drive_slot)
