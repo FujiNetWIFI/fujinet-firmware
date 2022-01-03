@@ -245,15 +245,14 @@ void adamNetwork::status()
  */
 void adamNetwork::adamnet_get_prefix()
 {
-    // uint8_t prefixSpec[256];
-    // string prefixSpec_str;
+    adamnet_recv(); // CK
+    
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
 
-    // memset(prefixSpec, 0, sizeof(prefixSpec));
-    // memcpy(prefixSpec, prefix.data(), prefix.size());
-
-    // prefixSpec[prefix.size()] = 0x9B; // add EOL.
-
-    // bus_to_computer(prefixSpec, sizeof(prefixSpec), false);
+    Debug_printf("adamNetwork::adamnet_getprefix(%s)\n",prefix.c_str());
+    memcpy(response,prefix.data(),prefix.size());
+    response_len = prefix.size();
 }
 
 /**
@@ -269,6 +268,7 @@ void adamNetwork::adamnet_set_prefix(unsigned short s)
     adamnet_recv_buffer(prefixSpec,s);
     adamnet_recv(); // CK
 
+    AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     prefixSpec_str = string((const char *)prefixSpec);
@@ -568,8 +568,12 @@ void adamNetwork::adamnet_control_send()
 
     switch (c)
     {
+    case '!':
     case ',':
         adamnet_set_prefix(s);
+        break;
+    case '0':
+        adamnet_get_prefix();
         break;
     case 'O':
         open();
@@ -589,6 +593,8 @@ void adamNetwork::adamnet_control_send()
     case 0xFE: // password
         adamnet_set_password(s);
         break;
+    default:
+        Debug_printf("adamnet_control_send() - Unknown Command: %02x\n",c);
     }
 }
 
@@ -605,12 +611,6 @@ void adamNetwork::adamnet_control_receive_channel()
 
     if ((protocol == nullptr) || (receiveBuffer == nullptr))
         return; // Punch out.
-
-    if (response_len > 0)
-    {
-        adamnet_response_ack();
-        return;
-    }
 
     // Get status
     protocol->status(&ns);
@@ -649,7 +649,13 @@ void adamNetwork::adamnet_control_receive_channel()
 void adamNetwork::adamnet_control_receive()
 {
     AdamNet.start_time = esp_timer_get_time();
-
+    
+    if (response_len > 0) // There is response data, go ahead and ack.
+    {
+        adamnet_response_ack();
+        return;
+    }
+    
     switch (receiveMode)
     {
     case CHANNEL:
