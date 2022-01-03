@@ -94,7 +94,7 @@ public:
     /**
      * @brief Called to set prefix
      */
-    virtual void adamnet_set_prefix();
+    virtual void adamnet_set_prefix(unsigned short s);
 
     /**
      * @brief Called to get prefix
