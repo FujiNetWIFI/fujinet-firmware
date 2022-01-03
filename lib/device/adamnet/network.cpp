@@ -174,13 +174,15 @@ bool adamNetwork::read_channel(unsigned short num_bytes)
  */
 void adamNetwork::write(uint16_t num_bytes)
 {
+    memset(response, 0, sizeof(response));
+
     adamnet_recv_buffer(response, num_bytes);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    Debug_printf("%c\n", response[0]);
+    Debug_printf("%s", response);
 
     *transmitBuffer += string((char *)response, num_bytes);
     err = adamnet_write_channel(num_bytes);
@@ -257,61 +259,60 @@ void adamNetwork::adamnet_get_prefix()
 /**
  * Set Prefix
  */
-void adamNetwork::adamnet_set_prefix()
+void adamNetwork::adamnet_set_prefix(unsigned short s)
 {
-    // uint8_t prefixSpec[256];
-    // string prefixSpec_str;
+    uint8_t prefixSpec[256];
+    string prefixSpec_str;
 
-    // memset(prefixSpec, 0, sizeof(prefixSpec));
+    memset(prefixSpec, 0, sizeof(prefixSpec));
 
-    // bus_to_peripheral(prefixSpec, sizeof(prefixSpec));
-    // util_clean_devicespec(prefixSpec, sizeof(prefixSpec));
+    adamnet_recv_buffer(prefixSpec,s);
+    adamnet_recv(); // CK
 
-    // prefixSpec_str = string((const char *)prefixSpec);
-    // prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
-    // Debug_printf("adamNetwork::adamnet_set_prefix(%s)\n", prefixSpec_str.c_str());
+    adamnet_response_ack();
 
-    // if (prefixSpec_str == "..") // Devance path N:..
-    // {
-    //     vector<int> pathLocations;
-    //     for (int i = 0; i < prefix.size(); i++)
-    //     {
-    //         if (prefix[i] == '/')
-    //         {
-    //             pathLocations.push_back(i);
-    //         }
-    //     }
+    prefixSpec_str = string((const char *)prefixSpec);
+    prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
+    Debug_printf("adamNetwork::adamnet_set_prefix(%s)\n", prefixSpec_str.c_str());
 
-    //     if (prefix[prefix.size() - 1] == '/')
-    //     {
-    //         // Get rid of last path segment.
-    //         pathLocations.pop_back();
-    //     }
+    if (prefixSpec_str == "..") // Devance path N:..
+    {
+        vector<int> pathLocations;
+        for (int i = 0; i < prefix.size(); i++)
+        {
+            if (prefix[i] == '/')
+            {
+                pathLocations.push_back(i);
+            }
+        }
 
-    //     // truncate to that location.
-    //     prefix = prefix.substr(0, pathLocations.back() + 1);
-    // }
-    // else if (prefixSpec_str[0] == '/') // N:/DIR
-    // {
-    //     prefix = prefixSpec_str;
-    // }
-    // else if (prefixSpec_str.empty())
-    // {
-    //     prefix.clear();
-    // }
-    // else if (prefixSpec_str.find_first_of(":") != string::npos)
-    // {
-    //     prefix = prefixSpec_str;
-    // }
-    // else // append to path.
-    // {
-    //     prefix += prefixSpec_str;
-    // }
+        if (prefix[prefix.size() - 1] == '/')
+        {
+            // Get rid of last path segment.
+            pathLocations.pop_back();
+        }
 
-    // Debug_printf("Prefix now: %s\n", prefix.c_str());
+        // truncate to that location.
+        prefix = prefix.substr(0, pathLocations.back() + 1);
+    }
+    else if (prefixSpec_str[0] == '/') // N:/DIR
+    {
+        prefix = prefixSpec_str;
+    }
+    else if (prefixSpec_str.empty())
+    {
+        prefix.clear();
+    }
+    else if (prefixSpec_str.find_first_of(":") != string::npos)
+    {
+        prefix = prefixSpec_str;
+    }
+    else // append to path.
+    {
+        prefix += prefixSpec_str;
+    }
 
-    // // We are okay, signal complete.
-    // adamnet_complete();
+    Debug_printf("Prefix now: %s\n", prefix.c_str());
 }
 
 /**
@@ -321,7 +322,7 @@ void adamNetwork::adamnet_set_login(uint16_t s)
 {
     uint8_t loginspec[256];
 
-    memset(loginspec,0,sizeof(loginspec));
+    memset(loginspec, 0, sizeof(loginspec));
 
     adamnet_recv_buffer(loginspec, s);
     adamnet_recv(); // ck
@@ -329,7 +330,7 @@ void adamNetwork::adamnet_set_login(uint16_t s)
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    login = string((char *)loginspec,s);
+    login = string((char *)loginspec, s);
 }
 
 /**
@@ -339,7 +340,7 @@ void adamNetwork::adamnet_set_password(uint16_t s)
 {
     uint8_t passwordspec[256];
 
-    memset(passwordspec,0,sizeof(passwordspec));
+    memset(passwordspec, 0, sizeof(passwordspec));
 
     adamnet_recv_buffer(passwordspec, s);
     adamnet_recv(); // ck
@@ -347,7 +348,7 @@ void adamNetwork::adamnet_set_password(uint16_t s)
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    password = string((char *)passwordspec,s);
+    password = string((char *)passwordspec, s);
 }
 
 /**
@@ -567,6 +568,9 @@ void adamNetwork::adamnet_control_send()
 
     switch (c)
     {
+    case ',':
+        adamnet_set_prefix(s);
+        break;
     case 'O':
         open();
         break;
@@ -634,6 +638,10 @@ void adamNetwork::adamnet_control_receive_channel()
         statusByte.bits.client_error = 0;
         statusByte.bits.client_data_available = response_len > 0;
         memcpy(response, receiveBuffer->data(), response_len);
+        for (int i = 0; i < response_len; i++)
+        {
+            Debug_printf("%c", response[i]);
+        }
         receiveBuffer->erase(0, response_len);
     }
 }
