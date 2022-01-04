@@ -1617,9 +1617,6 @@ void spDevice::spsd_loop()
         break; //error timeout, break and loop again
       // todo: for now we know the first packet is INIT after RESET so go ahead and handshake it
       // todo: for now ack going low is in ReceivePacket
-      smartport_ack_clr();
-      while(smartport_req_val())
-        ;
 
       switch (packet_buffer[14])
       {
