@@ -182,8 +182,6 @@ void adamNetwork::write(uint16_t num_bytes)
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    Debug_printf("%s", response);
-
     *transmitBuffer += string((char *)response, num_bytes);
     err = adamnet_write_channel(num_bytes);
 }
@@ -246,12 +244,12 @@ void adamNetwork::status()
 void adamNetwork::get_prefix()
 {
     adamnet_recv(); // CK
-    
+
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    Debug_printf("adamNetwork::adamnet_getprefix(%s)\n",prefix.c_str());
-    memcpy(response,prefix.data(),prefix.size());
+    Debug_printf("adamNetwork::adamnet_getprefix(%s)\n", prefix.c_str());
+    memcpy(response, prefix.data(), prefix.size());
     response_len = prefix.size();
 }
 
@@ -265,7 +263,7 @@ void adamNetwork::set_prefix(unsigned short s)
 
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
-    adamnet_recv_buffer(prefixSpec,s);
+    adamnet_recv_buffer(prefixSpec, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
@@ -349,6 +347,69 @@ void adamNetwork::set_password(uint16_t s)
     adamnet_response_ack();
 
     password = string((char *)passwordspec, s);
+}
+
+void adamNetwork::del(uint16_t s)
+{
+    memset(devicespecBuf,0,sizeof(devicespecBuf));
+    adamnet_recv_buffer(devicespecBuf, s);
+    adamnet_recv(); // CK
+
+    AdamNet.start_time = esp_timer_get_time();    
+    adamnet_response_ack();
+
+    parse_and_instantiate_protocol();
+
+    if (protocol == nullptr)
+        return;
+
+    cmdFrame.comnd = '!';
+
+    if (protocol->perform_idempotent_80(urlParser, &cmdFrame))
+    {
+        statusByte.bits.client_error = true;
+        return;
+    }
+}
+
+void adamNetwork::rename(uint16_t s)
+{
+    memset(devicespecBuf,0,sizeof(devicespecBuf));
+    adamnet_recv_buffer(devicespecBuf, s);
+    adamnet_recv(); // CK
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    parse_and_instantiate_protocol();
+
+    cmdFrame.comnd = ' ';
+
+    if (protocol->perform_idempotent_80(urlParser, &cmdFrame))
+    {
+        statusByte.bits.client_error = true;
+        return;
+    }
+}
+
+void adamNetwork::mkdir(uint16_t s)
+{
+    memset(devicespecBuf,0,sizeof(devicespecBuf));
+    adamnet_recv_buffer(devicespecBuf,s);
+    adamnet_recv(); // CK
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    parse_and_instantiate_protocol();
+
+    cmdFrame.comnd = '*';
+
+    if (protocol->perform_idempotent_80(urlParser, &cmdFrame))
+    {
+        statusByte.bits.client_error = true;
+        return;
+    }
 }
 
 /**
@@ -568,6 +629,15 @@ void adamNetwork::adamnet_control_send()
 
     switch (c)
     {
+    case ' ':
+        rename(s);
+        break;
+    case '!':
+        del(s);
+        break;
+    case '*':
+        mkdir(s);
+        break;
     case ',':
         set_prefix(s);
         break;
@@ -593,7 +663,7 @@ void adamNetwork::adamnet_control_send()
         set_password(s);
         break;
     default:
-        Debug_printf("adamnet_control_send() - Unknown Command: %02x\n",c);
+        Debug_printf("adamnet_control_send() - Unknown Command: %02x\n", c);
     }
 }
 
@@ -646,13 +716,13 @@ void adamNetwork::adamnet_control_receive_channel()
 void adamNetwork::adamnet_control_receive()
 {
     AdamNet.start_time = esp_timer_get_time();
-    
+
     if (response_len > 0) // There is response data, go ahead and ack.
     {
         adamnet_response_ack();
         return;
     }
-    
+
     switch (receiveMode)
     {
     case CHANNEL:
