@@ -611,7 +611,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
     parse_query(req, &qp);
 
     // if request contains 'mountall=1' skip to mounting all disks
-    if ((qp.query_parsed.find("mountall") == qp.query_parsed.end()) && (qp.query_parsed["mode"] != "1"))
+    if ((qp.query_parsed.find("mountall") == qp.query_parsed.end()) && (qp.query_parsed["mountall"] != "1"))
     {
         if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
         {
