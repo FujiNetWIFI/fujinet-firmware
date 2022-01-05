@@ -92,7 +92,7 @@ IDC20   IIc     DB 19     Arduino
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
 #define TIMER_USEC_FACTOR     (TIMER_SCALE / 1000000)
-#define TIMER_ADJUST          6 // substract this value to adjust for overhead
+#define TIMER_ADJUST          5 // substract this value to adjust for overhead
 
 #undef VERBOSE
 #undef TESTTX
@@ -397,7 +397,7 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
   Debug_print("R");
 #endif
 
-  portDISABLE_INTERRUPTS();
+
   // setup a timeout counter to wait for WRDATA to be ready response
   hw_timer_latch();                    // latch highspeed timer value
   hw_timer_read();    //  grab timer low word
@@ -482,14 +482,7 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
   smartport_ack_clr();
   while (smartport_req_val())
     ;
-  portENABLE_INTERRUPTS();
 
-#ifdef DEBUG
-  Debug_printf("\r\n");
-  for (int i = 0; i < idx; i++)
-    Debug_printf("%02x ", a[i]);
-  Debug_printf("\r\n");
-#endif
   return 0;
 }
 
@@ -509,30 +502,38 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
   uint8_t txbyte; // r23 transmit byte being sent bit by bit
   int numbits = 8;        // r25 counter
 
-  hw_timer_reset();
+// Disable interrupts
+// https://esp32developer.com/programming-in-c-c/interrupts/interrupts-general
+// You can suspend interrupts and context switches by calling  portDISABLE_INTERRUPTS
+// and the interrupts on that core should stop firing, stopping task switches as well.
+// Call portENABLE_INTERRUPTS after you're done
 
+ txbyte = a[idx++];
+
+  hw_timer_reset();
+//  smartport_rddata_clr();
   smartport_ack_set();
 
 #ifndef TESTTX
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
   // setup a timeout counter to wait for REQ response
-  // hw_timer_latch();        // latch highspeed timer value
-  // hw_timer_read();      //  grab timer low word
-  // hw_timer_alarm_set(10000); // 10 millisecond
+  hw_timer_latch();        // latch highspeed timer value
+  hw_timer_read();      //  grab timer low word
+  hw_timer_alarm_set(100); // 10 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
   while ( !smartport_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
-  // {
-  //   hw_timer_latch();   // latch highspeed timer value
-  //   hw_timer_read(); // grab timer low word
-  //   if (t0 > tn)                      // test for timeout
-  //   {
-  //     // timeout!
-  //     Debug_printf("\r\nSendPacket timeout waiting for REQ");
-  //     return 1;
-  //   }
-  // };
-;
+  {
+    hw_timer_latch();   // latch highspeed timer value
+    hw_timer_read(); // grab timer low word
+    if (t0 > tn)                      // test for timeout
+    {
+      // timeout!
+      Debug_printf("\r\nSendPacket timeout waiting for REQ");
+      return 1;
+    }
+  };
+// ;
 
 #ifdef VERBOSE
   // REQ received!
@@ -541,15 +542,12 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
 
 #endif // TESTTX
 
-// Disable interrupts
-// https://esp32developer.com/programming-in-c-c/interrupts/interrupts-general
-// You can suspend interrupts and context switches by calling  portDISABLE_INTERRUPTS
-// and the interrupts on that core should stop firing, stopping task switches as well.
-// Call portENABLE_INTERRUPTS after you're done
+  // SEEMS CRITICAL TO HAVE 1 US BETWEEN req AND FIRST PULSE  
+  // hw_timer_alarm_set(1); // throw in a bit of time before sending first pulse
+  tn = t0 + (1 * TIMER_USEC_FACTOR / 2) - TIMER_ADJUST; // NEED JUST 1/2 USEC
+  hw_timer_wait();
 
-  txbyte = a[idx++];
-  portDISABLE_INTERRUPTS();
-  do
+  do // beware of entry into the loop and an extended first pulse ...
   {
     do
     {
@@ -579,10 +577,11 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
     numbits = 8; //           ldi  r25,8                  ;62               ;46         ;1   8bits to read
     hw_timer_wait(); // finish the 3 usec low period
   } while (txbyte); //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
-  portENABLE_INTERRUPTS();
 
   smartport_ack_clr();
   while (smartport_req_val());
+
+
   
 return 0;
 }
@@ -1612,11 +1611,21 @@ void spDevice::spsd_loop()
       Debug_printf("\r\nEnable Case");
       fnSystem.delay(100);
 #endif
+      portDISABLE_INTERRUPTS();
       smartport_ack_enable();
       if (ReceivePacket((uint8_t *)packet_buffer))
-        break; //error timeout, break and loop again
-      // todo: for now we know the first packet is INIT after RESET so go ahead and handshake it
-      // todo: for now ack going low is in ReceivePacket
+      {
+        portENABLE_INTERRUPTS(); 
+        break; //error timeout, break and loop again  // todo: for now ack going low is in ReceivePacket
+      }
+      portENABLE_INTERRUPTS();
+
+#ifdef DEBUG
+      Debug_printf("\r\n");
+      for (int i = 0; i < 28; i++)
+        Debug_printf("%02x ", packet_buffer[i]);
+      Debug_printf("\r\n");
+#endif
 
       switch (packet_buffer[14])
       {
@@ -1628,7 +1637,7 @@ void spDevice::spsd_loop()
         Debug_printf("\r\nhandling init command");
         handle_init();
         break;
-      } // switch (cmd)
+} // switch (cmd)
     } // switch (phases)
   } // while(true)
 }
@@ -1676,9 +1685,11 @@ void spDevice::handle_readblock()
   encode_data_packet(source);
   Debug_printf("\r\nsending block packet ...");
   //smartport_ack_set(); // todo: probably put ack req handshake inside of send and receive packet()
-   smartport_rddata_enable();
-   status = SendPacket((unsigned char *)packet_buffer);
-   smartport_rddata_disable();
+  portDISABLE_INTERRUPTS();
+  smartport_rddata_enable();
+  status = SendPacket((unsigned char *)packet_buffer);
+  smartport_rddata_disable();
+  portENABLE_INTERRUPTS(); // takes 7 us to execute
 
   //Debug_printf(status);
   //print_packet ((unsigned char*) packet_buffer,packet_length());
@@ -1707,10 +1718,12 @@ void spDevice::handle_init()
   encode_init_reply_packet(source, status);
   //print_packet ((uint8_t*) packet_buffer,packet_length());
   Debug_printf("\r\nSending INIT Response Packet...");
+  portDISABLE_INTERRUPTS();
   smartport_rddata_enable();
   status = SendPacket((uint8_t *)packet_buffer);
   // ack-req handshake is inside of sendpacket
   smartport_rddata_disable();
+  portENABLE_INTERRUPTS(); // takes 7 us to execute
 
   //print_packet ((uint8_t*) packet_buffer,packet_length());
 
