@@ -122,6 +122,11 @@ public:
      */
     virtual void adamnet_process(uint8_t b);
 
+    virtual void del(uint16_t s);
+    virtual void rename(uint16_t s);
+    virtual void mkdir(uint16_t s);
+
+
 private:
     /**
      * Buffer for holding devicespec
