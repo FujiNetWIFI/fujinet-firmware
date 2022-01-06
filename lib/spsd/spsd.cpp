@@ -542,7 +542,7 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
 
 #endif // TESTTX
 
-  // SEEMS CRITICAL TO HAVE 1 US BETWEEN req AND FIRST PULSE  
+  // SEEMS CRITICAL TO HAVE 1 US BETWEEN req AND FIRST PULSE to put the falling edge 2 us after REQ
   // hw_timer_alarm_set(1); // throw in a bit of time before sending first pulse
   tn = t0 + (1 * TIMER_USEC_FACTOR / 2) - TIMER_ADJUST; // NEED JUST 1/2 USEC
   hw_timer_wait();
@@ -559,11 +559,11 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
         smartport_rddata_clr();
      
       hw_timer_read();
-      hw_timer_alarm_set(1); // 1 microsecond
+      hw_timer_alarm_snooze(1); // 1 microsecond
       hw_timer_wait();
 
       smartport_rddata_clr();
-      hw_timer_alarm_snooze(3); // 3 microseconds
+      hw_timer_alarm_set(3); // 3 microseconds
 
       // do some updating while in 3-us low period
       if ((--numbits) == 0)
