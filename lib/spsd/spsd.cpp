@@ -84,6 +84,8 @@ IDC20   IIc     DB 19     Arduino
 #include "fnSystem.h"
 #include "led.h"
 
+#include "fnFsTNFS.h"
+
 #define HEX 16
 #define DEC 10
 
@@ -96,6 +98,8 @@ IDC20   IIc     DB 19     Arduino
 
 #undef VERBOSE
 #undef TESTTX
+
+FileSystemTNFS tserver;
 
 //------------------------------------------------------------------------------
 
@@ -559,11 +563,11 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
         smartport_rddata_clr();
      
       hw_timer_read();
-      hw_timer_alarm_snooze(1); // 1 microsecond
+      hw_timer_alarm_snooze(1); // 1 microsecond - snooze to finish off 4 us period
       hw_timer_wait();
 
       smartport_rddata_clr();
-      hw_timer_alarm_set(3); // 3 microseconds
+      hw_timer_alarm_set(3); // 3 microseconds - set on falling edge of pulse
 
       // do some updating while in 3-us low period
       if ((--numbits) == 0)
@@ -1481,11 +1485,41 @@ int spDevice::freeMemory() {
  }
 
 
+bool spDevice::open_tnfs_image( device &d)
+{
+  Debug_printf("\r\nmounting server");
+  tserver.start("159.203.160.80"); //"atari-apps.irata.online");
+  Debug_printf("\r\nopening file");
+  d.sdf = tserver.file_open("/test.hdv","rb");
+
+  Debug_printf(("\r\nTesting file "));
+  // d.sdf.printName();
+  if(d.sdf == nullptr) // .isOpen()||!d.sdf.isFile())
+  {
+    Debug_printf(("\r\nFile must exist, be open and be a regular file before checking for valid image type!"));
+    return false;
+  }
+
+  long s = tserver.filesize(d.sdf);
+  
+  if ( ( s != ((s>>9)<<9) ) || (s==0) || (s==-1))
+  {
+    Debug_printf(("\r\nFile must be an unadorned ProDOS order image with no header!"));
+    Debug_printf(("\r\nThis means its size must be an exact multiple of 512!"));
+    return false;
+  }
+
+  Debug_printf(("\r\nFile good!"));
+  d.blocks = tserver.filesize(d.sdf) >> 9;
+
+  return true;
+
+}
 // TODO: Allow image files with headers, too
 // TODO: Respect read-only bit in header
 bool spDevice::open_image( device &d, std::string filename )
 {
-  // d.sdf = sdcard.open(filename, O_RDWR);
+   // d.sdf = sdcard.open(filename, O_RDWR);
   Debug_printf("\r\nright before file open call");
   d.sdf = fnSDFAT.file_open(filename.c_str(), "rb");
   Debug_printf(("\r\nTesting file "));
@@ -1547,7 +1581,8 @@ void spDevice::spsd_setup() {
     part += std::to_string(i+1);
     part += ".PO";
     Debug_printf("\r\nopening %s",part.c_str());
-    open_image(devices[i], part ); // std::string operations
+    // open_image(devices[i], part ); // std::string operations
+    open_tnfs_image(devices[i]);
     if(devices[i].sdf != nullptr)
       Debug_printf("\r\n%s open good",part.c_str());
     else
