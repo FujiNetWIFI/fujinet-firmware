@@ -7,14 +7,21 @@
 #include "fnSystem.h"
 #include "fnFsSD.h"
 
+// info for porting over to FujiNet Bus and Device classes. 
+// I'm putting comments by functions and variables indicating 
+// FNBUS FNDEV 
+
+#define FNBUS 
+#define FNDEV 
+
 
 
 class spDevice 
 {
 private:
 
-  bool phi[4];
-  enum class phasestate_t {
+FNBUS bool phi[4];
+FNBUS enum class phasestate_t {
     idle = 0,
     reset,
     enable
@@ -22,7 +29,7 @@ private:
 #ifdef DEBUG  
   phasestate_t oldphase = phasestate_t::reset; // can use for debug printing of phase changes
 #endif 
-  phasestate_t phases;
+FNBUS phasestate_t phases;
 
   unsigned long int block_num;
   uint8_t LBH, LBL, LBN, LBT, LBX;
@@ -38,17 +45,17 @@ private:
 
 public:
   void print_hd_info(void);
-  void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
-  int decode_data_packet(void);                  //decode smartport 512 byte data packet
-  void encode_write_status_packet(uint8_t source, uint8_t status);
-  void encode_init_reply_packet(uint8_t source, uint8_t status);
-  void encode_status_reply_packet(struct device d);
+FNDEV void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
+FNDEV  int decode_data_packet(void);                  //decode smartport 512 byte data packet
+FNDEV  void encode_write_status_packet(uint8_t source, uint8_t status);
+FNDEV  void encode_init_reply_packet(uint8_t source, uint8_t status);
+FNDEV  void encode_status_reply_packet(struct device d);
   int packet_length(void);
   int partition;
   bool is_valid_image(FILE imageFile);
 
-  void handle_readblock();
-  void handle_init();
+FNDEV  void handle_readblock();
+FNBUS void handle_init(); // put this is bus so the bus can assign device numbers to all the devices
 
   //unsigned char packet_buffer[768];   //smartport packet buffer
   uint8_t packet_buffer[605]; //smartport packet buffer
@@ -80,6 +87,8 @@ enum uiState{
 
 uiState state=startup;
 
+
+// these are low-level bus phyical layer helper functions
 uint32_t tn;
 uint32_t t0;
 void hw_timer_latch();
@@ -101,14 +110,16 @@ void smartport_ack_disable();
 void smartport_extra_set();
 void smartport_extra_clr();
 int smartport_handshake();
-
-
 bool smartport_phase_val(int p);
 phasestate_t smartport_phases();
 
 
-int ReceivePacket(uint8_t *a);
-int SendPacket(uint8_t *a);
+// these are the low level i/o functions for the smartport bus
+FNBUS int ReceivePacket(uint8_t *a);
+FNBUS int SendPacket(uint8_t *a);
+
+
+// these probably go in the device since they encode data
 //void encode_data_packet (uint8_t source);
 void encode_extended_data_packet (uint8_t source);
 //int decode_data_packet (void);
@@ -120,18 +131,26 @@ void encode_error_reply_packet (uint8_t source);
 void encode_status_dib_reply_packet (device d);
 void encode_extended_status_dib_reply_packet (device d);
 int verify_cmdpkt_checksum(void);
+
+
 void print_packet (uint8_t* data, int bytes);
 //int packet_length (void);
 void led_err(void);
 //void print_hd_info(void);
-int rotate_boot (void);
-void mcuInit(void);
+
+FNBUS void mcuInit(void);
+
+// these are smartportsd functions that have fujinet replacement algorithms
 int freeMemory();
 bool open_image( device &d, std::string filename );
 bool open_tnfs_image( device &d);
 bool is_ours(uint8_t source);
-void spsd_setup();
-void spsd_loop();
+int rotate_boot (void);
+
+FNBUS void spsd_setup();
+FNBUS void spsd_loop(); // split this amongst bus and dev ... bus watches the phases, determines device # then kicks over to device
+
+// these were development tests that can be thrown out
 void timer_1us_example();
 void timer_config();
 void hw_timer_pulses();
