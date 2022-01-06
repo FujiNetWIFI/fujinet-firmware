@@ -7,6 +7,8 @@
 #include "fnSystem.h"
 #include "fnFsSD.h"
 
+
+
 class spDevice 
 {
 private:
@@ -126,6 +128,7 @@ int rotate_boot (void);
 void mcuInit(void);
 int freeMemory();
 bool open_image( device &d, std::string filename );
+bool open_tnfs_image( device &d);
 bool is_ours(uint8_t source);
 void spsd_setup();
 void spsd_loop();
