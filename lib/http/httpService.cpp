@@ -444,6 +444,8 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 {
     Debug_println("Print request handler");
 
+    fnHTTPD.clearErrMsg();
+
     time_t now = fnSystem.millis();
     // Get a pointer to the current (only) printer
     PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
@@ -454,9 +456,9 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     }
     if (now - printer->lastPrintTime() < PRINTER_BUSY_TIME)
     {
-        _fnwserr err = fnwserr_post_fail;
-        return_http_error(req, err);
-        return ESP_FAIL;
+        fnHTTPD.addToErrMsg("Printer is busy. Try again later.\n");
+        send_file(req, "error_page.html");
+        return ESP_OK;
     }
     // Get printer emulator pointer from sioP (which is now extern)
     printer_emu *currentPrinter = printer->getPrinterPtr();
@@ -510,11 +512,17 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     string filename = "printout.";
     filename += exts;
 
-    // Set the expected content type based on the filename/extension
-    set_file_content_type(req, filename.c_str());
-
     // Tell printer to finish its output and get a read handle to the file
     FILE *poutput = currentPrinter->closeOutputAndProvideReadHandle();
+    if (poutput == nullptr)
+    {
+        fnHTTPD.addToErrMsg("Unable to open printer output.\n");
+        send_file(req, "error_page.html");
+        return ESP_OK;
+    }
+
+    // Set the expected content type based on the filename/extension
+    set_file_content_type(req, filename.c_str());
 
     char hdrval1[60];
     if (sendAsAttachment)
@@ -556,25 +564,30 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
 {
     Debug_printf("Modem Sniffer output request handler\n");
+
+    fnHTTPD.clearErrMsg();
+
     ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
     Debug_printf("Got modem Sniffer.\n");
     time_t now = fnSystem.millis();
 
     if (now - sioR->get_last_activity_time() < PRINTER_BUSY_TIME) // re-using printer timeout constant.
     {
-        return_http_error(req, fnwserr_post_fail);
-        return ESP_FAIL;
+        fnHTTPD.addToErrMsg("Modem is busy. Try again later.\n");
+        send_file(req, "error_page.html");
+        return ESP_OK;
     }
-
-    set_file_content_type(req, "modem-sniffer.txt");
 
     FILE *sOutput = modemSniffer->closeOutputAndProvideReadHandle();
     Debug_printf("Got file handle %p\n", sOutput);
     if (sOutput == nullptr)
     {
-        return_http_error(req, fnwserr_post_fail);
-        return ESP_FAIL;
+        fnHTTPD.addToErrMsg("Unable to open modem sniffer output.\n");
+        send_file(req, "error_page.html");
+        return ESP_OK;
     }
+
+    set_file_content_type(req, "modem-sniffer.txt");
 
     // Finally, write the data
     // Send the file content out in chunks
