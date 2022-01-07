@@ -258,16 +258,6 @@ void adamNetBus::_adamnet_process_cmd()
     }
 
     wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
-
-    if (_daisyChain.find(ADAMNET_DEVICE_ID_PRINTER) != _daisyChain.end())
-    {
-        if (esp_timer_get_time() > (start_time + 2000000)) // time in microseconds
-            _daisyChain[ADAMNET_DEVICE_ID_PRINTER]->adamnet_idle();
-    }
-    if (_daisyChain.find(ADAMNET_DEVICE_NETWORK) != _daisyChain.end())
-    {
-        _daisyChain[ADAMNET_DEVICE_NETWORK]->adamnet_idle();
-    }
 }
 
 void adamNetBus::_adamnet_process_queue()
