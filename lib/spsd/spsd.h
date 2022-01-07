@@ -14,44 +14,31 @@
 #define FNBUS 
 #define FNDEV 
 
-
-
 class spDevice 
 {
 private:
 
-FNBUS bool phi[4];
 FNBUS enum class phasestate_t {
     idle = 0,
     reset,
     enable
-  };
+  } phasestate;
 #ifdef DEBUG  
   phasestate_t oldphase = phasestate_t::reset; // can use for debug printing of phase changes
 #endif 
-FNBUS phasestate_t phases;
 
-  unsigned long int block_num;
-  uint8_t LBH, LBL, LBN, LBT, LBX;
+  int count; // counter used in the encoding/decoding functions
 
-  int number_partitions_initialised = 1;
-  int noid = 0;
-  int count;
-  int ui_command;
-  size_t sdstato;
-  uint8_t source, status, status_code;
-
-  bool reset_state = false;
+  bool reset_state = false; // maybe not needed if control is passed to a reset handler
 
 public:
-  void print_hd_info(void);
+
 FNDEV void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
 FNDEV  int decode_data_packet(void);                  //decode smartport 512 byte data packet
 FNDEV  void encode_write_status_packet(uint8_t source, uint8_t status);
 FNDEV  void encode_init_reply_packet(uint8_t source, uint8_t status);
 FNDEV  void encode_status_reply_packet(struct device d);
   int packet_length(void);
-  int partition;
   bool is_valid_image(FILE imageFile);
 
 FNDEV  void handle_readblock();
@@ -62,33 +49,23 @@ FNBUS void handle_init(); // put this is bus so the bus can assign device number
   //unsigned char sector_buffer[512];   //ata sector data buffer
   uint8_t packet_byte;
   //int count;
-  int initPartition;
 
   // We need to remember several things about a device, not just its ID
+  // todo: turn into FujiNet practice
   struct device
   {
     FILE *sdf;
     uint8_t device_id;    //to hold assigned device id's for the partitions
     unsigned long blocks;       //how many 512-byte blocks this image has
     unsigned int header_offset; //Some image files have headers, skip this many bytes to avoid them
-    //bool online;                          //Whether this image is currently available
-    //No longer used, user devices[...].sdf.isOpen() instead
     bool writeable;
 };
 
 #define NUM_PARTITIONS 1
 device devices[NUM_PARTITIONS];
 
-enum uiState{
-  smartport,
-  gotch,
-  startup
-};
-
-uiState state=startup;
-
-
 // these are low-level bus phyical layer helper functions
+// make these two vars part of a structure for clarity?
 uint32_t tn;
 uint32_t t0;
 void hw_timer_latch();
@@ -144,11 +121,9 @@ FNBUS void mcuInit(void);
 int freeMemory();
 bool open_image( device &d, std::string filename );
 bool open_tnfs_image( device &d);
-bool is_ours(uint8_t source);
-int rotate_boot (void);
 
-FNBUS void spsd_setup();
-FNBUS void spsd_loop(); // split this amongst bus and dev ... bus watches the phases, determines device # then kicks over to device
+FNBUS void spsd_setup(); // put as much as possible in bus setup function
+FNBUS void spsd_loop(); // split this amongst bus and dev ... bus watches the phasestate, determines device # then kicks over to device
 
 // these were development tests that can be thrown out
 void timer_1us_example();
