@@ -21,7 +21,7 @@ class adamSerial : public adamNetDevice
     uint8_t status_msg[4]={0x10,0x00,0x00,0x00};
     fnTcpServer *server;
     fnTcpClient client;
-    std::string out;
+    uint8_t outc;
 
     /**
      * Constructor

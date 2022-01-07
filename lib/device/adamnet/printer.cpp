@@ -19,21 +19,41 @@
 #include "png_printer.h"
 #include "coleco_printer.h"
 
-
-
 std::string buf;
+bool taskActive=false;
 
 constexpr const char * const adamPrinter::printer_model_str[PRINTER_INVALID];
+
+void printerTask(void *param)
+{
+    adamPrinter *ptr = (adamPrinter *)param;
+
+    while(1)
+    {
+        if (!buf.empty())
+        {
+            taskActive=true;
+            memcpy(ptr->getPrinterPtr()->provideBuffer(),buf.data(),buf.size());
+            ptr->getPrinterPtr()->process(buf.size(),0,0);
+            buf.clear();
+            taskActive=false;
+        }
+
+        vTaskDelay(9000 / portTICK_PERIOD_MS);
+    }
+}
 
 // Constructor just sets a default printer type
 adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
 {
     _storage = filesystem;
     set_printer_type(print_type);
+    xTaskCreatePinnedToCore(printerTask,"printer",4096,this,10,thPrinter,1);
 }
 
 adamPrinter::~adamPrinter()
 {
+    vTaskDelete(thPrinter);
     delete _pptr;
 }
 
@@ -56,6 +76,7 @@ void adamPrinter::adamnet_control_status()
 
 void adamPrinter::idle()
 {
+    Debug_printf("adamPrinter::idle()\n");
     if (buf.empty())
         return;
 
@@ -87,7 +108,8 @@ void adamPrinter::adamnet_control_send()
 
     _last_ms = fnSystem.millis();
 
-    buf += std::string((const char *)_buffer,s);
+    if (taskActive == false)
+        buf += std::string((const char *)_buffer,s);
 }
 
 void adamPrinter::adamnet_control_ready()

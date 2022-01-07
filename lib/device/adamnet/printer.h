@@ -14,6 +14,8 @@ class adamPrinter : public adamNetDevice
 {
 protected:
     // SIO THINGS
+    TaskHandle_t *thPrinter;
+
     uint8_t _buffer[16];
     void sio_write(uint8_t aux1, uint8_t aux2);
     
