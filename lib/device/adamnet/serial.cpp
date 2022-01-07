@@ -49,9 +49,10 @@ void adamSerial::adamnet_response_status()
     if (client.available())
     {
         status_response[4] = client.available() > SERIAL_BUF_SIZE ? SERIAL_BUF_SIZE : client.available();
+        status_response[3] = sizeof(sendbuf)-outc;
     }
     else
-        status_response[4] = 0x00;
+        status_response[3] = sizeof(sendbuf)-outc;
 
     adamNetDevice::adamnet_response_status();
 }
@@ -80,15 +81,11 @@ void adamSerial::adamnet_control_ready()
 
 void adamSerial::adamnet_idle()
 {
-    if (out.empty())
-        return;
-    fnLedManager.set(LED_BT,true);
-
-    if (client.connected())
-        client.write(out);
-
-    out.erase(0,out.length());
-    fnLedManager.set(LED_BT,false);  
+    if (outc > 0)
+    {
+        client.write(sendbuf,outc);
+        outc=0;
+    }
 }
 
 void adamSerial::adamnet_control_send()
@@ -100,13 +97,8 @@ void adamSerial::adamnet_control_send()
     ck = adamnet_recv();
 
     AdamNet.start_time = esp_timer_get_time();
-    
-    if (adamnet_checksum(sendbuf,s) != ck)
-        adamnet_response_nack();
-    else
-        adamnet_response_ack();
-    
-    out += std::string((const char *)sendbuf,s);
+    adamnet_response_ack();
+    outc = s;
 }
 
 void adamSerial::adamnet_process(uint8_t b)
