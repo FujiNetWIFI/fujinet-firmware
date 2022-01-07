@@ -291,20 +291,20 @@ bool spDevice::smartport_phase_val(int p)
 
 spDevice::phasestate_t spDevice::smartport_phases()
 { 
-  phasestate_t phases = phasestate_t::idle;
+  phasestate_t phasestate = phasestate_t::idle;
   // phase lines for smartport bus reset
   // ph3=0 ph2=1 ph1=0 ph0=1
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
   if (smartport_phase_val(1) && smartport_phase_val(3))
-    phases = phasestate_t::enable;
+    phasestate = phasestate_t::enable;
   else if (smartport_phase_val(0) && smartport_phase_val(2) && !smartport_phase_val(1) && !smartport_phase_val(3))
-    phases = phasestate_t::reset;
+    phasestate = phasestate_t::reset;
 
 #ifdef DEBUG
-  if (phases != oldphase)
+  if (phasestate != oldphase)
   {
-    switch (phases)
+    switch (phasestate)
     {
     case phasestate_t::idle:
       Debug_printf("\r\nidle");
@@ -315,11 +315,11 @@ spDevice::phasestate_t spDevice::smartport_phases()
     case phasestate_t::enable:
       Debug_printf("\r\nenable");
     }
-    oldphase=phases;
+    oldphase=phasestate;
   }
 #endif
 
-  return phases;
+  return phasestate;
 }
 
 //------------------------------------------------------
@@ -1363,70 +1363,6 @@ void spDevice::led_err(void)
 }
 
 
-//*****************************************************************************
-// Function: print_hd_info
-// Parameters: none
-// Returns: none
-//
-// Description: print informations about the ATA dispositive and the FAT File System
-//*****************************************************************************
-void spDevice::print_hd_info(void)
-{
-  // this function initialized the car
-  // but is no longer needed because card is initialized in setup main.cpp
-}
-
-//*****************************************************************************
-// Function: rotate_boot
-// Parameters: none
-// Returns: none
-//
-// Description: Cycle by the 4 partition for selecting boot ones, choosing next
-// and save it to EEPROM.  Needs REBOOT to get new partition
-//*****************************************************************************
-int spDevice::rotate_boot (void)
-{
-// todo with rotate button - but part of fuji device
-/* 
-    int i;
-
-  for(i = 0; i < NUM_PARTITIONS; i++){
-    Debug_printf(("\r\nInit partition was: "));
-    Debug_print(initPartition, DEC);
-    initPartition++;
-    initPartition = initPartition % 4;
-    //Find the next partition that's available 
-    //and set it to be the boot partition
-    if(devices[initPartition].sdf.isOpen()){
-      Debug_printf(("\r\nSelecting boot partition number "));
-      Debug_print(initPartition, DEC);
-      break;
-    }
-  }
-
-  if(i == NUM_PARTITIONS){
-    Debug_printf(("\r\nNo online partitions found. Check that you have a file called PARTx.PO and try again, where x is from 1 to "));
-    Debug_print(NUM_PARTITIONS, DEC);
-    initPartition = 0;
-  }
-
-  eeprom_write_byte(0, initPartition);
-  digitalWrite(statusledPin, HIGH);
-  Debug_printf(("\r\nChanging boot partition to: "));
-  Debug_print(initPartition, DEC);
- while (1){
-   for (i=0;i<(initPartition+1);i++) {
-     digitalWrite(statusledPin,HIGH);
-     delay(200);   
-     digitalWrite(statusledPin,LOW);
-     delay(100);   
-   }
-   delay(600);
- }
-  // stop programs
-   */
-  return -1;
-}
 
 
 //*****************************************************************************
@@ -1545,16 +1481,6 @@ bool spDevice::open_image( device &d, std::string filename )
 }
 
 
-bool spDevice::is_ours(uint8_t source)
-{
-  for (uint8_t partition = 0; partition < NUM_PARTITIONS; partition++) { //Check if its one of ours
-    if (devices[0].device_id == source) {  //yes it is
-      return true;
-    }
-  }
-  return false;
-}
-
 void spDevice::spsd_setup() {
   //sdf[0] = &sdf1;
   //sdf[1] = &sdf2;
@@ -1568,9 +1494,7 @@ void spDevice::spsd_setup() {
   if (initPartition == 0xFF) initPartition = 0;
   initPartition = (initPartition % 4); 
   */
-  initPartition = 0; // todo - remove this hard coding and use eeprom stored value above
-  Debug_printf(("\r\nBoot partition: "));
-  Debug_print(initPartition, DEC);
+  
 
   Debug_printf(("\r\nFree memory before opening images: "));
   Debug_print(freeMemory());
@@ -1617,9 +1541,9 @@ void spDevice::spsd_loop()
   {
     smartport_ack_set();
     // read phase lines to check for smartport reset or enable
-    phases = smartport_phases();
+    phasestate = smartport_phases();
 
-    switch (phases)
+    switch (phasestate)
     {
     case phasestate_t::idle:
 #ifdef VERBOSE
@@ -1634,9 +1558,7 @@ void spDevice::spsd_loop()
 #endif
       Debug_printf(("\r\nReset"));
       while (smartport_phases() == phasestate_t::reset)
-        ;
-        number_partitions_initialised = 1; //reset number of partitions init'd
-        noid = 0;
+        ; // todo: should there be a timeout feature?
         // hard coding 1 partition - will use disk class instances  instead                                                    // to check if needed
         devices[0].device_id = 0;
         Debug_printf(("\r\nReset Cleared"));
@@ -1673,14 +1595,16 @@ void spDevice::spsd_loop()
         handle_init();
         break;
 } // switch (cmd)
-    } // switch (phases)
+    } // switch (phasestate)
   } // while(true)
 }
 
 void spDevice::handle_readblock()
 {
- 
-  //smartport_rddata_clr();
+ uint8_t LBH, LBL, LBN, LBT;
+ unsigned long int block_num;
+ size_t sdstato;
+ uint8_t source;
 
   source = packet_buffer[6];
   Debug_printf("\r\nDrive %02x", source);
@@ -1722,7 +1646,7 @@ void spDevice::handle_readblock()
   //smartport_ack_set(); // todo: probably put ack req handshake inside of send and receive packet()
   portDISABLE_INTERRUPTS();
   smartport_rddata_enable();
-  status = SendPacket((unsigned char *)packet_buffer);
+  SendPacket((unsigned char *)packet_buffer); // this returns timeout errors but that's not handled here
   smartport_rddata_disable();
   portENABLE_INTERRUPTS(); // takes 7 us to execute
 
@@ -1733,29 +1657,33 @@ void spDevice::handle_readblock()
 
 void spDevice::handle_init()
 {
-  smartport_rddata_enable(); // todo: instead, do we enable rddata and ack when phases==enable?
-  smartport_rddata_clr();
+  uint8_t source;
+
+  smartport_rddata_enable(); // todo: instead, do we enable rddata and ack when phasestate==enable?
+  smartport_rddata_clr(); // todo: enable is done below so maybe not needed here?
 
   source = packet_buffer[6];
-  if (number_partitions_initialised < NUM_PARTITIONS)
-  {                                                                                                   //are all init'd yet
-    devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
-    number_partitions_initialised++;
-    status = 0x80; //no, so status=0
-  }
-  else if (number_partitions_initialised == NUM_PARTITIONS)
-  {                                                                                                   // the last one
-    devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
-    number_partitions_initialised++;
-    status = 0xff; //yes, so status=non zero
-  }
+  // if (number_partitions_initialised < NUM_PARTITIONS)
+  // {                                                                                                   //are all init'd yet
+  //   devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
+  //   number_partitions_initialised++;
+  //   status = 0x80; //no, so status=0
+  // }
+  // else if (number_partitions_initialised == NUM_PARTITIONS)
+  // {                                                                                                   // the last one
+  //   devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
+  //   number_partitions_initialised++;
+  //   status = 0xff; //yes, so status=non zero
+  // }
+    devices[0].device_id = source; //remember source id for partition
+    uint8_t status = 0xff; //yes, so status=non zero
 
   encode_init_reply_packet(source, status);
   //print_packet ((uint8_t*) packet_buffer,packet_length());
   Debug_printf("\r\nSending INIT Response Packet...");
   portDISABLE_INTERRUPTS();
   smartport_rddata_enable();
-  status = SendPacket((uint8_t *)packet_buffer);
+  SendPacket((uint8_t *)packet_buffer); // timeout error return is not handled here (yet?)
   // ack-req handshake is inside of sendpacket
   smartport_rddata_disable();
   portENABLE_INTERRUPTS(); // takes 7 us to execute
