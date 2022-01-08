@@ -197,6 +197,7 @@ void main_setup()
         FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
         adamPrinter::printer_type printer = adamPrinter::PRINTER_COLECO_ADAM;
         adamPrinter *ptr = new adamPrinter(ptrfs, printer);
+        xTaskCreatePinnedToCore(printerTask,"foo",4096,ptr,10,NULL,1);
         fnPrinters.set_entry(0,ptr,printer,0);
         AdamNet.addDevice(ptr,ADAMNET_DEVICE_ID_PRINTER);
     } else
@@ -249,7 +250,7 @@ void fn_service_loop(void *param)
 * This is the start/entry point for an ESP-IDF program (must use "C" linkage)
 */
 extern "C"
-{
+{    
     void app_main()
     {
         // Call our setup routine
@@ -262,7 +263,7 @@ extern "C"
         #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
             MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
-            
+        
         // Sit here twiddling our thumbs
         while (true)
             vTaskDelay(9000 / portTICK_PERIOD_MS);
