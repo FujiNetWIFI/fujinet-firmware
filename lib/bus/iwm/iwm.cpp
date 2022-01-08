@@ -46,6 +46,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
 #define TIMER_USEC_FACTOR     (TIMER_SCALE / 1000000)
+#define TIMER_100NS_FACTOR    (TIMER_SCALE / 100000)
 #define TIMER_ADJUST          5 // substract this value to adjust for overhead
 
 #define IWM_BIT_CELL          4 // microseconds - 2 us for fast mode
@@ -295,7 +296,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
 
   iwm_timer_reset();
 
-  iwm_ack_set();
+  //iwm_ack_set(); // this takes the bus which is not right until we know we're in control
 
   // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
@@ -312,8 +313,6 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
     iwm_timer_read(); // grab timer low word
     if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     { // timeout!
-        iwm_rddata_disable();
-        portENABLE_INTERRUPTS(); // takes 7 us to execute
 #ifdef VERBOSE_IWM
           // timeout
           Debug_print("t");
@@ -352,7 +351,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
     // delay 2 us until middle of 4-us bit
     iwm_timer_latch();
     iwm_timer_read();
-    iwm_timer_alarm_set( (IWM_BIT_CELL / 2) ); //TIMER_SCALE / 500000; // 2 usec
+    iwm_timer_alarm_set( 2 ); //TIMER_SCALE / 500000; // 2 usec
     numbits = 8; // ;1   8bits to read
 //    iwm_timer_wait();
     do
@@ -410,6 +409,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   a[idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
   iwm_ack_clr();
+  iwm_ack_enable();
   while (iwm_req_val())
     ;
 
@@ -440,11 +440,20 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 // and the interrupts on that core should stop firing, stopping task switches as well.
 // Call portENABLE_INTERRUPTS after you're done
   portDISABLE_INTERRUPTS();
+
+  // try to cache functions
+  iwm_timer_reset();
+  iwm_timer_read();
+  iwm_timer_alarm_set(1);
+  iwm_timer_wait();
+  iwm_timer_alarm_snooze(1);
+  iwm_timer_wait();
+
   iwm_rddata_enable();
 
  txbyte = a[idx++];
 
-  iwm_timer_reset();
+  
 //  iwm_rddata_clr();
   iwm_ack_set();
 
@@ -463,9 +472,9 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
     if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     {
       // timeout!
-        iwm_rddata_disable();
-  portENABLE_INTERRUPTS(); // takes 7 us to execute
       Debug_printf("\r\nSendPacket timeout waiting for REQ");
+      iwm_rddata_disable();
+      portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
   };
@@ -478,9 +487,12 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 
 #endif // TESTTX
 
-  // SEEMS CRITICAL TO HAVE 1 US BETWEEN req AND FIRST PULSE to put the falling edge 2 us after REQ
-  // iwm_timer_alarm_set(1); // throw in a bit of time before sending first pulse
-  iwm_timer.tn = iwm_timer.t0 + (1 * TIMER_USEC_FACTOR / 2) - TIMER_ADJUST; // NEED JUST 1/2 USEC
+  // CRITICAL TO HAVE 1 US BETWEEN req AND FIRST PULSE to put the falling edge 2 us after REQ
+  // at one point i had to do a trim alarm setting, but now can do standard call - i think the
+  // timing behavior changed because I call alarm_set and alarm_snooze up at the top
+  // because i think i'm caching the function calls
+  //iwm_timer.tn = iwm_timer.t0 + (1 * TIMER_USEC_FACTOR / 2) - TIMER_ADJUST; // NEED JUST 1/2 USEC
+  iwm_timer_alarm_set(1);
   iwm_timer_wait();
 
   do // beware of entry into the loop and an extended first pulse ...
@@ -522,6 +534,42 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   
 return 0;
 }
+
+void iwmBus::setup(void)
+{
+  Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
+
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
+  //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
+  
+  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT);
+
+  fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT);
+
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
+  // leave rd as input, pd6
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  ot maybe pull up, too?
+  Debug_printf("\r\nIWM GPIO configured");
+
+  timer_config();
+  Debug_printf("\r\nIWM timer started");
+
+  // todo - get rid of this code
+  smort.open_tnfs_image();
+  if (smort.d.sdf != nullptr)
+    Debug_printf("\r\nfile open good");
+  else
+    Debug_printf("\r\nImage open error!");
+  Debug_printf("\r\nDemo TNFS file open complete - remember to remove this code");
+}
+
+
 
 //*****************************************************************************
 // Function: encode_data_packet
@@ -1264,42 +1312,6 @@ int iwmDevice::packet_length (void)
   return x - 1; // point to last packet byte = C8
 }
 
-// move this to some other bus init
-//*****************************************************************************
-// Function: mcuInit
-// Parameters: none
-// Returns: none
-//
-// Description: Initialize the ATMega32
-//*****************************************************************************
-void iwmBus::mcuInit(void)
-{
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
-  fnSystem.digital_write(SP_ACK, DIGI_HIGH);
-  //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
-  
-  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT);
-
-  fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT);
-
-  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
-  fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
-  // leave rd as input, pd6
-  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  ot maybe pull up, too?
-}
-
-/* todo memory reporting, although FujiNet firmware does this already
-#ifdef __arm__
-// should use uinstd.h to define sbrk but Due causes a conflict
-extern "C" char* sbrk(int incr);
-#else  // __ARM__
-extern char *__brkval;
-#endif  // __arm__
-*/
 
 bool iwmDevice::open_tnfs_image()
 {
@@ -1360,47 +1372,16 @@ bool iwmDevice::open_image(std::string filename )
   return true;
 }
 
-
-void iwmBus::spsd_setup() {
-  //sdf[0] = &sdf1;
-  //sdf[1] = &sdf2;
-  // put your setup code here, to run once:
-  mcuInit();
-  
-  Debug_printf(("\r\nSmartportSD v1.15\r\n"));
-
-  // for(uint8_t i=0; i<NUM_PARTITIONS; i++)
-  // {
-  //   std::string part = "/PART";
-  //   part += std::to_string(i+1);
-  //   part += ".PO";
-  //   Debug_printf("\r\nopening %s",part.c_str());
-    // open_image(devices[i], part ); // std::string operations
-  smort.open_tnfs_image();
-  if (smort.d.sdf != nullptr)
-    Debug_printf("\r\nfile open good");
-  else
-    Debug_printf("\r\nImage open error!");
-  
-  timer_config();
-  Debug_printf("\r\ntimer started");
-  Debug_println();
-}
-
 //*****************************************************************************
 // Function: main loop
-// Parameters: none
-// Returns: 0
-//
-// Description: Main function for Apple //c Smartport Compact Flash adpater
-//*****************************************************************************
-void iwmBus::spsd_loop() 
+// //*****************************************************************************
+void iwmBus::service() 
 {
-  iwm_rddata_disable();
+  iwm_rddata_disable(); // todo - figure out sequence of setting IWM pins and where this should go
   iwm_rddata_clr();
   while (true)
   {
-    iwm_ack_set();
+    iwm_ack_set(); // todo - figure out sequence of setting IWM pins and where this should go
     // read phase lines to check for smartport reset or enable
     // phasestate = iwm_phases();
 
@@ -1430,7 +1411,7 @@ void iwmBus::spsd_loop()
       fnSystem.delay(100);
 #endif
       portDISABLE_INTERRUPTS();
-      iwm_ack_enable(); // this should be moved to the command handler
+      //iwm_ack_enable(); // this should be moved to the command handler? should not ACK until we know it's our command
       if (iwm_read_packet((uint8_t *)smort.packet_buffer))
       {
         portENABLE_INTERRUPTS(); 
@@ -1485,7 +1466,7 @@ void iwmDevice::handle_readblock()
   //Added (unsigned short) cast to ensure calculated block is not underflowing.
   block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
   block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
-  Debug_printf("\r\nRead block %02x",block_num);
+  Debug_printf("\r\nRead block %02x\r\n",block_num);
 
   if (fseek(d.sdf, (block_num * 512), SEEK_SET))
   {
