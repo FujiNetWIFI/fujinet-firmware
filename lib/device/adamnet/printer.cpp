@@ -30,7 +30,7 @@ void printerTask(void *param)
 
     while(1)
     {
-        if (!buf.empty())
+        if ((ptr != nullptr) && (!buf.empty()))
         {
             taskActive=true;
             memcpy(ptr->getPrinterPtr()->provideBuffer(),buf.data(),buf.size());
@@ -38,8 +38,7 @@ void printerTask(void *param)
             buf.clear();
             taskActive=false;
         }
-
-        vTaskDelay(9000 / portTICK_PERIOD_MS);
+        vPortYield();
     }
 }
 
@@ -48,7 +47,6 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
 {
     _storage = filesystem;
     set_printer_type(print_type);
-    xTaskCreatePinnedToCore(printerTask,"printer",4096,this,10,thPrinter,1);
 }
 
 adamPrinter::~adamPrinter()

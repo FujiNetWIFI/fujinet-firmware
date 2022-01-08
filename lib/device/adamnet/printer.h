@@ -10,6 +10,8 @@
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
+void printerTask(void * param);
+
 class adamPrinter : public adamNetDevice
 {
 protected:
