@@ -1,5 +1,4 @@
-#include "iwm.h"
-#ifdef TEMP_BUILD_APPLE
+#ifdef BUILD_APPLE
 #include "iwm.h"
 
 /******************************************************************************
@@ -40,7 +39,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #include "fnSystem.h"
 // #include "led.h"
 
-// #include "fnFsTNFS.h"
+#include "fnFsTNFS.h"
 
 #include <string.h>
 
@@ -54,6 +53,9 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 
 #undef VERBOSE_IWM
 #undef TESTTX
+
+
+FileSystemTNFS tserver;
 
 //------------------------------------------------------------------------------
 
@@ -247,10 +249,10 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 //------------------------------------------------------
 
 
-int IRAM_ATTR iwmBus::iwm_rx_packet(uint8_t *a)
+int IRAM_ATTR iwmBus::iwm_to_computer(uint8_t *a)
 {
   //*****************************************************************************
-  // Function: iwm_rx_packet
+  // Function: iwm_to_computer
   // Parameters: packet_buffer pointer
   // Returns: status (1 = timeout, 0 = OK)
   //
@@ -291,6 +293,9 @@ int IRAM_ATTR iwmBus::iwm_rx_packet(uint8_t *a)
 
   // 'a' is the receive buffer pointer
 
+  portDISABLE_INTERRUPTS();
+  iwm_rddata_enable();
+
   iwm_timer_reset();
 
   iwm_ack_set();
@@ -310,9 +315,11 @@ int IRAM_ATTR iwmBus::iwm_rx_packet(uint8_t *a)
     iwm_timer_read(); // grab timer low word
     if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     { // timeout!
+        iwm_rddata_disable();
+        portENABLE_INTERRUPTS(); // takes 7 us to execute
 #ifdef VERBOSE_IWM
-      // timeout
-      Debug_print("t");
+          // timeout
+          Debug_print("t");
 #endif
       return 1;
     }
@@ -409,13 +416,16 @@ int IRAM_ATTR iwmBus::iwm_rx_packet(uint8_t *a)
   while (iwm_req_val())
     ;
 
+  iwm_rddata_disable();
+  portENABLE_INTERRUPTS(); // takes 7 us to execute
+
   return 0;
 }
 
-int IRAM_ATTR iwmBus::SendPacket(uint8_t *a)
+int IRAM_ATTR iwmBus::iwm_to_peripheral(uint8_t *a)
 {
   //*****************************************************************************
-  // Function: SendPacket
+  // Function: iwm_to_peripheral
   // Parameters: packet_buffer pointer
   // Returns: status (not used yet, always returns 0)
   //
@@ -804,7 +814,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 // data byte 2-4 number of blocks. 2 is the LSB and 4 the MSB. 
 // Size determined from image file.
 //*****************************************************************************
-void iwmDevice::encode_status_reply_packet (device d)
+void iwmDevice::encode_status_reply_packet()
 {
 
   uint8_t checksum = 0;
@@ -874,7 +884,7 @@ void iwmDevice::encode_status_reply_packet (device d)
 // data byte 2-5 number of blocks. 2 is the LSB and 5 the MSB. 
 // Size determined from image file.
 //*****************************************************************************
-void iwmDevice::encode_extended_status_reply_packet (device d)
+void iwmDevice::encode_extended_status_reply_packet()
 {
   uint8_t checksum = 0;
 
@@ -974,7 +984,7 @@ void iwmDevice::encode_error_reply_packet (uint8_t source)
 // data byte 2-4 number of blocks. 2 is the LSB and 4 the MSB.
 // Calculated from actual image file size.
 //*****************************************************************************
-void iwmDevice::encode_status_dib_reply_packet (device d)
+void iwmDevice::encode_status_dib_reply_packet()
 {
   int grpbyte, grpcount, i;
   int grpnum, oddnum; 
@@ -1085,7 +1095,7 @@ void iwmDevice::encode_status_dib_reply_packet (device d)
 // data byte 2-5 number of blocks. 2 is the LSB and 5 the MSB.
 // Calculated from actual image file size.
 //*****************************************************************************
-void iwmDevice::encode_extended_status_dib_reply_packet (device d)
+void iwmDevice::encode_extended_status_dib_reply_packet()
 {
   uint8_t checksum = 0;
 
@@ -1196,6 +1206,7 @@ int iwmDevice::verify_cmdpkt_checksum(void)
 
 }
 
+#ifdef DEBUG
 //*****************************************************************************
 // Function: print_packet
 // Parameters: pointer to data, number of bytes to be printed
@@ -1203,7 +1214,7 @@ int iwmDevice::verify_cmdpkt_checksum(void)
 //
 // Description: prints packet data for debug purposes to the serial port
 //*****************************************************************************
-void spDevice::print_packet (uint8_t* data, int bytes)
+void iwmDevice::print_packet (uint8_t* data, int bytes)
 {
   int row;
   char tbs[8];
@@ -1218,8 +1229,7 @@ void spDevice::print_packet (uint8_t* data, int bytes)
       if (count + row >= bytes)
         Debug_print(("   "));
       else {
-        Debug_print(data[count + row], HEX);
-        Debug_print(" ");
+        Debug_printf("%02x ",data[count + row]);
       }
     }
     Debug_print(("-"));
@@ -1235,6 +1245,7 @@ void spDevice::print_packet (uint8_t* data, int bytes)
     Debug_printf(("\r\n"));
   }
 }
+#endif
 
 //*****************************************************************************
 // Function: packet_length
@@ -1244,7 +1255,7 @@ void spDevice::print_packet (uint8_t* data, int bytes)
 // Description: Calculates the length of the packet in the packet_buffer.
 // A zero marks the end of the packet data.
 //*****************************************************************************
-int spDevice::packet_length (void)
+int iwmDevice::packet_length (void)
 {
   int x = 0;
 
@@ -1252,40 +1263,7 @@ int spDevice::packet_length (void)
   return x - 1; // point to last packet byte = C8
 }
 
-
-//*****************************************************************************
-// Function: led_err
-// Parameters: none
-// Returns: nonthing
-//
-// Description: Flashes status led for show error status
-//
-//*****************************************************************************
-void spDevice::led_err(void)
-{
-  // todo replace with fnSystem LED call
-  // int i = 0;
-  // todo interrupts();
-  Debug_printf(("\r\nError!"));
-  fnLedManager.blink(eLed::LED_BUS, 5);
-
- /*  pinMode(statusledPin, OUTPUT);
-
-  for (i = 0; i < 5; i++) {
-    digitalWrite(statusledPin, HIGH);
-    fnSystem.delay(1500);
-    digitalWrite(statusledPin, LOW);
-    fnSystem.delay(100);
-    digitalWrite(statusledPin, HIGH);
-    fnSystem.delay(1500);
-    digitalWrite(statusledPin, HIGH);
-  } */
-
-}
-
-
-
-
+// move this to some other bus init
 //*****************************************************************************
 // Function: mcuInit
 // Parameters: none
@@ -1293,7 +1271,7 @@ void spDevice::led_err(void)
 //
 // Description: Initialize the ATMega32
 //*****************************************************************************
-void spDevice::mcuInit(void)
+void iwmBus::mcuInit(void)
 {
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_HIGH);
@@ -1310,9 +1288,7 @@ void spDevice::mcuInit(void)
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   // leave rd as input, pd6
-  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  
-
-  fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  ot maybe pull up, too?
 }
 
 /* todo memory reporting, although FujiNet firmware does this already
@@ -1324,25 +1300,7 @@ extern char *__brkval;
 #endif  // __arm__
 */
 
-int spDevice::freeMemory() {
-//todo memory reporting, although FujiNet firmware does this already
-/*   extern int __bss_end;
-  //extern int *__brkval;
-  int free_memory;
-  if ((int)__brkval == 0) {
-    // if no heap use from end of bss section
-    free_memory = ((int)&free_memory) - ((int)&__bss_end);
-  } else {
-    // use from top of stack to heap
-    free_memory = ((int)&free_memory) - ((int)__brkval);
-  }
-  return free_memory;
- */
- return 0;
- }
-
-
-bool spDevice::open_tnfs_image( device &d)
+bool iwmDevice::open_tnfs_image()
 {
   Debug_printf("\r\nmounting server");
   tserver.start("159.203.160.80"); //"atari-apps.irata.online");
@@ -1374,7 +1332,7 @@ bool spDevice::open_tnfs_image( device &d)
 }
 // TODO: Allow image files with headers, too
 // TODO: Respect read-only bit in header
-bool spDevice::open_image( device &d, std::string filename )
+bool iwmDevice::open_image(std::string filename )
 {
    // d.sdf = sdcard.open(filename, O_RDWR);
   Debug_printf("\r\nright before file open call");
@@ -1402,23 +1360,13 @@ bool spDevice::open_image( device &d, std::string filename )
 }
 
 
-void spDevice::spsd_setup() {
+void iwmBus::spsd_setup() {
   //sdf[0] = &sdf1;
   //sdf[1] = &sdf2;
   // put your setup code here, to run once:
   mcuInit();
   
-  // already done in main.cpp - Debug_begin(230400);
   Debug_printf(("\r\nSmartportSD v1.15\r\n"));
-  /* todo 
-  initPartition = eeprom_read_byte(0);
-  if (initPartition == 0xFF) initPartition = 0;
-  initPartition = (initPartition % 4); 
-  */
-  
-
-  Debug_printf(("\r\nFree memory before opening images: "));
-  Debug_print(freeMemory());
 
   for(uint8_t i=0; i<NUM_PARTITIONS; i++)
   {
@@ -1432,8 +1380,7 @@ void spDevice::spsd_setup() {
       Debug_printf("\r\n%s open good",part.c_str());
     else
     {
-      Debug_printf(("\r\nImage "));
-      Debug_print(i, DEC);
+      Debug_printf(("\r\nImage %d"), i);
       Debug_print((" open error! Filename = "));
       Debug_print(part.c_str());
     } 
@@ -1491,10 +1438,10 @@ void spDevice::spsd_loop()
 #endif
       portDISABLE_INTERRUPTS();
       iwm_ack_enable();
-      if (iwm_rx_packet((uint8_t *)packet_buffer))
+      if (iwm_to_computer((uint8_t *)packet_buffer))
       {
         portENABLE_INTERRUPTS(); 
-        break; //error timeout, break and loop again  // todo: for now ack going low is in iwm_rx_packet
+        break; //error timeout, break and loop again  // todo: for now ack going low is in iwm_to_computer
       }
       portENABLE_INTERRUPTS();
 
@@ -1567,7 +1514,7 @@ void spDevice::handle_readblock()
   //iwm_ack_set(); // todo: probably put ack req handshake inside of send and receive packet()
   portDISABLE_INTERRUPTS();
   iwm_rddata_enable();
-  SendPacket((unsigned char *)packet_buffer); // this returns timeout errors but that's not handled here
+  iwm_to_peripheral((unsigned char *)packet_buffer); // this returns timeout errors but that's not handled here
   iwm_rddata_disable();
   portENABLE_INTERRUPTS(); // takes 7 us to execute
 
@@ -1604,7 +1551,7 @@ void spDevice::handle_init()
   Debug_printf("\r\nSending INIT Response Packet...");
   portDISABLE_INTERRUPTS();
   iwm_rddata_enable();
-  SendPacket((uint8_t *)packet_buffer); // timeout error return is not handled here (yet?)
+  iwm_to_peripheral((uint8_t *)packet_buffer); // timeout error return is not handled here (yet?)
   // ack-req handshake is inside of sendpacket
   iwm_rddata_disable();
   portENABLE_INTERRUPTS(); // takes 7 us to execute
@@ -1614,35 +1561,6 @@ void spDevice::handle_init()
   Debug_printf(("\r\nDrive: %02x"),devices[0].device_id);
 }
 
-void spDevice::timer_1us_example()
-{
-  fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT);
-  // uint8_t o = DIGI_LOW;
-  int64_t iwm_timer.t0 = esp_timer_get_time();
-  int64_t iwm_timer.tn;
-  while(1)
-  {
-    //fnSystem.digital_write(PIN_INT,o);
-    GPIO.out_w1ts = ((uint32_t)1 << PIN_INT);
-    // o = (~o);
-    iwm_timer.tn = iwm_timer.t0 + 3;
-    do
-    {
-    iwm_timer.t0 = esp_timer_get_time(); 
-    } while (iwm_timer.t0<=iwm_timer.tn);
-    GPIO.out_w1tc = ((uint32_t)1 << PIN_INT);
-    iwm_timer.tn = iwm_timer.t0 + 3;
-    do
-    {
-    iwm_timer.t0 = esp_timer_get_time(); 
-    } while (iwm_timer.t0<=iwm_timer.tn);
-  }
-}
-
-
-
-
-
 iwmBus IWM; // global smartport bus variable
+
 #endif /* BUILD_APPLE */
-iwmBus IWM; // global smartport bus variable
