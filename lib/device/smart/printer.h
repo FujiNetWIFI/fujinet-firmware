@@ -8,7 +8,7 @@
 #include "../printer-emulator/printer_emulator.h"
 #include "fnFS.h"
 
-class applePrinter : public smartDevice
+class applePrinter : public iwmDevice
 {
 protected:
     // TODO following are copied over from sio/printer.h

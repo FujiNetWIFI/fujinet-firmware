@@ -143,7 +143,7 @@ void main_setup()
     }
 
 #if defined ( BUILD_APPLE )
-    theFuji.setup(&SmartPort);
+    theFuji.setup(&IWM);
     spsd.spsd_setup();
     fnSystem.delay(5000); // don't remember why this is here - maybe trying to get the highspeed timer working
     //spsd.test_send();

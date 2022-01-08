@@ -31,7 +31,7 @@
 #endif
 
 #ifdef BUILD_APPLE
-#define BUS_CLASS SmartPort
+#define BUS_CLASS IWM
 #endif
 
 
