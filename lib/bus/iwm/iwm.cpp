@@ -1,93 +1,46 @@
-#ifdef BUILD_APPLE
-#include "spsd.h"
+#include "iwm.h"
+#ifdef TEMP_BUILD_APPLE
+#include "iwm.h"
 
-/** 
- * converting to ESP32 use by @jeffpiep 
- * as preparation for creating FujiNet for Apple II plus ][+
+/******************************************************************************
+Based on:
+Apple //c Smartport Compact Flash adapter
+Written by Robert Justice  email: rjustice(at)internode.on.net
+Ported to Arduino UNO with SD Card adapter by Andrea Ottaviani email: andrea.ottaviani.69(at)gmail.com
+SD FAT support added by Katherine Stark at https://gitlab.com/nyankat/smartportsd/
+ *****************************************************************************
+ * Written for FujiNet ESP32 by @jeffpiep 
  * search for "todo" to find things to work on
- * 
- * step 1 - just respond to a smartport (sp) "reset"
- * step 2 - receive a port id command (from boot sequence)
- * step 3 - don't know yet
-**/
+*/
 
 /* pin assignments for Arduino UNO 
 from  http://www.users.on.net/~rjustice/SmartportCFA/SmartportSD.htm
-I added the IDC20 column to the left to list the Disk II 20-pin pins based on
+IDC20 Disk II 20-pin pins based on
 https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
-
-IDC20   IIc     DB 19     Arduino
-
-1       GND      1        GND to board        
-        GND      2
-        GND      3
-        GND      4
-        -12V     5
-        +5V      6        +5v to board
-        +12V     7
-        +12V     8
-        EXTINT   9
-20      WRPROT   10       PA5   (ACK for smartport)
-2       PH0      11       PD2   (REQ for smartport)
-4       PH1      12       PD3
-6       PH2      13       PD4
-8       PH3      14       PD5
-        WREQ     15         
-        (NC)     16       
-        DRVEN    17      
-16      RDDATA   18       PD6
-18      WRDATA   19       PD7
-
-        STATUS LED        PA4
-        EJECT BUTTON      PA3
-
 */
 
-//*****************************************************************************
-//
-// Based on:
-//
-// Apple //c Smartport Compact Flash adapter
-// Written by Robert Justice  email: rjustice(at)internode.on.net
-// Ported to Arduino UNO with SD Card adapter by Andrea Ottaviani email: andrea.ottaviani.69(at)gmail.com
-// SD FAT support added by Katherine Stark at https://gitlab.com/nyankat/smartportsd/
-//
-//*****************************************************************************
-
-//         SP BUS     GPIO       SIO
-//         ---------  ----       -------
-// #define SP_WRPROT   27
-// #define SP_ACK      27        CLKIN
-// #define SP_REQ      39
-// #define SP_PHI0     39        CMD
-// #define SP_PHI1     22        PROC
-// #define SP_PHI2     36        MOTOR
-// #define SP_PHI3     26        INT
-// #define SP_RDDATA   21        DATAIN
-// #define SP_WRDATA   33        DATAOUT
+//      SP BUS     GPIO       SIO
+//      ---------  ----     ---------
 #define SP_WRPROT   27
-#define SP_ACK      27
+#define SP_ACK      27      //  CLKIN
 #define SP_REQ      39
-#define SP_PHI0     39
-#define SP_PHI1     22
-#define SP_PHI2     36
-#define SP_PHI3     26
-#define SP_RDDATA   21
-#define SP_WRDATA   33
-#define SP_EXTRA    32 // CLOCKOUT
+#define SP_PHI0     39      //  CMD
+#define SP_PHI1     22      //  PROC
+#define SP_PHI2     36      //  MOTOR
+#define SP_PHI3     26      //  INT
+#define SP_RDDATA   21      //  DATAIN
+#define SP_WRDATA   33      //  DATAOUT
 
-#include "esp_timer.h"
-#include "driver/timer.h"
-#include "soc/timer_group_reg.h"
+// figure out which ones are required
+// #include "esp_timer.h"
+#include "driver/timer.h" // contains the hardware timer register data structure
+//#include "soc/timer_group_reg.h"
 
 #include "../../include/debug.h"
 #include "fnSystem.h"
-#include "led.h"
+// #include "led.h"
 
-#include "fnFsTNFS.h"
-
-#define HEX 16
-#define DEC 10
+// #include "fnFsTNFS.h"
 
 #include <string.h>
 
@@ -96,87 +49,95 @@ IDC20   IIc     DB 19     Arduino
 #define TIMER_USEC_FACTOR     (TIMER_SCALE / 1000000)
 #define TIMER_ADJUST          5 // substract this value to adjust for overhead
 
-#undef VERBOSE
-#undef TESTTX
+#define IWM_BIT_CELL          4 // microseconds - 2 us for fast mode
+#define IWM_TX_PW             1 // microseconds - 1/2 us for fast mode
 
-FileSystemTNFS tserver;
+#undef VERBOSE_IWM
+#undef TESTTX
 
 //------------------------------------------------------------------------------
 
-void spDevice::hw_timer_latch()
+void iwmBus::timer_config()
+{
+  // configure the hardware timer for regulating bit-banging smartport i/o
+  // use the idf library to get it set up
+  // have own helper functions that do direct register read/write for speed
+
+  timer_config_t config;
+  config.divider = TIMER_DIVIDER; // default clock source is APB
+  config.counter_dir = TIMER_COUNT_UP;
+  config.counter_en = TIMER_PAUSE;
+  config.alarm_en = TIMER_ALARM_DIS;
+
+  timer_init(TIMER_GROUP_1, TIMER_1, &config);
+  timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
+  timer_start(TIMER_GROUP_1, TIMER_1);
+}
+
+void iwmBus::iwm_timer_latch()
 {
   TIMERG1.hw_timer[1].update = 0;
 }
 
-void spDevice::hw_timer_read()
+void iwmBus::iwm_timer_read()
 {
-  t0 = TIMERG1.hw_timer[1].cnt_low;
+  iwm_timer.t0 = TIMERG1.hw_timer[1].cnt_low;
 }
 
-void spDevice::hw_timer_alarm_set(int s)
+void iwmBus::iwm_timer_alarm_set(int s)
 {
-  tn = t0 + s * TIMER_USEC_FACTOR - TIMER_ADJUST;
+  iwm_timer.tn = iwm_timer.t0 + s * TIMER_USEC_FACTOR - TIMER_ADJUST;
 }
 
-void spDevice::hw_timer_alarm_snooze(int s)
+void iwmBus::iwm_timer_alarm_snooze(int s)
 {
-  tn += s * TIMER_USEC_FACTOR - TIMER_ADJUST; // 3 microseconds
+  iwm_timer.tn += s * TIMER_USEC_FACTOR - TIMER_ADJUST; // 3 microseconds
 
 }
 
-void spDevice::hw_timer_wait()
+void iwmBus::iwm_timer_wait()
 {
   do
   {
-    hw_timer_latch();
-    hw_timer_read();
-  } while (t0 < tn);
+    iwm_timer_latch();
+    iwm_timer_read();
+  } while (iwm_timer.t0 < iwm_timer.tn);
 }
 
-void spDevice::hw_timer_reset()
+void iwmBus::iwm_timer_reset()
 {
   TIMERG1.hw_timer[1].load_low = 0;
   TIMERG1.hw_timer[1].reload = 0;
 }
 
-void spDevice::smartport_rddata_set()
+void iwmBus::iwm_rddata_set()
 {
   GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
 }
 
-void spDevice::smartport_rddata_clr()
+void iwmBus::iwm_rddata_clr()
 {
   GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 }
 
-void spDevice::smartport_rddata_enable()
+void iwmBus::iwm_rddata_enable()
 {
   GPIO.enable_w1ts = ((uint32_t)0x01 << SP_RDDATA);  
 }
 
-void spDevice::smartport_rddata_disable()
+void iwmBus::iwm_rddata_disable()
 {
   GPIO.enable_w1tc = ((uint32_t)0x01 << SP_RDDATA);
 }
 
-bool spDevice::smartport_wrdata_val()
+bool iwmBus::iwm_wrdata_val()
 {
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
 }
 
-bool spDevice::smartport_req_val()
+bool iwmBus::iwm_req_val()
 {
   return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
-}
-
-void spDevice::smartport_extra_clr()
-{
-  GPIO.out1_w1tc.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
-}
-
-void spDevice::smartport_extra_set()
-{
-  GPIO.out1_w1ts.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
 }
 
 //------------------------------------------------------
@@ -201,77 +162,38 @@ void spDevice::smartport_extra_set()
  * ls323 on the bus interface card. I surmise that WPROT goes low or is hi-z, which doesn't 
  * reset the ls125.  
  */
-void spDevice::smartport_ack_clr()
+void iwmBus::iwm_ack_clr()
 {
   //GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);
 GPIO.out_w1tc = ((uint32_t)1 << SP_ACK);
-#ifdef VERBOSE
+#ifdef VERBOSE_IWM
   Debug_print("a");
 #endif
 }
 
-void spDevice::smartport_ack_set()
+void iwmBus::iwm_ack_set()
 {
   //GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK);
 GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
-#ifdef VERBOSE
+#ifdef VERBOSE_IWM
   Debug_print("A");
 #endif
 }
 
-void spDevice::smartport_ack_enable()
+void iwmBus::iwm_ack_enable()
 {
   GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);  
 }
 
-void spDevice::smartport_ack_disable()
+void iwmBus::iwm_ack_disable()
 {
   GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK);
 }
 
-int spDevice::smartport_handshake()
-{
-  int ret = 0;
-
-  smartport_ack_clr();
-  smartport_ack_enable();
-  smartport_rddata_disable();
-
-  hw_timer_latch();
-  hw_timer_read();
-  hw_timer_alarm_set(10000); // 1 millisecond
-  do
-  {
-    hw_timer_latch();
-    hw_timer_read();
-    if (t0 > tn)
-    {
-      // timeout!
-#ifdef VERBOSE
-  Debug_print("t");
-#endif
-      ret = 1;
-      break;
-    }
-  } while (smartport_req_val()); // wait for REQ to go low
-#ifdef VERBOSE
-  if (ret == 0)
-    Debug_print("r");
-#endif
-  smartport_ack_set();
-  smartport_ack_disable();
-
-  return ret;
-}
-
 //------------------------------------------------------
 
-bool spDevice::smartport_phase_val(int p)
-{ // move to smartport bus class when refactoring
-// #define SP_PHI0     39
-// #define SP_PHI1     22
-// #define SP_PHI2     32
-// #define SP_PHI3     26
+bool iwmBus::iwm_phase_val(int p)
+{ 
   switch (p)
   {
   case 0:
@@ -283,36 +205,36 @@ bool spDevice::smartport_phase_val(int p)
   case 3:
     return (GPIO.in & (0x01 << SP_PHI3));
   default: 
-    break;
+    break; // drop out to error message
   }
   Debug_printf("\r\nphase number out of range");
   return false;
 }
 
-spDevice::phasestate_t spDevice::smartport_phases()
+iwmBus::iwm_phases_t iwmBus::iwm_phases()
 { 
-  phasestate_t phasestate = phasestate_t::idle;
+  iwm_phases_t phasestate = iwm_phases_t::idle;
   // phase lines for smartport bus reset
   // ph3=0 ph2=1 ph1=0 ph0=1
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
-  if (smartport_phase_val(1) && smartport_phase_val(3))
-    phasestate = phasestate_t::enable;
-  else if (smartport_phase_val(0) && smartport_phase_val(2) && !smartport_phase_val(1) && !smartport_phase_val(3))
-    phasestate = phasestate_t::reset;
+  if (iwm_phase_val(1) && iwm_phase_val(3))
+    phasestate = iwm_phases_t::enable;
+  else if (iwm_phase_val(0) && iwm_phase_val(2) && !iwm_phase_val(1) && !iwm_phase_val(3))
+    phasestate = iwm_phases_t::reset;
 
 #ifdef DEBUG
   if (phasestate != oldphase)
   {
     switch (phasestate)
     {
-    case phasestate_t::idle:
+    case iwm_phases_t::idle:
       Debug_printf("\r\nidle");
       break;
-    case phasestate_t::reset:
+    case iwm_phases_t::reset:
       Debug_printf("\r\nreset");
       break;
-    case phasestate_t::enable:
+    case iwm_phases_t::enable:
       Debug_printf("\r\nenable");
     }
     oldphase=phasestate;
@@ -325,10 +247,10 @@ spDevice::phasestate_t spDevice::smartport_phases()
 //------------------------------------------------------
 
 
-int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
+int IRAM_ATTR iwmBus::iwm_rx_packet(uint8_t *a)
 {
   //*****************************************************************************
-  // Function: ReceivePacket
+  // Function: iwm_rx_packet
   // Parameters: packet_buffer pointer
   // Returns: status (1 = timeout, 0 = OK)
   //
@@ -369,26 +291,26 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
 
   // 'a' is the receive buffer pointer
 
-  hw_timer_reset();
+  iwm_timer_reset();
 
-  smartport_ack_set();
+  iwm_ack_set();
 
   // setup a timeout counter to wait for REQ response
-  hw_timer_latch();        // latch highspeed timer value
-  hw_timer_read();      //  grab timer low word
-  hw_timer_alarm_set(100); // logic analyzer says 40 usec
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();      //  grab timer low word
+  iwm_timer_alarm_set(100); // logic analyzer says 40 usec
 
   // todo: this waiting for REQ seems like it should be done
   // in the main loop, if control can be passed quickly enough
   // to the receive routine. Otherwise, we sit here blocking(?)
   // until REQ goes high. As long as PHIx is in Enable mode.
-  while ( !smartport_req_val() )  
+  while ( !iwm_req_val() )  
   {
-    hw_timer_latch();   // latch highspeed timer value
-    hw_timer_read(); // grab timer low word
-    if (t0 > tn)                      // test for timeout
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     { // timeout!
-#ifdef VERBOSE
+#ifdef VERBOSE_IWM
       // timeout
       Debug_print("t");
 #endif
@@ -396,23 +318,23 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
     }
   };
 
-#ifdef VERBOSE
+#ifdef VERBOSE_IWM
   // REQ received!
   Debug_print("R");
 #endif
 
 
   // setup a timeout counter to wait for WRDATA to be ready response
-  hw_timer_latch();                    // latch highspeed timer value
-  hw_timer_read();    //  grab timer low word
-  hw_timer_alarm_set(32); // 32 usec - 1 byte
-  while (smartport_wrdata_val())
+  iwm_timer_latch();                    // latch highspeed timer value
+  iwm_timer_read();    //  grab timer low word
+  iwm_timer_alarm_set(32); // 32 usec - 1 byte
+  while (iwm_wrdata_val())
   {
-    hw_timer_latch();   // latch highspeed timer value
-    hw_timer_read(); // grab timer low word
-    if (t0 > tn)     // test for timeout
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)     // test for timeout
     {                // timeout!
-#ifdef VERBOSE
+#ifdef VERBOSE_IWM
       // timeout
       Debug_print("t");
 #endif
@@ -424,14 +346,14 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
   {
     // beginning of the byte
     // delay 2 us until middle of 4-us bit
-    hw_timer_latch();
-    hw_timer_read();
-    hw_timer_alarm_set(2); //TIMER_SCALE / 500000; // 2 usec
+    iwm_timer_latch();
+    iwm_timer_read();
+    iwm_timer_alarm_set(IWM_BIT_CELL / 2); //TIMER_SCALE / 500000; // 2 usec
     numbits = 8; // ;1   8bits to read
-//    hw_timer_wait();
+//    iwm_timer_wait();
     do
     {
-      hw_timer_wait();
+      iwm_timer_wait();
       // logic table:
       //  prev_level  current_level   decoded bit
       //  0           0               0
@@ -441,15 +363,15 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
       // this is an exclusive OR operation
       //todo: can curent_level and prev_level be bools and then uint32_t is implicitly
       //typecast down to bool? then the code can be:
-      current_level = smartport_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
-      hw_timer_alarm_set(4); // 4 usec
+      current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
+      iwm_timer_alarm_set(IWM_BIT_CELL); // 4 usec
       bit = prev_level ^ current_level;
       rxbyte <<= 1;
       rxbyte |= bit;
       prev_level = current_level;
       //
-      // current_level = smartport_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
-      // hw_timer_alarm_set(4); // 4 usec
+      // current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
+      // iwm_timer_alarm_set(4); // 4 usec
       // bit = prev_level ^ current_level;
       // rxbyte <<= 1;
       // rxbyte |= (uint8_t)(bit > 0);
@@ -461,36 +383,36 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
 
     } while(1);
     a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
-    hw_timer_alarm_snooze(19); // 19 usec from smartportsd assy routine
-#ifdef VERBOSE
+    iwm_timer_alarm_snooze(19); // 19 usec from smartportsd assy routine
+#ifdef VERBOSE_IWM
     Debug_printf("%02x", rxbyte);
 #endif
     // now wait for leading edge of next byte
     do // return (GPIO.in1.val >> (pin - 32)) & 0x1;
     {
-      hw_timer_latch();
-      hw_timer_read();
-      if (t0 > tn)
+      iwm_timer_latch();
+      iwm_timer_read();
+      if (iwm_timer.t0 > iwm_timer.tn)
       {
         // end of packet
         have_data = false;
         break;
       }
-    } while (smartport_wrdata_val() == prev_level);
+    } while (iwm_wrdata_val() == prev_level);
   } while (have_data); //(have_data); // while have_data
   //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
 
   // endpkt:   clr  r23
   a[idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
-  smartport_ack_clr();
-  while (smartport_req_val())
+  iwm_ack_clr();
+  while (iwm_req_val())
     ;
 
   return 0;
 }
 
-int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
+int IRAM_ATTR iwmBus::SendPacket(uint8_t *a)
 {
   //*****************************************************************************
   // Function: SendPacket
@@ -511,39 +433,35 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
 // You can suspend interrupts and context switches by calling  portDISABLE_INTERRUPTS
 // and the interrupts on that core should stop firing, stopping task switches as well.
 // Call portENABLE_INTERRUPTS after you're done
-  portDISABLE_INTERRUPTS();
-  smartport_rddata_enable();
 
  txbyte = a[idx++];
 
-  hw_timer_reset();
-//  smartport_rddata_clr();
-  smartport_ack_set();
+  iwm_timer_reset();
+//  iwm_rddata_clr();
+  iwm_ack_set();
 
 #ifndef TESTTX
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
   // setup a timeout counter to wait for REQ response
-  hw_timer_latch();        // latch highspeed timer value
-  hw_timer_read();      //  grab timer low word
-  hw_timer_alarm_set(100); // 10 millisecond
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();      //  grab timer low word
+  iwm_timer_alarm_set(100); // 10 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
-  while ( !smartport_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
   {
-    hw_timer_latch();   // latch highspeed timer value
-    hw_timer_read(); // grab timer low word
-    if (t0 > tn)                      // test for timeout
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     {
       // timeout!
       Debug_printf("\r\nSendPacket timeout waiting for REQ");
-      smartport_rddata_disable();
-      portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
   };
 // ;
 
-#ifdef VERBOSE
+#ifdef VERBOSE_IWM
   // REQ received!
   Debug_print("R");
 #endif
@@ -551,46 +469,45 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
 #endif // TESTTX
 
   // SEEMS CRITICAL TO HAVE 1 US BETWEEN req AND FIRST PULSE to put the falling edge 2 us after REQ
-  // hw_timer_alarm_set(1); // throw in a bit of time before sending first pulse
-  tn = t0 + (1 * TIMER_USEC_FACTOR / 2) - TIMER_ADJUST; // NEED JUST 1/2 USEC
-  hw_timer_wait();
+  // iwm_timer_alarm_set(1); // throw in a bit of time before sending first pulse
+  iwm_timer.tn = iwm_timer.t0 + (1 * TIMER_USEC_FACTOR / 2) - TIMER_ADJUST; // NEED JUST 1/2 USEC
+  iwm_timer_wait();
 
   do // beware of entry into the loop and an extended first pulse ...
   {
     do
     {
       // send MSB first, then ROL byte for next bit
-      hw_timer_latch();
+      iwm_timer_latch();
       if (txbyte & 0x80)
-        smartport_rddata_set();
+        iwm_rddata_set();
       else
-        smartport_rddata_clr();
+        iwm_rddata_clr();
      
-      hw_timer_read();
-      hw_timer_alarm_snooze(1); // 1 microsecond - snooze to finish off 4 us period
-      hw_timer_wait();
+      iwm_timer_read();
+      iwm_timer_alarm_snooze(1); // 1 microsecond - snooze to finish off 4 us period
+      iwm_timer_wait();
 
-      smartport_rddata_clr();
-      hw_timer_alarm_set(3); // 3 microseconds - set on falling edge of pulse
+      iwm_rddata_clr();
+      iwm_timer_alarm_set(3); // 3 microseconds - set on falling edge of pulse
 
       // do some updating while in 3-us low period
       if ((--numbits) == 0)
         break;
 
       txbyte <<= 1; //           rol  r23  
-      hw_timer_wait();
+      iwm_timer_wait();
     } while (1);
 
     txbyte = a[idx++]; // nxtsbyte: ld   r23,x+                 ;59               ;43         ;2   get first byte from buffer
     numbits = 8; //           ldi  r25,8                  ;62               ;46         ;1   8bits to read
-    hw_timer_wait(); // finish the 3 usec low period
+    iwm_timer_wait(); // finish the 3 usec low period
   } while (txbyte); //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
 
-  smartport_ack_clr();
-  while (smartport_req_val());
+  iwm_ack_clr();
+  while (iwm_req_val());
 
-  smartport_rddata_disable();
-  portENABLE_INTERRUPTS(); // takes 7 us to execute
+
   
 return 0;
 }
@@ -604,7 +521,7 @@ return 0;
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void spDevice::encode_data_packet (uint8_t source)
+void iwmDevice::encode_data_packet (uint8_t source)
 {
   int grpbyte, grpcount;
   uint8_t checksum = 0, grpmsb;
@@ -678,7 +595,7 @@ void spDevice::encode_data_packet (uint8_t source)
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void spDevice::encode_extended_data_packet (uint8_t source)
+void iwmDevice::encode_extended_data_packet (uint8_t source)
 {
   int grpbyte, grpcount;
   uint8_t checksum = 0, grpmsb;
@@ -750,7 +667,7 @@ void spDevice::encode_extended_data_packet (uint8_t source)
 // Description: decode 512 byte data packet for write block command from host
 // decodes the data from the packet_buffer IN-PLACE!
 //*****************************************************************************
-int spDevice::decode_data_packet (void)
+int iwmDevice::decode_data_packet (void)
 {
   int grpbyte, grpcount;
   uint8_t numgrps, numodd;
@@ -803,7 +720,7 @@ int spDevice::decode_data_packet (void)
 // Description: this is the reply to the write block data packet. The reply
 // indicates the status of the write block cmd.
 //*****************************************************************************
-void spDevice::encode_write_status_packet(uint8_t source, uint8_t status)
+void iwmDevice::encode_write_status_packet(uint8_t source, uint8_t status)
 {
   uint8_t checksum = 0;
 
@@ -845,7 +762,7 @@ void spDevice::encode_write_status_packet(uint8_t source, uint8_t status)
 // to 4 partions, i.e. devices, so we need to specify when we are doing the last
 // init reply.
 //*****************************************************************************
-void spDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
+void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 {
   uint8_t checksum = 0;
 
@@ -887,7 +804,7 @@ void spDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 // data byte 2-4 number of blocks. 2 is the LSB and 4 the MSB. 
 // Size determined from image file.
 //*****************************************************************************
-void spDevice::encode_status_reply_packet (device d)
+void iwmDevice::encode_status_reply_packet (device d)
 {
 
   uint8_t checksum = 0;
@@ -957,7 +874,7 @@ void spDevice::encode_status_reply_packet (device d)
 // data byte 2-5 number of blocks. 2 is the LSB and 5 the MSB. 
 // Size determined from image file.
 //*****************************************************************************
-void spDevice::encode_extended_status_reply_packet (device d)
+void iwmDevice::encode_extended_status_reply_packet (device d)
 {
   uint8_t checksum = 0;
 
@@ -1016,7 +933,7 @@ void spDevice::encode_extended_status_reply_packet (device d)
   packet_buffer[23] = 0x00; //end of packet in buffer
 
 }
-void spDevice::encode_error_reply_packet (uint8_t source)
+void iwmDevice::encode_error_reply_packet (uint8_t source)
 {
   uint8_t checksum = 0;
 
@@ -1057,7 +974,7 @@ void spDevice::encode_error_reply_packet (uint8_t source)
 // data byte 2-4 number of blocks. 2 is the LSB and 4 the MSB.
 // Calculated from actual image file size.
 //*****************************************************************************
-void spDevice::encode_status_dib_reply_packet (device d)
+void iwmDevice::encode_status_dib_reply_packet (device d)
 {
   int grpbyte, grpcount, i;
   int grpnum, oddnum; 
@@ -1168,7 +1085,7 @@ void spDevice::encode_status_dib_reply_packet (device d)
 // data byte 2-5 number of blocks. 2 is the LSB and 5 the MSB.
 // Calculated from actual image file size.
 //*****************************************************************************
-void spDevice::encode_extended_status_dib_reply_packet (device d)
+void iwmDevice::encode_extended_status_dib_reply_packet (device d)
 {
   uint8_t checksum = 0;
 
@@ -1239,9 +1156,9 @@ void spDevice::encode_extended_status_dib_reply_packet (device d)
 //
 // &&&&&&&&not used at the moment, no error checking for checksum for cmd packet
 //*****************************************************************************
-int spDevice::verify_cmdpkt_checksum(void)
+int iwmDevice::verify_cmdpkt_checksum(void)
 {
-  int length;
+  int count = 0, length;
   uint8_t evenbits, oddbits, bit7, bit0to6, grpbyte;
   uint8_t calc_checksum = 0; //initial value is 0
   uint8_t pkt_checksum;
@@ -1539,56 +1456,52 @@ void spDevice::spsd_setup() {
 //*****************************************************************************
 void spDevice::spsd_loop() 
 {
-  smartport_rddata_disable();
-  smartport_rddata_clr();
+  iwm_rddata_disable();
+  iwm_rddata_clr();
   while (true)
   {
-    smartport_ack_set();
+    iwm_ack_set();
     // read phase lines to check for smartport reset or enable
-    phasestate = smartport_phases();
+    phasestate = iwm_phases();
 
     switch (phasestate)
     {
     case phasestate_t::idle:
-#ifdef VERBOSE
+#ifdef VERBOSE_IWM
       Debug_printf("\r\nIdle Case");
       fnSystem.delay(100);
 #endif
       break;
     case phasestate_t::reset:
-#ifdef VERBOSE
+#ifdef VERBOSE_IWM
       Debug_printf("\r\nReset Case");
       fnSystem.delay(100);
 #endif
       Debug_printf(("\r\nReset"));
-      while (smartport_phases() == phasestate_t::reset)
+      while (iwm_phases() == phasestate_t::reset)
         ; // todo: should there be a timeout feature?
         // hard coding 1 partition - will use disk class instances  instead                                                    // to check if needed
         devices[0].device_id = 0;
         Debug_printf(("\r\nReset Cleared"));
       break;
     case phasestate_t::enable:
-#ifdef VERBOSE
+#ifdef VERBOSE_IWM
       Debug_printf("\r\nEnable Case");
       fnSystem.delay(100);
 #endif
       portDISABLE_INTERRUPTS();
-      smartport_ack_enable();
-      if (ReceivePacket((uint8_t *)packet_buffer))
+      iwm_ack_enable();
+      if (iwm_rx_packet((uint8_t *)packet_buffer))
       {
         portENABLE_INTERRUPTS(); 
-        break; //error timeout, break and loop again  // todo: for now ack going low is in ReceivePacket
+        break; //error timeout, break and loop again  // todo: for now ack going low is in iwm_rx_packet
       }
       portENABLE_INTERRUPTS();
 
 #ifdef DEBUG
       Debug_printf("\r\n");
       for (int i = 0; i < 28; i++)
-      {
         Debug_printf("%02x ", packet_buffer[i]);
-        if (packet_buffer[i] == 0)
-          break;
-      }
       Debug_printf("\r\n");
 #endif
 
@@ -1651,10 +1564,12 @@ void spDevice::handle_readblock()
   }
   encode_data_packet(source);
   Debug_printf("\r\nsending block packet ...");
-  //smartport_ack_set(); // todo: probably put ack req handshake inside of send and receive packet()
-
+  //iwm_ack_set(); // todo: probably put ack req handshake inside of send and receive packet()
+  portDISABLE_INTERRUPTS();
+  iwm_rddata_enable();
   SendPacket((unsigned char *)packet_buffer); // this returns timeout errors but that's not handled here
-
+  iwm_rddata_disable();
+  portENABLE_INTERRUPTS(); // takes 7 us to execute
 
   //Debug_printf(status);
   //print_packet ((unsigned char*) packet_buffer,packet_length());
@@ -1665,8 +1580,8 @@ void spDevice::handle_init()
 {
   uint8_t source;
 
-  smartport_rddata_enable(); // todo: instead, do we enable rddata and ack when phasestate==enable?
-  smartport_rddata_clr(); // todo: enable is done below so maybe not needed here?
+  iwm_rddata_enable(); // todo: instead, do we enable rddata and ack when phasestate==enable?
+  iwm_rddata_clr(); // todo: enable is done below so maybe not needed here?
 
   source = packet_buffer[6];
   // if (number_partitions_initialised < NUM_PARTITIONS)
@@ -1687,12 +1602,12 @@ void spDevice::handle_init()
   encode_init_reply_packet(source, status);
   //print_packet ((uint8_t*) packet_buffer,packet_length());
   Debug_printf("\r\nSending INIT Response Packet...");
-  // portDISABLE_INTERRUPTS();
-  // smartport_rddata_enable();
+  portDISABLE_INTERRUPTS();
+  iwm_rddata_enable();
   SendPacket((uint8_t *)packet_buffer); // timeout error return is not handled here (yet?)
   // ack-req handshake is inside of sendpacket
-  // smartport_rddata_disable();
-  // portENABLE_INTERRUPTS(); // takes 7 us to execute
+  iwm_rddata_disable();
+  portENABLE_INTERRUPTS(); // takes 7 us to execute
 
   //print_packet ((uint8_t*) packet_buffer,packet_length());
 
@@ -1703,182 +1618,31 @@ void spDevice::timer_1us_example()
 {
   fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT);
   // uint8_t o = DIGI_LOW;
-  int64_t t0 = esp_timer_get_time();
-  int64_t tn;
+  int64_t iwm_timer.t0 = esp_timer_get_time();
+  int64_t iwm_timer.tn;
   while(1)
   {
     //fnSystem.digital_write(PIN_INT,o);
     GPIO.out_w1ts = ((uint32_t)1 << PIN_INT);
     // o = (~o);
-    tn = t0 + 3;
+    iwm_timer.tn = iwm_timer.t0 + 3;
     do
     {
-    t0 = esp_timer_get_time(); 
-    } while (t0<=tn);
+    iwm_timer.t0 = esp_timer_get_time(); 
+    } while (iwm_timer.t0<=iwm_timer.tn);
     GPIO.out_w1tc = ((uint32_t)1 << PIN_INT);
-    tn = t0 + 3;
+    iwm_timer.tn = iwm_timer.t0 + 3;
     do
     {
-    t0 = esp_timer_get_time(); 
-    } while (t0<=tn);
+    iwm_timer.t0 = esp_timer_get_time(); 
+    } while (iwm_timer.t0<=iwm_timer.tn);
   }
 }
 
 
-void spDevice::timer_config()
-{
-  // configure the hardware timer for regulating bit-banging smartport i/o
-  // use the idf library to get it set up
-  // have own helper functions that do direct register read/write for speed
-
-  timer_config_t config;
-  config.divider = TIMER_DIVIDER; // default clock source is APB
-  config.counter_dir = TIMER_COUNT_UP;
-  config.counter_en = TIMER_PAUSE;
-  config.alarm_en = TIMER_ALARM_DIS;
-
-  timer_init(TIMER_GROUP_1, TIMER_1, &config);
-  timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
-  timer_start(TIMER_GROUP_1, TIMER_1);
-}
 
 
-#define DELAY 159
 
-void spDevice::hw_timer_pulses()
-{
-  fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT);
-  
-  timer_config_t config;
-  config.divider = TIMER_DIVIDER; // default clock source is APB
-  config.counter_dir = TIMER_COUNT_UP;
-  config.counter_en = TIMER_PAUSE;
-  config.alarm_en = TIMER_ALARM_DIS;
-
-  /* Timer's counter will initially start from value below.
-       Also, if auto_reload is set, this value will be automatically reload on alarm */
-  timer_init(TIMER_GROUP_1, TIMER_1, &config);
-  timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
-
-  uint32_t t0 = 0;
-  uint32_t tn = t0 + DELAY;
-  timer_start(TIMER_GROUP_1, TIMER_1);
-  while (1)
-  {
-    do
-    {
-      TIMERG1.hw_timer[1].update = 0;
-      t0 = TIMERG1.hw_timer[1].cnt_low;
-      // WRITE_PERI_REG(TIMG_T0UPDATE_REG(1), 0); // 0x3FF6000C
-      // t0 = READ_PERI_REG(TIMG_T0LO_REG(1));    // 0x3FF60004
-    } while (t0 < tn);
-    GPIO.out_w1tc = ((uint32_t)1 << PIN_INT);
-    tn = t0 + DELAY;
-    do
-    {
-      TIMERG1.hw_timer[1].update = 0;
-      t0 = TIMERG1.hw_timer[1].cnt_low;
-      // WRITE_PERI_REG(TIMG_T0UPDATE_REG(1), 0); // 0x3FF6000C
-      // t0 = READ_PERI_REG(TIMG_T0LO_REG(1));    // 0x3FF60004
-    } while (t0 < tn);
-    GPIO.out_w1ts = ((uint32_t)1 << PIN_INT);
-    tn = t0 + DELAY;
-  }
-}
-
-void spDevice::hw_timer_direct_reg()
-{
-  timer_config_t config;
-  config.divider = TIMER_DIVIDER; // default clock source is APB
-  config.counter_dir = TIMER_COUNT_UP;
-  config.counter_en = TIMER_PAUSE;
-  config.alarm_en = TIMER_ALARM_DIS;
-
-  /* Timer's counter will initially start from value below.
-       Also, if auto_reload is set, this value will be automatically reload on alarm */
-  timer_init(TIMER_GROUP_1, TIMER_1, &config);
-  timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
-
-
-  uint64_t t0 = 0;
-  uint32_t tlo;
-  timer_start(TIMER_GROUP_1, TIMER_1);
-  while (1)
-  {
-      timer_get_counter_value(TIMER_GROUP_1, TIMER_1, &t0);
-      // WRITE_PERI_REG(TIMG_T0UPDATE_REG(0),0);
-      //tlo = READ_PERI_REG(TIMG_T0LO_REG(0)); 
-      //Debug_printf("%lu ", tlo);
-      // WRITE_PERI_REG(TIMG_T1UPDATE_REG(0),0);
-      // tlo = READ_PERI_REG(TIMG_T1LO_REG(0)); 
-      // Debug_printf("%lu ", tlo);
-      WRITE_PERI_REG(TIMG_T0UPDATE_REG(1),0); // 0x3FF6000C
-      tlo = READ_PERI_REG(TIMG_T0LO_REG(1)); // 0x3FF60004
-      Debug_printf("%lu %lu \r\n",tlo, uint32_t(t0));
-      // Debug_printf("%lu\r\n", tlo);
-      // WRITE_PERI_REG(TIMG_T1UPDATE_REG(1),0);
-      // tlo = READ_PERI_REG(TIMG_T1LO_REG(1)); 
-      // Debug_printf("%lu\r\n ", tlo);
-  }
-}
-
-void spDevice::test_send()
-/*
-FF SYNC SELF SYNCHRONIZING BYTES 0
-3F : : 32 micro Sec.
-CF : : 32 micro Sec.
-F3 : : 32 micro Sec.
-FC : : 32 micro Sec.
-FF : : 32 micro Sec.
-C3 PBEGIN MARKS BEGINNING OF PACKET 32 micro Sec.
-81 DEST DESTINATION UNIT NUMBER 32 micro Sec.
-80 SRC SOURCE UNIT NUMBER 32 micro Sec.
-80 TYPE PACKET TYPE FIELD 32 micro Sec.
-80 AUX PACKET AUXILLIARY TYPE FIELD 32 micro Sec.
-80
-*/
-{
-  uint8_t a[] {0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x00};
-  while(1)
-  {
-    Debug_printf("\r\nsending packet now");
-    smartport_rddata_enable();
-    SendPacket(a);
-    smartport_rddata_disable();
-    fnSystem.delay(2500);
-  }
-}
-
-void IRAM_ATTR spDevice::test_edge_capture()
-{
-  uint32_t stamp[100];
-  uint32_t prev_val = ((uint32_t)0x01 << (SP_WRDATA - 32));
-  uint32_t curr_val;
-  int i=0;
-
-  portDISABLE_INTERRUPTS();
-  hw_timer_reset();
-  do
-  {
-    if (prev_val)
-      smartport_extra_set();
-    else
-      smartport_extra_clr();   
-    do
-    {
-      curr_val = smartport_wrdata_val();
-    } while (curr_val == prev_val);
-    hw_timer_latch();
-    hw_timer_read();
-    stamp[i] = t0;
-    prev_val = curr_val;
-  } while (++i < 20);
-  portENABLE_INTERRUPTS();
-  for (int i = 0; i < 20; i++)
-  {
-    Debug_printf("\r\n%d",stamp[i]);
-  }
-}
-
-
-#endif
+iwmBus IWM; // global smartport bus variable
+#endif /* BUILD_APPLE */
+iwmBus IWM; // global smartport bus variable

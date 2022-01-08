@@ -15,7 +15,7 @@ void appleFuji::insert_boot_device(uint8_t d)
 {
 }
 
-void appleFuji::setup(smartBus *smartbus)
+void appleFuji::setup(iwmBus *iwmbus)
 {
 }
 

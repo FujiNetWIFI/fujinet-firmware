@@ -51,7 +51,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class appleFuji : public smartDevice
+class appleFuji : public iwmDevice
 {
 private:
     bool isReady = false;
@@ -63,7 +63,7 @@ private:
     uint8_t response[1024];
     uint16_t response_len;
 
-    smartBus *_adamnet_bus;
+    iwmBus *_iwm_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -142,7 +142,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(smartBus *smartbus);
+    void setup(iwmBus *iwmbus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);

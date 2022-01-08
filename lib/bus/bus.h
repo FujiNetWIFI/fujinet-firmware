@@ -37,7 +37,7 @@
 #if defined( BUILD_ATARI )
 #   include "sio/sio.h"
 #elif defined( BUILD_APPLE )
-#   include "smart/smart.h"
+#   include "iwm/iwm.h"
 #elif defined( BUILD_CBM )
 #   include "iec/iec.h"
 #elif defined( BUILD_ADAM )

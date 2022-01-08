@@ -4,7 +4,7 @@
 #include "bus.h"
 #include "media.h"
 
-class smartDisk : public smartDevice
+class smartDisk : public iwmDevice
 {
 private:
     MediaType *_disk = nullptr;

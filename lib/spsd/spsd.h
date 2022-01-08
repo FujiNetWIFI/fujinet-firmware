@@ -27,9 +27,7 @@ FNBUS enum class phasestate_t {
   phasestate_t oldphase = phasestate_t::reset; // can use for debug printing of phase changes
 #endif 
 
-  int count; // counter used in the encoding/decoding functions
-
-  bool reset_state = false; // maybe not needed if control is passed to a reset handler
+    bool reset_state = false; // maybe not needed if control is passed to a reset handler
 
 public:
 

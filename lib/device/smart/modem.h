@@ -69,7 +69,7 @@
 
 #define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
 
-class appleModem : public smartDevice
+class appleModem : public iwmDevice
 {
 private:
 
