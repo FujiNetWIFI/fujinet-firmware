@@ -249,10 +249,10 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 //------------------------------------------------------
 
 
-int IRAM_ATTR iwmBus::iwm_to_computer(uint8_t *a)
+int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
 {
   //*****************************************************************************
-  // Function: iwm_to_computer
+  // Function: iwm_read_packet
   // Parameters: packet_buffer pointer
   // Returns: status (1 = timeout, 0 = OK)
   //
@@ -292,9 +292,6 @@ int IRAM_ATTR iwmBus::iwm_to_computer(uint8_t *a)
  */
 
   // 'a' is the receive buffer pointer
-
-  portDISABLE_INTERRUPTS();
-  iwm_rddata_enable();
 
   iwm_timer_reset();
 
@@ -355,7 +352,7 @@ int IRAM_ATTR iwmBus::iwm_to_computer(uint8_t *a)
     // delay 2 us until middle of 4-us bit
     iwm_timer_latch();
     iwm_timer_read();
-    iwm_timer_alarm_set(IWM_BIT_CELL / 2); //TIMER_SCALE / 500000; // 2 usec
+    iwm_timer_alarm_set( (IWM_BIT_CELL / 2) ); //TIMER_SCALE / 500000; // 2 usec
     numbits = 8; // ;1   8bits to read
 //    iwm_timer_wait();
     do
@@ -416,16 +413,15 @@ int IRAM_ATTR iwmBus::iwm_to_computer(uint8_t *a)
   while (iwm_req_val())
     ;
 
-  iwm_rddata_disable();
-  portENABLE_INTERRUPTS(); // takes 7 us to execute
+
 
   return 0;
 }
 
-int IRAM_ATTR iwmBus::iwm_to_peripheral(uint8_t *a)
+int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 {
   //*****************************************************************************
-  // Function: iwm_to_peripheral
+  // Function: iwm_send_packet
   // Parameters: packet_buffer pointer
   // Returns: status (not used yet, always returns 0)
   //
@@ -443,6 +439,8 @@ int IRAM_ATTR iwmBus::iwm_to_peripheral(uint8_t *a)
 // You can suspend interrupts and context switches by calling  portDISABLE_INTERRUPTS
 // and the interrupts on that core should stop firing, stopping task switches as well.
 // Call portENABLE_INTERRUPTS after you're done
+  portDISABLE_INTERRUPTS();
+  iwm_rddata_enable();
 
  txbyte = a[idx++];
 
@@ -465,6 +463,8 @@ int IRAM_ATTR iwmBus::iwm_to_peripheral(uint8_t *a)
     if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     {
       // timeout!
+        iwm_rddata_disable();
+  portENABLE_INTERRUPTS(); // takes 7 us to execute
       Debug_printf("\r\nSendPacket timeout waiting for REQ");
       return 1;
     }
@@ -517,7 +517,8 @@ int IRAM_ATTR iwmBus::iwm_to_peripheral(uint8_t *a)
   iwm_ack_clr();
   while (iwm_req_val());
 
-
+  iwm_rddata_disable();
+  portENABLE_INTERRUPTS(); // takes 7 us to execute
   
 return 0;
 }
@@ -1168,7 +1169,7 @@ void iwmDevice::encode_extended_status_dib_reply_packet()
 //*****************************************************************************
 int iwmDevice::verify_cmdpkt_checksum(void)
 {
-  int count = 0, length;
+  int length;
   uint8_t evenbits, oddbits, bit7, bit0to6, grpbyte;
   uint8_t calc_checksum = 0; //initial value is 0
   uint8_t pkt_checksum;
@@ -1368,30 +1369,22 @@ void iwmBus::spsd_setup() {
   
   Debug_printf(("\r\nSmartportSD v1.15\r\n"));
 
-  for(uint8_t i=0; i<NUM_PARTITIONS; i++)
-  {
-    std::string part = "/PART";
-    part += std::to_string(i+1);
-    part += ".PO";
-    Debug_printf("\r\nopening %s",part.c_str());
+  // for(uint8_t i=0; i<NUM_PARTITIONS; i++)
+  // {
+  //   std::string part = "/PART";
+  //   part += std::to_string(i+1);
+  //   part += ".PO";
+  //   Debug_printf("\r\nopening %s",part.c_str());
     // open_image(devices[i], part ); // std::string operations
-    open_tnfs_image(devices[i]);
-    if(devices[i].sdf != nullptr)
-      Debug_printf("\r\n%s open good",part.c_str());
-    else
-    {
-      Debug_printf(("\r\nImage %d"), i);
-      Debug_print((" open error! Filename = "));
-      Debug_print(part.c_str());
-    } 
-  }  
+  smort.open_tnfs_image();
+  if (smort.d.sdf != nullptr)
+    Debug_printf("\r\nfile open good");
+  else
+    Debug_printf("\r\nImage open error!");
   
   timer_config();
   Debug_printf("\r\ntimer started");
-
   Debug_println();
-  // to do: figure out how RDDATA is shared on the daisy chain
-  fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
 }
 
 //*****************************************************************************
@@ -1401,7 +1394,7 @@ void iwmBus::spsd_setup() {
 //
 // Description: Main function for Apple //c Smartport Compact Flash adpater
 //*****************************************************************************
-void spDevice::spsd_loop() 
+void iwmBus::spsd_loop() 
 {
   iwm_rddata_disable();
   iwm_rddata_clr();
@@ -1409,54 +1402,59 @@ void spDevice::spsd_loop()
   {
     iwm_ack_set();
     // read phase lines to check for smartport reset or enable
-    phasestate = iwm_phases();
+    // phasestate = iwm_phases();
 
-    switch (phasestate)
+    switch (iwm_phases())
     {
-    case phasestate_t::idle:
+    case iwm_phases_t::idle:
 #ifdef VERBOSE_IWM
       Debug_printf("\r\nIdle Case");
       fnSystem.delay(100);
 #endif
       break;
-    case phasestate_t::reset:
+    case iwm_phases_t::reset:
 #ifdef VERBOSE_IWM
       Debug_printf("\r\nReset Case");
       fnSystem.delay(100);
 #endif
       Debug_printf(("\r\nReset"));
-      while (iwm_phases() == phasestate_t::reset)
+      while (iwm_phases() == iwm_phases_t::reset)
         ; // todo: should there be a timeout feature?
         // hard coding 1 partition - will use disk class instances  instead                                                    // to check if needed
-        devices[0].device_id = 0;
+        smort.d.device_id = 0;
         Debug_printf(("\r\nReset Cleared"));
       break;
-    case phasestate_t::enable:
+    case iwm_phases_t::enable:
 #ifdef VERBOSE_IWM
       Debug_printf("\r\nEnable Case");
       fnSystem.delay(100);
 #endif
       portDISABLE_INTERRUPTS();
-      iwm_ack_enable();
-      if (iwm_to_computer((uint8_t *)packet_buffer))
+      iwm_ack_enable(); // this should be moved to the command handler
+      if (iwm_read_packet((uint8_t *)smort.packet_buffer))
       {
         portENABLE_INTERRUPTS(); 
-        break; //error timeout, break and loop again  // todo: for now ack going low is in iwm_to_computer
+        break; //error timeout, break and loop again  // todo: for now ack going low is in iwm_read_packet
       }
       portENABLE_INTERRUPTS();
 
 #ifdef DEBUG
       Debug_printf("\r\n");
       for (int i = 0; i < 28; i++)
-        Debug_printf("%02x ", packet_buffer[i]);
+      {
+        if (smort.packet_buffer[i])
+          Debug_printf("%02x ", smort.packet_buffer[i]);
+        else
+          break;
+      }
       Debug_printf("\r\n");
 #endif
 
-      switch (packet_buffer[14])
+      switch (smort.packet_buffer[14])
       {
       case 0x81: // read block
         Debug_printf("\r\nhandling read block command");
-        handle_readblock();
+        smort.handle_readblock();
         break;
       case 0x85: //is an init cmd
         Debug_printf("\r\nhandling init command");
@@ -1467,7 +1465,7 @@ void spDevice::spsd_loop()
   } // while(true)
 }
 
-void spDevice::handle_readblock()
+void iwmDevice::handle_readblock()
 {
  uint8_t LBH, LBL, LBN, LBT;
  unsigned long int block_num;
@@ -1489,10 +1487,10 @@ void spDevice::handle_readblock()
   block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
   Debug_printf("\r\nRead block %02x",block_num);
 
-  if (fseek(devices[0].sdf, (block_num * 512), SEEK_SET))
+  if (fseek(d.sdf, (block_num * 512), SEEK_SET))
   {
     Debug_printf("\r\nRead seek err! block #%02x", block_num);
-    if (devices[0].sdf != nullptr)
+    if (d.sdf != nullptr)
     {
       Debug_printf("\r\nPartition file is open!");
     }
@@ -1503,7 +1501,7 @@ void spDevice::handle_readblock()
     return;
   }
 
-  sdstato = fread((unsigned char *)packet_buffer, 1, 512, devices[0].sdf); //Reading block from SD Card
+  sdstato = fread((unsigned char *)packet_buffer, 1, 512, d.sdf); //Reading block from SD Card
   if (sdstato != 512)
   {
     Debug_printf("\r\nFile Read err: %d bytes", sdstato);
@@ -1512,25 +1510,25 @@ void spDevice::handle_readblock()
   encode_data_packet(source);
   Debug_printf("\r\nsending block packet ...");
   //iwm_ack_set(); // todo: probably put ack req handshake inside of send and receive packet()
-  portDISABLE_INTERRUPTS();
-  iwm_rddata_enable();
-  iwm_to_peripheral((unsigned char *)packet_buffer); // this returns timeout errors but that's not handled here
-  iwm_rddata_disable();
-  portENABLE_INTERRUPTS(); // takes 7 us to execute
+  // portDISABLE_INTERRUPTS();
+  // iwm_rddata_enable();
+  IWM.iwm_send_packet((unsigned char *)packet_buffer); // this returns timeout errors but that's not handled here
+  // iwm_rddata_disable();
+  // portENABLE_INTERRUPTS(); // takes 7 us to execute
 
   //Debug_printf(status);
   //print_packet ((unsigned char*) packet_buffer,packet_length());
   //print_packet ((unsigned char*) sector_buffer,15);
 }
 
-void spDevice::handle_init()
+void iwmBus::handle_init()
 {
   uint8_t source;
 
   iwm_rddata_enable(); // todo: instead, do we enable rddata and ack when phasestate==enable?
   iwm_rddata_clr(); // todo: enable is done below so maybe not needed here?
 
-  source = packet_buffer[6];
+  source = smort.packet_buffer[6];
   // if (number_partitions_initialised < NUM_PARTITIONS)
   // {                                                                                                   //are all init'd yet
   //   devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
@@ -1543,22 +1541,22 @@ void spDevice::handle_init()
   //   number_partitions_initialised++;
   //   status = 0xff; //yes, so status=non zero
   // }
-    devices[0].device_id = source; //remember source id for partition
+    smort.d.device_id = source; //remember source id for partition
     uint8_t status = 0xff; //yes, so status=non zero
 
-  encode_init_reply_packet(source, status);
+  smort.encode_init_reply_packet(source, status);
   //print_packet ((uint8_t*) packet_buffer,packet_length());
   Debug_printf("\r\nSending INIT Response Packet...");
-  portDISABLE_INTERRUPTS();
-  iwm_rddata_enable();
-  iwm_to_peripheral((uint8_t *)packet_buffer); // timeout error return is not handled here (yet?)
+  // portDISABLE_INTERRUPTS();
+  // iwm_rddata_enable();
+  iwm_send_packet((uint8_t *)smort.packet_buffer); // timeout error return is not handled here (yet?)
   // ack-req handshake is inside of sendpacket
-  iwm_rddata_disable();
-  portENABLE_INTERRUPTS(); // takes 7 us to execute
+  // iwm_rddata_disable();
+  // portENABLE_INTERRUPTS(); // takes 7 us to execute
 
   //print_packet ((uint8_t*) packet_buffer,packet_length());
 
-  Debug_printf(("\r\nDrive: %02x"),devices[0].device_id);
+  Debug_printf(("\r\nDrive: %02x"),smort.d.device_id);
 }
 
 iwmBus IWM; // global smartport bus variable

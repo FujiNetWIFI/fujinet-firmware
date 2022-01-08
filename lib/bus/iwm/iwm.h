@@ -16,6 +16,8 @@ class iwmBus;
 
 class iwmDevice
 {
+friend iwmBus; // put here for prototype, not sure if will need to keep it
+
 private:
     // temp device for disk image
     // todo: turn into FujiNet practice
@@ -58,9 +60,12 @@ void print_packet (uint8_t* data, int bytes);
 #endif
 
   public:
+  void handle_readblock();
+ 
 
   bool device_active;
-  virtual void shutdown() = 0;
+  //virtual void shutdown() = 0;
+  void shutdown() {};
 
   /**
      * @brief Get the iwmBus object that this iwmDevice is attached to.
@@ -72,6 +77,7 @@ class iwmBus
 {
 private:
     std::forward_list<iwmDevice *> _daisyChain;
+    iwmDevice smort; // temporary device
 
     // low level bit-banging i/o functions
     struct iwm_timer_t
@@ -112,18 +118,21 @@ private:
     iwm_phases_t oldphase;
 #endif
 
-    int iwm_to_computer(uint8_t *a);
-    int iwm_to_peripheral(uint8_t *a);
 
 protected:
-    // get rid of this stuff by moving to correct locations after the prototype works
-    void mcuInit(void);
-    void spsd_setup();
+  // get rid of this stuff by moving to correct locations after the prototype works
+  void mcuInit(void);
+  void spsd_setup();
+  void spsd_loop();
+  void handle_init();
 
 public:
+  int iwm_read_packet(uint8_t *a);
+  int iwm_send_packet(uint8_t *a);
+
   void setup();
   void service();
-  void shutdown();
+  void shutdown() {};
 
   int numDevices();
   void addDevice(iwmDevice *pDevice, int device_id);

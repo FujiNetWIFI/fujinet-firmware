@@ -21,7 +21,7 @@ private:
     // void dump_percom_block();
 
 protected:
-    void shutdown() override;
+    void shutdown(); // override; todo change back
 
 public:
     smartDisk();

@@ -99,7 +99,7 @@ IDC20   IIc     DB 19     Arduino
 #undef VERBOSE
 #undef TESTTX
 
-FileSystemTNFS tserver;
+extern FileSystemTNFS tserver;
 
 //------------------------------------------------------------------------------
 
