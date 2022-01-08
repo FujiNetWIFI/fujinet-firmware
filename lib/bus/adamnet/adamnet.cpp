@@ -202,7 +202,7 @@ void adamNetBus::wait_for_idle()
                 isIdle = true;
         }
     } while (isIdle == false);
-
+    fnUartSIO.flush_input();
     fnSystem.yield();
 }
 
