@@ -118,14 +118,6 @@ private:
     iwm_phases_t oldphase;
 #endif
 
-
-protected:
-  // get rid of this stuff by moving to correct locations after the prototype works
-  void mcuInit(void);
-  void spsd_setup();
-  void spsd_loop();
-  void handle_init();
-
 public:
   int iwm_read_packet(uint8_t *a);
   int iwm_send_packet(uint8_t *a);
@@ -133,6 +125,8 @@ public:
   void setup();
   void service();
   void shutdown() {};
+
+  void handle_init();
 
   int numDevices();
   void addDevice(iwmDevice *pDevice, int device_id);

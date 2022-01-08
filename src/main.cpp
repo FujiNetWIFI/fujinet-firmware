@@ -144,7 +144,7 @@ void main_setup()
 
 #if defined ( BUILD_APPLE )
     theFuji.setup(&IWM);
-    spsd.spsd_setup();
+    IWM.setup();
     fnSystem.delay(5000); // don't remember why this is here - maybe trying to get the highspeed timer working
     //spsd.test_send();
     //spsd.hw_timer_pulses();
@@ -219,8 +219,7 @@ void fn_service_loop(void *param)
     #endif
 
     #if defined( BUILD_APPLE )
-        // fnSystem.delay(100);
-        spsd.spsd_loop();
+        IWM.service();
     #elif defined( BUILD_ATARI )
         SIO.service();
     #elif defined ( BUILD_ADAM )
