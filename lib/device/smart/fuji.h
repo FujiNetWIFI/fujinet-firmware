@@ -126,7 +126,7 @@ protected:
     void adamnet_process(uint8_t b) override;
 
     */
-    void shutdown() override; 
+    void shutdown(); // override; todo change back 
     
 
 public:
