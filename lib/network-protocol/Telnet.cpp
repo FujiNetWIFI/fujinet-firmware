@@ -62,7 +62,7 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
         break;
     case TELNET_EV_TTYPE:
         if (ev->ttype.cmd == TELNET_TTYPE_SEND)
-            telnet_ttype_is(telnet, "vt100");
+            telnet_ttype_is(telnet, protocol->ttype);
         break;
     case TELNET_EV_SUBNEGOTIATION:
         break;
