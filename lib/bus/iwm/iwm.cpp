@@ -327,6 +327,8 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
 #endif
 
 
+  // we might want to just block on writedata without timout so there's
+  // faster control passed to the do-loop
   // setup a timeout counter to wait for WRDATA to be ready response
   iwm_timer_latch();                    // latch highspeed timer value
   iwm_timer_read();    //  grab timer low word
@@ -349,8 +351,9 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   {
     // beginning of the byte
     // delay 2 us until middle of 4-us bit
-    iwm_timer_latch();
-    iwm_timer_read();
+    // testing: can we rely on previous t0 value?
+    //iwm_timer_latch();
+    //iwm_timer_read();
     iwm_timer_alarm_set( 2 ); //TIMER_SCALE / 500000; // 2 usec
     numbits = 8; // ;1   8bits to read
 //    iwm_timer_wait();
@@ -408,12 +411,10 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   // endpkt:   clr  r23
   a[idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
-  iwm_ack_clr();
-  iwm_ack_enable();
+  //iwm_ack_clr();
+  iwm_ack_enable(); // should already be cleared
   while (iwm_req_val())
     ;
-
-
 
   return 0;
 }
@@ -453,9 +454,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 
  txbyte = a[idx++];
 
-  
-//  iwm_rddata_clr();
-  iwm_ack_set();
+  iwm_ack_set(); // ack is already enabled by the response to the command read
 
 #ifndef TESTTX
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
@@ -1381,23 +1380,15 @@ void iwmBus::service()
   iwm_rddata_clr();
   while (true)
   {
-    iwm_ack_set(); // todo - figure out sequence of setting IWM pins and where this should go
+    iwm_ack_disable();
+    iwm_ack_clr(); // prep for the next read packet
+     
     // read phase lines to check for smartport reset or enable
-    // phasestate = iwm_phases();
-
     switch (iwm_phases())
     {
     case iwm_phases_t::idle:
-#ifdef VERBOSE_IWM
-      Debug_printf("\r\nIdle Case");
-      fnSystem.delay(100);
-#endif
       break;
     case iwm_phases_t::reset:
-#ifdef VERBOSE_IWM
-      Debug_printf("\r\nReset Case");
-      fnSystem.delay(100);
-#endif
       Debug_printf(("\r\nReset"));
       while (iwm_phases() == iwm_phases_t::reset)
         ; // todo: should there be a timeout feature?
@@ -1406,19 +1397,14 @@ void iwmBus::service()
         Debug_printf(("\r\nReset Cleared"));
       break;
     case iwm_phases_t::enable:
-#ifdef VERBOSE_IWM
-      Debug_printf("\r\nEnable Case");
-      fnSystem.delay(100);
-#endif
       portDISABLE_INTERRUPTS();
-      //iwm_ack_enable(); // this should be moved to the command handler? should not ACK until we know it's our command
       if (iwm_read_packet((uint8_t *)smort.packet_buffer))
       {
         portENABLE_INTERRUPTS(); 
         break; //error timeout, break and loop again  // todo: for now ack going low is in iwm_read_packet
       }
       portENABLE_INTERRUPTS();
-
+      // now ACK is enabled and cleared low, it is reset in the handlers
 #ifdef DEBUG
       Debug_printf("\r\n");
       for (int i = 0; i < 28; i++)
@@ -1441,9 +1427,9 @@ void iwmBus::service()
         Debug_printf("\r\nhandling init command");
         handle_init();
         break;
-} // switch (cmd)
-    } // switch (phasestate)
-  } // while(true)
+      } // switch (cmd)
+    }   // switch (phasestate)
+  }     // while(true)
 }
 
 void iwmDevice::handle_readblock()
