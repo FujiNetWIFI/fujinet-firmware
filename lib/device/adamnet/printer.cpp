@@ -30,14 +30,14 @@ void printerTask(void *param)
 
     while(1)
     {
-        if ((ptr != nullptr) && (!buf.empty()))
+        if ((ptr != nullptr) && (ptr->bpos>0))
         {
             taskActive=true;
-            memcpy(ptr->getPrinterPtr()->provideBuffer(),buf.data(),buf.size());
-            ptr->getPrinterPtr()->process(buf.size(),0,0);
-            buf.clear();
+            ptr->getPrinterPtr()->process(ptr->bpos,0,0);
+            ptr->bpos=0;
             taskActive=false;
         }
+
         vPortYield();
     }
 }
@@ -98,16 +98,11 @@ void adamPrinter::adamnet_control_send()
     uint8_t ck = adamnet_recv(); // ck
 
     AdamNet.start_time = esp_timer_get_time();
-
-    if (adamnet_checksum(_buffer,s) == ck)
-        adamnet_response_ack();
-    else
-        adamnet_response_nack();
+    adamnet_response_ack();
 
     _last_ms = fnSystem.millis();
-
-    if (taskActive == false)
-        buf += std::string((const char *)_buffer,s);
+    memcpy(_pptr->provideBuffer(),_buffer,s);
+    bpos=s;
 }
 
 void adamPrinter::adamnet_control_ready()

@@ -19,6 +19,7 @@ protected:
     TaskHandle_t *thPrinter;
 
     uint8_t _buffer[16];
+    
     void sio_write(uint8_t aux1, uint8_t aux2);
     
     virtual void adamnet_control_status();
@@ -62,6 +63,7 @@ public:
     };
 
 public:
+    uint8_t bpos=0;
     constexpr static const char * const printer_model_str[PRINTER_INVALID]
     {
         "file printer (RAW)",

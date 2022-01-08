@@ -55,6 +55,8 @@ public:
      * Length after RX processing
      */
     int newRxLen;
+
+    char ttype[32]="heath-19";
     
 };
 
