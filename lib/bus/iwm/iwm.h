@@ -8,6 +8,10 @@
 #include <forward_list>
 #include "fnFS.h"
 
+// these are for the temporary disk functions
+#include "fnFsSD.h"
+#include <string>
+
 class iwmBus;
 
 class iwmDevice
@@ -15,6 +19,7 @@ class iwmDevice
 private:
     // temp device for disk image
     // todo: turn into FujiNet practice
+    // get rid of this stuff by moving to correct locations after the prototype works
   struct device
   {
     FILE *sdf;
@@ -22,34 +27,45 @@ private:
     unsigned long blocks;       //how many 512-byte blocks this image has
     unsigned int header_offset; //Some image files have headers, skip this many bytes to avoid them
     bool writeable;
-};
+  } d; // temporary device until have a disk device
+bool open_tnfs_image();
+bool open_image(std::string filename );
 
-    device d;
+
+
     // iwm packet handling
-    uint8_t packet_buffer[605]; //smartport packet buffer
+  uint8_t packet_buffer[605]; //smartport packet buffer
+  // todo: make a union with the first set of elements for command packet
 
-    int decode_data_packet(void); //decode smartport 512 byte data packet
+  int decode_data_packet(void); //decode smartport 512 byte data packet
 
-    void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
-    void encode_write_status_packet(uint8_t source, uint8_t status);
-    void encode_init_reply_packet(uint8_t source, uint8_t status);
-    void encode_status_reply_packet();
-    void encode_error_reply_packet(uint8_t source);
-    void encode_status_dib_reply_packet();
+  void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
+  void encode_write_status_packet(uint8_t source, uint8_t status);
+  void encode_init_reply_packet(uint8_t source, uint8_t status);
+  void encode_status_reply_packet();
+  void encode_error_reply_packet(uint8_t source);
+  void encode_status_dib_reply_packet();
 
-    void encode_extended_data_packet(uint8_t source);
-    void encode_extended_status_reply_packet();
-    void encode_extended_status_dib_reply_packet();
+  void encode_extended_data_packet(uint8_t source);
+  void encode_extended_status_reply_packet();
+  void encode_extended_status_dib_reply_packet();
 
+  int verify_cmdpkt_checksum(void);
+  int packet_length(void);
 
-public:
-    bool device_active;
-    virtual void shutdown() = 0;
+#ifdef DEBUG
+void print_packet (uint8_t* data, int bytes);
+#endif
 
-    /**
+  public:
+
+  bool device_active;
+  virtual void shutdown() = 0;
+
+  /**
      * @brief Get the iwmBus object that this iwmDevice is attached to.
      */
-    iwmBus iwm_get_bus();
+  iwmBus iwm_get_bus();
 };
 
 class iwmBus
@@ -96,12 +112,23 @@ private:
     iwm_phases_t oldphase;
 #endif
 
-    int iwm_rx_packet(uint8_t *a);
-    int SendPacket(uint8_t *a);
+    int iwm_to_computer(uint8_t *a);
+    int iwm_to_peripheral(uint8_t *a);
+
+protected:
+    // get rid of this stuff by moving to correct locations after the prototype works
+    void mcuInit(void);
+    void spsd_setup();
 
 public:
-void shutdown() {};
+  void setup();
+  void service();
+  void shutdown();
 
+  int numDevices();
+  void addDevice(iwmDevice *pDevice, int device_id);
+  void remDevice(iwmDevice *pDevice);
+  iwmDevice *deviceById(int device_id);
 };
 
 extern iwmBus IWM;
