@@ -722,6 +722,11 @@ void adamNetwork::adamnet_control_receive()
         adamnet_response_ack();
         return;
     }
+    else if (protocol == nullptr)
+    {
+        adamnet_response_nack();
+        return;
+    }
 
     switch (receiveMode)
     {
