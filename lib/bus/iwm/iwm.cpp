@@ -295,9 +295,14 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   // 'a' is the receive buffer pointer
 
   iwm_timer_reset();
-
-  //iwm_ack_set(); // this takes the bus which is not right until we know we're in control
-
+  // cache all the functions
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();
+  iwm_timer_alarm_set(1);
+  iwm_timer_wait();
+  iwm_timer_alarm_snooze(1);
+  iwm_timer_wait();
+  
   // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
@@ -346,6 +351,9 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
       return 1;
     }
   };
+
+  iwm_timer_alarm_set(2);
+  iwm_timer_wait();
 
   do // have_data
   {
@@ -444,6 +452,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 
   // try to cache functions
   iwm_timer_reset();
+  iwm_timer_latch();
   iwm_timer_read();
   iwm_timer_alarm_set(1);
   iwm_timer_wait();
