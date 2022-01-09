@@ -268,7 +268,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   bool prev_level = true; // ((uint32_t)0x01 << (SP_WRDATA - 32)); // previous value of WRDATA line
   bool current_level;  // current value of WRDATA line
   uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
-  int numbits;             // number of bits left to read into the rxbyte
+  int numbits = 8;             // number of bits left to read into the rxbyte
 
   /**
  * @brief Handle ACK and REQ lines and read a packet into packet_buffer
@@ -352,7 +352,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
     }
   };
 
-  iwm_timer_alarm_set(2);
+  iwm_timer_alarm_set(1);
   iwm_timer_wait();
 
   do // have_data
@@ -362,8 +362,8 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
     // testing: can we rely on previous t0 value?
     //iwm_timer_latch();
     //iwm_timer_read();
-    iwm_timer_alarm_set( 2 ); //TIMER_SCALE / 500000; // 2 usec
-    numbits = 8; // ;1   8bits to read
+    iwm_timer_alarm_set( 2 * (idx>0) ); //TIMER_SCALE / 500000; // 2 usec
+ 
 //    iwm_timer_wait();
     do
     {
@@ -413,6 +413,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
         break;
       }
     } while (iwm_wrdata_val() == prev_level);
+       numbits = 8; // ;1   8bits to read
   } while (have_data); //(have_data); // while have_data
   //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
 
