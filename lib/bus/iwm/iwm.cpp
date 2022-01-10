@@ -29,6 +29,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #define SP_PHI3     26      //  INT
 #define SP_RDDATA   21      //  DATAIN
 #define SP_WRDATA   33      //  DATAOUT
+#define SP_EXTRA    32 // CLOCKOUT
 
 // figure out which ones are required
 // #include "esp_timer.h"
@@ -141,6 +142,16 @@ bool iwmBus::iwm_wrdata_val()
 bool iwmBus::iwm_req_val()
 {
   return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
+}
+
+void iwmBus::iwm_extra_clr()
+{
+  GPIO.out1_w1tc.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
+}
+
+void iwmBus::iwm_extra_set()
+{
+  GPIO.out1_w1ts.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
 }
 
 //------------------------------------------------------
@@ -335,25 +346,33 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   // we might want to just block on writedata without timout so there's
   // faster control passed to the do-loop
   // setup a timeout counter to wait for WRDATA to be ready response
-  iwm_timer_latch();                    // latch highspeed timer value
-  iwm_timer_read();    //  grab timer low word
-  iwm_timer_alarm_set(32); // 32 usec - 1 byte
-  while (iwm_wrdata_val())
-  {
-    iwm_timer_latch();   // latch highspeed timer value
-    iwm_timer_read(); // grab timer low word
-    if (iwm_timer.t0 > iwm_timer.tn)     // test for timeout
-    {                // timeout!
-#ifdef VERBOSE_IWM
-      // timeout
-      Debug_print("t");
-#endif
-      return 1;
-    }
-  };
+//   iwm_timer_latch();                    // latch highspeed timer value
+//   iwm_timer_read();    //  grab timer low word
+//   iwm_timer_alarm_set(32); // 32 usec - 1 byte
+//   while (iwm_wrdata_val())
+//   {
+//     iwm_timer_latch();   // latch highspeed timer value
+//     iwm_timer_read(); // grab timer low word
+//     if (iwm_timer.t0 > iwm_timer.tn)     // test for timeout
+//     {                // timeout!
+// #ifdef VERBOSE_IWM
+//       // timeout
+//       Debug_print("t");
+// #endif
+//       return 1;
+//     }
+//   };
 
-  iwm_timer_alarm_set(1);
-  iwm_timer_wait();
+//   iwm_timer_alarm_set(1);
+//   iwm_timer_wait();
+
+  // new idea ...
+  // act like we've received the first and second bits: "xxxxxx10"
+  rxbyte = 0b10;
+  numbits = 6; // i think this is right
+  prev_level = false;
+  while(iwm_wrdata_val());
+  while(!iwm_wrdata_val());
 
   do // have_data
   {
@@ -362,7 +381,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
     // testing: can we rely on previous t0 value?
     //iwm_timer_latch();
     //iwm_timer_read();
-    iwm_timer_alarm_set( 2 * (idx>0) ); //TIMER_SCALE / 500000; // 2 usec
+    iwm_timer_alarm_set( 2 ); //TIMER_SCALE / 500000; // 2 usec
  
 //    iwm_timer_wait();
     do
@@ -413,7 +432,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
         break;
       }
     } while (iwm_wrdata_val() == prev_level);
-       numbits = 8; // ;1   8bits to read
+    numbits = 8;       // ;1   8bits to read
   } while (have_data); //(have_data); // while have_data
   //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
 
@@ -551,7 +570,7 @@ void iwmBus::setup(void)
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::PULL_UP ); // //per note 1, page 16, IWM spec sheet
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
@@ -563,7 +582,7 @@ void iwmBus::setup(void)
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   // leave rd as input, pd6
-  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  ot maybe pull up, too?
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::PULL_UP); //per note 1, page 16, IWM spec sheet
   Debug_printf("\r\nIWM GPIO configured");
 
   timer_config();
