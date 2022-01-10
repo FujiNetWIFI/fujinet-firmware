@@ -27,11 +27,23 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install --upgrade platformio
+        
+    - name: Show Env
+      run: python --version
+      run: pio --version
+      run: which pio
+      
     - name: Create INI
       run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/platformio-sample.ini /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
     - name: Select ATARI Build
       run: sed -i "s/^;\{0,1\}build_platform = BUILD_ATARI/build_platform = BUILD_ATARI/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
-    - name: Run PlatformIO
+
+    - name: Fix up dirent.h
+      run: awk '1;/#include <stdint.h>/{print "\n#ifdef __cplusplus\nextern "C" {\n#endif\n\n"}' /home/runner/work/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+      run: echo '#ifdef __cplusplus\n}\n#endif\n' >> /home/runner/work/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+
+   - name: Run PlatformIO
       run: pio run 
     - name: Build FS
       run: pio run -t buildfs
