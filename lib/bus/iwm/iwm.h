@@ -107,6 +107,9 @@ private:
     int iwm_handshake();
     bool iwm_phase_val(int p);
     
+    void iwm_extra_set();
+    void iwm_extra_clr();
+
     enum class iwm_phases_t
     {
         idle = 0,
