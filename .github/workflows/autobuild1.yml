@@ -43,7 +43,7 @@ jobs:
       run: awk '1;/#include <stdint.h>/{print "\n#ifdef __cplusplus\nextern "C" {\n#endif\n\n"}' /home/runner/work/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
       run: echo '#ifdef __cplusplus\n}\n#endif\n' >> /home/runner/work/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
 
-   - name: Run PlatformIO
+    - name: Run PlatformIO
       run: pio run 
     - name: Build FS
       run: pio run -t buildfs
