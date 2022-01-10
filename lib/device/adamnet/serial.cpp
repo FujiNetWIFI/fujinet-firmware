@@ -30,7 +30,7 @@ adamSerial::adamSerial()
     response_len = 0;
     status_response[3] = 0x00; // character device
     serial_out_queue = xQueueCreate(16, sizeof(uint8_t));
-    xTaskCreatePinnedToCore(serial_task, "adamnet_serial", 2048, this, 10, NULL,1);
+    // xTaskCreatePinnedToCore(serial_task, "adamnet_serial", 2048, this, 10, NULL,1);
 }
 
 adamSerial::~adamSerial()
