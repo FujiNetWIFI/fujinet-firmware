@@ -54,17 +54,17 @@ IDC20   IIc     DB 19     Arduino
 //
 //*****************************************************************************
 
-//         SP BUS     GPIO       SIO
-//         ---------  ----       -------
-// #define SP_WRPROT   27
-// #define SP_ACK      27        CLKIN
+//         SP BUS     GPIO       SIO            IDC
+//         ---------  ----       -------       ------
+// #define SP_WRPROT   27                       
+// #define SP_ACK      27        CLKIN          20
 // #define SP_REQ      39
-// #define SP_PHI0     39        CMD
-// #define SP_PHI1     22        PROC
-// #define SP_PHI2     36        MOTOR
-// #define SP_PHI3     26        INT
-// #define SP_RDDATA   21        DATAIN
-// #define SP_WRDATA   33        DATAOUT
+// #define SP_PHI0     39        CMD            2
+// #define SP_PHI1     22        PROC           4
+// #define SP_PHI2     36        MOTOR          6
+// #define SP_PHI3     26        INT            8
+// #define SP_RDDATA   21        DATAIN         16
+// #define SP_WRDATA   33        DATAOUT        18
 #define SP_WRPROT   27
 #define SP_ACK      27
 #define SP_REQ      39
