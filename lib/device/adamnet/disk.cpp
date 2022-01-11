@@ -30,7 +30,10 @@ void adamDisk::reset()
     blockNum = INVALID_SECTOR_VALUE;
 
     if (_media != nullptr)
+    {
         _media->_media_last_block = INVALID_SECTOR_VALUE - 1;
+        _media->_media_controller_status = 0;
+    }
 }
 
 mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
@@ -212,6 +215,9 @@ void adamDisk::adamnet_process(uint8_t b)
 
     switch (c)
     {
+    case MN_RESET:
+        reset();
+        break;
     case MN_STATUS:
         adamnet_control_status();
         break;
