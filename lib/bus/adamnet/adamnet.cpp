@@ -160,7 +160,7 @@ void adamNetDevice::adamnet_response_ack()
 
     if (t < 300)
     {
-        AdamNet.wait_for_idle();
+        fnSystem.delay_microseconds(150);
         adamnet_send(0x90 | _devnum);
     }
 }
@@ -171,7 +171,7 @@ void adamNetDevice::adamnet_response_nack()
 
     if (t < 300)
     {
-        AdamNet.wait_for_idle();
+        fnSystem.delay_microseconds(150);
         adamnet_send(0xC0 | _devnum);
     }
 }
@@ -202,7 +202,6 @@ void adamNetBus::wait_for_idle()
                 isIdle = true;
         }
     } while (isIdle == false);
-    fnUartSIO.flush_input();
     fnSystem.yield();
 }
 
@@ -256,8 +255,9 @@ void adamNetBus::_adamnet_process_cmd()
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }
-
+    
     wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
+    fnUartSIO.flush();
 }
 
 void adamNetBus::_adamnet_process_queue()
@@ -286,7 +286,6 @@ void adamNetBus::setup()
 
     // Set up UART
     fnUartSIO.begin(ADAMNET_BAUD);
-    fnUartSIO.flush_input();
 }
 
 void adamNetBus::shutdown()
