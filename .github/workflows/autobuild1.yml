@@ -44,10 +44,10 @@ jobs:
       run: sed -i "s/^;\{0,1\}build_platform = BUILD_ATARI/build_platform = BUILD_ATARI/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
     - name: Fix up dirent.h start
-      run: awk '1;/#include <stdint.h>/{print "\n#ifdef __cplusplus\nextern "C" {\n#endif\n\n"}' /home/runner/work/.platformio/packages/toolchain-xtensa32/xtensa-esp32-elf/include/sys/dirent.h
+      run: awk '1;/#include <stdint.h>/{print "\n#ifdef __cplusplus\nextern "C" {\n#endif\n\n"}' /home/runner/.platformio/packages/toolchain-xtensa32/xtensa-esp32-elf/include/sys/dirent.h
 
     - name: Fix up dirent.h end
-      run: echo '#ifdef __cplusplus\n}\n#endif\n' >> /home/runner/work/.platformio/packages/toolchain-xtensa32/xtensa-esp32-elf/include/sys/dirent.h
+      run: echo '#ifdef __cplusplus\n}\n#endif\n' >> /home/runner/.platformio/packages/toolchain-xtensa32/xtensa-esp32-elf/include/sys/dirent.h
 
 
     - name: Run PlatformIO
