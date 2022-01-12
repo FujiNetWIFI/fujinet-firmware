@@ -6,6 +6,9 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target-platform: [ATARI, ADAM]
 
     steps:
     - uses: actions/checkout@v2
@@ -41,19 +44,44 @@ jobs:
       run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/platformio-sample.ini /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
     - name: Select ATARI Build
-      run: sed -i "s/^;\{0,1\}build_platform = BUILD_ATARI/build_platform = BUILD_ATARI/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+      run: sed -i "s/^;\{0,1\}build_platform = BUILD_${{ matrix.target-platform }}/build_platform = BUILD_${{ matrix.target-platform }}/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
-    - name: Fix up dirent.h start
-      run: awk '1;/#include <stdint.h>/{print "\n#ifdef __cplusplus\nextern "C" {\n#endif\n\n"}' /home/runner/.platformio/packages/toolchain-xtensa32/xtensa-esp32-elf/include/sys/dirent.h
-
-    - name: Fix up dirent.h end
-      run: echo '#ifdef __cplusplus\n}\n#endif\n' >> /home/runner/.platformio/packages/toolchain-xtensa32/xtensa-esp32-elf/include/sys/dirent.h
-
-
-    - name: Run PlatformIO
+# Run pio command one time in order to pull in the framework-espidf files. These don't exist
+# at the start of a fresh pio install and so we cannot fix this dirent.h file until they are installed
+    - name: Run PlatformIO - failboat
+      continue-on-error: true
       run: pio run 
-    - name: Build FS
-      run: pio run -t buildfs
-    - name: Show Directory
-      run: ls -l
+
+    - name: Fix up dirent.h top
+      run: gawk -i inplace '1;/#include\ <stdint.h>/{print "\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"}' /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+
+    - name: Fix up dirent.h bottom
+      run: printf "\n\n\n#ifdef __cplusplus\n}\n#endif\n\n" >> /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+
+    - name: Verify dirent.h bottom
+      run: tail -n 10 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+    - name: Verify dirent.h top
+      run: head -n 30 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+
+
+    - name: Run PlatformIO Build - winboat
+      run: pio run 
+
+    - name: Build Filesystem
+      run: pio run -t buildfs -e fujinet-v1
       
+    - name: Show Build Artifacts
+      run: ls -la .pio/build/fujinet-v1/*.bin
+   
+    - name: Copy boot_app0.bin to upload folder
+      run: cp /home/runner/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin /home/runner/work/fujinet-platformio/fujinet-platformio/.pio/build/fujinet-v1/
+ 
+   
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v2.3.1
+      with:
+        name: fujinet-release-${{ matrix.target-platform }}
+        path: .pio/build/fujinet-v1/*.bin
+        
+        
+# end
