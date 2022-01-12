@@ -502,6 +502,16 @@ void fnConfig::store_cassette_pulldown(bool pulldown)
     }
 }
 
+// Saves CPM Command Control Processor Filename
+void fnConfig::store_ccp_filename(std::string filename)
+{
+    if (_cpm.ccp == filename)
+        return;
+
+    _cpm.ccp = filename;
+    _dirty = true;
+}
+
 /* Save configuration data to SPIFFS. If SD is mounted, save a backup copy there.
 */
 void fnConfig::save()
@@ -619,6 +629,10 @@ void fnConfig::save()
     ss << LINETERM << "[Cassette]" << LINETERM;
     ss << "play_record=" << ((_cassette.button) ? "1 Record" : "0 Play") << LINETERM;
     ss << "pulldown=" << ((_cassette.pulldown) ? "1 Pulldown Resistor" : "0 B Button Press") << LINETERM;
+
+    // CPM
+    ss << LINETERM << "[CPM]" << LINETERM;
+    ss << "ccp=" << _cpm.ccp << LINETERM;
 
     // Write the results out
     FILE *fout = NULL;
@@ -788,6 +802,9 @@ New behavior: copy from SD first if available, then read SPIFFS.
             break;
         case SECTION_CASSETTE: //Jeff put this here to handle tape drive configuration (pulldown and play/record)
             _read_section_cassette(ss);
+            break;
+        case SECTION_CPM:
+            _read_section_cpm(ss);
             break;
         case SECTION_PHONEBOOK: //Mauricio put this here to handle the phonebook
             _read_section_phonebook(ss, index);
@@ -1147,6 +1164,23 @@ void fnConfig::_read_section_cassette(std::stringstream &ss)
     }
 }
 
+void fnConfig::_read_section_cpm(std::stringstream &ss)
+{
+    std::string line;
+
+    // Read lines until one starts with '[' which indicates a new section
+    while (_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line, name, value))
+        {
+            if (strcasecmp(name.c_str(), "ccp") == 0)
+                _cpm.ccp = value;
+        }
+    }
+}
+
 void fnConfig::_read_section_phonebook(std::stringstream &ss, int index)
 {
     // Throw out any existing data for this index
@@ -1276,6 +1310,10 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             else if (strncasecmp("Modem", s1.c_str(), 8) == 0)
             {
                 return SECTION_MODEM;
+            }
+            else if (strncasecmp("CPM", s1.c_str(), 8) == 0)
+            {
+                return SECTION_CPM;
             }
         }
     }
