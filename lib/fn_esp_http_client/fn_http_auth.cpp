@@ -19,6 +19,7 @@
 
 //#include "tcpip_adapter.h"
 #include "lwip/sockets.h"
+#include "esp32/rom/md5_hash.h"
 #include "mbedtls/base64.h"
 
 #include "esp_system.h"
@@ -26,7 +27,6 @@
 
 #include "fn_http_utils.h"
 #include "fn_http_auth.h"
-#include "esp_rom_md5.h"
 
 #define MD5_MAX_LEN (33)
 #define HTTP_AUTH_BUF_LEN (1024)
@@ -48,7 +48,7 @@ static int md5_printf(char *md, const char *fmt, ...)
     unsigned char *buf;
     unsigned char digest[MD5_MAX_LEN];
     int len, i;
-    md5_context_t md5_ctx;
+    struct MD5Context md5_ctx;
     va_list ap;
     va_start(ap, fmt);
     len = vasprintf((char **)&buf, fmt, ap);
@@ -56,9 +56,9 @@ static int md5_printf(char *md, const char *fmt, ...)
         return ESP_FAIL;
     }
 
-    esp_rom_md5_init(&md5_ctx);
-    esp_rom_md5_update(&md5_ctx, buf, len);
-    esp_rom_md5_final(digest, &md5_ctx);
+    MD5Init(&md5_ctx);
+    MD5Update(&md5_ctx, buf, len);
+    MD5Final(digest, &md5_ctx);
 
     for (i = 0; i < 16; ++i) {
         sprintf(&md[i * 2], "%02x", (unsigned int)digest[i]);
