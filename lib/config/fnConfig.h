@@ -125,13 +125,17 @@ public:
     void store_modem_enabled(bool modem_enabled);
     bool get_modem_enabled() { return _modem.modem_enabled; };
     void store_modem_sniffer_enabled(bool modem_sniffer_enabled);
-    bool get_modem_sniffer_enabled() { return _modem.sniffer_enabled; }
+    bool get_modem_sniffer_enabled() { return _modem.sniffer_enabled; };
 
     // CASSETTE
     bool get_cassette_buttons();
     bool get_cassette_pulldown();
     void store_cassette_buttons(bool button);
     void store_cassette_pulldown(bool pulldown);
+
+    // CPM
+    std::string get_ccp_filename(){ return _cpm.ccp; };
+    void store_ccp_filename(std::string filename);
 
     void load();
     void save();
@@ -154,6 +158,7 @@ private:
     void _read_section_modem(std::stringstream &ss);
     void _read_section_cassette(std::stringstream &ss);
     void _read_section_phonebook(std::stringstream &ss, int index);
+    void _read_section_cpm(std::stringstream &ss);
 
     enum section_match
     {
@@ -168,6 +173,7 @@ private:
         SECTION_MODEM,
         SECTION_CASSETTE,
         SECTION_PHONEBOOK,
+        SECTION_CPM,
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -259,6 +265,11 @@ private:
         bool button = false;
     };
 
+    struct cpm_info
+    {
+        std::string ccp;
+    };
+
     struct phbook_info
     {
         std::string phnumber;
@@ -277,6 +288,7 @@ private:
     general_info _general;
     modem_info _modem;
     cassette_info _cassette;
+    cpm_info _cpm;
 
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
 };
