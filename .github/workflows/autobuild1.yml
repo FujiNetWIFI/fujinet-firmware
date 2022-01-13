@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target-platform: [ATARI, ADAM]
+        target-platform: [ATARI]
 
     steps:
     - uses: actions/checkout@v2
