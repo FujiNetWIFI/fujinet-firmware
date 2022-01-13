@@ -73,10 +73,6 @@ jobs:
     - name: Show Build Artifacts
       run: ls -la .pio/build/fujinet-v1/*.bin
    
-    - name: Copy boot_app0.bin to upload folder
-      run: cp /home/runner/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin /home/runner/work/fujinet-platformio/fujinet-platformio/.pio/build/fujinet-v1/
- 
-   
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v2.3.1
       with:
