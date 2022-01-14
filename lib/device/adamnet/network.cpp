@@ -64,12 +64,13 @@ adamNetwork::~adamNetwork()
  * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
  * method. Also set up RX interrupt.
  */
-void adamNetwork::open()
+void adamNetwork::open(unsigned short s)
 {
     uint8_t _aux1 = adamnet_recv();
     uint8_t _aux2 = adamnet_recv();
 
-    adamnet_recv_buffer(devicespecBuf, sizeof(devicespecBuf));
+    memset(devicespecBuf,0,sizeof(devicespecBuf));
+    adamnet_recv_buffer(devicespecBuf, s);
     adamnet_recv(); // checksum
 
     AdamNet.start_time = esp_timer_get_time();
@@ -645,7 +646,7 @@ void adamNetwork::adamnet_control_send()
         get_prefix();
         break;
     case 'O':
-        open();
+        open(s);
         break;
     case 'C':
         close();

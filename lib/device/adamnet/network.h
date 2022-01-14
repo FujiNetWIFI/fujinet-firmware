@@ -51,7 +51,7 @@ public:
      * Called for ADAM Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    virtual void open();
+    virtual void open(unsigned short s);
 
     /**
      * Called for ADAM Command 'C' to close a connection to a network protocol, de-allocate all buffers,
