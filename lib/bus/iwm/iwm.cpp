@@ -375,25 +375,15 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
       //  1           0               1
       //  1           1               0
       // this is an exclusive OR operation
-      //todo: can curent_level and prev_level be bools and then uint32_t is implicitly
-      //typecast down to bool? then the code can be:
       current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
       iwm_timer_alarm_set(IWM_BIT_CELL); // 4 usec
       bit = prev_level ^ current_level;
       rxbyte <<= 1;
       rxbyte |= bit;
       prev_level = current_level;
-      //
-      // current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
-      // iwm_timer_alarm_set(4); // 4 usec
-      // bit = prev_level ^ current_level;
-      // rxbyte <<= 1;
-      // rxbyte |= (uint8_t)(bit > 0);
-      // prev_level = current_level;
+      
       if ((--numbits) == 0)
         break; // end of byte
-      // todo: use best (whatever works) alarm setting because
-      // in sendpacket, the alarm is set every bit instead of snoozed
 
     } while(1);
     a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
@@ -420,6 +410,11 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   // endpkt:   clr  r23
   a[idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
+
+  //Todo: should not ACK unless we know this is our Command
+  // should move this block to the main Bus service section
+  // and only ACK when we know it's our device, then pass
+  // control to that device
   //iwm_ack_clr();
   iwm_ack_enable(); // should already be cleared
   while (iwm_req_val())
@@ -639,9 +634,6 @@ void iwmDevice::encode_data_packet (uint8_t source)
   packet_buffer[11] = 0x80; //STAT
   packet_buffer[12] = 0x81; //ODDCNT  - 1 odd byte for 512 byte packet
   packet_buffer[13] = 0xC9; //GRP7CNT - 73 groups of 7 bytes for 512 byte packet
-
-
-
 
   for (int count = 7; count < 14; count++) // now xor the packet header bytes
     checksum = checksum ^ packet_buffer[count];
@@ -1427,15 +1419,68 @@ void iwmBus::service()
       Debug_printf("\r\n");
 #endif
 
+      /***
+       * todo notes:
+       * once we make an actual device, like disk.cpp, then
+       * we need to hand off control to the device to service
+       * the command packet. I think the algorithm is something like:
+       * check for 0x85 init and do a bus initialization:
+       * BUS INIT
+       * after a reset, all devices no longer have an address
+       * and they are gating some signal (REQ?) so devices
+       * down the chain cannot respond to commands. So the
+       * first device responds to INIT. During this, it checks
+       * the sense line (still not sure which pin this is) to see
+       * if it is low (grounded) or high (floating or pulled up?).
+       * It will be low if there's another device in the chain
+       * after it. If it is the last device it will be high.
+       * It sends this state in the response to INIT. It also
+       * ungates whatever the magic line is so the next device
+       * in the chain can receive the INIT command that is 
+       * coming next. This repeats until the last device in the
+       * chain says it's so and the A2 will stop sending INITs.
+       * 
+       * Every other command:
+       * The bus class checks the target device and should pass
+       * on the command packet to the device service routine.
+       * Then the device can respond accordingly.
+       * 
+       * When device ID is not FujiNet's:
+       * If the device ID does not belong to any of the FujiNet
+       * devices (disks, printers, modem, network, etc) then FN
+       * should not respond. The SmartPortSD code runs through
+       * the states for the packets that should come next. I'm
+       * not sure this is the best because what happens in case
+       * of a malfunction. I suppose there could be a time out
+       * that takes us back to idle. This will take more
+       * investigation.
+       */
+
       switch (smort.packet_buffer[14])
       {
+      case 0x80: // status
+        break;
       case 0x81: // read block
         Debug_printf("\r\nhandling read block command");
         smort.handle_readblock();
         break;
-      case 0x85: //is an init cmd
+      case 0x82: // write block
+        break;
+      case 0x83: // format
+        break;
+      case 0x84: // control
+        break;
+      case 0x85: // init
         Debug_printf("\r\nhandling init command");
         handle_init();
+        break;
+      case 0x86: // open
+        break;
+      case 0x87: // close 
+        break;
+      case 0x88: // read
+        break;
+      case 0x89: // write
         break;
       } // switch (cmd)
     }   // switch (phasestate)

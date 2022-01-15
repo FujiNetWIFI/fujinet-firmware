@@ -104,7 +104,7 @@ private:
     void iwm_ack_clr();
     void iwm_ack_enable();
     void iwm_ack_disable();
-    int iwm_handshake();
+    
     bool iwm_phase_val(int p);
     
     enum class iwm_phases_t
