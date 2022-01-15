@@ -73,14 +73,29 @@ jobs:
     - name: Get boot_app0.bin
       run: wget https://github.com/espressif/arduino-esp32/raw/1.0.6/tools/partitions/boot_app0.bin -O .pio/build/fujinet-v1/boot_app0.bin
 
+    - name: version
+      run: echo "::set-output name=version::$(grep "FN_VERSION_FULL" include/version.h | cut -d '"' -f 2)"
+      id: version
+
     - name: Show Build Artifacts
       run: ls -la .pio/build/fujinet-v1/*.bin
-   
+
+    - name: Create sha256sums
+      run: touch .pio/build/fujinet-v1/sha256sums.base; \
+        echo "${{ steps.version.outputs.version }}" >> .pio/build/fujinet-v1/sha256sums.base; \
+        sha256sum .pio/build/fujinet-v1/bootloader.bin >> .pio/build/fujinet-v1/sha256sums.base; \
+        sha256sum .pio/build/fujinet-v1/firmware.bin >> .pio/build/fujinet-v1/sha256sums.base; \
+        sha256sum .pio/build/fujinet-v1/partitions.bin >> .pio/build/fujinet-v1/sha256sums.base; \
+        sha256sum .pio/build/fujinet-v1/spiffs.bin >> .pio/build/fujinet-v1/sha256sums.base; \
+        sha256sum .pio/build/fujinet-v1/boot_app0.bin >> .pio/build/fujinet-v1/sha256sums.base; \
+        sed 's#\.pio/build/fujinet-v1/##' .pio/build/fujinet-v1/sha256sums.base > .pio/build/fujinet-v1/sha256sums
+
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v2.3.1
       with:
         name: fujinet-release-${{ matrix.target-platform }}
         path: |
+          .pio/build/fujinet-v1/sha256sums
           .pio/build/fujinet-v1/bootloader.bin
           .pio/build/fujinet-v1/firmware.bin
           .pio/build/fujinet-v1/partitions.bin
