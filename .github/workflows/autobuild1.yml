@@ -97,7 +97,7 @@ jobs:
         name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
 
     - name: Get Release sha256sum
-      run: echo "::set-output name=shasum::$(sha256sum fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip | cut -d " " -f 1"
+      run: echo "::set-output name=shasum::$(sha256sum fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip | cut -d \" \" -f 1"
       id: shasum
 
     - name: Create release.json
