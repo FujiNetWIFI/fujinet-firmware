@@ -96,12 +96,12 @@ jobs:
       with:
         name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
 
-    - name: Get Release sha256sum
+    - name: release-shasum
       run: echo "::set-output name=shasum::$(sha256sum fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip | cut -d ' ' -f 1)"
       id: shasum
 
     - name: Create release.json
-      run: sed "s/SHASUMHERE/${{ steps.shasum.outputs.shasum }}/" .pio/build/fujinet-v1/release.json.base > .pio/build/fujinet-v1/release.json
+      run: sed "s/SHASUMHERE/${{ steps.release-shasum.outputs.shasum }}/" .pio/build/fujinet-v1/release.json.base > .pio/build/fujinet-v1/release.json
 
     - name: Upload release.json Artifact
       uses: actions/upload-artifact@v2.3.1
