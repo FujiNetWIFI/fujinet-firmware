@@ -1399,7 +1399,7 @@ void iwmBus::service()
         Debug_printf(("\r\nReset Cleared"));
       break;
     case iwm_phases_t::enable:
-      portDISABLE_INTERRUPTS();
+      portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
       if (iwm_read_packet((uint8_t *)smort.packet_buffer))
       {
         portENABLE_INTERRUPTS(); 
