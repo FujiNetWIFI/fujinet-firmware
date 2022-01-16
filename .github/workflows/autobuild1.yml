@@ -127,18 +127,10 @@ jobs:
         body: "FujiNet build for ${{ matrix.target-platform }} - ${{ steps.version.outputs.version }}"
 
     - name: Create release ZIP
-      uses: papeloto/action-zip@v1
-      with:
-        dest: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip
-        files: |
-          .pio/build/fujinet-v1/release.json
-          .pio/build/fujinet-v1/sha256sums
-          .pio/build/fujinet-v1/bootloader.bin
-          .pio/build/fujinet-v1/firmware.bin
-          .pio/build/fujinet-v1/partitions.bin
-          .pio/build/fujinet-v1/spiffs.bin
-          .pio/build/fujinet-v1/boot_app0.bin
-
+      uses: montudor/action-zip@v1
+        with:
+          args: zip -qq -j fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip .pio/build/fujinet-v1/release.json .pio/build/fujinet-v1/sha256sums .pio/build/fujinet-v1/bootloader.bin .pio/build/fujinet-v1/firmware.bin .pio/build/fujinet-v1/partitions.bin .pio/build/fujinet-v1/spiffs.bin .pio/build/fujinet-v1/boot_app0.bin
+        
     - name: Push ZIP to release
       uses: softprops/action-gh-release@v1
       if: startsWith(${{ steps.shortsha.outputs.shortsha }}, 'refs/tags/')
