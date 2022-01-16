@@ -94,7 +94,7 @@ jobs:
     - name: Get Release Zip
       uses: actions/download-artifact@v2
       with:
-        name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip
+        name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
 
     - name: Get Release sha256sum
       run: echo "::set-output name=shasum::$(sha256sum fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip | cut -d " " -f 1"
