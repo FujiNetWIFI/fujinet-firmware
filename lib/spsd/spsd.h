@@ -89,12 +89,8 @@ bool smartport_phase_val(int p);
 phasestate_t smartport_phases();
 
 
-// these are the low level i/o functions for the smartport bus
-FNBUS int ReceivePacket(uint8_t *a);
-FNBUS int SendPacket(uint8_t *a);
-
-
-// these probably go in the device since they encode data
+int ReceivePacket(uint8_t *a);
+int SendPacket(const uint8_t *a);
 //void encode_data_packet (uint8_t source);
 void encode_extended_data_packet (uint8_t source);
 //int decode_data_packet (void);
