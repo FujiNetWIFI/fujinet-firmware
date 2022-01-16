@@ -128,8 +128,8 @@ jobs:
 
     - name: Create release ZIP
       uses: montudor/action-zip@v1
-        with:
-          args: zip -qq -j fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip .pio/build/fujinet-v1/release.json .pio/build/fujinet-v1/sha256sums .pio/build/fujinet-v1/bootloader.bin .pio/build/fujinet-v1/firmware.bin .pio/build/fujinet-v1/partitions.bin .pio/build/fujinet-v1/spiffs.bin .pio/build/fujinet-v1/boot_app0.bin
+      with:
+        args: zip -qq -j fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip .pio/build/fujinet-v1/release.json .pio/build/fujinet-v1/sha256sums .pio/build/fujinet-v1/bootloader.bin .pio/build/fujinet-v1/firmware.bin .pio/build/fujinet-v1/partitions.bin .pio/build/fujinet-v1/spiffs.bin .pio/build/fujinet-v1/boot_app0.bin
         
     - name: Push ZIP to release
       uses: softprops/action-gh-release@v1
