@@ -101,7 +101,7 @@ jobs:
       id: shasum
 
     - name: Create release.json
-        run: sed 's/SHASUMHERE/${{ steps.shasum.outputs.shasum }}/' .pio/build/fujinet-v1/release.json.base > .pio/build/fujinet-v1/release.json
+      run: sed "s/SHASUMHERE/${{ steps.shasum.outputs.shasum }}/" .pio/build/fujinet-v1/release.json.base > .pio/build/fujinet-v1/release.json
 
     - name: Upload release.json Artifact
       uses: actions/upload-artifact@v2.3.1
