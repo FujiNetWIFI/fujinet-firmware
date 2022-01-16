@@ -17,7 +17,7 @@ VERSION=`grep "FN_VERSION_FULL" include/version.h | cut -d '"' -f 2`
 VERSION_DATE=`grep "FN_VERSION_DATE" include/version.h | cut -d '"' -f 2`
 BUILD_DATE=`date +'%Y-%m-%d %H:%M:%S'`
 GIT_COMMIT=`git rev-parse HEAD`
-FILENAME="FujiNet_$1_$VERSION"
+FILENAME="fujinet_$1_$VERSION"
 
 # Create release.json
 JSON="{
@@ -27,6 +27,6 @@ JSON="{
     \"description\": \"\",
     \"git_commit\": \"$GIT_COMMIT\",
     \"url\": \"https://github.com/FujiNetWIFI/fujinet-platformio/archive/refs/tags/$FILENAME.zip\",
-    \"sha256\": \"SHASUMHERE\"
+    \"sha256\": \"\"
 }"
-echo $JSON > .pio/build/fujinet-v1/release.json.base
+echo $JSON > .pio/build/fujinet-v1/release.json
