@@ -63,37 +63,26 @@ jobs:
     - name: Verify dirent.h top
       run: head -n 30 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
 
-
     - name: Run PlatformIO Build - winboat
       run: pio run 
 
     - name: Build Filesystem
       run: pio run -t buildfs -e fujinet-v1
 
-    - name: Get boot_app0.bin
-      run: wget https://github.com/espressif/arduino-esp32/raw/1.0.6/tools/partitions/boot_app0.bin -O .pio/build/fujinet-v1/boot_app0.bin
-
-    - name: version
-      run: echo "::set-output name=version::$(grep "FN_VERSION_FULL" include/version.h | cut -d '"' -f 2)"
-      id: version
-
     - name: Show Build Artifacts
       run: ls -la .pio/build/fujinet-v1/*.bin
 
-    - name: Create sha256sums
-      run: touch .pio/build/fujinet-v1/sha256sums.base; \
-        echo "${{ steps.version.outputs.version }}" >> .pio/build/fujinet-v1/sha256sums.base; \
-        sha256sum .pio/build/fujinet-v1/bootloader.bin >> .pio/build/fujinet-v1/sha256sums.base; \
-        sha256sum .pio/build/fujinet-v1/firmware.bin >> .pio/build/fujinet-v1/sha256sums.base; \
-        sha256sum .pio/build/fujinet-v1/partitions.bin >> .pio/build/fujinet-v1/sha256sums.base; \
-        sha256sum .pio/build/fujinet-v1/spiffs.bin >> .pio/build/fujinet-v1/sha256sums.base; \
-        sha256sum .pio/build/fujinet-v1/boot_app0.bin >> .pio/build/fujinet-v1/sha256sums.base; \
-        sed 's#\.pio/build/fujinet-v1/##' .pio/build/fujinet-v1/sha256sums.base > .pio/build/fujinet-v1/sha256sums
+    - name: Get shasums and release.json ready
+      run: sh ./.github/release.sh ${{ matrix.target-platform }}
+
+    - name: Get FujiNet version Number
+      run: echo "::set-output name=version::$(grep "FN_VERSION_FULL" include/version.h | cut -d '"' -f 2)"
+      id: version
 
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v2.3.1
       with:
-        name: fujinet-release-${{ matrix.target-platform }}
+        name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
         path: |
           .pio/build/fujinet-v1/sha256sums
           .pio/build/fujinet-v1/bootloader.bin
@@ -101,6 +90,23 @@ jobs:
           .pio/build/fujinet-v1/partitions.bin
           .pio/build/fujinet-v1/spiffs.bin
           .pio/build/fujinet-v1/boot_app0.bin
-        
-        
+    
+    - name: Get Release Zip
+      uses: actions/download-artifact@v2
+      with:
+        name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip
+
+    - name: Get Release sha256sum
+      run: echo "::set-output name=shasum::$(sha256sum fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip | cut -d " " -f 1"
+      id: shasum
+
+    - name: Create release.json
+        run: sed 's/SHASUMHERE/${{ steps.shasum.outputs.shasum }}/' .pio/build/fujinet-v1/release.json.base > .pio/build/fujinet-v1/release.json
+
+    - name: Upload release.json Artifact
+      uses: actions/upload-artifact@v2.3.1
+      with:
+        name: release.json
+        path: .pio/build/fujinet-v1/release.json
+
 # end
