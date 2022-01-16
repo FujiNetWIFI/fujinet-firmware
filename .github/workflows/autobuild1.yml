@@ -91,25 +91,25 @@ jobs:
           .pio/build/fujinet-v1/spiffs.bin
           .pio/build/fujinet-v1/boot_app0.bin
     
-    - name: Get Release Zip
-      uses: actions/download-artifact@v2
-      with:
-        name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
+#    - name: Get Release Zip
+#      uses: actions/download-artifact@v2
+#      with:
+#        name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
 
-    - name: Show dir
-      run: ls -la /home/runner/work/fujinet-platformio/fujinet-platformio
+#    - name: Show dir
+#      run: ls -la /home/runner/work/fujinet-platformio/fujinet-platformio
 
-    - name: Get release shasum
-      run: echo "::set-output name=shasum::$(sha256sum /home/runner/work/fujinet-platformio/fujinet-platformio/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}* | cut -d ' ' -f 1)"
-      id: shasum
+#    - name: Get release shasum
+#      run: echo "::set-output name=shasum::$(sha256sum /home/runner/work/fujinet-platformio/fujinet-platformio/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}* | cut -d ' ' -f 1)"
+#      id: shasum
 
-    - name: Create release.json
-      run: sed "s/SHASUMHERE/${{ steps.shasum.outputs.shasum }}/" .pio/build/fujinet-v1/release.json.base > .pio/build/fujinet-v1/release.json
+#    - name: Create release.json
+#      run: sed "s/SHASUMHERE/${{ steps.shasum.outputs.shasum }}/" .pio/build/fujinet-v1/release.json.base > .pio/build/fujinet-v1/release.json
 
     - name: Upload release.json Artifact
       uses: actions/upload-artifact@v2.3.1
       with:
         name: release.json
-        path: .pio/build/fujinet-v1/release.json
+        path: .pio/build/fujinet-v1/release.json.base
 
 # end
