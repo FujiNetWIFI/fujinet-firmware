@@ -73,7 +73,7 @@ jobs:
       run: ls -la .pio/build/fujinet-v1/*.bin
 
     - name: Get shasums and release.json ready
-      run: sh ./.github/release.sh ${{ matrix.target-platform }}
+      run: sh .github/workflows/release.sh ${{ matrix.target-platform }}
 
     - name: Get FujiNet version Number
       run: echo "::set-output name=version::$(grep "FN_VERSION_FULL" include/version.h | cut -d '"' -f 2)"
