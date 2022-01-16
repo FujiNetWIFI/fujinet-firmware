@@ -79,6 +79,7 @@ IDC20   IIc     DB 19     Arduino
 #include "esp_timer.h"
 #include "driver/timer.h"
 #include "soc/timer_group_reg.h"
+//#include "freertos/task.h"
 
 #include "../../include/debug.h"
 #include "fnSystem.h"
@@ -97,9 +98,11 @@ IDC20   IIc     DB 19     Arduino
 #define TIMER_ADJUST          5 // substract this value to adjust for overhead
 
 #undef VERBOSE
-#undef TESTTX
+#define TESTTX
 
 extern FileSystemTNFS tserver;
+FileSystemTNFS tserver;
+portMUX_TYPE myMutex = portMUX_INITIALIZER_UNLOCKED;
 
 //------------------------------------------------------------------------------
 
@@ -490,7 +493,7 @@ int IRAM_ATTR spDevice::ReceivePacket(uint8_t *a)
   return 0;
 }
 
-int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
+int spDevice::SendPacket(const uint8_t *a)
 {
   //*****************************************************************************
   // Function: SendPacket
@@ -505,27 +508,32 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
   int idx = 0;        // reg x, index into *a
   uint8_t txbyte; // r23 transmit byte being sent bit by bit
   int numbits = 8;        // r25 counter
+ txbyte = a[idx++];
+
+#ifdef TESTTX
+    taskENTER_CRITICAL(&myMutex);
+    smartport_extra_set();
+    smartport_rddata_enable();
+#endif
 
 // Disable interrupts
 // https://esp32developer.com/programming-in-c-c/interrupts/interrupts-general
 // You can suspend interrupts and context switches by calling  portDISABLE_INTERRUPTS
 // and the interrupts on that core should stop firing, stopping task switches as well.
 // Call portENABLE_INTERRUPTS after you're done
-  portDISABLE_INTERRUPTS();
-  smartport_rddata_enable();
-
- txbyte = a[idx++];
+smartport_rddata_set();
 
   hw_timer_reset();
 //  smartport_rddata_clr();
   smartport_ack_set();
 
-#ifndef TESTTX
+
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
   // setup a timeout counter to wait for REQ response
   hw_timer_latch();        // latch highspeed timer value
   hw_timer_read();      //  grab timer low word
-  hw_timer_alarm_set(100); // 10 millisecond
+#ifndef TESTTX
+hw_timer_alarm_set(100); // 10 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
   while ( !smartport_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -551,8 +559,8 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
 #endif // TESTTX
 
   // SEEMS CRITICAL TO HAVE 1 US BETWEEN req AND FIRST PULSE to put the falling edge 2 us after REQ
-  // hw_timer_alarm_set(1); // throw in a bit of time before sending first pulse
-  tn = t0 + (1 * TIMER_USEC_FACTOR / 2) - TIMER_ADJUST; // NEED JUST 1/2 USEC
+  hw_timer_alarm_set(1); // throw in a bit of time before sending first pulse
+  //tn = t0 + TIMER_USEC_FACTOR - TIMER_ADJUST; // NEED JUST 1/2 USEC
   hw_timer_wait();
 
   do // beware of entry into the loop and an extended first pulse ...
@@ -587,11 +595,17 @@ int IRAM_ATTR spDevice::SendPacket(uint8_t *a)
   } while (txbyte); //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
 
   smartport_ack_clr();
-  while (smartport_req_val());
 
-  smartport_rddata_disable();
-  portENABLE_INTERRUPTS(); // takes 7 us to execute
-  
+#ifndef TESTTX
+  while (smartport_req_val());
+#endif
+
+#ifdef TESTTX
+    smartport_rddata_disable();
+    smartport_extra_clr();
+    taskEXIT_CRITICAL(&myMutex);
+#endif
+
 return 0;
 }
 
@@ -1822,6 +1836,8 @@ void spDevice::hw_timer_direct_reg()
   }
 }
 
+const uint8_t a[] {0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x00};
+
 void spDevice::test_send()
 /*
 FF SYNC SELF SYNCHRONIZING BYTES 0
@@ -1838,14 +1854,17 @@ C3 PBEGIN MARKS BEGINNING OF PACKET 32 micro Sec.
 80
 */
 {
-  uint8_t a[] {0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x3f,0xcf,0xf3,0xfc,0xff,0xc3,0x81,0x80,0x80,0x80,0x80,0x00};
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_ACK, DIGI_LOW);
+  fnSystem.digital_write(SP_EXTRA,DIGI_LOW);
   while(1)
   {
     Debug_printf("\r\nsending packet now");
-    smartport_rddata_enable();
+
     SendPacket(a);
-    smartport_rddata_disable();
-    fnSystem.delay(2500);
+
+    fnSystem.delay(1000);
   }
 }
 
