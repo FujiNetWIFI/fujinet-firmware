@@ -97,10 +97,10 @@ jobs:
         name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
 
     - name: Show dir
-      run: ls -la
+      run: ls -la /home/runner/work/fujinet-platformio/fujinet-platformio
 
     - name: Get release shasum
-      run: echo "::set-output name=shasum::$(sha256sum fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }} | cut -d ' ' -f 1)"
+      run: echo "::set-output name=shasum::$(sha256sum /home/runner/work/fujinet-platformio/fujinet-platformio/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}* | cut -d ' ' -f 1)"
       id: shasum
 
     - name: Create release.json
