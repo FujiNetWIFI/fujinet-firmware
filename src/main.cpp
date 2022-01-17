@@ -28,9 +28,9 @@
 #endif
 
 #ifdef BUILD_APPLE
-#include "smart/fuji.h"
-#include "smart/modem.h"
-#include "spsd.h"
+#include "iwm/fuji.h"
+#include "iwm/modem.h"
+#include "iwm/disk.h"
 #endif
 
 #include "httpService.h"
@@ -54,7 +54,8 @@
 // sioFuji theFuji; // moved to fuji.h/.cpp
 
 #ifdef BUILD_APPLE
-spDevice spsd;
+// spDevice spsd;
+iwmDisk smort;
 appleModem *sioR;
 #endif /* BUILD_APPLE */
 
@@ -145,6 +146,8 @@ void main_setup()
 #if defined ( BUILD_APPLE )
     theFuji.setup(&IWM);
     IWM.setup();
+    // todo - get rid of this code
+    smort.init();
     fnSystem.delay(5000); // don't remember why this is here - maybe trying to get the highspeed timer working
     //spsd.test_send();
     //spsd.hw_timer_pulses();
@@ -219,7 +222,7 @@ void fn_service_loop(void *param)
     #endif
 
     #if defined( BUILD_APPLE )
-        IWM.service();
+        IWM.service(&smort);
     #elif defined( BUILD_ATARI )
         SIO.service();
     #elif defined ( BUILD_ADAM )

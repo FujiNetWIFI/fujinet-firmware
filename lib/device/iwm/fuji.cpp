@@ -6,7 +6,7 @@ void appleFuji::shutdown()
 {
 }
 
-smartDisk *appleFuji::bootdisk()
+iwmDisk *appleFuji::bootdisk()
 {
     return nullptr;
 }

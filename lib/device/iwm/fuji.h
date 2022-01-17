@@ -4,8 +4,8 @@
 
 #include "../../include/debug.h"
 #include "bus.h"
-// #include "smart/network.h"
-#include "smart/printer.h"
+// #include "iwm/network.h"
+#include "iwm/printer.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -71,7 +71,7 @@ private:
 
     int _current_open_directory_slot = -1;
 
-    smartDisk *_bootDisk; // special disk drive just for configuration
+    iwmDisk *_bootDisk; // special disk drive just for configuration
 
     uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
 
@@ -125,16 +125,24 @@ protected:
 
     void adamnet_process(uint8_t b) override;
 
+
+
     */
-    void shutdown(); // override; todo change back 
-    
+    void shutdown() override;
+    void process() override{};
+
+    void encode_status_reply_packet() override{};
+    void encode_status_dib_reply_packet() override{};
+
+    void encode_extended_status_reply_packet() override{};
+    void encode_extended_status_dib_reply_packet() override{};
 
 public:
     bool boot_config = true;
     
     bool status_wait_enabled = true;
     
-    smartDisk *bootdisk();
+    iwmDisk *bootdisk();
 
     // smartNetwork *network();
 

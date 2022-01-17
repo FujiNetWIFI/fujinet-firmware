@@ -18,23 +18,7 @@ class iwmDevice
 {
 friend iwmBus; // put here for prototype, not sure if will need to keep it
 
-private:
-    // temp device for disk image
-    // todo: turn into FujiNet practice
-    // get rid of this stuff by moving to correct locations after the prototype works
-  struct device
-  {
-    FILE *sdf;
-    uint8_t device_id;    //to hold assigned device id's for the partitions
-    unsigned long blocks;       //how many 512-byte blocks this image has
-    unsigned int header_offset; //Some image files have headers, skip this many bytes to avoid them
-    bool writeable;
-  } d; // temporary device until have a disk device
-bool open_tnfs_image();
-bool open_image(std::string filename );
-
-
-
+protected:
     // iwm packet handling
   uint8_t packet_buffer[605]; //smartport packet buffer
   // todo: make a union with the first set of elements for command packet
@@ -44,29 +28,30 @@ bool open_image(std::string filename );
   void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
   void encode_write_status_packet(uint8_t source, uint8_t status);
   void encode_init_reply_packet(uint8_t source, uint8_t status);
-  void encode_status_reply_packet();
+  virtual void encode_status_reply_packet() = 0;
   void encode_error_reply_packet(uint8_t source);
-  void encode_status_dib_reply_packet();
+  virtual void encode_status_dib_reply_packet() = 0;
 
   void encode_extended_data_packet(uint8_t source);
-  void encode_extended_status_reply_packet();
-  void encode_extended_status_dib_reply_packet();
+  virtual void encode_extended_status_reply_packet() = 0;
+  virtual void encode_extended_status_dib_reply_packet() = 0;
 
   int verify_cmdpkt_checksum(void);
   int packet_length(void);
 
+  uint8_t device_id;
+
 #ifdef DEBUG
-void print_packet (uint8_t* data, int bytes);
+  void print_packet(uint8_t *data, int bytes);
 #endif
 
-  public:
-  void handle_readblock();
+  // void handle_readblock();
  
+  virtual void shutdown() = 0;
+  virtual void process() = 0;
 
-  bool device_active;
-  //virtual void shutdown() = 0;
-  void shutdown() {};
-
+public:
+ bool device_active;
   /**
      * @brief Get the iwmBus object that this iwmDevice is attached to.
      */
@@ -77,7 +62,7 @@ class iwmBus
 {
 private:
     std::forward_list<iwmDevice *> _daisyChain;
-    iwmDevice smort; // temporary device
+
 
     // low level bit-banging i/o functions
     struct iwm_timer_t
@@ -123,10 +108,10 @@ public:
   int iwm_send_packet(uint8_t *a);
 
   void setup();
-  void service();
+  void service(iwmDevice* smort);
   void shutdown() {};
 
-  void handle_init();
+  void handle_init(iwmDevice* smort);
 
   int numDevices();
   void addDevice(iwmDevice *pDevice, int device_id);

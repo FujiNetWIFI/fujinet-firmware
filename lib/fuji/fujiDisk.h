@@ -18,10 +18,10 @@
 #endif 
 
 #ifdef BUILD_APPLE
-#include "../device/smart/disk.h"
+#include "../device/iwm/disk.h"
 #define MEDIA_TYPE mediatype_t
 #define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
-#define DEVICE_TYPE smartDisk
+#define DEVICE_TYPE iwmDisk
 #endif
 
 #include "fujiHost.h"

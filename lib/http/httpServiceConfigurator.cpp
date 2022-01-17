@@ -28,8 +28,8 @@ extern adamFuji theFuji;
 #endif /* BUILD_ADAM */
 
 #ifdef BUILD_APPLE
-#include "smart/printerlist.h"
-#include "smart/fuji.h"
+#include "iwm/printerlist.h"
+#include "iwm/fuji.h"
 #define PRINTER_CLASS applePrinter
 extern appleFuji theFuji;
 #endif /* BUILD_APPLE */
