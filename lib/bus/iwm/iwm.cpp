@@ -1119,6 +1119,110 @@ void iwmBus::handle_init(iwmDevice* smort)
   Debug_printf(("\r\nDrive: %02x"),smort->device_id);
 }
 
+// Add device to SIO bus
+void iwmBus::addDevice(sioDevice *pDevice, int device_id)
+{
+  // SmartPort interface assigns device numbers to the devices in the daisy chain one at a time
+  // as opposed to using standard or fixed device ID's like Atari SIO. Therefore, an emulated
+  // device cannot rely on knowing its device number until it is assigned.
+  // Instead of using device_id's to know what kind a specific device is, smartport 
+  // uses a Device Information Block (DIB) that is returned in a status call for DIB. The 
+  // DIB includes a 16-character string, Device type byte, and Device subtype byte.
+  // In the IIgs firmware reference, the following device types are defined:
+  // 0 - memory cards (internal to the machine)
+  // 1 - Apple and Uni 3.5 drives
+  // 2 - harddisk
+  // 3 - SCSI disk
+  // The subtype uses the 3 msb's to indicate the following:
+  // 0x80 == 1 -> support extended smartport
+  // 0x40 == 1 -> supprts disk-switched errors
+  // 0x20 == 0 -> removable media (1 means non removable)
+
+  // todo: work out how to use addDevice during an INIT sequence
+  
+    if (device_id == SIO_DEVICEID_FUJINET)
+    {
+        _fujiDev = (sioFuji *)pDevice;
+    }
+    else if (device_id == SIO_DEVICEID_RS232)
+    {
+        _modemDev = (sioModem *)pDevice;
+    }
+    else if (device_id >= SIO_DEVICEID_FN_NETWORK && device_id <= SIO_DEVICEID_FN_NETWORK_LAST)
+    {
+        _netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (sioNetwork *)pDevice;
+    }
+    else if (device_id == SIO_DEVICEID_MIDI)
+    {
+        _midiDev = (sioMIDIMaze *)pDevice;
+    }
+    else if (device_id == SIO_DEVICEID_CASSETTE)
+    {
+        _cassetteDev = (sioCassette *)pDevice;
+    }
+    else if (device_id == SIO_DEVICEID_CPM)
+    {
+        _cpmDev = (sioCPM *)pDevice;
+    }
+    else if (device_id == SIO_DEVICEID_PRINTER)
+    {
+        _printerdev = (sioPrinter *)pDevice;
+    }
+
+    pDevice->_devnum = device_id;
+
+    _daisyChain.push_front(pDevice);
+}
+
+// Removes device from the SIO bus.
+// Note that the destructor is called on the device!
+void iwmBus::remDevice(sioDevice *p)
+{
+    _daisyChain.remove(p);
+}
+
+// Should avoid using this as it requires counting through the list
+int iwmBus::numDevices()
+{
+    int i = 0;
+    __BEGIN_IGNORE_UNUSEDVARS
+    for (auto devicep : _daisyChain)
+        i++;
+    return i;
+    __END_IGNORE_UNUSEDVARS
+}
+
+void iwmBus::changeDeviceId(sioDevice *p, int device_id)
+{
+    for (auto devicep : _daisyChain)
+    {
+        if (devicep == p)
+            devicep->_devnum = device_id;
+    }
+}
+
+sioDevice *iwmBus::deviceById(int device_id)
+{
+    for (auto devicep : _daisyChain)
+    {
+        if (devicep->_devnum == device_id)
+            return devicep;
+    }
+    return nullptr;
+}
+
+// Give devices an opportunity to clean up before a reboot
+void iwmBus::shutdown()
+{
+    for (auto devicep : _daisyChain)
+    {
+        Debug_printf("Shutting down device %02x\n",devicep->id());
+        devicep->shutdown();
+    }
+    Debug_printf("All devices shut down.\n");
+}
+
+
 iwmBus IWM; // global smartport bus variable
 
 #endif /* BUILD_APPLE */

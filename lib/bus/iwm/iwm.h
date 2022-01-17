@@ -63,7 +63,6 @@ class iwmBus
 private:
     std::forward_list<iwmDevice *> _daisyChain;
 
-
     // low level bit-banging i/o functions
     struct iwm_timer_t
     {
