@@ -36,10 +36,10 @@ extern adamModem *sioR;
 
 #ifdef BUILD_APPLE
 #include "modem-sniffer.h"
-#include "smart/modem.h"
+#include "iwm/modem.h"
 #include "fnSystem.h"
-#include "smart/fuji.h"
-#include "smart/printerlist.h"
+#include "iwm/fuji.h"
+#include "iwm/printerlist.h"
 #define PRINTER_CLASS applePrinter
 extern appleModem *sioR;
 #endif /* BUILD_APPLE */

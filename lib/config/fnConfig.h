@@ -14,7 +14,7 @@
 #endif
 
 #ifdef BUILD_APPLE
-#include "../device/smart/printer.h"
+#include "../device/iwm/printer.h"
 #define PRINTER_CLASS applePrinter
 #endif
 
