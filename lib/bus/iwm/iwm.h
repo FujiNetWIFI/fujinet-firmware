@@ -4,22 +4,58 @@
 #include "../../include/debug.h"
 
 #include "bus.h"
+
 #include <cstdint>
 #include <forward_list>
+#include <string>
 #include "fnFS.h"
 
 // these are for the temporary disk functions
-#include "fnFsSD.h"
-#include <string>
+//#include "fnFsSD.h"
+//#include <string>
 
-class iwmBus;
+// class def'ns
+class iwmFuji;     // declare here so can reference it, but define in fuji.h
+class iwmModem;    // declare here so can reference it, but define in modem.h
+class iwmNetwork;  // declare here so can reference it, but define in network.h
+class iwmPrinter;  // Printer device
+
+class iwmBus;      // forward declare bus so can be friend
+
+enum class iwm_internal_type_t
+{
+  GenericBlock,
+  GenericChar,
+  FujiNet,
+  Modem,
+  Network,
+  CPM,
+  Printer,
+  Voice
+};
+
+struct iwm_device_info_block_t
+{
+  std::string device_name; // limted to 16 chars std ascii (<128), no zero terminator
+  uint8_t device_type;
+  uint8_t device_subtype;
+  uint8_t firmware_rev;
+};
 
 class iwmDevice
 {
 friend iwmBus; // put here for prototype, not sure if will need to keep it
 
 protected:
-    // iwm packet handling
+  iwm_internal_type_t internal_type;
+  iwm_device_info_block_t dib;
+  uint8_t _devnum;
+  bool _initialized;
+
+  // device information block
+
+
+  // iwm packet handling
   uint8_t packet_buffer[605]; //smartport packet buffer
   // todo: make a union with the first set of elements for command packet
 
@@ -39,7 +75,6 @@ protected:
   int verify_cmdpkt_checksum(void);
   int packet_length(void);
 
-  uint8_t device_id;
 
 #ifdef DEBUG
   void print_packet(uint8_t *data, int bytes);
@@ -51,10 +86,17 @@ protected:
   virtual void process() = 0;
 
 public:
- bool device_active;
+  bool device_active;
   /**
-     * @brief Get the iwmBus object that this iwmDevice is attached to.
-     */
+   * @brief get the IWM device Number (1-255)
+   * @return The device number registered for this device
+   */
+  int id() { return _devnum; };
+  //void assign_id(uint8_t n) { _devnum = n; };
+
+  /**
+   * @brief Get the iwmBus object that this iwmDevice is attached to.
+   */
   iwmBus iwm_get_bus();
 };
 
@@ -62,6 +104,17 @@ class iwmBus
 {
 private:
     std::forward_list<iwmDevice *> _daisyChain;
+
+
+    iwmDevice *_activeDev = nullptr;
+    
+    iwmFuji *_fujiDev = nullptr;
+    iwmModem *_modemDev = nullptr;
+    iwmNetwork *_netDev[8] = {nullptr};
+    //sioMIDIMaze *_midiDev = nullptr;
+    //sioCassette *_cassetteDev = nullptr;
+    //iwmCPM *_cpmDev = nullptr;
+    iwmPrinter *_printerdev = nullptr;
 
     // low level bit-banging i/o functions
     struct iwm_timer_t
@@ -107,15 +160,16 @@ public:
   int iwm_send_packet(uint8_t *a);
 
   void setup();
-  void service(iwmDevice* smort);
-  void shutdown() {};
+  void service(iwmDevice* smort); // todo: remove the device pointer argument
+  void shutdown();
 
-  void handle_init(iwmDevice* smort);
+  void handle_init(iwmDevice* smort); // todo: put this function in the right place
 
   int numDevices();
-  void addDevice(iwmDevice *pDevice, int device_id);
+  void addDevice(iwmDevice *pDevice, iwm_internal_type_t deviceType); // todo: probably get called by handle_init()
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
+  void changeDeviceId(iwmDevice *p, int device_id);
 };
 
 extern iwmBus IWM;

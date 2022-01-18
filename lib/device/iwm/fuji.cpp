@@ -1,47 +1,47 @@
 #include "fuji.h"
 
-appleFuji theFuji; // Global fuji object.
+iwmFuji theFuji; // Global fuji object.
 
-void appleFuji::shutdown()
+void iwmFuji::shutdown()
 {
 }
 
-iwmDisk *appleFuji::bootdisk()
+iwmDisk *iwmFuji::bootdisk()
 {
     return nullptr;
 }
 
-void appleFuji::insert_boot_device(uint8_t d)
+void iwmFuji::insert_boot_device(uint8_t d)
 {
 }
 
-void appleFuji::setup(iwmBus *iwmbus)
+void iwmFuji::setup(iwmBus *iwmbus)
 {
 }
 
-void appleFuji::image_rotate()
+void iwmFuji::image_rotate()
 {
 }
-int appleFuji::get_disk_id(int drive_slot)
+int iwmFuji::get_disk_id(int drive_slot)
 {
     return -1;
 }
-std::string appleFuji::get_host_prefix(int host_slot)
+std::string iwmFuji::get_host_prefix(int host_slot)
 {
     return std::string();
 }
 
-void appleFuji::_populate_slots_from_config()
+void iwmFuji::_populate_slots_from_config()
 {
 }
-void appleFuji::_populate_config_from_slots()
-{
-}
-
-void appleFuji::apple_mount_all() // 0xD7
+void iwmFuji::_populate_config_from_slots()
 {
 }
 
-appleFuji::appleFuji()
+void iwmFuji::apple_mount_all() // 0xD7
+{
+}
+
+iwmFuji::iwmFuji()
 {
 }

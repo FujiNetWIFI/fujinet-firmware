@@ -1,5 +1,11 @@
 #ifdef BUILD_APPLE
 #include "iwm.h"
+#include "fnSystem.h"
+#include "fnFsTNFS.h"
+#include <string.h>
+#include "driver/timer.h" // contains the hardware timer register data structure
+#include "../../include/debug.h"
+#include "utils.h"
 
 /******************************************************************************
 Based on:
@@ -30,19 +36,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #define SP_RDDATA   21      //  DATAIN
 #define SP_WRDATA   33      //  DATAOUT
 
-// figure out which ones are required
-// #include "esp_timer.h"
-#include "driver/timer.h" // contains the hardware timer register data structure
-//#include "soc/timer_group_reg.h"
-
-#include "../../include/debug.h"
-#include "fnSystem.h"
-// #include "led.h"
-
-#include "fnFsTNFS.h"
-
-#include <string.h>
-
+// hardware timer parameters for bit-banging I/O
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
 #define TIMER_USEC_FACTOR     (TIMER_SCALE / 1000000)
@@ -546,7 +540,7 @@ void iwmBus::setup(void)
   //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
   
-  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT);
@@ -1008,7 +1002,7 @@ void iwmBus::service(iwmDevice* smort)
       while (iwm_phases() == iwm_phases_t::reset)
         ; // todo: should there be a timeout feature?
         // hard coding 1 partition - will use disk class instances  instead                                                    // to check if needed
-        smort->device_id = 0;
+        smort->_devnum = 0;
         Debug_printf(("\r\nReset Cleared"));
       break;
     case iwm_phases_t::enable:
@@ -1101,7 +1095,7 @@ void iwmBus::handle_init(iwmDevice* smort)
   //   number_partitions_initialised++;
   //   status = 0xff; //yes, so status=non zero
   // }
-    smort->device_id = source; //remember source id for partition
+    smort->_devnum = source; //remember source id for partition
     uint8_t status = 0xff; //yes, so status=non zero
 
   smort->encode_init_reply_packet(source, status);
@@ -1116,11 +1110,11 @@ void iwmBus::handle_init(iwmDevice* smort)
 
   //print_packet ((uint8_t*) packet_buffer,packet_length());
 
-  Debug_printf(("\r\nDrive: %02x"),smort->device_id);
+  Debug_printf(("\r\nDrive: %02x"),smort->id());
 }
 
 // Add device to SIO bus
-void iwmBus::addDevice(sioDevice *pDevice, int device_id)
+void iwmBus::addDevice(iwmDevice *pDevice, iwm_internal_type_t deviceType)
 {
   // SmartPort interface assigns device numbers to the devices in the daisy chain one at a time
   // as opposed to using standard or fixed device ID's like Atari SIO. Therefore, an emulated
@@ -1139,44 +1133,57 @@ void iwmBus::addDevice(sioDevice *pDevice, int device_id)
   // 0x20 == 0 -> removable media (1 means non removable)
 
   // todo: work out how to use addDevice during an INIT sequence
-  
-    if (device_id == SIO_DEVICEID_FUJINET)
+  // we can add devices and indicate they are not initialized and have no device ID - call it a value of 0
+  // when the SP bus goes into RESET, we would rip through the list setting initialized to false and
+  // setting device id's to 0. Then on each INIT command, we iterate through the list, setting 
+  // initialized to true and assigning device numbers as assigned by the smartport controller in the A2.
+  // so I need "reset()" and "initialize()" functions.
+
+  // todo: I need a way to internally keep track of what kind of device each one is. I'm thinking an
+  // enumerated class type might work well here. It can be expanded as needed and an extra case added 
+  // below. I can also make this a switch case structure to ensure each case of the class is handled.
+
+    // assign dedicated pointers to certain devices
+    switch (deviceType)
     {
-        _fujiDev = (sioFuji *)pDevice;
-    }
-    else if (device_id == SIO_DEVICEID_RS232)
-    {
-        _modemDev = (sioModem *)pDevice;
-    }
-    else if (device_id >= SIO_DEVICEID_FN_NETWORK && device_id <= SIO_DEVICEID_FN_NETWORK_LAST)
-    {
-        _netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (sioNetwork *)pDevice;
-    }
-    else if (device_id == SIO_DEVICEID_MIDI)
-    {
-        _midiDev = (sioMIDIMaze *)pDevice;
-    }
-    else if (device_id == SIO_DEVICEID_CASSETTE)
-    {
-        _cassetteDev = (sioCassette *)pDevice;
-    }
-    else if (device_id == SIO_DEVICEID_CPM)
-    {
-        _cpmDev = (sioCPM *)pDevice;
-    }
-    else if (device_id == SIO_DEVICEID_PRINTER)
-    {
-        _printerdev = (sioPrinter *)pDevice;
+    case iwm_internal_type_t::GenericBlock:
+      // no special device assignment needed
+      break;
+    case iwm_internal_type_t::GenericChar:
+      // no special device assignment needed
+      break;
+    case iwm_internal_type_t::FujiNet:
+      _fujiDev = (iwmFuji *)pDevice;
+      break;
+    case iwm_internal_type_t::Modem:
+      _modemDev = (iwmModem *)pDevice;
+      break;
+    case iwm_internal_type_t::Network:
+      // todo: work out how to assign different network devices - idea:
+      // include a number in the DIB name, e.g., "NETWORK 1"
+      // and extract that number from the DIB and use it as the index
+      //_netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (iwmNetwork *)pDevice;
+      break;
+    case iwm_internal_type_t::CPM:
+    //   _cpmDev = (iwmCPM *)pDevice;
+       break;
+    case iwm_internal_type_t::Printer:
+      _printerdev = (iwmPrinter *)pDevice;
+      break;
+    case iwm_internal_type_t::Voice:
+    // not yet implemented: todo - take SAM and implement as a special block device. Also then available for disk rotate annunciation. 
+      break;
     }
 
-    pDevice->_devnum = device_id;
+    pDevice->_devnum = 0;
+    pDevice->_initialized = false;
 
     _daisyChain.push_front(pDevice);
 }
 
 // Removes device from the SIO bus.
 // Note that the destructor is called on the device!
-void iwmBus::remDevice(sioDevice *p)
+void iwmBus::remDevice(iwmDevice *p)
 {
     _daisyChain.remove(p);
 }
@@ -1192,7 +1199,7 @@ int iwmBus::numDevices()
     __END_IGNORE_UNUSEDVARS
 }
 
-void iwmBus::changeDeviceId(sioDevice *p, int device_id)
+void iwmBus::changeDeviceId(iwmDevice *p, int device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -1201,7 +1208,7 @@ void iwmBus::changeDeviceId(sioDevice *p, int device_id)
     }
 }
 
-sioDevice *iwmBus::deviceById(int device_id)
+iwmDevice *iwmBus::deviceById(int device_id)
 {
     for (auto devicep : _daisyChain)
     {

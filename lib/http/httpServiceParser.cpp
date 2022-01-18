@@ -26,8 +26,8 @@ extern adamFuji theFuji;
 #ifdef BUILD_APPLE
 #include "iwm/fuji.h"
 #include "iwm/printerlist.h"
-#define BUS SmartPort
-extern appleFuji theFuji;
+#define BUS IWM
+extern iwmFuji theFuji;
 #endif
 
 #include "../hardware/fnSystem.h"

@@ -1,6 +1,7 @@
 #include "disk.h"
 
 #include "fnFsTNFS.h"
+#include "fnFsSD.h"
 FileSystemTNFS tserver;
 
 iwmDisk::~iwmDisk()
