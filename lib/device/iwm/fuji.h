@@ -51,7 +51,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class appleFuji : public iwmDevice
+class iwmFuji : public iwmDevice
 {
 private:
     bool isReady = false;
@@ -164,9 +164,9 @@ public:
 
     void apple_mount_all();              // 0xD7
 
-    appleFuji();
+    iwmFuji();
 };
 
-extern appleFuji theFuji;
+extern iwmFuji theFuji;
 
 #endif // FUJI_H

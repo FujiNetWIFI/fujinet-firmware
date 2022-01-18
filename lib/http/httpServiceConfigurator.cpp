@@ -31,7 +31,7 @@ extern adamFuji theFuji;
 #include "iwm/printerlist.h"
 #include "iwm/fuji.h"
 #define PRINTER_CLASS applePrinter
-extern appleFuji theFuji;
+extern iwmFuji theFuji;
 #endif /* BUILD_APPLE */
 
 // TODO: This was copied from another source and needs some bounds-checking!

@@ -81,7 +81,7 @@ void main_shutdown_handler()
 #elif defined( BUILD_CBM )
     // IEC.shutdown();
 #elif defined( BUILD_APPLE )
-    // shutdown
+    IWM.shutdown();
 #endif
 }
 
