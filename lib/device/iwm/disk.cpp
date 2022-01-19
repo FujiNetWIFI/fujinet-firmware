@@ -2,6 +2,8 @@
 
 #include "fnFsTNFS.h"
 #include "fnFsSD.h"
+#include "led.h"
+
 FileSystemTNFS tserver;
 
 iwmDisk::~iwmDisk()
@@ -403,6 +405,7 @@ void iwmDisk::encode_extended_status_dib_reply_packet()
 
 void iwmDisk::process()
 {
+  fnLedManager.set(LED_BUS,true);
     switch (packet_buffer[14])
     {
     case 0x80: // status
@@ -428,6 +431,7 @@ void iwmDisk::process()
     case 0x89: // write
         break;
     } // switch (cmd)
+    fnLedManager.set(LED_BUS,false);
 }
 
 
