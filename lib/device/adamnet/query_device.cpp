@@ -33,7 +33,7 @@ bool adamQueryDevice::adamDeviceExists(uint8_t device)
     do
     {
         rxbuf[0] = 0xff;
-        timeout = adamnet_recv_timeout(&rxbuf[0], 150);
+        timeout = adamnet_recv_timeout(&rxbuf[0], 200);
         if (timeout)
         {
             break;
@@ -56,7 +56,7 @@ bool adamQueryDevice::adamDeviceExists(uint8_t device)
 
         //Debug_printf("%02x [%02x%02x] %02x *%02x* [BYTES: %d]\n", rxbuf[0], rxbuf[2], rxbuf[1], rxbuf[3], rxbuf[4], (int)bytes);
 
-        return ((rxbuf[4] == 0) && (bytes == 4));
+        return (bytes == 4);
     }
 }
 

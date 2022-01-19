@@ -2,7 +2,7 @@
 <html>
 
 <head>
-	<title>FujiNet</title>
+	<title>FujiNet - <%FN_HOSTNAME%></title>
 	<meta charset="utf-8" />
 	<script type="text/javascript" src="/file?utils.js"></script>
 	<style>
@@ -429,6 +429,10 @@
 			<div class="flexchild">
 				<header>MOUNT<span id="logowob"></span>LIST</header>
 				<div class="detline">
+					<div class="deth"><a href="/mount?mountall=1"> MOUNT ALL SLOTS</a></div>
+					<div class="det"></div>
+				</div>
+				<div class="detline">
 					<div class="deth">Drive Slot 1<%FN_DRIVE1DEVICE%> <a href="/unmount?deviceslot=0">[EJECT]</a></div>
 					<div class="det"><%FN_DRIVE1HOST%> :: <%FN_DRIVE1MOUNT%></div>
 				</div>
@@ -526,34 +530,29 @@
 										</g>
 									</g>
 								</svg>
-							</a><span class="important">Click to download your current print-out</span>
+							<span class="important">Click to download your current print-out</span></a>
 						</div>
 					</div>
 					<div class="cform">
 						<div class="formwrapper">
 							<form action="/config" method="post">
+								<br>Use FujiNet as your virtual printer?
+									<select name="printer_enabled" id="select_printer_enabled">
+										<optgroup>
+											<option value="1">Yes</option>
+											<option value="0">No</option>
+										</optgroup>
+									</select>
+									<input type="submit" value="Save">
+							</form>
+							<script>
+								var current_printer_enabled = "<%FN_PRINTER_ENABLED%>";
+							</script>
+							<form action="/config" method="post">
 								<br>Select Emulated Printer
 								<select name="printermodel1" id="select_printermodel1">
 									<optgroup>
-										<option value="file printer (RAW)">file printer (RAW)</option>
-										<option value="file printer (TRIM)">file printer (TRIM)</option>
-										<option value="file printer (ASCII)">file printer (ASCII)</option>
-										<option value="Atari 820">Atari 820</option>
-										<option value="Atari 822">Atari 822</option>
-										<option value="Atari 825">Atari 825</option>
-										<option value="Atari 1020">Atari 1020</option>
-										<option value="Atari 1025">Atari 1025</option>
-										<option value="Atari 1027">Atari 1027</option>
-										<option value="Atari 1029">Atari 1029</option>
-										<option value="Atari XMM801">Atari XMM801</option>
-										<option value="Atari XDM121">Atari XDM121</option>
-										<option value="Coleco Adam Printer">Coleco Adam Printer</option>
-										<option value="Epson 80">Epson 80</option>
-										<option value="Epson PrintShop">Epson PrintShop</option>
-										<option value="Okimate 10">Okimate 10</option>
-										<option value="GRANTIC">GRANTIC</option>
-										<option value="HTML printer">HTML printer</option>
-										<option value="HTML ATASCII printer">HTML ATASCII printer</option>
+										<%FN_PRINTER_LIST%>
 									</optgroup>
 								</select>
 								<input type="submit" value="Save">
@@ -574,6 +573,134 @@
 							<script>
 								var current_printer = "<%FN_PRINTER1_MODEL%>";
 								var current_printerport = "<%FN_PRINTER1_PORT%>";
+							</script>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="flexchild">
+				<header>MODEM<span id="logowob"></span>SETTINGS</header>
+				<div class="detline">
+					<div class="cicon">
+						<a href="/modem-sniffer.txt">
+						<div class="svgicon">
+							<svg
+							xmlns:dc="http://purl.org/dc/elements/1.1/"
+							xmlns:cc="http://creativecommons.org/ns#"
+							xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+							xmlns:svg="http://www.w3.org/2000/svg"
+							xmlns="http://www.w3.org/2000/svg"
+							xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+							xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+							width="34.266666mm"
+							height="20.498304mm"
+							viewBox="0 0 34.266666 20.498306"
+							version="1.1"
+							id="svg8"
+							inkscape:version="1.0.2 (1.0.2+r75+1)"
+							sodipodi:docname="modem_icon.svg">
+						   <defs
+							  id="defs2" />
+						   <sodipodi:namedview
+							  id="base"
+							  pagecolor="#ffffff"
+							  bordercolor="#666666"
+							  borderopacity="1.0"
+							  inkscape:pageopacity="0.0"
+							  inkscape:pageshadow="2"
+							  inkscape:zoom="3.959798"
+							  inkscape:cx="75.726434"
+							  inkscape:cy="50.453513"
+							  inkscape:document-units="px"
+							  inkscape:current-layer="layer1"
+							  inkscape:document-rotation="0"
+							  showgrid="false"
+							  inkscape:window-width="1360"
+							  inkscape:window-height="738"
+							  inkscape:window-x="0"
+							  inkscape:window-y="132"
+							  inkscape:window-maximized="1"
+							  fit-margin-top="0.2"
+							  fit-margin-left="0.2"
+							  fit-margin-right="0.2"
+							  fit-margin-bottom="0.2">
+							 <inkscape:grid
+								type="xygrid"
+								id="grid853"
+								originx="-7.6213233"
+								originy="-29.329986" />
+						   </sodipodi:namedview>
+						   <metadata
+							  id="metadata5">
+							 <rdf:RDF>
+							   <cc:Work
+								  rdf:about="">
+								 <dc:format>image/svg+xml</dc:format>
+								 <dc:type
+									rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+								 <dc:title></dc:title>
+							   </cc:Work>
+							 </rdf:RDF>
+						   </metadata>
+						   <g
+							  inkscape:label="Layer 1"
+							  inkscape:groupmode="layer"
+							  id="layer1"
+							  transform="translate(-7.6213235,-29.329979)">
+							 <g
+								id="g1123"
+								transform="matrix(0.97473352,0,0,0.97473352,0.19761735,0.74611876)">
+							   <rect
+								  style="opacity:0.998;fill:none;fill-opacity:1;stroke:#000000;stroke-width:3.937;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+								  id="rect851"
+								  width="30.807539"
+								  height="6.9835854"
+								  x="9.7898235"
+								  y="41.197174" />
+							   <path
+								  style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:1.15887;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+								  d="m 11.101201,39.337061 v -0.880775 l 7.046195,-0.880774 v 1.761549 z"
+								  id="path857" />
+							   <path
+								  style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:1.15887;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+								  d="m 39.285982,39.252452 v -0.880775 l -7.046196,-0.880774 v 1.761549 z"
+								  id="path857-2" />
+							   <path
+								  style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.0466076px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
+								  d="m 11.114903,37.474279 -0.0137,-3.667235 c 0,0 0.102656,-4.242054 14.083004,-4.253737 14.193246,-0.0119 14.08722,4.294403 14.08722,4.294403 l -0.0065,3.517794 -7.012404,-0.98526 0.0022,-2.152242 c 0,0 -0.09149,-1.041386 -7.130947,-1.031109 -6.950639,0.01011 -6.975294,0.90257 -6.975294,0.90257 l -0.01664,2.420519 z"
+								  id="path897"
+								  sodipodi:nodetypes="ccsccccsccc" />
+							 </g>
+						   </g>
+						 </svg>
+						<span class="important">Click to download modem sniffer log</span></a>
+						</div>
+					</div>
+					<div class="cform">
+						<div class="formwrapper">
+							<form action="/config" method="post">
+								<br>Use FujiNet as your virtual modem?
+									<select name="modem_enabled" id="select_modem_enabled">
+										<optgroup>
+											<option value="1">Yes</option>
+											<option value="0">No</option>
+										</optgroup>
+									</select>
+									<input type="submit" value="Save">
+							</form>
+							<form action="/config" method="post">
+								<br>Enable Modem Sniffer?
+									<select name="modem_sniffer_enabled" id="select_modem_sniffer_enabled">
+										<optgroup>
+											<option value="1">Yes</option>
+											<option value="0">No</option>
+										</optgroup>
+									</select>
+									<input type="submit" value="Save">
+							</form>
+							<script>
+								var current_modem_enabled = "<%FN_MODEM_ENABLED%>";
+								var current_modem_sniffer_enabled = "<%FN_MODEM_SNIFFER_ENABLED%>";
 							</script>
 						</div>
 					</div>

@@ -1,4 +1,3 @@
-#ifdef BUILD_ATARI // temporary
 /**
  * NetworkProtocolTCP
  * 
@@ -422,4 +421,3 @@ bool NetworkProtocolTCP::special_close_client_connection()
 
     return false;
 }
-#endif /* BUILD_ATARI */

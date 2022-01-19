@@ -9,6 +9,7 @@
 #include "atari_822.h"
 #include "atari_825.h"
 #include "svg_plotter.h"
+#include "atari_1020.h"
 #include "atari_1025.h"
 #include "atari_1027.h"
 #include "atari_1029.h"
@@ -19,9 +20,13 @@
 #include "okimate_10.h"
 #include "png_printer.h"
 
+#include "fnConfig.h"
+
 #define SIO_PRINTERCMD_PUT 0x50
 #define SIO_PRINTERCMD_WRITE 0x57
 #define SIO_PRINTERCMD_STATUS 0x53
+
+constexpr const char * const sioPrinter::printer_model_str[PRINTER_INVALID];
 
 sioPrinter::~sioPrinter()
 {
@@ -172,7 +177,7 @@ void sioPrinter::set_printer_type(sioPrinter::printer_type printer_type)
         _pptr = new atari825;
         break;
     case PRINTER_ATARI_1020:
-        _pptr = new svgPlotter;
+        _pptr = new atari1020;
         break;
     case PRINTER_ATARI_1025:
         _pptr = new atari1025;
@@ -266,23 +271,28 @@ void sioPrinter::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    switch (cmdFrame.comnd)
+    if (!Config.get_printer_enabled())
+        Debug_println("sioPrinter::disabled, ignoring");
+    else
     {
-    case SIO_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
-    case SIO_PRINTERCMD_WRITE:
-        _lastaux1 = cmdFrame.aux1;
-        _lastaux2 = cmdFrame.aux2;
-        _last_ms = fnSystem.millis();
-        sio_ack();
-        sio_write(_lastaux1, _lastaux2);
-        break;
-    case SIO_PRINTERCMD_STATUS:
-        _last_ms = fnSystem.millis();
-        sio_ack();
-        sio_status();
-        break;
-    default:
-        sio_nak();
+        switch (cmdFrame.comnd)
+        {
+        case SIO_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
+        case SIO_PRINTERCMD_WRITE:
+            _lastaux1 = cmdFrame.aux1;
+            _lastaux2 = cmdFrame.aux2;
+            _last_ms = fnSystem.millis();
+            sio_ack();
+            sio_write(_lastaux1, _lastaux2);
+            break;
+        case SIO_PRINTERCMD_STATUS:
+            _last_ms = fnSystem.millis();
+            sio_ack();
+            sio_status();
+            break;
+        default:
+            sio_nak();
+        }
     }
 }
 

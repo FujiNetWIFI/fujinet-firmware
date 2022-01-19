@@ -278,7 +278,7 @@ void KeyManager::_keystate_task(void *param)
         }
     }
 #else
-    while (1);
+    while (1) {vTaskDelay(1000);};
 
 #endif /* NO_BUTTON */
 }

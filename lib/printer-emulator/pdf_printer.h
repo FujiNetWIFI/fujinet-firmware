@@ -78,7 +78,10 @@ protected:
     virtual void pre_close_file() override;
 
 public:
+
+    virtual const char *modelname(void) = 0;
     pdfPrinter() { _paper_type = PDF; };
+
 };
 
 #endif // guard

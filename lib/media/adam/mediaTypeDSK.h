@@ -17,7 +17,7 @@ public:
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
 
-    virtual void status(uint8_t statusbuff[4]) override;
+    uint8_t status() override;
 
     static bool create(FILE *f, uint32_t numBlock);
 };
