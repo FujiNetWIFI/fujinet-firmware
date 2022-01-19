@@ -407,9 +407,11 @@ void iwmDisk::process()
     break;
   case 0x81: // read block
     Debug_printf("\r\nhandling read block command");
-    handle_readblock();
+    iwm_readblock();
     break;
   case 0x82: // write block
+    Debug_printf("\r\nhandling write block command");
+    iwm_writeblock();
     break;
   case 0x83: // format
     break;
@@ -431,7 +433,7 @@ void iwmDisk::process()
 
 unsigned long int last_block_num=0xFFFFFFFF;
 
-void iwmDisk::handle_readblock()
+void iwmDisk::iwm_readblock()
 {
   uint8_t LBH, LBL, LBN, LBT;
   unsigned long int block_num;
@@ -491,6 +493,69 @@ void iwmDisk::handle_readblock()
   last_block_num = block_num;
 }
 
+void iwmDisk::iwm_writeblock()
+{
+  uint8_t source = packet_buffer[6];
+  Debug_printf("\r\nDrive %02x", source);
+  //Added (unsigned short) cast to ensure calculated block is not underflowing.
+  unsigned long int block_num = (packet_buffer[19] & 0x7f) | (((unsigned short)packet_buffer[16] << 3) & 0x80);
+  // block num second byte
+  //Added (unsigned short) cast to ensure calculated block is not underflowing.
+  block_num = block_num + (((packet_buffer[20] & 0x7f) | (((unsigned short)packet_buffer[16] << 4) & 0x80)) * 256);
+  Debug_printf("\r\nWrite block %02x\r\n", block_num);
+  //get write data packet, keep trying until no timeout
+  while (IWM.iwm_read_packet((unsigned char *)packet_buffer))
+    ;
+#ifdef DEBUG
+  print_packet();
+#endif
+  // partition number indicates which 32mb block we access on the CF
+  // TODO: replace this with a lookup to get file object from partition number
+  // block_num = block_num + (((partition + initPartition) % 4) * 65536);
+  int status = decode_data_packet();
+  if (status == 0)
+  { //ok
+    //write block to CF card
+    //Serial.print(F("\r\nWrite Bl. n.r: "));
+    //Serial.print(block_num);
+    if (block_num != last_block_num + 1) // example optimization, only do seek if not writing next block -tschak
+    {
+      if (fseek(d.sdf, (block_num * 512), SEEK_SET))
+      {
+        Debug_printf("\r\nRead seek err! block #%02x", block_num);
+        if (d.sdf != nullptr)
+        {
+          Debug_printf("\r\nPartition file is open!");
+        }
+        else
+        {
+          Debug_printf("\r\nPartition file is closed!");
+        }
+        return;
+      }
+    }
+    size_t sdstato = fwrite((unsigned char *)packet_buffer, 1, 512, d.sdf);
+
+    if (sdstato != 512)
+    {
+      Debug_printf("\r\nFile Write err: %d bytes", sdstato);
+      status = 6;
+      return;
+    }
+    //now return status code to host
+    encode_write_status_packet(source, status);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+#ifdef DEBUG
+    print_packet();
+#endif
+    //Serial.print(F("\r\nSent status Packet Data\r\n") );
+    //print_packet ((unsigned char*) sector_buffer,512);
+
+    //print_packet ((unsigned char*) packet_buffer,packet_length());
+    last_block_num = block_num;
+  }
+}
+
 void iwmDisk::iwm_read()
 {
 }
@@ -501,6 +566,7 @@ void iwmDisk::iwm_write(bool verify)
 // void iwm_format();
 void iwmDisk::iwm_status() // override;
 {
+
 }
 // void derive_percom_block(uint16_t numSectors);
 // void iwm_read_percom_block();

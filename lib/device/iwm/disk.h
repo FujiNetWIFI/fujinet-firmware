@@ -35,7 +35,8 @@ protected:
     void iwm_status(); // override;
     void process() override; // uint32_t commanddata, uint8_t checksum); // override;
 
-    void handle_readblock();
+    void iwm_readblock();
+    void iwm_writeblock();
 
     // void derive_percom_block(uint16_t numSectors);
     // void iwm_read_percom_block();

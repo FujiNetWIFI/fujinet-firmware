@@ -78,9 +78,10 @@ protected:
 
 #ifdef DEBUG
   void print_packet(uint8_t *data, int bytes);
+  void print_packet();
 #endif
 
-  // void handle_readblock();
+  // void iwm_readblock();
  
   virtual void shutdown() = 0;
   virtual void process() = 0;
