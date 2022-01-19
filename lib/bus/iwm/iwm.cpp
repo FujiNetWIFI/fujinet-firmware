@@ -285,6 +285,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
  */
 
   // 'a' is the receive buffer pointer
+  portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
 
   iwm_timer_reset();
   // cache all the functions
@@ -314,6 +315,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
           // timeout
           Debug_print("t");
 #endif
+      portENABLE_INTERRUPTS();
       return 1;
     }
   };
@@ -412,6 +414,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   while (iwm_req_val())
     ;
 
+  portENABLE_INTERRUPTS();
   return 0;
 }
 
@@ -961,6 +964,19 @@ void iwmDevice::print_packet (uint8_t* data, int bytes)
     Debug_printf(("\r\n"));
   }
 }
+
+void iwmDevice::print_packet()
+{
+  Debug_printf("\r\n");
+  for (int i = 0; i < 28; i++)
+  {
+    if (packet_buffer[i])
+      Debug_printf("%02x ", packet_buffer[i]);
+    else
+      break;
+  }
+  Debug_printf("\r\n");
+}
 #endif
 
 //*****************************************************************************
@@ -998,32 +1014,31 @@ void iwmBus::service(iwmDevice* smort)
     case iwm_phases_t::idle:
       break;
     case iwm_phases_t::reset:
+      // instead of the code in this section, we should call a reset handler
+      // the handler should reset every device
+      // and wait for reset to clear (probably with a timeout)
       Debug_printf(("\r\nReset"));
       while (iwm_phases() == iwm_phases_t::reset)
         ; // todo: should there be a timeout feature?
-        // hard coding 1 partition - will use disk class instances  instead                                                    // to check if needed
+        // hard coding 1 partition - will use disk class instances instead
         smort->_devnum = 0;
         Debug_printf(("\r\nReset Cleared"));
       break;
     case iwm_phases_t::enable:
-      portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
+    // expect a command packet
+    // todo: make a command packet structure type, create a temp one and pass it to iwm_read_packet
+    // so we don't have to hijack some device's packet_buffer
+    // also, do we have a universal packet buffer, or does each device have its own?
+
+      
       if (iwm_read_packet((uint8_t *)smort->packet_buffer))
       {
-        portENABLE_INTERRUPTS(); 
         break; //error timeout, break and loop again  // todo: for now ack going low is in iwm_read_packet
       }
-      portENABLE_INTERRUPTS();
+      //portENABLE_INTERRUPTS();
       // now ACK is enabled and cleared low, it is reset in the handlers
 #ifdef DEBUG
-      Debug_printf("\r\n");
-      for (int i = 0; i < 28; i++)
-      {
-        if (smort->packet_buffer[i])
-          Debug_printf("%02x ", smort->packet_buffer[i]);
-        else
-          break;
-      }
-      Debug_printf("\r\n");
+      smort->print_packet();
 #endif
 
       /***
