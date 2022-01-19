@@ -1,10 +1,18 @@
 #ifndef SVG_PLOTTER_H
 #define SVG_PLOTTER_H
 
+#ifdef BUILD_ADAM
+#include "adamnet/printer.h"
+#endif
+#ifdef BUILD_ATARI
+#include "sio/printer.h"
+#endif
+
 /* This is really a virtual class, as it's not meant to be instantiated on its own, but
  inherited from by other, full-fledged printer classes (e.g. Atari 820/822)
 */
 #include <string>
+
 
 #include "printer_emulator.h"
 #include "../../include/atascii.h"
@@ -68,7 +76,11 @@ protected:
     virtual void post_new_file() override;
 
 public:
-    const char *modelname() { return "Atari 1020"; };
+    virtual const char *modelname(void) override
+    {
+        return PRINTER_UNSUPPORTED;
+    }
+
     svgPlotter() { _paper_type = SVG; };
 };
 

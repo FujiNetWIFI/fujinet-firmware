@@ -9,6 +9,7 @@
 #include "utils.h"
 #include "led.h"
 
+
 static xQueueHandle reset_evt_queue = NULL;
 // static uint32_t reset_detect_status = 0;
 
@@ -18,17 +19,43 @@ static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
     xQueueSendFromISR(reset_evt_queue, &gpio_num, NULL);
 }
 
+
+
 static void adamnet_reset_intr_task(void *arg)
 {
     uint32_t io_num;
+    bool was_reset = false;
+    bool reset_debounced = false;
+    uint64_t start, current, elapsed;
+    
 
     // reset_detect_status = gpio_get_level((gpio_num_t)PIN_ADAMNET_RESET);
-
+    start = current = esp_timer_get_time();
     for (;;)
     {
         if (xQueueReceive(reset_evt_queue, &io_num, portMAX_DELAY))
         {
+            start = esp_timer_get_time();
             printf("ADAMNet RESET Asserted\n");
+            was_reset = true;
+        } 
+        current = esp_timer_get_time();
+
+        elapsed = current - start;
+
+        if (was_reset)
+        {
+            if (elapsed >= ADAMNET_RESET_DEBOUNCE_PERIOD) 
+            {
+                reset_debounced = true;
+            }
+        }
+
+        if (was_reset && reset_debounced)
+        {
+            was_reset = false;
+            // debounce period for reset completed
+            reset_debounced = false;;
         }
     }
 }
@@ -75,7 +102,7 @@ bool adamNetDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
     start = current = esp_timer_get_time();
     elapsed = 0;
 
-    while (fnUartSIO.available()<=0)
+    while (fnUartSIO.available() <= 0)
     {
         current = esp_timer_get_time();
         elapsed = current - start;
@@ -83,13 +110,12 @@ bool adamNetDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
             break;
     }
 
-    if (fnUartSIO.available()>0)
+    if (fnUartSIO.available() > 0)
     {
-        *b = (uint8_t) fnUartSIO.read();
+        *b = (uint8_t)fnUartSIO.read();
         timeout = false;
-    } //else
-      //  Debug_printf("duration: %llu\n", elapsed);       
-            
+    } // else
+      //   Debug_printf("duration: %llu\n", elapsed);
 
     return timeout;
 }
@@ -132,9 +158,9 @@ void adamNetDevice::adamnet_response_ack()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 1500)
+    if (t < 300)
     {
-        AdamNet.wait_for_idle();
+        fnSystem.delay_microseconds(150);
         adamnet_send(0x90 | _devnum);
     }
 }
@@ -143,9 +169,9 @@ void adamNetDevice::adamnet_response_nack()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 1500)
+    if (t < 300)
     {
-        AdamNet.wait_for_idle();
+        fnSystem.delay_microseconds(150);
         adamnet_send(0xC0 | _devnum);
     }
 }
@@ -176,6 +202,7 @@ void adamNetBus::wait_for_idle()
                 isIdle = true;
         }
     } while (isIdle == false);
+    fnSystem.yield();
 }
 
 void adamNetDevice::adamnet_process(uint8_t b)
@@ -185,7 +212,26 @@ void adamNetDevice::adamnet_process(uint8_t b)
 
 void adamNetDevice::adamnet_control_status()
 {
-    fnUartDebug.printf("adamnet_status() not implemented yet for this device.\n");
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 1500)
+    {
+        AdamNet.wait_for_idle();
+        adamnet_response_status();
+    }
+}
+
+void adamNetDevice::adamnet_response_status()
+{
+    status_response[0] |= _devnum;
+    
+    status_response[5] = adamnet_checksum(&status_response[1],4);
+    adamnet_send_buffer(status_response, sizeof(status_response));
+}
+
+void adamNetDevice::adamnet_idle()
+{
+    // Not implemented in base class
 }
 
 void adamNetDevice::adamnet_status()
@@ -202,7 +248,9 @@ void adamNetBus::_adamnet_process_cmd()
     uint8_t d = b & 0x0F;
 
     // Find device ID and pass control to it
-    if (_daisyChain.find(d) == _daisyChain.end()) {}
+    if (_daisyChain.find(d) == _daisyChain.end())
+    {
+    }
     else if (_daisyChain[d]->device_active == true)
     {
         // turn on AdamNet Indicator LED
@@ -214,6 +262,7 @@ void adamNetBus::_adamnet_process_cmd()
     }
     
     wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
+    fnUartSIO.flush();
 }
 
 void adamNetBus::_adamnet_process_queue()
@@ -242,7 +291,6 @@ void adamNetBus::setup()
 
     // Set up UART
     fnUartSIO.begin(ADAMNET_BAUD);
-    fnUartSIO.flush_input();
 }
 
 void adamNetBus::shutdown()
@@ -255,7 +303,7 @@ void adamNetBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
+void adamNetBus::addDevice(adamNetDevice *pDevice, uint8_t device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
     pDevice->_devnum = device_id;
@@ -263,18 +311,31 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, int device_id)
 
     switch (device_id)
     {
-        case 0x02:
+    case 0x02:
         _printerDev = (adamPrinter *)pDevice;
         break;
-        case 0x0f:
+    case 0x0f:
         _fujiDev = (adamFuji *)pDevice;
         break;
     }
+}
 
+bool adamNetBus::deviceExists(uint8_t device_id)
+{
+    return _daisyChain.find(device_id) != _daisyChain.end();
 }
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)
 {
+
+}
+
+void adamNetBus::remDevice(uint8_t device_id)
+{
+    if (deviceExists(device_id))
+    {
+        _daisyChain.erase(device_id);
+    }
 }
 
 int adamNetBus::numDevices()
@@ -282,7 +343,7 @@ int adamNetBus::numDevices()
     return _daisyChain.size();
 }
 
-void adamNetBus::changeDeviceId(adamNetDevice *p, int device_id)
+void adamNetBus::changeDeviceId(adamNetDevice *p, uint8_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -291,7 +352,7 @@ void adamNetBus::changeDeviceId(adamNetDevice *p, int device_id)
     }
 }
 
-adamNetDevice *adamNetBus::deviceById(int device_id)
+adamNetDevice *adamNetBus::deviceById(uint8_t device_id)
 {
     for (auto devicep : _daisyChain)
     {

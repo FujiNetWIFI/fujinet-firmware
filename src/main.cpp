@@ -160,7 +160,7 @@ void main_setup()
 
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
-    sioR = new sioModem(ptrfs, false); // turned off by default.
+    sioR = new sioModem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
     
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
@@ -181,25 +181,26 @@ void main_setup()
     sioQ = new adamQueryDevice();
 
 #ifndef NO_VIRTUAL_KEYBOARD
-    exists = sioQ->adamDeviceExists(ADAMNET_KEYBOARD);
+    exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_KEYBOARD);
     if (! exists)
     {
         Debug_printf("Adding virtual keyboard\n");
         sioK = new adamKeyboard();
-        AdamNet.addDevice(sioK,ADAMNET_KEYBOARD);
+        AdamNet.addDevice(sioK,ADAMNET_DEVICE_ID_KEYBOARD);
     } else
         Debug_printf("Physical keyboard found\n");
 #endif
     
-    exists = sioQ->adamDeviceExists(ADAMNET_PRINTER);
+    exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_PRINTER);
     if (! exists)
     {
         Debug_printf("Adding virtual printer\n");
         FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
         adamPrinter::printer_type printer = adamPrinter::PRINTER_COLECO_ADAM;
         adamPrinter *ptr = new adamPrinter(ptrfs, printer);
+//        xTaskCreatePinnedToCore(printerTask,"foo",4096,ptr,10,NULL,1);
         fnPrinters.set_entry(0,ptr,printer,0);
-        AdamNet.addDevice(ptr,0x02);
+        AdamNet.addDevice(ptr,ADAMNET_DEVICE_ID_PRINTER);
     } else
         Debug_printf("Physical printer found\n");
 
@@ -227,6 +228,7 @@ void fn_service_loop(void *param)
     {
         // We don't have any delays in this loop, so IDLE threads will be starved
         // Shouldn't be a problem, but something to keep in mind...
+
         // Go service BT if it's active
     #ifdef BLUETOOTH_SUPPORT
         if (fnBtManager.isActive())
@@ -241,7 +243,7 @@ void fn_service_loop(void *param)
     #elif defined( BUILD_CBM )
         IEC.service();
     #endif
-
+        taskYIELD(); // Allow other tasks to run
     }
 }
 
@@ -249,7 +251,7 @@ void fn_service_loop(void *param)
 * This is the start/entry point for an ESP-IDF program (must use "C" linkage)
 */
 extern "C"
-{
+{    
     void app_main()
     {
         // Call our setup routine
@@ -257,12 +259,12 @@ extern "C"
 
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1; the WiFi task ends up on CPU0
-        #define MAIN_STACKSIZE 4096
+        #define MAIN_STACKSIZE 16384
         #define MAIN_PRIORITY 10
         #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
             MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
-            
+        
         // Sit here twiddling our thumbs
         while (true)
             vTaskDelay(9000 / portTICK_PERIOD_MS);

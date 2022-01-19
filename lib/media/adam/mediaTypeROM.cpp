@@ -35,9 +35,9 @@ bool MediaTypeROM::write(uint32_t blockNum, bool verify)
     return true;
 }
 
-void MediaTypeROM::status(uint8_t statusbuff[4])
+uint8_t MediaTypeROM::status()
 {
-    // Currently not being used.
+    return _media_controller_status;
 }
 
 // Returns TRUE if an error condition occurred

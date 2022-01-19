@@ -154,6 +154,7 @@ public:
     void _populate_config_from_slots();
 
     void adamnet_mount_all();              // 0xD7
+    void sio_mount_all();
 
     adamFuji();
 };

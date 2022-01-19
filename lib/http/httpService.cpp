@@ -444,6 +444,8 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 {
     Debug_println("Print request handler");
 
+    fnHTTPD.clearErrMsg();
+
     time_t now = fnSystem.millis();
     // Get a pointer to the current (only) printer
     PRINTER_CLASS *printer = (PRINTER_CLASS *)fnPrinters.get_ptr(0);
@@ -454,9 +456,9 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     }
     if (now - printer->lastPrintTime() < PRINTER_BUSY_TIME)
     {
-        _fnwserr err = fnwserr_post_fail;
-        return_http_error(req, err);
-        return ESP_FAIL;
+        fnHTTPD.addToErrMsg("Printer is busy. Try again later.\n");
+        send_file(req, "error_page.html");
+        return ESP_OK;
     }
     // Get printer emulator pointer from sioP (which is now extern)
     printer_emu *currentPrinter = printer->getPrinterPtr();
@@ -510,11 +512,17 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     string filename = "printout.";
     filename += exts;
 
-    // Set the expected content type based on the filename/extension
-    set_file_content_type(req, filename.c_str());
-
     // Tell printer to finish its output and get a read handle to the file
     FILE *poutput = currentPrinter->closeOutputAndProvideReadHandle();
+    if (poutput == nullptr)
+    {
+        fnHTTPD.addToErrMsg("Unable to open printer output.\n");
+        send_file(req, "error_page.html");
+        return ESP_OK;
+    }
+
+    // Set the expected content type based on the filename/extension
+    set_file_content_type(req, filename.c_str());
 
     char hdrval1[60];
     if (sendAsAttachment)
@@ -556,25 +564,30 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
 {
     Debug_printf("Modem Sniffer output request handler\n");
+
+    fnHTTPD.clearErrMsg();
+
     ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
     Debug_printf("Got modem Sniffer.\n");
     time_t now = fnSystem.millis();
 
     if (now - sioR->get_last_activity_time() < PRINTER_BUSY_TIME) // re-using printer timeout constant.
     {
-        return_http_error(req, fnwserr_post_fail);
-        return ESP_FAIL;
+        fnHTTPD.addToErrMsg("Modem is busy. Try again later.\n");
+        send_file(req, "error_page.html");
+        return ESP_OK;
     }
-
-    set_file_content_type(req, "modem-sniffer.txt");
 
     FILE *sOutput = modemSniffer->closeOutputAndProvideReadHandle();
     Debug_printf("Got file handle %p\n", sOutput);
     if (sOutput == nullptr)
     {
-        return_http_error(req, fnwserr_post_fail);
-        return ESP_FAIL;
+        fnHTTPD.addToErrMsg("Unable to open modem sniffer output.\n");
+        send_file(req, "error_page.html");
+        return ESP_OK;
     }
+
+    set_file_content_type(req, "modem-sniffer.txt");
 
     // Finally, write the data
     // Send the file content out in chunks
@@ -610,80 +623,90 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 
     parse_query(req, &qp);
 
-    if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
+    // if request contains 'mountall=1' skip to mounting all disks
+    if ((qp.query_parsed.find("mountall") == qp.query_parsed.end()) && (qp.query_parsed["mountall"] != "1"))
     {
-        fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
-    }
-
-    if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
-    {
-        fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
-    }
-
-    if (qp.query_parsed.find("mode") == qp.query_parsed.end())
-    {
-        fnHTTPD.addToErrMsg("<li>mode is empty</li>");
-    }
-
-    if (qp.query_parsed.find("filename") == qp.query_parsed.end())
-    {
-        fnHTTPD.addToErrMsg("<li>filename is empty</li>");
-    }
-
-    hs = atoi(qp.query_parsed["hostslot"].c_str());
-    ds = atoi(qp.query_parsed["deviceslot"].c_str());
-
-    if (hs > MAX_HOSTS)
-    {
-        fnHTTPD.addToErrMsg("<li>hostslot must be between 0 and 8</li>");
-    }
-
-    if (ds > MAX_DISK_DEVICES)
-    {
-        fnHTTPD.addToErrMsg("<li>deviceslot must be between 0 and 8</li>");
-    }
-
-    if ((qp.query_parsed["mode"] != "1") && (qp.query_parsed["mode"] != "2"))
-    {
-        fnHTTPD.addToErrMsg("<li>mode should be either 1 for read, or 2 for write.</li>");
-    }
-
-    if (qp.query_parsed["mode"] == "2")
-    {
-        flag[1] = '+';
-        mode = fnConfig::mount_modes::MOUNTMODE_WRITE;
-    }
-
-    if (theFuji.get_hosts(hs)->mount() == true)
-    {
-        fujiDisk *disk = theFuji.get_disks(ds);
-        fujiHost *host = theFuji.get_hosts(hs);
-
-        disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
-
-        if (disk->fileh == nullptr)
+        if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
         {
-            fnHTTPD.addToErrMsg("<li>Could not open file: " + qp.query_parsed["filename"] + "</li>");
+            fnHTTPD.addToErrMsg("<li>hostslot is empty</li>");
+        }
+
+        if (qp.query_parsed.find("deviceslot") == qp.query_parsed.end())
+        {
+            fnHTTPD.addToErrMsg("<li>deviceslot is empty</li>");
+        }
+
+        if (qp.query_parsed.find("mode") == qp.query_parsed.end())
+        {
+            fnHTTPD.addToErrMsg("<li>mode is empty</li>");
+        }
+
+        if (qp.query_parsed.find("filename") == qp.query_parsed.end())
+        {
+            fnHTTPD.addToErrMsg("<li>filename is empty</li>");
+        }
+
+        hs = atoi(qp.query_parsed["hostslot"].c_str());
+        ds = atoi(qp.query_parsed["deviceslot"].c_str());
+
+        if (hs > MAX_HOSTS)
+        {
+            fnHTTPD.addToErrMsg("<li>hostslot must be between 0 and 8</li>");
+        }
+
+        if (ds > MAX_DISK_DEVICES)
+        {
+            fnHTTPD.addToErrMsg("<li>deviceslot must be between 0 and 8</li>");
+        }
+
+        if ((qp.query_parsed["mode"] != "1") && (qp.query_parsed["mode"] != "2"))
+        {
+            fnHTTPD.addToErrMsg("<li>mode should be either 1 for read, or 2 for write.</li>");
+        }
+
+        if (qp.query_parsed["mode"] == "2")
+        {
+            flag[1] = '+';
+            mode = fnConfig::mount_modes::MOUNTMODE_WRITE;
+        }
+
+        if (theFuji.get_hosts(hs)->mount() == true)
+        {
+            fujiDisk *disk = theFuji.get_disks(ds);
+            fujiHost *host = theFuji.get_hosts(hs);
+
+            disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
+
+            if (disk->fileh == nullptr)
+            {
+                fnHTTPD.addToErrMsg("<li>Could not open file: " + qp.query_parsed["filename"] + "</li>");
+            }
+            else
+            {
+                // Make sure CONFIG boot is disabled.
+                theFuji.boot_config = false;
+#ifdef BUILD_ATARI
+                theFuji.status_wait_count = 0;
+#endif
+
+                disk->disk_size = host->file_size(disk->fileh);
+                disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
+                Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
+                Config.save();
+                theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
+                disk->disk_dev.device_active = true;
+            }
         }
         else
         {
-            // Make sure CONFIG boot is disabled.
-            theFuji.boot_config = false;
-#ifdef BUILD_ATARI
-            theFuji.status_wait_count = 0;
-#endif
-
-            disk->disk_size = host->file_size(disk->fileh);
-            disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
-            Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
-            Config.save();
-            theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
-            disk->disk_dev.device_active = true;
+            fnHTTPD.addToErrMsg("<li>Could not mount host slot " + qp.query_parsed["hostslot"] + "</li>");
         }
     }
     else
     {
-        fnHTTPD.addToErrMsg("<li>Could not mount host slot " + qp.query_parsed["hostslot"] + "</li>");
+        // Mount all the things
+        Debug_printf("Mount all slots from webui\n");
+        theFuji.sio_mount_all();
     }
 
     if (!fnHTTPD.errMsgEmpty())
@@ -1113,6 +1136,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     config.stack_size = 8192;
     config.max_resp_headers = 12;
     config.max_uri_handlers = 16;
+    config.task_priority = 12; // Bump this higher than fnService loop
     // Keep a reference to our object
     config.global_user_ctx = (void *)&state;
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed

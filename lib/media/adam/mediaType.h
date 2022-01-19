@@ -30,7 +30,6 @@ protected:
     uint32_t _media_image_size = 0;
     uint32_t _media_num_blocks = 256;
     uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
-    uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 
 public:
     struct
@@ -51,6 +50,7 @@ public:
 
     uint8_t _media_blockbuff[MEDIA_BLOCK_SIZE];
     uint32_t _media_last_block = INVALID_SECTOR_VALUE-1;
+    uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
@@ -66,7 +66,7 @@ public:
     // Returns TRUE if an error condition occurred
     virtual bool write(uint32_t blockNum, bool verify);
     
-    virtual void status(uint8_t statusbuff[4]) = 0;
+    virtual uint8_t status() = 0;
 
     static mediatype_t discover_mediatype(const char *filename);
 
