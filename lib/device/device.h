@@ -6,7 +6,7 @@
 #   include "sio/apetime.h"
 #   include "sio/cassette.h"
 #   include "sio/disk.h"
-#   include "sio/minimaze.h"
+#   include "sio/midimaze.h"
 #   include "sio/modem.h"
 #   include "sio/network.h"
 #   include "sio/printer.h"
