@@ -244,7 +244,7 @@ void iwmDisk::encode_status_dib_reply_packet()
   data[1] = d.blocks & 0xff;         // block size 1
   data[2] = (d.blocks >> 8) & 0xff;  // block size 2
   data[3] = (d.blocks >> 16) & 0xff; // block size 3
-  data[4] = 0x0b;                    // ID string length - 11 chars
+  data[4] = 0x07;                    // ID string length - 11 chars
   data[5] = 'F';
   data[6] = 'U';
   data[7] = 'J';
