@@ -14,6 +14,7 @@ iwmDisk::~iwmDisk()
 void iwmDisk::init()
 {
   open_tnfs_image();
+  //open_image("/A2OSX.BUILD.po");//("/STABLE.32MB.po");
   if (d.sdf != nullptr)
     Debug_printf("\r\nfile open good");
   else
@@ -120,7 +121,7 @@ void iwmDisk::encode_status_reply_packet()
 
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
-  packet_buffer[8] = d.device_id; // SRC - source id - us
+  packet_buffer[8] = id(); //d.device_id; // SRC - source id - us
   packet_buffer[9] = 0x81;        // TYPE -status
   packet_buffer[10] = 0x80;       // AUX
   packet_buffer[11] = 0x80;       // STAT - data status
@@ -189,7 +190,7 @@ void iwmDisk::encode_extended_status_reply_packet()
 
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
-  packet_buffer[8] = d.device_id; // SRC - source id - us
+  packet_buffer[8] = id(); // d.device_id; // SRC - source id - us
   packet_buffer[9] = 0xC1;        // TYPE - extended status
   packet_buffer[10] = 0x80;       // AUX
   packet_buffer[11] = 0x80;       // STAT - data status
@@ -311,7 +312,7 @@ void iwmDisk::encode_status_dib_reply_packet()
   packet_buffer[5] = 0xff;
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
-  packet_buffer[8] = d.device_id; // SRC - source id - us
+  packet_buffer[8] = id(); // d.device_id; // SRC - source id - us
   packet_buffer[9] = 0x81;        // TYPE -status
   packet_buffer[10] = 0x80;       // AUX
   packet_buffer[11] = 0x80;       // STAT - data status
@@ -351,7 +352,7 @@ void iwmDisk::encode_extended_status_dib_reply_packet()
 
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
-  packet_buffer[8] = d.device_id; // SRC - source id - us
+  packet_buffer[8] = id(); //d.device_id; // SRC - source id - us
   packet_buffer[9] = 0x81;        // TYPE -status
   packet_buffer[10] = 0x80;       // AUX
   packet_buffer[11] = 0x83;       // STAT - data status
@@ -483,17 +484,8 @@ void iwmDisk::iwm_readblock()
   }
   encode_data_packet(source);
   Debug_printf("\r\nsending block packet ...");
-  // iwm_ack_set(); // todo: probably put ack req handshake inside of send and receive packet()
-  //  portDISABLE_INTERRUPTS();
-  //  iwm_rddata_enable();
-  IWM.iwm_send_packet((unsigned char *)packet_buffer); // this returns timeout errors but that's not handled here
-  // iwm_rddata_disable();
-  // portENABLE_INTERRUPTS(); // takes 7 us to execute
-
-  // Debug_printf(status);
-  // print_packet ((unsigned char*) packet_buffer,packet_length());
-  // print_packet ((unsigned char*) sector_buffer,15);
-  last_block_num = block_num;
+  if (!IWM.iwm_send_packet((unsigned char *)packet_buffer))
+    last_block_num = block_num;
 }
 
 void iwmDisk::iwm_writeblock()
@@ -507,18 +499,14 @@ void iwmDisk::iwm_writeblock()
   block_num = block_num + (((packet_buffer[20] & 0x7f) | (((unsigned short)packet_buffer[16] << 4) & 0x80)) * 256);
   Debug_printf("\r\nWrite block %02x\r\n", block_num);
   //get write data packet, keep trying until no timeout
-  
-
-
- if (IWM.iwm_read_packet_timeout(100,(unsigned char *)packet_buffer))
- {
-   
+  if (IWM.iwm_read_packet_timeout(100, (unsigned char *)packet_buffer))
+  {
 #ifdef DEBUG
-   print_packet();
+    print_packet();
 #endif
-   Debug_printf("\r\nTIMEOUT in read packet!");
-   return;
- }
+    Debug_printf("\r\nTIMEOUT in read packet!");
+    return;
+  }
 
 #ifdef DEBUG
   print_packet();
@@ -584,7 +572,7 @@ void iwmDisk::iwm_write(bool verify)
 
 void iwmDisk::iwm_status() // override;
 {
-  uint8_t source = packet_buffer[6];
+  // uint8_t source = packet_buffer[6];
 
   if (d.sdf != nullptr)
   { 

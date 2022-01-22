@@ -425,7 +425,7 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a)
   {
     if (!iwm_read_packet(a))
     {
-      iwm_ack_clr(); // todo - make ack functions public so devices can call them
+      iwm_ack_clr(); // todo - make ack functions public so devices can call them?
       return 0;
     }
   }
@@ -478,7 +478,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(100); // 10 millisecond
+  iwm_timer_alarm_set(100); // 0.1 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
   while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -490,6 +490,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
       // timeout!
       Debug_printf("\r\nSendPacket timeout waiting for REQ");
       iwm_rddata_disable();
+      //iwm_ack_disable(); // need to release the bus if we're quitting
       portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
@@ -556,12 +557,14 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
     if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     {
       iwm_rddata_disable();
+     // iwm_ack_disable();       // need to release the bus
       portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
   };
 
   iwm_rddata_disable();
+ // iwm_ack_disable();       // need to release the bus
   portENABLE_INTERRUPTS(); // takes 7 us to execute
   return 0;
 
