@@ -543,12 +543,28 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   } while (txbyte); //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
 
   iwm_ack_clr();
-  while (iwm_req_val()); // todo: add a timeout?
+
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();      //  grab timer low word
+  iwm_timer_alarm_set(500); // 1/2 millisecond
+
+  // while (!fnSystem.digital_read(SP_REQ))
+  while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  {
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
+    {
+      iwm_rddata_disable();
+      portENABLE_INTERRUPTS(); // takes 7 us to execute
+      return 1;
+    }
+  };
 
   iwm_rddata_disable();
   portENABLE_INTERRUPTS(); // takes 7 us to execute
-  
-return 0;
+  return 0;
+
 }
 
 void iwmBus::setup(void)
@@ -1050,13 +1066,12 @@ void iwmBus::service(iwmDevice* smort)
       {
         break; //error timeout, break and loop again  // todo: for now ack going low is in iwm_read_packet
       }
+      // todo: should only ack if it's our device and if checksum is OK
       iwm_ack_clr();
       iwm_ack_enable(); // have to act really fast
       //portENABLE_INTERRUPTS();
       // now ACK is enabled and cleared low, it is reset in the handlers
-#ifdef DEBUG
-      smort->print_packet();
-#endif
+
 
       /***
        * todo notes:
@@ -1124,12 +1139,19 @@ void iwmBus::service(iwmDevice* smort)
 
       if (smort->packet_buffer[14] == 0x85)
       {
+        #ifdef DEBUG
+       smort->print_packet();
+#endif
         Debug_printf("\r\nhandling init command");
         handle_init(smort);
       }
       else
-      smort->process();
-      
+     {
+#ifdef DEBUG
+       smort->print_packet();
+#endif
+        smort->process();
+     } 
     }   // switch (phasestate)
   // }     // while(true)
 }
