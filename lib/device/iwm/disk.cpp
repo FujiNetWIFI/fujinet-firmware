@@ -438,7 +438,6 @@ unsigned long int last_block_num=0xFFFFFFFF;
 
 void iwmDisk::iwm_readblock()
 {
-  //todo: there must be a handshaking problem
   uint8_t LBH, LBL, LBN, LBT;
   unsigned long int block_num;
   size_t sdstato;
