@@ -3,7 +3,9 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
 #include <driver/gpio.h>
+#ifndef CONFIG_IDF_TARGET_ESP32S3
 #include <driver/dac.h>
+#endif
 
 #include "fnSystem.h"
 
@@ -154,6 +156,7 @@ void OutputSound()
 void OutputSound()
 {
 #ifdef ESP_PLATFORM
+#ifndef CONFIG_IDF_TARGET_ESP32S3
     int n = GetBufferLength() / 50;
     char *s = GetBuffer();
 
@@ -175,6 +178,7 @@ void OutputSound()
     dac_output_disable(DAC_CHANNEL_1);
 
     FreeBuffer();
+#endif
 #endif
 }
 
