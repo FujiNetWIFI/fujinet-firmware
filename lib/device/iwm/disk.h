@@ -13,7 +13,7 @@ private:
     struct device
     {
         FILE *sdf;
-        uint8_t device_id;          //to hold assigned device id's for the partitions
+        //uint8_t device_id;          //to hold assigned device id's for the partitions
         unsigned long blocks;       //how many 512-byte blocks this image has
         unsigned int header_offset; //Some image files have headers, skip this many bytes to avoid them
         bool writeable;
