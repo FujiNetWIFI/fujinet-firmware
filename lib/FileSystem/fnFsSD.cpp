@@ -15,6 +15,10 @@
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#define HSPI_HOST SPI3_HOST
+#endif
+
 // Our global SD interface
 FileSystemSDFAT fnSDFAT;
 
