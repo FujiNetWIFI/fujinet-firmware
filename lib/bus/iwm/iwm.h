@@ -158,6 +158,7 @@ private:
 
 public:
   int iwm_read_packet(uint8_t *a);
+  int iwm_read_packet_timeout(int tout, uint8_t *a);
   int iwm_send_packet(uint8_t *a);
 
   void setup();

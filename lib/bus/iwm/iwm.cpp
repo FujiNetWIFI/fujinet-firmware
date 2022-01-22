@@ -275,14 +275,16 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
  * The algorithm originated from the SmartPortSD Arduino project as
  * Atmel AVR assembly. It went through a near literal conversion and then
  * some changes for readibility. The algorithm is time critical as it
- * reads 250kbit/sec serial data that includes sometimes irregular timing between 
- * bytes. The SP serial data are encoded such that the logical meaning of the 
+ * reads 250kbit/sec serial data. The SP serial data are encoded such that
+ * and edge means 1 and no edge means 0. Or, the logical meaning of the 
  * current bit depends on the signal level of the previous bit. This can also
  * be interpreted as over-lapping two-bit sequences. Byte framing is done by
  * ensuring the first bit (really bit 7) of the next byte is always the 
  * opposite signal level of the last bit (bit 0) of the current byte. The
- * algorithm waits for the transition and then starts the new byte.
+ * algorithm waits for the transition and then starts the new byte. Or,
+ * that edge is the logic 1 value that all smartport bytes have to have ($80)
  */
+
 
   // 'a' is the receive buffer pointer
   portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
@@ -296,15 +298,13 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   iwm_timer_alarm_snooze(1);
   iwm_timer_wait();
   
-  // setup a timeout counter to wait for REQ response
+    // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(100); // logic analyzer says 40 usec
+  iwm_timer_alarm_set(100); // todo: logic analyzer says 40 usec
 
-  // todo: this waiting for REQ seems like it should be done
-  // in the main loop, if control can be passed quickly enough
-  // to the receive routine. Otherwise, we sit here blocking(?)
-  // until REQ goes high. As long as PHIx is in Enable mode.
+  // todo: can we create a wait for req with timout function to use elsewhere?
+  // it woudl return bool false when REQ does its thing or true when timeout.
   while ( !iwm_req_val() )  
   {
     iwm_timer_latch();   // latch highspeed timer value
@@ -342,6 +342,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
       // timeout
       Debug_print("t");
 #endif
+      portENABLE_INTERRUPTS();
       return 1;
     }
   };
@@ -397,25 +398,39 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
         break;
       }
     } while (iwm_wrdata_val() == prev_level);
-       numbits = 8; // ;1   8bits to read
+    numbits = 8;       // ;1   8bits to read
   } while (have_data); //(have_data); // while have_data
   //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
 
   // endpkt:   clr  r23
   a[idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
-
-  //Todo: should not ACK unless we know this is our Command
-  // should move this block to the main Bus service section
-  // and only ACK when we know it's our device, then pass
-  // control to that device
-  //iwm_ack_clr();
-  iwm_ack_enable(); // should already be cleared
-  while (iwm_req_val())
-    ;
+  //todo: try something here
+  // if idx <28, that means we don't have a valid command packet and certainly not a valid write packet
+  // so I shuold just return a 1 without an ACK
+if (idx<17) // invalid packet! but for now return OK and don't ACK
+{
+  portENABLE_INTERRUPTS();
+  return 1;
+}
 
   portENABLE_INTERRUPTS();
   return 0;
+}
+
+int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a)
+{
+  iwm_ack_set();
+  for (int i=0; i < attempts; i++)
+  {
+    if (!iwm_read_packet(a))
+    {
+      iwm_ack_clr(); // todo - make ack functions public so devices can call them
+      return 0;
+    }
+  }
+  iwm_ack_disable();
+  return 1;
 }
 
 int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
@@ -454,7 +469,9 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 
  txbyte = a[idx++];
 
+  // should this be ack disable or ack set?
   iwm_ack_set(); // ack is already enabled by the response to the command read
+
 
 #ifndef TESTTX
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
@@ -526,7 +543,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   } while (txbyte); //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
 
   iwm_ack_clr();
-  while (iwm_req_val());
+  while (iwm_req_val()); // todo: add a timeout?
 
   iwm_rddata_disable();
   portENABLE_INTERRUPTS(); // takes 7 us to execute
@@ -842,8 +859,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 
 }
 
-
-
+//todo: this only replies a $21 error
 void iwmDevice::encode_error_reply_packet (uint8_t source)
 {
   uint8_t checksum = 0;
@@ -1001,10 +1017,10 @@ int iwmDevice::packet_length (void)
 // //*****************************************************************************
 void iwmBus::service(iwmDevice* smort) 
 {
-  iwm_rddata_disable(); // todo - figure out sequence of setting IWM pins and where this should go
-  iwm_rddata_clr();
-  while (true)
-  {
+  // iwm_rddata_disable(); // todo - figure out sequence of setting IWM pins and where this should go
+  // iwm_rddata_clr();
+  // while (true)
+  // {
     iwm_ack_disable();
     iwm_ack_clr(); // prep for the next read packet
      
@@ -1029,12 +1045,13 @@ void iwmBus::service(iwmDevice* smort)
     // todo: make a command packet structure type, create a temp one and pass it to iwm_read_packet
     // so we don't have to hijack some device's packet_buffer
     // also, do we have a universal packet buffer, or does each device have its own?
-
-      
+     
       if (iwm_read_packet((uint8_t *)smort->packet_buffer))
       {
         break; //error timeout, break and loop again  // todo: for now ack going low is in iwm_read_packet
       }
+      iwm_ack_clr();
+      iwm_ack_enable(); // have to act really fast
       //portENABLE_INTERRUPTS();
       // now ACK is enabled and cleared low, it is reset in the handlers
 #ifdef DEBUG
@@ -1078,6 +1095,33 @@ void iwmBus::service(iwmDevice* smort)
        * investigation.
        */
 
+      //Todo: should not ACK unless we know this is our Command
+      // should move this block to the main Bus service section
+      // and only ACK when we know it's our device, then pass
+      // control to that device
+      //iwm_ack_clr();
+
+      // do we need to wait for REQ to go low here, or should we just pass control
+      // and set up for the command? Once we see REQ go low,
+      // and we're ready to respond, the we disable ACK
+      // setup a timeout counter to wait for REQ response
+      iwm_timer_latch();        // latch highspeed timer value
+      iwm_timer_read();         //  grab timer low word
+      iwm_timer_alarm_set(5000); // todo: figure out
+      while (iwm_req_val())
+      {
+        iwm_timer_latch();               // latch highspeed timer value
+        iwm_timer_read();                // grab timer low word
+        if (iwm_timer.t0 > iwm_timer.tn) // test for timeout
+        {                                // timeout!
+#ifdef VERBOSE_IWM
+          // timeout
+          Debug_print("t");
+#endif
+          break;
+        }
+      }
+
       if (smort->packet_buffer[14] == 0x85)
       {
         Debug_printf("\r\nhandling init command");
@@ -1087,16 +1131,16 @@ void iwmBus::service(iwmDevice* smort)
       smort->process();
       
     }   // switch (phasestate)
-  }     // while(true)
+  // }     // while(true)
 }
 
 void iwmBus::handle_init(iwmDevice* smort)
 {
   uint8_t source;
 
-  iwm_rddata_enable(); // todo: instead, do we enable rddata and ack when phasestate==enable?
-  iwm_rddata_clr(); // todo: enable is done below so maybe not needed here?
-
+  iwm_rddata_clr();
+  iwm_rddata_enable(); 
+  
   source = smort->packet_buffer[6];
   // if (number_partitions_initialised < NUM_PARTITIONS)
   // {                                                                                                   //are all init'd yet
@@ -1116,12 +1160,7 @@ void iwmBus::handle_init(iwmDevice* smort)
   smort->encode_init_reply_packet(source, status);
   //print_packet ((uint8_t*) packet_buffer,packet_length());
   Debug_printf("\r\nSending INIT Response Packet...");
-  // portDISABLE_INTERRUPTS();
-  // iwm_rddata_enable();
   iwm_send_packet((uint8_t *)smort->packet_buffer); // timeout error return is not handled here (yet?)
-  // ack-req handshake is inside of sendpacket
-  // iwm_rddata_disable();
-  // portENABLE_INTERRUPTS(); // takes 7 us to execute
 
   //print_packet ((uint8_t*) packet_buffer,packet_length());
 
