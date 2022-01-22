@@ -445,7 +445,7 @@ void iwmDisk::iwm_readblock()
   uint8_t source;
 
   source = packet_buffer[6];
-  Debug_printf("\r\nDrive %02x ", source);
+  Debug_printf("\r\nDrive %02x", source);
 
   LBH = packet_buffer[16]; // high order bits
   LBT = packet_buffer[21]; // block number high
@@ -457,14 +457,13 @@ void iwmDisk::iwm_readblock()
   // Added (unsigned short) cast to ensure calculated block is not underflowing.
   block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
   block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
-  Debug_printf("Read block %04x", block_num);
+  Debug_printf("\r\nRead block %02x\r\n", block_num);
 
   if (block_num != last_block_num + 1) // example optimization, only do seek if not reading next block -tschak
   {
-    Debug_printf("\r\n");
     if (fseek(d.sdf, (block_num * 512), SEEK_SET))
     {
-      Debug_printf("\r\nRead seek err! block #%04x", block_num);
+      Debug_printf("\r\nRead seek err! block #%02x", block_num);
       if (d.sdf != nullptr)
       {
         Debug_printf("\r\nPartition file is open!");
@@ -492,13 +491,13 @@ void iwmDisk::iwm_readblock()
 void iwmDisk::iwm_writeblock()
 {
   uint8_t source = packet_buffer[6];
-  Debug_printf("\r\nDrive %02x ", source);
+  Debug_printf("\r\nDrive %02x", source);
   //Added (unsigned short) cast to ensure calculated block is not underflowing.
   unsigned long int block_num = (packet_buffer[19] & 0x7f) | (((unsigned short)packet_buffer[16] << 3) & 0x80);
   // block num second byte
   //Added (unsigned short) cast to ensure calculated block is not underflowing.
   block_num = block_num + (((packet_buffer[20] & 0x7f) | (((unsigned short)packet_buffer[16] << 4) & 0x80)) * 256);
-  Debug_printf("Write block %04x", block_num);
+  Debug_printf("\r\nWrite block %02x\r\n", block_num);
   //get write data packet, keep trying until no timeout
   if (IWM.iwm_read_packet_timeout(100, (unsigned char *)packet_buffer))
   {
@@ -523,7 +522,6 @@ void iwmDisk::iwm_writeblock()
     //Serial.print(block_num);
     if (block_num != last_block_num + 1) // example optimization, only do seek if not writing next block -tschak
     {
-      Debug_printf("\r\n");
       if (fseek(d.sdf, (block_num * 512), SEEK_SET))
       {
         Debug_printf("\r\nRead seek err! block #%02x", block_num);
