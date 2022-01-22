@@ -511,8 +511,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   //iwm_timer.tn = iwm_timer.t0 + (1 * TIMER_USEC_FACTOR / 2) - TIMER_ADJUST; // NEED JUST 1/2 USEC
   iwm_timer_alarm_set(1);
   iwm_timer_wait();
-  iwm_rddata_set(); // because we know the first byte is always FF?
-  // elongates first pulse to 1 us, but adds extra 250 ns to delay between REQ and pulse falling edge
+
   do // beware of entry into the loop and an extended first pulse ...
   {
     do
@@ -1011,6 +1010,7 @@ void iwmDevice::print_packet()
     else
       break;
   }
+  Debug_printf("\r\n");
 }
 #endif
 
