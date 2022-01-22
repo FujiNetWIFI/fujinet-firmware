@@ -5,10 +5,17 @@
 /* SD Card */
 #define PIN_CARD_DETECT 12 // fnSystem.h
 #define PIN_CARD_DETECT_FIX 15 // fnSystem.h
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#define PIN_SD_HOST_MISO 19
+#define PIN_SD_HOST_MOSI 23
+#define PIN_SD_HOST_SCK  18
+#define PIN_SD_HOST_CS   GPIO_NUM_5
+#else
 #define PIN_SD_HOST_CS GPIO_NUM_5 //fnFsSD.cpp
 #define PIN_SD_HOST_MISO GPIO_NUM_19
 #define PIN_SD_HOST_MOSI GPIO_NUM_23
 #define PIN_SD_HOST_SCK GPIO_NUM_18
+#endif
 
 /* UART */
 #define PIN_UART0_RX 3 // fnUART.cpp
