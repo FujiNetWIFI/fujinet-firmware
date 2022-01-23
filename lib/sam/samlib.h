@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -34,3 +35,4 @@ void OutputSound();
 #endif
 
 int sam(int argc, char **argv);
+#endif /* BUILD_ATARI */
