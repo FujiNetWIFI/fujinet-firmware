@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #ifndef SAMTABS_H
 #define SAMTABS_H
 
@@ -213,3 +214,4 @@ SPECIAL
 */
 
 #endif
+#endif /* BUILD_ATARI */
