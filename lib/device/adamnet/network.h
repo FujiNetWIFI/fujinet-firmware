@@ -129,11 +129,6 @@ public:
 
 private:
     /**
-     * Buffer for holding devicespec
-     */
-    uint8_t devicespecBuf[256];
-
-    /**
      * AdamNet Response Buffer
      */
     uint8_t response[1024];
@@ -397,8 +392,9 @@ private:
 
     /**
      * @brief parse URL and instantiate protocol
+     * @param db pointer to devicespecbuf 256 chars
      */
-    void parse_and_instantiate_protocol();
+    void parse_and_instantiate_protocol(uint8_t *db);
 };
 
 #endif /* NETWORK_H */
