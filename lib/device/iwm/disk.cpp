@@ -27,7 +27,7 @@ bool iwmDisk::open_tnfs_image()
   Debug_printf("\r\nmounting server");
   tserver.start("159.203.160.80"); //"atari-apps.irata.online");
   Debug_printf("\r\nopening file");
-  d.sdf = tserver.file_open("/test2.hdv", "rb");
+  d.sdf = tserver.file_open("/test.hdv", "rb");
 
   Debug_printf(("\r\nTesting file "));
   // d.sdf.printName();

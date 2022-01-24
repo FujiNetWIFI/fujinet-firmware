@@ -231,6 +231,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 #ifdef DEBUG
   if (phasestate != oldphase)
   {
+    //Debug_printf("\r\n%d%d%d%d",iwm_phase_val(0),iwm_phase_val(1),iwm_phase_val(2),iwm_phase_val(3));
     switch (phasestate)
     {
     case iwm_phases_t::idle:
