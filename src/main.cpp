@@ -149,10 +149,11 @@ void main_setup()
     // todo - get rid of this code
     smort.init();
     fnSystem.delay(5000); // don't remember why this is here - maybe trying to get the highspeed timer working
-    //spsd.test_send();
-    //spsd.hw_timer_pulses();
-    //spsd.hw_timer_direct_reg();
- #elif defined( BUILD_ATARI )
+#ifdef TESTTX
+    IWM.test_send(&smort);
+#endif
+
+#elif defined( BUILD_ATARI )
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 

@@ -10,6 +10,9 @@
 #include <string>
 #include "fnFS.h"
 
+#undef TESTTX
+//#define TESTTX
+
 // these are for the temporary disk functions
 //#include "fnFsSD.h"
 //#include <string>
@@ -142,7 +145,9 @@ private:
     void iwm_ack_clr();
     void iwm_ack_enable();
     void iwm_ack_disable();
-    
+    void iwm_extra_set();
+    void iwm_extra_clr();
+
     bool iwm_phase_val(int p);
     
     enum class iwm_phases_t
@@ -172,6 +177,11 @@ public:
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
+
+#ifdef TESTTX
+  void test_send(iwmDevice* smort);
+#endif
+
 };
 
 extern iwmBus IWM;
