@@ -72,4 +72,7 @@
 #define PIN_RX_DUMMY 0 
 #define PIN_TX_DUMMY 12
 
+// Apple II IWM pin assignments
+
+
 #endif

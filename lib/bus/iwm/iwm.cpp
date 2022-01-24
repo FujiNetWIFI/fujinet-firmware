@@ -35,19 +35,19 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #define SP_PHI3     26      //  INT
 #define SP_RDDATA   21      //  DATAIN
 #define SP_WRDATA   33      //  DATAOUT
+#define SP_EXTRA    32      //  CLKOUT
 
 // hardware timer parameters for bit-banging I/O
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
 #define TIMER_USEC_FACTOR     (TIMER_SCALE / 1000000)
-#define TIMER_100NS_FACTOR    (TIMER_SCALE / 100000)
-#define TIMER_ADJUST          5 // substract this value to adjust for overhead
+#define TIMER_100NS_FACTOR    (TIMER_SCALE / 10000000)
+#define TIMER_ADJUST          0 // substract this value to adjust for overhead
 
-#define IWM_BIT_CELL          4 // microseconds - 2 us for fast mode
-#define IWM_TX_PW             1 // microseconds - 1/2 us for fast mode
+//#define IWM_BIT_CELL          4 // microseconds - 2 us for fast mode
+//#define IWM_TX_PW             1 // microseconds - 1/2 us for fast mode
 
 #undef VERBOSE_IWM
-#undef TESTTX
 
 
 //------------------------------------------------------------------------------
@@ -81,12 +81,12 @@ void iwmBus::iwm_timer_read()
 
 void iwmBus::iwm_timer_alarm_set(int s)
 {
-  iwm_timer.tn = iwm_timer.t0 + s * TIMER_USEC_FACTOR - TIMER_ADJUST;
+  iwm_timer.tn = iwm_timer.t0 + s * TIMER_100NS_FACTOR - TIMER_ADJUST;
 }
 
 void iwmBus::iwm_timer_alarm_snooze(int s)
 {
-  iwm_timer.tn += s * TIMER_USEC_FACTOR - TIMER_ADJUST; // 3 microseconds
+  iwm_timer.tn += s * TIMER_100NS_FACTOR - TIMER_ADJUST; // 3 microseconds
 
 }
 
@@ -133,6 +133,16 @@ bool iwmBus::iwm_wrdata_val()
 bool iwmBus::iwm_req_val()
 {
   return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
+}
+
+void iwmBus::iwm_extra_set()
+{
+  GPIO.out1_w1ts.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
+}
+
+void iwmBus::iwm_extra_clr()
+{
+  GPIO.out1_w1tc.data = ((uint32_t)0x01 << (SP_EXTRA - 32));  
 }
 
 //------------------------------------------------------
@@ -291,17 +301,24 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
 
   iwm_timer_reset();
   // cache all the functions
-  iwm_timer_latch();        // latch highspeed timer value
-  iwm_timer_read();
-  iwm_timer_alarm_set(1);
-  iwm_timer_wait();
-  iwm_timer_alarm_snooze(1);
-  iwm_timer_wait();
+  // iwm_timer_latch();        // latch highspeed timer value
+  // iwm_timer_read();
+  // iwm_timer_alarm_set(1);
+  // iwm_timer_wait();
+  // iwm_timer_alarm_snooze(1);
+  // iwm_timer_wait();
   
+  // signal the logic analyzer
+  iwm_extra_clr();
+  iwm_extra_set();
+  iwm_extra_clr();
+  iwm_extra_set();
+  iwm_extra_clr();
+
     // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(100); // todo: logic analyzer says 40 usec
+  iwm_timer_alarm_set(1000); // todo: logic analyzer says 40 usec
 
   // todo: can we create a wait for req with timout function to use elsewhere?
   // it woudl return bool false when REQ does its thing or true when timeout.
@@ -326,43 +343,44 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
 #endif
 
 
-  // we might want to just block on writedata without timout so there's
-  // faster control passed to the do-loop
-  // setup a timeout counter to wait for WRDATA to be ready response
-  iwm_timer_latch();                    // latch highspeed timer value
-  iwm_timer_read();    //  grab timer low word
-  iwm_timer_alarm_set(32); // 32 usec - 1 byte
-  while (iwm_wrdata_val())
-  {
-    iwm_timer_latch();   // latch highspeed timer value
-    iwm_timer_read(); // grab timer low word
-    if (iwm_timer.t0 > iwm_timer.tn)     // test for timeout
-    {                // timeout!
-#ifdef VERBOSE_IWM
-      // timeout
-      Debug_print("t");
-#endif
-      portENABLE_INTERRUPTS();
-      return 1;
-    }
-  };
+//   // we might want to just block on writedata without timout so there's
+//   // faster control passed to the do-loop
+//   // setup a timeout counter to wait for WRDATA to be ready response
+//   iwm_timer_latch();                    // latch highspeed timer value
+//   iwm_timer_read();    //  grab timer low word
+//   iwm_timer_alarm_set(320); // 32 usec - 1 byte
+//   while (iwm_wrdata_val())
+//   {
+//     iwm_timer_latch();   // latch highspeed timer value
+//     iwm_timer_read(); // grab timer low word
+//     if (iwm_timer.t0 > iwm_timer.tn)     // test for timeout
+//     {                // timeout!
+// #ifdef VERBOSE_IWM
+//       // timeout
+//       Debug_print("t");
+// #endif
+//       portENABLE_INTERRUPTS();
+//       return 1;
+//     }
+//   };
 
-  iwm_timer_alarm_set(1);
-  iwm_timer_wait();
-
+  // I think there's an extra usec because logic analyzer says 9 us from REQ to first WR edge
+  // there are two 0's (each 4 usec) and then the 1 (edge) at the start of the first sync byte 
+  // iwm_timer_alarm_set(9); 
+  // iwm_timer_wait();
+  //iwm_timer_latch();   // latch highspeed timer value
+  //iwm_timer_read(); // grab timer low word
+  //iwm_extra_set(); // signal to LA we're entering the read packet loop
   do // have_data
   {
     // beginning of the byte
     // delay 2 us until middle of 4-us bit
-    // testing: can we rely on previous t0 value?
-    //iwm_timer_latch();
-    //iwm_timer_read();
-    iwm_timer_alarm_set( 2 * (idx>0) ); //TIMER_SCALE / 500000; // 2 usec
- 
-//    iwm_timer_wait();
+    iwm_timer_alarm_set(16);  // 2 usec
     do
     {
+      iwm_extra_clr(); // signal to LA we're in the nested loop
       iwm_timer_wait();
+
       // logic table:
       //  prev_level  current_level   decoded bit
       //  0           0               0
@@ -371,18 +389,19 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
       //  1           1               0
       // this is an exclusive OR operation
       current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
-      iwm_timer_alarm_set(IWM_BIT_CELL); // 4 usec
-      bit = prev_level ^ current_level;
+      iwm_extra_set(); // signal to logic analyzer we just read the WR value
+      iwm_timer_alarm_set(39); // 4 usec
+      bit = prev_level ^ current_level; // could be a != because we're looking for an edge
       rxbyte <<= 1;
       rxbyte |= bit;
       prev_level = current_level;
       
       if ((--numbits) == 0)
         break; // end of byte
-
-    } while(1);
+    } while(true);
     a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
-    iwm_timer_alarm_snooze(19); // 19 usec from smartportsd assy routine
+    // wait for leading edge of next byte or timeout for end of packet
+    iwm_timer_alarm_snooze(190); // 19 usec from smartportsd assy routine
 #ifdef VERBOSE_IWM
     Debug_printf("%02x", rxbyte);
 #endif
@@ -406,7 +425,6 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   a[idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
   //todo: try something here
-  // if idx <28, that means we don't have a valid command packet and certainly not a valid write packet
   // so I shuold just return a 1 without an ACK
 if (idx<17) // invalid packet! but for now return OK and don't ACK
 {
@@ -478,7 +496,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(100); // 0.1 millisecond
+  iwm_timer_alarm_set(1000); // 0.1 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
   while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -501,7 +519,9 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   // REQ received!
   Debug_print("R");
 #endif
-
+#else
+  iwm_timer_latch();
+  iwm_timer_read();
 #endif // TESTTX
 
   // CRITICAL TO HAVE 1 US BETWEEN req AND FIRST PULSE to put the falling edge 2 us after REQ
@@ -509,9 +529,9 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   // timing behavior changed because I call alarm_set and alarm_snooze up at the top
   // because i think i'm caching the function calls
   //iwm_timer.tn = iwm_timer.t0 + (1 * TIMER_USEC_FACTOR / 2) - TIMER_ADJUST; // NEED JUST 1/2 USEC
-  iwm_timer_alarm_set(1);
+  iwm_timer_alarm_set(5);
   iwm_timer_wait();
-
+  iwm_rddata_set(); // elongate first pulse because we always know first byte if 0xFF
   do // beware of entry into the loop and an extended first pulse ...
   {
     do
@@ -524,11 +544,11 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
         iwm_rddata_clr();
      
       iwm_timer_read();
-      iwm_timer_alarm_snooze(1); // 1 microsecond - snooze to finish off 4 us period
+      iwm_timer_alarm_snooze(12); // 1 microsecond - snooze to finish off 4 us period
       iwm_timer_wait();
 
       iwm_rddata_clr();
-      iwm_timer_alarm_set(3); // 3 microseconds - set on falling edge of pulse
+      iwm_timer_alarm_set(27); // 3 microseconds - set on falling edge of pulse
 
       // do some updating while in 3-us low period
       if ((--numbits) == 0)
@@ -544,10 +564,10 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   } while (txbyte); //           cpi  r23,0                  ;60               ;44         ;1   zero marks end of data
 
   iwm_ack_clr();
-
+#ifndef TESTTX
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(500); // 1/2 millisecond
+  iwm_timer_alarm_set(5000); // 1/2 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
   while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -562,7 +582,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
       return 1;
     }
   };
-
+#endif // TESTTX
   iwm_rddata_disable();
  // iwm_ack_disable();       // need to release the bus
   portENABLE_INTERRUPTS(); // takes 7 us to execute
@@ -576,6 +596,8 @@ void iwmBus::setup(void)
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
+  fnSystem.digital_write(SP_ACK, DIGI_HIGH); // ID ACK for Logic Analyzer
+  fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
   
@@ -588,14 +610,20 @@ void iwmBus::setup(void)
 
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
+  fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // ID RD for logic analyzer
+  fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   // leave rd as input, pd6
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  ot maybe pull up, too?
+
+  fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
+  fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
+  fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
+
   Debug_printf("\r\nIWM GPIO configured");
 
   timer_config();
   Debug_printf("\r\nIWM timer started");
-
-
 }
 
 
@@ -1125,7 +1153,7 @@ void iwmBus::service(iwmDevice* smort)
       // setup a timeout counter to wait for REQ response
       iwm_timer_latch();        // latch highspeed timer value
       iwm_timer_read();         //  grab timer low word
-      iwm_timer_alarm_set(5000); // todo: figure out
+      iwm_timer_alarm_set(50000); // todo: figure out
       while (iwm_req_val())
       {
         iwm_timer_latch();               // latch highspeed timer value
@@ -1308,6 +1336,27 @@ void iwmBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
+#ifdef TESTTX
+void iwmBus::test_send(iwmDevice* smort)
+{
+  iwm_rddata_clr();
+  iwm_rddata_enable(); 
+  iwm_ack_clr();
+  iwm_ack_enable();
+  
+  smort->_devnum = 0x81; //remember source id for partition
+  uint8_t status = 0xff; //yes, so status=non zero
+
+  smort->encode_init_reply_packet(0x81, status);
+
+  while (true)
+  {
+    Debug_printf("\r\nSending INIT Response Packet...");
+    iwm_send_packet((uint8_t *)smort->packet_buffer); // timeout error return is not handled here (yet?)
+    fnSystem.delay(1000);
+  }
+}
+#endif
 
 iwmBus IWM; // global smartport bus variable
 
