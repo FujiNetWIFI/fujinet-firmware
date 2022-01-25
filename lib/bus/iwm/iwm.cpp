@@ -347,23 +347,23 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
 //   // we might want to just block on writedata without timout so there's
 //   // faster control passed to the do-loop
 //   // setup a timeout counter to wait for WRDATA to be ready response
-//   iwm_timer_latch();                    // latch highspeed timer value
-//   iwm_timer_read();    //  grab timer low word
-//   iwm_timer_alarm_set(320); // 32 usec - 1 byte
-//   while (iwm_wrdata_val())
-//   {
-//     iwm_timer_latch();   // latch highspeed timer value
-//     iwm_timer_read(); // grab timer low word
-//     if (iwm_timer.t0 > iwm_timer.tn)     // test for timeout
-//     {                // timeout!
-// #ifdef VERBOSE_IWM
-//       // timeout
-//       Debug_print("t");
-// #endif
-//       portENABLE_INTERRUPTS();
-//       return 1;
-//     }
-//   };
+  iwm_timer_latch();                    // latch highspeed timer value
+  iwm_timer_read();    //  grab timer low word
+  iwm_timer_alarm_set(320); // 32 usec - 1 byte
+  while (iwm_wrdata_val())
+  {
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)     // test for timeout
+    {                // timeout!
+#ifdef VERBOSE_IWM
+      // timeout
+      Debug_print("t");
+#endif
+      portENABLE_INTERRUPTS();
+      return 1;
+    }
+  };
 
   // I think there's an extra usec because logic analyzer says 9 us from REQ to first WR edge
   // there are two 0's (each 4 usec) and then the 1 (edge) at the start of the first sync byte 

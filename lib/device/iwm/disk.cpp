@@ -16,9 +16,13 @@ void iwmDisk::init()
   open_tnfs_image();
   //open_image("/prodos8abbrev.po");//("/STABLE.32MB.po");
   if (d.sdf != nullptr)
+  {
     Debug_printf("\r\nfile open good");
+  }
   else
+  {
     Debug_printf("\r\nImage open error!");
+  }
   Debug_printf("\r\nDemo TNFS file open complete - remember to remove this code");
 }
 
@@ -611,7 +615,9 @@ void iwmDisk::iwm_status() // override;
       encode_status_reply_packet();
     }
    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+#ifdef DEBUG
    print_packet();
+#endif
   }
 }
 // void derive_percom_block(uint16_t numSectors);

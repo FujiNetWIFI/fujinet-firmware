@@ -203,7 +203,9 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     {
         e = esp_wifi_scan_get_ap_num(&result);
         if (e != ESP_OK)
+        {
             Debug_printf("esp_wifi_scan_get_ap_num returned error %d\n", e);
+        }
     }
     else
     {
