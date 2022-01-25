@@ -66,18 +66,19 @@ adamNetwork::~adamNetwork()
  */
 void adamNetwork::open(unsigned short s)
 {
-    uint8_t db[256];
     uint8_t _aux1 = adamnet_recv();
     uint8_t _aux2 = adamnet_recv();
+    string d;
 
-    memset(db,0,sizeof(db));
-    adamnet_recv_buffer(db, s);
+    s--; s--;
+    
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // checksum
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    Debug_printf("devicespecbuf: '%s'\n",db);
     channelMode = PROTOCOL;
 
     // persist aux1/aux2 values
@@ -101,7 +102,8 @@ void adamNetwork::open(unsigned short s)
     Debug_printf("open()\n");
 
     // Parse and instantiate protocol
-    parse_and_instantiate_protocol(db);
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
     {
@@ -354,16 +356,17 @@ void adamNetwork::set_password(uint16_t s)
 
 void adamNetwork::del(uint16_t s)
 {
-    uint8_t db[256];
+    string d;
 
-    memset(db,0,sizeof(db));
-    adamnet_recv_buffer(db, s);
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();    
     adamnet_response_ack();
 
-    parse_and_instantiate_protocol(db);
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
         return;
@@ -379,16 +382,17 @@ void adamNetwork::del(uint16_t s)
 
 void adamNetwork::rename(uint16_t s)
 {
-    uint8_t db[256];
+    string d;
 
-    memset(db,0,sizeof(db));
-    adamnet_recv_buffer(db, s);
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    parse_and_instantiate_protocol(db);
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = ' ';
 
@@ -401,16 +405,17 @@ void adamNetwork::rename(uint16_t s)
 
 void adamNetwork::mkdir(uint16_t s)
 {
-    uint8_t db[256];
+    string d;
 
-    memset(db,0,sizeof(db));
-    adamnet_recv_buffer(db,s);
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response,s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    parse_and_instantiate_protocol(db);
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = '*';
 
@@ -631,7 +636,7 @@ void adamNetwork::adamnet_control_ack()
 
 void adamNetwork::adamnet_control_send()
 {
-    uint8_t s = adamnet_recv_length(); // receive length
+    uint16_t s = adamnet_recv_length(); // receive length
     uint8_t c = adamnet_recv();        // receive command
 
     s--; // Because we've popped the command off the stack
@@ -867,9 +872,9 @@ bool adamNetwork::instantiate_protocol()
     return true;
 }
 
-void adamNetwork::parse_and_instantiate_protocol(uint8_t *db)
+void adamNetwork::parse_and_instantiate_protocol(string d)
 {
-    deviceSpec = string((char *)db);
+    deviceSpec = d;
 
     // Invalid URL returns error 165 in status.
     if (parseURL() == false)

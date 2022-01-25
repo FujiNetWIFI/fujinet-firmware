@@ -394,7 +394,7 @@ private:
      * @brief parse URL and instantiate protocol
      * @param db pointer to devicespecbuf 256 chars
      */
-    void parse_and_instantiate_protocol(uint8_t *db);
+    void parse_and_instantiate_protocol(string d);
 };
 
 #endif /* NETWORK_H */
