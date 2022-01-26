@@ -4,8 +4,9 @@
 
 #include "../../include/debug.h"
 #include "bus.h"
+//#include "iec/network.h"
 #include "iec/printer.h"
-
+//#include "iec/serial.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -119,9 +120,13 @@ protected:
 
     void iec_test_command();
 
+    void iec_control_status();
     void iec_control_send();
     void iec_control_clr();
 
+    void iec_process(uint8_t b);
+
+    void shutdown() override;
 
 public:
     bool boot_config = true;
@@ -129,6 +134,8 @@ public:
     bool status_wait_enabled = true;
     
     iecDisk *bootdisk();
+
+//    iecNetwork *network();
 
     void debug_tape();
 

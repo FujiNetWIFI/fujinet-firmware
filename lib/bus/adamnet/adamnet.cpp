@@ -234,10 +234,10 @@ void adamNetDevice::adamnet_idle()
     // Not implemented in base class
 }
 
-void adamNetDevice::adamnet_status()
-{
-    fnUartDebug.printf("adamnet_status() not implemented yet for this device.\n");
-}
+//void adamNetDevice::adamnet_status()
+//{
+//    fnUartDebug.printf("adamnet_status() not implemented yet for this device.\n");
+//}
 
 void adamNetBus::_adamnet_process_cmd()
 {
