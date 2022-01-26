@@ -1,11 +1,12 @@
 #ifndef FILE_PRINTER_H
 #define FILE_PRINTER_H
 
-#ifdef BUILD_ADAM
-#include "adamnet/printer.h"
-#endif
 #ifdef BUILD_ATARI
 #include "sio/printer.h"
+#elif BUILD_CBM
+#include "iec/printer.h"
+#elif BUILD_ADAM
+#include "adamnet/printer.h"
 #endif
 
 #include "printer_emulator.h"

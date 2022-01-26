@@ -1,4 +1,4 @@
-#ifdef BUILD_ADAM
+#ifdef BUILD_CBM
 
 #include "../../include/atascii.h"
 #include "printer.h"
@@ -19,12 +19,12 @@
 #include "okimate_10.h"
 #include "png_printer.h"
 
-adamPrinter::~adamPrinter()
+iecPrinter::~iecPrinter()
 {
     delete _pptr;
 }
 
-adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
+iecPrinter::printer_type iecPrinter::match_modelname(std::string model_name)
 {
     const char *models[PRINTER_INVALID] =
         {
@@ -44,12 +44,12 @@ adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
     return (printer_type)i;
 }
 
-void adamPrinter::adamnet_process(uint8_t b)
+void iecPrinter::adamnet_process(uint8_t b)
 {
     
 }
 
-void adamPrinter::shutdown()
+void iecPrinter::shutdown()
 {
 
 }

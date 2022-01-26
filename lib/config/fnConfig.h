@@ -6,12 +6,14 @@
 #ifdef BUILD_ATARI
 #include "../device/sio/printer.h"
 #define PRINTER_CLASS sioPrinter
-#endif
-
-#ifdef BUILD_ADAM
+#elif BUILD_CBM
+#include "../device/iec/printer.h"
+#define PRINTER_CLASS iecPrinter
+#elif BUILD_ADAM
 #include "../device/adamnet/printer.h"
 #define PRINTER_CLASS adamPrinter
 #endif
+
 
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8

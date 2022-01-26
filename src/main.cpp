@@ -25,6 +25,12 @@
 #include "samlib.h"
 #endif /* BUILD_ATARI */
 
+#ifdef BUILD_CBM
+#include "iec/fuji.h"
+#include "iec/printer.h"
+#include "iec/printerlist.h"
+#endif
+
 #ifdef BUILD_ADAM
 #include "adamnet/keyboard.h"
 #include "adamnet/fuji.h"
@@ -33,6 +39,7 @@
 #include "adamnet/printerlist.h"
 #include "adamnet/query_device.h"
 #endif
+
 
 #include "httpService.h"
 
