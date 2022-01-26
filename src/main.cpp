@@ -23,15 +23,13 @@
 #include "sio/midimaze.h"
 #include "sio/siocpm.h"
 #include "samlib.h"
-#endif /* BUILD_ATARI */
 
-#ifdef BUILD_CBM
-#include "iec/fuji.h"
-#include "iec/printer.h"
-#include "iec/printerlist.h"
-#endif
+#elif BUILD_CBM
+//#include "iec/fuji.h"
+//#include "iec/printer.h"
+//#include "iec/printerlist.h"
 
-#ifdef BUILD_ADAM
+#elif BUILD_ADAM
 #include "adamnet/keyboard.h"
 #include "adamnet/fuji.h"
 #include "adamnet/printer.h"
@@ -146,7 +144,7 @@ void main_setup()
         fnWiFi.connect();
     }
 
-#if defined( BUILD_ATARI )
+#ifdef BUILD_ATARI
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
@@ -178,8 +176,13 @@ void main_setup()
     // Go setup SIO
     SIO.setup();
 
-#elif defined( BUILD_ADAM )
 
+#elif BUILD_CBM
+    // Setup IEC Bus
+    theFuji.setup(&IEC);
+
+
+#elif BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();
 
@@ -196,7 +199,7 @@ void main_setup()
         AdamNet.addDevice(sioK,ADAMNET_DEVICE_ID_KEYBOARD);
     } else
         Debug_printf("Physical keyboard found\n");
-#endif
+#endif // NO_VIRTUAL_KEYBOARD
     
     exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_PRINTER);
     if (! exists)
@@ -210,21 +213,14 @@ void main_setup()
         AdamNet.addDevice(ptr,ADAMNET_DEVICE_ID_PRINTER);
     } else
         Debug_printf("Physical printer found\n");
+#endif // VIRTUAL_ADAM_DEVICES
 
-#endif
-
-
-#elif defined( BUILD_CBM )
-
-    // Setup IEC Bus
-    theFuji.setup(&IEC);
-
-#endif
+#endif // BUILD_ADAM
 
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
-#endif
+#endif // DEBUG
 }
 
 
@@ -241,14 +237,17 @@ void fn_service_loop(void *param)
         if (fnBtManager.isActive())
             fnBtManager.service();
         else
-    #endif
+    #endif // BLUETOOTH_SUPPORT
 
-    #if defined( BUILD_ATARI )
+    #ifdef BUILD_ATARI 
         SIO.service();
-    #elif defined ( BUILD_ADAM )
-        AdamNet.service();
-    #elif defined( BUILD_CBM )
+
+    #elif BUILD_CBM
         IEC.service();
+
+    #elif BUILD_ADAM
+        AdamNet.service();
+
     #endif
         taskYIELD(); // Allow other tasks to run
     }

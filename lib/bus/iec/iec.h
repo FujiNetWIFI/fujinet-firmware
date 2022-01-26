@@ -127,13 +127,8 @@ enum OpenState
 
 // class def'ns
 class iecBus;      // declare early so can be friend
-class iecModem;    // declare here so can reference it, but define in modem.h
-class iecFuji;     // declare here so can reference it, but define in iecFuji.h
-class iecNetwork;  // declare here so can reference it, but define in network.h
-class iecMIDIMaze; // declare here so can reference it, but define in midimaze.h
-class iecCassette; // Cassette forward-declaration.
-class iecCPM;      // CPM device.
-class iecPrinter;  // Printer device
+//class iecFuji;     // declare here so can reference it, but define in iecFuji.h
+//class iecPrinter;  // Printer device
 
 class iecDevice
 {
@@ -208,13 +203,8 @@ private:
     int _command_frame_counter = 0;
 
     iecDevice *_activeDev = nullptr;
-    iecModem *_modemDev = nullptr;
-    iecFuji *_fujiDev = nullptr;
-    iecNetwork *_netDev[8] = {nullptr};
-    iecMIDIMaze *_midiDev = nullptr;
-    iecCassette *_cassetteDev = nullptr;
-    iecCPM *_cpmDev = nullptr;
-    iecPrinter *_printerdev = nullptr;
+//    iecFuji *_fujiDev = nullptr;
+//    iecPrinter *_printerdev = nullptr;
 
     void _bus_process_cmd(void);
     void _bus_process_queue(void);
@@ -316,7 +306,7 @@ public:
     iecDevice *deviceById(int device_id);
     void changeDeviceId(iecDevice *pDevice, int device_id);
 
-	iecPrinter *getPrinter(void) { return _printerdev; }
+	//iecPrinter *getPrinter(void) { return _printerdev; }
 
 	QueueHandle_t qBusMessages = nullptr;
 

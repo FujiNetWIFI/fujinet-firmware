@@ -7,7 +7,7 @@
 
 #include <map>
 #include "fnSystem.h"
-#include "sio/sio.h" // cmdframe_t
+#include "../sio/sio.h" // cmdframe_t
 
 #define ADAMNET_BAUD 62500
 

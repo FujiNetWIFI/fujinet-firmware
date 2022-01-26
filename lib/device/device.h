@@ -1,7 +1,7 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 
-#if defined( BUILD_ATARI )
+#ifdef BUILD_ATARI
 #   include "sio/fuji.h"
 #   include "sio/apetime.h"
 #   include "sio/cassette.h"
@@ -13,10 +13,12 @@
 #   include "sio/printerlist.h"
 #   include "sio/siocpm.h"
 #   include "sio/voice.h"
-#elif defined( BUILD_CBM )
+
+#elif BUILD_CBM
 #   include "iec/fuji.h"
 #   include "iec/disk.h"
-#elif defined( BUILD_ADAM )
+
+#elif BUILD_ADAM
 #   include "adamnet/adamnet.h"
 #endif
 
