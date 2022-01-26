@@ -21,8 +21,6 @@
 #ifndef IECBUS_H
 #define IECBUS_H
 
-#include "bus.h"
-
 #include <forward_list>
 
 #include "../../../include/pinmap.h"
@@ -135,15 +133,22 @@ class iecDevice
 protected:
 	friend iecBus;
 
-    int _device_id;
+    /**
+     * @brief Device Number: 4-30
+     */
+    uint8_t _devnum;
 
-    virtual void _process(uint32_t commanddata, uint8_t checksum) = 0;
+    /**
+     * @brief process the next packet with the active device.
+     * @param b first byte of packet.
+     */
+    virtual void iec_process(uint8_t b);
 
 	// Reset device
 	virtual void reset(void);
 
     // Optional shutdown/reboot cleanup routine
-    virtual void shutdown(void);
+    virtual void shutdown(void) {}
 
 	// our iec low level driver:
 //	iecBus& _iec;
@@ -168,15 +173,7 @@ protected:
 
 public:
     /**
-     * @brief get the SIO device Number (1-255)
-     * @return The device number registered for this device
-     */
-    int device_id(void) { return _device_id; };
-
-    virtual void sio_high_speed(void) {};
-
-    /**
-     * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
+     * @brief Is this iecDevice holding the virtual disk drive used to boot CONFIG?
      */
     bool is_config_device = false;
 
@@ -186,14 +183,28 @@ public:
     bool device_active = true;
 
     /**
-     * @brief status wait counter
+     * @brief return the device number (0-15) of this device
+     * @return the device # (0-15) of this device
      */
-    uint8_t status_wait_count = 5;
+    uint8_t id() { return _devnum; }
 
 	iecDevice(void);
 	virtual ~iecDevice(void) {}
 };
 
+enum bus_message : uint16_t
+{
+    BUSMSG_DISKSWAP,  // Rotate disk
+    BUSMSG_DEBUG_TAPE // Tape debug msg
+};
+
+struct bus_message_t
+{
+    bus_message message_id;
+    uint16_t message_arg;
+};
+
+// typedef sio_message_t sio_message_t;
 
 class iecBus
 {

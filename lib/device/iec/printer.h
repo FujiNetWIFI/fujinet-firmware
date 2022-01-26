@@ -4,7 +4,8 @@
 
 #include <string.h>
 
-#include "bus.h"
+#include "../../bus/bus.h"
+
 #include "../printer-emulator/printer_emulator.h"
 #include "fnFS.h"
 

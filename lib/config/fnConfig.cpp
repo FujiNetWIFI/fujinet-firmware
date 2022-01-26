@@ -2,6 +2,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <sys/types.h>
+
 #include "fnConfig.h"
 #include "../FileSystem/fnFsSPIF.h"
 #include "../FileSystem/fnFsSD.h"

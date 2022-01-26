@@ -34,12 +34,15 @@
 
 // typedef bus_message_t bus_message_t;
 
-#if defined( BUILD_ATARI )
-#   include "sio/sio.h"
-#elif defined( BUILD_CBM )
-#   include "iec/iec.h"
-#elif defined( BUILD_ADAM )
-#   include "adamnet/adamnet.h"
+#ifdef BUILD_ATARI
+# include "sio/sio.h"
+
+#elif BUILD_CBM
+# include "iec/iec.h"
+
+#elif BUILD_ADAM
+# include "adamnet/adamnet.h"
+
 #endif
 
 #endif // BUS_H

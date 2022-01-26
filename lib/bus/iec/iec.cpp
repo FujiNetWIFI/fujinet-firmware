@@ -392,11 +392,11 @@ void iecBus::_bus_process_cmd(void)
 	// find device and pass control
 	for (auto devicep : _daisyChain)
 	{
-		if (ATN.device_id == devicep->_device_id)
+		if (ATN.device_id == devicep->_devnum)
 		{
 			_activeDev = devicep;
 			// handle command
-			_activeDev->_process();
+			_activeDev->iec_process(0);
 		}
 	}
 
@@ -1174,7 +1174,7 @@ void iecBus::reset()
 {
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Resetting device %02x\n",devicep->device_id());
+        Debug_printf("Resetting device %02x\n",devicep->id());
         devicep->reset();
     }
     Debug_printf("All devices reset.\n");
@@ -1185,7 +1185,7 @@ void iecBus::shutdown()
 {
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n",devicep->device_id());
+        Debug_printf("Shutting down device %02x\n",devicep->id());
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
@@ -1234,7 +1234,7 @@ void iecBus::addDevice(iecDevice *pDevice, int device_id)
     //     _printerdev = (iecPrinter *)pDevice;
     // }
 
-    pDevice->_device_id = device_id;
+    pDevice->_devnum = device_id;
 
     _daisyChain.push_front(pDevice);
 }
@@ -1250,7 +1250,7 @@ iecDevice *iecBus::deviceById(int device_id)
 {
     for (auto devicep : _daisyChain)
     {
-        if (devicep->_device_id == device_id)
+        if (devicep->_devnum == device_id)
             return devicep;
     }
     return nullptr;
@@ -1261,7 +1261,7 @@ void iecBus::changeDeviceId(iecDevice *p, int device_id)
     for (auto devicep : _daisyChain)
     {
         if (devicep == p)
-            devicep->_device_id = device_id;
+            devicep->_devnum = device_id;
     }
 }
 

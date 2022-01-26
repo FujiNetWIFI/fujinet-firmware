@@ -3,13 +3,11 @@
 #include <cstdint>
 
 #include "../../include/debug.h"
-#include "bus.h"
-//#include "iec/network.h"
-#include "iec/printer.h"
-//#include "iec/serial.h"
 
-#include "fujiHost.h"
-#include "fujiDisk.h"
+#include "../../bus/bus.h"
+
+#include "../../fuji/fujiHost.h"
+#include "../../fuji/fujiDisk.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8

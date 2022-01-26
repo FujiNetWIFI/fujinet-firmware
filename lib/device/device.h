@@ -14,10 +14,14 @@
 # include "sio/siocpm.h"
 # include "sio/voice.h"
 
+# define PRINTER_CLASS sioPrinter
+
 #elif BUILD_CBM
 # include "iec/fuji.h"
 # include "iec/printer.h"
 # include "iec/printerlist.h"
+
+# define PRINTER_CLASS iecPrinter
 
 #elif BUILD_ADAM
 # include "adamnet/fuji.h"
@@ -26,6 +30,8 @@
 # include "adamnet/modem.h"
 # include "adamnet/printerlist.h"
 # include "adamnet/query_device.h"
+
+# define PRINTER_CLASS adamPrinter
 
 #endif
 
