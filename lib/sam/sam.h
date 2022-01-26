@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #ifndef SAM_H
 #define SAM_H
 
@@ -44,3 +45,4 @@ extern "C"
 #endif
 
 #endif
+#endif /* BUILD_ATARI */

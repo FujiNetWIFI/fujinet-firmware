@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #ifndef RENDERTABS_H
 #define RENDERTABS_H
 
@@ -440,3 +441,4 @@ const unsigned char sampleTable[0x500] =
 
 
 #endif
+#endif /* BUILD_ATARI */

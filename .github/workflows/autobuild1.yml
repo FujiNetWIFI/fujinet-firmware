@@ -71,14 +71,10 @@ jobs:
 
     - name: Show Build Artifacts
       run: ls -la .pio/build/fujinet-v1/*.bin
-
-    - name: Get shasums and release.json ready
-      run: sh .github/workflows/release.sh ${{ matrix.target-platform }}
-
-    - name: Get FujiNet version Number
-      run: echo "::set-output name=version::$(grep "FN_VERSION_FULL" include/version.h | cut -d '"' -f 2)"
-      id: version
-
+   
+    - name: Grab boot_app0.bin from github
+      run: curl -o /home/runner/work/fujinet-platformio/fujinet-platformio/.pio/build/fujinet-v1/boot_app0.bin https://github.com/espressif/arduino-esp32/blob/1.0.6/tools/partitions/boot_app0.bin
+   
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v2.3.1
       with:

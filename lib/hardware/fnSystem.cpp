@@ -5,7 +5,9 @@
 #include <esp_timer.h>
 #include <time.h>
 #include <driver/gpio.h>
+#ifndef CONFIG_IDF_TARGET_ESP32S3
 #include <driver/dac.h>
+#endif
 #include <driver/adc.h>
 #include "soc/sens_reg.h"
 #include "soc/rtc.h"
@@ -300,6 +302,7 @@ SystemManager::chipmodels SystemManager::get_cpu_model()
 
 int SystemManager::get_sio_voltage()
 {
+#ifndef CONFIG_IDF_TARGET_ESP32S3
     // Configure ADC1_CH7
     adc1_config_width(ADC_WIDTH_12Bit);
     adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_11db);
@@ -336,6 +339,9 @@ int SystemManager::get_sio_voltage()
         return (avgV * 3200 / 2000); // v1.6 and up (R1=1200, R2=2000)
     else
         return (avgV * 5900 / 3900); // (R1=2000, R2=3900)
+#else
+    return 0;
+#endif
 }
 
 /*

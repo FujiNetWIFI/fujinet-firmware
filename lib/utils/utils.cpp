@@ -5,7 +5,9 @@
 
 #include "utils.h"
 #include "../../include/debug.h"
+#ifdef BUILD_ATARI
 #include "../sam/samlib.h"
+#endif
 
 using namespace std;
 
@@ -513,6 +515,7 @@ bool util_string_value_is_true(std::string value)
     return util_string_value_is_true(value.c_str());
 }
 
+#ifdef BUILD_ATARI
 /**
  * Ask SAM to say something. see https://github.com/FujiNetWIFI/fujinet-platformio/wiki/Using-SAM-%28Voice-Synthesizer%29 
  * @param p The phrase to say.
@@ -612,6 +615,7 @@ void util_sam_say_swap_label()
     // DISK
     util_sam_say("DIHSK7Q ", true);
 }
+#endif
 
 void util_replaceAll(std::string &str, const std::string &from, const std::string &to)
 {
