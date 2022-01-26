@@ -127,8 +127,8 @@ enum OpenState
 
 // class def'ns
 class iecBus;      // declare early so can be friend
-//class iecFuji;     // declare here so can reference it, but define in iecFuji.h
-//class iecPrinter;  // Printer device
+class iecFuji;     // declare here so can reference it, but define in iecFuji.h
+class iecPrinter;  // Printer device
 
 class iecDevice
 {

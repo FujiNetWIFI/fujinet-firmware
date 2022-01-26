@@ -2,24 +2,31 @@
 #define DEVICE_H
 
 #ifdef BUILD_ATARI
-#   include "sio/fuji.h"
-#   include "sio/apetime.h"
-#   include "sio/cassette.h"
-#   include "sio/disk.h"
-#   include "sio/midimaze.h"
-#   include "sio/modem.h"
-#   include "sio/network.h"
-#   include "sio/printer.h"
-#   include "sio/printerlist.h"
-#   include "sio/siocpm.h"
-#   include "sio/voice.h"
+# include "sio/fuji.h"
+# include "sio/apetime.h"
+# include "sio/cassette.h"
+# include "sio/disk.h"
+# include "sio/midimaze.h"
+# include "sio/modem.h"
+# include "sio/network.h"
+# include "sio/printer.h"
+# include "sio/printerlist.h"
+# include "sio/siocpm.h"
+# include "sio/voice.h"
 
 #elif BUILD_CBM
-#   include "iec/fuji.h"
-#   include "iec/disk.h"
+# include "iec/fuji.h"
+# include "iec/printer.h"
+# include "iec/printerlist.h"
 
 #elif BUILD_ADAM
-#   include "adamnet/adamnet.h"
+# include "adamnet/fuji.h"
+# include "adamnet/keyboard.h"
+# include "adamnet/printer.h"
+# include "adamnet/modem.h"
+# include "adamnet/printerlist.h"
+# include "adamnet/query_device.h"
+
 #endif
 
 #endif // DEVICE_H
