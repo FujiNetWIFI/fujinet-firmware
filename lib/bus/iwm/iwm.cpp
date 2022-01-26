@@ -266,6 +266,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
   //*****************************************************************************
   
   bool have_data = true;
+  bool synced = false;
   int idx = 0;             // index into *a
   bool bit = 0;        // logical bit value
   bool prev_level = true; // ((uint32_t)0x01 << (SP_WRDATA - 32)); // previous value of WRDATA line
@@ -400,6 +401,11 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
       if ((--numbits) == 0)
         break; // end of byte
     } while(true);
+    if ((rxbyte == 0xc3) && (!synced))
+    {
+      synced = true;
+      idx = 5;
+    }
     a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
     // wait for leading edge of next byte or timeout for end of packet
     iwm_timer_alarm_snooze(190); // 19 usec from smartportsd assy routine
