@@ -1,3 +1,4 @@
+#ifdef BUILD_CBM
 #ifndef IEC_PRINTER_H
 #define IEC_PRINTER_H
 
@@ -7,15 +8,13 @@
 #include "../printer-emulator/printer_emulator.h"
 #include "fnFS.h"
 
+#define PRINTER_UNSUPPORTED "Unsupported"
+
 class iecPrinter : public iecDevice
 {
 protected:
     // SIO THINGS
     uint8_t _buffer[40];
-    void sio_write(uint8_t aux1, uint8_t aux2);
-    void bus_status() override;
-    void adamnet_process(uint8_t b) override;
-    void shutdown() override;
 
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;
@@ -65,3 +64,4 @@ private:
 };
 
 #endif // IEC_PRINTER_H
+#endif // BUILD_CBM

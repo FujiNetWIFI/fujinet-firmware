@@ -21,33 +21,6 @@
 #ifndef IECBUS_H
 #define IECBUS_H
 
-/**
- * notes by jeffpiep 3/9/2021
- * 
- * i think we can make an iecBus class that listens for ATN
- * gets the command and then passes off control to the iecDevice
- * IIRC, we do this in SIO land: the sioDevice is a friend to the sioBus. 
- * The sioBus has a list of devices. The bus object (SIO) listens for commands.
- * When it sees a command, it finds out what device the command is directed
- * towards and then hands over control to that device object. Most of the SIO
- * commands and operation belong to the sioDevice class (e.g., ack, nak, 
- * _to_computer, _to_device). 
- * 
- * This file, iec.h, is partly a low-level driver for the IEC physical layer. 
- * We need this because we aren't using a UART. i think we might want to
- * break out the low level i/o into a differnt class - something to think about.
- * then there's the standard IEC protocol layer with commands and data state. 
- * 
- * The devices currently exist in the interface.h file. it is a disk device
- * and a realtime clock. it would great if we could port the SD2IEC devices
- * because they support JiffyDOS, TFC3 turbo, etc. There should be a minimum
- * set of capability that we can define in the base class iecDevice using
- * virual functions. I think that is the handlers for the ATN commands
- * and probably data input and output. maybe error reporting on channel 15?
- * maybe we want a process command to deal with incoming data, e.g., on the 
- * printer?
-*/
-
 #include "bus.h"
 
 #include <forward_list>
@@ -89,7 +62,7 @@
 #define DEVICEID_FN_NETWORK 		0x19 // 25
 #define DEVICEID_FN_NETWORK_LAST 	0x1B // 29
 
-#define DEVICEID_FUJINET 			0x1E// 30
+#define DEVICEID_FUJINET 			0x1E // 30
 
 enum IECline
 {
@@ -152,9 +125,6 @@ enum OpenState
 	O_DEVICE_STATUS
 };
 
-//helper functions
-uint8_t iec_checksum(uint8_t *buf, unsigned short len);
-
 // class def'ns
 class iecBus;      // declare early so can be friend
 class iecModem;    // declare here so can reference it, but define in modem.h
@@ -172,32 +142,6 @@ protected:
 
     int _device_id;
 
-    cmdFrame_t cmdFrame;
-    bool listen_to_type3_polls = false;
-
-    void bus_to_computer(uint8_t *buff, uint16_t len, bool err);
-    uint8_t bus_to_peripheral(uint8_t *buff, uint16_t len);
-
-    void sio_ack(void) {};
-    void sio_nak(void) {};
-
-    /**
-     * @brief Send a COMPLETE to the Atari 'C'
-     * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
-     * either a COMPLETE or ERROR will result in a SIO TIMEOUT (138) to be reported in DSTATS.
-     */
-    void sio_complete(void) {};
-
-    /**
-     * @brief Send an ERROR to the Atari 'E'
-     * This should be used during or after processing of the command to indicate that an error resulted
-     * from processing the command, and that the Atari should probably re-try the command. Failure to
-     * send an ERROR or COMPLTE will result in a SIO TIMEOUT (138) to be reported in DSTATS.
-     */
-    void sio_error(void) {};
-
-	unsigned short _get_aux(void) { return 0; };
-    virtual void _status() = 0;
     virtual void _process(uint32_t commanddata, uint8_t checksum) = 0;
 
 	// Reset device
@@ -271,13 +215,6 @@ private:
     iecCassette *_cassetteDev = nullptr;
     iecCPM *_cpmDev = nullptr;
     iecPrinter *_printerdev = nullptr;
-
-    int _sioBaud = 0;
-    int _sioHighSpeedIndex = 0;
-    int _sioBaudHigh;
-    int _sioBaudUltraHigh;
-
-    bool useUltraHigh = false; // Use fujinet derived clock.
 
     void _bus_process_cmd(void);
     void _bus_process_queue(void);
@@ -379,22 +316,7 @@ public:
     iecDevice *deviceById(int device_id);
     void changeDeviceId(iecDevice *pDevice, int device_id);
 
-    int getBaudrate(void) { return 0; };          // Gets current SIO baud rate setting
-    void setBaudrate(int baud) {}; // Sets SIO to specific baud rate
-    void toggleBaudrate(void) {};      // Toggle between standard and high speed SIO baud rate
-
-    int setHighSpeedIndex(int hsio_index) { return 0; }; // Set HSIO index. Sets high speed SIO baud and also returns that value.
-    int getHighSpeedIndex(void) { return 0; };               // Gets current HSIO index
-    int getHighSpeedBaud(void) { return 0; };                // Gets current HSIO baud
-
-    void setMIDIHost(const char *newhost) {};                   // Set new host/ip for MIDIMaze
-    void setUltraHigh(bool _enable, int _ultraHighBaud = 0) {}; // enable ultrahigh/set baud rate
-    bool getUltraHighEnabled(void) { return useUltraHigh; }
-    int getUltraHighBaudRate(void) { return _sioBaudUltraHigh; }
-
-    iecCassette *getCassette(void) { return _cassetteDev; }
-    iecPrinter *getPrinter(void) { return _printerdev; }
-    iecCPM *getCPM(void) { return _cpmDev; }
+	iecPrinter *getPrinter(void) { return _printerdev; }
 
 	QueueHandle_t qBusMessages = nullptr;
 
