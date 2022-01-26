@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #ifndef RECITER_C
 #define RECITER_C
 
@@ -15,3 +16,4 @@ extern "C"
 #endif
 
 #endif
+#endif /* BUILD_ATARI */

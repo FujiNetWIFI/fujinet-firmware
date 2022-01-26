@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -1575,3 +1576,4 @@ void Code47503(unsigned char mem52)
     if ((mem50 & 128) != 0)
         mem53 = -mem53;
 }
+#endif /* BUILD_ATARI */

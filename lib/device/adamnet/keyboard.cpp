@@ -6,67 +6,8 @@
 #include "../utils/utils.h"
 
 #include "../device/adamnet/keyboard.h"
-#include "driver/timer.h"
-#include "hal/timer_ll.h"
-#include "driver/gpio.h"
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/queue.h"
-#include "driver/periph_ctrl.h"
-#include "soc/soc.h"
-#include "soc/periph_defs.h"
-#include "esp_log.h"
-#include "usb_host.h"
-
-struct USBMessage
-{
-    uint8_t src;
-    uint8_t len;
-    uint8_t data[0x8];
-};
-
-static xQueueHandle usb_mess_Que = NULL;
 TaskHandle_t kbTask;
-
-void IRAM_ATTR timer_group0_isr(void *para)
-{
-    timer_group_clr_intr_status_in_isr(TIMER_GROUP_0, TIMER_0);
-    usb_process();
-    timer_group_enable_alarm_in_isr(TIMER_GROUP_0, TIMER_0);
-}
-
-void timer_task(void *pvParameter)
-{
-    timer_config_t config = {
-        .alarm_en = TIMER_ALARM_EN,
-        .counter_en = TIMER_PAUSE,
-        .intr_type = TIMER_INTR_LEVEL,
-        .counter_dir = TIMER_COUNT_UP,
-        .auto_reload = TIMER_AUTORELOAD_EN,
-        .divider = TIMER_DIVIDER
-    };
-
-    setDelay(4);
-    usb_mess_Que = xQueueCreate(10, sizeof(struct USBMessage));
-    initStates(PIN_USB_DP, PIN_USB_DM, -1, -1, -1, -1, -1, -1);
-
-    timer_idx_t timer_idx = TIMER_0;
-    double timer_interval_sec = TIMER_INTERVAL0_SEC;
-
-    timer_init(TIMER_GROUP_0, timer_idx, &config);
-    timer_set_counter_value(TIMER_GROUP_0, timer_idx, 0x00000000ULL);
-    timer_set_alarm_value(TIMER_GROUP_0, timer_idx, timer_interval_sec * TIMER_SCALE);
-    timer_enable_intr(TIMER_GROUP_0, timer_idx);
-    timer_isr_register(TIMER_GROUP_0, timer_idx, timer_group0_isr, (void *)timer_idx, ESP_INTR_FLAG_IRAM, NULL);
-    timer_start(TIMER_GROUP_0, timer_idx);
-    vTaskDelay(10 / portTICK_PERIOD_MS);
-
-    while (1)
-    {
-        vTaskDelay(10 / portTICK_PERIOD_MS);
-    };
-}
 
 // ctor
 adamKeyboard::adamKeyboard()
