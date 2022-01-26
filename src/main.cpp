@@ -13,38 +13,14 @@
 #include "keys.h"
 #include "led.h"
 #include "bus.h"
-
-#ifdef BUILD_ATARI
-#include "sio/fuji.h"
-#include "sio/modem.h"
-#include "sio/apetime.h"
-#include "sio/voice.h"
-#include "sio/printerlist.h"
-#include "sio/midimaze.h"
-#include "sio/siocpm.h"
-#include "samlib.h"
-
-#elif BUILD_CBM
-//#include "iec/fuji.h"
-//#include "iec/printer.h"
-//#include "iec/printerlist.h"
-
-#elif BUILD_ADAM
-#include "adamnet/keyboard.h"
-#include "adamnet/fuji.h"
-#include "adamnet/printer.h"
-#include "adamnet/modem.h"
-#include "adamnet/printerlist.h"
-#include "adamnet/query_device.h"
-#endif
-
+#include "device.h"
 
 #include "httpService.h"
 
 #include "httpService.h"
 
 #ifdef BLUETOOTH_SUPPORT
-#include "fnBluetooth.h"
+# include "fnBluetooth.h"
 #endif
 
 // fnSystem is declared and defined in fnSystem.h/cpp
@@ -56,33 +32,40 @@
 // sioFuji theFuji; // moved to fuji.h/.cpp
 
 #ifdef BUILD_ATARI
-sioApeTime apeTime;
-sioVoice sioV;
-sioMIDIMaze sioMIDI;
-// sioCassette sioC; // now part of sioFuji theFuji object
-sioModem *sioR;
-sioCPM sioZ;
-#endif /* BUILD_ATARI */
+    sioApeTime apeTime;
+    sioVoice sioV;
+    sioMIDIMaze sioMIDI;
+    // sioCassette sioC; // now part of sioFuji theFuji object
+    sioModem *sioR;
+    sioCPM sioZ;
 
-#ifdef BUILD_ADAM
+#elif BUILD_CBM
 
-#define VIRTUAL_ADAM_DEVICES
-//#define NO_VIRTUAL_KEYBOARD
 
-adamModem *sioR;
-adamKeyboard *sioK;
-adamQueryDevice *sioQ;
-bool exists = false;
+#elif BUILD_ADAM
+# define VIRTUAL_ADAM_DEVICES
+//# define NO_VIRTUAL_KEYBOARD
+    adamModem *sioR;
+    adamKeyboard *sioK;
+    adamQueryDevice *sioQ;
+    bool exists = false;
+
 #endif /* BUILD_ADAM */
+
+
 
 void main_shutdown_handler()
 {
     Debug_println("Shutdown handler called");
     // Give devices an opportunity to clean up before rebooting
-#if defined( BUILD_ATARI )
+#ifdef BUILD_ATARI
     // SIO.shutdown();
-#elif defined( BUILD_CBM )
+
+#elif BUILD_CBM
     // IEC.shutdown();
+
+#elif BUILD_ADAM
+
 #endif
 }
 
@@ -94,13 +77,14 @@ void main_setup()
     unsigned long startms = fnSystem.millis();
     Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
-#ifdef ATARI
-    Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
-    Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
-    Debug_printf("himem free %u\n", esp_himem_get_free_size());
-    Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
-#endif /* ATARI */
-#endif
+# ifdef ATARI
+        Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
+        Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
+        Debug_printf("himem free %u\n", esp_himem_get_free_size());
+        Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
+# endif // ATARI
+#endif // DEBUG
+
     // Install a reboot handler
     esp_register_shutdown_handler(main_shutdown_handler);
 
@@ -186,11 +170,11 @@ void main_setup()
     theFuji.setup(&AdamNet);
     AdamNet.setup();
 
-#ifdef VIRTUAL_ADAM_DEVICES
+# ifdef VIRTUAL_ADAM_DEVICES
     Debug_printf("Physical Device Scanning...\n");
     sioQ = new adamQueryDevice();
 
-#ifndef NO_VIRTUAL_KEYBOARD
+#  ifndef NO_VIRTUAL_KEYBOARD
     exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_KEYBOARD);
     if (! exists)
     {
@@ -199,7 +183,7 @@ void main_setup()
         AdamNet.addDevice(sioK,ADAMNET_DEVICE_ID_KEYBOARD);
     } else
         Debug_printf("Physical keyboard found\n");
-#endif // NO_VIRTUAL_KEYBOARD
+#  endif // NO_VIRTUAL_KEYBOARD
     
     exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_PRINTER);
     if (! exists)
@@ -213,7 +197,7 @@ void main_setup()
         AdamNet.addDevice(ptr,ADAMNET_DEVICE_ID_PRINTER);
     } else
         Debug_printf("Physical printer found\n");
-#endif // VIRTUAL_ADAM_DEVICES
+# endif // VIRTUAL_ADAM_DEVICES
 
 #endif // BUILD_ADAM
 
@@ -233,22 +217,22 @@ void fn_service_loop(void *param)
         // Shouldn't be a problem, but something to keep in mind...
 
         // Go service BT if it's active
-    #ifdef BLUETOOTH_SUPPORT
+#ifdef BLUETOOTH_SUPPORT
         if (fnBtManager.isActive())
             fnBtManager.service();
         else
-    #endif // BLUETOOTH_SUPPORT
+#endif // BLUETOOTH_SUPPORT
 
-    #ifdef BUILD_ATARI 
+#ifdef BUILD_ATARI 
         SIO.service();
 
-    #elif BUILD_CBM
+#elif BUILD_CBM
         IEC.service();
 
-    #elif BUILD_ADAM
+#elif BUILD_ADAM
         AdamNet.service();
 
-    #endif
+#endif
         taskYIELD(); // Allow other tasks to run
     }
 }

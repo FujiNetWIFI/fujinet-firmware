@@ -23,3 +23,16 @@ include/ssid.h
 /*.log
 sdkconfig.fujinet-v1
 include/version.h
+build/CMakeCache.txt
+build/.cmake/api/v1/query/client-vscode/query.json
+build/CMakeFiles/cmake.check_cache
+build/CMakeFiles/CMakeOutput.log
+build/CMakeFiles/3.20.2/CMakeCCompiler.cmake
+build/CMakeFiles/3.20.2/CMakeCXXCompiler.cmake
+build/CMakeFiles/3.20.2/CMakeDetermineCompilerABI_C.bin
+build/CMakeFiles/3.20.2/CMakeDetermineCompilerABI_CXX.bin
+build/CMakeFiles/3.20.2/CMakeSystem.cmake
+build/CMakeFiles/3.20.2/CompilerIdC/a.out
+build/CMakeFiles/3.20.2/CompilerIdC/CMakeCCompilerId.c
+build/CMakeFiles/3.20.2/CompilerIdCXX/a.out
+build/CMakeFiles/3.20.2/CompilerIdCXX/CMakeCXXCompilerId.cpp
