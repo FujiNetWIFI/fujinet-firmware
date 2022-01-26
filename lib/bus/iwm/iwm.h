@@ -75,7 +75,7 @@ protected:
   virtual void encode_extended_status_reply_packet() = 0;
   virtual void encode_extended_status_dib_reply_packet() = 0;
 
-  int verify_cmdpkt_checksum(void);
+  bool verify_cmdpkt_checksum(void);
   int packet_length(void);
 
 

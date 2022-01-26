@@ -955,7 +955,7 @@ void iwmDevice::encode_error_reply_packet (uint8_t source)
 //
 // &&&&&&&&not used at the moment, no error checking for checksum for cmd packet
 //*****************************************************************************
-int iwmDevice::verify_cmdpkt_checksum(void)
+bool iwmDevice::verify_cmdpkt_checksum(void)
 {
   int length;
   uint8_t evenbits, oddbits, bit7, bit0to6, grpbyte;
@@ -963,7 +963,7 @@ int iwmDevice::verify_cmdpkt_checksum(void)
   uint8_t pkt_checksum;
 
   length = packet_length();
-
+  //Debug_printf("\r\npacket length = %d", length);
   //2 oddbytes in cmd packet
   calc_checksum ^= ((packet_buffer[13] << 1) & 0x80) | (packet_buffer[14] & 0x7f);
   calc_checksum ^= ((packet_buffer[13] << 2) & 0x80) | (packet_buffer[15] & 0x7f);
@@ -981,18 +981,19 @@ int iwmDevice::verify_cmdpkt_checksum(void)
 
   oddbits = (packet_buffer[length - 2] << 1) | 0x01;
   evenbits = packet_buffer[length - 3];
-  pkt_checksum = oddbits | evenbits;
+  pkt_checksum = oddbits & evenbits; // oddbits | evenbits;
+  // every other bit is ==1 in checksum, so need to AND to get data back
 
   //  Debug_print(("Pkt Chksum Byte:\r\n"));
   //  Debug_print(pkt_checksum,DEC);
   //  Debug_print(("Calc Chksum Byte:\r\n"));
   //  Debug_print(calc_checksum,DEC);
-
-  if ( pkt_checksum == calc_checksum )
-    return 1;
-  else
-    return 0;
-
+  Debug_printf("\r\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
+  // if ( pkt_checksum == calc_checksum )
+  //   return false;
+  // else
+  //   return true;
+  return (pkt_checksum != calc_checksum);  
 }
 
 #ifdef DEBUG
@@ -1102,12 +1103,21 @@ void iwmBus::service(iwmDevice* smort)
      
       if (iwm_read_packet((uint8_t *)smort->packet_buffer))
       {
-        break; //error timeout, break and loop again  // todo: for now ack going low is in iwm_read_packet
+        break; //error timeout, break and loop again 
       }
       // todo: should only ack if it's our device and if checksum is OK
+      // if (smort->packet_buffer[6] != smort->id())
+      // {
+      //   Debug_printf ("\r\nnot our packet!");
+      //   break;
+      // }
+      if (smort->verify_cmdpkt_checksum())
+      {
+        Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        break;
+      }
       iwm_ack_clr();
       iwm_ack_enable(); // have to act really fast
-      //portENABLE_INTERRUPTS();
       // now ACK is enabled and cleared low, it is reset in the handlers
 
 
