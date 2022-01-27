@@ -6,8 +6,8 @@
 
 #include "../../bus/bus.h"
 
-#include "../../fuji/fujiHost.h"
-#include "../../fuji/fujiDisk.h"
+#include "fujiHost.h"
+#include "fujiDisk.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8

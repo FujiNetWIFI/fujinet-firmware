@@ -144,7 +144,7 @@ void iecFuji::iec_net_scan_networks()
     response[0] = _countScannedSSIDs;
     response_len = 1;
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 }
 
@@ -176,7 +176,7 @@ void iecFuji::iec_net_scan_result()
     memcpy(response, &detail, sizeof(detail));
     response_len = 33;
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 }
 
@@ -213,7 +213,7 @@ void iecFuji::iec_net_get_ssid()
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 }
 
@@ -237,7 +237,7 @@ void iecFuji::iec_net_set_ssid(uint16_t s)
 
         uint8_t ck = iec_recv();
 
-        AdamNet.start_time = esp_timer_get_time();
+        IEC.start_time = esp_timer_get_time();
         iec_response_ack();
 
         bool save = true;
@@ -265,7 +265,7 @@ void iecFuji::iec_net_get_wifi_status()
     response[0] = wifiStatus;
     response_len = 1;
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 }
 
@@ -284,7 +284,7 @@ void iecFuji::iec_mount_host()
         hostMounted[hostSlot] = true;
     }
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 }
 
@@ -310,7 +310,7 @@ void iecFuji::iec_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
@@ -331,7 +331,7 @@ void iecFuji::iec_set_boot_config()
     boot_config = iec_recv();
     iec_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 }
 
@@ -402,7 +402,7 @@ void iecFuji::iec_disk_image_umount()
     unsigned char ds = iec_recv();
     iec_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     _fnDisks[ds].disk_dev.unmount();
@@ -464,7 +464,7 @@ void iecFuji::iec_open_directory(uint16_t s)
 
     iec_recv(); // Grab checksum
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
 
     if (_current_open_directory_slot == -1)
     {
@@ -492,7 +492,7 @@ void iecFuji::iec_open_directory(uint16_t s)
     }
     else
     {
-        AdamNet.start_time = esp_timer_get_time();
+        IEC.start_time = esp_timer_get_time();
         iec_response_ack();
     }
 
@@ -633,7 +633,7 @@ void iecFuji::iec_read_directory_entry()
     }
     else
     {
-        AdamNet.start_time = esp_timer_get_time();
+        IEC.start_time = esp_timer_get_time();
         iec_response_ack();
     }
 }
@@ -649,7 +649,7 @@ void iecFuji::iec_get_directory_position()
     response_len = sizeof(pos);
     memcpy(response, &pos, sizeof(pos));
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 }
 
@@ -666,7 +666,7 @@ void iecFuji::iec_set_directory_position()
 
     iec_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     _fnHosts[_current_open_directory_slot].dir_seek(pos);
@@ -678,7 +678,7 @@ void iecFuji::iec_close_directory()
 
     iec_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     if (_current_open_directory_slot != -1)
@@ -695,7 +695,7 @@ void iecFuji::iec_get_adapter_config()
 
     iec_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
@@ -744,7 +744,7 @@ void iecFuji::iec_new_disk()
 
     if (host.file_exists((const char *)p))
     {
-        AdamNet.start_time = esp_timer_get_time();
+        IEC.start_time = esp_timer_get_time();
         iec_response_ack();
         return;
     }
@@ -759,7 +759,7 @@ void iecFuji::iec_new_disk()
 
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     fclose(disk.fileh);
@@ -781,7 +781,7 @@ void iecFuji::iec_read_host_slots()
     memcpy(response, hostSlots, sizeof(hostSlots));
     response_len = sizeof(hostSlots);
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 }
 
@@ -795,7 +795,7 @@ void iecFuji::iec_write_host_slots()
 
     iec_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -846,7 +846,7 @@ void iecFuji::iec_read_device_slots()
 
     iec_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     memcpy(response, &diskSlots, returnsize);
@@ -869,7 +869,7 @@ void iecFuji::iec_write_device_slots()
 
     iec_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     // Load the data into our current device array
@@ -958,7 +958,7 @@ void iecFuji::iec_set_device_filename(uint16_t s)
 
     iec_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
@@ -972,7 +972,7 @@ void iecFuji::iec_get_device_filename()
 
     iec_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
     memcpy(response, _fnDisks[ds].filename, 256);
@@ -1009,10 +1009,10 @@ void iecFuji::iec_enable_device()
 
     iec_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
-    AdamNet.enableDevice(d);
+    IEC.enableDevice(d);
 }
 
 void iecFuji::iec_disable_device()
@@ -1021,10 +1021,10 @@ void iecFuji::iec_disable_device()
 
     iec_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    IEC.start_time = esp_timer_get_time();
     iec_response_ack();
 
-    AdamNet.disableDevice(d);
+    IEC.disableDevice(d);
 }
 
 // Initializes base settings and adds our devices to the SIO bus

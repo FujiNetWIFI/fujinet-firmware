@@ -3,24 +3,7 @@
 
 #include <string>
 
-#ifdef BUILD_ATARI
-#include "../device/sio/disk.h"
-#define MEDIA_TYPE disktype_t
-#define MEDIA_TYPE_UNKNOWN DISKTYPE_UNKNOWN
-#define DEVICE_TYPE sioDisk
-
-#elif BUILD_CBM
-#include "../device/iec/disk.h"
-#define MEDIA_TYPE mediatype_t
-#define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
-#define DEVICE_TYPE iecDisk
-
-#elif BUILD_ADAM
-#include "../device/adamnet/disk.h"
-#define MEDIA_TYPE mediatype_t
-#define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
-#define DEVICE_TYPE adamDisk
-#endif 
+#include "device.h"
 
 #include "fujiHost.h"
 

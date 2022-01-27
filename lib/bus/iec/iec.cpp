@@ -142,7 +142,7 @@ void iecDevice::sendSystemInfo()
 	IEC.send(0);
 	IEC.sendEOI(0);
 
-	fnLedManager.set(PIN_LED_BUS);
+	fnLedManager.set((eLed)PIN_LED_BUS);
 } // sendSystemInfo
 
 void iecDevice::sendDeviceStatus()
@@ -167,11 +167,11 @@ void iecDevice::sendDeviceStatus()
 	IEC.send(0);
 	IEC.sendEOI(0);
 
-	fnLedManager.set(PIN_LED_BUS);
+	fnLedManager.set((eLed)PIN_LED_BUS);
 } // sendDeviceStatus
 
 
-void iecDevice::_process(void)
+void iecDevice::iec_process(uint8_t b)
 {
 
 	switch (IEC.ATN.command)
@@ -299,7 +299,7 @@ uint16_t iecDevice::sendHeader(uint16_t &basicPtr)
 	// "      MEAT LOAF 64      "
 	//	int space_cnt = (16 - strlen(PRODUCT_ID)) / 2;
 	int space_cnt = 0; //(16 - strlen(FN_VERSION_FULL)) / 2;
-	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", PRODUCT_ID, space_cnt, "", _device_id);
+	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", PRODUCT_ID, space_cnt, "", _devnum);
 
 	return byte_count;
 }
@@ -362,13 +362,13 @@ uint8_t iec_checksum(uint8_t *buf, unsigned short len)
 }
 
 // IEC COMPLETE
-void iecDevice::sio_complete()
+void iecDevice::iec_complete()
 {
     Debug_println("COMPLETE!");
 }
 
 // IEC ERROR
-void iecDevice::sio_error()
+void iecDevice::iec_error()
 {
     Debug_println("ERROR!");
 }
@@ -1203,7 +1203,7 @@ int iecBus::numDevices()
 }
 
 // Add device to IEC bus
-void iecBus::addDevice(iecDevice *pDevice, int device_id)
+void iecBus::addDevice(iecDevice *pDevice, uint8_t device_id)
 {
     // if (device_id == DEVICEID_FUJINET)
     // {
@@ -1246,7 +1246,7 @@ void iecBus::remDevice(iecDevice *p)
     _daisyChain.remove(p);
 }
 
-iecDevice *iecBus::deviceById(int device_id)
+iecDevice *iecBus::deviceById(uint8_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -1256,7 +1256,7 @@ iecDevice *iecBus::deviceById(int device_id)
     return nullptr;
 }
 
-void iecBus::changeDeviceId(iecDevice *p, int device_id)
+void iecBus::changeDeviceId(iecDevice *p, uint8_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
