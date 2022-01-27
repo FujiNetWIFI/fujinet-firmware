@@ -427,9 +427,9 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
     numbits = 8;       // ;1   8bits to read
   } while (have_data); //(have_data); // while have_data
   //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
-
+  while (a[--idx] != 0xc8);
   // endpkt:   clr  r23
-  a[idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
+  a[++idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
   //todo: try something here
   // so I shuold just return a 1 without an ACK
@@ -1060,8 +1060,7 @@ void iwmDevice::print_packet()
 //*****************************************************************************
 int iwmDevice::packet_length (void)
 {
-  int x = 0;
-
+  int x = 5; // start at the 0xc3 beginning of packet
   while (packet_buffer[x++]);
   return x - 1; // point to last packet byte = C8
 }
