@@ -27,6 +27,7 @@
 #include "../../../include/cbmdefines.h"
 
 #include "fnSystem.h"
+#include "../sio/sio.h" // cmdframe_t
 
 #define PRODUCT_ID "FUJINET/MEATLOAF"
 
@@ -187,6 +188,11 @@ public:
      * @return the device # (0-15) of this device
      */
     uint8_t id() { return _devnum; }
+
+    /**
+     * @brief command frame, used by network protocol, ultimately
+     */
+    cmdFrame_t cmdFrame;
 
 	iecDevice(void);
 	virtual ~iecDevice(void) {}

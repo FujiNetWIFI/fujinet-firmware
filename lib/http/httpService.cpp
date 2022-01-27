@@ -34,6 +34,15 @@ extern sioModem *sioR;
 extern adamModem *sioR;
 #endif 
 
+#ifdef BUILD_CBM
+#include "modem-sniffer.h"
+#include "iec/modem.h"
+#include "iec/fuji.h"
+#include "iec/printerlist.h"
+#define PRINTER_CLASS iecPrinter
+extern iecModem *sioR;
+#endif
+
 #include "../../include/debug.h"
 
 using namespace std;

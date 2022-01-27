@@ -27,6 +27,14 @@ extern adamFuji theFuji;
 #define PRINTING_DEVICE adamPrinter
 #endif
 
+#ifdef BUILD_CBM
+#include "../device/iec/fuji.h"
+#include "../device/iec/printerlist.h"
+#define BUS IEC
+extern iecFuji theFuji;
+#define PRINTING_DEVICE iecPrinter
+#endif
+
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
 #include "fnFsSPIF.h"
