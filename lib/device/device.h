@@ -5,7 +5,6 @@
 
 #ifdef BUILD_ATARI
 # include "sio/fuji.h"
-# include "sio/disk.h"
 # include "sio/apetime.h"
 # include "sio/cassette.h"
 # include "sio/disk.h"
@@ -17,6 +16,8 @@
 # include "sio/siocpm.h"
 # include "sio/voice.h"
 
+extern sioFuji theFuji;
+# define BUS SIO
 # define PRINTER_CLASS sioPrinter
 # define MEDIA_TYPE disktype_t
 # define MEDIA_TYPE_UNKNOWN DISKTYPE_UNKNOWN
@@ -28,6 +29,8 @@
 # include "iec/printer.h"
 # include "iec/printerlist.h"
 
+extern iecFuji theFuji;
+# define BUS IEC
 # define PRINTER_CLASS iecPrinter
 # define MEDIA_TYPE mediatype_t
 # define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
@@ -42,6 +45,8 @@
 # include "adamnet/printerlist.h"
 # include "adamnet/query_device.h"
 
+extern adamFuji theFuji;
+# define BUS AdamNet
 # define PRINTER_CLASS adamPrinter
 # define MEDIA_TYPE mediatype_t
 # define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN

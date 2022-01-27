@@ -4,36 +4,13 @@
 #include <locale>
 
 #include "../../include/debug.h"
+#include "device.h"
 #include "fnConfig.h"
 
 #include "httpService.h"
 #include "httpServiceParser.h"
 
 #define ALL_THE_DEBUGS
-
-#ifdef BUILD_ATARI
-#include "sio/fuji.h"
-#include "sio/printerlist.h"
-#define BUS SIO
-extern sioFuji theFuji;
-#define PRINTING_DEVICE sioPrinter
-#endif
-
-#ifdef BUILD_ADAM
-#include "adamnet/fuji.h"
-#include "adamnet/printerlist.h"
-#define BUS AdamNet
-extern adamFuji theFuji;
-#define PRINTING_DEVICE adamPrinter
-#endif
-
-#ifdef BUILD_CBM
-#include "../device/iec/fuji.h"
-#include "../device/iec/printerlist.h"
-#define BUS IEC
-extern iecFuji theFuji;
-#define PRINTING_DEVICE iecPrinter
-#endif
 
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
@@ -472,12 +449,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
             {
                 strcpy(result, "");
 
-                for(int i=0; i<(int) PRINTING_DEVICE::PRINTER_INVALID; i++)
+                for(int i=0; i<(int) PRINTER_CLASS::PRINTER_INVALID; i++)
                 {
                     strncat(result, "<option value=\"", MAX_PRINTER_LIST_BUFFER-1);
-                    strncat(result, PRINTING_DEVICE::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "\">", MAX_PRINTER_LIST_BUFFER);
-                    strncat(result, PRINTING_DEVICE::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "</option>\n", MAX_PRINTER_LIST_BUFFER-1);
 
                 }

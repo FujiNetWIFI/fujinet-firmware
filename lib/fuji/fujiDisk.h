@@ -1,11 +1,10 @@
 #ifndef _FUJI_DISK_
 #define _FUJI_DISK_
 
+
 #include <string>
 
 #include "device.h"
-
-#include "fujiHost.h"
 
 #define MAX_DISPLAY_FILENAME_LEN 36
 #define MAX_FILENAME_LEN 256
