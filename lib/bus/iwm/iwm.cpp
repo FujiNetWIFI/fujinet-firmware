@@ -963,7 +963,7 @@ bool iwmDevice::verify_cmdpkt_checksum(void)
   uint8_t pkt_checksum;
 
   length = packet_length();
-  //Debug_printf("\r\npacket length = %d", length);
+  Debug_printf("\r\npacket length = %d", length);
   //2 oddbytes in cmd packet
   calc_checksum ^= ((packet_buffer[13] << 1) & 0x80) | (packet_buffer[14] & 0x7f);
   calc_checksum ^= ((packet_buffer[13] << 2) & 0x80) | (packet_buffer[15] & 0x7f);
@@ -1113,8 +1113,8 @@ void iwmBus::service(iwmDevice* smort)
       // }
       if (smort->verify_cmdpkt_checksum())
       {
-        Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        break;
+        // Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        // break;
       }
       iwm_ack_clr();
       iwm_ack_enable(); // have to act really fast
