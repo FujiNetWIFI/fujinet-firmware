@@ -11,34 +11,8 @@
 
 #define ALL_THE_DEBUGS
 
-#ifdef BUILD_ATARI
-#include "sio/fuji.h"
-#include "sio/printerlist.h"
-#define BUS SIO
-extern sioFuji theFuji;
-#define PRINTING_DEVICE sioPrinter
-
-#elif BUILD_CBM
-#include "adamnet/fuji.h"
-#include "adamnet/printerlist.h"
-#define BUS IEC
-extern iecFuji theFuji;
-#define PRINTING_DEVICE iecPrinter
-
-#elif BUILD_ADAM
-#include "adamnet/fuji.h"
-#include "adamnet/printerlist.h"
-#define BUS AdamNet
-extern adamFuji theFuji;
-#define PRINTING_DEVICE adamPrinter
-
-#elif NEW_TARGET
-#include ".new/fuji.h"
-#include ".new/printerlist.h"
-#define BUS AdamNet
-extern adamFuji theFuji;
-#define PRINTING_DEVICE adamPrinter
-#endif
+#include "printer.h"
+#include "fuji.h"
 
 #include "../hardware/fnSystem.h"
 #include "../hardware/fnWiFi.h"
@@ -313,10 +287,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #ifdef BUILD_ATARI
     case FN_SIO_HSINDEX:
-        resultstream << BUS.getHighSpeedIndex();
+        resultstream << BUS_CLASS.getHighSpeedIndex();
         break;
     case FN_SIO_HSBAUD:
-        resultstream << BUS.getHighSpeedBaud();
+        resultstream << BUS_CLASS.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
     case FN_PRINTER1_MODEL:
@@ -477,12 +451,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
             {
                 strcpy(result, "");
 
-                for(int i=0; i<(int) PRINTING_DEVICE::PRINTER_INVALID; i++)
+                for(int i=0; i<(int) PRINTER_CLASS::PRINTER_INVALID; i++)
                 {
                     strncat(result, "<option value=\"", MAX_PRINTER_LIST_BUFFER-1);
-                    strncat(result, PRINTING_DEVICE::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "\">", MAX_PRINTER_LIST_BUFFER);
-                    strncat(result, PRINTING_DEVICE::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "</option>\n", MAX_PRINTER_LIST_BUFFER-1);
 
                 }

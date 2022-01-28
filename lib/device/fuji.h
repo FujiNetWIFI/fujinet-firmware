@@ -3,14 +3,17 @@
 
 #ifdef BUILD_ATARI
 #include "sio/fuji.h"
+#endif
 
-#elif BUILD_CBM
+#ifdef BUILD_CBM
 #include "iec/fuji.h"
+#endif
 
-#elif BUILD_ADAM
+#ifdef BUILD_ADAM
 #include "adamnet/fuji.h"
+#endif
 
-#elif NEW_TARGET
+#ifdef NEW_TARGET
 #include ".new/fuji.h"
 #endif
 

@@ -31,36 +31,6 @@
 
 // sioFuji theFuji; // moved to fuji.h/.cpp
 
-#ifdef BUILD_ATARI
-    sioApeTime apeTime;
-    sioVoice sioV;
-    sioMIDIMaze sioMIDI;
-    // sioCassette sioC; // now part of sioFuji theFuji object
-    sioModem *sioR;
-    sioCPM sioZ;
-
-#elif BUILD_CBM
-
-
-#elif BUILD_ADAM
-# define VIRTUAL_ADAM_DEVICES
-//# define NO_VIRTUAL_KEYBOARD
-    adamModem *sioR;
-    adamKeyboard *sioK;
-    adamQueryDevice *sioQ;
-    bool exists = false;
-
-#elif NEW_TARGET
-# define VIRTUAL_ADAM_DEVICES
-//# define NO_VIRTUAL_KEYBOARD
-    adamModem *sioR;
-    adamKeyboard *sioK;
-    adamQueryDevice *sioQ;
-    bool exists = false;
-
-#endif /* BUILD_ADAM */
-
-
 
 void main_shutdown_handler()
 {
