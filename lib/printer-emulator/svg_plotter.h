@@ -1,13 +1,7 @@
 #ifndef SVG_PLOTTER_H
 #define SVG_PLOTTER_H
 
-#ifdef BUILD_ATARI
-#include "sio/printer.h"
-#elif BUILD_CBM
-#include "iec/printer.h"
-#elif BUILD_ADAM
-#include "adamnet/printer.h"
-#endif
+#include "printer.h"
 
 /* This is really a virtual class, as it's not meant to be instantiated on its own, but
  inherited from by other, full-fledged printer classes (e.g. Atari 820/822)

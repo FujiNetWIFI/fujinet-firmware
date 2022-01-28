@@ -1,14 +1,7 @@
 #ifndef ATARI_1025_H
 #define ATARI_1025_H
 
-#ifdef BUILD_ATARI
-#include "sio/printer.h"
-#elif BUILD_CBM
-#include "iec/printer.h"
-#elif BUILD_ADAM
-#include "adamnet/printer.h"
-#endif
-
+#include "printer.h"
 
 #include "pdf_printer.h"
 
@@ -37,6 +30,8 @@ public:
         #elif BUILD_CBM
             return iecPrinter::printer_model_str[iecPrinter::PRINTER_ATARI_1025];
         #elif BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1025];
+        #elif NEW_TARGET
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1025];
         #else
             return PRINTER_UNSUPPORTED;

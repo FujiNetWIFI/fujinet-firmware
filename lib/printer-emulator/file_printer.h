@@ -1,13 +1,7 @@
 #ifndef FILE_PRINTER_H
 #define FILE_PRINTER_H
 
-#ifdef BUILD_ATARI
-#include "sio/printer.h"
-#elif BUILD_CBM
-#include "iec/printer.h"
-#elif BUILD_ADAM
-#include "adamnet/printer.h"
-#endif
+#include "printer.h"
 
 #include "printer_emulator.h"
 
@@ -24,33 +18,45 @@ public:
     { 
         if (_paper_type == ASCII)
         {
-            #ifdef BUILD_ADAM
-                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_ASCII];
-            #endif
             #ifdef BUILD_ATARI
                 return sioPrinter::printer_model_str[sioPrinter::PRINTER_FILE_ASCII];
+            #elif BUILD_CBM
+                return iecPrinter::printer_model_str[iecPrinter::PRINTER_FILE_ASCII];
+            #elif BUILD_ADAM
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_ASCII];
+            #elif NEW_TARGET
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_ASCII];
+            #else
+                return PRINTER_UNSUPPORTED;
             #endif
-            return PRINTER_UNSUPPORTED;
         }
         else if (_paper_type == RAW)
         {
-            #ifdef BUILD_ADAM
-                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_RAW];
-            #endif
-            #ifdef  BUILD_ATARI
+            #ifdef BUILD_ATARI
                 return sioPrinter::printer_model_str[sioPrinter::PRINTER_FILE_RAW];
+            #elif BUILD_CBM
+                return iecPrinter::printer_model_str[iecPrinter::PRINTER_FILE_RAW];
+            #elif BUILD_ADAM
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_RAW];
+            #elif NEW_TARGET
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_RAW];
+            #else
+                return PRINTER_UNSUPPORTED;
             #endif
-            return PRINTER_UNSUPPORTED;
         }
         else
         {
-            #ifdef BUILD_ADAM
-                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_TRIM];
-            #endif
-            #ifdef  BUILD_ATARI
+            #ifdef BUILD_ATARI
                 return sioPrinter::printer_model_str[sioPrinter::PRINTER_FILE_TRIM];
+            #elif BUILD_CBM
+                return iecPrinter::printer_model_str[iecPrinter::PRINTER_FILE_TRIM];
+            #elif BUILD_ADAM
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_TRIM];
+            #elif NEW_TARGET
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_TRIM];
+            #else
+                return PRINTER_UNSUPPORTED;
             #endif
-            return PRINTER_UNSUPPORTED;
         }
 
     };

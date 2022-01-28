@@ -18,6 +18,8 @@ class atari1020 : public svgPlotter
             return iecPrinter::printer_model_str[iecPrinter::PRINTER_ATARI_1020];
         #elif BUILD_ADAM
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1020];
+        #elif NEW_TARGET
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1020];
         #else
             return PRINTER_UNSUPPORTED;
         #endif
