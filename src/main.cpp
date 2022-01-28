@@ -50,6 +50,14 @@
     adamQueryDevice *sioQ;
     bool exists = false;
 
+#elif NEW_TARGET
+# define VIRTUAL_ADAM_DEVICES
+//# define NO_VIRTUAL_KEYBOARD
+    adamModem *sioR;
+    adamKeyboard *sioK;
+    adamQueryDevice *sioQ;
+    bool exists = false;
+
 #endif /* BUILD_ADAM */
 
 

@@ -3,18 +3,7 @@
 
 #include <string>
 
-#ifdef BUILD_ATARI
-#include "../device/sio/printer.h"
-#define PRINTER_CLASS sioPrinter
-
-#elif BUILD_CBM
-//#include "../device/iec/printer.h"
-//#define PRINTER_CLASS iecPrinter
-
-#elif BUILD_ADAM
-#include "../device/adamnet/printer.h"
-#define PRINTER_CLASS adamPrinter
-#endif
+#include "printer.h"
 
 
 #define MAX_HOST_SLOTS 8

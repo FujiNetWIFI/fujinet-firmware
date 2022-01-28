@@ -17,11 +17,24 @@
 #define BUS SIO
 extern sioFuji theFuji;
 #define PRINTING_DEVICE sioPrinter
-#endif
 
-#ifdef BUILD_ADAM
+#elif BUILD_CBM
 #include "adamnet/fuji.h"
 #include "adamnet/printerlist.h"
+#define BUS IEC
+extern iecFuji theFuji;
+#define PRINTING_DEVICE iecPrinter
+
+#elif BUILD_ADAM
+#include "adamnet/fuji.h"
+#include "adamnet/printerlist.h"
+#define BUS AdamNet
+extern adamFuji theFuji;
+#define PRINTING_DEVICE adamPrinter
+
+#elif NEW_TARGET
+#include ".new/fuji.h"
+#include ".new/printerlist.h"
 #define BUS AdamNet
 extern adamFuji theFuji;
 #define PRINTING_DEVICE adamPrinter
