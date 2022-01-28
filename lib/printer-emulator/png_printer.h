@@ -1,13 +1,7 @@
 #ifndef PNG_PRINTER_H
 #define PNG_PRINTER_H
 
-#ifdef BUILD_ATARI
-#include "sio/printer.h"
-#elif BUILD_CBM
-#include "iec/printer.h"
-#elif BUILD_ADAM
-#include "adamnet/printer.h"
-#endif
+#include "printer.h"
 
 #include "printer_emulator.h"
 
@@ -55,15 +49,16 @@ public:
     pngPrinter() { _paper_type = PNG;};
     const char *modelname()  override 
     { 
-         
-        #ifdef BUILD_ADAM
+        #ifdef BUILD_ATARI
+            return sioPrinter::printer_model_str[sioPrinter::PRINTER_PNG];
+        #elif BUILD_CBM
+            return iecPrinter::printer_model_str[iecPrinter::PRINTER_PNG];
+        #elif BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_PNG];
+        #elif NEW_TARGET
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_PNG];
         #else
-            #ifdef BUILD_ATARI
-                return sioPrinter::printer_model_str[sioPrinter::PRINTER_PNG];
-            #else
-                return PRINTER_UNSUPPORTED;
-            #endif
+            return PRINTER_UNSUPPORTED;
         #endif
     };
 
