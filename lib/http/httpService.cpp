@@ -16,23 +16,9 @@
 #include "keys.h"
 #include "fnConfig.h"
 
-#ifdef BUILD_ATARI
-#include "modem-sniffer.h"
-#include "sio/modem.h"
-#include "sio/fuji.h"
-#include "sio/printerlist.h"
-#define PRINTER_CLASS sioPrinter
-extern sioModem *sioR;
-#endif /* BUILD_ATARI */
-
-#ifdef BUILD_ADAM
-#include "modem-sniffer.h"
-#include "adamnet/modem.h"
-#include "adamnet/fuji.h"
-#include "adamnet/printerlist.h"
-#define PRINTER_CLASS adamPrinter
-extern adamModem *sioR;
-#endif 
+#include "printer.h"
+#include "modem.h"
+#include "fuji.h"
 
 #include "../../include/debug.h"
 

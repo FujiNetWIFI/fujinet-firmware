@@ -14,6 +14,13 @@
 # include "sio/voice.h"
 # include "sio/fuji.h"
 
+    sioApeTime apeTime;
+    sioVoice sioV;
+    sioMIDIMaze sioMIDI;
+    // sioCassette sioC; // now part of sioFuji theFuji object
+    sioModem *sioR;
+    sioCPM sioZ;
+
 #elif BUILD_CBM
 # include "iec/printer.h"
 # include "iec/printerlist.h"
@@ -27,6 +34,12 @@
 # include "adamnet/query_device.h"
 # include "adamnet/fuji.h"
 
+//# define NO_VIRTUAL_KEYBOARD
+    adamModem *sioR;
+    adamKeyboard *sioK;
+    adamQueryDevice *sioQ;
+    bool exists = false;
+
 #elif NEW_TARGET
 # include ".new/keyboard.h"
 # include ".new/modem.h"
@@ -34,6 +47,11 @@
 # include ".new/printerlist.h"
 # include ".new/query_device.h"
 # include ".new/fuji.h"
+//# define NO_VIRTUAL_KEYBOARD
+    adamModem *sioR;
+    adamKeyboard *sioK;
+    adamQueryDevice *sioQ;
+    bool exists = false;
 
 #endif
 
