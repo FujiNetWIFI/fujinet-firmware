@@ -12,19 +12,8 @@
 #include "fnConfig.h"
 #include "utils.h"
 
-#ifdef BUILD_ATARI
-#include "sio/printerlist.h"
-#include "sio/fuji.h"
-#define PRINTER_CLASS sioPrinter
-extern sioFuji theFuji;
-#endif /* BUILD_ATARI */
+#include "printer.h"
 
-#ifdef BUILD_ADAM
-#include "adamnet/printerlist.h"
-#include "adamnet/fuji.h"
-#define PRINTER_CLASS adamPrinter
-extern adamFuji theFuji;
-#endif /* BUILD_ADAM */
 
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)

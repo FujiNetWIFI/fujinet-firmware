@@ -2,6 +2,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <string.h>
+
 #include "fnConfig.h"
 #include "../FileSystem/fnFsSPIF.h"
 #include "../FileSystem/fnFsSD.h"
@@ -455,7 +457,7 @@ void fnConfig::store_modem_enabled(bool modem_enabled)
 // Saves ENABLE or DISABLE Modem Sniffer
 void fnConfig::store_modem_sniffer_enabled(bool modem_sniffer_enabled)
 {
-#ifndef BUILD_ADAM
+#ifdef BUILD_ATARI
     ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
 
     if (modem_sniffer_enabled)
@@ -471,7 +473,7 @@ void fnConfig::store_modem_sniffer_enabled(bool modem_sniffer_enabled)
 
     _modem.sniffer_enabled = modem_sniffer_enabled;
     _dirty = true;
-#endif /* BUILD_ADAM */
+#endif /* BUILD_ATARI */
 }
 
 bool fnConfig::get_cassette_buttons()

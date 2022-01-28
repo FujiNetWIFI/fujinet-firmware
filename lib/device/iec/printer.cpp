@@ -54,4 +54,4 @@ void iecPrinter::shutdown()
 
 }
 
-#endif /* BUILD_ADAM */
+#endif /* BUILD_CBM */

@@ -20,6 +20,12 @@
 #define MEDIA_TYPE mediatype_t
 #define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
 #define DEVICE_TYPE adamDisk
+
+#elif NEW_TARGET
+#include "../device/.new/disk.h"
+#define MEDIA_TYPE mediatype_t
+#define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
+#define DEVICE_TYPE adamDisk
 #endif 
 
 #include "fujiHost.h"
