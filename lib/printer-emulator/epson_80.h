@@ -4,7 +4,7 @@
 #ifdef BUILD_ATARI
 #include "sio/printer.h"
 #elif BUILD_CBM
-#include "iec/printer.h"
+#include "../device/iec/printer.h"
 #elif BUILD_ADAM
 #include "adamnet/printer.h"
 #endif

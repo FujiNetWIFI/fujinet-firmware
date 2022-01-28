@@ -3,10 +3,8 @@
 #include <cstdint>
 
 #include "../../include/debug.h"
-#include "bus.h"
-//#include "iec/network.h"
-#include "iec/printer.h"
-//#include "iec/serial.h"
+
+#include "../../bus/bus.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"

@@ -28,13 +28,12 @@
 #include "../../../include/cbmdefines.h"
 #include "../../../include/petscii.h"
 
-#include "bus.h"
-#include "fnFsSPIF.h"
-#include "media.h"
+#include "../../bus/bus.h"
+#include "../../media/media.h"
 
-#define ARCHIVE_TYPES "ZIP|7Z|RAR"
-#define IMAGE_TYPES "D64|D71|D80|D81|D82|D8B|G64|X64|Z64|TAP|T64|TCRT|CRT|D1M|D2M|D4M|DHD|HDD|DNP|DFI|M2I|NIB"
-#define FILE_TYPES "C64|PRG|P00|SEQ|S00|USR|U00|REL|R00"
+#include "fnFsSPIF.h"
+
+
 
 class iecDisk : public iecDevice
 {
@@ -61,13 +60,11 @@ private:
 	void sendDeviceStatus(void);
 
 	void sendListing(void);
-	// void sendListingHTTP(void);
 	uint16_t sendHeader(uint16_t &basicPtr);
 	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, char* text);
 	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...);
 	uint16_t sendFooter(uint16_t &basicPtr);
 	void sendFile(void);
-	// void sendFileHTTP(void);
 
 	void saveFile(void);
 
@@ -88,9 +85,10 @@ public:
     iecDisk();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
-    bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
+    bool write_blank(FILE *f, uint32_t numBlocks);
+	virtual void reset();
 
-    mediatype_t disktype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
+    mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
 
 	~iecDisk();
 };

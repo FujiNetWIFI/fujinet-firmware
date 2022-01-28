@@ -1,28 +1,10 @@
 #ifndef _FUJI_DISK_
 #define _FUJI_DISK_
 
+
 #include <string>
 
-#ifdef BUILD_ATARI
-#include "../device/sio/disk.h"
-#define MEDIA_TYPE disktype_t
-#define MEDIA_TYPE_UNKNOWN DISKTYPE_UNKNOWN
-#define DEVICE_TYPE sioDisk
-
-#elif BUILD_CBM
-#include "../device/iec/disk.h"
-#define MEDIA_TYPE mediatype_t
-#define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
-#define DEVICE_TYPE iecDisk
-
-#elif BUILD_ADAM
-#include "../device/adamnet/disk.h"
-#define MEDIA_TYPE mediatype_t
-#define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
-#define DEVICE_TYPE adamDisk
-#endif 
-
-#include "fujiHost.h"
+#include "device.h"
 
 #define MAX_DISPLAY_FILENAME_LEN 36
 #define MAX_FILENAME_LEN 256

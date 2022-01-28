@@ -4,7 +4,8 @@
 
 #include <string.h>
 
-#include "bus.h"
+#include "../../bus/bus.h"
+
 #include "../printer-emulator/printer_emulator.h"
 #include "fnFS.h"
 
@@ -46,6 +47,29 @@ public:
         PRINTER_HTML,
         PRINTER_HTML_ATASCII,
         PRINTER_INVALID
+    };
+
+public:
+    constexpr static const char * const printer_model_str[PRINTER_INVALID]
+    {
+        "file printer (RAW)",
+        "file printer (TRIM)",
+        "file printer (ASCII)",
+        "Atari 820",
+        "Atari 822",
+        "Atari 825",
+        "Atari 1020",
+        "Atari 1025",
+        "Atari 1027",
+        "Atari 1029",
+        "Atari XMM801",
+        "Atari XDM121",
+        "Epson 80",
+        "Epson PrintShop",
+        "Okimate 10",
+        "GRANTIC",
+        "HTML printer",
+        "HTML ATASCII printer"
     };
 
     iecPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
