@@ -21,14 +21,13 @@
 #ifndef IECBUS_H
 #define IECBUS_H
 
-#include "bus.h"
-
 #include <forward_list>
 
 #include "../../../include/pinmap.h"
 #include "../../../include/cbmdefines.h"
 
 #include "fnSystem.h"
+#include "../sio/sio.h" // cmdframe_t
 
 #define PRODUCT_ID "FUJINET/MEATLOAF"
 
@@ -135,15 +134,85 @@ class iecDevice
 protected:
 	friend iecBus;
 
-    int _device_id;
+    /**
+     * @brief Device Number: 4-30
+     */
+    uint8_t _devnum;
 
-    virtual void _process(uint32_t commanddata, uint8_t checksum) = 0;
+
+    /**
+     * @brief Send the desired buffer to the Atari.
+     * @param buff The byte buffer to send to the Atari
+     * @param len The length of the buffer to send to the Atari.
+     * @return TRUE if the Atari processed the data in error, FALSE if the Atari successfully processed
+     * the data.
+     */
+    void bus_to_computer(uint8_t *buff, uint16_t len, bool err);
+
+    /**
+     * @brief Receive data from the Atari.
+     * @param buff The byte buffer provided for data from the Atari.
+     * @param len The length of the amount of data to receive from the Atari.
+     * @return An 8-bit wrap-around checksum calculated by the Atari, which should be checked with iec_checksum()
+     */
+    uint8_t bus_to_peripheral(uint8_t *buff, uint16_t len);
+
+    /**
+     * @brief Send an acknowledgement byte to the Atari 'A'
+     * This should be used if the command received by the SIO device is valid, and is used to signal to the
+     * Atari that we are now processing the command.
+     */
+    void iec_ack();
+
+    /**
+     * @brief Send a non-acknowledgement (NAK) to the Atari 'N'
+     * This should be used if the command received by the SIO device is invalid, in the first place. It is not
+     * the same as iec_error().
+     */
+    void iec_nak();
+
+    /**
+     * @brief Send a COMPLETE to the Atari 'C'
+     * This should be used after processing of the command to indicate that we've successfully finished. Failure to send
+     * either a COMPLETE or ERROR will result in a SIO TIMEOUT (138) to be reported in DSTATS.
+     */
+    void iec_complete();
+
+    /**
+     * @brief Send an ERROR to the Atari 'E'
+     * This should be used during or after processing of the command to indicate that an error resulted
+     * from processing the command, and that the Atari should probably re-try the command. Failure to
+     * send an ERROR or COMPLTE will result in a SIO TIMEOUT (138) to be reported in DSTATS.
+     */
+    void iec_error();
+
+    /**
+     * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
+     * a sector number, for disk, or a number of bytes waiting for the sioNetwork device.
+     * 
+     * @return 16-bit value of DAUX1/DAUX2 in cmdFrame.
+     */
+    unsigned short iec_get_aux();
+
+    /**
+     * @brief All SIO commands by convention should return a status command, using bus_to_computer() to return
+     * four bytes of status information to be put into DVSTAT ($02EA)
+     */
+    virtual void iec_status() = 0;
+
+
+
+    /**
+     * @brief process the next packet with the active device.
+     * @param b first byte of packet.
+     */
+    virtual void iec_process(uint8_t b);
 
 	// Reset device
 	virtual void reset(void);
 
     // Optional shutdown/reboot cleanup routine
-    virtual void shutdown(void);
+    virtual void shutdown(void) {}
 
 	// our iec low level driver:
 //	iecBus& _iec;
@@ -168,15 +237,7 @@ protected:
 
 public:
     /**
-     * @brief get the SIO device Number (1-255)
-     * @return The device number registered for this device
-     */
-    int device_id(void) { return _device_id; };
-
-    virtual void sio_high_speed(void) {};
-
-    /**
-     * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
+     * @brief Is this iecDevice holding the virtual disk drive used to boot CONFIG?
      */
     bool is_config_device = false;
 
@@ -186,14 +247,33 @@ public:
     bool device_active = true;
 
     /**
-     * @brief status wait counter
+     * @brief return the device number (0-15) of this device
+     * @return the device # (0-15) of this device
      */
-    uint8_t status_wait_count = 5;
+    uint8_t id() { return _devnum; }
+
+    /**
+     * @brief command frame, used by network protocol, ultimately
+     */
+    cmdFrame_t cmdFrame;
 
 	iecDevice(void);
 	virtual ~iecDevice(void) {}
 };
 
+enum bus_message : uint16_t
+{
+    BUSMSG_DISKSWAP,  // Rotate disk
+    BUSMSG_DEBUG_TAPE // Tape debug msg
+};
+
+struct bus_message_t
+{
+    bus_message message_id;
+    uint16_t message_arg;
+};
+
+// typedef iec_message_t iec_message_t;
 
 class iecBus
 {
@@ -203,8 +283,8 @@ private:
     int _command_frame_counter = 0;
 
     iecDevice *_activeDev = nullptr;
-//    iecFuji *_fujiDev = nullptr;
-//    iecPrinter *_printerdev = nullptr;
+    iecFuji *_fujiDev = nullptr;
+    iecPrinter *_printerdev = nullptr;
 
     void _bus_process_cmd(void);
     void _bus_process_queue(void);
@@ -295,18 +375,32 @@ private:
 
 
 public:
-    void setup(void);
-    void service(void);
-	void reset(void);
-    void shutdown(void);
+    void setup();
+    void service();
+    void shutdown();
+    void reset();
 
-    int numDevices(void);
-    void addDevice(iecDevice *pDevice, int device_id);
+    /**
+     * @brief Wait for AdamNet bus to become idle.
+     */
+    void wait_for_idle();
+
+    /**
+     * stopwatch
+     */
+    int64_t start_time;
+
+    int numDevices();
+    void addDevice(iecDevice *pDevice, uint8_t device_id);
     void remDevice(iecDevice *pDevice);
-    iecDevice *deviceById(int device_id);
-    void changeDeviceId(iecDevice *pDevice, int device_id);
+    void remDevice(uint8_t device_id);
+    bool deviceExists(uint8_t device_id);
+    void enableDevice(uint8_t device_id);
+    void disableDevice(uint8_t device_id);
+    iecDevice *deviceById(uint8_t device_id);
+    void changeDeviceId(iecDevice *pDevice, uint8_t device_id);
 
-	//iecPrinter *getPrinter(void) { return _printerdev; }
+	iecPrinter *getPrinter(void) { return _printerdev; }
 
 	QueueHandle_t qBusMessages = nullptr;
 

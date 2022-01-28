@@ -142,7 +142,7 @@ void iecDevice::sendSystemInfo()
 	IEC.send(0);
 	IEC.sendEOI(0);
 
-	fnLedManager.set(PIN_LED_BUS);
+	fnLedManager.set((eLed)PIN_LED_BUS);
 } // sendSystemInfo
 
 void iecDevice::sendDeviceStatus()
@@ -167,11 +167,11 @@ void iecDevice::sendDeviceStatus()
 	IEC.send(0);
 	IEC.sendEOI(0);
 
-	fnLedManager.set(PIN_LED_BUS);
+	fnLedManager.set((eLed)PIN_LED_BUS);
 } // sendDeviceStatus
 
 
-void iecDevice::_process(void)
+void iecDevice::iec_process(uint8_t b)
 {
 
 	switch (IEC.ATN.command)
@@ -299,7 +299,7 @@ uint16_t iecDevice::sendHeader(uint16_t &basicPtr)
 	// "      MEAT LOAF 64      "
 	//	int space_cnt = (16 - strlen(PRODUCT_ID)) / 2;
 	int space_cnt = 0; //(16 - strlen(FN_VERSION_FULL)) / 2;
-	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", PRODUCT_ID, space_cnt, "", _device_id);
+	byte_count += sendLine(basicPtr, 0, "\x12\"%*s%s%*s\" %.02d 2A", space_cnt, "", PRODUCT_ID, space_cnt, "", _devnum);
 
 	return byte_count;
 }
@@ -362,13 +362,13 @@ uint8_t iec_checksum(uint8_t *buf, unsigned short len)
 }
 
 // IEC COMPLETE
-void iecDevice::sio_complete()
+void iecDevice::iec_complete()
 {
     Debug_println("COMPLETE!");
 }
 
 // IEC ERROR
-void iecDevice::sio_error()
+void iecDevice::iec_error()
 {
     Debug_println("ERROR!");
 }
@@ -392,11 +392,11 @@ void iecBus::_bus_process_cmd(void)
 	// find device and pass control
 	for (auto devicep : _daisyChain)
 	{
-		if (ATN.device_id == devicep->_device_id)
+		if (ATN.device_id == devicep->_devnum)
 		{
 			_activeDev = devicep;
 			// handle command
-			_activeDev->_process();
+			_activeDev->iec_process(0);
 		}
 	}
 
@@ -1174,7 +1174,7 @@ void iecBus::reset()
 {
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Resetting device %02x\n",devicep->device_id());
+        Debug_printf("Resetting device %02x\n",devicep->id());
         devicep->reset();
     }
     Debug_printf("All devices reset.\n");
@@ -1185,7 +1185,7 @@ void iecBus::shutdown()
 {
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n",devicep->device_id());
+        Debug_printf("Shutting down device %02x\n",devicep->id());
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
@@ -1203,7 +1203,7 @@ int iecBus::numDevices()
 }
 
 // Add device to IEC bus
-void iecBus::addDevice(iecDevice *pDevice, int device_id)
+void iecBus::addDevice(iecDevice *pDevice, uint8_t device_id)
 {
     // if (device_id == DEVICEID_FUJINET)
     // {
@@ -1234,7 +1234,7 @@ void iecBus::addDevice(iecDevice *pDevice, int device_id)
     //     _printerdev = (iecPrinter *)pDevice;
     // }
 
-    pDevice->_device_id = device_id;
+    pDevice->_devnum = device_id;
 
     _daisyChain.push_front(pDevice);
 }
@@ -1246,22 +1246,22 @@ void iecBus::remDevice(iecDevice *p)
     _daisyChain.remove(p);
 }
 
-iecDevice *iecBus::deviceById(int device_id)
+iecDevice *iecBus::deviceById(uint8_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
-        if (devicep->_device_id == device_id)
+        if (devicep->_devnum == device_id)
             return devicep;
     }
     return nullptr;
 }
 
-void iecBus::changeDeviceId(iecDevice *p, int device_id)
+void iecBus::changeDeviceId(iecDevice *p, uint8_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
         if (devicep == p)
-            devicep->_device_id = device_id;
+            devicep->_devnum = device_id;
     }
 }
 
