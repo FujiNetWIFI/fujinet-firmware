@@ -189,7 +189,10 @@ void adamDisk::adamnet_response_status()
     else
         status_response[4] = 0x40 | _media->_media_controller_status;
     
-    adamNetDevice::adamnet_response_status();
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 300)
+        adamNetDevice::adamnet_response_status();
 }
 
 void adamDisk::adamnet_response_send()
@@ -213,6 +216,8 @@ void adamDisk::adamnet_process(uint8_t b)
 {
     unsigned char c = b >> 4;
 
+    //portENTER_CRITICAL(&spinlock);
+
     switch (c)
     {
     case MN_RESET:
@@ -234,6 +239,8 @@ void adamDisk::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
+
+    //portEXIT_CRITICAL(&spinlock);
 }
 
 #endif /* BUILD_ADAM */
