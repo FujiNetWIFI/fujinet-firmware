@@ -343,6 +343,58 @@ void adamFuji::adamnet_copy_file()
 // Mount all
 void adamFuji::adamnet_mount_all()
 {
+    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
+
+    for (int i = 0; i < 8; i++)
+    {
+        fujiDisk &disk = _fnDisks[i];
+        fujiHost &host = _fnHosts[disk.host_slot];
+        char flag[3] = {'r', 0, 0};
+
+        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            flag[1] = '+';
+
+        if (disk.host_slot != 0xFF)
+        {
+            nodisks = false; // We have a disk in a slot
+
+            if (host.mount() == false)
+            {
+                adamnet_response_nack();
+                return;
+            }
+
+            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                         disk.filename, disk.host_slot, flag, i + 1);
+
+            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+            if (disk.fileh == nullptr)
+            {
+                adamnet_response_nack();
+                return;
+            }
+
+            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+            boot_config = false;
+ 
+            // We need the file size for loading XEX files and for CASSETTE, so get that too
+            disk.disk_size = host.file_size(disk.fileh);
+
+            // And now mount it
+            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+        }
+    }
+
+    if (nodisks){
+        // No disks in a slot, disable config
+        boot_config = false;
+    }
+
+    // Go ahead and respond ok
+    adamnet_response_ack();
+
+
 }
 
 // Set boot mode
@@ -1200,6 +1252,9 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_DISABLE_DEVICE:
         adamnet_disable_device();
+        break;
+    case SIO_FUJICMD_MOUNT_ALL:
+        sio_mount_all();
         break;
     }
 }
