@@ -8,20 +8,23 @@
 #define MEDIA_TYPE disktype_t
 #define MEDIA_TYPE_UNKNOWN DISKTYPE_UNKNOWN
 #define DEVICE_TYPE sioDisk
+#endif
 
-#elif BUILD_CBM
+#ifdef BUILD_CBM
 #include "../device/iec/disk.h"
 #define MEDIA_TYPE mediatype_t
 #define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
 #define DEVICE_TYPE iecDisk
+#endif
 
-#elif BUILD_ADAM
+#ifdef BUILD_ADAM
 #include "../device/adamnet/disk.h"
 #define MEDIA_TYPE mediatype_t
 #define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
 #define DEVICE_TYPE adamDisk
+#endif
 
-#elif NEW_TARGET
+#ifdef NEW_TARGET
 #include "../device/.new/disk.h"
 #define MEDIA_TYPE mediatype_t
 #define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN

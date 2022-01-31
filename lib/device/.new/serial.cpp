@@ -1,7 +1,8 @@
 #ifdef NEW_TARGET
 
 #include <cstring>
-#include ".new/serial.h"
+
+#include "serial.h"
 #include "led.h"
 
 #define SERIAL_BUF_SIZE 16

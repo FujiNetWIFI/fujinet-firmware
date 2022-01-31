@@ -20,13 +20,15 @@
     // sioCassette sioC; // now part of sioFuji theFuji object
     sioModem *sioR;
     sioCPM sioZ;
+#endif
 
-#elif BUILD_CBM
+#ifdef BUILD_CBM
 # include "iec/printer.h"
 # include "iec/printerlist.h"
 # include "iec/fuji.h"
+#endif
 
-#elif BUILD_ADAM
+#ifdef BUILD_ADAM
 # include "adamnet/keyboard.h"
 # include "adamnet/modem.h"
 # include "adamnet/printer.h"
@@ -39,20 +41,21 @@
     adamKeyboard *sioK;
     adamQueryDevice *sioQ;
     bool exists = false;
+#endif
 
-#elif NEW_TARGET
+#ifdef NEW_TARGET
 # include ".new/keyboard.h"
 # include ".new/modem.h"
 # include ".new/printer.h"
 # include ".new/printerlist.h"
 # include ".new/query_device.h"
 # include ".new/fuji.h"
+
 //# define NO_VIRTUAL_KEYBOARD
     adamModem *sioR;
     adamKeyboard *sioK;
     adamQueryDevice *sioQ;
     bool exists = false;
-
 #endif
 
 #endif // DEVICE_H

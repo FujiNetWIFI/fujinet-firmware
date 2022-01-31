@@ -1,22 +1,25 @@
 #ifndef MEDIA_H
 #define MEDIA_H
 
-#if BUILD_ATARI
+#ifdef BUILD_ATARI
 # include "atari/diskType.h"
 # include "atari/diskTypeAtr.h"
 # include "atari/diskTypeAtx.h"
 # include "atari/diskTypeXex.h"
+#endif
 
-#elif BUILD_CBM
+#ifdef BUILD_CBM
 # include "cbm/mediaType.h"
+#endif
 
-#elif BUILD_ADAM
+#ifdef BUILD_ADAM
 # include "adam/mediaType.h"
 # include "adam/mediaTypeDDP.h"
 # include "adam/mediaTypeDSK.h"
 # include "adam/mediaTypeROM.h"
+#endif
 
-#elif NEW_TARGET
+#ifdef NEW_TARGET
 # include ".new/mediaType.h"
 # include ".new/mediaTypeDDP.h"
 # include ".new/mediaTypeDSK.h"
