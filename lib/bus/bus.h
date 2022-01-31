@@ -37,16 +37,19 @@
 #ifdef BUILD_ATARI
 # include "sio/sio.h"
 # define BUS_CLASS SIO
+#endif
 
-#elif BUILD_CBM
+#ifdef BUILD_CBM
 # include "iec/iec.h"
 # define BUS_CLASS IEC
+#endif
 
-#elif BUILD_ADAM
+#ifdef BUILD_ADAM
 # include "adamnet/adamnet.h"
 # define BUS_CLASS AdamNet
+#endif
 
-#elif NEW_TARGET
+#ifdef NEW_TARGET
 # include ".new/adamnet.h"
 # define BUS_CLASS AdamNet
 #endif

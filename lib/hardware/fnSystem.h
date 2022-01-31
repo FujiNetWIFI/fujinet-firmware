@@ -10,6 +10,8 @@
 
 #include <driver/gpio.h>
 
+#include "bus.h"
+
 #include "../FileSystem/fnFS.h"
 
 #include "../../include/pinmap.h"
