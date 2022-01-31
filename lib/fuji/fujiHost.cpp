@@ -1,6 +1,5 @@
-#ifdef BUILD_ATARI
-#include "sio/fuji.h"
-#endif /* BUILD_ATARI */
+
+#include "fuji.h"
 
 #include "../FileSystem/fnFS.h"
 #include "../FileSystem/fnFsSD.h"
