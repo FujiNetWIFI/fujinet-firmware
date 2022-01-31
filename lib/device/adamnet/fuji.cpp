@@ -400,6 +400,13 @@ void adamFuji::adamnet_mount_all()
 // Set boot mode
 void adamFuji::adamnet_set_boot_mode()
 {
+    uint8_t bm = adamnet_recv();
+    adamnet_recv(); // CK
+
+    insert_boot_device(bm);
+    boot_config = true;
+
+    adamnet_response_ack();
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -1042,17 +1049,17 @@ void adamFuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fnSPIFFS.file_open(config_atr);
-        _bootDisk->mount(fBoot, config_atr, 0);
+        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);        
         break;
     case 1:
+
         fBoot = fnSPIFFS.file_open(mount_all_atr);
-        _bootDisk->mount(fBoot, mount_all_atr, 0);
+        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);        
         break;
     }
 
-    _bootDisk->is_config_device = true;
-    _bootDisk->device_active = true;
-    Debug_printf("Media type is %d\n", _bootDisk->mediatype());
+    _fnDisks[0].disk_dev.is_config_device = true;
+    _fnDisks[0].disk_dev.device_active = true;
 }
 
 void adamFuji::adamnet_enable_device()
@@ -1098,8 +1105,17 @@ void adamFuji::setup(adamNetBus *siobus)
     _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
     _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
 
-    FILE *f = fnSPIFFS.file_open("/autorun.ddp");
-    _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
+    Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
+    if (Config.get_general_boot_mode() == 0)
+    {
+        FILE *f = fnSPIFFS.file_open("/autorun.ddp");
+        _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
+    }
+    else
+    {
+        FILE *f = fnSPIFFS.file_open("/mount-and-boot.ddp");
+        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, MEDIATYPE_DDP);
+    }
 
     theNetwork = new adamNetwork();
     theSerial = new adamSerial();
@@ -1255,6 +1271,9 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_MOUNT_ALL:
         sio_mount_all();
+        break;
+    case SIO_FUJICMD_SET_BOOT_MODE:
+        adamnet_set_boot_mode();
         break;
     }
 }
