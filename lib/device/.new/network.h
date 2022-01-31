@@ -3,12 +3,15 @@
 
 #include <string>
 #include <vector>
-#include "bus.h"
-#include "EdUrlParser.h"
-#include "../../network-protocol/Protocol.h"
-#include ".new/networkStatus.h"
+
 #include "driver/timer.h"
-#include "../../lib/network-protocol/status_error_codes.h"
+
+#include "bus.h"
+#include "networkStatus.h"
+
+#include "EdUrlParser.h"
+#include "Protocol.h"
+#include "status_error_codes.h"
 
 /**
  * Number of devices to expose via ADAM, becomes 0x71 to 0x70 + NUM_DEVICES - 1

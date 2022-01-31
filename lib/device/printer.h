@@ -5,20 +5,23 @@
 #include "sio/printer.h"
 #include "sio/printerlist.h"
 #define PRINTER_CLASS sioPrinter
+#endif
 
-#elif BUILD_CBM
+#ifdef BUILD_CBM
 #include "iec/printer.h"
 #include "iec/printerlist.h"
 #define PRINTER_CLASS iecPrinter
+#endif
 
-#elif BUILD_ADAM
+#ifdef BUILD_ADAM
 #include "adamnet/printer.h"
 #include "adamnet/printerlist.h"
 #define PRINTER_CLASS adamPrinter
+#endif
 
-#elif NEW_TARGET
+#ifdef NEW_TARGET
 #include ".new/printer.h"
-#include "adamnet/printerlist.h"
+#include ".new/printerlist.h"
 #define PRINTER_CLASS adamPrinter
 #endif
 

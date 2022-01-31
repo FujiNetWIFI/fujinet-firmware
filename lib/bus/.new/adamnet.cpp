@@ -2,10 +2,11 @@
 /**
  * AdamNet Functions
  */
-
 #include "adamnet.h"
-#include ".new/fuji.h"
+#include "fuji.h"
+
 #include "../../include/debug.h"
+
 #include "utils.h"
 #include "led.h"
 
