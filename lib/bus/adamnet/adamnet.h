@@ -6,8 +6,11 @@
  */
 
 #include <map>
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+
 #include "fnSystem.h"
-#include "../sio/sio.h" // cmdframe_t
 
 #define ADAMNET_BAUD 62500
 

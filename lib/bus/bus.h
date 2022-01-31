@@ -2,23 +2,24 @@
 #define BUS_H
 
 // #include "fnSystem.h"
+#include <stdint.h>
 
-// union cmdFrame_t
-// {
-//     struct
-//     {
-//         uint8_t device;
-//         uint8_t comnd;
-//         uint8_t aux1;
-//         uint8_t aux2;
-//         uint8_t cksum;
-//     };
-//     struct
-//     {
-//         uint32_t commanddata;
-//         uint8_t checksum;
-//     } __attribute__((packed));
-// };
+union cmdFrame_t
+{
+    struct
+    {
+        uint8_t device;
+        uint8_t comnd;
+        uint8_t aux1;
+        uint8_t aux2;
+        uint8_t cksum;
+    };
+    struct
+    {
+        uint32_t commanddata;
+        uint8_t checksum;
+    } __attribute__((packed));
+};
 
 // enum bus_message : uint16_t
 // {
