@@ -1,6 +1,8 @@
 #ifdef NEW_TARGET
 
+#include <cstdint>
 #include <cstring>
+
 #include "mediaType.h"
 
 MediaType::~MediaType()

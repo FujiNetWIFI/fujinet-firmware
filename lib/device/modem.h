@@ -17,7 +17,7 @@ extern adamModem *sioR;
 #endif
 
 #ifdef NEW_TARGET
-#include ".new/modem.h"
+#include "new/modem.h"
 extern adamModem *sioR;
 #endif
 

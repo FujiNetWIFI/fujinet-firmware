@@ -4,9 +4,10 @@
 #include <string.h>
 
 #include "../../include/debug.h"
+#include "../utils/utils.h"
 
-#include "disk.h"
-#include "utils.h"
+#include "../device/adamnet/disk.h"
+#include "media.h"
 
 adamDisk::adamDisk()
 {

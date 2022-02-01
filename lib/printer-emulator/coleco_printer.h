@@ -1,9 +1,7 @@
-#ifdef BUILD_ADAM
-
 #ifndef COLECO_PRINTER_H
 #define COLECO_PRINTER_H
 
-#include "adamnet/printer.h"
+#include "printer.h"
 
 #include "pdf_printer.h"
 
@@ -17,15 +15,18 @@ protected:
 public:
     const char *modelname()  override 
     { 
-        #ifdef BUILD_ADAM
+        #ifdef BUILD_ATARI
+            return sioPrinter::printer_model_str[sioPrinter::PRINTER_COLECO_ADAM];
+        #elif BUILD_CBM
+            return adamPrinter::printer_model_str[iecPrinter::PRINTER_COLECO_ADAM];
+        #elif BUILD_ADAM
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_COLECO_ADAM];
-        //#else
-        // #ifdef BUILD_ATARI
-        //    return sioPrinter::printer_model_str[sioPrinter::PRINTER_COLECO_ADAM];
+        #elif NEW_TARGET
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_COLECO_ADAM];
         #else
             return PRINTER_UNSUPPORTED;
         #endif
     };
 };
-#endif
+
 #endif

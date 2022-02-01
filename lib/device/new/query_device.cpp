@@ -1,11 +1,6 @@
 #ifdef NEW_TARGET
-#include <memory.h>
-#include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
-
-#include "../device/.new/query_device.h"
+#include "query_device.h"
 
 // ctor
 adamQueryDevice::adamQueryDevice()

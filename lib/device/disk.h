@@ -23,7 +23,7 @@
 #endif
 
 #ifdef NEW_TARGET
-#include ".new/disk.h"
+#include "new/disk.h"
 #define MEDIA_TYPE mediatype_t
 #define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
 #define DEVICE_TYPE adamDisk

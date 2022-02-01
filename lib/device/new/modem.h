@@ -1,13 +1,16 @@
 #ifndef ADAM_MODEM_H
 #define ADAM_MODEM_H
 
+#include <cstdint>
 #include <string>
+
+#include <time.h>
+
+#include "bus.h"
+
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
-#include "fnFsSD.h"
-#include "fnFsSPIFFS.h"
-#include "bus.h"
-#include "../modem-sniffer/modem-sniffer.h"
+#include "modem-sniffer.h"
 #include "libtelnet.h"
 #include "esp32sshclient.h"
 
@@ -176,7 +179,7 @@ private:
     telnet_t *telnet;               // telnet FSM state.
     bool use_telnet=false;          // Use telnet mode?
     bool do_echo;                   // telnet echo toggle.
-    string term_type;               // telnet terminal type.
+    std::string term_type;               // telnet terminal type.
     ESP32SSHCLIENT ssh;             // ssh instance.
     long answerTimer;
     bool answered=false;
@@ -224,8 +227,8 @@ public:
     fnTcpClient get_tcp_client() { return tcpClient; } // Return TCP client.
     bool get_do_echo() { return do_echo; }
     void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
-    string get_term_type() {return term_type; }
-    void set_term_type(string _term_type) { term_type = _term_type; }
+    std::string get_term_type() {return term_type; }
+    void set_term_type(std::string _term_type) { term_type = _term_type; }
 
 };
 

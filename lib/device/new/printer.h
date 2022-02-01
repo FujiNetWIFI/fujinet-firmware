@@ -1,10 +1,13 @@
 #ifndef ADAM_PRINTER_H
 #define ADAM_PRINTER_H
 
-#include <string.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <cstdint>
+#include <string>
 
-#include "../../bus/bus.h"
-#include "../printer-emulator/printer_emulator.h"
+#include "bus.h"
+#include "printer_emulator.h"
 #include "fnFS.h"
 
 #define PRINTER_UNSUPPORTED "Unsupported"
@@ -104,6 +107,5 @@ private:
     bool _backwards = false;
 
 };
-
 
 #endif /* ADAM_PRINTER_H */

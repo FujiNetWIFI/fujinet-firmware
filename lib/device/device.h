@@ -44,12 +44,12 @@
 #endif
 
 #ifdef NEW_TARGET
-# include ".new/keyboard.h"
-# include ".new/modem.h"
-# include ".new/printer.h"
-# include ".new/printerlist.h"
-# include ".new/query_device.h"
-# include ".new/fuji.h"
+# include "new/keyboard.h"
+# include "new/modem.h"
+# include "new/printer.h"
+# include "new/printerlist.h"
+# include "new/query_device.h"
+# include "new/fuji.h"
 
 //# define NO_VIRTUAL_KEYBOARD
     adamModem *sioR;

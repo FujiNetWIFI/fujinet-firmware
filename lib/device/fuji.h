@@ -14,7 +14,7 @@
 #endif
 
 #ifdef NEW_TARGET
-#include ".new/fuji.h"
+#include "new/fuji.h"
 #endif
 
 

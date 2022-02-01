@@ -3,24 +3,33 @@
 /**
  * N: Firmware
  */
-#include <string.h>
+// #include <string.h>
+// #include <algorithm>
+// #include <vector>
+#include <cstring>
 #include <algorithm>
-#include <vector>
-#include "utils.h"
-#include "network.h"
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnWiFi.h"
-#include "../network-protocol/TCP.h"
-#include "../network-protocol/UDP.h"
-#include "../network-protocol/Test.h"
-#include "../network-protocol/Telnet.h"
-#include "../network-protocol/TNFS.h"
-#include "../network-protocol/FTP.h"
-#include "../network-protocol/HTTP.h"
-#include "../network-protocol/SSH.h"
-#include "../network-protocol/SMB.h"
 
-using namespace std;
+#include "network.h"
+
+#include "../../include/debug.h"
+
+// #include "../hardware/fnSystem.h"
+// #include "../hardware/fnWiFi.h"
+
+#include "utils.h"
+
+#include "status_error_codes.h"
+#include "TCP.h"
+#include "UDP.h"
+#include "Test.h"
+#include "Telnet.h"
+#include "TNFS.h"
+#include "FTP.h"
+#include "HTTP.h"
+#include "SSH.h"
+#include "SMB.h"
+
+//using namespace std;
 
 /**
  * Constructor
@@ -812,7 +821,7 @@ bool adamNetwork::instantiate_protocol()
     }
 
     // Convert to uppercase
-    transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
+    std::transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
 
     if (urlParser->scheme == "TCP")
     {
@@ -945,7 +954,7 @@ bool adamNetwork::parseURL()
 
     if (cmdFrame.aux1 != 6) // Anything but a directory read...
     {
-        replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
+        std::replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
     }
 
     // // Some FMSes add a dot at the end, remove it.

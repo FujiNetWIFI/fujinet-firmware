@@ -20,8 +20,8 @@
 #endif
 
 #ifdef NEW_TARGET
-#include ".new/printer.h"
-#include ".new/printerlist.h"
+#include "new/printer.h"
+#include "new/printerlist.h"
 #define PRINTER_CLASS adamPrinter
 #endif
 
