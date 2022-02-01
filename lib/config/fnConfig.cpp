@@ -1,21 +1,12 @@
-#include <string>
-#include <iostream>
 #include <sstream>
 
-#include <string.h>
-
 #include "fnConfig.h"
-#include "../FileSystem/fnFsSPIF.h"
-#include "../FileSystem/fnFsSD.h"
-#include "../hardware/keys.h"
-#include "../utils/utils.h"
+
 #include "../../include/debug.h"
 
-#ifdef BUILD_ATARI
-#include "modem-sniffer.h"
-#include "sio/modem.h"
-extern sioModem *sioR;
-#endif
+#include "fnSystem.h"
+#include "keys.h"
+#include "utils.h"
 
 #define CONFIG_FILENAME "/fnconfig.ini"
 #define CONFIG_FILEBUFFSIZE 2048
