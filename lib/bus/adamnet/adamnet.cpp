@@ -7,7 +7,6 @@
  */
 #include "adamnet.h"
 
-//#include "utils.h"
 #include "led.h"
 
 

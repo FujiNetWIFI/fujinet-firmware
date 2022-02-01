@@ -6,9 +6,7 @@
  * AdamNet Functions
  */
 #include "adamnet.h"
-//#include "fuji.h"
 
-#include "utils.h"
 #include "led.h"
 
 

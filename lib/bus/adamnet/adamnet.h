@@ -10,9 +10,6 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
-//#include "../bus.h"
-//#include "fnSystem.h"
-
 #define ADAMNET_BAUD 62500
 
 #define MN_RESET 0x00   // command.control (reset)
