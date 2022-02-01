@@ -1,11 +1,10 @@
 #ifndef ADAM_SERIAL_H
 #define ADAM_SERIAL_H
 
-#include <string>
-#include <vector>
+#include <cstdint>
+
 #include "bus.h"
-#include "EdUrlParser.h"
-#include "driver/timer.h"
+
 #include "fnTcpClient.h"
 #include "fnTcpServer.h"
 
