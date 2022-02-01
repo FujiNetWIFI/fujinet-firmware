@@ -2,7 +2,7 @@
  * Network Status object
  */
 
-#include <stdint.h>
+#include <cstdint>
 
 #ifndef NETWORKSTATUS_H
 #define NETWORKSTATUS_H
