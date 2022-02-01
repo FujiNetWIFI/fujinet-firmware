@@ -3,9 +3,10 @@
 
 #include <string>
 
-#include "freertos/event_groups.h"
-#include "esp_event.h"
-#include "esp_netif.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/event_groups.h>
+//#include <esp_event.h>
+#include <esp_netif.h>
 
 #define FNWIFI_RECONNECT_RETRIES 8
 #define FNWIFI_SCAN_RESULTS_MAX 20

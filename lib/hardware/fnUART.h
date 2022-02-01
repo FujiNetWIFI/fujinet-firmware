@@ -4,6 +4,7 @@
 #define FNUART_H
 
 #include <string>
+
 #include <driver/uart.h>
 
 class UARTManager

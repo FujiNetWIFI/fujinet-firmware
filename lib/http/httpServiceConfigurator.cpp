@@ -1,25 +1,12 @@
-#include <sstream>
-#include <string>
-#include <cstdio>
-
-#include <string>
-#include <map>
-
-#include "esp_task.h"
-#include "esp_heap_task_info.h"
-
 #include "httpServiceConfigurator.h"
 
 #include "../../include/debug.h"
 
+#include "fnSystem.h"
 #include "fnConfig.h"
+#include "printer.h"
 #include "utils.h"
 
-#include "printer.h"
-#include "fuji.h"
-
-
-#include "fnSystem.h"
 
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)

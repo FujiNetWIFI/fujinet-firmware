@@ -1,10 +1,14 @@
 #include <sstream>
-#include <string>
-#include <cstdio>
-#include <locale>
 
-#include "httpService.h"
 #include "httpServiceParser.h"
+
+#include "../../include/debug.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnWifi.h"
+#include "httpService.h"
+#include "fuji.h"
 
 #define ALL_THE_DEBUGS
 

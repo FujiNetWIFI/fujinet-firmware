@@ -19,18 +19,18 @@ currently supported tags.
 #ifndef HTTPSERVICEPARSER_H
 #define HTTPSERVICEPARSER_H
 
-#include <vector>
+// #include <vector>
 
-#include "../../include/debug.h"
-#include "fnConfig.h"
+// #include "../../include/debug.h"
+// #include "fnConfig.h"
 
-#include "printer.h"
-#include "fuji.h"
+// #include "printer.h"
+// #include "fuji.h"
 
-#include "fnSystem.h"
-#include "fnWiFi.h"
-#include "fnFsSPIFFS.h"
-#include "fnFsSD.h"
+// #include "fnSystem.h"
+// #include "fnWiFi.h"
+// #include "fnFsSPIFFS.h"
+// #include "fnFsSD.h"
 
 
 class fnHttpServiceParser

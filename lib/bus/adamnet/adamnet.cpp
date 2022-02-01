@@ -7,6 +7,8 @@
  */
 #include "adamnet.h"
 
+#include "fnSystem.h"
+
 #include "led.h"
 
 
