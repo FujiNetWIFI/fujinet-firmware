@@ -6,8 +6,7 @@
 #define NETWORKPROTOCOL_TELNET
 
 #include "TCP.h"
-#include "../tcpip/fnTcpClient.h"
-#include "../tcpip/fnTcpServer.h"
+
 
 class NetworkProtocolTELNET : public NetworkProtocolTCP
 {

@@ -6,10 +6,14 @@
 #ifndef MODEM_SNIFFER_H
 #define MODEM_SNIFFER_H
 
+#include <cstdint>
 #include <string>
 
-#include "fnFsSD.h"
-#include "fnFsSPIFFS.h"
+#include <stdio.h>
+
+#include "fnFS.h"
+// #include "fnFsSD.h"
+// #include "fnFsSPIFFS.h"
 
 using namespace std;
 
@@ -97,7 +101,7 @@ protected:
     /**
      * Output buffer
      */
-    string outputBuffer;
+    std::string outputBuffer;
 
     /**
      * Recreate SNIFFER_OUTPUT_FILE
