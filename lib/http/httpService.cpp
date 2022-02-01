@@ -10,17 +10,6 @@
 #include "esp_wps.h"
 
 #include "httpService.h"
-#include "httpServiceParser.h"
-#include "httpServiceConfigurator.h"
-#include "fnWiFi.h"
-#include "keys.h"
-#include "fnConfig.h"
-
-#include "printer.h"
-#include "modem.h"
-#include "fuji.h"
-
-#include "../../include/debug.h"
 
 using namespace std;
 

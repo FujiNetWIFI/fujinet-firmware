@@ -3,21 +3,10 @@
 #include <cstdio>
 #include <locale>
 
-#include "../../include/debug.h"
-#include "fnConfig.h"
-
 #include "httpService.h"
 #include "httpServiceParser.h"
 
 #define ALL_THE_DEBUGS
-
-#include "printer.h"
-#include "fuji.h"
-
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnWiFi.h"
-#include "fnFsSPIF.h"
-#include "fnFsSD.h"
 
 using namespace std;
 

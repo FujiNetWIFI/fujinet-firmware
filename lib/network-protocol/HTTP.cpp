@@ -7,6 +7,8 @@
 #include "../webdav/WebDAV.h"
 #include "../utils/utils.h"
 
+#include "../../include/debug.h"
+
 /**
  Modes and the N: HTTP Adapter:
 

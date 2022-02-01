@@ -9,6 +9,8 @@
 #include "status_error_codes.h"
 #include "utils.h"
 
+#include "../../include/debug.h"
+
 NetworkProtocolFTP::NetworkProtocolFTP(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {

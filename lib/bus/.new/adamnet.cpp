@@ -1,11 +1,12 @@
 #ifdef NEW_TARGET
+
+#include "../../include/debug.h"
+
 /**
  * AdamNet Functions
  */
 #include "adamnet.h"
-#include "fuji.h"
-
-#include "../../include/debug.h"
+//#include "fuji.h"
 
 #include "utils.h"
 #include "led.h"

@@ -4,6 +4,8 @@
 
 #include "Test.h"
 
+#include "../../include/debug.h"
+
 NetworkProtocolTest::NetworkProtocolTest(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {

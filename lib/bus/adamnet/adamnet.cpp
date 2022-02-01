@@ -1,12 +1,13 @@
 #ifdef BUILD_ADAM
+
+#include "../../include/debug.h"
+
 /**
  * AdamNet Functions
  */
-
 #include "adamnet.h"
-#include "adamnet/fuji.h"
-#include "../../include/debug.h"
-#include "utils.h"
+
+//#include "utils.h"
 #include "led.h"
 
 

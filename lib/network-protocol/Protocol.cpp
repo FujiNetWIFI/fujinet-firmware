@@ -8,6 +8,8 @@
 #include "status_error_codes.h"
 #include "../utils/utils.h"
 
+#include "../../include/debug.h"
+
 using namespace std;
 
 #define ASCII_BELL 0x07

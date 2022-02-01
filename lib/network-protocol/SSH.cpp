@@ -5,6 +5,8 @@
 #include "SSH.h"
 #include "status_error_codes.h"
 
+#include "../../include/debug.h"
+
 #define RXBUF_SIZE 65535
 
 NetworkProtocolSSH::NetworkProtocolSSH(string *rx_buf, string *tx_buf, string *sp_buf)
