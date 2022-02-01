@@ -3,11 +3,12 @@
  */
 
 #include <string.h>
-#include "../../include/debug.h"
-#include "fnFTP.h"
-#include "../hardware/fnSystem.h"
 
-#include <time.h>
+#include "fnFTP.h"
+
+#include "../../include/debug.h"
+
+#include "fnSystem.h"
 
 /*
 ftpparse(&fp,buf,len) tries to parse one line of LIST output.

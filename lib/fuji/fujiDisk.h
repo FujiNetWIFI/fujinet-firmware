@@ -1,8 +1,6 @@
 #ifndef _FUJI_DISK_
 #define _FUJI_DISK_
 
-#include <string>
-
 #include "../device/disk.h"
 
 #include "fujiHost.h"
