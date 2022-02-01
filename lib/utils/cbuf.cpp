@@ -18,6 +18,9 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
+#include <cstddef>
+#include <cstring>
+
 #include "cbuf.h"
 
 cbuf::cbuf(size_t size) : next(NULL), _size(size + 1), _buf(new char[size + 1]), _bufend(_buf + size + 1), _begin(_buf), _end(_begin)
