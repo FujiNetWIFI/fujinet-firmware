@@ -1,7 +1,5 @@
 #include "fujiDisk.h"
 
-#include <string.h>
-
 void fujiDisk::reset()
 {
     host_slot = INVALID_HOST_SLOT;

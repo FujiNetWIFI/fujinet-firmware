@@ -1,9 +1,7 @@
 #ifndef _FUJI_HOST_
 #define _FUJI_HOST_
 
-#include <string>
-
-#include "../FileSystem/fnFS.h"
+#include "fnFS.h"
 
 #define MAX_HOSTNAME_LEN 32
 #define MAX_HOST_PREFIX_LEN 256
