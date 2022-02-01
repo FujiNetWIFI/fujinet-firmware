@@ -8,8 +8,10 @@
 #ifndef JSON_H
 #define JSON_H
 
-#include <networkProtocol.h>
+//#include <networkProtocol.h>
 #include <cJSON.h>
+
+#include "Protocol.h"
 
 class JSON
 {

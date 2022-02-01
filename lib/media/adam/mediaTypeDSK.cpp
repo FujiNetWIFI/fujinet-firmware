@@ -1,14 +1,13 @@
 #ifdef BUILD_ADAM
-#include <memory.h>
-#include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
-
-#include "fnSystem.h"
-#include "../device/adamnet/disk.h"
+#include <cstdint>
+#include <cstring>
+#include <utility>
 
 #include "mediaTypeDSK.h"
+
+#include "../../include/debug.h"
+
 
 #define INTERLEAVE 5 // 5:1 sector layout in image files (WHY?!?!!?)
 

@@ -1,14 +1,12 @@
 #ifdef BUILD_ADAM
-#include <memory.h>
-#include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
-
-#include "fnSystem.h"
-#include "../device/adamnet/disk.h"
+#include <cstdint>
+#include <cstring>
 
 #include "mediaTypeDDP.h"
+
+#include "../../include/debug.h"
+
 
 // Returns byte offset of given sector number
 uint32_t MediaTypeDDP::_block_to_offset(uint32_t blockNum)

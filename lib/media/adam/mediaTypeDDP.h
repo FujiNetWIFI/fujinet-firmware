@@ -1,6 +1,8 @@
 #ifndef _MEDIATYPE_DDP_
 #define _MEDIATYPE_DDP_
 
+#include <stdio.h>
+
 #include "mediaType.h"
 
 class MediaTypeDDP : public MediaType
