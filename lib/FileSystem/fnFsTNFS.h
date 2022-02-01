@@ -2,8 +2,7 @@
 #define _FN_FSTNFS_
 
 #include "fnFS.h"
-#include "../TNFSlib/tnfslib.h"
-
+#include "tnfslib.h"
 
 class FileSystemTNFS : public FileSystem
 {
