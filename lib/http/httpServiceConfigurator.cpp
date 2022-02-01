@@ -8,13 +8,17 @@
 #include "esp_task.h"
 #include "esp_heap_task_info.h"
 
+#include "httpServiceConfigurator.h"
+
+#include "../../include/debug.h"
+
 #include "fnConfig.h"
 #include "utils.h"
 
 #include "printer.h"
 #include "fuji.h"
 
-#include "httpServiceConfigurator.h"
+
 #include "fnSystem.h"
 
 // TODO: This was copied from another source and needs some bounds-checking!

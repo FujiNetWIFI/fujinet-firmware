@@ -8,7 +8,7 @@
 #include "fnSystem.h"
 #include "fnWiFi.h"
 #include "fnFsSD.h"
-#include "fnFsSPIF.h"
+#include "fnFsSPIFFS.h"
 #include "fnConfig.h"
 #include "keys.h"
 #include "led.h"

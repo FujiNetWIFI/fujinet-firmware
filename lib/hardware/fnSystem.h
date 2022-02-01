@@ -6,7 +6,7 @@
 #define FNSYSTEM_H
 
 // #include <cstdint>
-// #include <string>
+#include <string>
 
 #include <driver/gpio.h>
 

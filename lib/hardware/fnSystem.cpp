@@ -24,7 +24,7 @@
 
 #include "fnSystem.h"
 #include "fnFsSD.h"
-#include "fnFsSPIF.h"
+#include "fnFsSPIFFS.h"
 #include "fnWiFi.h"
 
 

@@ -9,7 +9,7 @@
 #include <string>
 
 #include "fnFsSD.h"
-#include "fnFsSPIF.h"
+#include "fnFsSPIFFS.h"
 
 using namespace std;
 

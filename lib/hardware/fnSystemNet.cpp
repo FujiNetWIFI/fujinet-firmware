@@ -6,6 +6,9 @@
 
 
 #include "fnSystem.h"
+
+#include "../../include/debug.h"
+
 #include "fnConfig.h"
 
 #include "fnWiFi.h"

@@ -2,6 +2,9 @@
 #include <string.h>
 
 #include "tnfslib.h"
+
+#include "../../include/debug.h"
+
 #include "../tcpip/fnUDP.h"
 #include "../utils/utils.h"
 #include "../hardware/fnSystem.h"

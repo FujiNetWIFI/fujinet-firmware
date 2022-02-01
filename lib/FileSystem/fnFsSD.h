@@ -1,8 +1,12 @@
 #ifndef _FN_FSSD_
 #define _FN_FSSD_
 
-#include "esp_vfs_fat.h"
+#include <stdio.h>
+
+#include <esp_vfs_fat.h>
+
 #include "fnFS.h"
+
 class FileSystemSDFAT : public FileSystem
 {
 private:

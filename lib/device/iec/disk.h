@@ -29,7 +29,7 @@
 #include "../../../include/petscii.h"
 
 #include "bus.h"
-#include "fnFsSPIF.h"
+#include "fnFsSPIFFS.h"
 #include "media.h"
 
 #define ARCHIVE_TYPES "ZIP|7Z|RAR"
