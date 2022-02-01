@@ -7,6 +7,7 @@
 #include "RenderTabs.h"
 
 #include "samdebug.h"
+
 extern int debug;
 
 unsigned char wait1 = 7;

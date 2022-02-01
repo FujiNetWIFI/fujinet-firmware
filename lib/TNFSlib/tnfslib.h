@@ -1,11 +1,11 @@
 #ifndef _TNFSLIB_H
 #define _TNFSLIB_H
 
-#include <cstdint>
-#include <cstdio>
-#include <string>
+// #include <cstdint>
+// #include <cstdio>
+// #include <string>
 
-#include <lwip/netdb.h>
+// #include <lwip/netdb.h>
 
 #include "tnfslibMountInfo.h"
 

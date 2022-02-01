@@ -1,13 +1,13 @@
-#include <memory>
-#include <string.h>
 
 #include "tnfslib.h"
 
 #include "../../include/debug.h"
 
-#include "../tcpip/fnUDP.h"
-#include "../utils/utils.h"
-#include "../hardware/fnSystem.h"
+#include "fnSystem.h"
+#include "fnUDP.h"
+
+#include "utils.h"
+
 
 bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
 

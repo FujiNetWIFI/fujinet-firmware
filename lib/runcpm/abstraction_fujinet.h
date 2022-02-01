@@ -5,10 +5,20 @@
 #ifndef ABSTRACTION_FUJINET_H
 #define ABSTRACTION_FUJINET_H
 
-#include "globals.h"
 #include <string.h>
+
+#include "globals.h"
+
+#include "../../include/debug.h"
+
+#include "fnSystem.h"
+#include "fnWiFi.h"
+#include "fnFsSD.h"
+#include "fnUART.h"
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
+
+#include "fuji.h"
 
 #define HostOS 0x07 // FUJINET
 
