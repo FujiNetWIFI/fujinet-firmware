@@ -1,12 +1,11 @@
 /* Modified version of ESP-Arduino fnTcpServer.cpp/h */
 
-#include <lwip/sockets.h>
 #include <lwip/netdb.h>
-#include <errno.h>
+
+#include "fnTcpServer.h"
 
 #include "../../include/debug.h"
 
-#include "fnTcpServer.h"
 
 // Configures a listening TCP socket on given port
 void fnTcpServer::begin(uint16_t port)

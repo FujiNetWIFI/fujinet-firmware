@@ -5,8 +5,9 @@
 
 #include <esp_heap_caps.h>
 
-#include "samdebug.h"
 #include "sam.h"
+
+#include "samdebug.h"
 #include "render.h"
 #include "SamTabs.h"
 
