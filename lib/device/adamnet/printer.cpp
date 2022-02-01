@@ -5,6 +5,8 @@
 #include "printer.h"
 
 #include "../../../include/debug.h"
+
+#include "fnSystem.h"
 #include "led.h"
 
 #include "atari_1020.h"

@@ -1,15 +1,18 @@
-#include <vector>
-#include <map>
 #include <sstream>
-
-#include <esp_wifi.h>
-#include <esp_event.h>
-#include <esp_log.h>
-#include <esp_system.h>
-#include <nvs_flash.h>
-#include "esp_wps.h"
+#include <vector>
 
 #include "httpService.h"
+
+#include "../../include/debug.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnWiFi.h"
+#include "modem.h"
+#include "printer.h"
+#include "httpServiceConfigurator.h"
+#include "httpServiceParser.h"
+#include "fuji.h"
 
 using namespace std;
 

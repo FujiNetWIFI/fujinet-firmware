@@ -1,5 +1,8 @@
-#include <cstring>
+
+#include "fnSystem.h"
+
 #include "led.h"
+
 
 #define BLINKING_TIME 100 // 200 ms
 

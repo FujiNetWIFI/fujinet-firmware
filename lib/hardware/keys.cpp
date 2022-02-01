@@ -1,10 +1,15 @@
 
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-
 #include "keys.h"
 
 #include "../../include/debug.h"
+#include "../../include/pinmap.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnWiFi.h"
+#include "fnBluetooth.h"
+
+#include "led.h"
 
 // Global KeyManager object
 KeyManager fnKeyManager;

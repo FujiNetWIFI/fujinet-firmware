@@ -1,12 +1,11 @@
-#include <string.h>
-#include <cstdarg>
-#include <esp_system.h>
-#include <driver/uart.h>
+#include <cstring>
+
 #include <soc/uart_reg.h>
 
-#include "../../include/debug.h"
-#include "../../include/pinmap.h"
 #include "fnUART.h"
+
+#include "../../include/pinmap.h"
+
 
 #define UART_DEBUG UART_NUM_0
 #define UART_ADAMNET UART_NUM_2

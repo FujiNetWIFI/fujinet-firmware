@@ -5,7 +5,6 @@ Broke out system configuration functions to make things easier to read.
 #ifndef HTTPSERVICECONFIGURATOR_H
 #define HTTPSERVICECONFIGURATOR_H
 
-#include <stddef.h>
 #include <map>
 
 
