@@ -1,11 +1,7 @@
 #ifdef NEW_TARGET
-#include <memory.h>
-#include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
+#include "keyboard.h"
 
-#include "../device/.new/keyboard.h"
 
 TaskHandle_t kbTask;
 

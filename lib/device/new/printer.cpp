@@ -1,11 +1,12 @@
 #ifdef NEW_TARGET
 
-#include "../../include/atascii.h"
+#include <cstring>
+
 #include "printer.h"
-#include <deque>
-#include <queue>
-#include <vector>
-#include <string>
+
+#include "../../../include/debug.h"
+
+#include "fnSystem.h"
 #include "led.h"
 
 #include "atari_1020.h"

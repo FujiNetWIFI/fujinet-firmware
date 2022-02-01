@@ -3,7 +3,9 @@
 #include <cstring>
 
 #include "serial.h"
-#include "led.h"
+
+#include "../../include/debug.h"
+
 
 #define SERIAL_BUF_SIZE 16
 

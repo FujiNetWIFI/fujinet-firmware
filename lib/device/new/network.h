@@ -2,16 +2,14 @@
 #define NETWORK_H
 
 #include <string>
-#include <vector>
 
-#include "driver/timer.h"
+#include <esp_timer.h>
 
 #include "bus.h"
-#include "networkStatus.h"
-
 #include "EdUrlParser.h"
+
 #include "Protocol.h"
-#include "status_error_codes.h"
+
 
 /**
  * Number of devices to expose via ADAM, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -144,17 +142,17 @@ private:
     /**
      * The Receive buffer for this N: device
      */
-    string *receiveBuffer = nullptr;
+    std::string *receiveBuffer = nullptr;
 
     /**
      * The transmit buffer for this N: device
      */
-    string *transmitBuffer = nullptr;
+    std::string *transmitBuffer = nullptr;
 
     /**
      * The special buffer for this N: device
      */
-    string *specialBuffer = nullptr;
+    std::string *specialBuffer = nullptr;
 
     /**
      * The EdUrlParser object used to hold/process a URL
@@ -195,12 +193,12 @@ private:
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
      */
-    string deviceSpec;
+    std::string deviceSpec;
 
     /**
      * The currently set Prefix for this N: device, set by ADAM call 0x2C
      */
-    string prefix;
+    std::string prefix;
 
     /**
      * The AUX1 value used for OPEN.
@@ -226,12 +224,12 @@ private:
     /**
      * The login to use for a protocol action
      */
-    string login;
+    std::string login;
 
     /**
      * The password to use for a protocol action
      */
-    string password;
+    std::string password;
 
     /**
      * Timer Rate for interrupt timer
@@ -397,7 +395,7 @@ private:
      * @brief parse URL and instantiate protocol
      * @param db pointer to devicespecbuf 256 chars
      */
-    void parse_and_instantiate_protocol(string d);
+    void parse_and_instantiate_protocol(std::string d);
 };
 
 #endif /* NETWORK_H */

@@ -1,5 +1,3 @@
-#ifdef BUILD_ADAM
-
 #include "coleco_printer.h"
 #include "../../include/debug.h"
 
@@ -67,5 +65,3 @@ void colecoprinter::post_new_file()
 
     pdf_header();
 }
-
-#endif

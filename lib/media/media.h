@@ -20,10 +20,10 @@
 #endif
 
 #ifdef NEW_TARGET
-# include ".new/mediaType.h"
-# include ".new/mediaTypeDDP.h"
-# include ".new/mediaTypeDSK.h"
-# include ".new/mediaTypeROM.h"
+# include "new/mediaType.h"
+# include "new/mediaTypeDDP.h"
+# include "new/mediaTypeDSK.h"
+# include "new/mediaTypeROM.h"
 #endif
 
 #endif // MEDIA_H

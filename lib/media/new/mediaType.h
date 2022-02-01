@@ -3,7 +3,6 @@
 
 #include <stdio.h>
 
-
 #define INVALID_SECTOR_VALUE 0xFFFFFFFF
 
 #define MEDIA_BLOCK_SIZE 1024

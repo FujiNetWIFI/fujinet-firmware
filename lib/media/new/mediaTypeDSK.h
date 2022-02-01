@@ -1,7 +1,8 @@
 #ifndef _MEDIATYPE_DSK_
 #define _MEDIATYPE_DSK_
 
-#include <utility>
+#include <stdio.h>
+
 #include "mediaType.h"
 
 class MediaTypeDSK : public MediaType

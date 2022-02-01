@@ -17,7 +17,7 @@
 #endif
 
 #ifdef NEW_TARGET
-# include ".new/adamnet.h"
+# include "new/adamnet.h"
 # define BUS_CLASS AdamNet
 #endif
 

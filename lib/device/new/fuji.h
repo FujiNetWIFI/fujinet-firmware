@@ -1,9 +1,10 @@
 #ifndef FUJI_H
 #define FUJI_H
-//#include <cstdint>
 
-#include "disk.h"
+#include <cstdint>
+
 #include "network.h"
+#include "disk.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"

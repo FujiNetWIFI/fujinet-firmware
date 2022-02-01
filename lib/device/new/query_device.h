@@ -1,11 +1,9 @@
 #ifndef ADAM_QUERY_H
 #define ADAM_QUERY_H
 
-#include <string.h>
-#include <queue>
+#include <cstdint>
 
 #include "bus.h"
-#include "fnTcpServer.h"
 
 #define ADAMNET_SEARCH_DEVICE_TIMEOUT (220)
 
