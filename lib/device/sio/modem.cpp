@@ -7,7 +7,7 @@
 #include "modem.h"
 #include "../hardware/fnUART.h"
 #include "fnWiFi.h"
-#include "fnFsSPIF.h"
+#include "fnFsSPIFFS.h"
 #include "fnSystem.h"
 #include "../utils/utils.h"
 #include "siocpm.h"

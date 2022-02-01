@@ -1,6 +1,10 @@
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+
 #include "keys.h"
 
+#include "../../include/debug.h"
 
 // Global KeyManager object
 KeyManager fnKeyManager;

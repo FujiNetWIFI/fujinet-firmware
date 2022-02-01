@@ -5,7 +5,8 @@
 
 #include "modem.h"
 
-#include "../../include/atascii.h"
+#include "../../../include/debug.h"
+#include "../../../include/atascii.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"

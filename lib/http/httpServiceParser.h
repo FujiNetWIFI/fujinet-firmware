@@ -29,7 +29,7 @@ currently supported tags.
 
 #include "fnSystem.h"
 #include "fnWiFi.h"
-#include "fnFsSPIF.h"
+#include "fnFsSPIFFS.h"
 #include "fnFsSD.h"
 
 

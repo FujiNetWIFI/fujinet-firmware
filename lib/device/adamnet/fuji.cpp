@@ -3,6 +3,9 @@
 #include <cstring>
 
 #include "fuji.h"
+
+#include "../../include/debug.h"
+
 #include "serial.h"
 
 #include "fnWiFi.h"

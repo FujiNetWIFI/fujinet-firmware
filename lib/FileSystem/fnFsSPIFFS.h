@@ -1,5 +1,5 @@
-#ifndef _FN_FSSPIF_
-#define _FN_FSSPIF_
+#ifndef _FN_FSSPIFFS_
+#define _FN_FSSPIFFS_
 
 #include <dirent.h>
 #include "fnFS.h"
@@ -35,4 +35,4 @@ public:
 
 extern FileSystemSPIFFS fnSPIFFS;
 
-#endif // _FN_FSSPIF_
+#endif // _FN_FSSPIFFS_

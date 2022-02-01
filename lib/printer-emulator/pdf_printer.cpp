@@ -1,7 +1,7 @@
 #include "pdf_printer.h"
 #include "../utils/utils.h"
 #include "../../include/debug.h"
-#include "fnFsSPIF.h"
+#include "fnFsSPIFFS.h"
 
 #define DEBUG
 

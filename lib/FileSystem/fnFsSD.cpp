@@ -1,19 +1,20 @@
 /* TODO: Check why using the SD/FAT routines takes up a large amount of the stack (around 4.5K)
 */
 
-#include <memory>
-#include <time.h>
-
-#include <vector>
 #include <algorithm>
+#include <memory>
+#include <vector>
 
 #include <esp_vfs.h>
-#include "esp_vfs_fat.h"
+#include <esp_vfs_fat.h>
 
 #include "fnFsSD.h"
-#include "../utils/utils.h"
+
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
+
+#include "utils.h"
+
 
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 #define HSPI_HOST SPI3_HOST

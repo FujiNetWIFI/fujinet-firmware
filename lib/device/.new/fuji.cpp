@@ -12,7 +12,7 @@
 // #include "fnSystem.h"
 
 // #include "../utils/utils.h"
-// #include "../FileSystem/fnFsSPIF.h"
+// #include "../FileSystem/fnFsSPIFFS.h"
 // #include "../config/fnConfig.h"
 
 #define SIO_FUJICMD_RESET 0xFF

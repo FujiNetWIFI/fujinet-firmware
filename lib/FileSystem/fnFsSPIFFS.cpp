@@ -2,7 +2,7 @@
 #include <esp_spiffs.h>
 #include <errno.h>
 
-#include "fnFsSPIF.h"
+#include "fnFsSPIFFS.h"
 #include "../../include/debug.h"
 
 #define SPIFFS_MAXPATH 512

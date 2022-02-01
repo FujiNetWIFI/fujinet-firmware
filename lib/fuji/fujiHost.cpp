@@ -1,4 +1,9 @@
 
+
+#include "fujiHost.h"
+
+#include "../../include/debug.h"
+
 #include "fuji.h"
 
 #include "../FileSystem/fnFS.h"
@@ -6,8 +11,6 @@
 #include "../FileSystem/fnFsTNFS.h"
 
 #include "../utils/utils.h"
-
-#include "fujiHost.h"
 
 void fujiHost::unmount()
 {
