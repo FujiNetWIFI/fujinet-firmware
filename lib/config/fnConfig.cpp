@@ -6,6 +6,7 @@
 #include "../../include/debug.h"
 
 #include "fnSystem.h"
+#include "fnFsSPIFFS.h"
 #include "keys.h"
 #include "utils.h"
 

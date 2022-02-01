@@ -1,17 +1,14 @@
 #ifndef SVG_PLOTTER_H
 #define SVG_PLOTTER_H
 
-#include "printer.h"
-
 /* This is really a virtual class, as it's not meant to be instantiated on its own, but
  inherited from by other, full-fledged printer classes (e.g. Atari 820/822)
 */
+
 #include <string>
 
-
+#include "printer.h"
 #include "printer_emulator.h"
-#include "../../include/atascii.h"
-
 
 
 class svgPlotter : public printer_emu

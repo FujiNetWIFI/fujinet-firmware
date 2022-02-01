@@ -1,5 +1,5 @@
 #include "atari_xdm121.h"
-#include "../utils/utils.h"
+#include "utils.h"
 #include "../../include/debug.h"
 
 void xdm121::not_implemented()

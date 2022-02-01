@@ -1,5 +1,5 @@
 #include "epson_80.h"
-#include "../utils/utils.h"
+#include "utils.h"
 #include "../../include/debug.h"
 
 void epson80::not_implemented()

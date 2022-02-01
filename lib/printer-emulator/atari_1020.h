@@ -1,6 +1,7 @@
 #ifndef ATARI_1020_H
 #define ATARI_1020_H
 
+#include "printer.h"
 
 #include "svg_plotter.h"
 

@@ -1,5 +1,5 @@
 #include "atari_xmm801.h"
-#include "../utils/utils.h"
+#include "utils.h"
 #include "../../include/debug.h"
 
 void xmm801::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
