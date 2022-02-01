@@ -1,14 +1,11 @@
 #ifdef BUILD_ADAM
-#include <memory.h>
-#include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
-
-#include "fnSystem.h"
-#include "../device/adamnet/disk.h"
+#include <cstring>
 
 #include "mediaTypeROM.h"
+
+#include "../../include/debug.h"
+
 
 // Returns TRUE if an error condition occurred
 bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
