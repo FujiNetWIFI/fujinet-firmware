@@ -3,7 +3,7 @@
  */
 
 #include <cstring>
-#include <cstdlib>
+
 #include "WebDAV.h"
 
 void WebDAV::Start(const XML_Char *el, const XML_Char **attr)
