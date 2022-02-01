@@ -64,12 +64,16 @@ adamNetwork::~adamNetwork()
  * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
  * method. Also set up RX interrupt.
  */
-void adamNetwork::open()
+void adamNetwork::open(unsigned short s)
 {
     uint8_t _aux1 = adamnet_recv();
     uint8_t _aux2 = adamnet_recv();
+    string d;
 
-    adamnet_recv_buffer(devicespecBuf, sizeof(devicespecBuf));
+    s--; s--;
+    
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // checksum
 
     AdamNet.start_time = esp_timer_get_time();
@@ -98,7 +102,8 @@ void adamNetwork::open()
     Debug_printf("open()\n");
 
     // Parse and instantiate protocol
-    parse_and_instantiate_protocol();
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
     {
@@ -351,14 +356,17 @@ void adamNetwork::set_password(uint16_t s)
 
 void adamNetwork::del(uint16_t s)
 {
-    memset(devicespecBuf,0,sizeof(devicespecBuf));
-    adamnet_recv_buffer(devicespecBuf, s);
+    string d;
+
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();    
     adamnet_response_ack();
 
-    parse_and_instantiate_protocol();
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
         return;
@@ -374,14 +382,17 @@ void adamNetwork::del(uint16_t s)
 
 void adamNetwork::rename(uint16_t s)
 {
-    memset(devicespecBuf,0,sizeof(devicespecBuf));
-    adamnet_recv_buffer(devicespecBuf, s);
+    string d;
+
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    parse_and_instantiate_protocol();
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = ' ';
 
@@ -394,14 +405,17 @@ void adamNetwork::rename(uint16_t s)
 
 void adamNetwork::mkdir(uint16_t s)
 {
-    memset(devicespecBuf,0,sizeof(devicespecBuf));
-    adamnet_recv_buffer(devicespecBuf,s);
+    string d;
+
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response,s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    parse_and_instantiate_protocol();
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = '*';
 
@@ -622,7 +636,7 @@ void adamNetwork::adamnet_control_ack()
 
 void adamNetwork::adamnet_control_send()
 {
-    uint8_t s = adamnet_recv_length(); // receive length
+    uint16_t s = adamnet_recv_length(); // receive length
     uint8_t c = adamnet_recv();        // receive command
 
     s--; // Because we've popped the command off the stack
@@ -645,7 +659,7 @@ void adamNetwork::adamnet_control_send()
         get_prefix();
         break;
     case 'O':
-        open();
+        open(s);
         break;
     case 'C':
         close();
@@ -858,9 +872,9 @@ bool adamNetwork::instantiate_protocol()
     return true;
 }
 
-void adamNetwork::parse_and_instantiate_protocol()
+void adamNetwork::parse_and_instantiate_protocol(string d)
 {
-    deviceSpec = string((char *)devicespecBuf);
+    deviceSpec = d;
 
     // Invalid URL returns error 165 in status.
     if (parseURL() == false)

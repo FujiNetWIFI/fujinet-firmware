@@ -51,7 +51,7 @@ public:
      * Called for ADAM Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    virtual void open();
+    virtual void open(unsigned short s);
 
     /**
      * Called for ADAM Command 'C' to close a connection to a network protocol, de-allocate all buffers,
@@ -128,11 +128,6 @@ public:
 
 
 private:
-    /**
-     * Buffer for holding devicespec
-     */
-    uint8_t devicespecBuf[256];
-
     /**
      * AdamNet Response Buffer
      */
@@ -397,8 +392,9 @@ private:
 
     /**
      * @brief parse URL and instantiate protocol
+     * @param db pointer to devicespecbuf 256 chars
      */
-    void parse_and_instantiate_protocol();
+    void parse_and_instantiate_protocol(string d);
 };
 
 #endif /* NETWORK_H */

@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #include <stdio.h>
 #include <string.h>
 #include "reciter.h"
@@ -609,3 +610,4 @@ pos37485:
     Y++;
     goto pos37461;
 }
+#endif /* BUILD_ATARI */

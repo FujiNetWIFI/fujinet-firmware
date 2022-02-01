@@ -160,7 +160,7 @@ void adamNetDevice::adamnet_response_ack()
 
     if (t < 300)
     {
-        fnSystem.delay_microseconds(150);
+        AdamNet.wait_for_idle();
         adamnet_send(0x90 | _devnum);
     }
 }
@@ -171,7 +171,7 @@ void adamNetDevice::adamnet_response_nack()
 
     if (t < 300)
     {
-        fnSystem.delay_microseconds(150);
+        AdamNet.wait_for_idle();
         adamnet_send(0xC0 | _devnum);
     }
 }
