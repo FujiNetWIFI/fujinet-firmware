@@ -8,6 +8,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
+#include "fnFsSPIFFS.h"
 #include "modem.h"
 #include "printer.h"
 #include "httpServiceConfigurator.h"

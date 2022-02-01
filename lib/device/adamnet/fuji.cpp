@@ -8,9 +8,11 @@
 
 #include "serial.h"
 
-#include "fnWiFi.h"
+
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "fnWiFi.h"
+#include "fnFsSPIFFS.h"
 
 #include "utils.h"
 
