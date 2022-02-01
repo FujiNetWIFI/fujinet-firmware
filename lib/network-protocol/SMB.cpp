@@ -4,13 +4,22 @@
  * Implementation
  */
 
-#include "SMB.h"
-#include "status_error_codes.h"
-#include "utils.h"
+#include <cstring>
+
 #include <fcntl.h>
-#include <string.h>
+
+#include "SMB.h"
 
 #include "../../include/debug.h"
+
+#include <smb2/libsmb2.h>
+#include <smb2/smb2.h>
+//#include <smb2/libsmb2-raw.h>
+
+#include "status_error_codes.h"
+#include "utils.h"
+
+
 
 NetworkProtocolSMB::NetworkProtocolSMB(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
