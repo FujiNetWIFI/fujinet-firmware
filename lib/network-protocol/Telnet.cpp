@@ -13,6 +13,8 @@
 #include "status_error_codes.h"
 #include "libtelnet.h"
 
+#include "../../include/debug.h"
+
 static const telnet_telopt_t telopts[] = {
     {TELNET_TELOPT_ECHO, TELNET_WONT, TELNET_DO},
     {TELNET_TELOPT_TTYPE, TELNET_WILL, TELNET_DONT},

@@ -3,7 +3,7 @@
 
 #include <string>
 
-#include "disk.h"
+#include "../device/disk.h"
 
 #include "fujiHost.h"
 

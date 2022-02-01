@@ -8,6 +8,7 @@ Broke out system configuration functions to make things easier to read.
 #include <stddef.h>
 #include <map>
 
+
 class fnHttpServiceConfigurator
 {
     static void config_printer(std::string printernumber, std::string printermodel, std::string printerport);

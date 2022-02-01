@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <string.h>
 
+#include "../../include/debug.h"
+
 NetworkProtocolSMB::NetworkProtocolSMB(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {

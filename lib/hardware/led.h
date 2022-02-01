@@ -1,6 +1,10 @@
 #ifndef LED_H
 #define LED_H
 
+#include "fnSystem.h"
+
+#include "../../include/pinmap.h"
+
 enum eLed
 {
     LED_WIFI = 0,
