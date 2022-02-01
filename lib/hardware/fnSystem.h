@@ -5,14 +5,13 @@
 #ifndef FNSYSTEM_H
 #define FNSYSTEM_H
 
-#include <cstdint>
-#include <string>
+// #include <cstdint>
+// #include <string>
 
 #include <driver/gpio.h>
 
-#include "../FileSystem/fnFS.h"
+#include "fnFS.h"
 
-#include "../../include/pinmap.h"
 
 #define FILE_COPY_BUFFERSIZE 2048
 

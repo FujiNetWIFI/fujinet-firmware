@@ -1,28 +1,32 @@
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+//#include <freertos/task.h>
+#include <freertos/queue.h>
 #include <esp_system.h>
-#include <esp_err.h>
-#include <esp_timer.h>
-#include <time.h>
+// #include <esp_err.h>
+// #include <esp_timer.h>
 #include <driver/gpio.h>
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-#include <driver/dac.h>
-#endif
-#include <driver/adc.h>
-#include "soc/sens_reg.h"
-#include "soc/rtc.h"
-#include "esp_adc_cal.h"
+// #include <driver/adc.h>
+// #ifndef CONFIG_IDF_TARGET_ESP32S3
+// # include <driver/dac.h>
+// #endif
 
-#include <cstring>
+// #include "soc/sens_reg.h"
+#include <soc/rtc.h>
+#include <esp_adc_cal.h>
+#include <time.h>
+// #include <cstring>
 
 #include "../../include/debug.h"
 #include "../../include/version.h"
+#include "../../include/pinmap.h"
+
+#include "bus.h"
 
 #include "fnSystem.h"
 #include "fnFsSD.h"
 #include "fnFsSPIF.h"
 #include "fnWiFi.h"
-#include "bus.h"
+
 
 static xQueueHandle card_detect_evt_queue = NULL;
 static uint32_t card_detect_status = 1; // 1 is no sd card

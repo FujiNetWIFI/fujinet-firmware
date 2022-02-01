@@ -1,16 +1,19 @@
 #ifdef NEW_TARGET
 
 #include <cstdint>
-#include <driver/ledc.h>
+#include <string>
+// #include <driver/ledc.h>
 
-#include "fuji.h"
-#include "led.h"
-#include "fnWiFi.h"
-#include "fnSystem.h"
+#include "../../include/debug.h"
 
-#include "../utils/utils.h"
-#include "../FileSystem/fnFsSPIF.h"
-#include "../config/fnConfig.h"
+// #include "fuji.h"
+// #include "led.h"
+//#include "fnWiFi.h"
+// #include "fnSystem.h"
+
+// #include "../utils/utils.h"
+// #include "../FileSystem/fnFsSPIF.h"
+// #include "../config/fnConfig.h"
 
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE

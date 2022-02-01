@@ -1,16 +1,16 @@
 #ifdef BUILD_ADAM
 
-#include <cstdint>
-#include <driver/ledc.h>
+#include <cstring>
 
 #include "fuji.h"
-#include "led.h"
+#include "serial.h"
+
 #include "fnWiFi.h"
 #include "fnSystem.h"
+#include "fnConfig.h"
 
-#include "../utils/utils.h"
-#include "../FileSystem/fnFsSPIF.h"
-#include "../config/fnConfig.h"
+#include "utils.h"
+
 
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE
