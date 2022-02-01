@@ -1418,6 +1418,18 @@ void adamFuji::adamnet_control_send()
     case SIO_FUJICMD_SET_BOOT_MODE:
         adamnet_set_boot_mode();
         break;
+    case SIO_FUJICMD_OPEN_APPKEY:
+        adamnet_open_app_key();
+        break;
+    case SIO_FUJICMD_CLOSE_APPKEY:
+        adamnet_close_app_key();
+        break;
+    case SIO_FUJICMD_WRITE_APPKEY:
+        adamnet_write_app_key();
+        break;
+    case SIO_FUJICMD_READ_APPKEY:
+        adamnet_read_app_key();
+        break;
     }
 }
 
