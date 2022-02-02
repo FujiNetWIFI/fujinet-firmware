@@ -1,11 +1,10 @@
 #ifndef _FN_FS_
 #define _FN_FS_
 
-#include <stdio.h>
-//#include <dirent.h>
-
 #include <time.h>
-//#include "../../include/debug.h"
+
+#include <stdio.h>
+
 
 #ifndef FILE_READ
 #define FILE_READ "r"

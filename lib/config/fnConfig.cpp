@@ -1,7 +1,7 @@
+#include "fnConfig.h"
+
 #include <cstring>
 #include <sstream>
-
-#include "fnConfig.h"
 
 #include "../../include/debug.h"
 

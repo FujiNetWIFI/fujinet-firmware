@@ -1,8 +1,8 @@
 #ifdef BUILD_ATARI
 
-#include <cstring>
-
 #include "cassette.h"
+
+#include <cstring>
 
 #include "../../include/debug.h"
 

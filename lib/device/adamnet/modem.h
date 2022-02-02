@@ -1,10 +1,10 @@
 #ifndef ADAM_MODEM_H
 #define ADAM_MODEM_H
 
+#include <time.h>
+
 #include <cstdint>
 #include <string>
-
-#include <time.h>
 
 #include "bus.h"
 

@@ -1,14 +1,14 @@
 /* TODO: Check why using the SD/FAT routines takes up a large amount of the stack (around 4.5K)
 */
 
-#include <algorithm>
-#include <memory>
-#include <vector>
+#include "fnFsSD.h"
 
 #include <esp_vfs.h>
 #include <esp_vfs_fat.h>
 
-#include "fnFsSD.h"
+#include <algorithm>
+#include <memory>
+#include <vector>
 
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"

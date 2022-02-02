@@ -1,10 +1,11 @@
 #ifdef BUILD_ATARI
 
-#include <cstdint>
-#include <cstring>
+#include "fuji.h"
+
 #include <driver/ledc.h>
 
-#include "fuji.h"
+#include <cstdint>
+#include <cstring>
 
 #include "../../../include/debug.h"
 

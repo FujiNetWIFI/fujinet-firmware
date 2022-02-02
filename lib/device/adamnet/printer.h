@@ -3,10 +3,12 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+
 #include <cstdint>
 #include <string>
 
 #include "bus.h"
+
 #include "printer_emulator.h"
 #include "fnFS.h"
 

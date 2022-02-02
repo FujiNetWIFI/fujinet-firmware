@@ -5,10 +5,9 @@
 #include "../../../include/debug.h"
 #include "../../../include/atascii.h"
 
-#include "bus.h"
+#include "modem-sniffer.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 #include "siocpm.h"
 

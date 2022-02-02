@@ -3,8 +3,10 @@
 // https://github.com/FujiNetWIFI/atariwifi/blob/master/esp32/tests/midimaze/midimaze.ino
 
 #include <driver/ledc.h>
+
 #include "bus.h"
-#include "../tcpip/fnUDP.h"
+
+#include "fnUDP.h"
 
 #define LEDC_TIMER_RESOLUTION  LEDC_TIMER_1_BIT
 

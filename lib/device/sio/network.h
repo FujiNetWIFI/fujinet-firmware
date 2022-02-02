@@ -1,12 +1,13 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#include <driver/timer.h>
+
 #include <string>
 #include <vector>
 
-#include <driver/timer.h>
-
 #include "bus.h"
+
 #include "Protocol.h"
 #include "EdUrlParser.h"
 #include "networkStatus.h"

@@ -2,6 +2,7 @@
 #define VOICE_H
 
 #include <string>
+
 #include "bus.h"
 #include "samlib.h"
 

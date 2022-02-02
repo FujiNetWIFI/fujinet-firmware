@@ -2,12 +2,15 @@
 #define IEC_MODEM_H
 
 #include <string>
+
+#include "bus.h"
+
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
 #include "fnFsSD.h"
 #include "fnFsSPIFFS.h"
-#include "bus.h"
-#include "../modem-sniffer/modem-sniffer.h"
+
+#include "modem-sniffer.h"
 #include "libtelnet.h"
 #include "esp32sshclient.h"
 
@@ -182,7 +185,7 @@ private:
     bool answered=false;
 
     //void iec_control_status() override;                 
-    void iec_process(uint8_t b) override;
+    void iec_process(uint8_t b) override {};
     
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
@@ -209,7 +212,7 @@ private:
     void at_handle_pbclear();
 
 protected:
-    void shutdown() override;
+    void shutdown() override {};
 
 public:
 
