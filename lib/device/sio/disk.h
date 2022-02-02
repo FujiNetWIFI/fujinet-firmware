@@ -7,7 +7,7 @@
 class sioDisk : public virtualDevice
 {
 private:
-    DiskType *_disk = nullptr;
+    MediaType *_disk = nullptr;
 
     void sio_read();
     void sio_write(bool verify);

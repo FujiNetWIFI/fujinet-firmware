@@ -3,7 +3,7 @@
 
 #include "diskType.h"
 
-class DiskTypeXEX : public DiskType
+class MediaTypeXEX : public MediaType
 {
 private:
     uint8_t *_xex_bootloader = nullptr;
@@ -19,7 +19,7 @@ public:
 
     virtual void status(uint8_t statusbuff[4]) override;
 
-    ~DiskTypeXEX();
+    ~MediaTypeXEX();
 };
 
 #endif // _DISKTYPE_XEX_

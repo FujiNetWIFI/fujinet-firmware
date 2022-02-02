@@ -160,7 +160,7 @@ public:
     AtxTrack();
 };
 
-class DiskTypeATX : public DiskType
+class MediaTypeATX : public MediaType
 {
 private:
     uint8_t _atx_num_tracks = 0;
@@ -217,8 +217,8 @@ public:
 
     static void on_timer(void *info);
 
-    DiskTypeATX();
-    ~DiskTypeATX();
+    MediaTypeATX();
+    ~MediaTypeATX();
 };
 
 

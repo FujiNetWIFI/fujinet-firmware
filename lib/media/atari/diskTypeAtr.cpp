@@ -16,7 +16,7 @@
 #define ATR_MAGIC_HEADER 0x0296 // Sum of 'NICKATARI'
 
 // Returns byte offset of given sector number (1-based)
-uint32_t DiskTypeATR::_sector_to_offset(uint16_t sectorNum)
+uint32_t MediaTypeATR::_sector_to_offset(uint16_t sectorNum)
 {
     uint32_t offset = 0;
 
@@ -51,7 +51,7 @@ uint32_t DiskTypeATR::_sector_to_offset(uint16_t sectorNum)
 }
 
 // Returns TRUE if an error condition occurred
-bool DiskTypeATR::read(uint16_t sectornum, uint16_t *readcount)
+bool MediaTypeATR::read(uint16_t sectornum, uint16_t *readcount)
 {
     Debug_print("ATR READ\n");
 
@@ -90,7 +90,7 @@ bool DiskTypeATR::read(uint16_t sectornum, uint16_t *readcount)
 }
 
 // Returns TRUE if an error condition occurred
-bool DiskTypeATR::write(uint16_t sectornum, bool verify)
+bool MediaTypeATR::write(uint16_t sectornum, bool verify)
 {
     Debug_printf("ATR WRITE\n", sectornum, _disk_num_sectors);
 
@@ -134,7 +134,7 @@ bool DiskTypeATR::write(uint16_t sectornum, bool verify)
     return false;
 }
 
-void DiskTypeATR::status(uint8_t statusbuff[4])
+void MediaTypeATR::status(uint8_t statusbuff[4])
 {
     statusbuff[0] = DISK_DRIVE_STATUS_CLEAR;
 
@@ -157,7 +157,7 @@ void DiskTypeATR::status(uint8_t statusbuff[4])
     a sector-sized buffer containing a list of 16-bit bad sector numbers terminated by $FFFF.
 */
 // Returns TRUE if an error condition occurred
-bool DiskTypeATR::format(uint16_t *responsesize)
+bool MediaTypeATR::format(uint16_t *responsesize)
 {
     Debug_print("ATR FORMAT\n");
 
@@ -184,7 +184,7 @@ bool DiskTypeATR::format(uint16_t *responsesize)
  
  07-0F have two possible interpretations but are no critical for our use
 */
-disktype_t DiskTypeATR::mount(FILE *f, uint32_t disksize)
+disktype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
 {
     Debug_print("ATR MOUNT\n");
 
@@ -240,7 +240,7 @@ disktype_t DiskTypeATR::mount(FILE *f, uint32_t disksize)
 }
 
 // Returns FALSE on error
-bool DiskTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
+bool MediaTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
     Debug_print("ATR CREATE\n");
 

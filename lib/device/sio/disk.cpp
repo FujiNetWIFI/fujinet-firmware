@@ -197,21 +197,21 @@ void sioDisk::sio_write_percom_block()
 disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disktype_t disk_type)
 {
     // TAPE or CASSETTE: use this function to send file info to cassette device
-    //  DiskType::discover_disktype(filename) can detect CAS and WAV files
+    //  MediaType::discover_disktype(filename) can detect CAS and WAV files
     Debug_print("disk MOUNT\n");
 
-    // Destroy any existing DiskType
+    // Destroy any existing MediaType
     if (_disk != nullptr)
     {
         delete _disk;
         _disk = nullptr;
     }
 
-    // Determine DiskType based on filename extension
+    // Determine MediaType based on filename extension
     if (disk_type == DISKTYPE_UNKNOWN && filename != nullptr)
-        disk_type = DiskType::discover_disktype(filename);
+        disk_type = MediaType::discover_disktype(filename);
 
-    // Now mount based on DiskType
+    // Now mount based on MediaType
     switch (disk_type)
     {
     case DISKTYPE_CAS:
@@ -223,17 +223,17 @@ disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disk
         break;
     case DISKTYPE_XEX:
         device_active = true;
-        _disk = new DiskTypeXEX();
+        _disk = new MediaTypeXEX();
         return _disk->mount(f, disksize);
     case DISKTYPE_ATX:
         device_active = true;
-        _disk = new DiskTypeATX();
+        _disk = new MediaTypeATX();
         return _disk->mount(f, disksize);
     case DISKTYPE_ATR:
     case DISKTYPE_UNKNOWN:
     default:
         device_active = true;
-        _disk = new DiskTypeATR();
+        _disk = new MediaTypeATR();
         return _disk->mount(f, disksize);
     }
 }
@@ -262,7 +262,7 @@ bool sioDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
     Debug_print("disk CREATE NEW IMAGE\n");
 
-    return DiskTypeATR::create(f, sectorSize, numSectors);
+    return MediaTypeATR::create(f, sectorSize, numSectors);
 }
 
 // Process command

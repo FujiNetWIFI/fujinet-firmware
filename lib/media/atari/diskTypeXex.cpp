@@ -46,7 +46,7 @@
     05-12: Filename
     13-15: Extension
 */
-void DiskTypeXEX::_fake_directory_entry()
+void MediaTypeXEX::_fake_directory_entry()
 {
     // Calculate the number of sectors required
     uint16_t data_per_sector = _disk_sector_size - SECTOR_LINK_SIZE;
@@ -77,7 +77,7 @@ void DiskTypeXEX::_fake_directory_entry()
 }
 
 // Returns TRUE if an error condition occurred
-bool DiskTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
+bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
 {
     Debug_printf("XEX READ (%d)\n", sectornum);
 
@@ -165,26 +165,26 @@ bool DiskTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
     return err;
 }
 
-void DiskTypeXEX::status(uint8_t statusbuff[4])
+void MediaTypeXEX::status(uint8_t statusbuff[4])
 {
     // TODO: Set double density, etc. if needed
 }
 
-void DiskTypeXEX::unmount()
+void MediaTypeXEX::unmount()
 {
     if (_xex_bootloader != nullptr)
         free(_xex_bootloader);
 
     // Call the parent unmount
-    this->DiskType::unmount();
+    this->MediaType::unmount();
 }
 
-DiskTypeXEX::~DiskTypeXEX()
+MediaTypeXEX::~MediaTypeXEX()
 {
     unmount();
 }
 
-disktype_t DiskTypeXEX::mount(FILE *f, uint32_t disksize)
+disktype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
 {
     Debug_print("XEX MOUNT\n");
 
