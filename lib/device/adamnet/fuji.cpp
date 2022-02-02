@@ -239,7 +239,7 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 
         adamnet_recv_buffer((uint8_t *)&cfg, s);
 
-        uint8_t ck = adamnet_recv();
+        adamnet_recv();
 
         AdamNet.start_time = esp_timer_get_time();
         adamnet_response_ack();
@@ -430,6 +430,39 @@ char *_generate_appkey_filename(appkey *info)
 */
 void adamFuji::adamnet_open_app_key()
 {
+    Debug_print("Fuji cmd: OPEN APPKEY\n");
+
+    // The data expected for this command
+    adamnet_recv_buffer((uint8_t *)&_current_appkey, sizeof(_current_appkey));
+    uint8_t ck = adamnet_recv();
+
+    if (adamnet_checksum((uint8_t *)&_current_appkey, sizeof(_current_appkey)) != ck)
+    {
+        adamnet_response_nack();
+        return;
+    }
+
+    // We're only supporting writing to SD, so return an error if there's no SD mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - returning error");
+        adamnet_response_nack();
+        return;
+    }
+
+    // Basic check for valid data
+    if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
+    {
+        Debug_println("Invalid app key data");
+        adamnet_response_nack();
+        return;
+    }
+
+    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
+                 _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
+                 _generate_appkey_filename(&_current_appkey));
+
+    adamnet_response_ack();
 }
 
 /*
@@ -438,6 +471,10 @@ void adamFuji::adamnet_open_app_key()
 */
 void adamFuji::adamnet_close_app_key()
 {
+    Debug_print("Fuji cmd: CLOSE APPKEY\n");
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
+    adamnet_response_ack();   
 }
 
 /*
@@ -445,6 +482,68 @@ void adamFuji::adamnet_close_app_key()
 */
 void adamFuji::adamnet_write_app_key()
 {
+    uint16_t keylen = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+
+    Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
+
+    // Data for SIO_FUJICMD_WRITE_APPKEY
+    uint8_t value[MAX_APPKEY_LEN];
+
+    adamnet_recv_buffer((uint8_t *)value, sizeof(value));
+    uint8_t ck = adamnet_recv();
+
+    if (adamnet_checksum((uint8_t *)value, sizeof(value)) != ck)
+    {
+        adamnet_response_nack();
+        return;
+    }
+
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        adamnet_response_nack();
+        return;
+    }
+
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't write app key");
+        adamnet_response_nack();
+        return;
+    }
+
+    char *filename = _generate_appkey_filename(&_current_appkey);
+
+    // Reset the app key data so we require calling APPKEY OPEN before another attempt
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
+
+    Debug_printf("Writing appkey to \"%s\"\n", filename);
+
+    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
+    fnSDFAT.create_path("/FujiNet");
+
+    FILE *fOut = fnSDFAT.file_open(filename, "w");
+    if (fOut == nullptr)
+    {
+        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
+        adamnet_response_nack();
+        return;
+    }
+    size_t count = fwrite(value, 1, keylen, fOut);
+    int e = errno;
+
+    fclose(fOut);
+
+    if (count != keylen)
+    {
+        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
+        adamnet_response_nack();
+    }
+
+    adamnet_response_nack();
 }
 
 /*
@@ -452,6 +551,51 @@ void adamFuji::adamnet_write_app_key()
 */
 void adamFuji::adamnet_read_app_key()
 {
+    Debug_println("Fuji cmd: READ APPKEY");
+
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't read app key");
+        adamnet_response_nack();
+        return;
+    }
+
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        adamnet_response_nack();
+        return;
+    }
+
+    char *filename = _generate_appkey_filename(&_current_appkey);
+
+    Debug_printf("Reading appkey from \"%s\"\n", filename);
+
+    FILE *fIn = fnSDFAT.file_open(filename, "r");
+    if (fIn == nullptr)
+    {
+        Debug_printf("Failed to open input file: errno=%d\n", errno);
+        adamnet_response_nack();
+        return;
+    }
+
+    struct
+    {
+        uint16_t size;
+        uint8_t value[MAX_APPKEY_LEN];
+    } __attribute__((packed)) response;
+    memset(&response, 0, sizeof(response));
+
+    size_t count = fread(response.value, 1, sizeof(response.value), fIn);
+
+    fclose(fIn);
+    Debug_printf("Read %d bytes from input file\n", count);
+
+    response.size = count;
+
+    adamnet_response_ack();
 }
 
 // DEBUG TAPE
@@ -793,7 +937,6 @@ void adamFuji::adamnet_new_disk()
     uint8_t hs = adamnet_recv();
     uint8_t ds = adamnet_recv();
     uint32_t numBlocks;
-    uint32_t *l = &numBlocks;
     uint8_t *c = (uint8_t *)&numBlocks;
     uint8_t p[256];
 
@@ -1091,7 +1234,7 @@ void adamFuji::adamnet_disable_device()
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void adamFuji::setup(adamNetBus *siobus)
+void adamFuji::setup(systemBus *siobus)
 {
     // set up Fuji device
     _adamnet_bus = siobus;
@@ -1278,6 +1421,18 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_SET_BOOT_MODE:
         adamnet_set_boot_mode();
+        break;
+    case SIO_FUJICMD_OPEN_APPKEY:
+        adamnet_open_app_key();
+        break;
+    case SIO_FUJICMD_CLOSE_APPKEY:
+        adamnet_close_app_key();
+        break;
+    case SIO_FUJICMD_WRITE_APPKEY:
+        adamnet_write_app_key();
+        break;
+    case SIO_FUJICMD_READ_APPKEY:
+        adamnet_read_app_key();
         break;
     }
 }

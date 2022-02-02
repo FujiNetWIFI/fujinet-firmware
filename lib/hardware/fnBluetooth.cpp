@@ -35,14 +35,14 @@ void BluetoothManager::start()
     }
     btSpp.begin(Config.get_bt_devname());
     _mActive = true;
-    BUS_CLASS.setBaudrate(_mBTBaudrate);
+    systemBus.setBaudrate(_mBTBaudrate);
 }
 
 void BluetoothManager::stop()
 {
     Debug_println("Stopping SIO2BT");
     _mActive = false;
-    BUS_CLASS.setBaudrate(BT_STANDARD_BAUDRATE);
+    systemBus.setBaudrate(BT_STANDARD_BAUDRATE);
     btSpp.end();
 }
 
@@ -53,7 +53,7 @@ eBTBaudrate BluetoothManager::toggleBaudrate()
 
     Config.store_bt_baud(_mBTBaudrate);
     Config.save();
-    BUS_CLASS.setBaudrate(_mBTBaudrate);
+    systemBus.setBaudrate(_mBTBaudrate);
     return _mBTBaudrate;
 }
 

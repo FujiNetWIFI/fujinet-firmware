@@ -598,7 +598,7 @@ void iecDisk::saveFile()
 
 
 /* 
-void iecDevice::sendListingHTTP()
+void virtualDevice::sendListingHTTP()
 {
 	Debug_printf("\r\nsendListingHTTP: ");
 
@@ -675,7 +675,7 @@ void iecDevice::sendListingHTTP()
 } // sendListingHTTP
  */
 /* 
-void iecDevice::sendFileHTTP()
+void virtualDevice::sendFileHTTP()
 {
 	uint16_t i = 0;
 	bool success = true;

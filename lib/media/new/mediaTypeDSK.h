@@ -3,6 +3,8 @@
 
 #include <stdio.h>
 
+#include <utility>
+
 #include "mediaType.h"
 
 class MediaTypeDSK : public MediaType
@@ -24,4 +26,4 @@ public:
 };
 
 
-#endif // _DISKTYPE_DSK_
+#endif // _MEDIATYPE_DSK_

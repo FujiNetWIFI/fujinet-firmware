@@ -189,51 +189,51 @@ void sioDisk::sio_write_percom_block()
 
 /* Mount Disk
    We determine the type of image based on the filename extension.
-   If the disk_type value passed is not DISKTYPE_UNKNOWN then that's used instead.
-   If filename has no extension or is NULL and disk_type is DISKTYPE_UNKOWN,
-   then we assume it's DISKTYPE_ATR.
-   Return value is DISKTYPE_UNKNOWN in case of failure.
+   If the disk_type value passed is not MEDIATYPE_UNKNOWN then that's used instead.
+   If filename has no extension or is NULL and disk_type is MEDIATYPE_UNKOWN,
+   then we assume it's MEDIATYPE_ATR.
+   Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disktype_t disk_type)
+mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     // TAPE or CASSETTE: use this function to send file info to cassette device
-    //  DiskType::discover_disktype(filename) can detect CAS and WAV files
+    //  MediaType::discover_disktype(filename) can detect CAS and WAV files
     Debug_print("disk MOUNT\n");
 
-    // Destroy any existing DiskType
+    // Destroy any existing MediaType
     if (_disk != nullptr)
     {
         delete _disk;
         _disk = nullptr;
     }
 
-    // Determine DiskType based on filename extension
-    if (disk_type == DISKTYPE_UNKNOWN && filename != nullptr)
-        disk_type = DiskType::discover_disktype(filename);
+    // Determine MediaType based on filename extension
+    if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
+        disk_type = MediaType::discover_disktype(filename);
 
-    // Now mount based on DiskType
+    // Now mount based on MediaType
     switch (disk_type)
     {
-    case DISKTYPE_CAS:
-    case DISKTYPE_WAV:
+    case MEDIATYPE_CAS:
+    case MEDIATYPE_WAV:
         // open the cassette file
         theFuji.cassette()->mount_cassette_file(f, disksize);
         return disk_type;
         // TODO left off here for tape cassette
         break;
-    case DISKTYPE_XEX:
+    case MEDIATYPE_XEX:
         device_active = true;
-        _disk = new DiskTypeXEX();
+        _disk = new MediaTypeXEX();
         return _disk->mount(f, disksize);
-    case DISKTYPE_ATX:
+    case MEDIATYPE_ATX:
         device_active = true;
-        _disk = new DiskTypeATX();
+        _disk = new MediaTypeATX();
         return _disk->mount(f, disksize);
-    case DISKTYPE_ATR:
-    case DISKTYPE_UNKNOWN:
+    case MEDIATYPE_ATR:
+    case MEDIATYPE_UNKNOWN:
     default:
         device_active = true;
-        _disk = new DiskTypeATR();
+        _disk = new MediaTypeATR();
         return _disk->mount(f, disksize);
     }
 }
@@ -262,7 +262,7 @@ bool sioDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
     Debug_print("disk CREATE NEW IMAGE\n");
 
-    return DiskTypeATR::create(f, sectorSize, numSectors);
+    return MediaTypeATR::create(f, sectorSize, numSectors);
 }
 
 // Process command
@@ -271,7 +271,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    if (_disk == nullptr || _disk->_disktype == DISKTYPE_UNKNOWN)
+    if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
         return;
 
     if (device_active == false &&

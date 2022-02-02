@@ -5,6 +5,7 @@
 
 #include "mediaType.h"
 
+
 class MediaTypeROM : public MediaType
 {
 private:
@@ -37,4 +38,4 @@ public:
 };
 
 
-#endif // _DISKTYPE_ROM_
+#endif // _MEDIATYPE_ROM_

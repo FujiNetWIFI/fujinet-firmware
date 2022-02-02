@@ -199,7 +199,7 @@ void sioCassette::mount_cassette_file(FILE *f, size_t fz)
     else
     {
         // CONFIG does not mount a CAS file for writing - only read only.
-        // disk mount (disktype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, disktype_t disk_type))
+        // disk mount (mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type))
         // mounts a CAS file by calling this function.
         // There is no facility to specify an output file for writing to C: or CSAVE
         // so instead of using the file mounted in slot 8 by CONFIG, create an output file with some serial number

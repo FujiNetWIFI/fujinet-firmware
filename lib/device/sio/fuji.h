@@ -51,10 +51,10 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class sioFuji : public sioDevice
+class sioFuji : public virtualDevice
 {
 private:
-    sioBus *_sio_bus;
+    systemBus *_sio_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -127,7 +127,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(sioBus *siobus);
+    void setup(systemBus *siobus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);

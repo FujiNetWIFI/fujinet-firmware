@@ -84,7 +84,7 @@ AtxSector::AtxSector(sector_header_t &header)
     start_data = header.start_data;
 };
 
-DiskTypeATX::~DiskTypeATX()
+MediaTypeATX::~MediaTypeATX()
 {
     // Destory any timer we may have
     if (_atx_timer != nullptr)
@@ -95,7 +95,7 @@ DiskTypeATX::~DiskTypeATX()
 }
 
 // Constructor initializes the AtxTrack vector to assume we have 40 tracks
-DiskTypeATX::DiskTypeATX()
+MediaTypeATX::MediaTypeATX()
 {
     _tracks.reserve(ATX_DEFAULT_NUMTRACKS);
     int i = 0;
@@ -125,9 +125,9 @@ DiskTypeATX::DiskTypeATX()
     * is thread safe
     * takes less than 1 microsecond to execute
 */
-void DiskTypeATX::on_timer(void *info)
+void MediaTypeATX::on_timer(void *info)
 {
-    DiskTypeATX *pAtx = (DiskTypeATX *)info;
+    MediaTypeATX *pAtx = (MediaTypeATX *)info;
 
     portENTER_CRITICAL(&pAtx->__atx_timerMux);
 
@@ -143,7 +143,7 @@ void DiskTypeATX::on_timer(void *info)
     portEXIT_CRITICAL(&pAtx->__atx_timerMux);
 }
 
-uint16_t DiskTypeATX::_get_head_position()
+uint16_t MediaTypeATX::_get_head_position()
 {
     uint64_t us_now = esp_timer_get_time();
 
@@ -175,7 +175,7 @@ uint16_t DiskTypeATX::_get_head_position()
     return pos;
 }
 
-void DiskTypeATX::_wait_full_rotation()
+void MediaTypeATX::_wait_full_rotation()
 {
     uint32_t pos = _get_head_position();
 
@@ -192,7 +192,7 @@ void DiskTypeATX::_wait_full_rotation()
     } while (pos > _get_head_position());
 }
 
-void DiskTypeATX::_wait_head_position(uint16_t pos, uint16_t extra_delay)
+void MediaTypeATX::_wait_head_position(uint16_t pos, uint16_t extra_delay)
 {
     pos += extra_delay;
     if (pos >= ANGULAR_UNIT_TOTAL)
@@ -220,7 +220,7 @@ void DiskTypeATX::_wait_head_position(uint16_t pos, uint16_t extra_delay)
     }
 }
 
-void DiskTypeATX::_process_sector(AtxTrack &track, AtxSector *psector, uint16_t sectorsize)
+void MediaTypeATX::_process_sector(AtxTrack &track, AtxSector *psector, uint16_t sectorsize)
 {
     // Pause for the read head to be in the position of the sector
     _wait_head_position(psector->position, ANGULAR_UNIT_TOTAL / _atx_sectors_per_track);
@@ -288,7 +288,7 @@ void DiskTypeATX::_process_sector(AtxTrack &track, AtxSector *psector, uint16_t 
 
 // Copies data for given track sector into disk buffer and sets status bits as appropriate
 // Returns TRUE on error reading sector
-bool DiskTypeATX::_copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, uint16_t sectorsize)
+bool MediaTypeATX::_copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, uint16_t sectorsize)
 {
     Debug_printf("copy data track %d, sector %d\n", tracknum, sectornum);
 
@@ -362,7 +362,7 @@ bool DiskTypeATX::_copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, u
 }
 
 // Returns TRUE if an error condition occurred
-bool DiskTypeATX::read(uint16_t sectornum, uint16_t *readcount)
+bool MediaTypeATX::read(uint16_t sectornum, uint16_t *readcount)
 {
     Debug_printf("ATX READ (%d) rots=%u\n", sectornum, _atx_total_rotations);
 
@@ -402,7 +402,7 @@ bool DiskTypeATX::read(uint16_t sectornum, uint16_t *readcount)
     return result;
 }
 
-void DiskTypeATX::status(uint8_t statusbuff[4])
+void MediaTypeATX::status(uint8_t statusbuff[4])
 {
     statusbuff[0] = DISK_DRIVE_STATUS_CLEAR;
 
@@ -422,7 +422,7 @@ void DiskTypeATX::status(uint8_t statusbuff[4])
     statusbuff[2] = _atx_density == ATX_DENSITY_DOUBLE ? ATX_FORMAT_TIMEOUT_XF551 : ATX_FORMAT_TIMEOUT_810_1050;
 }
 
-bool DiskTypeATX::_load_atx_chunk_weak_sector(chunk_header_t &chunk_hdr, AtxTrack &track)
+bool MediaTypeATX::_load_atx_chunk_weak_sector(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
     #ifdef VERBOSE_ATX
     Debug_printf("::_load_atx_chunk_weak_sector (%hu = 0x%04x)\n",
@@ -438,7 +438,7 @@ bool DiskTypeATX::_load_atx_chunk_weak_sector(chunk_header_t &chunk_hdr, AtxTrac
     return true;
 }
 
-bool DiskTypeATX::_load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, AtxTrack &track)
+bool MediaTypeATX::_load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
     #ifdef VERBOSE_ATX
     Debug_printf("::_load_atx_chunk_extended_sector (%hu = 0x%04x)\n",
@@ -474,7 +474,7 @@ bool DiskTypeATX::_load_atx_chunk_extended_sector(chunk_header_t &chunk_hdr, Atx
     return true;
 }
 
-bool DiskTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTrack &track)
+bool MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
     #ifdef VERBOSE_ATX
     Debug_print("::_load_atx_chunk_sector_data\n");
@@ -520,7 +520,7 @@ bool DiskTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTrac
     return true;
 }
 
-bool DiskTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrack &track)
+bool MediaTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
     #ifdef VERBOSE_ATX
     Debug_print("::_load_atx_chunk_sector_list\n");
@@ -567,7 +567,7 @@ bool DiskTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTrac
 }
 
 // Skip over unknown chunks if needed
-bool DiskTypeATX::_load_atx_chunk_unknown(chunk_header_t &chunk_hdr, AtxTrack &track)
+bool MediaTypeATX::_load_atx_chunk_unknown(chunk_header_t &chunk_hdr, AtxTrack &track)
 {
     Debug_print("::_load_atx_chunk_UNKNOWN - skipping\n");
 
@@ -594,7 +594,7 @@ bool DiskTypeATX::_load_atx_chunk_unknown(chunk_header_t &chunk_hdr, AtxTrack &t
     1 = Done (reached terminator chunk)
    -1 = Error
 */
-int DiskTypeATX::_load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track)
+int MediaTypeATX::_load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track)
 {
     #ifdef VERBOSE_ATX
     Debug_print("::_load_atx_track_chunk\n");
@@ -653,7 +653,7 @@ int DiskTypeATX::_load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track)
     return 0;
 }
 
-bool DiskTypeATX::_load_atx_track_record(uint32_t length)
+bool MediaTypeATX::_load_atx_track_record(uint32_t length)
 {
     #ifdef VERBOSE_ATX
     Debug_printf("::_load_atx_track_record len %u\n", length);
@@ -734,7 +734,7 @@ bool DiskTypeATX::_load_atx_track_record(uint32_t length)
   Since there's only one type of record we care about (RECORD), all we need is the length
   Returns FALSE on error, otherwise TRUE
 */
-bool DiskTypeATX::_load_atx_record()
+bool MediaTypeATX::_load_atx_record()
 {
     #ifdef VERBOSE_ATX
     Debug_printf("::_load_atx_record #%u\n", ++_atx_num_records);
@@ -778,9 +778,9 @@ bool DiskTypeATX::_load_atx_record()
  Load the data records that make up the ATX image into memory
  Returns FALSE on failure
 */
-bool DiskTypeATX::_load_atx_data(atx_header_t &atx_hdr)
+bool MediaTypeATX::_load_atx_data(atx_header_t &atx_hdr)
 {
-    Debug_println("DiskTypeATX::_load_atx_data starting read");
+    Debug_println("MediaTypeATX::_load_atx_data starting read");
 
     // Seek to the start of the ATX record data
     int i;
@@ -810,11 +810,11 @@ bool DiskTypeATX::_load_atx_data(atx_header_t &atx_hdr)
 
  Since timing is important, we will load the entire image into memory.
  */
-disktype_t DiskTypeATX::mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypeATX::mount(FILE *f, uint32_t disksize)
 {
     Debug_print("ATX MOUNT\n");
 
-    _disktype = DISKTYPE_UNKNOWN;
+    _disktype = MEDIATYPE_UNKNOWN;
     _disk_last_sector = INVALID_SECTOR_VALUE;
 
     // Load what should be the ATX header before attempting to load the rest
@@ -822,7 +822,7 @@ disktype_t DiskTypeATX::mount(FILE *f, uint32_t disksize)
     if ((i = fseek(f, 0, SEEK_SET)) < 0)
     {
         Debug_printf("failed seeking to header on disk image (%d, %d)\n", i, errno);
-        return DISKTYPE_UNKNOWN;
+        return MEDIATYPE_UNKNOWN;
     }
 
     atx_header hdr;
@@ -830,14 +830,14 @@ disktype_t DiskTypeATX::mount(FILE *f, uint32_t disksize)
     if ((i = fread(&hdr, 1, sizeof(hdr), f)) != sizeof(hdr))
     {
         Debug_printf("failed reading header bytes (%d, %d)\n", i, errno);
-        return DISKTYPE_UNKNOWN;
+        return MEDIATYPE_UNKNOWN;
     }
 
     // Check the magic number (flip it around since it automatically gets re-ordered when loaded as a UINT32)
     if (ATX_MAGIC_HEADER != UINT32_FROM_LE_UINT32(hdr.magic))
     {
         Debug_printf("ATX header doesnt match 'AT8X' (0x%008x)\n", hdr.magic);
-        return DISKTYPE_UNKNOWN;
+        return MEDIATYPE_UNKNOWN;
     }
 
     _atx_size = hdr.end;
@@ -870,10 +870,10 @@ disktype_t DiskTypeATX::mount(FILE *f, uint32_t disksize)
     {
         _disk_fileh = nullptr;
         _tracks.clear();
-        return DISKTYPE_UNKNOWN;
+        return MEDIATYPE_UNKNOWN;
     }
 
-    return _disktype = DISKTYPE_ATX;
+    return _disktype = MEDIATYPE_ATX;
 }
 
 /*
@@ -883,7 +883,7 @@ disktype_t DiskTypeATX::mount(FILE *f, uint32_t disksize)
     a sector-sized buffer containing a list of 16-bit bad sector numbers terminated by $FFFF.
 */
 // Returns TRUE if an error condition occurred
-bool DiskTypeATX::format(uint16_t *responsesize)
+bool MediaTypeATX::format(uint16_t *responsesize)
 {
     Debug_print("ATX FORMAT, SEND ERROR.\n");
 

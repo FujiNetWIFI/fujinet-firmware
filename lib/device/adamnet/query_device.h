@@ -10,7 +10,7 @@
 #define CONTROL_STATUS   0x10
 #define RESPONSE_STATUS  0x80
 
-class adamQueryDevice : public adamNetDevice
+class adamQueryDevice : public virtualDevice
 {
 protected:
 protected:
@@ -26,7 +26,7 @@ protected:
 
 public:
 
-    bool adamDeviceExists(uint8_t device);
+    bool virtualDeviceExists(uint8_t device);
 
     adamQueryDevice();
     ~adamQueryDevice();

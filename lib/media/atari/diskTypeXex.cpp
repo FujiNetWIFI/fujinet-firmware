@@ -46,7 +46,7 @@
     05-12: Filename
     13-15: Extension
 */
-void DiskTypeXEX::_fake_directory_entry()
+void MediaTypeXEX::_fake_directory_entry()
 {
     // Calculate the number of sectors required
     uint16_t data_per_sector = _disk_sector_size - SECTOR_LINK_SIZE;
@@ -77,7 +77,7 @@ void DiskTypeXEX::_fake_directory_entry()
 }
 
 // Returns TRUE if an error condition occurred
-bool DiskTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
+bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
 {
     Debug_printf("XEX READ (%d)\n", sectornum);
 
@@ -165,30 +165,30 @@ bool DiskTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
     return err;
 }
 
-void DiskTypeXEX::status(uint8_t statusbuff[4])
+void MediaTypeXEX::status(uint8_t statusbuff[4])
 {
     // TODO: Set double density, etc. if needed
 }
 
-void DiskTypeXEX::unmount()
+void MediaTypeXEX::unmount()
 {
     if (_xex_bootloader != nullptr)
         free(_xex_bootloader);
 
     // Call the parent unmount
-    this->DiskType::unmount();
+    this->MediaType::unmount();
 }
 
-DiskTypeXEX::~DiskTypeXEX()
+MediaTypeXEX::~MediaTypeXEX()
 {
     unmount();
 }
 
-disktype_t DiskTypeXEX::mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
 {
     Debug_print("XEX MOUNT\n");
 
-    _disktype = DISKTYPE_UNKNOWN;
+    _disktype = MEDIATYPE_UNKNOWN;
 
     // Load our bootloader
     _xex_bootloadersize = fnSystem.load_firmware(BOOTLOADER, &_xex_bootloader);
@@ -202,7 +202,7 @@ disktype_t DiskTypeXEX::mount(FILE *f, uint32_t disksize)
     _disk_fileh = f;
     _disk_image_size = disksize;
     _disk_last_sector = INVALID_SECTOR_VALUE;
-    _disktype = DISKTYPE_XEX;
+    _disktype = MEDIATYPE_XEX;
 
     Debug_printf("mounted XEX with %d-byte bootloader; XEX size=%d\n", _xex_bootloadersize, _disk_image_size);
 

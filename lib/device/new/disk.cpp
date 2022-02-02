@@ -43,14 +43,14 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
 
     Debug_printf("disk MOUNT %s\n", filename);
 
-    // Destroy any existing DiskType
+    // Destroy any existing MediaType
     if (_media != nullptr)
     {
         delete _media;
         _media = nullptr;
     }
 
-    // Determine DiskType based on filename extension
+    // Determine MediaType based on filename extension
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(filename);
 
@@ -190,7 +190,7 @@ void adamDisk::adamnet_response_status()
     else
         status_response[4] = 0x40 | _media->_media_controller_status;
     
-    adamNetDevice::adamnet_response_status();
+    virtualDevice::adamnet_response_status();
 }
 
 void adamDisk::adamnet_response_send()

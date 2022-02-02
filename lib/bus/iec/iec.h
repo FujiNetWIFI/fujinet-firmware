@@ -130,7 +130,7 @@ class iecBus;      // declare early so can be friend
 class iecFuji;     // declare here so can reference it, but define in iecFuji.h
 class iecPrinter;  // Printer device
 
-class iecDevice
+class virtualDevice
 {
 protected:
 	friend iecBus;
@@ -238,7 +238,15 @@ protected:
 
 public:
     /**
-     * @brief Is this iecDevice holding the virtual disk drive used to boot CONFIG?
+     * @brief get the SIO device Number (1-255)
+     * @return The device number registered for this device
+     */
+    int device_id(void) { return _device_id; };
+
+    virtual void sio_high_speed(void) {};
+
+    /**
+     * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
      */
     bool is_config_device = false;
 
@@ -258,8 +266,8 @@ public:
      */
     cmdFrame_t cmdFrame;
 
-	iecDevice(void);
-	virtual ~iecDevice(void) {}
+	virtualDevice(void);
+	virtual ~virtualDevice(void) {}
 };
 
 enum bus_message : uint16_t
@@ -279,13 +287,13 @@ struct bus_message_t
 class iecBus
 {
 private:
-	std::forward_list<iecDevice *> _daisyChain;
+	std::forward_list<virtualDevice *> _daisyChain;
 
     int _command_frame_counter = 0;
 
-    iecDevice *_activeDev = nullptr;
-    iecFuji *_fujiDev = nullptr;
-    iecPrinter *_printerdev = nullptr;
+    virtualDevice *_activeDev = nullptr;
+//    iecFuji *_fujiDev = nullptr;
+//    iecPrinter *_printerdev = nullptr;
 
     void _bus_process_cmd(void);
     void _bus_process_queue(void);
@@ -381,15 +389,11 @@ public:
     void shutdown();
     void reset();
 
-    /**
-     * @brief Wait for AdamNet bus to become idle.
-     */
-    void wait_for_idle();
-
-    /**
-     * stopwatch
-     */
-    int64_t start_time;
+    int numDevices(void);
+    void addDevice(virtualDevice *pDevice, int device_id);
+    void remDevice(virtualDevice *pDevice);
+    virtualDevice *deviceById(int device_id);
+    void changeDeviceId(virtualDevice *pDevice, int device_id);
 
     int numDevices();
     void addDevice(iecDevice *pDevice, uint8_t device_id);

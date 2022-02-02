@@ -34,7 +34,7 @@
 
 
 
-class iecDisk : public iecDevice
+class iecDisk : public virtualDevice
 {
 private:
     MediaType *_media = nullptr;
