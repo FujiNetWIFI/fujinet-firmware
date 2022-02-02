@@ -1,5 +1,5 @@
-#ifndef IEC_MODEM_H
-#define IEC_MODEM_H
+#ifndef DEVICE_IEC_MODEM_H
+#define DEVICE_IEC_MODEM_H
 
 #include <string>
 
@@ -232,4 +232,4 @@ public:
 
 };
 
-#endif /* IEC_MODEM_H */
+#endif // DEVICE_IEC_MODEM_H

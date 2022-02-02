@@ -1,6 +1,5 @@
-#ifdef BUILD_CBM
-#ifndef IEC_PRINTER_H
-#define IEC_PRINTER_H
+#ifndef DEVICE_IEC_PRINTER_H
+#define DEVICE_IEC_PRINTER_H
 
 #include <string.h>
 
@@ -87,5 +86,4 @@ private:
     printer_type _ptype;
 };
 
-#endif // IEC_PRINTER_H
-#endif // BUILD_CBM
+#endif // DEVICE_IEC_PRINTER_H

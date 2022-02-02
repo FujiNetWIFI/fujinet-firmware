@@ -8,6 +8,7 @@
 
 #ifdef BUILD_CBM
 # include "iec/iec.h"
+# include "iec/iec_device.h"
 # define SYSTEM_BUS IEC
 #endif
 

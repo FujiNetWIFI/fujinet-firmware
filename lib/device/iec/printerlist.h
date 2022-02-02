@@ -1,5 +1,5 @@
-#ifndef _PRINTERLIST_H
-#define _PRINTERLIST_H
+#ifndef DEVICE_IEC_PRINTERLIST_H
+#define DEVICE_IEC_PRINTERLIST_H
 
 #include "printer.h"
 
@@ -29,4 +29,4 @@ public:
 
 extern printerlist fnPrinters;
 
-#endif // _PRINTERLIST_H
+#endif // DEVICE_IEC_PRINTERLIST_H

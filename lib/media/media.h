@@ -10,6 +10,14 @@
 
 #ifdef BUILD_CBM
 # include "cbm/mediaType.h"
+# include "cbm/d64.h"
+# include "cbm/d71.h"
+# include "cbm/d80.h"
+# include "cbm/d81.h"
+# include "cbm/d82.h"
+# include "cbm/d8b.h"
+# include "cbm/t64.h"
+# include "cbm/tcrt.h"
 #endif
 
 #ifdef BUILD_ADAM
