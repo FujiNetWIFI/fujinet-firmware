@@ -19,7 +19,7 @@ class fujiDisk
 public:    
     FILE* fileh = nullptr;
     uint8_t access_mode = DISK_ACCESS_MODE_READ;
-    MEDIA_TYPE disk_type = MEDIA_TYPE_UNKNOWN;
+    mediatype_t disk_type = MEDIATYPE_UNKNOWN;
     uint32_t disk_size = 0;
     fujiHost *host = nullptr;
     uint8_t host_slot = INVALID_HOST_SLOT;
