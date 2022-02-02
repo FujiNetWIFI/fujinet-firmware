@@ -6,8 +6,9 @@
 #define NETWORKPROTOCOL_TCP
 
 #include "Protocol.h"
-#include "../tcpip/fnTcpClient.h"
-#include "../tcpip/fnTcpServer.h"
+
+#include "fnTcpClient.h"
+#include "fnTcpServer.h"
 
 class NetworkProtocolTCP : public NetworkProtocol
 {
@@ -86,14 +87,15 @@ public:
 
 protected:
     /**
+     * a fnTcpServer object representing a listening TCP server socket.
+     */
+    fnTcpServer *server;
+
+    /**
      * a fnTcpClient object representing a client TCP socket.
      */
     fnTcpClient client;
 
-    /**
-     * a fnTcpServer object representing a listening TCP server socket.
-     */
-    fnTcpServer *server;
 
     /**
      * Open a server (listening) connection.

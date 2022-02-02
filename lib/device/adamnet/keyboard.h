@@ -1,10 +1,11 @@
 #ifndef ADAM_KEYBOARD_H
 #define ADAM_KEYBOARD_H
 
-#include <string.h>
+#include <cstdint>
 #include <queue>
 
 #include "bus.h"
+
 #include "fnTcpServer.h"
 
 class adamKeyboard : public adamNetDevice

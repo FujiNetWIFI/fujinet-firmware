@@ -1,9 +1,7 @@
 #ifndef _FN_CONFIG_H
 #define _FN_CONFIG_H
 
-#include <string>
-
-#include "device.h"
+#include "printer.h"
 
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8

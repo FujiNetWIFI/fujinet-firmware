@@ -1,6 +1,9 @@
 #include "okimate_10.h"
-#include "../utils/utils.h"
+
 #include "../../include/debug.h"
+
+#include "utils.h"
+
 
 /**
  * Okimate 10 state machine

@@ -1,10 +1,11 @@
 #ifndef SIO_H
 #define SIO_H
 
-#include <forward_list>
-#include "fnSystem.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
 
-#include "../../include/pinmap.h"
+#include <forward_list>
+
 
 #define DELAY_T4 850
 #define DELAY_T5 250
@@ -99,7 +100,7 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
-//helper functions
+// helper functions
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);
 
 // class def'ns

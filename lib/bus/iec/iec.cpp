@@ -20,7 +20,7 @@
 
 #ifdef BUILD_CBM
 
-#include "bus.h"
+#include "iec.h"
 
 #include <stdarg.h>
 #include <string.h>
@@ -29,9 +29,11 @@
 #include "../../../include/debug.h"
 #include "../../../include/cbmdefines.h"
 
-#include "led.h"
+#include "bus.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "led.h"
+
 #include "utils.h"
 
 using namespace CBM;

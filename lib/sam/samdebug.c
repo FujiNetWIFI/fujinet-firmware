@@ -1,4 +1,3 @@
-#ifdef BUILD_ATARI
 #include <stdio.h>
 
 extern unsigned char signInputTable1[];
@@ -75,4 +74,3 @@ void PrintRule(int offset)
     } while ((A & 128) == 0);
     printf("\n");
 }
-#endif /* BUILD_ATARI */

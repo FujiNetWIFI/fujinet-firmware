@@ -57,4 +57,4 @@ int printerlist::get_port(int index)
     return _printers[index].port;
 }
 
-#endif /* BUILD_ADAM */
+#endif /* BUILD_CBM */

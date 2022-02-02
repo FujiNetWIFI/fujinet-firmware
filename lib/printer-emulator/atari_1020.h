@@ -1,6 +1,7 @@
 #ifndef ATARI_1020_H
 #define ATARI_1020_H
 
+#include "printer.h"
 
 #include "svg_plotter.h"
 
@@ -17,6 +18,8 @@ class atari1020 : public svgPlotter
         #elif BUILD_CBM
             return iecPrinter::printer_model_str[iecPrinter::PRINTER_ATARI_1020];
         #elif BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1020];
+        #elif NEW_TARGET
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1020];
         #else
             return PRINTER_UNSUPPORTED;

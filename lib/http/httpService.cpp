@@ -1,38 +1,8 @@
-#include <vector>
-#include <map>
-#include <sstream>
-
-#include <esp_wifi.h>
-#include <esp_event.h>
-#include <esp_log.h>
-#include <esp_system.h>
-#include <nvs_flash.h>
-#include "esp_wps.h"
 
 #include "httpService.h"
-#include "httpServiceParser.h"
-#include "httpServiceConfigurator.h"
-#include "fnWiFi.h"
-#include "keys.h"
-#include "fnConfig.h"
 
-#ifdef BUILD_ATARI
-#include "modem-sniffer.h"
-#include "sio/modem.h"
-#include "sio/fuji.h"
-#include "sio/printerlist.h"
-#define PRINTER_CLASS sioPrinter
-extern sioModem *sioR;
-#endif /* BUILD_ATARI */
-
-#ifdef BUILD_ADAM
-#include "modem-sniffer.h"
-#include "adamnet/modem.h"
-#include "adamnet/fuji.h"
-#include "adamnet/printerlist.h"
-#define PRINTER_CLASS adamPrinter
-extern adamModem *sioR;
-#endif 
+#include <sstream>
+#include <vector>
 
 #ifdef BUILD_CBM
 #include "modem-sniffer.h"
@@ -44,6 +14,16 @@ extern iecModem *sioR;
 #endif
 
 #include "../../include/debug.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnWiFi.h"
+#include "fnFsSPIFFS.h"
+#include "modem.h"
+#include "printer.h"
+#include "httpServiceConfigurator.h"
+#include "httpServiceParser.h"
+#include "fuji.h"
 
 using namespace std;
 

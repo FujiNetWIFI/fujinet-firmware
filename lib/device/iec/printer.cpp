@@ -1,7 +1,8 @@
 #ifdef BUILD_CBM
 
-#include "../../include/atascii.h"
 #include "printer.h"
+
+#include "../../include/atascii.h"
 
 #include "file_printer.h"
 #include "html_printer.h"
@@ -54,4 +55,4 @@ void iecPrinter::shutdown()
 
 }
 
-#endif /* BUILD_ADAM */
+#endif /* BUILD_CBM */

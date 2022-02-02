@@ -1,36 +1,28 @@
+
+#include "fnSystem.h"
+
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#include <freertos/queue.h>
 #include <esp_system.h>
-#include <esp_err.h>
-#include <esp_timer.h>
-#include <time.h>
 #include <driver/gpio.h>
 #ifndef CONFIG_IDF_TARGET_ESP32S3
-#include <driver/dac.h>
+# include <driver/dac.h>
 #endif
-#include <driver/adc.h>
-#include "soc/sens_reg.h"
-#include "soc/rtc.h"
-#include "esp_adc_cal.h"
 
-#include <cstring>
+#include <soc/rtc.h>
+#include <esp_adc_cal.h>
+#include <time.h>
 
 #include "../../include/debug.h"
 #include "../../include/version.h"
+#include "../../include/pinmap.h"
 
-#include "fnSystem.h"
-#include "fnFsSD.h"
-#include "fnFsSPIF.h"
-#include "fnWiFi.h"
 #include "bus.h"
 
-#ifdef BUILD_ATARI
-#define BUS_CLASS SIO
-#endif
+#include "fnFsSD.h"
+#include "fnFsSPIFFS.h"
+#include "fnWiFi.h"
 
-#ifdef BUILD_ADAM
-#define BUS_CLASS AdamNet
-#endif
 
 static xQueueHandle card_detect_evt_queue = NULL;
 static uint32_t card_detect_status = 1; // 1 is no sd card

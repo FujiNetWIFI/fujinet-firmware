@@ -6,16 +6,24 @@
 # include "atari/diskTypeAtr.h"
 # include "atari/diskTypeAtx.h"
 # include "atari/diskTypeXex.h"
+#endif
 
-#elif BUILD_CBM
+#ifdef BUILD_CBM
 # include "cbm/mediaType.h"
+#endif
 
-#elif BUILD_ADAM
+#ifdef BUILD_ADAM
 # include "adam/mediaType.h"
 # include "adam/mediaTypeDDP.h"
 # include "adam/mediaTypeDSK.h"
 # include "adam/mediaTypeROM.h"
+#endif
 
+#ifdef NEW_TARGET
+# include "new/mediaType.h"
+# include "new/mediaTypeDDP.h"
+# include "new/mediaTypeDSK.h"
+# include "new/mediaTypeROM.h"
 #endif
 
 #endif // MEDIA_H

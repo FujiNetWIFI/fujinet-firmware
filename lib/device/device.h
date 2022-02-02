@@ -4,7 +4,6 @@
 #include "media.h"
 
 #ifdef BUILD_ATARI
-# include "sio/fuji.h"
 # include "sio/apetime.h"
 # include "sio/cassette.h"
 # include "sio/disk.h"
@@ -15,43 +14,50 @@
 # include "sio/printerlist.h"
 # include "sio/siocpm.h"
 # include "sio/voice.h"
+# include "sio/fuji.h"
 
-extern sioFuji theFuji;
-# define BUS SIO
-# define PRINTER_CLASS sioPrinter
-# define MEDIA_TYPE disktype_t
-# define MEDIA_TYPE_UNKNOWN DISKTYPE_UNKNOWN
-# define DEVICE_TYPE sioDisk
+    sioApeTime apeTime;
+    sioVoice sioV;
+    sioMIDIMaze sioMIDI;
+    // sioCassette sioC; // now part of sioFuji theFuji object
+    sioModem *sioR;
+    sioCPM sioZ;
+#endif
 
-#elif BUILD_CBM
-# include "iec/fuji.h"
-# include "iec/disk.h"
+#ifdef BUILD_CBM
 # include "iec/printer.h"
 # include "iec/printerlist.h"
+# include "iec/fuji.h"
+#endif
 
-extern iecFuji theFuji;
-# define BUS IEC
-# define PRINTER_CLASS iecPrinter
-# define MEDIA_TYPE mediatype_t
-# define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
-# define DEVICE_TYPE iecDisk
-
-#elif BUILD_ADAM
-# include "adamnet/fuji.h"
-# include "adamnet/disk.h"
+#ifdef BUILD_ADAM
 # include "adamnet/keyboard.h"
-# include "adamnet/printer.h"
 # include "adamnet/modem.h"
+# include "adamnet/printer.h"
 # include "adamnet/printerlist.h"
 # include "adamnet/query_device.h"
+# include "adamnet/fuji.h"
 
-extern adamFuji theFuji;
-# define BUS AdamNet
-# define PRINTER_CLASS adamPrinter
-# define MEDIA_TYPE mediatype_t
-# define MEDIA_TYPE_UNKNOWN MEDIATYPE_UNKNOWN
-# define DEVICE_TYPE adamDisk
+//# define NO_VIRTUAL_KEYBOARD
+    adamModem *sioR;
+    adamKeyboard *sioK;
+    adamQueryDevice *sioQ;
+    bool exists = false;
+#endif
 
+#ifdef NEW_TARGET
+# include "new/keyboard.h"
+# include "new/modem.h"
+# include "new/printer.h"
+# include "new/printerlist.h"
+# include "new/query_device.h"
+# include "new/fuji.h"
+
+//# define NO_VIRTUAL_KEYBOARD
+    adamModem *sioR;
+    adamKeyboard *sioK;
+    adamQueryDevice *sioQ;
+    bool exists = false;
 #endif
 
 #endif // DEVICE_H

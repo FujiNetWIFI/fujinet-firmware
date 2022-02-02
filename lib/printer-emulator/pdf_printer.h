@@ -6,8 +6,10 @@
 */
 #include <string>
 
-#include "printer_emulator.h"
 #include "../../include/atascii.h"
+
+#include "printer_emulator.h"
+
 
 #define MAXFONTS 33 // maximum number of fonts can use
 

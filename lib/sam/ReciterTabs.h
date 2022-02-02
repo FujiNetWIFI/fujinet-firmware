@@ -1,4 +1,3 @@
-#ifdef BUILD_ATARI
 #ifndef RECITERTABS_H
 #define RECITERTABS_H
 
@@ -539,4 +538,3 @@ const unsigned char tab37515[] =
         140, 140};
 
 #endif
-#endif /* BUILD_ATARI */

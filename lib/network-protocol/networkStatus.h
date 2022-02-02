@@ -2,10 +2,11 @@
  * Network Status object
  */
 
-#include <stdint.h>
-
 #ifndef NETWORKSTATUS_H
 #define NETWORKSTATUS_H
+
+#include <cstdint>
+
 
 class NetworkStatus
 {

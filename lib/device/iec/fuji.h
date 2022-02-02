@@ -1,10 +1,13 @@
 #ifndef FUJI_H
 #define FUJI_H
+
 #include <cstdint>
 
 #include "../../include/debug.h"
 
-#include "../../bus/bus.h"
+#include "bus.h"
+#include "disk.h"
+#include "printer.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -124,7 +127,7 @@ protected:
 
     void iec_process(uint8_t b);
 
-    void shutdown() override;
+    void shutdown() override {};
 
 public:
     bool boot_config = true;

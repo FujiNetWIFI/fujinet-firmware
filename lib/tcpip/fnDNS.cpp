@@ -1,6 +1,7 @@
+#include "fnDNS.h"
+
 #include <lwip/netdb.h>
 
-#include "fnDNS.h"
 #include "../../include/debug.h"
 
 

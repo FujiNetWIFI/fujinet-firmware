@@ -1,13 +1,14 @@
-#include <string.h>
-#include <lwip/netdb.h>
-#include "esp_sntp.h"
-#include <esp_system.h>
+
+#include <esp_sntp.h>
 #include <esp_netif.h>
 
+#include <string>
 
 #include "fnSystem.h"
-#include "fnConfig.h"
 
+#include "../../include/debug.h"
+
+#include "fnConfig.h"
 #include "fnWiFi.h"
 
 std::string SystemManager::_net::get_hostname()

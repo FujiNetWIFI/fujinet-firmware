@@ -28,10 +28,9 @@
 #include "../../../include/cbmdefines.h"
 #include "../../../include/petscii.h"
 
-#include "../../bus/bus.h"
-#include "../../media/media.h"
-
-#include "fnFsSPIF.h"
+#include "bus.h"
+#include "fnFsSPIFFS.h"
+#include "media.h"
 
 
 

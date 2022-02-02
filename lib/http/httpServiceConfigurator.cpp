@@ -1,30 +1,15 @@
-#include <sstream>
-#include <string>
-#include <cstdio>
-
-#include <string>
-#include <map>
-
-#include "esp_task.h"
-#include "esp_heap_task_info.h"
-
 #include "httpServiceConfigurator.h"
+
+#include "../../include/debug.h"
+
+#include "printer.h"
+#include "fuji.h"
+
+#include "fnSystem.h"
 #include "fnConfig.h"
+
 #include "utils.h"
 
-#ifdef BUILD_ATARI
-#include "sio/printerlist.h"
-#include "sio/fuji.h"
-#define PRINTER_CLASS sioPrinter
-extern sioFuji theFuji;
-#endif /* BUILD_ATARI */
-
-#ifdef BUILD_ADAM
-#include "adamnet/printerlist.h"
-#include "adamnet/fuji.h"
-#define PRINTER_CLASS adamPrinter
-extern adamFuji theFuji;
-#endif /* BUILD_ADAM */
 
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)

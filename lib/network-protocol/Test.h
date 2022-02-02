@@ -6,6 +6,7 @@
 #define NETWORKPROTOCOL_TEST
 
 #include <string>
+
 #include "Protocol.h"
 
 using namespace std;

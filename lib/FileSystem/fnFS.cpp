@@ -1,8 +1,11 @@
-#include <esp_vfs.h>
-#include "esp_vfs_fat.h"
 
 #include "fnFS.h"
-#include "../../include/debug.h"
+
+#include <esp_vfs.h>
+
+#include <cstring>
+
+// #include "../../include/debug.h"
 
 
 char * FileSystem::_make_fullpath(const char *path)

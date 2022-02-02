@@ -1,18 +1,13 @@
 #ifdef BUILD_ATARI
 
-#include <memory.h>
-#include <string.h>
-
-//#include "fnSystem.h"
-#include "../../include/debug.h"
-#include "../utils/utils.h"
-
 #include "disk.h"
-#include "media.h"
-// #include "diskTypeAtr.h"
-// #include "diskTypeAtx.h"
-// #include "diskTypeXex.h"
+
+#include <cstring>
+
+#include "../../include/debug.h"
+
 #include "fuji.h"
+#include "utils.h"
 
 #define SIO_DISKCMD_FORMAT 0x21
 #define SIO_DISKCMD_FORMAT_MEDIUM 0x22

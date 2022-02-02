@@ -1,21 +1,18 @@
-#include <sstream>
-#include <string>
-#include <cstdio>
-#include <locale>
 
-#include "../../include/debug.h"
-#include "device.h"
-#include "fnConfig.h"
-
-#include "httpService.h"
 #include "httpServiceParser.h"
 
-#define ALL_THE_DEBUGS
+#include <sstream>
 
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnWiFi.h"
-#include "fnFsSPIF.h"
-#include "fnFsSD.h"
+#include "../../include/debug.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnWifi.h"
+#include "fnFsSPIFFS.h"
+#include "httpService.h"
+#include "fuji.h"
+
+#define ALL_THE_DEBUGS
 
 using namespace std;
 
@@ -285,10 +282,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #ifdef BUILD_ATARI
     case FN_SIO_HSINDEX:
-        resultstream << BUS.getHighSpeedIndex();
+        resultstream << BUS_CLASS.getHighSpeedIndex();
         break;
     case FN_SIO_HSBAUD:
-        resultstream << BUS.getHighSpeedBaud();
+        resultstream << BUS_CLASS.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
     case FN_PRINTER1_MODEL:

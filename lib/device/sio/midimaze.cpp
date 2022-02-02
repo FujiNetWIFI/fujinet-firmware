@@ -1,9 +1,12 @@
 #ifdef BUILD_ATARI
 
+#include "midimaze.h"
+
 #include "../../include/debug.h"
+#include "../../include/pinmap.h"
+
 #include "fnSystem.h"
 #include "utils.h"
-#include "midimaze.h"
 
 void sioMIDIMaze::sio_enable_midimaze()
 {

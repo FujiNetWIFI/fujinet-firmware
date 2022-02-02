@@ -1,11 +1,7 @@
 #ifdef BUILD_ADAM
-#include <memory.h>
-#include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
+#include "keyboard.h"
 
-#include "../device/adamnet/keyboard.h"
 
 TaskHandle_t kbTask;
 

@@ -1,13 +1,7 @@
 #ifndef HTML_PRINTER_H
 #define HTML_PRINTER_H
 
-#ifdef BUILD_ATARI
-#include "sio/printer.h"
-#elif BUILD_CBM
-#include "../device/iec/printer.h"
-#elif BUILD_ADAM
-#include "adamnet/printer.h"
-#endif
+#include "printer.h"
 
 #include "printer_emulator.h"
 
@@ -28,14 +22,16 @@ public:
     { 
         if (_paper_type == HTML)
         {
-            #ifdef BUILD_ADAM
+            #ifdef BUILD_ATARI
+                return sioPrinter::printer_model_str[sioPrinter::PRINTER_HTML];
+            #elif BUILD_CBM
+                return iecPrinter::printer_model_str[iecPrinter::PRINTER_HTML];
+            #elif BUILD_ADAM
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_HTML];
+            #elif NEW_TARGET
                 return adamPrinter::printer_model_str[adamPrinter::PRINTER_HTML];
             #else
-                #ifdef BUILD_ATARI
-                    return sioPrinter::printer_model_str[sioPrinter::PRINTER_HTML];
-                #else
-                    return PRINTER_UNSUPPORTED;
-                #endif
+                return PRINTER_UNSUPPORTED;
             #endif
         }
         if (_paper_type == HTML_ATASCII)

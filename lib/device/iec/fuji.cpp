@@ -1,16 +1,16 @@
 #ifdef BUILD_CBM
 
-#include <cstdint>
 #include <driver/ledc.h>
 
-#include "fuji.h"
-#include "led.h"
-#include "fnWiFi.h"
-#include "fnSystem.h"
+#include <cstdint>
 
-#include "../utils/utils.h"
-#include "../FileSystem/fnFsSPIF.h"
-#include "../config/fnConfig.h"
+#include "fuji.h"
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnFsSPIFFS.h"
+#include "fnWiFi.h"
+#include "led.h"
+#include "utils.h"
 
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE

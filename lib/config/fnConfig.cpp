@@ -1,21 +1,17 @@
-#include <string>
-#include <iostream>
+#include "fnConfig.h"
+
+#include <cstring>
 #include <sstream>
 
-#include <sys/types.h>
-
-#include "fnConfig.h"
-#include "../FileSystem/fnFsSPIF.h"
-#include "../FileSystem/fnFsSD.h"
-#include "../hardware/keys.h"
-#include "../utils/utils.h"
 #include "../../include/debug.h"
 
-#ifdef BUILD_ATARI
+#include "modem.h"
 #include "modem-sniffer.h"
-#include "sio/modem.h"
-extern sioModem *sioR;
-#endif
+
+#include "fnSystem.h"
+#include "fnFsSPIFFS.h"
+#include "keys.h"
+#include "utils.h"
 
 #define CONFIG_FILENAME "/fnconfig.ini"
 #define CONFIG_FILEBUFFSIZE 2048
@@ -457,7 +453,7 @@ void fnConfig::store_modem_enabled(bool modem_enabled)
 // Saves ENABLE or DISABLE Modem Sniffer
 void fnConfig::store_modem_sniffer_enabled(bool modem_sniffer_enabled)
 {
-#ifndef BUILD_ADAM
+#ifdef BUILD_ATARI
     ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
 
     if (modem_sniffer_enabled)
@@ -473,7 +469,7 @@ void fnConfig::store_modem_sniffer_enabled(bool modem_sniffer_enabled)
 
     _modem.sniffer_enabled = modem_sniffer_enabled;
     _dirty = true;
-#endif /* BUILD_ADAM */
+#endif /* BUILD_ATARI */
 }
 
 bool fnConfig::get_cassette_buttons()

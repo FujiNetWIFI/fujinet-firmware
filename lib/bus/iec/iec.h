@@ -26,6 +26,7 @@
 #include "../../../include/pinmap.h"
 #include "../../../include/cbmdefines.h"
 
+#include "bus.h"
 #include "fnSystem.h"
 #include "../sio/sio.h" // cmdframe_t
 

@@ -1,6 +1,7 @@
 #include "html_printer.h"
-#include "../../include/atascii.h"
+
 #include "../../include/debug.h"
+#include "../../include/atascii.h"
 
 
 // TODO: Combine html_printer.cpp/h and file_printer.cpp/h

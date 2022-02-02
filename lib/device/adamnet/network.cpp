@@ -3,24 +3,28 @@
 /**
  * N: Firmware
  */
-#include <string.h>
-#include <algorithm>
-#include <vector>
-#include "utils.h"
-#include "network.h"
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnWiFi.h"
-#include "../network-protocol/TCP.h"
-#include "../network-protocol/UDP.h"
-#include "../network-protocol/Test.h"
-#include "../network-protocol/Telnet.h"
-#include "../network-protocol/TNFS.h"
-#include "../network-protocol/FTP.h"
-#include "../network-protocol/HTTP.h"
-#include "../network-protocol/SSH.h"
-#include "../network-protocol/SMB.h"
 
-using namespace std;
+#include "network.h"
+
+#include <cstring>
+#include <algorithm>
+
+#include "../../include/debug.h"
+
+#include "utils.h"
+
+#include "status_error_codes.h"
+#include "TCP.h"
+#include "UDP.h"
+#include "Test.h"
+#include "Telnet.h"
+#include "TNFS.h"
+#include "FTP.h"
+#include "HTTP.h"
+#include "SSH.h"
+#include "SMB.h"
+
+//using namespace std;
 
 /**
  * Constructor
@@ -619,6 +623,7 @@ void adamNetwork::adamnet_response_status()
 {
     NetworkStatus s;
 
+
     if (protocol != nullptr)
         protocol->status(&s);
 
@@ -627,7 +632,11 @@ void adamNetwork::adamnet_response_status()
     statusByte.bits.client_error = s.error > 1;
 
     status_response[4] = statusByte.byte;
-    adamNetDevice::adamnet_response_status();
+    
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 300)
+        adamNetDevice::adamnet_response_status();
 }
 
 void adamNetwork::adamnet_control_ack()
@@ -812,7 +821,7 @@ bool adamNetwork::instantiate_protocol()
     }
 
     // Convert to uppercase
-    transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
+    std::transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
 
     if (urlParser->scheme == "TCP")
     {
@@ -945,7 +954,7 @@ bool adamNetwork::parseURL()
 
     if (cmdFrame.aux1 != 6) // Anything but a directory read...
     {
-        replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
+        std::replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
     }
 
     // // Some FMSes add a dot at the end, remove it.
