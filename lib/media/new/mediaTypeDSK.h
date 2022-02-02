@@ -26,4 +26,4 @@ public:
 };
 
 
-#endif // _DISKTYPE_DSK_
+#endif // _MEDIATYPE_DSK_

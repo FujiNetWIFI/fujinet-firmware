@@ -184,11 +184,11 @@ bool MediaTypeATR::format(uint16_t *responsesize)
  
  07-0F have two possible interpretations but are no critical for our use
 */
-disktype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
 {
     Debug_print("ATR MOUNT\n");
 
-    _disktype = DISKTYPE_UNKNOWN;
+    _disktype = MEDIATYPE_UNKNOWN;
 
     uint16_t num_bytes_sector;
     uint32_t num_paragraphs;
@@ -234,7 +234,7 @@ disktype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
     Debug_printf("mounted ATR: paragraphs=%d, sect_size=%d, sect_count=%d, disk_size=%d\n",
                  num_paragraphs, num_bytes_sector, _disk_num_sectors, disksize);
 
-    _disktype = DISKTYPE_ATR;
+    _disktype = MEDIATYPE_ATR;
 
     return _disktype;
 }

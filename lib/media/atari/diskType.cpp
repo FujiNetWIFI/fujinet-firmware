@@ -143,7 +143,7 @@ void MediaType::unmount()
     }
 }
 
-disktype_t MediaType::discover_disktype(const char *filename)
+mediatype_t MediaType::discover_disktype(const char *filename)
 {
     int l = strlen(filename);
     if (l > 4 && filename[l - 4] == '.')
@@ -152,34 +152,34 @@ disktype_t MediaType::discover_disktype(const char *filename)
         const char *ext = filename + l - 3;
         if (strcasecmp(ext, "XEX") == 0)
         {
-            return DISKTYPE_XEX;
+            return MEDIATYPE_XEX;
         }
         else if (strcasecmp(ext, "COM") == 0)
         {
-            return DISKTYPE_XEX;
+            return MEDIATYPE_XEX;
         }
         else if (strcasecmp(ext, "BIN") == 0)
         {
-            return DISKTYPE_XEX;
+            return MEDIATYPE_XEX;
         }
         else if (strcasecmp(ext, "ATR") == 0)
         {
-            return DISKTYPE_ATR;
+            return MEDIATYPE_ATR;
         }
         else if (strcasecmp(ext, "ATX") == 0)
         {
-            return DISKTYPE_ATX;
+            return MEDIATYPE_ATX;
         }
         else if (strcasecmp(ext, "CAS") == 0)
         {
-            return DISKTYPE_CAS;
+            return MEDIATYPE_CAS;
         }
         else if (strcasecmp(ext, "WAV") == 0)
         {
-            return DISKTYPE_WAV;
+            return MEDIATYPE_WAV;
         }
     }
-    return DISKTYPE_UNKNOWN;
+    return MEDIATYPE_UNKNOWN;
 }
 
 MediaType::~MediaType()

@@ -22,11 +22,11 @@ private:
 
 public:
     sioDisk();
-    disktype_t mount(FILE *f, const char *filename, uint32_t disksize, disktype_t disk_type = DISKTYPE_UNKNOWN);
+    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 
-    disktype_t disktype() { return _disk == nullptr ? DISKTYPE_UNKNOWN : _disk->_disktype; };
+    mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_disktype; };
 
     ~sioDisk();
 };

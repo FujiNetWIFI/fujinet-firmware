@@ -1,5 +1,5 @@
-#ifndef _DISKTYPE_ATX_
-#define _DISKTYPE_ATX_
+#ifndef _MEDIATYPE_ATX_
+#define _MEDIATYPE_ATX_
 
 #include <esp_timer.h>
 
@@ -211,7 +211,7 @@ public:
     virtual bool read(uint16_t sectornum, uint16_t *readcount) override;
     virtual bool format(uint16_t *respopnsesize) override;
 
-    virtual disktype_t mount(FILE *f, uint32_t disksize) override;
+    virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
 
     virtual void status(uint8_t statusbuff[4]) override;
 
@@ -222,4 +222,4 @@ public:
 };
 
 
-#endif // _DISKTYPE_ATX_
+#endif // _MEDIATYPE_ATX_

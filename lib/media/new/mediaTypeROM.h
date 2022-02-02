@@ -38,4 +38,4 @@ public:
 };
 
 
-#endif // _DISKTYPE_ROM_
+#endif // _MEDIATYPE_ROM_
