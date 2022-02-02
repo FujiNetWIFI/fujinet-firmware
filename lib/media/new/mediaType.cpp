@@ -1,9 +1,10 @@
 #ifdef NEW_TARGET
 
+#include "mediaType.h"
+
 #include <cstdint>
 #include <cstring>
 
-#include "mediaType.h"
 
 MediaType::~MediaType()
 {

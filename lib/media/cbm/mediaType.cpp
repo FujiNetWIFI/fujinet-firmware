@@ -1,7 +1,9 @@
 #ifdef BUILD_CBM
 
-#include <cstring>
 #include "mediaType.h"
+
+#include <cstring>
+
 
 MediaType::~MediaType()
 {

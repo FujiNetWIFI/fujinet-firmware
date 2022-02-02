@@ -1,8 +1,8 @@
 #ifdef NEW_TARGET
 
-#include <cstring>
-
 #include "mediaTypeROM.h"
+
+#include <cstring>
 
 #include "../../include/debug.h"
 
