@@ -68,4 +68,4 @@ bool MediaTypeROM::create(FILE *f, uint32_t numBlocks)
 {
     return true;
 }
-#endif /* NEW_TARGET */
+#endif // NEW_TARGET

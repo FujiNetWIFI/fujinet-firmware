@@ -58,4 +58,4 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
     return MEDIATYPE_UNKNOWN;
 }
 
-#endif /* NEW_TARGET */
+#endif // NEW_TARGET
