@@ -3,18 +3,13 @@
 /**
  * N: Firmware
  */
-// #include <string.h>
-// #include <algorithm>
-// #include <vector>
+
 #include <cstring>
 #include <algorithm>
 
 #include "network.h"
 
 #include "../../include/debug.h"
-
-// #include "../hardware/fnSystem.h"
-// #include "../hardware/fnWiFi.h"
 
 #include "utils.h"
 

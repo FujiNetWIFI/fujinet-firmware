@@ -1,7 +1,10 @@
 #ifdef BUILD_ATARI
+
 #include <cstring>
 
 #include "apetime.h"
+
+#include "../../include/debug.h"
 
 #define SIO_APETIMECMD_GETTIME 0x93
 #define SIO_APETIMECMD_SETTZ 0x99

@@ -1,8 +1,8 @@
 #ifndef ADAM_DISK_H
 #define ADAM_DISK_H
 
-#include "../../bus/bus.h"
-#include "../../media/media.h"
+#include "bus.h"
+#include "media.h"
 
 #define STATUS_OK        0
 #define STATUS_BAD_BLOCK 1

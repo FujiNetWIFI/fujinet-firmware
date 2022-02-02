@@ -1,13 +1,16 @@
 #ifndef MODEM_H
 #define MODEM_H
 
+#include <cstdint>
 #include <string>
+
+#include <time.h>
+
+#include "bus.h"
+
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
-#include "fnFsSD.h"
-#include "fnFsSPIFFS.h"
-#include "bus.h"
-#include "../modem-sniffer/modem-sniffer.h"
+#include "modem-sniffer.h"
 #include "libtelnet.h"
 #include "esp32sshclient.h"
 

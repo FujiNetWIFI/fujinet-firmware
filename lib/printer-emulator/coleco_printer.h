@@ -15,11 +15,7 @@ protected:
 public:
     const char *modelname()  override 
     { 
-        #ifdef BUILD_ATARI
-            return sioPrinter::printer_model_str[sioPrinter::PRINTER_COLECO_ADAM];
-        #elif BUILD_CBM
-            return adamPrinter::printer_model_str[iecPrinter::PRINTER_COLECO_ADAM];
-        #elif BUILD_ADAM
+        #if BUILD_ADAM
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_COLECO_ADAM];
         #elif NEW_TARGET
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_COLECO_ADAM];

@@ -1,16 +1,21 @@
 #ifdef BUILD_ATARI
 
 #include <cstdint>
+#include <cstring>
 #include <driver/ledc.h>
 
 #include "fuji.h"
-#include "led.h"
-#include "fnWiFi.h"
-#include "fnSystem.h"
 
-#include "../utils/utils.h"
-#include "../FileSystem/fnFsSPIFFS.h"
-#include "../config/fnConfig.h"
+#include "../../../include/debug.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnFsSPIFFS.h"
+#include "fnWiFi.h"
+
+#include "led.h"
+#include "utils.h"
+
 
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE

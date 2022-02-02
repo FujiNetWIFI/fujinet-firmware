@@ -1,11 +1,16 @@
 #ifdef BUILD_ATARI
+
+#include <cstring>
+
 #include "cassette.h"
-#include "fnSystem.h"
-#include "led.h"
-#include "fnFsSD.h"
+
 #include "../../include/debug.h"
 
-#include "cstring"
+#include "fnSystem.h"
+#include "fnUART.h"
+#include "fnFsSD.h"
+
+#include "led.h"
 
 /** thinking about state machine
  * boolean states:

@@ -2,21 +2,19 @@
 #define DEVICE_FUJI_H
 
 #ifdef BUILD_ATARI
-#include "sio/fuji.h"
+# include "sio/fuji.h"
 #endif
 
 #ifdef BUILD_CBM
-#include "iec/fuji.h"
+# include "iec/fuji.h"
 #endif
 
 #ifdef BUILD_ADAM
-#include "adamnet/fuji.h"
+# include "adamnet/fuji.h"
 #endif
 
 #ifdef NEW_TARGET
-#include "new/fuji.h"
+# include "new/fuji.h"
 #endif
-
-
 
 #endif // DEVICE_FUJI_H

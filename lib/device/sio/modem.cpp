@@ -1,17 +1,18 @@
 #ifdef BUILD_ATARI
 
-#include <string.h>
-#include <lwip/netdb.h>
-
-#include "../../include/atascii.h"
 #include "modem.h"
-#include "../hardware/fnUART.h"
-#include "fnWiFi.h"
-#include "fnFsSPIFFS.h"
+
+#include "../../../include/debug.h"
+#include "../../../include/atascii.h"
+
+#include "bus.h"
 #include "fnSystem.h"
-#include "../utils/utils.h"
-#include "siocpm.h"
 #include "fnConfig.h"
+#include "fnUART.h"
+#include "fnWiFi.h"
+#include "siocpm.h"
+
+#include "utils.h"
 
 #define RECVBUFSIZE 1024
 

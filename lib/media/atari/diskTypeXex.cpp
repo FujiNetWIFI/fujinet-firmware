@@ -1,13 +1,14 @@
-#ifdef BUILD_ATARI // temporary
-#include <memory.h>
-#include <string.h>
+#ifdef BUILD_ATARI
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
-
-#include "../device/sio/disk.h"
+#include <cstring>
 
 #include "diskTypeXex.h"
+
+#include "../../include/debug.h"
+
+#include "fnSystem.h"
+
+#include "utils.h"
 
 #define BOOTLOADER "/picoboot.bin"
 
