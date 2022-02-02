@@ -1,13 +1,8 @@
 #ifndef _TNFSLIB_H
 #define _TNFSLIB_H
 
-// #include <cstdint>
-// #include <cstdio>
-// #include <string>
-
-// #include <lwip/netdb.h>
-
 #include "tnfslibMountInfo.h"
+
 
 #define TNFS_CMD_MOUNT 0x00
 #define TNFS_CMD_UNMOUNT 0x01

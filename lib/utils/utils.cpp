@@ -1,8 +1,9 @@
+
+#include "utils.h"
+
 #include <algorithm>
 #include <cstring>
 #include <sstream>
-
-#include "utils.h"
 
 #include "../../include/debug.h"
 

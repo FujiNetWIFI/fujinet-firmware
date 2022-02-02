@@ -21,6 +21,8 @@
 #ifndef __cbuf_h
 #define __cbuf_h
 
+#include <stdio.h>
+
 class cbuf
 {
 public:

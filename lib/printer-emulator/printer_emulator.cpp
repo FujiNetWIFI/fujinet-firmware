@@ -1,6 +1,8 @@
 #include "printer_emulator.h"
-#include "fnFsSPIFFS.h"
+
 #include "../../include/debug.h"
+
+#include "fnFsSPIFFS.h"
 
 
 #define PRINTER_OUTFILE "/paper"

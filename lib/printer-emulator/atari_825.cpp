@@ -1,6 +1,9 @@
 #include "atari_825.h"
-#include "utils.h"
+
 #include "../../include/debug.h"
+
+#include "utils.h"
+
 
 void atari825::not_implemented()
 {

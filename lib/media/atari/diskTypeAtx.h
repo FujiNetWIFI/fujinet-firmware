@@ -1,9 +1,13 @@
 #ifndef _DISKTYPE_ATX_
 #define _DISKTYPE_ATX_
 
+#include <esp_timer.h>
+
 #include <vector>
 
+#include "network.h"
 #include "diskType.h"
+
 
 /*
     ATX file format data from:

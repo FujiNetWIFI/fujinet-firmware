@@ -1,15 +1,16 @@
-#ifdef BUILD_ATARI
+
+#include "sam.h"
+
+#include <esp_heap_caps.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include <esp_heap_caps.h>
-
-#include "sam.h"
-
 #include "samdebug.h"
 #include "render.h"
 #include "SamTabs.h"
+
 
 char input[256]; //tab39445
 //standard sam sound
@@ -1577,4 +1578,3 @@ void Code47503(unsigned char mem52)
     if ((mem50 & 128) != 0)
         mem53 = -mem53;
 }
-#endif /* BUILD_ATARI */

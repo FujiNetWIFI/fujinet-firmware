@@ -1,5 +1,7 @@
 #include "atari_1025.h"
+
 #include "../../include/debug.h"
+
 
 void atari1025::set_line_long()
 {
