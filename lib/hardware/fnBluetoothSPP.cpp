@@ -4,15 +4,15 @@
 
 #ifdef BLUETOOTH_SUPPORT
 
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
 #include <esp_log.h>
+
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 #include "../../include/debug.h"
 

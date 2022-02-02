@@ -5,7 +5,6 @@
 #ifndef FNSYSTEM_H
 #define FNSYSTEM_H
 
-// #include <cstdint>
 #include <string>
 
 #include <driver/gpio.h>

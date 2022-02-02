@@ -1,12 +1,12 @@
 #ifndef FNWIFI_H
 #define FNWIFI_H
 
-#include <string>
-
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
-//#include <esp_event.h>
 #include <esp_netif.h>
+
+#include <string>
+
 
 #define FNWIFI_RECONNECT_RETRIES 8
 #define FNWIFI_SCAN_RESULTS_MAX 20
