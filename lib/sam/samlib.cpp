@@ -1,4 +1,5 @@
-#ifdef BUILD_ATARI
+
+#include "samlib.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/timers.h>
@@ -7,7 +8,6 @@
 #include <driver/dac.h>
 #endif
 
-#include "samlib.h"
 
 #include "fnSystem.h"
 
@@ -324,4 +324,3 @@ int sam(int argc, char **argv)
 
     return 0;
 }
-#endif /* BUILD_ATARI */

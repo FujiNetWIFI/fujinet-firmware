@@ -1,8 +1,8 @@
-#ifdef BUILD_ATARI
-#include <stdio.h>
-#include <string.h>
 
 #include "reciter.h"
+
+#include <stdio.h>
+#include <string.h>
 
 #include "ReciterTabs.h"
 #include "samdebug.h"
@@ -612,4 +612,3 @@ pos37485:
     Y++;
     goto pos37461;
 }
-#endif /* BUILD_ATARI */

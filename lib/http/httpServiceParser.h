@@ -19,6 +19,8 @@ currently supported tags.
 #ifndef HTTPSERVICEPARSER_H
 #define HTTPSERVICEPARSER_H
 
+#include <string>
+
 class fnHttpServiceParser
 {
     static std::string format_uptime();

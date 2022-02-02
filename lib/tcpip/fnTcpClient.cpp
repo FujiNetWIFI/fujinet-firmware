@@ -1,8 +1,8 @@
 /* Modified version of ESP-Arduino fnTcpClient.cpp/h */
 
-#include <lwip/netdb.h>
-
 #include "fnTcpClient.h"
+
+#include <lwip/netdb.h>
 
 #include "../../include/debug.h"
 

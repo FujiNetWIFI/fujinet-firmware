@@ -1,5 +1,7 @@
 #include "atari_1027.h"
+
 #include "../../include/debug.h"
+
 
 void atari1027::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {

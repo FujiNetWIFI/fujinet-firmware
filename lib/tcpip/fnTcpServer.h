@@ -2,11 +2,8 @@
 #ifndef _FN_TCPSERVER_H_
 #define _FN_TCPSERVER_H_
 
-
-//#include <memory>
-//#include <lwip/sockets.h>
-
 #include "fnTcpClient.h"
+
 
 class fnTcpServer
 {
