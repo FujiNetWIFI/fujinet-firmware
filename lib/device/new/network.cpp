@@ -631,7 +631,7 @@ void adamNetwork::adamnet_response_status()
     statusByte.bits.client_error = s.error > 1;
 
     status_response[4] = statusByte.byte;
-    adamNetDevice::adamnet_response_status();
+    virtualDevice::adamnet_response_status();
 }
 
 void adamNetwork::adamnet_control_ack()

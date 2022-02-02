@@ -129,7 +129,7 @@ class iecBus;      // declare early so can be friend
 class iecFuji;     // declare here so can reference it, but define in iecFuji.h
 class iecPrinter;  // Printer device
 
-class iecDevice
+class virtualDevice
 {
 protected:
 	friend iecBus;
@@ -175,7 +175,7 @@ public:
     virtual void sio_high_speed(void) {};
 
     /**
-     * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
+     * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
      */
     bool is_config_device = false;
 
@@ -189,19 +189,19 @@ public:
      */
     uint8_t status_wait_count = 5;
 
-	iecDevice(void);
-	virtual ~iecDevice(void) {}
+	virtualDevice(void);
+	virtual ~virtualDevice(void) {}
 };
 
 
 class iecBus
 {
 private:
-	std::forward_list<iecDevice *> _daisyChain;
+	std::forward_list<virtualDevice *> _daisyChain;
 
     int _command_frame_counter = 0;
 
-    iecDevice *_activeDev = nullptr;
+    virtualDevice *_activeDev = nullptr;
 //    iecFuji *_fujiDev = nullptr;
 //    iecPrinter *_printerdev = nullptr;
 
@@ -300,10 +300,10 @@ public:
     void shutdown(void);
 
     int numDevices(void);
-    void addDevice(iecDevice *pDevice, int device_id);
-    void remDevice(iecDevice *pDevice);
-    iecDevice *deviceById(int device_id);
-    void changeDeviceId(iecDevice *pDevice, int device_id);
+    void addDevice(virtualDevice *pDevice, int device_id);
+    void remDevice(virtualDevice *pDevice);
+    virtualDevice *deviceById(int device_id);
+    void changeDeviceId(virtualDevice *pDevice, int device_id);
 
 	//iecPrinter *getPrinter(void) { return _printerdev; }
 

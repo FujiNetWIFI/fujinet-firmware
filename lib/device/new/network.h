@@ -24,7 +24,7 @@
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
 
-class adamNetwork : public adamNetDevice
+class adamNetwork : public virtualDevice
 {
 
 public:

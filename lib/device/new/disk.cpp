@@ -190,7 +190,7 @@ void adamDisk::adamnet_response_status()
     else
         status_response[4] = 0x40 | _media->_media_controller_status;
     
-    adamNetDevice::adamnet_response_status();
+    virtualDevice::adamnet_response_status();
 }
 
 void adamDisk::adamnet_response_send()

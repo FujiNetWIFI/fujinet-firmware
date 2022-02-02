@@ -10,7 +10,7 @@
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
-class iecPrinter : public iecDevice
+class iecPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS

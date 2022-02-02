@@ -12,7 +12,7 @@ adamQueryDevice::~adamQueryDevice()
 {
 }
 
-bool adamQueryDevice::adamDeviceExists(uint8_t device)
+bool adamQueryDevice::virtualDeviceExists(uint8_t device)
 {
     uint8_t tx;
     bool again;

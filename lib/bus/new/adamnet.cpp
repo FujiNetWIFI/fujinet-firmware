@@ -71,19 +71,19 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
     return checksum;
 }
 
-void adamNetDevice::adamnet_send(uint8_t b)
+void virtualDevice::adamnet_send(uint8_t b)
 {
     // Write the byte
     fnUartSIO.write(b);
     fnUartSIO.flush();
 }
 
-void adamNetDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
+void virtualDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 {
     fnUartSIO.write(buf, len);
 }
 
-uint8_t adamNetDevice::adamnet_recv()
+uint8_t virtualDevice::adamnet_recv()
 {
     uint8_t b;
 
@@ -95,7 +95,7 @@ uint8_t adamNetDevice::adamnet_recv()
     return b;
 }
 
-bool adamNetDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
+bool virtualDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
 {
     uint64_t start, current, elapsed;
     bool timeout = true;
@@ -121,7 +121,7 @@ bool adamNetDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
     return timeout;
 }
 
-uint16_t adamNetDevice::adamnet_recv_length()
+uint16_t virtualDevice::adamnet_recv_length()
 {
     unsigned short s = 0;
     s = adamnet_recv() << 8;
@@ -130,18 +130,18 @@ uint16_t adamNetDevice::adamnet_recv_length()
     return s;
 }
 
-void adamNetDevice::adamnet_send_length(uint16_t l)
+void virtualDevice::adamnet_send_length(uint16_t l)
 {
     adamnet_send(l >> 8);
     adamnet_send(l & 0xFF);
 }
 
-unsigned short adamNetDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short len)
+unsigned short virtualDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short len)
 {
     return fnUartSIO.readBytes(buf, len);
 }
 
-uint32_t adamNetDevice::adamnet_recv_blockno()
+uint32_t virtualDevice::adamnet_recv_blockno()
 {
     unsigned char x[4] = {0x00, 0x00, 0x00, 0x00};
 
@@ -150,12 +150,12 @@ uint32_t adamNetDevice::adamnet_recv_blockno()
     return x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
 }
 
-void adamNetDevice::reset()
+void virtualDevice::reset()
 {
     Debug_printf("No Reset implemented for device %u\n", _devnum);
 }
 
-void adamNetDevice::adamnet_response_ack()
+void virtualDevice::adamnet_response_ack()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
@@ -166,7 +166,7 @@ void adamNetDevice::adamnet_response_ack()
     }
 }
 
-void adamNetDevice::adamnet_response_nack()
+void virtualDevice::adamnet_response_nack()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
@@ -177,12 +177,12 @@ void adamNetDevice::adamnet_response_nack()
     }
 }
 
-void adamNetDevice::adamnet_control_ready()
+void virtualDevice::adamnet_control_ready()
 {
     adamnet_response_ack();
 }
 
-void adamNetBus::wait_for_idle()
+void systemBus::wait_for_idle()
 {
     bool isIdle = false;
     int64_t start, current, dur;
@@ -206,12 +206,12 @@ void adamNetBus::wait_for_idle()
     fnSystem.yield();
 }
 
-void adamNetDevice::adamnet_process(uint8_t b)
+void virtualDevice::adamnet_process(uint8_t b)
 {
     fnUartDebug.printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n", b);
 }
 
-void adamNetDevice::adamnet_control_status()
+void virtualDevice::adamnet_control_status()
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
@@ -222,7 +222,7 @@ void adamNetDevice::adamnet_control_status()
     }
 }
 
-void adamNetDevice::adamnet_response_status()
+void virtualDevice::adamnet_response_status()
 {
     status_response[0] |= _devnum;
     
@@ -230,17 +230,17 @@ void adamNetDevice::adamnet_response_status()
     adamnet_send_buffer(status_response, sizeof(status_response));
 }
 
-void adamNetDevice::adamnet_idle()
+void virtualDevice::adamnet_idle()
 {
     // Not implemented in base class
 }
 
-//void adamNetDevice::adamnet_status()
+//void virtualDevice::adamnet_status()
 //{
 //    fnUartDebug.printf("adamnet_status() not implemented yet for this device.\n");
 //}
 
-void adamNetBus::_adamnet_process_cmd()
+void systemBus::_adamnet_process_cmd()
 {
     uint8_t b;
 
@@ -266,18 +266,18 @@ void adamNetBus::_adamnet_process_cmd()
     fnUartSIO.flush();
 }
 
-void adamNetBus::_adamnet_process_queue()
+void systemBus::_adamnet_process_queue()
 {
 }
 
-void adamNetBus::service()
+void systemBus::service()
 {
     // Process anything waiting.
     if (fnUartSIO.available() > 0)
         _adamnet_process_cmd();
 }
 
-void adamNetBus::setup()
+void systemBus::setup()
 {
     Debug_println("ADAMNET SETUP");
 
@@ -294,7 +294,7 @@ void adamNetBus::setup()
     fnUartSIO.begin(ADAMNET_BAUD);
 }
 
-void adamNetBus::shutdown()
+void systemBus::shutdown()
 {
     for (auto devicep : _daisyChain)
     {
@@ -304,7 +304,7 @@ void adamNetBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-void adamNetBus::addDevice(adamNetDevice *pDevice, uint8_t device_id)
+void systemBus::addDevice(virtualDevice *pDevice, uint8_t device_id)
 {
     Debug_printf("Adding device: %02X\n", device_id);
     pDevice->_devnum = device_id;
@@ -321,17 +321,17 @@ void adamNetBus::addDevice(adamNetDevice *pDevice, uint8_t device_id)
     }
 }
 
-bool adamNetBus::deviceExists(uint8_t device_id)
+bool systemBus::deviceExists(uint8_t device_id)
 {
     return _daisyChain.find(device_id) != _daisyChain.end();
 }
 
-void adamNetBus::remDevice(adamNetDevice *pDevice)
+void systemBus::remDevice(virtualDevice *pDevice)
 {
 
 }
 
-void adamNetBus::remDevice(uint8_t device_id)
+void systemBus::remDevice(uint8_t device_id)
 {
     if (deviceExists(device_id))
     {
@@ -339,12 +339,12 @@ void adamNetBus::remDevice(uint8_t device_id)
     }
 }
 
-int adamNetBus::numDevices()
+int systemBus::numDevices()
 {
     return _daisyChain.size();
 }
 
-void adamNetBus::changeDeviceId(adamNetDevice *p, uint8_t device_id)
+void systemBus::changeDeviceId(virtualDevice *p, uint8_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -353,7 +353,7 @@ void adamNetBus::changeDeviceId(adamNetDevice *p, uint8_t device_id)
     }
 }
 
-adamNetDevice *adamNetBus::deviceById(uint8_t device_id)
+virtualDevice *systemBus::deviceById(uint8_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -363,23 +363,23 @@ adamNetDevice *adamNetBus::deviceById(uint8_t device_id)
     return nullptr;
 }
 
-void adamNetBus::reset()
+void systemBus::reset()
 {
     for (auto devicep : _daisyChain)
         devicep.second->reset();
 }
 
-void adamNetBus::enableDevice(uint8_t device_id)
+void systemBus::enableDevice(uint8_t device_id)
 {
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = true;
 }
 
-void adamNetBus::disableDevice(uint8_t device_id)
+void systemBus::disableDevice(uint8_t device_id)
 {
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = false;
 }
 
-adamNetBus AdamNet;
+systemBus AdamNet;
 #endif /* NEW_TARGET */

@@ -10,7 +10,7 @@
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
 
-class adamDisk : public adamNetDevice
+class adamDisk : public virtualDevice
 {
 private:
     MediaType *_media = nullptr;

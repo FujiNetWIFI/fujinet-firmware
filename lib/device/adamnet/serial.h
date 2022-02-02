@@ -8,7 +8,7 @@
 #include "fnTcpClient.h"
 #include "fnTcpServer.h"
 
-class adamSerial : public adamNetDevice
+class adamSerial : public virtualDevice
 {
     public:
 

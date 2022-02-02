@@ -636,7 +636,7 @@ void adamNetwork::adamnet_response_status()
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
     if (t < 300)
-        adamNetDevice::adamnet_response_status();
+        virtualDevice::adamnet_response_status();
 }
 
 void adamNetwork::adamnet_control_ack()

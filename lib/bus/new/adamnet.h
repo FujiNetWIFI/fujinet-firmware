@@ -55,7 +55,7 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
-class adamNetBus;
+class systemBus;
 class adamFuji;     // declare here so can reference it, but define in fuji.h
 class adamPrinter;
 
@@ -70,10 +70,10 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len);
 /**
  * @brief An AdamNet Device
  */
-class adamNetDevice
+class virtualDevice
 {
 protected:
-    friend adamNetBus; // We exist on the AdamNet Bus, and need its methods.
+    friend systemBus; // We exist on the AdamNet Bus, and need its methods.
 
     /**
      * @brief Send Byte to AdamNet
@@ -190,7 +190,7 @@ protected:
 public:
 
     /**
-     * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
+     * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
      */
     bool is_config_device = false;
 
@@ -211,11 +211,11 @@ public:
 /**
  * @brief The AdamNet Bus
  */
-class adamNetBus
+class systemBus
 {
 private:
-    std::map<uint8_t, adamNetDevice *> _daisyChain;
-    adamNetDevice *_activeDev = nullptr;
+    std::map<uint8_t, virtualDevice *> _daisyChain;
+    virtualDevice *_activeDev = nullptr;
     adamFuji *_fujiDev = nullptr;
     adamPrinter *_printerDev = nullptr;
 
@@ -239,17 +239,17 @@ public:
     int64_t start_time;
 
     int numDevices();
-    void addDevice(adamNetDevice *pDevice, uint8_t device_id);
-    void remDevice(adamNetDevice *pDevice);
+    void addDevice(virtualDevice *pDevice, uint8_t device_id);
+    void remDevice(virtualDevice *pDevice);
     void remDevice(uint8_t device_id);
     bool deviceExists(uint8_t device_id);
     void enableDevice(uint8_t device_id);
     void disableDevice(uint8_t device_id);
-    adamNetDevice *deviceById(uint8_t device_id);
-    void changeDeviceId(adamNetDevice *pDevice, uint8_t device_id);
+    virtualDevice *deviceById(uint8_t device_id);
+    void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
     QueueHandle_t qAdamNetMessages = nullptr;
 };
 
-extern adamNetBus AdamNet;
+extern systemBus AdamNet;
 
 #endif /* ADAMNET_H */

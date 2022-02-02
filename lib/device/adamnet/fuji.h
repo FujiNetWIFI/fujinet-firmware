@@ -50,7 +50,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class adamFuji : public adamNetDevice
+class adamFuji : public virtualDevice
 {
 private:
     bool isReady = false;
@@ -62,7 +62,7 @@ private:
     uint8_t response[1024];
     uint16_t response_len;
 
-    adamNetBus *_adamnet_bus;
+    systemBus *_adamnet_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -139,7 +139,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(adamNetBus *adamnetbus);
+    void setup(systemBus *adamnetbus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);

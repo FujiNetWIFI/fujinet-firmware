@@ -10,7 +10,7 @@
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
-class sioPrinter : public sioDevice
+class sioPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS

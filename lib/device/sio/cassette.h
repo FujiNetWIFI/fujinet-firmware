@@ -60,7 +60,7 @@ public:
     int8_t service(uint8_t b);
 };
 
-class sioCassette : public sioDevice
+class sioCassette : public virtualDevice
 {
 protected:
     // FileSystem *_FS = nullptr;

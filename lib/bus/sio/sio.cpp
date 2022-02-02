@@ -18,7 +18,7 @@
 // Helper functions outside the class defintions
 
 // Get requested buffer length from command frame
-unsigned short sioDevice::sio_get_aux()
+unsigned short virtualDevice::sio_get_aux()
 {
     return (cmdFrame.aux2 * 256) + cmdFrame.aux1;
 }
@@ -40,7 +40,7 @@ uint8_t sio_checksum(uint8_t *buf, unsigned short len)
    len = length of buffer
    err = along with data, send ERROR status to Atari rather than COMPLETE
 */
-void sioDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
+void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
     Debug_printf("->SIO write %hu bytes\n", len);
@@ -71,7 +71,7 @@ void sioDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
    len = length
    Returns checksum
 */
-uint8_t sioDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
+uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 {
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
@@ -108,7 +108,7 @@ uint8_t sioDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 }
 
 // SIO NAK
-void sioDevice::sio_nak()
+void virtualDevice::sio_nak()
 {
     fnUartSIO.write('N');
     fnUartSIO.flush();
@@ -116,7 +116,7 @@ void sioDevice::sio_nak()
 }
 
 // SIO ACK
-void sioDevice::sio_ack()
+void virtualDevice::sio_ack()
 {
     fnUartSIO.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
@@ -125,7 +125,7 @@ void sioDevice::sio_ack()
 }
 
 // SIO COMPLETE
-void sioDevice::sio_complete()
+void virtualDevice::sio_complete()
 {
     fnSystem.delay_microseconds(DELAY_T5);
     fnUartSIO.write('C');
@@ -133,7 +133,7 @@ void sioDevice::sio_complete()
 }
 
 // SIO ERROR
-void sioDevice::sio_error()
+void virtualDevice::sio_error()
 {
     fnSystem.delay_microseconds(DELAY_T5);
     fnUartSIO.write('E');
@@ -141,7 +141,7 @@ void sioDevice::sio_error()
 }
 
 // SIO HIGH SPEED REQUEST
-void sioDevice::sio_high_speed()
+void virtualDevice::sio_high_speed()
 {
     Debug_print("sio HSIO INDEX\n");
     uint8_t hsd = SIO.getHighSpeedIndex();
@@ -149,7 +149,7 @@ void sioDevice::sio_high_speed()
 }
 
 // Read and process a command frame from SIO
-void sioBus::_sio_process_cmd()
+void systemBus::_sio_process_cmd()
 {
     if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
@@ -244,7 +244,7 @@ void sioBus::_sio_process_cmd()
 }
 
 // Look to see if we have any waiting messages and process them accordingly
-void sioBus::_sio_process_queue()
+void systemBus::_sio_process_queue()
 {
     sio_message_t msg;
     if (xQueueReceive(qSioMessages, &msg, 0) == pdTRUE)
@@ -271,7 +271,7 @@ void sioBus::_sio_process_queue()
  * Throw out stray input on SIO if neither of the above two are true
  * Give NETWORK devices an opportunity to signal available data
  */
-void sioBus::service()
+void systemBus::service()
 {
     // Check for any messages in our queue (this should always happen, even if any other special
     // modes disrupt normal SIO handling - should probably make a separate task for this)
@@ -353,7 +353,7 @@ void sioBus::service()
 }
 
 // Setup SIO bus
-void sioBus::setup()
+void systemBus::setup()
 {
     Debug_println("SIO SETUP");
 
@@ -394,7 +394,7 @@ void sioBus::setup()
 }
 
 // Add device to SIO bus
-void sioBus::addDevice(sioDevice *pDevice, int device_id)
+void systemBus::addDevice(virtualDevice *pDevice, int device_id)
 {
     if (device_id == SIO_DEVICEID_FUJINET)
     {
@@ -432,13 +432,13 @@ void sioBus::addDevice(sioDevice *pDevice, int device_id)
 
 // Removes device from the SIO bus.
 // Note that the destructor is called on the device!
-void sioBus::remDevice(sioDevice *p)
+void systemBus::remDevice(virtualDevice *p)
 {
     _daisyChain.remove(p);
 }
 
 // Should avoid using this as it requires counting through the list
-int sioBus::numDevices()
+int systemBus::numDevices()
 {
     int i = 0;
     __BEGIN_IGNORE_UNUSEDVARS
@@ -448,7 +448,7 @@ int sioBus::numDevices()
     __END_IGNORE_UNUSEDVARS
 }
 
-void sioBus::changeDeviceId(sioDevice *p, int device_id)
+void systemBus::changeDeviceId(virtualDevice *p, int device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -457,7 +457,7 @@ void sioBus::changeDeviceId(sioDevice *p, int device_id)
     }
 }
 
-sioDevice *sioBus::deviceById(int device_id)
+virtualDevice *systemBus::deviceById(int device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -468,7 +468,7 @@ sioDevice *sioBus::deviceById(int device_id)
 }
 
 // Give devices an opportunity to clean up before a reboot
-void sioBus::shutdown()
+void systemBus::shutdown()
 {
     for (auto devicep : _daisyChain)
     {
@@ -478,7 +478,7 @@ void sioBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
-void sioBus::toggleBaudrate()
+void systemBus::toggleBaudrate()
 {
     int baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? _sioBaudHigh : SIO_STANDARD_BAUDRATE;
 
@@ -490,12 +490,12 @@ void sioBus::toggleBaudrate()
     fnUartSIO.set_baudrate(_sioBaud);
 }
 
-int sioBus::getBaudrate()
+int systemBus::getBaudrate()
 {
     return _sioBaud;
 }
 
-void sioBus::setBaudrate(int baud)
+void systemBus::setBaudrate(int baud)
 {
     if (_sioBaud == baud)
     {
@@ -509,7 +509,7 @@ void sioBus::setBaudrate(int baud)
 }
 
 // Set HSIO index. Sets high speed SIO baud and also returns that value.
-int sioBus::setHighSpeedIndex(int hsio_index)
+int systemBus::setHighSpeedIndex(int hsio_index)
 {
     int temp = _sioBaudHigh;
     _sioBaudHigh = (SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (hsio_index + 7)) + 3);
@@ -521,17 +521,17 @@ int sioBus::setHighSpeedIndex(int hsio_index)
     return _sioBaudHigh;
 }
 
-int sioBus::getHighSpeedIndex()
+int systemBus::getHighSpeedIndex()
 {
     return _sioHighSpeedIndex;
 }
 
-int sioBus::getHighSpeedBaud()
+int systemBus::getHighSpeedBaud()
 {
     return _sioBaudHigh;
 }
 
-void sioBus::setMIDIHost(const char *hostname)
+void systemBus::setMIDIHost(const char *hostname)
 {
 
     if (hostname != nullptr && hostname[0] != '\0')
@@ -556,7 +556,7 @@ void sioBus::setMIDIHost(const char *hostname)
         _midiDev->sio_enable_midimaze();
 }
 
-void sioBus::setUltraHigh(bool _enable, int _ultraHighBaud)
+void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 {
     useUltraHigh = _enable;
 
@@ -599,5 +599,5 @@ void sioBus::setUltraHigh(bool _enable, int _ultraHighBaud)
     }
 }
 
-sioBus SIO; // Global SIO object
+systemBus SIO; // Global SIO object
 #endif /* BUILD_ATARI */

@@ -4,7 +4,7 @@
 #include "bus.h"
 #include "media.h"
 
-class sioDisk : public sioDevice
+class sioDisk : public virtualDevice
 {
 private:
     DiskType *_disk = nullptr;

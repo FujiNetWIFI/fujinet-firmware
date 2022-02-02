@@ -3,22 +3,22 @@
 
 #ifdef BUILD_ATARI
 # include "sio/sio.h"
-# define BUS_CLASS SIO
+# define SYSTEM_BUS SIO
 #endif
 
 #ifdef BUILD_CBM
 # include "iec/iec.h"
-# define BUS_CLASS IEC
+# define SYSTEM_BUS IEC
 #endif
 
 #ifdef BUILD_ADAM
 # include "adamnet/adamnet.h"
-# define BUS_CLASS AdamNet
+# define SYSTEM_BUS AdamNet
 #endif
 
 #ifdef NEW_TARGET
 # include "new/adamnet.h"
-# define BUS_CLASS AdamNet
+# define SYSTEM_BUS AdamNet
 #endif
 
 #endif // BUS_H

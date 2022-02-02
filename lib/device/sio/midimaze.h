@@ -15,7 +15,7 @@
 #define MIDIMAZE_PACKET_TIMEOUT 5000
 #define MIDI_BAUD 31250
 
-class sioMIDIMaze : public sioDevice
+class sioMIDIMaze : public virtualDevice
 {
 private:
     fnUDP udpMIDI;

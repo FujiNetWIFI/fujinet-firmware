@@ -6,7 +6,7 @@
 #include "bus.h"
 #include "samlib.h"
 
-class sioVoice : public sioDevice
+class sioVoice : public virtualDevice
 {
 protected:
     // act like a printer for POC

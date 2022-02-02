@@ -35,7 +35,7 @@ void main_shutdown_handler()
     Debug_println("Shutdown handler called");
     // Give devices an opportunity to clean up before rebooting
 
-    BUS_CLASS.shutdown();
+    SYSTEM_BUS.shutdown();
 }
 
 // Initial setup
@@ -195,7 +195,7 @@ void fn_service_loop(void *param)
 #endif // BLUETOOTH_SUPPORT
 
 
-        BUS_CLASS.service();
+        SYSTEM_BUS.service();
 
         taskYIELD(); // Allow other tasks to run
     }

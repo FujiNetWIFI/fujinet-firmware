@@ -1032,7 +1032,7 @@ void adamFuji::adamnet_disable_device()
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void adamFuji::setup(adamNetBus *siobus)
+void adamFuji::setup(systemBus *siobus)
 {
     // set up Fuji device
     _adamnet_bus = siobus;
