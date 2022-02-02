@@ -4,11 +4,11 @@
  * Implementation
  */
 
-#include <cstring>
+#include "SMB.h"
 
 #include <fcntl.h>
 
-#include "SMB.h"
+#include <cstring>
 
 #include "../../include/debug.h"
 

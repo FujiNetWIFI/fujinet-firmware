@@ -5,9 +5,9 @@
 #ifndef NETWORKPROTOCOL_SSH
 #define NETWORKPROTOCOL_SSH
 
-#include <string>
+#include <lwip/sockets.h>
 
-#include "lwip/sockets.h"
+#include <string>
 
 #include "Protocol.h"
 
