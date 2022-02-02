@@ -10,9 +10,7 @@
 #include "fnSystem.h"
 #include "led.h"
 
-
 static xQueueHandle reset_evt_queue = NULL;
-// static uint32_t reset_detect_status = 0;
 
 static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
 {
@@ -20,15 +18,12 @@ static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
     xQueueSendFromISR(reset_evt_queue, &gpio_num, NULL);
 }
 
-
-
 static void adamnet_reset_intr_task(void *arg)
 {
     uint32_t io_num;
     bool was_reset = false;
     bool reset_debounced = false;
     uint64_t start, current, elapsed;
-    
 
     // reset_detect_status = gpio_get_level((gpio_num_t)PIN_ADAMNET_RESET);
     start = current = esp_timer_get_time();
@@ -39,14 +34,14 @@ static void adamnet_reset_intr_task(void *arg)
             start = esp_timer_get_time();
             printf("ADAMNet RESET Asserted\n");
             was_reset = true;
-        } 
+        }
         current = esp_timer_get_time();
 
         elapsed = current - start;
 
         if (was_reset)
         {
-            if (elapsed >= ADAMNET_RESET_DEBOUNCE_PERIOD) 
+            if (elapsed >= ADAMNET_RESET_DEBOUNCE_PERIOD)
             {
                 reset_debounced = true;
             }
@@ -56,8 +51,10 @@ static void adamnet_reset_intr_task(void *arg)
         {
             was_reset = false;
             // debounce period for reset completed
-            reset_debounced = false;;
+            reset_debounced = false;
+            ;
         }
+        vTaskDelay(1000);
     }
 }
 
@@ -81,6 +78,7 @@ void adamNetDevice::adamnet_send(uint8_t b)
 void adamNetDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 {
     fnUartSIO.write(buf, len);
+    fnUartSIO.flush();
 }
 
 uint8_t adamNetDevice::adamnet_recv()
@@ -213,21 +211,18 @@ void adamNetDevice::adamnet_process(uint8_t b)
 
 void adamNetDevice::adamnet_control_status()
 {
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
-
-    if (t < 1500)
-    {
-        AdamNet.wait_for_idle();
-        adamnet_response_status();
-    }
+    AdamNet.wait_for_idle();
+    AdamNet.start_time=esp_timer_get_time();
+    adamnet_response_status();
 }
 
 void adamNetDevice::adamnet_response_status()
 {
     status_response[0] |= _devnum;
-    
-    status_response[5] = adamnet_checksum(&status_response[1],4);
-    adamnet_send_buffer(status_response, sizeof(status_response));
+
+    status_response[5] = adamnet_checksum(&status_response[1], 4);
+    // adamnet_send_buffer(status_response, sizeof(status_response));
+    uart_tx_chars(2,(const char *)status_response,sizeof(status_response));
 }
 
 void adamNetDevice::adamnet_idle()
@@ -249,7 +244,7 @@ void adamNetBus::_adamnet_process_cmd()
     uint8_t d = b & 0x0F;
 
     // Find device ID and pass control to it
-    if (_daisyChain.find(d) == _daisyChain.end())
+    if (_daisyChain.count(d) < 1)
     {
     }
     else if (_daisyChain[d]->device_active == true)
@@ -261,9 +256,9 @@ void adamNetBus::_adamnet_process_cmd()
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }
-    
+
     wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
-    fnUartSIO.flush();
+    fnUartSIO.flush_input();
 }
 
 void adamNetBus::_adamnet_process_queue()
@@ -328,7 +323,6 @@ bool adamNetBus::deviceExists(uint8_t device_id)
 
 void adamNetBus::remDevice(adamNetDevice *pDevice)
 {
-
 }
 
 void adamNetBus::remDevice(uint8_t device_id)

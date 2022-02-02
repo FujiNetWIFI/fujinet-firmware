@@ -623,6 +623,7 @@ void adamNetwork::adamnet_response_status()
 {
     NetworkStatus s;
 
+
     if (protocol != nullptr)
         protocol->status(&s);
 
@@ -631,7 +632,11 @@ void adamNetwork::adamnet_response_status()
     statusByte.bits.client_error = s.error > 1;
 
     status_response[4] = statusByte.byte;
-    adamNetDevice::adamnet_response_status();
+    
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 300)
+        adamNetDevice::adamnet_response_status();
 }
 
 void adamNetwork::adamnet_control_ack()
