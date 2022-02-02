@@ -7,6 +7,9 @@
 #include "../../include/debug.h"
 #include "utils.h"
 
+
+
+
 /******************************************************************************
 Based on:
 Apple //c Smartport Compact Flash adapter
@@ -420,24 +423,23 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
       if (iwm_timer.t0 > iwm_timer.tn)
       {
         // end of packet
-        have_data = false;
+        have_data = false; // todo also can look for 0xc8 i think
         break;
       }
     } while (iwm_wrdata_val() == prev_level);
     numbits = 8;       // ;1   8bits to read
   } while (have_data); //(have_data); // while have_data
   //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
-  while (a[--idx] != 0xc8);
-  // endpkt:   clr  r23
+  while (a[--idx] != 0xc8) // search for end of packet
+  {
+    if (!idx)
+    {
+      a[0] = 0;
+      portENABLE_INTERRUPTS();
+      return 1;
+    }
+  }             // endpkt:   clr  r23
   a[++idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
-
-  //todo: try something here
-  // so I shuold just return a 1 without an ACK
-if (idx<17) // invalid packet! but for now return OK and don't ACK
-{
-  portENABLE_INTERRUPTS();
-  return 1;
-}
 
   portENABLE_INTERRUPTS();
   return 0;
@@ -963,7 +965,7 @@ bool iwmDevice::verify_cmdpkt_checksum(void)
   uint8_t pkt_checksum;
 
   length = packet_length();
-  Debug_printf("\r\npacket length = %d", length);
+  //Debug_printf("\r\npacket length = %d", length);
   //2 oddbytes in cmd packet
   calc_checksum ^= ((packet_buffer[13] << 1) & 0x80) | (packet_buffer[14] & 0x7f);
   calc_checksum ^= ((packet_buffer[13] << 2) & 0x80) | (packet_buffer[15] & 0x7f);
@@ -988,7 +990,7 @@ bool iwmDevice::verify_cmdpkt_checksum(void)
   //  Debug_print(pkt_checksum,DEC);
   //  Debug_print(("Calc Chksum Byte:\r\n"));
   //  Debug_print(calc_checksum,DEC);
-  Debug_printf("\r\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
+  //Debug_printf("\r\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
   // if ( pkt_checksum == calc_checksum )
   //   return false;
   // else
