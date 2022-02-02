@@ -1,8 +1,5 @@
 #ifdef BUILD_ADAM
 
-// #include <string.h>
-// #include <lwip/netdb.h>
-
 #include "modem.h"
 
 #include "../../../include/debug.h"

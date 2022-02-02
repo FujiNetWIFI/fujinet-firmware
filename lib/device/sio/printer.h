@@ -2,7 +2,7 @@
 #ifndef ATARI_PRINTER_H
 #define ATARI_PRINTER_H
 
-#include <string.h>
+#include <string>
 
 #include "bus.h"
 #include "../printer-emulator/printer_emulator.h"

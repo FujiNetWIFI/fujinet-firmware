@@ -2,9 +2,12 @@
 
 #include "../../include/debug.h"
 
+#include "printer.h"
+#include "fuji.h"
+
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "printer.h"
+
 #include "utils.h"
 
 

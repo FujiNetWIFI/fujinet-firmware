@@ -1,7 +1,14 @@
 #ifdef BUILD_ATARI
 
-#include "../../include/atascii.h"
+#include <cstring>
+
 #include "printer.h"
+
+#include "../../include/debug.h"
+#include "../../include/atascii.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
 
 #include "file_printer.h"
 #include "html_printer.h"
@@ -20,7 +27,7 @@
 #include "okimate_10.h"
 #include "png_printer.h"
 
-#include "fnConfig.h"
+
 
 #define SIO_PRINTERCMD_PUT 0x50
 #define SIO_PRINTERCMD_WRITE 0x57

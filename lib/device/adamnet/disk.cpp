@@ -3,11 +3,12 @@
 #include <memory.h>
 #include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
+#include "disk.h"
 
-#include "../device/adamnet/disk.h"
+#include "../../include/debug.h"
+
 #include "media.h"
+#include "utils.h"
 
 adamDisk::adamDisk()
 {

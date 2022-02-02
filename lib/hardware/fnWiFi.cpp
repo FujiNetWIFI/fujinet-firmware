@@ -8,6 +8,7 @@
 
 #include "../../include/debug.h"
 
+#include "fuji.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "httpService.h"

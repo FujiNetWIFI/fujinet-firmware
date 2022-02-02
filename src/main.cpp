@@ -1,21 +1,19 @@
 #include <esp_system.h>
 #include <nvs_flash.h>
-
 #include <esp32/spiram.h>
 #include <esp32/himem.h>
 
 #include "debug.h"
+#include "bus.h"
+#include "device.h"
+#include "keys.h"
+#include "led.h"
+
 #include "fnSystem.h"
+#include "fnConfig.h"
 #include "fnWiFi.h"
 #include "fnFsSD.h"
 #include "fnFsSPIFFS.h"
-#include "fnConfig.h"
-#include "keys.h"
-#include "led.h"
-#include "bus.h"
-#include "device.h"
-
-#include "httpService.h"
 
 #include "httpService.h"
 
@@ -36,15 +34,8 @@ void main_shutdown_handler()
 {
     Debug_println("Shutdown handler called");
     // Give devices an opportunity to clean up before rebooting
-#ifdef BUILD_ATARI
-    // SIO.shutdown();
 
-#elif BUILD_CBM
-    // IEC.shutdown();
-
-#elif BUILD_ADAM
-
-#endif
+    BUS_CLASS.shutdown();
 }
 
 // Initial setup
@@ -137,14 +128,14 @@ void main_setup()
 
     // Go setup SIO
     SIO.setup();
+#endif // BUILD_ATARI
 
-
-#elif BUILD_CBM
+#ifdef BUILD_CBM
     // Setup IEC Bus
     theFuji.setup(&IEC);
+#endif  // BUILD_CBM
 
-
-#elif BUILD_ADAM
+#ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();
 
@@ -153,14 +144,15 @@ void main_setup()
     sioQ = new adamQueryDevice();
 
 #  ifndef NO_VIRTUAL_KEYBOARD
-    exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_KEYBOARD);
-    if (! exists)
-    {
-        Debug_printf("Adding virtual keyboard\n");
-        sioK = new adamKeyboard();
-        AdamNet.addDevice(sioK,ADAMNET_DEVICE_ID_KEYBOARD);
-    } else
-        Debug_printf("Physical keyboard found\n");
+        exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_KEYBOARD);
+        if (! exists)
+        {
+            Debug_printf("Adding virtual keyboard\n");
+            sioK = new adamKeyboard();
+            AdamNet.addDevice(sioK,ADAMNET_DEVICE_ID_KEYBOARD);
+        } 
+        else
+            Debug_printf("Physical keyboard found\n");
 #  endif // NO_VIRTUAL_KEYBOARD
     
     exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_PRINTER);
@@ -173,7 +165,8 @@ void main_setup()
         xTaskCreatePinnedToCore(printerTask,"foo",4096,ptr,10,NULL,1);
         fnPrinters.set_entry(0,ptr,printer,0);
         AdamNet.addDevice(ptr,ADAMNET_DEVICE_ID_PRINTER);
-    } else
+    } 
+    else
         Debug_printf("Physical printer found\n");
 # endif // VIRTUAL_ADAM_DEVICES
 
@@ -201,16 +194,9 @@ void fn_service_loop(void *param)
         else
 #endif // BLUETOOTH_SUPPORT
 
-#ifdef BUILD_ATARI 
-        SIO.service();
 
-#elif BUILD_CBM
-        IEC.service();
+        BUS_CLASS.service();
 
-#elif BUILD_ADAM
-        AdamNet.service();
-
-#endif
         taskYIELD(); // Allow other tasks to run
     }
 }
