@@ -765,7 +765,7 @@ void sioFuji::sio_disk_image_umount()
     if (deviceSlot < MAX_DISK_DEVICES)
     {
         _fnDisks[deviceSlot].disk_dev.unmount();
-        if (_fnDisks[deviceSlot].disk_type == DISKTYPE_CAS || _fnDisks[deviceSlot].disk_type == DISKTYPE_WAV)
+        if (_fnDisks[deviceSlot].disk_type == MEDIATYPE_CAS || _fnDisks[deviceSlot].disk_type == MEDIATYPE_WAV)
         {
             // tell cassette it unmount
             _cassetteDev.umount_cassette_file();

@@ -1,5 +1,5 @@
-#ifndef _DISKTYPE_
-#define _DISKTYPE_
+#ifndef _MEDIATYPE_
+#define _MEDIATYPE_
 
 #include <stdio.h>
 
@@ -30,15 +30,15 @@
 #define DISK_DRIVE_STATUS_DOUBLE_SIDED 0x40
 #define DISK_DRIVE_STATUS_ENHANCED_DENSITY 0x80
 
-enum disktype_t 
+enum mediatype_t 
 {
-    DISKTYPE_UNKNOWN = 0,
-    DISKTYPE_ATR,
-    DISKTYPE_ATX,
-    DISKTYPE_XEX,
-    DISKTYPE_CAS,
-    DISKTYPE_WAV,
-    DISKTYPE_COUNT
+    MEDIATYPE_UNKNOWN = 0,
+    MEDIATYPE_ATR,
+    MEDIATYPE_ATX,
+    MEDIATYPE_XEX,
+    MEDIATYPE_CAS,
+    MEDIATYPE_WAV,
+    MEDIATYPE_COUNT
 };
 
 class MediaType
@@ -70,10 +70,10 @@ public:
 
     uint8_t _disk_sectorbuff[DISK_SECTORBUF_SIZE];
 
-    disktype_t _disktype = DISKTYPE_UNKNOWN;
+    mediatype_t _disktype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
 
-    virtual disktype_t mount(FILE *f, uint32_t disksize) = 0;
+    virtual mediatype_t mount(FILE *f, uint32_t disksize) = 0;
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred
@@ -89,7 +89,7 @@ public:
     
     virtual void status(uint8_t statusbuff[4]) = 0;
 
-    static disktype_t discover_disktype(const char *filename);
+    static mediatype_t discover_disktype(const char *filename);
 
     void dump_percom_block();
     void derive_percom_block(uint16_t numSectors);
@@ -97,4 +97,4 @@ public:
     virtual ~MediaType();
 };
 
-#endif // _DISKTYPE_
+#endif // _MEDIATYPE_

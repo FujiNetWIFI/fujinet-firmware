@@ -24,4 +24,4 @@ public:
 };
 
 
-#endif // _DISKTYPE_DDP_
+#endif // _MEDIATYPE_DDP_

@@ -810,11 +810,11 @@ bool MediaTypeATX::_load_atx_data(atx_header_t &atx_hdr)
 
  Since timing is important, we will load the entire image into memory.
  */
-disktype_t MediaTypeATX::mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypeATX::mount(FILE *f, uint32_t disksize)
 {
     Debug_print("ATX MOUNT\n");
 
-    _disktype = DISKTYPE_UNKNOWN;
+    _disktype = MEDIATYPE_UNKNOWN;
     _disk_last_sector = INVALID_SECTOR_VALUE;
 
     // Load what should be the ATX header before attempting to load the rest
@@ -822,7 +822,7 @@ disktype_t MediaTypeATX::mount(FILE *f, uint32_t disksize)
     if ((i = fseek(f, 0, SEEK_SET)) < 0)
     {
         Debug_printf("failed seeking to header on disk image (%d, %d)\n", i, errno);
-        return DISKTYPE_UNKNOWN;
+        return MEDIATYPE_UNKNOWN;
     }
 
     atx_header hdr;
@@ -830,14 +830,14 @@ disktype_t MediaTypeATX::mount(FILE *f, uint32_t disksize)
     if ((i = fread(&hdr, 1, sizeof(hdr), f)) != sizeof(hdr))
     {
         Debug_printf("failed reading header bytes (%d, %d)\n", i, errno);
-        return DISKTYPE_UNKNOWN;
+        return MEDIATYPE_UNKNOWN;
     }
 
     // Check the magic number (flip it around since it automatically gets re-ordered when loaded as a UINT32)
     if (ATX_MAGIC_HEADER != UINT32_FROM_LE_UINT32(hdr.magic))
     {
         Debug_printf("ATX header doesnt match 'AT8X' (0x%008x)\n", hdr.magic);
-        return DISKTYPE_UNKNOWN;
+        return MEDIATYPE_UNKNOWN;
     }
 
     _atx_size = hdr.end;
@@ -870,10 +870,10 @@ disktype_t MediaTypeATX::mount(FILE *f, uint32_t disksize)
     {
         _disk_fileh = nullptr;
         _tracks.clear();
-        return DISKTYPE_UNKNOWN;
+        return MEDIATYPE_UNKNOWN;
     }
 
-    return _disktype = DISKTYPE_ATX;
+    return _disktype = MEDIATYPE_ATX;
 }
 
 /*

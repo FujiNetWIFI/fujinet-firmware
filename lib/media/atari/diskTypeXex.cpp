@@ -184,11 +184,11 @@ MediaTypeXEX::~MediaTypeXEX()
     unmount();
 }
 
-disktype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
 {
     Debug_print("XEX MOUNT\n");
 
-    _disktype = DISKTYPE_UNKNOWN;
+    _disktype = MEDIATYPE_UNKNOWN;
 
     // Load our bootloader
     _xex_bootloadersize = fnSystem.load_firmware(BOOTLOADER, &_xex_bootloader);
@@ -202,7 +202,7 @@ disktype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
     _disk_fileh = f;
     _disk_image_size = disksize;
     _disk_last_sector = INVALID_SECTOR_VALUE;
-    _disktype = DISKTYPE_XEX;
+    _disktype = MEDIATYPE_XEX;
 
     Debug_printf("mounted XEX with %d-byte bootloader; XEX size=%d\n", _xex_bootloadersize, _disk_image_size);
 

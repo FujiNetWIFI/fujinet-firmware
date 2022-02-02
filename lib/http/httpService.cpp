@@ -721,7 +721,7 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
 
     theFuji.get_disks(ds)->disk_dev.unmount();
 #ifdef BUILD_ATARI
-    if (theFuji.get_disks(ds)->disk_type == DISKTYPE_CAS || theFuji.get_disks(ds)->disk_type == DISKTYPE_WAV)
+    if (theFuji.get_disks(ds)->disk_type == MEDIATYPE_CAS || theFuji.get_disks(ds)->disk_type == MEDIATYPE_WAV)
     {
         theFuji.cassette()->umount_cassette_file();
         theFuji.cassette()->sio_disable_cassette();
