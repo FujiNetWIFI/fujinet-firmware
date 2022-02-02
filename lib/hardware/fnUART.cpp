@@ -1,8 +1,9 @@
-#include <cstring>
+
+#include "fnUART.h"
 
 #include <soc/uart_reg.h>
 
-#include "fnUART.h"
+#include <cstring>
 
 #include "../../include/pinmap.h"
 

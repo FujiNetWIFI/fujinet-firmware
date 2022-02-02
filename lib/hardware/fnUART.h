@@ -3,9 +3,10 @@
 #ifndef FNUART_H
 #define FNUART_H
 
+#include <driver/uart.h>
+
 #include <string>
 
-#include <driver/uart.h>
 
 class UARTManager
 {

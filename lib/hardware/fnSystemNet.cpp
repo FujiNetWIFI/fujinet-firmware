@@ -1,6 +1,5 @@
-// #include <lwip/netdb.h>
+
 #include <esp_sntp.h>
-// #include <esp_system.h>
 #include <esp_netif.h>
 
 #include <string>

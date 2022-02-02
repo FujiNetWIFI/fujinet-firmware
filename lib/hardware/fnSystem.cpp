@@ -1,20 +1,17 @@
+
+#include "fnSystem.h"
+
 #include <freertos/FreeRTOS.h>
-//#include <freertos/task.h>
 #include <freertos/queue.h>
 #include <esp_system.h>
-// #include <esp_err.h>
-// #include <esp_timer.h>
 #include <driver/gpio.h>
-// #include <driver/adc.h>
-// #ifndef CONFIG_IDF_TARGET_ESP32S3
-// # include <driver/dac.h>
-// #endif
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+# include <driver/dac.h>
+#endif
 
-// #include "soc/sens_reg.h"
 #include <soc/rtc.h>
 #include <esp_adc_cal.h>
 #include <time.h>
-// #include <cstring>
 
 #include "../../include/debug.h"
 #include "../../include/version.h"
@@ -22,7 +19,6 @@
 
 #include "bus.h"
 
-#include "fnSystem.h"
 #include "fnFsSD.h"
 #include "fnFsSPIFFS.h"
 #include "fnWiFi.h"

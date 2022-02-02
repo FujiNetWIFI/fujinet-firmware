@@ -2,9 +2,9 @@
  * fnFTP implementation
  */
 
-#include <string.h>
-
 #include "fnFTP.h"
+
+#include <string.h>
 
 #include "../../include/debug.h"
 
