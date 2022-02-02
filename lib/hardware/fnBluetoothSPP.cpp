@@ -4,6 +4,8 @@
 
 #ifdef BLUETOOTH_SUPPORT
 
+#include "fnBluetoothSPP.h"
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/event_groups.h"
 
@@ -17,7 +19,7 @@
 #include "../../include/debug.h"
 
 #include "fnSystem.h"
-#include "fnBluetoothSPP.h"
+
 
 const char *_spp_server_name = "ESP32SPP";
 
