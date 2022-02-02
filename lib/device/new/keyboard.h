@@ -7,7 +7,7 @@
 #include "bus.h"
 #include "fnTcpServer.h"
 
-class adamKeyboard : public adamNetDevice
+class adamKeyboard : public virtualDevice
 {
 protected:
     // SIO THINGS

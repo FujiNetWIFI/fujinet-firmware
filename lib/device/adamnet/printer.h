@@ -16,7 +16,7 @@
 
 void printerTask(void * param);
 
-class adamPrinter : public adamNetDevice
+class adamPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS

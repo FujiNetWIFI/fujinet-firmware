@@ -41,7 +41,7 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define SIO_ATARI_PAL_FREQUENCY 1773447
 #define SIO_ATARI_NTSC_FREQUENCY 1789790
 
-// We calculate this dynamically now in sioBus::setHighSpeedIndex()
+// We calculate this dynamically now in systemBus::setHighSpeedIndex()
 // #define SIO_HISPEED_BAUDRATE ((SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (SIO_HISPEED_INDEX + 7)) + 3))
 
 #define SIO_STANDARD_BAUDRATE 19200
@@ -106,17 +106,17 @@ uint8_t sio_checksum(uint8_t *buf, unsigned short len);
 // class def'ns
 class sioModem;    // declare here so can reference it, but define in modem.h
 class sioFuji;     // declare here so can reference it, but define in fuji.h
-class sioBus;      // declare early so can be friend
+class systemBus;      // declare early so can be friend
 class sioNetwork;  // declare here so can reference it, but define in network.h
 class sioMIDIMaze; // declare here so can reference it, but define in midimaze.h
 class sioCassette; // Cassette forward-declaration.
 class sioCPM;      // CPM device.
 class sioPrinter;  // Printer device
 
-class sioDevice
+class virtualDevice
 {
 protected:
-    friend sioBus;
+    friend systemBus;
 
     int _devnum;
 
@@ -206,7 +206,7 @@ public:
     virtual void sio_high_speed();
 
     /**
-     * @brief Is this sioDevice holding the virtual disk drive used to boot CONFIG?
+     * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
      */
     bool is_config_device = false;
 
@@ -221,9 +221,9 @@ public:
     uint8_t status_wait_count = 5;
 
     /**
-     * @brief Get the sioBus object that this sioDevice is attached to.
+     * @brief Get the systemBus object that this virtualDevice is attached to.
      */
-    sioBus sio_get_bus();
+    systemBus sio_get_bus();
 };
 
 enum sio_message : uint16_t
@@ -240,14 +240,14 @@ struct sio_message_t
 
 // typedef sio_message_t sio_message_t;
 
-class sioBus
+class systemBus
 {
 private:
-    std::forward_list<sioDevice *> _daisyChain;
+    std::forward_list<virtualDevice *> _daisyChain;
 
     int _command_frame_counter = 0;
 
-    sioDevice *_activeDev = nullptr;
+    virtualDevice *_activeDev = nullptr;
     sioModem *_modemDev = nullptr;
     sioFuji *_fujiDev = nullptr;
     sioNetwork *_netDev[8] = {nullptr};
@@ -272,10 +272,10 @@ public:
     void shutdown();
 
     int numDevices();
-    void addDevice(sioDevice *pDevice, int device_id);
-    void remDevice(sioDevice *pDevice);
-    sioDevice *deviceById(int device_id);
-    void changeDeviceId(sioDevice *pDevice, int device_id);
+    void addDevice(virtualDevice *pDevice, int device_id);
+    void remDevice(virtualDevice *pDevice);
+    virtualDevice *deviceById(int device_id);
+    void changeDeviceId(virtualDevice *pDevice, int device_id);
 
     int getBaudrate();          // Gets current SIO baud rate setting
     void setBaudrate(int baud); // Sets SIO to specific baud rate
@@ -297,6 +297,6 @@ public:
     QueueHandle_t qSioMessages = nullptr;
 };
 
-extern sioBus SIO;
+extern systemBus SIO;
 
 #endif // guard

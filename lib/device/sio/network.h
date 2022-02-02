@@ -25,7 +25,7 @@
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
 
-class sioNetwork : public sioDevice
+class sioNetwork : public virtualDevice
 {
 
 public:

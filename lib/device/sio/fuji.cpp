@@ -1498,7 +1498,7 @@ void sioFuji::insert_boot_device(uint8_t d)
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void sioFuji::setup(sioBus *siobus)
+void sioFuji::setup(systemBus *siobus)
 {
     // set up Fuji device
     _sio_bus = siobus;

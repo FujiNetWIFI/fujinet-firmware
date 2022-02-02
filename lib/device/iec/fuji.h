@@ -53,7 +53,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class iecFuji : public iecDevice
+class iecFuji : public virtualDevice
 {
 private:
     bool isReady = false;
