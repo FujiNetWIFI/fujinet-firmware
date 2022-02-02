@@ -1,14 +1,13 @@
 #ifdef NEW_TARGET
 
-#include "../../include/debug.h"
-
 /**
  * AdamNet Functions
  */
 #include "adamnet.h"
 
-#include "fnSystem.h"
+#include "../../include/debug.h"
 
+#include "fnSystem.h"
 #include "led.h"
 
 

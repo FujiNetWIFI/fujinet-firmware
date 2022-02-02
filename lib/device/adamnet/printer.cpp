@@ -1,8 +1,8 @@
 #ifdef BUILD_ADAM
 
-#include <cstring>
-
 #include "printer.h"
+
+#include <cstring>
 
 #include "../../../include/debug.h"
 

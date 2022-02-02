@@ -1,8 +1,8 @@
 #ifdef BUILD_ATARI
 
-#include <cstring>
-
 #include "printer.h"
+
+#include <cstring>
 
 #include "../../include/debug.h"
 #include "../../include/atascii.h"

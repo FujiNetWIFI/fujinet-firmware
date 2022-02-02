@@ -1,9 +1,9 @@
 #ifdef BUILD_ADAM
 
+#include "disk.h"
+
 #include <memory.h>
 #include <string.h>
-
-#include "disk.h"
 
 #include "../../include/debug.h"
 

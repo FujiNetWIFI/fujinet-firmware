@@ -21,13 +21,12 @@
 #ifndef IECBUS_H
 #define IECBUS_H
 
-#include "bus.h"
-
 #include <forward_list>
 
 #include "../../../include/pinmap.h"
 #include "../../../include/cbmdefines.h"
 
+#include "bus.h"
 #include "fnSystem.h"
 
 #define PRODUCT_ID "FUJINET/MEATLOAF"

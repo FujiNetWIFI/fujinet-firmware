@@ -1,8 +1,8 @@
 #ifdef BUILD_ATARI
 
-#include <cstring>
-
 #include "disk.h"
+
+#include <cstring>
 
 #include "../../include/debug.h"
 

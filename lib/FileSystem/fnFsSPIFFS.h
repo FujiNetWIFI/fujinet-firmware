@@ -2,7 +2,10 @@
 #define _FN_FSSPIFFS_
 
 #include <dirent.h>
+
 #include "fnFS.h"
+
+
 class FileSystemSPIFFS : public FileSystem
 {
 private:

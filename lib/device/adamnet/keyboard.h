@@ -5,6 +5,7 @@
 #include <queue>
 
 #include "bus.h"
+
 #include "fnTcpServer.h"
 
 class adamKeyboard : public adamNetDevice

@@ -4,10 +4,10 @@
  * N: Firmware
  */
 
+#include "network.h"
+
 #include <cstring>
 #include <algorithm>
-
-#include "network.h"
 
 #include "../../include/debug.h"
 

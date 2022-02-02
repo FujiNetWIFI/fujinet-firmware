@@ -1,8 +1,8 @@
 #ifdef NEW_TARGET
 
-#include <cstring>
-
 #include "printer.h"
+
+#include <cstring>
 
 #include "../../../include/debug.h"
 

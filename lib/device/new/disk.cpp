@@ -1,13 +1,14 @@
 #ifdef NEW_TARGET
 
+#include "disk.h"
+
 #include <memory.h>
 #include <string.h>
 
 #include "../../include/debug.h"
-#include "../utils/utils.h"
 
-#include "../device/adamnet/disk.h"
 #include "media.h"
+#include "utils.h"
 
 adamDisk::adamDisk()
 {

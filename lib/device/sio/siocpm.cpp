@@ -22,7 +22,7 @@
 #ifdef CCP_INTERNAL
 # include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
 #endif
-//#include <string.h>
+
 
 void sioCPM::sio_status()
 {

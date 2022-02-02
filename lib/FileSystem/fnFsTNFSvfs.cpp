@@ -1,10 +1,11 @@
 /* These are the "driver" functions needed to register 
     with the ESP-IDF VFS
 */
-#include <dirent.h>
-#include <esp_vfs.h>
 
 #include "fnFsTNFSvfs.h"
+
+#include <dirent.h>
+#include <esp_vfs.h>
 
 #include "../../include/debug.h"
 

@@ -1,13 +1,12 @@
 #ifdef BUILD_ADAM
 
-#include <cstring>
-
 #include "fuji.h"
+
+#include <cstring>
 
 #include "../../include/debug.h"
 
 #include "serial.h"
-
 
 #include "fnSystem.h"
 #include "fnConfig.h"
