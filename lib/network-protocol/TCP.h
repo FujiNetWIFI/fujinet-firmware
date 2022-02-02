@@ -7,9 +7,8 @@
 
 #include "Protocol.h"
 
-#include "fnTcpServer.h"
 #include "fnTcpClient.h"
-
+#include "fnTcpServer.h"
 
 class NetworkProtocolTCP : public NetworkProtocol
 {

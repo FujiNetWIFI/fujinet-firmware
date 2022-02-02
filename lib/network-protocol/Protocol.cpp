@@ -2,9 +2,9 @@
  * Network Protocol Base class
  */
 
-#include <algorithm>
-
 #include "Protocol.h"
+
+#include <algorithm>
 
 #include "../../include/debug.h"
 

@@ -4,9 +4,9 @@
  * Implementation
  */
 
-#include <cstring>
-
 #include "FTP.h"
+
+#include <cstring>
 
 #include "../../include/debug.h"
 
