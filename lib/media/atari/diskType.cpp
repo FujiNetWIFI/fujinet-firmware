@@ -17,7 +17,7 @@
 
 // Returns sector size taking into account that the first 3 sectors are always 128-byte
 // SectorNum is 1-based
-uint16_t DiskType::sector_size(uint16_t sectornum)
+uint16_t MediaType::sector_size(uint16_t sectornum)
 {
     if (_disk_sector_size == 512)
         return 512;
@@ -26,21 +26,21 @@ uint16_t DiskType::sector_size(uint16_t sectornum)
 }
 
 // Default WRITE is not implemented
-bool DiskType::write(uint16_t sectornum, bool verify)
+bool MediaType::write(uint16_t sectornum, bool verify)
 {
     Debug_print("DISK WRITE NOT IMPLEMENTED\n");
     return true;
 }
 
 // Default FORMAT is not implemented
-bool DiskType::format(uint16_t *responsesize)
+bool MediaType::format(uint16_t *responsesize)
 {
     Debug_print("DISK FORMAT NOT IMPLEMENTED\n");
     return true;
 }
 
 // Update PERCOM block from the total # of sectors
-void DiskType::derive_percom_block(uint16_t numSectors)
+void MediaType::derive_percom_block(uint16_t numSectors)
 {
     // Start with 40T/1S 720 sectors, sector size passed in
     _percomBlock.num_tracks = 40;
@@ -116,7 +116,7 @@ void DiskType::derive_percom_block(uint16_t numSectors)
 }
 
 // Dump PERCOM block
-void DiskType::dump_percom_block()
+void MediaType::dump_percom_block()
 {
 #ifdef VERBOSE_DISK
     Debug_printf("Percom Block Dump\n");
@@ -134,7 +134,7 @@ void DiskType::dump_percom_block()
 #endif
 }
 
-void DiskType::unmount()
+void MediaType::unmount()
 {
     if (_disk_fileh != nullptr)
     {
@@ -143,7 +143,7 @@ void DiskType::unmount()
     }
 }
 
-disktype_t DiskType::discover_disktype(const char *filename)
+disktype_t MediaType::discover_disktype(const char *filename)
 {
     int l = strlen(filename);
     if (l > 4 && filename[l - 4] == '.')
@@ -182,7 +182,7 @@ disktype_t DiskType::discover_disktype(const char *filename)
     return DISKTYPE_UNKNOWN;
 }
 
-DiskType::~DiskType()
+MediaType::~MediaType()
 {
     unmount();
 }

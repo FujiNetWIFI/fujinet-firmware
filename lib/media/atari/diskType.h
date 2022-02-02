@@ -41,7 +41,7 @@ enum disktype_t
     DISKTYPE_COUNT
 };
 
-class DiskType
+class MediaType
 {
 protected:
     FILE *_disk_fileh = nullptr;
@@ -94,7 +94,7 @@ public:
     void dump_percom_block();
     void derive_percom_block(uint16_t numSectors);
 
-    virtual ~DiskType();
+    virtual ~MediaType();
 };
 
 #endif // _DISKTYPE_

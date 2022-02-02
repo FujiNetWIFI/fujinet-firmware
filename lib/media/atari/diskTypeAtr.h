@@ -3,7 +3,7 @@
 
 #include "diskType.h"
 
-class DiskTypeATR : public DiskType
+class MediaTypeATR : public MediaType
 {
 private:
     uint32_t _sector_to_offset(uint16_t sectorNum);
