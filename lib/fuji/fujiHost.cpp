@@ -1,6 +1,7 @@
-#include <cstring>
 
 #include "fujiHost.h"
+
+#include <cstring>
 
 #include "../../include/debug.h"
 
