@@ -1,10 +1,13 @@
 #ifdef BUILD_ATARI // temporary
+
+#include "diskType.h"
+
 #include <string.h>
 
 #include "../../include/debug.h"
-#include "../utils/utils.h"
 
-#include "diskType.h"
+#include "utils.h"
+
 
 #define DENSITY_FM 0
 #define DENSITY_MFM 4

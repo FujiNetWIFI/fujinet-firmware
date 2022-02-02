@@ -1,9 +1,9 @@
 #ifdef BUILD_ADAM
 
+#include "mediaTypeDDP.h"
+
 #include <cstdint>
 #include <cstring>
-
-#include "mediaTypeDDP.h"
 
 #include "../../include/debug.h"
 
