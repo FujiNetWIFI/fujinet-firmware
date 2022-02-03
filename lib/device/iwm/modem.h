@@ -6,7 +6,7 @@
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
 #include "fnFsSD.h"
-#include "fnFsSPIF.h"
+#include "fnFsSPIFFS.h"
 #include "bus.h"
 #include "../modem-sniffer/modem-sniffer.h"
 #include "libtelnet.h"
