@@ -21,4 +21,9 @@
 # define DEVICE_TYPE adamDisk
 #endif
 
+#ifdef BUILD_APPLE
+#include "iwm/disk.h"
+#define DEVICE_TYPE iwmDisk
+#endif
+
 #endif // DEVICE_DISK_H

@@ -25,4 +25,10 @@
 # define PRINTER_CLASS adamPrinter
 #endif
 
+#ifdef BUILD_APPLE
+# include "iwm/printer.h"
+# include "iwm/printerlist.h"
+# define PRINTER_CLASS applePrinter
+#endif
+
 #endif // DEVICE_PRINTER_H
