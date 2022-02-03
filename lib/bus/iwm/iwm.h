@@ -1,3 +1,4 @@
+#ifdef BUILD_APPLE
 #ifndef IWM_H
 #define IWM_H
 
@@ -187,4 +188,4 @@ public:
 extern iwmBus IWM;
 
 #endif // guard
-
+#endif /* BUILD_APPLE */

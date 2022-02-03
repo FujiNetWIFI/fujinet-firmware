@@ -1,3 +1,4 @@
+#ifdef BUILD_APPLE
 #include "printer.h"
 
 #include "file_printer.h"
@@ -53,3 +54,4 @@ applePrinter::printer_type applePrinter::match_modelname(std::string model_name)
 
     return (printer_type)i;
 }
+#endif /* BUILD_APPLE */

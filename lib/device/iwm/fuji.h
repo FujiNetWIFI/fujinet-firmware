@@ -1,3 +1,4 @@
+#ifdef BUILD_APPLE
 #ifndef FUJI_H
 #define FUJI_H
 #include <cstdint>
@@ -170,3 +171,4 @@ public:
 extern iwmFuji theFuji;
 
 #endif // FUJI_H
+#endif /* BUILD_APPLE */

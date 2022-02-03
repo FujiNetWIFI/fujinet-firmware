@@ -1,3 +1,4 @@
+#ifdef BUILD_APPLE
 #ifndef MODEM_H
 #define MODEM_H
 
@@ -243,3 +244,4 @@ public:
 };
 
 #endif
+#endif /* BUILD_APPLE */
