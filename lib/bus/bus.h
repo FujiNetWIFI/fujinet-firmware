@@ -21,4 +21,9 @@
 # define SYSTEM_BUS AdamNet
 #endif
 
+#ifdef BUILD_APPLE
+# include "iwm/iwm.h"
+# define SYSTEM_BUS IWM
+#endif
+
 #endif // BUS_H
