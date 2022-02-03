@@ -1,19 +1,17 @@
-#ifdef BUILD_ATARI // temporary
-
 /**
  * NetworkProtocolTELNET
  * 
  * TELNET Protocol Adapter Implementation
  */
 
-#include <errno.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include "Telnet.h"
-#include "status_error_codes.h"
+
+#include "../../include/debug.h"
+
 #include "libtelnet.h"
+#include "status_error_codes.h"
+
+
 
 static const telnet_telopt_t telopts[] = {
     {TELNET_TELOPT_ECHO, TELNET_WONT, TELNET_DO},
@@ -64,7 +62,7 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
         break;
     case TELNET_EV_TTYPE:
         if (ev->ttype.cmd == TELNET_TTYPE_SEND)
-            telnet_ttype_is(telnet, "dumb");
+            telnet_ttype_is(telnet, protocol->ttype);
         break;
     case TELNET_EV_SUBNEGOTIATION:
         break;
@@ -190,5 +188,3 @@ void NetworkProtocolTELNET::flush(const char *buf, unsigned short size)
     client.write((uint8_t *)buf, size);
     transmitBuffer->clear();
 }
-
-#endif /* BUILD_ATARI */

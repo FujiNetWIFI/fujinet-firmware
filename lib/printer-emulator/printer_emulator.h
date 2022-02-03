@@ -1,10 +1,10 @@
 #ifndef PRINTER_EMU_H
 #define PRINTER_EMU_H
 
-#include "../../include/atascii.h"
+//#include "../../include/atascii.h"
 
 #include "fnFsSD.h"
-#include "fnFsSPIF.h"
+//#include "fnFsSPIFFS.h"
 
 // TODO: Combine html_printer.cpp/h and file_printer.cpp/h
 
@@ -65,7 +65,7 @@ public:
 
     void setPaper(paper_t ptype) { _paper_type = ptype; };
 
-    virtual const char *modelname() = 0;
+    virtual const char *modelname()=0;
     size_t getOutputSize();
 
 };

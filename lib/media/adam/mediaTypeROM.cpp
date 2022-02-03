@@ -1,14 +1,11 @@
 #ifdef BUILD_ADAM
-#include <memory.h>
-#include <string.h>
-
-#include "../../include/debug.h"
-#include "../utils/utils.h"
-
-#include "fnSystem.h"
-#include "../device/adamnet/disk.h"
 
 #include "mediaTypeROM.h"
+
+#include <cstring>
+
+#include "../../include/debug.h"
+
 
 // Returns TRUE if an error condition occurred
 bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
@@ -30,14 +27,14 @@ bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeROM::write(uint16_t blockNum, bool verify)
+bool MediaTypeROM::write(uint32_t blockNum, bool verify)
 {
     return true;
 }
 
-void MediaTypeROM::status(uint8_t statusbuff[4])
+uint8_t MediaTypeROM::status()
 {
-    // Currently not being used.
+    return _media_controller_status;
 }
 
 // Returns TRUE if an error condition occurred

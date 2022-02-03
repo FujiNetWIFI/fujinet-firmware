@@ -4,11 +4,11 @@
 /* This is really a virtual class, as it's not meant to be instantiated on its own, but
  inherited from by other, full-fledged printer classes (e.g. Atari 820/822)
 */
+
 #include <string>
 
+#include "printer.h"
 #include "printer_emulator.h"
-#include "../../include/atascii.h"
-
 
 
 class svgPlotter : public printer_emu
@@ -68,7 +68,11 @@ protected:
     virtual void post_new_file() override;
 
 public:
-    const char *modelname() { return "Atari 1020"; };
+    virtual const char *modelname(void) override
+    {
+        return PRINTER_UNSUPPORTED;
+    }
+
     svgPlotter() { _paper_type = SVG; };
 };
 

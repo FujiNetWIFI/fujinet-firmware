@@ -1,8 +1,10 @@
 #include "fnFsTNFS.h"
-#include "../TNFSlib/tnfslib.h"
-#include "../tcpip/fnDNS.h"
-#include "../hardware/fnSystem.h"
+
 #include "../../include/debug.h"
+
+#include "fnSystem.h"
+#include "fnDNS.h"
+
 #include "fnFsTNFSvfs.h"
 
 FileSystemTNFS::FileSystemTNFS()

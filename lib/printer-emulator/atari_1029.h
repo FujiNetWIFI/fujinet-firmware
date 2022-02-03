@@ -1,6 +1,8 @@
 #ifndef ATARI_1029_H
 #define ATARI_1029_H
 
+#include "printer.h"
+
 #include "pdf_printer.h"
 
 
@@ -40,7 +42,20 @@ protected:
     virtual void post_new_file() override;
 
 public:
-    const char *modelname() { return "Atari 1029"; };
+    const char *modelname()  override 
+    { 
+        #ifdef BUILD_ATARI
+            return sioPrinter::printer_model_str[sioPrinter::PRINTER_ATARI_1029];
+        #elif BUILD_CBM
+            return iecPrinter::printer_model_str[iecPrinter::PRINTER_ATARI_1029];
+        #elif BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1029];
+        #elif NEW_TARGET
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1029];
+        #else
+            return PRINTER_UNSUPPORTED;
+        #endif
+    };
 };
 
 #endif

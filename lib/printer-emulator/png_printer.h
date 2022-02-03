@@ -1,6 +1,8 @@
 #ifndef PNG_PRINTER_H
 #define PNG_PRINTER_H
 
+#include "printer.h"
+
 #include "printer_emulator.h"
 
 #define DEFLATE_MAX_BLOCK_SIZE 0xFFFF
@@ -45,7 +47,20 @@ protected:
     virtual bool process_buffer(uint8_t linelen, uint8_t aux1, uint8_t aux2);
 public:
     pngPrinter() { _paper_type = PNG;};
-    const char *modelname() { return "GRANTIC"; };
+    const char *modelname()  override 
+    { 
+        #ifdef BUILD_ATARI
+            return sioPrinter::printer_model_str[sioPrinter::PRINTER_PNG];
+        #elif BUILD_CBM
+            return iecPrinter::printer_model_str[iecPrinter::PRINTER_PNG];
+        #elif BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_PNG];
+        #elif NEW_TARGET
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_PNG];
+        #else
+            return PRINTER_UNSUPPORTED;
+        #endif
+    };
 
 };
 

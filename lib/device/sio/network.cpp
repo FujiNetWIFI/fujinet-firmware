@@ -2,23 +2,29 @@
 
 /**
  * N: Firmware
-*/
-#include <string.h>
-#include <algorithm>
-#include <vector>
-#include "utils.h"
+ */
+
 #include "network.h"
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnWiFi.h"
-#include "../network-protocol/TCP.h"
-#include "../network-protocol/UDP.h"
-#include "../network-protocol/Test.h"
-#include "../network-protocol/Telnet.h"
-#include "../network-protocol/TNFS.h"
-#include "../network-protocol/FTP.h"
-#include "../network-protocol/HTTP.h"
-#include "../network-protocol/SSH.h"
-#include "../network-protocol/SMB.h"
+
+#include <cstring>
+#include <algorithm>
+
+#include "../../include/debug.h"
+#include "../../include/pinmap.h"
+
+#include "fnSystem.h"
+#include "utils.h"
+
+#include "status_error_codes.h"
+#include "TCP.h"
+#include "UDP.h"
+#include "Test.h"
+#include "Telnet.h"
+#include "TNFS.h"
+#include "FTP.h"
+#include "HTTP.h"
+#include "SSH.h"
+#include "SMB.h"
 
 using namespace std;
 

@@ -1,20 +1,15 @@
-#include <cstring>
 
-#include "fnSystem.h"
-#include "fnBluetooth.h"
-#include "fnWiFi.h"
-#include "led.h"
 #include "keys.h"
-#include "bus.h"
-#include "fnConfig.h"
 
+#include "../../include/debug.h"
 #include "../../include/pinmap.h"
 
-#define LONGPRESS_TIME 1500 // 1.5 seconds to detect long press
-#define DOUBLETAP_DETECT_TIME 400 // ms to wait to see if it's a single/double tap
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnWiFi.h"
+#include "fnBluetooth.h"
 
-
-#define IGNORE_KEY_EVENT -1
+#include "led.h"
 
 // Global KeyManager object
 KeyManager fnKeyManager;
@@ -278,7 +273,7 @@ void KeyManager::_keystate_task(void *param)
         }
     }
 #else
-    while (1);
+    while (1) {vTaskDelay(1000);};
 
 #endif /* NO_BUTTON */
 }

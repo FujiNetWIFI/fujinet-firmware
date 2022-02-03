@@ -1,13 +1,16 @@
+
+#include "sam.h"
+
+#include <esp_heap_caps.h>
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 
-#include <esp_heap_caps.h>
-
 #include "samdebug.h"
-#include "sam.h"
 #include "render.h"
 #include "SamTabs.h"
+
 
 char input[256]; //tab39445
 //standard sam sound

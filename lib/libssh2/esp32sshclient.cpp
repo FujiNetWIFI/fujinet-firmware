@@ -9,8 +9,10 @@
 
 /* Libraries */
 
-#include "../../../../include/debug.h"
 #include "esp32sshclient.h"
+
+#include "../../include/debug.h"
+
 
 /**************************************************************************************************/
 

@@ -1,6 +1,9 @@
+
+#include "reciter.h"
+
 #include <stdio.h>
 #include <string.h>
-#include "reciter.h"
+
 #include "ReciterTabs.h"
 #include "samdebug.h"
 

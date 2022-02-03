@@ -1,9 +1,16 @@
 #ifdef BUILD_ADAM
 
-#include "../../include/atascii.h"
 #include "printer.h"
-#include <deque>
 
+#include <cstring>
+
+#include "../../../include/debug.h"
+
+#include "fnSystem.h"
+#include "led.h"
+
+#include "atari_1020.h"
+#include "atari_1025.h"
 #include "file_printer.h"
 #include "html_printer.h"
 #include "svg_plotter.h"
@@ -13,37 +20,26 @@
 #include "png_printer.h"
 #include "coleco_printer.h"
 
-static std::deque<uint8_t> dq;
-static std::deque<uint8_t> dq_b;
+std::string buf;
+bool taskActive=false;
 
-static unsigned long _t;
+constexpr const char * const adamPrinter::printer_model_str[PRINTER_INVALID];
 
-void vColecoPrinterTask(void *pvParameter)
+void printerTask(void *param)
 {
-    char numBytes = 0;
+    adamPrinter *ptr = (adamPrinter *)param;
 
-    adamPrinter *p = (adamPrinter *)pvParameter;
-
-    while (1)
+    while(1)
     {
-        if (fnSystem.millis() - _t > 2000)
+        if ((ptr != nullptr) && (ptr->bpos>0))
         {
-            if (!dq.empty())
-            {
-                for (uint8_t i = 0; i < 40; i++)
-                {
-                    if (!dq.empty())
-                    {
-                        p->getPrinterPtr()->provideBuffer()[i] = dq.front();
-                        dq.pop_front();
-                    }
-                    numBytes = i;
-                }
-                p->getPrinterPtr()->process(numBytes, 0, 0);
-                numBytes = 0;
-            }
+            taskActive=true;
+            ptr->getPrinterPtr()->process(ptr->bpos,0,0);
+            ptr->bpos=0;
+            taskActive=false;
         }
-        vTaskDelay(10);
+
+        vPortYield();
     }
 }
 
@@ -52,30 +48,19 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
 {
     _storage = filesystem;
     set_printer_type(print_type);
-    xTaskCreatePinnedToCore(vColecoPrinterTask, "colprint", 4096, this, 1, &ioTask, 0);
 }
 
 adamPrinter::~adamPrinter()
 {
-    vTaskDelete(ioTask);
+    vTaskDelete(thPrinter);
     delete _pptr;
 }
 
 adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
 {
-    const char *models[PRINTER_INVALID] =
-        {
-            "file printer (RAW)",
-            "file printer (TRIM)",
-            "file printer (ASCII)",
-            "ADAM Printer",
-            "Epson 80",
-            "Epson PrintShop",
-            "HTML printer",
-            "HTML ATASCII printer"};
     int i;
     for (i = 0; i < PRINTER_INVALID; i++)
-        if (model_name.compare(models[i]) == 0)
+        if (model_name.compare(adamPrinter::printer_model_str[i]) == 0)
             break;
 
     return (printer_type)i;
@@ -88,55 +73,50 @@ void adamPrinter::adamnet_control_status()
     adamnet_send_buffer(c, sizeof(c));
 }
 
+void adamPrinter::idle()
+{
+    Debug_printf("adamPrinter::idle()\n");
+    if (buf.empty())
+        return;
+
+    uint8_t c = buf.length() > 40 ? 40 : buf.length();
+
+    fnLedManager.set(LED_BT,true);
+    _last_ms=fnSystem.millis();
+
+    memcpy(_pptr->provideBuffer(),buf.data(),c);
+    _pptr->process(c,0,0);
+
+    buf.erase(0,c);
+    fnLedManager.set(LED_BT,false);
+}
+
 void adamPrinter::adamnet_control_send()
 {
     unsigned short s = adamnet_recv_length();
 
-    for (unsigned short i = 0; i < s; i++)
-    {
-        uint8_t b = adamnet_recv();
+    adamnet_recv_buffer(_buffer, s);
+    uint8_t ck = adamnet_recv(); // ck
 
-        if (b == 0x0e)
-        {
-            _backwards = true;
-            dq_b.push_front(0x0D);
-        }
-        else if (b == 0x0f)
-        {
-            _backwards = false;
-            dq.push_back(0x0D);
-            if (!dq_b.empty())
-            {
-                while (!dq_b.empty())
-                {
-                    dq.push_back(dq_b.front());
-                    dq_b.pop_front();
-                }
-            }
-        }
-        else if (_backwards == true)
-            dq_b.push_front(b);
-        else
-        {
-            dq.push_back(b);
-        }
-    }
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
 
-    AdamNet.wait_for_idle();
-    adamnet_send(0x92);
+    _last_ms = fnSystem.millis();
+    memcpy(_pptr->provideBuffer(),_buffer,s);
+    bpos=s;
 }
 
 void adamPrinter::adamnet_control_ready()
 {
-    AdamNet.wait_for_idle();
-    adamnet_send(0x92);
+    AdamNet.start_time=esp_timer_get_time();
+
+        adamnet_response_ack();
+
 }
 
 void adamPrinter::adamnet_process(uint8_t b)
 {
     unsigned char c = b >> 4;
-
-    _t = fnSystem.millis();
 
     switch (c)
     {
@@ -150,6 +130,7 @@ void adamPrinter::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
+
 }
 
 void adamPrinter::shutdown()
@@ -175,6 +156,12 @@ void adamPrinter::set_printer_type(printer_type printer_type)
         break;
     case PRINTER_COLECO_ADAM:
         _pptr = new colecoprinter;
+        break;
+    case PRINTER_ATARI_1020:
+        _pptr = new atari1020;
+        break;
+    case PRINTER_ATARI_1025:
+        _pptr = new atari1025;
         break;
     case PRINTER_EPSON:
         _pptr = new epson80;

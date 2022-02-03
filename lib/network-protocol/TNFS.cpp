@@ -1,4 +1,3 @@
-#ifdef BUILD_ATARI // temporary
 /**
  * NetworkProtocolTNFS
  * 
@@ -6,8 +5,11 @@
  */
 
 #include "TNFS.h"
+
+#include "../../include/debug.h"
+
 #include "status_error_codes.h"
-#include "utils.h"
+
 
 NetworkProtocolTNFS::NetworkProtocolTNFS(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
@@ -342,4 +344,3 @@ bool NetworkProtocolTNFS::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
-#endif /* BUILD_ATARI */

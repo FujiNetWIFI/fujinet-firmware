@@ -1,16 +1,16 @@
 #ifdef BUILD_ADAM
 
-#include <string.h>
-#include <lwip/netdb.h>
-
-#include "../../include/atascii.h"
 #include "modem.h"
-#include "../hardware/fnUART.h"
-#include "fnWiFi.h"
-#include "fnFsSPIF.h"
+
+#include "../../../include/debug.h"
+#include "../../../include/atascii.h"
+
 #include "fnSystem.h"
-#include "../utils/utils.h"
 #include "fnConfig.h"
+#include "fnUART.h"
+#include "fnWiFi.h"
+
+#include "utils.h"
 
 #define RECVBUFSIZE 1024
 
@@ -1034,7 +1034,7 @@ void adamModem::sio_handle_modem()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-        if (fnUartSIO.available())
+        if (fnUartSIO.available() > 0)
         {
             // get char from Atari SIO
             //char chr = SIO_UART.read();
@@ -1128,7 +1128,7 @@ void adamModem::sio_handle_modem()
         }
 
         //int sioBytesAvail = SIO_UART.available();
-        int sioBytesAvail = fnUartSIO.available();
+        int sioBytesAvail = min(0, fnUartSIO.available());
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())

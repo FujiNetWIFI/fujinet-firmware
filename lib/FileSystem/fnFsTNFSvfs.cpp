@@ -1,12 +1,15 @@
 /* These are the "driver" functions needed to register 
     with the ESP-IDF VFS
 */
-#include <dirent.h>
-#include <sys/errno.h>
 
-#include "esp_vfs.h"
+#include "fnFsTNFSvfs.h"
+
+#include <dirent.h>
+#include <esp_vfs.h>
+
 #include "../../include/debug.h"
-#include "../TNFSlib/tnfslib.h"
+
+#include "tnfslib.h"
 
 /*
     These are the 23 functions that can be registered (not including 6 fucntions for select())

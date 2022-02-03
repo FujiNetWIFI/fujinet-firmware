@@ -1,12 +1,14 @@
-#ifdef BUILD_ATARI // temporary
 /**
  * HTTP implementation
  */
 
 #include "HTTP.h"
+
+#include "../../include/debug.h"
+
 #include "status_error_codes.h"
-#include "../webdav/WebDAV.h"
-#include "../utils/utils.h"
+#include "utils.h"
+
 
 /**
  Modes and the N: HTTP Adapter:
@@ -19,7 +21,7 @@ Aux1 values
 8 = PUT, write data to server, XIO used to toggle headers to get versus data write
 12 = GET, write sets headers to fetch, read grabs data
 13 = POST, write sends post data to server, read grabs response, XIO used to change write behavior, toggle headers to get or headers to set.
-
+14 = PUT, write sends post data to server, read grabs response, XIO used to change write behavior, toggle headers to get or headers to set.
 DELETE, MKCOL, RMCOL, COPY, MOVE, are all handled via idempotent XIO commands.
 */
 
@@ -119,6 +121,7 @@ bool NetworkProtocolHTTP::open_file_handle()
         httpOpenMode = PUT;
         break;
     case 13: // POST can set headers, also no filename resolve
+    case 14: // PUT with ability to set headers, no filename resolve
         httpOpenMode = POST;
         break;
     default:
@@ -582,7 +585,10 @@ void NetworkProtocolHTTP::http_transaction()
         resultCode = client->GET();
         break;
     case POST:
-        resultCode = client->POST(postData.c_str(), postData.size());
+        if (aux1_open == 14)
+            resultCode = client->PUT(postData.c_str(), postData.size());
+        else
+            resultCode = client->POST(postData.c_str(), postData.size());
         break;
     case PUT:
         resultCode = client->PUT(postData.c_str(), postData.size());
@@ -599,6 +605,8 @@ void NetworkProtocolHTTP::http_transaction()
         }
     }
 
+    fserror_to_error();
+    
     fileSize = bodySize = client->available();
 }
 
@@ -682,4 +690,3 @@ bool NetworkProtocolHTTP::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return del(url, cmdFrame);
 }
-#endif /* BUILD_ATARI */

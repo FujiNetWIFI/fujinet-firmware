@@ -1,13 +1,13 @@
 /* Modified version of ESP-Arduino fnTcpClient.cpp/h */
 
-#include <lwip/sockets.h>
+#include "fnTcpClient.h"
+
 #include <lwip/netdb.h>
-#include <errno.h>
 
 #include "../../include/debug.h"
 
 #include "fnDNS.h"
-#include "fnTcpClient.h"
+
 
 #define FNTCP_MAX_WRITE_RETRY (10)
 #define FNTCP_SELECT_TIMEOUT_US (1000000)

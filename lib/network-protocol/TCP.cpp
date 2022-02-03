@@ -1,17 +1,17 @@
-#ifdef BUILD_ATARI // temporary
 /**
  * NetworkProtocolTCP
  * 
  * TCP Protocol Adapter Implementation
  */
 
-#include <errno.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include "TCP.h"
+
+#include <arpa/inet.h>
+
+#include "../../include/debug.h"
+
 #include "status_error_codes.h"
+
 
 /**
  * @brief ctor
@@ -422,4 +422,3 @@ bool NetworkProtocolTCP::special_close_client_connection()
 
     return false;
 }
-#endif /* BUILD_ATARI */

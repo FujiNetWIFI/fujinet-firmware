@@ -7,12 +7,14 @@
 
 #ifdef BLUETOOTH_SUPPORT
 
-#include <string>
-#include <functional>
-#include "nvs.h"
-#include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+
+#include <string>
+#include <functional>
+
+#include "nvs.h"
+#include "nvs_flash.h"
 #include "esp_log.h"
 #include "esp_bt.h"
 #include "esp_bt_main.h"

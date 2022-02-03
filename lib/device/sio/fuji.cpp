@@ -1,16 +1,22 @@
 #ifdef BUILD_ATARI
 
-#include <cstdint>
+#include "fuji.h"
+
 #include <driver/ledc.h>
 
-#include "fuji.h"
-#include "led.h"
-#include "fnWiFi.h"
-#include "fnSystem.h"
+#include <cstdint>
+#include <cstring>
 
-#include "../utils/utils.h"
-#include "../FileSystem/fnFsSPIF.h"
-#include "../config/fnConfig.h"
+#include "../../../include/debug.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnFsSPIFFS.h"
+#include "fnWiFi.h"
+
+#include "led.h"
+#include "utils.h"
+
 
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE
@@ -759,7 +765,7 @@ void sioFuji::sio_disk_image_umount()
     if (deviceSlot < MAX_DISK_DEVICES)
     {
         _fnDisks[deviceSlot].disk_dev.unmount();
-        if (_fnDisks[deviceSlot].disk_type == DISKTYPE_CAS || _fnDisks[deviceSlot].disk_type == DISKTYPE_WAV)
+        if (_fnDisks[deviceSlot].disk_type == MEDIATYPE_CAS || _fnDisks[deviceSlot].disk_type == MEDIATYPE_WAV)
         {
             // tell cassette it unmount
             _cassetteDev.umount_cassette_file();
@@ -919,7 +925,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
         dest[8] |= FF_TRUNC;
 
     // File type
-    dest[9] = DiskType::discover_disktype(f->filename);
+    dest[9] = MediaType::discover_disktype(f->filename);
 }
 
 void sioFuji::sio_read_directory_entry()
@@ -1492,7 +1498,7 @@ void sioFuji::insert_boot_device(uint8_t d)
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void sioFuji::setup(sioBus *siobus)
+void sioFuji::setup(systemBus *siobus)
 {
     // set up Fuji device
     _sio_bus = siobus;

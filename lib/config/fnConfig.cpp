@@ -1,15 +1,17 @@
-#include <string>
-#include <iostream>
+#include "fnConfig.h"
+
+#include <cstring>
 #include <sstream>
 
-#include "fnConfig.h"
-#include "../FileSystem/fnFsSPIF.h"
-#include "../FileSystem/fnFsSD.h"
-#include "../hardware/keys.h"
-#include "../utils/utils.h"
 #include "../../include/debug.h"
 
+#include "modem.h"
+#include "modem-sniffer.h"
+
 #include "fnSystem.h"
+#include "fnFsSPIFFS.h"
+#include "keys.h"
+#include "utils.h"
 
 #define CONFIG_FILENAME "/fnconfig.ini"
 #define CONFIG_FILEBUFFSIZE 2048
@@ -400,6 +402,16 @@ int fnConfig::get_printer_port(uint8_t num)
         return 0;
 }
 
+// Saves ENABLE or DISABLE printer
+void fnConfig::store_printer_enabled(bool printer_enabled)
+{
+    if (_general.printer_enabled == printer_enabled)
+        return;
+
+    _general.printer_enabled = printer_enabled;
+    _dirty = true;
+}
+
 // Saves printer type stored in configuration for printer slot
 void fnConfig::store_printer_type(uint8_t num, PRINTER_CLASS::printer_type ptype)
 {
@@ -428,13 +440,36 @@ void fnConfig::store_printer_port(uint8_t num, int port)
     }
 }
 
-void fnConfig::store_modem_sniffer_enabled(bool _enabled)
+// Saves ENABLE or DISABLE Modem
+void fnConfig::store_modem_enabled(bool modem_enabled)
 {
-    if (_modem.sniffer_enabled == _enabled)
+    if (_modem.modem_enabled == modem_enabled)
         return;
 
-    _modem.sniffer_enabled = _enabled;
+    _modem.modem_enabled = modem_enabled;
     _dirty = true;
+}
+
+// Saves ENABLE or DISABLE Modem Sniffer
+void fnConfig::store_modem_sniffer_enabled(bool modem_sniffer_enabled)
+{
+#ifdef BUILD_ATARI
+    ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
+
+    if (modem_sniffer_enabled)
+    {
+        if (!modemSniffer->getEnable())
+            modemSniffer->setEnable(true);
+    }
+    else
+        modemSniffer->setEnable(false);
+
+    if (_modem.sniffer_enabled == modem_sniffer_enabled)
+        return;
+
+    _modem.sniffer_enabled = modem_sniffer_enabled;
+    _dirty = true;
+#endif /* BUILD_ATARI */
 }
 
 bool fnConfig::get_cassette_buttons()
@@ -463,6 +498,16 @@ void fnConfig::store_cassette_pulldown(bool pulldown)
         _cassette.pulldown = pulldown;
         _dirty = true;
     }
+}
+
+// Saves CPM Command Control Processor Filename
+void fnConfig::store_ccp_filename(std::string filename)
+{
+    if (_cpm.ccp == filename)
+        return;
+
+    _cpm.ccp = filename;
+    _dirty = true;
 }
 
 /* Save configuration data to SPIFFS. If SD is mounted, save a backup copy there.
@@ -494,6 +539,7 @@ void fnConfig::save()
         ss << "timezone=" << _general.timezone << LINETERM;
     ss << "fnconfig_on_spifs=" << _general.fnconfig_spifs << LINETERM;
     ss << "status_wait_enabled=" << _general.status_wait_enabled << LINETERM;
+    ss << "printer_enabled=" << _general.printer_enabled << LINETERM;
 
     ss << LINETERM;
 
@@ -562,6 +608,7 @@ void fnConfig::save()
 
     // MODEM
     ss << LINETERM << "[Modem]" << LINETERM;
+    ss << "modem_enabled=" << _modem.modem_enabled << LINETERM;
     ss << "sniffer_enabled=" << _modem.sniffer_enabled << LINETERM;
 
     //PHONEBOOK
@@ -580,6 +627,10 @@ void fnConfig::save()
     ss << LINETERM << "[Cassette]" << LINETERM;
     ss << "play_record=" << ((_cassette.button) ? "1 Record" : "0 Play") << LINETERM;
     ss << "pulldown=" << ((_cassette.pulldown) ? "1 Pulldown Resistor" : "0 B Button Press") << LINETERM;
+
+    // CPM
+    ss << LINETERM << "[CPM]" << LINETERM;
+    ss << "ccp=" << _cpm.ccp << LINETERM;
 
     // Write the results out
     FILE *fout = NULL;
@@ -750,6 +801,9 @@ New behavior: copy from SD first if available, then read SPIFFS.
         case SECTION_CASSETTE: //Jeff put this here to handle tape drive configuration (pulldown and play/record)
             _read_section_cassette(ss);
             break;
+        case SECTION_CPM:
+            _read_section_cpm(ss);
+            break;
         case SECTION_PHONEBOOK: //Mauricio put this here to handle the phonebook
             _read_section_phonebook(ss, index);
             break;
@@ -851,6 +905,10 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "status_wait_enabled") == 0)
             {
                 _general.status_wait_enabled = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "printer_enabled") == 0)
+            {
+                _general.printer_enabled = util_string_value_is_true(value);
             }
         }
     }
@@ -1066,6 +1124,7 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
 void fnConfig::_read_section_modem(std::stringstream &ss)
 {
     std::string line;
+
     // Read lines until one starts with '[' which indicates a new section
     while (_read_line(ss, line, '[') >= 0)
     {
@@ -1073,10 +1132,10 @@ void fnConfig::_read_section_modem(std::stringstream &ss)
         std::string value;
         if (_split_name_value(line, name, value))
         {
-            if (strcasecmp(name.c_str(), "sniffer_enabled") == 0)
-            {
+            if (strcasecmp(name.c_str(), "modem_enabled") == 0)
+                _modem.modem_enabled = util_string_value_is_true(value);
+            else if (strcasecmp(name.c_str(), "sniffer_enabled") == 0)
                 _modem.sniffer_enabled = util_string_value_is_true(value);
-            }
         }
     }
 }
@@ -1099,6 +1158,23 @@ void fnConfig::_read_section_cassette(std::stringstream &ss)
             {
                 _cassette.pulldown = util_string_value_is_true(value);
             }
+        }
+    }
+}
+
+void fnConfig::_read_section_cpm(std::stringstream &ss)
+{
+    std::string line;
+
+    // Read lines until one starts with '[' which indicates a new section
+    while (_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line, name, value))
+        {
+            if (strcasecmp(name.c_str(), "ccp") == 0)
+                _cpm.ccp = value;
         }
     }
 }
@@ -1228,6 +1304,14 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                 }
                 //Debug_printf("Found Phonebook Entry %d\n", index);
                 return SECTION_PHONEBOOK;
+            }
+            else if (strncasecmp("Modem", s1.c_str(), 8) == 0)
+            {
+                return SECTION_MODEM;
+            }
+            else if (strncasecmp("CPM", s1.c_str(), 8) == 0)
+            {
+                return SECTION_CPM;
             }
         }
     }

@@ -1,7 +1,12 @@
 #include "pdf_printer.h"
-#include "../utils/utils.h"
+
 #include "../../include/debug.h"
-#include "fnFsSPIF.h"
+
+#include "fnFsSPIFFS.h"
+#include "utils.h"
+
+
+#define DEBUG
 
 void pdfPrinter::pdf_header()
 {
@@ -47,7 +52,7 @@ void pdfPrinter::pdf_font_resource()
             //  font descriptor
             //  font widths
             //  font file
-            fprintf(_file, "/F%d %d 0 R ", i + 1, pdf_objCtr + 1 + fntCtr * 4); ///F1 4 0 R /F2 8 0 R>>>>\nendobj\n
+            fprintf(_file, "/F%d %d 0 R ", i + 1, pdf_objCtr + 1 + fntCtr * 4); /// F1 4 0 R /F2 8 0 R>>>>\nendobj\n
             fntCtr++;
         }
     }
@@ -304,17 +309,17 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
      * could make EOL = either 155 or 13. So if its an SIO printer,
      * we keep EOL = 155. If its an 850 printer, we convert 155 to 13
      * and then check for 13's on newline, etc. This would allow 13's
-     * to pass through and be executed. 
-     * 
+     * to pass through and be executed.
+     *
      * Then there's the problem of the printer either having auto LF or not.
      * The 825 has auto LF unless the hardware is modified.
      * Epson FX80 comes default with no auto LF, but I suspect an Atari
-     * user would make it auto linefeed. 
-     * 
+     * user would make it auto linefeed.
+     *
      * Could add an "autolinefeed" flag to the pdf-printer class.
      * Could add an EOL-CR conversion flag in the pdf-printer class to have
-     * 850 emulation. 
-     * 
+     * 850 emulation.
+     *
      * How to make a CR command and a LF command?
      *  CR is easy - just a " 0 0 Td " pdf command
      *  LF with a CR is what we're already doing - e.g., " 0 -18 Td "
@@ -322,7 +327,7 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
      *      1 - when the carriage is at 0, then this is just like a LFCR
      *      2 - in the middle of the line, we need to start printing at the
      *          current pdf_X value. However, the pdf commands aren't well
-     *          suited for this. A pdf "pdf_X -18 Td" would do the trick, but 
+     *          suited for this. A pdf "pdf_X -18 Td" would do the trick, but
      *          it then sets the relative 0,0 coordinate to the middle of the
      *          line and a CR won't take it back like it does now. Would need
      *          to remember that we were in the middle of a line and adjust
@@ -331,20 +336,20 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
      *          each line to be it's own text object and is what i was
      *          doing originally. Not my first choice.
      *      3 - I think this: when at start of line, do #1
-     *          but when in middle of line use the pdf rendering variable called 
+     *          but when in middle of line use the pdf rendering variable called
      *          "rise" to adjust the baseline of printing. Make a variable to
-     *          keep track of rise, which is an offset from the baseline. 
+     *          keep track of rise, which is an offset from the baseline.
      *          Could set rise back to zero on a CR by adding the rise to the
      *          lineHeight in pdf_new_line(). Explicitly set rise to 0 on
      *          CR/EOL when rise/=0. simply put "0 Ts" in the stream.
-     * 
-    */
+     *
+     */
     int i = 0;
     uint8_t c;
     uint8_t cc;
 
 #ifdef DEBUG
-    Debug_printf("Processing %d chars\n", n);
+    // Debug_printf("Processing %d chars\n", n);
 #endif
 
     // algorithm for graphics:
@@ -376,24 +381,28 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
         }
         else
         {
-            if (BOLflag && c == _eol)
-                pdf_new_line();
+            // Temporarily bypass eol handling if required.
+            // The real fix is to split CR/LF handling.
+            if (_eol_bypass == false)
+            {
+                if (BOLflag && c == _eol)
+                    pdf_new_line();
 
-            // check for EOL or if at end of line and need automatic CR
-            if (!BOLflag && ((c == _eol) || (pdf_X > (printWidth - charWidth + .072))))
-                pdf_end_line();
+                // check for EOL or if at end of line and need automatic CR
+                if (!BOLflag && ((c == _eol) || (pdf_X > (printWidth - charWidth + .072))))
+                    pdf_end_line();
 
-            // start a new line if we need to
-            if (BOLflag)
-                pdf_new_line();
+                // start a new line if we need to
+                if (BOLflag)
+                    pdf_new_line();
+            }
 
             // disposition the current byte
-            //this->
             pdf_handle_char(c, aux1, aux2);
 
 #ifdef DEBUG
-            Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y + pdf_dY);
-            Debug_printf("\n");
+            // Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y + pdf_dY);
+            // Debug_printf("\n");
 #endif
         }
 
@@ -420,5 +429,5 @@ void pdfPrinter::pre_close_file()
     pdf_page_resource();
     pdf_xref();
 
-    //printer_emu::pageEject();
+    // printer_emu::pageEject();
 }

@@ -1258,7 +1258,8 @@ esp_err_t esp_http_client_set_post_field(esp_http_client_handle_t client, const 
         }
     } else {
         client->post_len = 0;
-        err = esp_http_client_set_header(client, "Content-Type", NULL);
+        // keep "Content-Type" header, if already set
+        //err = esp_http_client_set_header(client, "Content-Type", NULL);
     }
     return err;
 }

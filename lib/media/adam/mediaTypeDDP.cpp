@@ -1,14 +1,12 @@
 #ifdef BUILD_ADAM
-#include <memory.h>
-#include <string.h>
-
-#include "../../include/debug.h"
-#include "../utils/utils.h"
-
-#include "fnSystem.h"
-#include "../device/adamnet/disk.h"
 
 #include "mediaTypeDDP.h"
+
+#include <cstdint>
+#include <cstring>
+
+#include "../../include/debug.h"
+
 
 // Returns byte offset of given sector number
 uint32_t MediaTypeDDP::_block_to_offset(uint32_t blockNum)
@@ -19,12 +17,16 @@ uint32_t MediaTypeDDP::_block_to_offset(uint32_t blockNum)
 // Returns TRUE if an error condition occurred
 bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 {
+    if (blockNum == _media_last_block)
+        return false; // We already have block.
+
     Debug_print("DDP READ\n");
 
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks)
     {
         Debug_printf("::read block %d > %d\n", blockNum, _media_num_blocks);
+        _media_controller_status=2;
         return true;
     }
 
@@ -46,20 +48,15 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     else
         _media_last_block = INVALID_SECTOR_VALUE;
 
+    _media_controller_status=0;
+
     return err;
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeDDP::write(uint16_t blockNum, bool verify)
+bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
 {
     Debug_printf("ATR WRITE\n", blockNum, _media_num_blocks);
-
-    // Return an error if we're trying to write beyond the end of the disk
-    if (blockNum > _media_num_blocks)
-    {
-        Debug_printf("::write block %d > %d\n", blockNum, _media_num_blocks);
-        return true;
-    }
 
     uint32_t offset = _block_to_offset(blockNum);
 
@@ -67,15 +64,16 @@ bool MediaTypeDDP::write(uint16_t blockNum, bool verify)
 
     // Perform a seek if we're writing to the sector after the last one
     int e;
-    if (blockNum != _media_last_block + 1)
-    {
+//    if (blockNum != _media_last_block + 1)
+//    {
         e = fseek(_media_fileh, offset, SEEK_SET);
         if (e != 0)
         {
             Debug_printf("::write seek error %d\n", e);
+            _media_controller_status=2;
             return true;
         }
-    }
+//    }
     // Write the data
     e = fwrite(&_media_blockbuff[0], 1, 256, _media_fileh);
     e += fwrite(&_media_blockbuff[256], 1, 256, _media_fileh);
@@ -92,14 +90,14 @@ bool MediaTypeDDP::write(uint16_t blockNum, bool verify)
     ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("DDP::write fsync:%d\n", ret);
 
-    _media_last_block = blockNum;
-
+    _media_last_block = INVALID_SECTOR_VALUE;
+    _media_controller_status=0;
     return false;
 }
 
-void MediaTypeDDP::status(uint8_t statusbuff[4])
+uint8_t MediaTypeDDP::status()
 {
-    // Currently not being used.
+    return _media_controller_status;
 }
 
 // Returns TRUE if an error condition occurred
@@ -114,6 +112,7 @@ mediatype_t MediaTypeDDP::mount(FILE *f, uint32_t disksize)
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_DDP;
+    _media_num_blocks = disksize / 1024;
 
     return _mediatype;
 }

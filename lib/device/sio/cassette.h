@@ -1,9 +1,10 @@
 #ifndef CASSETTE_H
 #define CASSETTE_H
 
-//#include <driver/ledc.h>
+#include "../../include/pinmap.h"
+
 #include "bus.h"
-//#include "../tcpip/fnUDP.h"
+#include "fnSystem.h"
 
 #define CASSETTE_BAUD 600
 #define BLOCK_LEN 128
@@ -59,7 +60,7 @@ public:
     int8_t service(uint8_t b);
 };
 
-class sioCassette : public sioDevice
+class sioCassette : public virtualDevice
 {
 protected:
     // FileSystem *_FS = nullptr;
