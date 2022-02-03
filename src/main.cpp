@@ -138,6 +138,7 @@ void main_setup()
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();
+    fnSDFAT.create_path("/FujiNet");
 
 # ifdef VIRTUAL_ADAM_DEVICES
     Debug_printf("Physical Device Scanning...\n");
