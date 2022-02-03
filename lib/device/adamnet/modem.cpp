@@ -1,16 +1,16 @@
 #ifdef BUILD_ADAM
 
-#include <string.h>
-#include <lwip/netdb.h>
-
-#include "../../include/atascii.h"
 #include "modem.h"
-#include "../hardware/fnUART.h"
-#include "fnWiFi.h"
-#include "fnFsSPIF.h"
+
+#include "../../../include/debug.h"
+#include "../../../include/atascii.h"
+
 #include "fnSystem.h"
-#include "../utils/utils.h"
 #include "fnConfig.h"
+#include "fnUART.h"
+#include "fnWiFi.h"
+
+#include "utils.h"
 
 #define RECVBUFSIZE 1024
 

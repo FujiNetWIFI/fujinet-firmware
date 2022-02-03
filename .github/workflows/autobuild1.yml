@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target-platform: [ATARI, ADAM]
+        target-platform: [ATARI]
 
     steps:
     - uses: actions/checkout@v2
@@ -31,7 +31,7 @@ jobs:
         python -m pip install --upgrade pip
         pip install --upgrade platformio
     - name: Install espressif32 platform
-      run: pio platform install espressif32
+      run: pio platform install espressif32@3.2.0
 
     - name: Show python version
       run: python --version
@@ -63,13 +63,12 @@ jobs:
     - name: Verify dirent.h top
       run: head -n 30 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
 
-
     - name: Run PlatformIO Build - winboat
       run: pio run 
 
     - name: Build Filesystem
       run: pio run -t buildfs -e fujinet-v1
-      
+
     - name: Show Build Artifacts
       run: ls -la .pio/build/fujinet-v1/*.bin
    
@@ -79,8 +78,61 @@ jobs:
     - name: Upload Build Artifacts
       uses: actions/upload-artifact@v2.3.1
       with:
-        name: fujinet-release-${{ matrix.target-platform }}
-        path: .pio/build/fujinet-v1/*.bin
+        name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
+        path: |
+          .pio/build/fujinet-v1/release.json
+          .pio/build/fujinet-v1/sha256sums
+          .pio/build/fujinet-v1/bootloader.bin
+          .pio/build/fujinet-v1/firmware.bin
+          .pio/build/fujinet-v1/partitions.bin
+          .pio/build/fujinet-v1/spiffs.bin
+          .pio/build/fujinet-v1/boot_app0.bin
+    
+#    - name: Get Release Zip
+#      uses: actions/download-artifact@v2
+#      with:
+#        name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
+
+#    - name: Show dir
+#      run: ls -la /home/runner/work/fujinet-platformio/fujinet-platformio
+
+#    - name: Get release shasum
+#      run: echo "::set-output name=shasum::$(sha256sum /home/runner/work/fujinet-platformio/fujinet-platformio/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}* | cut -d ' ' -f 1)"
+#      id: shasum
+
+#    - name: Create release.json
+#      run: sed "s/SHASUMHERE/${{ steps.shasum.outputs.shasum }}/" .pio/build/fujinet-v1/release.json.base > .pio/build/fujinet-v1/release.json
+
+#    - name: Upload release.json Artifact
+#      uses: actions/upload-artifact@v2.3.1
+#      with:
+#        name: release.json
+#        path: .pio/build/fujinet-v1/release.json.base
+
+    - name: Get Git Short SHA
+      id: shortsha
+      run: echo "::set-output name=shortsha::$(git rev-parse --short HEAD)"
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.shortsha.outputs.shortsha }}
+        release_name: ${{ steps.version.outputs.version }}
+        body: "FujiNet build for ${{ matrix.target-platform }} - ${{ steps.version.outputs.version }}"
+
+    - name: Create release ZIP
+      uses: montudor/action-zip@v1
+      with:
+        args: zip -qq -j fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip .pio/build/fujinet-v1/release.json .pio/build/fujinet-v1/sha256sums .pio/build/fujinet-v1/bootloader.bin .pio/build/fujinet-v1/firmware.bin .pio/build/fujinet-v1/partitions.bin .pio/build/fujinet-v1/spiffs.bin .pio/build/fujinet-v1/boot_app0.bin
         
-        
+    - name: Push ZIP to release
+      uses: softprops/action-gh-release@v1
+      if: startsWith(${{ steps.shortsha.outputs.shortsha }}, 'refs/tags/')
+      with:
+        files: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}.zip
+
+    - name: Notify FujiNet server
+      run: sh -c 'echo "wget https://fujinet.online/?tag=${{ steps.version.outputs.version }}&platform=${{ matrix.target-platform }}"'
 # end

@@ -15,9 +15,6 @@
 /**************************************************************************************************/
 
 /* Libraries */
-#include "utility/libssh2/libssh2_config.h"
-#include "utility/libssh2/libssh2.h"
-#include "utility/libssh2/libssh2_sftp.h"
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/select.h>
@@ -28,6 +25,11 @@
 #include <errno.h>
 #include <stdio.h>
 #include <ctype.h>
+
+#include "utility/libssh2/libssh2_config.h"
+#include "utility/libssh2/libssh2.h"
+#include "utility/libssh2/libssh2_sftp.h"
+
 
 /**************************************************************************************************/
 

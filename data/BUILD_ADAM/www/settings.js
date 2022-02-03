@@ -20,11 +20,7 @@ function selectListValue(selectName, currentValue) {
 }
 
 selectListValue("select_printermodel1", current_printer);
-selectListValue("select_printerport1", current_printerport);
-selectListValue("select_hsioindex", current_hsioindex);
-selectListValue("select_rotation_sounds", current_rotation_sounds);
 selectListValue("select_config_enable", current_config_enabled);
 selectListValue("select_boot_mode", current_boot_mode);
-selectListValue("select_play_record", current_play_record);
 selectListValue("select_pulldown", current_pulldown);
 selectListValue("select_status_wait_enable", current_status_wait_enabled);

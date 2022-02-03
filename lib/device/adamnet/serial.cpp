@@ -1,8 +1,11 @@
 #ifdef BUILD_ADAM
 
+#include "serial.h"
+
 #include <cstring>
-#include "adamnet/serial.h"
-#include "led.h"
+
+#include "../../include/debug.h"
+
 
 #define SERIAL_BUF_SIZE 16
 
@@ -69,7 +72,7 @@ void adamSerial::adamnet_response_status()
         status_response[4] = client.available() > SERIAL_BUF_SIZE ? SERIAL_BUF_SIZE : client.available();
     }
 
-    adamNetDevice::adamnet_response_status();
+    virtualDevice::adamnet_response_status();
 }
 
 void adamSerial::adamnet_control_clr()

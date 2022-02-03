@@ -1,15 +1,13 @@
 #ifndef MODEM_H
 #define MODEM_H
 
-#include <string>
-#include "fnTcpServer.h"
-#include "fnTcpClient.h"
-#include "fnFsSD.h"
-#include "fnFsSPIF.h"
 #include "bus.h"
-#include "../modem-sniffer/modem-sniffer.h"
+#include "fnTcpClient.h"
+#include "fnTcpServer.h"
+#include "modem-sniffer.h"
 #include "libtelnet.h"
 #include "esp32sshclient.h"
+
 
 /* Keep strings under 40 characters, for the benefit of 40-column users! */
 #define HELPL01 "       FujiNet Virtual Modem 850"
@@ -69,7 +67,7 @@
 
 #define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
 
-class sioModem : public sioDevice
+class sioModem : public virtualDevice
 {
 private:
 

@@ -5,11 +5,15 @@
 #ifndef NETWORKPROTOCOL_SSH
 #define NETWORKPROTOCOL_SSH
 
+#include <lwip/sockets.h>
+
 #include <string>
+
 #include "Protocol.h"
+
+#include "fnTcpClient.h"
 #include "../libssh2/utility/libssh2/libssh2.h"
-#include "../tcpip/fnTcpClient.h"
-#include "lwip/sockets.h"
+
 
 using namespace std;
 

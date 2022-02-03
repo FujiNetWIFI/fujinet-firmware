@@ -1,6 +1,9 @@
 #include "atari_1029.h"
-#include "../utils/utils.h"
+
 #include "../../include/debug.h"
+
+#include "utils.h"
+
 
 void atari1029::not_implemented()
 {

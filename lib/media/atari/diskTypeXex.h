@@ -1,9 +1,9 @@
-#ifndef _DISKTYPE_XEX_
-#define _DISKTYPE_XEX_
+#ifndef _MEDIATYPE_XEX_
+#define _MEDIATYPE_XEX_
 
 #include "diskType.h"
 
-class DiskTypeXEX : public DiskType
+class MediaTypeXEX : public MediaType
 {
 private:
     uint8_t *_xex_bootloader = nullptr;
@@ -14,12 +14,12 @@ private:
 public:
     virtual bool read(uint16_t sectornum, uint16_t *readcount) override;
 
-    virtual disktype_t mount(FILE *f, uint32_t disksize) override;
+    virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
     virtual void unmount() override;
 
     virtual void status(uint8_t statusbuff[4]) override;
 
-    ~DiskTypeXEX();
+    ~MediaTypeXEX();
 };
 
-#endif // _DISKTYPE_XEX_
+#endif // _MEDIATYPE_XEX_

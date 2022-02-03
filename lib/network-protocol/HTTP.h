@@ -1,10 +1,12 @@
 #ifndef NETWORKPROTOCOLHTTP_H
 #define NETWORKPROTOCOLHTTP_H
 
-#include "FS.h"
-#include "../http/fnHttpClient.h"
-#include "../webdav/WebDAV.h"
 #include <expat.h>
+
+#include "FS.h"
+
+#include "fnHttpClient.h"
+#include "WebDAV.h"
 
 class NetworkProtocolHTTP : public NetworkProtocolFS
 {

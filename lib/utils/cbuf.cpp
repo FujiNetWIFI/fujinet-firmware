@@ -20,6 +20,10 @@
 
 #include "cbuf.h"
 
+#include <cstddef>
+#include <cstring>
+
+
 cbuf::cbuf(size_t size) : next(NULL), _size(size + 1), _buf(new char[size + 1]), _bufend(_buf + size + 1), _begin(_buf), _end(_begin)
 {
 }

@@ -8,10 +8,10 @@
 #ifndef EDURLPARSER_H_
 #define EDURLPARSER_H_
 
-#include <unordered_map>
-#include <tuple>
-#include <vector>
 #include <string>
+#include <tuple>
+#include <unordered_map>
+#include <vector>
 
 using namespace std;
 

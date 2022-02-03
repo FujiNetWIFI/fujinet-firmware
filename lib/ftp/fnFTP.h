@@ -5,9 +5,9 @@
 #ifndef FNFTP_H
 #define FNFTP_H
 
-#include <string>
 #include <sstream>
-#include "../tcpip/fnTcpClient.h"
+
+#include "fnTcpClient.h"
 
 using namespace std;
 

@@ -2,9 +2,10 @@
  * WebDAV parsing class for directory output
  */
 
-#include <cstring>
-#include <cstdlib>
 #include "WebDAV.h"
+
+#include <cstring>
+
 
 void WebDAV::Start(const XML_Char *el, const XML_Char **attr)
 {

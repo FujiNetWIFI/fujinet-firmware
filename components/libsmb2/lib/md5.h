@@ -10,8 +10,8 @@
  * with every copy.
  *
  * To compute the message digest of a chunk of bytes, declare an
- * MD5Context structure, pass it to MD5Init, call MD5Update as
- * needed on buffers full of bytes, and then call MD5Final, which
+ * MD5Context structure, pass it to esp_rom_md5_init, call esp_rom_md5_update as
+ * needed on buffers full of bytes, and then call esp_rom_md5_final, which
  * will fill a supplied 16-byte array with the digest.
  *
  * Changed so as no longer to depend on Colin Plumb's `usual.h'

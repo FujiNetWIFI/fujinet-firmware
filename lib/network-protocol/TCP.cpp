@@ -4,13 +4,14 @@
  * TCP Protocol Adapter Implementation
  */
 
-#include <errno.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include "TCP.h"
+
+#include <arpa/inet.h>
+
+#include "../../include/debug.h"
+
 #include "status_error_codes.h"
+
 
 /**
  * @brief ctor

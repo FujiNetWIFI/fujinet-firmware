@@ -1,4 +1,4 @@
-#ifdef BUILD_ATARI
+
 #include "samlib.h"
 
 #include <freertos/FreeRTOS.h>
@@ -7,6 +7,7 @@
 #ifndef CONFIG_IDF_TARGET_ESP32S3
 #include <driver/dac.h>
 #endif
+
 
 #include "fnSystem.h"
 
@@ -323,4 +324,3 @@ int sam(int argc, char **argv)
 
     return 0;
 }
-#endif /* BUILD_ATARI */

@@ -3,7 +3,11 @@
  */
 
 #include "SSH.h"
+
+#include "../../include/debug.h"
+
 #include "status_error_codes.h"
+
 
 #define RXBUF_SIZE 65535
 

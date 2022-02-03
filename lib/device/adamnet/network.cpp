@@ -3,24 +3,28 @@
 /**
  * N: Firmware
  */
-#include <string.h>
-#include <algorithm>
-#include <vector>
-#include "utils.h"
-#include "network.h"
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnWiFi.h"
-#include "../network-protocol/TCP.h"
-#include "../network-protocol/UDP.h"
-#include "../network-protocol/Test.h"
-#include "../network-protocol/Telnet.h"
-#include "../network-protocol/TNFS.h"
-#include "../network-protocol/FTP.h"
-#include "../network-protocol/HTTP.h"
-#include "../network-protocol/SSH.h"
-#include "../network-protocol/SMB.h"
 
-using namespace std;
+#include "network.h"
+
+#include <cstring>
+#include <algorithm>
+
+#include "../../include/debug.h"
+
+#include "utils.h"
+
+#include "status_error_codes.h"
+#include "TCP.h"
+#include "UDP.h"
+#include "Test.h"
+#include "Telnet.h"
+#include "TNFS.h"
+#include "FTP.h"
+#include "HTTP.h"
+#include "SSH.h"
+#include "SMB.h"
+
+//using namespace std;
 
 /**
  * Constructor
@@ -66,18 +70,19 @@ adamNetwork::~adamNetwork()
  */
 void adamNetwork::open(unsigned short s)
 {
-    uint8_t db[256];
     uint8_t _aux1 = adamnet_recv();
     uint8_t _aux2 = adamnet_recv();
+    string d;
 
-    memset(db,0,sizeof(db));
-    adamnet_recv_buffer(db, s);
+    s--; s--;
+    
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // checksum
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    Debug_printf("devicespecbuf: '%s'\n",db);
     channelMode = PROTOCOL;
 
     // persist aux1/aux2 values
@@ -101,7 +106,8 @@ void adamNetwork::open(unsigned short s)
     Debug_printf("open()\n");
 
     // Parse and instantiate protocol
-    parse_and_instantiate_protocol(db);
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
     {
@@ -354,16 +360,17 @@ void adamNetwork::set_password(uint16_t s)
 
 void adamNetwork::del(uint16_t s)
 {
-    uint8_t db[256];
+    string d;
 
-    memset(db,0,sizeof(db));
-    adamnet_recv_buffer(db, s);
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();    
     adamnet_response_ack();
 
-    parse_and_instantiate_protocol(db);
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
         return;
@@ -379,16 +386,17 @@ void adamNetwork::del(uint16_t s)
 
 void adamNetwork::rename(uint16_t s)
 {
-    uint8_t db[256];
+    string d;
 
-    memset(db,0,sizeof(db));
-    adamnet_recv_buffer(db, s);
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    parse_and_instantiate_protocol(db);
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = ' ';
 
@@ -401,16 +409,17 @@ void adamNetwork::rename(uint16_t s)
 
 void adamNetwork::mkdir(uint16_t s)
 {
-    uint8_t db[256];
+    string d;
 
-    memset(db,0,sizeof(db));
-    adamnet_recv_buffer(db,s);
+    memset(response,0,sizeof(response));
+    adamnet_recv_buffer(response,s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    parse_and_instantiate_protocol(db);
+    d=string((char *)response,s);
+    parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = '*';
 
@@ -614,6 +623,7 @@ void adamNetwork::adamnet_response_status()
 {
     NetworkStatus s;
 
+
     if (protocol != nullptr)
         protocol->status(&s);
 
@@ -622,7 +632,11 @@ void adamNetwork::adamnet_response_status()
     statusByte.bits.client_error = s.error > 1;
 
     status_response[4] = statusByte.byte;
-    adamNetDevice::adamnet_response_status();
+    
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 300)
+        virtualDevice::adamnet_response_status();
 }
 
 void adamNetwork::adamnet_control_ack()
@@ -631,7 +645,7 @@ void adamNetwork::adamnet_control_ack()
 
 void adamNetwork::adamnet_control_send()
 {
-    uint8_t s = adamnet_recv_length(); // receive length
+    uint16_t s = adamnet_recv_length(); // receive length
     uint8_t c = adamnet_recv();        // receive command
 
     s--; // Because we've popped the command off the stack
@@ -807,7 +821,7 @@ bool adamNetwork::instantiate_protocol()
     }
 
     // Convert to uppercase
-    transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
+    std::transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
 
     if (urlParser->scheme == "TCP")
     {
@@ -867,9 +881,9 @@ bool adamNetwork::instantiate_protocol()
     return true;
 }
 
-void adamNetwork::parse_and_instantiate_protocol(uint8_t *db)
+void adamNetwork::parse_and_instantiate_protocol(string d)
 {
-    deviceSpec = string((char *)db);
+    deviceSpec = d;
 
     // Invalid URL returns error 165 in status.
     if (parseURL() == false)
@@ -940,7 +954,7 @@ bool adamNetwork::parseURL()
 
     if (cmdFrame.aux1 != 6) // Anything but a directory read...
     {
-        replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
+        std::replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
     }
 
     // // Some FMSes add a dot at the end, remove it.
