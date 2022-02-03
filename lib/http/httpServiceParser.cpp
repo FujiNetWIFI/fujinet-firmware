@@ -282,10 +282,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #ifdef BUILD_ATARI
     case FN_SIO_HSINDEX:
-        resultstream << systemBus.getHighSpeedIndex();
+        resultstream << SIO.getHighSpeedIndex();
         break;
     case FN_SIO_HSBAUD:
-        resultstream << systemBus.getHighSpeedBaud();
+        resultstream << SIO.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
     case FN_PRINTER1_MODEL:
