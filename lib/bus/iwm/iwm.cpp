@@ -7,6 +7,7 @@
 #include "../../include/debug.h"
 #include "utils.h"
 
+#include "../device/iwm/disk.h"
 
 
 
@@ -633,6 +634,9 @@ void iwmBus::setup(void)
 
   timer_config();
   Debug_printf("\r\nIWM timer started");
+
+  smort = new iwmDisk();
+
 }
 
 
@@ -1071,7 +1075,7 @@ int iwmDevice::packet_length (void)
 //*****************************************************************************
 // Function: main loop
 // //*****************************************************************************
-void iwmBus::service(iwmDevice* smort) 
+void iwmBus::service() 
 {
   // iwm_rddata_disable(); // todo - figure out sequence of setting IWM pins and where this should go
   // iwm_rddata_clr();

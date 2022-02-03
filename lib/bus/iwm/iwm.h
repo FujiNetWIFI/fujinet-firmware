@@ -23,6 +23,7 @@ class iwmFuji;     // declare here so can reference it, but define in fuji.h
 class iwmModem;    // declare here so can reference it, but define in modem.h
 class iwmNetwork;  // declare here so can reference it, but define in network.h
 class iwmPrinter;  // Printer device
+class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for prototyping in iwmBus::service()
 
 class iwmBus;      // forward declare bus so can be friend
 
@@ -162,13 +163,15 @@ private:
     iwm_phases_t oldphase;
 #endif
 
+  iwmDevice *smort;
+
 public:
   int iwm_read_packet(uint8_t *a);
   int iwm_read_packet_timeout(int tout, uint8_t *a);
   int iwm_send_packet(uint8_t *a);
 
   void setup();
-  void service(iwmDevice* smort); // todo: remove the device pointer argument
+  void service();
   void shutdown();
 
   void handle_init(iwmDevice* smort); // todo: put this function in the right place

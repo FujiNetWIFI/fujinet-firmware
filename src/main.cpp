@@ -179,6 +179,11 @@ void main_setup()
 
 #endif // BUILD_ADAM
 
+#ifdef BUILD_APPLE
+// spDevice spsd;
+//  appleModem *sioR;
+#endif /* BUILD_APPLE */
+
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
