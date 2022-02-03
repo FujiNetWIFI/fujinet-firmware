@@ -3,7 +3,7 @@
 
 #include "FS.h"
 #include "tnfslib.h"
-#include "tnfslibMountInfo.h"
+//#include "tnfslibMountInfo.h"
 
 class NetworkProtocolTNFS : public NetworkProtocolFS
 {

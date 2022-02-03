@@ -1,6 +1,8 @@
 #ifndef ATARI_1027_H
 #define ATARI_1027_H
 
+#include "printer.h"
+
 #include "pdf_printer.h"
 
 class atari1027 : public pdfPrinter
@@ -16,7 +18,20 @@ protected:
     void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2);
     virtual void post_new_file() override;
 public:
-    const char *modelname() { return "Atari 1027"; };
+    const char *modelname()  override 
+    { 
+        #ifdef BUILD_ATARI
+            return sioPrinter::printer_model_str[sioPrinter::PRINTER_ATARI_1027];
+        #elif BUILD_CBM
+            return iecPrinter::printer_model_str[iecPrinter::PRINTER_ATARI_1027];
+        #elif BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1027];
+        #elif NEW_TARGET
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1027];
+        #else
+            return PRINTER_UNSUPPORTED;
+        #endif
+    };
 };
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef ATARI_825_H
 #define ATARI_825_H
 
+#include "printer.h"
+
 #include "pdf_printer.h"
 
 class atari825 : public pdfPrinter
@@ -40,7 +42,20 @@ protected:
     virtual void post_new_file() override;
 
 public:
-    const char *modelname() { return "Atari 825"; };
+    const char *modelname()  override 
+    { 
+        #ifdef BUILD_ATARI
+            return sioPrinter::printer_model_str[sioPrinter::PRINTER_ATARI_825];
+        #elif BUILD_CBM
+            return iecPrinter::printer_model_str[iecPrinter::PRINTER_ATARI_825];
+        #elif BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_825];
+        #elif NEW_TARGET
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_825];
+        #else
+            return PRINTER_UNSUPPORTED;
+        #endif
+    };
 
 private:
     const uint8_t char_widths_825[95] = {

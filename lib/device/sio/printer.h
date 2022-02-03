@@ -1,14 +1,16 @@
 #ifdef BUILD_ATARI
-#ifndef PRINTER_H
-#define PRINTER_H
+#ifndef ATARI_PRINTER_H
+#define ATARI_PRINTER_H
 
-#include <string.h>
+#include <string>
 
 #include "bus.h"
-#include "../printer-emulator/printer_emulator.h"
+#include "printer_emulator.h"
 #include "fnFS.h"
 
-class sioPrinter : public sioDevice
+#define PRINTER_UNSUPPORTED "Unsupported"
+
+class sioPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS
@@ -50,6 +52,30 @@ public:
         PRINTER_INVALID
     };
 
+public:
+    constexpr static const char * const printer_model_str[PRINTER_INVALID]
+    {
+        "file printer (RAW)",
+        "file printer (TRIM)",
+        "file printer (ASCII)",
+        "Atari 820",
+        "Atari 822",
+        "Atari 825",
+        "Atari 1020",
+        "Atari 1025",
+        "Atari 1027",
+        "Atari 1029",
+        "Atari XMM801",
+        "Atari XDM121",
+        "Epson 80",
+        "Epson PrintShop",
+        "Okimate 10",
+        "GRANTIC",
+        "HTML printer",
+        "HTML ATASCII printer"
+    };
+    
+
     sioPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~sioPrinter();
 
@@ -65,6 +91,7 @@ public:
 private:
     printer_type _ptype;
 };
+
 
 #endif // guard
 #endif

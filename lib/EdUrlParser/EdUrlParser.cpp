@@ -5,9 +5,11 @@
  *      Author: netmind
  */
 
+
 #include "EdUrlParser.h"
 
-#include "../utils/utils.h"
+#include "utils.h"
+
 
 #define CHECK_LEN_END(POS, LEN) if(POS>=LEN) {_url_errorno=100;goto __PARSE_END;}
 #define WALK_SP(POS, LEN, BUF) for(;POS<LEN && BUF[POS]==' ';POS++)

@@ -1,34 +1,28 @@
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-#include <esp_system.h>
-#include <esp_err.h>
-#include <esp_timer.h>
-#include <time.h>
-#include <driver/gpio.h>
-#include <driver/dac.h>
-#include <driver/adc.h>
-#include "soc/sens_reg.h"
-#include "soc/rtc.h"
-#include "esp_adc_cal.h"
 
-#include <cstring>
+#include "fnSystem.h"
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <esp_system.h>
+#include <driver/gpio.h>
+#ifndef CONFIG_IDF_TARGET_ESP32S3
+# include <driver/dac.h>
+#endif
+
+#include <soc/rtc.h>
+#include <esp_adc_cal.h>
+#include <time.h>
 
 #include "../../include/debug.h"
 #include "../../include/version.h"
+#include "../../include/pinmap.h"
 
-#include "fnSystem.h"
-#include "fnFsSD.h"
-#include "fnFsSPIF.h"
-#include "fnWiFi.h"
 #include "bus.h"
 
-#ifdef BUILD_ATARI
-#define BUS_CLASS SIO
-#endif
+#include "fnFsSD.h"
+#include "fnFsSPIFFS.h"
+#include "fnWiFi.h"
 
-#ifdef BUILD_ADAM
-#define BUS_CLASS AdamNet
-#endif
 
 #ifdef BUILD_APPLE
 #define BUS_CLASS IWM
@@ -205,7 +199,7 @@ void SystemManager::yield()
 // TODO: Close open files first
 void SystemManager::reboot()
 {
-    BUS_CLASS.shutdown();
+    SYSTEM_BUS.shutdown();
     esp_restart();
 }
 
@@ -305,6 +299,7 @@ SystemManager::chipmodels SystemManager::get_cpu_model()
 
 int SystemManager::get_sio_voltage()
 {
+#ifndef CONFIG_IDF_TARGET_ESP32S3
     // Configure ADC1_CH7
     adc1_config_width(ADC_WIDTH_12Bit);
     adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_11db);
@@ -341,6 +336,9 @@ int SystemManager::get_sio_voltage()
         return (avgV * 3200 / 2000); // v1.6 and up (R1=1200, R2=2000)
     else
         return (avgV * 5900 / 3900); // (R1=2000, R2=3900)
+#else
+    return 0;
+#endif
 }
 
 /*
@@ -653,7 +651,7 @@ void SystemManager::debug_print_tasks()
 
     uint32_t n = uxTaskGetNumberOfTasks();
     TaskStatus_t *pTasks = (TaskStatus_t *)malloc(sizeof(TaskStatus_t) * n);
-    //n = uxTaskGetSystemState(pTasks, n, nullptr);
+    n = uxTaskGetSystemState(pTasks, n, nullptr);
 
     for (int i = 0; i < n; i++)
     {

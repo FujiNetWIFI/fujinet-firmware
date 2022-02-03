@@ -1,41 +1,22 @@
-#include <sstream>
-#include <string>
-#include <cstdio>
-#include <locale>
 
-#include "../../include/debug.h"
-#include "fnConfig.h"
-
-#include "httpService.h"
 #include "httpServiceParser.h"
 
-#ifdef BUILD_ATARI
-#include "sio/fuji.h"
-#include "sio/printerlist.h"
-#define BUS SIO
-extern sioFuji theFuji;
-#endif
+#include <sstream>
 
-#ifdef BUILD_ADAM
-#include "adamnet/fuji.h"
-#include "adamnet/printerlist.h"
-#define BUS AdamNet
-extern adamFuji theFuji;
-#endif
+#include "../../include/debug.h"
 
-#ifdef BUILD_APPLE
-#include "iwm/fuji.h"
-#include "iwm/printerlist.h"
-#define BUS IWM
-extern iwmFuji theFuji;
-#endif
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnWiFi.h"
+#include "fnFsSPIFFS.h"
+#include "httpService.h"
+#include "fuji.h"
 
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnWiFi.h"
-#include "fnFsSPIF.h"
-#include "fnFsSD.h"
+#define ALL_THE_DEBUGS
 
 using namespace std;
+
+#define MAX_PRINTER_LIST_BUFFER (2048)
 
 const string fnHttpServiceParser::substitute_tag(const string &tag)
 {
@@ -74,6 +55,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_CONFIG_ENABLED,
         FN_STATUS_WAIT_ENABLED,
         FN_BOOT_MODE,
+        FN_PRINTER_ENABLED,
+        FN_MODEM_ENABLED,
+        FN_MODEM_SNIFFER_ENABLED,
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
         FN_DRIVE3HOST,
@@ -116,6 +100,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HOST8PREFIX,
         FN_ERRMSG,
         FN_HARDWARE_VER,
+        FN_PRINTER_LIST,
         FN_LASTTAG
     };
 
@@ -154,6 +139,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_CONFIG_ENABLED",
         "FN_STATUS_WAIT_ENABLED",
         "FN_BOOT_MODE",
+        "FN_PRINTER_ENABLED",
+        "FN_MODEM_ENABLED",
+        "FN_MODEM_SNIFFER_ENABLED",
         "FN_DRIVE1HOST",
         "FN_DRIVE2HOST",
         "FN_DRIVE3HOST",
@@ -195,12 +183,14 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST7PREFIX",
         "FN_HOST8PREFIX",
         "FN_ERRMSG",
-        "FN_HARDWARE_VER"
+        "FN_HARDWARE_VER",
+        "FN_PRINTER_LIST"
     };
 
     stringstream resultstream;
-#ifdef DEBUG
-    //Debug_printf("Substituting tag '%s'\n", tag.c_str());
+
+#ifdef ALL_THE_DEBUGS
+    Debug_printf("Substituting tag '%s'\n", tag.c_str());
 #endif
 
     int tagid;
@@ -292,17 +282,41 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #ifdef BUILD_ATARI
     case FN_SIO_HSINDEX:
-        resultstream << BUS.getHighSpeedIndex();
+        resultstream << SIO.getHighSpeedIndex();
         break;
     case FN_SIO_HSBAUD:
-        resultstream << BUS.getHighSpeedBaud();
+        resultstream << SIO.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
     case FN_PRINTER1_MODEL:
-        resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
+        {
+#ifdef BUILD_ADAM
+            adamPrinter *ap = fnPrinters.get_ptr(0);
+            if (ap != nullptr)
+            {
+                resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
+            } else
+                resultstream << "No Virtual Printer";
+#endif /* BUILD_ADAM */
+#ifdef BUILD_ATARI
+            resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
+#endif /* BUILD_ATARI */
+        }
         break;
     case FN_PRINTER1_PORT:
-        resultstream << (fnPrinters.get_port(0) + 1);
+        {
+#ifdef BUILD_ADAM
+            adamPrinter *ap = fnPrinters.get_ptr(0);
+            if (ap != nullptr)
+            {
+                resultstream << (fnPrinters.get_port(0) + 1);
+            } else
+                resultstream << "";
+#endif/* BUILD_ADAM */
+#ifdef BUILD_ATARI
+            resultstream << (fnPrinters.get_port(0) + 1);
+#endif /* BUILD_ATARI */
+        }
         break;
 #ifdef BUILD_ATARI        
     case FN_PLAY_RECORD:
@@ -326,6 +340,15 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_BOOT_MODE:
         resultstream << Config.get_general_boot_mode();
+        break;
+    case FN_PRINTER_ENABLED:
+        resultstream << Config.get_printer_enabled();
+        break;
+    case FN_MODEM_ENABLED:
+        resultstream << Config.get_modem_enabled();
+        break;
+    case FN_MODEM_SNIFFER_ENABLED:
+        resultstream << Config.get_modem_sniffer_enabled();
         break;
     case FN_DRIVE1HOST:
     case FN_DRIVE2HOST:
@@ -415,6 +438,28 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_HARDWARE_VER:
         resultstream << fnSystem.get_hardware_ver_str();
+        break;
+    case FN_PRINTER_LIST:
+        {
+            char *result = (char *) malloc(MAX_PRINTER_LIST_BUFFER);
+            if (result != NULL)
+            {
+                strcpy(result, "");
+
+                for(int i=0; i<(int) PRINTER_CLASS::PRINTER_INVALID; i++)
+                {
+                    strncat(result, "<option value=\"", MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, "\">", MAX_PRINTER_LIST_BUFFER);
+                    strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, "</option>\n", MAX_PRINTER_LIST_BUFFER-1);
+
+                }
+                resultstream << result;
+                free(result);
+            } else
+                resultstream << "Insufficent memory";
+        }
         break;
     default:
         resultstream << tag;

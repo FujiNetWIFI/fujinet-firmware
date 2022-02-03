@@ -2,9 +2,7 @@
 #define NETWORKPROTOCOLSMB_H
 
 #include "FS.h"
-#include <smb2/libsmb2.h>
-#include <smb2/smb2.h>
-#include <smb2/libsmb2-raw.h>
+
 
 class NetworkProtocolSMB : public NetworkProtocolFS
 {

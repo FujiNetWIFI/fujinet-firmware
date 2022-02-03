@@ -1,12 +1,12 @@
-#ifdef BUILD_ATARI
 #ifndef FUJI_H
 #define FUJI_H
-#include <cstdint>
 
-#include "../../include/debug.h"
+#include <cstdint>
+#include <cstring>
+
 #include "bus.h"
-#include "sio/network.h"
-#include "sio/cassette.h"
+#include "network.h"
+#include "cassette.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -52,10 +52,10 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class sioFuji : public sioDevice
+class sioFuji : public virtualDevice
 {
 private:
-    sioBus *_sio_bus;
+    systemBus *_sio_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -128,7 +128,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(sioBus *siobus);
+    void setup(systemBus *siobus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);
@@ -148,4 +148,3 @@ public:
 extern sioFuji theFuji;
 
 #endif // FUJI_H
-#endif // BUILD_ATARI

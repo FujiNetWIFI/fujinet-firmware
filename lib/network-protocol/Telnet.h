@@ -6,8 +6,7 @@
 #define NETWORKPROTOCOL_TELNET
 
 #include "TCP.h"
-#include "../tcpip/fnTcpClient.h"
-#include "../tcpip/fnTcpServer.h"
+
 
 class NetworkProtocolTELNET : public NetworkProtocolTCP
 {
@@ -55,6 +54,8 @@ public:
      * Length after RX processing
      */
     int newRxLen;
+
+    char ttype[32]="heath-19";
     
 };
 

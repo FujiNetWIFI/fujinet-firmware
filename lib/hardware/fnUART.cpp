@@ -1,12 +1,12 @@
-#include <string.h>
-#include <cstdarg>
-#include <esp_system.h>
-#include <driver/uart.h>
+
+#include "fnUART.h"
+
 #include <soc/uart_reg.h>
 
-#include "../../include/debug.h"
+#include <cstring>
+
 #include "../../include/pinmap.h"
-#include "fnUART.h"
+
 
 #define UART_DEBUG UART_NUM_0
 #define UART_ADAMNET UART_NUM_2
@@ -52,6 +52,8 @@ void UARTManager::begin(int baud)
 
     // This works around an obscure hardware bug where resetting UART2 causes the TX to become corrupted
     // when the FIFO is reset by this function. Blame me for it -Thom
+    // ... except on the Adam, which needs this to happen regardless. Go figure.
+#ifdef BUILD_ATARI
     if (_uart_num == UART_SIO)
     {
         if (esp_reset_reason() != ESP_RST_SW)
@@ -61,6 +63,9 @@ void UARTManager::begin(int baud)
     {
         uart_param_config(_uart_num, &uart_config);
     }
+#else
+    uart_param_config(_uart_num, &uart_config);
+#endif
 
     int tx, rx;
     if (_uart_num == 0)
@@ -104,7 +109,7 @@ void UARTManager::begin(int baud)
     uart_intr.intr_enable_mask = UART_RXFIFO_FULL_INT_ENA_M | UART_RXFIFO_TOUT_INT_ENA_M | UART_FRM_ERR_INT_ENA_M | UART_RXFIFO_OVF_INT_ENA_M | UART_BRK_DET_INT_ENA_M | UART_PARITY_ERR_INT_ENA_M;
     uart_intr.rxfifo_full_thresh = 1;        // UART_FULL_THRESH_DEFAULT,  //120 default!! aghh! need receive 120 chars before we see them
     uart_intr.rx_timeout_thresh = 10;        // UART_TOUT_THRESH_DEFAULT,  //10 works well for my short messages I need send/receive
-    uart_intr.txfifo_empty_intr_thresh = 10; // UART_EMPTY_THRESH_DEFAULT
+    uart_intr.txfifo_empty_intr_thresh = 2; // UART_EMPTY_THRESH_DEFAULT
     uart_intr_config(_uart_num, &uart_intr);
 #endif /* BUILD_ADAM */
 

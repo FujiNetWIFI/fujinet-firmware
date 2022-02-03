@@ -1,11 +1,15 @@
-#ifdef BUILD_ATARI // temporary
 /**
  * UDP socket implementation
  */
 
 #include "UDP.h"
+
+#include "../../include/debug.h"
+
 #include "status_error_codes.h"
-#include "../tcpip/fnDNS.h"
+#include "fnDNS.h"
+
+
 
 NetworkProtocolUDP::NetworkProtocolUDP(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
@@ -245,5 +249,3 @@ bool NetworkProtocolUDP::is_multicast(in_addr_t a)
     uint32_t address = ntohl(a);
     return (address & 0xF0000000) == 0xE0000000;
 }
-
-#endif /* BUILD_ATARI */

@@ -19,7 +19,7 @@ currently supported tags.
 #ifndef HTTPSERVICEPARSER_H
 #define HTTPSERVICEPARSER_H
 
-#include <vector>
+#include <string>
 
 class fnHttpServiceParser
 {

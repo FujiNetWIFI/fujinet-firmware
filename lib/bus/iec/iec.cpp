@@ -20,7 +20,7 @@
 
 #ifdef BUILD_CBM
 
-#include "bus.h"
+#include "iec.h"
 
 #include <stdarg.h>
 #include <string.h>
@@ -29,28 +29,30 @@
 #include "../../../include/debug.h"
 #include "../../../include/cbmdefines.h"
 
-#include "led.h"
+#include "bus.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "led.h"
+
 #include "utils.h"
 
 using namespace CBM;
 
 
-iecDevice::iecDevice()
+virtualDevice::virtualDevice()
 {
 	reset();
 } // ctor
 
 
-void iecDevice::reset(void)
+void virtualDevice::reset(void)
 {
 	_openState = O_NOTHING;
 	_queuedError = ErrIntro;
 } // reset
 
 
-void iecDevice::sendStatus(void)
+void virtualDevice::sendStatus(void)
 {
 	int i, readResult;
 	
@@ -67,7 +69,7 @@ void iecDevice::sendStatus(void)
 } // sendStatus
 
 
-void iecDevice::sendSystemInfo()
+void virtualDevice::sendSystemInfo()
 {
 	Debug_printf("\r\nsendSystemInfo:\r\n");
 
@@ -145,7 +147,7 @@ void iecDevice::sendSystemInfo()
 	fnLedManager.set(PIN_LED_BUS);
 } // sendSystemInfo
 
-void iecDevice::sendDeviceStatus()
+void virtualDevice::sendDeviceStatus()
 {
 	Debug_printf("\r\nsendDeviceStatus:\r\n");
 
@@ -171,7 +173,7 @@ void iecDevice::sendDeviceStatus()
 } // sendDeviceStatus
 
 
-void iecDevice::_process(void)
+void virtualDevice::_process(void)
 {
 
 	switch (IEC.ATN.command)
@@ -179,11 +181,11 @@ void iecDevice::_process(void)
 		case ATN_COMMAND_OPEN:
 			if ( IEC.ATN.channel == READ_CHANNEL )
 			{
-				Debug_printf("\r\niecDevice::service: [OPEN] LOAD \"%s\",%d ", IEC.ATN.data, IEC.ATN.device_id);
+				Debug_printf("\r\nvirtualDevice::service: [OPEN] LOAD \"%s\",%d ", IEC.ATN.data, IEC.ATN.device_id);
 			}
 			if ( IEC.ATN.channel == WRITE_CHANNEL )
 			{
-				Debug_printf("\r\niecDevice::service: [OPEN] SAVE \"%s\",%d ", IEC.ATN.data, IEC.ATN.device_id);	
+				Debug_printf("\r\nvirtualDevice::service: [OPEN] SAVE \"%s\",%d ", IEC.ATN.data, IEC.ATN.device_id);	
 			}
 
 			// Open either file or prg for reading, writing or single line command on the command channel.
@@ -195,7 +197,7 @@ void iecDevice::_process(void)
 			break;
 
 		case ATN_COMMAND_DATA:  // data channel opened
-			Debug_printf("\r\niecDevice::service: [DATA] ");
+			Debug_printf("\r\nvirtualDevice::service: [DATA] ");
 			if(IEC.ATN.mode == ATN_TALK) 
 			{
 				// when the CMD channel is read (status), we first need to issue the host request. The data channel is opened directly.
@@ -217,24 +219,24 @@ void iecDevice::_process(void)
 			break;
 
 		case ATN_COMMAND_CLOSE:
-			Debug_printf("\r\niecDevice::service: [CLOSE] ");
+			Debug_printf("\r\nvirtualDevice::service: [CLOSE] ");
 			_close();
 			break;
 
 		case ATN_COMMAND_LISTEN:
-			Debug_printf("\r\niecDevice::service:[LISTEN] ");
+			Debug_printf("\r\nvirtualDevice::service:[LISTEN] ");
 			break;
 
 		case ATN_COMMAND_TALK:
-			Debug_printf("\r\niecDevice::service:[TALK] ");
+			Debug_printf("\r\nvirtualDevice::service:[TALK] ");
 			break;
 
 		case ATN_COMMAND_UNLISTEN:
-			Debug_printf("\r\niecDevice::service:[UNLISTEN] ");
+			Debug_printf("\r\nvirtualDevice::service:[UNLISTEN] ");
 			break;
 
 		case ATN_COMMAND_UNTALK:
-			Debug_printf("\r\niecDevice::service:[UNTALK] ");
+			Debug_printf("\r\nvirtualDevice::service:[UNTALK] ");
 			break;
 
 	} // switch
@@ -243,7 +245,7 @@ void iecDevice::_process(void)
 
 
 // send single basic line, including heading basic pointer and terminating zero.
-uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...)
+uint16_t virtualDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...)
 {
 	// Format our string
 	va_list args;
@@ -255,7 +257,7 @@ uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, const char* fo
 	return sendLine(basicPtr, blocks, text);
 }
 
-uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, char* text)
+uint16_t virtualDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, char* text)
 {
 	int i;
 	uint16_t b_cnt = 0;
@@ -291,7 +293,7 @@ uint16_t iecDevice::sendLine(uint16_t &basicPtr, uint16_t blocks, char* text)
 } // sendLine
 
 
-uint16_t iecDevice::sendHeader(uint16_t &basicPtr)
+uint16_t virtualDevice::sendHeader(uint16_t &basicPtr)
 {
 	uint16_t byte_count = 0;
 
@@ -311,7 +313,7 @@ uint16_t iecDevice::sendHeader(uint16_t &basicPtr)
    len = length of buffer
    err = along with data, send ERROR status to CBM rather than COMPLETE
 */
-void iecDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
+void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
     Debug_printf("->IEC write %hu bytes\n", len);
@@ -331,7 +333,7 @@ void iecDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
    len = length
    Returns checksum
 */
-uint8_t iecDevice::bus_to_peripheral(uint8_t *buf, uint16_t len)
+uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, uint16_t len)
 {
     // Retrieve data frame from computer
     Debug_printf("<-IEC read %hu bytes\n", len);
@@ -362,13 +364,13 @@ uint8_t iec_checksum(uint8_t *buf, unsigned short len)
 }
 
 // IEC COMPLETE
-void iecDevice::sio_complete()
+void virtualDevice::sio_complete()
 {
     Debug_println("COMPLETE!");
 }
 
 // IEC ERROR
-void iecDevice::sio_error()
+void virtualDevice::sio_error()
 {
     Debug_println("ERROR!");
 }
@@ -1203,7 +1205,7 @@ int iecBus::numDevices()
 }
 
 // Add device to IEC bus
-void iecBus::addDevice(iecDevice *pDevice, int device_id)
+void iecBus::addDevice(virtualDevice *pDevice, int device_id)
 {
     // if (device_id == DEVICEID_FUJINET)
     // {
@@ -1241,12 +1243,12 @@ void iecBus::addDevice(iecDevice *pDevice, int device_id)
 
 // Removes device from the SIO bus.
 // Note that the destructor is called on the device!
-void iecBus::remDevice(iecDevice *p)
+void iecBus::remDevice(virtualDevice *p)
 {
     _daisyChain.remove(p);
 }
 
-iecDevice *iecBus::deviceById(int device_id)
+virtualDevice *iecBus::deviceById(int device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -1256,7 +1258,7 @@ iecDevice *iecBus::deviceById(int device_id)
     return nullptr;
 }
 
-void iecBus::changeDeviceId(iecDevice *p, int device_id)
+void iecBus::changeDeviceId(virtualDevice *p, int device_id)
 {
     for (auto devicep : _daisyChain)
     {

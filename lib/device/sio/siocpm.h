@@ -3,7 +3,7 @@
 #define SIOCPM_H
 
 #include "bus.h"
-#include <stdio.h>
+
 
 #define FOLDERCHAR '/'
 
@@ -12,7 +12,7 @@ typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
 
-class sioCPM : public sioDevice
+class sioCPM : public virtualDevice
 {
 private:
 

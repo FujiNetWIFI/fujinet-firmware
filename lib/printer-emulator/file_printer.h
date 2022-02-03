@@ -1,6 +1,8 @@
 #ifndef FILE_PRINTER_H
 #define FILE_PRINTER_H
 
+#include "printer.h"
+
 #include "printer_emulator.h"
 
 class filePrinter : public printer_emu
@@ -12,14 +14,51 @@ class filePrinter : public printer_emu
 public:
     filePrinter(paper_t ptype=TRIM) { _paper_type = ptype; };
 
-    virtual const char * modelname() 
-    {
-        if(_paper_type == ASCII)
-            return "file printer (ASCII)";
+    const char *modelname()  override 
+    { 
+        if (_paper_type == ASCII)
+        {
+            #ifdef BUILD_ATARI
+                return sioPrinter::printer_model_str[sioPrinter::PRINTER_FILE_ASCII];
+            #elif BUILD_CBM
+                return iecPrinter::printer_model_str[iecPrinter::PRINTER_FILE_ASCII];
+            #elif BUILD_ADAM
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_ASCII];
+            #elif NEW_TARGET
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_ASCII];
+            #else
+                return PRINTER_UNSUPPORTED;
+            #endif
+        }
         else if (_paper_type == RAW)
-            return "file printer (RAW)";
+        {
+            #ifdef BUILD_ATARI
+                return sioPrinter::printer_model_str[sioPrinter::PRINTER_FILE_RAW];
+            #elif BUILD_CBM
+                return iecPrinter::printer_model_str[iecPrinter::PRINTER_FILE_RAW];
+            #elif BUILD_ADAM
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_RAW];
+            #elif NEW_TARGET
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_RAW];
+            #else
+                return PRINTER_UNSUPPORTED;
+            #endif
+        }
         else
-            return "file printer (TRIM)";
+        {
+            #ifdef BUILD_ATARI
+                return sioPrinter::printer_model_str[sioPrinter::PRINTER_FILE_TRIM];
+            #elif BUILD_CBM
+                return iecPrinter::printer_model_str[iecPrinter::PRINTER_FILE_TRIM];
+            #elif BUILD_ADAM
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_TRIM];
+            #elif NEW_TARGET
+                return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_TRIM];
+            #else
+                return PRINTER_UNSUPPORTED;
+            #endif
+        }
+
     };
 };
 

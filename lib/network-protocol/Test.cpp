@@ -1,10 +1,10 @@
-#ifdef BUILD_ATARI // temporary
-
 /**
  * Test protocol implementation
  */
 
 #include "Test.h"
+
+#include "../../include/debug.h"
 
 NetworkProtocolTest::NetworkProtocolTest(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
@@ -123,4 +123,3 @@ bool NetworkProtocolTest::special_80(uint8_t *sp_buf, unsigned short len, cmdFra
 {
     return false;
 }
-#endif /* BUILD_ATARI */

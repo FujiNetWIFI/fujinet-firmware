@@ -1,6 +1,8 @@
 #ifndef _ATARI820_H
 #define _ATARI820_H
 
+#include "printer.h"
+
 #include "pdf_printer.h"
 
 class atari820 : public pdfPrinter
@@ -19,7 +21,20 @@ public:
     //atari820(sioPrinter *P) { my_sioP = P; }
     //void initPrinter();
     // void setDevice(sioPrinter *P) { my_sioP = P; };
-    const char *modelname()  override { return "Atari 820"; };
+    const char *modelname()  override 
+    { 
+        #ifdef BUILD_ATARI
+            return sioPrinter::printer_model_str[sioPrinter::PRINTER_ATARI_820];
+        #elif BUILD_CBM
+            return iecPrinter::printer_model_str[iecPrinter::PRINTER_ATARI_820];
+        #elif BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_820];
+        #elif NEW_TARGET
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_820];
+        #else
+            return PRINTER_UNSUPPORTED;
+        #endif
+    };
 };
 
 #endif // _ATARI820_H

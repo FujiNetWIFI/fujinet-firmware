@@ -5,21 +5,28 @@
 /* SD Card */
 #define PIN_CARD_DETECT 12 // fnSystem.h
 #define PIN_CARD_DETECT_FIX 15 // fnSystem.h
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+#define PIN_SD_HOST_MISO 19
+#define PIN_SD_HOST_MOSI 23
+#define PIN_SD_HOST_SCK  18
+#define PIN_SD_HOST_CS   GPIO_NUM_5
+#else
 #define PIN_SD_HOST_CS GPIO_NUM_5 //fnFsSD.cpp
 #define PIN_SD_HOST_MISO GPIO_NUM_19
 #define PIN_SD_HOST_MOSI GPIO_NUM_23
 #define PIN_SD_HOST_SCK GPIO_NUM_18
+#endif
 
 /* UART */
 #define PIN_UART0_RX 3 // fnUART.cpp
 #define PIN_UART0_TX 1
 #define PIN_UART1_RX 9
 #define PIN_UART1_TX 10
-#ifdef BUILD_ADAM
+#ifdef THOMS_GHETTO_ASS_ADAM_BREADBOARD 
 #define PIN_UART2_RX 22
 #else
 #define PIN_UART2_RX 33
-#endif /* BUILD_ADAM */
+#endif /* THOMS_GHETTO_ASS_BREADBOARD*/
 #define PIN_UART2_TX 21
 
 /* Buttons */
@@ -68,9 +75,12 @@
 #define IEC_PIN_DATA_OUT	33      // DO
 #endif
 
-/* Dummy pins for AdamNet */
-#define PIN_RX_DUMMY 0 
-#define PIN_TX_DUMMY 12
+/* Pins for AdamNet */
+#define PIN_ADAMNET_RESET   26
+
+/* Pins for Adam USB */
+#define PIN_USB_DP          27      // D+
+#define PIN_USB_DM          32      // D-
 
 // Apple II IWM pin assignments
 

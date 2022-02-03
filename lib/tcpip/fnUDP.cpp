@@ -1,11 +1,12 @@
 /* Largely taken from Arduino WiFiUDP with some changes
 */
-#include <string.h>
-#include <lwip/netdb.h>
+
+#include "fnUDP.h"
 
 #include "../../include/debug.h"
-#include "fnUDP.h"
+
 #include "fnDNS.h"
+
 
 #define UDP_RXTX_BUFLEN 1460
 

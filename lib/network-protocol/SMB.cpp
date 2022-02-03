@@ -1,4 +1,3 @@
-#ifdef BUILD_ATARI // temporary
 /**
  * NetworkProtocolSMB
  * 
@@ -6,10 +5,21 @@
  */
 
 #include "SMB.h"
+
+#include <fcntl.h>
+
+#include <cstring>
+
+#include "../../include/debug.h"
+
+#include <smb2/libsmb2.h>
+#include <smb2/smb2.h>
+//#include <smb2/libsmb2-raw.h>
+
 #include "status_error_codes.h"
 #include "utils.h"
-#include <fcntl.h>
-#include <string.h>
+
+
 
 NetworkProtocolSMB::NetworkProtocolSMB(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
@@ -295,4 +305,3 @@ bool NetworkProtocolSMB::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
-#endif /* BUILD_ATARI */

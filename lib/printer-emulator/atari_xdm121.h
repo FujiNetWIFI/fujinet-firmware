@@ -1,6 +1,8 @@
 #ifndef XDM121_H
 #define XDM121_H
 
+#include "printer.h"
+
 #include "epson_80.h"
 
 class xdm121 : public pdfPrinter
@@ -43,11 +45,21 @@ protected:
     void set_mode(uint16_t m);
     void clear_mode(uint16_t m);
 
-    
-
-
 public:
-    const char *modelname() { return "Atari XDM121"; };
+    const char *modelname()  override 
+    {  
+        #ifdef BUILD_ATARI
+            return sioPrinter::printer_model_str[sioPrinter::PRINTER_ATARI_XDM121];
+        #elif BUILD_CBM
+            return iecPrinter::printer_model_str[iecPrinter::PRINTER_ATARI_XDM121];
+        #elif BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_XDM121];
+        #elif NEW_TARGET
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_XDM121];
+        #else
+            return PRINTER_UNSUPPORTED;
+        #endif
+    };
 };
 
 #endif

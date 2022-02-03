@@ -10,8 +10,8 @@
  * with every copy.
  *
  * To compute the message digest of a chunk of bytes, declare an
- * MD5Context structure, pass it to MD5Init, call MD5Update as
- * needed on buffers full of bytes, and then call MD5Final, which
+ * MD5Context structure, pass it to esp_rom_md5_init, call esp_rom_md5_update as
+ * needed on buffers full of bytes, and then call esp_rom_md5_final, which
  * will fill a supplied 16-byte array with the digest.
  *
  * Changed so as no longer to depend on Colin Plumb's `usual.h'
@@ -53,16 +53,16 @@ extern "C" {
 
 #define md5byte unsigned char
 
-struct MD5Context {
-	UWORD32 buf[4];
-	UWORD32 bytes[2];
-	UWORD32 in[16];
-};
+// struct MD5Context {
+// 	UWORD32 buf[4];
+// 	UWORD32 bytes[2];
+// 	UWORD32 in[16];
+// };
 
-void MD5Init(struct MD5Context *context);
-void MD5Update(struct MD5Context *context, md5byte const *buf, unsigned len);
-void MD5Final(unsigned char digest[16], struct MD5Context *context);
-void MD5Transform(UWORD32 buf[4], UWORD32 const in[16]);
+// void MD5Init(struct MD5Context *context);
+// void MD5Update(struct MD5Context *context, md5byte const *buf, unsigned len);
+// void MD5Final(unsigned char digest[16], struct MD5Context *context);
+// void MD5Transform(UWORD32 buf[4], UWORD32 const in[16]);
 
 
 #ifdef __cplusplus
