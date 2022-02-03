@@ -1,13 +1,14 @@
 #ifdef BUILD_ADAM
 
+#include "disk.h"
+
 #include <memory.h>
 #include <string.h>
 
 #include "../../include/debug.h"
-#include "../utils/utils.h"
 
-#include "../device/adamnet/disk.h"
 #include "media.h"
+#include "utils.h"
 
 adamDisk::adamDisk()
 {
@@ -42,14 +43,14 @@ mediatype_t adamDisk::mount(FILE *f, const char *filename, uint32_t disksize, me
 
     Debug_printf("disk MOUNT %s\n", filename);
 
-    // Destroy any existing DiskType
+    // Destroy any existing MediaType
     if (_media != nullptr)
     {
         delete _media;
         _media = nullptr;
     }
 
-    // Determine DiskType based on filename extension
+    // Determine MediaType based on filename extension
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
         disk_type = MediaType::discover_mediatype(filename);
 
@@ -189,7 +190,10 @@ void adamDisk::adamnet_response_status()
     else
         status_response[4] = 0x40 | _media->_media_controller_status;
     
-    adamNetDevice::adamnet_response_status();
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 300)
+        virtualDevice::adamnet_response_status();
 }
 
 void adamDisk::adamnet_response_send()
@@ -213,6 +217,8 @@ void adamDisk::adamnet_process(uint8_t b)
 {
     unsigned char c = b >> 4;
 
+    //portENTER_CRITICAL(&spinlock);
+
     switch (c)
     {
     case MN_RESET:
@@ -234,6 +240,8 @@ void adamDisk::adamnet_process(uint8_t b)
         adamnet_control_ready();
         break;
     }
+
+    //portEXIT_CRITICAL(&spinlock);
 }
 
 #endif /* BUILD_ADAM */

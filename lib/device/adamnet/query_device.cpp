@@ -1,11 +1,6 @@
 #ifdef BUILD_ADAM
-#include <memory.h>
-#include <string.h>
 
-#include "../../include/debug.h"
-#include "../utils/utils.h"
-
-#include "../device/adamnet/query_device.h"
+#include "query_device.h"
 
 // ctor
 adamQueryDevice::adamQueryDevice()
@@ -17,7 +12,7 @@ adamQueryDevice::~adamQueryDevice()
 {
 }
 
-bool adamQueryDevice::adamDeviceExists(uint8_t device)
+bool adamQueryDevice::virtualDeviceExists(uint8_t device)
 {
     uint8_t tx;
     bool again;

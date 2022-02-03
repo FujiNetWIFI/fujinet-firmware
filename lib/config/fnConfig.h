@@ -1,17 +1,7 @@
 #ifndef _FN_CONFIG_H
 #define _FN_CONFIG_H
 
-#include <string>
-
-#ifdef BUILD_ATARI
-#include "../device/sio/printer.h"
-#define PRINTER_CLASS sioPrinter
-#endif
-
-#ifdef BUILD_ADAM
-#include "../device/adamnet/printer.h"
-#define PRINTER_CLASS adamPrinter
-#endif
+#include "printer.h"
 
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8
@@ -114,12 +104,14 @@ public:
     void clear_mount(uint8_t num, mount_type_t mounttype = mount_type_t::MOUNTTYPE_DISK);
 
     // PRINTERS
+#ifdef PRINTER_CLASS
     PRINTER_CLASS::printer_type get_printer_type(uint8_t num);
     int get_printer_port(uint8_t num);
     void store_printer_enabled(bool printer_enabled);
     bool get_printer_enabled() { return _general.printer_enabled; };
     void store_printer_type(uint8_t num, PRINTER_CLASS::printer_type ptype);
     void store_printer_port(uint8_t num, int port);
+#endif
 
     // MODEM
     void store_modem_enabled(bool modem_enabled);
@@ -203,7 +195,9 @@ private:
 
     struct printer_info
     {
+#ifdef PRINTER_CLASS
         PRINTER_CLASS::printer_type type = PRINTER_CLASS::printer_type::PRINTER_INVALID;
+#endif
         int port = 0;
     };
 

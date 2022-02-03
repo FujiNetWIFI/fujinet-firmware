@@ -2,7 +2,8 @@
 #define NETWORKPROTOCOLFTP_H
 
 #include "FS.h"
-#include "../ftp/fnFTP.h"
+
+#include "fnFTP.h"
 
 class NetworkProtocolFTP : public NetworkProtocolFS
 {

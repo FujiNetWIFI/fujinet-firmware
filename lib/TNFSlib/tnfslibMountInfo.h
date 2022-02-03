@@ -1,7 +1,6 @@
 #ifndef _TNFSLIB_MOUNTINFO_H
 #define _TNFSLIB_MOUNTINFO_H
 
-#include <cstdint>
 #include <lwip/netdb.h>
 
 

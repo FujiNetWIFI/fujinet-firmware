@@ -1,7 +1,9 @@
 #ifdef BUILD_ATARI
 
-#include <string>
 #include "voice.h"
+
+#include <string>
+
 #include "utils.h"
 
 using namespace std;

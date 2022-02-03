@@ -1,9 +1,9 @@
-#ifndef _DISKTYPE_ATR_
-#define _DISKTYPE_ATR_
+#ifndef _MEDIATYPE_ATR_
+#define _MEDIATYPE_ATR_
 
 #include "diskType.h"
 
-class DiskTypeATR : public DiskType
+class MediaTypeATR : public MediaType
 {
 private:
     uint32_t _sector_to_offset(uint16_t sectorNum);
@@ -14,7 +14,7 @@ public:
 
     virtual bool format(uint16_t *respopnsesize) override;
 
-    virtual disktype_t mount(FILE *f, uint32_t disksize) override;
+    virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
 
     virtual void status(uint8_t statusbuff[4]) override;
 
@@ -22,4 +22,4 @@ public:
 };
 
 
-#endif // _DISKTYPE_ATR_
+#endif // _MEDIATYPE_ATR_

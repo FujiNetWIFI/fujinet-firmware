@@ -1,7 +1,7 @@
-#ifdef BUILD_ADAM
-
 #include "coleco_printer.h"
+
 #include "../../include/debug.h"
+
 
 void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
@@ -67,5 +67,3 @@ void colecoprinter::post_new_file()
 
     pdf_header();
 }
-
-#endif

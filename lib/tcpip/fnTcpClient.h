@@ -3,9 +3,8 @@
 #ifndef _FN_TCPCLIENT_H_
 #define _FN_TCPCLIENT_H_
 
-
 #include <memory>
-//#include <lwip/sockets.h>
+
 
 class fnTcpClientSocketHandle;
 class fnTcpClientRxBuffer;

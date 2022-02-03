@@ -71,7 +71,6 @@ smb2_hmac_md5(unsigned char *text, int text_len, unsigned char *key, int key_len
          */
         esp_rom_md5_init(&context);                   /* init context for 1st
                                               * pass */
-        esp_rom_md5_init(&context);
         esp_rom_md5_update(&context, k_ipad, 64);     /* start with inner pad */
         esp_rom_md5_update(&context, text, text_len); /* then text of datagram */
         esp_rom_md5_final(digest, &context);          /* finish up 1st pass */

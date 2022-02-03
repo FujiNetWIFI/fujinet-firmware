@@ -1,6 +1,8 @@
 #ifndef ABSTRACT_H
 #define ABSTRACT_H
 
+#include <stdio.h>
+
 #ifdef PROFILE
 #define printf(a, b) Serial.println(b)
 #endif

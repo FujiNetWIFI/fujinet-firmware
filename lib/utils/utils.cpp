@@ -1,13 +1,14 @@
+
+#include "utils.h"
+
 #include <algorithm>
-#include <cstdio>
 #include <cstring>
 #include <sstream>
 
-#include "utils.h"
 #include "../../include/debug.h"
-#ifdef BUILD_ATARI
-#include "../sam/samlib.h"
-#endif
+
+#include "samlib.h"
+
 
 using namespace std;
 

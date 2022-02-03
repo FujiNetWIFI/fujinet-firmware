@@ -4,14 +4,14 @@
  * TELNET Protocol Adapter Implementation
  */
 
-#include <errno.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
 #include "Telnet.h"
-#include "status_error_codes.h"
+
+#include "../../include/debug.h"
+
 #include "libtelnet.h"
+#include "status_error_codes.h"
+
+
 
 static const telnet_telopt_t telopts[] = {
     {TELNET_TELOPT_ECHO, TELNET_WONT, TELNET_DO},

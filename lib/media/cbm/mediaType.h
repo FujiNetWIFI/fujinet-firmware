@@ -4,9 +4,9 @@
 #include <stdio.h>
 
 
-#define INVALID_SECTOR_VALUE 65536
+#define INVALID_SECTOR_VALUE 0xFFFFFFFF
 
-#define DISK_SECTORBUF_SIZE 512
+#define MEDIA_BLOCK_SIZE 1024
 
 #define DISK_BYTES_PER_SECTOR_SINGLE 128
 #define DISK_BYTES_PER_SECTOR_DOUBLE 256
@@ -17,11 +17,10 @@
 enum mediatype_t 
 {
     MEDIATYPE_UNKNOWN = 0,
-    MEDIATYPE_ATR,
-    MEDIATYPE_ATX,
-    MEDIATYPE_XEX,
-    MEDIATYPE_CAS,
-    MEDIATYPE_WAV,
+    MEDIATYPE_PRG,
+    MEDIATYPE_D64,
+    MEDIATYPE_D71,
+    MEDIATYPE_D81,
     MEDIATYPE_COUNT
 };
 
@@ -30,10 +29,8 @@ class MediaType
 protected:
     FILE *_media_fileh = nullptr;
     uint32_t _media_image_size = 0;
-    uint32_t _media_num_sectors = 0;
+    uint32_t _media_num_blocks = 256;
     uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
-    int32_t _media_last_sector = INVALID_SECTOR_VALUE;
-    uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 
 public:
     struct
@@ -52,7 +49,9 @@ public:
         uint8_t reserved3;
     } _percomBlock;
 
-    uint8_t _media_sectorbuff[DISK_SECTORBUF_SIZE];
+    uint8_t _media_blockbuff[MEDIA_BLOCK_SIZE];
+    uint32_t _media_last_block = INVALID_SECTOR_VALUE-1;
+    uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
@@ -64,14 +63,11 @@ public:
     virtual bool format(uint16_t *respopnsesize);
 
     // Returns TRUE if an error condition occurred
-    virtual bool read(uint16_t sectornum, uint16_t *readcount) = 0;
+    virtual bool read(uint32_t blockNum, uint16_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
-    virtual bool write(uint16_t sectornum, bool verify);
-
-    // Always returns 128 for the first 3 sectors, otherwise _sectorSize
-    virtual uint16_t sector_size(uint16_t sectornum);
+    virtual bool write(uint32_t blockNum, bool verify);
     
-    virtual void status(uint8_t statusbuff[4]) = 0;
+    virtual uint8_t status() = 0;
 
     static mediatype_t discover_mediatype(const char *filename);
 
