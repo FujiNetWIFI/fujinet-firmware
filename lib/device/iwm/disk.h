@@ -1,3 +1,4 @@
+#ifdef BUILD_APPLE
 #ifndef DISK_H
 #define DISK_H
 
@@ -56,3 +57,4 @@ public:
 };
 
 #endif
+#endif /* BUILD_APPLE */

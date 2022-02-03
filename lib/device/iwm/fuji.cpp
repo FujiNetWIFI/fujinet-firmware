@@ -1,3 +1,4 @@
+#ifdef BUILD_APPLE
 #include "fuji.h"
 
 iwmFuji theFuji; // Global fuji object.
@@ -45,3 +46,4 @@ void iwmFuji::apple_mount_all() // 0xD7
 iwmFuji::iwmFuji()
 {
 }
+#endif /* BUILD_APPLE */

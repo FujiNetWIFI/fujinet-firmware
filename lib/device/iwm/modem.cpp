@@ -1268,4 +1268,4 @@ void appleModem::shutdown()
 
 }
  */
-#endif /* BUILD_ADAM */
+#endif /* BUILD_APPLE */

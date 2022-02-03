@@ -1,3 +1,4 @@
+#ifdef BUILD_APPLE
 #include "disk.h"
 
 #include "fnSystem.h"
@@ -646,3 +647,4 @@ bool iwmDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
   return false;
 }
+#endif /* BUILD_APPLE */
