@@ -439,6 +439,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             fnLedManager.set(eLed::LED_WIFI, true);
             fnSystem.Net.start_sntp_client();
             fnHTTPD.start();
+            IWM.smort->startup_hack();
 #ifdef BUILD_ATARI // temporary
             if (Config.get_general_config_enabled() == false)
                 theFuji.sio_mount_all();
