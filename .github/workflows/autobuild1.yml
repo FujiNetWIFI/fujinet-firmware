@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target-platform: [ATARI, ADAM, APPLE],
+        target-platform: [ATARI, ADAM, APPLE]
         target-bus: [SIO, ADAMNET, IWM]
 
     steps:
