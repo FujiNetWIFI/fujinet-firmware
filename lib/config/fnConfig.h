@@ -3,12 +3,6 @@
 
 #include "printer.h"
 
-#ifdef BUILD_APPLE
-#include "../device/iwm/printer.h"
-#define PRINTER_CLASS applePrinter
-#endif
-
-
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8
 #define MAX_PRINTER_SLOTS 4

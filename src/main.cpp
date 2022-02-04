@@ -15,12 +15,6 @@
 #include "fnFsSD.h"
 #include "fnFsSPIFFS.h"
 
-#ifdef BUILD_APPLE
-#include "iwm/fuji.h"
-#include "iwm/modem.h"
-#include "iwm/disk.h"
-#endif
-
 #include "httpService.h"
 
 #ifdef BLUETOOTH_SUPPORT
@@ -181,7 +175,9 @@ void main_setup()
 
 #ifdef BUILD_APPLE
 // spDevice spsd;
-//  appleModem *sioR;
+appleModem *sioR;
+FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
 #endif /* BUILD_APPLE */
 
 #ifdef DEBUG
