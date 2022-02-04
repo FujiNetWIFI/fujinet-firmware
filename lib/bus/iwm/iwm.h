@@ -27,6 +27,24 @@ class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for protot
 
 class iwmBus;      // forward declare bus so can be friend
 
+// Sorry, this  is the protocol adapter's fault. -Thom
+union cmdFrame_t
+{
+    struct
+    {
+        uint8_t device;
+        uint8_t comnd;
+        uint8_t aux1;
+        uint8_t aux2;
+        uint8_t cksum;
+    };
+    struct
+    {
+        uint32_t commanddata;
+        uint8_t checksum;
+    } __attribute__((packed));
+};
+
 enum class iwm_internal_type_t
 {
   GenericBlock,

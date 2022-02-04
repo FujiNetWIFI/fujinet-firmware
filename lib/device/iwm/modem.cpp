@@ -7,7 +7,7 @@
 #include "modem.h"
 #include "../hardware/fnUART.h"
 #include "fnWiFi.h"
-#include "fnFsSPIF.h"
+#include "fnFsSPIFFS.h"
 #include "fnSystem.h"
 #include "../utils/utils.h"
 #include "fnConfig.h"
@@ -992,7 +992,7 @@ void appleModem::modemCommand()
 /*
   Handle incoming & outgoing data for modem
 */
-void appleModem::smart_handle_modem()
+void appleModem::sio_handle_modem()
 {
     /**** AT command mode ****/
     if (cmdMode == true)

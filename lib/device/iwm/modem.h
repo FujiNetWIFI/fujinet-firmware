@@ -1,19 +1,22 @@
 #ifdef BUILD_APPLE
-#ifndef MODEM_H
-#define MODEM_H
+#ifndef APPLE_MODEM_H
+#define APPLE_MODEM_H
 
+#include <time.h>
+
+#include <cstdint>
 #include <string>
+
+#include "bus.h"
+
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
-#include "fnFsSD.h"
-#include "fnFsSPIFFS.h"
-#include "bus.h"
-#include "../modem-sniffer/modem-sniffer.h"
+#include "modem-sniffer.h"
 #include "libtelnet.h"
 #include "esp32sshclient.h"
 
 /* Keep strings under 40 characters, for the benefit of 40-column users! */
-#define HELPL01 "       FujiNet Virtual Modem 850"
+#define HELPL01 "       FujiNet Virtual apple Modem"
 #define HELPL02 "======================================="
 #define HELPL03 ""
 #define HELPL04 "ATWIFILIST        | List avail networks"
@@ -177,26 +180,20 @@ private:
     telnet_t *telnet;               // telnet FSM state.
     bool use_telnet=false;          // Use telnet mode?
     bool do_echo;                   // telnet echo toggle.
-    string term_type;               // telnet terminal type.
+    std::string term_type;               // telnet terminal type.
     ESP32SSHCLIENT ssh;             // ssh instance.
     long answerTimer;
     bool answered=false;
-/* 
-    void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
-    void sio_poll_1();                           // $3F, '?', Type 1 Poll
-    void sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2); // $40, '@', Type 3 Poll
-    void sio_control();                          // $41, 'A', Control
-    void sio_config();                           // $42, 'B', Configure
-    void sio_set_dump();                         // $$4, 'D', Dump
-    void sio_listen();                           // $4C, 'L', Listen
-    void sio_unlisten();                         // $4D, 'M', Unlisten
-    void sio_baudlock();                         // $4E, 'N', Baud lock
-    void sio_autoanswer();                       // $4F, 'O', auto answer
-    void sio_status() override;                  // $53, 'S', Status
-    void sio_write();                            // $57, 'W', Write
-    void sio_stream();                           // $58, 'X', Concurrent/Stream
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
-     */
+
+    void shutdown() override;
+    void process() override{};
+
+    void encode_status_reply_packet() override{};
+    void encode_status_dib_reply_packet() override{};
+
+    void encode_extended_status_reply_packet() override{};
+    void encode_extended_status_dib_reply_packet() override{};
+    
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command
@@ -221,14 +218,12 @@ private:
     void at_handle_pb();
     void at_handle_pbclear();
 
-
 protected:
-    void shutdown(); // override; todo change back
 
 public:
 
     bool modemActive = false; // If we are in modem mode or not
-    void smart_handle_modem();  // Handle incoming & outgoing data for modem
+    void sio_handle_modem();  // Handle incoming & outgoing data for modem
 
     appleModem(FileSystem *_fs, bool snifferEnable);
     virtual ~appleModem();
@@ -238,10 +233,10 @@ public:
     fnTcpClient get_tcp_client() { return tcpClient; } // Return TCP client.
     bool get_do_echo() { return do_echo; }
     void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
-    string get_term_type() {return term_type; }
-    void set_term_type(string _term_type) { term_type = _term_type; }
+    std::string get_term_type() {return term_type; }
+    void set_term_type(std::string _term_type) { term_type = _term_type; }
 
 };
 
-#endif
+#endif /* apple_MODEM_H */
 #endif /* BUILD_APPLE */

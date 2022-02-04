@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "bus.h"
-#include "../printer-emulator/printer_emulator.h"
+#include "printer_emulator.h"
 #include "fnFS.h"
 
 #define PRINTER_UNSUPPORTED "Unsupported"
@@ -38,6 +38,15 @@ public:
         PRINTER_EPSON,
         PRINTER_HTML,
         PRINTER_INVALID
+    };
+
+    constexpr static const char * const printer_model_str[PRINTER_INVALID]
+    {
+        "file printer (RAW)",
+        "file printer (TRIM)",
+        "file printer (ASCII)",
+        "Epson 80",
+        "HTML printer",
     };
 
     applePrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);

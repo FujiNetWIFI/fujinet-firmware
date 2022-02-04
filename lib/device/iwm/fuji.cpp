@@ -39,7 +39,7 @@ void iwmFuji::_populate_config_from_slots()
 {
 }
 
-void iwmFuji::apple_mount_all() // 0xD7
+void iwmFuji::sio_mount_all() // 0xD7 (yes, I know.)
 {
 }
 
