@@ -632,6 +632,8 @@ void iwmDisk::shutdown()
 
 iwmDisk::iwmDisk()
 {
+  Debug_printf("iwmDisk::iwmDisk()\n");
+  // init();
 }
 
 mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
@@ -647,4 +649,10 @@ bool iwmDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
   return false;
 }
+
+void iwmDisk::startup_hack()
+{
+  init();
+}
+
 #endif /* BUILD_APPLE */

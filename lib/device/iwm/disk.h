@@ -54,6 +54,7 @@ public:
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
     void init();
     ~iwmDisk();
+    virtual void startup_hack();
 };
 
 #endif
