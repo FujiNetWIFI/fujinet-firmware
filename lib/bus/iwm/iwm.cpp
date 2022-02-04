@@ -636,7 +636,6 @@ void iwmBus::setup(void)
   Debug_printf("\r\nIWM timer started");
 
   smort = new iwmDisk();
-
 }
 
 
@@ -1356,6 +1355,11 @@ void iwmBus::shutdown()
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
+}
+
+void iwmDevice::startup_hack()
+{
+  
 }
 
 #ifdef TESTTX

@@ -122,6 +122,11 @@ public:
    * @brief Get the iwmBus object that this iwmDevice is attached to.
    */
   iwmBus iwm_get_bus();
+
+  /**
+   * Startup hack for now
+   */
+  virtual void startup_hack();
 };
 
 class iwmBus
@@ -181,8 +186,6 @@ private:
     iwm_phases_t oldphase;
 #endif
 
-  iwmDevice *smort;
-
 public:
   int iwm_read_packet(uint8_t *a);
   int iwm_read_packet_timeout(int tout, uint8_t *a);
@@ -199,6 +202,7 @@ public:
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
+  iwmDevice *smort;
 
 #ifdef TESTTX
   void test_send(iwmDevice* smort);
