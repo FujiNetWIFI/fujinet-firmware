@@ -58,6 +58,9 @@ jobs:
       if: ${{ matrix.target-platform }} == "APPLE"
       run: sed -i "s/build_bus.*= .*/build_bus = IWM/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
+    - name: Show platformio.ini
+      run: cat /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+    
     - name: Fix up dirent.h top
       run: gawk -i inplace '1;/#include\ <stdint.h>/{print "\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"}' /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
 
