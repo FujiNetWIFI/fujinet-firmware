@@ -9,7 +9,6 @@ jobs:
     strategy:
       matrix:
         target-platform: [ATARI, ADAM, APPLE]
-        target-bus: [SIO, ADAMNET, IWM]
 
     steps:
     - uses: actions/checkout@v2
@@ -47,8 +46,17 @@ jobs:
     - name: Set Target Platform for Build
       run: sed -i "s/^;\{0,1\}build_platform.*=.*/build_platform = ${{ matrix.target-platform }}/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
-    - name: Set Target Bus for Build
-      run: sed -i "s/^;\{0,1\}build_bus.*= .*/build_bus = ${{ matrix.target-bus }}/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+    - name: Set Target SIO Bus for Build
+      if: ${{ matrix.target-platform }} == "ATARI"
+      run: sed -i "s/^;\{0,1\}build_bus.*= .*/build_bus = SIO/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
+    - name: Set Target ADAMNET Bus for Build
+      if: ${{ matrix.target-platform }} == "ADAM"
+      run: sed -i "s/^;\{0,1\}build_bus.*= .*/build_bus = ADAMNET/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
+    - name: Set Target IWM Bus for Build
+      if: ${{ matrix.target-platform }} == "APPLE"
+      run: sed -i "s/^;\{0,1\}build_bus.*= .*/build_bus = IWM/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
     - name: Fix up dirent.h top
       run: gawk -i inplace '1;/#include\ <stdint.h>/{print "\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"}' /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
