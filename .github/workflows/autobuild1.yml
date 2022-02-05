@@ -47,15 +47,15 @@ jobs:
       run: sed -i "s/build_platform.*=.*/build_platform = ${{ matrix.target-platform }}/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
     - name: Set Target SIO Bus for Build
-      if: ${{ matrix.target-platform }} == "ATARI"
+      if: ${{ matrix.target-platform == 'ATARI' }}
       run: sed -i "s/build_bus.*= .*/build_bus = SIO/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
     - name: Set Target ADAMNET Bus for Build
-      if: ${{ matrix.target-platform }} == "ADAM"
+      if: ${{ matrix.target-platform == 'ADAM' }}
       run: sed -i "s/build_bus.*= .*/build_bus = ADAMNET/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
     - name: Set Target IWM Bus for Build
-      if: ${{ matrix.target-platform }} == "APPLE"
+      if: ${{ matrix.target-platform == 'APPLE' }}
       run: sed -i "s/build_bus.*= .*/build_bus = IWM/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
     - name: Show platformio.ini
