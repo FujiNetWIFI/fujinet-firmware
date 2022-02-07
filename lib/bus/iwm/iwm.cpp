@@ -497,7 +497,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a) // todo add second parameter f
   a[++idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
 
   portENABLE_INTERRUPTS();
-  return 0;
+  return (!synced); // take care of case witness on 2/6/22 where execution entered late in command packet and sync was missed.
 }
 
 int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a)
@@ -557,7 +557,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 
  txbyte = a[idx++];
 
-  // should this be ack disable or ack set?
+  // todo should this be ack disable or ack set?
   iwm_ack_set(); // ack is already enabled by the response to the command read
 
 
@@ -595,10 +595,6 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 #endif // TESTTX
 
   // CRITICAL TO HAVE 1 US BETWEEN req AND FIRST PULSE to put the falling edge 2 us after REQ
-  // at one point i had to do a trim alarm setting, but now can do standard call - i think the
-  // timing behavior changed because I call alarm_set and alarm_snooze up at the top
-  // because i think i'm caching the function calls
-  //iwm_timer.tn = iwm_timer.t0 + (1 * TIMER_USEC_FACTOR / 2) - TIMER_ADJUST; // NEED JUST 1/2 USEC
   iwm_timer_alarm_set(5);
   iwm_timer_wait();
   iwm_rddata_set(); // elongate first pulse because we always know first byte if 0xFF
@@ -1114,24 +1110,17 @@ void iwmBus::service()
       Debug_printf(("\r\nReset Cleared"));
       break;
     case iwm_phases_t::enable:
-    // expect a command packet
-    // todo: make a command packet structure type, create a temp one and pass it to iwm_read_packet
-    // so we don't have to hijack some device's packet_buffer
-    // also, do we have a universal packet buffer, or does each device have its own?
-       
+      // expect a command packet
       while (iwm_read_packet(command_packet.data))
       {
-        break; // todo - change to a for or while loop to do multiple tries before timeout
+        break; // todo - change to a for or while loop to do multiple tries before timeout?
       }
       // if (verify_cmdpkt_checksum())
       // {
       //   Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
       //   // break;
       // }
-      iwm_ack_clr();
-      iwm_ack_enable(); // have to act really fast
-      // now ACK is enabled and cleared low, it is reset in the handlers
-
+     
 
       /***
        * todo notes:
@@ -1180,6 +1169,8 @@ void iwmBus::service()
       // and set up for the command? Once we see REQ go low,
       // and we're ready to respond, the we disable ACK
       // setup a timeout counter to wait for REQ response
+      iwm_ack_clr();
+      iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
       iwm_timer_latch();        // latch highspeed timer value
       iwm_timer_read();         //  grab timer low word
       iwm_timer_alarm_set(50000); // todo: figure out
