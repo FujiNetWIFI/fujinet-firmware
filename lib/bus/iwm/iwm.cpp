@@ -53,6 +53,60 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 
 #undef VERBOSE_IWM
 
+//------------------------------------------------------------------------------
+#ifdef DEBUG
+//*****************************************************************************
+// Function: print_packet
+// Parameters: pointer to data, number of bytes to be printed
+// Returns: none
+//
+// Description: prints packet data for debug purposes to the serial port
+//*****************************************************************************
+void print_packet (uint8_t* data, int bytes)
+{
+  int row;
+  char tbs[8];
+  char xx;
+
+  Debug_printf(("\r\n"));
+  for (int count = 0; count < bytes; count = count + 16) 
+  {
+    sprintf(tbs, ("%04X: "), count);
+    Debug_print(tbs);
+    for (row = 0; row < 16; row++) {
+      if (count + row >= bytes)
+        Debug_print(("   "));
+      else {
+        Debug_printf("%02x ",data[count + row]);
+      }
+    }
+    Debug_print(("-"));
+    for (row = 0; row < 16; row++) {
+      if ((data[count + row] > 31) && (count + row < bytes) && (data[count + row] < 129))
+      {
+        xx = data[count + row];
+        Debug_print(xx);
+      }
+      else
+        Debug_print(("."));
+    }
+    Debug_printf(("\r\n"));
+  }
+}
+
+void print_packet(uint8_t* data)
+{
+  Debug_printf("\r\n");
+  for (int i = 0; i < 28; i++)
+  {
+    if (data[i])
+      Debug_printf("%02x ", data[i]);
+    else
+      break;
+  }
+  Debug_printf("\r\n");
+}
+#endif
 
 //------------------------------------------------------------------------------
 
@@ -257,7 +311,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 //------------------------------------------------------
 
 
-int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
+int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a) // todo add second parameter for maximum array length to avoid overflow
 {
   //*****************************************************************************
   // Function: iwm_read_packet
@@ -448,16 +502,22 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a)
 
 int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a)
 {
-  iwm_ack_set();
+  iwm_ack_set(); // todo - is set really needed?
   for (int i=0; i < attempts; i++)
   {
     if (!iwm_read_packet(a))
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
+#ifdef DEBUG
+      print_packet(a);
+#endif
       return 0;
     }
   }
   iwm_ack_disable();
+#ifdef DEBUG
+  print_packet(a);
+#endif
   return 1;
 }
 
@@ -596,8 +656,10 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   iwm_rddata_disable();
  // iwm_ack_disable();       // need to release the bus
   portENABLE_INTERRUPTS(); // takes 7 us to execute
+#ifdef DEBUG
+  print_packet(a);
+#endif
   return 0;
-
 }
 
 void iwmBus::setup(void)
@@ -960,32 +1022,34 @@ void iwmDevice::encode_error_reply_packet (uint8_t source)
 //
 // &&&&&&&&not used at the moment, no error checking for checksum for cmd packet
 //*****************************************************************************
-bool iwmDevice::verify_cmdpkt_checksum(void)
+bool iwmBus::verify_cmdpkt_checksum(void)
 {
-  int length;
+  //int length;
   uint8_t evenbits, oddbits, bit7, bit0to6, grpbyte;
   uint8_t calc_checksum = 0; //initial value is 0
   uint8_t pkt_checksum;
 
-  length = packet_length();
+  //length = packet_length();
   //Debug_printf("\r\npacket length = %d", length);
   //2 oddbytes in cmd packet
-  calc_checksum ^= ((packet_buffer[13] << 1) & 0x80) | (packet_buffer[14] & 0x7f);
-  calc_checksum ^= ((packet_buffer[13] << 2) & 0x80) | (packet_buffer[15] & 0x7f);
+  // calc_checksum ^= ((packet_buffer[13] << 1) & 0x80) | (packet_buffer[14] & 0x7f);
+  // calc_checksum ^= ((packet_buffer[13] << 2) & 0x80) | (packet_buffer[15] & 0x7f);
+  calc_checksum ^= ((command_packet.oddmsb << 1) & 0x80) | (command_packet.command & 0x7f);
+  calc_checksum ^= ((command_packet.oddmsb << 2) & 0x80) | (command_packet.parmcnt & 0x7f);
 
   // 1 group of 7 in a cmd packet
   for (grpbyte = 0; grpbyte < 7; grpbyte++) {
-    bit7 = (packet_buffer[16] << (grpbyte + 1)) & 0x80;
-    bit0to6 = (packet_buffer[17 + grpbyte]) & 0x7f;
+    bit7 = (command_packet.grp7msb << (grpbyte + 1)) & 0x80;
+    bit0to6 = (command_packet.data[17 + grpbyte]) & 0x7f;
     calc_checksum ^= bit7 | bit0to6;
   }
 
   // calculate checksum for overhead bytes
   for (int count = 6; count < 13; count++) // start from first id byte
-    calc_checksum ^= packet_buffer[count];
+    calc_checksum ^= command_packet.data[count];
 
-  oddbits = (packet_buffer[length - 2] << 1) | 0x01;
-  evenbits = packet_buffer[length - 3];
+  oddbits = (command_packet.chksum1 << 1) | 0x01;
+  evenbits = command_packet.chksum2;
   pkt_checksum = oddbits & evenbits; // oddbits | evenbits;
   // every other bit is ==1 in checksum, so need to AND to get data back
 
@@ -1001,59 +1065,6 @@ bool iwmDevice::verify_cmdpkt_checksum(void)
   return (pkt_checksum != calc_checksum);  
 }
 
-#ifdef DEBUG
-//*****************************************************************************
-// Function: print_packet
-// Parameters: pointer to data, number of bytes to be printed
-// Returns: none
-//
-// Description: prints packet data for debug purposes to the serial port
-//*****************************************************************************
-void iwmDevice::print_packet (uint8_t* data, int bytes)
-{
-  int row;
-  char tbs[8];
-  char xx;
-
-  Debug_printf(("\r\n"));
-  for (int count = 0; count < bytes; count = count + 16) 
-  {
-    sprintf(tbs, ("%04X: "), count);
-    Debug_print(tbs);
-    for (row = 0; row < 16; row++) {
-      if (count + row >= bytes)
-        Debug_print(("   "));
-      else {
-        Debug_printf("%02x ",data[count + row]);
-      }
-    }
-    Debug_print(("-"));
-    for (row = 0; row < 16; row++) {
-      if ((data[count + row] > 31) && (count + row < bytes) && (data[count + row] < 129))
-      {
-        xx = data[count + row];
-        Debug_print(xx);
-      }
-      else
-        Debug_print(("."));
-    }
-    Debug_printf(("\r\n"));
-  }
-}
-
-void iwmDevice::print_packet()
-{
-  Debug_printf("\r\n");
-  for (int i = 0; i < 28; i++)
-  {
-    if (packet_buffer[i])
-      Debug_printf("%02x ", packet_buffer[i]);
-    else
-      break;
-  }
-  Debug_printf("\r\n");
-}
-#endif
 
 //*****************************************************************************
 // Function: packet_length
@@ -1093,33 +1104,30 @@ void iwmBus::service()
       // the handler should reset every device
       // and wait for reset to clear (probably with a timeout)
       Debug_printf(("\r\nReset"));
+      // hard coding 1 partition - will use disk class instances instead
+      smort->_devnum = 0;
       while (iwm_phases() == iwm_phases_t::reset)
-        ; // todo: should there be a timeout feature?
-        // hard coding 1 partition - will use disk class instances instead
-        smort->_devnum = 0;
-        Debug_printf(("\r\nReset Cleared"));
+        ; // no timeout needed because the IWM must eventually clear reset. 
+        // even if it doesn't, we would just come back to here, so might as
+        // well wait until reset clears.
+
+      Debug_printf(("\r\nReset Cleared"));
       break;
     case iwm_phases_t::enable:
     // expect a command packet
     // todo: make a command packet structure type, create a temp one and pass it to iwm_read_packet
     // so we don't have to hijack some device's packet_buffer
     // also, do we have a universal packet buffer, or does each device have its own?
-     
-      if (iwm_read_packet((uint8_t *)smort->packet_buffer))
+       
+      while (iwm_read_packet(command_packet.data))
       {
-        break; //error timeout, break and loop again 
+        break; // todo - change to a for or while loop to do multiple tries before timeout
       }
-      // todo: should only ack if it's our device and if checksum is OK
-      // if (smort->packet_buffer[6] != smort->id())
+      // if (verify_cmdpkt_checksum())
       // {
-      //   Debug_printf ("\r\nnot our packet!");
-      //   break;
+      //   Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+      //   // break;
       // }
-      if (smort->verify_cmdpkt_checksum())
-      {
-        // Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        // break;
-      }
       iwm_ack_clr();
       iwm_ack_enable(); // have to act really fast
       // now ACK is enabled and cleared low, it is reset in the handlers
@@ -1189,50 +1197,34 @@ void iwmBus::service()
         }
       }
 
-      if (smort->packet_buffer[14] == 0x85)
+      if (command_packet.command == 0x85)
       {
-        #ifdef DEBUG
-       smort->print_packet();
-#endif
+#ifdef DEBUG
+        print_packet(command_packet.data);
         Debug_printf("\r\nhandling init command");
+#endif
         handle_init(smort);
       }
       else
-     {
+      {
 #ifdef DEBUG
-       smort->print_packet();
+        print_packet(command_packet.data);
 #endif
-        smort->process();
-     } 
+        smort->process(command_packet);
+      }
     }   // switch (phasestate)
   // }     // while(true)
 }
 
 void iwmBus::handle_init(iwmDevice* smort)
 {
-  uint8_t source;
-
   iwm_rddata_clr();
   iwm_rddata_enable(); 
-  
-  source = smort->packet_buffer[6];
-  // if (number_partitions_initialised < NUM_PARTITIONS)
-  // {                                                                                                   //are all init'd yet
-  //   devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
-  //   number_partitions_initialised++;
-  //   status = 0x80; //no, so status=0
-  // }
-  // else if (number_partitions_initialised == NUM_PARTITIONS)
-  // {                                                                                                   // the last one
-  //   devices[(number_partitions_initialised - 1 + initPartition) % NUM_PARTITIONS].device_id = source; //remember source id for partition
-  //   number_partitions_initialised++;
-  //   status = 0xff; //yes, so status=non zero
-  // }
-    smort->_devnum = source; //remember source id for partition
-    uint8_t status = 0xff; //yes, so status=non zero
+  // to do - get the next device in the daisy chain and assign ID
+  smort->_devnum = command_packet.dest; //remember source id for partition
+  uint8_t status = 0xff;   //yes, so status=non zero
 
-  smort->encode_init_reply_packet(source, status);
-  //print_packet ((uint8_t*) packet_buffer,packet_length());
+  smort->encode_init_reply_packet(command_packet.dest, status);
   Debug_printf("\r\nSending INIT Response Packet...");
   iwm_send_packet((uint8_t *)smort->packet_buffer); // timeout error return is not handled here (yet?)
 

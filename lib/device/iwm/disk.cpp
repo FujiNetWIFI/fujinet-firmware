@@ -406,22 +406,22 @@ void iwmDisk::encode_extended_status_dib_reply_packet()
   packet_buffer[48] = 0x00; // end of packet in buffer
 }
 
-void iwmDisk::process()
+void iwmDisk::process(cmdPacket_t cmd)
 {
   fnLedManager.set(LED_BUS, true);
-  switch (packet_buffer[14])
+  switch (cmd.command)
   {
   case 0x80: // status
       Debug_printf("\r\nhandling status command");
-    iwm_status();
+    iwm_status(cmd);
     break;
   case 0x81: // read block
     Debug_printf("\r\nhandling read block command");
-    iwm_readblock();
+    iwm_readblock(cmd);
     break;
   case 0x82: // write block
     Debug_printf("\r\nhandling write block command");
-    iwm_writeblock();
+    iwm_writeblock(cmd);
     break;
   case 0x83: // format
     break;
@@ -443,20 +443,20 @@ void iwmDisk::process()
 
 unsigned long int last_block_num=0xFFFFFFFF;
 
-void iwmDisk::iwm_readblock()
+void iwmDisk::iwm_readblock(cmdPacket_t cmd)
 {
   uint8_t LBH, LBL, LBN, LBT;
   unsigned long int block_num;
   size_t sdstato;
   uint8_t source;
 
-  source = packet_buffer[6];
+  source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
   Debug_printf("\r\nDrive %02x ", source);
 
-  LBH = packet_buffer[16]; // high order bits
-  LBT = packet_buffer[21]; // block number high
-  LBL = packet_buffer[20]; // block number middle
-  LBN = packet_buffer[19]; // block number low
+  LBH = cmd.grp7msb; //packet_buffer[16]; // high order bits
+  LBT = cmd.g7byte5; //packet_buffer[21]; // block number high
+  LBL = cmd.g7byte4; //packet_buffer[20]; // block number middle
+  LBN = cmd.g7byte3; //  packet_buffer[19]; // block number low
   block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
   // block num second byte
   // print_packet ((unsigned char*) packet_buffer,packet_length());
@@ -471,14 +471,14 @@ void iwmDisk::iwm_readblock()
     if (fseek(d.sdf, (block_num * 512), SEEK_SET))
     {
       Debug_printf("\r\nRead seek err! block #%02x", block_num);
-      if (d.sdf != nullptr)
-      {
-        Debug_printf("\r\nPartition file is open!");
-      }
-      else
-      {
-        Debug_printf("\r\nPartition file is closed!");
-      }
+      // if (d.sdf != nullptr)
+      // {
+      //   Debug_printf("\r\nPartition file is open!");
+      // }
+      // else
+      // {
+      //   Debug_printf("\r\nPartition file is closed!");
+      // }
       return;
     }
   }
@@ -487,7 +487,7 @@ void iwmDisk::iwm_readblock()
   if (sdstato != 512)
   {
     Debug_printf("\r\nFile Read err: %d bytes", sdstato);
-    return;
+    return; // todo - instead need to return an error status
   }
   encode_data_packet(source);
   Debug_printf("\r\nsending block packet ...");
@@ -495,7 +495,7 @@ void iwmDisk::iwm_readblock()
     last_block_num = block_num;
 }
 
-void iwmDisk::iwm_writeblock()
+void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
 {
   uint8_t source = packet_buffer[6];
   Debug_printf("\r\nDrive %02x ", source);
@@ -508,16 +508,9 @@ void iwmDisk::iwm_writeblock()
   //get write data packet, keep trying until no timeout
   if (IWM.iwm_read_packet_timeout(100, (unsigned char *)packet_buffer))
   {
-#ifdef DEBUG
-    print_packet();
-#endif
     Debug_printf("\r\nTIMEOUT in read packet!");
     return;
   }
-
-#ifdef DEBUG
-  print_packet();
-#endif
   // partition number indicates which 32mb block we access on the CF
   // TODO: replace this with a lookup to get file object from partition number
   // block_num = block_num + (((partition + initPartition) % 4) * 65536);
@@ -557,9 +550,6 @@ void iwmDisk::iwm_writeblock()
     //now return status code to host
     encode_write_status_packet(source, status);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
-#ifdef DEBUG
-    print_packet();
-#endif
     //Serial.print(F("\r\nSent status Packet Data\r\n") );
     //print_packet ((unsigned char*) sector_buffer,512);
 
@@ -578,13 +568,13 @@ void iwmDisk::iwm_write(bool verify)
 
 // void iwm_format();
 
-void iwmDisk::iwm_status() // override;
+void iwmDisk::iwm_status(cmdPacket_t cmd) // override;
 {
   // uint8_t source = packet_buffer[6];
 
   if (d.sdf != nullptr)
   { 
-    uint8_t status_code = (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
+    uint8_t status_code = cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
     //Serial.print(F("\r\nStatus code: "));
     //Serial.print(status_code);
     //print_packet ((unsigned char*) packet_buffer, packet_length());
@@ -616,9 +606,6 @@ void iwmDisk::iwm_status() // override;
       encode_status_reply_packet();
     }
    IWM.iwm_send_packet((unsigned char *)packet_buffer);
-#ifdef DEBUG
-   print_packet();
-#endif
   }
 }
 // void derive_percom_block(uint16_t numSectors);

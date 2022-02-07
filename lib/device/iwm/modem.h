@@ -186,7 +186,7 @@ private:
     bool answered=false;
 
     void shutdown() override;
-    void process() override{};
+    void process(cmdPacket_t cmd) override{};
 
     void encode_status_reply_packet() override{};
     void encode_status_dib_reply_packet() override{};
