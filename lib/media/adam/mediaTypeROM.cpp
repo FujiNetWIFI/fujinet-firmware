@@ -8,7 +8,12 @@
 
 MediaTypeROM::MediaTypeROM()
 {
-    memset(rom,0,sizeof(rom));
+    rom=(char *)malloc(32768);
+}
+
+MediaTypeROM::~MediaTypeROM()
+{
+    free(rom);
 }
 
 // Returns TRUE if an error condition occurred
