@@ -90,7 +90,7 @@ public:
     virtual void adamnet_control_receive_channel();
     virtual void adamnet_control_send();
 
-    virtual void adamnet_response_status();
+    virtual void adamnet_response_status() override;
     virtual void adamnet_response_send();
 
     /**
@@ -122,7 +122,7 @@ public:
      * Process incoming ADAM command for device 0x7X
      * @param b The incoming command byte
      */
-    virtual void adamnet_process(uint8_t b);
+    virtual void adamnet_process(uint8_t b) override;
 
     virtual void del(uint16_t s);
     virtual void rename(uint16_t s);
