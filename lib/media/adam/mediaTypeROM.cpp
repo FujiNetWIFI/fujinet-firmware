@@ -6,6 +6,10 @@
 
 #include "../../include/debug.h"
 
+MediaTypeROM::MediaTypeROM()
+{
+    memset(rom,0,sizeof(rom));
+}
 
 // Returns TRUE if an error condition occurred
 bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
