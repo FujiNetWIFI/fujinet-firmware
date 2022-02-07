@@ -13,6 +13,11 @@
 // Our global SPIFFS interface
 FileSystemSPIFFS fnSPIFFS;
 
+FileSystemSPIFFS::FileSystemSPIFFS()
+{
+    memset(_dir,0,sizeof(_dir));
+}
+
 bool FileSystemSPIFFS::dir_open(const char * path, const char * pattern, uint16_t diropts)
 {
     // We ignore sorting options since we don't expect user browsing on SPIFFS
