@@ -24,7 +24,7 @@
 #include "SSH.h"
 #include "SMB.h"
 
-//using namespace std;
+// using namespace std;
 
 /**
  * Constructor
@@ -74,9 +74,10 @@ void adamNetwork::open(unsigned short s)
     uint8_t _aux2 = adamnet_recv();
     string d;
 
-    s--; s--;
-    
-    memset(response,0,sizeof(response));
+    s--;
+    s--;
+
+    memset(response, 0, sizeof(response));
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // checksum
 
@@ -106,7 +107,7 @@ void adamNetwork::open(unsigned short s)
     Debug_printf("open()\n");
 
     // Parse and instantiate protocol
-    d=string((char *)response,s);
+    d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
@@ -362,14 +363,14 @@ void adamNetwork::del(uint16_t s)
 {
     string d;
 
-    memset(response,0,sizeof(response));
+    memset(response, 0, sizeof(response));
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();    
+    AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    d=string((char *)response,s);
+    d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
@@ -388,14 +389,14 @@ void adamNetwork::rename(uint16_t s)
 {
     string d;
 
-    memset(response,0,sizeof(response));
+    memset(response, 0, sizeof(response));
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    d=string((char *)response,s);
+    d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = ' ';
@@ -411,14 +412,14 @@ void adamNetwork::mkdir(uint16_t s)
 {
     string d;
 
-    memset(response,0,sizeof(response));
-    adamnet_recv_buffer(response,s);
+    memset(response, 0, sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    d=string((char *)response,s);
+    d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = '*';
@@ -481,51 +482,51 @@ void adamNetwork::adamnet_special_inquiry()
 
 void adamNetwork::do_inquiry(unsigned char inq_cmd)
 {
-    // // Reset inq_dstats
-    // inq_dstats = 0xff;
+    // Reset inq_dstats
+    inq_dstats = 0xff;
 
-    // // Ask protocol for dstats, otherwise get it locally.
-    // if (protocol != nullptr)
-    //     inq_dstats = protocol->special_inquiry(inq_cmd);
+    // Ask protocol for dstats, otherwise get it locally.
+    if (protocol != nullptr)
+        inq_dstats = protocol->special_inquiry(inq_cmd);
 
-    // // If we didn't get one from protocol, or unsupported, see if supported globally.
-    // if (inq_dstats == 0xFF)
-    // {
-    //     switch (inq_cmd)
-    //     {
-    //     case 0x20:
-    //     case 0x21:
-    //     case 0x23:
-    //     case 0x24:
-    //     case 0x2A:
-    //     case 0x2B:
-    //     case 0x2C:
-    //     case 0xFD:
-    //     case 0xFE:
-    //         inq_dstats = 0x80;
-    //         break;
-    //     case 0x30:
-    //         inq_dstats = 0x40;
-    //         break;
-    //     case 'Z': // Set interrupt rate
-    //         inq_dstats = 0x00;
-    //         break;
-    //     case 'T': // Set Translation
-    //         inq_dstats = 0x00;
-    //         break;
-    //     case 0x80: // JSON Parse
-    //         inq_dstats = 0x00;
-    //         break;
-    //     case 0x81: // JSON Query
-    //         inq_dstats = 0x80;
-    //         break;
-    //     default:
-    //         inq_dstats = 0xFF; // not supported
-    //         break;
-    //     }
-    // }
+    // If we didn't get one from protocol, or unsupported, see if supported globally.
+    if (inq_dstats == 0xFF)
+    {
+        switch (inq_cmd)
+        {
+        case 0x20:
+        case 0x21:
+        case 0x23:
+        case 0x24:
+        case 0x2A:
+        case 0x2B:
+        case 0x2C:
+        case 0xFD:
+        case 0xFE:
+            inq_dstats = 0x80;
+            break;
+        case 0x30:
+            inq_dstats = 0x40;
+            break;
+        case 'Z': // Set interrupt rate
+            inq_dstats = 0x00;
+            break;
+        case 'T': // Set Translation
+            inq_dstats = 0x00;
+            break;
+        case 0x80: // JSON Parse
+            inq_dstats = 0x00;
+            break;
+        case 0x81: // JSON Query
+            inq_dstats = 0x80;
+            break;
+        default:
+            inq_dstats = 0xFF; // not supported
+            break;
+        }
+    }
 
-    // Debug_printf("inq_dstats = %u\n", inq_dstats);
+    Debug_printf("inq_dstats = %u\n", inq_dstats);
 }
 
 /**
@@ -623,7 +624,6 @@ void adamNetwork::adamnet_response_status()
 {
     NetworkStatus s;
 
-
     if (protocol != nullptr)
         protocol->status(&s);
 
@@ -632,7 +632,7 @@ void adamNetwork::adamnet_response_status()
     statusByte.bits.client_error = s.error > 1;
 
     status_response[4] = statusByte.byte;
-    
+
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
     if (t < 300)
@@ -646,7 +646,7 @@ void adamNetwork::adamnet_control_ack()
 void adamNetwork::adamnet_control_send()
 {
     uint16_t s = adamnet_recv_length(); // receive length
-    uint8_t c = adamnet_recv();        // receive command
+    uint8_t c = adamnet_recv();         // receive command
 
     s--; // Because we've popped the command off the stack
 
