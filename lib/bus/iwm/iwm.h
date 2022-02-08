@@ -45,6 +45,8 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
+#define COMMAND_PACKET_LEN  28
+#define BLOCK_PACKET_LEN    606
 union cmdPacket_t
 {
 /*
@@ -101,7 +103,7 @@ C8 PEND     PACKET END BYTE 32 micro Sec.
     uint8_t pend;       // 25
     uint8_t clear;      // 26
   };
-  uint8_t data[27];
+  uint8_t data[COMMAND_PACKET_LEN];
 };
 
 enum class iwm_internal_type_t
@@ -124,10 +126,10 @@ struct iwm_device_info_block_t
   uint8_t firmware_rev;
 };
 
-#ifdef DEBUG
+//#ifdef DEBUG
   void print_packet(uint8_t *data, int bytes);
   void print_packet();
-#endif
+//#endif
 
 class iwmDevice
 {
@@ -143,7 +145,7 @@ protected:
 
 
   // iwm packet handling
-  uint8_t packet_buffer[605]; //smartport packet buffer
+  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   // todo: make a union with the first set of elements for command packet
 
   int decode_data_packet(void); //decode smartport 512 byte data packet
@@ -248,8 +250,8 @@ private:
   bool verify_cmdpkt_checksum(void);
 
 public:
-  int iwm_read_packet(uint8_t *a);
-  int iwm_read_packet_timeout(int tout, uint8_t *a);
+  int iwm_read_packet(uint8_t *a, int n);
+  int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
   int iwm_send_packet(uint8_t *a);
 
   void setup();
