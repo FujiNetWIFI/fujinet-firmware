@@ -1,21 +1,22 @@
 #ifndef ADAM_KEYBOARD_H
 #define ADAM_KEYBOARD_H
 
-#include <string.h>
+#include <cstdint>
 #include <queue>
 
 #include "bus.h"
+
 #include "fnTcpServer.h"
 
-class adamKeyboard : public adamNetDevice
+class adamKeyboard : public virtualDevice
 {
 protected:
     // SIO THINGS
     
-    virtual void adamnet_control_status();
+    virtual void adamnet_control_status() override;
     virtual void adamnet_control_receive();
     virtual void adamnet_control_clr();
-    virtual void adamnet_control_ready();
+    virtual void adamnet_control_ready() override;
 
     void adamnet_process(uint8_t b) override;
     void shutdown() override;

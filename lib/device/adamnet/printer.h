@@ -1,18 +1,22 @@
-#ifdef BUILD_ADAM
 #ifndef ADAM_PRINTER_H
 #define ADAM_PRINTER_H
 
-#include <string.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
+#include <cstdint>
+#include <string>
 
 #include "bus.h"
-#include "../printer-emulator/printer_emulator.h"
+
+#include "printer_emulator.h"
 #include "fnFS.h"
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
 void printerTask(void * param);
 
-class adamPrinter : public adamNetDevice
+class adamPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS
@@ -22,9 +26,9 @@ protected:
     
     void sio_write(uint8_t aux1, uint8_t aux2);
     
-    virtual void adamnet_control_status();
+    virtual void adamnet_control_status() override;
     virtual void adamnet_control_send();
-    virtual void adamnet_control_ready();
+    virtual void adamnet_control_ready() override;
 
     void adamnet_process(uint8_t b) override;
     void shutdown() override;
@@ -106,6 +110,4 @@ private:
 
 };
 
-
 #endif /* ADAM_PRINTER_H */
-#endif

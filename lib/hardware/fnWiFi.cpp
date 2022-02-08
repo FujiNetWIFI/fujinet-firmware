@@ -1,32 +1,20 @@
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/event_groups.h"
 
-#include "esp_system.h"
+#include "fnWiFi.h"
+
 #include <esp_wifi.h>
-#include "esp_event.h"
-#include "esp_log.h"
+#include <esp_event.h>
+#include <mdns.h>
 
 #include <cstring>
 
 #include "../../include/debug.h"
-#include "../utils/utils.h"
-#include "fnWiFi.h"
-#include "fnSystem.h"
-#include "../config/fnConfig.h"
 
+#include "fuji.h"
+#include "fnSystem.h"
+#include "fnConfig.h"
 #include "httpService.h"
 #include "led.h"
 
-#include "mdns.h"
-
-#ifdef BUILD_ATARI
-#include "sio/fuji.h"
-#endif
-
-#ifdef BUILD_ADAM
-#include "adamnet/fuji.h"
-#endif
 
 // Global object to manage WiFi
 WiFiManager fnWiFi;
@@ -204,7 +192,9 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     {
         e = esp_wifi_scan_get_ap_num(&result);
         if (e != ESP_OK)
+        {
             Debug_printf("esp_wifi_scan_get_ap_num returned error %d\n", e);
+        }
     }
     else
     {
@@ -449,6 +439,9 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             fnLedManager.set(eLed::LED_WIFI, true);
             fnSystem.Net.start_sntp_client();
             fnHTTPD.start();
+#ifdef BUILD_APPLE
+            IWM.smort->startup_hack();
+#endif
 #ifdef BUILD_ATARI // temporary
             if (Config.get_general_config_enabled() == false)
                 theFuji.sio_mount_all();

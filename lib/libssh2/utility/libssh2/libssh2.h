@@ -87,10 +87,10 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-#ifdef _WIN32
-# include <basetsd.h>
-# include <winsock2.h>
-#endif
+// #ifdef _WIN32
+// # include <basetsd.h>
+// # include <winsock2.h>
+// #endif
 
 #include <stddef.h>
 #include <string.h>

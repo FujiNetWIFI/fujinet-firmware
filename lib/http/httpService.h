@@ -30,7 +30,9 @@ If a file has an extention pre-determined to support parsing (see/update
 #define HTTPSERVICE_H
 
 #include <esp_http_server.h>
+
 #include <map>
+
 #include "fnFS.h"
 
 // FNWS_FILE_ROOT should end in a slash '/'
@@ -85,7 +87,7 @@ public:
 
     std::string getErrMsg() { return errMsg; }
     void clearErrMsg() { errMsg.clear(); }
-    void addToErrMsg(std::string _e) { errMsg += _e; }
+    void addToErrMsg(const std::string _e) { errMsg += _e; }
     bool errMsgEmpty() { return errMsg.empty(); }
 
     static esp_err_t get_handler_test(httpd_req_t *req);

@@ -3,24 +3,28 @@
 /**
  * N: Firmware
  */
-#include <string.h>
-#include <algorithm>
-#include <vector>
-#include "utils.h"
-#include "network.h"
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnWiFi.h"
-#include "../network-protocol/TCP.h"
-#include "../network-protocol/UDP.h"
-#include "../network-protocol/Test.h"
-#include "../network-protocol/Telnet.h"
-#include "../network-protocol/TNFS.h"
-#include "../network-protocol/FTP.h"
-#include "../network-protocol/HTTP.h"
-#include "../network-protocol/SSH.h"
-#include "../network-protocol/SMB.h"
 
-using namespace std;
+#include "network.h"
+
+#include <cstring>
+#include <algorithm>
+
+#include "../../include/debug.h"
+
+#include "utils.h"
+
+#include "status_error_codes.h"
+#include "TCP.h"
+#include "UDP.h"
+#include "Test.h"
+#include "Telnet.h"
+#include "TNFS.h"
+#include "FTP.h"
+#include "HTTP.h"
+#include "SSH.h"
+#include "SMB.h"
+
+// using namespace std;
 
 /**
  * Constructor
@@ -70,9 +74,10 @@ void adamNetwork::open(unsigned short s)
     uint8_t _aux2 = adamnet_recv();
     string d;
 
-    s--; s--;
-    
-    memset(response,0,sizeof(response));
+    s--;
+    s--;
+
+    memset(response, 0, sizeof(response));
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // checksum
 
@@ -102,7 +107,7 @@ void adamNetwork::open(unsigned short s)
     Debug_printf("open()\n");
 
     // Parse and instantiate protocol
-    d=string((char *)response,s);
+    d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
@@ -358,14 +363,14 @@ void adamNetwork::del(uint16_t s)
 {
     string d;
 
-    memset(response,0,sizeof(response));
+    memset(response, 0, sizeof(response));
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();    
+    AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    d=string((char *)response,s);
+    d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
@@ -384,14 +389,14 @@ void adamNetwork::rename(uint16_t s)
 {
     string d;
 
-    memset(response,0,sizeof(response));
+    memset(response, 0, sizeof(response));
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    d=string((char *)response,s);
+    d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = ' ';
@@ -407,14 +412,14 @@ void adamNetwork::mkdir(uint16_t s)
 {
     string d;
 
-    memset(response,0,sizeof(response));
-    adamnet_recv_buffer(response,s);
+    memset(response, 0, sizeof(response));
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    d=string((char *)response,s);
+    d = string((char *)response, s);
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = '*';
@@ -427,36 +432,6 @@ void adamNetwork::mkdir(uint16_t s)
 }
 
 /**
- * ADAM Special, called as a default for any other ADAM command not processed by the other adamnet_ functions.
- * First, the protocol is asked whether it wants to process the command, and if so, the protocol will
- * process the special command. Otherwise, the command is handled locally. In either case, either adamnet_complete()
- * or adamnet_error() is called.
- */
-void adamNetwork::adamnet_special()
-{
-    // do_inquiry(cmdFrame.comnd);
-
-    // switch (inq_dstats)
-    // {
-    // case 0x00: // No payload
-    //     adamnet_ack();
-    //     adamnet_special_00();
-    //     break;
-    // case 0x40: // Payload to Atari
-    //     adamnet_ack();
-    //     adamnet_special_40();
-    //     break;
-    // case 0x80: // Payload to Peripheral
-    //     adamnet_ack();
-    //     adamnet_special_80();
-    //     break;
-    // default:
-    //     adamnet_nak();
-    //     break;
-    // }
-}
-
-/**
  * @brief Do an inquiry to determine whether a protoocol supports a particular command.
  * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
  * or $FF - Command not supported, which should then be used as a DSTATS value by the
@@ -464,64 +439,55 @@ void adamNetwork::adamnet_special()
  */
 void adamNetwork::adamnet_special_inquiry()
 {
-    // // Acknowledge
-    // adamnet_ack();
-
-    // Debug_printf("adamNetwork::adamnet_special_inquiry(%02x)\n", cmdFrame.aux1);
-
-    // do_inquiry(cmdFrame.aux1);
-
-    // // Finally, return the completed inq_dstats value back to Atari
-    // bus_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
 }
 
 void adamNetwork::do_inquiry(unsigned char inq_cmd)
 {
-    // // Reset inq_dstats
-    // inq_dstats = 0xff;
+    // Reset inq_dstats
+    inq_dstats = 0xff;
 
-    // // Ask protocol for dstats, otherwise get it locally.
-    // if (protocol != nullptr)
-    //     inq_dstats = protocol->special_inquiry(inq_cmd);
+    // Ask protocol for dstats, otherwise get it locally.
+    if (protocol != nullptr)
+        inq_dstats = protocol->special_inquiry(inq_cmd);
 
-    // // If we didn't get one from protocol, or unsupported, see if supported globally.
-    // if (inq_dstats == 0xFF)
-    // {
-    //     switch (inq_cmd)
-    //     {
-    //     case 0x20:
-    //     case 0x21:
-    //     case 0x23:
-    //     case 0x24:
-    //     case 0x2A:
-    //     case 0x2B:
-    //     case 0x2C:
-    //     case 0xFD:
-    //     case 0xFE:
-    //         inq_dstats = 0x80;
-    //         break;
-    //     case 0x30:
-    //         inq_dstats = 0x40;
-    //         break;
-    //     case 'Z': // Set interrupt rate
-    //         inq_dstats = 0x00;
-    //         break;
-    //     case 'T': // Set Translation
-    //         inq_dstats = 0x00;
-    //         break;
-    //     case 0x80: // JSON Parse
-    //         inq_dstats = 0x00;
-    //         break;
-    //     case 0x81: // JSON Query
-    //         inq_dstats = 0x80;
-    //         break;
-    //     default:
-    //         inq_dstats = 0xFF; // not supported
-    //         break;
-    //     }
-    // }
+    // If we didn't get one from protocol, or unsupported, see if supported globally.
+    if (inq_dstats == 0xFF)
+    {
+        switch (inq_cmd)
+        {
+        case 0x20:
+        case 0x21:
+        case 0x23:
+        case 0x24:
+        case 0x2A:
+        case 0x2B:
+        case 0x2C:
+        case 0xFD:
+        case 0xFE:
+            inq_dstats = 0x80;
+            break;
+        case 0x30:
+            inq_dstats = 0x40;
+            break;
+        case 'Z': // Set interrupt rate
+            inq_dstats = 0x00;
+            break;
+        case 'T': // Set Translation
+            inq_dstats = 0x00;
+            break;
+        case 0x80: // JSON Parse
+            inq_dstats = 0x00;
+            break;
+        case 0x81: // JSON Query
+            inq_dstats = 0x80;
+            break;
+        default:
+            inq_dstats = 0xFF; // not supported
+            break;
+        }
+    }
 
-    // Debug_printf("inq_dstats = %u\n", inq_dstats);
+    Debug_printf("inq_dstats = %u\n", inq_dstats);
 }
 
 /**
@@ -529,23 +495,15 @@ void adamNetwork::do_inquiry(unsigned char inq_cmd)
  * Essentially, call the protocol action
  * and based on the return, signal adamnet_complete() or error().
  */
-void adamNetwork::adamnet_special_00()
+void adamNetwork::adamnet_special_00(unsigned short s)
 {
-    // // Handle commands that exist outside of an open channel.
-    // switch (cmdFrame.comnd)
-    // {
-    // case 'T':
-    //     adamnet_set_translation();
-    //     break;
-    // case 'Z':
-    //     adamnet_set_timer_rate();
-    //     break;
-    // default:
-    //     if (protocol->special_00(&cmdFrame) == false)
-    //         adamnet_complete();
-    //     else
-    //         adamnet_error();
-    // }
+    cmdFrame.aux1 = adamnet_recv();
+    cmdFrame.aux2 = adamnet_recv();
+
+    if (protocol->special_00(&cmdFrame) == false)
+        adamnet_response_ack();
+    else
+        adamnet_response_nack();
 }
 
 /**
@@ -554,19 +512,15 @@ void adamNetwork::adamnet_special_00()
  * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
-void adamNetwork::adamnet_special_40()
+void adamNetwork::adamnet_special_40(unsigned short s)
 {
-    // // Handle commands that exist outside of an open channel.
-    // switch (cmdFrame.comnd)
-    // {
-    // case 0x30:
-    //     adamnet_get_prefix();
-    //     return;
-    // }
+    cmdFrame.aux1 = adamnet_recv();
+    cmdFrame.aux2 = adamnet_recv();
 
-    // bus_to_computer((uint8_t *)receiveBuffer->data(),
-    //                 SPECIAL_BUFFER_SIZE,
-    //                 protocol->special_40((uint8_t *)receiveBuffer->data(), SPECIAL_BUFFER_SIZE, &cmdFrame));
+    if (protocol->special_40(response, 1024, &cmdFrame) == false)
+        adamnet_response_ack();
+    else
+        adamnet_response_nack();
 }
 
 /**
@@ -575,44 +529,24 @@ void adamNetwork::adamnet_special_40()
  * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
-void adamNetwork::adamnet_special_80()
+void adamNetwork::adamnet_special_80(unsigned short s)
 {
-    // uint8_t spData[SPECIAL_BUFFER_SIZE];
+    uint8_t spData[SPECIAL_BUFFER_SIZE];
 
-    // // Handle commands that exist outside of an open channel.
-    // switch (cmdFrame.comnd)
-    // {
-    // case 0x20: // RENAME
-    // case 0x21: // DELETE
-    // case 0x23: // LOCK
-    // case 0x24: // UNLOCK
-    // case 0x2A: // MKDIR
-    // case 0x2B: // RMDIR
-    //     adamnet_do_idempotent_command_80();
-    //     return;
-    // case 0x2C: // CHDIR
-    //     adamnet_set_prefix();
-    //     return;
-    // case 0xFD: // LOGIN
-    //     adamnet_set_login();
-    //     return;
-    // case 0xFE: // PASSWORD
-    //     adamnet_set_password();
-    //     return;
-    // }
+    memset(spData, 0, SPECIAL_BUFFER_SIZE);
 
-    // memset(spData, 0, SPECIAL_BUFFER_SIZE);
+    // Get special (devicespec) from computer
+    cmdFrame.aux1 = adamnet_recv();
+    cmdFrame.aux2 = adamnet_recv();
+    adamnet_recv_buffer(spData, s);
 
-    // // Get special (devicespec) from computer
-    // bus_to_peripheral(spData, SPECIAL_BUFFER_SIZE);
+    Debug_printf("adamNetwork::adamnet_special_80() - %s\n", spData);
 
-    // Debug_printf("adamNetwork::adamnet_special_80() - %s\n", spData);
-
-    // // Do protocol action and return
-    // if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
-    //     adamnet_complete();
-    // else
-    //     adamnet_error();
+    // Do protocol action and return
+    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+        adamnet_response_ack();
+    else
+        adamnet_response_nack();
 }
 
 void adamNetwork::adamnet_response_status()
@@ -627,7 +561,11 @@ void adamNetwork::adamnet_response_status()
     statusByte.bits.client_error = s.error > 1;
 
     status_response[4] = statusByte.byte;
-    adamNetDevice::adamnet_response_status();
+
+    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    if (t < 300)
+        virtualDevice::adamnet_response_status();
 }
 
 void adamNetwork::adamnet_control_ack()
@@ -637,7 +575,7 @@ void adamNetwork::adamnet_control_ack()
 void adamNetwork::adamnet_control_send()
 {
     uint16_t s = adamnet_recv_length(); // receive length
-    uint8_t c = adamnet_recv();        // receive command
+    uint8_t c = adamnet_recv();         // receive command
 
     s--; // Because we've popped the command off the stack
 
@@ -677,7 +615,15 @@ void adamNetwork::adamnet_control_send()
         set_password(s);
         break;
     default:
-        Debug_printf("adamnet_control_send() - Unknown Command: %02x\n", c);
+        do_inquiry(c);
+        if (inq_dstats == 0x00)
+            adamnet_special_00(s);
+        else if (inq_dstats == 0x40)
+            adamnet_special_40(s);
+        else if (inq_dstats == 0x80)
+            adamnet_special_80(s);
+        else
+            Debug_printf("adamnet_control_send() - Unknown Command: %02x\n", c);
     }
 }
 
@@ -812,7 +758,7 @@ bool adamNetwork::instantiate_protocol()
     }
 
     // Convert to uppercase
-    transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
+    std::transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
 
     if (urlParser->scheme == "TCP")
     {
@@ -945,7 +891,7 @@ bool adamNetwork::parseURL()
 
     if (cmdFrame.aux1 != 6) // Anything but a directory read...
     {
-        replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
+        std::replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
     }
 
     // // Some FMSes add a dot at the end, remove it.
@@ -982,28 +928,6 @@ void adamNetwork::adamnet_set_timer_rate()
     //     timer_start();
 
     // adamnet_complete();
-}
-
-void adamNetwork::adamnet_do_idempotent_command_80()
-{
-    // adamnet_ack();
-
-    // parse_and_instantiate_protocol();
-
-    // if (protocol == nullptr)
-    // {
-    //     Debug_printf("Protocol = NULL\n");
-    //     adamnet_error();
-    //     return;
-    // }
-
-    // if (protocol->perform_idempotent_80(urlParser, &cmdFrame) == true)
-    // {
-    //     Debug_printf("perform_idempotent_80 failed\n");
-    //     adamnet_error();
-    // }
-    // else
-    //     adamnet_complete();
 }
 
 #endif /* BUILD_ADAM */

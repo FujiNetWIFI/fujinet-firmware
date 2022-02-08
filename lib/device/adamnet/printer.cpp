@@ -1,11 +1,12 @@
 #ifdef BUILD_ADAM
 
-#include "../../include/atascii.h"
 #include "printer.h"
-#include <deque>
-#include <queue>
-#include <vector>
-#include <string>
+
+#include <cstring>
+
+#include "../../../include/debug.h"
+
+#include "fnSystem.h"
 #include "led.h"
 
 #include "atari_1020.h"

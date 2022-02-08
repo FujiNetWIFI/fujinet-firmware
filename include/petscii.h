@@ -19,20 +19,20 @@
 #ifndef PETSCII_H
 #define PETSCII_H
 
+#include <stdint.h>
+
 static inline uint8_t ascii2petscii(uint8_t ch)
 {
-	if (ch > 64 && ch < 91) ch += 128;
-	else if (ch > 96 && ch < 123) ch -= 32;
-	else if (ch > 192 && ch < 219) ch -= 128;
-	else if (ch == 95) ch = 164; // to handle underscore 
+	if (ch > 64 && ch < 91) ch += 32; // A..Z <65..90>ASCII --> <97..122>PETSCII
+	else if (ch > 96 && ch < 123) ch -= 32; // <a..z> <97..122> ASCII --> <65..90>PETSCII 
 	return ch;
 }
 static inline uint8_t petscii2ascii(uint8_t ch)
 {
-	if (ch >(64 + 128) && ch < (91 + 128)) ch -= 128;
-	else if (ch >(96 - 32) && ch < (123 - 32)) ch += 32;
-	else if (ch >(192 - 128) && ch < (219 - 128)) ch += 128;
-	else if (ch == 164) ch = 95; // to handle underscore 
+	if (ch > 64 && ch < 91) ch += 32;  
+	else if(ch > 96 && ch < 123) ch -=32 ;
+	// 193..218 is also PETSCII UC
+	else if (ch >=192 && ch <= 218) ch -= 128;
 	return ch;
 }
 

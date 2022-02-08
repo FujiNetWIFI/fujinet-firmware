@@ -1,10 +1,11 @@
 #ifndef NETWORKPROTOCOL_H
 #define NETWORKPROTOCOL_H
 
-#include <vector>
+#include <string>
+
 #include "bus.h"
+#include "networkStatus.h"
 #include "EdUrlParser.h"
-#include "sio/networkStatus.h"
 
 class NetworkProtocol
 {
@@ -12,17 +13,17 @@ public:
     /**
      * Pointer to the receive buffer
      */
-    string *receiveBuffer = nullptr;
+    std::string *receiveBuffer = nullptr;
 
     /**
      * Pointer to the transmit buffer
      */
-    string *transmitBuffer = nullptr;
+    std::string *transmitBuffer = nullptr;
 
     /**
      * Pointer to the transmit buffer
      */
-    string *specialBuffer = nullptr;
+    std::string *specialBuffer = nullptr;
 
     /**
      * Pointer to passed in URL
@@ -35,7 +36,7 @@ public:
      * @param tx_buf pointer to transmit buffer
      * @param sp_buf pointer to special buffer
      */
-    NetworkProtocol(string *rx_buf, string *tx_buf, string *sp_buf);
+    NetworkProtocol(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf);
 
     /**
      * dtor - Tear down network protocol object
@@ -149,12 +150,12 @@ public:
     /**
      * Pointer to current login;
      */
-    string *login;
+    std::string *login;
 
     /**
      * Pointer to current password;
      */
-    string *password;
+    std::string *password;
 
 protected:
     

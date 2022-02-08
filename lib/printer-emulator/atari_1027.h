@@ -1,12 +1,7 @@
 #ifndef ATARI_1027_H
 #define ATARI_1027_H
 
-#ifdef BUILD_ADAM
-#include "adamnet/printer.h"
-#endif
-#ifdef BUILD_ATARI
-#include "sio/printer.h"
-#endif
+#include "printer.h"
 
 #include "pdf_printer.h"
 
@@ -25,14 +20,16 @@ protected:
 public:
     const char *modelname()  override 
     { 
-        #ifdef BUILD_ADAM
+        #ifdef BUILD_ATARI
+            return sioPrinter::printer_model_str[sioPrinter::PRINTER_ATARI_1027];
+        #elif BUILD_CBM
+            return iecPrinter::printer_model_str[iecPrinter::PRINTER_ATARI_1027];
+        #elif BUILD_ADAM
+            return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1027];
+        #elif NEW_TARGET
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_1027];
         #else
-            #ifdef BUILD_ATARI
-                return sioPrinter::printer_model_str[sioPrinter::PRINTER_ATARI_1027];
-            #else
-                return PRINTER_UNSUPPORTED;
-            #endif
+            return PRINTER_UNSUPPORTED;
         #endif
     };
 };

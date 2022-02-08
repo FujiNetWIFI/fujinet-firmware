@@ -10,7 +10,7 @@
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
 
-class adamDisk : public adamNetDevice
+class adamDisk : public virtualDevice
 {
 private:
     MediaType *_media = nullptr;
@@ -24,7 +24,7 @@ private:
     void adamnet_control_send();
     void adamnet_control_send_block_num();
     void adamnet_control_send_block_data();
-    virtual void adamnet_response_status();
+    virtual void adamnet_response_status() override;
     void adamnet_response_send();
 
     void adamnet_process(uint8_t b) override;
@@ -34,11 +34,9 @@ public:
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint32_t numBlocks);
-    virtual void reset();
+    virtual void reset() override;
 
     mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
-
-    bool device_active = false;
 
     ~adamDisk();
 };

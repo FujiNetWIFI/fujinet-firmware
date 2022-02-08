@@ -1,36 +1,18 @@
-#include <sstream>
-#include <string>
-#include <cstdio>
-#include <locale>
 
-#include "../../include/debug.h"
-#include "fnConfig.h"
-
-#include "httpService.h"
 #include "httpServiceParser.h"
 
+#include <sstream>
+
+#include "../../include/debug.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnWiFi.h"
+#include "fnFsSPIFFS.h"
+#include "httpService.h"
+#include "fuji.h"
+
 #define ALL_THE_DEBUGS
-
-#ifdef BUILD_ATARI
-#include "sio/fuji.h"
-#include "sio/printerlist.h"
-#define BUS SIO
-extern sioFuji theFuji;
-#define PRINTING_DEVICE sioPrinter
-#endif
-
-#ifdef BUILD_ADAM
-#include "adamnet/fuji.h"
-#include "adamnet/printerlist.h"
-#define BUS AdamNet
-extern adamFuji theFuji;
-#define PRINTING_DEVICE adamPrinter
-#endif
-
-#include "../hardware/fnSystem.h"
-#include "../hardware/fnWiFi.h"
-#include "fnFsSPIF.h"
-#include "fnFsSD.h"
 
 using namespace std;
 
@@ -300,10 +282,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #ifdef BUILD_ATARI
     case FN_SIO_HSINDEX:
-        resultstream << BUS.getHighSpeedIndex();
+        resultstream << SIO.getHighSpeedIndex();
         break;
     case FN_SIO_HSBAUD:
-        resultstream << BUS.getHighSpeedBaud();
+        resultstream << SIO.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
     case FN_PRINTER1_MODEL:
@@ -464,14 +446,15 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
             {
                 strcpy(result, "");
 
-                for(int i=0; i<(int) PRINTING_DEVICE::PRINTER_INVALID; i++)
+                for(int i=0; i<(int) PRINTER_CLASS::PRINTER_INVALID; i++)
                 {
+#ifndef BUILD_APPLE
                     strncat(result, "<option value=\"", MAX_PRINTER_LIST_BUFFER-1);
-                    strncat(result, PRINTING_DEVICE::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "\">", MAX_PRINTER_LIST_BUFFER);
-                    strncat(result, PRINTING_DEVICE::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
+                    strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "</option>\n", MAX_PRINTER_LIST_BUFFER-1);
-
+#endif /* BUILD_APPLE */
                 }
                 resultstream << result;
                 free(result);

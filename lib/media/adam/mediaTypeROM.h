@@ -1,8 +1,10 @@
 #ifndef _MEDIATYPE_ROM_
 #define _MEDIATYPE_ROM_
 
-#include <utility>
+#include <stdio.h>
+
 #include "mediaType.h"
+
 
 class MediaTypeROM : public MediaType
 {
@@ -21,8 +23,11 @@ private:
                              0xCD,0x14,0xFD,0x21,0xFF,0xBF,0x11,0xFF,
                              0xFF,0x01,0x00,0x80,0xED,0xB8,0xC3,0x00,
                              0x00};
-    char rom[32768];
+    char *rom;                                                         // ROM storage from heap.
 public:
+    MediaTypeROM();
+    virtual ~MediaTypeROM();
+
     virtual bool read(uint32_t blockNum, uint16_t *readcount) override;
     virtual bool write(uint32_t blockNum, bool verify) override;
 
@@ -36,4 +41,4 @@ public:
 };
 
 
-#endif // _DISKTYPE_ROM_
+#endif // _MEDIATYPE_ROM_

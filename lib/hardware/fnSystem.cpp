@@ -1,36 +1,34 @@
+
+#include "fnSystem.h"
+
 #include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
+#include <freertos/queue.h>
 #include <esp_system.h>
-#include <esp_err.h>
-#include <esp_timer.h>
-#include <time.h>
 #include <driver/gpio.h>
 #ifndef CONFIG_IDF_TARGET_ESP32S3
-#include <driver/dac.h>
+# include <driver/dac.h>
 #endif
-#include <driver/adc.h>
-#include "soc/sens_reg.h"
-#include "soc/rtc.h"
-#include "esp_adc_cal.h"
 
+#include <soc/rtc.h>
+#include <esp_adc_cal.h>
+#include <time.h>
 #include <cstring>
 
 #include "../../include/debug.h"
 #include "../../include/version.h"
+#include "../../include/pinmap.h"
 
-#include "fnSystem.h"
-#include "fnFsSD.h"
-#include "fnFsSPIF.h"
-#include "fnWiFi.h"
 #include "bus.h"
 
-#ifdef BUILD_ATARI
-#define BUS_CLASS SIO
+#include "fnFsSD.h"
+#include "fnFsSPIFFS.h"
+#include "fnWiFi.h"
+
+
+#ifdef BUILD_APPLE
+#define BUS_CLASS IWM
 #endif
 
-#ifdef BUILD_ADAM
-#define BUS_CLASS AdamNet
-#endif
 
 static xQueueHandle card_detect_evt_queue = NULL;
 static uint32_t card_detect_status = 1; // 1 is no sd card
@@ -74,6 +72,13 @@ static void card_detect_intr_task(void* arg)
 
 // Global object to manage System
 SystemManager fnSystem;
+
+SystemManager::SystemManager()
+{
+    memset(_uptime_string,0,sizeof(_uptime_string));
+    memset(_currenttime_string,0,sizeof(_currenttime_string));
+    _hardware_version=0;
+}
 
 // Returns current CPU frequency in MHz
 uint32_t SystemManager::get_cpu_frequency()
@@ -202,7 +207,7 @@ void SystemManager::yield()
 // TODO: Close open files first
 void SystemManager::reboot()
 {
-    BUS_CLASS.shutdown();
+    SYSTEM_BUS.shutdown();
     esp_restart();
 }
 

@@ -1,7 +1,10 @@
 #ifdef BUILD_ADAM
 
-#include <cstring>
 #include "mediaType.h"
+
+#include <cstdint>
+#include <cstring>
+
 
 MediaType::~MediaType()
 {

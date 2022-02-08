@@ -5,14 +5,12 @@
 #ifndef FNSYSTEM_H
 #define FNSYSTEM_H
 
-#include <cstdint>
 #include <string>
 
 #include <driver/gpio.h>
 
-#include "../FileSystem/fnFS.h"
+#include "fnFS.h"
 
-#include "../../include/pinmap.h"
 
 #define FILE_COPY_BUFFERSIZE 2048
 
@@ -28,6 +26,7 @@ private:
     int _hardware_version = 0; // unknown
 
 public:
+    SystemManager();
     class _net
     {
     private:

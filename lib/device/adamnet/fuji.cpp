@@ -1,16 +1,20 @@
 #ifdef BUILD_ADAM
 
-#include <cstdint>
-#include <driver/ledc.h>
-
 #include "fuji.h"
-#include "led.h"
-#include "fnWiFi.h"
-#include "fnSystem.h"
 
-#include "../utils/utils.h"
-#include "../FileSystem/fnFsSPIF.h"
-#include "../config/fnConfig.h"
+#include <cstring>
+
+#include "../../include/debug.h"
+
+#include "serial.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "fnWiFi.h"
+#include "fnFsSPIFFS.h"
+
+#include "utils.h"
+
 
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE
@@ -235,7 +239,7 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 
         adamnet_recv_buffer((uint8_t *)&cfg, s);
 
-        uint8_t ck = adamnet_recv();
+        adamnet_recv();
 
         AdamNet.start_time = esp_timer_get_time();
         adamnet_response_ack();
@@ -343,11 +347,68 @@ void adamFuji::adamnet_copy_file()
 // Mount all
 void adamFuji::adamnet_mount_all()
 {
+    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
+
+    for (int i = 0; i < 8; i++)
+    {
+        fujiDisk &disk = _fnDisks[i];
+        fujiHost &host = _fnHosts[disk.host_slot];
+        char flag[3] = {'r', 0, 0};
+
+        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            flag[1] = '+';
+
+        if (disk.host_slot != 0xFF)
+        {
+            nodisks = false; // We have a disk in a slot
+
+            if (host.mount() == false)
+            {
+                adamnet_response_nack();
+                return;
+            }
+
+            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                         disk.filename, disk.host_slot, flag, i + 1);
+
+            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+            if (disk.fileh == nullptr)
+            {
+                adamnet_response_nack();
+                return;
+            }
+
+            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+            boot_config = false;
+ 
+            // We need the file size for loading XEX files and for CASSETTE, so get that too
+            disk.disk_size = host.file_size(disk.fileh);
+
+            // And now mount it
+            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+        }
+    }
+
+    if (nodisks){
+        // No disks in a slot, disable config
+        boot_config = false;
+    }
+
+    // Go ahead and respond ok
+    adamnet_response_ack();
 }
 
 // Set boot mode
 void adamFuji::adamnet_set_boot_mode()
 {
+    uint8_t bm = adamnet_recv();
+    adamnet_recv(); // CK
+
+    insert_boot_device(bm);
+    boot_config = true;
+
+    adamnet_response_ack();
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -359,29 +420,37 @@ char *_generate_appkey_filename(appkey *info)
 }
 
 /*
- Opens an "app key".  This just sets the needed app key parameters (creator, app, key, mode)
- for the subsequent expected read/write command. We could've added this information as part
- of the payload in a WRITE_APPKEY command, but there was no way to do this for READ_APPKEY.
- Requiring a separate OPEN command makes both the read and write commands behave similarly
- and leaves the possibity for a more robust/general file read/write function later.
-*/
-void adamFuji::adamnet_open_app_key()
-{
-}
-
-/*
-  The app key close operation is a placeholder in case we want to provide more robust file
-  read/write operations. Currently, the file is closed immediately after the read or write operation.
-*/
-void adamFuji::adamnet_close_app_key()
-{
-}
-
-/*
  Write an "app key" to SD (ONLY!) storage.
 */
 void adamFuji::adamnet_write_app_key()
 {
+    uint16_t creator = adamnet_recv_length();
+    uint8_t app = adamnet_recv();
+    uint8_t key = adamnet_recv();
+    uint8_t data[64];
+    char appkeyfilename[30];
+    FILE *fp;
+
+    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key",creator,app,key);
+
+    adamnet_recv_buffer(data,64);
+    adamnet_recv(); // CK
+
+    Debug_printf("Fuji Cmd: WRITE APPKEY %s\n",appkeyfilename);
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    fp = fnSDFAT.file_open(appkeyfilename, "w");
+
+    if (fp == nullptr)
+    {
+        Debug_printf("Could not open.\n");
+        return;
+    }
+    
+    size_t l = fwrite(data,sizeof(uint8_t),sizeof(data),fp);
+    fclose(fp);
 }
 
 /*
@@ -389,6 +458,30 @@ void adamFuji::adamnet_write_app_key()
 */
 void adamFuji::adamnet_read_app_key()
 {
+    uint16_t creator = adamnet_recv_length();
+    uint8_t app = adamnet_recv();
+    uint8_t key = adamnet_recv();
+
+    adamnet_recv(); // CK
+    AdamNet.start_time=esp_timer_get_time();
+    adamnet_response_ack();
+
+    char appkeyfilename[30];
+    FILE *fp;
+
+    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key",creator,app,key);
+
+    fp = fnSDFAT.file_open(appkeyfilename, "r");
+
+    if (fp == nullptr)
+    {
+        Debug_printf("Could not open key.");
+        return;
+    }
+
+    memset(response,0,sizeof(response));
+    response_len = fread(response, sizeof(char),64,fp);
+    fclose(fp);
 }
 
 // DEBUG TAPE
@@ -730,7 +823,6 @@ void adamFuji::adamnet_new_disk()
     uint8_t hs = adamnet_recv();
     uint8_t ds = adamnet_recv();
     uint32_t numBlocks;
-    uint32_t *l = &numBlocks;
     uint8_t *c = (uint8_t *)&numBlocks;
     uint8_t p[256];
 
@@ -990,17 +1082,17 @@ void adamFuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fnSPIFFS.file_open(config_atr);
-        _bootDisk->mount(fBoot, config_atr, 0);
+        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);        
         break;
     case 1:
+
         fBoot = fnSPIFFS.file_open(mount_all_atr);
-        _bootDisk->mount(fBoot, mount_all_atr, 0);
+        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);        
         break;
     }
 
-    _bootDisk->is_config_device = true;
-    _bootDisk->device_active = true;
-    Debug_printf("Media type is %d\n", _bootDisk->mediatype());
+    _fnDisks[0].disk_dev.is_config_device = true;
+    _fnDisks[0].disk_dev.device_active = true;
 }
 
 void adamFuji::adamnet_enable_device()
@@ -1028,7 +1120,7 @@ void adamFuji::adamnet_disable_device()
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void adamFuji::setup(adamNetBus *siobus)
+void adamFuji::setup(systemBus *siobus)
 {
     // set up Fuji device
     _adamnet_bus = siobus;
@@ -1046,8 +1138,17 @@ void adamFuji::setup(adamNetBus *siobus)
     _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
     _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
 
-    FILE *f = fnSPIFFS.file_open("/autorun.ddp");
-    _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
+    Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
+    if (Config.get_general_boot_mode() == 0)
+    {
+        FILE *f = fnSPIFFS.file_open("/autorun.ddp");
+        _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
+    }
+    else
+    {
+        FILE *f = fnSPIFFS.file_open("/mount-and-boot.ddp");
+        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, MEDIATYPE_DDP);
+    }
 
     theNetwork = new adamNetwork();
     theSerial = new adamSerial();
@@ -1200,6 +1301,18 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_DISABLE_DEVICE:
         adamnet_disable_device();
+        break;
+    case SIO_FUJICMD_MOUNT_ALL:
+        sio_mount_all();
+        break;
+    case SIO_FUJICMD_SET_BOOT_MODE:
+        adamnet_set_boot_mode();
+        break;
+    case SIO_FUJICMD_WRITE_APPKEY:
+        adamnet_write_app_key();
+        break;
+    case SIO_FUJICMD_READ_APPKEY:
+        adamnet_read_app_key();
         break;
     }
 }

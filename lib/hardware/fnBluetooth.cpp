@@ -1,11 +1,13 @@
 #ifdef BLUETOOTH_SUPPORT
 
-#include "../../include/debug.h"
-#include "bus.h"
-#include "../device/sio/disk.h"
-#include "fnConfig.h"
 #include "fnBluetooth.h"
+
+#include "../../include/debug.h"
+
+#include "bus.h"
+#include "fnConfig.h"
 #include "fnBluetoothSPP.h"
+
 
 fnBluetoothSPP btSpp;
 
@@ -33,14 +35,18 @@ void BluetoothManager::start()
     }
     btSpp.begin(Config.get_bt_devname());
     _mActive = true;
+#ifdef BUILD_ATARI
     SIO.setBaudrate(_mBTBaudrate);
+#endif
 }
 
 void BluetoothManager::stop()
 {
     Debug_println("Stopping SIO2BT");
     _mActive = false;
+#ifdef BUILD_ATARI
     SIO.setBaudrate(BT_STANDARD_BAUDRATE);
+#endif
     btSpp.end();
 }
 
@@ -51,7 +57,9 @@ eBTBaudrate BluetoothManager::toggleBaudrate()
 
     Config.store_bt_baud(_mBTBaudrate);
     Config.save();
+#ifdef BUILD_ATARI
     SIO.setBaudrate(_mBTBaudrate);
+#endif
     return _mBTBaudrate;
 }
 

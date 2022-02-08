@@ -1,5 +1,8 @@
 #include "svg_plotter.h"
+
 #include "../../include/debug.h"
+#include "../../include/atascii.h"
+
 
 void svgPlotter::svg_update_bounds()
 {

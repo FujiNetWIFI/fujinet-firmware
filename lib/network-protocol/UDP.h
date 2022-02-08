@@ -6,7 +6,7 @@
 #define NETWORKPROTOCOL_UDP
 
 #include "Protocol.h"
-#include "../tcpip/fnUDP.h"
+#include "fnUDP.h"
 
 class NetworkProtocolUDP : public NetworkProtocol
 {

@@ -1,4 +1,3 @@
-#ifdef BUILD_ATARI
 #ifndef SAM_DEBUG_H
 #define SAM_DEBUG_H
 
@@ -16,4 +15,3 @@ void PrintOutput(
 void PrintRule(int offset);
 
 #endif
-#endif /* BUILD_ATARI */
