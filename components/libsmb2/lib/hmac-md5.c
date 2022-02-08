@@ -69,15 +69,9 @@ smb2_hmac_md5(unsigned char *text, int text_len, unsigned char *key, int key_len
          */
         MD5Init(&context);                   /* init context for 1st
                                               * pass */
-<<<<<<< HEAD
-        esp_rom_md5_update(&context, k_ipad, 64);     /* start with inner pad */
-        esp_rom_md5_update(&context, text, text_len); /* then text of datagram */
-        esp_rom_md5_final(digest, &context);          /* finish up 1st pass */
-=======
         MD5Update(&context, k_ipad, 64);     /* start with inner pad */
         MD5Update(&context, text, text_len); /* then text of datagram */
         MD5Final(digest, &context);          /* finish up 1st pass */
->>>>>>> parent of 541cc345... Get firmware building with latest platform.
         /*
          * perform outer MD5
          */
