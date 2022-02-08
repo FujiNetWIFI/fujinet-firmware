@@ -3,6 +3,7 @@
 
 #include <soc/uart_reg.h>
 
+#include <cstdarg>
 #include <cstring>
 
 #include "../../include/pinmap.h"
