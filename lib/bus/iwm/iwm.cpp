@@ -53,8 +53,16 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 
 #undef VERBOSE_IWM
 
+/* #define MACRO(num, str) {\
+            printf("%d", num);\
+            printf(" is");\
+            printf(" %s number", str);\
+            printf("\n");\
+           }
+ */
+
 //------------------------------------------------------------------------------
-#ifdef DEBUG
+//#ifdef DEBUG
 //*****************************************************************************
 // Function: print_packet
 // Parameters: pointer to data, number of bytes to be printed
@@ -104,9 +112,9 @@ void print_packet(uint8_t* data)
     else
       break;
   }
-  Debug_printf("\r\n");
+  // Debug_printf("\r\n");
 }
-#endif
+//#endif
 
 //------------------------------------------------------------------------------
 
@@ -311,7 +319,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 //------------------------------------------------------
 
 
-int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a) // todo add second parameter for maximum array length to avoid overflow
+int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n) 
 {
   //*****************************************************************************
   // Function: iwm_read_packet
@@ -357,17 +365,10 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a) // todo add second parameter f
 
 
   // 'a' is the receive buffer pointer
-  portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
+ // portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
 
   iwm_timer_reset();
-  // cache all the functions
-  // iwm_timer_latch();        // latch highspeed timer value
-  // iwm_timer_read();
-  // iwm_timer_alarm_set(1);
-  // iwm_timer_wait();
-  // iwm_timer_alarm_snooze(1);
-  // iwm_timer_wait();
-  
+   
   // signal the logic analyzer
   iwm_extra_clr();
   iwm_extra_set();
@@ -389,9 +390,11 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a) // todo add second parameter f
     if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     { // timeout!
 #ifdef VERBOSE_IWM
-          // timeout
-          Debug_print("t");
+      // timeout
+      Debug_print("t");
 #endif
+      iwm_extra_set();
+      iwm_extra_clr();
       portENABLE_INTERRUPTS();
       return 1;
     }
@@ -419,18 +422,13 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a) // todo add second parameter f
       // timeout
       Debug_print("t");
 #endif
+      iwm_extra_set();
+      iwm_extra_clr();
       portENABLE_INTERRUPTS();
       return 1;
     }
   };
 
-  // I think there's an extra usec because logic analyzer says 9 us from REQ to first WR edge
-  // there are two 0's (each 4 usec) and then the 1 (edge) at the start of the first sync byte 
-  // iwm_timer_alarm_set(9); 
-  // iwm_timer_wait();
-  //iwm_timer_latch();   // latch highspeed timer value
-  //iwm_timer_read(); // grab timer low word
-  //iwm_extra_set(); // signal to LA we're entering the read packet loop
   do // have_data
   {
     // beginning of the byte
@@ -464,48 +462,67 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a) // todo add second parameter f
       synced = true;
       idx = 5;
     }
-    a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
-    // wait for leading edge of next byte or timeout for end of packet
-    iwm_timer_alarm_snooze(190); // 19 usec from smartportsd assy routine
-#ifdef VERBOSE_IWM
-    Debug_printf("%02x", rxbyte);
-#endif
-    // now wait for leading edge of next byte
-    do // return (GPIO.in1.val >> (pin - 32)) & 0x1;
+    if (idx<n)
+      a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
+    else
     {
-      iwm_timer_latch();
-      iwm_timer_read();
-      if (iwm_timer.t0 > iwm_timer.tn)
+      Debug_printf("\r\nRead Packet: too many bytes %d", idx);
+      iwm_extra_clr();
+      portENABLE_INTERRUPTS();
+      return 1;
+    }
+    // attempt to utilize 0xc8 end-packet code
+    // but SP didn't end up liking it when I ack too early
+    // if (rxbyte == 0xc8)
+    // {
+    //   have_data = false; // end of packet
+    // }                    // to do - if rxbyte == 0xc8, then end of packet and can get out of here
+    // else 
+    // {
+      // wait for leading edge of next byte or timeout for end of packet
+      iwm_timer_alarm_snooze(190); // 19 usec from smartportsd assy routine
+#ifdef VERBOSE_IWM
+      Debug_printf("%02x", rxbyte);
+#endif
+      // now wait for leading edge of next byte
+      do // return (GPIO.in1.val >> (pin - 32)) & 0x1;
       {
-        // end of packet
-        have_data = false; // todo also can look for 0xc8 i think
-        break;
-      }
-    } while (iwm_wrdata_val() == prev_level);
-    numbits = 8;       // ;1   8bits to read
+        iwm_timer_latch();
+        iwm_timer_read();
+        if (iwm_timer.t0 > iwm_timer.tn)
+        {
+          // end of packet
+          have_data = false; // todo also can look for 0xc8 i think
+          break;
+        }
+      } while (iwm_wrdata_val() == prev_level);
+      numbits = 8;       // ;1   8bits to read
+    // } // endif
   } while (have_data); //(have_data); // while have_data
   //           rjmp nxtbyte                        ;46  ;47               ;2   get next byte
   while (a[--idx] != 0xc8) // search for end of packet
   {
     if (!idx)
     {
+      Debug_printf("\r\nRead Packet: no end of packet marker");
       a[0] = 0;
       portENABLE_INTERRUPTS();
+      iwm_extra_clr();
       return 1;
     }
   }             // endpkt:   clr  r23
   a[++idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
-
+  iwm_extra_clr();
   portENABLE_INTERRUPTS();
   return (!synced); // take care of case witness on 2/6/22 where execution entered late in command packet and sync was missed.
 }
 
-int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a)
+int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 {
   iwm_ack_set(); // todo - is set really needed?
   for (int i=0; i < attempts; i++)
   {
-    if (!iwm_read_packet(a))
+    if (!iwm_read_packet(a, n))
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
 #ifdef DEBUG
@@ -650,11 +667,11 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   };
 #endif // TESTTX
   iwm_rddata_disable();
- // iwm_ack_disable();       // need to release the bus
-  portENABLE_INTERRUPTS(); // takes 7 us to execute
 #ifdef DEBUG
-  print_packet(a);
+  //print_packet(a);
 #endif
+  portENABLE_INTERRUPTS(); // takes 7 us to execute
+  //iwm_ack_disable();       // need to release the bus
   return 0;
 }
 
@@ -1083,128 +1100,125 @@ int iwmDevice::packet_length (void)
 // //*****************************************************************************
 void iwmBus::service() 
 {
-  // iwm_rddata_disable(); // todo - figure out sequence of setting IWM pins and where this should go
-  // iwm_rddata_clr();
-  // while (true)
-  // {
-    iwm_ack_disable();
-    iwm_ack_clr(); // prep for the next read packet
-     
-    // read phase lines to check for smartport reset or enable
-    switch (iwm_phases())
+  iwm_ack_disable(); // go hi-Z
+  iwm_ack_clr();     // prep for the next read packet
+
+  // read phase lines to check for smartport reset or enable
+  switch (iwm_phases())
+  {
+  case iwm_phases_t::idle:
+    break;
+  case iwm_phases_t::reset:
+    // instead of the code in this section, we should call a reset handler
+    // the handler should reset every device
+    // and wait for reset to clear (probably with a timeout)
+    Debug_printf(("\r\nReset"));
+    // hard coding 1 partition - will use disk class instances instead
+    smort->_devnum = 0;
+    while (iwm_phases() == iwm_phases_t::reset)
+      ; // no timeout needed because the IWM must eventually clear reset.
+    // even if it doesn't, we would just come back to here, so might as
+    // well wait until reset clears.
+
+    Debug_printf(("\r\nReset Cleared"));
+    break;
+  case iwm_phases_t::enable:
+    // expect a command packet
+    portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
+    while (iwm_read_packet(command_packet.data, COMMAND_PACKET_LEN))
     {
-    case iwm_phases_t::idle:
-      break;
-    case iwm_phases_t::reset:
-      // instead of the code in this section, we should call a reset handler
-      // the handler should reset every device
-      // and wait for reset to clear (probably with a timeout)
-      Debug_printf(("\r\nReset"));
-      // hard coding 1 partition - will use disk class instances instead
-      smort->_devnum = 0;
-      while (iwm_phases() == iwm_phases_t::reset)
-        ; // no timeout needed because the IWM must eventually clear reset. 
-        // even if it doesn't, we would just come back to here, so might as
-        // well wait until reset clears.
+      // break; // todo - change to a for or while loop to do multiple tries before timeout?
+      return;
+    }
+    // if (verify_cmdpkt_checksum())
+    // {
+    //   Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    //   // break;
+    // }
 
-      Debug_printf(("\r\nReset Cleared"));
-      break;
-    case iwm_phases_t::enable:
-      // expect a command packet
-      while (iwm_read_packet(command_packet.data))
-      {
-        break; // todo - change to a for or while loop to do multiple tries before timeout?
-      }
-      // if (verify_cmdpkt_checksum())
-      // {
-      //   Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-      //   // break;
-      // }
-     
+    /***
+     * todo notes:
+     * once we make an actual device, like disk.cpp, then
+     * we need to hand off control to the device to service
+     * the command packet. I think the algorithm is something like:
+     * check for 0x85 init and do a bus initialization:
+     * BUS INIT
+     * after a reset, all devices no longer have an address
+     * and they are gating some signal (REQ?) so devices
+     * down the chain cannot respond to commands. So the
+     * first device responds to INIT. During this, it checks
+     * the sense line (still not sure which pin this is) to see
+     * if it is low (grounded) or high (floating or pulled up?).
+     * It will be low if there's another device in the chain
+     * after it. If it is the last device it will be high.
+     * It sends this state in the response to INIT. It also
+     * ungates whatever the magic line is so the next device
+     * in the chain can receive the INIT command that is
+     * coming next. This repeats until the last device in the
+     * chain says it's so and the A2 will stop sending INITs.
+     *
+     * Every other command:
+     * The bus class checks the target device and should pass
+     * on the command packet to the device service routine.
+     * Then the device can respond accordingly.
+     *
+     * When device ID is not FujiNet's:
+     * If the device ID does not belong to any of the FujiNet
+     * devices (disks, printers, modem, network, etc) then FN
+     * should not respond. The SmartPortSD code runs through
+     * the states for the packets that should come next. I'm
+     * not sure this is the best because what happens in case
+     * of a malfunction. I suppose there could be a time out
+     * that takes us back to idle. This will take more
+     * investigation.
+     */
 
-      /***
-       * todo notes:
-       * once we make an actual device, like disk.cpp, then
-       * we need to hand off control to the device to service
-       * the command packet. I think the algorithm is something like:
-       * check for 0x85 init and do a bus initialization:
-       * BUS INIT
-       * after a reset, all devices no longer have an address
-       * and they are gating some signal (REQ?) so devices
-       * down the chain cannot respond to commands. So the
-       * first device responds to INIT. During this, it checks
-       * the sense line (still not sure which pin this is) to see
-       * if it is low (grounded) or high (floating or pulled up?).
-       * It will be low if there's another device in the chain
-       * after it. If it is the last device it will be high.
-       * It sends this state in the response to INIT. It also
-       * ungates whatever the magic line is so the next device
-       * in the chain can receive the INIT command that is 
-       * coming next. This repeats until the last device in the
-       * chain says it's so and the A2 will stop sending INITs.
-       * 
-       * Every other command:
-       * The bus class checks the target device and should pass
-       * on the command packet to the device service routine.
-       * Then the device can respond accordingly.
-       * 
-       * When device ID is not FujiNet's:
-       * If the device ID does not belong to any of the FujiNet
-       * devices (disks, printers, modem, network, etc) then FN
-       * should not respond. The SmartPortSD code runs through
-       * the states for the packets that should come next. I'm
-       * not sure this is the best because what happens in case
-       * of a malfunction. I suppose there could be a time out
-       * that takes us back to idle. This will take more
-       * investigation.
-       */
+    // Todo: should not ACK unless we know this is our Command
+    //  should move this block to the main Bus service section
+    //  and only ACK when we know it's our device, then pass
+    //  control to that device
+    // iwm_ack_clr();
 
-      //Todo: should not ACK unless we know this is our Command
-      // should move this block to the main Bus service section
-      // and only ACK when we know it's our device, then pass
-      // control to that device
-      //iwm_ack_clr();
-
-      // do we need to wait for REQ to go low here, or should we just pass control
-      // and set up for the command? Once we see REQ go low,
-      // and we're ready to respond, the we disable ACK
-      // setup a timeout counter to wait for REQ response
-      iwm_ack_clr();
-      iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
-      iwm_timer_latch();        // latch highspeed timer value
-      iwm_timer_read();         //  grab timer low word
-      iwm_timer_alarm_set(50000); // todo: figure out
-      while (iwm_req_val())
-      {
-        iwm_timer_latch();               // latch highspeed timer value
-        iwm_timer_read();                // grab timer low word
-        if (iwm_timer.t0 > iwm_timer.tn) // test for timeout
-        {                                // timeout!
+    // do we need to wait for REQ to go low here, or should we just pass control
+    // and set up for the command? Once we see REQ go low,
+    // and we're ready to respond, the we disable ACK
+    // setup a timeout counter to wait for REQ response
+    iwm_ack_clr();
+    iwm_ack_enable();           // now ACK is enabled and cleared low, it is reset in the handlers
+    iwm_timer_latch();          // latch highspeed timer value
+    iwm_timer_read();           //  grab timer low word
+    iwm_timer_alarm_set(50000); // todo: figure out
+    while (iwm_req_val())
+    {
+      iwm_timer_latch();               // latch highspeed timer value
+      iwm_timer_read();                // grab timer low word
+      if (iwm_timer.t0 > iwm_timer.tn) // test for timeout
+      {                                // timeout!
 #ifdef VERBOSE_IWM
-          // timeout
-          Debug_print("t");
+        // timeout
+        Debug_print("t");
 #endif
-          break;
-        }
+          // break; // oh! this break should be a return, otherwise we just go on to executing a command - not good
+        return;
       }
+    }
 
-      if (command_packet.command == 0x85)
-      {
+    if (command_packet.command == 0x85)
+    {
 #ifdef DEBUG
-        print_packet(command_packet.data);
-        Debug_printf("\r\nhandling init command");
+      print_packet(command_packet.data);
+      Debug_printf("\r\nhandling init command");
 #endif
-        handle_init(smort);
-      }
-      else
-      {
+      handle_init(smort);
+    }
+    else
+    {
 #ifdef DEBUG
-        print_packet(command_packet.data);
+      print_packet(command_packet.data);
 #endif
-        smort->process(command_packet);
-      }
-    }   // switch (phasestate)
-  // }     // while(true)
+      smort->process(command_packet);
+    }
+  }   // switch (phasestate)
 }
 
 void iwmBus::handle_init(iwmDevice* smort)
@@ -1221,7 +1235,7 @@ void iwmBus::handle_init(iwmDevice* smort)
 
   //print_packet ((uint8_t*) packet_buffer,packet_length());
 
-  Debug_printf(("\r\nDrive: %02x"),smort->id());
+  Debug_printf(("\r\nDrive: %02x\r\n"),smort->id());
 }
 
 // Add device to SIO bus
@@ -1243,7 +1257,7 @@ void iwmBus::addDevice(iwmDevice *pDevice, iwm_internal_type_t deviceType)
   // 0x40 == 1 -> supprts disk-switched errors
   // 0x20 == 0 -> removable media (1 means non removable)
 
-  // todo: work out how to use addDevice during an INIT sequence
+  // todo: work out how to use addDevice
   // we can add devices and indicate they are not initialized and have no device ID - call it a value of 0
   // when the SP bus goes into RESET, we would rip through the list setting initialized to false and
   // setting device id's to 0. Then on each INIT command, we iterate through the list, setting 

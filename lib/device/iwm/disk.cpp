@@ -479,7 +479,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
       // {
       //   Debug_printf("\r\nPartition file is closed!");
       // }
-      return;
+      return; // todo - send an error status packet?
     }
   }
 
@@ -497,16 +497,16 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
 
 void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
 {
-  uint8_t source = packet_buffer[6];
+  uint8_t source = cmd.dest; // packet_buffer[6];
   Debug_printf("\r\nDrive %02x ", source);
   //Added (unsigned short) cast to ensure calculated block is not underflowing.
-  unsigned long int block_num = (packet_buffer[19] & 0x7f) | (((unsigned short)packet_buffer[16] << 3) & 0x80);
+  unsigned long int block_num = (cmd.g7byte3 & 0x7f) | (((unsigned short)cmd.grp7msb << 3) & 0x80);
   // block num second byte
   //Added (unsigned short) cast to ensure calculated block is not underflowing.
-  block_num = block_num + (((packet_buffer[20] & 0x7f) | (((unsigned short)packet_buffer[16] << 4) & 0x80)) * 256);
+  block_num = block_num + (((cmd.g7byte4 & 0x7f) | (((unsigned short)cmd.grp7msb << 4) & 0x80)) * 256);
   Debug_printf("Write block %04x", block_num);
   //get write data packet, keep trying until no timeout
-  if (IWM.iwm_read_packet_timeout(100, (unsigned char *)packet_buffer))
+  if (IWM.iwm_read_packet_timeout(100, (unsigned char *)packet_buffer, BLOCK_PACKET_LEN))
   {
     Debug_printf("\r\nTIMEOUT in read packet!");
     return;
@@ -526,15 +526,17 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
       if (fseek(d.sdf, (block_num * 512), SEEK_SET))
       {
         Debug_printf("\r\nRead seek err! block #%02x", block_num);
-        if (d.sdf != nullptr)
-        {
-          Debug_printf("\r\nPartition file is open!");
-        }
-        else
-        {
-          Debug_printf("\r\nPartition file is closed!");
-        }
+        // if (d.sdf != nullptr)
+        // {
+        //   Debug_printf("\r\nPartition file is open!");
+        // }
+        // else
+        // {
+        //   Debug_printf("\r\nPartition file is closed!");
+        // }
         //return;
+
+        // to do - set a flag here to check for error status
       }
     }
     size_t sdstato = fwrite((unsigned char *)packet_buffer, 1, 512, d.sdf);
