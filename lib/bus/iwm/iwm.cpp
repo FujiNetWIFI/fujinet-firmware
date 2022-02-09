@@ -519,19 +519,20 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
 
 int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 {
-  iwm_ack_set(); // todo - is set really needed?
+  // iwm_ack_set(); // todo - is set really needed?
+  iwm_ack_disable();
   for (int i=0; i < attempts; i++)
   {
     if (!iwm_read_packet(a, n))
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
+      iwm_ack_enable();
 #ifdef DEBUG
       print_packet(a);
 #endif
       return 0;
     }
   }
-  iwm_ack_disable();
 #ifdef DEBUG
   print_packet(a);
 #endif
@@ -905,8 +906,11 @@ int iwmDevice::decode_data_packet (void)
   for (int count = 0; count < 512; count++) // xor all the data bytes
     checksum = checksum ^ packet_buffer[count];
 
+  Debug_printf("\r\ndecode data packet checksum calc %02x, packet or %02x and %02x", checksum, (oddbits | evenbits), (oddbits & evenbits));
+
+  // todo checksum should be & not |, right?
   if (checksum == (oddbits | evenbits))
-    return 0; //noerror
+    return 0; // noerror
   else
     return 6; //smartport bus error code
 
