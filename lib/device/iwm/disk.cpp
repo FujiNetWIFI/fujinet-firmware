@@ -498,6 +498,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
 void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
 {
   uint8_t source = cmd.dest; // packet_buffer[6];
+  // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
   Debug_printf("\r\nDrive %02x ", source);
   //Added (unsigned short) cast to ensure calculated block is not underflowing.
   unsigned long int block_num = (cmd.g7byte3 & 0x7f) | (((unsigned short)cmd.grp7msb << 3) & 0x80);
@@ -506,15 +507,15 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
   block_num = block_num + (((cmd.g7byte4 & 0x7f) | (((unsigned short)cmd.grp7msb << 4) & 0x80)) * 256);
   Debug_printf("Write block %04x", block_num);
   //get write data packet, keep trying until no timeout
+  // to do - this blows up - check handshaking
   if (IWM.iwm_read_packet_timeout(100, (unsigned char *)packet_buffer, BLOCK_PACKET_LEN))
   {
     Debug_printf("\r\nTIMEOUT in read packet!");
     return;
   }
-  // partition number indicates which 32mb block we access on the CF
-  // TODO: replace this with a lookup to get file object from partition number
-  // block_num = block_num + (((partition + initPartition) % 4) * 65536);
-  int status = decode_data_packet();
+  // partition number indicates which 32mb block we access
+  int status = 0; // force no error - to do - work out 
+  decode_data_packet();
   if (status == 0)
   { //ok
     //write block to CF card
