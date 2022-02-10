@@ -135,28 +135,28 @@ void iwmBus::timer_config()
   timer_start(TIMER_GROUP_1, TIMER_1);
 }
 
-void iwmBus::iwm_timer_latch()
+inline void iwmBus::iwm_timer_latch()
 {
   TIMERG1.hw_timer[1].update = 0;
 }
 
-void iwmBus::iwm_timer_read()
+inline void iwmBus::iwm_timer_read()
 {
   iwm_timer.t0 = TIMERG1.hw_timer[1].cnt_low;
 }
 
-void iwmBus::iwm_timer_alarm_set(int s)
+inline void iwmBus::iwm_timer_alarm_set(int s)
 {
   iwm_timer.tn = iwm_timer.t0 + s * TIMER_100NS_FACTOR - TIMER_ADJUST;
 }
 
-void iwmBus::iwm_timer_alarm_snooze(int s)
+inline void iwmBus::iwm_timer_alarm_snooze(int s)
 {
   iwm_timer.tn += s * TIMER_100NS_FACTOR - TIMER_ADJUST; // 3 microseconds
 
 }
 
-void iwmBus::iwm_timer_wait()
+inline void iwmBus::iwm_timer_wait()
 {
   do
   {
@@ -165,48 +165,48 @@ void iwmBus::iwm_timer_wait()
   } while (iwm_timer.t0 < iwm_timer.tn);
 }
 
-void iwmBus::iwm_timer_reset()
+inline void iwmBus::iwm_timer_reset()
 {
   TIMERG1.hw_timer[1].load_low = 0;
   TIMERG1.hw_timer[1].reload = 0;
 }
 
-void iwmBus::iwm_rddata_set()
+inline void iwmBus::iwm_rddata_set()
 {
   GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
 }
 
-void iwmBus::iwm_rddata_clr()
+inline void iwmBus::iwm_rddata_clr()
 {
   GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 }
 
-void iwmBus::iwm_rddata_enable()
+inline void iwmBus::iwm_rddata_enable()
 {
   GPIO.enable_w1ts = ((uint32_t)0x01 << SP_RDDATA);  
 }
 
-void iwmBus::iwm_rddata_disable()
+inline void iwmBus::iwm_rddata_disable()
 {
   GPIO.enable_w1tc = ((uint32_t)0x01 << SP_RDDATA);
 }
 
-bool iwmBus::iwm_wrdata_val()
+inline bool iwmBus::iwm_wrdata_val()
 {
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
 }
 
-bool iwmBus::iwm_req_val()
+inline bool iwmBus::iwm_req_val()
 {
   return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
 }
 
-void iwmBus::iwm_extra_set()
+inline void iwmBus::iwm_extra_set()
 {
   GPIO.out1_w1ts.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
 }
 
-void iwmBus::iwm_extra_clr()
+inline void iwmBus::iwm_extra_clr()
 {
   GPIO.out1_w1tc.data = ((uint32_t)0x01 << (SP_EXTRA - 32));  
 }
@@ -214,7 +214,7 @@ void iwmBus::iwm_extra_clr()
 //------------------------------------------------------
 /** ACK and REQ
  * how ACK works, my interpretation of the iigs firmware reference.
- * ACK is normally high when device is ready to receive commands.
+ * ACK is normally high-Z when device is ready to receive commands.
  * host will send REQ high to make a request and send a command.
  * device responds after command is received by sending ACK low.
  * host completes command handshake by sending REQ low.
@@ -233,30 +233,22 @@ void iwmBus::iwm_extra_clr()
  * ls323 on the bus interface card. I surmise that WPROT goes low or is hi-z, which doesn't 
  * reset the ls125.  
  */
-void iwmBus::iwm_ack_clr()
+inline void iwmBus::iwm_ack_clr()
 {
-  //GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);
-GPIO.out_w1tc = ((uint32_t)1 << SP_ACK);
-#ifdef VERBOSE_IWM
-  Debug_print("a");
-#endif
+  GPIO.out_w1tc = ((uint32_t)0x01 << SP_ACK);
 }
 
-void iwmBus::iwm_ack_set()
+inline void iwmBus::iwm_ack_set()
 {
-  //GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK);
-GPIO.out_w1ts = ((uint32_t)1 << SP_ACK);
-#ifdef VERBOSE_IWM
-  Debug_print("A");
-#endif
+  GPIO.out_w1ts = ((uint32_t)0x01 << SP_ACK);
 }
 
-void iwmBus::iwm_ack_enable()
+inline void iwmBus::iwm_ack_enable()
 {
   GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);  
 }
 
-void iwmBus::iwm_ack_disable()
+inline void iwmBus::iwm_ack_disable()
 {
   GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK);
 }
@@ -523,6 +515,7 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
   iwm_ack_disable();
   for (int i=0; i < attempts; i++)
   {
+    portDISABLE_INTERRUPTS();
     if (!iwm_read_packet(a, n))
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?

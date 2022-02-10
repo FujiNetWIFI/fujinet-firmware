@@ -31,8 +31,10 @@ bool iwmDisk::open_tnfs_image()
 {
   Debug_printf("\r\nmounting server");
   tserver.start("159.203.160.80"); //"atari-apps.irata.online");
+  //tserver.start("192.168.1.181"); //"atari-apps.irata.online");
   Debug_printf("\r\nopening file");
   d.sdf = tserver.file_open("/test.hdv", "rb");
+  //d.sdf = tserver.file_open("/prodos8abbrev.po", "rb");
 
   Debug_printf(("\r\nTesting file "));
   // d.sdf.printName();
@@ -248,7 +250,6 @@ void iwmDisk::encode_status_dib_reply_packet()
 
   //* write data buffer first (25 bytes) 3 grp7 + 4 odds
   data[0] = 0xf8; // general status - f8
-  // number of blocks =0x00ffff = 65525 or 32mb
   data[1] = d.blocks & 0xff;         // block size 1
   data[2] = (d.blocks >> 8) & 0xff;  // block size 2
   data[3] = (d.blocks >> 16) & 0xff; // block size 3
