@@ -387,7 +387,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
 #endif
       iwm_extra_set();
       iwm_extra_clr();
-      portENABLE_INTERRUPTS();
+      // portENABLE_INTERRUPTS();
       return 1;
     }
   };
@@ -416,7 +416,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
 #endif
       iwm_extra_set();
       iwm_extra_clr();
-      portENABLE_INTERRUPTS();
+      // portENABLE_INTERRUPTS();
       return 1;
     }
   };
@@ -460,7 +460,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
     {
       Debug_printf("\r\nRead Packet: too many bytes %d", idx);
       iwm_extra_clr();
-      portENABLE_INTERRUPTS();
+      // portENABLE_INTERRUPTS();
       return 1;
     }
     // attempt to utilize 0xc8 end-packet code
@@ -498,14 +498,14 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
     {
       Debug_printf("\r\nRead Packet: no end of packet marker");
       a[0] = 0;
-      portENABLE_INTERRUPTS();
+      // portENABLE_INTERRUPTS();
       iwm_extra_clr();
       return 1;
     }
   }             // endpkt:   clr  r23
   a[++idx] = 0; //           st   x+,r23               ;save zero byte in buffer to mark end
   iwm_extra_clr();
-  portENABLE_INTERRUPTS();
+  // portENABLE_INTERRUPTS();
   return (!synced); // take care of case witness on 2/6/22 where execution entered late in command packet and sync was missed.
 }
 
@@ -520,11 +520,13 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
       iwm_ack_enable();
+      portENABLE_INTERRUPTS();
 #ifdef DEBUG
       print_packet(a);
 #endif
       return 0;
     }
+    portENABLE_INTERRUPTS();
   }
 #ifdef DEBUG
   print_packet(a);
@@ -1124,6 +1126,7 @@ void iwmBus::service()
     portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
     while (iwm_read_packet(command_packet.data, COMMAND_PACKET_LEN))
     {
+      portENABLE_INTERRUPTS();
       // break; // todo - change to a for or while loop to do multiple tries before timeout?
       return;
     }
@@ -1182,6 +1185,7 @@ void iwmBus::service()
     // setup a timeout counter to wait for REQ response
     iwm_ack_clr();
     iwm_ack_enable();           // now ACK is enabled and cleared low, it is reset in the handlers
+    portENABLE_INTERRUPTS();
     iwm_timer_latch();          // latch highspeed timer value
     iwm_timer_read();           //  grab timer low word
     iwm_timer_alarm_set(50000); // todo: figure out
