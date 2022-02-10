@@ -29,12 +29,17 @@ void iwmDisk::init()
 
 bool iwmDisk::open_tnfs_image()
 {
+#ifdef LOCAL_TNFS
+  Debug_printf("\r\nmounting server");
+  tserver.start("192.168.1.181"); //"atari-apps.irata.online");
+  Debug_printf("\r\nopening file");
+  d.sdf = tserver.file_open("/prodos8abbrev.po", "rb+");
+#else
   Debug_printf("\r\nmounting server");
   tserver.start("159.203.160.80"); //"atari-apps.irata.online");
-  //tserver.start("192.168.1.181"); //"atari-apps.irata.online");
   Debug_printf("\r\nopening file");
   d.sdf = tserver.file_open("/test.hdv", "rb");
-  //d.sdf = tserver.file_open("/prodos8abbrev.po", "rb");
+#endif
 
   Debug_printf(("\r\nTesting file "));
   // d.sdf.printName();
