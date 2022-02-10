@@ -446,6 +446,8 @@ void adamNetwork::do_inquiry(unsigned char inq_cmd)
     // Reset inq_dstats
     inq_dstats = 0xff;
 
+    cmdFrame.comnd = inq_cmd;
+
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
         inq_dstats = protocol->special_inquiry(inq_cmd);
@@ -499,6 +501,8 @@ void adamNetwork::adamnet_special_00(unsigned short s)
 {
     cmdFrame.aux1 = adamnet_recv();
     cmdFrame.aux2 = adamnet_recv();
+
+    AdamNet.start_time = esp_timer_get_time();
 
     if (protocol->special_00(&cmdFrame) == false)
         adamnet_response_ack();
