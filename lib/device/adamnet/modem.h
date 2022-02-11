@@ -228,7 +228,7 @@ public:
     bool get_do_echo() { return do_echo; }
     void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
     std::string get_term_type() {return term_type; }
-    void set_term_type(std::string _term_type) { term_type = _term_type; }
+    void set_term_type(const std::string _term_type) { term_type = _term_type; }
 
 };
 

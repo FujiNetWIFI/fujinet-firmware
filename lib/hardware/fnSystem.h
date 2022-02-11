@@ -26,6 +26,7 @@ private:
     int _hardware_version = 0; // unknown
 
 public:
+    SystemManager();
     class _net
     {
     private:
