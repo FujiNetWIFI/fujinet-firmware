@@ -6,6 +6,15 @@
 
 #include "../../include/debug.h"
 
+MediaTypeROM::MediaTypeROM()
+{
+    rom=(char *)malloc(32768);
+}
+
+MediaTypeROM::~MediaTypeROM()
+{
+    free(rom);
+}
 
 // Returns TRUE if an error condition occurred
 bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)

@@ -16,10 +16,10 @@ protected:
 protected:
     // SIO THINGS
     
-    virtual void adamnet_control_status();
+    virtual void adamnet_control_status() override;
     virtual void adamnet_control_receive();
     virtual void adamnet_control_clr();
-    virtual void adamnet_control_ready();
+    virtual void adamnet_control_ready() override;
 
     void adamnet_process(uint8_t b) override;
     void shutdown() override;

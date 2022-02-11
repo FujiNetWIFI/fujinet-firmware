@@ -11,6 +11,7 @@ class FileSystemSPIFFS : public FileSystem
 private:
     DIR * _dir;
 public:
+    FileSystemSPIFFS();
     bool start();
     
     fsType type() override { return FSTYPE_SPIFFS; };

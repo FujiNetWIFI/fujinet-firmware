@@ -87,7 +87,7 @@ public:
 
     std::string getErrMsg() { return errMsg; }
     void clearErrMsg() { errMsg.clear(); }
-    void addToErrMsg(std::string _e) { errMsg += _e; }
+    void addToErrMsg(const std::string _e) { errMsg += _e; }
     bool errMsgEmpty() { return errMsg.empty(); }
 
     static esp_err_t get_handler_test(httpd_req_t *req);
