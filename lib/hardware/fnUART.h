@@ -18,7 +18,7 @@ private:
     size_t _print_number(unsigned long n, uint8_t base);
 
 public:
-    UARTManager(uart_port_t uart_num);
+    UARTManager(uart_port_t uart_num=0);
 
     void begin(int baud);
     void end();
