@@ -70,13 +70,6 @@ public:
     virtual void write(uint16_t num_bytes);
 
     /**
-     * ADAM Status Command. First try to populate NetworkStatus object from protocol. If protocol not instantiated,
-     * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
-     * with them locally. Then serialize resulting NetworkStatus object to ADAM.
-     */
-    virtual void adamnet_special();
-
-    /**
      * ADAM Special, called as a default for any other ADAM command not processed by the other adamnet_ functions.
      * First, the protocol is asked whether it wants to process the command, and if so, the protocol will
      * process the special command. Otherwise, the command is handled locally. In either case, either adamnet_complete()
@@ -90,7 +83,7 @@ public:
     virtual void adamnet_control_receive_channel();
     virtual void adamnet_control_send();
 
-    virtual void adamnet_response_status();
+    virtual void adamnet_response_status() override;
     virtual void adamnet_response_send();
 
     /**
@@ -122,7 +115,7 @@ public:
      * Process incoming ADAM command for device 0x7X
      * @param b The incoming command byte
      */
-    virtual void adamnet_process(uint8_t b);
+    virtual void adamnet_process(uint8_t b) override;
 
     virtual void del(uint16_t s);
     virtual void rename(uint16_t s);
@@ -348,7 +341,7 @@ private:
      * Essentially, call the protocol action
      * and based on the return, signal adamnet_complete() or error().
      */
-    void adamnet_special_00();
+    void adamnet_special_00(unsigned short s);
 
     /**
      * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
@@ -356,7 +349,7 @@ private:
      * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
      * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
      */
-    void adamnet_special_40();
+    void adamnet_special_40(unsigned short s);
 
     /**
      * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
@@ -364,7 +357,7 @@ private:
      * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
      * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
      */
-    void adamnet_special_80();
+    void adamnet_special_80(unsigned short s);
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
@@ -386,11 +379,6 @@ private:
      * @brief Set timer rate for PROCEED timer in ms
      */
     void adamnet_set_timer_rate();
-
-    /**
-     * @brief perform ->FujiNet commands on protocols that do not use an explicit OPEN channel.
-     */
-    void adamnet_do_idempotent_command_80();
 
     /**
      * @brief parse URL and instantiate protocol

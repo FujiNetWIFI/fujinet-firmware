@@ -223,6 +223,7 @@ extern "C"
 {    
     void app_main()
     {
+        // cppcheck-suppress "unusedFunction"
         // Call our setup routine
         main_setup();
 

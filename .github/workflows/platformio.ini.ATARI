@@ -14,16 +14,7 @@ esp32_platform_version = 3.4.0
 
 ; Uncomment the platform you are building for below
 build_platform = BUILD_ATARI
-build_bus      = SIO
-
-;build_platform = BUILD_CBM
-;build_bus      = IEC
-
-;build_platform = BUILD_ADAM
-;build_bus      = ADAMNET
-
-;build_platform = BUILD_APPLE
-;build_bus      = IWM
+build_bus = SIO
 
 [platformio]
 description = FujiNet retro computer to ESP32 WiFi Multifunction Firmware
