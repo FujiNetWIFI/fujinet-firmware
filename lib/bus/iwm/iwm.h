@@ -258,18 +258,20 @@ public:
   void service();
   void shutdown();
 
-  void handle_init(iwmDevice *smort); // todo: put this function in the right place
+  void handle_init(); // todo: put this function in the right place
 
   int numDevices();
   void addDevice(iwmDevice *pDevice, iwm_internal_type_t deviceType); // todo: probably get called by handle_init()
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
-  iwmDevice *smort;
+  // iwmDevice *smort;
 
 #ifdef TESTTX
   void test_send(iwmDevice* smort);
 #endif
+
+  void startup_hack();
 
 };
 

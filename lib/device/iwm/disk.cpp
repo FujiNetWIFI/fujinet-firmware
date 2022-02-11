@@ -6,6 +6,8 @@
 #include "fnFsSD.h"
 #include "led.h"
 
+#define LOCAL_TNFS
+
 FileSystemTNFS tserver;
 
 iwmDisk::~iwmDisk()
@@ -581,24 +583,24 @@ void iwmDisk::iwm_status(cmdPacket_t cmd) // override;
 {
   // uint8_t source = packet_buffer[6];
 
-  if (d.sdf != nullptr)
-  { 
-    uint8_t status_code = cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
-    //Serial.print(F("\r\nStatus code: "));
-    //Serial.print(status_code);
-    //print_packet ((unsigned char*) packet_buffer, packet_length());
-    //Serial.print(F("\r\nHere's the decoded status packet because frig doing it by hand!"));
-    //decode_data_packet();
-    //print_packet((unsigned char*) packet_buffer, 9); //Standard SmartPort command is 9 bytes
-    //if (status_code |= 0x00) { // TEST
-    //  Serial.print(F("\r\nStatus not zero!! ********"));
-    //  print_packet ((unsigned char*) packet_buffer,packet_length());}
-    if (status_code == 0x03)
-    { // if statcode=3, then status with device info block
-      Debug_printf("\r\n******** Sending DIB! ********");
-      encode_status_dib_reply_packet();
-      //print_packet ((unsigned char*) packet_buffer,packet_length());
-      fnSystem.delay(50);
+  //if (d.sdf != nullptr) // device should respond despite having no image loaded - could indicate error is status code
+  //{
+  uint8_t status_code = cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
+  // Serial.print(F("\r\nStatus code: "));
+  // Serial.print(status_code);
+  // print_packet ((unsigned char*) packet_buffer, packet_length());
+  // Serial.print(F("\r\nHere's the decoded status packet because frig doing it by hand!"));
+  // decode_data_packet();
+  // print_packet((unsigned char*) packet_buffer, 9); //Standard SmartPort command is 9 bytes
+  // if (status_code |= 0x00) { // TEST
+  //   Serial.print(F("\r\nStatus not zero!! ********"));
+  //   print_packet ((unsigned char*) packet_buffer,packet_length());}
+  if (status_code == 0x03)
+  { // if statcode=3, then status with device info block
+    Debug_printf("\r\n******** Sending DIB! ********");
+    encode_status_dib_reply_packet();
+    // print_packet ((unsigned char*) packet_buffer,packet_length());
+    fnSystem.delay(50);
     }
     else
     { // else just return device status
@@ -614,8 +616,8 @@ void iwmDisk::iwm_status(cmdPacket_t cmd) // override;
       Debug_printf("\r\nSending Status");
       encode_status_reply_packet();
     }
-   IWM.iwm_send_packet((unsigned char *)packet_buffer);
-  }
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  //}
 }
 // void derive_percom_block(uint16_t numSectors);
 // void iwm_read_percom_block();
