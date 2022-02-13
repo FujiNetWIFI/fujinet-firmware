@@ -991,7 +991,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 }
 
 //todo: this only replies a $21 error
-void iwmDevice::encode_error_reply_packet (uint8_t source)
+void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
 {
   uint8_t checksum = 0;
 
@@ -1005,7 +1005,7 @@ void iwmDevice::encode_error_reply_packet (uint8_t source)
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
   packet_buffer[8] = source; //SRC - source id - us
-  packet_buffer[9] = 0x80;  //TYPE -status
+  packet_buffer[9] = stat | 0x80;  //TYPE -status
   packet_buffer[10] = 0x80; //AUX
   packet_buffer[11] = 0xA1; //STAT - data status - error
   packet_buffer[12] = 0x80; //ODDCNT - 0 data bytes

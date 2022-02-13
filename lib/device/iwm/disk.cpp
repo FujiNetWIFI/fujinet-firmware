@@ -8,6 +8,16 @@
 
 #define LOCAL_TNFS
 
+#define SP_ERR_BADCMD 0x01 // invalid command
+#define SP_ERR_BUSERR 0x06 // communications error
+#define SP_ERR_BADCTL 0x21 // invalid status or control code
+#define SP_ERR_BADCTLPARM 0x22 // invalid parameter list
+#define SP_ERR_IOERROR 0x27 // i/o error on device side
+#define SP_ERR_NODRIVE 0x28 // no device connected
+#define SP_ERR_NOWRITE 0x2b // disk write protected
+#define SP_ERR_BADBLOCK 0x2d // invalid block number
+#define SP_ERR_OFFLINE 0x2f // device offline or no disk in drive
+
 FileSystemTNFS tserver;
 
 iwmDisk::~iwmDisk()
@@ -121,7 +131,7 @@ void iwmDisk::encode_status_reply_packet()
   // Bit 2: Media write protected
   // Bit 1: Currently interrupting (//c only)
   // Bit 0: Currently open (char devices only)
-  data[0] = 0b11111000;
+  data[0] = 0b11101000 | ((d.sdf != nullptr) << 4);
   // Disk size
   data[1] = d.blocks & 0xff;
   data[2] = (d.blocks >> 8) & 0xff;
@@ -186,10 +196,10 @@ void iwmDisk::encode_extended_status_reply_packet()
   // Bit 5: Read allowed
   // Bit 4: Device online or disk in drive
   // Bit 3: Format allowed
-  // Bit 2: Media write protected
+  // Bit 2: Media write protected (block devices only)
   // Bit 1: Currently interrupting (//c only)
   // Bit 0: Currently open (char devices only)
-  data[0] = 0b11111000;
+  data[0] = 0b11101000 | ((d.sdf != nullptr) << 4);
   // Disk size
   data[1] = d.blocks & 0xff;
   data[2] = (d.blocks >> 8) & 0xff;
@@ -256,7 +266,16 @@ void iwmDisk::encode_status_dib_reply_packet()
   oddnum = 4;
 
   //* write data buffer first (25 bytes) 3 grp7 + 4 odds
-  data[0] = 0xf8; // general status - f8
+  // General Status byte
+  // Bit 7: Block  device
+  // Bit 6: Write allowed
+  // Bit 5: Read allowed
+  // Bit 4: Device online or disk in drive
+  // Bit 3: Format allowed
+  // Bit 2: Media write protected (block devices only)
+  // Bit 1: Currently interrupting (//c only)
+  // Bit 0: Currently open (char devices only)
+  data[0] = 0b11101000 | ((d.sdf != nullptr) << 4);
   data[1] = d.blocks & 0xff;         // block size 1
   data[2] = (d.blocks >> 8) & 0xff;  // block size 2
   data[3] = (d.blocks >> 16) & 0xff; // block size 3
@@ -373,7 +392,7 @@ void iwmDisk::encode_extended_status_dib_reply_packet()
   packet_buffer[12] = 0x80;       // ODDCNT - 4 data bytes
   packet_buffer[13] = 0x83;       // GRP7CNT - 3 grps of 7
   packet_buffer[14] = 0xf0;       // grp1 msb
-  packet_buffer[15] = 0xf8;       // general status - f8
+  packet_buffer[15] = 0b11101000 | ((d.sdf != nullptr) << 4);       // general status - f8
   // number of blocks =0x00ffff = 65525 or 32mb
   packet_buffer[16] = d.blocks & 0xff;                  // block size 1
   packet_buffer[17] = (d.blocks >> 8) & 0xff;           // block size 2
@@ -438,6 +457,7 @@ void iwmDisk::process(cmdPacket_t cmd)
   // case 0x85: // init
   //   break;
   case 0x86: // open
+  // todo - return invalid command error for char device commands
     break;
   case 0x87: // close
     break;
@@ -461,6 +481,14 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
   Debug_printf("\r\nDrive %02x ", source);
 
+  if (!d.sdf)
+  {
+    // no image mounted
+    encode_error_reply_packet(source, SP_ERR_OFFLINE);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    return;
+  }
+
   LBH = cmd.grp7msb; //packet_buffer[16]; // high order bits
   LBT = cmd.g7byte5; //packet_buffer[21]; // block number high
   LBL = cmd.g7byte4; //packet_buffer[20]; // block number middle
@@ -479,14 +507,8 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     if (fseek(d.sdf, (block_num * 512), SEEK_SET))
     {
       Debug_printf("\r\nRead seek err! block #%02x", block_num);
-      // if (d.sdf != nullptr)
-      // {
-      //   Debug_printf("\r\nPartition file is open!");
-      // }
-      // else
-      // {
-      //   Debug_printf("\r\nPartition file is closed!");
-      // }
+      encode_error_reply_packet(source, SP_ERR_BADBLOCK);
+      IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return; // todo - send an error status packet?
     }
   }
@@ -495,7 +517,9 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   if (sdstato != 512)
   {
     Debug_printf("\r\nFile Read err: %d bytes", sdstato);
-    return; // todo - instead need to return an error status
+    encode_error_reply_packet(source, SP_ERR_IOERROR);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    return; // todo - true or false?
   }
   encode_data_packet(source);
   Debug_printf("\r\nsending block packet ...");
@@ -535,17 +559,10 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
       if (fseek(d.sdf, (block_num * 512), SEEK_SET))
       {
         Debug_printf("\r\nRead seek err! block #%02x", block_num);
-        // if (d.sdf != nullptr)
-        // {
-        //   Debug_printf("\r\nPartition file is open!");
-        // }
-        // else
-        // {
-        //   Debug_printf("\r\nPartition file is closed!");
-        // }
-        //return;
-
-        // to do - set a flag here to check for error status
+        encode_error_reply_packet(source, SP_ERR_BADBLOCK);
+        IWM.iwm_send_packet((unsigned char *)packet_buffer);
+        return; // todo - send an error status packet?
+                // to do - set a flag here to check for error status
       }
     }
     size_t sdstato = fwrite((unsigned char *)packet_buffer, 1, 512, d.sdf);
