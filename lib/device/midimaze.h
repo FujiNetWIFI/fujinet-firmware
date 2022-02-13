@@ -9,10 +9,6 @@
 # include "iec/midimaze.h"
 #endif
 
-#ifdef BUILD_ADAM
-# include "adamnet/midimaze.h"
-#endif
-
 #ifdef NEW_TARGET
 # include "new/midimaze.h"
 #endif

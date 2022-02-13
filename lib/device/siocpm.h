@@ -9,10 +9,6 @@
 # include "iec/cpm.h"
 #endif
 
-#ifdef BUILD_ADAM
-# include "adamnet/cpm.h"
-#endif
-
 #ifdef NEW_TARGET
 # include "new/cpm.h"
 #endif
