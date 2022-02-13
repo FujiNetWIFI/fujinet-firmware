@@ -189,6 +189,12 @@ IWM.setup();
 #endif // DEBUG
 }
 
+#ifdef BUILD_S100
+
+//theFuji.setup(&s100Bus);
+//SYSTEM_BUS.setup();
+
+#endif /* BUILD_S100*/
 
 // Main high-priority service loop
 void fn_service_loop(void *param)

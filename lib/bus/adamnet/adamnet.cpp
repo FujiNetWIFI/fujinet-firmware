@@ -225,8 +225,8 @@ void virtualDevice::adamnet_response_status()
     status_response[0] |= _devnum;
 
     status_response[5] = adamnet_checksum(&status_response[1], 4);
-    // adamnet_send_buffer(status_response, sizeof(status_response));
-    uart_tx_chars(2,(const char *)status_response,sizeof(status_response));
+    adamnet_send_buffer(status_response, sizeof(status_response));
+    // uart_tx_chars(2,(const char *)status_response,sizeof(status_response));
 }
 
 void virtualDevice::adamnet_idle()

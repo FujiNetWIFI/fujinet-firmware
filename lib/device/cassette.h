@@ -9,10 +9,6 @@
 # include "iec/cassette.h"
 #endif
 
-#ifdef BUILD_ADAM
-# include "adamnet/cassette.h"
-#endif
-
 #ifdef NEW_TARGET
 # include "new/cassette.h"
 #endif

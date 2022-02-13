@@ -26,4 +26,9 @@
 #define SYSTEM_BUS IWM
 #endif
 
+#ifdef BUILD_S100
+#include "s100spi/s100spi.h"
+#define SYSTEM_BUS s100Bus
+#endif
+
 #endif // BUS_H

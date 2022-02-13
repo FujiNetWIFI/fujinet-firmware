@@ -16,6 +16,11 @@
 # define DEVICE_TYPE adamDisk
 #endif
 
+#ifdef BUILD_S100
+# include "s100spi/disk.h"
+# define DEVICE_TYPE s100spiDisk
+#endif 
+
 #ifdef NEW_TARGET
 # include "new/disk.h"
 # define DEVICE_TYPE adamDisk
