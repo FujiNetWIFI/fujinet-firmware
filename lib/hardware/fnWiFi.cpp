@@ -440,7 +440,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             fnSystem.Net.start_sntp_client();
             fnHTTPD.start();
 #ifdef BUILD_APPLE
-            IWM.smort->startup_hack();
+            IWM.startup_hack();
 #endif
 #ifdef BUILD_ATARI // temporary
             if (Config.get_general_config_enabled() == false)
