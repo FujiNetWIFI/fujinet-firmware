@@ -6,7 +6,7 @@
 #include "fnFsSD.h"
 #include "led.h"
 
-#define LOCAL_TNFS
+#undef LOCAL_TNFS
 
 #define SP_ERR_BADCMD 0x01 // invalid command
 #define SP_ERR_BUSERR 0x06 // communications error
