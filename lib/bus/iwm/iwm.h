@@ -154,7 +154,7 @@ protected:
   void encode_write_status_packet(uint8_t source, uint8_t status);
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
-  void encode_error_reply_packet(uint8_t source);
+  void encode_error_reply_packet(uint8_t source, uint8_t stat);
   virtual void encode_status_dib_reply_packet() = 0;
 
   void encode_extended_data_packet(uint8_t source);
@@ -258,18 +258,20 @@ public:
   void service();
   void shutdown();
 
-  void handle_init(iwmDevice *smort); // todo: put this function in the right place
+  void handle_init(); // todo: put this function in the right place
 
   int numDevices();
   void addDevice(iwmDevice *pDevice, iwm_internal_type_t deviceType); // todo: probably get called by handle_init()
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
-  iwmDevice *smort;
+  // iwmDevice *smort;
 
 #ifdef TESTTX
   void test_send(iwmDevice* smort);
 #endif
+
+  void startup_hack();
 
 };
 

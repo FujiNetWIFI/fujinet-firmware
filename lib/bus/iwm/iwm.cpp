@@ -705,8 +705,6 @@ void iwmBus::setup(void)
 
   timer_config();
   Debug_printf("\r\nIWM timer started");
-
-  smort = new iwmDisk();
 }
 
 
@@ -977,7 +975,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
   packet_buffer[8] = source; //SRC - source id - us
   packet_buffer[9] = 0x80;  //TYPE
   packet_buffer[10] = 0x80; //AUX
-  packet_buffer[11] = status; //STAT - data status
+  packet_buffer[11] = status | 0x80; //STAT - data status
 
   packet_buffer[12] = 0x80; //ODDCNT
   packet_buffer[13] = 0x80; //GRP7CNT
@@ -993,7 +991,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 }
 
 //todo: this only replies a $21 error
-void iwmDevice::encode_error_reply_packet (uint8_t source)
+void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
 {
   uint8_t checksum = 0;
 
@@ -1007,7 +1005,7 @@ void iwmDevice::encode_error_reply_packet (uint8_t source)
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
   packet_buffer[8] = source; //SRC - source id - us
-  packet_buffer[9] = 0x80;  //TYPE -status
+  packet_buffer[9] = stat | 0x80;  //TYPE -status
   packet_buffer[10] = 0x80; //AUX
   packet_buffer[11] = 0xA1; //STAT - data status - error
   packet_buffer[12] = 0x80; //ODDCNT - 0 data bytes
@@ -1113,7 +1111,10 @@ void iwmBus::service()
     // and wait for reset to clear (probably with a timeout)
     Debug_printf(("\r\nReset"));
     // hard coding 1 partition - will use disk class instances instead
-    smort->_devnum = 0;
+    //smort->_devnum = 0;
+    for (auto devicep : _daisyChain)
+      devicep->_devnum = 0;
+
     while (iwm_phases() == iwm_phases_t::reset)
       ; // no timeout needed because the IWM must eventually clear reset.
     // even if it doesn't, we would just come back to here, so might as
@@ -1210,33 +1211,53 @@ void iwmBus::service()
       print_packet(command_packet.data);
       Debug_printf("\r\nhandling init command");
 #endif
-      handle_init(smort);
+      handle_init();
     }
     else
     {
 #ifdef DEBUG
       print_packet(command_packet.data);
 #endif
-      smort->process(command_packet);
+      //smort->process(command_packet);
+      for (auto devicep : _daisyChain)
+      {
+        if (command_packet.dest == devicep->_devnum)
+        {
+          _activeDev = devicep;
+          // handle command
+          _activeDev->process(command_packet);
+        }
+      }
     }
   }   // switch (phasestate)
 }
 
-void iwmBus::handle_init(iwmDevice* smort)
+void iwmBus::handle_init()
 {
+  uint8_t status = 0;
+  iwmDevice* pDevice = nullptr;
+
   iwm_rddata_clr();
-  iwm_rddata_enable(); 
+  iwm_rddata_enable();
   // to do - get the next device in the daisy chain and assign ID
-  smort->_devnum = command_packet.dest; //remember source id for partition
-  uint8_t status = 0xff;   //yes, so status=non zero
+  for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
+  {
+    pDevice = (*it);
+    if (pDevice->id() == 0)
+    {
+      pDevice->_devnum = command_packet.dest; // assign address
+      if (++it == _daisyChain.end())
+        status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
+      pDevice->encode_init_reply_packet(command_packet.dest, status);
+      Debug_printf("\r\nSending INIT Response Packet...");
+      iwm_send_packet((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
 
-  smort->encode_init_reply_packet(command_packet.dest, status);
-  Debug_printf("\r\nSending INIT Response Packet...");
-  iwm_send_packet((uint8_t *)smort->packet_buffer); // timeout error return is not handled here (yet?)
+      // print_packet ((uint8_t*) packet_buffer,packet_length());
 
-  //print_packet ((uint8_t*) packet_buffer,packet_length());
-
-  Debug_printf(("\r\nDrive: %02x\r\n"),smort->id());
+      Debug_printf(("\r\nDrive: %02x\r\n"), pDevice->id());
+      return;
+    }
+  }
 }
 
 // Add device to SIO bus
@@ -1381,6 +1402,11 @@ void iwmBus::test_send(iwmDevice* smort)
   }
 }
 #endif
+
+void iwmBus::startup_hack()
+{
+  _daisyChain.front()->startup_hack();
+}
 
 iwmBus IWM; // global smartport bus variable
 
