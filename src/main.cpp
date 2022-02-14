@@ -156,19 +156,14 @@ void main_setup()
             Debug_printf("Physical keyboard found\n");
 #  endif // NO_VIRTUAL_KEYBOARD
     
-    exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_PRINTER);
-    if (! exists)
-    {
         Debug_printf("Adding virtual printer\n");
         FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
         adamPrinter::printer_type printer = adamPrinter::PRINTER_COLECO_ADAM;
         adamPrinter *ptr = new adamPrinter(ptrfs, printer);
-        xTaskCreatePinnedToCore(printerTask,"foo",4096,ptr,10,NULL,1);
+        ptr->start_printer_task();
         fnPrinters.set_entry(0,ptr,printer,0);
         AdamNet.addDevice(ptr,ADAMNET_DEVICE_ID_PRINTER);
-    } 
-    else
-        Debug_printf("Physical printer found\n");
+
 # endif // VIRTUAL_ADAM_DEVICES
 
 #endif // BUILD_ADAM
