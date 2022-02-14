@@ -27,6 +27,15 @@
 # include "adam/mediaTypeROM.h"
 #endif
 
+#ifdef BUILD_APPLE
+# include "apple/mediaType.h"
+#endif 
+
+#ifdef BUILD_S100
+# include "adam/mediaType.h"
+# include "adam/mediaTypeDSK.h"
+#endif
+
 #ifdef NEW_TARGET
 # include "new/mediaType.h"
 # include "new/mediaTypeDDP.h"

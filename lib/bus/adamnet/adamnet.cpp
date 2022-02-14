@@ -54,7 +54,7 @@ static void adamnet_reset_intr_task(void *arg)
             reset_debounced = false;
             ;
         }
-        vTaskDelay(1000);
+        vTaskDelay(10);
     }
 }
 
@@ -162,6 +162,10 @@ void virtualDevice::adamnet_response_ack()
         AdamNet.wait_for_idle();
         adamnet_send(0x90 | _devnum);
     }
+    else
+    {
+        Debug_printf("NM_ACK too long: %u μs\n",t);
+    }
 }
 
 void virtualDevice::adamnet_response_nack()
@@ -221,8 +225,8 @@ void virtualDevice::adamnet_response_status()
     status_response[0] |= _devnum;
 
     status_response[5] = adamnet_checksum(&status_response[1], 4);
-    // adamnet_send_buffer(status_response, sizeof(status_response));
-    uart_tx_chars(2,(const char *)status_response,sizeof(status_response));
+    adamnet_send_buffer(status_response, sizeof(status_response));
+    // uart_tx_chars(2,(const char *)status_response,sizeof(status_response));
 }
 
 void virtualDevice::adamnet_idle()
@@ -240,6 +244,7 @@ void systemBus::_adamnet_process_cmd()
     uint8_t b;
 
     b = fnUartSIO.read();
+    start_time = esp_timer_get_time();
 
     uint8_t d = b & 0x0F;
 
@@ -251,7 +256,6 @@ void systemBus::_adamnet_process_cmd()
     {
         // turn on AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
-        start_time = esp_timer_get_time();
         _daisyChain[d]->adamnet_process(b);
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);

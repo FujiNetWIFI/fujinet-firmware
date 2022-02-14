@@ -19,10 +19,22 @@
 # define PRINTER_CLASS adamPrinter
 #endif
 
+#ifdef BUILD_S100
+# include "s100spi/printer.h"
+# include "s100spi/printerlist.h"
+# define PRINTER_CLASS s100spiPrinter
+#endif
+
 #ifdef NEW_TARGET
 # include "new/printer.h"
 # include "new/printerlist.h"
 # define PRINTER_CLASS adamPrinter
+#endif
+
+#ifdef BUILD_APPLE
+# include "iwm/printer.h"
+# include "iwm/printerlist.h"
+# define PRINTER_CLASS applePrinter
 #endif
 
 #endif // DEVICE_PRINTER_H

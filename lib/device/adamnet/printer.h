@@ -26,9 +26,9 @@ protected:
     
     void sio_write(uint8_t aux1, uint8_t aux2);
     
-    virtual void adamnet_control_status();
+    virtual void adamnet_control_status() override;
     virtual void adamnet_control_send();
-    virtual void adamnet_control_ready();
+    virtual void adamnet_control_ready() override;
 
     void adamnet_process(uint8_t b) override;
     void shutdown() override;

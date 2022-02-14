@@ -16,9 +16,20 @@
   extern adamModem *sioR;
 #endif
 
+#ifdef BUILD_S100
+# include "s100spi/modem.h"
+  extern s100spiModem *sioR;
+#endif
+
 #ifdef NEW_TARGET
 # include "new/modem.h"
 extern adamModem *sioR;
 #endif
+
+#ifdef BUILD_APPLE
+# include "iwm/modem.h"
+  extern appleModem *sioR;
+#endif
+
 
 #endif // DEVICE_MODEM_H

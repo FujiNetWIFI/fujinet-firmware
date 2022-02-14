@@ -45,6 +45,25 @@
     bool exists = false;
 #endif
 
+#ifdef BUILD_APPLE
+# include "iwm/disk.h"
+# include "iwm/fuji.h"
+# include "iwm/modem.h"
+# include "iwm/printer.h"
+# include "iwm/printerlist.h"
+    appleModem *sioR;
+#endif
+
+#ifdef BUILD_S100
+# include "s100spi/disk.h"
+# include "s100spi/network.h"
+# include "s100spi/modem.h"
+# include "s100spi/printer.h"
+# include "s100spi/printerlist.h"
+# include "s100spi/fuji.h"
+    s100spiModem *sioR;
+#endif
+
 #ifdef NEW_TARGET
 # include "new/keyboard.h"
 # include "new/modem.h"

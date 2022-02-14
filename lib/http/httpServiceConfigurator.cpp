@@ -11,6 +11,13 @@
 #include "utils.h"
 
 
+#ifdef BUILD_APPLE
+#include "iwm/printerlist.h"
+#include "iwm/fuji.h"
+#define PRINTER_CLASS applePrinter
+extern iwmFuji theFuji;
+#endif /* BUILD_APPLE */
+
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
 {

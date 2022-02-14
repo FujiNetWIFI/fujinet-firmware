@@ -82,4 +82,7 @@
 #define PIN_USB_DP          27      // D+
 #define PIN_USB_DM          32      // D-
 
+// Apple II IWM pin assignments
+
+
 #endif

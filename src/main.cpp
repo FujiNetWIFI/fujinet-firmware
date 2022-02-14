@@ -138,6 +138,7 @@ void main_setup()
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();
+    fnSDFAT.create_path("/FujiNet");
 
 # ifdef VIRTUAL_ADAM_DEVICES
     Debug_printf("Physical Device Scanning...\n");
@@ -172,12 +173,32 @@ void main_setup()
 
 #endif // BUILD_ADAM
 
+#ifdef BUILD_APPLE
+// spDevice spsd;
+appleModem *sioR;
+FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
+
+IWM.addDevice(new iwmDisk(),iwm_internal_type_t::GenericBlock);
+IWM.addDevice(new iwmDisk(),iwm_internal_type_t::GenericBlock);
+
+theFuji.setup(&IWM);
+IWM.setup();
+
+#endif /* BUILD_APPLE */
+
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
 #endif // DEBUG
 }
 
+#ifdef BUILD_S100
+
+//theFuji.setup(&s100Bus);
+//SYSTEM_BUS.setup();
+
+#endif /* BUILD_S100*/
 
 // Main high-priority service loop
 void fn_service_loop(void *param)
@@ -208,12 +229,13 @@ extern "C"
 {    
     void app_main()
     {
+        // cppcheck-suppress "unusedFunction"
         // Call our setup routine
         main_setup();
 
         // Create a new high-priority task to handle the main loop
         // This is assigned to CPU1; the WiFi task ends up on CPU0
-        #define MAIN_STACKSIZE 16384
+        #define MAIN_STACKSIZE 32768
         #define MAIN_PRIORITY 10
         #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
@@ -224,3 +246,4 @@ extern "C"
             vTaskDelay(9000 / portTICK_PERIOD_MS);
     }
 }
+

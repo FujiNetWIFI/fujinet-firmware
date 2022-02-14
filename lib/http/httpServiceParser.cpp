@@ -282,10 +282,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #ifdef BUILD_ATARI
     case FN_SIO_HSINDEX:
-        resultstream << systemBus.getHighSpeedIndex();
+        resultstream << SIO.getHighSpeedIndex();
         break;
     case FN_SIO_HSBAUD:
-        resultstream << systemBus.getHighSpeedBaud();
+        resultstream << SIO.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
     case FN_PRINTER1_MODEL:
@@ -448,12 +448,13 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 
                 for(int i=0; i<(int) PRINTER_CLASS::PRINTER_INVALID; i++)
                 {
+#ifndef BUILD_APPLE
                     strncat(result, "<option value=\"", MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "\">", MAX_PRINTER_LIST_BUFFER);
                     strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "</option>\n", MAX_PRINTER_LIST_BUFFER-1);
-
+#endif /* BUILD_APPLE */
                 }
                 resultstream << result;
                 free(result);

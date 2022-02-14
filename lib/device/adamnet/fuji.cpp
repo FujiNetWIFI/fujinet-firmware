@@ -397,8 +397,6 @@ void adamFuji::adamnet_mount_all()
 
     // Go ahead and respond ok
     adamnet_response_ack();
-
-
 }
 
 // Set boot mode
@@ -422,128 +420,37 @@ char *_generate_appkey_filename(appkey *info)
 }
 
 /*
- Opens an "app key".  This just sets the needed app key parameters (creator, app, key, mode)
- for the subsequent expected read/write command. We could've added this information as part
- of the payload in a WRITE_APPKEY command, but there was no way to do this for READ_APPKEY.
- Requiring a separate OPEN command makes both the read and write commands behave similarly
- and leaves the possibity for a more robust/general file read/write function later.
-*/
-void adamFuji::adamnet_open_app_key()
-{
-    Debug_print("Fuji cmd: OPEN APPKEY\n");
-
-    // The data expected for this command
-    adamnet_recv_buffer((uint8_t *)&_current_appkey, sizeof(_current_appkey));
-    uint8_t ck = adamnet_recv();
-
-    if (adamnet_checksum((uint8_t *)&_current_appkey, sizeof(_current_appkey)) != ck)
-    {
-        adamnet_response_nack();
-        return;
-    }
-
-    // We're only supporting writing to SD, so return an error if there's no SD mounted
-    if (fnSDFAT.running() == false)
-    {
-        Debug_println("No SD mounted - returning error");
-        adamnet_response_nack();
-        return;
-    }
-
-    // Basic check for valid data
-    if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
-    {
-        Debug_println("Invalid app key data");
-        adamnet_response_nack();
-        return;
-    }
-
-    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
-                 _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
-                 _generate_appkey_filename(&_current_appkey));
-
-    adamnet_response_ack();
-}
-
-/*
-  The app key close operation is a placeholder in case we want to provide more robust file
-  read/write operations. Currently, the file is closed immediately after the read or write operation.
-*/
-void adamFuji::adamnet_close_app_key()
-{
-    Debug_print("Fuji cmd: CLOSE APPKEY\n");
-    _current_appkey.creator = 0;
-    _current_appkey.mode = APPKEYMODE_INVALID;
-    adamnet_response_ack();   
-}
-
-/*
  Write an "app key" to SD (ONLY!) storage.
 */
 void adamFuji::adamnet_write_app_key()
 {
-    uint16_t keylen = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+    uint16_t creator = adamnet_recv_length();
+    uint8_t app = adamnet_recv();
+    uint8_t key = adamnet_recv();
+    uint8_t data[64];
+    char appkeyfilename[30];
+    FILE *fp;
 
-    Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
+    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key",creator,app,key);
 
-    // Data for SIO_FUJICMD_WRITE_APPKEY
-    uint8_t value[MAX_APPKEY_LEN];
+    adamnet_recv_buffer(data,64);
+    adamnet_recv(); // CK
 
-    adamnet_recv_buffer((uint8_t *)value, sizeof(value));
-    uint8_t ck = adamnet_recv();
+    Debug_printf("Fuji Cmd: WRITE APPKEY %s\n",appkeyfilename);
 
-    if (adamnet_checksum((uint8_t *)value, sizeof(value)) != ck)
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    fp = fnSDFAT.file_open(appkeyfilename, "w");
+
+    if (fp == nullptr)
     {
-        adamnet_response_nack();
+        Debug_printf("Could not open.\n");
         return;
     }
-
-    // Make sure we have valid app key information
-    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
-    {
-        Debug_println("Invalid app key metadata - aborting");
-        adamnet_response_nack();
-        return;
-    }
-
-    // Make sure we have an SD card mounted
-    if (fnSDFAT.running() == false)
-    {
-        Debug_println("No SD mounted - can't write app key");
-        adamnet_response_nack();
-        return;
-    }
-
-    char *filename = _generate_appkey_filename(&_current_appkey);
-
-    // Reset the app key data so we require calling APPKEY OPEN before another attempt
-    _current_appkey.creator = 0;
-    _current_appkey.mode = APPKEYMODE_INVALID;
-
-    Debug_printf("Writing appkey to \"%s\"\n", filename);
-
-    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
-    fnSDFAT.create_path("/FujiNet");
-
-    FILE *fOut = fnSDFAT.file_open(filename, "w");
-    if (fOut == nullptr)
-    {
-        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
-        adamnet_response_nack();
-        return;
-    }
-    size_t count = fwrite(value, 1, keylen, fOut);
-    int e = errno;
-
-    fclose(fOut);
-
-    if (count != keylen)
-    {
-        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
-        adamnet_response_nack();
-    }
-
-    adamnet_response_nack();
+    
+    size_t l = fwrite(data,sizeof(uint8_t),sizeof(data),fp);
+    fclose(fp);
 }
 
 /*
@@ -551,51 +458,30 @@ void adamFuji::adamnet_write_app_key()
 */
 void adamFuji::adamnet_read_app_key()
 {
-    Debug_println("Fuji cmd: READ APPKEY");
+    uint16_t creator = adamnet_recv_length();
+    uint8_t app = adamnet_recv();
+    uint8_t key = adamnet_recv();
 
-    // Make sure we have an SD card mounted
-    if (fnSDFAT.running() == false)
-    {
-        Debug_println("No SD mounted - can't read app key");
-        adamnet_response_nack();
-        return;
-    }
-
-    // Make sure we have valid app key information
-    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
-    {
-        Debug_println("Invalid app key metadata - aborting");
-        adamnet_response_nack();
-        return;
-    }
-
-    char *filename = _generate_appkey_filename(&_current_appkey);
-
-    Debug_printf("Reading appkey from \"%s\"\n", filename);
-
-    FILE *fIn = fnSDFAT.file_open(filename, "r");
-    if (fIn == nullptr)
-    {
-        Debug_printf("Failed to open input file: errno=%d\n", errno);
-        adamnet_response_nack();
-        return;
-    }
-
-    struct
-    {
-        uint16_t size;
-        uint8_t value[MAX_APPKEY_LEN];
-    } __attribute__((packed)) response;
-    memset(&response, 0, sizeof(response));
-
-    size_t count = fread(response.value, 1, sizeof(response.value), fIn);
-
-    fclose(fIn);
-    Debug_printf("Read %d bytes from input file\n", count);
-
-    response.size = count;
-
+    adamnet_recv(); // CK
+    AdamNet.start_time=esp_timer_get_time();
     adamnet_response_ack();
+
+    char appkeyfilename[30];
+    FILE *fp;
+
+    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key",creator,app,key);
+
+    fp = fnSDFAT.file_open(appkeyfilename, "r");
+
+    if (fp == nullptr)
+    {
+        Debug_printf("Could not open key.");
+        return;
+    }
+
+    memset(response,0,sizeof(response));
+    response_len = fread(response, sizeof(char),64,fp);
+    fclose(fp);
 }
 
 // DEBUG TAPE
@@ -1421,12 +1307,6 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_SET_BOOT_MODE:
         adamnet_set_boot_mode();
-        break;
-    case SIO_FUJICMD_OPEN_APPKEY:
-        adamnet_open_app_key();
-        break;
-    case SIO_FUJICMD_CLOSE_APPKEY:
-        adamnet_close_app_key();
         break;
     case SIO_FUJICMD_WRITE_APPKEY:
         adamnet_write_app_key();

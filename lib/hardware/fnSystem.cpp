@@ -12,6 +12,7 @@
 #include <soc/rtc.h>
 #include <esp_adc_cal.h>
 #include <time.h>
+#include <cstring>
 
 #include "../../include/debug.h"
 #include "../../include/version.h"
@@ -22,6 +23,11 @@
 #include "fnFsSD.h"
 #include "fnFsSPIFFS.h"
 #include "fnWiFi.h"
+
+
+#ifdef BUILD_APPLE
+#define BUS_CLASS IWM
+#endif
 
 
 static xQueueHandle card_detect_evt_queue = NULL;
@@ -66,6 +72,13 @@ static void card_detect_intr_task(void* arg)
 
 // Global object to manage System
 SystemManager fnSystem;
+
+SystemManager::SystemManager()
+{
+    memset(_uptime_string,0,sizeof(_uptime_string));
+    memset(_currenttime_string,0,sizeof(_currenttime_string));
+    _hardware_version=0;
+}
 
 // Returns current CPU frequency in MHz
 uint32_t SystemManager::get_cpu_frequency()

@@ -192,7 +192,9 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     {
         e = esp_wifi_scan_get_ap_num(&result);
         if (e != ESP_OK)
+        {
             Debug_printf("esp_wifi_scan_get_ap_num returned error %d\n", e);
+        }
     }
     else
     {
@@ -437,6 +439,9 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             fnLedManager.set(eLed::LED_WIFI, true);
             fnSystem.Net.start_sntp_client();
             fnHTTPD.start();
+#ifdef BUILD_APPLE
+            IWM.startup_hack();
+#endif
 #ifdef BUILD_ATARI // temporary
             if (Config.get_general_config_enabled() == false)
                 theFuji.sio_mount_all();
