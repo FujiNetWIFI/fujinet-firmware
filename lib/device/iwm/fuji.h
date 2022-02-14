@@ -130,10 +130,14 @@ protected:
 
     */
     void shutdown() override;
-    void process(cmdPacket_t cmd) override{};
+    void process(cmdPacket_t cmd) override;
 
-    void encode_status_reply_packet() override{};
-    void encode_status_dib_reply_packet() override{};
+    void iwm_open(cmdPacket_t cmd);
+    void iwm_close(cmdPacket_t cmd);
+    void iwm_read(cmdPacket_t cmd);
+
+    void encode_status_reply_packet() override;
+    void encode_status_dib_reply_packet() override;
 
     void encode_extended_status_reply_packet() override{};
     void encode_extended_status_dib_reply_packet() override{};
@@ -166,6 +170,8 @@ public:
     void sio_mount_all();              // 0xD7
 
     iwmFuji();
+
+    virtual void startup_hack() override { Debug_printf("\r\n Fuji startup hack"); }
 };
 
 extern iwmFuji theFuji;
