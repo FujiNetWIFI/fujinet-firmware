@@ -11,6 +11,46 @@
 #include <string>
 #include "fnFS.h"
 
+// todo - see page 81-82 in Apple IIc ROM reference
+#define SP_ERR_BADCMD 0x01     // invalid command
+#define SP_ERR_BUSERR 0x06     // communications error
+#define SP_ERR_BADCTL 0x21     // invalid status or control code
+#define SP_ERR_BADCTLPARM 0x22 // invalid parameter list
+#define SP_ERR_IOERROR 0x27    // i/o error on device side
+#define SP_ERR_NODRIVE 0x28    // no device connected
+#define SP_ERR_NOWRITE 0x2b    // disk write protected
+#define SP_ERR_BADBLOCK 0x2d   // invalid block number
+#define SP_ERR_OFFLINE 0x2f    // device offline or no disk in drive
+
+#define STATCODE_BLOCK_DEVICE 0x01 << 7   // block device = 1, char device = 0
+#define STATCODE_WRITE_ALLOWED 0x01 << 6
+#define STATCODE_READ_ALLOWED 0x01 << 5
+#define STATCODE_DEVICE_ONLINE 0x01 << 4  // or disk in drive
+#define STATCODE_FORMAT_ALLOWED 0x01 << 3
+#define STATCODE_WRITE_PROTECT 0x01 << 2  // block devices only
+#define STATCODE_INTERRUPTING 0x01 << 1   // apple IIc only
+#define STATCODE_DEVICE_OPEN 0x01 << 0    // char devices only
+
+// valid types and subtypes for block devices per smartport documentation
+#define SP_TYPE_BYTE_35DISK 0x01
+#define SP_SUBTYPE_BYTE_UNI35 0x00
+#define SP_SUBTYPE_BYTE_APPLE35 0xC0
+
+#define SP_TYPE_BYTE_HARDDISK 0x02
+#define SP_SUBTYPE_BYTE_REMOVABLE 0x00
+#define SP_SUBTYPE_BYTE_HARDDISK 0x20 // fixed media
+#define SP_SUBTYPE_BYTE_SWITCHED 0x40 // removable and supports disk switched errors
+#define SP_SUBTYPE_BYTE_HARDDISK_EXTENDED 0xA0 
+#define SP_SUBTYPE_BYTE_REMOVABLE_EXTENDED 0xC0 // removable and extended and supports disk switched errors
+
+#define SP_TYPE_BYTE_SCSI 0x03
+#define SP_SUBTYPE_BYTE_SCSI_REMOVABLE 0xC0 // removable and extended and supports disk switched errors
+
+#define SP_TYPE_BYTE_FUJINET 0x10
+#define SP_SUBTYPE_BYTE_FUJINET 0x00
+
+
+
 #undef TESTTX
 //#define TESTTX
 
@@ -106,17 +146,24 @@ C8 PEND     PACKET END BYTE 32 micro Sec.
   uint8_t data[COMMAND_PACKET_LEN];
 };
 
-enum class iwm_internal_type_t
+enum class iwm_smartport_type_t
 {
-  GenericBlock,
-  GenericChar,
+  Block_Device,
+  Character_Device
+};
+
+enum class iwm_fujinet_type_t
+{
+  BlockDisk,
   FujiNet,
   Modem,
   Network,
   CPM,
   Printer,
-  Voice
+  Voice,
+  Other
 };
+
 
 struct iwm_device_info_block_t
 {
@@ -136,13 +183,12 @@ class iwmDevice
 friend iwmBus; // put here for prototype, not sure if will need to keep it
 
 protected:
-  iwm_internal_type_t internal_type;
-  iwm_device_info_block_t dib;
-  uint8_t _devnum;
+  // set these things in constructor or initializer?
+  iwm_smartport_type_t device_type;
+  iwm_fujinet_type_t internal_type;
+  iwm_device_info_block_t dib;   // device information block
+  uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
-
-  // device information block
-
 
   // iwm packet handling
   uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
@@ -160,15 +206,13 @@ protected:
   void encode_extended_data_packet(uint8_t source);
   virtual void encode_extended_status_reply_packet() = 0;
   virtual void encode_extended_status_dib_reply_packet() = 0;
-
   
   int packet_length(void);
 
-
-  // void iwm_readblock();
- 
   virtual void shutdown() = 0;
   virtual void process(cmdPacket_t cmd) = 0;
+  void iwm_status(cmdPacket_t cmd);
+  void iwm_return_badcmd(cmdPacket_t cmd);
 
 public:
   bool device_active;
@@ -179,6 +223,8 @@ public:
   int id() { return _devnum; };
   //void assign_id(uint8_t n) { _devnum = n; };
 
+  void assign_name(std::string name) {dib.device_name = name;}
+
   /**
    * @brief Get the iwmBus object that this iwmDevice is attached to.
    */
@@ -187,7 +233,7 @@ public:
   /**
    * Startup hack for now
    */
-  virtual void startup_hack();
+  virtual void startup_hack() = 0;
 };
 
 class iwmBus
@@ -261,7 +307,7 @@ public:
   void handle_init(); // todo: put this function in the right place
 
   int numDevices();
-  void addDevice(iwmDevice *pDevice, iwm_internal_type_t deviceType); // todo: probably get called by handle_init()
+  void addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
   void changeDeviceId(iwmDevice *p, int device_id);

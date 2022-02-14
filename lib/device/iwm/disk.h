@@ -33,11 +33,12 @@ protected:
     void iwm_read();
     void iwm_write(bool verify);
     // void iwm_format();
-    void iwm_status(cmdPacket_t cmd); // override;
+    //void iwm_status(cmdPacket_t cmd); // override;
     void process(cmdPacket_t cmd) override; // uint32_t commanddata, uint8_t checksum); // override;
 
     void iwm_readblock(cmdPacket_t cmd);
     void iwm_writeblock(cmdPacket_t cmd);
+    
 
     // void derive_percom_block(uint16_t numSectors);
     // void iwm_read_percom_block();

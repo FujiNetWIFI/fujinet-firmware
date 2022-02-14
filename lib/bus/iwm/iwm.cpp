@@ -1021,7 +1021,14 @@ void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
 
 }
 
-
+void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
+{
+  uint8_t source = cmd.dest; // packet_buffer[6];
+  // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
+  Debug_printf("\r\nUnit %02x Bad Command %02x", source, cmd.command);
+  encode_error_reply_packet(source, SP_ERR_BADCMD);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+}
 
 //*****************************************************************************
 // Function: verify_cmdpkt_checksum
@@ -1075,6 +1082,24 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   return (pkt_checksum != calc_checksum);  
 }
 
+void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
+{
+  uint8_t status_code = cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
+
+  if (status_code == 0x03)
+  { // if statcode=3, then status with device info block
+    Debug_printf("\r\n******** Sending DIB! ********");
+    encode_status_dib_reply_packet();
+    // print_packet ((unsigned char*) packet_buffer,packet_length());
+    fnSystem.delay(50);
+    }
+    else
+    { // else just return device status
+      Debug_printf("\r\nSending Status");
+      encode_status_reply_packet();
+    }
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+}
 
 //*****************************************************************************
 // Function: packet_length
@@ -1261,7 +1286,7 @@ void iwmBus::handle_init()
 }
 
 // Add device to SIO bus
-void iwmBus::addDevice(iwmDevice *pDevice, iwm_internal_type_t deviceType)
+void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
 {
   // SmartPort interface assigns device numbers to the devices in the daisy chain one at a time
   // as opposed to using standard or fixed device ID's like Atari SIO. Therefore, an emulated
@@ -1293,32 +1318,30 @@ void iwmBus::addDevice(iwmDevice *pDevice, iwm_internal_type_t deviceType)
     // assign dedicated pointers to certain devices
     switch (deviceType)
     {
-    case iwm_internal_type_t::GenericBlock:
-      // no special device assignment needed
+    case iwm_fujinet_type_t::BlockDisk:
       break;
-    case iwm_internal_type_t::GenericChar:
-      // no special device assignment needed
-      break;
-    case iwm_internal_type_t::FujiNet:
+    case iwm_fujinet_type_t::FujiNet:
       _fujiDev = (iwmFuji *)pDevice;
       break;
-    case iwm_internal_type_t::Modem:
+    case iwm_fujinet_type_t::Modem:
       _modemDev = (iwmModem *)pDevice;
       break;
-    case iwm_internal_type_t::Network:
+    case iwm_fujinet_type_t::Network:
       // todo: work out how to assign different network devices - idea:
       // include a number in the DIB name, e.g., "NETWORK 1"
       // and extract that number from the DIB and use it as the index
       //_netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (iwmNetwork *)pDevice;
       break;
-    case iwm_internal_type_t::CPM:
+    case iwm_fujinet_type_t::CPM:
     //   _cpmDev = (iwmCPM *)pDevice;
        break;
-    case iwm_internal_type_t::Printer:
+    case iwm_fujinet_type_t::Printer:
       _printerdev = (iwmPrinter *)pDevice;
       break;
-    case iwm_internal_type_t::Voice:
+    case iwm_fujinet_type_t::Voice:
     // not yet implemented: todo - take SAM and implement as a special block device. Also then available for disk rotate annunciation. 
+      break;
+    case iwm_fujinet_type_t::Other:
       break;
     }
 
@@ -1374,11 +1397,6 @@ void iwmBus::shutdown()
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
-}
-
-void iwmDevice::startup_hack()
-{
-  
 }
 
 #ifdef TESTTX

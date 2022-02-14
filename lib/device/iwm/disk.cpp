@@ -6,17 +6,7 @@
 #include "fnFsSD.h"
 #include "led.h"
 
-#undef LOCAL_TNFS
-
-#define SP_ERR_BADCMD 0x01 // invalid command
-#define SP_ERR_BUSERR 0x06 // communications error
-#define SP_ERR_BADCTL 0x21 // invalid status or control code
-#define SP_ERR_BADCTLPARM 0x22 // invalid parameter list
-#define SP_ERR_IOERROR 0x27 // i/o error on device side
-#define SP_ERR_NODRIVE 0x28 // no device connected
-#define SP_ERR_NOWRITE 0x2b // disk write protected
-#define SP_ERR_BADBLOCK 0x2d // invalid block number
-#define SP_ERR_OFFLINE 0x2f // device offline or no disk in drive
+#define LOCAL_TNFS
 
 FileSystemTNFS tserver;
 
@@ -254,7 +244,7 @@ void iwmDisk::encode_extended_status_reply_packet()
 // data byte 2-4 number of blocks. 2 is the LSB and 4 the MSB.
 // Calculated from actual image file size.
 //*****************************************************************************
-void iwmDisk::encode_status_dib_reply_packet()
+void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with passsed parameters
 {
   int grpbyte, grpcount, i;
   int grpnum, oddnum;
@@ -279,7 +269,7 @@ void iwmDisk::encode_status_dib_reply_packet()
   data[1] = d.blocks & 0xff;         // block size 1
   data[2] = (d.blocks >> 8) & 0xff;  // block size 2
   data[3] = (d.blocks >> 16) & 0xff; // block size 3
-  data[4] = 0x07;                    // ID string length - 11 chars
+  data[4] = 0x0E;                    // ID string length - 14 chars
   data[5] = 'F';
   data[6] = 'U';
   data[7] = 'J';
@@ -287,13 +277,13 @@ void iwmDisk::encode_status_dib_reply_packet()
   data[9] = 'N';
   data[10] = 'E';
   data[11] = 'T';
-  data[12] = ' ';
-  data[13] = ' ';
-  data[14] = ' ';
-  data[15] = ' ';
-  data[16] = ' ';
-  data[17] = ' ';
-  data[18] = ' ';
+  data[12] = '_';
+  data[13] = 'D';
+  data[14] = 'I';
+  data[15] = 'S';
+  data[16] = 'K';
+  data[17] = '_';
+  data[18] = '1';
   data[19] = ' ';
   data[20] = ' ';  // ID string (16 chars total)
   data[21] = 0x02; // Device type    - 0x02  harddisk
@@ -439,7 +429,7 @@ void iwmDisk::process(cmdPacket_t cmd)
   switch (cmd.command)
   {
   case 0x80: // status
-      Debug_printf("\r\nhandling status command");
+    Debug_printf("\r\nhandling status command");
     iwm_status(cmd);
     break;
   case 0x81: // read block
@@ -451,20 +441,25 @@ void iwmDisk::process(cmdPacket_t cmd)
     iwm_writeblock(cmd);
     break;
   case 0x83: // format
+    iwm_return_badcmd(cmd);
     break;
   case 0x84: // control
+    iwm_return_badcmd(cmd);
     break;
-  // case 0x85: // init
-  //   break;
   case 0x86: // open
-  // todo - return invalid command error for char device commands
+    iwm_return_badcmd(cmd);
     break;
   case 0x87: // close
+    iwm_return_badcmd(cmd);
     break;
   case 0x88: // read
+    iwm_return_badcmd(cmd);
     break;
   case 0x89: // write
+    iwm_return_badcmd(cmd);
     break;
+  default:
+    iwm_return_badcmd(cmd);
   } // switch (cmd)
   fnLedManager.set(LED_BUS, false);
 }
@@ -483,7 +478,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
 
   if (!d.sdf)
   {
-    // no image mounted
+    Debug_printf(" - ERROR - No image mounted");
     encode_error_reply_packet(source, SP_ERR_OFFLINE);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     return;
@@ -499,7 +494,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   // Added (unsigned short) cast to ensure calculated block is not underflowing.
   block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
   block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
-  Debug_printf("Read block %04x", block_num);
+  Debug_printf(" Read block %04x", block_num);
 
   if (block_num != last_block_num + 1) // example optimization, only do seek if not reading next block -tschak
   {
@@ -586,56 +581,12 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
   }
 }
 
-void iwmDisk::iwm_read()
-{
-}
 
-void iwmDisk::iwm_write(bool verify)
-{
-}
 
 // void iwm_format();
 
-void iwmDisk::iwm_status(cmdPacket_t cmd) // override;
-{
-  // uint8_t source = packet_buffer[6];
 
-  //if (d.sdf != nullptr) // device should respond despite having no image loaded - could indicate error is status code
-  //{
-  uint8_t status_code = cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
-  // Serial.print(F("\r\nStatus code: "));
-  // Serial.print(status_code);
-  // print_packet ((unsigned char*) packet_buffer, packet_length());
-  // Serial.print(F("\r\nHere's the decoded status packet because frig doing it by hand!"));
-  // decode_data_packet();
-  // print_packet((unsigned char*) packet_buffer, 9); //Standard SmartPort command is 9 bytes
-  // if (status_code |= 0x00) { // TEST
-  //   Serial.print(F("\r\nStatus not zero!! ********"));
-  //   print_packet ((unsigned char*) packet_buffer,packet_length());}
-  if (status_code == 0x03)
-  { // if statcode=3, then status with device info block
-    Debug_printf("\r\n******** Sending DIB! ********");
-    encode_status_dib_reply_packet();
-    // print_packet ((unsigned char*) packet_buffer,packet_length());
-    fnSystem.delay(50);
-    }
-    else
-    { // else just return device status
-      /*
-                  Serial.print(F("\r\n-------- Sending status! --------"));
-                  Serial.print(F("\r\nSource: "));
-                  Serial.print(source,HEX);
-                  Serial.print(F(" Partition ID: "));
-                  Serial.print(devices[(partition + initPartition) % NUM_PARTITIONS].device_id, HEX);
-                  Serial.print(F(" Status code: "));
-                  Serial.print(status_code, HEX);
-                  */
-      Debug_printf("\r\nSending Status");
-      encode_status_reply_packet();
-    }
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
-  //}
-}
+
 // void derive_percom_block(uint16_t numSectors);
 // void iwm_read_percom_block();
 // void iwm_write_percom_block();
@@ -667,6 +618,7 @@ bool iwmDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 
 void iwmDisk::startup_hack()
 {
+  Debug_printf("\r\n Disk startup hack");
   init();
 }
 

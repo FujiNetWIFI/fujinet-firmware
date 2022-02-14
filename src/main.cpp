@@ -179,9 +179,9 @@ appleModem *sioR;
 FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
 sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
 
-IWM.addDevice(new iwmDisk(),iwm_internal_type_t::GenericBlock);
-IWM.addDevice(new iwmDisk(),iwm_internal_type_t::GenericBlock);
-
+IWM.addDevice(&theFuji, iwm_fujinet_type_t::FujiNet);
+IWM.addDevice(new iwmDisk(), iwm_fujinet_type_t::BlockDisk);
+IWM.addDevice(new iwmDisk(), iwm_fujinet_type_t::BlockDisk);
 theFuji.setup(&IWM);
 IWM.setup();
 
