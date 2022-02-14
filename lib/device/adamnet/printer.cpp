@@ -40,9 +40,11 @@ void printerTask(void *param)
 pttop:
     while (uxQueueMessagesWaiting(print_queue))
     {
+        fnLedManager.set(LED_BT,true);
         xQueueReceive(print_queue,&pi,portMAX_DELAY);
         memcpy(pb,pi.buf,pi.len);
         pe->process(pi.len,0,0);
+        fnLedManager.set(LED_BT,false);
     }
     goto pttop;
 }
