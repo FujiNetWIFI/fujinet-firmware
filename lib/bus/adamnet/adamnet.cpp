@@ -215,7 +215,6 @@ void virtualDevice::adamnet_process(uint8_t b)
 
 void virtualDevice::adamnet_control_status()
 {
-    AdamNet.wait_for_idle();
     AdamNet.start_time=esp_timer_get_time();
     adamnet_response_status();
 }
