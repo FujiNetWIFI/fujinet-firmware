@@ -184,6 +184,7 @@ bool adamNetwork::read_channel(unsigned short num_bytes)
  */
 void adamNetwork::write(uint16_t num_bytes)
 {
+    Debug_printf("!!! WRITE\n");
     memset(response, 0, sizeof(response));
 
     adamnet_recv_buffer(response, num_bytes);
@@ -563,6 +564,9 @@ void adamNetwork::adamnet_response_status()
     statusByte.bits.client_connected = s.connected == true;
     statusByte.bits.client_data_available = s.rxBytesWaiting > 0;
     statusByte.bits.client_error = s.error > 1;
+
+    status_response[1] = 2;  // max packet size 1026 bytes, maybe larger?
+    status_response[2] = 4;
 
     status_response[4] = statusByte.byte;
 
