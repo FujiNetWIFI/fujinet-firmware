@@ -6,7 +6,6 @@
 
 #include "../../include/debug.h"
 
-
 #define SERIAL_BUF_SIZE 16
 
 static xQueueHandle serial_out_queue = NULL;
@@ -14,14 +13,15 @@ static xQueueHandle serial_out_queue = NULL;
 void serial_task(void *param)
 {
     adamSerial *sp = (adamSerial *)param;
-    uint8_t c=0;
+    uint8_t c = 0;
 
-    while (1)
+    for (;;)
     {
-        if (xQueueReceive(serial_out_queue,&c,portMAX_DELAY))
+        if (uxQueueMessagesWaiting(serial_out_queue))
         {
+            xQueueReceive(serial_out_queue,&c,portMAX_DELAY);
             sp->client.write(c);
-        }        
+        }
     }
 }
 
@@ -33,7 +33,7 @@ adamSerial::adamSerial()
     response_len = 0;
     status_response[3] = 0x00; // character device
     serial_out_queue = xQueueCreate(16, sizeof(uint8_t));
-    // xTaskCreatePinnedToCore(serial_task, "adamnet_serial", 2048, this, 10, NULL,1);
+    xTaskCreate(serial_task, "adamnet_serial", 2048, this, 0, NULL);
 }
 
 adamSerial::~adamSerial()
@@ -56,23 +56,17 @@ void adamSerial::command_recv()
 
 void adamSerial::adamnet_response_status()
 {
-    unsigned short s = SERIAL_BUF_SIZE;
-
-    status_response[1] = s & 0xFF;
-    status_response[2] = s >> 8;
+    uint8_t s[6] = {0x8E,0x10,0x00,0x00,0x00,0x00};
 
     if (!client.connected() && server->hasClient())
-    {
-        // Accept waiting connection
         client = server->available();
-    }
 
     if (client.available())
-    {
-        status_response[4] = client.available() > SERIAL_BUF_SIZE ? SERIAL_BUF_SIZE : client.available();
-    }
+        s[4] = client.available();
 
-    virtualDevice::adamnet_response_status();
+    s[5]=adamnet_checksum(&s[1],4);
+
+    adamnet_send_buffer(s,6);
 }
 
 void adamSerial::adamnet_control_clr()
@@ -94,7 +88,12 @@ void adamSerial::adamnet_control_clr()
 
 void adamSerial::adamnet_control_ready()
 {
-    adamnet_response_ack();
+    AdamNet.start_time=esp_timer_get_time();
+
+    if (uxQueueMessagesWaiting(serial_out_queue))
+        adamnet_response_nack();
+    else
+        adamnet_response_ack();
 }
 
 void adamSerial::adamnet_idle()
