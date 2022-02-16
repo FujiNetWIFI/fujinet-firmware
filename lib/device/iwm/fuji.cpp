@@ -1,6 +1,7 @@
 #ifdef BUILD_APPLE
 #include "fuji.h"
 
+#include "fnSystem.h"
 #include "led.h"
 
 iwmFuji theFuji; // Global fuji object.
@@ -8,6 +9,14 @@ iwmFuji theFuji; // Global fuji object.
 iwmFuji::iwmFuji()
 {
   Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
+}
+
+void iwmFuji::iwm_reset_fujinet()
+{
+    Debug_printf("\r\nFuji cmd: REBOOT");
+    encode_status_reply_packet();
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    fnSystem.reboot();
 }
 
 void iwmFuji::shutdown()
@@ -52,39 +61,42 @@ void iwmFuji::sio_mount_all() // 0xD7 (yes, I know.)
 
 void iwmFuji::process(cmdPacket_t cmd)
 {
-    fnLedManager.set(LED_BUS, true);
-    switch (cmd.command)
-    {
-    case 0x80: // status
-        Debug_printf("\r\nhandling status command");
-        iwm_status(cmd);
-        break;
-    case 0x81: // read block
-        iwm_return_badcmd(cmd);
-        break;
-    case 0x82: // write block
-        iwm_return_badcmd(cmd);
-        break;
-    case 0x83: // format
-        iwm_return_badcmd(cmd);
-        break;
-    case 0x84: // control
-        break;
-    case 0x86: // open
-        iwm_open(cmd);
-        break;
-    case 0x87: // close
-        iwm_close(cmd);
-        break;
-    case 0x88: // read
-        iwm_read(cmd);
-        break;
-    case 0x89: // write
-        iwm_return_badcmd(cmd);
-        break;
+  fnLedManager.set(LED_BUS, true);
+  switch (cmd.command)
+  {
+  case 0x80: // status
+    Debug_printf("\r\nhandling status command");
+    iwm_status(cmd);
+    break;
+  case 0x81: // read block
+    iwm_return_badcmd(cmd);
+    break;
+  case 0x82: // write block
+    iwm_return_badcmd(cmd);
+    break;
+  case 0x83: // format
+    iwm_return_badcmd(cmd);
+    break;
+  case 0x84: // control
+    Debug_printf("\r\nhandling control command");
+    iwm_ctrl(cmd);
+    break;
+  case 0x86: // open
+    Debug_printf("\r\nhandling open command");
+    iwm_open(cmd);
+    break;
+  case 0x87: // close
+    iwm_close(cmd);
+    break;
+  case 0x88: // read
+    Debug_printf("\r\nhandling read command");
+    iwm_read(cmd);
+    break;
+  case 0x89: // write
+    iwm_return_badcmd(cmd);
+    break;
   } // switch (cmd)
   fnLedManager.set(LED_BUS, false);
-
 }
 
 void iwmFuji::encode_status_reply_packet()
@@ -252,6 +264,27 @@ void iwmFuji::iwm_close(cmdPacket_t cmd)
 {
 }
 
+void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
+{
+  uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
+  uint8_t control_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+  Debug_printf("\r\nDevice %02x Control Code %02x", source, control_code);
+  Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+  IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, BLOCK_PACKET_LEN);
+  Debug_printf("\r\n There are %02x Odd Bytes and %02x 7-byte Groups",packet_buffer[11] & 0x7f, packet_buffer[12] & 0x7f);
+  switch (control_code)
+  {
+  case 0x00:
+  case 0xFF:
+    iwm_reset_fujinet();
+    break;
+  default:
+    break;
+  }
+  encode_status_reply_packet();
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+}
+
 void iwmFuji::iwm_read(cmdPacket_t cmd)
 {
   uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
@@ -274,7 +307,7 @@ void iwmFuji::iwm_read(cmdPacket_t cmd)
   memcpy(packet_buffer,"HELLO WORLD",11);
   encode_data_packet(source, 11);
   Debug_printf("\r\nsending data packet with %d elements ...", 11);
-  print_packet();
+  //print_packet();
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
