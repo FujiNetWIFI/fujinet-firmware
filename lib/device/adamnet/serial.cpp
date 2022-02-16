@@ -48,7 +48,7 @@ void adamSerial::command_recv()
     {
         adamnet_response_nack();
         response_len = client.available() > SERIAL_BUF_SIZE ? SERIAL_BUF_SIZE : client.available();
-        int c = client.read(response, response_len);
+        client.read(response, response_len);
     }
     else
         adamnet_response_ack();
@@ -103,10 +103,9 @@ void adamSerial::adamnet_idle()
 void adamSerial::adamnet_control_send()
 {
     uint16_t s = adamnet_recv_length();
-    uint8_t ck;
 
     adamnet_recv_buffer(sendbuf, s);
-    ck = adamnet_recv();
+    adamnet_recv();
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
