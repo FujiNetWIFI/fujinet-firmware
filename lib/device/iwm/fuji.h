@@ -81,8 +81,9 @@ private:
     appkey _current_appkey;
 
 protected:
-    /* 
-    void adamnet_reset_fujinet();          // 0xFF
+     
+    void iwm_reset_fujinet();              // 0xFF
+    /*
     void adamnet_net_get_ssid();           // 0xFE
     void adamnet_net_scan_networks();      // 0xFD
     void adamnet_net_scan_result();        // 0xFC
@@ -132,6 +133,7 @@ protected:
     void shutdown() override;
     void process(cmdPacket_t cmd) override;
 
+    void iwm_ctrl(cmdPacket_t cmd);
     void iwm_open(cmdPacket_t cmd);
     void iwm_close(cmdPacket_t cmd);
     void iwm_read(cmdPacket_t cmd);
