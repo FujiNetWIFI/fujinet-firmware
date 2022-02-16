@@ -450,7 +450,7 @@ void adamFuji::adamnet_write_app_key()
         return;
     }
     
-    size_t l = fwrite(data,sizeof(uint8_t),sizeof(data),fp);
+    fwrite(data,sizeof(uint8_t),sizeof(data),fp);
     fclose(fp);
 }
 
