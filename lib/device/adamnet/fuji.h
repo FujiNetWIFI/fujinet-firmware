@@ -5,6 +5,7 @@
 
 #include "network.h"
 #include "disk.h"
+#include "serial.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -158,5 +159,6 @@ public:
 };
 
 extern adamFuji theFuji;
+extern adamSerial *theSerial;
 
 #endif // FUJI_H
