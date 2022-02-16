@@ -254,6 +254,28 @@ void iwmFuji::iwm_close(cmdPacket_t cmd)
 
 void iwmFuji::iwm_read(cmdPacket_t cmd)
 {
+  uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
+
+  uint16_t numbytes = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+  numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
+
+  uint32_t addy = (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+  addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
+  addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
+
+  Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x", source, numbytes, addy);
+
+
+  // Debug_printf(" - ERROR - No image mounted");
+  // encode_error_reply_packet(source, SP_ERR_OFFLINE);
+  // IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  // return;
+
+  memcpy(packet_buffer,"HELLO WORLD",11);
+  encode_data_packet(source, 11);
+  Debug_printf("\r\nsending data packet with %d elements ...", 11);
+  print_packet();
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 

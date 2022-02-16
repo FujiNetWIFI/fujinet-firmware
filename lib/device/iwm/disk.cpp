@@ -156,7 +156,7 @@ void iwmDisk::encode_status_reply_packet()
   for (int count = 7; count < 14; count++) // xor the packet header bytes
     checksum = checksum ^ packet_buffer[count];
   packet_buffer[19] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  packet_buffer[20] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
+  packet_buffer[20] = (checksum >> 1) | 0xaa; // 1 c7 1 c5 1 c3 1 c1
 
   packet_buffer[21] = 0xc8; // PEND
   packet_buffer[22] = 0x00; // end of packet in buffer

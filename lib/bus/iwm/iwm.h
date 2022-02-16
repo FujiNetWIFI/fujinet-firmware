@@ -49,7 +49,9 @@
 #define SP_TYPE_BYTE_FUJINET 0x10
 #define SP_SUBTYPE_BYTE_FUJINET 0x00
 
-
+#define PACKET_TYPE_CMD 0x80
+#define PACKET_TYPE_STATUS 0x81
+#define PACKET_TYPE_DATA 0x82
 
 #undef TESTTX
 //#define TESTTX
@@ -113,36 +115,36 @@ BB CHKSUM1  1ST BYTE OF CHECKSUM 32 micro Sec.
 EE CHKSUM2  2ND BYTE OF CHECKSUM 32 micro Sec.
 C8 PEND     PACKET END BYTE 32 micro Sec.
 */
-  struct
-  {
-    uint8_t sync1;      // 0
-    uint8_t sync2;      // 1
-    uint8_t sync3;      // 2
-    uint8_t sync4;      // 3
-    uint8_t sync5;      // 4
-    uint8_t pbegin;     // 5
-    uint8_t dest;       // 6
-    uint8_t source;     // 7
-    uint8_t type;       // 8
-    uint8_t aux;        // 9
-    uint8_t stat;       // 10
-    uint8_t oddcnt;     // 11
-    uint8_t grp7cnt;    // 12
-    uint8_t oddmsb;     // 13
-    uint8_t command;    // 14
-    uint8_t parmcnt;    // 15
-    uint8_t grp7msb;    // 16
-    uint8_t g7byte1;    // 17
-    uint8_t g7byte2;    // 18
-    uint8_t g7byte3;    // 19
-    uint8_t g7byte4;    // 20
-    uint8_t g7byte5;    // 21
-    uint8_t g7byte6;    // 22
-    uint8_t g7byte7;    // 23
-    uint8_t chksum1;    // 24
-    uint8_t chksum2;    // 25
-    uint8_t pend;       // 26
-    uint8_t clear;      // 27
+struct
+{
+  uint8_t sync1;   // 0
+  uint8_t sync2;   // 1
+  uint8_t sync3;   // 2
+  uint8_t sync4;   // 3
+  uint8_t sync5;   // 4
+  uint8_t pbegin;  // 5
+  uint8_t dest;    // 6
+  uint8_t source;  // 7
+  uint8_t type;    // 8
+  uint8_t aux;     // 9
+  uint8_t stat;    // 10
+  uint8_t oddcnt;  // 11
+  uint8_t grp7cnt; // 12
+  uint8_t oddmsb;  // 13
+  uint8_t command; // 14
+  uint8_t parmcnt; // 15
+  uint8_t grp7msb; // 16
+  uint8_t g7byte1; // 17
+  uint8_t g7byte2; // 18
+  uint8_t g7byte3; // 19
+  uint8_t g7byte4; // 20
+  uint8_t g7byte5; // 21
+  uint8_t g7byte6; // 22
+  uint8_t g7byte7; // 23
+  uint8_t chksum1; // 24
+  uint8_t chksum2; // 25
+  uint8_t pend;    // 26
+  uint8_t clear;   // 27
   };
   uint8_t data[COMMAND_PACKET_LEN];
 };
@@ -194,11 +196,11 @@ protected:
 
   // iwm packet handling
   uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  // todo: make a union with the first set of elements for command packet
 
   int decode_data_packet(void); //decode smartport 512 byte data packet
 
   void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
+  void encode_data_packet (uint8_t source, uint16_t num); //encode smartport "num" byte data packet
   void encode_write_status_packet(uint8_t source, uint8_t status);
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
