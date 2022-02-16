@@ -138,10 +138,11 @@ C8 PEND     PACKET END BYTE 32 micro Sec.
     uint8_t g7byte4;    // 20
     uint8_t g7byte5;    // 21
     uint8_t g7byte6;    // 22
-    uint8_t chksum1;    // 23
-    uint8_t chksum2;    // 24
-    uint8_t pend;       // 25
-    uint8_t clear;      // 26
+    uint8_t g7byte7;    // 23
+    uint8_t chksum1;    // 24
+    uint8_t chksum2;    // 25
+    uint8_t pend;       // 26
+    uint8_t clear;      // 27
   };
   uint8_t data[COMMAND_PACKET_LEN];
 };
@@ -167,6 +168,7 @@ enum class iwm_fujinet_type_t
 
 struct iwm_device_info_block_t
 {
+  uint8_t stat_code; // byte with 8 flags indicating device status
   std::string device_name; // limited to 16 chars std ascii (<128), no zero terminator
   uint8_t device_type;
   uint8_t device_subtype;
