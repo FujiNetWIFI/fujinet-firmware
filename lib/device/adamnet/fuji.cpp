@@ -62,6 +62,8 @@ adamNetwork *theNetwork; // global network device object (temporary)
 adamPrinter *thePrinter; // global printer
 adamSerial *theSerial;   // global serial
 
+using namespace std;
+
 // sioDisk sioDiskDevs[MAX_HOSTS];
 // sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
@@ -344,6 +346,74 @@ void adamFuji::adamnet_set_boot_config()
 // Do SIO copy
 void adamFuji::adamnet_copy_file()
 {
+    uint8_t csBuf[256];
+    string copySpec;
+    string sourcePath;
+    string destPath;
+    uint8_t ck;
+    FILE *sourceFile;
+    FILE *destFile;
+    char *dataBuf;
+    unsigned char sourceSlot;
+    unsigned char destSlot;
+
+    sourceSlot = adamnet_recv();
+    destSlot = adamnet_recv();
+    adamnet_recv_buffer(csBuf,sizeof(csBuf));
+    ck = adamnet_recv();
+
+    if (ck != adamnet_checksum(csBuf, sizeof(csBuf)))
+    {
+        AdamNet.start_time=esp_timer_get_time();
+        adamnet_response_nack();
+        return;
+    }
+    else
+    {
+        AdamNet.start_time=esp_timer_get_time();
+        adamnet_response_ack();
+    }
+
+    memset(&csBuf, 0, sizeof(csBuf));
+
+    dataBuf = (char *)malloc(532);
+
+    copySpec = string((char *)csBuf);
+
+    Debug_printf("copySpec: %s\n", copySpec.c_str());
+
+    // Chop up copyspec.
+    sourcePath = copySpec.substr(0, copySpec.find_first_of("|"));
+    destPath = copySpec.substr(copySpec.find_first_of("|") + 1);
+
+    // At this point, if last part of dest path is / then copy filename from source.
+    if (destPath.back() == '/')
+    {
+        Debug_printf("append source file\n");
+        string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
+        destPath += sourceFilename;
+    }
+
+    // Mount hosts, if needed.
+    _fnHosts[sourceSlot].mount();
+    _fnHosts[destSlot].mount();
+
+    // Open files...
+    sourceFile = _fnHosts[sourceSlot].file_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
+    destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
+
+    size_t count = 0;
+    do
+    {
+        count = fread(dataBuf, 1, 532, sourceFile);
+        fwrite(dataBuf, 1, count, destFile);
+    } while (count > 0);
+
+    // copyEnd:
+    fclose(sourceFile);
+    fclose(destFile);
+    free(dataBuf);
+
 }
 
 // Mount all
