@@ -197,8 +197,9 @@ protected:
   // iwm packet handling
   uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
 
-  int decode_data_packet(void); //decode smartport 512 byte data packet
- 
+  bool decode_data_packet(void); //decode smartport 512 byte data packet
+  uint16_t num_decoded;
+  
   void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
   void encode_data_packet (uint8_t source, uint16_t num); //encode smartport "num" byte data packet
   void encode_write_status_packet(uint8_t source, uint8_t status);

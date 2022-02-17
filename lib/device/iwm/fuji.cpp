@@ -58,7 +58,7 @@ iwmFuji::iwmFuji()
 
 void iwmFuji::iwm_dummy_command()
 {
-  for (int i=0; i<16; i++)
+  for (int i=0; i<num_decoded; i++)
     Debug_printf(" %02x", packet_buffer[i]);
 }
 
@@ -99,8 +99,6 @@ void iwmFuji::iwm_net_get_ssid()
     // Move into response.
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
-
-
 } // 0xFE
 
 void iwmFuji::iwm_net_scan_networks()

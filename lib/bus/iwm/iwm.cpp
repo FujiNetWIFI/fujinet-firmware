@@ -935,10 +935,11 @@ void iwmDevice::encode_extended_data_packet (uint8_t source)
 // Description: decode 512 (arbitrary now) byte data packet for write block command from host
 // decodes the data from the packet_buffer IN-PLACE!
 //*****************************************************************************
-int iwmDevice::decode_data_packet (void) 
+bool iwmDevice::decode_data_packet(void)
 {
   int grpbyte, grpcount;
-  uint8_t numgrps, numodd, numdata;
+  uint8_t numgrps, numodd;
+  uint16_t numdata;
   uint8_t checksum = 0, bit0to6, bit7, oddbits, evenbits;
   uint8_t group_buffer[8];
 
@@ -969,7 +970,7 @@ int iwmDevice::decode_data_packet (void)
     for (grpbyte = 0; grpbyte < 7; grpbyte++) {
       bit7 = (group_buffer[0] << (grpbyte + 1)) & 0x80;
       bit0to6 = (group_buffer[grpbyte + 1]) & 0x7f;
-      packet_buffer[1 + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
+      packet_buffer[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
     }
   }
 
@@ -979,10 +980,13 @@ int iwmDevice::decode_data_packet (void)
 
   Debug_printf("\r\ndecode data packet checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
 
-  //if (checksum == (oddbits | evenbits))
-    return 0; // noerror
-  //else
-  //  return 6; //smartport bus error code
+  if (checksum != (oddbits | evenbits))
+  {
+    return true; // error!
+  }
+  
+  num_decoded = numdata;
+  return false;
 }
 
 //*****************************************************************************
