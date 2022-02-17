@@ -179,7 +179,7 @@ struct iwm_device_info_block_t
 
 //#ifdef DEBUG
   void print_packet(uint8_t *data, int bytes);
-  void print_packet();
+  void print_packet(uint8_t* data);
 //#endif
 
 class iwmDevice
@@ -198,7 +198,7 @@ protected:
   uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
 
   int decode_data_packet(void); //decode smartport 512 byte data packet
-
+ 
   void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
   void encode_data_packet (uint8_t source, uint16_t num); //encode smartport "num" byte data packet
   void encode_write_status_packet(uint8_t source, uint8_t status);

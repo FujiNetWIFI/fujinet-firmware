@@ -932,26 +932,29 @@ void iwmDevice::encode_extended_data_packet (uint8_t source)
 // Parameters: none
 // Returns: error code, >0 = error encountered
 //
-// Description: decode 512 byte data packet for write block command from host
+// Description: decode 512 (arbitrary now) byte data packet for write block command from host
 // decodes the data from the packet_buffer IN-PLACE!
 //*****************************************************************************
-int iwmDevice::decode_data_packet (void) // to do overload with packet size for write?
+int iwmDevice::decode_data_packet (void) 
 {
   int grpbyte, grpcount;
-  uint8_t numgrps, numodd;
+  uint8_t numgrps, numodd, numdata;
   uint8_t checksum = 0, bit0to6, bit7, oddbits, evenbits;
   uint8_t group_buffer[8];
 
   //Handle arbitrary length packets :) 
   numodd = packet_buffer[11] & 0x7f;
   numgrps = packet_buffer[12] & 0x7f;
+  numdata = numodd + numgrps * 7;
+  Debug_printf("\r\nDecoding %d bytes",numdata);
 
   // First, checksum  packet header, because we're about to destroy it
   for (int count = 6; count < 13; count++) // now xor the packet header bytes
     checksum = checksum ^ packet_buffer[count];
 
-  evenbits = packet_buffer[599] & 0x55;
-  oddbits = (packet_buffer[600] & 0x55 ) << 1;
+  int chkidx = 13 + numodd + (numodd != 0) + numgrps * 8;
+  evenbits = packet_buffer[chkidx] & 0x55;
+  oddbits = (packet_buffer[chkidx + 1] & 0x55) << 1;
 
   //add oddbyte(s), 1 in a 512 data packet
   for(int i = 0; i < numodd; i++){
@@ -959,9 +962,10 @@ int iwmDevice::decode_data_packet (void) // to do overload with packet size for 
   }
 
   // 73 grps of 7 in a 512 byte packet
+  int grpstart = 12 + numodd + (numodd != 0) + 1;
   for (grpcount = 0; grpcount < numgrps; grpcount++)
   {
-    memcpy(group_buffer, packet_buffer + 15 + (grpcount * 8), 8);
+    memcpy(group_buffer, packet_buffer + grpstart + (grpcount * 8), 8);
     for (grpbyte = 0; grpbyte < 7; grpbyte++) {
       bit7 = (group_buffer[0] << (grpbyte + 1)) & 0x80;
       bit0to6 = (group_buffer[grpbyte + 1]) & 0x7f;
@@ -970,17 +974,15 @@ int iwmDevice::decode_data_packet (void) // to do overload with packet size for 
   }
 
   //verify checksum
-  for (int count = 0; count < 512; count++) // xor all the data bytes
+  for (int count = 0; count < numdata; count++) // xor all the data bytes
     checksum = checksum ^ packet_buffer[count];
 
-  Debug_printf("\r\ndecode data packet checksum calc %02x, packet or %02x and %02x", checksum, (oddbits | evenbits), (oddbits & evenbits));
+  Debug_printf("\r\ndecode data packet checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
 
-  // todo checksum should be & not |, right?
-  if (checksum == (oddbits | evenbits))
+  //if (checksum == (oddbits | evenbits))
     return 0; // noerror
-  else
-    return 6; //smartport bus error code
-
+  //else
+  //  return 6; //smartport bus error code
 }
 
 //*****************************************************************************
