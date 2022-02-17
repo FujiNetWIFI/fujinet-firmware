@@ -15,7 +15,6 @@
 
 #include "utils.h"
 
-
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE
 #define SIO_FUJICMD_SCAN_NETWORKS 0xFD
@@ -320,14 +319,16 @@ void adamFuji::adamnet_disk_image_mount()
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-    boot_config = false;
+
+    _fnDisks[0].disk_dev.unmount();
+    _fnDisks[0].disk_dev.device_active = boot_config = false;
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
 
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-    disk.disk_dev.device_active=true;
+    disk.disk_dev.device_active = true;
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -382,7 +383,7 @@ void adamFuji::adamnet_mount_all()
 
             // We've gotten this far, so make sure our bootable CONFIG disk is disabled
             boot_config = false;
- 
+
             // We need the file size for loading XEX files and for CASSETTE, so get that too
             disk.disk_size = host.file_size(disk.fileh);
 
@@ -391,7 +392,8 @@ void adamFuji::adamnet_mount_all()
         }
     }
 
-    if (nodisks){
+    if (nodisks)
+    {
         // No disks in a slot, disable config
         boot_config = false;
     }
@@ -432,12 +434,12 @@ void adamFuji::adamnet_write_app_key()
     char appkeyfilename[30];
     FILE *fp;
 
-    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key",creator,app,key);
+    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key", creator, app, key);
 
-    adamnet_recv_buffer(data,64);
+    adamnet_recv_buffer(data, 64);
     adamnet_recv(); // CK
 
-    Debug_printf("Fuji Cmd: WRITE APPKEY %s\n",appkeyfilename);
+    Debug_printf("Fuji Cmd: WRITE APPKEY %s\n", appkeyfilename);
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
@@ -449,8 +451,8 @@ void adamFuji::adamnet_write_app_key()
         Debug_printf("Could not open.\n");
         return;
     }
-    
-    fwrite(data,sizeof(uint8_t),sizeof(data),fp);
+
+    fwrite(data, sizeof(uint8_t), sizeof(data), fp);
     fclose(fp);
 }
 
@@ -464,13 +466,13 @@ void adamFuji::adamnet_read_app_key()
     uint8_t key = adamnet_recv();
 
     adamnet_recv(); // CK
-    AdamNet.start_time=esp_timer_get_time();
+    AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     char appkeyfilename[30];
     FILE *fp;
 
-    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key",creator,app,key);
+    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key", creator, app, key);
 
     fp = fnSDFAT.file_open(appkeyfilename, "r");
 
@@ -480,8 +482,8 @@ void adamFuji::adamnet_read_app_key()
         return;
     }
 
-    memset(response,0,sizeof(response));
-    response_len = fread(response, sizeof(char),64,fp);
+    memset(response, 0, sizeof(response));
+    response_len = fread(response, sizeof(char), 64, fp);
     fclose(fp);
 }
 
@@ -501,7 +503,7 @@ void adamFuji::adamnet_disk_image_umount()
 
     _fnDisks[ds].disk_dev.unmount();
     _fnDisks[ds].reset();
-    _fnDisks[ds].disk_dev.device_active=false;
+    _fnDisks[ds].disk_dev.device_active = false;
 }
 
 // Disk Image Rotate
@@ -843,7 +845,7 @@ void adamFuji::adamnet_new_disk()
         return;
     }
 
-    disk.disk_dev.device_active=true;
+    disk.disk_dev.device_active = true;
 
     disk.host_slot = hs;
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
@@ -1086,12 +1088,12 @@ void adamFuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fnSPIFFS.file_open(config_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);  
+        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);
         break;
     case 1:
 
         fBoot = fnSPIFFS.file_open(mount_all_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);        
+        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);
         break;
     }
 
@@ -1141,22 +1143,22 @@ void adamFuji::setup(systemBus *siobus)
     _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
     _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
     _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
-    _fnDisks[1].disk_dev.device_active=false;
-    _fnDisks[2].disk_dev.device_active=false;
-    _fnDisks[3].disk_dev.device_active=false;
+    _fnDisks[1].disk_dev.device_active = false;
+    _fnDisks[2].disk_dev.device_active = false;
+    _fnDisks[3].disk_dev.device_active = false;
 
-    Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
+    Debug_printf("Config General Boot Mode: %u\n", Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {
         FILE *f = fnSPIFFS.file_open("/autorun.ddp");
         _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
-        _fnDisks[0].disk_dev.device_active=true;
+        _fnDisks[0].disk_dev.device_active = true;
     }
     else
     {
         FILE *f = fnSPIFFS.file_open("/mount-and-boot.ddp");
         _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, MEDIATYPE_DDP);
-        _fnDisks[0].disk_dev.device_active=true;
+        _fnDisks[0].disk_dev.device_active = true;
     }
 
     theNetwork = new adamNetwork();
@@ -1214,7 +1216,7 @@ void adamFuji::sio_mount_all()
 
             // And now mount it
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-            disk.disk_dev.device_active=true;
+            disk.disk_dev.device_active = true;
         }
     }
 
@@ -1222,7 +1224,7 @@ void adamFuji::sio_mount_all()
     {
         // No disks in a slot, disable config
         boot_config = false;
-        _fnDisks[0].disk_dev.device_active=false;
+        _fnDisks[0].disk_dev.device_active = false;
     }
 }
 
