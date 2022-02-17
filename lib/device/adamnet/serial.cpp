@@ -8,33 +8,19 @@
 
 #define SERIAL_BUF_SIZE 16
 
-static xQueueHandle serial_out_queue = NULL;
-
-void serial_task(void *param)
-{
-    adamSerial *sp = (adamSerial *)param;
-    uint8_t c = 0;
-
-    for (;;)
-    {
-        if (uxQueueMessagesWaiting(serial_out_queue))
-        {
-            xQueueReceive(serial_out_queue,&c,portMAX_DELAY);
-        }
-    }
-}
-
 adamSerial::adamSerial()
 {
     Debug_printf("Serial Start\n");
     response_len = 0;
+    status_response[1] = 0x10;
+    status_response[2] = 0x00;
     status_response[3] = 0x00; // character device
-    serial_out_queue = xQueueCreate(16, sizeof(uint8_t));
-    xTaskCreate(serial_task, "adamnet_serial", 2048, this, 0, NULL);
+    serial_out_queue = xQueueCreate(16, sizeof(SendData));
 }
 
 adamSerial::~adamSerial()
 {
+    vQueueDelete(serial_out_queue);
 }
 
 void adamSerial::command_recv()
@@ -43,6 +29,8 @@ void adamSerial::command_recv()
 
 void adamSerial::adamnet_response_status()
 {
+    status_response[4] = 1;
+    virtualDevice::adamnet_response_status();
 }
 
 void adamSerial::adamnet_control_ready()
@@ -61,15 +49,15 @@ void adamSerial::adamnet_idle()
 
 void adamSerial::adamnet_control_send()
 {
-    uint16_t s = adamnet_recv_length();
+    next.len = adamnet_recv_length();
 
-    adamnet_recv_buffer(response, s);
+    adamnet_recv_buffer(next.data, next.len);
     adamnet_recv();
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    xQueueSend(serial_out_queue,&response[0],portMAX_DELAY);
+    xQueueSend(serial_out_queue,&next,portMAX_DELAY);
 }
 
 void adamSerial::adamnet_process(uint8_t b)
