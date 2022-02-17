@@ -9,6 +9,7 @@
 
 #include "fnSystem.h"
 #include "led.h"
+#include <cstring>
 
 static xQueueHandle reset_evt_queue = NULL;
 
@@ -226,6 +227,23 @@ void virtualDevice::adamnet_response_status()
     status_response[5] = adamnet_checksum(&status_response[1], 4);
     adamnet_send_buffer(status_response, sizeof(status_response));
     // uart_tx_chars(2,(const char *)status_response,sizeof(status_response));
+}
+
+void virtualDevice::adamnet_control_clr()
+{
+    if (response_len == 0)
+    {
+        adamnet_response_nack();
+    }
+    else
+    {
+        adamnet_send(0xB0 | _devnum);
+        adamnet_send_length(response_len);
+        adamnet_send_buffer(response, response_len);
+        adamnet_send(adamnet_checksum(response, response_len));
+        memset(response, 0, sizeof(response));
+        response_len = 0;
+    }
 }
 
 void virtualDevice::adamnet_idle()
