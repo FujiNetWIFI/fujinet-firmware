@@ -217,8 +217,6 @@ void adamDisk::adamnet_process(uint8_t b)
 {
     unsigned char c = b >> 4;
 
-    //portENTER_CRITICAL(&spinlock);
-
     switch (c)
     {
     case MN_RESET:
@@ -241,7 +239,6 @@ void adamDisk::adamnet_process(uint8_t b)
         break;
     }
 
-    //portEXIT_CRITICAL(&spinlock);
 }
 
 #endif /* BUILD_ADAM */
