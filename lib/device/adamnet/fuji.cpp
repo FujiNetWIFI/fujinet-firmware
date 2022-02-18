@@ -330,7 +330,6 @@ void adamFuji::adamnet_disk_image_mount()
 
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-    disk.disk_dev.device_active = true;
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -573,7 +572,6 @@ void adamFuji::adamnet_disk_image_umount()
 
     _fnDisks[ds].disk_dev.unmount();
     _fnDisks[ds].reset();
-    _fnDisks[ds].disk_dev.device_active = false;
 }
 
 // Disk Image Rotate
@@ -914,9 +912,6 @@ void adamFuji::adamnet_new_disk()
         adamnet_response_ack();
         return;
     }
-
-    disk.disk_dev.device_active = true;
-
     disk.host_slot = hs;
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
     strlcpy(disk.filename, (const char *)p, 256);
@@ -1213,22 +1208,17 @@ void adamFuji::setup(systemBus *siobus)
     _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
     _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
     _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
-    _fnDisks[1].disk_dev.device_active = false;
-    _fnDisks[2].disk_dev.device_active = false;
-    _fnDisks[3].disk_dev.device_active = false;
 
     Debug_printf("Config General Boot Mode: %u\n", Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {
         FILE *f = fnSPIFFS.file_open("/autorun.ddp");
         _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
-        _fnDisks[0].disk_dev.device_active = true;
     }
     else
     {
         FILE *f = fnSPIFFS.file_open("/mount-and-boot.ddp");
         _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, MEDIATYPE_DDP);
-        _fnDisks[0].disk_dev.device_active = true;
     }
 
     theNetwork = new adamNetwork();
@@ -1236,13 +1226,6 @@ void adamFuji::setup(systemBus *siobus)
     _adamnet_bus->addDevice(theNetwork, 0x09); // temporary.
     _adamnet_bus->addDevice(theSerial, 0x0e);  // Serial port
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
-
-    // Add our devices to the AdamNet bus
-    // for (int i = 0; i < 4; i++)
-    //    _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
-
-    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
 }
 
 // Mount all
@@ -1286,7 +1269,6 @@ void adamFuji::sio_mount_all()
 
             // And now mount it
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-            disk.disk_dev.device_active = true;
         }
     }
 
@@ -1294,7 +1276,6 @@ void adamFuji::sio_mount_all()
     {
         // No disks in a slot, disable config
         boot_config = false;
-        _fnDisks[0].disk_dev.device_active = false;
     }
 }
 
