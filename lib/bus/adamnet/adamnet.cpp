@@ -217,6 +217,7 @@ void virtualDevice::adamnet_process(uint8_t b)
 void virtualDevice::adamnet_control_status()
 {
     AdamNet.start_time=esp_timer_get_time();
+    AdamNet.wait_for_idle();
     adamnet_response_status();
 }
 
@@ -226,7 +227,6 @@ void virtualDevice::adamnet_response_status()
 
     status_response[5] = adamnet_checksum(&status_response[1], 4);
     adamnet_send_buffer(status_response, sizeof(status_response));
-    // uart_tx_chars(2,(const char *)status_response,sizeof(status_response));
 }
 
 void virtualDevice::adamnet_control_clr()
