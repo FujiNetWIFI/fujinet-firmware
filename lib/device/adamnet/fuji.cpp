@@ -53,6 +53,7 @@
 #define SIO_FUJICMD_ENABLE_DEVICE 0xD5
 #define SIO_FUJICMD_DISABLE_DEVICE 0xD4
 #define SIO_FUJICMD_RANDOM_NUMBER 0xD3
+#define SIO_FUJICMD_GET_TIME 0xD2
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -1285,10 +1286,42 @@ void adamFuji::adamnet_random_number()
 
     adamnet_recv(); // CK
 
+    AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     response_len = sizeof(int);
     *p = rand();
+}
+
+void adamFuji::adamnet_get_time()
+{
+    Debug_println("FUJI GET TIME");
+    adamnet_recv(); // CK
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    
+    time_t tt = time(nullptr);
+
+    setenv("TZ",Config.get_general_timezone().c_str(),1);
+    tzset();
+
+    struct tm * now = localtime(&tt);
+
+    now->tm_mon++;
+    now->tm_year-=100;
+
+    response[0] = now->tm_mday;
+    response[1] = now->tm_mon;
+    response[2] = now->tm_year;
+    response[3] = now->tm_hour;
+    response[4] = now->tm_min;
+    response[5] = now->tm_sec;
+
+    response_len = 6;
+
+    Debug_printf("Sending %02X %02X %02X %02X %02X %02X\n",now->tm_mday, now->tm_mon, now->tm_year, now->tm_hour, now->tm_min, now->tm_sec);
 }
 
 adamDisk *adamFuji::bootdisk()
@@ -1392,6 +1425,9 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_RANDOM_NUMBER:
         adamnet_random_number();
+        break;
+    case SIO_FUJICMD_GET_TIME:
+        adamnet_get_time();
         break;
     }
 }
