@@ -52,6 +52,7 @@
 #define SIO_FUJICMD_SET_BOOT_MODE 0xD6
 #define SIO_FUJICMD_ENABLE_DEVICE 0xD5
 #define SIO_FUJICMD_DISABLE_DEVICE 0xD4
+#define SIO_FUJICMD_RANDOM_NUMBER 0xD3
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -322,8 +323,7 @@ void adamFuji::adamnet_disk_image_mount()
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
 
-    _fnDisks[0].disk_dev.unmount();
-    _fnDisks[0].disk_dev.device_active = boot_config = false;
+    boot_config = false;
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
@@ -1279,6 +1279,18 @@ void adamFuji::sio_mount_all()
     }
 }
 
+void adamFuji::adamnet_random_number()
+{
+    int *p = (int *)&response[0];
+
+    adamnet_recv(); // CK
+
+    adamnet_response_ack();
+
+    response_len = sizeof(int);
+    *p = rand();
+}
+
 adamDisk *adamFuji::bootdisk()
 {
     return _bootDisk;
@@ -1377,6 +1389,9 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_READ_APPKEY:
         adamnet_read_app_key();
+        break;
+    case SIO_FUJICMD_RANDOM_NUMBER:
+        adamnet_random_number();
         break;
     }
 }
