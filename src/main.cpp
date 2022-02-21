@@ -183,7 +183,7 @@ IWM.addDevice(&theFuji, iwm_fujinet_type_t::FujiNet);
 IWM.addDevice(new iwmDisk(), iwm_fujinet_type_t::BlockDisk);
 IWM.addDevice(new iwmDisk(), iwm_fujinet_type_t::BlockDisk);
 theFuji.setup(&IWM);
-IWM.setup();
+IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
 
 #endif /* BUILD_APPLE */
 

@@ -196,12 +196,13 @@ protected:
 
   // iwm packet handling
   uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  uint16_t packet_len;
 
   bool decode_data_packet(void); //decode smartport 512 byte data packet
   uint16_t num_decoded;
-  
-  void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
-  void encode_data_packet (uint8_t source, uint16_t num); //encode smartport "num" byte data packet
+
+  void encode_data_packet(); //encode smartport 512 byte data packet
+  void encode_data_packet(uint16_t num); //encode smartport "num" byte data packet
   void encode_write_status_packet(uint8_t source, uint8_t status);
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
@@ -212,11 +213,21 @@ protected:
   virtual void encode_extended_status_reply_packet() = 0;
   virtual void encode_extended_status_dib_reply_packet() = 0;
   
-  int packet_length(void);
+  int get_packet_length(void);
 
   virtual void shutdown() = 0;
   virtual void process(cmdPacket_t cmd) = 0;
-  void iwm_status(cmdPacket_t cmd);
+
+  virtual void iwm_status(cmdPacket_t cmd);
+  virtual void iwm_readblock(cmdPacket_t cmd) {};
+  virtual void iwm_writeblock(cmdPacket_t cmd) {};
+  virtual void iwm_format(cmdPacket_t cmd) {};
+  virtual void iwm_ctrl(cmdPacket_t cmd) {};
+  virtual void iwm_open(cmdPacket_t cmd) {};
+  virtual void iwm_close(cmdPacket_t cmd) {};
+  virtual void iwm_read(cmdPacket_t cmd) {};
+  virtual void iwm_write(cmdPacket_t cmd) {};
+
   void iwm_return_badcmd(cmdPacket_t cmd);
 
 public:

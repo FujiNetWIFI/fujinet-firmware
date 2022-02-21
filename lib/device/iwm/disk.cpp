@@ -291,7 +291,7 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
   data[23] = 0x01; // Firmware version 2 bytes
   data[24] = 0x0f; //
 
-  // print_packet ((uint8_t*) data,packet_length()); // debug
+  // print_packet ((uint8_t*) data,get_packet_length()); // debug
   // Debug_print(("\nData loaded"));
   // Calculate checksum of sector bytes before we destroy them
   for (int count = 0; count < 25; count++) // xor all the data bytes
@@ -490,7 +490,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   LBN = cmd.g7byte3; //  packet_buffer[19]; // block number low
   block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
   // block num second byte
-  // print_packet ((unsigned char*) packet_buffer,packet_length());
+  // print_packet ((unsigned char*) packet_buffer,get_packet_length());
   // Added (unsigned short) cast to ensure calculated block is not underflowing.
   block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
   block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
@@ -576,7 +576,7 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
     //Serial.print(F("\r\nSent status Packet Data\r\n") );
     //print_packet ((unsigned char*) sector_buffer,512);
 
-    //print_packet ((unsigned char*) packet_buffer,packet_length());
+    //print_packet ((unsigned char*) packet_buffer,get_packet_length());
     last_block_num = block_num;
   }
 }

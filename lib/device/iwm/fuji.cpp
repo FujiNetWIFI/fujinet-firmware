@@ -14,9 +14,9 @@
 #define IWM_FUJICMD_SCAN_NETWORKS 0xFD
 #define IWM_FUJICMD_GET_SCAN_RESULT 0xFC
 #define IWM_FUJICMD_SET_SSID 0xFB
-#define SIO_FUJICMD_GET_WIFISTATUS 0xFA
-#define SIO_FUJICMD_MOUNT_HOST 0xF9
-#define SIO_FUJICMD_MOUNT_IMAGE 0xF8
+#define IWM_FUJICMD_GET_WIFISTATUS 0xFA
+#define IWM_FUJICMD_MOUNT_HOST 0xF9
+#define IWM_FUJICMD_MOUNT_IMAGE 0xF8
 #define SIO_FUJICMD_OPEN_DIRECTORY 0xF7
 #define SIO_FUJICMD_READ_DIR_ENTRY 0xF6
 #define SIO_FUJICMD_CLOSE_DIRECTORY 0xF5
@@ -35,15 +35,15 @@
 #define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
 #define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
 #define SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
-#define SIO_FUJICMD_WRITE_APPKEY 0xDE
-#define SIO_FUJICMD_READ_APPKEY 0xDD
+#define IWM_FUJICMD_WRITE_APPKEY 0xDE
+#define IWM_FUJICMD_READ_APPKEY 0xDD
 #define SIO_FUJICMD_OPEN_APPKEY 0xDC
 #define SIO_FUJICMD_CLOSE_APPKEY 0xDB
 #define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
-#define SIO_FUJICMD_CONFIG_BOOT 0xD9
-#define SIO_FUJICMD_COPY_FILE 0xD8
-#define SIO_FUJICMD_MOUNT_ALL 0xD7
-#define SIO_FUJICMD_SET_BOOT_MODE 0xD6
+#define IWM_FUJICMD_CONFIG_BOOT 0xD9
+#define IWM_FUJICMD_COPY_FILE 0xD8
+#define IWM_FUJICMD_MOUNT_ALL 0xD7
+#define IWM_FUJICMD_SET_BOOT_MODE 0xD6
 #define SIO_FUJICMD_ENABLE_DEVICE 0xD5
 #define SIO_FUJICMD_DISABLE_DEVICE 0xD4
 #define SIO_FUJICMD_STATUS 0x53
@@ -56,22 +56,23 @@ iwmFuji::iwmFuji()
   Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
 }
 
-void iwmFuji::iwm_dummy_command()
+void iwmFuji::iwm_dummy_command() // SP CTRL command
 {
   Debug_printf("\r\nData Received: ");
   for (int i=0; i<num_decoded; i++)
     Debug_printf(" %02x", packet_buffer[i]);
 }
 
-void iwmFuji::iwm_reset_fujinet()
+void iwmFuji::iwm_reset_fujinet() // SP CTRL command
 {
     Debug_printf("\r\nFuji cmd: REBOOT");
     encode_status_reply_packet();
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    // save device unit SP address somewhere and restore it after reboot?
     fnSystem.reboot();
 }
 
-void iwmFuji::iwm_net_get_ssid() // to do - make a STATUS 
+void iwmFuji::iwm_net_get_ssid() // SP STATUS command
 {
    Debug_println("Fuji cmd: GET SSID");
 
@@ -98,11 +99,11 @@ void iwmFuji::iwm_net_get_ssid() // to do - make a STATUS
            s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
 
     // Move into response.
-    memcpy(response, &cfg, sizeof(cfg));
-    response_len = sizeof(cfg);
+    memcpy(packet_buffer, &cfg, sizeof(cfg));
+    packet_len = sizeof(cfg);
 } // 0xFE
 
-void iwmFuji::iwm_net_scan_networks() // to do - make a STATUS 
+void iwmFuji::iwm_net_scan_networks() // SP STATUS command 
 {
     Debug_println("Fuji cmd: SCAN NETWORKS");
 
@@ -117,18 +118,16 @@ void iwmFuji::iwm_net_scan_networks() // to do - make a STATUS
 
     isReady = true;
 
-    response[0] = _countScannedSSIDs;
+    packet_buffer[0] = _countScannedSSIDs;
     response_len = 1;
 } // 0xFD
 
-void iwmFuji::iwm_net_scan_result() // to do - make a STATUS 
+void iwmFuji::iwm_net_scan_result() //SP STATUS command 
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
     scanStarted = false;
 
-    uint8_t n = packet_buffer[0]; // adamnet_recv();
-    // to do - this must come from the host in the control command?
-    // adamnet_recv(); // get CK
+    uint8_t n = packet_buffer[0]; // pretty sure this is right
 
     // Response to SIO_FUJICMD_GET_SCAN_RESULT
     struct
@@ -144,18 +143,18 @@ void iwmFuji::iwm_net_scan_result() // to do - make a STATUS
 
     Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
 
-    memset(response, 0, sizeof(response));
-    memcpy(response, &detail, sizeof(detail));
-    response_len = 33;
+    memset(packet_buffer, 0, sizeof(packet_buffer));
+    memcpy(packet_buffer, &detail, sizeof(detail));
+    packet_len = 33;
 } // 0xFC
 
-void iwmFuji::iwm_net_set_ssid() // CTRL
+void iwmFuji::iwm_net_set_ssid() // SP CTRL command
 {
  if (!fnWiFi.connected() && setSSIDStarted == false)
     {
         Debug_println("Fuji cmd: SET SSID");
 
-        uint16_t s = 10; // to do - set up "s"
+        uint16_t s = packet_buffer[0]; // to do - verify
         s--;
 
         // Data for SIO_FUJICMD_SET_SSID
@@ -166,7 +165,7 @@ void iwmFuji::iwm_net_set_ssid() // CTRL
         } cfg;
 
         // to do - copy data over to cfg
-        memcpy((uint8_t *)&cfg, (uint8_t *)packet_buffer, s);
+        memcpy((uint8_t *)&cfg, (uint8_t *)packet_buffer[1], s);
         // adamnet_recv_buffer((uint8_t *)&cfg, s);
 
             bool save = true;
@@ -185,50 +184,37 @@ void iwmFuji::iwm_net_set_ssid() // CTRL
     }
 } // 0xFB
 
-//==============================================================================================================================
-
 // Get WiFi Status
-void adamFuji::adamnet_net_get_wifi_status()
+void iwmFuji::iwm_net_get_wifi_status() // SP Status command
 {
-    adamnet_recv(); // Get CK
     Debug_println("Fuji cmd: GET WIFI STATUS");
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
-    response[0] = wifiStatus;
-    response_len = 1;
-
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
+    packet_buffer[0] = wifiStatus;
+    packet_len = 1;
 }
 
 // Mount Server
-void adamFuji::adamnet_mount_host()
+void iwmFuji::iwm_mount_host() // SP CTRL command
 {
     Debug_println("Fuji cmd: MOUNT HOST");
 
-    unsigned char hostSlot = adamnet_recv();
-
-    adamnet_recv(); // Get CK
+    unsigned char hostSlot = packet_buffer[0]; // adamnet_recv();
 
     if (hostMounted[hostSlot] == false)
     {
         _fnHosts[hostSlot].mount();
         hostMounted[hostSlot] = true;
     }
-
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
 }
 
 // Disk Image Mount
-void adamFuji::adamnet_disk_image_mount()
+void iwmFuji::iwm_disk_image_mount() // SP CTRL command
 {
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
-    uint8_t deviceSlot = adamnet_recv();
-    uint8_t options = adamnet_recv(); // DISK_ACCESS_MODE
-
-    adamnet_recv(); // CK
+    uint8_t deviceSlot = packet_buffer[0]; //adamnet_recv();
+    uint8_t options = packet_buffer[1]; //adamnet_recv(); // DISK_ACCESS_MODE
 
     // TODO: Implement FETCH?
     char flag[3] = {'r', 0, 0};
@@ -242,9 +228,6 @@ void adamFuji::adamnet_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
@@ -257,23 +240,23 @@ void adamFuji::adamnet_disk_image_mount()
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
 }
 
-// Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
-void adamFuji::adamnet_set_boot_config()
-{
-    boot_config = adamnet_recv();
-    adamnet_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
+// Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
+void iwmFuji::iwm_set_boot_config() // SP CTRL command
+{
+    boot_config = packet_buffer[0]; // adamnet_recv();
+    //adamnet_recv();
 }
+
 
 // Do SIO copy
-void adamFuji::adamnet_copy_file()
+void iwmFuji::iwm_copy_file()
 {
 }
 
+/* 
 // Mount all
-void adamFuji::adamnet_mount_all()
+bool iwmFuji::iwm_mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
@@ -292,8 +275,7 @@ void adamFuji::adamnet_mount_all()
 
             if (host.mount() == false)
             {
-                adamnet_response_nack();
-                return;
+                return true;
             }
 
             Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
@@ -303,8 +285,7 @@ void adamFuji::adamnet_mount_all()
 
             if (disk.fileh == nullptr)
             {
-                adamnet_response_nack();
-                return;
+                return true;
             }
 
             // We've gotten this far, so make sure our bootable CONFIG disk is disabled
@@ -324,19 +305,17 @@ void adamFuji::adamnet_mount_all()
     }
 
     // Go ahead and respond ok
-    adamnet_response_ack();
-}
+    return false;
+} 
+*/
 
 // Set boot mode
-void adamFuji::adamnet_set_boot_mode()
+void iwmFuji::iwm_set_boot_mode()
 {
-    uint8_t bm = adamnet_recv();
-    adamnet_recv(); // CK
-
+    uint8_t bm = packet_buffer[0]; // adamnet_recv();
+    
     insert_boot_device(bm);
     boot_config = true;
-
-    adamnet_response_ack();
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -350,24 +329,21 @@ char *_generate_appkey_filename(appkey *info)
 /*
  Write an "app key" to SD (ONLY!) storage.
 */
-void adamFuji::adamnet_write_app_key()
+void iwmFuji::iwm_write_app_key()
 {
-    uint16_t creator = adamnet_recv_length();
-    uint8_t app = adamnet_recv();
-    uint8_t key = adamnet_recv();
+    uint16_t creator = get_packet_length();//adamnet_recv_length();
+    int idx = 0;
+    uint8_t app = packet_buffer[idx++];//adamnet_recv();
+    uint8_t key = packet_buffer[idx++];//adamnet_recv();
     uint8_t data[64];
     char appkeyfilename[30];
     FILE *fp;
 
     snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key",creator,app,key);
 
-    adamnet_recv_buffer(data,64);
-    adamnet_recv(); // CK
+    memcpy(data, &packet_buffer[idx], 64); // adamnet_recv_buffer(data,64);
 
     Debug_printf("Fuji Cmd: WRITE APPKEY %s\n",appkeyfilename);
-
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
 
     fp = fnSDFAT.file_open(appkeyfilename, "w");
 
@@ -383,17 +359,16 @@ void adamFuji::adamnet_write_app_key()
 
 /*
  Read an "app key" from SD (ONLY!) storage
+ // to do - Apple 2 should send a CTRL command to read app key then a STATUS command to get the app key 
+ // can use the same CMD code to make it easier but maybe confusing - a little different protocol than adamnet
 */
-void adamFuji::adamnet_read_app_key()
+void iwmFuji::iwm_ctrl_read_app_key()
 {
-    uint16_t creator = adamnet_recv_length();
-    uint8_t app = adamnet_recv();
-    uint8_t key = adamnet_recv();
-
-    adamnet_recv(); // CK
-    AdamNet.start_time=esp_timer_get_time();
-    adamnet_response_ack();
-
+    uint16_t creator = get_packet_length();//adamnet_recv_length();
+    int idx = 0;
+    uint8_t app = packet_buffer[idx++];//adamnet_recv();
+    uint8_t key = packet_buffer[idx++];//adamnet_recv();
+    
     char appkeyfilename[30];
     FILE *fp;
 
@@ -407,35 +382,41 @@ void adamFuji::adamnet_read_app_key()
         return;
     }
 
-    memset(response,0,sizeof(response));
-    response_len = fread(response, sizeof(char),64,fp);
+    memset(app_key_buffer,0,sizeof(app_key_buffer));
+    app_key_len = fread(app_key_buffer, sizeof(char),64,fp);
     fclose(fp);
 }
 
+void iwmFuji::iwm_stat_read_app_key() // return the app key that was just read by the read app key control command
+{
+    memset(packet_buffer,0,sizeof(packet_buffer));
+    memcpy(app_key_buffer,packet_buffer,app_key_len);
+    packet_len = app_key_len;
+}
+
 // DEBUG TAPE
-void adamFuji::debug_tape()
+void iwmFuji::debug_tape()
 {
 }
 
 // Disk Image Unmount
-void adamFuji::adamnet_disk_image_umount()
+void iwmFuji::iwm_disk_image_umount()
 {
-    unsigned char ds = adamnet_recv();
-    adamnet_recv();
-
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
+    unsigned char ds = packet_buffer[0];//adamnet_recv();
+    
     _fnDisks[ds].disk_dev.unmount();
     _fnDisks[ds].reset();
 }
+
+
+//==============================================================================================================================
 
 // Disk Image Rotate
 /*
   We rotate disks my changing their disk device ID's. That prevents
   us from having to unmount and re-mount devices.
 */
-void adamFuji::image_rotate()
+void iwmFuji::image_rotate()
 {
     Debug_println("Fuji cmd: IMAGE ROTATE");
 
@@ -455,7 +436,7 @@ void adamFuji::image_rotate()
         {
             int swap = _fnDisks[n - 1].disk_dev.id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            _adamnet_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
+            _adamnet_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap); // to do!
         }
 
         // The first slot gets the device ID of the last slot
@@ -464,7 +445,7 @@ void adamFuji::image_rotate()
 }
 
 // This gets called when we're about to shutdown/reboot
-void adamFuji::shutdown()
+void iwmFuji::shutdown()
 {
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
@@ -1093,7 +1074,7 @@ void adamFuji::setup(systemBus *siobus)
 }
 
 // Mount all
-void adamFuji::sio_mount_all()
+void iwmFuji::sio_mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
@@ -1150,10 +1131,6 @@ adamDisk *adamFuji::bootdisk()
 
 //==============================================================================================================================
 
-void iwmFuji::shutdown()
-{
-
-}
 
 iwmDisk *iwmFuji::bootdisk()
 {
@@ -1189,47 +1166,6 @@ void iwmFuji::_populate_config_from_slots()
 
 void iwmFuji::sio_mount_all() // 0xD7 (yes, I know.)
 {
-}
-
-void iwmFuji::process(cmdPacket_t cmd)
-{
-  fnLedManager.set(LED_BUS, true);
-  switch (cmd.command)
-  {
-  case 0x80: // status
-    Debug_printf("\r\nhandling status command");
-    iwm_status(cmd);
-    break;
-  case 0x81: // read block
-    iwm_return_badcmd(cmd);
-    break;
-  case 0x82: // write block
-    iwm_return_badcmd(cmd);
-    break;
-  case 0x83: // format
-    iwm_return_badcmd(cmd);
-    break;
-  case 0x84: // control
-    Debug_printf("\r\nhandling control command");
-    iwm_ctrl(cmd);
-    break;
-  case 0x86: // open
-    Debug_printf("\r\nhandling open command");
-    iwm_open(cmd);
-    break;
-  case 0x87: // close
-    Debug_printf("\r\nhandling close command");
-    iwm_close(cmd);
-    break;
-  case 0x88: // read
-    Debug_printf("\r\nhandling read command");
-    iwm_read(cmd);
-    break;
-  case 0x89: // write
-    iwm_return_badcmd(cmd);
-    break;
-  } // switch (cmd)
-  fnLedManager.set(LED_BUS, false);
 }
 
 void iwmFuji::encode_status_reply_packet()
@@ -1326,7 +1262,7 @@ void iwmFuji::encode_status_dib_reply_packet()
   data[23] = 0x00; // Firmware version 2 bytes
   data[24] = 0x01; //
 
-  // print_packet ((uint8_t*) data,packet_length()); // debug
+  // print_packet ((uint8_t*) data,get_packet_length()); // debug
   // Debug_print(("\nData loaded"));
   // Calculate checksum of sector bytes before we destroy them
   for (int count = 0; count < 25; count++) // xor all the data bytes
@@ -1397,45 +1333,6 @@ void iwmFuji::iwm_close(cmdPacket_t cmd)
 {
 }
 
-void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
-{
-  uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
-  uint8_t control_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-  Debug_printf("\r\nDevice %02x Control Code %02x", source, control_code);
-  Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
-  IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, BLOCK_PACKET_LEN);
-  Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, packet_buffer[12] & 0x7f);
-  decode_data_packet();
-  print_packet((uint8_t *)packet_buffer);
-
-  switch (control_code)
-  {
-  case 0xAA:
-    iwm_dummy_command();
-    break;
-  case IWM_CTRL_RESET:
-  case IWM_FUJICMD_RESET:
-    iwm_reset_fujinet();
-    break;
-  case IWM_FUJICMD_GET_SSID:
-    iwm_net_get_ssid(); // 0xFE
-    break;
-  case IWM_FUJICMD_SCAN_NETWORKS:
-    iwm_net_scan_networks(); // 0xFD
-    break;
-  case IWM_FUJICMD_GET_SCAN_RESULT:
-    iwm_net_scan_result(); // 0xFC
-    break;
-  case IWM_FUJICMD_SET_SSID:
-    iwm_net_set_ssid(); // 0xFB
-    break;
-  default:
-    // to do - send bad CTRL error
-    break;
-  }
-  encode_status_reply_packet();
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
-}
 
 void iwmFuji::iwm_read(cmdPacket_t cmd)
 {
@@ -1463,6 +1360,129 @@ void iwmFuji::iwm_read(cmdPacket_t cmd)
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
+
+void iwmFuji::iwm_status(cmdPacket_t cmd)
+{
+  uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
+  uint8_t status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+  Debug_printf("\r\nDevice %02x Status Code %02x", source, status_code);
+  Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+
+  switch (status_code)
+  {
+  case IWM_FUJICMD_GET_SSID:
+    iwm_net_get_ssid(); // 0xFE
+    break;
+  case IWM_FUJICMD_SCAN_NETWORKS:
+    iwm_net_scan_networks(); // 0xFD
+    break;
+  case IWM_FUJICMD_GET_SCAN_RESULT:
+    iwm_net_scan_result(); // 0xFC
+    break;
+  case IWM_FUJICMD_GET_WIFISTATUS: // 0xFA
+    iwm_net_get_wifi_status();
+    break
+  default:
+    // to do - send bad STATUS req error
+    break;
+  }
+  encode_data_packet(packet_len);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+}
+
+
+void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
+{
+  uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
+  uint8_t control_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+  Debug_printf("\r\nDevice %02x Control Code %02x", source, control_code);
+  Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+  IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, BLOCK_PACKET_LEN);
+  Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, packet_buffer[12] & 0x7f);
+  decode_data_packet();
+  print_packet((uint8_t *)packet_buffer);
+
+  switch (control_code)
+  {
+  case 0xAA:
+    iwm_dummy_command();
+    break;
+  case IWM_CTRL_RESET: // 0x00
+  case IWM_FUJICMD_RESET: // 0xFF
+    iwm_reset_fujinet();
+    break;
+  case IWM_FUJICMD_SET_SSID:
+    iwm_net_set_ssid(); // 0xFB
+    break;
+  case IWM_FUJICMD_MOUNT_HOST: // 0xF9
+    iwm_mount_host();
+    break;
+  case IWM_FUJICMD_MOUNT_IMAGE: // 0xF8
+    iwm_disk_image_mount();
+    break;
+  case IWM_FUJICMD_CONFIG_BOOT: // 0xD9
+    iwm_set_boot_config();
+    break;
+  case IWM_FUJICMD_COPY_FILE: // 0xD8
+    iwm_copy_file();
+    break;
+  case IWM_FUJICMD_MOUNT_ALL: // 0xD7
+    if (iwm_mount_all())
+      {
+        // return an error status
+      }
+    break;
+  case IWM_FUJICMD_SET_BOOT_MODE: // 0xD6
+    iwm_set_boot_mode();
+    break;
+  default: // to do - send bad CTRL error
+    break;
+  }
+  encode_status_reply_packet();
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+}
+
+
+void iwmFuji::process(cmdPacket_t cmd)
+{
+  fnLedManager.set(LED_BUS, true);
+  switch (cmd.command)
+  {
+  case 0x80: // status
+    Debug_printf("\r\nhandling status command");
+    iwm_status(cmd);
+    break;
+  case 0x81: // read block
+    iwm_return_badcmd(cmd);
+    break;
+  case 0x82: // write block
+    iwm_return_badcmd(cmd);
+    break;
+  case 0x83: // format
+    iwm_return_badcmd(cmd);
+    break;
+  case 0x84: // control
+    Debug_printf("\r\nhandling control command");
+    iwm_ctrl(cmd);
+    break;
+  case 0x86: // open
+    Debug_printf("\r\nhandling open command");
+    iwm_open(cmd);
+    break;
+  case 0x87: // close
+    Debug_printf("\r\nhandling close command");
+    iwm_close(cmd);
+    break;
+  case 0x88: // read
+    Debug_printf("\r\nhandling read command");
+    iwm_read(cmd);
+    break;
+  case 0x89: // write
+    iwm_return_badcmd(cmd);
+    break;
+  } // switch (cmd)
+  fnLedManager.set(LED_BUS, false);
+}
 
 
 #endif /* BUILD_APPLE */
