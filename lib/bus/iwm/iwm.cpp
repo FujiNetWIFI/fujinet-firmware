@@ -1166,6 +1166,7 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
 {
   uint8_t status_code = cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
   Debug_printf("\r\nTarget Device: %02x", cmd.dest);
+  // add a switch case statement for ALL THE STATUSESESESESS
   if (status_code == 0x03)
   { // if statcode=3, then status with device info block
     Debug_printf("\r\n******** Sending DIB! ********");
