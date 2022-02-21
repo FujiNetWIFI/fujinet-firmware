@@ -81,14 +81,14 @@ private:
     appkey _current_appkey;
 
 protected:
-    void iwm_dummy_command();              // 0xAA
-    void iwm_reset_fujinet();              // 0xFF
-    void iwm_net_get_ssid();               // 0xFE
-    void iwm_net_scan_networks();          // 0xFD
-    void iwm_net_scan_result();            // 0xFC
-    void iwm_net_set_ssid();     // 0xFB
+    void iwm_dummy_command();               // control 0xAA
+    void iwm_reset_fujinet();               // control 0xFF
+    void iwm_net_get_ssid();                // status 0xFE
+    void iwm_net_scan_networks();           // status 0xFD
+    void iwm_net_scan_result();             // status 0xFC
+    void iwm_net_set_ssid();                // control 0xFB
     /*
-    void adamnet_net_get_wifi_status();    // 0xFA
+    void adamnet_net_get_wifi_status();     // 0xFA
     void adamnet_mount_host();             // 0xF9
     void adamnet_disk_image_mount();       // 0xF8
     void adamnet_open_directory(uint16_t s);         // 0xF7
