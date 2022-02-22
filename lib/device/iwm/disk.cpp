@@ -616,6 +616,12 @@ bool iwmDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
   return false;
 }
 
+bool iwmDisk::write_blank(FILE *f, uint16_t numBlocks)
+{
+  return false;
+}
+
+
 void iwmDisk::startup_hack()
 {
   Debug_printf("\r\n Disk startup hack");
