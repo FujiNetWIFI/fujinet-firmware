@@ -546,13 +546,16 @@ void adamFuji::adamnet_read_app_key()
 
     fp = fnSDFAT.file_open(appkeyfilename, "r");
 
+    memset(response, 0, sizeof(response));
+    
+
     if (fp == nullptr)
     {
         Debug_printf("Could not open key.");
+        response_len = 1; // if no file found set return length to 1 or adam hangs waiting for response
         return;
     }
-
-    memset(response, 0, sizeof(response));
+    
     response_len = fread(response, sizeof(char), 64, fp);
     fclose(fp);
 }
