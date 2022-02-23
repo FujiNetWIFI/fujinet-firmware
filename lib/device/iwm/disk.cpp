@@ -291,7 +291,7 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
   data[23] = 0x01; // Firmware version 2 bytes
   data[24] = 0x0f; //
 
-  // print_packet ((uint8_t*) data,packet_length()); // debug
+  // print_packet ((uint8_t*) data,get_packet_length()); // debug
   // Debug_print(("\nData loaded"));
   // Calculate checksum of sector bytes before we destroy them
   for (int count = 0; count < 25; count++) // xor all the data bytes
@@ -479,7 +479,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   if (!d.sdf)
   {
     Debug_printf(" - ERROR - No image mounted");
-    encode_error_reply_packet(source, SP_ERR_OFFLINE);
+    encode_error_reply_packet(SP_ERR_OFFLINE);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     return;
   }
@@ -490,7 +490,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   LBN = cmd.g7byte3; //  packet_buffer[19]; // block number low
   block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
   // block num second byte
-  // print_packet ((unsigned char*) packet_buffer,packet_length());
+  // print_packet ((unsigned char*) packet_buffer,get_packet_length());
   // Added (unsigned short) cast to ensure calculated block is not underflowing.
   block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
   block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
@@ -502,7 +502,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     if (fseek(d.sdf, (block_num * 512), SEEK_SET))
     {
       Debug_printf("\r\nRead seek err! block #%02x", block_num);
-      encode_error_reply_packet(source, SP_ERR_BADBLOCK);
+      encode_error_reply_packet(SP_ERR_BADBLOCK);
       IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return; // todo - send an error status packet?
     }
@@ -512,11 +512,11 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   if (sdstato != 512)
   {
     Debug_printf("\r\nFile Read err: %d bytes", sdstato);
-    encode_error_reply_packet(source, SP_ERR_IOERROR);
+    encode_error_reply_packet(SP_ERR_IOERROR);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     return; // todo - true or false?
   }
-  encode_data_packet(source);
+  encode_data_packet();
   Debug_printf("\r\nsending block packet ...");
   if (!IWM.iwm_send_packet((unsigned char *)packet_buffer))
     last_block_num = block_num;
@@ -554,7 +554,7 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
       if (fseek(d.sdf, (block_num * 512), SEEK_SET))
       {
         Debug_printf("\r\nRead seek err! block #%02x", block_num);
-        encode_error_reply_packet(source, SP_ERR_BADBLOCK);
+        encode_error_reply_packet(SP_ERR_BADBLOCK);
         IWM.iwm_send_packet((unsigned char *)packet_buffer);
         return; // todo - send an error status packet?
                 // to do - set a flag here to check for error status
@@ -576,7 +576,7 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
     //Serial.print(F("\r\nSent status Packet Data\r\n") );
     //print_packet ((unsigned char*) sector_buffer,512);
 
-    //print_packet ((unsigned char*) packet_buffer,packet_length());
+    //print_packet ((unsigned char*) packet_buffer,get_packet_length());
     last_block_num = block_num;
   }
 }
@@ -615,6 +615,12 @@ bool iwmDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
   return false;
 }
+
+bool iwmDisk::write_blank(FILE *f, uint16_t numBlocks)
+{
+  return false;
+}
+
 
 void iwmDisk::startup_hack()
 {

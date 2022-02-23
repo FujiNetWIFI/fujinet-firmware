@@ -11,7 +11,8 @@
 #include <string>
 #include "fnFS.h"
 
-// todo - see page 81-82 in Apple IIc ROM reference
+// todo - see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
+#define SP_ERR_NOERROR 0x00    // no error
 #define SP_ERR_BADCMD 0x01     // invalid command
 #define SP_ERR_BUSERR 0x06     // communications error
 #define SP_ERR_BADCTL 0x21     // invalid status or control code
@@ -20,7 +21,9 @@
 #define SP_ERR_NODRIVE 0x28    // no device connected
 #define SP_ERR_NOWRITE 0x2b    // disk write protected
 #define SP_ERR_BADBLOCK 0x2d   // invalid block number
+#define SP_ERR_DISKSW 0x2e     // media has been swapped - extended calls only
 #define SP_ERR_OFFLINE 0x2f    // device offline or no disk in drive
+// $30-$3F are for device specific errors
 
 #define STATCODE_BLOCK_DEVICE 0x01 << 7   // block device = 1, char device = 0
 #define STATCODE_WRITE_ALLOWED 0x01 << 6
@@ -52,6 +55,21 @@
 #define PACKET_TYPE_CMD 0x80
 #define PACKET_TYPE_STATUS 0x81
 #define PACKET_TYPE_DATA 0x82
+
+#define IWM_CTRL_RESET 0x00
+#define IWM_CTRL_SET_DCB 0x01
+#define IWM_CTRL_SET_NEWLINE 0x02
+#define IWM_CTRL_SERVICE_INT 0x03
+#define IWM_CTRL_EJECT_DISK 0x04
+#define IWM_CTRL_RUN_ROUTINE 0x05
+#define IWM_CTRL_DWNLD_ADDRESS 0x06
+#define IWM_CTRL_DOWNLOAD 0x07
+
+#define IWM_STATUS_STATUS 0x00
+#define IWM_STATUS_DCB 0x01
+#define IWM_STATUS_NEWLINE 0x02
+#define IWM_STATUS_DIB 0x03
+#define IWM_STATUS_UNI35 0x05
 
 #undef TESTTX
 //#define TESTTX
@@ -196,31 +214,43 @@ protected:
 
   // iwm packet handling
   uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  uint16_t packet_len;
 
   bool decode_data_packet(void); //decode smartport 512 byte data packet
   uint16_t num_decoded;
-  
-  void encode_data_packet(uint8_t source); //encode smartport 512 byte data packet
-  void encode_data_packet (uint8_t source, uint16_t num); //encode smartport "num" byte data packet
+
+  void encode_data_packet(); //encode smartport 512 byte data packet
+  void encode_data_packet(uint16_t num); //encode smartport "num" byte data packet
   void encode_write_status_packet(uint8_t source, uint8_t status);
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
-  void encode_error_reply_packet(uint8_t source, uint8_t stat);
+  void encode_error_reply_packet(uint8_t stat);
   virtual void encode_status_dib_reply_packet() = 0;
 
   void encode_extended_data_packet(uint8_t source);
   virtual void encode_extended_status_reply_packet() = 0;
   virtual void encode_extended_status_dib_reply_packet() = 0;
   
-  int packet_length(void);
+  int get_packet_length(void);
 
   virtual void shutdown() = 0;
   virtual void process(cmdPacket_t cmd) = 0;
-  void iwm_status(cmdPacket_t cmd);
+
+  virtual void iwm_status(cmdPacket_t cmd);
+  virtual void iwm_readblock(cmdPacket_t cmd) {};
+  virtual void iwm_writeblock(cmdPacket_t cmd) {};
+  virtual void iwm_format(cmdPacket_t cmd) {};
+  virtual void iwm_ctrl(cmdPacket_t cmd) {};
+  virtual void iwm_open(cmdPacket_t cmd) {};
+  virtual void iwm_close(cmdPacket_t cmd) {};
+  virtual void iwm_read(cmdPacket_t cmd) {};
+  virtual void iwm_write(cmdPacket_t cmd) {};
+
   void iwm_return_badcmd(cmdPacket_t cmd);
 
 public:
   bool device_active;
+  bool is_config_device;
   /**
    * @brief get the IWM device Number (1-255)
    * @return The device number registered for this device
@@ -315,6 +345,8 @@ public:
   void addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
+  void enableDevice(uint8_t device_id);
+  void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
   // iwmDevice *smort;
 
