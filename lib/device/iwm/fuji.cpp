@@ -5,6 +5,7 @@
 #include "fnConfig.h"
 #include "led.h"
 #include "fnWiFi.h"
+#include "fnFsSPIFFS.h"
 #include "utils.h"
 
 #define IWM_FUJICMD_RESET 0xFF
@@ -15,37 +16,37 @@
 #define IWM_FUJICMD_GET_WIFISTATUS 0xFA
 #define IWM_FUJICMD_MOUNT_HOST 0xF9
 #define IWM_FUJICMD_MOUNT_IMAGE 0xF8
-#define SIO_FUJICMD_OPEN_DIRECTORY 0xF7
-#define SIO_FUJICMD_READ_DIR_ENTRY 0xF6
-#define SIO_FUJICMD_CLOSE_DIRECTORY 0xF5
-#define SIO_FUJICMD_READ_HOST_SLOTS 0xF4
-#define SIO_FUJICMD_WRITE_HOST_SLOTS 0xF3
-#define SIO_FUJICMD_READ_DEVICE_SLOTS 0xF2
-#define SIO_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
-#define SIO_FUJICMD_UNMOUNT_IMAGE 0xE9
-#define SIO_FUJICMD_GET_ADAPTERCONFIG 0xE8
-#define SIO_FUJICMD_NEW_DISK 0xE7
-#define SIO_FUJICMD_UNMOUNT_HOST 0xE6
-#define SIO_FUJICMD_GET_DIRECTORY_POSITION 0xE5
-#define SIO_FUJICMD_SET_DIRECTORY_POSITION 0xE4
-#define SIO_FUJICMD_SET_HSIO_INDEX 0xE3
-#define SIO_FUJICMD_SET_DEVICE_FULLPATH 0xE2
-#define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
-#define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
-#define SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
+#define IWM_FUJICMD_OPEN_DIRECTORY 0xF7
+#define IWM_FUJICMD_READ_DIR_ENTRY 0xF6
+#define IWM_FUJICMD_CLOSE_DIRECTORY 0xF5
+#define IWM_FUJICMD_READ_HOST_SLOTS 0xF4
+#define IWM_FUJICMD_WRITE_HOST_SLOTS 0xF3
+#define IWM_FUJICMD_READ_DEVICE_SLOTS 0xF2
+#define IWM_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
+#define IWM_FUJICMD_UNMOUNT_IMAGE 0xE9
+#define IWM_FUJICMD_GET_ADAPTERCONFIG 0xE8
+#define IWM_FUJICMD_NEW_DISK 0xE7
+#define IWM_FUJICMD_UNMOUNT_HOST 0xE6
+#define IWM_FUJICMD_GET_DIRECTORY_POSITION 0xE5
+#define IWM_FUJICMD_SET_DIRECTORY_POSITION 0xE4
+//#define IWM_FUJICMD_SET_HSIO_INDEX 0xE3
+#define IWM_FUJICMD_SET_DEVICE_FULLPATH 0xE2
+#define IWM_FUJICMD_SET_HOST_PREFIX 0xE1
+#define IWM_FUJICMD_GET_HOST_PREFIX 0xE0
+//#define IWM_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
 #define IWM_FUJICMD_WRITE_APPKEY 0xDE
 #define IWM_FUJICMD_READ_APPKEY 0xDD
-#define SIO_FUJICMD_OPEN_APPKEY 0xDC
-#define SIO_FUJICMD_CLOSE_APPKEY 0xDB
-#define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
+#define IWM_FUJICMD_OPEN_APPKEY 0xDC
+#define IWM_FUJICMD_CLOSE_APPKEY 0xDB
+#define IWM_FUJICMD_GET_DEVICE_FULLPATH 0xDA
 #define IWM_FUJICMD_CONFIG_BOOT 0xD9
 #define IWM_FUJICMD_COPY_FILE 0xD8
 #define IWM_FUJICMD_MOUNT_ALL 0xD7
 #define IWM_FUJICMD_SET_BOOT_MODE 0xD6
-#define SIO_FUJICMD_ENABLE_DEVICE 0xD5
-#define SIO_FUJICMD_DISABLE_DEVICE 0xD4
-#define SIO_FUJICMD_STATUS 0x53
-#define SIO_FUJICMD_HSIO_INDEX 0x3F
+#define IWM_FUJICMD_ENABLE_DEVICE 0xD5
+#define IWM_FUJICMD_DISABLE_DEVICE 0xD4
+#define IWM_FUJICMD_STATUS 0x53
+//#define IWM_FUJICMD_HSIO_INDEX 0x3F
 
 #define ADDITIONAL_DETAILS_BYTES 12
 
@@ -76,7 +77,7 @@ void iwmFuji::iwm_stat_net_get_ssid() // SP STATUS command
 {
    Debug_println("Fuji cmd: GET SSID");
 
-    // Response to SIO_FUJICMD_GET_SSID
+    // Response to IWM_FUJICMD_GET_SSID
     struct
     {
         char ssid[MAX_SSID_LEN];
@@ -158,7 +159,7 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
         uint16_t s = num_decoded;
         s--;
 
-        // Data for SIO_FUJICMD_SET_SSID
+        // Data for IWM_FUJICMD_SET_SSID
         struct
         {
             char ssid[MAX_SSID_LEN];
@@ -166,7 +167,7 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
         } cfg;
 
         // to do - copy data over to cfg
-        memcpy((uint8_t *)&cfg, (uint8_t *)packet_buffer[1], s);
+        memcpy((uint8_t *)&cfg, (uint8_t *)&packet_buffer[1], s);
         // adamnet_recv_buffer((uint8_t *)&cfg, s);
 
             bool save = true;
@@ -437,11 +438,11 @@ void iwmFuji::image_rotate()
         {
             int swap = _fnDisks[n - 1].disk_dev.id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            _adamnet_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap); // to do!
+            _iwm_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap); // to do!
         }
 
         // The first slot gets the device ID of the last slot
-        _adamnet_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+        _iwm_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
     }
 }
 
@@ -684,7 +685,7 @@ void iwmFuji::iwm_stat_get_adapter_config()
 {
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
-    // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
+    // Response to IWM_FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
 
     memset(&cfg, 0, sizeof(cfg));
@@ -826,7 +827,7 @@ void iwmFuji::iwm_stat_read_device_slots()
 }
 
 // Read and save disk slot data from computer
-void iwmFuji::iwm_stat_read_device_slots()
+void iwmFuji::iwm_ctrl_write_device_slots()
 {
     Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
 
@@ -921,35 +922,31 @@ void iwmFuji::iwm_ctrl_set_device_filename()
 
     Debug_printf("SET DEVICE SLOT %d filename\n", ds);
 
-    adamnet_recv_buffer((uint8_t *)&f, s);
-
+    // adamnet_recv_buffer((uint8_t *)&f, s);
+    memcpy((uint8_t *)&f, packet_buffer, s);
     Debug_printf("filename: %s\n", f);
-
-    adamnet_recv(); // CK
-
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
     _populate_config_from_slots();
 }
 
 // Get a 256 byte filename from device slot
-void adamFuji::adamnet_get_device_filename()
+void iwmFuji::iwm_ctrl_get_device_filename()
 {
-    unsigned char ds = adamnet_recv();
+    unsigned char ds = packet_buffer[0];//adamnet_recv();
 
-    adamnet_recv();
+    ctrl_stat_len = MAX_FILENAME_LEN;
+    memcpy(ctrl_stat_buffer, _fnDisks[ds].filename, ctrl_stat_len);
+}
 
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
-    memcpy(response, _fnDisks[ds].filename, 256);
-    response_len = 256;
+void iwmFuji::iwm_stat_get_device_filename()
+{
+    memcpy(packet_buffer, ctrl_stat_buffer, ctrl_stat_len);
+    packet_len = 256;
 }
 
 // Mounts the desired boot disk number
-void adamFuji::insert_boot_device(uint8_t d)
+void iwmFuji::insert_boot_device(uint8_t d)
 {
     const char *config_atr = "/autorun.ddp";
     const char *mount_all_atr = "/mount-and-boot.ddp";
@@ -959,12 +956,12 @@ void adamFuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fnSPIFFS.file_open(config_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);        
+        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_PO);        
         break;
     case 1:
 
         fBoot = fnSPIFFS.file_open(mount_all_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);        
+        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_PO);        
         break;
     }
 
@@ -972,77 +969,22 @@ void adamFuji::insert_boot_device(uint8_t d)
     _fnDisks[0].disk_dev.device_active = true;
 }
 
-void adamFuji::adamnet_enable_device()
+void iwmFuji::iwm_ctrl_enable_device()
 {
-    unsigned char d = adamnet_recv();
+    unsigned char d = packet_buffer[0]; // adamnet_recv();
 
-    adamnet_recv();
-
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
-    AdamNet.enableDevice(d);
+    IWM.enableDevice(d);
 }
 
-void adamFuji::adamnet_disable_device()
+void iwmFuji::iwm_ctrl_disable_device()
 {
-    unsigned char d = adamnet_recv();
+    unsigned char d = packet_buffer[0]; // adamnet_recv();
 
-    adamnet_recv();
-
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
-    AdamNet.disableDevice(d);
-}
-
-// Initializes base settings and adds our devices to the SIO bus
-void adamFuji::setup(systemBus *siobus)
-{
-    // set up Fuji device
-    _adamnet_bus = siobus;
-
-    _populate_slots_from_config();
-
-    // Disable booting from CONFIG if our settings say to turn it off
-    boot_config = false;
-
-    // Disable status_wait if our settings say to turn it off
-    status_wait_enabled = false;
-
-    _adamnet_bus->addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
-    _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
-    _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
-    _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
-
-    Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
-    if (Config.get_general_boot_mode() == 0)
-    {
-        FILE *f = fnSPIFFS.file_open("/autorun.ddp");
-        _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
-    }
-    else
-    {
-        FILE *f = fnSPIFFS.file_open("/mount-and-boot.ddp");
-        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, MEDIATYPE_DDP);
-    }
-
-    theNetwork = new adamNetwork();
-    theSerial = new adamSerial();
-    _adamnet_bus->addDevice(theNetwork, 0x09); // temporary.
-    _adamnet_bus->addDevice(theSerial, 0x0e);  // Serial port
-    _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
-
-    // Add our devices to the AdamNet bus
-    // for (int i = 0; i < 4; i++)
-    //    _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
-
-    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
+    IWM.disableDevice(d);
 }
 
 // Mount all
-void iwmFuji::sio_mount_all()
+void iwmFuji::sio_mount_all() // 0xD7 (yes, I know.)
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
@@ -1092,30 +1034,57 @@ void iwmFuji::sio_mount_all()
     }
 }
 
-adamDisk *adamFuji::bootdisk()
+iwmDisk *iwmFuji::bootdisk()
 {
     return _bootDisk;
 }
 
-//==============================================================================================================================
 
-
-iwmDisk *iwmFuji::bootdisk()
-{
-    return nullptr;
-}
-
-void iwmFuji::insert_boot_device(uint8_t d)
-{
-}
-
+// Initializes base settings and adds our devices to the SIO bus
 void iwmFuji::setup(iwmBus *iwmbus)
 {
+    // set up Fuji device
+    _iwm_bus = iwmbus;
+
+    _populate_slots_from_config();
+
+    // Disable booting from CONFIG if our settings say to turn it off
+    boot_config = false;
+
+    // Disable status_wait if our settings say to turn it off
+    status_wait_enabled = false;
+
+    _iwm_bus->addDevice(&_fnDisks[0].disk_dev, iwm_fujinet_type_t::BlockDisk);
+    _iwm_bus->addDevice(&_fnDisks[1].disk_dev, iwm_fujinet_type_t::BlockDisk);
+    _iwm_bus->addDevice(&_fnDisks[2].disk_dev, iwm_fujinet_type_t::BlockDisk);
+    _iwm_bus->addDevice(&_fnDisks[3].disk_dev, iwm_fujinet_type_t::BlockDisk);
+
+    Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
+    if (Config.get_general_boot_mode() == 0)
+    {
+        FILE *f = fnSPIFFS.file_open("/autorun.po");
+        _fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*65536, MEDIATYPE_PO);
+    }
+    else
+    {
+        FILE *f = fnSPIFFS.file_open("/mount-and-boot.po");
+        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*65536, MEDIATYPE_PO);
+    }
+
+    // theNetwork = new adamNetwork();
+    // theSerial = new adamSerial();
+    // _iwm_bus->addDevice(theNetwork, 0x09); // temporary.
+    // _iwm_bus->addDevice(theSerial, 0x0e);  // Serial port
+    // _iwm_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
+
+    // Add our devices to the AdamNet bus
+    // for (int i = 0; i < 4; i++)
+    //    _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
+
+    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+    //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
 }
 
-void iwmFuji::image_rotate()
-{
-}
 int iwmFuji::get_disk_id(int drive_slot)
 {
     return -1;
@@ -1123,17 +1092,6 @@ int iwmFuji::get_disk_id(int drive_slot)
 std::string iwmFuji::get_host_prefix(int host_slot)
 {
     return std::string();
-}
-
-void iwmFuji::_populate_slots_from_config()
-{
-}
-void iwmFuji::_populate_config_from_slots()
-{
-}
-
-void iwmFuji::sio_mount_all() // 0xD7 (yes, I know.)
-{
 }
 
 void iwmFuji::encode_status_reply_packet()
@@ -1322,7 +1280,7 @@ void iwmFuji::iwm_read(cmdPacket_t cmd)
   // return;
 
   memcpy(packet_buffer,"HELLO WORLD",11);
-  encode_data_packet(source, 11);
+  encode_data_packet(11);
   Debug_printf("\r\nsending data packet with %d elements ...", 11);
   //print_packet();
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
@@ -1339,17 +1297,17 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
   switch (status_code)
   {
   case IWM_FUJICMD_GET_SSID:
-    iwm_net_get_ssid(); // 0xFE
+    iwm_stat_net_get_ssid(); // 0xFE
     break;
   case IWM_FUJICMD_SCAN_NETWORKS:
-    iwm_net_scan_networks(); // 0xFD
+    iwm_stat_net_scan_networks(); // 0xFD
     break;
   case IWM_FUJICMD_GET_SCAN_RESULT:
-    iwm_net_scan_result(); // 0xFC
+    iwm_stat_net_scan_result(); // 0xFC
     break;
   case IWM_FUJICMD_GET_WIFISTATUS: // 0xFA
-    iwm_net_get_wifi_status();
-    break
+    iwm_stat_net_get_wifi_status();
+    break;
   default:
     // to do - send bad STATUS req error
     break;
@@ -1377,36 +1335,33 @@ void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
     break;
   case IWM_CTRL_RESET: // 0x00
   case IWM_FUJICMD_RESET: // 0xFF
-    iwm_reset_fujinet();
+    iwm_ctrl_reset_fujinet();
     break;
   case IWM_FUJICMD_SET_SSID:
-    iwm_net_set_ssid(); // 0xFB
+    iwm_ctrl_net_set_ssid(); // 0xFB
     break;
   case IWM_FUJICMD_MOUNT_HOST: // 0xF9
-    iwm_mount_host();
+    iwm_ctrl_mount_host();
     break;
   case IWM_FUJICMD_MOUNT_IMAGE: // 0xF8
-    iwm_disk_image_mount();
+    iwm_ctrl_disk_image_mount();
     break;
   case IWM_FUJICMD_CONFIG_BOOT: // 0xD9
-    iwm_set_boot_config();
+    iwm_ctrl_set_boot_config();
     break;
   case IWM_FUJICMD_COPY_FILE: // 0xD8
-    iwm_copy_file();
+    iwm_ctrl_copy_file();
     break;
   case IWM_FUJICMD_MOUNT_ALL: // 0xD7
-    if (iwm_mount_all())
-      {
-        // return an error status
-      }
+    sio_mount_all();
     break;
   case IWM_FUJICMD_SET_BOOT_MODE: // 0xD6
-    iwm_set_boot_mode();
+    iwm_ctrl_set_boot_mode();
     break;
   default: // to do - send bad CTRL error
     break;
   }
-  encode_status_reply_packet();
+  encode_status_reply_packet(); // to do - allow actual status to be specified
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 

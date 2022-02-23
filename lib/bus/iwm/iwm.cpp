@@ -1071,7 +1071,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 }
 
 //todo: this only replies a $21 error
-void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
+void iwmDevice::encode_error_reply_packet (uint8_t stat)
 {
   uint8_t checksum = 0;
 
@@ -1084,7 +1084,7 @@ void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
 
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
-  packet_buffer[8] = source; //SRC - source id - us
+  packet_buffer[8] = id(); //SRC - source id - us
   packet_buffer[9] = PACKET_TYPE_STATUS;  //TYPE -status
   packet_buffer[10] = 0x80; //AUX
   packet_buffer[11] = stat | 0x80; //STAT - data status - error
@@ -1098,15 +1098,12 @@ void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
 
   packet_buffer[16] = 0xc8; //PEND
   packet_buffer[17] = 0x00; //end of packet in buffer
-
 }
 
 void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
 {
-  uint8_t source = cmd.dest; // packet_buffer[6];
-  // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
-  Debug_printf("\r\nUnit %02x Bad Command %02x", source, cmd.command);
-  encode_error_reply_packet(source, SP_ERR_BADCMD);
+  Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+  encode_error_reply_packet(SP_ERR_BADCMD);
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
@@ -1468,6 +1465,18 @@ iwmDevice *iwmBus::deviceById(int device_id)
             return devicep;
     }
     return nullptr;
+}
+
+void iwmBus::enableDevice(uint8_t device_id)
+{
+    iwmDevice *p = deviceById(device_id);
+    p->device_active = true;
+}
+
+void iwmBus::disableDevice(uint8_t device_id)
+{
+    iwmDevice *p = deviceById(device_id);
+    p->device_active = false;
 }
 
 // Give devices an opportunity to clean up before a reboot

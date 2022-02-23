@@ -111,7 +111,7 @@ protected:
     void iwm_stat_read_host_slots();        // 0xF4
     void iwm_ctrl_write_host_slots();       // 0xF3
     void iwm_stat_read_device_slots();      // 0xF2
-    void iwm_ctrl_read_device_slots();     // 0xF1
+    void iwm_ctrl_write_device_slots();     // 0xF1
     void iwm_ctrl_disk_image_umount();      // 0xE9
     void iwm_stat_get_adapter_config();     // 0xE8
     void iwm_ctrl_new_disk();               // 0xE7
@@ -142,6 +142,8 @@ protected:
     void iwm_ctrl_set_boot_config();            // 0xD9
     void iwm_ctrl_copy_file();                  // 0xD8
     void iwm_ctrl_set_boot_mode();              // 0xD6
+    void iwm_ctrl_enable_device();          // 0xD5
+    void iwm_ctrl_disable_device();         // 0xD4
 
     void shutdown() override;
     void process(cmdPacket_t cmd) override;
