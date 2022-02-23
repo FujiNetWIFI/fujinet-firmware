@@ -708,8 +708,6 @@ void iwmBus::setup(void)
   Debug_printf("\r\nIWM timer started");
 }
 
-
-
 //*****************************************************************************
 // Function: encode_data_packet
 // Parameters: source id
@@ -719,69 +717,7 @@ void iwmBus::setup(void)
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void iwmDevice::encode_data_packet (uint8_t source) // to do overload with packet size for read?
-{
-  int grpbyte, grpcount;
-  uint8_t checksum = 0, grpmsb;
-  uint8_t group_buffer[7];
-
-  // Calculate checksum of sector bytes before we destroy them
-  for (int count = 0; count < 512; count++) // xor all the data bytes
-    checksum = checksum ^ packet_buffer[count];
-
-  // Start assembling the packet at the rear and work 
-  // your way to the front so we don't overwrite data
-  // we haven't encoded yet
-
-  //grps of 7
-  for (grpcount = 72; grpcount >= 0; grpcount--) //73
-  {
-    memcpy(group_buffer, packet_buffer + 1 + (grpcount * 7), 7);
-    // add group msb byte
-    grpmsb = 0;
-    for (grpbyte = 0; grpbyte < 7; grpbyte++)
-      grpmsb = grpmsb | ((group_buffer[grpbyte] >> (grpbyte + 1)) & (0x80 >> (grpbyte + 1)));
-    packet_buffer[16 + (grpcount * 8)] = grpmsb | 0x80; // set msb to one
-
-    // now add the group data bytes bits 6-0
-    for (grpbyte = 0; grpbyte < 7; grpbyte++)
-      packet_buffer[17 + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
-
-  }
-  
-  //total number of packet data bytes for 512 data bytes is 584
-  //odd byte
-  packet_buffer[14] = ((packet_buffer[0] >> 1) & 0x40) | 0x80;
-  packet_buffer[15] = packet_buffer[0] | 0x80;
-
-  packet_buffer[0] = 0xff;  //sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
-
-  packet_buffer[6] = 0xc3;  //PBEGIN - start byte
-  packet_buffer[7] = 0x80;  //DEST - dest id - host
-  packet_buffer[8] = source; //SRC - source id - us
-  packet_buffer[9] = 0x82;  //TYPE - 0x82 = data
-  packet_buffer[10] = 0x80; //AUX
-  packet_buffer[11] = 0x80; //STAT
-  packet_buffer[12] = 0x81; //ODDCNT  - 1 odd byte for 512 byte packet
-  packet_buffer[13] = 0xC9; //GRP7CNT - 73 groups of 7 bytes for 512 byte packet
-
-  for (int count = 7; count < 14; count++) // now xor the packet header bytes
-    checksum = checksum ^ packet_buffer[count];
-  packet_buffer[600] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  packet_buffer[601] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-  //end bytes
-  packet_buffer[602] = 0xc8;  //pkt end
-  packet_buffer[603] = 0x00;  //mark the end of the packet_buffer
-
-}
-
-void iwmDevice::encode_data_packet (uint8_t source, uint16_t num) 
+void iwmDevice::encode_data_packet(uint16_t num) 
 {
   int grpbyte, grpcount;
   uint8_t checksum = 0, grpmsb;
@@ -835,7 +771,7 @@ void iwmDevice::encode_data_packet (uint8_t source, uint16_t num)
 
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
-  packet_buffer[8] = source; //SRC - source id - us
+  packet_buffer[8] = id(); //SRC - source id - us
   packet_buffer[9] = 0x82;  //TYPE - 0x82 = data
   packet_buffer[10] = 0x80; //AUX
   packet_buffer[11] = 0x80; //STAT
@@ -853,8 +789,72 @@ void iwmDevice::encode_data_packet (uint8_t source, uint16_t num)
   packet_buffer[lastidx] = 0x00;  //mark the end of the packet_buffer
 }
 
+void iwmDevice::encode_data_packet() // to do overload with packet size for read?
+{
+  encode_data_packet(512);
+  /* 
+  int grpbyte, grpcount;
+  uint8_t checksum = 0, grpmsb;
+  uint8_t group_buffer[7];
+
+  // Calculate checksum of sector bytes before we destroy them
+  for (int count = 0; count < 512; count++) // xor all the data bytes
+    checksum = checksum ^ packet_buffer[count];
+
+  // Start assembling the packet at the rear and work 
+  // your way to the front so we don't overwrite data
+  // we haven't encoded yet
+
+  //grps of 7
+  for (grpcount = 72; grpcount >= 0; grpcount--) //73
+  {
+    memcpy(group_buffer, packet_buffer + 1 + (grpcount * 7), 7);
+    // add group msb byte
+    grpmsb = 0;
+    for (grpbyte = 0; grpbyte < 7; grpbyte++)
+      grpmsb = grpmsb | ((group_buffer[grpbyte] >> (grpbyte + 1)) & (0x80 >> (grpbyte + 1)));
+    packet_buffer[16 + (grpcount * 8)] = grpmsb | 0x80; // set msb to one
+
+    // now add the group data bytes bits 6-0
+    for (grpbyte = 0; grpbyte < 7; grpbyte++)
+      packet_buffer[17 + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
+
+  }
+  
+  //total number of packet data bytes for 512 data bytes is 584
+  //odd byte
+  packet_buffer[14] = ((packet_buffer[0] >> 1) & 0x40) | 0x80;
+  packet_buffer[15] = packet_buffer[0] | 0x80;
+
+  packet_buffer[0] = 0xff;  //sync bytes
+  packet_buffer[1] = 0x3f;
+  packet_buffer[2] = 0xcf;
+  packet_buffer[3] = 0xf3;
+  packet_buffer[4] = 0xfc;
+  packet_buffer[5] = 0xff;
+
+  packet_buffer[6] = 0xc3;  //PBEGIN - start byte
+  packet_buffer[7] = 0x80;  //DEST - dest id - host
+  packet_buffer[8] = id(); //SRC - source id - us
+  packet_buffer[9] = 0x82;  //TYPE - 0x82 = data
+  packet_buffer[10] = 0x80; //AUX
+  packet_buffer[11] = 0x80; //STAT
+  packet_buffer[12] = 0x81; //ODDCNT  - 1 odd byte for 512 byte packet
+  packet_buffer[13] = 0xC9; //GRP7CNT - 73 groups of 7 bytes for 512 byte packet
+
+  for (int count = 7; count < 14; count++) // now xor the packet header bytes
+    checksum = checksum ^ packet_buffer[count];
+  packet_buffer[600] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
+  packet_buffer[601] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
+
+  //end bytes
+  packet_buffer[602] = 0xc8;  //pkt end
+  packet_buffer[603] = 0x00;  //mark the end of the packet_buffer 
+  */
+}
+
 //*****************************************************************************
-// Function: encode_data_packet
+// Function: encode_extended_data_packet
 // Parameters: source id
 // Returns: none
 //
@@ -1071,7 +1071,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 }
 
 //todo: this only replies a $21 error
-void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
+void iwmDevice::encode_error_reply_packet (uint8_t stat)
 {
   uint8_t checksum = 0;
 
@@ -1084,7 +1084,7 @@ void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
 
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
-  packet_buffer[8] = source; //SRC - source id - us
+  packet_buffer[8] = id(); //SRC - source id - us
   packet_buffer[9] = PACKET_TYPE_STATUS;  //TYPE -status
   packet_buffer[10] = 0x80; //AUX
   packet_buffer[11] = stat | 0x80; //STAT - data status - error
@@ -1098,15 +1098,12 @@ void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
 
   packet_buffer[16] = 0xc8; //PEND
   packet_buffer[17] = 0x00; //end of packet in buffer
-
 }
 
 void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
 {
-  uint8_t source = cmd.dest; // packet_buffer[6];
-  // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
-  Debug_printf("\r\nUnit %02x Bad Command %02x", source, cmd.command);
-  encode_error_reply_packet(source, SP_ERR_BADCMD);
+  Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+  encode_error_reply_packet(SP_ERR_BADCMD);
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
@@ -1126,7 +1123,7 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   uint8_t calc_checksum = 0; //initial value is 0
   uint8_t pkt_checksum;
 
-  //length = packet_length();
+  //length = get_packet_length();
   //Debug_printf("\r\npacket length = %d", length);
   //2 oddbytes in cmd packet
   // calc_checksum ^= ((packet_buffer[13] << 1) & 0x80) | (packet_buffer[14] & 0x7f);
@@ -1166,11 +1163,12 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
 {
   uint8_t status_code = cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
   Debug_printf("\r\nTarget Device: %02x", cmd.dest);
+  // add a switch case statement for ALL THE STATUSESESESESS
   if (status_code == 0x03)
   { // if statcode=3, then status with device info block
     Debug_printf("\r\n******** Sending DIB! ********");
     encode_status_dib_reply_packet();
-    // print_packet ((unsigned char*) packet_buffer,packet_length());
+    // print_packet ((unsigned char*) packet_buffer,get_packet_length());
     fnSystem.delay(50);
     }
     else
@@ -1190,7 +1188,7 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
 // Description: Calculates the length of the packet in the packet_buffer.
 // A zero marks the end of the packet data.
 //*****************************************************************************
-int iwmDevice::packet_length (void)
+int iwmDevice::get_packet_length (void)
 {
   int x = 5; // start at the 0xc3 beginning of packet
   while (packet_buffer[x++]);
@@ -1358,7 +1356,7 @@ void iwmBus::handle_init()
       Debug_printf("\r\nSending INIT Response Packet...");
       iwm_send_packet((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
 
-      // print_packet ((uint8_t*) packet_buffer,packet_length());
+      // print_packet ((uint8_t*) packet_buffer,get_packet_length());
 
       Debug_printf(("\r\nDrive: %02x\r\n"), pDevice->id());
       return;
@@ -1467,6 +1465,18 @@ iwmDevice *iwmBus::deviceById(int device_id)
             return devicep;
     }
     return nullptr;
+}
+
+void iwmBus::enableDevice(uint8_t device_id)
+{
+    iwmDevice *p = deviceById(device_id);
+    p->device_active = true;
+}
+
+void iwmBus::disableDevice(uint8_t device_id)
+{
+    iwmDevice *p = deviceById(device_id);
+    p->device_active = false;
 }
 
 // Give devices an opportunity to clean up before a reboot
