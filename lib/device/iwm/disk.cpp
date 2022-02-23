@@ -479,7 +479,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   if (!d.sdf)
   {
     Debug_printf(" - ERROR - No image mounted");
-    encode_error_reply_packet(source, SP_ERR_OFFLINE);
+    encode_error_reply_packet(SP_ERR_OFFLINE);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     return;
   }
@@ -502,7 +502,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     if (fseek(d.sdf, (block_num * 512), SEEK_SET))
     {
       Debug_printf("\r\nRead seek err! block #%02x", block_num);
-      encode_error_reply_packet(source, SP_ERR_BADBLOCK);
+      encode_error_reply_packet(SP_ERR_BADBLOCK);
       IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return; // todo - send an error status packet?
     }
@@ -512,7 +512,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   if (sdstato != 512)
   {
     Debug_printf("\r\nFile Read err: %d bytes", sdstato);
-    encode_error_reply_packet(source, SP_ERR_IOERROR);
+    encode_error_reply_packet(SP_ERR_IOERROR);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     return; // todo - true or false?
   }
@@ -554,7 +554,7 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
       if (fseek(d.sdf, (block_num * 512), SEEK_SET))
       {
         Debug_printf("\r\nRead seek err! block #%02x", block_num);
-        encode_error_reply_packet(source, SP_ERR_BADBLOCK);
+        encode_error_reply_packet(SP_ERR_BADBLOCK);
         IWM.iwm_send_packet((unsigned char *)packet_buffer);
         return; // todo - send an error status packet?
                 // to do - set a flag here to check for error status

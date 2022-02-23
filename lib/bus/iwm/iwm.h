@@ -215,7 +215,7 @@ protected:
   void encode_write_status_packet(uint8_t source, uint8_t status);
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
-  void encode_error_reply_packet(uint8_t source, uint8_t stat);
+  void encode_error_reply_packet(uint8_t stat);
   virtual void encode_status_dib_reply_packet() = 0;
 
   void encode_extended_data_packet(uint8_t source);
@@ -241,6 +241,7 @@ protected:
 
 public:
   bool device_active;
+  bool is_config_device;
   /**
    * @brief get the IWM device Number (1-255)
    * @return The device number registered for this device
@@ -335,6 +336,8 @@ public:
   void addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
+  void enableDevice(uint8_t device_id);
+  void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
   // iwmDevice *smort;
 
