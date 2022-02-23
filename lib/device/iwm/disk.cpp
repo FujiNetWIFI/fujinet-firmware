@@ -516,7 +516,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     return; // todo - true or false?
   }
-  encode_data_packet(source);
+  encode_data_packet();
   Debug_printf("\r\nsending block packet ...");
   if (!IWM.iwm_send_packet((unsigned char *)packet_buffer))
     last_block_num = block_num;
