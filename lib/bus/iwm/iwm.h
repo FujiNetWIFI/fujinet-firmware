@@ -345,6 +345,7 @@ public:
   void addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
+  iwmDevice *firstDev() {return _daisyChain.front();}
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
