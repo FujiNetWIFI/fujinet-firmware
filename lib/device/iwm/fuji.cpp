@@ -355,7 +355,8 @@ void iwmFuji::iwm_ctrl_write_app_key()
         return;
     }
     
-    size_t l = fwrite(data,sizeof(uint8_t),sizeof(data),fp);
+    // size_t l = fwrite(data,sizeof(uint8_t),sizeof(data),fp);
+    fwrite(data,sizeof(uint8_t),sizeof(data),fp);
     fclose(fp);
 }
 
@@ -1050,26 +1051,28 @@ void iwmFuji::setup(iwmBus *iwmbus)
     _populate_slots_from_config();
 
     // Disable booting from CONFIG if our settings say to turn it off
-    boot_config = false;
+    boot_config = false; // to do - understand?
 
     // Disable status_wait if our settings say to turn it off
-    status_wait_enabled = false;
+    status_wait_enabled = false;  // to do - understand?
 
-    _iwm_bus->addDevice(&_fnDisks[0].disk_dev, iwm_fujinet_type_t::BlockDisk);
-    _iwm_bus->addDevice(&_fnDisks[1].disk_dev, iwm_fujinet_type_t::BlockDisk);
-    _iwm_bus->addDevice(&_fnDisks[2].disk_dev, iwm_fujinet_type_t::BlockDisk);
     _iwm_bus->addDevice(&_fnDisks[3].disk_dev, iwm_fujinet_type_t::BlockDisk);
+    _iwm_bus->addDevice(&_fnDisks[2].disk_dev, iwm_fujinet_type_t::BlockDisk);
+    _iwm_bus->addDevice(&_fnDisks[1].disk_dev, iwm_fujinet_type_t::BlockDisk);
+    _iwm_bus->addDevice(&_fnDisks[0].disk_dev, iwm_fujinet_type_t::BlockDisk);
 
     Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {
-        FILE *f = fnSPIFFS.file_open("/autorun.po");
-        _fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*65536, MEDIATYPE_PO);
+        //FILE *f = fnSPIFFS.file_open("/autorun.po");
+        //_iwm_bus->firstDev()->
+        //_fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*256, MEDIATYPE_PO);
+        _fnDisks[0].disk_dev.init(); // temporary for opening autorun.po on local TNFS
     }
     else
     {
         FILE *f = fnSPIFFS.file_open("/mount-and-boot.po");
-        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*65536, MEDIATYPE_PO);
+        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*256, MEDIATYPE_PO);
     }
 
     // theNetwork = new adamNetwork();
@@ -1341,6 +1344,7 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
     // case IWM_FUJICMD_UNMOUNT_IMAGE:          // 0xE9
     case IWM_FUJICMD_GET_ADAPTERCONFIG:      // 0xE8
       iwm_stat_get_adapter_config();         // to do - set up as a DCB?
+      break;
     // case IWM_FUJICMD_NEW_DISK:               // 0xE7
     // case IWM_FUJICMD_UNMOUNT_HOST:           // 0xE6
     case IWM_FUJICMD_GET_DIRECTORY_POSITION: // 0xE5

@@ -17,7 +17,7 @@ iwmDisk::~iwmDisk()
 void iwmDisk::init()
 {
   open_tnfs_image();
-  //open_image("/prodos8abbrev.po");//("/STABLE.32MB.po");
+  //open_image("/autorun.po");//("/STABLE.32MB.po");
   if (d.sdf != nullptr)
   {
     Debug_printf("\r\nfile open good");
@@ -35,7 +35,9 @@ bool iwmDisk::open_tnfs_image()
   Debug_printf("\r\nmounting server");
   tserver.start("192.168.1.181"); //"atari-apps.irata.online");
   Debug_printf("\r\nopening file");
-  d.sdf = tserver.file_open("/prodos8abbrev.po", "rb+");
+  d.sdf = tserver.file_open("/autorun.po", "rb+");
+  // d.sdf = tserver.file_open("/prodos8abbrev.po", "rb+");
+  // d.sdf = tserver.file_open("/prodos16mb.po", "rb");
 #else
   Debug_printf("\r\nmounting server");
   tserver.start("159.203.160.80"); //"atari-apps.irata.online");
@@ -604,7 +606,38 @@ iwmDisk::iwmDisk()
 
 mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
-  return disk_type;
+
+  mediatype_t mt = MEDIATYPE_UNKNOWN;
+
+  Debug_printf("disk MOUNT %s\n", filename);
+
+  // Destroy any existing MediaType
+  if (_disk != nullptr)
+  {
+    delete _disk;
+    _disk = nullptr;
+  }
+
+    // Determine MediaType based on filename extension
+    if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
+        disk_type = MediaType::discover_mediatype(filename);
+
+    switch (disk_type)
+    {
+    case MEDIATYPE_PO:
+        device_active = true;
+        //_disk = new MediaTypePO();
+        //mt = _disk->mount(f, disksize);
+        d.sdf = f;
+        mt = MEDIATYPE_PO;
+        break;
+    default:
+        device_active = false;
+        break;
+    }
+
+    return mt;
+
 }
 
 void iwmDisk::unmount()
@@ -624,8 +657,8 @@ bool iwmDisk::write_blank(FILE *f, uint16_t numBlocks)
 
 void iwmDisk::startup_hack()
 {
-  Debug_printf("\r\n Disk startup hack");
-  init();
+  // Debug_printf("\r\n Disk startup hack");
+  // init();
 }
 
 #endif /* BUILD_APPLE */
