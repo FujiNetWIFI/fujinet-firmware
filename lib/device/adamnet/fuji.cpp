@@ -1228,7 +1228,7 @@ void adamFuji::setup(systemBus *siobus)
     theNetwork = new adamNetwork();
     theSerial = new adamSerial();
     _adamnet_bus->addDevice(theNetwork, 0x09); // temporary.
-    _adamnet_bus->addDevice(theSerial, 0x0e);  // Serial port
+    // _adamnet_bus->addDevice(theSerial, 0x0e);  // Serial port
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 }
 
