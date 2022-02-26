@@ -107,6 +107,10 @@ union cmdFrame_t
 
 #define COMMAND_PACKET_LEN  28
 #define BLOCK_PACKET_LEN    606
+#define MAX_DATA_LEN        767
+#define MAX_PACKET_LEN         891
+// to do - make block packet compatible up to 767 data bytes?
+
 union cmdPacket_t
 {
 /*

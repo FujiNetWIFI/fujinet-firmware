@@ -87,13 +87,14 @@ private:
 
     appkey _current_appkey;
 
-    uint8_t ctrl_stat_buffer[512]; // what is proper length
-    size_t ctrl_stat_len;
+    uint8_t ctrl_stat_buffer[767]; // what is proper length
+    size_t ctrl_stat_len = 0; // max payload length is 767
 
     char dirpath[256];
 
 protected:
     void iwm_dummy_command();                    // control 0xAA
+    void iwm_hello_world();                      // status 0xAA
     void iwm_ctrl_reset_fujinet();               // control 0xFF
     void iwm_stat_net_get_ssid();                // status 0xFE
     void iwm_stat_net_scan_networks();           // status 0xFD
