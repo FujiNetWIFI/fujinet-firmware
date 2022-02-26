@@ -371,7 +371,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
     // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(1000); // todo: logic analyzer says 40 usec
+  iwm_timer_alarm_set(1000); // logic analyzer says 40 usec
 
   // todo: can we create a wait for req with timout function to use elsewhere?
   // it woudl return bool false when REQ does its thing or true when timeout.
@@ -580,7 +580,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(1000); // 0.1 millisecond
+  iwm_timer_alarm_set(10000); // 1 millisecond per IIgs?
 
   // while (!fnSystem.digital_read(SP_REQ))
   while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
