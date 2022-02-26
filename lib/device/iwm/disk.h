@@ -30,14 +30,15 @@ protected:
 
     MediaType *_disk = nullptr;
 
-    void iwm_read();
-    void iwm_write(bool verify);
+    //void iwm_read();
+    //void iwm_write(bool verify);
     // void iwm_format();
-    void iwm_status(cmdPacket_t cmd); // override;
+    //void iwm_status(cmdPacket_t cmd); // override;
     void process(cmdPacket_t cmd) override; // uint32_t commanddata, uint8_t checksum); // override;
 
-    void iwm_readblock(cmdPacket_t cmd);
-    void iwm_writeblock(cmdPacket_t cmd);
+    void iwm_readblock(cmdPacket_t cmd) override;
+    void iwm_writeblock(cmdPacket_t cmd) override;
+    
 
     // void derive_percom_block(uint16_t numSectors);
     // void iwm_read_percom_block();
@@ -50,6 +51,7 @@ public:
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
+    bool write_blank(FILE *f, uint16_t numBlocks);
 
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
     void init();
