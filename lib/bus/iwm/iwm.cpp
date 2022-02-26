@@ -1142,8 +1142,11 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   for (int count = 6; count < 13; count++) // start from first id byte
     calc_checksum ^= command_packet.data[count];
 
-  oddbits = (command_packet.chksum1 << 1) | 0x01;
-  evenbits = command_packet.chksum2;
+  // int chkidx = 13 + numodd + (numodd != 0) + numgrps * 8;
+  // evenbits = packet_buffer[chkidx] & 0x55;
+  // oddbits = (packet_buffer[chkidx + 1] & 0x55) << 1;
+  oddbits = (command_packet.chksum2 << 1) | 0x01;
+  evenbits = command_packet.chksum1;
   pkt_checksum = oddbits & evenbits; // oddbits | evenbits;
   // every other bit is ==1 in checksum, so need to AND to get data back
 
@@ -1151,7 +1154,7 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   //  Debug_print(pkt_checksum,DEC);
   //  Debug_print(("Calc Chksum Byte:\r\n"));
   //  Debug_print(calc_checksum,DEC);
-  //Debug_printf("\r\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
+  //  Debug_printf("\r\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
   // if ( pkt_checksum == calc_checksum )
   //   return false;
   // else
@@ -1198,8 +1201,44 @@ int iwmDevice::get_packet_length (void)
 
 //*****************************************************************************
 // Function: main loop
-// //*****************************************************************************
-void iwmBus::service() 
+/*
+ * notes:
+ * with individual devices, like disk.cpp,
+ * we need to hand off control to the device to service
+ * the command packet. The algorithm is something like:
+ * check for 0x85 init and do a bus initialization:
+ * BUS INIT
+ * after a reset, all devices no longer have an address
+ * and they are gating some signal (REQ?) so devices
+ * down the chain cannot respond to commands. So the
+ * first device responds to INIT. During this, it checks
+ * the sense line (still not sure which pin this is) to see
+ * if it is low (grounded) or high (floating or pulled up?).
+ * It will be low if there's another device in the chain
+ * after it. If it is the last device it will be high.
+ * It sends this state in the response to INIT. It also
+ * ungates whatever the magic line is so the next device
+ * in the chain can receive the INIT command that is
+ * coming next. This repeats until the last device in the
+ * chain says it's so and the A2 will stop sending INITs.
+ *
+ * Every other command:
+ * The bus class checks the target device and should pass
+ * on the command packet to the device service routine.
+ * Then the device can respond accordingly.
+ *
+ * When device ID is not FujiNet's:
+ * If the device ID does not belong to any of the FujiNet
+ * devices (disks, printers, modem, network, etc) then FN
+ * should not respond. The SmartPortSD code runs through
+ * the states for the packets that should come next. I'm
+ * not sure this is the best because what happens in case
+ * of a malfunction. I suppose there could be a time out
+ * that takes us back to idle. This will take more
+ * investigation.
+ */
+//*****************************************************************************
+void iwmBus::service()
 {
   iwm_ack_disable(); // go hi-Z
   iwm_ack_clr();     // prep for the next read packet
@@ -1215,7 +1254,7 @@ void iwmBus::service()
     // and wait for reset to clear (probably with a timeout)
     Debug_printf(("\r\nReset"));
     // hard coding 1 partition - will use disk class instances instead
-    //smort->_devnum = 0;
+    // smort->_devnum = 0;
     for (auto devicep : _daisyChain)
       devicep->_devnum = 0;
 
@@ -1232,85 +1271,32 @@ void iwmBus::service()
     while (iwm_read_packet(command_packet.data, COMMAND_PACKET_LEN))
     {
       portENABLE_INTERRUPTS();
-      // break; // todo - change to a for or while loop to do multiple tries before timeout?
       return;
     }
-    // if (verify_cmdpkt_checksum())
-    // {
-    //   Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    //   // break;
-    // }
-
-    /***
-     * todo notes:
-     * once we make an actual device, like disk.cpp, then
-     * we need to hand off control to the device to service
-     * the command packet. I think the algorithm is something like:
-     * check for 0x85 init and do a bus initialization:
-     * BUS INIT
-     * after a reset, all devices no longer have an address
-     * and they are gating some signal (REQ?) so devices
-     * down the chain cannot respond to commands. So the
-     * first device responds to INIT. During this, it checks
-     * the sense line (still not sure which pin this is) to see
-     * if it is low (grounded) or high (floating or pulled up?).
-     * It will be low if there's another device in the chain
-     * after it. If it is the last device it will be high.
-     * It sends this state in the response to INIT. It also
-     * ungates whatever the magic line is so the next device
-     * in the chain can receive the INIT command that is
-     * coming next. This repeats until the last device in the
-     * chain says it's so and the A2 will stop sending INITs.
-     *
-     * Every other command:
-     * The bus class checks the target device and should pass
-     * on the command packet to the device service routine.
-     * Then the device can respond accordingly.
-     *
-     * When device ID is not FujiNet's:
-     * If the device ID does not belong to any of the FujiNet
-     * devices (disks, printers, modem, network, etc) then FN
-     * should not respond. The SmartPortSD code runs through
-     * the states for the packets that should come next. I'm
-     * not sure this is the best because what happens in case
-     * of a malfunction. I suppose there could be a time out
-     * that takes us back to idle. This will take more
-     * investigation.
-     */
-
-    // Todo: should not ACK unless we know this is our Command
-    //  should move this block to the main Bus service section
-    //  and only ACK when we know it's our device, then pass
-    //  control to that device
-    // iwm_ack_clr();
-
-    // do we need to wait for REQ to go low here, or should we just pass control
-    // and set up for the command? Once we see REQ go low,
-    // and we're ready to respond, the we disable ACK
-    // setup a timeout counter to wait for REQ response
-    iwm_ack_clr();
-    iwm_ack_enable();           // now ACK is enabled and cleared low, it is reset in the handlers
-    portENABLE_INTERRUPTS();
-    iwm_timer_latch();          // latch highspeed timer value
-    iwm_timer_read();           //  grab timer low word
-    iwm_timer_alarm_set(50000); // todo: figure out
-    while (iwm_req_val())
+    if (verify_cmdpkt_checksum())
     {
-      iwm_timer_latch();               // latch highspeed timer value
-      iwm_timer_read();                // grab timer low word
-      if (iwm_timer.t0 > iwm_timer.tn) // test for timeout
-      {                                // timeout!
-#ifdef VERBOSE_IWM
-        // timeout
-        Debug_print("t");
-#endif
-          // break; // oh! this break should be a return, otherwise we just go on to executing a command - not good
-        return;
-      }
+      Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+      return;
     }
-
+    // should not ACK unless we know this is our Command
     if (command_packet.command == 0x85)
     {
+      iwm_ack_clr();
+      iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
+      portENABLE_INTERRUPTS();
+      // wait for REQ to go low
+      iwm_timer_latch();          // latch highspeed timer value
+      iwm_timer_read();           //  grab timer low word
+      iwm_timer_alarm_set(50000); // todo: figure out
+      while (iwm_req_val())
+      {
+        iwm_timer_latch();               // latch highspeed timer value
+        iwm_timer_read();                // grab timer low word
+        if (iwm_timer.t0 > iwm_timer.tn) // test for timeout
+        {                                // timeout!
+          return;
+        }
+      }
 #ifdef DEBUG
       print_packet(command_packet.data);
       Debug_printf("\r\nhandling init command");
@@ -1319,21 +1305,37 @@ void iwmBus::service()
     }
     else
     {
-#ifdef DEBUG
-      print_packet(command_packet.data);
-#endif
-      //smort->process(command_packet);
+      // smort->process(command_packet);
       for (auto devicep : _daisyChain)
       {
         if (command_packet.dest == devicep->_devnum)
         {
+          iwm_ack_clr();
+          iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
+          portENABLE_INTERRUPTS();
+          // wait for REQ to go low
+          iwm_timer_latch();          // latch highspeed timer value
+          iwm_timer_read();           //  grab timer low word
+          iwm_timer_alarm_set(50000); // todo: figure out
+          while (iwm_req_val())
+          {
+            iwm_timer_latch();               // latch highspeed timer value
+            iwm_timer_read();                // grab timer low word
+            if (iwm_timer.t0 > iwm_timer.tn) // test for timeout
+            {                                // timeout!
+              return;
+            }
+          }
+#ifdef DEBUG
+          print_packet(command_packet.data);
+#endif
           _activeDev = devicep;
           // handle command
           _activeDev->process(command_packet);
         }
       }
     }
-  }   // switch (phasestate)
+  } // switch (phasestate)
 }
 
 void iwmBus::handle_init()
