@@ -6,7 +6,7 @@
 #include "fnFsSD.h"
 #include "led.h"
 
-#define LOCAL_TNFS
+#undef LOCAL_TNFS
 
 FileSystemTNFS tserver;
 

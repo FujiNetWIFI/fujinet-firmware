@@ -82,7 +82,7 @@ void iwmFuji::iwm_ctrl_reset_fujinet() // SP CTRL command
 
 void iwmFuji::iwm_stat_net_get_ssid() // SP STATUS command
 {
-   Debug_println("Fuji cmd: GET SSID");
+   Debug_printf("\r\nFuji cmd: GET SSID");
 
     // Response to IWM_FUJICMD_GET_SSID
     struct
@@ -113,7 +113,7 @@ void iwmFuji::iwm_stat_net_get_ssid() // SP STATUS command
 
 void iwmFuji::iwm_stat_net_scan_networks() // SP STATUS command 
 {
-    Debug_println("Fuji cmd: SCAN NETWORKS");
+    Debug_printf("\r\nFuji cmd: SCAN NETWORKS");
 
     isReady = false;
 
@@ -134,7 +134,7 @@ void iwmFuji::iwm_stat_net_scan_networks() // SP STATUS command
 
 void iwmFuji::iwm_ctrl_net_scan_result() //SP STATUS command 
 {
-  Debug_println("Fuji cmd: GET SCAN RESULT");
+  Debug_print("\r\nFuji cmd: GET SCAN RESULT");
   scanStarted = false;
 
   uint8_t n = packet_buffer[0]; 
@@ -161,7 +161,7 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
 {
  if (!fnWiFi.connected() && setSSIDStarted == false)
     {
-        Debug_println("Fuji cmd: SET SSID");
+        Debug_printf("\r\nFuji cmd: SET SSID");
 
         uint16_t s = num_decoded;
         s--;
@@ -179,7 +179,7 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
 
             bool save = true;
 
-        Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
+        Debug_printf("\r\nConnecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
         fnWiFi.connect(cfg.ssid, cfg.password);
         setSSIDStarted = true;
@@ -196,7 +196,7 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
 // Get WiFi Status
 void iwmFuji::iwm_stat_net_get_wifi_status() // SP Status command
 {
-    Debug_println("Fuji cmd: GET WIFI STATUS");
+    Debug_printf("\r\nFuji cmd: GET WIFI STATUS");
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     packet_buffer[0] = wifiStatus;
@@ -206,7 +206,7 @@ void iwmFuji::iwm_stat_net_get_wifi_status() // SP Status command
 // Mount Server
 void iwmFuji::iwm_ctrl_mount_host() // SP CTRL command
 {
-    Debug_println("Fuji cmd: MOUNT HOST");
+    Debug_printf("\r\nFuji cmd: MOUNT HOST");
 
     unsigned char hostSlot = packet_buffer[0]; // adamnet_recv();
 
@@ -220,7 +220,7 @@ void iwmFuji::iwm_ctrl_mount_host() // SP CTRL command
 // Disk Image Mount
 void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 {
-    Debug_println("Fuji cmd: MOUNT IMAGE");
+    Debug_printf("\r\nFuji cmd: MOUNT IMAGE");
 
     uint8_t deviceSlot = packet_buffer[0]; //adamnet_recv();
     uint8_t options = packet_buffer[1]; //adamnet_recv(); // DISK_ACCESS_MODE
@@ -234,7 +234,7 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
 
-    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+    Debug_printf("\r\nSelecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
@@ -428,7 +428,7 @@ void iwmFuji::iwm_ctrl_disk_image_umount()
 */
 void iwmFuji::image_rotate()
 {
-    Debug_println("Fuji cmd: IMAGE ROTATE");
+    Debug_printf("\r\nFuji cmd: IMAGE ROTATE");
 
     int count = 0;
     // Find the first empty slot
@@ -465,7 +465,7 @@ void iwmFuji::shutdown()
 
 void iwmFuji::iwm_ctrl_open_directory() 
 {
-    Debug_println("Fuji cmd: OPEN DIRECTORY");
+    Debug_printf("\r\nFuji cmd: OPEN DIRECTORY");
 
     int idx = 0;
     uint8_t hostSlot = packet_buffer[idx++];// adamnet_recv();
@@ -656,7 +656,7 @@ void iwmFuji::iwm_stat_read_directory_entry()
 
 void iwmFuji::iwm_stat_get_directory_position()
 {
-    Debug_println("Fuji cmd: GET DIRECTORY POSITION");
+    Debug_printf("\r\nFuji cmd: GET DIRECTORY POSITION");
 
     uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
 
@@ -666,7 +666,7 @@ void iwmFuji::iwm_stat_get_directory_position()
 
 void iwmFuji::iwm_ctrl_set_directory_position()
 {
-    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
+    Debug_printf("\r\nFuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
     uint16_t pos = 0;
@@ -681,7 +681,7 @@ void iwmFuji::iwm_ctrl_set_directory_position()
 
 void iwmFuji::iwm_ctrl_close_directory()
 {
-    Debug_println("Fuji cmd: CLOSE DIRECTORY");
+    Debug_printf("\r\nFuji cmd: CLOSE DIRECTORY");
 
     if (_current_open_directory_slot != -1)
         _fnHosts[_current_open_directory_slot].dir_close();
@@ -692,7 +692,7 @@ void iwmFuji::iwm_ctrl_close_directory()
 // Get network adapter configuration
 void iwmFuji::iwm_stat_get_adapter_config()
 {
-    Debug_println("Fuji cmd: GET ADAPTER CONFIG");
+    Debug_printf("\r\nFuji cmd: GET ADAPTER CONFIG");
 
     // Response to IWM_FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
@@ -762,7 +762,7 @@ void iwmFuji::iwm_ctrl_new_disk()
 // Send host slot data to computer
 void iwmFuji::iwm_stat_read_host_slots()
 {
-    Debug_println("Fuji cmd: READ HOST SLOTS");
+    Debug_printf("\r\nFuji cmd: READ HOST SLOTS");
 
     //adamnet_recv(); // ck
 
@@ -779,7 +779,7 @@ void iwmFuji::iwm_stat_read_host_slots()
 // Read and save host slot data from computer
 void iwmFuji::iwm_ctrl_write_host_slots()
 {
-    Debug_println("Fuji cmd: WRITE HOST SLOTS");
+    Debug_printf("\r\nFuji cmd: WRITE HOST SLOTS");
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     //adamnet_recv_buffer((uint8_t *)hostSlots, sizeof(hostSlots));
@@ -807,7 +807,7 @@ void iwmFuji::iwm_stat_get_host_prefix()
 // Send device slot data to computer
 void iwmFuji::iwm_stat_read_device_slots()
 {
-    Debug_println("Fuji cmd: READ DEVICE SLOTS");
+    Debug_printf("\r\nFuji cmd: READ DEVICE SLOTS");
 
     struct disk_slot
     {
@@ -838,7 +838,7 @@ void iwmFuji::iwm_stat_read_device_slots()
 // Read and save disk slot data from computer
 void iwmFuji::iwm_ctrl_write_device_slots()
 {
-    Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
+    Debug_printf("\r\nFuji cmd: WRITE DEVICE SLOTS");
 
     struct
     {
