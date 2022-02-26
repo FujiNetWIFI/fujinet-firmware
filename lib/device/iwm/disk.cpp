@@ -8,16 +8,6 @@
 
 #undef LOCAL_TNFS
 
-#define SP_ERR_BADCMD 0x01 // invalid command
-#define SP_ERR_BUSERR 0x06 // communications error
-#define SP_ERR_BADCTL 0x21 // invalid status or control code
-#define SP_ERR_BADCTLPARM 0x22 // invalid parameter list
-#define SP_ERR_IOERROR 0x27 // i/o error on device side
-#define SP_ERR_NODRIVE 0x28 // no device connected
-#define SP_ERR_NOWRITE 0x2b // disk write protected
-#define SP_ERR_BADBLOCK 0x2d // invalid block number
-#define SP_ERR_OFFLINE 0x2f // device offline or no disk in drive
-
 FileSystemTNFS tserver;
 
 iwmDisk::~iwmDisk()
@@ -27,7 +17,7 @@ iwmDisk::~iwmDisk()
 void iwmDisk::init()
 {
   open_tnfs_image();
-  //open_image("/prodos8abbrev.po");//("/STABLE.32MB.po");
+  //open_image("/autorun.po");//("/STABLE.32MB.po");
   if (d.sdf != nullptr)
   {
     Debug_printf("\r\nfile open good");
@@ -45,7 +35,9 @@ bool iwmDisk::open_tnfs_image()
   Debug_printf("\r\nmounting server");
   tserver.start("192.168.1.181"); //"atari-apps.irata.online");
   Debug_printf("\r\nopening file");
-  d.sdf = tserver.file_open("/prodos8abbrev.po", "rb+");
+  d.sdf = tserver.file_open("/autorun.po", "rb+");
+  // d.sdf = tserver.file_open("/prodos8abbrev.po", "rb+");
+  // d.sdf = tserver.file_open("/prodos16mb.po", "rb");
 #else
   Debug_printf("\r\nmounting server");
   tserver.start("159.203.160.80"); //"atari-apps.irata.online");
@@ -166,7 +158,7 @@ void iwmDisk::encode_status_reply_packet()
   for (int count = 7; count < 14; count++) // xor the packet header bytes
     checksum = checksum ^ packet_buffer[count];
   packet_buffer[19] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  packet_buffer[20] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
+  packet_buffer[20] = (checksum >> 1) | 0xaa; // 1 c7 1 c5 1 c3 1 c1
 
   packet_buffer[21] = 0xc8; // PEND
   packet_buffer[22] = 0x00; // end of packet in buffer
@@ -254,7 +246,7 @@ void iwmDisk::encode_extended_status_reply_packet()
 // data byte 2-4 number of blocks. 2 is the LSB and 4 the MSB.
 // Calculated from actual image file size.
 //*****************************************************************************
-void iwmDisk::encode_status_dib_reply_packet()
+void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with passsed parameters
 {
   int grpbyte, grpcount, i;
   int grpnum, oddnum;
@@ -279,7 +271,7 @@ void iwmDisk::encode_status_dib_reply_packet()
   data[1] = d.blocks & 0xff;         // block size 1
   data[2] = (d.blocks >> 8) & 0xff;  // block size 2
   data[3] = (d.blocks >> 16) & 0xff; // block size 3
-  data[4] = 0x07;                    // ID string length - 11 chars
+  data[4] = 0x0E;                    // ID string length - 14 chars
   data[5] = 'F';
   data[6] = 'U';
   data[7] = 'J';
@@ -287,13 +279,13 @@ void iwmDisk::encode_status_dib_reply_packet()
   data[9] = 'N';
   data[10] = 'E';
   data[11] = 'T';
-  data[12] = ' ';
-  data[13] = ' ';
-  data[14] = ' ';
-  data[15] = ' ';
-  data[16] = ' ';
-  data[17] = ' ';
-  data[18] = ' ';
+  data[12] = '_';
+  data[13] = 'D';
+  data[14] = 'I';
+  data[15] = 'S';
+  data[16] = 'K';
+  data[17] = '_';
+  data[18] = '1';
   data[19] = ' ';
   data[20] = ' ';  // ID string (16 chars total)
   data[21] = 0x02; // Device type    - 0x02  harddisk
@@ -301,7 +293,7 @@ void iwmDisk::encode_status_dib_reply_packet()
   data[23] = 0x01; // Firmware version 2 bytes
   data[24] = 0x0f; //
 
-  // print_packet ((uint8_t*) data,packet_length()); // debug
+  // print_packet ((uint8_t*) data,get_packet_length()); // debug
   // Debug_print(("\nData loaded"));
   // Calculate checksum of sector bytes before we destroy them
   for (int count = 0; count < 25; count++) // xor all the data bytes
@@ -439,7 +431,7 @@ void iwmDisk::process(cmdPacket_t cmd)
   switch (cmd.command)
   {
   case 0x80: // status
-      Debug_printf("\r\nhandling status command");
+    Debug_printf("\r\nhandling status command");
     iwm_status(cmd);
     break;
   case 0x81: // read block
@@ -451,20 +443,25 @@ void iwmDisk::process(cmdPacket_t cmd)
     iwm_writeblock(cmd);
     break;
   case 0x83: // format
+    iwm_return_badcmd(cmd);
     break;
   case 0x84: // control
+    iwm_return_badcmd(cmd);
     break;
-  // case 0x85: // init
-  //   break;
   case 0x86: // open
-  // todo - return invalid command error for char device commands
+    iwm_return_badcmd(cmd);
     break;
   case 0x87: // close
+    iwm_return_badcmd(cmd);
     break;
   case 0x88: // read
+    iwm_return_badcmd(cmd);
     break;
   case 0x89: // write
+    iwm_return_badcmd(cmd);
     break;
+  default:
+    iwm_return_badcmd(cmd);
   } // switch (cmd)
   fnLedManager.set(LED_BUS, false);
 }
@@ -483,8 +480,8 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
 
   if (!d.sdf)
   {
-    // no image mounted
-    encode_error_reply_packet(source, SP_ERR_OFFLINE);
+    Debug_printf(" - ERROR - No image mounted");
+    encode_error_reply_packet(SP_ERR_OFFLINE);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     return;
   }
@@ -495,11 +492,11 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   LBN = cmd.g7byte3; //  packet_buffer[19]; // block number low
   block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
   // block num second byte
-  // print_packet ((unsigned char*) packet_buffer,packet_length());
+  // print_packet ((unsigned char*) packet_buffer,get_packet_length());
   // Added (unsigned short) cast to ensure calculated block is not underflowing.
   block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
   block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
-  Debug_printf("Read block %04x", block_num);
+  Debug_printf(" Read block %04x", block_num);
 
   if (block_num != last_block_num + 1) // example optimization, only do seek if not reading next block -tschak
   {
@@ -507,7 +504,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     if (fseek(d.sdf, (block_num * 512), SEEK_SET))
     {
       Debug_printf("\r\nRead seek err! block #%02x", block_num);
-      encode_error_reply_packet(source, SP_ERR_BADBLOCK);
+      encode_error_reply_packet(SP_ERR_BADBLOCK);
       IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return; // todo - send an error status packet?
     }
@@ -517,11 +514,11 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   if (sdstato != 512)
   {
     Debug_printf("\r\nFile Read err: %d bytes", sdstato);
-    encode_error_reply_packet(source, SP_ERR_IOERROR);
+    encode_error_reply_packet(SP_ERR_IOERROR);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     return; // todo - true or false?
   }
-  encode_data_packet(source);
+  encode_data_packet();
   Debug_printf("\r\nsending block packet ...");
   if (!IWM.iwm_send_packet((unsigned char *)packet_buffer))
     last_block_num = block_num;
@@ -559,7 +556,7 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
       if (fseek(d.sdf, (block_num * 512), SEEK_SET))
       {
         Debug_printf("\r\nRead seek err! block #%02x", block_num);
-        encode_error_reply_packet(source, SP_ERR_BADBLOCK);
+        encode_error_reply_packet(SP_ERR_BADBLOCK);
         IWM.iwm_send_packet((unsigned char *)packet_buffer);
         return; // todo - send an error status packet?
                 // to do - set a flag here to check for error status
@@ -581,61 +578,17 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
     //Serial.print(F("\r\nSent status Packet Data\r\n") );
     //print_packet ((unsigned char*) sector_buffer,512);
 
-    //print_packet ((unsigned char*) packet_buffer,packet_length());
+    //print_packet ((unsigned char*) packet_buffer,get_packet_length());
     last_block_num = block_num;
   }
 }
 
-void iwmDisk::iwm_read()
-{
-}
 
-void iwmDisk::iwm_write(bool verify)
-{
-}
 
 // void iwm_format();
 
-void iwmDisk::iwm_status(cmdPacket_t cmd) // override;
-{
-  // uint8_t source = packet_buffer[6];
 
-  //if (d.sdf != nullptr) // device should respond despite having no image loaded - could indicate error is status code
-  //{
-  uint8_t status_code = cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
-  // Serial.print(F("\r\nStatus code: "));
-  // Serial.print(status_code);
-  // print_packet ((unsigned char*) packet_buffer, packet_length());
-  // Serial.print(F("\r\nHere's the decoded status packet because frig doing it by hand!"));
-  // decode_data_packet();
-  // print_packet((unsigned char*) packet_buffer, 9); //Standard SmartPort command is 9 bytes
-  // if (status_code |= 0x00) { // TEST
-  //   Serial.print(F("\r\nStatus not zero!! ********"));
-  //   print_packet ((unsigned char*) packet_buffer,packet_length());}
-  if (status_code == 0x03)
-  { // if statcode=3, then status with device info block
-    Debug_printf("\r\n******** Sending DIB! ********");
-    encode_status_dib_reply_packet();
-    // print_packet ((unsigned char*) packet_buffer,packet_length());
-    fnSystem.delay(50);
-    }
-    else
-    { // else just return device status
-      /*
-                  Serial.print(F("\r\n-------- Sending status! --------"));
-                  Serial.print(F("\r\nSource: "));
-                  Serial.print(source,HEX);
-                  Serial.print(F(" Partition ID: "));
-                  Serial.print(devices[(partition + initPartition) % NUM_PARTITIONS].device_id, HEX);
-                  Serial.print(F(" Status code: "));
-                  Serial.print(status_code, HEX);
-                  */
-      Debug_printf("\r\nSending Status");
-      encode_status_reply_packet();
-    }
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
-  //}
-}
+
 // void derive_percom_block(uint16_t numSectors);
 // void iwm_read_percom_block();
 // void iwm_write_percom_block();
@@ -653,7 +606,38 @@ iwmDisk::iwmDisk()
 
 mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
-  return disk_type;
+
+  mediatype_t mt = MEDIATYPE_UNKNOWN;
+
+  Debug_printf("disk MOUNT %s\n", filename);
+
+  // Destroy any existing MediaType
+  if (_disk != nullptr)
+  {
+    delete _disk;
+    _disk = nullptr;
+  }
+
+    // Determine MediaType based on filename extension
+    if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
+        disk_type = MediaType::discover_mediatype(filename);
+
+    switch (disk_type)
+    {
+    case MEDIATYPE_PO:
+        device_active = true;
+        //_disk = new MediaTypePO();
+        //mt = _disk->mount(f, disksize);
+        d.sdf = f;
+        mt = MEDIATYPE_PO;
+        break;
+    default:
+        device_active = false;
+        break;
+    }
+
+    return mt;
+
 }
 
 void iwmDisk::unmount()
@@ -665,9 +649,16 @@ bool iwmDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
   return false;
 }
 
+bool iwmDisk::write_blank(FILE *f, uint16_t numBlocks)
+{
+  return false;
+}
+
+
 void iwmDisk::startup_hack()
 {
-  init();
+  // Debug_printf("\r\n Disk startup hack");
+  // init();
 }
 
 #endif /* BUILD_APPLE */
