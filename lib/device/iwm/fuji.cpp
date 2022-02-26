@@ -64,6 +64,13 @@ void iwmFuji::iwm_dummy_command() // SP CTRL command
     Debug_printf(" %02x", packet_buffer[i]);
 }
 
+void iwmFuji::iwm_hello_world()
+{
+  Debug_printf("\r\nFuji cmd: HELLO WORLD");
+  memcpy(packet_buffer, "HELLO WORLD", 11);
+  packet_len = 11;
+}
+
 void iwmFuji::iwm_ctrl_reset_fujinet() // SP CTRL command
 {
     Debug_printf("\r\nFuji cmd: REBOOT");
@@ -1300,6 +1307,9 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
 
   switch (status_code)
   {
+    case 0xAA:
+      iwm_hello_world();
+      break;
     case IWM_STATUS_STATUS:                  // 0x00
       encode_status_reply_packet();
       IWM.iwm_send_packet((unsigned char *)packet_buffer);
