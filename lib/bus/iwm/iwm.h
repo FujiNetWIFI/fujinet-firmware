@@ -251,6 +251,7 @@ protected:
   virtual void iwm_write(cmdPacket_t cmd) {};
 
   void iwm_return_badcmd(cmdPacket_t cmd);
+  void iwm_return_ioerror(cmdPacket_t cmd);
 
 public:
   bool device_active;
