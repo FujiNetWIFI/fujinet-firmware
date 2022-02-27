@@ -1107,6 +1107,13 @@ void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
+void iwmDevice::iwm_return_ioerror(cmdPacket_t cmd)
+{
+  Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+  encode_error_reply_packet(SP_ERR_IOERROR);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+}
+
 //*****************************************************************************
 // Function: verify_cmdpkt_checksum
 // Parameters: none
@@ -1273,11 +1280,6 @@ void iwmBus::service()
       portENABLE_INTERRUPTS();
       return;
     }
-    if (verify_cmdpkt_checksum())
-    {
-      Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-      return;
-    }
     // should not ACK unless we know this is our Command
     if (command_packet.command == 0x85)
     {
@@ -1301,6 +1303,7 @@ void iwmBus::service()
       print_packet(command_packet.data);
       Debug_printf("\r\nhandling init command");
 #endif
+      // to do - checksum verification? How to respond?
       handle_init();
     }
     else
@@ -1331,7 +1334,15 @@ void iwmBus::service()
 #endif
           _activeDev = devicep;
           // handle command
-          _activeDev->process(command_packet);
+          if (verify_cmdpkt_checksum())
+          {
+            Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            _activeDev->iwm_return_ioerror(command_packet);
+          }
+          else
+          {
+            _activeDev->process(command_packet);
+          }
         }
       }
     }

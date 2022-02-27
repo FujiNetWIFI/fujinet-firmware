@@ -526,6 +526,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
 
 void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
 {
+  uint8_t status = 0;
   uint8_t source = cmd.dest; // packet_buffer[6];
   // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
   Debug_printf("\r\nDrive %02x ", source);
@@ -543,44 +544,44 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
     return;
   }
   // partition number indicates which 32mb block we access
-  int status = 0; // force no error - to do - work out 
-  decode_data_packet();
-  if (status == 0)
-  { //ok
-    //write block to CF card
-    //Serial.print(F("\r\nWrite Bl. n.r: "));
-    //Serial.print(block_num);
-    if (block_num != last_block_num + 1) // example optimization, only do seek if not writing next block -tschak
-    {
-      Debug_printf("\r\n");
-      if (fseek(d.sdf, (block_num * 512), SEEK_SET))
+  if (decode_data_packet())
+    iwm_return_ioerror(cmd);
+  else
+    { // ok
+      //write block to CF card
+      //Serial.print(F("\r\nWrite Bl. n.r: "));
+      //Serial.print(block_num);
+      if (block_num != last_block_num + 1) // example optimization, only do seek if not writing next block -tschak
       {
-        Debug_printf("\r\nRead seek err! block #%02x", block_num);
-        encode_error_reply_packet(SP_ERR_BADBLOCK);
-        IWM.iwm_send_packet((unsigned char *)packet_buffer);
-        return; // todo - send an error status packet?
-                // to do - set a flag here to check for error status
+        Debug_printf("\r\n");
+        if (fseek(d.sdf, (block_num * 512), SEEK_SET))
+        {
+          Debug_printf("\r\nRead seek err! block #%02x", block_num);
+          encode_error_reply_packet(SP_ERR_BADBLOCK);
+          IWM.iwm_send_packet((unsigned char *)packet_buffer);
+          return; // todo - send an error status packet?
+                  // to do - set a flag here to check for error status
+        }
       }
-    }
-    size_t sdstato = fwrite((unsigned char *)packet_buffer, 1, 512, d.sdf);
-    if (sdstato != 512)
-    {
-      Debug_printf("\r\nFile Write err: %d bytes", sdstato);
-      if (sdstato == 0)
-        status = 0x2B; // write protected todo: we should probably have a read-only flag that gets set and tested up top
-      else
-        status = 0x27; // 6;
-      //return;
-    }
-    //now return status code to host
-    encode_write_status_packet(source, status);
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
-    //Serial.print(F("\r\nSent status Packet Data\r\n") );
-    //print_packet ((unsigned char*) sector_buffer,512);
+      size_t sdstato = fwrite((unsigned char *)packet_buffer, 1, 512, d.sdf);
+      if (sdstato != 512)
+      {
+        Debug_printf("\r\nFile Write err: %d bytes", sdstato);
+        if (sdstato == 0)
+          status = 0x2B; // write protected todo: we should probably have a read-only flag that gets set and tested up top
+        else
+          status = 0x27; // 6;
+        //return;
+      }
+      //now return status code to host
+      encode_write_status_packet(source, status);
+      IWM.iwm_send_packet((unsigned char *)packet_buffer);
+      //Serial.print(F("\r\nSent status Packet Data\r\n") );
+      //print_packet ((unsigned char*) sector_buffer,512);
 
-    //print_packet ((unsigned char*) packet_buffer,get_packet_length());
-    last_block_num = block_num;
-  }
+      //print_packet ((unsigned char*) packet_buffer,get_packet_length());
+      last_block_num = block_num;
+    }
 }
 
 
