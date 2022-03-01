@@ -13,6 +13,10 @@
 # include "adamnet/fuji.h"
 #endif
 
+#ifdef BUILD_S100
+# include "s100spi/fuji.h"
+#endif
+
 #ifdef NEW_TARGET
 # include "new/fuji.h"
 #endif

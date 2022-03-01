@@ -236,6 +236,8 @@ public:
     std::string get_term_type() {return term_type; }
     void set_term_type(std::string _term_type) { term_type = _term_type; }
 
+
+ virtual void startup_hack() override {};
 };
 
 #endif /* apple_MODEM_H */

@@ -5,6 +5,7 @@
 
 #include "network.h"
 #include "disk.h"
+#include "serial.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -115,6 +116,8 @@ protected:
     void adamnet_set_boot_mode();          // 0xD6
     void adamnet_enable_device();          // 0xD5
     void adamnet_disable_device();         // 0xD4
+    void adamnet_random_number();          // 0xD3
+    void adamnet_get_time();               // 0xD2
 
     void adamnet_test_command();
 
@@ -158,5 +161,6 @@ public:
 };
 
 extern adamFuji theFuji;
+extern adamSerial *theSerial;
 
 #endif // FUJI_H

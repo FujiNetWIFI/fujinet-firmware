@@ -184,6 +184,7 @@ bool adamNetwork::read_channel(unsigned short num_bytes)
  */
 void adamNetwork::write(uint16_t num_bytes)
 {
+    Debug_printf("!!! WRITE\n");
     memset(response, 0, sizeof(response));
 
     adamnet_recv_buffer(response, num_bytes);
@@ -446,6 +447,8 @@ void adamNetwork::do_inquiry(unsigned char inq_cmd)
     // Reset inq_dstats
     inq_dstats = 0xff;
 
+    cmdFrame.comnd = inq_cmd;
+
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
         inq_dstats = protocol->special_inquiry(inq_cmd);
@@ -499,6 +502,8 @@ void adamNetwork::adamnet_special_00(unsigned short s)
 {
     cmdFrame.aux1 = adamnet_recv();
     cmdFrame.aux2 = adamnet_recv();
+
+    AdamNet.start_time = esp_timer_get_time();
 
     if (protocol->special_00(&cmdFrame) == false)
         adamnet_response_ack();
@@ -559,6 +564,9 @@ void adamNetwork::adamnet_response_status()
     statusByte.bits.client_connected = s.connected == true;
     statusByte.bits.client_data_available = s.rxBytesWaiting > 0;
     statusByte.bits.client_error = s.error > 1;
+
+    status_response[1] = 2;  // max packet size 1026 bytes, maybe larger?
+    status_response[2] = 4;
 
     status_response[4] = statusByte.byte;
 

@@ -2,6 +2,8 @@
 #define ADAM_SERIAL_H
 
 #include <cstdint>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
 
 #include "bus.h"
 
@@ -11,16 +13,6 @@
 class adamSerial : public virtualDevice
 {
     public:
-
-    uint8_t response[16];
-    uint16_t response_len=0;
-    uint8_t sendbuf[16];
-    bool isReady=true;
-    bool alreadyDoingSomething=false;
-    uint8_t status_msg[4]={0x10,0x00,0x00,0x00};
-    fnTcpServer *server;
-    fnTcpClient client;
-    uint8_t outc;
 
     /**
      * Constructor
@@ -47,10 +39,33 @@ class adamSerial : public virtualDevice
      */
     virtual void adamnet_idle();
     virtual void adamnet_response_status();
+    virtual void adamnet_control_ready();
     
     void adamnet_control_send();
-    void adamnet_control_ready();
-    void adamnet_control_clr();
+
+    /**
+     * Queue Handle
+     */
+    xQueueHandle serial_out_queue;
+
+private:
+
+    /**
+     * Task handle for TX task
+     */
+    TaskHandle_t thSerial;
+
+    /**
+     * Send Structure
+     */
+    typedef struct _sendData
+    {
+        uint8_t len;
+        uint8_t data[16];
+    } SendData;
+
+    SendData next;
+
 };
 
 #endif /* ADAM_SERIAL_H */

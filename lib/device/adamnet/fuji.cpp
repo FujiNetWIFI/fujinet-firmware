@@ -15,7 +15,6 @@
 
 #include "utils.h"
 
-
 #define SIO_FUJICMD_RESET 0xFF
 #define SIO_FUJICMD_GET_SSID 0xFE
 #define SIO_FUJICMD_SCAN_NETWORKS 0xFD
@@ -53,6 +52,8 @@
 #define SIO_FUJICMD_SET_BOOT_MODE 0xD6
 #define SIO_FUJICMD_ENABLE_DEVICE 0xD5
 #define SIO_FUJICMD_DISABLE_DEVICE 0xD4
+#define SIO_FUJICMD_RANDOM_NUMBER 0xD3
+#define SIO_FUJICMD_GET_TIME 0xD2
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -62,6 +63,8 @@ adamFuji theFuji;        // global fuji device object
 adamNetwork *theNetwork; // global network device object (temporary)
 adamPrinter *thePrinter; // global printer
 adamSerial *theSerial;   // global serial
+
+using namespace std;
 
 // sioDisk sioDiskDevs[MAX_HOSTS];
 // sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
@@ -320,6 +323,7 @@ void adamFuji::adamnet_disk_image_mount()
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+
     boot_config = false;
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
@@ -342,6 +346,74 @@ void adamFuji::adamnet_set_boot_config()
 // Do SIO copy
 void adamFuji::adamnet_copy_file()
 {
+    uint8_t csBuf[256];
+    string copySpec;
+    string sourcePath;
+    string destPath;
+    uint8_t ck;
+    FILE *sourceFile;
+    FILE *destFile;
+    char *dataBuf;
+    unsigned char sourceSlot;
+    unsigned char destSlot;
+
+    sourceSlot = adamnet_recv();
+    destSlot = adamnet_recv();
+    adamnet_recv_buffer(csBuf,sizeof(csBuf));
+    ck = adamnet_recv();
+
+    if (ck != adamnet_checksum(csBuf, sizeof(csBuf)))
+    {
+        AdamNet.start_time=esp_timer_get_time();
+        adamnet_response_nack();
+        return;
+    }
+    else
+    {
+        AdamNet.start_time=esp_timer_get_time();
+        adamnet_response_ack();
+    }
+
+    memset(&csBuf, 0, sizeof(csBuf));
+
+    dataBuf = (char *)malloc(532);
+
+    copySpec = string((char *)csBuf);
+
+    Debug_printf("copySpec: %s\n", copySpec.c_str());
+
+    // Chop up copyspec.
+    sourcePath = copySpec.substr(0, copySpec.find_first_of("|"));
+    destPath = copySpec.substr(copySpec.find_first_of("|") + 1);
+
+    // At this point, if last part of dest path is / then copy filename from source.
+    if (destPath.back() == '/')
+    {
+        Debug_printf("append source file\n");
+        string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
+        destPath += sourceFilename;
+    }
+
+    // Mount hosts, if needed.
+    _fnHosts[sourceSlot].mount();
+    _fnHosts[destSlot].mount();
+
+    // Open files...
+    sourceFile = _fnHosts[sourceSlot].file_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
+    destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
+
+    size_t count = 0;
+    do
+    {
+        count = fread(dataBuf, 1, 532, sourceFile);
+        fwrite(dataBuf, 1, count, destFile);
+    } while (count > 0);
+
+    // copyEnd:
+    fclose(sourceFile);
+    fclose(destFile);
+    free(dataBuf);
+
 }
 
 // Mount all
@@ -381,7 +453,7 @@ void adamFuji::adamnet_mount_all()
 
             // We've gotten this far, so make sure our bootable CONFIG disk is disabled
             boot_config = false;
- 
+
             // We need the file size for loading XEX files and for CASSETTE, so get that too
             disk.disk_size = host.file_size(disk.fileh);
 
@@ -390,7 +462,8 @@ void adamFuji::adamnet_mount_all()
         }
     }
 
-    if (nodisks){
+    if (nodisks)
+    {
         // No disks in a slot, disable config
         boot_config = false;
     }
@@ -431,12 +504,12 @@ void adamFuji::adamnet_write_app_key()
     char appkeyfilename[30];
     FILE *fp;
 
-    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key",creator,app,key);
+    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key", creator, app, key);
 
-    adamnet_recv_buffer(data,64);
+    adamnet_recv_buffer(data, 64);
     adamnet_recv(); // CK
 
-    Debug_printf("Fuji Cmd: WRITE APPKEY %s\n",appkeyfilename);
+    Debug_printf("Fuji Cmd: WRITE APPKEY %s\n", appkeyfilename);
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
@@ -448,8 +521,8 @@ void adamFuji::adamnet_write_app_key()
         Debug_printf("Could not open.\n");
         return;
     }
-    
-    size_t l = fwrite(data,sizeof(uint8_t),sizeof(data),fp);
+
+    fwrite(data, sizeof(uint8_t), sizeof(data), fp);
     fclose(fp);
 }
 
@@ -463,24 +536,27 @@ void adamFuji::adamnet_read_app_key()
     uint8_t key = adamnet_recv();
 
     adamnet_recv(); // CK
-    AdamNet.start_time=esp_timer_get_time();
+    AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     char appkeyfilename[30];
     FILE *fp;
 
-    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key",creator,app,key);
+    snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key", creator, app, key);
 
     fp = fnSDFAT.file_open(appkeyfilename, "r");
+
+    memset(response, 0, sizeof(response));
+    
 
     if (fp == nullptr)
     {
         Debug_printf("Could not open key.");
+        response_len = 1; // if no file found set return length to 1 or adam hangs waiting for response
         return;
     }
-
-    memset(response,0,sizeof(response));
-    response_len = fread(response, sizeof(char),64,fp);
+    
+    response_len = fread(response, sizeof(char), 64, fp);
     fclose(fp);
 }
 
@@ -840,7 +916,6 @@ void adamFuji::adamnet_new_disk()
         adamnet_response_ack();
         return;
     }
-
     disk.host_slot = hs;
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
     strlcpy(disk.filename, (const char *)p, 256);
@@ -1082,12 +1157,12 @@ void adamFuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fnSPIFFS.file_open(config_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);        
+        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);
         break;
     case 1:
 
         fBoot = fnSPIFFS.file_open(mount_all_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);        
+        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);
         break;
     }
 
@@ -1138,7 +1213,7 @@ void adamFuji::setup(systemBus *siobus)
     _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
     _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
 
-    Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
+    Debug_printf("Config General Boot Mode: %u\n", Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {
         FILE *f = fnSPIFFS.file_open("/autorun.ddp");
@@ -1153,15 +1228,8 @@ void adamFuji::setup(systemBus *siobus)
     theNetwork = new adamNetwork();
     theSerial = new adamSerial();
     _adamnet_bus->addDevice(theNetwork, 0x09); // temporary.
-    _adamnet_bus->addDevice(theSerial, 0x0e);  // Serial port
+    // _adamnet_bus->addDevice(theSerial, 0x0e);  // Serial port
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
-
-    // Add our devices to the AdamNet bus
-    // for (int i = 0; i < 4; i++)
-    //    _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
-
-    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
 }
 
 // Mount all
@@ -1213,6 +1281,50 @@ void adamFuji::sio_mount_all()
         // No disks in a slot, disable config
         boot_config = false;
     }
+}
+
+void adamFuji::adamnet_random_number()
+{
+    int *p = (int *)&response[0];
+
+    adamnet_recv(); // CK
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    response_len = sizeof(int);
+    *p = rand();
+}
+
+void adamFuji::adamnet_get_time()
+{
+    Debug_println("FUJI GET TIME");
+    adamnet_recv(); // CK
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    
+    time_t tt = time(nullptr);
+
+    setenv("TZ",Config.get_general_timezone().c_str(),1);
+    tzset();
+
+    struct tm * now = localtime(&tt);
+
+    now->tm_mon++;
+    now->tm_year-=100;
+
+    response[0] = now->tm_mday;
+    response[1] = now->tm_mon;
+    response[2] = now->tm_year;
+    response[3] = now->tm_hour;
+    response[4] = now->tm_min;
+    response[5] = now->tm_sec;
+
+    response_len = 6;
+
+    Debug_printf("Sending %02X %02X %02X %02X %02X %02X\n",now->tm_mday, now->tm_mon, now->tm_year, now->tm_hour, now->tm_min, now->tm_sec);
 }
 
 adamDisk *adamFuji::bootdisk()
@@ -1313,6 +1425,12 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_READ_APPKEY:
         adamnet_read_app_key();
+        break;
+    case SIO_FUJICMD_RANDOM_NUMBER:
+        adamnet_random_number();
+        break;
+    case SIO_FUJICMD_GET_TIME:
+        adamnet_get_time();
         break;
     }
 }

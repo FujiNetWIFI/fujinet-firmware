@@ -13,6 +13,10 @@
 # include "adamnet/network.h"
 #endif
 
+#ifdef BUILD_S100
+# include "s100spi/network.h"
+#endif
+
 #ifdef NEW_TARGET
 # include "new/network.h"
 #endif

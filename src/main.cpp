@@ -156,19 +156,14 @@ void main_setup()
             Debug_printf("Physical keyboard found\n");
 #  endif // NO_VIRTUAL_KEYBOARD
     
-    exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_PRINTER);
-    if (! exists)
-    {
         Debug_printf("Adding virtual printer\n");
         FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
         adamPrinter::printer_type printer = adamPrinter::PRINTER_COLECO_ADAM;
         adamPrinter *ptr = new adamPrinter(ptrfs, printer);
-        xTaskCreatePinnedToCore(printerTask,"foo",4096,ptr,10,NULL,1);
+        ptr->start_printer_task();
         fnPrinters.set_entry(0,ptr,printer,0);
         AdamNet.addDevice(ptr,ADAMNET_DEVICE_ID_PRINTER);
-    } 
-    else
-        Debug_printf("Physical printer found\n");
+
 # endif // VIRTUAL_ADAM_DEVICES
 
 #endif // BUILD_ADAM
@@ -178,8 +173,10 @@ void main_setup()
 appleModem *sioR;
 FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
 sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
+
+IWM.addDevice(&theFuji, iwm_fujinet_type_t::FujiNet);
 theFuji.setup(&IWM);
-IWM.setup();
+IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
 
 #endif /* BUILD_APPLE */
 
@@ -189,6 +186,12 @@ IWM.setup();
 #endif // DEBUG
 }
 
+#ifdef BUILD_S100
+
+//theFuji.setup(&s100Bus);
+//SYSTEM_BUS.setup();
+
+#endif /* BUILD_S100*/
 
 // Main high-priority service loop
 void fn_service_loop(void *param)
