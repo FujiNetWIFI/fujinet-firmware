@@ -325,12 +325,14 @@ void adamFuji::adamnet_disk_image_mount()
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
 
     boot_config = false;
+    disk.disk_dev.is_config_device = false;
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
 
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+    disk.disk_dev.device_active = true;
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -341,6 +343,16 @@ void adamFuji::adamnet_set_boot_config()
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
+
+    Debug_printf("Boot config is now %d",boot_config);
+
+    if (_fnDisks[0].disk_dev.is_config_device)
+    {
+        _fnDisks[0].disk_dev.unmount();
+        _fnDisks[0].disk_dev.is_config_device = false;
+        _fnDisks[0].reset();
+        Debug_printf("Boot config unmounted slot 0");
+    }
 }
 
 // Do SIO copy
@@ -482,6 +494,7 @@ void adamFuji::adamnet_set_boot_mode()
     boot_config = true;
 
     adamnet_response_ack();
+
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -1218,6 +1231,7 @@ void adamFuji::setup(systemBus *siobus)
     {
         FILE *f = fnSPIFFS.file_open("/autorun.ddp");
         _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
+        _fnDisks[0].disk_dev.is_config_device = true;
     }
     else
     {
