@@ -46,12 +46,16 @@ protected:
     // void dump_percom_block();
     void shutdown() override; //todo change back
 
+    char disk_num;
+
 public:
     iwmDisk();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
     bool write_blank(FILE *f, uint16_t numBlocks);
+
+    void set_disk_number(char c) {disk_num = c;}
 
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
     void init();
