@@ -5,7 +5,7 @@
  *   <thom.cherryhomes@gmail.com>
  */
 
-#include "json.h"
+#include "fnjson.h"
 
 #include <string.h>
 #include <sstream>
@@ -16,9 +16,9 @@
 /**
  * ctor
  */
-JSON::JSON()
+FNJSON::FNJSON()
 {
-    Debug_printf("JSON::ctor()\n");
+    Debug_printf("FNJSON::ctor()\n");
     _protocol = nullptr;
     _json = nullptr;
 }
@@ -26,9 +26,9 @@ JSON::JSON()
 /**
  * dtor
  */
-JSON::~JSON()
+FNJSON::~FNJSON()
 {
-    Debug_printf("JSON::dtor()\n");
+    Debug_printf("FNJSON::dtor()\n");
     _protocol = nullptr;
     _json = nullptr;
 }
@@ -36,16 +36,16 @@ JSON::~JSON()
 /**
  * Attach protocol handler
  */
-void JSON::setProtocol(NetworkProtocol *newProtocol)
+void FNJSON::setProtocol(NetworkProtocol *newProtocol)
 {
-    Debug_printf("JSON::setProtocol()\n");
+    Debug_printf("FNJSON::setProtocol()\n");
     _protocol = newProtocol;
 }
 
 /**
  * Set read query string
  */
-void JSON::setReadQuery(string queryString)
+void FNJSON::setReadQuery(string queryString)
 {
     _queryString = queryString;
 }
@@ -53,7 +53,7 @@ void JSON::setReadQuery(string queryString)
 /**
  * Resolve query string
  */
-cJSON *JSON::resolveQuery()
+cJSON *FNJSON::resolveQuery()
 {
     // This needs a full blown query parser!, for now, I just find object on same depth.
     if (_queryString.empty())
@@ -65,7 +65,7 @@ cJSON *JSON::resolveQuery()
 /**
  * Return normalized string of JSON item
  */
-string JSON::getValue(cJSON *item)
+string FNJSON::getValue(cJSON *item)
 {
     if (cJSON_IsString(item))
         return string(cJSON_GetStringValue(item)) + "\x9b";
@@ -116,7 +116,7 @@ string JSON::getValue(cJSON *item)
 /**
  * Return requested value
  */
-bool JSON::readValue(uint8_t *rx_buf, unsigned short len)
+bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
 {
     cJSON *item = resolveQuery();
     string ret = getValue(item);
@@ -132,7 +132,7 @@ bool JSON::readValue(uint8_t *rx_buf, unsigned short len)
 /**
  * Return requested value length
  */
-int JSON::readValueLen()
+int FNJSON::readValueLen()
 {
     cJSON *item = resolveQuery();
     int len = getValue(item).size();
@@ -146,45 +146,31 @@ int JSON::readValueLen()
 /**
  * Parse data from protocol
  */
-bool JSON::parse()
+bool FNJSON::parse()
 {
-    char *buf;
-    int available = 0;
-
     if (_protocol == nullptr)
     {
-        Debug_printf("JSON::parse() - NULL protocol.\n");
+        Debug_printf("FNJSON::parse() - NULL protocol.\n");
         return false;
     }
 
-    //while (available==0)
-    available = _protocol->available();
+    Debug_printf("FNJSON::parse() - %d bytes now available\n", _protocol->bytesWaiting);
 
-    Debug_printf("JSON::parse() - %d bytes now available\n", available);
-
-    buf = (char *)heap_caps_malloc(available, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (buf == nullptr)
+    if (!_protocol->read(_protocol->bytesWaiting))
     {
-        Debug_printf("JSON::parse() - could not allocate JSON buffer of %d bytes", available);
+        Debug_printf("Could not read.");
         return false;
     }
 
-    if (_protocol->read((uint8_t *)buf, available) == true)
-    {
-        Debug_printf("JSON::parse() - Could not read %d bytes from protocol adapter.\n", available);
-        return false;
-    }
-
-    _json = cJSON_Parse(buf);
+    _json = cJSON_Parse(_protocol->receiveBuffer->c_str());
 
     if (_json == nullptr)
     {
-        Debug_printf("JSON::parse() - Could not parse JSON\n");
+        Debug_printf("FNJSON::parse() - Could not parse JSON\n");
         return false;
     }
 
     Debug_printf("Parsed JSON: %s\n", cJSON_Print(_json));
 
-    free(buf);
     return true;
 }
