@@ -124,6 +124,10 @@ void adamNetwork::open(unsigned short s)
         protocol = nullptr;
         return;
     }
+
+    // Associate channel mode
+    json.setProtocol(protocol);
+
 }
 
 /**
@@ -237,7 +241,7 @@ void adamNetwork::status()
         err = protocol->status(&s);
         break;
     case JSON:
-        // err = _json->status(&status);
+        // err = json.status(&status);
         break;
     }
 
@@ -609,6 +613,9 @@ void adamNetwork::adamnet_control_send()
         break;
     case 'C':
         close();
+        break;
+    case 'J':
+
         break;
     case 'S':
         status();

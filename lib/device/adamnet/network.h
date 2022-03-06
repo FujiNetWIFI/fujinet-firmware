@@ -11,6 +11,8 @@
 
 #include "Protocol.h"
 
+#include "fnjson.h"
+
 
 /**
  * Number of devices to expose via ADAM, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -132,6 +134,11 @@ private:
      * AdamNet Response Length
      */
     uint16_t response_len=0;
+
+    /**
+     * JSON Object
+     */
+    FNJSON json;
 
     /**
      * The Receive buffer for this N: device
