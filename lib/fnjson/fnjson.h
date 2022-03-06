@@ -9,6 +9,7 @@
 #define JSON_H
 
 #include <cJSON.h>
+#include <cJSON_Utils.h>
 
 #include "Protocol.h"
 
