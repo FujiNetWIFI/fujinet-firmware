@@ -55,11 +55,10 @@ void FNJSON::setReadQuery(string queryString)
  */
 cJSON *FNJSON::resolveQuery()
 {
-    // This needs a full blown query parser!, for now, I just find object on same depth.
     if (_queryString.empty())
         return _json;
 
-    return cJSON_GetObjectItem(_json, _queryString.c_str());
+    return cJSONUtils_GetPointer(_json,_queryString.c_str());
 }
 
 /**
