@@ -101,6 +101,7 @@ void iwmFuji::iwm_stat_net_get_ssid() // SP STATUS command
     std::string s = Config.get_wifi_ssid();
     memcpy(cfg.ssid, s.c_str(),
            s.length() > sizeof(cfg.ssid) ? sizeof(cfg.ssid) : s.length());
+    Debug_printf("\r\nReturning SSID: %s",cfg.ssid);
 
     s = Config.get_wifi_passphrase();
     memcpy(cfg.password, s.c_str(),
@@ -181,14 +182,16 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
 
         Debug_printf("\r\nConnecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
-        fnWiFi.connect(cfg.ssid, cfg.password);
+        if (fnWiFi.connect(cfg.ssid, cfg.password) == ESP_OK)
+        {
+          Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+          Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+        }
         setSSIDStarted = true; // gets reset to false by scanning networks ... hmmm
         // Only save these if we're asked to, otherwise assume it was a test for connectivity
         // should only save if connection was successful - i think
         if (save)
         {
-            Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-            Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
             Config.save();
         }
     // }
@@ -202,6 +205,7 @@ void iwmFuji::iwm_stat_net_get_wifi_status() // SP Status command
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     packet_buffer[0] = wifiStatus;
     packet_len = 1;
+    Debug_printf("\r\nReturning Status: %d", wifiStatus);
 }
 
 // Mount Server
