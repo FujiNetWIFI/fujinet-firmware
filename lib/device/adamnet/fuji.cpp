@@ -1192,6 +1192,9 @@ void adamFuji::adamnet_enable_device()
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
+    if (d == 0x02)
+        Config.store_printer_enabled(true);
+
     AdamNet.enableDevice(d);
 }
 
@@ -1203,6 +1206,9 @@ void adamFuji::adamnet_disable_device()
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
+
+    if (d == 0x02)
+        Config.store_printer_enabled(false);
 
     AdamNet.disableDevice(d);
 }
@@ -1242,7 +1248,6 @@ void adamFuji::setup(systemBus *siobus)
     theNetwork = new adamNetwork();
     theSerial = new adamSerial();
     _adamnet_bus->addDevice(theNetwork, 0x09); // temporary.
-    // _adamnet_bus->addDevice(theSerial, 0x0e);  // Serial port
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 }
 
