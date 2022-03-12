@@ -118,6 +118,7 @@ protected:
     void adamnet_disable_device();         // 0xD4
     void adamnet_random_number();          // 0xD3
     void adamnet_get_time();               // 0xD2
+    void adamnet_device_enable_status();   // 0xD1
 
     void adamnet_test_command();
 
