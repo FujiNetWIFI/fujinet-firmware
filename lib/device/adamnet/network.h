@@ -109,6 +109,22 @@ public:
     virtual void set_password(uint16_t s);
 
     /**
+     * @brief set channel mode
+     */
+    void channel_mode();
+
+    /**
+     * @brief parse incoming data
+     */
+    void json_parse();
+    
+    /**
+     * @brief JSON Query
+     * @param s size of query
+     */
+    void json_query(unsigned short s);
+
+    /**
      * Check to see if PROCEED needs to be asserted.
      */
     void adamnet_poll_interrupt();
