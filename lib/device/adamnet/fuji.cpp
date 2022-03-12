@@ -1194,7 +1194,10 @@ void adamFuji::adamnet_enable_device()
     adamnet_response_ack();
 
     if (d == 0x02)
+    {
         Config.store_printer_enabled(true);
+        Config.save();
+    }
 
     AdamNet.enableDevice(d);
 }
@@ -1209,7 +1212,10 @@ void adamFuji::adamnet_disable_device()
     adamnet_response_ack();
 
     if (d == 0x02)
+    {
         Config.store_printer_enabled(false);
+        Config.save();
+    }
 
     AdamNet.disableDevice(d);
 }
