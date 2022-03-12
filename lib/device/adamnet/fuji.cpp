@@ -54,6 +54,7 @@
 #define SIO_FUJICMD_DISABLE_DEVICE 0xD4
 #define SIO_FUJICMD_RANDOM_NUMBER 0xD3
 #define SIO_FUJICMD_GET_TIME 0xD2
+#define SIO_FUJICMD_DEVICE_ENABLE_STATUS 0xD1
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -1346,6 +1347,22 @@ void adamFuji::adamnet_get_time()
     Debug_printf("Sending %02X %02X %02X %02X %02X %02X\n",now->tm_mday, now->tm_mon, now->tm_year, now->tm_hour, now->tm_min, now->tm_sec);
 }
 
+void adamFuji::adamnet_device_enable_status()
+{
+    uint8_t d = adamnet_recv();
+    adamnet_recv(); // CK
+
+    AdamNet.start_time = esp_timer_get_time();
+
+    if (AdamNet.deviceExists(d))
+        adamnet_response_ack();
+    else
+        adamnet_response_nack();
+
+    response_len=1;
+    response[0]=AdamNet.deviceEnabled(d);
+}
+
 adamDisk *adamFuji::bootdisk()
 {
     return _bootDisk;
@@ -1450,6 +1467,9 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_GET_TIME:
         adamnet_get_time();
+        break;
+    case SIO_FUJICMD_DEVICE_ENABLE_STATUS:
+        adamnet_device_enable_status();
         break;
     }
 }
