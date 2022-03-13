@@ -107,6 +107,7 @@ void adamPrinter::adamnet_control_send()
     adamnet_response_ack();
 
     xQueueSend(print_queue,&pi,portMAX_DELAY);
+    _last_ms = fnSystem.millis();
 }
 
 void adamPrinter::adamnet_control_ready()
