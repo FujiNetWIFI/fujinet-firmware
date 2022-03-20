@@ -9,14 +9,15 @@
 #define JSON_H
 
 #include <cJSON.h>
+#include <cJSON_Utils.h>
 
 #include "Protocol.h"
 
-class JSON
+class FNJSON
 {
 public:
-    JSON();
-    virtual ~JSON();
+    FNJSON();
+    virtual ~FNJSON();
 
     void setProtocol(NetworkProtocol *newProtocol);
     void setReadQuery(string queryString);

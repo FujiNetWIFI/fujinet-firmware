@@ -124,6 +124,9 @@ void adamNetwork::open(unsigned short s)
         protocol = nullptr;
         return;
     }
+
+    // Associate channel mode
+    json.setProtocol(protocol);
 }
 
 /**
@@ -237,7 +240,7 @@ void adamNetwork::status()
         err = protocol->status(&s);
         break;
     case JSON:
-        // err = _json->status(&status);
+        // err = json.status(&status);
         break;
     }
 
@@ -432,6 +435,45 @@ void adamNetwork::mkdir(uint16_t s)
     }
 }
 
+void adamNetwork::channel_mode()
+{
+    switch (adamnet_recv())
+    {
+    case 0:
+        channelMode = PROTOCOL;
+        AdamNet.start_time = esp_timer_get_time();
+        adamnet_response_ack();
+        break;
+    case 1:
+        channelMode = JSON;
+        AdamNet.start_time = esp_timer_get_time();
+        adamnet_response_ack();
+        break;
+    default:
+        AdamNet.start_time = esp_timer_get_time();
+        adamnet_response_nack();
+        break;
+    }
+    adamnet_recv(); // CK
+}
+
+void adamNetwork::json_query(unsigned short s)
+{
+    uint8_t *c = (uint8_t *)malloc(s);
+
+    adamnet_recv_buffer(c,s);
+    adamnet_recv(); // CK
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
+    json.setReadQuery(std::string((char *)c,s));
+
+    Debug_printf("adamNetwork::json_query(%s)\n",c);
+
+    free(c);
+}
+
 /**
  * @brief Do an inquiry to determine whether a protoocol supports a particular command.
  * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
@@ -565,7 +607,7 @@ void adamNetwork::adamnet_response_status()
     statusByte.bits.client_data_available = s.rxBytesWaiting > 0;
     statusByte.bits.client_error = s.error > 1;
 
-    status_response[1] = 2;  // max packet size 1026 bytes, maybe larger?
+    status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
     status_response[2] = 4;
 
     status_response[4] = statusByte.byte;
@@ -616,6 +658,9 @@ void adamNetwork::adamnet_control_send()
     case 'W':
         write(s);
         break;
+    case 0xFC:
+        channel_mode();
+        break;
     case 0xFD: // login
         set_login(s);
         break;
@@ -623,15 +668,33 @@ void adamNetwork::adamnet_control_send()
         set_password(s);
         break;
     default:
+        switch (channelMode)
+        {
+        case PROTOCOL:
+            if (inq_dstats == 0x00)
+                adamnet_special_00(s);
+            else if (inq_dstats == 0x40)
+                adamnet_special_40(s);
+            else if (inq_dstats == 0x80)
+                adamnet_special_80(s);
+            else
+                Debug_printf("adamnet_control_send() - Unknown Command: %02x\n", c);
+        case JSON:
+            switch(c)
+            {
+                case 'P':
+                json.parse();
+                break;
+                case 'Q':
+                json_query(s);
+                break;
+            }
+            break;
+        default:
+            Debug_printf("Unknown channel mode\n");
+            break;
+        }
         do_inquiry(c);
-        if (inq_dstats == 0x00)
-            adamnet_special_00(s);
-        else if (inq_dstats == 0x40)
-            adamnet_special_40(s);
-        else if (inq_dstats == 0x80)
-            adamnet_special_80(s);
-        else
-            Debug_printf("adamnet_control_send() - Unknown Command: %02x\n", c);
     }
 }
 

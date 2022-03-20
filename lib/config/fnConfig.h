@@ -244,7 +244,11 @@ private:
         int boot_mode = 0;
         bool fnconfig_spifs = true;
         bool status_wait_enabled = true;
+    #ifdef BUILD_ADAM
+        bool printer_enabled = false; // Not by default.
+    #else
         bool printer_enabled = true;
+    #endif
     };
 
     struct modem_info

@@ -9,6 +9,7 @@ class colecoprinter : public pdfPrinter
 {
 protected:
 
+    bool backwards = false;
    virtual void pdf_clear_modes() override {};
     void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2);
     virtual void post_new_file() override;
