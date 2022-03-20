@@ -34,7 +34,7 @@ protected:
     FILE * _file = nullptr;
     paper_t _paper_type = RAW;
 
-    uint8_t buffer[40];
+    uint8_t buffer[80];
 
     // Called after a new printer output file is created (allows for providing header data)
     virtual void post_new_file()=0;

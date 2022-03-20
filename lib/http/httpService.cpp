@@ -667,7 +667,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 #ifdef BUILD_ATARI
                 theFuji.status_wait_count = 0;
 #endif
-
+                strcpy(disk->filename,qp.query_parsed["filename"].c_str());
                 disk->disk_size = host->file_size(disk->fileh);
                 disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
                 Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);

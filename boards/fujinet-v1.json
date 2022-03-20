@@ -33,7 +33,7 @@
   "upload": {
     "flash_size": "16MB",
     "maximum_ram_size": 4521984,
-    "maximum_size": 4194304,
+    "maximum_size": 16777216,
     "protocols": [
       "esptool",
       "espota",
@@ -42,6 +42,6 @@
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://github.com/FujiNetWIFI/atariwifi",
+  "url": "https://github.com/FujiNetWIFI/fujinet-platformio",
   "vendor": "FujiNet Project"
 }

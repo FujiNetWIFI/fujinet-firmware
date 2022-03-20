@@ -54,6 +54,7 @@
 #define SIO_FUJICMD_DISABLE_DEVICE 0xD4
 #define SIO_FUJICMD_RANDOM_NUMBER 0xD3
 #define SIO_FUJICMD_GET_TIME 0xD2
+#define SIO_FUJICMD_DEVICE_ENABLE_STATUS 0xD1
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
 
@@ -325,12 +326,14 @@ void adamFuji::adamnet_disk_image_mount()
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
 
     boot_config = false;
+    disk.disk_dev.is_config_device = false;
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
 
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+    disk.disk_dev.device_active = true;
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -341,6 +344,16 @@ void adamFuji::adamnet_set_boot_config()
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
+
+    Debug_printf("Boot config is now %d",boot_config);
+
+    if (_fnDisks[0].disk_dev.is_config_device)
+    {
+        _fnDisks[0].disk_dev.unmount();
+        _fnDisks[0].disk_dev.is_config_device = false;
+        _fnDisks[0].reset();
+        Debug_printf("Boot config unmounted slot 0");
+    }
 }
 
 // Do SIO copy
@@ -482,6 +495,7 @@ void adamFuji::adamnet_set_boot_mode()
     boot_config = true;
 
     adamnet_response_ack();
+
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -1179,6 +1193,12 @@ void adamFuji::adamnet_enable_device()
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
+    if (d == 0x02)
+    {
+        Config.store_printer_enabled(true);
+        Config.save();
+    }
+
     AdamNet.enableDevice(d);
 }
 
@@ -1190,6 +1210,12 @@ void adamFuji::adamnet_disable_device()
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
+
+    if (d == 0x02)
+    {
+        Config.store_printer_enabled(false);
+        Config.save();
+    }
 
     AdamNet.disableDevice(d);
 }
@@ -1218,6 +1244,7 @@ void adamFuji::setup(systemBus *siobus)
     {
         FILE *f = fnSPIFFS.file_open("/autorun.ddp");
         _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
+        _fnDisks[0].disk_dev.is_config_device = true;
     }
     else
     {
@@ -1228,7 +1255,6 @@ void adamFuji::setup(systemBus *siobus)
     theNetwork = new adamNetwork();
     theSerial = new adamSerial();
     _adamnet_bus->addDevice(theNetwork, 0x09); // temporary.
-    // _adamnet_bus->addDevice(theSerial, 0x0e);  // Serial port
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 }
 
@@ -1325,6 +1351,22 @@ void adamFuji::adamnet_get_time()
     response_len = 6;
 
     Debug_printf("Sending %02X %02X %02X %02X %02X %02X\n",now->tm_mday, now->tm_mon, now->tm_year, now->tm_hour, now->tm_min, now->tm_sec);
+}
+
+void adamFuji::adamnet_device_enable_status()
+{
+    uint8_t d = adamnet_recv();
+    adamnet_recv(); // CK
+
+    AdamNet.start_time = esp_timer_get_time();
+
+    if (AdamNet.deviceExists(d))
+        adamnet_response_ack();
+    else
+        adamnet_response_nack();
+
+    response_len=1;
+    response[0]=AdamNet.deviceEnabled(d);
 }
 
 adamDisk *adamFuji::bootdisk()
@@ -1431,6 +1473,9 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_GET_TIME:
         adamnet_get_time();
+        break;
+    case SIO_FUJICMD_DEVICE_ENABLE_STATUS:
+        adamnet_device_enable_status();
         break;
     }
 }

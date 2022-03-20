@@ -341,6 +341,11 @@ bool systemBus::deviceExists(uint8_t device_id)
     return _daisyChain.find(device_id) != _daisyChain.end();
 }
 
+bool systemBus::deviceEnabled(uint8_t device_id)
+{
+    return _daisyChain[device_id]->device_active;
+}
+
 void systemBus::remDevice(virtualDevice *pDevice)
 {
 }
@@ -385,12 +390,16 @@ void systemBus::reset()
 
 void systemBus::enableDevice(uint8_t device_id)
 {
+    Debug_printf("Enabling AdamNet Device %d\n",device_id);
+
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = true;
 }
 
 void systemBus::disableDevice(uint8_t device_id)
 {
+    Debug_printf("Disabling AdamNet Device %d\n",device_id);
+
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = false;
 }
