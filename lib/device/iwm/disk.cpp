@@ -6,7 +6,7 @@
 #include "fnFsSD.h"
 #include "led.h"
 
-#undef LOCAL_TNFS
+#define LOCAL_TNFS
 
 FileSystemTNFS tserver;
 
@@ -285,7 +285,7 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
   data[15] = 'S';
   data[16] = 'K';
   data[17] = '_';
-  data[18] = '1';
+  data[18] = disk_num; //'1';
   data[19] = ' ';
   data[20] = ' ';  // ID string (16 chars total)
   data[21] = 0x02; // Device type    - 0x02  harddisk

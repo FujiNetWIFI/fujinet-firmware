@@ -24,6 +24,8 @@
 #define SP_ERR_DISKSW 0x2e     // media has been swapped - extended calls only
 #define SP_ERR_OFFLINE 0x2f    // device offline or no disk in drive
 // $30-$3F are for device specific errors
+#define SP_ERR_BADWIFI 0x30    // error connecting to new SSID - todo: implement usage
+
 
 #define STATCODE_BLOCK_DEVICE 0x01 << 7   // block device = 1, char device = 0
 #define STATCODE_WRITE_ALLOWED 0x01 << 6
