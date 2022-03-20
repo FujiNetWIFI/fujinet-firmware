@@ -482,6 +482,11 @@ bool fnConfig::get_cassette_pulldown()
     return _cassette.pulldown;
 }
 
+bool fnConfig::get_cassette_enabled()
+{
+    return _cassette.cassette_enabled;
+}
+
 void fnConfig::store_cassette_buttons(bool button)
 {
     if (_cassette.button != button)
@@ -496,6 +501,15 @@ void fnConfig::store_cassette_pulldown(bool pulldown)
     if (_cassette.pulldown != pulldown)
     {
         _cassette.pulldown = pulldown;
+        _dirty = true;
+    }
+}
+
+void fnConfig::store_cassette_enabled(bool cassette_enabled)
+{
+    if (_cassette.cassette_enabled != cassette_enabled)
+    {
+        _cassette.cassette_enabled = cassette_enabled;
         _dirty = true;
     }
 }
@@ -627,6 +641,7 @@ void fnConfig::save()
     ss << LINETERM << "[Cassette]" << LINETERM;
     ss << "play_record=" << ((_cassette.button) ? "1 Record" : "0 Play") << LINETERM;
     ss << "pulldown=" << ((_cassette.pulldown) ? "1 Pulldown Resistor" : "0 B Button Press") << LINETERM;
+    ss << "cassette_enabled=" << _cassette.cassette_enabled << LINETERM;
 
     // CPM
     ss << LINETERM << "[CPM]" << LINETERM;
@@ -1157,6 +1172,10 @@ void fnConfig::_read_section_cassette(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "pulldown") == 0)
             {
                 _cassette.pulldown = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "cassette_enabled") == 0)
+            {
+                _cassette.cassette_enabled = util_string_value_is_true(value);
             }
         }
     }
