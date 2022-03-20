@@ -122,8 +122,10 @@ public:
     // CASSETTE
     bool get_cassette_buttons();
     bool get_cassette_pulldown();
+    bool get_cassette_enabled();
     void store_cassette_buttons(bool button);
     void store_cassette_pulldown(bool pulldown);
+    void store_cassette_enabled(bool cassette_enabled);
 
     // CPM
     std::string get_ccp_filename(){ return _cpm.ccp; };
@@ -259,6 +261,7 @@ private:
 
     struct cassette_info
     {
+        bool cassette_enabled = true;
         bool pulldown = false;
         bool button = false;
     };
