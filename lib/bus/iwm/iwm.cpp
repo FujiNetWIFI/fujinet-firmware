@@ -1332,6 +1332,10 @@ void iwmBus::service()
 #ifdef DEBUG
           print_packet(command_packet.data);
 #endif
+
+          // need to take time here to service other ESP processes so they can catch up
+          taskYIELD(); // Allow other tasks to run
+          
           _activeDev = devicep;
           // handle command
           if (verify_cmdpkt_checksum())
