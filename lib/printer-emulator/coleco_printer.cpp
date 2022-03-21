@@ -51,7 +51,6 @@ void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
             }
             else
                 pdf_X += charWidth; // update x position
-            Debug_printf("%c", c);
         } else
         {
             Debug_printf("ignore %02x\n", c);
@@ -68,7 +67,7 @@ void colecoprinter::post_new_file()
     _eol_bypass = true;
     pageWidth = 612.0;
     pageHeight = 792.0;
-    leftMargin = 0.0;
+    leftMargin = 66.0;
     topMargin = 32.0;
     bottomMargin = 48.0;
     printWidth = 480.0; // 6 2/3 inches
