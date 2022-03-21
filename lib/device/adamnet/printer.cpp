@@ -55,7 +55,7 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
     _storage = filesystem;
     set_printer_type(print_type);
     print_queue = xQueueCreate(16, sizeof(PrintItem));
-    xTaskCreate(printerTask, "ptsk", 4096, this, 0, &thPrinter);
+    xTaskCreate(printerTask, "ptsk", 4096, this, 1, &thPrinter);
 }
 
 adamPrinter::~adamPrinter()
