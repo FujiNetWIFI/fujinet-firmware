@@ -60,7 +60,8 @@ private:
     bool scanStarted = false;
     bool hostMounted[MAX_HOSTS];
     bool setSSIDStarted = false;
-
+    uint8_t err_result = SP_ERR_NOERROR;
+    
     //uint8_t response[1024]; // use packet_buffer instead
     //uint16_t response_len;
 

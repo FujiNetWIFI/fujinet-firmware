@@ -49,6 +49,7 @@
 //#define IWM_FUJICMD_HSIO_INDEX 0x3F
 
 #define ADDITIONAL_DETAILS_BYTES 12
+#define DIR_MAX_LEN 40
 
 iwmFuji theFuji; // Global fuji object.
 
@@ -211,9 +212,8 @@ void iwmFuji::iwm_stat_net_get_wifi_status() // SP Status command
 // Mount Server
 void iwmFuji::iwm_ctrl_mount_host() // SP CTRL command
 {
-    Debug_printf("\r\nFuji cmd: MOUNT HOST");
-
     unsigned char hostSlot = packet_buffer[0]; // adamnet_recv();
+    Debug_printf("\r\nFuji cmd: MOUNT HOST no. %d", hostSlot);
 
     if (hostMounted[hostSlot] == false)
     {
@@ -404,9 +404,10 @@ void iwmFuji::iwm_ctrl_read_app_key()
 
 void iwmFuji::iwm_stat_read_app_key() // return the app key that was just read by the read app key control command
 {
-    memset(packet_buffer,0,sizeof(packet_buffer));
-    memcpy(ctrl_stat_buffer,packet_buffer,ctrl_stat_len);
-    packet_len = ctrl_stat_len;
+  Debug_printf("\r\nFuji cmd: READ APP KEY");
+  memset(packet_buffer, 0, sizeof(packet_buffer));
+  memcpy(ctrl_stat_buffer, packet_buffer, ctrl_stat_len);
+  packet_len = ctrl_stat_len;
 }
 
 // DEBUG TAPE
@@ -475,21 +476,19 @@ void iwmFuji::iwm_ctrl_open_directory()
     int idx = 0;
     uint8_t hostSlot = packet_buffer[idx++];// adamnet_recv();
 
-    uint16_t s = num_decoded;
-    s--;
-    s--;
-
+    uint16_t s = num_decoded - 1; // two strings but not the slot number
+  
     memcpy((uint8_t *)&dirpath, (uint8_t *)&packet_buffer[idx], s); // adamnet_recv_buffer((uint8_t *)&dirpath, s);
 
     if (_current_open_directory_slot == -1)
     {
         // See if there's a search pattern after the directory path
         const char *pattern = nullptr;
-        int pathlen = strnlen(dirpath, sizeof(dirpath));
-        if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
+        int pathlen = strnlen(dirpath, s);
+        if (pathlen < s - 3) // Allow for two NULLs and a 1-char pattern
         {
             pattern = dirpath + pathlen + 1;
-            int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
+            int patternlen = strnlen(pattern, s - pathlen - 1);
             if (patternlen < 1)
                 pattern = nullptr;
         }
@@ -501,10 +500,10 @@ void iwmFuji::iwm_ctrl_open_directory()
         Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
 
         if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
-        {
-            _current_open_directory_slot = hostSlot;
-        }
-        // to do - error reutrn if cannot open directory?
+          _current_open_directory_slot = hostSlot;
+        else
+          err_result = 0x30; // bad device specific error
+                             // to do - error reutrn if cannot open directory?
     }
   //   else
   //   {
@@ -614,8 +613,8 @@ void iwmFuji::iwm_ctrl_read_directory_entry()
             }
         }
 
-        // Hack-o-rama to add file type character to beginning of path.
-        if (maxlen == 31)
+        /* // Hack-o-rama to add file type character to beginning of path.
+        if (maxlen == DIR_MAX_LEN)
         {
             memmove(&dirpath[2], dirpath, 254);
             if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
@@ -640,7 +639,7 @@ void iwmFuji::iwm_ctrl_read_directory_entry()
             }
             else
                 dirpath[0] = dirpath[1] = 0x20;
-        }
+        } */
 
         memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
         memcpy(ctrl_stat_buffer, dirpath, maxlen);
@@ -655,6 +654,7 @@ void iwmFuji::iwm_ctrl_read_directory_entry()
 
 void iwmFuji::iwm_stat_read_directory_entry()
 {
+  Debug_printf("\r\nFuji cmd: READ DIRECTORY ENTRY");
   memcpy(packet_buffer, ctrl_stat_buffer, ctrl_stat_len);
   packet_len = ctrl_stat_len;
 }
@@ -802,11 +802,13 @@ void iwmFuji::iwm_ctrl_write_host_slots()
 // Store host path prefix
 void iwmFuji::iwm_ctrl_set_host_prefix()
 {
+  Debug_printf("\r\nFuji cmd: SET HOST PREFIX - NOT IMPLEMENTED");
 }
 
 // Retrieve host path prefix
 void iwmFuji::iwm_stat_get_host_prefix()
 {
+  Debug_printf("\r\nFuji cmd: GET HOST PREFIX - NOT IMPLEMENTED");
 }
 
 // Send device slot data to computer
@@ -932,12 +934,12 @@ void iwmFuji::iwm_ctrl_set_device_filename()
     unsigned char ds = packet_buffer[idx++];// adamnet_recv();
     uint16_t s = num_decoded;
     s--;
-    s--;
+   
 
     Debug_printf("SET DEVICE SLOT %d filename\n", ds);
 
     // adamnet_recv_buffer((uint8_t *)&f, s);
-    memcpy((uint8_t *)&f, packet_buffer, s);
+    memcpy((uint8_t *)&f, &packet_buffer[idx], s);
     Debug_printf("filename: %s\n", f);
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
@@ -955,8 +957,9 @@ void iwmFuji::iwm_ctrl_get_device_filename()
 
 void iwmFuji::iwm_stat_get_device_filename()
 {
-    memcpy(packet_buffer, ctrl_stat_buffer, ctrl_stat_len);
-    packet_len = 256;
+  Debug_printf("\r\nFuji cmd: GET DEVICE FILENAME");
+  memcpy(packet_buffer, ctrl_stat_buffer, ctrl_stat_len);
+  packet_len = 256;
 }
 
 // Mounts the desired boot disk number
@@ -987,6 +990,7 @@ void iwmFuji::iwm_ctrl_enable_device()
 {
     unsigned char d = packet_buffer[0]; // adamnet_recv();
 
+    Debug_printf("\r\nFuji cmd: ENABLE DEVICE");
     IWM.enableDevice(d);
 }
 
@@ -994,6 +998,7 @@ void iwmFuji::iwm_ctrl_disable_device()
 {
     unsigned char d = packet_buffer[0]; // adamnet_recv();
 
+    Debug_printf("\r\nFuji cmd: DISABLE DEVICE");
     IWM.disableDevice(d);
 }
 
@@ -1404,7 +1409,7 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
 
 void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
 {
-  uint8_t err_result = SP_ERR_NOERROR;
+  err_result = SP_ERR_NOERROR;
   
   uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
   uint8_t control_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
