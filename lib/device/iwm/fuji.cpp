@@ -613,34 +613,34 @@ void iwmFuji::iwm_ctrl_read_directory_entry()
             }
         }
 
-        /* // Hack-o-rama to add file type character to beginning of path.
+        // Hack-o-rama to add file type character to beginning of path. - this was for Adam, but must keep for CONFIG compatability
+        // in Apple 2 config will somehow have to work around these extra char's
         if (maxlen == DIR_MAX_LEN)
         {
             memmove(&dirpath[2], dirpath, 254);
-            if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
-            {
-                dirpath[0] = 0x85;
-                dirpath[1] = 0x86;
-            }
-            else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
-            {
-                dirpath[0] = 0x87;
-                dirpath[1] = 0x88;
-            }
-            else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
-            {
-                dirpath[0] = 0x89;
-                dirpath[1] = 0x8a;
-            }
-            else if (strstr(dirpath, "/"))
-            {
-                dirpath[0] = 0x83;
-                dirpath[1] = 0x84;
-            }
-            else
+            // if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
+            // {
+            //     dirpath[0] = 0x85;
+            //     dirpath[1] = 0x86;
+            // }
+            // else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
+            // {
+            //     dirpath[0] = 0x87;
+            //     dirpath[1] = 0x88;
+            // }
+            // else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
+            // {
+            //     dirpath[0] = 0x89;
+            //     dirpath[1] = 0x8a;
+            // }
+            // else if (strstr(dirpath, "/"))
+            // {
+            //     dirpath[0] = 0x83;
+            //     dirpath[1] = 0x84;
+            // }
+            // else
                 dirpath[0] = dirpath[1] = 0x20;
-        } */
-
+        } 
         memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
         memcpy(ctrl_stat_buffer, dirpath, maxlen);
         ctrl_stat_len = maxlen;
