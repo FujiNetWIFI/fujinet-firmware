@@ -275,7 +275,7 @@ public:
   /**
    * Startup hack for now
    */
-  virtual void startup_hack() = 0;
+  // virtual void startup_hack() = 0;
 };
 
 class iwmBus
@@ -362,7 +362,7 @@ public:
   void test_send(iwmDevice* smort);
 #endif
 
-  void startup_hack();
+  // void startup_hack();
 
 };
 

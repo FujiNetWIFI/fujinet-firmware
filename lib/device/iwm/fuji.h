@@ -12,7 +12,7 @@
 #include "fujiDisk.h"
 
 #define MAX_HOSTS 8
-#define MAX_DISK_DEVICES 8
+#define MAX_DISK_DEVICES 4  // to do for now
 #define MAX_NETWORK_DEVICES 4
 
 #define MAX_SSID_LEN 32
@@ -61,7 +61,7 @@ private:
     bool hostMounted[MAX_HOSTS];
     bool setSSIDStarted = false;
     uint8_t err_result = SP_ERR_NOERROR;
-    
+
     //uint8_t response[1024]; // use packet_buffer instead
     //uint16_t response_len;
 
@@ -191,7 +191,7 @@ public:
 
     iwmFuji();
 
-    virtual void startup_hack() override { Debug_printf("\r\n Fuji startup hack"); }
+    // virtual void startup_hack() override { Debug_printf("\r\n Fuji startup hack"); }
 };
 
 extern iwmFuji theFuji;
