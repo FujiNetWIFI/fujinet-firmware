@@ -127,13 +127,16 @@ void iwmDisk::encode_status_reply_packet()
   // Bit 2: Media write protected
   // Bit 1: Currently interrupting (//c only)
   // Bit 0: Currently open (char devices only)
-  
-  data[0] = 0b11101000 | (_disk->status() << 4);
-  // Disk size
-  data[1] = _disk->num_blocks & 0xff;
-  data[2] = (_disk->num_blocks >> 8) & 0xff;
-  data[3] = (_disk->num_blocks >> 16) & 0xff;
-
+  data[0] = 0b11101000;
+  data[1] = data[2] = data[3] = 0;
+  if (_disk != nullptr)
+  {
+    data[0] |= (1 << 4);
+    // Disk size
+    data[1] = _disk->num_blocks & 0xff;
+    data[2] = (_disk->num_blocks >> 8) & 0xff;
+    data[3] = (_disk->num_blocks >> 16) & 0xff;
+}
   packet_buffer[0] = 0xff; // sync bytes
   packet_buffer[1] = 0x3f;
   packet_buffer[2] = 0xcf;
@@ -185,7 +188,7 @@ void iwmDisk::encode_extended_status_reply_packet()
   uint8_t checksum = 0;
 
   uint8_t data[5];
-
+  data[0] = 0b11101000;
   // Build the contents of the packet
   // Info byte
   // Bit 7: Block  device
@@ -196,13 +199,17 @@ void iwmDisk::encode_extended_status_reply_packet()
   // Bit 2: Media write protected (block devices only)
   // Bit 1: Currently interrupting (//c only)
   // Bit 0: Currently open (char devices only)
-  data[0] = 0b11101000 | ((_disk->status()) << 4);
-  // Disk size
-  data[1] = _disk->num_blocks & 0xff;
-  data[2] = (_disk->num_blocks >> 8) & 0xff;
-  data[3] = (_disk->num_blocks >> 16) & 0xff;
-  data[4] = (_disk->num_blocks >> 24) & 0xff;
-
+  data[1] = data[2] = data[3] = data[4] = 0;
+  if (_disk!=nullptr)
+  {
+    data[0] |= (1 << 4);
+    // Disk size
+    data[1] = _disk->num_blocks & 0xff;
+    data[2] = (_disk->num_blocks >> 8) & 0xff;
+    data[3] = (_disk->num_blocks >> 16) & 0xff;
+    data[4] = (_disk->num_blocks >> 24) & 0xff;
+  
+  }
   packet_buffer[0] = 0xff; // sync bytes
   packet_buffer[1] = 0x3f;
   packet_buffer[2] = 0xcf;
@@ -272,11 +279,16 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
   // Bit 2: Media write protected (block devices only)
   // Bit 1: Currently interrupting (//c only)
   // Bit 0: Currently open (char devices only)
-  data[0] = 0b11101000 | ((_disk->status()) << 4);
-  data[1] = _disk->num_blocks & 0xff;         // block size 1
-  data[2] = (_disk->num_blocks >> 8) & 0xff;  // block size 2
-  data[3] = (_disk->num_blocks >> 16) & 0xff; // block size 3
-  data[4] = 0x0E;                    // ID string length - 14 chars
+  data[0] = 0b11101000;
+  data[1] = data[2] = data[3] = 0;
+  if (_disk != nullptr)
+  {
+    data[0] |= (1 << 4);
+    data[1] = _disk->num_blocks & 0xff;         // block size 1
+    data[2] = (_disk->num_blocks >> 8) & 0xff;  // block size 2
+    data[3] = (_disk->num_blocks >> 16) & 0xff; // block size 3
+  }
+  data[4] = 0x0E; // ID string length - 14 chars
   data[5] = 'F';
   data[6] = 'U';
   data[7] = 'J';
@@ -324,38 +336,37 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
     // now add the group data bytes bits 6-0
     for (grpbyte = 0; grpbyte < 7; grpbyte++)
       packet_buffer[(14 + oddnum + 2) + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
-  }
+    }
 
-  // odd byte
-  packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
-  packet_buffer[15] = data[0] | 0x80;
-  packet_buffer[16] = data[1] | 0x80;
-  packet_buffer[17] = data[2] | 0x80;
-  packet_buffer[18] = data[3] | 0x80;
-  ;
+    // odd byte
+    packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
+    packet_buffer[15] = data[0] | 0x80;
+    packet_buffer[16] = data[1] | 0x80;
+    packet_buffer[17] = data[2] | 0x80;
+    packet_buffer[18] = data[3] | 0x80;
+    
+    packet_buffer[0] = 0xff; // sync bytes
+    packet_buffer[1] = 0x3f;
+    packet_buffer[2] = 0xcf;
+    packet_buffer[3] = 0xf3;
+    packet_buffer[4] = 0xfc;
+    packet_buffer[5] = 0xff;
+    packet_buffer[6] = 0xc3;  // PBEGIN - start byte
+    packet_buffer[7] = 0x80;  // DEST - dest id - host
+    packet_buffer[8] = id();  // d.device_id; // SRC - source id - us
+    packet_buffer[9] = 0x81;  // TYPE -status
+    packet_buffer[10] = 0x80; // AUX
+    packet_buffer[11] = 0x80; // STAT - data status
+    packet_buffer[12] = 0x84; // ODDCNT - 4 data bytes
+    packet_buffer[13] = 0x83; // GRP7CNT - 3 grps of 7
 
-  packet_buffer[0] = 0xff; // sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
-  packet_buffer[6] = 0xc3;        // PBEGIN - start byte
-  packet_buffer[7] = 0x80;        // DEST - dest id - host
-  packet_buffer[8] = id(); // d.device_id; // SRC - source id - us
-  packet_buffer[9] = 0x81;        // TYPE -status
-  packet_buffer[10] = 0x80;       // AUX
-  packet_buffer[11] = 0x80;       // STAT - data status
-  packet_buffer[12] = 0x84;       // ODDCNT - 4 data bytes
-  packet_buffer[13] = 0x83;       // GRP7CNT - 3 grps of 7
+    for (int count = 7; count < 14; count++) // xor the packet header bytes
+      checksum = checksum ^ packet_buffer[count];
+    packet_buffer[43] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
+    packet_buffer[44] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
 
-  for (int count = 7; count < 14; count++) // xor the packet header bytes
-    checksum = checksum ^ packet_buffer[count];
-  packet_buffer[43] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  packet_buffer[44] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-  packet_buffer[45] = 0xc8; // PEND
-  packet_buffer[46] = 0x00; // end of packet in buffer
+    packet_buffer[45] = 0xc8; // PEND
+    packet_buffer[46] = 0x00; // end of packet in buffer
 }
 
 //*****************************************************************************
@@ -389,12 +400,15 @@ void iwmDisk::encode_extended_status_dib_reply_packet()
   packet_buffer[12] = 0x80;       // ODDCNT - 4 data bytes
   packet_buffer[13] = 0x83;       // GRP7CNT - 3 grps of 7
   packet_buffer[14] = 0xf0;       // grp1 msb
-  packet_buffer[15] = 0b11101000 | ((_disk->status()) << 4);       // general status - f8
-  // number of blocks =0x00ffff = 65525 or 32mb
-  packet_buffer[16] = _disk->num_blocks & 0xff;                  // block size 1
-  packet_buffer[17] = (_disk->num_blocks >> 8) & 0xff;           // block size 2
-  packet_buffer[18] = ((_disk->num_blocks >> 16) & 0xff) | 0x80; // block size 3 - why is the high bit set?
-  packet_buffer[19] = ((_disk->num_blocks >> 24) & 0xff) | 0x80; // block size 3 - why is the high bit set?
+  if (_disk != nullptr)
+  {
+    packet_buffer[15] = 0b11101000 | (1 << 4); // general status - f8
+    // number of blocks =0x00ffff = 65525 or 32mb
+    packet_buffer[16] = _disk->num_blocks & 0xff;                  // block size 1
+    packet_buffer[17] = (_disk->num_blocks >> 8) & 0xff;           // block size 2
+    packet_buffer[18] = ((_disk->num_blocks >> 16) & 0xff) | 0x80; // block size 3 - why is the high bit set?
+    packet_buffer[19] = ((_disk->num_blocks >> 24) & 0xff) | 0x80; // block size 3 - why is the high bit set?
+  }
   packet_buffer[20] = 0x8d;                             // ID string length - 13 chars
   packet_buffer[21] = 'S';
   packet_buffer[22] = 'm';  // ID string (16 chars total)
@@ -483,7 +497,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
   Debug_printf("\r\nDrive %02x ", source);
 
-  if (!_disk->status())
+  if (!(_disk != nullptr))
   {
     Debug_printf(" - ERROR - No image mounted");
     encode_error_reply_packet(SP_ERR_OFFLINE);
