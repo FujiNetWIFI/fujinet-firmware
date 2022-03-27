@@ -2,22 +2,22 @@
 
 #include "mediaTypePO.h"
 
-bool read(uint32_t blockNum, uint16_t *readcount)
+bool MediaTypePO::read(uint32_t blockNum, uint16_t *readcount)
 {
     return false;
 }
 
-bool write(uint32_t blockNum, bool verify)
+bool MediaTypePO::write(uint32_t blockNum, bool verify)
 {
     return false;
 }
 
-bool format(uint16_t *respopnsesize)
+bool MediaTypePO::format(uint16_t *respopnsesize)
 {
     return false;
 }
 
-mediatype_t mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypePO::mount(FILE *f, uint32_t disksize)
 {
   _media_fileh = f;
   num_blocks = disksize/512;
