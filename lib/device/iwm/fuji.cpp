@@ -965,8 +965,8 @@ void iwmFuji::iwm_stat_get_device_filename()
 // Mounts the desired boot disk number
 void iwmFuji::insert_boot_device(uint8_t d)
 {
-    const char *config_atr = "/autorun.ddp";
-    const char *mount_all_atr = "/mount-and-boot.ddp";
+    const char *config_atr = "/autorun.po";
+    const char *mount_all_atr = "/mount-and-boot.po";
     FILE *fBoot;
 
     switch (d)
@@ -1083,10 +1083,9 @@ void iwmFuji::setup(iwmBus *iwmbus)
     Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {
-        //FILE *f = fnSPIFFS.file_open("/autorun.po");
-        //_iwm_bus->firstDev()->
-        //_fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*256, MEDIATYPE_PO);
-        _fnDisks[0].disk_dev.init(); // temporary for opening autorun.po on local TNFS
+        FILE *f = fnSPIFFS.file_open("/autorun.po");
+         _fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*256, MEDIATYPE_PO);
+        //_fnDisks[0].disk_dev.init(); // temporary for opening autorun.po on local TNFS
     }
     else
     {

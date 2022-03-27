@@ -1529,10 +1529,10 @@ void iwmBus::test_send(iwmDevice* smort)
 }
 #endif
 
-void iwmBus::startup_hack()
-{
-  _daisyChain.front()->startup_hack();
-}
+// void iwmBus::startup_hack()
+// {
+//   _daisyChain.front()->startup_hack();
+// }
 
 iwmBus IWM; // global smartport bus variable
 
