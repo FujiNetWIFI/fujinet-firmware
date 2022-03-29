@@ -54,6 +54,11 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
 {
     _storage = filesystem;
     set_printer_type(print_type);
+
+    getPrinterPtr()->setEOLBypass(true);
+    getPrinterPtr()->setTranslate850(false);
+    getPrinterPtr()->setEOL(0x0D);
+
     print_queue = xQueueCreate(16, sizeof(PrintItem));
     xTaskCreate(printerTask, "ptsk", 4096, this, 1, &thPrinter);
 }
