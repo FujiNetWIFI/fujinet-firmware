@@ -62,9 +62,6 @@ void colecoprinter::post_new_file()
 {
     shortname = "a1027";
 
-    translate850 = false;
-    _eol = 0x0d;
-    _eol_bypass = true;
     pageWidth = 612.0;
     pageHeight = 792.0;
     leftMargin = 66.0;
