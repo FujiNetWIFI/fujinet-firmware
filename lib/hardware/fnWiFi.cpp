@@ -229,6 +229,8 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
             else
             {
                 _scan_record_count = numloaded;
+                if (_scan_record_count > 1)
+                    _scan_record_count = remove_duplicate_scan_results(_scan_records, _scan_record_count);
                 final_count = _scan_record_count;
             }
         }
@@ -239,6 +241,43 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
         esp_wifi_connect();
 
     return final_count;
+}
+
+/* Remove duplicate entries in the scan results
+*/
+int WiFiManager::remove_duplicate_scan_results(wifi_ap_record_t scan_records[], uint16_t record_count)
+{
+    if (record_count <= 1)
+        return record_count;
+
+    int current_index = 0;
+    while (current_index < record_count - 1)
+    {
+        char *current_ssid = (char *) &scan_records[current_index].ssid;
+        int compare_index = current_index + 1;
+        // Compare current SSID to others in array
+        while (compare_index < record_count)
+        {
+            if (strcmp(current_ssid, (char *) &scan_records[compare_index].ssid) == 0)
+            {
+                int move_index = compare_index + 1;
+                // Move up all following records one position
+                while (move_index < record_count)
+                {
+                    memcpy(&scan_records[move_index - 1], &scan_records[move_index], sizeof(wifi_ap_record_t));
+                    move_index++;
+                }
+                memset(&scan_records[move_index - 1], 0, sizeof(wifi_ap_record_t));
+                // We now have one record less
+                record_count--;
+                break;
+            }
+            else
+                compare_index++;
+        }
+        current_index++;
+    }
+    return record_count;
 }
 
 int WiFiManager::get_scan_result(uint8_t index, char ssid[32], uint8_t *rssi, uint8_t *channel, char bssid[18], uint8_t *encryption)
