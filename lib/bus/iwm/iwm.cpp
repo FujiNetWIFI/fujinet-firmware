@@ -6,6 +6,7 @@
 #include "driver/timer.h" // contains the hardware timer register data structure
 #include "../../include/debug.h"
 #include "utils.h"
+#include "led.h"
 
 #include "../device/iwm/disk.h"
 
@@ -1358,6 +1359,8 @@ void iwmBus::handle_init()
   uint8_t status = 0;
   iwmDevice* pDevice = nullptr;
 
+  fnLedManager.set(LED_BUS, true);
+
   iwm_rddata_clr();
   iwm_rddata_enable();
   // to do - get the next device in the daisy chain and assign ID
@@ -1379,6 +1382,9 @@ void iwmBus::handle_init()
       return;
     }
   }
+
+  fnLedManager.set(LED_BUS, false);
+
 }
 
 // Add device to SIO bus

@@ -280,14 +280,19 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
   // Bit 1: Currently interrupting (//c only)
   // Bit 0: Currently open (char devices only)
   data[0] = 0b11101000;
-  data[1] = data[2] = data[3] = 0;
+  data[1] = 0;
+  data[2] = 0;
+  data[3] = 0;
   if (_disk != nullptr)
   {
     data[0] |= (1 << 4);
-    data[1] = _disk->num_blocks & 0xff;         // block size 1
+    data[1] = (_disk->num_blocks) & 0xff;         // block size 1
     data[2] = (_disk->num_blocks >> 8) & 0xff;  // block size 2
     data[3] = (_disk->num_blocks >> 16) & 0xff; // block size 3
+    Debug_printf("\r\nDIB number of blocks %d", _disk->num_blocks);
+    Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
   }
+  Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
   data[4] = 0x0E; // ID string length - 14 chars
   data[5] = 'F';
   data[6] = 'U';
@@ -336,15 +341,19 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
     // now add the group data bytes bits 6-0
     for (grpbyte = 0; grpbyte < 7; grpbyte++)
       packet_buffer[(14 + oddnum + 2) + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
-    }
+  }
 
+    //Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
     // odd byte
     packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
     packet_buffer[15] = data[0] | 0x80;
     packet_buffer[16] = data[1] | 0x80;
     packet_buffer[17] = data[2] | 0x80;
     packet_buffer[18] = data[3] | 0x80;
-    
+    ;
+
+    Debug_printf("\r\npacket buffer 14: %02x", packet_buffer[14]);
+
     packet_buffer[0] = 0xff; // sync bytes
     packet_buffer[1] = 0x3f;
     packet_buffer[2] = 0xcf;
@@ -645,6 +654,7 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
     switch (disk_type)
     {
     case MEDIATYPE_PO:
+        Debug_printf("\r\nMedia Type PO");
         device_active = true;
         _disk = new MediaTypePO();
         mt = _disk->mount(f, disksize);
@@ -652,6 +662,7 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         mt = MEDIATYPE_PO;
         break;
     default:
+        Debug_printf("\r\nMedia Type UNKNOWN - no mount");
         device_active = false;
         break;
     }

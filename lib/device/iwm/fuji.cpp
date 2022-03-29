@@ -215,7 +215,7 @@ void iwmFuji::iwm_ctrl_mount_host() // SP CTRL command
     unsigned char hostSlot = packet_buffer[0]; // adamnet_recv();
     Debug_printf("\r\nFuji cmd: MOUNT HOST no. %d", hostSlot);
 
-    if (hostMounted[hostSlot] == false)
+    if ((hostSlot < 8) && (hostMounted[hostSlot] == false))
     {
         _fnHosts[hostSlot].mount();
         hostMounted[hostSlot] = true;
