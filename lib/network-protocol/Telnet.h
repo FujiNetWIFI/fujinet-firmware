@@ -55,7 +55,7 @@ public:
      */
     int newRxLen;
 
-    char ttype[32]="heath-19";
+    char ttype[32]="dumb";
     
 };
 
