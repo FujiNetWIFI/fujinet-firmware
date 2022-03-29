@@ -10,10 +10,10 @@
 #define FN_VERSION_MAJOR 0
 #define FN_VERSION_MINOR 5
 
-#define FN_VERSION_BUILD "a1fd1d32"
+#define FN_VERSION_BUILD "da31d0d7"
 
-#define FN_VERSION_DATE "2022-03-27 03:16:49"
+#define FN_VERSION_DATE "2022-03-29 02:15:46"
 
-#define FN_VERSION_FULL "0.5.a1fd1d32"
+#define FN_VERSION_FULL "0.5.da31d0d7"
 
 
