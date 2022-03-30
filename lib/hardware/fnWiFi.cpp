@@ -228,9 +228,7 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
             }
             else
             {
-                _scan_record_count = numloaded;
-                if (_scan_record_count > 1)
-                    _scan_record_count = remove_duplicate_scan_results(_scan_records, _scan_record_count);
+                _scan_record_count = remove_duplicate_scan_results(_scan_records, numloaded);
                 final_count = _scan_record_count;
             }
         }
@@ -260,6 +258,10 @@ int WiFiManager::remove_duplicate_scan_results(wifi_ap_record_t scan_records[], 
         {
             if (strcmp(current_ssid, (char *) &scan_records[compare_index].ssid) == 0)
             {
+                // Keep the entry with better signal strength
+                if(scan_records[compare_index].rssi > scan_records[current_index].rssi)
+                    memcpy(&scan_records[current_index], &scan_records[compare_index], sizeof(wifi_ap_record_t));
+
                 int move_index = compare_index + 1;
                 // Move up all following records one position
                 while (move_index < record_count)
@@ -270,7 +272,6 @@ int WiFiManager::remove_duplicate_scan_results(wifi_ap_record_t scan_records[], 
                 memset(&scan_records[move_index - 1], 0, sizeof(wifi_ap_record_t));
                 // We now have one record less
                 record_count--;
-                break;
             }
             else
                 compare_index++;
