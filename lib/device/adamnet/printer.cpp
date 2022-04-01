@@ -46,6 +46,7 @@ pttop:
         pe->process(pi.len,0,0);
         fnLedManager.set(LED_BT,false);
     }
+    vTaskDelay(10);
     goto pttop;
 }
 
@@ -100,16 +101,19 @@ void adamPrinter::idle()
 {
 }
 
+PrintItem pi;
+
 void adamPrinter::adamnet_control_send()
 {
-    PrintItem pi;
-
+    memset(&pi,0,sizeof(pi));
     pi.len = adamnet_recv_length();
     adamnet_recv_buffer(pi.buf, pi.len);
     adamnet_recv(); // ck
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
+
+    printf("!!! Print Item: L: %u D: %s\n",pi.len,pi.buf);
 
     xQueueSend(print_queue,&pi,portMAX_DELAY);
     _last_ms = fnSystem.millis();
