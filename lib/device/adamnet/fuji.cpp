@@ -370,6 +370,8 @@ void adamFuji::adamnet_copy_file()
     unsigned char sourceSlot;
     unsigned char destSlot;
 
+    memset(&csBuf, 0, sizeof(csBuf));
+
     sourceSlot = adamnet_recv();
     destSlot = adamnet_recv();
     adamnet_recv_buffer(csBuf,sizeof(csBuf));
@@ -386,8 +388,6 @@ void adamFuji::adamnet_copy_file()
         AdamNet.start_time=esp_timer_get_time();
         adamnet_response_ack();
     }
-
-    memset(&csBuf, 0, sizeof(csBuf));
 
     dataBuf = (char *)malloc(532);
 
