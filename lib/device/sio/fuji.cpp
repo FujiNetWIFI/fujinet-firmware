@@ -193,7 +193,7 @@ void sioFuji::sio_net_scan_result()
     // Response to SIO_FUJICMD_GET_SCAN_RESULT
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN+1];
         uint8_t rssi;
     } detail;
 
@@ -217,7 +217,7 @@ void sioFuji::sio_net_get_ssid()
     // Response to SIO_FUJICMD_GET_SSID
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN+1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
@@ -247,7 +247,7 @@ void sioFuji::sio_net_set_ssid()
     // Data for SIO_FUJICMD_SET_SSID
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN+1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
