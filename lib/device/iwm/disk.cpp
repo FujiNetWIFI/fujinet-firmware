@@ -290,9 +290,9 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
     data[2] = (_disk->num_blocks >> 8) & 0xff;  // block size 2
     data[3] = (_disk->num_blocks >> 16) & 0xff; // block size 3
     Debug_printf("\r\nDIB number of blocks %d", _disk->num_blocks);
-    Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
+  //  Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
   }
-  Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
+  //Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
   data[4] = 0x0E; // ID string length - 14 chars
   data[5] = 'F';
   data[6] = 'U';

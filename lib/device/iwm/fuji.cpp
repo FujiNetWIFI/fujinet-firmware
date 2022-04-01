@@ -8,6 +8,8 @@
 #include "fnFsSPIFFS.h"
 #include "utils.h"
 
+#include <string>
+
 #define IWM_FUJICMD_RESET 0xFF
 #define IWM_FUJICMD_GET_SSID 0xFE
 #define IWM_FUJICMD_SCAN_NETWORKS 0xFD
@@ -266,6 +268,52 @@ void iwmFuji::iwm_ctrl_set_boot_config() // SP CTRL command
 // Do SIO copy
 void iwmFuji::iwm_ctrl_copy_file()
 {
+    std::string copySpec;
+    std::string sourcePath;
+    std::string destPath;
+    FILE *sourceFile;
+    FILE *destFile;
+    char *dataBuf;
+    unsigned char sourceSlot;
+    unsigned char destSlot;
+
+    sourceSlot = packet_buffer[0]; // adamnet_recv();
+    destSlot = packet_buffer[0]; //adamnet_recv();
+    copySpec = std::string((char *)&packet_buffer[2]);
+    Debug_printf("copySpec: %s\n", copySpec.c_str());
+
+    // Chop up copyspec.
+    sourcePath = copySpec.substr(0, copySpec.find_first_of("|"));
+    destPath = copySpec.substr(copySpec.find_first_of("|") + 1);
+
+    // At this point, if last part of dest path is / then copy filename from source.
+    if (destPath.back() == '/')
+    {
+        Debug_printf("append source file\n");
+        std::string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
+        destPath += sourceFilename;
+    }
+
+    // Mount hosts, if needed.
+    _fnHosts[sourceSlot].mount();
+    _fnHosts[destSlot].mount();
+
+    // Open files...
+    sourceFile = _fnHosts[sourceSlot].file_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
+    destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
+
+    dataBuf = (char *)malloc(532);
+    size_t count = 0;
+    do
+    {
+        count = fread(dataBuf, 1, 532, sourceFile);
+        fwrite(dataBuf, 1, count, destFile);
+    } while (count > 0);
+
+    // copyEnd:
+    fclose(sourceFile);
+    fclose(destFile);
+    free(dataBuf);
 }
 
 /* 
@@ -610,6 +658,7 @@ void iwmFuji::iwm_ctrl_read_directory_entry()
             {
                 dirpath[filelen] = '/';
                 dirpath[filelen + 1] = '\0';
+                Debug_printf("::entry is dir - %s\n", dirpath);
             }
         }
 
