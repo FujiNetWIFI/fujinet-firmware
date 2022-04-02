@@ -262,7 +262,7 @@ private:
     struct cassette_info
     {
         bool cassette_enabled = true;
-        bool pulldown = false;
+        bool pulldown = true;
         bool button = false;
     };
 
