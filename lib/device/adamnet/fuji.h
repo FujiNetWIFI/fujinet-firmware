@@ -14,7 +14,6 @@
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 4
 
-#define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
 
 #define MAX_APPKEY_LEN 64
@@ -24,7 +23,7 @@
 
 typedef struct
 {
-    char ssid[32];
+    char ssid[33];
     char hostname[64];
     unsigned char localIP[4];
     unsigned char gateway[4];
