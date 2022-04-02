@@ -169,7 +169,7 @@ void adamFuji::adamnet_net_scan_result()
     // Response to SIO_FUJICMD_GET_SCAN_RESULT
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN+1];
         uint8_t rssi;
     } detail;
 
@@ -182,7 +182,7 @@ void adamFuji::adamnet_net_scan_result()
 
     memset(response, 0, sizeof(response));
     memcpy(response, &detail, sizeof(detail));
-    response_len = 33;
+    response_len = sizeof(detail);
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
@@ -198,7 +198,7 @@ void adamFuji::adamnet_net_get_ssid()
     // Response to SIO_FUJICMD_GET_SSID
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN+1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
@@ -237,7 +237,7 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
         // Data for SIO_FUJICMD_SET_SSID
         struct
         {
-            char ssid[MAX_SSID_LEN];
+            char ssid[MAX_SSID_LEN+1];
             char password[MAX_WIFI_PASS_LEN];
         } cfg;
 
