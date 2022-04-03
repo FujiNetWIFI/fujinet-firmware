@@ -1208,7 +1208,7 @@ void adamFuji::adamnet_disable_device()
 {
     unsigned char d = adamnet_recv();
 
-    Debug_printf("FUJI ENABLE DEVICE %02x\n",d);
+    Debug_printf("FUJI DISABLE DEVICE %02x\n",d);
 
     adamnet_recv();
 
