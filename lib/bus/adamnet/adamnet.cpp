@@ -343,7 +343,10 @@ bool systemBus::deviceExists(uint8_t device_id)
 
 bool systemBus::deviceEnabled(uint8_t device_id)
 {
-    return _daisyChain[device_id]->device_active;
+    if (deviceExists(device_id))
+        return _daisyChain[device_id]->device_active;
+    else
+        return false;
 }
 
 void systemBus::remDevice(virtualDevice *pDevice)
