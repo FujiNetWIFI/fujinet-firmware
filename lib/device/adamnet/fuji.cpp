@@ -1188,6 +1188,8 @@ void adamFuji::adamnet_enable_device()
 {
     unsigned char d = adamnet_recv();
 
+    Debug_printf("FUJI ENABLE DEVICE %02x\n",d);
+
     adamnet_recv();
 
     AdamNet.start_time = esp_timer_get_time();
@@ -1205,6 +1207,8 @@ void adamFuji::adamnet_enable_device()
 void adamFuji::adamnet_disable_device()
 {
     unsigned char d = adamnet_recv();
+
+    Debug_printf("FUJI ENABLE DEVICE %02x\n",d);
 
     adamnet_recv();
 
