@@ -1195,11 +1195,26 @@ void adamFuji::adamnet_enable_device()
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    if (d == 0x02)
+    switch(d)
     {
-        Config.store_printer_enabled(true);
-        Config.save();
+        case 0x02:
+            Config.store_printer_enabled(true);
+            break;
+        case 0x04:
+            Config.store_device_slot_enable_1(true);
+            break;
+        case 0x05:
+            Config.store_device_slot_enable_2(true);
+            break;
+        case 0x06:
+            Config.store_device_slot_enable_3(true);
+            break;
+        case 0x07:
+            Config.store_device_slot_enable_4(true);
+            break;
     }
+
+    Config.save();
 
     AdamNet.enableDevice(d);
 }
@@ -1215,10 +1230,23 @@ void adamFuji::adamnet_disable_device()
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    if (d == 0x02)
+    switch(d)
     {
-        Config.store_printer_enabled(false);
-        Config.save();
+        case 0x02:
+            Config.store_printer_enabled(false);
+            break;
+        case 0x04:
+            Config.store_device_slot_enable_1(false);
+            break;
+        case 0x05:
+            Config.store_device_slot_enable_2(false);
+            break;
+        case 0x06:
+            Config.store_device_slot_enable_3(false);
+            break;
+        case 0x07:
+            Config.store_device_slot_enable_4(false);
+            break;
     }
 
     AdamNet.disableDevice(d);
@@ -1267,42 +1295,62 @@ void adamFuji::sio_mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < 4; i++)
     {
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
         char flag[3] = {'r', 0, 0};
 
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-            flag[1] = '+';
-
-        if (disk.host_slot != 0xFF)
+        if (i==0 && !Config.get_device_slot_enable_1())
         {
-            nodisks = false; // We have a disk in a slot
+            disk.disk_dev.device_active = false;
+        }
+        else if (i==1 && !Config.get_device_slot_enable_2())
+        {
+            disk.disk_dev.device_active = false;
+        }
+        else if (i==2 && !Config.get_device_slot_enable_3())
+        {
+            disk.disk_dev.device_active = false;
+        }
+        else if (i==3 && !Config.get_device_slot_enable_4())
+        {
+            disk.disk_dev.device_active = false;
+        }
+        else
+        {
 
-            if (host.mount() == false)
+            if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+                flag[1] = '+';
+
+            if (disk.host_slot != 0xFF)
             {
-                return;
-            }
+                nodisks = false; // We have a disk in a slot
 
-            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-                         disk.filename, disk.host_slot, flag, i + 1);
+                if (host.mount() == false)
+                {
+                    return;
+                }
 
-            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+                Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                             disk.filename, disk.host_slot, flag, i + 1);
 
-            if (disk.fileh == nullptr)
-            {
-                return;
-            }
+                disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
-            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-            boot_config = false;
+                if (disk.fileh == nullptr)
+                {
+                    return;
+                }
 
-            // We need the file size for loading XEX files and for CASSETTE, so get that too
-            disk.disk_size = host.file_size(disk.fileh);
+                // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+                boot_config = false;
 
-            // And now mount it
-            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+                // We need the file size for loading XEX files and for CASSETTE, so get that too
+                disk.disk_size = host.file_size(disk.fileh);
+
+                // And now mount it
+                disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+            }  
         }
     }
 
