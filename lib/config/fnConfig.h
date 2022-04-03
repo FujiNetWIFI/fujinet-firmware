@@ -134,6 +134,8 @@ public:
     void load();
     void save();
 
+    void mark_dirty() { _dirty = true; };
+
     fnConfig();
 
 private:
