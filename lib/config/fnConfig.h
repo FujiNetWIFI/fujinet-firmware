@@ -131,6 +131,25 @@ public:
     std::string get_ccp_filename(){ return _cpm.ccp; };
     void store_ccp_filename(std::string filename);
 
+    // ENABLE/DISABLE DEVICE SLOTS
+    bool get_device_slot_enable_1();
+    bool get_device_slot_enable_2();
+    bool get_device_slot_enable_3();
+    bool get_device_slot_enable_4();
+    bool get_device_slot_enable_5();
+    bool get_device_slot_enable_6();
+    bool get_device_slot_enable_7();
+    bool get_device_slot_enable_8();
+    void store_device_slot_enable_1(bool enabled);
+    void store_device_slot_enable_2(bool enabled);
+    void store_device_slot_enable_3(bool enabled);
+    void store_device_slot_enable_4(bool enabled);
+    void store_device_slot_enable_5(bool enabled);
+    void store_device_slot_enable_6(bool enabled);
+    void store_device_slot_enable_7(bool enabled);
+    void store_device_slot_enable_8(bool enabled);
+
+
     void load();
     void save();
 
@@ -155,6 +174,7 @@ private:
     void _read_section_cassette(std::stringstream &ss);
     void _read_section_phonebook(std::stringstream &ss, int index);
     void _read_section_cpm(std::stringstream &ss);
+    void _read_section_device_enable(std::stringstream &ss);
 
     enum section_match
     {
@@ -170,6 +190,7 @@ private:
         SECTION_CASSETTE,
         SECTION_PHONEBOOK,
         SECTION_CPM,
+        SECTION_DEVICE_ENABLE,
         SECTION_UNKNOWN
     };
     section_match _find_section_in_line(std::string &line, int &index);
@@ -273,6 +294,18 @@ private:
         std::string ccp;
     };
 
+    struct device_enable_info
+    {
+        bool device_1_enabled = true;
+        bool device_2_enabled = true;
+        bool device_3_enabled = true;
+        bool device_4_enabled = true;
+        bool device_5_enabled = true;
+        bool device_6_enabled = true;
+        bool device_7_enabled = true;
+        bool device_8_enabled = true;
+    };
+
     struct phbook_info
     {
         std::string phnumber;
@@ -292,7 +325,7 @@ private:
     modem_info _modem;
     cassette_info _cassette;
     cpm_info _cpm;
-
+    device_enable_info _denable;
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
 };
 
