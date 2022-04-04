@@ -113,11 +113,6 @@ adamFuji::adamFuji()
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
-
-    _fnDisks[0].disk_dev.device_active = Config.get_device_slot_enable_1();
-    _fnDisks[1].disk_dev.device_active = Config.get_device_slot_enable_2();
-    _fnDisks[2].disk_dev.device_active = Config.get_device_slot_enable_3();
-    _fnDisks[3].disk_dev.device_active = Config.get_device_slot_enable_4();
 }
 
 // Status
@@ -1254,6 +1249,8 @@ void adamFuji::adamnet_disable_device()
             break;
     }
 
+    Config.save();
+    
     AdamNet.disableDevice(d);
 }
 
@@ -1275,6 +1272,12 @@ void adamFuji::setup(systemBus *siobus)
     _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
     _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
     _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
+
+    // Read and enable devices
+    _fnDisks[0].disk_dev.device_active = Config.get_device_slot_enable_1();
+    _fnDisks[1].disk_dev.device_active = Config.get_device_slot_enable_2();
+    _fnDisks[2].disk_dev.device_active = Config.get_device_slot_enable_3();
+    _fnDisks[3].disk_dev.device_active = Config.get_device_slot_enable_4();
 
     Debug_printf("Config General Boot Mode: %u\n", Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
