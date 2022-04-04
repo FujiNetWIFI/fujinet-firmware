@@ -113,6 +113,11 @@ adamFuji::adamFuji()
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
+
+    _fnDisks[0].disk_dev.device_active = Config.get_device_slot_enable_1();
+    _fnDisks[1].disk_dev.device_active = Config.get_device_slot_enable_2();
+    _fnDisks[2].disk_dev.device_active = Config.get_device_slot_enable_3();
+    _fnDisks[3].disk_dev.device_active = Config.get_device_slot_enable_4();
 }
 
 // Status
