@@ -2,6 +2,15 @@
 
 #include "cbmfastserial.h"
 
+#include <rom/ets_sys.h>
+
+#include "../../../../include/debug.h"
+#include "../../../../include/pinmap.h"
+
+#include "fnSystem.h"
+
+#define delayMicroseconds ets_delay_us
+
 using namespace Protocol;
 
 // STEP 1: READY TO SEND
@@ -17,9 +26,11 @@ int16_t  CBMFastSerial::receiveByte(uint8_t device)
 	flags = CLEAR;
 
 	// Wait for talker ready
-	while(status(IEC_PIN_CLK) != RELEASED)
+	while(status(PIN_IEC_CLK) != RELEASED)
 	{
-		ESP.wdtFeed();		
+#if defined(ESP8266)
+		ESP.wdtFeed();
+#endif		
 	}
 
 	// Say we're ready
@@ -28,16 +39,16 @@ int16_t  CBMFastSerial::receiveByte(uint8_t device)
 	// line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false 
 	// only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready  
 	// to  accept  data.  What  happens  next  is  variable.
-	release(IEC_PIN_DATA);
-	while(status(IEC_PIN_DATA) != RELEASED); // Wait for all other devices to release the data line
-	//timeoutWait(IEC_PIN_DATA, RELEASED, FOREVER, 1);
+	release(PIN_IEC_DATA);
+	while(status(PIN_IEC_DATA) != RELEASED); // Wait for all other devices to release the data line
+	//timeoutWait(PIN_IEC_DATA, RELEASED, FOREVER, 1);
 
 	// Either  the  talker  will pull the 
 	// Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it  
 	// will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass  
 	// without  the Clock line going to true, it has a special task to perform: note EOI.
 	
-	if(timeoutWait(IEC_PIN_CLK, PULLED, TIMEOUT_Tne) == TIMED_OUT)
+	if(timeoutWait(PIN_IEC_CLK, PULLED, TIMEOUT_Tne) == TIMED_OUT)
 	{
 		// INTERMISSION: EOI
 		// If the Ready for Data signal isn't acknowledged by the talker within 200 microseconds, the 
@@ -56,12 +67,12 @@ int16_t  CBMFastSerial::receiveByte(uint8_t device)
 		flags or_eq EOI_RECVD;
 
 		// Acknowledge by pull down data more than 60us
-		pull(IEC_PIN_DATA);
+		pull(PIN_IEC_DATA);
 		delayMicroseconds(TIMING_Tei);
-		release(IEC_PIN_DATA);
+		release(PIN_IEC_DATA);
 
 		// but still wait for CLK to be PULLED
-		if(timeoutWait(IEC_PIN_CLK, PULLED) == TIMED_OUT)
+		if(timeoutWait(PIN_IEC_CLK, PULLED) == TIMED_OUT)
 		{
 			Debug_printf("After Acknowledge EOI");
 			flags or_eq ERROR;
@@ -70,7 +81,7 @@ int16_t  CBMFastSerial::receiveByte(uint8_t device)
 	}
 
 	// Sample ATN and set flag to indicate SELECT or DATA mode
-	if(status(IEC_PIN_ATN) == PULLED)
+	if(status(PIN_IEC_ATN) == PULLED)
 		flags or_eq ATN_PULLED;
 
 	// STEP 3: SENDING THE BITS
@@ -104,7 +115,7 @@ int16_t  CBMFastSerial::receiveByte(uint8_t device)
 		data >>= 1;
 
 		// wait for bit to be ready to read
-		if(timeoutWait(IEC_PIN_CLK, RELEASED) == TIMED_OUT)
+		if(timeoutWait(PIN_IEC_CLK, RELEASED) == TIMED_OUT)
 		{
 			Debug_printf("wait for bit to be ready to read");
 			flags or_eq ERROR;
@@ -112,10 +123,10 @@ int16_t  CBMFastSerial::receiveByte(uint8_t device)
 		}
 
 		// get bit
-		data or_eq (status(IEC_PIN_DATA) == RELEASED ? (1 << 7) : 0);
+		data or_eq (status(PIN_IEC_DATA) == RELEASED ? (1 << 7) : 0);
 
 		// wait for talker to finish sending bit
-		bit_time = timeoutWait(IEC_PIN_CLK, PULLED);
+		bit_time = timeoutWait(PIN_IEC_CLK, PULLED);
 		if(bit_time == TIMED_OUT)
 		{
 			Debug_printf("wait for talker to finish sending bit");
@@ -128,9 +139,9 @@ int16_t  CBMFastSerial::receiveByte(uint8_t device)
 	if (flags bitand ATN_PULLED && bit_time >= 218 && n == 7) {
 		if ((data>>1) < 0x60 && ((data>>1) & 0x1f) == device) {
 			/* If it's for us, notify controller that we support Jiffy too */
-			// pull(IEC_PIN_DATA);
+			// pull(PIN_IEC_DATA);
 			// delayMicroseconds(101); // nlq says 405us, but the code shows only 101
-			// release(IEC_PIN_DATA);
+			// release(PIN_IEC_DATA);
 			flags xor_eq JIFFY_ACTIVE;
 		}
 	}
@@ -143,7 +154,7 @@ int16_t  CBMFastSerial::receiveByte(uint8_t device)
 
 	// Acknowledge byte received
 	delayMicroseconds(TIMING_Tf);
-	pull(IEC_PIN_DATA);
+	pull(PIN_IEC_DATA);
 
 	// STEP 5: START OVER
 	// We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,  
@@ -155,8 +166,8 @@ int16_t  CBMFastSerial::receiveByte(uint8_t device)
 	// {
 	// 	// EOI Received
 	// 	// delayMicroseconds(TIMING_Tfr);
-	// 	// release(IEC_PIN_CLK);
-	// 	// release(IEC_PIN_DATA);
+	// 	// release(PIN_IEC_CLK);
+	// 	// release(PIN_IEC_DATA);
 	// }
 
 	return data;
@@ -176,7 +187,7 @@ bool CBMFastSerial::sendByte(uint8_t data, bool signalEOI)
 	flags = CLEAR;
 
 	// Say we're ready
-	release(IEC_PIN_CLK);
+	release(PIN_IEC_CLK);
 
 	// Wait for listener to be ready
 	// STEP 2: READY FOR DATA
@@ -184,9 +195,11 @@ bool CBMFastSerial::sendByte(uint8_t data, bool signalEOI)
 	// line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false 
 	// only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready  
 	// to  accept  data.  What  happens  next  is  variable.
-	while(status(IEC_PIN_DATA) != RELEASED)
+	while(status(PIN_IEC_DATA) != RELEASED)
 	{
+#if defined(ESP8266)
 		ESP.wdtFeed();
+#endif
 	}
 
 	// Either  the  talker  will pull the 
@@ -215,14 +228,14 @@ bool CBMFastSerial::sendByte(uint8_t data, bool signalEOI)
 		delayMicroseconds(TIMING_Tye);
 
 		// get eoi acknowledge:
-		if(timeoutWait(IEC_PIN_DATA, PULLED) == TIMED_OUT)
+		if(timeoutWait(PIN_IEC_DATA, PULLED) == TIMED_OUT)
 		{
 			Debug_printf("Get EOI acknowledge");
 			flags or_eq ERROR;
 			return false; // return error because timeout
 		}
 
-		if(timeoutWait(IEC_PIN_DATA, RELEASED) == TIMED_OUT)
+		if(timeoutWait(PIN_IEC_DATA, RELEASED) == TIMED_OUT)
 		{
 			Debug_printf("Listener didn't release DATA");
 			flags or_eq ERROR;
@@ -258,7 +271,7 @@ bool CBMFastSerial::sendByte(uint8_t data, bool signalEOI)
 #endif
 
 	// tell listner to wait
-	pull(IEC_PIN_CLK);
+	pull(PIN_IEC_CLK);
 	delayMicroseconds(TIMING_Tv);
 
 	for(uint8_t n = 0; n < 8; n++) 
@@ -267,21 +280,21 @@ bool CBMFastSerial::sendByte(uint8_t data, bool signalEOI)
 
 
 		// set bit
-		(data bitand 1) ? release(IEC_PIN_DATA) : pull(IEC_PIN_DATA);
+		(data bitand 1) ? release(PIN_IEC_DATA) : pull(PIN_IEC_DATA);
 		delayMicroseconds(TIMING_Tv);
 
 		// tell listener bit is ready to read
-		release(IEC_PIN_CLK);
+		release(PIN_IEC_CLK);
 		delayMicroseconds(TIMING_Tv);
 
 		// if ATN is PULLED, exit and cleanup
-		if(status(IEC_PIN_ATN) == PULLED)
+		if(status(PIN_IEC_ATN) == PULLED)
 		{	
 			flags or_eq ATN_PULLED;
 			return false;
 		}
 
-		pull(IEC_PIN_CLK);
+		pull(PIN_IEC_CLK);
 		delayMicroseconds(TIMING_Tv);
 
 		data >>= 1; // get next bit		
@@ -294,7 +307,7 @@ bool CBMFastSerial::sendByte(uint8_t data, bool signalEOI)
 	// one  millisecond  -  one  thousand  microseconds  -  it  will  know  that something's wrong and may alarm appropriately.
 
 	// Wait for listener to accept data
-	if(timeoutWait(IEC_PIN_DATA, PULLED, TIMEOUT_Tf) == TIMED_OUT)
+	if(timeoutWait(PIN_IEC_DATA, PULLED, TIMEOUT_Tf) == TIMED_OUT)
 	{
 		Debug_printf("Wait for listener to acknowledge byte received");
 		return false; // return error because timeout
@@ -313,8 +326,8 @@ bool CBMFastSerial::sendByte(uint8_t data, bool signalEOI)
 	// {
 	// 	// EOI Received
 	// 	delayMicroseconds(TIMING_Tfr);
-	// 	release(IEC_PIN_CLK);
-	// 	// release(IEC_PIN_DATA);
+	// 	release(PIN_IEC_CLK);
+	// 	// release(PIN_IEC_DATA);
 	// }
 
 	return true;

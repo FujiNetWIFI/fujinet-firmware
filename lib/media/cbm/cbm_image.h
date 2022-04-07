@@ -10,6 +10,7 @@
 #include <bitset>
 
 //#include "string_utils.h"
+#include "../../include/debug.h"
 
 
 /********************************************************

@@ -65,7 +65,7 @@ private:
     uint8_t response[1024];
     uint16_t response_len;
 
-    iecBus *_iec_bus;
+    systemBus *_iec_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -142,7 +142,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(iecBus *iecbus);
+    void setup(systemBus *iecbus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);

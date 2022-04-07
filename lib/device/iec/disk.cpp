@@ -737,9 +737,9 @@ void virtualDevice::sendFileHTTP()
 
 		if( !success )
 		{
-			bool s1 = IEC.status(IEC_PIN_ATN);
-			bool s2 = IEC.status(IEC_PIN_CLK);
-			bool s3 = IEC.status(IEC_PIN_DATA);
+			bool s1 = IEC.status(PIN_IEC_ATN);
+			bool s2 = IEC.status(PIN_IEC_CLK);
+			bool s3 = IEC.status(PIN_IEC_DATA);
 
 			Debug_printf("Transfer failed! %d, %d, %d\r\n", s1, s2, s3);
 		}

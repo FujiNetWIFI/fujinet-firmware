@@ -28,6 +28,8 @@
 #define PROTOCOL_CBMSTANDARDSERIAL_H
 
 //#include "../../../include/global_defines.h"
+#include "fnSystem.h"
+
 
 // BIT Flags
 #define CLEAR           0x00      // clear all flags
@@ -83,63 +85,26 @@ namespace Protocol
 
 
 		// true => PULL => DIGI_LOW
-		inline void IRAM_ATTR pull(uint8_t pinNumber)
+		inline void IRAM_ATTR pull(uint8_t pin)
 		{
-			espPinMode(pinNumber, OUTPUT);
-			espDigitalWrite(pinNumber, LOW);
+			fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
+			fnSystem.digital_write(pin, DIGI_LOW);
 		}
 
 		// false => RELEASE => DIGI_HIGH
-		inline void IRAM_ATTR release(uint8_t pinNumber)
+		inline void IRAM_ATTR release(uint8_t pin)
 		{
-			espPinMode(pinNumber, OUTPUT);
-			espDigitalWrite(pinNumber, HIGH);
+			fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
+			fnSystem.digital_write(pin, DIGI_HIGH);
 		}
 
-		inline bool IRAM_ATTR status(uint8_t pinNumber)
+		inline bool IRAM_ATTR status(uint8_t pin)
 		{
 			// To be able to read line we must be set to input, not driving.
-			espPinMode(pinNumber, INPUT);
-			return espDigitalRead(pinNumber) ? RELEASED : PULLED;
-		}
-
-	private:
-		inline void IRAM_ATTR espPinMode(uint8_t pin, uint8_t mode) {
-	#if defined(ESP8266)		
-			if(mode == OUTPUT){
-				GPF(pin) = GPFFS(GPFFS_GPIO(pin));//Set mode to GPIO
-				GPC(pin) = (GPC(pin) & (0xF << GPCI)); //SOURCE(GPIO) | DRIVER(NORMAL) | INT_TYPE(UNCHANGED) | WAKEUP_ENABLE(DISABLED)
-				GPES = (1 << pin); //Enable
-			} else if(mode == INPUT){
-				GPF(pin) = GPFFS(GPFFS_GPIO(pin));//Set mode to GPIO
-				GPEC = (1 << pin); //Disable
-				GPC(pin) = (GPC(pin) & (0xF << GPCI)) | (1 << GPCD); //SOURCE(GPIO) | DRIVER(OPEN_DRAIN) | INT_TYPE(UNCHANGED) | WAKEUP_ENABLE(DISABLED)
-			}
-	#elif defined(ESP32)
-			pinMode( pin, mode );
-	#endif
-		}
-
-		inline void IRAM_ATTR espDigitalWrite(uint8_t pin, uint8_t val) {
-	#if defined(ESP8266)
-			if(val) GPOS = (1 << pin);
-			else GPOC = (1 << pin);
-	#elif defined(ESP32)
-			digitalWrite(pin, val);
-	#endif
-		}
-
-		inline int IRAM_ATTR espDigitalRead(uint8_t pin) {
-			int val = -1;
-	#if defined(ESP8266)
-			val = GPIP(pin);
-	#elif defined(ESP32)
-			val = digitalRead(pin);
-	#endif
-			return val;
+			fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
+			return fnSystem.digital_read(pin) ? RELEASED : PULLED;
 		}
 	};
-
 };
 
 #endif

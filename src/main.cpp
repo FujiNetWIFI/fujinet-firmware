@@ -132,6 +132,7 @@ void main_setup()
 #ifdef BUILD_CBM
     // Setup IEC Bus
     theFuji.setup(&IEC);
+    IEC.setup();
 #endif // BUILD_CBM
 
 #ifdef BUILD_ADAM
