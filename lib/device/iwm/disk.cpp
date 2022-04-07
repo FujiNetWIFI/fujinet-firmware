@@ -674,7 +674,9 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
 }
 
 void iwmDisk::unmount()
+  
 {
+  
 }
 
 bool iwmDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
