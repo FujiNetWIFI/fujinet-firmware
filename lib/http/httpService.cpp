@@ -1232,13 +1232,6 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .user_ctx = NULL,
          .is_websocket = true,
          .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/kybd",
-         .method = HTTP_GET,
-         .handler = get_handler_kybd,
-         .user_ctx = NULL,
-         .is_websocket = true,
-         .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr},         
 #endif
         {.uri = "/config",
