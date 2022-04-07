@@ -1,10 +1,10 @@
+#ifdef BUILD_CBM
 #ifndef DEVICE_IEC_PRINTER_H
 #define DEVICE_IEC_PRINTER_H
 
 #include <string.h>
 
-#include "../../bus/bus.h"
-
+#include "bus.h"
 #include "../printer-emulator/printer_emulator.h"
 #include "fnFS.h"
 
@@ -87,3 +87,4 @@ private:
 };
 
 #endif // DEVICE_IEC_PRINTER_H
+#endif // BUILD_CBM

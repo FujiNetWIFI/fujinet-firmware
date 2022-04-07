@@ -190,7 +190,7 @@ protected:
     virtual void sio_process(uint32_t commanddata, uint8_t checksum) = 0;
 
     // Optional shutdown/reboot cleanup routine
-    virtual void shutdown() {}
+    virtual void shutdown(){};
 
 public:
     /**

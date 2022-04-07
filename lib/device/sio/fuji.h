@@ -5,7 +5,8 @@
 #include <cstring>
 
 #include "bus.h"
-#include "device.h"
+#include "network.h"
+#include "cassette.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
