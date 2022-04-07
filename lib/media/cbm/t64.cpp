@@ -1,3 +1,5 @@
+#ifdef BUILD_CBM
+
 #include "t64.h"
 
 /********************************************************
@@ -205,3 +207,5 @@ size_t T64File::size() {
 
     return bytes;
 }
+
+#endif /* BUILD_CBM */

@@ -1,3 +1,5 @@
+#ifdef BUILD_CBM
+
 #include "d8b.h"
 
 /********************************************************
@@ -9,3 +11,5 @@ MIStream* D8BFile::createIStream(std::shared_ptr<MIStream> containerIstream) {
 
     return new D8BIStream(containerIstream);
 }
+
+#endif /* BUILD_CBM */

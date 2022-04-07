@@ -1,3 +1,5 @@
+#ifdef BUILD_CBM
+
 #include "iec.h"
 
 using namespace CBM; 
@@ -550,3 +552,5 @@ void IEC::debugTiming()
 	protocol.release(pin);
 	delayMicroseconds(1);
 }
+
+#endif /* BUILD_CBM */

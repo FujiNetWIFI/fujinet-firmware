@@ -1,3 +1,5 @@
+#ifdef BUILD_CBM
+
 #include "d71.h"
 
 /********************************************************
@@ -9,3 +11,5 @@ MIStream* D71File::createIStream(std::shared_ptr<MIStream> containerIstream) {
 
     return new D71IStream(containerIstream);
 }
+
+#endif /* BUILD_CBM */

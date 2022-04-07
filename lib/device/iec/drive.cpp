@@ -1,3 +1,5 @@
+#ifdef BUILD_CBM
+
 //#include "../../include/global_defines.h"
 //#include "debug.h"
 
@@ -1140,3 +1142,5 @@ void devDrive::dumpState()
 	Debug_printv("m_filename: [%s]", m_filename.c_str());
     Debug_printv("-------------------------------");
 } // dumpState
+
+#endif /* BUILD_CBM */

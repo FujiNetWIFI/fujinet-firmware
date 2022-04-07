@@ -1,3 +1,5 @@
+#ifdef BUILD_CBM
+
 #include "cbm_image.h"
 
 // Utility Functions
@@ -95,5 +97,6 @@ bool CBMImageStream::isOpen() {
     return m_isOpen;
 };
 
-
 std::unordered_map<std::string, CBMImageStream*> ImageBroker::repo;
+
+#endif /* BUILD_CBM */

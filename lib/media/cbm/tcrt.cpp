@@ -1,3 +1,5 @@
+#ifdef BUILD_CBM
+
 #include "tcrt.h"
 
 /********************************************************
@@ -182,3 +184,5 @@ size_t TCRTFile::size() {
 
     return blocks;
 }
+
+#endif /* BUILD_CBM */

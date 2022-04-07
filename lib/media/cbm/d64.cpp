@@ -1,3 +1,4 @@
+#ifdef BUILD_CBM
 
 #include "d64.h"
 
@@ -384,3 +385,5 @@ size_t D64File::size() {
     
     return bytes;
 }
+
+#endif /* BUILD_CBM */

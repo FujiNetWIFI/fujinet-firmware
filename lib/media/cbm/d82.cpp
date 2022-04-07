@@ -1,3 +1,5 @@
+#ifdef BUILD_CBM
+
 #include "d82.h"
 
 /********************************************************
@@ -9,3 +11,5 @@ MIStream* D82File::createIStream(std::shared_ptr<MIStream> containerIstream) {
 
     return new D82IStream(containerIstream);
 }
+
+#endif /* BUILD_CBM */

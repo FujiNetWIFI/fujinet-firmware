@@ -1,3 +1,5 @@
+#ifdef BUILD_CBM
+
 #include "d80.h"
 
 /********************************************************
@@ -9,3 +11,5 @@ MIStream* D80File::createIStream(std::shared_ptr<MIStream> containerIstream) {
 
     return new D80IStream(containerIstream);
 }
+
+#endif /* BUILD_CBM */
