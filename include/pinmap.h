@@ -46,12 +46,12 @@
 #endif
 
 /* Atari SIO Pins */
-#define PIN_INT 26 // sio.h
-#define PIN_PROC 22
-#define PIN_CKO 32
-#define PIN_CKI 27
-#define PIN_MTR 36
-#define PIN_CMD 39
+#define PIN_SIO_INT         26      // SIO 13 - INT  - Interrupt
+#define PIN_SIO_PROC        22      // SIO 9  - PROC - Proceed
+#define PIN_SIO_CKO         32      // SIO 2  - CKO  - Clock Output
+#define PIN_SIO_CKI         27      // SIO 1  - CKI  - Clock Input
+#define PIN_SIO_MTR         36      // SIO 8  - MTR  - Motor Control
+#define PIN_SIO_CMD         39      // SIO 7  - CMD  - Command
 
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h
@@ -64,23 +64,23 @@
 #define INVERTED_LINES	false
 
 // CBM IEC Serial Port
-#define IEC_PIN_ATN			22      // PROC
-#define IEC_PIN_CLK			27      // CKI
-#define IEC_PIN_DATA		21      // DI
-#define IEC_PIN_SRQ			26      // INT
-#define IEC_PIN_RESET       39      // CMD
+#define PIN_IEC_ATN			22      // SIO 9  - PROC - Proceed
+#define PIN_IEC_CLK			27      // SIO 1  - CKI  - Clock Input
+#define PIN_IEC_DATA		21      // SIO 3  - DI   - Data Input
+#define PIN_IEC_SRQ			26      // SIO 13 - INT  - Interrupt
+#define PIN_IEC_RESET       39      // SIO 7  - CMD  - Command
 
 #ifdef SPLIT_LINES
-#define IEC_PIN_CLK_OUT		32      // CKO
-#define IEC_PIN_DATA_OUT	33      // DO
+#define PIN_IEC_CLK_OUT		32      // SIO 2  - CKO  - Clock Output
+#define PIN_IEC_DATA_OUT	33      // SIO 5  - DO   - Data Output
 #endif
 
 /* Pins for AdamNet */
-#define PIN_ADAMNET_RESET   26
+#define PIN_ADAMNET_RESET   26      // SIO 13 - INT  - Interrupt
 
 /* Pins for Adam USB */
-#define PIN_USB_DP          27      // D+
-#define PIN_USB_DM          32      // D-
+#define PIN_USB_DP          27      // D+  // SIO 1  - CKI  - Clock Input
+#define PIN_USB_DM          32      // D-  // SIO 2  - CKO  - Clock Output
 
 // Apple II IWM pin assignments
 

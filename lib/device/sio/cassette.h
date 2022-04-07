@@ -82,7 +82,7 @@ protected:
     uint8_t decode_fsk();
 
     // helper function to read motor pin
-    bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
+    bool motor_line() { return (bool)fnSystem.digital_read(PIN_SIO_MTR); }
 
     // have to populate virtual functions to complete class
     void sio_status() override{}; // $53, 'S', Status

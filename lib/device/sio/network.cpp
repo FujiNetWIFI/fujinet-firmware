@@ -997,7 +997,7 @@ void sioNetwork::processCommaFromDevicespec()
  */
 void sioNetwork::sio_assert_interrupt()
 {
-    fnSystem.digital_write(PIN_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+    fnSystem.digital_write(PIN_SIO_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
 }
 
 void sioNetwork::sio_set_translation()
