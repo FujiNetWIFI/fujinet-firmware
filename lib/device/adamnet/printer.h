@@ -20,7 +20,7 @@ class adamPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS
-    TaskHandle_t *thPrinter;
+    TaskHandle_t thPrinter;
 
     uint8_t _buffer[16];
     
@@ -99,6 +99,7 @@ public:
     void reset_printer() { set_printer_type(_ptype); };
     time_t lastPrintTime() { return _last_ms; };
     virtual void idle();
+    void start_printer_task();
 
     printer_emu *getPrinterPtr() { return _pptr; };
 

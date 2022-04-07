@@ -105,7 +105,7 @@ void print_packet (uint8_t* data, int bytes)
 void print_packet(uint8_t* data)
 {
   Debug_printf("\r\n");
-  for (int i = 0; i < 28; i++)
+  for (int i = 0; i < 40; i++)
   {
     if (data[i])
       Debug_printf("%02x ", data[i]);
@@ -371,7 +371,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
     // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(1000); // todo: logic analyzer says 40 usec
+  iwm_timer_alarm_set(1000); // logic analyzer says 40 usec
 
   // todo: can we create a wait for req with timout function to use elsewhere?
   // it woudl return bool false when REQ does its thing or true when timeout.
@@ -570,6 +570,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 
  txbyte = a[idx++];
 
+  //print_packet(a);
   // todo should this be ack disable or ack set?
   iwm_ack_set(); // ack is already enabled by the response to the command read
 
@@ -579,7 +580,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(1000); // 0.1 millisecond
+  iwm_timer_alarm_set(10000); // 1 millisecond per IIgs?
 
   // while (!fnSystem.digital_read(SP_REQ))
   while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -707,8 +708,6 @@ void iwmBus::setup(void)
   Debug_printf("\r\nIWM timer started");
 }
 
-
-
 //*****************************************************************************
 // Function: encode_data_packet
 // Parameters: source id
@@ -718,8 +717,82 @@ void iwmBus::setup(void)
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void iwmDevice::encode_data_packet (uint8_t source)
+void iwmDevice::encode_data_packet(uint16_t num) 
 {
+  int grpbyte, grpcount;
+  uint8_t checksum = 0, grpmsb;
+  uint8_t group_buffer[7];
+
+  // Calculate checksum of sector bytes before we destroy them
+  for (int count = 0; count < num; count++) // xor all the data bytes
+    checksum = checksum ^ packet_buffer[count];
+
+  // Start assembling the packet at the rear and work 
+  // your way to the front so we don't overwrite data
+  // we haven't encoded yet
+
+  // how many groups of 7?
+  uint8_t numgrps = num / 7;
+  uint8_t numodds = num % 7;
+
+  //grps of 7
+  for (grpcount = numgrps; grpcount >= 0; grpcount--) //73
+  {
+    memcpy(group_buffer, packet_buffer + numodds + (grpcount * 7), 7);
+    // add group msb byte
+    grpmsb = 0;
+    for (grpbyte = 0; grpbyte < 7; grpbyte++)
+      grpmsb = grpmsb | ((group_buffer[grpbyte] >> (grpbyte + 1)) & (0x80 >> (grpbyte + 1)));
+    // groups start after odd bytes, which is at 13 + numodds + (numodds != 0) + 1
+    int grpstart = 13 + numodds + (numodds != 0) + 1;
+    packet_buffer[grpstart + (grpcount * 8)] = grpmsb | 0x80; // set msb to one
+
+    // now add the group data bytes bits 6-0
+    for (grpbyte = 0; grpbyte < 7; grpbyte++)
+      packet_buffer[grpstart + 1 + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
+
+  }
+  
+  // oddbytes
+  packet_buffer[14] = 0x80; // init the oddmsb
+  for (int oddcnt = 0; oddcnt < numodds; oddcnt++)
+  {
+    packet_buffer[14] |= (packet_buffer[oddcnt] & 0x80) >> (1 + oddcnt);
+    packet_buffer[15 + oddcnt] = packet_buffer[oddcnt] | 0x80;
+  }
+
+  // header
+  packet_buffer[0] = 0xff;  //sync bytes
+  packet_buffer[1] = 0x3f;
+  packet_buffer[2] = 0xcf;
+  packet_buffer[3] = 0xf3;
+  packet_buffer[4] = 0xfc;
+  packet_buffer[5] = 0xff;
+
+  packet_buffer[6] = 0xc3;  //PBEGIN - start byte
+  packet_buffer[7] = 0x80;  //DEST - dest id - host
+  packet_buffer[8] = id(); //SRC - source id - us
+  packet_buffer[9] = 0x82;  //TYPE - 0x82 = data
+  packet_buffer[10] = 0x80; //AUX
+  packet_buffer[11] = 0x80; //STAT
+  packet_buffer[12] = numodds | 0x80; //ODDCNT  - 1 odd byte for 512 byte packet
+  packet_buffer[13] = numgrps | 0x80; //GRP7CNT - 73 groups of 7 bytes for 512 byte packet
+
+  for (int count = 7; count < 14; count++) // now xor the packet header bytes
+    checksum = checksum ^ packet_buffer[count];
+  int lastidx = 14 + numodds + (numodds != 0) + numgrps * 8;
+  packet_buffer[lastidx++] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
+  packet_buffer[lastidx++] = (checksum >> 1) | 0xaa; // 1 c7 1 c5 1 c3 1 c1
+
+  //end bytes
+  packet_buffer[lastidx++] = 0xc8;  //pkt end
+  packet_buffer[lastidx] = 0x00;  //mark the end of the packet_buffer
+}
+
+void iwmDevice::encode_data_packet() // to do overload with packet size for read?
+{
+  encode_data_packet(512);
+  /* 
   int grpbyte, grpcount;
   uint8_t checksum = 0, grpmsb;
   uint8_t group_buffer[7];
@@ -762,7 +835,7 @@ void iwmDevice::encode_data_packet (uint8_t source)
 
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
-  packet_buffer[8] = source; //SRC - source id - us
+  packet_buffer[8] = id(); //SRC - source id - us
   packet_buffer[9] = 0x82;  //TYPE - 0x82 = data
   packet_buffer[10] = 0x80; //AUX
   packet_buffer[11] = 0x80; //STAT
@@ -776,12 +849,12 @@ void iwmDevice::encode_data_packet (uint8_t source)
 
   //end bytes
   packet_buffer[602] = 0xc8;  //pkt end
-  packet_buffer[603] = 0x00;  //mark the end of the packet_buffer
-
+  packet_buffer[603] = 0x00;  //mark the end of the packet_buffer 
+  */
 }
 
 //*****************************************************************************
-// Function: encode_data_packet
+// Function: encode_extended_data_packet
 // Parameters: source id
 // Returns: none
 //
@@ -853,31 +926,36 @@ void iwmDevice::encode_extended_data_packet (uint8_t source)
 }
 
 
+
 //*****************************************************************************
 // Function: decode_data_packet
 // Parameters: none
 // Returns: error code, >0 = error encountered
 //
-// Description: decode 512 byte data packet for write block command from host
+// Description: decode 512 (arbitrary now) byte data packet for write block command from host
 // decodes the data from the packet_buffer IN-PLACE!
 //*****************************************************************************
-int iwmDevice::decode_data_packet (void)
+bool iwmDevice::decode_data_packet(void)
 {
   int grpbyte, grpcount;
   uint8_t numgrps, numodd;
+  uint16_t numdata;
   uint8_t checksum = 0, bit0to6, bit7, oddbits, evenbits;
   uint8_t group_buffer[8];
 
   //Handle arbitrary length packets :) 
   numodd = packet_buffer[11] & 0x7f;
   numgrps = packet_buffer[12] & 0x7f;
+  numdata = numodd + numgrps * 7;
+  Debug_printf("\r\nDecoding %d bytes",numdata);
 
   // First, checksum  packet header, because we're about to destroy it
   for (int count = 6; count < 13; count++) // now xor the packet header bytes
     checksum = checksum ^ packet_buffer[count];
 
-  evenbits = packet_buffer[599] & 0x55;
-  oddbits = (packet_buffer[600] & 0x55 ) << 1;
+  int chkidx = 13 + numodd + (numodd != 0) + numgrps * 8;
+  evenbits = packet_buffer[chkidx] & 0x55;
+  oddbits = (packet_buffer[chkidx + 1] & 0x55) << 1;
 
   //add oddbyte(s), 1 in a 512 data packet
   for(int i = 0; i < numodd; i++){
@@ -885,28 +963,30 @@ int iwmDevice::decode_data_packet (void)
   }
 
   // 73 grps of 7 in a 512 byte packet
+  int grpstart = 12 + numodd + (numodd != 0) + 1;
   for (grpcount = 0; grpcount < numgrps; grpcount++)
   {
-    memcpy(group_buffer, packet_buffer + 15 + (grpcount * 8), 8);
+    memcpy(group_buffer, packet_buffer + grpstart + (grpcount * 8), 8);
     for (grpbyte = 0; grpbyte < 7; grpbyte++) {
       bit7 = (group_buffer[0] << (grpbyte + 1)) & 0x80;
       bit0to6 = (group_buffer[grpbyte + 1]) & 0x7f;
-      packet_buffer[1 + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
+      packet_buffer[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
     }
   }
 
   //verify checksum
-  for (int count = 0; count < 512; count++) // xor all the data bytes
+  for (int count = 0; count < numdata; count++) // xor all the data bytes
     checksum = checksum ^ packet_buffer[count];
 
-  Debug_printf("\r\ndecode data packet checksum calc %02x, packet or %02x and %02x", checksum, (oddbits | evenbits), (oddbits & evenbits));
+  Debug_printf("\r\ndecode data packet checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
 
-  // todo checksum should be & not |, right?
-  if (checksum == (oddbits | evenbits))
-    return 0; // noerror
-  else
-    return 6; //smartport bus error code
-
+  if (checksum != (oddbits | evenbits))
+  {
+    return true; // error!
+  }
+  
+  num_decoded = numdata;
+  return false;
 }
 
 //*****************************************************************************
@@ -932,7 +1012,7 @@ void iwmDevice::encode_write_status_packet(uint8_t source, uint8_t status)
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
   packet_buffer[8] = source; //SRC - source id - us
-  packet_buffer[9] = 0x81;  //TYPE
+  packet_buffer[9] = PACKET_TYPE_STATUS;  //TYPE
   packet_buffer[10] = 0x80; //AUX
   packet_buffer[11] = status | 0x80; //STAT
   packet_buffer[12] = 0x80; //ODDCNT
@@ -991,7 +1071,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 }
 
 //todo: this only replies a $21 error
-void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
+void iwmDevice::encode_error_reply_packet (uint8_t stat)
 {
   uint8_t checksum = 0;
 
@@ -1004,10 +1084,10 @@ void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
 
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
-  packet_buffer[8] = source; //SRC - source id - us
-  packet_buffer[9] = stat | 0x80;  //TYPE -status
+  packet_buffer[8] = id(); //SRC - source id - us
+  packet_buffer[9] = PACKET_TYPE_STATUS;  //TYPE -status
   packet_buffer[10] = 0x80; //AUX
-  packet_buffer[11] = 0xA1; //STAT - data status - error
+  packet_buffer[11] = stat | 0x80; //STAT - data status - error
   packet_buffer[12] = 0x80; //ODDCNT - 0 data bytes
   packet_buffer[13] = 0x80; //GRP7CNT
 
@@ -1018,10 +1098,21 @@ void iwmDevice::encode_error_reply_packet (uint8_t source, uint8_t stat)
 
   packet_buffer[16] = 0xc8; //PEND
   packet_buffer[17] = 0x00; //end of packet in buffer
-
 }
 
+void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
+{
+  Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+  encode_error_reply_packet(SP_ERR_BADCMD);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+}
 
+void iwmDevice::iwm_return_ioerror(cmdPacket_t cmd)
+{
+  Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+  encode_error_reply_packet(SP_ERR_IOERROR);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+}
 
 //*****************************************************************************
 // Function: verify_cmdpkt_checksum
@@ -1039,7 +1130,7 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   uint8_t calc_checksum = 0; //initial value is 0
   uint8_t pkt_checksum;
 
-  //length = packet_length();
+  //length = get_packet_length();
   //Debug_printf("\r\npacket length = %d", length);
   //2 oddbytes in cmd packet
   // calc_checksum ^= ((packet_buffer[13] << 1) & 0x80) | (packet_buffer[14] & 0x7f);
@@ -1058,8 +1149,11 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   for (int count = 6; count < 13; count++) // start from first id byte
     calc_checksum ^= command_packet.data[count];
 
-  oddbits = (command_packet.chksum1 << 1) | 0x01;
-  evenbits = command_packet.chksum2;
+  // int chkidx = 13 + numodd + (numodd != 0) + numgrps * 8;
+  // evenbits = packet_buffer[chkidx] & 0x55;
+  // oddbits = (packet_buffer[chkidx + 1] & 0x55) << 1;
+  oddbits = (command_packet.chksum2 << 1) | 0x01;
+  evenbits = command_packet.chksum1;
   pkt_checksum = oddbits & evenbits; // oddbits | evenbits;
   // every other bit is ==1 in checksum, so need to AND to get data back
 
@@ -1067,7 +1161,7 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   //  Debug_print(pkt_checksum,DEC);
   //  Debug_print(("Calc Chksum Byte:\r\n"));
   //  Debug_print(calc_checksum,DEC);
-  //Debug_printf("\r\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
+  //  Debug_printf("\r\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
   // if ( pkt_checksum == calc_checksum )
   //   return false;
   // else
@@ -1075,6 +1169,26 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   return (pkt_checksum != calc_checksum);  
 }
 
+void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
+{
+  uint8_t status_code = cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
+  Debug_printf("\r\nTarget Device: %02x", cmd.dest);
+  // add a switch case statement for ALL THE STATUSESESESESS
+  if (status_code == 0x03)
+  { // if statcode=3, then status with device info block
+    Debug_printf("\r\n******** Sending DIB! ********");
+    encode_status_dib_reply_packet();
+    // print_packet ((unsigned char*) packet_buffer,get_packet_length());
+    fnSystem.delay(50);
+    }
+    else
+    { // else just return device status
+      Debug_printf("\r\nSending Status");
+      encode_status_reply_packet();
+    }
+  print_packet(&packet_buffer[14]);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+}
 
 //*****************************************************************************
 // Function: packet_length
@@ -1084,7 +1198,7 @@ bool iwmBus::verify_cmdpkt_checksum(void)
 // Description: Calculates the length of the packet in the packet_buffer.
 // A zero marks the end of the packet data.
 //*****************************************************************************
-int iwmDevice::packet_length (void)
+int iwmDevice::get_packet_length (void)
 {
   int x = 5; // start at the 0xc3 beginning of packet
   while (packet_buffer[x++]);
@@ -1094,8 +1208,44 @@ int iwmDevice::packet_length (void)
 
 //*****************************************************************************
 // Function: main loop
-// //*****************************************************************************
-void iwmBus::service() 
+/*
+ * notes:
+ * with individual devices, like disk.cpp,
+ * we need to hand off control to the device to service
+ * the command packet. The algorithm is something like:
+ * check for 0x85 init and do a bus initialization:
+ * BUS INIT
+ * after a reset, all devices no longer have an address
+ * and they are gating some signal (REQ?) so devices
+ * down the chain cannot respond to commands. So the
+ * first device responds to INIT. During this, it checks
+ * the sense line (still not sure which pin this is) to see
+ * if it is low (grounded) or high (floating or pulled up?).
+ * It will be low if there's another device in the chain
+ * after it. If it is the last device it will be high.
+ * It sends this state in the response to INIT. It also
+ * ungates whatever the magic line is so the next device
+ * in the chain can receive the INIT command that is
+ * coming next. This repeats until the last device in the
+ * chain says it's so and the A2 will stop sending INITs.
+ *
+ * Every other command:
+ * The bus class checks the target device and should pass
+ * on the command packet to the device service routine.
+ * Then the device can respond accordingly.
+ *
+ * When device ID is not FujiNet's:
+ * If the device ID does not belong to any of the FujiNet
+ * devices (disks, printers, modem, network, etc) then FN
+ * should not respond. The SmartPortSD code runs through
+ * the states for the packets that should come next. I'm
+ * not sure this is the best because what happens in case
+ * of a malfunction. I suppose there could be a time out
+ * that takes us back to idle. This will take more
+ * investigation.
+ */
+//*****************************************************************************
+void iwmBus::service()
 {
   iwm_ack_disable(); // go hi-Z
   iwm_ack_clr();     // prep for the next read packet
@@ -1111,7 +1261,7 @@ void iwmBus::service()
     // and wait for reset to clear (probably with a timeout)
     Debug_printf(("\r\nReset"));
     // hard coding 1 partition - will use disk class instances instead
-    //smort->_devnum = 0;
+    // smort->_devnum = 0;
     for (auto devicep : _daisyChain)
       devicep->_devnum = 0;
 
@@ -1128,108 +1278,79 @@ void iwmBus::service()
     while (iwm_read_packet(command_packet.data, COMMAND_PACKET_LEN))
     {
       portENABLE_INTERRUPTS();
-      // break; // todo - change to a for or while loop to do multiple tries before timeout?
       return;
     }
-    // if (verify_cmdpkt_checksum())
-    // {
-    //   Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-    //   // break;
-    // }
-
-    /***
-     * todo notes:
-     * once we make an actual device, like disk.cpp, then
-     * we need to hand off control to the device to service
-     * the command packet. I think the algorithm is something like:
-     * check for 0x85 init and do a bus initialization:
-     * BUS INIT
-     * after a reset, all devices no longer have an address
-     * and they are gating some signal (REQ?) so devices
-     * down the chain cannot respond to commands. So the
-     * first device responds to INIT. During this, it checks
-     * the sense line (still not sure which pin this is) to see
-     * if it is low (grounded) or high (floating or pulled up?).
-     * It will be low if there's another device in the chain
-     * after it. If it is the last device it will be high.
-     * It sends this state in the response to INIT. It also
-     * ungates whatever the magic line is so the next device
-     * in the chain can receive the INIT command that is
-     * coming next. This repeats until the last device in the
-     * chain says it's so and the A2 will stop sending INITs.
-     *
-     * Every other command:
-     * The bus class checks the target device and should pass
-     * on the command packet to the device service routine.
-     * Then the device can respond accordingly.
-     *
-     * When device ID is not FujiNet's:
-     * If the device ID does not belong to any of the FujiNet
-     * devices (disks, printers, modem, network, etc) then FN
-     * should not respond. The SmartPortSD code runs through
-     * the states for the packets that should come next. I'm
-     * not sure this is the best because what happens in case
-     * of a malfunction. I suppose there could be a time out
-     * that takes us back to idle. This will take more
-     * investigation.
-     */
-
-    // Todo: should not ACK unless we know this is our Command
-    //  should move this block to the main Bus service section
-    //  and only ACK when we know it's our device, then pass
-    //  control to that device
-    // iwm_ack_clr();
-
-    // do we need to wait for REQ to go low here, or should we just pass control
-    // and set up for the command? Once we see REQ go low,
-    // and we're ready to respond, the we disable ACK
-    // setup a timeout counter to wait for REQ response
-    iwm_ack_clr();
-    iwm_ack_enable();           // now ACK is enabled and cleared low, it is reset in the handlers
-    portENABLE_INTERRUPTS();
-    iwm_timer_latch();          // latch highspeed timer value
-    iwm_timer_read();           //  grab timer low word
-    iwm_timer_alarm_set(50000); // todo: figure out
-    while (iwm_req_val())
-    {
-      iwm_timer_latch();               // latch highspeed timer value
-      iwm_timer_read();                // grab timer low word
-      if (iwm_timer.t0 > iwm_timer.tn) // test for timeout
-      {                                // timeout!
-#ifdef VERBOSE_IWM
-        // timeout
-        Debug_print("t");
-#endif
-          // break; // oh! this break should be a return, otherwise we just go on to executing a command - not good
-        return;
-      }
-    }
-
+    // should not ACK unless we know this is our Command
     if (command_packet.command == 0x85)
     {
+      iwm_ack_clr();
+      iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
+      portENABLE_INTERRUPTS();
+      // wait for REQ to go low
+      iwm_timer_latch();          // latch highspeed timer value
+      iwm_timer_read();           //  grab timer low word
+      iwm_timer_alarm_set(50000); // todo: figure out
+      while (iwm_req_val())
+      {
+        iwm_timer_latch();               // latch highspeed timer value
+        iwm_timer_read();                // grab timer low word
+        if (iwm_timer.t0 > iwm_timer.tn) // test for timeout
+        {                                // timeout!
+          return;
+        }
+      }
 #ifdef DEBUG
       print_packet(command_packet.data);
       Debug_printf("\r\nhandling init command");
 #endif
+      // to do - checksum verification? How to respond?
       handle_init();
     }
     else
     {
-#ifdef DEBUG
-      print_packet(command_packet.data);
-#endif
-      //smort->process(command_packet);
+      // smort->process(command_packet);
       for (auto devicep : _daisyChain)
       {
         if (command_packet.dest == devicep->_devnum)
         {
+          iwm_ack_clr();
+          iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
+          portENABLE_INTERRUPTS();
+          // wait for REQ to go low
+          iwm_timer_latch();          // latch highspeed timer value
+          iwm_timer_read();           //  grab timer low word
+          iwm_timer_alarm_set(50000); // todo: figure out
+          while (iwm_req_val())
+          {
+            iwm_timer_latch();               // latch highspeed timer value
+            iwm_timer_read();                // grab timer low word
+            if (iwm_timer.t0 > iwm_timer.tn) // test for timeout
+            {                                // timeout!
+              return;
+            }
+          }
+#ifdef DEBUG
+          print_packet(command_packet.data);
+#endif
+
+          // need to take time here to service other ESP processes so they can catch up
+          taskYIELD(); // Allow other tasks to run
+          
           _activeDev = devicep;
           // handle command
-          _activeDev->process(command_packet);
+          if (verify_cmdpkt_checksum())
+          {
+            Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            _activeDev->iwm_return_ioerror(command_packet);
+          }
+          else
+          {
+            _activeDev->process(command_packet);
+          }
         }
       }
     }
-  }   // switch (phasestate)
+  } // switch (phasestate)
 }
 
 void iwmBus::handle_init()
@@ -1252,7 +1373,7 @@ void iwmBus::handle_init()
       Debug_printf("\r\nSending INIT Response Packet...");
       iwm_send_packet((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
 
-      // print_packet ((uint8_t*) packet_buffer,packet_length());
+      // print_packet ((uint8_t*) packet_buffer,get_packet_length());
 
       Debug_printf(("\r\nDrive: %02x\r\n"), pDevice->id());
       return;
@@ -1261,7 +1382,7 @@ void iwmBus::handle_init()
 }
 
 // Add device to SIO bus
-void iwmBus::addDevice(iwmDevice *pDevice, iwm_internal_type_t deviceType)
+void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
 {
   // SmartPort interface assigns device numbers to the devices in the daisy chain one at a time
   // as opposed to using standard or fixed device ID's like Atari SIO. Therefore, an emulated
@@ -1293,32 +1414,30 @@ void iwmBus::addDevice(iwmDevice *pDevice, iwm_internal_type_t deviceType)
     // assign dedicated pointers to certain devices
     switch (deviceType)
     {
-    case iwm_internal_type_t::GenericBlock:
-      // no special device assignment needed
+    case iwm_fujinet_type_t::BlockDisk:
       break;
-    case iwm_internal_type_t::GenericChar:
-      // no special device assignment needed
-      break;
-    case iwm_internal_type_t::FujiNet:
+    case iwm_fujinet_type_t::FujiNet:
       _fujiDev = (iwmFuji *)pDevice;
       break;
-    case iwm_internal_type_t::Modem:
+    case iwm_fujinet_type_t::Modem:
       _modemDev = (iwmModem *)pDevice;
       break;
-    case iwm_internal_type_t::Network:
+    case iwm_fujinet_type_t::Network:
       // todo: work out how to assign different network devices - idea:
       // include a number in the DIB name, e.g., "NETWORK 1"
       // and extract that number from the DIB and use it as the index
       //_netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (iwmNetwork *)pDevice;
       break;
-    case iwm_internal_type_t::CPM:
+    case iwm_fujinet_type_t::CPM:
     //   _cpmDev = (iwmCPM *)pDevice;
        break;
-    case iwm_internal_type_t::Printer:
+    case iwm_fujinet_type_t::Printer:
       _printerdev = (iwmPrinter *)pDevice;
       break;
-    case iwm_internal_type_t::Voice:
+    case iwm_fujinet_type_t::Voice:
     // not yet implemented: todo - take SAM and implement as a special block device. Also then available for disk rotate annunciation. 
+      break;
+    case iwm_fujinet_type_t::Other:
       break;
     }
 
@@ -1365,6 +1484,18 @@ iwmDevice *iwmBus::deviceById(int device_id)
     return nullptr;
 }
 
+void iwmBus::enableDevice(uint8_t device_id)
+{
+    iwmDevice *p = deviceById(device_id);
+    p->device_active = true;
+}
+
+void iwmBus::disableDevice(uint8_t device_id)
+{
+    iwmDevice *p = deviceById(device_id);
+    p->device_active = false;
+}
+
 // Give devices an opportunity to clean up before a reboot
 void iwmBus::shutdown()
 {
@@ -1374,11 +1505,6 @@ void iwmBus::shutdown()
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
-}
-
-void iwmDevice::startup_hack()
-{
-  
 }
 
 #ifdef TESTTX

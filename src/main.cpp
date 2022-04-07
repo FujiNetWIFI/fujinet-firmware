@@ -18,7 +18,7 @@
 #include "httpService.h"
 
 #ifdef BLUETOOTH_SUPPORT
-# include "fnBluetooth.h"
+#include "fnBluetooth.h"
 #endif
 
 // fnSystem is declared and defined in fnSystem.h/cpp
@@ -28,7 +28,6 @@
 // fnHTTPD is declared and defineid in HttpService.h/cpp
 
 // sioFuji theFuji; // moved to fuji.h/.cpp
-
 
 void main_shutdown_handler()
 {
@@ -46,12 +45,12 @@ void main_setup()
     unsigned long startms = fnSystem.millis();
     Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
-# ifdef ATARI
-        Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
-        Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
-        Debug_printf("himem free %u\n", esp_himem_get_free_size());
-        Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
-# endif // ATARI
+#ifdef ATARI
+    Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
+    Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
+    Debug_printf("himem free %u\n", esp_himem_get_free_size());
+    Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
+#endif // ATARI
 #endif // DEBUG
 
     // Install a reboot handler
@@ -81,7 +80,7 @@ void main_setup()
     // Load our stored configuration
     Config.load();
 
-    if ( Config.get_bt_status() )
+    if (Config.get_bt_status())
     {
 #ifdef BLUETOOTH_SUPPORT
         // Start SIO2BT mode if we were in it last shutdown
@@ -119,7 +118,7 @@ void main_setup()
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
     sioR = new sioModem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-    
+
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
@@ -133,57 +132,55 @@ void main_setup()
 #ifdef BUILD_CBM
     // Setup IEC Bus
     theFuji.setup(&IEC);
-#endif  // BUILD_CBM
+#endif // BUILD_CBM
 
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();
     fnSDFAT.create_path("/FujiNet");
 
-# ifdef VIRTUAL_ADAM_DEVICES
+    Debug_printf("Adding virtual printer\n");
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    adamPrinter::printer_type printer = Config.get_printer_type(0);
+    adamPrinter *ptr = new adamPrinter(ptrfs, printer);
+    ptr->start_printer_task();
+    fnPrinters.set_entry(0, ptr, printer, 0);
+    AdamNet.addDevice(ptr, ADAMNET_DEVICE_ID_PRINTER);
+
+    if (Config.get_printer_enabled())
+        AdamNet.enableDevice(ADAMNET_DEVICE_ID_PRINTER);
+    else
+        AdamNet.disableDevice(ADAMNET_DEVICE_ID_PRINTER);
+
+#ifdef VIRTUAL_ADAM_DEVICES
     Debug_printf("Physical Device Scanning...\n");
     sioQ = new adamQueryDevice();
 
-#  ifndef NO_VIRTUAL_KEYBOARD
-        exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_KEYBOARD);
-        if (! exists)
-        {
-            Debug_printf("Adding virtual keyboard\n");
-            sioK = new adamKeyboard();
-            AdamNet.addDevice(sioK,ADAMNET_DEVICE_ID_KEYBOARD);
-        } 
-        else
-            Debug_printf("Physical keyboard found\n");
-#  endif // NO_VIRTUAL_KEYBOARD
-    
-    exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_PRINTER);
-    if (! exists)
+#ifndef NO_VIRTUAL_KEYBOARD
+    exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_KEYBOARD);
+    if (!exists)
     {
-        Debug_printf("Adding virtual printer\n");
-        FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-        adamPrinter::printer_type printer = adamPrinter::PRINTER_COLECO_ADAM;
-        adamPrinter *ptr = new adamPrinter(ptrfs, printer);
-        xTaskCreatePinnedToCore(printerTask,"foo",4096,ptr,10,NULL,1);
-        fnPrinters.set_entry(0,ptr,printer,0);
-        AdamNet.addDevice(ptr,ADAMNET_DEVICE_ID_PRINTER);
-    } 
+        Debug_printf("Adding virtual keyboard\n");
+        sioK = new adamKeyboard();
+        AdamNet.addDevice(sioK, ADAMNET_DEVICE_ID_KEYBOARD);
+    }
     else
-        Debug_printf("Physical printer found\n");
-# endif // VIRTUAL_ADAM_DEVICES
+        Debug_printf("Physical keyboard found\n");
+#endif // NO_VIRTUAL_KEYBOARD
+
+#endif // VIRTUAL_ADAM_DEVICES
 
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
-// spDevice spsd;
-appleModem *sioR;
-FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
+    // spDevice spsd;
+    appleModem *sioR;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
 
-IWM.addDevice(new iwmDisk(),iwm_internal_type_t::GenericBlock);
-IWM.addDevice(new iwmDisk(),iwm_internal_type_t::GenericBlock);
-
-theFuji.setup(&IWM);
-IWM.setup();
+    IWM.addDevice(&theFuji, iwm_fujinet_type_t::FujiNet);
+    theFuji.setup(&IWM);
+    IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
 
 #endif /* BUILD_APPLE */
 
@@ -195,8 +192,8 @@ IWM.setup();
 
 #ifdef BUILD_S100
 
-//theFuji.setup(&s100Bus);
-//SYSTEM_BUS.setup();
+// theFuji.setup(&s100Bus);
+// SYSTEM_BUS.setup();
 
 #endif /* BUILD_S100*/
 
@@ -215,35 +212,33 @@ void fn_service_loop(void *param)
         else
 #endif // BLUETOOTH_SUPPORT
 
-
-        SYSTEM_BUS.service();
+            SYSTEM_BUS.service();
 
         taskYIELD(); // Allow other tasks to run
     }
 }
 
 /*
-* This is the start/entry point for an ESP-IDF program (must use "C" linkage)
-*/
+ * This is the start/entry point for an ESP-IDF program (must use "C" linkage)
+ */
 extern "C"
-{    
+{
     void app_main()
     {
         // cppcheck-suppress "unusedFunction"
         // Call our setup routine
         main_setup();
 
-        // Create a new high-priority task to handle the main loop
-        // This is assigned to CPU1; the WiFi task ends up on CPU0
-        #define MAIN_STACKSIZE 32768
-        #define MAIN_PRIORITY 10
-        #define MAIN_CPUAFFINITY 1
+// Create a new high-priority task to handle the main loop
+// This is assigned to CPU1; the WiFi task ends up on CPU0
+#define MAIN_STACKSIZE 32768
+#define MAIN_PRIORITY 20
+#define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
-            MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
-        
+                                MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
+
         // Sit here twiddling our thumbs
         while (true)
             vTaskDelay(9000 / portTICK_PERIOD_MS);
     }
 }
-

@@ -9,6 +9,7 @@
 
 #include "fnSystem.h"
 #include "led.h"
+#include <cstring>
 
 static xQueueHandle reset_evt_queue = NULL;
 
@@ -215,9 +216,8 @@ void virtualDevice::adamnet_process(uint8_t b)
 
 void virtualDevice::adamnet_control_status()
 {
-    AdamNet.wait_for_idle();
     AdamNet.start_time=esp_timer_get_time();
-    adamnet_response_status();
+   adamnet_response_status();
 }
 
 void virtualDevice::adamnet_response_status()
@@ -226,7 +226,23 @@ void virtualDevice::adamnet_response_status()
 
     status_response[5] = adamnet_checksum(&status_response[1], 4);
     adamnet_send_buffer(status_response, sizeof(status_response));
-    // uart_tx_chars(2,(const char *)status_response,sizeof(status_response));
+}
+
+void virtualDevice::adamnet_control_clr()
+{
+    if (response_len == 0)
+    {
+        adamnet_response_nack();
+    }
+    else
+    {
+        adamnet_send(0xB0 | _devnum);
+        adamnet_send_length(response_len);
+        adamnet_send_buffer(response, response_len);
+        adamnet_send(adamnet_checksum(response, response_len));
+        memset(response, 0, sizeof(response));
+        response_len = 0;
+    }
 }
 
 void virtualDevice::adamnet_idle()
@@ -325,6 +341,14 @@ bool systemBus::deviceExists(uint8_t device_id)
     return _daisyChain.find(device_id) != _daisyChain.end();
 }
 
+bool systemBus::deviceEnabled(uint8_t device_id)
+{
+    if (deviceExists(device_id))
+        return _daisyChain[device_id]->device_active;
+    else
+        return false;
+}
+
 void systemBus::remDevice(virtualDevice *pDevice)
 {
 }
@@ -369,12 +393,16 @@ void systemBus::reset()
 
 void systemBus::enableDevice(uint8_t device_id)
 {
+    Debug_printf("Enabling AdamNet Device %d\n",device_id);
+
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = true;
 }
 
 void systemBus::disableDevice(uint8_t device_id)
 {
+    Debug_printf("Disabling AdamNet Device %d\n",device_id);
+
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = false;
 }

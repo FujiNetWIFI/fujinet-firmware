@@ -97,7 +97,7 @@ char *url_decode(char *str)
 }
 
 /* Send some meaningful(?) error message to client
-*/
+ */
 void fnHttpService::return_http_error(httpd_req_t *req, _fnwserr errnum)
 {
     const char *message;
@@ -152,9 +152,9 @@ char *fnHttpService::get_extension(const char *filename)
 }
 
 /* Set the response content type based on the file being sent.
-*  Just using the file extension
-*  If nothing is set here, the default is 'text/html'
-*/
+ *  Just using the file extension
+ *  If nothing is set here, the default is 'text/html'
+ */
 void fnHttpService::set_file_content_type(httpd_req_t *req, const char *filepath)
 {
     // Find the current file extension
@@ -215,11 +215,10 @@ void fnHttpService::send_header_footer(httpd_req_t *req, int headfoot)
 
     if (fInput != nullptr)
         fclose(fInput);
-
 }
 
 /* Send file content after parsing for replaceable strings
-*/
+ */
 void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
 {
     // Note that we don't add FNWS_FILE_ROOT as it should've been done in send_file()
@@ -267,7 +266,7 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
 }
 
 /* Send content of given file out to client
-*/
+ */
 void fnHttpService::send_file(httpd_req_t *req, const char *filename)
 {
     // Build the full file path
@@ -386,8 +385,8 @@ esp_err_t fnHttpService::get_handler_test(httpd_req_t *req)
     TaskHandle_t task = xTaskGetCurrentTaskHandle();
     Debug_printf("Test request handler %p\n", task);
 
-    //Debug_printf("WiFI handle %p\n", handle_WiFi);
-    //vTaskPrioritySet(handle_WiFi, 5);
+    // Debug_printf("WiFI handle %p\n", handle_WiFi);
+    // vTaskPrioritySet(handle_WiFi, 5);
 
     // Send the file content out in chunks
     char testln[100];
@@ -399,7 +398,7 @@ esp_err_t fnHttpService::get_handler_test(httpd_req_t *req)
     }
     httpd_resp_send_chunk(req, nullptr, 0);
 
-    //vTaskPrioritySet(handle_WiFi, 23);
+    // vTaskPrioritySet(handle_WiFi, 23);
 
     Debug_println("Test completed");
     return ESP_OK;
@@ -407,7 +406,7 @@ esp_err_t fnHttpService::get_handler_test(httpd_req_t *req)
 
 esp_err_t fnHttpService::get_handler_file_in_query(httpd_req_t *req)
 {
-    //Debug_printf("File_in_query request handler '%s'\n", req->uri);
+    // Debug_printf("File_in_query request handler '%s'\n", req->uri);
 
     // Get the file to send from the query
     queryparts qp;
@@ -419,7 +418,7 @@ esp_err_t fnHttpService::get_handler_file_in_query(httpd_req_t *req)
 
 esp_err_t fnHttpService::get_handler_file_in_path(httpd_req_t *req)
 {
-    //Debug_printf("File_in_path request handler '%s'\n", req->uri);
+    // Debug_printf("File_in_path request handler '%s'\n", req->uri);
 
     // Get the file to send from the query
     queryparts qp;
@@ -529,7 +528,7 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
     do
     {
         count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, poutput);
-        //count = currentPrinter->readFromOutput((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
+        // count = currentPrinter->readFromOutput((uint8_t *)buf, FNWS_SEND_BUFF_SIZE);
         total += count;
 
         // Debug_printf("Read %u bytes from print file\n", count);
@@ -677,7 +676,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 #ifdef BUILD_ATARI
                 theFuji.status_wait_count = 0;
 #endif
-
+                strcpy(disk->filename,qp.query_parsed["filename"].c_str());
                 disk->disk_size = host->file_size(disk->fileh);
                 disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
                 Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
@@ -774,6 +773,106 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     return ESP_OK;
 }
 
+#ifdef BUILD_ADAM
+esp_err_t fnHttpService::get_handler_term(httpd_req_t *req)
+{
+    esp_err_t ret;
+    uint8_t *buf = NULL;
+
+    if (req->method == HTTP_GET)
+    {
+        Debug_printf("/term get DONE");
+        return ESP_OK;
+    }
+
+    httpd_ws_frame_t ws_pkt;
+    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+
+    // See if we need to get any keypresses
+    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+    ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
+
+    if (ret != ESP_OK)
+    {
+        Debug_printf("err = %x\n",ret);
+        return ret;
+    }
+    Debug_printf("ws_pkt.len = %x\n",ws_pkt.len);
+
+    if (ws_pkt.len)
+    {
+        buf = (uint8_t *)calloc(sizeof(uint8_t), ws_pkt.len + 1);
+        if (buf == NULL)
+            return ESP_ERR_NO_MEM;
+        else
+            ws_pkt.payload = buf;
+
+        ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
+        if (ret != ESP_OK)
+        {
+            Debug_printf("recv_frame data failed %d\n",ret);
+            free(buf);
+            return ret;
+        }
+    }
+
+    if (buf != NULL)
+        free(buf);
+
+    // Now see if we need to send anything back
+
+    return ret;
+}
+
+esp_err_t fnHttpService::get_handler_kybd(httpd_req_t *req)
+{
+    esp_err_t ret;
+    uint8_t *buf = NULL;
+
+    if (req->method == HTTP_GET)
+    {
+        Debug_printf("/kybd get DONE");
+        return ESP_OK;
+    }
+
+    httpd_ws_frame_t ws_pkt;
+    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+
+    // See if we need to get any keypresses
+    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+    ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
+
+    if (ret != ESP_OK)
+    {
+        Debug_printf("err = %x\n",ret);
+        return ret;
+    }
+    Debug_printf("ws_pkt.len = %x\n",ws_pkt.len);
+
+    if (ws_pkt.len)
+    {
+        buf = (uint8_t *)calloc(sizeof(uint8_t), ws_pkt.len + 1);
+        if (buf == NULL)
+            return ESP_ERR_NO_MEM;
+        else
+            ws_pkt.payload = buf;
+
+        ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
+        if (ret != ESP_OK)
+        {
+            Debug_printf("recv_frame data failed %d\n",ret);
+            free(buf);
+            return ret;
+        }
+    }
+
+    if (buf != NULL)
+        free(buf);
+
+    return ret;
+}
+#endif /* BUILD_ADAM */
+
 esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 {
     queryparts qp;
@@ -813,11 +912,11 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
     chunk +=
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
-        "               <header>SELECT DISK TO MOUNT<span id=\"logowob\"></span>" + string(theFuji.get_hosts(hs)->get_hostname()) + qp.query_parsed["path"] + "</header>\n"
-        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
-        "               <div class=\"fileline\">\n"
-        "                      <ul>\n";
-
+        "               <header>SELECT DISK TO MOUNT<span id=\"logowob\"></span>" +
+        string(theFuji.get_hosts(hs)->get_hostname()) + qp.query_parsed["path"] + "</header>\n"
+                                                                                  "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+                                                                                  "               <div class=\"fileline\">\n"
+                                                                                  "                      <ul>\n";
 
     httpd_resp_sendstr_chunk(req, chunk.c_str());
     chunk.clear();
@@ -945,14 +1044,15 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
 
     send_header_footer(req, 0); // header
 
-    //chunk += "  <h1></h1>\r\n";
+    // chunk += "  <h1></h1>\r\n";
     chunk +=
-    "        <div class=\"fileflex\">\n"
-    "            <div class=\"filechild\">\n"
-    "               <header>SELECT DRIVE SLOT<span id=\"logowob\"></span>" + string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + "</header>\n"
-    "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
-    "               <div class=\"fileline\">\n"
-    "                      <ul>\n";
+        "        <div class=\"fileflex\">\n"
+        "            <div class=\"filechild\">\n"
+        "               <header>SELECT DRIVE SLOT<span id=\"logowob\"></span>" +
+        string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + "</header>\n"
+                                                                                               "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+                                                                                               "               <div class=\"fileline\">\n"
+                                                                                               "                      <ul>\n";
 
     httpd_resp_sendstr_chunk(req, chunk.c_str());
     chunk.clear();
@@ -1002,7 +1102,7 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         "           </div>\n"
         "        </div>\n";
 
-    send_header_footer(req, 1); // footer
+    send_header_footer(req, 1);          // footer
     httpd_resp_send_chunk(req, NULL, 0); // end response.
 
     return ESP_OK;
@@ -1058,9 +1158,9 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
 }
 
 /* We're pointing global_ctx to a member of our fnHttpService object,
-*  so we don't want the libarary freeing it for us. It'll be freed when
-*  our fnHttpService object is freed.
-*/
+ *  so we don't want the libarary freeing it for us. It'll be freed when
+ *  our fnHttpService object is freed.
+ */
 void fnHttpService::custom_global_ctx_free(void *ctx)
 {
     // keep this commented for the moment to avoid warning.
@@ -1074,43 +1174,82 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/hsdir",
          .method = HTTP_GET,
          .handler = get_handler_dir,
-         .user_ctx = NULL},
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/dslot",
          .method = HTTP_GET,
          .handler = get_handler_slot,
-         .user_ctx = NULL},
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/",
          .method = HTTP_GET,
          .handler = get_handler_index,
-         .user_ctx = NULL},
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/file",
          .method = HTTP_GET,
          .handler = get_handler_file_in_query,
-         .user_ctx = NULL},
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/print",
          .method = HTTP_GET,
          .handler = get_handler_print,
-         .user_ctx = NULL},
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/modem-sniffer.txt",
          .method = HTTP_GET,
          .handler = get_handler_modem_sniffer,
-         .user_ctx = NULL},
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/favicon.ico",
          .method = HTTP_GET,
          .handler = get_handler_file_in_path,
-         .user_ctx = NULL},
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/mount",
          .method = HTTP_GET,
          .handler = get_handler_mount,
-         .user_ctx = NULL},
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/unmount",
          .method = HTTP_GET,
          .handler = get_handler_eject,
-         .user_ctx = NULL},
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+#ifdef BUILD_ADAM
+        {.uri = "/term",
+         .method = HTTP_GET,
+         .handler = get_handler_term,
+         .user_ctx = NULL,
+         .is_websocket = true,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},         
+#endif
         {.uri = "/config",
          .method = HTTP_POST,
          .handler = post_handler_config,
-         .user_ctx = NULL}};
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr}};
 
     if (!fnWiFi.connected())
     {
@@ -1123,7 +1262,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192;
-    config.max_resp_headers = 12;
+    config.max_resp_headers = 16;
     config.max_uri_handlers = 16;
     config.task_priority = 12; // Bump this higher than fnService loop
     // Keep a reference to our object
@@ -1149,7 +1288,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
 }
 
 /* Set up and start the web server
-*/
+ */
 void fnHttpService::start()
 {
     if (state.hServer != NULL)
@@ -1160,8 +1299,8 @@ void fnHttpService::start()
 
     // Register event notifications to let us know when WiFi is up/down
     // Missing the constants used here.  Need to find that...
-    //esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &connect_handler, &(state.hServer));
-    //esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &disconnect_handler, &(state.hServer));
+    // esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &connect_handler, &(state.hServer));
+    // esp_event_handler_register(WIFI_EVENT, WIFI_EVENT_STA_DISCONNECTED, &disconnect_handler, &(state.hServer));
 
     // Go ahead and attempt starting the server for the first time
     start_server(state);

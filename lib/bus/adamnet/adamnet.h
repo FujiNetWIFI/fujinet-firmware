@@ -173,6 +173,11 @@ protected:
     virtual void adamnet_control_status();
 
     /**
+     * @brief adam says clear to send!
+     */
+    virtual void adamnet_control_clr();
+
+    /**
      * @brief send status response
      */
     virtual void adamnet_response_status();
@@ -186,6 +191,16 @@ protected:
      * The response sent in adamnet_response_status()
      */
     uint8_t status_response[6] = {0x80,0x00,0x00,0x01,0x00,0x00};
+
+    /**
+     * Response buffer
+     */
+    uint8_t response[1024];
+
+    /**
+     * Response length
+     */
+    uint16_t response_len;
 
 public:
 
@@ -247,6 +262,7 @@ public:
     void disableDevice(uint8_t device_id);
     virtualDevice *deviceById(uint8_t device_id);
     void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
+    bool deviceEnabled(uint8_t device_id);
     QueueHandle_t qAdamNetMessages = nullptr;
 };
 

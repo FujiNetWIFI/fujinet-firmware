@@ -42,6 +42,6 @@
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://github.com/FujiNetWIFI/atariwifi",
+  "url": "https://github.com/FujiNetWIFI/fujinet-platformio",
   "vendor": "FujiNet Project"
 }

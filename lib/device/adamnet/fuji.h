@@ -5,6 +5,7 @@
 
 #include "network.h"
 #include "disk.h"
+#include "serial.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -13,7 +14,6 @@
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 4
 
-#define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
 
 #define MAX_APPKEY_LEN 64
@@ -23,7 +23,7 @@
 
 typedef struct
 {
-    char ssid[32];
+    char ssid[33];
     char hostname[64];
     unsigned char localIP[4];
     unsigned char gateway[4];
@@ -115,6 +115,9 @@ protected:
     void adamnet_set_boot_mode();          // 0xD6
     void adamnet_enable_device();          // 0xD5
     void adamnet_disable_device();         // 0xD4
+    void adamnet_random_number();          // 0xD3
+    void adamnet_get_time();               // 0xD2
+    void adamnet_device_enable_status();   // 0xD1
 
     void adamnet_test_command();
 
@@ -158,5 +161,6 @@ public:
 };
 
 extern adamFuji theFuji;
+extern adamSerial *theSerial;
 
 #endif // FUJI_H
