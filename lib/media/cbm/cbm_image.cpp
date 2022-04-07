@@ -43,7 +43,7 @@ bool CBMImageStream::open() {
     // it's up to you in what state the stream will be after open. Could be either:
     // 1. EOF-like state (0 available) and the state will be cleared only after succesful seekNextEntry or seekPath
     // 2. non-EOF-like state, and ready to send bytes of first file, because you did immediate seekNextEntry here
-    Debug_printv("here");
+    Debug_printf("here");
     return false;
 };
 
@@ -93,7 +93,7 @@ size_t CBMImageStream::read(uint8_t* buf, size_t size) {
 };
 
 bool CBMImageStream::isOpen() {
-    Debug_printv("here");
+    Debug_printf("here");
     return m_isOpen;
 };
 

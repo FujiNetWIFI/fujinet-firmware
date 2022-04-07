@@ -83,13 +83,13 @@ uint8_t iecDevice::service(void)
 			if (bus_state == IEC::BUS_COMMAND)
 			{
 				// Process a command
-				Debug_printv("[Process a command]");
+				Debug_printf("[Process a command]");
 				handleListenCommand(m_iec_data);
 			}
 			else if (bus_state == IEC::BUS_LISTEN)
 			{
 				// Receive data
-				Debug_printv("[Receive data]");
+				Debug_printf("[Receive data]");
 				handleListenData();	
 			}
 		}
@@ -99,19 +99,19 @@ uint8_t iecDevice::service(void)
 			if (bus_state == IEC::BUS_COMMAND)
 			{
 				// Process a command
-				Debug_printv("[Process a command]");
+				Debug_printf("[Process a command]");
 				handleListenCommand(m_iec_data);
 			}
 			else if (bus_state == IEC::BUS_LISTEN)
 			{
 				// Receive data
-				Debug_printv("[Receive data]");
+				Debug_printf("[Receive data]");
 				handleListenData();	
 			}
 			else if (bus_state == IEC::BUS_TALK)
 			{
 				// Send data
-				Debug_printv("[Send data]");
+				Debug_printf("[Send data]");
 				if (m_iec_data.channel == CMD_CHANNEL)
 				{
 					handleListenCommand(m_iec_data);		 // This is typically an empty command,
@@ -129,7 +129,7 @@ uint8_t iecDevice::service(void)
 			}			
 		}
 	}
-	//Debug_printv("mode[%d] command[%.2X] channel[%.2X] state[%d]", mode, m_iec_data.command, m_iec_data.channel, m_openState);
+	//Debug_printf("mode[%d] command[%.2X] channel[%.2X] state[%d]", mode, m_iec_data.command, m_iec_data.channel, m_openState);
 
 	return bus_state;
 } // service
@@ -145,7 +145,7 @@ Channel iecDevice::channelSelect(IEC::Data &iec_data)
 	// create and add channel if not found
 	auto newChannel = Channel();
 	newChannel.url = iec_data.content;
-	Debug_printv("CHANNEL device[%d] channel[%d] url[%s]", iec_data.device, iec_data.channel, iec_data.content.c_str());
+	Debug_printf("CHANNEL device[%d] channel[%d] url[%s]", iec_data.device, iec_data.channel, iec_data.content.c_str());
 
 	channels.insert(std::make_pair(key, newChannel));
 	return newChannel;

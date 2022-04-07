@@ -27,7 +27,7 @@
 #ifndef PROTOCOL_CBMSTANDARDSERIAL_H
 #define PROTOCOL_CBMSTANDARDSERIAL_H
 
-#include "../../../include/global_defines.h"
+//#include "../../../include/global_defines.h"
 
 // BIT Flags
 #define CLEAR           0x00      // clear all flags

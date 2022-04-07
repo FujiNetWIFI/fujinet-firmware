@@ -19,7 +19,7 @@ bool TCRTIStream::seekEntry( std::string filename )
         {
             std::string entryFilename = entry.filename;
             mstr::rtrimA0(entryFilename);
-            Debug_printv("filename[%s] entry.filename[%.16s]", filename.c_str(), entryFilename.c_str());
+            Debug_printf("filename[%s] entry.filename[%.16s]", filename.c_str(), entryFilename.c_str());
 
             // Read Entry From Stream
             if (filename == "*")
@@ -47,13 +47,13 @@ bool TCRTIStream::seekEntry( size_t index )
     index--;
     size_t entryOffset = 0xE7 + (index * 32);
 
-    Debug_printv("----------");
-    Debug_printv("index[%d] entryOffset[%d] entry_index[%d]", (index + 1), entryOffset, entry_index);
+    Debug_printf("----------");
+    Debug_printf("index[%d] entryOffset[%d] entry_index[%d]", (index + 1), entryOffset, entry_index);
 
     containerStream->seek(entryOffset);
     containerStream->read((uint8_t *)&entry, sizeof(entry));
 
-    Debug_printv("file_type[%02X] file_name[%.16s]", entry.file_type, entry.filename);
+    Debug_printf("file_type[%02X] file_name[%.16s]", entry.file_type, entry.filename);
 
     entry_index = index + 1;    
     if ( entry.file_type == 0xFF )
@@ -84,7 +84,7 @@ bool TCRTIStream::seekPath(std::string path) {
     {
         //auto entry = containerImage->entry;
         auto type = decodeType(entry.file_type).c_str();
-        Debug_printv("filename [%.16s] type[%s]", entry.filename, type);
+        Debug_printf("filename [%.16s] type[%s]", entry.filename, type);
 
         // Calculate file size
         m_length = entry.file_size[0] + entry.file_size[0] + entry.file_size[0];
@@ -93,13 +93,13 @@ bool TCRTIStream::seekPath(std::string path) {
         // Set position to beginning of file
         containerStream->seek(entry.data_offset);
 
-        Debug_printv("File Size: size[%d] available[%d]", m_length, m_bytesAvailable);
+        Debug_printf("File Size: size[%d] available[%d]", m_length, m_bytesAvailable);
         
         return true;
     }
     else
     {
-        Debug_printv( "Not found! [%s]", path.c_str());
+        Debug_printf( "Not found! [%s]", path.c_str());
     }
 
     return false;
@@ -110,14 +110,14 @@ bool TCRTIStream::seekPath(std::string path) {
  ********************************************************/
 
 MIStream* TCRTFile::createIStream(std::shared_ptr<MIStream> containerIstream) {
-    Debug_printv("[%s]", url.c_str());
+    Debug_printf("[%s]", url.c_str());
 
     return new TCRTIStream(containerIstream);
 }
 
 
 bool TCRTFile::isDirectory() {
-    //Debug_printv("pathInStream[%s]", pathInStream.c_str());
+    //Debug_printf("pathInStream[%s]", pathInStream.c_str());
     if ( pathInStream == "" )
         return true;
     else
@@ -126,10 +126,10 @@ bool TCRTFile::isDirectory() {
 
 bool TCRTFile::rewindDirectory() {
     dirIsOpen = true;
-    Debug_printv("streamFile->url[%s]", streamFile->url.c_str());
+    Debug_printf("streamFile->url[%s]", streamFile->url.c_str());
     auto image = ImageBroker::obtain<TCRTIStream>(streamFile->url);
     if ( image == nullptr )
-        Debug_printv("image pointer is null");
+        Debug_printf("image pointer is null");
 
     image->resetEntryCounter();
 
@@ -143,7 +143,7 @@ bool TCRTFile::rewindDirectory() {
     media_block_size = image->block_size;
     media_image = name;
 
-    Debug_printv("media_header[%s] media_id[%s] media_blocks_free[%d] media_block_size[%d] media_image[%s]", media_header.c_str(), media_id.c_str(), media_blocks_free, media_block_size, media_image.c_str());
+    Debug_printf("media_header[%s] media_id[%s] media_blocks_free[%d] media_block_size[%d] media_image[%s]", media_header.c_str(), media_id.c_str(), media_blocks_free, media_block_size, media_image.c_str());
 
     return true;
 }
@@ -160,14 +160,14 @@ MFile* TCRTFile::getNextFileInDir() {
     {
         std::string fileName = mstr::format("%.16s", image->entry.filename);
         mstr::replaceAll(fileName, "/", "\\");
-        //Debug_printv( "entry[%s]", (streamFile->url + "/" + fileName).c_str() );
+        //Debug_printf( "entry[%s]", (streamFile->url + "/" + fileName).c_str() );
         auto file = MFSOwner::File(streamFile->url + "/" + fileName);
         file->extension = image->decodeType(image->entry.file_type);
         return file;
     }
     else
     {
-        //Debug_printv( "END OF DIRECTORY");
+        //Debug_printf( "END OF DIRECTORY");
         dirIsOpen = false;
         return nullptr;
     }
@@ -175,7 +175,7 @@ MFile* TCRTFile::getNextFileInDir() {
 
 
 size_t TCRTFile::size() {
-    // Debug_printv("[%s]", streamFile->url.c_str());
+    // Debug_printf("[%s]", streamFile->url.c_str());
     // use TCRT to get size of the file in image
     auto image = ImageBroker::obtain<TCRTIStream>(streamFile->url);
 

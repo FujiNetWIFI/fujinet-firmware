@@ -4,12 +4,12 @@
 #ifndef MEDIA_CBM_CBM_IMAGE
 #define MEDIA_CBM_CBM_IMAGE
 
-#include "meat_io.h"
+//#include "meat_io.h"
 
 #include <map>
 #include <bitset>
 
-#include "string_utils.h"
+//#include "string_utils.h"
 
 
 /********************************************************
@@ -28,7 +28,7 @@ public:
     void close() override;
     bool open() override;
     ~CBMImageStream() {
-        //Debug_printv("close");
+        //Debug_printf("close");
         close();
     }
 
@@ -37,11 +37,11 @@ public:
     bool isRandomAccess() override { return true; };
 
     bool seek(size_t pos, SeekMode mode) override { 
-        Debug_printv("here");
+        Debug_printf("here");
         return true; 
     }; 
     bool seek(size_t pos) override { 
-        Debug_printv("here");
+        Debug_printf("here");
         return true; 
     };
 
@@ -133,11 +133,11 @@ public:
         // Are we at the root of the pathInStream?
         if ( newFile->pathInStream == "")
         {
-            Debug_printv("DIRECTORY [%s]", url.c_str());
+            Debug_printf("DIRECTORY [%s]", url.c_str());
         }
         else
         {
-            Debug_printv("SINGLE FILE [%s]", url.c_str());
+            Debug_printf("SINGLE FILE [%s]", url.c_str());
         } 
 
         repo.insert(std::make_pair(url, newStream));

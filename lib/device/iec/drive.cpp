@@ -41,7 +41,7 @@ void devDrive::sendStatus(void)
 	if (status.size() == 0)
 		status = "00, OK,00,00";
 
-	Debug_printv("status: %s", status.c_str());
+	Debug_printf("status: %s", status.c_str());
 	Debug_print("[");
 	
 	m_iec.send(status);
@@ -150,7 +150,7 @@ void devDrive::setDeviceStatus(int number, int track, int sector)
 
 
 MFile* devDrive::getPointed(MFile* urlFile) {
-	Debug_printv("getPointed [%s]", urlFile->url.c_str());
+	Debug_printf("getPointed [%s]", urlFile->url.c_str());
 	auto istream = Meat::ifstream(urlFile);
 
 	istream.open();
@@ -162,7 +162,7 @@ MFile* devDrive::getPointed(MFile* urlFile) {
 	else {
 		std::string linkUrl;
 		istream >> linkUrl;
-		Debug_printv("path read from [%s]=%s", urlFile->url.c_str(), linkUrl.c_str());
+		Debug_printf("path read from [%s]=%s", urlFile->url.c_str(), linkUrl.c_str());
 
 		return MFSOwner::File(linkUrl);
 	}
@@ -171,10 +171,10 @@ MFile* devDrive::getPointed(MFile* urlFile) {
 CommandPathTuple devDrive::parseLine(std::string command, size_t channel)
 {
 
-	Debug_printv("* PARSE INCOMING LINE *******************************");
+	Debug_printf("* PARSE INCOMING LINE *******************************");
 
-	Debug_printv("we are in              [%s]", m_mfile->url.c_str());
-	Debug_printv("unprocessed user input [%s]", command.c_str());
+	Debug_printf("we are in              [%s]", m_mfile->url.c_str());
+	Debug_printf("unprocessed user input [%s]", command.c_str());
 
 	if (mstr::endsWith(command, "*"))
 	{
@@ -192,7 +192,7 @@ CommandPathTuple devDrive::parseLine(std::string command, size_t channel)
 			std::string match = mstr::dropLast(command, 1);
 			while ( entry != nullptr )
 			{
-				Debug_printv("match[%s] extension[%s]", match.c_str(), entry->extension.c_str());
+				Debug_printf("match[%s] extension[%s]", match.c_str(), entry->extension.c_str());
 				if ( !mstr::startsWith(entry->extension, "prg") || (match.size() > 0 && !mstr::startsWith( entry->name, match.c_str() ))  )
 				{
 					entry.reset(m_mfile->getNextFileInDir());	
@@ -221,7 +221,7 @@ CommandPathTuple devDrive::parseLine(std::string command, size_t channel)
 		//else if ( channel != 15 )
 		//	guessedPath = command;
 
-		Debug_printv("guessedPath[%s]", guessedPath.c_str());
+		Debug_printf("guessedPath[%s]", guessedPath.c_str());
 	}
 	else if(mstr::startsWith(command, "@info", false))
 	{
@@ -266,11 +266,11 @@ CommandPathTuple devDrive::parseLine(std::string command, size_t channel)
 	mstr::rtrim(guessedPath);
 	tuple.rawPath = guessedPath;
 
-	Debug_printv("found command     [%s]", tuple.command.c_str());
+	Debug_printf("found command     [%s]", tuple.command.c_str());
 
 	if(guessedPath == "$") 
 	{
-		Debug_printv("get directory of [%s]", m_mfile->url.c_str());
+		Debug_printf("get directory of [%s]", m_mfile->url.c_str());
 	}
 	else if(!guessedPath.empty()) 
 	{
@@ -278,10 +278,10 @@ CommandPathTuple devDrive::parseLine(std::string command, size_t channel)
 
 		tuple.fullPath = fullPath->url;
 
-		Debug_printv("full referenced path [%s]", tuple.fullPath.c_str());
+		Debug_printf("full referenced path [%s]", tuple.fullPath.c_str());
 	}
 
-	Debug_printv("* END OF PARSE LINE *******************************");
+	Debug_printf("* END OF PARSE LINE *******************************");
 
 	return tuple;
 }
@@ -291,16 +291,16 @@ void devDrive::changeDir(std::string url)
 	m_device.url(url);
 	m_mfile.reset(MFSOwner::File(url));
 	m_openState = O_DIR;
-	Debug_printv("!!!! CD into [%s]", url.c_str());
-	Debug_printv("new current url: [%s]", m_mfile->url.c_str());
-	Debug_printv("LOAD $");		
+	Debug_printf("!!!! CD into [%s]", url.c_str());
+	Debug_printf("new current url: [%s]", m_mfile->url.c_str());
+	Debug_printf("LOAD $");		
 }
 
 void devDrive::prepareFileStream(std::string url)
 {
 	m_filename = url;
 	m_openState = O_FILE;
-	Debug_printv("LOAD [%s]", url.c_str());
+	Debug_printf("LOAD [%s]", url.c_str());
 }
 
 
@@ -309,9 +309,9 @@ void devDrive::handleListenCommand(IEC::Data &iec_data)
 {
 	if (m_device.select(iec_data.device))
 	{
-		Debug_printv("!!!! device changed: unit:%d current url: [%s]", m_device.id(), m_device.url().c_str());
+		Debug_printf("!!!! device changed: unit:%d current url: [%s]", m_device.id(), m_device.url().c_str());
 		m_mfile.reset(MFSOwner::File(m_device.url()));
-		Debug_printv("m_mfile[%s]", m_mfile->url.c_str());
+		Debug_printf("m_mfile[%s]", m_mfile->url.c_str());
 	}
 
 	size_t channel = iec_data.channel;
@@ -319,7 +319,7 @@ void devDrive::handleListenCommand(IEC::Data &iec_data)
 
 	if (iec_data.content.size() == 0 )
 	{
-		Debug_printv("No command to process");
+		Debug_printf("No command to process");
 
 		if ( iec_data.channel == CMD_CHANNEL )
 			m_openState = O_STATUS;
@@ -330,11 +330,11 @@ void devDrive::handleListenCommand(IEC::Data &iec_data)
 	auto commandAndPath = parseLine(iec_data.content, channel);
 	auto referencedPath = Meat::New<MFile>(commandAndPath.fullPath);
 
-	Debug_printv("command[%s]", commandAndPath.command.c_str());
+	Debug_printf("command[%s]", commandAndPath.command.c_str());
 	if (mstr::startsWith(commandAndPath.command, "$"))
 	{
 		m_openState = O_DIR;
-		Debug_printv("LOAD $");
+		Debug_printf("LOAD $");
 	}	
 	else if (mstr::equals(commandAndPath.command, (char*)"@info", false))
 	{
@@ -366,7 +366,7 @@ void devDrive::handleListenCommand(IEC::Data &iec_data)
 
 			if ( referencedPath->isDirectory() )
 			{
-				Debug_printv("change dir called for urlfile");
+				Debug_printf("change dir called for urlfile");
 				changeDir(referencedPath->url);
 			}
 			else if ( referencedPath->exists() )
@@ -377,7 +377,7 @@ void devDrive::handleListenCommand(IEC::Data &iec_data)
 		// 2. OR if command == "CD" OR fullPath.isDirectory - change directory
 		if (mstr::equals(commandAndPath.command, (char*)"cd", false) || referencedPath->isDirectory())
 		{
-			Debug_printv("change dir called by CD command or because of isDirectory");
+			Debug_printf("change dir called by CD command or because of isDirectory");
 			changeDir(referencedPath->url);
 		}
 		// 3. else - stream file
@@ -397,7 +397,7 @@ void devDrive::handleListenCommand(IEC::Data &iec_data)
 
 void devDrive::handleListenData()
 {
-	Debug_printv("[%s]", m_device.url().c_str());
+	Debug_printf("[%s]", m_device.url().c_str());
 
 	saveFile();
 } // handleListenData
@@ -405,7 +405,7 @@ void devDrive::handleListenData()
 
 void devDrive::handleTalk(byte chan)
 {
-	Debug_printv("channel[%d] openState[%d]", chan, m_openState);
+	Debug_printf("channel[%d] openState[%d]", chan, m_openState);
 
 	switch (m_openState)
 	{
@@ -444,7 +444,7 @@ void devDrive::handleTalk(byte chan)
 
 void devDrive::handleOpen(IEC::Data &iec_data)
 {
-	Debug_printv("OPEN Named Channel (%.2d Device) (%.2d Channel)", iec_data.device, iec_data.channel);
+	Debug_printf("OPEN Named Channel (%.2d Device) (%.2d Channel)", iec_data.device, iec_data.channel);
 	auto channel = channels[iec_data.command];
 
 	// Are we writing?  Appending?
@@ -456,7 +456,7 @@ void devDrive::handleOpen(IEC::Data &iec_data)
 
 void devDrive::handleClose(IEC::Data &iec_data)
 {
-	Debug_printv("CLOSE Named Channel (%.2d Device) (%.2d Channel)", iec_data.device, iec_data.channel);
+	Debug_printf("CLOSE Named Channel (%.2d Device) (%.2d Channel)", iec_data.device, iec_data.channel);
 	auto channel = channels[iec_data.command];
 
 	// If writing update BAM & Directory
@@ -630,7 +630,7 @@ uint16_t devDrive::sendLine(uint16_t &basicPtr, uint16_t blocks, char *text)
 
 // uint16_t devDrive::sendHeader(uint16_t &basicPtr, const char *format, ...)
 // {
-// 	Debug_printv("formatting header");
+// 	Debug_printf("formatting header");
 
 // 	// Format our string
 // 	va_list args;
@@ -639,7 +639,7 @@ uint16_t devDrive::sendLine(uint16_t &basicPtr, uint16_t blocks, char *text)
 // 	vsnprintf(text, sizeof text, format, args);
 // 	va_end(args);
 
-// 	Debug_printv("header[%s]", text);
+// 	Debug_printf("header[%s]", text);
 
 // 	return sendHeader(basicPtr, std::string(text));
 // }
@@ -667,7 +667,7 @@ uint16_t devDrive::sendHeader(uint16_t &basicPtr, std::string header, std::strin
 	space_cnt = (16 - header.size()) / 2;
 	space_cnt = (space_cnt > 8 ) ? 0 : space_cnt;
 
-	//Debug_printv("header[%s] id[%s] space_cnt[%d]", header.c_str(), id.c_str(), space_cnt);
+	//Debug_printf("header[%s] id[%s] space_cnt[%d]", header.c_str(), id.c_str(), space_cnt);
 
 	byte_count += sendLine(basicPtr, 0, CBM_REVERSE_ON "\"%*s%s%*s\" %s", space_cnt, "", header.c_str(), space_cnt, "", id.c_str());
 
@@ -779,7 +779,7 @@ void devDrive::sendListing()
 		}
 
 		// Don't show hidden folders or files
-		//Debug_printv("size[%d] name[%s]", entry->size(), entry->name.c_str());
+		//Debug_printf("size[%d] name[%s]", entry->size(), entry->name.c_str());
 
 		std::string name = entry->petsciiName();
 		mstr::toPETSCII(extension);
@@ -858,11 +858,11 @@ void devDrive::sendFile()
 
 	if(!file->exists())
 	{
-		Debug_printv("File Not Found!");
+		Debug_printf("File Not Found!");
 		sendFileNotFound();
 		return;
 	}
-	Debug_printv("Sending File [%s]", file->name.c_str());
+	Debug_printf("Sending File [%s]", file->name.c_str());
 
 
 	// TODO!!!! you should check istream for nullptr here and return error immediately if null
@@ -877,7 +877,7 @@ void devDrive::sendFile()
 	{
 		// convert UTF8 files on the fly
 
-		Debug_printv("Sending a text file to C64 [%s]", file->url.c_str());
+		Debug_printf("Sending a text file to C64 [%s]", file->url.c_str());
         //std::unique_ptr<LinedReader> reader(new LinedReader(istream.get()));
 		auto istream = Meat::ifstream(file.get());
 		auto ostream = oiecstream();
@@ -911,7 +911,7 @@ void devDrive::sendFile()
 			ostream.putUtf8(&cp);
 
 			if(ostream.bad() || istream.bad()) {
-				Debug_printv("Error sending");
+				Debug_printf("Error sending");
                 setDeviceStatus(60); // write error
 				break;
             }
@@ -947,13 +947,13 @@ void devDrive::sendFile()
 		load_address = load_address | b << 8;  // high byte
 		sys_address += b * 256;
 
-		Debug_printv("len[%d] avail[%d] success[%d]", len, avail, success);
+		Debug_printf("len[%d] avail[%d] success[%d]", len, avail, success);
 
 		Debug_printf("sendFile: [%s] [$%.4X] (%d bytes)\r\n=================================\r\n", file->url.c_str(), load_address, len);
 		while( i < len && success )
 		{
 			success = istream->read(&b, 1);
-			// Debug_printv("b[%02X] success[%d]", b, success);
+			// Debug_printf("b[%02X] success[%d]", b, success);
 			if (success)
 			{
 	#ifdef DATA_STREAM
@@ -1009,7 +1009,7 @@ void devDrive::sendFile()
 		istream->close();
 		Debug_printf("=================================\r\n%d of %d bytes sent [SYS%d]\r\n", i, len, sys_address);
 
-		//Debug_printv("len[%d] avail[%d] success[%d]", len, avail, success);		
+		//Debug_printf("len[%d] avail[%d] success[%d]", len, avail, success);		
 	}
 
 
@@ -1043,13 +1043,13 @@ void devDrive::saveFile()
 
 	mstr::toASCII(m_filename);
 	std::unique_ptr<MFile> file(MFSOwner::File(m_filename));
-	Debug_printv("[%s]", file->url.c_str());
+	Debug_printf("[%s]", file->url.c_str());
 
 	std::unique_ptr<MOStream> ostream(file->outputStream());
 	
 
     if(!ostream->isOpen()) {
-        Debug_printv("couldn't open a stream for writing");
+        Debug_printf("couldn't open a stream for writing");
 		// TODO: Set status and sendFNF
 		sendFileNotFound();
         return;
@@ -1126,21 +1126,21 @@ void devDrive::saveFile()
 void devDrive::dumpState() 
 {
 	Debug_println("");
-	Debug_printv("-------------------------------");
-	Debug_printv("URL: [%s]", m_mfile->url.c_str());
-    Debug_printv("streamPath: [%s]", m_mfile->streamFile->url.c_str());
-    Debug_printv("pathInStream: [%s]", m_mfile->pathInStream.c_str());
-	Debug_printv("Scheme: [%s]", m_mfile->scheme.c_str());
-	Debug_printv("Username: [%s]", m_mfile->user.c_str());
-	Debug_printv("Password: [%s]", m_mfile->pass.c_str());
-	Debug_printv("Host: [%s]", m_mfile->host.c_str());
-	Debug_printv("Port: [%s]", m_mfile->port.c_str());
-	Debug_printv("Path: [%s]", m_mfile->path.c_str());
-	Debug_printv("File: [%s]", m_mfile->name.c_str());
-	Debug_printv("Extension: [%s]", m_mfile->extension.c_str());
-	Debug_printv("");
-	Debug_printv("m_filename: [%s]", m_filename.c_str());
-    Debug_printv("-------------------------------");
+	Debug_printf("-------------------------------");
+	Debug_printf("URL: [%s]", m_mfile->url.c_str());
+    Debug_printf("streamPath: [%s]", m_mfile->streamFile->url.c_str());
+    Debug_printf("pathInStream: [%s]", m_mfile->pathInStream.c_str());
+	Debug_printf("Scheme: [%s]", m_mfile->scheme.c_str());
+	Debug_printf("Username: [%s]", m_mfile->user.c_str());
+	Debug_printf("Password: [%s]", m_mfile->pass.c_str());
+	Debug_printf("Host: [%s]", m_mfile->host.c_str());
+	Debug_printf("Port: [%s]", m_mfile->port.c_str());
+	Debug_printf("Path: [%s]", m_mfile->path.c_str());
+	Debug_printf("File: [%s]", m_mfile->name.c_str());
+	Debug_printf("Extension: [%s]", m_mfile->extension.c_str());
+	Debug_printf("");
+	Debug_printf("m_filename: [%s]", m_filename.c_str());
+    Debug_printf("-------------------------------");
 } // dumpState
 
 #endif /* BUILD_CBM */

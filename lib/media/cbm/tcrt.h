@@ -7,7 +7,7 @@
 #ifndef MEDIA_CBM_TCRT
 #define MEDIA_CBM_TCRT
 
-#include "meat_io.h"
+//#include "meat_io.h"
 #include "d64.h"
 
 
@@ -39,7 +39,7 @@ protected:
     };
 
     void seekHeader() override {
-        Debug_printv("here");
+        Debug_printf("here");
         containerStream->seek(0x18);
         containerStream->read((uint8_t*)&header, sizeof(header));
     }

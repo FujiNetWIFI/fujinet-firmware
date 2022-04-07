@@ -97,7 +97,7 @@ void Error(u8 errorCode, u8 track = 0, u8 sector = 0)
 			msg = "FILE EXISTS";
 		break;
 		default:
-			Debug_printv("EC=%d?\r\n", errorCode);
+			Debug_printf("EC=%d?\r\n", errorCode);
 		break;
 	}
 	sprintf(ErrorMessage, "%02d,%s,%02d,%02d", errorCode, msg, track, sector);
@@ -200,7 +200,7 @@ void IEC_Commands::CD(int partition, char* filename)
 		filenameEdited[i] = petscii2ascii(filenameEdited[i]);
 	}
 
-	Debug_printv("CD %s\r\n", filenameEdited);
+	Debug_printf("CD %s\r\n", filenameEdited);
 	if (filenameEdited[0] == '_' && len == 1)
 	{
 		updateAction = POP_DIR;
@@ -263,7 +263,7 @@ void IEC_Commands::CD(int partition, char* filename)
 
 						bool found = f_findfirst(&dir, &filInfo, ".", pattern) == FR_OK && filInfo.fname[0] != 0;
 
-						//Debug_printv("%s pattern = %s\r\n", filInfo.fname, pattern);
+						//Debug_printf("%s pattern = %s\r\n", filInfo.fname, pattern);
 
 						if (found)
 						{
@@ -281,7 +281,7 @@ void IEC_Commands::CD(int partition, char* filename)
 							}
 							else
 							{
-								//Debug_printv("attemting changing dir %s\r\n", filInfo.fname);
+								//Debug_printf("attemting changing dir %s\r\n", filInfo.fname);
 								if (f_chdir(filInfo.fname) != FR_OK)
 								{
 									Error(ERROR_62_FILE_NOT_FOUND);
@@ -301,7 +301,7 @@ void IEC_Commands::CD(int partition, char* filename)
 
 					}
 					//if (f_getcwd(cwd, 1024) == FR_OK)
-					//	Debug_printv("CWD on exit = %s\r\n", cwd);
+					//	Debug_printf("CWD on exit = %s\r\n", cwd);
 				}
 			}
 			else
@@ -319,7 +319,7 @@ void IEC_Commands::CD(int partition, char* filename)
 					}
 					else
 					{
-						//Debug_printv("attemting changing dir %s\r\n", filInfo.fname);
+						//Debug_printf("attemting changing dir %s\r\n", filInfo.fname);
 						if (f_chdir(filInfo.fname) != FR_OK)
 							Error(ERROR_62_FILE_NOT_FOUND);
 						else
@@ -377,7 +377,7 @@ void IEC_Commands::RMDir(void)
 		{
 			if (filInfo.fname[0] != 0 && IsDirectory(filInfo))
 			{
-				Debug_printv("rmdir %s\r\n", filInfo.fname);
+				Debug_printf("rmdir %s\r\n", filInfo.fname);
 				f_unlink(filInfo.fname);
 				updateAction = REFRESH;
 			}
@@ -461,7 +461,7 @@ void IEC_Commands::Copy(void)
 
 	text = ParseNextName(text, filenameNew, true);
 
-	//Debug_printv("Copy %s\r\n", filenameNew);
+	//Debug_printf("Copy %s\r\n", filenameNew);
 	if (filenameNew[0] != 0)
 	{
 		res = f_stat(filenameNew, &filInfo);
@@ -473,13 +473,13 @@ void IEC_Commands::Copy(void)
 				text = ParseNextName(text, filenameToCopy, true);
 				if (filenameToCopy[0] != 0)
 				{
-					//Debug_printv("Copy source %s\r\n", filenameToCopy);
+					//Debug_printf("Copy source %s\r\n", filenameToCopy);
 					res = f_stat(filenameToCopy, &filInfo);
 					if (res == FR_OK)
 					{
 						if (!IsDirectory(filInfo))
 						{
-							//Debug_printv("copying %s to %s\r\n", filenameToCopy, filenameNew);
+							//Debug_printf("copying %s to %s\r\n", filenameToCopy, filenameNew);
 							if (CopyFile(filenameNew, filenameToCopy, fileCount != 0)) updateAction = REFRESH;
 							else Error(ERROR_25_WRITE_ERROR);
 						}
@@ -495,7 +495,7 @@ void IEC_Commands::Copy(void)
 		}
 		else
 		{
-			Debug_printv("Copy file exists\r\n");
+			Debug_printf("Copy file exists\r\n");
 			Error(ERROR_63_FILE_EXISTS);
 		}
 	}
@@ -570,14 +570,14 @@ void IEC_Commands::Memory(void)
 			switch (code)
 			{
 				case 'R':
-					Debug_printv("M-R %04x %d\r\n", address, bytes);
+					Debug_printf("M-R %04x %d\r\n", address, bytes);
 				break;
 				case 'W':
-					Debug_printv("M-W %04x %d\r\n", address, bytes);
+					Debug_printf("M-W %04x %d\r\n", address, bytes);
 				break;
 				case 'E':
 					// Memory execute impossible at this level of emulation!
-					Debug_printv("M-E %04x\r\n", address);
+					Debug_printf("M-E %04x\r\n", address);
 				break;
 			}
 		}
@@ -629,7 +629,7 @@ void IEC_Commands::Rename(void)
 			if (res == FR_OK)
 			{
 				// Rename folders too.
-				//Debug_printv("Renaming %s to %s\r\n", filenameOld, filenameNew);
+				//Debug_printf("Renaming %s to %s\r\n", filenameOld, filenameNew);
 				f_rename(filenameOld, filenameNew);
 			}
 			else
@@ -669,7 +669,7 @@ void IEC_Commands::Scratch(void)
 		{
 			if (filInfo.fname[0] != 0 && !IsDirectory(filInfo))
 			{
-				//Debug_printv("Scratching %s\r\n", filInfo.fname);
+				//Debug_printf("Scratching %s\r\n", filInfo.fname);
 				f_unlink(filInfo.fname);
 			}
 			res = f_findnext(&dir, &filInfo);
@@ -683,7 +683,7 @@ void IEC_Commands::User(void)
 {
 	Channel& channel = channels[15];
 
-	//Debug_printv("User channel.buffer[1] = %c\r\n", channel.buffer[1]);
+	//Debug_printf("User channel.buffer[1] = %c\r\n", channel.buffer[1]);
 
 	switch (toupper(channel.buffer[1]))
 	{
@@ -700,7 +700,7 @@ void IEC_Commands::User(void)
 		// U9 (UI)
 		case 'I':
 		case '9':
-			//Debug_printv("ui c=%d\r\n", channel.cursor);
+			//Debug_printf("ui c=%d\r\n", channel.cursor);
 			if (channel.cursor == 2)
 			{
 				// Soft reset
@@ -736,7 +736,7 @@ void IEC_Commands::User(void)
 			{
 				SetDeviceId(channel.buffer[3]);
 				updateAction = DEVICEID_CHANGED;
-				Debug_printv("Changed deviceID to %d\r\n", channel.buffer[3]);
+				Debug_printf("Changed deviceID to %d\r\n", channel.buffer[3]);
 			}
 			else
 			{
@@ -753,7 +753,7 @@ void IEC_Commands::Extended(void)
 {
 	Channel& channel = channels[15];
 
-	//Debug_printv("User channel.buffer[1] = %c\r\n", channel.buffer[1]);
+	//Debug_printf("User channel.buffer[1] = %c\r\n", channel.buffer[1]);
 
 	switch (toupper(channel.buffer[1]))
 	{
@@ -774,7 +774,7 @@ void IEC_Commands::ProcessCommand(std::string command)
 
 	Channel& channel = channels[15];
 
-	//Debug_printv("CMD %s %d\r\n", channel.buffer, channel.cursor);
+	//Debug_printf("CMD %s %d\r\n", channel.buffer, channel.cursor);
 
 	if (channel.cursor > 0 && channel.buffer[channel.cursor - 1] == 0x0d)
 		channel.cursor--;
@@ -785,7 +785,7 @@ void IEC_Commands::ProcessCommand(std::string command)
 	}
 	else
 	{
-		//Debug_printv("ProcessCommand %s", channel.buffer);
+		//Debug_printf("ProcessCommand %s", channel.buffer);
 
 		if (toupper(channel.buffer[0]) != 'X' && toupper(channel.buffer[1]) == 'D')
 		{
@@ -894,7 +894,7 @@ void IEC_Commands::OpenFile()
 		Channel& channelCommand = channels[15];
 
 		// Direct acces is unsupported. Without a mounted disk image tracks and sectors have no meaning.
-		//Debug_printv("Driect access\r\n");
+		//Debug_printf("Driect access\r\n");
 		if (strcmp((char*)channelCommand.buffer, "U1:13 0 01 00") == 0)
 		{
 			// This is a 128 trying to auto boot
@@ -1027,7 +1027,7 @@ void IEC_Commands::OpenFile()
 
 			if (toupper(filetype[0]) == 'L')
 			{
-				//Debug_printv("Rel file\r\n");
+				//Debug_printf("Rel file\r\n");
 				return;
 			}
 			else
@@ -1054,13 +1054,13 @@ void IEC_Commands::OpenFile()
 
 			channel.writing = writing;
 
-			//Debug_printv("OpenFile %s %d NE=%d T=%c M=%c W=%d %0x\r\n", filename, secondary, needFileToExist, filetype[0], filemode[0], writing, mode);
+			//Debug_printf("OpenFile %s %d NE=%d T=%c M=%c W=%d %0x\r\n", filename, secondary, needFileToExist, filetype[0], filemode[0], writing, mode);
 
 			if (needFileToExist)
 			{
 				if (FindFirst(dir, filename, channel.filInfo))
 				{
-					//Debug_printv("found\r\n");
+					//Debug_printf("found\r\n");
 					res = FR_OK;
 					while ((channel.filInfo.fattrib & AM_DIR) == AM_DIR)
 					{
@@ -1073,7 +1073,7 @@ void IEC_Commands::OpenFile()
 						res = f_open(&channel.file, channel.filInfo.fname, mode);
 						if (res == FR_OK)
 							channel.open = true;
-						//Debug_printv("Opened existing size = %d\r\n", (int)channel.filInfo.fsize);
+						//Debug_printf("Opened existing size = %d\r\n", (int)channel.filInfo.fsize);
 					}
 				}
 				else
@@ -1083,7 +1083,7 @@ void IEC_Commands::OpenFile()
 
 				if (!found)
 				{
-					Debug_printv("Can't find %s", filename);
+					Debug_printf("Can't find %s", filename);
 					Error(ERROR_62_FILE_NOT_FOUND);
 				}
 			}
@@ -1094,18 +1094,18 @@ void IEC_Commands::OpenFile()
 				{
 					channel.open = true;
 					channel.cursor = 0;
-					//Debug_printv("Opened new sa=%d m=%0x\r\n", secondary, mode);
+					//Debug_printf("Opened new sa=%d m=%0x\r\n", secondary, mode);
 					res = f_stat(filename, &channel.filInfo);
 				}
 				else
 				{
-					//Debug_printv("Open failed %d\r\n", res);
+					//Debug_printf("Open failed %d\r\n", res);
 				}
 			}
 		}
 		else
 		{
-			//Debug_printv("Channel aready opened %d\r\n", channel.cursor);
+			//Debug_printf("Channel aready opened %d\r\n", channel.cursor);
 		}
 	}
 }

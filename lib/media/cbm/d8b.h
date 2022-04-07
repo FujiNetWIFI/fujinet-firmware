@@ -6,7 +6,7 @@
 #ifndef MEDIA_CBM_D8B
 #define MEDIA_CBM_D8B
 
-#include "meat_io.h"
+//#include "meat_io.h"
 #include "d64.h"
 
 

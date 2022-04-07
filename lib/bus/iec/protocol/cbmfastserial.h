@@ -27,6 +27,7 @@
 
 #include "cbmstandardserial.h"
 
+
 namespace Protocol
 {
 	class CBMFastSerial : public CBMStandardSerial

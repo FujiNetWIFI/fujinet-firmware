@@ -11,12 +11,12 @@
 #ifndef MEDIA_CBM_D64
 #define MEDIA_CBM_D64
 
-#include "meat_io.h"
+//#include "meat_io.h"
 
 #include <map>
 #include <bitset>
 
-#include "string_utils.h"
+//#include "string_utils.h"
 #include "cbm_image.h"
 
 

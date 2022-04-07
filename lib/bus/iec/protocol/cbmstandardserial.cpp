@@ -63,7 +63,7 @@ int16_t  CBMStandardSerial::receiveByte(uint8_t device)
 		// but still wait for CLK to be PULLED
 		if(timeoutWait(IEC_PIN_CLK, PULLED) == TIMED_OUT)
 		{
-			Debug_printv("After Acknowledge EOI");
+			Debug_printf("After Acknowledge EOI");
 			flags or_eq ERROR;
 			return -1; // return error because timeout
 		}		
@@ -106,7 +106,7 @@ int16_t  CBMStandardSerial::receiveByte(uint8_t device)
 		// wait for bit to be ready to read
 		if(timeoutWait(IEC_PIN_CLK, RELEASED) == TIMED_OUT)
 		{
-			Debug_printv("wait for bit to be ready to read");
+			Debug_printf("wait for bit to be ready to read");
 			flags or_eq ERROR;
 			return -1; // return error because timeout
 		}
@@ -118,7 +118,7 @@ int16_t  CBMStandardSerial::receiveByte(uint8_t device)
 		bit_time = timeoutWait(IEC_PIN_CLK, PULLED);
 		if(bit_time == TIMED_OUT)
 		{
-			Debug_printv("wait for talker to finish sending bit");
+			Debug_printf("wait for talker to finish sending bit");
 			flags or_eq ERROR;
 			return -1; // return error because timeout
 		}
@@ -217,14 +217,14 @@ bool CBMStandardSerial::sendByte(uint8_t data, bool signalEOI)
 		// get eoi acknowledge:
 		if(timeoutWait(IEC_PIN_DATA, PULLED) == TIMED_OUT)
 		{
-			Debug_printv("Get EOI acknowledge");
+			Debug_printf("Get EOI acknowledge");
 			flags or_eq ERROR;
 			return false; // return error because timeout
 		}
 
 		if(timeoutWait(IEC_PIN_DATA, RELEASED) == TIMED_OUT)
 		{
-			Debug_printv("Listener didn't release DATA");
+			Debug_printf("Listener didn't release DATA");
 			flags or_eq ERROR;
 			return false; // return error because timeout
 		}
@@ -296,7 +296,7 @@ bool CBMStandardSerial::sendByte(uint8_t data, bool signalEOI)
 	// Wait for listener to accept data
 	if(timeoutWait(IEC_PIN_DATA, PULLED, TIMEOUT_Tf) == TIMED_OUT)
 	{
-		Debug_printv("Wait for listener to acknowledge byte received");
+		Debug_printf("Wait for listener to acknowledge byte received");
 		return false; // return error because timeout
 	}
 
@@ -353,7 +353,7 @@ int16_t CBMStandardSerial::timeoutWait(byte iecPIN, bool lineStatus, size_t wait
 		}		
 	}
 
-	Debug_printv("pin[%d] state[%d] wait[%d] step[%d] t[%d]", iecPIN, lineStatus, wait, step, t);
+	Debug_printf("pin[%d] state[%d] wait[%d] step[%d] t[%d]", iecPIN, lineStatus, wait, step, t);
 	return -1;
 } // timeoutWait
 

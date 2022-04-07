@@ -7,7 +7,7 @@
 #ifndef MEDIA_CBM_T64
 #define MEDIA_CBM_T64
 
-#include "meat_io.h"
+//#include "meat_io.h"
 #include "cbm_image.h"
 
 

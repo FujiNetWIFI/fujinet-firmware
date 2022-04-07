@@ -1,12 +1,11 @@
 #ifndef BUS_IEC_IEC_H
 #define BUS_IEC_IEC_H
 
-#include <Arduino.h>
 
-#include "../../include/global_defines.h"
-#include "../../include/cbmdefines.h"
-#include "../../include/petscii.h"
-#include "string_utils.h"
+//#include "../../../include/global_defines.h"
+#include "../../../include/cbmdefines.h"
+#include "../../../include/petscii.h"
+//#include "string_utils.h"
 
 #include "protocol/cbmstandardserial.h"
 //#include "protocol/jiffydos.h"

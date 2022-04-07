@@ -151,7 +151,7 @@ IEC::BusState IEC::service(Data& iec_data)
 	int16_t c = (Command)receive(iec_data.device);
 	if(protocol.flags bitand ERROR)
 	{
-		Debug_printv("Get first ATN byte");
+		Debug_printf("Get first ATN byte");
 		return BUS_ERROR;
 	}
 	if(protocol.flags bitand JIFFY_ACTIVE)
@@ -214,7 +214,7 @@ IEC::BusState IEC::service(Data& iec_data)
 		Debug_printf(BACKSPACE "] (FO OPEN) (%.2d CHANNEL)\r\n", iec_data.channel);
 	}
 
-	//Debug_printv("command[%.2X] device[%.2d] secondary[%.2d] channel[%.2d]", iec_data.command, iec_data.device, iec_data.secondary, iec_data.channel);
+	//Debug_printf("command[%.2X] device[%.2d] secondary[%.2d] channel[%.2d]", iec_data.command, iec_data.device, iec_data.secondary, iec_data.channel);
 
 	int8_t cc = iec_data.command;
 	// Is this a Listen or Talk command and is it for us?
@@ -224,7 +224,7 @@ IEC::BusState IEC::service(Data& iec_data)
 		c = receive();
 		if(protocol.flags bitand ERROR)
 		{
-			Debug_printv("Get the first cmd byte");
+			Debug_printf("Get the first cmd byte");
 			return BUS_ERROR;
 		}
 		
@@ -246,7 +246,7 @@ IEC::BusState IEC::service(Data& iec_data)
 
 		if(protocol.flags bitand ERROR)
 		{
-			Debug_printv("Listen/Talk ERROR");
+			Debug_printf("Listen/Talk ERROR");
 			r = BUS_ERROR;
 		}
 	}
@@ -260,7 +260,7 @@ IEC::BusState IEC::service(Data& iec_data)
 	// Was there an error?
 	if(r == BUS_IDLE || r == BUS_ERROR)
 	{
-		// Debug_printv("release lines");
+		// Debug_printf("release lines");
 		releaseLines();
 	}
 	// Don't do anything here or it could cause LOAD ERROR!!!
@@ -302,7 +302,7 @@ IEC::BusState IEC::deviceListen(Data& iec_data)
 			int16_t c = receive();
 			if(protocol.flags bitand ERROR)
 			{
-				Debug_printv("Some other command [%.2X]", c);
+				Debug_printf("Some other command [%.2X]", c);
 				return BUS_ERROR;
 			}
 				
@@ -317,7 +317,7 @@ IEC::BusState IEC::deviceListen(Data& iec_data)
 			{
 				// Buffer is going to overflow, this is an error condition
 				// FIXME: here we should propagate the error type being overflow so that reading error channel can give right code out.
-				Debug_printv("IEC_CMD_MAX_LENGTH");
+				Debug_printf("IEC_CMD_MAX_LENGTH");
 				return BUS_ERROR;
 			}
 			if(c != 0x0D)
@@ -337,7 +337,7 @@ IEC::BusState IEC::deviceListen(Data& iec_data)
 	// Unknown
 	else
 	{
-		Debug_printv(BACKSPACE "] OTHER (%.2X COMMAND) (%.2X CHANNEL) ", iec_data.command, iec_data.channel);
+		Debug_printf(BACKSPACE "] OTHER (%.2X COMMAND) (%.2X CHANNEL) ", iec_data.command, iec_data.channel);
 	}
 
 	if( iec_data.content.size() )
@@ -348,7 +348,7 @@ IEC::BusState IEC::deviceListen(Data& iec_data)
 
 // void IEC::deviceUnListen(void)
 // {
-// 	Debug_printv("");
+// 	Debug_printf("");
 
 // 	// Release lines
 // 	protocol.release(IEC_PIN_CLK);
@@ -379,7 +379,7 @@ IEC::BusState IEC::deviceTalk(Data& iec_data)
 
 // void IEC::deviceUnTalk(void)
 // {
-// 	Debug_printv("");
+// 	Debug_printf("");
 
 // 	// Release lines
 // 	protocol.release(IEC_PIN_CLK);
@@ -395,7 +395,7 @@ IEC::BusState IEC::deviceTalk(Data& iec_data)
 
 void IEC::releaseLines(bool wait)
 {
-	//Debug_printv("");
+	//Debug_printf("");
 
 	// Release lines
 	protocol.release(IEC_PIN_CLK);
@@ -404,7 +404,7 @@ void IEC::releaseLines(bool wait)
 	// Wait for ATN to release and quit
 	if ( wait )
 	{
-		//Debug_printv("Waiting for ATN to release");
+		//Debug_printf("Waiting for ATN to release");
 		while(protocol.status(IEC_PIN_ATN) == PULLED)
 		{
 			ESP.wdtFeed();
