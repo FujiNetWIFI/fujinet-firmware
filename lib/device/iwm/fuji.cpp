@@ -992,7 +992,7 @@ void iwmFuji::iwm_ctrl_set_device_filename()
     Debug_printf("filename: %s\n", f);
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
-    _populate_config_from_slots();
+    _populate_config_from_slots();  // this one maybe unnecessary?
 }
 
 // Get a 256 byte filename from device slot
@@ -1122,12 +1122,11 @@ void iwmFuji::setup(iwmBus *iwmbus)
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;  // to do - understand?
 
-    // _iwm_bus->addDevice(&_fnDisks[3].disk_dev, iwm_fujinet_type_t::BlockDisk);
-    // _iwm_bus->addDevice(&_fnDisks[2].disk_dev, iwm_fujinet_type_t::BlockDisk);
-    _fnDisks[1].disk_dev.set_disk_number('1');
-    _iwm_bus->addDevice(&_fnDisks[1].disk_dev, iwm_fujinet_type_t::BlockDisk);
-    _fnDisks[0].disk_dev.set_disk_number('0');
-    _iwm_bus->addDevice(&_fnDisks[0].disk_dev, iwm_fujinet_type_t::BlockDisk);
+    for (int i = MAX_DISK_DEVICES - 1; i >= 0; i--)
+    {
+      _fnDisks[i].disk_dev.set_disk_number('0' + i);
+      _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
+    }
 
     Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
