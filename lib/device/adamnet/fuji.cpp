@@ -370,6 +370,8 @@ void adamFuji::adamnet_copy_file()
     unsigned char sourceSlot;
     unsigned char destSlot;
 
+    Debug_printf("ADAMNET COPY FILE\n");
+
     memset(&csBuf, 0, sizeof(csBuf));
 
     sourceSlot = adamnet_recv();
@@ -377,17 +379,7 @@ void adamFuji::adamnet_copy_file()
     adamnet_recv_buffer(csBuf,sizeof(csBuf));
     ck = adamnet_recv();
 
-    if (ck != adamnet_checksum(csBuf, sizeof(csBuf)))
-    {
-        AdamNet.start_time=esp_timer_get_time();
-        adamnet_response_nack();
-        return;
-    }
-    else
-    {
-        AdamNet.start_time=esp_timer_get_time();
-        adamnet_response_ack();
-    }
+    adamnet_response_ack();
 
     dataBuf = (char *)malloc(532);
 
@@ -1536,6 +1528,9 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_DEVICE_ENABLE_STATUS:
         adamnet_device_enable_status();
+        break;
+    case SIO_FUJICMD_COPY_FILE:
+        adamnet_copy_file();
         break;
     }
 }
