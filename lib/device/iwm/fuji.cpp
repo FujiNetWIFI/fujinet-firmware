@@ -1273,7 +1273,7 @@ void iwmFuji::encode_status_dib_reply_packet()
   {
     for (i = 0; i < 8; i++)
     {
-      group_buffer[i] = data[i + oddnum + (grpcount * 7)];
+      group_buffer[i] = data[i + oddnum + (grpcount * 7)]; // data should have 26 cells?
     }
     // add group msb byte
     grpmsb = 0;
@@ -1444,12 +1444,15 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       // to do? parallel to SP status?
       break;
     default:
+      Debug_printf("\r\nBad Status Code, sending error response");
       encode_error_reply_packet(SP_ERR_BADCTL);
       IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return;
       break;
   }
+  Debug_printf("\r\nStatus code complete, sending response");
   encode_data_packet(packet_len);
+  
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 

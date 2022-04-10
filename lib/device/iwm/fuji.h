@@ -189,6 +189,9 @@ public:
 
     void sio_mount_all();              // 0xD7
 
+    void FujiStatus(cmdPacket_t cmd) { iwm_status(cmd); }
+    void FujiControl(cmdPacket_t cmd) { iwm_ctrl(cmd); }
+
     iwmFuji();
 
     // virtual void startup_hack() override { Debug_printf("\r\n Fuji startup hack"); }
