@@ -55,8 +55,8 @@ public:
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
     bool write_blank(FILE *f, uint16_t numBlocks);
 
-    void set_disk_number(char c) {disk_num = c;}
-
+    void set_disk_number(char c) { disk_num = c; }
+    char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
     // void init();
     ~iwmDisk();

@@ -5,6 +5,7 @@
 #include "fnFsTNFS.h"
 #include "fnFsSD.h"
 #include "led.h"
+#include "fuji.h"
 
 #define LOCAL_TNFS
 
@@ -457,12 +458,17 @@ void iwmDisk::encode_extended_status_dib_reply_packet()
 
 void iwmDisk::process(cmdPacket_t cmd)
 {
+  uint8_t status_code;
   fnLedManager.set(LED_BUS, true);
   switch (cmd.command)
   {
   case 0x80: // status
     Debug_printf("\r\nhandling status command");
-    iwm_status(cmd);
+    status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+    if (disk_num == '0' && status_code > 0x05) // max regular status code is 0x05 to UniDisk
+      theFuji.FujiStatus(cmd);
+    else  
+      iwm_status(cmd);
     break;
   case 0x81: // read block
     Debug_printf("\r\nhandling read block command");
@@ -476,7 +482,11 @@ void iwmDisk::process(cmdPacket_t cmd)
     iwm_return_badcmd(cmd);
     break;
   case 0x84: // control
-    iwm_return_badcmd(cmd);
+    status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+    if (disk_num == '0' && status_code > 0x0A) // max regular control code is 0x0A to 3.5" disk
+      theFuji.FujiControl(cmd);
+    else  
+      iwm_return_badcmd(cmd);
     break;
   case 0x86: // open
     iwm_return_badcmd(cmd);

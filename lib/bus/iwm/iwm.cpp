@@ -8,8 +8,9 @@
 #include "utils.h"
 #include "led.h"
 
-#include "../device/iwm/disk.h"
 
+#include "../device/iwm/disk.h"
+#include "../device/iwm/fuji.h"
 
 
 /******************************************************************************
@@ -118,6 +119,10 @@ void print_packet(uint8_t* data)
 //#endif
 
 //------------------------------------------------------------------------------
+
+uint8_t iwmDevice::packet_buffer[BLOCK_PACKET_LEN] = { 0 };
+uint16_t iwmDevice::packet_len = 0;
+uint16_t iwmDevice::num_decoded = 0;
 
 void iwmBus::timer_config()
 {
@@ -1363,9 +1368,17 @@ void iwmBus::handle_init()
 
   iwm_rddata_clr();
   iwm_rddata_enable();
+
+  
   // to do - get the next device in the daisy chain and assign ID
   for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
   {
+    // tell the Fuji it's device no.
+    if (it == _daisyChain.begin())
+    {
+      theFuji._devnum = command_packet.dest;
+    }
+    // assign dev numbers
     pDevice = (*it);
     if (pDevice->id() == 0)
     {
@@ -1379,6 +1392,7 @@ void iwmBus::handle_init()
       // print_packet ((uint8_t*) packet_buffer,get_packet_length());
 
       Debug_printf(("\r\nDrive: %02x\r\n"), pDevice->id());
+      fnLedManager.set(LED_BUS, false);
       return;
     }
   }
