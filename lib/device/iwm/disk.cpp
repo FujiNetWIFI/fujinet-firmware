@@ -661,7 +661,7 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         _disk = new MediaTypePO();
         mt = _disk->mount(f, disksize);
         //_disk->fileptr() = f;
-        mt = MEDIATYPE_PO;
+        // mt = MEDIATYPE_PO;
         break;
     default:
         Debug_printf("\r\nMedia Type UNKNOWN - no mount");
