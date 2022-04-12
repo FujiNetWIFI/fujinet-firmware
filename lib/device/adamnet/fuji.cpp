@@ -379,7 +379,9 @@ void adamFuji::adamnet_copy_file()
     adamnet_recv_buffer(csBuf,sizeof(csBuf));
     ck = adamnet_recv();
 
-    adamnet_response_ack();
+    AdamNet.wait_for_idle();
+    fnUartSIO.write(0x9f); // ACK.
+    fnUartSIO.flush();
 
     dataBuf = (char *)malloc(532);
 
@@ -418,6 +420,8 @@ void adamFuji::adamnet_copy_file()
     fclose(sourceFile);
     fclose(destFile);
     free(dataBuf);
+
+    Debug_printf("COPY DONE\n");
 
 }
 
