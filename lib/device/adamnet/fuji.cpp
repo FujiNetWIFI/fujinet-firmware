@@ -60,6 +60,8 @@
 
 #define ADDITIONAL_DETAILS_BYTES 12
 
+#define COPY_SIZE 532
+
 adamFuji theFuji;        // global fuji device object
 adamNetwork *theNetwork; // global network device object (temporary)
 adamPrinter *thePrinter; // global printer
@@ -369,6 +371,7 @@ void adamFuji::adamnet_copy_file()
     char *dataBuf;
     unsigned char sourceSlot;
     unsigned char destSlot;
+    unsigned long total=0;
 
     Debug_printf("ADAMNET COPY FILE\n");
 
@@ -383,7 +386,7 @@ void adamFuji::adamnet_copy_file()
     fnUartSIO.write(0x9f); // ACK.
     fnUartSIO.flush();
 
-    dataBuf = (char *)malloc(532);
+    dataBuf = (char *)malloc(COPY_SIZE);
 
     copySpec = string((char *)csBuf);
 
@@ -410,11 +413,15 @@ void adamFuji::adamnet_copy_file()
     destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
 
     size_t count = 0;
-    do
+
+    while (!(ferror(sourceFile) || feof(sourceFile)))
     {
-        count = fread(dataBuf, 1, 532, sourceFile);
+        count = fread(dataBuf, 1, COPY_SIZE, sourceFile);
         fwrite(dataBuf, 1, count, destFile);
-    } while (count > 0);
+        total += count;
+        Debug_printf("Copied: %lu bytes %u %u\n",total,feof(sourceFile),ferror(sourceFile));
+        taskYIELD();
+    }
 
     // copyEnd:
     fclose(sourceFile);
