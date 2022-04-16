@@ -25,7 +25,7 @@
 
 typedef struct
 {
-    char ssid[32];
+    char ssid[MAX_SSID_LEN + 1];
     char hostname[64];
     unsigned char localIP[4];
     unsigned char gateway[4];
@@ -68,7 +68,7 @@ private:
     // Response to SIO_FUJICMD_GET_SCAN_RESULT
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN + 1];
         uint8_t rssi;
     } detail;
 

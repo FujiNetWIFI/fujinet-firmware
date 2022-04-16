@@ -90,7 +90,7 @@ void iwmFuji::iwm_stat_net_get_ssid() // SP STATUS command
     // Response to IWM_FUJICMD_GET_SSID
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN + 1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
@@ -121,12 +121,12 @@ void iwmFuji::iwm_stat_net_scan_networks() // SP STATUS command
 
     isReady = false;
 
-    if (scanStarted == false)
-    {
+    //if (scanStarted == false)
+    //{
         _countScannedSSIDs = fnWiFi.scan_networks();
-        scanStarted = true;
+    //    scanStarted = true;
         setSSIDStarted = false;
-    }
+    //}
 
     isReady = true;
 
@@ -134,12 +134,10 @@ void iwmFuji::iwm_stat_net_scan_networks() // SP STATUS command
     packet_len = 1;
 } // 0xFD
 
-
-
 void iwmFuji::iwm_ctrl_net_scan_result() //SP STATUS command 
 {
   Debug_print("\r\nFuji cmd: GET SCAN RESULT");
-  scanStarted = false;
+  //scanStarted = false;
 
   uint8_t n = packet_buffer[0]; 
 
@@ -157,7 +155,7 @@ void iwmFuji::iwm_stat_net_scan_result() //SP STATUS command
 
     memset(packet_buffer, 0, sizeof(packet_buffer));
     memcpy(packet_buffer, &detail, sizeof(detail));
-    packet_len = 33;
+    packet_len = sizeof(detail);
 } // 0xFC
 
 void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
@@ -172,7 +170,7 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
         // Data for IWM_FUJICMD_SET_SSID
         struct
         {
-            char ssid[MAX_SSID_LEN];
+            char ssid[MAX_SSID_LEN + 1];
             char password[MAX_WIFI_PASS_LEN];
         } cfg;
 
