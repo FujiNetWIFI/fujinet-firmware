@@ -11,7 +11,7 @@
 #include <map>
 
 
-#define iec_BAUD 62500
+#define IEC_BAUD 62500
 
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)
@@ -29,14 +29,14 @@
 #define NM_SEND 0x0B   // response.data (send)
 #define NM_NACK 0x0C   // response.control (nack)
 
-#define iec_DEVICE_ID_KEYBOARD 0x01
-#define iec_DEVICE_ID_PRINTER  0x02
-#define iec_DEVICEID_DISK      0x04
-#define iec_DEVICE_TAPE        0x08
-#define iec_DEVICE_NETWORK     0x0E
-#define iec_DEVICE_FUJINET     0x0F
+#define IEC_DEVICE_ID_KEYBOARD 0x01
+#define IEC_DEVICE_ID_PRINTER  0x02
+#define IEC_DEVICEID_DISK      0x04
+#define IEC_DEVICE_TAPE        0x08
+#define IEC_DEVICE_NETWORK     0x0E
+#define IEC_DEVICE_FUJINET     0x0F
 
-#define iec_RESET_DEBOUNCE_PERIOD 100 // in ms
+#define IEC_RESET_DEBOUNCE_PERIOD 100 // in ms
 
 union cmdFrame_t
 {

@@ -346,7 +346,9 @@ int16_t CBMStandardSerial::timeoutWait(uint8_t iecPIN, bool lineStatus, size_t w
 	if(wait == FOREVER)
 	{
 		while(status(iecPIN) != lineStatus) {
+#if defined(ESP8266)
 			ESP.wdtFeed();
+#endif
 			delayMicroseconds(step);
 			t++;	
 		}

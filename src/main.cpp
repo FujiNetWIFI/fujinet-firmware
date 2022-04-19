@@ -1,3 +1,7 @@
+#include <freertos/FreeRTOS.h>
+#include <freertos/portmacro.h>
+#include <freertos/task.h>
+
 #include <esp_system.h>
 #include <nvs_flash.h>
 #include <esp32/spiram.h>
@@ -213,7 +217,7 @@ void fn_service_loop(void *param)
         else
 #endif // BLUETOOTH_SUPPORT
 
-            SYSTEM_BUS.service();
+        SYSTEM_BUS.service();
 
         taskYIELD(); // Allow other tasks to run
     }

@@ -1,4 +1,4 @@
-#ifdef BUILD_CBM
+#ifdef DONT_BUILD_CBM
 
 #include "d80.h"
 

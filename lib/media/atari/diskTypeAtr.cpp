@@ -182,7 +182,7 @@ bool MediaTypeATR::format(uint16_t *responsesize)
  05 hibyte
  06   byte paragraphs on disk extension (24-bits total)
  
- 07-0F have two possible interpretations but are no critical for our use
+ 07-0F have two possible interpretations but are not critical for our use
 */
 mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
 {

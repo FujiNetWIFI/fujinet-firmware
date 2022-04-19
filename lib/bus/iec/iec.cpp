@@ -43,7 +43,7 @@ static void iec_reset_intr_task(void *arg)
 
         if (was_reset)
         {
-            if (elapsed >= iec_RESET_DEBOUNCE_PERIOD)
+            if (elapsed >= IEC_RESET_DEBOUNCE_PERIOD)
             {
                 reset_debounced = true;
             }
@@ -307,7 +307,7 @@ void systemBus::setup()
     gpio_isr_handler_add((gpio_num_t)PIN_IEC_RESET, iec_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
 
     // Set up UART
-    fnUartSIO.begin(iec_BAUD);
+    fnUartSIO.begin(IEC_BAUD);
 }
 
 void systemBus::shutdown()
