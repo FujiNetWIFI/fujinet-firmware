@@ -6,7 +6,7 @@
 #endif
 
 #ifdef BUILD_CBM
-# include "iec/cassette.h"
+//# include "iec/cassette.h"
 #endif
 
 #ifdef NEW_TARGET
