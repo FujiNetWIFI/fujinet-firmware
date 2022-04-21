@@ -72,6 +72,8 @@ public:
     void dump_percom_block();
     void derive_percom_block(uint16_t numSectors);
 
+    uint32_t num_blocks() { return _media_num_blocks; }
+
     virtual ~MediaType();
 };
 
