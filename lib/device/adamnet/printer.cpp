@@ -22,31 +22,30 @@
 
 constexpr const char *const adamPrinter::printer_model_str[PRINTER_INVALID];
 
-static xQueueHandle print_queue = NULL;
-
-typedef struct _printItem
+struct _printItem
 {
     uint8_t len;
     uint8_t buf[16];
-} PrintItem;
+} pi;
+
+bool need_print = false;
 
 void printerTask(void *param)
 {
     adamPrinter *p = (adamPrinter *)param;
     printer_emu *pe = p->getPrinterPtr();
     uint8_t *pb = pe->provideBuffer();
-    PrintItem pi;
 
 pttop:
-    while (uxQueueMessagesWaiting(print_queue))
+    if (need_print == true)
     {
         fnLedManager.set(LED_BT,true);
-        xQueueReceive(print_queue,&pi,portMAX_DELAY);
         memcpy(pb,pi.buf,pi.len);
         pe->process(pi.len,0,0);
         fnLedManager.set(LED_BT,false);
+        need_print=false;
     }
-    vTaskDelay(10);
+    taskYIELD();
     goto pttop;
 }
 
@@ -60,17 +59,13 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
     getPrinterPtr()->setTranslate850(false);
     getPrinterPtr()->setEOL(0x0D);
 
-    print_queue = xQueueCreate(16, sizeof(PrintItem));
-    //xTaskCreate(printerTask, "ptsk", 4096, this, 1, &thPrinter);
+    xTaskCreate(printerTask, "ptsk", 4096, this, 1, &thPrinter);
 }
 
 adamPrinter::~adamPrinter()
 {
     if (thPrinter != nullptr)
         vTaskDelete(thPrinter);
-
-    if (print_queue != nullptr)
-        vQueueDelete(print_queue);
 
     if (_pptr != nullptr)
         delete _pptr;
@@ -101,8 +96,6 @@ void adamPrinter::idle()
 {
 }
 
-PrintItem pi;
-
 void adamPrinter::adamnet_control_send()
 {
     memset(&pi,0,sizeof(pi));
@@ -113,9 +106,8 @@ void adamPrinter::adamnet_control_send()
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    printf("!!! Print Item: L: %u D: %s\n",pi.len,pi.buf);
+    need_print=true;
 
-    xQueueSend(print_queue,&pi,portMAX_DELAY);
     _last_ms = fnSystem.millis();
 }
 
@@ -123,7 +115,7 @@ void adamPrinter::adamnet_control_ready()
 {
     AdamNet.start_time = esp_timer_get_time();
 
-    if (uxQueueMessagesWaiting(print_queue))
+    if (need_print==true)
         adamnet_response_nack();
     else
         adamnet_response_ack();
