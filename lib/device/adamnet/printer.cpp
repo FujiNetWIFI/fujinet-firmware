@@ -33,20 +33,20 @@ bool need_print = false;
 void printerTask(void *param)
 {
     adamPrinter *p = (adamPrinter *)param;
-    printer_emu *pe = p->getPrinterPtr();
-    uint8_t *pb = pe->provideBuffer();
 
-pttop:
-    if (need_print == true)
+    while(1)
     {
-        fnLedManager.set(LED_BT,true);
-        memcpy(pb,pi.buf,pi.len);
-        pe->process(pi.len,0,0);
-        fnLedManager.set(LED_BT,false);
-        need_print=false;
-    }
+        if (need_print == true)
+        {
+            fnLedManager.set(LED_BT,true);
+            p->perform_print();
+            fnLedManager.set(LED_BT,false);
+            need_print=false;
+        }
+
     taskYIELD();
-    goto pttop;
+
+    }
 }
 
 // Constructor just sets a default printer type
@@ -92,8 +92,10 @@ void adamPrinter::adamnet_control_status()
     adamnet_send_buffer(c, sizeof(c));
 }
 
-void adamPrinter::idle()
+void adamPrinter::perform_print()
 {
+    memcpy(_pptr->provideBuffer(),pi.buf,pi.len);
+    _pptr->process(pi.len,0,0);
 }
 
 void adamPrinter::adamnet_control_send()
