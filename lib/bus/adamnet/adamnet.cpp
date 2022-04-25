@@ -167,7 +167,6 @@ void virtualDevice::adamnet_response_ack()
     }
     else
     {
-        Debug_printf("NM_ACK too long: %u μs\n",t);
     }
 }
 
@@ -272,7 +271,6 @@ void systemBus::_adamnet_process_cmd()
     }
     else if (_daisyChain[d]->device_active == true)
     {
-        Debug_printf("Fanning out to device %u\n",d);
         // turn on AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
         _daisyChain[d]->adamnet_process(b);
