@@ -143,7 +143,6 @@ void main_setup()
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     adamPrinter::printer_type printer = Config.get_printer_type(0);
     adamPrinter *ptr = new adamPrinter(ptrfs, printer);
-    ptr->start_printer_task();
     fnPrinters.set_entry(0, ptr, printer, 0);
     AdamNet.addDevice(ptr, ADAMNET_DEVICE_ID_PRINTER);
 
