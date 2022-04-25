@@ -59,7 +59,7 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
     getPrinterPtr()->setTranslate850(false);
     getPrinterPtr()->setEOL(0x0D);
 
-    xTaskCreate(printerTask, "ptsk", 4096, this, 1, &thPrinter);
+    xTaskCreate(printerTask, "ptsk", 4096, this, 0, &thPrinter);
 }
 
 adamPrinter::~adamPrinter()
