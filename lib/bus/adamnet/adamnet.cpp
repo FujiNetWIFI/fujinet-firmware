@@ -11,6 +11,8 @@
 #include "led.h"
 #include <cstring>
 
+#define IDLE_TIME 180 // Idle tolerance in microseconds
+
 static xQueueHandle reset_evt_queue = NULL;
 
 static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
@@ -202,7 +204,7 @@ void systemBus::wait_for_idle()
         {
             current = esp_timer_get_time();
             dur = current - start;
-            if (dur > 150)
+            if (dur > IDLE_TIME)
                 isIdle = true;
         }
     } while (isIdle == false);
@@ -270,6 +272,7 @@ void systemBus::_adamnet_process_cmd()
     }
     else if (_daisyChain[d]->device_active == true)
     {
+        Debug_printf("Fanning out to device %u\n",d);
         // turn on AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
         _daisyChain[d]->adamnet_process(b);
