@@ -189,7 +189,6 @@ void adamDisk::adamnet_response_status()
 
     if (t < 300)
     {
-        Debug_printf("Returning media status: %02x\n",status_response[4]);
         virtualDevice::adamnet_response_status();
     }
 }
