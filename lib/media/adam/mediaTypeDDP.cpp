@@ -44,11 +44,15 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
         err = fread(_media_blockbuff, 1, 1024, _media_fileh) != 1024;
 
     if (err == false)
+    {
         _media_last_block = blockNum;
+        _media_controller_status = 0;
+    }
     else
+    {
         _media_last_block = INVALID_SECTOR_VALUE;
-
-    _media_controller_status=0;
+        _media_controller_status = 2;
+    }
 
     return err;
 }
