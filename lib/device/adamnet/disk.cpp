@@ -122,8 +122,10 @@ void adamDisk::adamnet_control_receive()
     if (_media == nullptr)
         return;
 
-    _media->read(blockNum, nullptr);
-    adamnet_response_ack();
+    if (_media->read(blockNum, nullptr))
+        adamnet_response_nack();
+    else
+        adamnet_response_ack();
 }
 
 void adamDisk::adamnet_control_send_block_num()
@@ -186,6 +188,8 @@ void adamDisk::adamnet_response_status()
         status_response[4] = 0x40 | _media->_media_controller_status;
     
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
+
+    Debug_printf("Disk Status: %02x\n",status_response[4]);
 
     if (t < 300)
     {
