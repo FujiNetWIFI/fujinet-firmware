@@ -23,7 +23,7 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     Debug_print("DDP READ\n");
 
     // Return an error if we're trying to read beyond the end of the disk
-    if (blockNum > _media_num_blocks)
+    if (blockNum > _media_num_blocks-1)
     {
         Debug_printf("::read block %d > %d\n", blockNum, _media_num_blocks);
         _media_controller_status=2;
