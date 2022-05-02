@@ -47,11 +47,13 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     {
         _media_last_block = blockNum;
         _media_controller_status = 0;
+        return false;
     }
     else
     {
         _media_last_block = INVALID_SECTOR_VALUE;
         _media_controller_status = 2;
+        return true;
     }
 
     return err;
