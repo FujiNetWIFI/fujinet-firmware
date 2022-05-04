@@ -20,6 +20,8 @@
 #include "png_printer.h"
 #include "coleco_printer.h"
 
+#define PRINTER_PRIORITY 9
+
 constexpr const char *const adamPrinter::printer_model_str[PRINTER_INVALID];
 
 struct _printItem
@@ -44,7 +46,7 @@ void printerTask(void *param)
             need_print=false;
         }
 
-    taskYIELD();
+    vTaskDelay(1);
 
     }
 }
@@ -59,7 +61,7 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
     getPrinterPtr()->setTranslate850(false);
     getPrinterPtr()->setEOL(0x0D);
 
-    xTaskCreate(printerTask, "ptsk", 4096, this, 0, &thPrinter);
+    xTaskCreate(printerTask, "ptsk", 4096, this, PRINTER_PRIORITY, &thPrinter);
 }
 
 adamPrinter::~adamPrinter()
