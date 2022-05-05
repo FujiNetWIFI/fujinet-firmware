@@ -189,8 +189,6 @@ void adamDisk::adamnet_response_status()
     
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    Debug_printf("Disk Status: %02x\n",status_response[4]);
-
     if (t < 300)
     {
         virtualDevice::adamnet_response_status();
