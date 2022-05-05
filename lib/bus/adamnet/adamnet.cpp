@@ -221,7 +221,6 @@ void virtualDevice::adamnet_process(uint8_t b)
 void virtualDevice::adamnet_control_status()
 {
     AdamNet.start_time=esp_timer_get_time();
-    Debug_printf("adamnet_control_status(%u)\n",_devnum);
    adamnet_response_status();
 }
 
