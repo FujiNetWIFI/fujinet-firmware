@@ -6,9 +6,11 @@
 #include "driver/timer.h" // contains the hardware timer register data structure
 #include "../../include/debug.h"
 #include "utils.h"
+#include "led.h"
+
 
 #include "../device/iwm/disk.h"
-
+#include "../device/iwm/fuji.h"
 
 
 /******************************************************************************
@@ -117,6 +119,10 @@ void print_packet(uint8_t* data)
 //#endif
 
 //------------------------------------------------------------------------------
+
+uint8_t iwmDevice::packet_buffer[BLOCK_PACKET_LEN] = { 0 };
+uint16_t iwmDevice::packet_len = 0;
+uint16_t iwmDevice::num_decoded = 0;
 
 void iwmBus::timer_config()
 {
@@ -1244,11 +1250,20 @@ int iwmDevice::get_packet_length (void)
  * that takes us back to idle. This will take more
  * investigation.
  */
+/**
+ * thoughts on disk2 device
+ * phases will be individual or adjacent (half-stepping or quarter track)
+ * shouldnt be moving head without enabling disk
+ * 
+*/
 //*****************************************************************************
 void iwmBus::service()
 {
   iwm_ack_disable(); // go hi-Z
   iwm_ack_clr();     // prep for the next read packet
+
+  // DISK II - check to see if ENABLE is set running the spindle
+
 
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
@@ -1256,12 +1271,7 @@ void iwmBus::service()
   case iwm_phases_t::idle:
     break;
   case iwm_phases_t::reset:
-    // instead of the code in this section, we should call a reset handler
-    // the handler should reset every device
-    // and wait for reset to clear (probably with a timeout)
     Debug_printf(("\r\nReset"));
-    // hard coding 1 partition - will use disk class instances instead
-    // smort->_devnum = 0;
     for (auto devicep : _daisyChain)
       devicep->_devnum = 0;
 
@@ -1269,7 +1279,6 @@ void iwmBus::service()
       ; // no timeout needed because the IWM must eventually clear reset.
     // even if it doesn't, we would just come back to here, so might as
     // well wait until reset clears.
-
     Debug_printf(("\r\nReset Cleared"));
     break;
   case iwm_phases_t::enable:
@@ -1308,7 +1317,6 @@ void iwmBus::service()
     }
     else
     {
-      // smort->process(command_packet);
       for (auto devicep : _daisyChain)
       {
         if (command_packet.dest == devicep->_devnum)
@@ -1358,11 +1366,21 @@ void iwmBus::handle_init()
   uint8_t status = 0;
   iwmDevice* pDevice = nullptr;
 
+  fnLedManager.set(LED_BUS, true);
+
   iwm_rddata_clr();
   iwm_rddata_enable();
+
+  
   // to do - get the next device in the daisy chain and assign ID
   for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
   {
+    // tell the Fuji it's device no.
+    if (it == _daisyChain.begin())
+    {
+      theFuji._devnum = command_packet.dest;
+    }
+    // assign dev numbers
     pDevice = (*it);
     if (pDevice->id() == 0)
     {
@@ -1376,9 +1394,13 @@ void iwmBus::handle_init()
       // print_packet ((uint8_t*) packet_buffer,get_packet_length());
 
       Debug_printf(("\r\nDrive: %02x\r\n"), pDevice->id());
+      fnLedManager.set(LED_BUS, false);
       return;
     }
   }
+
+  fnLedManager.set(LED_BUS, false);
+
 }
 
 // Add device to SIO bus
@@ -1529,10 +1551,10 @@ void iwmBus::test_send(iwmDevice* smort)
 }
 #endif
 
-void iwmBus::startup_hack()
-{
-  _daisyChain.front()->startup_hack();
-}
+// void iwmBus::startup_hack()
+// {
+//   _daisyChain.front()->startup_hack();
+// }
 
 iwmBus IWM; // global smartport bus variable
 

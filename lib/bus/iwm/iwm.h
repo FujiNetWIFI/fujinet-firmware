@@ -219,11 +219,11 @@ protected:
   bool _initialized;
 
   // iwm packet handling
-  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  uint16_t packet_len;
+  static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  static uint16_t packet_len;
 
   bool decode_data_packet(void); //decode smartport 512 byte data packet
-  uint16_t num_decoded;
+  static uint16_t num_decoded;
 
   void encode_data_packet(); //encode smartport 512 byte data packet
   void encode_data_packet(uint16_t num); //encode smartport "num" byte data packet
@@ -262,6 +262,7 @@ public:
    * @brief get the IWM device Number (1-255)
    * @return The device number registered for this device
    */
+  void set_id(uint8_t dn) { _devnum=dn; };
   int id() { return _devnum; };
   //void assign_id(uint8_t n) { _devnum = n; };
 
@@ -275,7 +276,7 @@ public:
   /**
    * Startup hack for now
    */
-  virtual void startup_hack() = 0;
+  // virtual void startup_hack() = 0;
 };
 
 class iwmBus
@@ -328,11 +329,38 @@ private:
     idle = 0,
     reset,
     enable
+    // phi00,
+    // phi01,
+    // phi11,
+    // phi12,
+    // phi22,
+    // phi23,
+    // phi33,
+    // phi30
   };
   iwm_phases_t iwm_phases();
 #ifdef DEBUG
   iwm_phases_t oldphase;
 #endif
+  
+  /**
+   * @brief 
+   * 
+   * https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
+   * 
+   * On an Apple II, things are more complicated. The Apple 5.25 controller card was the first to use a DB19 connector, and it supported two daisy-chained 5.25 inch drives. Pin 17 is /DRIVE1 enable, and pin 9 (unconnected on the Macintosh) is /DRIVE2 enable. Within each drive, internal circuitry routes the signal from input pin 9 to output pin 17 on the daisy-chain connector. Drive #2 doesn’t actually know that it’s drive #2 – it enables itself by observing /DRIVE1 on pin 17, just like the first drive – only the first drive has sneakily rerouted /DRIVE2 to /DRIVE1. This allows for two drives to be daisy chained. 
+   * On an Apple IIgs, it’s even more complicated. Its DB19 connector supports daisy-chaining two 3.5 inch drives, and two 5.25 inch drives – as well as even more SmartPort drives, which I won’t discuss now. Pin 4 (GND on the Macintosh) is /EN3.5, a new signal that enables the 3.5 inch drives when it’s low, or the 5.25 inch drives when it’s high. The 3.5 inch drives must appear before any 5.25 inch drives in the daisy chain. When /EN3.5 is low, the 3.5 inch drives use pins 17 and 9 to enable themselves, and when /EN3.5 is high, the 3.5 inch drives pass through the signals on pins 17 and 9 unmodified to the 5.25 drives behind them.
+   * This is getting complicated, but there’s one final kick in the nuts: when the first 3.5 drive is enabled, by the IIgs setting /EN3.5 and /DRIVE1 both low, you would think the drive would disable the next 3.5 drive behind it by setting both /DRIVE1 and /DRIVE2 high at the daisy-chain connector. But no, the first 3.5 drive disables the second 3.5 drive by setting both /DRIVE1 and /DRIVE2 low! This looks like both are enabled at the same time, which would be a definite no-no, but the Apple 3.5 Drive contains circuitry that recognizes this “double enable” as being equivalent to a disable. Why it’s done this way, I don’t know, but I’m sure it has some purpose.
+   */
+  enum class iwm_enables_t
+  {
+    disabled = 0,
+    disk5a,
+    disk5b,
+    disk3a,
+    disk3b
+  };
+  iwm_enables_t iwm_enables();
 
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
@@ -362,7 +390,7 @@ public:
   void test_send(iwmDevice* smort);
 #endif
 
-  void startup_hack();
+  // void startup_hack();
 
 };
 
