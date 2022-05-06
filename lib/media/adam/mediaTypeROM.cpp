@@ -29,8 +29,10 @@ bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
         if (blockNum < 32)
             memcpy(_media_blockbuff, &rom[blockNum * 1024], sizeof(_media_blockbuff));
         else
-            // Error
+        {
+            _media_controller_status = 2;
             return true;
+        }
     }
     return false;
 }
