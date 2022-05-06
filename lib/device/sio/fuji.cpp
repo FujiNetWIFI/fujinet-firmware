@@ -1242,7 +1242,7 @@ void sioFuji::sio_read_device_slots()
         {
             diskSlots[i].mode = _fnDisks[i].access_mode;
             diskSlots[i].hostSlot = _fnDisks[i].host_slot;
-            strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
+            strlcpy(diskSlots[i].filename, basename(_fnDisks[i].filename), MAX_DISPLAY_FILENAME_LEN);
         }
 
         returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
