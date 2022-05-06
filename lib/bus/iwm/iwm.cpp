@@ -1250,11 +1250,20 @@ int iwmDevice::get_packet_length (void)
  * that takes us back to idle. This will take more
  * investigation.
  */
+/**
+ * thoughts on disk2 device
+ * phases will be individual or adjacent (half-stepping or quarter track)
+ * shouldnt be moving head without enabling disk
+ * 
+*/
 //*****************************************************************************
 void iwmBus::service()
 {
   iwm_ack_disable(); // go hi-Z
   iwm_ack_clr();     // prep for the next read packet
+
+  // DISK II - check to see if ENABLE is set running the spindle
+
 
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
@@ -1262,12 +1271,7 @@ void iwmBus::service()
   case iwm_phases_t::idle:
     break;
   case iwm_phases_t::reset:
-    // instead of the code in this section, we should call a reset handler
-    // the handler should reset every device
-    // and wait for reset to clear (probably with a timeout)
     Debug_printf(("\r\nReset"));
-    // hard coding 1 partition - will use disk class instances instead
-    // smort->_devnum = 0;
     for (auto devicep : _daisyChain)
       devicep->_devnum = 0;
 
@@ -1275,7 +1279,6 @@ void iwmBus::service()
       ; // no timeout needed because the IWM must eventually clear reset.
     // even if it doesn't, we would just come back to here, so might as
     // well wait until reset clears.
-
     Debug_printf(("\r\nReset Cleared"));
     break;
   case iwm_phases_t::enable:
@@ -1314,7 +1317,6 @@ void iwmBus::service()
     }
     else
     {
-      // smort->process(command_packet);
       for (auto devicep : _daisyChain)
       {
         if (command_packet.dest == devicep->_devnum)
