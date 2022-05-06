@@ -11,6 +11,8 @@
 #include "led.h"
 #include <cstring>
 
+#define IDLE_TIME 180 // Idle tolerance in microseconds
+
 static xQueueHandle reset_evt_queue = NULL;
 
 static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
@@ -25,6 +27,7 @@ static void adamnet_reset_intr_task(void *arg)
     bool was_reset = false;
     bool reset_debounced = false;
     uint64_t start, current, elapsed;
+    systemBus *b = (systemBus *)arg;
 
     // reset_detect_status = gpio_get_level((gpio_num_t)PIN_ADAMNET_RESET);
     start = current = esp_timer_get_time();
@@ -55,7 +58,9 @@ static void adamnet_reset_intr_task(void *arg)
             reset_debounced = false;
             ;
         }
-        vTaskDelay(10);
+
+        b->reset();
+        vTaskDelay(1);
     }
 }
 
@@ -165,7 +170,6 @@ void virtualDevice::adamnet_response_ack()
     }
     else
     {
-        Debug_printf("NM_ACK too long: %u μs\n",t);
     }
 }
 
@@ -202,7 +206,7 @@ void systemBus::wait_for_idle()
         {
             current = esp_timer_get_time();
             dur = current - start;
-            if (dur > 150)
+            if (dur > IDLE_TIME)
                 isIdle = true;
         }
     } while (isIdle == false);
@@ -299,7 +303,7 @@ void systemBus::setup()
     // Set up interrupt for RESET line
     reset_evt_queue = xQueueCreate(10, sizeof(uint32_t));
     // Start card detect task
-    xTaskCreate(adamnet_reset_intr_task, "adamnet_reset_intr_task", 2048, NULL, 10, NULL);
+    xTaskCreate(adamnet_reset_intr_task, "adamnet_reset_intr_task", 2048, this, 10, NULL);
     // Enable interrupt for card detection
     fnSystem.set_pin_mode(PIN_ADAMNET_RESET, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP, GPIO_INTR_NEGEDGE);
     // Add the card detect handler
@@ -343,7 +347,10 @@ bool systemBus::deviceExists(uint8_t device_id)
 
 bool systemBus::deviceEnabled(uint8_t device_id)
 {
-    return _daisyChain[device_id]->device_active;
+    if (deviceExists(device_id))
+        return _daisyChain[device_id]->device_active;
+    else
+        return false;
 }
 
 void systemBus::remDevice(virtualDevice *pDevice)
