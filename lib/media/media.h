@@ -21,6 +21,7 @@
 
 #ifdef BUILD_APPLE
 # include "apple/mediaType.h"
+# include "apple/mediaTypePO.h"
 #endif 
 
 #ifdef BUILD_S100

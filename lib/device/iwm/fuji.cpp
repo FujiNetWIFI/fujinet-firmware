@@ -8,6 +8,8 @@
 #include "fnFsSPIFFS.h"
 #include "utils.h"
 
+#include <string>
+
 #define IWM_FUJICMD_RESET 0xFF
 #define IWM_FUJICMD_GET_SSID 0xFE
 #define IWM_FUJICMD_SCAN_NETWORKS 0xFD
@@ -49,6 +51,7 @@
 //#define IWM_FUJICMD_HSIO_INDEX 0x3F
 
 #define ADDITIONAL_DETAILS_BYTES 12
+#define DIR_MAX_LEN 40
 
 iwmFuji theFuji; // Global fuji object.
 
@@ -87,7 +90,7 @@ void iwmFuji::iwm_stat_net_get_ssid() // SP STATUS command
     // Response to IWM_FUJICMD_GET_SSID
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN + 1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
@@ -118,12 +121,12 @@ void iwmFuji::iwm_stat_net_scan_networks() // SP STATUS command
 
     isReady = false;
 
-    if (scanStarted == false)
-    {
+    //if (scanStarted == false)
+    //{
         _countScannedSSIDs = fnWiFi.scan_networks();
-        scanStarted = true;
+    //    scanStarted = true;
         setSSIDStarted = false;
-    }
+    //}
 
     isReady = true;
 
@@ -131,12 +134,10 @@ void iwmFuji::iwm_stat_net_scan_networks() // SP STATUS command
     packet_len = 1;
 } // 0xFD
 
-
-
 void iwmFuji::iwm_ctrl_net_scan_result() //SP STATUS command 
 {
   Debug_print("\r\nFuji cmd: GET SCAN RESULT");
-  scanStarted = false;
+  //scanStarted = false;
 
   uint8_t n = packet_buffer[0]; 
 
@@ -154,7 +155,7 @@ void iwmFuji::iwm_stat_net_scan_result() //SP STATUS command
 
     memset(packet_buffer, 0, sizeof(packet_buffer));
     memcpy(packet_buffer, &detail, sizeof(detail));
-    packet_len = 33;
+    packet_len = sizeof(detail);
 } // 0xFC
 
 void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
@@ -169,7 +170,7 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
         // Data for IWM_FUJICMD_SET_SSID
         struct
         {
-            char ssid[MAX_SSID_LEN];
+            char ssid[MAX_SSID_LEN + 1];
             char password[MAX_WIFI_PASS_LEN];
         } cfg;
 
@@ -211,11 +212,10 @@ void iwmFuji::iwm_stat_net_get_wifi_status() // SP Status command
 // Mount Server
 void iwmFuji::iwm_ctrl_mount_host() // SP CTRL command
 {
-    Debug_printf("\r\nFuji cmd: MOUNT HOST");
-
     unsigned char hostSlot = packet_buffer[0]; // adamnet_recv();
+    Debug_printf("\r\nFuji cmd: MOUNT HOST no. %d", hostSlot);
 
-    if (hostMounted[hostSlot] == false)
+    if ((hostSlot < 8) && (hostMounted[hostSlot] == false))
     {
         _fnHosts[hostSlot].mount();
         hostMounted[hostSlot] = true;
@@ -266,6 +266,52 @@ void iwmFuji::iwm_ctrl_set_boot_config() // SP CTRL command
 // Do SIO copy
 void iwmFuji::iwm_ctrl_copy_file()
 {
+    std::string copySpec;
+    std::string sourcePath;
+    std::string destPath;
+    FILE *sourceFile;
+    FILE *destFile;
+    char *dataBuf;
+    unsigned char sourceSlot;
+    unsigned char destSlot;
+
+    sourceSlot = packet_buffer[0]; // adamnet_recv();
+    destSlot = packet_buffer[0]; //adamnet_recv();
+    copySpec = std::string((char *)&packet_buffer[2]);
+    Debug_printf("copySpec: %s\n", copySpec.c_str());
+
+    // Chop up copyspec.
+    sourcePath = copySpec.substr(0, copySpec.find_first_of("|"));
+    destPath = copySpec.substr(copySpec.find_first_of("|") + 1);
+
+    // At this point, if last part of dest path is / then copy filename from source.
+    if (destPath.back() == '/')
+    {
+        Debug_printf("append source file\n");
+        std::string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
+        destPath += sourceFilename;
+    }
+
+    // Mount hosts, if needed.
+    _fnHosts[sourceSlot].mount();
+    _fnHosts[destSlot].mount();
+
+    // Open files...
+    sourceFile = _fnHosts[sourceSlot].file_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
+    destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
+
+    dataBuf = (char *)malloc(532);
+    size_t count = 0;
+    do
+    {
+        count = fread(dataBuf, 1, 532, sourceFile);
+        fwrite(dataBuf, 1, count, destFile);
+    } while (count > 0);
+
+    // copyEnd:
+    fclose(sourceFile);
+    fclose(destFile);
+    free(dataBuf);
 }
 
 /* 
@@ -404,9 +450,10 @@ void iwmFuji::iwm_ctrl_read_app_key()
 
 void iwmFuji::iwm_stat_read_app_key() // return the app key that was just read by the read app key control command
 {
-    memset(packet_buffer,0,sizeof(packet_buffer));
-    memcpy(ctrl_stat_buffer,packet_buffer,ctrl_stat_len);
-    packet_len = ctrl_stat_len;
+  Debug_printf("\r\nFuji cmd: READ APP KEY");
+  memset(packet_buffer, 0, sizeof(packet_buffer));
+  memcpy(ctrl_stat_buffer, packet_buffer, ctrl_stat_len);
+  packet_len = ctrl_stat_len;
 }
 
 // DEBUG TAPE
@@ -475,21 +522,19 @@ void iwmFuji::iwm_ctrl_open_directory()
     int idx = 0;
     uint8_t hostSlot = packet_buffer[idx++];// adamnet_recv();
 
-    uint16_t s = num_decoded;
-    s--;
-    s--;
-
+    uint16_t s = num_decoded - 1; // two strings but not the slot number
+  
     memcpy((uint8_t *)&dirpath, (uint8_t *)&packet_buffer[idx], s); // adamnet_recv_buffer((uint8_t *)&dirpath, s);
 
     if (_current_open_directory_slot == -1)
     {
         // See if there's a search pattern after the directory path
         const char *pattern = nullptr;
-        int pathlen = strnlen(dirpath, sizeof(dirpath));
-        if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
+        int pathlen = strnlen(dirpath, s);
+        if (pathlen < s - 3) // Allow for two NULLs and a 1-char pattern
         {
             pattern = dirpath + pathlen + 1;
-            int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
+            int patternlen = strnlen(pattern, s - pathlen - 1);
             if (patternlen < 1)
                 pattern = nullptr;
         }
@@ -501,10 +546,10 @@ void iwmFuji::iwm_ctrl_open_directory()
         Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
 
         if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
-        {
-            _current_open_directory_slot = hostSlot;
-        }
-        // to do - error reutrn if cannot open directory?
+          _current_open_directory_slot = hostSlot;
+        else
+          err_result = 0x30; // bad device specific error
+                             // to do - error reutrn if cannot open directory?
     }
   //   else
   //   {
@@ -611,37 +656,38 @@ void iwmFuji::iwm_ctrl_read_directory_entry()
             {
                 dirpath[filelen] = '/';
                 dirpath[filelen + 1] = '\0';
+                Debug_printf("::entry is dir - %s\n", dirpath);
             }
         }
 
-        // Hack-o-rama to add file type character to beginning of path.
-        if (maxlen == 31)
+        // Hack-o-rama to add file type character to beginning of path. - this was for Adam, but must keep for CONFIG compatability
+        // in Apple 2 config will somehow have to work around these extra char's
+        if (maxlen == DIR_MAX_LEN)
         {
             memmove(&dirpath[2], dirpath, 254);
-            if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
-            {
-                dirpath[0] = 0x85;
-                dirpath[1] = 0x86;
-            }
-            else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
-            {
-                dirpath[0] = 0x87;
-                dirpath[1] = 0x88;
-            }
-            else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
-            {
-                dirpath[0] = 0x89;
-                dirpath[1] = 0x8a;
-            }
-            else if (strstr(dirpath, "/"))
-            {
-                dirpath[0] = 0x83;
-                dirpath[1] = 0x84;
-            }
-            else
+            // if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
+            // {
+            //     dirpath[0] = 0x85;
+            //     dirpath[1] = 0x86;
+            // }
+            // else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
+            // {
+            //     dirpath[0] = 0x87;
+            //     dirpath[1] = 0x88;
+            // }
+            // else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
+            // {
+            //     dirpath[0] = 0x89;
+            //     dirpath[1] = 0x8a;
+            // }
+            // else if (strstr(dirpath, "/"))
+            // {
+            //     dirpath[0] = 0x83;
+            //     dirpath[1] = 0x84;
+            // }
+            // else
                 dirpath[0] = dirpath[1] = 0x20;
-        }
-
+        } 
         memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
         memcpy(ctrl_stat_buffer, dirpath, maxlen);
         ctrl_stat_len = maxlen;
@@ -655,6 +701,7 @@ void iwmFuji::iwm_ctrl_read_directory_entry()
 
 void iwmFuji::iwm_stat_read_directory_entry()
 {
+  Debug_printf("\r\nFuji cmd: READ DIRECTORY ENTRY");
   memcpy(packet_buffer, ctrl_stat_buffer, ctrl_stat_len);
   packet_len = ctrl_stat_len;
 }
@@ -802,11 +849,13 @@ void iwmFuji::iwm_ctrl_write_host_slots()
 // Store host path prefix
 void iwmFuji::iwm_ctrl_set_host_prefix()
 {
+  Debug_printf("\r\nFuji cmd: SET HOST PREFIX - NOT IMPLEMENTED");
 }
 
 // Retrieve host path prefix
 void iwmFuji::iwm_stat_get_host_prefix()
 {
+  Debug_printf("\r\nFuji cmd: GET HOST PREFIX - NOT IMPLEMENTED");
 }
 
 // Send device slot data to computer
@@ -932,16 +981,16 @@ void iwmFuji::iwm_ctrl_set_device_filename()
     unsigned char ds = packet_buffer[idx++];// adamnet_recv();
     uint16_t s = num_decoded;
     s--;
-    s--;
+   
 
     Debug_printf("SET DEVICE SLOT %d filename\n", ds);
 
     // adamnet_recv_buffer((uint8_t *)&f, s);
-    memcpy((uint8_t *)&f, packet_buffer, s);
+    memcpy((uint8_t *)&f, &packet_buffer[idx], s);
     Debug_printf("filename: %s\n", f);
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
-    _populate_config_from_slots();
+    _populate_config_from_slots();  // this one maybe unnecessary?
 }
 
 // Get a 256 byte filename from device slot
@@ -955,15 +1004,16 @@ void iwmFuji::iwm_ctrl_get_device_filename()
 
 void iwmFuji::iwm_stat_get_device_filename()
 {
-    memcpy(packet_buffer, ctrl_stat_buffer, ctrl_stat_len);
-    packet_len = 256;
+  Debug_printf("\r\nFuji cmd: GET DEVICE FILENAME");
+  memcpy(packet_buffer, ctrl_stat_buffer, ctrl_stat_len);
+  packet_len = 256;
 }
 
 // Mounts the desired boot disk number
 void iwmFuji::insert_boot_device(uint8_t d)
 {
-    const char *config_atr = "/autorun.ddp";
-    const char *mount_all_atr = "/mount-and-boot.ddp";
+    const char *config_atr = "/autorun.po";
+    const char *mount_all_atr = "/mount-and-boot.po";
     FILE *fBoot;
 
     switch (d)
@@ -987,6 +1037,7 @@ void iwmFuji::iwm_ctrl_enable_device()
 {
     unsigned char d = packet_buffer[0]; // adamnet_recv();
 
+    Debug_printf("\r\nFuji cmd: ENABLE DEVICE");
     IWM.enableDevice(d);
 }
 
@@ -994,6 +1045,7 @@ void iwmFuji::iwm_ctrl_disable_device()
 {
     unsigned char d = packet_buffer[0]; // adamnet_recv();
 
+    Debug_printf("\r\nFuji cmd: DISABLE DEVICE");
     IWM.disableDevice(d);
 }
 
@@ -1068,20 +1120,18 @@ void iwmFuji::setup(iwmBus *iwmbus)
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;  // to do - understand?
 
-    // _iwm_bus->addDevice(&_fnDisks[3].disk_dev, iwm_fujinet_type_t::BlockDisk);
-    // _iwm_bus->addDevice(&_fnDisks[2].disk_dev, iwm_fujinet_type_t::BlockDisk);
-    _fnDisks[1].disk_dev.set_disk_number('1');
-    _iwm_bus->addDevice(&_fnDisks[1].disk_dev, iwm_fujinet_type_t::BlockDisk);
-    _fnDisks[0].disk_dev.set_disk_number('0');
-    _iwm_bus->addDevice(&_fnDisks[0].disk_dev, iwm_fujinet_type_t::BlockDisk);
+    for (int i = MAX_DISK_DEVICES - 1; i >= 0; i--)
+    {
+      _fnDisks[i].disk_dev.set_disk_number('0' + i);
+      _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
+    }
 
     Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {
-        //FILE *f = fnSPIFFS.file_open("/autorun.po");
-        //_iwm_bus->firstDev()->
-        //_fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*256, MEDIATYPE_PO);
-        _fnDisks[0].disk_dev.init(); // temporary for opening autorun.po on local TNFS
+        FILE *f = fnSPIFFS.file_open("/autorun.po");
+         _fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*256, MEDIATYPE_PO);
+        //_fnDisks[0].disk_dev.init(); // temporary for opening autorun.po on local TNFS
     }
     else
     {
@@ -1221,7 +1271,7 @@ void iwmFuji::encode_status_dib_reply_packet()
   {
     for (i = 0; i < 8; i++)
     {
-      group_buffer[i] = data[i + oddnum + (grpcount * 7)];
+      group_buffer[i] = data[i + oddnum + (grpcount * 7)]; // data should have 26 cells?
     }
     // add group msb byte
     grpmsb = 0;
@@ -1392,19 +1442,22 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       // to do? parallel to SP status?
       break;
     default:
+      Debug_printf("\r\nBad Status Code, sending error response");
       encode_error_reply_packet(SP_ERR_BADCTL);
       IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return;
       break;
   }
+  Debug_printf("\r\nStatus code complete, sending response");
   encode_data_packet(packet_len);
+  
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 
 void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
 {
-  uint8_t err_result = SP_ERR_NOERROR;
+  err_result = SP_ERR_NOERROR;
   
   uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
   uint8_t control_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
