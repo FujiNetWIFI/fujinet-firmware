@@ -321,6 +321,7 @@ private:
   void iwm_ack_disable();
   void iwm_extra_set();
   void iwm_extra_clr();
+  bool iwm_enable_val();
 
   bool iwm_phase_val(int p);
 
@@ -334,6 +335,8 @@ private:
 #ifdef DEBUG
   iwm_phases_t oldphase;
 #endif
+
+  bool iwm_drive_enables() {return !iwm_enable_val();};
 
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
