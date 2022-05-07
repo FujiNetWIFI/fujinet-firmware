@@ -31,29 +31,26 @@ protected:
     uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 
 public:
-    // struct
-    // {
-    //     uint8_t num_tracks;
-    //     uint8_t step_rate;
-    //     uint8_t sectors_per_trackH;
-    //     uint8_t sectors_per_trackL;
-    //     uint8_t num_sides;
-    //     uint8_t density;
-    //     uint8_t sector_sizeH;
-    //     uint8_t sector_sizeL;
-    //     uint8_t drive_present;
-    //     uint8_t reserved1;
-    //     uint8_t reserved2;
-    //     uint8_t reserved3;
-    // } _percomBlock;
+    struct
+    {
+        uint8_t num_tracks;
+        uint8_t step_rate;
+        uint8_t sectors_per_trackH;
+        uint8_t sectors_per_trackL;
+        uint8_t num_sides;
+        uint8_t density;
+        uint8_t sector_sizeH;
+        uint8_t sector_sizeL;
+        uint8_t drive_present;
+        uint8_t reserved1;
+        uint8_t reserved2;
+        uint8_t reserved3;
+    } _percomBlock;
 
-    uint32_t num_blocks;
-    FILE* fileptr() {return _media_fileh;}
-
-    // uint8_t _media_sectorbuff[DISK_SECTORBUF_SIZE];
+    uint8_t _media_sectorbuff[DISK_SECTORBUF_SIZE];
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
-    // bool _allow_hsio = true;
+    bool _allow_hsio = true;
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) = 0;
     virtual void unmount();
@@ -66,14 +63,15 @@ public:
     // Returns TRUE if an error condition occurred
     virtual bool write(uint32_t blockNum, bool verify);
 
-    // virtual uint16_t sector_size(uint16_t sectornum);
+    // Always returns 128 for the first 3 sectors, otherwise _sectorSize
+    virtual uint16_t sector_size(uint16_t sectornum);
     
-    virtual bool status() = 0;
+    virtual void status(uint8_t statusbuff[4]) = 0;
 
     static mediatype_t discover_mediatype(const char *filename);
 
-    // void dump_percom_block();
-    // void derive_percom_block(uint16_t numSectors);
+    void dump_percom_block();
+    void derive_percom_block(uint16_t numSectors);
 
     virtual ~MediaType();
 };
