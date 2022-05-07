@@ -33,7 +33,6 @@ private:
     static void _wifi_event_handler(void *arg, esp_event_base_t event_base,
                                     int32_t event_id, void *event_data);
     EventGroupHandle_t _wifi_event_group;
-    int remove_duplicate_scan_results(wifi_ap_record_t scan_records[], uint16_t record_count);
 
 public:
     int retries;

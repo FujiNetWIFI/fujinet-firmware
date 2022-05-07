@@ -23,7 +23,7 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     Debug_print("DDP READ\n");
 
     // Return an error if we're trying to read beyond the end of the disk
-    if (blockNum > _media_num_blocks-1)
+    if (blockNum > _media_num_blocks)
     {
         Debug_printf("::read block %d > %d\n", blockNum, _media_num_blocks);
         _media_controller_status=2;
@@ -33,29 +33,22 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     memset(_media_blockbuff, 0, sizeof(_media_blockbuff));
 
     bool err = false;
-    // // Perform a seek if we're not reading the sector after the last one we read
-    // if (blockNum != _media_last_block + 1)
-    // {
+    // Perform a seek if we're not reading the sector after the last one we read
+    if (blockNum != _media_last_block + 1)
+    {
         uint32_t offset = _block_to_offset(blockNum);
         err = fseek(_media_fileh, offset, SEEK_SET) != 0;
-        _media_last_block = INVALID_SECTOR_VALUE;
-    // }
+    }
 
     if (err == false)
         err = fread(_media_blockbuff, 1, 1024, _media_fileh) != 1024;
 
     if (err == false)
-    {
         _media_last_block = blockNum;
-        _media_controller_status = 0;
-        return false;
-    }
     else
-    {
         _media_last_block = INVALID_SECTOR_VALUE;
-        _media_controller_status = 2;
-        return true;
-    }
+
+    _media_controller_status=0;
 
     return err;
 }

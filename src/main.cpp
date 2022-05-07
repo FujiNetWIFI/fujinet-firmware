@@ -143,6 +143,7 @@ void main_setup()
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     adamPrinter::printer_type printer = Config.get_printer_type(0);
     adamPrinter *ptr = new adamPrinter(ptrfs, printer);
+    ptr->start_printer_task();
     fnPrinters.set_entry(0, ptr, printer, 0);
     AdamNet.addDevice(ptr, ADAMNET_DEVICE_ID_PRINTER);
 
@@ -231,7 +232,7 @@ extern "C"
 // Create a new high-priority task to handle the main loop
 // This is assigned to CPU1; the WiFi task ends up on CPU0
 #define MAIN_STACKSIZE 32768
-#define MAIN_PRIORITY 20
+#define MAIN_PRIORITY 10
 #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
