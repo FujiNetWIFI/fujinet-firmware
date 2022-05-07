@@ -219,11 +219,11 @@ protected:
   bool _initialized;
 
   // iwm packet handling
-  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  uint16_t packet_len;
+  static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  static uint16_t packet_len;
 
   bool decode_data_packet(void); //decode smartport 512 byte data packet
-  uint16_t num_decoded;
+  static uint16_t num_decoded;
 
   void encode_data_packet(); //encode smartport 512 byte data packet
   void encode_data_packet(uint16_t num); //encode smartport "num" byte data packet
@@ -262,6 +262,7 @@ public:
    * @brief get the IWM device Number (1-255)
    * @return The device number registered for this device
    */
+  void set_id(uint8_t dn) { _devnum=dn; };
   int id() { return _devnum; };
   //void assign_id(uint8_t n) { _devnum = n; };
 
@@ -275,7 +276,7 @@ public:
   /**
    * Startup hack for now
    */
-  virtual void startup_hack() = 0;
+  // virtual void startup_hack() = 0;
 };
 
 class iwmBus
@@ -362,7 +363,7 @@ public:
   void test_send(iwmDevice* smort);
 #endif
 
-  void startup_hack();
+  // void startup_hack();
 
 };
 
