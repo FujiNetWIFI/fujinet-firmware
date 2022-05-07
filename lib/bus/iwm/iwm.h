@@ -328,15 +328,15 @@ private:
   {
     idle = 0,
     reset,
-    enable
-    // phi00,
-    // phi01,
-    // phi11,
-    // phi12,
-    // phi22,
-    // phi23,
-    // phi33,
-    // phi30
+    enable,
+    phi00,
+    phi01,
+    phi11,
+    phi12,
+    phi22,
+    phi23,
+    phi33,
+    phi30
   };
   iwm_phases_t iwm_phases();
 #ifdef DEBUG
