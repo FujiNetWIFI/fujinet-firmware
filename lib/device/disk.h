@@ -6,11 +6,6 @@
 # define DEVICE_TYPE sioDisk
 #endif
 
-#ifdef BUILD_APPLE
-#include "iwm/disk.h"
-#define DEVICE_TYPE iwmDisk
-#endif
-
 #ifdef BUILD_CBM
 # include "iec/disk.h"
 # define DEVICE_TYPE iecDisk
@@ -31,6 +26,9 @@
 # define DEVICE_TYPE adamDisk
 #endif
 
-
+#ifdef BUILD_APPLE
+#include "iwm/disk.h"
+#define DEVICE_TYPE iwmDisk
+#endif
 
 #endif // DEVICE_DISK_H
