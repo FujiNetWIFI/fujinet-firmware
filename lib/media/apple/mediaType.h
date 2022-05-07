@@ -17,6 +17,7 @@ enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_PO,
+    MEDIATYPE_WOZ,
     MEDIATYPE_COUNT
 };
 
@@ -24,11 +25,11 @@ class MediaType
 {
 protected:
     FILE *_media_fileh = nullptr;
-    uint32_t _media_image_size = 0;
-    uint32_t _media_num_sectors = 0;
-    uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
-    int32_t _media_last_sector = INVALID_SECTOR_VALUE;
-    uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
+    // uint32_t _media_image_size = 0;
+    // uint32_t _media_num_sectors = 0;
+    // uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
+    // int32_t _media_last_sector = INVALID_SECTOR_VALUE;
+    // uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 
 public:
     // struct
@@ -65,17 +66,22 @@ public:
     virtual bool read(uint32_t blockNum, uint16_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
     virtual bool write(uint32_t blockNum, bool verify);
-
-    // virtual uint16_t sector_size(uint16_t sectornum);
-    
+   
     virtual bool status() = 0;
 
     static mediatype_t discover_mediatype(const char *filename);
 
-    // void dump_percom_block();
-    // void derive_percom_block(uint16_t numSectors);
-
     virtual ~MediaType();
 };
+
+// class MediaType_SP : public MediaType
+// {
+
+// };
+
+// class MediaType_Floppy : public MediaType
+// {
+    
+// };
 
 #endif // _MEDIA_TYPE_
