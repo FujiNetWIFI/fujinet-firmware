@@ -736,10 +736,6 @@ void adamNetwork::adamnet_control_receive_channel()
         statusByte.bits.client_error = 0;
         statusByte.bits.client_data_available = response_len > 0;
         memcpy(response, receiveBuffer->data(), response_len);
-        for (int i = 0; i < response_len; i++)
-        {
-            Debug_printf("%c", response[i]);
-        }
         receiveBuffer->erase(0, response_len);
     }
 }
