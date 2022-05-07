@@ -444,7 +444,7 @@ void appleModem::at_handle_wifilist()
         at_cmd_println(HELPSCAN3);
         at_cmd_println();
 
-        char ssid[32];
+        char ssid[33];
         char bssid[18];
         uint8_t rssi;
         uint8_t channel;
