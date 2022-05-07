@@ -10,17 +10,17 @@ class iwmDisk : public iwmDevice
 private:
     // temp device for disk image
     // todo: turn into FujiNet practice
-    // // get rid of this stuff by moving to correct locations after the prototype works
-    // struct device
-    // {
-    //     FILE *sdf;
-    //     //uint8_t device_id;          //to hold assigned device id's for the partitions
-    //     unsigned long blocks;       //how many 512-byte blocks this image has
-    //     unsigned int header_offset; //Some image files have headers, skip this many bytes to avoid them
-    //     bool writeable;
-    // } d; // temporary device until have a disk device
-    // bool open_tnfs_image();
-    // bool open_image(std::string filename);
+    // get rid of this stuff by moving to correct locations after the prototype works
+    struct device
+    {
+        FILE *sdf;
+        //uint8_t device_id;          //to hold assigned device id's for the partitions
+        unsigned long blocks;       //how many 512-byte blocks this image has
+        unsigned int header_offset; //Some image files have headers, skip this many bytes to avoid them
+        bool writeable;
+    } d; // temporary device until have a disk device
+    bool open_tnfs_image();
+    bool open_image(std::string filename);
 
 protected:
     void encode_status_reply_packet() override;
@@ -55,12 +55,12 @@ public:
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
     bool write_blank(FILE *f, uint16_t numBlocks);
 
-    void set_disk_number(char c) { disk_num = c; }
-    char get_disk_number() { return disk_num; };
+    void set_disk_number(char c) {disk_num = c;}
+
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
-    // void init();
+    void init();
     ~iwmDisk();
-    // virtual void startup_hack();
+    virtual void startup_hack();
 };
 
 #endif
