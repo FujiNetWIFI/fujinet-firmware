@@ -52,7 +52,6 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PRINTER1_PORT,
         FN_PLAY_RECORD,
         FN_PULLDOWN,
-        FN_CASSETTE_ENABLED,
         FN_CONFIG_ENABLED,
         FN_STATUS_WAIT_ENABLED,
         FN_BOOT_MODE,
@@ -137,7 +136,6 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PRINTER1_PORT",
         "FN_PLAY_RECORD",
         "FN_PULLDOWN",
-        "FN_CASSETTE_ENABLED",
         "FN_CONFIG_ENABLED",
         "FN_STATUS_WAIT_ENABLED",
         "FN_BOOT_MODE",
@@ -332,9 +330,6 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
             resultstream << "1 Pulldown Resistor";
         else
             resultstream << "0 B Button Press";
-        break;
-    case FN_CASSETTE_ENABLED:
-        resultstream << Config.get_cassette_enabled();
         break;
 #endif /* BUILD_ATARI */
     case FN_CONFIG_ENABLED:

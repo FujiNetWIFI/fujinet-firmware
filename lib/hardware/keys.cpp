@@ -229,15 +229,16 @@ void KeyManager::_keystate_task(void *param)
             fnSystem.reboot();
             break;
 
+#ifdef BUILD_ATARI
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_B: SHORT PRESS");
-#ifdef BUILD_ATARI
             Debug_println("ACTION: Send debug_tape message to SIO queue");
             sio_message_t msg;
             msg.message_id = SIOMSG_DEBUG_TAPE;
             xQueueSend(SIO.qSioMessages, &msg, 0);
-#endif /* BUILD_ATARI */
             break;
+#endif /* BUILD_ATARI */
+
         case eKeyStatus::DOUBLE_TAP:
             Debug_println("BUTTON_B: DOUBLE-TAP");
             fnSystem.debug_print_tasks();

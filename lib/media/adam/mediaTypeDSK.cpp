@@ -33,7 +33,7 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
     Debug_print("DSK READ\n");
 
     // Return an error if we're trying to read beyond the end of the disk
-    if (blockNum > _media_num_blocks - 1)
+    if (blockNum > _media_num_blocks)
     {
         Debug_printf("::read block %lu > %lu\n", blockNum, _media_num_blocks);
         _media_controller_status=2;
