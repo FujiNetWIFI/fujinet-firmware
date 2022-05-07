@@ -94,7 +94,7 @@ bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 {
     uint8_t buf[256];
 
-    memset(buf, 0xE5, 256);
+    memset(buf, 0x00, 256);
 
     for (uint32_t b = 0; b < numBlocks; b++)
     {
@@ -122,10 +122,8 @@ void adamDisk::adamnet_control_receive()
     if (_media == nullptr)
         return;
 
-    if (_media->read(blockNum, nullptr))
-        adamnet_response_nack();
-    else
-        adamnet_response_ack();
+    _media->read(blockNum, nullptr);
+    adamnet_response_ack();
 }
 
 void adamDisk::adamnet_control_send_block_num()
@@ -136,11 +134,6 @@ void adamDisk::adamnet_control_send_block_num()
         x[i] = adamnet_recv();
 
     blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
-
-    if (_media->num_blocks() < 0x10000UL) // Smaller than 64MB?
-    {
-        blockNum &= 0xFFFF; // Mask off upper bits
-    }
 
     if (blockNum == 0xFACE)
     {
@@ -180,6 +173,16 @@ void adamDisk::adamnet_control_send()
         adamnet_control_send_block_data();
 }
 
+void adamDisk::set_status(uint8_t s)
+{
+    if (s == true)
+        s = STATUS_NO_BLOCK;
+    else
+        s = STATUS_OK;
+
+    status_response[4] = _devnum | s;
+}
+
 void adamDisk::adamnet_response_status()
 {
     if (_media == nullptr)
@@ -190,9 +193,7 @@ void adamDisk::adamnet_response_status()
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
     if (t < 300)
-    {
         virtualDevice::adamnet_response_status();
-    }
 }
 
 void adamDisk::adamnet_response_send()
