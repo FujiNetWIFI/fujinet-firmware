@@ -25,6 +25,10 @@ enum class colorMode_t
 class pdfPrinter : public printer_emu
 {
 protected:
+    // ATARI THINGS
+    bool translate850 = false;  // default to sio printer
+    uint8_t _eol = ATASCII_EOL; // default to atascii eol
+
     // PDF THINGS
     double pageWidth;
     double pageHeight;
@@ -51,6 +55,7 @@ protected:
     int pdf_pageCounter = 0.;
     size_t objLocations[256]; // reference table storage
     int pdf_objCtr = 0;       // count the objects
+    bool _eol_bypass = false;
 
     void pdf_header();
     void pdf_add_fonts(); // pdfFont_t *fonts[],
