@@ -30,6 +30,12 @@ class iwmNetwork : public iwmDevice
 {
 
 public:
+
+    /**
+     * Command frame for protocol adapter
+     */
+    cmdFrame_t cmdFrame;
+
     /**
      * Constructor
      */
@@ -55,7 +61,7 @@ public:
      * Called for iwm Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
-    virtual void open(unsigned short s);
+    virtual void open();
 
     /**
      * Called for iwm Command 'C' to close a connection to a network protocol, de-allocate all buffers,
@@ -84,12 +90,13 @@ public:
     void iwm_open(cmdPacket_t cmd) override;
     void iwm_close(cmdPacket_t cmd) override;
     void iwm_read(cmdPacket_t cmd) override;
+    void iwm_write(cmdPacket_t cmd) override;
     void iwm_status(cmdPacket_t cmd) override; 
 
     /**
      * @brief Called to set prefix
      */
-    virtual void set_prefix(unsigned short s);
+    virtual void set_prefix();
 
     /**
      * @brief Called to get prefix
@@ -120,7 +127,7 @@ public:
      * @brief JSON Query
      * @param s size of query
      */
-    void json_query(unsigned short s);
+    void json_query(cmdPacket_t cmd);
 
     virtual void del();
     virtual void rename();
@@ -318,14 +325,14 @@ private:
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel(unsigned short num_bytes);
+    bool read_channel(unsigned short num_bytes, cmdPacket_t cmd);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return TRUE on error, FALSE on success. Used to emit iwmnet_error or iwmnet_complete().
      */
-    bool iwmnet_write_channel(unsigned short num_bytes);
+    bool write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
@@ -351,7 +358,7 @@ private:
      * Essentially, call the protocol action
      * and based on the return, signal iwmnet_complete() or error().
      */
-    void iwmnet_special_00(unsigned short s);
+    void special_00();
 
     /**
      * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
@@ -359,7 +366,7 @@ private:
      * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
      * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
      */
-    void iwmnet_special_40(unsigned short s);
+    void special_40();
 
     /**
      * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
@@ -367,7 +374,7 @@ private:
      * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
      * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
      */
-    void iwmnet_special_80(unsigned short s);
+    void special_80();
 
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.

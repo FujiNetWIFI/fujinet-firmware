@@ -67,21 +67,12 @@ iwmNetwork::~iwmNetwork()
  * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
  * method. Also set up RX interrupt.
  */
-void iwmNetwork::open(unsigned short s)
+void iwmNetwork::open()
 {
-    uint8_t _aux1 = iwmnet_recv();
-    uint8_t _aux2 = iwmnet_recv();
-    string d;
-
-    s--;
-    s--;
-
-    memset(response, 0, sizeof(response));
-    iwmnet_recv_buffer(response, s);
-    iwmnet_recv(); // checksum
-
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
+    uint16_t idx = 0;
+    uint8_t _aux1 = packet_buffer[idx++];
+    uint8_t _aux2 = packet_buffer[idx++];
+    string d = string((char *)&packet_buffer[2], 256);
 
     channelMode = PROTOCOL;
 
@@ -106,7 +97,7 @@ void iwmNetwork::open(unsigned short s)
     Debug_printf("open()\n");
 
     // Parse and instantiate protocol
-    d = string((char *)response, s);
+    d = string((char *)response, 256);
     parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
@@ -136,11 +127,6 @@ void iwmNetwork::close()
 {
     Debug_printf("iwmNetwork::close()\n");
 
-    iwmnet_recv(); // CK
-
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
-
     statusByte.byte = 0x00;
 
     // If no protocol enabled, we just signal complete, and return.
@@ -158,97 +144,12 @@ void iwmNetwork::close()
 }
 
 /**
- * Perform the channel read based on the channelMode
- * @param num_bytes - number of bytes to read from channel.
- * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
- */
-bool iwmNetwork::read_channel(unsigned short num_bytes)
-{
-    bool _err = false;
-
-    switch (channelMode)
-    {
-    case PROTOCOL:
-        _err = protocol->read(num_bytes);
-        break;
-    case JSON:
-        Debug_printf("JSON Not Handled.\n");
-        _err = true;
-        break;
-    }
-    return _err;
-}
-
-/**
- * iwm Write command
- * Write # of bytes specified by aux1/aux2 from tx_buffer out to iwm. If protocol is unable to return requested
- * number of bytes, return ERROR.
- */
-void iwmNetwork::write(uint16_t num_bytes)
-{
-    Debug_printf("!!! WRITE\n");
-    memset(response, 0, sizeof(response));
-
-    iwmnet_recv_buffer(response, num_bytes);
-    iwmnet_recv(); // CK
-
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
-
-    *transmitBuffer += string((char *)response, num_bytes);
-    err = iwmnet_write_channel(num_bytes);
-}
-
-/**
- * Perform the correct write based on value of channelMode
- * @param num_bytes Number of bytes to write.
- * @return TRUE on error, FALSE on success. Used to emit iwmnet_error or iwmnet_complete().
- */
-bool iwmNetwork::iwmnet_write_channel(unsigned short num_bytes)
-{
-    bool err = false;
-
-    switch (channelMode)
-    {
-    case PROTOCOL:
-        err = protocol->write(num_bytes);
-        break;
-    case JSON:
-        Debug_printf("JSON Not Handled.\n");
-        err = true;
-        break;
-    }
-    return err;
-}
-
-/**
  * iwm Status Command. First try to populate NetworkStatus object from protocol. If protocol not instantiated,
  * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
  * with them locally. Then serialize resulting NetworkStatus object to iwm.
  */
 void iwmNetwork::status()
 {
-    NetworkStatus s;
-    iwmnet_recv(); // CK
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
-
-    switch (channelMode)
-    {
-    case PROTOCOL:
-        err = protocol->status(&s);
-        break;
-    case JSON:
-        // err = json.status(&status);
-        break;
-    }
-
-    response[0] = s.rxBytesWaiting & 0xFF;
-    response[1] = s.rxBytesWaiting >> 8;
-    response[2] = s.connected;
-    response[3] = s.error;
-    response_len = 4;
-    receiveMode = STATUS;
 }
 
 /**
@@ -256,33 +157,15 @@ void iwmNetwork::status()
  */
 void iwmNetwork::get_prefix()
 {
-    iwmnet_recv(); // CK
-
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
-
-    Debug_printf("iwmNetwork::iwmnet_getprefix(%s)\n", prefix.c_str());
-    memcpy(response, prefix.data(), prefix.size());
-    response_len = prefix.size();
+    // RE-implement
 }
 
 /**
  * Set Prefix
  */
-void iwmNetwork::set_prefix(unsigned short s)
+void iwmNetwork::set_prefix()
 {
-    uint8_t prefixSpec[256];
-    string prefixSpec_str;
-
-    memset(prefixSpec, 0, sizeof(prefixSpec));
-
-    iwmnet_recv_buffer(prefixSpec, s);
-    iwmnet_recv(); // CK
-
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
-
-    prefixSpec_str = string((const char *)prefixSpec);
+    string prefixSpec_str = string((const char *)packet_buffer);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("iwmNetwork::iwmnet_set_prefix(%s)\n", prefixSpec_str.c_str());
 
@@ -331,17 +214,7 @@ void iwmNetwork::set_prefix(unsigned short s)
  */
 void iwmNetwork::set_login()
 {
-    uint8_t loginspec[256];
-
-    memset(loginspec, 0, sizeof(loginspec));
-
-    iwmnet_recv_buffer(loginspec, s);
-    iwmnet_recv(); // ck
-
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
-
-    login = string((char *)loginspec, s);
+    login = string((char *)packet_buffer, 256);
 }
 
 /**
@@ -349,31 +222,14 @@ void iwmNetwork::set_login()
  */
 void iwmNetwork::set_password()
 {
-    uint8_t passwordspec[256];
-
-    memset(passwordspec, 0, sizeof(passwordspec));
-
-    iwmnet_recv_buffer(passwordspec, s);
-    iwmnet_recv(); // ck
-
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
-
-    password = string((char *)passwordspec, s);
+    password = string((char *)packet_buffer, 256);
 }
 
 void iwmNetwork::del()
 {
     string d;
 
-    memset(response, 0, sizeof(response));
-    iwmnet_recv_buffer(response, s);
-    iwmnet_recv(); // CK
-
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
-
-    d = string((char *)response, s);
+    d = string((char *)packet_buffer, 256);
     parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
@@ -392,14 +248,7 @@ void iwmNetwork::rename()
 {
     string d;
 
-    memset(response, 0, sizeof(response));
-    iwmnet_recv_buffer(response, s);
-    iwmnet_recv(); // CK
-
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
-
-    d = string((char *)response, s);
+    d = string((char *)packet_buffer, 256);
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = ' ';
@@ -415,14 +264,7 @@ void iwmNetwork::mkdir()
 {
     string d;
 
-    memset(response, 0, sizeof(response));
-    iwmnet_recv_buffer(response, s);
-    iwmnet_recv(); // CK
-
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
-
-    d = string((char *)response, s);
+    d = string((char *)packet_buffer, 256);
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = '*';
@@ -436,41 +278,31 @@ void iwmNetwork::mkdir()
 
 void iwmNetwork::channel_mode()
 {
-    switch (iwmnet_recv())
+    switch (packet_buffer[1])
     {
     case 0:
         channelMode = PROTOCOL;
-        iwmNet.start_time = esp_timer_get_time();
-        iwmnet_response_ack();
         break;
     case 1:
         channelMode = JSON;
-        iwmNet.start_time = esp_timer_get_time();
-        iwmnet_response_ack();
         break;
     default:
-        iwmNet.start_time = esp_timer_get_time();
-        iwmnet_response_nack();
         break;
     }
-    iwmnet_recv(); // CK
 }
 
-void iwmNetwork::json_query(unsigned short s)
+void iwmNetwork::json_query(cmdPacket_t cmd)
 {
-    uint8_t *c = (uint8_t *)malloc(s);
+    uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
 
-    iwmnet_recv_buffer(c, s);
-    iwmnet_recv(); // CK
+    uint16_t numbytes = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+    numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
 
-    iwmNet.start_time = esp_timer_get_time();
-    iwmnet_response_ack();
+    uint32_t addy = (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+    addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
+    addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
-    json.setReadQuery(std::string((char *)c, s));
-
-    Debug_printf("iwmNetwork::json_query(%s)\n", c);
-
-    free(c);
+    json.setReadQuery(string((char *)packet_buffer, numbytes));
 }
 
 /**
@@ -539,17 +371,12 @@ void iwmNetwork::do_inquiry(unsigned char inq_cmd)
  * Essentially, call the protocol action
  * and based on the return, signal iwmnet_complete() or error().
  */
-void iwmNetwork::iwmnet_special_00(unsigned short s)
+void iwmNetwork::special_00()
 {
-    cmdFrame.aux1 = iwmnet_recv();
-    cmdFrame.aux2 = iwmnet_recv();
+    cmdFrame.aux1 = packet_buffer[0];
+    cmdFrame.aux2 = packet_buffer[1];
 
-    iwmNet.start_time = esp_timer_get_time();
-
-    if (protocol->special_00(&cmdFrame) == false)
-        iwmnet_response_ack();
-    else
-        iwmnet_response_nack();
+    protocol->special_00(&cmdFrame);
 }
 
 /**
@@ -558,15 +385,22 @@ void iwmNetwork::iwmnet_special_00(unsigned short s)
  * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
-void iwmNetwork::iwmnet_special_40(unsigned short s)
+void iwmNetwork::special_40()
 {
-    cmdFrame.aux1 = iwmnet_recv();
-    cmdFrame.aux2 = iwmnet_recv();
+    cmdFrame.aux1 = packet_buffer[0];
+    cmdFrame.aux2 = packet_buffer[1];
 
-    if (protocol->special_40(response, 1024, &cmdFrame) == false)
-        iwmnet_response_ack();
+    if (protocol->special_40(packet_buffer, 256, &cmdFrame) == false)
+    {
+        packet_len = 256;
+        encode_data_packet(packet_len);
+    }
     else
-        iwmnet_response_nack();
+    {
+        encode_error_reply_packet(SP_ERR_BADCMD);
+    }
+
+    IWM.iwm_send_packet((uint8_t *)packet_buffer);
 }
 
 /**
@@ -575,24 +409,23 @@ void iwmNetwork::iwmnet_special_40(unsigned short s)
  * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
-void iwmNetwork::iwmnet_special_80(unsigned short s)
+void iwmNetwork::special_80()
 {
-    uint8_t spData[SPECIAL_BUFFER_SIZE];
-
-    memset(spData, 0, SPECIAL_BUFFER_SIZE);
-
     // Get special (devicespec) from computer
-    cmdFrame.aux1 = iwmnet_recv();
-    cmdFrame.aux2 = iwmnet_recv();
-    iwmnet_recv_buffer(spData, s);
+    cmdFrame.aux1 = packet_buffer[0];
+    cmdFrame.aux2 = packet_buffer[1];
 
-    Debug_printf("iwmNetwork::iwmnet_special_80() - %s\n", spData);
+    Debug_printf("iwmNetwork::iwmnet_special_80() - %s\n", &packet_buffer[2]);
 
     // Do protocol action and return
-    if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
-        iwmnet_response_ack();
+    if (protocol->special_80(&packet_buffer[2], SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    {
+        // GOOD
+    }
     else
-        iwmnet_response_nack();
+    {
+        // BAD
+    }
 }
 
 void iwmNetwork::iwm_open(cmdPacket_t cmd)
@@ -607,12 +440,155 @@ void iwmNetwork::iwm_close(cmdPacket_t cmd)
     // Probably need to send close command here.
 }
 
+void iwmNetwork::status()
+{
+    NetworkStatus s;
+
+    switch (channelMode)
+    {
+    case PROTOCOL:
+        err = protocol->status(&s);
+        break;
+    case JSON:
+        // err = json.status(&status);
+        break;
+    }
+
+    packet_buffer[0] = s.rxBytesWaiting & 0xFF;
+    packet_buffer[1] = s.rxBytesWaiting >> 8;
+    packet_buffer[2] = s.connected;
+    packet_buffer[3] = s.error;
+    packet_len = 4;
+
+    encode_data_packet(packet_len);
+    IWM.iwm_send_packet((uint8_t *)packet_buffer);
+}
+
 void iwmNetwork::iwm_status(cmdPacket_t cmd)
 {
+    uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
+    uint8_t status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+    Debug_printf("\r\nDevice %02x Status Code %02x", source, status_code);
+    Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+
+    switch (status_code)
+    {
+    case IWM_STATUS_STATUS:
+        status();
+        break;
+    }
+}
+
+bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
+{
+    NetworkStatus ns;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+        return; // Punch out.
+
+    // Get status
+    protocol->status(&ns);
+
+    if (ns.rxBytesWaiting == 0)
+    {
+        iwm_return_ioerror(cmd);
+        return true;
+    }
+
+    // Truncate bytes waiting to response size
+    ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
+    response_len = ns.rxBytesWaiting;
+
+    if (protocol->read(response_len)) // protocol adapter returned error
+    {
+        statusByte.bits.client_error = true;
+        err = protocol->error;
+        return;
+    }
+    else // everything ok
+    {
+        statusByte.bits.client_error = 0;
+        statusByte.bits.client_data_available = response_len > 0;
+        memcpy(response, receiveBuffer->data(), response_len);
+        receiveBuffer->erase(0, response_len);
+    }
+}
+
+bool iwmNetwork::write_channel(unsigned short num_bytes)
+{
+    switch (channelMode)
+    {
+    case PROTOCOL:
+        protocol->write(num_bytes);
+    case JSON:
+        break;
+    }
+    return false;
 }
 
 void iwmNetwork::iwm_read(cmdPacket_t cmd)
 {
+    uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
+
+    uint16_t numbytes = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+    numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
+
+    uint32_t addy = (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+    addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
+    addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
+
+    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x", source, numbytes, addy);
+
+    switch (channelMode)
+    {
+    case PROTOCOL:
+        read_channel(numbytes, cmd);
+        break;
+    case JSON:
+        break;
+    }
+}
+
+void iwmNetwork::iwm_write(cmdPacket_t cmd)
+{
+    uint8_t status = 0;
+    uint8_t source = cmd.dest; // packet_buffer[6];
+    // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
+    Debug_printf("\r\nNet# %02x ", source);
+
+    uint16_t num_bytes = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+    num_bytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
+
+    uint32_t addy = (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+    addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
+    addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
+
+    Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
+
+    // get write data packet, keep trying until no timeout
+    //  to do - this blows up - check handshaking
+    if (IWM.iwm_read_packet_timeout(100, (unsigned char *)packet_buffer, BLOCK_PACKET_LEN))
+    {
+        Debug_printf("\r\nTIMEOUT in read packet!");
+        return;
+    }
+    // partition number indicates which 32mb block we access
+    if (decode_data_packet())
+        iwm_return_ioerror(cmd);
+    else
+    {
+        *transmitBuffer += string((char *)response, num_bytes);
+        if (write_channel(num_bytes))
+        {
+            encode_error_reply_packet(SP_ERR_IOERROR);
+            IWM.iwm_send_packet((uint8_t *)packet_buffer);
+        }
+        else
+        {
+            encode_write_status_packet(source, 0);
+            IWM.iwm_send_packet((uint8_t *)packet_buffer);
+        }
+    }
 }
 
 void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
@@ -646,7 +622,7 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
         get_prefix();
         break;
     case 'O':
-        open(s);
+        open();
         break;
     case 'C':
         close();
@@ -655,7 +631,7 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
         status();
         break;
     case 'W':
-        write(s);
+        write();
         break;
     case 0xFC:
         channel_mode();
@@ -671,13 +647,13 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
         {
         case PROTOCOL:
             if (inq_dstats == 0x00)
-                iwmnet_special_00(s);
-            else if (inq_dstats == 0x40)
-                iwmnet_special_40(s);
+                special_00();
+            else if (inq_dstats == 0x40) // MOVE THIS TO STATUS!
+                special_40();
             else if (inq_dstats == 0x80)
-                iwmnet_special_80(s);
+                special_80();
             else
-                Debug_printf("iwmnet_control_send() - Unknown Command: %02x\n", c);
+                Debug_printf("iwmnet_control_send() - Unknown Command: %02x\n", control_code);
         case JSON:
             switch (control_code)
             {
@@ -685,7 +661,7 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
                 json.parse();
                 break;
             case 'Q':
-                json_query();
+                json_query(cmd);
                 break;
             }
             break;
@@ -694,18 +670,6 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
             break;
         }
         do_inquiry(control_code);
-    }
-}
-
-void iwmNetwork::iwmnet_control_send()
-{
-     = iwmnet_recv_length(); // receive length
-    uint8_t c = iwmnet_recv();         // receive command
-
-    s--; // Because we've popped the command off the stack
-
-    switch (c)
-    {
     }
 }
 
