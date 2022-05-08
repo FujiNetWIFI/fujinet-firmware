@@ -144,15 +144,6 @@ void iwmNetwork::close()
 }
 
 /**
- * iwm Status Command. First try to populate NetworkStatus object from protocol. If protocol not instantiated,
- * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
- * with them locally. Then serialize resulting NetworkStatus object to iwm.
- */
-void iwmNetwork::status()
-{
-}
-
-/**
  * Get Prefix
  */
 void iwmNetwork::get_prefix()
@@ -484,7 +475,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
     NetworkStatus ns;
 
     if ((protocol == nullptr) || (receiveBuffer == nullptr))
-        return; // Punch out.
+        return true; // Punch out.
 
     // Get status
     protocol->status(&ns);
@@ -503,7 +494,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
-        return;
+        return true;
     }
     else // everything ok
     {
@@ -512,6 +503,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
         memcpy(response, receiveBuffer->data(), response_len);
         receiveBuffer->erase(0, response_len);
     }
+    return false;
 }
 
 bool iwmNetwork::write_channel(unsigned short num_bytes)
