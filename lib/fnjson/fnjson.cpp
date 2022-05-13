@@ -48,6 +48,7 @@ void FNJSON::setProtocol(NetworkProtocol *newProtocol)
 void FNJSON::setReadQuery(string queryString)
 {
     _queryString = queryString;
+    _item = resolveQuery();
 }
 
 /**
@@ -117,10 +118,9 @@ string FNJSON::getValue(cJSON *item)
  */
 bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
 {
-    cJSON *item = resolveQuery();
-    string ret = getValue(item);
+    string ret = getValue(_item);
 
-    if (item == nullptr)
+    if (_item == nullptr)
         return true; // error
 
     memcpy(rx_buf, ret.data(), ret.size());
@@ -133,10 +133,9 @@ bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
  */
 int FNJSON::readValueLen()
 {
-    cJSON *item = resolveQuery();
-    int len = getValue(item).size();
+    int len = getValue(_item).size();
 
-    if (item == nullptr)
+    if (_item == nullptr)
         return len;
 
     return len;
@@ -147,17 +146,21 @@ int FNJSON::readValueLen()
  */
 bool FNJSON::parse()
 {
+    NetworkStatus ns;
+
     if (_protocol == nullptr)
     {
         Debug_printf("FNJSON::parse() - NULL protocol.\n");
         return false;
     }
 
-    Debug_printf("FNJSON::parse() - %d bytes now available\n", _protocol->bytesWaiting);
+    _protocol->status(&ns);
 
-    if (!_protocol->read(_protocol->bytesWaiting))
+    Debug_printf("FNJSON::parse() - %d bytes now available\n", ns.rxBytesWaiting);
+    
+    if (_protocol->read(ns.rxBytesWaiting))
     {
-        Debug_printf("Could not read.");
+        Debug_printf("Could not read.\n");
         return false;
     }
 

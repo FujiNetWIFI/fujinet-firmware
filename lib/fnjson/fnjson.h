@@ -29,6 +29,7 @@ public:
 
 private:
     cJSON *_json;
+    cJSON *_item;
     NetworkProtocol *_protocol;
     string _queryString;
 
