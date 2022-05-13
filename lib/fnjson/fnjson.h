@@ -19,6 +19,7 @@ public:
     FNJSON();
     virtual ~FNJSON();
 
+    void setLineEnding(string _lineEnding);
     void setProtocol(NetworkProtocol *newProtocol);
     void setReadQuery(string queryString);
     cJSON *resolveQuery();
@@ -32,7 +33,7 @@ private:
     cJSON *_item;
     NetworkProtocol *_protocol;
     string _queryString;
-
+    string lineEnding;
     string getValue(cJSON *item);
     
 };

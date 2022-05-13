@@ -34,6 +34,14 @@ FNJSON::~FNJSON()
 }
 
 /**
+ * Specify line ending
+ */
+void FNJSON::setLineEnding(string _lineEnding)
+{
+    lineEnding = _lineEnding;
+}
+
+/**
  * Attach protocol handler
  */
 void FNJSON::setProtocol(NetworkProtocol *newProtocol)
@@ -68,21 +76,21 @@ cJSON *FNJSON::resolveQuery()
 string FNJSON::getValue(cJSON *item)
 {
     if (cJSON_IsString(item))
-        return string(cJSON_GetStringValue(item)) + "\x9b";
+        return string(cJSON_GetStringValue(item)) + lineEnding;
     else if (cJSON_IsBool(item))
     {
         if (cJSON_IsTrue(item))
-            return "TRUE\x9b";
+            return "TRUE" + lineEnding;
         else if (cJSON_IsFalse(item))
-            return "FALSE\x9b";
+            return "FALSE" + lineEnding;
     }
     else if (cJSON_IsNull(item))
-        return "NULL\x9b";
+        return "NULL" + lineEnding;
     else if (cJSON_IsNumber(item))
     {
         stringstream ss;
         ss << item->valuedouble;
-        return ss.str() + "\x9b";
+        return ss.str() + lineEnding;
     }
     else if (cJSON_IsObject(item))
     {
@@ -92,7 +100,7 @@ string FNJSON::getValue(cJSON *item)
 
         do
         {
-            ret += string(item->string) + "\x9b" + getValue(item);
+            ret += string(item->string) + lineEnding + getValue(item);
         } while ((item=item->next) != NULL);
         
         return ret;
@@ -110,7 +118,7 @@ string FNJSON::getValue(cJSON *item)
         return ret;
     }
 
-    return "UNKNOWN\x9b";
+    return "UNKNOWN" + lineEnding;
 }
 
 /**
