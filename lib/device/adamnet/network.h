@@ -82,7 +82,8 @@ public:
     virtual void adamnet_control_ack();
     virtual void adamnet_control_clr();
     virtual void adamnet_control_receive();
-    virtual void adamnet_control_receive_channel();
+    virtual void admanet_control_receive_channel_json();
+    virtual void adamnet_control_receive_channel_protocol();
     virtual void adamnet_control_send();
 
     virtual void adamnet_response_status() override;

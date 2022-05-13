@@ -474,6 +474,14 @@ void adamNetwork::json_query(unsigned short s)
     free(c);
 }
 
+void adamNetwork::json_parse()
+{
+    adamnet_recv(); // CK
+    AdamNet.start_time = esp_timer_get_time();
+    json.parse();
+    adamnet_response_ack();
+}
+
 /**
  * @brief Do an inquiry to determine whether a protoocol supports a particular command.
  * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
@@ -679,11 +687,12 @@ void adamNetwork::adamnet_control_send()
                 adamnet_special_80(s);
             else
                 Debug_printf("adamnet_control_send() - Unknown Command: %02x\n", c);
+            break;
         case JSON:
             switch(c)
             {
                 case 'P':
-                json.parse();
+                json_parse();
                 break;
                 case 'Q':
                 json_query(s);
@@ -703,7 +712,26 @@ void adamNetwork::adamnet_control_clr()
     adamnet_response_send();
 }
 
-void adamNetwork::adamnet_control_receive_channel()
+void adamNetwork::admanet_control_receive_channel_json()
+{
+    NetworkStatus ns;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+        return; // Punch out.
+
+    if (json.readValueLen() > 0)
+        adamnet_response_ack();
+    else
+        {
+            adamnet_response_nack();
+            return;
+        }
+    
+    response_len = json.readValueLen();
+    json.readValue(response,response_len);
+}
+
+void adamNetwork::adamnet_control_receive_channel_protocol()
 {
     NetworkStatus ns;
 
@@ -758,7 +786,7 @@ void adamNetwork::adamnet_control_receive()
     switch (receiveMode)
     {
     case CHANNEL:
-        adamnet_control_receive_channel();
+        adamnet_control_receive_channel_protocol();
         break;
     case STATUS:
         break;
