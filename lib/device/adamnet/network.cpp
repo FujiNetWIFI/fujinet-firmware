@@ -42,6 +42,8 @@ adamNetwork::adamNetwork()
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
+
+    json.setLineEnding("\x00");
 }
 
 /**
@@ -716,6 +718,9 @@ void adamNetwork::adamnet_control_send()
 void adamNetwork::adamnet_control_clr()
 {
     adamnet_response_send();
+
+    if (channelMode == JSON)
+        jsonRecvd = false;
 }
 
 void adamNetwork::adamnet_control_receive_channel()
@@ -738,18 +743,21 @@ void adamNetwork::adamnet_control_receive_channel_json()
     if ((protocol == nullptr) || (receiveBuffer == nullptr))
         return; // Punch out.
 
-    AdamNet.start_time = esp_timer_get_time();
-
-    if (json.readValueLen() > 0)
+    if (jsonRecvd == false)
+    {
+        response_len = json.readValueLen();
+        json.readValue(response,response_len);
+        jsonRecvd=true;
         adamnet_response_ack();
+    }
     else
     {
-        adamnet_response_nack();
-        return;
+        AdamNet.start_time = esp_timer_get_time();
+        if (response_len > 0)
+            adamnet_response_ack();
+        else
+            adamnet_response_nack();
     }
-
-    response_len = json.readValueLen();
-    json.readValue(response, response_len);
 }
 
 void adamNetwork::adamnet_control_receive_channel_protocol()

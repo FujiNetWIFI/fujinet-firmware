@@ -159,6 +159,11 @@ private:
     FNJSON json;
 
     /**
+     * Has JSON been sent via CLR?
+     */
+    bool jsonRecvd = false;
+
+    /**
      * The Receive buffer for this N: device
      */
     std::string *receiveBuffer = nullptr;
