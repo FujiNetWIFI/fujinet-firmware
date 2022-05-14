@@ -295,6 +295,12 @@ private:
     bool sio_read_channel(unsigned short num_bytes);
 
     /**
+     * @brief Perform read of the current JSON channel
+     * @param num_bytes Number of bytes to read
+     */
+    bool sio_read_channel_json(unsigned short num_bytes);
+
+    /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return TRUE on error, FALSE on success. Used to emit sio_error or sio_complete().
@@ -311,6 +317,11 @@ private:
      * @brief perform channel status commands, if there is a protocol bound.
      */
     void sio_status_channel();
+
+    /**
+     * @brief get JSON status (# of bytes in receive channel)
+     */
+    void sio_status_channel_json();
 
     /**
      * @brief Do an inquiry to determine whether a protoocol supports a particular command.

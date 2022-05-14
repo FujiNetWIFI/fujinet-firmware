@@ -213,6 +213,21 @@ void sioNetwork::sio_read()
 }
 
 /**
+ * @brief Perform read of the current JSON channel
+ * @param num_bytes Number of bytes to read
+ */
+bool sioNetwork::sio_read_channel_json(unsigned short num_bytes)
+{
+    uint8_t *o = (uint8_t *)malloc(num_bytes);
+
+    json.readValue(o,num_bytes);
+    *receiveBuffer += string((const char *)o,num_bytes);
+
+    free(o);
+    return false;
+}
+
+/**
  * Perform the channel read based on the channelMode
  * @param num_bytes - number of bytes to read from channel.
  * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
@@ -227,8 +242,7 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
         err = protocol->read(num_bytes);
         break;
     case JSON:
-        Debug_printf("JSON Not Handled.\n");
-        err = true;
+        err = sio_read_channel_json(num_bytes);
         break;
     }
     return err;
@@ -373,11 +387,10 @@ void sioNetwork::sio_status_channel()
     switch (channelMode)
     {
     case PROTOCOL:
-        Debug_printf("PROTOCOL\n");
         err = protocol->status(&status);
         break;
     case JSON:
-        // err=_json->status(&status)
+        sio_status_channel_json();
         break;
     }
 
@@ -1051,20 +1064,20 @@ void sioNetwork::sio_parse_json()
 void sioNetwork::sio_set_json_query()
 {
     uint8_t in[256];
-    const char *inp=NULL;
+    const char *inp = NULL;
 
-    memset(in,0,sizeof(in));
+    memset(in, 0, sizeof(in));
 
     uint8_t ck = bus_to_peripheral(in, sizeof(in));
 
-    if (sio_checksum(in,sizeof(in)) != ck)
+    if (sio_checksum(in, sizeof(in)) != ck)
     {
         sio_error();
         return;
     }
     else
     {
-        inp = strrchr((const char *)in,':');
+        inp = strrchr((const char *)in, ':');
         inp++;
         json.setReadQuery(string(inp));
         sio_complete();
