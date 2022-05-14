@@ -321,7 +321,7 @@ private:
     /**
      * @brief get JSON status (# of bytes in receive channel)
      */
-    void sio_status_channel_json();
+    bool sio_status_channel_json(NetworkStatus *ns);
 
     /**
      * @brief Do an inquiry to determine whether a protoocol supports a particular command.
