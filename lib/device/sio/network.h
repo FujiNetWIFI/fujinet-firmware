@@ -94,6 +94,11 @@ public:
     virtual void sio_status();
 
     /**
+     * @brief set channel mode, JSON or PROTOCOL
+     */
+    virtual void sio_set_channel_mode();
+
+    /**
      * @brief Called to set prefix
      */
     virtual void sio_set_prefix();
