@@ -1082,25 +1082,17 @@ void sioNetwork::sio_set_json_query()
 
     uint8_t ck = bus_to_peripheral(in, sizeof(in));
 
-    if (sio_checksum(in, sizeof(in)) != ck)
+    // strip away line endings from input spec.
+    for (int i = 0; i < 256; i++)
     {
-        sio_error();
-        return;
+        if (in[i] == 0x0A || in[i] == 0x0D || in[i] == 0x9b)
+            in[i] = 0x00;
     }
-    else
-    {
-        // strip away line endings from input spec.
-        for (int i=0;i<256;i++)
-        {
-            if (in[i]==0x0A || in[i]==0x0D || in[i]==0x9b)
-                in[i]=0x00;
-        }
 
-        inp = strrchr((const char *)in, ':');
-        inp++;
-        json.setReadQuery(string(inp));
-        sio_complete();
-    }
+    inp = strrchr((const char *)in, ':');
+    inp++;
+    json.setReadQuery(string(inp));
+    sio_complete();
 }
 
 void sioNetwork::sio_set_timer_rate()
