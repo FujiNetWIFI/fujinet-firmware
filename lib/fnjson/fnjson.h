@@ -27,6 +27,7 @@ public:
     bool parse();
     int readValueLen();
     bool readValue(uint8_t *buf, unsigned short len);
+    string processString(string in);
 
 private:
     cJSON *_json;
@@ -35,7 +36,7 @@ private:
     string _queryString;
     string lineEnding;
     string getValue(cJSON *item);
-    
+    string _parseBuffer;
 };
 
 #endif /* JSON_H */
