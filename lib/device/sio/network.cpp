@@ -496,7 +496,7 @@ void sioNetwork::sio_set_prefix()
  */
 void sioNetwork::sio_set_channel_mode()
 {
-    switch (cmdFrame.aux1)
+    switch (cmdFrame.aux2)
     {
     case 0:
         channelMode = PROTOCOL;
