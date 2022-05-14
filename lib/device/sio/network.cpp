@@ -220,8 +220,8 @@ bool sioNetwork::sio_read_channel_json(unsigned short num_bytes)
 {
     uint8_t *o = (uint8_t *)malloc(num_bytes);
 
-    json.readValue(o,num_bytes);
-    *receiveBuffer += string((const char *)o,num_bytes);
+    json.readValue(o, num_bytes);
+    *receiveBuffer += string((const char *)o, num_bytes);
 
     free(o);
     return false;
@@ -658,10 +658,6 @@ void sioNetwork::sio_special_00()
         if (channelMode == JSON)
             sio_parse_json();
         break;
-    case 'Q':
-        if (channelMode == JSON)
-            sio_set_json_query();
-        break;
     case 'T':
         sio_set_translation();
         break;
@@ -724,6 +720,10 @@ void sioNetwork::sio_special_80()
     case 0x2C: // CHDIR
         sio_set_prefix();
         return;
+    case 'Q':
+        if (channelMode == JSON)
+            sio_set_json_query();
+        break;
     case 0xFD: // LOGIN
         sio_set_login();
         return;
@@ -1088,6 +1088,13 @@ void sioNetwork::sio_set_json_query()
     }
     else
     {
+        // strip away line endings from input spec.
+        for (int i=0;i<256;i++)
+        {
+            if (in[i]==0x0A || in[i]==0x0D || in[i]==0x9b)
+                in[i]=0x00;
+        }
+
         inp = strrchr((const char *)in, ':');
         inp++;
         json.setReadQuery(string(inp));
