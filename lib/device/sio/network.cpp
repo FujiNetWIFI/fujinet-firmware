@@ -1092,6 +1092,7 @@ void sioNetwork::sio_set_json_query()
     inp = strrchr((const char *)in, ':');
     inp++;
     json.setReadQuery(string(inp));
+    Debug_printf("Query set to %s\n",inp);
     sio_complete();
 }
 
