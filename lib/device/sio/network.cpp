@@ -724,7 +724,7 @@ void sioNetwork::sio_special_80()
     case 'Q':
         if (channelMode == JSON)
             sio_set_json_query();
-        break;
+        return;
     case 0xFD: // LOGIN
         sio_set_login();
         return;
