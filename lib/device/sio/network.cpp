@@ -173,7 +173,7 @@ void sioNetwork::sio_close()
  * SIO Read command
  * Read # of bytes from the protocol adapter specified by the aux1/aux2 bytes, into the RX buffer. If we are short
  * fill the rest with nulls and return ERROR.
- *  
+ *
  * @note It is the channel's responsibility to pad to required length.
  */
 void sioNetwork::sio_read()
@@ -385,7 +385,7 @@ void sioNetwork::sio_status_channel()
     serialized_status[3] = status.error;
 
     Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n",
-        status.rxBytesWaiting, status.connected ,status.error);
+                 status.rxBytesWaiting, status.connected, status.error);
 
     // and send to computer
     bus_to_computer(serialized_status, sizeof(serialized_status), err);
@@ -468,15 +468,35 @@ void sioNetwork::sio_set_prefix()
 }
 
 /**
+ * @brief set channel mode
+ */
+void sioNetwork::sio_set_channel_mode()
+{
+    switch (cmdFrame.aux1)
+    {
+    case 0:
+        channelMode = PROTOCOL;
+        sio_complete();
+        break;
+    case 1:
+        channelMode = JSON;
+        sio_complete();
+        break;
+    default:
+        sio_error();
+    }
+}
+
+/**
  * Set login
  */
 void sioNetwork::sio_set_login()
 {
     uint8_t loginSpec[256];
 
-    memset(loginSpec,0,sizeof(loginSpec));
-    bus_to_peripheral(loginSpec,sizeof(loginSpec));
-    util_clean_devicespec(loginSpec,sizeof(loginSpec));
+    memset(loginSpec, 0, sizeof(loginSpec));
+    bus_to_peripheral(loginSpec, sizeof(loginSpec));
+    util_clean_devicespec(loginSpec, sizeof(loginSpec));
 
     login = string((char *)loginSpec);
     sio_complete();
@@ -489,9 +509,9 @@ void sioNetwork::sio_set_password()
 {
     uint8_t passwordSpec[256];
 
-    memset(passwordSpec,0,sizeof(passwordSpec));
-    bus_to_peripheral(passwordSpec,sizeof(passwordSpec));
-    util_clean_devicespec(passwordSpec,sizeof(passwordSpec));
+    memset(passwordSpec, 0, sizeof(passwordSpec));
+    bus_to_peripheral(passwordSpec, sizeof(passwordSpec));
+    util_clean_devicespec(passwordSpec, sizeof(passwordSpec));
 
     password = string((char *)passwordSpec);
     sio_complete();
@@ -580,11 +600,13 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
         case 'T': // Set Translation
             inq_dstats = 0x00;
             break;
-        case 0x80: // JSON Parse
-            inq_dstats = 0x00;
+        case 'P': // JSON Parse
+            if (channelMode == JSON)
+                inq_dstats = 0x00;
             break;
-        case 0x81: // JSON Query
-            inq_dstats = 0x80;
+        case 'Q': // JSON Query
+            if (channelMode == JSON)
+                inq_dstats = 0x80;
             break;
         default:
             inq_dstats = 0xFF; // not supported
@@ -597,7 +619,7 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
 
 /**
  * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
- * Essentially, call the protocol action 
+ * Essentially, call the protocol action
  * and based on the return, signal sio_complete() or error().
  */
 void sioNetwork::sio_special_00()
@@ -664,6 +686,9 @@ void sioNetwork::sio_special_80()
     case 0x2C: // CHDIR
         sio_set_prefix();
         return;
+    case 0xFC: // SET CHANNEL MODE
+        sio_set_channel_mode();
+        break;
     case 0xFD: // LOGIN
         sio_set_login();
         return;
@@ -738,7 +763,7 @@ void sioNetwork::sio_poll_interrupt()
     {
         if (protocol->interruptEnable == false)
             return;
-            
+
         protocol->fromInterrupt = true;
         protocol->status(&status);
         protocol->fromInterrupt = false;
@@ -794,7 +819,7 @@ bool sioNetwork::instantiate_protocol()
     }
     else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
     {
-        protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);        
+        protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
     }
     else if (urlParser->scheme == "SSH")
     {
@@ -901,11 +926,11 @@ bool sioNetwork::isValidURL(EdUrlParser *url)
 
 /**
  * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
- * disk utility packages do when opening a device, such as adding wildcards for directory opens. 
- * 
+ * disk utility packages do when opening a device, such as adding wildcards for directory opens.
+ *
  * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
  * of sioNetwork.
- * 
+ *
  * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom
  */
 bool sioNetwork::parseURL()
@@ -954,11 +979,11 @@ bool sioNetwork::parseURL()
 /**
  * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,
  * and figure out one of three states:
- * 
+ *
  * (1) we were passed D1:FOO.TXT,N:FOO.TXT, the second arg is ours.
  * (2) we were passed N:FOO.TXT,D1:FOO.TXT, the first arg is ours.
  * (3) we were passed N1:FOO.TXT,N2:FOO.TXT, get whichever one corresponds to our device ID.
- * 
+ *
  * DeviceSpec will be transformed to only contain the relevant part of the deviceSpec, sans comma.
  */
 void sioNetwork::processCommaFromDevicespec()
@@ -1009,10 +1034,10 @@ void sioNetwork::sio_set_translation()
 void sioNetwork::sio_set_timer_rate()
 {
     timerRate = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
-    
+
     // Stop extant timer
     timer_stop();
-    
+
     // Restart timer if we're running a protocol.
     if (protocol != nullptr)
         timer_start();
@@ -1040,7 +1065,6 @@ void sioNetwork::sio_do_idempotent_command_80()
     }
     else
         sio_complete();
-
 }
 
 #endif /* BUILD_ATARI */
