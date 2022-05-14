@@ -634,6 +634,10 @@ void sioNetwork::sio_special_00()
         if (channelMode == JSON)
             sio_parse_json();
         break;
+    case 'Q':
+        if (channelMode == JSON)
+            sio_set_json_query();
+        break;
     case 'T':
         sio_set_translation();
         break;
@@ -1042,6 +1046,29 @@ void sioNetwork::sio_parse_json()
 {
     json.parse();
     sio_complete();
+}
+
+void sioNetwork::sio_set_json_query()
+{
+    uint8_t in[256];
+    const char *inp=NULL;
+
+    memset(in,0,sizeof(in));
+
+    uint8_t ck = bus_to_peripheral(in, sizeof(in));
+
+    if (sio_checksum(in,sizeof(in)) != ck)
+    {
+        sio_error();
+        return;
+    }
+    else
+    {
+        inp = strrchr((const char *)in,':');
+        inp++;
+        json.setReadQuery(string(inp));
+        sio_complete();
+    }
 }
 
 void sioNetwork::sio_set_timer_rate()
