@@ -149,7 +149,7 @@ bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
     if (_item == nullptr)
         return true; // error
 
-    memcpy(rx_buf, ret.data(), ret.size());
+    memcpy(rx_buf, ret.data(), len);
 
     return false; // no error.
 }
