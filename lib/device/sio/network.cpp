@@ -374,6 +374,14 @@ void sioNetwork::sio_status_local()
     }
 }
 
+bool sioNetwork::sio_status_channel_json(NetworkStatus *ns)
+{
+    ns->connected = true;
+    ns->error = 1; // for now
+    ns->rxBytesWaiting = json.readValueLen();
+    return false; // for now
+}
+
 /**
  * @brief perform channel status commands, if there is a protocol bound.
  */
@@ -390,7 +398,7 @@ void sioNetwork::sio_status_channel()
         err = protocol->status(&status);
         break;
     case JSON:
-        sio_status_channel_json();
+        sio_status_channel_json(&status);
         break;
     }
 
