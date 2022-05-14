@@ -615,6 +615,9 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
         case 0xFE:
             inq_dstats = 0x80;
             break;
+        case 0xFC:
+            inq_dstats = 0x00;
+            break;
         case 0x30:
             inq_dstats = 0x40;
             break;
