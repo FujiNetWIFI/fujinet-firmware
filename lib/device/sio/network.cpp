@@ -630,6 +630,10 @@ void sioNetwork::sio_special_00()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
+    case 'P':
+        if (channelMode == JSON)
+            sio_parse_json();
+        break;
     case 'T':
         sio_set_translation();
         break;
