@@ -365,6 +365,11 @@ private:
     void sio_parse_json();
 
     /**
+     * @brief Set JSON query string. (must be in JSON channelMode)
+     */
+    void sio_set_json_query();
+
+    /**
      * @brief Set timer rate for PROCEED timer in ms
      */
     void sio_set_timer_rate();
