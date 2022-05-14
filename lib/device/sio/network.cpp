@@ -137,6 +137,7 @@ void sioNetwork::sio_open()
 
     // TODO: Finally, go ahead and let the parsers know
     json.setProtocol(protocol);
+    channelMode = PROTOCOL;
 
     // And signal complete!
     sio_complete();
