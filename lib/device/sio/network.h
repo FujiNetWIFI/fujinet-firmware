@@ -12,6 +12,7 @@
 #include "EdUrlParser.h"
 #include "networkStatus.h"
 #include "status_error_codes.h"
+#include "fnjson.h"
 
 /**
  * Number of devices to expose via SIO, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -238,6 +239,11 @@ private:
     unsigned char errorSave = 1;
 
     /**
+     * The fnJSON parser wrapper object
+     */
+    FNJSON json;
+
+    /**
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */
@@ -352,6 +358,11 @@ private:
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
     void sio_set_translation();
+
+    /**
+     * @brief Parse incoming JSON. (must be in JSON channelMode)
+     */
+    void sio_parse_json();
 
     /**
      * @brief Set timer rate for PROCEED timer in ms

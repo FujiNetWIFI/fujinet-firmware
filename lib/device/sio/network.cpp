@@ -52,6 +52,8 @@ sioNetwork::sioNetwork()
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
+
+    json.setLineEnding("\x9B"); // use ATASCII EOL for JSON records
 }
 
 /**
@@ -134,6 +136,7 @@ void sioNetwork::sio_open()
     sio_assert_interrupt();
 
     // TODO: Finally, go ahead and let the parsers know
+    json.setProtocol(protocol);
 
     // And signal complete!
     sio_complete();
@@ -1028,6 +1031,12 @@ void sioNetwork::sio_assert_interrupt()
 void sioNetwork::sio_set_translation()
 {
     trans_aux2 = cmdFrame.aux2;
+    sio_complete();
+}
+
+void sioNetwork::sio_parse_json()
+{
+    json.parse();
     sio_complete();
 }
 
