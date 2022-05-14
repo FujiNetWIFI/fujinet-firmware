@@ -668,6 +668,9 @@ void sioNetwork::sio_special_00()
     case 'Z':
         sio_set_timer_rate();
         break;
+    case 0xFC: // SET CHANNEL MODE
+        sio_set_channel_mode();
+        break;
     default:
         if (protocol->special_00(&cmdFrame) == false)
             sio_complete();
@@ -721,9 +724,6 @@ void sioNetwork::sio_special_80()
     case 0x2C: // CHDIR
         sio_set_prefix();
         return;
-    case 0xFC: // SET CHANNEL MODE
-        sio_set_channel_mode();
-        break;
     case 0xFD: // LOGIN
         sio_set_login();
         return;
