@@ -244,6 +244,11 @@ private:
     FNJSON json;
 
     /**
+     * Bytes sent of current JSON query object.
+     */
+    unsigned short json_bytes_remaining=0;
+
+    /**
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */
