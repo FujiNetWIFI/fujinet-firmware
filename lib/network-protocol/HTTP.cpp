@@ -311,8 +311,8 @@ void NetworkProtocolHTTP::fserror_to_error()
 
 bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
 {
-    if (fromInterrupt == false)
-        Debug_printf("Channel mode is %u\n", httpChannelMode);
+    // if (fromInterrupt == false)
+    //     Debug_printf("Channel mode is %u\n", httpChannelMode);
 
     switch (httpChannelMode)
     {
@@ -320,7 +320,7 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
         if (fromInterrupt == false && resultCode == 0)
             http_transaction();
         status->rxBytesWaiting = client->available() > 65535 ? 65535 : client->available();
-        status->connected = client->available() > 0;
+        status->connected = client->available()>0;
         status->error = client->available() > 0 ? error : NETWORK_ERROR_END_OF_FILE;
         return false;
     case SET_HEADERS:

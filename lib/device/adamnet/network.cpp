@@ -42,6 +42,8 @@ adamNetwork::adamNetwork()
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
+
+    json.setLineEnding("\x00");
 }
 
 /**
@@ -437,7 +439,10 @@ void adamNetwork::mkdir(uint16_t s)
 
 void adamNetwork::channel_mode()
 {
-    switch (adamnet_recv())
+    unsigned char m = adamnet_recv();
+    adamnet_recv(); // CK
+
+    switch (m)
     {
     case 0:
         channelMode = PROTOCOL;
@@ -454,24 +459,35 @@ void adamNetwork::channel_mode()
         adamnet_response_nack();
         break;
     }
-    adamnet_recv(); // CK
+
+    Debug_printf("adamNetwork::channel_mode(%u)\n", m);
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
 }
 
 void adamNetwork::json_query(unsigned short s)
 {
     uint8_t *c = (uint8_t *)malloc(s);
 
-    adamnet_recv_buffer(c,s);
+    adamnet_recv_buffer(c, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    json.setReadQuery(std::string((char *)c,s));
+    json.setReadQuery(std::string((char *)c, s));
 
-    Debug_printf("adamNetwork::json_query(%s)\n",c);
+    Debug_printf("adamNetwork::json_query(%s)\n", c);
 
     free(c);
+}
+
+void adamNetwork::json_parse()
+{
+    adamnet_recv(); // CK
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+    json.parse();
 }
 
 /**
@@ -679,13 +695,14 @@ void adamNetwork::adamnet_control_send()
                 adamnet_special_80(s);
             else
                 Debug_printf("adamnet_control_send() - Unknown Command: %02x\n", c);
+            break;
         case JSON:
-            switch(c)
+            switch (c)
             {
-                case 'P':
-                json.parse();
+            case 'P':
+                json_parse();
                 break;
-                case 'Q':
+            case 'Q':
                 json_query(s);
                 break;
             }
@@ -701,9 +718,49 @@ void adamNetwork::adamnet_control_send()
 void adamNetwork::adamnet_control_clr()
 {
     adamnet_response_send();
+
+    if (channelMode == JSON)
+        jsonRecvd = false;
 }
 
 void adamNetwork::adamnet_control_receive_channel()
+{
+    switch (channelMode)
+    {
+    case JSON:
+        adamnet_control_receive_channel_json();
+        break;
+    case PROTOCOL:
+        adamnet_control_receive_channel_protocol();
+        break;
+    }
+}
+
+void adamNetwork::adamnet_control_receive_channel_json()
+{
+    NetworkStatus ns;
+
+    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+        return; // Punch out.
+
+    if (jsonRecvd == false)
+    {
+        response_len = json.readValueLen();
+        json.readValue(response,response_len);
+        jsonRecvd=true;
+        adamnet_response_ack();
+    }
+    else
+    {
+        AdamNet.start_time = esp_timer_get_time();
+        if (response_len > 0)
+            adamnet_response_ack();
+        else
+            adamnet_response_nack();
+    }
+}
+
+void adamNetwork::adamnet_control_receive_channel_protocol()
 {
     NetworkStatus ns;
 
@@ -743,17 +800,6 @@ void adamNetwork::adamnet_control_receive_channel()
 void adamNetwork::adamnet_control_receive()
 {
     AdamNet.start_time = esp_timer_get_time();
-
-    if (response_len > 0) // There is response data, go ahead and ack.
-    {
-        adamnet_response_ack();
-        return;
-    }
-    else if (protocol == nullptr)
-    {
-        adamnet_response_nack();
-        return;
-    }
 
     switch (receiveMode)
     {
