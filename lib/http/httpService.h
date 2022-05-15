@@ -103,6 +103,7 @@ public:
 
 #ifdef BUILD_ADAM
     static esp_err_t get_handler_term(httpd_req_t *req);
+    static esp_err_t get_handler_kybd(httpd_req_t *req);
 #endif
 
     static esp_err_t post_handler_config(httpd_req_t *req);
