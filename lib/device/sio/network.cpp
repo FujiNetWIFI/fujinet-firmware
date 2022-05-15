@@ -219,12 +219,11 @@ void sioNetwork::sio_read()
  */
 bool sioNetwork::sio_read_channel_json(unsigned short num_bytes)
 {
-    uint8_t *o = (uint8_t *)malloc(num_bytes);
+    if (num_bytes > json_bytes_remaining)
+        json_bytes_remaining=0;
+    else
+        json_bytes_remaining-=num_bytes;
 
-    json.readValue(o, num_bytes);
-    *receiveBuffer += string((const char *)o, num_bytes);
-
-    free(o);
     return false;
 }
 
@@ -377,9 +376,9 @@ void sioNetwork::sio_status_local()
 
 bool sioNetwork::sio_status_channel_json(NetworkStatus *ns)
 {
-    ns->connected = true;
-    ns->error = 1; // for now
-    ns->rxBytesWaiting = json.readValueLen();
+    ns->connected = json_bytes_remaining > 0;
+    ns->error = json_bytes_remaining > 0 ? 1 : 136;
+    ns->rxBytesWaiting = json_bytes_remaining;
     return false; // for now
 }
 
@@ -1077,6 +1076,7 @@ void sioNetwork::sio_set_json_query()
 {
     uint8_t in[256];
     const char *inp = NULL;
+    uint8_t *tmp;
 
     memset(in, 0, sizeof(in));
 
@@ -1092,6 +1092,11 @@ void sioNetwork::sio_set_json_query()
     inp = strrchr((const char *)in, ':');
     inp++;
     json.setReadQuery(string(inp));
+    json_bytes_remaining = json.readValueLen();
+    tmp = (uint8_t *)malloc(json.readValueLen());
+    json.readValue(tmp,json_bytes_remaining);
+    *receiveBuffer += string((const char *)tmp,json_bytes_remaining);
+    free(tmp);
     Debug_printf("Query set to %s\n",inp);
     sio_complete();
 }
