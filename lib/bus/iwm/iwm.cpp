@@ -12,7 +12,7 @@
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 
-#undef EXTRA 
+#define EXTRA 
 
 /******************************************************************************
 Based on:
@@ -46,6 +46,26 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
   #define SP_EXTRA    32      //  CLKOUT
 #endif
 #define SP_ENABLE   32      //  CLKOUT    2     D1
+
+/*
+possible FujiNet Apple pinout independent of SIO assignments
+// PHI states are all inputs to FujiNet
+// contiguous assignments will allow to read the register, shift and mask to create a uint8_t that can map to the PHI states easily
+#define SP_PHI0     33      // IO
+#define SP_PHI1     34      // Input only
+#define SP_PHI2     35      // Input only
+#define SP_PHI3     36      // Input only
+// other inputs
+#define SP_WRDATA   26      // IO
+#define SP_REQ      39      // Input only
+#define SP_ENABLE   22      // IO - Disk II enable
+// only two ouputs for SP bus, although having an enable for an LS125 is probably necessary and would make it 3. ... maybe need a fourth to deal with the daisy chaining SENSE
+#define SP_RDDATA   27      // IO
+#define SP_WRPROT   32      // IO
+#define SP_ACK      SP_WRPORT
+// SAM
+// need pin 25 for DAC and speaker
+*/
 
 // hardware timer parameters for bit-banging I/O
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
