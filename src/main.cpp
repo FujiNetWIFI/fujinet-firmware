@@ -88,9 +88,9 @@ void main_setup()
         fnBtManager.start();
 #endif
     }
-    else
+    else if (Config.get_wifi_enabled())
     {
-        // Set up the WiFi adapter
+        // Set up the WiFi adapter if enabled in config
         fnWiFi.start();
         // Go ahead and try reconnecting to WiFi
         fnWiFi.connect();
