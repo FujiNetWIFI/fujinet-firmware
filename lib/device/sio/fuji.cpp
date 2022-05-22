@@ -1241,6 +1241,7 @@ void sioFuji::sio_read_device_slots()
     disk_slot diskSlots[MAX_DISK_DEVICES];
 
     int returnsize;
+    char *filename;
 
     // AUX1 specifies which slots to return
     // Handle disk slots
@@ -1251,7 +1252,19 @@ void sioFuji::sio_read_device_slots()
         {
             diskSlots[i].mode = _fnDisks[i].access_mode;
             diskSlots[i].hostSlot = _fnDisks[i].host_slot;
-            strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
+            if ( _fnDisks[i].filename[0] == '\0' )
+            {
+                strlcpy(diskSlots[i].filename, "", MAX_DISPLAY_FILENAME_LEN);
+            }
+            else
+            {
+                // Just use the basename of the image, no path. The full path+filename is
+                // usually too long for the Atari to show anyway, so the image name is more important.
+                // Note: Basename can modify the input, so use a copy of the filename
+                filename = strdup(_fnDisks[i].filename);
+                strlcpy ( diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN );
+                free(filename);
+            }
         }
 
         returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
