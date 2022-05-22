@@ -769,7 +769,7 @@ void adamNetwork::adamnet_control_receive_channel_protocol()
 
     // Get status
     protocol->status(&ns);
-
+    Debug_printf("!!! rxBytesWaiting: %d\n",ns.rxBytesWaiting);
     if (ns.rxBytesWaiting > 0)
         adamnet_response_ack();
     else
@@ -801,6 +801,13 @@ void adamNetwork::adamnet_control_receive()
 {
     AdamNet.start_time = esp_timer_get_time();
 
+    // Data is waiting, go ahead and send it off.
+    if (response_len > 0)
+    {
+        adamnet_response_ack();
+        return;
+    }
+
     switch (receiveMode)
     {
     case CHANNEL:
@@ -820,6 +827,7 @@ void adamNetwork::adamnet_response_send()
     adamnet_send_buffer(response, response_len);
     adamnet_send(c);
 
+    Debug_printf("adamnet_response_send: %s\n",response);
     memset(response, 0, response_len);
     response_len = 0;
 }
