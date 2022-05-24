@@ -1161,86 +1161,102 @@ void fnHttpService::custom_global_ctx_free(void *ctx)
 
 httpd_handle_t fnHttpService::start_server(serverstate &state)
 {
-    std::vector<httpd_uri_t> uris{
-        {.uri = "/hsdir",
-         .method = HTTP_GET,
-         .handler = get_handler_dir,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/dslot",
-         .method = HTTP_GET,
-         .handler = get_handler_slot,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/",
-         .method = HTTP_GET,
-         .handler = get_handler_index,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/file",
-         .method = HTTP_GET,
-         .handler = get_handler_file_in_query,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/print",
-         .method = HTTP_GET,
-         .handler = get_handler_print,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/modem-sniffer.txt",
-         .method = HTTP_GET,
-         .handler = get_handler_modem_sniffer,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/favicon.ico",
-         .method = HTTP_GET,
-         .handler = get_handler_file_in_path,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/mount",
-         .method = HTTP_GET,
-         .handler = get_handler_mount,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/unmount",
-         .method = HTTP_GET,
-         .handler = get_handler_eject,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
+    httpd_uri_t hsdir_uri =
+    {
+        .uri = "/hsdir",
+        .method = HTTP_GET,
+        .handler = get_handler_dir,
+        .user_ctx = NULL,
+        .is_websocket = false,
+    };
+
+    httpd_uri_t dslot_uri =
+    {
+        .uri = "/dslot",
+        .method = HTTP_GET,
+        .handler = get_handler_slot,
+        .user_ctx = NULL,
+        .is_websocket = false,
+    };
+
+    httpd_uri_t root_uri =
+    {   .uri = "/",
+        .method = HTTP_GET,
+        .handler = get_handler_index,
+        .user_ctx = NULL,
+        .is_websocket = false,
+    };
+
+    httpd_uri_t file_uri =
+    {
+        .uri = "/file",
+        .method = HTTP_GET,
+        .handler = get_handler_file_in_query,
+        .user_ctx = NULL,
+        .is_websocket = false,
+    };
+
+    httpd_uri_t print_uri =
+    {   .uri = "/print",
+        .method = HTTP_GET,
+        .handler = get_handler_print,
+        .user_ctx = NULL,
+        .is_websocket = false,
+    };
+
+    httpd_uri_t modemsnif_uri =
+    {
+        .uri = "/modem-sniffer.txt",
+        .method = HTTP_GET,
+        .handler = get_handler_modem_sniffer,
+        .user_ctx = NULL,
+        .is_websocket = false,
+    };
+
+    httpd_uri_t favicon_uri =
+    {
+        .uri = "/favicon.ico",
+        .method = HTTP_GET,
+        .handler = get_handler_file_in_path,
+        .user_ctx = NULL,
+        .is_websocket = false,
+    };
+
+    httpd_uri_t mount_uri =
+    {
+        .uri = "/mount",
+        .method = HTTP_GET,
+        .handler = get_handler_mount,
+        .user_ctx = NULL,
+        .is_websocket = false,
+    };
+
+    httpd_uri_t unmount_uri =
+    {
+        .uri = "/unmount",
+        .method = HTTP_GET,
+        .handler = get_handler_eject,
+        .user_ctx = NULL,
+        .is_websocket = false,
+    };
 #ifdef BUILD_ADAM
-        {.uri = "/term",
-         .method = HTTP_GET,
-         .handler = get_handler_term,
-         .user_ctx = NULL,
-         .is_websocket = true,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},         
+    httpd_uri_t term_uri =
+    {
+        .uri = "/term",
+        .method = HTTP_GET,
+        .handler = get_handler_term,
+        .user_ctx = NULL,
+        .is_websocket = true,
+    };
 #endif
-        {.uri = "/config",
-         .method = HTTP_POST,
-         .handler = post_handler_config,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr}};
+    httpd_uri_t config_uri =
+    {
+        .uri = "/config",
+        .method = HTTP_POST,
+        .handler = post_handler_config,
+        .user_ctx = NULL,
+        .is_websocket = false,
+    };
 
     if (!fnWiFi.connected())
     {
@@ -1266,8 +1282,19 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     if (httpd_start(&(state.hServer), &config) == ESP_OK)
     {
         // Register URI handlers
-        for (const httpd_uri_t uridef : uris)
-            httpd_register_uri_handler(state.hServer, &uridef);
+        httpd_register_uri_handler(state.hServer, &hsdir_uri);
+        httpd_register_uri_handler(state.hServer, &dslot_uri);
+        httpd_register_uri_handler(state.hServer, &root_uri);
+        httpd_register_uri_handler(state.hServer, &file_uri);
+        httpd_register_uri_handler(state.hServer, &print_uri);
+        httpd_register_uri_handler(state.hServer, &modemsnif_uri);
+        httpd_register_uri_handler(state.hServer, &favicon_uri);
+        httpd_register_uri_handler(state.hServer, &mount_uri);
+        httpd_register_uri_handler(state.hServer, &unmount_uri);
+#ifdef BUILD_ADAM
+        httpd_register_uri_handler(state.hServer, &term_uri);
+#endif
+        httpd_register_uri_handler(state.hServer, &config_uri);
     }
     else
     {
