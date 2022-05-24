@@ -14,7 +14,6 @@
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 4
 
-#define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
 
 #define MAX_APPKEY_LEN 64
@@ -24,7 +23,7 @@
 
 typedef struct
 {
-    char ssid[32];
+    char ssid[33];
     char hostname[64];
     unsigned char localIP[4];
     unsigned char gateway[4];
@@ -118,6 +117,8 @@ protected:
     void adamnet_disable_device();         // 0xD4
     void adamnet_random_number();          // 0xD3
     void adamnet_get_time();               // 0xD2
+    void adamnet_device_enable_status();   // 0xD1
+    void adamnet_get_copy_status();        // 0xD0
 
     void adamnet_test_command();
 
@@ -158,6 +159,16 @@ public:
     void sio_mount_all();
 
     adamFuji();
+
+    string copySpec;
+    unsigned char sourceSlot;
+    unsigned char destSlot;
+    string sourcePath;
+    string destPath;
+    FILE *sourceFile;
+    FILE *destFile;
+    char *dataBuf;
+    TaskHandle_t copy_task_handle;
 };
 
 extern adamFuji theFuji;

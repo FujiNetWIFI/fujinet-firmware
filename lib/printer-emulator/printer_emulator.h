@@ -33,8 +33,13 @@ protected:
     FileSystem *_FS = nullptr;
     FILE * _file = nullptr;
     paper_t _paper_type = RAW;
+    bool _eol_bypass = false;
 
-    uint8_t buffer[40];
+    // ATARI THINGS
+    bool translate850 = false;  // default to sio printer
+    uint8_t _eol = 0x9B; // default to atascii eol
+
+    uint8_t buffer[80];
 
     // Called after a new printer output file is created (allows for providing header data)
     virtual void post_new_file()=0;
@@ -67,6 +72,18 @@ public:
 
     virtual const char *modelname()=0;
     size_t getOutputSize();
+
+    void setEOLBypass(bool t) { _eol_bypass = t; };
+
+    bool getEOLBypass() { return _eol_bypass; }
+
+    void setTranslate850(bool t) { translate850 = t; }
+
+    bool getTranslate850() { return translate850; }
+
+    void setEOL(uint8_t c) { _eol = c; }
+
+    uint8_t getEOL() { return _eol; }
 
 };
 

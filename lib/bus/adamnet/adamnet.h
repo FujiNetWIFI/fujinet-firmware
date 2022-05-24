@@ -262,6 +262,7 @@ public:
     void disableDevice(uint8_t device_id);
     virtualDevice *deviceById(uint8_t device_id);
     void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
+    bool deviceEnabled(uint8_t device_id);
     QueueHandle_t qAdamNetMessages = nullptr;
 };
 

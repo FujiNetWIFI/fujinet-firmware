@@ -18,7 +18,6 @@ private:
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;
 
-    void set_status(uint8_t s);
     void adamnet_control_clr();
     void adamnet_control_receive();
     void adamnet_control_send();

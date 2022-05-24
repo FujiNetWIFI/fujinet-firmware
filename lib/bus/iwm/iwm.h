@@ -24,6 +24,8 @@
 #define SP_ERR_DISKSW 0x2e     // media has been swapped - extended calls only
 #define SP_ERR_OFFLINE 0x2f    // device offline or no disk in drive
 // $30-$3F are for device specific errors
+#define SP_ERR_BADWIFI 0x30    // error connecting to new SSID - todo: implement usage
+
 
 #define STATCODE_BLOCK_DEVICE 0x01 << 7   // block device = 1, char device = 0
 #define STATCODE_WRITE_ALLOWED 0x01 << 6
@@ -217,11 +219,11 @@ protected:
   bool _initialized;
 
   // iwm packet handling
-  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  uint16_t packet_len;
+  static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  static uint16_t packet_len;
 
   bool decode_data_packet(void); //decode smartport 512 byte data packet
-  uint16_t num_decoded;
+  static uint16_t num_decoded;
 
   void encode_data_packet(); //encode smartport 512 byte data packet
   void encode_data_packet(uint16_t num); //encode smartport "num" byte data packet
@@ -260,6 +262,7 @@ public:
    * @brief get the IWM device Number (1-255)
    * @return The device number registered for this device
    */
+  void set_id(uint8_t dn) { _devnum=dn; };
   int id() { return _devnum; };
   //void assign_id(uint8_t n) { _devnum = n; };
 
@@ -273,7 +276,7 @@ public:
   /**
    * Startup hack for now
    */
-  virtual void startup_hack() = 0;
+  // virtual void startup_hack() = 0;
 };
 
 class iwmBus
@@ -318,6 +321,7 @@ private:
   void iwm_ack_disable();
   void iwm_extra_set();
   void iwm_extra_clr();
+  bool iwm_enable_val();
 
   bool iwm_phase_val(int p);
 
@@ -331,6 +335,8 @@ private:
 #ifdef DEBUG
   iwm_phases_t oldphase;
 #endif
+
+  bool iwm_drive_enables() {return !iwm_enable_val();};
 
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
@@ -360,7 +366,7 @@ public:
   void test_send(iwmDevice* smort);
 #endif
 
-  void startup_hack();
+  // void startup_hack();
 
 };
 

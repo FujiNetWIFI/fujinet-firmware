@@ -11,6 +11,8 @@
 
 #include "Protocol.h"
 
+#include "fnjson.h"
+
 
 /**
  * Number of devices to expose via ADAM, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -81,6 +83,8 @@ public:
     virtual void adamnet_control_clr();
     virtual void adamnet_control_receive();
     virtual void adamnet_control_receive_channel();
+    virtual void adamnet_control_receive_channel_json();
+    virtual void adamnet_control_receive_channel_protocol();
     virtual void adamnet_control_send();
 
     virtual void adamnet_response_status() override;
@@ -105,6 +109,22 @@ public:
      * @brief called to set password
      */
     virtual void set_password(uint16_t s);
+
+    /**
+     * @brief set channel mode
+     */
+    void channel_mode();
+
+    /**
+     * @brief parse incoming data
+     */
+    void json_parse();
+    
+    /**
+     * @brief JSON Query
+     * @param s size of query
+     */
+    void json_query(unsigned short s);
 
     /**
      * Check to see if PROCEED needs to be asserted.
@@ -132,6 +152,16 @@ private:
      * AdamNet Response Length
      */
     uint16_t response_len=0;
+
+    /**
+     * JSON Object
+     */
+    FNJSON json;
+
+    /**
+     * Has JSON been sent via CLR?
+     */
+    bool jsonRecvd = false;
 
     /**
      * The Receive buffer for this N: device
