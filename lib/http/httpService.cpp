@@ -667,7 +667,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 #ifdef BUILD_ATARI
                 theFuji.status_wait_count = 0;
 #endif
-
+                strcpy(disk->filename,qp.query_parsed["filename"].c_str());
                 disk->disk_size = host->file_size(disk->fileh);
                 disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
                 Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
@@ -811,22 +811,54 @@ esp_err_t fnHttpService::get_handler_term(httpd_req_t *req)
         free(buf);
 
     // Now see if we need to send anything back
-    if (uxQueueMessagesWaiting(theSerial->serial_out_queue))
+
+    return ret;
+}
+
+esp_err_t fnHttpService::get_handler_kybd(httpd_req_t *req)
+{
+    esp_err_t ret;
+    uint8_t *buf = NULL;
+
+    if (req->method == HTTP_GET)
     {
-        struct _sendQueue
-        {
-            uint8_t len;
-            uint8_t data[16];
-        } sq;
-        
-        xQueueReceive(theSerial->serial_out_queue,&sq,portMAX_DELAY);
-
-        ws_pkt.type = HTTPD_WS_TYPE_BINARY;
-        ws_pkt.len = sq.len;
-        ws_pkt.payload = sq.data;
-
-        httpd_ws_send_frame(req,&ws_pkt);
+        Debug_printf("/kybd get DONE");
+        return ESP_OK;
     }
+
+    httpd_ws_frame_t ws_pkt;
+    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+
+    // See if we need to get any keypresses
+    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+    ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
+
+    if (ret != ESP_OK)
+    {
+        Debug_printf("err = %x\n",ret);
+        return ret;
+    }
+    Debug_printf("ws_pkt.len = %x\n",ws_pkt.len);
+
+    if (ws_pkt.len)
+    {
+        buf = (uint8_t *)calloc(sizeof(uint8_t), ws_pkt.len + 1);
+        if (buf == NULL)
+            return ESP_ERR_NO_MEM;
+        else
+            ws_pkt.payload = buf;
+
+        ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
+        if (ret != ESP_OK)
+        {
+            Debug_printf("recv_frame data failed %d\n",ret);
+            free(buf);
+            return ret;
+        }
+    }
+
+    if (buf != NULL)
+        free(buf);
 
     return ret;
 }
@@ -1200,7 +1232,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .user_ctx = NULL,
          .is_websocket = true,
          .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
+         .supported_subprotocol = nullptr},         
 #endif
         {.uri = "/config",
          .method = HTTP_POST,

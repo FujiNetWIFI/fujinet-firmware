@@ -232,6 +232,15 @@ void fnHttpServiceConfigurator::config_boot_mode(std::string boot_mode)
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_cassette_enabled(std::string cassette_enabled)
+{
+    Debug_printf("New Cassette Enable Value: %s\n",cassette_enabled.c_str());
+
+    // Store
+    Config.store_cassette_enabled(atoi(cassette_enabled.c_str()));
+    // Save*
+    Config.save();
+}
 
 void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::string resistor, bool rew)
 {
@@ -384,6 +393,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("rew") == 0)
         {
             config_cassette(std::string(), std::string(), true);
+        }
+        else if (i->first.compare("cassette_enabled") == 0)
+        {
+            config_cassette_enabled(i->second);
         }
         else if (i->first.compare("rotation_sounds") == 0)
         {

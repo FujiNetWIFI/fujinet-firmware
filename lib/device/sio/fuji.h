@@ -15,7 +15,6 @@
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 8
 
-#define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
 
 #define MAX_APPKEY_LEN 64
@@ -25,7 +24,7 @@
 
 typedef struct
 {
-    char ssid[32];
+    char ssid[33];
     char hostname[64];
     unsigned char localIP[4];
     unsigned char gateway[4];
@@ -89,6 +88,7 @@ protected:
     void sio_write_host_slots();       // 0xF3
     void sio_read_device_slots();      // 0xF2
     void sio_write_device_slots();     // 0xF1
+    void sio_net_get_wifi_enabled();   // 0xEA
     void sio_disk_image_umount();      // 0xE9
     void sio_get_adapter_config();     // 0xE8
     void sio_new_disk();               // 0xE7

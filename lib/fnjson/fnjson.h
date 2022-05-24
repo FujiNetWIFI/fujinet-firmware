@@ -9,15 +9,17 @@
 #define JSON_H
 
 #include <cJSON.h>
+#include <cJSON_Utils.h>
 
 #include "Protocol.h"
 
-class JSON
+class FNJSON
 {
 public:
-    JSON();
-    virtual ~JSON();
+    FNJSON();
+    virtual ~FNJSON();
 
+    void setLineEnding(string _lineEnding);
     void setProtocol(NetworkProtocol *newProtocol);
     void setReadQuery(string queryString);
     cJSON *resolveQuery();
@@ -25,14 +27,16 @@ public:
     bool parse();
     int readValueLen();
     bool readValue(uint8_t *buf, unsigned short len);
+    string processString(string in);
 
 private:
     cJSON *_json;
+    cJSON *_item;
     NetworkProtocol *_protocol;
     string _queryString;
-
+    string lineEnding;
     string getValue(cJSON *item);
-    
+    string _parseBuffer;
 };
 
 #endif /* JSON_H */
