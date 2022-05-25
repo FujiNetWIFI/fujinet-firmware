@@ -1271,34 +1271,6 @@ void lynxFuji::setup(systemBus *siobus)
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
 
-    _comlynx_bus->addDevice(&_fnDisks[0].disk_dev, COMLYNX_DEVICEID_DISK);
-    _comlynx_bus->addDevice(&_fnDisks[1].disk_dev, COMLYNX_DEVICEID_DISK + 1);
-    _comlynx_bus->addDevice(&_fnDisks[2].disk_dev, COMLYNX_DEVICEID_DISK + 2);
-    _comlynx_bus->addDevice(&_fnDisks[3].disk_dev, COMLYNX_DEVICEID_DISK + 3);
-
-    // Read and enable devices
-    _fnDisks[0].disk_dev.device_active = Config.get_device_slot_enable_1();
-    _fnDisks[1].disk_dev.device_active = Config.get_device_slot_enable_2();
-    _fnDisks[2].disk_dev.device_active = Config.get_device_slot_enable_3();
-    _fnDisks[3].disk_dev.device_active = Config.get_device_slot_enable_4();
-
-    Debug_printf("Config General Boot Mode: %u\n", Config.get_general_boot_mode());
-    if (Config.get_general_boot_mode() == 0)
-    {
-        FILE *f = fnSPIFFS.file_open("/autorun.ddp");
-        _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
-        _fnDisks[0].disk_dev.is_config_device = true;
-    }
-    else
-    {
-        FILE *f = fnSPIFFS.file_open("/mount-and-boot.ddp");
-        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, MEDIATYPE_DDP);
-    }
-
-    theNetwork = new lynxNetwork();
-    theSerial = new lynxSerial();
-    _comlynx_bus->addDevice(theNetwork, 0x09); // temporary.
-    _comlynx_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 }
 
 // Mount all
