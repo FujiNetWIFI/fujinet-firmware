@@ -17,8 +17,8 @@
 #endif
 
 #ifdef BUILD_LYNX
-# include "adamnet/modem.h"
-  extern adamModem *sioR;
+# include "comlynx/modem.h"
+  extern lynxModem *sioR;
 #endif
 
 #ifdef BUILD_S100
