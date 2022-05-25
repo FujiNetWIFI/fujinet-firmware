@@ -1,5 +1,5 @@
-#ifndef ADAM_MODEM_H
-#define ADAM_MODEM_H
+#ifndef LYNX_MODEM_H
+#define LYNX_MODEM_H
 
 #include <time.h>
 
@@ -15,7 +15,7 @@
 #include "esp32sshclient.h"
 
 /* Keep strings under 40 characters, for the benefit of 40-column users! */
-#define HELPL01 "       FujiNet Virtual ADAM Modem"
+#define HELPL01 "       FujiNet Virtual LYNX Modem"
 #define HELPL02 "======================================="
 #define HELPL03 ""
 #define HELPL04 "ATWIFILIST        | List avail networks"
@@ -72,7 +72,7 @@
 
 #define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
 
-class adamModem : public virtualDevice
+class lynxModem : public virtualDevice
 {
 private:
 
@@ -219,8 +219,8 @@ public:
     bool modemActive = false; // If we are in modem mode or not
     void sio_handle_modem();  // Handle incoming & outgoing data for modem
 
-    adamModem(FileSystem *_fs, bool snifferEnable);
-    virtual ~adamModem();
+    lynxModem(FileSystem *_fs, bool snifferEnable);
+    virtual ~lynxModem();
 
     time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.
     ModemSniffer *get_modem_sniffer() { return modemSniffer; }
@@ -232,4 +232,4 @@ public:
 
 };
 
-#endif /* ADAM_MODEM_H */
+#endif /* LYNX_MODEM_H */

@@ -19,6 +19,11 @@
 # include "adam/mediaTypeROM.h"
 #endif
 
+#ifdef BUILD_LYNX
+#include "lynx/mediaType.h"
+#include "lynx/mediaTypeROM.h"
+#endif
+
 #ifdef BUILD_APPLE
 # include "apple/mediaType.h"
 # include "apple/mediaTypePO.h"

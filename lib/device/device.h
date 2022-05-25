@@ -43,6 +43,19 @@
     bool exists = false;
 #endif
 
+#ifdef BUILD_LYNX
+# include "comlynx/keyboard.h"
+# include "comlynx/modem.h"
+# include "comlynx/printer.h"
+# include "comlynx/printerlist.h"
+# include "comlynx/fuji.h"
+
+//# define NO_VIRTUAL_KEYBOARD
+    lynxModem *sioR;
+    lynxKeyboard *sioK;
+    bool exists = false;
+#endif
+
 #ifdef BUILD_APPLE
 # include "iwm/disk.h"
 # include "iwm/fuji.h"
