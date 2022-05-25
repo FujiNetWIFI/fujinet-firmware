@@ -78,11 +78,14 @@
 /* Pins for AdamNet */
 #define PIN_ADAMNET_RESET   26
 
+
 /* Pins for Adam USB */
 #define PIN_USB_DP          27      // D+
 #define PIN_USB_DM          32      // D-
 
 // Apple II IWM pin assignments
 
+// Atari Lynx Pin assignments
+#define PIN_COMLYNX_RESET   26
 
 #endif
