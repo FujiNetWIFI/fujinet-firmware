@@ -1270,6 +1270,7 @@ void lynxFuji::setup(systemBus *siobus)
 
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
+    _comlynx_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 
 }
 
@@ -1409,6 +1410,18 @@ lynxDisk *lynxFuji::bootdisk()
     return _bootDisk;
 }
 
+void lynxFuji::comlynx_hello()
+{
+    const char resp[] = "HELLO FROM PC!\n";
+    Debug_printf("lynxFuji::comlynx_hello()\n");
+    comlynx_response_ack();
+
+    Debug_printf("HELLO FROM LYNX.\n");
+
+    response_len = strlen(resp);
+    memcpy(response,resp,response_len);
+}
+
 void lynxFuji::comlynx_control_send()
 {
     uint16_t s = comlynx_recv_length();
@@ -1514,6 +1527,9 @@ void lynxFuji::comlynx_control_send()
         break;
     case SIO_FUJICMD_COPY_FILE:
         comlynx_copy_file();
+        break;
+    case 0x01:
+        comlynx_hello();
         break;
     }
 }
