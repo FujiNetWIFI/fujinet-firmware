@@ -1413,13 +1413,14 @@ lynxDisk *lynxFuji::bootdisk()
 void lynxFuji::comlynx_hello()
 {
     const char resp[] = "HELLO FROM PC!\n";
+    response_len = strlen(resp);
+    memcpy(response,resp,response_len);
+
     Debug_printf("lynxFuji::comlynx_hello()\n");
     comlynx_response_ack();
 
     Debug_printf("HELLO FROM LYNX.\n");
 
-    response_len = strlen(resp);
-    memcpy(response,resp,response_len);
 }
 
 void lynxFuji::comlynx_control_send()
@@ -1555,12 +1556,15 @@ void lynxFuji::comlynx_process(uint8_t b)
         comlynx_control_status();
         break;
     case MN_CLR:
+        Debug_printf("CLR!\n");
         comlynx_control_clr();
         break;
     case MN_RECEIVE:
+        Debug_printf("RECV!\n");
         comlynx_response_ack();
         break;
     case MN_SEND:
+        Debug_printf("SEND!\n");
         comlynx_control_send();
         break;
     case MN_READY:

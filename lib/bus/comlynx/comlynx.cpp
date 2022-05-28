@@ -78,12 +78,15 @@ void virtualDevice::comlynx_send(uint8_t b)
 {
     // Write the byte
     fnUartSIO.write(b);
-    fnUartSIO.flush();
+    while (!fnUartSIO.available());
+    fnUartSIO.read();
 }
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
-    fnUartSIO.write(buf, len);
+    while (*buf != NULL)
+        comlynx_send(*buf++);
+
     fnUartSIO.flush();
 }
 
@@ -161,27 +164,14 @@ void virtualDevice::reset()
 
 void virtualDevice::comlynx_response_ack()
 {
-    int64_t t = esp_timer_get_time() - ComLynx.start_time;
-
-    if (t < 300)
-    {
-        ComLynx.wait_for_idle();
-        comlynx_send(0x90 | _devnum);
-    }
-    else
-    {
-    }
+    ComLynx.wait_for_idle();
+    comlynx_send(0x90 | _devnum);
 }
 
 void virtualDevice::comlynx_response_nack()
 {
-    int64_t t = esp_timer_get_time() - ComLynx.start_time;
-
-    if (t < 300)
-    {
-        ComLynx.wait_for_idle();
-        comlynx_send(0xC0 | _devnum);
-    }
+    ComLynx.wait_for_idle();
+    comlynx_send(0xC0 | _devnum);
 }
 
 void virtualDevice::comlynx_control_ready()
@@ -191,6 +181,7 @@ void virtualDevice::comlynx_control_ready()
 
 void systemBus::wait_for_idle()
 {
+    return;
     bool isIdle = false;
     int64_t start, current, dur;
 
@@ -220,8 +211,8 @@ void virtualDevice::comlynx_process(uint8_t b)
 
 void virtualDevice::comlynx_control_status()
 {
-    ComLynx.start_time=esp_timer_get_time();
-   comlynx_response_status();
+    ComLynx.start_time = esp_timer_get_time();
+    comlynx_response_status();
 }
 
 void virtualDevice::comlynx_response_status()
@@ -254,16 +245,17 @@ void virtualDevice::comlynx_idle()
     // Not implemented in base class
 }
 
-//void virtualDevice::comlynx_status()
+// void virtualDevice::comlynx_status()
 //{
-//    fnUartDebug.printf("comlynx_status() not implemented yet for this device.\n");
-//}
+//     fnUartDebug.printf("comlynx_status() not implemented yet for this device.\n");
+// }
 
 void systemBus::_comlynx_process_cmd()
 {
     uint8_t b;
 
     b = fnUartSIO.read();
+    Debug_printf("%02x\n",b);
     start_time = esp_timer_get_time();
 
     uint8_t d = b & 0x0F;
@@ -397,7 +389,7 @@ void systemBus::reset()
 
 void systemBus::enableDevice(uint8_t device_id)
 {
-    Debug_printf("Enabling Comlynx Device %d\n",device_id);
+    Debug_printf("Enabling Comlynx Device %d\n", device_id);
 
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = true;
@@ -405,7 +397,7 @@ void systemBus::enableDevice(uint8_t device_id)
 
 void systemBus::disableDevice(uint8_t device_id)
 {
-    Debug_printf("Disabling Comlynx Device %d\n",device_id);
+    Debug_printf("Disabling Comlynx Device %d\n", device_id);
 
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = false;
