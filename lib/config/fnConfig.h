@@ -73,6 +73,8 @@ public:
     void store_wifi_ssid(const char *ssid_octets, int num_octets);
     void store_wifi_passphrase(const char *passphrase_octets, int num_octets);
     void reset_wifi() { _wifi.ssid.clear(); _wifi.passphrase.clear(); };
+    void store_wifi_enabled(bool status);
+    bool get_wifi_enabled() { return _wifi.enabled; };
 
     // BLUETOOTH
     void store_bt_status(bool status);
@@ -244,6 +246,7 @@ private:
     {
         std::string ssid;
         std::string passphrase;
+        bool enabled = true;
     };
 
     struct bt_info

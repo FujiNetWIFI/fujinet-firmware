@@ -140,6 +140,13 @@ void fnConfig::store_wifi_passphrase(const char *passphrase_octets, int num_octe
     }
 }
 
+/* Stores whether Wifi is enabled or not */
+void fnConfig::store_wifi_enabled(bool status)
+{
+    _wifi.enabled = status;
+    _dirty = true;
+}
+
 void fnConfig::store_bt_status(bool status)
 {
     _bt.bt_status = status;
@@ -671,6 +678,7 @@ void fnConfig::save()
 
     // WIFI
     ss << LINETERM << "[WiFi]" LINETERM;
+    ss << "enabled=" << _wifi.enabled << LINETERM;
     ss << "SSID=" << _wifi.ssid << LINETERM;
     // TODO: Encrypt passphrase!
     ss << "passphrase=" << _wifi.passphrase << LINETERM;
@@ -1095,6 +1103,14 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
             {
                 _wifi.passphrase = value;
             }
+            else if (strcasecmp(name.c_str(), "enabled") == 0)
+            {
+                if (strcasecmp(value.c_str(), "1") == 0)
+                    _wifi.enabled = true;
+                else
+                    _wifi.enabled = false;
+            }
+
         }
     }
 }

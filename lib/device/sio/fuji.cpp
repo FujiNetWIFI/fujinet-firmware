@@ -33,6 +33,7 @@
 #define SIO_FUJICMD_WRITE_HOST_SLOTS 0xF3
 #define SIO_FUJICMD_READ_DEVICE_SLOTS 0xF2
 #define SIO_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
+#define SIO_FUJICMD_GET_WIFI_ENABLED 0xEA
 #define SIO_FUJICMD_UNMOUNT_IMAGE 0xE9
 #define SIO_FUJICMD_GET_ADAPTERCONFIG 0xE8
 #define SIO_FUJICMD_NEW_DISK 0xE7
@@ -282,6 +283,14 @@ void sioFuji::sio_net_get_wifi_status()
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     bus_to_computer(&wifiStatus, sizeof(wifiStatus), false);
+}
+
+// Check if Wifi is enabled
+void sioFuji::sio_net_get_wifi_enabled()
+{
+    uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
+    Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n",e);
+    bus_to_computer(&e, sizeof(e), false);
 }
 
 // Mount Server
@@ -1618,6 +1627,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_WRITE_DEVICE_SLOTS:
         sio_ack();
         sio_write_device_slots();
+        break;
+    case SIO_FUJICMD_GET_WIFI_ENABLED:
+        sio_ack();
+        sio_net_get_wifi_enabled();
         break;
     case SIO_FUJICMD_UNMOUNT_IMAGE:
         sio_ack();
