@@ -24,7 +24,7 @@
 #define PIN_UART1_TX 10
 #ifdef THOMS_GHETTO_ASS_ADAM_BREADBOARD 
 #define PIN_UART2_RX 23
-#define PIN_UART2_TX 23
+#define PIN_UART2_TX 22
 #else
 #define PIN_UART2_RX 33
 #define PIN_UART2_TX 21
