@@ -109,6 +109,7 @@ class sioFuji;     // declare here so can reference it, but define in fuji.h
 class systemBus;      // declare early so can be friend
 class sioNetwork;  // declare here so can reference it, but define in network.h
 class sioMIDIMaze; // declare here so can reference it, but define in midimaze.h
+class sioUDPStream; // declare here so can reference it, but define in udpstream.h
 class sioCassette; // Cassette forward-declaration.
 class sioCPM;      // CPM device.
 class sioPrinter;  // Printer device
@@ -252,6 +253,7 @@ private:
     sioFuji *_fujiDev = nullptr;
     sioNetwork *_netDev[8] = {nullptr};
     sioMIDIMaze *_midiDev = nullptr;
+    sioUDPStream *_udpDev = nullptr;
     sioCassette *_cassetteDev = nullptr;
     sioCPM *_cpmDev = nullptr;
     sioPrinter *_printerdev = nullptr;
@@ -277,16 +279,16 @@ public:
     virtualDevice *deviceById(int device_id);
     void changeDeviceId(virtualDevice *pDevice, int device_id);
 
-    int getBaudrate();          // Gets current SIO baud rate setting
-    void setBaudrate(int baud); // Sets SIO to specific baud rate
-    void toggleBaudrate();      // Toggle between standard and high speed SIO baud rate
+    int getBaudrate();                                          // Gets current SIO baud rate setting
+    void setBaudrate(int baud);                                 // Sets SIO to specific baud rate
+    void toggleBaudrate();                                      // Toggle between standard and high speed SIO baud rate
 
-    int setHighSpeedIndex(int hsio_index); // Set HSIO index. Sets high speed SIO baud and also returns that value.
-    int getHighSpeedIndex();               // Gets current HSIO index
-    int getHighSpeedBaud();                // Gets current HSIO baud
+    int setHighSpeedIndex(int hsio_index);                      // Set HSIO index. Sets high speed SIO baud and also returns that value.
+    int getHighSpeedIndex();                                    // Gets current HSIO index
+    int getHighSpeedBaud();                                     // Gets current HSIO baud
 
-    void setMIDIHost(const char *newhost);                   // Set new host/ip for MIDIMaze
-    void setUltraHigh(bool _enable, int _ultraHighBaud = 0); // enable ultrahigh/set baud rate
+    void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
+    void setUltraHigh(bool _enable, int _ultraHighBaud = 0);    // enable ultrahigh/set baud rate
     bool getUltraHighEnabled() { return useUltraHigh; }
     int getUltraHighBaudRate() { return _sioBaudUltraHigh; }
 
