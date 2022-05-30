@@ -9,7 +9,12 @@
 #include <cstdint>
 #include <forward_list>
 #include <string>
+#include "driver/spi_master.h"
+
 #include "fnFS.h"
+
+
+
 
 // todo - see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
 #define SP_ERR_NOERROR 0x00    // no error
@@ -75,6 +80,8 @@
 
 #undef TESTTX
 //#define TESTTX
+
+#define TEST_SPI
 
 // these are for the temporary disk functions
 //#include "fnFsSD.h"
@@ -294,6 +301,11 @@ private:
   //iwmCPM *_cpmDev = nullptr;
   iwmPrinter *_printerdev = nullptr;
 
+  // iwm packet handling
+  uint8_t spi_buffer[4 * BLOCK_PACKET_LEN]; //smartport packet buffer
+  uint16_t spi_len;
+  spi_device_handle_t spi;
+
   // low level bit-banging i/o functions
   struct iwm_timer_t
   {
@@ -344,7 +356,13 @@ private:
 public:
   int iwm_read_packet(uint8_t *a, int n);
   int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
+  void encode_spi_packet(uint8_t *a);
   int iwm_send_packet(uint8_t *a);
+  int iwm_send_packet_spi(uint8_t *a);
+
+#ifdef TEST_SPI
+  void test_spi();
+#endif
 
   void setup();
   void service();
@@ -361,6 +379,7 @@ public:
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
   // iwmDevice *smort;
+
 
 #ifdef TESTTX
   void test_send(iwmDevice* smort);
