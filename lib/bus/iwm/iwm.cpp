@@ -8,11 +8,23 @@
 #include "utils.h"
 #include "led.h"
 
-
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 
-#define EXTRA 
+#include "iwm_spi.h"
+// spi things
+
+// HSPIQ
+#define HSPID 13
+// HSPICLK
+// HSPICS0
+
+#define SEND_PACKET iwm_send_packet_spi
+#define TEST_SPI 1 
+
+// end spi things
+
+#undef EXTRA
 
 /******************************************************************************
 Based on:
@@ -573,6 +585,34 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
   return 1;
 }
 
+void iwmBus::encode_spi_packet(uint8_t *a)
+{
+  // clear out spi buffer
+  memset(spi_buffer, 0, sizeof(spi_buffer));
+  // loop through "l" bytes of the buffer "a"
+  uint16_t i=0,j=0;
+  while(a[i])
+  {
+    // for each byte, loop through 4 x 2-bit pairs
+    uint8_t mask = 0x80;
+    for (int k = 0; k < 4; k++)
+    {
+      if (a[i] & mask)
+      {
+        spi_buffer[j] |= 0x40;
+      }
+      mask >>= 1;
+      if (a[i] & mask)
+      {
+        spi_buffer[j] |= 0x04;
+      }
+      j++;
+    }
+    i++;
+  }
+  spi_len = --j;
+}
+
 int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 {
   //*****************************************************************************
@@ -711,9 +751,213 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   return 0;
 }
 
+int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
+{
+  //*****************************************************************************
+  // Function: iwm_send_packet_spi
+  // Parameters: packet_buffer pointer
+  // Returns: status (not used yet, always returns 0)
+  //
+  // Description: This handles the ACK and REQ lines and sends the packet from the
+  // pointer passed to it. (packet_buffer)
+  //
+  //*****************************************************************************
+
+  // int idx = 0;        // reg x, index into *a
+  // //uint8_t txbyte; // r23 transmit byte being sent bit by bit
+  // int numbits = 8;        // r25 counter
+
+// Disable interrupts
+// https://esp32developer.com/programming-in-c-c/interrupts/interrupts-general
+// You can suspend interrupts and context switches by calling  portDISABLE_INTERRUPTS
+// and the interrupts on that core should stop firing, stopping task switches as well.
+// Call portENABLE_INTERRUPTS after you're done
+//  portDISABLE_INTERRUPTS();
+
+  // try to cache functions
+  iwm_timer_reset();
+  // iwm_timer_latch();
+  // iwm_timer_read();
+  // iwm_timer_alarm_set(1);
+  // iwm_timer_wait();
+  // iwm_timer_alarm_snooze(1);
+  // iwm_timer_wait();
+
+  iwm_rddata_enable();
+
+ //txbyte = a[idx++];
+
+  //print_packet(a);
+  // todo should this be ack disable or ack set?
+
+#ifndef TEST_SPI
+  iwm_ack_set(); // ack is already enabled by the response to the command read
+
+#ifndef TESTTX
+  // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
+  // setup a timeout counter to wait for REQ response
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();      //  grab timer low word
+  iwm_timer_alarm_set(10000); // 1 millisecond per IIgs?
+
+  // while (!fnSystem.digital_read(SP_REQ))
+  while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  {
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
+    {
+      // timeout!
+      Debug_printf("\r\nSendPacket timeout waiting for REQ");
+      iwm_rddata_disable();
+      //iwm_ack_disable(); // need to release the bus if we're quitting
+      portENABLE_INTERRUPTS(); // takes 7 us to execute
+      return 1;
+    }
+  };
+// ;
+
+#ifdef VERBOSE_IWM
+  // REQ received!
+  Debug_print("R");
+#endif
+#else // TESTTX
+  iwm_timer_latch();
+  iwm_timer_read();
+#endif // TESTTX
+
+#endif // TEST_SPI
+
+  // send data stream using SPI
+    esp_err_t ret;
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.tx_buffer=spi_buffer;            //finally send the line data
+    trans.length=spi_len*8;            //Data length, in bits
+    trans.flags=0; //undo SPI_TRANS_USE_TXDATA flag
+    ret=spi_device_queue_trans(spi, &trans, portMAX_DELAY);
+    assert(ret==ESP_OK);
+    //When we are here, the SPI driver is busy (in the background) getting the transactions sent. That happens
+    //mostly using DMA, so the CPU doesn't have much to do here. We're not going to wait for the transaction to
+    //finish because we may as well spend the time calculating the next line. When that is done, we can call
+    //send_line_finish, which will wait for the transfers to be done and check their status.
+
+
+    spi_transaction_t *rtrans;
+    //Wait for transaction to be done and get back the results.
+    ret=spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
+    assert(ret==ESP_OK);
+        //We could inspect rtrans now if we received any info back. The LCD is treated as write-only, though.
+
+  iwm_ack_clr();
+#ifndef TESTTX
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();      //  grab timer low word
+  iwm_timer_alarm_set(5000); // 1/2 millisecond
+
+  // while (!fnSystem.digital_read(SP_REQ))
+  while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  {
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
+    {
+      iwm_rddata_disable();
+     // iwm_ack_disable();       // need to release the bus
+      //portENABLE_INTERRUPTS(); // takes 7 us to execute
+      return 1;
+    }
+  };
+#endif // TESTTX
+  iwm_rddata_disable();
+#ifdef DEBUG
+  //print_packet(a);
+#endif
+  //portENABLE_INTERRUPTS(); // takes 7 us to execute
+  //iwm_ack_disable();       // need to release the bus
+  return 0;
+}
+
+
+#ifdef TEST_SPI
+void iwmBus::test_spi()
+{
+// HSPID
+  iwm_rddata_clr();
+  iwm_rddata_enable(); 
+  iwm_ack_clr();
+  iwm_ack_enable();
+  
+  uint8_t status = 0xff; //yes, so status=non zero
+
+  theFuji.encode_init_reply_packet(0x81, status);
+  print_packet((uint8_t *)theFuji.packet_buffer);
+  encode_spi_packet((uint8_t *)theFuji.packet_buffer);
+  Debug_printf("\r\nNumber of bytes after encoding: %d\r\n",spi_len);
+  print_packet(spi_buffer);
+  //spi_len = 10;
+    
+
+  while (true)
+  {
+    Debug_printf("\r\nSending INIT Response Packet...");
+    SEND_PACKET((uint8_t *)theFuji.packet_buffer); // timeout error return is not handled here (yet?)
+    Debug_printf("\r\nSent!!!!");
+    fnSystem.delay(1000);
+  }
+
+}
+#endif
+
 void iwmBus::setup(void)
 {
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
+
+  timer_config();
+  Debug_printf("\r\nIWM timer started");
+
+  // to do fix for SPI
+    esp_err_t ret;
+    spi_device_interface_config_t devcfg={
+      .mode=0,                                //SPI mode 0
+      .clock_speed_hz=1*1000*1000,               //Clock out at 1 MHz
+      .spics_io_num=22,               //CS pin
+      .queue_size=7                          //We want to be able to queue 7 transactions at a time
+    };
+    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+    assert(ret==ESP_OK);
+    // spi_transaction_t trans;
+    // memset(&trans, 0, sizeof(spi_transaction_t));
+    // uint8_t data[]={0,1,2,3,4,5,6,7};
+    // trans.tx_buffer=data;            //finally send the line data
+    // trans.length=sizeof(data)*8;            //Data length, in bits
+    // trans.flags=0; //undo SPI_TRANS_USE_TXDATA flag
+    // ret=spi_device_queue_trans(spi, &trans, portMAX_DELAY);
+    // assert(ret==ESP_OK);
+    // //When we are here, the SPI driver is busy (in the background) getting the transactions sent. That happens
+    // //mostly using DMA, so the CPU doesn't have much to do here. We're not going to wait for the transaction to
+    // //finish because we may as well spend the time calculating the next line. When that is done, we can call
+    // //send_line_finish, which will wait for the transfers to be done and check their status.
+
+
+    // spi_transaction_t *rtrans;
+    // //Wait for transaction to be done and get back the results.
+    // ret=spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
+    // assert(ret==ESP_OK);
+    //     //We could inspect rtrans now if we received any info back. The LCD is treated as write-only, though.
+
+  // while(1)
+  // {
+  //   portYIELD();
+  // }
+
+
+  test_spi();
+  while(1)
+  {
+    portYIELD();
+  }
+
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
@@ -746,8 +990,7 @@ void iwmBus::setup(void)
 #endif
   Debug_printf("\r\nIWM GPIO configured");
 
-  timer_config();
-  Debug_printf("\r\nIWM timer started");
+
 }
 
 //*****************************************************************************
@@ -1146,14 +1389,14 @@ void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   encode_error_reply_packet(SP_ERR_BADCMD);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 void iwmDevice::iwm_return_ioerror(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   encode_error_reply_packet(SP_ERR_IOERROR);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 //*****************************************************************************
@@ -1229,7 +1472,7 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
       encode_status_reply_packet();
     }
   print_packet(&packet_buffer[14]);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 //*****************************************************************************
@@ -1447,7 +1690,7 @@ void iwmBus::handle_init()
         status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
       pDevice->encode_init_reply_packet(command_packet.dest, status);
       Debug_printf("\r\nSending INIT Response Packet...");
-      iwm_send_packet((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
+      SEND_PACKET((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
 
       // print_packet ((uint8_t*) packet_buffer,get_packet_length());
 
@@ -1603,7 +1846,7 @@ void iwmBus::test_send(iwmDevice* smort)
   while (true)
   {
     Debug_printf("\r\nSending INIT Response Packet...");
-    iwm_send_packet((uint8_t *)smort->packet_buffer); // timeout error return is not handled here (yet?)
+    SEND_PACKET((uint8_t *)smort->packet_buffer); // timeout error return is not handled here (yet?)
     fnSystem.delay(1000);
   }
 }
