@@ -56,6 +56,7 @@
 #define SIO_FUJICMD_SET_BOOT_MODE 0xD6
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
+#define SIO_FUJICMD_ENABLE_UDPSTREAM 0xF0
 
 sioFuji theFuji; // global fuji device object
 
@@ -1519,6 +1520,33 @@ void sioFuji::insert_boot_device(uint8_t d)
     _bootDisk.device_active = false;
 }
 
+// Set UDP Stream HOST & PORT and start it
+void sioFuji::sio_enable_udpstream()
+{
+    char host[64];
+
+    uint8_t ck = bus_to_peripheral((uint8_t *)&host, sizeof(host));
+
+    if (sio_checksum((uint8_t *)&host, sizeof(host)) != ck)
+        sio_error();
+    else
+    {
+        int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
+
+        Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
+
+        // Save the host and port
+        Config.store_udpstream_host(host);
+        Config.store_udpstream_port(port);
+        Config.save();
+
+        sio_complete();
+
+        // Start the UDP Stream
+        SIO.setUDPHost(host, port);
+    }
+}
+
 // Initializes base settings and adds our devices to the SIO bus
 void sioFuji::setup(systemBus *siobus)
 {
@@ -1708,6 +1736,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_SET_BOOT_MODE:
         sio_ack();
         sio_set_boot_mode();
+        break;
+    case SIO_FUJICMD_ENABLE_UDPSTREAM:
+        sio_ack();
+        sio_enable_udpstream();
         break;
     default:
         sio_nak();
