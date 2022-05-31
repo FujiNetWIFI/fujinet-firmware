@@ -108,7 +108,6 @@ class sioModem;    // declare here so can reference it, but define in modem.h
 class sioFuji;     // declare here so can reference it, but define in fuji.h
 class systemBus;      // declare early so can be friend
 class sioNetwork;  // declare here so can reference it, but define in network.h
-class sioMIDIMaze; // declare here so can reference it, but define in midimaze.h
 class sioUDPStream; // declare here so can reference it, but define in udpstream.h
 class sioCassette; // Cassette forward-declaration.
 class sioCPM;      // CPM device.
@@ -252,7 +251,6 @@ private:
     sioModem *_modemDev = nullptr;
     sioFuji *_fujiDev = nullptr;
     sioNetwork *_netDev[8] = {nullptr};
-    sioMIDIMaze *_midiDev = nullptr;
     sioUDPStream *_udpDev = nullptr;
     sioCassette *_cassetteDev = nullptr;
     sioCPM *_cpmDev = nullptr;
