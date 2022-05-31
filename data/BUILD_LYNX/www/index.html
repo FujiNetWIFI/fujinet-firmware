@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<title>FujiNet - <%FN_HOSTNAME%></title>
+	<meta charset="utf-8" />
+	<script type="text/javascript" src="/file?utils.js"></script>
+	<style>
+		#logowob {
+			content: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMTkzIDE4OSIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4bWw6c3BhY2U9InByZXNlcnZlIiB4bWxuczpzZXJpZj0iaHR0cDovL3d3dy5zZXJpZi5jb20vIiBzdHlsZT0iZmlsbC1ydWxlOmV2ZW5vZGQ7Y2xpcC1ydWxlOmV2ZW5vZGQ7c3Ryb2tlLWxpbmVqb2luOnJvdW5kO3N0cm9rZS1taXRlcmxpbWl0OjI7Ij4KICAgIDxnPgogICAgICAgIDxjaXJjbGUgY3g9IjEzMS4zOTUiIGN5PSIxMjYuMjY4IiByPSIyMS41MTEiIHN0eWxlPSJzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi41OHB4OyIvPgogICAgICAgIDxjaXJjbGUgY3g9IjEzMS4zOTUiIGN5PSI4My4yNDUiIHI9IjIxLjUxMSIgc3R5bGU9InN0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoyLjU4cHg7Ii8+CiAgICAgICAgPGNpcmNsZSBjeD0iODguMzcyIiBjeT0iODMuMjQ1IiByPSIyMS41MTEiIHN0eWxlPSJmaWxsOiNmZmY7c3Ryb2tlOiNmZmY7c3Ryb2tlLXdpZHRoOjIuNThweDsiLz4KICAgICAgICA8Y2lyY2xlIGN4PSI0NS4zNDkiIGN5PSI4My4yNDUiIHI9IjIxLjUxMSIgc3R5bGU9InN0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoyLjU4cHg7Ii8+CiAgICAgICAgPGNpcmNsZSBjeD0iODguMzcyIiBjeT0iNDAuMjIzIiByPSIyMS41MTEiIHN0eWxlPSJzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi41OHB4OyIvPgogICAgICAgIDxwYXRoIGQ9Ik00NS4zNDksMTA0Ljc1N2wwLDQzLjAyMiIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi4xOXB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik00NS4zNDksNjEuNzM0bDAsLTMxLjM2NSIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi4wM3B4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik04OC4zNzIsMS43NjhsMCwxNi45NDMiIHN0eWxlPSJmaWxsOm5vbmU7c3Ryb2tlOiNmZmY7c3Ryb2tlLXdpZHRoOjEuOTZweDtzdHJva2UtbGluZWNhcDpzcXVhcmU7c3Ryb2tlLWxpbmVqb2luOm1pdGVyO3N0cm9rZS1taXRlcmxpbWl0OjEuNTsiLz4KICAgICAgICA8cGF0aCBkPSJNMTA5Ljg4Myw0MC4yMjNsMzYuNzMsLTAiIHN0eWxlPSJmaWxsOm5vbmU7c3Ryb2tlOiNmZmY7c3Ryb2tlLXdpZHRoOjIuMXB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik02Ni44NjEsNDAuMjIzbC0zNi43MywtMCIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi40cHg7c3Ryb2tlLWxpbmVjYXA6c3F1YXJlO3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDoxLjU7Ii8+CiAgICAgICAgPHBhdGggZD0iTTIzLjgzOCw4My4yNDVsLTIxLjUxMSwwLjY2NSIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi41OHB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik0xNTIuOTA2LDgzLjI0NWw2Ljk5NiwwIiBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoxLjkycHg7c3Ryb2tlLWxpbmVjYXA6c3F1YXJlO3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDoxLjU7Ii8+CiAgICAgICAgPHBhdGggZD0iTTM0LjA3OCwxMjYuMjY4bDc1LjgwNSwwIiBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoyLjQzcHg7c3Ryb2tlLWxpbmVjYXA6c3F1YXJlO3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDoxLjU7Ii8+CiAgICAgICAgPHBhdGggZD0iTTYuMTE0LDczLjEyN2wwLDI1Ljc0NyIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi40OXB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik04OC4zNzIsMTA0Ljc1N2wwLDcyLjMwNSIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi4zOHB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik0xMzEuMzk1LDE0Ny43NzlsLTAsMzkuMjY4IiBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoyLjE0cHg7c3Ryb2tlLWxpbmVjYXA6c3F1YXJlO3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDoxLjU7Ii8+CiAgICAgICAgPHBhdGggZD0iTTE1Mi45MDYsMTI2LjI2OGwxNC4xNTgsMCIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi4xOXB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik03OS4zODcsMTY5LjI5MWwxMTAuNzY3LC0wIiBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoyLjYycHg7c3Ryb2tlLWxpbmVjYXA6c3F1YXJlO3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDoxLjU7Ii8+CiAgICAgICAgPHBhdGggZD0iTTE3NC40MTcsMTQyLjA4MWwwLDM5LjI2OCIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi4yNnB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik0xMzEuMzk1LDMwLjM2OWwtMCwzMS4zNjUiIHN0eWxlPSJmaWxsOm5vbmU7c3Ryb2tlOiNmZmY7c3Ryb2tlLXdpZHRoOjIuMjZweDtzdHJva2UtbGluZWNhcDpzcXVhcmU7c3Ryb2tlLWxpbmVqb2luOm1pdGVyO3N0cm9rZS1taXRlcmxpbWl0OjEuNTsiLz4KICAgIDwvZz4KPC9zdmc+);
+			width: 2.2rem;
+			height: 2rem;
+			display: inline-block;
+			vertical-align: middle;
+		}
+
+		@font-face {
+			font-family: 'Futura';
+			src: url('/file?FuturaBT-Light.woff2') format('woff2');
+			font-weight: 300;
+			font-style: normal;
+		}
+
+		@font-face {
+			font-family: 'Inconsolata';
+			src: url('/file?Inconsolata-Light.woff2') format('woff2');
+			font-weight: 300;
+			font-style: normal;
+		}
+
+		html {
+			max-width: 98%;
+		}
+
+		.header {
+			width: 100%;
+		}
+
+		.headerlogo {
+			width: 20rem;
+			margin: 0 auto;
+		}
+
+		.formwrapper {
+			margin: auto;
+			text-align: center;
+		}
+
+		.flexparent {
+			display: flex;
+			flex-wrap: wrap;
+			flex-direction: column;
+			justify-content: space-around;
+			align-items: flex-start;
+			align-content: stretch;
+		}
+
+		.flexchild {
+			border: 0.2rem solid #000;
+			width: 99%;
+			margin: 0.5rem;
+		}
+
+		.flexchild header {
+			color: #fff;
+			border: 0.2rem solid #000;
+			background-color: #000;
+			padding: 0.2rem;
+			font-size: 1.5rem;
+		}
+
+		.detline {
+			display: flex;
+			flex-wrap: wrap;
+			flex-direction: row;
+			justify-content: left;
+			align-items: stretch;
+			align-content: stretch;
+		}
+
+		.deth {
+			border-right: 0.2rem solid #999;
+			background-color: #cccccc;
+			position: relative;
+			min-width: 30%;
+			max-width: 30%;
+			padding: 0.1rem;
+			text-align: right;
+		}
+
+		.detline.alt .deth {
+			background-color: #aaaaaa;
+		}
+
+		.det {
+			font-family: Inconsolata, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+			border: none;
+			position: relative;
+			min-width: 68%;
+			max-width: 68%;
+			padding: 0.1rem;
+			text-align: right;
+		}
+
+		.detline.alt .det {
+			background-color: #eeeeee;
+		}
+
+		.ra {
+			width: 6rem;
+			text-align: right
+		}
+
+		.cicon {
+			border-right: 0.2rem solid #999;
+			background-color: #cccccc;
+			position: relative;
+			width: 38%;
+			padding: 0.5rem;
+		}
+
+		.cform {
+			position: relative;
+			min-width: 55%;
+			max-width: 55%;
+			padding: 0.2rem;
+		}
+
+		.svgicon {
+			width: 8rem;
+			min-height: 12rem;
+			margin: auto;
+			text-align: center;
+			color: #999999;
+		}
+
+		.small {
+			font-size: smaller;
+			line-height: 1.5;
+		}
+
+		.important {
+			color: #000;
+			font-weight: bolder;
+		}
+
+		body {
+			font-family: Futura, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+		}
+
+		html,
+		input,
+		optgroup {
+			/* font-size: 140% */
+		}
+
+		@media only screen and (min-width: 720px) {
+
+			html,
+			input,
+			optgroup {
+				/* font-size: 140%; */
+			}
+		}
+
+		@media only screen and (min-width: 1024px) {
+
+			html,
+			input,
+			optgroup {
+				/* font-size: 130%; */
+			}
+			.flexparent {
+				flex-direction: row;
+			}
+
+			.flexchild {
+				width: 47.5%;
+			}
+
+		}
+
+		@media only screen and (min-width: 1280px) {
+
+			html,
+			input,
+			optgroup {
+				/* font-size: 120%; */
+			}
+
+			.flexparent {
+				flex-direction: row;
+			}
+
+			.flexchild {
+				width: 47.5%;
+			}
+
+		}
+		#txt_hostname
+		{
+			text-align: right;
+		}
+	</style>
+</head>
+
+<body>
+	<div class="header">
+		<div class="headerlogo">
+			<a href="https://fujinet.online/">
+				<svg width="100%" height="100%" viewBox="0 0 594 189" version="1.1" xmlns="http://www.w3.org/2000/svg"
+					xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/"
+					style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+					<g>
+						<g>
+							<circle cx="341.992" cy="126.268" r="21.511" style="stroke:#000;stroke-width:2.58px;" />
+							<circle cx="341.992" cy="83.245" r="21.511" style="stroke:#000;stroke-width:2.58px;" />
+							<circle cx="298.969" cy="83.245" r="21.511"
+								style="fill:#fff;stroke:#000;stroke-width:2.58px;" />
+							<circle cx="255.946" cy="83.245" r="21.511" style="stroke:#000;stroke-width:2.58px;" />
+							<circle cx="298.969" cy="40.223" r="21.511" style="stroke:#000;stroke-width:2.58px;" />
+							<path d="M255.946,104.757l0,43.022"
+								style="fill:none;stroke:#000;stroke-width:2.19px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M255.946,61.734l0,-31.365"
+								style="fill:none;stroke:#000;stroke-width:2.03px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M298.969,1.768l0,16.943"
+								style="fill:none;stroke:#000;stroke-width:1.96px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M320.48,40.223l36.73,-0"
+								style="fill:none;stroke:#000;stroke-width:2.1px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M277.458,40.223l-36.73,-0"
+								style="fill:none;stroke:#000;stroke-width:2.4px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M234.435,83.245l-21.511,0.665"
+								style="fill:none;stroke:#000;stroke-width:2.58px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M363.503,83.245l6.996,0"
+								style="fill:none;stroke:#000;stroke-width:1.92px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M244.675,126.268l75.805,0"
+								style="fill:none;stroke:#000;stroke-width:2.43px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M216.711,73.127l0,25.747"
+								style="fill:none;stroke:#000;stroke-width:2.49px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M298.969,104.757l0,72.305"
+								style="fill:none;stroke:#000;stroke-width:2.38px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M341.992,147.779l-0,39.268"
+								style="fill:none;stroke:#000;stroke-width:2.14px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M363.503,126.268l14.158,0"
+								style="fill:none;stroke:#000;stroke-width:2.19px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M289.984,169.291l110.767,-0"
+								style="fill:none;stroke:#000;stroke-width:2.62px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M385.014,142.081l0,39.268"
+								style="fill:none;stroke:#000;stroke-width:2.26px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+							<path d="M341.992,30.369l-0,31.365"
+								style="fill:none;stroke:#000;stroke-width:2.26px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+						</g>
+						<path
+							d="M389.123,138.965l-0,-88.907l62.562,68.345l-0,-64.957l9.696,0l0,88.848l-62.561,-67.585l-0,64.256l-9.697,-0Z"
+							style="fill-rule:nonzero;" />
+						<path
+							d="M481.826,138.965l0,-85.519l45.096,0l0,9.288l-34.931,0l-0,24.534l34.931,0l0,9.463l-34.931,0l-0,32.771l34.931,-0l0,9.463l-45.096,-0Z"
+							style="fill-rule:nonzero;" />
+						<path
+							d="M559.109,138.965l-0,-75.822l-24.184,-0l0,-9.697l58.531,0l0,9.697l-24.066,-0l-0,75.822l-10.281,-0Z"
+							style="fill-rule:nonzero;" />
+						<path
+							d="M0,139.199l0,-85.519l45.096,-0l-0,9.288l-34.932,-0l0,24.534l34.932,-0l-0,9.463l-34.932,-0l0,42.234l-10.164,-0Z"
+							style="fill-rule:nonzero;" />
+						<path
+							d="M60.284,53.68l10.281,-0l-0,53.215c-0,8.646 1.84,14.993 5.52,19.043c3.68,4.051 9.453,6.076 17.32,6.076c7.866,-0 13.639,-2.025 17.319,-6.076c3.681,-4.05 5.521,-10.397 5.521,-19.043l-0,-53.215l10.339,-0l-0,53.215c-0,11.566 -2.755,20.221 -8.266,25.966c-5.51,5.744 -13.815,8.616 -24.913,8.616c-11.06,-0 -19.345,-2.872 -24.856,-8.616c-5.51,-5.745 -8.265,-14.4 -8.265,-25.966l-0,-53.215Z"
+							style="fill-rule:nonzero;" />
+						<path
+							d="M163.093,53.68l10.281,-0l-0,66.709c-0,7.166 -1.587,12.472 -4.761,15.918c-3.174,3.446 -8.051,5.17 -14.633,5.17c-3.505,-0 -6.669,-0.692 -9.492,-2.074c-2.823,-1.383 -5.481,-3.515 -7.974,-6.396l6.718,-6.718c2.103,2.181 4.05,3.738 5.841,4.673c1.792,0.935 3.661,1.402 5.608,1.402c3.077,0 5.248,-1.149 6.513,-3.446c1.266,-2.298 1.899,-6.815 1.899,-13.553l-0,-61.685Z"
+							style="fill-rule:nonzero;" />
+						<rect x="193.235" y="53.68" width="10.164" height="85.519" style="fill-rule:nonzero;" />
+					</g>
+				</svg>
+			</a>
+		</div>
+		<div class="flexparent">
+			<div class="flexchild">
+				<h2 style="text-align: center;">Need help? Go to the <a href="https://github.com/FujiNetWIFI/fujinet-platformio/wiki">FujiNet Wiki!</a></h2>
+			</div>
+		</div>
+		<div class="flexparent">
+			<div class="flexchild">
+				<header>NET<span id="logowob"></span>WORK</header>
+				<div class="detline">
+					<div class="deth">FujiNet version</div>
+					<div class="det"><%FN_VERSION%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Host name</div>
+					<div class="det">
+						<form action="/config" method="post">
+							<input type="text" name="hostname" id="txt_hostname" value="<%FN_HOSTNAME%>" />
+							<input type="submit" value="Save">
+						</form>
+					</div>
+				</div>
+				<div class="detline">
+					<div class="deth">IP address</div>
+					<div class="det"><%FN_IPADDRESS%> / <%FN_IPMASK%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Default gateway</div>
+					<div class="det"><%FN_IPGATEWAY%></div>
+				</div>
+				<div class="detline">
+					<div class="deth">DNS server</div>
+					<div class="det"><%FN_IPDNS%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">WiFi SSID</div>
+					<div class="det"><%FN_WIFISSID%></div>
+				</div>
+				<div class="detline">
+					<div class="deth">WiFi BSSID</div>
+					<div class="det"><%FN_WIFIBSSID%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">WiFi MAC address</div>
+					<div class="det"><%FN_WIFIMAC%></div>
+				</div>
+				<div class="detline">
+					<div class="deth">WiFi details</div>
+					<div class="det small"><%FN_WIFIDETAIL%></div>
+				</div>
+			</div>
+			<div class="flexchild">
+				<header>HARD<span id="logowob"></span>WARE</header>
+				<div class="detline">
+					<div class="deth">Detected Hardware Version</div>
+					<div class="det"><%FN_HARDWARE_VER%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">SPIFFS size</div>
+					<div class="det ra">
+						<script>writeLocaleNumber(<%FN_SPIFFS_SIZE%>)</script>
+					</div>
+				</div>
+				<div class="detline">
+					<div class="deth">SPIFFS used</div>
+					<div class="det ra">
+						<script>writeLocaleNumber(<%FN_SPIFFS_USED%>)</script>
+					</div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">SD size</div>
+					<div class="det ra">
+						<script>writeLocaleNumber(<%FN_SD_SIZE%>)</script>
+					</div>
+				</div>
+				<div class="detline">
+					<div class="deth">SD used</div>
+					<div class="det ra">
+						<script>writeLocaleNumber(<%FN_SD_USED%>)</script>
+					</div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Uptime</div>
+					<div class="det">
+						<script>writeUptimeString(<%FN_UPTIME%>)</script>
+					</div>
+				</div>
+				<div class="detline">
+					<div class="deth">Current time</div>
+					<div class="det"><%FN_CURRENTTIME%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Free heap</div>
+					<div class="det ra">
+						<script>writeLocaleNumber(<%FN_HEAPSIZE%>)</script>
+					</div>
+				</div>
+				<div class="detline">
+					<div class="deth">SOC SDK</div>
+					<div class="det"><%FN_SYSSDK%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">CPU revision</div>
+					<div class="det"><%FN_SYSCPUREV%></div>
+				</div>
+				<div class="detline">
+					<div class="deth">+5 voltage</div>
+					<div class="det"><%FN_SIOVOLTS%></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="flexparent">
+			<div class="flexchild">
+				<header>HOSTS<span id="logowob"></span>LIST</header>
+				<div class="detline">
+					<div class="deth">Host 1</div>
+					<div class="det"><a href="/hsdir?hostslot=0"><%FN_HOST1%> :: <%FN_HOST1PREFIX%></a></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Host 2</div>
+					<div class="det"><a href="/hsdir?hostslot=1"><%FN_HOST2%> :: <%FN_HOST2PREFIX%></a></div>
+				</div>
+				<div class="detline">
+					<div class="deth">Host 3</div>
+					<div class="det"><a href="/hsdir?hostslot=2"><%FN_HOST3%> :: <%FN_HOST3PREFIX%></a></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Host 4</div>
+					<div class="det"><a href="/hsdir?hostslot=3"><%FN_HOST4%> :: <%FN_HOST4PREFIX%></a></div>
+				</div>
+				<div class="detline">
+					<div class="deth">Host 5</div>
+					<div class="det"><a href="/hsdir?hostslot=4"><%FN_HOST5%> :: <%FN_HOST5PREFIX%></a></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Host 6</div>
+					<div class="det"><a href="/hsdir?hostslot=5"><%FN_HOST6%> :: <%FN_HOST6PREFIX%></a></div>
+				</div>
+				<div class="detline">
+					<div class="deth">Host 7</div>
+					<div class="det"><a href="/hsdir?hostslot=6"><%FN_HOST7%> :: <%FN_HOST7PREFIX%></a></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Host 8</div>
+					<div class="det"><a href="/hsdir?hostslot=7"><%FN_HOST8%> :: <%FN_HOST8PREFIX%></a></div>
+				</div>
+			</div>
+			<div class="flexchild">
+				<header>MOUNT<span id="logowob"></span>LIST</header>
+				<div class="detline">
+					<div class="deth">Drive Slot 1: <a href="/unmount?deviceslot=0">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE1HOST%> :: <%FN_DRIVE1MOUNT%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Drive Slot 2: <a href="/unmount?deviceslot=1">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE2HOST%> :: <%FN_DRIVE2MOUNT%></div>
+				</div>
+				<div class="detline">
+					<div class="deth">Drive Slot 3: <a href="/unmount?deviceslot=2">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE3HOST%> :: <%FN_DRIVE3MOUNT%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth">Drive Slot 4: <a href="/unmount?deviceslot=3">[EJECT]</a></div>
+					<div class="det"><%FN_DRIVE4HOST%> :: <%FN_DRIVE4MOUNT%></div>
+				</div>
+			</div>
+		</div>
+
+		<div class="flexparent">
+			<div class="flexchild">
+				<header>PRINTER<span id="logowob"></span>SETTINGS</header>
+				<div class="detline">
+					<div class="cicon">
+						<div class="svgicon">
+							<a href="/print">
+								<svg width="100%" height="100%" viewBox="0 0 200 200" version="1.1"
+									xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+									xml:space="preserve" xmlns:serif="http://www.serif.com/"
+									style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+									<g>
+										<g>
+											<path
+												d="M37.835,87.632l-0,-87.632l88.36,-0l36.611,38.168l0,49.464l17.348,0c10.953,0 19.846,8.893 19.846,19.846l0,72.676c0,10.953 -8.893,19.846 -19.846,19.846l-160.308,0c-10.953,0 -19.846,-8.893 -19.846,-19.846l-0,-72.676c-0,-10.953 8.893,-19.846 19.846,-19.846l17.989,0Z"
+												style="fill:#fff;" />
+											<path
+												d="M37.835,112.519l-0,-112.519l88.36,-0l36.611,38.168l0,74.351l10.22,-0l0,-24.887l7.128,0c10.953,0 19.846,8.893 19.846,19.846l0,72.676c0,10.953 -8.893,19.846 -19.846,19.846l-160.308,0c-10.953,0 -19.846,-8.893 -19.846,-19.846l-0,-72.676c-0,-10.953 8.893,-19.846 19.846,-19.846l5.121,0l-0,24.887l12.868,-0Zm136.005,49.597l-148.06,-0l0,11.946l148.06,0l-0,-11.946Zm-137.118,-37.592l-23.51,0l-0,11.947l23.51,0l-0,-11.947Zm83.609,-112.696l-70.28,1.107l-0,99.306l99.767,0l0.182,-68.453l-29.669,-31.96Z" />
+										</g>
+										<g>
+											<circle cx="116.438" cy="77.476" r="10.059"
+												style="stroke:#000;stroke-width:1.21px;" />
+											<circle cx="116.438" cy="57.359" r="10.059"
+												style="stroke:#000;stroke-width:1.21px;" />
+											<circle cx="96.321" cy="57.359" r="10.059"
+												style="fill:#fff;stroke:#000;stroke-width:1.21px;" />
+											<circle cx="76.204" cy="57.359" r="10.059"
+												style="stroke:#000;stroke-width:1.21px;" />
+											<circle cx="96.321" cy="37.241" r="10.059"
+												style="stroke:#000;stroke-width:1.21px;" />
+											<path d="M76.204,67.417l-0,20.117"
+												style="fill:none;stroke:#000;stroke-width:1.03px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M76.204,47.3l-0,-14.666"
+												style="fill:none;stroke:#000;stroke-width:0.95px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M96.321,19.26l-0,7.923"
+												style="fill:none;stroke:#000;stroke-width:0.92px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M106.379,37.241l17.175,0"
+												style="fill:none;stroke:#000;stroke-width:0.98px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M86.262,37.241l-17.174,0"
+												style="fill:none;stroke:#000;stroke-width:1.12px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M66.145,57.359l-10.058,0.31"
+												style="fill:none;stroke:#000;stroke-width:1.21px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M126.497,57.359l3.271,-0"
+												style="fill:none;stroke:#000;stroke-width:0.9px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M70.933,77.476l35.446,-0"
+												style="fill:none;stroke:#000;stroke-width:1.14px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M57.858,52.627l-0,12.04"
+												style="fill:none;stroke:#000;stroke-width:1.16px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M96.321,67.417l-0,33.81"
+												style="fill:none;stroke:#000;stroke-width:1.11px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M116.438,87.534l0,18.362"
+												style="fill:none;stroke:#000;stroke-width:1px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M126.497,77.476l6.62,-0"
+												style="fill:none;stroke:#000;stroke-width:1.02px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M92.12,97.593l51.793,-0"
+												style="fill:none;stroke:#000;stroke-width:1.23px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M136.555,84.87l0,18.361"
+												style="fill:none;stroke:#000;stroke-width:1.06px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+											<path d="M116.438,32.634l0,14.666"
+												style="fill:none;stroke:#000;stroke-width:1.06px;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:1.5;" />
+										</g>
+									</g>
+								</svg>
+							</a><span class="important">Click to download your current print-out</span>
+						</div>
+					</div>
+					<div class="cform">
+						<div class="formwrapper">
+							<form action="/config" method="post">
+								<br>Select Emulated Printer
+								<select name="printermodel1" id="select_printermodel1">
+									<optgroup>
+										<%FN_PRINTER_LIST%>
+									</optgroup>
+								</select>
+								<input type="submit" value="Save">
+							</form>
+							<!--
+							<br>Change printer port
+							<form action="/config" method="post">
+								<select name="printerport1" id="select_printerport1">
+									<optgroup>
+										<option value="1">P1:</option>
+										<option value="2">P2:</option>
+										<option value="3">P3:</option>
+									</optgroup>
+								</select>
+								<input type="submit" value="Save">
+							</form>
+						    -->
+							<hr>Current: <%FN_PRINTER1_MODEL%><br><br>
+							<!-- <hr>Current: <%FN_PRINTER1_MODEL%> on P<%FN_PRINTER1_PORT%><br> -->
+							<script>
+								var current_printer = "<%FN_PRINTER1_MODEL%>";
+								var current_printerport = "<%FN_PRINTER1_PORT%>";
+							</script>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="flexchild">
+				<header>TIME<span id="logowob"></span>ZONE</header>
+				<div class="detline">
+					<div class="cicon">
+						<div class="svgicon">
+							<svg width="100%" height="100%" viewBox="0 0 200 201" version="1.1"
+								xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+								xml:space="preserve" xmlns:serif="http://www.serif.com/"
+								style="fill-rule:evenodd;clip-rule:evenodd;stroke-linecap:round;stroke-miterlimit:1.5;">
+								<g>
+									<circle cx="87.5" cy="87.5" r="87.5" />
+									<circle cx="143.742" cy="143.758" r="56.258" style="fill:#fff;" />
+									<path
+										d="M143.742,87.5c31.05,-0 56.258,25.208 56.258,56.258c-0,31.049 -25.208,56.257 -56.258,56.257c-31.049,0 -56.257,-25.208 -56.257,-56.257c-0,-31.05 25.208,-56.258 56.257,-56.258Zm0,7.072c27.146,0 49.186,22.04 49.186,49.186c-0,27.146 -22.04,49.185 -49.186,49.185c-27.146,-0 -49.185,-22.039 -49.185,-49.185c0,-27.146 22.039,-49.186 49.185,-49.186Z" />
+									<circle cx="143.742" cy="143.758" r="3" />
+									<path d="M143.742,104.102l0,36.656"
+										style="fill:none;stroke:#000;stroke-width:3px;" />
+									<path d="M172.333,143.758l-28.591,-0"
+										style="fill:none;stroke:#000;stroke-width:2.69px;" />
+								</g>
+							</svg>
+						</div>
+					</div>
+					<div class="cform">
+						<div class="formwrapper">
+							<br>Change Time Zone
+							<form action="/config" method="post">
+								<select name="tzindex" id="select_tz" onchange="changeTz()">
+									<optgroup>
+										<option value="" selected>Choose</option>
+										<option value="PST+8PDT">America Pacific UTC-8/UTC-7</option>
+										<option value="MST+7MDT">America Mountain UTC-7/UTC-6</option>
+										<option value="MST+7">America Arizona UTC-7</option>
+										<option value="CST+6CDT">America Central UTC-6/UTC-5</option>
+										<option value="EST+5EDT">America Eastern UTC-5/UTC-4</option>
+										<option value="AST+4ADT">America Atlantic UTC-4/UTC-3</option>
+										<option value="UTC+0">UTC</option>
+										<option value="GMT+0BST,M3.5.0/1,M10.5.0">UK UTC/UTC+1</option>
+										<option value="CET-1CEST,M3.5.0,M10.5.0/3">Europe Central UTC+1/UTC+2</option>
+										<option value="EET-2EEST,M3.5.0/3,M10.5.0/4">Europe Eastern UTC+2/UTC+3</option>
+										<option value="FNTZ-3">UTC +3</option>
+										<option value="FNTZ-4">UTC +4</option>
+										<option value="FNTZ-5">UTC +5</option>
+										<option value="FNTZ-6">UTC +6</option>
+										<option value="FNTZ-7">UTC +7</option>
+										<option value="FNTZ-8">UTC +8</option>
+										<option value="FNTZ-9">UTC +9</option>
+										<option value="FNTZ-10">UTC +10</option>
+										<option value="FNTZ-11">UTC +11</option>
+										<option value="FNTZ-12">UTC +12</option>
+									</optgroup>
+								</select>
+								<input type="text" name="timezone" id="txt_timezone" value="<%FN_TIMEZONE%>">
+								<input type="submit" value="Save">
+								<a href="https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html" target="_new">?</a>
+							</form>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="flexchild">
+				<header>BOOT<span id="logowob"></span>SETTINGS</header>
+				<div class="detline">
+					<div class="cicon">
+						<div class="svgicon">
+						</div>
+					</div>
+					<div class="cform">
+						<div class="formwrapper">
+							<br>Enable CONFIG Boot Disk
+							<form action="/config" method="post">
+								<select name="config_enable" id="select_config_enable">
+									<optgroup>
+										<option value="1">Yes</option>
+										<option value="0">No</option>
+									</optgroup>
+								</select>
+								<input type="submit" value="Save">
+							</form>
+							<script>
+								var current_config_enabled = "<%FN_CONFIG_ENABLED%>";
+							</script>
+						</div>
+						<div class="formwrapper">
+							<br>Set CONFIG boot mode.
+							<form action="/config" method="post">
+								<select name="boot_mode" id="select_boot_mode">
+									<optgroup>
+										<option value="0">CONFIG</option>
+										<option value="1">Mount Everything</option>
+									</optgroup>
+								</select>
+								<input type="submit" value="Save">
+							</form>
+							<script>
+								var current_boot_mode = "<%FN_BOOT_MODE%>";
+							</script>
+							<hr>
+							<span class="small">
+							Reboot FujiNet after changing this value.</span>
+						</div>
+					</div>
+				</div>
+			</div>			
+		</div>
+	</div>
+	<script type="text/javascript" src="/file?settings.js"></script>
+</body>
+
+</html>

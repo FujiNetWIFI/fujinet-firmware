@@ -11,7 +11,7 @@
 #include "led.h"
 #include <cstring>
 
-#define IDLE_TIME 180 // Idle tolerance in microseconds
+#define IDLE_TIME 1000 // Idle tolerance in microseconds
 
 static xQueueHandle reset_evt_queue = NULL;
 
@@ -77,17 +77,17 @@ uint8_t comlynx_checksum(uint8_t *buf, unsigned short len)
 void virtualDevice::comlynx_send(uint8_t b)
 {
     // Write the byte
+    ComLynx.wait_for_idle();
     fnUartSIO.write(b);
-    while (!fnUartSIO.available());
+    fnUartSIO.flush();
     fnUartSIO.read();
 }
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
-    while (*buf != NULL)
-        comlynx_send(*buf++);
-
-    fnUartSIO.flush();
+    ComLynx.wait_for_idle();
+    fnUartSIO.write(buf,len);
+    fnUartSIO.readBytes(buf,len);
 }
 
 uint8_t virtualDevice::comlynx_recv()
@@ -139,6 +139,7 @@ uint16_t virtualDevice::comlynx_recv_length()
 
 void virtualDevice::comlynx_send_length(uint16_t l)
 {
+    ComLynx.wait_for_idle();
     comlynx_send(l >> 8);
     comlynx_send(l & 0xFF);
 }
@@ -164,13 +165,11 @@ void virtualDevice::reset()
 
 void virtualDevice::comlynx_response_ack()
 {
-    ComLynx.wait_for_idle();
     comlynx_send(0x90 | _devnum);
 }
 
 void virtualDevice::comlynx_response_nack()
 {
-    ComLynx.wait_for_idle();
     comlynx_send(0xC0 | _devnum);
 }
 
@@ -181,7 +180,6 @@ void virtualDevice::comlynx_control_ready()
 
 void systemBus::wait_for_idle()
 {
-    return;
     bool isIdle = false;
     int64_t start, current, dur;
 
@@ -255,7 +253,6 @@ void systemBus::_comlynx_process_cmd()
     uint8_t b;
 
     b = fnUartSIO.read();
-    Debug_printf("%02x\n",b);
     start_time = esp_timer_get_time();
 
     uint8_t d = b & 0x0F;
@@ -273,7 +270,7 @@ void systemBus::_comlynx_process_cmd()
         fnLedManager.set(eLed::LED_BUS, false);
     }
 
-    wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
+    //wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
     fnUartSIO.flush_input();
 }
 
