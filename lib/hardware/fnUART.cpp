@@ -43,7 +43,11 @@ void UARTManager::begin(int baud)
         {
             .baud_rate = baud,
             .data_bits = UART_DATA_8_BITS,
+#ifdef BUILD_LYNX
+            .parity = UART_PARITY_ODD,
+#else
             .parity = UART_PARITY_DISABLE,
+#endif /* BUILD_LYNX */
             .stop_bits = UART_STOP_BITS_1,
             .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
             .rx_flow_ctrl_thresh = 122, // No idea what this is for, but shouldn't matter if flow ctrl is disabled?

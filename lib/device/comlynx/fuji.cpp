@@ -1270,6 +1270,7 @@ void lynxFuji::setup(systemBus *siobus)
 
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
+    _comlynx_bus->addDevice(&_fnDisks[0].disk_dev, 4);
     _comlynx_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 
 }
@@ -1412,7 +1413,7 @@ lynxDisk *lynxFuji::bootdisk()
 
 void lynxFuji::comlynx_hello()
 {
-    const char resp[] = "HELLO FROM PC!\n";
+    const char resp[] = "HI FROM FUJINET!\n";
     response_len = strlen(resp);
     memcpy(response,resp,response_len);
 
@@ -1549,7 +1550,8 @@ void lynxFuji::comlynx_control_clr()
 void lynxFuji::comlynx_process(uint8_t b)
 {
     unsigned char c = b >> 4;
-
+    Debug_printf("%02x \n",c);
+    
     switch (c)
     {
     case MN_STATUS:
