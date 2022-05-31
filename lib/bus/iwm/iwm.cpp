@@ -15,7 +15,7 @@
 // spi things
 
 // HSPIQ
-#define HSPID 13
+// #define HSPID 13
 // HSPICLK
 // HSPICS0
 
@@ -835,6 +835,9 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
     trans.tx_buffer=spi_buffer;            //finally send the line data
     trans.length=spi_len*8;            //Data length, in bits
     trans.flags=0; //undo SPI_TRANS_USE_TXDATA flag
+
+
+  /** using interrupt driven SPI transmission
     ret=spi_device_queue_trans(spi, &trans, portMAX_DELAY);
     assert(ret==ESP_OK);
     //When we are here, the SPI driver is busy (in the background) getting the transactions sent. That happens
@@ -848,6 +851,11 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
     ret=spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
     assert(ret==ESP_OK);
         //We could inspect rtrans now if we received any info back. The LCD is treated as write-only, though.
+*/
+
+    //ret=spi_device_transmit(spi, &trans);
+    ret=spi_device_polling_transmit(spi, &trans);
+    assert(ret==ESP_OK);
 
   iwm_ack_clr();
 #ifndef TESTTX
