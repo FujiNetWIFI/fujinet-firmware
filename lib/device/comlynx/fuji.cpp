@@ -1279,8 +1279,8 @@ void lynxFuji::setup(systemBus *siobus)
 void lynxFuji::sio_mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
-
-    for (int i = 0; i < 4; i++)
+    comlynx_response_ack();
+    for (int i = 0; i < 1; i++)
     {
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
