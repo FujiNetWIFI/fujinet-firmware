@@ -42,7 +42,7 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
     {
         // Check the last 3 characters of the string
         const char *ext = filename + l - 3;
-        if (strcasecmp(ext, "ROM") == 0)
+        if (strcasecmp(ext, "LNX") == 0)
         {
             return MEDIATYPE_ROM;
         }
