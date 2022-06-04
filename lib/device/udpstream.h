@@ -9,6 +9,10 @@
 # include "iec/udpstream.h"
 #endif
 
+#ifdef BUILD_LYNX
+# include "comlynx/udpstream.h"
+#endif
+
 #ifdef NEW_TARGET
 # include "new/udpstream.h"
 #endif
