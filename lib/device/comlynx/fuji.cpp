@@ -1429,13 +1429,22 @@ void lynxFuji::comlynx_hello()
 // Set UDP Stream HOST & PORT and start it
 void lynxFuji::comlynx_enable_udpstream(uint16_t s)
 {
-    char host[64];
+    char host[128];
 
+    s--;
+    
     // Receive port #
-    unsigned short port = comlynx_recv_length();
+    unsigned short port;
+
+    port  = comlynx_recv() & 0xFF;
+    s--;
+    port |= comlynx_recv() << 8;
+    s--;
+
+    Debug_printf("comlynx_enable_udpstream(); p=%u - s=%u",port,s);
 
     // Receive host
-    comlynx_recv_buffer((uint8_t *)host,s-2);
+    comlynx_recv_buffer((uint8_t *)host,s);
 
     // Receive Checksum.
     comlynx_recv();
