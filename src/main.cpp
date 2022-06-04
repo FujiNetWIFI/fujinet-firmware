@@ -40,10 +40,6 @@ void main_shutdown_handler()
 // Initial setup
 void main_setup()
 {
-    // TO DO REMOVE
-      fnSystem.set_pin_mode(21, gpio_mode_t::GPIO_MODE_OUTPUT);
-  fnSystem.digital_write(21, DIGI_HIGH);
-
 #ifdef DEBUG
     fnUartDebug.begin(DEBUG_SPEED);
     unsigned long startms = fnSystem.millis();

@@ -360,9 +360,7 @@ public:
   int iwm_send_packet(uint8_t *a);
   int iwm_send_packet_spi(uint8_t *a);
 
-#ifdef TEST_SPI
   void test_spi();
-#endif
 
   void setup();
   void service();
