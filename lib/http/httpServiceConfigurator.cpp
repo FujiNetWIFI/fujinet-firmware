@@ -267,15 +267,29 @@ void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::st
 #endif /* ATARI */
 }
 
-void fnHttpServiceConfigurator::config_midimaze(std::string hostname)
+void fnHttpServiceConfigurator::config_udpstream(std::string hostname)
 {
 #ifdef BUILD_ATARI
-    Debug_printf("Set MIDIMaze host: %s\n", hostname.c_str());
+    int port;
+    std::string delim = ":";
+
+    // Get the port from the hostname
+    if (hostname.find(delim) != std::string::npos)
+        port = stoi(hostname.substr(hostname.find(delim)+1));
+    else
+        port = 5004; // Default to MIDI port of 5004
+
+    // Get the hostname
+    std::string newhostname = hostname.substr(0, hostname.find(delim));
+
+    Debug_printf("Set UDPStream host: %s\n", newhostname.c_str());
+    Debug_printf("Set UDPStream port: %d\n", port);
 
     // Update the host ip variable
-    SIO.setMIDIHost(hostname.c_str());
+    SIO.setUDPHost(newhostname.c_str(), port);
     // Save change
-    Config.store_midimaze_host(hostname.c_str());
+    Config.store_udpstream_host(newhostname.c_str());
+    Config.store_udpstream_port(port);
     Config.save();
 #endif /* ATARI */
 }
@@ -378,9 +392,9 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         {
             config_hostname(i->second);
         }
-        else if (i->first.compare("midimaze_host") == 0)
+        else if (i->first.compare("udpstream_host") == 0)
         {
-            config_midimaze(i->second);
+            config_udpstream(i->second);
         }
         else if (i->first.compare("play_record") == 0)
         {
