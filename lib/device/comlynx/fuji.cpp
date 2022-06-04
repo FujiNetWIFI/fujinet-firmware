@@ -1272,7 +1272,8 @@ void lynxFuji::setup(systemBus *siobus)
     status_wait_enabled = false;
     _comlynx_bus->addDevice(&_fnDisks[0].disk_dev, 4);
     _comlynx_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
-
+    theNetwork = new lynxNetwork();
+    _comlynx_bus->addDevice(theNetwork, 0x09); // temporary.
 }
 
 // Mount all
