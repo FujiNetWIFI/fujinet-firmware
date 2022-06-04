@@ -1,6 +1,6 @@
 /**
  * JSON Wrapper for #FujiNet
- * 
+ *
  * Thomas Cherryhomes
  *   <thom.cherryhomes@gmail.com>
  */
@@ -11,7 +11,6 @@
 #include <sstream>
 
 #include "../../include/debug.h"
-
 
 /**
  * ctor
@@ -34,6 +33,14 @@ FNJSON::~FNJSON()
 }
 
 /**
+ * Specify line ending
+ */
+void FNJSON::setLineEnding(string _lineEnding)
+{
+    lineEnding = _lineEnding;
+}
+
+/**
  * Attach protocol handler
  */
 void FNJSON::setProtocol(NetworkProtocol *newProtocol)
@@ -48,6 +55,7 @@ void FNJSON::setProtocol(NetworkProtocol *newProtocol)
 void FNJSON::setReadQuery(string queryString)
 {
     _queryString = queryString;
+    _item = resolveQuery();
 }
 
 /**
@@ -58,7 +66,26 @@ cJSON *FNJSON::resolveQuery()
     if (_queryString.empty())
         return _json;
 
-    return cJSONUtils_GetPointer(_json,_queryString.c_str());
+    return cJSONUtils_GetPointer(_json, _queryString.c_str());
+}
+
+/**
+ * Process string, strip out HTML tags if needed
+ */
+string FNJSON::processString(string in)
+{
+    while (in.find("<") != string::npos)
+    {
+        auto startpos = in.find("<");
+        auto endpos = in.find(">") + 1;
+
+        if (endpos != string::npos)
+        {
+            in.erase(startpos,endpos-startpos);
+        }
+
+    }
+    return in;
 }
 
 /**
@@ -67,49 +94,49 @@ cJSON *FNJSON::resolveQuery()
 string FNJSON::getValue(cJSON *item)
 {
     if (cJSON_IsString(item))
-        return string(cJSON_GetStringValue(item)) + "\x9b";
+        return processString(string(cJSON_GetStringValue(item)) + lineEnding);
     else if (cJSON_IsBool(item))
     {
         if (cJSON_IsTrue(item))
-            return "TRUE\x9b";
+            return "TRUE" + lineEnding;
         else if (cJSON_IsFalse(item))
-            return "FALSE\x9b";
+            return "FALSE" + lineEnding;
     }
     else if (cJSON_IsNull(item))
-        return "NULL\x9b";
+        return "NULL" + lineEnding;
     else if (cJSON_IsNumber(item))
     {
         stringstream ss;
-        ss << item->valuedouble;
-        return ss.str() + "\x9b";
+        ss << item->valueint;
+        return ss.str() + lineEnding;
     }
     else if (cJSON_IsObject(item))
     {
-        string ret="";
+        string ret = "";
 
-        item=item->child;
+        item = item->child;
 
         do
         {
-            ret += string(item->string) + "\x9b" + getValue(item);
-        } while ((item=item->next) != NULL);
-        
+            ret += string(item->string) + lineEnding + getValue(item);
+        } while ((item = item->next) != NULL);
+
         return ret;
     }
     else if (cJSON_IsArray(item))
     {
-        cJSON *child=item->child;
+        cJSON *child = item->child;
         string ret;
 
         do
         {
             ret += getValue(child);
-        } while ((child=child->next) != NULL);
-        
+        } while ((child = child->next) != NULL);
+
         return ret;
     }
 
-    return "UNKNOWN\x9b";
+    return "UNKNOWN" + lineEnding;
 }
 
 /**
@@ -117,13 +144,12 @@ string FNJSON::getValue(cJSON *item)
  */
 bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
 {
-    cJSON *item = resolveQuery();
-    string ret = getValue(item);
-
-    if (item == nullptr)
+    if (_item == nullptr)
         return true; // error
 
-    memcpy(rx_buf, ret.data(), ret.size());
+    string ret = getValue(_item);
+
+    memcpy(rx_buf, ret.data(), len);
 
     return false; // no error.
 }
@@ -133,13 +159,10 @@ bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
  */
 int FNJSON::readValueLen()
 {
-    cJSON *item = resolveQuery();
-    int len = getValue(item).size();
+    if (_item == nullptr)
+        return 0;
 
-    if (item == nullptr)
-        return len;
-
-    return len;
+    return getValue(_item).size();
 }
 
 /**
@@ -147,21 +170,28 @@ int FNJSON::readValueLen()
  */
 bool FNJSON::parse()
 {
+    NetworkStatus ns;
+    _parseBuffer.clear();
+
     if (_protocol == nullptr)
     {
         Debug_printf("FNJSON::parse() - NULL protocol.\n");
         return false;
     }
 
-    Debug_printf("FNJSON::parse() - %d bytes now available\n", _protocol->bytesWaiting);
+    _protocol->status(&ns);
 
-    if (!_protocol->read(_protocol->bytesWaiting))
+    while (ns.connected)
     {
-        Debug_printf("Could not read.");
-        return false;
+        _protocol->read(ns.rxBytesWaiting);
+        _parseBuffer += *_protocol->receiveBuffer;
+        _protocol->receiveBuffer->clear();
+        _protocol->status(&ns);
+        vTaskDelay(10);
     }
 
-    _json = cJSON_Parse(_protocol->receiveBuffer->c_str());
+    Debug_printf("S: %s\n",_parseBuffer.c_str());
+    _json = cJSON_Parse(_parseBuffer.c_str());
 
     if (_json == nullptr)
     {

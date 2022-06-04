@@ -16,6 +16,11 @@
   extern adamModem *sioR;
 #endif
 
+#ifdef BUILD_LYNX
+# include "comlynx/modem.h"
+  extern lynxModem *sioR;
+#endif
+
 #ifdef BUILD_S100
 # include "s100spi/modem.h"
   extern s100spiModem *sioR;

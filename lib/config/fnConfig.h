@@ -49,7 +49,8 @@ public:
     int get_general_hsioindex() { return _general.hsio_index; };
     std::string get_general_timezone() { return _general.timezone; };
     bool get_general_rotation_sounds() { return _general.rotation_sounds; };
-    std::string get_network_midimaze_host() { return _network.midimaze_host; };
+    std::string get_network_udpstream_host() { return _network.udpstream_host; };
+    int get_network_udpstream_port() { return _network.udpstream_port; };
     bool get_general_config_enabled() { return _general.config_enabled; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
@@ -58,7 +59,8 @@ public:
     void store_general_config_enabled(bool config_enabled);
     bool get_general_boot_mode() { return _general.boot_mode; }
     void store_general_boot_mode(uint8_t boot_mode);
-    void store_midimaze_host(const char host_ip[64]);
+    void store_udpstream_host(const char host_ip[64]);
+    void store_udpstream_port(int port);
     bool get_general_fnconfig_spifs() { return _general.fnconfig_spifs; };
     void store_general_fnconfig_spifs(bool fnconfig_spifs);
     bool get_general_status_wait_enabled() { return _general.status_wait_enabled; }
@@ -259,7 +261,8 @@ private:
     struct network_info
     {
         char sntpserver [40];
-        char midimaze_host [64];
+        char udpstream_host [64];
+        int udpstream_port;
     };
 
     struct general_info

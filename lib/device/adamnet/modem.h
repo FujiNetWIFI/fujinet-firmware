@@ -1,3 +1,4 @@
+#ifdef BUILD_ADAM
 #ifndef ADAM_MODEM_H
 #define ADAM_MODEM_H
 
@@ -233,3 +234,4 @@ public:
 };
 
 #endif /* ADAM_MODEM_H */
+#endif /* BUILD_ADAM */

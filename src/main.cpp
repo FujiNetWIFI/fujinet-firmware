@@ -88,9 +88,9 @@ void main_setup()
         fnBtManager.start();
 #endif
     }
-    else
+    else if (Config.get_wifi_enabled())
     {
-        // Set up the WiFi adapter
+        // Set up the WiFi adapter if enabled in config
         fnWiFi.start();
         // Go ahead and try reconnecting to WiFi
         fnWiFi.connect();
@@ -102,7 +102,7 @@ void main_setup()
 
     SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
-    SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
+    SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
@@ -133,6 +133,11 @@ void main_setup()
     // Setup IEC Bus
     theFuji.setup(&IEC);
 #endif // BUILD_CBM
+
+#ifdef BUILD_LYNX
+    theFuji.setup(&ComLynx);
+    ComLynx.setup();
+#endif
 
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
@@ -177,7 +182,7 @@ void main_setup()
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
 
-    IWM.addDevice(&theFuji, iwm_fujinet_type_t::FujiNet);
+    // IWM.addDevice(&theFuji, iwm_fujinet_type_t::FujiNet);
     theFuji.setup(&IWM);
     IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
 
