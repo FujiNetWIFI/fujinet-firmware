@@ -20,7 +20,7 @@
 // HSPICS0
 
 #define SEND_PACKET iwm_send_packet_spi
-#define TEST_SPI 1 
+#undef TEST_SPI 
 
 // end spi things
 
@@ -835,29 +835,10 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
     trans.tx_buffer=spi_buffer;            //finally send the line data
     trans.length=spi_len*8;            //Data length, in bits
     trans.flags=0; //undo SPI_TRANS_USE_TXDATA flag
-
-
-  /** using interrupt driven SPI transmission
-    ret=spi_device_queue_trans(spi, &trans, portMAX_DELAY);
-    assert(ret==ESP_OK);
-    //When we are here, the SPI driver is busy (in the background) getting the transactions sent. That happens
-    //mostly using DMA, so the CPU doesn't have much to do here. We're not going to wait for the transaction to
-    //finish because we may as well spend the time calculating the next line. When that is done, we can call
-    //send_line_finish, which will wait for the transfers to be done and check their status.
-
-
-    spi_transaction_t *rtrans;
-    //Wait for transaction to be done and get back the results.
-    ret=spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
-    assert(ret==ESP_OK);
-        //We could inspect rtrans now if we received any info back. The LCD is treated as write-only, though.
-*/
-
-    //ret=spi_device_transmit(spi, &trans);
     ret=spi_device_polling_transmit(spi, &trans);
+    iwm_ack_clr();
     assert(ret==ESP_OK);
 
-  iwm_ack_clr();
 #ifndef TESTTX
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
@@ -887,10 +868,11 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
 }
 
 
-#ifdef TEST_SPI
+
 void iwmBus::test_spi()
 {
-// HSPID
+#ifdef TEST_SPI
+
   iwm_rddata_clr();
   iwm_rddata_enable(); 
   iwm_ack_clr();
@@ -913,9 +895,8 @@ void iwmBus::test_spi()
     Debug_printf("\r\nSent!!!!");
     fnSystem.delay(1000);
   }
-
-}
 #endif
+}
 
 void iwmBus::setup(void)
 {
@@ -959,13 +940,13 @@ void iwmBus::setup(void)
   //   portYIELD();
   // }
 
-
+#ifdef TEST_SPI
   test_spi();
   while(1)
   {
     portYIELD();
   }
-
+#endif
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
