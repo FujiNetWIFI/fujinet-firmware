@@ -1427,31 +1427,29 @@ void lynxFuji::comlynx_hello()
 }
 
 // Set UDP Stream HOST & PORT and start it
-void lynxFuji::comlynx_enable_udpstream()
+void lynxFuji::comlynx_enable_udpstream(uint16_t s)
 {
-/*    char host[64];
+    char host[64];
 
-    uint8_t ck = bus_to_peripheral((uint8_t *)&host, sizeof(host));
+    // Receive port #
+    unsigned short port = comlynx_recv_length();
 
-    if (sio_checksum((uint8_t *)&host, sizeof(host)) != ck)
-        sio_error();
-    else
-    {
-        int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
+    // Receive host
+    comlynx_recv_buffer((uint8_t *)host,s-2);
 
-        Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
+    // Receive Checksum.
+    comlynx_recv();
 
-        // Save the host and port
-        Config.store_udpstream_host(host);
-        Config.store_udpstream_port(port);
-        Config.save();
+    // Acknowledge
+    comlynx_response_ack();
 
-        sio_complete();
+    // Save the host and port
+    Config.store_udpstream_host(host);
+    Config.store_udpstream_port(port);
+    Config.save();
 
-        // Start the UDP Stream
-        SIO.setUDPHost(host, port);
-    }
-*/
+    // Start the UDP Stream
+    ComLynx.setUDPHost(host, port);
 }
 
 void lynxFuji::comlynx_control_send()
@@ -1559,6 +1557,9 @@ void lynxFuji::comlynx_control_send()
         break;
     case SIO_FUJICMD_COPY_FILE:
         comlynx_copy_file();
+        break;
+    case SIO_FUJICMD_ENABLE_UDPSTREAM:
+        comlynx_enable_udpstream(s);
         break;
     case 0x01:
         comlynx_hello();
