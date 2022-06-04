@@ -5,7 +5,7 @@
 #include "../../include/debug.h"
 
 #include "fuji.h"
-#include "midimaze.h"
+#include "udpstream.h"
 #include "modem.h"
 #include "siocpm.h"
 
@@ -277,18 +277,18 @@ void systemBus::service()
     // modes disrupt normal SIO handling - should probably make a separate task for this)
     _sio_process_queue();
 
-    if (_midiDev != nullptr && _midiDev->midimazeActive)
+    if (_udpDev != nullptr && _udpDev->udpstreamActive)
     {
         if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
         {
 #ifdef DEBUG
-            Debug_println("CMD Asserted, stopping MIDIMaze");
+            Debug_println("CMD Asserted, stopping UDP Stream");
 #endif
-            _midiDev->sio_disable_midimaze();
+            _udpDev->sio_disable_udpstream();
         }
         else
         {
-            _midiDev->sio_handle_midimaze();
+            _udpDev->sio_handle_udpstream();
             return; // break!
         }
     }
@@ -410,7 +410,7 @@ void systemBus::addDevice(virtualDevice *pDevice, int device_id)
     }
     else if (device_id == SIO_DEVICEID_MIDI)
     {
-        _midiDev = (sioMIDIMaze *)pDevice;
+        _udpDev = (sioUDPStream *)pDevice;
     }
     else if (device_id == SIO_DEVICEID_CASSETTE)
     {
@@ -531,29 +531,39 @@ int systemBus::getHighSpeedBaud()
     return _sioBaudHigh;
 }
 
-void systemBus::setMIDIHost(const char *hostname)
+void systemBus::setUDPHost(const char *hostname, int port)
 {
 
     if (hostname != nullptr && hostname[0] != '\0')
     {
         // Try to resolve the hostname and store that so we don't have to keep looking it up
-        _midiDev->midimaze_host_ip = get_ip4_addr_by_name(hostname);
+        _udpDev->udpstream_host_ip = get_ip4_addr_by_name(hostname);
 
-        if (_midiDev->midimaze_host_ip == IPADDR_NONE)
+        if (_udpDev->udpstream_host_ip == IPADDR_NONE)
         {
             Debug_printf("Failed to resolve hostname \"%s\"\n", hostname);
         }
     }
     else
     {
-        _midiDev->midimaze_host_ip = IPADDR_NONE;
+        _udpDev->udpstream_host_ip = IPADDR_NONE;
     }
 
-    // Restart MIDIMaze mode if needed
-    if (_midiDev->midimazeActive)
-        _midiDev->sio_disable_midimaze();
-    if (_midiDev->midimaze_host_ip != IPADDR_NONE)
-        _midiDev->sio_enable_midimaze();
+    if (port > 0 && port <= 65535)
+    {
+        _udpDev->udpstream_port = port;
+    }
+    else
+    {
+        _udpDev->udpstream_port = 5004;
+        Debug_printf("UDPStream port not provided or invalid (%d), setting to 5004\n", port);
+    }
+
+    // Restart UDP Stream mode if needed
+    if (_udpDev->udpstreamActive)
+        _udpDev->sio_disable_udpstream();
+    if (_udpDev->udpstream_host_ip != IPADDR_NONE)
+        _udpDev->sio_enable_udpstream();
 }
 
 void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)

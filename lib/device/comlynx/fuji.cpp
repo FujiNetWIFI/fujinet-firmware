@@ -57,6 +57,7 @@
 #define SIO_FUJICMD_DEVICE_ENABLE_STATUS 0xD1
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
+#define SIO_FUJICMD_ENABLE_UDPSTREAM 0xF0
 
 #define ADDITIONAL_DETAILS_BYTES 12
 
@@ -1423,6 +1424,34 @@ void lynxFuji::comlynx_hello()
 
     Debug_printf("HELLO FROM LYNX.\n");
 
+}
+
+// Set UDP Stream HOST & PORT and start it
+void lynxFuji::comlynx_enable_udpstream()
+{
+/*    char host[64];
+
+    uint8_t ck = bus_to_peripheral((uint8_t *)&host, sizeof(host));
+
+    if (sio_checksum((uint8_t *)&host, sizeof(host)) != ck)
+        sio_error();
+    else
+    {
+        int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
+
+        Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
+
+        // Save the host and port
+        Config.store_udpstream_host(host);
+        Config.store_udpstream_port(port);
+        Config.save();
+
+        sio_complete();
+
+        // Start the UDP Stream
+        SIO.setUDPHost(host, port);
+    }
+*/
 }
 
 void lynxFuji::comlynx_control_send()

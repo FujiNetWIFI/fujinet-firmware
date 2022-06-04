@@ -443,6 +443,44 @@
 
 		<div class="flexparent">
 			<div class="flexchild">
+				<header>UDP<span id="logowob"></span>STREAM</header>
+				<div class="detline">
+					<div class="cicon">
+						<div class="svgicon">
+							<svg width="100%" height="100%" viewBox="0 0 128 128" version="1.1"
+							xmlns:svg="http://www.w3.org/2000/svg"
+							xmlns="http://www.w3.org/2000/svg">
+						   <g
+							  id="svgg"
+							  transform="matrix(0.32011682,0,0,0.32001597,-0.02844662,0.01317435)">
+							 <path
+								id="path0"
+								d="M 188.98,0.28 C 70.1,7.093 -16.82,115.992 2.881,233.439 16.872,316.847 84.221,383.832 167.639,397.307 302.915,419.158 419.76,301.668 397.118,166.561 380.445,67.074 289.618,-5.488 188.98,0.28 m 36.048,64.73 24.825,34.786 -16.556,0.107 -16.556,0.106 -0.105,24.996 L 216.531,150 H 200 183.469 l -0.105,-24.995 -0.105,-24.996 -16.556,-0.106 -16.556,-0.107 24.825,-34.786 C 188.625,45.878 199.888,30.224 200,30.224 c 0.112,0 11.375,15.654 25.028,34.786 m -89.564,110.296 c 18.871,13.47 34.312,24.582 34.312,24.694 0,0.112 -15.654,11.375 -34.786,25.028 l -34.786,24.825 -0.107,-16.559 -0.106,-16.559 H 75.097 50.204 V 200 183.265 H 75.102 100 v -16.551 c 0,-14.126 0.084,-16.503 0.576,-16.224 0.316,0.179 16.016,11.347 34.888,24.816 m 189.439,7.959 h 24.893 V 200 216.735 h -24.893 -24.894 l -0.106,16.559 -0.107,16.559 -34.786,-24.825 C 245.878,211.375 230.224,200.112 230.224,200 c 0,-0.112 15.654,-11.375 34.786,-25.028 l 34.786,-24.825 0.107,16.559 0.106,16.559 h 24.894 m -108.168,91.832 v 24.894 l 16.559,0.106 16.559,0.107 -24.825,34.786 c -13.653,19.132 -24.916,34.786 -25.028,34.786 -0.112,0 -11.375,-15.654 -25.028,-34.786 l -24.825,-34.786 16.559,-0.107 16.559,-0.106 V 275.097 250.204 H 200 216.735 v 24.893"
+								stroke="none"
+								fill="#000000"
+								fill-rule="evenodd" />
+						   </g>
+						 </svg>
+						</div>
+					</div>
+					<div class="cform">
+						<div class="formwrapper">
+							<br>UDPStream Hostname or IP and Port
+							<form action="/config" method="post">
+								<input type="text" name="udpstream_host" id="udpstream_host" value="<%FN_UDPSTREAM_HOST%>">
+								<input type="submit" value="Save">
+							</form>
+							<hr>
+							<br>If port not supplied, default is 5004 for MIDIMaze.
+							<br>example: <strong>example.com:6502</strong>
+							<br>MIDIMaze example: <strong>192.168.0.1</strong> or <strong>192.168.0.1:5004</strong>
+							<br>
+							<br>Save empty field to turn off
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="flexchild">
 				<header>PRINTER<span id="logowob"></span>SETTINGS</header>
 				<div class="detline">
 					<div class="cicon">
