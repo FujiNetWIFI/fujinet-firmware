@@ -303,6 +303,9 @@ void systemBus::setup()
     // Add the card detect handler
     gpio_isr_handler_add((gpio_num_t)PIN_COMLYNX_RESET, comlynx_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
 
+    // Set up UDP device
+    _udpDev = new lynxUDPStream();
+    
     // Set up UART
     fnUartSIO.begin(COMLYNX_BAUD);
 }
@@ -407,11 +410,11 @@ void systemBus::disableDevice(uint8_t device_id)
 
 void systemBus::setUDPHost(const char *hostname, int port)
 {
-
     if (hostname != nullptr && hostname[0] != '\0')
     {
         // Try to resolve the hostname and store that so we don't have to keep looking it up
         _udpDev->udpstream_host_ip = get_ip4_addr_by_name(hostname);
+        //_udpDev->udpstream_host_ip = IPADDR_NONE;
 
         if (_udpDev->udpstream_host_ip == IPADDR_NONE)
         {
