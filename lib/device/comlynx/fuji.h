@@ -94,7 +94,7 @@ protected:
     void comlynx_write_host_slots();       // 0xF3
     void comlynx_read_device_slots();      // 0xF2
     void comlynx_write_device_slots();     // 0xF1
-    void comlynx_enable_udpstream();       // 0xF0
+    void comlynx_enable_udpstream(uint16_t s);       // 0xF0
     void comlynx_disk_image_umount();      // 0xE9
     void comlynx_get_adapter_config();     // 0xE8
     void comlynx_new_disk();               // 0xE7
