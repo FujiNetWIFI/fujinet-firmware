@@ -1429,29 +1429,35 @@ void lynxFuji::comlynx_hello()
 // Set UDP Stream HOST & PORT and start it
 void lynxFuji::comlynx_enable_udpstream()
 {
-/*    char host[64];
+    char hostBuf[262];
+    int port;
+    std::string hostname;
+    std::string delim = ":";
 
-    uint8_t ck = bus_to_peripheral((uint8_t *)&host, sizeof(host));
+    comlynx_recv_buffer((uint8_t *)hostBuf, sizeof(hostBuf));
+    hostname += hostBuf;
 
-    if (sio_checksum((uint8_t *)&host, sizeof(host)) != ck)
-        sio_error();
+    ComLynx.start_time = esp_timer_get_time();
+    comlynx_response_ack();
+
+    // Get the port from the hostname
+    if (hostname.find(delim) != std::string::npos)
+        port = stoi(hostname.substr(hostname.find(delim)+1));
     else
-    {
-        int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
+        port = 5004; // Default to MIDI port of 5004
 
-        Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
+    // Get the hostname
+    std::string newhostname = hostname.substr(0, hostname.find(delim));
 
-        // Save the host and port
-        Config.store_udpstream_host(host);
-        Config.store_udpstream_port(port);
-        Config.save();
+    Debug_printf("Fuji CMD ENABLE UDPSTREAM: HOST:%s PORT: %d\n", newhostname, port);
 
-        sio_complete();
+    // Save the host and port
+    Config.store_udpstream_host(newhostname.c_str());
+    Config.store_udpstream_port(port);
+    Config.save();
 
-        // Start the UDP Stream
-        SIO.setUDPHost(host, port);
-    }
-*/
+    // Start the UDP Stream
+    ComLynx.setUDPHost(newhostname.c_str(), port);
 }
 
 void lynxFuji::comlynx_control_send()
