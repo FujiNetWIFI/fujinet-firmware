@@ -8,6 +8,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
+#include <forward_list>
 #include <map>
 
 
@@ -58,6 +59,7 @@ union cmdFrame_t
 class systemBus;
 class lynxFuji;     // declare here so can reference it, but define in fuji.h
 class lynxPrinter;
+class lynxUDPStream; // declare here so can reference it, but define in udpstream.h
 
 /**
  * @brief Calculate checksum for Comlynx packets. Uses a simple 8-bit XOR of each successive byte.
@@ -233,6 +235,7 @@ private:
     virtualDevice *_activeDev = nullptr;
     lynxFuji *_fujiDev = nullptr;
     lynxPrinter *_printerDev = nullptr;
+    lynxUDPStream *_udpDev = nullptr;
 
     void _comlynx_process_cmd();
     void _comlynx_process_queue();
@@ -264,6 +267,7 @@ public:
     void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
     bool deviceEnabled(uint8_t device_id);
     QueueHandle_t qComlynxMessages = nullptr;
+    void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
 };
 
 extern systemBus ComLynx;

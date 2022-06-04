@@ -88,6 +88,7 @@ protected:
     void sio_write_host_slots();       // 0xF3
     void sio_read_device_slots();      // 0xF2
     void sio_write_device_slots();     // 0xF1
+    void sio_enable_udpstream();       // 0xF0
     void sio_net_get_wifi_enabled();   // 0xEA
     void sio_disk_image_umount();      // 0xE9
     void sio_get_adapter_config();     // 0xE8
