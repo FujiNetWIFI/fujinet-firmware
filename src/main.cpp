@@ -134,6 +134,11 @@ void main_setup()
     theFuji.setup(&IEC);
 #endif // BUILD_CBM
 
+#ifdef BUILD_LYNX
+    theFuji.setup(&ComLynx);
+    ComLynx.setup();
+#endif
+
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();
