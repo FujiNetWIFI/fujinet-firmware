@@ -410,6 +410,15 @@ void systemBus::disableDevice(uint8_t device_id)
 
 void systemBus::setUDPHost(const char *hostname, int port)
 {
+    // Turn off if hostname is STOP
+    if (!strcmp(hostname, "STOP"))
+    {
+        if (_udpDev->udpstreamActive)
+            _udpDev->comlynx_disable_udpstream();
+
+        return;
+    }
+
     if (hostname != nullptr && hostname[0] != '\0')
     {
         // Try to resolve the hostname and store that so we don't have to keep looking it up
