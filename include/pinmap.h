@@ -23,11 +23,13 @@
 #define PIN_UART1_RX 9
 #define PIN_UART1_TX 10
 #ifdef THOMS_GHETTO_ASS_ADAM_BREADBOARD 
-#define PIN_UART2_RX 22
+#define PIN_UART2_RX 23
+#define PIN_UART2_TX 22
 #else
 #define PIN_UART2_RX 33
-#endif /* THOMS_GHETTO_ASS_BREADBOARD*/
 #define PIN_UART2_TX 21
+#endif /* THOMS_GHETTO_ASS_BREADBOARD*/
+
 
 /* Buttons */
 #define PIN_BUTTON_A 0 // keys.cpp
@@ -78,11 +80,14 @@
 /* Pins for AdamNet */
 #define PIN_ADAMNET_RESET   26
 
+
 /* Pins for Adam USB */
 #define PIN_USB_DP          27      // D+
 #define PIN_USB_DM          32      // D-
 
 // Apple II IWM pin assignments
 
+// Atari Lynx Pin assignments
+#define PIN_COMLYNX_RESET   26
 
 #endif

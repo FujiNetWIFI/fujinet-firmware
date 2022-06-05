@@ -269,7 +269,6 @@ void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::st
 
 void fnHttpServiceConfigurator::config_udpstream(std::string hostname)
 {
-#ifdef BUILD_ATARI
     int port;
     std::string delim = ":";
 
@@ -286,12 +285,16 @@ void fnHttpServiceConfigurator::config_udpstream(std::string hostname)
     Debug_printf("Set UDPStream port: %d\n", port);
 
     // Update the host ip variable
+#ifdef BUILD_ATARI
     SIO.setUDPHost(newhostname.c_str(), port);
+#endif /* ATARI */
+#ifdef BUILD_LYNX
+    ComLynx.setUDPHost(newhostname.c_str(), port);
+#endif /* LYNX */
     // Save change
     Config.store_udpstream_host(newhostname.c_str());
     Config.store_udpstream_port(port);
     Config.save();
-#endif /* ATARI */
 }
 
 
