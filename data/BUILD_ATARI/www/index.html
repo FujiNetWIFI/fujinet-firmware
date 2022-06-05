@@ -874,12 +874,15 @@
 								<input type="text" name="udpstream_host" id="udpstream_host" value="<%FN_UDPSTREAM_HOST%>">
 								<input type="submit" value="Save">
 							</form>
+							<br>
+							<form action="/config" method="post">
+								<input type="hidden" name="udpstream_host" id="udpstream_host" value="STOP">
+								Press <input type="submit" value="Stop"> to turn off
+							</form>
 							<hr>
 							<br>If port not supplied, default is 5004 for MIDIMaze.
 							<br>example: <strong>example.com:6502</strong>
 							<br>MIDIMaze example: <strong>192.168.0.1</strong> or <strong>192.168.0.1:5004</strong>
-							<br>
-							<br>Save empty field to turn off
 						</div>
 					</div>
 				</div>

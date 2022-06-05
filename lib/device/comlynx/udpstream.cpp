@@ -15,7 +15,7 @@ void lynxUDPStream::comlynx_enable_udpstream()
 
     udpstreamActive = true;
 #ifdef DEBUG
-    Debug_println("UDPSTREAM mode enabled");
+    Debug_println("UDPSTREAM mode ENABLED");
 #endif
 }
 
@@ -23,6 +23,9 @@ void lynxUDPStream::comlynx_disable_udpstream()
 {
     udpStream.stop();
     udpstreamActive = false;
+#ifdef DEBUG
+    Debug_println("UDPSTREAM mode DISABLED");
+#endif
 }
 
 void lynxUDPStream::comlynx_handle_udpstream()

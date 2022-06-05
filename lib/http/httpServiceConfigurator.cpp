@@ -269,9 +269,25 @@ void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::st
 
 void fnHttpServiceConfigurator::config_udpstream(std::string hostname)
 {
-    int port;
+    int port = 0;
     std::string delim = ":";
 
+    // Turn off if hostname is STOP
+    if (hostname.compare("STOP") == 0)
+    {
+        Debug_println("UDPStream Stop Request");
+#ifdef BUILD_ATARI
+        SIO.setUDPHost("STOP", port);
+#endif /* ATARI */
+#ifdef BUILD_LYNX
+        ComLynx.setUDPHost("STOP", port);
+#endif /* LYNX */
+        Config.store_udpstream_host("");
+        Config.store_udpstream_port(0);
+        Config.save();
+
+        return;
+    }
     // Get the port from the hostname
     if (hostname.find(delim) != std::string::npos)
         port = stoi(hostname.substr(hostname.find(delim)+1));
