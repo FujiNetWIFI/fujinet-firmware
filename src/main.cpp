@@ -102,7 +102,7 @@ void main_setup()
 
     SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
-    SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
+    SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
@@ -133,6 +133,11 @@ void main_setup()
     // Setup IEC Bus
     theFuji.setup(&IEC);
 #endif // BUILD_CBM
+
+#ifdef BUILD_LYNX
+    theFuji.setup(&ComLynx);
+    ComLynx.setup();
+#endif
 
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);

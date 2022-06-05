@@ -5,7 +5,7 @@
 # include "sio/apetime.h"
 # include "sio/cassette.h"
 # include "sio/disk.h"
-# include "sio/midimaze.h"
+# include "sio/udpstream.h"
 # include "sio/modem.h"
 # include "sio/network.h"
 # include "sio/printer.h"
@@ -16,7 +16,7 @@
 
     sioApeTime apeTime;
     sioVoice sioV;
-    sioMIDIMaze sioMIDI;
+    sioUDPStream udpDev;
     // sioCassette sioC; // now part of sioFuji theFuji object
     sioModem *sioR;
     sioCPM sioZ;
@@ -40,6 +40,21 @@
     adamModem *sioR;
     adamKeyboard *sioK;
     adamQueryDevice *sioQ;
+    bool exists = false;
+#endif
+
+#ifdef BUILD_LYNX
+# include "comlynx/keyboard.h"
+# include "comlynx/modem.h"
+# include "comlynx/printer.h"
+# include "comlynx/printerlist.h"
+# include "comlynx/fuji.h"
+# include "comlynx/udpstream.h"
+
+//# define NO_VIRTUAL_KEYBOARD
+    lynxModem *sioR;
+    lynxKeyboard *sioK;
+    lynxUDPStream *udpDev;
     bool exists = false;
 #endif
 
