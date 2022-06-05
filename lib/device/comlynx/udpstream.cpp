@@ -42,6 +42,7 @@ void lynxUDPStream::comlynx_handle_udpstream()
         Debug_print("UDP-IN: ");
         util_dump_bytes(buf_net, packetSize);
 #endif
+        fnUartSIO.readBytes(buf_net, packetSize); // Trash what we just sent over serial
     }
 
     // Read the data until there's a pause in the incoming stream
