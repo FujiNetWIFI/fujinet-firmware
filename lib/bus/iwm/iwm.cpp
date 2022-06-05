@@ -12,7 +12,7 @@
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 
-#define EXTRA 
+#undef EXTRA 
 
 /******************************************************************************
 Based on:
