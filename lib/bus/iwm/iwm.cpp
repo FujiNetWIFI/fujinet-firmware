@@ -11,7 +11,7 @@
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 
-#include "iwm_spi.h"
+// #include "iwm_spi.h"
 // spi things
 
 // HSPIQ
@@ -20,6 +20,7 @@
 // HSPICS0
 
 #define SEND_PACKET iwm_send_packet_spi
+//#define SEND_PACKET iwm_send_packet
 #undef TEST_SPI 
 
 // end spi things
@@ -52,7 +53,8 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #define SP_PHI1     22      //  PROC      9     D6
 #define SP_PHI2     36      //  MOTOR     8     D5
 #define SP_PHI3     26      //  INT       13    D7
-#define SP_RDDATA   21      //  DATAIN    3     D2
+//#define SP_RDDATA   21      //  DATAIN    3     D2
+#define SP_RDDATA   23      //  DATAIN    3     D2
 #define SP_WRDATA   33      //  DATAOUT   5     D3
 #ifdef EXTRA
   #define SP_EXTRA    32      //  CLKOUT
