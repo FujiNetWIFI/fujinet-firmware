@@ -676,6 +676,7 @@ void lynxFuji::comlynx_open_directory(uint16_t s)
         {
             _current_open_directory_slot = hostSlot;
         }
+        comlynx_response_ack();
     }
     else
     {
@@ -787,7 +788,7 @@ void lynxFuji::comlynx_read_directory_entry()
         }
 
         // Hack-o-rama to add file type character to beginning of path.
-        if (maxlen == 31)
+        if (maxlen == 38)
         {
             memmove(&dirpath[2], dirpath, 254);
             if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
@@ -820,6 +821,7 @@ void lynxFuji::comlynx_read_directory_entry()
     }
     else
     {
+        Debug_printf("Already filled. response is %s\n",response);
         ComLynx.start_time = esp_timer_get_time();
         comlynx_response_ack();
     }
@@ -1432,7 +1434,7 @@ void lynxFuji::comlynx_enable_udpstream(uint16_t s)
     char host[128];
 
     s--;
-    
+
     // Receive port #
     unsigned short port;
 
