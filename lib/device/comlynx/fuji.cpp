@@ -155,7 +155,6 @@ void lynxFuji::comlynx_net_scan_networks()
     response[0] = _countScannedSSIDs;
     response_len = 1;
 
-    ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 }
 
@@ -187,7 +186,6 @@ void lynxFuji::comlynx_net_scan_result()
     memcpy(response, &detail, sizeof(detail));
     response_len = sizeof(detail);
 
-    ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 }
 
@@ -224,7 +222,6 @@ void lynxFuji::comlynx_net_get_ssid()
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
 
-    ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 }
 
@@ -246,10 +243,7 @@ void lynxFuji::comlynx_net_set_ssid(uint16_t s)
 
         comlynx_recv_buffer((uint8_t *)&cfg, s);
 
-        comlynx_recv();
-
-        ComLynx.start_time = esp_timer_get_time();
-        comlynx_response_ack();
+        comlynx_recv(); // CK
 
         bool save = true;
 
@@ -265,6 +259,8 @@ void lynxFuji::comlynx_net_set_ssid(uint16_t s)
             Config.save();
         }
     }
+
+    comlynx_response_ack();
 }
 // Get WiFi Status
 void lynxFuji::comlynx_net_get_wifi_status()
@@ -276,7 +272,6 @@ void lynxFuji::comlynx_net_get_wifi_status()
     response[0] = wifiStatus;
     response_len = 1;
 
-    ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 }
 
@@ -295,7 +290,6 @@ void lynxFuji::comlynx_mount_host()
         hostMounted[hostSlot] = true;
     }
 
-    ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 }
 
@@ -321,9 +315,6 @@ void lynxFuji::comlynx_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
@@ -337,6 +328,8 @@ void lynxFuji::comlynx_disk_image_mount()
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
     disk.disk_dev.device_active = true;
+
+    comlynx_response_ack();
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -344,9 +337,6 @@ void lynxFuji::comlynx_set_boot_config()
 {
     boot_config = comlynx_recv();
     comlynx_recv();
-
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
 
     Debug_printf("Boot config is now %d",boot_config);
 
@@ -357,6 +347,8 @@ void lynxFuji::comlynx_set_boot_config()
         _fnDisks[0].reset();
         Debug_printf("Boot config unmounted slot 0");
     }
+
+    comlynx_response_ack();
 }
 
 // Do SIO copy
@@ -382,10 +374,6 @@ void lynxFuji::comlynx_copy_file()
     destSlot = comlynx_recv();
     comlynx_recv_buffer(csBuf,sizeof(csBuf));
     ck = comlynx_recv();
-
-    ComLynx.wait_for_idle();
-    fnUartSIO.write(0x9f); // ACK.
-    fnUartSIO.flush();
 
     dataBuf = (char *)malloc(COPY_SIZE);
 
@@ -431,6 +419,7 @@ void lynxFuji::comlynx_copy_file()
 
     Debug_printf("COPY DONE\n");
 
+    comlynx_response_ack();
 }
 
 // Mount all
@@ -499,7 +488,6 @@ void lynxFuji::comlynx_set_boot_mode()
     boot_config = true;
 
     comlynx_response_ack();
-
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -529,9 +517,6 @@ void lynxFuji::comlynx_write_app_key()
 
     Debug_printf("Fuji Cmd: WRITE APPKEY %s\n", appkeyfilename);
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     fp = fnSDFAT.file_open(appkeyfilename, "w");
 
     if (fp == nullptr)
@@ -542,6 +527,8 @@ void lynxFuji::comlynx_write_app_key()
 
     fwrite(data, sizeof(uint8_t), sizeof(data), fp);
     fclose(fp);
+
+    comlynx_response_ack();
 }
 
 /*
@@ -554,8 +541,6 @@ void lynxFuji::comlynx_read_app_key()
     uint8_t key = comlynx_recv();
 
     comlynx_recv(); // CK
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
 
     char appkeyfilename[30];
     FILE *fp;
@@ -565,7 +550,6 @@ void lynxFuji::comlynx_read_app_key()
     fp = fnSDFAT.file_open(appkeyfilename, "r");
 
     memset(response, 0, sizeof(response));
-    
 
     if (fp == nullptr)
     {
@@ -576,6 +560,8 @@ void lynxFuji::comlynx_read_app_key()
     
     response_len = fread(response, sizeof(char), 64, fp);
     fclose(fp);
+
+    comlynx_response_ack();
 }
 
 // DEBUG TAPE
@@ -589,11 +575,10 @@ void lynxFuji::comlynx_disk_image_umount()
     unsigned char ds = comlynx_recv();
     comlynx_recv();
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     _fnDisks[ds].disk_dev.unmount();
     _fnDisks[ds].reset();
+
+    comlynx_response_ack();
 }
 
 // Disk Image Rotate
@@ -680,7 +665,6 @@ void lynxFuji::comlynx_open_directory(uint16_t s)
     }
     else
     {
-        ComLynx.start_time = esp_timer_get_time();
         comlynx_response_ack();
     }
 
@@ -731,6 +715,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
 void lynxFuji::comlynx_read_directory_entry()
 {
+    Debug_printf("READ DIR ENTRY");
     uint8_t maxlen = comlynx_recv();
     uint8_t addtl = comlynx_recv();
 
@@ -791,17 +776,8 @@ void lynxFuji::comlynx_read_directory_entry()
         if (maxlen == 38)
         {
             memmove(&dirpath[2], dirpath, 254);
-            if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
-            {
-                dirpath[0] = 0x85;
-                dirpath[1] = 0x86;
-            }
-            else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
-            {
-                dirpath[0] = 0x87;
-                dirpath[1] = 0x88;
-            }
-            else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
+
+            if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
             {
                 dirpath[0] = 0x89;
                 dirpath[1] = 0x8a;
@@ -818,6 +794,7 @@ void lynxFuji::comlynx_read_directory_entry()
         memset(response, 0, sizeof(response));
         memcpy(response, dirpath, maxlen);
         response_len = maxlen;
+        comlynx_response_ack();
     }
     else
     {
@@ -838,27 +815,22 @@ void lynxFuji::comlynx_get_directory_position()
     response_len = sizeof(pos);
     memcpy(response, &pos, sizeof(pos));
 
-    ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 }
 
 void lynxFuji::comlynx_set_directory_position()
 {
-    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
-
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
     uint16_t pos = 0;
 
     comlynx_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
 
-    Debug_printf("pos is now %u", pos);
-
     comlynx_recv(); // ck
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     _fnHosts[_current_open_directory_slot].dir_seek(pos);
+    comlynx_response_ack();
+    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
+    Debug_printf("pos is now %u", pos);
 }
 
 void lynxFuji::comlynx_close_directory()
@@ -867,14 +839,12 @@ void lynxFuji::comlynx_close_directory()
 
     comlynx_recv(); // ck
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     if (_current_open_directory_slot != -1)
         _fnHosts[_current_open_directory_slot].dir_close();
 
     _current_open_directory_slot = -1;
     response_len = 1;
+    comlynx_response_ack();
 }
 
 // Get network adapter configuration
@@ -883,9 +853,6 @@ void lynxFuji::comlynx_get_adapter_config()
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
     comlynx_recv(); // ck
-
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
 
     // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
@@ -911,6 +878,8 @@ void lynxFuji::comlynx_get_adapter_config()
 
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
+
+    comlynx_response_ack();
 }
 
 //  Make new disk and shove into device slot
@@ -946,10 +915,8 @@ void lynxFuji::comlynx_new_disk()
 
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     fclose(disk.fileh);
+    comlynx_response_ack();
 }
 
 // Send host slot data to computer
@@ -968,7 +935,6 @@ void lynxFuji::comlynx_read_host_slots()
     memcpy(response, hostSlots, sizeof(hostSlots));
     response_len = sizeof(hostSlots);
 
-    ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 }
 
@@ -982,9 +948,6 @@ void lynxFuji::comlynx_write_host_slots()
 
     comlynx_recv(); // ck
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     for (int i = 0; i < MAX_HOSTS; i++)
     {
         hostMounted[i] = false;
@@ -992,6 +955,8 @@ void lynxFuji::comlynx_write_host_slots()
     }
     _populate_config_from_slots();
     Config.save();
+
+    comlynx_response_ack();
 }
 
 // Store host path prefix
@@ -1033,11 +998,10 @@ void lynxFuji::comlynx_read_device_slots()
 
     comlynx_recv(); // ck
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     memcpy(response, &diskSlots, returnsize);
     response_len = returnsize;
+
+    comlynx_response_ack();
 }
 
 // Read and save disk slot data from computer
@@ -1056,9 +1020,6 @@ void lynxFuji::comlynx_write_device_slots()
 
     comlynx_recv(); // ck
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     // Load the data into our current device array
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
@@ -1066,6 +1027,8 @@ void lynxFuji::comlynx_write_device_slots()
     // Save the data to disk
     _populate_config_from_slots();
     Config.save();
+
+    comlynx_response_ack();
 }
 
 // Temporary(?) function while we move from old config storage to new
@@ -1145,11 +1108,10 @@ void lynxFuji::comlynx_set_device_filename(uint16_t s)
 
     comlynx_recv(); // CK
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
     _populate_config_from_slots();
+
+    comlynx_response_ack();
 }
 
 // Get a 256 byte filename from device slot
@@ -1159,16 +1121,16 @@ void lynxFuji::comlynx_get_device_filename()
 
     comlynx_recv();
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     memcpy(response, _fnDisks[ds].filename, 256);
     response_len = 256;
+
+    comlynx_response_ack();
 }
 
 // Mounts the desired boot disk number
 void lynxFuji::insert_boot_device(uint8_t d)
 {
+    // TODO: Change this when CONFIG is ready.
     const char *config_atr = "/autorun.ddp";
     const char *mount_all_atr = "/mount-and-boot.ddp";
     FILE *fBoot;
@@ -1198,9 +1160,6 @@ void lynxFuji::comlynx_enable_device()
 
     comlynx_recv();
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     switch(d)
     {
         case 0x02:
@@ -1223,6 +1182,8 @@ void lynxFuji::comlynx_enable_device()
     Config.save();
 
     ComLynx.enableDevice(d);
+
+    comlynx_response_ack();
 }
 
 void lynxFuji::comlynx_disable_device()
@@ -1232,9 +1193,6 @@ void lynxFuji::comlynx_disable_device()
     Debug_printf("FUJI DISABLE DEVICE %02x\n",d);
 
     comlynx_recv();
-
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
 
     switch(d)
     {
@@ -1258,6 +1216,8 @@ void lynxFuji::comlynx_disable_device()
     Config.save();
     
     ComLynx.disableDevice(d);
+
+    comlynx_response_ack();
 }
 
 // Initializes base settings and adds our devices to the SIO bus
@@ -1283,7 +1243,7 @@ void lynxFuji::setup(systemBus *siobus)
 void lynxFuji::sio_mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
-    comlynx_response_ack();
+
     for (int i = 0; i < 1; i++)
     {
         fujiDisk &disk = _fnDisks[i];
@@ -1348,6 +1308,8 @@ void lynxFuji::sio_mount_all()
         // No disks in a slot, disable config
         boot_config = false;
     }
+
+    comlynx_response_ack();
 }
 
 void lynxFuji::comlynx_random_number()
@@ -1356,11 +1318,10 @@ void lynxFuji::comlynx_random_number()
 
     comlynx_recv(); // CK
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
     response_len = sizeof(int);
     *p = rand();
+    
+    comlynx_response_ack();
 }
 
 void lynxFuji::comlynx_get_time()
@@ -1368,10 +1329,6 @@ void lynxFuji::comlynx_get_time()
     Debug_println("FUJI GET TIME");
     comlynx_recv(); // CK
 
-    ComLynx.start_time = esp_timer_get_time();
-    comlynx_response_ack();
-
-    
     time_t tt = time(nullptr);
 
     setenv("TZ",Config.get_general_timezone().c_str(),1);
@@ -1392,6 +1349,7 @@ void lynxFuji::comlynx_get_time()
     response_len = 6;
 
     Debug_printf("Sending %02X %02X %02X %02X %02X %02X\n",now->tm_mday, now->tm_mon, now->tm_year, now->tm_hour, now->tm_min, now->tm_sec);
+    comlynx_response_ack();
 }
 
 void lynxFuji::comlynx_device_enable_status()
@@ -1600,15 +1558,12 @@ void lynxFuji::comlynx_process(uint8_t b)
         comlynx_control_status();
         break;
     case MN_CLR:
-        Debug_printf("CLR!\n");
         comlynx_control_clr();
         break;
     case MN_RECEIVE:
-        Debug_printf("RECV!\n");
         comlynx_response_ack();
         break;
     case MN_SEND:
-        Debug_printf("SEND!\n");
         comlynx_control_send();
         break;
     case MN_READY:
