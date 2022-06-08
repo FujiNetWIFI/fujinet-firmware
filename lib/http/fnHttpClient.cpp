@@ -279,17 +279,23 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
 #endif
             break;
         }
-        /*
-         If auth type is set to NONE, esp_http_client will automatically retry auth failures by attempting to set the auth type to
-         BASIC or DIGEST depending on the server response code. Ignore this attempt.
-        */
-        if (status == HttpStatus_Unauthorized && client->_auth_type == HTTP_AUTH_TYPE_NONE && client->_redirect_count == 0)
-        {
+//         /*
+//          If auth type is set to NONE, esp_http_client will automatically retry auth failures by attempting to set the auth type to
+//          BASIC or DIGEST depending on the server response code. Ignore this attempt.
+//         */
+//         if (status == HttpStatus_Unauthorized && client->_auth_type == HTTP_AUTH_TYPE_NONE && client->_redirect_count == 0)
+//         {
+// #ifdef VERBOSE_HTTP
+//             Debug_println("HTTP_EVENT_ON_DATA: Ignoring UNAUTHORIZED response");
+// #endif
+//             break;
+//         }
 #ifdef VERBOSE_HTTP
-            Debug_println("HTTP_EVENT_ON_DATA: Ignoring UNAUTHORIZED response");
-#endif
-            break;
+        if (status == HttpStatus_Unauthorized)
+        {
+            Debug_println("HTTP_EVENT_ON_DATA: UNAUTHORIZED");
         }
+#endif
 
         // Check if this is our first time this event has been triggered
         if (client->_transaction_begin == true)
