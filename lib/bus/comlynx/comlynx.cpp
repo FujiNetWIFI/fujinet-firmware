@@ -184,12 +184,19 @@ void systemBus::wait_for_idle()
 {
     bool isIdle = false;
     int64_t start, current, dur;
+    int trashCount = 0;
 
     do
     {
         // Wait for serial line to quiet down.
         while (fnUartSIO.available() > 0)
+        {
             fnUartSIO.read();
+            trashCount++;
+        }
+
+        if (trashCount > 0)
+            Debug_printf("wait_for_idle() dropped %d bytes\n", trashCount);
 
         start = current = esp_timer_get_time();
 
