@@ -522,7 +522,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   {
     Debug_printf(" - ERROR - No image mounted");
     encode_error_reply_packet(SP_ERR_OFFLINE);
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
     return;
   }
 
@@ -545,7 +545,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     {
       Debug_printf("\r\nRead seek err! block #%02x", block_num);
       encode_error_reply_packet(SP_ERR_BADBLOCK);
-      IWM.iwm_send_packet((unsigned char *)packet_buffer);
+      IWM.SEND_PACKET((unsigned char *)packet_buffer);
       return; // todo - send an error status packet?
     }
   }
@@ -555,12 +555,12 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   {
     Debug_printf("\r\nFile Read err: %d bytes", sdstato);
     encode_error_reply_packet(SP_ERR_IOERROR);
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
     return; // todo - true or false?
   }
   encode_data_packet();
   Debug_printf("\r\nsending block packet ...");
-  if (!IWM.iwm_send_packet((unsigned char *)packet_buffer))
+  if (!IWM.SEND_PACKET((unsigned char *)packet_buffer))
     last_block_num = block_num;
 }
 
@@ -598,7 +598,7 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
         {
           Debug_printf("\r\nRead seek err! block #%02x", block_num);
           encode_error_reply_packet(SP_ERR_BADBLOCK);
-          IWM.iwm_send_packet((unsigned char *)packet_buffer);
+          IWM.SEND_PACKET((unsigned char *)packet_buffer);
           return; // todo - send an error status packet?
                   // to do - set a flag here to check for error status
         }
@@ -615,7 +615,7 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
       }
       //now return status code to host
       encode_write_status_packet(source, status);
-      IWM.iwm_send_packet((unsigned char *)packet_buffer);
+      IWM.SEND_PACKET((unsigned char *)packet_buffer);
       //Serial.print(F("\r\nSent status Packet Data\r\n") );
       //print_packet ((unsigned char*) sector_buffer,512);
 

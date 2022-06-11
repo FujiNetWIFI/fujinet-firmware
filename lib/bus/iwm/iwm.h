@@ -13,7 +13,8 @@
 
 #include "fnFS.h"
 
-
+#define SEND_PACKET iwm_send_packet_spi
+//#define SEND_PACKET iwm_send_packet
 
 
 // todo - see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
