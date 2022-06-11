@@ -19,8 +19,7 @@
 // HSPICLK
 // HSPICS0
 
-#define SEND_PACKET iwm_send_packet_spi
-//#define SEND_PACKET iwm_send_packet
+
 #undef TEST_SPI 
 
 // end spi things
@@ -595,7 +594,7 @@ void iwmBus::encode_spi_packet(uint8_t *a)
   uint16_t i=0,j=0;
   while(a[i])
   {
-    Debug_printf("\r\nByte %02X: ",a[i]);
+    // Debug_printf("\r\nByte %02X: ",a[i]);
     // for each byte, loop through 4 x 2-bit pairs
     uint8_t mask = 0x80;
     for (int k = 0; k < 4; k++)
@@ -610,7 +609,7 @@ void iwmBus::encode_spi_packet(uint8_t *a)
         spi_buffer[j] |= 0x04;
       }
       mask >>= 1;
-      Debug_printf("%02x",spi_buffer[j]);
+      // Debug_printf("%02x",spi_buffer[j]);
       j++;
     }
     i++;
@@ -801,6 +800,16 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
 
   print_packet((uint8_t *)a);
   encode_spi_packet((uint8_t *)a);
+
+  // send data stream using SPI
+    esp_err_t ret;
+    spi_transaction_t trans;
+    memset(&trans, 0, sizeof(spi_transaction_t));
+    trans.tx_buffer=spi_buffer;            //finally send the line data
+    trans.length=spi_len*8;            //Data length, in bits
+    trans.flags=0; //undo SPI_TRANS_USE_TXDATA flag
+
+
   iwm_ack_set(); // ack is already enabled by the response to the command read
 
 #ifndef TESTTX
@@ -839,20 +848,16 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
 
 #endif // TEST_SPI
 
-  // send data stream using SPI
-    esp_err_t ret;
-    spi_transaction_t trans;
-    memset(&trans, 0, sizeof(spi_transaction_t));
-    trans.tx_buffer=spi_buffer;            //finally send the line data
-    trans.length=spi_len*8;            //Data length, in bits
-    trans.flags=0; //undo SPI_TRANS_USE_TXDATA flag
-    iwm_rddata_clr();
+
+    iwm_rddata_enable();
+        iwm_rddata_clr();
     ret=spi_device_polling_transmit(spi, &trans);
     iwm_rddata_set();
     iwm_ack_clr();
     assert(ret==ESP_OK);
 
 #ifndef TESTTX
+ iwm_timer_reset();
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
   iwm_timer_alarm_set(10000); // 1/2 millisecond

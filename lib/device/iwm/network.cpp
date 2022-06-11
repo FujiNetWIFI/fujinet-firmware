@@ -391,7 +391,7 @@ void iwmNetwork::special_40()
         encode_error_reply_packet(SP_ERR_BADCMD);
     }
 
-    IWM.iwm_send_packet((uint8_t *)packet_buffer);
+    IWM.SEND_PACKET((uint8_t *)packet_buffer);
 }
 
 /**
@@ -423,7 +423,7 @@ void iwmNetwork::iwm_open(cmdPacket_t cmd)
 {
     Debug_printf("\r\nOpen Network Unit # %02x", cmd.g7byte1);
     encode_status_reply_packet();
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 void iwmNetwork::iwm_close(cmdPacket_t cmd)
@@ -452,7 +452,7 @@ void iwmNetwork::status()
     packet_len = 4;
 
     encode_data_packet(packet_len);
-    IWM.iwm_send_packet((uint8_t *)packet_buffer);
+    IWM.SEND_PACKET((uint8_t *)packet_buffer);
 }
 
 void iwmNetwork::iwm_status(cmdPacket_t cmd)
@@ -573,12 +573,12 @@ void iwmNetwork::iwm_write(cmdPacket_t cmd)
         if (write_channel(num_bytes))
         {
             encode_error_reply_packet(SP_ERR_IOERROR);
-            IWM.iwm_send_packet((uint8_t *)packet_buffer);
+            IWM.SEND_PACKET((uint8_t *)packet_buffer);
         }
         else
         {
             encode_write_status_packet(source, 0);
-            IWM.iwm_send_packet((uint8_t *)packet_buffer);
+            IWM.SEND_PACKET((uint8_t *)packet_buffer);
         }
     }
 }
