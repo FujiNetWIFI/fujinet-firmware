@@ -53,8 +53,8 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #define SP_PHI1     22      //  PROC      9     D6
 #define SP_PHI2     36      //  MOTOR     8     D5
 #define SP_PHI3     26      //  INT       13    D7
-//#define SP_RDDATA   21      //  DATAIN    3     D2
-#define SP_RDDATA   23      //  DATAIN    3     D2
+#define SP_RDDATA   21      //  DATAIN    3     D2
+//#define SP_RDDATA   23      //  DATAIN    3     D2
 #define SP_WRDATA   33      //  DATAOUT   5     D3
 #ifdef EXTRA
   #define SP_EXTRA    32      //  CLKOUT
@@ -595,6 +595,7 @@ void iwmBus::encode_spi_packet(uint8_t *a)
   uint16_t i=0,j=0;
   while(a[i])
   {
+    Debug_printf("\r\nByte %02X: ",a[i]);
     // for each byte, loop through 4 x 2-bit pairs
     uint8_t mask = 0x80;
     for (int k = 0; k < 4; k++)
@@ -608,6 +609,8 @@ void iwmBus::encode_spi_packet(uint8_t *a)
       {
         spi_buffer[j] |= 0x04;
       }
+      mask >>= 1;
+      Debug_printf("%02x",spi_buffer[j]);
       j++;
     }
     i++;
@@ -777,7 +780,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
 //  portDISABLE_INTERRUPTS();
 
   // try to cache functions
-  iwm_timer_reset();
+ 
   // iwm_timer_latch();
   // iwm_timer_read();
   // iwm_timer_alarm_set(1);
@@ -785,19 +788,25 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   // iwm_timer_alarm_snooze(1);
   // iwm_timer_wait();
 
-  iwm_rddata_enable();
-
+  
+  // iwm_rddata_enable();
+  // iwm_rddata_set();
  //txbyte = a[idx++];
-
   //print_packet(a);
   // todo should this be ack disable or ack set?
 
+
+
 #ifndef TEST_SPI
+
+  print_packet((uint8_t *)a);
+  encode_spi_packet((uint8_t *)a);
   iwm_ack_set(); // ack is already enabled by the response to the command read
 
 #ifndef TESTTX
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
   // setup a timeout counter to wait for REQ response
+  iwm_timer_reset();
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
   iwm_timer_alarm_set(10000); // 1 millisecond per IIgs?
@@ -837,14 +846,16 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
     trans.tx_buffer=spi_buffer;            //finally send the line data
     trans.length=spi_len*8;            //Data length, in bits
     trans.flags=0; //undo SPI_TRANS_USE_TXDATA flag
+    iwm_rddata_clr();
     ret=spi_device_polling_transmit(spi, &trans);
+    iwm_rddata_set();
     iwm_ack_clr();
     assert(ret==ESP_OK);
 
 #ifndef TESTTX
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(5000); // 1/2 millisecond
+  iwm_timer_alarm_set(10000); // 1/2 millisecond
 
   // while (!fnSystem.digital_read(SP_REQ))
   while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -854,6 +865,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
     if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     {
       iwm_rddata_disable();
+      Debug_println("REQ timeout");
      // iwm_ack_disable();       // need to release the bus
       //portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
