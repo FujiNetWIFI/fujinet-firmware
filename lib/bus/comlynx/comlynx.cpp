@@ -184,12 +184,19 @@ void systemBus::wait_for_idle()
 {
     bool isIdle = false;
     int64_t start, current, dur;
+    int trashCount = 0;
 
     do
     {
         // Wait for serial line to quiet down.
         while (fnUartSIO.available() > 0)
+        {
             fnUartSIO.read();
+            trashCount++;
+        }
+
+        if (trashCount > 0)
+            Debug_printf("wait_for_idle() dropped %d bytes\n", trashCount);
 
         start = current = esp_timer_get_time();
 
@@ -410,6 +417,15 @@ void systemBus::disableDevice(uint8_t device_id)
 
 void systemBus::setUDPHost(const char *hostname, int port)
 {
+    // Turn off if hostname is STOP
+    if (!strcmp(hostname, "STOP"))
+    {
+        if (_udpDev->udpstreamActive)
+            _udpDev->comlynx_disable_udpstream();
+
+        return;
+    }
+
     if (hostname != nullptr && hostname[0] != '\0')
     {
         // Try to resolve the hostname and store that so we don't have to keep looking it up

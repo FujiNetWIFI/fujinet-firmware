@@ -43,7 +43,7 @@ void sioUDPStream::sio_enable_udpstream()
 
     udpstreamActive = true;
 #ifdef DEBUG
-    Debug_println("UDPSTREAM mode enabled");
+    Debug_println("UDPSTREAM mode ENABLED");
 #endif
 }
 
@@ -56,6 +56,9 @@ void sioUDPStream::sio_disable_udpstream()
         fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
     }
     udpstreamActive = false;
+#ifdef DEBUG
+    Debug_println("UDPSTREAM mode DISABLED");
+#endif
 }
 
 void sioUDPStream::sio_handle_udpstream()
