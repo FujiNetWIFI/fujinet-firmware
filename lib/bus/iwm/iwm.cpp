@@ -11,17 +11,8 @@
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 
-// #include "iwm_spi.h"
-// spi things
-
-// HSPIQ
-// #define HSPID 13
-// HSPICLK
-// HSPICS0
-
-
 #undef TEST_SPI 
-
+#define USE_VSPI
 // end spi things
 
 #undef EXTRA
@@ -53,7 +44,6 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #define SP_PHI2     36      //  MOTOR     8     D5
 #define SP_PHI3     26      //  INT       13    D7
 #define SP_RDDATA   21      //  DATAIN    3     D2
-//#define SP_RDDATA   23      //  DATAIN    3     D2
 #define SP_WRDATA   33      //  DATAOUT   5     D3
 #ifdef EXTRA
   #define SP_EXTRA    32      //  CLKOUT
@@ -91,14 +81,6 @@ possible FujiNet Apple pinout independent of SIO assignments
 //#define IWM_TX_PW             1 // microseconds - 1/2 us for fast mode
 
 #undef VERBOSE_IWM
-
-/* #define MACRO(num, str) {\
-            printf("%d", num);\
-            printf(" is");\
-            printf(" %s number", str);\
-            printf("\n");\
-           }
- */
 
 //------------------------------------------------------------------------------
 //#ifdef DEBUG
@@ -216,22 +198,30 @@ inline void iwmBus::iwm_timer_reset()
 
 inline void iwmBus::iwm_rddata_set()
 {
+#ifndef USE_VSPI
   GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
+#endif
 }
 
 inline void iwmBus::iwm_rddata_clr()
 {
+#ifndef USE_VSPI
   GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
+#endif
 }
 
 inline void iwmBus::iwm_rddata_enable()
 {
+#ifndef USE_VSPI
   GPIO.enable_w1ts = ((uint32_t)0x01 << SP_RDDATA);  
+#endif
 }
 
 inline void iwmBus::iwm_rddata_disable()
 {
+#ifndef USE_VSPI
   GPIO.enable_w1tc = ((uint32_t)0x01 << SP_RDDATA);
+#endif
 }
 
 inline bool iwmBus::iwm_wrdata_val()
@@ -924,6 +914,18 @@ void iwmBus::setup(void)
   timer_config();
   Debug_printf("\r\nIWM timer started");
 
+#ifdef USE_VSPI
+  spi_bus_config_t bus_cfg = {
+      .mosi_io_num = SP_RDDATA,
+      .miso_io_num = -1,
+      .sclk_io_num = -1,
+      .quadwp_io_num = -1,
+      .quadhd_io_num = -1,
+      .max_transfer_sz = 4000};
+
+  spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+#endif
+
   // to do fix for SPI
     esp_err_t ret;
     spi_device_interface_config_t devcfg={
@@ -932,7 +934,11 @@ void iwmBus::setup(void)
       .spics_io_num=22,               //CS pin
       .queue_size=7                          //We want to be able to queue 7 transactions at a time
     };
+#ifndef USE_VSPI
     ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+#else
+    ret=spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
+#endif
     assert(ret==ESP_OK);
     // spi_transaction_t trans;
     // memset(&trans, 0, sizeof(spi_transaction_t));
@@ -981,12 +987,14 @@ void iwmBus::setup(void)
 
   fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT);
 
+#ifndef USE_VSPI
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // ID RD for logic analyzer
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   // leave rd as input, pd6
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  ot maybe pull up, too?
+#endif
 
   fnSystem.set_pin_mode(SP_ENABLE, gpio_mode_t::GPIO_MODE_INPUT);
 #ifdef EXTRA
