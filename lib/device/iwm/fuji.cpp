@@ -1120,14 +1120,14 @@ void iwmFuji::setup(iwmBus *iwmbus)
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;  // to do - understand?
 
-    //theNetwork = new iwmNetwork();
-    //_iwm_bus->addDevice(theNetwork,iwm_fujinet_type_t::Network);
+    theNetwork = new iwmNetwork();
+    _iwm_bus->addDevice(theNetwork,iwm_fujinet_type_t::Network);
 
-    for (int i = MAX_DISK_DEVICES - 1; i >= 0; i--)
-    {
-      _fnDisks[i].disk_dev.set_disk_number('0' + i);
-      _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
-    }
+   for (int i = MAX_DISK_DEVICES - 1; i >= 0; i--)
+   {
+     _fnDisks[i].disk_dev.set_disk_number('0' + i);
+     _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
+   }
 
     Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
