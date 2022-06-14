@@ -615,17 +615,30 @@ void iwmNetwork::status()
 
 void iwmNetwork::iwm_status(cmdPacket_t cmd)
 {
-    uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
-    uint8_t status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-    Debug_printf("\r\nDevice %02x Status Code %02x", source, status_code);
-    Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+  uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
+  uint8_t status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+  Debug_printf("\r\nDevice %02x Status Code %02x", source, status_code);
+  Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
 
-    switch (status_code)
-    {
-    case IWM_STATUS_STATUS:
-        status();
-        break;
-    }
+  switch (status_code)
+  {
+    case IWM_STATUS_STATUS:                  // 0x00
+      encode_status_reply_packet();
+      IWM.SEND_PACKET((unsigned char *)packet_buffer);
+      return;
+      break;
+    // case IWM_STATUS_DCB:                  // 0x01
+    // case IWM_STATUS_NEWLINE:              // 0x02
+    case IWM_STATUS_DIB:                     // 0x03
+      encode_status_dib_reply_packet();
+      IWM.SEND_PACKET((unsigned char *)packet_buffer);
+      return;
+      break;
+  }
+  Debug_printf("\r\nStatus code complete, sending response");
+  encode_data_packet(packet_len);
+  
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
