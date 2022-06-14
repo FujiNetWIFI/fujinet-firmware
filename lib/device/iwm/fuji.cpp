@@ -1126,6 +1126,9 @@ void iwmFuji::setup(iwmBus *iwmbus)
       _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
     }
 
+    theNetwork = new iwmNetwork();
+    _iwm_bus->addDevice(theNetwork,iwm_fujinet_type_t::Network);
+
     Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {

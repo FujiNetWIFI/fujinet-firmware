@@ -17,6 +17,10 @@
 # include "comlynx/network.h"
 #endif
 
+#ifdef BUILD_APPLE
+# include "iwm/network.h"
+#endif
+
 #ifdef BUILD_S100
 # include "s100spi/network.h"
 #endif
