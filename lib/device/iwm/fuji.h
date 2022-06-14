@@ -5,7 +5,7 @@
 
 #include "../../include/debug.h"
 #include "bus.h"
-// #include "iwm/network.h"
+#include "iwm/network.h"
 #include "iwm/printer.h"
 
 #include "fujiHost.h"
@@ -77,6 +77,8 @@ private:
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
+
+    iwmNetwork *theNetwork;
 
     int _current_open_directory_slot = -1;
 
@@ -168,8 +170,6 @@ public:
     bool status_wait_enabled = true;
     
     iwmDisk *bootdisk();
-
-    // smartNetwork *network();
 
     void debug_tape();
 

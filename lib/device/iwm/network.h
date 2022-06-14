@@ -74,7 +74,7 @@ public:
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to iwm. If protocol is unable to return requested
      * number of bytes, return ERROR.
      */
-    virtual void write();
+    virtual void write(){};
 
     /**
      * iwm Special, called as a default for any other iwm command not processed by the other iwmnet_ functions.
@@ -91,7 +91,13 @@ public:
     void iwm_close(cmdPacket_t cmd) override;
     void iwm_read(cmdPacket_t cmd) override;
     void iwm_write(cmdPacket_t cmd) override;
-    void iwm_status(cmdPacket_t cmd) override; 
+    void iwm_status(cmdPacket_t cmd) override;
+
+    void shutdown() override;
+    void encode_status_reply_packet() override;
+    void encode_extended_status_reply_packet() override{};
+    void encode_status_dib_reply_packet() override;
+    void encode_extended_status_dib_reply_packet() override{};
 
     /**
      * @brief Called to set prefix

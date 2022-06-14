@@ -58,7 +58,10 @@
 #define SP_SUBTYPE_BYTE_SCSI_REMOVABLE 0xC0 // removable and extended and supports disk switched errors
 
 #define SP_TYPE_BYTE_FUJINET 0x10
+#define SP_TYPE_BYTE_FUJINET_NETWORK 0x11
+
 #define SP_SUBTYPE_BYTE_FUJINET 0x00
+#define SP_SUBTYPE_BYTE_FUJINET_NETWORK 0x00
 
 #define PACKET_TYPE_CMD 0x80
 #define PACKET_TYPE_STATUS 0x81
@@ -296,7 +299,7 @@ private:
 
   iwmFuji *_fujiDev = nullptr;
   iwmModem *_modemDev = nullptr;
-  iwmNetwork *_netDev[8] = {nullptr};
+  iwmNetwork *_netDev[4] = {nullptr};
   //sioMIDIMaze *_midiDev = nullptr;
   //sioCassette *_cassetteDev = nullptr;
   //iwmCPM *_cpmDev = nullptr;
