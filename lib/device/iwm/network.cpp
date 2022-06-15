@@ -138,7 +138,7 @@ void iwmNetwork::encode_status_dib_reply_packet()
   data[1] = 0;         // block size 1
   data[2] = 0;  // block size 2
   data[3] = 0; // block size 3
-  data[4] = 0x08;                    // ID string length - 11 chars
+  data[4] = 0x07;                    // ID string length - 11 chars
   data[5] = 'N';
   data[6] = 'E';
   data[7] = 'T';
@@ -227,10 +227,12 @@ void iwmNetwork::encode_status_dib_reply_packet()
  */
 void iwmNetwork::open()
 {
-    uint16_t idx = 0;
+    int idx=0;
     uint8_t _aux1 = packet_buffer[idx++];
     uint8_t _aux2 = packet_buffer[idx++];
-    string d = string((char *)&packet_buffer[2], 256);
+    string d = string((char *)&packet_buffer[idx], 256);
+
+    Debug_printf("aux1: %u aux2: %u path %s",_aux1,_aux2,d.c_str());
 
     channelMode = PROTOCOL;
 
@@ -255,7 +257,6 @@ void iwmNetwork::open()
     Debug_printf("open()\n");
 
     // Parse and instantiate protocol
-    d = string((char *)response, 256);
     parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
