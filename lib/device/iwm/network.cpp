@@ -138,7 +138,7 @@ void iwmNetwork::encode_status_dib_reply_packet()
   data[1] = 0;         // block size 1
   data[2] = 0;  // block size 2
   data[3] = 0; // block size 3
-  data[4] = 0x08;                    // ID string length - 11 chars
+  data[4] = 0x07;                    // ID string length - 11 chars
   data[5] = 'N';
   data[6] = 'E';
   data[7] = 'T';
