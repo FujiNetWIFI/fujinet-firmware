@@ -660,19 +660,20 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
 
     // Truncate bytes waiting to response size
     ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
-    response_len = ns.rxBytesWaiting;
+    packet_len = ns.rxBytesWaiting;
 
     if (protocol->read(response_len)) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
+        iwm_return_ioerror(cmd);
         return true;
     }
     else // everything ok
     {
         statusByte.bits.client_error = 0;
         statusByte.bits.client_data_available = response_len > 0;
-        memcpy(response, receiveBuffer->data(), response_len);
+        memcpy(packet_buffer, receiveBuffer->data(), packet_len);
         receiveBuffer->erase(0, response_len);
     }
     return false;
@@ -711,6 +712,10 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
     case JSON:
         break;
     }
+
+  encode_data_packet();
+  Debug_printf("\r\nsending block packet ...");
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 void iwmNetwork::iwm_write(cmdPacket_t cmd)
