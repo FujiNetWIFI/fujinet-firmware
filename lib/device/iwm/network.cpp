@@ -580,7 +580,7 @@ void iwmNetwork::special_80()
 
 void iwmNetwork::iwm_open(cmdPacket_t cmd)
 {
-    Debug_printf("\r\nOpen Network Unit # %02x", cmd.g7byte1);
+    Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
     encode_status_reply_packet();
     IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
@@ -588,6 +588,10 @@ void iwmNetwork::iwm_open(cmdPacket_t cmd)
 void iwmNetwork::iwm_close(cmdPacket_t cmd)
 {
     // Probably need to send close command here.
+    Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
+    encode_status_reply_packet();
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    close();
 }
 
 void iwmNetwork::status()
@@ -636,6 +640,7 @@ void iwmNetwork::iwm_status(cmdPacket_t cmd)
         status();
         break;
     }
+
     Debug_printf("\r\nStatus code complete, sending response");
     encode_data_packet(packet_len);
 
@@ -662,7 +667,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
     ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
     packet_len = ns.rxBytesWaiting;
 
-    if (protocol->read(response_len)) // protocol adapter returned error
+    if (protocol->read(packet_len)) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
@@ -672,9 +677,9 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
     else // everything ok
     {
         statusByte.bits.client_error = 0;
-        statusByte.bits.client_data_available = response_len > 0;
+        statusByte.bits.client_data_available = packet_len > 0;
         memcpy(packet_buffer, receiveBuffer->data(), packet_len);
-        receiveBuffer->erase(0, response_len);
+        receiveBuffer->erase(0, packet_len);
     }
     return false;
 }
@@ -702,7 +707,7 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
     addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
     addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
-    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x", source, numbytes, addy);
+    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", source, numbytes, addy);
 
     switch (channelMode)
     {
@@ -713,9 +718,11 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
         break;
     }
 
-  encode_data_packet();
+  encode_data_packet(packet_len);
   Debug_printf("\r\nsending block packet ...");
   IWM.SEND_PACKET((unsigned char *)packet_buffer);
+  packet_len = 0;
+  memset(packet_buffer,0,sizeof(packet_buffer));
 }
 
 void iwmNetwork::iwm_write(cmdPacket_t cmd)
