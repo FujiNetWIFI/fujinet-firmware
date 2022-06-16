@@ -830,7 +830,9 @@ void fnConfig::load()
 {
     Debug_println("fnConfig::load");
 
-#ifndef NO_BUTTONS
+#if defined(NO_BUTTONS) || defined(BUILD_LYNX)
+    // Don't erase config if there are no buttons or on devices without Button B
+#else
     // Clear the config file if key is currently pressed
     if (fnKeyManager.keyCurrentlyPressed(BUTTON_B))
     {
