@@ -428,7 +428,7 @@ void iwmNetwork::mkdir()
 
 void iwmNetwork::channel_mode()
 {
-    switch (packet_buffer[1])
+    switch (packet_buffer[0])
     {
     case 0:
         channelMode = PROTOCOL;
