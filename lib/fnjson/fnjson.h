@@ -23,12 +23,14 @@ public:
     void setProtocol(NetworkProtocol *newProtocol);
     void setReadQuery(string queryString);
     cJSON *resolveQuery();
+    bool status(NetworkStatus *status);
     
     bool parse();
     int readValueLen();
     bool readValue(uint8_t *buf, unsigned short len);
     string processString(string in);
-
+    int json_bytes_remaining;
+    
 private:
     cJSON *_json;
     cJSON *_item;
