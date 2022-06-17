@@ -209,4 +209,6 @@ bool FNJSON::status(NetworkStatus *s)
 {
     s->connected = true;
     s->rxBytesWaiting = json_bytes_remaining;
+    s->error = json_bytes_remaining == 0 ? 136 : 0;
+    return false;
 }
