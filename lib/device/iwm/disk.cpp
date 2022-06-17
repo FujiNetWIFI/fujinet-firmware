@@ -331,7 +331,8 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
   // grps of 7
   for (grpcount = grpnum - 1; grpcount >= 0; grpcount--) // 3
   {
-    for (i = 0; i < 8; i++)
+    // for (i = 0; i < 8; i++)
+    for (i = 0; i < 7; i++) // think index should be 0..6 not 0..7
     {
       group_buffer[i] = data[i + oddnum + (grpcount * 7)];
     }
