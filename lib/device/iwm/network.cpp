@@ -173,7 +173,7 @@ void iwmNetwork::encode_status_dib_reply_packet()
     // grps of 7
     for (grpcount = grpnum - 1; grpcount >= 0; grpcount--) // 3
     {
-        for (i = 0; i < 8; i++)
+        for (i = 0; i < 7; i++)
         {
             group_buffer[i] = data[i + oddnum + (grpcount * 7)]; // data should have 26 cells?
         }
