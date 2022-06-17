@@ -85,12 +85,6 @@
 #undef TESTTX
 //#define TESTTX
 
-#define TEST_SPI
-
-// these are for the temporary disk functions
-//#include "fnFsSD.h"
-//#include <string>
-
 // class def'ns
 class iwmFuji;     // declare here so can reference it, but define in fuji.h
 class iwmModem;    // declare here so can reference it, but define in modem.h
