@@ -431,9 +431,11 @@ void iwmNetwork::channel_mode()
     switch (packet_buffer[0])
     {
     case 0:
+        Debug_printf("channelMode = PROTOCOL\n");
         channelMode = PROTOCOL;
         break;
     case 1:
+        Debug_printf("channelMode = JSON\n");
         channelMode = JSON;
         break;
     default:
@@ -846,6 +848,7 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
                 special_80();
             else
                 Debug_printf("iwmnet_control_send() - Unknown Command: %02x\n", control_code);
+            break;
         case JSON:
             switch (control_code)
             {
