@@ -931,7 +931,7 @@ void iwmBus::setup(void)
     spi_device_interface_config_t devcfg={
       .mode=0,                                //SPI mode 0
       .clock_speed_hz=1*1000*1000,               //Clock out at 1 MHz
-      .spics_io_num=22,               //CS pin
+      .spics_io_num=12,               //CS pin
       .queue_size=7                          //We want to be able to queue 7 transactions at a time
     };
 #ifndef USE_VSPI
