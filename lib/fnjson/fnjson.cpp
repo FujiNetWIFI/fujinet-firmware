@@ -56,6 +56,7 @@ void FNJSON::setReadQuery(string queryString)
 {
     _queryString = queryString;
     _item = resolveQuery();
+    json_bytes_remaining=readValueLen();
 }
 
 /**
@@ -202,4 +203,10 @@ bool FNJSON::parse()
     Debug_printf("Parsed JSON: %s\n", cJSON_Print(_json));
 
     return true;
+}
+
+bool FNJSON::status(NetworkStatus *s)
+{
+    s->connected = true;
+    s->rxBytesWaiting = json_bytes_remaining;
 }

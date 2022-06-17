@@ -334,6 +334,13 @@ private:
     bool read_channel(unsigned short num_bytes, cmdPacket_t cmd);
 
     /**
+     * Perform the correct read based on value of channelMode
+     * @param num_bytes Number of bytes to read.
+     * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
+     */
+    bool read_channel_json(unsigned short num_bytes, cmdPacket_t cmd);
+
+    /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return TRUE on error, FALSE on success. Used to emit iwmnet_error or iwmnet_complete().

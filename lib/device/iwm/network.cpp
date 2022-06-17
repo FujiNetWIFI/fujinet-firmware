@@ -455,6 +455,11 @@ void iwmNetwork::json_query(cmdPacket_t cmd)
     json.setReadQuery(string((char *)packet_buffer, numbytes));
 }
 
+void iwmNetwork::json_parse()
+{
+    json.parse();
+}
+
 /**
  * @brief Do an inquiry to determine whether a protoocol supports a particular command.
  * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
@@ -604,7 +609,7 @@ void iwmNetwork::status()
         err = protocol->status(&s);
         break;
     case JSON:
-        // err = json.status(&status);
+        err = json.status(&s);
         break;
     }
 
@@ -645,6 +650,19 @@ void iwmNetwork::iwm_status(cmdPacket_t cmd)
     encode_data_packet(packet_len);
 
     IWM.SEND_PACKET((unsigned char *)packet_buffer);
+}
+
+bool iwmNetwork::read_channel_json(unsigned short num_bytes, cmdPacket_t cmd)
+{
+    if (num_bytes > json.json_bytes_remaining)
+    {
+        json.json_bytes_remaining = 0;
+        iwm_return_ioerror(cmd);
+    }
+    else
+        json.json_bytes_remaining -= num_bytes;
+
+    return false;
 }
 
 bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
@@ -715,14 +733,15 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
         read_channel(numbytes, cmd);
         break;
     case JSON:
+        read_channel_json(numbytes,cmd);
         break;
     }
 
-  encode_data_packet(packet_len);
-  Debug_printf("\r\nsending block packet ...");
-  IWM.SEND_PACKET((unsigned char *)packet_buffer);
-  packet_len = 0;
-  memset(packet_buffer,0,sizeof(packet_buffer));
+    encode_data_packet(packet_len);
+    Debug_printf("\r\nsending block packet ...");
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    packet_len = 0;
+    memset(packet_buffer, 0, sizeof(packet_buffer));
 }
 
 void iwmNetwork::iwm_write(cmdPacket_t cmd)
@@ -831,7 +850,7 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
             switch (control_code)
             {
             case 'P':
-                json.parse();
+                json_parse();
                 break;
             case 'Q':
                 json_query(cmd);
