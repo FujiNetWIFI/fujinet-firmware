@@ -439,6 +439,7 @@ void iwmNetwork::channel_mode()
         channelMode = JSON;
         break;
     default:
+        Debug_printf("INVALID MODE = %02x\r\n",packet_buffer[0]);
         break;
     }
 }
@@ -454,6 +455,7 @@ void iwmNetwork::json_query(cmdPacket_t cmd)
     addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
     addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
+    Debug_printf("iwmNetwork::json_query(%s) %u bytes\n",packet_buffer,numbytes);
     json.setReadQuery(string((char *)packet_buffer, numbytes));
 }
 
@@ -660,9 +662,15 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, cmdPacket_t cmd)
     {
         json.json_bytes_remaining = 0;
         iwm_return_ioerror(cmd);
+        return true;
     }
     else
+    {
         json.json_bytes_remaining -= num_bytes;
+    
+        json.readValue(packet_buffer,num_bytes);
+        packet_len = json.readValueLen();
+    }
 
     return false;
 }

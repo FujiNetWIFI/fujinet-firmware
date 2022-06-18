@@ -207,6 +207,7 @@ bool FNJSON::parse()
 
 bool FNJSON::status(NetworkStatus *s)
 {
+    Debug_printf("FNJSON::status(%u) %s\n",json_bytes_remaining,getValue(_item).c_str());
     s->connected = true;
     s->rxBytesWaiting = json_bytes_remaining;
     s->error = json_bytes_remaining == 0 ? 136 : 0;
