@@ -70,6 +70,16 @@ public:
     virtual void close();
 
     /**
+     * Write to Network Socket 'W'
+     */
+    void net_write();
+
+    /**
+     * Read from Network Socket 'R'
+     */
+    void net_read();
+    
+    /**
      * iwm Write command
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to iwm. If protocol is unable to return requested
      * number of bytes, return ERROR.

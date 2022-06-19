@@ -439,7 +439,7 @@ void iwmNetwork::channel_mode()
         channelMode = JSON;
         break;
     default:
-        Debug_printf("INVALID MODE = %02x\r\n",packet_buffer[0]);
+        Debug_printf("INVALID MODE = %02x\r\n", packet_buffer[0]);
         break;
     }
 }
@@ -455,8 +455,8 @@ void iwmNetwork::json_query(cmdPacket_t cmd)
     addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
     addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
-    Debug_printf("iwmNetwork::json_query(%s) %u bytes\n",packet_buffer,numbytes);
-    json.setReadQuery(string((char *)packet_buffer, numbytes));
+    Debug_printf("Query set to: %s\n", string((char *)packet_buffer,num_decoded).c_str());
+    json.setReadQuery(string((char *)packet_buffer, num_decoded));
 }
 
 void iwmNetwork::json_parse()
@@ -645,6 +645,9 @@ void iwmNetwork::iwm_status(cmdPacket_t cmd)
         IWM.SEND_PACKET((unsigned char *)packet_buffer);
         return;
         break;
+    case 'R':
+        net_read();
+        break;
     case 'S':
         status();
         break;
@@ -654,6 +657,10 @@ void iwmNetwork::iwm_status(cmdPacket_t cmd)
     encode_data_packet(packet_len);
 
     IWM.SEND_PACKET((unsigned char *)packet_buffer);
+}
+
+void iwmNetwork::net_read()
+{
 }
 
 bool iwmNetwork::read_channel_json(unsigned short num_bytes, cmdPacket_t cmd)
@@ -667,8 +674,8 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, cmdPacket_t cmd)
     else
     {
         json.json_bytes_remaining -= num_bytes;
-    
-        json.readValue(packet_buffer,num_bytes);
+
+        json.readValue(packet_buffer, num_bytes);
         packet_len = json.readValueLen();
     }
 
@@ -743,7 +750,7 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
         read_channel(numbytes, cmd);
         break;
     case JSON:
-        read_channel_json(numbytes,cmd);
+        read_channel_json(numbytes, cmd);
         break;
     }
 
@@ -752,6 +759,13 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
     IWM.SEND_PACKET((unsigned char *)packet_buffer);
     packet_len = 0;
     memset(packet_buffer, 0, sizeof(packet_buffer));
+}
+
+void iwmNetwork::net_write()
+{
+    // TODO: Handle errors.
+    *transmitBuffer += string((char *)packet_buffer, num_decoded);
+    write_channel(num_decoded);
 }
 
 void iwmNetwork::iwm_write(cmdPacket_t cmd)
@@ -833,7 +847,7 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
         close();
         break;
     case 'W':
-        write();
+        net_write();
         break;
     case 0xFC:
         channel_mode();
