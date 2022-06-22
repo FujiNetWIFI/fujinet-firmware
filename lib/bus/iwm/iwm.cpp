@@ -11,8 +11,8 @@
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 
-#define USE_ATARI_FN10
 #undef APPLE_FN10
+#define USE_ATARI_FN10
 #undef USE_BIT_BANG_TX
 #undef EXTRA
 
@@ -35,7 +35,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 
 #ifdef APPLE_FN10
 
-#elif defined(USE_ATARI_FN10)
+#else
 //      SP BUS     GPIO       SIO               LA (with SIO-10IDC cable)
 //      ---------  ----     -----------------   -------------------------
 #define SP_WRPROT   27
@@ -180,14 +180,18 @@ inline void iwmBus::iwm_timer_reset()
 
 inline void iwmBus::iwm_rddata_set()
 {
-#if defined(USE_BIT_BANG_TX) || defined(APPLE_FN10)
+#if defined(APPLE_FN10)
+
+#elif defined(USE_BIT_BANG_TX)
   GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
 #endif
 }
 
 inline void iwmBus::iwm_rddata_clr()
 {
-#if defined(USE_BIT_BANG_TX) || defined(APPLE_FN10)
+#if defined(APPLE_FN10)
+
+#elif defined(USE_BIT_BANG_TX)
   GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 #endif
 }
