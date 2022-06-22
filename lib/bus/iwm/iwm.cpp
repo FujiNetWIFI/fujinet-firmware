@@ -11,10 +11,9 @@
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 
-#undef TEST_SPI 
-#define USE_VSPI
-// end spi things
-
+#define USE_ATARI_FN10
+#undef APPLE_FN10
+#undef USE_BIT_BANG_TX
 #undef EXTRA
 
 /******************************************************************************
@@ -34,6 +33,9 @@ IDC20 Disk II 20-pin pins based on
 https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 */
 
+#ifdef APPLE_FN10
+
+#elif defined(USE_ATARI_FN10)
 //      SP BUS     GPIO       SIO               LA (with SIO-10IDC cable)
 //      ---------  ----     -----------------   -------------------------
 #define SP_WRPROT   27
@@ -45,30 +47,10 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #define SP_PHI3     26      //  INT       13    D7
 #define SP_RDDATA   21      //  DATAIN    3     D2
 #define SP_WRDATA   33      //  DATAOUT   5     D3
-#ifdef EXTRA
-  #define SP_EXTRA    32      //  CLKOUT
-#endif
 #define SP_ENABLE   32      //  CLKOUT    2     D1
+#define SP_EXTRA    32      //  CLKOUT - used for debug/diagnosing - signals when WRDATA is sampled by ESP32
+#endif
 
-/*
-possible FujiNet Apple pinout independent of SIO assignments
-// PHI states are all inputs to FujiNet
-// contiguous assignments will allow to read the register, shift and mask to create a uint8_t that can map to the PHI states easily
-#define SP_PHI0     33      // IO
-#define SP_PHI1     34      // Input only
-#define SP_PHI2     35      // Input only
-#define SP_PHI3     36      // Input only
-// other inputs
-#define SP_WRDATA   26      // IO
-#define SP_REQ      39      // Input only
-#define SP_ENABLE   22      // IO - Disk II enable
-// only two ouputs for SP bus, although having an enable for an LS125 is probably necessary and would make it 3. ... maybe need a fourth to deal with the daisy chaining SENSE
-#define SP_RDDATA   27      // IO
-#define SP_WRPROT   32      // IO
-#define SP_ACK      SP_WRPORT
-// SAM
-// need pin 25 for DAC and speaker
-*/
 
 // hardware timer parameters for bit-banging I/O
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
@@ -198,40 +180,46 @@ inline void iwmBus::iwm_timer_reset()
 
 inline void iwmBus::iwm_rddata_set()
 {
-#ifndef USE_VSPI
+#if defined(USE_BIT_BANG_TX) || defined(APPLE_FN10)
   GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
 #endif
 }
 
 inline void iwmBus::iwm_rddata_clr()
 {
-#ifndef USE_VSPI
+#if defined(USE_BIT_BANG_TX) || defined(APPLE_FN10)
   GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 #endif
 }
 
 inline void iwmBus::iwm_rddata_enable()
 {
-#ifndef USE_VSPI
+#ifdef USE_BIT_BANG_TX
   GPIO.enable_w1ts = ((uint32_t)0x01 << SP_RDDATA);  
 #endif
 }
 
 inline void iwmBus::iwm_rddata_disable()
 {
-#ifndef USE_VSPI
+#ifdef USE_BIT_BANG_TX
   GPIO.enable_w1tc = ((uint32_t)0x01 << SP_RDDATA);
 #endif
 }
 
 inline bool iwmBus::iwm_wrdata_val()
 {
+#ifdef APPLE_FN10
+#else
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
+#endif
 }
 
 inline bool iwmBus::iwm_req_val()
 {
+#ifdef APPLE_FN10
+#else
   return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
+#endif
 }
 
 inline void iwmBus::iwm_extra_set()
@@ -250,7 +238,10 @@ inline void iwmBus::iwm_extra_clr()
 
 inline bool iwmBus::iwm_enable_val()
 {
+#ifdef APPLE_FN10
+#else
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_ENABLE - 32)));
+#endif
 }
 
 //------------------------------------------------------
@@ -757,52 +748,19 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   //
   //*****************************************************************************
 
-  // int idx = 0;        // reg x, index into *a
-  // //uint8_t txbyte; // r23 transmit byte being sent bit by bit
-  // int numbits = 8;        // r25 counter
-
-// Disable interrupts
-// https://esp32developer.com/programming-in-c-c/interrupts/interrupts-general
-// You can suspend interrupts and context switches by calling  portDISABLE_INTERRUPTS
-// and the interrupts on that core should stop firing, stopping task switches as well.
-// Call portENABLE_INTERRUPTS after you're done
-//  portDISABLE_INTERRUPTS();
-
-  // try to cache functions
- 
-  // iwm_timer_latch();
-  // iwm_timer_read();
-  // iwm_timer_alarm_set(1);
-  // iwm_timer_wait();
-  // iwm_timer_alarm_snooze(1);
-  // iwm_timer_wait();
-
-  
-  // iwm_rddata_enable();
-  // iwm_rddata_set();
- //txbyte = a[idx++];
-  //print_packet(a);
-  // todo should this be ack disable or ack set?
-
-
-
-#ifndef TEST_SPI
-
   print_packet((uint8_t *)a);
   encode_spi_packet((uint8_t *)a);
 
   // send data stream using SPI
-    esp_err_t ret;
-    spi_transaction_t trans;
-    memset(&trans, 0, sizeof(spi_transaction_t));
-    trans.tx_buffer=spi_buffer;            //finally send the line data
-    trans.length=spi_len*8;            //Data length, in bits
-    trans.flags=0; //undo SPI_TRANS_USE_TXDATA flag
-
+  esp_err_t ret;
+  spi_transaction_t trans;
+  memset(&trans, 0, sizeof(spi_transaction_t));
+  trans.tx_buffer = spi_buffer; // finally send the line data
+  trans.length = spi_len * 8;   // Data length, in bits
+  trans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
 
   iwm_ack_set(); // ack is already enabled by the response to the command read
 
-#ifndef TESTTX
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
   // setup a timeout counter to wait for REQ response
   iwm_timer_reset();
@@ -827,27 +785,14 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   };
 // ;
 
-#ifdef VERBOSE_IWM
-  // REQ received!
-  Debug_print("R");
-#endif
-#else // TESTTX
-  iwm_timer_latch();
-  iwm_timer_read();
-#endif // TESTTX
+  iwm_rddata_enable();
+  iwm_rddata_clr();
+  ret = spi_device_polling_transmit(spi, &trans);
+  iwm_rddata_set();
+  iwm_ack_clr();
+  assert(ret == ESP_OK);
 
-#endif // TEST_SPI
-
-
-    iwm_rddata_enable();
-        iwm_rddata_clr();
-    ret=spi_device_polling_transmit(spi, &trans);
-    iwm_rddata_set();
-    iwm_ack_clr();
-    assert(ret==ESP_OK);
-
-#ifndef TESTTX
- iwm_timer_reset();
+  iwm_timer_reset();
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
   iwm_timer_alarm_set(10000); // 1/2 millisecond
@@ -866,45 +811,8 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
       return 1;
     }
   };
-#endif // TESTTX
   iwm_rddata_disable();
-#ifdef DEBUG
-  //print_packet(a);
-#endif
-  //portENABLE_INTERRUPTS(); // takes 7 us to execute
-  //iwm_ack_disable();       // need to release the bus
   return 0;
-}
-
-
-
-void iwmBus::test_spi()
-{
-#ifdef TEST_SPI
-
-  iwm_rddata_clr();
-  iwm_rddata_enable(); 
-  iwm_ack_clr();
-  iwm_ack_enable();
-  
-  uint8_t status = 0xff; //yes, so status=non zero
-
-  theFuji.encode_init_reply_packet(0x81, status);
-  print_packet((uint8_t *)theFuji.packet_buffer);
-  encode_spi_packet((uint8_t *)theFuji.packet_buffer);
-  Debug_printf("\r\nNumber of bytes after encoding: %d\r\n",spi_len);
-  print_packet(spi_buffer);
-  //spi_len = 10;
-    
-
-  while (true)
-  {
-    Debug_printf("\r\nSending INIT Response Packet...");
-    SEND_PACKET((uint8_t *)theFuji.packet_buffer); // timeout error return is not handled here (yet?)
-    Debug_printf("\r\nSent!!!!");
-    fnSystem.delay(1000);
-  }
-#endif
 }
 
 void iwmBus::setup(void)
@@ -914,7 +822,7 @@ void iwmBus::setup(void)
   timer_config();
   Debug_printf("\r\nIWM timer started");
 
-#ifdef USE_VSPI
+#ifdef USE_ATARI_FN10
   spi_bus_config_t bus_cfg = {
       .mosi_io_num = SP_RDDATA,
       .miso_io_num = -1,
@@ -922,63 +830,32 @@ void iwmBus::setup(void)
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
       .max_transfer_sz = 4000};
-
   spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
 #endif
 
-  // to do fix for SPI
-    esp_err_t ret;
-    spi_device_interface_config_t devcfg={
-      .mode=0,                                //SPI mode 0
-      .clock_speed_hz=1*1000*1000,               //Clock out at 1 MHz
-      .spics_io_num=12,               //CS pin
-      .queue_size=7                          //We want to be able to queue 7 transactions at a time
-    };
-#ifndef USE_VSPI
+  esp_err_t ret;
+  spi_device_interface_config_t devcfg = {
+      .mode = 0,                         // SPI mode 0
+      .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
+      .spics_io_num = -1,                // CS pin
+      .queue_size = 7                    // We want to be able to queue 7 transactions at a time
+  };
+
+#ifdef APPLE_FN10
+    // use same SPI as SDCARD
     ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-#else
+#elif defined(USE_ATARI_FN10)
+    // use different SPI than SDCARD
     ret=spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
 #endif
-    assert(ret==ESP_OK);
-    // spi_transaction_t trans;
-    // memset(&trans, 0, sizeof(spi_transaction_t));
-    // uint8_t data[]={0,1,2,3,4,5,6,7};
-    // trans.tx_buffer=data;            //finally send the line data
-    // trans.length=sizeof(data)*8;            //Data length, in bits
-    // trans.flags=0; //undo SPI_TRANS_USE_TXDATA flag
-    // ret=spi_device_queue_trans(spi, &trans, portMAX_DELAY);
-    // assert(ret==ESP_OK);
-    // //When we are here, the SPI driver is busy (in the background) getting the transactions sent. That happens
-    // //mostly using DMA, so the CPU doesn't have much to do here. We're not going to wait for the transaction to
-    // //finish because we may as well spend the time calculating the next line. When that is done, we can call
-    // //send_line_finish, which will wait for the transfers to be done and check their status.
-
-
-    // spi_transaction_t *rtrans;
-    // //Wait for transaction to be done and get back the results.
-    // ret=spi_device_get_trans_result(spi, &rtrans, portMAX_DELAY);
-    // assert(ret==ESP_OK);
-    //     //We could inspect rtrans now if we received any info back. The LCD is treated as write-only, though.
-
-  // while(1)
-  // {
-  //   portYIELD();
-  // }
-
-#ifdef TEST_SPI
-  test_spi();
-  while(1)
-  {
-    portYIELD();
-  }
-#endif
+  assert(ret == ESP_OK);
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   fnSystem.digital_write(SP_ACK, DIGI_HIGH); // ID ACK for Logic Analyzer
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
@@ -987,7 +864,7 @@ void iwmBus::setup(void)
 
   fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT);
 
-#ifndef USE_VSPI
+#ifdef USE_BIT_BANG_TX
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // ID RD for logic analyzer
