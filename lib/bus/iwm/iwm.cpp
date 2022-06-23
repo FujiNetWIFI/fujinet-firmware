@@ -11,8 +11,8 @@
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 
-#undef APPLE_FN10
-#define USE_ATARI_FN10
+#define APPLE_FN10
+#undef USE_ATARI_FN10
 #undef USE_BIT_BANG_TX
 #undef EXTRA
 
@@ -34,6 +34,21 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 */
 
 #ifdef APPLE_FN10
+#define SP_REQ      32
+#define SP_PHI0     32
+#define SP_PHI1     33
+#define SP_PHI2     34
+#define SP_PHI3     35
+#define SP_WRPROT   27
+#define SP_ACK      27
+#define SP_RDDATA   4 // tri-state gate enable line
+#define SP_WRDATA   22
+// TODO: go through each line and make sure the code is OK for each one before moving to next
+#define SP_WREQ     26
+#define SP_DRIVE1   36
+#define SP_DRIVE2   21
+#define SP_EN35     39
+#define SP_HDSEL    13
 
 #else
 //      SP BUS     GPIO       SIO               LA (with SIO-10IDC cable)
@@ -180,20 +195,12 @@ inline void iwmBus::iwm_timer_reset()
 
 inline void iwmBus::iwm_rddata_set()
 {
-#if defined(APPLE_FN10)
-
-#elif defined(USE_BIT_BANG_TX)
   GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
-#endif
 }
 
 inline void iwmBus::iwm_rddata_clr()
 {
-#if defined(APPLE_FN10)
-
-#elif defined(USE_BIT_BANG_TX)
   GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
-#endif
 }
 
 inline void iwmBus::iwm_rddata_enable()
@@ -213,6 +220,7 @@ inline void iwmBus::iwm_rddata_disable()
 inline bool iwmBus::iwm_wrdata_val()
 {
 #ifdef APPLE_FN10
+  return (GPIO.in & ((uint32_t)0x01 << (SP_WRDATA)));
 #else
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
 #endif
@@ -220,10 +228,7 @@ inline bool iwmBus::iwm_wrdata_val()
 
 inline bool iwmBus::iwm_req_val()
 {
-#ifdef APPLE_FN10
-#else
   return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
-#endif
 }
 
 inline void iwmBus::iwm_extra_set()
@@ -243,6 +248,7 @@ inline void iwmBus::iwm_extra_clr()
 inline bool iwmBus::iwm_enable_val()
 {
 #ifdef APPLE_FN10
+  return true;
 #else
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_ENABLE - 32)));
 #endif
@@ -292,8 +298,13 @@ inline void iwmBus::iwm_ack_disable()
 
 //------------------------------------------------------
 
-bool iwmBus::iwm_phase_val(int p)
-{ 
+bool iwmBus::iwm_phase_val(uint8_t p)
+{
+#ifdef APPLE_FN10
+  uint8_t phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
+  if (p < 4)
+    return (phases >> p) & 0x01;
+#else
   switch (p)
   {
   case 0:
@@ -307,6 +318,7 @@ bool iwmBus::iwm_phase_val(int p)
   default: 
     break; // drop out to error message
   }
+#endif
   Debug_printf("\r\nphase number out of range");
   return false;
 }
@@ -671,7 +683,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   // REQ received!
   Debug_print("R");
 #endif
-#else
+#else // TESTTX
   iwm_timer_latch();
   iwm_timer_read();
 #endif // TESTTX
@@ -877,7 +889,15 @@ void iwmBus::setup(void)
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  ot maybe pull up, too?
 #endif
 
+#ifdef APPLE_FN10
+  fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
+#else
   fnSystem.set_pin_mode(SP_ENABLE, gpio_mode_t::GPIO_MODE_INPUT);
+#endif
 #ifdef EXTRA
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
@@ -886,8 +906,6 @@ void iwmBus::setup(void)
   Debug_printf("\r\nEXTRA signaling line configured");
 #endif
   Debug_printf("\r\nIWM GPIO configured");
-
-
 }
 
 //*****************************************************************************
@@ -1557,6 +1575,15 @@ void iwmBus::service()
       }
     }
   } // switch (phasestate)
+}
+
+bool iwmBus::iwm_drive_enables()
+{
+#ifdef APPLE_FN10
+  return false; // ignore floppy drives for now
+#else
+  return !iwm_enable_val();
+#endif
 }
 
 void iwmBus::handle_init()

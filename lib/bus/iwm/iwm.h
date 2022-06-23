@@ -333,7 +333,7 @@ private:
   void iwm_extra_clr();
   bool iwm_enable_val();
 
-  bool iwm_phase_val(int p);
+  bool iwm_phase_val(uint8_t p);
 
   enum class iwm_phases_t
   {
@@ -346,7 +346,7 @@ private:
   iwm_phases_t oldphase;
 #endif
 
-  bool iwm_drive_enables() {return !iwm_enable_val();};
+  bool iwm_drive_enables();
 
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
