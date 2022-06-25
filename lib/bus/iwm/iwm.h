@@ -13,7 +13,12 @@
 
 #include "fnFS.h"
 
+// activate for using SPI to transmit data from ESP to Apple II
+// required for ESP32 Rev C
 #define SEND_PACKET iwm_send_packet_spi
+
+// activate for old bit bang flag code that works on ESP32 Rev B
+#undef USE_BIT_BANG_TX
 //#define SEND_PACKET iwm_send_packet
 
 
@@ -333,7 +338,7 @@ private:
   void iwm_extra_clr();
   bool iwm_enable_val();
 
-  bool iwm_phase_val(int p);
+  bool iwm_phase_val(uint8_t p);
 
   enum class iwm_phases_t
   {
@@ -346,7 +351,7 @@ private:
   iwm_phases_t oldphase;
 #endif
 
-  bool iwm_drive_enables() {return !iwm_enable_val();};
+  bool iwm_drive_enables();
 
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
