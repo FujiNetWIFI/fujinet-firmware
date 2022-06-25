@@ -11,9 +11,15 @@
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 
+#ifndef USE_ATARI_FN10
+// use new dedicated Apple II FujiNet pinouts
 #define APPLE_FN10
-#undef USE_ATARI_FN10
-#undef USE_BIT_BANG_TX
+#endif
+//#define USE_ATARI_FN10 // move to the ini file
+
+
+// used for debugging - toggles line to show when the 
+// input line WRDATA is being sampled
 #undef EXTRA
 
 /******************************************************************************

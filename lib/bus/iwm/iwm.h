@@ -13,7 +13,12 @@
 
 #include "fnFS.h"
 
+// activate for using SPI to transmit data from ESP to Apple II
+// required for ESP32 Rev C
 #define SEND_PACKET iwm_send_packet_spi
+
+// activate for old bit bang flag code that works on ESP32 Rev B
+#undef USE_BIT_BANG_TX
 //#define SEND_PACKET iwm_send_packet
 
 
