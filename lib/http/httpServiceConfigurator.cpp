@@ -4,6 +4,9 @@
 
 #include "printer.h"
 #include "fuji.h"
+#ifdef BUILD_LYNX
+#include "8bithub.h"
+#endif
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -267,6 +270,16 @@ void fnHttpServiceConfigurator::config_cassette(std::string play_record, std::st
 #endif /* ATARI */
 }
 
+void fnHttpServiceConfigurator::config_8bithub(std::string enabled)
+{
+#ifdef BUILD_LYNX
+    if (enabled.compare("START") == 0)
+        ComLynx.set8bithub(true);
+    else
+        ComLynx.set8bithub(false);
+#endif
+}
+
 void fnHttpServiceConfigurator::config_udpstream(std::string hostname)
 {
     int port = 0;
@@ -410,6 +423,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("hostname") == 0)
         {
             config_hostname(i->second);
+        }
+        else if (i->first.compare("8bithub_enabled") == 0)
+        {
+            config_8bithub(i->second);
         }
         else if (i->first.compare("udpstream_host") == 0)
         {

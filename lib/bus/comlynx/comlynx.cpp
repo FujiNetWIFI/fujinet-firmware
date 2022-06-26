@@ -5,6 +5,7 @@
  */
 #include "comlynx.h"
 #include "udpstream.h"
+#include "8bithub.h"
 
 #include "../../include/debug.h"
 
@@ -13,7 +14,7 @@
 #include "led.h"
 #include <cstring>
 
-#define IDLE_TIME 1000 // Idle tolerance in microseconds
+#define IDLE_TIME 300 // Idle tolerance in microseconds
 
 static xQueueHandle reset_evt_queue = NULL;
 
@@ -292,6 +293,9 @@ void systemBus::service()
     // Handle UDP Stream if active
     if (_udpDev != nullptr && _udpDev->udpstreamActive)
         _udpDev->comlynx_handle_udpstream();
+    // Handle 8 Bit Hub Mode if active
+    //else if (_hubDev != nullptr && _hubDev->hubActive)
+    //    _hubDev->comlynx_handle_8bithub();
     // Process anything waiting
     else if (fnUartSIO.available() > 0)
         _comlynx_process_cmd();
@@ -312,6 +316,9 @@ void systemBus::setup()
 
     // Set up UDP device
     _udpDev = new lynxUDPStream();
+
+    // Set up 8bit Hub device
+    _hubDev = new lynx8bithub();
     
     // Set up UART
     fnUartSIO.begin(COMLYNX_BAUD);
@@ -457,6 +464,14 @@ void systemBus::setUDPHost(const char *hostname, int port)
         _udpDev->comlynx_disable_udpstream();
     if (_udpDev->udpstream_host_ip != IPADDR_NONE)
         _udpDev->comlynx_enable_udpstream();
+}
+
+void systemBus::set8bithub(bool enabled)
+{
+    if (enabled)
+        _hubDev->comlynx_8bithub_enable();
+    else
+        _hubDev->comlynx_8bithub_disable();
 }
 
 systemBus ComLynx;
