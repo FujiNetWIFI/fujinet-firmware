@@ -16,6 +16,11 @@
 #define SYSTEM_BUS AdamNet
 #endif
 
+#ifdef BUILD_LYNX
+#include "comlynx/comlynx.h"
+#define SYSTEM_BUS ComLynx
+#endif
+
 #ifdef NEW_TARGET
 #include "new/adamnet.h"
 #define SYSTEM_BUS AdamNet

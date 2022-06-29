@@ -9,7 +9,18 @@
 #include <cstdint>
 #include <forward_list>
 #include <string>
+#include "driver/spi_master.h"
+
 #include "fnFS.h"
+
+// activate for using SPI to transmit data from ESP to Apple II
+// required for ESP32 Rev C
+#define SEND_PACKET iwm_send_packet_spi
+
+// activate for old bit bang flag code that works on ESP32 Rev B
+#undef USE_BIT_BANG_TX
+//#define SEND_PACKET iwm_send_packet
+
 
 // todo - see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
 #define SP_ERR_NOERROR 0x00    // no error
@@ -52,7 +63,10 @@
 #define SP_SUBTYPE_BYTE_SCSI_REMOVABLE 0xC0 // removable and extended and supports disk switched errors
 
 #define SP_TYPE_BYTE_FUJINET 0x10
+#define SP_TYPE_BYTE_FUJINET_NETWORK 0x11
+
 #define SP_SUBTYPE_BYTE_FUJINET 0x00
+#define SP_SUBTYPE_BYTE_FUJINET_NETWORK 0x00
 
 #define PACKET_TYPE_CMD 0x80
 #define PACKET_TYPE_STATUS 0x81
@@ -75,10 +89,6 @@
 
 #undef TESTTX
 //#define TESTTX
-
-// these are for the temporary disk functions
-//#include "fnFsSD.h"
-//#include <string>
 
 // class def'ns
 class iwmFuji;     // declare here so can reference it, but define in fuji.h
@@ -219,11 +229,11 @@ protected:
   bool _initialized;
 
   // iwm packet handling
-  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  uint16_t packet_len;
+  static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  static uint16_t packet_len;
 
   bool decode_data_packet(void); //decode smartport 512 byte data packet
-  uint16_t num_decoded;
+  static uint16_t num_decoded;
 
   void encode_data_packet(); //encode smartport 512 byte data packet
   void encode_data_packet(uint16_t num); //encode smartport "num" byte data packet
@@ -262,6 +272,7 @@ public:
    * @brief get the IWM device Number (1-255)
    * @return The device number registered for this device
    */
+  void set_id(uint8_t dn) { _devnum=dn; };
   int id() { return _devnum; };
   //void assign_id(uint8_t n) { _devnum = n; };
 
@@ -275,7 +286,7 @@ public:
   /**
    * Startup hack for now
    */
-  virtual void startup_hack() = 0;
+  // virtual void startup_hack() = 0;
 };
 
 class iwmBus
@@ -287,11 +298,16 @@ private:
 
   iwmFuji *_fujiDev = nullptr;
   iwmModem *_modemDev = nullptr;
-  iwmNetwork *_netDev[8] = {nullptr};
+  iwmNetwork *_netDev[4] = {nullptr};
   //sioMIDIMaze *_midiDev = nullptr;
   //sioCassette *_cassetteDev = nullptr;
   //iwmCPM *_cpmDev = nullptr;
   iwmPrinter *_printerdev = nullptr;
+
+  // iwm packet handling
+  uint8_t spi_buffer[4 * BLOCK_PACKET_LEN]; //smartport packet buffer
+  uint16_t spi_len;
+  spi_device_handle_t spi;
 
   // low level bit-banging i/o functions
   struct iwm_timer_t
@@ -320,8 +336,9 @@ private:
   void iwm_ack_disable();
   void iwm_extra_set();
   void iwm_extra_clr();
+  bool iwm_enable_val();
 
-  bool iwm_phase_val(int p);
+  bool iwm_phase_val(uint8_t p);
 
   enum class iwm_phases_t
   {
@@ -334,13 +351,19 @@ private:
   iwm_phases_t oldphase;
 #endif
 
+  bool iwm_drive_enables();
+
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
 
 public:
   int iwm_read_packet(uint8_t *a, int n);
   int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
+  void encode_spi_packet(uint8_t *a);
   int iwm_send_packet(uint8_t *a);
+  int iwm_send_packet_spi(uint8_t *a);
+
+  void test_spi();
 
   void setup();
   void service();
@@ -358,11 +381,12 @@ public:
   void changeDeviceId(iwmDevice *p, int device_id);
   // iwmDevice *smort;
 
+
 #ifdef TESTTX
   void test_send(iwmDevice* smort);
 #endif
 
-  void startup_hack();
+  // void startup_hack();
 
 };
 

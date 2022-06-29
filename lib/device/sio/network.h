@@ -12,6 +12,7 @@
 #include "EdUrlParser.h"
 #include "networkStatus.h"
 #include "status_error_codes.h"
+#include "fnjson.h"
 
 /**
  * Number of devices to expose via SIO, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -92,6 +93,11 @@ public:
      * or sio_error() is called.
      */
     virtual void sio_status();
+
+    /**
+     * @brief set channel mode, JSON or PROTOCOL
+     */
+    virtual void sio_set_channel_mode();
 
     /**
      * @brief Called to set prefix
@@ -233,6 +239,16 @@ private:
     unsigned char errorSave = 1;
 
     /**
+     * The fnJSON parser wrapper object
+     */
+    FNJSON json;
+
+    /**
+     * Bytes sent of current JSON query object.
+     */
+    unsigned short json_bytes_remaining=0;
+
+    /**
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */
@@ -284,6 +300,12 @@ private:
     bool sio_read_channel(unsigned short num_bytes);
 
     /**
+     * @brief Perform read of the current JSON channel
+     * @param num_bytes Number of bytes to read
+     */
+    bool sio_read_channel_json(unsigned short num_bytes);
+
+    /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return TRUE on error, FALSE on success. Used to emit sio_error or sio_complete().
@@ -300,6 +322,11 @@ private:
      * @brief perform channel status commands, if there is a protocol bound.
      */
     void sio_status_channel();
+
+    /**
+     * @brief get JSON status (# of bytes in receive channel)
+     */
+    bool sio_status_channel_json(NetworkStatus *ns);
 
     /**
      * @brief Do an inquiry to determine whether a protoocol supports a particular command.
@@ -347,6 +374,16 @@ private:
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
     void sio_set_translation();
+
+    /**
+     * @brief Parse incoming JSON. (must be in JSON channelMode)
+     */
+    void sio_parse_json();
+
+    /**
+     * @brief Set JSON query string. (must be in JSON channelMode)
+     */
+    void sio_set_json_query();
 
     /**
      * @brief Set timer rate for PROCEED timer in ms
