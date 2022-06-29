@@ -18,6 +18,14 @@ FileSystemSPIFFS::FileSystemSPIFFS()
     // memset(_dir,0,sizeof(DIR));
 }
 
+bool FileSystemSPIFFS::is_dir(const char *path)
+{
+    char * fpath = _make_fullpath(path);
+    struct stat info;
+    stat( fpath, &info);
+    return (info.st_mode == S_IFDIR) ? true: false;
+}
+
 bool FileSystemSPIFFS::dir_open(const char * path, const char * pattern, uint16_t diropts)
 {
     // We ignore sorting options since we don't expect user browsing on SPIFFS
