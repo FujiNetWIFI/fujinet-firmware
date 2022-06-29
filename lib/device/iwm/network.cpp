@@ -699,7 +699,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
     }
 
     // Truncate bytes waiting to response size
-    ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
+    ns.rxBytesWaiting = (ns.rxBytesWaiting > 512) ? 512 : ns.rxBytesWaiting;
     packet_len = ns.rxBytesWaiting;
 
     if (protocol->read(packet_len)) // protocol adapter returned error
@@ -888,6 +888,10 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
         }
         do_inquiry(control_code);
     }
+
+    if (statusByte.bits.client_error == true)
+        err_result = SP_ERR_IOERROR;
+
     encode_error_reply_packet(err_result);
     IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
