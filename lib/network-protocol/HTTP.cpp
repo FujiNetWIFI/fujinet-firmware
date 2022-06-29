@@ -241,6 +241,9 @@ void NetworkProtocolHTTP::fserror_to_error()
 {
     switch (resultCode)
     {
+    case 901: // Fake HTTP status code indicating connection error
+        error = NETWORK_ERROR_NOT_CONNECTED;
+        break;
     case 200:
     case 201:
     case 202:
@@ -311,8 +314,8 @@ void NetworkProtocolHTTP::fserror_to_error()
 
 bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
 {
-    if (fromInterrupt == false)
-        Debug_printf("Channel mode is %u\n", httpChannelMode);
+    // if (fromInterrupt == false)
+    //     Debug_printf("Channel mode is %u\n", httpChannelMode);
 
     switch (httpChannelMode)
     {
@@ -320,8 +323,8 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
         if (fromInterrupt == false && resultCode == 0)
             http_transaction();
         status->rxBytesWaiting = client->available() > 65535 ? 65535 : client->available();
-        status->connected = client->available() > 0;
-        status->error = client->available() > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+        status->connected = client->available()>0;
+        status->error = client->available() == 0 && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
         return false;
     case SET_HEADERS:
     case COLLECT_HEADERS:
@@ -334,7 +337,7 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
             http_transaction();
         status->rxBytesWaiting = (returned_header_cursor < collect_headers_count ? returned_headers[returned_header_cursor].size() : 0);
         status->connected = 0; // so that we always ask in this mode.
-        status->error = returned_header_cursor < collect_headers_count ? error : NETWORK_ERROR_END_OF_FILE;
+        status->error = returned_header_cursor == collect_headers_count && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
         return false;
     default:
         return true;

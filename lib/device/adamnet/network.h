@@ -83,6 +83,8 @@ public:
     virtual void adamnet_control_clr();
     virtual void adamnet_control_receive();
     virtual void adamnet_control_receive_channel();
+    virtual void adamnet_control_receive_channel_json();
+    virtual void adamnet_control_receive_channel_protocol();
     virtual void adamnet_control_send();
 
     virtual void adamnet_response_status() override;
@@ -155,6 +157,11 @@ private:
      * JSON Object
      */
     FNJSON json;
+
+    /**
+     * Has JSON been sent via CLR?
+     */
+    bool jsonRecvd = false;
 
     /**
      * The Receive buffer for this N: device

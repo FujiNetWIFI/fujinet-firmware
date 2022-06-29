@@ -33,6 +33,7 @@
 #define SIO_FUJICMD_WRITE_HOST_SLOTS 0xF3
 #define SIO_FUJICMD_READ_DEVICE_SLOTS 0xF2
 #define SIO_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
+#define SIO_FUJICMD_GET_WIFI_ENABLED 0xEA
 #define SIO_FUJICMD_UNMOUNT_IMAGE 0xE9
 #define SIO_FUJICMD_GET_ADAPTERCONFIG 0xE8
 #define SIO_FUJICMD_NEW_DISK 0xE7
@@ -55,6 +56,7 @@
 #define SIO_FUJICMD_SET_BOOT_MODE 0xD6
 #define SIO_FUJICMD_STATUS 0x53
 #define SIO_FUJICMD_HSIO_INDEX 0x3F
+#define SIO_FUJICMD_ENABLE_UDPSTREAM 0xF0
 
 sioFuji theFuji; // global fuji device object
 
@@ -282,6 +284,14 @@ void sioFuji::sio_net_get_wifi_status()
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     bus_to_computer(&wifiStatus, sizeof(wifiStatus), false);
+}
+
+// Check if Wifi is enabled
+void sioFuji::sio_net_get_wifi_enabled()
+{
+    uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
+    Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n",e);
+    bus_to_computer(&e, sizeof(e), false);
 }
 
 // Mount Server
@@ -1232,6 +1242,7 @@ void sioFuji::sio_read_device_slots()
     disk_slot diskSlots[MAX_DISK_DEVICES];
 
     int returnsize;
+    char *filename;
 
     // AUX1 specifies which slots to return
     // Handle disk slots
@@ -1242,7 +1253,19 @@ void sioFuji::sio_read_device_slots()
         {
             diskSlots[i].mode = _fnDisks[i].access_mode;
             diskSlots[i].hostSlot = _fnDisks[i].host_slot;
-            strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
+            if ( _fnDisks[i].filename[0] == '\0' )
+            {
+                strlcpy(diskSlots[i].filename, "", MAX_DISPLAY_FILENAME_LEN);
+            }
+            else
+            {
+                // Just use the basename of the image, no path. The full path+filename is
+                // usually too long for the Atari to show anyway, so the image name is more important.
+                // Note: Basename can modify the input, so use a copy of the filename
+                filename = strdup(_fnDisks[i].filename);
+                strlcpy ( diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN );
+                free(filename);
+            }
         }
 
         returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
@@ -1497,6 +1520,33 @@ void sioFuji::insert_boot_device(uint8_t d)
     _bootDisk.device_active = false;
 }
 
+// Set UDP Stream HOST & PORT and start it
+void sioFuji::sio_enable_udpstream()
+{
+    char host[64];
+
+    uint8_t ck = bus_to_peripheral((uint8_t *)&host, sizeof(host));
+
+    if (sio_checksum((uint8_t *)&host, sizeof(host)) != ck)
+        sio_error();
+    else
+    {
+        int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
+
+        Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
+
+        // Save the host and port
+        Config.store_udpstream_host(host);
+        Config.store_udpstream_port(port);
+        Config.save();
+
+        sio_complete();
+
+        // Start the UDP Stream
+        SIO.setUDPHost(host, port);
+    }
+}
+
 // Initializes base settings and adds our devices to the SIO bus
 void sioFuji::setup(systemBus *siobus)
 {
@@ -1619,6 +1669,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_ack();
         sio_write_device_slots();
         break;
+    case SIO_FUJICMD_GET_WIFI_ENABLED:
+        sio_ack();
+        sio_net_get_wifi_enabled();
+        break;
     case SIO_FUJICMD_UNMOUNT_IMAGE:
         sio_ack();
         sio_disk_image_umount();
@@ -1682,6 +1736,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case SIO_FUJICMD_SET_BOOT_MODE:
         sio_ack();
         sio_set_boot_mode();
+        break;
+    case SIO_FUJICMD_ENABLE_UDPSTREAM:
+        sio_ack();
+        sio_enable_udpstream();
         break;
     default:
         sio_nak();
