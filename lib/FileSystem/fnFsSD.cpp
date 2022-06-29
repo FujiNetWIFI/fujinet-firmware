@@ -100,6 +100,14 @@ time_t _fssd_fatdatetime_to_epoch(WORD ftime, WORD fdate)
 
 }
 
+bool FileSystemSDFAT::is_dir(const char *path)
+{
+    char * fpath = _make_fullpath(path);
+    struct stat info;
+    stat( fpath, &info);
+    return (info.st_mode == S_IFDIR) ? true: false;
+}
+
 bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t diropts)
 {
     // TODO: Add pattern and sorting options
