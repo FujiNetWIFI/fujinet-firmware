@@ -9,6 +9,10 @@
 //# include "iec/cassette.h"
 #endif
 
+#ifdef BUILD_LYNX
+
+#endif 
+
 #ifdef NEW_TARGET
 # include "new/cassette.h"
 #endif

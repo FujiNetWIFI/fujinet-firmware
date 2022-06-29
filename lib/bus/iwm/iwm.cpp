@@ -6,10 +6,21 @@
 #include "driver/timer.h" // contains the hardware timer register data structure
 #include "../../include/debug.h"
 #include "utils.h"
+#include "led.h"
 
 #include "../device/iwm/disk.h"
+#include "../device/iwm/fuji.h"
+
+#ifndef USE_ATARI_FN10
+// use new dedicated Apple II FujiNet pinouts
+#define APPLE_FN10
+#endif
+//#define USE_ATARI_FN10 // move to the ini file
 
 
+// used for debugging - toggles line to show when the 
+// input line WRDATA is being sampled
+#undef EXTRA
 
 /******************************************************************************
 Based on:
@@ -28,18 +39,39 @@ IDC20 Disk II 20-pin pins based on
 https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 */
 
-//      SP BUS     GPIO       SIO
-//      ---------  ----     ---------
+#ifdef APPLE_FN10
+#define SP_REQ      32
+#define SP_PHI0     32
+#define SP_PHI1     33
+#define SP_PHI2     34
+#define SP_PHI3     35
 #define SP_WRPROT   27
-#define SP_ACK      27      //  CLKIN
+#define SP_ACK      27
+#define SP_RDDATA   4 // tri-state gate enable line
+#define SP_WRDATA   22
+// TODO: go through each line and make sure the code is OK for each one before moving to next
+#define SP_WREQ     26
+#define SP_DRIVE1   36
+#define SP_DRIVE2   21
+#define SP_EN35     39
+#define SP_HDSEL    13
+
+#else
+//      SP BUS     GPIO       SIO               LA (with SIO-10IDC cable)
+//      ---------  ----     -----------------   -------------------------
+#define SP_WRPROT   27
+#define SP_ACK      27      //  CLKIN     1     D0
 #define SP_REQ      39
-#define SP_PHI0     39      //  CMD
-#define SP_PHI1     22      //  PROC
-#define SP_PHI2     36      //  MOTOR
-#define SP_PHI3     26      //  INT
-#define SP_RDDATA   21      //  DATAIN
-#define SP_WRDATA   33      //  DATAOUT
-#define SP_EXTRA    32      //  CLKOUT
+#define SP_PHI0     39      //  CMD       7     D4
+#define SP_PHI1     22      //  PROC      9     D6
+#define SP_PHI2     36      //  MOTOR     8     D5
+#define SP_PHI3     26      //  INT       13    D7
+#define SP_RDDATA   21      //  DATAIN    3     D2
+#define SP_WRDATA   33      //  DATAOUT   5     D3
+#define SP_ENABLE   32      //  CLKOUT    2     D1
+#define SP_EXTRA    32      //  CLKOUT - used for debug/diagnosing - signals when WRDATA is sampled by ESP32
+#endif
+
 
 // hardware timer parameters for bit-banging I/O
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
@@ -52,14 +84,6 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 //#define IWM_TX_PW             1 // microseconds - 1/2 us for fast mode
 
 #undef VERBOSE_IWM
-
-/* #define MACRO(num, str) {\
-            printf("%d", num);\
-            printf(" is");\
-            printf(" %s number", str);\
-            printf("\n");\
-           }
- */
 
 //------------------------------------------------------------------------------
 //#ifdef DEBUG
@@ -117,6 +141,10 @@ void print_packet(uint8_t* data)
 //#endif
 
 //------------------------------------------------------------------------------
+
+uint8_t iwmDevice::packet_buffer[BLOCK_PACKET_LEN] = { 0 };
+uint16_t iwmDevice::packet_len = 0;
+uint16_t iwmDevice::num_decoded = 0;
 
 void iwmBus::timer_config()
 {
@@ -183,17 +211,25 @@ inline void iwmBus::iwm_rddata_clr()
 
 inline void iwmBus::iwm_rddata_enable()
 {
+#ifdef USE_BIT_BANG_TX
   GPIO.enable_w1ts = ((uint32_t)0x01 << SP_RDDATA);  
+#endif
 }
 
 inline void iwmBus::iwm_rddata_disable()
 {
+#ifdef USE_BIT_BANG_TX
   GPIO.enable_w1tc = ((uint32_t)0x01 << SP_RDDATA);
+#endif
 }
 
 inline bool iwmBus::iwm_wrdata_val()
 {
+#ifdef APPLE_FN10
+  return (GPIO.in & ((uint32_t)0x01 << (SP_WRDATA)));
+#else
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
+#endif
 }
 
 inline bool iwmBus::iwm_req_val()
@@ -203,12 +239,25 @@ inline bool iwmBus::iwm_req_val()
 
 inline void iwmBus::iwm_extra_set()
 {
+#ifdef EXTRA
   GPIO.out1_w1ts.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
+#endif
 }
 
 inline void iwmBus::iwm_extra_clr()
 {
+#ifdef EXTRA
   GPIO.out1_w1tc.data = ((uint32_t)0x01 << (SP_EXTRA - 32));  
+#endif
+}
+
+inline bool iwmBus::iwm_enable_val()
+{
+#ifdef APPLE_FN10
+  return true;
+#else
+  return (GPIO.in1.val & ((uint32_t)0x01 << (SP_ENABLE - 32)));
+#endif
 }
 
 //------------------------------------------------------
@@ -255,8 +304,13 @@ inline void iwmBus::iwm_ack_disable()
 
 //------------------------------------------------------
 
-bool iwmBus::iwm_phase_val(int p)
-{ 
+bool iwmBus::iwm_phase_val(uint8_t p)
+{
+#ifdef APPLE_FN10
+  uint8_t phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
+  if (p < 4)
+    return (phases >> p) & 0x01;
+#else
   switch (p)
   {
   case 0:
@@ -270,6 +324,7 @@ bool iwmBus::iwm_phase_val(int p)
   default: 
     break; // drop out to error message
   }
+#endif
   Debug_printf("\r\nphase number out of range");
   return false;
 }
@@ -534,6 +589,37 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
   return 1;
 }
 
+void iwmBus::encode_spi_packet(uint8_t *a)
+{
+  // clear out spi buffer
+  memset(spi_buffer, 0, sizeof(spi_buffer));
+  // loop through "l" bytes of the buffer "a"
+  uint16_t i=0,j=0;
+  while(a[i])
+  {
+    // Debug_printf("\r\nByte %02X: ",a[i]);
+    // for each byte, loop through 4 x 2-bit pairs
+    uint8_t mask = 0x80;
+    for (int k = 0; k < 4; k++)
+    {
+      if (a[i] & mask)
+      {
+        spi_buffer[j] |= 0x40;
+      }
+      mask >>= 1;
+      if (a[i] & mask)
+      {
+        spi_buffer[j] |= 0x04;
+      }
+      mask >>= 1;
+      // Debug_printf("%02x",spi_buffer[j]);
+      j++;
+    }
+    i++;
+  }
+  spi_len = --j;
+}
+
 int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
 {
   //*****************************************************************************
@@ -603,7 +689,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   // REQ received!
   Debug_print("R");
 #endif
-#else
+#else // TESTTX
   iwm_timer_latch();
   iwm_timer_read();
 #endif // TESTTX
@@ -672,16 +758,126 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   return 0;
 }
 
+int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
+{
+  //*****************************************************************************
+  // Function: iwm_send_packet_spi
+  // Parameters: packet_buffer pointer
+  // Returns: status (not used yet, always returns 0)
+  //
+  // Description: This handles the ACK and REQ lines and sends the packet from the
+  // pointer passed to it. (packet_buffer)
+  //
+  //*****************************************************************************
+
+  print_packet((uint8_t *)a);
+  encode_spi_packet((uint8_t *)a);
+
+  // send data stream using SPI
+  esp_err_t ret;
+  spi_transaction_t trans;
+  memset(&trans, 0, sizeof(spi_transaction_t));
+  trans.tx_buffer = spi_buffer; // finally send the line data
+  trans.length = spi_len * 8;   // Data length, in bits
+  trans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
+
+  iwm_ack_set(); // ack is already enabled by the response to the command read
+
+  // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
+  // setup a timeout counter to wait for REQ response
+  iwm_timer_reset();
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();      //  grab timer low word
+  iwm_timer_alarm_set(10000); // 1 millisecond per IIgs?
+
+  // while (!fnSystem.digital_read(SP_REQ))
+  while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  {
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
+    {
+      // timeout!
+      Debug_printf("\r\nSendPacket timeout waiting for REQ");
+      iwm_rddata_disable();
+      //iwm_ack_disable(); // need to release the bus if we're quitting
+      portENABLE_INTERRUPTS(); // takes 7 us to execute
+      return 1;
+    }
+  };
+// ;
+
+  iwm_rddata_enable();
+  iwm_rddata_clr();
+  ret = spi_device_polling_transmit(spi, &trans);
+  iwm_rddata_set();
+  iwm_ack_clr();
+  assert(ret == ESP_OK);
+
+  iwm_timer_reset();
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();      //  grab timer low word
+  iwm_timer_alarm_set(10000); // 1/2 millisecond
+
+  // while (!fnSystem.digital_read(SP_REQ))
+  while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  {
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
+    {
+      iwm_rddata_disable();
+      Debug_println("REQ timeout");
+     // iwm_ack_disable();       // need to release the bus
+      //portENABLE_INTERRUPTS(); // takes 7 us to execute
+      return 1;
+    }
+  };
+  iwm_rddata_disable();
+  return 0;
+}
+
 void iwmBus::setup(void)
 {
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
+
+  timer_config();
+  Debug_printf("\r\nIWM timer started");
+
+#ifdef USE_ATARI_FN10
+  spi_bus_config_t bus_cfg = {
+      .mosi_io_num = SP_RDDATA,
+      .miso_io_num = -1,
+      .sclk_io_num = -1,
+      .quadwp_io_num = -1,
+      .quadhd_io_num = -1,
+      .max_transfer_sz = 4000};
+  spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+#endif
+
+  esp_err_t ret;
+  spi_device_interface_config_t devcfg = {
+      .mode = 0,                         // SPI mode 0
+      .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
+      .spics_io_num = -1,                // CS pin
+      .queue_size = 7                    // We want to be able to queue 7 transactions at a time
+  };
+
+#ifdef APPLE_FN10
+    // use same SPI as SDCARD
+    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+#elif defined(USE_ATARI_FN10)
+    // use different SPI than SDCARD
+    ret=spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
+#endif
+  assert(ret == ESP_OK);
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   fnSystem.digital_write(SP_ACK, DIGI_HIGH); // ID ACK for Logic Analyzer
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
@@ -690,22 +886,32 @@ void iwmBus::setup(void)
 
   fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT);
 
+#ifdef USE_BIT_BANG_TX
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // ID RD for logic analyzer
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   // leave rd as input, pd6
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  ot maybe pull up, too?
+#endif
 
+#ifdef APPLE_FN10
+  fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
+#else
+  fnSystem.set_pin_mode(SP_ENABLE, gpio_mode_t::GPIO_MODE_INPUT);
+#endif
+#ifdef EXTRA
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
-
+  Debug_printf("\r\nEXTRA signaling line configured");
+#endif
   Debug_printf("\r\nIWM GPIO configured");
-
-  timer_config();
-  Debug_printf("\r\nIWM timer started");
 }
 
 //*****************************************************************************
@@ -1104,14 +1310,14 @@ void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   encode_error_reply_packet(SP_ERR_BADCMD);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 void iwmDevice::iwm_return_ioerror(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   encode_error_reply_packet(SP_ERR_IOERROR);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 //*****************************************************************************
@@ -1187,7 +1393,7 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
       encode_status_reply_packet();
     }
   print_packet(&packet_buffer[14]);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 //*****************************************************************************
@@ -1212,7 +1418,19 @@ int iwmDevice::get_packet_length (void)
  * notes:
  * with individual devices, like disk.cpp,
  * we need to hand off control to the device to service
- * the command packet. The algorithm is something like:
+ * the command packet. 
+ * 
+ * Disk II/3.5 selection is determined by the ENABLE lines
+ * from BMOW - https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
+ * On an Apple II, things are more complicated. The Apple 5.25 controller card was the first to use a DB19 connector, and it supported two daisy-chained 5.25 inch drives. Pin 17 is /DRIVE1 enable, and pin 9 (unconnected on the Macintosh) is /DRIVE2 enable. Within each drive, internal circuitry routes the signal from input pin 9 to output pin 17 on the daisy-chain connector. Drive #2 doesn’t actually know that it’s drive #2 – it enables itself by observing /DRIVE1 on pin 17, just like the first drive – only the first drive has sneakily rerouted /DRIVE2 to /DRIVE1. This allows for two drives to be daisy chained.
+ * On an Apple IIgs, it’s even more complicated. Its DB19 connector supports daisy-chaining two 3.5 inch drives, and two 5.25 inch drives – as well as even more SmartPort drives, which I won’t discuss now. Pin 4 (GND on the Macintosh) is /EN3.5, a new signal that enables the 3.5 inch drives when it’s low, or the 5.25 inch drives when it’s high. The 3.5 inch drives must appear before any 5.25 inch drives in the daisy chain. When /EN3.5 is low, the 3.5 inch drives use pins 17 and 9 to enable themselves, and when /EN3.5 is high, the 3.5 inch drives pass through the signals on pins 17 and 9 unmodified to the 5.25 drives behind them.
+ * This is getting complicated, but there’s one final kick in the nuts: when the first 3.5 drive is enabled, by the IIgs setting /EN3.5 and /DRIVE1 both low, you would think the drive would disable the next 3.5 drive behind it by setting both /DRIVE1 and /DRIVE2 high at the daisy-chain connector. But no, the first 3.5 drive disables the second 3.5 drive by setting both /DRIVE1 and /DRIVE2 low! This looks like both are enabled at the same time, which would be a definite no-no, but the Apple 3.5 Drive contains circuitry that recognizes this “double enable” as being equivalent to a disable. Why it’s done this way, I don’t know, but I’m sure it has some purpose.
+ * 
+ * So for starters FN will look at the /DRIVEx line (not sure which one because IIc has internal floppy drive connected right now)
+ * If floppy is enabled, the motor is spinning and FN needs to track the phases and spit out data (unless writereq is activated)
+ * If floppy is disabled, smartport should be in control instead.
+ * 
+ * The smartport algorithm is something like:
  * check for 0x85 init and do a bus initialization:
  * BUS INIT
  * after a reset, all devices no longer have an address
@@ -1249,6 +1467,18 @@ void iwmBus::service()
 {
   iwm_ack_disable(); // go hi-Z
   iwm_ack_clr();     // prep for the next read packet
+
+  if (iwm_drive_enables())
+  {
+    //Debug_printf("\r\nFloppy Drive ENabled!");
+    iwm_rddata_clr();
+    iwm_rddata_enable();
+  }
+  else
+  {
+    //Debug_printf("\r\nFloppy Drive DISabled!"); // debug msg latency here screws up SP timing.
+    iwm_rddata_disable();
+  }
 
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
@@ -1353,16 +1583,35 @@ void iwmBus::service()
   } // switch (phasestate)
 }
 
+bool iwmBus::iwm_drive_enables()
+{
+#ifdef APPLE_FN10
+  return false; // ignore floppy drives for now
+#else
+  return !iwm_enable_val();
+#endif
+}
+
 void iwmBus::handle_init()
 {
   uint8_t status = 0;
   iwmDevice* pDevice = nullptr;
 
+  fnLedManager.set(LED_BUS, true);
+
   iwm_rddata_clr();
   iwm_rddata_enable();
+
+  
   // to do - get the next device in the daisy chain and assign ID
   for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
   {
+    // tell the Fuji it's device no.
+    if (it == _daisyChain.begin())
+    {
+      theFuji._devnum = command_packet.dest;
+    }
+    // assign dev numbers
     pDevice = (*it);
     if (pDevice->id() == 0)
     {
@@ -1371,14 +1620,18 @@ void iwmBus::handle_init()
         status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
       pDevice->encode_init_reply_packet(command_packet.dest, status);
       Debug_printf("\r\nSending INIT Response Packet...");
-      iwm_send_packet((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
+      SEND_PACKET((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
 
       // print_packet ((uint8_t*) packet_buffer,get_packet_length());
 
       Debug_printf(("\r\nDrive: %02x\r\n"), pDevice->id());
+      fnLedManager.set(LED_BUS, false);
       return;
     }
   }
+
+  fnLedManager.set(LED_BUS, false);
+
 }
 
 // Add device to SIO bus
@@ -1523,16 +1776,16 @@ void iwmBus::test_send(iwmDevice* smort)
   while (true)
   {
     Debug_printf("\r\nSending INIT Response Packet...");
-    iwm_send_packet((uint8_t *)smort->packet_buffer); // timeout error return is not handled here (yet?)
+    SEND_PACKET((uint8_t *)smort->packet_buffer); // timeout error return is not handled here (yet?)
     fnSystem.delay(1000);
   }
 }
 #endif
 
-void iwmBus::startup_hack()
-{
-  _daisyChain.front()->startup_hack();
-}
+// void iwmBus::startup_hack()
+// {
+//   _daisyChain.front()->startup_hack();
+// }
 
 iwmBus IWM; // global smartport bus variable
 

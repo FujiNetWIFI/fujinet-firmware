@@ -13,6 +13,10 @@
 # include "adamnet/fuji.h"
 #endif
 
+#ifdef BUILD_LYNX
+# include "comlynx/fuji.h"
+#endif
+
 #ifdef BUILD_S100
 # include "s100spi/fuji.h"
 #endif

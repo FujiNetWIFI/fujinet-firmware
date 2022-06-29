@@ -279,17 +279,23 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
 #endif
             break;
         }
-        /*
-         If auth type is set to NONE, esp_http_client will automatically retry auth failures by attempting to set the auth type to
-         BASIC or DIGEST depending on the server response code. Ignore this attempt.
-        */
-        if (status == HttpStatus_Unauthorized && client->_auth_type == HTTP_AUTH_TYPE_NONE && client->_redirect_count == 0)
-        {
+//         /*
+//          If auth type is set to NONE, esp_http_client will automatically retry auth failures by attempting to set the auth type to
+//          BASIC or DIGEST depending on the server response code. Ignore this attempt.
+//         */
+//         if (status == HttpStatus_Unauthorized && client->_auth_type == HTTP_AUTH_TYPE_NONE && client->_redirect_count == 0)
+//         {
+// #ifdef VERBOSE_HTTP
+//             Debug_println("HTTP_EVENT_ON_DATA: Ignoring UNAUTHORIZED response");
+// #endif
+//             break;
+//         }
 #ifdef VERBOSE_HTTP
-            Debug_println("HTTP_EVENT_ON_DATA: Ignoring UNAUTHORIZED response");
-#endif
-            break;
+        if (status == HttpStatus_Unauthorized)
+        {
+            Debug_println("HTTP_EVENT_ON_DATA: UNAUTHORIZED");
         }
+#endif
 
         // Check if this is our first time this event has been triggered
         if (client->_transaction_begin == true)
@@ -349,9 +355,10 @@ void fnHttpClient::_perform_subtask(void *param)
     //Debug_printf("esp_http_client_perform start\n");
 
     esp_err_t e = esp_http_client_perform(parent->_handle);
-    __IGNORE_UNUSED_VAR(e);
+    // Debug_printf("esp_http_client_perform returned %d, stack HWM %u\n", e, uxTaskGetStackHighWaterMark(nullptr));
 
-    //Debug_printf("esp_http_client_perform returned %d, stack HWM %u\n", e, uxTaskGetStackHighWaterMark(nullptr));
+    // Save error
+    parent->_client_err = e;
 
     // Indicate there's nothing else to read
     parent->_transaction_done = true;
@@ -423,9 +430,26 @@ int fnHttpClient::_perform()
     //Debug_printf("Notification of headers loaded\n");
 
     bool chunked = esp_http_client_is_chunked_response(_handle);
-    int status = esp_http_client_get_status_code(_handle);
     int length = esp_http_client_get_content_length(_handle);
-
+    int status;
+    switch (_client_err)
+    {
+    case ESP_OK:
+        // client completed HTTP transaction without any error
+        // use real HTTP response code
+        status = esp_http_client_get_status_code(_handle);
+        break;
+    case ESP_ERR_HTTP_CONNECT:
+        // Unable to establish connection, use fake HTTP status code 901
+        // it will be translated to NETWORK_ERROR_NOT_CONNECTED (207) in NetworkProtocolHTTP::fserror_to_error()
+        status = 901;
+        break;
+    default:
+        status = esp_http_client_get_status_code(_handle);
+        // Other error, use fake HTTP status code 900
+        // it will be translated to NETWORK_ERROR_GENERAL (144) in NetworkProtocolHTTP::fserror_to_error()
+        if (status < 0) status = 900;
+    }
     Debug_printf("%08lx _perform status = %d, length = %d, chunked = %d\n", fnSystem.millis(), status, length, chunked ? 1 : 0);
     return status;
 }

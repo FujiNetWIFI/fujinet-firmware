@@ -38,8 +38,6 @@ void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     default:
         if (c > 31 && c < 128)
         {
-            if (c == 123 || c == 125 || c == 127)
-                c = ' ';
             if (c == '\\' || c == '(' || c == ')')
                 fputc('\\', _file);
             fputc(c, _file);

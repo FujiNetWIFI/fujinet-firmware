@@ -60,6 +60,8 @@
 
 #define ADDITIONAL_DETAILS_BYTES 12
 
+#define COPY_SIZE 532
+
 adamFuji theFuji;        // global fuji device object
 adamNetwork *theNetwork; // global network device object (temporary)
 adamPrinter *thePrinter; // global printer
@@ -369,6 +371,9 @@ void adamFuji::adamnet_copy_file()
     char *dataBuf;
     unsigned char sourceSlot;
     unsigned char destSlot;
+    unsigned long total=0;
+
+    Debug_printf("ADAMNET COPY FILE\n");
 
     memset(&csBuf, 0, sizeof(csBuf));
 
@@ -377,19 +382,11 @@ void adamFuji::adamnet_copy_file()
     adamnet_recv_buffer(csBuf,sizeof(csBuf));
     ck = adamnet_recv();
 
-    if (ck != adamnet_checksum(csBuf, sizeof(csBuf)))
-    {
-        AdamNet.start_time=esp_timer_get_time();
-        adamnet_response_nack();
-        return;
-    }
-    else
-    {
-        AdamNet.start_time=esp_timer_get_time();
-        adamnet_response_ack();
-    }
+    AdamNet.wait_for_idle();
+    fnUartSIO.write(0x9f); // ACK.
+    fnUartSIO.flush();
 
-    dataBuf = (char *)malloc(532);
+    dataBuf = (char *)malloc(COPY_SIZE);
 
     copySpec = string((char *)csBuf);
 
@@ -416,16 +413,22 @@ void adamFuji::adamnet_copy_file()
     destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
 
     size_t count = 0;
-    do
+
+    while (!(ferror(sourceFile) || feof(sourceFile)))
     {
-        count = fread(dataBuf, 1, 532, sourceFile);
+        count = fread(dataBuf, 1, COPY_SIZE, sourceFile);
         fwrite(dataBuf, 1, count, destFile);
-    } while (count > 0);
+        total += count;
+        Debug_printf("Copied: %lu bytes %u %u\n",total,feof(sourceFile),ferror(sourceFile));
+        taskYIELD();
+    }
 
     // copyEnd:
     fclose(sourceFile);
     fclose(destFile);
     free(dataBuf);
+
+    Debug_printf("COPY DONE\n");
 
 }
 
@@ -1536,6 +1539,9 @@ void adamFuji::adamnet_control_send()
         break;
     case SIO_FUJICMD_DEVICE_ENABLE_STATUS:
         adamnet_device_enable_status();
+        break;
+    case SIO_FUJICMD_COPY_FILE:
+        adamnet_copy_file();
         break;
     }
 }

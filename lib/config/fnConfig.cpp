@@ -28,9 +28,14 @@ fnConfig::fnConfig()
     strlcpy(_network.sntpserver, CONFIG_DEFAULT_SNTPSERVER, sizeof(_network.sntpserver));
 }
 
-void fnConfig::store_midimaze_host(const char host_ip[64])
+void fnConfig::store_udpstream_host(const char host_ip[64])
 {
-    strlcpy(_network.midimaze_host, host_ip, sizeof(_network.midimaze_host));
+    strlcpy(_network.udpstream_host, host_ip, sizeof(_network.udpstream_host));
+}
+
+void fnConfig::store_udpstream_port(int port)
+{
+    _network.udpstream_port = port;
 }
 
 void fnConfig::store_general_devicename(const char *devicename)
@@ -138,6 +143,13 @@ void fnConfig::store_wifi_passphrase(const char *passphrase_octets, int num_octe
         else
             _wifi.passphrase += passphrase_octets[i];
     }
+}
+
+/* Stores whether Wifi is enabled or not */
+void fnConfig::store_wifi_enabled(bool status)
+{
+    _wifi.enabled = status;
+    _dirty = true;
 }
 
 void fnConfig::store_bt_status(bool status)
@@ -671,6 +683,7 @@ void fnConfig::save()
 
     // WIFI
     ss << LINETERM << "[WiFi]" LINETERM;
+    ss << "enabled=" << _wifi.enabled << LINETERM;
     ss << "SSID=" << _wifi.ssid << LINETERM;
     // TODO: Encrypt passphrase!
     ss << "passphrase=" << _wifi.passphrase << LINETERM;
@@ -817,7 +830,9 @@ void fnConfig::load()
 {
     Debug_println("fnConfig::load");
 
-#ifndef NO_BUTTONS
+#if defined(NO_BUTTONS) || defined(BUILD_LYNX)
+    // Don't erase config if there are no buttons or on devices without Button B
+#else
     // Clear the config file if key is currently pressed
     if (fnKeyManager.keyCurrentlyPressed(BUTTON_B))
     {
@@ -1095,6 +1110,14 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
             {
                 _wifi.passphrase = value;
             }
+            else if (strcasecmp(name.c_str(), "enabled") == 0)
+            {
+                if (strcasecmp(value.c_str(), "1") == 0)
+                    _wifi.enabled = true;
+                else
+                    _wifi.enabled = false;
+            }
+
         }
     }
 }
