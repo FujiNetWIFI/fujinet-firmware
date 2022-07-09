@@ -33,12 +33,21 @@
 
 /* Buttons */
 #define PIN_BUTTON_A 0 // keys.cpp
+#if defined(BUILD_LYNX) || defined(BUILD_APPLE)
+// disable button B for these platforms
+#define PIN_BUTTON_B -1
+#else
 #define PIN_BUTTON_B 34
+#endif
 #define PIN_BUTTON_C 14
 
 /* LEDs */
 #define PIN_LED_WIFI 2 // led.cpp
+#if defined(BUILD_APPLE) && !defined(USE_ATARI_FN10)
+#define PIN_LED_BUS 12 // FujiApple
+#else
 #define PIN_LED_BUS 4
+#endif
 // pins 12-15 are used to interface with the JTAG debugger
 // so leave them alone if we're using JTAG
 #ifndef JTAG 
