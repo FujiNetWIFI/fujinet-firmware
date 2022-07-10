@@ -50,7 +50,9 @@
 #endif
 // pins 12-15 are used to interface with the JTAG debugger
 // so leave them alone if we're using JTAG
-#ifndef JTAG 
+#if defined(BUILD_APPLE) && !defined(USE_ATARI_FN10)
+#define PIN_LED_BT -1
+#elif !defined(JTAG)
 #define PIN_LED_BT 13
 #else
 #define PIN_LED_BT 4
