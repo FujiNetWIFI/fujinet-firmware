@@ -11,13 +11,6 @@
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 
-#ifndef USE_ATARI_FN10
-// use new dedicated Apple II FujiNet pinouts
-#define APPLE_FN10
-#endif
-//#define USE_ATARI_FN10 // move to the ini file
-
-
 // used for debugging - toggles line to show when the 
 // input line WRDATA is being sampled
 #undef EXTRA
@@ -38,40 +31,6 @@ from  http://www.users.on.net/~rjustice/SmartportCFA/SmartportSD.htm
 IDC20 Disk II 20-pin pins based on
 https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 */
-
-#ifdef APPLE_FN10
-#define SP_REQ      32
-#define SP_PHI0     32
-#define SP_PHI1     33
-#define SP_PHI2     34
-#define SP_PHI3     35
-#define SP_WRPROT   27
-#define SP_ACK      27
-#define SP_RDDATA   4 // tri-state gate enable line
-#define SP_WRDATA   22
-// TODO: go through each line and make sure the code is OK for each one before moving to next
-#define SP_WREQ     26
-#define SP_DRIVE1   36
-#define SP_DRIVE2   21
-#define SP_EN35     39
-#define SP_HDSEL    13
-
-#else
-//      SP BUS     GPIO       SIO               LA (with SIO-10IDC cable)
-//      ---------  ----     -----------------   -------------------------
-#define SP_WRPROT   27
-#define SP_ACK      27      //  CLKIN     1     D0
-#define SP_REQ      39
-#define SP_PHI0     39      //  CMD       7     D4
-#define SP_PHI1     22      //  PROC      9     D6
-#define SP_PHI2     36      //  MOTOR     8     D5
-#define SP_PHI3     26      //  INT       13    D7
-#define SP_RDDATA   21      //  DATAIN    3     D2
-#define SP_WRDATA   33      //  DATAOUT   5     D3
-#define SP_ENABLE   32      //  CLKOUT    2     D1
-#define SP_EXTRA    32      //  CLKOUT - used for debug/diagnosing - signals when WRDATA is sampled by ESP32
-#endif
-
 
 // hardware timer parameters for bit-banging I/O
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
@@ -225,7 +184,7 @@ inline void iwmBus::iwm_rddata_disable()
 
 inline bool iwmBus::iwm_wrdata_val()
 {
-#ifdef APPLE_FN10
+#ifdef PINMAP_A2_REV0
   return (GPIO.in & ((uint32_t)0x01 << (SP_WRDATA)));
 #else
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
@@ -253,7 +212,7 @@ inline void iwmBus::iwm_extra_clr()
 
 inline bool iwmBus::iwm_enable_val()
 {
-#ifdef APPLE_FN10
+#ifdef PINMAP_A2_REV0
   return true;
 #else
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_ENABLE - 32)));
@@ -306,7 +265,7 @@ inline void iwmBus::iwm_ack_disable()
 
 bool iwmBus::iwm_phase_val(uint8_t p)
 {
-#ifdef APPLE_FN10
+#ifdef PINMAP_A2_REV0
   uint8_t phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
   if (p < 4)
     return (phases >> p) & 0x01;
@@ -844,7 +803,7 @@ void iwmBus::setup(void)
   timer_config();
   Debug_printf("\r\nIWM timer started");
 
-#ifdef USE_ATARI_FN10
+#ifdef PINMAP_A2_FN10
   spi_bus_config_t bus_cfg = {
       .mosi_io_num = SP_RDDATA,
       .miso_io_num = -1,
@@ -863,10 +822,10 @@ void iwmBus::setup(void)
       .queue_size = 7                    // We want to be able to queue 7 transactions at a time
   };
 
-#ifdef APPLE_FN10
+#ifdef PINMAP_A2_REV0
     // use same SPI as SDCARD
     ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-#elif defined(USE_ATARI_FN10)
+#elif defined(PINMAP_A2_FN10)
     // use different SPI than SDCARD
     ret=spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
 #endif
@@ -895,7 +854,7 @@ void iwmBus::setup(void)
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  ot maybe pull up, too?
 #endif
 
-#ifdef APPLE_FN10
+#ifdef PINMAP_A2_REV0
   fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT);
@@ -1585,7 +1544,7 @@ void iwmBus::service()
 
 bool iwmBus::iwm_drive_enables()
 {
-#ifdef APPLE_FN10
+#ifdef PINMAP_A2_REV0
   return false; // ignore floppy drives for now
 #else
   return !iwm_enable_val();
