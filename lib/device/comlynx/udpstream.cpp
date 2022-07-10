@@ -30,6 +30,21 @@ void lynxUDPStream::comlynx_disable_udpstream()
 
 void lynxUDPStream::comlynx_handle_udpstream()
 {
+    // if there’s data available, read a packet
+    int packetSize = udpStream.parsePacket();
+    if (packetSize > 0)
+    {
+        udpStream.read(buf_net, UDPSTREAM_BUFFER_SIZE);
+        // Send to Lynx UART
+        _comlynx_bus->wait_for_idle();
+        fnUartSIO.write(buf_net, packetSize);
+#ifdef DEBUG_UDPSTREAM
+        Debug_print("UDP-IN: ");
+        util_dump_bytes(buf_net, packetSize);
+#endif
+        fnUartSIO.readBytes(buf_net, packetSize); // Trash what we just sent over serial
+    }
+
     // Read the data until there's a pause in the incoming stream
     if (fnUartSIO.available() > 0)
     {
@@ -60,21 +75,6 @@ void lynxUDPStream::comlynx_handle_udpstream()
         util_dump_bytes(buf_stream, buf_stream_index);
 #endif
         buf_stream_index = 0;
-    }
-
-    // if there’s data available, read a packet
-    int packetSize = udpStream.parsePacket();
-    if (packetSize > 0)
-    {
-        udpStream.read(buf_net, UDPSTREAM_BUFFER_SIZE);
-        // Send to Lynx UART
-        //_comlynx_bus->wait_for_idle();
-        fnUartSIO.write(buf_net, packetSize);
-#ifdef DEBUG_UDPSTREAM
-        Debug_print("UDP-IN: ");
-        util_dump_bytes(buf_net, packetSize);
-#endif
-        fnUartSIO.readBytes(buf_net, packetSize); // Trash what we just sent over serial
     }
 }
 

@@ -1,5 +1,5 @@
 #ifndef DEVICE_UDPSTREAM_H
-#define DEVICE_FUJI_H
+#define DEVICE_UDPSTREAM_H
 
 #ifdef BUILD_ATARI
 # include "sio/udpstream.h"
