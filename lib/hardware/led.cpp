@@ -26,9 +26,10 @@ void LedManager::setup()
 #else
     fnSystem.set_pin_mode(PIN_LED_BUS, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_BUS, DIGI_HIGH);
-#endif
+
     fnSystem.set_pin_mode(PIN_LED_BT, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_BT, DIGI_HIGH);    
+#endif
 
     fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
