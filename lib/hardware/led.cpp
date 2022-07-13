@@ -20,7 +20,7 @@ LedManager::LedManager()
 // Sets required pins to OUTPUT mode and makes sure they're initially off
 void LedManager::setup()
 {
-#if defined(BUILD_APPLE) && !defined(USE_ATARI_FN10)
+#ifdef PINMAP_A2_REV0
     fnSystem.set_pin_mode(PIN_LED_BUS, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_BUS, DIGI_LOW);
 #else
@@ -38,8 +38,8 @@ void LedManager::setup()
 void LedManager::set(eLed led, bool on)
 {
     mLedState[led] = on;
-#if defined(BUILD_APPLE) && !defined(USE_ATARI_FN10)
-    // FujiApple BUS LED has reversed logic
+#ifdef PINMAP_A2_REV0
+    // FujiApple Rev 0 BUS LED has reverse logic
     if (led == LED_BUS)
         fnSystem.digital_write(mLedPin[led], (on ? DIGI_HIGH : DIGI_LOW));
     else
