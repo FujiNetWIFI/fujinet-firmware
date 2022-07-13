@@ -21,7 +21,7 @@ void KeyManager::setup()
 #ifdef NO_BUTTONS
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-#elif defined(BUILD_APPLE) && !defined(USE_ATARI_FN10)
+#elif defined(PINMAP_A2_REV0)
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
 #else
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
@@ -33,7 +33,7 @@ void KeyManager::setup()
     if (fnSystem.get_hardware_ver() >= 2)
     {
         has_button_c = true;
-#if defined(BUILD_APPLE) && !defined(USE_ATARI_FN10)
+#if defined(PINMAP_A2_REV0)
         fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
 #else
         fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
