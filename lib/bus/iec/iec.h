@@ -1,271 +1,231 @@
+// Meatloaf - A Commodore 64/128 multi-device emulator
+// https://github.com/idolpx/meatloaf
+// Copyright(C) 2020 James Johnston
+//
+// Meatloaf is free software : you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Meatloaf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
+
 #ifndef IEC_H
 #define IEC_H
 
-/**
- * IEC Serial Port Routines
- */
+#include <forward_list>
+#include <unordered_map>
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
-
-#include <map>
+#include "protocol/cbmstandardserial.h"
+//#include "protocol/jiffydos.h"
 
 
-#define IEC_BAUD 62500
+#define IEC_CMD_MAX_LENGTH  100
 
-#define MN_RESET 0x00   // command.control (reset)
-#define MN_STATUS 0x01  // command.control (status)
-#define MN_ACK 0x02     // command.control (ack)
-#define MN_CLR 0x03     // command.control (clr) (aka CTS)
-#define MN_RECEIVE 0x04 // command.control (receive)
-#define MN_CANCEL 0x05  // command.control (cancel)
-#define MN_SEND 0x06    // command.control (send)
-#define MN_NACK 0x07    // command.control (nack)
-#define MN_READY 0x0D   // command.control (ready)
+using namespace Protocol;
 
-#define NM_STATUS 0x08 // response.control (status)
-#define NM_ACK 0x09    // response.control (ack)
-#define NM_CANCEL 0x0A // response.control (cancel)
-#define NM_SEND 0x0B   // response.data (send)
-#define NM_NACK 0x0C   // response.control (nack)
 
-#define IEC_DEVICE_ID_KEYBOARD 0x01
-#define IEC_DEVICE_ID_PRINTER  0x02
-#define IEC_DEVICEID_DISK      0x04
-#define IEC_DEVICE_TAPE        0x08
-#define IEC_DEVICE_NETWORK     0x0E
-#define IEC_DEVICE_FUJINET     0x0F
-
-#define IEC_RESET_DEBOUNCE_PERIOD 100 // in ms
-
-union cmdFrame_t
+typedef enum
 {
-    struct
-    {
+    DEVICE_ERROR = -1,
+    DEVICE_IDLE = 0,       // Ready and waiting
+    DEVICE_LISTEN = 1,     // A command is recieved and data is coming to us
+    DEVICE_TALK = 2,       // A command is recieved and we must talk now
+} device_state_t;
+
+class IECData
+{
+    public:
+        uint8_t primary;
         uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
+        uint8_t secondary;
+        uint8_t channel;
+        std::string device_command;
+
+		void init ( void ) {
+			primary = 0;
+			device = 0;
+			secondary = 0;
+			channel = 0;
+			device_command = "";
+		}
 };
 
-class systemBus;
-class iecFuji;     // declare here so can reference it, but define in fuji.h
-class iecPrinter;
 
-/**
- * @brief Calculate checksum for IEC Serial packets. Uses a simple 8-bit XOR of each successive byte.
- * @param buf pointer to buffer
- * @param len length of buffer
- * @return checksum value (0x00 - 0xFF)
- */
-uint8_t iec_checksum(uint8_t *buf, unsigned short len);
-
-/**
- * @brief An IEC Serial Device
- */
-class virtualDevice
+class CommandPathTuple
 {
-protected:
-    friend systemBus; // We exist on the IEC Serial Bus, and need its methods.
-
-    /**
-     * @brief Send Byte to IEC Serial Port
-     * @param b Byte to send via IEC Serial Port
-     * @return was byte sent?
-     */
-    void iec_send(uint8_t b);
-
-    /**
-     * @brief Send buffer to IEC Serial Port
-     * @param buf Buffer to send to IEC Serial Port
-     * @param len Length of buffer
-     * @return number of bytes sent.
-     */
-    void iec_send_buffer(uint8_t *buf, unsigned short len);
-
-    /**
-     * @brief Receive byte from IEC Serial Port
-     * @return byte received
-     */
-    uint8_t iec_recv();
-
-    /**
-     * @brief Receive byte from IEC Serial Port with a timeout period
-     * @param dur timeout period in milliseconds
-     * @return true = timeout, false = b contains byte received
-     */
-    bool iec_recv_timeout(uint8_t *b, uint64_t dur);
-
-    /**
-     * @brief convenience function to recieve length
-     * @return short containing length.
-     */
-    uint16_t iec_recv_length();
-
-    /**
-     * @brief convenience function to receive block number
-     * @return ulong containing block num.
-     */
-    uint32_t iec_recv_blockno();
-
-    /**
-     * @brief covenience function to send length
-     * @param l Length.
-     */
-    void iec_send_length(uint16_t l);
-
-    /**
-     * @brief Receive desired # of bytes into buffer from IEC Serial
-     * @param buf Buffer in which to receive
-     * @param len length of buffer
-     * @return # of bytes received.
-     */
-    unsigned short iec_recv_buffer(uint8_t *buf, unsigned short len);
-
-    /**
-     * @brief Perform reset of device
-     */
-    virtual void reset();
-
-    /**
-     * @brief acknowledge, but not if cmd took too long.
-     */
-    virtual void iec_response_ack();
-
-    /**
-     * @brief non-acknowledge, but not if cmd took too long
-     */
-    virtual void iec_response_nack();
-
-    /**
-     * @brief acknowledge if device is ready, but not if cmd took too long.
-     */
-    virtual void iec_control_ready();
-
-    /**
-     * @brief Device Number: 0-15
-     */
-    uint8_t _devnum;
-
-    virtual void shutdown() {}
-
-    /**
-     * @brief process the next packet with the active device.
-     * @param b first byte of packet.
-     */
-    virtual void iec_process(uint8_t b);
-
-    /**
-     * @brief Do any tasks that can only be done when the bus is quiet
-     */
-    virtual void iec_idle();
-    
-    /**
-     * @brief send current status of device
-     */
-    virtual void iec_control_status();
-
-    /**
-     * @brief adam says clear to send!
-     */
-    virtual void iec_control_clr();
-
-    /**
-     * @brief send status response
-     */
-    virtual void iec_response_status();
-    
-    /**
-     * @brief command frame, used by network protocol, ultimately
-     */
-    cmdFrame_t cmdFrame;
-
-    /**
-     * The response sent in iec_response_status()
-     */
-    uint8_t status_response[6] = {0x80,0x00,0x00,0x01,0x00,0x00};
-
-    /**
-     * Response buffer
-     */
-    uint8_t response[1024];
-
-    /**
-     * Response length
-     */
-    uint16_t response_len;
-
-public:
-
-    /**
-     * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
-     */
-    bool is_config_device = false;
-
-    /**
-     * @brief is device active (turned on?)
-     */
-    bool device_active = true;
-
-    /**
-     * @brief return the device number (0-15) of this device
-     * @return the device # (0-15) of this device
-     */
-    uint8_t id() { return _devnum; }
-
-    
+    public:
+        std::string command;
+        std::string fullPath;
+        std::string rawPath;
 };
 
-/**
- * @brief The IEC Serial Bus
- */
-class systemBus
+class Channel
 {
-private:
-    std::map<uint8_t, virtualDevice *> _daisyChain;
-    virtualDevice *_activeDev = nullptr;
-    iecFuji *_fujiDev = nullptr;
-    iecPrinter *_printerDev = nullptr;
-
-    void _iec_process_cmd();
-    void _iec_process_queue();
-
-public:
-    void setup();
-    void service();
-    void shutdown();
-    void reset();
-
-    /**
-     * @brief Wait for IEC Serial bus to become idle.
-     */
-    void wait_for_idle();
-
-    /**
-     * stopwatch
-     */
-    int64_t start_time;
-
-    int numDevices();
-    void addDevice(virtualDevice *pDevice, uint8_t device_id);
-    void remDevice(virtualDevice *pDevice);
-    void remDevice(uint8_t device_id);
-    bool deviceExists(uint8_t device_id);
-    void enableDevice(uint8_t device_id);
-    void disableDevice(uint8_t device_id);
-    virtualDevice *deviceById(uint8_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
-    bool deviceEnabled(uint8_t device_id);
-    QueueHandle_t qIECMessages = nullptr;
+    public:
+        std::string url;
+        uint32_t cursor;
+        bool writing;
 };
 
-extern systemBus IEC;
+//
+class iecBus; // declare early so can be friend
 
-#endif /* IEC_H */
+class iecDevice
+{
+    protected:
+        friend iecBus;
+
+    public:
+        // Return values for service:
+
+        std::unordered_map<uint16_t, Channel> channels;
+
+        iecDevice();
+        ~iecDevice() {};
+
+        device_state_t queue_command ( void );
+        bool process ( void );
+
+        virtual uint8_t command ( void ) = 0;
+        virtual uint8_t execute ( void ) = 0;
+        virtual uint8_t status ( void ) = 0;
+
+        uint8_t device_id;
+        IECData data;
+		device_state_t state;
+
+    protected:
+        void reset ( void );
+
+        // handler helpers.
+        virtual void handleListenCommand ( void ) = 0;
+        virtual void handleListenData ( void ) = 0;
+        virtual void handleTalk ( uint8_t chan ) = 0;
+        virtual void handleOpen ( void );
+        virtual void handleClose ( void );
+
+        // Named Channel functions
+        Channel currentChannel;
+        Channel channelSelect ( void );
+        void channelUpdate ( size_t cursor );
+        bool channelClose ( bool close_all = false );
+
+        // This is set after an open command and determines what to send next
+        uint8_t m_openState;
+
+};
+
+
+// Return values for service:
+typedef enum
+{
+    BUS_RESET = -2,   // The IEC bus is in a reset state (RESET line).    
+    BUS_ERROR = -1,   // A problem occoured, reset communication
+    BUS_IDLE = 0,     // Nothing recieved of our concern
+    BUS_ACTIVE = 1,   // ATN is pulled and a command byte is expected
+    BUS_PROCESS = 2,  // A command is ready to be processed
+} bus_state_t;
+
+// IEC commands:
+typedef enum
+{
+    IEC_GLOBAL = 0x00,     // 0x00 + cmd (global command)
+    IEC_LISTEN = 0x20,     // 0x20 + device_id (LISTEN) (0-30)
+    IEC_UNLISTEN = 0x3F,   // 0x3F (UNLISTEN)
+    IEC_TALK = 0x40,       // 0x40 + device_id (TALK) (0-30)
+    IEC_UNTALK = 0x5F,     // 0x5F (UNTALK)
+    IEC_SECOND = 0x60,     // 0x60 + channel (OPEN CHANNEL) (0-15)
+    IEC_CLOSE = 0xE0,      // 0xE0 + channel (CLOSE NAMED CHANNEL) (0-15)
+    IEC_OPEN = 0xF0        // 0xF0 + channel (OPEN NAMED CHANNEL) (0-15)
+} bus_command_t;
+
+class iecBus
+{
+    private:
+        std::forward_list<iecDevice *> _daisyChain;
+
+        iecDevice *_activeDev = nullptr;
+        // sioModem *_modemDev = nullptr;
+        // sioFuji *_fujiDev = nullptr;
+        // sioNetwork *_netDev[8] = {nullptr};
+        // sioMIDIMaze *_midiDev = nullptr;
+        // sioCassette *_cassetteDev = nullptr;
+        // sioCPM *_cpmDev = nullptr;
+        // sioPrinter *_printerdev = nullptr;
+
+    public:
+        bus_state_t bus_state;
+        device_state_t device_state;
+        IECData data;
+
+        CBMStandardSerial protocol;
+
+        iecBus ( void );
+
+        // Initialise iec driver
+        bool init();
+        // void setup();
+
+        // Checks if CBM is sending an attention message. If this is the case,
+        // the message is recieved and stored in iec_data.
+        void service ( void );
+
+        void receiveCommand ( void );
+
+        // void shutdown();
+
+        // Checks if CBM is sending a reset (setting the RESET line high). This is typicall
+        // when the CBM is reset itself. In this case, we are supposed to reset all states to initial.
+//  bool checkRESET();
+
+        // Sends a byte. The communication must be in the correct state: a load command
+        // must just have been recieved. If something is not OK, FALSE is returned.
+        bool send ( uint8_t data );
+        bool send ( std::string data );
+
+        // Same as IEC_send, but indicating that this is the last byte.
+        bool sendEOI ( uint8_t data );
+
+        // A special send command that informs file not found condition
+        bool sendFNF();
+
+        // Recieves a byte
+        int16_t receive ( uint8_t device = 0 );
+
+        // Enabled Device Bit Mask
+        uint32_t enabledDevices;
+        bool isDeviceEnabled ( const uint8_t deviceNumber );
+        void enableDevice ( const uint8_t deviceNumber );
+        void disableDevice ( const uint8_t deviceNumber );
+
+        uint8_t numDevices();
+        void addDevice ( iecDevice *pDevice, uint8_t device_id );
+        void remDevice ( iecDevice *pDevice );
+        iecDevice *deviceById ( uint8_t device_id );
+        void changeDeviceId ( iecDevice *pDevice, uint8_t device_id );
+
+        void debugTiming();
+
+    private:
+        // IEC Bus Commands
+        bus_state_t deviceListen ( void ); // 0x20 + device_id   Listen, device (0–30)
+		// void deviceUnListen(void);            // 0x3F               Unlisten, all devices
+        bus_state_t deviceTalk ( void );   // 0x40 + device_id   Talk, device (0–30)
+		// void deviceUnTalk(void);              // 0x5F               Untalk, all devices
+		// device_state_t deviceSecond(void);    // 0x60 + channel     Reopen, channel (0–15)
+		// device_state_t deviceClose(void);     // 0xE0 + channel     Close, channel (0–15)
+		// device_state_t deviceOpen(void);      // 0xF0 + channel     Open, channel (0–15)
+		bool turnAround( void );
+
+        void releaseLines ( void );
+};
+
+extern iecBus IEC;
+
+#endif // IEC_H

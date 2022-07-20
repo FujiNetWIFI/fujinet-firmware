@@ -1,41 +1,37 @@
+// Meatloaf - A Commodore 64/128 multi-device emulator
+// https://github.com/idolpx/meatloaf
+// Copyright(C) 2020 James Johnston
+//
+// Meatloaf is free software : you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Meatloaf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
+
 // https://ilesj.wordpress.com/2014/05/14/1541-why-so-complicated/
 // https://en.wikipedia.org/wiki/Fast_loader
 
 #ifndef DEVICE_DRIVE_H
 #define DEVICE_DRIVE_H
 
-
-#if defined(ESP8266)
-#include <ESP8266WiFi.h>
-#include <ESP8266HTTPClient.h>
-#elif defined(ESP32)
-#include <WiFi.h>
-#include <HTTPClient.h>
-#endif
-
-#if defined(USE_SPIFFS)
-#include <FS.h>
-#if defined(ESP32)
-#include <SPIFFS.h>
-#endif
-#elif defined(USE_LITTLEFS)
-#if defined(ESP8266)
-#include <LittleFS.h>
-#elif defined(ESP32)
-#include <LITTLEFS.h>
-#endif
-#endif
-
 #include "../../include/global_defines.h"
+#include "../../include/debug.h"
 #include "../../include/cbmdefines.h"
 #include "../../include/petscii.h"
 
 #include "iec.h"
-#include "iec_device.h"
 
 #include "meat_io.h"
-#include "MemoryInfo.h"
-#include "helpers.h"
+
+//#include "MemoryInfo.h"
+//#include "helpers.h"
 #include "utils.h"
 #include "string_utils.h"
 
@@ -51,30 +47,25 @@ enum OpenState
 	O_ML_STATUS		// Meatloaf Virtual Device Status
 };
 
-class devDrive: public iecDevice
+class iecDrive: public iecDevice
 {
 public:
-	devDrive(IEC &iec);
-	virtual ~devDrive() {};
+	iecDrive();
+	// virtual ~iecDrive() {};
 
- 	virtual uint8_t command(IEC::Data &iec_data) { return 0; };
-	virtual uint8_t execute(IEC::Data &iec_data) { return 0; };
+ 	virtual uint8_t command( void ) { return 0; };
+	virtual uint8_t execute( void ) { return 0; };
 	virtual uint8_t status(void) { return 0; };
 
 protected:
 	// handler helpers.
-	virtual void handleListenCommand(IEC::Data &iec_data) override;
+	virtual void handleListenCommand( void ) override;
 	virtual void handleListenData(void) override;
-	virtual void handleTalk(byte chan) override;
-	virtual void handleOpen(IEC::Data &iec_data) override;
-	virtual void handleClose(IEC::Data &iec_data) override;
+	virtual void handleTalk(uint8_t chan) override;
+
 
 private:
 	void reset(void);
-
-	// Meatloaf Specific
-	void sendMeatloafSystemInformation(void);
-	void sendMeatloafVirtualDeviceStatus(void);
 
 	// Directory Navigation & Listing
 	bool m_show_extension = true;
@@ -104,8 +95,8 @@ private:
 	CommandPathTuple parseLine(std::string commandLne, size_t channel);
 
 	// This is set after an open command and determines what to send next
-	byte m_openState;
-	
+	uint8_t m_openState;
+
 	std::unique_ptr<MFile> m_mfile; // Always points to current directory
 	std::string m_filename; // Always points to current or last loaded file
 
@@ -113,5 +104,6 @@ private:
 	void dumpState();
 };
 
+extern iecDrive drive;
 
 #endif

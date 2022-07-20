@@ -1,412 +1,800 @@
+// Meatloaf - A Commodore 64/128 multi-device emulator
+// https://github.com/idolpx/meatloaf
+// Copyright(C) 2020 James Johnston
+//
+// Meatloaf is free software : you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Meatloaf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
+
 #ifdef BUILD_CBM
 
-/**
- * IEC Functions
- */
 #include "iec.h"
 
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
+#include "../../include/cbmdefines.h"
 
-#include "fnSystem.h"
-#include "led.h"
-#include <cstring>
+#include "drive.h"
 
-static xQueueHandle reset_evt_queue = NULL;
+#include "string_utils.h"
 
-static void IRAM_ATTR iec_reset_isr_handler(void *arg)
+iecBus IEC;
+//iecDrive drive;
+
+using namespace CBM;
+using namespace Protocol;
+
+/********************************************************
+ *
+ *  IEC Device Functions
+ *
+ ********************************************************/
+
+iecDevice::iecDevice ( void )
 {
-    uint32_t gpio_num = (uint32_t)arg;
-    xQueueSendFromISR(reset_evt_queue, &gpio_num, NULL);
+    reset();
+} // ctor
+
+
+void iecDevice::reset ( void )
+{
+    this->data.init();
+    state = DEVICE_IDLE;
+} // reset
+
+device_state_t iecDevice::queue_command ( void )
+{
+    // Record command for this device
+    this->data = IEC.data;
+
+    if ( this->data.primary == IEC_LISTEN )
+    {
+        state = DEVICE_LISTEN;
+    }
+    else if ( this->data.primary == IEC_TALK )
+    {
+        state = DEVICE_TALK;
+    }
+
+    return state;
 }
 
-static void iec_reset_intr_task(void *arg)
+
+bool iecDevice::process ( void )
 {
-    uint32_t io_num;
-    bool was_reset = false;
-    bool reset_debounced = false;
-    uint64_t start, current, elapsed;
+    // IEC.protocol.pull ( PIN_IEC_SRQ );
+    // Debug_printv ( "bus_state[%d]", IEC.bus_state );
 
-    // reset_detect_status = gpio_get_level((gpio_num_t)PIN_iec_RESET);
-    start = current = esp_timer_get_time();
-    for (;;)
+    // Wait for ATN to be released so we can receive or send data
+    IEC.protocol.timeoutWait ( PIN_IEC_ATN, RELEASED, FOREVER );
+
+    // Bus is idle, now we can execute
+    Debug_printf ( "DEVICE: [%d] ", this->data.device );
+
+    if ( this->data.secondary == IEC_OPEN || this->data.secondary == IEC_SECOND )
     {
-        if (xQueueReceive(reset_evt_queue, &io_num, portMAX_DELAY))
+        Debug_printf ( "OPEN CHANNEL %d\r\n", this->data.channel );
+
+        if ( this->data.channel == 0 )
+            Debug_printf ( "LOAD \"%s\",%d\r\n", this->data.device_command.c_str(), this->data.device );
+        else if ( IEC.data.channel == 1 )
+            Debug_printf ( "SAVE \"%s\",%d\r\n", this->data.device_command.c_str(), this->data.device );
+        else
         {
-            start = esp_timer_get_time();
-            printf("IEC RESET Asserted\n");
-            was_reset = true;
+            Debug_printf ( "OPEN #,%d,%d,\"%s\"\r\n", this->data.device, this->data.channel, this->data.device_command.c_str() );
         }
-        current = esp_timer_get_time();
 
-        elapsed = current - start;
+        // Open Named Channel
+        handleOpen();
 
-        if (was_reset)
+        // Open either file or prg for reading, writing or single line command on the command channel.
+        handleListenCommand();
+
+        if ( state == DEVICE_LISTEN )
         {
-            if (elapsed >= IEC_RESET_DEBOUNCE_PERIOD)
+            // Receive data
+            Debug_printv ( "[Receive data]" );
+            handleListenData();
+        }
+        else if ( state == DEVICE_TALK )
+        {
+            // Send data
+            Debug_printv ( "[Send data]" );
+            handleTalk ( this->data.channel );
+        }
+    }
+    else if ( this->data.secondary == IEC_CLOSE )
+    {
+        Debug_printf ( "CLOSE CHANNEL %d\r\n", this->data.channel );
+
+        if ( this->data.channel > 0 )
+        {
+            handleClose();
+        }
+
+        // Clear device command
+        this->data.init();
+        state = DEVICE_IDLE;        
+    }
+
+    //Debug_printv("command[%.2X] channel[%.2X] state[%d]", IEC.data.primary, IEC.data.channel, m_openState);
+    // IEC.protocol.release ( PIN_IEC_SRQ );
+    return true;
+} // service
+
+void iecDevice::handleOpen( void )
+{
+	Debug_printv("OPEN Named Channel (%.2d Device) (%.2d Channel)", this->data.device, this->data.channel);
+	currentChannel = channelSelect();
+} // handleOpen
+
+
+void iecDevice::handleClose( void )
+{
+	Debug_printv("CLOSE Named Channel (%.2d Device) (%.2d Channel)", this->data.device, this->data.channel);
+
+	// If writing update BAM & Directory
+	if (currentChannel.writing) {
+
+	}
+
+	// Remove channel from map
+	channelClose();
+
+} // handleClose
+
+Channel iecDevice::channelSelect ( void )
+{
+    size_t key = ( this->data.device * 100 ) + this->data.channel;
+
+    if ( channels.find ( key ) != channels.end() )
+    {
+        return channels.at ( key );
+    }
+
+    // create and add channel if not found
+    auto newChannel = Channel();
+    newChannel.url = this->data.device_command;
+    Debug_printv ( "CHANNEL device[%d] channel[%d] url[%s]", this->data.device, this->data.channel, this->data.device_command.c_str() );
+
+    channels.insert ( std::make_pair ( key, newChannel ) );
+    return newChannel;
+}
+
+void iecDevice::channelUpdate ( size_t cursor )
+{
+    size_t key = ( this->data.device * 100 ) + this->data.channel;
+    channels[key].cursor = cursor;
+}
+
+bool iecDevice::channelClose ( bool close_all )
+{
+    size_t key = ( this->data.device * 100 ) + this->data.channel;
+
+    if ( channels.find ( key ) != channels.end() )
+    {
+        return channels.erase ( key );
+    }
+
+    return false;
+}
+
+
+/********************************************************
+ *
+ *  IEC Bus Functions
+ *
+ ********************************************************/
+
+
+iecBus::iecBus ( void )
+{
+    init();
+} // ctor
+
+// Set all IEC_signal lines in the correct mode
+//
+bool iecBus::init()
+{
+
+#ifndef IEC_SPLIT_LINES
+    // make sure the output states are initially LOW
+//  protocol.release(PIN_IEC_ATN);
+    protocol.release ( PIN_IEC_CLK_OUT );
+    protocol.release ( PIN_IEC_DATA_OUT );
+    protocol.release ( PIN_IEC_SRQ );
+
+    // initial pin modes in GPIO
+    protocol.set_pin_mode ( PIN_IEC_ATN, INPUT );
+    protocol.set_pin_mode ( PIN_IEC_CLK_IN, INPUT );
+    protocol.set_pin_mode ( PIN_IEC_DATA_IN, INPUT );
+    protocol.set_pin_mode ( PIN_IEC_SRQ, INPUT );
+    protocol.set_pin_mode ( PIN_IEC_RESET, INPUT );
+#else
+    // make sure the output states are initially LOW
+    // protocol.release(PIN_IEC_ATN);
+    // protocol.release(PIN_IEC_CLK_IN);
+    // protocol.release(PIN_IEC_CLK_OUT);
+    // protocol.release(PIN_IEC_DATA_IN);
+    // protocol.release(PIN_IEC_DATA_OUT);
+    // protocol.release(PIN_IEC_SRQ);
+
+    // initial pin modes in GPIO
+    protocol.set_pin_mode ( PIN_IEC_ATN, INPUT );
+    protocol.set_pin_mode ( PIN_IEC_CLK_IN, INPUT );
+    protocol.set_pin_mode ( PIN_IEC_CLK_OUT, OUTPUT );
+    protocol.set_pin_mode ( PIN_IEC_DATA_IN, INPUT );
+    protocol.set_pin_mode ( PIN_IEC_DATA_OUT, OUTPUT );
+    protocol.set_pin_mode ( PIN_IEC_SRQ, OUTPUT );
+    protocol.set_pin_mode ( PIN_IEC_RESET, INPUT );
+#endif
+
+    protocol.flags = CLEAR;
+
+    return true;
+} // init
+
+
+
+/******************************************************************************
+ *                                                                             *
+ *                               Public functions                              *
+ *                                                                             *
+ ******************************************************************************/
+
+// This function checks and deals with atn signal commands
+//
+// If a command is recieved, the this->data.string is saved in this->data. Only commands
+// for *this* device are dealt with.
+//
+/** from Derogee's "IEC Disected"
+ * ATN SEQUENCES
+ * When ATN is PULLED true, everybody stops what they are doing. The processor will quickly protocol.pull the
+ * Clock line true (it's going to send soon), so it may be hard to notice that all other devices protocol.release the
+ * Clock line. At the same time, the processor protocol.releases the Data line to false, but all other devices are
+ * getting ready to listen and will each protocol.pull Data to true. They had better do this within one
+ * millisecond (1000 microseconds), since the processor is watching and may sound an alarm ("device
+ * not available") if it doesn't see this take place. Under normal circumstances, transmission now
+ * takes place as previously described. The computer is sending commands rather than data, but the
+ * characters are exchanged with exactly the same timing and handshakes as before. All devices
+ * receive the commands, but only the specified device acts upon it. This results in a curious
+ * situation: you can send a command to a nonexistent device (try "OPEN 6,6") - and the computer
+ * will not know that there is a problem, since it receives valid handshakes from the other devices.
+ * The computer will notice a problem when you try to send or receive data from the nonexistent
+ * device, since the unselected devices will have dropped off when ATN ceased, leaving you with
+ * nobody to talk to.
+ */
+// Return value, see bus_state_t definition.
+
+void iecBus::service ( void )
+{
+
+#ifdef IEC_HAS_RESET
+
+    // Check if CBM is sending a reset (setting the RESET line high). This is typically
+    // when the CBM is reset itself. In this case, we are supposed to reset all states to initial.
+    if ( protocol.status ( PIN_IEC_RESET ) == PULLED )
+    {
+        if ( protocol.status ( PIN_IEC_ATN ) == PULLED )
+        {
+            // If RESET & ATN are both PULLED then CBM is off
+            this->bus_state = BUS_IDLE;
+            return;
+        }
+
+        Debug_printv ( "IEC Reset!" );
+        this->bus_state = BUS_RESET;
+        return;
+    }
+
+#endif
+
+
+    // Command or Data Mode
+    if ( this->bus_state == BUS_ACTIVE || protocol.status ( PIN_IEC_ATN ) )
+    {
+        // Debug_println ( "COMMAND MODE" );
+
+        // ATN was pulled read control code from the bus
+        //IEC.protocol.pull ( PIN_IEC_SRQ );
+        int16_t c = ( bus_command_t ) receive ( this->data.device );
+        // IEC.protocol.release ( PIN_IEC_SRQ );
+
+        // Check for error
+        if ( c == 0xFFFFFFFF || protocol.flags bitand ERROR )
+        {
+            Debug_printv ( "Error reading command" );
+            //this->data.init();
+            this->bus_state = BUS_ERROR;
+            // IEC.protocol.pull ( PIN_IEC_SRQ );
+            releaseLines();
+            // IEC.protocol.release ( PIN_IEC_SRQ );
+            return;
+        }
+
+        Debug_printf ( "   IEC: [%.2X]", c );
+
+        // Check for JiffyDOS
+        if ( protocol.flags bitand JIFFY_ACTIVE )
+        {
+            Debug_printf ( "[JIFFY]" );
+        }
+
+        // Decode command byte
+        uint8_t command = c bitand 0xF0;
+        if ( c == IEC_UNLISTEN ) command = IEC_UNLISTEN;
+        if ( c == IEC_UNTALK ) command = IEC_UNTALK;
+
+        switch ( command ) {
+            case IEC_GLOBAL:
+                this->data.primary = IEC_GLOBAL;
+                this->data.device = c xor IEC_GLOBAL;
+                this->bus_state = BUS_IDLE;
+                Debug_printf ( " (00 GLOBAL %.2d COMMAND)\r\n", this->data.device );
+                break;
+
+            case IEC_LISTEN:
+                this->data.primary = IEC_LISTEN;
+                this->data.device = c xor IEC_LISTEN;
+                Debug_printf ( " (20 LISTEN %.2d DEVICE)\r\n", this->data.device );
+                break;
+
+            case IEC_UNLISTEN:
+                this->data.primary = IEC_UNLISTEN;
+                this->bus_state = BUS_IDLE;
+                Debug_printf ( " (3F UNLISTEN)\r\n" );
+                break;
+
+            case IEC_TALK:
+                this->data.primary = IEC_TALK;
+                this->data.device = c xor IEC_TALK;
+                Debug_printf ( " (40 TALK   %.2d DEVICE)\r\n", this->data.device );
+                break;
+
+            case IEC_UNTALK:
+                this->data.primary = IEC_UNTALK;
+                this->bus_state = BUS_IDLE;
+                Debug_printf ( " (5F UNTALK)\r\n" );
+                break;
+
+            case IEC_OPEN:
+                this->data.secondary = IEC_OPEN;
+                this->data.channel = c xor IEC_OPEN;
+                this->bus_state = BUS_PROCESS;
+                Debug_printf ( " (F0 OPEN   %.2d CHANNEL)\r\n", this->data.channel );
+                break;
+
+            case IEC_SECOND:
+                this->data.secondary = IEC_SECOND;
+                this->data.channel = c xor IEC_SECOND;
+                this->bus_state = BUS_PROCESS;
+                Debug_printf ( " (60 DATA   %.2d CHANNEL)\r\n", this->data.channel );
+                break;
+
+            case IEC_CLOSE:
+                this->data.secondary = IEC_CLOSE;
+                this->data.channel = c xor IEC_CLOSE;
+                this->bus_state = BUS_PROCESS;
+                Debug_printf ( " (E0 CLOSE  %.2d CHANNEL)\r\n", this->data.channel );
+                break; 
+        }
+
+
+        // Is this command for us?
+        if ( !isDeviceEnabled( this->data.device ) )
+            this->bus_state = BUS_IDLE;
+
+        // 
+        if ( this->bus_state == BUS_ACTIVE )
+        {
+            // Queue control codes and command in specified device
+            // At the moment there is only the multi-drive device
+            this->device_state = drive.queue_command();
+        }
+        else if ( this->bus_state < BUS_ACTIVE )
+        {
+            IEC.protocol.pull ( PIN_IEC_SRQ );
+            releaseLines();
+            IEC.protocol.release ( PIN_IEC_SRQ );
+        }
+
+        // Debug_printv ( "command [%.2X] bus[%d] device[%d] primary[%d] secondary[%d]", command, this->bus_state, this->device_state, this->data.primary, this->data.secondary );
+        // Debug_printv( "primary[%.2X] secondary[%.2X] bus_state[%d]", this->data.primary, this->data.secondary, this->bus_state );
+        //IEC.protocol.release ( PIN_IEC_SRQ );
+    }
+    else if ( this->bus_state == BUS_PROCESS )
+    {
+        // Debug_println ( "DATA MODE" );
+        // Debug_printv ( "bus[%d] device[%d] primary[%d] secondary[%d]", this->bus_state, this->device_state, this->data.primary, this->data.secondary );
+
+        // Data Mode - Get Command or Data
+        if ( this->data.primary == IEC_LISTEN )
+        {
+            // Debug_printv( "deviceListen" );
+            this->bus_state = deviceListen();
+        }
+        else if ( this->data.primary == IEC_TALK )
+        {
+            // Debug_printv( "deviceTalk" );
+            this->bus_state = deviceTalk();   
+        }
+
+        // If bus is not idle process commands in devices
+        // At the moment there is only the multi-drive device
+        if ( this->bus_state == BUS_PROCESS )
+        {
+            // Debug_printv( "deviceProcess" );
+            // Process command on devices
+            drive.process();
+            this->bus_state = BUS_IDLE;
+        }
+        
+        // Debug_printv( "primary[%.2X] secondary[%.2X] bus_state[%d]", this->data.primary, this->data.secondary, this->bus_state );
+        // Debug_printv( "atn[%d] clk[%d] data[%d] srq[%d]", IEC.protocol.status(PIN_IEC_ATN), IEC.protocol.status(PIN_IEC_CLK_IN), IEC.protocol.status(PIN_IEC_DATA_IN), IEC.protocol.status(PIN_IEC_SRQ));
+    }
+
+    //Debug_printv("command[%.2X] device[%.2d] secondary[%.2d] channel[%.2d]", this->data.primary, this->data.device, this->data.secondary, this->data.channel);
+} // service
+
+bus_state_t iecBus::deviceListen ( void )
+{
+    // Okay, we will listen.
+    // Debug_printv( "secondary[%d] channel[%d]", this->data.secondary, this->data.channel );
+
+    // If the command is SECONDARY and it is not to expect just a small command on the command channel, then
+    // we're into something more heavy. Otherwise read it all out right here until UNLISTEN is received.
+    if ( this->data.secondary == IEC_SECOND && this->data.channel not_eq CMD_CHANNEL )
+    {
+        // A heapload of data might come now, too big for this context to handle so the caller handles this, we're done here.
+        // Debug_printf(" (%.2X SECONDARY) (%.2X CHANNEL)\r\n", this->data.primary, this->data.channel);
+        Debug_printf ( "\r\n" );
+        return BUS_ACTIVE;
+    }
+
+    // OPEN
+    else if ( this->data.secondary == IEC_SECOND || this->data.secondary == IEC_OPEN )
+    {
+        // Some other command. Record the cmd string until ATN is PULLED
+        std::string listen_command;
+
+        while ( protocol.status ( PIN_IEC_ATN ) != PULLED )
+        {
+            int16_t c = receive();
+
+            if ( protocol.flags bitand ERROR )
             {
-                reset_debounced = true;
+                Debug_printv ( "Some other command [%.2X]", c );
+                return BUS_ERROR;
             }
+
+            if ( c != 0x0D && c != 0xFFFFFFFF )
+            {
+                listen_command += ( uint8_t ) c;
+            }
+
+            if ( protocol.flags bitand EOI_RECVD )
+                break;
         }
 
-        if (was_reset && reset_debounced)
+        if ( listen_command.length() )
         {
-            was_reset = false;
-            // debounce period for reset completed
-            reset_debounced = false;
-            ;
+            this->data.device_command = listen_command;
+            mstr::rtrimA0 ( this->data.device_command );
+            Debug_printf ( " {%s}\r\n", this->data.device_command.c_str() );
         }
-        vTaskDelay(10);
-    }
-}
-
-uint8_t iec_checksum(uint8_t *buf, unsigned short len)
-{
-    uint8_t checksum = 0x00;
-
-    for (unsigned short i = 0; i < len; i++)
-        checksum ^= buf[i];
-
-    return checksum;
-}
-
-void virtualDevice::iec_send(uint8_t b)
-{
-    // Write the byte
-    fnUartSIO.write(b);
-    fnUartSIO.flush();
-}
-
-void virtualDevice::iec_send_buffer(uint8_t *buf, unsigned short len)
-{
-    fnUartSIO.write(buf, len);
-    fnUartSIO.flush();
-}
-
-uint8_t virtualDevice::iec_recv()
-{
-    uint8_t b;
-
-    while (fnUartSIO.available() <= 0)
-        fnSystem.yield();
-
-    b = fnUartSIO.read();
-
-    return b;
-}
-
-bool virtualDevice::iec_recv_timeout(uint8_t *b, uint64_t dur)
-{
-    uint64_t start, current, elapsed;
-    bool timeout = true;
-
-    start = current = esp_timer_get_time();
-    elapsed = 0;
-
-    while (fnUartSIO.available() <= 0)
-    {
-        current = esp_timer_get_time();
-        elapsed = current - start;
-        if (elapsed > dur)
-            break;
-    }
-
-    if (fnUartSIO.available() > 0)
-    {
-        *b = (uint8_t)fnUartSIO.read();
-        timeout = false;
-    } // else
-      //   Debug_printf("duration: %llu\n", elapsed);
-
-    return timeout;
-}
-
-uint16_t virtualDevice::iec_recv_length()
-{
-    unsigned short s = 0;
-    s = iec_recv() << 8;
-    s |= iec_recv();
-
-    return s;
-}
-
-void virtualDevice::iec_send_length(uint16_t l)
-{
-    iec_send(l >> 8);
-    iec_send(l & 0xFF);
-}
-
-unsigned short virtualDevice::iec_recv_buffer(uint8_t *buf, unsigned short len)
-{
-    return fnUartSIO.readBytes(buf, len);
-}
-
-uint32_t virtualDevice::iec_recv_blockno()
-{
-    unsigned char x[4] = {0x00, 0x00, 0x00, 0x00};
-
-    iec_recv_buffer(x, 4);
-
-    return x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
-}
-
-void virtualDevice::reset()
-{
-    Debug_printf("No Reset implemented for device %u\n", _devnum);
-}
-
-void virtualDevice::iec_response_ack()
-{
-    int64_t t = esp_timer_get_time() - IEC.start_time;
-
-    if (t < 300)
-    {
-        IEC.wait_for_idle();
-        iec_send(0x90 | _devnum);
-    }
-    else
-    {
-        Debug_printf("NM_ACK too long: %u μs\n",t);
-    }
-}
-
-void virtualDevice::iec_response_nack()
-{
-    int64_t t = esp_timer_get_time() - IEC.start_time;
-
-    if (t < 300)
-    {
-        IEC.wait_for_idle();
-        iec_send(0xC0 | _devnum);
-    }
-}
-
-void virtualDevice::iec_control_ready()
-{
-    iec_response_ack();
-}
-
-void systemBus::wait_for_idle()
-{
-    bool isIdle = false;
-    int64_t start, current, dur;
-
-    do
-    {
-        // Wait for serial line to quiet down.
-        while (fnUartSIO.available() > 0)
-            fnUartSIO.read();
-
-        start = current = esp_timer_get_time();
-
-        while ((fnUartSIO.available() <= 0) && (isIdle == false))
+        else
         {
-            current = esp_timer_get_time();
-            dur = current - start;
-            if (dur > 150)
-                isIdle = true;
+            Debug_printf ( "\r\n" );
         }
-    } while (isIdle == false);
-    fnSystem.yield();
-}
 
-void virtualDevice::iec_process(uint8_t b)
-{
-    fnUartDebug.printf("iec_process() not implemented yet for this device. Cmd received: %02x\n", b);
-}
-
-void virtualDevice::iec_control_status()
-{
-    IEC.start_time=esp_timer_get_time();
-   iec_response_status();
-}
-
-void virtualDevice::iec_response_status()
-{
-    status_response[0] |= _devnum;
-
-    status_response[5] = iec_checksum(&status_response[1], 4);
-    iec_send_buffer(status_response, sizeof(status_response));
-}
-
-void virtualDevice::iec_control_clr()
-{
-    if (response_len == 0)
-    {
-        iec_response_nack();
+        return BUS_ACTIVE;
     }
+
+    // CLOSE Named Channel
+    else if ( this->data.secondary == IEC_CLOSE )
+    {
+        // Debug_printf(" (E0 CLOSE) (%.2X CHANNEL)\r\n", this->data.channel);
+        return BUS_ACTIVE;
+    }
+
+    // Unknown
     else
     {
-        iec_send(0xB0 | _devnum);
-        iec_send_length(response_len);
-        iec_send_buffer(response, response_len);
-        iec_send(iec_checksum(response, response_len));
-        memset(response, 0, sizeof(response));
-        response_len = 0;
+        Debug_printv ( " OTHER (%.2X COMMAND) (%.2X CHANNEL) ", this->data.secondary, this->data.channel );
+        return BUS_ERROR;
     }
 }
 
-void virtualDevice::iec_idle()
+
+bus_state_t iecBus::deviceTalk ( void )
 {
-    // Not implemented in base class
+    // Okay, we will talk soon
+    // Debug_printf(" (%.2X SECONDARY) (%.2X CHANNEL)\r\n", this->data.primary, this->data.channel);
+
+    // Delay after ATN is RELEASED
+    //delayMicroseconds(TIMING_BIT);
+
+    // Now do bus turnaround
+    if ( not turnAround() )
+        return BUS_ERROR;
+
+    // We have recieved a CMD and we should talk now:
+    return BUS_PROCESS;
 }
 
-//void virtualDevice::iec_status()
-//{
-//    fnUartDebug.printf("iec_status() not implemented yet for this device.\n");
-//}
 
-void systemBus::_iec_process_cmd()
+// IEC turnaround
+bool iecBus::turnAround ( void )
 {
-    uint8_t b;
+    /*
+    TURNAROUND
+    An unusual sequence takes place following ATN if the computer wishes the remote device to
+    become a talker. This will usually take place only after a Talk command has been sent.
+    Immediately after ATN is RELEASED, the selected device will be behaving like a listener. After all, it's
+    been listening during the ATN cycle, and the computer has been a talker. At this instant, we
+    have "wrong way" logic; the device is holding down the Data line, and the computer is holding the
+    Clock line. We must turn this around. Here's the sequence:
+    the computer quickly realizes what's going on, and pulls the Data line to true (it's already there), as
+    well as releasing the Clock line to false. The device waits for this: when it sees the Clock line go
+    true [sic], it releases the Data line (which stays true anyway since the computer is now holding it down)
+    and then pulls down the Clock line. We're now in our starting position, with the talker (that's the
+    device) holding the Clock true, and the listener (the computer) holding the Data line true. The
+    computer watches for this state; only when it has gone through the cycle correctly will it be ready
+    to receive data. And data will be signalled, of course, with the usual sequence: the talker releases
+    the Clock line to signal that it's ready to send.
+    */
+    // Debug_printf("IEC turnAround: ");
 
-    b = fnUartSIO.read();
-    start_time = esp_timer_get_time();
-
-    uint8_t d = b & 0x0F;
-
-    // Find device ID and pass control to it
-    if (_daisyChain.count(d) < 1)
+    // Wait until the computer releases the clock line
+    if ( protocol.timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER ) == TIMED_OUT )
     {
+        Debug_printv ( "Wait until the computer releases the clock line" );
+        protocol.flags or_eq ERROR;
+        return -1; // return error because timeout
     }
-    else if (_daisyChain[d]->device_active == true)
+
+    protocol.release ( PIN_IEC_DATA_OUT );
+    delayMicroseconds ( TIMING_Tv );
+    protocol.pull ( PIN_IEC_CLK_OUT );
+    delayMicroseconds ( TIMING_Tv );
+
+    // Debug_println("complete");
+    return true;
+} // turnAround
+
+
+void iecBus::releaseLines ( void )
+{
+    //Debug_printv("");
+    // IEC.protocol.pull ( PIN_IEC_SRQ );
+    //if ( protocol.status( PIN_IEC_ATN ) )
+    //    return;
+
+    // Release lines
+    protocol.release ( PIN_IEC_CLK_OUT );
+    protocol.release ( PIN_IEC_DATA_OUT );
+
+    fnSystem.delay_microseconds( 20 );
+    // Wait for ATN to release and quit
+    // if ( wait )
+    // {
+    //     //Debug_printv("Waiting for ATN to release");
+    //     IEC.protocol.timeoutWait ( PIN_IEC_ATN, RELEASED, FOREVER );
+    // }
+    // IEC.protocol.release ( PIN_IEC_SRQ );
+}
+
+
+// boolean  iecBus::checkRESET()
+// {
+//  return readRESET();
+//  return false;
+// } // checkRESET
+
+
+// IEC_receive receives a byte
+//
+int16_t iecBus::receive ( uint8_t device )
+{
+    int16_t data;
+
+    data = protocol.receiveByte ( device ); // Standard CBM Timing
+
+#ifdef DATA_STREAM
+    if ( !(protocol.flags bitand ERROR) )
+        Debug_printf ( "%.2X ", data );
+#endif
+
+    return data;
+} // receive
+
+
+// IEC_send sends a byte
+//
+bool iecBus::send ( uint8_t data )
+{
+#ifdef DATA_STREAM
+    Debug_printf ( "%.2X ", data );
+#endif
+    // IEC.protocol.pull(PIN_IEC_SRQ);
+    bool r = protocol.sendByte ( data, false ); // Standard CBM Timing
+    // IEC.protocol.release(PIN_IEC_SRQ);
+    return r;
+} // send
+
+bool iecBus::send ( std::string data )
+{
+    for ( size_t i = 0; i < data.length(); ++i )
+        if ( !send ( ( uint8_t ) data[i] ) )
+            return false;
+
+    return true;
+}
+
+
+// Same as IEC_send, but indicating that this is the last byte.
+//
+bool iecBus::sendEOI ( uint8_t data )
+{
+#ifdef DATA_STREAM
+    Debug_printf ( "%.2X ", data );
+#endif
+    Debug_println ( "\r\nEOI Sent!" );
+
+    //IEC.protocol.pull(PIN_IEC_SRQ);
+    bool r = protocol.sendByte ( data, true ); // Standard CBM Timing
+    //IEC.protocol.release(PIN_IEC_SRQ);
+    return r;
+} // sendEOI
+
+
+// A special send command that informs file not found condition
+//
+bool iecBus::sendFNF()
+{
+    // Message file not found by just releasing lines
+    releaseLines();
+    this->bus_state = BUS_ERROR;
+
+    // BETWEEN BYTES TIME
+    delayMicroseconds ( TIMING_Tbb );
+
+    Debug_println ( "\r\nFNF Sent!" );
+    return true;
+} // sendFNF
+
+
+bool iecBus::isDeviceEnabled ( const uint8_t deviceNumber )
+{
+    return ( enabledDevices & ( 1 << deviceNumber ) );
+} // isDeviceEnabled
+
+void iecBus::enableDevice ( const uint8_t deviceNumber )
+{
+    enabledDevices |= 1UL << deviceNumber;
+} // enableDevice
+
+void iecBus::disableDevice ( const uint8_t deviceNumber )
+{
+    enabledDevices &= ~ ( 1UL << deviceNumber );
+} // disableDevice
+
+
+// Add device to SIO bus
+void iecBus::addDevice ( iecDevice *pDevice, uint8_t device_id )
+{
+    // if (device_id == SIO_DEVICEID_FUJINET)
+    // {
+    //     _fujiDev = (sioFuji *)pDevice;
+    // }
+    // else if (device_id == SIO_DEVICEID_RS232)
+    // {
+    //     _modemDev = (sioModem *)pDevice;
+    // }
+    // else if (device_id >= SIO_DEVICEID_FN_NETWORK && device_id <= SIO_DEVICEID_FN_NETWORK_LAST)
+    // {
+    //     _netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (sioNetwork *)pDevice;
+    // }
+    // else if (device_id == SIO_DEVICEID_MIDI)
+    // {
+    //     _midiDev = (sioMIDIMaze *)pDevice;
+    // }
+    // else if (device_id == SIO_DEVICEID_CASSETTE)
+    // {
+    //     _cassetteDev = (sioCassette *)pDevice;
+    // }
+    // else if (device_id == SIO_DEVICEID_CPM)
+    // {
+    //     _cpmDev = (sioCPM *)pDevice;
+    // }
+    // else if (device_id == SIO_DEVICEID_PRINTER)
+    // {
+    //     _printerdev = (sioPrinter *)pDevice;
+    // }
+
+    pDevice->device_id = device_id;
+
+    _daisyChain.push_front ( pDevice );
+}
+
+// Removes device from the SIO bus.
+// Note that the destructor is called on the device!
+void iecBus::remDevice ( iecDevice *p )
+{
+    _daisyChain.remove ( p );
+}
+
+// Should avoid using this as it requires counting through the list
+uint8_t iecBus::numDevices()
+{
+    int i = 0;
+
+    for ( auto devicep : _daisyChain )
+        i++;
+
+    return i;
+}
+
+void iecBus::changeDeviceId ( iecDevice *p, uint8_t device_id )
+{
+    for ( auto devicep : _daisyChain )
     {
-        // turn on IEC Indicator LED
-        fnLedManager.set(eLed::LED_BUS, true);
-        _daisyChain[d]->iec_process(b);
-        // turn off IEC Indicator LED
-        fnLedManager.set(eLed::LED_BUS, false);
+        if ( devicep == p )
+            devicep->device_id = device_id;
     }
-
-    wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
-    fnUartSIO.flush_input();
 }
 
-void systemBus::_iec_process_queue()
+iecDevice *iecBus::deviceById ( uint8_t device_id )
 {
-}
-
-void systemBus::service()
-{
-    // Process anything waiting.
-    if (fnUartSIO.available() > 0)
-        _iec_process_cmd();
-}
-
-void systemBus::setup()
-{
-    Debug_println("IEC SETUP");
-
-    // Set up interrupt for RESET line
-    reset_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-    // Start card detect task
-    xTaskCreate(iec_reset_intr_task, "iec_reset_intr_task", 2048, NULL, 10, NULL);
-    // Enable interrupt for card detection
-    fnSystem.set_pin_mode(PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP, GPIO_INTR_NEGEDGE);
-    // Add the card detect handler
-    gpio_isr_handler_add((gpio_num_t)PIN_IEC_RESET, iec_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
-
-    // Set up UART
-    fnUartSIO.begin(IEC_BAUD);
-}
-
-void systemBus::shutdown()
-{
-    for (auto devicep : _daisyChain)
+    for ( auto devicep : _daisyChain )
     {
-        Debug_printf("Shutting down device %02x\n", devicep.second->id());
-        devicep.second->shutdown();
+        if ( devicep->device_id == device_id )
+            return devicep;
     }
-    Debug_printf("All devices shut down.\n");
-}
 
-void systemBus::addDevice(virtualDevice *pDevice, uint8_t device_id)
-{
-    Debug_printf("Adding device: %02X\n", device_id);
-    pDevice->_devnum = device_id;
-    _daisyChain[device_id] = pDevice;
-
-    switch (device_id)
-    {
-    case 0x02:
-        _printerDev = (iecPrinter *)pDevice;
-        break;
-    case 0x0f:
-        _fujiDev = (iecFuji *)pDevice;
-        break;
-    }
-}
-
-bool systemBus::deviceExists(uint8_t device_id)
-{
-    return _daisyChain.find(device_id) != _daisyChain.end();
-}
-
-bool systemBus::deviceEnabled(uint8_t device_id)
-{
-    if (deviceExists(device_id))
-        return _daisyChain[device_id]->device_active;
-    else
-        return false;
-}
-
-void systemBus::remDevice(virtualDevice *pDevice)
-{
-}
-
-void systemBus::remDevice(uint8_t device_id)
-{
-    if (deviceExists(device_id))
-    {
-        _daisyChain.erase(device_id);
-    }
-}
-
-int systemBus::numDevices()
-{
-    return _daisyChain.size();
-}
-
-void systemBus::changeDeviceId(virtualDevice *p, uint8_t device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep.second == p)
-            devicep.second->_devnum = device_id;
-    }
-}
-
-virtualDevice *systemBus::deviceById(uint8_t device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep.second->_devnum == device_id)
-            return devicep.second;
-    }
     return nullptr;
 }
 
-void systemBus::reset()
+
+
+void iecBus::debugTiming()
 {
-    for (auto devicep : _daisyChain)
-        devicep.second->reset();
+    uint8_t pin = PIN_IEC_ATN;
+
+#ifndef SPILIT_LINES
+    protocol.pull ( pin );
+    delayMicroseconds ( 1000 ); // 1000
+    protocol.release ( pin );
+    delayMicroseconds ( 1000 );
+#endif
+
+    pin = PIN_IEC_CLK_OUT;
+    protocol.pull ( pin );
+    delayMicroseconds ( 20 ); // 20
+    protocol.release ( pin );
+    delayMicroseconds ( 20 );
+
+    pin = PIN_IEC_DATA_OUT;
+    protocol.pull ( pin );
+    delayMicroseconds ( 40 ); // 40
+    protocol.release ( pin );
+    delayMicroseconds ( 40 );
+
+    pin = PIN_IEC_SRQ;
+    protocol.pull ( pin );
+    delayMicroseconds ( 60 ); // 60
+    protocol.release ( pin );
+    delayMicroseconds ( 60 );
 }
 
-void systemBus::enableDevice(uint8_t device_id)
-{
-    Debug_printf("Enabling IEC Device %d\n",device_id);
-
-    if (_daisyChain.find(device_id) != _daisyChain.end())
-        _daisyChain[device_id]->device_active = true;
-}
-
-void systemBus::disableDevice(uint8_t device_id)
-{
-    Debug_printf("Disabling IEC Device %d\n",device_id);
-
-    if (_daisyChain.find(device_id) != _daisyChain.end())
-        _daisyChain[device_id]->device_active = false;
-}
-
-systemBus IEC;
-#endif /* BUILD_CBM */
+iecBus IEC; // Global IEC object
+#endif // BUILD_CBM
