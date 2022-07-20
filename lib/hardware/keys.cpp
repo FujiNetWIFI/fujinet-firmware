@@ -21,14 +21,23 @@ void KeyManager::setup()
 #ifdef NO_BUTTONS
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+#elif defined(PINMAP_A2_REV0)
+    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
 #else
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+#endif /* NO_BUTTONS */
+#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE)
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
-#endif    // Enable safe reset on Button C if available
+#endif /* NOT LYNX OR A2 */
+    // Enable safe reset on Button C if available
     if (fnSystem.get_hardware_ver() >= 2)
     {
         has_button_c = true;
+#if defined(PINMAP_A2_REV0)
+        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+#else
         fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+#endif
         Debug_println("Enabled Safe Reset Button C");
     }
 
