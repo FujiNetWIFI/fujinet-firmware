@@ -8,9 +8,9 @@
 #endif
 
 #ifdef BUILD_CBM
-# include "iec/printer.h"
-# include "iec/printerlist.h"
-# define PRINTER_CLASS iecPrinter
+//# include "iec/printer.h"
+//# include "iec/printerlist.h"
+//# define PRINTER_CLASS iecPrinter
 #endif
 
 #ifdef BUILD_ADAM
