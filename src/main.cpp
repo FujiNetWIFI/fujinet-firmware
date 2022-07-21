@@ -207,7 +207,7 @@ void fn_service_loop(void *param)
         else
 #endif // BLUETOOTH_SUPPORT
 
-        SYSTEM_BUS.service();
+            SYSTEM_BUS.service();
 
         taskYIELD(); // Allow other tasks to run
     }

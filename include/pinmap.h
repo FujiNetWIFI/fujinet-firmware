@@ -262,12 +262,12 @@
 #endif
 
 /* Atari SIO Pins */
-#define PIN_SIO_INT         26      // SIO 13 - INT  - Interrupt
-#define PIN_SIO_PROC        22      // SIO 9  - PROC - Proceed
-#define PIN_SIO_CKO         32      // SIO 2  - CKO  - Clock Output
-#define PIN_SIO_CKI         27      // SIO 1  - CKI  - Clock Input
-#define PIN_SIO_MTR         36      // SIO 8  - MTR  - Motor Control
-#define PIN_SIO_CMD         39      // SIO 7  - CMD  - Command
+#define PIN_INT 26 // sio.h
+#define PIN_PROC 22
+#define PIN_CKO 32
+#define PIN_CKI 27
+#define PIN_MTR 36
+#define PIN_CMD 39
 
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h
@@ -314,7 +314,7 @@
 //#define SPLIT_LINES
 
 // CLK_OUT & DATA_OUT are inverted
-//#define INVERTED_LINES
+#define INVERTED_LINES
 
 // CBM IEC Serial Port
 #define PIN_IEC_ATN			22      // SIO 9  - PROC - Proceed
@@ -330,18 +330,5 @@
 #define PIN_IEC_CLK_OUT		32      // SIO 2  - CKO  - Clock Output
 #define PIN_IEC_DATA_OUT	33      // SIO 5  - DO   - Data Output
 #endif
-
-/* Pins for AdamNet */
-#define PIN_ADAMNET_RESET   26      // SIO 13 - INT  - Interrupt
-
-
-/* Pins for Adam USB */
-#define PIN_USB_DP          27      // D+  // SIO 1  - CKI  - Clock Input
-#define PIN_USB_DM          32      // D-  // SIO 2  - CKO  - Clock Output
-
-// Apple II IWM pin assignments
-
-// Atari Lynx Pin assignments
-#define PIN_COMLYNX_RESET   26
-
-#endif
+#endif /* PINMAP_CBM */
+#endif /* PINMAP_H */

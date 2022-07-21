@@ -51,7 +51,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class fujiDevice : public virtualDevice
+class fujiDevice : public iecDevice
 {
 private:
     systemBus *_bus;

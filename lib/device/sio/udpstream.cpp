@@ -14,7 +14,7 @@ void sioUDPStream::sio_enable_udpstream()
     {
         // Setup PWM channel for CLOCK IN
         ledc_channel_config_t ledc_channel_sio_ckin;
-        ledc_channel_sio_ckin.gpio_num = PIN_SIO_CKI;
+        ledc_channel_sio_ckin.gpio_num = PIN_CKI;
         ledc_channel_sio_ckin.speed_mode = LEDC_HIGH_SPEED_MODE;
         ledc_channel_sio_ckin.channel = LEDC_CHANNEL_1;
         ledc_channel_sio_ckin.intr_type = LEDC_INTR_DISABLE;
@@ -82,7 +82,7 @@ void sioUDPStream::sio_handle_udpstream()
         while (true)
         {
             // Break out of UDPStream mode if COMMAND is asserted
-            if (fnSystem.digital_read(PIN_SIO_CMD) == DIGI_LOW)
+            if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
             {
 #ifdef DEBUG
                 Debug_println("CMD Asserted in LOOP, stopping UDPStream");

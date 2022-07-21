@@ -1,20 +1,3 @@
-// Meatloaf - A Commodore 64/128 multi-device emulator
-// https://github.com/idolpx/meatloaf
-// Copyright(C) 2020 James Johnston
-//
-// Meatloaf is free software : you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// Meatloaf is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
-
 #ifdef BUILD_CBM
 
 #include "iec.h"
@@ -23,12 +6,11 @@
 #include "../../include/pinmap.h"
 #include "../../include/cbmdefines.h"
 
-#include "drive.h"
+#include "disk.h"
 
 #include "string_utils.h"
 
 iecBus IEC;
-//iecDrive drive;
 
 using namespace CBM;
 using namespace Protocol;
@@ -397,8 +379,8 @@ void iecBus::service ( void )
         if ( this->bus_state == BUS_ACTIVE )
         {
             // Queue control codes and command in specified device
-            // At the moment there is only the multi-drive device
-            this->device_state = drive.queue_command();
+            // At the moment there is only the multi-disk device
+            this->device_state = disk.queue_command();
         }
         else if ( this->bus_state < BUS_ACTIVE )
         {
@@ -429,12 +411,12 @@ void iecBus::service ( void )
         }
 
         // If bus is not idle process commands in devices
-        // At the moment there is only the multi-drive device
+        // At the moment there is only the multi-disk device
         if ( this->bus_state == BUS_PROCESS )
         {
             // Debug_printv( "deviceProcess" );
             // Process command on devices
-            drive.process();
+            disk.process();
             this->bus_state = BUS_IDLE;
         }
         
@@ -796,5 +778,4 @@ void iecBus::debugTiming()
     delayMicroseconds ( 60 );
 }
 
-iecBus IEC; // Global IEC object
 #endif // BUILD_CBM

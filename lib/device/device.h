@@ -1,8 +1,6 @@
 #ifndef DEVICE_H
 #define DEVICE_H
 
-#include "media.h"
-
 #ifdef BUILD_ATARI
 # include "sio/apetime.h"
 # include "sio/cassette.h"
@@ -25,8 +23,8 @@
 #endif
 
 #ifdef BUILD_CBM
-// # include "iec/printer.h"
-// # include "iec/printerlist.h"
+//# include "iec/printer.h"
+//# include "iec/printerlist.h"
 # include "iec/fuji.h"
 #endif
 

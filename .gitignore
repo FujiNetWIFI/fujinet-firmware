@@ -23,3 +23,4 @@ sdkconfig.fujinet-v1-4mb
 include/ssid.h
 /*.log
 sdkconfig.fujinet-v1
+include/version.h

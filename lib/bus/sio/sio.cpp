@@ -174,7 +174,7 @@ void systemBus::_sio_process_cmd()
     Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                  tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
     // Wait for CMD line to raise again
-    while (fnSystem.digital_read(PIN_SIO_CMD) == DIGI_LOW)
+    while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
         fnSystem.yield();
 
     uint8_t ck = sio_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
@@ -279,7 +279,7 @@ void systemBus::service()
 
     if (_udpDev != nullptr && _udpDev->udpstreamActive)
     {
-        if (fnSystem.digital_read(PIN_SIO_CMD) == DIGI_LOW)
+        if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
         {
 #ifdef DEBUG
             Debug_println("CMD Asserted, stopping UDP Stream");
@@ -303,7 +303,7 @@ void systemBus::service()
     { // the test which tape activation mode
         if (_fujiDev->cassette()->has_pulldown())
         {                                                    // motor line mode
-            if (fnSystem.digital_read(PIN_SIO_MTR) == DIGI_HIGH) // TODO: use cassette helper function for consistency?
+            if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH) // TODO: use cassette helper function for consistency?
             {
                 if (_fujiDev->cassette()->is_active() == false) // keep this logic because motor line mode
                 {
@@ -329,7 +329,7 @@ void systemBus::service()
     }
 
     // Go process a command frame if the SIO CMD line is asserted
-    if (fnSystem.digital_read(PIN_SIO_CMD) == DIGI_LOW)
+    if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
     {
         _sio_process_cmd();
     }
@@ -361,23 +361,23 @@ void systemBus::setup()
     fnUartSIO.begin(_sioBaud);
 
     // INT PIN
-    fnSystem.set_pin_mode(PIN_SIO_INT, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_SIO_INT, DIGI_HIGH);
+    fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+    fnSystem.digital_write(PIN_INT, DIGI_HIGH);
     // PROC PIN
-    fnSystem.set_pin_mode(PIN_SIO_PROC, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_SIO_PROC, DIGI_HIGH);
+    fnSystem.set_pin_mode(PIN_PROC, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+    fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
     // MTR PIN
-    //fnSystem.set_pin_mode(PIN_SIO_MTR, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
-    fnSystem.set_pin_mode(PIN_SIO_MTR, gpio_mode_t::GPIO_MODE_INPUT);
+    //fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
+    fnSystem.set_pin_mode(PIN_MTR, gpio_mode_t::GPIO_MODE_INPUT);
     // CMD PIN
-    //fnSystem.set_pin_mode(PIN_SIO_CMD, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
-    fnSystem.set_pin_mode(PIN_SIO_CMD, gpio_mode_t::GPIO_MODE_INPUT);
+    //fnSystem.set_pin_mode(PIN_CMD, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
+    fnSystem.set_pin_mode(PIN_CMD, gpio_mode_t::GPIO_MODE_INPUT);
     // CKI PIN
-    //fnSystem.set_pin_mode(PIN_SIO_CKI, PINMODE_OUTPUT);
-    fnSystem.set_pin_mode(PIN_SIO_CKI, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
-    fnSystem.digital_write(PIN_SIO_CKI, DIGI_LOW);
+    //fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
+    fnSystem.set_pin_mode(PIN_CKI, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
+    fnSystem.digital_write(PIN_CKI, DIGI_LOW);
     // CKO PIN
-    fnSystem.set_pin_mode(PIN_SIO_CKO, gpio_mode_t::GPIO_MODE_INPUT);
+    fnSystem.set_pin_mode(PIN_CKO, gpio_mode_t::GPIO_MODE_INPUT);
 
     // Create a message queue
     qSioMessages = xQueueCreate(4, sizeof(sio_message_t));
@@ -582,7 +582,7 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
     {
         // Setup PWM channel for CLOCK IN
         ledc_channel_config_t ledc_channel_sio_ckin;
-        ledc_channel_sio_ckin.gpio_num = PIN_SIO_CKI;
+        ledc_channel_sio_ckin.gpio_num = PIN_CKI;
         ledc_channel_sio_ckin.speed_mode = LEDC_HIGH_SPEED_MODE;
         ledc_channel_sio_ckin.channel = LEDC_CHANNEL_1;
         ledc_channel_sio_ckin.intr_type = LEDC_INTR_DISABLE;
