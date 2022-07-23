@@ -9,6 +9,10 @@
 # include "iec/cpm.h"
 #endif
 
+#ifdef BUILD_APPLE
+# include "iwm/cpm.h"
+#endif
+
 #ifdef NEW_TARGET
 # include "new/cpm.h"
 #endif
