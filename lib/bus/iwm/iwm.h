@@ -96,7 +96,7 @@ class iwmModem;    // declare here so can reference it, but define in modem.h
 class iwmNetwork;  // declare here so can reference it, but define in network.h
 class iwmPrinter;  // Printer device
 class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for prototyping in iwmBus::service()
-
+class iwmCPM;      // CPM Virtual Device
 class iwmBus;      // forward declare bus so can be friend
 
 // Sorry, this  is the protocol adapter's fault. -Thom
@@ -301,7 +301,7 @@ private:
   iwmNetwork *_netDev[4] = {nullptr};
   //sioMIDIMaze *_midiDev = nullptr;
   //sioCassette *_cassetteDev = nullptr;
-  //iwmCPM *_cpmDev = nullptr;
+  iwmCPM *_cpmDev = nullptr;
   iwmPrinter *_printerdev = nullptr;
 
   // iwm packet handling
