@@ -563,6 +563,8 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   Debug_printf("\r\nsending block packet ...");
   if (!IWM.SEND_PACKET((unsigned char *)packet_buffer))
     last_block_num = block_num;
+  else
+    last_block_num = 0xFFFFFFFF;  // force seek next time if send error
 }
 
 void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
