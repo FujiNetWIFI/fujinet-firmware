@@ -12,8 +12,6 @@
 #include "httpService.h"
 #include "fuji.h"
 
-#define ALL_THE_DEBUGS
-
 using namespace std;
 
 #define MAX_PRINTER_LIST_BUFFER (2048)
@@ -191,8 +189,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 
     stringstream resultstream;
 
-#ifdef ALL_THE_DEBUGS
-    Debug_printf("Substituting tag '%s'\n", tag.c_str());
+#ifdef DEBUG
+    // Debug_printf("Substituting tag '%s'\n", tag.c_str());
 #endif
 
     int tagid;

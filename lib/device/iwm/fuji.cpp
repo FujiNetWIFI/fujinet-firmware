@@ -313,8 +313,7 @@ void iwmFuji::iwm_ctrl_copy_file()
     fclose(destFile);
     free(dataBuf);
 }
-
-/* 
+ 
 // Mount all
 bool iwmFuji::iwm_mount_all()
 {
@@ -367,7 +366,7 @@ bool iwmFuji::iwm_mount_all()
     // Go ahead and respond ok
     return false;
 } 
-*/
+
 
 // Set boot mode
 void iwmFuji::iwm_ctrl_set_boot_mode()
@@ -1048,62 +1047,10 @@ void iwmFuji::iwm_ctrl_disable_device()
     IWM.disableDevice(d);
 }
 
-// Mount all
-void iwmFuji::sio_mount_all() // 0xD7 (yes, I know.)
-{
-    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
-
-    for (int i = 0; i < 8; i++)
-    {
-        fujiDisk &disk = _fnDisks[i];
-        fujiHost &host = _fnHosts[disk.host_slot];
-        char flag[3] = {'r', 0, 0};
-
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-            flag[1] = '+';
-
-        if (disk.host_slot != 0xFF)
-        {
-            nodisks = false; // We have a disk in a slot
-
-            if (host.mount() == false)
-            {
-                return;
-            }
-
-            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-                         disk.filename, disk.host_slot, flag, i + 1);
-
-            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-            if (disk.fileh == nullptr)
-            {
-                return;
-            }
-
-            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-            boot_config = false;
-
-            // We need the file size for loading XEX files and for CASSETTE, so get that too
-            disk.disk_size = host.file_size(disk.fileh);
-
-            // And now mount it
-            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-        }
-    }
-
-    if (nodisks)
-    {
-        // No disks in a slot, disable config
-        boot_config = false;
-    }
-}
-
 iwmDisk *iwmFuji::bootdisk()
 {
     return _bootDisk;
 }
-
 
 // Initializes base settings and adds our devices to the SIO bus
 void iwmFuji::setup(iwmBus *iwmbus)
@@ -1137,8 +1084,7 @@ void iwmFuji::setup(iwmBus *iwmbus)
     }
     else
     {
-        FILE *f = fnSPIFFS.file_open("/mount-and-boot.po");
-        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*256, MEDIATYPE_PO);
+      iwm_mount_all();
     }
 
     // theNetwork = new adamNetwork();
@@ -1550,7 +1496,7 @@ void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
       iwm_ctrl_copy_file();
       break;
     case IWM_FUJICMD_MOUNT_ALL: // 0xD7
-      sio_mount_all();
+      iwm_mount_all();
       break;
     case IWM_FUJICMD_SET_BOOT_MODE: // 0xD6
       iwm_ctrl_set_boot_mode();
