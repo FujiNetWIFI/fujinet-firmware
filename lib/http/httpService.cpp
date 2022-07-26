@@ -685,11 +685,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
     {
         // Mount all the things
         Debug_printf("Mount all slots from webui\n");
-#ifdef BUILD_APPLE
-        theFuji.iwm_mount_all();
-#else
-        theFuji.sio_mount_all();
-#endif
+        theFuji.mount_all();
     }
 
     if (!fnHTTPD.errMsgEmpty())

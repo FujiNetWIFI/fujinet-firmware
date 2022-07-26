@@ -10,6 +10,7 @@
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
+#include "fujiCmd.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 4 // to do for now
@@ -187,7 +188,7 @@ public:
     void _populate_slots_from_config();
     void _populate_config_from_slots();
 
-    bool iwm_mount_all();              // 0xD7
+    bool mount_all();              // 0xD7
 
     void FujiStatus(cmdPacket_t cmd) { iwm_status(cmd); }
     void FujiControl(cmdPacket_t cmd) { iwm_ctrl(cmd); }
