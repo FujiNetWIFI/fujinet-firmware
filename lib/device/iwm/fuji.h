@@ -187,7 +187,7 @@ public:
     void _populate_slots_from_config();
     void _populate_config_from_slots();
 
-    void sio_mount_all();              // 0xD7
+    bool iwm_mount_all();              // 0xD7
 
     void FujiStatus(cmdPacket_t cmd) { iwm_status(cmd); }
     void FujiControl(cmdPacket_t cmd) { iwm_ctrl(cmd); }
