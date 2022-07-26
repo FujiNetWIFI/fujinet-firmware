@@ -10,6 +10,7 @@
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
+#include "fujiCmd.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8
@@ -141,7 +142,7 @@ public:
     void _populate_slots_from_config();
     void _populate_config_from_slots();
 
-    void sio_mount_all();              // 0xD7
+    void mount_all();              // 0xD7
 
     sioFuji();
 };

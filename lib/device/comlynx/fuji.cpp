@@ -15,50 +15,6 @@
 
 #include "utils.h"
 
-#define SIO_FUJICMD_RESET 0xFF
-#define SIO_FUJICMD_GET_SSID 0xFE
-#define SIO_FUJICMD_SCAN_NETWORKS 0xFD
-#define SIO_FUJICMD_GET_SCAN_RESULT 0xFC
-#define SIO_FUJICMD_SET_SSID 0xFB
-#define SIO_FUJICMD_GET_WIFISTATUS 0xFA
-#define SIO_FUJICMD_MOUNT_HOST 0xF9
-#define SIO_FUJICMD_MOUNT_IMAGE 0xF8
-#define SIO_FUJICMD_OPEN_DIRECTORY 0xF7
-#define SIO_FUJICMD_READ_DIR_ENTRY 0xF6
-#define SIO_FUJICMD_CLOSE_DIRECTORY 0xF5
-#define SIO_FUJICMD_READ_HOST_SLOTS 0xF4
-#define SIO_FUJICMD_WRITE_HOST_SLOTS 0xF3
-#define SIO_FUJICMD_READ_DEVICE_SLOTS 0xF2
-#define SIO_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
-#define SIO_FUJICMD_UNMOUNT_IMAGE 0xE9
-#define SIO_FUJICMD_GET_ADAPTERCONFIG 0xE8
-#define SIO_FUJICMD_NEW_DISK 0xE7
-#define SIO_FUJICMD_UNMOUNT_HOST 0xE6
-#define SIO_FUJICMD_GET_DIRECTORY_POSITION 0xE5
-#define SIO_FUJICMD_SET_DIRECTORY_POSITION 0xE4
-#define SIO_FUJICMD_SET_HSIO_INDEX 0xE3
-#define SIO_FUJICMD_SET_DEVICE_FULLPATH 0xE2
-#define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
-#define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
-#define SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
-#define SIO_FUJICMD_WRITE_APPKEY 0xDE
-#define SIO_FUJICMD_READ_APPKEY 0xDD
-#define SIO_FUJICMD_OPEN_APPKEY 0xDC
-#define SIO_FUJICMD_CLOSE_APPKEY 0xDB
-#define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
-#define SIO_FUJICMD_CONFIG_BOOT 0xD9
-#define SIO_FUJICMD_COPY_FILE 0xD8
-#define SIO_FUJICMD_MOUNT_ALL 0xD7
-#define SIO_FUJICMD_SET_BOOT_MODE 0xD6
-#define SIO_FUJICMD_ENABLE_DEVICE 0xD5
-#define SIO_FUJICMD_DISABLE_DEVICE 0xD4
-#define SIO_FUJICMD_RANDOM_NUMBER 0xD3
-#define SIO_FUJICMD_GET_TIME 0xD2
-#define SIO_FUJICMD_DEVICE_ENABLE_STATUS 0xD1
-#define SIO_FUJICMD_STATUS 0x53
-#define SIO_FUJICMD_HSIO_INDEX 0x3F
-#define SIO_FUJICMD_ENABLE_UDPSTREAM 0xF0
-
 #define ADDITIONAL_DETAILS_BYTES 12
 
 #define COPY_SIZE 532
@@ -168,7 +124,7 @@ void lynxFuji::comlynx_net_scan_result()
 
     comlynx_recv(); // get CK
 
-    // Response to SIO_FUJICMD_GET_SCAN_RESULT
+    // Response to FUJICMD_GET_SCAN_RESULT
     struct
     {
         char ssid[MAX_SSID_LEN+1];
@@ -196,7 +152,7 @@ void lynxFuji::comlynx_net_get_ssid()
 
     comlynx_recv(); // get CK
 
-    // Response to SIO_FUJICMD_GET_SSID
+    // Response to FUJICMD_GET_SSID
     struct
     {
         char ssid[MAX_SSID_LEN+1];
@@ -234,7 +190,7 @@ void lynxFuji::comlynx_net_set_ssid(uint16_t s)
 
         s--;
 
-        // Data for SIO_FUJICMD_SET_SSID
+        // Data for FUJICMD_SET_SSID
         struct
         {
             char ssid[MAX_SSID_LEN+1];
@@ -423,7 +379,7 @@ void lynxFuji::comlynx_copy_file()
 }
 
 // Mount all
-void lynxFuji::comlynx_mount_all()
+void lynxFuji::mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
@@ -854,7 +810,7 @@ void lynxFuji::comlynx_get_adapter_config()
 
     comlynx_recv(); // ck
 
-    // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
+    // Response to FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
 
     memset(&cfg, 0, sizeof(cfg));
@@ -1239,79 +1195,6 @@ void lynxFuji::setup(systemBus *siobus)
     _comlynx_bus->addDevice(theNetwork, 0x09); // temporary.
 }
 
-// Mount all
-void lynxFuji::sio_mount_all()
-{
-    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
-
-    for (int i = 0; i < 1; i++)
-    {
-        fujiDisk &disk = _fnDisks[i];
-        fujiHost &host = _fnHosts[disk.host_slot];
-        char flag[3] = {'r', 0, 0};
-
-        if (i==0 && !Config.get_device_slot_enable_1())
-        {
-            disk.disk_dev.device_active = false;
-        }
-        else if (i==1 && !Config.get_device_slot_enable_2())
-        {
-            disk.disk_dev.device_active = false;
-        }
-        else if (i==2 && !Config.get_device_slot_enable_3())
-        {
-            disk.disk_dev.device_active = false;
-        }
-        else if (i==3 && !Config.get_device_slot_enable_4())
-        {
-            disk.disk_dev.device_active = false;
-        }
-        else
-        {
-
-            if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-                flag[1] = '+';
-
-            if (disk.host_slot != 0xFF)
-            {
-                nodisks = false; // We have a disk in a slot
-
-                if (host.mount() == false)
-                {
-                    return;
-                }
-
-                Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-                             disk.filename, disk.host_slot, flag, i + 1);
-
-                disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-                if (disk.fileh == nullptr)
-                {
-                    return;
-                }
-
-                // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-                boot_config = false;
-
-                // We need the file size for loading XEX files and for CASSETTE, so get that too
-                disk.disk_size = host.file_size(disk.fileh);
-
-                // And now mount it
-                disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-            }  
-        }
-    }
-
-    if (nodisks)
-    {
-        // No disks in a slot, disable config
-        boot_config = false;
-    }
-
-    comlynx_response_ack();
-}
-
 void lynxFuji::comlynx_random_number()
 {
     int *p = (int *)&response[0];
@@ -1428,106 +1311,106 @@ void lynxFuji::comlynx_control_send()
 
     switch (c)
     {
-    case SIO_FUJICMD_RESET:
+    case FUJICMD_RESET:
         comlynx_reset_fujinet();
         break;
-    case SIO_FUJICMD_GET_SSID:
+    case FUJICMD_GET_SSID:
         comlynx_net_get_ssid();
         break;
-    case SIO_FUJICMD_SCAN_NETWORKS:
+    case FUJICMD_SCAN_NETWORKS:
         comlynx_net_scan_networks();
         break;
-    case SIO_FUJICMD_GET_SCAN_RESULT:
+    case FUJICMD_GET_SCAN_RESULT:
         comlynx_net_scan_result();
         break;
-    case SIO_FUJICMD_SET_SSID:
+    case FUJICMD_SET_SSID:
         comlynx_net_set_ssid(s);
         break;
-    case SIO_FUJICMD_GET_WIFISTATUS:
+    case FUJICMD_GET_WIFISTATUS:
         comlynx_net_get_wifi_status();
         break;
-    case SIO_FUJICMD_MOUNT_HOST:
+    case FUJICMD_MOUNT_HOST:
         comlynx_mount_host();
         break;
-    case SIO_FUJICMD_MOUNT_IMAGE:
+    case FUJICMD_MOUNT_IMAGE:
         comlynx_disk_image_mount();
         break;
-    case SIO_FUJICMD_OPEN_DIRECTORY:
+    case FUJICMD_OPEN_DIRECTORY:
         comlynx_open_directory(s);
         break;
-    case SIO_FUJICMD_READ_DIR_ENTRY:
+    case FUJICMD_READ_DIR_ENTRY:
         comlynx_read_directory_entry();
         break;
-    case SIO_FUJICMD_CLOSE_DIRECTORY:
+    case FUJICMD_CLOSE_DIRECTORY:
         comlynx_close_directory();
         break;
-    case SIO_FUJICMD_READ_HOST_SLOTS:
+    case FUJICMD_READ_HOST_SLOTS:
         comlynx_read_host_slots();
         break;
-    case SIO_FUJICMD_WRITE_HOST_SLOTS:
+    case FUJICMD_WRITE_HOST_SLOTS:
         comlynx_write_host_slots();
         break;
-    case SIO_FUJICMD_READ_DEVICE_SLOTS:
+    case FUJICMD_READ_DEVICE_SLOTS:
         comlynx_read_device_slots();
         break;
-    case SIO_FUJICMD_WRITE_DEVICE_SLOTS:
+    case FUJICMD_WRITE_DEVICE_SLOTS:
         comlynx_write_device_slots();
         break;
-    case SIO_FUJICMD_UNMOUNT_IMAGE:
+    case FUJICMD_UNMOUNT_IMAGE:
         comlynx_disk_image_umount();
         break;
-    case SIO_FUJICMD_GET_ADAPTERCONFIG:
+    case FUJICMD_GET_ADAPTERCONFIG:
         comlynx_get_adapter_config();
         break;
-    case SIO_FUJICMD_NEW_DISK:
+    case FUJICMD_NEW_DISK:
         comlynx_new_disk();
         break;
-    case SIO_FUJICMD_GET_DIRECTORY_POSITION:
+    case FUJICMD_GET_DIRECTORY_POSITION:
         comlynx_get_directory_position();
         break;
-    case SIO_FUJICMD_SET_DIRECTORY_POSITION:
+    case FUJICMD_SET_DIRECTORY_POSITION:
         comlynx_set_directory_position();
         break;
-    case SIO_FUJICMD_SET_DEVICE_FULLPATH:
+    case FUJICMD_SET_DEVICE_FULLPATH:
         comlynx_set_device_filename(s);
         break;
-    case SIO_FUJICMD_GET_DEVICE_FULLPATH:
+    case FUJICMD_GET_DEVICE_FULLPATH:
         comlynx_get_device_filename();
         break;
-    case SIO_FUJICMD_CONFIG_BOOT:
+    case FUJICMD_CONFIG_BOOT:
         comlynx_set_boot_config();
         break;
-    case SIO_FUJICMD_ENABLE_DEVICE:
+    case FUJICMD_ENABLE_DEVICE:
         comlynx_enable_device();
         break;
-    case SIO_FUJICMD_DISABLE_DEVICE:
+    case FUJICMD_DISABLE_DEVICE:
         comlynx_disable_device();
         break;
-    case SIO_FUJICMD_MOUNT_ALL:
+    case FUJICMD_MOUNT_ALL:
         sio_mount_all();
         break;
-    case SIO_FUJICMD_SET_BOOT_MODE:
+    case FUJICMD_SET_BOOT_MODE:
         comlynx_set_boot_mode();
         break;
-    case SIO_FUJICMD_WRITE_APPKEY:
+    case FUJICMD_WRITE_APPKEY:
         comlynx_write_app_key();
         break;
-    case SIO_FUJICMD_READ_APPKEY:
+    case FUJICMD_READ_APPKEY:
         comlynx_read_app_key();
         break;
-    case SIO_FUJICMD_RANDOM_NUMBER:
+    case FUJICMD_RANDOM_NUMBER:
         comlynx_random_number();
         break;
-    case SIO_FUJICMD_GET_TIME:
+    case FUJICMD_GET_TIME:
         comlynx_get_time();
         break;
-    case SIO_FUJICMD_DEVICE_ENABLE_STATUS:
+    case FUJICMD_DEVICE_ENABLE_STATUS:
         comlynx_device_enable_status();
         break;
-    case SIO_FUJICMD_COPY_FILE:
+    case FUJICMD_COPY_FILE:
         comlynx_copy_file();
         break;
-    case SIO_FUJICMD_ENABLE_UDPSTREAM:
+    case FUJICMD_ENABLE_UDPSTREAM:
         comlynx_enable_udpstream(s);
         break;
     case 0x01:

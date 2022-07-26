@@ -13,47 +13,6 @@
 
 #include "utils.h"
 
-
-#define SIO_FUJICMD_RESET 0xFF
-#define SIO_FUJICMD_GET_SSID 0xFE
-#define SIO_FUJICMD_SCAN_NETWORKS 0xFD
-#define SIO_FUJICMD_GET_SCAN_RESULT 0xFC
-#define SIO_FUJICMD_SET_SSID 0xFB
-#define SIO_FUJICMD_GET_WIFISTATUS 0xFA
-#define SIO_FUJICMD_MOUNT_HOST 0xF9
-#define SIO_FUJICMD_MOUNT_IMAGE 0xF8
-#define SIO_FUJICMD_OPEN_DIRECTORY 0xF7
-#define SIO_FUJICMD_READ_DIR_ENTRY 0xF6
-#define SIO_FUJICMD_CLOSE_DIRECTORY 0xF5
-#define SIO_FUJICMD_READ_HOST_SLOTS 0xF4
-#define SIO_FUJICMD_WRITE_HOST_SLOTS 0xF3
-#define SIO_FUJICMD_READ_DEVICE_SLOTS 0xF2
-#define SIO_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
-#define SIO_FUJICMD_UNMOUNT_IMAGE 0xE9
-#define SIO_FUJICMD_GET_ADAPTERCONFIG 0xE8
-#define SIO_FUJICMD_NEW_DISK 0xE7
-#define SIO_FUJICMD_UNMOUNT_HOST 0xE6
-#define SIO_FUJICMD_GET_DIRECTORY_POSITION 0xE5
-#define SIO_FUJICMD_SET_DIRECTORY_POSITION 0xE4
-#define SIO_FUJICMD_SET_HSIO_INDEX 0xE3
-#define SIO_FUJICMD_SET_DEVICE_FULLPATH 0xE2
-#define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
-#define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
-#define SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
-#define SIO_FUJICMD_WRITE_APPKEY 0xDE
-#define SIO_FUJICMD_READ_APPKEY 0xDD
-#define SIO_FUJICMD_OPEN_APPKEY 0xDC
-#define SIO_FUJICMD_CLOSE_APPKEY 0xDB
-#define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
-#define SIO_FUJICMD_CONFIG_BOOT 0xD9
-#define SIO_FUJICMD_COPY_FILE 0xD8
-#define SIO_FUJICMD_MOUNT_ALL 0xD7
-#define SIO_FUJICMD_SET_BOOT_MODE 0xD6
-#define SIO_FUJICMD_ENABLE_DEVICE 0xD5
-#define SIO_FUJICMD_DISABLE_DEVICE 0xD4
-#define SIO_FUJICMD_STATUS 0x53
-#define SIO_FUJICMD_HSIO_INDEX 0x3F
-
 #define ADDITIONAL_DETAILS_BYTES 12
 
 s100spiFuji theFuji;        // global fuji device object
@@ -158,7 +117,7 @@ void s100spiFuji::s100spi_net_scan_result()
 
     s100spi_recv(); // get CK
 
-    // Response to SIO_FUJICMD_GET_SCAN_RESULT
+    // Response to FUJICMD_GET_SCAN_RESULT
     struct
     {
         char ssid[MAX_SSID_LEN];
@@ -187,7 +146,7 @@ void s100spiFuji::s100spi_net_get_ssid()
 
     s100spi_recv(); // get CK
 
-    // Response to SIO_FUJICMD_GET_SSID
+    // Response to FUJICMD_GET_SSID
     struct
     {
         char ssid[MAX_SSID_LEN];
@@ -226,7 +185,7 @@ void s100spiFuji::s100spi_net_set_ssid(uint16_t s)
 
         s--;
 
-        // Data for SIO_FUJICMD_SET_SSID
+        // Data for FUJICMD_SET_SSID
         struct
         {
             char ssid[MAX_SSID_LEN];
@@ -337,11 +296,6 @@ void s100spiFuji::s100spi_set_boot_config()
 
 // Do SIO copy
 void s100spiFuji::s100spi_copy_file()
-{
-}
-
-// Mount all
-void s100spiFuji::s100spi_mount_all()
 {
 }
 
@@ -698,7 +652,7 @@ void s100spiFuji::s100spi_get_adapter_config()
     
     s100spi_response_ack();
 
-    // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
+    // Response to FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
 
     memset(&cfg, 0, sizeof(cfg));
@@ -1062,7 +1016,7 @@ void s100spiFuji::setup(systemBus *siobus)
 }
 
 // Mount all
-void s100spiFuji::sio_mount_all()
+void s100spiFuji::mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
@@ -1124,79 +1078,79 @@ void s100spiFuji::s100spi_control_send()
 
     switch (c)
     {
-    case SIO_FUJICMD_RESET:
+    case FUJICMD_RESET:
         s100spi_reset_fujinet();
         break;
-    case SIO_FUJICMD_GET_SSID:
+    case FUJICMD_GET_SSID:
         s100spi_net_get_ssid();
         break;
-    case SIO_FUJICMD_SCAN_NETWORKS:
+    case FUJICMD_SCAN_NETWORKS:
         s100spi_net_scan_networks();
         break;
-    case SIO_FUJICMD_GET_SCAN_RESULT:
+    case FUJICMD_GET_SCAN_RESULT:
         s100spi_net_scan_result();
         break;
-    case SIO_FUJICMD_SET_SSID:
+    case FUJICMD_SET_SSID:
         s100spi_net_set_ssid(s);
         break;
-    case SIO_FUJICMD_GET_WIFISTATUS:
+    case FUJICMD_GET_WIFISTATUS:
         s100spi_net_get_wifi_status();
         break;
-    case SIO_FUJICMD_MOUNT_HOST:
+    case FUJICMD_MOUNT_HOST:
         s100spi_mount_host();
         break;
-    case SIO_FUJICMD_MOUNT_IMAGE:
+    case FUJICMD_MOUNT_IMAGE:
         s100spi_disk_image_mount();
         break;
-    case SIO_FUJICMD_OPEN_DIRECTORY:
+    case FUJICMD_OPEN_DIRECTORY:
         s100spi_open_directory(s);
         break;
-    case SIO_FUJICMD_READ_DIR_ENTRY:
+    case FUJICMD_READ_DIR_ENTRY:
         s100spi_read_directory_entry();
         break;
-    case SIO_FUJICMD_CLOSE_DIRECTORY:
+    case FUJICMD_CLOSE_DIRECTORY:
         s100spi_close_directory();
         break;
-    case SIO_FUJICMD_READ_HOST_SLOTS:
+    case FUJICMD_READ_HOST_SLOTS:
         s100spi_read_host_slots();
         break;
-    case SIO_FUJICMD_WRITE_HOST_SLOTS:
+    case FUJICMD_WRITE_HOST_SLOTS:
         s100spi_write_host_slots();
         break;
-    case SIO_FUJICMD_READ_DEVICE_SLOTS:
+    case FUJICMD_READ_DEVICE_SLOTS:
         s100spi_read_device_slots();
         break;
-    case SIO_FUJICMD_WRITE_DEVICE_SLOTS:
+    case FUJICMD_WRITE_DEVICE_SLOTS:
         s100spi_write_device_slots();
         break;
-    case SIO_FUJICMD_UNMOUNT_IMAGE:
+    case FUJICMD_UNMOUNT_IMAGE:
         s100spi_disk_image_umount();
         break;
-    case SIO_FUJICMD_GET_ADAPTERCONFIG:
+    case FUJICMD_GET_ADAPTERCONFIG:
         s100spi_get_adapter_config();
         break;
-    case SIO_FUJICMD_NEW_DISK:
+    case FUJICMD_NEW_DISK:
         s100spi_new_disk();
         break;
-    case SIO_FUJICMD_GET_DIRECTORY_POSITION:
+    case FUJICMD_GET_DIRECTORY_POSITION:
         s100spi_get_directory_position();
         break;
-    case SIO_FUJICMD_SET_DIRECTORY_POSITION:
+    case FUJICMD_SET_DIRECTORY_POSITION:
         s100spi_set_directory_position();
         break;
-    case SIO_FUJICMD_SET_DEVICE_FULLPATH:
+    case FUJICMD_SET_DEVICE_FULLPATH:
         s100spi_set_device_filename(s);
         break;
-    case SIO_FUJICMD_GET_DEVICE_FULLPATH:
+    case FUJICMD_GET_DEVICE_FULLPATH:
         s100spi_get_device_filename();
         break;
-    case SIO_FUJICMD_CONFIG_BOOT:
+    case FUJICMD_CONFIG_BOOT:
         s100spi_set_boot_config();
         break;
-    case SIO_FUJICMD_ENABLE_DEVICE:
+    case FUJICMD_ENABLE_DEVICE:
         s100spi_enable_device();
         break;
-    case SIO_FUJICMD_DISABLE_DEVICE:
+    case FUJICMD_DISABLE_DEVICE:
         s100spi_disable_device();
         break;
     }
