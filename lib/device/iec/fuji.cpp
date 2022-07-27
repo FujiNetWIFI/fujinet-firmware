@@ -17,49 +17,15 @@
 #include "led.h"
 #include "utils.h"
 
+#define ADDITIONAL_DETAILS_BYTES 12
 
-#define BUS_FUJICMD_RESET 0xFF
-#define BUS_FUJICMD_GET_SSID 0xFE
-#define BUS_FUJICMD_SCAN_NETWORKS 0xFD
-#define BUS_FUJICMD_GET_SCAN_RESULT 0xFC
-#define BUS_FUJICMD_SET_SSID 0xFB
-#define BUS_FUJICMD_GET_WIFISTATUS 0xFA
-#define BUS_FUJICMD_MOUNT_HOST 0xF9
-#define BUS_FUJICMD_MOUNT_IMAGE 0xF8
-#define BUS_FUJICMD_OPEN_DIRECTORY 0xF7
-#define BUS_FUJICMD_READ_DIR_ENTRY 0xF6
-#define BUS_FUJICMD_CLOSE_DIRECTORY 0xF5
-#define BUS_FUJICMD_READ_HOST_SLOTS 0xF4
-#define BUS_FUJICMD_WRITE_HOST_SLOTS 0xF3
-#define BUS_FUJICMD_READ_DEVICE_SLOTS 0xF2
-#define BUS_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
-#define BUS_FUJICMD_UNMOUNT_IMAGE 0xE9
-#define BUS_FUJICMD_GET_ADAPTERCONFIG 0xE8
-#define BUS_FUJICMD_NEW_DISK 0xE7
-#define BUS_FUJICMD_UNMOUNT_HOST 0xE6
-#define BUS_FUJICMD_GET_DIRECTORY_POSITION 0xE5
-#define BUS_FUJICMD_SET_DIRECTORY_POSITION 0xE4
-#define BUS_FUJICMD_SET_HSIO_INDEX 0xE3
-#define BUS_FUJICMD_SET_DEVICE_FULLPATH 0xE2
-#define BUS_FUJICMD_SET_HOST_PREFIX 0xE1
-#define BUS_FUJICMD_GET_HOST_PREFIX 0xE0
-#define BUS_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
-#define BUS_FUJICMD_WRITE_APPKEY 0xDE
-#define BUS_FUJICMD_READ_APPKEY 0xDD
-#define BUS_FUJICMD_OPEN_APPKEY 0xDC
-#define BUS_FUJICMD_CLOSE_APPKEY 0xDB
-#define BUS_FUJICMD_GET_DEVICE_FULLPATH 0xDA
-#define BUS_FUJICMD_CONFIG_BOOT 0xD9
-#define BUS_FUJICMD_COPY_FILE 0xD8
-#define BUS_FUJICMD_MOUNT_ALL 0xD7
-#define BUS_FUJICMD_SET_BOOT_MODE 0xD6
-#define BUS_FUJICMD_STATUS 0x53
-#define BUS_FUJICMD_HSIO_INDEX 0x3F
+iecFuji theFuji;        // global fuji device object
+//iecNetwork *theNetwork; // global network device object (temporary)
+iecPrinter *thePrinter; // global printer
+//iecSerial *theSerial;   // global serial
 
-iecFuji theFuji; // global fuji device object
-
-//iecDisk iecDiskDevs[MAX_HOSTS];
-iecNetwork iecNetDevs[MAX_NETWORK_DEVICES];
+// sioDisk sioDiskDevs[MAX_HOSTS];
+// sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -190,7 +156,11 @@ void fujiDevice::bus_net_scan_result()
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
 
-    // Response to BUS_FUJICMD_GET_SCAN_RESULT
+    uint8_t n = iec_recv();
+
+    iec_recv(); // get CK
+
+    // Response to FUJICMD_GET_SCAN_RESULT
     struct
     {
         char ssid[MAX_SSID_LEN+1];
@@ -214,7 +184,9 @@ void fujiDevice::bus_net_get_ssid()
 {
     Debug_println("Fuji cmd: GET SSID");
 
-    // Response to BUS_FUJICMD_GET_SSID
+    iec_recv(); // get CK
+
+    // Response to FUJICMD_GET_SSID
     struct
     {
         char ssid[MAX_SSID_LEN+1];
@@ -244,12 +216,16 @@ void fujiDevice::bus_net_set_ssid()
 {
     Debug_println("Fuji cmd: SET SSID");
 
-    // Data for BUS_FUJICMD_SET_SSID
-    struct
-    {
-        char ssid[MAX_SSID_LEN+1];
-        char password[MAX_WIFI_PASS_LEN];
-    } cfg;
+        // Data for FUJICMD_SET_SSID
+        struct
+        {
+            char ssid[MAX_SSID_LEN];
+            char password[MAX_WIFI_PASS_LEN];
+        } cfg;
+
+        iec_recv_buffer((uint8_t *)&cfg, s);
+
+        uint8_t ck = iec_recv();
 
     uint8_t ck = bus_to_peripheral((uint8_t *)&cfg, sizeof(cfg));
 
@@ -477,61 +453,6 @@ void fujiDevice::bus_copy_file()
     fclose(sourceFile);
     fclose(destFile);
     free(dataBuf);
-}
-
-// Mount all
-void fujiDevice::bus_mount_all()
-{
-    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
-
-    for (int i = 0; i < 8; i++)
-    {
-        fujiDisk &disk = _fnDisks[i];
-        fujiHost &host = _fnHosts[disk.host_slot];
-        char flag[3] = {'r', 0, 0};
-
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-            flag[1] = '+';
-
-        if (disk.host_slot != 0xFF)
-        {
-            nodisks = false; // We have a disk in a slot
-
-            if (host.mount() == false)
-            {
-                bus_error();
-                return;
-            }
-
-            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-                         disk.filename, disk.host_slot, flag, i + 1);
-
-            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-            if (disk.fileh == nullptr)
-            {
-                bus_error();
-                return;
-            }
-
-            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-            boot_config = false;
-            status_wait_count = 0;
-
-            // We need the file size for loading XEX files and for CASSETTE, so get that too
-            disk.disk_size = host.file_size(disk.fileh);
-
-            // And now mount it
-            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-        }
-    }
-
-    if (nodisks){
-        // No disks in a slot, disable config
-        boot_config = false;
-    }
-
-    bus_complete();
 }
 
 // Set boot mode
@@ -1048,7 +969,12 @@ void fujiDevice::bus_get_adapter_config()
 {
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
-    // Response to BUS_FUJICMD_GET_ADAPTERCONFIG
+    iec_recv(); // ck
+
+    AdamNet.start_time = esp_timer_get_time();
+    iec_response_ack();
+
+    // Response to FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
 
     memset(&cfg, 0, sizeof(cfg));
@@ -1497,8 +1423,8 @@ void fujiDevice::insert_boot_device(uint8_t d)
     _bootDisk.device_active = false;
 }
 
-// Initializes base settings and adds our devices to the bus
-void fujiDevice::setup(systemBus *bus)
+// Mount all
+void iecFuji::mount_all()
 {
     // set up Fuji device
     _bus = bus;
@@ -1539,105 +1465,80 @@ void fujiDevice::bus_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case BUS_FUJICMD_HSIO_INDEX:
-        bus_ack();
-        bus_high_speed();
+    case FUJICMD_RESET:
+        iec_reset_fujinet();
         break;
-    case BUS_FUJICMD_SET_HSIO_INDEX:
-        bus_ack();
-        bus_set_hbus_index();
+    case FUJICMD_GET_SSID:
+        iec_net_get_ssid();
         break;
-    case BUS_FUJICMD_STATUS:
-        bus_ack();
-        bus_status();
+    case FUJICMD_SCAN_NETWORKS:
+        iec_net_scan_networks();
         break;
-    case BUS_FUJICMD_RESET:
-        bus_ack();
-        bus_reset_fujinet();
+    case FUJICMD_GET_SCAN_RESULT:
+        iec_net_scan_result();
         break;
-    case BUS_FUJICMD_SCAN_NETWORKS:
-        bus_ack();
-        bus_net_scan_networks();
+    case FUJICMD_SET_SSID:
+        iec_net_set_ssid(s);
         break;
-    case BUS_FUJICMD_GET_SCAN_RESULT:
-        bus_ack();
-        bus_net_scan_result();
+    case FUJICMD_GET_WIFISTATUS:
+        iec_net_get_wifi_status();
         break;
-    case BUS_FUJICMD_SET_SSID:
-        bus_ack();
-        bus_net_set_ssid();
+    case FUJICMD_MOUNT_HOST:
+        iec_mount_host();
         break;
-    case BUS_FUJICMD_GET_SSID:
-        bus_ack();
-        bus_net_get_ssid();
+    case FUJICMD_MOUNT_IMAGE:
+        iec_disk_image_mount();
         break;
-    case BUS_FUJICMD_GET_WIFISTATUS:
-        bus_ack();
-        bus_net_get_wifi_status();
+    case FUJICMD_OPEN_DIRECTORY:
+        iec_open_directory(s);
         break;
-    case BUS_FUJICMD_MOUNT_HOST:
-        bus_ack();
-        bus_mount_host();
+    case FUJICMD_READ_DIR_ENTRY:
+        iec_read_directory_entry();
         break;
-    case BUS_FUJICMD_MOUNT_IMAGE:
-        bus_ack();
-        bus_disk_image_mount();
+    case FUJICMD_CLOSE_DIRECTORY:
+        iec_close_directory();
         break;
-    case BUS_FUJICMD_OPEN_DIRECTORY:
-        bus_ack();
-        bus_open_directory();
+    case FUJICMD_READ_HOST_SLOTS:
+        iec_read_host_slots();
         break;
-    case BUS_FUJICMD_READ_DIR_ENTRY:
-        bus_ack();
-        bus_read_directory_entry();
+    case FUJICMD_WRITE_HOST_SLOTS:
+        iec_write_host_slots();
         break;
-    case BUS_FUJICMD_CLOSE_DIRECTORY:
-        bus_ack();
-        bus_close_directory();
+    case FUJICMD_READ_DEVICE_SLOTS:
+        iec_read_device_slots();
         break;
-    case BUS_FUJICMD_GET_DIRECTORY_POSITION:
-        bus_ack();
-        bus_get_directory_position();
+    case FUJICMD_WRITE_DEVICE_SLOTS:
+        iec_write_device_slots();
         break;
-    case BUS_FUJICMD_SET_DIRECTORY_POSITION:
-        bus_ack();
-        bus_set_directory_position();
+    case FUJICMD_UNMOUNT_IMAGE:
+        iec_disk_image_umount();
         break;
-    case BUS_FUJICMD_READ_HOST_SLOTS:
-        bus_ack();
-        bus_read_host_slots();
+    case FUJICMD_GET_ADAPTERCONFIG:
+        iec_get_adapter_config();
         break;
-    case BUS_FUJICMD_WRITE_HOST_SLOTS:
-        bus_ack();
-        bus_write_host_slots();
+    case FUJICMD_NEW_DISK:
+        iec_new_disk();
         break;
-    case BUS_FUJICMD_READ_DEVICE_SLOTS:
-        bus_ack();
-        bus_read_device_slots();
+    case FUJICMD_GET_DIRECTORY_POSITION:
+        iec_get_directory_position();
         break;
-    case BUS_FUJICMD_WRITE_DEVICE_SLOTS:
-        bus_ack();
-        bus_write_device_slots();
+    case FUJICMD_SET_DIRECTORY_POSITION:
+        iec_set_directory_position();
         break;
-    case BUS_FUJICMD_UNMOUNT_IMAGE:
-        bus_ack();
-        bus_disk_image_umount();
+    case FUJICMD_SET_DEVICE_FULLPATH:
+        iec_set_device_filename(s);
         break;
-    case BUS_FUJICMD_GET_ADAPTERCONFIG:
-        bus_ack();
-        bus_get_adapter_config();
+    case FUJICMD_GET_DEVICE_FULLPATH:
+        iec_get_device_filename();
         break;
-    case BUS_FUJICMD_NEW_DISK:
-        bus_ack();
-        bus_new_disk();
+    case FUJICMD_CONFIG_BOOT:
+        iec_set_boot_config();
         break;
-    case BUS_FUJICMD_SET_DEVICE_FULLPATH:
-        bus_ack();
-        bus_set_device_filename();
+    case FUJICMD_ENABLE_DEVICE:
+        iec_enable_device();
         break;
-    case BUS_FUJICMD_SET_HOST_PREFIX:
-        bus_ack();
-        bus_set_host_prefix();
+    case FUJICMD_DISABLE_DEVICE:
+        iec_disable_device();
         break;
     case BUS_FUJICMD_GET_HOST_PREFIX:
         bus_ack();

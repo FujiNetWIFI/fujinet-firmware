@@ -10,6 +10,7 @@
 
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
+#include "../device/iwm/cpm.h"
 
 // used for debugging - toggles line to show when the 
 // input line WRDATA is being sampled
@@ -1641,7 +1642,7 @@ void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
       //_netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (iwmNetwork *)pDevice;
       break;
     case iwm_fujinet_type_t::CPM:
-    //   _cpmDev = (iwmCPM *)pDevice;
+       _cpmDev = (iwmCPM *)pDevice;
        break;
     case iwm_fujinet_type_t::Printer:
       _printerdev = (iwmPrinter *)pDevice;
