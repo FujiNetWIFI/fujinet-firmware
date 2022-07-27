@@ -54,7 +54,7 @@ struct appkey
 class fujiDevice : public iecDevice
 {
 private:
-    systemBus *_bus;
+    iecBus *_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -120,14 +120,14 @@ public:
     
     iecDisk *bootdisk();
 
-    iecNetwork *network();
+//    iecNetwork *network();
 
-    iecCassette *cassette() { return &_cassetteDev; };
-    void debug_tape();
+//    iecCassette *cassette() { return &_cassetteDev; };
+//    void debug_tape();
 
     void insert_boot_device(uint8_t d);
 
-    void setup(systemBus *siobus);
+    void setup(iecBus *iecbus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);

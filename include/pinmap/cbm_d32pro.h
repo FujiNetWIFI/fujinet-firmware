@@ -1,10 +1,10 @@
 /* FujiNet Hardware Pin Mapping */
-#ifdef PINMAP_CBM
+#ifdef PINMAP_CBM_D32PRO
 
 /* SD Card */
 #define PIN_CARD_DETECT 12 // fnSystem.h
 #define PIN_CARD_DETECT_FIX 15 // fnSystem.h
-#define PIN_SD_HOST_CS GPIO_NUM_5 //fnFsSD.cpp
+#define PIN_SD_HOST_CS GPIO_NUM_4 // LOLIN D32 Pro
 #define PIN_SD_HOST_MISO GPIO_NUM_19
 #define PIN_SD_HOST_MOSI GPIO_NUM_23
 #define PIN_SD_HOST_SCK GPIO_NUM_18
@@ -24,13 +24,13 @@
 
 /* LEDs */
 #define PIN_LED_WIFI 2 // led.cpp
-#define PIN_LED_BUS 4
+#define PIN_LED_BUS 5 // LOLIN D32 PRO
 // pins 12-15 are used to interface with the JTAG debugger
 // so leave them alone if we're using JTAG
 #if !defined(JTAG)
 #define PIN_LED_BT 13
 #else
-#define PIN_LED_BT 4
+#define PIN_LED_BT 5 // LOLIN D32 PRO
 #endif
 
 /* Audio Output */
@@ -44,18 +44,19 @@
 //#define INVERTED_LINES
 
 // CBM IEC Serial Port
-#define PIN_IEC_ATN			22      // SIO 9  - PROC - Proceed
-#define PIN_IEC_CLK_IN  	27      // SIO 1  - CKI  - Clock Input
-#define PIN_IEC_DATA_IN		21      // SIO 3  - DI   - Data Input
-#define PIN_IEC_SRQ			26      // SIO 13 - INT  - Interrupt
-#define PIN_IEC_RESET       39      // SIO 7  - CMD  - Command
+#define PIN_IEC_ATN         GPIO_NUM_32
+#define PIN_IEC_CLK_IN		GPIO_NUM_33
+#define PIN_IEC_DATA_IN    	GPIO_NUM_25
+#define PIN_IEC_SRQ			GPIO_NUM_26
+#define PIN_IEC_RESET       GPIO_NUM_34
+
 
 #ifndef SPLIT_LINES
-#define PIN_IEC_CLK_OUT		27      // SIO 1  - CKI  - Clock Input
-#define PIN_IEC_DATA_OUT	21      // SIO 3  - DI   - Data Input
+#define PIN_IEC_CLK_OUT	    GPIO_NUM_33
+#define PIN_IEC_DATA_OUT   	GPIO_NUM_25
 #else
-#define PIN_IEC_CLK_OUT		32      // SIO 2  - CKO  - Clock Output
-#define PIN_IEC_DATA_OUT	33      // SIO 5  - DO   - Data Output
+#define PIN_IEC_CLK_OUT	    GPIO_NUM_27
+#define PIN_IEC_DATA_OUT   	GPIO_NUM_14
 #endif
 
-#endif /* PINMAP_CBM */
+#endif /* PINMAP_CBM_D32PRO */
