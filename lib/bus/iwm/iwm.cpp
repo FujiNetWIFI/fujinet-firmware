@@ -861,6 +861,7 @@ void iwmBus::setup(void)
   fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
 #else
   fnSystem.set_pin_mode(SP_ENABLE, gpio_mode_t::GPIO_MODE_INPUT);
 #endif
