@@ -748,7 +748,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   iwm_timer_reset();
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(10000); // 1 millisecond per IIgs?
+  iwm_timer_alarm_set(300000); // increased to 30 millisecond per IIgs & gsos
 
   // while (!fnSystem.digital_read(SP_REQ))
   while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
